@@ -2184,6 +2184,8 @@ struct zap_details {
 /* Set in unmap_vmas() to indicate a final unmap call.  Only used by hugetlb */
 #define  ZAP_FLAG_UNMAP              ((__force zap_flags_t) BIT(1))
 
+void shmem_set_file(struct vm_area_struct *vma, struct file *file);
+
 #ifdef CONFIG_MMU
 extern bool can_do_mlock(void);
 #else
