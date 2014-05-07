@@ -185,6 +185,12 @@ config INPUT_APMPOWER
 	  To compile this driver as a module, choose M here: the
 	  module will be called apm-power.
 
+config INPUT_KEYCOMBO
+	tristate "Key combo"
+	depends on INPUT
+	help
+	  Say Y here if you want to take action when some keys are pressed;
+
 comment "Input Device Drivers"
 
 source "drivers/input/keyboard/Kconfig"
