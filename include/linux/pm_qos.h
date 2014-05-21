@@ -15,6 +15,8 @@
 #include <linux/plist.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
+#include <linux/cpumask.h>
+#include <linux/interrupt.h>
 
 enum pm_qos_flags_status {
 	PM_QOS_FLAGS_UNDEFINED = -1,
@@ -44,6 +46,14 @@ enum pm_qos_type {
 	PM_QOS_MIN,		/* return the smallest value */
 };
 
+enum pm_qos_req_type {
+	PM_QOS_REQ_ALL_CORES = 0,
+	PM_QOS_REQ_AFFINE_CORES,
+#ifdef CONFIG_SMP
+	PM_QOS_REQ_AFFINE_IRQ,
+#endif
+};
+
 /*
  * Note: The lockless read path depends on the CPU accessing target_value
  * or effective_flags atomically.  Atomic access is only guaranteed on all CPU
@@ -52,6 +62,7 @@ enum pm_qos_type {
 struct pm_qos_constraints {
 	struct plist_head list;
 	s32 target_value;	/* Do not change to 64 bit */
+	s32 target_per_cpu[NR_CPUS];
 	s32 default_value;
 	s32 no_constraint_value;
 	enum pm_qos_type type;
@@ -59,6 +70,13 @@ struct pm_qos_constraints {
 };
 
 struct pm_qos_request {
+	enum pm_qos_req_type type;
+	struct cpumask cpus_affine;
+#ifdef CONFIG_SMP
+	uint32_t irq;
+	/* Internal structure members */
+	struct irq_affinity_notify irq_notify;
+#endif
 	struct plist_node node;
 	struct pm_qos_constraints *qos;
 };
@@ -145,13 +163,13 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 			 enum pm_qos_req_action action, s32 val);
 
 #ifdef CONFIG_CPU_IDLE
-s32 cpu_latency_qos_limit(void);
+s32 cpu_latency_qos_limit(int cpu);
 bool cpu_latency_qos_request_active(struct pm_qos_request *req);
 void cpu_latency_qos_add_request(struct pm_qos_request *req, s32 value);
 void cpu_latency_qos_update_request(struct pm_qos_request *req, s32 new_value);
 void cpu_latency_qos_remove_request(struct pm_qos_request *req);
 #else
-static inline s32 cpu_latency_qos_limit(void) { return INT_MAX; }
+static inline s32 cpu_latency_qos_limit(int cpu) { return INT_MAX; }
 static inline bool cpu_latency_qos_request_active(struct pm_qos_request *req)
 {
 	return false;
