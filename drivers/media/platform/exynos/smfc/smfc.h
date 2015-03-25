@@ -12,16 +12,34 @@
 #ifndef _MEDIA_EXYNOS_SMFC_H_
 #define _MEDIA_EXYNOS_SMFC_H_
 
+#define MODULE_NAME	"exynos-jpeg"
+
 struct device;
+struct video_device;
 
 struct smfc_dev {
+	struct v4l2_device v4l2_dev;
+	struct video_device *videodev;
+	struct v4l2_m2m_dev *m2mdev;
 	struct device *dev;
 	void __iomem *reg;
+	struct mutex video_device_mutex;
 	int device_id;
 	u32 hwver;
 
 	struct clk *clk_gate;
 	struct clk *clk_gate2; /* available if clk_gate is valid */
 };
+
+struct smfc_ctx {
+	struct v4l2_fh v4l2_fh;
+	struct smfc_dev *smfc;
+	struct v4l2_m2m_ctx *m2mctx;
+};
+
+static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
+{
+	return container_of(fh, struct smfc_ctx, v4l2_fh);
+}
 
 #endif /* _MEDIA_EXYNOS_SMFC_H_ */
