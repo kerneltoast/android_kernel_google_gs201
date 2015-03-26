@@ -29,6 +29,210 @@
 #include "smfc.h"
 #include "smfc-regs.h"
 
+const struct smfc_image_format smfc_image_formats[] = {
+	{
+		/* JPEG should be the first format */
+		.description	= "Baseline JPEG(Sequential DCT)",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_JPEG,
+		.regcfg		= 0, /* Chagneable accroding to chroma factor */
+		.bpp_buf	= {0}, /* undeterministic */
+		.bpp_pix	= {0}, /* undeterministic */
+		.num_planes	= 1,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 1, /* dummy chroma subsampling factor */
+		.chroma_vfactor	= 1, /* These will not affect to H/W config. */
+	}, {
+		/* YUYV is the default format */
+		.description	= "YUV4:2:2 1-Plane 16BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_YUYV,
+		.regcfg		= SMFC_IMGFMT_YUYV,
+		.bpp_buf	= {16},
+		.bpp_pix	= {16},
+		.num_planes	= 1,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 1,
+	}, {
+		.description	= "YUV4:2:2 1-Plane 16BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_YVYU,
+		.regcfg		= SMFC_IMGFMT_YVYU,
+		.bpp_buf	= {16},
+		.bpp_pix	= {16},
+		.num_planes	= 1,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 1,
+	}, {
+		.description	= "YUV4:2:2 2-Plane 16BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_NV16,
+		.regcfg		= SMFC_IMGFMT_NV16,
+		.bpp_buf	= {16},
+		.bpp_pix	= {8, 8, 0},
+		.num_planes	= 2,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 1,
+	}, {
+		.description	= "YUV4:2:2 2-Plane 16BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_NV61,
+		.regcfg		= SMFC_IMGFMT_NV61,
+		.bpp_buf	= {16},
+		.bpp_pix	= {8, 8, 0},
+		.num_planes	= 2,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 1,
+	}, {
+		.description	= "YUV4:2:2 3-Plane 16BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_YUV422P,
+		.regcfg		= SMFC_IMGFMT_YUV422,
+		.bpp_buf	= {16},
+		.bpp_pix	= {8, 2, 2},
+		.num_planes	= 3,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 1,
+	}, {
+		.description	= "YUV4:2:0 2-Plane(Cb/Cr) 12BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_NV12,
+		.regcfg		= SMFC_IMGFMT_NV12,
+		.bpp_buf	= {12},
+		.bpp_pix	= {8, 4, 0},
+		.num_planes	= 2,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 2,
+	}, {
+		.description	= "YUV4:2:0 2-Plane(Cr/Cb) 12BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_NV21,
+		.regcfg		= SMFC_IMGFMT_NV21,
+		.bpp_buf	= {12},
+		.bpp_pix	= {8, 4, 0},
+		.num_planes	= 2,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 2,
+	}, {
+		.description	= "YUV4:2:0 3-Plane 12BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_YUV420,
+		.regcfg		= SMFC_IMGFMT_YUV420P,
+		.bpp_buf	= {12},
+		.bpp_pix	= {8, 2, 2},
+		.num_planes	= 3,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 2,
+	}, {
+		.description	= "YVU4:2:0 3-Plane 12BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_YVU420,
+		.regcfg		= SMFC_IMGFMT_YVU420P,
+		.bpp_buf	= {12},
+		.bpp_pix	= {8, 2, 2},
+		.num_planes	= 3,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 2,
+	}, {
+		.description	= "YUV4:4:4 3-Plane 16BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_YUV444,
+		.regcfg		= SMFC_IMGFMT_YUV444,
+		.bpp_buf	= {24},
+		.bpp_pix	= {8, 8, 8},
+		.num_planes	= 3,
+		.num_buffers	= 1,
+		.chroma_hfactor	= 1,
+		.chroma_vfactor	= 1,
+	}, {
+		.description	= "RGB565 LE 16BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_RGB565,
+		.regcfg		= SMFC_IMGFMT_RGB565,
+		.bpp_buf	= {16},
+		.bpp_pix	= {16},
+		.num_planes	= 1,
+		.num_buffers	= 1,
+	}, {
+		.description	= "RGB565 BE 16BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_RGB565X,
+		.regcfg		= SMFC_IMGFMT_BGR565,
+		.bpp_buf	= {16},
+		.bpp_pix	= {16},
+		.num_planes	= 1,
+		.num_buffers	= 1,
+	}, {
+		.description	= "RGB888 LE 24BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_RGB24,
+		.regcfg		= SMFC_IMGFMT_RGB24,
+		.bpp_buf	= {24},
+		.bpp_pix	= {24},
+		.num_planes	= 1,
+		.num_buffers	= 1,
+	}, {
+		.description	= "RGB888 BE 24BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_BGR24,
+		.regcfg		= SMFC_IMGFMT_BGR24,
+		.bpp_buf	= {24},
+		.bpp_pix	= {24},
+		.num_planes	= 1,
+		.num_buffers	= 1,
+	}, {
+		.description	= "ABGR8888 LE 32BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_RGB32,
+		.regcfg		= SMFC_IMGFMT_RGBA32,
+		.bpp_pix	= {32},
+		.num_planes	= 1,
+		.num_buffers	= 1,
+	}, {
+		.description	= "ARGB8888 BE 32BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_BGR32,
+		.regcfg		= SMFC_IMGFMT_BGRA32,
+		.bpp_pix	= {32},
+		.num_planes	= 1,
+		.num_buffers	= 1,
+	},
+	/* multi-planar formats must be at the last becuse of VIDOC_ENUM_FMT */
+	{
+		.description	= "YUV4:2:0 2-MPlane(Cb/Cr) 8+4BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_NV12M,
+		.regcfg		= SMFC_IMGFMT_NV12,
+		.bpp_buf	= {8, 4},
+		.bpp_pix	= {8, 4},
+		.num_planes	= 2,
+		.num_buffers	= 2,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 2,
+	}, {
+		.description	= "YUV4:2:0 2-MPlane(Cr/Cb) 8+4BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_NV21M,
+		.regcfg		= SMFC_IMGFMT_NV21,
+		.bpp_buf	= {8, 4},
+		.bpp_pix	= {8, 4},
+		.num_planes	= 2,
+		.num_buffers	= 2,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 2,
+	}, {
+		.description	= "YUV4:2:0 3-MPlane 8+2+2BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_YUV420M,
+		.regcfg		= SMFC_IMGFMT_YUV420P,
+		.bpp_buf	= {8, 2, 2},
+		.bpp_pix	= {8, 2, 2},
+		.num_planes	= 3,
+		.num_buffers	= 3,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 2,
+	}, {
+		.description	= "YVU4:2:0 3-MPlane 8+2+2BPP",
+		.v4l2_pixfmt	= V4L2_PIX_FMT_YVU420M,
+		.regcfg		= SMFC_IMGFMT_YVU420P,
+		.bpp_buf	= {8, 2, 2},
+		.bpp_pix	= {8, 2, 2},
+		.num_planes	= 3,
+		.num_buffers	= 3,
+		.chroma_hfactor	= 2,
+		.chroma_vfactor	= 2,
+	}
+};
+
 static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 {
 	return IRQ_HANDLED;
@@ -209,7 +413,39 @@ static const struct v4l2_file_operations smfc_v4l2_fops = {
 	.mmap		= exynos_smfc_mmap,
 };
 
+static int smfc_v4l2_enum_fmt_mplane(struct file *filp, void *fh,
+				     struct v4l2_fmtdesc *f)
+{
+	const struct smfc_image_format *fmt;
+
+	if (f->index >= ARRAY_SIZE(smfc_image_formats))
+		return -EINVAL;
+
+	fmt = &smfc_image_formats[f->index];
+	strncpy(f->description, fmt->description, sizeof(f->description));
+	f->description[sizeof(f->description) - 1] = '\0';
+	f->pixelformat = fmt->v4l2_pixfmt;
+	if (fmt->bpp_buf[0] == 0)
+		f->flags = V4L2_FMT_FLAG_COMPRESSED;
+
+	return 0;
+}
+
+static int smfc_v4l2_enum_fmt(struct file *filp, void *fh,
+			      struct v4l2_fmtdesc *f)
+{
+	int ret = smfc_v4l2_enum_fmt_mplane(filp, fh, f);
+	if (ret < 0)
+		return ret;
+
+	return smfc_image_formats[f->index].num_buffers > 1 ? -EINVAL : 0;
+}
+
 static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
+	.vidioc_enum_fmt_vid_cap	= smfc_v4l2_enum_fmt,
+	.vidioc_enum_fmt_vid_out	= smfc_v4l2_enum_fmt,
+	.vidioc_enum_fmt_vid_cap_mplane	= smfc_v4l2_enum_fmt_mplane,
+	.vidioc_enum_fmt_vid_out_mplane	= smfc_v4l2_enum_fmt_mplane,
 };
 
 static void smfc_m2m_device_run(void *priv)

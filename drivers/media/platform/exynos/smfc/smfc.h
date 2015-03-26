@@ -17,6 +17,18 @@
 struct device;
 struct video_device;
 
+struct smfc_image_format {
+	const char	*description;
+	__u32		v4l2_pixfmt;
+	u32		regcfg;
+	unsigned char	bpp_buf[3];
+	unsigned char	bpp_pix[3];
+	unsigned char	num_planes;
+	unsigned char	num_buffers;
+	unsigned char	chroma_hfactor;
+	unsigned char	chroma_vfactor;
+};
+
 struct smfc_dev {
 	struct v4l2_device v4l2_dev;
 	struct video_device *videodev;
