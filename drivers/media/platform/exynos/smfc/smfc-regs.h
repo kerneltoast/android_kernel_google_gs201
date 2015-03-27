@@ -12,6 +12,12 @@
 #ifndef _MEDIA_EXYNOS_SMFC_REGS_H_
 #define _MEDIA_EXYNOS_SMFC_REGS_H_
 
+/********** H/W RESTRICTIONS **************************************************/
+#define SMFC_MAX_WIDTH	16368U
+#define SMFC_MAX_HEIGHT	16368U
+#define SMFC_MIN_WIDTH	8U
+#define SMFC_MIN_HEIGHT	8U
+
 #define REG_MAIN_IMAGE_FORMAT		0x040
 #define REG_SECD_IMAGE_FORMAT		0x0B8
 

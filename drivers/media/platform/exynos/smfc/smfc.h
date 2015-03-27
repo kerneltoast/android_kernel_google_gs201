@@ -29,6 +29,11 @@ struct smfc_image_format {
 	unsigned char	chroma_vfactor;
 };
 
+static inline bool is_jpeg(const struct smfc_image_format *fmt)
+{
+	return fmt->bpp_buf[0] == 0;
+}
+
 struct smfc_dev {
 	struct v4l2_device v4l2_dev;
 	struct video_device *videodev;
@@ -43,15 +48,36 @@ struct smfc_dev {
 	struct clk *clk_gate2; /* available if clk_gate is valid */
 };
 
+#define SMFC_CTX_COMPRESS	(1 << 0)
+
 struct smfc_ctx {
 	struct v4l2_fh v4l2_fh;
 	struct smfc_dev *smfc;
 	struct v4l2_m2m_ctx *m2mctx;
+	u32 flags;
+	/* uncomressed image description */
+	const struct smfc_image_format *img_fmt;
+	__u32 width;
+	__u32 height;
+	/* JPEG chroma subsampling factors */
+	unsigned char chroma_hfactor;
+	unsigned char chroma_vfactor;
 };
 
 static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
 {
 	return container_of(fh, struct smfc_ctx, v4l2_fh);
+}
+
+static inline void smfc_config_ctxflag(struct smfc_ctx *ctx,
+				       u32 flag, bool set)
+{
+	ctx->flags = set ? ctx->flags | flag : ctx->flags & ~flag;
+}
+
+static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
+{
+	return !(ctx->flags & SMFC_CTX_COMPRESS) == V4L2_TYPE_IS_OUTPUT(type);
 }
 
 #endif /* _MEDIA_EXYNOS_SMFC_H_ */
