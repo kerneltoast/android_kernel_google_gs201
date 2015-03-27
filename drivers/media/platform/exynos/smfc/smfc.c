@@ -29,6 +29,22 @@
 #include "smfc.h"
 #include "smfc-regs.h"
 
+/* SMFC SPECIFIC DEVICE CAPABILITIES */
+/* set if H/W supports for decompression */
+#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION		0x0100
+/* set if H/W can compress dual images */
+#define V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION		0x0200
+/* set if H/W supports for Hardware Flow Control */
+#define V4L2_CAP_EXYNOS_JPEG_HWFC			0x0400
+/* set if H/W supports for HWFC on internal buffers */
+#define V4L2_CAP_EXYNOS_JPEG_HWFC_EMBEDDED		0x0800
+/* set if H/W has a register to configure stream buffer size */
+#define V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE  		0x1000
+/* set if H/W does not have 128-bit alignment constraint for stream base */
+#define V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN	0x2000
+/* set if H/W does not have 128-bit alignment constraint for image base */
+#define V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN		0x4000
+
 const struct smfc_image_format smfc_image_formats[] = {
 	{
 		/* JPEG should be the first format */
@@ -413,6 +429,34 @@ static const struct v4l2_file_operations smfc_v4l2_fops = {
 	.mmap		= exynos_smfc_mmap,
 };
 
+static int smfc_v4l2_querycap(struct file *filp, void *fh,
+			     struct v4l2_capability *cap)
+{
+	struct smfc_dev *smfc = v4l2_fh_to_smfc_ctx(fh)->smfc;
+
+	strncpy(cap->driver, MODULE_NAME, sizeof(cap->driver));
+	strncpy(cap->bus_info, dev_name(smfc->dev), sizeof(cap->bus_info));
+	scnprintf(cap->card, sizeof(cap->card), "Still MFC %02x.%02x.%04x",
+			(smfc->hwver >> 24) & 0xFF, (smfc->hwver >> 16) & 0xFF,
+			smfc->hwver & 0xFFFF);
+
+	cap->driver[sizeof(cap->driver) - 1] = '\0';
+	cap->card[sizeof(cap->card) - 1] = '\0';
+	cap->bus_info[sizeof(cap->bus_info) - 1] = '\0';
+
+	cap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE
+				| V4L2_CAP_VIDEO_M2M;
+	cap->capabilities |= V4L2_CAP_DEVICE_CAPS;
+
+	cap->device_caps = V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION;
+	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_HWFC;
+	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE;
+	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN;
+	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN;
+
+	return 0;
+}
+
 static int smfc_v4l2_enum_fmt_mplane(struct file *filp, void *fh,
 				     struct v4l2_fmtdesc *f)
 {
@@ -442,6 +486,7 @@ static int smfc_v4l2_enum_fmt(struct file *filp, void *fh,
 }
 
 static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
+	.vidioc_querycap		= smfc_v4l2_querycap,
 	.vidioc_enum_fmt_vid_cap	= smfc_v4l2_enum_fmt,
 	.vidioc_enum_fmt_vid_out	= smfc_v4l2_enum_fmt,
 	.vidioc_enum_fmt_vid_cap_mplane	= smfc_v4l2_enum_fmt_mplane,
