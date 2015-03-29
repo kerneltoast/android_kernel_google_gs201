@@ -665,12 +665,53 @@ static int smfc_v4l2_try_fmt_mplane(struct file *filp, void *fh,
 			ctx, smfc_fmt, f->type, &f->fmt.pix_mp) ? 0 : -EINVAL;
 }
 
+static int smfc_v4l2_check_s_fmt(struct smfc_ctx *ctx,
+				 const struct smfc_image_format *smfc_fmt,
+				 __u32 type)
+{
+	struct vb2_queue *thisvq = v4l2_m2m_get_vq(ctx->m2mctx, type);
+	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->m2mctx,
+			V4L2_TYPE_IS_OUTPUT(type) ?
+				V4L2_BUF_TYPE_VIDEO_CAPTURE :
+				V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	u32 flags;
+
+	if (thisvq->num_buffers > 0) {
+		dev_err(ctx->smfc->dev,
+			"S_FMT after REQBUFS is not allowed\n");
+		return -EBUSY;
+	}
+
+	flags = smfc_config_ctxflag(ctx, SMFC_CTX_COMPRESS,
+			is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(type));
+
+	if (othervq->num_buffers > 0) { /* REQBUFSed on other vq */
+		if ((flags & SMFC_CTX_COMPRESS) !=
+					(ctx->flags & SMFC_CTX_COMPRESS)) {
+			dev_err(ctx->smfc->dev,
+				"Changing mode is prohibited after reqbufs\n");
+			ctx->flags = flags;
+			return -EBUSY;
+		}
+	}
+
+	/* reset the buf type of vq with the given buf type */
+	thisvq->type = type;
+
+	return 0;
+}
+
+
+
 static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 				    struct v4l2_format *f)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
 	const struct smfc_image_format *smfc_fmt =
 			smfc_find_format(ctx->smfc, f->fmt.pix_mp.pixelformat);
+	int ret = smfc_v4l2_check_s_fmt(ctx, smfc_fmt, f->type);
+	if (ret)
+		return ret;
 
 	if (!smfc_v4l2_init_fmt_mplane(ctx, smfc_fmt, f->type, &f->fmt.pix_mp))
 		return -EINVAL;
@@ -680,12 +721,6 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 
 	if (f->fmt.pix_mp.pixelformat != V4L2_PIX_FMT_JPEG)
 		ctx->img_fmt = smfc_fmt;
-
-	smfc_config_ctxflag(ctx, SMFC_CTX_COMPRESS,
-			is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(f->type));
-
-	/* reset the buf type */
-	v4l2_m2m_get_vq(ctx->m2mctx, f->type)->type = f->type;
 
 	return 0;
 }
@@ -724,6 +759,9 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
 	const struct smfc_image_format *smfc_fmt =
 			smfc_find_format(ctx->smfc, f->fmt.pix.pixelformat);
+	int ret = smfc_v4l2_check_s_fmt(ctx, smfc_fmt, f->type);
+	if (ret)
+		return ret;
 
 	if (!smfc_v4l2_init_fmt(ctx, smfc_fmt, f->type, &f->fmt.pix))
 		return -EINVAL;
@@ -734,13 +772,21 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 	if (f->fmt.pix.pixelformat != V4L2_PIX_FMT_JPEG)
 		ctx->img_fmt = smfc_fmt;
 
-	smfc_config_ctxflag(ctx, SMFC_CTX_COMPRESS,
-			is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(f->type));
-
-	/* reset the buf type */
-	v4l2_m2m_get_vq(ctx->m2mctx, f->type)->type = f->type;
-
 	return 0;
+}
+
+static int smfc_v4l2_reqbufs(struct file *filp, void *fh,
+			     struct v4l2_requestbuffers *reqbufs)
+{
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	return v4l2_m2m_reqbufs(filp, ctx->m2mctx, reqbufs);
+}
+
+static int smfc_v4l2_querybuf(struct file *filp, void *fh,
+			      struct v4l2_buffer *buf)
+{
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	return v4l2_m2m_querybuf(filp, ctx->m2mctx, buf);
 }
 
 static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
@@ -761,6 +807,8 @@ static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_s_fmt_vid_out		= smfc_v4l2_s_fmt,
 	.vidioc_s_fmt_vid_cap_mplane	= smfc_v4l2_s_fmt_mplane,
 	.vidioc_s_fmt_vid_out_mplane	= smfc_v4l2_s_fmt_mplane,
+	.vidioc_reqbufs			= smfc_v4l2_reqbufs,
+	.vidioc_querybuf		= smfc_v4l2_querybuf,
 };
 
 static void smfc_m2m_device_run(void *priv)

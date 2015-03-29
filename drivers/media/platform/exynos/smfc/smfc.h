@@ -69,10 +69,12 @@ static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
 	return container_of(fh, struct smfc_ctx, v4l2_fh);
 }
 
-static inline void smfc_config_ctxflag(struct smfc_ctx *ctx,
-				       u32 flag, bool set)
+/* return the previous flag */
+static inline u32 smfc_config_ctxflag(struct smfc_ctx *ctx, u32 flag, bool set)
 {
+	u32 prevflags = ctx->flags;
 	ctx->flags = set ? ctx->flags | flag : ctx->flags & ~flag;
+	return prevflags;
 }
 
 static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
