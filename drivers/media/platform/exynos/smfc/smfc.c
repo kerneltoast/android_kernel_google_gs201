@@ -308,7 +308,22 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 
 static int smfc_vb2_buf_prepare(struct vb2_buffer *vb)
 {
-	/* TODO: fix configuration of payload */
+	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	unsigned int i;
+
+	if (!smfc_is_compressed_type(ctx, vb->vb2_queue->type)) {
+		unsigned long payload = ctx->width * ctx->height;
+		for (i = 0; i < ctx->img_fmt->num_buffers; i++) {
+			unsigned long planebytes;
+			planebytes = (payload * ctx->img_fmt->bpp_buf[i]) / 8;
+			if (vb2_get_plane_payload(vb, i) < planebytes) {
+				dev_err(ctx->smfc->dev,
+				"Too small bytes_used[%lu]=%u (req.:%lu)\n",
+				vb2_get_plane_payload(vb, i), i, planebytes);
+				return -EINVAL;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -789,6 +804,18 @@ static int smfc_v4l2_querybuf(struct file *filp, void *fh,
 	return v4l2_m2m_querybuf(filp, ctx->m2mctx, buf);
 }
 
+static int smfc_v4l2_qbuf(struct file *filp, void *fh, struct v4l2_buffer *buf)
+{
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	return v4l2_m2m_qbuf(filp, ctx->m2mctx, buf);
+}
+
+static int smfc_v4l2_dqbuf(struct file *filp, void *fh, struct v4l2_buffer *buf)
+{
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	return v4l2_m2m_dqbuf(filp, ctx->m2mctx, buf);
+}
+
 static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_querycap		= smfc_v4l2_querycap,
 	.vidioc_enum_fmt_vid_cap	= smfc_v4l2_enum_fmt,
@@ -809,6 +836,8 @@ static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_s_fmt_vid_out_mplane	= smfc_v4l2_s_fmt_mplane,
 	.vidioc_reqbufs			= smfc_v4l2_reqbufs,
 	.vidioc_querybuf		= smfc_v4l2_querybuf,
+	.vidioc_qbuf			= smfc_v4l2_qbuf,
+	.vidioc_dqbuf			= smfc_v4l2_dqbuf,
 };
 
 static void smfc_m2m_device_run(void *priv)
