@@ -12,16 +12,62 @@
 #ifndef _MEDIA_EXYNOS_SMFC_REGS_H_
 #define _MEDIA_EXYNOS_SMFC_REGS_H_
 
+/********** JPEG STANDARD *****************************************************/
+#define SMFC_MCU_SIZE	64
+
 /********** H/W RESTRICTIONS **************************************************/
 #define SMFC_MAX_WIDTH	16368U
 #define SMFC_MAX_HEIGHT	16368U
 #define SMFC_MIN_WIDTH	8U
 #define SMFC_MIN_HEIGHT	8U
+#define SMFC_ADDR_ALIGN_MASK (16 - 1) /* 128-bit align */
 
+/********** H/W REGISTERS and DEFAULT VALUES **********************************/
+#define REG_JPEG_CNTL			0x000
+#define REG_INT_EN			0x004
+#define REG_TIMER_COUNT			0x008
+#define REG_INT_STATUS			0x00C
+#define REG_MAIN_IMAGE_SIZE		0x014
+#define REG_MAIN_JPEG_BASE		0x010
+#define REG_MAIN_IMAGE_BASE(n)		(0x018 + (n) * 12)
 #define REG_MAIN_IMAGE_FORMAT		0x040
-#define REG_SECD_IMAGE_FORMAT		0x0B8
+#define REG_MAIN_STREAM_SIZE		0x044
+#define REG_MAIN_MAX_STREAM_SIZE	0x06C
 
 #define REG_IP_VERSION_NUMBER		0x064
+
+#define REG_SECD_IMAGE_FORMAT		0x0B8
+
+#define REG_TABLE_SELECT		0x03C
+/*
+ * Component 0: Q-table 0, AC/DC table 0
+ * Component 1 and 2: Q-table 1, AC/DC table 1
+ */
+#define VAL_TABLE_SELECT		0xF14
+/* 64 reigsters for four quantization tables are prepared */
+#define REG_QTBL_BASE			0x100
+/*
+ * Total 112 registers for huffman tables:
+ * 0x200 - 4 DC Luma code lengths registers
+ * 0x210 - 4 DC Luma values registers
+ * 0x220 - 4 DC Chroma code lengths registers
+ * 0x230 - 4 DC Chroma values registers
+ * 0x240 - 4 AC Luma code lengths registers
+ * 0x250 - 44 AC Luma values registers
+ * 0x300 - 4 AC Chroma code lengths registers
+ * 0x310 - 44 ACChroma values registers
+ */
+#define REG_HTBL_BASE			0x200
+#  define REG_HTBL_LUMA_DCLEN	REG_HTBL_BASE
+#  define REG_HTBL_LUMA_DCVAL	(REG_HTBL_LUMA_DCLEN + 4 * sizeof(u32))
+#  define REG_HTBL_CHROMA_DCLEN	(REG_HTBL_LUMA_DCVAL + 4 * sizeof(u32))
+#  define REG_HTBL_CHROMA_DCVAL	(REG_HTBL_CHROMA_DCLEN + 4 * sizeof(u32))
+#  define REG_HTBL_LUMA_ACLEN	(REG_HTBL_CHROMA_DCVAL + 4 * sizeof(u32))
+#  define REG_HTBL_LUMA_ACVAL	(REG_HTBL_LUMA_ACLEN + 4 * sizeof(u32))
+#  define REG_HTBL_CHROMA_ACLEN	(REG_HTBL_LUMA_ACVAL + 44 * sizeof(u32))
+#  define REG_HTBL_CHROMA_ACVAL	(REG_HTBL_CHROMA_ACLEN + 4 * sizeof(u32))
+#define REG_DHT_LEN			0x04C
+#define SMFC_DHT_LEN			0x1A2
 
 /* Value definitions of MAIN/SECONDARY_IMAGE_FORMAT */
 enum {

@@ -12,6 +12,8 @@
 #ifndef _MEDIA_EXYNOS_SMFC_H_
 #define _MEDIA_EXYNOS_SMFC_H_
 
+#include "smfc-regs.h"
+
 #define MODULE_NAME	"exynos-jpeg"
 
 struct device;
@@ -62,6 +64,7 @@ struct smfc_ctx {
 	/* JPEG chroma subsampling factors */
 	unsigned char chroma_hfactor;
 	unsigned char chroma_vfactor;
+	unsigned int quality_factor;
 };
 
 static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
@@ -80,6 +83,17 @@ static inline u32 smfc_config_ctxflag(struct smfc_ctx *ctx, u32 flag, bool set)
 static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
 {
 	return !(ctx->flags & SMFC_CTX_COMPRESS) == V4L2_TYPE_IS_OUTPUT(type);
+}
+
+/* H/W Configuration */
+void smfc_hwconfigure_tables(struct smfc_ctx *ctx);
+void smfc_hwconfigure_image(struct smfc_ctx *ctx);
+void smfc_hwconfigure_start(struct smfc_ctx *ctx);
+bool smfc_hwstatus_okay(struct smfc_dev *smfc);
+void smfc_hwconfigure_reset(struct smfc_dev *smfc);
+static inline u32 smfc_get_streamsize(struct smfc_dev *smfc)
+{
+	return __raw_readl(smfc->reg + REG_MAIN_STREAM_SIZE);
 }
 
 #endif /* _MEDIA_EXYNOS_SMFC_H_ */

@@ -3,4 +3,4 @@
 #		http://www.samsung.com
 #
 
-obj-$(CONFIG_VIDEO_EXYNOS_SMFC) += smfc.o
+obj-$(CONFIG_VIDEO_EXYNOS_SMFC) += smfc.o smfc-regs.o

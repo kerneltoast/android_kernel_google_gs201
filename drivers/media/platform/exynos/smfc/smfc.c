@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#include <linux/exynos_iovmm.h>
 
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
@@ -27,7 +28,6 @@
 #include <media/videobuf2-dma-sg.h>
 
 #include "smfc.h"
-#include "smfc-regs.h"
 
 /* SMFC SPECIFIC DEVICE CAPABILITIES */
 /* set if H/W supports for decompression */
@@ -274,6 +274,33 @@ static const char *buf_type_name(__u32 type)
 
 static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 {
+	struct smfc_dev *smfc = priv;
+	struct smfc_ctx *ctx = v4l2_m2m_get_curr_priv(smfc->m2mdev);
+	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
+	struct vb2_v4l2_buffer *vb_capture;
+
+	vb_capture = v4l2_m2m_dst_buf_remove(ctx->m2mctx);
+
+	if (smfc_hwstatus_okay(smfc)) {
+		vb2_set_plane_payload(&vb_capture->vb2_buf, 0,
+				      smfc_get_streamsize(smfc));
+	} else {
+		state = VB2_BUF_STATE_ERROR;
+		smfc_hwconfigure_reset(smfc);
+	}
+
+	if (!IS_ERR(smfc->clk_gate)) {
+		clk_disable(smfc->clk_gate);
+		if (!IS_ERR(smfc->clk_gate2))
+			clk_disable(smfc->clk_gate2);
+	}
+
+	pm_runtime_put(smfc->dev);
+
+	v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->m2mctx), state);
+	v4l2_m2m_buf_done(vb_capture, state);
+	v4l2_m2m_job_finish(smfc->m2mdev, ctx->m2mctx);
+
 	return IRQ_HANDLED;
 }
 
@@ -432,6 +459,7 @@ static int exynos_smfc_open(struct file *filp)
 	 * default image format: YUYV
 	 * default size: 16x8
 	 * default chroma subsampling for JPEG: YUV422
+	 * default quality factor for compression: 96
 	 */
 	ctx->img_fmt = SMFC_DEFAULT_OUTPUT_FORMAT;
 	ctx->width = SMFC_MIN_WIDTH << ctx->img_fmt->chroma_hfactor;
@@ -439,6 +467,7 @@ static int exynos_smfc_open(struct file *filp)
 	ctx->chroma_hfactor = ctx->img_fmt->chroma_hfactor;
 	ctx->chroma_vfactor = ctx->img_fmt->chroma_vfactor;
 	ctx->flags |= SMFC_CTX_COMPRESS;
+	ctx->quality_factor = 96;
 
 	ctx->smfc = smfc;
 
@@ -793,27 +822,35 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 static int smfc_v4l2_reqbufs(struct file *filp, void *fh,
 			     struct v4l2_requestbuffers *reqbufs)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
-	return v4l2_m2m_reqbufs(filp, ctx->m2mctx, reqbufs);
+	return v4l2_m2m_reqbufs(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, reqbufs);
 }
 
 static int smfc_v4l2_querybuf(struct file *filp, void *fh,
 			      struct v4l2_buffer *buf)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
-	return v4l2_m2m_querybuf(filp, ctx->m2mctx, buf);
+	return v4l2_m2m_querybuf(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, buf);
 }
 
 static int smfc_v4l2_qbuf(struct file *filp, void *fh, struct v4l2_buffer *buf)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
-	return v4l2_m2m_qbuf(filp, ctx->m2mctx, buf);
+	return v4l2_m2m_qbuf(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, buf);
 }
 
 static int smfc_v4l2_dqbuf(struct file *filp, void *fh, struct v4l2_buffer *buf)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
-	return v4l2_m2m_dqbuf(filp, ctx->m2mctx, buf);
+	return v4l2_m2m_dqbuf(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, buf);
+}
+
+static int smfc_v4l2_streamon(struct file *filp, void *fh,
+			      enum v4l2_buf_type type)
+{
+	return v4l2_m2m_streamon(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, type);
+}
+
+static int smfc_v4l2_streamoff(struct file *filp, void *fh,
+			       enum v4l2_buf_type type)
+{
+	return v4l2_m2m_streamoff(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, type);
 }
 
 static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
@@ -838,11 +875,41 @@ static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_querybuf		= smfc_v4l2_querybuf,
 	.vidioc_qbuf			= smfc_v4l2_qbuf,
 	.vidioc_dqbuf			= smfc_v4l2_dqbuf,
+	.vidioc_streamon		= smfc_v4l2_streamon,
+	.vidioc_streamoff		= smfc_v4l2_streamoff,
 };
 
 static void smfc_m2m_device_run(void *priv)
 {
-	/* TODO: H/W initialization */
+	struct smfc_ctx *ctx = priv;
+	int ret;
+
+	ret = in_irq() ? pm_runtime_get(ctx->smfc->dev) :
+			 pm_runtime_get_sync(ctx->smfc->dev);
+	if (ret < 0) {
+		pr_err("Failed to enable power\n");
+		/* TODO: error current frame */
+	}
+
+	if (!IS_ERR(ctx->smfc->clk_gate)) {
+		ret = clk_enable(ctx->smfc->clk_gate);
+		if (!ret && !IS_ERR(ctx->smfc->clk_gate2)) {
+			ret = clk_enable(ctx->smfc->clk_gate2);
+			if (ret)
+				clk_disable(ctx->smfc->clk_gate);
+		}
+	}
+
+	if (ret < 0) {
+		dev_err(ctx->smfc->dev, "Failed to enable clocks\n");
+		pm_runtime_put(ctx->smfc->dev);
+		/* TODO: error current frame */
+	}
+
+	smfc_hwconfigure_reset(ctx->smfc);
+	smfc_hwconfigure_tables(ctx);
+	smfc_hwconfigure_image(ctx);
+	smfc_hwconfigure_start(ctx);
 }
 
 static void smfc_m2m_job_abort(void *priv)
@@ -1033,6 +1100,10 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = smfc_init_v4l2(&pdev->dev, smfc);
+	if (ret < 0)
+		return ret;
+
+	ret = iovmm_activate(&pdev->dev);
 	if (ret < 0)
 		return ret;
 
