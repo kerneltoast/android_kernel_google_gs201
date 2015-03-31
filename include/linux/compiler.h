@@ -243,6 +243,10 @@ static inline void *offset_to_ptr(const int *off)
 
 #define __ADDRESSABLE_ASM_STR(sym) __stringify(__ADDRESSABLE_ASM(sym))
 
+#ifndef __noreorder
+#define __noreorder
+#endif
+
 /* &a[0] degrades to a pointer: a different type from an array */
 #define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
 
