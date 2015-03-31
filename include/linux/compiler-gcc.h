@@ -126,6 +126,11 @@
 #define __no_sanitize_coverage
 #endif
 
+#if GCC_VERSION >= 50000
+/* Avoid reordering a top level statement */
+#define __noreorder    __attribute__((no_reorder))
+#endif
+
 /*
  * Treat __SANITIZE_HWADDRESS__ the same as __SANITIZE_ADDRESS__ in the kernel,
  * matching the defines used by Clang.
