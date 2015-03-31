@@ -253,7 +253,7 @@ extern bool initcall_debug;
 	    ".previous					\n");
 #else
 #define ____define_initcall(fn, __unused, __name, __sec)	\
-	static const initcall_t __name __used 			\
+	static const initcall_t __name __used __noreorder	\
 		__attribute__((__section__(__sec))) = fn;
 #endif
 
