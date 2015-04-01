@@ -277,14 +277,9 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 	struct smfc_dev *smfc = priv;
 	struct smfc_ctx *ctx = v4l2_m2m_get_curr_priv(smfc->m2mdev);
 	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
-	struct vb2_v4l2_buffer *vb_capture;
+	u32 streamsize = smfc_get_streamsize(smfc);
 
-	vb_capture = v4l2_m2m_dst_buf_remove(ctx->m2mctx);
-
-	if (smfc_hwstatus_okay(smfc)) {
-		vb2_set_plane_payload(&vb_capture->vb2_buf, 0,
-				      smfc_get_streamsize(smfc));
-	} else {
+	if (!smfc_hwstatus_okay(smfc)) {
 		state = VB2_BUF_STATE_ERROR;
 		smfc_hwconfigure_reset(smfc);
 	}
@@ -297,9 +292,18 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 
 	pm_runtime_put(smfc->dev);
 
-	v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->m2mctx), state);
-	v4l2_m2m_buf_done(vb_capture, state);
-	v4l2_m2m_job_finish(smfc->m2mdev, ctx->m2mctx);
+	/* ctx is NULL if streamoff is called before (de)compression finishes */
+	if (ctx) {
+		struct vb2_v4l2_buffer *vb_capture =
+				v4l2_m2m_dst_buf_remove(ctx->m2mctx);
+
+		vb2_set_plane_payload(&vb_capture->vb2_buf, 0, streamsize);
+		v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->m2mctx), state);
+		v4l2_m2m_buf_done(vb_capture, state);
+		v4l2_m2m_job_finish(smfc->m2mdev, ctx->m2mctx);
+	} else {
+		dev_err(smfc->dev, "Spurious interrupt on H/W JPEG occurred\n");
+	}
 
 	return IRQ_HANDLED;
 }
@@ -377,6 +381,11 @@ static void smfc_vb2_unlock(struct vb2_queue *vq)
 	mutex_unlock(&ctx->smfc->video_device_mutex);
 }
 
+static void smfc_vb2_stop_streaming(struct vb2_queue *vq)
+{
+	vb2_wait_for_all_buffers(vq);
+}
+
 static struct vb2_ops smfc_vb2_ops = {
 	.queue_setup	= smfc_vb2_queue_setup,
 	.buf_prepare	= smfc_vb2_buf_prepare,
@@ -384,6 +393,7 @@ static struct vb2_ops smfc_vb2_ops = {
 	.buf_queue	= smfc_vb2_buf_queue,
 	.wait_finish	= smfc_vb2_lock,
 	.wait_prepare	= smfc_vb2_unlock,
+	.stop_streaming	= smfc_vb2_stop_streaming,
 };
 
 static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
@@ -914,7 +924,7 @@ static void smfc_m2m_device_run(void *priv)
 
 static void smfc_m2m_job_abort(void *priv)
 {
-	/* TODO: aborting next job */
+	/* nothing to do */
 }
 
 static struct v4l2_m2m_ops smfc_m2m_ops = {
