@@ -21,9 +21,6 @@
 #include <linux/mutex.h>
 #include <linux/exynos_iovmm.h>
 
-#include <media/v4l2-ioctl.h>
-#include <media/v4l2-device.h>
-#include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-sg.h>
 
@@ -427,6 +424,93 @@ static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
 	return vb2_queue_init(dst_vq);
 }
 
+static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct smfc_ctx *ctx = container_of(ctrl->handler,
+					    struct smfc_ctx, v4l2_ctrlhdlr);
+	switch (ctrl->id) {
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		ctx->quality_factor = (unsigned char)ctrl->val;
+		break;
+	case V4L2_CID_JPEG_RESTART_INTERVAL:
+		ctx->restart_interval = (unsigned char)ctrl->val;
+		break;
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
+		switch (ctrl->val) {
+		case V4L2_JPEG_CHROMA_SUBSAMPLING_444:
+			ctx->chroma_hfactor = 1;
+			ctx->chroma_vfactor = 1;
+			break;
+		case V4L2_JPEG_CHROMA_SUBSAMPLING_420:
+			ctx->chroma_hfactor = 2;
+			ctx->chroma_vfactor = 2;
+			break;
+		case V4L2_JPEG_CHROMA_SUBSAMPLING_411:
+			ctx->chroma_hfactor = 4;
+			ctx->chroma_vfactor = 1;
+			break;
+		case V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY:
+			ctx->chroma_hfactor = 0;
+			ctx->chroma_vfactor = 0;
+			break;
+		case V4L2_JPEG_CHROMA_SUBSAMPLING_410:
+			dev_info(ctx->smfc->dev,
+				"Compression to YUV410 is not supported\n");
+			/* pass through to 422 */
+		case V4L2_JPEG_CHROMA_SUBSAMPLING_422:
+		default:
+			ctx->chroma_hfactor = 2;
+			ctx->chroma_vfactor = 1;
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops smfc_ctrl_ops = {
+	.s_ctrl = smfc_s_ctrl,
+};
+
+static int smfc_init_controls(struct smfc_dev *smfc,
+			      struct v4l2_ctrl_handler *hdlr)
+{
+	const char *msg;
+
+	v4l2_ctrl_handler_init(hdlr, 1);
+
+	if (!v4l2_ctrl_new_std(hdlr, &smfc_ctrl_ops,
+				V4L2_CID_JPEG_COMPRESSION_QUALITY,
+				1, 100, 1, 96)) {
+		msg = "quality factor";
+		goto err;
+	}
+
+	if (!v4l2_ctrl_new_std(hdlr, &smfc_ctrl_ops,
+				V4L2_CID_JPEG_RESTART_INTERVAL,
+				0, 64, 1, 0)) {
+		msg = "restart interval";
+		goto err;
+	}
+
+	if (!v4l2_ctrl_new_std_menu(hdlr, &smfc_ctrl_ops,
+				V4L2_CID_JPEG_CHROMA_SUBSAMPLING,
+				V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY, 0,
+				V4L2_JPEG_CHROMA_SUBSAMPLING_422)) {
+		msg = "chroma subsampling";
+		goto err;
+	}
+
+	return 0;
+err:
+	dev_err(smfc->dev, "Failed to install %s control (%d)\n",
+		msg, hdlr->error);
+	return hdlr->error;
+}
+
 static int exynos_smfc_open(struct file *filp)
 {
 	struct smfc_dev *smfc = video_drvdata(filp);
@@ -446,8 +530,14 @@ static int exynos_smfc_open(struct file *filp)
 		goto err_m2m_ctx_init;
 	}
 
-
 	v4l2_fh_init(&ctx->v4l2_fh, smfc->videodev);
+
+	ret = smfc_init_controls(smfc, &ctx->v4l2_ctrlhdlr);
+	if (ret)
+		goto err_control;
+
+	ctx->v4l2_fh.ctrl_handler = &ctx->v4l2_ctrlhdlr;
+
 	v4l2_fh_add(&ctx->v4l2_fh);
 
 	filp->private_data = &ctx->v4l2_fh;
@@ -478,6 +568,7 @@ static int exynos_smfc_open(struct file *filp)
 	ctx->chroma_vfactor = ctx->img_fmt->chroma_vfactor;
 	ctx->flags |= SMFC_CTX_COMPRESS;
 	ctx->quality_factor = 96;
+	ctx->restart_interval = 0;
 
 	ctx->smfc = smfc;
 
@@ -486,6 +577,7 @@ err_clk:
 	v4l2_fh_del(&ctx->v4l2_fh);
 	v4l2_fh_exit(&ctx->v4l2_fh);
 	v4l2_m2m_ctx_release(ctx->m2mctx);
+err_control:
 err_m2m_ctx_init:
 	kfree(ctx);
 	return ret;

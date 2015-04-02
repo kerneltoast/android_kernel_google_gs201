@@ -208,8 +208,16 @@ static u32 smfc_hwconfigure_jpeg_base(struct smfc_ctx *ctx,
 /* [hfactor - 1][vfactor - 1]: 444, 422V, 422, 420 */
 static u32 smfc_get_jpeg_format(unsigned int hfactor, unsigned int vfactor)
 {
-	static unsigned char jpeg_regfmt[2][2] = { {1, 4}, {2, 3} };
-	return jpeg_regfmt[hfactor - 1][vfactor - 1] << 24;
+	switch ((hfactor << 4) | vfactor) {
+	case 0x00: return 0 << 24;
+	case 0x11: return 1 << 24;
+	case 0x21: return 2 << 24;
+	case 0x22: return 3 << 24;
+	case 0x12: return 4 << 24;
+	case 0x41: return 5 << 24;
+	}
+
+	return 2 << 24; /* default: YUV422 */
 }
 
 void smfc_hwconfigure_image(struct smfc_ctx *ctx)
@@ -259,6 +267,8 @@ void smfc_hwconfigure_start(struct smfc_ctx *ctx)
 	cfg |= 1 << 19; /* update huffman table from SFR */
 	cfg |= 1 << 28; /* enables interrupt */
 	cfg |= 1 << 29; /* Release reset */
+	if (ctx->restart_interval != 0)
+		cfg |= (ctx->restart_interval << 3) | (1 << 2);
 
 	writel(cfg, base + REG_JPEG_CNTL);
 }

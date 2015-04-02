@@ -12,6 +12,11 @@
 #ifndef _MEDIA_EXYNOS_SMFC_H_
 #define _MEDIA_EXYNOS_SMFC_H_
 
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-mem2mem.h>
+#include <media/v4l2-ctrls.h>
+
 #include "smfc-regs.h"
 
 #define MODULE_NAME	"exynos-jpeg"
@@ -54,6 +59,7 @@ struct smfc_dev {
 
 struct smfc_ctx {
 	struct v4l2_fh v4l2_fh;
+	struct v4l2_ctrl_handler v4l2_ctrlhdlr;
 	struct smfc_dev *smfc;
 	struct v4l2_m2m_ctx *m2mctx;
 	u32 flags;
@@ -64,7 +70,8 @@ struct smfc_ctx {
 	/* JPEG chroma subsampling factors */
 	unsigned char chroma_hfactor;
 	unsigned char chroma_vfactor;
-	unsigned int quality_factor;
+	unsigned char restart_interval;
+	unsigned char quality_factor;
 };
 
 static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
