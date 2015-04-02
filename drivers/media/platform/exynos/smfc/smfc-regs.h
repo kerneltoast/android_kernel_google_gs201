@@ -44,6 +44,9 @@
  * Component 1 and 2: Q-table 1, AC/DC table 1
  */
 #define VAL_TABLE_SELECT		0xF14
+#define SMFC_TABLE_READ_REQ_MASK	(1 << 13)
+#define SMFC_TABLE_READ_OK_MASK		(1 << 12)
+
 /* 64 reigsters for four quantization tables are prepared */
 #define REG_QTBL_BASE			0x100
 /*

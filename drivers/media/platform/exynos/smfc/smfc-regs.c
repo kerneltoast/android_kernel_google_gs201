@@ -288,3 +288,35 @@ bool smfc_hwstatus_okay(struct smfc_dev *smfc)
 
 	return true;
 }
+
+void smfc_dump_registers(struct smfc_dev *smfc)
+{
+	u32 val;
+
+	/* Register dump based on Istor */
+	pr_info("DUMPING REGISTERS OF H/W JPEG...\n");
+	pr_info("------------------------------------------------\n");
+	/* JPEG_CNTL ~ FIFO_STATUS */
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 16, 4,
+			smfc->reg + 0x000, 0xD4, false);
+	/* Reading quantization tables */
+	val = __raw_readl(smfc->reg + REG_TABLE_SELECT);
+	__raw_writel(val | SMFC_TABLE_READ_REQ_MASK,
+			smfc->reg + REG_TABLE_SELECT);
+	for (val = 0; val < 512; val++) {
+		if (!!(__raw_readl(smfc->reg + REG_TABLE_SELECT)
+						& SMFC_TABLE_READ_OK_MASK))
+			break;
+		cpu_relax();
+	}
+
+	if ((val == 512) &&
+		!(__raw_readl(smfc->reg + REG_TABLE_SELECT)
+						& SMFC_TABLE_READ_OK_MASK)) {
+		pr_info("** FAILED TO READ HUFFMAN and QUANTIZER TABLES **\n");
+		return;
+	}
+
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 16, 4,
+			smfc->reg + 0x100, 0x2C0, false);
+}

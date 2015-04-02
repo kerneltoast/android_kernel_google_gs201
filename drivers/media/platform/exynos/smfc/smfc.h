@@ -98,6 +98,7 @@ void smfc_hwconfigure_image(struct smfc_ctx *ctx);
 void smfc_hwconfigure_start(struct smfc_ctx *ctx);
 bool smfc_hwstatus_okay(struct smfc_dev *smfc);
 void smfc_hwconfigure_reset(struct smfc_dev *smfc);
+void smfc_dump_registers(struct smfc_dev *smfc);
 static inline u32 smfc_get_streamsize(struct smfc_dev *smfc)
 {
 	return __raw_readl(smfc->reg + REG_MAIN_STREAM_SIZE);

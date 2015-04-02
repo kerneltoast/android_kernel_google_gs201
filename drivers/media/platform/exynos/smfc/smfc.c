@@ -277,6 +277,7 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 	u32 streamsize = smfc_get_streamsize(smfc);
 
 	if (!smfc_hwstatus_okay(smfc)) {
+		smfc_dump_registers(smfc);
 		state = VB2_BUF_STATE_ERROR;
 		smfc_hwconfigure_reset(smfc);
 	}
