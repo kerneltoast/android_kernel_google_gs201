@@ -23,27 +23,39 @@
 #define SMFC_ADDR_ALIGN_MASK (16 - 1) /* 128-bit align */
 
 /********** H/W REGISTERS and DEFAULT VALUES **********************************/
-#define REG_JPEG_CNTL			0x000
+#define REG_MAIN_JPEG_CNTL		0x000
 #define REG_INT_EN			0x004
 #define REG_TIMER_COUNT			0x008
-#define REG_INT_STATUS			0x00C
+#define REG_MAIN_INT_STATUS		0x00C
 #define REG_MAIN_IMAGE_SIZE		0x014
 #define REG_MAIN_JPEG_BASE		0x010
-#define REG_MAIN_IMAGE_BASE(n)		(0x018 + (n) * 12)
+#define REG_MAIN_IMAGE_BASE		0x018
+#define REG_SEC_JPEG_CNTL		0x080
+#define REG_SEC_JPEG_BASE		0x088
+#define REG_SEC_IMAGE_BASE		0x090
+#define REG_SEC_IMAGE_FORMAT		0x0B8
+#define REG_SEC_IMAGE_SIZE		0x08C
+#define REG_SEC_INT_STATUS		0x084
+#define REG_IMAGE_BASE(off, n)		((off) + (n) * 12)
 #define REG_MAIN_IMAGE_FORMAT		0x040
 #define REG_MAIN_STREAM_SIZE		0x044
+#define REG_SEC_STREAM_SIZE		0x0BC
 #define REG_MAIN_MAX_STREAM_SIZE	0x06C
 
 #define REG_IP_VERSION_NUMBER		0x064
 
-#define REG_SECD_IMAGE_FORMAT		0x0B8
-
-#define REG_TABLE_SELECT		0x03C
+#define REG_MAIN_TABLE_SELECT		0x03C
+#define REG_SEC_TABLE_SELECT		0x0B4
 /*
  * Component 0: Q-table 0, AC/DC table 0
  * Component 1 and 2: Q-table 1, AC/DC table 1
  */
-#define VAL_TABLE_SELECT		0xF14
+#define VAL_MAIN_TABLE_SELECT		0xF14
+/*
+ * Component 0: Q-table 2, AC/DC table 0
+ * Component 1 and 2: Q-table 3, AC/DC table 1
+ */
+#define VAL_SEC_TABLE_SELECT		0xF3E
 #define SMFC_TABLE_READ_REQ_MASK	(1 << 13)
 #define SMFC_TABLE_READ_OK_MASK		(1 << 12)
 
@@ -69,7 +81,8 @@
 #  define REG_HTBL_LUMA_ACVAL	(REG_HTBL_LUMA_ACLEN + 4 * sizeof(u32))
 #  define REG_HTBL_CHROMA_ACLEN	(REG_HTBL_LUMA_ACVAL + 44 * sizeof(u32))
 #  define REG_HTBL_CHROMA_ACVAL	(REG_HTBL_CHROMA_ACLEN + 4 * sizeof(u32))
-#define REG_DHT_LEN			0x04C
+#define REG_MAIN_DHT_LEN		0x04C
+#define REG_SEC_DHT_LEN			0x0C4
 #define SMFC_DHT_LEN			0x1A2
 
 /* Value definitions of MAIN/SECONDARY_IMAGE_FORMAT */

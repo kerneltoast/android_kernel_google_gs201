@@ -56,6 +56,7 @@ struct smfc_dev {
 };
 
 #define SMFC_CTX_COMPRESS	(1 << 0)
+#define SMFC_CTX_B2B_COMPRESS	(1 << 1) /* valid if SMFC_CTX_COMPRESS is set */
 
 struct smfc_ctx {
 	struct v4l2_fh v4l2_fh;
@@ -72,6 +73,14 @@ struct smfc_ctx {
 	unsigned char chroma_vfactor;
 	unsigned char restart_interval;
 	unsigned char quality_factor;
+	/*
+	 * thumbnail information:
+	 * format of thumbnail should be the same as the main image
+	 * It is not the H/W restriction. Just a choice for simpler S/W design.
+	 */
+	__u32 thumb_width;
+	__u32 thumb_height;
+	unsigned char thumb_quality_factor;
 };
 
 static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
@@ -96,12 +105,19 @@ static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
 void smfc_hwconfigure_tables(struct smfc_ctx *ctx);
 void smfc_hwconfigure_image(struct smfc_ctx *ctx);
 void smfc_hwconfigure_start(struct smfc_ctx *ctx);
-bool smfc_hwstatus_okay(struct smfc_dev *smfc);
+void smfc_hwconfigure_2nd_tables(struct smfc_ctx *ctx);
+void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx);
+bool smfc_hwstatus_okay(struct smfc_dev *smfc, struct smfc_ctx *ctx);
 void smfc_hwconfigure_reset(struct smfc_dev *smfc);
 void smfc_dump_registers(struct smfc_dev *smfc);
 static inline u32 smfc_get_streamsize(struct smfc_dev *smfc)
 {
 	return __raw_readl(smfc->reg + REG_MAIN_STREAM_SIZE);
+}
+
+static inline u32 smfc_get_2nd_streamsize(struct smfc_dev *smfc)
+{
+	return __raw_readl(smfc->reg + REG_SEC_STREAM_SIZE);
 }
 
 #endif /* _MEDIA_EXYNOS_SMFC_H_ */
