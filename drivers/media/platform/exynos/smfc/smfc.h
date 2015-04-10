@@ -41,6 +41,8 @@ static inline bool is_jpeg(const struct smfc_image_format *fmt)
 	return fmt->bpp_buf[0] == 0;
 }
 
+#define SMFC_DEV_RUNNING	(1 << 0)
+
 struct smfc_dev {
 	struct v4l2_device v4l2_dev;
 	struct video_device *videodev;
@@ -50,6 +52,7 @@ struct smfc_dev {
 	struct mutex video_device_mutex;
 	int device_id;
 	u32 hwver;
+	u32 flags;
 
 	struct clk *clk_gate;
 	struct clk *clk_gate2; /* available if clk_gate is valid */

@@ -283,6 +283,8 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 	u32 streamsize = smfc_get_streamsize(smfc);
 	u32 thumb_streamsize = smfc_get_2nd_streamsize(smfc);
 
+	smfc->flags &= ~SMFC_DEV_RUNNING;
+
 	if (!smfc_hwstatus_okay(smfc, ctx)) {
 		smfc_dump_registers(smfc);
 		state = VB2_BUF_STATE_ERROR;
@@ -1144,6 +1146,8 @@ static void smfc_m2m_device_run(void *priv)
 	smfc_hwconfigure_image(ctx);
 	smfc_configure_secondary_image(ctx);
 	smfc_hwconfigure_start(ctx);
+
+	ctx->smfc->flags |= SMFC_DEV_RUNNING;
 }
 
 static void smfc_m2m_job_abort(void *priv)
@@ -1284,6 +1288,18 @@ err_clk:
 	return ret;
 }
 
+static int __attribute__((unused)) smfc_iommu_fault_handler(
+		struct iommu_domain *domain, struct device *dev,
+		unsigned long fault_addr, int fault_flags, void *token)
+{
+	struct smfc_dev *smfc = token;
+
+	if (smfc->flags & SMFC_DEV_RUNNING)
+		smfc_dump_registers(smfc);
+
+	return 0;
+}
+
 static int exynos_smfc_probe(struct platform_device *pdev)
 {
 	struct smfc_dev *smfc;
@@ -1336,6 +1352,8 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	ret = smfc_init_v4l2(&pdev->dev, smfc);
 	if (ret < 0)
 		return ret;
+
+	iovmm_set_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
 
 	ret = iovmm_activate(&pdev->dev);
 	if (ret < 0)
