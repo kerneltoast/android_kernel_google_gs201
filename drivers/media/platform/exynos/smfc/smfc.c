@@ -282,8 +282,14 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
 	u32 streamsize = smfc_get_streamsize(smfc);
 	u32 thumb_streamsize = smfc_get_2nd_streamsize(smfc);
+	bool suspending = false;
 
+	BUG_ON(!(smfc->flags & SMFC_DEV_RUNNING));
+
+	spin_lock(&smfc->flag_lock);
+	suspending = !!(smfc->flags & SMFC_DEV_SUSPENDING);
 	smfc->flags &= ~SMFC_DEV_RUNNING;
+	spin_unlock(&smfc->flag_lock);
 
 	if (!smfc_hwstatus_okay(smfc, ctx)) {
 		smfc_dump_registers(smfc);
@@ -313,7 +319,18 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 		}
 		v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->m2mctx), state);
 		v4l2_m2m_buf_done(vb_capture, state);
-		v4l2_m2m_job_finish(smfc->m2mdev, ctx->m2mctx);
+		if (!suspending) {
+			v4l2_m2m_job_finish(smfc->m2mdev, ctx->m2mctx);
+		} else {
+			/*
+			 * smfc_resume() is in charge of calling
+			 * v4l2_m2m_job_finish() on resuming
+			 * from Suspend To RAM
+			 */
+			spin_lock(&smfc->flag_lock);
+			smfc->flags &= ~SMFC_DEV_SUSPENDING;
+			spin_unlock(&smfc->flag_lock);
+		}
 	} else {
 		dev_err(smfc->dev, "Spurious interrupt on H/W JPEG occurred\n");
 	}
@@ -1129,6 +1146,7 @@ static void smfc_configure_secondary_image(struct smfc_ctx *ctx)
 static void smfc_m2m_device_run(void *priv)
 {
 	struct smfc_ctx *ctx = priv;
+	unsigned long flags;
 	int ret;
 
 	ret = in_irq() ? pm_runtime_get(ctx->smfc->dev) :
@@ -1159,7 +1177,9 @@ static void smfc_m2m_device_run(void *priv)
 	smfc_configure_secondary_image(ctx);
 	smfc_hwconfigure_start(ctx);
 
+	spin_lock_irqsave(&ctx->smfc->flag_lock, flags);
 	ctx->smfc->flags |= SMFC_DEV_RUNNING;
+	spin_unlock_irqrestore(&ctx->smfc->flag_lock, flags);
 }
 
 static void smfc_m2m_job_abort(void *priv)
@@ -1373,6 +1393,8 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, smfc);
 
+	spin_lock_init(&smfc->flag_lock);
+
 	dev_info(&pdev->dev, "Probed H/W Version: %02x.%02x.%04x\n",
 			(smfc->hwver >> 24) & 0xFF, (smfc->hwver >> 16) & 0xFF,
 			smfc->hwver & 0xFFFF);
@@ -1407,11 +1429,38 @@ MODULE_DEVICE_TABLE(of, exynos_smfc_match);
 #ifdef CONFIG_PM_SLEEP
 static int smfc_suspend(struct device *dev)
 {
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(smfc_suspend_wq);
+	struct smfc_dev *smfc = dev_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&smfc->flag_lock, flags);
+	if (!!(smfc->flags & SMFC_DEV_RUNNING))
+		smfc->flags |= SMFC_DEV_SUSPENDING;
+	spin_unlock_irqrestore(&smfc->flag_lock, flags);
+
+	/*
+	 * SMFC_DEV_SUSPENDING is cleared by exynos_smfc_irq_handler()
+	 * It is okay to read flags without a lock because the flag is not
+	 * updated during reading the flag.
+	 */
+	wait_event(smfc_suspend_wq, !(smfc->flags & SMFC_DEV_SUSPENDING));
+
+	/*
+	 * It is guaranteed that the Runtime PM is suspended
+	 * and all relavent clocks are disabled.
+	 */
+
 	return 0;
 }
 
 static int smfc_resume(struct device *dev)
 {
+	struct smfc_dev *smfc = dev_get_drvdata(dev);
+	struct smfc_ctx *ctx = v4l2_m2m_get_curr_priv(smfc->m2mdev);
+
+	/* completing the unfinished job and resuming the next pending jobs */
+	if (ctx)
+		v4l2_m2m_job_finish(smfc->m2mdev, ctx->m2mctx);
 	return 0;
 }
 #endif

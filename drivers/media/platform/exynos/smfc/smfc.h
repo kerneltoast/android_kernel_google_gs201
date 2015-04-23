@@ -42,6 +42,7 @@ static inline bool is_jpeg(const struct smfc_image_format *fmt)
 }
 
 #define SMFC_DEV_RUNNING	(1 << 0)
+#define SMFC_DEV_SUSPENDING	(1 << 1)
 
 struct smfc_dev {
 	struct v4l2_device v4l2_dev;
@@ -49,6 +50,7 @@ struct smfc_dev {
 	struct v4l2_m2m_dev *m2mdev;
 	struct device *dev;
 	void __iomem *reg;
+	spinlock_t flag_lock;
 	struct mutex video_device_mutex;
 	int device_id;
 	u32 hwver;
