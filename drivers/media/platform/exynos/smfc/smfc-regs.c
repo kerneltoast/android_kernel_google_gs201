@@ -309,7 +309,8 @@ void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 			ctx->smfc->reg + REG_MAIN_MAX_STREAM_SIZE);
 }
 
-void smfc_hwconfigure_start(struct smfc_ctx *ctx, unsigned int rst_int)
+void smfc_hwconfigure_start(struct smfc_ctx *ctx,
+			    unsigned int rst_int, bool hwfc_en)
 {
 	u32 cfg;
 	void __iomem *base = ctx->smfc->reg;
@@ -326,6 +327,8 @@ void smfc_hwconfigure_start(struct smfc_ctx *ctx, unsigned int rst_int)
 	cfg |= 1 << 19; /* update huffman table from SFR */
 	cfg |= 1 << 28; /* enables interrupt */
 	cfg |= 1 << 29; /* Release reset */
+	if (hwfc_en)
+		cfg |= 1 << 30; /* Enable OTF mode (default: emulation) */
 	if (rst_int != 0)
 		cfg |= (rst_int << 3) | (1 << 2);
 	if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS))

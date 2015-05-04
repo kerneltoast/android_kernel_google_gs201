@@ -44,6 +44,7 @@
 
 /* SMFC SPECIFIC CONTROLS */
 #define V4L2_CID_JPEG_SEC_COMP_QUALITY	(V4L2_CID_JPEG_CLASS_BASE + 20)
+#define V4L2_CID_JPEG_HWFC_ENABLE	(V4L2_CID_JPEG_CLASS_BASE + 25)
 
 #define SMFC_DEFAULT_OUTPUT_FORMAT	(&smfc_image_formats[1])
 #define SMFC_DEFAULT_CAPTURE_FORMAT	(&smfc_image_formats[0])
@@ -499,6 +500,9 @@ static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_JPEG_SEC_COMP_QUALITY:
 		ctx->thumb_quality_factor = (unsigned char)ctrl->val;
 		break;
+	case V4L2_CID_JPEG_HWFC_ENABLE:
+		ctx->enable_hwfc = (unsigned char)ctrl->val;
+		break;
 	case V4L2_CID_JPEG_RESTART_INTERVAL:
 		ctx->restart_interval = (unsigned char)ctrl->val;
 		break;
@@ -566,6 +570,20 @@ static int smfc_init_controls(struct smfc_dev *smfc,
 	ctrlcfg.max = 100;
 	ctrlcfg.step = 1;
 	ctrlcfg.def = 50;
+	if (!v4l2_ctrl_new_custom(hdlr, &ctrlcfg, NULL)) {
+		msg = "secondary quality factor";
+		goto err;
+	}
+
+	memset(&ctrlcfg, 0, sizeof(ctrlcfg));
+	ctrlcfg.ops = &smfc_ctrl_ops;
+	ctrlcfg.id = V4L2_CID_JPEG_HWFC_ENABLE;
+	ctrlcfg.name = "HWFC configuration";
+	ctrlcfg.type = V4L2_CTRL_TYPE_BOOLEAN;
+	ctrlcfg.min = 0;
+	ctrlcfg.max = 1;
+	ctrlcfg.step = 1;
+	ctrlcfg.def = 0;
 	if (!v4l2_ctrl_new_custom(hdlr, &ctrlcfg, NULL)) {
 		msg = "secondary quality factor";
 		goto err;
@@ -654,6 +672,7 @@ static int exynos_smfc_open(struct file *filp)
 	ctx->quality_factor = 96;
 	ctx->restart_interval = 0;
 	ctx->thumb_quality_factor = 50;
+	ctx->enable_hwfc = 0;
 
 	ctx->smfc = smfc;
 
@@ -1137,6 +1156,27 @@ static void smfc_configure_secondary_image(struct smfc_ctx *ctx)
 {
 }
 
+static bool smfc_check_hwfc_configuration(struct smfc_ctx *ctx, bool hwfc_en)
+{
+	const struct smfc_image_format *fmt = ctx->img_fmt;
+	if (!(ctx->flags & SMFC_CTX_COMPRESS) || !hwfc_en)
+		return true;
+
+	if (fmt->chroma_hfactor == 2) {
+		/* YUV422 1-plane */
+		if ((fmt->chroma_vfactor == 1) && (fmt->num_planes != 1))
+			return true;
+		/* YUV420 2-plane */
+		if ((fmt->chroma_vfactor == 2) && (fmt->num_planes != 2))
+			return true;
+	}
+
+	dev_err(ctx->smfc->dev,
+		"HWFC is only available with YUV420-2p and YUV422-1p\n");
+
+	return false;
+}
+
 static void smfc_m2m_device_run(void *priv)
 {
 	struct smfc_ctx *ctx = priv;
@@ -1147,6 +1187,7 @@ static void smfc_m2m_device_run(void *priv)
 	unsigned char restart_interval = ctx->restart_interval;
 	unsigned char quality_factor = ctx->quality_factor;
 	unsigned char thumb_quality_factor = ctx->thumb_quality_factor;
+	unsigned char enable_hwfc = ctx->enable_hwfc;
 
 	ret = in_irq() ? pm_runtime_get(ctx->smfc->dev) :
 			 pm_runtime_get_sync(ctx->smfc->dev);
@@ -1169,6 +1210,9 @@ static void smfc_m2m_device_run(void *priv)
 		goto err_clk;
 	}
 
+	if (!smfc_check_hwfc_configuration(ctx, !!enable_hwfc))
+		goto err_hwfc;
+
 	smfc_hwconfigure_reset(ctx->smfc);
 	smfc_hwconfigure_tables(ctx, quality_factor);
 	smfc_hwconfigure_image(ctx, chroma_hfactor, chroma_vfactor);
@@ -1178,14 +1222,19 @@ static void smfc_m2m_device_run(void *priv)
 		smfc_hwconfigure_2nd_tables(ctx, thumb_quality_factor);
 		smfc_hwconfigure_2nd_image(ctx);
 	}
-	smfc_hwconfigure_start(ctx, restart_interval);
+	smfc_hwconfigure_start(ctx, restart_interval, !!enable_hwfc);
 
 	spin_lock_irqsave(&ctx->smfc->flag_lock, flags);
 	ctx->smfc->flags |= SMFC_DEV_RUNNING;
 	spin_unlock_irqrestore(&ctx->smfc->flag_lock, flags);
 
 	return;
-
+err_hwfc:
+	if (!IS_ERR(ctx->smfc->clk_gate)) {
+		clk_disable(ctx->smfc->clk_gate);
+		if (!IS_ERR(ctx->smfc->clk_gate2))
+			clk_disable(ctx->smfc->clk_gate2);
+	}
 err_clk:
 	pm_runtime_put(ctx->smfc->dev);
 err_pm:

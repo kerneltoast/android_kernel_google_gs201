@@ -86,6 +86,7 @@ struct smfc_ctx {
 	__u32 thumb_width;
 	__u32 thumb_height;
 	unsigned char thumb_quality_factor;
+	unsigned char enable_hwfc;
 };
 
 static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
@@ -110,7 +111,8 @@ static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
 void smfc_hwconfigure_tables(struct smfc_ctx *ctx, unsigned int qfactor);
 void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 			    unsigned int hfactor, unsigned int vfactor);
-void smfc_hwconfigure_start(struct smfc_ctx *ctx, unsigned int rst_int);
+void smfc_hwconfigure_start(struct smfc_ctx *ctx,
+			    unsigned int rst_int, bool hwfc_en);
 void smfc_hwconfigure_2nd_tables(struct smfc_ctx *ctx, unsigned int qfactor);
 void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx);
 bool smfc_hwstatus_okay(struct smfc_dev *smfc, struct smfc_ctx *ctx);
