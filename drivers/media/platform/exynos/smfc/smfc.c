@@ -1135,12 +1135,6 @@ static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 
 static void smfc_configure_secondary_image(struct smfc_ctx *ctx)
 {
-	if (!(ctx->flags & SMFC_CTX_B2B_COMPRESS) ||
-			WARN_ON(!(ctx->flags & SMFC_CTX_COMPRESS)))
-		return;
-
-	smfc_hwconfigure_2nd_tables(ctx);
-	smfc_hwconfigure_2nd_image(ctx);
 }
 
 static void smfc_m2m_device_run(void *priv)
@@ -1148,6 +1142,11 @@ static void smfc_m2m_device_run(void *priv)
 	struct smfc_ctx *ctx = priv;
 	unsigned long flags;
 	int ret;
+	unsigned char chroma_hfactor = ctx->chroma_hfactor;
+	unsigned char chroma_vfactor = ctx->chroma_vfactor;
+	unsigned char restart_interval = ctx->restart_interval;
+	unsigned char quality_factor = ctx->quality_factor;
+	unsigned char thumb_quality_factor = ctx->thumb_quality_factor;
 
 	ret = in_irq() ? pm_runtime_get(ctx->smfc->dev) :
 			 pm_runtime_get_sync(ctx->smfc->dev);
@@ -1172,10 +1171,15 @@ static void smfc_m2m_device_run(void *priv)
 	}
 
 	smfc_hwconfigure_reset(ctx->smfc);
-	smfc_hwconfigure_tables(ctx);
-	smfc_hwconfigure_image(ctx);
+	smfc_hwconfigure_tables(ctx, quality_factor);
+	smfc_hwconfigure_image(ctx, chroma_hfactor, chroma_vfactor);
 	smfc_configure_secondary_image(ctx);
-	smfc_hwconfigure_start(ctx);
+	if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS) &&
+			!!(ctx->flags & SMFC_CTX_COMPRESS)) {
+		smfc_hwconfigure_2nd_tables(ctx, thumb_quality_factor);
+		smfc_hwconfigure_2nd_image(ctx);
+	}
+	smfc_hwconfigure_start(ctx, restart_interval);
 
 	spin_lock_irqsave(&ctx->smfc->flag_lock, flags);
 	ctx->smfc->flags |= SMFC_DEV_RUNNING;

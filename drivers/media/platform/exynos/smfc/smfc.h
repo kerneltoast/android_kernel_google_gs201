@@ -107,10 +107,11 @@ static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
 }
 
 /* H/W Configuration */
-void smfc_hwconfigure_tables(struct smfc_ctx *ctx);
-void smfc_hwconfigure_image(struct smfc_ctx *ctx);
-void smfc_hwconfigure_start(struct smfc_ctx *ctx);
-void smfc_hwconfigure_2nd_tables(struct smfc_ctx *ctx);
+void smfc_hwconfigure_tables(struct smfc_ctx *ctx, unsigned int qfactor);
+void smfc_hwconfigure_image(struct smfc_ctx *ctx,
+			    unsigned int hfactor, unsigned int vfactor);
+void smfc_hwconfigure_start(struct smfc_ctx *ctx, unsigned int rst_int);
+void smfc_hwconfigure_2nd_tables(struct smfc_ctx *ctx, unsigned int qfactor);
 void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx);
 bool smfc_hwstatus_okay(struct smfc_dev *smfc, struct smfc_ctx *ctx);
 void smfc_hwconfigure_reset(struct smfc_dev *smfc);
