@@ -1152,7 +1152,7 @@ static void smfc_m2m_device_run(void *priv)
 			 pm_runtime_get_sync(ctx->smfc->dev);
 	if (ret < 0) {
 		pr_err("Failed to enable power\n");
-		/* TODO: error current frame */
+		goto err_pm;
 	}
 
 	if (!IS_ERR(ctx->smfc->clk_gate)) {
@@ -1166,8 +1166,7 @@ static void smfc_m2m_device_run(void *priv)
 
 	if (ret < 0) {
 		dev_err(ctx->smfc->dev, "Failed to enable clocks\n");
-		pm_runtime_put(ctx->smfc->dev);
-		/* TODO: error current frame */
+		goto err_clk;
 	}
 
 	smfc_hwconfigure_reset(ctx->smfc);
@@ -1184,6 +1183,21 @@ static void smfc_m2m_device_run(void *priv)
 	spin_lock_irqsave(&ctx->smfc->flag_lock, flags);
 	ctx->smfc->flags |= SMFC_DEV_RUNNING;
 	spin_unlock_irqrestore(&ctx->smfc->flag_lock, flags);
+
+	return;
+
+err_clk:
+	pm_runtime_put(ctx->smfc->dev);
+err_pm:
+	v4l2_m2m_buf_done(
+		v4l2_m2m_src_buf_remove(ctx->m2mctx), VB2_BUF_STATE_ERROR);
+	v4l2_m2m_buf_done(
+		v4l2_m2m_dst_buf_remove(ctx->m2mctx), VB2_BUF_STATE_ERROR);
+	/*
+	 * It is safe to call v4l2_m2m_job_finish() here because .device_run()
+	 * is called without any lock held
+	 */
+	v4l2_m2m_job_finish(ctx->smfc->m2mdev, ctx->m2mctx);
 }
 
 static void smfc_m2m_job_abort(void *priv)
