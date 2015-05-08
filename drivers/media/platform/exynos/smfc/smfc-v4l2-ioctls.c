@@ -628,9 +628,9 @@ static int smfc_v4l2_try_fmt_mplane(struct file *filp, void *fh,
 			ctx, smfc_fmt, f->type, &f->fmt.pix_mp) ? 0 : -EINVAL;
 }
 
-static int smfc_v4l2_check_s_fmt(struct smfc_ctx *ctx,
-				 const struct smfc_image_format *smfc_fmt,
-				 __u32 type)
+static int smfc_v4l2_prepare_s_fmt(struct smfc_ctx *ctx,
+				   const struct smfc_image_format *smfc_fmt,
+				   __u32 type)
 {
 	struct vb2_queue *thisvq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, type);
 	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
@@ -676,7 +676,7 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
 	const struct smfc_image_format *smfc_fmt =
 			smfc_find_format(ctx->smfc, f->fmt.pix_mp.pixelformat);
-	int ret = smfc_v4l2_check_s_fmt(ctx, smfc_fmt, f->type);
+	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
 
 	if (ret)
 		return ret;
@@ -704,7 +704,7 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 				V4L2_BUF_TYPE_VIDEO_OUTPUT);
 		/*
 		 * type change of the current queue is completed in
-		 * smfc_v4l2_check_s_fmt()
+		 * smfc_v4l2_prepare_s_fmt()
 		 */
 		othervq->type = v4l2_to_multiplane_type(othervq->type);
 	}
@@ -746,7 +746,7 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
 	const struct smfc_image_format *smfc_fmt =
 			smfc_find_format(ctx->smfc, f->fmt.pix.pixelformat);
-	int ret = smfc_v4l2_check_s_fmt(ctx, smfc_fmt, f->type);
+	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
 
 	if (ret)
 		return ret;
