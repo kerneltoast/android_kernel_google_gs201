@@ -28,6 +28,18 @@
 #define V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN	0x2000
 /* set if H/W does not have 128-bit alignment constraint for image base */
 #define V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN		0x4000
+/*
+ * Set if the driver requires the address of SOS marker for the start address
+ * of the JPEG stream. Unset if the driver requires the address of SOI marker
+ * for the start address of the JPEG stream even though H/W requires the address
+ * of SOS marker to decompress when the driver is able to find the address of
+ * SOS marker from the given address of SOI marker.
+ */
+#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION_FROM_SOS	0x10000
+/* set if H/W supports for cropping during decompression */
+#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION_CROP		0x20000
+/* set if H/W supports for downscaling(1/2, 1/4 and 1/8) during decompression */
+#define V4L2_CAP_EXYNOS_JPEG_DOWNSCALING		0x40000
 
 /* SMFC SPECIFIC CONTROLS */
 #define V4L2_CID_JPEG_SEC_COMP_QUALITY	(V4L2_CID_JPEG_CLASS_BASE + 20)
@@ -421,6 +433,8 @@ static int smfc_v4l2_querycap(struct file *filp, void *fh,
 	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE;
 	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN;
 	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN;
+
+	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION;
 
 	return 0;
 }

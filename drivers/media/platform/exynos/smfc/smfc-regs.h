@@ -13,9 +13,16 @@
 #define _MEDIA_EXYNOS_SMFC_REGS_H_
 
 /********** JPEG STANDARD *****************************************************/
+#define SMFC_JPEG_MARKER_LEN 2
+
 #define SMFC_MCU_SIZE	64
+#define SMFC_MAX_QTBL_COUNT	4
+#define SMFC_NUM_HCODE		16
+#define SMFC_NUM_DC_HVAL	16
+#define SMFC_NUM_AC_HVAL	172
 
 /********** H/W RESTRICTIONS **************************************************/
+#define SMFC_MAX_NUM_COMP	3
 #define SMFC_MAX_WIDTH	16368U
 #define SMFC_MAX_HEIGHT	16368U
 #define SMFC_MIN_WIDTH	8U

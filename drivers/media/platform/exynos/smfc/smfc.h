@@ -76,6 +76,40 @@ struct smfc_dev {
 
 #define SMFC_CTX_COMPRESS	(1 << 0)
 #define SMFC_CTX_B2B_COMPRESS	(1 << 1) /* valid if SMFC_CTX_COMPRESS is set */
+struct smfc_decomp_htable {
+	struct {
+		union {
+			u8 code[SMFC_NUM_HCODE];
+			u32 code32[SMFC_NUM_HCODE / 4];
+		};
+		union {
+			u8 value[SMFC_NUM_DC_HVAL];
+			u32 value32[SMFC_NUM_DC_HVAL / 4];
+		};
+	} dc[2];
+	struct {
+		union {
+			u8 code[SMFC_NUM_HCODE];
+			u32 code32[SMFC_NUM_HCODE / 4];
+		};
+		union {
+			u8 value[SMFC_NUM_AC_HVAL];
+			u32 value32[SMFC_NUM_AC_HVAL / 4];
+		};
+	} ac[2];
+
+	struct {
+		unsigned char idx_dc;
+		unsigned char idx_ac;
+	} compsel[SMFC_MAX_NUM_COMP]; /* compsel[0] for component 1 */
+};
+
+#define INVALID_QTBLIDX 0xFF
+struct smfc_decomp_qtable {
+	/* quantizers are *NOT* stored in the zig-zag scan order */
+	u8 table[SMFC_MAX_QTBL_COUNT][SMFC_MCU_SIZE];
+	char compsel[SMFC_MAX_NUM_COMP]; /* compsel[0] for component 1 */
+};
 
 struct smfc_ctx {
 	struct v4l2_fh fh;
@@ -87,9 +121,10 @@ struct smfc_ctx {
 	const struct smfc_image_format *img_fmt;
 	__u32 width;
 	__u32 height;
-	/* JPEG chroma subsampling factors */
-	unsigned char chroma_hfactor;
-	unsigned char chroma_vfactor;
+
+	/* Compression settings */
+	unsigned char chroma_hfactor; /* horizontal chroma subsampling factor */
+	unsigned char chroma_vfactor; /* vertical chroma subsampling factor */
 	unsigned char restart_interval;
 	unsigned char quality_factor;
 	/*
@@ -101,6 +136,16 @@ struct smfc_ctx {
 	__u32 thumb_height;
 	unsigned char thumb_quality_factor;
 	unsigned char enable_hwfc;
+
+	/* Decompression settings */
+	struct smfc_decomp_qtable *quantizer_tables;
+	struct smfc_decomp_htable *huffman_tables;
+	unsigned char stream_hfactor;
+	unsigned char stream_vfactor;
+	unsigned char num_components;
+	unsigned int offset_of_sos;
+	__u16 stream_width;
+	__u16 stream_height;
 };
 
 extern const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops;
@@ -125,8 +170,11 @@ static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
 
 int smfc_init_controls(struct smfc_dev *smfc, struct v4l2_ctrl_handler *hdlr);
 
+int smfc_parse_jpeg_header(struct smfc_ctx *ctx, struct vb2_buffer *vb);
+
 /* H/W Configuration */
 void smfc_hwconfigure_tables(struct smfc_ctx *ctx, unsigned int qfactor);
+void smfc_hwconfigure_tables_for_decompression(struct smfc_ctx *ctx);
 void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 			    unsigned int hfactor, unsigned int vfactor);
 void smfc_hwconfigure_start(struct smfc_ctx *ctx,
