@@ -108,7 +108,7 @@ static u32 ITU_H_TBL_VAL_AC_CHROMINANCE[] = {
 	0x0000faf9
 };
 
-/* to suppress warning or error message about out-of-aaray-bound */
+/* to suppress warning or error message about out-of-array-bound */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
 /* tables and qunatization tables configuration to H/W for compression */
