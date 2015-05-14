@@ -399,8 +399,8 @@ static int smfc_vb2_buf_prepare(struct vb2_buffer *vb)
 			planebytes = (payload * ctx->img_fmt->bpp_buf[i]) / 8;
 			if (vb2_get_plane_payload(vb, i) < planebytes) {
 				dev_err(ctx->smfc->dev,
-				"Too small bytes_used[%lu]=%u (req.:%lu)\n",
-				vb2_get_plane_payload(vb, i), i, planebytes);
+				"Too small bytes_used[%u]=%lu (req.:%lu)\n",
+				i, vb2_get_plane_payload(vb, i), planebytes);
 				return -EINVAL;
 			}
 		}
