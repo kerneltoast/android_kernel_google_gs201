@@ -1152,10 +1152,6 @@ static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_streamoff		= smfc_v4l2_streamoff,
 };
 
-static void smfc_configure_secondary_image(struct smfc_ctx *ctx)
-{
-}
-
 static bool smfc_check_hwfc_configuration(struct smfc_ctx *ctx, bool hwfc_en)
 {
 	const struct smfc_image_format *fmt = ctx->img_fmt;
@@ -1216,7 +1212,6 @@ static void smfc_m2m_device_run(void *priv)
 	smfc_hwconfigure_reset(ctx->smfc);
 	smfc_hwconfigure_tables(ctx, quality_factor);
 	smfc_hwconfigure_image(ctx, chroma_hfactor, chroma_vfactor);
-	smfc_configure_secondary_image(ctx);
 	if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS) &&
 			!!(ctx->flags & SMFC_CTX_COMPRESS)) {
 		smfc_hwconfigure_2nd_tables(ctx, thumb_quality_factor);
