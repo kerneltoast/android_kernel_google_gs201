@@ -938,8 +938,6 @@ static bool smfc_v4l2_init_fmt_mplane(const struct smfc_ctx *ctx,
 				pix_mp->plane_fmt[i + j].bytesperline *
 					SMFC_FMT_SEC_SIZE(pix_mp->height);
 		}
-
-		pix_mp->num_planes *= 2;
 	}
 
 	return true;
