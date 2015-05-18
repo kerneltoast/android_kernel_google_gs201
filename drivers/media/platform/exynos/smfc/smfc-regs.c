@@ -325,49 +325,66 @@ void smfc_hwconfigure_start(struct smfc_ctx *ctx,
 	cfg = __raw_readl(base + REG_INT_EN);
 	__raw_writel(cfg | (1 << 11), base + REG_INT_EN);
 
-	cfg = __raw_readl(base + REG_MAIN_JPEG_CNTL) & ~3;
-	cfg |= !(ctx->flags & SMFC_CTX_COMPRESS) ? 1 : 2;
+	cfg = __raw_readl(base + REG_MAIN_JPEG_CNTL) & ~JPEG_CNTL_CODECON_MASK;
+	cfg |= !(ctx->flags & SMFC_CTX_COMPRESS) ?
+		JPEG_CNTL_CODECON_DECOMPRESS : JPEG_CNTL_CODECON_COMPRESS;
 	cfg |= 1 << 19; /* update huffman table from SFR */
-	cfg |= 1 << 28; /* enables interrupt */
+	cfg |= 1 << JPEG_CNTL_INT_EN_SHIFT; /* enable global interrupt */
 	cfg |= 1 << 29; /* Release reset */
-	if (hwfc_en)
-		cfg |= 1 << 30; /* Enable OTF mode (default: emulation) */
+	if (hwfc_en) /* Enable OTF mode (default: emulation) */
+		cfg |= 1 << JPEG_CNTL_HWFC_EN_SHIFT;
 	if (rst_int != 0)
 		cfg |= (rst_int << 3) | (1 << 2);
 	if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS))
-		cfg |= 1 << 31; /* back-to-back enable */
+		cfg |= 1 << JPEG_CNTL_BTB_EN_SHIFT; /* back-to-back enable */
 
 	writel(cfg, base + REG_MAIN_JPEG_CNTL);
 }
 
 bool smfc_hwstatus_okay(struct smfc_dev *smfc, struct smfc_ctx *ctx)
 {
-	u32 val = __raw_readl(smfc->reg + REG_MAIN_INT_STATUS);
+	u32 val;
+	bool ret = false;
+
+	/* Disable global interrupt */
+	val = __raw_readl(smfc->reg + REG_MAIN_JPEG_CNTL);
+	val ^= 1 << JPEG_CNTL_INT_EN_SHIFT;
+	__raw_writel(val, smfc->reg + REG_MAIN_JPEG_CNTL);
+
+	val = __raw_readl(smfc->reg + REG_MAIN_INT_STATUS);
 	if (!val) {
 		dev_err(smfc->dev, "Interrupt with no status change\n");
-		return false;
+		goto err;
 	}
 
 	if ((val & ~2)) {
 		dev_err(smfc->dev, "Error interrupt %#010x\n", val);
-		return false;
+		goto err;
 	}
 
 	if (!(ctx->flags & SMFC_CTX_B2B_COMPRESS))
-		return  true;
+		goto finish;
+
 	val = __raw_readl(smfc->reg + REG_SEC_INT_STATUS);
 	if (!val) {
 		dev_err(smfc->dev, "Secondary image is not completed\n");
-		return false;
+		goto err;
 	}
 
 	if ((val & ~2)) {
 		dev_err(smfc->dev, "Error interrupt %#010x for the secondary\n",
 			val);
-		return false;
+		goto err;
 	}
+finish:
+	ret = true;
+err:
+	/* reset codec state to compression/decompression disabled */
+	val = __raw_readl(smfc->reg + REG_MAIN_JPEG_CNTL);
+	val &= ~JPEG_CNTL_RESET_MASK;
+	__raw_writel(val, smfc->reg + REG_MAIN_JPEG_CNTL);
 
-	return true;
+	return ret;
 }
 
 void smfc_dump_registers(struct smfc_dev *smfc)
