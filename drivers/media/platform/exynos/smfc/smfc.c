@@ -285,7 +285,10 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 	u32 thumb_streamsize = smfc_get_2nd_streamsize(smfc);
 	bool suspending = false;
 
-	BUG_ON(!(smfc->flags & SMFC_DEV_RUNNING));
+	if (!(smfc->flags & SMFC_DEV_RUNNING)) {
+		smfc_dump_registers(smfc);
+		BUG();
+	}
 
 	spin_lock(&smfc->flag_lock);
 	suspending = !!(smfc->flags & SMFC_DEV_SUSPENDING);
