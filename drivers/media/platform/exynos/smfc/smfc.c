@@ -1215,11 +1215,12 @@ static void smfc_m2m_device_run(void *priv)
 		smfc_hwconfigure_2nd_tables(ctx, thumb_quality_factor);
 		smfc_hwconfigure_2nd_image(ctx);
 	}
-	smfc_hwconfigure_start(ctx, restart_interval, !!enable_hwfc);
 
 	spin_lock_irqsave(&ctx->smfc->flag_lock, flags);
 	ctx->smfc->flags |= SMFC_DEV_RUNNING;
 	spin_unlock_irqrestore(&ctx->smfc->flag_lock, flags);
+
+	smfc_hwconfigure_start(ctx, restart_interval, !!enable_hwfc);
 
 	return;
 err_hwfc:
