@@ -12,6 +12,8 @@
 #ifndef _MEDIA_EXYNOS_SMFC_H_
 #define _MEDIA_EXYNOS_SMFC_H_
 
+#include <linux/ktime.h>
+
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
@@ -68,6 +70,7 @@ struct smfc_ctx {
 	struct v4l2_ctrl_handler v4l2_ctrlhdlr;
 	struct smfc_dev *smfc;
 	struct v4l2_m2m_ctx *m2mctx;
+	ktime_t ktime_beg;
 	u32 flags;
 	/* uncomressed image description */
 	const struct smfc_image_format *img_fmt;

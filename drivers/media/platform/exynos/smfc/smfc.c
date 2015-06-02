@@ -292,10 +292,13 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 {
 	struct smfc_dev *smfc = priv;
 	struct smfc_ctx *ctx = v4l2_m2m_get_curr_priv(smfc->m2mdev);
+	ktime_t ktime;
 	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
 	u32 streamsize = smfc_get_streamsize(smfc);
 	u32 thumb_streamsize = smfc_get_2nd_streamsize(smfc);
 	bool suspending = false;
+
+	ktime = ktime_get();
 
 	if (!(smfc->flags & SMFC_DEV_RUNNING)) {
 		smfc_dump_registers(smfc);
@@ -333,6 +336,10 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 				vb2_set_plane_payload(&vb_capture->vb2_buf, 1,
 							thumb_streamsize);
 		}
+
+		vb_capture->vb2_buf.timestamp =
+				(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
+
 		v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->m2mctx), state);
 		v4l2_m2m_buf_done(vb_capture, state);
 		if (!suspending) {
@@ -1234,6 +1241,8 @@ static void smfc_m2m_device_run(void *priv)
 	spin_lock_irqsave(&ctx->smfc->flag_lock, flags);
 	ctx->smfc->flags |= SMFC_DEV_RUNNING;
 	spin_unlock_irqrestore(&ctx->smfc->flag_lock, flags);
+
+	ctx->ktime_beg = ktime_get();
 
 	smfc_hwconfigure_start(ctx, restart_interval, !!enable_hwfc);
 
