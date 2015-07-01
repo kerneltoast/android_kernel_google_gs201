@@ -326,23 +326,28 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 
 	/* ctx is NULL if streamoff is called before (de)compression finishes */
 	if (ctx) {
-		struct vb2_v4l2_buffer *vb_capture =
-				v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+		struct vb2_v4l2_buffer *vb;
 
-		if (!!(ctx->flags & SMFC_CTX_COMPRESS)) {
-			vb2_set_plane_payload(&vb_capture->vb2_buf,
-					      0, streamsize);
-			if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS))
-				vb2_set_plane_payload(&vb_capture->vb2_buf, 1,
+		vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+		if (vb) {
+			if (!!(ctx->flags & SMFC_CTX_COMPRESS)) {
+				vb2_set_plane_payload(&vb->vb2_buf,
+						      0, streamsize);
+				if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS))
+					vb2_set_plane_payload(&vb->vb2_buf, 1,
 							thumb_streamsize);
+			}
+
+			v4l2_m2m_buf_done(vb, state);
 		}
 
-		vb_capture->vb2_buf.timestamp =
+		vb->vb2_buf.timestamp =
 				(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
 
-		v4l2_m2m_buf_done(
-			v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx), state);
-		v4l2_m2m_buf_done(vb_capture, state);
+		vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+		if (vb)
+			v4l2_m2m_buf_done(vb, state);
+
 		if (!suspending) {
 			v4l2_m2m_job_finish(smfc->m2mdev, ctx->fh.m2m_ctx);
 		} else {
@@ -445,16 +450,15 @@ static void smfc_vb2_buf_queue(struct vb2_buffer *vb)
 
 static void smfc_vb2_stop_streaming(struct vb2_queue *vq)
 {
+	struct vb2_buffer *vb;
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vq);
 
-	if ((V4L2_TYPE_IS_OUTPUT(vq->type) &&
-			!v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx)) ||
-		(!V4L2_TYPE_IS_OUTPUT(vq->type) &&
-			!v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx))) {
-		unsigned int i;
-		/* cancel all queued buffers */
-		for (i = 0; i < vq->num_buffers; ++i)
-			vb2_buffer_done(vq->bufs[i], VB2_BUF_STATE_ERROR);
+	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
+		while ((vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx)))
+			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
+	} else {
+		while ((vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx)))
+			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 	}
 
 	vb2_wait_for_all_buffers(vq);
