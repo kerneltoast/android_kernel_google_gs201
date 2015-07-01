@@ -66,10 +66,9 @@ struct smfc_dev {
 #define SMFC_CTX_B2B_COMPRESS	(1 << 1) /* valid if SMFC_CTX_COMPRESS is set */
 
 struct smfc_ctx {
-	struct v4l2_fh v4l2_fh;
+	struct v4l2_fh fh;
 	struct v4l2_ctrl_handler v4l2_ctrlhdlr;
 	struct smfc_dev *smfc;
-	struct v4l2_m2m_ctx *m2mctx;
 	ktime_t ktime_beg;
 	u32 flags;
 	/* uncomressed image description */
@@ -94,7 +93,7 @@ struct smfc_ctx {
 
 static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
 {
-	return container_of(fh, struct smfc_ctx, v4l2_fh);
+	return container_of(fh, struct smfc_ctx, fh);
 }
 
 /* return the previous flag */

@@ -327,7 +327,7 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 	/* ctx is NULL if streamoff is called before (de)compression finishes */
 	if (ctx) {
 		struct vb2_v4l2_buffer *vb_capture =
-				v4l2_m2m_dst_buf_remove(ctx->m2mctx);
+				v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
 		if (!!(ctx->flags & SMFC_CTX_COMPRESS)) {
 			vb2_set_plane_payload(&vb_capture->vb2_buf,
@@ -340,10 +340,11 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 		vb_capture->vb2_buf.timestamp =
 				(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
 
-		v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->m2mctx), state);
+		v4l2_m2m_buf_done(
+			v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx), state);
 		v4l2_m2m_buf_done(vb_capture, state);
 		if (!suspending) {
-			v4l2_m2m_job_finish(smfc->m2mdev, ctx->m2mctx);
+			v4l2_m2m_job_finish(smfc->m2mdev, ctx->fh.m2m_ctx);
 		} else {
 			/*
 			 * smfc_resume() is in charge of calling
@@ -438,19 +439,8 @@ static void smfc_vb2_buf_finish(struct vb2_buffer *vb)
 static void smfc_vb2_buf_queue(struct vb2_buffer *vb)
 {
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	v4l2_m2m_buf_queue(ctx->m2mctx, to_vb2_v4l2_buffer(vb));
-}
 
-static void smfc_vb2_lock(struct vb2_queue *vq)
-{
-	struct smfc_ctx *ctx = vb2_get_drv_priv(vq);
-	mutex_lock(&ctx->smfc->video_device_mutex);
-}
-
-static void smfc_vb2_unlock(struct vb2_queue *vq)
-{
-	struct smfc_ctx *ctx = vb2_get_drv_priv(vq);
-	mutex_unlock(&ctx->smfc->video_device_mutex);
+	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, to_vb2_v4l2_buffer(vb));
 }
 
 static void smfc_vb2_stop_streaming(struct vb2_queue *vq)
@@ -458,9 +448,9 @@ static void smfc_vb2_stop_streaming(struct vb2_queue *vq)
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vq);
 
 	if ((V4L2_TYPE_IS_OUTPUT(vq->type) &&
-			!v4l2_m2m_num_dst_bufs_ready(ctx->m2mctx)) ||
+			!v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx)) ||
 		(!V4L2_TYPE_IS_OUTPUT(vq->type) &&
-			!v4l2_m2m_num_src_bufs_ready(ctx->m2mctx))) {
+			!v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx))) {
 		unsigned int i;
 		/* cancel all queued buffers */
 		for (i = 0; i < vq->num_buffers; ++i)
@@ -475,8 +465,8 @@ static struct vb2_ops smfc_vb2_ops = {
 	.buf_prepare	= smfc_vb2_buf_prepare,
 	.buf_finish	= smfc_vb2_buf_finish,
 	.buf_queue	= smfc_vb2_buf_queue,
-	.wait_finish	= smfc_vb2_lock,
-	.wait_prepare	= smfc_vb2_unlock,
+	.wait_finish	= vb2_ops_wait_finish,
+	.wait_prepare	= vb2_ops_wait_prepare,
 	.stop_streaming	= smfc_vb2_stop_streaming,
 };
 
@@ -494,6 +484,7 @@ static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->drv_priv = ctx;
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->lock = &ctx->smfc->video_device_mutex;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -507,6 +498,7 @@ static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->drv_priv = ctx;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->lock = &ctx->smfc->video_device_mutex;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -645,24 +637,26 @@ static int exynos_smfc_open(struct file *filp)
 		return -ENOMEM;
 	}
 
-	ctx->m2mctx = v4l2_m2m_ctx_init(smfc->m2mdev, ctx, smfc_queue_init);
-	if (IS_ERR(ctx->m2mctx)) {
-		ret = PTR_ERR(ctx->m2mctx);
-		dev_err(smfc->dev, "Failed(%d) to init m2m_ctx\n", ret);
-		goto err_m2m_ctx_init;
-	}
+	ctx->smfc = smfc;
 
-	v4l2_fh_init(&ctx->v4l2_fh, smfc->videodev);
+	v4l2_fh_init(&ctx->fh, smfc->videodev);
 
 	ret = smfc_init_controls(smfc, &ctx->v4l2_ctrlhdlr);
 	if (ret)
 		goto err_control;
 
-	ctx->v4l2_fh.ctrl_handler = &ctx->v4l2_ctrlhdlr;
+	ctx->fh.ctrl_handler = &ctx->v4l2_ctrlhdlr;
 
-	v4l2_fh_add(&ctx->v4l2_fh);
+	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(smfc->m2mdev, ctx, smfc_queue_init);
+	if (IS_ERR(ctx->fh.m2m_ctx)) {
+		ret = PTR_ERR(ctx->fh.m2m_ctx);
+		dev_err(smfc->dev, "Failed(%d) to init m2m_ctx\n", ret);
+		goto err_m2m_ctx_init;
+	}
 
-	filp->private_data = &ctx->v4l2_fh;
+	v4l2_fh_add(&ctx->fh);
+
+	filp->private_data = &ctx->fh;
 
 	if (!IS_ERR(smfc->clk_gate)) {
 		ret = clk_prepare(smfc->clk_gate);
@@ -696,13 +690,11 @@ static int exynos_smfc_open(struct file *filp)
 	ctx->thumb_quality_factor = 50;
 	ctx->enable_hwfc = 0;
 
-	ctx->smfc = smfc;
-
 	return 0;
 err_clk:
-	v4l2_fh_del(&ctx->v4l2_fh);
-	v4l2_fh_exit(&ctx->v4l2_fh);
-	v4l2_m2m_ctx_release(ctx->m2mctx);
+	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_exit(&ctx->fh);
+	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 err_control:
 err_m2m_ctx_init:
 	kfree(ctx);
@@ -713,8 +705,8 @@ static int exynos_smfc_release(struct file *filp)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(filp->private_data);
 
-	v4l2_fh_del(&ctx->v4l2_fh);
-	v4l2_m2m_ctx_release(ctx->m2mctx);
+	v4l2_fh_del(&ctx->fh);
+	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
 	if (!IS_ERR(ctx->smfc->clk_gate)) {
 		clk_unprepare(ctx->smfc->clk_gate);
@@ -727,26 +719,13 @@ static int exynos_smfc_release(struct file *filp)
 	return 0;
 }
 
-static unsigned int exynos_smfc_poll(struct file *filp,
-				     struct poll_table_struct *wait)
-{
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(filp->private_data);
-	return v4l2_m2m_poll(filp, ctx->m2mctx, wait);
-}
-
-static int exynos_smfc_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(filp->private_data);
-	return v4l2_m2m_mmap(filp, ctx->m2mctx, vma);
-}
-
 static const struct v4l2_file_operations smfc_v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= exynos_smfc_open,
 	.release	= exynos_smfc_release,
-	.poll		= exynos_smfc_poll,
+	.poll		= v4l2_m2m_fop_poll,
 	.unlocked_ioctl	= video_ioctl2,
-	.mmap		= exynos_smfc_mmap,
+	.mmap		= v4l2_m2m_fop_mmap,
 };
 
 static int smfc_v4l2_querycap(struct file *filp, void *fh,
@@ -980,8 +959,8 @@ static int smfc_v4l2_check_s_fmt(struct smfc_ctx *ctx,
 				 const struct smfc_image_format *smfc_fmt,
 				 __u32 type)
 {
-	struct vb2_queue *thisvq = v4l2_m2m_get_vq(ctx->m2mctx, type);
-	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->m2mctx,
+	struct vb2_queue *thisvq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, type);
+	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
 			V4L2_TYPE_IS_OUTPUT(type) ?
 				V4L2_BUF_TYPE_VIDEO_CAPTURE :
 				V4L2_BUF_TYPE_VIDEO_OUTPUT);
@@ -1045,7 +1024,7 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 		ctx->img_fmt = smfc_fmt;
 
 	if (ctx->flags & SMFC_CTX_B2B_COMPRESS) {
-		struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->m2mctx,
+		struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
 			V4L2_TYPE_IS_OUTPUT(f->type) ?
 				V4L2_BUF_TYPE_VIDEO_CAPTURE :
 				V4L2_BUF_TYPE_VIDEO_OUTPUT);
@@ -1112,39 +1091,6 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 	return 0;
 }
 
-static int smfc_v4l2_reqbufs(struct file *filp, void *fh,
-			     struct v4l2_requestbuffers *reqbufs)
-{
-	return v4l2_m2m_reqbufs(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, reqbufs);
-}
-
-static int smfc_v4l2_querybuf(struct file *filp, void *fh,
-			      struct v4l2_buffer *buf)
-{
-	return v4l2_m2m_querybuf(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, buf);
-}
-
-static int smfc_v4l2_qbuf(struct file *filp, void *fh, struct v4l2_buffer *buf)
-{
-	return v4l2_m2m_qbuf(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, buf);
-}
-
-static int smfc_v4l2_dqbuf(struct file *filp, void *fh, struct v4l2_buffer *buf)
-{
-	return v4l2_m2m_dqbuf(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, buf);
-}
-
-static int smfc_v4l2_streamon(struct file *filp, void *fh,
-			      enum v4l2_buf_type type)
-{
-	return v4l2_m2m_streamon(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, type);
-}
-
-static int smfc_v4l2_streamoff(struct file *filp, void *fh,
-			       enum v4l2_buf_type type)
-{
-	return v4l2_m2m_streamoff(filp, v4l2_fh_to_smfc_ctx(fh)->m2mctx, type);
-}
 
 static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_querycap		= smfc_v4l2_querycap,
@@ -1164,12 +1110,16 @@ static const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_s_fmt_vid_out		= smfc_v4l2_s_fmt,
 	.vidioc_s_fmt_vid_cap_mplane	= smfc_v4l2_s_fmt_mplane,
 	.vidioc_s_fmt_vid_out_mplane	= smfc_v4l2_s_fmt_mplane,
-	.vidioc_reqbufs			= smfc_v4l2_reqbufs,
-	.vidioc_querybuf		= smfc_v4l2_querybuf,
-	.vidioc_qbuf			= smfc_v4l2_qbuf,
-	.vidioc_dqbuf			= smfc_v4l2_dqbuf,
-	.vidioc_streamon		= smfc_v4l2_streamon,
-	.vidioc_streamoff		= smfc_v4l2_streamoff,
+
+	.vidioc_reqbufs			= v4l2_m2m_ioctl_reqbufs,
+	.vidioc_querybuf		= v4l2_m2m_ioctl_querybuf,
+	.vidioc_qbuf			= v4l2_m2m_ioctl_qbuf,
+	.vidioc_dqbuf			= v4l2_m2m_ioctl_dqbuf,
+
+	.vidioc_streamon		= v4l2_m2m_ioctl_streamon,
+	.vidioc_streamoff		= v4l2_m2m_ioctl_streamoff,
+
+	.vidioc_log_status		= v4l2_ctrl_log_status,
 };
 
 static bool smfc_check_hwfc_configuration(struct smfc_ctx *ctx, bool hwfc_en)
@@ -1257,14 +1207,14 @@ err_clk:
 	pm_runtime_put(ctx->smfc->dev);
 err_pm:
 	v4l2_m2m_buf_done(
-		v4l2_m2m_src_buf_remove(ctx->m2mctx), VB2_BUF_STATE_ERROR);
+		v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx), VB2_BUF_STATE_ERROR);
 	v4l2_m2m_buf_done(
-		v4l2_m2m_dst_buf_remove(ctx->m2mctx), VB2_BUF_STATE_ERROR);
+		v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx), VB2_BUF_STATE_ERROR);
 	/*
 	 * It is safe to call v4l2_m2m_job_finish() here because .device_run()
 	 * is called without any lock held
 	 */
-	v4l2_m2m_job_finish(ctx->smfc->m2mdev, ctx->m2mctx);
+	v4l2_m2m_job_finish(ctx->smfc->m2mdev, ctx->fh.m2m_ctx);
 }
 
 static void smfc_m2m_job_abort(void *priv)
@@ -1545,7 +1495,7 @@ static int smfc_resume(struct device *dev)
 
 	/* completing the unfinished job and resuming the next pending jobs */
 	if (ctx)
-		v4l2_m2m_job_finish(smfc->m2mdev, ctx->m2mctx);
+		v4l2_m2m_job_finish(smfc->m2mdev, ctx->fh.m2m_ctx);
 	return 0;
 }
 #endif

@@ -254,8 +254,8 @@ void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx)
 	__raw_writel(ctx->thumb_width | (ctx->thumb_height << 16),
 			ctx->smfc->reg + REG_SEC_IMAGE_SIZE);
 
-	vb2buf_img = v4l2_m2m_next_src_buf(ctx->m2mctx);
-	vb2buf_jpg = v4l2_m2m_next_dst_buf(ctx->m2mctx);
+	vb2buf_img = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	vb2buf_jpg = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
 	smfc_hwconfigure_image_base(ctx, vb2buf_img, true);
 	/*
@@ -284,11 +284,11 @@ void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 			ctx->smfc->reg + REG_MAIN_IMAGE_SIZE);
 
 	if (!(ctx->flags & SMFC_CTX_COMPRESS)) {
-		vb2buf_img = v4l2_m2m_next_dst_buf(ctx->m2mctx);
-		vb2buf_jpg = v4l2_m2m_next_src_buf(ctx->m2mctx);
+		vb2buf_img = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+		vb2buf_jpg = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	} else {
-		vb2buf_img = v4l2_m2m_next_src_buf(ctx->m2mctx);
-		vb2buf_jpg = v4l2_m2m_next_dst_buf(ctx->m2mctx);
+		vb2buf_img = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+		vb2buf_jpg = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 		/*
 		 * H/W JPEG does not allow upscaling of chroma components
 		 * during compression
