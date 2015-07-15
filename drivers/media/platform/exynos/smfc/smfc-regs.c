@@ -330,6 +330,16 @@ void smfc_hwconfigure_start(struct smfc_ctx *ctx,
 
 	/* configure "Error max compressed size" interrupt */
 	cfg = __raw_readl(base + REG_INT_EN);
+	if (hwfc_en) {
+		/*
+		 * Timer interrupt should be disabled if HWFC is enabled.
+		 * Instead OTF_EMU_HURRY_THRESHOLD interrupt is used for HWFC
+		 * that is asserted when the synchronization between SMFC and
+		 * MC-Scaler is broken.
+		 */
+		cfg &= ~(1 << 5);
+		cfg |= 1 << 12;
+	}
 	__raw_writel(cfg | (1 << 11), base + REG_INT_EN);
 
 	cfg = __raw_readl(base + REG_MAIN_JPEG_CNTL) & ~JPEG_CNTL_CODECON_MASK;
