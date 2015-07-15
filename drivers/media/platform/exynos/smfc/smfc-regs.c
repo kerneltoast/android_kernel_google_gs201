@@ -350,48 +350,42 @@ void smfc_hwconfigure_start(struct smfc_ctx *ctx,
 
 bool smfc_hwstatus_okay(struct smfc_dev *smfc, struct smfc_ctx *ctx)
 {
-	u32 val;
-	bool ret = false;
+	u32 val, val2, reg;
 
 	/* Disable global interrupt */
-	val = __raw_readl(smfc->reg + REG_MAIN_JPEG_CNTL);
-	val ^= 1 << JPEG_CNTL_INT_EN_SHIFT;
-	__raw_writel(val, smfc->reg + REG_MAIN_JPEG_CNTL);
+	reg = __raw_readl(smfc->reg + REG_MAIN_JPEG_CNTL);
+	reg ^= 1 << JPEG_CNTL_INT_EN_SHIFT;
+	__raw_writel(reg, smfc->reg + REG_MAIN_JPEG_CNTL);
 
 	val = __raw_readl(smfc->reg + REG_MAIN_INT_STATUS);
-	if (!val) {
-		dev_err(smfc->dev, "Interrupt with no status change\n");
-		goto err;
+	val2 = __raw_readl(smfc->reg + REG_SEC_INT_STATUS);
+
+	if (!val && !val2) {
+		dev_err(smfc->dev, "Interrupt with no state change\n");
+		return false;
 	}
 
 	if ((val & ~2)) {
-		dev_err(smfc->dev, "Error interrupt %#010x\n", val);
-		goto err;
+		dev_err(smfc->dev, "Error main interrupt %#010x.\n", val);
+		return false;
 	}
 
-	if (!(ctx->flags & SMFC_CTX_B2B_COMPRESS))
-		goto finish;
+	if ((val2 & ~2)) {
+		dev_err(smfc->dev, "Error secondary interrupt %#010x.\n", val);
+		return false;
+	}
 
-	val = __raw_readl(smfc->reg + REG_SEC_INT_STATUS);
-	if (!val) {
+	if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS) && !val2) {
 		dev_err(smfc->dev, "Secondary image is not completed\n");
-		goto err;
+		return false;
 	}
 
-	if ((val & ~2)) {
-		dev_err(smfc->dev, "Error interrupt %#010x for the secondary\n",
-			val);
-		goto err;
-	}
-finish:
-	ret = true;
-err:
 	/* reset codec state to compression/decompression disabled */
-	val = __raw_readl(smfc->reg + REG_MAIN_JPEG_CNTL);
-	val &= ~JPEG_CNTL_RESET_MASK;
-	__raw_writel(val, smfc->reg + REG_MAIN_JPEG_CNTL);
+	reg = __raw_readl(smfc->reg + REG_MAIN_JPEG_CNTL);
+	reg &= ~JPEG_CNTL_RESET_MASK,
+	__raw_writel(reg, smfc->reg + REG_MAIN_JPEG_CNTL);
 
-	return ret;
+	return true;
 }
 
 void smfc_dump_registers(struct smfc_dev *smfc)
