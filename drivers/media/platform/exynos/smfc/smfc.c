@@ -1191,7 +1191,7 @@ static void smfc_m2m_device_run(void *priv)
 	if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS) &&
 			!!(ctx->flags & SMFC_CTX_COMPRESS)) {
 		smfc_hwconfigure_2nd_tables(ctx, thumb_quality_factor);
-		smfc_hwconfigure_2nd_image(ctx);
+		smfc_hwconfigure_2nd_image(ctx, !!enable_hwfc);
 	}
 
 	spin_lock_irqsave(&ctx->smfc->flag_lock, flags);

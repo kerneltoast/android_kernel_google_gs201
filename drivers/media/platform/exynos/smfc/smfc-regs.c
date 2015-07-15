@@ -243,7 +243,7 @@ static u32 smfc_get_jpeg_format(unsigned int hfactor, unsigned int vfactor)
 	return 2 << 24; /* default: YUV422 */
 }
 
-void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx)
+void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx, bool hwfc_enabled)
 {
 	struct vb2_buffer *vb2buf_img, *vb2buf_jpg;
 	u32 format;
@@ -264,11 +264,18 @@ void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx)
 	 */
 	smfc_hwconfigure_jpeg_base(ctx, vb2buf_jpg, true);
 
+	format = ctx->img_fmt->regcfg;
 	/*
 	 * Chroma subsampling is always 1/2 for both of horizontal and vertical
-	 * directions to reduce the compressed size of the secondary image
+	 * directions to reduce the compressed size of the secondary image.
+	 * If HWFC is enabled, the chroma subsampling is not allowed.
 	 */
-	format = ctx->img_fmt->regcfg | smfc_get_jpeg_format(2, 2);
+	if (hwfc_enabled)
+		format |= smfc_get_jpeg_format(ctx->img_fmt->chroma_hfactor,
+						ctx->img_fmt->chroma_vfactor);
+	else
+		format |= smfc_get_jpeg_format(2, 2);
+
 	__raw_writel(format, ctx->smfc->reg + REG_SEC_IMAGE_FORMAT);
 }
 

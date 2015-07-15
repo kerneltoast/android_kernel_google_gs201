@@ -116,7 +116,7 @@ void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 void smfc_hwconfigure_start(struct smfc_ctx *ctx,
 			    unsigned int rst_int, bool hwfc_en);
 void smfc_hwconfigure_2nd_tables(struct smfc_ctx *ctx, unsigned int qfactor);
-void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx);
+void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx, bool hwfc_enabled);
 bool smfc_hwstatus_okay(struct smfc_dev *smfc, struct smfc_ctx *ctx);
 void smfc_hwconfigure_reset(struct smfc_dev *smfc);
 void smfc_dump_registers(struct smfc_dev *smfc);
