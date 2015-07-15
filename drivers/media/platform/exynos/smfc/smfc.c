@@ -1136,10 +1136,10 @@ static bool smfc_check_hwfc_configuration(struct smfc_ctx *ctx, bool hwfc_en)
 
 	if (fmt->chroma_hfactor == 2) {
 		/* YUV422 1-plane */
-		if ((fmt->chroma_vfactor == 1) && (fmt->num_planes != 1))
+		if ((fmt->chroma_vfactor == 1) && (fmt->num_planes == 1))
 			return true;
 		/* YUV420 2-plane */
-		if ((fmt->chroma_vfactor == 2) && (fmt->num_planes != 2))
+		if ((fmt->chroma_vfactor == 2) && (fmt->num_planes == 2))
 			return true;
 	}
 
