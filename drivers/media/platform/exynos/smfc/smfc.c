@@ -443,6 +443,19 @@ static void smfc_vb2_buf_finish(struct vb2_buffer *vb)
 {
 }
 
+static void smfc_vb2_buf_cleanup(struct vb2_buffer *vb)
+{
+	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type) &&
+			!!(ctx->flags & SMFC_CTX_COMPRESS)) {
+		/*
+		 * TODO: clean the APP segments written by CPU in front
+		 * of the start of the JPEG stream to be written by H/W
+		 * for the later use of this buffer.
+		 */
+	}
+}
+
 static void smfc_vb2_buf_queue(struct vb2_buffer *vb)
 {
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
@@ -470,6 +483,7 @@ static struct vb2_ops smfc_vb2_ops = {
 	.queue_setup	= smfc_vb2_queue_setup,
 	.buf_prepare	= smfc_vb2_buf_prepare,
 	.buf_finish	= smfc_vb2_buf_finish,
+	.buf_cleanup	= smfc_vb2_buf_cleanup,
 	.buf_queue	= smfc_vb2_buf_queue,
 	.wait_finish	= vb2_ops_wait_finish,
 	.wait_prepare	= vb2_ops_wait_prepare,
