@@ -43,8 +43,14 @@ static inline bool is_jpeg(const struct smfc_image_format *fmt)
 	return fmt->bpp_buf[0] == 0;
 }
 
+/* Set when H/W starts, cleared in irq/timeout handler */
 #define SMFC_DEV_RUNNING	(1 << 0)
+/* Set when suspend handler is called, cleared before irq handler returns. */
 #define SMFC_DEV_SUSPENDING	(1 << 1)
+/* Set when timeout handler is called, cleared before the handler returns. */
+#define SMFC_DEV_TIMEDOUT	(1 << 3)
+/* Set if HWFC is enabled in device_run, cleared in irq/timeout handler */
+#define SMFC_DEV_OTF_EMUMODE	(1 << 4)
 
 struct smfc_dev {
 	struct v4l2_device v4l2_dev;
@@ -54,6 +60,7 @@ struct smfc_dev {
 	void __iomem *reg;
 	spinlock_t flag_lock;
 	struct mutex video_device_mutex;
+	struct timer_list timer;
 	int device_id;
 	u32 hwver;
 	u32 flags;

@@ -302,14 +302,25 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 
 	ktime = ktime_get();
 
+	spin_lock(&smfc->flag_lock);
+
+	if (!!(smfc->flags & SMFC_DEV_TIMEDOUT)) {
+		/* The tieout handler does the rest */
+		dev_err(smfc->dev, "Interrupt occurred after timed-out.\n");
+		spin_unlock(&smfc->flag_lock);
+		return IRQ_HANDLED;
+	}
+
 	if (!(smfc->flags & SMFC_DEV_RUNNING)) {
 		smfc_dump_registers(smfc);
 		BUG();
 	}
 
-	spin_lock(&smfc->flag_lock);
 	suspending = !!(smfc->flags & SMFC_DEV_SUSPENDING);
-	smfc->flags &= ~SMFC_DEV_RUNNING;
+	if (!!(smfc->flags & SMFC_DEV_OTF_EMUMODE))
+		del_timer(&smfc->timer);
+	smfc->flags &= ~(SMFC_DEV_RUNNING | SMFC_DEV_OTF_EMUMODE);
+
 	spin_unlock(&smfc->flag_lock);
 
 	if (!smfc_hwstatus_okay(smfc, ctx)) {
@@ -368,6 +379,60 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 
 	return IRQ_HANDLED;
 }
+
+static void smfc_timedout_handler(unsigned long arg)
+{
+	struct smfc_dev *smfc = (struct smfc_dev *)arg;
+	struct smfc_ctx *ctx;
+	unsigned long flags;
+	bool suspending;
+
+	spin_lock_irqsave(&smfc->flag_lock, flags);
+	if (!(smfc->flags & SMFC_DEV_RUNNING)) {
+		/* Interrupt is occurred before timer handler is called */
+		spin_unlock_irqrestore(&smfc->flag_lock, flags);
+		return;
+	}
+
+	/* timer is enabled only when HWFC is enabled */
+	BUG_ON(!(smfc->flags & SMFC_DEV_OTF_EMUMODE));
+	suspending = !!(smfc->flags & SMFC_DEV_SUSPENDING);
+	smfc->flags |= SMFC_DEV_TIMEDOUT; /* indicate the timedout is handled */
+	smfc->flags &= ~(SMFC_DEV_RUNNING | SMFC_DEV_OTF_EMUMODE);
+	spin_unlock_irqrestore(&smfc->flag_lock, flags);
+
+	dev_err(smfc->dev, "=== TIMED-OUT! (1 sec.) =========================");
+	smfc_dump_registers(smfc);
+	smfc_hwconfigure_reset(smfc);
+
+	if (!IS_ERR(smfc->clk_gate)) {
+		clk_disable(smfc->clk_gate);
+		if (!IS_ERR(smfc->clk_gate2))
+			clk_disable(smfc->clk_gate2);
+	}
+
+	pm_runtime_put(smfc->dev);
+
+	ctx = v4l2_m2m_get_curr_priv(smfc->m2mdev);
+	if (ctx) {
+		v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx),
+							VB2_BUF_STATE_ERROR);
+		v4l2_m2m_buf_done(v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx),
+							VB2_BUF_STATE_ERROR);
+		if (!suspending) {
+			v4l2_m2m_job_finish(smfc->m2mdev, ctx->fh.m2m_ctx);
+		} else {
+			spin_lock(&smfc->flag_lock);
+			spin_unlock(&smfc->flag_lock);
+		}
+	}
+
+	spin_lock_irqsave(&smfc->flag_lock, flags);
+	/* finished timedout handling and suspend() can return */
+	smfc->flags &= ~(SMFC_DEV_TIMEDOUT | SMFC_DEV_SUSPENDING);
+	spin_unlock_irqrestore(&smfc->flag_lock, flags);
+}
+
 
 static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 				unsigned int *num_planes, unsigned int sizes[],
@@ -1210,7 +1275,16 @@ static void smfc_m2m_device_run(void *priv)
 
 	spin_lock_irqsave(&ctx->smfc->flag_lock, flags);
 	ctx->smfc->flags |= SMFC_DEV_RUNNING;
+	if (!!enable_hwfc)
+		ctx->smfc->flags |= SMFC_DEV_OTF_EMUMODE;
 	spin_unlock_irqrestore(&ctx->smfc->flag_lock, flags);
+
+	/*
+	 * SMFC internal timer is unavailable if HWFC is enabled
+	 * Therefore, S/W timer object is used to detect unexpected delay.
+	 */
+	if (!!enable_hwfc)
+		mod_timer(&ctx->smfc->timer, jiffies + HZ); /* 1 sec. */
 
 	ctx->ktime_beg = ktime_get();
 
@@ -1445,6 +1519,8 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	ret = iovmm_activate(&pdev->dev);
 	if (ret < 0)
 		return ret;
+
+	setup_timer(&smfc->timer, smfc_timedout_handler, (unsigned long)smfc);
 
 	platform_set_drvdata(pdev, smfc);
 
