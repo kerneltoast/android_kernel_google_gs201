@@ -38,6 +38,11 @@ struct smfc_image_format {
 	unsigned char	chroma_vfactor;
 };
 
+extern const struct smfc_image_format smfc_image_formats[];
+
+#define SMFC_DEFAULT_OUTPUT_FORMAT	(&smfc_image_formats[1])
+#define SMFC_DEFAULT_CAPTURE_FORMAT	(&smfc_image_formats[0])
+
 static inline bool is_jpeg(const struct smfc_image_format *fmt)
 {
 	return fmt->bpp_buf[0] == 0;
@@ -98,6 +103,8 @@ struct smfc_ctx {
 	unsigned char enable_hwfc;
 };
 
+extern const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops;
+
 static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
 {
 	return container_of(fh, struct smfc_ctx, fh);
@@ -115,6 +122,8 @@ static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
 {
 	return !(ctx->flags & SMFC_CTX_COMPRESS) == V4L2_TYPE_IS_OUTPUT(type);
 }
+
+int smfc_init_controls(struct smfc_dev *smfc, struct v4l2_ctrl_handler *hdlr);
 
 /* H/W Configuration */
 void smfc_hwconfigure_tables(struct smfc_ctx *ctx, unsigned int qfactor);
