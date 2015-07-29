@@ -13,34 +13,6 @@
 
 #include "smfc.h"
 
-/* SMFC SPECIFIC DEVICE CAPABILITIES */
-/* set if H/W supports for decompression */
-#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION		0x0100
-/* set if H/W can compress dual images */
-#define V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION		0x0200
-/* set if H/W supports for Hardware Flow Control */
-#define V4L2_CAP_EXYNOS_JPEG_HWFC			0x0400
-/* set if H/W supports for HWFC on internal buffers */
-#define V4L2_CAP_EXYNOS_JPEG_HWFC_EMBEDDED		0x0800
-/* set if H/W has a register to configure stream buffer size */
-#define V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE		0x1000
-/* set if H/W does not have 128-bit alignment constraint for stream base */
-#define V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN	0x2000
-/* set if H/W does not have 128-bit alignment constraint for image base */
-#define V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN		0x4000
-/*
- * Set if the driver requires the address of SOS marker for the start address
- * of the JPEG stream. Unset if the driver requires the address of SOI marker
- * for the start address of the JPEG stream even though H/W requires the address
- * of SOS marker to decompress when the driver is able to find the address of
- * SOS marker from the given address of SOI marker.
- */
-#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION_FROM_SOS	0x10000
-/* set if H/W supports for cropping during decompression */
-#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION_CROP		0x20000
-/* set if H/W supports for downscaling(1/2, 1/4 and 1/8) during decompression */
-#define V4L2_CAP_EXYNOS_JPEG_DOWNSCALING		0x40000
-
 /* SMFC SPECIFIC CONTROLS */
 #define V4L2_CID_JPEG_SEC_COMP_QUALITY	(V4L2_CID_JPEG_CLASS_BASE + 20)
 #define V4L2_CID_JPEG_HWFC_ENABLE	(V4L2_CID_JPEG_CLASS_BASE + 25)
@@ -299,6 +271,13 @@ static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctx->thumb_quality_factor = (unsigned char)ctrl->val;
 		break;
 	case V4L2_CID_JPEG_HWFC_ENABLE:
+		if (!smfc_is_capable(ctx->smfc,
+				V4L2_CAP_EXYNOS_JPEG_HWFC)) {
+			dev_err(ctx->smfc->dev,
+				"HWFC(OTF mode) not supported (ver.%08X)",
+				ctx->smfc->hwver);
+			return -EINVAL;
+		}
 		ctx->enable_hwfc = (unsigned char)ctrl->val;
 		break;
 	case V4L2_CID_JPEG_RESTART_INTERVAL:
@@ -428,13 +407,7 @@ static int smfc_v4l2_querycap(struct file *filp, void *fh,
 				| V4L2_CAP_VIDEO_M2M;
 	cap->capabilities |= V4L2_CAP_DEVICE_CAPS;
 
-	cap->device_caps = V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION;
-	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_HWFC;
-	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE;
-	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN;
-	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN;
-
-	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION;
+	cap->device_caps = smfc->devdata->device_caps;
 
 	return 0;
 }
@@ -585,11 +558,29 @@ static bool smfc_check_image_size(struct device *dev, __u32 type,
 	return true;
 }
 
+static bool smfc_check_capable_of_decompression(const struct smfc_dev *smfc,
+		const struct smfc_image_format *smfc_fmt, __u32 type)
+{
+	if (smfc_is_capable(smfc, V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION))
+		return true;
+
+	if (is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(type)) /* compression? */
+		return true;
+
+	dev_err(smfc->dev, "Decompression is not supported (ver.%08X)",
+		smfc->hwver);
+
+	return false;
+}
+
 static bool smfc_v4l2_init_fmt_mplane(const struct smfc_ctx *ctx,
 			const struct smfc_image_format *smfc_fmt,
 			__u32 type, struct v4l2_pix_format_mplane *pix_mp)
 {
 	unsigned int i;
+
+	if (!smfc_check_capable_of_decompression(ctx->smfc, smfc_fmt, type))
+		return false;
 
 	if (!smfc_check_image_size(ctx->smfc->dev, type,
 				smfc_fmt, pix_mp->width, pix_mp->height))
@@ -703,10 +694,18 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 	ctx->thumb_width = SMFC_FMT_SEC_SIZE(f->fmt.pix_mp.width);
 	ctx->thumb_height = SMFC_FMT_SEC_SIZE(f->fmt.pix_mp.height);
 
-	if (ctx->thumb_width && ctx->thumb_height)
+	if (ctx->thumb_width && ctx->thumb_height) {
+		if (!smfc_is_capable(ctx->smfc,
+				V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION)) {
+			dev_err(ctx->smfc->dev,
+				"back-to-back mode not supported (ver.%08X)",
+				ctx->smfc->hwver);
+			return -EINVAL;
+		}
 		ctx->flags |= SMFC_CTX_B2B_COMPRESS;
-	else
+	} else {
 		ctx->flags &= ~SMFC_CTX_B2B_COMPRESS;
+	}
 
 	if (f->fmt.pix_mp.pixelformat != V4L2_PIX_FMT_JPEG)
 		ctx->img_fmt = smfc_fmt;
@@ -731,6 +730,9 @@ static bool smfc_v4l2_init_fmt(const struct smfc_ctx *ctx,
 				__u32 type, struct v4l2_pix_format *pix)
 {
 	BUG_ON(V4L2_TYPE_IS_MULTIPLANAR(pix->pixelformat));
+
+	if (!smfc_check_capable_of_decompression(ctx->smfc, smfc_fmt, type))
+		return false;
 
 	if (!smfc_check_image_size(ctx->smfc->dev, type,
 				smfc_fmt, pix->width, pix->height))

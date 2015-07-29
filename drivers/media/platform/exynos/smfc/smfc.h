@@ -48,6 +48,39 @@ static inline bool is_jpeg(const struct smfc_image_format *fmt)
 	return fmt->bpp_buf[0] == 0;
 }
 
+/* SMFC SPECIFIC DEVICE CAPABILITIES */
+/* set if H/W supports for decompression */
+#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION		0x0100
+/* set if H/W can compress dual images */
+#define V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION		0x0200
+/* set if H/W supports for Hardware Flow Control */
+#define V4L2_CAP_EXYNOS_JPEG_HWFC			0x0400
+/* set if H/W supports for HWFC on internal buffers */
+#define V4L2_CAP_EXYNOS_JPEG_HWFC_EMBEDDED		0x0800
+/* set if H/W has a register to configure stream buffer size */
+#define V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE		0x1000
+/* set if H/W does not have 128-bit alignment constraint for stream base */
+#define V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN	0x2000
+/* set if H/W does not have 128-bit alignment constraint for image base */
+#define V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN		0x4000
+/*
+ * Set if the driver requires the address of SOS marker for the start address
+ * of the JPEG stream. Unset if the driver requires the address of SOI marker
+ * for the start address of the JPEG stream even though H/W requires the address
+ * of SOS marker to decompress when the driver is able to find the address of
+ * SOS marker from the given address of SOI marker.
+ */
+#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION_FROM_SOS	0x10000
+/* set if H/W supports for cropping during decompression */
+#define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION_CROP		0x20000
+/* set if H/W supports for downscaling(1/2, 1/4 and 1/8) during decompression */
+#define V4L2_CAP_EXYNOS_JPEG_DOWNSCALING		0x40000
+
+struct smfc_device_data {
+	__u32 device_caps;
+	unsigned char burstlenth_bits;
+};
+
 /* Set when H/W starts, cleared in irq/timeout handler */
 #define SMFC_DEV_RUNNING	(1 << 0)
 /* Set when suspend handler is called, cleared before irq handler returns. */
@@ -63,6 +96,7 @@ struct smfc_dev {
 	struct v4l2_m2m_dev *m2mdev;
 	struct device *dev;
 	void __iomem *reg;
+	const struct smfc_device_data *devdata;
 	spinlock_t flag_lock;
 	struct mutex video_device_mutex;
 	struct timer_list timer;
@@ -76,6 +110,12 @@ struct smfc_dev {
 
 #define SMFC_CTX_COMPRESS	(1 << 0)
 #define SMFC_CTX_B2B_COMPRESS	(1 << 1) /* valid if SMFC_CTX_COMPRESS is set */
+
+static inline bool smfc_is_capable(const struct smfc_dev *smfc, u32 capability)
+{
+	return (smfc->devdata->device_caps & capability) == capability;
+}
+
 struct smfc_decomp_htable {
 	struct {
 		union {

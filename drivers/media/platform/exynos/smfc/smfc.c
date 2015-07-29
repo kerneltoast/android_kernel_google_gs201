@@ -747,10 +747,54 @@ static int __attribute__((unused)) smfc_iommu_fault_handler(
 	return 0;
 }
 
+static const struct smfc_device_data smfc_8890_data = {
+	.device_caps = V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION
+			| V4L2_CAP_EXYNOS_JPEG_HWFC
+			| V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE
+			| V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN
+			| V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN
+			| V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION,
+	.burstlenth_bits = 4, /* 16 bytes: 1 burst */
+};
+
+static const struct smfc_device_data smfc_7420_data = {
+	.device_caps = V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN
+			| V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN
+			| V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION
+			| V4L2_CAP_EXYNOS_JPEG_DOWNSCALING
+			| V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION_CROP,
+	.burstlenth_bits = 5, /* 32 bytes: 2 bursts */
+};
+
+static const struct smfc_device_data smfc_3475_data = {
+	.device_caps = V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN
+			| V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN,
+	.burstlenth_bits = 5, /* 32 bytes: 2 bursts */
+};
+
+static const struct of_device_id exynos_smfc_match[] __initconst = {
+	{
+		.compatible = "samsung,exynos-jpeg",
+		.data = &smfc_8890_data,
+	}, {
+		.compatible = "samsung,exynos8890-jpeg",
+		.data = &smfc_8890_data,
+	}, {
+		.compatible = "samsung,exynos7420-jpeg",
+		.data = &smfc_7420_data,
+	}, {
+		.compatible = "samsung,exynos3475-jpeg",
+		.data = &smfc_3475_data,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, exynos_smfc_match);
+
 static int exynos_smfc_probe(struct platform_device *pdev)
 {
 	struct smfc_dev *smfc;
 	struct resource *res;
+	const struct of_device_id *of_id;
 	int ret;
 
 	smfc = devm_kzalloc(&pdev->dev, sizeof(*smfc), GFP_KERNEL);
@@ -765,6 +809,9 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	smfc->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(smfc->reg))
 		return PTR_ERR(smfc->reg);
+
+	of_id = of_match_node(exynos_smfc_match, pdev->dev.of_node);
+	smfc->devdata = of_id->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
@@ -835,14 +882,6 @@ static int exynos_smfc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id exynos_smfc_match[] = {
-	{
-		.compatible = "samsung,exynos-jpeg",
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(of, exynos_smfc_match);
-
 #ifdef CONFIG_PM_SLEEP
 static int smfc_suspend(struct device *dev)
 {
@@ -899,7 +938,7 @@ static const struct dev_pm_ops exynos_smfc_pm_ops = {
 	SET_RUNTIME_PM_OPS(NULL, smfc_runtime_resume, smfc_runtime_suspend)
 };
 
-static struct platform_driver exynos_smfc_driver = {
+static struct platform_driver exynos_smfc_driver __refdata = {
 	.probe		= exynos_smfc_probe,
 	.remove		= exynos_smfc_remove,
 	.driver = {

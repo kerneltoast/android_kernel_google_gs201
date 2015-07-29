@@ -27,12 +27,11 @@
 #define SMFC_MAX_HEIGHT	16368U
 #define SMFC_MIN_WIDTH	8U
 #define SMFC_MIN_HEIGHT	8U
-#define SMFC_ADDR_ALIGN 16	/* 128-bit align */
-#define SMFC_ADDR_ALIGN_MASK (SMFC_ADDR_ALIGN - 1)
+#define SMFC_ADDR_ALIGN_MASK(burstlen) ((burstlen) - 1)
 #define SMFC_STREAMSIZE_ALIGN 64
 #define SMFC_STREAMSIZE_ALIGN_MASK (64 - 1)
-#define SMFC_EXTRA_STREAMSIZE(base)	\
-		(SMFC_STREAMSIZE_ALIGN - ((base) & SMFC_ADDR_ALIGN_MASK))
+#define SMFC_EXTRA_STREAMSIZE(base, burstlen)	\
+	(SMFC_STREAMSIZE_ALIGN - ((base) & SMFC_ADDR_ALIGN_MASK(burstlen)))
 
 /********** H/W REGISTERS and DEFAULT VALUES **********************************/
 #define REG_MAIN_JPEG_CNTL		0x000
