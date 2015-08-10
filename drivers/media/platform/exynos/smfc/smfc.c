@@ -775,7 +775,7 @@ static const struct smfc_device_data smfc_3475_data = {
 static const struct of_device_id exynos_smfc_match[] __initconst = {
 	{
 		.compatible = "samsung,exynos-jpeg",
-		.data = &smfc_8890_data,
+		.data = &smfc_3475_data,
 	}, {
 		.compatible = "samsung,exynos8890-jpeg",
 		.data = &smfc_8890_data,
