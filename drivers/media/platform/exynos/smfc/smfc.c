@@ -772,7 +772,7 @@ static const struct smfc_device_data smfc_3475_data = {
 	.burstlenth_bits = 5, /* 32 bytes: 2 bursts */
 };
 
-static const struct of_device_id exynos_smfc_match[] __initconst = {
+static const struct of_device_id exynos_smfc_match[] = {
 	{
 		.compatible = "samsung,exynos-jpeg",
 		.data = &smfc_3475_data,
@@ -938,7 +938,7 @@ static const struct dev_pm_ops exynos_smfc_pm_ops = {
 	SET_RUNTIME_PM_OPS(NULL, smfc_runtime_resume, smfc_runtime_suspend)
 };
 
-static struct platform_driver exynos_smfc_driver __refdata = {
+static struct platform_driver exynos_smfc_driver = {
 	.probe		= exynos_smfc_probe,
 	.remove		= exynos_smfc_remove,
 	.driver = {
