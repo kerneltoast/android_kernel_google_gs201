@@ -761,6 +761,14 @@ static const struct smfc_device_data smfc_8890_data = {
 	.burstlenth_bits = 4, /* 16 bytes: 1 burst */
 };
 
+static const struct smfc_device_data smfc_7870_data = {
+	.device_caps = V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION
+			| V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN
+			| V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN
+			| V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION,
+	.burstlenth_bits = 4, /* 16 bytes: 1 burst */
+};
+
 static const struct smfc_device_data smfc_7420_data = {
 	.device_caps = V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN
 			| V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN
@@ -783,6 +791,9 @@ static const struct of_device_id exynos_smfc_match[] = {
 	}, {
 		.compatible = "samsung,exynos8890-jpeg",
 		.data = &smfc_8890_data,
+	}, {
+		.compatible = "samsung,exynos7870-jpeg",
+		.data = &smfc_7870_data,
 	}, {
 		.compatible = "samsung,exynos7420-jpeg",
 		.data = &smfc_7420_data,
