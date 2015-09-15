@@ -755,7 +755,6 @@ static int __attribute__((unused)) smfc_iommu_fault_handler(
 static const struct smfc_device_data smfc_8890_data = {
 	.device_caps = V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION
 			| V4L2_CAP_EXYNOS_JPEG_HWFC
-			| V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE
 			| V4L2_CAP_EXYNOS_JPEG_NO_STREAMBASE_ALIGN
 			| V4L2_CAP_EXYNOS_JPEG_NO_IMAGEBASE_ALIGN
 			| V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION,

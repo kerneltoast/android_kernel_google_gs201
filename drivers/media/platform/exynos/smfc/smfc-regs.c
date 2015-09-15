@@ -383,17 +383,6 @@ void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 		streamsize = ALIGN(streamsize, burstlen);
 		streamsize >>= ctx->smfc->devdata->burstlenth_bits;
 		__raw_writel(streamsize, ctx->smfc->reg + REG_MAIN_STREAM_SIZE);
-	} else if (smfc_is_capable(ctx->smfc,
-				   V4L2_CAP_EXYNOS_JPEG_MAX_STREAMSIZE)) {
-		u32 maxstreamsize = vb2_plane_size(&vb2buf_jpg->vb2_buf, 0);
-
-		maxstreamsize = round_down(maxstreamsize, SMFC_STREAMSIZE_ALIGN);
-		if (!IS_ALIGNED(stream_address, 16))
-			maxstreamsize +=
-				SMFC_EXTRA_STREAMSIZE(stream_address, burstlen);
-
-		__raw_writel(maxstreamsize,
-			     ctx->smfc->reg + REG_MAIN_MAX_STREAM_SIZE);
 	}
 }
 
