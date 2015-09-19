@@ -383,6 +383,8 @@ int smfc_init_controls(struct smfc_dev *smfc,
 
 	return 0;
 err:
+	v4l2_ctrl_handler_free(hdlr);
+
 	dev_err(smfc->dev, "Failed to install %s control (%d)\n",
 		msg, hdlr->error);
 	return hdlr->error;
