@@ -437,7 +437,7 @@ bool smfc_hwstatus_okay(struct smfc_dev *smfc, struct smfc_ctx *ctx)
 	__raw_writel(reg, smfc->reg + REG_MAIN_JPEG_CNTL);
 
 	val = __raw_readl(smfc->reg + REG_MAIN_INT_STATUS);
-	if (smfc_is_capable(ctx->smfc, V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION))
+	if (smfc_is_capable(smfc, V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION))
 		val2 = __raw_readl(smfc->reg + REG_SEC_INT_STATUS);
 
 	if (!val && !val2) {
@@ -455,7 +455,7 @@ bool smfc_hwstatus_okay(struct smfc_dev *smfc, struct smfc_ctx *ctx)
 		return false;
 	}
 
-	if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS) && !val2) {
+	if (ctx && !!(ctx->flags & SMFC_CTX_B2B_COMPRESS) && !val2) {
 		dev_err(smfc->dev, "Secondary image is not completed\n");
 		return false;
 	}

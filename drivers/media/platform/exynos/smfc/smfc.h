@@ -148,7 +148,7 @@ struct smfc_decomp_htable {
 struct smfc_decomp_qtable {
 	/* quantizers are *NOT* stored in the zig-zag scan order */
 	u8 table[SMFC_MAX_QTBL_COUNT][SMFC_MCU_SIZE];
-	char compsel[SMFC_MAX_NUM_COMP]; /* compsel[0] for component 1 */
+	char compsel[SMFC_MAX_QTBL_COUNT];
 };
 
 struct smfc_ctx {

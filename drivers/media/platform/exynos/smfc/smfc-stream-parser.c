@@ -20,6 +20,8 @@
 
 static bool smfc_alloc_tables(struct smfc_ctx *ctx)
 {
+	int i;
+
 	if (!ctx->quantizer_tables) {
 		ctx->quantizer_tables = kmalloc(
 				sizeof(*ctx->quantizer_tables), GFP_KERNEL);
@@ -27,10 +29,8 @@ static bool smfc_alloc_tables(struct smfc_ctx *ctx)
 			return false;
 	}
 	memset(ctx->quantizer_tables, 0, sizeof(*ctx->quantizer_tables));
-	ctx->quantizer_tables->compsel[0] = INVALID_QTBLIDX;
-	ctx->quantizer_tables->compsel[1] = INVALID_QTBLIDX;
-	ctx->quantizer_tables->compsel[2] = INVALID_QTBLIDX;
-	ctx->quantizer_tables->compsel[3] = INVALID_QTBLIDX;
+	for (i = 0; i < SMFC_MAX_QTBL_COUNT; i++)
+		ctx->quantizer_tables->compsel[i] = INVALID_QTBLIDX;
 
 	if (!ctx->huffman_tables) {
 		ctx->huffman_tables = kmalloc(
