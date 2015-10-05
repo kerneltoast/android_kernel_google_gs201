@@ -167,6 +167,7 @@ struct smfc_ctx {
 	unsigned char chroma_vfactor; /* vertical chroma subsampling factor */
 	unsigned char restart_interval;
 	unsigned char quality_factor;
+	struct v4l2_ctrl *ctrl_qtbl2;
 	/*
 	 * thumbnail information:
 	 * format of thumbnail should be the same as the main image
@@ -213,7 +214,8 @@ int smfc_init_controls(struct smfc_dev *smfc, struct v4l2_ctrl_handler *hdlr);
 int smfc_parse_jpeg_header(struct smfc_ctx *ctx, struct vb2_buffer *vb);
 
 /* H/W Configuration */
-void smfc_hwconfigure_tables(struct smfc_ctx *ctx, unsigned int qfactor);
+void smfc_hwconfigure_tables(struct smfc_ctx *ctx,
+			     unsigned int qfactor, const u8 qtbl[]);
 void smfc_hwconfigure_tables_for_decompression(struct smfc_ctx *ctx);
 void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 			    unsigned int hfactor, unsigned int vfactor);

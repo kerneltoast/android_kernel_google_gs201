@@ -546,7 +546,8 @@ static void smfc_m2m_device_run(void *priv)
 	smfc_hwconfigure_reset(ctx->smfc);
 
 	if (!!(ctx->flags & SMFC_CTX_COMPRESS)) {
-		smfc_hwconfigure_tables(ctx, quality_factor);
+		smfc_hwconfigure_tables(ctx, quality_factor,
+					ctx->ctrl_qtbl2->p_cur.p_u8);
 		smfc_hwconfigure_image(ctx, chroma_hfactor, chroma_vfactor);
 		if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS)) {
 			smfc_hwconfigure_2nd_tables(ctx, thumb_quality_factor);

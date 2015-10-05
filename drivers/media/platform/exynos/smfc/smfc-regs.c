@@ -33,7 +33,7 @@ void smfc_hwconfigure_reset(struct smfc_dev *smfc)
  * Quantization tables in ZIG-ZAG order provided by IOC/IEC 10918-1 K.1 and K.2
  * for YUV420 and YUV422
  */
-static const unsigned char default_luma_qtbl[SMFC_MCU_SIZE] __aligned(64) = {
+static const u8 default_luma_qtbl[SMFC_MCU_SIZE] __aligned(64) = {
 	 16,  11,  12,  14,  12,  10,  16,  14,
 	 13,  14,  18,  17,  16,  19,  24,  40,
 	 26,  24,  22,  22,  24,  49,  35,  37,
@@ -44,7 +44,7 @@ static const unsigned char default_luma_qtbl[SMFC_MCU_SIZE] __aligned(64) = {
 	121, 112, 100, 120,  92, 101, 103,  99,
 };
 
-static const unsigned char default_chroma_qtbl[SMFC_MCU_SIZE] __aligned(64) = {
+static const u8 default_chroma_qtbl[SMFC_MCU_SIZE] __aligned(64) = {
 	17,  18,  18,  24,  21,  24,  47,  26,
 	26,  47,  99,  66,  56,  66,  99,  99,
 	99,  99,  99,  99,  99,  99,  99,  99,
@@ -124,7 +124,7 @@ static inline u32 smfc_calc_quantizers(unsigned int idx, unsigned int factor,
 #pragma GCC diagnostic pop
 
 static void smfc_hwconfigure_qtable(void __iomem *reg, unsigned int factor,
-				    const unsigned char table[])
+				    const u8 table[])
 {
 	size_t i;
 
@@ -132,16 +132,39 @@ static void smfc_hwconfigure_qtable(void __iomem *reg, unsigned int factor,
 		__raw_writel(smfc_calc_quantizers(i, factor, table), reg + i);
 }
 
-void smfc_hwconfigure_tables(struct smfc_ctx *ctx, unsigned int qfactor)
+static void smfc_hwconfigure_custom_qtable(void __iomem *reg, const u8 table[])
+{
+	size_t i;
+
+	for (i = 0; i < SMFC_MCU_SIZE; i += 4) {
+		u32 val;
+
+		val = table[i];
+		val |= table[i + 1] << 8;
+		val |= table[i + 2] << 16;
+		val |= table[i + 3] << 24;
+		__raw_writel(val, reg + i);
+	}
+}
+
+void smfc_hwconfigure_tables(struct smfc_ctx *ctx,
+			     unsigned int qfactor, const u8 qtbl[])
 {
 	size_t i;
 	void __iomem *base = ctx->smfc->reg;
-	qfactor = (qfactor < 50) ? 5000 / qfactor : 200 - qfactor * 2;
 
-	smfc_hwconfigure_qtable(base + REG_QTBL_BASE,
-				qfactor, default_luma_qtbl);
-	smfc_hwconfigure_qtable(base + REG_QTBL_BASE + SMFC_MCU_SIZE,
-				qfactor, default_chroma_qtbl);
+	if (qfactor > 0) {
+		qfactor = (qfactor < 50) ? 5000 / qfactor : 200 - qfactor * 2;
+		smfc_hwconfigure_qtable(base + REG_QTBL_BASE,
+					qfactor, default_luma_qtbl);
+		smfc_hwconfigure_qtable(base + REG_QTBL_BASE + SMFC_MCU_SIZE,
+					qfactor, default_chroma_qtbl);
+	} else {
+		smfc_hwconfigure_custom_qtable(base + REG_QTBL_BASE, qtbl);
+		smfc_hwconfigure_custom_qtable(
+					base + REG_QTBL_BASE + SMFC_MCU_SIZE,
+					qtbl + SMFC_MCU_SIZE);
+	}
 
 	/* Huffman tables */
 	for (i = 0; i < 4; i++) {

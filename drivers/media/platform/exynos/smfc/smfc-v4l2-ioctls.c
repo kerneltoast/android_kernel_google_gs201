@@ -15,6 +15,7 @@
 
 /* SMFC SPECIFIC CONTROLS */
 #define V4L2_CID_JPEG_SEC_COMP_QUALITY	(V4L2_CID_JPEG_CLASS_BASE + 20)
+#define V4L2_CID_JPEG_QTABLES2		(V4L2_CID_JPEG_CLASS_BASE + 22)
 #define V4L2_CID_JPEG_HWFC_ENABLE	(V4L2_CID_JPEG_CLASS_BASE + 25)
 
 #define SMFC_FMT_MAIN_SIZE(val) ((val) & 0xFFFF)
@@ -312,8 +313,17 @@ static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 			break;
 		}
 		break;
-	default:
+	case V4L2_CID_JPEG_QTABLES2:
+		/*
+		 * reset the quality factor to indicate that the custom q-table
+		 * is configured. It is sustained until the new quality factor
+		 * is configured.
+		 */
+		ctx->quality_factor = 0;
 		break;
+	default:
+		dev_err(ctx->smfc->dev, "Unsupported CID %#x\n", ctrl->id);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -326,6 +336,8 @@ static const struct v4l2_ctrl_ops smfc_ctrl_ops = {
 int smfc_init_controls(struct smfc_dev *smfc,
 			struct v4l2_ctrl_handler *hdlr)
 {
+	struct smfc_ctx *ctx =
+			container_of(hdlr, struct smfc_ctx, v4l2_ctrlhdlr);
 	const char *msg;
 	struct v4l2_ctrl_config ctrlcfg;
 
@@ -335,6 +347,21 @@ int smfc_init_controls(struct smfc_dev *smfc,
 				V4L2_CID_JPEG_COMPRESSION_QUALITY,
 				1, 100, 1, 96)) {
 		msg = "quality factor";
+		goto err;
+	}
+
+	if (!v4l2_ctrl_new_std(hdlr, &smfc_ctrl_ops,
+				V4L2_CID_JPEG_RESTART_INTERVAL,
+				0, 64, 1, 0)) {
+		msg = "restart interval";
+		goto err;
+	}
+
+	if (!v4l2_ctrl_new_std_menu(hdlr, &smfc_ctrl_ops,
+				V4L2_CID_JPEG_CHROMA_SUBSAMPLING,
+				V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY, 0,
+				V4L2_JPEG_CHROMA_SUBSAMPLING_422)) {
+		msg = "chroma subsampling";
 		goto err;
 	}
 
@@ -366,18 +393,20 @@ int smfc_init_controls(struct smfc_dev *smfc,
 		goto err;
 	}
 
-	if (!v4l2_ctrl_new_std(hdlr, &smfc_ctrl_ops,
-				V4L2_CID_JPEG_RESTART_INTERVAL,
-				0, 64, 1, 0)) {
-		msg = "restart interval";
-		goto err;
-	}
-
-	if (!v4l2_ctrl_new_std_menu(hdlr, &smfc_ctrl_ops,
-				V4L2_CID_JPEG_CHROMA_SUBSAMPLING,
-				V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY, 0,
-				V4L2_JPEG_CHROMA_SUBSAMPLING_422)) {
-		msg = "chroma subsampling";
+	memset(&ctrlcfg, 0, sizeof(ctrlcfg));
+	ctrlcfg.ops = &smfc_ctrl_ops;
+	ctrlcfg.id = V4L2_CID_JPEG_QTABLES2;
+	ctrlcfg.name = "Quantization table configration";
+	ctrlcfg.type = V4L2_CTRL_TYPE_U8;
+	ctrlcfg.min = 1;
+	ctrlcfg.max = 255;
+	ctrlcfg.step = 1;
+	ctrlcfg.def = 1;
+	ctrlcfg.dims[0] = SMFC_MCU_SIZE; /* A qtable has 64 values */
+	ctrlcfg.dims[1] = 2; /* 2 qtables are required for 0:luma, 1:chroma */
+	ctx->ctrl_qtbl2 = v4l2_ctrl_new_custom(hdlr, &ctrlcfg, NULL);
+	if (!ctx->ctrl_qtbl2) {
+		msg = "Q-Table";
 		goto err;
 	}
 
