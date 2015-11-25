@@ -151,6 +151,13 @@ struct smfc_decomp_qtable {
 	char compsel[SMFC_MAX_QTBL_COUNT];
 };
 
+struct smfc_crop {
+	u32 width;
+	u32 height;
+	u32 po[SMFC_MAX_NUM_COMP];
+	u32 so[SMFC_MAX_NUM_COMP];
+};
+
 struct smfc_ctx {
 	struct v4l2_fh fh;
 	struct v4l2_ctrl_handler v4l2_ctrlhdlr;
@@ -161,6 +168,9 @@ struct smfc_ctx {
 	const struct smfc_image_format *img_fmt;
 	__u32 width;
 	__u32 height;
+
+	/* cropping size settings */
+	struct smfc_crop crop;
 
 	/* Compression settings */
 	unsigned char chroma_hfactor; /* horizontal chroma subsampling factor */

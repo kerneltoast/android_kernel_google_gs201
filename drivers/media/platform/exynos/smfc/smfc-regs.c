@@ -370,16 +370,28 @@ void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 	struct vb2_v4l2_buffer *vb2buf_img, *vb2buf_jpg;
 	u32 stream_address;
 	u32 format = ctx->img_fmt->regcfg;
+	unsigned char num_plane = ctx->img_fmt->num_planes;
 	u32 burstlen = 1 << ctx->smfc->devdata->burstlenth_bits;
-
-	__raw_writel(ctx->width | (ctx->height << 16),
-			ctx->smfc->reg + REG_MAIN_IMAGE_SIZE);
+	unsigned int i;
 
 	if (!(ctx->flags & SMFC_CTX_COMPRESS)) {
+		__raw_writel(ctx->width | (ctx->height << 16),
+					ctx->smfc->reg + REG_MAIN_IMAGE_SIZE);
+
 		vb2buf_img = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 		vb2buf_jpg = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 		format |= smfc_get_jpeg_format(hfactor, vfactor);
 	} else {
+		__raw_writel(ctx->crop.width | (ctx->crop.height << 16),
+					ctx->smfc->reg + REG_MAIN_IMAGE_SIZE);
+
+		for (i = 0; i < num_plane; i++) {
+			__raw_writel(ctx->crop.po[i],
+				ctx->smfc->reg + REG_MAIN_IMAGE_PO_PLANE(i));
+			__raw_writel(ctx->crop.so[i],
+				ctx->smfc->reg + REG_MAIN_IMAGE_SO_PLANE(i));
+		}
+
 		vb2buf_img = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 		vb2buf_jpg = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 		/*

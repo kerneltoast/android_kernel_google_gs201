@@ -604,6 +604,35 @@ static bool smfc_check_capable_of_decompression(const struct smfc_dev *smfc,
 	return false;
 }
 
+static int smfc_calc_crop(struct smfc_ctx *ctx, const struct v4l2_crop *cr)
+{
+	u32 left = cr->c.left;
+	u32 top = cr->c.top;
+	u32 frame_width = ctx->width;
+	u32 crop_width = cr->c.width;
+	unsigned char bpp_pix = ctx->img_fmt->bpp_pix[0]/8;
+	unsigned char chroma_hfactor = ctx->img_fmt->chroma_hfactor;
+	unsigned char chroma_vfactor = ctx->img_fmt->chroma_vfactor;
+	unsigned int i;
+
+	ctx->crop.po[0] = (frame_width * top + left) * bpp_pix;
+	ctx->crop.so[0] = (frame_width - crop_width) * bpp_pix;
+
+	for (i = 1; i < ctx->img_fmt->num_planes; i++) {
+		ctx->crop.po[i] = (frame_width * top / chroma_vfactor + left)
+			* bpp_pix * 2 / chroma_hfactor / i;
+		ctx->crop.so[i] = (frame_width - crop_width) * bpp_pix
+			* 2 / chroma_hfactor / i;
+
+		if (i == 2) {
+			ctx->crop.po[i-1] = ctx->crop.po[i];
+			ctx->crop.so[i-1] = ctx->crop.so[i];
+		}
+	}
+
+	return 0;
+}
+
 static bool smfc_v4l2_init_fmt_mplane(const struct smfc_ctx *ctx,
 			const struct smfc_image_format *smfc_fmt,
 			__u32 type, struct v4l2_pix_format_mplane *pix_mp)
@@ -720,10 +749,17 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 	if (!smfc_v4l2_init_fmt_mplane(ctx, smfc_fmt, f->type, &f->fmt.pix_mp))
 		return -EINVAL;
 
-	ctx->width = SMFC_FMT_MAIN_SIZE(f->fmt.pix_mp.width);
-	ctx->height = SMFC_FMT_MAIN_SIZE(f->fmt.pix_mp.height);
-	ctx->thumb_width = SMFC_FMT_SEC_SIZE(f->fmt.pix_mp.width);
-	ctx->thumb_height = SMFC_FMT_SEC_SIZE(f->fmt.pix_mp.height);
+	if (!is_jpeg(smfc_fmt)) {
+		ctx->width = SMFC_FMT_MAIN_SIZE(f->fmt.pix_mp.width);
+		ctx->height = SMFC_FMT_MAIN_SIZE(f->fmt.pix_mp.height);
+		ctx->thumb_width = SMFC_FMT_SEC_SIZE(f->fmt.pix_mp.width);
+		ctx->thumb_height = SMFC_FMT_SEC_SIZE(f->fmt.pix_mp.height);
+
+		memset(&ctx->crop, 0, sizeof(ctx->crop));
+
+		ctx->crop.width = ctx->width;
+		ctx->crop.height = ctx->height;
+	}
 
 	if (ctx->thumb_width && ctx->thumb_height) {
 		if (!smfc_is_capable(ctx->smfc,
@@ -801,16 +837,80 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 	if (!smfc_v4l2_init_fmt(ctx, smfc_fmt, f->type, &f->fmt.pix))
 		return -EINVAL;
 
-	ctx->width = SMFC_FMT_MAIN_SIZE(f->fmt.pix.width);
-	ctx->height = SMFC_FMT_MAIN_SIZE(f->fmt.pix.height);
-	/* back-to-back compression is not supported with single plane */
-	ctx->thumb_width = 0;
-	ctx->thumb_height = 0;
+	if (!is_jpeg(smfc_fmt)) {
+		ctx->width = SMFC_FMT_MAIN_SIZE(f->fmt.pix.width);
+		ctx->height = SMFC_FMT_MAIN_SIZE(f->fmt.pix.height);
+		/* back-to-back compression is not supported with single plane */
+		ctx->thumb_width = 0;
+		ctx->thumb_height = 0;
+
+		memset(&ctx->crop, 0, sizeof(ctx->crop));
+
+		ctx->crop.width = ctx->width;
+		ctx->crop.height = ctx->height;
+	}
 
 	if (f->fmt.pix.pixelformat != V4L2_PIX_FMT_JPEG)
 		ctx->img_fmt = smfc_fmt;
 
 	return 0;
+}
+
+static int smfc_v4l2_cropcap(struct file *file, void *fh,
+		struct v4l2_cropcap *cr)
+{
+	cr->bounds.left		= 0;
+	cr->bounds.top		= 0;
+	cr->bounds.width	= SMFC_MAX_WIDTH;
+	cr->bounds.height	= SMFC_MAX_HEIGHT;
+	cr->defrect		= cr->bounds;
+
+	return 0;
+}
+
+static int smfc_v4l2_s_crop(struct file *file, void *fh,
+		const struct v4l2_crop *cr)
+{
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	unsigned int i;
+	int ret = 0;
+
+	if ((cr->c.left < 0) || (cr->c.top < 0) ||
+			(cr->c.width < 16) || (cr->c.height < 16)) {
+		v4l2_err(&ctx->smfc->v4l2_dev,
+			"Invalid crop region (%d,%d):%dx%d\n",
+			cr->c.left, cr->c.top, cr->c.width, cr->c.height);
+
+		return -EINVAL;
+	}
+
+	if (((cr->c.left + cr->c.width) > ctx->width) ||
+			((cr->c.top + cr->c.height) > ctx->height)) {
+		v4l2_err(&ctx->smfc->v4l2_dev,
+			"Crop (%d,%d):%dx%d overflows the image %dx%d\n",
+			cr->c.left, cr->c.top, cr->c.width, cr->c.height,
+			ctx->width, ctx->height);
+		return -EINVAL;
+	}
+
+	if (!V4L2_TYPE_IS_OUTPUT(cr->type)) {
+		v4l2_err(&ctx->smfc->v4l2_dev,
+			"Cropping on the capture buffer is not supported\n");
+		return -EINVAL;
+	}
+
+	ctx->crop.width = cr->c.width;
+	ctx->crop.height = cr->c.height;
+
+	for (i = 0 ; i < SMFC_MAX_NUM_COMP; i++) {
+		ctx->crop.po[i] = 0;
+		ctx->crop.so[i] = 0;
+	}
+
+	if (!!smfc_calc_crop(ctx, cr))
+		return -EINVAL;
+
+	return ret;
 }
 
 const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
@@ -831,6 +931,8 @@ const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_s_fmt_vid_out		= smfc_v4l2_s_fmt,
 	.vidioc_s_fmt_vid_cap_mplane	= smfc_v4l2_s_fmt_mplane,
 	.vidioc_s_fmt_vid_out_mplane	= smfc_v4l2_s_fmt_mplane,
+	.vidioc_cropcap			= smfc_v4l2_cropcap,
+	.vidioc_s_crop			= smfc_v4l2_s_crop,
 
 	.vidioc_reqbufs			= v4l2_m2m_ioctl_reqbufs,
 	.vidioc_querybuf		= v4l2_m2m_ioctl_querybuf,
