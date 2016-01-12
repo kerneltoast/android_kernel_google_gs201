@@ -436,6 +436,16 @@ void cpu_latency_qos_remove_request(struct pm_qos_request *req)
 		return;
 	}
 
+#ifdef CONFIG_SMP
+       if (req->type == PM_QOS_REQ_AFFINE_IRQ) {
+               int ret = 0;
+               /* Get the current affinity */
+               ret = irq_set_affinity_notifier(req->irq, NULL);
+               if (ret)
+                       WARN(1, "IRQ affinity notify set failed\n");
+       }
+#endif
+
 	trace_pm_qos_remove_request(PM_QOS_DEFAULT_VALUE);
 
 	cpu_latency_qos_apply(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
