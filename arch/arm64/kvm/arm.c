@@ -900,7 +900,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		 * involves poking the GIC, which must be done in a
 		 * non-preemptible context.
 		 */
-		preempt_disable();
+		migrate_disable();
 
 		kvm_pmu_flush_hwstate(vcpu);
 
@@ -950,7 +950,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 				kvm_timer_sync_user(vcpu);
 			kvm_vgic_sync_hwstate(vcpu);
 			local_irq_enable();
-			preempt_enable();
+			migrate_enable();
 			continue;
 		}
 
@@ -1023,7 +1023,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		/* Exit types that need handling before we can be preempted */
 		handle_exit_early(vcpu, ret);
 
-		preempt_enable();
+		migrate_enable();
 
 		/*
 		 * The ARMv8 architecture doesn't give the hypervisor
