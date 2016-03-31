@@ -61,6 +61,7 @@ struct zram_table_entry {
 		unsigned long element;
 	};
 	unsigned long flags;
+	spinlock_t lock;
 #ifdef CONFIG_ZRAM_MEMORY_TRACKING
 	ktime_t ac_time;
 #endif
@@ -131,8 +132,6 @@ struct zram {
 };
 
 
-void zram_slot_lock(struct zram *zram, u32 index);
-void zram_slot_unlock(struct zram *zram, u32 index);
 void zram_slot_update(struct zram *zram, u32 index, unsigned long handle,
 			unsigned int comp_len);
 
