@@ -19,12 +19,23 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
+#include <linux/wait.h>
 #include <linux/exynos_iovmm.h>
 
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-sg.h>
 
 #include "smfc.h"
+#include "smfc-sync.h"
+
+static atomic_t smfc_hwfc_state;
+static wait_queue_head_t smfc_hwfc_sync_wq;
+
+enum {
+	SMFC_HWFC_STANDBY = 0,
+	SMFC_HWFC_RUN,
+	SMFC_HWFC_WAIT,
+};
 
 static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 {
@@ -88,6 +99,12 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 			}
 
 			v4l2_m2m_buf_done(vb, state);
+
+			if ((!!(ctx->flags & SMFC_CTX_COMPRESS)) &&
+					ctx->enable_hwfc) {
+				atomic_set(&smfc_hwfc_state, SMFC_HWFC_STANDBY);
+				wake_up(&smfc_hwfc_sync_wq);
+			}
 		}
 
 		vb->vb2_buf.timestamp =
@@ -377,6 +394,26 @@ static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
 	return vb2_queue_init(dst_vq);
 }
 
+int exynos_smfc_wait_done(bool enable_hwfc)
+{
+	int prev, new;
+	int ret = 0;
+
+	ret = wait_event_interruptible(smfc_hwfc_sync_wq,
+			atomic_read(&smfc_hwfc_state) < SMFC_HWFC_WAIT);
+
+	if (ret < 0)
+		return ret;
+
+	prev = atomic_read(&smfc_hwfc_state);
+	while (enable_hwfc && prev == SMFC_HWFC_RUN
+			&& (new = atomic_cmpxchg((&smfc_hwfc_state),
+					prev, SMFC_HWFC_WAIT)) != prev)
+		prev = new;
+
+	return ret;
+}
+
 static int exynos_smfc_open(struct file *filp)
 {
 	struct smfc_dev *smfc = video_drvdata(filp);
@@ -577,8 +614,10 @@ static void smfc_m2m_device_run(void *priv)
 	 * SMFC internal timer is unavailable if HWFC is enabled
 	 * Therefore, S/W timer object is used to detect unexpected delay.
 	 */
-	if (!!enable_hwfc)
+	if (!!enable_hwfc) {
 		mod_timer(&ctx->smfc->timer, jiffies + HZ); /* 1 sec. */
+		atomic_set(&smfc_hwfc_state, SMFC_HWFC_RUN);
+	}
 
 	ctx->ktime_beg = ktime_get();
 
@@ -815,6 +854,9 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	struct resource *res;
 	const struct of_device_id *of_id;
 	int ret;
+
+	atomic_set(&smfc_hwfc_state, SMFC_HWFC_STANDBY);
+	init_waitqueue_head(&smfc_hwfc_sync_wq);
 
 	smfc = devm_kzalloc(&pdev->dev, sizeof(*smfc), GFP_KERNEL);
 	if (!smfc) {
