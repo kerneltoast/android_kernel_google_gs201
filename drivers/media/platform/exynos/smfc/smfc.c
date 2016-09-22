@@ -994,6 +994,19 @@ static int smfc_runtime_suspend(struct device *dev)
 }
 #endif
 
+static void exynos_smfc_shutdown(struct platform_device *pdev)
+{
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(smfc_suspend_wq);
+	struct smfc_dev *smfc = platform_get_drvdata(pdev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&smfc->flag_lock, flags);
+	if (!!(smfc->flags & SMFC_DEV_RUNNING))
+		smfc->flags |= SMFC_DEV_SUSPENDING;
+	spin_unlock_irqrestore(&smfc->flag_lock, flags);
+	wait_event(smfc_suspend_wq, !(smfc->flags & SMFC_DEV_SUSPENDING));
+}
+
 static const struct dev_pm_ops exynos_smfc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(smfc_suspend, smfc_resume)
 	SET_RUNTIME_PM_OPS(NULL, smfc_runtime_resume, smfc_runtime_suspend)
@@ -1002,6 +1015,7 @@ static const struct dev_pm_ops exynos_smfc_pm_ops = {
 static struct platform_driver exynos_smfc_driver = {
 	.probe		= exynos_smfc_probe,
 	.remove		= exynos_smfc_remove,
+	.shutdown	= exynos_smfc_shutdown,
 	.driver = {
 		.name	= MODULE_NAME,
 		.owner	= THIS_MODULE,
