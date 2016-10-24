@@ -1005,6 +1005,8 @@ static void exynos_smfc_shutdown(struct platform_device *pdev)
 		smfc->flags |= SMFC_DEV_SUSPENDING;
 	spin_unlock_irqrestore(&smfc->flag_lock, flags);
 	wait_event(smfc_suspend_wq, !(smfc->flags & SMFC_DEV_SUSPENDING));
+
+	iovmm_deactivate(&pdev->dev);
 }
 
 static const struct dev_pm_ops exynos_smfc_pm_ops = {
