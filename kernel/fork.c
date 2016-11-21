@@ -41,6 +41,7 @@
 #include <linux/mman.h>
 #include <linux/mmu_notifier.h>
 #include <linux/fs.h>
+#include <linux/kprobes.h>
 #include <linux/mm.h>
 #include <linux/mm_inline.h>
 #include <linux/vmacache.h>
@@ -299,7 +300,7 @@ static inline void free_thread_stack(struct task_struct *tsk)
 			return;
 		}
 
-		vfree_atomic(tsk->stack);
+		vfree(tsk->stack);
 		return;
 	}
 #endif
@@ -786,6 +787,15 @@ void __put_task_struct(struct task_struct *tsk)
 	WARN_ON(!tsk->exit_state);
 	WARN_ON(refcount_read(&tsk->usage));
 	WARN_ON(tsk == current);
+
+	/*
+	 * Remove function-return probe instances associated with this
+	 * task and put them back on the free list.
+	 */
+	kprobe_flush_task(tsk);
+
+	/* Task is done with its stack. */
+	put_task_stack(tsk);
 
 	io_uring_free(tsk);
 	cgroup_free(tsk);
