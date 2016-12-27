@@ -216,7 +216,7 @@ static inline u32 smfc_config_ctxflag(struct smfc_ctx *ctx, u32 flag, bool set)
 
 static inline bool smfc_is_compressed_type(struct smfc_ctx *ctx, __u32 type)
 {
-	return !(ctx->flags & SMFC_CTX_COMPRESS) == V4L2_TYPE_IS_OUTPUT(type);
+	return (!(ctx->flags & SMFC_CTX_COMPRESS)) == V4L2_TYPE_IS_OUTPUT(type);
 }
 
 int smfc_init_controls(struct smfc_dev *smfc, struct v4l2_ctrl_handler *hdlr);
