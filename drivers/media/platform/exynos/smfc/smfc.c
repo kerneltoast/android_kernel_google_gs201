@@ -266,6 +266,18 @@ static int smfc_vb2_buf_prepare(struct vb2_buffer *vb)
 					return -EINVAL;
 				}
 			}
+
+			/*
+			 * FIXME: handle this
+			 * There is no chance to clean CPU caches if HWFC is
+			 * enabled because the compression starts before the
+			 * image producer completes writing.
+			 * Therefore, the image producer (MCSC) and the read DMA
+			 * of JPEG/SMFC should access the memory with the same
+			 * shareability attributes.
+			if (ctx->enable_hwfc)
+				clean_cache = false;
+			 */
 		} else {
 			/* buffer contains JPEG stream to decompress */
 			int ret = smfc_parse_jpeg_header(ctx, vb);
