@@ -269,7 +269,7 @@ static int smfc_parse_frameheader(struct smfc_ctx *ctx, unsigned long *cursor)
 		u8 v = pos[1] & 0xF;
 
 		if ((pos[0] < 1) || (pos[0] > 4) || (pos[2] > 4)
-						|| (h > 4) || (h > 4)) {
+						|| (h > 4) || (v > 4)) {
 			dev_err(ctx->smfc->dev,
 				"Invalid component data in SOF0 %02x%02x%02x",
 				pos[0], pos[1], pos[2]);
