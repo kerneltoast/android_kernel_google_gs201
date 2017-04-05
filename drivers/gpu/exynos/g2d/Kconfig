@@ -1,0 +1,4 @@
+config EXYNOS_GRAPHICS_G2D
+	bool "FIMG2D support"
+	help
+	  This enables FIMG2D driver of Exynos SoCs.
