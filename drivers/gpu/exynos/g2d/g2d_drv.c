@@ -19,11 +19,13 @@
 #include <linux/pm_runtime.h>
 #include <linux/exynos_iovmm.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
 #include "g2d.h"
 #include "g2d_regs.h"
+#include "g2d_task.h"
 
 #define MODULE_NAME "exynos-g2d"
 
@@ -165,9 +167,23 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	spin_lock_init(&g2d_dev->lock_task);
+
+	INIT_LIST_HEAD(&g2d_dev->tasks_free);
+	INIT_LIST_HEAD(&g2d_dev->tasks_prepared);
+	INIT_LIST_HEAD(&g2d_dev->tasks_active);
+
+	ret = g2d_create_tasks(g2d_dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to create tasks");
+		goto err_task;
+	}
+
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x\n", version);
 
 	return 0;
+err_task:
+	misc_deregister(&g2d_dev->misc);
 err:
 	pm_runtime_disable(&pdev->dev);
 	iovmm_deactivate(g2d_dev->dev);
@@ -180,6 +196,8 @@ err:
 static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
+
+	g2d_destroy_tasks(g2d_dev);
 
 	misc_deregister(&g2d_dev->misc);
 

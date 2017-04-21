@@ -18,15 +18,30 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 
+struct g2d_task; /* defined in g2d_task.h */
+
 struct g2d_device {
 	struct miscdevice	misc;
 	struct device		*dev;
 	struct clk		*clock;
 	void __iomem		*reg;
+
+	/* task management */
+	spinlock_t		lock_task;
+	struct g2d_task		*tasks;
+	struct list_head	tasks_free;
+	struct list_head	tasks_prepared;
+	struct list_head	tasks_active;
 };
 
 struct g2d_context {
 	struct g2d_device	*g2d_dev;
 };
+
+/* job mask (hwfc or not) */
+#define G2D_JOBMASK_HWFC 0x7
+#define G2D_JOBMASK_DEFAULT 0xFFF8
+#define g2d_job_full(id, job_mask) ((id & job_mask) == job_mask)
+#define g2d_job_empty(id, job_mask) ((id & job_mask) == 0)
 
 #endif /* __EXYNOS_G2D_H__ */
