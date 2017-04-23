@@ -32,11 +32,60 @@
 
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
+	g2d_hw_push_task(g2d_dev, task);
+
 	return 0;
 }
 
 static irqreturn_t g2d_irq_handler(int irq, void *priv)
 {
+	struct g2d_device *g2d_dev = priv;
+	unsigned int id;
+	u32 intflags, errstatus;
+
+	spin_lock(&g2d_dev->lock_task);
+
+	intflags = g2d_hw_finished_job_ids(g2d_dev);
+	if (intflags != 0) {
+		for (id = 0; id < G2D_MAX_JOBS; id++) {
+			if ((intflags & (1 << id)) == 0)
+				continue;
+
+			g2d_finish_task_with_id(g2d_dev, id, true);
+		}
+
+		g2d_hw_clear_job_ids(g2d_dev, intflags);
+	}
+
+	errstatus = g2d_hw_errint_status(g2d_dev);
+	if (errstatus != 0) {
+		int job_id = g2d_hw_get_current_task(g2d_dev);
+		struct g2d_task *task =
+				g2d_get_active_task_from_id(g2d_dev, job_id);
+
+		if (job_id < 0) {
+			dev_err(g2d_dev->dev, "No task is running in HW\n");
+		} else if (task == NULL) {
+			dev_err(g2d_dev->dev,
+				"%s: Current job %d in HW is not active\n",
+				__func__, job_id);
+		} else {
+			dev_err(g2d_dev->dev,
+				"%s: Error occurred during running job %d\n",
+				__func__, job_id);
+
+			g2d_dump_task(g2d_dev, job_id);
+		}
+
+		g2d_flush_all_tasks(g2d_dev);
+
+		g2d_hw_global_reset(g2d_dev);
+
+		g2d_hw_clear_int(g2d_dev, errstatus);
+	}
+
+	spin_unlock(&g2d_dev->lock_task);
+
 	return IRQ_HANDLED;
 }
 
@@ -55,7 +104,7 @@ static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 		dev_err(g2d_dev->dev, "Failed to enable clock (%d)\n", ret);
 	} else {
 		*version = readl_relaxed(g2d_dev->reg + G2D_VERSION_INFO_REG);
-		clk_disable_unprepare(g2d_dev->clock);
+		clk_disable(g2d_dev->clock);
 	}
 
 	pm_runtime_put(g2d_dev->dev);
@@ -231,6 +280,26 @@ static int g2d_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int g2d_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+
+static int g2d_runtime_suspend(struct device *dev)
+{
+	struct g2d_device *g2d_dev = dev_get_drvdata(dev);
+
+	clk_unprepare(g2d_dev->clock);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops g2d_pm_ops = {
+	SET_RUNTIME_PM_OPS(NULL, g2d_runtime_resume, g2d_runtime_suspend)
+};
+
 static const struct of_device_id of_g2d_match[] = {
 	{
 		.compatible = "samsung,exynos9810-g2d",
@@ -244,6 +313,7 @@ static struct platform_driver g2d_driver = {
 	.driver = {
 		.name	= MODULE_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= &g2d_pm_ops,
 		.of_match_table = of_match_ptr(of_g2d_match),
 	}
 };

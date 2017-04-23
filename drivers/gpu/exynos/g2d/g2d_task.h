@@ -18,6 +18,7 @@
 #ifndef __EXYNOS_G2D_TASK_H__
 #define __EXYNOS_G2D_TASK_H__
 
+#include <linux/ktime.h>
 #include <linux/dma-buf.h>
 #include <linux/workqueue.h>
 
@@ -84,6 +85,8 @@ struct g2d_task {
 	unsigned int		cmd_count;
 
 	unsigned int		priority;
+	ktime_t			ktime_begin;
+	ktime_t			ktime_end;
 
 	struct work_struct	work;
 	struct completion	completion;
@@ -100,6 +103,23 @@ struct g2d_task {
 	(task)->state &= ~G2D_TASKSTATE_UNPREPARED;	\
 } while (0)
 
+#define change_task_state_finished(task) do {		\
+	(task)->state &= ~(G2D_TASKSTATE_ACTIVE |	\
+			   G2D_TASKSTATE_KILLED |	\
+			   G2D_TASKSTATE_TIMEOUT);	\
+	(task)->state |= G2D_TASKSTATE_PROCESSED;	\
+} while (0)
+
+static inline void mark_task_state_error(struct g2d_task *task)
+{
+	task->state |= G2D_TASKSTATE_ERROR;
+}
+
+static inline void mark_task_state_killed(struct g2d_task *task)
+{
+	task->state |= G2D_TASKSTATE_KILLED;
+}
+
 static inline void init_task_state(struct g2d_task *task)
 {
 	task->state = G2D_TASKSTATE_UNPREPARED;
@@ -110,6 +130,8 @@ static inline void clear_task_state(struct g2d_task *task)
 	task->state = 0;
 }
 
+struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
+					     unsigned int id);
 void g2d_destroy_tasks(struct g2d_device *g2d_dev);
 int g2d_create_tasks(struct g2d_device *g2d_dev);
 
@@ -117,5 +139,10 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev);
 void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 
 void g2d_start_task(struct g2d_task *task);
+void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
+			     unsigned int job_id, bool success);
+void g2d_flush_all_tasks(struct g2d_device *g2d_dev);
+
+void g2d_dump_task(struct g2d_device *g2d_dev, unsigned int job_id);
 
 #endif /*__EXYNOS_G2D_TASK_H__*/

@@ -71,7 +71,62 @@
 
 /* Fields of G2D_SOFT_RESET_REG */
 #define G2D_SFR_CLEAR				(1 << 2)
-#define G2D_GLOBAL_RESET			(1 << 1)
+#define G2D_GLOBAL_RESET			(3 << 0)
 #define G2D_SOFT_RESET				(1 << 0)
+
+void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task);
+int g2d_hw_get_current_task(struct g2d_device *g2d_dev);
+
+static inline u32 g2d_hw_finished_job_ids(struct g2d_device *g2d_dev)
+{
+	return readl_relaxed(g2d_dev->reg + G2D_JOB_INT_ID_REG);
+}
+
+static inline void g2d_hw_clear_job_ids(struct g2d_device *g2d_dev, u32 val)
+{
+	writel_relaxed(val, g2d_dev->reg + G2D_JOB_INT_ID_REG);
+}
+
+static inline u32 g2d_hw_get_job_state(struct g2d_device *g2d_dev,
+				       unsigned int job_id)
+{
+	return readl(g2d_dev->reg + G2D_JOB_IDn_STATE_REG(job_id));
+}
+
+u32 g2d_hw_errint_status(struct g2d_device *g2d_dev);
+
+static inline u32 g2d_hw_fifo_status(struct g2d_device *g2d_dev)
+{
+	return readl(g2d_dev->reg + G2D_FIFO_STAT_REG);
+}
+
+static inline bool g2d_hw_fifo_idle(struct g2d_device *g2d_dev)
+{
+	int retry_count = 120;
+
+	while (retry_count-- > 0) {
+		if ((g2d_hw_fifo_status(g2d_dev) & 1) == 1)
+			return true;
+	}
+
+	return false;
+}
+
+static inline void g2d_hw_clear_int(struct g2d_device *g2d_dev, u32 flags)
+{
+	writel_relaxed(flags, g2d_dev->reg + G2D_INTC_PEND_REG);
+}
+
+static inline bool g2d_hw_core_reset(struct g2d_device *g2d_dev)
+{
+	writel(G2D_SOFT_RESET, g2d_dev->reg + G2D_SOFT_RESET_REG);
+
+	return g2d_hw_fifo_idle(g2d_dev);
+}
+
+static inline void g2d_hw_global_reset(struct g2d_device *g2d_dev)
+{
+	writel(G2D_GLOBAL_RESET, g2d_dev->reg + G2D_SOFT_RESET_REG);
+}
 
 #endif /* __G2D_REGS_H__ */

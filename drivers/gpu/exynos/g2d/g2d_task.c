@@ -21,6 +21,76 @@
 #include "g2d.h"
 #include "g2d_task.h"
 
+struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
+					     unsigned int id)
+{
+	struct g2d_task *task;
+
+	list_for_each_entry(task, &g2d_dev->tasks_active, node) {
+		if (task->job_id == id)
+			return task;
+	}
+
+	dev_err(g2d_dev->dev,
+		"%s: No active task entry is found for ID %d\n", __func__, id);
+
+	return NULL;
+}
+
+static void __g2d_finish_task(struct g2d_task *task, bool success)
+{
+	change_task_state_finished(task);
+	if (!success)
+		mark_task_state_error(task);
+
+	complete_all(&task->completion);
+}
+
+static void g2d_finish_task(struct g2d_device *g2d_dev,
+			    struct g2d_task *task, bool success)
+{
+	list_del_init(&task->node);
+
+	clk_disable(g2d_dev->clock);
+
+	pm_runtime_put(g2d_dev->dev);
+
+	__g2d_finish_task(task, success);
+}
+
+void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
+			     unsigned int job_id, bool success)
+{
+	struct g2d_task *task = NULL;
+
+	task = g2d_get_active_task_from_id(g2d_dev, job_id);
+	if (!task)
+		return;
+
+	task->ktime_end = ktime_get();
+
+	g2d_finish_task(g2d_dev, task, success);
+}
+
+void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
+{
+	struct g2d_task *task;
+
+	dev_err(g2d_dev->dev, "%s: Flushing all active tasks\n", __func__);
+
+	while (!list_empty(&g2d_dev->tasks_active)) {
+		task = list_first_entry(&g2d_dev->tasks_active,
+					struct g2d_task, node);
+
+		dev_err(g2d_dev->dev, "%s: Flushed task of ID %d\n",
+			__func__, task->job_id);
+
+		mark_task_state_killed(task);
+
+		g2d_finish_task(g2d_dev, task, false);
+	}
+}
+
 static void g2d_schedule_task(struct g2d_task *task)
 {
 	struct g2d_device *g2d_dev = task->g2d_dev;
@@ -38,8 +108,13 @@ static void g2d_schedule_task(struct g2d_task *task)
 	ret = pm_runtime_get_sync(g2d_dev->dev);
 	if (ret < 0) {
 		dev_err(g2d_dev->dev, "Failed to enable power (%d)\n", ret);
-		/* TODO: cancel task */
-		return;
+		goto err_pm;
+	}
+
+	ret = clk_prepare_enable(g2d_dev->clock);
+	if (ret < 0) {
+		dev_err(g2d_dev->dev, "Failed to enable clock (%d)\n", ret);
+		goto err_clk;
 	}
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
@@ -48,17 +123,28 @@ static void g2d_schedule_task(struct g2d_task *task)
 
 	change_task_state_prepared(task);
 	change_task_state_active(task);
+
+	task->ktime_begin = ktime_get();
+
 	/*
 	 * g2d_device_run() is not reentrant while g2d_schedule() is
 	 * reentrant g2d_device_run() should be protected with
 	 * g2d_dev->lock_task from race.
 	 */
 	if (g2d_device_run(g2d_dev, task) < 0) {
-		pm_runtime_put(g2d_dev->dev);
-		/* TODO: cancel task */
+		list_del_init(&task->node);
+		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+		goto err_run;
 	}
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+	return;
+err_run:
+	clk_disable(g2d_dev->clock);
+err_clk:
+	pm_runtime_put(g2d_dev->dev);
+err_pm:
+	__g2d_finish_task(task, false);
 }
 
 static void g2d_task_schedule_work(struct work_struct *work)
@@ -209,4 +295,21 @@ int g2d_create_tasks(struct g2d_device *g2d_dev)
 	}
 
 	return 0;
+}
+
+void g2d_dump_task(struct g2d_device *g2d_dev, unsigned int job_id)
+{
+	struct g2d_task *task;
+	unsigned long flags;
+
+	spin_lock_irqsave(&g2d_dev->lock_task, flags);
+
+	list_for_each_entry(task, &g2d_dev->tasks_active, node) {
+		if (task->job_id == job_id)
+			break;
+	}
+
+	/* TODO: more dump task */
+
+	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 }
