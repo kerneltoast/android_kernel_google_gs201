@@ -30,6 +30,63 @@
 
 #define MODULE_NAME "exynos-g2d"
 
+void g2d_hw_timeout_handler(unsigned long arg)
+{
+	struct g2d_task *task = (struct g2d_task *)arg;
+	struct g2d_device *g2d_dev = task->g2d_dev;
+	unsigned long flags;
+	u32 job_state;
+
+	/* TODO: Dump of internal state of G2D */
+
+	dev_err(g2d_dev->dev, "%s: Time is up: %d msec for job %d\n",
+		__func__, G2D_HW_TIMEOUT_MSEC, task->job_id);
+
+	spin_lock_irqsave(&g2d_dev->lock_task, flags);
+
+	if (!is_task_state_active(task))
+		/*
+		 * The task timed out is not currently running in H/W.
+		 * It might be just finished by interrupt.
+		 */
+		goto out;
+
+	job_state = g2d_hw_get_job_state(g2d_dev, task->job_id);
+	if (job_state == G2D_JOB_STATE_DONE)
+		/*
+		 * The task timed out is not currently running in H/W.
+		 * It will be processed in the interrupt handler.
+		 */
+		goto out;
+
+	if (is_task_state_killed(task)) {
+		/* The killed task is not died in the time out priod. */
+		g2d_hw_global_reset(g2d_dev);
+
+		g2d_flush_all_tasks(g2d_dev);
+
+		dev_err(g2d_dev->dev,
+			"GLOBAL RESET: killed task not dead in %d msec.\n",
+			G2D_HW_TIMEOUT_MSEC);
+		goto out;
+	}
+
+	mod_timer(&task->hw_timer,
+	  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
+
+	if (job_state != G2D_JOB_STATE_RUNNING)
+		/* G2D_JOB_STATE_QUEUEING or G2D_JOB_STATE_SUSPENDING */
+		/* Time out is not caused by this task */
+		goto out;
+
+	mark_task_state_killed(task);
+
+	g2d_hw_kill_task(g2d_dev, task->job_id);
+
+out:
+	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+}
+
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	g2d_hw_push_task(g2d_dev, task);

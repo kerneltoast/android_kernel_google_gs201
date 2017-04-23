@@ -51,6 +51,8 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 {
 	list_del_init(&task->node);
 
+	del_timer(&task->hw_timer);
+
 	clk_disable(g2d_dev->clock);
 
 	pm_runtime_put(g2d_dev->dev);
@@ -66,6 +68,12 @@ void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
 	task = g2d_get_active_task_from_id(g2d_dev, job_id);
 	if (!task)
 		return;
+
+	if (is_task_state_killed(task)) {
+		dev_err(g2d_dev->dev, "%s: Killed task ID %d is completed\n",
+			__func__, job_id);
+		success = false;
+	}
 
 	task->ktime_end = ktime_get();
 
@@ -136,6 +144,9 @@ static void g2d_schedule_task(struct g2d_task *task)
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 		goto err_run;
 	}
+
+	mod_timer(&task->hw_timer,
+		  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 	return;
@@ -248,6 +259,9 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev)
 	task->cmd_page = alloc_pages(GFP_KERNEL, get_order(G2D_CMD_LIST_SIZE));
 	if (!task->cmd_page)
 		goto err_page;
+
+	setup_timer(&task->hw_timer,
+		    g2d_hw_timeout_handler, (unsigned long)task);
 
 	/* mapping the command data */
 	sg_init_table(&sgl, 1);

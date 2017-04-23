@@ -84,3 +84,20 @@ int g2d_hw_get_current_task(struct g2d_device *g2d_dev)
 
 	return -1;
 }
+
+void g2d_hw_kill_task(struct g2d_device *g2d_dev, unsigned int job_id)
+{
+	int retry_count = 120;
+
+	writel((0 << 4) | job_id, g2d_dev->reg + G2D_JOB_KILL_REG);
+
+	while (retry_count-- > 0) {
+		if (!(readl(g2d_dev->reg + G2D_JOB_PUSHKILL_STATE_REG) & 0x2)) {
+			dev_err(g2d_dev->dev,
+				"%s: Killed JOB %d\n", __func__, job_id);
+			return;
+		}
+	}
+
+	dev_err(g2d_dev->dev, "%s: Failed to kill job %d\n", __func__, job_id);
+}

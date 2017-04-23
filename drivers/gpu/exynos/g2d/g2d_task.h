@@ -21,6 +21,7 @@
 #include <linux/ktime.h>
 #include <linux/dma-buf.h>
 #include <linux/workqueue.h>
+#include <linux/timer.h>
 
 #include "g2d_format.h"
 
@@ -74,6 +75,7 @@ struct g2d_task {
 	unsigned int		job_id;
 	unsigned long		state;
 	struct kref		starter;
+	struct timer_list	hw_timer;
 
 	struct g2d_layer	source[G2D_MAX_IMAGES];
 	struct g2d_layer	target;
@@ -129,6 +131,11 @@ static inline void clear_task_state(struct g2d_task *task)
 {
 	task->state = 0;
 }
+
+#define is_task_state_active(task) (((task)->state & G2D_TASKSTATE_ACTIVE) != 0)
+#define is_task_state_killed(task) (((task)->state & G2D_TASKSTATE_KILLED) != 0)
+
+#define G2D_HW_TIMEOUT_MSEC	500
 
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 					     unsigned int id);

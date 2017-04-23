@@ -46,5 +46,6 @@ struct g2d_context {
 #define g2d_job_empty(id, job_mask) ((id & job_mask) == 0)
 
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task);
+void g2d_hw_timeout_handler(unsigned long arg);
 
 #endif /* __EXYNOS_G2D_H__ */
