@@ -26,8 +26,14 @@
 #include "g2d.h"
 #include "g2d_regs.h"
 #include "g2d_task.h"
+#include "g2d_uapi.h"
 
 #define MODULE_NAME "exynos-g2d"
+
+int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
+{
+	return 0;
+}
 
 static irqreturn_t g2d_irq_handler(int irq, void *priv)
 {
@@ -85,6 +91,23 @@ static int g2d_release(struct inode *inode, struct file *filp)
 
 static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct g2d_context *ctx = filp->private_data;
+	struct g2d_device *g2d_dev = ctx->g2d_dev;
+
+	switch (cmd) {
+	case G2D_IOC_PROCESS:
+	{
+		struct g2d_task *task;
+
+		task = g2d_get_free_task(g2d_dev);
+		if (task == NULL)
+			return -EBUSY;
+
+		kref_init(&task->starter);
+
+		g2d_start_task(task);
+	}
+	}
 	return 0;
 }
 

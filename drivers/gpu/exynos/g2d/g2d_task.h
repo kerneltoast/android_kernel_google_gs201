@@ -19,6 +19,7 @@
 #define __EXYNOS_G2D_TASK_H__
 
 #include <linux/dma-buf.h>
+#include <linux/workqueue.h>
 
 #include "g2d_format.h"
 
@@ -52,14 +53,14 @@ struct g2d_layer {
 	struct g2d_buffer	buffer[G2D_MAX_PLANES];
 };
 
-#define G2D_TASKSTATE_WAITING		1
-#define G2D_TASKSTATE_UNPREPARED	2
-#define G2D_TASKSTATE_PREPARED		3
-#define G2D_TASKSTATE_ACTIVE		4
-#define G2D_TASKSTATE_PROCESSED		5
-#define G2D_TASKSTATE_ERROR		6
-#define G2D_TASKSTATE_KILLED		7
-#define G2D_TASKSTATE_TIMEOUT		8
+#define G2D_TASKSTATE_WAITING		(1 << 1)
+#define G2D_TASKSTATE_UNPREPARED	(1 << 2)
+#define G2D_TASKSTATE_PREPARED		(1 << 3)
+#define G2D_TASKSTATE_ACTIVE		(1 << 4)
+#define G2D_TASKSTATE_PROCESSED		(1 << 5)
+#define G2D_TASKSTATE_ERROR		(1 << 6)
+#define G2D_TASKSTATE_KILLED		(1 << 7)
+#define G2D_TASKSTATE_TIMEOUT		(1 << 8)
 
 struct g2d_context;
 struct g2d_device;
@@ -70,6 +71,8 @@ struct g2d_task {
 	struct g2d_device	*g2d_dev;
 
 	unsigned int		job_id;
+	unsigned long		state;
+	struct kref		starter;
 
 	struct g2d_layer	source[G2D_MAX_IMAGES];
 	struct g2d_layer	target;
@@ -81,9 +84,38 @@ struct g2d_task {
 	unsigned int		cmd_count;
 
 	unsigned int		priority;
+
+	struct work_struct	work;
+	struct completion	completion;
 };
+
+/* The below macros should be called with g2d_device.lock_tasks held */
+#define change_task_state_active(task) do {		\
+	(task)->state &= ~G2D_TASKSTATE_PREPARED;	\
+	(task)->state |= G2D_TASKSTATE_ACTIVE;		\
+} while (0)
+
+#define change_task_state_prepared(task) do {		\
+	(task)->state |= G2D_TASKSTATE_PREPARED;	\
+	(task)->state &= ~G2D_TASKSTATE_UNPREPARED;	\
+} while (0)
+
+static inline void init_task_state(struct g2d_task *task)
+{
+	task->state = G2D_TASKSTATE_UNPREPARED;
+}
+
+static inline void clear_task_state(struct g2d_task *task)
+{
+	task->state = 0;
+}
 
 void g2d_destroy_tasks(struct g2d_device *g2d_dev);
 int g2d_create_tasks(struct g2d_device *g2d_dev);
+
+struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev);
+void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task);
+
+void g2d_start_task(struct g2d_task *task);
 
 #endif /*__EXYNOS_G2D_TASK_H__*/

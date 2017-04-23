@@ -32,6 +32,7 @@ struct g2d_device {
 	struct list_head	tasks_free;
 	struct list_head	tasks_prepared;
 	struct list_head	tasks_active;
+	struct workqueue_struct	*schedule_workq;
 };
 
 struct g2d_context {
@@ -43,5 +44,7 @@ struct g2d_context {
 #define G2D_JOBMASK_DEFAULT 0xFFF8
 #define g2d_job_full(id, job_mask) ((id & job_mask) == job_mask)
 #define g2d_job_empty(id, job_mask) ((id & job_mask) == 0)
+
+int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task);
 
 #endif /* __EXYNOS_G2D_H__ */
