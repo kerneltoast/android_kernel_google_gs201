@@ -20,7 +20,17 @@
 
 struct g2d_task; /* defined in g2d_task.h */
 
+/*
+ * G2D_DEVICE_STATE_SUSPEND should be treated under g2d_dev->lock_task held
+ * because it should be consistent with the state of all tasks attached to
+ * g2d_dev->tasks_active.
+ */
+#define G2D_DEVICE_STATE_SUSPEND	1
+#define G2D_DEVICE_STATE_IOVMM_DISABLED	2
+
 struct g2d_device {
+	unsigned long		state;
+
 	struct miscdevice	misc;
 	struct device		*dev;
 	struct clk		*clock;
@@ -33,6 +43,9 @@ struct g2d_device {
 	struct list_head	tasks_prepared;
 	struct list_head	tasks_active;
 	struct workqueue_struct	*schedule_workq;
+
+	struct notifier_block	pm_notifier;
+	wait_queue_head_t	freeze_wait;
 };
 
 struct g2d_context {

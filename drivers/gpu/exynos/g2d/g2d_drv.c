@@ -20,6 +20,7 @@
 #include <linux/exynos_iovmm.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -143,6 +144,8 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 
 	spin_unlock(&g2d_dev->lock_task);
 
+	wake_up(&g2d_dev->freeze_wait);
+
 	return IRQ_HANDLED;
 }
 
@@ -233,6 +236,26 @@ static const struct file_operations g2d_fops = {
 #endif
 };
 
+static int g2d_notifier_event(struct notifier_block *this,
+			      unsigned long event, void *ptr)
+{
+	struct g2d_device *g2d_dev;
+
+	g2d_dev = container_of(this, struct g2d_device, pm_notifier);
+
+	switch (event) {
+	case PM_SUSPEND_PREPARE:
+		g2d_prepare_suspend(g2d_dev);
+		break;
+
+	case PM_POST_SUSPEND:
+		g2d_suspend_finish(g2d_dev);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 static int g2d_probe(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev;
@@ -308,9 +331,18 @@ static int g2d_probe(struct platform_device *pdev)
 		goto err_task;
 	}
 
+	init_waitqueue_head(&g2d_dev->freeze_wait);
+
+	g2d_dev->pm_notifier.notifier_call = &g2d_notifier_event;
+	ret = register_pm_notifier(&g2d_dev->pm_notifier);
+	if (ret)
+		goto err_pm;
+
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x\n", version);
 
 	return 0;
+err_pm:
+	g2d_destroy_tasks(g2d_dev);
 err_task:
 	misc_deregister(&g2d_dev->misc);
 err:
@@ -322,17 +354,29 @@ err:
 	return ret;
 }
 
+static void g2d_shutdown(struct platform_device *pdev)
+{
+	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
+
+	g2d_prepare_suspend(g2d_dev);
+
+	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
+
+	if (test_and_set_bit(G2D_DEVICE_STATE_IOVMM_DISABLED, &g2d_dev->state))
+		iovmm_deactivate(g2d_dev->dev);
+}
+
 static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
+
+	g2d_shutdown(pdev);
 
 	g2d_destroy_tasks(g2d_dev);
 
 	misc_deregister(&g2d_dev->misc);
 
 	pm_runtime_disable(&pdev->dev);
-
-	iovmm_deactivate(g2d_dev->dev);
 
 	return 0;
 }
@@ -367,6 +411,7 @@ static const struct of_device_id of_g2d_match[] = {
 static struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
 	.remove		= g2d_remove,
+	.shutdown	= g2d_shutdown,
 	.driver = {
 		.name	= MODULE_NAME,
 		.owner	= THIS_MODULE,

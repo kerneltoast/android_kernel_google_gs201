@@ -99,6 +99,51 @@ void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
 	}
 }
 
+static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
+{
+	list_move_tail(&task->node, &g2d_dev->tasks_active);
+	change_task_state_active(task);
+
+	task->ktime_begin = ktime_get();
+
+	mod_timer(&task->hw_timer,
+		  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
+	/*
+	 * g2d_device_run() is not reentrant while g2d_schedule() is
+	 * reentrant g2d_device_run() should be protected with
+	 * g2d_dev->lock_task from race.
+	 */
+	if (g2d_device_run(g2d_dev, task) < 0)
+		g2d_finish_task(g2d_dev, task, false);
+}
+
+void g2d_prepare_suspend(struct g2d_device *g2d_dev)
+{
+	spin_lock_irq(&g2d_dev->lock_task);
+	set_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
+	spin_unlock_irq(&g2d_dev->lock_task);
+
+	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
+}
+
+void g2d_suspend_finish(struct g2d_device *g2d_dev)
+{
+	struct g2d_task *task;
+
+	spin_lock_irq(&g2d_dev->lock_task);
+
+	clear_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
+
+	while (!list_empty(&g2d_dev->tasks_prepared)) {
+
+		task = list_first_entry(&g2d_dev->tasks_prepared,
+					struct g2d_task, node);
+		g2d_execute_task(g2d_dev, task);
+	}
+
+	spin_unlock_irq(&g2d_dev->lock_task);
+}
+
 static void g2d_schedule_task(struct g2d_task *task)
 {
 	struct g2d_device *g2d_dev = task->g2d_dev;
@@ -127,31 +172,16 @@ static void g2d_schedule_task(struct g2d_task *task)
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
-	list_add_tail(&task->node, &g2d_dev->tasks_active);
-
+	list_add_tail(&task->node, &g2d_dev->tasks_prepared);
 	change_task_state_prepared(task);
-	change_task_state_active(task);
 
-	task->ktime_begin = ktime_get();
+	if (!!(g2d_dev->state & (1 << G2D_DEVICE_STATE_SUSPEND)))
+		return;
 
-	/*
-	 * g2d_device_run() is not reentrant while g2d_schedule() is
-	 * reentrant g2d_device_run() should be protected with
-	 * g2d_dev->lock_task from race.
-	 */
-	if (g2d_device_run(g2d_dev, task) < 0) {
-		list_del_init(&task->node);
-		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
-		goto err_run;
-	}
-
-	mod_timer(&task->hw_timer,
-		  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
+	g2d_execute_task(g2d_dev, task);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 	return;
-err_run:
-	clk_disable(g2d_dev->clock);
 err_clk:
 	pm_runtime_put(g2d_dev->dev);
 err_pm:
