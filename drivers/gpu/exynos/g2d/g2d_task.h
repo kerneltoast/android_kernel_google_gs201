@@ -53,6 +53,7 @@ struct g2d_layer {
 	int			buffer_type;
 	int			num_buffers;
 	struct g2d_buffer	buffer[G2D_MAX_PLANES];
+	struct g2d_reg		*commands;
 };
 
 #define G2D_TASKSTATE_WAITING		(1 << 1)
@@ -72,6 +73,7 @@ struct g2d_task {
 	struct g2d_task		*next;
 	struct g2d_device	*g2d_dev;
 
+	unsigned int		flags;
 	unsigned int		job_id;
 	unsigned long		state;
 	struct kref		starter;
@@ -134,6 +136,13 @@ static inline void clear_task_state(struct g2d_task *task)
 
 #define is_task_state_active(task) (((task)->state & G2D_TASKSTATE_ACTIVE) != 0)
 #define is_task_state_killed(task) (((task)->state & G2D_TASKSTATE_KILLED) != 0)
+#define is_task_state_error(task)  (((task)->state & G2D_TASKSTATE_ERROR) != 0)
+
+static inline bool g2d_task_wait_completion(struct g2d_task *task)
+{
+	wait_for_completion(&task->completion);
+	return !is_task_state_error(task);
+}
 
 #define G2D_HW_TIMEOUT_MSEC	500
 

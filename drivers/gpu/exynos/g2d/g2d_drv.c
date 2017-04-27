@@ -21,13 +21,14 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
 #include "g2d.h"
 #include "g2d_regs.h"
 #include "g2d_task.h"
-#include "g2d_uapi.h"
+#include "g2d_uapi_process.h"
 
 #define MODULE_NAME "exynos-g2d"
 
@@ -202,22 +203,44 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct g2d_context *ctx = filp->private_data;
 	struct g2d_device *g2d_dev = ctx->g2d_dev;
+	int ret = 0;
 
 	switch (cmd) {
 	case G2D_IOC_PROCESS:
 	{
+		struct g2d_task_data __user *uptr =
+				(struct g2d_task_data __user *)arg;
+		struct g2d_task_data data;
 		struct g2d_task *task;
 
+		if (copy_from_user(&data, uptr, sizeof(data))) {
+			dev_err(g2d_dev->dev,
+				"%s: Failed to read g2d_task_data\n", __func__);
+			ret = -EFAULT;
+			break;
+		}
+
 		task = g2d_get_free_task(g2d_dev);
-		if (task == NULL)
-			return -EBUSY;
+		if (task == NULL) {
+			ret = -EBUSY;
+			break;
+		}
 
 		kref_init(&task->starter);
 
+		ret = g2d_get_userdata(g2d_dev, task, &data);
+		if (ret < 0) {
+			g2d_put_free_task(g2d_dev, task);
+			break;
+		}
+
 		g2d_start_task(task);
+
+		ret = g2d_wait_put_user(g2d_dev, task, uptr, data.flags);
 	}
 	}
-	return 0;
+
+	return ret;
 }
 
 static long g2d_compat_ioctl(struct file *filp,

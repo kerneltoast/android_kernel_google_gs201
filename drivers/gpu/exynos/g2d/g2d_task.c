@@ -20,6 +20,7 @@
 
 #include "g2d.h"
 #include "g2d_task.h"
+#include "g2d_uapi.h"
 
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 					     unsigned int id)
@@ -345,6 +346,8 @@ void g2d_dump_task(struct g2d_device *g2d_dev, unsigned int job_id)
 {
 	struct g2d_task *task;
 	unsigned long flags;
+	unsigned int i;
+	struct g2d_reg *regs;
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
@@ -354,6 +357,12 @@ void g2d_dump_task(struct g2d_device *g2d_dev, unsigned int job_id)
 	}
 
 	/* TODO: more dump task */
+
+	regs = page_address(task->cmd_page);
+
+	for (i = 0; i < task->cmd_count; i++)
+		pr_info("G2D: CMD[%03d] %#06x, %#010x\n",
+			i, regs[i].offset, regs[i].value);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 }
