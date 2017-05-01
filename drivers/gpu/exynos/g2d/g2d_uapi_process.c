@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
 #include <linux/dma-buf.h>
+#include <linux/sync_file.h>
 #include <linux/iommu.h>
 #include <linux/ion.h>
 #include <linux/slab.h>
@@ -29,6 +30,7 @@
 #include "g2d_task.h"
 #include "g2d_uapi_process.h"
 #include "g2d_command.h"
+#include "g2d_fence.h"
 
 
 unsigned int get_layer_payload(struct g2d_layer *layer)
@@ -506,6 +508,8 @@ static void g2d_put_image(struct g2d_device *g2d_dev, struct g2d_layer *layer,
 	g2d_put_buffer(g2d_dev, layer->buffer_type,
 			layer->buffer, layer->num_buffers, dir);
 
+	dma_fence_put(layer->fence);
+
 	layer->buffer_type = G2D_BUFTYPE_NONE;
 }
 
@@ -545,19 +549,35 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 	if (ret)
 		return ret;
 
+	layer->fence = g2d_get_acquire_fence(g2d_dev, layer, data->fence);
+	if (IS_ERR(layer->fence)) {
+		dev_err(dev, "%s: Invalid fence fd %d on source[%d]\n",
+			__func__, data->fence, index);
+		return ret;
+	}
+
+	if (layer->fence)
+		kref_get(&task->starter);
+
 	ret = g2d_get_buffer(g2d_dev, layer, data, DMA_TO_DEVICE);
 	if (ret)
-		return ret;
+		goto err_buffer;
 
 	if (!g2d_prepare_source(task, layer, index)) {
+		ret = -EINVAL;
 		dev_err(dev, "%s: Failed to prepare source layer %d\n",
 			__func__, index);
-		g2d_put_buffer(g2d_dev, layer->buffer_type, layer->buffer,
-				layer->num_buffers, DMA_TO_DEVICE);
-		return -EINVAL;
+		goto err_prepare;
 	}
 
 	return 0;
+err_prepare:
+	g2d_put_buffer(g2d_dev, layer->buffer_type, layer->buffer,
+		       layer->num_buffers, DMA_TO_DEVICE);
+err_buffer:
+	dma_fence_put(layer->fence); /* fence_put() checkes NULL */
+
+	return ret;
 }
 
 static int g2d_get_sources(struct g2d_device *g2d_dev, struct g2d_task *task,
@@ -600,6 +620,8 @@ static int g2d_get_target(struct g2d_device *g2d_dev,
 	int ret;
 
 	target->flags = data->flags;
+	target->fence = NULL;
+
 	target->buffer_type = data->buffer_type;
 
 	if (!G2D_BUFTYPE_VALID(target->buffer_type)) {
@@ -626,25 +648,41 @@ static int g2d_get_target(struct g2d_device *g2d_dev,
 	if (ret)
 		return ret;
 
+	target->fence = g2d_get_acquire_fence(g2d_dev, target, data->fence);
+	if (IS_ERR(target->fence)) {
+		dev_err(dev, "%s: Invalid fence fd %d on target\n",
+			__func__, data->fence);
+		return ret;
+	}
+
+	if (target->fence)
+		kref_get(&task->starter);
+
 	ret = g2d_get_buffer(g2d_dev, target, data, DMA_FROM_DEVICE);
 	if (ret)
-		return ret;
+		goto err_buffer;
 
 	if (!g2d_prepare_target(task)) {
+		ret = -EINVAL;
 		dev_err(dev, "%s: Failed to prepare target layer\n", __func__);
-
-		g2d_put_buffer(g2d_dev, target->buffer_type, target->buffer,
-				target->num_buffers, DMA_FROM_DEVICE);
-		return -EINVAL;
+		goto err_prepare;
 	}
 
 	return 0;
+err_prepare:
+	g2d_put_buffer(g2d_dev, target->buffer_type, target->buffer,
+				target->num_buffers, DMA_FROM_DEVICE);
+err_buffer:
+	dma_fence_put(target->fence); /* fence_put() checkes NULL */
+
+	return ret;
 }
 
 int g2d_get_userdata(struct g2d_device *g2d_dev,
 		     struct g2d_task *task, struct g2d_task_data *data)
 {
 	struct device *dev = g2d_dev->dev;
+	unsigned int i;
 	int ret;
 
 	/* invalid range check */
@@ -676,20 +714,34 @@ int g2d_get_userdata(struct g2d_device *g2d_dev,
 	if (ret)
 		goto err_src;
 
+	task->release_fence = g2d_create_release_fence(g2d_dev, task, data);
+	if (IS_ERR(task->release_fence)) {
+		ret = PTR_ERR(task->release_fence);
+		goto err_fence;
+	}
+
 	g2d_clean_caches_task(task);
 
 	return 0;
+err_fence:
+	for (i = 0; i < task->num_source; i++)
+		g2d_put_image(g2d_dev, &task->source[i], DMA_TO_DEVICE);
 err_src:
 	g2d_put_image(g2d_dev, &task->target, DMA_FROM_DEVICE);
 
 	return ret;
 }
 
-static void g2d_put_images(struct g2d_device *g2d_dev, struct g2d_task *task)
+void g2d_put_images(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	unsigned int i;
 
 	g2d_invalidate_caches_task(task);
+
+	if (task->release_fence) {
+		dma_fence_signal(task->release_fence->fence);
+		fput(task->release_fence->file);
+	}
 
 	for (i = 0; i < task->num_source; i++)
 		g2d_put_image(g2d_dev, &task->source[i], DMA_TO_DEVICE);

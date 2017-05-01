@@ -22,6 +22,7 @@
 #include <linux/dma-buf.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
+#include <linux/sync_file.h>
 
 #include "g2d_format.h"
 
@@ -53,6 +54,8 @@ struct g2d_layer {
 	int			buffer_type;
 	int			num_buffers;
 	struct g2d_buffer	buffer[G2D_MAX_PLANES];
+	struct dma_fence	*fence;
+	struct dma_fence_cb	fence_cb;
 	struct g2d_reg		*commands;
 };
 
@@ -76,6 +79,7 @@ struct g2d_task {
 	unsigned int		flags;
 	unsigned int		job_id;
 	unsigned long		state;
+	struct sync_file	*release_fence;
 	struct kref		starter;
 	struct timer_list	hw_timer;
 
@@ -164,6 +168,8 @@ void g2d_flush_all_tasks(struct g2d_device *g2d_dev);
 
 void g2d_prepare_suspend(struct g2d_device *g2d_dev);
 void g2d_suspend_finish(struct g2d_device *g2d_dev);
+
+void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb);
 
 void g2d_dump_task(struct g2d_device *g2d_dev, unsigned int job_id);
 

@@ -20,7 +20,7 @@
 
 #include "g2d.h"
 #include "g2d_task.h"
-#include "g2d_uapi.h"
+#include "g2d_uapi_process.h"
 
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 					     unsigned int id)
@@ -38,6 +38,16 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 	return NULL;
 }
 
+/* TODO: consider separate workqueue to eliminate delay by scheduling work */
+static void g2d_task_completion_work(struct work_struct *work)
+{
+	struct g2d_task *task = container_of(work, struct g2d_task, work);
+
+	g2d_put_images(task->g2d_dev, task);
+
+	g2d_put_free_task(task->g2d_dev, task);
+}
+
 static void __g2d_finish_task(struct g2d_task *task, bool success)
 {
 	change_task_state_finished(task);
@@ -45,6 +55,15 @@ static void __g2d_finish_task(struct g2d_task *task, bool success)
 		mark_task_state_error(task);
 
 	complete_all(&task->completion);
+
+	if (!!(task->flags & G2D_FLAG_NONBLOCK)) {
+		bool failed;
+
+		INIT_WORK(&task->work, g2d_task_completion_work);
+		failed = !queue_work(task->g2d_dev->schedule_workq,
+					&task->work);
+		BUG_ON(failed);
+	}
 }
 
 static void g2d_finish_task(struct g2d_device *g2d_dev,
@@ -189,6 +208,7 @@ err_pm:
 	__g2d_finish_task(task, false);
 }
 
+/* TODO: consider separate workqueue to eliminate delay by completion work */
 static void g2d_task_schedule_work(struct work_struct *work)
 {
 	g2d_schedule_task(container_of(work, struct g2d_task, work));
@@ -211,6 +231,15 @@ void g2d_start_task(struct g2d_task *task)
 
 	kref_put(&task->starter, g2d_queuework_task);
 }
+
+void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
+{
+	struct g2d_layer *layer = container_of(cb, struct g2d_layer, fence_cb);
+
+	/* @fence is released in g2d_put_image() */
+	kref_put(&layer->task->starter, g2d_queuework_task);
+}
+
 
 struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev)
 {

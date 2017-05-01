@@ -236,7 +236,9 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		g2d_start_task(task);
 
-		ret = g2d_wait_put_user(g2d_dev, task, uptr, data.flags);
+		if (!(task->flags & G2D_FLAG_NONBLOCK))
+			ret = g2d_wait_put_user(g2d_dev, task,
+						uptr, data.flags);
 	}
 	}
 
@@ -360,6 +362,9 @@ static int g2d_probe(struct platform_device *pdev)
 	ret = register_pm_notifier(&g2d_dev->pm_notifier);
 	if (ret)
 		goto err_pm;
+
+	spin_lock_init(&g2d_dev->fence_lock);
+	g2d_dev->fence_context = dma_fence_context_alloc(1);
 
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x\n", version);
 

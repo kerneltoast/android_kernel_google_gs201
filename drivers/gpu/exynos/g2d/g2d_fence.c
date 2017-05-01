@@ -1,0 +1,142 @@
+/*
+ * linux/drivers/gpu/exynos/g2d/g2d_fence.c
+ *
+ * Copyright (C) 2017 Samsung Electronics Co., Ltd.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
+#include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/dma-fence.h>
+#include <linux/sync_file.h>
+
+#include "g2d.h"
+#include "g2d_uapi.h"
+#include "g2d_task.h"
+#include "g2d_fence.h"
+
+static const char *g2d_fence_get_driver_name(struct dma_fence *fence)
+{
+	return "g2d";
+}
+
+static bool g2d_fence_enable_signaling(struct dma_fence *fence)
+{
+	/* nothing to do */
+	return true;
+}
+
+static void g2d_fence_release(struct dma_fence *fence)
+{
+	kfree(fence);
+}
+
+static void g2d_fence_value_str(struct dma_fence *fence, char *str, int size)
+{
+	snprintf(str, size, "%d", fence->seqno);
+}
+
+static struct dma_fence_ops g2d_fence_ops = {
+	.get_driver_name =	g2d_fence_get_driver_name,
+	.get_timeline_name =	g2d_fence_get_driver_name,
+	.enable_signaling =	g2d_fence_enable_signaling,
+	.wait =			dma_fence_default_wait,
+	.release =		g2d_fence_release,
+	.fence_value_str =	g2d_fence_value_str,
+};
+
+struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
+					   struct g2d_task *task,
+					   struct g2d_task_data *data)
+{
+	struct dma_fence *fence;
+	struct sync_file *file;
+	u32 release_fences[G2D_MAX_IMAGES + 1];
+	unsigned int i;
+	int ret = 0;
+
+	if (!(task->flags & G2D_FLAG_NONBLOCK) || !data->num_release_fences)
+		return NULL;
+
+	if (data->num_release_fences > (task->num_source + 1)) {
+		dev_err(g2d_dev->dev,
+			"%s: Too many release fences %d required (src: %d)\n",
+			__func__, data->num_release_fences, task->num_source);
+		return ERR_PTR(-EINVAL);
+	}
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return ERR_PTR(-ENOMEM);
+
+	dma_fence_init(fence, &g2d_fence_ops, &g2d_dev->fence_lock,
+		   g2d_dev->fence_context,
+		   atomic_inc_return(&g2d_dev->fence_timeline));
+
+	file = sync_file_create(fence);
+	if (!file) {
+		dma_fence_put(fence);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	for (i = 0; i < data->num_release_fences; i++) {
+		release_fences[i] = get_unused_fd_flags(O_CLOEXEC);
+		if (release_fences[i] < 0) {
+			ret = release_fences[i];
+			while (i-- > 0)
+				put_unused_fd(release_fences[i]);
+			goto err_fd;
+		}
+	}
+
+	if (copy_to_user(data->release_fences, release_fences,
+				sizeof(u32) * data->num_release_fences)) {
+		ret = -EFAULT;
+		dev_err(g2d_dev->dev,
+			"%s: Failed to copy release fences to userspace\n",
+			__func__);
+		goto err_fd;
+	}
+
+	for (i = 0; i < data->num_release_fences; i++)
+		fd_install(release_fences[i], get_file(file->file));
+
+	return file;
+err_fd:
+	while (i-- > 0)
+		put_unused_fd(release_fences[i]);
+	fput(file->file);
+
+	return ERR_PTR(ret);
+}
+
+struct dma_fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
+					struct g2d_layer *layer, s32 fence_fd)
+{
+	struct dma_fence *fence;
+	int ret;
+
+	if (!(layer->flags & G2D_LAYERFLAG_ACQUIRE_FENCE))
+		return NULL;
+
+	fence = sync_file_get_fence(fence_fd);
+	if (!fence)
+		return ERR_PTR(-EINVAL);
+
+	ret = dma_fence_add_callback(fence, &layer->fence_cb, g2d_fence_callback);
+	if (ret < 0) {
+		dma_fence_put(fence);
+		return (ret == -ENOENT) ? NULL : ERR_PTR(ret);
+	}
+
+	return fence;
+}

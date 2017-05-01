@@ -1,5 +1,5 @@
 /*
- * linux/drivers/gpu/exynos/g2d/g2d_uapi_process.h
+ * linux/drivers/gpu/exynos/g2d/g2d_fence.h
  *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
  *
@@ -13,18 +13,18 @@
  * General Public License for more details.
  */
 
-#ifndef _G2D_UAPI_PROCESS_H_
-#define _G2D_UAPI_PROCESS_H_
-
-#include "g2d_uapi.h"
+#ifndef __EXYNOS_G2D_FENCE_H__
+#define __EXYNOS_G2D_FENCE_H__
 
 struct g2d_device;
+struct g2d_layer;
 struct g2d_task;
+struct g2d_task_data;
+struct dma_fence;
 
-int g2d_get_userdata(struct g2d_device *g2d_dev,
-		     struct g2d_task *task, struct g2d_task_data *data);
-void g2d_put_images(struct g2d_device *g2d_dev, struct g2d_task *task);
-int g2d_wait_put_user(struct g2d_device *g2d_dev, struct g2d_task *task,
-		      struct g2d_task_data __user *uptr, u32 userflag);
-
-#endif /* _G2D_UAPI_PROCESS_H_ */
+struct dma_fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
+					struct g2d_layer *layer, s32 fence_fd);
+struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
+					   struct g2d_task *task,
+					   struct g2d_task_data *data);
+#endif /*__EXYNOS_G2D_FENCE_H__*/

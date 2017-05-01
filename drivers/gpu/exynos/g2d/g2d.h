@@ -36,6 +36,10 @@ struct g2d_device {
 	struct clk		*clock;
 	void __iomem		*reg;
 
+	u64			fence_context;
+	atomic_t		fence_timeline;
+	spinlock_t		fence_lock;
+
 	/* task management */
 	spinlock_t		lock_task;
 	struct g2d_task		*tasks;
