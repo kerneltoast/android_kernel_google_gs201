@@ -20,12 +20,107 @@
 #include <linux/ion.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
+#include <linux/exynos_ion.h>
 #include <linux/exynos_iovmm.h>
+
+#include <asm/cacheflush.h>
 
 #include "g2d.h"
 #include "g2d_task.h"
 #include "g2d_uapi_process.h"
 #include "g2d_command.h"
+
+
+unsigned int get_layer_payload(struct g2d_layer *layer)
+{
+	unsigned int payload = 0;
+	unsigned int i;
+
+	for (i = 0; i < layer->num_buffers; i++)
+		payload += layer->buffer[i].payload;
+
+	return payload;
+}
+
+static void g2d_clean_caches_layer(struct device *dev, struct g2d_layer *layer,
+				   enum dma_data_direction dir)
+{
+	unsigned int i;
+
+	if (device_get_dma_attr(dev) != DEV_DMA_COHERENT) {
+		for (i = 0; i < layer->num_buffers; i++) {
+			if (layer->buffer_type == G2D_BUFTYPE_DMABUF) {
+				dma_sync_sg_for_device(dev,
+					layer->buffer[i].dmabuf.sgt->sgl,
+					layer->buffer[i].dmabuf.sgt->orig_nents,
+					dir);
+			} else {
+				exynos_iommu_sync_for_device(dev,
+						layer->buffer[i].dma_addr,
+						layer->buffer[i].payload, dir);
+			}
+		}
+
+		return;
+	}
+
+	/*
+	 * Cache invalidation is required if a cacheable buffer is possibly
+	 * written nonshareably and G2D is to read the buffer shareably.
+	 */
+	for (i = 0; i < layer->num_buffers; i++) {
+		struct dma_buf *dmabuf;
+
+		dmabuf = layer->buffer[i].dmabuf.dmabuf;
+		if ((layer->buffer_type == G2D_BUFTYPE_DMABUF) &&
+				ion_cached_needsync_dmabuf(dmabuf) &&
+					ion_may_hwrender_dmabuf(dmabuf)) {
+				dma_sync_sg_for_cpu(dev,
+					layer->buffer[i].dmabuf.sgt->sgl,
+					layer->buffer[i].dmabuf.sgt->orig_nents,
+					DMA_FROM_DEVICE);
+		}
+	}
+}
+
+static void g2d_clean_caches_task(struct g2d_task *task)
+{
+	struct device *dev = task->g2d_dev->dev;
+	unsigned int i;
+
+	if ((device_get_dma_attr(dev) == DEV_DMA_COHERENT) &&
+				(task->total_hwrender_len == 0))
+		return;
+
+	for (i = 0; i < task->num_source; i++)
+		g2d_clean_caches_layer(dev, &task->source[i], DMA_TO_DEVICE);
+
+	g2d_clean_caches_layer(dev, &task->source[i], DMA_FROM_DEVICE);
+
+}
+
+static void g2d_invalidate_caches_task(struct g2d_task *task)
+{
+	struct device *dev = task->g2d_dev->dev;
+	unsigned int i;
+
+	if (device_get_dma_attr(dev) == DEV_DMA_COHERENT)
+		return;
+
+	for (i = 0; i < task->target.num_buffers; i++) {
+		struct g2d_buffer *buffer;
+
+		buffer = &task->target.buffer[i];
+		if (task->target.buffer_type == G2D_BUFTYPE_DMABUF) {
+			dma_sync_sg_for_cpu(dev, buffer->dmabuf.sgt->sgl,
+					    buffer->dmabuf.sgt->orig_nents,
+					    DMA_FROM_DEVICE);
+		} else {
+			exynos_iommu_sync_for_cpu(dev, buffer->dma_addr,
+				buffer->payload, DMA_FROM_DEVICE);
+		}
+	}
+}
 
 static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 			      struct g2d_layer *layer,
@@ -118,8 +213,14 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 		goto err;
 	}
 
-	if (dir != DMA_TO_DEVICE)
+	if (ion_cached_needsync_dmabuf(dmabuf))
+		task->total_cached_len += buffer->payload;
+
+	if (dir != DMA_TO_DEVICE) {
 		prot |= IOMMU_WRITE;
+		if (ion_may_hwrender_dmabuf(dmabuf))
+			task->total_hwrender_len += buffer->payload;
+	}
 
 	attachment = dma_buf_attach(dmabuf, dev);
 	if (IS_ERR(attachment)) {
@@ -213,8 +314,10 @@ static int g2d_get_userptr(struct g2d_task *task,
 
 	if (dir != DMA_TO_DEVICE)
 		prot |= IOMMU_WRITE;
-	if (is_vma_cached(vma))
+	if (is_vma_cached(vma)) {
+		task->total_cached_len += buffer->payload;
 		prot |= IOMMU_CACHE;
+	}
 
 	buffer->userptr.vma = tvma;
 
@@ -573,6 +676,8 @@ int g2d_get_userdata(struct g2d_device *g2d_dev,
 	if (ret)
 		goto err_src;
 
+	g2d_clean_caches_task(task);
+
 	return 0;
 err_src:
 	g2d_put_image(g2d_dev, &task->target, DMA_FROM_DEVICE);
@@ -583,6 +688,8 @@ err_src:
 static void g2d_put_images(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	unsigned int i;
+
+	g2d_invalidate_caches_task(task);
 
 	for (i = 0; i < task->num_source; i++)
 		g2d_put_image(g2d_dev, &task->source[i], DMA_TO_DEVICE);

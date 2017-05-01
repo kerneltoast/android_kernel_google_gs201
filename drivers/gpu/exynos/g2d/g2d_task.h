@@ -94,6 +94,9 @@ struct g2d_task {
 
 	struct work_struct	work;
 	struct completion	completion;
+
+	unsigned int		total_cached_len;
+	unsigned int		total_hwrender_len;
 };
 
 /* The below macros should be called with g2d_device.lock_tasks held */
