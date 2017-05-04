@@ -21,6 +21,67 @@
 #include "g2d_task.h"
 #include "g2d_uapi.h"
 #include "g2d_command.h"
+#include "g2d_regs.h"
+
+/*
+ * Number of registers of coefficients of conversion functions
+ * - 4 sets of color space conversion for sources
+ * - 1 set of color space conversion for destination
+ * - 2 sets of HDR coefficients
+ *   - 2 matrices of EOTF
+ *   - 2 matrices of Gamut mapping
+ *   - 2 matrices Tone mappings
+ */
+#define MAX_EXTRA_REGS	(9 * 5 + (65 + 9 + 33) * 2)
+
+enum {
+	TASK_REG_SOFT_RESET,
+	TASK_REG_LAYER_SECURE,
+	TASK_REG_LAYER_UPDATE,
+
+	TASK_REG_COUNT
+};
+
+/*
+ * G2D_SECURE_LAYER_REG and G2D_LAYER_UPDATE_REG are updated in
+ * g2d_prepare_source() and g2d_prepare_target().
+ */
+static struct g2d_reg g2d_setup_commands[TASK_REG_COUNT] = {
+	{G2D_SOFT_RESET_REG,   0x00000004}, /* CoreSFRClear */
+	{G2D_SECURE_LAYER_REG, 0x00000000},
+	{G2D_LAYER_UPDATE_REG, 0x00000000},
+};
+
+void g2d_init_commands(struct g2d_task *task)
+{
+	memcpy(page_address(task->cmd_page),
+		&g2d_setup_commands, sizeof(g2d_setup_commands));
+	task->cmd_count = ARRAY_SIZE(g2d_setup_commands);
+}
+
+void g2d_complete_commands(struct g2d_task *task)
+{
+	struct g2d_reg *regs = page_address(task->cmd_page);
+	unsigned int n = 8 - ((task->cmd_count + 1) % 8);
+
+
+	/* 832 is the total number of the G2D registers */
+	BUG_ON(task->cmd_count > 830);
+
+	/*
+	 * Number of commands should be multiple of 8.
+	 * If it is not, then pad dummy commands with no side effect.
+	 */
+	while (n-- > 0) {
+		regs[task->cmd_count].offset = G2D_LAYER_UPDATE_REG;
+		regs[task->cmd_count].value = regs[TASK_REG_LAYER_UPDATE].value;
+		task->cmd_count++;
+	}
+
+	regs[task->cmd_count].offset = G2D_BITBLT_START_REG;
+	regs[task->cmd_count].value = 1;
+	task->cmd_count++;
+}
 
 #define NV12N_Y_SIZE(w, h)	(ALIGN((w), 16) * ALIGN((h), 16) + 256)
 #define NV12N_CBCR_SIZE(w, h)		\
@@ -587,7 +648,13 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 	unsigned int i;
 	int copied;
 
-	task->cmd_count = 0;
+	if (cmds->num_extra_regs > MAX_EXTRA_REGS) {
+		dev_err(dev, "%s: Too many coefficient reigsters %d\n",
+			__func__, cmds->num_extra_regs);
+		return -EINVAL;
+	}
+
+	cmdaddr += task->cmd_count;
 
 	copied = g2d_copy_commands(g2d_dev, -1, cmdaddr, cmds->target,
 				target_command_checker, G2DSFR_DST_FIELD_COUNT);
@@ -734,9 +801,18 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 bool g2d_prepare_source(struct g2d_task *task,
 			struct g2d_layer *layer, int index)
 {
+	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
 	u32 colormode = layer->commands[G2DSFR_IMG_COLORMODE].value;
 	unsigned char *offsets = IS_YUV420_82(colormode) ?
 				src_base_reg_offset_yuv82 : src_base_reg_offset;
+
+	reg[TASK_REG_LAYER_UPDATE].value |= 1 << index;
+
+	if ((layer->flags & G2D_LAYERFLAG_COLORFILL) != 0)
+		return true;
+
+	if ((layer->flags & G2D_LAYERFLAG_SECURE) != 0)
+		reg[TASK_REG_LAYER_SECURE].value |= 1 << index;
 
 	task->cmd_count = ((colormode & G2D_DATAFORMAT_AFBC) != 0)
 			? g2d_set_afbc_buffer(task, layer, LAYER_OFFSET(index))
@@ -751,7 +827,11 @@ bool g2d_prepare_source(struct g2d_task *task,
 
 bool g2d_prepare_target(struct g2d_task *task)
 {
+	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
 	u32 colormode = task->target.commands[G2DSFR_IMG_COLORMODE].value;
+
+	if ((task->target.flags & G2D_LAYERFLAG_SECURE) != 0)
+		reg[TASK_REG_LAYER_SECURE].value |= 1 << 24;
 
 	task->cmd_count = ((colormode & G2D_DATAFORMAT_AFBC) != 0)
 			? g2d_set_afbc_buffer(task, &task->target,

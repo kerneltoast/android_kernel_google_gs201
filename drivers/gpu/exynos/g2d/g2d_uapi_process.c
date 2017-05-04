@@ -534,6 +534,8 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 		if (layer->flags & G2D_LAYERFLAG_COLORFILL) {
 			layer->num_buffers = 0;
 			layer->flags &= ~G2D_LAYERFLAG_ACQUIRE_FENCE;
+			/* g2d_prepare_source() always successes for colofill */
+			g2d_prepare_source(task, layer, index);
 			return 0;
 		}
 

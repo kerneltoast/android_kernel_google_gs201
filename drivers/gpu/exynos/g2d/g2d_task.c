@@ -21,6 +21,7 @@
 #include "g2d.h"
 #include "g2d_task.h"
 #include "g2d_uapi_process.h"
+#include "g2d_command.h"
 
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 					     unsigned int id)
@@ -170,6 +171,8 @@ static void g2d_schedule_task(struct g2d_task *task)
 	unsigned long flags;
 	int ret;
 
+	g2d_complete_commands(task);
+
 	/*
 	 * Unconditional invocation of pm_runtime_get_sync() has no side effect
 	 * in g2d_schedule(). It just increases the usage count of RPM if this
@@ -258,6 +261,8 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev)
 	INIT_WORK(&task->work, g2d_task_schedule_work);
 
 	init_task_state(task);
+
+	g2d_init_commands(task);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
