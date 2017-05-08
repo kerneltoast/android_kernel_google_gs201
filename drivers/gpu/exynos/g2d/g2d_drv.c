@@ -150,6 +150,20 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_EXYNOS_IOVMM
+static int g2d_iommu_fault_handler(struct iommu_domain *domain,
+				struct device *dev, unsigned long fault_addr,
+				int fault_flags, void *token)
+{
+	struct g2d_device *g2d_dev = token;
+	int job_id = g2d_hw_get_current_task(g2d_dev);
+
+	g2d_dump_task(g2d_dev, job_id);
+
+	return 0;
+}
+#endif
+
 static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 {
 	int ret;
@@ -319,6 +333,8 @@ static int g2d_probe(struct platform_device *pdev)
 					PTR_ERR(g2d_dev->clock));
 		return PTR_ERR(g2d_dev->clock);
 	}
+
+	iovmm_set_fault_handler(&pdev->dev, g2d_iommu_fault_handler, g2d_dev);
 
 	ret = iovmm_activate(&pdev->dev);
 	if (ret < 0) {
