@@ -113,21 +113,35 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 	task->cmd_count++;
 }
 
+static void g2d_set_hwfc_commands(struct g2d_task *task)
+{
+	struct g2d_reg *regs = (struct g2d_reg *)page_address(task->cmd_page);
+
+	regs[task->cmd_count].offset = G2D_HWFC_CAPTURE_IDX_REG;
+	regs[task->cmd_count].value =
+			G2D_HWFC_CAPTURE_HWFC_JOB | task->job_id;
+	task->cmd_count++;
+}
+
 void g2d_complete_commands(struct g2d_task *task)
 {
 	struct g2d_reg *regs = page_address(task->cmd_page);
-	unsigned int n = 8 - ((task->cmd_count + 1) % 8);
-
+	unsigned int n;
 
 	/* 832 is the total number of the G2D registers */
 	BUG_ON(task->cmd_count > 830);
 
 	g2d_set_taskctl_commands(task);
 
+	if (IS_HWFC(task->flags))
+		g2d_set_hwfc_commands(task);
+
 	/*
 	 * Number of commands should be multiple of 8.
 	 * If it is not, then pad dummy commands with no side effect.
 	 */
+	n = (8 - ((task->cmd_count + 1) & 7)) & 7;
+
 	while (n-- > 0) {
 		regs[task->cmd_count].offset = G2D_LAYER_UPDATE_REG;
 		regs[task->cmd_count].value = regs[TASK_REG_LAYER_UPDATE].value;
@@ -534,13 +548,17 @@ static bool g2d_validate_image_dimension(struct g2d_device *g2d_dev,
 #define IS_EVEN(value) (((value) & 1) == 0)
 
 static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
-				      struct g2d_reg commands[], bool dst)
+		struct g2d_task *task, struct g2d_reg commands[], bool dst)
 {
 	struct device *dev = g2d_dev->dev;
 	u32 stride = commands[G2DSFR_IMG_STRIDE].value;
 	u32 mode   = commands[G2DSFR_IMG_COLORMODE].value;
 	u32 width  = commands[G2DSFR_IMG_WIDTH].value;
 	u32 height = commands[G2DSFR_IMG_HEIGHT].value;
+	u32 left   = commands[G2DSFR_IMG_LEFT].value;
+	u32 right  = commands[G2DSFR_IMG_RIGHT].value;
+	u32 top    = commands[G2DSFR_IMG_TOP].value;
+	u32 bottom = commands[G2DSFR_IMG_BOTTOM].value;
 	u32 Bpp = 0;
 	const struct g2d_fmt *fmt;
 
@@ -550,10 +568,7 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 	}
 
 	if (!g2d_validate_image_dimension(g2d_dev, width, height,
-					commands[G2DSFR_IMG_LEFT].value,
-					commands[G2DSFR_IMG_TOP].value,
-					commands[G2DSFR_IMG_RIGHT].value,
-					commands[G2DSFR_IMG_BOTTOM].value))
+					left, top, right, bottom))
 		return false;
 
 	fmt = g2d_find_format(mode);
@@ -593,6 +608,17 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		return false;
 	}
 
+	if (IS_HWFC(task->flags)) {
+		if (IS_AFBC(mode) || IS_UORDER(mode)) {
+			dev_err(dev, "%s: Invalid HWFC format with %s\n",
+				__func__, IS_AFBC(mode) ? "AFBC" : "UORDER");
+			return false;
+		}
+		if (dst &&
+			((width != right - left) || (height != bottom - top)))
+			goto err_align;
+	}
+
 	if (!dst) {
 		if (IS_AFBC(mode) && (!IS_AFBC_WIDTH_ALIGNED(width) ||
 					!IS_AFBC_HEIGHT_ALIGNED(height)))
@@ -624,7 +650,7 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 	return true;
 err_align:
 	dev_err(dev,
-		"%s: Unaligned size %ux%u or crop [%ux%u, %ux%u) for %s %s\n",
+		"%s: Unaligned size %ux%u or crop [%ux%u, %ux%u) for %s %s %s\n",
 		__func__,
 		commands[G2DSFR_IMG_WIDTH].value,
 		commands[G2DSFR_IMG_HEIGHT].value,
@@ -634,19 +660,22 @@ err_align:
 		commands[G2DSFR_IMG_BOTTOM].value,
 		IS_AFBC(mode) ? "AFBC" :
 			IS_YUV422(mode) ? "YUV422" : "YUV20",
-		IS_YUV420_82(mode) ? "8+2" : "");
+		IS_YUV420_82(mode) ? "8+2" : "",
+		IS_HWFC(task->flags) ? "HWFC" : "");
 
 	return false;
 }
 
 bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
+				  struct g2d_task *task,
 				  unsigned int i, struct g2d_layer *source,
 				  struct g2d_layer *target)
 {
 	u32 colormode = source->commands[G2DSFR_IMG_COLORMODE].value;
 	u32 width, height;
 
-	if (!g2d_validate_image_format(g2d_dev, source->commands, false)) {
+	if (!g2d_validate_image_format(
+			g2d_dev, task, source->commands, false)) {
 		dev_err(g2d_dev->dev,
 			"%s: Failed to validate source[%d] commands\n",
 			__func__, i);
@@ -689,7 +718,8 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 bool g2d_validate_target_commands(struct g2d_device *g2d_dev,
 				  struct g2d_task *task)
 {
-	if (!g2d_validate_image_format(g2d_dev, task->target.commands, true)) {
+	if (!g2d_validate_image_format(g2d_dev, task,
+			task->target.commands, true)) {
 		dev_err(g2d_dev->dev,
 			"%s: Failed to validate target commands\n", __func__);
 		return false;

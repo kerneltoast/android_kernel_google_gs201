@@ -79,6 +79,8 @@ struct g2d_layer {
 struct g2d_context;
 struct g2d_device;
 
+#define IS_HWFC(flags)	(!!((flags) & G2D_FLAG_HWFC))
+
 struct g2d_task {
 	struct list_head	node;
 	struct g2d_task		*next;
@@ -153,6 +155,7 @@ static inline void clear_task_state(struct g2d_task *task)
 	task->state = 0;
 }
 
+#define is_task_state_idle(task)   ((task)->state == 0)
 #define is_task_state_active(task) (((task)->state & G2D_TASKSTATE_ACTIVE) != 0)
 #define is_task_state_killed(task) (((task)->state & G2D_TASKSTATE_KILLED) != 0)
 #define is_task_state_error(task)  (((task)->state & G2D_TASKSTATE_ERROR) != 0)
@@ -171,7 +174,7 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 void g2d_destroy_tasks(struct g2d_device *g2d_dev);
 int g2d_create_tasks(struct g2d_device *g2d_dev);
 
-struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev);
+struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev, bool hwfc);
 void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 
 void g2d_start_task(struct g2d_task *task);

@@ -31,6 +31,8 @@
 #include "g2d_uapi_process.h"
 #include "g2d_command.h"
 #include "g2d_fence.h"
+#include "g2d_regs.h"
+#include "g2d_debug.h"
 
 unsigned int get_layer_payload(struct g2d_layer *layer)
 {
@@ -186,6 +188,7 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 }
 
 static int g2d_get_dmabuf(struct g2d_task *task,
+			  struct g2d_context *ctx,
 			  struct g2d_buffer *buffer,
 			  struct g2d_buffer_data *data,
 			  enum dma_data_direction dir)
@@ -198,11 +201,58 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 	int ret = -EINVAL;
 	int prot = IOMMU_READ | IOMMU_CACHE;
 
-	dmabuf = dma_buf_get(data->dmabuf.fd);
-	if (IS_ERR(dmabuf)) {
-		dev_err(dev, "%s: Failed to get dmabuf from fd %d\n",
-			__func__, data->dmabuf.fd);
-		return PTR_ERR(dmabuf);
+	if (!IS_HWFC(task->flags) || (dir == DMA_TO_DEVICE)) {
+		dmabuf = dma_buf_get(data->dmabuf.fd);
+		if (IS_ERR(dmabuf)) {
+			dev_err(dev, "%s: Failed to get dmabuf from fd %d\n",
+				__func__, data->dmabuf.fd);
+			return PTR_ERR(dmabuf);
+		}
+	} else {
+		struct g2d_task *ptask;
+		unsigned long flags;
+		u32 idx;
+
+		/*
+		 * The index from repeater driver used on both buffer index and
+		 * job id, and this index is managed by repeater driver to
+		 * avoid overwriting the buffer index and job id while MFC is
+		 * running.
+		 */
+		hwfc_get_valid_buffer(&idx);
+		BUG_ON(idx >= ctx->hwfc_info->buffer_count);
+
+		spin_lock_irqsave(&task->g2d_dev->lock_task, flags);
+
+		ptask = task->g2d_dev->tasks;
+
+		while (ptask != NULL) {
+			if (ptask == task) {
+				ptask = ptask->next;
+				continue;
+			}
+			if ((ptask->job_id == idx) &&
+					!is_task_state_idle(ptask)) {
+				dev_err(dev, "%s: The task using that job #%d is not idle\n",
+				__func__, idx);
+
+				spin_unlock_irqrestore(
+					&task->g2d_dev->lock_task, flags);
+				return ret;
+			}
+			ptask = ptask->next;
+		}
+		task->job_id = idx;
+
+		spin_unlock_irqrestore(&task->g2d_dev->lock_task, flags);
+
+		dmabuf = ctx->hwfc_info->bufs[idx];
+		get_dma_buf(dmabuf);
+
+		data->dmabuf.offset = 0;
+		data->length = dmabuf->size;
+
+		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF);
 	}
 
 	if (dmabuf->size < data->dmabuf.offset) {
@@ -288,6 +338,7 @@ static int g2d_put_dmabuf(struct g2d_device *g2d_dev, struct g2d_buffer *buffer,
 	    pgprot_val((vma)->vm_page_prot)))
 
 static int g2d_get_userptr(struct g2d_task *task,
+			   struct g2d_context *ctx,
 			   struct g2d_buffer *buffer,
 			   struct g2d_buffer_data *data,
 			   enum dma_data_direction dir)
@@ -444,14 +495,16 @@ static int g2d_put_userptr(struct g2d_device *g2d_dev,
 }
 
 static int g2d_get_buffer(struct g2d_device *g2d_dev,
+				struct g2d_context *ctx,
 				struct g2d_layer *layer,
 				struct g2d_layer_data *data,
 				enum dma_data_direction dir)
 {
 	int ret = 0;
 	unsigned int i;
-	int (*get_func)(struct g2d_task *, struct g2d_buffer *,
-			struct g2d_buffer_data *, enum dma_data_direction);
+	int (*get_func)(struct g2d_task *, struct g2d_context *,
+			struct g2d_buffer *, struct g2d_buffer_data *,
+			enum dma_data_direction);
 	int (*put_func)(struct g2d_device *, struct g2d_buffer *,
 			enum dma_data_direction);
 
@@ -466,7 +519,7 @@ static int g2d_get_buffer(struct g2d_device *g2d_dev,
 	}
 
 	for (i = 0; i < layer->num_buffers; i++) {
-		ret = get_func(layer->task, &layer->buffer[i],
+		ret = get_func(layer->task, ctx, &layer->buffer[i],
 			       &data->buffer[i], dir);
 		if (ret) {
 			while (i-- > 0)
@@ -547,7 +600,8 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return -EINVAL;
 	}
 
-	if (!g2d_validate_source_commands(g2d_dev, index, layer, &task->target))
+	if (!g2d_validate_source_commands(
+			g2d_dev, task, index, layer, &task->target))
 		return -EINVAL;
 
 	ret = g2d_prepare_buffer(g2d_dev, layer, data);
@@ -561,7 +615,7 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return ret;
 	}
 
-	ret = g2d_get_buffer(g2d_dev, layer, data, DMA_TO_DEVICE);
+	ret = g2d_get_buffer(g2d_dev, NULL, layer, data, DMA_TO_DEVICE);
 	if (ret)
 		goto err_buffer;
 
@@ -614,7 +668,7 @@ static int g2d_get_sources(struct g2d_device *g2d_dev, struct g2d_task *task,
 	return ret;
 }
 
-static int g2d_get_target(struct g2d_device *g2d_dev,
+static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 			  struct g2d_task *task, struct g2d_layer_data *data)
 {
 	struct device *dev = g2d_dev->dev;
@@ -633,14 +687,13 @@ static int g2d_get_target(struct g2d_device *g2d_dev,
 		return -EINVAL;
 	}
 
+	if (IS_HWFC(task->flags))
+		target->buffer_type = G2D_BUFTYPE_DMABUF;
+
 	if (target->buffer_type == G2D_BUFTYPE_EMPTY) {
-		if (!!(task->flags & G2D_FLAG_HWFC)) {
-			/* TODO: set the hwfc buffers from g2d_dev*/
-		} else {
-			dev_err(dev, "%s: target has no buffer - flags: %#x\n",
-				__func__, task->flags);
-			return -EINVAL;
-		}
+		dev_err(dev, "%s: target has no buffer - flags: %#x\n",
+			__func__, task->flags);
+		return -EINVAL;
 	}
 
 	if (!g2d_validate_target_commands(g2d_dev, task))
@@ -657,7 +710,7 @@ static int g2d_get_target(struct g2d_device *g2d_dev,
 		return ret;
 	}
 
-	ret = g2d_get_buffer(g2d_dev, target, data, DMA_FROM_DEVICE);
+	ret = g2d_get_buffer(g2d_dev, ctx, target, data, DMA_FROM_DEVICE);
 	if (ret)
 		goto err_buffer;
 
@@ -677,7 +730,7 @@ err_buffer:
 	return ret;
 }
 
-int g2d_get_userdata(struct g2d_device *g2d_dev,
+int g2d_get_userdata(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 		     struct g2d_task *task, struct g2d_task_data *data)
 {
 	struct device *dev = g2d_dev->dev;
@@ -705,7 +758,7 @@ int g2d_get_userdata(struct g2d_device *g2d_dev,
 	if (ret < 0)
 		return ret;
 
-	ret = g2d_get_target(g2d_dev, task, &data->target);
+	ret = g2d_get_target(g2d_dev, ctx, task, &data->target);
 	if (ret)
 		return ret;
 

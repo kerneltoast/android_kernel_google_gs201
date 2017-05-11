@@ -346,19 +346,25 @@ void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
 	spin_unlock_irqrestore(&layer->task->fence_timeout_lock, flags);
 }
 
-struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev)
+struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev, bool hwfc)
 {
 	struct g2d_task *task;
+	struct list_head *taskfree;
 	unsigned long flags;
+
+	if (hwfc)
+		taskfree = &g2d_dev->tasks_free_hwfc;
+	else
+		taskfree = &g2d_dev->tasks_free;
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
-	if (list_empty(&g2d_dev->tasks_free)) {
+	if (list_empty(taskfree)) {
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 		return NULL;
 	}
 
-	task = list_first_entry(&g2d_dev->tasks_free, struct g2d_task, node);
+	task = list_first_entry(taskfree, struct g2d_task, node);
 	list_del_init(&task->node);
 	INIT_WORK(&task->work, g2d_task_schedule_work);
 
@@ -381,7 +387,13 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	clear_task_state(task);
 
-	list_add(&task->node, &g2d_dev->tasks_free);
+	if (IS_HWFC(task->flags)) {
+		/* hwfc job id will be set from repeater driver info */
+		task->job_id = G2D_MAX_JOBS;
+		list_add(&task->node, &g2d_dev->tasks_free_hwfc);
+	} else {
+		list_add(&task->node, &g2d_dev->tasks_free);
+	}
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_FREE);
 
@@ -475,7 +487,12 @@ int g2d_create_tasks(struct g2d_device *g2d_dev)
 
 		task->next = g2d_dev->tasks;
 		g2d_dev->tasks = task;
-		list_add(&task->node, &g2d_dev->tasks_free);
+
+		/* MAX_SHARED_BUF_NUM is defined in media/exynos_repeater.h */
+		if (i < MAX_SHARED_BUF_NUM)
+			list_add(&task->node, &g2d_dev->tasks_free_hwfc);
+		else
+			list_add(&task->node, &g2d_dev->tasks_free);
 	}
 
 	return 0;

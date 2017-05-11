@@ -42,6 +42,7 @@ enum g2d_stamp_id {
 	G2D_STAMP_STATE_SUSPEND_E,
 	G2D_STAMP_STATE_RESUME_S,
 	G2D_STAMP_STATE_RESUME_E,
+	G2D_STAMP_STATE_HWFCBUF,
 };
 
 void g2d_init_debug(struct g2d_device *dev);

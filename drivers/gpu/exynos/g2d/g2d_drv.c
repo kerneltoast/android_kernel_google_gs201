@@ -98,6 +98,9 @@ int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_PUSH);
 
+	if (IS_HWFC(task->flags))
+		hwfc_set_valid_buffer(task->job_id, task->job_id);
+
 	return 0;
 }
 
@@ -219,6 +222,14 @@ static int g2d_release(struct inode *inode, struct file *filp)
 {
 	struct g2d_context *g2d_ctx = filp->private_data;
 
+	if (g2d_ctx->hwfc_info) {
+		int i;
+
+		for (i = 0; i < g2d_ctx->hwfc_info->buffer_count; i++)
+			dma_buf_put(g2d_ctx->hwfc_info->bufs[i]);
+		kfree(g2d_ctx->hwfc_info);
+	}
+
 	kfree(g2d_ctx);
 
 	return 0;
@@ -245,7 +256,36 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		task = g2d_get_free_task(g2d_dev);
+		/*
+		 * If the task should be run by hardware flow control with MFC,
+		 * driver must request shared buffer to repeater driver if it
+		 * has not been previously requested at current context.
+		 * hwfc_request_buffer has increased the reference count inside
+		 * function, so driver must reduce the reference
+		 * when context releases.
+		 */
+		if (IS_HWFC(data.flags) && !ctx->hwfc_info) {
+			ctx->hwfc_info = kzalloc(
+					sizeof(*ctx->hwfc_info), GFP_KERNEL);
+			if (!ctx->hwfc_info) {
+				ret = -ENOMEM;
+				break;
+			}
+
+			ret = hwfc_request_buffer(ctx->hwfc_info, 0);
+			if (ret ||
+				(ctx->hwfc_info->buffer_count >
+				 MAX_SHARED_BUF_NUM)) {
+				kfree(ctx->hwfc_info);
+				ctx->hwfc_info = NULL;
+				dev_err(g2d_dev->dev,
+					"%s: Failed to read hwfc info\n",
+					__func__);
+				break;
+			}
+		}
+
+		task = g2d_get_free_task(g2d_dev, IS_HWFC(data.flags));
 		if (task == NULL) {
 			ret = -EBUSY;
 			break;
@@ -253,7 +293,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		kref_init(&task->starter);
 
-		ret = g2d_get_userdata(g2d_dev, task, &data);
+		ret = g2d_get_userdata(g2d_dev, ctx, task, &data);
 		if (ret < 0) {
 			g2d_put_free_task(g2d_dev, task);
 			break;
@@ -376,6 +416,7 @@ static int g2d_probe(struct platform_device *pdev)
 	spin_lock_init(&g2d_dev->lock_task);
 
 	INIT_LIST_HEAD(&g2d_dev->tasks_free);
+	INIT_LIST_HEAD(&g2d_dev->tasks_free_hwfc);
 	INIT_LIST_HEAD(&g2d_dev->tasks_prepared);
 	INIT_LIST_HEAD(&g2d_dev->tasks_active);
 

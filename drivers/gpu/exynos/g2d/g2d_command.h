@@ -36,6 +36,7 @@ const struct g2d_fmt *g2d_find_format(u32 fmtval);
 int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 			struct g2d_task_data *data, unsigned int num_sources);
 bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
+				  struct g2d_task *task,
 				  unsigned int i, struct g2d_layer *source,
 				  struct g2d_layer *target);
 bool g2d_validate_target_commands(struct g2d_device *g2d_dev,

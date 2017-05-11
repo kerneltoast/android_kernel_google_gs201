@@ -21,7 +21,7 @@
 struct g2d_device;
 struct g2d_task;
 
-int g2d_get_userdata(struct g2d_device *g2d_dev,
+int g2d_get_userdata(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 		     struct g2d_task *task, struct g2d_task_data *data);
 void g2d_put_images(struct g2d_device *g2d_dev, struct g2d_task *task);
 int g2d_wait_put_user(struct g2d_device *g2d_dev, struct g2d_task *task,
