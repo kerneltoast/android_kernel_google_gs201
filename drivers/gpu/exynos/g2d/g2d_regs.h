@@ -25,6 +25,10 @@
 #define G2D_COMP_DEBUG_ADDR_REG			0x0f0
 #define G2D_COMP_DEBUG_DATA_REG			0x0f4
 
+/* Task Control Registers */
+#define G2D_TILE_DIRECTION_ORDER_REG		(0x1a0)
+#define G2D_DST_SPLIT_TILE_IDX_REG		(0x1a4)
+
 /* Job Manager Registers */
 #define G2D_JOB_INT_ID_REG			0x09C
 #define G2D_JOB_HEADER_REG			0x080
@@ -75,6 +79,14 @@
 #define G2D_SFR_CLEAR				(1 << 2)
 #define G2D_GLOBAL_RESET			(3 << 0)
 #define G2D_SOFT_RESET				(1 << 0)
+
+/* Fields of G2D_TILE_DIRECTION_ORDER_REG */
+#define G2D_TILE_DIRECTION_ZORDER	(1 << 4)
+#define G2D_TILE_DIRECTION_VERTICAL	(1 << 0)
+
+/* Fields of G2D_DST_SPLIT_TILE_IDX_REG */
+#define G2D_DST_SPLIT_TILE_IDX_VFLAG	(1 << 16)
+#define G2D_DST_SPLIT_TILE_IDX_HFLAG	(0 << 16)
 
 void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 int g2d_hw_get_current_task(struct g2d_device *g2d_dev);

@@ -75,7 +75,9 @@
 #define IS_AFBC(fmt)	((fmt & G2D_DATAFORMAT_AFBC) != 0)
 #define IS_UORDER(fmt)	((fmt & G2D_DATAFORMAT_UORDER) != 0)
 #define IS_YUV(fmt)	(((fmt) & G2D_DATAFMT_MASK) > G2D_DATAFMT_RESERVED)
+#define IS_YUV420(fmt)	((((fmt) >> G2D_DATAFMT_SHIFT) & 0xF) == 0x8)
 #define IS_YUV422(fmt)	((((fmt) >> G2D_DATAFMT_SHIFT) & 0xE) == 0xA)
+#define IS_YUV422_2P(fmt)	((((fmt) >> G2D_DATAFMT_SHIFT) & 0xF) == 0xB)
 #define IS_RGB(fmt)	(((fmt) & G2D_DATAFMT_MASK) < G2D_DATAFMT_8)
 #define IS_YUV420_82(fmt) (((fmt) & G2D_DATAFMT_MASK) == G2D_DATAFMT_YUV420SP82)
 

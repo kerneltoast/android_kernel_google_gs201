@@ -22,6 +22,17 @@
 #include "g2d_uapi.h"
 #include "g2d_command.h"
 #include "g2d_regs.h"
+#include "g2d_format.h"
+
+#define layer_crop_width(layer)					\
+		(((layer)->commands[G2DSFR_IMG_RIGHT].value) -	\
+		 ((layer)->commands[G2DSFR_IMG_LEFT].value))
+#define layer_crop_height(layer)				\
+		(((layer)->commands[G2DSFR_IMG_BOTTOM].value) -	\
+		 ((layer)->commands[G2DSFR_IMG_TOP].value))
+#define layer_width(layer)	((layer)->commands[G2DSFR_IMG_WIDTH].value)
+#define layer_height(layer)	((layer)->commands[G2DSFR_IMG_HEIGHT].value)
+#define layer_pixelcount(layer)	(layer_width(layer) * layer_height(layer))
 
 /*
  * Number of registers of coefficients of conversion functions
@@ -59,6 +70,49 @@ void g2d_init_commands(struct g2d_task *task)
 	task->cmd_count = ARRAY_SIZE(g2d_setup_commands);
 }
 
+static void g2d_set_taskctl_commands(struct g2d_task *task)
+{
+	struct g2d_reg *regs = (struct g2d_reg *)page_address(task->cmd_page);
+	struct g2d_layer *layer;
+	u32 rot = 0;
+	u32 n_rot = 0;
+	u32 size = 0; /* Size doesn't cause overflow */
+	int i;
+
+	for (i = 0; i < task->num_source; i++) {
+		layer = &task->source[i];
+		size = layer_crop_width(layer) * layer_crop_height(layer);
+
+		if (layer->commands[G2DSFR_SRC_ROTATE].value & 1)
+			rot += size;
+		else
+			n_rot += size;
+	}
+
+	if (rot > n_rot) {
+		u32 mode = task->target.commands[G2DSFR_IMG_COLORMODE].value;
+
+		regs[task->cmd_count].offset = G2D_TILE_DIRECTION_ORDER_REG;
+		regs[task->cmd_count].value = G2D_TILE_DIRECTION_VERTICAL;
+
+		if (IS_YUV420(mode) || IS_YUV422_2P(mode))
+			regs[task->cmd_count].value |=
+					G2D_TILE_DIRECTION_ZORDER;
+
+		task->cmd_count++;
+	}
+
+	/*
+	 * Divide the entire destination in half by verital,
+	 * and let the H/W work in parallel.
+	 * split index is half the width divided by 16
+	 */
+	regs[task->cmd_count].offset = G2D_DST_SPLIT_TILE_IDX_REG;
+	regs[task->cmd_count].value = (layer_width(&task->target) / 2) >> 4;
+	regs[task->cmd_count].value |= G2D_DST_SPLIT_TILE_IDX_VFLAG;
+	task->cmd_count++;
+}
+
 void g2d_complete_commands(struct g2d_task *task)
 {
 	struct g2d_reg *regs = page_address(task->cmd_page);
@@ -67,6 +121,8 @@ void g2d_complete_commands(struct g2d_task *task)
 
 	/* 832 is the total number of the G2D registers */
 	BUG_ON(task->cmd_count > 830);
+
+	g2d_set_taskctl_commands(task);
 
 	/*
 	 * Number of commands should be multiple of 8.
@@ -209,9 +265,6 @@ const struct g2d_fmt *g2d_find_format(u32 fmtval)
 	return NULL;
 }
 
-#define layer_width(layer)	((layer)->commands[G2DSFR_IMG_WIDTH].value)
-#define layer_height(layer)	((layer)->commands[G2DSFR_IMG_HEIGHT].value)
-#define layer_pixelcount(layer)	(layer_width(layer) * layer_height(layer))
 #define YUV82_BASE_ALIGNED(addr, idx) IS_ALIGNED((addr), 32 >> (idx / 2))
 #define YUV82_BASE_ALIGN(addr, idx)   ALIGN((addr), 32 >> (idx / 2))
 
