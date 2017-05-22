@@ -73,7 +73,7 @@ void g2d_hw_timeout_handler(unsigned long arg)
 		goto out;
 	}
 
-	mod_timer(&task->hw_timer,
+	mod_timer(&task->timer,
 	  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
 
 	if (job_state != G2D_JOB_STATE_RUNNING)

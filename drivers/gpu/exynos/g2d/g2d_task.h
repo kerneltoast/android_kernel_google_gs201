@@ -81,7 +81,7 @@ struct g2d_task {
 	unsigned long		state;
 	struct sync_file	*release_fence;
 	struct kref		starter;
-	struct timer_list	hw_timer;
+	struct timer_list	timer;
 
 	struct g2d_layer	source[G2D_MAX_IMAGES];
 	struct g2d_layer	target;
@@ -101,6 +101,7 @@ struct g2d_task {
 
 	unsigned int		total_cached_len;
 	unsigned int		total_hwrender_len;
+	spinlock_t		fence_timeout_lock;
 };
 
 /* The below macros should be called with g2d_device.lock_tasks held */
@@ -152,6 +153,7 @@ static inline bool g2d_task_wait_completion(struct g2d_task *task)
 }
 
 #define G2D_HW_TIMEOUT_MSEC	500
+#define G2D_FENCE_TIMEOUT_MSEC	800
 
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 					     unsigned int id);
@@ -172,5 +174,6 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev);
 void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb);
 
 void g2d_dump_task(struct g2d_device *g2d_dev, unsigned int job_id);
+void g2d_queuework_task(struct kref *kref);
 
 #endif /*__EXYNOS_G2D_TASK_H__*/

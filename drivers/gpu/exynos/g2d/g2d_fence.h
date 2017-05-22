@@ -22,6 +22,7 @@ struct g2d_task;
 struct g2d_task_data;
 struct dma_fence;
 
+void g2d_fence_timeout_handler(unsigned long arg);
 struct dma_fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
 					struct g2d_layer *layer, s32 fence_fd);
 struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,

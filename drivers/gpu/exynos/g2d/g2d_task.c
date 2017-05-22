@@ -22,6 +22,7 @@
 #include "g2d_task.h"
 #include "g2d_uapi_process.h"
 #include "g2d_command.h"
+#include "g2d_fence.h"
 
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 					     unsigned int id)
@@ -72,7 +73,7 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 {
 	list_del_init(&task->node);
 
-	del_timer(&task->hw_timer);
+	del_timer(&task->timer);
 
 	clk_disable(g2d_dev->clock);
 
@@ -127,7 +128,10 @@ static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	task->ktime_begin = ktime_get();
 
-	mod_timer(&task->hw_timer,
+	setup_timer(&task->timer,
+		    g2d_hw_timeout_handler, (unsigned long)task);
+
+	mod_timer(&task->timer,
 		  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
 	/*
 	 * g2d_device_run() is not reentrant while g2d_schedule() is
@@ -170,6 +174,8 @@ static void g2d_schedule_task(struct g2d_task *task)
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	unsigned long flags;
 	int ret;
+
+	del_timer(&task->timer);
 
 	g2d_complete_commands(task);
 
@@ -217,7 +223,7 @@ static void g2d_task_schedule_work(struct work_struct *work)
 	g2d_schedule_task(container_of(work, struct g2d_task, work));
 }
 
-static void g2d_queuework_task(struct kref *kref)
+void g2d_queuework_task(struct kref *kref)
 {
 	struct g2d_task *task = container_of(kref, struct g2d_task, starter);
 	struct g2d_device *g2d_dev = task->g2d_dev;
@@ -232,17 +238,26 @@ void g2d_start_task(struct g2d_task *task)
 {
 	reinit_completion(&task->completion);
 
+	setup_timer(&task->timer,
+		    g2d_fence_timeout_handler, (unsigned long)task);
+
+	if (atomic_read(&task->starter.refcount.refs) > 1)
+		mod_timer(&task->timer,
+			jiffies + msecs_to_jiffies(G2D_FENCE_TIMEOUT_MSEC));
+
 	kref_put(&task->starter, g2d_queuework_task);
 }
 
 void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	struct g2d_layer *layer = container_of(cb, struct g2d_layer, fence_cb);
+	unsigned long flags;
 
+	spin_lock_irqsave(&layer->task->fence_timeout_lock, flags);
 	/* @fence is released in g2d_put_image() */
 	kref_put(&layer->task->starter, g2d_queuework_task);
+	spin_unlock_irqrestore(&layer->task->fence_timeout_lock, flags);
 }
-
 
 struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev)
 {
@@ -325,9 +340,6 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev)
 	if (!task->cmd_page)
 		goto err_page;
 
-	setup_timer(&task->hw_timer,
-		    g2d_hw_timeout_handler, (unsigned long)task);
-
 	/* mapping the command data */
 	sg_init_table(&sgl, 1);
 	sg_set_page(&sgl, task->cmd_page, G2D_CMD_LIST_SIZE, 0);
@@ -341,6 +353,7 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev)
 	task->g2d_dev = g2d_dev;
 
 	init_completion(&task->completion);
+	spin_lock_init(&task->fence_timeout_lock);
 
 	return task;
 err_page:
