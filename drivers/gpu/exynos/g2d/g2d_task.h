@@ -184,7 +184,6 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev);
 
 void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb);
 
-void g2d_dump_task(struct g2d_device *g2d_dev, unsigned int job_id);
 void g2d_queuework_task(struct kref *kref);
 
 #endif /*__EXYNOS_G2D_TASK_H__*/

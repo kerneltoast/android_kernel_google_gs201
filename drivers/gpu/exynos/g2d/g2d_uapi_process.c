@@ -32,7 +32,6 @@
 #include "g2d_command.h"
 #include "g2d_fence.h"
 
-
 unsigned int get_layer_payload(struct g2d_layer *layer)
 {
 	unsigned int payload = 0;

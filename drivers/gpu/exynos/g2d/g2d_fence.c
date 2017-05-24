@@ -23,6 +23,7 @@
 #include "g2d_uapi.h"
 #include "g2d_task.h"
 #include "g2d_fence.h"
+#include "g2d_debug.h"
 
 void g2d_fence_timeout_handler(unsigned long arg)
 {
@@ -106,6 +107,8 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	g2d_queuework_task(&task->starter);
 
 	spin_unlock_irqrestore(&task->fence_timeout_lock, flags);
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE);
 };
 
 static const char *g2d_fence_get_driver_name(struct dma_fence *fence)

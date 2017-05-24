@@ -29,6 +29,7 @@
 #include "g2d_regs.h"
 #include "g2d_task.h"
 #include "g2d_uapi_process.h"
+#include "g2d_debug.h"
 
 #define MODULE_NAME "exynos-g2d"
 
@@ -81,6 +82,8 @@ void g2d_hw_timeout_handler(unsigned long arg)
 		/* Time out is not caused by this task */
 		goto out;
 
+	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_HW);
+
 	mark_task_state_killed(task);
 
 	g2d_hw_kill_task(g2d_dev, task->job_id);
@@ -92,6 +95,8 @@ out:
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	g2d_hw_push_task(g2d_dev, task);
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_PUSH);
 
 	return 0;
 }
@@ -133,7 +138,7 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 				"%s: Error occurred during running job %d\n",
 				__func__, job_id);
 
-			g2d_dump_task(g2d_dev, job_id);
+			g2d_stamp_task(task, G2D_STAMP_STATE_ERR_INT);
 		}
 
 		g2d_flush_all_tasks(g2d_dev);
@@ -156,9 +161,15 @@ static int g2d_iommu_fault_handler(struct iommu_domain *domain,
 				int fault_flags, void *token)
 {
 	struct g2d_device *g2d_dev = token;
+	struct g2d_task *task;
 	int job_id = g2d_hw_get_current_task(g2d_dev);
+	unsigned long flags;
 
-	g2d_dump_task(g2d_dev, job_id);
+	spin_lock_irqsave(&g2d_dev->lock_task, flags);
+	task = g2d_get_active_task_from_id(g2d_dev, job_id);
+	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_MMUFAULT);
 
 	return 0;
 }
@@ -247,6 +258,8 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			g2d_put_free_task(g2d_dev, task);
 			break;
 		}
+
+		g2d_stamp_task(task, G2D_STAMP_STATE_BEGIN);
 
 		g2d_start_task(task);
 
@@ -384,6 +397,8 @@ static int g2d_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x\n", version);
 
+	g2d_init_debug(g2d_dev);
+
 	return 0;
 err_pm:
 	g2d_destroy_tasks(g2d_dev);
@@ -402,17 +417,22 @@ static void g2d_shutdown(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
 
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SHUTDOWN_S);
 	g2d_prepare_suspend(g2d_dev);
 
 	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
 
 	if (test_and_set_bit(G2D_DEVICE_STATE_IOVMM_DISABLED, &g2d_dev->state))
 		iovmm_deactivate(g2d_dev->dev);
+
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SHUTDOWN_E);
 }
 
 static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
+
+	g2d_destroy_debug(g2d_dev);
 
 	g2d_shutdown(pdev);
 
@@ -428,6 +448,8 @@ static int g2d_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int g2d_runtime_resume(struct device *dev)
 {
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_PM_RESUME);
+
 	return 0;
 }
 
@@ -436,6 +458,7 @@ static int g2d_runtime_suspend(struct device *dev)
 	struct g2d_device *g2d_dev = dev_get_drvdata(dev);
 
 	clk_unprepare(g2d_dev->clock);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_PM_SUSPEND);
 
 	return 0;
 }

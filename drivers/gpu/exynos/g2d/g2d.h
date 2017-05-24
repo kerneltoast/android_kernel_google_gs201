@@ -50,6 +50,10 @@ struct g2d_device {
 
 	struct notifier_block	pm_notifier;
 	wait_queue_head_t	freeze_wait;
+
+	struct dentry *debug_root;
+	struct dentry *debug;
+	struct dentry *debug_logs;
 };
 
 struct g2d_context {

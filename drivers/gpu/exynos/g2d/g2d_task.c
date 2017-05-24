@@ -23,6 +23,7 @@
 #include "g2d_uapi_process.h"
 #include "g2d_command.h"
 #include "g2d_fence.h"
+#include "g2d_debug.h"
 
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 #include <linux/smc.h>
@@ -146,6 +147,8 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 {
 	list_del_init(&task->node);
 
+	g2d_stamp_task(task, G2D_STAMP_STATE_DONE);
+
 	del_timer(&task->timer);
 
 	g2d_secure_disable();
@@ -226,7 +229,9 @@ void g2d_prepare_suspend(struct g2d_device *g2d_dev)
 	set_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
 	spin_unlock_irq(&g2d_dev->lock_task);
 
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SUSPEND_S);
 	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SUSPEND_E);
 }
 
 void g2d_suspend_finish(struct g2d_device *g2d_dev)
@@ -235,6 +240,7 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev)
 
 	spin_lock_irq(&g2d_dev->lock_task);
 
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_RESUME_S);
 	clear_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
 
 	while (!list_empty(&g2d_dev->tasks_prepared)) {
@@ -245,6 +251,7 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev)
 	}
 
 	spin_unlock_irq(&g2d_dev->lock_task);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_RESUME_E);
 }
 
 static void g2d_schedule_task(struct g2d_task *task)
@@ -359,6 +366,8 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev)
 
 	g2d_init_commands(task);
 
+	g2d_stamp_task(task, G2D_STAMP_STATE_ALLOC);
+
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
 	return task;
@@ -373,6 +382,8 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	clear_task_state(task);
 
 	list_add(&task->node, &g2d_dev->tasks_free);
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_FREE);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 }
@@ -468,29 +479,4 @@ int g2d_create_tasks(struct g2d_device *g2d_dev)
 	}
 
 	return 0;
-}
-
-void g2d_dump_task(struct g2d_device *g2d_dev, unsigned int job_id)
-{
-	struct g2d_task *task;
-	unsigned long flags;
-	unsigned int i;
-	struct g2d_reg *regs;
-
-	spin_lock_irqsave(&g2d_dev->lock_task, flags);
-
-	list_for_each_entry(task, &g2d_dev->tasks_active, node) {
-		if (task->job_id == job_id)
-			break;
-	}
-
-	/* TODO: more dump task */
-
-	regs = page_address(task->cmd_page);
-
-	for (i = 0; i < task->cmd_count; i++)
-		pr_info("G2D: CMD[%03d] %#06x, %#010x\n",
-			i, regs[i].offset, regs[i].value);
-
-	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 }
