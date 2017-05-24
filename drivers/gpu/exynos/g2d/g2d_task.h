@@ -30,6 +30,14 @@
 #define G2D_MAX_JOBS		16
 #define G2D_CMD_LIST_SIZE	8192
 
+struct g2d_buffer_prot_info {
+	unsigned int chunk_count;
+	unsigned int dma_addr;
+	unsigned int flags;
+	unsigned int chunk_size;
+	unsigned long bus_address;
+};
+
 struct g2d_buffer {
 	union {
 		struct {
@@ -102,6 +110,9 @@ struct g2d_task {
 	unsigned int		total_cached_len;
 	unsigned int		total_hwrender_len;
 	spinlock_t		fence_timeout_lock;
+#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+	struct g2d_buffer_prot_info prot_info;
+#endif
 };
 
 /* The below macros should be called with g2d_device.lock_tasks held */

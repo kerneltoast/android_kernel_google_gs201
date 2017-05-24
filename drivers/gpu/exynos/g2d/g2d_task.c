@@ -24,6 +24,73 @@
 #include "g2d_command.h"
 #include "g2d_fence.h"
 
+#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#include <linux/smc.h>
+
+#define G2D_SECURE_DMA_BASE	0x8000000
+#define G2D_SEC_COMMAND_BUF 12
+#define G2D_ALWAYS_S 37
+
+static int g2d_map_cmd_data(struct g2d_task *task)
+{
+	struct g2d_buffer_prot_info *prot = &task->prot_info;
+	int ret;
+
+	prot->chunk_count = 1;
+	prot->flags = G2D_SEC_COMMAND_BUF;
+	prot->chunk_size = G2D_CMD_LIST_SIZE;
+	prot->bus_address = page_to_phys(task->cmd_page);
+	prot->dma_addr = G2D_SECURE_DMA_BASE + G2D_CMD_LIST_SIZE * task->job_id;
+
+	__flush_dcache_area(prot, sizeof(struct g2d_buffer_prot_info));
+	ret = exynos_smc(SMC_DRM_PPMP_PROT, virt_to_phys(prot), 0, 0);
+
+	if (ret) {
+		dev_err(task->g2d_dev->dev,
+			"Failed to map secure page tbl (%d) %x %x %lx\n", ret,
+			prot->dma_addr, prot->flags, prot->bus_address);
+		return ret;
+	}
+
+	task->cmd_addr = prot->dma_addr;
+
+	return 0;
+}
+
+static void g2d_secure_enable(void)
+{
+	exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 1);
+}
+
+static void g2d_secure_disable(void)
+{
+	exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
+}
+#else
+static int g2d_map_cmd_data(struct g2d_task *task)
+{
+	struct scatterlist sgl;
+
+	/* mapping the command data */
+	sg_init_table(&sgl, 1);
+	sg_set_page(&sgl, task->cmd_page, G2D_CMD_LIST_SIZE, 0);
+	task->cmd_addr = iovmm_map(task->g2d_dev->dev, &sgl, 0,
+				   G2D_CMD_LIST_SIZE, DMA_TO_DEVICE,
+				   IOMMU_READ | IOMMU_CACHE);
+
+	if (IS_ERR_VALUE(task->cmd_addr)) {
+		dev_err(task->g2d_dev->dev,
+			"%s: Unable to allocate IOVA for cmd data\n", __func__);
+		return task->cmd_addr;
+	}
+
+	return 0;
+}
+
+#define g2d_secure_enable() do { } while (0)
+#define g2d_secure_disable() do { } while (0)
+#endif
+
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 					     unsigned int id)
 {
@@ -74,6 +141,8 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 	list_del_init(&task->node);
 
 	del_timer(&task->timer);
+
+	g2d_secure_disable();
 
 	clk_disable(g2d_dev->clock);
 
@@ -198,6 +267,8 @@ static void g2d_schedule_task(struct g2d_task *task)
 		dev_err(g2d_dev->dev, "Failed to enable clock (%d)\n", ret);
 		goto err_clk;
 	}
+
+	g2d_secure_enable();
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
@@ -324,11 +395,10 @@ void g2d_destroy_tasks(struct g2d_device *g2d_dev)
 	destroy_workqueue(g2d_dev->schedule_workq);
 }
 
-static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev)
+static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 {
 	struct g2d_task *task;
-	struct scatterlist sgl;
-	int i;
+	int i, ret;
 
 	task = kzalloc(sizeof(*task), GFP_KERNEL);
 	if (!task)
@@ -337,29 +407,33 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev)
 	INIT_LIST_HEAD(&task->node);
 
 	task->cmd_page = alloc_pages(GFP_KERNEL, get_order(G2D_CMD_LIST_SIZE));
-	if (!task->cmd_page)
+	if (!task->cmd_page) {
+		ret = -ENOMEM;
 		goto err_page;
+	}
 
-	/* mapping the command data */
-	sg_init_table(&sgl, 1);
-	sg_set_page(&sgl, task->cmd_page, G2D_CMD_LIST_SIZE, 0);
-	task->cmd_addr = iovmm_map(g2d_dev->dev, &sgl, 0, G2D_CMD_LIST_SIZE,
-				   DMA_TO_DEVICE, IOMMU_READ | IOMMU_CACHE);
+	task->job_id = id;
+	task->g2d_dev = g2d_dev;
+
+	ret = g2d_map_cmd_data(task);
+	if (ret)
+		goto err_map;
 
 	for (i = 0; i < G2D_MAX_IMAGES; i++)
 		task->source[i].task = task;
 	task->target.task = task;
 
-	task->g2d_dev = g2d_dev;
-
 	init_completion(&task->completion);
 	spin_lock_init(&task->fence_timeout_lock);
 
 	return task;
+
+err_map:
+	__free_pages(task->cmd_page, get_order(G2D_CMD_LIST_SIZE));
 err_page:
 	kfree(task);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(ret);
 }
 
 int g2d_create_tasks(struct g2d_device *g2d_dev)
@@ -372,14 +446,12 @@ int g2d_create_tasks(struct g2d_device *g2d_dev)
 		return -ENOMEM;
 
 	for (i = 0; i < G2D_MAX_JOBS; i++) {
-		task = g2d_create_task(g2d_dev);
+		task = g2d_create_task(g2d_dev, i);
 
 		if (IS_ERR(task)) {
 			g2d_destroy_tasks(g2d_dev);
 			return PTR_ERR(task);
 		}
-
-		task->job_id = i;
 
 		task->next = g2d_dev->tasks;
 		g2d_dev->tasks = task;
