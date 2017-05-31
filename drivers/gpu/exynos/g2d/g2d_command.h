@@ -43,7 +43,7 @@ bool g2d_validate_target_commands(struct g2d_device *g2d_dev,
 size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 		       u32 flags);
 size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
-			     unsigned int idx);
+			     unsigned int idx, unsigned int buffer_count);
 bool g2d_prepare_source(struct g2d_task *task,
 			struct g2d_layer *layer, int index);
 bool g2d_prepare_target(struct g2d_task *task);

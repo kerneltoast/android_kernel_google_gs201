@@ -139,14 +139,18 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 	BUG_ON(!fmt);
 
 	if ((data->num_buffers > 1) && (data->num_buffers != fmt->num_planes)) {
-		dev_err(dev, "%s: Invalid number of buffers %u for %s\n",
-			__func__, data->num_buffers, fmt->name);
-		return -EINVAL;
+		/* NV12 8+2 in two buffers is valid */
+		if ((fmt->num_planes != 4) || (data->num_buffers != 2)) {
+			dev_err(dev, "%s: Invalid number of buffer %u for %s\n",
+				__func__, data->num_buffers, fmt->name);
+			return -EINVAL;
+		}
 	}
 
 	if (data->num_buffers > 1) {
 		for (i = 0; i < data->num_buffers; i++) {
-			payload = g2d_get_payload_index(cmd, fmt, i);
+			payload = g2d_get_payload_index(cmd, fmt, i,
+							data->num_buffers);
 			if (data->buffer[i].length < payload) {
 				dev_err(dev,
 					"%s: Too small buffer[%d]: expected %uB"

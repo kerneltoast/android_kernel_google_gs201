@@ -139,17 +139,6 @@ void g2d_complete_commands(struct g2d_task *task)
 	task->cmd_count++;
 }
 
-#define NV12N_Y_SIZE(w, h)	(ALIGN((w), 16) * ALIGN((h), 16) + 256)
-#define NV12N_CBCR_SIZE(w, h)		\
-		(ALIGN((ALIGN((w), 16) * (ALIGN((h), 16) / 2) + 256), 16))
-#define NV12N_CBCR_BASE(base, w, h)	((base) + NV12N_Y_SIZE((w), (h)))
-
-#define NV12N10B_Y_2B_SIZE(w, h)    ((ALIGN((w) / 4, 16) * ALIGN((h), 16) + 64))
-#define NV12N10B_CBCR_2B_SIZE(w, h)     \
-			((ALIGN((w) / 4, 16) * (ALIGN((h), 16) / 2) + 64))
-#define NV12N10B_CBCR_BASE(base, w, h)	\
-		((base) + NV12N_Y_SIZE((w), (h)) + NV12N10B_Y_2B_SIZE((w), (h)))
-
 static const struct g2d_fmt g2d_formats[] = {
 	{
 		.name		= "ARGB8888",
@@ -265,8 +254,44 @@ const struct g2d_fmt *g2d_find_format(u32 fmtval)
 	return NULL;
 }
 
-#define YUV82_BASE_ALIGNED(addr, idx) IS_ALIGNED((addr), 32 >> (idx / 2))
-#define YUV82_BASE_ALIGN(addr, idx)   ALIGN((addr), 32 >> (idx / 2))
+/*
+ * Buffer stride alignment and padding restriction of MFC
+ * YCbCr420 semi-planar 8+2 layout:
+ *    Y8 -> Y2 -> C8 -> C2
+ * 8 bit segments:
+ *  - width stride: 16 bytes
+ *  - height stride: 16 pixels
+ *  - padding 256 bytes
+ * 2 bit segments:
+ *  - width stride: 16 bytes
+ *  - height stride: 16 pixels
+ *  - padding: 64 bytes
+ */
+#define MFC_PAD_SIZE		     256
+#define MFC_2B_PAD_SIZE		     (MFC_PAD_SIZE / 4)
+#define MFC_ALIGN(v)		     ALIGN(v, 16)
+
+#define NV12_MFC_Y_PAYLOAD(w, h)     (MFC_ALIGN(w) * MFC_ALIGN(h))
+#define NV12_MFC_Y_PAYLOAD_PAD(w, h) (NV12_MFC_Y_PAYLOAD(w, h) + MFC_PAD_SIZE)
+#define NV12_MFC_C_PAYLOAD(w, h)     (MFC_ALIGN(w) * (h) / 2)
+#define NV12_MFC_C_PAYLOAD_ALIGNED(w, h) (NV12_MFC_Y_PAYLOAD(w, h) / 2)
+#define NV12_MFC_C_PAYLOAD_PAD(w, h) (NV12_MFC_C_PAYLOAD_ALIGNED(w, h) +      \
+				      MFC_PAD_SIZE)
+#define NV12_MFC_PAYLOAD(w, h)       (NV12_MFC_Y_PAYLOAD_PAD(w, h) +	      \
+				      NV12_MFC_C_PAYLOAD(w, h))
+#define NV12_82_MFC_Y_PAYLOAD(w, h)  (NV12_MFC_Y_PAYLOAD_PAD(w, h) +	      \
+				      MFC_ALIGN((w) / 4) * (h))
+#define NV12_82_MFC_C_PAYLOAD(w, h)  (NV12_MFC_C_PAYLOAD_PAD(w, h) +	      \
+				      MFC_ALIGN((w) / 4) * (h) / 2)
+#define NV12_82_MFC_PAYLOAD(w, h)    (NV12_MFC_Y_PAYLOAD_PAD(w, h) +	      \
+				      MFC_ALIGN((w) / 4) * MFC_ALIGN(h) +     \
+				      MFC_2B_PAD_SIZE +			      \
+				      NV12_82_MFC_C_PAYLOAD(w, h))
+#define NV12_82_MFC_2Y_PAYLOAD(w, h) (MFC_ALIGN((w) / 4) * MFC_ALIGN(h))
+#define NV12_MFC_CBASE(base, w, h)   (base + NV12_MFC_Y_PAYLOAD_PAD(w, h))
+
+#define YUV82_BASE_ALIGNED(addr, idx) IS_ALIGNED((addr), 32 >> (idx & 1))
+#define YUV82_BASE_ALIGN(addr, idx)   ALIGN((addr), 32 >> (idx & 1))
 
 static unsigned char src_base_reg_offset[4] = {0x1C, 0x80, 0x64, 0x68};
 static unsigned char src_base_reg_offset_yuv82[4] = {0x1C, 0x64, 0x80, 0x68};
@@ -278,13 +303,19 @@ static unsigned char dst_base_reg_offset[4] = {0x00, 0x50, 0x30, 0x34};
 		 (ALIGN((cmd)[G2DSFR_IMG_HEIGHT].value, 16) / 16) * 16)
 
 size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
-			     unsigned int idx)
+			     unsigned int idx, unsigned int buffer_count)
 {
-	/*
-	 * TODO: consider NV12N and similar image formats
-	 *       with alignment restriction
-	 */
 	BUG_ON(!IS_YUV(cmd[G2DSFR_IMG_COLORMODE].value));
+
+	if (IS_YUV420_82(fmt->fmtvalue) && (buffer_count == 2)) {
+		/* YCbCr420 8+2 semi-planar in two buffers */
+		/* regard G2D_LAYERFLAG_MFC_STRIDE is set */
+		u32 width = cmd[G2DSFR_IMG_WIDTH].value;
+		u32 height = cmd[G2DSFR_IMG_BOTTOM].value;
+
+		return (idx == 0) ? NV12_82_MFC_Y_PAYLOAD(width, height)
+				  : NV12_82_MFC_C_PAYLOAD(width, height);
+	}
 
 	return ((cmd[G2DSFR_IMG_WIDTH].value * fmt->bpp[idx]) / 8) *
 						cmd[G2DSFR_IMG_BOTTOM].value;
@@ -293,30 +324,32 @@ size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 		       u32 flags)
 {
-	/*
-	 * TODO: consider NV12N and similar image formats
-	 *       with alignment restriction
-	 */
-	size_t payload;
+	size_t payload = 0;
 	u32 mode = cmd[G2DSFR_IMG_COLORMODE].value;
 	u32 width = cmd[G2DSFR_IMG_WIDTH].value;
 	u32 height = cmd[G2DSFR_IMG_BOTTOM].value;
 	size_t pixcount = width * height;
 
 	if (IS_YUV420_82(mode)) {
-		payload  = YUV82_BASE_ALIGN((pixcount * fmt->bpp[0]) / 8, 1);
-		payload += YUV82_BASE_ALIGN((pixcount * fmt->bpp[1]) / 8, 2);
-		payload += YUV82_BASE_ALIGN((pixcount * fmt->bpp[2]) / 8, 3);
-		payload += (pixcount * fmt->bpp[3]) / 8;
-	} else if (IS_YUV(mode)) {
-		unsigned int i;
-
-		payload = 0;
-		if (((flags & G2D_LAYERFLAG_MFC_STRIDE) != 0) &&
-				(fmt->fmtvalue == G2D_FMT_NV12)) {
-			payload += NV12N_Y_SIZE(width, height);
-			payload += NV12N_CBCR_SIZE(width, height);
+		if (!(flags & G2D_LAYERFLAG_MFC_STRIDE)) {
+			/*
+			 * constraints of base addresses of NV12/21 8+2
+			 * 32 byte aligned: 8bit of Y and CbCr
+			 * 16 byte aligned: 2bit of Y and CbCr
+			 */
+			payload += ALIGN((pixcount * fmt->bpp[0]) / 8, 16);
+			payload += ALIGN((pixcount * fmt->bpp[1]) / 8, 32);
+			payload += ALIGN((pixcount * fmt->bpp[2]) / 8, 16);
+			payload += (pixcount * fmt->bpp[3]) / 8;
 		} else {
+			payload += NV12_82_MFC_PAYLOAD(width, height);
+		}
+	} else if (IS_YUV(mode)) {
+		if (!!(flags & G2D_LAYERFLAG_MFC_STRIDE) && IS_YUV420(mode)) {
+			payload += NV12_MFC_PAYLOAD(width, height);
+		} else {
+			unsigned int i;
+
 			for (i = 0; i < fmt->num_planes; i++)
 				payload += (pixcount * fmt->bpp[i]) / 8;
 		}
@@ -760,8 +793,9 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 	const struct g2d_fmt *fmt = g2d_find_format(colormode);
 	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
 	unsigned int cmd_count = task->cmd_count;
+	u32 width = layer_width(layer);
+	u32 height = layer_height(layer);
 	unsigned int i;
-	dma_addr_t addr;
 
 	if (fmt->num_planes == 4) {
 		unsigned int nbufs = min_t(unsigned int,
@@ -790,15 +824,16 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 	if (layer->num_buffers == fmt->num_planes)
 		return cmd_count;
 
+	/* address of plane 0 is set in the above for() */
+
 	if (fmt->num_planes == 2) {
 		/* YCbCr semi-planar in a single buffer */
 		reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 1);
-		if (((layer->flags & G2D_LAYERFLAG_MFC_STRIDE) != 0) &&
-					(fmt->fmtvalue == G2D_FMT_NV12)) {
+		if (!!(layer->flags & G2D_LAYERFLAG_MFC_STRIDE) &&
+						IS_YUV420(fmt->fmtvalue)) {
 			reg[cmd_count].value =
-				NV12N_CBCR_BASE(layer->buffer[0].dma_addr,
-						layer_width(layer),
-						layer_height(layer));
+				NV12_MFC_CBASE(layer->buffer[0].dma_addr,
+					       width, height);
 		} else {
 			reg[cmd_count].value = layer_pixelcount(layer);
 			reg[cmd_count].value *= fmt->bpp[0] / 8;
@@ -809,15 +844,43 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 		return cmd_count;
 	}
 
-	addr = layer->buffer[0].dma_addr;
-	/* YCbCr semi-planar 8+2 in a single buffer */
-	for (i = 1; i < 4; i++) {
-		addr += (layer_pixelcount(layer) * fmt->bpp[i - 1]) / 8;
-		addr = YUV82_BASE_ALIGN(addr, 32);
-		reg[cmd_count].value = addr;
-		reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, i);
-		cmd_count++;
+	BUG_ON(fmt->num_planes != 4);
+
+	if ((layer->num_buffers == 1) &&
+			!(layer->flags & G2D_LAYERFLAG_MFC_STRIDE)) {
+		dma_addr_t addr = layer->buffer[0].dma_addr;
+		/* YCbCr semi-planar 8+2 in a single buffer */
+		for (i = 1; i < 4; i++) {
+			addr += (layer_pixelcount(layer) * fmt->bpp[i - 1]) / 8;
+			addr = YUV82_BASE_ALIGN(addr, i);
+			reg[cmd_count].value = addr;
+			reg[cmd_count].offset =
+					BASE_REG_OFFSET(base, offsets, i);
+			cmd_count++;
+		}
+
+		return cmd_count;
 	}
+
+	/* G2D_LAYERFLAG_MFC_STRIDE is set */
+	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 1);
+	reg[cmd_count].value = layer->buffer[0].dma_addr +
+			       NV12_MFC_Y_PAYLOAD_PAD(width, height);
+	cmd_count++;
+
+	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 2);
+	if (layer->num_buffers == 2)
+		reg[cmd_count].value = layer->buffer[1].dma_addr;
+	else
+		reg[cmd_count].value = reg[cmd_count - 1].value +
+				       NV12_82_MFC_2Y_PAYLOAD(width, height) +
+				       MFC_2B_PAD_SIZE;
+	cmd_count++;
+
+	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 3);
+	reg[cmd_count].value = reg[cmd_count - 1].value +
+			       NV12_MFC_C_PAYLOAD_PAD(width, height);
+	cmd_count++;
 
 	return cmd_count;
 }
