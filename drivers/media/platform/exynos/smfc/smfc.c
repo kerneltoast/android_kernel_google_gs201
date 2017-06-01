@@ -41,13 +41,11 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 {
 	struct smfc_dev *smfc = priv;
 	struct smfc_ctx *ctx = v4l2_m2m_get_curr_priv(smfc->m2mdev);
-	ktime_t ktime;
+	ktime_t ktime = ktime_get();
 	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
 	u32 streamsize = smfc_get_streamsize(smfc);
 	u32 thumb_streamsize = smfc_get_2nd_streamsize(smfc);
 	bool suspending = false;
-
-	ktime = ktime_get();
 
 	spin_lock(&smfc->flag_lock);
 
@@ -98,6 +96,8 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 							thumb_streamsize);
 			}
 
+			vb->vb2_buf.timestamp =
+					(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
 			v4l2_m2m_buf_done(vb, state);
 
 			if ((!!(ctx->flags & SMFC_CTX_COMPRESS)) &&
@@ -105,9 +105,6 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 				atomic_set(&smfc_hwfc_state, SMFC_HWFC_STANDBY);
 				wake_up(&smfc_hwfc_sync_wq);
 			}
-
-			vb->vb2_buf.timestamp =
-				(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
 		}
 
 		vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
