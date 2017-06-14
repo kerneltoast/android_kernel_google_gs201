@@ -66,6 +66,11 @@ static void g2d_secure_disable(void)
 {
 	exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
 }
+
+static void g2d_flush_command_page(struct g2d_task *task)
+{
+	__dma_flush_area(page_address(task->cmd_page), G2D_CMD_LIST_SIZE);
+}
 #else
 static int g2d_map_cmd_data(struct g2d_task *task)
 {
@@ -89,6 +94,7 @@ static int g2d_map_cmd_data(struct g2d_task *task)
 
 #define g2d_secure_enable() do { } while (0)
 #define g2d_secure_disable() do { } while (0)
+#define g2d_flush_command_page(task) do { } while (0)
 #endif
 
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
@@ -202,6 +208,9 @@ static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	mod_timer(&task->timer,
 		  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
+
+	g2d_flush_command_page(task);
+
 	/*
 	 * g2d_device_run() is not reentrant while g2d_schedule() is
 	 * reentrant g2d_device_run() should be protected with
