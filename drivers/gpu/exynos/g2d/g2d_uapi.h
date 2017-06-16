@@ -209,8 +209,60 @@ struct g2d_task_data {
 	struct g2d_commands	commands;
 };
 
+/* flags of g2d_performance_layer_data.layer_attr */
+#define G2D_PERF_LAYER_ROTATE		(1 << 0)
+#define G2D_PERF_LAYER_SCALING		(1 << 1)
+#define G2D_PERF_LAYER_YUV2P		(1 << 2)
+
+/*
+ * struct g2d_performance_frame_data - description of needed performance.
+ * @pixelcount : the pixecount of layer, is used to calculate the frequency.
+ * @layer_attr : attribute of layer affecting performance.
+ */
+struct g2d_performance_layer_data {
+	__u32 pixelcount;
+	__u32 layer_attr;
+};
+
+/* flags of g2d_performance_frame_data.frame_attr */
+#define G2D_PERF_FRAME_SOLIDCOLORFILL	(1 << 0)
+#define G2D_PERF_FRAME_YUV2P	(1 << 1)
+
+/*
+ * struct g2d_performance_frame_data - description of needed performance.
+ * @layer : the pixel count of each layer to be processed.
+ * @bandwidth_read : the size of bandwidth to read when processing.
+ * @bandwidth_write : the size of bandwidth to write when processing.
+ * @frame_rate : frame per second of the job.
+ * @frame_attr : frame attribute
+ * @num_layers : the number of layers to be processed.
+ */
+struct g2d_performance_frame_data {
+	struct g2d_performance_layer_data layer[G2D_MAX_IMAGES];
+	__u32 bandwidth_read;
+	__u32 bandwidth_write;
+	__u32 target_pixelcount;
+	__u32 frame_rate;
+	__u32 frame_attr;
+	__u32 num_layers;
+};
+
+#define G2D_PERF_MAX_FRAMES 4
+
+/*
+ * struct g2d_performance_data - description the needed performance.
+ * @frame: the descriptions of each request's bandwidth and cycles in a frame.
+ * @num_frame : the number of g2d job requested in a frame.
+ */
+struct g2d_performance_data {
+	struct g2d_performance_frame_data frame[G2D_PERF_MAX_FRAMES];
+	__u32 num_frame;
+	__u32 reserved;
+};
+
 #define G2D_IOC_PROCESS		_IOWR('M', 4, struct g2d_task_data)
 #define G2D_IOC_PRIORITY		_IOR('M', 5, int32_t)
+#define G2D_IOC_PERFORMANCE	_IOR('M', 6, struct g2d_performance_data)
 
 #endif /* _G2D_UAPI_H_ */
 

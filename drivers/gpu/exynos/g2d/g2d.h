@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 #include <media/exynos_repeater.h>
+#include <linux/pm_qos.h>
 
 struct g2d_task; /* defined in g2d_task.h */
 
@@ -37,6 +38,27 @@ enum g2d_priority {
  */
 #define G2D_DEVICE_STATE_SUSPEND	1
 #define G2D_DEVICE_STATE_IOVMM_DISABLED	2
+
+enum g2d_hw_ppc {
+	G2D_PPC_DEFAULT,
+	G2D_PPC_SCALE,
+	G2D_PPC_ROTATE,
+	G2D_PPC_SCALE_ROTATE,
+	G2D_PPC_YUV2P,
+	G2D_PPC_YUV2P_SCALE,
+	G2D_PPC_YUV2P_ROTATE,
+	G2D_PPC_YUV2P_SCALE_ROTATE,
+	G2D_PPC_COLORFILL,
+	G2D_PPC_DST_DEFAULT,
+	G2D_PPC_DST_YUV2P,
+	G2D_PPC_DST_ROT,
+	G2D_PPC_END,
+};
+
+struct g2d_dvfs_table {
+	u32 lv;
+	u32 freq;
+};
 
 struct g2d_device {
 	unsigned long		state;
@@ -67,12 +89,25 @@ struct g2d_device {
 	struct dentry *debug_logs;
 
 	atomic_t	prior_stats[G2D_PRIORITY_END];
+
+	struct mutex			lock_qos;
+	struct list_head		qos_contexts;
+	u32 hw_ppc[G2D_PPC_END];
+
+	struct g2d_dvfs_table *dvfs_table;
+	u32 dvfs_table_cnt;
 };
 
 struct g2d_context {
 	struct g2d_device	*g2d_dev;
 	struct shared_buffer_info *hwfc_info;
 	u32 priority;
+
+	struct pm_qos_request req;
+
+	struct list_head qos_node;
+	u64	r_bw;
+	u64	w_bw;
 };
 
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task);

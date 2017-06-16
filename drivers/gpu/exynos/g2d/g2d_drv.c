@@ -30,6 +30,7 @@
 #include "g2d_task.h"
 #include "g2d_uapi_process.h"
 #include "g2d_debug.h"
+#include "g2d_perf.h"
 
 #define MODULE_NAME "exynos-g2d"
 
@@ -250,6 +251,8 @@ static int g2d_open(struct inode *inode, struct file *filp)
 	g2d_ctx->priority = G2D_DEFAULT_PRIORITY;
 	atomic_inc(&g2d_dev->prior_stats[g2d_ctx->priority]);
 
+	INIT_LIST_HEAD(&g2d_ctx->qos_node);
+
 	return 0;
 }
 
@@ -267,6 +270,8 @@ static int g2d_release(struct inode *inode, struct file *filp)
 			dma_buf_put(g2d_ctx->hwfc_info->bufs[i]);
 		kfree(g2d_ctx->hwfc_info);
 	}
+
+	g2d_put_performance(g2d_ctx);
 
 	kfree(g2d_ctx);
 
@@ -383,6 +388,20 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		break;
 	}
+	case G2D_IOC_PERFORMANCE:
+	{
+		struct g2d_performance_data data;
+
+		if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
+			dev_err(g2d_dev->dev,
+				"%s: Failed to read perf data\n", __func__);
+			ret = -EFAULT;
+			break;
+		}
+		g2d_set_performance(ctx, &data);
+
+		break;
+	}
 	}
 
 	return ret;
@@ -422,6 +441,59 @@ static int g2d_notifier_event(struct notifier_block *this,
 	}
 
 	return NOTIFY_OK;
+}
+
+static unsigned int g2d_default_ppc[G2D_PPC_END] =
+	{3500, 3200, 3500, 3000,
+	3500, 3100, 3000, 2800,
+	3800, 3500, 2800, 2500};
+
+static struct g2d_dvfs_table g2d_default_dvfs_table[] = {
+	{534000, 711000},
+	{400000, 534000},
+	{336000, 400000},
+	{267000, 356000},
+	{178000, 200000},
+	{107000, 134000},
+};
+
+static int g2d_parse_dt(struct g2d_device *g2d_dev)
+{
+	struct device *dev = g2d_dev->dev;
+	int i, len;
+
+	if (of_property_read_u32_array(dev->of_node, "hw_ppc",
+			(u32 *)g2d_dev->hw_ppc,
+			(size_t)(ARRAY_SIZE(g2d_dev->hw_ppc)))) {
+		dev_err(dev, "Failed to parse device tree for hw ppc");
+
+		for (i = 0; i < G2D_PPC_END; i++)
+			g2d_dev->hw_ppc[i] = g2d_default_ppc[i];
+	}
+
+	len = of_property_count_u32_elems(dev->of_node, "g2d_dvfs_table");
+	if (len < 0)
+		g2d_dev->dvfs_table_cnt = ARRAY_SIZE(g2d_default_dvfs_table);
+	else
+		g2d_dev->dvfs_table_cnt = len / 2;
+
+	g2d_dev->dvfs_table = devm_kzalloc(dev,
+				sizeof(struct g2d_dvfs_table) *
+				g2d_dev->dvfs_table_cnt,
+				GFP_KERNEL);
+	if (!g2d_dev->dvfs_table)
+		return -ENOMEM;
+
+	if (len < 0) {
+		memcpy(g2d_dev->dvfs_table, g2d_default_dvfs_table,
+			sizeof(struct g2d_dvfs_table) *
+			g2d_dev->dvfs_table_cnt);
+	} else {
+		of_property_read_u32_array(dev->of_node, "g2d_dvfs_table",
+				(unsigned int *)g2d_dev->dvfs_table, len);
+	}
+
+	return 0;
 }
 
 static int g2d_probe(struct platform_device *pdev)
@@ -465,6 +537,10 @@ static int g2d_probe(struct platform_device *pdev)
 
 	iovmm_set_fault_handler(&pdev->dev, g2d_iommu_fault_handler, g2d_dev);
 
+	ret = g2d_parse_dt(g2d_dev);
+	if (ret < 0)
+		return ret;
+
 	ret = iovmm_activate(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to activate iommu\n");
@@ -495,6 +571,9 @@ static int g2d_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&g2d_dev->tasks_free_hwfc);
 	INIT_LIST_HEAD(&g2d_dev->tasks_prepared);
 	INIT_LIST_HEAD(&g2d_dev->tasks_active);
+	INIT_LIST_HEAD(&g2d_dev->qos_contexts);
+
+	mutex_init(&g2d_dev->lock_qos);
 
 	ret = g2d_create_tasks(g2d_dev);
 	if (ret < 0) {
