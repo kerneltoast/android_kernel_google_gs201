@@ -561,9 +561,6 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return ret;
 	}
 
-	if (layer->fence)
-		kref_get(&task->starter);
-
 	ret = g2d_get_buffer(g2d_dev, layer, data, DMA_TO_DEVICE);
 	if (ret)
 		goto err_buffer;
@@ -659,9 +656,6 @@ static int g2d_get_target(struct g2d_device *g2d_dev,
 			__func__, data->fence);
 		return ret;
 	}
-
-	if (target->fence)
-		kref_get(&task->starter);
 
 	ret = g2d_get_buffer(g2d_dev, target, data, DMA_FROM_DEVICE);
 	if (ret)

@@ -219,8 +219,11 @@ struct dma_fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
 	if (!fence)
 		return ERR_PTR(-EINVAL);
 
+	kref_get(&layer->task->starter);
+
 	ret = dma_fence_add_callback(fence, &layer->fence_cb, g2d_fence_callback);
 	if (ret < 0) {
+		kref_put(&layer->task->starter, g2d_queuework_task);
 		dma_fence_put(fence);
 		return (ret == -ENOENT) ? NULL : ERR_PTR(ret);
 	}
