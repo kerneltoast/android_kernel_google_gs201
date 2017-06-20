@@ -90,6 +90,11 @@ void g2d_fence_timeout_handler(unsigned long arg)
 		atomic_read(&task->starter.refcount.refs),
 		G2D_FENCE_TIMEOUT_MSEC);
 
+	/* Increase reference to prevent running the workqueue in callback */
+	kref_get(&task->starter);
+
+	spin_unlock_irqrestore(&task->fence_timeout_lock, flags);
+
 	for (i = 0; i < task->num_source; i++) {
 		fence = task->source[i].fence;
 		if (fence)
@@ -101,14 +106,9 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	if (fence)
 		dma_fence_remove_callback(fence, &task->target.fence_cb);
 
-	/* Increase reference to prevent running the workqueue in callback */
-	kref_get(&task->starter);
+	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE);
 
 	g2d_queuework_task(&task->starter);
-
-	spin_unlock_irqrestore(&task->fence_timeout_lock, flags);
-
-	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE);
 };
 
 static const char *g2d_fence_get_driver_name(struct dma_fence *fence)
