@@ -174,7 +174,8 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 void g2d_destroy_tasks(struct g2d_device *g2d_dev);
 int g2d_create_tasks(struct g2d_device *g2d_dev);
 
-struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev, bool hwfc);
+struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
+				    struct g2d_context *g2d_ctx, bool hwfc);
 void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 
 void g2d_start_task(struct g2d_task *task);

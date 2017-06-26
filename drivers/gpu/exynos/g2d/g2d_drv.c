@@ -33,6 +33,38 @@
 
 #define MODULE_NAME "exynos-g2d"
 
+static int g2d_update_priority(struct g2d_context *ctx,
+					    enum g2d_priority priority)
+{
+	struct g2d_device *g2d_dev = ctx->g2d_dev;
+	struct g2d_task *task;
+	unsigned long flags;
+
+	if (ctx->priority == priority)
+		return 0;
+
+	atomic_dec(&g2d_dev->prior_stats[ctx->priority]);
+	atomic_inc(&g2d_dev->prior_stats[priority]);
+	ctx->priority = priority;
+
+	/*
+	 * check lower priority task in use, and return EBUSY
+	 * for higher priority to avoid waiting lower task completion
+	 */
+	spin_lock_irqsave(&g2d_dev->lock_task, flags);
+
+	for (task = g2d_dev->tasks; task != NULL; task = task->next) {
+		if (!is_task_state_idle(task) && (task->priority < priority)) {
+			spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+			return -EBUSY;
+		}
+	}
+
+	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+
+	return 0;
+}
+
 void g2d_hw_timeout_handler(unsigned long arg)
 {
 	struct g2d_task *task = (struct g2d_task *)arg;
@@ -215,12 +247,18 @@ static int g2d_open(struct inode *inode, struct file *filp)
 
 	g2d_ctx->g2d_dev = g2d_dev;
 
+	g2d_ctx->priority = G2D_DEFAULT_PRIORITY;
+	atomic_inc(&g2d_dev->prior_stats[g2d_ctx->priority]);
+
 	return 0;
 }
 
 static int g2d_release(struct inode *inode, struct file *filp)
 {
 	struct g2d_context *g2d_ctx = filp->private_data;
+	struct g2d_device *g2d_dev = g2d_ctx->g2d_dev;
+
+	atomic_dec(&g2d_dev->prior_stats[g2d_ctx->priority]);
 
 	if (g2d_ctx->hwfc_info) {
 		int i;
@@ -248,6 +286,20 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				(struct g2d_task_data __user *)arg;
 		struct g2d_task_data data;
 		struct g2d_task *task;
+		int i;
+
+		/*
+		 * A process that has lower priority is not allowed
+		 * to execute and simply returns -EBUSY
+		 */
+		for (i = ctx->priority + 1; i < G2D_PRIORITY_END; i++) {
+			if (atomic_read(&g2d_dev->prior_stats[i]) > 0) {
+				ret =  -EBUSY;
+				break;
+			}
+		}
+		if (ret)
+			break;
 
 		if (copy_from_user(&data, uptr, sizeof(data))) {
 			dev_err(g2d_dev->dev,
@@ -285,7 +337,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			}
 		}
 
-		task = g2d_get_free_task(g2d_dev, IS_HWFC(data.flags));
+		task = g2d_get_free_task(g2d_dev, ctx, IS_HWFC(data.flags));
 		if (task == NULL) {
 			ret = -EBUSY;
 			break;
@@ -306,6 +358,30 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (!(task->flags & G2D_FLAG_NONBLOCK))
 			ret = g2d_wait_put_user(g2d_dev, task,
 						uptr, data.flags);
+
+		break;
+	}
+	case G2D_IOC_PRIORITY:
+	{
+		enum g2d_priority data;
+
+		if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
+			dev_err(g2d_dev->dev,
+				"%s: Failed to get priority\n", __func__);
+			ret = -EFAULT;
+			break;
+		}
+
+		if ((data < G2D_LOW_PRIORITY) || (data >= G2D_PRIORITY_END)) {
+			dev_err(g2d_dev->dev,
+				"%s: Wrong priority %u\n", __func__, data);
+			ret = -EINVAL;
+			break;
+		}
+
+		ret = g2d_update_priority(ctx, data);
+
+		break;
 	}
 	}
 

@@ -21,6 +21,15 @@
 
 struct g2d_task; /* defined in g2d_task.h */
 
+enum g2d_priority {
+	G2D_LOW_PRIORITY,
+	G2D_MEDIUM_PRIORITY,
+	G2D_DEFAULT_PRIORITY = G2D_MEDIUM_PRIORITY,
+	G2D_HIGH_PRIORITY,
+	G2D_HIGHEST_PRIORITY,
+	G2D_PRIORITY_END
+};
+
 /*
  * G2D_DEVICE_STATE_SUSPEND should be treated under g2d_dev->lock_task held
  * because it should be consistent with the state of all tasks attached to
@@ -56,11 +65,14 @@ struct g2d_device {
 	struct dentry *debug_root;
 	struct dentry *debug;
 	struct dentry *debug_logs;
+
+	atomic_t	prior_stats[G2D_PRIORITY_END];
 };
 
 struct g2d_context {
 	struct g2d_device	*g2d_dev;
 	struct shared_buffer_info *hwfc_info;
+	u32 priority;
 };
 
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task);

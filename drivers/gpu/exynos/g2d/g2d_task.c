@@ -346,7 +346,8 @@ void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
 	spin_unlock_irqrestore(&layer->task->fence_timeout_lock, flags);
 }
 
-struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev, bool hwfc)
+struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
+				    struct g2d_context *g2d_ctx, bool hwfc)
 {
 	struct g2d_task *task;
 	struct list_head *taskfree;
@@ -369,6 +370,7 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev, bool hwfc)
 	INIT_WORK(&task->work, g2d_task_schedule_work);
 
 	init_task_state(task);
+	task->priority = g2d_ctx->priority;
 
 	g2d_init_commands(task);
 

@@ -210,6 +210,7 @@ struct g2d_task_data {
 };
 
 #define G2D_IOC_PROCESS		_IOWR('M', 4, struct g2d_task_data)
+#define G2D_IOC_PRIORITY		_IOR('M', 5, int32_t)
 
 #endif /* _G2D_UAPI_H_ */
 
