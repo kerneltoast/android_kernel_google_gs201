@@ -612,7 +612,7 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 	if (IS_ERR(layer->fence)) {
 		dev_err(dev, "%s: Invalid fence fd %d on source[%d]\n",
 			__func__, data->fence, index);
-		return ret;
+		return PTR_ERR(layer->fence);
 	}
 
 	ret = g2d_get_buffer(g2d_dev, NULL, layer, data, DMA_TO_DEVICE);
@@ -707,7 +707,7 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 	if (IS_ERR(target->fence)) {
 		dev_err(dev, "%s: Invalid fence fd %d on target\n",
 			__func__, data->fence);
-		return ret;
+		return PTR_ERR(target->fence);
 	}
 
 	ret = g2d_get_buffer(g2d_dev, ctx, target, data, DMA_FROM_DEVICE);
