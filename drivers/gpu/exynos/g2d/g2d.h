@@ -63,7 +63,7 @@ struct g2d_dvfs_table {
 struct g2d_device {
 	unsigned long		state;
 
-	struct miscdevice	misc;
+	struct miscdevice	misc[2];
 	struct device		*dev;
 	struct clk		*clock;
 	void __iomem		*reg;
@@ -98,10 +98,13 @@ struct g2d_device {
 	u32 dvfs_table_cnt;
 };
 
+#define G2D_AUTHORITY_HIGHUSER 1
+
 struct g2d_context {
 	struct g2d_device	*g2d_dev;
 	struct shared_buffer_info *hwfc_info;
 	u32 priority;
+	int authority;
 
 	struct pm_qos_request req;
 

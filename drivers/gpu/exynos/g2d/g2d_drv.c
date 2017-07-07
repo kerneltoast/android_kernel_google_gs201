@@ -237,13 +237,20 @@ static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 
 static int g2d_open(struct inode *inode, struct file *filp)
 {
-	struct g2d_device *g2d_dev = container_of(filp->private_data,
-						  struct g2d_device, misc);
+	struct g2d_device *g2d_dev;
 	struct g2d_context *g2d_ctx;
+	struct miscdevice *misc = filp->private_data;
 
 	g2d_ctx = kzalloc(sizeof(*g2d_ctx), GFP_KERNEL);
 	if (!g2d_ctx)
 		return -ENOMEM;
+
+	if (!strcmp(misc->name, "g2d")) {
+		g2d_dev = container_of(misc, struct g2d_device, misc[0]);
+		g2d_ctx->authority = G2D_AUTHORITY_HIGHUSER;
+	} else {
+		g2d_dev = container_of(misc, struct g2d_device, misc[1]);
+	}
 
 	filp->private_data = g2d_ctx;
 
@@ -371,6 +378,11 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		enum g2d_priority data;
 
+		if (!(ctx->authority & G2D_AUTHORITY_HIGHUSER)) {
+			ret = -EPERM;
+			break;
+		}
+
 		if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
 			dev_err(g2d_dev->dev,
 				"%s: Failed to get priority\n", __func__);
@@ -392,6 +404,11 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case G2D_IOC_PERFORMANCE:
 	{
 		struct g2d_performance_data data;
+
+		if (!(ctx->authority & G2D_AUTHORITY_HIGHUSER)) {
+			ret = -EPERM;
+			break;
+		}
 
 		if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
 			dev_err(g2d_dev->dev,
@@ -761,15 +778,25 @@ static int g2d_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err;
 
-	g2d_dev->misc.minor = MISC_DYNAMIC_MINOR;
-	g2d_dev->misc.name = "g2d";
-	g2d_dev->misc.fops = &g2d_fops;
+	g2d_dev->misc[0].minor = MISC_DYNAMIC_MINOR;
+	g2d_dev->misc[0].name = "g2d";
+	g2d_dev->misc[0].fops = &g2d_fops;
 
 	/* misc register */
-	ret = misc_register(&g2d_dev->misc);
+	ret = misc_register(&g2d_dev->misc[0]);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register misc device");
+		dev_err(&pdev->dev, "Failed to register misc device for 0");
 		goto err;
+	}
+
+	g2d_dev->misc[1].minor = MISC_DYNAMIC_MINOR;
+	g2d_dev->misc[1].name = "fimg2d";
+	g2d_dev->misc[1].fops = &g2d_fops;
+
+	ret = misc_register(&g2d_dev->misc[1]);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register misc device for 1");
+		goto err_misc;
 	}
 
 	spin_lock_init(&g2d_dev->lock_task);
@@ -806,7 +833,9 @@ static int g2d_probe(struct platform_device *pdev)
 err_pm:
 	g2d_destroy_tasks(g2d_dev);
 err_task:
-	misc_deregister(&g2d_dev->misc);
+	misc_deregister(&g2d_dev->misc[1]);
+err_misc:
+	misc_deregister(&g2d_dev->misc[0]);
 err:
 	pm_runtime_disable(&pdev->dev);
 	iovmm_deactivate(g2d_dev->dev);
@@ -841,7 +870,8 @@ static int g2d_remove(struct platform_device *pdev)
 
 	g2d_destroy_tasks(g2d_dev);
 
-	misc_deregister(&g2d_dev->misc);
+	misc_deregister(&g2d_dev->misc[0]);
+	misc_deregister(&g2d_dev->misc[1]);
 
 	pm_runtime_disable(&pdev->dev);
 
