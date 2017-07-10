@@ -170,10 +170,9 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 		   atomic_inc_return(&g2d_dev->fence_timeline));
 
 	file = sync_file_create(fence);
-	if (!file) {
-		dma_fence_put(fence);
+	dma_fence_put(fence);
+	if (!file)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	for (i = 0; i < data->num_release_fences; i++) {
 		release_fences[i] = get_unused_fd_flags(O_CLOEXEC);
