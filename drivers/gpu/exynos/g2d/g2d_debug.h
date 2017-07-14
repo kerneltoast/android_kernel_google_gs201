@@ -48,4 +48,5 @@ enum g2d_stamp_id {
 void g2d_init_debug(struct g2d_device *dev);
 void g2d_destroy_debug(struct g2d_device *dev);
 void g2d_stamp_task(struct g2d_task *task, u32 val);
+void g2d_dump_task(struct g2d_task *task);
 #endif /* __EXYNOS_G2D_HELPER_H_ */

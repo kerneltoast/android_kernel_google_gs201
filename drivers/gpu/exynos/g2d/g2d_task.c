@@ -28,33 +28,9 @@
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 #include <linux/smc.h>
 
-#define G2D_SECURE_DMA_BASE	0x8000000
-#define G2D_SEC_COMMAND_BUF 12
 #define G2D_ALWAYS_S 37
-
 static int g2d_map_cmd_data(struct g2d_task *task)
 {
-	struct g2d_buffer_prot_info *prot = &task->prot_info;
-	int ret;
-
-	prot->chunk_count = 1;
-	prot->flags = G2D_SEC_COMMAND_BUF;
-	prot->chunk_size = G2D_CMD_LIST_SIZE;
-	prot->bus_address = page_to_phys(task->cmd_page);
-	prot->dma_addr = G2D_SECURE_DMA_BASE + G2D_CMD_LIST_SIZE * task->job_id;
-
-	__flush_dcache_area(prot, sizeof(struct g2d_buffer_prot_info));
-	ret = exynos_smc(SMC_DRM_PPMP_PROT, virt_to_phys(prot), 0, 0);
-
-	if (ret) {
-		dev_err(task->g2d_dev->dev,
-			"Failed to map secure page tbl (%d) %x %x %lx\n", ret,
-			prot->dma_addr, prot->flags, prot->bus_address);
-		return ret;
-	}
-
-	task->cmd_addr = prot->dma_addr;
-
 	return 0;
 }
 

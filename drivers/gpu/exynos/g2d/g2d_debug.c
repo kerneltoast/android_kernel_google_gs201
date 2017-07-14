@@ -135,7 +135,7 @@ static struct regs_info g2d_reg_info[] = {
 		{ 0x1100,	0x100,	"Layer15" },
 };
 
-static void g2d_dump_task(struct g2d_task *task)
+void g2d_dump_task(struct g2d_task *task)
 {
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	unsigned int i, num_array;
