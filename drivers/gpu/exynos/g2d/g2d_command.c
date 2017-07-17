@@ -254,6 +254,11 @@ static const struct g2d_fmt g2d_formats[] = {
 		.fmtvalue	= G2D_FMT_NV61,
 		.bpp		= { 8, 8 },
 		.num_planes	= 2,
+	}, {
+		.name		= "ABGR2101010",
+		.fmtvalue	= G2D_FMT_ABGR2101010,	/* [31:0] ABGR */
+		.bpp		= { 32 },
+		.num_planes	= 1,
 	},
 };
 
@@ -387,7 +392,7 @@ static bool check_srccolor_mode(u32 value)
 {
 	u32 fmt = ((value) & G2D_DATAFMT_MASK) >> G2D_DATAFMT_SHIFT;
 
-	if ((fmt > 13) || (fmt == 6) || (fmt == 7) || (fmt == 9))
+	if ((fmt > 14) || (fmt == 6) || (fmt == 7) || (fmt == 9))
 		return false;
 
 	if (IS_YUV(value) && (value & G2D_DATAFORMAT_AFBC))
@@ -401,7 +406,7 @@ static bool check_dstcolor_mode(u32 value)
 	u32 fmt = ((value) & G2D_DATAFMT_MASK) >> G2D_DATAFMT_SHIFT;
 
 	/* src + YCbCr420 3p, - YCbCr420 2p 8.2 */
-	if ((fmt > 12) || (fmt == 6) || (fmt == 7))
+	if ((fmt > 14) || (fmt == 13) || (fmt == 6) || (fmt == 7))
 		return false;
 
 	/* AFBC and UORDER shoult not be set together */
