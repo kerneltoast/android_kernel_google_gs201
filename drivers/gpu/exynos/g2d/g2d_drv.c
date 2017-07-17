@@ -24,6 +24,7 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/compat.h>
 
 #include "g2d.h"
 #include "g2d_regs.h"
@@ -407,11 +408,217 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_g2d_commands {
+	__u32		target[G2DSFR_DST_FIELD_COUNT];
+	compat_uptr_t	source[G2D_MAX_IMAGES];
+	compat_uptr_t	extra;
+	__u32		num_extra_regs;
+};
+
+struct compat_g2d_buffer_data {
+	union {
+		compat_ulong_t userptr;
+		struct {
+			__s32 fd;
+			__u32 offset;
+		} dmabuf;
+	};
+	__u32		length;
+};
+
+struct compat_g2d_layer_data {
+	__u32			flags;
+	__s32			fence;
+	__u32			buffer_type;
+	__u32			num_buffers;
+	struct compat_g2d_buffer_data	buffer[G2D_MAX_BUFFERS];
+};
+
+struct compat_g2d_task_data {
+	__u32			version;
+	__u32			flags;
+	__u32			laptime_in_usec;
+	__u32			priority;
+	__u32			num_source;
+	__u32			num_release_fences;
+	compat_uptr_t	release_fences;
+	struct compat_g2d_layer_data	target;
+	compat_uptr_t	source;
+	struct compat_g2d_commands	commands;
+};
+
+#define COMPAT_G2D_IOC_PROCESS	_IOWR('M', 4, struct compat_g2d_task_data)
+
+static int g2d_compat_get_layerdata(struct device *dev,
+				struct g2d_layer_data __user *img,
+				struct compat_g2d_layer_data __user *cimg)
+{
+	__u32 uw;
+	__s32 sw;
+	compat_ulong_t l;
+	unsigned int i;
+	int ret;
+
+	ret =  get_user(uw, &cimg->flags);
+	ret |= put_user(uw, &img->flags);
+	ret |= get_user(sw, &cimg->fence);
+	ret |= put_user(sw, &img->fence);
+	ret |= get_user(uw, &cimg->buffer_type);
+	ret |= put_user(uw, &img->buffer_type);
+	ret |= get_user(uw, &cimg->num_buffers);
+	ret |= put_user(uw, &img->num_buffers);
+
+	for (i = 0; i < uw; i++) { /* uw contains num_buffers */
+		ret |= get_user(l, &cimg->buffer[i].userptr);
+		ret |= put_user(l, &img->buffer[i].userptr);
+		ret |= get_user(uw, &cimg->buffer[i].dmabuf.offset);
+		ret |= put_user(uw, &img->buffer[i].dmabuf.offset);
+		ret |= get_user(sw, &cimg->buffer[i].dmabuf.fd);
+		ret |= put_user(sw, &img->buffer[i].dmabuf.fd);
+		ret |= get_user(uw, &cimg->buffer[i].length);
+		ret |= put_user(uw, &img->buffer[i].length);
+	}
+
+	return ret ? -EFAULT : 0;
+}
+
 static long g2d_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg)
 {
-	return 0;
+	struct g2d_context *ctx = filp->private_data;
+	struct device *dev = ctx->g2d_dev->dev;
+	struct g2d_task_data __user *data;
+	struct g2d_layer_data __user *src;
+	struct g2d_commands __user *command;
+	struct g2d_reg __user *extra;
+	struct compat_g2d_task_data __user *cdata = compat_ptr(arg);
+	struct compat_g2d_layer_data __user *csc;
+	struct compat_g2d_commands __user *ccmd;
+	size_t alloc_size;
+	__s32 __user *fences;
+	__u32 __user *ptr;
+	compat_uptr_t cptr;
+	__u32 w, num_source, num_release_fences;
+	int ret;
+
+	switch (cmd) {
+	case COMPAT_G2D_IOC_PROCESS:
+		cmd = G2D_IOC_PROCESS;
+		break;
+	case G2D_IOC_PRIORITY:
+	case G2D_IOC_PERFORMANCE:
+		if (!filp->f_op->unlocked_ioctl)
+			return -ENOTTY;
+
+		return filp->f_op->unlocked_ioctl(filp, cmd,
+						(unsigned long)compat_ptr(arg));
+	default:
+		dev_err(dev, "%s: unknown ioctl command %#x\n", __func__, cmd);
+		return -EINVAL;
+	}
+
+	alloc_size = sizeof(*data);
+	data = compat_alloc_user_space(alloc_size);
+
+	ret  = get_user(w, &cdata->version);
+	ret |= put_user(w, &data->version);
+	ret |= get_user(w, &cdata->flags);
+	ret |= put_user(w, &data->flags);
+	ret |= get_user(w, &cdata->laptime_in_usec);
+	ret |= put_user(w, &data->laptime_in_usec);
+	ret |= get_user(w, &cdata->priority);
+	ret |= put_user(w, &data->priority);
+	ret |= get_user(num_source, &cdata->num_source);
+	ret |= put_user(num_source, &data->num_source);
+	ret |= get_user(num_release_fences, &cdata->num_release_fences);
+	ret |= put_user(num_release_fences, &data->num_release_fences);
+	alloc_size += sizeof(__s32) * num_release_fences;
+	fences = compat_alloc_user_space(alloc_size);
+	ret |= put_user(fences, &data->release_fences);
+	if (ret) {
+		dev_err(dev, "%s: failed to read task data\n", __func__);
+		return -EFAULT;
+	}
+
+	ret = g2d_compat_get_layerdata(
+			dev, &data->target, &cdata->target);
+	if (ret) {
+		dev_err(dev, "%s: failed to read the target data\n",
+			__func__);
+		return ret;
+	}
+
+	ret = get_user(cptr, &cdata->source);
+	csc = compat_ptr(cptr);
+	alloc_size += sizeof(*src) * num_source;
+	src = compat_alloc_user_space(alloc_size);
+	for (w = 0; w < num_source; w++)
+		ret |= g2d_compat_get_layerdata(dev, &src[w], &csc[w]);
+	ret |= put_user(src, &data->source);
+	if (ret) {
+		dev_err(dev,
+		"%s: failed to read source layer data\n", __func__);
+		return ret;
+	}
+
+	command = &data->commands;
+	ccmd = &cdata->commands;
+	ret = copy_in_user(&command->target, &ccmd->target,
+			sizeof(__u32) * G2DSFR_DST_FIELD_COUNT);
+	if (ret) {
+		dev_err(dev,
+			"%s: failed to read target command data\n", __func__);
+		return ret;
+	}
+
+	for (w = 0; w < num_source; w++) {
+		get_user(cptr, &ccmd->source[w]);
+		alloc_size += sizeof(__u32) * G2DSFR_SRC_FIELD_COUNT;
+		ptr = compat_alloc_user_space(alloc_size);
+		ret = copy_in_user(ptr, compat_ptr(cptr),
+				sizeof(__u32) * G2DSFR_SRC_FIELD_COUNT);
+		ret |= put_user(ptr, &command->source[w]);
+		if (ret) {
+			dev_err(dev,
+				"%s: failed to read source %u command data\n",
+					__func__, w);
+			return ret;
+		}
+	}
+
+	ret = get_user(w, &ccmd->num_extra_regs);
+	ret |= put_user(w, &command->num_extra_regs);
+
+	/* w contains num_extra_regs */
+	get_user(cptr, &ccmd->extra);
+	alloc_size += sizeof(*extra) * w;
+	extra = compat_alloc_user_space(alloc_size);
+	ret |= copy_in_user(extra, compat_ptr(cptr),
+				sizeof(*extra) * w);
+	ret |= put_user(extra, &command->extra);
+	if (ret) {
+		dev_err(dev,
+			"%s: failed to read extra command data\n", __func__);
+		return ret;
+	}
+
+	ret = g2d_ioctl(filp, cmd, (unsigned long)data);
+	if (ret)
+		return ret;
+
+	ret = get_user(w, &data->laptime_in_usec);
+	ret |= put_user(w, &cdata->laptime_in_usec);
+
+	get_user(cptr, &cdata->release_fences);
+	ret |= copy_in_user(compat_ptr(cptr), fences,
+					sizeof(__s32) * num_release_fences);
+	if (ret)
+		dev_err(dev, "%s: failed to write userdata\n", __func__);
+
+	return ret;
 }
+#endif
 
 static const struct file_operations g2d_fops = {
 	.owner          = THIS_MODULE,
