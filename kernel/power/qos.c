@@ -353,7 +353,12 @@ void cpu_latency_qos_add_request(struct pm_qos_request *req, s32 value)
 		if (irq_can_set_affinity(req->irq)) {
 			int ret = 0;
 			struct irq_desc *desc = irq_to_desc(req->irq);
-			struct cpumask *mask = desc->irq_data.common->affinity;
+			struct cpumask *mask;
+
+			if (!desc)
+				break;
+
+			mask = desc->irq_data.common->affinity;
 
 			/* Get the current affinity */
 			cpumask_copy(&req->cpus_affine, mask);
