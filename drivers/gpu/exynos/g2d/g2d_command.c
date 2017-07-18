@@ -461,7 +461,7 @@ static struct command_checker source_command_checker[G2DSFR_SRC_FIELD_COUNT] = {
 	{"BOTTOM",	0x0038, 0x00003FFF, check_width_height,},
 	{"WIDTH",	0x0070, 0x00003FFF, check_width_height,},
 	{"HEIGHT",	0x0074, 0x00003FFF, check_width_height,},
-	{"COMMAND",	0x0000, 0x03100001, NULL,},
+	{"COMMAND",	0x0000, 0x03100003, NULL,},
 	{"SELECT",	0x0004, 0x00000001, NULL,},
 	{"ROTATE",	0x0008, 0x00000031, NULL,},
 	{"DSTLEFT",	0x000C, 0x00001FFF, NULL,},
