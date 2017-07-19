@@ -291,10 +291,8 @@ static void g2d_schedule_task(struct g2d_task *task)
 	list_add_tail(&task->node, &g2d_dev->tasks_prepared);
 	change_task_state_prepared(task);
 
-	if (!!(g2d_dev->state & (1 << G2D_DEVICE_STATE_SUSPEND)))
-		return;
-
-	g2d_execute_task(g2d_dev, task);
+	if (!(g2d_dev->state & (1 << G2D_DEVICE_STATE_SUSPEND)))
+		g2d_execute_task(g2d_dev, task);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 	return;
