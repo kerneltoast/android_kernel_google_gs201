@@ -201,6 +201,8 @@ void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
 
 static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
+	g2d_secure_enable();
+
 	list_move_tail(&task->node, &g2d_dev->tasks_active);
 	change_task_state_active(task);
 
@@ -283,8 +285,6 @@ static void g2d_schedule_task(struct g2d_task *task)
 		dev_err(g2d_dev->dev, "Failed to enable clock (%d)\n", ret);
 		goto err_clk;
 	}
-
-	g2d_secure_enable();
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
