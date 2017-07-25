@@ -805,14 +805,15 @@ void g2d_put_images(struct g2d_device *g2d_dev, struct g2d_task *task)
 int g2d_wait_put_user(struct g2d_device *g2d_dev, struct g2d_task *task,
 		      struct g2d_task_data __user *uptr, u32 userflag)
 {
-	u32 laptime_in_usec = (u32)ktime_us_delta(task->ktime_end,
-						  task->ktime_begin);
 	int ret;
 
 	if (!g2d_task_wait_completion(task)) {
 		userflag |= G2D_FLAG_ERROR;
 		ret = put_user(userflag, &uptr->flags);
 	} else {
+		u32 laptime_in_usec = (u32)ktime_us_delta(task->ktime_end,
+						  task->ktime_begin);
+
 		ret = put_user(laptime_in_usec, &uptr->laptime_in_usec);
 	}
 
