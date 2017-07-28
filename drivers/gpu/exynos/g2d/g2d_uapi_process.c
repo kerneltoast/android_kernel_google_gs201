@@ -751,7 +751,6 @@ int g2d_get_userdata(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 	}
 
 	task->flags = data->flags;
-	task->priority = data->priority;
 	task->num_source = data->num_source;
 
 	ret = g2d_import_commands(g2d_dev, task, data, task->num_source);
