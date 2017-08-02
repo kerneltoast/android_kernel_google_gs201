@@ -13,7 +13,7 @@
 #define _MEDIA_EXYNOS_SMFC_H_
 
 #include <linux/ktime.h>
-
+#include <linux/pm_qos.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
@@ -106,6 +106,9 @@ struct smfc_dev {
 
 	struct clk *clk_gate;
 	struct clk *clk_gate2; /* available if clk_gate is valid */
+	struct pm_qos_request qosreq_int;
+	s32 qosreq_int_level;
+
 };
 
 #define SMFC_CTX_COMPRESS	(1 << 0)

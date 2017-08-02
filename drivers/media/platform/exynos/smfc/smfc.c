@@ -731,6 +731,13 @@ err_videodev_alloc:
 	return ret;
 }
 
+static void smfc_deinit_v4l2(struct device *dev, struct smfc_dev *smfc)
+{
+	v4l2_m2m_release(smfc->m2mdev);
+	video_device_release(smfc->videodev);
+	v4l2_device_unregister(&smfc->v4l2_dev);
+}
+
 static int smfc_init_clock(struct device *dev, struct smfc_dev *smfc)
 {
 	smfc->clk_gate = devm_clk_get(dev, "gate");
@@ -910,23 +917,35 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = smfc_find_hw_version(&pdev->dev, smfc);
-	if (ret < 0)
-		return ret;
+	if (!of_property_read_u32(pdev->dev.of_node, "smfc,int_qos_minlock",
+				(u32 *)&smfc->qosreq_int_level)) {
+		if (smfc->qosreq_int_level > 0) {
+			pm_qos_add_request(&smfc->qosreq_int,
+					PM_QOS_DEVICE_THROUGHPUT, 0);
+			dev_info(&pdev->dev, "INT Min.Lock Freq. = %d\n",
+					smfc->qosreq_int_level);
+		} else {
+			smfc->qosreq_int_level = 0;
+		}
+	}
+
+	platform_set_drvdata(pdev, smfc);
 
 	ret = smfc_init_v4l2(&pdev->dev, smfc);
 	if (ret < 0)
-		return ret;
+		goto err_v4l2;
 
 	iovmm_set_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
 
 	ret = iovmm_activate(&pdev->dev);
 	if (ret < 0)
-		return ret;
+		goto err_iommu;
 
 	setup_timer(&smfc->timer, smfc_timedout_handler, (unsigned long)smfc);
 
-	platform_set_drvdata(pdev, smfc);
+	ret = smfc_find_hw_version(&pdev->dev, smfc);
+	if (ret < 0)
+		goto err_hwver;
 
 	spin_lock_init(&smfc->flag_lock);
 
@@ -934,6 +953,16 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 			(smfc->hwver >> 24) & 0xFF, (smfc->hwver >> 16) & 0xFF,
 			smfc->hwver & 0xFFFF);
 	return 0;
+
+err_hwver:
+	iovmm_deactivate(&pdev->dev);
+err_iommu:
+	smfc_deinit_v4l2(&pdev->dev, smfc);
+err_v4l2:
+	if (smfc->qosreq_int_level > 0)
+		pm_qos_remove_request(&smfc->qosreq_int);
+
+	return ret;
 }
 
 static void smfc_deinit_clock(struct smfc_dev *smfc)
@@ -948,6 +977,7 @@ static int exynos_smfc_remove(struct platform_device *pdev)
 {
 	struct smfc_dev *smfc = platform_get_drvdata(pdev);
 
+	pm_qos_remove_request(&smfc->qosreq_int);
 	smfc_deinit_clock(smfc);
 
 	return 0;
@@ -995,11 +1025,21 @@ static int smfc_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int smfc_runtime_resume(struct device *dev)
 {
+	struct smfc_dev *smfc = dev_get_drvdata(dev);
+
+	if (smfc->qosreq_int_level > 0)
+		pm_qos_update_request(&smfc->qosreq_int, smfc->qosreq_int_level);
+
 	return 0;
 }
 
 static int smfc_runtime_suspend(struct device *dev)
 {
+	struct smfc_dev *smfc = dev_get_drvdata(dev);
+
+	if (smfc->qosreq_int_level > 0)
+		pm_qos_update_request(&smfc->qosreq_int, 0);
+
 	return 0;
 }
 #endif
