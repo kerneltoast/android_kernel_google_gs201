@@ -39,20 +39,32 @@ enum g2d_priority {
 #define G2D_DEVICE_STATE_SUSPEND	1
 #define G2D_DEVICE_STATE_IOVMM_DISABLED	2
 
+enum g2d_hw_ppc_rot {
+	PPC_NO_ROTATE,
+	PPC_ROTATE,
+	PPC_ROT,
+};
+
+enum g2d_hw_ppc_fmt {
+	PPC_RGB,
+	PPC_YUV2P,
+	PPC_YUV2P_82,
+	PPC_FMT,
+};
+
+enum g2d_hw_ppc_sc {
+	PPC_SC_UP,
+	PPC_NO_SCALE,
+	PPC_SC_DOWN_1,
+	PPC_SC_DOWN_4,
+	PPC_SC_DOWN_9,
+	PPC_SC_DOWN_16,
+	PPC_SC,
+};
+
 enum g2d_hw_ppc {
-	G2D_PPC_DEFAULT,
-	G2D_PPC_SCALE,
-	G2D_PPC_ROTATE,
-	G2D_PPC_SCALE_ROTATE,
-	G2D_PPC_YUV2P,
-	G2D_PPC_YUV2P_SCALE,
-	G2D_PPC_YUV2P_ROTATE,
-	G2D_PPC_YUV2P_SCALE_ROTATE,
-	G2D_PPC_COLORFILL,
-	G2D_PPC_DST_DEFAULT,
-	G2D_PPC_DST_YUV2P,
-	G2D_PPC_DST_ROT,
-	G2D_PPC_END,
+	PPC_COLORFILL = PPC_FMT * PPC_ROT * PPC_SC,
+	PPC_END,
 };
 
 struct g2d_dvfs_table {
@@ -92,7 +104,7 @@ struct g2d_device {
 
 	struct mutex			lock_qos;
 	struct list_head		qos_contexts;
-	u32 hw_ppc[G2D_PPC_END];
+	u32 hw_ppc[PPC_END];
 
 	struct g2d_dvfs_table *dvfs_table;
 	u32 dvfs_table_cnt;

@@ -667,10 +667,16 @@ static int g2d_notifier_event(struct notifier_block *this,
 	return NOTIFY_OK;
 }
 
-static unsigned int g2d_default_ppc[G2D_PPC_END] =
-	{3500, 3200, 3500, 3000,
-	3500, 3100, 3000, 2800,
-	3800, 3500, 2800, 2500};
+static unsigned int g2d_default_ppc[] = {
+	/* sc_up none x1 x1/4 x1/9 x1/16 */
+	3400, 3100, 2200, 3600, 5100, 7000, //rgb32 non-rotated
+	3300, 2700, 2000, 3000, 5200, 6500, //rgb32 rotated
+	3000, 2900, 2600, 3400, 5100, 11900, //yuv2p non-rotated
+	3200, 2000, 1900, 3300, 5200, 7000, //yuv2p rotated
+	2400, 1900, 1900, 2700, 3100, 4100, //8+2 non-rotated
+	2500, 900, 900, 2200, 2900, 3700, //8+2 rotated
+	3800, //colorfill
+};
 
 static struct g2d_dvfs_table g2d_default_dvfs_table[] = {
 	{534000, 711000},
@@ -684,15 +690,15 @@ static struct g2d_dvfs_table g2d_default_dvfs_table[] = {
 static int g2d_parse_dt(struct g2d_device *g2d_dev)
 {
 	struct device *dev = g2d_dev->dev;
-	int i, len;
+	int len;
 
 	if (of_property_read_u32_array(dev->of_node, "hw_ppc",
 			(u32 *)g2d_dev->hw_ppc,
 			(size_t)(ARRAY_SIZE(g2d_dev->hw_ppc)))) {
 		dev_err(dev, "Failed to parse device tree for hw ppc");
 
-		for (i = 0; i < G2D_PPC_END; i++)
-			g2d_dev->hw_ppc[i] = g2d_default_ppc[i];
+		memcpy(g2d_dev->hw_ppc, g2d_default_ppc,
+			sizeof(g2d_default_ppc[0]) * PPC_END);
 	}
 
 	len = of_property_count_u32_elems(dev->of_node, "g2d_dvfs_table");

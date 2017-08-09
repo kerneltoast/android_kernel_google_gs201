@@ -19,15 +19,10 @@
 struct g2d_context;
 struct g2d_performance_data;
 
-#define is_perf_layer_yuv2p(layer) \
-		(((layer)->layer_attr) & G2D_PERF_LAYER_YUV2P)
-#define is_perf_layer_scaling(layer) \
-		(((layer)->layer_attr) & G2D_PERF_LAYER_SCALING)
-#define is_perf_layer_rotate(layer) \
+#define perf_index_fmt(layer) \
+		((((layer)->layer_attr) & G2D_PERF_LAYER_FMTMASK) >> 4)
+#define perf_index_rotate(layer) \
 		(((layer)->layer_attr) & G2D_PERF_LAYER_ROTATE)
-
-#define is_perf_frame_yuv2p(frame) \
-		(((frame)->frame_attr) & G2D_PERF_FRAME_YUV2P)
 #define is_perf_frame_colorfill(frame) \
 		(((frame)->frame_attr) & G2D_PERF_FRAME_SOLIDCOLORFILL)
 
