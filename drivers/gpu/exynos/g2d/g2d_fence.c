@@ -147,7 +147,7 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 {
 	struct dma_fence *fence;
 	struct sync_file *file;
-	u32 release_fences[G2D_MAX_IMAGES + 1];
+	s32 release_fences[G2D_MAX_IMAGES + 1];
 	unsigned int i;
 	int ret = 0;
 
