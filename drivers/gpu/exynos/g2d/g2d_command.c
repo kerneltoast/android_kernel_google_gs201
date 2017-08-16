@@ -476,7 +476,7 @@ static struct command_checker source_command_checker[G2DSFR_SRC_FIELD_COUNT] = {
 	{"COLOR",	0x005C, 0xFFFFFFFF, NULL,},
 	{"ALPHA",	0x0060, 0xFFFFFFFF, NULL,},
 	{"BLEND",	0x003C, 0x0035FFFF, check_blend_mode,},
-	{"YCBCRMODE",	0x0088, 0x10000013, NULL,},
+	{"YCBCRMODE",	0x0088, 0x10000017, NULL,},
 	{"HDRMODE",	0x0090, 0x000011B3, NULL,},
 };
 
