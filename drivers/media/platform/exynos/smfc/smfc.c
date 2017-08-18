@@ -96,8 +96,8 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 							thumb_streamsize);
 			}
 
-			vb->vb2_buf.timestamp =
-					(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
+			vb->reserved2 =
+				(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
 			v4l2_m2m_buf_done(vb, state);
 
 			if ((!!(ctx->flags & SMFC_CTX_COMPRESS)) &&
