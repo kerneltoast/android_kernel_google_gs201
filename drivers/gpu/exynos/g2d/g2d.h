@@ -118,8 +118,9 @@ struct g2d_context {
 	u32 priority;
 	int authority;
 
-	struct pm_qos_request req;
+	struct delayed_work dwork;
 
+	struct pm_qos_request req;
 	struct list_head qos_node;
 	u64	r_bw;
 	u64	w_bw;

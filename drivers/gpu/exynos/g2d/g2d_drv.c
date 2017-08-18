@@ -235,6 +235,14 @@ static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 	return ret;
 }
 
+static void g2d_timeout_perf_work(struct work_struct *work)
+{
+	struct g2d_context *ctx = container_of(work, struct g2d_context,
+					      dwork.work);
+
+	g2d_put_performance(ctx);
+}
+
 static int g2d_open(struct inode *inode, struct file *filp)
 {
 	struct g2d_device *g2d_dev;
@@ -260,6 +268,7 @@ static int g2d_open(struct inode *inode, struct file *filp)
 	atomic_inc(&g2d_dev->prior_stats[g2d_ctx->priority]);
 
 	INIT_LIST_HEAD(&g2d_ctx->qos_node);
+	INIT_DELAYED_WORK(&(g2d_ctx->dwork), g2d_timeout_perf_work);
 
 	return 0;
 }

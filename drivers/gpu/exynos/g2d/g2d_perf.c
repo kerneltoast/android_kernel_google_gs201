@@ -20,6 +20,8 @@
 #include "g2d_task.h"
 #include "g2d_uapi.h"
 
+#include <linux/workqueue.h>
+
 #ifdef CONFIG_PM_DEVFREQ
 static void g2d_pm_qos_update_devfreq(struct pm_qos_request *req, u32 freq)
 {
@@ -149,7 +151,7 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 		}
 	}
 
-	if (!ip_clock && !g2d_still_need_perf(g2d_dev))
+	if (!ip_clock)
 		g2d_pm_qos_remove_devfreq(&g2d_ctx->req);
 	else if (ip_clock)
 		g2d_pm_qos_update_devfreq(&g2d_ctx->req, ip_clock);
@@ -178,11 +180,6 @@ static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
 
 	if (list_empty(&g2d_ctx->qos_node) && !rbw && !wbw)
 		return;
-
-	if (!rbw && !rbw && g2d_still_need_perf(g2d_dev))
-		return;
-
-	mutex_lock(&g2d_dev->lock_qos);
 
 	if (!list_empty(&g2d_dev->qos_contexts)) {
 		struct g2d_context *ctx_qos;
@@ -238,13 +235,12 @@ static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
 		 * bts_update_bw(BTS_BW_G2D, bw);
 		 */
 	}
-
-	mutex_unlock(&g2d_dev->lock_qos);
 }
 
 void g2d_set_performance(struct g2d_context *ctx,
 				struct g2d_performance_data *data)
 {
+	struct g2d_device *g2d_dev = ctx->g2d_dev;
 	int i;
 
 	if (data->num_frame > G2D_PERF_MAX_FRAMES)
@@ -255,8 +251,23 @@ void g2d_set_performance(struct g2d_context *ctx,
 			return;
 	}
 
+	mutex_lock(&g2d_dev->lock_qos);
+
+	if (!data->num_frame) {
+		if (g2d_still_need_perf(g2d_dev)) {
+			mutex_unlock(&g2d_dev->lock_qos);
+			return;
+		}
+		cancel_delayed_work(&ctx->dwork);
+	} else {
+		mod_delayed_work(system_wq, &ctx->dwork,
+			msecs_to_jiffies(50));
+	}
+
 	g2d_set_qos_frequency(ctx, data);
 	g2d_set_device_frequency(ctx, data);
+
+	mutex_unlock(&g2d_dev->lock_qos);
 }
 
 void g2d_put_performance(struct g2d_context *ctx)
