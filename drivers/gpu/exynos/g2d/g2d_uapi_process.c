@@ -209,50 +209,8 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 			return PTR_ERR(dmabuf);
 		}
 	} else {
-		struct g2d_task *ptask;
-		unsigned long flags;
-		u32 idx;
-
-		/*
-		 * The index from repeater driver used on both buffer index and
-		 * job id, and this index is managed by repeater driver to
-		 * avoid overwriting the buffer index and job id while MFC is
-		 * running.
-		 */
-		hwfc_get_valid_buffer(&idx);
-		BUG_ON(idx >= ctx->hwfc_info->buffer_count);
-
-		spin_lock_irqsave(&task->g2d_dev->lock_task, flags);
-
-		ptask = task->g2d_dev->tasks;
-
-		while (ptask != NULL) {
-			if (ptask == task) {
-				ptask = ptask->next;
-				continue;
-			}
-			if ((ptask->job_id == idx) &&
-					!is_task_state_idle(ptask)) {
-				dev_err(dev, "%s: The task using that job #%d is not idle\n",
-				__func__, idx);
-
-				spin_unlock_irqrestore(
-					&task->g2d_dev->lock_task, flags);
-				return ret;
-			}
-			ptask = ptask->next;
-		}
-		task->job_id = idx;
-
-		spin_unlock_irqrestore(&task->g2d_dev->lock_task, flags);
-
-		dmabuf = ctx->hwfc_info->bufs[idx];
+		dmabuf = ctx->hwfc_info->bufs[task->job_id];
 		get_dma_buf(dmabuf);
-
-		data->dmabuf.offset = 0;
-		data->length = dmabuf->size;
-
-		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF);
 	}
 
 	if (dmabuf->size < data->dmabuf.offset) {
@@ -687,8 +645,60 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 		return -EINVAL;
 	}
 
-	if (IS_HWFC(task->flags))
+	if (IS_HWFC(task->flags)) {
+		struct g2d_task *ptask;
+		unsigned long flags;
+		u32 idx;
+
 		target->buffer_type = G2D_BUFTYPE_DMABUF;
+
+		/*
+		 * The index from repeater driver used on both buffer index and
+		 * job id, and this index is managed by repeater driver to
+		 * avoid overwriting the buffer index and job id while MFC is
+		 * running.
+		 */
+		ret = hwfc_get_valid_buffer(&idx);
+		if (ret < 0) {
+			dev_err(dev, "%s: Failed to get valid buffer from repeater\n",
+				__func__);
+			return ret;
+		}
+
+		BUG_ON(idx >= ctx->hwfc_info->buffer_count);
+
+		spin_lock_irqsave(&task->g2d_dev->lock_task, flags);
+
+		ptask = task->g2d_dev->tasks;
+
+		while (ptask != NULL) {
+			if (ptask == task) {
+				ptask = ptask->next;
+				continue;
+			}
+			if ((ptask->job_id == idx) &&
+					!is_task_state_idle(ptask)) {
+				dev_err(dev, "%s: The %d task is not idle\n",
+				__func__, idx);
+
+				spin_unlock_irqrestore(
+					&task->g2d_dev->lock_task, flags);
+
+				return -EINVAL;
+			}
+			ptask = ptask->next;
+		}
+
+		task->job_id = idx;
+
+		spin_unlock_irqrestore(&task->g2d_dev->lock_task, flags);
+
+		data->num_buffers = 1;
+		data->buffer[0].dmabuf.offset = 0;
+		data->buffer[0].length = ctx->hwfc_info->bufs[idx]->size;
+
+		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF);
+	}
 
 	if (target->buffer_type == G2D_BUFTYPE_EMPTY) {
 		dev_err(dev, "%s: target has no buffer - flags: %#x\n",
