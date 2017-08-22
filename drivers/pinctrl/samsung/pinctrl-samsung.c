@@ -1235,6 +1235,11 @@ static int __maybe_unused samsung_pinctrl_suspend(struct device *dev)
 {
 	struct samsung_pinctrl_drv_data *drvdata = dev_get_drvdata(dev);
 	int i;
+	int ret;
+
+	ret = pinctrl_force_sleep(drvdata->pctl_dev);
+	if (ret)
+		dev_err(drvdata->dev, "could not set sleep pinstate %d\n", ret);
 
 	for (i = 0; i < drvdata->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &drvdata->pin_banks[i];
@@ -1319,6 +1324,11 @@ static int __maybe_unused samsung_pinctrl_resume(struct device *dev)
 			if (widths[type])
 				writel(bank->pm_save[type], reg + offs[type]);
 	}
+
+	/* For changing state without writing register. */
+	if (!IS_ERR(drvdata->pctl_dev->p) &&
+	    !IS_ERR(drvdata->pctl_dev->hog_default))
+		drvdata->pctl_dev->p->state = drvdata->pctl_dev->hog_default;
 
 	if (drvdata->retention_ctrl && drvdata->retention_ctrl->disable)
 		drvdata->retention_ctrl->disable(drvdata);
