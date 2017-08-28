@@ -118,8 +118,10 @@ static void g2d_set_hwfc_commands(struct g2d_task *task)
 	struct g2d_reg *regs = (struct g2d_reg *)page_address(task->cmd_page);
 
 	regs[task->cmd_count].offset = G2D_HWFC_CAPTURE_IDX_REG;
-	regs[task->cmd_count].value =
-			G2D_HWFC_CAPTURE_HWFC_JOB | task->job_id;
+	regs[task->cmd_count].value = IS_HWFC(task->flags) ?
+			G2D_HWFC_CAPTURE_HWFC_JOB : 0;
+	regs[task->cmd_count].value |= task->job_id;
+
 	task->cmd_count++;
 }
 
@@ -156,8 +158,7 @@ void g2d_complete_commands(struct g2d_task *task)
 
 	g2d_set_taskctl_commands(task);
 
-	if (IS_HWFC(task->flags))
-		g2d_set_hwfc_commands(task);
+	g2d_set_hwfc_commands(task);
 
 	g2d_set_start_commands(task);
 }
