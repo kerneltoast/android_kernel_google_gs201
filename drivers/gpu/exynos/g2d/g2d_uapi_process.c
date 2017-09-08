@@ -310,6 +310,8 @@ static int g2d_get_userptr(struct g2d_task *task,
 	int prot = IOMMU_READ;
 
 	mm = get_task_mm(current);
+	if (!mm)
+		return ret;
 
 	down_read(&mm->mmap_sem);
 
