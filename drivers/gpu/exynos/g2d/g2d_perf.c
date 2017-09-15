@@ -72,7 +72,7 @@ static u32 perf_basis[PPC_SC] = {1024, 1023, 256, 113, 64, 0};
 static char perf_index_sc(struct g2d_performance_layer_data *layer)
 {
 	u32 ratio = (((u64)layer->window_w * layer->window_h) << 10) /
-			(layer->crop_w * layer->crop_h);
+			((u32)layer->crop_w * layer->crop_h);
 	int i;
 
 	for (i = 0; i < PPC_SC; i++) {
