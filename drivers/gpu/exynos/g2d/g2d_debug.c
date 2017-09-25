@@ -32,6 +32,7 @@ static struct g2d_stamp {
 	u32 state;
 	u32 job_id;
 	u32 val;
+	s32 info;
 	u8 cpu;
 } g2d_stamp_list[G2D_MAX_STAMP_SIZE];
 
@@ -53,9 +54,9 @@ static int g2d_stamp_show(struct seq_file *s, void *unused)
 	while (1) {
 		stamp = &g2d_stamp_list[i];
 
-		seq_printf(s, "[%d] %u:%u@%u (0x%x) %06llu\n", i++,
+		seq_printf(s, "[%4d] %u:%2u@%u (0x%2x) %6d %06llu\n", i++,
 			stamp->cpu, stamp->job_id, stamp->val, stamp->state,
-			ktime_to_us(stamp->time));
+			stamp->info, ktime_to_us(stamp->time));
 
 		i &= (G2D_MAX_STAMP_SIZE - 1);
 
@@ -165,7 +166,7 @@ void g2d_dump_task(struct g2d_task *task)
 			i, regs[i].offset, regs[i].value);
 }
 
-void g2d_stamp_task(struct g2d_task *task, u32 val)
+void g2d_stamp_task(struct g2d_task *task, u32 val, s32 info)
 {
 	int ptr = atomic_inc_return(&p_stamp) & (G2D_MAX_STAMP_SIZE - 1);
 	struct g2d_stamp *stamp = &g2d_stamp_list[ptr];
@@ -181,6 +182,7 @@ void g2d_stamp_task(struct g2d_task *task, u32 val)
 	stamp->time = ktime_get();
 	stamp->val = val;
 	stamp->cpu = smp_processor_id();
+	stamp->info = info;
 
 	/* when error status, dump the task */
 	if ((stamp->val == G2D_STAMP_STATE_TIMEOUT_HW) ||
@@ -190,8 +192,8 @@ void g2d_stamp_task(struct g2d_task *task, u32 val)
 
 	if (stamp->val == G2D_STAMP_STATE_DONE) {
 		if (g2d_debug == 1) {
-			pr_info("Job #%x took %06llu to H/W process\n",
-			task->job_id, ktime_us_delta(task->ktime_end, task->ktime_begin));
+			pr_info("Job #%x took %06d to H/W process\n",
+			task->job_id, info);
 		} else if (g2d_debug == 2) {
 			g2d_dump_task(task);
 		}

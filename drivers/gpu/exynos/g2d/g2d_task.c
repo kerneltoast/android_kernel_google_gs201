@@ -123,7 +123,10 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 {
 	list_del_init(&task->node);
 
-	g2d_stamp_task(task, G2D_STAMP_STATE_DONE);
+	task->ktime_end = ktime_get();
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_DONE,
+		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
 
 	del_timer(&task->timer);
 
@@ -150,8 +153,6 @@ void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
 			__func__, job_id);
 		success = false;
 	}
-
-	task->ktime_end = ktime_get();
 
 	g2d_finish_task(g2d_dev, task, success);
 }
@@ -182,8 +183,6 @@ static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	list_move_tail(&task->node, &g2d_dev->tasks_active);
 	change_task_state_active(task);
 
-	task->ktime_begin = ktime_get();
-
 	setup_timer(&task->timer,
 		    g2d_hw_timeout_handler, (unsigned long)task);
 
@@ -207,9 +206,9 @@ void g2d_prepare_suspend(struct g2d_device *g2d_dev)
 	set_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
 	spin_unlock_irq(&g2d_dev->lock_task);
 
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_SUSPEND_S);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SUSPEND, 0);
 	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_SUSPEND_E);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SUSPEND, 1);
 }
 
 void g2d_suspend_finish(struct g2d_device *g2d_dev)
@@ -218,7 +217,7 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev)
 
 	spin_lock_irq(&g2d_dev->lock_task);
 
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_RESUME_S);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_RESUME, 0);
 	clear_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
 
 	while (!list_empty(&g2d_dev->tasks_prepared)) {
@@ -229,7 +228,7 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev)
 	}
 
 	spin_unlock_irq(&g2d_dev->lock_task);
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_RESUME_E);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_RESUME, 1);
 }
 
 static void g2d_schedule_task(struct g2d_task *task)
@@ -306,6 +305,8 @@ void g2d_start_task(struct g2d_task *task)
 		mod_timer(&task->timer,
 			jiffies + msecs_to_jiffies(G2D_FENCE_TIMEOUT_MSEC));
 
+	task->ktime_begin = ktime_get();
+
 	kref_put(&task->starter, g2d_queuework_task);
 }
 
@@ -348,7 +349,7 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 
 	g2d_init_commands(task);
 
-	g2d_stamp_task(task, G2D_STAMP_STATE_ALLOC);
+	g2d_stamp_task(task, G2D_STAMP_STATE_TASK_RESOURCE, 0);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
@@ -371,7 +372,7 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 		list_add(&task->node, &g2d_dev->tasks_free);
 	}
 
-	g2d_stamp_task(task, G2D_STAMP_STATE_FREE);
+	g2d_stamp_task(task, G2D_STAMP_STATE_TASK_RESOURCE, 1);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 }

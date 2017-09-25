@@ -691,6 +691,8 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 			ptask = ptask->next;
 		}
 
+		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF, idx);
+
 		task->job_id = idx;
 
 		spin_unlock_irqrestore(&task->g2d_dev->lock_task, flags);
@@ -698,8 +700,6 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 		data->num_buffers = 1;
 		data->buffer[0].dmabuf.offset = 0;
 		data->buffer[0].length = ctx->hwfc_info->bufs[idx]->size;
-
-		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF);
 	}
 
 	if (target->buffer_type == G2D_BUFTYPE_EMPTY) {

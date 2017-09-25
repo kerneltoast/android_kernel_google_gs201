@@ -33,6 +33,7 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	unsigned long flags;
 	char name[32];
 	int i;
+	s32 afbc = 0;
 
 	for (i = 0; i < task->num_source; i++) {
 		fence = task->source[i].fence;
@@ -106,7 +107,17 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	if (fence)
 		dma_fence_remove_callback(fence, &task->target.fence_cb);
 
-	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE);
+	/* check compressed buffer because crashed buffer makes recovery */
+	for (i = 0; i < task->num_source; i++) {
+		if (IS_AFBC(
+			task->source[i].commands[G2DSFR_IMG_COLORMODE].value))
+			afbc |= 1 << i;
+	}
+
+	if (IS_AFBC(task->target.commands[G2DSFR_IMG_COLORMODE].value))
+		afbc |= 1 << G2D_MAX_IMAGES;
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE, afbc);
 
 	g2d_queuework_task(&task->starter);
 };
