@@ -108,7 +108,8 @@ static inline void g2d_hw_clear_job_ids(struct g2d_device *g2d_dev, u32 val)
 static inline u32 g2d_hw_get_job_state(struct g2d_device *g2d_dev,
 				       unsigned int job_id)
 {
-	return readl(g2d_dev->reg + G2D_JOB_IDn_STATE_REG(job_id));
+	return readl(g2d_dev->reg + G2D_JOB_IDn_STATE_REG(job_id)) &
+					G2D_JOB_STATE_MASK;
 }
 
 u32 g2d_hw_errint_status(struct g2d_device *g2d_dev);
