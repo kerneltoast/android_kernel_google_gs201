@@ -205,6 +205,11 @@ static const struct g2d_fmt g2d_formats[] = {
 		.bpp		= { 16 },
 		.num_planes	= 1,
 	}, {
+		.name		= "BGR565",
+		.fmtvalue	= G2D_FMT_BGR565,	/* [15:0] BGR */
+		.bpp		= { 16 },
+		.num_planes	= 1,
+	}, {
 		.name		= "NV12",
 		.fmtvalue	= G2D_FMT_NV12,
 		.bpp		= { 8, 4 },
