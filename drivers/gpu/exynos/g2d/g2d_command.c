@@ -95,7 +95,8 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 		regs[task->cmd_count].offset = G2D_TILE_DIRECTION_ORDER_REG;
 		regs[task->cmd_count].value = G2D_TILE_DIRECTION_VERTICAL;
 
-		if (IS_YUV420(mode) || IS_YUV422_2P(mode))
+		if (!IS_HWFC(task->flags) &&
+		    (IS_YUV420(mode) || IS_YUV422_2P(mode)))
 			regs[task->cmd_count].value |=
 					G2D_TILE_DIRECTION_ZORDER;
 
@@ -629,7 +630,7 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 	}
 
 	if (IS_HWFC(task->flags)) {
-		if (IS_AFBC(mode) || IS_UORDER(mode)) {
+		if ((dst && IS_AFBC(mode)) || IS_UORDER(mode)) {
 			dev_err(dev, "%s: Invalid HWFC format with %s\n",
 				__func__, IS_AFBC(mode) ? "AFBC" : "UORDER");
 			return false;
