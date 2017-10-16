@@ -17,6 +17,8 @@
 #include <linux/uaccess.h>
 #include <linux/device.h>
 
+#include <video/exynos_hdr_tunables.h>
+
 #include "g2d.h"
 #include "g2d_task.h"
 #include "g2d_uapi.h"
@@ -155,7 +157,8 @@ void g2d_set_start_commands(struct g2d_task *task)
 void g2d_complete_commands(struct g2d_task *task)
 {
 	/* 832 is the total number of the G2D registers */
-	BUG_ON(task->cmd_count > 830);
+	/* Tuned tone mapping LUT (66 entries) might be specified */
+	BUG_ON(task->cmd_count > 896);
 
 	g2d_set_taskctl_commands(task);
 
@@ -782,6 +785,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 	struct device *dev = g2d_dev->dev;
 	struct g2d_reg *cmdaddr = page_address(task->cmd_page);
 	struct g2d_commands *cmds = &data->commands;
+	u32 tm_tuned_lut[NR_TM_LUT_VALUES];
 	unsigned int i;
 	int copied;
 
@@ -833,6 +837,21 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return -EINVAL;
 
 	task->cmd_count += cmds->num_extra_regs;
+
+	/* overwrite if TM LUT values are specified: consumes 66 entries  */
+	if (exynos_hdr_get_tm_lut(tm_tuned_lut)) {
+		u32 base;
+		/* offsets of TM LUT values: 0x3600, 0x3700 */
+		cmdaddr += cmds->num_extra_regs;
+		for (base = 0x3600; base < 0x3800; base += 0x100) {
+			for (i = 0; i < NR_TM_LUT_VALUES; i++) {
+				cmdaddr->offset = base + i * sizeof(u32);
+				cmdaddr->value = tm_tuned_lut[i];
+				cmdaddr++;
+				task->cmd_count++;
+			}
+		}
+	}
 
 	return 0;
 }
