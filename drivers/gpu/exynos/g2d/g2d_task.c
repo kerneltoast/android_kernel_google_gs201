@@ -125,10 +125,10 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 
 	task->ktime_end = ktime_get();
 
+	del_timer(&task->timer);
+
 	g2d_stamp_task(task, G2D_STAMP_STATE_DONE,
 		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
-
-	del_timer(&task->timer);
 
 	g2d_secure_disable();
 

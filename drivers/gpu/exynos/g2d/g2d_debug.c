@@ -21,6 +21,7 @@
 #include "g2d_task.h"
 #include "g2d_uapi.h"
 #include "g2d_debug.h"
+#include "g2d_regs.h"
 
 static unsigned int g2d_debug;
 
@@ -142,6 +143,27 @@ static struct regs_info g2d_reg_info[] = {
 		{ 0x1100,	0x100,	"Layer15" },
 };
 
+#define G2D_COMP_DEBUG_DATA_COUNT 16
+
+void g2d_dump_afbcdata(struct g2d_task *task)
+{
+	struct g2d_device *g2d_dev = task->g2d_dev;
+	int i, cluster;
+	u32 cfg;
+
+	for (cluster = 0; cluster < 2; cluster++) {
+		for (i = 0; i < G2D_COMP_DEBUG_DATA_COUNT; i++) {
+			writel_relaxed(i | cluster << 5,
+				g2d_dev->reg + G2D_COMP_DEBUG_ADDR_REG);
+			cfg = readl_relaxed(
+				g2d_dev->reg + G2D_COMP_DEBUG_DATA_REG);
+
+			pr_err("AFBC_DEBUGGING_DATA cluster%d [%d] %#x",
+				cluster, i, cfg);
+		}
+	}
+}
+
 void g2d_dump_task(struct g2d_task *task)
 {
 	struct g2d_device *g2d_dev = task->g2d_dev;
@@ -176,6 +198,8 @@ void g2d_stamp_task(struct g2d_task *task, u32 val, s32 info)
 		stamp->job_id = task->job_id;
 		stamp->task = task;
 	} else {
+		stamp->job_id = 0;
+		stamp->state = 0;
 		stamp->task = NULL;
 	}
 
@@ -184,11 +208,21 @@ void g2d_stamp_task(struct g2d_task *task, u32 val, s32 info)
 	stamp->cpu = smp_processor_id();
 	stamp->info = info;
 
-	/* when error status, dump the task */
-	if ((stamp->val == G2D_STAMP_STATE_TIMEOUT_HW) ||
-		(stamp->val == G2D_STAMP_STATE_ERR_INT) ||
-		(stamp->val == G2D_STAMP_STATE_MMUFAULT))
+	/*
+	 * If it happens error interrupts, mmu errors, and H/W timeouts,
+	 * dump the SFR and job command list. However, debugging messages
+	 * do not print in this case, that if the task is queued or suspended,
+	 * or if the task has already been processed in the interrupt
+	 * although H/W timeout happens.
+	 */
+	if ((stamp->val == G2D_STAMP_STATE_ERR_INT) ||
+		(stamp->val == G2D_STAMP_STATE_MMUFAULT) ||
+		((stamp->val == G2D_STAMP_STATE_TIMEOUT_HW) &&
+		 ((stamp->info == G2D_JOB_STATE_RUNNING) ||
+		  is_task_state_active(task)))) {
 		g2d_dump_task(task);
+		g2d_dump_afbcdata(task);
+	}
 
 	if (stamp->val == G2D_STAMP_STATE_DONE) {
 		if (g2d_debug == 1) {
