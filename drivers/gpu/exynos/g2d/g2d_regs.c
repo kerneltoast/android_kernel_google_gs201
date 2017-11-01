@@ -60,7 +60,7 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 			__func__, sec_task.cmd_count, sec_task.priority,
 			sec_task.job_id, sec_task.secure_layer);
 
-		g2d_dump_task(task);
+		g2d_dump_info(g2d_dev, task);
 		BUG();
 	}
 }
@@ -118,6 +118,12 @@ u32 g2d_hw_errint_status(struct g2d_device *g2d_dev)
 	return status;
 }
 
+/*
+ * This is called when H/W is judged to be in operation,
+ * for example, when a sysmmu fault and an error interrupt occurs.
+ * If there is no task in progress, the status of all task on H/W
+ * is taken and print for debugging
+ */
 int g2d_hw_get_current_task(struct g2d_device *g2d_dev)
 {
 	int i, val;
@@ -126,6 +132,12 @@ int g2d_hw_get_current_task(struct g2d_device *g2d_dev)
 		val = readl_relaxed(g2d_dev->reg + G2D_JOB_IDn_STATE_REG(i));
 		if ((val & G2D_JOB_STATE_MASK) == G2D_JOB_STATE_RUNNING)
 			return i;
+	}
+
+	for (i = 0; i < G2D_MAX_JOBS; i++) {
+		val = readl_relaxed(g2d_dev->reg + G2D_JOB_IDn_STATE_REG(i));
+		dev_err(g2d_dev->dev,
+			"G2D TASK[%03d] STATE : %d\n", i, val);
 	}
 
 	return -1;

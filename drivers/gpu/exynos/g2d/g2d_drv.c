@@ -118,6 +118,8 @@ void g2d_hw_timeout_handler(unsigned long arg)
 		/* Time out is not caused by this task */
 		goto out;
 
+	g2d_dump_info(g2d_dev, task);
+
 	mark_task_state_killed(task);
 
 	g2d_hw_kill_task(g2d_dev, task->job_id);
@@ -186,6 +188,8 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 
 		g2d_stamp_task(task, G2D_STAMP_STATE_ERR_INT, errstatus);
 
+		g2d_dump_info(g2d_dev, task);
+
 		g2d_flush_all_tasks(g2d_dev);
 
 		g2d_hw_global_reset(g2d_dev);
@@ -213,6 +217,8 @@ static int g2d_iommu_fault_handler(struct iommu_domain *domain,
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 	task = g2d_get_active_task_from_id(g2d_dev, job_id);
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+
+	g2d_dump_info(g2d_dev, task);
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_MMUFAULT, 0);
 

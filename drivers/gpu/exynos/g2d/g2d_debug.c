@@ -145,9 +145,8 @@ static struct regs_info g2d_reg_info[] = {
 
 #define G2D_COMP_DEBUG_DATA_COUNT 16
 
-void g2d_dump_afbcdata(struct g2d_task *task)
+void g2d_dump_afbcdata(struct g2d_device *g2d_dev)
 {
-	struct g2d_device *g2d_dev = task->g2d_dev;
 	int i, cluster;
 	u32 cfg;
 
@@ -164,13 +163,12 @@ void g2d_dump_afbcdata(struct g2d_task *task)
 	}
 }
 
-void g2d_dump_task(struct g2d_task *task)
+void g2d_dump_sfr(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
-	struct g2d_device *g2d_dev = task->g2d_dev;
 	unsigned int i, num_array;
-	struct g2d_reg *regs;
 
-	num_array = ARRAY_SIZE(g2d_reg_info) - G2D_MAX_IMAGES + task->num_source;
+	num_array = ARRAY_SIZE(g2d_reg_info) - G2D_MAX_IMAGES +
+		((task) ? task->num_source : G2D_MAX_IMAGES);
 
 	for (i = 0; i < num_array; i++) {
 		pr_info("[%s: %04X .. %04X]\n",
@@ -180,12 +178,32 @@ void g2d_dump_task(struct g2d_task *task)
 			g2d_dev->reg + g2d_reg_info[i].start,
 			g2d_reg_info[i].size, false);
 	}
+}
+
+void g2d_dump_cmd(struct g2d_task *task)
+{
+	unsigned int i;
+	struct g2d_reg *regs;
+
+	if (!task)
+		return;
 
 	regs = page_address(task->cmd_page);
 
 	for (i = 0; i < task->cmd_count; i++)
 		pr_info("G2D: CMD[%03d] %#06x, %#010x\n",
 			i, regs[i].offset, regs[i].value);
+}
+
+/*
+ * If it happens error interrupts, mmu errors, and H/W timeouts,
+ * dump the SFR and job command list of task, AFBC debugging information
+ */
+void g2d_dump_info(struct g2d_device *g2d_dev, struct g2d_task *task)
+{
+	g2d_dump_cmd(task);
+	g2d_dump_sfr(g2d_dev, task);
+	g2d_dump_afbcdata(g2d_dev);
 }
 
 void g2d_stamp_task(struct g2d_task *task, u32 val, s32 info)
@@ -208,28 +226,12 @@ void g2d_stamp_task(struct g2d_task *task, u32 val, s32 info)
 	stamp->cpu = smp_processor_id();
 	stamp->info = info;
 
-	/*
-	 * If it happens error interrupts, mmu errors, and H/W timeouts,
-	 * dump the SFR and job command list. However, debugging messages
-	 * do not print in this case, that if the task is queued or suspended,
-	 * or if the task has already been processed in the interrupt
-	 * although H/W timeout happens.
-	 */
-	if ((stamp->val == G2D_STAMP_STATE_ERR_INT) ||
-		(stamp->val == G2D_STAMP_STATE_MMUFAULT) ||
-		((stamp->val == G2D_STAMP_STATE_TIMEOUT_HW) &&
-		 ((stamp->info == G2D_JOB_STATE_RUNNING) ||
-		  is_task_state_active(task)))) {
-		g2d_dump_task(task);
-		g2d_dump_afbcdata(task);
-	}
-
-	if (stamp->val == G2D_STAMP_STATE_DONE) {
+	if (task && (stamp->val == G2D_STAMP_STATE_DONE)) {
 		if (g2d_debug == 1) {
 			pr_info("Job #%x took %06d to H/W process\n",
-			task->job_id, info);
+				task->job_id, info);
 		} else if (g2d_debug == 2) {
-			g2d_dump_task(task);
+			g2d_dump_info(task->g2d_dev, task);
 		}
 	}
 }
