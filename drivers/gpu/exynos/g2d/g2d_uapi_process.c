@@ -226,12 +226,13 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 		goto err;
 	}
 
-	if (ion_cached_needsync_dmabuf(dmabuf))
+	if (dir != DMA_TO_DEVICE)
+		prot |= IOMMU_WRITE;
+
+	if (ion_cached_needsync_dmabuf(dmabuf)) {
 		task->total_cached_len += buffer->payload;
 
-	if (dir != DMA_TO_DEVICE) {
-		prot |= IOMMU_WRITE;
-		if (ion_may_hwrender_dmabuf(dmabuf))
+		if ((dir == DMA_TO_DEVICE) && ion_may_hwrender_dmabuf(dmabuf))
 			task->total_hwrender_len += buffer->payload;
 	}
 
@@ -770,6 +771,8 @@ int g2d_get_userdata(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 
 	task->flags = data->flags;
 	task->num_source = data->num_source;
+	task->total_cached_len = 0;
+	task->total_hwrender_len = 0;
 
 	ret = g2d_import_commands(g2d_dev, task, data, task->num_source);
 	if (ret < 0)
