@@ -38,9 +38,8 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	for (i = 0; i < task->num_source; i++) {
 		fence = task->source[i].fence;
 		if (fence) {
-			memcpy(name, fence->ops->get_driver_name(fence),
+			strlcpy(name, fence->ops->get_driver_name(fence),
 			       sizeof(name));
-			name[sizeof(name) - 1] = '\0';
 			dev_err(g2d_dev->dev, "%s:  SOURCE[%d]:  %s #%d (%s)\n",
 				__func__, i, name, fence->seqno,
 				dma_fence_is_signaled(fence) ?
@@ -50,8 +49,7 @@ void g2d_fence_timeout_handler(unsigned long arg)
 
 	fence = task->target.fence;
 	if (fence) {
-		memcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
-		name[sizeof(name) - 1] = '\0';
+		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
 		pr_err("%s:  TARGET:     %s #%d (%s)\n",
 			__func__, name, fence->seqno,
 			dma_fence_is_signaled(fence) ? "signaled" : "active");
