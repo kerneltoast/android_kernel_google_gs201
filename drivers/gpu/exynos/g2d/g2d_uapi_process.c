@@ -98,7 +98,7 @@ static void g2d_clean_caches_task(struct g2d_task *task)
 	for (i = 0; i < task->num_source; i++)
 		g2d_clean_caches_layer(dev, &task->source[i], DMA_TO_DEVICE);
 
-	g2d_clean_caches_layer(dev, &task->source[i], DMA_FROM_DEVICE);
+	g2d_clean_caches_layer(dev, &task->target, DMA_FROM_DEVICE);
 
 }
 
