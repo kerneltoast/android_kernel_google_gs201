@@ -292,8 +292,14 @@ static void samsung_pin_dbg_show(struct pinctrl_dev *pctldev,
 				struct seq_file *s, unsigned int pin)
 {
 	enum pincfg_type cfg_type;
+	struct samsung_pinctrl_drv_data *drvdata;
 	unsigned long config;
 	int ret;
+
+	drvdata = pinctrl_dev_get_drvdata(pctldev);
+
+	if (!drvdata->resume)
+		return;
 
 	for (cfg_type = 0; cfg_type < PINCFG_TYPE_NUM; cfg_type++) {
 		config = PINCFG_PACK(cfg_type, 0);
@@ -575,6 +581,10 @@ static void samsung_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	enum pincfg_type cfg_type;
 
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
+
+	if (!drvdata->resume)
+		return;
+
 	pin_to_reg_bank(drvdata, pin - drvdata->pin_base, &reg_base,
 					&pin_offset, &bank);
 
