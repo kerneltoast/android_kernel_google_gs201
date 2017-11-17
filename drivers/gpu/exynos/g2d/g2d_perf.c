@@ -139,8 +139,8 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 		}
 	}
 
-	/* ip_clock(Mhz) = cycles / time_in_ms * 1000 */
-	ip_clock = (cycle / 8) * 1000;
+	/* ip_clock(Mhz) = cycles / time_in_ms * 1000 * 10% */
+	ip_clock = (cycle / 7) * 1100;
 
 	for (i = 0; i < g2d_dev->dvfs_table_cnt; i++) {
 		if (ip_clock > g2d_dev->dvfs_table[i].freq) {
