@@ -756,7 +756,8 @@ static bool g2d_validate_extra_command(struct g2d_device *g2d_dev,
 				       struct g2d_reg extra[],
 				       unsigned int num_regs)
 {
-	unsigned int n, i;
+	unsigned int n;
+	size_t i;
 	/*
 	 * TODO: NxM loop ==> total 2008 comparison are required in maximum:
 	 * Consider if we can make it simple with a single range [0x2000, 4000)
@@ -845,7 +846,8 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 		cmdaddr += cmds->num_extra_regs;
 		for (base = 0x3600; base < 0x3800; base += 0x100) {
 			for (i = 0; i < NR_TM_LUT_VALUES; i++) {
-				cmdaddr->offset = base + i * sizeof(u32);
+				cmdaddr->offset =
+					(unsigned long)(base + i * sizeof(u32));
 				cmdaddr->value = tm_tuned_lut[i];
 				cmdaddr++;
 				task->cmd_count++;

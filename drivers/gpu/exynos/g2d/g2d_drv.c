@@ -544,7 +544,7 @@ static long g2d_compat_ioctl(struct file *filp,
 
 	switch (cmd) {
 	case COMPAT_G2D_IOC_PROCESS:
-		cmd = G2D_IOC_PROCESS;
+		cmd = (unsigned int)G2D_IOC_PROCESS;
 		break;
 	case G2D_IOC_PRIORITY:
 	case G2D_IOC_PERFORMANCE:

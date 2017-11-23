@@ -30,7 +30,7 @@ static unsigned int g2d_debug;
 static struct g2d_stamp {
 	ktime_t time;
 	struct g2d_task *task;
-	u32 state;
+	unsigned long state;
 	u32 job_id;
 	u32 val;
 	s32 info;
@@ -55,7 +55,7 @@ static int g2d_stamp_show(struct seq_file *s, void *unused)
 	while (1) {
 		stamp = &g2d_stamp_list[i];
 
-		seq_printf(s, "[%4d] %u:%2u@%u (0x%2x) %6d %06llu\n", i++,
+		seq_printf(s, "[%4d] %u:%2u@%u (0x%2lx) %6d %06llu\n", i++,
 			stamp->cpu, stamp->job_id, stamp->val, stamp->state,
 			stamp->info, ktime_to_us(stamp->time));
 
@@ -167,8 +167,8 @@ void g2d_dump_sfr(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	unsigned int i, num_array;
 
-	num_array = ARRAY_SIZE(g2d_reg_info) - G2D_MAX_IMAGES +
-		((task) ? task->num_source : G2D_MAX_IMAGES);
+	num_array = (unsigned int)ARRAY_SIZE(g2d_reg_info) - G2D_MAX_IMAGES
+		    + ((task) ? task->num_source : G2D_MAX_IMAGES);
 
 	for (i = 0; i < num_array; i++) {
 		pr_info("[%s: %04X .. %04X]\n",

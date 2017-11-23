@@ -150,8 +150,8 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 
 	if (data->num_buffers > 1) {
 		for (i = 0; i < data->num_buffers; i++) {
-			payload = g2d_get_payload_index(cmd, fmt, i,
-							data->num_buffers);
+			payload = (unsigned int)g2d_get_payload_index(
+						cmd, fmt, i, data->num_buffers);
 			if (data->buffer[i].length < payload) {
 				dev_err(dev,
 					"%s: Too small buffer[%d]: expected %uB"
@@ -167,7 +167,7 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 			layer->buffer[i].payload = payload;
 		}
 	} else {
-		payload = g2d_get_payload(cmd, fmt, layer->flags);
+		payload = (unsigned int)g2d_get_payload(cmd, fmt, layer->flags);
 		if (data->buffer[0].length < payload) {
 			dev_err(dev, "%s: Too small buffer: expected %uB"
 				" for %ux%u(bt %u)/%s but %uB is given\n",
@@ -709,7 +709,7 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 
 		data->num_buffers = 1;
 		data->buffer[0].dmabuf.offset = 0;
-		data->buffer[0].length = ctx->hwfc_info->bufs[idx]->size;
+		data->buffer[0].length = (__u32)ctx->hwfc_info->bufs[idx]->size;
 	}
 
 	if (target->buffer_type == G2D_BUFTYPE_EMPTY) {
