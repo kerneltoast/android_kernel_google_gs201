@@ -155,7 +155,7 @@ static int smfc_parse_dht(struct smfc_ctx *ctx, unsigned long *cursor)
 		table = dc ? ctx->huffman_tables->dc[tcth & 1].value
 			   : ctx->huffman_tables->ac[tcth & 1].value;
 		ret = copy_from_user(table, pcursor, num_values);
-		pcursor += num_values;
+		pcursor += (unsigned long)num_values;
 		if (ret) {
 			dev_err(ctx->smfc->dev,
 				"Failed to read huffval of %d,%d\n",
@@ -205,7 +205,7 @@ static int smfc_parse_dqt(struct smfc_ctx *ctx, unsigned long *cursor)
 
 		ret = copy_from_user(ctx->quantizer_tables->table[pqtq],
 							pcursor, SMFC_MCU_SIZE);
-		pcursor += SMFC_MCU_SIZE;
+		pcursor += (unsigned long)SMFC_MCU_SIZE;
 		if (ret) {
 			dev_err(ctx->smfc->dev,
 				"Failed to read %dth Q-Table\n", pqtq);
@@ -303,7 +303,7 @@ static int smfc_parse_scanheader(struct smfc_ctx *ctx,
 
 	pos = sos;
 
-	ctx->offset_of_sos = *cursor - streambase - SMFC_JPEG_MARKER_LEN;
+	ctx->offset_of_sos = (unsigned int)(*cursor - streambase - SMFC_JPEG_MARKER_LEN);
 
 	ret = copy_from_user(sos, (void __user *)*cursor, sizeof(sos));
 	if (ret) {
