@@ -90,6 +90,9 @@ struct g2d_device {
 	atomic_t		fence_timeline;
 	spinlock_t		fence_lock;
 
+	spinlock_t		lock_ctx_list;
+	struct list_head	ctx_list;
+
 	/* task management */
 	spinlock_t		lock_task;
 	struct g2d_task		*tasks;
@@ -105,6 +108,7 @@ struct g2d_device {
 	struct dentry *debug_root;
 	struct dentry *debug;
 	struct dentry *debug_logs;
+	struct dentry *debug_contexts;
 
 	atomic_t	prior_stats[G2D_PRIORITY_END];
 
@@ -119,10 +123,12 @@ struct g2d_device {
 #define G2D_AUTHORITY_HIGHUSER 1
 
 struct g2d_context {
+	struct list_head	node;
 	struct g2d_device	*g2d_dev;
 	struct shared_buffer_info *hwfc_info;
 	u32 priority;
 	int authority;
+	struct task_struct	*owner;
 
 	struct delayed_work dwork;
 

@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
+#include <linux/sched/task.h>
 
 #include "g2d.h"
 #include "g2d_task.h"
@@ -80,6 +81,56 @@ static const struct file_operations g2d_debug_logs_fops = {
 	.release = single_release,
 };
 
+static int g2d_debug_contexts_show(struct seq_file *s, void *unused)
+{
+	struct g2d_device *g2d_dev = s->private;
+	struct g2d_context *ctx;
+
+	seq_printf(s, "%16s %6s %4s %6s %10s %10s\n",
+		"task", "pid", "prio", "dev", "read_bw", "write_bw");
+	seq_puts(s, "------------------------------------------------------\n");
+
+	spin_lock(&g2d_dev->lock_ctx_list);
+
+	list_for_each_entry(ctx, &g2d_dev->ctx_list, node) {
+		task_lock(ctx->owner);
+		seq_printf(s, "%16s %6u %4d %6s %10llu %10llu\n",
+			ctx->owner->comm, ctx->owner->pid, ctx->priority,
+			g2d_dev->misc[(ctx->authority + 1) & 1].name,
+			ctx->r_bw, ctx->w_bw);
+
+		task_unlock(ctx->owner);
+	}
+
+	spin_unlock(&g2d_dev->lock_ctx_list);
+
+	seq_puts(s, "------------------------------------------------------\n");
+
+	seq_puts(s, "priorities:\n");
+	seq_printf(s, "\tlow(0)    : %d\n",
+		   atomic_read(&g2d_dev->prior_stats[G2D_LOW_PRIORITY]));
+	seq_printf(s, "\tmedium(1) : %d\n",
+		   atomic_read(&g2d_dev->prior_stats[G2D_MEDIUM_PRIORITY]));
+	seq_printf(s, "\thigh(2)   : %d\n",
+		   atomic_read(&g2d_dev->prior_stats[G2D_HIGH_PRIORITY]));
+	seq_printf(s, "\thighest(3): %d\n",
+		   atomic_read(&g2d_dev->prior_stats[G2D_HIGHEST_PRIORITY]));
+
+	return 0;
+}
+
+static int g2d_debug_contexts_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, g2d_debug_contexts_show, inode->i_private);
+}
+
+static const struct file_operations g2d_debug_contexts_fops = {
+	.open = g2d_debug_contexts_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 void g2d_init_debug(struct g2d_device *g2d_dev)
 {
 	atomic_set(&p_stamp, -1);
@@ -101,6 +152,15 @@ void g2d_init_debug(struct g2d_device *g2d_dev)
 					0444, g2d_dev->debug_root, g2d_dev, &g2d_debug_logs_fops);
 	if (!g2d_dev->debug_logs) {
 		dev_err(g2d_dev->dev, "debugfs : failed to create debug logs file\n");
+		return;
+	}
+
+	g2d_dev->debug_contexts = debugfs_create_file("contexts",
+					0400, g2d_dev->debug_root, g2d_dev,
+					&g2d_debug_contexts_fops);
+	if (!g2d_dev->debug_logs) {
+		dev_err(g2d_dev->dev,
+			"debugfs : failed to create debug contexts file\n");
 		return;
 	}
 }

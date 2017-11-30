@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
+#include <linux/sched/task.h>
 
 #include "g2d.h"
 #include "g2d_regs.h"
@@ -282,6 +283,13 @@ static int g2d_open(struct inode *inode, struct file *filp)
 	g2d_ctx->priority = G2D_DEFAULT_PRIORITY;
 	atomic_inc(&g2d_dev->prior_stats[g2d_ctx->priority]);
 
+	get_task_struct(current->group_leader);
+	g2d_ctx->owner = current->group_leader;
+
+	spin_lock(&g2d_dev->lock_ctx_list);
+	list_add(&g2d_ctx->node, &g2d_dev->ctx_list);
+	spin_unlock(&g2d_dev->lock_ctx_list);
+
 	INIT_LIST_HEAD(&g2d_ctx->qos_node);
 	INIT_DELAYED_WORK(&(g2d_ctx->dwork), g2d_timeout_perf_work);
 
@@ -304,6 +312,12 @@ static int g2d_release(struct inode *inode, struct file *filp)
 	}
 
 	g2d_put_performance(g2d_ctx, true);
+
+	spin_lock(&g2d_dev->lock_ctx_list);
+	list_del(&g2d_ctx->node);
+	spin_unlock(&g2d_dev->lock_ctx_list);
+
+	put_task_struct(g2d_ctx->owner);
 
 	kfree(g2d_ctx);
 
@@ -866,12 +880,14 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&g2d_dev->lock_task);
+	spin_lock_init(&g2d_dev->lock_ctx_list);
 
 	INIT_LIST_HEAD(&g2d_dev->tasks_free);
 	INIT_LIST_HEAD(&g2d_dev->tasks_free_hwfc);
 	INIT_LIST_HEAD(&g2d_dev->tasks_prepared);
 	INIT_LIST_HEAD(&g2d_dev->tasks_active);
 	INIT_LIST_HEAD(&g2d_dev->qos_contexts);
+	INIT_LIST_HEAD(&g2d_dev->ctx_list);
 
 	mutex_init(&g2d_dev->lock_qos);
 
