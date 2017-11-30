@@ -335,8 +335,16 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				break;
 			}
 		}
-		if (ret)
+
+		if (ret) {
+			if (ctx->authority == G2D_AUTHORITY_HIGHUSER)
+				dev_err(g2d_dev->dev,
+					"%s: prio %d/%d found higher than %d\n",
+					__func__, i,
+					atomic_read(&g2d_dev->prior_stats[i]),
+					ctx->priority);
 			break;
+		}
 
 		if (copy_from_user(&data, uptr, sizeof(data))) {
 			dev_err(g2d_dev->dev,
