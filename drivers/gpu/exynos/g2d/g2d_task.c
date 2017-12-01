@@ -324,6 +324,8 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
 	if (list_empty(taskfree)) {
+		dev_err(g2d_dev->dev, "%s: no free task slot found(hwfc? %d)\n",
+			__func__, hwfc);
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 		return NULL;
 	}
