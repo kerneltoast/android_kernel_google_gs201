@@ -91,6 +91,7 @@
 /* Fields of G2D_HWFC_CAPTURE_IDX_REG */
 #define G2D_HWFC_CAPTURE_HWFC_JOB	(1 << 8)
 
+bool g2d_hw_stuck_state(struct g2d_device *g2d_dev);
 void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 int g2d_hw_get_current_task(struct g2d_device *g2d_dev);
 void g2d_hw_kill_task(struct g2d_device *g2d_dev, unsigned int job_id);

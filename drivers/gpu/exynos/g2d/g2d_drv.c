@@ -113,7 +113,8 @@ void g2d_hw_timeout_handler(unsigned long arg)
 	mod_timer(&task->timer,
 	  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
 
-	if (job_state != G2D_JOB_STATE_RUNNING)
+	if (!g2d_hw_stuck_state(g2d_dev) &&
+		(job_state != G2D_JOB_STATE_RUNNING))
 		/* G2D_JOB_STATE_QUEUEING or G2D_JOB_STATE_SUSPENDING */
 		/* Time out is not caused by this task */
 		goto out;

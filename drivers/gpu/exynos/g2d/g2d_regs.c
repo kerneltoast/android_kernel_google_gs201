@@ -85,6 +85,32 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 }
 #endif
 
+bool g2d_hw_stuck_state(struct g2d_device *g2d_dev)
+{
+	int i, val;
+	int retry_count = 10;
+
+	while (retry_count-- > 0) {
+		for (i = 0; i < G2D_MAX_JOBS; i++) {
+			val = readl_relaxed(
+				g2d_dev->reg + G2D_JOB_IDn_STATE_REG(i));
+
+			val &= G2D_JOB_STATE_MASK;
+
+			if ((i < MAX_SHARED_BUF_NUM) &&
+				(val == G2D_JOB_STATE_RUNNING))
+				return false;
+
+			/* if every task are queued except hwfc job*/
+			if ((i >= MAX_SHARED_BUF_NUM) &&
+				(val != G2D_JOB_STATE_QUEUEING))
+				return false;
+		}
+	}
+
+	return true;
+}
+
 static const char *error_desc[3] = {
 	"AFBC Stuck",
 	"No read response",
