@@ -238,7 +238,7 @@ static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
 }
 
 void g2d_set_performance(struct g2d_context *ctx,
-				struct g2d_performance_data *data)
+				struct g2d_performance_data *data, bool release)
 {
 	struct g2d_device *g2d_dev = ctx->g2d_dev;
 	int i;
@@ -254,7 +254,7 @@ void g2d_set_performance(struct g2d_context *ctx,
 	mutex_lock(&g2d_dev->lock_qos);
 
 	if (!data->num_frame) {
-		if (g2d_still_need_perf(g2d_dev)) {
+		if (g2d_still_need_perf(g2d_dev) && !release) {
 			mutex_unlock(&g2d_dev->lock_qos);
 			return;
 		}
@@ -270,11 +270,11 @@ void g2d_set_performance(struct g2d_context *ctx,
 	mutex_unlock(&g2d_dev->lock_qos);
 }
 
-void g2d_put_performance(struct g2d_context *ctx)
+void g2d_put_performance(struct g2d_context *ctx, bool release)
 {
 	struct g2d_performance_data data;
 
 	data.num_frame = 0;
 
-	g2d_set_performance(ctx, &data);
+	g2d_set_performance(ctx, &data, release);
 }

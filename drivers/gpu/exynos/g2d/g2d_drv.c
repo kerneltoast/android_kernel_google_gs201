@@ -254,7 +254,7 @@ static void g2d_timeout_perf_work(struct work_struct *work)
 	struct g2d_context *ctx = container_of(work, struct g2d_context,
 					      dwork.work);
 
-	g2d_put_performance(ctx);
+	g2d_put_performance(ctx, false);
 }
 
 static int g2d_open(struct inode *inode, struct file *filp)
@@ -302,7 +302,7 @@ static int g2d_release(struct inode *inode, struct file *filp)
 		kfree(g2d_ctx->hwfc_info);
 	}
 
-	g2d_put_performance(g2d_ctx);
+	g2d_put_performance(g2d_ctx, true);
 
 	kfree(g2d_ctx);
 
@@ -439,7 +439,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
-		g2d_set_performance(ctx, &data);
+		g2d_set_performance(ctx, &data, false);
 
 		break;
 	}

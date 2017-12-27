@@ -29,7 +29,7 @@ struct g2d_performance_data;
 #define BTS_PEAK_FPS_RATIO 1667
 
 void g2d_set_performance(struct g2d_context *ctx,
-				struct g2d_performance_data *data);
-void g2d_put_performance(struct g2d_context *ctx);
+			struct g2d_performance_data *data, bool release);
+void g2d_put_performance(struct g2d_context *ctx, bool release);
 
 #endif /* _G2D_PERF_H_ */
