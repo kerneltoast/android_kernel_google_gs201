@@ -140,17 +140,13 @@ void g2d_set_start_commands(struct g2d_task *task)
 	 * Number of commands should be multiple of 8.
 	 * If it is not, then pad dummy commands with no side effect.
 	 */
-	n = (8 - ((task->cmd_count + 1) & 7)) & 7;
+	n = (8 - (task->cmd_count & 7)) & 7;
 
 	while (n-- > 0) {
 		regs[task->cmd_count].offset = G2D_LAYER_UPDATE_REG;
 		regs[task->cmd_count].value = regs[TASK_REG_LAYER_UPDATE].value;
 		task->cmd_count++;
 	}
-
-	regs[task->cmd_count].offset = G2D_BITBLT_START_REG;
-	regs[task->cmd_count].value = 1;
-	task->cmd_count++;
 }
 #endif
 
