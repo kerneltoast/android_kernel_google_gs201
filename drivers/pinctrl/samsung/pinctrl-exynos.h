@@ -45,6 +45,13 @@
 #define EXYNOS_EINT_CON_MASK		0xF
 #define EXYNOS_EINT_CON_LEN		4
 
+/* EINT filter configuration */
+#define EXYNOS_EINT_FLTCON_EN		(1 << 7)
+#define EXYNOS_EINT_FLTCON_SEL		(1 << 6)
+#define EXYNOS_EINT_FLTCON_WIDTH(x)	((x) & 0x3f)
+#define EXYNOS_EINT_FLTCON_MASK		0xFF
+#define EXYNOS_EINT_FLTCON_LEN		8
+
 #define EXYNOS_EINT_MAX_PER_BANK	8
 #define EXYNOS_EINT_NR_WKUP_EINT
 

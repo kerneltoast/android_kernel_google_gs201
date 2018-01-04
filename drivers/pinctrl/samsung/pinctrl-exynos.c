@@ -268,6 +268,53 @@ struct exynos_eint_gpio_save {
 	u32 eint_fltcon1;
 };
 
+static void exynos_eint_flt_config(int en, int sel, int width,
+				   struct samsung_pinctrl_drv_data *d,
+				   struct samsung_pin_bank *bank)
+{
+	unsigned int flt_reg, flt_con;
+	unsigned int val, shift;
+	int i;
+	int loop_cnt;
+
+	flt_con = 0;
+
+	if (en)
+		flt_con |= EXYNOS_EINT_FLTCON_EN;
+
+	if (sel)
+		flt_con |= EXYNOS_EINT_FLTCON_SEL;
+
+	flt_con |= EXYNOS_EINT_FLTCON_WIDTH(width);
+
+	flt_reg = EXYNOS_GPIO_EFLTCON_OFFSET + bank->fltcon_offset;
+
+	if (bank->nr_pins > 4)
+		/* if nr_pins > 4, we should set FLTCON0 register fully.
+		 * (pin0 ~ 3)
+		 * So, we should loop 4 times in case of FLTCON0.
+		 */
+		loop_cnt = 4;
+	else
+		loop_cnt = bank->nr_pins;
+
+	val = readl(d->virt_base + flt_reg);
+
+	for (i = 0; i < loop_cnt; i++) {
+		shift = i * EXYNOS_EINT_FLTCON_LEN;
+		val &= ~(EXYNOS_EINT_FLTCON_MASK << shift);
+		val |= (flt_con << shift);
+	}
+
+	writel(val, d->virt_base + flt_reg);
+
+	/* if nr_pins > 4, we should also set FLTCON1 register like FLTCON0.
+	 * (pin4 ~ )
+	 */
+	if (bank->nr_pins > 4)
+		writel(val, d->virt_base + flt_reg + 0x4);
+};
+
 /*
  * exynos_eint_gpio_init() - setup handling of external gpio interrupts.
  * @d: driver data of samsung pinctrl driver.
@@ -312,6 +359,11 @@ int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 		}
 
 		bank->irq_chip = &exynos_gpio_irq_chip;
+
+		/* There is no filter selection register except for alive block.
+		 * Except for alive block, digital filter is default setting.
+		 */
+		exynos_eint_flt_config(EXYNOS_EINT_FLTCON_EN, 0, 0, d, bank);
 	}
 
 	return 0;
@@ -503,6 +555,11 @@ int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 		if (bank->eint_type != EINT_TYPE_WKUP)
 			continue;
 
+		/* Only alive block has filter selection register. */
+		/* Setting Digital Filter */
+		exynos_eint_flt_config(EXYNOS_EINT_FLTCON_EN,
+				       EXYNOS_EINT_FLTCON_SEL, 0, d, bank);
+
 		bank->irq_domain = irq_domain_add_linear(bank->of_node,
 				bank->nr_pins, &exynos_eint_irqd_ops, bank);
 		if (!bank->irq_domain) {
@@ -603,28 +660,38 @@ static void exynos_pinctrl_suspend_bank(
 	struct exynos_eint_gpio_save *save = bank->soc_priv;
 	void __iomem *regs = bank->eint_base;
 
-	save->eint_con = readl(regs + EXYNOS_GPIO_ECON_OFFSET
-						+ bank->eint_offset);
-	save->eint_fltcon0 = readl(regs + EXYNOS_GPIO_EFLTCON_OFFSET
-						+ 2 * bank->eint_offset);
-	save->eint_fltcon1 = readl(regs + EXYNOS_GPIO_EFLTCON_OFFSET
-						+ 2 * bank->eint_offset + 4);
+	save->eint_con = readl(regs + EXYNOS_GPIO_ECON_OFFSET +
+			       bank->eint_offset);
+
+	save->eint_fltcon0 = readl(regs + EXYNOS_GPIO_EFLTCON_OFFSET +
+				   bank->fltcon_offset);
+	if (bank->nr_pins > 4)
+		save->eint_fltcon1 = readl(regs + EXYNOS_GPIO_EFLTCON_OFFSET +
+					   bank->fltcon_offset + 4);
 
 	pr_debug("%s: save     con %#010x\n", bank->name, save->eint_con);
 	pr_debug("%s: save fltcon0 %#010x\n", bank->name, save->eint_fltcon0);
-	pr_debug("%s: save fltcon1 %#010x\n", bank->name, save->eint_fltcon1);
+	if (bank->nr_pins > 4)
+		pr_debug("%s: save fltcon1 %#010x\n", bank->name,
+			 save->eint_fltcon1);
 }
 
 void exynos_pinctrl_suspend(struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct samsung_pin_bank *bank = drvdata->pin_banks;
 	struct exynos_irq_chip *irq_chip = NULL;
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	int i;
 
 	for (i = 0; i < drvdata->nr_banks; ++i, ++bank) {
 		if (bank->eint_type == EINT_TYPE_GPIO)
 			exynos_pinctrl_suspend_bank(drvdata, bank);
-		else if (bank->eint_type == EINT_TYPE_WKUP) {
+		else if (bank->eint_type == EINT_TYPE_WKUP ||
+			bank->eint_type == EINT_TYPE_WKUP_MUX) {
+			/* Setting Analog Filter */
+			exynos_eint_flt_config(EXYNOS_EINT_FLTCON_EN,
+					       0, 0, d, bank);
+
 			if (!irq_chip) {
 				irq_chip = bank->irq_chip;
 				exynos_pinctrl_set_eint_wakeup_mask(drvdata,
@@ -646,31 +713,45 @@ static void exynos_pinctrl_resume_bank(
 	void __iomem *regs = bank->eint_base;
 
 	pr_debug("%s:     con %#010x => %#010x\n", bank->name,
-			readl(regs + EXYNOS_GPIO_ECON_OFFSET
-			+ bank->eint_offset), save->eint_con);
+			readl(regs + EXYNOS_GPIO_ECON_OFFSET +
+			      bank->eint_offset), save->eint_con);
 	pr_debug("%s: fltcon0 %#010x => %#010x\n", bank->name,
-			readl(regs + EXYNOS_GPIO_EFLTCON_OFFSET
-			+ 2 * bank->eint_offset), save->eint_fltcon0);
-	pr_debug("%s: fltcon1 %#010x => %#010x\n", bank->name,
-			readl(regs + EXYNOS_GPIO_EFLTCON_OFFSET
-			+ 2 * bank->eint_offset + 4), save->eint_fltcon1);
+			readl(regs + EXYNOS_GPIO_EFLTCON_OFFSET +
+			      bank->fltcon_offset), save->eint_fltcon0);
+	if (bank->nr_pins > 4) {
+		pr_debug("%s: fltcon1 %#010x => %#010x\n", bank->name,
+			readl(regs + EXYNOS_GPIO_EFLTCON_OFFSET +
+			      bank->fltcon_offset + 4), save->eint_fltcon1);
+	}
 
-	writel(save->eint_con, regs + EXYNOS_GPIO_ECON_OFFSET
-						+ bank->eint_offset);
-	writel(save->eint_fltcon0, regs + EXYNOS_GPIO_EFLTCON_OFFSET
-						+ 2 * bank->eint_offset);
-	writel(save->eint_fltcon1, regs + EXYNOS_GPIO_EFLTCON_OFFSET
-						+ 2 * bank->eint_offset + 4);
+	writel(save->eint_con, regs + EXYNOS_GPIO_ECON_OFFSET +
+	       bank->eint_offset);
+	writel(save->eint_fltcon0, regs + EXYNOS_GPIO_EFLTCON_OFFSET +
+		bank->fltcon_offset);
+	if (bank->nr_pins > 4) {
+		writel(save->eint_fltcon1, regs + EXYNOS_GPIO_EFLTCON_OFFSET +
+		       bank->fltcon_offset + 4);
+	}
 }
 
 void exynos_pinctrl_resume(struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct samsung_pin_bank *bank = drvdata->pin_banks;
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	int i;
 
-	for (i = 0; i < drvdata->nr_banks; ++i, ++bank)
-		if (bank->eint_type == EINT_TYPE_GPIO)
+	for (i = 0; i < drvdata->nr_banks; ++i, ++bank) {
+		if (bank->eint_type == EINT_TYPE_GPIO) {
 			exynos_pinctrl_resume_bank(drvdata, bank);
+		} else if (bank->eint_type == EINT_TYPE_WKUP ||
+			bank->eint_type == EINT_TYPE_WKUP_MUX) {
+			/* Only alive block has filter selection register. */
+			/* Setting Digital Filter */
+			exynos_eint_flt_config(EXYNOS_EINT_FLTCON_EN,
+					       EXYNOS_EINT_FLTCON_SEL, 0, d,
+					       bank);
+		}
+	}
 }
 
 static void exynos_retention_enable(struct samsung_pinctrl_drv_data *drvdata)
