@@ -89,6 +89,7 @@ struct g2d_task {
 
 	unsigned int		flags;
 	unsigned int		job_id;
+	unsigned int		bufidx;
 	unsigned long		state;
 	struct sync_file	*release_fence;
 	struct kref		starter;

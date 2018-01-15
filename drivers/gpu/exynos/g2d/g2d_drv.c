@@ -406,6 +406,9 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		ret = g2d_get_userdata(g2d_dev, ctx, task, &data);
 		if (ret < 0) {
+			/* release hwfc buffer */
+			if (IS_HWFC(task->flags) && (task->bufidx >= 0))
+				hwfc_set_valid_buffer(task->bufidx, -1);
 			g2d_put_free_task(g2d_dev, task);
 			break;
 		}

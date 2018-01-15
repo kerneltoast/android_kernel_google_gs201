@@ -352,6 +352,8 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
+	task->bufidx = -1;
+
 	clear_task_state(task);
 
 	if (IS_HWFC(task->flags)) {
@@ -418,6 +420,7 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 	}
 
 	task->job_id = id;
+	task->bufidx = -1;
 	task->g2d_dev = g2d_dev;
 
 	ret = g2d_map_cmd_data(task);
