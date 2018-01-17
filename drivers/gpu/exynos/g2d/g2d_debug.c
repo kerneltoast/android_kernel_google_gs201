@@ -223,7 +223,7 @@ void g2d_stamp_task(struct g2d_task *task, u32 val, s32 info)
 
 	stamp->time = ktime_get();
 	stamp->val = val;
-	stamp->cpu = smp_processor_id();
+	stamp->cpu = raw_smp_processor_id();
 	stamp->info = info;
 
 	if (task && (stamp->val == G2D_STAMP_STATE_DONE)) {
