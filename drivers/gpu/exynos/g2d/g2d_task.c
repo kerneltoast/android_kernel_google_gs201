@@ -183,6 +183,8 @@ static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	list_move_tail(&task->node, &g2d_dev->tasks_active);
 	change_task_state_active(task);
 
+	del_timer(&task->timer);
+
 	setup_timer(&task->timer,
 		    g2d_hw_timeout_handler, (unsigned long)task);
 
