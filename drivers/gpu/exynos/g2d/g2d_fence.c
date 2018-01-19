@@ -75,13 +75,14 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	 */
 	if (atomic_read(&task->starter.refcount.refs) == 0) {
 		spin_unlock_irqrestore(&task->fence_timeout_lock, flags);
-		pr_err("All fences have been signaled. (work_busy? %d)\n",
-			work_busy(&task->work));
-		/* If this happens again, the problem is obviously caused by the
-		 * workqueue that does not schedule the work of this context.
+		pr_err("All fences are signaled. (work_busy? %d, state %#lx)\n",
+			work_busy(&task->work), task->state);
+		/*
+		 * If this happens, there is racing between
+		 * g2d_fence_timeout_handler() and g2d_queuework_task(). Once
+		 * g2d_queuework_task() is invoked, it is guaranteed that the
+		 * task is to be scheduled to H/W.
 		 */
-		mod_timer(&task->timer,
-			  jiffies + msecs_to_jiffies(G2D_FENCE_TIMEOUT_MSEC));
 		return;
 	}
 
@@ -105,6 +106,12 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	if (fence)
 		dma_fence_remove_callback(fence, &task->target.fence_cb);
 
+	/*
+	 * Now it is OK to init kref for g2d_start_task() below.
+	 * All fences waiters are removed
+	 */
+	kref_init(&task->starter);
+
 	/* check compressed buffer because crashed buffer makes recovery */
 	for (i = 0; i < task->num_source; i++) {
 		if (IS_AFBC(
@@ -117,7 +124,7 @@ void g2d_fence_timeout_handler(unsigned long arg)
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE, afbc);
 
-	g2d_queuework_task(&task->starter);
+	kref_put(&task->starter, g2d_queuework_task);
 };
 
 static const char *g2d_fence_get_driver_name(struct dma_fence *fence)
