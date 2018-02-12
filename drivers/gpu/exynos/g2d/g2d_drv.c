@@ -782,6 +782,8 @@ static int g2d_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
+
 	g2d_dev->clock = devm_clk_get(&pdev->dev, "gate");
 	if (IS_ERR(g2d_dev->clock)) {
 		dev_err(&pdev->dev, "Failed to get clock (%ld)\n",

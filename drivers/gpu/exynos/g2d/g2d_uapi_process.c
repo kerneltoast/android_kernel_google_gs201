@@ -18,10 +18,9 @@
 #include <linux/dma-buf.h>
 #include <linux/sync_file.h>
 #include <linux/iommu.h>
-#include <linux/ion.h>
+#include <linux/ion_exynos.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
-#include <linux/exynos_ion.h>
 #include <linux/exynos_iovmm.h>
 
 #include <asm/cacheflush.h>
@@ -76,8 +75,8 @@ static void g2d_clean_caches_layer(struct device *dev, struct g2d_layer *layer,
 
 		dmabuf = layer->buffer[i].dmabuf.dmabuf;
 		if ((layer->buffer_type == G2D_BUFTYPE_DMABUF) &&
-				ion_cached_needsync_dmabuf(dmabuf) &&
-					ion_may_hwrender_dmabuf(dmabuf)) {
+				ion_cached_dmabuf(dmabuf) &&
+					ion_hwrender_dmabuf(dmabuf)) {
 				dma_sync_sg_for_cpu(dev,
 					layer->buffer[i].dmabuf.sgt->sgl,
 					layer->buffer[i].dmabuf.sgt->orig_nents,
@@ -232,10 +231,10 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 	if (dir != DMA_TO_DEVICE)
 		prot |= IOMMU_WRITE;
 
-	if (ion_cached_needsync_dmabuf(dmabuf)) {
+	if (ion_cached_dmabuf(dmabuf)) {
 		task->total_cached_len += buffer->payload;
 
-		if ((dir == DMA_TO_DEVICE) && ion_may_hwrender_dmabuf(dmabuf))
+		if ((dir == DMA_TO_DEVICE) && ion_hwrender_dmabuf(dmabuf))
 			task->total_hwrender_len += buffer->payload;
 	}
 
