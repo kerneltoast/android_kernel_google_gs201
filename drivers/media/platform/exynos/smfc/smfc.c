@@ -878,6 +878,8 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 
 	smfc->dev = &pdev->dev;
 
+	dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	smfc->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(smfc->reg))
