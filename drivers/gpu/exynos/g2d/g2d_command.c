@@ -130,10 +130,11 @@ static void g2d_set_hwfc_commands(struct g2d_task *task)
 
 static void g2d_set_start_commands(struct g2d_task *task)
 {
+	bool self_prot = task->g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION;
 	struct g2d_reg *regs = page_address(task->cmd_page);
 	unsigned int n;
 
-	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+	if (!self_prot && IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
 		return;
 
 	/*

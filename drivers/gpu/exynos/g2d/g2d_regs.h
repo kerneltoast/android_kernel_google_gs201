@@ -47,6 +47,9 @@
 #define G2D_BITBLT_COMMAND_REG			0x104
 #define G2D_LAYER_UPDATE_REG			0x108
 
+/* G2D Secure mode registers */
+#define G2D_JOBn_LAYER_SECURE_REG(n)		(0x9004 + (n) * 8)
+
 /* HWFC related Registers */
 #define G2D_HWFC_CAPTURE_IDX_REG		0x8000
 #define G2D_HWFC_ENCODING_IDX_REG		0x8004

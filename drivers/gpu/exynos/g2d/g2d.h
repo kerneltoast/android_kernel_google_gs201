@@ -72,8 +72,14 @@ struct g2d_dvfs_table {
 	u32 freq;
 };
 
+/*
+ * Proved that G2D does not leak protected conents that it is processing.
+ */
+#define G2D_DEVICE_CAPS_SELF_PROTECTION		1
+
 struct g2d_device {
 	unsigned long		state;
+	unsigned long		caps;
 
 	struct miscdevice	misc[2];
 	struct device		*dev;

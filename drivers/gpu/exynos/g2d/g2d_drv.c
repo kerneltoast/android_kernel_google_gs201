@@ -750,8 +750,27 @@ static int g2d_parse_dt(struct g2d_device *g2d_dev)
 	return 0;
 }
 
+struct g2d_device_data {
+	unsigned long caps;
+};
+
+const struct g2d_device_data g2d_9820_data __initconst = {
+	.caps = G2D_DEVICE_CAPS_SELF_PROTECTION,
+};
+
+static const struct of_device_id of_g2d_match[] __refconst = {
+	{
+		.compatible = "samsung,exynos9810-g2d",
+	}, {
+		.compatible = "samsung,exynos9820-g2d",
+		.data = &g2d_9820_data,
+	},
+	{},
+};
+
 static int g2d_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
 	struct g2d_device *g2d_dev;
 	struct resource *res;
 	__u32 version;
@@ -796,6 +815,13 @@ static int g2d_probe(struct platform_device *pdev)
 	ret = g2d_parse_dt(g2d_dev);
 	if (ret < 0)
 		return ret;
+
+	of_id = of_match_node(of_g2d_match, pdev->dev.of_node);
+	if (of_id->data) {
+		const struct g2d_device_data *devdata = of_id->data;
+
+		g2d_dev->caps = devdata->caps;
+	}
 
 	ret = iovmm_activate(&pdev->dev);
 	if (ret < 0) {
@@ -931,13 +957,6 @@ static int g2d_runtime_suspend(struct device *dev)
 
 static const struct dev_pm_ops g2d_pm_ops = {
 	SET_RUNTIME_PM_OPS(NULL, g2d_runtime_resume, g2d_runtime_suspend)
-};
-
-static const struct of_device_id of_g2d_match[] = {
-	{
-		.compatible = "samsung,exynos9810-g2d",
-	},
-	{},
 };
 
 static struct platform_driver g2d_driver = {

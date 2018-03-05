@@ -67,17 +67,34 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 
 void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
-	u32 state;
+	bool self_prot = g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION;
+	u32 state = g2d_hw_get_job_state(g2d_dev, task->job_id);
 
-	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)) {
-		g2d_hw_push_task_by_smc(g2d_dev, task);
-		return;
-	}
-
-	state = g2d_hw_get_job_state(g2d_dev, task->job_id);
 	if (state != G2D_JOB_STATE_DONE)
 		dev_err(g2d_dev->dev, "%s: Unexpected state %#x of JOB %d\n",
 			__func__, state, task->job_id);
+
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)) {
+		unsigned int i;
+
+		if (!self_prot) {
+			g2d_hw_push_task_by_smc(g2d_dev, task);
+			return;
+		}
+
+		state = 0;
+
+		for (i = 0; i < task->num_source; i++)
+			if (task->source[i].flags & G2D_LAYERFLAG_SECURE)
+				state |= 1 << i;
+
+		if ((task->target.flags & G2D_LAYERFLAG_SECURE) || state)
+			state |= 1 << 24;
+
+		writel_relaxed(state,
+			       g2d_dev->reg +
+			       G2D_JOBn_LAYER_SECURE_REG(task->job_id));
+	}
 
 	writel_relaxed(G2D_JOB_HEADER_DATA(task->priority, task->job_id),
 			g2d_dev->reg + G2D_JOB_HEADER_REG);
