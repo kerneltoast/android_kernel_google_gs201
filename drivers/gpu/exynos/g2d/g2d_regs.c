@@ -16,15 +16,14 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
+#include <asm/cacheflush.h>
+
 #include "g2d.h"
 #include "g2d_regs.h"
 #include "g2d_task.h"
 #include "g2d_uapi.h"
 #include "g2d_debug.h"
-
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-#include <linux/smc.h>
-#include <asm/cacheflush.h>
+#include "g2d_secure.h"
 
 struct g2d_task_secbuf {
 	unsigned long cmd_paddr;
@@ -34,7 +33,8 @@ struct g2d_task_secbuf {
 	int secure_layer;
 };
 
-void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
+static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
+				    struct g2d_task *task)
 {
 	struct g2d_task_secbuf sec_task;
 	int i;
@@ -64,11 +64,17 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 		BUG();
 	}
 }
-#else
+
 void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
-	u32 state = g2d_hw_get_job_state(g2d_dev, task->job_id);
+	u32 state;
 
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)) {
+		g2d_hw_push_task_by_smc(g2d_dev, task);
+		return;
+	}
+
+	state = g2d_hw_get_job_state(g2d_dev, task->job_id);
 	if (state != G2D_JOB_STATE_DONE)
 		dev_err(g2d_dev->dev, "%s: Unexpected state %#x of JOB %d\n",
 			__func__, state, task->job_id);
@@ -83,7 +89,6 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	writel_relaxed(1 << task->job_id, g2d_dev->reg + G2D_JOB_INT_ID_REG);
 	writel(G2D_JOBPUSH_INT_ENABLE, g2d_dev->reg + G2D_JOB_PUSH_REG);
 }
-#endif
 
 bool g2d_hw_stuck_state(struct g2d_device *g2d_dev)
 {

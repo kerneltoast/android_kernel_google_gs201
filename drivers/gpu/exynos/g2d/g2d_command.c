@@ -128,13 +128,13 @@ static void g2d_set_hwfc_commands(struct g2d_task *task)
 	task->cmd_count++;
 }
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-#define g2d_set_start_commands(task) do { } while (0)
-#else
-void g2d_set_start_commands(struct g2d_task *task)
+static void g2d_set_start_commands(struct g2d_task *task)
 {
 	struct g2d_reg *regs = page_address(task->cmd_page);
 	unsigned int n;
+
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+		return;
 
 	/*
 	 * Number of commands should be multiple of 8.
@@ -148,7 +148,6 @@ void g2d_set_start_commands(struct g2d_task *task)
 		task->cmd_count++;
 	}
 }
-#endif
 
 void g2d_complete_commands(struct g2d_task *task)
 {

@@ -24,30 +24,26 @@
 #include "g2d_command.h"
 #include "g2d_fence.h"
 #include "g2d_debug.h"
-
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
-#include <linux/smc.h>
-
-#define G2D_ALWAYS_S 37
-static int g2d_map_cmd_data(struct g2d_task *task)
-{
-	return 0;
-}
+#include "g2d_secure.h"
 
 static void g2d_secure_enable(void)
 {
-	exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 1);
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+		exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 1);
 }
 
 static void g2d_secure_disable(void)
 {
-	exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+		exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
 }
 
-#else
 static int g2d_map_cmd_data(struct g2d_task *task)
 {
 	struct scatterlist sgl;
+
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+		return 0;
 
 	/* mapping the command data */
 	sg_init_table(&sgl, 1);
@@ -64,10 +60,6 @@ static int g2d_map_cmd_data(struct g2d_task *task)
 
 	return 0;
 }
-
-#define g2d_secure_enable() do { } while (0)
-#define g2d_secure_disable() do { } while (0)
-#endif
 
 struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 					     unsigned int id)
