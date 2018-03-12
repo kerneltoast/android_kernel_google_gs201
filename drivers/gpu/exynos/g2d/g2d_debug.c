@@ -26,45 +26,98 @@
 
 static unsigned int g2d_debug;
 
-#define G2D_MAX_STAMP_SIZE 1024
+#define G2D_MAX_STAMP_ID 1024
+#define G2D_STAMP_CLAMP_ID(id) ((id) & (G2D_MAX_STAMP_ID - 1))
 
 static struct g2d_stamp {
 	ktime_t time;
-	struct g2d_task *task;
 	unsigned long state;
 	u32 job_id;
-	u32 val;
-	s32 info;
+	u32 stamp;
+	s32 val;
 	u8 cpu;
-} g2d_stamp_list[G2D_MAX_STAMP_SIZE];
+} g2d_stamp_list[G2D_MAX_STAMP_ID];
 
-static atomic_t p_stamp;
+static atomic_t g2d_stamp_id;
+
+enum {
+	G2D_STAMPTYPE_NONE,
+	G2D_STAMPTYPE_NUM,
+	G2D_STAMPTYPE_HEX,
+	G2D_STAMPTYPE_USEC,
+	G2D_STAMPTYPE_INOUT,
+	G2D_STAMPTYPE_ALLOCFREE,
+};
+static struct g2d_stamp_type {
+	const char *name;
+	int type;
+	bool task_specific;
+} g2d_stamp_types[G2D_STAMP_STATE_NUM] = {
+	{"runtime_pm",    G2D_STAMPTYPE_INOUT,     false},
+	{"task_alloc",    G2D_STAMPTYPE_ALLOCFREE, true},
+	{"task_begin",    G2D_STAMPTYPE_NUM,       true},
+	{"task_push",     G2D_STAMPTYPE_USEC,      true},
+	{"irq",           G2D_STAMPTYPE_HEX,       false},
+	{"task_done",     G2D_STAMPTYPE_USEC,      true},
+	{"fence_timeout", G2D_STAMPTYPE_HEX,       true},
+	{"hw_timeout",    G2D_STAMPTYPE_HEX,       true},
+	{"irq_error",     G2D_STAMPTYPE_HEX,       true},
+	{"mmu_fault",     G2D_STAMPTYPE_NONE,      true},
+	{"shutdown",      G2D_STAMPTYPE_INOUT,     false},
+	{"suspend",       G2D_STAMPTYPE_INOUT,     false},
+	{"resume",        G2D_STAMPTYPE_INOUT,     false},
+	{"hwfc_job",      G2D_STAMPTYPE_NUM,       true},
+};
+
+static bool g2d_stamp_show_single(struct seq_file *s, struct g2d_stamp *stamp)
+{
+	if (stamp->time == 0)
+		return false;
+
+	seq_printf(s, "[%u:%12lld] %13s: ", stamp->cpu,
+		   ktime_to_us(stamp->time),
+		   g2d_stamp_types[stamp->stamp].name);
+
+	if (g2d_stamp_types[stamp->stamp].task_specific)
+		seq_printf(s, "JOB ID %2u (STATE %#05lx) - ",
+			   stamp->job_id, stamp->state);
+
+	switch (g2d_stamp_types[stamp->stamp].type) {
+	case G2D_STAMPTYPE_NUM:
+		seq_printf(s, "%d", stamp->val);
+		break;
+	case G2D_STAMPTYPE_HEX:
+		seq_printf(s, "%#x", stamp->val);
+		break;
+	case G2D_STAMPTYPE_USEC:
+		seq_printf(s, "%d usec.", stamp->val);
+		break;
+	case G2D_STAMPTYPE_INOUT:
+		seq_printf(s, "%s", stamp->val ? "out" : "in");
+		break;
+	case G2D_STAMPTYPE_ALLOCFREE:
+		seq_printf(s, "%s", stamp->val ? "free" : "alloc");
+		break;
+	}
+
+	seq_puts(s, "\n");
+
+	return true;
+}
 
 static int g2d_stamp_show(struct seq_file *s, void *unused)
 {
-	int ptr = atomic_read(&p_stamp);
-	struct g2d_stamp *stamp;
+	int idx = G2D_STAMP_CLAMP_ID(atomic_read(&g2d_stamp_id) + 1);
 	int i;
 
-	if (ptr < 0)
-		return 0;
-
 	/* in chronological order */
-	ptr = (ptr + 1) & (G2D_MAX_STAMP_SIZE - 1);
-	i = ptr;
-
-	while (1) {
-		stamp = &g2d_stamp_list[i];
-
-		seq_printf(s, "[%4d] %u:%2u@%u (0x%2lx) %6d %06llu\n", i++,
-			stamp->cpu, stamp->job_id, stamp->val, stamp->state,
-			stamp->info, ktime_to_us(stamp->time));
-
-		i &= (G2D_MAX_STAMP_SIZE - 1);
-
-		if (i == ptr)
+	for (i = idx; i < G2D_MAX_STAMP_ID; i++)
+		if (!g2d_stamp_show_single(s, &g2d_stamp_list[i]))
 			break;
-	}
+
+	for (i = 0; i < idx; i++)
+		if (!g2d_stamp_show_single(s, &g2d_stamp_list[i]))
+			break;
 
 	return 0;
 }
@@ -133,7 +186,7 @@ static const struct file_operations g2d_debug_contexts_fops = {
 
 void g2d_init_debug(struct g2d_device *g2d_dev)
 {
-	atomic_set(&p_stamp, -1);
+	atomic_set(&g2d_stamp_id, -1);
 
 	g2d_dev->debug_root = debugfs_create_dir("g2d", NULL);
 	if (!g2d_dev->debug_root) {
@@ -266,30 +319,29 @@ void g2d_dump_info(struct g2d_device *g2d_dev, struct g2d_task *task)
 	g2d_dump_afbcdata(g2d_dev);
 }
 
-void g2d_stamp_task(struct g2d_task *task, u32 val, s32 info)
+void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val)
 {
-	int ptr = atomic_inc_return(&p_stamp) & (G2D_MAX_STAMP_SIZE - 1);
-	struct g2d_stamp *stamp = &g2d_stamp_list[ptr];
+	int idx = G2D_STAMP_CLAMP_ID(atomic_inc_return(&g2d_stamp_id));
+	struct g2d_stamp *stamp = &g2d_stamp_list[idx];
 
 	if (task) {
 		stamp->state = task->state;
 		stamp->job_id = task->job_id;
-		stamp->task = task;
 	} else {
 		stamp->job_id = 0;
 		stamp->state = 0;
-		stamp->task = NULL;
 	}
 
 	stamp->time = ktime_get();
-	stamp->val = val;
+	stamp->stamp = stampid;
 	stamp->cpu = raw_smp_processor_id();
-	stamp->info = info;
+	stamp->val = val;
 
-	if (task && (stamp->val == G2D_STAMP_STATE_DONE)) {
+	if ((stamp->stamp == G2D_STAMP_STATE_DONE) && task) {
 		if (g2d_debug == 1) {
-			pr_info("Job #%x took %06d to H/W process\n",
-				task->job_id, info);
+			dev_info(task->g2d_dev->dev,
+				 "Job %u consumed %06u usec. by H/W\n",
+				 task->job_id, val);
 		} else if (g2d_debug == 2) {
 			g2d_dump_info(task->g2d_dev, task);
 		}
