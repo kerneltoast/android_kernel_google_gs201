@@ -132,7 +132,6 @@ static void g2d_set_start_commands(struct g2d_task *task)
 {
 	bool self_prot = task->g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION;
 	struct g2d_reg *regs = page_address(task->cmd_page);
-	unsigned int n;
 
 	if (!self_prot && IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
 		return;
@@ -141,9 +140,7 @@ static void g2d_set_start_commands(struct g2d_task *task)
 	 * Number of commands should be multiple of 8.
 	 * If it is not, then pad dummy commands with no side effect.
 	 */
-	n = (8 - (task->cmd_count & 7)) & 7;
-
-	while (n-- > 0) {
+	while ((task->cmd_count & 7) != 0) {
 		regs[task->cmd_count].offset = G2D_LAYER_UPDATE_REG;
 		regs[task->cmd_count].value = regs[TASK_REG_LAYER_UPDATE].value;
 		task->cmd_count++;
