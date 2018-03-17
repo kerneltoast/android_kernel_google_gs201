@@ -184,6 +184,34 @@ static const struct file_operations g2d_debug_contexts_fops = {
 	.release = single_release,
 };
 
+static int g2d_debug_tasks_show(struct seq_file *s, void *unused)
+{
+	struct g2d_device *g2d_dev = s->private;
+	struct g2d_task *task;
+
+	for (task = g2d_dev->tasks; task; task = task->next) {
+		seq_printf(s, "TASK[%d]: state %#lx flags %#x ",
+			   task->job_id, task->state, task->flags);
+		seq_printf(s, "prio %d begin@%llu end@%llu nr_src %d\n",
+			   task->priority, ktime_to_us(task->ktime_begin),
+			   ktime_to_us(task->ktime_end), task->num_source);
+	}
+
+	return 0;
+}
+
+static int g2d_debug_tasks_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, g2d_debug_tasks_show, inode->i_private);
+}
+
+static const struct file_operations g2d_debug_tasks_fops = {
+	.open = g2d_debug_tasks_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 void g2d_init_debug(struct g2d_device *g2d_dev)
 {
 	atomic_set(&g2d_stamp_id, -1);
@@ -211,6 +239,15 @@ void g2d_init_debug(struct g2d_device *g2d_dev)
 	g2d_dev->debug_contexts = debugfs_create_file("contexts",
 					0400, g2d_dev->debug_root, g2d_dev,
 					&g2d_debug_contexts_fops);
+	if (!g2d_dev->debug_logs) {
+		dev_err(g2d_dev->dev,
+			"debugfs : failed to create debug contexts file\n");
+		return;
+	}
+
+	g2d_dev->debug_tasks= debugfs_create_file("tasks",
+					0400, g2d_dev->debug_root, g2d_dev,
+					&g2d_debug_tasks_fops);
 	if (!g2d_dev->debug_logs) {
 		dev_err(g2d_dev->dev,
 			"debugfs : failed to create debug contexts file\n");

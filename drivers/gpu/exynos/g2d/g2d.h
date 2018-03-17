@@ -109,6 +109,7 @@ struct g2d_device {
 	struct dentry *debug;
 	struct dentry *debug_logs;
 	struct dentry *debug_contexts;
+	struct dentry *debug_tasks;
 
 	atomic_t	prior_stats[G2D_PRIORITY_END];
 
