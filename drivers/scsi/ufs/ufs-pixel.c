@@ -92,6 +92,55 @@ static const struct attribute_group pixel_sysfs_health_descriptor_group = {
 	.attrs = ufs_sysfs_health_descriptor,
 };
 
+static ssize_t vendor_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%.8s\n", hba->sdev_ufs_device->vendor);
+}
+
+static ssize_t model_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%.16s\n", hba->sdev_ufs_device->model);
+}
+
+static ssize_t rev_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%.4s\n", hba->sdev_ufs_device->rev);
+}
+
+static ssize_t platform_version_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", hba->ufs_version);
+}
+
+static DEVICE_ATTR_RO(vendor);
+static DEVICE_ATTR_RO(model);
+static DEVICE_ATTR_RO(rev);
+static DEVICE_ATTR_RO(platform_version);
+
+static struct attribute *pixel_sysfs_ufshcd_attrs[] = {
+	&dev_attr_vendor.attr,
+	&dev_attr_model.attr,
+	&dev_attr_rev.attr,
+	&dev_attr_platform_version.attr,
+	NULL
+};
+
+static const struct attribute_group pixel_sysfs_default_group = {
+	.attrs = pixel_sysfs_ufshcd_attrs,
+};
+
 int pixel_ufs_update_sysfs(struct ufs_hba *hba)
 {
 	int err;
@@ -101,5 +150,12 @@ int pixel_ufs_update_sysfs(struct ufs_hba *hba)
 	if (err)
 		dev_err(hba->dev, "%s: Failed to add a pixel group\n",
 				__func__);
+
+	err = sysfs_update_group(&hba->dev->kobj,
+				&pixel_sysfs_default_group);
+	if (err)
+		dev_err(hba->dev, "%s: Failed to add a pixel group\n",
+				__func__);
+
 	return err;
 }
