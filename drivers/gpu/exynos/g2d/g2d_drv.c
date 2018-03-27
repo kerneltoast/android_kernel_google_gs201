@@ -520,7 +520,7 @@ static int g2d_compat_get_layerdata(struct device *dev,
 				struct g2d_layer_data __user *img,
 				struct compat_g2d_layer_data __user *cimg)
 {
-	__u32 uw;
+	__u32 uw, num_buffers, buftype;
 	__s32 sw;
 	compat_ulong_t l;
 	unsigned int i;
@@ -530,18 +530,21 @@ static int g2d_compat_get_layerdata(struct device *dev,
 	ret |= put_user(uw, &img->flags);
 	ret |= get_user(sw, &cimg->fence);
 	ret |= put_user(sw, &img->fence);
-	ret |= get_user(uw, &cimg->buffer_type);
-	ret |= put_user(uw, &img->buffer_type);
-	ret |= get_user(uw, &cimg->num_buffers);
-	ret |= put_user(uw, &img->num_buffers);
+	ret |= get_user(buftype, &cimg->buffer_type);
+	ret |= put_user(buftype, &img->buffer_type);
+	ret |= get_user(num_buffers, &cimg->num_buffers);
+	ret |= put_user(num_buffers, &img->num_buffers);
 
-	for (i = 0; i < uw; i++) { /* uw contains num_buffers */
-		ret |= get_user(l, &cimg->buffer[i].userptr);
-		ret |= put_user(l, &img->buffer[i].userptr);
-		ret |= get_user(uw, &cimg->buffer[i].dmabuf.offset);
-		ret |= put_user(uw, &img->buffer[i].dmabuf.offset);
-		ret |= get_user(sw, &cimg->buffer[i].dmabuf.fd);
-		ret |= put_user(sw, &img->buffer[i].dmabuf.fd);
+	for (i = 0; i < num_buffers; i++) {
+		if (buftype == G2D_BUFTYPE_DMABUF) {
+			ret |= get_user(uw, &cimg->buffer[i].dmabuf.offset);
+			ret |= put_user(uw, &img->buffer[i].dmabuf.offset);
+			ret |= get_user(sw, &cimg->buffer[i].dmabuf.fd);
+			ret |= put_user(sw, &img->buffer[i].dmabuf.fd);
+		} else {
+			ret |= get_user(l, &cimg->buffer[i].userptr);
+			ret |= put_user(l, &img->buffer[i].userptr);
+		}
 		ret |= get_user(uw, &cimg->buffer[i].length);
 		ret |= put_user(uw, &img->buffer[i].length);
 	}
