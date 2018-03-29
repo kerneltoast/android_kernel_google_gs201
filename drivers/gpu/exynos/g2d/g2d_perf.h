@@ -14,7 +14,7 @@
  */
 
 #ifndef _G2D_PERF_H_
-#define _G2D_PEEF_H_
+#define _G2D_PERF_H_
 
 struct g2d_context;
 struct g2d_performance_data;
