@@ -113,7 +113,7 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 
 	task->ktime_end = ktime_get();
 
-	del_timer(&task->timer);
+	del_timer(&task->hw_timer);
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_DONE,
 		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
@@ -171,13 +171,9 @@ static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	list_move_tail(&task->node, &g2d_dev->tasks_active);
 	change_task_state_active(task);
 
-	del_timer(&task->timer);
-
-	setup_timer(&task->timer,
-		    g2d_hw_timeout_handler, (unsigned long)task);
-
-	mod_timer(&task->timer,
-		  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
+	task->hw_timer.expires =
+		jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC);
+	add_timer(&task->hw_timer);
 
 	/*
 	 * g2d_device_run() is not reentrant while g2d_schedule() is
@@ -225,7 +221,7 @@ static void g2d_schedule_task(struct g2d_task *task)
 	unsigned long flags;
 	int ret;
 
-	del_timer(&task->timer);
+	del_timer(&task->fence_timer);
 
 	g2d_complete_commands(task);
 
@@ -286,12 +282,11 @@ void g2d_start_task(struct g2d_task *task)
 {
 	reinit_completion(&task->completion);
 
-	setup_timer(&task->timer,
-		    g2d_fence_timeout_handler, (unsigned long)task);
-
-	if (atomic_read(&task->starter.refcount.refs) > 1)
-		mod_timer(&task->timer,
-			jiffies + msecs_to_jiffies(G2D_FENCE_TIMEOUT_MSEC));
+	if (atomic_read(&task->starter.refcount.refs) > 1) {
+		task->fence_timer.expires =
+			jiffies + msecs_to_jiffies(G2D_FENCE_TIMEOUT_MSEC);
+		add_timer(&task->fence_timer);
+	}
 
 	task->ktime_begin = ktime_get();
 
@@ -433,6 +428,11 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 
 	init_completion(&task->completion);
 	spin_lock_init(&task->fence_timeout_lock);
+
+	setup_timer(&task->hw_timer,
+		    g2d_hw_timeout_handler, (unsigned long)task);
+	setup_timer(&task->fence_timer,
+		    g2d_fence_timeout_handler, (unsigned long)task);
 
 	return task;
 

@@ -93,7 +93,8 @@ struct g2d_task {
 	unsigned long		state;
 	struct sync_file	*release_fence;
 	struct kref		starter;
-	struct timer_list	timer;
+	struct timer_list	fence_timer;
+	struct timer_list	hw_timer;
 
 	struct g2d_layer	*source;
 	struct g2d_layer	target;

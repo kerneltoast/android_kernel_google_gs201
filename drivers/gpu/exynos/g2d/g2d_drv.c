@@ -111,7 +111,7 @@ void g2d_hw_timeout_handler(unsigned long arg)
 		goto out;
 	}
 
-	mod_timer(&task->timer,
+	mod_timer(&task->hw_timer,
 	  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
 
 	if (!g2d_hw_stuck_state(g2d_dev) &&
