@@ -777,7 +777,7 @@ struct g2d_device_data {
 };
 
 const struct g2d_device_data g2d_9820_data __initconst = {
-	.caps = G2D_DEVICE_CAPS_SELF_PROTECTION,
+	.caps = G2D_DEVICE_CAPS_SELF_PROTECTION | G2D_DEVICE_CAPS_YUV_BITDEPTH,
 };
 
 static const struct of_device_id of_g2d_match[] __refconst = {

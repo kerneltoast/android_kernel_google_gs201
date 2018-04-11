@@ -134,7 +134,7 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 	unsigned int payload;
 	int i;
 
-	fmt = g2d_find_format(cmd[G2DSFR_IMG_COLORMODE].value);
+	fmt = g2d_find_format(cmd[G2DSFR_IMG_COLORMODE].value, g2d_dev->caps);
 
 	BUG_ON(!fmt);
 
@@ -150,7 +150,8 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 	if (data->num_buffers > 1) {
 		for (i = 0; i < data->num_buffers; i++) {
 			payload = (unsigned int)g2d_get_payload_index(
-						cmd, fmt, i, data->num_buffers);
+						cmd, fmt, i, data->num_buffers,
+						g2d_dev->caps);
 			if (data->buffer[i].length < payload) {
 				dev_err(dev,
 					"%s: Too small buffer[%d]: expected %uB"
@@ -166,7 +167,8 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 			layer->buffer[i].payload = payload;
 		}
 	} else {
-		payload = (unsigned int)g2d_get_payload(cmd, fmt, layer->flags);
+		payload = (unsigned int)g2d_get_payload(cmd, fmt, layer->flags,
+							g2d_dev->caps);
 		if (data->buffer[0].length < payload) {
 			dev_err(dev, "%s: Too small buffer: expected %uB"
 				" for %ux%u(bt %u)/%s but %uB is given\n",
