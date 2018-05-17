@@ -18,6 +18,8 @@
 #include <linux/debugfs.h>
 #include <linux/sched/task.h>
 
+#include <media/exynos_tsmux.h>
+
 #include "g2d.h"
 #include "g2d_task.h"
 #include "g2d_uapi.h"
@@ -382,5 +384,14 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val)
 		} else if (g2d_debug == 2) {
 			g2d_dump_info(task->g2d_dev, task);
 		}
+	}
+
+	/* LLWFD latency measure */
+	/* media/exynos_tsmux.h includes below functions */
+	if (task != NULL && IS_HWFC(task->flags)) {
+		if (stampid == G2D_STAMP_STATE_PUSH)
+			g2d_blending_start(task->job_id);
+		if (stampid == G2D_STAMP_STATE_DONE)
+			g2d_blending_end(task->job_id);
 	}
 }
