@@ -27,6 +27,7 @@
 #include "g2d_format.h"
 
 #define G2D_MAX_IMAGES		16
+#define G2D_MAX_IMAGES_HALF	8
 #define G2D_MAX_JOBS		16
 #define G2D_CMD_LIST_SIZE	8192
 
@@ -93,7 +94,7 @@ struct g2d_task {
 	struct kref		starter;
 	struct timer_list	timer;
 
-	struct g2d_layer	source[G2D_MAX_IMAGES];
+	struct g2d_layer	*source;
 	struct g2d_layer	target;
 	unsigned int		num_source;
 

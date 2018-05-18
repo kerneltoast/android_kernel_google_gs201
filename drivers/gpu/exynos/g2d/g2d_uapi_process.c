@@ -763,7 +763,7 @@ int g2d_get_userdata(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 	int ret;
 
 	/* invalid range check */
-	if ((data->num_source < 1) || (data->num_source > G2D_MAX_IMAGES)) {
+	if ((data->num_source < 1) || (data->num_source > g2d_dev->max_layers)) {
 		dev_err(dev, "%s: Invalid number of source images %u\n",
 			__func__, data->num_source);
 		return -EINVAL;

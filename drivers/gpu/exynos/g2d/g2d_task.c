@@ -384,6 +384,7 @@ void g2d_destroy_tasks(struct g2d_device *g2d_dev)
 
 		__free_pages(task->cmd_page, get_order(G2D_CMD_LIST_SIZE));
 
+		kfree(task->source);
 		kfree(task);
 
 		task = next;
@@ -403,6 +404,11 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 	if (!task)
 		return ERR_PTR(-ENOMEM);
 
+	task->source = kcalloc(g2d_dev->max_layers, sizeof(*task->source),
+			       GFP_KERNEL);
+	if (!task)
+		goto err_alloc;
+
 	INIT_LIST_HEAD(&task->node);
 
 	task->cmd_page = alloc_pages(GFP_KERNEL, get_order(G2D_CMD_LIST_SIZE));
@@ -418,7 +424,7 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 	if (ret)
 		goto err_map;
 
-	for (i = 0; i < G2D_MAX_IMAGES; i++)
+	for (i = 0; i < g2d_dev->max_layers; i++)
 		task->source[i].task = task;
 	task->target.task = task;
 
@@ -430,6 +436,8 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 err_map:
 	__free_pages(task->cmd_page, get_order(G2D_CMD_LIST_SIZE));
 err_page:
+	kfree(task->source);
+err_alloc:
 	kfree(task);
 
 	return ERR_PTR(ret);

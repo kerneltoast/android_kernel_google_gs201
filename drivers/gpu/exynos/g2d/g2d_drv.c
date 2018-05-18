@@ -774,15 +774,29 @@ static int g2d_parse_dt(struct g2d_device *g2d_dev)
 
 struct g2d_device_data {
 	unsigned long caps;
+	unsigned int max_layers;
+};
+
+const struct g2d_device_data g2d_9610_data __initconst = {
+	.max_layers = G2D_MAX_IMAGES_HALF,
+};
+
+const struct g2d_device_data g2d_9810_data __initconst = {
+	.max_layers = G2D_MAX_IMAGES,
 };
 
 const struct g2d_device_data g2d_9820_data __initconst = {
 	.caps = G2D_DEVICE_CAPS_SELF_PROTECTION | G2D_DEVICE_CAPS_YUV_BITDEPTH,
+	.max_layers = G2D_MAX_IMAGES,
 };
 
 static const struct of_device_id of_g2d_match[] __refconst = {
 	{
 		.compatible = "samsung,exynos9810-g2d",
+		.data = &g2d_9810_data,
+	}, {
+		.compatible = "samsung,exynos9610-g2d",
+		.data = &g2d_9610_data,
 	}, {
 		.compatible = "samsung,exynos9820-g2d",
 		.data = &g2d_9820_data,
@@ -843,6 +857,7 @@ static int g2d_probe(struct platform_device *pdev)
 		const struct g2d_device_data *devdata = of_id->data;
 
 		g2d_dev->caps = devdata->caps;
+		g2d_dev->max_layers = devdata->max_layers;
 	}
 
 	ret = iovmm_activate(&pdev->dev);

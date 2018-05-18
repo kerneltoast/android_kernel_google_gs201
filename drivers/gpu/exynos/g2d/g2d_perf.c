@@ -247,7 +247,7 @@ void g2d_set_performance(struct g2d_context *ctx,
 		return;
 
 	for (i = 0; i < data->num_frame; i++) {
-		if (data->frame[i].num_layers > G2D_MAX_IMAGES)
+		if (data->frame[i].num_layers > g2d_dev->max_layers)
 			return;
 	}
 

@@ -317,8 +317,8 @@ void g2d_dump_sfr(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	unsigned int i, num_array;
 
-	num_array = (unsigned int)ARRAY_SIZE(g2d_reg_info) - G2D_MAX_IMAGES
-		    + ((task) ? task->num_source : G2D_MAX_IMAGES);
+	num_array = (unsigned int)ARRAY_SIZE(g2d_reg_info) - g2d_dev->max_layers
+		    + ((task) ? task->num_source : g2d_dev->max_layers);
 
 	for (i = 0; i < num_array; i++) {
 		pr_info("[%s: %04X .. %04X]\n",

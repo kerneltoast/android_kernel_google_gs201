@@ -116,6 +116,7 @@ struct g2d_device {
 	struct mutex			lock_qos;
 	struct list_head		qos_contexts;
 	u32 hw_ppc[PPC_END];
+	u32				max_layers;
 
 	struct g2d_dvfs_table *dvfs_table;
 	u32 dvfs_table_cnt;
