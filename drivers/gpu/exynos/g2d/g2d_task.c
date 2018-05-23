@@ -278,6 +278,13 @@ void g2d_queuework_task(struct kref *kref)
 	BUG_ON(failed);
 }
 
+static void g2d_task_direct_schedule(struct kref *kref)
+{
+	struct g2d_task *task = container_of(kref, struct g2d_task, starter);
+
+	g2d_schedule_task(task);
+}
+
 void g2d_start_task(struct g2d_task *task)
 {
 	reinit_completion(&task->completion);
@@ -290,7 +297,7 @@ void g2d_start_task(struct g2d_task *task)
 
 	task->ktime_begin = ktime_get();
 
-	kref_put(&task->starter, g2d_queuework_task);
+	kref_put(&task->starter, g2d_task_direct_schedule);
 }
 
 void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
