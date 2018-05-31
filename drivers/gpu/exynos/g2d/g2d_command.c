@@ -44,8 +44,10 @@
  *   - 2 matrices of EOTF
  *   - 2 matrices of Gamut mapping
  *   - 2 matrices Tone mappings
+ *   - 2 set HDR Coefficient
+ *     - 2 matrices of SET0/1 HDR Coefficient
  */
-#define MAX_EXTRA_REGS	(9 * 5 + (65 + 9 + 33) * 2)
+#define MAX_EXTRA_REGS	(9 * 5 + (65 + 9 + 33) * 2 + 160 * 2)
 
 enum {
 	TASK_REG_SOFT_RESET,
@@ -566,6 +568,7 @@ static u16 extra_cmd_range[][2] = { /* {first, last} */
 	{0x3500, 0x3520}, /* Degamma 2.2 Coefficients */
 	{0x3600, 0x3680}, /* HDR Tone Mapping Coefficients */
 	{0x3700, 0x3780}, /* Degamma Tone Mapping Coefficients */
+	{0x5000, 0x5B8C}, /* SET 0,1,2 Coefficients */
 };
 
 #define TARGET_OFFSET		0x120
