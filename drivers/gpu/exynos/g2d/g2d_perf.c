@@ -25,11 +25,8 @@
 #ifdef CONFIG_PM_DEVFREQ
 static void g2d_pm_qos_update_devfreq(struct pm_qos_request *req, u32 freq)
 {
-	/*
-	 * FIXME: PM_QOS_DEVICE_THROUGHPUT is not in the upstream kernel.
-	 * if (!pm_qos_request_active(req))
-	 *	pm_qos_add_request(req, PM_QOS_DEVICE_THROUGHPUT, 0);
-	 */
+	if (!pm_qos_request_active(req))
+		pm_qos_add_request(req, PM_QOS_DEVICE_THROUGHPUT, 0);
 
 	pm_qos_update_request(req, freq);
 }
