@@ -26,15 +26,15 @@
 #include "g2d_debug.h"
 #include "g2d_secure.h"
 
-static void g2d_secure_enable(bool self_prot)
+static void g2d_secure_enable(void)
 {
-	if (!self_prot && IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
 		exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 1);
 }
 
-static void g2d_secure_disable(bool self_prot)
+static void g2d_secure_disable(void)
 {
-	if (!self_prot && IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
 		exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
 }
 
@@ -118,7 +118,7 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 	g2d_stamp_task(task, G2D_STAMP_STATE_DONE,
 		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
 
-	g2d_secure_disable(g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION);
+	g2d_secure_disable();
 
 	clk_disable(g2d_dev->clock);
 
@@ -166,7 +166,7 @@ void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
 
 static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
-	g2d_secure_enable(g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION);
+	g2d_secure_enable();
 
 	list_move_tail(&task->node, &g2d_dev->tasks_active);
 	change_task_state_active(task);
