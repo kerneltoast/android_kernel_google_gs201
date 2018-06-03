@@ -202,9 +202,6 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 	int ret = -EINVAL;
 	int prot = IOMMU_READ;
 
-	if (device_get_dma_attr(dev) == DEV_DMA_COHERENT)
-		prot |= IOMMU_CACHE;
-
 	if (!IS_HWFC(task->flags) || (dir == DMA_TO_DEVICE)) {
 		dmabuf = dma_buf_get(data->dmabuf.fd);
 		if (IS_ERR(dmabuf)) {
@@ -335,12 +332,8 @@ static int g2d_get_userptr(struct g2d_task *task,
 
 	if (dir != DMA_TO_DEVICE)
 		prot |= IOMMU_WRITE;
-	if (is_vma_cached(vma)) {
+	if (is_vma_cached(vma))
 		task->total_cached_len += buffer->payload;
-
-		if (device_get_dma_attr(dev) == DEV_DMA_COHERENT)
-			prot |= IOMMU_CACHE;
-	}
 
 	buffer->userptr.vma = tvma;
 
