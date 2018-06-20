@@ -28,4 +28,6 @@ struct dma_fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
 struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 					   struct g2d_task *task,
 					   struct g2d_task_data *data);
+bool g2d_task_has_error_fence(struct g2d_task *task);
+
 #endif /*__EXYNOS_G2D_FENCE_H__*/

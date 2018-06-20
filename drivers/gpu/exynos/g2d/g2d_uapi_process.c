@@ -810,6 +810,9 @@ void g2d_put_images(struct g2d_device *g2d_dev, struct g2d_task *task)
 	g2d_invalidate_caches_task(task);
 
 	if (task->release_fence) {
+		if (is_task_state_error(task))
+			dma_fence_set_error(task->release_fence->fence, -EIO);
+
 		dma_fence_signal(task->release_fence->fence);
 		fput(task->release_fence->file);
 	}

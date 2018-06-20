@@ -124,7 +124,7 @@ void g2d_fence_timeout_handler(unsigned long arg)
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE, afbc);
 
-	kref_put(&task->starter, g2d_queuework_task);
+	g2d_cancel_task(task);
 };
 
 static const char *g2d_fence_get_driver_name(struct dma_fence *fence)
@@ -244,4 +244,46 @@ struct dma_fence *g2d_get_acquire_fence(struct g2d_device *g2d_dev,
 	}
 
 	return fence;
+}
+
+static bool g2d_fence_has_error(struct g2d_layer *layer, int layer_idx)
+{
+	struct dma_fence *fence = layer->fence;
+	unsigned long flags;
+	bool err = false;
+
+	if (fence) {
+		spin_lock_irqsave(fence->lock, flags);
+		err = dma_fence_get_status_locked(fence) < 0;
+		spin_unlock_irqrestore(fence->lock, flags);
+	}
+
+	if (err) {
+		char name[32];
+
+		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
+
+		dev_err(layer->task->g2d_dev->dev,
+			"%s: Error fence of %s%d found: %s#%d\n", __func__,
+			(layer_idx < 0) ? "target" : "source",
+			layer_idx, name, fence->seqno);
+
+		return true;
+	}
+
+	return false;
+}
+
+bool g2d_task_has_error_fence(struct g2d_task *task)
+{
+	unsigned int i;
+
+	for (i = 0; i < task->num_source; i++)
+		if (g2d_fence_has_error(&task->source[i], i))
+			return false;
+
+	if (g2d_fence_has_error(&task->target, -1))
+		return true;
+
+	return false;
 }

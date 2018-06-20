@@ -223,6 +223,9 @@ static void g2d_schedule_task(struct g2d_task *task)
 
 	del_timer(&task->fence_timer);
 
+	if (g2d_task_has_error_fence(task))
+		goto err_fence;
+
 	g2d_complete_commands(task);
 
 	/*
@@ -258,6 +261,7 @@ static void g2d_schedule_task(struct g2d_task *task)
 err_clk:
 	pm_runtime_put(g2d_dev->dev);
 err_pm:
+err_fence:
 	__g2d_finish_task(task, false);
 }
 
@@ -298,6 +302,11 @@ void g2d_start_task(struct g2d_task *task)
 	task->ktime_begin = ktime_get();
 
 	kref_put(&task->starter, g2d_task_direct_schedule);
+}
+
+void g2d_cancel_task(struct g2d_task *task)
+{
+	__g2d_finish_task(task, false);
 }
 
 void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
