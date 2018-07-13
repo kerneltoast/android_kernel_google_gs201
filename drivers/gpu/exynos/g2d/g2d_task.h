@@ -88,7 +88,6 @@ struct g2d_task {
 	struct g2d_device	*g2d_dev;
 
 	unsigned int		flags;
-	unsigned int		job_id;
 	unsigned int		bufidx;
 	unsigned long		state;
 	struct sync_file	*release_fence;
@@ -103,9 +102,16 @@ struct g2d_task {
 	/* Command list */
 	struct page		*cmd_page;
 	dma_addr_t		cmd_addr;
-	unsigned int		cmd_count;
 
-	unsigned int		priority;
+	struct {
+		unsigned long	cmd_paddr;
+		unsigned int	cmd_count;
+		unsigned int	priority;
+		unsigned int	job_id;
+		/* temporarily used by g2d_hw_push_task_by_smc */
+		int		secure_layer_mask;
+	} sec;
+
 	ktime_t			ktime_begin;
 	ktime_t			ktime_end;
 

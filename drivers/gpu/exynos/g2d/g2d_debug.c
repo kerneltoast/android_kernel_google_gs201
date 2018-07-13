@@ -193,9 +193,9 @@ static int g2d_debug_tasks_show(struct seq_file *s, void *unused)
 
 	for (task = g2d_dev->tasks; task; task = task->next) {
 		seq_printf(s, "TASK[%d]: state %#lx flags %#x ",
-			   task->job_id, task->state, task->flags);
+			   task->sec.job_id, task->state, task->flags);
 		seq_printf(s, "prio %d begin@%llu end@%llu nr_src %d\n",
-			   task->priority, ktime_to_us(task->ktime_begin),
+			   task->sec.priority, ktime_to_us(task->ktime_begin),
 			   ktime_to_us(task->ktime_end), task->num_source);
 	}
 
@@ -342,7 +342,7 @@ void g2d_dump_cmd(struct g2d_task *task)
 
 	regs = page_address(task->cmd_page);
 
-	for (i = 0; i < task->cmd_count; i++)
+	for (i = 0; i < task->sec.cmd_count; i++)
 		pr_info("G2D: CMD[%03d] %#06x, %#010x\n",
 			i, regs[i].offset, regs[i].value);
 }
@@ -365,7 +365,7 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val)
 
 	if (task) {
 		stamp->state = task->state;
-		stamp->job_id = task->job_id;
+		stamp->job_id = task->sec.job_id;
 	} else {
 		stamp->job_id = 0;
 		stamp->state = 0;
@@ -380,7 +380,7 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val)
 		if (g2d_debug == 1) {
 			dev_info(task->g2d_dev->dev,
 				 "Job %u consumed %06u usec. by H/W\n",
-				 task->job_id, val);
+				 task->sec.job_id, val);
 		} else if (g2d_debug == 2) {
 			g2d_dump_info(task->g2d_dev, task);
 		}
@@ -390,8 +390,8 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val)
 	/* media/exynos_tsmux.h includes below functions */
 	if (task != NULL && IS_HWFC(task->flags)) {
 		if (stampid == G2D_STAMP_STATE_PUSH)
-			g2d_blending_start(task->job_id);
+			g2d_blending_start(task->sec.job_id);
 		if (stampid == G2D_STAMP_STATE_DONE)
-			g2d_blending_end(task->job_id);
+			g2d_blending_end(task->sec.job_id);
 	}
 }

@@ -57,7 +57,8 @@ static int g2d_update_priority(struct g2d_context *ctx,
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
 	for (task = g2d_dev->tasks; task != NULL; task = task->next) {
-		if (!is_task_state_idle(task) && (task->priority < priority)) {
+		if (!is_task_state_idle(task) &&
+		    (task->sec.priority < priority)) {
 			spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 			return -EBUSY;
 		}
@@ -77,13 +78,13 @@ void g2d_hw_timeout_handler(unsigned long arg)
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
-	job_state = g2d_hw_get_job_state(g2d_dev, task->job_id);
+	job_state = g2d_hw_get_job_state(g2d_dev, task->sec.job_id);
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_HW, job_state);
 
 	dev_err(g2d_dev->dev, "%s: Time is up: %d msec for job %u %lu %u\n",
 		__func__, G2D_HW_TIMEOUT_MSEC,
-		task->job_id, task->state, job_state);
+		task->sec.job_id, task->state, job_state);
 
 	if (!is_task_state_active(task))
 		/*
@@ -124,7 +125,7 @@ void g2d_hw_timeout_handler(unsigned long arg)
 
 	mark_task_state_killed(task);
 
-	g2d_hw_kill_task(g2d_dev, task->job_id);
+	g2d_hw_kill_task(g2d_dev, task->sec.job_id);
 
 out:
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
@@ -143,7 +144,7 @@ int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 	task->ktime_begin = ktime_get();
 
 	if (IS_HWFC(task->flags))
-		hwfc_set_valid_buffer(task->job_id, task->job_id);
+		hwfc_set_valid_buffer(task->sec.job_id, task->sec.job_id);
 
 	return 0;
 }
@@ -413,7 +414,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		g2d_stamp_task(task, G2D_STAMP_STATE_BEGIN, task->priority);
+		g2d_stamp_task(task, G2D_STAMP_STATE_BEGIN, task->sec.priority);
 
 		g2d_start_task(task);
 

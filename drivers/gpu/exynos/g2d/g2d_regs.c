@@ -25,40 +25,27 @@
 #include "g2d_debug.h"
 #include "g2d_secure.h"
 
-struct g2d_task_secbuf {
-	unsigned long cmd_paddr;
-	int cmd_count;
-	int priority;
-	int job_id;
-	int secure_layer;
-};
-
 static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 				    struct g2d_task *task)
 {
-	struct g2d_task_secbuf sec_task;
 	int i;
 
-	sec_task.cmd_paddr = (unsigned long)page_to_phys(task->cmd_page);
-	sec_task.cmd_count = task->cmd_count;
-	sec_task.priority = task->priority;
-	sec_task.job_id = task->job_id;
-	sec_task.secure_layer = 0;
+	task->sec.secure_layer_mask = 0;
 
-	for (i = 0; i < task->num_source; i++) {
+	for (i = 0; i < task->num_source; i++)
 		if (!!(task->source[i].flags & G2D_LAYERFLAG_SECURE))
-			sec_task.secure_layer |= 1 << i;
-	}
-	if (!!(task->target.flags & G2D_LAYERFLAG_SECURE) ||
-		!!(sec_task.secure_layer))
-		sec_task.secure_layer |= 1 << 24;
+			task->sec.secure_layer_mask |= 1 << i;
 
-	__flush_dcache_area(&sec_task, sizeof(sec_task));
+	if (!!(task->target.flags & G2D_LAYERFLAG_SECURE) ||
+		!!(task->sec.secure_layer_mask))
+		task->sec.secure_layer_mask |= 1 << 24;
+
+	__flush_dcache_area(&task->sec, sizeof(task->sec));
 	__flush_dcache_area(page_address(task->cmd_page), G2D_CMD_LIST_SIZE);
-	if (exynos_smc(SMC_DRM_G2D_CMD_DATA, virt_to_phys(&sec_task), 0, 0)) {
+	if (exynos_smc(SMC_DRM_G2D_CMD_DATA, virt_to_phys(&task->sec), 0, 0)) {
 		dev_err(g2d_dev->dev, "%s : Failed to push %d %d %d %d\n",
-			__func__, sec_task.cmd_count, sec_task.priority,
-			sec_task.job_id, sec_task.secure_layer);
+			__func__, task->sec.cmd_count, task->sec.priority,
+			task->sec.job_id, task->sec.secure_layer_mask);
 
 		g2d_dump_info(g2d_dev, task);
 		BUG();
@@ -68,11 +55,11 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	bool self_prot = g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION;
-	u32 state = g2d_hw_get_job_state(g2d_dev, task->job_id);
+	u32 state = g2d_hw_get_job_state(g2d_dev, task->sec.job_id);
 
 	if (state != G2D_JOB_STATE_DONE)
 		dev_err(g2d_dev->dev, "%s: Unexpected state %#x of JOB %d\n",
-			__func__, state, task->job_id);
+			__func__, state, task->sec.job_id);
 
 	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)) {
 		unsigned int i;
@@ -93,17 +80,19 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 		writel_relaxed(state,
 			       g2d_dev->reg +
-			       G2D_JOBn_LAYER_SECURE_REG(task->job_id));
+			       G2D_JOBn_LAYER_SECURE_REG(task->sec.job_id));
 	}
 
-	writel_relaxed(G2D_JOB_HEADER_DATA(task->priority, task->job_id),
+	writel_relaxed(G2D_JOB_HEADER_DATA(task->sec.priority,
+					   task->sec.job_id),
 			g2d_dev->reg + G2D_JOB_HEADER_REG);
 
 	writel_relaxed(G2D_ERR_INT_ENABLE, g2d_dev->reg + G2D_INTEN_REG);
 
 	writel_relaxed(task->cmd_addr, g2d_dev->reg + G2D_JOB_BASEADDR_REG);
-	writel_relaxed(task->cmd_count, g2d_dev->reg + G2D_JOB_SFRNUM_REG);
-	writel_relaxed(1 << task->job_id, g2d_dev->reg + G2D_JOB_INT_ID_REG);
+	writel_relaxed(task->sec.cmd_count, g2d_dev->reg + G2D_JOB_SFRNUM_REG);
+	writel_relaxed(1 << task->sec.job_id,
+		       g2d_dev->reg + G2D_JOB_INT_ID_REG);
 	writel(G2D_JOBPUSH_INT_ENABLE, g2d_dev->reg + G2D_JOB_PUSH_REG);
 }
 

@@ -71,7 +71,7 @@ void g2d_init_commands(struct g2d_task *task)
 {
 	memcpy(page_address(task->cmd_page),
 		&g2d_setup_commands, sizeof(g2d_setup_commands));
-	task->cmd_count = ARRAY_SIZE(g2d_setup_commands);
+	task->sec.cmd_count = ARRAY_SIZE(g2d_setup_commands);
 }
 
 static void g2d_set_taskctl_commands(struct g2d_task *task)
@@ -96,15 +96,15 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 	if (rot > n_rot) {
 		u32 mode = task->target.commands[G2DSFR_IMG_COLORMODE].value;
 
-		regs[task->cmd_count].offset = G2D_TILE_DIRECTION_ORDER_REG;
-		regs[task->cmd_count].value = G2D_TILE_DIRECTION_VERTICAL;
+		regs[task->sec.cmd_count].offset = G2D_TILE_DIRECTION_ORDER_REG;
+		regs[task->sec.cmd_count].value = G2D_TILE_DIRECTION_VERTICAL;
 
 		if (!IS_HWFC(task->flags) &&
 		    (IS_YUV420(mode) || IS_YUV422_2P(mode)))
-			regs[task->cmd_count].value |=
+			regs[task->sec.cmd_count].value |=
 					G2D_TILE_DIRECTION_ZORDER;
 
-		task->cmd_count++;
+		task->sec.cmd_count++;
 	}
 
 	/*
@@ -112,22 +112,22 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 	 * and let the H/W work in parallel.
 	 * split index is half the width divided by 16
 	 */
-	regs[task->cmd_count].offset = G2D_DST_SPLIT_TILE_IDX_REG;
-	regs[task->cmd_count].value = (layer_width(&task->target) / 2) >> 4;
-	regs[task->cmd_count].value |= G2D_DST_SPLIT_TILE_IDX_VFLAG;
-	task->cmd_count++;
+	regs[task->sec.cmd_count].offset = G2D_DST_SPLIT_TILE_IDX_REG;
+	regs[task->sec.cmd_count].value = (layer_width(&task->target) / 2) >> 4;
+	regs[task->sec.cmd_count].value |= G2D_DST_SPLIT_TILE_IDX_VFLAG;
+	task->sec.cmd_count++;
 }
 
 static void g2d_set_hwfc_commands(struct g2d_task *task)
 {
 	struct g2d_reg *regs = (struct g2d_reg *)page_address(task->cmd_page);
 
-	regs[task->cmd_count].offset = G2D_HWFC_CAPTURE_IDX_REG;
-	regs[task->cmd_count].value = IS_HWFC(task->flags) ?
+	regs[task->sec.cmd_count].offset = G2D_HWFC_CAPTURE_IDX_REG;
+	regs[task->sec.cmd_count].value = IS_HWFC(task->flags) ?
 			G2D_HWFC_CAPTURE_HWFC_JOB : 0;
-	regs[task->cmd_count].value |= task->job_id;
+	regs[task->sec.cmd_count].value |= task->sec.job_id;
 
-	task->cmd_count++;
+	task->sec.cmd_count++;
 }
 
 static void g2d_set_start_commands(struct g2d_task *task)
@@ -142,10 +142,11 @@ static void g2d_set_start_commands(struct g2d_task *task)
 	 * Number of commands should be multiple of 8.
 	 * If it is not, then pad dummy commands with no side effect.
 	 */
-	while ((task->cmd_count & 7) != 0) {
-		regs[task->cmd_count].offset = G2D_LAYER_UPDATE_REG;
-		regs[task->cmd_count].value = regs[TASK_REG_LAYER_UPDATE].value;
-		task->cmd_count++;
+	while ((task->sec.cmd_count & 7) != 0) {
+		regs[task->sec.cmd_count].offset = G2D_LAYER_UPDATE_REG;
+		regs[task->sec.cmd_count].value =
+					regs[TASK_REG_LAYER_UPDATE].value;
+		task->sec.cmd_count++;
 	}
 }
 
@@ -153,7 +154,7 @@ void g2d_complete_commands(struct g2d_task *task)
 {
 	/* 832 is the total number of the G2D registers */
 	/* Tuned tone mapping LUT (66 entries) might be specified */
-	BUG_ON(task->cmd_count > 896);
+	BUG_ON(task->sec.cmd_count > 896);
 
 	g2d_set_taskctl_commands(task);
 
@@ -846,7 +847,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return -EINVAL;
 	}
 
-	cmdaddr += task->cmd_count;
+	cmdaddr += task->sec.cmd_count;
 
 	copied = g2d_copy_commands(g2d_dev, -1, cmdaddr, cmds->target,
 				target_command_checker, G2DSFR_DST_FIELD_COUNT);
@@ -856,7 +857,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 	task->target.commands = cmdaddr;
 
 	cmdaddr += copied;
-	task->cmd_count += copied;
+	task->sec.cmd_count += copied;
 
 	for (i = 0; i < num_sources; i++) {
 		u32 srccmds[G2DSFR_SRC_FIELD_COUNT];
@@ -874,7 +875,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 
 		task->source[i].commands = cmdaddr;
 		cmdaddr += copied;
-		task->cmd_count += copied;
+		task->sec.cmd_count += copied;
 	}
 
 	if (copy_from_user(cmdaddr, cmds->extra,
@@ -887,7 +888,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 	if (!g2d_validate_extra_command(g2d_dev, cmdaddr, cmds->num_extra_regs))
 		return -EINVAL;
 
-	task->cmd_count += cmds->num_extra_regs;
+	task->sec.cmd_count += cmds->num_extra_regs;
 
 	/* overwrite if TM LUT values are specified: consumes 66 entries  */
 	if (exynos_hdr_get_tm_lut(tm_tuned_lut)) {
@@ -900,7 +901,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 					(unsigned long)(base + i * sizeof(u32));
 				cmdaddr->value = tm_tuned_lut[i];
 				cmdaddr++;
-				task->cmd_count++;
+				task->sec.cmd_count++;
 			}
 		}
 	}
@@ -915,7 +916,7 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 	const struct g2d_fmt *fmt = g2d_find_format(colormode,
 						    task->g2d_dev->caps);
 	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
-	unsigned int cmd_count = task->cmd_count;
+	unsigned int cmd_count = task->sec.cmd_count;
 	u32 width = layer_width(layer);
 	u32 height = layer_height(layer);
 	unsigned int i;
@@ -1024,17 +1025,17 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 		return 0;
 	}
 
-	reg[task->cmd_count].offset = base_offset + reg_offset[2];
-	reg[task->cmd_count].value = layer->buffer[0].dma_addr;
-	reg[task->cmd_count + 1].offset = base_offset + reg_offset[3];
+	reg[task->sec.cmd_count].offset = base_offset + reg_offset[2];
+	reg[task->sec.cmd_count].value = layer->buffer[0].dma_addr;
+	reg[task->sec.cmd_count + 1].offset = base_offset + reg_offset[3];
 	if (base_offset == TARGET_OFFSET)
-		reg[task->cmd_count + 1].value =
+		reg[task->sec.cmd_count + 1].value =
 			ALIGN(AFBC_HEADER_SIZE(layer->commands)
 					+ layer->buffer[0].dma_addr, align);
 	else
-		reg[task->cmd_count + 1].value = layer->buffer[0].dma_addr;
+		reg[task->sec.cmd_count + 1].value = layer->buffer[0].dma_addr;
 
-	return task->cmd_count + 2;
+	return task->sec.cmd_count + 2;
 }
 
 bool g2d_prepare_source(struct g2d_task *task,
@@ -1054,7 +1055,7 @@ bool g2d_prepare_source(struct g2d_task *task,
 	if ((layer->flags & G2D_LAYERFLAG_COLORFILL) != 0)
 		return true;
 
-	task->cmd_count = ((colormode & G2D_DATAFORMAT_AFBC) != 0)
+	task->sec.cmd_count = ((colormode & G2D_DATAFORMAT_AFBC) != 0)
 			? g2d_set_afbc_buffer(task, layer, LAYER_OFFSET(index))
 			: g2d_set_image_buffer(task, layer, colormode,
 				offsets, LAYER_OFFSET(index));
@@ -1062,18 +1063,18 @@ bool g2d_prepare_source(struct g2d_task *task,
 	 * It is alright to set task->cmd_count to 0
 	 * because this task is to be discarded.
 	 */
-	return task->cmd_count != 0;
+	return task->sec.cmd_count != 0;
 }
 
 bool g2d_prepare_target(struct g2d_task *task)
 {
 	u32 colormode = task->target.commands[G2DSFR_IMG_COLORMODE].value;
 
-	task->cmd_count = ((colormode & G2D_DATAFORMAT_AFBC) != 0)
+	task->sec.cmd_count = ((colormode & G2D_DATAFORMAT_AFBC) != 0)
 			? g2d_set_afbc_buffer(task, &task->target,
 					      TARGET_OFFSET)
 			: g2d_set_image_buffer(task, &task->target, colormode,
 					dst_base_reg_offset, TARGET_OFFSET);
 
-	return task->cmd_count != 0;
+	return task->sec.cmd_count != 0;
 }

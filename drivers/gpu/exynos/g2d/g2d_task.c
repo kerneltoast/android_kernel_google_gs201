@@ -68,7 +68,7 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 	struct g2d_task *task;
 
 	list_for_each_entry(task, &g2d_dev->tasks_active, node) {
-		if (task->job_id == id)
+		if (task->sec.job_id == id)
 			return task;
 	}
 
@@ -156,7 +156,7 @@ void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
 					struct g2d_task, node);
 
 		dev_err(g2d_dev->dev, "%s: Flushed task of ID %d\n",
-			__func__, task->job_id);
+			__func__, task->sec.job_id);
 
 		mark_task_state_killed(task);
 
@@ -346,7 +346,7 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 	INIT_WORK(&task->work, g2d_task_schedule_work);
 
 	init_task_state(task);
-	task->priority = g2d_ctx->priority;
+	task->sec.priority = g2d_ctx->priority;
 
 	g2d_init_commands(task);
 
@@ -369,7 +369,7 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	if (IS_HWFC(task->flags)) {
 		/* hwfc job id will be set from repeater driver info */
-		task->job_id = G2D_MAX_JOBS;
+		task->sec.job_id = G2D_MAX_JOBS;
 		list_add(&task->node, &g2d_dev->tasks_free_hwfc);
 	} else {
 		list_add(&task->node, &g2d_dev->tasks_free);
@@ -430,13 +430,15 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 		goto err_page;
 	}
 
-	task->job_id = id;
+	task->sec.job_id = id;
 	task->bufidx = -1;
 	task->g2d_dev = g2d_dev;
 
 	ret = g2d_map_cmd_data(task);
 	if (ret)
 		goto err_map;
+
+	task->sec.cmd_paddr = (unsigned long)page_to_phys(task->cmd_page);
 
 	for (i = 0; i < g2d_dev->max_layers; i++)
 		task->source[i].task = task;
