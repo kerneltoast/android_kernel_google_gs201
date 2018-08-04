@@ -220,21 +220,21 @@ void g2d_init_debug(struct g2d_device *g2d_dev)
 
 	g2d_dev->debug_root = debugfs_create_dir("g2d", NULL);
 	if (!g2d_dev->debug_root) {
-		dev_err(g2d_dev->dev, "debugfs : failed to create root directory\n");
+		perrdev(g2d_dev, "debugfs: failed to create root directory");
 		return;
 	}
 
 	g2d_dev->debug = debugfs_create_u32("debug",
 					0644, g2d_dev->debug_root, &g2d_debug);
 	if (!g2d_dev->debug) {
-		dev_err(g2d_dev->dev, "debugfs : failed to create debug file\n");
+		perrdev(g2d_dev, "debugfs: failed to create debug file");
 		return;
 	}
 
 	g2d_dev->debug_logs = debugfs_create_file("logs",
 					0444, g2d_dev->debug_root, g2d_dev, &g2d_debug_logs_fops);
 	if (!g2d_dev->debug_logs) {
-		dev_err(g2d_dev->dev, "debugfs : failed to create debug logs file\n");
+		perrdev(g2d_dev, "debugfs: failed to create logs file");
 		return;
 	}
 
@@ -242,8 +242,7 @@ void g2d_init_debug(struct g2d_device *g2d_dev)
 					0400, g2d_dev->debug_root, g2d_dev,
 					&g2d_debug_contexts_fops);
 	if (!g2d_dev->debug_logs) {
-		dev_err(g2d_dev->dev,
-			"debugfs : failed to create debug contexts file\n");
+		perrdev(g2d_dev, "debugfs: failed to create contexts file");
 		return;
 	}
 
@@ -251,8 +250,7 @@ void g2d_init_debug(struct g2d_device *g2d_dev)
 					0400, g2d_dev->debug_root, g2d_dev,
 					&g2d_debug_tasks_fops);
 	if (!g2d_dev->debug_logs) {
-		dev_err(g2d_dev->dev,
-			"debugfs : failed to create debug contexts file\n");
+		perrdev(g2d_dev, "debugfs: failed to create tasks file");
 		return;
 	}
 }

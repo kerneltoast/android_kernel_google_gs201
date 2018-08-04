@@ -40,24 +40,23 @@ void g2d_fence_timeout_handler(unsigned long arg)
 		if (fence) {
 			strlcpy(name, fence->ops->get_driver_name(fence),
 			       sizeof(name));
-			dev_err(g2d_dev->dev, "%s:  SOURCE[%d]:  %s #%d (%s)\n",
-				__func__, i, name, fence->seqno,
-				dma_fence_is_signaled(fence) ?
-					"signaled" : "active");
+			perrfndev(g2d_dev, " SOURCE[%d]:  %s #%d (%s)",
+				  i, name, fence->seqno,
+				  dma_fence_is_signaled(fence)
+					? "signaled" : "active");
 		}
 	}
 
 	fence = task->target.fence;
 	if (fence) {
 		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
-		pr_err("%s:  TARGET:     %s #%d (%s)\n",
-			__func__, name, fence->seqno,
-			dma_fence_is_signaled(fence) ? "signaled" : "active");
+		perrfn(" TARGET:     %s #%d (%s)", name, fence->seqno,
+		       dma_fence_is_signaled(fence) ? "signaled" : "active");
 	}
 
 	if (task->release_fence)
-		pr_err("%s:    Pending g2d release fence: #%d\n",
-			__func__, task->release_fence->fence->seqno);
+		perrfn("   Pending g2d release fence: #%d",
+		       task->release_fence->fence->seqno);
 
 	/*
 	 * Give up waiting the acquire fences that are not currently signaled
@@ -75,8 +74,8 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	 */
 	if (atomic_read(&task->starter.refcount.refs) == 0) {
 		spin_unlock_irqrestore(&task->fence_timeout_lock, flags);
-		pr_err("All fences are signaled. (work_busy? %d, state %#lx)\n",
-			work_busy(&task->work), task->state);
+		perr("All fences are signaled. (work_busy? %d, state %#lx)",
+		     work_busy(&task->work), task->state);
 		/*
 		 * If this happens, there is racing between
 		 * g2d_fence_timeout_handler() and g2d_queuework_task(). Once
@@ -86,9 +85,9 @@ void g2d_fence_timeout_handler(unsigned long arg)
 		return;
 	}
 
-	pr_err("%s: %d Fence(s) timed out after %d msec.\n", __func__,
-		atomic_read(&task->starter.refcount.refs),
-		G2D_FENCE_TIMEOUT_MSEC);
+	perrfn("%d Fence(s) timed out after %d msec.",
+	       atomic_read(&task->starter.refcount.refs),
+	       G2D_FENCE_TIMEOUT_MSEC);
 
 	/* Increase reference to prevent running the workqueue in callback */
 	kref_get(&task->starter);
@@ -171,9 +170,9 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 		return NULL;
 
 	if (data->num_release_fences > (task->num_source + 1)) {
-		dev_err(g2d_dev->dev,
-			"%s: Too many release fences %d required (src: %d)\n",
-			__func__, data->num_release_fences, task->num_source);
+		perrfndev(g2d_dev,
+			  "Too many release fences %d required (src: %d)",
+			  data->num_release_fences, task->num_source);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -203,9 +202,7 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 	if (copy_to_user(data->release_fences, release_fences,
 				sizeof(u32) * data->num_release_fences)) {
 		ret = -EFAULT;
-		dev_err(g2d_dev->dev,
-			"%s: Failed to copy release fences to userspace\n",
-			__func__);
+		perrfndev(g2d_dev, "Failed to copy release fences to user");
 		goto err_fd;
 	}
 

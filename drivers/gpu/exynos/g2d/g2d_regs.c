@@ -43,9 +43,9 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 	__flush_dcache_area(&task->sec, sizeof(task->sec));
 	__flush_dcache_area(page_address(task->cmd_page), G2D_CMD_LIST_SIZE);
 	if (exynos_smc(SMC_DRM_G2D_CMD_DATA, virt_to_phys(&task->sec), 0, 0)) {
-		dev_err(g2d_dev->dev, "%s : Failed to push %d %d %d %d\n",
-			__func__, task->sec.cmd_count, task->sec.priority,
-			task->sec.job_id, task->sec.secure_layer_mask);
+		perrfndev(g2d_dev, "Failed to push %d %d %d %d",
+			  task->sec.cmd_count, task->sec.priority,
+			  task->sec.job_id, task->sec.secure_layer_mask);
 
 		g2d_dump_info(g2d_dev, task);
 		BUG();
@@ -58,8 +58,8 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	u32 state = g2d_hw_get_job_state(g2d_dev, task->sec.job_id);
 
 	if (state != G2D_JOB_STATE_DONE)
-		dev_err(g2d_dev->dev, "%s: Unexpected state %#x of JOB %d\n",
-			__func__, state, task->sec.job_id);
+		perrfndev(g2d_dev, "Unexpected state %#x of JOB %d",
+			  state, task->sec.job_id);
 
 	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)) {
 		unsigned int i;
@@ -145,12 +145,11 @@ u32 g2d_hw_errint_status(struct g2d_device *g2d_dev)
 
 	for (idx = 0; idx < 3; idx++) {
 		if (errstatus & (1 << idx))
-			dev_err(g2d_dev->dev,
-				"G2D ERROR INTERRUPT: %s\n", error_desc[idx]);
+			perrdev(g2d_dev, "G2D ERROR INTERRUPT: %s",
+				error_desc[idx]);
 	}
 
-	dev_err(g2d_dev->dev, "G2D FIFO STATUS: %#x\n",
-		g2d_hw_fifo_status(g2d_dev));
+	perrdev(g2d_dev, "G2D FIFO STATUS: %#x", g2d_hw_fifo_status(g2d_dev));
 
 	return status;
 }
@@ -173,8 +172,7 @@ int g2d_hw_get_current_task(struct g2d_device *g2d_dev)
 
 	for (i = 0; i < G2D_MAX_JOBS; i++) {
 		val = readl_relaxed(g2d_dev->reg + G2D_JOB_IDn_STATE_REG(i));
-		dev_err(g2d_dev->dev,
-			"G2D TASK[%03d] STATE : %d\n", i, val);
+		perrdev(g2d_dev, "G2D TASK[%03d] STATE : %d", i, val);
 	}
 
 	return -1;
@@ -188,11 +186,10 @@ void g2d_hw_kill_task(struct g2d_device *g2d_dev, unsigned int job_id)
 
 	while (retry_count-- > 0) {
 		if (!(readl(g2d_dev->reg + G2D_JOB_PUSHKILL_STATE_REG) & 0x2)) {
-			dev_err(g2d_dev->dev,
-				"%s: Killed JOB %d\n", __func__, job_id);
+			perrdev(g2d_dev, "Killed JOB %d", job_id);
 			return;
 		}
 	}
 
-	dev_err(g2d_dev->dev, "%s: Failed to kill job %d\n", __func__, job_id);
+	perrdev(g2d_dev, "Failed to kill job %d", job_id);
 }

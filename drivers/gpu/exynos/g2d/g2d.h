@@ -140,6 +140,19 @@ struct g2d_context {
 	u64	w_bw;
 };
 
+#define IPPREFIX "[Exynos][G2D] "
+#define perr(format, arg...) \
+	pr_err(IPPREFIX format "\n", ##arg)
+
+#define perrfn(format, arg...) \
+	pr_err(IPPREFIX  "%s: " format "\n", __func__, ##arg)
+
+#define perrdev(g2d, format, arg...) \
+	dev_err(g2d->dev, IPPREFIX format "\n", ##arg)
+
+#define perrfndev(g2d, format, arg...) \
+	dev_err(g2d->dev, IPPREFIX  "%s: " format "\n", __func__, ##arg)
+
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task);
 void g2d_hw_timeout_handler(unsigned long arg);
 

@@ -587,12 +587,10 @@ static int g2d_copy_commands(struct g2d_device *g2d_dev, int index,
 		if (((cmd[i] & ~checker[i].mask) != 0) ||
 				(checker[i].checker &&
 					!checker[i].checker(cmd[i]))) {
-			dev_err(g2d_dev->dev,
-				"%s: Invalid %s[%d] SFR '%s' value %#x\n",
-				__func__, (index < 0) ? "target" : "source",
-				index, checker[i].cmdname, cmd[i]);
-			dev_err(g2d_dev->dev,
-				"mask %#x\n", checker[i].mask);
+			perrfndev(g2d_dev, "Invalid %s[%d] SFR '%s' value %#x",
+				  (index < 0) ? "target" : "source",
+				  index, checker[i].cmdname, cmd[i]);
+			perrdev(g2d_dev, "mask %#x", checker[i].mask);
 			return -EINVAL;
 		}
 
@@ -610,9 +608,8 @@ static bool g2d_validate_image_dimension(struct g2d_device *g2d_dev,
 {
 	if ((left >= right) || (top >= bottom) ||
 			(width < (right - left)) || (height < (bottom - top))) {
-		dev_err(g2d_dev->dev,
-			"%s: Invalid dimension [%ux%u, %ux%u) / %ux%u\n",
-			__func__, left, top, right, bottom, width, height);
+		perrfndev(g2d_dev, "Invalid dimension [%ux%u, %ux%u) / %ux%u",
+			  left, top, right, bottom, width, height);
 		return false;
 	}
 
@@ -624,7 +621,6 @@ static bool g2d_validate_image_dimension(struct g2d_device *g2d_dev,
 static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		struct g2d_task *task, struct g2d_reg commands[], bool dst)
 {
-	struct device *dev = g2d_dev->dev;
 	bool yuvbitdepth = !!(g2d_dev->caps & G2D_DEVICE_CAPS_YUV_BITDEPTH);
 	u32 stride = commands[G2DSFR_IMG_STRIDE].value;
 	u32 mode   = commands[G2DSFR_IMG_COLORMODE].value;
@@ -648,8 +644,7 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 
 	fmt = g2d_find_format(mode, g2d_dev->caps);
 	if (fmt == NULL) {
-		dev_err(dev, "%s: Color mode %#x is not supported\n",
-			__func__, mode);
+		perrfndev(g2d_dev, "Color mode %#x is not supported", mode);
 		return false;
 	}
 
@@ -668,9 +663,9 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 			err |= 1 << 5;
 
 		if (err) {
-			dev_err(dev,
-			"%s: Invalid[%#x] stride %u with mode %#x size %ux%u\n",
-				__func__, err, stride, mode, width, height);
+			perrfndev(g2d_dev,
+				  "wrong(%#x) stride %u mode %#x size %ux%u",
+				  err, stride, mode, width, height);
 			return false;
 		}
 	} else if (IS_YUV(mode)) {
@@ -678,15 +673,14 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		if (!IS_EVEN(width) || (!IS_YUV422(mode) && !IS_EVEN(height)))
 			goto err_align;
 	} else if (!IS_AFBC(mode)) {
-		dev_err(dev, "%s: Non AFBC RGB requires valid stride\n",
-			__func__);
+		perrfndev(g2d_dev, "Non AFBC RGB requires valid stride");
 		return false;
 	}
 
 	if (IS_HWFC(task->flags)) {
 		if ((dst && IS_AFBC(mode)) || IS_UORDER(mode)) {
-			dev_err(dev, "%s: Invalid HWFC format with %s\n",
-				__func__, IS_AFBC(mode) ? "AFBC" : "UORDER");
+			perrfndev(g2d_dev, "Invalid HWFC format with %s",
+				  IS_AFBC(mode) ? "AFBC" : "UORDER");
 			return false;
 		}
 		if (dst &&
@@ -724,19 +718,18 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 
 	return true;
 err_align:
-	dev_err(dev,
-		"%s: Unaligned size %ux%u or crop [%ux%u, %ux%u) for %s %s %s\n",
-		__func__,
-		commands[G2DSFR_IMG_WIDTH].value,
-		commands[G2DSFR_IMG_HEIGHT].value,
-		commands[G2DSFR_IMG_LEFT].value,
-		commands[G2DSFR_IMG_TOP].value,
-		commands[G2DSFR_IMG_RIGHT].value,
-		commands[G2DSFR_IMG_BOTTOM].value,
-		IS_AFBC(mode) ? "AFBC" :
-			IS_YUV422(mode) ? "YUV422" : "YUV20",
-		IS_YUV_82(mode, yuvbitdepth) ? "8+2" : "",
-		IS_HWFC(task->flags) ? "HWFC" : "");
+	perrfndev(g2d_dev,
+		  "Unaligned size %ux%u or crop [%ux%u, %ux%u) for %s %s %s",
+		  commands[G2DSFR_IMG_WIDTH].value,
+		  commands[G2DSFR_IMG_HEIGHT].value,
+		  commands[G2DSFR_IMG_LEFT].value,
+		  commands[G2DSFR_IMG_TOP].value,
+		  commands[G2DSFR_IMG_RIGHT].value,
+		  commands[G2DSFR_IMG_BOTTOM].value,
+		  IS_AFBC(mode) ? "AFBC" :
+			  IS_YUV422(mode) ? "YUV422" : "YUV20",
+		  IS_YUV_82(mode, yuvbitdepth) ? "8+2" : "",
+		  IS_HWFC(task->flags) ? "HWFC" : "");
 
 	return false;
 }
@@ -751,20 +744,16 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 
 	if (!g2d_validate_image_format(
 			g2d_dev, task, source->commands, false)) {
-		dev_err(g2d_dev->dev,
-			"%s: Failed to validate source[%d] commands\n",
-			__func__, i);
+		perrfndev(g2d_dev, "Failed to validate source[%d] commands", i);
 		return false;
 	}
 
 	if (((source->flags & G2D_LAYERFLAG_COLORFILL) != 0) &&
 							!IS_RGB(colormode)) {
-		dev_err(g2d_dev->dev,
-			"%s: Image type should be RGB for Solid color layer\n",
-			__func__);
-		dev_err(g2d_dev->dev,
-			"%s: layer index: %d, flags %#x, colormode: %#010x\n",
-			__func__, i, source->flags, colormode);
+		perrfndev(g2d_dev,
+			  "Image type should be RGB for Solid color layer:");
+		perrdev(g2d_dev, "\tindex: %d, flags %#x, colormode: %#010x",
+			i, source->flags, colormode);
 		return false;
 	}
 
@@ -781,9 +770,7 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 				source->commands[G2DSFR_SRC_DSTTOP].value,
 				source->commands[G2DSFR_SRC_DSTRIGHT].value,
 				source->commands[G2DSFR_SRC_DSTBOTTOM].value)) {
-		dev_err(g2d_dev->dev,
-			"%s: Window of source[%d] floods the target\n",
-			__func__, i);
+		perrfndev(g2d_dev, "Window of source[%d] floods the target", i);
 		return false;
 	}
 
@@ -795,8 +782,7 @@ bool g2d_validate_target_commands(struct g2d_device *g2d_dev,
 {
 	if (!g2d_validate_image_format(g2d_dev, task,
 			task->target.commands, true)) {
-		dev_err(g2d_dev->dev,
-			"%s: Failed to validate target commands\n", __func__);
+		perrfndev(g2d_dev, "Failed to validate target commands");
 		return false;
 	}
 
@@ -821,9 +807,8 @@ static bool g2d_validate_extra_command(struct g2d_device *g2d_dev,
 		}
 
 		if (i == ARRAY_SIZE(extra_cmd_range)) {
-			dev_err(g2d_dev->dev,
-				"%s: Invalid offset %#x @ extra command[%d]\n",
-				__func__, extra[n].offset, n);
+			perrfndev(g2d_dev, "wrong offset %#x @ extra cmd[%d]",
+				  extra[n].offset, n);
 			return false;
 		}
 	}
@@ -834,7 +819,6 @@ static bool g2d_validate_extra_command(struct g2d_device *g2d_dev,
 int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 			struct g2d_task_data *data, unsigned int num_sources)
 {
-	struct device *dev = g2d_dev->dev;
 	struct g2d_reg *cmdaddr = page_address(task->cmd_page);
 	struct g2d_commands *cmds = &data->commands;
 	u32 tm_tuned_lut[NR_TM_LUT_VALUES];
@@ -842,8 +826,8 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 	int copied;
 
 	if (cmds->num_extra_regs > MAX_EXTRA_REGS) {
-		dev_err(dev, "%s: Too many coefficient reigsters %d\n",
-			__func__, cmds->num_extra_regs);
+		perrfndev(g2d_dev, "Too many coefficient reigsters %d",
+			  cmds->num_extra_regs);
 		return -EINVAL;
 	}
 
@@ -863,8 +847,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 		u32 srccmds[G2DSFR_SRC_FIELD_COUNT];
 
 		if (copy_from_user(srccmds, cmds->source[i], sizeof(srccmds))) {
-			dev_err(dev, "%s: Failed to get source[%d] commands\n",
-				__func__, i);
+			perrfndev(g2d_dev, "Failed to get src[%d] commands", i);
 			return -EFAULT;
 		}
 
@@ -880,8 +863,8 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 
 	if (copy_from_user(cmdaddr, cmds->extra,
 			   cmds->num_extra_regs * sizeof(struct g2d_reg))) {
-		dev_err(dev, "%s: Failed to get %u extra commands\n", __func__,
-			cmds->num_extra_regs);
+		perrfndev(g2d_dev, "Failed to get %u extra commands",
+			  cmds->num_extra_regs);
 		return -EFAULT;
 	}
 
@@ -927,15 +910,13 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 
 		for (i = 0; i < nbufs; i++) {
 			if (!YUV82_BASE_ALIGNED(layer->buffer[i].dma_addr, i)) {
-				dev_err(task->g2d_dev->dev,
-				"%s: Plane %d Addr isn't aligned for YUV 8+2\n",
-					__func__, i);
+				perrfndev(task->g2d_dev,
+					  "addr[%d] not aligned for YUV8+2", i);
 				return 0;
 			}
 		}
 	} else if (!IS_ALIGNED(layer->buffer[0].dma_addr, 4)) {
-		dev_err(task->g2d_dev->dev,
-			"%s: Plane 0 address isn't aligned by 4.\n", __func__);
+		perrfndev(task->g2d_dev, "Plane 0 address isn't aligned by 4.");
 		return 0;
 	}
 
@@ -1019,9 +1000,8 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 				dst_base_reg_offset : src_base_reg_offset;
 
 	if (!IS_ALIGNED(layer->buffer[0].dma_addr, align)) {
-		dev_err(task->g2d_dev->dev,
-			"%s: AFBC base %#llx is not aligned by %u\n",
-			__func__, layer->buffer[0].dma_addr, align);
+		perrfndev(task->g2d_dev, "AFBC base %#llx is not aligned by %u",
+			  layer->buffer[0].dma_addr, align);
 		return 0;
 	}
 

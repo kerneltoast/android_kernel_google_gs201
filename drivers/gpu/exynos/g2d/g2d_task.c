@@ -54,8 +54,7 @@ static int g2d_map_cmd_data(struct g2d_task *task)
 				   IOMMU_READ | IOMMU_CACHE);
 
 	if (IS_ERR_VALUE(task->cmd_addr)) {
-		dev_err(task->g2d_dev->dev,
-			"%s: Unable to allocate IOVA for cmd data\n", __func__);
+		perrfndev(task->g2d_dev, "Unable to alloc IOVA for cmd data");
 		return task->cmd_addr;
 	}
 
@@ -72,8 +71,7 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 			return task;
 	}
 
-	dev_err(g2d_dev->dev,
-		"%s: No active task entry is found for ID %d\n", __func__, id);
+	perrfndev(g2d_dev, "No active task entry is found for ID %d", id);
 
 	return NULL;
 }
@@ -137,8 +135,7 @@ void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
 		return;
 
 	if (is_task_state_killed(task)) {
-		dev_err(g2d_dev->dev, "%s: Killed task ID %d is completed\n",
-			__func__, job_id);
+		perrfndev(g2d_dev, "Killed task ID %d is completed", job_id);
 		success = false;
 	}
 
@@ -149,14 +146,13 @@ void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
 {
 	struct g2d_task *task;
 
-	dev_err(g2d_dev->dev, "%s: Flushing all active tasks\n", __func__);
+	perrfndev(g2d_dev, "Flushing all active tasks");
 
 	while (!list_empty(&g2d_dev->tasks_active)) {
 		task = list_first_entry(&g2d_dev->tasks_active,
 					struct g2d_task, node);
 
-		dev_err(g2d_dev->dev, "%s: Flushed task of ID %d\n",
-			__func__, task->sec.job_id);
+		perrfndev(g2d_dev, "Flushed task of ID %d", task->sec.job_id);
 
 		mark_task_state_killed(task);
 
@@ -238,13 +234,13 @@ static void g2d_schedule_task(struct g2d_task *task)
 	 */
 	ret = pm_runtime_get_sync(g2d_dev->dev);
 	if (ret < 0) {
-		dev_err(g2d_dev->dev, "Failed to enable power (%d)\n", ret);
+		perrfndev(g2d_dev, "Failed to enable power (%d)", ret);
 		goto err_pm;
 	}
 
 	ret = clk_prepare_enable(g2d_dev->clock);
 	if (ret < 0) {
-		dev_err(g2d_dev->dev, "Failed to enable clock (%d)\n", ret);
+		perrfndev(g2d_dev, "Failed to enable clock (%d)", ret);
 		goto err_clk;
 	}
 
@@ -335,8 +331,7 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
 	if (list_empty(taskfree)) {
-		dev_err(g2d_dev->dev, "%s: no free task slot found(hwfc? %d)\n",
-			__func__, hwfc);
+		perrfndev(g2d_dev, "no free task slot found(hwfc? %d)", hwfc);
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 		return NULL;
 	}
