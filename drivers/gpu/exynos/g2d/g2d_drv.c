@@ -762,6 +762,85 @@ static int g2d_parse_dt(struct g2d_device *g2d_dev)
 	return 0;
 }
 
+#ifdef CONFIG_EXYNOS_ITMON
+
+#define MAX_ITMON_STRATTR 4
+
+bool g2d_itmon_check(struct g2d_device *g2d_dev, char *str_itmon, char *str_attr)
+{
+	const char *name[MAX_ITMON_STRATTR];
+	int size, i;
+
+	if (!str_itmon)
+		return false;
+
+	size = of_property_count_strings(g2d_dev->dev->of_node, str_attr);
+	if (size < 0 || size > MAX_ITMON_STRATTR)
+		return false;
+
+	of_property_read_string_array(g2d_dev->dev->of_node,
+				      str_attr, name, size);
+	for (i = 0; i < size; i++) {
+		if (strncmp(str_itmon, name[i], strlen(name[i])) == 0)
+			return true;
+	}
+
+	return false;
+}
+
+int g2d_itmon_notifier(struct notifier_block *nb,
+		unsigned long action, void *nb_data)
+{
+	struct g2d_device *g2d_dev = container_of(nb, struct g2d_device, itmon_nb);
+	struct itmon_notifier *itmon_info = nb_data;
+	struct g2d_task *task;
+	static int called_count;
+	bool is_power_on = false, is_g2d_itmon = true;
+
+	if (g2d_itmon_check(g2d_dev, itmon_info->port, "itmon,port"))
+		is_power_on = true;
+	else if (g2d_itmon_check(g2d_dev, itmon_info->dest, "itmon,dest"))
+		is_power_on = (itmon_info->onoff) ? true : false;
+	else
+		is_g2d_itmon = false;
+
+	if (is_g2d_itmon) {
+		unsigned long flags;
+		int job_id;
+
+		if (called_count++ != 0) {
+			perrfndev(g2d_dev,
+				  "called %d times, ignore it.", called_count);
+			return NOTIFY_DONE;
+		}
+
+		for (task = g2d_dev->tasks; task; task = task->next) {
+			perrfndev(g2d_dev, "TASK[%d]: state %#lx flags %#x",
+				  task->sec.job_id, task->state, task->flags);
+			perrfndev(g2d_dev, "prio %d begin@%llu end@%llu nr_src %d",
+				  task->sec.priority, ktime_to_us(task->ktime_begin),
+				  ktime_to_us(task->ktime_end), task->num_source);
+		}
+
+		if (!is_power_on)
+			return NOTIFY_DONE;
+
+		job_id = g2d_hw_get_current_task(g2d_dev);
+
+		spin_lock_irqsave(&g2d_dev->lock_task, flags);
+
+		task = g2d_get_active_task_from_id(g2d_dev, job_id);
+
+		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+
+		g2d_dump_info(g2d_dev, task);
+		exynos_sysmmu_show_status(g2d_dev->dev);
+	}
+
+	return NOTIFY_DONE;
+}
+#endif
+
 struct g2d_device_data {
 	unsigned long caps;
 	unsigned int max_layers;
@@ -912,6 +991,10 @@ static int g2d_probe(struct platform_device *pdev)
 	spin_lock_init(&g2d_dev->fence_lock);
 	g2d_dev->fence_context = dma_fence_context_alloc(1);
 
+#ifdef CONFIG_EXYNOS_ITMON
+	g2d_dev->itmon_nb.notifier_call = g2d_itmon_notifier;
+	itmon_notifier_chain_register(&g2d_dev->itmon_nb);
+#endif
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x", version);
 
 	g2d_init_debug(g2d_dev);

@@ -19,6 +19,7 @@
 #include <linux/miscdevice.h>
 #include <media/exynos_repeater.h>
 #include <linux/pm_qos.h>
+#include <soc/samsung/exynos-itmon.h>
 
 struct g2d_task; /* defined in g2d_task.h */
 
@@ -120,6 +121,8 @@ struct g2d_device {
 
 	struct g2d_dvfs_table *dvfs_table;
 	u32 dvfs_table_cnt;
+
+	struct notifier_block	itmon_nb;
 };
 
 #define G2D_AUTHORITY_HIGHUSER 1
