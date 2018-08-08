@@ -105,10 +105,10 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 				atomic_set(&smfc_hwfc_state, SMFC_HWFC_STANDBY);
 				wake_up(&smfc_hwfc_sync_wq);
 			}
-		}
 
-		vb->vb2_buf.timestamp =
+			vb->vb2_buf.timestamp =
 				(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
+		}
 
 		vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		if (vb)
@@ -192,7 +192,6 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 				struct device *alloc_devs[])
 {
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vq);
-	unsigned int i;
 
 	if (!(ctx->flags & SMFC_CTX_COMPRESS) && (*num_buffers > 1)) {
 		dev_info(ctx->smfc->dev,
@@ -209,7 +208,7 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 		 */
 		sizes[0] = PAGE_SIZE;
 		*num_planes = 1;
-		alloc_devs[i] = ctx->smfc->dev;
+		alloc_devs[0] = ctx->smfc->dev;
 		if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS)) {
 			sizes[1] = PAGE_SIZE;
 			alloc_devs[1] = ctx->smfc->dev;
