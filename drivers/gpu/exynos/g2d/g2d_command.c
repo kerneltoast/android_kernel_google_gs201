@@ -81,6 +81,8 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 	u32 rot = 0;
 	u32 n_rot = 0;
 	u32 size = 0; /* Size doesn't cause overflow */
+	u32 width = layer_width(&task->target);
+	u32 height = layer_height(&task->target);
 	int i;
 
 	for (i = 0; i < task->num_source; i++) {
@@ -108,13 +110,15 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 	}
 
 	/*
-	 * Divide the entire destination in half by verital,
+	 * Divide the entire destination in half by verital or horizontal,
 	 * and let the H/W work in parallel.
-	 * split index is half the width divided by 16
+	 * split index is half the width or height divided by 16
 	 */
 	regs[task->sec.cmd_count].offset = G2D_DST_SPLIT_TILE_IDX_REG;
-	regs[task->sec.cmd_count].value = (layer_width(&task->target) / 2) >> 4;
-	regs[task->sec.cmd_count].value |= G2D_DST_SPLIT_TILE_IDX_VFLAG;
+	regs[task->sec.cmd_count].value = (height > width) ?
+		((height / 2) >> 4) :
+		((width / 2) >> 4) | G2D_DST_SPLIT_TILE_IDX_VFLAG;
+
 	task->sec.cmd_count++;
 }
 
