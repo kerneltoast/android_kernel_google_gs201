@@ -296,6 +296,8 @@ static int g2d_open(struct inode *inode, struct file *filp)
 	list_add(&g2d_ctx->node, &g2d_dev->ctx_list);
 	spin_unlock(&g2d_dev->lock_ctx_list);
 
+	mutex_init(&g2d_ctx->lock_hwfc_info);
+
 	INIT_LIST_HEAD(&g2d_ctx->qos_node);
 	INIT_DELAYED_WORK(&(g2d_ctx->dwork), g2d_timeout_perf_work);
 
@@ -379,23 +381,36 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		 * function, so driver must reduce the reference
 		 * when context releases.
 		 */
-		if (IS_HWFC(data.flags) && !ctx->hwfc_info) {
-			ctx->hwfc_info = kzalloc(
-					sizeof(*ctx->hwfc_info), GFP_KERNEL);
-			if (!ctx->hwfc_info) {
-				ret = -ENOMEM;
+		if (IS_HWFC(data.flags)) {
+			if (ctx->authority != G2D_AUTHORITY_HIGHUSER) {
+				ret = -EPERM;
 				break;
 			}
 
-			ret = hwfc_request_buffer(ctx->hwfc_info, 0);
-			if (ret ||
-				(ctx->hwfc_info->buffer_count >
-				 MAX_SHARED_BUF_NUM)) {
-				kfree(ctx->hwfc_info);
-				ctx->hwfc_info = NULL;
-				perrfndev(g2d_dev, "Failed to read hwfc info");
-				break;
+			mutex_lock(&ctx->lock_hwfc_info);
+
+			if (!ctx->hwfc_info) {
+				ctx->hwfc_info = kzalloc(
+					sizeof(*ctx->hwfc_info), GFP_KERNEL);
+				if (!ctx->hwfc_info) {
+					mutex_unlock(&ctx->lock_hwfc_info);
+					ret = -ENOMEM;
+					break;
+				}
+
+				ret = hwfc_request_buffer(ctx->hwfc_info, 0);
+				if (ret || (ctx->hwfc_info->buffer_count >
+				    MAX_SHARED_BUF_NUM)) {
+					kfree(ctx->hwfc_info);
+					ctx->hwfc_info = NULL;
+					mutex_unlock(&ctx->lock_hwfc_info);
+					perrfndev(g2d_dev,
+						  "Failed to get hwfc info");
+					break;
+				}
 			}
+
+			mutex_unlock(&ctx->lock_hwfc_info);
 		}
 
 		task = g2d_get_free_task(g2d_dev, ctx, IS_HWFC(data.flags));
