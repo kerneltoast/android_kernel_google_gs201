@@ -75,6 +75,8 @@ static inline bool is_jpeg(const struct smfc_image_format *fmt)
 #define V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION_CROP		0x20000
 /* set if H/W supports for downscaling(1/2, 1/4 and 1/8) during decompression */
 #define V4L2_CAP_EXYNOS_JPEG_DOWNSCALING		0x40000
+/* set if vb2 supports offset of dmabuf */
+#define V4L2_CAP_EXYNOS_JPEG_DMABUF_OFFSET	0x80000
 
 struct smfc_device_data {
 	__u32 device_caps;
