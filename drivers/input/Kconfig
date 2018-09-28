@@ -185,6 +185,14 @@ config INPUT_APMPOWER
 	  To compile this driver as a module, choose M here: the
 	  module will be called apm-power.
 
+config INPUT_KEYDEBUG
+	tristate "Long Press Key Debugging"
+	depends on INPUT
+	select INPUT_KEYCOMBO
+	help
+	  Say Y here if you want to hook debug function to dump information
+	  to debug device hang when some keys are long pressed.
+
 config INPUT_KEYCOMBO
 	tristate "Key combo"
 	depends on INPUT
