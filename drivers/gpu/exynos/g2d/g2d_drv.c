@@ -99,23 +99,24 @@ void g2d_hw_timeout_handler(unsigned long arg)
 		 */
 		goto out;
 
-	if (is_task_state_killed(task)) {
-		/* The killed task is not died in the time out priod. */
+	if (is_task_state_killed(task) || g2d_hw_stuck_state(g2d_dev)) {
 		g2d_hw_global_reset(g2d_dev);
 
 		g2d_flush_all_tasks(g2d_dev);
 
 		perrdev(g2d_dev,
-			"GLOBAL RESET: killed task not dead in %d msec.",
-			G2D_HW_TIMEOUT_MSEC);
+			"GLOBAL RESET: Fetal error, %s",
+			is_task_state_killed(task) ?
+			"killed task not dead" :
+			"no running task on queued tasks");
+
 		goto out;
 	}
 
 	mod_timer(&task->hw_timer,
 	  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
 
-	if (!g2d_hw_stuck_state(g2d_dev) &&
-		(job_state != G2D_JOB_STATE_RUNNING))
+	if (job_state != G2D_JOB_STATE_RUNNING)
 		/* G2D_JOB_STATE_QUEUEING or G2D_JOB_STATE_SUSPENDING */
 		/* Time out is not caused by this task */
 		goto out;
