@@ -89,7 +89,8 @@ struct g2d_commands {
 #define G2D_BUFTYPE_USERPTR	2
 #define G2D_BUFTYPE_DMABUF	3
 
-#define G2D_BUFTYPE_VALID(type)	!(((type) & G2D_BUFTYPE_DMABUF) == 0)
+#define G2D_BUFTYPE_VALID(type) \
+	(((type) > 0) && ((type) <= G2D_BUFTYPE_DMABUF))
 
 /*
  * struct g2d_buffer_data - Layer buffer description
