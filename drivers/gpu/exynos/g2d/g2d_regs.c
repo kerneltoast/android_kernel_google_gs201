@@ -100,6 +100,8 @@ bool g2d_hw_stuck_state(struct g2d_device *g2d_dev)
 {
 	int i, val;
 	int retry_count = 10;
+	bool is_idle = true;
+	bool is_running = false;
 
 	while (retry_count-- > 0) {
 		for (i = 0; i < G2D_MAX_JOBS; i++) {
@@ -108,15 +110,17 @@ bool g2d_hw_stuck_state(struct g2d_device *g2d_dev)
 
 			val &= G2D_JOB_STATE_MASK;
 
-			if ((i < MAX_SHARED_BUF_NUM) &&
-				(val == G2D_JOB_STATE_RUNNING))
-				return false;
+			if (val != G2D_JOB_STATE_DONE)
+				is_idle = false;
 
-			/* if every task are queued except hwfc job*/
-			if ((i >= MAX_SHARED_BUF_NUM) &&
-				(val != G2D_JOB_STATE_QUEUEING))
-				return false;
+			if (val == G2D_JOB_STATE_RUNNING)
+				is_running = true;
 		}
+
+		if (is_idle || is_running)
+			return false;
+
+		is_idle = true;
 	}
 
 	return true;
