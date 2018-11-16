@@ -100,15 +100,19 @@ void g2d_hw_timeout_handler(unsigned long arg)
 		goto out;
 
 	if (is_task_state_killed(task) || g2d_hw_stuck_state(g2d_dev)) {
-		g2d_hw_global_reset(g2d_dev);
+		bool ret;
 
 		g2d_flush_all_tasks(g2d_dev);
 
+		ret = g2d_hw_global_reset(g2d_dev);
+		if (!ret)
+			g2d_dump_info(g2d_dev, NULL);
+
 		perrdev(g2d_dev,
-			"GLOBAL RESET: Fetal error, %s",
+			"GLOBAL RESET: Fetal error, %s (ret %d)",
 			is_task_state_killed(task) ?
 			"killed task not dead" :
-			"no running task on queued tasks");
+			"no running task on queued tasks", ret);
 
 		goto out;
 	}
@@ -188,15 +192,17 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 				  "Error occurred during running job %d",
 				  job_id);
 
+		g2d_hw_clear_int(g2d_dev, errstatus);
+
 		g2d_stamp_task(task, G2D_STAMP_STATE_ERR_INT, errstatus);
 
 		g2d_dump_info(g2d_dev, task);
 
 		g2d_flush_all_tasks(g2d_dev);
 
-		g2d_hw_global_reset(g2d_dev);
-
-		g2d_hw_clear_int(g2d_dev, errstatus);
+		perrdev(g2d_dev,
+			"GLOBAL RESET: error interrupt (ret %d)",
+			g2d_hw_global_reset(g2d_dev));
 	}
 
 	spin_unlock(&g2d_dev->lock_task);
