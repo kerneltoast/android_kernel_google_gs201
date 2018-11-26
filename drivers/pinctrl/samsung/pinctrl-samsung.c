@@ -1093,7 +1093,7 @@ samsung_pinctrl_get_soc_data_for_of_alias(struct platform_device *pdev)
 	}
 
 	of_data = of_device_get_match_data(&pdev->dev);
-	if (id >= of_data->num_ctrl) {
+	if (!of_data || id >= of_data->num_ctrl) {
 		dev_err(&pdev->dev, "invalid alias id %d\n", id);
 		return NULL;
 	}
