@@ -527,12 +527,96 @@ static int samsung_pinconf_group_get(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+/* GPIO register names */
+static char *gpio_regs[] = {"CON", "DAT", "PUD", "DRV", "CON_PDN", "PUD_PDN"};
+
+static void pin_to_reg_bank(struct samsung_pinctrl_drv_data *drvdata,
+			unsigned int pin, void __iomem **reg, u32 *offset,
+			struct samsung_pin_bank **bank);
+
+/* common debug show function */
+static void samsung_pin_dbg_show_by_type(struct samsung_pin_bank *bank,
+				void __iomem *reg_base, u32 pin_offset,
+				struct seq_file *s, unsigned int pin,
+				enum pincfg_type cfg_type)
+{
+	const struct samsung_pin_bank_type *type;
+	u32 data, width, mask, shift, cfg_reg;
+
+	type = bank->type;
+
+	if (!type->fld_width[cfg_type])
+		return;
+
+	width = type->fld_width[cfg_type];
+	cfg_reg = type->reg_offset[cfg_type];
+	mask = (1 << width) - 1;
+	shift = pin_offset * width;
+
+	data = readl(reg_base + cfg_reg);
+
+	data >>= shift;
+	data &= mask;
+
+	seq_printf(s, " %s(0x%x)", gpio_regs[cfg_type], data);
+}
+
+
+/* show whole PUD, DRV, CON_PDN and PUD_PDN register status */
+static void samsung_pinconf_dbg_show(struct pinctrl_dev *pctldev,
+				struct seq_file *s, unsigned int pin)
+{
+	struct samsung_pinctrl_drv_data *drvdata;
+	struct samsung_pin_bank *bank;
+	void __iomem *reg_base;
+	u32 pin_offset;
+	unsigned long flags;
+	enum pincfg_type cfg_type;
+
+	drvdata = pinctrl_dev_get_drvdata(pctldev);
+	pin_to_reg_bank(drvdata, pin - drvdata->pin_base, &reg_base,
+					&pin_offset, &bank);
+
+	spin_lock_irqsave(&bank->slock, flags);
+
+	for (cfg_type = PINCFG_TYPE_PUD; cfg_type <= PINCFG_TYPE_PUD_PDN;
+								cfg_type++) {
+		samsung_pin_dbg_show_by_type(bank, reg_base,
+					pin_offset, s, pin, cfg_type);
+	}
+
+	spin_unlock_irqrestore(&bank->slock, flags);
+}
+
+/* show group's PUD, DRV, CON_PDN and PUD_PDN register status */
+static void samsung_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
+				struct seq_file *s, unsigned int group)
+{
+	struct samsung_pinctrl_drv_data *drvdata;
+	const unsigned int *pins;
+	int i;
+
+	drvdata = pinctrl_dev_get_drvdata(pctldev);
+	pins = drvdata->pin_groups[group].pins;
+
+	for (i = 0; i < drvdata->pin_groups[group].num_pins; i++) {
+		seq_printf(s, "\n\t%s:", pin_get_name(pctldev, pins[i]));
+		samsung_pinconf_dbg_show(pctldev, s, pins[i]);
+	}
+}
+#endif
+
 /* list of pinconfig callbacks for pinconfig vertical in the pinctrl code */
 static const struct pinconf_ops samsung_pinconf_ops = {
 	.pin_config_get		= samsung_pinconf_get,
 	.pin_config_set		= samsung_pinconf_set,
 	.pin_config_group_get	= samsung_pinconf_group_get,
 	.pin_config_group_set	= samsung_pinconf_group_set,
+#ifdef CONFIG_DEBUG_FS
+	.pin_config_dbg_show	= samsung_pinconf_dbg_show,
+	.pin_config_group_dbg_show = samsung_pinconf_group_dbg_show,
+#endif
 };
 
 /*
