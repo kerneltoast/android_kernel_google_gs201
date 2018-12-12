@@ -642,8 +642,8 @@ retry:
 			acpm_debug->debug_log_level = 0;
 			acpm_ramdump();
 
-			WARN_ON(timeout_flag);
-			return -ETIMEDOUT;
+			dump_stack();
+			s3c2410wdt_set_emergency_reset(0, 0);
 		}
 
 		if (!is_acpm_stop_log)
