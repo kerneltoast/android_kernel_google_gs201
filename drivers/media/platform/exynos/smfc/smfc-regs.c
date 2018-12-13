@@ -283,7 +283,8 @@ static void smfc_hwconfigure_image_base(struct smfc_ctx *ctx,
 	if (multiplane) {
 		/* Note that this includes a single-plane format such as YUYV */
 		for (i = 0; i < num_buffers; i++) {
-			addr = vb2_dma_sg_plane_dma_addr(vb2buf, i);
+			addr = vb2_dma_sg_plane_dma_addr(vb2buf,
+					thumbnail ? i + num_buffers : i);
 			__raw_writel((u32)addr,
 				ctx->smfc->reg + REG_IMAGE_BASE(off, i));
 		}
