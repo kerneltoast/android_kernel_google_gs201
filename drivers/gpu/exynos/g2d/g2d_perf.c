@@ -252,6 +252,8 @@ void g2d_set_performance(struct g2d_context *ctx,
 
 	if (!data->num_frame) {
 		if (g2d_still_need_perf(g2d_dev) && !release) {
+			mod_delayed_work(system_wq, &ctx->dwork,
+					 msecs_to_jiffies(50));
 			mutex_unlock(&g2d_dev->lock_qos);
 			return;
 		}

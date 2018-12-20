@@ -320,6 +320,7 @@ static int g2d_release(struct inode *inode, struct file *filp)
 	}
 
 	g2d_put_performance(g2d_ctx, true);
+	flush_delayed_work(&g2d_ctx->dwork);
 
 	spin_lock(&g2d_dev->lock_ctx_list);
 	list_del(&g2d_ctx->node);
