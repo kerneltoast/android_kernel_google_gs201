@@ -30,6 +30,7 @@
 
 static atomic_t smfc_hwfc_state;
 static wait_queue_head_t smfc_hwfc_sync_wq;
+static wait_queue_head_t smfc_suspend_wq;
 
 enum {
 	SMFC_HWFC_STANDBY = 0,
@@ -142,6 +143,8 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 			spin_lock(&smfc->flag_lock);
 			smfc->flags &= ~SMFC_DEV_SUSPENDING;
 			spin_unlock(&smfc->flag_lock);
+
+			wake_up(&smfc_suspend_wq);
 		}
 	} else {
 		dev_err(smfc->dev, "Spurious interrupt on H/W JPEG occurred\n");
@@ -196,13 +199,16 @@ static void smfc_timedout_handler(unsigned long arg)
 			v4l2_m2m_job_finish(smfc->m2mdev, ctx->fh.m2m_ctx);
 		} else {
 			spin_lock(&smfc->flag_lock);
+			smfc->flags &= ~SMFC_DEV_SUSPENDING;
 			spin_unlock(&smfc->flag_lock);
+
+			wake_up(&smfc_suspend_wq);
 		}
 	}
 
 	spin_lock_irqsave(&smfc->flag_lock, flags);
-	/* finished timedout handling and suspend() can return */
-	smfc->flags &= ~(SMFC_DEV_TIMEDOUT | SMFC_DEV_SUSPENDING);
+	/* finished timedout handling */
+	smfc->flags &= ~SMFC_DEV_TIMEDOUT;
 	spin_unlock_irqrestore(&smfc->flag_lock, flags);
 }
 
@@ -875,6 +881,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 
 	atomic_set(&smfc_hwfc_state, SMFC_HWFC_STANDBY);
 	init_waitqueue_head(&smfc_hwfc_sync_wq);
+	init_waitqueue_head(&smfc_suspend_wq);
 
 	smfc = devm_kzalloc(&pdev->dev, sizeof(*smfc), GFP_KERNEL);
 	if (!smfc) {
@@ -989,7 +996,6 @@ static int exynos_smfc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int smfc_suspend(struct device *dev)
 {
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(smfc_suspend_wq);
 	struct smfc_dev *smfc = dev_get_drvdata(dev);
 	unsigned long flags;
 
@@ -1049,7 +1055,6 @@ static int smfc_runtime_suspend(struct device *dev)
 
 static void exynos_smfc_shutdown(struct platform_device *pdev)
 {
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(smfc_suspend_wq);
 	struct smfc_dev *smfc = platform_get_drvdata(pdev);
 	unsigned long flags;
 
