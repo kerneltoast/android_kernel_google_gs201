@@ -25,9 +25,9 @@
 #include "g2d_fence.h"
 #include "g2d_debug.h"
 
-void g2d_fence_timeout_handler(unsigned long arg)
+void g2d_fence_timeout_handler(struct timer_list *arg)
 {
-	struct g2d_task *task = (struct g2d_task *)arg;
+	struct g2d_task *task = from_timer(task, arg, fence_timer);
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	struct dma_fence *fence;
 	unsigned long flags;

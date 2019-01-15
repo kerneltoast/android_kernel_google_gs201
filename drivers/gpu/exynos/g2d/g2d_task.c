@@ -442,10 +442,8 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 	init_completion(&task->completion);
 	spin_lock_init(&task->fence_timeout_lock);
 
-	setup_timer(&task->hw_timer,
-		    g2d_hw_timeout_handler, (unsigned long)task);
-	setup_timer(&task->fence_timer,
-		    g2d_fence_timeout_handler, (unsigned long)task);
+	timer_setup(&task->hw_timer, g2d_hw_timeout_handler, 0);
+	timer_setup(&task->fence_timer, g2d_fence_timeout_handler, 0);
 
 	return task;
 

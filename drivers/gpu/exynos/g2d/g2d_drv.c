@@ -69,9 +69,9 @@ static int g2d_update_priority(struct g2d_context *ctx,
 	return 0;
 }
 
-void g2d_hw_timeout_handler(unsigned long arg)
+void g2d_hw_timeout_handler(struct timer_list *arg)
 {
-	struct g2d_task *task = (struct g2d_task *)arg;
+	struct g2d_task *task = from_timer(task, arg, hw_timer);
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	unsigned long flags;
 	u32 job_state;

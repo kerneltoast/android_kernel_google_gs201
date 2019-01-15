@@ -158,6 +158,6 @@ struct g2d_context {
 	dev_err(g2d->dev, IPPREFIX  "%s: " format "\n", __func__, ##arg)
 
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task);
-void g2d_hw_timeout_handler(unsigned long arg);
+void g2d_hw_timeout_handler(struct timer_list *arg);
 
 #endif /* __EXYNOS_G2D_H__ */
