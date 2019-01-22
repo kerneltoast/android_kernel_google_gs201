@@ -153,9 +153,9 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static void smfc_timedout_handler(unsigned long arg)
+static void smfc_timedout_handler(struct timer_list *arg)
 {
-	struct smfc_dev *smfc = (struct smfc_dev *)arg;
+	struct smfc_dev *smfc = from_timer(smfc, arg, timer);
 	struct smfc_ctx *ctx;
 	unsigned long flags;
 	bool suspending;
@@ -951,7 +951,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_iommu;
 
-	setup_timer(&smfc->timer, smfc_timedout_handler, (unsigned long)smfc);
+	timer_setup(&smfc->timer, smfc_timedout_handler, 0);
 
 	ret = smfc_find_hw_version(&pdev->dev, smfc);
 	if (ret < 0)
