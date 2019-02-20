@@ -342,6 +342,19 @@ static int g2d_queued_task_count(struct g2d_device *g2d_dev)
 	return num_queued;
 }
 
+void g2d_show_task_status(struct g2d_device *g2d_dev)
+{
+	struct g2d_task *task;
+
+	for (task = g2d_dev->tasks; task; task = task->next) {
+		perrfndev(g2d_dev, "TASK[%d]: state %#lx flags %#x",
+			  task->sec.job_id, task->state, task->flags);
+		perrfndev(g2d_dev, "prio %d begin@%llu end@%llu nr_src %d",
+			  task->sec.priority, ktime_to_us(task->ktime_begin),
+			  ktime_to_us(task->ktime_end), task->num_source);
+	}
+}
+
 struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 				    struct g2d_context *g2d_ctx, bool hwfc)
 {
@@ -368,6 +381,8 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 		else
 			perrfndev(g2d_dev, "queued %d >= max %d",
 				  num_queued, max_queued);
+
+		g2d_show_task_status(g2d_dev);
 
 		if (!block_on_contention)
 			return NULL;

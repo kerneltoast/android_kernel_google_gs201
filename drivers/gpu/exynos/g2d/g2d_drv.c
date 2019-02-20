@@ -850,13 +850,7 @@ int g2d_itmon_notifier(struct notifier_block *nb,
 			return NOTIFY_DONE;
 		}
 
-		for (task = g2d_dev->tasks; task; task = task->next) {
-			perrfndev(g2d_dev, "TASK[%d]: state %#lx flags %#x",
-				  task->sec.job_id, task->state, task->flags);
-			perrfndev(g2d_dev, "prio %d begin@%llu end@%llu nr_src %d",
-				  task->sec.priority, ktime_to_us(task->ktime_begin),
-				  ktime_to_us(task->ktime_end), task->num_source);
-		}
+		g2d_show_task_status(g2d_dev);
 
 		if (!is_power_on)
 			return NOTIFY_DONE;

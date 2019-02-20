@@ -200,4 +200,6 @@ void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb);
 
 void g2d_queuework_task(struct kref *kref);
 
+void g2d_show_task_status(struct g2d_device *g2d_dev);
+
 #endif /*__EXYNOS_G2D_TASK_H__*/
