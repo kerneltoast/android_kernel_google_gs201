@@ -30,6 +30,9 @@
 
 unsigned int g2d_debug;
 
+static bool g2d_systrace_on;
+module_param(g2d_systrace_on, bool, 0644);
+
 #define G2D_MAX_STAMP_ID 1024
 #define G2D_STAMP_CLAMP_ID(id) ((id) & (G2D_MAX_STAMP_ID - 1))
 
@@ -375,10 +378,32 @@ void g2d_dump_info(struct g2d_device *g2d_dev, struct g2d_task *task)
 	g2d_dump_afbcdata(g2d_dev);
 }
 
+#define G2D_TRACE_BUFSIZE 32
+static void tracing_mark_write(struct g2d_task *task, u32 stampid, s32 val)
+{
+	if (!g2d_systrace_on)
+		return;
+
+	switch (stampid) {
+	case G2D_STAMP_STATE_TASK_RESOURCE:
+		trace_printk((val) ?
+			     "C|0|g2d_frame_run#%d|0\n" :
+			     "C|0|g2d_frame_wait#%d|1\n",
+			     task->sec.job_id);
+	break;
+	case G2D_STAMP_STATE_PUSH:
+		trace_printk("C|0|g2d_frame_wait#%d|0\n", task->sec.job_id);
+		trace_printk("C|0|g2d_frame_run#%d|1\n", task->sec.job_id);
+	break;
+	}
+}
+
 void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 {
 	int idx = G2D_STAMP_CLAMP_ID(atomic_inc_return(&g2d_stamp_id));
 	struct g2d_stamp *stamp = &g2d_stamp_list[idx];
+
+	tracing_mark_write(task, stampid, val);
 
 	if (task) {
 		stamp->state = task->state;
