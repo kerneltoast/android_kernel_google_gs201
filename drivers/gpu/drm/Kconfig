@@ -298,6 +298,8 @@ config DRM_VKMS
 
 source "drivers/gpu/drm/exynos/Kconfig"
 
+source "drivers/gpu/drm/samsung/Kconfig"
+
 source "drivers/gpu/drm/rockchip/Kconfig"
 
 source "drivers/gpu/drm/vmwgfx/Kconfig"
