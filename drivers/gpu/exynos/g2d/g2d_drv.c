@@ -27,6 +27,8 @@
 #include <linux/compat.h>
 #include <linux/sched/task.h>
 
+#include <soc/samsung/exynos-itmon.h>
+
 #include "g2d.h"
 #include "g2d_regs.h"
 #include "g2d_task.h"
