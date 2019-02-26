@@ -102,11 +102,10 @@ static inline u32 win_end_pos(int x, int y,  u32 xres, u32 yres)
 /* ARGB value */
 #define COLOR_MAP_VALUE			0x00340080
 
-__maybe_unused
-static void decon_set_color_map(struct decon_device *decon,
+static void decon_set_color_map(struct decon_device *decon, u32 win_id,
 						u32 hactive, u32 vactive)
 {
-	struct decon_win *window = &decon->win[5];
+	struct decon_win *window = &decon->win[win_id];
 	struct decon_window_regs win_info;
 
 	decon_dbg(decon, "%s +\n", __func__);
@@ -115,7 +114,7 @@ static void decon_set_color_map(struct decon_device *decon,
 	win_info.start_pos = win_start_pos(0, 0);
 	win_info.end_pos = win_end_pos(0, 0, hactive, vactive);
 	win_info.start_time = 0;
-	win_info.colormap = 0x00FF00;
+	win_info.colormap = 0x000000; /* black */
 	win_info.blend = DECON_BLENDING_NONE;
 	decon_reg_set_window_control(decon->id, window->idx, &win_info, true);
 	decon_reg_update_req_window(decon->id, window->idx);
@@ -285,12 +284,12 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 	decon_set_te_pinctrl(decon, true);
 
 	decon_reg_init(decon->id, &decon->config);
-	/*
-	 * TODO: need to check whether decon operation has problem or not
-	 * without window configuration.
-	 * And VIDEO mode operation ?
-	 */
-	decon_reg_start(decon->id, &decon->config);
+
+	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) {
+		decon_set_color_map(decon, 0, decon->config.image_width,
+				decon->config.image_height);
+		decon_reg_start(decon->id, &decon->config);
+	}
 
 	decon_enable_irqs(decon);
 
