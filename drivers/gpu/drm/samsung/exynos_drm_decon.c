@@ -415,6 +415,10 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 				decon->id);
 		if (decon->config.mode.op_mode == DECON_VIDEO_MODE)
 			drm_crtc_handle_vblank(&decon->crtc->base);
+
+		if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE)
+			decon_reg_set_trigger(decon->id, &decon->config.mode,
+					DECON_TRIG_DISABLE);
 	}
 
 	if (irq_sts_reg & DPU_FRAME_DONE_INT_PEND)
@@ -601,11 +605,8 @@ static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 	if (decon->state != DECON_STATE_ON)
 		goto end;
 
-	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) {
+	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE)
 		drm_crtc_handle_vblank(&decon->crtc->base);
-		decon_reg_set_trigger(decon->id, &decon->config.mode,
-				DECON_TRIG_DISABLE);
-	}
 
 end:
 	return IRQ_HANDLED;
