@@ -191,15 +191,15 @@ static void dsim_disable(struct drm_encoder *encoder)
 		return;
 	}
 
+	/* TODO: 0x1F will be changed */
+	dsim_reg_stop(dsim->id, 0x1F);
+	disable_irq(dsim->irq);
+
 	/* Wait for current read & write CMDs. */
 	mutex_lock(&dsim->cmd_lock);
 	del_timer(&dsim->cmd_timer);
 	dsim->state = DSIM_STATE_SUSPEND;
 	mutex_unlock(&dsim->cmd_lock);
-
-	/* TODO: 0x1F will be changed */
-	dsim_reg_stop(dsim->id, 0x1F);
-	disable_irq(dsim->irq);
 
 	ret = drm_panel_unprepare(dsim->panel);
 	if (ret < 0) {
