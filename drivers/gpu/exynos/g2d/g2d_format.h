@@ -89,8 +89,10 @@
 
 #define G2D_DATAFORMAT_AFBC	(1 << 20)
 #define G2D_DATAFORMAT_UORDER	(1 << 21)
+#define G2D_DATAFORMAT_SBWC	(1 << 22)
 
 #define IS_AFBC(fmt)	((fmt & G2D_DATAFORMAT_AFBC) != 0)
+#define IS_SBWC(fmt)	((fmt & G2D_DATAFORMAT_SBWC) != 0)
 #define IS_UORDER(fmt)	((fmt & G2D_DATAFORMAT_UORDER) != 0)
 #define IS_YUV(fmt)	((((fmt) & G2D_DATAFMT_MASK) >= G2D_DATAFMT_YUV_MIN) &&\
 			(((fmt) & G2D_DATAFMT_MASK) <= G2D_DATAFMT_YUV_MAX))
@@ -108,11 +110,16 @@
 #define IS_YUV_82_9820(fmt) (((fmt) & G2D_YCBCR_BITDEPTH_MASK) == G2D_FMT_82)
 #define IS_YUV_P10_9820(fmt) (((fmt) & G2D_YCBCR_BITDEPTH_MASK) == G2D_FMT_10)
 
+#define IS_YUV_P10(fmt, bitdepthfield) \
+		(!(bitdepthfield) ? IS_YUV_P10_9810(fmt) : IS_YUV_P10_9820(fmt))
 #define IS_YUV_82(fmt, bitdepthfield) \
 		(!(bitdepthfield) ? IS_YUV_82_9810(fmt) : IS_YUV_82_9820(fmt))
 
 #define IS_AFBC_WIDTH_ALIGNED(width)	IS_ALIGNED((width), 16)
 #define IS_AFBC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 4)
+
+#define IS_SBWC_WIDTH_ALIGNED(width)	IS_ALIGNED((width), 32)
+#define IS_SBWC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 8)
 
 #define G2D_IMGFMT(value) ((value) & (G2D_YCBCR_BITDEPTH_MASK | \
 			   G2D_DATAFMT_MASK | G2D_YUVORDER_MASK | G2D_SWZ_MASK))
