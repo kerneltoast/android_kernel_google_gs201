@@ -2155,6 +2155,12 @@ int dsim_reg_stop(u32 id, u32 lanes)
 	int err = 0;
 	u32 is_vm;
 
+	/* 0. wait the IDLE status */
+	is_vm = dsim_reg_get_display_mode(id);
+	err = dsim_reg_wait_idle_status(id, is_vm);
+	if (err < 0)
+		cal_log_err(id, "DSIM status is not IDLE!\n");
+
 	dsim_reg_clear_int(id, 0xffffffff);
 	/* disable interrupts */
 	dsim_reg_set_int(id, 0);
@@ -2162,12 +2168,6 @@ int dsim_reg_stop(u32 id, u32 lanes)
 	/* first disable HS clock */
 	if (dsim_reg_set_hs_clock(id, 0) < 0)
 		cal_log_err(id, "The CLK lane doesn't be switched to LP mode\n");
-
-	/* 0. wait the IDLE status */
-	is_vm = dsim_reg_get_display_mode(id);
-	err = dsim_reg_wait_idle_status(id, is_vm);
-	if (err < 0)
-		cal_log_err(id, "DSIM status is not IDLE!\n");
 
 	/* 1. clock selection : OSC */
 	dsim_reg_set_link_clock(id, 0);
