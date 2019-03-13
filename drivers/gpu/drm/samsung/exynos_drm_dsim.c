@@ -551,16 +551,30 @@ static const struct component_ops dsim_component_ops = {
 static int dsim_parse_dt(struct dsim_device *dsim)
 {
 	struct device_node *np = dsim->dev->of_node;
+	struct device_node *dsc_np;
 
 	if (!np) {
 		dsim_err(dsim, "no device tree information\n");
 		return -ENOTSUPP;
 	}
 
-	of_property_read_u32(dsim->dev->of_node, "dsim,id", &dsim->id);
+	of_property_read_u32(np, "dsim,id", &dsim->id);
 	if (dsim->id < 0 || dsim->id >= MAX_DSI_CNT) {
 		dsim_err(dsim, "wrong dsim id(%d)\n", dsim->id);
 		return -ENODEV;
+	}
+
+	dsc_np = of_parse_phandle(np, "dsc-config", 0);
+	if (!dsc_np) {
+		dsim->config.dsc.enabled = false;
+	} else {
+		dsim->config.dsc.enabled = true;
+		of_property_read_u32(dsc_np, "dsc_count",
+				&dsim->config.dsc.dsc_count);
+		of_property_read_u32(dsc_np, "slice_count",
+				&dsim->config.dsc.slice_count);
+		of_property_read_u32(dsc_np, "slice_height",
+				&dsim->config.dsc.slice_height);
 	}
 
 	dsim->pll_params = dsim_of_get_clock_mode(dsim);
@@ -774,13 +788,16 @@ static void dsim_convert_cal_data(struct dsim_device *dsim)
 
 	/* TODO: This hard coded information will be defined in device tree */
 	dsim->config.mres_mode = 0;
-	dsim->config.dsc.enabled = true;
-	dsim->config.dsc.dsc_count = 2;
-	dsim->config.dsc.slice_count = 2;
 	dsim->config.dsc.slice_width = DIV_ROUND_UP(
 			dsim->config.p_timing.hactive,
 			dsim->config.dsc.slice_count);
-	dsim->config.dsc.slice_height = 40;
+
+	dsim_info(dsim, "dsc is %s [%d %d %d %d]\n",
+			dsim->config.dsc.enabled ? "enabled" : "disabled",
+			dsim->config.dsc.dsc_count,
+			dsim->config.dsc.slice_count,
+			dsim->config.dsc.slice_width,
+			dsim->config.dsc.slice_height);
 }
 
 static int dsim_get_display_mode(struct dsim_device *dsim)
