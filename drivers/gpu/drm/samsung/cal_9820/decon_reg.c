@@ -387,9 +387,12 @@ static void decon_reg_set_data_path_size(u32 id, u32 width, u32 height,
 		u32 ds_en[2])
 {
 	u32 outfifo_w;
+	u32 comp_slice_width; /* compressed slice width */
+
+	comp_slice_width = DIV_ROUND_UP(slice_w, 3);
 
 	if (is_dsc)
-		outfifo_w = slice_w << ds_en[0];
+		outfifo_w = ALIGN((comp_slice_width << ds_en[0]), 4);
 	else
 		outfifo_w = width;
 
@@ -398,7 +401,8 @@ static void decon_reg_set_data_path_size(u32 id, u32 width, u32 height,
 	if (dsc_cnt == 2)
 		decon_reg_set_outfifo_size_ctl1(id, outfifo_w, 0);
 	if (is_dsc)
-		decon_reg_set_outfifo_size_ctl2(id, slice_w, slice_h);
+		decon_reg_set_outfifo_size_ctl2(id, ALIGN(comp_slice_width, 4),
+				slice_h);
 
 	/*
 	 * SCALED size is updated LCD size if partial update is operating,
@@ -421,7 +425,7 @@ static void decon_reg_config_data_path_size(u32 id, u32 width, u32 height,
 	u32 dsim_if0 = 1;
 	u32 dsim_if1 = 0;
 	u32 width_f;
-	u32 sw;
+	u32 comp_slice_width; /* compressed slice width */
 
 	dual_dsc = decon_reg_get_data_path_cfg(id, PATH_CON_ID_DUAL_DSC);
 	dsim_if0 = decon_reg_get_data_path_cfg(id, PATH_CON_ID_DSIM_IF0);
@@ -430,19 +434,21 @@ static void decon_reg_config_data_path_size(u32 id, u32 width, u32 height,
 		dual_dsi = 1;
 
 	/* OUTFIFO */
-	if (dsc->en) {
+	if (dsc->enabled) {
 		width_f = p->width_per_enc;
-		sw = dsc->enc_sw;
+		/* OUTFIFO_COMPRESSED_SLICE_WIDTH must be a multiple of 2 */
+		comp_slice_width = get_comp_dsc_width(dsc);
+
 		/* DSC 1EA */
-		if (dsc->cnt == 1) {
+		if (dsc->dsc_count == 1) {
 			decon_reg_set_outfifo_size_ctl0(id, width_f, height);
 			decon_reg_set_outfifo_size_ctl2(id,
-					sw, p->slice_height);
-		} else if (dsc->cnt == 2) {	/* DSC 2EA */
+					comp_slice_width, p->slice_height);
+		} else if (dsc->dsc_count == 2) {	/* DSC 2EA */
 			decon_reg_set_outfifo_size_ctl0(id, width_f, height);
 			decon_reg_set_outfifo_size_ctl1(id, width_f, 0);
 			decon_reg_set_outfifo_size_ctl2(id,
-					sw, p->slice_height);
+					comp_slice_width, p->slice_height);
 		}
 	} else {
 		decon_reg_set_outfifo_size_ctl0(id, width, height);
@@ -813,11 +819,11 @@ static u32 dsc_get_dual_slice_mode(struct exynos_dsc *dsc)
 {
 	u32 dual_slice_en = 0;
 
-	if (dsc->cnt == 1) {
-		if (dsc->slice_num == 2)
+	if (dsc->dsc_count == 1) {
+		if (dsc->slice_count == 2)
 			dual_slice_en = 1;
-	} else if (dsc->cnt == 2) {
-		if (dsc->slice_num == 4)
+	} else if (dsc->dsc_count == 2) {
+		if (dsc->slice_count == 4)
 			dual_slice_en = 1;
 	} else {
 		dual_slice_en = 0;
@@ -831,7 +837,7 @@ static u32 dsc_get_slice_mode_change(struct exynos_dsc *dsc)
 {
 	u32 slice_mode_ch = 0;
 
-	if ((dsc->cnt == 2) && (dsc->slice_num == 2))
+	if ((dsc->dsc_count == 2) && (dsc->slice_count == 2))
 		slice_mode_ch = 1;
 
 	return slice_mode_ch;
@@ -974,7 +980,7 @@ static void dsc_calc_pps_info(struct decon_config *config, u32 dscc_en,
 		slice_width = width_eff;
 
 	pic_height = height;
-	slice_height = config->dsc.slice_h;
+	slice_height = config->dsc.slice_height;
 
 	bpp = 8;
 	chunk_size = slice_width;
@@ -1336,7 +1342,7 @@ static void dsc_reg_set_encoder(u32 id, struct decon_config *config,
 					dsc_enc->slice_width);
 		dsc_reg_set_pps(DECON_DSC_ENC2, dsc_enc);
 	} else {
-		for (dsc_id = 0; dsc_id < config->dsc.cnt; dsc_id++) {
+		for (dsc_id = 0; dsc_id < config->dsc.dsc_count; dsc_id++) {
 			dsc_reg_config_control(dsc_id, ds_en, sm_ch);
 			dsc_reg_config_control_width(dsc_id,
 						dsc_enc->slice_width);
@@ -1359,7 +1365,7 @@ static int dsc_reg_init(u32 id, struct decon_config *config, u32 overlap_w,
 
 	/* Basically, all SW-resets in DPU are not necessary */
 	if (swrst) {
-		for (dsc_id = 0; dsc_id < config->dsc.cnt; dsc_id++)
+		for (dsc_id = 0; dsc_id < config->dsc.dsc_count; dsc_id++)
 			dsc_reg_swreset(dsc_id);
 	}
 
@@ -1393,22 +1399,22 @@ static void decon_reg_configure_lcd(u32 id, struct decon_config *config)
 	enum decon_rgb_order rgb_order = DECON_RGB;
 
 	if ((config->out_type & DECON_OUT_DSI)
-		&& !(config->dsc.en))
+		&& !(config->dsc.enabled))
 		rgb_order = DECON_BGR;
 	else
 		rgb_order = DECON_RGB;
 	decon_reg_set_rgb_order(id, rgb_order);
 
-	if (config->dsc.en) {
-		if (config->dsc.cnt == 1)
+	if (config->dsc.enabled) {
+		if (config->dsc.dsc_count == 1)
 			d_path = (id == 0) ?
 				DPATH_DSCENC0_OUTFIFO0_DSIMIF0 :
 				DECON2_DSCENC2_OUTFIFO0_DPIF;
-		else if (config->dsc.cnt == 2 && !id)
+		else if (config->dsc.dsc_count == 2 && !id)
 			d_path = DPATH_DSCC_DSCENC01_OUTFIFO01_DSIMIF0;
 		else
 			cal_log_err(id, "dsc_cnt=%d : not supported\n",
-					config->dsc.cnt);
+					config->dsc.dsc_count);
 
 		decon_reg_set_data_path(id, d_path, s_path);
 		/* call decon_reg_config_data_path_size () inside */
@@ -1984,22 +1990,22 @@ void decon_reg_set_partial_update(u32 id, struct decon_config *config,
 	decon_reg_set_blender_bg_image_size(id, config->mode.dsi_mode,
 			partial_w, partial_h);
 
-	if (config->dsc.en) {
+	if (config->dsc.enabled) {
 		/* get correct DSC configuration */
-		dsc_get_partial_update_info(id, config->dsc.slice_num,
-				config->dsc.cnt, in_slice,
+		dsc_get_partial_update_info(id, config->dsc.slice_count,
+				config->dsc.dsc_count, in_slice,
 				dual_slice_en, slice_mode_ch);
 		/* To support dual-display : DECON1 have to set DSC1 */
 		dsc_reg_set_partial_update(id, dual_slice_en[0],
 				slice_mode_ch[0], partial_h);
-		if (config->dsc.cnt == 2)
+		if (config->dsc.dsc_count == 2)
 			dsc_reg_set_partial_update(1, dual_slice_en[1],
 					slice_mode_ch[1], partial_h);
 	}
-
 	decon_reg_set_data_path_size(id, partial_w, partial_h,
-		config->dsc.en, config->dsc.cnt,
-		config->dsc.enc_sw, config->dsc.slice_h, dual_slice_en);
+		config->dsc.enabled, config->dsc.dsc_count,
+		config->dsc.slice_width, config->dsc.slice_height,
+		dual_slice_en);
 }
 
 void decon_reg_set_mres(u32 id, struct decon_config *config)
@@ -2018,7 +2024,7 @@ void decon_reg_set_mres(u32 id, struct decon_config *config)
 	decon_reg_set_scaled_image_size(id, config->image_width,
 			config->image_height);
 
-	if (config->dsc.en)
+	if (config->dsc.enabled)
 		dsc_reg_init(id, config, overlap_w, 0);
 	else
 		decon_reg_config_data_path_size(id, config->image_width,

@@ -1038,12 +1038,12 @@ static void dsim_reg_set_vresol(u32 id, u32 vresol)
 static void dsim_reg_set_hresol(u32 id, u32 hresol,
 		struct dsim_reg_config *config)
 {
-	u32 width, val;
+	u32 width = hresol;
+	u32 val;
 
-	if (config->dsc.en)
-		width = config->dsc.enc_sw * config->dsc.slice_num;
-	else
-		width = hresol;
+	if (config->dsc.enabled)
+		width = get_comp_dsc_width(&config->dsc) *
+					config->dsc.slice_count;
 
 	val = DSIM_RESOL_HRESOL(width);
 
@@ -1149,7 +1149,7 @@ static void dsim_reg_set_multi_slice(u32 id, struct dsim_reg_config *config)
 	if (config->mode == DSIM_COMMAND_MODE)
 		multi_slice = 1;
 	else if (config->mode == DSIM_VIDEO_MODE)
-		multi_slice = config->dsc.slice_num > 1 ? 1 : 0;
+		multi_slice = config->dsc.slice_count > 1 ? 1 : 0;
 
 	/* if MULTI_SLICE_PACKET is enabled,
 	 * only one packet header is transferred
@@ -1162,11 +1162,11 @@ static void dsim_reg_set_multi_slice(u32 id, struct dsim_reg_config *config)
 
 static void dsim_reg_set_size_of_slice(u32 id, struct dsim_reg_config *config)
 {
-	u32 slice_w = config->dsc.dec_sw;
+	u32 slice_w = config->dsc.slice_width;
 	u32 val_01 = 0, mask_01 = 0;
 	u32 val_23 = 0, mask_23 = 0;
 
-	if (config->dsc.slice_num == 4) {
+	if (config->dsc.slice_count == 4) {
 		val_01 = DSIM_SLICE01_SIZE_OF_SLICE1(slice_w) |
 			DSIM_SLICE01_SIZE_OF_SLICE0(slice_w);
 		mask_01 = DSIM_SLICE01_SIZE_OF_SLICE1_MASK |
@@ -1178,21 +1178,21 @@ static void dsim_reg_set_size_of_slice(u32 id, struct dsim_reg_config *config)
 
 		dsim_write_mask(id, DSIM_SLICE01, val_01, mask_01);
 		dsim_write_mask(id, DSIM_SLICE23, val_23, mask_23);
-	} else if (config->dsc.slice_num == 2) {
+	} else if (config->dsc.slice_count == 2) {
 		val_01 = DSIM_SLICE01_SIZE_OF_SLICE1(slice_w) |
 			DSIM_SLICE01_SIZE_OF_SLICE0(slice_w);
 		mask_01 = DSIM_SLICE01_SIZE_OF_SLICE1_MASK |
 			DSIM_SLICE01_SIZE_OF_SLICE0_MASK;
 
 		dsim_write_mask(id, DSIM_SLICE01, val_01, mask_01);
-	} else if (config->dsc.slice_num == 1) {
+	} else if (config->dsc.slice_count == 1) {
 		val_01 = DSIM_SLICE01_SIZE_OF_SLICE0(slice_w);
 		mask_01 = DSIM_SLICE01_SIZE_OF_SLICE0_MASK;
 
 		dsim_write_mask(id, DSIM_SLICE01, val_01, mask_01);
 	} else {
 		cal_log_err(id, "not supported slice mode. dsc(%d), slice(%d)\n",
-				config->dsc.cnt, config->dsc.slice_num);
+				config->dsc.dsc_count, config->dsc.slice_count);
 	}
 }
 
@@ -1592,7 +1592,7 @@ static int dsim_reg_get_dphy_timing(u32 id, u32 hs_clk, u32 esc_clk,
 static void dsim_reg_set_config(u32 id, struct dsim_reg_config *config,
 		struct dsim_clks *clks)
 {
-	u32 threshold;
+	u32 threshold = 0;
 	u32 num_of_slice;
 	u32 num_of_transfer;
 	int idx;
@@ -1621,10 +1621,11 @@ static void dsim_reg_set_config(u32 id, struct dsim_reg_config *config,
 				config->cmd_underrun_cnt[idx]);
 	}
 
-	if (config->dsc.en)
-		threshold = config->dsc.enc_sw * config->dsc.slice_num;
-	else
-		threshold = config->p_timing.hactive;
+	threshold = config->p_timing.hactive;
+	/* threshold is set as 1H. 1H is compressed width in case of DSC */
+	if (config->dsc.enabled)
+		threshold = get_comp_dsc_width(&config->dsc) *
+					config->dsc.slice_count;
 
 	dsim_reg_set_threshold(id, threshold);
 
@@ -1633,7 +1634,7 @@ static void dsim_reg_set_config(u32 id, struct dsim_reg_config *config,
 	dsim_reg_set_porch(id, config);
 
 	if (config->mode == DSIM_COMMAND_MODE) {
-		if (config->dsc.en)
+		if (config->dsc.enabled)
 			/* use 1-line transfer only */
 			num_of_transfer = config->p_timing.vactive;
 		else
@@ -1664,7 +1665,7 @@ static void dsim_reg_set_config(u32 id, struct dsim_reg_config *config,
 		cal_log_debug(id, "%s: command mode set\n", __func__);
 	}
 
-	dsim_reg_enable_dsc(id, config->dsc.en);
+	dsim_reg_enable_dsc(id, config->dsc.enabled);
 
 	/* shadow disable */
 	dsim_reg_enable_shadow(id, 0);
@@ -1679,9 +1680,9 @@ static void dsim_reg_set_config(u32 id, struct dsim_reg_config *config,
 		dsim_reg_enable_clocklane(id, 0);
 	}
 
-	if (config->dsc.en) {
+	if (config->dsc.enabled) {
 		cal_log_debug(id, "%s: dsc configuration is set\n", __func__);
-		dsim_reg_set_num_of_slice(id, config->dsc.slice_num);
+		dsim_reg_set_num_of_slice(id, config->dsc.slice_count);
 		dsim_reg_set_multi_slice(id, config); /* multi slice */
 		dsim_reg_set_size_of_slice(id, config);
 
@@ -2363,7 +2364,7 @@ void dsim_reg_set_partial_update(u32 id, struct dsim_reg_config *config)
 
 void dsim_reg_set_mres(u32 id, struct dsim_reg_config *config)
 {
-	u32 threshold;
+	u32 threshold = 0;
 	u32 num_of_slice;
 	u32 num_of_transfer;
 	int idx;
@@ -2377,8 +2378,9 @@ void dsim_reg_set_mres(u32 id, struct dsim_reg_config *config)
 	idx = config->mres_mode;
 	dsim_reg_set_cm_underrun_lp_ref(id, config->cmd_underrun_cnt[idx]);
 
-	if (config->dsc.en) {
-		threshold = config->dsc.enc_sw * config->dsc.slice_num;
+	if (config->dsc.enabled) {
+		threshold = get_comp_dsc_width(&config->dsc) *
+					config->dsc.slice_count;
 		/* use 1-line transfer only */
 		num_of_transfer = config->p_timing.vactive;
 	} else {
@@ -2393,10 +2395,10 @@ void dsim_reg_set_mres(u32 id, struct dsim_reg_config *config)
 	dsim_reg_set_porch(id, config);
 	dsim_reg_set_num_of_transfer(id, num_of_transfer);
 
-	dsim_reg_enable_dsc(id, config->dsc.en);
-	if (config->dsc.en) {
+	dsim_reg_enable_dsc(id, config->dsc.enabled);
+	if (config->dsc.enabled) {
 		cal_log_debug(id, "%s: dsc configuration is set\n", __func__);
-		dsim_reg_set_num_of_slice(id, config->dsc.slice_num);
+		dsim_reg_set_num_of_slice(id, config->dsc.slice_count);
 		dsim_reg_set_multi_slice(id, config); /* multi slice */
 		dsim_reg_set_size_of_slice(id, config);
 

@@ -13,6 +13,8 @@
 #ifndef __EXYNOS_PANEL_H__
 #define __EXYNOS_PANEL_H__
 
+#include <linux/kernel.h>
+
 enum type_of_ddi {
 	TYPE_OF_SM_DDI = 0,
 	TYPE_OF_MAGNA_DDI,
@@ -54,12 +56,17 @@ struct dsc_slice {
 };
 
 struct exynos_dsc {
-	u32 en;
-	u32 cnt;
-	u32 slice_num;
-	u32 slice_h;
-	u32 dec_sw;
-	u32 enc_sw;
+	bool enabled;
+	u32 dsc_count;
+	u32 slice_count;
+	u32 slice_width;
+	u32 slice_height;
 };
+
+/* return compressed DSC slice width */
+static inline u32 get_comp_dsc_width(const struct exynos_dsc *dsc)
+{
+	return ALIGN(DIV_ROUND_UP(dsc->slice_width, 3), 4);
+}
 
 #endif /* __EXYNOS_PANEL_H__ */
