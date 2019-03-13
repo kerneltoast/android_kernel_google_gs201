@@ -757,52 +757,6 @@ err:
 	return ret;
 }
 
-static int exynos_panel_calc_slice_width(u32 dsc_cnt, u32 slice_num, u32 xres)
-{
-	u32 slice_width;
-	u32 width_eff;
-	u32 slice_width_byte_unit, comp_slice_width_byte_unit;
-	u32 comp_slice_width_pixel_unit;
-	u32 compressed_slice_w = 0;
-	u32 i, j;
-
-	if (dsc_cnt == 2)
-		width_eff = xres >> 1;
-	else
-		width_eff = xres;
-
-	if (slice_num / dsc_cnt == 2)
-		slice_width = width_eff >> 1;
-	else
-		slice_width = width_eff;
-
-	/* 3bytes per pixel */
-	slice_width_byte_unit = slice_width * 3;
-	/* integer value, /3 for 1/3 compression */
-	comp_slice_width_byte_unit = slice_width_byte_unit / 3;
-	/* integer value, /3 for pixel unit */
-	comp_slice_width_pixel_unit = comp_slice_width_byte_unit / 3;
-
-	i = comp_slice_width_byte_unit % 3;
-	j = comp_slice_width_pixel_unit % 2;
-
-	if (i == 0 && j == 0) {
-		compressed_slice_w = comp_slice_width_pixel_unit;
-	} else if (i == 0 && j != 0) {
-		compressed_slice_w = comp_slice_width_pixel_unit + 1;
-	} else if (i != 0) {
-		while (1) {
-			comp_slice_width_pixel_unit++;
-			j = comp_slice_width_pixel_unit % 2;
-			if (j == 0)
-				break;
-		}
-		compressed_slice_w = comp_slice_width_pixel_unit;
-	}
-
-	return compressed_slice_w;
-}
-
 static void dsim_convert_cal_data(struct dsim_device *dsim)
 {
 	struct drm_display_mode *native_mode = &dsim->native_mode;
@@ -819,16 +773,14 @@ static void dsim_convert_cal_data(struct dsim_device *dsim)
 		dsim->config.mode = DSIM_COMMAND_MODE;
 
 	/* TODO: This hard coded information will be defined in device tree */
-	dsim->config.dsc.en = 1;
-	dsim->config.dsc.cnt = 2;
-	dsim->config.dsc.slice_num = 2;
-	dsim->config.dsc.slice_h = 40;
-	dsim->config.dsc.enc_sw = exynos_panel_calc_slice_width(
-			dsim->config.dsc.cnt, dsim->config.dsc.slice_num,
-			dsim->config.p_timing.hactive);
-	dsim->config.dsc.dec_sw = dsim->config.p_timing.hactive /
-		dsim->config.dsc.slice_num;
 	dsim->config.mres_mode = 0;
+	dsim->config.dsc.enabled = true;
+	dsim->config.dsc.dsc_count = 2;
+	dsim->config.dsc.slice_count = 2;
+	dsim->config.dsc.slice_width = DIV_ROUND_UP(
+			dsim->config.p_timing.hactive,
+			dsim->config.dsc.slice_count);
+	dsim->config.dsc.slice_height = 40;
 }
 
 static int dsim_get_display_mode(struct dsim_device *dsim)

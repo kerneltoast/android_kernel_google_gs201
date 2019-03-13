@@ -440,52 +440,6 @@ irq_end:
 	return IRQ_HANDLED;
 }
 
-static int exynos_panel_calc_slice_width(u32 dsc_cnt, u32 slice_num, u32 xres)
-{
-	u32 slice_width;
-	u32 width_eff;
-	u32 slice_width_byte_unit, comp_slice_width_byte_unit;
-	u32 comp_slice_width_pixel_unit;
-	u32 compressed_slice_w = 0;
-	u32 i, j;
-
-	if (dsc_cnt == 2)
-		width_eff = xres >> 1;
-	else
-		width_eff = xres;
-
-	if (slice_num / dsc_cnt == 2)
-		slice_width = width_eff >> 1;
-	else
-		slice_width = width_eff;
-
-	/* 3bytes per pixel */
-	slice_width_byte_unit = slice_width * 3;
-	/* integer value, /3 for 1/3 compression */
-	comp_slice_width_byte_unit = slice_width_byte_unit / 3;
-	/* integer value, /3 for pixel unit */
-	comp_slice_width_pixel_unit = comp_slice_width_byte_unit / 3;
-
-	i = comp_slice_width_byte_unit % 3;
-	j = comp_slice_width_pixel_unit % 2;
-
-	if (i == 0 && j == 0) {
-		compressed_slice_w = comp_slice_width_pixel_unit;
-	} else if (i == 0 && j != 0) {
-		compressed_slice_w = comp_slice_width_pixel_unit + 1;
-	} else if (i != 0) {
-		while (1) {
-			comp_slice_width_pixel_unit++;
-			j = comp_slice_width_pixel_unit % 2;
-			if (j == 0)
-				break;
-		}
-		compressed_slice_w = comp_slice_width_pixel_unit;
-	}
-
-	return compressed_slice_w;
-}
-
 static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 {
 	struct property *prop;
@@ -523,13 +477,14 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 	/* TODO: This will be modified in the future */
 	decon->config.image_width = 1440;
 	decon->config.image_height = 3040;
-	decon->config.dsc.en = 1;
-	decon->config.dsc.cnt = 2;
-	decon->config.dsc.slice_num = 2;
-	decon->config.dsc.slice_h = 40;
-	decon->config.dsc.enc_sw = exynos_panel_calc_slice_width(
-			decon->config.dsc.cnt, decon->config.dsc.slice_num,
-			decon->config.image_width);
+
+	decon->config.dsc.enabled = true;
+	decon->config.dsc.dsc_count = 2;
+	decon->config.dsc.slice_count = 2;
+	decon->config.dsc.slice_width = DIV_ROUND_UP(
+			decon->config.image_width,
+			decon->config.dsc.slice_count);
+	decon->config.dsc.slice_height = 40;
 
 	if (decon->config.out_type == DECON_OUT_DSI)
 		decon->config.mode.dsi_mode = DSI_MODE_DUAL_DSI;
