@@ -281,6 +281,11 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	pm_runtime_get_sync(decon->dev);
 
+	decon->config.image_width = crtc->base.mode.hdisplay;
+	decon->config.image_height = crtc->base.mode.vdisplay;
+	decon->config.dsc.slice_width = DIV_ROUND_UP(decon->config.image_width,
+			decon->config.dsc.slice_count);
+
 	decon_set_te_pinctrl(decon, true);
 
 	decon_reg_init(decon->id, &decon->config);
@@ -475,10 +480,6 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 		return ret;
 	}
 
-	/* TODO: This will be modified in the future */
-	decon->config.image_width = 1440;
-	decon->config.image_height = 3040;
-
 	dsc_np = of_parse_phandle(np, "dsc-config", 0);
 	if (!dsc_np) {
 		decon->config.dsc.enabled = false;
@@ -490,17 +491,7 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 				&decon->config.dsc.slice_count);
 		of_property_read_u32(dsc_np, "slice_height",
 				&decon->config.dsc.slice_height);
-		decon->config.dsc.slice_width = DIV_ROUND_UP(
-				decon->config.image_width,
-				decon->config.dsc.slice_count);
 	}
-
-	decon_info(decon, "dsc is %s [%d %d %d %d]\n",
-			decon->config.dsc.enabled ? "enabled" : "disabled",
-			decon->config.dsc.dsc_count,
-			decon->config.dsc.slice_count,
-			decon->config.dsc.slice_width,
-			decon->config.dsc.slice_height);
 
 	if (decon->config.out_type == DECON_OUT_DSI)
 		decon->config.mode.dsi_mode = DSI_MODE_DUAL_DSI;
