@@ -826,6 +826,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 	struct g2d_reg *cmdaddr = page_address(task->cmd_page);
 	struct g2d_commands *cmds = &data->commands;
 	u32 tm_tuned_lut[NR_TM_LUT_VALUES];
+	u32 tgtcmds[G2DSFR_DST_FIELD_COUNT];
 	unsigned int i;
 	int copied;
 
@@ -837,7 +838,11 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 
 	cmdaddr += task->sec.cmd_count;
 
-	copied = g2d_copy_commands(g2d_dev, -1, cmdaddr, cmds->target,
+	if (copy_from_user(tgtcmds, cmds->target, sizeof(tgtcmds))) {
+		perrfndev(g2d_dev, "Failed to get src[%d] commands", i);
+		return -EFAULT;
+	}
+	copied = g2d_copy_commands(g2d_dev, -1, cmdaddr, tgtcmds,
 				target_command_checker, G2DSFR_DST_FIELD_COUNT);
 	if (copied < 0)
 		return -EINVAL;

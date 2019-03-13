@@ -67,7 +67,7 @@ struct g2d_reg {
 #define G2D_MAX_RELEASE_FENCES	(G2D_MAX_IMAGES + 1)
 
 struct g2d_commands {
-	__u32		target[G2DSFR_DST_FIELD_COUNT];
+	__u32		*target;
 	__u32		*source[G2D_MAX_IMAGES];
 	struct g2d_reg	*extra;
 	__u32		num_extra_regs;
@@ -269,7 +269,7 @@ struct g2d_performance_data {
 	__u32 reserved;
 };
 
-#define G2D_IOC_PROCESS		_IOWR('M', 4, struct g2d_task_data)
+#define G2D_IOC_PROCESS		_IOWR('M', 3, struct g2d_task_data)
 #define G2D_IOC_PRIORITY		_IOR('M', 5, int32_t)
 #define G2D_IOC_PERFORMANCE	_IOR('M', 6, struct g2d_performance_data)
 

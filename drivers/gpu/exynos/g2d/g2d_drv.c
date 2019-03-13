@@ -465,6 +465,11 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		break;
 	}
+	default:
+	{
+		perrfn("unknown ioctl %#x", cmd);
+		return -ENOTTY;
+	}
 	}
 
 	return ret;
@@ -472,7 +477,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 #ifdef CONFIG_COMPAT
 struct compat_g2d_commands {
-	__u32		target[G2DSFR_DST_FIELD_COUNT];
+	compat_uptr_t	target;
 	compat_uptr_t	source[G2D_MAX_IMAGES];
 	compat_uptr_t	extra;
 	__u32		num_extra_regs;
@@ -624,8 +629,13 @@ static long g2d_compat_ioctl(struct file *filp,
 
 	command = &data->commands;
 	ccmd = &cdata->commands;
-	ret = copy_in_user(&command->target, &ccmd->target,
-			sizeof(__u32) * G2DSFR_DST_FIELD_COUNT);
+
+	get_user(cptr, &ccmd->target);
+	alloc_size += sizeof(__u32) * G2DSFR_DST_FIELD_COUNT;
+	ptr = compat_alloc_user_space(alloc_size);
+	ret = copy_in_user(ptr, compat_ptr(cptr),
+			   sizeof(__u32) * G2DSFR_DST_FIELD_COUNT);
+	ret |= put_user(ptr, &command->target);
 	if (ret) {
 		perrfndev(ctx->g2d_dev, "failed to read target command data");
 		return ret;
