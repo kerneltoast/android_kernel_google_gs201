@@ -19,7 +19,7 @@
 
 #include "../exynos_drm_format.h"
 
-#define MAX_DPP_PER_DPU			8
+#define MAX_DPP_CNT		6
 
 enum dpp_attr {
 	DPP_ATTR_AFBC		= 0,
