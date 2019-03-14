@@ -465,6 +465,15 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		break;
 	}
+	case G2D_IOC_VERSION:
+	{
+		u32 version = 0x1;
+
+		if (copy_to_user((void __user *)arg, &version, _IOC_SIZE(cmd)))
+			return -EFAULT;
+
+		break;
+	}
 	default:
 	{
 		perrfn("unknown ioctl %#x", cmd);

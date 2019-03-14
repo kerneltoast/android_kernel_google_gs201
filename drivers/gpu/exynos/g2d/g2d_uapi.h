@@ -272,6 +272,7 @@ struct g2d_performance_data {
 #define G2D_IOC_PROCESS		_IOWR('M', 3, struct g2d_task_data)
 #define G2D_IOC_PRIORITY		_IOR('M', 5, int32_t)
 #define G2D_IOC_PERFORMANCE	_IOR('M', 6, struct g2d_performance_data)
+#define G2D_IOC_VERSION		_IOR('M', 7, uint32_t)
 
 #endif /* _G2D_UAPI_H_ */
 
