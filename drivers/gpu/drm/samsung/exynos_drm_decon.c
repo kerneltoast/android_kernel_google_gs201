@@ -169,14 +169,20 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	win_info.end_pos = win_end_pos(state->crtc.x, state->crtc.y,
 			state->crtc.w, state->crtc.h);
 	win_info.start_time = 0;
-	win_info.ch = window->dpp->id;
+
+	/*
+	 * TODO: channel mapping between dpp channel and DECON window will
+	 * be implemented
+	 */
+	win_info.ch = decon->dpp[window->idx]->id;
+
 	/* TODO: alpha blending will be configurable in the future */
 	win_info.plane_alpha = 0xff; /* opaque temporarily*/
 	win_info.blend = DECON_BLENDING_NONE;
 	decon_reg_set_window_control(decon->id, window->idx, &win_info, false);
 
 	/* TODO: This will be activated after dpp driver is complete. */
-	window->dpp->update(window->dpp, state);
+	decon->dpp[window->idx]->update(decon->dpp[window->idx], state);
 
 	/*
 	 * TODO: need to consider of updating windows timing.
@@ -197,7 +203,7 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	decon_dbg(decon, "%s +\n", __func__);
 	decon_reg_set_win_enable(decon->id, window->idx, 0);
 
-	window->dpp->disable(window->dpp);
+	decon->dpp[window->idx]->disable(decon->dpp[window->idx]);
 
 	decon_reg_update_req_window(decon->id, window->idx);
 	decon_dbg(decon, "%s -\n", __func__);
@@ -357,7 +363,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	for_each_window(decon, i) {
 		struct decon_win *win = &decon->win[i];
-		struct dpp_device *dpp = decon->win[i].dpp;
+		struct dpp_device *dpp = decon->dpp[win->idx];
 
 		if (!dpp)
 			continue;
@@ -448,10 +454,12 @@ irq_end:
 static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 {
 	struct device_node *dsc_np;
+	struct device_node *dpp_np = NULL;
 	struct property *prop;
 	const __be32 *cur;
 	u32 val;
 	int ret = 0, i;
+	int dpp_id;
 
 	of_property_read_u32(np, "decon,id", &decon->id);
 
@@ -491,6 +499,7 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 				&decon->config.dsc.slice_count);
 		of_property_read_u32(dsc_np, "slice_height",
 				&decon->config.dsc.slice_height);
+		of_node_put(dsc_np);
 	}
 
 	if (decon->config.out_type == DECON_OUT_DSI)
@@ -498,24 +507,25 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 	else
 		decon->config.mode.dsi_mode = DSI_MODE_SINGLE;
 
-	for_each_window(decon, i) {
-		struct device_node *dpp_np = NULL;
-		struct dpp_device *dpp;
-
-		dpp_np = of_parse_phandle(np, "dpps", i);
-		if (!dpp_np)
-			goto next;
-
-		dpp = of_find_dpp_by_node(dpp_np);
-		if (!dpp)
-			goto next;
-
-		decon->win[i].dpp = dpp;
+	for_each_window(decon, i)
 		decon->win[i].idx = i;
 
-		DRM_INFO("window%d is map to %s\n", i, dpp_name[dpp->id]);
+	for (i = 0; i < MAX_DPP_CNT; ++i) {
+		dpp_np = of_parse_phandle(np, "dpps", i);
+		if (!dpp_np) {
+			decon_err(decon, "can't find dpp%d node\n", i);
+			return -EINVAL;
+		}
 
-next:
+		decon->dpp[i] = of_find_dpp_by_node(dpp_np);
+		if (!decon->dpp[i]) {
+			decon_err(decon, "can't find dpp%d structure\n", i);
+			return -EINVAL;
+		}
+
+		dpp_id = decon->dpp[i]->id;
+		decon_info(decon, "found dpp%d(%s)\n", i, dpp_name[dpp_id]);
+
 		if (dpp_np)
 			of_node_put(dpp_np);
 	}

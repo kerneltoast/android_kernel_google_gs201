@@ -41,7 +41,6 @@ enum decon_state {
 
 struct decon_win {
 	u32				idx;
-	struct dpp_device		*dpp;
 	struct decon_win_config		config;
 	struct exynos_drm_plane		plane;
 	struct exynos_drm_plane_config	plane_config;
@@ -61,7 +60,10 @@ struct decon_device {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
+	/* window information saved in window number order */
 	struct decon_win		win[MAX_WIN_PER_DECON];
+	/* dpp information saved in dpp channel number order */
+	struct dpp_device		*dpp[MAX_DPP_CNT];
 	u32				win_cnt;
 	enum exynos_drm_output_type	con_type;
 	struct videomode		v_mode;
