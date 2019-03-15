@@ -51,7 +51,7 @@ static struct g2d_stamp {
 	};
 } g2d_stamp_list[G2D_MAX_STAMP_ID];
 
-static atomic_t g2d_stamp_id;
+static atomic_t g2d_stamp_id = ATOMIC_INIT(-1);
 
 enum {
 	G2D_STAMPTYPE_NONE,
@@ -238,8 +238,6 @@ static const struct file_operations g2d_debug_tasks_fops = {
 
 void g2d_init_debug(struct g2d_device *g2d_dev)
 {
-	atomic_set(&g2d_stamp_id, -1);
-
 	g2d_dev->debug_root = debugfs_create_dir("g2d", NULL);
 	if (!g2d_dev->debug_root) {
 		perrdev(g2d_dev, "debugfs: failed to create root directory");
