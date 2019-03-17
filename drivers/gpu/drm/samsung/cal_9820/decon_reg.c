@@ -2181,3 +2181,63 @@ void __decon_dump(u32 id, void __iomem *regs, void __iomem *base_regs,
 				false);
 	}
 }
+
+u32 DPU_DMA2CH(u32 dma)
+{
+	u32 ch_id;
+
+	switch (dma) {
+	case IDMA_GF0:
+		ch_id = 0;
+		break;
+	case IDMA_GF1:
+		ch_id = 2;
+		break;
+	case IDMA_VG:
+		ch_id = 4;
+		break;
+	case IDMA_VGF:
+		ch_id = 3;
+		break;
+	case IDMA_VGS:
+		ch_id = 5;
+		break;
+	case IDMA_VGRFS:
+		ch_id = 1;
+		break;
+	default:
+		return -1;
+	}
+
+	return ch_id;
+}
+
+u32 DPU_CH2DMA(u32 ch)
+{
+	u32 dma;
+
+	switch (ch) {
+	case 0:
+		dma = IDMA_GF0;
+		break;
+	case 1:
+		dma = IDMA_VGRFS;
+		break;
+	case 2:
+		dma = IDMA_GF1;
+		break;
+	case 3:
+		dma = IDMA_VGF;
+		break;
+	case 4:
+		dma = IDMA_VG;
+		break;
+	case 5:
+		dma = IDMA_VGS;
+		break;
+	default:
+		return -1;
+	}
+
+	return dma;
+}
