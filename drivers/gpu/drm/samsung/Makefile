@@ -4,7 +4,7 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 exynos-drm-y := exynos_drm_drv.o exynos_drm_crtc.o exynos_drm_fb.o \
-		exynos_drm_plane.o exynos_drm_format.o
+		exynos_drm_plane.o exynos_drm_format.o exynos_drm_bts.o
 
 exynos-drm-$(CONFIG_DRM_FBDEV_EMULATION) += exynos_drm_fbdev.o
 exynos-drm-$(CONFIG_DRM_SAMSUNG_DECON)	+= exynos_drm_decon.o cal_9820/decon_reg.o

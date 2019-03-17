@@ -119,5 +119,6 @@ struct dpu_fmt {
 #define IS_OPAQUE(f)		((f)->len_alpha == 0)
 
 const struct dpu_fmt *dpu_find_fmt_info(enum dpu_pixel_format fmt);
+enum dpu_pixel_format convert_drm_format(u32 drm_format);
 
 #endif /* __EXYNOS_FORMAT_H__ */

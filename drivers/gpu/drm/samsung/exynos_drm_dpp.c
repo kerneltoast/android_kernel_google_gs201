@@ -25,6 +25,7 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_dpp.h"
 #include "exynos_drm_dsim.h"
+#include "exynos_drm_format.h"
 #include "cal_9820/regs-dpp.h"
 
 static int dpp_log_level = 7;
@@ -108,32 +109,6 @@ static const struct of_device_id dpp_of_match[] = {
 	{ .compatible = "samsung,exynos-dpp", },
 	{},
 };
-
-static enum dpu_pixel_format convert_drm_format(u32 drm_format)
-{
-	switch (drm_format) {
-	case DRM_FORMAT_ARGB8888:	return DPU_PIXEL_FORMAT_ARGB_8888;
-	case DRM_FORMAT_ABGR8888:	return DPU_PIXEL_FORMAT_ABGR_8888;
-	case DRM_FORMAT_RGBA8888:	return DPU_PIXEL_FORMAT_RGBA_8888;
-	case DRM_FORMAT_BGRA8888:	return DPU_PIXEL_FORMAT_BGRA_8888;
-	case DRM_FORMAT_XRGB8888:	return DPU_PIXEL_FORMAT_XRGB_8888;
-	case DRM_FORMAT_XBGR8888:	return DPU_PIXEL_FORMAT_XBGR_8888;
-	case DRM_FORMAT_RGBX8888:	return DPU_PIXEL_FORMAT_RGBX_8888;
-	case DRM_FORMAT_BGRX8888:	return DPU_PIXEL_FORMAT_BGRX_8888;
-	case DRM_FORMAT_RGB565:		return DPU_PIXEL_FORMAT_RGB_565;
-	case DRM_FORMAT_BGR565:		return DPU_PIXEL_FORMAT_BGR_565;
-	case DRM_FORMAT_ARGB2101010:	return DPU_PIXEL_FORMAT_ARGB_2101010;
-	case DRM_FORMAT_ABGR2101010:	return DPU_PIXEL_FORMAT_ABGR_2101010;
-	case DRM_FORMAT_RGBA1010102:	return DPU_PIXEL_FORMAT_RGBA_1010102;
-	case DRM_FORMAT_BGRA1010102:	return DPU_PIXEL_FORMAT_BGRA_1010102;
-	case DRM_FORMAT_NV12:		return DPU_PIXEL_FORMAT_NV12;
-	case DRM_FORMAT_NV21:		return DPU_PIXEL_FORMAT_NV21;
-	case DRM_FORMAT_NV16:		return DPU_PIXEL_FORMAT_NV16;
-	case DRM_FORMAT_NV61:		return DPU_PIXEL_FORMAT_NV61;
-	default:
-		return DPU_PIXEL_FORMAT_MAX;
-	}
-}
 
 static dma_addr_t dpp_alloc_map_buf_test(void)
 {
@@ -401,6 +376,7 @@ static int __init exynos_dpp_parse_dt(struct dpp_device *dpp,
 		goto fail;
 
 	of_property_read_u32(np, "attr", (u32 *)&dpp->attr);
+	of_property_read_u32(np, "port", &dpp->port);
 
 	if (of_property_read_bool(np, "dpp,afbc"))
 		dpp->is_support |= DPP_SUPPORT_AFBC;
@@ -415,7 +391,7 @@ static int __init exynos_dpp_parse_dt(struct dpp_device *dpp,
 		dpp->num_pixel_formats = ARRAY_SIZE(dpp_gf_formats);
 	}
 
-	dpp_info(dpp, "attr(0x%x)\n", dpp->attr);
+	dpp_info(dpp, "attr(0x%x), port(%d)\n", dpp->attr, dpp->port);
 
 	return 0;
 fail:

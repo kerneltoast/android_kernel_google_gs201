@@ -38,6 +38,7 @@ struct dpp_device {
 
 	u32 id;
 	u32 is_support;
+	u32 port;
 	unsigned long attr;
 	enum dpp_state state;
 

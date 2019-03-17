@@ -23,11 +23,13 @@
 #include <linux/dma-buf.h>
 #include <linux/ion_exynos.h>
 
+#include "exynos_drm_decon.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_dsim.h"
+#include "exynos_drm_format.h"
 
 #define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
 
@@ -218,8 +220,150 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 	return exynos_fb->dma_addr[index];
 }
 
+void exynos_plane_state_to_bts_win_config(struct exynos_drm_plane_state *state,
+		struct dpu_bts_win_config *win_config, int dpp_ch)
+{
+	win_config->src_x = state->base.src_x >> 16;
+	win_config->src_y = state->base.src_y >> 16;
+	win_config->src_w = state->base.src_w >> 16;
+	win_config->src_h = state->base.src_h >> 16;
+
+	win_config->dst_x = state->base.crtc_x;
+	win_config->dst_y = state->base.crtc_y;
+	win_config->dst_w = state->base.crtc_w;
+	win_config->dst_h = state->base.crtc_h;
+
+	win_config->is_rot = state->base.rotation;
+	win_config->is_afbc = state->afbc;
+	win_config->state = DPU_WIN_STATE_BUFFER;
+	win_config->format = convert_drm_format(state->base.fb->format->format);
+	win_config->dpp_ch = dpp_ch;
+
+	DRM_INFO("%s: src[%d %d %d %d], dst[%d %d %d %d]\n", __func__,
+			win_config->src_x, win_config->src_y,
+			win_config->src_w, win_config->src_h,
+			win_config->dst_x, win_config->dst_y,
+			win_config->dst_w, win_config->dst_h);
+	DRM_INFO("%s: rot[%d], afbc[%d], format[%d], dpp ch[%d]\n", __func__,
+			win_config->is_rot, win_config->is_afbc,
+			win_config->format, win_config->dpp_ch);
+}
+
+static void display_mode_to_bts_info(struct drm_display_mode *mode,
+		struct decon_device *decon)
+{
+	struct videomode vm;
+
+	drm_display_mode_to_videomode(mode, &vm);
+
+	decon->config.image_width = vm.hactive;
+	decon->config.image_height = vm.vactive;
+	decon->config.dsc.slice_width = DIV_ROUND_UP(decon->config.image_width,
+			decon->config.dsc.slice_count);
+	decon->bts.vbp = vm.vback_porch;
+	decon->bts.vfp = vm.vfront_porch;
+	decon->bts.vsa = vm.vsync_len;
+	decon->bts.fps = mode->vrefresh;
+}
+
+void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
+{
+	int i, j;
+	struct drm_plane *plane;
+	struct drm_plane_state *new_plane_state;
+	struct exynos_drm_plane_state *new_exynos_state;
+	struct exynos_drm_crtc *exynos_crtc;
+	struct decon_device *decon[MAX_DECON_CNT] = {};
+
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	int max_planes;
+	int id = 0;
+
+	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
+			new_crtc_state, i) {
+		DRM_INFO("[CRTC:%d:%s] old en:%d active:%d change[%d %d %d]\n",
+				crtc->base.id, crtc->name,
+				old_crtc_state->enable, old_crtc_state->active,
+				old_crtc_state->planes_changed,
+				old_crtc_state->mode_changed,
+				old_crtc_state->active_changed);
+
+		DRM_INFO("[CRTC:%d:%s] new en:%d active:%d change[%d %d %d]\n",
+				crtc->base.id, crtc->name,
+				new_crtc_state->enable, new_crtc_state->active,
+				new_crtc_state->planes_changed,
+				new_crtc_state->mode_changed,
+				new_crtc_state->active_changed);
+
+		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
+		id = crtc->index;
+		decon[id] = exynos_crtc->ctx;
+
+		/* acquire initial bandwidth when DECON is enabled. */
+		if (!old_crtc_state->active && new_crtc_state->active) {
+			display_mode_to_bts_info(&crtc->mode, decon[id]);
+			decon[id]->bts.ops->bts_acquire_bw(decon[id]);
+		}
+
+		/* initialize BTS structure of each DECON */
+		if (new_crtc_state->planes_changed && new_crtc_state->active) {
+			max_planes =
+				old_state->dev->mode_config.num_total_plane;
+			for (j = 0; j < max_planes; ++j)
+				decon[id]->bts.win_config[j].state =
+					DPU_WIN_STATE_DISABLED;
+		}
+	}
+
+	for_each_new_plane_in_state(old_state, plane, new_plane_state, i) {
+		if (!new_plane_state->crtc)
+			continue;
+
+		new_exynos_state = to_exynos_plane_state(new_plane_state);
+		exynos_crtc = container_of(new_plane_state->crtc,
+				struct exynos_drm_crtc, base);
+		id = new_plane_state->crtc->index;
+		decon[id] = exynos_crtc->ctx;
+
+		/*
+		 * TODO: Currently, window id is used as dpp channel.
+		 * If channel mapping is implemented, it will be changed.
+		 */
+		exynos_plane_state_to_bts_win_config(new_exynos_state,
+				&decon[id]->bts.win_config[i], i);
+	}
+
+	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
+			new_crtc_state, i) {
+		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
+		id = crtc->index;
+		decon[id] = exynos_crtc->ctx;
+
+		if (new_crtc_state->planes_changed && new_crtc_state->active) {
+			decon[i]->bts.ops->bts_calc_bw(decon[i]);
+			decon[i]->bts.ops->bts_update_bw(decon[i], false);
+		}
+	}
+
+	drm_atomic_helper_commit_tail_rpm(old_state);
+
+	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
+			new_crtc_state, i) {
+		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
+		id = crtc->index;
+		decon[id] = exynos_crtc->ctx;
+
+		if (new_crtc_state->planes_changed && new_crtc_state->active)
+			decon[i]->bts.ops->bts_update_bw(decon[i], true);
+
+		if (old_crtc_state->active && !new_crtc_state->active)
+			decon[id]->bts.ops->bts_release_bw(decon[id]);
+	}
+}
+
 static struct drm_mode_config_helper_funcs exynos_drm_mode_config_helpers = {
-	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
+	.atomic_commit_tail = exynos_atomic_commit_tail,
 };
 
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {

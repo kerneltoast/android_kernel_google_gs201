@@ -276,6 +276,7 @@ static void decon_enable_irqs(struct decon_device *decon)
 static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
+	struct videomode vm;
 
 	if (decon->state == DECON_STATE_ON) {
 		decon_info(decon, "decon%d already enabled(%d)\n",
@@ -287,10 +288,26 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	pm_runtime_get_sync(decon->dev);
 
-	decon->config.image_width = crtc->base.mode.hdisplay;
-	decon->config.image_height = crtc->base.mode.vdisplay;
+	drm_display_mode_to_videomode(&crtc->base.mode, &vm);
+
+	decon->config.image_width = vm.hactive;
+	decon->config.image_height = vm.vactive;
 	decon->config.dsc.slice_width = DIV_ROUND_UP(decon->config.image_width,
 			decon->config.dsc.slice_count);
+	decon->bts.vbp = vm.vback_porch;
+	decon->bts.vfp = vm.vfront_porch;
+	decon->bts.vsa = vm.vsync_len;
+	decon->bts.fps = crtc->base.mode.vrefresh;
+
+	decon_dbg(decon, "resolution[%dx%d@%dhz], vporch[%d %d %d]\n",
+			decon->config.image_width, decon->config.image_height,
+			decon->bts.fps, decon->bts.vbp, decon->bts.vfp,
+			decon->bts.vsa);
+	decon_dbg(decon, "DSC: en(%d) count(%d) slice: count(%d) size(%dx%d)\n",
+			decon->config.dsc.enabled, decon->config.dsc.dsc_count,
+			decon->config.dsc.slice_count,
+			decon->config.dsc.slice_width,
+			decon->config.dsc.slice_height);
 
 	decon_set_te_pinctrl(decon, true);
 
@@ -329,8 +346,7 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 
 	decon_disable_irqs(decon);
 
-	/* TODO: 60 means 60 fps.. this will be fixed */
-	decon_reg_stop(decon->id, &decon->config, true, 60);
+	decon_reg_stop(decon->id, &decon->config, true, decon->bts.fps);
 
 	decon_set_te_pinctrl(decon, false);
 
@@ -487,6 +503,30 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 		decon_err(decon, "failed to parse output type(%d)\n", ret);
 		return ret;
 	}
+
+	if (of_property_read_u32(np, "ppc", (u32 *)&decon->bts.ppc))
+		decon->bts.ppc = 2UL;
+	decon_info(decon, "PPC(%llu)\n", decon->bts.ppc);
+
+	if (of_property_read_u32(np, "line_mem_cnt",
+				(u32 *)&decon->bts.line_mem_cnt)) {
+		decon->bts.line_mem_cnt = 4UL;
+		decon_warn(decon, "WARN: line memory cnt is not defined in DT.\n");
+	}
+	decon_info(decon, "line memory cnt(%d)\n", decon->bts.line_mem_cnt);
+
+	if (of_property_read_u32(np, "cycle_per_line",
+				(u32 *)&decon->bts.cycle_per_line)) {
+		decon->bts.cycle_per_line = 8UL;
+		decon_warn(decon, "WARN: cycle per line is not defined in DT.\n");
+	}
+	decon_info(decon, "cycle per line(%d)\n", decon->bts.cycle_per_line);
+
+	if (of_property_read_u32(np, "decon_cnt", &decon->decon_cnt)) {
+		decon->decon_cnt = 1;
+		decon_warn(decon, "WARN: decon count is not defined in DT.\n");
+	}
+	decon_info(decon, "decon count(%d)\n", decon->decon_cnt);
 
 	dsc_np = of_parse_phandle(np, "dsc-config", 0);
 	if (!dsc_np) {
@@ -741,6 +781,11 @@ static int decon_probe(struct platform_device *pdev)
 
 	spin_lock_init(&decon->slock);
 
+#if defined(CONFIG_EXYNOS_BTS)
+	decon->bts.ops = &dpu_bts_control;
+	decon->bts.ops->bts_init(decon);
+#endif
+
 	decon->state = DECON_STATE_OFF;
 	pm_runtime_enable(decon->dev);
 
@@ -763,6 +808,12 @@ err:
 
 static int decon_remove(struct platform_device *pdev)
 {
+#if defined(CONFIG_EXYNOS_BTS)
+	struct decon_device *decon;
+
+	decon = platform_get_drvdata(pdev);
+	decon->bts.ops->bts_deinit(decon);
+#endif
 	component_del(&pdev->dev, &decon_component_ops);
 
 	return 0;
