@@ -562,7 +562,7 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 
 		aclk_freq = dpu_bts_calc_aclk_disp(decon, &config,
 				decon->bts.resol_clk);
-		DPU_DEBUG_BTS("Initial calculated disp freq(%lu)\n", aclk_freq);
+		DPU_DEBUG_BTS("Initial calculated disp freq(%u)\n", aclk_freq);
 		/*
 		 * If current disp freq is higher than calculated freq,
 		 * it must not be set. if not, underrun can occur.

@@ -1003,7 +1003,8 @@ void dma_reg_get_shd_addr(u32 id, u32 s_addr[], const unsigned long attr)
 		s_addr[2] = dma_read(id, ODMA_IN_BASE_ADDR_Y2 + DMA_SHD_OFFSET);
 		s_addr[3] = dma_read(id, ODMA_IN_BASE_ADDR_C2 + DMA_SHD_OFFSET);
 	}
-	cal_log_debug(id, "dpp%d: shadow addr [%p %p %p %p]\n", id,
+
+	cal_log_debug(id, "shadow addr [%p %p %p %p]\n",
 			s_addr[0], s_addr[1], s_addr[2], s_addr[3]);
 }
 

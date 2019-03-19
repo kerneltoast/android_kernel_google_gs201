@@ -157,7 +157,7 @@ int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
 		return -EINVAL;
 	}
 
-	DRM_INFO("%s:%d, handle(%d), DVA(0x%p)\n", __func__, __LINE__,
+	DRM_INFO("%s:%d, handle(%d), DVA(0x%llx)\n", __func__, __LINE__,
 			handle, obj->dma_addr);
 
 	return 0;
@@ -198,7 +198,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 	DRM_INFO("width(%d), height(%d), pitches(%d)\n", mode_cmd->width,
 			mode_cmd->height, mode_cmd->pitches[0]);
-	DRM_INFO("offset(%d), handle(%d), size(%d)\n", mode_cmd->offsets[0],
+	DRM_INFO("offset(%d), handle(%d), size(%lu)\n", mode_cmd->offsets[0],
 			mode_cmd->handles[0], size);
 
 	fb = exynos_drm_framebuffer_init(dev, mode_cmd, exynos_buf, i);
@@ -215,7 +215,7 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 	if (WARN_ON_ONCE(index >= MAX_FB_BUFFER))
 		return 0;
 
-	DRM_INFO("%s:%d, dma_addr[%d] = 0x%p\n", __func__, __LINE__,
+	DRM_INFO("%s:%d, dma_addr[%d] = 0x%llx\n", __func__, __LINE__,
 			index, exynos_fb->dma_addr[index]);
 	return exynos_fb->dma_addr[index];
 }

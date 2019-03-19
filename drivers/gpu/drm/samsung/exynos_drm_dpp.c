@@ -391,7 +391,7 @@ static int __init exynos_dpp_parse_dt(struct dpp_device *dpp,
 		dpp->num_pixel_formats = ARRAY_SIZE(dpp_gf_formats);
 	}
 
-	dpp_info(dpp, "attr(0x%x), port(%d)\n", dpp->attr, dpp->port);
+	dpp_info(dpp, "attr(0x%lx), port(%d)\n", dpp->attr, dpp->port);
 
 	return 0;
 fail:
@@ -495,9 +495,9 @@ static int dpp_init_resources(struct dpp_device *dpp)
 		return -EINVAL;
 	}
 	dpp_regs_desc_init(dpp->regs.dma_base_regs, "dma", REGS_DMA, dpp->id);
-	dpp_info(dpp, "dma res: start(0x%x), end(0x%x), vir(0x%x)\n",
+	dpp_info(dpp, "dma res: start(0x%x), end(0x%x), vir(0x%llx)\n",
 			(u32)res->start, (u32)res->end,
-			(u32)dpp->regs.dma_base_regs);
+			(u64)dpp->regs.dma_base_regs);
 
 	/* DPP0 channel can only access common area of DPU_DMA */
 	if (dpp->id == 0) {
@@ -515,9 +515,9 @@ static int dpp_init_resources(struct dpp_device *dpp)
 		}
 		dpp_regs_desc_init(dpp->regs.dma_common_base_regs, "dma_common",
 				REGS_DMA_COMMON, dpp->id);
-		dpp_info(dpp, "dma common res start:0x%x end:0x%x vir:0x%x\n",
+		dpp_info(dpp, "dma common res start:0x%x end:0x%x vir:0x%llx\n",
 				(u32)res->start, (u32)res->end,
-				(u32)dpp->regs.dma_common_base_regs);
+				(u64)dpp->regs.dma_common_base_regs);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -551,9 +551,9 @@ static int dpp_init_resources(struct dpp_device *dpp)
 		}
 		dpp_regs_desc_init(dpp->regs.dpp_base_regs, "dpp", REGS_DPP,
 				dpp->id);
-		dpp_info(dpp, "dpp res: start(0x%x), end(0x%x), vir(0x%x)\n",
+		dpp_info(dpp, "dpp res: start(0x%x), end(0x%x), vir(0x%llx)\n",
 				(u32)res->start, (u32)res->end,
-				(u32)dpp->regs.dpp_base_regs);
+				(u64)dpp->regs.dpp_base_regs);
 	}
 
 	if (test_bit(DPP_ATTR_DPP, &dpp->attr)) {
