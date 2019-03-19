@@ -895,9 +895,9 @@ static int dsim_host_detach(struct mipi_dsi_host *host,
 	return 0;
 }
 
-static void dsim_cmd_fail_detector(unsigned long arg)
+static void dsim_cmd_fail_detector(struct timer_list *arg)
 {
-	struct dsim_device *dsim = (struct dsim_device *)arg;
+	struct dsim_device *dsim = from_timer(dsim, arg, cmd_timer);
 
 	dsim_dbg(dsim, "%s +\n", __func__);
 
@@ -1228,8 +1228,7 @@ static int dsim_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, &dsim->encoder);
 
-	setup_timer(&dsim->cmd_timer, dsim_cmd_fail_detector,
-			(unsigned long)dsim);
+	timer_setup(&dsim->cmd_timer, dsim_cmd_fail_detector, 0);
 
 #if defined(CONFIG_CPU_IDLE)
 	dsim->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
