@@ -239,9 +239,17 @@ static void decon_print_config_info(struct decon_device *decon)
 	else if  (decon->config.out_type & DECON_OUT_DP1)
 		str_output = "DP1";
 
-	decon_info(decon, "%s mode. %s %s output\n",
+	decon_info(decon, "%s mode. %s %s output.(%dx%d@%dhz)\n",
 			decon->config.mode.op_mode ? "command" : "video",
-			str_trigger, str_output);
+			str_trigger, str_output,
+			decon->config.image_width, decon->config.image_height,
+			decon->bts.fps);
+
+	decon_info(decon, "DSC: en(%d), cnt(%d), slice: cnt(%d), size(%dx%d)\n",
+			decon->config.dsc.enabled, decon->config.dsc.dsc_count,
+			decon->config.dsc.slice_count,
+			decon->config.dsc.slice_width,
+			decon->config.dsc.slice_height);
 }
 
 static void decon_set_te_pinctrl(struct decon_device *decon, bool en)
@@ -276,7 +284,6 @@ static void decon_enable_irqs(struct decon_device *decon)
 static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
-	struct videomode vm;
 
 	if (decon->state == DECON_STATE_ON) {
 		decon_info(decon, "decon%d already enabled(%d)\n",
@@ -284,30 +291,9 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 		return;
 	}
 
-	decon_dbg(decon, "%s +\n", __func__);
+	decon_info(decon, "%s +\n", __func__);
 
 	pm_runtime_get_sync(decon->dev);
-
-	drm_display_mode_to_videomode(&crtc->base.mode, &vm);
-
-	decon->config.image_width = vm.hactive;
-	decon->config.image_height = vm.vactive;
-	decon->config.dsc.slice_width = DIV_ROUND_UP(decon->config.image_width,
-			decon->config.dsc.slice_count);
-	decon->bts.vbp = vm.vback_porch;
-	decon->bts.vfp = vm.vfront_porch;
-	decon->bts.vsa = vm.vsync_len;
-	decon->bts.fps = crtc->base.mode.vrefresh;
-
-	decon_dbg(decon, "resolution[%dx%d@%dhz], vporch[%d %d %d]\n",
-			decon->config.image_width, decon->config.image_height,
-			decon->bts.fps, decon->bts.vbp, decon->bts.vfp,
-			decon->bts.vsa);
-	decon_dbg(decon, "DSC: en(%d) count(%d) slice: count(%d) size(%dx%d)\n",
-			decon->config.dsc.enabled, decon->config.dsc.dsc_count,
-			decon->config.dsc.slice_count,
-			decon->config.dsc.slice_width,
-			decon->config.dsc.slice_height);
 
 	decon_set_te_pinctrl(decon, true);
 
@@ -324,9 +310,8 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 	decon_print_config_info(decon);
 
 	decon->state = DECON_STATE_ON;
-	decon_info(decon, "enabled crtc[%d] = %dx%d-%dHz\n", crtc->base.base.id,
-			decon->config.image_width, decon->config.image_height,
-			crtc->base.mode.vrefresh);
+
+	decon_info(decon, "%s -\n", __func__);
 }
 
 static void decon_disable_irqs(struct decon_device *decon)
@@ -344,6 +329,8 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
 
+	decon_info(decon, "%s +\n", __func__);
+
 	decon_disable_irqs(decon);
 
 	decon_reg_stop(decon->id, &decon->config, true, decon->bts.fps);
@@ -354,7 +341,7 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 
 	pm_runtime_put_sync(decon->dev);
 
-	decon_info(decon, "disabled! crtc[%d]\n", crtc->base.base.id);
+	decon_info(decon, "%s -\n", __func__);
 }
 
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
