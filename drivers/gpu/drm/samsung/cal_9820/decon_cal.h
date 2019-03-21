@@ -201,14 +201,6 @@ struct win_color_map {
 	u32 val;
 };
 
-struct decon_win_config {
-	u32 ch_id;
-	u32 start_pos;
-	u32 end_pos;
-	u32 start_time;
-	struct win_color_map color_map;
-};
-
 struct decon_regs {
 	void __iomem *base_addr;
 	void __iomem *ss_regs;
@@ -310,7 +302,6 @@ void decon_reg_get_crc_data(u32 id, u32 *w0_data, u32 *w1_data);
 
 /* DPU hw limitation check */
 struct decon_device;
-struct decon_win_config;
 
 /* TODO: this will be removed later */
 void decon_reg_update_req_global(u32 id);
