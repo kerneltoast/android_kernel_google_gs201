@@ -54,6 +54,8 @@ struct dpp_device {
 	spinlock_t slock;
 	spinlock_t dma_slock;
 
+	int decon_id; /* connected DECON id */
+
 	int (*check)(struct dpp_device *this_dpp,
 				const struct exynos_drm_plane_state *state);
 	int (*update)(struct dpp_device *this_dpp,

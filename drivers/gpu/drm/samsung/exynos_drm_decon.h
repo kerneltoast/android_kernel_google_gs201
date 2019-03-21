@@ -27,6 +27,7 @@
 
 #include "exynos_drm_dpp.h"
 #include "exynos_drm_drv.h"
+#include "exynos_drm_fb.h"
 
 #include "cal_9820/decon_cal.h"
 
@@ -48,9 +49,9 @@ enum dpu_win_state {
 
 struct decon_win {
 	u32				idx;
-	struct decon_win_config		config;
 	struct exynos_drm_plane		plane;
 	struct exynos_drm_plane_config	plane_config;
+	struct exynos_drm_fb		fb;
 };
 
 struct decon_resources {
@@ -75,6 +76,7 @@ struct dpu_bts_bw {
 };
 
 struct dpu_bts_win_config {
+	enum dpu_win_state state;
 	u32 src_x;
 	u32 src_y;
 	u32 src_w;
@@ -87,7 +89,6 @@ struct dpu_bts_win_config {
 	bool is_afbc;
 	int dpp_ch;
 	enum dpu_pixel_format format;
-	enum dpu_win_state state;
 };
 
 struct dpu_bts {
@@ -122,6 +123,70 @@ struct dpu_bts {
 	struct dpu_bts_win_config win_config[MAX_WIN_PER_DECON];
 };
 
+/**
+ * Display Subsystem event management status.
+ *
+ * These status labels are used internally by the DECON to indicate the
+ * current status of a device with operations.
+ */
+enum dpu_event_type {
+	DPU_EVT_NONE = 0,
+
+	DPU_EVT_DECON_ENABLED,
+	DPU_EVT_DECON_DISABLED,
+	DPU_EVT_DECON_FRAMEDONE,
+
+	DPU_EVT_DSIM_ENABLED,
+	DPU_EVT_DSIM_DISABLED,
+
+	DPU_EVT_DPP_FRAMEDONE,
+
+	DPU_EVT_ATOMIC_COMMIT,
+	DPU_EVT_TE_INTERRUPT,
+
+	DPU_EVT_MAX, /* End of EVENT */
+};
+
+struct dpu_log_dpp {
+	u32 id;
+};
+
+struct decon_win_config {
+	struct dpu_bts_win_config win;
+	dma_addr_t dma_addr;
+};
+
+struct dpu_log_atomic {
+	struct decon_win_config win_config[MAX_WIN_PER_DECON];
+};
+
+struct dpu_log {
+	ktime_t time;
+	enum dpu_event_type type;
+
+	union {
+		struct dpu_log_dpp dpp;
+		struct dpu_log_atomic atomic;
+	} data;
+};
+
+/* Definitions below are used in the DECON */
+#define DPU_EVENT_LOG_MAX	SZ_512
+#define DPU_EVENT_PRINT_MAX	(DPU_EVENT_LOG_MAX >> 3)
+#define DPU_EVENT_LOG_RETRY	3
+#define DPU_EVENT_KEEP_CNT	3
+
+struct decon_debug {
+	struct dentry *debug_root;
+	struct dentry *debug_event;
+	/* ring buffer of event log */
+	struct dpu_log *event_log;
+	/* count of log buffers in each event log */
+	u32 event_log_cnt;
+	/* array index of log buffer in event log */
+	atomic_t event_log_idx;
+};
+
 struct decon_device {
 	u32				id;
 	enum decon_state		state;
@@ -138,6 +203,7 @@ struct decon_device {
 	struct decon_config		config;
 	struct decon_resources		res;
 	struct dpu_bts			bts;
+	struct decon_debug		d;
 
 	u32				irq_fs;	/* frame start irq number*/
 	u32				irq_fd;	/* frame done irq number*/
@@ -156,5 +222,10 @@ static inline struct decon_device *get_decon_drvdata(u32 id)
 {
 	return decon_drvdata[id];
 }
+
+int dpu_init_debug(struct decon_device *decon);
+void dpu_deinit_debug(struct decon_device *decon);
+void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv);
+void DPU_EVENT_LOG_ATOMIC_COMMIT(int index);
 
 #endif /* __EXYNOS_DRM_DECON_H__ */

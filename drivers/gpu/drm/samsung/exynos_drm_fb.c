@@ -220,9 +220,13 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 	return exynos_fb->dma_addr[index];
 }
 
-void exynos_plane_state_to_bts_win_config(struct exynos_drm_plane_state *state,
-		struct dpu_bts_win_config *win_config, int dpp_ch)
+void plane_state_to_win_config(struct decon_device *decon,
+		struct exynos_drm_plane_state *state, int plane_idx)
 {
+	struct dpu_bts_win_config *win_config = &decon->bts.win_config[plane_idx];
+	struct exynos_drm_fb *exynos_fb = container_of(state->base.fb,
+			struct exynos_drm_fb, fb);
+
 	win_config->src_x = state->base.src_x >> 16;
 	win_config->src_y = state->base.src_y >> 16;
 	win_config->src_w = state->base.src_w >> 16;
@@ -237,7 +241,14 @@ void exynos_plane_state_to_bts_win_config(struct exynos_drm_plane_state *state,
 	win_config->is_afbc = state->afbc;
 	win_config->state = DPU_WIN_STATE_BUFFER;
 	win_config->format = convert_drm_format(state->base.fb->format->format);
-	win_config->dpp_ch = dpp_ch;
+
+	/*
+	 * TODO: Currently, plane index is used as dpp channel.
+	 * If channel mapping is implemented, it will be changed.
+	 */
+	win_config->dpp_ch = plane_idx;
+
+	memcpy(&decon->win[plane_idx].fb, exynos_fb, sizeof(*exynos_fb));
 
 	DRM_INFO("%s: src[%d %d %d %d], dst[%d %d %d %d]\n", __func__,
 			win_config->src_x, win_config->src_y,
@@ -274,7 +285,6 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 	struct exynos_drm_plane_state *new_exynos_state;
 	struct exynos_drm_crtc *exynos_crtc;
 	struct decon_device *decon[MAX_DECON_CNT] = {};
-
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int max_planes;
@@ -310,9 +320,13 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		if (new_crtc_state->planes_changed && new_crtc_state->active) {
 			max_planes =
 				old_state->dev->mode_config.num_total_plane;
-			for (j = 0; j < max_planes; ++j)
+			for (j = 0; j < max_planes; ++j) {
 				decon[id]->bts.win_config[j].state =
 					DPU_WIN_STATE_DISABLED;
+
+				memset(&decon[id]->win[i].fb, 0,
+						sizeof(struct exynos_drm_fb));
+			}
 		}
 	}
 
@@ -326,12 +340,7 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		id = new_plane_state->crtc->index;
 		decon[id] = exynos_crtc->ctx;
 
-		/*
-		 * TODO: Currently, window id is used as dpp channel.
-		 * If channel mapping is implemented, it will be changed.
-		 */
-		exynos_plane_state_to_bts_win_config(new_exynos_state,
-				&decon[id]->bts.win_config[i], i);
+		plane_state_to_win_config(decon[id], new_exynos_state, i);
 	}
 
 	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
@@ -341,8 +350,9 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		decon[id] = exynos_crtc->ctx;
 
 		if (new_crtc_state->planes_changed && new_crtc_state->active) {
-			decon[i]->bts.ops->bts_calc_bw(decon[i]);
-			decon[i]->bts.ops->bts_update_bw(decon[i], false);
+			DPU_EVENT_LOG_ATOMIC_COMMIT(decon[id]->id);
+			decon[id]->bts.ops->bts_calc_bw(decon[i]);
+			decon[id]->bts.ops->bts_update_bw(decon[i], false);
 		}
 	}
 
@@ -355,7 +365,7 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		decon[id] = exynos_crtc->ctx;
 
 		if (new_crtc_state->planes_changed && new_crtc_state->active)
-			decon[i]->bts.ops->bts_update_bw(decon[i], true);
+			decon[id]->bts.ops->bts_update_bw(decon[i], true);
 
 		if (old_crtc_state->active && !new_crtc_state->active)
 			decon[id]->bts.ops->bts_release_bw(decon[id]);

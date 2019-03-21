@@ -181,6 +181,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	win_info.blend = DECON_BLENDING_NONE;
 	decon_reg_set_window_control(decon->id, window->idx, &win_info, false);
 
+	decon->dpp[window->idx]->decon_id = decon->id;
 	/* TODO: This will be activated after dpp driver is complete. */
 	decon->dpp[window->idx]->update(decon->dpp[window->idx], state);
 
@@ -203,6 +204,7 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	decon_dbg(decon, "%s +\n", __func__);
 	decon_reg_set_win_enable(decon->id, window->idx, 0);
 
+	decon->dpp[window->idx]->decon_id = decon->id;
 	decon->dpp[window->idx]->disable(decon->dpp[window->idx]);
 
 	decon_reg_update_req_window(decon->id, window->idx);
@@ -311,6 +313,8 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	decon->state = DECON_STATE_ON;
 
+	DPU_EVENT_LOG(DPU_EVT_DECON_ENABLED, decon->id, decon);
+
 	decon_info(decon, "%s -\n", __func__);
 }
 
@@ -340,6 +344,8 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 	decon->state = DECON_STATE_OFF;
 
 	pm_runtime_put_sync(decon->dev);
+
+	DPU_EVENT_LOG(DPU_EVT_DECON_DISABLED, decon->id, decon);
 
 	decon_info(decon, "%s -\n", __func__);
 }
@@ -425,8 +431,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 			irq_sts_reg, ext_irq);
 
 	if (irq_sts_reg & DPU_FRAME_START_INT_PEND) {
-		decon_dbg(decon, "%s: DECON%d Frame start\n", __func__,
-				decon->id);
+		decon_dbg(decon, "%s: frame start\n", __func__);
 		if (decon->config.mode.op_mode == DECON_VIDEO_MODE)
 			drm_crtc_handle_vblank(&decon->crtc->base);
 
@@ -435,17 +440,16 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 					DECON_TRIG_DISABLE);
 	}
 
-	if (irq_sts_reg & DPU_FRAME_DONE_INT_PEND)
-		decon_dbg(decon, "%s: DECON%d Frame Done\n", __func__,
-				decon->id);
+	if (irq_sts_reg & DPU_FRAME_DONE_INT_PEND) {
+		DPU_EVENT_LOG(DPU_EVT_DECON_FRAMEDONE, decon->id, decon);
+		decon_dbg(decon, "%s: frame done\n", __func__);
+	}
 
 	if (ext_irq & DPU_RESOURCE_CONFLICT_INT_PEND)
-		decon_dbg(decon, "%s: DECON%d resource conflict\n", __func__,
-				decon->id);
+		decon_dbg(decon, "%s: resource conflict\n", __func__);
 
 	if (ext_irq & DPU_TIME_OUT_INT_PEND) {
-		decon_err(decon, "%s: DECON%d timeout irq occurs\n", __func__,
-				decon->id);
+		decon_err(decon, "%s: timeout irq occurs\n", __func__);
 		WARN_ON(1);
 	}
 
@@ -603,6 +607,8 @@ static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 
 	if (decon->state != DECON_STATE_ON)
 		goto end;
+
+	DPU_EVENT_LOG(DPU_EVT_TE_INTERRUPT, decon->id, NULL);
 
 	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE)
 		drm_crtc_handle_vblank(&decon->crtc->base);
@@ -783,6 +789,10 @@ static int decon_probe(struct platform_device *pdev)
 	/* set drvdata */
 	platform_set_drvdata(pdev, decon);
 
+	ret = dpu_init_debug(decon);
+	if (ret)
+		goto err;
+
 	ret = component_add(dev, &decon_component_ops);
 	if (ret)
 		goto err;
@@ -795,12 +805,13 @@ err:
 
 static int decon_remove(struct platform_device *pdev)
 {
-#if defined(CONFIG_EXYNOS_BTS)
 	struct decon_device *decon;
 
 	decon = platform_get_drvdata(pdev);
+#if defined(CONFIG_EXYNOS_BTS)
 	decon->bts.ops->bts_deinit(decon);
 #endif
+	dpu_deinit_debug(decon);
 	component_del(&pdev->dev, &decon_component_ops);
 
 	return 0;

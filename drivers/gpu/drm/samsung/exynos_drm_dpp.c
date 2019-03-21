@@ -26,6 +26,7 @@
 #include "exynos_drm_dpp.h"
 #include "exynos_drm_dsim.h"
 #include "exynos_drm_format.h"
+#include "exynos_drm_decon.h"
 #include "cal_9820/regs-dpp.h"
 
 static int dpp_log_level = 7;
@@ -434,6 +435,8 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 		}
 		if (irqs & ODMA_STATUS_FRAMEDONE_IRQ) {
 			dpp_dbg(dpp, "dpp%d framedone irq occurs\n", dpp->id);
+			DPU_EVENT_LOG(DPU_EVT_DPP_FRAMEDONE, dpp->decon_id,
+					dpp);
 			goto irq_end;
 		}
 	} else { /* IDMA case */
@@ -455,8 +458,11 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 		 * TODO: Normally, DMA framedone occurs before DPP framedone.
 		 * But DMA framedone can occur in case of AFBC crop mode
 		 */
-		if (irqs & IDMA_STATUS_FRAMEDONE_IRQ)
+		if (irqs & IDMA_STATUS_FRAMEDONE_IRQ) {
+			DPU_EVENT_LOG(DPU_EVT_DPP_FRAMEDONE, dpp->decon_id,
+					dpp);
 			goto irq_end;
+		}
 
 #if defined(CONFIG_SOC_EXYNOS9820)
 		/* TODO: SoC dependency will be removed */
@@ -604,6 +610,8 @@ static int dpp_probe(struct platform_device *pdev)
 	dpp->check = dpp_check;
 	dpp->update = dpp_update;
 	dpp->disable = dpp_disable;
+	/* dpp is not connected decon now */
+	dpp->decon_id = -1;
 
 	platform_set_drvdata(pdev, dpp);
 

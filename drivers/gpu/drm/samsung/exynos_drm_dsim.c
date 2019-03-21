@@ -40,6 +40,7 @@
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_dsim.h"
+#include "exynos_drm_decon.h"
 
 #include "cal_9820/regs-dsim.h"
 
@@ -132,6 +133,8 @@ static void dsim_dump(struct dsim_device *dsim)
 static void dsim_enable(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
+	struct decon_device *decon =
+		(struct decon_device *)to_exynos_crtc(encoder->crtc)->ctx;
 	int ret;
 
 	if (dsim->state == DSIM_STATE_HSCLKEN) {
@@ -169,12 +172,15 @@ static void dsim_enable(struct drm_encoder *encoder)
 	dsim_dump(dsim);
 #endif
 
+	DPU_EVENT_LOG(DPU_EVT_DSIM_ENABLED, decon->id, dsim);
 	dsim_dbg(dsim, "%s -\n", __func__);
 }
 
 static void dsim_disable(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
+	struct decon_device *decon =
+		(struct decon_device *)to_exynos_crtc(encoder->crtc)->ctx;
 	int ret;
 
 	if (dsim->state == DSIM_STATE_SUSPEND) {
@@ -212,6 +218,8 @@ static void dsim_disable(struct drm_encoder *encoder)
 #if defined(CONFIG_CPU_IDLE)
 	exynos_update_ip_idle_status(dsim->idle_ip_index, 1);
 #endif
+
+	DPU_EVENT_LOG(DPU_EVT_DSIM_DISABLED, decon->id, dsim);
 	dsim_dbg(dsim, "%s -\n", __func__);
 }
 
