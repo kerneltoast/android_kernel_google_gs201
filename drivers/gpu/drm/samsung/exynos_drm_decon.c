@@ -437,7 +437,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 
 		if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE)
 			decon_reg_set_trigger(decon->id, &decon->config.mode,
-					DECON_TRIG_DISABLE);
+					DECON_TRIG_MASK);
 	}
 
 	if (irq_sts_reg & DPU_FRAME_DONE_INT_PEND) {
