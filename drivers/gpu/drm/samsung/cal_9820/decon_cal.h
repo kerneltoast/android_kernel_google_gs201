@@ -178,8 +178,8 @@ enum decon_blending {
 };
 
 enum decon_set_trig {
-	DECON_TRIG_DISABLE = 0,
-	DECON_TRIG_ENABLE
+	DECON_TRIG_MASK = 0,
+	DECON_TRIG_UNMASK
 };
 
 struct decon_mode {
@@ -272,7 +272,7 @@ void decon_reg_update_req_window(u32 id, u32 win_idx);
 
 /* DECON shadow update and trigger control */
 void decon_reg_set_trigger(u32 id, struct decon_mode *mode,
-		enum decon_set_trig en);
+		enum decon_set_trig trig);
 void decon_reg_update_req_and_unmask(u32 id, struct decon_mode *mode);
 int decon_reg_wait_update_done_timeout(u32 id, unsigned long timeout_us);
 int decon_reg_wait_update_done_and_mask(u32 id, struct decon_mode *mode,

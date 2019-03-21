@@ -1760,7 +1760,7 @@ int decon_reg_init(u32 id, struct decon_config *config)
 		decon_reg_configure_lcd(id, config);
 	} else {
 		decon_reg_configure_lcd(id, config);
-		decon_reg_set_trigger(id, &config->mode, DECON_TRIG_DISABLE);
+		decon_reg_set_trigger(id, &config->mode, DECON_TRIG_MASK);
 	}
 
 	/* FIXME: DECON_T dedicated to PRE_WB */
@@ -1805,7 +1805,7 @@ int decon_reg_start(u32 id, struct decon_config *config)
 	ret = decon_reg_wait_run_status_timeout(id, 2 * 1000); /* timeout 2ms */
 
 	/* wait until run-status, then trigger */
-	decon_reg_set_trigger(id, &config->mode, DECON_TRIG_ENABLE);
+	decon_reg_set_trigger(id, &config->mode, DECON_TRIG_UNMASK);
 	return ret;
 }
 
@@ -1910,7 +1910,7 @@ void decon_reg_update_req_window(u32 id, u32 win_idx)
 }
 
 void decon_reg_set_trigger(u32 id, struct decon_mode *mode,
-		enum decon_set_trig en)
+		enum decon_set_trig trig)
 {
 	u32 val, mask;
 
@@ -1918,10 +1918,10 @@ void decon_reg_set_trigger(u32 id, struct decon_mode *mode,
 		return;
 
 	if (mode->trig_mode == DECON_SW_TRIG) {
-		val = (en == DECON_TRIG_ENABLE) ? SW_TRIG_EN : 0;
+		val = (trig == DECON_TRIG_UNMASK) ? SW_TRIG_EN : 0;
 		mask = HW_TRIG_EN | SW_TRIG_EN;
 	} else { /* DECON_HW_TRIG */
-		val = (en == DECON_TRIG_ENABLE) ?
+		val = (trig == DECON_TRIG_UNMASK) ?
 				HW_TRIG_EN : HW_TRIG_MASK_DECON;
 		mask = HW_TRIG_EN | HW_TRIG_MASK_DECON;
 	}
@@ -1933,7 +1933,7 @@ void decon_reg_update_req_and_unmask(u32 id, struct decon_mode *mode)
 {
 	decon_reg_update_req_global(id);
 
-	decon_reg_set_trigger(id, mode, DECON_TRIG_ENABLE);
+	decon_reg_set_trigger(id, mode, DECON_TRIG_UNMASK);
 }
 
 int decon_reg_wait_update_done_timeout(u32 id, unsigned long timeout_us)
@@ -1959,7 +1959,7 @@ int decon_reg_wait_update_done_and_mask(u32 id, struct decon_mode *mode,
 
 	result = decon_reg_wait_update_done_timeout(id, timeout_us);
 
-	decon_reg_set_trigger(id, mode, DECON_TRIG_DISABLE);
+	decon_reg_set_trigger(id, mode, DECON_TRIG_MASK);
 
 	return result;
 }
@@ -2036,7 +2036,7 @@ void decon_reg_release_resource(u32 id, struct decon_mode *mode)
 {
 	decon_reg_per_frame_off(id);
 	decon_reg_update_req_global(id);
-	decon_reg_set_trigger(id, mode, DECON_TRIG_ENABLE);
+	decon_reg_set_trigger(id, mode, DECON_TRIG_UNMASK);
 }
 
 void decon_reg_config_wb_size(u32 id, struct decon_config *config)
