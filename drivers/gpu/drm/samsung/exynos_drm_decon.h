@@ -28,6 +28,7 @@
 #include "exynos_drm_dpp.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
+#include "exynos_drm_dsim.h"
 
 #include "cal_9820/decon_cal.h"
 
@@ -135,9 +136,12 @@ enum dpu_event_type {
 	DPU_EVT_DECON_ENABLED,
 	DPU_EVT_DECON_DISABLED,
 	DPU_EVT_DECON_FRAMEDONE,
+	DPU_EVT_DECON_FRAMESTART,
+	DPU_EVT_DECON_TRIG_UNMASK,
 
 	DPU_EVT_DSIM_ENABLED,
 	DPU_EVT_DSIM_DISABLED,
+	DPU_EVT_DSIM_COMMAND,
 
 	DPU_EVT_DPP_FRAMEDONE,
 
@@ -145,6 +149,13 @@ enum dpu_event_type {
 	DPU_EVT_TE_INTERRUPT,
 
 	DPU_EVT_MAX, /* End of EVENT */
+};
+
+#define DPU_CALLSTACK_MAX 10
+struct dpu_log_dsim_cmd {
+	u32 id;
+	u8 buf;
+	void *caller[DPU_CALLSTACK_MAX];
 };
 
 struct dpu_log_dpp {
@@ -167,6 +178,7 @@ struct dpu_log {
 	union {
 		struct dpu_log_dpp dpp;
 		struct dpu_log_atomic atomic;
+		struct dpu_log_dsim_cmd cmd;
 	} data;
 };
 
@@ -227,5 +239,7 @@ int dpu_init_debug(struct decon_device *decon);
 void dpu_deinit_debug(struct decon_device *decon);
 void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv);
 void DPU_EVENT_LOG_ATOMIC_COMMIT(int index);
+void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,
+		unsigned long data);
 
 #endif /* __EXYNOS_DRM_DECON_H__ */

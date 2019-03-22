@@ -12,6 +12,7 @@
 
 #include <linux/ktime.h>
 #include <linux/debugfs.h>
+#include <video/mipi_display.h>
 #include <drm/drmP.h>
 #include "exynos_drm_decon.h"
 #include "exynos_drm_dsim.h"
@@ -41,7 +42,7 @@ static bool dpu_event_ignore
  * DPU_EVENT_LOG() - store information to log buffer by common API
  * @type: event type
  * @index: event log index
- * @priv: pointer to DECON, DSIM or DPP core structure
+ * @priv: pointer to DECON, DSIM or DPP device structure
  *
  * Store information related to DECON, DSIM or DPP. Each DECON has event log
  * So, DECON id is used as @index
@@ -131,6 +132,52 @@ void DPU_EVENT_LOG_ATOMIC_COMMIT(int index)
 	}
 }
 
+extern void *return_address(int);
+
+/*
+ * DPU_EVENT_LOG_CMD() - store DSIM command information
+ * @index: event log index
+ * @dsim: pointer to dsim device structure
+ * @cmd_id : DSIM command id
+ * @data: command buffer data
+ *
+ * Stores command id and first data in command buffer and return addresses
+ * in callstack which lets you know who called this function.
+ */
+void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,
+		unsigned long data)
+{
+	struct decon_device *decon;
+	struct dpu_log *log;
+	int idx, i;
+
+	if (index < 0) {
+		DRM_ERROR("%s: decon id is not valid(%d)\n", __func__, index);
+		return;
+	}
+
+	decon = get_decon_drvdata(index);
+
+	if (IS_ERR_OR_NULL(decon->d.event_log))
+		return;
+
+	idx = atomic_inc_return(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
+	log = &decon->d.event_log[idx];
+
+	log->type = DPU_EVT_DSIM_COMMAND;
+	log->time = ktime_get();
+
+	log->data.cmd.id = cmd_id;
+	if (cmd_id == MIPI_DSI_DCS_LONG_WRITE)
+		log->data.cmd.buf = *(u8 *)(data);
+	else
+		log->data.cmd.buf = (u8)data;
+
+	for (i = 0; i < DPU_CALLSTACK_MAX; i++)
+		log->data.cmd.caller[i] =
+			(void *)((size_t)return_address(i + 1));
+}
+
 void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 {
 	int i;
@@ -199,11 +246,22 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 		case DPU_EVT_DECON_FRAMEDONE:
 			seq_printf(s, "%20s  %20s", "DECON_FRAMEDONE", "-\n");
 			break;
+		case DPU_EVT_DECON_FRAMESTART:
+			seq_printf(s, "%20s  %20s", "DECON_FRAMESTART", "-\n");
+			break;
+		case DPU_EVT_DECON_TRIG_UNMASK:
+			seq_printf(s, "%20s  %20s", "TRIG_UNMASK", "-\n");
+			break;
 		case DPU_EVT_DSIM_ENABLED:
 			seq_printf(s, "%20s  %20s", "DSIM_ENABLED", "-\n");
 			break;
 		case DPU_EVT_DSIM_DISABLED:
 			seq_printf(s, "%20s  %20s", "DSIM_DISABLED", "-\n");
+			break;
+		case DPU_EVT_DSIM_COMMAND:
+			seq_printf(s, "%20s  ", "DSIM_COMMAND");
+			seq_printf(s, "\tCMD_ID: 0x%x\tDATA[0]: 0x%x\n",
+					log->data.cmd.id, log->data.cmd.buf);
 			break;
 		case DPU_EVT_TE_INTERRUPT:
 			seq_printf(s, "%20s  %20s", "TE", "-\n");

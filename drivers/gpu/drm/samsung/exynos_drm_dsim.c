@@ -1033,6 +1033,8 @@ int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1)
 {
 	int ret = 0;
 	bool must_wait = true;
+	struct decon_device *decon =
+		(struct decon_device *)to_exynos_crtc(dsim->encoder.crtc)->ctx;
 
 	mutex_lock(&dsim->cmd_lock);
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
@@ -1041,6 +1043,8 @@ int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1)
 		ret = -EINVAL;
 		goto err_exit;
 	}
+
+	DPU_EVENT_LOG_CMD(decon->id, dsim, id, d0);
 
 	reinit_completion(&dsim->ph_wr_comp);
 	dsim_reg_clear_int(dsim->id, DSIM_INTSRC_SFR_PH_FIFO_EMPTY);

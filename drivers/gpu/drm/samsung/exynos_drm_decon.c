@@ -217,6 +217,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	decon_dbg(decon, "%s +\n", __func__);
 	decon_reg_start(decon->id, &decon->config);
+	DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_UNMASK, decon->id, decon);
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
@@ -431,6 +432,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 			irq_sts_reg, ext_irq);
 
 	if (irq_sts_reg & DPU_FRAME_START_INT_PEND) {
+		DPU_EVENT_LOG(DPU_EVT_DECON_FRAMESTART, decon->id, decon);
 		decon_dbg(decon, "%s: frame start\n", __func__);
 		if (decon->config.mode.op_mode == DECON_VIDEO_MODE)
 			drm_crtc_handle_vblank(&decon->crtc->base);
