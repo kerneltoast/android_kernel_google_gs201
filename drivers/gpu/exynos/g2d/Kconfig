@@ -3,3 +3,8 @@ config EXYNOS_GRAPHICS_G2D
 	select SYNC_FILE
 	help
 	  This enables FIMG2D driver of Exynos SoCs.
+
+config G2D_SYSTRACE
+	bool "FIMG2D systrace debug support"
+	help
+	  This enables systrace logging for debug.

@@ -30,9 +30,6 @@
 
 unsigned int g2d_debug;
 
-static bool g2d_systrace_on;
-module_param(g2d_systrace_on, bool, 0644);
-
 #define G2D_MAX_STAMP_ID 1024
 #define G2D_STAMP_CLAMP_ID(id) ((id) & (G2D_MAX_STAMP_ID - 1))
 
@@ -376,6 +373,10 @@ void g2d_dump_info(struct g2d_device *g2d_dev, struct g2d_task *task)
 	g2d_dump_afbcdata(g2d_dev);
 }
 
+#ifdef CONFIG_G2D_SYSTRACE
+static bool g2d_systrace_on;
+module_param(g2d_systrace_on, bool, 0644);
+
 #define G2D_TRACE_BUFSIZE 32
 static void tracing_mark_write(struct g2d_task *task, u32 stampid, s32 val)
 {
@@ -395,7 +396,9 @@ static void tracing_mark_write(struct g2d_task *task, u32 stampid, s32 val)
 	break;
 	}
 }
-
+#else
+#define tracing_mark_write(task, stampid, val)	do { } while (0)
+#endif
 void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 {
 	int idx = G2D_STAMP_CLAMP_ID(atomic_inc_return(&g2d_stamp_id));
