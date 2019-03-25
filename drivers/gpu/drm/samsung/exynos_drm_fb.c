@@ -223,7 +223,8 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 void plane_state_to_win_config(struct decon_device *decon,
 		struct exynos_drm_plane_state *state, int plane_idx)
 {
-	struct dpu_bts_win_config *win_config = &decon->bts.win_config[plane_idx];
+	struct dpu_bts_win_config *win_config =
+			&decon->bts.win_config[plane_idx];
 	struct exynos_drm_fb *exynos_fb = container_of(state->base.fb,
 			struct exynos_drm_fb, fb);
 
@@ -312,7 +313,8 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 		/* acquire initial bandwidth when DECON is enabled. */
 		if (!old_crtc_state->active && new_crtc_state->active) {
-			display_mode_to_bts_info(&crtc->mode, decon[id]);
+			display_mode_to_bts_info(&new_crtc_state->mode,
+					decon[id]);
 			decon[id]->bts.ops->bts_acquire_bw(decon[id]);
 		}
 
