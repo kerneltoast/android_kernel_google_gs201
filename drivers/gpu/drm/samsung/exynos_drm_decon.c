@@ -302,11 +302,9 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	decon_reg_init(decon->id, &decon->config);
 
-	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) {
+	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE)
 		decon_set_color_map(decon, 0, decon->config.image_width,
 				decon->config.image_height);
-		decon_reg_start(decon->id, &decon->config);
-	}
 
 	decon_enable_irqs(decon);
 
