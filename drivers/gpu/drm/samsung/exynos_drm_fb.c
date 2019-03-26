@@ -366,8 +366,15 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		id = crtc->index;
 		decon[id] = exynos_crtc->ctx;
 
-		if (new_crtc_state->planes_changed && new_crtc_state->active)
+		if (new_crtc_state->planes_changed && new_crtc_state->active) {
+			if (decon[id]->config.mode.op_mode ==
+					DECON_MIPI_COMMAND_MODE)
+				decon_reg_set_trigger(decon[id]->id,
+						&decon[id]->config.mode,
+						DECON_TRIG_MASK);
+
 			decon[id]->bts.ops->bts_update_bw(decon[i], true);
+		}
 
 		if (old_crtc_state->active && !new_crtc_state->active)
 			decon[id]->bts.ops->bts_release_bw(decon[id]);
