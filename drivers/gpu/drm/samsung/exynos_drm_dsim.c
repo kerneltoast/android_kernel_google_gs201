@@ -658,6 +658,8 @@ static int dsim_remap_regs(struct dsim_device *dsim)
 static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 {
 	struct dsim_device *dsim = dev_id;
+	struct decon_device *decon =
+		(struct decon_device *)to_exynos_crtc(dsim->encoder.crtc)->ctx;
 	unsigned int int_src;
 
 	spin_lock(&dsim->slock);
@@ -683,8 +685,10 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 	if (int_src & DSIM_INTSRC_ERR_RX_ECC)
 		dsim_err(dsim, "RX ECC Multibit error was detected!\n");
 
-	if (int_src & DSIM_INTSRC_UNDER_RUN)
+	if (int_src & DSIM_INTSRC_UNDER_RUN) {
 		dsim_info(dsim, "dsim%d underrun irq occurs\n", dsim->id);
+		DPU_EVENT_LOG(DPU_EVT_DSIM_UNDERRUN, decon->id, dsim);
+	}
 
 	if (int_src & DSIM_INTSRC_VT_STATUS) {
 		dsim_dbg(dsim, "dsim%d vt_status irq occurs\n", dsim->id);

@@ -65,6 +65,7 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 
 	switch (type) {
 	case DPU_EVT_TE_INTERRUPT:
+	case DPU_EVT_DSIM_UNDERRUN:
 		/*
 		 * If the same event occurs DPU_EVENT_KEEP_CNT times
 		 * continuously, it will be skipped.
