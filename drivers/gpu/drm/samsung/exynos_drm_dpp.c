@@ -204,6 +204,7 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 				const struct exynos_drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->base.fb;
+	struct drm_display_mode *mode = &state->base.crtc->mode;
 
 	config->src.x = state->src.x;
 	config->src.y = state->src.y;
@@ -216,9 +217,8 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	config->dst.y = state->crtc.y;
 	config->dst.w = state->crtc.w;
 	config->dst.h = state->crtc.h;
-	/* TODO: This hard coded value will be changed */
-	config->dst.f_w = 1440;
-	config->dst.f_h = 3040;
+	config->dst.f_w = mode->hdisplay;
+	config->dst.f_h = mode->vdisplay;
 
 	config->rot = 0; /* no rotation */
 	config->is_comp = state->afbc;
