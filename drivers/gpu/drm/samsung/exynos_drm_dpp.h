@@ -33,6 +33,38 @@ enum dpp_state {
 	DPP_STATE_ON,
 };
 
+struct dpp_size_range {
+	u32 min;
+	u32 max;
+	u32 align;
+};
+
+struct dpp_restriction {
+	struct dpp_size_range src_f_w;
+	struct dpp_size_range src_f_h;
+	struct dpp_size_range src_w;
+	struct dpp_size_range src_h;
+	u32 src_x_align;
+	u32 src_y_align;
+
+	struct dpp_size_range dst_f_w;
+	struct dpp_size_range dst_f_h;
+	struct dpp_size_range dst_w;
+	struct dpp_size_range dst_h;
+	u32 dst_x_align;
+	u32 dst_y_align;
+
+	struct dpp_size_range blk_w;
+	struct dpp_size_range blk_h;
+	u32 blk_x_align;
+	u32 blk_y_align;
+
+	u32 src_h_rot_max; /* limit of source img height in case of rotation */
+
+	u32 scale_down;
+	u32 scale_up;
+};
+
 struct dpp_device {
 	struct device *dev;
 
@@ -55,6 +87,8 @@ struct dpp_device {
 	spinlock_t dma_slock;
 
 	int decon_id; /* connected DECON id */
+
+	struct dpp_restriction restriction;
 
 	int (*check)(struct dpp_device *this_dpp,
 				const struct exynos_drm_plane_state *state);

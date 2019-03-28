@@ -67,6 +67,10 @@ static int dpp_log_level = 7;
 #define P010_CBCR_SIZE(w, h)		((w) * (h))
 #define P010_CBCR_BASE(base, w, h)	((base) + P010_Y_SIZE((w), (h)))
 
+#define IN_RANGE(val, min, max)					\
+	(((min) > 0 && (min) < (max) &&				\
+	  (val) >= (min) && (val) <= (max)) ? true : false)
+
 static const uint32_t dpp_gf_formats[] = {
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_ABGR8888,
@@ -106,9 +110,55 @@ static const uint32_t dpp_vg_formats[] = {
 	DRM_FORMAT_NV61,
 };
 
+static const struct dpp_restriction dpp_drv_data = {
+	.src_f_w.min = 16,
+	.src_f_w.max = 65534,
+	.src_f_w.align = 1,
+	.src_f_h.min = 16,
+	.src_f_h.max = 8190,
+	.src_f_h.align = 1,
+	.src_w.min = 16,
+	.src_w.max = 4096,
+	.src_w.align = 1,
+	.src_h.min = 16,
+	.src_h.max = 4096,
+	.src_h.align = 1,
+	.src_x_align = 1,
+	.src_y_align = 1,
+
+	.dst_f_w.min = 16,
+	.dst_f_w.max = 8190,
+	.dst_f_w.align = 1,
+	.dst_f_h.min = 16,
+	.dst_f_h.max = 8190,
+	.dst_f_h.align = 1,
+	.dst_w.min = 16,
+	.dst_w.max = 4096,
+	.dst_w.align = 1,
+	.dst_h.min = 16,
+	.dst_h.max = 4096,
+	.dst_h.align = 1,
+	.dst_x_align = 1,
+	.dst_y_align = 1,
+
+	.blk_w.min = 4,
+	.blk_w.max = 4096,
+	.blk_w.align = 1,
+	.blk_h.min = 4,
+	.blk_h.max = 4096,
+	.blk_h.align = 1,
+	.blk_x_align = 1,
+	.blk_y_align = 1,
+
+	.src_h_rot_max = 2160,
+};
+
 static const struct of_device_id dpp_of_match[] = {
-	{ .compatible = "samsung,exynos-dpp", },
-	{},
+	{
+		.compatible = "samsung,exynos-dpp",
+		.data = &dpp_drv_data,
+	}, {
+	},
 };
 
 static dma_addr_t dpp_alloc_map_buf_test(void)
@@ -325,10 +375,88 @@ static int dpp_disable(struct dpp_device *this_dpp)
 	return 0;
 }
 
-static int dpp_check(struct dpp_device *this_dpp,
-			const struct exynos_drm_plane_state *state)
+static int dpp_check(struct dpp_device *dpp,
+		const struct exynos_drm_plane_state *state)
 {
+	struct dpp_params_info config;
+	struct decon_frame *src, *dst;
+	const struct dpu_fmt *fmt_info;
+	struct dpp_restriction *res;
+	u32 mul = 1; /* factor to multiply alignment */
+
+	dpp_dbg(dpp, "%s +\n", __func__);
+
+	memset(&config, 0, sizeof(struct dpp_params_info));
+
+	dpp_convert_plane_state_to_config(&config, state);
+
+	fmt_info = dpu_find_fmt_info(config.format);
+
+	if (IS_YUV(fmt_info))
+		mul = 2;
+
+	res = &dpp->restriction;
+	src = &config.src;
+	dst = &config.dst;
+
+	/* check alignment */
+	if (!IS_ALIGNED(src->x, res->src_x_align * mul) ||
+			!IS_ALIGNED(src->y, res->src_y_align * mul) ||
+			!IS_ALIGNED(src->w, res->src_w.align * mul) ||
+			!IS_ALIGNED(src->h, res->src_h.align * mul) ||
+			!IS_ALIGNED(src->f_w, res->src_f_w.align * mul) ||
+			!IS_ALIGNED(src->f_h, res->src_f_h.align * mul)) {
+		dpp_err(dpp, "not supported source alignment\n");
+		goto err;
+	}
+
+	if (!IS_ALIGNED(dst->x, res->dst_x_align * mul) ||
+			!IS_ALIGNED(dst->y, res->dst_y_align * mul) ||
+			!IS_ALIGNED(dst->w, res->dst_w.align * mul) ||
+			!IS_ALIGNED(dst->h, res->dst_h.align * mul) ||
+			!IS_ALIGNED(dst->f_w, res->dst_f_w.align * mul) ||
+			!IS_ALIGNED(dst->f_h, res->dst_f_h.align * mul)) {
+		dpp_err(dpp, "not supported destination alignment\n");
+		goto err;
+	}
+
+	/* check range */
+	if (!IN_RANGE(src->w, res->src_w.min * mul, res->src_w.max) ||
+			/*
+			 * TODO: src height can be changed in case of
+			 * rotation
+			 */
+			!IN_RANGE(src->h, res->src_h.min * mul,
+						res->src_h.max) ||
+			!IN_RANGE(src->f_w, res->src_f_w.min * mul,
+						res->src_f_w.max) ||
+			!IN_RANGE(src->f_h, res->src_f_h.min,
+						res->src_f_h.max)) {
+		dpp_err(dpp, "not supported source size range\n");
+		goto err;
+	}
+
+	if (!IN_RANGE(dst->w, res->dst_w.min, res->dst_w.max) ||
+			!IN_RANGE(dst->h, res->dst_h.min, res->dst_h.max) ||
+			!IN_RANGE(dst->f_w, res->dst_f_w.min,
+						res->dst_f_w.max) ||
+			!IN_RANGE(dst->f_h, res->dst_f_h.min,
+						res->dst_f_h.max)) {
+		dpp_err(dpp, "not supported destination size range\n");
+		goto err;
+	}
+
+	dpp_dbg(dpp, "%s -\n", __func__);
+
 	return 0;
+
+err:
+	dpp_err(dpp, "src[%d %d %d %d %d %d] dst[%d %d %d %d %d %d] format[%d]\n",
+			src->x, src->y, src->w, src->h, src->f_w, src->f_h,
+			dst->x, dst->y, dst->w, dst->h, dst->f_w, dst->f_h,
+			config.format);
+
+	return -ENOTSUPP;
 }
 
 static int dpp_update(struct dpp_device *this_dpp,
@@ -367,10 +495,42 @@ static const struct component_ops exynos_dpp_component_ops = {
 	.unbind	= dpp_unbind,
 };
 
+static void dpp_print_restriction(struct dpp_device *dpp)
+{
+	struct dpp_restriction *res = &dpp->restriction;
+
+	dpp_info(dpp, "src_f_w[%d %d %d] src_f_h[%d %d %d]\n",
+			res->src_f_w.min, res->src_f_w.max, res->src_f_w.align,
+			res->src_f_h.min, res->src_f_h.max, res->src_f_h.align);
+	dpp_info(dpp, "src_w[%d %d %d] src_h[%d %d %d] src_x_y_align[%d %d]\n",
+			res->src_w.min, res->src_w.max, res->src_w.align,
+			res->src_h.min, res->src_h.max, res->src_h.align,
+			res->src_x_align, res->src_y_align);
+
+	dpp_info(dpp, "dst_f_w[%d %d %d] dst_f_h[%d %d %d]\n",
+			res->dst_f_w.min, res->dst_f_w.max, res->dst_f_w.align,
+			res->dst_f_h.min, res->dst_f_h.max, res->dst_f_h.align);
+	dpp_info(dpp, "dst_w[%d %d %d] dst_h[%d %d %d] dst_x_y_align[%d %d]\n",
+			res->dst_w.min, res->dst_w.max, res->dst_w.align,
+			res->dst_h.min, res->dst_h.max, res->dst_h.align,
+			res->dst_x_align, res->dst_y_align);
+
+	dpp_info(dpp, "blk_w[%d %d %d] blk_h[%d %d %d] blk_x_y_align[%d %d]\n",
+			res->blk_w.min, res->blk_w.max, res->blk_w.align,
+			res->blk_h.min, res->blk_h.max, res->blk_h.align,
+			res->blk_x_align, res->blk_y_align);
+
+	dpp_info(dpp, "src_h_rot_max[%d]\n", res->src_h_rot_max);
+
+	dpp_info(dpp, "max scale up(%dx), down(1/%dx) ratio\n", res->scale_up,
+			res->scale_down);
+}
+
 static int __init exynos_dpp_parse_dt(struct dpp_device *dpp,
 		struct device_node *np)
 {
 	int ret = 0;
+	struct dpp_restriction *res = &dpp->restriction;
 
 	ret = of_property_read_u32(np, "dpp,id", &dpp->id);
 	if (ret < 0)
@@ -392,7 +552,12 @@ static int __init exynos_dpp_parse_dt(struct dpp_device *dpp,
 		dpp->num_pixel_formats = ARRAY_SIZE(dpp_gf_formats);
 	}
 
+	of_property_read_u32(np, "scale_down", (u32 *)&res->scale_down);
+	of_property_read_u32(np, "scale_up", (u32 *)&res->scale_up);
+
 	dpp_info(dpp, "attr(0x%lx), port(%d)\n", dpp->attr, dpp->port);
+
+	dpp_print_restriction(dpp);
 
 	return 0;
 fail:
@@ -588,10 +753,14 @@ static int dpp_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct device *dev = &pdev->dev;
 	struct dpp_device *dpp;
+	const struct dpp_restriction *restriction;
 
 	dpp = devm_kzalloc(dev, sizeof(struct dpp_device), GFP_KERNEL);
 	if (!dpp)
 		return -ENOMEM;
+
+	restriction = of_device_get_match_data(dev);
+	memcpy(&dpp->restriction, restriction, sizeof(*restriction));
 
 	dpp->dev = dev;
 	ret = exynos_dpp_parse_dt(dpp, dev->of_node);

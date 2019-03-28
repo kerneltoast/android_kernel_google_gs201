@@ -73,11 +73,15 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
+	DRM_INFO("%s +\n", __func__);
+
 	if (!state->enable)
 		return 0;
 
 	if (exynos_crtc->ops->atomic_check)
 		return exynos_crtc->ops->atomic_check(exynos_crtc, state);
+
+	DRM_INFO("%s -\n", __func__);
 
 	return 0;
 }

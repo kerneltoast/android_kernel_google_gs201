@@ -20,6 +20,7 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
+#include "exynos_drm_decon.h"
 
 /*
  * This function is to get X or Y size shown via screen. This needs length and
@@ -278,19 +279,33 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_plane_state *exynos_state =
 						to_exynos_plane_state(state);
+	struct dpp_device *dpp;
+	struct decon_device *decon;
 	int ret = 0;
+
+	DRM_INFO("%s +\n", __func__);
 
 	if (!state->crtc || !state->fb)
 		return 0;
 
+	decon = to_exynos_crtc(state->crtc)->ctx;
+	/* TODO: If multi plane will be supported, index can be changed */
+	dpp = decon->dpp[exynos_plane->index];
+
 	/* translate state into exynos_state */
 	exynos_plane_mode_set(exynos_state);
+
+	if (dpp->check)
+		dpp->check(dpp, exynos_state);
 
 	ret = exynos_drm_plane_check_format(exynos_plane->config, exynos_state);
 	if (ret)
 		return ret;
 
 	ret = exynos_drm_plane_check_size(exynos_plane->config, exynos_state);
+
+	DRM_INFO("%s -\n", __func__);
+
 	return ret;
 }
 
