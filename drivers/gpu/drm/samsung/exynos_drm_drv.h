@@ -75,6 +75,7 @@ struct exynos_drm_rect {
  *       (clipped to visible part).
  * @h_ratio: horizontal scaling ratio, 16.16 fixed point
  * @v_ratio: vertical scaling ratio, 16.16 fixed point
+ * @channel: DPU DMA channel number
  *
  * this structure consists plane state data that will be applied to hardware
  * specific overlay info.
@@ -87,6 +88,7 @@ struct exynos_drm_plane_state {
 	unsigned int h_ratio;
 	unsigned int v_ratio;
 	bool afbc;
+	unsigned int channel;
 };
 
 static inline struct exynos_drm_plane_state *
@@ -112,6 +114,7 @@ struct exynos_drm_plane {
 
 	struct {
 		struct drm_property *afbc;
+		struct drm_property *channel;
 	} props;
 };
 

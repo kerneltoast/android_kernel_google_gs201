@@ -459,20 +459,20 @@ err:
 	return -ENOTSUPP;
 }
 
-static int dpp_update(struct dpp_device *this_dpp,
+static int dpp_update(struct dpp_device *dpp,
 			const struct exynos_drm_plane_state *state)
 {
-	struct dpp_params_info *config = &this_dpp->win_config;
+	struct dpp_params_info *config = &dpp->win_config;
 
-	dpp_dbg(this_dpp, "+\n");
+	dpp_dbg(dpp, "%s +\n", __func__);
 
-	__dpp_enable(this_dpp);
+	__dpp_enable(dpp);
 
 	dpp_convert_plane_state_to_config(config, state);
 
-	dpp_reg_configure_params(this_dpp->id, config, this_dpp->attr);
+	dpp_reg_configure_params(dpp->id, config, dpp->attr);
 
-	dpp_dbg(this_dpp, "-\n");
+	dpp_dbg(dpp, "%s -\n", __func__);
 
 	return 0;
 }

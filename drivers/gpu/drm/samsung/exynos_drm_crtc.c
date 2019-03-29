@@ -22,6 +22,7 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_plane.h"
+#include "exynos_drm_decon.h"
 
 static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_state)
@@ -72,8 +73,12 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct decon_device *decon = exynos_crtc->ctx;
 
 	DRM_INFO("%s +\n", __func__);
+
+	/* all clear bitmask of newly requested channels */
+	decon->new_channels = 0;
 
 	if (!state->enable)
 		return 0;

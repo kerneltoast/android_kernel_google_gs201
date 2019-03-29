@@ -170,20 +170,15 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			state->crtc.w, state->crtc.h);
 	win_info.start_time = 0;
 
-	/*
-	 * TODO: channel mapping between dpp channel and DECON window will
-	 * be implemented
-	 */
-	win_info.ch = decon->dpp[window->idx]->id;
+	win_info.ch = state->channel;
 
 	/* TODO: alpha blending will be configurable in the future */
 	win_info.plane_alpha = 0xff; /* opaque temporarily*/
 	win_info.blend = DECON_BLENDING_NONE;
 	decon_reg_set_window_control(decon->id, window->idx, &win_info, false);
 
-	decon->dpp[window->idx]->decon_id = decon->id;
-	/* TODO: This will be activated after dpp driver is complete. */
-	decon->dpp[window->idx]->update(decon->dpp[window->idx], state);
+	decon->dpp[state->channel]->decon_id = decon->id;
+	decon->dpp[state->channel]->update(decon->dpp[state->channel], state);
 
 	/*
 	 * TODO: need to consider of updating windows timing.
@@ -200,12 +195,14 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 {
 	struct decon_device *decon = crtc->ctx;
 	struct decon_win *window = plane_to_decon_win(plane);
+	struct exynos_drm_plane_state *state =
+				to_exynos_plane_state(plane->base.state);
 
 	decon_dbg(decon, "%s +\n", __func__);
 	decon_reg_set_win_enable(decon->id, window->idx, 0);
 
-	decon->dpp[window->idx]->decon_id = decon->id;
-	decon->dpp[window->idx]->disable(decon->dpp[window->idx]);
+	decon->dpp[state->channel]->decon_id = decon->id;
+	decon->dpp[state->channel]->disable(decon->dpp[state->channel]);
 
 	decon_reg_update_req_window(decon->id, window->idx);
 	decon_dbg(decon, "%s -\n", __func__);

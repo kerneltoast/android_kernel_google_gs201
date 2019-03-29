@@ -226,6 +226,9 @@ struct decon_device {
 	spinlock_t			slock;
 
 	int				decon_cnt;
+
+	/* bitmask of newly requested DPP channel */
+	unsigned long			new_channels;
 };
 
 extern struct dpu_bts_ops dpu_bts_control;

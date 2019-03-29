@@ -186,6 +186,8 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 
 	if (property == exynos_plane->props.afbc)
 		exynos_state->afbc = val;
+	else if (property ==  exynos_plane->props.channel)
+		exynos_state->channel = val;
 	else
 		return -EINVAL;
 
@@ -203,6 +205,8 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 
 	if (property == exynos_plane->props.afbc)
 		*val = exynos_state->afbc;
+	else if (property == exynos_plane->props.channel)
+		*val = exynos_state->channel;
 	else
 		return -EINVAL;
 
@@ -281,6 +285,7 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 						to_exynos_plane_state(state);
 	struct dpp_device *dpp;
 	struct decon_device *decon;
+	struct drm_crtc_state *new_crtc_state;
 	int ret = 0;
 
 	DRM_INFO("%s +\n", __func__);
@@ -289,8 +294,25 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	decon = to_exynos_crtc(state->crtc)->ctx;
-	/* TODO: If multi plane will be supported, index can be changed */
-	dpp = decon->dpp[exynos_plane->index];
+
+	new_crtc_state = state->state->crtcs[state->crtc->index].new_state;
+
+	if (!new_crtc_state->planes_changed || !new_crtc_state->active)
+		return 0;
+
+	DRM_DEBUG_KMS("%s: channel(%d), bitmask(0x%x)\n", __func__,
+			exynos_state->channel, decon->new_channels);
+
+	/*
+	 * If the same DPP channel is connected to multiple windows,
+	 * HW resource conflict error can occur.
+	 */
+	if (test_and_set_bit(exynos_state->channel, &decon->new_channels)) {
+		DRM_ERROR("channel%d conflict.\n", exynos_state->channel);
+		return -EINVAL;
+	}
+
+	dpp = decon->dpp[exynos_state->channel];
 
 	/* translate state into exynos_state */
 	exynos_plane_mode_set(exynos_state);
@@ -355,7 +377,7 @@ static int exynos_plane_create_property(struct exynos_drm_plane *exynos_plane,
 	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_AFBC) {
 		prop = drm_property_create_bool(plane->dev, 0, "afbc");
 		if (!prop) {
-			DRM_ERROR("failed to make AFBC property\n");
+			DRM_ERROR("failed to create afbc property\n");
 			return -ENOMEM;
 		}
 
@@ -363,6 +385,16 @@ static int exynos_plane_create_property(struct exynos_drm_plane *exynos_plane,
 
 		exynos_plane->props.afbc = prop;
 	}
+
+	prop = drm_property_create_range(plane->dev, 0, "channel", 0,
+			MAX_DPP_CNT - 1);
+	if (!prop) {
+		DRM_ERROR("failed to create channel property\n");
+		return -ENOMEM;
+	}
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.channel = prop;
 
 	return 0;
 }
