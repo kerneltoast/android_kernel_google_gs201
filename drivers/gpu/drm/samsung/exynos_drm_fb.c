@@ -242,14 +242,9 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->is_afbc = state->afbc;
 	win_config->state = DPU_WIN_STATE_BUFFER;
 	win_config->format = convert_drm_format(state->base.fb->format->format);
-
-	/*
-	 * TODO: Currently, plane index is used as dpp channel.
-	 * If channel mapping is implemented, it will be changed.
-	 */
 	win_config->dpp_ch = plane_idx;
 
-	memcpy(&decon->win[plane_idx].fb, exynos_fb, sizeof(*exynos_fb));
+	memcpy(&decon->dpp[plane_idx]->fb, exynos_fb, sizeof(*exynos_fb));
 
 	DRM_INFO("%s: src[%d %d %d %d], dst[%d %d %d %d]\n", __func__,
 			win_config->src_x, win_config->src_y,
@@ -326,7 +321,7 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 				decon[id]->bts.win_config[j].state =
 					DPU_WIN_STATE_DISABLED;
 
-				memset(&decon[id]->win[i].fb, 0,
+				memset(&decon[id]->dpp[i]->fb, 0,
 						sizeof(struct exynos_drm_fb));
 			}
 		}

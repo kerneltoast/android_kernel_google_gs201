@@ -52,7 +52,6 @@ struct decon_win {
 	u32				idx;
 	struct exynos_drm_plane		plane;
 	struct exynos_drm_plane_config	plane_config;
-	struct exynos_drm_fb		fb;
 };
 
 struct decon_resources {

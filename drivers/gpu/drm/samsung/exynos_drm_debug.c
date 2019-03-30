@@ -129,7 +129,7 @@ void DPU_EVENT_LOG_ATOMIC_COMMIT(int index)
 
 		if (decon->bts.win_config[i].state == DPU_WIN_STATE_BUFFER)
 			log->data.atomic.win_config[i].dma_addr =
-				decon->win[i].fb.exynos_buf[0]->dma_addr;
+				decon->dpp[i]->fb.exynos_buf[0]->dma_addr;
 	}
 }
 

@@ -15,6 +15,7 @@
 #define _EXYNOS_DRM_DPP_H_
 
 #include "exynos_drm_drv.h"
+#include "exynos_drm_fb.h"
 #include "cal_9820/dpp_cal.h"
 
 enum EXYNOS9_DPP_FEATURES {
@@ -95,6 +96,8 @@ struct dpp_device {
 	int (*update)(struct dpp_device *this_dpp,
 				const struct exynos_drm_plane_state *state);
 	int (*disable)(struct dpp_device *this_dpp);
+
+	struct exynos_drm_fb fb;
 };
 
 #ifdef CONFIG_OF
