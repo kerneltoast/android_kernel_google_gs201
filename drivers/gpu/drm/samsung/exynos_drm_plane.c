@@ -247,36 +247,6 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 	return 0;
 }
 
-static int
-exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
-			    struct exynos_drm_plane_state *state)
-{
-	bool width_ok = false, height_ok = false;
-
-	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_SCALE)
-		return 0;
-
-	if (state->src.w == state->crtc.w)
-		width_ok = true;
-
-	if (state->src.h == state->crtc.h)
-		height_ok = true;
-
-	if ((config->capabilities & EXYNOS_DRM_PLANE_CAP_DOUBLE) &&
-	    state->h_ratio == (1 << 15))
-		width_ok = true;
-
-	if ((config->capabilities & EXYNOS_DRM_PLANE_CAP_DOUBLE) &&
-	    state->v_ratio == (1 << 15))
-		height_ok = true;
-
-	if (width_ok && height_ok)
-		return 0;
-
-	DRM_DEBUG_KMS("scaling mode is not supported");
-	return -ENOTSUPP;
-}
-
 static int exynos_plane_atomic_check(struct drm_plane *plane,
 				     struct drm_plane_state *state)
 {
@@ -303,28 +273,34 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	DRM_DEBUG_KMS("%s: channel(%d), bitmask(0x%x)\n", __func__,
 			exynos_state->channel, decon->new_channels);
 
-	/*
-	 * If the same DPP channel is connected to multiple windows,
-	 * HW resource conflict error can occur.
-	 */
-	if (test_and_set_bit(exynos_state->channel, &decon->new_channels)) {
-		DRM_ERROR("channel%d conflict.\n", exynos_state->channel);
-		return -EINVAL;
-	}
-
 	dpp = decon->dpp[exynos_state->channel];
 
 	/* translate state into exynos_state */
 	exynos_plane_mode_set(exynos_state);
 
-	if (dpp->check)
-		dpp->check(dpp, exynos_state);
+	if (dpp->check) {
+		ret = dpp->check(dpp, exynos_state);
+		if (ret)
+			return ret;
+	}
 
 	ret = exynos_drm_plane_check_format(exynos_plane->config, exynos_state);
 	if (ret)
 		return ret;
 
-	ret = exynos_drm_plane_check_size(exynos_plane->config, exynos_state);
+	/*
+	 * If the same DPP channel is connected to multiple windows,
+	 * HW resource conflict error can occur.
+	 *
+	 * And this must be executed at the end of this function. If not,
+	 * The violation related to the plane can be detected after
+	 * requested channel is set on bitmask of new_channels,
+	 * it may be wrong check.
+	 */
+	if (test_and_set_bit(exynos_state->channel, &decon->new_channels)) {
+		DRM_ERROR("channel%d conflict.\n", exynos_state->channel);
+		return -EINVAL;
+	}
 
 	DRM_INFO("%s -\n", __func__);
 

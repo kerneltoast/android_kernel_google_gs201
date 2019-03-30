@@ -375,29 +375,58 @@ static int dpp_disable(struct dpp_device *this_dpp)
 	return 0;
 }
 
-static int dpp_check(struct dpp_device *dpp,
-		const struct exynos_drm_plane_state *state)
+static int dpp_check_scale(struct dpp_device *dpp,
+			struct dpp_params_info *config)
 {
-	struct dpp_params_info config;
+	struct dpp_restriction *res;
+	struct decon_frame *src, *dst;
+
+	res = &dpp->restriction;
+	src = &config->src;
+	dst = &config->dst;
+
+	/* If scaling is not requested, it doesn't need to check limitation */
+	if ((src->w == dst->w) && (src->h == dst->h))
+		return 0;
+
+	/* Scaling is requested. need to check limitation */
+	if (!test_bit(DPP_ATTR_CSC, &dpp->attr)) {
+		dpp_err(dpp, "not support CSC\n");
+		return -ENOTSUPP;
+	}
+
+	if ((src->w > dst->w * res->scale_down) ||
+			(src->h > dst->h * res->scale_down)) {
+		dpp_err(dpp, "not support under 1/%dx scale-down\n",
+				res->scale_down);
+		return -ENOTSUPP;
+	}
+
+	if ((src->w * res->scale_up < dst->w) ||
+			(src->h * res->scale_up < dst->h)) {
+		dpp_err(dpp, "not support over %dx scale-up\n", res->scale_up);
+		return -ENOTSUPP;
+	}
+
+	return 0;
+}
+
+static int dpp_check_size(struct dpp_device *dpp,
+			struct dpp_params_info *config)
+{
 	struct decon_frame *src, *dst;
 	const struct dpu_fmt *fmt_info;
 	struct dpp_restriction *res;
 	u32 mul = 1; /* factor to multiply alignment */
 
-	dpp_dbg(dpp, "%s +\n", __func__);
-
-	memset(&config, 0, sizeof(struct dpp_params_info));
-
-	dpp_convert_plane_state_to_config(&config, state);
-
-	fmt_info = dpu_find_fmt_info(config.format);
+	fmt_info = dpu_find_fmt_info(config->format);
 
 	if (IS_YUV(fmt_info))
 		mul = 2;
 
 	res = &dpp->restriction;
-	src = &config.src;
-	dst = &config.dst;
+	src = &config->src;
+	dst = &config->dst;
 
 	/* check alignment */
 	if (!IS_ALIGNED(src->x, res->src_x_align * mul) ||
@@ -407,7 +436,7 @@ static int dpp_check(struct dpp_device *dpp,
 			!IS_ALIGNED(src->f_w, res->src_f_w.align * mul) ||
 			!IS_ALIGNED(src->f_h, res->src_f_h.align * mul)) {
 		dpp_err(dpp, "not supported source alignment\n");
-		goto err;
+		return -ENOTSUPP;
 	}
 
 	if (!IS_ALIGNED(dst->x, res->dst_x_align * mul) ||
@@ -417,7 +446,7 @@ static int dpp_check(struct dpp_device *dpp,
 			!IS_ALIGNED(dst->f_w, res->dst_f_w.align * mul) ||
 			!IS_ALIGNED(dst->f_h, res->dst_f_h.align * mul)) {
 		dpp_err(dpp, "not supported destination alignment\n");
-		goto err;
+		return -ENOTSUPP;
 	}
 
 	/* check range */
@@ -433,7 +462,7 @@ static int dpp_check(struct dpp_device *dpp,
 			!IN_RANGE(src->f_h, res->src_f_h.min,
 						res->src_f_h.max)) {
 		dpp_err(dpp, "not supported source size range\n");
-		goto err;
+		return -ENOTSUPP;
 	}
 
 	if (!IN_RANGE(dst->w, res->dst_w.min, res->dst_w.max) ||
@@ -443,8 +472,28 @@ static int dpp_check(struct dpp_device *dpp,
 			!IN_RANGE(dst->f_h, res->dst_f_h.min,
 						res->dst_f_h.max)) {
 		dpp_err(dpp, "not supported destination size range\n");
-		goto err;
+		return -ENOTSUPP;
 	}
+
+	return 0;
+}
+
+static int dpp_check(struct dpp_device *dpp,
+		const struct exynos_drm_plane_state *state)
+{
+	struct dpp_params_info config;
+
+	dpp_dbg(dpp, "%s +\n", __func__);
+
+	memset(&config, 0, sizeof(struct dpp_params_info));
+
+	dpp_convert_plane_state_to_config(&config, state);
+
+	if (dpp_check_scale(dpp, &config))
+		goto err;
+
+	if (dpp_check_size(dpp, &config))
+		goto err;
 
 	dpp_dbg(dpp, "%s -\n", __func__);
 
@@ -452,8 +501,10 @@ static int dpp_check(struct dpp_device *dpp,
 
 err:
 	dpp_err(dpp, "src[%d %d %d %d %d %d] dst[%d %d %d %d %d %d] format[%d]\n",
-			src->x, src->y, src->w, src->h, src->f_w, src->f_h,
-			dst->x, dst->y, dst->w, dst->h, dst->f_w, dst->f_h,
+			config.src.x, config.src.y, config.src.w, config.src.h,
+			config.src.f_w, config.src.f_h,
+			config.dst.x, config.dst.y, config.dst.w, config.dst.h,
+			config.dst.f_w, config.dst.f_h,
 			config.format);
 
 	return -ENOTSUPP;
