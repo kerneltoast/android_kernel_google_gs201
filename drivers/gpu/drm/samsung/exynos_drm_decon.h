@@ -51,7 +51,6 @@ enum dpu_win_state {
 struct decon_win {
 	u32				idx;
 	struct exynos_drm_plane		plane;
-	struct exynos_drm_plane_config	plane_config;
 };
 
 struct decon_resources {

@@ -362,6 +362,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	struct decon_device *decon = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct drm_plane *default_plane;
+	struct exynos_drm_plane_config plane_config;
 	int i, ret = 0;
 
 	decon->drm_dev = drm_dev;
@@ -373,17 +374,17 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		if (!dpp)
 			continue;
 
-		win->plane_config.pixel_formats = dpp->pixel_formats;
-		win->plane_config.num_pixel_formats = dpp->num_pixel_formats;
-		win->plane_config.zpos = i;
-		win->plane_config.type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
+		memset(&plane_config, 0, sizeof(plane_config));
+
+		plane_config.pixel_formats = dpp->pixel_formats;
+		plane_config.num_pixel_formats = dpp->num_pixel_formats;
+		plane_config.zpos = i;
+		plane_config.type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
 						DRM_PLANE_TYPE_OVERLAY;
 		if (dpp->is_support & DPP_SUPPORT_AFBC)
-			win->plane_config.capabilities |=
-				EXYNOS_DRM_PLANE_CAP_AFBC;
+			plane_config.capabilities |= EXYNOS_DRM_PLANE_CAP_AFBC;
 
-		ret = exynos_plane_init(drm_dev, &win->plane, i,
-				&win->plane_config);
+		ret = exynos_plane_init(drm_dev, &win->plane, i, &plane_config);
 		if (ret)
 			return ret;
 	}
