@@ -98,6 +98,7 @@ struct dpp_device {
 	int (*disable)(struct dpp_device *this_dpp);
 
 	struct exynos_drm_fb fb;
+	struct exynos_drm_plane plane;
 };
 
 #ifdef CONFIG_OF

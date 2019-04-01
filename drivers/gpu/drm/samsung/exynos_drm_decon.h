@@ -48,11 +48,6 @@ enum dpu_win_state {
 	DPU_WIN_STATE_BUFFER,
 };
 
-struct decon_win {
-	u32				idx;
-	struct exynos_drm_plane		plane;
-};
-
 struct decon_resources {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *te_on;
@@ -205,10 +200,9 @@ struct decon_device {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
-	/* window information saved in window number order */
-	struct decon_win		win[MAX_WIN_PER_DECON];
 	/* dpp information saved in dpp channel number order */
 	struct dpp_device		*dpp[MAX_DPP_CNT];
+	u32				dpp_cnt;
 	u32				win_cnt;
 	enum exynos_drm_output_type	con_type;
 	struct decon_config		config;

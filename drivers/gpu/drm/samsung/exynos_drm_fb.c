@@ -223,10 +223,13 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 void plane_state_to_win_config(struct decon_device *decon,
 		struct exynos_drm_plane_state *state, int plane_idx)
 {
-	struct dpu_bts_win_config *win_config =
-			&decon->bts.win_config[plane_idx];
+	struct dpu_bts_win_config *win_config;
 	struct exynos_drm_fb *exynos_fb = container_of(state->base.fb,
 			struct exynos_drm_fb, fb);
+	int zpos;
+
+	zpos = state->base.zpos;
+	win_config = &decon->bts.win_config[zpos];
 
 	win_config->src_x = state->base.src_x >> 16;
 	win_config->src_y = state->base.src_y >> 16;
@@ -251,9 +254,10 @@ void plane_state_to_win_config(struct decon_device *decon,
 			win_config->src_w, win_config->src_h,
 			win_config->dst_x, win_config->dst_y,
 			win_config->dst_w, win_config->dst_h);
-	DRM_INFO("%s: rot[%d], afbc[%d], format[%d], dpp ch[%d]\n", __func__,
+	DRM_INFO("%s: rot[%d], afbc[%d], format[%d], ch[%d], zpos[%d]\n",
+			__func__,
 			win_config->is_rot, win_config->is_afbc,
-			win_config->format, win_config->dpp_ch);
+			win_config->format, win_config->dpp_ch, zpos);
 }
 
 static void display_mode_to_bts_info(struct drm_display_mode *mode,

@@ -104,7 +104,7 @@ void DPU_EVENT_LOG_ATOMIC_COMMIT(int index)
 {
 	struct decon_device *decon;
 	struct dpu_log *log;
-	int idx, i;
+	int idx, i, dpp_ch;
 
 	if (index < 0) {
 		DRM_ERROR("%s: decon id is not valid(%d)\n", __func__, index);
@@ -127,9 +127,12 @@ void DPU_EVENT_LOG_ATOMIC_COMMIT(int index)
 				&decon->bts.win_config[i],
 				sizeof(struct dpu_bts_win_config));
 
-		if (decon->bts.win_config[i].state == DPU_WIN_STATE_BUFFER)
+		if (decon->bts.win_config[i].state == DPU_WIN_STATE_BUFFER) {
+			dpp_ch = decon->bts.win_config[i].dpp_ch;
+
 			log->data.atomic.win_config[i].dma_addr =
-				decon->dpp[i]->fb.exynos_buf[0]->dma_addr;
+				decon->dpp[dpp_ch]->fb.exynos_buf[0]->dma_addr;
+		}
 	}
 }
 

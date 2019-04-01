@@ -18,9 +18,10 @@
 
 #include <drm/drmP.h>
 #include <linux/module.h>
+#include "cal_9820/decon_cal.h"
 
 #define MAX_CRTC	3
-#define MAX_PLANE	6
+#define MAX_PLANE	MAX_WIN_PER_DECON
 #define MAX_FB_BUFFER	4
 
 #define DEFAULT_WIN	0

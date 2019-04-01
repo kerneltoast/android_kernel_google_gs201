@@ -86,6 +86,8 @@ MODULE_DEVICE_TABLE(of, decon_driver_dt_match);
 #define for_each_window(decon, i)	\
 	for ((i) = 0; (i) < decon->win_cnt; (i)++)
 
+#define plane_to_dpp(p)		container_of(p, struct dpp_device, plane)
+
 static inline u32 win_start_pos(int x, int y)
 {
 	return (WIN_STRPTR_Y_F(y) | WIN_STRPTR_X_F(x));
@@ -155,6 +157,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 {
 	struct exynos_drm_plane_state *state =
 				to_exynos_plane_state(plane->base.state);
+	struct dpp_device *dpp = plane_to_dpp(plane);
 	struct decon_device *decon = crtc->ctx;
 	struct decon_window_regs win_info;
 	unsigned int zpos;
@@ -166,7 +169,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			state->crtc.w, state->crtc.h);
 	win_info.start_time = 0;
 
-	win_info.ch = state->channel;
+	win_info.ch = dpp->id; /* DPP's id is DPP channel number */
 
 	/* TODO: alpha blending will be configurable in the future */
 	win_info.plane_alpha = 0xff; /* opaque temporarily*/
@@ -174,8 +177,8 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	zpos = state->base.zpos;
 	decon_reg_set_window_control(decon->id, zpos, &win_info, false);
 
-	decon->dpp[state->channel]->decon_id = decon->id;
-	decon->dpp[state->channel]->update(decon->dpp[state->channel], state);
+	dpp->decon_id = decon->id;
+	dpp->update(dpp, state);
 
 	/*
 	 * TODO: need to consider of updating windows timing.
@@ -193,14 +196,15 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	struct decon_device *decon = crtc->ctx;
 	struct exynos_drm_plane_state *state =
 				to_exynos_plane_state(plane->base.state);
+	struct dpp_device *dpp = plane_to_dpp(plane);
 
 	decon_dbg(decon, "%s +\n", __func__);
 
 	/* disable window */
 	decon_reg_set_win_enable(decon->id, state->base.zpos, 0);
 
-	decon->dpp[state->channel]->decon_id = decon->id;
-	decon->dpp[state->channel]->disable(decon->dpp[state->channel]);
+	dpp->decon_id = decon->id;
+	dpp->disable(dpp);
 
 	decon_reg_update_req_window(decon->id, state->base.zpos);
 
@@ -366,9 +370,9 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	decon->drm_dev = drm_dev;
 
-	for_each_window(decon, i) {
-		struct decon_win *win = &decon->win[i];
-		struct dpp_device *dpp = decon->dpp[win->idx];
+	/* plane initialization in DPP channel order */
+	for (i = 0; i < decon->dpp_cnt; ++i) {
+		struct dpp_device *dpp = decon->dpp[i];
 
 		if (!dpp)
 			continue;
@@ -383,19 +387,19 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		if (dpp->is_support & DPP_SUPPORT_AFBC)
 			plane_config.capabilities |= EXYNOS_DRM_PLANE_CAP_AFBC;
 
-		ret = exynos_plane_init(drm_dev, &win->plane, i, &plane_config);
+		ret = exynos_plane_init(drm_dev, &dpp->plane, i, &plane_config);
 		if (ret)
 			return ret;
 	}
 
-	default_plane = &decon->win[DEFAULT_WIN].plane.base;
+	default_plane = &decon->dpp[0]->plane.base;
 
 	decon->crtc = exynos_drm_crtc_create(drm_dev, default_plane,
 			decon->con_type, &decon_crtc_ops, decon);
-
 	if (IS_ERR(decon->crtc))
 		return PTR_ERR(decon->crtc);
 
+	decon_dbg(decon, "%s -\n", __func__);
 	return 0;
 }
 
@@ -404,7 +408,9 @@ static void decon_unbind(struct device *dev, struct device *master,
 {
 	struct decon_device *decon = dev_get_drvdata(dev);
 
+	decon_dbg(decon, "%s +\n", __func__);
 	decon_disable(decon->crtc);
+	decon_dbg(decon, "%s -\n", __func__);
 }
 
 static const struct component_ops decon_component_ops = {
@@ -531,10 +537,8 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 	else
 		decon->config.mode.dsi_mode = DSI_MODE_SINGLE;
 
-	for_each_window(decon, i)
-		decon->win[i].idx = i;
-
-	for (i = 0; i < MAX_DPP_CNT; ++i) {
+	decon->dpp_cnt = of_count_phandle_with_args(np, "dpps", NULL);
+	for (i = 0; i < decon->dpp_cnt; ++i) {
 		dpp_np = of_parse_phandle(np, "dpps", i);
 		if (!dpp_np) {
 			decon_err(decon, "can't find dpp%d node\n", i);

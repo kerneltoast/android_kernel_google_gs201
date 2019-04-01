@@ -353,7 +353,7 @@ static void dpu_bts_find_max_disp_freq(struct decon_device *decon)
 
 	for (i = 0; i < BTS_DPU_MAX; ++i)
 		if (disp_ch_bw[i])
-			DPU_DEBUG_BTS("\tCH%d = %d\n", i, disp_ch_bw[i]);
+			DPU_DEBUG_BTS("\tPort%d = %d\n", i, disp_ch_bw[i]);
 
 	max_disp_ch_bw = disp_ch_bw[0];
 	for (i = 1; i < BTS_DPU_MAX; ++i)
@@ -466,7 +466,7 @@ void dpu_bts_calc_bw(struct decon_device *decon)
 			bts_info.dpp[idx].bpp = ROTATION_FACTOR_BPP;
 
 		DPU_DEBUG_BTS("\tDPP%d : bpp(%d) src w(%d) h(%d) rot(%d)\n",
-				idx, bts_info.dpp[idx].bpp,
+				DPU_DMA2CH(idx), bts_info.dpp[idx].bpp,
 				bts_info.dpp[idx].src_w,
 				bts_info.dpp[idx].src_h,
 				bts_info.dpp[idx].rotation);
@@ -487,7 +487,7 @@ void dpu_bts_calc_bw(struct decon_device *decon)
 		decon->bts.bw[i].val = bts_info.dpp[i].bw;
 		if (decon->bts.bw[i].val)
 			DPU_DEBUG_BTS("\tDPP%d bandwidth = %d\n",
-					i, decon->bts.bw[i].val);
+					DPU_DMA2CH(i), decon->bts.bw[i].val);
 	}
 
 	DPU_DEBUG_BTS("\tDECON%d total bandwidth = %d\n", decon->id,
