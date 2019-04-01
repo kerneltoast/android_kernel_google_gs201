@@ -227,6 +227,9 @@ struct decon_device {
 
 	/* bitmask of newly requested DPP channel */
 	unsigned long			new_channels;
+
+	/* bitmask of newly requested windows */
+	unsigned long			req_windows;
 };
 
 extern struct dpu_bts_ops dpu_bts_control;

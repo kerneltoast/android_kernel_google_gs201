@@ -80,6 +80,9 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 	/* all clear bitmask of newly requested channels */
 	decon->new_channels = 0;
 
+	/* all clear bitmask of newly requested windows */
+	decon->req_windows = 0;
+
 	if (!state->enable)
 		return 0;
 

@@ -83,9 +83,6 @@ static const struct of_device_id decon_driver_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, decon_driver_dt_match);
 
-#define plane_to_decon_win(this)	\
-	container_of(this, struct decon_win, plane)
-
 #define for_each_window(decon, i)	\
 	for ((i) = 0; (i) < decon->win_cnt; (i)++)
 
@@ -105,7 +102,6 @@ static inline u32 win_end_pos(int x, int y,  u32 xres, u32 yres)
 static void decon_set_color_map(struct decon_device *decon, u32 win_id,
 						u32 hactive, u32 vactive)
 {
-	struct decon_win *window = &decon->win[win_id];
 	struct decon_window_regs win_info;
 
 	decon_dbg(decon, "%s +\n", __func__);
@@ -116,8 +112,8 @@ static void decon_set_color_map(struct decon_device *decon, u32 win_id,
 	win_info.start_time = 0;
 	win_info.colormap = 0x000000; /* black */
 	win_info.blend = DECON_BLENDING_NONE;
-	decon_reg_set_window_control(decon->id, window->idx, &win_info, true);
-	decon_reg_update_req_window(decon->id, window->idx);
+	decon_reg_set_window_control(decon->id, win_id, &win_info, true);
+	decon_reg_update_req_window(decon->id, win_id);
 
 	decon_dbg(decon, "%s -\n", __func__);
 }
@@ -160,8 +156,8 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	struct exynos_drm_plane_state *state =
 				to_exynos_plane_state(plane->base.state);
 	struct decon_device *decon = crtc->ctx;
-	struct decon_win *window = plane_to_decon_win(plane);
 	struct decon_window_regs win_info;
+	unsigned int zpos;
 
 	decon_dbg(decon, "%s +\n", __func__);
 	memset(&win_info, 0, sizeof(struct decon_window_regs));
@@ -175,7 +171,8 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	/* TODO: alpha blending will be configurable in the future */
 	win_info.plane_alpha = 0xff; /* opaque temporarily*/
 	win_info.blend = DECON_BLENDING_NONE;
-	decon_reg_set_window_control(decon->id, window->idx, &win_info, false);
+	zpos = state->base.zpos;
+	decon_reg_set_window_control(decon->id, zpos, &win_info, false);
 
 	decon->dpp[state->channel]->decon_id = decon->id;
 	decon->dpp[state->channel]->update(decon->dpp[state->channel], state);
@@ -186,7 +183,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	 * If not, hw state(enable or disable) of each windows
 	 * can be mis-matched.
 	 */
-	decon_reg_update_req_window(decon->id, window->idx);
+	decon_reg_update_req_window(decon->id, zpos);
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
@@ -194,17 +191,19 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 				struct exynos_drm_plane *plane)
 {
 	struct decon_device *decon = crtc->ctx;
-	struct decon_win *window = plane_to_decon_win(plane);
 	struct exynos_drm_plane_state *state =
 				to_exynos_plane_state(plane->base.state);
 
 	decon_dbg(decon, "%s +\n", __func__);
-	decon_reg_set_win_enable(decon->id, window->idx, 0);
+
+	/* disable window */
+	decon_reg_set_win_enable(decon->id, state->base.zpos, 0);
 
 	decon->dpp[state->channel]->decon_id = decon->id;
 	decon->dpp[state->channel]->disable(decon->dpp[state->channel]);
 
-	decon_reg_update_req_window(decon->id, window->idx);
+	decon_reg_update_req_window(decon->id, state->base.zpos);
+
 	decon_dbg(decon, "%s -\n", __func__);
 }
 

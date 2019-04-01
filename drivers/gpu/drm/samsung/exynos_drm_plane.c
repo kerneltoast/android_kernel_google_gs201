@@ -299,6 +299,13 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	 */
 	if (test_and_set_bit(exynos_state->channel, &decon->new_channels)) {
 		DRM_ERROR("channel%d conflict.\n", exynos_state->channel);
+		clear_bit(exynos_state->channel, &decon->new_channels);
+		return -EINVAL;
+	}
+
+	if (test_and_set_bit(exynos_state->base.zpos, &decon->req_windows)) {
+		DRM_ERROR("window%d conflict.\n", exynos_state->base.zpos);
+		clear_bit(exynos_state->base.zpos, &decon->req_windows);
 		return -EINVAL;
 	}
 
@@ -399,12 +406,8 @@ int exynos_plane_init(struct drm_device *dev,
 
 	exynos_plane_create_property(exynos_plane, config);
 
-	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_ZPOS)
-		drm_plane_create_zpos_property(&exynos_plane->base, 0, 0,
-				MAX_PLANE - 1);
-	else
-		drm_plane_create_zpos_immutable_property(&exynos_plane->base,
-				index);
+	drm_plane_create_zpos_property(&exynos_plane->base, 0, 0,
+			MAX_PLANE - 1);
 
 	return 0;
 }

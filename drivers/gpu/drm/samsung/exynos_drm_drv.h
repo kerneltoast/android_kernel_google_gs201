@@ -20,7 +20,7 @@
 #include <linux/module.h>
 
 #define MAX_CRTC	3
-#define MAX_PLANE	8
+#define MAX_PLANE	6
 #define MAX_FB_BUFFER	4
 
 #define DEFAULT_WIN	0
