@@ -83,11 +83,6 @@ static const struct of_device_id decon_driver_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, decon_driver_dt_match);
 
-#define for_each_window(decon, i)	\
-	for ((i) = 0; (i) < decon->win_cnt; (i)++)
-
-#define plane_to_dpp(p)		container_of(p, struct dpp_device, plane)
-
 static inline u32 win_start_pos(int x, int y)
 {
 	return (WIN_STRPTR_Y_F(y) | WIN_STRPTR_X_F(x));

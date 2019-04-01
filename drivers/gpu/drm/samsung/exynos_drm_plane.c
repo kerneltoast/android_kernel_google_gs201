@@ -186,8 +186,6 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 
 	if (property == exynos_plane->props.afbc)
 		exynos_state->afbc = val;
-	else if (property ==  exynos_plane->props.channel)
-		exynos_state->channel = val;
 	else
 		return -EINVAL;
 
@@ -205,8 +203,6 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 
 	if (property == exynos_plane->props.afbc)
 		*val = exynos_state->afbc;
-	else if (property == exynos_plane->props.channel)
-		*val = exynos_state->channel;
 	else
 		return -EINVAL;
 
@@ -253,7 +249,7 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_plane_state *exynos_state =
 						to_exynos_plane_state(state);
-	struct dpp_device *dpp;
+	struct dpp_device *dpp = plane_to_dpp(exynos_plane);
 	struct decon_device *decon;
 	struct drm_crtc_state *new_crtc_state;
 	int ret = 0;
@@ -270,11 +266,6 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	if (!new_crtc_state->planes_changed || !new_crtc_state->active)
 		return 0;
 
-	DRM_DEBUG_KMS("%s: channel(%d), bitmask(0x%x)\n", __func__,
-			exynos_state->channel, decon->new_channels);
-
-	dpp = decon->dpp[exynos_state->channel];
-
 	/* translate state into exynos_state */
 	exynos_plane_mode_set(exynos_state);
 
@@ -289,22 +280,11 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 		return ret;
 
 	/*
-	 * If the same DPP channel is connected to multiple windows,
-	 * HW resource conflict error can occur.
-	 *
-	 * And this must be executed at the end of this function. If not,
-	 * The violation related to the plane can be detected after
-	 * requested channel is set on bitmask of new_channels,
-	 * it may be wrong check.
+	 * If multiple planes request the same zpos which means DECON window
+	 * number, HW resources can be conflicted.
 	 */
-	if (test_and_set_bit(exynos_state->channel, &decon->new_channels)) {
-		DRM_ERROR("channel%d conflict.\n", exynos_state->channel);
-		clear_bit(exynos_state->channel, &decon->new_channels);
-		return -EINVAL;
-	}
-
 	if (test_and_set_bit(exynos_state->base.zpos, &decon->req_windows)) {
-		DRM_ERROR("window%d conflict.\n", exynos_state->base.zpos);
+		DRM_ERROR("zpos %d conflict.\n", exynos_state->base.zpos);
 		clear_bit(exynos_state->base.zpos, &decon->req_windows);
 		return -EINVAL;
 	}
@@ -368,16 +348,6 @@ static int exynos_plane_create_property(struct exynos_drm_plane *exynos_plane,
 
 		exynos_plane->props.afbc = prop;
 	}
-
-	prop = drm_property_create_range(plane->dev, 0, "channel", 0,
-			MAX_DPP_CNT - 1);
-	if (!prop) {
-		DRM_ERROR("failed to create channel property\n");
-		return -ENOMEM;
-	}
-
-	drm_object_attach_property(&plane->base, prop, 0);
-	exynos_plane->props.channel = prop;
 
 	return 0;
 }

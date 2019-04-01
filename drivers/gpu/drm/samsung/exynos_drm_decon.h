@@ -219,9 +219,6 @@ struct decon_device {
 
 	int				decon_cnt;
 
-	/* bitmask of newly requested DPP channel */
-	unsigned long			new_channels;
-
 	/* bitmask of newly requested windows */
 	unsigned long			req_windows;
 };

@@ -10,6 +10,13 @@
  *
  */
 
+#ifndef __EXYNOS_DRM_PLANE_H__
+#define __EXYNOS_DRM_PLANE_H__
+
+#define plane_to_dpp(p)		container_of(p, struct dpp_device, plane)
+
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane, unsigned int index,
 		      const struct exynos_drm_plane_config *config);
+
+#endif /* __EXYNOS_DRM_PLANE_H__ */
