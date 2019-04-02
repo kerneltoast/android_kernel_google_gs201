@@ -18,6 +18,10 @@
 #define MAX_WIN_PER_DECON	6
 #define MAX_DECON_CNT		3
 
+#define DECON_BLENDING_PREMULT		0
+#define DECON_BLENDING_COVERAGE		1
+#define DECON_BLENDING_NONE		2
+
 enum decon_regs_id {
 	REGS_DECON0_ID = 0,
 	REGS_DECON1_ID,
@@ -170,13 +174,6 @@ enum decon_win_func {
 	PD_FUNC_USER_DEFINED		= 0xd,
 };
 
-enum decon_blending {
-	DECON_BLENDING_NONE = 0,
-	DECON_BLENDING_PREMULT = 1,
-	DECON_BLENDING_COVERAGE = 2,
-	DECON_BLENDING_MAX = 3,
-};
-
 enum decon_set_trig {
 	DECON_TRIG_MASK = 0,
 	DECON_TRIG_UNMASK
@@ -220,7 +217,7 @@ struct decon_window_regs {
 	u32 winmap_state;
 	int ch;
 	int plane_alpha;
-	enum decon_blending blend;
+	u32 blend;
 };
 
 struct decon_bts_bw {

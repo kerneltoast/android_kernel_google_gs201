@@ -1645,7 +1645,7 @@ static void decon_reg_set_win_bnd_function(u32 id, u32 win_idx,
 		struct decon_window_regs *regs)
 {
 	int plane_a = regs->plane_alpha;
-	enum decon_blending blend = regs->blend;
+	u32 blend = regs->blend;
 	enum decon_win_func pd_func = PD_FUNC_USER_DEFINED;
 	u8 alpha0 = 0xff;
 	u8 alpha1 = 0xff;
