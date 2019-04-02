@@ -186,6 +186,10 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 
 	if (property == exynos_plane->props.afbc)
 		exynos_state->afbc = val;
+	else if (property == exynos_plane->props.alpha)
+		exynos_state->alpha = val;
+	else if (property == exynos_plane->props.blend_mode)
+		exynos_state->blend_mode = val;
 	else
 		return -EINVAL;
 
@@ -203,6 +207,10 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 
 	if (property == exynos_plane->props.afbc)
 		*val = exynos_state->afbc;
+	else if (property == exynos_plane->props.alpha)
+		*val = exynos_state->alpha;
+	else if (property == exynos_plane->props.blend_mode)
+		*val = exynos_state->blend_mode;
 	else
 		return -EINVAL;
 
@@ -352,6 +360,49 @@ static int exynos_plane_create_property(struct exynos_drm_plane *exynos_plane,
 	return 0;
 }
 
+int exynos_drm_plane_create_alpha_property(
+				struct exynos_drm_plane *exynos_plane,
+				const struct exynos_drm_plane_config *config)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(plane->dev, 0, "alpha",
+					 0, EXYNOS_DRM_BLEND_ALPHA_OPAQUE);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop,
+					EXYNOS_DRM_BLEND_ALPHA_OPAQUE);
+	exynos_plane->props.alpha = prop;
+
+	return 0;
+}
+
+int exynos_drm_plane_create_blend_mode_property(
+				struct exynos_drm_plane *exynos_plane,
+				const struct exynos_drm_plane_config *config)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+	static const struct drm_prop_enum_list blend_mode_list[] = {
+		{ EXYNOS_DRM_MODE_BLEND_PIXEL_NONE, "None" },
+		{ EXYNOS_DRM_MODE_BLEND_PREMULTI, "Pre-multiplied" },
+		{ EXYNOS_DRM_MODE_BLEND_COVERAGE, "Coverage" },
+	};
+
+	prop = drm_property_create_enum(plane->dev, 0, "pixel blend mode",
+			blend_mode_list, ARRAY_SIZE(blend_mode_list));
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop,
+					EXYNOS_DRM_MODE_BLEND_PREMULTI);
+	exynos_plane->props.blend_mode = prop;
+
+	return 0;
+}
+
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane, unsigned int index,
 		      const struct exynos_drm_plane_config *config)
@@ -378,6 +429,9 @@ int exynos_plane_init(struct drm_device *dev,
 
 	drm_plane_create_zpos_property(&exynos_plane->base, 0, 0,
 			MAX_PLANE - 1);
+
+	exynos_drm_plane_create_alpha_property(exynos_plane, config);
+	exynos_drm_plane_create_blend_mode_property(exynos_plane, config);
 
 	return 0;
 }

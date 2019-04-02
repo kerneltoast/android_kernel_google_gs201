@@ -258,6 +258,8 @@ void plane_state_to_win_config(struct decon_device *decon,
 			__func__,
 			win_config->is_rot, win_config->is_afbc,
 			win_config->format, win_config->dpp_ch, zpos);
+	DRM_INFO("%s: alpha[%d] blend mode[%d]\n", __func__,
+			state->alpha, state->blend_mode);
 }
 
 static void display_mode_to_bts_info(struct drm_display_mode *mode,

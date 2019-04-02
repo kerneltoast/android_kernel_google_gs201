@@ -166,9 +166,9 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	win_info.ch = dpp->id; /* DPP's id is DPP channel number */
 
-	/* TODO: alpha blending will be configurable in the future */
-	win_info.plane_alpha = 0xff; /* opaque temporarily*/
-	win_info.blend = DECON_BLENDING_NONE;
+	win_info.plane_alpha = state->alpha;
+	win_info.blend = state->blend_mode;
+
 	zpos = state->base.zpos;
 	decon_reg_set_window_control(decon->id, zpos, &win_info, false);
 

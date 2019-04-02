@@ -13,6 +13,12 @@
 #ifndef __EXYNOS_DRM_PLANE_H__
 #define __EXYNOS_DRM_PLANE_H__
 
+#define EXYNOS_DRM_BLEND_ALPHA_OPAQUE		0xff
+
+#define EXYNOS_DRM_MODE_BLEND_PREMULTI		0
+#define EXYNOS_DRM_MODE_BLEND_COVERAGE		1
+#define EXYNOS_DRM_MODE_BLEND_PIXEL_NONE	2
+
 #define plane_to_dpp(p)		container_of(p, struct dpp_device, plane)
 
 int exynos_plane_init(struct drm_device *dev,
