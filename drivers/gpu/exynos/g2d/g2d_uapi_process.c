@@ -161,7 +161,7 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 		for (i = 0; i < data->num_buffers; i++) {
 			payload = (unsigned int)g2d_get_payload_index(
 						cmd, fmt, i, data->num_buffers,
-						g2d_dev->caps);
+						g2d_dev->caps, layer->flags);
 			if (data->buffer[i].length < payload) {
 				buferr_show(g2d_dev, i, payload,
 					    cmd[G2DSFR_IMG_WIDTH].value,

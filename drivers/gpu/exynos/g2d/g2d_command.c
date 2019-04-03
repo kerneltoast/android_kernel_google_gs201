@@ -395,13 +395,22 @@ static unsigned char dst_sbwc_reg_offset[4] = {0x34, 0x54, 0x30, 0x50};
 	(SBWC_PAYLOAD_STRIDE(w, dep) * ((h) / 4))
 #define SBWC_HEADER_Y_SIZE(w, h) \
 	(SBWC_HEADER_STRIDE(w) * ((h) / 4))
-#define SBWC_PAYLOAD_C_SIZE(w, h, dep) \
+
+#define SBWC_PAYLOAD_422_C_SIZE(w, h, dep) SBWC_PAYLOAD_Y_SIZE(w, h, dep)
+#define SBWC_HEADER_422_C_SIZE(w, h) SBWC_HEADER_Y_SIZE(w, h)
+
+#define SBWC_PAYLOAD_420_C_SIZE(w, h, dep) \
 	(SBWC_PAYLOAD_STRIDE(w, dep) * (ALIGN((h), 8) / 8))
-#define SBWC_HEADER_C_SIZE(w, h) \
+#define SBWC_HEADER_420_C_SIZE(w, h) \
 	(SBWC_HEADER_STRIDE(w) * (ALIGN((h), 8) / 8))
+
+#define SBWC_Y_SIZE(w, h, dep) \
+	(SBWC_PAYLOAD_Y_SIZE(w, h, dep) + SBWC_HEADER_Y_SIZE(w, h))
+#define SBWC_422_C_SIZE(w, h, dep) \
+	(SBWC_PAYLOAD_422_C_SIZE(w, h, dep) + SBWC_HEADER_422_C_SIZE(w, h))
+
 #define SBWC_CBCR_BASE(base, w, h, dep) \
-	((base) + SBWC_PAYLOAD_Y_SIZE(w, h, dep) + \
-	 SBWC_HEADER_Y_SIZE(w, h))
+	((base) + SBWC_Y_SIZE(w, h, dep))
 
 /*
  * Buffer stride alignment and padding restriction of MFC
@@ -424,24 +433,26 @@ static unsigned char dst_sbwc_reg_offset[4] = {0x34, 0x54, 0x30, 0x50};
 #define MFC_SBWC_HEADER_Y_SIZE(w, h) \
 	(SBWC_HEADER_STRIDE(w) * (ALIGN((h), 8) / 4) + \
 	 MFC_SBWC_HEADER_PAD)
-#define MFC_SBWC_PAYLOAD_C_SIZE(w, h, dep) \
-	(SBWC_PAYLOAD_C_SIZE(w, h, dep) + MFC_SBWC_PAYLOAD_PAD)
-#define MFC_SBWC_HEADER_C_SIZE(w, h) \
-	(SBWC_HEADER_C_SIZE(w, h) + (MFC_SBWC_HEADER_PAD / 2))
+
+#define MFC_SBWC_PAYLOAD_420_C_SIZE(w, h, dep) \
+	(SBWC_PAYLOAD_420_C_SIZE(w, h, dep) + MFC_SBWC_PAYLOAD_PAD)
+#define MFC_SBWC_HEADER_420_C_SIZE(w, h) \
+	(SBWC_HEADER_420_C_SIZE(w, h) + (MFC_SBWC_HEADER_PAD / 2))
 
 #define MFC_SBWC_Y_SIZE(w, h, dep) (\
 	MFC_SBWC_PAYLOAD_Y_SIZE(w, h, dep) + \
 	MFC_SBWC_HEADER_Y_SIZE(w, h))
-#define MFC_SBWC_C_SIZE(w, h, dep) \
-	(MFC_SBWC_PAYLOAD_C_SIZE(w, h, dep) + \
-	MFC_SBWC_HEADER_C_SIZE(w, h))
+
+#define MFC_SBWC_420_C_SIZE(w, h, dep) \
+	(MFC_SBWC_PAYLOAD_420_C_SIZE(w, h, dep) + \
+	MFC_SBWC_HEADER_420_C_SIZE(w, h))
 
 #define MFC_SBWC_CBCR_BASE(base, w, h, dep) \
 	((base) + MFC_SBWC_Y_SIZE(w, h, dep))
 
 size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 			     unsigned int idx, unsigned int buffer_count,
-			     unsigned long caps)
+			     unsigned long caps, u32 flags)
 {
 	bool yuv82 = IS_YUV_82(fmt->fmtvalue,
 			       caps & G2D_DEVICE_CAPS_YUV_BITDEPTH);
@@ -454,10 +465,21 @@ size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 	if (IS_SBWC(colormode)) {
 		unsigned int dep = IS_YUV_P10(colormode,
 			       caps & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
+		size_t payload = 0;
 
-		return (idx == 0) ?
-				MFC_SBWC_Y_SIZE(width, height, dep) :
-				MFC_SBWC_C_SIZE(width, height, dep);
+		if (IS_YUV420(colormode)) {
+			/* YUV420 with SBWC must observe MFC restriction */
+			if (idx == 0)
+				payload = MFC_SBWC_Y_SIZE(width, height, dep);
+			else
+				payload = MFC_SBWC_420_C_SIZE(width, height, dep);
+		} else if (IS_YUV422_2P(colormode)) {
+			if (idx == 0)
+				payload = SBWC_Y_SIZE(width, height, dep);
+			else
+				payload = SBWC_422_C_SIZE(width, height, dep);
+		}
+		return payload;
 	}
 
 	if (yuv82 && (buffer_count == 2)) {
@@ -481,16 +503,21 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 	u32 height = cmd[G2DSFR_IMG_BOTTOM].value;
 	size_t pixcount = width * height;
 	bool yuv82 = IS_YUV_82(mode, cap & G2D_DEVICE_CAPS_YUV_BITDEPTH);
-	unsigned int colormode = cmd[G2DSFR_IMG_COLORMODE].value;
+	bool mfc_stride = flags & G2D_LAYERFLAG_MFC_STRIDE;
 
 	if (IS_SBWC(mode)) {
-		unsigned int dep = IS_YUV_P10(colormode,
+		unsigned int dep = IS_YUV_P10(mode,
 				cap & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
 
-		payload = MFC_SBWC_Y_SIZE(width, height, dep) +
-				MFC_SBWC_C_SIZE(width, height, dep);
+		/* YUV420 with SBWC must observe MFC restriction */
+		if (IS_YUV420(mode))
+			payload = MFC_SBWC_Y_SIZE(width, height, dep) +
+				MFC_SBWC_420_C_SIZE(width, height, dep);
+		else if (IS_YUV422_2P(mode))
+			payload = SBWC_Y_SIZE(width, height, dep) +
+				SBWC_422_C_SIZE(width, height, dep);
 	} else if (yuv82) {
-		if (!(flags & G2D_LAYERFLAG_MFC_STRIDE)) {
+		if (!mfc_stride) {
 			/*
 			 * constraints of base addresses of NV12/21 8+2
 			 * 32 byte aligned: 8bit of Y and CbCr
@@ -504,7 +531,7 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 			payload += NV12_82_MFC_PAYLOAD(width, height);
 		}
 	} else if (IS_YUV(mode)) {
-		if (!!(flags & G2D_LAYERFLAG_MFC_STRIDE) && IS_YUV420(mode)) {
+		if (mfc_stride && IS_YUV420(mode)) {
 			payload += NV12_MFC_PAYLOAD(width, height);
 		} else {
 			unsigned int i;
@@ -538,7 +565,7 @@ static bool check_srccolor_mode(u32 value)
 	if (IS_YUV(value) && (value & G2D_DATAFORMAT_AFBC))
 		return false;
 
-	if (IS_SBWC(value) && !IS_YUV420(value))
+	if (IS_SBWC(value) && !(IS_YUV420(value) || IS_YUV422_2P(value)))
 		return false;
 
 	return true;
@@ -558,7 +585,7 @@ static bool check_dstcolor_mode(u32 value)
 	if (mode & (mode - 1))
 		return false;
 
-	if (IS_SBWC(mode) && !IS_YUV420(value))
+	if (IS_SBWC(mode) && !(IS_YUV420(value) || IS_YUV422_2P(value)))
 		return false;
 
 	mode &= ~G2D_DATAFORMAT_SBWC;
@@ -766,13 +793,34 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 	}
 
 	if (IS_SBWC(mode)) {
+		int dep = IS_YUV_P10(mode, g2d_dev->caps &
+			G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
+		u32 offset = dst ? G2DSFR_DST_Y_HEADER_STRIDE :
+			G2DSFR_SRC_Y_HEADER_STRIDE;
+		u32 header_stride = SBWC_HEADER_STRIDE(width);
+		u32 payload_stride = SBWC_PAYLOAD_STRIDE(width, dep);
+		int i;
+
+		/* Stride is in the order : header, payload, header, payload */
+		for (i = 0; i < 4; i += 2) {
+			if ((commands[offset + i].value != header_stride) ||
+			    (commands[offset + i + 1].value !=
+			     payload_stride)) {
+				perrfndev(g2d_dev,
+					  "Bad stride %u, %u for w %u mode %x",
+					  header_stride, payload_stride,
+					  width, mode);
+				return false;
+			}
+		}
+
 		if (!(g2d_dev->caps & G2D_DEVICE_CAPS_COMPRESSED_YUV)) {
 			perrfndev(g2d_dev, "SBWC format is not supported");
 			return false;
 		}
 
-		if (!IS_AFBC_WIDTH_ALIGNED(width) ||
-			!IS_AFBC_HEIGHT_ALIGNED(height)) {
+		if (!IS_SBWC_WIDTH_ALIGNED(width) ||
+			!IS_SBWC_HEIGHT_ALIGNED(height)) {
 			goto err_align;
 		}
 		if (dst &&
@@ -803,7 +851,10 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		if (!IS_SBWC_WIDTH_ALIGNED(width))
 			goto err_align;
 
-		if (!IS_SBWC_HEIGHT_ALIGNED(height))
+		if (IS_YUV420(mode) && !IS_SBWC_HEIGHT_420_ALIGNED(height))
+			goto err_align;
+
+		if (IS_YUV422_2P(mode) && !IS_SBWC_HEIGHT_ALIGNED(height))
 			goto err_align;
 	}
 
@@ -1149,20 +1200,31 @@ static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 
 	if (layer->num_buffers == 1) {
 		reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 1);
-		reg[cmd_count].value =
-			MFC_SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
-					   w, h, dep);
+		if (IS_YUV420(colormode))
+			reg[cmd_count].value =
+				MFC_SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
+						   w, h, dep);
+		else
+			reg[cmd_count].value =
+				SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
+					       w, h, dep);
 		cmd_count++;
 	}
 
 	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 3);
-	reg[cmd_count].value = reg[cmd_count - 1].value +
-			       MFC_SBWC_PAYLOAD_C_SIZE(w, h, dep);
+	reg[cmd_count].value = reg[cmd_count - 1].value;
+	if (IS_YUV420(colormode))
+		reg[cmd_count].value += MFC_SBWC_PAYLOAD_420_C_SIZE(w, h, dep);
+	else
+		reg[cmd_count].value += SBWC_PAYLOAD_422_C_SIZE(w, h, dep);
 	cmd_count++;
 
 	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 2);
-	reg[cmd_count].value = layer->buffer[0].dma_addr +
-			       MFC_SBWC_PAYLOAD_Y_SIZE(w, h, dep);
+	reg[cmd_count].value = layer->buffer[0].dma_addr;
+	if (IS_YUV420(colormode))
+		reg[cmd_count].value += MFC_SBWC_PAYLOAD_Y_SIZE(w, h, dep);
+	else
+		reg[cmd_count].value += SBWC_PAYLOAD_Y_SIZE(w, h, dep);
 	cmd_count++;
 
 	return cmd_count;

@@ -119,7 +119,9 @@
 #define IS_AFBC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 4)
 
 #define IS_SBWC_WIDTH_ALIGNED(width)	IS_ALIGNED((width), 32)
-#define IS_SBWC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 8)
+#define IS_SBWC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 4)
+/* SBWC top and bottom coordinate should be aligned by 8 */
+#define IS_SBWC_HEIGHT_420_ALIGNED(height) IS_ALIGNED((height), 8)
 
 #define G2D_IMGFMT(value) ((value) & (G2D_YCBCR_BITDEPTH_MASK | \
 			   G2D_DATAFMT_MASK | G2D_YUVORDER_MASK | G2D_SWZ_MASK))
