@@ -149,15 +149,18 @@ enum dpp_hdr_standard {
 	DPP_HDR_HLG,
 };
 
+#define DPP_X_FLIP	(1 << 0)
+#define DPP_Y_FLIP	(1 << 1)
+#define DPP_ROT		(1 << 2)
 enum dpp_rotate {
-	DPP_ROT_NORMAL = 0x0,
-	DPP_ROT_XFLIP,
-	DPP_ROT_YFLIP,
-	DPP_ROT_180,
-	DPP_ROT_90,
-	DPP_ROT_90_XFLIP,
-	DPP_ROT_90_YFLIP,
-	DPP_ROT_270,
+	DPP_ROT_NORMAL	 = 0x0,
+	DPP_ROT_XFLIP	 = DPP_X_FLIP,
+	DPP_ROT_YFLIP	 = DPP_Y_FLIP,
+	DPP_ROT_180	 = DPP_X_FLIP | DPP_Y_FLIP,
+	DPP_ROT_90	 = DPP_ROT,
+	DPP_ROT_90_XFLIP = DPP_ROT | DPP_X_FLIP,
+	DPP_ROT_90_YFLIP = DPP_ROT | DPP_Y_FLIP,
+	DPP_ROT_270	 = DPP_ROT | DPP_X_FLIP | DPP_Y_FLIP,
 };
 
 enum dpp_reg_area {
