@@ -255,11 +255,12 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 {
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_display_mode *mode = &state->base.crtc->mode;
+	unsigned int simplified_rot;
 
-	config->src.x = state->src.x;
-	config->src.y = state->src.y;
-	config->src.w = state->src.w;
-	config->src.h = state->src.h;
+	config->src.x = state->base.src_x >> 16;
+	config->src.y = state->base.src_y >> 16;
+	config->src.w = state->base.src_w >> 16;
+	config->src.h = state->base.src_h >> 16;
 	config->src.f_w = fb->width;
 	config->src.f_h = fb->height;
 
@@ -270,7 +271,17 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	config->dst.f_w = mode->hdisplay;
 	config->dst.f_h = mode->vdisplay;
 
-	config->rot = 0; /* no rotation */
+	config->rot = 0;
+	simplified_rot = drm_rotation_simplify(state->base.rotation,
+			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
+			DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
+	if (simplified_rot & DRM_MODE_ROTATE_90)
+		config->rot |= DPP_ROT;
+	if (simplified_rot & DRM_MODE_REFLECT_X)
+		config->rot |= DPP_X_FLIP;
+	if (simplified_rot & DRM_MODE_REFLECT_Y)
+		config->rot |= DPP_Y_FLIP;
+
 	config->is_comp = state->afbc;
 	config->format = convert_drm_format(fb->format->format);
 
@@ -327,8 +338,13 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 		config->c_2b_strd = S10B_2B_STRIDE(config->src.f_w);
 	}
 
-	config->h_ratio = (config->src.w << 20) / config->dst.w;
-	config->v_ratio = (config->src.h << 20) / config->dst.h;
+	if (config->rot & DPP_ROT) {
+		config->h_ratio = (config->src.h << 20) / config->dst.w;
+		config->v_ratio = (config->src.w << 20) / config->dst.h;
+	} else {
+		config->h_ratio = (config->src.w << 20) / config->dst.w;
+		config->v_ratio = (config->src.h << 20) / config->dst.h;
+	}
 
 	/* TODO: scaling will be implemented later */
 	config->is_scale = false;
@@ -380,13 +396,22 @@ static int dpp_check_scale(struct dpp_device *dpp,
 {
 	struct dpp_restriction *res;
 	struct decon_frame *src, *dst;
+	u32 src_w, src_h;
 
 	res = &dpp->restriction;
 	src = &config->src;
 	dst = &config->dst;
 
+	if (config->rot & DPP_ROT) {
+		src_w = src->h;
+		src_h = src->w;
+	} else {
+		src_w = src->w;
+		src_h = src->h;
+	}
+
 	/* If scaling is not requested, it doesn't need to check limitation */
-	if ((src->w == dst->w) && (src->h == dst->h))
+	if ((src_w == dst->w) && (src_h == dst->h))
 		return 0;
 
 	/* Scaling is requested. need to check limitation */
@@ -395,15 +420,15 @@ static int dpp_check_scale(struct dpp_device *dpp,
 		return -ENOTSUPP;
 	}
 
-	if ((src->w > dst->w * res->scale_down) ||
-			(src->h > dst->h * res->scale_down)) {
+	if ((src_w > dst->w * res->scale_down) ||
+			(src_h > dst->h * res->scale_down)) {
 		dpp_err(dpp, "not support under 1/%dx scale-down\n",
 				res->scale_down);
 		return -ENOTSUPP;
 	}
 
-	if ((src->w * res->scale_up < dst->w) ||
-			(src->h * res->scale_up < dst->h)) {
+	if ((src_w * res->scale_up < dst->w) ||
+			(src_h * res->scale_up < dst->h)) {
 		dpp_err(dpp, "not support over %dx scale-up\n", res->scale_up);
 		return -ENOTSUPP;
 	}
@@ -418,6 +443,7 @@ static int dpp_check_size(struct dpp_device *dpp,
 	const struct dpu_fmt *fmt_info;
 	struct dpp_restriction *res;
 	u32 mul = 1; /* factor to multiply alignment */
+	u32 src_h_max;
 
 	fmt_info = dpu_find_fmt_info(config->format);
 
@@ -427,6 +453,11 @@ static int dpp_check_size(struct dpp_device *dpp,
 	res = &dpp->restriction;
 	src = &config->src;
 	dst = &config->dst;
+
+	if (config->rot & DPP_ROT)
+		src_h_max = res->src_h_rot_max;
+	else
+		src_h_max = res->src_h.max;
 
 	/* check alignment */
 	if (!IS_ALIGNED(src->x, res->src_x_align * mul) ||
@@ -451,12 +482,7 @@ static int dpp_check_size(struct dpp_device *dpp,
 
 	/* check range */
 	if (!IN_RANGE(src->w, res->src_w.min * mul, res->src_w.max) ||
-			/*
-			 * TODO: src height can be changed in case of
-			 * rotation
-			 */
-			!IN_RANGE(src->h, res->src_h.min * mul,
-						res->src_h.max) ||
+			!IN_RANGE(src->h, res->src_h.min * mul, src_h_max) ||
 			!IN_RANGE(src->f_w, res->src_f_w.min * mul,
 						res->src_f_w.max) ||
 			!IN_RANGE(src->f_h, res->src_f_h.min,
@@ -482,6 +508,7 @@ static int dpp_check(struct dpp_device *dpp,
 		const struct exynos_drm_plane_state *state)
 {
 	struct dpp_params_info config;
+	const struct dpu_fmt *fmt_info;
 
 	dpp_dbg(dpp, "%s +\n", __func__);
 
@@ -495,6 +522,12 @@ static int dpp_check(struct dpp_device *dpp,
 	if (dpp_check_size(dpp, &config))
 		goto err;
 
+	fmt_info = dpu_find_fmt_info(config.format);
+	if ((config.rot & DPP_ROT) && (!IS_YUV420(fmt_info))) {
+		dpp_err(dpp, "support rotation only for YUV420 format\n");
+		goto err;
+	}
+
 	dpp_dbg(dpp, "%s -\n", __func__);
 
 	return 0;
@@ -506,6 +539,7 @@ err:
 			config.dst.x, config.dst.y, config.dst.w, config.dst.h,
 			config.dst.f_w, config.dst.f_h,
 			config.format);
+	dpp_err(dpp, "rot[0x%x]\n", config.rot);
 
 	return -ENOTSUPP;
 }

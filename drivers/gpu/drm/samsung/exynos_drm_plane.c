@@ -21,6 +21,7 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_decon.h"
+#include "exynos_drm_dpp.h"
 
 /*
  * This function is to get X or Y size shown via screen. This needs length and
@@ -408,6 +409,7 @@ int exynos_plane_init(struct drm_device *dev,
 		      const struct exynos_drm_plane_config *config)
 {
 	int err;
+	struct dpp_device *dpp = plane_to_dpp(exynos_plane);
 
 	err = drm_universal_plane_init(dev, &exynos_plane->base,
 				       1 << dev->mode_config.num_crtc,
@@ -429,6 +431,13 @@ int exynos_plane_init(struct drm_device *dev,
 
 	drm_plane_create_zpos_property(&exynos_plane->base, 0, 0,
 			MAX_PLANE - 1);
+
+	if (test_bit(DPP_ATTR_ROT, &dpp->attr))
+		drm_plane_create_rotation_property(&exynos_plane->base,
+				DRM_MODE_ROTATE_0,
+				DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
+				DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270 |
+				DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
 
 	exynos_drm_plane_create_alpha_property(exynos_plane, config);
 	exynos_drm_plane_create_blend_mode_property(exynos_plane, config);
