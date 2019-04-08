@@ -240,7 +240,7 @@ static void dpp_test_fixed_config_params(struct dpp_params_info *config, u32 w,
 	config->c_2b_strd = 0;
 
 	config->h_ratio = (config->src.w << 20) / config->dst.w;
-	config->v_ratio = (config->dst.h << 20) / config->dst.h;
+	config->v_ratio = (config->src.h << 20) / config->dst.h;
 
 	/* TODO: scaling will be implemented later */
 	config->is_scale = false;
@@ -328,7 +328,7 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	}
 
 	config->h_ratio = (config->src.w << 20) / config->dst.w;
-	config->v_ratio = (config->dst.h << 20) / config->dst.h;
+	config->v_ratio = (config->src.h << 20) / config->dst.h;
 
 	/* TODO: scaling will be implemented later */
 	config->is_scale = false;
