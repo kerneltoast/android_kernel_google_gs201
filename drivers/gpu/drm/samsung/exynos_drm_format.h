@@ -116,6 +116,7 @@ struct dpu_fmt {
 #define IS_YUV10(f)		(IS_YUV(f) && ((f)->bpc == 10))
 #define IS_RGB32(f)	\
 	(((f)->cs == DPU_COLORSPACE_RGB) && (((f)->bpp + (f)->padding) == 32))
+#define IS_10BPC(f)		((f)->bpc == 10)
 #define IS_OPAQUE(f)		((f)->len_alpha == 0)
 
 const struct dpu_fmt *dpu_find_fmt_info(enum dpu_pixel_format fmt);

@@ -282,7 +282,7 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	if (simplified_rot & DRM_MODE_REFLECT_Y)
 		config->rot |= DPP_Y_FLIP;
 
-	config->is_comp = state->afbc;
+	config->is_comp = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
 	config->format = convert_drm_format(fb->format->format);
 
 	/* TODO: how to handle ? ... I don't know ... */
@@ -528,6 +528,26 @@ static int dpp_check(struct dpp_device *dpp,
 		goto err;
 	}
 
+	if (!test_bit(DPP_ATTR_AFBC, &dpp->attr) && config.is_comp) {
+		dpp_err(dpp, "not support AFBC\n");
+		goto err;
+	}
+
+	if (config.is_comp && (config.rot & DPP_ROT_FLIP_MASK)) {
+		dpp_err(dpp, "not support compression with rotation\n");
+		goto err;
+	}
+
+	if (config.is_comp && IS_YUV(fmt_info)) {
+		dpp_err(dpp, "not support compression with YUV format\n");
+		goto err;
+	}
+
+	if (config.is_comp && IS_RGB32(fmt_info) && IS_10BPC(fmt_info)) {
+		dpp_err(dpp, "not support compression with 10BPC RGB format\n");
+		goto err;
+	}
+
 	dpp_dbg(dpp, "%s -\n", __func__);
 
 	return 0;
@@ -539,7 +559,7 @@ err:
 			config.dst.x, config.dst.y, config.dst.w, config.dst.h,
 			config.dst.f_w, config.dst.f_h,
 			config.format);
-	dpp_err(dpp, "rot[0x%x]\n", config.rot);
+	dpp_err(dpp, "rot[0x%x] afbc[%d]\n", config.rot, config.is_comp);
 
 	return -ENOTSUPP;
 }

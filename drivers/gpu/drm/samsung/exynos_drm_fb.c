@@ -224,8 +224,9 @@ void plane_state_to_win_config(struct decon_device *decon,
 		struct exynos_drm_plane_state *state, int plane_idx)
 {
 	struct dpu_bts_win_config *win_config;
-	struct exynos_drm_fb *exynos_fb = container_of(state->base.fb,
-			struct exynos_drm_fb, fb);
+	const struct drm_framebuffer *fb = state->base.fb;
+	const struct exynos_drm_fb *exynos_fb =
+				container_of(fb, struct exynos_drm_fb, fb);
 	int zpos;
 	unsigned int simplified_rot;
 
@@ -242,9 +243,9 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dst_w = state->base.crtc_w;
 	win_config->dst_h = state->base.crtc_h;
 
-	win_config->is_afbc = state->afbc;
+	win_config->is_afbc = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
 	win_config->state = DPU_WIN_STATE_BUFFER;
-	win_config->format = convert_drm_format(state->base.fb->format->format);
+	win_config->format = convert_drm_format(fb->format->format);
 	win_config->dpp_ch = plane_idx;
 
 	simplified_rot = drm_rotation_simplify(state->base.rotation,

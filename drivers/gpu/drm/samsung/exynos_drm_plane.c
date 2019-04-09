@@ -235,17 +235,11 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 {
 	struct drm_framebuffer *fb = state->base.fb;
 
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_SAMSUNG_64_32_TILE:
-		if (!(config->capabilities & EXYNOS_DRM_PLANE_CAP_TILE))
-			return -ENOTSUPP;
-		break;
+	if (fb->modifier) {
+		if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0))
+			return 0;
 
-	case DRM_FORMAT_MOD_LINEAR:
-		break;
-
-	default:
-		DRM_ERROR("unsupported pixel format modifier");
+		DRM_ERROR("not supported modifier(0x%llx)\n", fb->modifier);
 		return -ENOTSUPP;
 	}
 
