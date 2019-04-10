@@ -644,8 +644,6 @@ static int __init exynos_dpp_parse_dt(struct dpp_device *dpp,
 	of_property_read_u32(np, "attr", (u32 *)&dpp->attr);
 	of_property_read_u32(np, "port", &dpp->port);
 
-	if (of_property_read_bool(np, "dpp,afbc"))
-		dpp->is_support |= DPP_SUPPORT_AFBC;
 	if (of_property_read_bool(np, "dpp,video"))
 		dpp->is_support |= DPP_SUPPORT_VIDEO;
 

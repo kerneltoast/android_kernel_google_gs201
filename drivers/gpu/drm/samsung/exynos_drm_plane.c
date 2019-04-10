@@ -185,9 +185,7 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 	struct exynos_drm_plane_state *exynos_state =
 						to_exynos_plane_state(state);
 
-	if (property == exynos_plane->props.afbc)
-		exynos_state->afbc = val;
-	else if (property == exynos_plane->props.alpha)
+	if (property == exynos_plane->props.alpha)
 		exynos_state->alpha = val;
 	else if (property == exynos_plane->props.blend_mode)
 		exynos_state->blend_mode = val;
@@ -206,9 +204,7 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 	struct exynos_drm_plane_state *exynos_state =
 			to_exynos_plane_state((struct drm_plane_state *)state);
 
-	if (property == exynos_plane->props.afbc)
-		*val = exynos_state->afbc;
-	else if (property == exynos_plane->props.alpha)
+	if (property == exynos_plane->props.alpha)
 		*val = exynos_state->alpha;
 	else if (property == exynos_plane->props.blend_mode)
 		*val = exynos_state->blend_mode;
@@ -334,27 +330,6 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_disable = exynos_plane_atomic_disable,
 };
 
-static int exynos_plane_create_property(struct exynos_drm_plane *exynos_plane,
-				const struct exynos_drm_plane_config *config)
-{
-	struct drm_plane *plane = &exynos_plane->base;
-	struct drm_property *prop;
-
-	if (config->capabilities & EXYNOS_DRM_PLANE_CAP_AFBC) {
-		prop = drm_property_create_bool(plane->dev, 0, "afbc");
-		if (!prop) {
-			DRM_ERROR("failed to create afbc property\n");
-			return -ENOMEM;
-		}
-
-		drm_object_attach_property(&plane->base, prop, 0);
-
-		exynos_plane->props.afbc = prop;
-	}
-
-	return 0;
-}
-
 int exynos_drm_plane_create_alpha_property(
 				struct exynos_drm_plane *exynos_plane,
 				const struct exynos_drm_plane_config *config)
@@ -420,8 +395,6 @@ int exynos_plane_init(struct drm_device *dev,
 
 	exynos_plane->index = index;
 	exynos_plane->config = config;
-
-	exynos_plane_create_property(exynos_plane, config);
 
 	drm_plane_create_zpos_property(&exynos_plane->base, 0, 0,
 			MAX_PLANE - 1);
