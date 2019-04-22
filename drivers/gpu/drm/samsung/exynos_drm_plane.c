@@ -405,6 +405,11 @@ int exynos_plane_init(struct drm_device *dev,
 				DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
 				DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270 |
 				DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
+	else if (test_bit(DPP_ATTR_FLIP, &dpp->attr))
+		drm_plane_create_rotation_property(&exynos_plane->base,
+				DRM_MODE_ROTATE_0,
+				DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
+				DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
 
 	exynos_drm_plane_create_alpha_property(exynos_plane, config);
 	exynos_drm_plane_create_blend_mode_property(exynos_plane, config);
