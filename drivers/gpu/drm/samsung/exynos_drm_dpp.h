@@ -110,4 +110,6 @@ static struct dpp_device *of_find_dpp_by_node(struct device_node *np)
 }
 #endif
 
+void dpp_dump(struct dpp_device *dpp);
+
 #endif

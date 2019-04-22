@@ -161,6 +161,16 @@ static const struct of_device_id dpp_of_match[] = {
 	},
 };
 
+void dpp_dump(struct dpp_device *dpp)
+{
+	if (dpp->state != DPP_STATE_ON) {
+		dpp_info(dpp, "dpp state is off\n");
+		return;
+	}
+	__dpp_dump(dpp->id, dpp->regs.dpp_base_regs, dpp->regs.dma_base_regs,
+			dpp->attr);
+}
+
 static dma_addr_t dpp_alloc_map_buf_test(void)
 {
 	struct dma_buf *buf;

@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/pm_runtime.h>
+#include <linux/console.h>
 
 #include <video/videomode.h>
 
@@ -82,6 +83,29 @@ static const struct of_device_id decon_driver_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, decon_driver_dt_match);
+
+void decon_dump(struct decon_device *decon)
+{
+	int acquired = console_trylock();
+	void __iomem *base_regs = get_decon_drvdata(0)->regs.base_addr;
+	int i;
+
+	if (decon->state != DECON_STATE_ON) {
+		decon_info(decon, "DECON%d is disabled, state(%d)\n", decon->id,
+				decon->state);
+		goto err;
+	}
+
+	__decon_dump(decon->id, decon->regs.base_addr, base_regs,
+			decon->config.dsc.enabled);
+
+	for (i = 0; i < decon->dpp_cnt; ++i)
+		dpp_dump(decon->dpp[i]);
+
+err:
+	if (acquired)
+		console_unlock();
+}
 
 static inline u32 win_start_pos(int x, int y)
 {
@@ -444,6 +468,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 
 	if (ext_irq & DPU_TIME_OUT_INT_PEND) {
 		decon_err(decon, "%s: timeout irq occurs\n", __func__);
+		decon_dump(decon);
 		WARN_ON(1);
 	}
 
