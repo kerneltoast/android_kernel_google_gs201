@@ -342,6 +342,7 @@ static int s6e3ha8_enable(struct drm_panel *panel)
 			0x0F, 0x23);
 
 	s6e3ha8_dcs_write_seq(ctx, 0x53, 0x20); /* enable brightness control */
+	s6e3ha8_dcs_write_seq(ctx, 0x51, 0x01, 0x80); /* brightness level */
 
 	s6e3ha8_dcs_write_seq(ctx, 0x29); /* display on */
 
