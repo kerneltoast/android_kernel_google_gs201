@@ -73,12 +73,8 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct decon_device *decon = exynos_crtc->ctx;
 
 	DRM_INFO("%s +\n", __func__);
-
-	/* all clear bitmask of newly requested windows */
-	decon->req_windows = 0;
 
 	if (!state->enable)
 		return 0;
@@ -104,9 +100,12 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_crtc_state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct decon_device *decon = exynos_crtc->ctx;
 
 	if (exynos_crtc->ops->atomic_flush)
 		exynos_crtc->ops->atomic_flush(exynos_crtc);
+
+	decon->req_windows = 0;
 }
 
 static enum drm_mode_status exynos_crtc_mode_valid(struct drm_crtc *crtc,

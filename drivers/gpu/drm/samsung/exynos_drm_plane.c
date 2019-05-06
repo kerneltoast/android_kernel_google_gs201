@@ -260,7 +260,8 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 
 	decon = to_exynos_crtc(state->crtc)->ctx;
 
-	new_crtc_state = state->state->crtcs[state->crtc->index].new_state;
+	new_crtc_state = drm_atomic_get_new_crtc_state(state->state,
+							state->crtc);
 
 	if (!new_crtc_state->planes_changed || !new_crtc_state->active)
 		return 0;
@@ -300,6 +301,7 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(state->crtc);
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
+	struct decon_device *decon;
 
 	if (!state->crtc)
 		return;
@@ -309,8 +311,12 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 	/*
 	 * If requested zpos(window) and previously connected window(zpos) are
 	 * NOT same for the plane, previous connected window should be disabled.
+	 *
+	 * However, currently requested zpos(window) can NOT disabled.
 	 */
-	if ((dpp->win_id != plane->state->zpos) && (dpp->win_id < MAX_PLANE))
+	decon = exynos_crtc->ctx;
+	if ((dpp->win_id != plane->state->zpos) && (dpp->win_id < MAX_PLANE) &&
+			!test_bit(dpp->win_id, &decon->req_windows))
 		exynos_crtc->ops->disable_plane(exynos_crtc, exynos_plane);
 
 	if (state->visible && exynos_crtc->ops->update_plane)
@@ -325,11 +331,18 @@ static void exynos_plane_atomic_disable(struct drm_plane *plane,
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(plane->crtc);
 	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
+	struct decon_device *decon;
 
 	if (!plane->crtc)
 		return;
 
-	if ((exynos_crtc->ops->disable_plane) && (dpp->win_id < MAX_PLANE))
+	decon = exynos_crtc->ctx;
+	/*
+	 * Currently requested zpos(window) can NOT disabled even if window is
+	 * used previously.
+	 */
+	if ((exynos_crtc->ops->disable_plane) && (dpp->win_id < MAX_PLANE) &&
+			!test_bit(dpp->win_id, &decon->req_windows))
 		exynos_crtc->ops->disable_plane(exynos_crtc, exynos_plane);
 }
 
