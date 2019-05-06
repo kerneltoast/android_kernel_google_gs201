@@ -384,6 +384,7 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 						DECON_TRIG_MASK);
 
 			decon[id]->bts.ops->bts_update_bw(decon[i], true);
+			DPU_EVENT_LOG(DPU_EVT_DECON_RSC_OCCUPANCY, 0, NULL);
 		}
 
 		if (old_crtc_state->active && !new_crtc_state->active)

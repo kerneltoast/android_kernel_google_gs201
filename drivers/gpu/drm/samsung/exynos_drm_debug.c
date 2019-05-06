@@ -88,6 +88,10 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 		dpp = (struct dpp_device *)priv;
 		log->data.dpp.id = dpp->id;
 		break;
+	case DPU_EVT_DECON_RSC_OCCUPANCY:
+		log->data.rsc.rsc_ch = decon_reg_get_rsc_ch(decon->id);
+		log->data.rsc.rsc_win = decon_reg_get_rsc_win(decon->id);
+		break;
 	default:
 		break;
 	}
@@ -205,6 +209,29 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 	}
 }
 
+void dpu_print_log_rsc(struct seq_file *s, struct dpu_log_rsc_occupancy *rsc)
+{
+	int i, len_chs, len_wins;
+	u32 status_chs, status_wins;
+	char str_chs[128];
+	char str_wins[128];
+
+	len_chs = sprintf(str_chs, "CHs: ");
+	len_wins = sprintf(str_wins, "WINs: ");
+
+	for (i = 0; i < MAX_PLANE; ++i) {
+		status_chs = (rsc->rsc_ch >> (i * 4 + 4)) & 0xF;
+		len_chs += sprintf(str_chs + len_chs, "%d[%c] ", i,
+				status_chs ? 'X' : 'O');
+
+		status_wins = (rsc->rsc_win >> (i * 4 + 4)) & 0xF;
+		len_wins += sprintf(str_wins + len_wins, "%d[%c] ", i,
+				status_wins ? 'X' : 'O');
+	}
+
+	seq_printf(s, "\t%s\t%s\n", str_chs, str_wins);
+}
+
 void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 {
 	int idx = atomic_read(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
@@ -255,6 +282,10 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 			break;
 		case DPU_EVT_DECON_TRIG_UNMASK:
 			seq_printf(s, "%20s  %20s", "TRIG_UNMASK", "-\n");
+			break;
+		case DPU_EVT_DECON_RSC_OCCUPANCY:
+			seq_printf(s, "%20s  ", "RSC_OCCUPANCY");
+			dpu_print_log_rsc(s, &log->data.rsc);
 			break;
 		case DPU_EVT_DSIM_ENABLED:
 			seq_printf(s, "%20s  %20s", "DSIM_ENABLED", "-\n");

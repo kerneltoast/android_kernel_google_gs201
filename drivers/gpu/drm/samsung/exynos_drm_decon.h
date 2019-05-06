@@ -131,6 +131,7 @@ enum dpu_event_type {
 	DPU_EVT_DECON_FRAMEDONE,
 	DPU_EVT_DECON_FRAMESTART,
 	DPU_EVT_DECON_TRIG_UNMASK,
+	DPU_EVT_DECON_RSC_OCCUPANCY,
 
 	DPU_EVT_DSIM_ENABLED,
 	DPU_EVT_DSIM_DISABLED,
@@ -156,6 +157,11 @@ struct dpu_log_dpp {
 	u32 id;
 };
 
+struct dpu_log_rsc_occupancy {
+	u32 rsc_ch;
+	u32 rsc_win;
+};
+
 struct decon_win_config {
 	struct dpu_bts_win_config win;
 	dma_addr_t dma_addr;
@@ -173,12 +179,13 @@ struct dpu_log {
 		struct dpu_log_dpp dpp;
 		struct dpu_log_atomic atomic;
 		struct dpu_log_dsim_cmd cmd;
+		struct dpu_log_rsc_occupancy rsc;
 	} data;
 };
 
 /* Definitions below are used in the DECON */
 #define DPU_EVENT_LOG_MAX	SZ_512
-#define DPU_EVENT_PRINT_MAX	(DPU_EVENT_LOG_MAX >> 3)
+#define DPU_EVENT_PRINT_MAX	(DPU_EVENT_LOG_MAX >> 1)
 #define DPU_EVENT_LOG_RETRY	3
 #define DPU_EVENT_KEEP_CNT	3
 
