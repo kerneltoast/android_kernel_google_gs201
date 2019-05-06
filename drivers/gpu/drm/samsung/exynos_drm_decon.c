@@ -199,13 +199,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	dpp->decon_id = decon->id;
 	dpp->update(dpp, state);
 
-	/*
-	 * TODO: need to consider of updating windows timing.
-	 * It needs to update all windows at the same time
-	 * If not, hw state(enable or disable) of each windows
-	 * can be mis-matched.
-	 */
-	decon_reg_update_req_window(decon->id, zpos);
 	dpp->win_id = zpos;
 	decon_dbg(decon, "%s -\n", __func__);
 }
@@ -227,8 +220,6 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 	dpp->decon_id = decon->id;
 	dpp->disable(dpp);
 
-	decon_reg_update_req_window(decon->id, dpp->win_id);
-
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
@@ -237,6 +228,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 	struct decon_device *decon = crtc->ctx;
 
 	decon_dbg(decon, "%s +\n", __func__);
+	decon_reg_all_win_shadow_update_req(decon->id);
 	decon_reg_start(decon->id, &decon->config);
 	DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_UNMASK, decon->id, decon);
 	decon_dbg(decon, "%s -\n", __func__);
