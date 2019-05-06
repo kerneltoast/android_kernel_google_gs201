@@ -309,9 +309,11 @@ void decon_reg_set_pll_sleep(u32 id, u32 en);
 void decon_reg_set_pll_wakeup(u32 id, u32 en);
 #endif
 
+u32 decon_reg_get_rsc_ch(u32 id);
+u32 decon_reg_get_rsc_win(u32 id);
+
 u32 DPU_DMA2CH(u32 dma);
 u32 DPU_CH2DMA(u32 ch);
-
 /*********************************************************************/
 
 #endif /* __SAMSUNG_DECON_CAL_H__ */

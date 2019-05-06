@@ -1725,6 +1725,16 @@ void decon_reg_set_pll_wakeup(u32 id, u32 en)
 #endif
 
 /******************** EXPORTED DECON CAL APIs ********************/
+u32 decon_reg_get_rsc_ch(u32 id)
+{
+	return decon_read(id, RESOURCE_OCCUPANCY_INFO_1);
+}
+
+u32 decon_reg_get_rsc_win(u32 id)
+{
+	return decon_read(id, RESOURCE_OCCUPANCY_INFO_2);
+}
+
 /* TODO: maybe this function will be moved to internal DECON CAL function */
 void decon_reg_update_req_global(u32 id)
 {
