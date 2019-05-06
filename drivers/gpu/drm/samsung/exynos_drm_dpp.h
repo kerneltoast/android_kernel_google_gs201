@@ -88,6 +88,7 @@ struct dpp_device {
 	spinlock_t dma_slock;
 
 	int decon_id; /* connected DECON id */
+	unsigned int win_id; /* connected window id */
 
 	struct dpp_restriction restriction;
 

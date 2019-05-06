@@ -206,6 +206,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	 * can be mis-matched.
 	 */
 	decon_reg_update_req_window(decon->id, zpos);
+	dpp->win_id = zpos;
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
@@ -213,19 +214,20 @@ static void decon_disable_plane(struct exynos_drm_crtc *crtc,
 				struct exynos_drm_plane *plane)
 {
 	struct decon_device *decon = crtc->ctx;
-	struct exynos_drm_plane_state *state =
-				to_exynos_plane_state(plane->base.state);
 	struct dpp_device *dpp = plane_to_dpp(plane);
 
 	decon_dbg(decon, "%s +\n", __func__);
 
-	/* disable window */
-	decon_reg_set_win_enable(decon->id, state->base.zpos, 0);
+	/*
+	 * When disabling the plane, previously connected window(zpos) should
+	 * be disabled not newly requested zpos(window).
+	 */
+	decon_reg_set_win_enable(decon->id, dpp->win_id, 0);
 
 	dpp->decon_id = decon->id;
 	dpp->disable(dpp);
 
-	decon_reg_update_req_window(decon->id, state->base.zpos);
+	decon_reg_update_req_window(decon->id, dpp->win_id);
 
 	decon_dbg(decon, "%s -\n", __func__);
 }
@@ -306,6 +308,7 @@ static void decon_enable_irqs(struct decon_device *decon)
 static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
+	int i;
 
 	if (decon->state == DECON_STATE_ON) {
 		decon_info(decon, "decon%d already enabled(%d)\n",
@@ -328,6 +331,9 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 	decon_enable_irqs(decon);
 
 	decon_print_config_info(decon);
+
+	for (i = 0; i < MAX_PLANE; ++i)
+		decon->dpp[i]->win_id = 0xFF;
 
 	decon->state = DECON_STATE_ON;
 
