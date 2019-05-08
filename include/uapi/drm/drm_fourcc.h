@@ -513,6 +513,15 @@ extern "C" {
 #define DRM_FORMAT_MOD_SAMSUNG_16_16_TILE	fourcc_mod_code(SAMSUNG, 2)
 
 /*
+ * 4 plane YCbCr 4:2:0 10 bits per channel
+ * index 0: Y8 plane, [7:0] Y little endian
+ * index 1: Cr8:Cb8 plane, [15:0] CrCb little endian
+ * index 2: Y2 plane, [1:0] Y little endian
+ * index 3: Cr2:Cb2 plane, [3:0] CrCb little endian
+ */
+#define DRM_FORMAT_MOD_SAMSUNG_YUV_8_2_SPLIT	fourcc_mod_code(SAMSUNG, 3)
+
+/*
  * Qualcomm Compressed Format
  *
  * Refers to a compressed variant of the base format that is compressed.
