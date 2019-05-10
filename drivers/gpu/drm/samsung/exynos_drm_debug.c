@@ -191,6 +191,7 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 	int i;
 	struct dpu_bts_win_config *win;
 	char *str_state[3] = {"DISABLED", "COLOR", "BUFFER"};
+	const struct dpu_fmt *fmt;
 
 	for (i = 0; i < MAX_WIN_PER_DECON; ++i) {
 		win = &atomic->win_config[i].win;
@@ -198,14 +199,16 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 		if (win->state == DPU_WIN_STATE_DISABLED)
 			continue;
 
+		fmt = dpu_find_fmt_info(win->format);
+
 		seq_printf(s, "\t\t\t\t\tWIN%d: %s[0x%llx] SRC[%d %d %d %d] ",
 				i, str_state[win->state],
 				(win->state == DPU_WIN_STATE_BUFFER) ?
 				atomic->win_config[i].dma_addr : 0,
 				win->src_x, win->src_y, win->src_w, win->src_h);
-		seq_printf(s, "DST[%d %d %d %d] DPP%d\n",
+		seq_printf(s, "DST[%d %d %d %d] DPP%d %s\n",
 				win->dst_x, win->dst_y, win->dst_w, win->dst_h,
-				win->dpp_ch);
+				win->dpp_ch, fmt->name);
 	}
 }
 
