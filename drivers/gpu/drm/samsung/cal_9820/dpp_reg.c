@@ -783,27 +783,19 @@ static void dma_dpp_reg_set_coordinates(u32 id, struct dpp_params_info *p,
 static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
 {
-	u32 dma_fmt;
 	u32 alpha_type = 0; /* 0: per-frame, 1: per-pixel */
 	const struct dpu_fmt *fmt_info = dpu_find_fmt_info(p->format);
-
-	if (fmt_info->fmt == DPU_PIXEL_FORMAT_RGB_565 && p->is_comp)
-		dma_fmt = IDMA_IMG_FORMAT_BGR565;
-	else if (fmt_info->fmt == DPU_PIXEL_FORMAT_BGR_565 && p->is_comp)
-		dma_fmt = IDMA_IMG_FORMAT_RGB565;
-	else
-		dma_fmt = fmt_info->dma_fmt;
 
 	alpha_type = (fmt_info->len_alpha > 0) ? 1 : 0;
 
 	if (test_bit(DPP_ATTR_IDMA, &attr)) {
-		idma_reg_set_format(id, dma_fmt);
+		idma_reg_set_format(id, fmt_info->dma_fmt);
 		if (test_bit(DPP_ATTR_DPP, &attr)) {
 			dpp_reg_set_alpha_type(id, alpha_type);
 			dpp_reg_set_format(id, fmt_info->dpp_fmt);
 		}
 	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
-		odma_reg_set_format(id, dma_fmt);
+		odma_reg_set_format(id, fmt_info->dma_fmt);
 		wb_mux_reg_set_format(id, fmt_info);
 		wb_mux_reg_set_uv_offset(id, 0, 0);
 	}
