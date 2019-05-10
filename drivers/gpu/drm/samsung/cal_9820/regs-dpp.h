@@ -152,28 +152,29 @@
 #define IDMA_IN_IC_MAX_MASK			(0xff << 19)
 #define IDMA_IMG_FORMAT(_v)			((_v) << 11)
 #define IDMA_IMG_FORMAT_MASK			(0x3f << 11)
-#define IDMA_IMG_FORMAT_ARGB8888		(0)
-#define IDMA_IMG_FORMAT_ABGR8888		(1)
-#define IDMA_IMG_FORMAT_RGBA8888		(2)
-#define IDMA_IMG_FORMAT_BGRA8888		(3)
-#define IDMA_IMG_FORMAT_XRGB8888		(4)
-#define IDMA_IMG_FORMAT_XBGR8888		(5)
-#define IDMA_IMG_FORMAT_RGBX8888		(6)
-#define IDMA_IMG_FORMAT_BGRX8888		(7)
-#define IDMA_IMG_FORMAT_RGB565			(8)
-#define IDMA_IMG_FORMAT_BGR565			(9)
-#define IDMA_IMG_FORMAT_ARGB1555		(12)
-#define IDMA_IMG_FORMAT_ARGB4444		(13)
-#define IDMA_IMG_FORMAT_ABGR1555		(14)
-#define IDMA_IMG_FORMAT_ABGR4444		(15)
-#define IDMA_IMG_FORMAT_ARGB2101010		(16)
-#define IDMA_IMG_FORMAT_ABGR2101010		(17)
-#define IDMA_IMG_FORMAT_RGBA1010102		(18)
-#define IDMA_IMG_FORMAT_BGRA1010102		(19)
-#define IDMA_IMG_FORMAT_RGBA5551		(20)
-#define IDMA_IMG_FORMAT_RGBA4444		(21)
-#define IDMA_IMG_FORMAT_BGRA5551		(22)
-#define IDMA_IMG_FORMAT_BGRA4444		(23)
+
+/*
+ * Below RGB format name is different from user's manual.
+ * Big endian is used for RGB naming in user's manual.
+ * However, SFR definition related to RGB format uses
+ * little endian because HAL_PIXEL format and drm fourcc use
+ * little endian.
+ */
+#define IDMA_IMG_FORMAT_BGRA8888		(0)
+#define IDMA_IMG_FORMAT_RGBA8888		(1)
+#define IDMA_IMG_FORMAT_ABGR8888		(2)
+#define IDMA_IMG_FORMAT_ARGB8888		(3)
+#define IDMA_IMG_FORMAT_BGRX8888		(4)
+#define IDMA_IMG_FORMAT_RGBX8888		(5)
+#define IDMA_IMG_FORMAT_XBGR8888		(6)
+#define IDMA_IMG_FORMAT_XRGB8888		(7)
+#define IDMA_IMG_FORMAT_BGR565			(8)
+#define IDMA_IMG_FORMAT_RGB565			(9)
+#define IDMA_IMG_FORMAT_BGRA1010102		(16)
+#define IDMA_IMG_FORMAT_RGBA1010102		(17)
+#define IDMA_IMG_FORMAT_ABGR2101010		(18)
+#define IDMA_IMG_FORMAT_ARGB2101010		(19)
+
 #define IDMA_IMG_FORMAT_YUV420_2P		(24)
 #define IDMA_IMG_FORMAT_YVU420_2P		(25)
 #define IDMA_IMG_FORMAT_YUV420_8P2		(26)
