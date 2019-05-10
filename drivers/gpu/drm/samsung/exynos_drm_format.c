@@ -19,7 +19,7 @@ static const struct dpu_fmt dpu_formats_list[] = {
 	{
 		.name = "ARGB8888",
 		.fmt = DPU_PIXEL_FORMAT_ARGB_8888,
-		.dma_fmt = IDMA_IMG_FORMAT_BGRA8888,
+		.dma_fmt = IDMA_IMG_FORMAT_ARGB8888,
 		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
 		.bpp = 32,
 		.padding = 0,
@@ -32,7 +32,7 @@ static const struct dpu_fmt dpu_formats_list[] = {
 	}, {
 		.name = "ABGR8888",
 		.fmt = DPU_PIXEL_FORMAT_ABGR_8888,
-		.dma_fmt = IDMA_IMG_FORMAT_RGBA8888,
+		.dma_fmt = IDMA_IMG_FORMAT_ABGR8888,
 		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
 		.bpp = 32,
 		.padding = 0,
@@ -45,7 +45,7 @@ static const struct dpu_fmt dpu_formats_list[] = {
 	}, {
 		.name = "RGBA8888",
 		.fmt = DPU_PIXEL_FORMAT_RGBA_8888,
-		.dma_fmt = IDMA_IMG_FORMAT_ABGR8888,
+		.dma_fmt = IDMA_IMG_FORMAT_RGBA8888,
 		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
 		.bpp = 32,
 		.padding = 0,
@@ -58,7 +58,7 @@ static const struct dpu_fmt dpu_formats_list[] = {
 	}, {
 		.name = "BGRA8888",
 		.fmt = DPU_PIXEL_FORMAT_BGRA_8888,
-		.dma_fmt = IDMA_IMG_FORMAT_ARGB8888,
+		.dma_fmt = IDMA_IMG_FORMAT_BGRA8888,
 		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
 		.bpp = 32,
 		.padding = 0,
@@ -71,7 +71,7 @@ static const struct dpu_fmt dpu_formats_list[] = {
 	}, {
 		.name = "XRGB8888",
 		.fmt = DPU_PIXEL_FORMAT_XRGB_8888,
-		.dma_fmt = IDMA_IMG_FORMAT_BGRX8888,
+		.dma_fmt = IDMA_IMG_FORMAT_XRGB8888,
 		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
 		.bpp = 24,
 		.padding = 8,
@@ -84,7 +84,7 @@ static const struct dpu_fmt dpu_formats_list[] = {
 	}, {
 		.name = "XBGR8888",
 		.fmt = DPU_PIXEL_FORMAT_XBGR_8888,
-		.dma_fmt = IDMA_IMG_FORMAT_RGBX8888,
+		.dma_fmt = IDMA_IMG_FORMAT_XBGR8888,
 		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
 		.bpp = 24,
 		.padding = 8,
@@ -97,7 +97,7 @@ static const struct dpu_fmt dpu_formats_list[] = {
 	}, {
 		.name = "RGBX8888",
 		.fmt = DPU_PIXEL_FORMAT_RGBX_8888,
-		.dma_fmt = IDMA_IMG_FORMAT_XBGR8888,
+		.dma_fmt = IDMA_IMG_FORMAT_RGBX8888,
 		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
 		.bpp = 24,
 		.padding = 8,
@@ -110,7 +110,7 @@ static const struct dpu_fmt dpu_formats_list[] = {
 	}, {
 		.name = "BGRX8888",
 		.fmt = DPU_PIXEL_FORMAT_BGRX_8888,
-		.dma_fmt = IDMA_IMG_FORMAT_XRGB8888,
+		.dma_fmt = IDMA_IMG_FORMAT_BGRX8888,
 		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
 		.bpp = 24,
 		.padding = 8,
