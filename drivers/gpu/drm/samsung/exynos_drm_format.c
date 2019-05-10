@@ -121,71 +121,6 @@ static const struct dpu_fmt dpu_formats_list[] = {
 		.len_alpha = 0,
 		.cs = DPU_COLORSPACE_RGB,
 	}, {
-		.name = "RGBA5551",
-		.fmt = DPU_PIXEL_FORMAT_RGBA_5551,
-		.dma_fmt = IDMA_IMG_FORMAT_ABGR1555,
-		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
-		.bpp = 16,
-		.padding = 0,
-		.bpc = 5,
-		.num_planes = 1,
-		.num_buffers = 1,
-		.num_meta_planes = 0,
-		.len_alpha = 1,
-		.cs = DPU_COLORSPACE_RGB,
-	}, {
-		.name = "BGRA5551",
-		.fmt = DPU_PIXEL_FORMAT_BGRA_5551,
-		.dma_fmt = IDMA_IMG_FORMAT_ARGB1555,
-		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
-		.bpp = 16,
-		.padding = 0,
-		.bpc = 5,
-		.num_planes = 1,
-		.num_buffers = 1,
-		.num_meta_planes = 0,
-		.len_alpha = 1,
-		.cs = DPU_COLORSPACE_RGB,
-	}, {
-		.name = "ABGR4444",
-		.fmt = DPU_PIXEL_FORMAT_ABGR_4444,
-		.dma_fmt = IDMA_IMG_FORMAT_RGBA4444,
-		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
-		.bpp = 16,
-		.padding = 0,
-		.bpc = 4,
-		.num_planes = 1,
-		.num_buffers = 1,
-		.num_meta_planes = 0,
-		.len_alpha = 4,
-		.cs = DPU_COLORSPACE_RGB,
-	}, {
-		.name = "RGBA4444",
-		.fmt = DPU_PIXEL_FORMAT_RGBA_4444,
-		.dma_fmt = IDMA_IMG_FORMAT_ABGR4444,
-		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
-		.bpp = 16,
-		.padding = 0,
-		.bpc = 4,
-		.num_planes = 1,
-		.num_buffers = 1,
-		.num_meta_planes = 0,
-		.len_alpha = 4,
-		.cs = DPU_COLORSPACE_RGB,
-	}, {
-		.name = "BGRA4444",
-		.fmt = DPU_PIXEL_FORMAT_BGRA_4444,
-		.dma_fmt = IDMA_IMG_FORMAT_ARGB4444,
-		.dpp_fmt = DPP_IMG_FORMAT_ARGB8888,
-		.bpp = 16,
-		.padding = 0,
-		.bpc = 4,
-		.num_planes = 1,
-		.num_buffers = 1,
-		.num_meta_planes = 0,
-		.len_alpha = 4,
-		.cs = DPU_COLORSPACE_RGB,
-	}, {
 		.name = "RGB565",
 		.fmt = DPU_PIXEL_FORMAT_RGB_565,
 		.dma_fmt = IDMA_IMG_FORMAT_RGB565,
@@ -477,15 +412,10 @@ static const struct dpu_fmt dpu_formats_list[] = {
 const struct dpu_fmt *dpu_find_fmt_info(enum dpu_pixel_format fmt)
 {
 	int i;
-	const struct dpu_fmt *fmt_info;
 
 	for (i = 0; i < ARRAY_SIZE(dpu_formats_list); i++)
 		if (dpu_formats_list[i].fmt == fmt)
 			return &dpu_formats_list[i];
-
-	fmt_info = dpu_find_cal_fmt_info(fmt);
-	if (!IS_ERR_OR_NULL(fmt_info))
-		return fmt_info;
 
 	DRM_INFO("%s: can't find format(%d) in supported format list\n",
 			__func__, fmt);
@@ -511,8 +441,6 @@ enum dpu_pixel_format convert_drm_format(u32 drm_format)
 	case DRM_FORMAT_BGRA1010102:	return DPU_PIXEL_FORMAT_BGRA_1010102;
 	case DRM_FORMAT_NV12:		return DPU_PIXEL_FORMAT_NV12;
 	case DRM_FORMAT_NV21:		return DPU_PIXEL_FORMAT_NV21;
-	case DRM_FORMAT_NV16:		return DPU_PIXEL_FORMAT_NV16;
-	case DRM_FORMAT_NV61:		return DPU_PIXEL_FORMAT_NV61;
 	default:
 		return DPU_PIXEL_FORMAT_MAX;
 	}

@@ -338,16 +338,6 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 		config->c_2b_strd = S10B_2B_STRIDE(config->src.f_w);
 	}
 
-	if (config->format == DPU_PIXEL_FORMAT_NV16M_S10B ||
-			config->format == DPU_PIXEL_FORMAT_NV61M_S10B) {
-		config->addr[2] = config->addr[0] +
-			NV16M_Y_SIZE(config->src.f_w, config->src.f_h);
-		config->addr[3] = config->addr[1] +
-			NV16M_CBCR_SIZE(config->src.f_w, config->src.f_h);
-		config->y_2b_strd = S10B_2B_STRIDE(config->src.f_w);
-		config->c_2b_strd = S10B_2B_STRIDE(config->src.f_w);
-	}
-
 	if (config->rot & DPP_ROT) {
 		config->h_ratio = (config->src.h << 20) / config->dst.w;
 		config->v_ratio = (config->src.w << 20) / config->dst.h;
