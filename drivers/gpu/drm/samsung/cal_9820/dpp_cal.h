@@ -116,7 +116,7 @@ struct dpp_region {
 
 struct dpp_config {
 	struct dpp_region region;
-	enum dpu_pixel_format format;
+	u32 format;
 	u32 idma_addr[4];
 
 	bool is_afbc;
@@ -205,7 +205,7 @@ struct dpp_params_info {
 	bool is_comp;
 	bool is_scale;
 	bool is_block;
-	enum dpu_pixel_format format;
+	u32 format;
 	dma_addr_t addr[MAX_PLANE_ADDR_CNT];
 	enum dpp_csc_eq eq_mode;
 	int h_ratio;
