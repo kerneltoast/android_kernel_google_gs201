@@ -295,11 +295,17 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	config->is_comp = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
 	config->format = convert_drm_format(fb->format->format);
 
-	/* TODO: how to handle ? ... I don't know ... */
 	config->addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	config->addr[1] = exynos_drm_fb_dma_addr(fb, 1);
-	config->addr[2] = exynos_drm_fb_dma_addr(fb, 2);
-	config->addr[3] = exynos_drm_fb_dma_addr(fb, 3);
+	if (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_YUV_8_2_SPLIT) {
+		config->addr[2] = config->addr[0] +
+			NV12N_10B_Y_8B_SIZE(fb->width, fb->height);
+		config->addr[3] = config->addr[1] +
+			NV12N_10B_CBCR_8B_SIZE(fb->width, fb->height);
+	} else {
+		config->addr[2] = exynos_drm_fb_dma_addr(fb, 2);
+		config->addr[3] = exynos_drm_fb_dma_addr(fb, 3);
+	}
 
 	config->eq_mode = 0;
 	config->hdr = 0;
@@ -307,36 +313,6 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	config->min_luminance = 0;
 	config->y_2b_strd = 0;
 	config->c_2b_strd = 0;
-
-	if (config->format == DPU_PIXEL_FORMAT_NV12N)
-		config->addr[1] = NV12N_CBCR_BASE(config->addr[0],
-				config->src.f_w, config->src.f_h);
-
-	if (config->format == DPU_PIXEL_FORMAT_NV12_P010)
-		config->addr[1] = P010_CBCR_BASE(config->addr[0],
-				config->src.f_w, config->src.f_h);
-
-	if (config->format == DPU_PIXEL_FORMAT_NV12M_S10B ||
-			config->format == DPU_PIXEL_FORMAT_NV21M_S10B) {
-		config->addr[2] = config->addr[0] +
-			NV12M_Y_SIZE(config->src.f_w, config->src.f_h);
-		config->addr[3] = config->addr[1] +
-			NV12M_CBCR_SIZE(config->src.f_w, config->src.f_h);
-		config->y_2b_strd = S10B_2B_STRIDE(config->src.f_w);
-		config->c_2b_strd = S10B_2B_STRIDE(config->src.f_w);
-	}
-
-	if (config->format == DPU_PIXEL_FORMAT_NV12N_10B) {
-		config->addr[1] = NV12N_10B_CBCR_BASE(config->addr[0],
-				config->src.f_w, config->src.f_h);
-		config->addr[2] = config->addr[0] +
-			NV12N_10B_Y_8B_SIZE(config->src.f_w, config->src.f_h);
-		config->addr[3] = config->addr[1] +
-			NV12N_10B_CBCR_8B_SIZE(config->src.f_w,
-					config->src.f_h);
-		config->y_2b_strd = S10B_2B_STRIDE(config->src.f_w);
-		config->c_2b_strd = S10B_2B_STRIDE(config->src.f_w);
-	}
 
 	if (config->rot & DPP_ROT) {
 		config->h_ratio = (config->src.h << 20) / config->dst.w;

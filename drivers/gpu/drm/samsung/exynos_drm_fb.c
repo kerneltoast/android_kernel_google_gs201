@@ -20,6 +20,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <uapi/drm/exynos_drm.h>
+#include <uapi/linux/videodev2_exynos_media.h>
 #include <linux/dma-buf.h>
 #include <linux/ion_exynos.h>
 
@@ -163,6 +164,10 @@ int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
 	return 0;
 }
 
+#define Y_SIZE_8P2(w, h)	(NV12N_10B_Y_8B_SIZE(w, h) +		\
+					NV12N_10B_Y_2B_SIZE(w, h))
+#define UV_SIZE_8P2(w, h)	(NV12N_10B_CBCR_8B_SIZE(w, h) +		\
+					NV12N_10B_CBCR_2B_SIZE(w, h))
 static struct drm_framebuffer *
 exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		      const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -189,6 +194,16 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		height = (i == 0) ? mode_cmd->height :
 				     DIV_ROUND_UP(mode_cmd->height, info->vsub);
 		size = height * mode_cmd->pitches[i] + mode_cmd->offsets[i];
+
+		if (mode_cmd->modifier[i] ==
+				DRM_FORMAT_MOD_SAMSUNG_YUV_8_2_SPLIT) {
+			if (i == 0)
+				size = Y_SIZE_8P2(mode_cmd->width,
+						mode_cmd->height);
+			else if (i == 1)
+				size = UV_SIZE_8P2(mode_cmd->width,
+						mode_cmd->height);
+		}
 
 		ret = exynos_drm_import_handle(exynos_buf[i],
 				mode_cmd->handles[i], size);

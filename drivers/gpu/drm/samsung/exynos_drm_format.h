@@ -19,8 +19,7 @@
 #define DPU_UNDEF_BITS_DEPTH		0xabcd
 
 enum dpu_pixel_format {
-	/* RGB 8bit display */
-	/* 4byte */
+	/* RGB32 */
 	DPU_PIXEL_FORMAT_ARGB_8888 = 0,
 	DPU_PIXEL_FORMAT_ABGR_8888,
 	DPU_PIXEL_FORMAT_RGBA_8888,
@@ -29,44 +28,23 @@ enum dpu_pixel_format {
 	DPU_PIXEL_FORMAT_XBGR_8888,
 	DPU_PIXEL_FORMAT_RGBX_8888,
 	DPU_PIXEL_FORMAT_BGRX_8888,
-	/* 2byte */
+	/* RGB16 */
 	DPU_PIXEL_FORMAT_RGB_565,
 	DPU_PIXEL_FORMAT_BGR_565,
-
-	/* RGB 10bit display */
-	/* 4byte */
+	/* RGB32, 10 bits per channel */
 	DPU_PIXEL_FORMAT_ARGB_2101010,
 	DPU_PIXEL_FORMAT_ABGR_2101010,
 	DPU_PIXEL_FORMAT_RGBA_1010102,
 	DPU_PIXEL_FORMAT_BGRA_1010102,
 
-	/* YUV 8bit display */
-	/* YUV422 3P */
-	DPU_PIXEL_FORMAT_YVU422_3P,
-	/* YUV420 2P */
+	/* YUV420 2 plane */
 	DPU_PIXEL_FORMAT_NV12,
+	/* YVU420 2 plane */
 	DPU_PIXEL_FORMAT_NV21,
-	DPU_PIXEL_FORMAT_NV12M,
-	DPU_PIXEL_FORMAT_NV21M,
-	/* YUV420 3P */
-	DPU_PIXEL_FORMAT_YUV420,
-	DPU_PIXEL_FORMAT_YVU420,
-	DPU_PIXEL_FORMAT_YUV420M,
-	DPU_PIXEL_FORMAT_YVU420M,
-	/* YUV - 2 planes but 1 buffer */
-	DPU_PIXEL_FORMAT_NV12N,
-	DPU_PIXEL_FORMAT_NV12N_10B,
-
-	/* YUV 10bit display */
-	/* YUV420 2P */
-	DPU_PIXEL_FORMAT_NV12M_P010,
-	DPU_PIXEL_FORMAT_NV21M_P010,
-
-	/* YUV420(P8+2) 4P */
-	DPU_PIXEL_FORMAT_NV12M_S10B,
-	DPU_PIXEL_FORMAT_NV21M_S10B,
-
-	DPU_PIXEL_FORMAT_NV12_P010,
+	/* YUV420, 4 plane, 10 bpc, packed 8P2 vendor specific format */
+	DPU_PIXEL_FORMAT_YUV420_8P2,
+	/* YUV420, 2 plane, 10 bpc, planar format */
+	DPU_PIXEL_FORMAT_YUV420_P010,
 
 	DPU_PIXEL_FORMAT_MAX,
 };
@@ -86,7 +64,6 @@ struct dpu_fmt {
 	u8 padding;		   /* padding bits per pixel */
 	u8 bpc;			   /* bits per each color component */
 	u8 num_planes;		   /* plane(s) count of color format */
-	u8 num_buffers;		   /* number of input buffer(s) */
 	u8 num_meta_planes;	   /* number of meta plane(s) */
 	u8 len_alpha;		   /* length of alpha bits */
 	enum dpu_colorspace cs;
