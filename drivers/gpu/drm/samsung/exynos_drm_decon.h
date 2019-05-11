@@ -82,7 +82,7 @@ struct dpu_bts_win_config {
 	bool is_rot;
 	bool is_afbc;
 	int dpp_ch;
-	enum dpu_pixel_format format;
+	u32 format;
 };
 
 struct dpu_bts {

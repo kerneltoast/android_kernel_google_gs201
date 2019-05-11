@@ -555,6 +555,7 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 		memset(&config, 0, sizeof(struct dpu_bts_win_config));
 		config.src_w = config.dst_w = decon->config.image_width;
 		config.src_h = config.dst_h = decon->config.image_height;
+		config.format = DRM_FORMAT_ARGB8888;
 
 		decon->bts.resol_clk = decon->config.image_width *
 			decon->config.image_height *

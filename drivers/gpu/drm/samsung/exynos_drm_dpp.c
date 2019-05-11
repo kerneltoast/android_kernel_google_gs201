@@ -237,7 +237,7 @@ static void dpp_test_fixed_config_params(struct dpp_params_info *config, u32 w,
 
 	config->rot = 0; /* no rotation */
 	config->is_comp = false;
-	config->format = DPU_PIXEL_FORMAT_BGRA_8888;
+	config->format = DRM_FORMAT_BGRA8888;
 
 	/* TODO: how to handle ? ... I don't know ... */
 	config->addr[0] = dpp_alloc_map_buf_test();
@@ -293,7 +293,7 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 		config->rot |= DPP_Y_FLIP;
 
 	config->is_comp = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
-	config->format = convert_drm_format(fb->format->format);
+	config->format = fb->format->format;
 
 	config->addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	config->addr[1] = exynos_drm_fb_dma_addr(fb, 1);

@@ -260,7 +260,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 
 	win_config->is_afbc = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
 	win_config->state = DPU_WIN_STATE_BUFFER;
-	win_config->format = convert_drm_format(fb->format->format);
+	win_config->format = fb->format->format;
 	win_config->dpp_ch = plane_idx;
 
 	simplified_rot = drm_rotation_simplify(state->base.rotation,

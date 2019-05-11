@@ -18,37 +18,6 @@
 
 #define DPU_UNDEF_BITS_DEPTH		0xabcd
 
-enum dpu_pixel_format {
-	/* RGB32 */
-	DPU_PIXEL_FORMAT_ARGB_8888 = 0,
-	DPU_PIXEL_FORMAT_ABGR_8888,
-	DPU_PIXEL_FORMAT_RGBA_8888,
-	DPU_PIXEL_FORMAT_BGRA_8888,
-	DPU_PIXEL_FORMAT_XRGB_8888,
-	DPU_PIXEL_FORMAT_XBGR_8888,
-	DPU_PIXEL_FORMAT_RGBX_8888,
-	DPU_PIXEL_FORMAT_BGRX_8888,
-	/* RGB16 */
-	DPU_PIXEL_FORMAT_RGB_565,
-	DPU_PIXEL_FORMAT_BGR_565,
-	/* RGB32, 10 bits per channel */
-	DPU_PIXEL_FORMAT_ARGB_2101010,
-	DPU_PIXEL_FORMAT_ABGR_2101010,
-	DPU_PIXEL_FORMAT_RGBA_1010102,
-	DPU_PIXEL_FORMAT_BGRA_1010102,
-
-	/* YUV420 2 plane */
-	DPU_PIXEL_FORMAT_NV12,
-	/* YVU420 2 plane */
-	DPU_PIXEL_FORMAT_NV21,
-	/* YUV420, 4 plane, 10 bpc, packed 8P2 vendor specific format */
-	DPU_PIXEL_FORMAT_YUV420_8P2,
-	/* YUV420, 2 plane, 10 bpc, planar format */
-	DPU_PIXEL_FORMAT_YUV420_P010,
-
-	DPU_PIXEL_FORMAT_MAX,
-};
-
 enum dpu_colorspace {
 	DPU_COLORSPACE_RGB,
 	DPU_COLORSPACE_YUV420,
@@ -57,7 +26,7 @@ enum dpu_colorspace {
 
 struct dpu_fmt {
 	const char *name;
-	enum dpu_pixel_format fmt; /* user-interfaced color format */
+	u32 fmt;		   /* user-interfaced color format */
 	u32 dma_fmt;		   /* applied color format to DPU_DMA(In) */
 	u32 dpp_fmt;		   /* applied color format to DPP(Out) */
 	u8 bpp;			   /* bits per pixel */
@@ -80,7 +49,6 @@ struct dpu_fmt {
 #define IS_10BPC(f)		((f)->bpc == 10)
 #define IS_OPAQUE(f)		((f)->len_alpha == 0)
 
-const struct dpu_fmt *dpu_find_fmt_info(enum dpu_pixel_format fmt);
-enum dpu_pixel_format convert_drm_format(u32 drm_format);
+const struct dpu_fmt *dpu_find_fmt_info(u32 fmt);
 
 #endif /* __EXYNOS_FORMAT_H__ */
