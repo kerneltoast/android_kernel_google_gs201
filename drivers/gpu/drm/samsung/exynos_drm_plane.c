@@ -189,6 +189,8 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 		exynos_state->alpha = val;
 	else if (property == exynos_plane->props.blend_mode)
 		exynos_state->blend_mode = val;
+	else if (property == exynos_plane->props.color)
+		exynos_state->color = val;
 	else
 		return -EINVAL;
 
@@ -208,6 +210,8 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 		*val = exynos_state->alpha;
 	else if (property == exynos_plane->props.blend_mode)
 		*val = exynos_state->blend_mode;
+	else if (property == exynos_plane->props.color)
+		*val = exynos_state->color;
 	else
 		return -EINVAL;
 
@@ -371,6 +375,23 @@ int exynos_drm_plane_create_alpha_property(
 	return 0;
 }
 
+int exynos_drm_plane_create_color_property(
+				struct exynos_drm_plane *exynos_plane,
+				const struct exynos_drm_plane_config *config)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(plane->dev, 0, "color", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.color = prop;
+
+	return 0;
+}
+
 int exynos_drm_plane_create_blend_mode_property(
 				struct exynos_drm_plane *exynos_plane,
 				const struct exynos_drm_plane_config *config)
@@ -435,6 +456,7 @@ int exynos_plane_init(struct drm_device *dev,
 
 	exynos_drm_plane_create_alpha_property(exynos_plane, config);
 	exynos_drm_plane_create_blend_mode_property(exynos_plane, config);
+	exynos_drm_plane_create_color_property(exynos_plane, config);
 
 	return 0;
 }

@@ -36,6 +36,9 @@
 
 static void exynos_drm_free_buf_object(struct exynos_drm_buf *obj)
 {
+	if (obj->colormap)
+		goto free;
+
 	if (!IS_ERR_VALUE(obj->dma_addr))
 		ion_iovmm_unmap(obj->attachment, obj->dma_addr);
 
@@ -49,6 +52,7 @@ static void exynos_drm_free_buf_object(struct exynos_drm_buf *obj)
 	if (obj->dmabuf)
 		dma_buf_put(obj->dmabuf);
 
+free:
 	kfree(obj);
 }
 
@@ -124,8 +128,15 @@ err:
 int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
 		size_t size)
 {
-	/* TODO: iovmm_activate will be moved to exynos_drm_bind */
 	struct dsim_device *dsim = dsim_drvdata[0];
+
+	obj->colormap = false;
+
+	if (handle == 0xFFFF) {
+		DRM_INFO("requested magic handle for colormap\n");
+		obj->colormap = true;
+		return 0;
+	}
 
 	obj->dmabuf = dma_buf_get(handle);
 	if (IS_ERR_OR_NULL(obj->dmabuf)) {
@@ -259,7 +270,11 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dst_h = state->base.crtc_h;
 
 	win_config->is_afbc = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
-	win_config->state = DPU_WIN_STATE_BUFFER;
+	if (exynos_fb->exynos_buf[0]->colormap)
+		win_config->state = DPU_WIN_STATE_COLOR;
+	else
+		win_config->state = DPU_WIN_STATE_BUFFER;
+
 	win_config->format = fb->format->format;
 	win_config->dpp_ch = plane_idx;
 

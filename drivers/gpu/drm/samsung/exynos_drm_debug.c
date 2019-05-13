@@ -206,9 +206,11 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 				(win->state == DPU_WIN_STATE_BUFFER) ?
 				atomic->win_config[i].dma_addr : 0,
 				win->src_x, win->src_y, win->src_w, win->src_h);
-		seq_printf(s, "DST[%d %d %d %d] DPP%d %s\n",
-				win->dst_x, win->dst_y, win->dst_w, win->dst_h,
-				win->dpp_ch, fmt->name);
+		seq_printf(s, "DST[%d %d %d %d] ",
+				win->dst_x, win->dst_y, win->dst_w, win->dst_h);
+		if (win->state == DPU_WIN_STATE_BUFFER)
+			seq_printf(s, "CH%d ", win->dpp_ch);
+		seq_printf(s, "%s\n", fmt->name);
 	}
 }
 

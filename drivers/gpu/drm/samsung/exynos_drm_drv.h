@@ -89,6 +89,7 @@ struct exynos_drm_plane_state {
 	unsigned int v_ratio;
 	u8 alpha;
 	uint16_t blend_mode;
+	u32 color;
 };
 
 static inline struct exynos_drm_plane_state *
@@ -115,6 +116,7 @@ struct exynos_drm_plane {
 	struct {
 		struct drm_property *alpha;
 		struct drm_property *blend_mode;
+		struct drm_property *color;
 	} props;
 };
 
