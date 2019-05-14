@@ -216,6 +216,8 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 		*val = exynos_state->color;
 	else if (property == exynos_plane->props.comp_src)
 		*val = exynos_state->comp_src;
+	else if (property == exynos_plane->props.restriction)
+		*val = exynos_state->blob_id_restriction;
 	else
 		return -EINVAL;
 
@@ -444,6 +446,37 @@ int exynos_drm_plane_create_comp_src_property(
 	return 0;
 }
 
+static int exynos_drm_plane_create_restriction_property(
+				struct exynos_drm_plane *exynos_plane,
+				const struct exynos_drm_plane_config *config)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property_blob *blob;
+	struct drm_property *prop;
+	struct dpp_ch_restriction res;
+	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
+
+	memcpy(&res.restriction, &dpp->restriction,
+				sizeof(struct dpp_restriction));
+	res.id = dpp->id;
+	res.attr = dpp->attr;
+
+	blob = drm_property_create_blob(plane->dev, sizeof(res), &res);
+	if (IS_ERR(blob))
+		return PTR_ERR(blob);
+
+	prop = drm_property_create(plane->dev,
+				   DRM_MODE_PROP_IMMUTABLE | DRM_MODE_PROP_BLOB,
+				   "hw restrictions", 0);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, blob->base.id);
+	exynos_plane->props.restriction = prop;
+
+	return 0;
+}
+
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane, unsigned int index,
 		      const struct exynos_drm_plane_config *config)
@@ -486,6 +519,7 @@ int exynos_plane_init(struct drm_device *dev,
 	exynos_drm_plane_create_blend_mode_property(exynos_plane, config);
 	exynos_drm_plane_create_color_property(exynos_plane, config);
 	exynos_drm_plane_create_comp_src_property(exynos_plane, config);
+	exynos_drm_plane_create_restriction_property(exynos_plane, config);
 
 	return 0;
 }

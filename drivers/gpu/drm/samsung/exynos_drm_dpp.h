@@ -66,6 +66,12 @@ struct dpp_restriction {
 	u32 scale_up;
 };
 
+struct dpp_ch_restriction {
+	int id;
+	unsigned long attr;
+	struct dpp_restriction restriction;
+};
+
 struct dpp_device {
 	struct device *dev;
 
