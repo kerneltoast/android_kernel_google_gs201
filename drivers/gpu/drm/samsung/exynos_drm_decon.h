@@ -83,6 +83,7 @@ struct dpu_bts_win_config {
 	bool is_afbc;
 	int dpp_ch;
 	u32 format;
+	u16 comp_src;
 };
 
 struct dpu_bts {

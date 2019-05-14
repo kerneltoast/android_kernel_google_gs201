@@ -277,6 +277,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 
 	win_config->format = fb->format->format;
 	win_config->dpp_ch = plane_idx;
+	win_config->comp_src = state->comp_src;
 
 	simplified_rot = drm_rotation_simplify(state->base.rotation,
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
@@ -287,18 +288,18 @@ void plane_state_to_win_config(struct decon_device *decon,
 
 	memcpy(&decon->dpp[plane_idx]->fb, exynos_fb, sizeof(*exynos_fb));
 
-	DRM_INFO("%s: src[%d %d %d %d], dst[%d %d %d %d]\n", __func__,
+	DRM_INFO("src[%d %d %d %d], dst[%d %d %d %d]\n",
 			win_config->src_x, win_config->src_y,
 			win_config->src_w, win_config->src_h,
 			win_config->dst_x, win_config->dst_y,
 			win_config->dst_w, win_config->dst_h);
-	DRM_INFO("%s: rot[%d], afbc[%d], format[%d], ch[%d], zpos[%d]\n",
-			__func__,
+	DRM_INFO("rot[%d] afbc[%d] format[%d] ch[%d] zpos[%d], comp_src[%d]\n",
 			win_config->is_rot, win_config->is_afbc,
-			win_config->format, win_config->dpp_ch, zpos);
-	DRM_INFO("%s: alpha[%d] blend mode[%d]\n", __func__,
+			win_config->format, win_config->dpp_ch, zpos,
+			win_config->comp_src);
+	DRM_INFO("alpha[%d] blend mode[%d]\n",
 			state->alpha, state->blend_mode);
-	DRM_INFO("%s: simplified rot[0x%x]\n", __func__, simplified_rot);
+	DRM_INFO("simplified rot[0x%x]\n", simplified_rot);
 }
 
 static void display_mode_to_bts_info(struct drm_display_mode *mode,

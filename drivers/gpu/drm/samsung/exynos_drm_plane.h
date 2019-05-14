@@ -19,6 +19,10 @@
 #define EXYNOS_DRM_MODE_BLEND_COVERAGE		1
 #define EXYNOS_DRM_MODE_BLEND_PIXEL_NONE	2
 
+#define EXYNOS_DRM_MODE_COMP_SRC_NONE		0
+#define EXYNOS_DRM_MODE_COMP_SRC_G2D		1
+#define EXYNOS_DRM_MODE_COMP_SRC_GPU		2
+
 #define plane_to_dpp(p)		container_of(p, struct dpp_device, plane)
 
 int exynos_plane_init(struct drm_device *dev,

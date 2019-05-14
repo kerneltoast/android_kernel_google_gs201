@@ -191,6 +191,7 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 	int i;
 	struct dpu_bts_win_config *win;
 	char *str_state[3] = {"DISABLED", "COLOR", "BUFFER"};
+	char *str_comp[3] = {"", "G2D", "GPU"};
 	const struct dpu_fmt *fmt;
 
 	for (i = 0; i < MAX_WIN_PER_DECON; ++i) {
@@ -210,7 +211,7 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 				win->dst_x, win->dst_y, win->dst_w, win->dst_h);
 		if (win->state == DPU_WIN_STATE_BUFFER)
 			seq_printf(s, "CH%d ", win->dpp_ch);
-		seq_printf(s, "%s\n", fmt->name);
+		seq_printf(s, "%s %s\n", fmt->name, str_comp[win->comp_src]);
 	}
 }
 
