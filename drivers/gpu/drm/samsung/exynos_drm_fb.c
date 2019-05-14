@@ -329,6 +329,8 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 	struct decon_device *decon[MAX_DECON_CNT] = {};
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	const struct dpu_bts_win_config *win_config;
+	struct dpp_device *dpp;
 	int max_planes;
 	int id = 0;
 
@@ -408,6 +410,19 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		decon[id] = exynos_crtc->ctx;
 
 		if (new_crtc_state->planes_changed && new_crtc_state->active) {
+			/* plane order == dpp channel order */
+			for (j = 0; j < MAX_PLANE; ++j) {
+				dpp = decon[id]->dpp[j];
+				if (dpp->win_id >= MAX_PLANE)
+					continue;
+
+				win_config =
+					&decon[id]->bts.win_config[dpp->win_id];
+				if (win_config->state == DPU_WIN_STATE_BUFFER &&
+						win_config->is_afbc)
+					dpp->comp_src = win_config->comp_src;
+			}
+
 			if (decon[id]->config.mode.op_mode ==
 					DECON_MIPI_COMMAND_MODE)
 				decon_reg_set_trigger(decon[id]->id,

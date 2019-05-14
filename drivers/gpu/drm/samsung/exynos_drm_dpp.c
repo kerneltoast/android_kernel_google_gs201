@@ -663,6 +663,7 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 {
 	struct dpp_device *dpp = priv;
 	u32 irqs;
+	char *str_comp[3] = {"NONE", "G2D", "GPU"};
 
 	spin_lock(&dpp->dma_slock);
 	if (dpp->state == DPP_STATE_OFF)
@@ -687,8 +688,11 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 		irqs = idma_reg_get_irq_and_clear(dpp->id);
 
 		if (irqs & IDMA_RECOVERY_START_IRQ) {
-			dpp_info(dpp, "dma%d recovery start(0x%x)..\n",
-					dpp->id, irqs);
+			DPU_EVENT_LOG(DPU_EVT_DMA_RECOVERY, dpp->decon_id, dpp);
+			dpp->recovery_cnt++;
+			dpp_info(dpp, "recovery start(0x%x) cnt(%d) src(%s)\n",
+					irqs, dpp->recovery_cnt,
+					str_comp[dpp->comp_src]);
 			goto irq_end;
 		}
 		if ((irqs & IDMA_AFBC_TIMEOUT_IRQ) ||

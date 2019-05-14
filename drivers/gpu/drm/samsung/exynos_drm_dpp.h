@@ -97,6 +97,19 @@ struct dpp_device {
 	unsigned int win_id;	/* connected window id */
 	bool is_win_connected;	/* Is dpp connected to window ? */
 
+	/*
+	 * comp_src means compression source of input buffer compressed by
+	 * AFBC encoder of G2D or GPU.
+	 *
+	 * comp_src in dpu_bts_win_config structure is the information of
+	 * the buffer requested by user-side.
+	 *
+	 * But comp_src in dpp_device structure is the information of the buffer
+	 * already applied to the HW.
+	 */
+	u16 comp_src;
+	u32 recovery_cnt;
+
 	struct dpp_restriction restriction;
 
 	int (*check)(struct dpp_device *this_dpp,

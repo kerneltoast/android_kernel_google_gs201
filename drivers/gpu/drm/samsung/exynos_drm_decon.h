@@ -140,6 +140,7 @@ enum dpu_event_type {
 	DPU_EVT_DSIM_UNDERRUN,
 
 	DPU_EVT_DPP_FRAMEDONE,
+	DPU_EVT_DMA_RECOVERY,
 
 	DPU_EVT_ATOMIC_COMMIT,
 	DPU_EVT_TE_INTERRUPT,
@@ -156,6 +157,8 @@ struct dpu_log_dsim_cmd {
 
 struct dpu_log_dpp {
 	u32 id;
+	u16 comp_src;
+	u32 recovery_cnt;
 };
 
 struct dpu_log_rsc_occupancy {

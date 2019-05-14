@@ -88,6 +88,12 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 		dpp = (struct dpp_device *)priv;
 		log->data.dpp.id = dpp->id;
 		break;
+	case DPU_EVT_DMA_RECOVERY:
+		dpp = (struct dpp_device *)priv;
+		log->data.dpp.id = dpp->id;
+		log->data.dpp.comp_src = dpp->comp_src;
+		log->data.dpp.recovery_cnt = dpp->recovery_cnt;
+		break;
 	case DPU_EVT_DECON_RSC_OCCUPANCY:
 		log->data.rsc.rsc_ch = decon_reg_get_rsc_ch(decon->id);
 		log->data.rsc.rsc_win = decon_reg_get_rsc_win(decon->id);
@@ -245,6 +251,7 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 	int latest = idx;
 	struct timeval tv;
 	ktime_t prev_ktime;
+	char *str_comp[3] = {"NONE", "G2D", "GPU"};
 
 	if (IS_ERR_OR_NULL(decon->d.event_log))
 		return;
@@ -310,6 +317,13 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 		case DPU_EVT_DPP_FRAMEDONE:
 			seq_printf(s, "%20s  ", "DPP_FRAMEDONE");
 			seq_printf(s, "\tID:%d\n", log->data.dpp.id);
+			break;
+		case DPU_EVT_DMA_RECOVERY:
+			seq_printf(s, "%20s  ", "DMA_RECOVERY");
+			seq_printf(s, "\tID:%d SRC:%s COUNT:%d\n",
+					log->data.dpp.id,
+					str_comp[log->data.dpp.comp_src],
+					log->data.dpp.recovery_cnt);
 			break;
 		case DPU_EVT_ATOMIC_COMMIT:
 			seq_printf(s, "%20s  %20s", "ATOMIC_COMMIT", "-\n");
