@@ -574,7 +574,7 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 	if ((index == 0) && (IS_HWFC(task->flags) || IS_DST_SBWC(task))) {
 		perrfndev(g2d_dev, "Layer0 can be used as a constant layer %s",
 			  IS_HWFC(task->flags) ? "HWFC" : "SBWC for encoding");
-		return false;
+		return -EINVAL;
 	}
 
 	if (!g2d_validate_source_commands(
