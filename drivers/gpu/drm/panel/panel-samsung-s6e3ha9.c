@@ -23,6 +23,8 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_atomic_helper.h>
 
+#include "panel-samsung-s6e3ha9.h"
+
 static int panel_log_level = 7;
 
 #define panel_info(ctx, fmt, ...)					\
@@ -57,9 +59,6 @@ static int panel_log_level = 7;
 		}							\
 	} while (0)
 
-
-#define MAX_REGULATORS		3
-
 static unsigned char SEQ_PPS_SLICE2[] = {
 	// WQHD+ :1440x3040
 	0x11, 0x00, 0x00, 0x89, 0x30, 0x80, 0x0B, 0xE0,
@@ -78,25 +77,6 @@ static unsigned char SEQ_PPS_SLICE2[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-struct s6e3ha9_panel_desc {
-	const struct drm_display_mode *mode;
-	bool dsc_en;
-	u32 dsc_slice_cnt;
-	u32 dsc_slice_height;
-	u32 data_lane_cnt;
-};
-
-struct s6e3ha9 {
-	struct device *dev;
-	struct drm_panel panel;
-
-	struct gpio_desc *reset_gpio;
-	struct gpio_desc *enable_gpio;
-	struct regulator *regulator[MAX_REGULATORS];
-
-	const struct s6e3ha9_panel_desc *desc;
 };
 
 static int s6e3ha9_dcs_write(struct s6e3ha9 *ctx, const void *data, size_t len)
@@ -364,6 +344,11 @@ static const struct s6e3ha9_panel_desc samsung_s6e3ha9 = {
 	.dsc_slice_cnt = 2,
 	.dsc_slice_height = 40,
 	.data_lane_cnt = 4,
+	/* supported HDR format bitmask : 1(DOLBY_VISION), 2(HDR10), 3(HLG) */
+	.hdr_formats = BIT(2),
+	.max_luminance = 5400000,
+	.max_avg_luminance = 1200000,
+	.min_luminance = 5,
 };
 
 static int s6e3ha9_get_modes(struct drm_panel *panel)
