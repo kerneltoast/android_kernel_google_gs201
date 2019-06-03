@@ -18,6 +18,7 @@
 /* Add header */
 #include <drm/drm_encoder.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_property.h>
 #include <video/videomode.h>
 
 #include "cal_9820/dsim_cal.h"
@@ -83,6 +84,13 @@ struct dsim_device {
 	struct dsim_clks clk_param;
 
 	int idle_ip_index;
+
+	struct {
+		struct drm_property *max_luminance;
+		struct drm_property *max_avg_luminance;
+		struct drm_property *min_luminance;
+		struct drm_property *hdr_formats;
+	} props;
 };
 
 extern struct dsim_device *dsim_drvdata[MAX_DSI_CNT];

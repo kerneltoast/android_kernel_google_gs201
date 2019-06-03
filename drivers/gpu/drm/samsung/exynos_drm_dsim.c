@@ -44,6 +44,8 @@
 
 #include "cal_9820/regs-dsim.h"
 
+#include "../panel/panel-samsung-s6e3ha9.h"
+
 struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 
 int dsim_log_level = 7;
@@ -233,6 +235,29 @@ static void dsim_connector_destroy(struct drm_connector *connector)
 {
 }
 
+static int exynos_drm_connector_get_property(struct drm_connector *connector,
+				const struct drm_connector_state *state,
+				struct drm_property *property,
+				uint64_t *val)
+{
+	struct dsim_device *dsim = connector_to_dsi(connector);
+	struct s6e3ha9 *panel =
+			container_of(dsim->panel, struct s6e3ha9, panel);
+
+	if (property == dsim->props.max_luminance)
+		*val = panel->desc->max_luminance;
+	else if (property == dsim->props.max_avg_luminance)
+		*val = panel->desc->max_avg_luminance;
+	else if (property == dsim->props.min_luminance)
+		*val = panel->desc->min_luminance;
+	else if (property == dsim->props.hdr_formats)
+		*val = panel->desc->hdr_formats;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct drm_connector_funcs dsim_connector_funcs = {
 	.detect = dsim_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -240,6 +265,7 @@ static const struct drm_connector_funcs dsim_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_get_property = exynos_drm_connector_get_property,
 };
 
 static int dsim_get_modes(struct drm_connector *connector)
@@ -479,6 +505,81 @@ static const struct drm_encoder_funcs dsim_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static int exynos_drm_connector_create_max_luminance_property(
+				struct drm_connector *connector)
+{
+	struct dsim_device *dsim = connector_to_dsi(connector);
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(connector->dev, 0, "max_luminance",
+			0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+	dsim->props.max_luminance = prop;
+
+	return 0;
+}
+
+static int exynos_drm_connector_create_max_avg_luminance_property(
+				struct drm_connector *connector)
+{
+	struct dsim_device *dsim = connector_to_dsi(connector);
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(connector->dev, 0, "max_avg_luminance",
+			0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+	dsim->props.max_avg_luminance = prop;
+
+	return 0;
+}
+
+static int exynos_drm_connector_create_min_luminance_property(
+				struct drm_connector *connector)
+{
+	struct dsim_device *dsim = connector_to_dsi(connector);
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(connector->dev, 0, "min_luminance",
+			0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+	dsim->props.min_luminance = prop;
+
+	return 0;
+}
+
+static int exynos_drm_connector_create_hdr_formats_property(
+				struct drm_connector *connector)
+{
+	static const struct drm_prop_enum_list props[] = {
+		{ __builtin_ffs(HDR_DOLBY_VISION) - 1,	"Dolby Vision"	},
+		{ __builtin_ffs(HDR_HDR10) - 1,		"HDR10"		},
+		{ __builtin_ffs(HDR_HLG) - 1,		"HLG"		},
+	};
+	struct drm_property *prop;
+	struct dsim_device *dsim = connector_to_dsi(connector);
+
+	prop = drm_property_create_bitmask(connector->dev, 0, "hdr_formats",
+					   props, ARRAY_SIZE(props),
+					   HDR_DOLBY_VISION | HDR_HDR10 |
+					   HDR_HLG);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+	dsim->props.hdr_formats = prop;
+
+	return 0;
+}
+
 static int dsim_create_connector(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
@@ -498,6 +599,11 @@ static int dsim_create_connector(struct drm_encoder *encoder)
 	drm_connector_helper_add(connector, &dsim_connector_helper_funcs);
 	drm_connector_register(connector);
 	drm_connector_attach_encoder(connector, encoder);
+
+	exynos_drm_connector_create_max_luminance_property(connector);
+	exynos_drm_connector_create_max_avg_luminance_property(connector);
+	exynos_drm_connector_create_min_luminance_property(connector);
+	exynos_drm_connector_create_hdr_formats_property(connector);
 
 	return 0;
 }
