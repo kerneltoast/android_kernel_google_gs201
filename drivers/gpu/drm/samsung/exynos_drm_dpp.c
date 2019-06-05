@@ -242,8 +242,6 @@ static void dpp_test_fixed_config_params(struct dpp_params_info *config, u32 w,
 	/* TODO: how to handle ? ... I don't know ... */
 	config->addr[0] = dpp_alloc_map_buf_test();
 
-	config->eq_mode = 0;
-	config->hdr = 0;
 	config->max_luminance = 0;
 	config->min_luminance = 0;
 	config->y_2b_strd = 0;
@@ -307,8 +305,7 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 		config->addr[3] = exynos_drm_fb_dma_addr(fb, 3);
 	}
 
-	config->eq_mode = 0;
-	config->hdr = 0;
+	config->dataspace = state->dataspace;
 	config->max_luminance = 0;
 	config->min_luminance = 0;
 	config->y_2b_strd = 0;

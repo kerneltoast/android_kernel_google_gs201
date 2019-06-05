@@ -193,6 +193,8 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 		exynos_state->color = val;
 	else if (property == exynos_plane->props.comp_src)
 		exynos_state->comp_src = val;
+	else if (property == exynos_plane->props.dataspace)
+		exynos_state->dataspace = val;
 	else
 		return -EINVAL;
 
@@ -218,6 +220,8 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 		*val = exynos_state->comp_src;
 	else if (property == exynos_plane->props.restriction)
 		*val = exynos_state->blob_id_restriction;
+	else if (property == exynos_plane->props.dataspace)
+		*val = exynos_state->dataspace;
 	else
 		return -EINVAL;
 
@@ -477,6 +481,25 @@ static int exynos_drm_plane_create_restriction_property(
 	return 0;
 }
 
+static int exynos_drm_plane_create_dataspace_property(
+				struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(plane->dev, 0, "dataspace", 0,
+					HAL_DATASPACE_STANDARD_MASK |
+					HAL_DATASPACE_TRANSFER_MASK |
+					HAL_DATASPACE_RANGE_MASK);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.dataspace = prop;
+
+	return 0;
+}
+
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane, unsigned int index,
 		      const struct exynos_drm_plane_config *config)
@@ -520,6 +543,7 @@ int exynos_plane_init(struct drm_device *dev,
 	exynos_drm_plane_create_color_property(exynos_plane, config);
 	exynos_drm_plane_create_comp_src_property(exynos_plane, config);
 	exynos_drm_plane_create_restriction_property(exynos_plane, config);
+	exynos_drm_plane_create_dataspace_property(exynos_plane);
 
 	return 0;
 }

@@ -18,8 +18,18 @@
 #endif
 
 #include "../exynos_drm_format.h"
+#include "../exynos_drm_plane.h"
 
 #define MAX_DPP_CNT		6
+
+#define DPP_CSC_IDX_BT601_625			0
+#define DPP_CSC_IDX_BT601_625_UNADJUSTED	2
+#define DPP_CSC_IDX_BT601_525			4
+#define DPP_CSC_IDX_BT601_525_UNADJUSTED	6
+#define DPP_CSC_IDX_BT2020_CONSTANT_LUMINANCE	8
+#define DPP_CSC_IDX_BT470M			10
+#define DPP_CSC_IDX_FILM			12
+#define DPP_CSC_IDX_ADOBE_RGB			14
 
 enum dpp_attr {
 	DPP_ATTR_AFBC		= 0,
@@ -172,23 +182,6 @@ enum dpp_reg_area {
 
 #define MAX_PLANE_ADDR_CNT	4
 
-#define CSC_STANDARD_MASK	0x3F	/* 6 bits */
-#define CSC_RANGE_MASK		0x7	/* 3 bits */
-enum dpp_csc_eq {
-	/* eq_mode : 6bits [5:0] */
-	CSC_STANDARD_SHIFT = 0,
-	CSC_BT_601 = 0,
-	CSC_BT_709 = 1,
-	CSC_BT_2020 = 2,
-	CSC_DCI_P3 = 3,
-	CSC_STANDARD_UNSPECIFIED = 63,
-	/* eq_mode : 3bits [8:6] */
-	CSC_RANGE_SHIFT = 6,
-	CSC_RANGE_LIMITED = 0x0,
-	CSC_RANGE_FULL = 0x1,
-	CSC_RANGE_UNSPECIFIED = 7,
-};
-
 struct dpp_params_info {
 	struct decon_frame src;
 	struct decon_frame dst;
@@ -207,7 +200,7 @@ struct dpp_params_info {
 	bool is_block;
 	u32 format;
 	dma_addr_t addr[MAX_PLANE_ADDR_CNT];
-	enum dpp_csc_eq eq_mode;
+	u32 dataspace;
 	int h_ratio;
 	int v_ratio;
 

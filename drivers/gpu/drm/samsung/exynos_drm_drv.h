@@ -92,6 +92,7 @@ struct exynos_drm_plane_state {
 	u32 color;
 	uint16_t comp_src;
 	uint32_t blob_id_restriction;
+	uint32_t dataspace;
 };
 
 static inline struct exynos_drm_plane_state *
@@ -121,6 +122,7 @@ struct exynos_drm_plane {
 		struct drm_property *color;
 		struct drm_property *comp_src;
 		struct drm_property *restriction;
+		struct drm_property *dataspace;
 	} props;
 };
 

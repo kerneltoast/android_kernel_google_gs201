@@ -350,32 +350,63 @@ static int dpp_reg_wait_sw_reset_status(u32 id)
 }
 
 #if defined(SUPPORT_USER_COEF)
-static void dpp_reg_set_csc_coef(u32 id, u32 csc_std, u32 csc_rng)
+static void dpp_reg_set_csc_coef(u32 id, u32 hal_std, u32 hal_range)
 {
 	u32 val, mask;
-	u32 csc_id = DPP_CSC_ID_BT_2020 + CSC_RANGE_LIMITED;
+	u32 csc_id = DPP_CSC_IDX_BT601_625;
 	u32 c00, c01, c02;
 	u32 c10, c11, c12;
 	u32 c20, c21, c22;
 
-	if (csc_std == CSC_BT_2020)
-		csc_id = DPP_CSC_ID_BT_2020 + csc_rng;
-	else if (csc_std == CSC_DCI_P3)
-		csc_id = DPP_CSC_ID_DCI_P3 + csc_rng;
-	else
-		cal_log_err(id, "Undefined CSC Type!!!\n");
+	switch (hal_std) {
+	case HAL_DATASPACE_STANDARD_BT601_625:
+		csc_id = DPP_CSC_IDX_BT601_625;
+		break;
+	case HAL_DATASPACE_STANDARD_BT601_625_UNADJUSTED:
+		csc_id = DPP_CSC_IDX_BT601_625_UNADJUSTED;
+		break;
+	case HAL_DATASPACE_STANDARD_BT601_525:
+		csc_id = DPP_CSC_IDX_BT601_525;
+		break;
+	case HAL_DATASPACE_STANDARD_BT601_525_UNADJUSTED:
+		csc_id = DPP_CSC_IDX_BT601_525_UNADJUSTED;
+		break;
+	case HAL_DATASPACE_STANDARD_BT2020_CONSTANT_LUMINANCE:
+		csc_id = DPP_CSC_IDX_BT2020_CONSTANT_LUMINANCE;
+		break;
+	case HAL_DATASPACE_STANDARD_BT470M:
+		csc_id = DPP_CSC_IDX_BT470M;
+		break;
+	case HAL_DATASPACE_STANDARD_FILM:
+		csc_id = DPP_CSC_IDX_FILM;
+		break;
+	case HAL_DATASPACE_STANDARD_ADOBE_RGB:
+		csc_id = DPP_CSC_IDX_ADOBE_RGB;
+		break;
+	default:
+		hal_range = HAL_DATASPACE_RANGE_LIMITED;
+		cal_log_err(id, "invalid CSC type\n");
+		cal_log_err(id, "BT601 with limited range is set as default\n");
+	}
 
-	c00 = csc_3x3_t[csc_id][0][0];
-	c01 = csc_3x3_t[csc_id][0][1];
-	c02 = csc_3x3_t[csc_id][0][2];
+	/*
+	 * The matrices are provided only for full or limited range
+	 * and limited range is used as default.
+	 */
+	if (hal_range == HAL_DATASPACE_RANGE_FULL)
+		csc_id += 1;
 
-	c10 = csc_3x3_t[csc_id][1][0];
-	c11 = csc_3x3_t[csc_id][1][1];
-	c12 = csc_3x3_t[csc_id][1][2];
+	c00 = csc_y2r_3x3_t[csc_id][0][0];
+	c01 = csc_y2r_3x3_t[csc_id][0][1];
+	c02 = csc_y2r_3x3_t[csc_id][0][2];
 
-	c20 = csc_3x3_t[csc_id][2][0];
-	c21 = csc_3x3_t[csc_id][2][1];
-	c22 = csc_3x3_t[csc_id][2][2];
+	c10 = csc_y2r_3x3_t[csc_id][1][0];
+	c11 = csc_y2r_3x3_t[csc_id][1][1];
+	c12 = csc_y2r_3x3_t[csc_id][1][2];
+
+	c20 = csc_y2r_3x3_t[csc_id][2][0];
+	c21 = csc_y2r_3x3_t[csc_id][2][1];
+	c22 = csc_y2r_3x3_t[csc_id][2][2];
 
 	mask = (DPP_CSC_COEF_H_MASK | DPP_CSC_COEF_L_MASK);
 	val = (DPP_CSC_COEF_H(c01) | DPP_CSC_COEF_L(c00));
@@ -394,41 +425,67 @@ static void dpp_reg_set_csc_coef(u32 id, u32 csc_std, u32 csc_rng)
 	val = DPP_CSC_COEF_L(c22);
 	dpp_write_mask(id, DPP_CSC_COEF4, val, mask);
 
-	cal_log_debug(id, "---[CSC Type = %s_%s]---\n",
-		csc_std == 3 ? "DCI_P3" : "BT_2020",
-		csc_rng == 0 ? "LTD" : "FULL");
-	cal_log_debug(id, "0x%3x  0x%3x  0x%3x\n", c00, c01, c02);
-	cal_log_debug(id, "0x%3x  0x%3x  0x%3x\n", c10, c11, c12);
-	cal_log_debug(id, "0x%3x  0x%3x  0x%3x\n", c20, c21, c22);
+	cal_log_debug(id, "---[DPP%d Y2R CSC Type: std=%d, rng=%d]---\n",
+		id, hal_std, hal_range);
+	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c00, c01, c02);
+	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c10, c11, c12);
+	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c20, c21, c22);
 }
 #else
-static inline void dpp_reg_set_csc_coef(u32 id, u32 csc_std, u32 csc_rng) { }
+static inline void dpp_reg_set_csc_coef(u32 id, u32 hal_std, u32 hal_range) { }
 #endif
 
-static void dpp_reg_set_csc_params(u32 id, u32 csc_eq)
+static void dpp_reg_set_csc_params(u32 id, u32 dataspace)
 {
-	u32 type = (csc_eq >> CSC_STANDARD_SHIFT) & 0x3F;
-	u32 range = (csc_eq >> CSC_RANGE_SHIFT) & 0x7;
-	u32 mode = (type <= CSC_DCI_P3) ?
-		CSC_COEF_HARDWIRED : CSC_COEF_CUSTOMIZED;
-	u32 val, mask;
+	u32 hal_std = (dataspace & HAL_DATASPACE_STANDARD_MASK);
+	u32 hal_range = (dataspace & HAL_DATASPACE_RANGE_MASK);
+	u32 type, range, mode, val, mask;
 
-	if (type == CSC_STANDARD_UNSPECIFIED) {
+	mode = DPP_CSC_MODE_HARDWIRED;
+
+	switch (hal_std) {
+	case HAL_DATASPACE_STANDARD_UNSPECIFIED:
+		type = DPP_CSC_TYPE_BT601;
 		cal_log_debug(id, "unspecified CSC type! -> BT_601\n");
-		type = CSC_BT_601;
-		mode = CSC_COEF_HARDWIRED;
-	}
-	if (range == CSC_RANGE_UNSPECIFIED) {
-		cal_log_debug(id, "unspecified CSC range! -> LIMIT\n");
-		range = CSC_RANGE_LIMITED;
+		break;
+	case HAL_DATASPACE_STANDARD_BT709:
+		type = DPP_CSC_TYPE_BT709;
+		break;
+	case HAL_DATASPACE_STANDARD_BT601_625:
+	case HAL_DATASPACE_STANDARD_BT601_625_UNADJUSTED:
+	case HAL_DATASPACE_STANDARD_BT601_525:
+	case HAL_DATASPACE_STANDARD_BT601_525_UNADJUSTED:
+		type = DPP_CSC_TYPE_BT601;
+		break;
+	case HAL_DATASPACE_STANDARD_BT2020:
+		type = DPP_CSC_TYPE_BT2020;
+		break;
+	case HAL_DATASPACE_STANDARD_DCI_P3:
+		type = DPP_CSC_TYPE_DCI_P3;
+		break;
+	default:
+		type = DPP_CSC_TYPE_BT601;
+		mode = DPP_CSC_MODE_CUSTOMIZED;
+		break;
 	}
 
-	val = (DPP_CSC_TYPE(type) | DPP_CSC_RANGE(range) | DPP_CSC_MODE(mode));
+	/*
+	 * DPP hardware supports full or limited range.
+	 * Limited range is used as default
+	 */
+	if (hal_range == HAL_DATASPACE_RANGE_FULL)
+		range = DPP_CSC_RANGE_FULL;
+	else if (hal_range == HAL_DATASPACE_RANGE_LIMITED)
+		range = DPP_CSC_RANGE_LIMITED;
+	else
+		range = DPP_CSC_RANGE_LIMITED;
+
+	val = type | range | mode;
 	mask = (DPP_CSC_TYPE_MASK | DPP_CSC_RANGE_MASK | DPP_CSC_MODE_MASK);
 	dpp_write_mask(id, DPP_IN_CON, val, mask);
 
-	if (mode == CSC_COEF_CUSTOMIZED)
-		dpp_reg_set_csc_coef(id, type, range);
+	if (mode == DPP_CSC_MODE_CUSTOMIZED)
+		dpp_reg_set_csc_coef(id, hal_std, hal_range);
 }
 
 static void dpp_reg_set_h_coef(u32 id, u32 h_ratio)
@@ -525,16 +582,21 @@ static void dpp_reg_set_eotf_lut(u32 id, struct dpp_params_info *p)
 	u32 i = 0;
 	const u32 *lut_x;
 	const u32 *lut_y;
+	u32 hal_transfer = p->dataspace & HAL_DATASPACE_TRANSFER_MASK;
 
-	if (p->hdr == DPP_HDR_ST2084) {
-		if (p->max_luminance > 1000) {
+	if (hal_transfer == HAL_DATASPACE_TRANSFER_ST2084) {
+		if (p->max_luminance > 4000) {
+			cal_log_err(id, "%d nits is not supported now.\n",
+					p->max_luminance);
+			return;
+		} else if (p->max_luminance > 1000) {
 			lut_x = eotf_x_axis_st2084_4000;
 			lut_y = eotf_y_axis_st2084_4000;
 		} else {
 			lut_x = eotf_x_axis_st2084_1000;
 			lut_y = eotf_y_axis_st2084_1000;
 		}
-	} else if (p->hdr == DPP_HDR_HLG) {
+	} else if (hal_transfer == HAL_DATASPACE_TRANSFER_HLG) {
 		lut_x = eotf_x_axis_hlg;
 		lut_y = eotf_y_axis_hlg;
 	} else {
@@ -558,8 +620,9 @@ static void dpp_reg_set_gm_lut(u32 id, struct dpp_params_info *p)
 {
 	u32 i = 0;
 	const u32 *lut_gm;
+	u32 hal_std = (p->dataspace & HAL_DATASPACE_STANDARD_MASK);
 
-	if (p->eq_mode == CSC_BT_2020) {
+	if (hal_std == HAL_DATASPACE_STANDARD_BT2020) {
 		lut_gm = gm_coef_2020_p3;
 	} else {
 		cal_log_err(id, "Undefined HDR CSC Type!!!\n");
@@ -611,12 +674,16 @@ static void dpp_reg_set_tm_lut(u32 id, struct dpp_params_info *p)
 static void dpp_reg_set_hdr_params(u32 id, struct dpp_params_info *p)
 {
 	u32 val, val2, mask;
+	u32 hal_std, hal_transfer;
 
-	val = (p->hdr == DPP_HDR_ST2084 || p->hdr == DPP_HDR_HLG) ? ~0 : 0;
+	hal_transfer = (p->dataspace & HAL_DATASPACE_TRANSFER_MASK);
+	val = ((hal_transfer == HAL_DATASPACE_TRANSFER_ST2084) ||
+		(hal_transfer == HAL_DATASPACE_TRANSFER_HLG)) ? ~0 : 0;
 	mask = DPP_HDR_ON_MASK | DPP_EOTF_ON_MASK | DPP_TM_ON_MASK;
 	dpp_write_mask(id, DPP_VGRF_HDR_CON, val, mask);
 
-	val2 = (p->eq_mode != CSC_DCI_P3) ? ~0 : 0;
+	hal_std = (p->dataspace & HAL_DATASPACE_STANDARD_MASK);
+	val2 = (hal_std != HAL_DATASPACE_STANDARD_DCI_P3) ? ~0 : 0;
 	dpp_write_mask(id, DPP_VGRF_HDR_CON, val2,  DPP_GM_ON_MASK);
 
 	if (val) {
@@ -679,25 +746,41 @@ static void wb_mux_reg_set_uv_offset(u32 id, u32 off_x, u32 off_y)
 	dpp_write_mask(id, DPU_WB_CSC_CON, val, mask);
 }
 
-static void wb_mux_reg_set_csc_params(u32 id, u32 csc_eq)
+static void wb_mux_reg_set_csc_params(u32 id, u32 dataspace)
 {
-	u32 std = (csc_eq >> CSC_STANDARD_SHIFT) & CSC_STANDARD_MASK;
-	u32 range = (csc_eq >> CSC_RANGE_SHIFT) & CSC_RANGE_MASK;
+	u32 hal_std = (dataspace & HAL_DATASPACE_STANDARD_MASK);
+	u32 hal_range = (dataspace & HAL_DATASPACE_RANGE_MASK);
 	u32 val = 0;
 
-	if ((std == CSC_BT_601) && (range == CSC_RANGE_LIMITED))
-		val = DPU_WB_CSC_TYPE_601_LIMIT;
-	else if ((std == CSC_BT_601) && (range == CSC_RANGE_FULL))
-		val = DPU_WB_CSC_TYPE_601_FULL;
-	else if ((std == CSC_BT_709) && (range == CSC_RANGE_LIMITED))
-		val = DPU_WB_CSC_TYPE_709_LIMIT;
-	else if ((std == CSC_BT_709) && (range == CSC_RANGE_FULL))
-		val = DPU_WB_CSC_TYPE_709_FULL;
-	else
-		cal_log_warn(id, "[WBMUX] dpp%d not supported csc eq(0x%x)\n",
-				id, csc_eq);
+	switch (hal_std) {
+	case HAL_DATASPACE_STANDARD_BT601_625:
+	case HAL_DATASPACE_STANDARD_BT601_625_UNADJUSTED:
+	case HAL_DATASPACE_STANDARD_BT601_525:
+	case HAL_DATASPACE_STANDARD_BT601_525_UNADJUSTED:
+		if (hal_range == HAL_DATASPACE_RANGE_LIMITED)
+			val = DPU_WB_CSC_TYPE_601_LIMIT;
+		else if (hal_range == HAL_DATASPACE_RANGE_FULL)
+			val = DPU_WB_CSC_TYPE_601_FULL;
+		else
+			goto not_supp;
+		break;
+	case HAL_DATASPACE_STANDARD_BT709:
+		if (hal_range == HAL_DATASPACE_RANGE_LIMITED)
+			val = DPU_WB_CSC_TYPE_709_LIMIT;
+		else if (hal_range == HAL_DATASPACE_RANGE_FULL)
+			val = DPU_WB_CSC_TYPE_709_FULL;
+		else
+			goto not_supp;
+		break;
+	default:
+		goto not_supp;
+	}
 
 	dpp_write_mask(id, DPU_WB_CSC_CON, val, DPU_WB_CSC_TYPE_MASK);
+	return;
+
+not_supp:
+	cal_log_warn(id, "Not supported dataspace(0x%x)\n", dataspace);
 }
 
 static void wb_mux_reg_set_dst_size(u32 id, u32 w, u32 h)
@@ -899,10 +982,10 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
 {
 	if (test_bit(DPP_ATTR_CSC, &attr) && test_bit(DPP_ATTR_DPP, &attr))
-		dpp_reg_set_csc_params(id, p->eq_mode);
+		dpp_reg_set_csc_params(id, p->dataspace);
 	else if (test_bit(DPP_ATTR_CSC, &attr) &&
 			test_bit(DPP_ATTR_ODMA, &attr))
-		wb_mux_reg_set_csc_params(id, p->eq_mode);
+		wb_mux_reg_set_csc_params(id, p->dataspace);
 
 	if (test_bit(DPP_ATTR_SCALE, &attr))
 		dpp_reg_set_scale_ratio(id, p);
