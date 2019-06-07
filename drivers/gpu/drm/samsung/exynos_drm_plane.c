@@ -195,6 +195,10 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 		exynos_state->comp_src = val;
 	else if (property == exynos_plane->props.dataspace)
 		exynos_state->dataspace = val;
+	else if (property == exynos_plane->props.max_luminance)
+		exynos_state->max_luminance = val;
+	else if (property == exynos_plane->props.min_luminance)
+		exynos_state->min_luminance = val;
 	else
 		return -EINVAL;
 
@@ -222,6 +226,10 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 		*val = exynos_state->blob_id_restriction;
 	else if (property == exynos_plane->props.dataspace)
 		*val = exynos_state->dataspace;
+	else if (property == exynos_plane->props.max_luminance)
+		*val = exynos_state->max_luminance;
+	else if (property == exynos_plane->props.min_luminance)
+		*val = exynos_state->min_luminance;
 	else
 		return -EINVAL;
 
@@ -500,6 +508,40 @@ static int exynos_drm_plane_create_dataspace_property(
 	return 0;
 }
 
+static int exynos_drm_plane_create_max_luminance_property(
+				struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(plane->dev, 0, "max_luminance", 0,
+			UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.max_luminance = prop;
+
+	return 0;
+}
+
+static int exynos_drm_plane_create_min_luminance_property(
+				struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(plane->dev, 0, "min_luminance", 0,
+			UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.min_luminance = prop;
+
+	return 0;
+}
+
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane, unsigned int index,
 		      const struct exynos_drm_plane_config *config)
@@ -537,6 +579,11 @@ int exynos_plane_init(struct drm_device *dev,
 				DRM_MODE_ROTATE_0,
 				DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
 				DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
+
+	if (test_bit(DPP_ATTR_HDR, &dpp->attr)) {
+		exynos_drm_plane_create_max_luminance_property(exynos_plane);
+		exynos_drm_plane_create_min_luminance_property(exynos_plane);
+	}
 
 	exynos_drm_plane_create_alpha_property(exynos_plane, config);
 	exynos_drm_plane_create_blend_mode_property(exynos_plane, config);

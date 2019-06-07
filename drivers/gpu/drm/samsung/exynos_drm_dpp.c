@@ -306,8 +306,8 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	}
 
 	config->dataspace = state->dataspace;
-	config->max_luminance = 0;
-	config->min_luminance = 0;
+	config->max_luminance = state->max_luminance;
+	config->min_luminance = state->min_luminance;
 	config->y_2b_strd = 0;
 	config->c_2b_strd = 0;
 
