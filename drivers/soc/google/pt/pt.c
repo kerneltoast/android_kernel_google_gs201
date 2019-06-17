@@ -18,6 +18,8 @@
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/kthread.h>
+
 
 #define PT_SYSCTL_ENTRY 8
 #define PT_COMMAND_SIZE 128
@@ -30,6 +32,7 @@ struct pt_pts {
 	int property_index; /* index in the driver properties */
 	struct pt_handle *handle;
 	struct pt_driver *driver; /* driver managing this partition */
+	struct list_head resize_list; /* resize_thread callback list */
 };
 
 struct pt_properties {
@@ -39,18 +42,18 @@ struct pt_properties {
 
 /*
  * Locking:
- * - All access to driver (except pbha) are protected by the driver->mt
+ * - Driver are not thread safe:
+ *      All access to driver (except pbha) are protected by the driver->mt
  *	(->alloc()/->enable()/->disable()/->free())
  *	These access aways happen while a handle->mt is also taken
- * - All access to handle are protected by handle->mt
+ * - Handle data and driver data are consistent,
+ *      All access to handle are protected by handle->mt
  *      (pt_enable()/pt_disable()/pt_free()/pt_disable_no_free())
- * - Adding/removing handle and changing size of a pts is protected by
+ * - Handle list and pts are changed atomically
+ *      Adding/removing handle and changing pts are protected by
  *	pt_internal_data->sl
  * - resize_callback() could happen in any context and handle->mt or
- *	driver->mt can already be taken.
- *	Because of that, currently calling pt_* from resize_callback is not
- *	supported. It wil be with some limitation when adding a kernel thread
- *	to process then.
+ *	driver->mt can be taken. They will be forwarded to resize_thread.
  */
 
 struct pt_handle { /* one per client */
@@ -65,7 +68,7 @@ struct pt_handle { /* one per client */
 	void *data; /* client private data */
 };
 
-struct pt_driver {
+struct pt_driver { /* one per driver */
 	/* partition properties in driver node */
 	struct pt_properties *properties;
 	struct list_head list;
@@ -89,6 +92,13 @@ struct {
 	u32 timestamp;
 	u32 size;
 	int enabled;
+
+	/* Data for resize_callback thread */
+	struct task_struct *resize_thread;
+	struct pt_pts *resize_pts_in_progress; /* callback is in progress */
+	struct list_head resize_list; /* callback to call */
+	wait_queue_head_t resize_remove_wq; /* wait current callback return */
+	wait_queue_head_t resize_wq; /* wait for new callback */
 } pt_internal_data;
 
 enum pt_fn {
@@ -118,40 +128,149 @@ static void pt_trace(struct pt_handle *handle, int id, bool enable)
 	trace_pt_enable(handle->node->name, name, enable, ptid);
 }
 
-static void pt_internal_resize(void *data, size_t size)
+/*
+ * Get the next resize callback pts.
+ * Wait for new pts if resize_list empty
+ * Wake up thread waiting for the last in progress to be completed.
+ */
+static struct pt_pts *pt_resize_list_next(u32 *size)
 {
-	// TODO: use wq for the resize_callback
 	unsigned long flags;
-	pt_resize_callback_t resize_callback = NULL;
-	struct pt_pts *pts = (struct pt_pts *)data;
-	struct pt_handle *handle = pts->handle;
-	struct pt_properties *properties = pts->driver->properties;
-	int id = ((char *)data - (char *)handle->pts) / sizeof(handle->pts[0]);
-
-	trace_pt_resize_callback(handle->node->name,
-		properties->nodes[pts->property_index]->name,
-		true, (int)size, pts[id].ptid);
+	struct pt_pts *pts = NULL;
 
 	spin_lock_irqsave(&pt_internal_data.sl, flags);
-	if ((pts->size == 0) && (size > 0))
-		pt_internal_data.enabled++;
-	if ((pts->size > 0) && (size == 0))
-		pt_internal_data.enabled--;
-	if ((pts->size != size) && (pts->enabled))
-		resize_callback = handle->resize_callback;
-	pt_internal_data.size -= pts->size;
-	pts->size = size;
-	pt_internal_data.size += pts->size;
+	if (!list_empty(&pt_internal_data.resize_list)) {
+		pts = list_first_entry(&pt_internal_data.resize_list,
+					struct pt_pts, resize_list);
+		list_del(&pts->resize_list);
+		pts->resize_list.next = NULL;
+		pts->resize_list.prev = NULL;
+		*size = pts->size;
+	}
+	pt_internal_data.resize_pts_in_progress = pts;
 	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
 
-	if (resize_callback)
-		resize_callback(handle->data, id, size);
+	wake_up(&pt_internal_data.resize_remove_wq);
 
-	trace_pt_resize_callback(handle->node->name,
-		properties->nodes[pts->property_index]->name,
-		false, (int)size, pts[id].ptid);
+	if (pts == NULL)
+		wait_event_interruptible(pt_internal_data.resize_wq,
+				!list_empty(&pt_internal_data.resize_list));
+	return pts;
 }
 
+/*
+ * Add a new resize callback pts.
+ * Wake up resize_thread if needed
+ */
+static void pt_resize_list_add(struct pt_pts *pts, u32 size)
+{
+	bool waking = false;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pt_internal_data.sl, flags);
+	if ((pts->resize_list.next == NULL) && (pts->enabled)
+		&& (pts->size != size)) {
+		list_add(&pts->resize_list, &pt_internal_data.resize_list);
+		waking = !pt_internal_data.resize_pts_in_progress;
+	}
+	pts->size = size;
+	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
+
+	if (waking)
+		wake_up(&pt_internal_data.resize_wq);
+}
+
+/*
+ * FLush and disable pts resize callback.
+ * If a resize callback is in progress, we wait for its completion.
+ */
+static bool pt_resize_list_disable(struct pt_pts *pts)
+{
+	bool in_progress = false;
+	unsigned long flags;
+	bool enabled;
+
+	spin_lock_irqsave(&pt_internal_data.sl, flags);
+	enabled = pts->enabled;
+	pts->enabled = false;
+	if (pt_internal_data.resize_pts_in_progress == pts)
+		in_progress = true;
+	else if (pts->resize_list.next != NULL) {
+		list_del(&pts->resize_list);
+		pts->resize_list.next = NULL;
+		pts->resize_list.prev = NULL;
+		pts->size = 0;
+	}
+	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
+
+	if (!in_progress)
+		return enabled;
+	wait_event(pt_internal_data.resize_remove_wq,
+			pt_internal_data.resize_pts_in_progress == pts);
+	return enabled;
+}
+
+/*
+ * Allow resize callback on the pts.
+ */
+static void pt_resize_list_enable(struct pt_pts *pts)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&pt_internal_data.sl, flags);
+	pts->enabled = true;
+	pts->size = 0;
+	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
+}
+
+/*
+ * Thread calling the resize callback.
+ * This thread doesn't hold any mutex, so the callback can
+ * call pt_enable()/pt_disable()/pt_disable_no_free()/pt_free()
+ */
+static int pt_resize_thread(void *data)
+{
+	u32 size;
+	struct pt_pts *pts;
+	struct pt_handle *handle;
+	struct pt_driver *driver;
+	pt_resize_callback_t resize_callback = NULL;
+	int id;
+
+	while (1) {
+		/*
+		 * We are size snapshot from pt_resize_list_next().
+		 * because pts->size can change after the return.
+		 */
+		pts = pt_resize_list_next(&size);
+		if (pts == NULL)
+			continue;
+		handle = pts->handle;
+		resize_callback = handle->resize_callback;
+		id = ((char *)pts - (char *)handle->pts)
+						/ sizeof(handle->pts[0]);
+		resize_callback(handle->data, id, size);
+
+		driver = pts->driver;
+		trace_pt_resize_callback(handle->node->name,
+			driver->properties->nodes[pts->property_index]->name,
+			false, (int)size, pts->ptid);
+	}
+}
+
+static void pt_resize_internal(void *data, size_t size)
+{
+	struct pt_pts *pts = (struct pt_pts *)data;
+
+	trace_pt_resize_callback(pts->handle->node->name,
+		pts->driver->properties->nodes[pts->property_index]->name,
+		true, (int)size, pts->ptid);
+	pt_resize_list_add(pts, size);
+}
+
+/*
+ * Helper for driver->alloc()
+ */
 static bool pt_driver_alloc(struct pt_handle *handle, int id)
 {
 	int ptid;
@@ -163,7 +282,7 @@ static bool pt_driver_alloc(struct pt_handle *handle, int id)
 	ptid = driver->ops->alloc(data,
 				  property_index,
 				  &handle->pts[id],
-				  pt_internal_resize);
+				  pt_resize_internal);
 	if (ptid != PT_PTID_INVALID)
 		handle->pts[id].ptid = ptid;
 	mutex_unlock(&handle->pts[id].driver->mt);
@@ -178,13 +297,6 @@ static void pt_driver_enable(struct pt_handle *handle, int id)
 
 	mutex_lock(&driver->mt);
 	driver->ops->enable(data, ptid);
-	handle->pts[id].enabled = true;
-	/*
-	 * enabled set after calling ->enable()
-	 * so, the callback to pt_internal_resize() in ->disable()
-	 * will only update handle->pts[id].size,
-	 * but won't call the handle resize_callback
-	 */
 	mutex_unlock(&driver->mt);
 }
 
@@ -195,13 +307,6 @@ static void pt_driver_disable(struct pt_handle *handle, int id)
 	void *data = driver->data;
 
 	mutex_lock(&driver->mt);
-	/*
-	 * enabled cleared before calling ->disable()
-	 * so, the callback to pt_internal_resize() in ->disable()
-	 * will only update handle->pts[id].size,
-	 * but won't call the handle resize_callback
-	 */
-	handle->pts[id].enabled = false;
 	driver->ops->disable(data, ptid);
 	mutex_unlock(&handle->pts[id].driver->mt);
 }
@@ -398,9 +503,9 @@ int pt_mutate(struct pt_handle *handle, int old_id, int new_id)
 
 void pt_disable_no_free(struct pt_handle *handle, int id)
 {
-	mutex_lock(&handle->mt);
 	pt_handle_check(handle, id);
-	if (!handle->pts[id].enabled) {
+	mutex_lock(&handle->mt);
+	if (!pt_resize_list_disable(&handle->pts[id])) {
 		mutex_unlock(&handle->mt);
 		return;
 	}
@@ -431,7 +536,6 @@ void pt_disable(struct pt_handle *handle, int id)
 int pt_enable(struct pt_handle *handle, int id)
 {
 	int ptid;
-
 	mutex_lock(&handle->mt);
 	pt_handle_check(handle, id);
 	if (handle->pts[id].enabled) {
@@ -449,6 +553,8 @@ int pt_enable(struct pt_handle *handle, int id)
 		pt_trace(handle, id, true);
 	}
 	mutex_unlock(&handle->mt);
+	if (ptid != PT_PTID_INVALID)
+		pt_resize_list_enable(&handle->pts[id]);
 	return ptid;
 }
 
@@ -724,7 +830,7 @@ static int pt_sysctl_command(struct ctl_table *ctl, int write,
 			return -EINVAL;
 		if ((!handle) || (id >= handle->id_cnt))
 			return -ENOENT;
-		pt_internal_resize(&handle->pts[id], size_newid);
+		pt_resize_internal(&handle->pts[id], size_newid);
 		break;
 	case PT_FN_MUTATE:
 		if (retscanf < 4)
@@ -762,6 +868,7 @@ static int __init pt_init(void)
 	spin_lock_init(&pt_internal_data.sl);
 	INIT_LIST_HEAD(&pt_internal_data.handle_list);
 	INIT_LIST_HEAD(&pt_internal_data.driver_list);
+	INIT_LIST_HEAD(&pt_internal_data.resize_list);
 	sysctl_table = &pt_internal_data.sysctl_table[0];
 	sysctl_table[0].procname = "dev";
 	sysctl_table[0].mode = 0550;
@@ -787,6 +894,10 @@ static int __init pt_init(void)
 	pt_internal_data.sysctl_header = register_sysctl_table(sysctl_table);
 	if (IS_ERR(pt_internal_data.sysctl_header))
 		pt_internal_data.sysctl_header = NULL;
+	pt_internal_data.resize_thread = kthread_run(pt_resize_thread, NULL,
+							"PT_resize");
+	init_waitqueue_head(&pt_internal_data.resize_wq);
+	init_waitqueue_head(&pt_internal_data.resize_remove_wq);
 	return 0;
 }
 
