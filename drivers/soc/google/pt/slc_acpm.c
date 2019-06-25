@@ -30,6 +30,7 @@
 #define PT_MUTATE       0xd004
 #define PT_VERSION      0xd005
 #define PT_VERSION_KNOWN 0x1
+#define PT_VERSION_ASYNC 0x10008
 #define PT_VERSION_INVALID 0x0
 
 enum pt_property_index {
@@ -59,7 +60,7 @@ struct pt_ops slc_acpm_ops = {
 
 struct slc_acpm_driver_data {
 	struct {
-		u32 size_bits; /* Allowed size, exact definition known by FVP */
+		u32 size_bits; /* Allowed size definition known by FVP */
 		int pbha;
 		int vptid;
 		void *data;
@@ -69,9 +70,21 @@ struct slc_acpm_driver_data {
 	struct platform_device *pdev;
 	bool inited; /* allow delaying init to first pt call */
 	int version; /* ACPM FVP version */
+
+	/* Synchronous command */
 	unsigned int id; /* ACPM FVP_PT channel id */
-	unsigned int size; /* ACPM VPT_PT channel queue sizes */
+	unsigned int size; /* ACPM FVP_PT channel queue sizes */
+	struct mutex mt; /* ACPM FVP_PT serialize access */
+
+	/* Asynchronous notification from ACPM */
+	unsigned int async_id; /* ACPM FVP_PT_ASYNC channel id */
+	unsigned int async_size; /* ACPM VPT_PT_ASYNC channel queue sizes */
 };
+
+/*
+ * Needed because acpm_ipc_callback doesn't give anything to find data.
+ */
+static struct slc_acpm_driver_data *slc_acpm_driver_data;
 
 /*
  * Internal helper functions
@@ -110,13 +123,17 @@ static int slc_acpm(struct slc_acpm_driver_data *driver_data,
 	config.cmd[2] = command;
 	config.cmd[3] = arg1;
 
+	mutex_lock(&driver_data->mt);
 	ret = acpm_ipc_send_data(driver_data->id, &config);
+	mutex_unlock(&driver_data->mt);
 	if (ret == 0)
 		ret = config.cmd[1];
 	trace_pt_driver_log(driver_data->pdev->dev.of_node->name, __func__,
 			command, arg, arg1, 0, ret);
 	return ret;
 }
+
+static void slc_acpm_ipc_callback(unsigned int *cmd, unsigned int size);
 
 /*
  * Get communication channel with APM and check if the ACPM version is good
@@ -130,6 +147,8 @@ static bool slc_version_check(struct slc_acpm_driver_data *driver_data)
 	 * PT_VERSION_KNOWN is the MAJOR expected to follow the protocol
 	 * of this driver.
 	 */
+	struct device_node *sub_node;
+
 	if ((driver_data->inited)
 		&& ((driver_data->version >> 16) == PT_VERSION_KNOWN))
 		return true;
@@ -158,6 +177,23 @@ static bool slc_version_check(struct slc_acpm_driver_data *driver_data)
 		"found valid acpm firmware %d.%d.\n",
 		driver_data->version >> 16,
 		driver_data->version & 0xffff);
+
+	sub_node = of_find_node_by_name(driver_data->pdev->dev.of_node,
+					"async");
+	if (IS_ERR(sub_node) || (driver_data->version < PT_VERSION_ASYNC)) {
+		dev_err(&driver_data->pdev->dev, "No asynchronous node");
+		return true;
+	}
+
+	slc_acpm_driver_data = driver_data;
+	if (acpm_ipc_request_channel(sub_node, slc_acpm_ipc_callback,
+					&driver_data->async_id,
+					&driver_data->async_size) < 0) {
+		dev_err(&driver_data->pdev->dev, "No asynchronous channel");
+		return true;
+	}
+	dev_info(&driver_data->pdev->dev,
+			"Asynchronous notification enabled");
 	return true;
 }
 
@@ -194,6 +230,21 @@ static void slc_acpm_apply(struct slc_acpm_driver_data *driver_data,
 	arg1 = zero_size ? 1 : driver_data->ptids[ptid].size_bits;
 	ret = slc_acpm(driver_data, PT_MUTATE, arg, arg1);
 }
+
+
+static void slc_acpm_ipc_callback(unsigned int *cmd, unsigned int size)
+{
+	struct slc_acpm_driver_data *driver_data = slc_acpm_driver_data;
+
+	trace_pt_driver_log(driver_data->pdev->dev.of_node->name,
+				__func__, 0, 0, 0, 0, 0);
+	/*
+	 * This callback happen in acpm thread context,
+	 * it is ok to wait
+	 */
+	slc_acpm_check(driver_data);
+}
+
 
 /*
  * External functions
@@ -346,6 +397,7 @@ static int slc_acpm_probe(struct platform_device *pdev)
 	memset(driver_data, 0, sizeof(struct slc_acpm_driver_data));
 	platform_set_drvdata(pdev, driver_data);
 	driver_data->pdev = pdev;
+	mutex_init(&driver_data->mt);
 	driver_data->driver = pt_driver_register(pdev->dev.of_node,
 			&slc_acpm_ops, driver_data);
 	WARN_ON(driver_data->driver == NULL);
