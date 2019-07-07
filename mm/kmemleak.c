@@ -426,9 +426,12 @@ static struct kmemleak_object *mem_pool_alloc(gfp_t gfp)
 
 	/* try the slab allocator first */
 	if (object_cache) {
-		object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
-		if (object)
-			return object;
+		while (1) {
+			object = kmem_cache_alloc(object_cache,
+						  gfp_kmemleak_mask(gfp));
+			if (object)
+				return object;
+		}
 	}
 
 	/* slab allocation failed, try the memory pool */
