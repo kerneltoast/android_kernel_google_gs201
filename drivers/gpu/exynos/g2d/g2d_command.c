@@ -1009,7 +1009,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 	cmdaddr += task->sec.cmd_count;
 
 	if (copy_from_user(tgtcmds, cmds->target, sizeof(tgtcmds))) {
-		perrfndev(g2d_dev, "Failed to get src[%d] commands", i);
+		perrfndev(g2d_dev, "Failed to get target commands");
 		return -EFAULT;
 	}
 	copied = g2d_copy_commands(g2d_dev, -1, cmdaddr, tgtcmds,
