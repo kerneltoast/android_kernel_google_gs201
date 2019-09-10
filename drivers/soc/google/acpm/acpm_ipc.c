@@ -216,10 +216,10 @@ int acpm_ipc_set_ch_mode(struct device_node *np, bool polling)
 
 	for (i = 0; i < acpm_ipc->num_channels; i++) {
 		if (acpm_ipc->channel[i].id == req_ch_id) {
-			reg = __raw_readl(acpm_ipc->intr + INTMR1);
+			reg = __raw_readl(acpm_ipc->intr + AP_INTMR);
 			reg &= ~(1 << acpm_ipc->channel[i].id);
 			reg |= polling << acpm_ipc->channel[i].id;
-			__raw_writel(reg, acpm_ipc->intr + INTMR1);
+			__raw_writel(reg, acpm_ipc->intr + AP_INTMR);
 
 			acpm_ipc->channel[i].polling = polling;
 
@@ -296,6 +296,15 @@ unsigned int acpm_ipc_release_channel(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_release_channel);
 
+static void apm_interrupt_gen(unsigned int id)
+{
+	/* APM NVIC INTERRUPT GENERATE */
+	if (IS_ENABLED(CONFIG_ACPM_MAILBOX_V2))
+		writel((1 << id), acpm_ipc->intr + APM_INTGR);
+	else
+		writel((1 << id) << 16, acpm_ipc->intr + APM_INTGR);
+}
+
 static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 {
 	unsigned int front;
@@ -356,12 +365,10 @@ static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 		front = __raw_readl(channel->rx_ch.front);
 
 		if (rear == front) {
-			__raw_writel((1 << channel->id),
-				     acpm_ipc->intr + INTCR1);
-			if (rear != __raw_readl(channel->rx_ch.front)) {
-				__raw_writel((1 << channel->id),
-					     acpm_ipc->intr + INTGR1);
-			}
+			__raw_writel(1 << channel->id,
+				     acpm_ipc->intr + AP_INTCR);
+			if (rear != __raw_readl(channel->rx_ch.front))
+				apm_interrupt_gen(channel->id);
 		}
 		ret = false;
 		break;
@@ -427,12 +434,12 @@ static irqreturn_t acpm_ipc_irq_handler(int irq, void *data)
 	int i;
 
 	/* ACPM IPC INTERRUPT STATUS REGISTER */
-	status = __raw_readl(acpm_ipc->intr + INTSR1);
+	status = __raw_readl(acpm_ipc->intr + AP_INTSR);
 
 	for (i = 0; i < acpm_ipc->num_channels; i++) {
 		if (!ipc->channel[i].polling && (status & (0x1 << ipc->channel[i].id))) {
 			/* ACPM IPC INTERRUPT PENDING CLEAR */
-			__raw_writel(1 << ipc->channel[i].id, ipc->intr + INTCR1);
+			__raw_writel(1 << ipc->channel[i].id, ipc->intr + AP_INTCR);
 		}
 	}
 
@@ -451,12 +458,6 @@ static irqreturn_t acpm_ipc_irq_handler_thread(int irq, void *data)
 			dequeue_policy(&ipc->channel[i]);
 
 	return IRQ_HANDLED;
-}
-
-static void apm_interrupt_gen(unsigned int id)
-{
-	/* APM NVIC INTERRUPT GENERATE */
-	writel((1 << id) << 16, acpm_ipc->intr + INTGR0);
 }
 
 static int enqueue_indirection_cmd(struct acpm_ipc_ch *channel,
@@ -605,7 +606,7 @@ retry:
 		timeout = sched_clock() + IPC_TIMEOUT;
 		timeout_flag = false;
 
-		while (!(__raw_readl(acpm_ipc->intr + INTSR1) & (1 << channel->id)) ||
+		while (!(__raw_readl(acpm_ipc->intr + AP_INTSR) & (1 << channel->id)) ||
 		       check_response(channel, cfg)) {
 			now = sched_clock();
 			if (timeout < now) {
@@ -635,7 +636,7 @@ retry:
 			pr_err("%s Timeout error! now = %llu, timeout = %llu\n",
 			       __func__, now, timeout);
 			pr_err("[ACPM] int_status:0x%x, ch_id: 0x%x\n",
-			       __raw_readl(acpm_ipc->intr + INTSR1),
+			       __raw_readl(acpm_ipc->intr + AP_INTSR),
 			       1 << channel->id);
 			pr_err("[ACPM] queue, rx_rear:%u, rx_front:%u\n",
 			       __raw_readl(channel->rx_ch.rear),
@@ -787,7 +788,7 @@ static int channel_init(void)
 		INIT_LIST_HEAD(&acpm_ipc->channel[i].list);
 	}
 
-	__raw_writel(mask, acpm_ipc->intr + INTMR1);
+	__raw_writel(mask, acpm_ipc->intr + AP_INTMR);
 
 	return 0;
 }

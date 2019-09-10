@@ -23,4 +23,12 @@ config ACPM_FLEXPMU_DBG
 	help
 	Support FLEXPMU for GS SoC
 
+config ACPM_MAILBOX_V2
+	bool "ACPM_MAILBOX_V2 support"
+	default y
+	depends on SOC_GS101
+	help
+	  Enable ACPM MAILBOX_V2 support
+
+
 endif

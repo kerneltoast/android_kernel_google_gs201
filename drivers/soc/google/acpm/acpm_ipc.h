@@ -81,6 +81,21 @@ struct acpm_debug_info {
 #define LOG_LEVEL				(19)
 #define BUSY_WAIT				(0)
 #define SLEEP_WAIT				(1)
+#ifdef CONFIG_ACPM_MAILBOX_V2
+#define INTGR0					0x0020
+#define INTCR0					0x0024
+#define INTMR0					0x0028
+#define INTSR0					0x002c
+#define INTMSR0					0x0030
+#define INTGR1					0x0040
+#define INTMR1					0x0048
+#define INTSR1					0x004c
+#define INTMSR1					0x0050
+#define	APM_INTGR				(INTGR1)
+#define AP_INTMR				(INTMR0)
+#define AP_INTCR				(INTCR0)
+#define AP_INTSR				(INTSR0)
+#else
 #define INTGR0					0x0008
 #define INTCR0					0x000C
 #define INTMR0					0x0010
@@ -91,6 +106,11 @@ struct acpm_debug_info {
 #define INTMR1					0x0024
 #define INTSR1					0x0028
 #define INTMSR1					0x002C
+#define	APM_INTGR				(INTGR0)
+#define AP_INTMR				(INTMR1)
+#define AP_INTCR				(INTCR1)
+#define AP_INTSR				(INTSR1)
+#endif
 #define SR0					0x0080
 #define SR1					0x0084
 #define SR2					0x0088
