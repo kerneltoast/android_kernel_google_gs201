@@ -42,7 +42,7 @@
 
 struct decon_device *decon_drvdata[MAX_DECON_CNT];
 
-static int decon_log_level = 7;
+static int decon_log_level = 6;
 
 #define decon_info(decon, fmt, ...)					   \
 	do {								   \

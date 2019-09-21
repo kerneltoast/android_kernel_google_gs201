@@ -275,7 +275,7 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *new_crtc_state;
 	int ret = 0;
 
-	DRM_INFO("%s +\n", __func__);
+	DRM_DEBUG("%s +\n", __func__);
 
 	if (!state->crtc || !state->fb)
 		return 0;
@@ -311,7 +311,7 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	DRM_INFO("%s -\n", __func__);
+	DRM_DEBUG("%s -\n", __func__);
 
 	return ret;
 }

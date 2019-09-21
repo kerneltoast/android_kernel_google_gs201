@@ -44,7 +44,7 @@
 #define ROTATION_FACTOR_SCDN	1434UL	/* 1.4x */
 #define RESOL_QHDP_21_TO_9	(3440 * 1440UL) /* for MIF min-lock */
 
-int dpu_bts_log_level = 7;
+int dpu_bts_log_level = 6;
 
 #define DPU_DEBUG_BTS(fmt, args...)					\
 	do {								\

@@ -29,7 +29,7 @@
 #include "exynos_drm_decon.h"
 #include "cal_9820/regs-dpp.h"
 
-static int dpp_log_level = 7;
+static int dpp_log_level = 6;
 
 #define dpp_info(dpp, fmt, ...)						\
 	do {								\

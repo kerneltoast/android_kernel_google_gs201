@@ -144,7 +144,7 @@ int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
 		return PTR_ERR(obj->dmabuf);
 	}
 
-	DRM_INFO("%s:%d, dma_buf->size(%d)\n", __func__, __LINE__,
+	DRM_DEBUG("%s:%d, dma_buf->size(%lu)\n", __func__, __LINE__,
 			obj->dmabuf->size);
 
 	obj->attachment = dma_buf_attach(obj->dmabuf, dsim->dev);
@@ -169,7 +169,7 @@ int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
 		return -EINVAL;
 	}
 
-	DRM_INFO("%s:%d, handle(%d), DVA(0x%llx)\n", __func__, __LINE__,
+	DRM_DEBUG("%s:%d, handle(%d), DVA(0x%llx)\n", __func__, __LINE__,
 			handle, obj->dma_addr);
 
 	return 0;
@@ -191,7 +191,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	int i;
 	int ret;
 
-	DRM_INFO("%s +\n", __func__);
+	DRM_DEBUG("%s +\n", __func__);
 
 	for (i = 0; i < MAX_FB_BUFFER; i++)
 		exynos_buf[i] = NULL;
@@ -222,9 +222,9 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			return ERR_PTR(ret);
 	}
 
-	DRM_INFO("width(%d), height(%d), pitches(%d)\n", mode_cmd->width,
+	DRM_DEBUG("width(%d), height(%d), pitches(%d)\n", mode_cmd->width,
 			mode_cmd->height, mode_cmd->pitches[0]);
-	DRM_INFO("offset(%d), handle(%d), size(%lu)\n", mode_cmd->offsets[0],
+	DRM_DEBUG("offset(%d), handle(%d), size(%lu)\n", mode_cmd->offsets[0],
 			mode_cmd->handles[0], size);
 
 	fb = exynos_drm_framebuffer_init(dev, mode_cmd, exynos_buf, i);
@@ -241,7 +241,7 @@ dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
 	if (WARN_ON_ONCE(index >= MAX_FB_BUFFER))
 		return 0;
 
-	DRM_INFO("%s:%d, dma_addr[%d] = 0x%llx\n", __func__, __LINE__,
+	DRM_DEBUG("%s:%d, dma_addr[%d] = 0x%llx\n", __func__, __LINE__,
 			index, exynos_fb->dma_addr[index]);
 	return exynos_fb->dma_addr[index];
 }
@@ -288,18 +288,18 @@ void plane_state_to_win_config(struct decon_device *decon,
 
 	memcpy(&decon->dpp[plane_idx]->fb, exynos_fb, sizeof(*exynos_fb));
 
-	DRM_INFO("src[%d %d %d %d], dst[%d %d %d %d]\n",
+	DRM_DEBUG("src[%d %d %d %d], dst[%d %d %d %d]\n",
 			win_config->src_x, win_config->src_y,
 			win_config->src_w, win_config->src_h,
 			win_config->dst_x, win_config->dst_y,
 			win_config->dst_w, win_config->dst_h);
-	DRM_INFO("rot[%d] afbc[%d] format[%d] ch[%d] zpos[%d], comp_src[%d]\n",
+	DRM_DEBUG("rot[%d] afbc[%d] format[%d] ch[%d] zpos[%d] comp_src[%d]\n",
 			win_config->is_rot, win_config->is_afbc,
 			win_config->format, win_config->dpp_ch, zpos,
 			win_config->comp_src);
-	DRM_INFO("alpha[%d] blend mode[%d]\n",
+	DRM_DEBUG("alpha[%d] blend mode[%d]\n",
 			state->alpha, state->blend_mode);
-	DRM_INFO("simplified rot[0x%x]\n", simplified_rot);
+	DRM_DEBUG("simplified rot[0x%x]\n", simplified_rot);
 }
 
 static void display_mode_to_bts_info(struct drm_display_mode *mode,
@@ -336,14 +336,14 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
 			new_crtc_state, i) {
-		DRM_INFO("[CRTC:%d:%s] old en:%d active:%d change[%d %d %d]\n",
+		DRM_DEBUG("[CRTC:%d:%s] old en:%d active:%d change[%d %d %d]\n",
 				crtc->base.id, crtc->name,
 				old_crtc_state->enable, old_crtc_state->active,
 				old_crtc_state->planes_changed,
 				old_crtc_state->mode_changed,
 				old_crtc_state->active_changed);
 
-		DRM_INFO("[CRTC:%d:%s] new en:%d active:%d change[%d %d %d]\n",
+		DRM_DEBUG("[CRTC:%d:%s] new en:%d active:%d change[%d %d %d]\n",
 				crtc->base.id, crtc->name,
 				new_crtc_state->enable, new_crtc_state->active,
 				new_crtc_state->planes_changed,

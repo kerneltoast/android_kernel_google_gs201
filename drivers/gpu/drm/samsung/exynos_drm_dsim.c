@@ -48,7 +48,7 @@
 
 struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 
-int dsim_log_level = 7;
+int dsim_log_level = 6;
 
 #define dsim_info(dsim, fmt, ...)					  \
 	do {								  \
