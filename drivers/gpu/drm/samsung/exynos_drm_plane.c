@@ -328,8 +328,6 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 	if (!state->crtc)
 		return;
 
-	plane->crtc = state->crtc;
-
 	/*
 	 * If requested zpos(window) and previously connected window(zpos) are
 	 * NOT same for the plane, previous connected window should be disabled.
@@ -351,11 +349,12 @@ static void exynos_plane_atomic_disable(struct drm_plane *plane,
 					struct drm_plane_state *old_state)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(plane->crtc);
+	struct exynos_drm_crtc *exynos_crtc =
+				to_exynos_crtc(plane->state->crtc);
 	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
 	struct decon_device *decon;
 
-	if (!plane->crtc)
+	if (!plane->state->crtc)
 		return;
 
 	decon = exynos_crtc->ctx;
