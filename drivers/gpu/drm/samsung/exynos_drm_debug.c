@@ -197,7 +197,7 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 	int i;
 	struct dpu_bts_win_config *win;
 	char *str_state[3] = {"DISABLED", "COLOR", "BUFFER"};
-	char *str_comp[3] = {"", "G2D", "GPU"};
+	const char *str_comp;
 	const struct dpu_fmt *fmt;
 
 	for (i = 0; i < MAX_WIN_PER_DECON; ++i) {
@@ -217,7 +217,9 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 				win->dst_x, win->dst_y, win->dst_w, win->dst_h);
 		if (win->state == DPU_WIN_STATE_BUFFER)
 			seq_printf(s, "CH%d ", win->dpp_ch);
-		seq_printf(s, "%s %s\n", fmt->name, str_comp[win->comp_src]);
+
+		str_comp = get_comp_src_name(win->comp_src);
+		seq_printf(s, "%s %s\n", fmt->name, str_comp);
 	}
 }
 
@@ -251,7 +253,7 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 	int latest = idx;
 	struct timeval tv;
 	ktime_t prev_ktime;
-	char *str_comp[3] = {"NONE", "G2D", "GPU"};
+	const char *str_comp;
 
 	if (IS_ERR_OR_NULL(decon->d.event_log))
 		return;
@@ -320,9 +322,9 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 			break;
 		case DPU_EVT_DMA_RECOVERY:
 			seq_printf(s, "%20s  ", "DMA_RECOVERY");
+			str_comp = get_comp_src_name(log->data.dpp.comp_src);
 			seq_printf(s, "\tID:%d SRC:%s COUNT:%d\n",
-					log->data.dpp.id,
-					str_comp[log->data.dpp.comp_src],
+					log->data.dpp.id, str_comp,
 					log->data.dpp.recovery_cnt);
 			break;
 		case DPU_EVT_ATOMIC_COMMIT:

@@ -277,7 +277,11 @@ void plane_state_to_win_config(struct decon_device *decon,
 
 	win_config->format = fb->format->format;
 	win_config->dpp_ch = plane_idx;
-	win_config->comp_src = state->comp_src;
+
+	win_config->comp_src = 0;
+	if (win_config->is_afbc)
+		win_config->comp_src =
+			(fb->modifier & AFBC_FORMAT_MOD_SOURCE_MASK);
 
 	simplified_rot = drm_rotation_simplify(state->base.rotation,
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
@@ -293,7 +297,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 			win_config->src_w, win_config->src_h,
 			win_config->dst_x, win_config->dst_y,
 			win_config->dst_w, win_config->dst_h);
-	DRM_DEBUG("rot[%d] afbc[%d] format[%d] ch[%d] zpos[%d] comp_src[%d]\n",
+	DRM_DEBUG("rot[%d] afbc[%d] format[%d] ch[%d] zpos[%d] comp_src[%lu]\n",
 			win_config->is_rot, win_config->is_afbc,
 			win_config->format, win_config->dpp_ch, zpos,
 			win_config->comp_src);

@@ -107,7 +107,7 @@ struct dpp_device {
 	 * But comp_src in dpp_device structure is the information of the buffer
 	 * already applied to the HW.
 	 */
-	u16 comp_src;
+	u64 comp_src;
 	u32 recovery_cnt;
 
 	struct dpp_restriction restriction;
@@ -133,4 +133,13 @@ static struct dpp_device *of_find_dpp_by_node(struct device_node *np)
 
 void dpp_dump(struct dpp_device *dpp);
 
+static __always_inline const char *get_comp_src_name(u64 comp_src)
+{
+	if (comp_src == AFBC_FORMAT_MOD_SOURCE_GPU)
+		return "GPU";
+	else if (comp_src == AFBC_FORMAT_MOD_SOURCE_G2D)
+		return "G2D";
+	else
+		return "";
+}
 #endif

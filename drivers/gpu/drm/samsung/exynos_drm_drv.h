@@ -90,7 +90,6 @@ struct exynos_drm_plane_state {
 	u8 alpha;
 	uint16_t blend_mode;
 	u32 color;
-	uint16_t comp_src;
 	uint32_t blob_id_restriction;
 	uint32_t dataspace;
 	uint32_t max_luminance;
@@ -122,7 +121,6 @@ struct exynos_drm_plane {
 		struct drm_property *alpha;
 		struct drm_property *blend_mode;
 		struct drm_property *color;
-		struct drm_property *comp_src;
 		struct drm_property *restriction;
 		struct drm_property *dataspace;
 		struct drm_property *max_luminance;
