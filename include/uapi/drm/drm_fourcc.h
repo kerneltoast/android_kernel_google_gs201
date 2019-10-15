@@ -1097,6 +1097,11 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  */
 #define AMLOGIC_FBC_OPTION_MEM_SAVING		(1ULL << 0)
 
+/* from 52 to 55 bit are reserved for AFBC encoder source informaton */
+#define AFBC_FORMAT_MOD_SOURCE_MASK	(0xfULL << 52)
+#define AFBC_FORMAT_MOD_SOURCE_GPU	(1ULL << 52)
+#define AFBC_FORMAT_MOD_SOURCE_G2D	(2ULL << 52)
+
 #if defined(__cplusplus)
 }
 #endif
