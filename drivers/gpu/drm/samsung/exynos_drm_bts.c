@@ -10,8 +10,8 @@
  * published by the Free Software Foundation.
  */
 
-#include "exynos_drm_decon.h"
-#include "exynos_drm_format.h"
+#include <exynos_drm_decon.h>
+#include <exynos_drm_format.h>
 
 #include <soc/samsung/bts.h>
 #if defined(CONFIG_CAL_IF)

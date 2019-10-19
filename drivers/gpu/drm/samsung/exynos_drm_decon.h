@@ -25,12 +25,12 @@
 #include <drm/drm_device.h>
 #include <video/videomode.h>
 
-#include "exynos_drm_dpp.h"
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_dsim.h"
+#include <exynos_drm_dpp.h>
+#include <exynos_drm_drv.h>
+#include <exynos_drm_fb.h>
+#include <exynos_drm_dsim.h>
 
-#include "cal_9820/decon_cal.h"
+#include <decon_cal.h>
 
 enum decon_state {
 	DECON_STATE_INIT = 0,

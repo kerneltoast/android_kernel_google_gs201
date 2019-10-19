@@ -21,7 +21,7 @@
 #include <drm/drm_property.h>
 #include <video/videomode.h>
 
-#include "cal_9820/dsim_cal.h"
+#include <dsim_cal.h>
 
 enum dsim_state {
 	DSIM_STATE_HSCLKEN,

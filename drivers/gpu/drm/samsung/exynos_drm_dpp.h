@@ -14,9 +14,10 @@
 #ifndef _EXYNOS_DRM_DPP_H_
 #define _EXYNOS_DRM_DPP_H_
 
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "cal_9820/dpp_cal.h"
+#include <exynos_drm_drv.h>
+#include <exynos_drm_fb.h>
+
+#include <dpp_cal.h>
 
 enum EXYNOS9_DPP_FEATURES {
 	/* Can reads the graphical image */

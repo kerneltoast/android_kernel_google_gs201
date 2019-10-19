@@ -24,13 +24,13 @@
 #include <linux/dma-buf.h>
 #include <linux/ion_exynos.h>
 
-#include "exynos_drm_decon.h"
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_fbdev.h"
-#include "exynos_drm_crtc.h"
-#include "exynos_drm_dsim.h"
-#include "exynos_drm_format.h"
+#include <exynos_drm_decon.h>
+#include <exynos_drm_drv.h>
+#include <exynos_drm_fb.h>
+#include <exynos_drm_fbdev.h>
+#include <exynos_drm_crtc.h>
+#include <exynos_drm_dsim.h>
+#include <exynos_drm_format.h>
 
 #define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
 

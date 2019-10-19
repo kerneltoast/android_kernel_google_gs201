@@ -14,8 +14,9 @@
 #include <linux/debugfs.h>
 #include <video/mipi_display.h>
 #include <drm/drmP.h>
-#include "exynos_drm_decon.h"
-#include "exynos_drm_dsim.h"
+
+#include <exynos_drm_decon.h>
+#include <exynos_drm_dsim.h>
 
 /* If event are happened continuously, then ignore */
 static bool dpu_event_ignore

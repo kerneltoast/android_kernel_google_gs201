@@ -1,6 +1,6 @@
 config DRM_SAMSUNG
 	tristate "DRM Support for Samsung EXYNOS Series"
-	depends on OF && DRM && (SOC_EXYNOS9820 || ARCH_EXYNOS9) && ION
+	depends on OF && DRM && (SOC_EXYNOS9820 || SOC_GS101) && ION
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
 	help

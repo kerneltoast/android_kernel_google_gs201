@@ -22,12 +22,13 @@
 #include <linux/ion_exynos.h>
 #include <linux/dma-buf.h>
 
-#include "exynos_drm_fb.h"
-#include "exynos_drm_dpp.h"
-#include "exynos_drm_dsim.h"
-#include "exynos_drm_format.h"
-#include "exynos_drm_decon.h"
-#include "cal_9820/regs-dpp.h"
+#include <exynos_drm_fb.h>
+#include <exynos_drm_dpp.h>
+#include <exynos_drm_dsim.h>
+#include <exynos_drm_format.h>
+#include <exynos_drm_decon.h>
+
+#include <regs-dpp.h>
 
 static int dpp_log_level = 6;
 

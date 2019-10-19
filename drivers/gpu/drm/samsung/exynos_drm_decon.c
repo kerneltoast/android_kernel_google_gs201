@@ -29,16 +29,16 @@
 
 #include <video/videomode.h>
 
-#include "exynos_drm_crtc.h"
-#include "exynos_drm_plane.h"
-#include "exynos_drm_dpp.h"
-#include "exynos_drm_dsim.h"
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_decon.h"
+#include <exynos_drm_crtc.h>
+#include <exynos_drm_plane.h>
+#include <exynos_drm_dpp.h>
+#include <exynos_drm_dsim.h>
+#include <exynos_drm_drv.h>
+#include <exynos_drm_fb.h>
+#include <exynos_drm_decon.h>
 
-#include "cal_9820/decon_cal.h"
-#include "cal_9820/regs-decon.h"
+#include <decon_cal.h>
+#include <regs-decon.h>
 
 struct decon_device *decon_drvdata[MAX_DECON_CNT];
 

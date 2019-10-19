@@ -10,11 +10,12 @@
  * published by the Free Software Foundation.
  */
 
-#include "cal_9820/regs-dpp.h"
-#include "cal_9820/dpp_cal.h"
-#include "exynos_drm_format.h"
 #include <drm/drmP.h>
 #include <uapi/drm/drm_fourcc.h>
+
+#include <exynos_drm_format.h>
+#include <regs-dpp.h>
+#include <dpp_cal.h>
 
 static const struct dpu_fmt dpu_formats_list[] = {
 	{

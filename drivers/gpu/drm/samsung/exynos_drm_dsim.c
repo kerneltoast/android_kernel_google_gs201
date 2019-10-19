@@ -38,11 +38,11 @@
 #include <soc/samsung/exynos-cpupm.h>
 #endif
 
-#include "exynos_drm_crtc.h"
-#include "exynos_drm_dsim.h"
-#include "exynos_drm_decon.h"
+#include <exynos_drm_crtc.h>
+#include <exynos_drm_dsim.h>
+#include <exynos_drm_decon.h>
 
-#include "cal_9820/regs-dsim.h"
+#include <regs-dsim.h>
 
 #include "../panel/panel-samsung-s6e3ha9.h"
 
