@@ -710,7 +710,7 @@ static int dpp_init_resources(struct dpp_device *dpp)
 	struct resource *res;
 	struct device *dev = dpp->dev;
 	struct platform_device *pdev;
-	int ret;
+	int ret = 0;
 
 	pdev = container_of(dev, struct platform_device, dev);
 
@@ -729,27 +729,6 @@ static int dpp_init_resources(struct dpp_device *dpp)
 	dpp_info(dpp, "dma res: start(0x%x), end(0x%x), vir(0x%llx)\n",
 			(u32)res->start, (u32)res->end,
 			(u64)dpp->regs.dma_base_regs);
-
-	/* DPP0 channel can only access common area of DPU_DMA */
-	if (dpp->id == 0) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-		if (!res) {
-			dpp_err(dpp, "failed to get mem resource\n");
-			return -ENOENT;
-		}
-
-		dpp->regs.dma_common_base_regs = devm_ioremap_resource(dev,
-				res);
-		if (!dpp->regs.dma_common_base_regs) {
-			dpp_err(dpp, "failed to map DPU_DMA COMMON SFR\n");
-			return -EINVAL;
-		}
-		dpp_regs_desc_init(dpp->regs.dma_common_base_regs, "dma_common",
-				REGS_DMA_COMMON, dpp->id);
-		dpp_info(dpp, "dma common res start:0x%x end:0x%x vir:0x%llx\n",
-				(u32)res->start, (u32)res->end,
-				(u64)dpp->regs.dma_common_base_regs);
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -805,7 +784,9 @@ static int dpp_init_resources(struct dpp_device *dpp)
 		disable_irq(dpp->dpp_irq);
 	}
 
-	return 0;
+	ret = __dpp_init_resources(dpp);
+
+	return ret;
 }
 
 static int dpp_probe(struct platform_device *pdev)
