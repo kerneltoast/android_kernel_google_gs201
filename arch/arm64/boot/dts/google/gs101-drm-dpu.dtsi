@@ -1,0 +1,199 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SAMSUNG GS101 SoC device tree source
+ *
+ * Copyright (c) 2019 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * SAMSUNG GS101 SoC device nodes are listed in this file.
+ * EXYNOS based board files can include this file and provide
+ * values for board specific bindings.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/gs101_ml3_dev06.h>
+#include <dt-bindings/display/exynos-display.h>
+#include "gs101-pinctrl.dtsi"
+#include "gs101-sysmmu.dtsi"
+#include "gs101-display-timing.dtsi"
+
+/ {
+	drmdpp0: drmdpp@0x1C0B0000 {	/* L0 */
+		compatible = "samsung,exynos-dpp";
+		reg = <0x0 0x1C0B0000 0x1000>,	/* DPU_DMA */
+		      <0x0 0x1C0D0000 0x1000>;	/* DPP */
+
+		/* DPU_DMA IRQ, DPP IRQ */
+		interrupts = <GIC_SPI INTREQ__DPU_DMA_L0_DPU IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DPU_DPP_L0_DPU IRQ_TYPE_LEVEL_HIGH>;
+
+		/* Each bit indicates DPP attribute */
+		/* 0:AFBC 1:BLOCK 2:FLIP 3:ROT 4:CSC 5:SCALE 6:HDR 7:HDR10 */
+		/* 16:IDMA 17:ODMA 18:DPP */
+		attr = <0x50047>;
+		port = <0>; /* AXI port number */
+
+		/* 1: scale X, 2: 1/2x scale down, 4: 1/4x scale down */
+		scale_down = <1>;
+		/* 1: scale X, 2: 2x scale up, 4: 4x scale up */
+		scale_up = <1>;
+
+		dpp,id = <0>;
+	};
+
+	drmdpp1: drmdpp@0x1C0B1000 {	/* L1 */
+		compatible = "samsung,exynos-dpp";
+		reg = <0x0 0x1C0B1000 0x1000>, <0x0 0x1C0D1000 0x1000>;
+
+		interrupts = <GIC_SPI INTREQ__DPU_DMA_L1_DPU IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DPU_DPP_L1_DPU IRQ_TYPE_LEVEL_HIGH>;
+
+		attr = <0x50C7F>;
+		port = <0>;
+		scale_down = <2>;
+		scale_up = <8>;
+
+		dpp,id = <1>;
+		dpp,video;
+	};
+
+	drmdpp2: drmdpp@0x1C0B2000 {	/* L2 */
+		compatible = "samsung,exynos-dpp";
+		reg = <0x0 0x1C0B2000 0x1000>, <0x0 0x1C0D2000 0x1000>;
+
+		interrupts = <GIC_SPI INTREQ__DPU_DMA_L2_DPU IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DPU_DPP_L2_DPU IRQ_TYPE_LEVEL_HIGH>;
+
+		attr = <0x50047>;
+		port = <1>;
+		scale_down = <1>;
+		scale_up = <1>;
+
+		dpp,id = <2>;
+	};
+
+	drmdpp3: drmdpp@0x1C0B3000 {	/* L3 */
+		compatible = "samsung,exynos-dpp";
+		reg = <0x0 0x1C0B3000 0x1000>, <0x0 0x1C0D3000 0x1000>;
+
+		interrupts = <GIC_SPI INTREQ__DPU_DMA_L3_DPU IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DPU_DPP_L3_DPU IRQ_TYPE_LEVEL_HIGH>;
+
+		attr = <0x50C7F>;
+		port = <1>;
+		scale_down = <2>;
+		scale_up = <8>;
+
+		dpp,id = <3>;
+		dpp,video;
+	};
+
+	drmdpp4: drmdpp@0x1C0B4000 {	/* L4 */
+		compatible = "samsung,exynos-dpp";
+		reg = <0x0 0x1C0B4000 0x1000>, <0x0 0x1C0D4000 0x1000>;
+
+		interrupts = <GIC_SPI INTREQ__DPU_DMA_L4_DPU IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DPU_DPP_L4_DPU IRQ_TYPE_LEVEL_HIGH>;
+
+		attr = <0x50047>;
+		port = <2>;
+		scale_down = <1>;
+		scale_up = <1>;
+
+		dpp,id = <4>;
+	};
+
+	drmdpp5: drmdpp@0x1C0B5000 {	/* L5 */
+		compatible = "samsung,exynos-dpp";
+		reg = <0x0 0x1C0B5000 0x1000>, <0x0 0x1C0D5000 0x1000>;
+
+		interrupts = <GIC_SPI INTREQ__DPU_DMA_L5_DPU IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DPU_DPP_L5_DPU IRQ_TYPE_LEVEL_HIGH>;
+
+		attr = <0x50C7F>;
+		port = <2>;
+		scale_down = <2>;
+		scale_up = <8>;
+
+		dpp,id = <5>;
+		dpp,video;
+	};
+
+	disp_ss: disp_ss@0x1C221000 {
+		compatible = "samsung,exynos9-disp_ss";
+		reg = <0x0 0x1C221000 0x10>;
+	};
+
+	mipi_phy_dsim0_m4m4: dphy_m4s4_dsim0@0x1C2E0000 {
+		compatible = "samsung,mipi-phy-m4m4";
+		isolation = <0x3eb8>;
+		owner = <0>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	drmdsim0: drmdsim@0x1C2C0000 {
+		compatible = "samsung,exynos-dsim";
+		reg = <0x0 0x1C2C0000 0x300>,	/* DSI */
+		      <0x0 0x1C2E0100 0x700>,	/* M4M4S0 PHY */
+		      <0x0 0x1C2E0000 0x100>;	/* M4M4S0 PHY BIAS */
+
+		dsim,id = <0>;
+
+		interrupts = <GIC_SPI INTREQ__DISP_DSIM0_DISP IRQ_TYPE_LEVEL_HIGH>;
+		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
+
+		phys = <&mipi_phy_dsim0_m4m4 0>;
+		phy-names = "dsim_dphy";
+
+		dsim_mode = <&dsim_modes>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	drmdecon0: drmdecon@0x1C300000 {
+		compatible = "samsung,exynos-decon";
+		reg = <0x0 0x1C300000 0x6000>,	/* DECON_MAIN */
+		      <0x0 0x1C310000 0x6000>,	/* DECON_WIN */
+		      <0x0 0x1C320000 0x10000>,	/* DECON_SUB */
+		      <0x0 0x1C330000 0x6000>;	/* DECON0_WINCON */
+
+		decon,id = <0>;
+
+		interrupts = <GIC_SPI INTREQ__DISP_DECON0_FRAME_START_DISP IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DISP_DECON0_FRAME_DONE_DISP IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DISP_DECON0_EXTRA_DISP IRQ_TYPE_LEVEL_HIGH>;
+
+		/* pinctrl */
+		pinctrl-names = "hw_te_on", "hw_te_off";
+		pinctrl-0 = <&decon_f_te_on>;
+		pinctrl-1 = <&decon_f_te_off>;
+
+		max_win = <6>;
+		op_mode = <0>;	  /* 0: video mode, 1: command mode */
+		trig_mode = <0>;  /* 0: hw trigger, 1: sw trigger */
+		out_type = <0x1>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
+
+		/* BTS */
+		ppc = <2>;
+		line_mem_cnt = <4>;
+		cycle_per_line = <8>;   /* 4ppc */
+
+		decon_cnt = <3>;
+
+		/* EINT for TE */
+		gpios = <&gpp0 3 0xf>;
+
+		dpps = <&drmdpp0 &drmdpp1 &drmdpp2 &drmdpp3 &drmdpp4 &drmdpp5>;
+
+		/*
+		 * connector type that can be connected to the DECON. please
+		 * refer to enum exynos_drm_output_type in exynos_drm_drv.h
+		 */
+		connector = <0x1 0x2>;
+	};
+};

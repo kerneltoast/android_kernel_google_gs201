@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SAMSUNG EXYNOS SoC device tree source
+ *
+ * Copyright (c) 2019 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * SAMSUNG EXYNOS SoC device nodes are listed in this file.
+ * EXYNOS SoC based files can include this file and provide
+ * values for SoC specific bindings.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	dsim_modes: dsim_modes {
+		dsim-modes {
+			1440x3040 {
+				mode-name = "1440x3040";
+				/*
+				 * p m s k
+				 * mfr mrr sel_pf icp
+				 * afc_enb extafc feed_en fsel
+				 * fout_mask rsel
+				 */
+				pmsk = <
+					0x2 0x8A 0x2 0x2762
+					0xd 0x3 0x0 0x0
+					0x0 0x0 0x0 0x0
+					0x0 0x0
+					>;
+				hs-clk = <898>;
+				esc-clk = <20>;
+				cmd_underrun_cnt = <2877>;
+			};
+			1440x2960 {
+				mode-name = "1440x2960";
+				pmsk = <
+					0x2 0x8A 0x2 0x2762
+					0xd 0x3 0x0 0x0
+					0x0 0x0 0x0 0x0
+					0x0 0x0
+					>;
+				hs-clk = <898>;
+				esc-clk = <20>;
+				cmd_underrun_cnt = <3022>;
+			};
+			720x1280 {
+				mode-name = "720x1280";
+				pmsk = <
+					0x1 0x60 0x2 0x0 /* p m s k */
+					>;
+				hs-clk = <1026>;
+				esc-clk = <20>;
+				cmd_underrun_cnt = <1203>;
+			};
+		};
+	};
+};
