@@ -44,7 +44,7 @@
 
 #include <regs-dsim.h>
 
-#include "../panel/panel-samsung-s6e3ha9.h"
+#include <panel-samsung-drv.h>
 
 struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 
@@ -243,8 +243,8 @@ static int exynos_drm_connector_get_property(struct drm_connector *connector,
 				uint64_t *val)
 {
 	struct dsim_device *dsim = connector_to_dsi(connector);
-	struct s6e3ha9 *panel =
-			container_of(dsim->panel, struct s6e3ha9, panel);
+	struct exynos_panel *panel =
+			container_of(dsim->panel, struct exynos_panel, panel);
 
 	if (property == dsim->props.max_luminance)
 		*val = panel->desc->max_luminance;
