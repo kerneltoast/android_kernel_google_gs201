@@ -135,8 +135,7 @@ static void dsim_dump(struct dsim_device *dsim)
 static void dsim_enable(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
-	struct decon_device *decon =
-		(struct decon_device *)to_exynos_crtc(encoder->crtc)->ctx;
+	const struct decon_device *decon = dsim_get_decon(dsim);
 	int ret;
 
 	if (dsim->state == DSIM_STATE_HSCLKEN) {
@@ -174,15 +173,16 @@ static void dsim_enable(struct drm_encoder *encoder)
 	dsim_dump(dsim);
 #endif
 
-	DPU_EVENT_LOG(DPU_EVT_DSIM_ENABLED, decon->id, dsim);
+	if (decon)
+		DPU_EVENT_LOG(DPU_EVT_DSIM_ENABLED, decon->id, dsim);
+
 	dsim_dbg(dsim, "%s -\n", __func__);
 }
 
 static void dsim_disable(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
-	struct decon_device *decon =
-		(struct decon_device *)to_exynos_crtc(encoder->crtc)->ctx;
+	const struct decon_device *decon = dsim_get_decon(dsim);
 	int ret;
 
 	if (dsim->state == DSIM_STATE_SUSPEND) {
@@ -221,7 +221,9 @@ static void dsim_disable(struct drm_encoder *encoder)
 	exynos_update_ip_idle_status(dsim->idle_ip_index, 1);
 #endif
 
-	DPU_EVENT_LOG(DPU_EVT_DSIM_DISABLED, decon->id, dsim);
+	if (decon)
+		DPU_EVENT_LOG(DPU_EVT_DSIM_DISABLED, decon->id, dsim);
+
 	dsim_dbg(dsim, "%s -\n", __func__);
 }
 
@@ -764,8 +766,8 @@ static int dsim_remap_regs(struct dsim_device *dsim)
 static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 {
 	struct dsim_device *dsim = dev_id;
-	struct decon_device *decon =
-		(struct decon_device *)to_exynos_crtc(dsim->encoder.crtc)->ctx;
+	struct drm_crtc *crtc = dsim->connector.state->crtc;
+	const struct decon_device *decon = dsim_get_decon(dsim);
 	unsigned int int_src;
 
 	spin_lock(&dsim->slock);
@@ -793,16 +795,14 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 
 	if (int_src & DSIM_INTSRC_UNDER_RUN) {
 		dsim_info(dsim, "dsim%d underrun irq occurs\n", dsim->id);
-		DPU_EVENT_LOG(DPU_EVT_DSIM_UNDERRUN, decon->id, dsim);
+		if (decon)
+			DPU_EVENT_LOG(DPU_EVT_DSIM_UNDERRUN, decon->id, dsim);
 	}
 
 	if (int_src & DSIM_INTSRC_VT_STATUS) {
 		dsim_dbg(dsim, "dsim%d vt_status irq occurs\n", dsim->id);
-		/* This will be implemented for video mode in the future */
-		//if (decon) {
-			//decon->vsync.timestamp = ktime_get();
-			//wake_up_interruptible_all(&decon->vsync.wait);
-		//}
+		if ((dsim->config.mode == DSIM_VIDEO_MODE) && crtc)
+			drm_crtc_handle_vblank(crtc);
 	}
 
 	spin_unlock(&dsim->slock);
@@ -1143,8 +1143,7 @@ int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1)
 {
 	int ret = 0;
 	bool must_wait = true;
-	struct decon_device *decon =
-		(struct decon_device *)to_exynos_crtc(dsim->encoder.crtc)->ctx;
+	const struct decon_device *decon = dsim_get_decon(dsim);
 
 	mutex_lock(&dsim->cmd_lock);
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
@@ -1154,7 +1153,8 @@ int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1)
 		goto err_exit;
 	}
 
-	DPU_EVENT_LOG_CMD(decon->id, dsim, id, d0);
+	if (decon)
+		DPU_EVENT_LOG_CMD(decon->id, dsim, id, d0);
 
 	reinit_completion(&dsim->ph_wr_comp);
 	dsim_reg_clear_int(dsim->id, DSIM_INTSRC_SFR_PH_FIFO_EMPTY);

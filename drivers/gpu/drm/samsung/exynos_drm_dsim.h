@@ -100,4 +100,16 @@ int dsim_write_data(struct dsim_device *dsi, u32 id, unsigned long d0, u32 d1);
 
 #define MIPI_WR_TIMEOUT				msecs_to_jiffies(50)
 
+struct decon_device;
+static inline const struct decon_device *
+dsim_get_decon(const struct dsim_device *dsim)
+{
+	const struct drm_crtc *crtc = dsim->connector.state->crtc;
+
+	if (!crtc)
+		return NULL;
+
+	return to_exynos_crtc(crtc)->ctx;
+}
+
 #endif /* __EXYNOS_DRM_DSI_H__ */
