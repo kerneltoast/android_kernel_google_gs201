@@ -22,6 +22,7 @@ struct fusb307b_plat {
 	struct tcpci *tcpci;
 	struct device *dev;
 	struct  regulator *vbus;
+	bool vbus_enabled;
 };
 
 static int fusb307b_read16(struct fusb307b_plat *chip, unsigned int reg,
@@ -109,9 +110,12 @@ static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 
 	/** Ordering is needed here. DO NOT REFACTOR if..else.. **/
 	if (!source) {
-		ret = regulator_disable(chip->vbus);
-		if (ret < 0)
-			return ret;
+		if (chip->vbus_enabled) {
+			ret = regulator_disable(chip->vbus);
+			if (ret < 0)
+				return ret;
+			chip->vbus_enabled = false;
+		}
 
 		ret = regmap_write(chip->data.regmap, TCPC_COMMAND,
 				   TCPC_CMD_DISABLE_SRC_VBUS);
@@ -127,9 +131,12 @@ static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 	}
 
 	if (source) {
-		ret = regulator_enable(chip->vbus);
-		if (ret < 0)
-			return ret;
+		if (!chip->vbus_enabled) {
+			ret = regulator_enable(chip->vbus);
+			if (ret < 0)
+				return ret;
+			chip->vbus_enabled = true;
+		}
 
 		ret = regmap_write(chip->data.regmap, TCPC_COMMAND,
 				   TCPC_CMD_SRC_VBUS_DEFAULT);
