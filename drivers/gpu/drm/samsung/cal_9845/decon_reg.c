@@ -19,8 +19,6 @@
 #include <decon_cal.h>
 #include <regs-decon.h>
 
-#define VERBOSE	0
-
 enum decon_dsc_id {
 	DECON_DSC_ENC0 = 0x0,
 	DECON_DSC_ENC1 = 0x1,
@@ -2023,11 +2021,13 @@ static void decon_print_hex_dump(void __iomem *regs, const void *buf,
 	}
 }
 
-void __decon_dump(u32 id, void __iomem *main_regs, void __iomem *win_regs,
-		void __iomem *sub_regs, void __iomem *wincon_regs,
-		void __iomem *dqe_regs, u32 dsc_en)
+void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en)
 {
 	int i;
+	void __iomem *main_regs = regs->base_addr;
+	void __iomem *win_regs = regs->win_regs;
+	void __iomem *sub_regs = regs->sub_regs;
+	void __iomem *wincon_regs = regs->wincon_regs;
 
 	/* decon_main */
 	cal_log_info(id, "\n=== DECON%d_MAIN SFR DUMP ===\n", id);
@@ -2099,26 +2099,6 @@ void __decon_dump(u32 id, void __iomem *main_regs, void __iomem *win_regs,
 					SHADOW_OFFSET, 0x88);
 		}
 	}
-
-/* enable if necessary */
-#if VERBOSE
-	/* decon_dqe */
-	cal_log_info(id, "\n=== DECON_DQE0 SFR DUMP ===\n");
-	decon_print_hex_dump(dqe_regs, dqe_regs, 0x100);
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x0400, 0x40); // ATC
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x0800, 0x50); // HSC_CTRL
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x0900, 0x100); // HSC_xxx
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x0C00, 0x20); // GAMMA
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x1000, 0x88); // DEGAMMA
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x1400, 0x20); // LINEAR
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x1800, 0x10); // CGC
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x2000, 0x190); // REGAMMA
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x2400, 0x4); // CGC_DITHER
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x2800, 0x4); // DISP_DITHER
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x3000, 0x600); // HIST
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x3C00, 0x10); // SECURE_ROI
-	decon_print_hex_dump(dqe_regs, dqe_regs + 0x4000, 0xA664); // CGC_LUT
-#endif
 }
 
 u32 decon_reg_get_rsc_ch(u32 id)

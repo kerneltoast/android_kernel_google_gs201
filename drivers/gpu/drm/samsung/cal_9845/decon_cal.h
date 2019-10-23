@@ -285,9 +285,7 @@ void decon_reg_set_interrupts(u32 id, u32 en);
 int decon_reg_get_interrupt_and_clear(u32 id, u32 *ext_irq);
 
 /* DECON SFR dump */
-void __decon_dump(u32 id, void __iomem *main_regs, void __iomem *win_regs,
-		void __iomem *sub_regs, void __iomem *wincon_regs,
-		void __iomem *dqe_regs, u32 dsc_en);
+void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en);
 
 void decon_reg_set_start_crc(u32 id, u32 en);
 void decon_reg_get_crc_data(u32 id, u32 crc_data[3]);
