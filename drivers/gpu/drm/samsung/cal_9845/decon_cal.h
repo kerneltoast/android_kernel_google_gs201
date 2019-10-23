@@ -195,7 +195,7 @@ struct decon_config {
 };
 
 struct decon_regs {
-	void __iomem *base_addr;
+	void __iomem *regs;
 	void __iomem *win_regs;
 	void __iomem *sub_regs;
 	void __iomem *wincon_regs;

@@ -2024,7 +2024,7 @@ static void decon_print_hex_dump(void __iomem *regs, const void *buf,
 void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en)
 {
 	int i;
-	void __iomem *main_regs = regs->base_addr;
+	void __iomem *main_regs = regs->regs;
 	void __iomem *win_regs = regs->win_regs;
 	void __iomem *sub_regs = regs->sub_regs;
 	void __iomem *wincon_regs = regs->wincon_regs;
