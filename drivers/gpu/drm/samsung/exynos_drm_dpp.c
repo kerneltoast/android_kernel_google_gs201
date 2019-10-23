@@ -670,12 +670,6 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 	if (test_bit(DPP_ATTR_ODMA, &dpp->attr)) { /* ODMA case */
 		irqs = odma_reg_get_irq_and_clear(dpp->id);
 
-		if ((irqs & ODMA_WRITE_SLAVE_ERROR) ||
-			       (irqs & ODMA_STATUS_DEADLOCK_IRQ)) {
-			dpp_err(dpp, "odma%d error irq occur(0x%x)\n",
-					dpp->id, irqs);
-			goto irq_end;
-		}
 		if (irqs & ODMA_STATUS_FRAMEDONE_IRQ) {
 			dpp_dbg(dpp, "dpp%d framedone irq occurs\n", dpp->id);
 			DPU_EVENT_LOG(DPU_EVT_DPP_FRAMEDONE, dpp->decon_id,
@@ -693,13 +687,7 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 					irqs, dpp->recovery_cnt, str_comp);
 			goto irq_end;
 		}
-		if ((irqs & IDMA_AFBC_TIMEOUT_IRQ) ||
-				(irqs & IDMA_READ_SLAVE_ERROR) ||
-				(irqs & IDMA_STATUS_DEADLOCK_IRQ)) {
-			dpp_err(dpp, "dma%d error irq occur(0x%x)\n",
-					dpp->id, irqs);
-			goto irq_end;
-		}
+
 		/*
 		 * TODO: Normally, DMA framedone occurs before DPP framedone.
 		 * But DMA framedone can occur in case of AFBC crop mode
@@ -709,15 +697,6 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 					dpp);
 			goto irq_end;
 		}
-
-#if defined(CONFIG_SOC_EXYNOS9820)
-		/* TODO: SoC dependency will be removed */
-		if (irqs & IDMA_AFBC_CONFLICT_IRQ) {
-			dpp_err(dpp, "dma%d AFBC conflict irq occurs\n",
-					dpp->id);
-			goto irq_end;
-		}
-#endif
 	}
 
 irq_end:
