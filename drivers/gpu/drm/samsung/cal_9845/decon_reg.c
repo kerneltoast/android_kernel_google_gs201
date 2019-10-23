@@ -15,9 +15,9 @@
  * published by the Free Software Foundation.
  */
 
-#include "../cal_config.h"
-#include "decon_cal.h"
-#include "regs-decon.h"
+#include <cal_config.h>
+#include <decon_cal.h>
+#include <regs-decon.h>
 
 #define VERBOSE	0
 

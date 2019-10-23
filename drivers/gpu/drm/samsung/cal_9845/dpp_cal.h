@@ -13,8 +13,8 @@
 #ifndef __SAMSUNG_DPP_CAL_H__
 #define __SAMSUNG_DPP_CAL_H__
 
-#include "../exynos_drm_format.h"
-#include "../exynos_drm_plane.h"
+#include <exynos_drm_format.h>
+#include <exynos_drm_plane.h>
 
 #define MAX_DPP_CNT		6
 

@@ -22,12 +22,12 @@
 #include <linux/iopoll.h>
 #include <video/exynos_hdr_tunables.h>
 
-#include "dpp_coef.h"
-#include "../exynos_hdr_lut.h"
-#include "../exynos_drm_format.h"
-#include "../cal_config.h"
-#include "dpp_cal.h"
-#include "regs-dpp.h"
+#include <exynos_dpp_coef.h>
+#include <exynos_hdr_lut.h>
+#include <exynos_drm_format.h>
+#include <cal_config.h>
+#include <dpp_cal.h>
+#include <regs-dpp.h>
 
 #define DPP_SC_RATIO_MAX	((1 << 20) * 8 / 8)
 #define DPP_SC_RATIO_7_8	((1 << 20) * 8 / 7)
