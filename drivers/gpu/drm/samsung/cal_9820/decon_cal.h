@@ -290,8 +290,7 @@ void decon_reg_set_interrupts(u32 id, u32 en);
 int decon_reg_get_interrupt_and_clear(u32 id, u32 *ext_irq);
 
 /* DECON SFR dump */
-void __decon_dump(u32 id, void __iomem *regs, void __iomem *base_regs,
-		bool dsc_en);
+void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en);
 
 void decon_reg_set_start_crc(u32 id, u32 en);
 void decon_reg_set_select_crc_bits(u32 id, u32 bit_sel);
