@@ -621,12 +621,12 @@ static int decon_remap_regs(struct decon_device *decon)
 	pdev = container_of(dev, struct platform_device, dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	decon->regs.base_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(decon->regs.base_addr)) {
-		DRM_DEV_ERROR(decon->dev, "ioremap failed!\n");
-		return PTR_ERR(decon->regs.base_addr);
+	decon->regs.regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(decon->regs.regs)) {
+		DRM_DEV_ERROR(decon->dev, "failed decon ioremap\n");
+		return PTR_ERR(decon->regs.regs);
 	}
-	decon_regs_desc_init(decon->regs.base_addr, "decon", REGS_DECON,
+	decon_regs_desc_init(decon->regs.regs, "decon", REGS_DECON,
 			decon->id);
 
 	np = of_find_compatible_node(NULL, NULL, "samsung,exynos9-disp_ss");
@@ -794,6 +794,11 @@ static int decon_init_resources(struct decon_device *decon)
 	ret = decon_get_clock(decon);
 	if (ret)
 		goto err;
+
+	ret = __decon_init_resources(decon);
+	if (ret)
+		goto err;
+
 err:
 	return ret;
 }
