@@ -411,6 +411,15 @@
 
 #define ODMA_CFG_ERR_STATE			0x0C08
 #define ODMA_CFG_ERR_GET(_v)			(((_v) >> 0) & 0x1FF)
+#define ODMA_CFG_ERR_BYTE_CNT			(1 << 8)
+#define ODMA_CFG_ERR_DST_WIDTH			(1 << 7)
+#define ODMA_CFG_ERR_DST_STRIDE			(1 << 6)
+#define ODMA_CFG_ERR_BASE_ADDR_Y		(1 << 5)
+#define ODMA_CFG_ERR_BASE_ADDR_C		(1 << 4)
+#define ODMA_CFG_ERR_IMG_WIDTH			(1 << 3)
+#define ODMA_CFG_ERR_IMG_HEIGHT			(1 << 2)
+#define ODMA_CFG_ERR_DST_OFFSET_X		(1 << 1)
+#define ODMA_CFG_ERR_DST_OFFSET_Y		(1 << 0)
 
 #define DMA_SHD_OFFSET				0x800
 // ADD field def
