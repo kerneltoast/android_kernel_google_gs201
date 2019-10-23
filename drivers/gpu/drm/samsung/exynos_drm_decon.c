@@ -86,23 +86,26 @@ MODULE_DEVICE_TABLE(of, decon_driver_dt_match);
 
 void decon_dump(struct decon_device *decon)
 {
-	int acquired = console_trylock();
-	void __iomem *base_regs = get_decon_drvdata(0)->regs.base_addr;
 	int i;
+	int acquired = console_trylock();
+	struct decon_device *d;
 
-	if (decon->state != DECON_STATE_ON) {
-		decon_info(decon, "DECON%d is disabled, state(%d)\n", decon->id,
-				decon->state);
-		goto err;
+	for (i = 0; i < REGS_DECON_ID_MAX; ++i) {
+		d = get_decon_drvdata(i);
+		if (!d)
+			continue;
+
+		if (d->state != DECON_STATE_ON) {
+			decon_info(decon, "DECON disabled(%d)\n", decon->state);
+			continue;
+		}
+
+		__decon_dump(d->id, &d->regs, d->config.dsc.enabled);
 	}
-
-	__decon_dump(decon->id, decon->regs.base_addr, base_regs,
-			decon->config.dsc.enabled);
 
 	for (i = 0; i < decon->dpp_cnt; ++i)
 		dpp_dump(decon->dpp[i]);
 
-err:
 	if (acquired)
 		console_unlock();
 }
