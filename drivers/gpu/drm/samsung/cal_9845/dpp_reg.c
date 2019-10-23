@@ -247,6 +247,28 @@ static void idma_reg_set_deadlock(u32 id, u32 en, u32 dl_num)
 				IDMA_DEADLOCK_NUM_MASK);
 }
 
+static void idma_reg_print_irqs_msg(u32 id, u32 irqs)
+{
+	u32 cfg_err;
+
+	if (irqs & IDMA_AFBC_CONFLICT_IRQ)
+		cal_log_err(id, "IDMA AFBC conflict irq occur\n");
+
+	if (irqs & IDMA_SBWC_ERR_IRQ)
+		cal_log_err(id, "IDMA SBWC error irq occur\n");
+
+	if (irqs & IDMA_READ_SLAVE_ERROR)
+		cal_log_err(id, "IDMA read slave error irq occur\n");
+
+	if (irqs & IDMA_STATUS_DEADLOCK_IRQ)
+		cal_log_err(id, "IDMA deadlock irq occur\n");
+
+	if (irqs & IDMA_CONFIG_ERR_IRQ) {
+		cfg_err = dma_read(id, RDMA_CONFIG_ERR_STATUS);
+		cal_log_err(id, "IDMA cfg err irq occur(0x%x)\n", cfg_err);
+	}
+}
+
 /****************** ODMA CAL functions ******************/
 static void odma_reg_set_irq_mask_all(u32 id, u32 en)
 {
@@ -329,6 +351,22 @@ static void odma_reg_set_format(u32 id, u32 fmt)
 {
 	dma_write_mask(id, WDMA_OUT_CTRL_0, ODMA_IMG_FORMAT(fmt),
 			ODMA_IMG_FORMAT_MASK);
+}
+
+static void odma_reg_print_irqs_msg(u32 id, u32 irqs)
+{
+	u32 cfg_err;
+
+	if (irqs & ODMA_WRITE_SLAVE_ERR_IRQ)
+		cal_log_err(id, "ODMA write slave error irq occur\n");
+
+	if (irqs & ODMA_DEADLOCK_IRQ)
+		cal_log_err(id, "ODMA deadlock error irq occur\n");
+
+	if (irqs & ODMA_CONFIG_ERR_IRQ) {
+		cfg_err = dma_read(id, WDMA_CONFIG_ERR_STATUS);
+		cal_log_err(id, "ODMA cfg err irq occur(0x%x)\n", cfg_err);
+	}
 }
 
 /****************** DPP CAL functions ******************/
@@ -722,6 +760,16 @@ static void dpp_reg_set_hdr_params(u32 id, struct dpp_params_info *p)
 	}
 }
 
+static void dpp_reg_print_irqs_msg(u32 id, u32 irqs)
+{
+	u32 cfg_err;
+
+	if (irqs & DPP_CFG_ERROR_IRQ) {
+		cfg_err = dpp_read(id, DPP_COM_CFG_ERROR_STATUS);
+		cal_log_err(id, "DPP cfg err irq occur(0x%x)\n", cfg_err);
+	}
+}
+
 /********** IDMA and ODMA combination CAL functions **********/
 /*
  * Y8 : Y8 or RGB base, AFBC or SBWC-Y header
@@ -984,13 +1032,10 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 
 u32 dpp_reg_get_irq_and_clear(u32 id)
 {
-	u32 val, cfg_err;
+	u32 val;
 
 	val = dpp_read(id, DPP_COM_IRQ_STATUS);
-	if (val & DPP_CFG_ERROR_IRQ) {
-		cfg_err = dpp_read(id, DPP_COM_CFG_ERROR_STATUS);
-		cal_log_err(id, "dpp config error occur(0x%x)\n", cfg_err);
-	}
+	dpp_reg_print_irqs_msg(id, val);
 	dpp_reg_clear_irq(id, val);
 
 	return val;
@@ -1002,13 +1047,10 @@ u32 dpp_reg_get_irq_and_clear(u32 id)
  */
 u32 idma_reg_get_irq_and_clear(u32 id)
 {
-	u32 val, cfg_err;
+	u32 val;
 
 	val = dma_read(id, RDMA_IRQ);
-	if (val & IDMA_CONFIG_ERR_IRQ) {
-		cfg_err = dma_read(id, RDMA_CONFIG_ERR_STATUS);
-		cal_log_err(id, "dma config error occur(0x%x)\n", cfg_err);
-	}
+	idma_reg_print_irqs_msg(id, val);
 	idma_reg_clear_irq(id, val);
 
 	return val;
@@ -1016,14 +1058,10 @@ u32 idma_reg_get_irq_and_clear(u32 id)
 
 u32 odma_reg_get_irq_and_clear(u32 id)
 {
-	u32 val, cfg_err;
+	u32 val;
 
 	val = dma_read(id, WDMA_IRQ);
-
-	if (val & ODMA_CONFIG_ERR_IRQ) {
-		cfg_err = dma_read(id, WDMA_CONFIG_ERR_STATUS);
-		cal_log_err(id, "dma config error occur(0x%x)\n", cfg_err);
-	}
+	odma_reg_print_irqs_msg(id, val);
 	odma_reg_clear_irq(id, val);
 
 	return val;
