@@ -2154,7 +2154,7 @@ void decon_reg_get_crc_data(u32 id, u32 *w0_data, u32 *w1_data)
 /* base_regs means DECON0's SFR base address */
 void __decon_dump(u32 id, struct decon_regs *decon_regs, bool dsc_en)
 {
-	void __iomem *regs = decon_regs->base_addr;
+	void __iomem *regs = decon_regs->regs;
 
 	cal_log_info(id, "\n=== DECON%d SFR DUMP ===\n", id);
 	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,

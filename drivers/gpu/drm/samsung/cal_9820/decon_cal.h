@@ -199,7 +199,7 @@ struct win_color_map {
 };
 
 struct decon_regs {
-	void __iomem *base_addr;
+	void __iomem *regs;
 	void __iomem *ss_regs;
 };
 
