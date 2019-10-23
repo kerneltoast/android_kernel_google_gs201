@@ -3,6 +3,9 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
+subdir-ccflags-y			:= -I$(src)
+subdir-ccflags-$(CONFIG_SOC_EXYNOS9820)	+= -I$(src)/cal_9820
+
 exynos-drm-y := exynos_drm_drv.o exynos_drm_crtc.o exynos_drm_fb.o	\
 		exynos_drm_plane.o exynos_drm_format.o exynos_drm_bts.o	\
 		exynos_drm_debug.o

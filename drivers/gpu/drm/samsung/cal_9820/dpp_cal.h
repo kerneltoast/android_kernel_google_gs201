@@ -17,8 +17,8 @@
 #include <linux/io.h>
 #endif
 
-#include "../exynos_drm_format.h"
-#include "../exynos_drm_plane.h"
+#include <exynos_drm_format.h>
+#include <exynos_drm_plane.h>
 
 #define MAX_DPP_CNT		6
 

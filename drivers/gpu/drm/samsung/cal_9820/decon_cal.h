@@ -13,7 +13,7 @@
 #ifndef __SAMSUNG_DECON_CAL_H__
 #define __SAMSUNG_DECON_CAL_H__
 
-#include "exynos_panel.h"
+#include <exynos_panel.h>
 
 #define MAX_WIN_PER_DECON	6
 #define MAX_DECON_CNT		3

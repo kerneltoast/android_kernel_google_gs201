@@ -11,8 +11,7 @@
 #ifndef __DSIM_CAL_H__
 #define __DSIM_CAL_H__
 
-#include "dpu_cal.h"
-#include "exynos_panel.h"
+#include <exynos_panel.h>
 
 #define MAX_DSI_CNT 2
 

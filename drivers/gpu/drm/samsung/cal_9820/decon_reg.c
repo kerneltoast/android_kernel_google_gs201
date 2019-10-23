@@ -10,9 +10,9 @@
  * published by the Free Software Foundation.
  */
 
-#include "../cal_config.h"
-#include "decon_cal.h"
-#include "regs-decon.h"
+#include <cal_config.h>
+#include <decon_cal.h>
+#include <regs-decon.h>
 
 enum decon_dsc_id {
 	DECON_DSC_ENC0 = 0x0,

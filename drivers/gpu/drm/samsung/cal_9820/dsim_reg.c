@@ -11,9 +11,10 @@
  */
 
 #include <linux/types.h>
-#include "regs-dsim.h"
-#include "dsim_cal.h"
-#include "../cal_config.h"
+
+#include <regs-dsim.h>
+#include <dsim_cal.h>
+#include <cal_config.h>
 
 static struct cal_regs_desc regs_desc[REGS_DSIM_TYPE_MAX][MAX_DSI_CNT];
 
