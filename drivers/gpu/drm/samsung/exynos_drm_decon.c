@@ -597,7 +597,7 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 		}
 
 		dpp_id = decon->dpp[i]->id;
-		decon_info(decon, "found dpp%d(%s)\n", i, dpp_name[dpp_id]);
+		decon_info(decon, "found dpp%d\n", dpp_id);
 
 		if (dpp_np)
 			of_node_put(dpp_np);

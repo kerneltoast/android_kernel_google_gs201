@@ -825,12 +825,12 @@ static int dpp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dpp);
 
-	dpp_info(dpp, "%s successfully probed", dpp_name[dpp->id]);
+	dpp_info(dpp, "dpp%d successfully probed", dpp->id);
 
 	return component_add(dev, &exynos_dpp_component_ops);
 
 fail:
-	dpp_err(dpp, "%s probe failed", dpp_name[dpp->id]);
+	dpp_err(dpp, "dpp%d probe failed", dpp->id);
 
 	return ret;
 }
@@ -846,7 +846,7 @@ static int dpp_suspend(struct device *dev)
 {
 	struct dpp_device *dpp = dev_get_drvdata(dev);
 
-	dpp_info(dpp, "%s suspended\n", dpp_name[dpp->id]);
+	dpp_info(dpp, "dpp%d suspended\n", dpp->id);
 
 	return 0;
 }
@@ -855,7 +855,7 @@ static int dpp_resume(struct device *dev)
 {
 	struct dpp_device *dpp = dev_get_drvdata(dev);
 
-	dpp_info(dpp, "%s resumed\n", dpp_name[dpp->id]);
+	dpp_info(dpp, "dpp%d resumed\n", dpp->id);
 
 	return 0;
 }
