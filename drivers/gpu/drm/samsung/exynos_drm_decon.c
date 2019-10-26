@@ -821,10 +821,10 @@ static int decon_probe(struct platform_device *pdev)
 
 	spin_lock_init(&decon->slock);
 
-#if defined(CONFIG_EXYNOS_BTS)
-	decon->bts.ops = &dpu_bts_control;
-	decon->bts.ops->bts_init(decon);
-#endif
+	if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
+		decon->bts.ops = &dpu_bts_control;
+		decon->bts.ops->bts_init(decon);
+	}
 
 	decon->state = DECON_STATE_OFF;
 	pm_runtime_enable(decon->dev);
@@ -855,9 +855,9 @@ static int decon_remove(struct platform_device *pdev)
 	struct decon_device *decon;
 
 	decon = platform_get_drvdata(pdev);
-#if defined(CONFIG_EXYNOS_BTS)
-	decon->bts.ops->bts_deinit(decon);
-#endif
+	if (IS_ENABLED(CONFIG_EXYNOS_BTS))
+		decon->bts.ops->bts_deinit(decon);
+
 	dpu_deinit_debug(decon);
 	component_del(&pdev->dev, &decon_component_ops);
 

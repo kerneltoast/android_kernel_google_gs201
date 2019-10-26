@@ -362,7 +362,9 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		if (!old_crtc_state->active && new_crtc_state->active) {
 			display_mode_to_bts_info(&new_crtc_state->mode,
 					decon[id]);
-			decon[id]->bts.ops->bts_acquire_bw(decon[id]);
+
+			if (IS_ENABLED(CONFIG_EXYNOS_BTS))
+				decon[id]->bts.ops->bts_acquire_bw(decon[id]);
 		}
 
 		/* initialize BTS structure of each DECON */
@@ -400,8 +402,11 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 		if (new_crtc_state->planes_changed && new_crtc_state->active) {
 			DPU_EVENT_LOG_ATOMIC_COMMIT(decon[id]->id);
-			decon[id]->bts.ops->bts_calc_bw(decon[i]);
-			decon[id]->bts.ops->bts_update_bw(decon[i], false);
+			if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
+				decon[id]->bts.ops->bts_calc_bw(decon[i]);
+				decon[id]->bts.ops->bts_update_bw(decon[i],
+						false);
+			}
 		}
 	}
 
@@ -433,11 +438,14 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 						&decon[id]->config.mode,
 						DECON_TRIG_MASK);
 
-			decon[id]->bts.ops->bts_update_bw(decon[i], true);
+			if (IS_ENABLED(CONFIG_EXYNOS_BTS))
+				decon[id]->bts.ops->bts_update_bw(decon[i],
+						true);
 			DPU_EVENT_LOG(DPU_EVT_DECON_RSC_OCCUPANCY, 0, NULL);
 		}
 
-		if (old_crtc_state->active && !new_crtc_state->active)
+		if ((old_crtc_state->active && !new_crtc_state->active) &&
+				IS_ENABLED(CONFIG_EXYNOS_BTS))
 			decon[id]->bts.ops->bts_release_bw(decon[id]);
 	}
 }
