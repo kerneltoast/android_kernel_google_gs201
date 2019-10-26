@@ -63,16 +63,6 @@ enum dpp_csc_defs {
 	DPP_CSC_ID_DCI_P3 = 2,
 };
 
-/* The array index of the variables must match the "dpp,id" defined DT */
-static const char * const dpp_name[] = {
-	"DPU_GF0",
-	"DPU_VGRFS",
-	"DPU_GF1",
-	"DPU_VGF",
-	"DPU_VG",
-	"DPU_VGS",
-};
-
 struct dpp_regs {
 	void __iomem *dpp_base_regs;
 	void __iomem *dma_base_regs;
