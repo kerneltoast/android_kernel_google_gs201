@@ -702,24 +702,27 @@ static int decon_register_irqs(struct decon_device *decon)
 	}
 	disable_irq(decon->irq_ext);
 
-	/* Get IRQ resource and register IRQ handler. */
-	if (of_get_property(dev->of_node, "gpios", NULL) != NULL) {
-		gpio = of_get_gpio(dev->of_node, 0);
-		if (gpio < 0) {
-			decon_err(decon, "failed to get proper gpio number\n");
-			return -EINVAL;
+	if ((decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) &&
+			(decon->config.mode.trig_mode == DECON_HW_TRIG)) {
+		/* Get IRQ resource and register IRQ handler. */
+		if (of_get_property(dev->of_node, "gpios", NULL) != NULL) {
+			gpio = of_get_gpio(dev->of_node, 0);
+			if (gpio < 0) {
+				decon_err(decon, "failed to get TE gpio\n");
+				return -EINVAL;
+			}
+		} else {
+			decon_info(decon, "failed to find TE gpio node\n");
+			return 0;
 		}
-	} else {
-		decon_info(decon, "failed to find TE gpio node from device tree\n");
-		return 0;
+
+		decon->irq_te = gpio_to_irq(gpio);
+
+		decon_info(decon, "TE irq number(%d)\n", decon->irq_te);
+		ret = devm_request_irq(dev, decon->irq_te, decon_te_irq_handler,
+				IRQF_TRIGGER_RISING, pdev->name, decon);
+		disable_irq(decon->irq_te);
 	}
-
-	decon->irq_te = gpio_to_irq(gpio);
-
-	decon_info(decon, "%s: TE irq number(%d)\n", __func__, decon->irq_te);
-	ret = devm_request_irq(dev, decon->irq_te, decon_te_irq_handler,
-			IRQF_TRIGGER_RISING, pdev->name, decon);
-	disable_irq(decon->irq_te);
 
 	return ret;
 }
