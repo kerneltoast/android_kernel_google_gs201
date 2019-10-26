@@ -765,6 +765,7 @@ err:
 	return ret;
 }
 
+#ifndef CONFIG_BOARD_EMULATOR
 static int decon_get_clock(struct decon_device *decon)
 {
 	decon->res.aclk = devm_clk_get(decon->dev, "aclk");
@@ -775,6 +776,9 @@ static int decon_get_clock(struct decon_device *decon)
 
 	return 0;
 }
+#else
+static inline int decon_get_clock(struct decon_device *decon) { return 0; }
+#endif
 
 static int decon_init_resources(struct decon_device *decon)
 {

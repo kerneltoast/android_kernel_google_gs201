@@ -21,6 +21,7 @@
 #include <drm/drm_property.h>
 #include <video/videomode.h>
 
+#include <exynos_drm_drv.h>
 #include <dsim_cal.h>
 
 enum dsim_state {

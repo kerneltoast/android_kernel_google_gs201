@@ -854,6 +854,7 @@ static int dsim_get_phys(struct dsim_device *dsim)
 	return 0;
 }
 
+#ifndef CONFIG_BOARD_EMULATOR
 static int dsim_get_clock(struct dsim_device *dsim)
 {
 	dsim->res.aclk = devm_clk_get(dsim->dev, "aclk");
@@ -864,6 +865,9 @@ static int dsim_get_clock(struct dsim_device *dsim)
 
 	return 0;
 }
+#else
+static inline int dsim_get_clock(struct dsim_device *dsim) { return 0; }
+#endif
 
 static int dsim_init_resources(struct dsim_device *dsim)
 {
@@ -1371,9 +1375,11 @@ static int dsim_probe(struct platform_device *pdev)
 	}
 	iovmm_set_fault_handler(dsim->dev, dpu_sysmmu_fault_handler, NULL);
 
-	phy_init(dsim->res.phy);
-	if (dsim->res.phy_ex)
-		phy_init(dsim->res.phy_ex);
+	if (!IS_ENABLED(CONFIG_BOARD_EMULATOR)) {
+		phy_init(dsim->res.phy);
+		if (dsim->res.phy_ex)
+			phy_init(dsim->res.phy_ex);
+	}
 
 	dsim_info(dsim, "dsim%d driver has been probed.\n", dsim->id);
 	return component_add(dsim->dev, &dsim_component_ops);
@@ -1401,6 +1407,9 @@ static int __maybe_unused dsim_suspend(struct device *dev)
 	int ret;
 
 	dsim_dbg(dsim, "%s +\n", __func__);
+
+	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
+		return 0;
 
 	ret = phy_power_off(dsim->res.phy);
 	if (ret < 0) {
@@ -1430,6 +1439,9 @@ static int __maybe_unused dsim_resume(struct device *dev)
 	int ret;
 
 	dsim_dbg(dsim, "%s +\n", __func__);
+
+	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
+		return 0;
 
 	clk_prepare_enable(dsim->res.aclk);
 
