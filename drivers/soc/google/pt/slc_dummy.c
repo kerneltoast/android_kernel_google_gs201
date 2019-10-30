@@ -21,14 +21,17 @@
 #define PT_PTID_MAX 64
 #define PT_HIGHEST_BIT 32
 
-static int slc_dummy_alloc(void *data, int property_index, void *resize_data,
+static ptid_t slc_dummy_alloc(void *data,
+				int property_index,
+				void *resize_data,
 				void (*resize)(void *data, size_t size));
-static void slc_dummy_free(void *data, int ptid);
-static void slc_dummy_enable(void *data, int ptid);
-static void slc_dummy_disable(void *data, int ptid);
-static int slc_dummy_mutate(void *data, int ptid, void *resize_data,
+static void slc_dummy_free(void *data, ptid_t ptid);
+static void slc_dummy_enable(void *data, ptid_t ptid);
+static void slc_dummy_disable(void *data, ptid_t ptid);
+static ptid_t slc_dummy_mutate(void *data, ptid_t ptid,
+				void *resize_data,
 				int new_property_index);
-static int slc_dummy_pbha(void *data, int ptid);
+static int slc_dummy_pbha(void *data, ptid_t ptid);
 
 struct pt_ops slc_dummy_ops = {
 	.alloc   = slc_dummy_alloc,
@@ -79,7 +82,7 @@ static int slc_dummy_bit_to_size(u32 bit)
 	return result * 4096;
 }
 
-static int slc_dummy_alloc(void *data, int property_index, void *resize_data,
+static ptid_t slc_dummy_alloc(void *data, int property_index, void *resize_data,
 		void (*resize)(void *data, size_t size))
 {
 	struct slc_dummy_driver_data *driver_data =
@@ -106,10 +109,10 @@ static int slc_dummy_alloc(void *data, int property_index, void *resize_data,
 	driver_data->ptids[vptid].size_bits = size_bits;
 	driver_data->ptids[vptid].pbha = pbha;
 	driver_data->ptids[vptid].resize = resize;
-	return (int)vptid;
+	return (ptid_t)vptid;
 }
 
-static int slc_dummy_mutate(void *data, int ptid, void *resize_data,
+static ptid_t slc_dummy_mutate(void *data, ptid_t ptid, void *resize_data,
 				int new_property_index)
 {
 	struct slc_dummy_driver_data *driver_data =
@@ -133,17 +136,17 @@ static int slc_dummy_mutate(void *data, int ptid, void *resize_data,
 	return ptid;
 }
 
-static int slc_dummy_pbha(void *data, int ptid)
+static ptpbha_t slc_dummy_pbha(void *data, ptid_t ptid)
 {
 	struct slc_dummy_driver_data *driver_data =
 		(struct slc_dummy_driver_data *)data;
 
 	if (!(driver_data->ptids[ptid].pbha & PT_PBHA_ENABLE))
 		return PT_PBHA_INVALID;
-	return driver_data->ptids[ptid].pbha & PT_PBHA_MASK;
+	return (ptpbha_t)(driver_data->ptids[ptid].pbha & PT_PBHA_MASK);
 }
 
-static void slc_dummy_free(void *data, int ptid)
+static void slc_dummy_free(void *data, ptid_t ptid)
 {
 	struct slc_dummy_driver_data *driver_data =
 				(struct slc_dummy_driver_data *)data;
@@ -151,7 +154,7 @@ static void slc_dummy_free(void *data, int ptid)
 	driver_data->ptids[ptid].used = false;
 }
 
-static void slc_dummy_enable(void *data, int ptid)
+static void slc_dummy_enable(void *data, ptid_t ptid)
 {
 	struct slc_dummy_driver_data *driver_data =
 		(struct slc_dummy_driver_data *)data;
@@ -163,7 +166,7 @@ static void slc_dummy_enable(void *data, int ptid)
 	driver_data->ptids[ptid].resize(driver_data->ptids[ptid].data, size);
 }
 
-static void slc_dummy_disable(void *data, int ptid)
+static void slc_dummy_disable(void *data, ptid_t ptid)
 {
 	struct slc_dummy_driver_data *driver_data =
 		(struct slc_dummy_driver_data *)data;

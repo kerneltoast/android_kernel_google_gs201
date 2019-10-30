@@ -100,7 +100,7 @@ TRACE_EVENT(pt_driver_log,
 				__entry->ret = ret;
 				),
 
-		TP_printk("PT: %s %s %llx %llx %llx %llx ret: %x",
+		TP_printk("PT: %s %s 0x%llx 0x%llx 0x%llx 0x%llx ret: 0x%x",
 				__entry->driver_name,
 				__entry->fn_name,
 				__entry->arg0,

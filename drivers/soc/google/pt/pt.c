@@ -28,7 +28,7 @@
 struct pt_pts {
 	bool enabled;
 	u32 size; /* current size of the partition, 0 if disabled */
-	int ptid; /* partition index */
+	ptid_t ptid; /* partition index */
 	int property_index; /* index in the driver properties */
 	struct pt_handle *handle;
 	struct pt_driver *driver; /* driver managing this partition */
@@ -48,7 +48,7 @@ struct pt_properties {
  *	These access aways happen while a handle->mt is also taken
  * - Handle data and driver data are consistent,
  *      All access to handle are protected by handle->mt
- *      (pt_enable()/pt_disable()/pt_free()/pt_disable_no_free())
+ *      (pt_client_*())
  * - Handle list and pts are changed atomically
  *      Adding/removing handle and changing pts are protected by
  *	pt_internal_data->sl
@@ -81,6 +81,13 @@ struct pt_driver { /* one per driver */
 	struct ctl_table sysctl_table[PT_SYSCTL_ENTRY];
 };
 
+struct pt_global {
+	ptpbha_t pbha;
+	ptid_t ptid;
+	int property_index;
+	struct pt_driver *driver;
+};
+
 struct {
 	struct list_head driver_list;
 	struct list_head handle_list;
@@ -92,6 +99,10 @@ struct {
 	u32 timestamp;
 	u32 size;
 	int enabled;
+
+	/* Global pids */
+	struct pt_global global_leftover;
+	struct pt_global global_bypass;
 
 	/* Data for resize_callback thread */
 	struct task_struct *resize_thread;
@@ -118,7 +129,7 @@ static void pt_trace(struct pt_handle *handle, int id, bool enable)
 	int property_index;
 	const char *name;
 	struct pt_driver *driver;
-	int ptid;
+	ptid_t ptid;
 
 	ptid = handle->pts[id].ptid;
 	driver = handle->pts[id].driver;
@@ -226,7 +237,7 @@ static void pt_resize_list_enable(struct pt_pts *pts)
 /*
  * Thread calling the resize callback.
  * This thread doesn't hold any mutex, so the callback can
- * call pt_enable()/pt_disable()/pt_disable_no_free()/pt_free()
+ * call pt_client_*()
  */
 static int pt_resize_thread(void *data)
 {
@@ -258,6 +269,13 @@ static int pt_resize_thread(void *data)
 	}
 }
 
+/*
+ * Resize callback used for global partition
+ */
+static void pt_resize_internal_nop(void *data, size_t size)
+{
+}
+
 static void pt_resize_internal(void *data, size_t size)
 {
 	struct pt_pts *pts = (struct pt_pts *)data;
@@ -273,7 +291,7 @@ static void pt_resize_internal(void *data, size_t size)
  */
 static bool pt_driver_alloc(struct pt_handle *handle, int id)
 {
-	int ptid;
+	ptid_t ptid;
 	struct pt_driver *driver = handle->pts[id].driver;
 	void *data = driver->data;
 	int property_index = handle->pts[id].property_index;
@@ -291,7 +309,7 @@ static bool pt_driver_alloc(struct pt_handle *handle, int id)
 
 static void pt_driver_enable(struct pt_handle *handle, int id)
 {
-	int ptid = handle->pts[id].ptid;
+	ptid_t ptid = handle->pts[id].ptid;
 	struct pt_driver *driver = handle->pts[id].driver;
 	void *data = driver->data;
 
@@ -302,7 +320,7 @@ static void pt_driver_enable(struct pt_handle *handle, int id)
 
 static void pt_driver_disable(struct pt_handle *handle, int id)
 {
-	int ptid = handle->pts[id].ptid;
+	ptid_t ptid = handle->pts[id].ptid;
 	struct pt_driver *driver = handle->pts[id].driver;
 	void *data = driver->data;
 
@@ -313,7 +331,7 @@ static void pt_driver_disable(struct pt_handle *handle, int id)
 
 static void pt_driver_free(struct pt_handle *handle, int id)
 {
-	int ptid = handle->pts[id].ptid;
+	ptid_t ptid = handle->pts[id].ptid;
 	struct pt_driver *driver = handle->pts[id].driver;
 	void *data = driver->data;
 
@@ -325,8 +343,8 @@ static void pt_driver_free(struct pt_handle *handle, int id)
 
 static int pt_driver_mutate(struct pt_handle *handle, int old_id, int new_id)
 {
-	int new_ptid;
-	int old_ptid = handle->pts[old_id].ptid;
+	ptid_t new_ptid;
+	ptid_t old_ptid = handle->pts[old_id].ptid;
 	struct pt_driver *driver = handle->pts[old_id].driver;
 	void *data = driver->data;
 	int new_property_index = handle->pts[new_id].property_index;
@@ -453,10 +471,66 @@ static void pt_handle_sysctl_unregister(struct pt_handle *handle)
 	kfree(handle->sysctl_table);
 }
 
-int pt_pbha(struct device_node *node, int id)
+void pt_global_disable(struct pt_global *global)
 {
-	int pbha = PT_PBHA_INVALID;
-	int ptid;
+	void *data;
+	int property_index;
+
+	if (!global->driver)
+		return;
+	mutex_lock(&global->driver->mt);
+	if (global->ptid == PT_PTID_INVALID) {
+		mutex_unlock(&global->driver->mt);
+		return;
+	}
+	data = global->driver->data;
+	property_index = global->property_index;
+	global->ptid = global->driver->ops->alloc(data,
+						  property_index,
+						  NULL,
+						  pt_resize_internal_nop);
+	if (global->ptid == PT_PTID_INVALID) {
+		mutex_unlock(&global->driver->mt);
+		return;
+	}
+	global->driver->ops->disable(data, global->ptid);
+	global->driver->ops->free(data, global->ptid);
+	global->ptid = PT_PTID_INVALID;
+	global->pbha = PT_PTID_INVALID;
+	mutex_unlock(&global->driver->mt);
+}
+
+static void pt_global_enable(struct pt_global *global)
+{
+	void *data;
+	int property_index;
+
+	if (!global->driver)
+		return;
+	mutex_lock(&global->driver->mt);
+	if (global->ptid == PT_PTID_INVALID) {
+		mutex_unlock(&global->driver->mt);
+		return;
+	}
+	data = global->driver->data;
+	property_index = global->property_index;
+	global->ptid = global->driver->ops->alloc(data,
+						  property_index,
+						  NULL,
+						  pt_resize_internal_nop);
+	if (global->ptid == PT_PTID_INVALID) {
+		mutex_unlock(&global->driver->mt);
+		return;
+	}
+	global->driver->ops->enable(data, global->ptid);
+	global->pbha = global->driver->ops->pbha(data, global->ptid);
+	mutex_unlock(&global->driver->mt);
+}
+
+ptpbha_t pt_pbha(struct device_node *node, int id)
+{
+	ptpbha_t pbha = PT_PBHA_INVALID;
+	ptid_t ptid;
 	unsigned long flags;
 	struct pt_handle *handle;
 
@@ -478,9 +552,38 @@ int pt_pbha(struct device_node *node, int id)
 	return pbha;
 }
 
-int pt_mutate(struct pt_handle *handle, int old_id, int new_id)
+ptpbha_t pt_pbha_global(enum pt_global_t type)
 {
-	int ptid;
+	struct pt_global *global = NULL;
+
+	if (type == PT_GLOBAL_LEFTOVER)
+		global = &pt_internal_data.global_leftover;
+	if (type == PT_GLOBAL_BYPASS)
+		global = &pt_internal_data.global_bypass;
+	pt_global_enable(global);
+	return global->pbha;
+}
+
+/*
+ * Get a global pid for leftover cache (PT_GLOBAL_LEFTOVER)
+ * or not cachable (PT_GLOBAL_BYPASS).
+ */
+ptid_t pt_pid_global(enum pt_global_t type)
+{
+	struct pt_global *global = NULL;
+
+	if (type == PT_GLOBAL_LEFTOVER)
+		global = &pt_internal_data.global_leftover;
+	if (type == PT_GLOBAL_BYPASS)
+		global = &pt_internal_data.global_bypass;
+	pt_global_enable(global);
+	return global->ptid;
+}
+
+
+ptid_t pt_client_mutate(struct pt_handle *handle, int old_id, int new_id)
+{
+	ptid_t ptid;
 	struct pt_driver *driver;
 
 	driver = handle->pts[old_id].driver;
@@ -501,7 +604,7 @@ int pt_mutate(struct pt_handle *handle, int old_id, int new_id)
 
 }
 
-void pt_disable_no_free(struct pt_handle *handle, int id)
+void pt_client_disable_no_free(struct pt_handle *handle, int id)
 {
 	pt_handle_check(handle, id);
 	mutex_lock(&handle->mt);
@@ -514,7 +617,7 @@ void pt_disable_no_free(struct pt_handle *handle, int id)
 	mutex_unlock(&handle->mt);
 }
 
-void pt_free(struct pt_handle *handle, int id)
+void pt_client_free(struct pt_handle *handle, int id)
 {
 	mutex_lock(&handle->mt);
 	pt_handle_check(handle, id);
@@ -527,15 +630,15 @@ void pt_free(struct pt_handle *handle, int id)
 	mutex_unlock(&handle->mt);
 }
 
-void pt_disable(struct pt_handle *handle, int id)
+void pt_client_disable(struct pt_handle *handle, int id)
 {
-	pt_disable_no_free(handle, id);
-	pt_free(handle, id);
+	pt_client_disable_no_free(handle, id);
+	pt_client_free(handle, id);
 }
 
-int pt_enable(struct pt_handle *handle, int id)
+int pt_client_enable(struct pt_handle *handle, int id)
 {
-	int ptid;
+	ptid_t ptid;
 	mutex_lock(&handle->mt);
 	pt_handle_check(handle, id);
 	if (handle->pts[id].enabled) {
@@ -558,15 +661,7 @@ int pt_enable(struct pt_handle *handle, int id)
 	return ptid;
 }
 
-bool pt_info_get(int iterator, uint64_t *timestamp, struct pt_info *info)
-{
-	bool success = false;
-
-	// TODO
-	return success;
-}
-
-void pt_unregister(struct pt_handle *handle)
+void pt_client_unregister(struct pt_handle *handle)
 {
 	int id;
 	unsigned long flags;
@@ -585,7 +680,7 @@ void pt_unregister(struct pt_handle *handle)
 	pt_handle_sysctl_unregister(handle);
 
 	for (id = 0; id < handle->id_cnt; id++) {
-		int ptid = handle->pts[id].ptid;
+		ptid_t ptid = handle->pts[id].ptid;
 
 		if (ptid == PT_PTID_INVALID)
 			continue;
@@ -597,7 +692,7 @@ void pt_unregister(struct pt_handle *handle)
 	kfree(handle);
 }
 
-struct pt_handle *pt_register(struct device_node *node, void *data,
+struct pt_handle *pt_client_register(struct device_node *node, void *data,
 	pt_resize_callback_t resize_callback)
 {
 	int id;
@@ -699,6 +794,20 @@ struct pt_driver *pt_driver_register(struct device_node *node,
 		if (!of_get_property(child, "id_size_priority", &size))
 			continue;
 		driver->properties->nodes[cnt] = child;
+
+		if ((!pt_internal_data.global_leftover.driver)
+			&& (strcmp(child->name, "LEFTOVER") == 0)) {
+			struct pt_global *global =
+				&pt_internal_data.global_leftover;
+			global->driver = driver;
+			global->property_index = cnt;
+		} else 	if ((!pt_internal_data.global_bypass.driver)
+				&& (strcmp(child->name, "BYPASS") == 0)) {
+			struct pt_global *global =
+				&pt_internal_data.global_bypass;
+			global->driver = driver;
+			global->property_index = cnt;
+		}
 		cnt++;
 	}
 
@@ -758,10 +867,9 @@ int pt_driver_get_property_value(struct pt_driver *driver, int property_index,
 		"id_size_priority", index, value);
 }
 
-static bool pt_test_resize_callback(void *data, int id, int size_allocated)
+static void pt_test_resize_callback(void *data, int id, size_t size_allocated)
 {
 	msleep(100);
-	return true;
 }
 
 static int pt_sysctl_command(struct ctl_table *ctl, int write,
@@ -799,7 +907,7 @@ static int pt_sysctl_command(struct ctl_table *ctl, int write,
 			return -EINVAL;
 		if (handle)
 			return -EEXIST;
-		handle = pt_register(node, (void *)node->name,
+		handle = pt_client_register(node, (void *)node->name,
 				pt_test_resize_callback);
 		if (IS_ERR(handle))
 			return -PTR_ERR(handle);
@@ -809,21 +917,21 @@ static int pt_sysctl_command(struct ctl_table *ctl, int write,
 			return -EINVAL;
 		if ((!handle) || (id >= handle->id_cnt))
 			return -ENOENT;
-		pt_enable(handle, id);
+		pt_client_enable(handle, id);
 		break;
 	case PT_FN_DISABLE:
 		if (retscanf < 3)
 			return -EINVAL;
 		if ((!handle) || (id >= handle->id_cnt))
 			return -ENOENT;
-		pt_disable(handle, id);
+		pt_client_disable(handle, id);
 		break;
 	case PT_FN_UNREGISTER:
 		if (retscanf < 2)
 			return -EINVAL;
 		if (!handle)
 			return -ENOENT;
-		pt_unregister(handle);
+		pt_client_unregister(handle);
 		break;
 	case PT_FN_RESIZE:
 		if (retscanf < 3)
@@ -838,21 +946,21 @@ static int pt_sysctl_command(struct ctl_table *ctl, int write,
 		if ((!handle) || (id >= handle->id_cnt)
 			|| (size_newid >= handle->id_cnt))
 			return -ENOENT;
-		pt_mutate(handle, id, size_newid);
+		pt_client_mutate(handle, id, size_newid);
 		break;
 	case PT_FN_DISABLE_NO_FREE:
 		if (retscanf < 3)
 			return -EINVAL;
 		if ((!handle) || (id >= handle->id_cnt))
 			return -ENOENT;
-		pt_disable_no_free(handle, id);
+		pt_client_disable_no_free(handle, id);
 		break;
 	case PT_FN_FREE:
 		if (retscanf < 3)
 			return -EINVAL;
 		if ((!handle) || (id >= handle->id_cnt))
 			return -ENOENT;
-		pt_free(handle, id);
+		pt_client_free(handle, id);
 		break;
 	default:
 		return -EINVAL;
@@ -866,6 +974,12 @@ static int __init pt_init(void)
 
 	memset(&pt_internal_data, 0, sizeof(pt_internal_data));
 	spin_lock_init(&pt_internal_data.sl);
+	pt_internal_data.global_leftover.ptid = PT_PTID_INVALID;
+	pt_internal_data.global_leftover.pbha = PT_PBHA_INVALID;
+	pt_internal_data.global_leftover.driver = NULL;
+	pt_internal_data.global_bypass.ptid = PT_PTID_INVALID;
+	pt_internal_data.global_bypass.pbha = PT_PBHA_INVALID;
+	pt_internal_data.global_bypass.driver = NULL;
 	INIT_LIST_HEAD(&pt_internal_data.handle_list);
 	INIT_LIST_HEAD(&pt_internal_data.driver_list);
 	INIT_LIST_HEAD(&pt_internal_data.resize_list);

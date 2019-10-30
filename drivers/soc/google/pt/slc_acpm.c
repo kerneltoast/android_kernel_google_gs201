@@ -40,14 +40,14 @@ enum pt_property_index {
 	PT_PROPERTY_INDEX_PBHA = 3
 };
 
-static int slc_acpm_alloc(void *data, int property_index, void *resize_data,
+static ptid_t slc_acpm_alloc(void *data, int property_index, void *resize_data,
 		void (*resize)(void *data, size_t size));
-static void slc_acpm_free(void *data, int ptid);
-static void slc_acpm_enable(void *data, int ptid);
-static void slc_acpm_disable(void *data, int ptid);
-static int slc_acpm_mutate(void *data, int ptid, void *resize_data,
+static void slc_acpm_free(void *data, ptid_t ptid);
+static void slc_acpm_enable(void *data, ptid_t ptid);
+static void slc_acpm_disable(void *data, ptid_t ptid);
+static int slc_acpm_mutate(void *data, ptid_t ptid, void *resize_data,
 	int new_property_index);
-static int slc_acpm_pbha(void *data, int ptid);
+static int slc_acpm_pbha(void *data, ptid_t ptid);
 
 struct pt_ops slc_acpm_ops = {
 	.alloc = slc_acpm_alloc,
@@ -94,7 +94,7 @@ static struct slc_acpm_driver_data *slc_acpm_driver_data;
 /*
  * Extact ptid/data from acpm reply
  */
-static void pt_ptid_data_decode(int ptid_data, int *ptid, int *data)
+static void pt_ptid_data_decode(int ptid_data, ptid_t *ptid, int *data)
 {
 	if (ptid_data < 0) {
 		*ptid = -1;
@@ -203,7 +203,7 @@ static bool slc_version_check(struct slc_acpm_driver_data *driver_data)
 static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
 {
 	int ret;
-	int ptid;
+	ptid_t ptid;
 	int size4kB;
 
 	ret = slc_acpm(driver_data, PT_CHECK, 0, 0);
@@ -220,7 +220,7 @@ static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
  * Apply the last changes of ptid to SLC by calling APM
  */
 static void slc_acpm_apply(struct slc_acpm_driver_data *driver_data,
-	int ptid, bool zero_size)
+	ptid_t ptid, bool zero_size)
 {
 	int ret;
 	unsigned int arg;
@@ -259,7 +259,7 @@ static void slc_acpm_ipc_callback(unsigned int *cmd, unsigned int size)
  * - slc_acpm_disable will move its size to zero.
  * - slc_acpm_free will destroy/free it.
  */
-static int slc_acpm_alloc(void *data, int property_index, void *resize_data,
+static ptid_t slc_acpm_alloc(void *data, int property_index, void *resize_data,
 		void (*resize)(void *data, size_t size))
 {
 	struct slc_acpm_driver_data *driver_data =
@@ -270,7 +270,7 @@ static int slc_acpm_alloc(void *data, int property_index, void *resize_data,
 	u32 priority;
 	unsigned int arg;
 	int ret;
-	int ptid;
+	ptid_t ptid;
 	int retnb;
 
 	if (!slc_version_check(driver_data))
@@ -308,7 +308,7 @@ static int slc_acpm_alloc(void *data, int property_index, void *resize_data,
 	return (int)ptid;
 }
 
-static int slc_acpm_mutate(void *data, int ptid, void *resize_data,
+static ptid_t slc_acpm_mutate(void *data, ptid_t ptid, void *resize_data,
 	int new_property_index)
 {
 	struct slc_acpm_driver_data *driver_data =
@@ -344,7 +344,7 @@ static int slc_acpm_mutate(void *data, int ptid, void *resize_data,
 	return ptid;
 }
 
-static int slc_acpm_pbha(void *data, int ptid)
+static ptpbha_t slc_acpm_pbha(void *data, ptid_t ptid)
 {
 	struct slc_acpm_driver_data *driver_data =
 		(struct slc_acpm_driver_data *)data;
@@ -352,7 +352,7 @@ static int slc_acpm_pbha(void *data, int ptid)
 	return driver_data->ptids[ptid].pbha & PT_PBHA_MASK;
 }
 
-static void slc_acpm_free(void *data, int ptid)
+static void slc_acpm_free(void *data, ptid_t ptid)
 {
 	struct slc_acpm_driver_data *driver_data =
 		(struct slc_acpm_driver_data *)data;
@@ -360,12 +360,12 @@ static void slc_acpm_free(void *data, int ptid)
 
 	if (!slc_version_check(driver_data))
 		return;
-	arg = ptid;
+	arg = (unsigned int)ptid;
 	WARN_ON(slc_acpm(driver_data, PT_DISABLE, arg, 0 /* unused */) < 0);
 	slc_acpm_check(driver_data);
 }
 
-static void slc_acpm_enable(void *data, int ptid)
+static void slc_acpm_enable(void *data, ptid_t ptid)
 {
 	struct slc_acpm_driver_data *driver_data =
 				(struct slc_acpm_driver_data *)data;
@@ -376,7 +376,7 @@ static void slc_acpm_enable(void *data, int ptid)
 	slc_acpm_check(driver_data);
 }
 
-static void slc_acpm_disable(void *data, int ptid)
+static void slc_acpm_disable(void *data, ptid_t ptid)
 {
 	struct slc_acpm_driver_data *driver_data =
 				(struct slc_acpm_driver_data *)data;

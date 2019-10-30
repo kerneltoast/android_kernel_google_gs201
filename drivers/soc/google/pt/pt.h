@@ -19,50 +19,75 @@
 #define PT_PBHA_ENABLE 0x8000
 #define PT_PBHA_MASK 0x0fff
 
+enum pt_global_t {
+	PT_GLOBAL_BYPASS,
+	PT_GLOBAL_LEFTOVER,
+	PT_GLOBAL_LAST
+};
+
+typedef int ptid_t; /* valid slc PID or PT_PTID_INVALID */
+typedef int ptpbha_t; /* valid PBHA or PT_PBHA_INVALID */
+
 /*
  * API for client requesting PT
  */
 struct pt_handle;
-struct pt_info {
-	const char *node;
-	const char *id_name;
-	int id;
-	int size_index;
-	u32 ptid;
-	uint64_t size;
-	bool enabled;
-	bool resize_in_progress;
-};
-typedef bool  (*pt_resize_callback_t)(void *data, int id, int size_allocated);
 
-struct pt_handle *pt_register(struct device_node *node, void *data,
+/*
+ * data: the "data" given in pt_client_register
+ * id: the index in devicetree.
+ * size_allocated: size allocated in bytes
+ */
+typedef void (*pt_resize_callback_t)(void *data, int id,
+					size_t size_allocated);
+
+/*
+ * Register a callback and a device node for managing partition (ptid)
+ * associated to that device node.
+ */
+struct pt_handle *pt_client_register(struct device_node *node, void *data,
 	pt_resize_callback_t resize_callback);
-void pt_unregister(struct pt_handle *handle);
 
-/* Enable id a allocate a ptid for it if none was already allocated */
-int  pt_enable(struct pt_handle *handle, int id);
+/*
+ * Free resource used to managed partition.
+ * Panic if not all id are disabled and freed.
+ */
+void pt_client_unregister(struct pt_handle *handle);
+
+/* Enable id and allocate a ptid for it if none was already allocated */
+ptid_t pt_client_enable(struct pt_handle *handle, int id);
 
 /* Disable id and free its ptid */
-void pt_disable(struct pt_handle *handle, int id);
+void pt_client_disable(struct pt_handle *handle, int id);
 
 /* Disabled id, but its ptid stay allocated */
-void pt_disable_no_free(struct pt_handle *handle, int id);
+void pt_client_disable_no_free(struct pt_handle *handle, int id);
 
 /* Free id ptid, this id must have been disabled with pt_disable_no_free() */
-void pt_free(struct pt_handle *handle, int id);
+void pt_client_free(struct pt_handle *handle, int id);
 
 /*
  * Transfer the ptid of old_id to new_id
  * It will keep the same data cached, but change the parammeters.
+ * return:
+ *	Success: same ptid that the ptid returned at pt_client_enable(old_id)
+ * 	Error: PT_PTID_INVALID: no data for new_id or old_id unallocated
+ *	Panic: if new_id/old_id can't share the same pbha
  */
-int  pt_mutate(struct pt_handle *handle, int old_id, int new_id);
+ptid_t pt_client_mutate(struct pt_handle *handle, int old_id, int new_id);
 
 /*
- * Get the pbha of a device/id, need the id to be enabled or
- * allocated (pt_enable()/pt_disable_no_free())
+ * Get a global pbha for leftover cache (PT_GLOBAL_LEFTOVER)
+ * or not cachable (PT_GLOBAL_BYPASS), never fail.
  */
-int  pt_pbha(struct device_node *node, int id);
-bool pt_info_get(int iterator, uint64_t *timestamp, struct pt_info *info);
+ptpbha_t pt_pbha_global(enum pt_global_t type);
+
+/*
+ * Get a global pid for leftover cache (PT_GLOBAL_LEFTOVER)
+ * or not cachable (PT_GLOBAL_BYPASS), never fail.
+ */
+ptid_t pt_pid_global(enum pt_global_t type);
+
 
 /*
  * API for driver implementing PT
@@ -78,38 +103,41 @@ struct pt_ops {
 	 */
 
 	/*
-	 * Alloc allocate a ptid and set the resize callback.
+	 * Allocate a ptid and set the resize callback.
 	 * It does not enable it.
 	 */
-	int (*alloc)(void *data, int property_index, void *resize_data,
+	ptid_t (*alloc)(void *data, int property_index, void *resize_data,
 		void (*resize)(void *data, size_t size));
 	/*
-	 * Free free a ptid allocated before, but which in no more enabled
+	 * Free a previously allocated ptid which is no longer enabled
 	 */
-	void (*free)(void *data, int ptid);
+	void (*free)(void *data, ptid_t ptid);
 	/*
 	 * Enable an alocated ptid. The ptid must not be currently enabled.
 	 */
-	void (*enable)(void *data, int ptid);
+	void (*enable)(void *data, ptid_t ptid);
 	/*
 	 * Disable a ptid. The ptid must be currently enabled.
 	 */
-	void (*disable)(void *data, int ptid);
+	void (*disable)(void *data, ptid_t ptid);
 
 	/*
-	 * Change a ptid parametters to new parameters coming
+	 * Change a ptid parameters to new parameters coming
 	 * from new_property_index.
 	 * The old ptid must be currently enabled.
+	 *
+	 * return ptid given or PT_PTID_INVALID is error.
 	 */
-	int (*mutate)(void *data, int ptid, void *resize_data,
+	ptid_t (*mutate)(void *data, ptid_t ptid, void *resize_data,
 			int new_property_index);
 
 	/*
 	 * Call to pbha is NOT serialized by pt.c
 	 *
-	 * Error return PT_PBHA_INVALID
+	 * return pbha for ptid on success
+	 * 	PT_PBHA_INVALID on error
 	 */
-	int (*pbha)(void *data, int ptid);
+	ptpbha_t (*pbha)(void *data, int ptid);
 };
 
 struct pt_driver *pt_driver_register(struct device_node *node,
