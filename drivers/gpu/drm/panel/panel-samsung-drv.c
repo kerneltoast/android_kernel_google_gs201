@@ -259,6 +259,7 @@ static const struct of_device_id exynos_panel_of_match[] = {
 	{ .compatible = "samsung,emul", .data = &samsung_emul },
 	{ .compatible = "samsung,s6e3ha8", .data = &samsung_s6e3ha8 },
 	{ .compatible = "samsung,s6e3ha9", .data = &samsung_s6e3ha9 },
+	{ .compatible = "samsung,s6e3hc2", .data = &samsung_s6e3hc2 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, exynos_panel_of_match);

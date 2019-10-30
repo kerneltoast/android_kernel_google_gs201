@@ -35,6 +35,7 @@ obj-$(CONFIG_DRM_PANEL_SAMSUNG_S6E3HA9) += panel-samsung-s6e3ha9.o
 obj-$(CONFIG_DRM_PANEL_SAMSUNG_COMMON) += panel-samsung-drv.o		\
 					  panel-samsung-s6e3ha8.o	\
 					  panel-samsung-s6e3ha9.o	\
+					  panel-samsung-s6e3hc2.o	\
 					  panel-samsung-emul.o
 obj-$(CONFIG_DRM_PANEL_SAMSUNG_S6E63J0X03) += panel-samsung-s6e63j0x03.o
 obj-$(CONFIG_DRM_PANEL_SAMSUNG_S6E63M0) += panel-samsung-s6e63m0.o

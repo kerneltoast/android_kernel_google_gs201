@@ -137,5 +137,6 @@ int exynos_panel_set_power(struct exynos_panel *ctx, bool on);
 extern const struct exynos_panel_desc samsung_emul;
 extern const struct exynos_panel_desc samsung_s6e3ha8;
 extern const struct exynos_panel_desc samsung_s6e3ha9;
+extern const struct exynos_panel_desc samsung_s6e3hc2;
 
 #endif /* _PANEL_SAMSUNG_DRV_ */
