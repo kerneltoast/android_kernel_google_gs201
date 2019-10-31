@@ -24,7 +24,8 @@ struct exynos_drm_buf {
 	struct dma_buf_attachment *attachment;
 	struct sg_table *sgt;
 	dma_addr_t dma_addr;
-	bool colormap;
+	bool is_colormap;
+	u32 color;
 };
 
 struct exynos_drm_fb {

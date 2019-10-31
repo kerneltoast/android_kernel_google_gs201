@@ -36,7 +36,7 @@
 
 static void exynos_drm_free_buf_object(struct exynos_drm_buf *obj)
 {
-	if (obj->colormap)
+	if (obj->is_colormap)
 		goto free;
 
 	if (!IS_ERR_VALUE(obj->dma_addr))
@@ -130,14 +130,6 @@ int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
 {
 	struct dsim_device *dsim = dsim_drvdata[0];
 
-	obj->colormap = false;
-
-	if (handle == 0xFFFF) {
-		DRM_INFO("requested magic handle for colormap\n");
-		obj->colormap = true;
-		return 0;
-	}
-
 	obj->dmabuf = dma_buf_get(handle);
 	if (IS_ERR_OR_NULL(obj->dmabuf)) {
 		DRM_ERROR("failed to get dma_buf:%ld\n", PTR_ERR(obj->dmabuf));
@@ -216,6 +208,13 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 						mode_cmd->height);
 		}
 
+		exynos_buf[i]->is_colormap = false;
+		if (mode_cmd->modifier[i] == DRM_FORMAT_MOD_SAMSUNG_COLORMAP) {
+			exynos_buf[i]->is_colormap = true;
+			exynos_buf[i]->color = mode_cmd->handles[i];
+			continue;
+		}
+
 		ret = exynos_drm_import_handle(exynos_buf[i],
 				mode_cmd->handles[i], size);
 		if (ret)
@@ -232,6 +231,25 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return fb;
 
 	return fb;
+}
+
+static const struct drm_format_info *
+exynos_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
+{
+	struct drm_format_name_buf n;
+	const char *format_name;
+	const struct drm_format_info *info = NULL;
+
+	if (cmd->modifier[0] == DRM_FORMAT_MOD_SAMSUNG_COLORMAP) {
+		info = drm_format_info(cmd->pixel_format);
+		if (info->format == DRM_FORMAT_BGRA8888)
+			return info;
+
+		format_name = drm_get_format_name(info->format, &n);
+		DRM_WARN("%s is not proper format for colormap\n", format_name);
+	}
+
+	return NULL;
 }
 
 dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
@@ -270,7 +288,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dst_h = state->base.crtc_h;
 
 	win_config->is_afbc = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
-	if (exynos_fb->exynos_buf[0]->colormap)
+	if (exynos_fb->exynos_buf[0]->is_colormap)
 		win_config->state = DPU_WIN_STATE_COLOR;
 	else
 		win_config->state = DPU_WIN_STATE_BUFFER;
@@ -456,6 +474,7 @@ static struct drm_mode_config_helper_funcs exynos_drm_mode_config_helpers = {
 
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {
 	.fb_create = exynos_user_fb_create,
+	.get_format_info = exynos_get_format_info,
 	.output_poll_changed = exynos_drm_output_poll_changed,
 	.atomic_check = exynos_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,

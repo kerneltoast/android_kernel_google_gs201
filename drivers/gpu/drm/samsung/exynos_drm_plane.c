@@ -185,9 +185,7 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 	struct exynos_drm_plane_state *exynos_state =
 						to_exynos_plane_state(state);
 
-	if (property == exynos_plane->props.color)
-		exynos_state->color = val;
-	else if (property == exynos_plane->props.dataspace)
+	if (property == exynos_plane->props.dataspace)
 		exynos_state->dataspace = val;
 	else if (property == exynos_plane->props.max_luminance)
 		exynos_state->max_luminance = val;
@@ -208,9 +206,7 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 	struct exynos_drm_plane_state *exynos_state =
 			to_exynos_plane_state((struct drm_plane_state *)state);
 
-	if (property == exynos_plane->props.color)
-		*val = exynos_state->color;
-	else if (property == exynos_plane->props.restriction)
+	if (property == exynos_plane->props.restriction)
 		*val = exynos_state->blob_id_restriction;
 	else if (property == exynos_plane->props.dataspace)
 		*val = exynos_state->dataspace;
@@ -243,6 +239,9 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 
 	if (fb->modifier) {
 		if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0))
+			return 0;
+
+		if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_COLORMAP)
 			return 0;
 
 		DRM_ERROR("not supported modifier(0x%llx)\n", fb->modifier);
@@ -360,23 +359,6 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_update = exynos_plane_atomic_update,
 	.atomic_disable = exynos_plane_atomic_disable,
 };
-
-int exynos_drm_plane_create_color_property(
-				struct exynos_drm_plane *exynos_plane,
-				const struct exynos_drm_plane_config *config)
-{
-	struct drm_plane *plane = &exynos_plane->base;
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(plane->dev, 0, "color", 0, UINT_MAX);
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&plane->base, prop, 0);
-	exynos_plane->props.color = prop;
-
-	return 0;
-}
 
 static int exynos_drm_plane_create_restriction_property(
 				struct exynos_drm_plane *exynos_plane,
@@ -508,7 +490,6 @@ int exynos_plane_init(struct drm_device *dev,
 		exynos_drm_plane_create_min_luminance_property(exynos_plane);
 	}
 
-	exynos_drm_plane_create_color_property(exynos_plane, config);
 	exynos_drm_plane_create_restriction_property(exynos_plane, config);
 	exynos_drm_plane_create_dataspace_property(exynos_plane);
 

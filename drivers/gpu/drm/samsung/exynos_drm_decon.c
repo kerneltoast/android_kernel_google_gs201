@@ -184,18 +184,20 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	struct decon_window_regs win_info;
 	unsigned int zpos;
 	struct exynos_drm_fb *exynos_fb;
-	bool colormap = false;
+	bool is_colormap = false;
 	u16 hw_alpha;
 
 	decon_dbg(decon, "%s +\n", __func__);
 
+	memset(&win_info, 0, sizeof(struct decon_window_regs));
+
 	if (state->base.fb) {
 		exynos_fb = container_of(state->base.fb, struct exynos_drm_fb,
 				fb);
-		colormap = exynos_fb->exynos_buf[0]->colormap;
+		is_colormap = exynos_fb->exynos_buf[0]->is_colormap;
+		win_info.colormap = exynos_fb->exynos_buf[0]->color;
 	}
 
-	memset(&win_info, 0, sizeof(struct decon_window_regs));
 	win_info.start_pos = win_start_pos(state->crtc.x, state->crtc.y);
 	win_info.end_pos = win_end_pos(state->crtc.x, state->crtc.y,
 			state->crtc.w, state->crtc.h);
@@ -208,12 +210,10 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	win_info.plane_alpha = hw_alpha;
 	win_info.blend = state->base.pixel_blend_mode;
 
-	win_info.colormap = state->color;
-
 	zpos = state->base.zpos;
-	decon_reg_set_window_control(decon->id, zpos, &win_info, colormap);
+	decon_reg_set_window_control(decon->id, zpos, &win_info, is_colormap);
 
-	if (!colormap) {
+	if (!is_colormap) {
 		dpp->decon_id = decon->id;
 		dpp->update(dpp, state);
 		dpp->is_win_connected = true;
@@ -227,7 +227,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 			drm_plane_index(&plane->base), win_info.plane_alpha,
 			hw_alpha);
 	decon_dbg(decon, "blend_mode(%d) color(%s:0x%x)\n", win_info.blend,
-			colormap ? "enable" : "disable", state->color);
+			is_colormap ? "enable" : "disable", win_info.colormap);
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
