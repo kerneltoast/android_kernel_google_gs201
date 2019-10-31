@@ -88,8 +88,6 @@ struct exynos_drm_plane_state {
 	struct exynos_drm_rect src;
 	unsigned int h_ratio;
 	unsigned int v_ratio;
-	u8 alpha;
-	uint16_t blend_mode;
 	u32 color;
 	uint32_t blob_id_restriction;
 	uint32_t dataspace;
@@ -119,8 +117,6 @@ struct exynos_drm_plane {
 	unsigned int index;
 
 	struct {
-		struct drm_property *alpha;
-		struct drm_property *blend_mode;
 		struct drm_property *color;
 		struct drm_property *restriction;
 		struct drm_property *dataspace;

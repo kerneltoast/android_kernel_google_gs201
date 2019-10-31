@@ -16,11 +16,7 @@
 #include <drm/drm_device.h>
 #include <exynos_drm_drv.h>
 
-#define EXYNOS_DRM_BLEND_ALPHA_OPAQUE		0xff
-
-#define EXYNOS_DRM_MODE_BLEND_PREMULTI		0
-#define EXYNOS_DRM_MODE_BLEND_COVERAGE		1
-#define EXYNOS_DRM_MODE_BLEND_PIXEL_NONE	2
+#define EXYNOS_PLANE_ALPHA_MAX          0xff
 
 #define STANDARD_SHIFT					 16
 #define HAL_DATASPACE_STANDARD_MASK			(0x3F << STANDARD_SHIFT)

@@ -302,7 +302,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 			win_config->format, win_config->dpp_ch, zpos,
 			win_config->comp_src);
 	DRM_DEBUG("alpha[%d] blend mode[%d]\n",
-			state->alpha, state->blend_mode);
+			state->base.alpha, state->base.pixel_blend_mode);
 	DRM_DEBUG("simplified rot[0x%x]\n", simplified_rot);
 }
 

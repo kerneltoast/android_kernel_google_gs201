@@ -185,6 +185,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned int zpos;
 	struct exynos_drm_fb *exynos_fb;
 	bool colormap = false;
+	u16 hw_alpha;
 
 	decon_dbg(decon, "%s +\n", __func__);
 
@@ -202,8 +203,10 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	win_info.ch = dpp->id; /* DPP's id is DPP channel number */
 
-	win_info.plane_alpha = state->alpha;
-	win_info.blend = state->blend_mode;
+	hw_alpha = DIV_ROUND_CLOSEST(state->base.alpha * EXYNOS_PLANE_ALPHA_MAX,
+			DRM_BLEND_ALPHA_OPAQUE);
+	win_info.plane_alpha = hw_alpha;
+	win_info.blend = state->base.pixel_blend_mode;
 
 	win_info.colormap = state->color;
 
@@ -220,9 +223,10 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	dpp->win_id = zpos;
 
-	decon_dbg(decon, "plane idx[%d]: alpha(0x%x) blend_mode(%d) color(%s:0x%x)\n",
-			drm_plane_index(&plane->base), state->alpha,
-			state->blend_mode,
+	decon_dbg(decon, "plane idx[%d]: alpha(0x%x) hw alpha(0x%x)\n",
+			drm_plane_index(&plane->base), win_info.plane_alpha,
+			hw_alpha);
+	decon_dbg(decon, "blend_mode(%d) color(%s:0x%x)\n", win_info.blend,
 			colormap ? "enable" : "disable", state->color);
 	decon_dbg(decon, "%s -\n", __func__);
 }

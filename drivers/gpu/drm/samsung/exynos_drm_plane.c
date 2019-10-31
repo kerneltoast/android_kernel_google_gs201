@@ -185,11 +185,7 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 	struct exynos_drm_plane_state *exynos_state =
 						to_exynos_plane_state(state);
 
-	if (property == exynos_plane->props.alpha)
-		exynos_state->alpha = val;
-	else if (property == exynos_plane->props.blend_mode)
-		exynos_state->blend_mode = val;
-	else if (property == exynos_plane->props.color)
+	if (property == exynos_plane->props.color)
 		exynos_state->color = val;
 	else if (property == exynos_plane->props.dataspace)
 		exynos_state->dataspace = val;
@@ -212,11 +208,7 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 	struct exynos_drm_plane_state *exynos_state =
 			to_exynos_plane_state((struct drm_plane_state *)state);
 
-	if (property == exynos_plane->props.alpha)
-		*val = exynos_state->alpha;
-	else if (property == exynos_plane->props.blend_mode)
-		*val = exynos_state->blend_mode;
-	else if (property == exynos_plane->props.color)
+	if (property == exynos_plane->props.color)
 		*val = exynos_state->color;
 	else if (property == exynos_plane->props.restriction)
 		*val = exynos_state->blob_id_restriction;
@@ -369,25 +361,6 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_disable = exynos_plane_atomic_disable,
 };
 
-int exynos_drm_plane_create_alpha_property(
-				struct exynos_drm_plane *exynos_plane,
-				const struct exynos_drm_plane_config *config)
-{
-	struct drm_plane *plane = &exynos_plane->base;
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(plane->dev, 0, "alpha",
-					 0, EXYNOS_DRM_BLEND_ALPHA_OPAQUE);
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&plane->base, prop,
-					EXYNOS_DRM_BLEND_ALPHA_OPAQUE);
-	exynos_plane->props.alpha = prop;
-
-	return 0;
-}
-
 int exynos_drm_plane_create_color_property(
 				struct exynos_drm_plane *exynos_plane,
 				const struct exynos_drm_plane_config *config)
@@ -401,30 +374,6 @@ int exynos_drm_plane_create_color_property(
 
 	drm_object_attach_property(&plane->base, prop, 0);
 	exynos_plane->props.color = prop;
-
-	return 0;
-}
-
-int exynos_drm_plane_create_blend_mode_property(
-				struct exynos_drm_plane *exynos_plane,
-				const struct exynos_drm_plane_config *config)
-{
-	struct drm_plane *plane = &exynos_plane->base;
-	struct drm_property *prop;
-	static const struct drm_prop_enum_list blend_mode_list[] = {
-		{ EXYNOS_DRM_MODE_BLEND_PIXEL_NONE, "None" },
-		{ EXYNOS_DRM_MODE_BLEND_PREMULTI, "Pre-multiplied" },
-		{ EXYNOS_DRM_MODE_BLEND_COVERAGE, "Coverage" },
-	};
-
-	prop = drm_property_create_enum(plane->dev, 0, "pixel blend mode",
-			blend_mode_list, ARRAY_SIZE(blend_mode_list));
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&plane->base, prop,
-					EXYNOS_DRM_MODE_BLEND_PREMULTI);
-	exynos_plane->props.blend_mode = prop;
 
 	return 0;
 }
@@ -519,8 +468,12 @@ int exynos_plane_init(struct drm_device *dev,
 {
 	int err;
 	struct dpp_device *dpp = plane_to_dpp(exynos_plane);
+	unsigned int supported_modes = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				       BIT(DRM_MODE_BLEND_PREMULTI) |
+				       BIT(DRM_MODE_BLEND_COVERAGE);
+	struct drm_plane *plane = &exynos_plane->base;
 
-	err = drm_universal_plane_init(dev, &exynos_plane->base,
+	err = drm_universal_plane_init(dev, plane,
 				       1 << dev->mode_config.num_crtc,
 				       &exynos_plane_funcs,
 				       config->pixel_formats,
@@ -531,23 +484,22 @@ int exynos_plane_init(struct drm_device *dev,
 		return err;
 	}
 
-	drm_plane_helper_add(&exynos_plane->base, &plane_helper_funcs);
+	drm_plane_helper_add(plane, &plane_helper_funcs);
 
 	exynos_plane->index = index;
 	exynos_plane->config = config;
 
-	drm_plane_create_zpos_property(&exynos_plane->base, 0, 0,
-			MAX_PLANE - 1);
+	drm_plane_create_alpha_property(plane);
+	drm_plane_create_blend_mode_property(plane, supported_modes);
+	drm_plane_create_zpos_property(plane, 0, 0, MAX_PLANE - 1);
 
 	if (test_bit(DPP_ATTR_ROT, &dpp->attr))
-		drm_plane_create_rotation_property(&exynos_plane->base,
-				DRM_MODE_ROTATE_0,
+		drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
 				DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
 				DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270 |
 				DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
 	else if (test_bit(DPP_ATTR_FLIP, &dpp->attr))
-		drm_plane_create_rotation_property(&exynos_plane->base,
-				DRM_MODE_ROTATE_0,
+		drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
 				DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180 |
 				DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
 
@@ -556,8 +508,6 @@ int exynos_plane_init(struct drm_device *dev,
 		exynos_drm_plane_create_min_luminance_property(exynos_plane);
 	}
 
-	exynos_drm_plane_create_alpha_property(exynos_plane, config);
-	exynos_drm_plane_create_blend_mode_property(exynos_plane, config);
 	exynos_drm_plane_create_color_property(exynos_plane, config);
 	exynos_drm_plane_create_restriction_property(exynos_plane, config);
 	exynos_drm_plane_create_dataspace_property(exynos_plane);
