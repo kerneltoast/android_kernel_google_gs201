@@ -34,10 +34,9 @@ struct acpm_ipc_ch {
 	unsigned int type;
 	unsigned int seq_num;
 	unsigned int *cmd;
-	spinlock_t rx_lock; /* generic spin-lock for rx */
-	spinlock_t tx_lock; /* generic spin-lock for tx */
-	spinlock_t ch_lock; /* generic spin-lock for ch */
-	struct mutex wait_lock;
+	struct mutex rx_lock;
+	struct mutex tx_lock;
+	struct mutex ch_lock;
 
 	struct completion wait;
 	bool polling;

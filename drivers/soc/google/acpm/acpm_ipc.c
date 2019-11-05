@@ -255,9 +255,9 @@ unsigned int acpm_ipc_request_channel(struct device_node *np,
 				cb->ipc_callback = handler;
 				cb->client = np;
 
-				spin_lock(&acpm_ipc->channel[i].ch_lock);
+				mutex_lock(&acpm_ipc->channel[i].ch_lock);
 				list_add(&cb->list, &acpm_ipc->channel[i].list);
-				spin_unlock(&acpm_ipc->channel[i].ch_lock);
+				mutex_unlock(&acpm_ipc->channel[i].ch_lock);
 			}
 
 			return 0;
@@ -277,9 +277,9 @@ unsigned int acpm_ipc_release_channel(struct device_node *np,
 
 	list_for_each_entry(cb, cb_list, list) {
 		if (cb->client == np) {
-			spin_lock(&channel->ch_lock);
+			mutex_lock(&channel->ch_lock);
 			list_del(&cb->list);
-			spin_unlock(&channel->ch_lock);
+			mutex_unlock(&channel->ch_lock);
 			devm_kfree(acpm_ipc->dev, cb);
 			break;
 		}
@@ -302,7 +302,7 @@ static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 	const void *src;
 	void *dst;
 
-	spin_lock(&channel->rx_lock);
+	mutex_lock(&channel->rx_lock);
 	/* IPC command dequeue */
 	front = __raw_readl(channel->rx_ch.front);
 	rear = __raw_readl(channel->rx_ch.rear);
@@ -360,7 +360,7 @@ static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 		break;
 	}
 
-	spin_unlock(&channel->rx_lock);
+	mutex_unlock(&channel->rx_lock);
 
 	return ret;
 }
@@ -372,11 +372,11 @@ static void dequeue_policy(struct acpm_ipc_ch *channel)
 	struct list_head *cb_list = &channel->list;
 	struct callback_info *cb;
 
-	spin_lock(&channel->rx_lock);
+	mutex_lock(&channel->rx_lock);
 
 	if (channel->type == TYPE_BUFFER) {
 		memcpy_align_4(channel->cmd, channel->rx_ch.base, channel->rx_ch.size);
-		spin_unlock(&channel->rx_lock);
+		mutex_unlock(&channel->rx_lock);
 		list_for_each_entry(cb, cb_list, list)
 			if (cb && cb->ipc_callback)
 				cb->ipc_callback(channel->cmd, channel->rx_ch.size);
@@ -410,7 +410,7 @@ static void dequeue_policy(struct acpm_ipc_ch *channel)
 	}
 
 	acpm_log_print();
-	spin_unlock(&channel->rx_lock);
+	mutex_unlock(&channel->rx_lock);
 }
 
 static irqreturn_t acpm_ipc_irq_handler(int irq, void *data)
@@ -543,7 +543,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 
 	channel = &acpm_ipc->channel[channel_id];
 
-	spin_lock(&channel->tx_lock);
+	mutex_lock(&channel->tx_lock);
 
 	front = __raw_readl(channel->tx_ch.front);
 	rear = __raw_readl(channel->tx_ch.rear);
@@ -558,13 +558,13 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	if (timeout_flag) {
 		acpm_log_print();
 		acpm_debug->debug_log_level = 1;
-		spin_unlock(&channel->tx_lock);
+		mutex_unlock(&channel->tx_lock);
 		pr_err("[%s] tx buffer full! timeout!!!\n", __func__);
 		return -ETIMEDOUT;
 	}
 
 	if (!cfg->cmd) {
-		spin_unlock(&channel->tx_lock);
+		mutex_unlock(&channel->tx_lock);
 		return -EIO;
 	}
 
@@ -584,14 +584,14 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	ret = enqueue_indirection_cmd(channel, cfg);
 	if (ret) {
 		pr_err("[ACPM] indirection command fail %d\n", ret);
-		spin_unlock(&channel->tx_lock);
+		mutex_unlock(&channel->tx_lock);
 		return ret;
 	}
 
 	writel(tmp_index, channel->tx_ch.front);
 
 	apm_interrupt_gen(channel->id);
-	spin_unlock(&channel->tx_lock);
+	mutex_unlock(&channel->tx_lock);
 
 	if (channel->polling && cfg->response) {
 retry:
@@ -774,9 +774,9 @@ static int channel_init(void)
 							GFP_KERNEL);
 
 		init_completion(&acpm_ipc->channel[i].wait);
-		spin_lock_init(&acpm_ipc->channel[i].rx_lock);
-		spin_lock_init(&acpm_ipc->channel[i].tx_lock);
-		spin_lock_init(&acpm_ipc->channel[i].ch_lock);
+		mutex_init(&acpm_ipc->channel[i].rx_lock);
+		mutex_init(&acpm_ipc->channel[i].tx_lock);
+		mutex_init(&acpm_ipc->channel[i].ch_lock);
 		INIT_LIST_HEAD(&acpm_ipc->channel[i].list);
 	}
 
