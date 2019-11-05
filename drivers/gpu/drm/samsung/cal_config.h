@@ -107,6 +107,8 @@ static inline void cal_write_mask(struct cal_regs_desc *regs_desc,
 	cal_write(regs_desc, offset, val);
 }
 
+void dpu_print_hex_dump(void __iomem *regs, const void *buf, size_t len);
+
 /* log messages */
 #define cal_msg(func, _id, fmt, ...)	\
 	func("%s(#%d) " fmt, __func__, _id, ##__VA_ARGS__)

@@ -17,6 +17,7 @@
 
 #include <exynos_drm_decon.h>
 #include <exynos_drm_dsim.h>
+#include <cal_config.h>
 
 /* If event are happened continuously, then ignore */
 static bool dpu_event_ignore
@@ -423,4 +424,26 @@ void dpu_deinit_debug(struct decon_device *decon)
 {
 	debugfs_remove(decon->d.debug_root);
 	debugfs_remove(decon->d.debug_event);
+}
+
+#define PREFIX_LEN	40
+#define ROW_LEN		32
+void dpu_print_hex_dump(void __iomem *regs, const void *buf, size_t len)
+{
+	char prefix_buf[PREFIX_LEN];
+	unsigned long p;
+	int i, row;
+
+	for (i = 0; i < len; i += ROW_LEN) {
+		p = buf - regs + i;
+
+		if (len - i < ROW_LEN)
+			row = len - i;
+		else
+			row = ROW_LEN;
+
+		snprintf(prefix_buf, sizeof(prefix_buf), "[%08lX] ", p);
+		print_hex_dump(KERN_INFO, prefix_buf, DUMP_PREFIX_NONE,
+				32, 4, buf + i, row, false);
+	}
 }
