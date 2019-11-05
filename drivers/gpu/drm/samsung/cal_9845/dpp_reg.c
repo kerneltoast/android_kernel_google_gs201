@@ -1129,71 +1129,49 @@ static void dpp_reg_dump_debug_regs(int id)
 	/* TODO: This will be implemented in the future */
 }
 
-#define PREFIX_LEN	40
-#define ROW_LEN		32
-static void dpp_print_hex_dump(void __iomem *regs, const void *buf, size_t len)
-{
-	char prefix_buf[PREFIX_LEN];
-	unsigned long p;
-	int i, row;
-
-	for (i = 0; i < len; i += ROW_LEN) {
-		p = buf - regs + i;
-
-		if (len - i < ROW_LEN)
-			row = len - i;
-		else
-			row = ROW_LEN;
-
-		snprintf(prefix_buf, sizeof(prefix_buf), "[%08lX] ", p);
-		print_hex_dump(KERN_INFO, prefix_buf, DUMP_PREFIX_NONE,
-				32, 4, buf + i, row, false);
-	}
-}
-
 static void dma_dump_regs(u32 id, void __iomem *dma_regs)
 {
 	cal_log_info(id, "\n=== DPU_DMA%d SFR DUMP ===\n", id);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0000, 0x144);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0200, 0x8);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0300, 0x24);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0730, 0x4);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0740, 0x4);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0D00, 0x28);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0000, 0x144);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0200, 0x8);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0300, 0x24);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0730, 0x4);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0740, 0x4);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0D00, 0x28);
 
 	/* L0,2,4 only */
 	if ((id % 2) == 0) {
-		dpp_print_hex_dump(dma_regs, dma_regs + 0x0E00, 0x14);
-		dpp_print_hex_dump(dma_regs, dma_regs + 0x0F00, 0x40);
+		dpu_print_hex_dump(dma_regs, dma_regs + 0x0E00, 0x14);
+		dpu_print_hex_dump(dma_regs, dma_regs + 0x0F00, 0x40);
 	}
 
 	cal_log_info(id, "=== DPU_DMA%d SHADOW SFR DUMP ===\n", id);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0000 + DMA_SHD_OFFSET, 0x144);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0200 + DMA_SHD_OFFSET, 0x8);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0300 + DMA_SHD_OFFSET, 0x24);
-	dpp_print_hex_dump(dma_regs, dma_regs + 0x0D00 + 0x80, 0x28);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0000 + DMA_SHD_OFFSET, 0x144);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0200 + DMA_SHD_OFFSET, 0x8);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0300 + DMA_SHD_OFFSET, 0x24);
+	dpu_print_hex_dump(dma_regs, dma_regs + 0x0D00 + 0x80, 0x28);
 
 }
 
 static void dpp_dump_regs(u32 id, void __iomem *regs, unsigned long attr)
 {
 	cal_log_info(id, "=== DPP%d SFR DUMP ===\n", id);
-	dpp_print_hex_dump(regs, regs + 0x0000, 0x64);
+	dpu_print_hex_dump(regs, regs + 0x0000, 0x64);
 	if (id % 2) {
 		/* L1,3,5 only */
-		dpp_print_hex_dump(regs, regs + 0x0200, 0xC);
+		dpu_print_hex_dump(regs, regs + 0x0200, 0xC);
 		// skip coef : 0x210 ~ 0x56C
-		dpp_print_hex_dump(regs, regs + 0x0570, 0x30);
+		dpu_print_hex_dump(regs, regs + 0x0570, 0x30);
 	}
 
 	cal_log_info(id, "=== DPP%d SHADOW SFR DUMP ===\n", id);
-	dpp_print_hex_dump(regs, regs + DPP_COM_SHD_OFFSET, 0x64);
+	dpu_print_hex_dump(regs, regs + DPP_COM_SHD_OFFSET, 0x64);
 	if (id % 2) {
 		/* L1,3,5 only */
-		dpp_print_hex_dump(regs, regs + 0x0200 + DPP_SCL_SHD_OFFSET,
+		dpu_print_hex_dump(regs, regs + 0x0200 + DPP_SCL_SHD_OFFSET,
 				0xC);
 		// skip coef : (0x210 ~ 0x56C) + DPP_SCL_SHD_OFFSET
-		dpp_print_hex_dump(regs, regs + 0x0570 + DPP_SCL_SHD_OFFSET,
+		dpu_print_hex_dump(regs, regs + 0x0570 + DPP_SCL_SHD_OFFSET,
 				0x30);
 	}
 }

@@ -2001,29 +2001,6 @@ void decon_reg_get_crc_data(u32 id, u32 crc_data[3])
 	crc_data[2] = dsimif_read(DSIMIF_CRC_DATA_B(id));
 }
 
-#define PREFIX_LEN	40
-#define ROW_LEN		32
-static void decon_print_hex_dump(void __iomem *regs, const void *buf,
-		size_t len)
-{
-	char prefix_buf[PREFIX_LEN];
-	unsigned long p;
-	int i, row;
-
-	for (i = 0; i < len; i += ROW_LEN) {
-		p = buf - regs + i;
-
-		if (len - i < ROW_LEN)
-			row = len - i;
-		else
-			row = ROW_LEN;
-
-		snprintf(prefix_buf, sizeof(prefix_buf), "[%08lX] ", p);
-		print_hex_dump(KERN_NOTICE, prefix_buf, DUMP_PREFIX_NONE,
-				32, 4, buf + i, row, false);
-	}
-}
-
 void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en)
 {
 	int i;
@@ -2034,24 +2011,24 @@ void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en)
 
 	/* decon_main */
 	cal_log_info(id, "\n=== DECON%d_MAIN SFR DUMP ===\n", id);
-	decon_print_hex_dump(main_regs, main_regs + 0x0000, 0x344);
+	dpu_print_hex_dump(main_regs, main_regs + 0x0000, 0x344);
 	/* shadow */
 	cal_log_info(id, "=== DECON%d_MAIN SHADOW SFR DUMP ===\n", id);
-	decon_print_hex_dump(main_regs, main_regs + SHADOW_OFFSET, 0x2B0);
+	dpu_print_hex_dump(main_regs, main_regs + SHADOW_OFFSET, 0x2B0);
 
 	/* decon_win & decon_wincon : 6EA */
 	for (i = 0; i < 6; i++) {
 		cal_log_info(id, "\n=== DECON_WIN%d SFR DUMP ===\n", i);
-		decon_print_hex_dump(win_regs, win_regs + WIN_OFFSET(i), 0x20);
+		dpu_print_hex_dump(win_regs, win_regs + WIN_OFFSET(i), 0x20);
 		cal_log_info(id, "=== DECON_WINCON%d SFR DUMP ===\n", i);
-		decon_print_hex_dump(wincon_regs, wincon_regs + WIN_OFFSET(i),
+		dpu_print_hex_dump(wincon_regs, wincon_regs + WIN_OFFSET(i),
 				0x4);
 		/* shadow */
 		cal_log_info(id, "=== DECON_WIN%d SHADOW SFR DUMP ===\n", i);
-		decon_print_hex_dump(win_regs,
+		dpu_print_hex_dump(win_regs,
 				win_regs + WIN_OFFSET(i) + SHADOW_OFFSET, 0x20);
 		cal_log_info(id, "=== DECON_WINCON%d SHADOW SFR DUMP ===\n", i);
-		decon_print_hex_dump(wincon_regs,
+		dpu_print_hex_dump(wincon_regs,
 				wincon_regs + WIN_OFFSET(i) + SHADOW_OFFSET,
 				0x4);
 	}
@@ -2059,16 +2036,16 @@ void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en)
 	/* dsimif : 2EA */
 	for (i = 0; i < 2; i++) {
 		cal_log_info(id, "\n=== DECON_SUB.DSIMIF%d SFR DUMP ===\n", i);
-		decon_print_hex_dump(sub_regs,
+		dpu_print_hex_dump(sub_regs,
 				sub_regs + DSIMIF_OFFSET(i), 0x10);
-		decon_print_hex_dump(sub_regs,
+		dpu_print_hex_dump(sub_regs,
 				sub_regs + DSIMIF_OFFSET(i) + 0x80, 0x10);
 		/* shadow */
 		cal_log_info(id, "= DECON_SUB.DSIMIF%d SHADOW SFR DUMP =\n", i);
-		decon_print_hex_dump(sub_regs,
+		dpu_print_hex_dump(sub_regs,
 				sub_regs + DSIMIF_OFFSET(i) + SHADOW_OFFSET,
 				0x10);
-		decon_print_hex_dump(sub_regs,
+		dpu_print_hex_dump(sub_regs,
 				sub_regs + DSIMIF_OFFSET(i) + SHADOW_OFFSET +
 				0x80, 0x10);
 	}
@@ -2076,14 +2053,14 @@ void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en)
 	/* dpif : 2EA */
 	for (i = 0; i < 2; i++) {
 		cal_log_info(id, "\n=== DECON_SUB.DPIF%d SFR DUMP ===\n", i);
-		decon_print_hex_dump(sub_regs, sub_regs + DPIF_OFFSET(i), 0x4);
-		decon_print_hex_dump(sub_regs,
+		dpu_print_hex_dump(sub_regs, sub_regs + DPIF_OFFSET(i), 0x4);
+		dpu_print_hex_dump(sub_regs,
 				sub_regs + DPIF_OFFSET(i) + 0x80, 0x10);
 		/* shadow */
 		cal_log_info(id, "= DECON_SUB.DPIF%d SHADOW SFR DUMP =\n", i);
-		decon_print_hex_dump(sub_regs,
+		dpu_print_hex_dump(sub_regs,
 				sub_regs + DPIF_OFFSET(i) + SHADOW_OFFSET, 0x4);
-		decon_print_hex_dump(sub_regs,
+		dpu_print_hex_dump(sub_regs,
 				sub_regs + DPIF_OFFSET(i) + SHADOW_OFFSET +
 				0x80, 0x10);
 	}
@@ -2092,12 +2069,12 @@ void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en)
 	if (dsc_en) {
 		for (i = 0; i < 3; i++) {
 			cal_log_info(id, "\n= DECON_SUB.DSC%d SFR DUMP =\n", i);
-			decon_print_hex_dump(sub_regs,
+			dpu_print_hex_dump(sub_regs,
 					sub_regs + DSC_OFFSET(i), 0x88);
 			/* shadow */
 			cal_log_info(id, "=== DECON_SUB.DSC%d SHADOW SFR DUMP ===\n",
 					i);
-			decon_print_hex_dump(sub_regs,
+			dpu_print_hex_dump(sub_regs,
 					sub_regs + DSC_OFFSET(i) +
 					SHADOW_OFFSET, 0x88);
 		}

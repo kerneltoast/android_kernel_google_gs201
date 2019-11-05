@@ -2400,28 +2400,6 @@ void dsim_reg_set_dphy_freq_hopping(u32 id, u32 p, u32 m, u32 k, u32 en)
 	}
 }
 
-#define PREFIX_LEN	40
-#define ROW_LEN		32
-static void dsim_print_hex_dump(void __iomem *regs, const void *buf, size_t len)
-{
-	char prefix_buf[PREFIX_LEN];
-	unsigned long p;
-	int i, row;
-
-	for (i = 0; i < len; i += ROW_LEN) {
-		p = buf - regs + i;
-
-		if (len - i < ROW_LEN)
-			row = len - i;
-		else
-			row = ROW_LEN;
-
-		snprintf(prefix_buf, sizeof(prefix_buf), "[%08lX] ", p);
-		print_hex_dump(KERN_INFO, prefix_buf, DUMP_PREFIX_NONE,
-				32, 4, buf + i, row, false);
-	}
-}
-
 #ifndef CONFIG_BOARD_EMULATOR
 static void __dphy_dump(u32 id, struct dsim_regs *regs)
 {
@@ -2429,31 +2407,31 @@ static void __dphy_dump(u32 id, struct dsim_regs *regs)
 	/* DPHY dump */
 	/* BIAS */
 	cal_log_info(id, "-[BIAS]-\n");
-	dsim_print_hex_dump(regs->phy_regs_ex,
+	dpu_print_hex_dump(regs->phy_regs_ex,
 			regs->phy_regs_ex + 0x0000, 0x14);
 	/* PLL */
 	cal_log_info(id, "-[PLL : offset + 0x100]-\n");
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0000, 0x44);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0000, 0x44);
 	/* MC */
 	cal_log_info(id, "-[MC : offset + 0x100]-\n");
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0200, 0x48);
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x02E0, 0x10);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0200, 0x48);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x02E0, 0x10);
 	/* MD0 */
 	cal_log_info(id, "-[CMD 0 : offset + 0x100]-\n");
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0300, 0x70);
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x03E0, 0x40);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0300, 0x70);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x03E0, 0x40);
 	/* MD1 */
 	cal_log_info(id, "-[CMD 1 : offset + 0x100]-\n");
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0400, 0x70);
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x04C0, 0x40);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0400, 0x70);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x04C0, 0x40);
 	/* MD2 */
 	cal_log_info(id, "-[CMD 2 : offset + 0x100]-\n");
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0500, 0x70);
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x05C0, 0x40);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0500, 0x70);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x05C0, 0x40);
 	/* MD3 */
 	cal_log_info(id, "-[MD 3 : offset + 0x100]-\n");
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0600, 0x48);
-	dsim_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x06C0, 0x20);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x0600, 0x48);
+	dpu_print_hex_dump(regs->phy_regs, regs->phy_regs + 0x06C0, 0x20);
 }
 #else
 static inline void __dphy_dump(u32 id, struct dsim_regs *regs) { }
@@ -2464,7 +2442,7 @@ void __dsim_dump(u32 id, struct dsim_regs *regs)
 	/* change to updated register read mode (meaning: SHADOW in DECON) */
 	cal_log_info(id, "=== DSIM %d LINK SFR DUMP ===\n", id);
 	dsim_reg_enable_shadow_read(id, 0);
-	dsim_print_hex_dump(regs->regs, regs->regs + 0x0000, 0x124);
+	dpu_print_hex_dump(regs->regs, regs->regs + 0x0000, 0x124);
 
 	__dphy_dump(id, regs);
 
