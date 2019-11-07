@@ -313,6 +313,12 @@ u32 decon_reg_get_rsc_win(u32 id);
 
 u32 DPU_DMA2CH(u32 dma);
 u32 DPU_CH2DMA(u32 ch);
+
+#ifdef __linux__
+struct decon_device;
+static inline int
+__decon_init_resources(struct decon_device *decon) { return 0; }
+#endif
 /*********************************************************************/
 
 #endif /* __SAMSUNG_DECON_CAL_H__ */
