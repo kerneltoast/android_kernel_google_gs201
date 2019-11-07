@@ -18,6 +18,9 @@
 #include <cal_config.h>
 #include <decon_cal.h>
 #include <regs-decon.h>
+#ifdef __linux__
+#include <exynos_drm_decon.h>
+#endif
 
 enum decon_dsc_id {
 	DECON_DSC_ENC0 = 0x0,
@@ -2110,3 +2113,43 @@ u32 decon_reg_get_rsc_win(u32 id)
 {
 	return decon_read(id, RSC_STATUS_2);
 }
+
+#ifdef __linux__
+int __decon_init_resources(struct decon_device *decon)
+{
+	struct resource *res;
+	struct device *dev = decon->dev;
+	struct platform_device *pdev;
+
+	pdev = container_of(dev, struct platform_device, dev);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	decon->regs.win_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(decon->regs.win_regs)) {
+		cal_log_err(decon->id, "failed decon win ioremap\n");
+		return PTR_ERR(decon->regs.win_regs);
+	}
+	decon_regs_desc_init(decon->regs.win_regs, "decon_win",
+			REGS_DECON_WIN, decon->id);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	decon->regs.sub_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(decon->regs.sub_regs)) {
+		cal_log_err(decon->id, "failed decon sub ioremap\n");
+		return PTR_ERR(decon->regs.sub_regs);
+	}
+	decon_regs_desc_init(decon->regs.sub_regs, "decon_sub",
+			REGS_DECON_SUB, decon->id);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	decon->regs.wincon_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(decon->regs.wincon_regs)) {
+		cal_log_err(decon->id, "failed wincon ioremap\n");
+		return PTR_ERR(decon->regs.wincon_regs);
+	}
+	decon_regs_desc_init(decon->regs.wincon_regs, "decon_wincon",
+			REGS_DECON_WINCON, decon->id);
+
+	return 0;
+}
+#endif

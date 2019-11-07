@@ -23,6 +23,7 @@
 #include <linux/types.h>	/* uint32_t, __iomem, ... */
 #include <linux/iopoll.h>
 #include <linux/time.h>
+#include <linux/platform_device.h>
 #include <video/mipi_display.h>
 #else
 
