@@ -222,4 +222,9 @@ u32 dpp_reg_get_irq_and_clear(u32 id);
 u32 idma_reg_get_irq_and_clear(u32 id);
 u32 odma_reg_get_irq_and_clear(u32 id);
 
+#ifdef __linux__
+struct dpp_device;
+int __dpp_init_resources(struct dpp_device *dpp);
+#endif
+
 #endif

@@ -21,6 +21,7 @@
 #include <exynos_hdr_lut.h>
 #include <exynos_dpp_coef.h>
 #include <exynos_drm_format.h>
+#include <exynos_drm_dpp.h>
 #include <cal_config.h>
 #include <dpp_cal.h>
 #include <regs-dpp.h>
@@ -1340,3 +1341,37 @@ void __dpp_dump(u32 id, void __iomem *regs, void __iomem *dma_regs,
 	dpp_dump_regs(id, regs, attr);
 	dpp_reg_dump_debug_regs(id);
 }
+
+#ifdef __linux__
+int __dpp_init_resources(struct dpp_device *dpp)
+{
+	struct resource *res;
+	struct device *dev = dpp->dev;
+	struct platform_device *pdev;
+
+	if (dpp->id != 0)
+		return 0;
+
+	pdev = container_of(dev, struct platform_device, dev);
+
+	/* DPP0 channel can only access common area of DPU_DMA */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	if (!res) {
+		cal_log_err(dpp->id, "failed to get mem resource\n");
+		return -ENOENT;
+	}
+
+	dpp->regs.dma_common_base_regs = devm_ioremap_resource(dev, res);
+	if (!dpp->regs.dma_common_base_regs) {
+		cal_log_err(dpp->id, "failed to map DPU_DMA COMMON SFR\n");
+		return -EINVAL;
+	}
+	dpp_regs_desc_init(dpp->regs.dma_common_base_regs, "dma_common",
+			REGS_DMA_COMMON, dpp->id);
+	cal_log_info(dpp->id, "dma common res start:0x%x end:0x%x vir:0x%llx\n",
+			(u32)res->start, (u32)res->end,
+			(u64)dpp->regs.dma_common_base_regs);
+
+	return 0;
+}
+#endif
