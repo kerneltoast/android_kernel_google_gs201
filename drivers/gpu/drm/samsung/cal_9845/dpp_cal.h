@@ -184,4 +184,9 @@ u32 odma_reg_get_irq_and_clear(u32 id);
 
 void dma_reg_get_shd_addr(u32 id, u32 shd_addr[], const unsigned long attr);
 
+#ifdef __linux__
+struct dpp_device;
+static inline int __dpp_init_resources(struct dpp_device *dpp) { return 0; }
+#endif
+
 #endif /* __SAMSUNG_DPP_CAL_H__ */
