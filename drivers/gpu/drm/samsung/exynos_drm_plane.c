@@ -345,14 +345,14 @@ static void exynos_plane_atomic_disable(struct drm_plane *plane,
 					struct drm_plane_state *old_state)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc =
-				to_exynos_crtc(plane->state->crtc);
+	struct exynos_drm_crtc *exynos_crtc;
 	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
-	struct decon_device *decon;
+	const struct decon_device *decon;
 
-	if (!plane->state->crtc)
+	if (!old_state->crtc)
 		return;
 
+	exynos_crtc = to_exynos_crtc(old_state->crtc);
 	decon = exynos_crtc->ctx;
 	/*
 	 * Currently requested zpos(window) can NOT disabled even if window is
