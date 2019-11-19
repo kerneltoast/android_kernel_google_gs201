@@ -76,6 +76,41 @@ TRACE_EVENT(pt_resize_callback,
 				(int)__entry->ptid)
 );
 
+TRACE_EVENT(pt_driver_log,
+		TP_PROTO(const char *driver_name, const char *fn_name,
+			u64 arg0, u64 arg1, u64 arg2, u64 arg3, int ret),
+		TP_ARGS(driver_name, fn_name, arg0, arg1, arg2, arg3, ret),
+
+		TP_STRUCT__entry(
+				__field(const char *, driver_name)
+				__field(const char *, fn_name)
+				__field(u64, arg0)
+				__field(u64, arg1)
+				__field(u64, arg2)
+				__field(u64, arg3)
+				__field(int, ret)
+				),
+		TP_fast_assign(
+				__entry->driver_name = driver_name;
+				__entry->fn_name = fn_name;
+				__entry->arg0 = arg0;
+				__entry->arg1 = arg1;
+				__entry->arg2 = arg2;
+				__entry->arg3 = arg3;
+				__entry->ret = ret;
+				),
+
+		TP_printk("PT: %s %s %llx %llx %llx %llx ret: %x",
+				__entry->driver_name,
+				__entry->fn_name,
+				__entry->arg0,
+				__entry->arg1,
+				__entry->arg2,
+				__entry->arg3,
+				__entry->ret)
+);
+
+
 #endif /* _PT_TRACE_H_ */
 
 /* This part must be outside protection */

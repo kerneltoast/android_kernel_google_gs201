@@ -5,4 +5,4 @@
 
 # Object files in subdirectories
 
-obj-y                                   += pt.o pt_trace_points.o slc_dummy.o
+obj-y                                   += pt.o pt_trace_points.o slc_dummy.o slc_acpm.o
