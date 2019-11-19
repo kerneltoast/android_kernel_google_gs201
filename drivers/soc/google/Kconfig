@@ -173,4 +173,11 @@ config HARDLOCKUP_WATCHDOG
 	help
 	The module is a driver for detecting individual core lockup.
 
+config DBGCORE_DUMP
+	tristate "Debug Core Framework"
+	depends on DEBUG_SNAPSHOT && EXYNOS_ADV_TRACER
+	default n
+	help
+	This module supports the Debug Core Framework functionality.
+
 endmenu
