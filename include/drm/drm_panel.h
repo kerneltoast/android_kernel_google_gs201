@@ -171,6 +171,8 @@ struct drm_panel {
 	 */
 	const struct drm_panel_funcs *funcs;
 
+	struct dentry *debugfs_entry;
+
 	/**
 	 * @connector_type:
 	 *
@@ -234,6 +236,20 @@ static inline struct drm_panel *of_drm_find_panel(const struct device_node *np)
 int drm_panel_of_backlight(struct drm_panel *panel);
 #else
 static inline int drm_panel_of_backlight(struct drm_panel *panel)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_DEBUG_FS
+int drm_debugfs_panel_add(struct drm_panel *panel);
+void drm_debugfs_panel_remove(struct drm_panel *panel);
+#else
+static inline int drm_debugfs_panel_add(struct drm_panel *panel)
+{
+	return 0;
+}
+static inline void drm_debugfs_panel_remove(struct drm_panel *panel)
 {
 	return 0;
 }

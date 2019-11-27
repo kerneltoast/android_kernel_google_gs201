@@ -22,6 +22,7 @@
  */
 
 #include <linux/backlight.h>
+#include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/module.h>
 
@@ -115,6 +116,8 @@ EXPORT_SYMBOL(drm_panel_remove);
  */
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
 {
+	drm_debugfs_panel_add(panel);
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_panel_attach);
@@ -131,6 +134,7 @@ EXPORT_SYMBOL(drm_panel_attach);
  */
 void drm_panel_detach(struct drm_panel *panel)
 {
+	drm_debugfs_panel_remove(panel);
 }
 EXPORT_SYMBOL(drm_panel_detach);
 
@@ -362,6 +366,34 @@ int drm_panel_notifier_call_chain(struct drm_panel *panel,
 	return blocking_notifier_call_chain(&panel->nh, val, v);
 }
 EXPORT_SYMBOL_GPL(drm_panel_notifier_call_chain);
+
+#ifdef CONFIG_DEBUG_FS
+int drm_debugfs_panel_add(struct drm_panel *panel)
+{
+	struct dentry *root;
+
+	if (!panel->connector || !panel->connector->debugfs_entry)
+		return -EINVAL;
+
+	root = debugfs_create_dir("panel", panel->connector->debugfs_entry);
+	if (!root)
+		return -EPERM;
+
+	panel->debugfs_entry = root;
+
+	return 0;
+}
+
+void drm_debugfs_panel_remove(struct drm_panel *panel)
+{
+	if (!panel->debugfs_entry)
+		return;
+
+	debugfs_remove_recursive(panel->debugfs_entry);
+
+	panel->debugfs_entry = NULL;
+}
+#endif
 
 MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
 MODULE_DESCRIPTION("DRM panel infrastructure");
