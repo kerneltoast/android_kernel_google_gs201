@@ -222,13 +222,18 @@ static int exynos_panel_probe(struct mipi_dsi_device *dsi)
 
 	ret = drm_panel_add(&ctx->panel);
 	if (ret < 0)
-		return ret;
+		goto done;
 
 	ret = mipi_dsi_attach(dsi);
-	if (ret < 0)
+	if (ret < 0) {
 		drm_panel_remove(&ctx->panel);
+		goto done;
+	}
 
-	panel_info(ctx, "%s -\n", __func__);
+	mipi_dsi_debugfs_add(dsi, ctx->panel.debugfs_entry);
+
+done:
+	panel_info(ctx, "%s - %d\n", __func__, ret);
 
 	return ret;
 }
