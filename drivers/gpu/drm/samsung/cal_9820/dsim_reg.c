@@ -2464,44 +2464,33 @@ void dsim_reg_set_dphy_freq_hopping(u32 id, u32 p, u32 m, u32 k, u32 en)
 
 void __dsim_dump(u32 id, struct dsim_regs *regs)
 {
+	void __iomem *phy_regs = regs->phy_regs;
+
 	/* change to updated register read mode (meaning: SHADOW in DECON) */
 	cal_log_info(id, "=== DSIM %d LINK SFR DUMP ===\n", id);
 	dsim_reg_enable_shadow_read(id, 0);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->regs, 0xFC, false);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->regs + 0x200, 0x4, false);
+	dpu_print_hex_dump(regs->regs, regs->regs, 0xFC);
+	dpu_print_hex_dump(regs->regs, regs->regs + 0x200, 0x4);
 
 	cal_log_info(id, "=== DSIM %d DPHY SFR DUMP ===\n", id);
 	/* DPHY dump */
 	/* PLL */
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x0100, 0x24, false);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x0100, 0x24);
 	/* MC */
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x0300, 0x48, false);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x03E0, 0x10, false);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x0300, 0x48);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x03E0, 0x10);
 	/* MD0 */
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x0400, 0x48, false);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x04C0, 0x20, false);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x0400, 0x48);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x04C0, 0x20);
 	/* MD1 */
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x0500, 0x48, false);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x05C0, 0x20, false);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x0500, 0x48);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x05C0, 0x20);
 	/* MD2 */
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x0600, 0x48, false);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x06C0, 0x20, false);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x0600, 0x48);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x06C0, 0x20);
 	/* MD3 */
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x0700, 0x48, false);
-	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			regs->phy_regs + 0x07C0, 0x20, false);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x0700, 0x48);
+	dpu_print_hex_dump(phy_regs, phy_regs + 0x07C0, 0x20);
 
 	/* restore to avoid size mismatch (possible config error at DECON) */
 	dsim_reg_enable_shadow_read(id, 1);

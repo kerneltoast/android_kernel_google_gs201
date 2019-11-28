@@ -375,7 +375,8 @@
 #define FRAME_COUNT				0x02A0
 
 /* BLENDER */
-#define WIN_CONTROL_0(_win)			(0x1000 + ((_win) * 0x30))
+#define WIN_OFFSET				0x1000
+#define WIN_CONTROL_0(_win)			(WIN_OFFSET + ((_win) * 0x30))
 #define WIN_ALPHA1_F(_v)			(((_v) & 0xFF) << 24)
 #define WIN_ALPHA1_MASK				(0xFF << 24)
 #define WIN_ALPHA0_F(_v)			(((_v) & 0xFF) << 16)
