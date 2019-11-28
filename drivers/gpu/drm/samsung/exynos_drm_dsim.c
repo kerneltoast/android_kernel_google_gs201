@@ -610,12 +610,19 @@ static int dsim_create_connector(struct drm_encoder *encoder)
 	return 0;
 }
 
-static int dsim_bind(struct device *dev, struct device *master,
-				void *data)
+static int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
+	struct device *dev, unsigned long iova, int flags, void *token)
+{
+	pr_info("%s +\n", __func__);
+	return 0;
+}
+
+static int dsim_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_encoder *encoder = dev_get_drvdata(dev);
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 	struct drm_device *drm_dev = data;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 	int ret = 0;
 
 	dsim_dbg(dsim, "%s +\n", __func__);
@@ -641,6 +648,16 @@ static int dsim_bind(struct device *dev, struct device *master,
 	}
 
 	ret = mipi_dsi_host_register(&dsim->dsi_host);
+
+	ret = iovmm_activate(dsim->dev);
+	if (ret) {
+		pr_err("failed to activate iovmm\n");
+		return ret;
+	}
+	priv->iommu_client = dsim->dev;
+
+	iovmm_set_fault_handler(dsim->dev, dpu_sysmmu_fault_handler, NULL);
+
 	dsim_dbg(dsim, "%s -\n", __func__);
 
 	return ret;
@@ -1438,13 +1455,6 @@ static ssize_t bist_mode_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(bist_mode);
 
-int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
-	struct device *dev, unsigned long iova, int flags, void *token)
-{
-	pr_info("%s +\n", __func__);
-	return 0;
-}
-
 static int dsim_probe(struct platform_device *pdev)
 {
 	struct dsim_device *dsim;
@@ -1499,13 +1509,6 @@ static int dsim_probe(struct platform_device *pdev)
 
 	dsim->state = DSIM_STATE_SUSPEND;
 	pm_runtime_enable(dsim->dev);
-
-	ret = iovmm_activate(dsim->dev);
-	if (ret) {
-		dsim_err(dsim, "failed to activate iovmm\n");
-		goto err;
-	}
-	iovmm_set_fault_handler(dsim->dev, dpu_sysmmu_fault_handler, NULL);
 
 	if (!IS_ENABLED(CONFIG_BOARD_EMULATOR)) {
 		phy_init(dsim->res.phy);

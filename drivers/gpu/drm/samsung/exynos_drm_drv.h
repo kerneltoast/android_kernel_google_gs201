@@ -237,7 +237,7 @@ struct drm_exynos_file_private {
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
 	struct drm_atomic_state *suspend_state;
-
+	struct device *iommu_client;
 	struct device *dma_dev;
 	void *mapping;
 
@@ -245,6 +245,7 @@ struct exynos_drm_private {
 	u32			pending;
 	spinlock_t		lock;
 	wait_queue_head_t	wait;
+
 };
 
 static inline struct device *to_dma_dev(struct drm_device *dev)

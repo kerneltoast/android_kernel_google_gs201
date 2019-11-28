@@ -31,6 +31,7 @@
 #include <exynos_drm_crtc.h>
 #include <exynos_drm_dsim.h>
 #include <exynos_drm_format.h>
+#include <exynos_drm_gem.h>
 
 #define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
 
@@ -132,7 +133,8 @@ int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
 
 	obj->dmabuf = dma_buf_get(handle);
 	if (IS_ERR_OR_NULL(obj->dmabuf)) {
-		DRM_ERROR("failed to get dma_buf:%ld\n", PTR_ERR(obj->dmabuf));
+		pr_debug("failed to get dma_buf:%ld from ion handle\n",
+				PTR_ERR(obj->dmabuf));
 		return PTR_ERR(obj->dmabuf);
 	}
 
@@ -177,7 +179,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 {
 	const struct drm_format_info *info = drm_get_format_info(dev, mode_cmd);
 	struct exynos_drm_buf *exynos_buf[MAX_FB_BUFFER];
-	struct drm_framebuffer *fb;
+	struct exynos_drm_gem *exynos_gem = NULL;
 	u32 height;
 	size_t size;
 	int i;
@@ -191,8 +193,10 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	for (i = 0; i < info->num_planes; i++) {
 		exynos_buf[i] = kzalloc(sizeof(struct exynos_drm_buf),
 				GFP_KERNEL);
-		if (!exynos_buf[i])
+		if (!exynos_buf[i]) {
+			pr_err("failed to allocate exynos_buf\n");
 			return ERR_PTR(-ENOMEM);
+		}
 
 		height = (i == 0) ? mode_cmd->height :
 				     DIV_ROUND_UP(mode_cmd->height, info->vsub);
@@ -217,8 +221,20 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 		ret = exynos_drm_import_handle(exynos_buf[i],
 				mode_cmd->handles[i], size);
-		if (ret)
-			return ERR_PTR(ret);
+		if (ret) {
+			exynos_gem = exynos_drm_gem_get(file_priv,
+					mode_cmd->handles[i]);
+			if (!exynos_gem) {
+				pr_err("failed to look up gem object\n");
+				return ERR_PTR(-ENOENT);
+			}
+			exynos_buf[i]->dmabuf = exynos_gem->dmabuf;
+			exynos_buf[i]->attachment = exynos_gem->attachment;
+			exynos_buf[i]->sgt = exynos_gem->sgt;
+			exynos_buf[i]->dma_addr = exynos_gem->dma_addr;
+
+			exynos_drm_gem_put(exynos_gem);
+		}
 	}
 
 	DRM_DEBUG("width(%d), height(%d), pitches(%d)\n", mode_cmd->width,
@@ -226,11 +242,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	DRM_DEBUG("offset(%d), handle(%d), size(%lu)\n", mode_cmd->offsets[0],
 			mode_cmd->handles[0], size);
 
-	fb = exynos_drm_framebuffer_init(dev, mode_cmd, exynos_buf, i);
-	if (IS_ERR(fb))
-		return fb;
-
-	return fb;
+	return exynos_drm_framebuffer_init(dev, mode_cmd, exynos_buf, i);
 }
 
 static const struct drm_format_info *

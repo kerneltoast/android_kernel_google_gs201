@@ -26,6 +26,7 @@
 #include <exynos_drm_fbdev.h>
 #include <exynos_drm_fb.h>
 #include <exynos_drm_plane.h>
+#include <exynos_drm_gem.h>
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -55,6 +56,11 @@ int exynos_atomic_check(struct drm_device *dev,
 	return ret;
 }
 
+static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;
@@ -82,27 +88,32 @@ static void exynos_drm_lastclose(struct drm_device *dev)
 static const struct file_operations exynos_drm_driver_fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,
+	.mmap		= exynos_drm_gem_mmap,
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl = drm_compat_ioctl,
+	.compat_ioctl	= drm_compat_ioctl,
 	.release	= drm_release,
 };
 
 static struct drm_driver exynos_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_PRIME
-	    | DRIVER_ATOMIC | DRIVER_RENDER,
-	.open = exynos_drm_open,
-	.lastclose = exynos_drm_lastclose,
-	.postclose = exynos_drm_postclose,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.fops = &exynos_drm_driver_fops,
-	.name = DRIVER_NAME,
-	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	    | DRIVER_ATOMIC | DRIVER_RENDER | DRIVER_GEM,
+	.open			  = exynos_drm_open,
+	.lastclose		  = exynos_drm_lastclose,
+	.postclose		  = exynos_drm_postclose,
+	.gem_free_object_unlocked = exynos_drm_gem_free_object,
+	.gem_vm_ops		  = &exynos_drm_gem_vm_ops,
+	.dumb_create		  = exynos_drm_gem_dumb_create,
+	.dumb_map_offset	  = exynos_drm_gem_dumb_map_offset,
+	.prime_handle_to_fd	  = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle	  = drm_gem_prime_fd_to_handle,
+	.fops			  = &exynos_drm_driver_fops,
+	.name			  = DRIVER_NAME,
+	.desc			  = DRIVER_DESC,
+	.date			  = DRIVER_DATE,
+	.major			  = DRIVER_MAJOR,
+	.minor			  = DRIVER_MINOR,
 };
 
 #ifdef CONFIG_PM_SLEEP
