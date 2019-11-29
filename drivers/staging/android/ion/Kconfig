@@ -12,3 +12,4 @@ menuconfig ION
 	  say N here.
 
 source "drivers/staging/android/ion/heaps/Kconfig"
+source "drivers/staging/android/ion/exynos/Kconfig"

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+config ION_EXYNOS_CMA_HEAP
+	bool "Ion Exynos CMA heap support"
+	depends on CMA
+	help
+	  Choose this option to enable CMA heap with Ion for Exynos SoCs.
+	  Unlike the cma heap supported by ION_CMA_HEAP, only selected
+	  cma area is registered as a heap.
+
+config ION_EXYNOS
+	tristate "Ion Exynos heap support"
+	depends on ION
