@@ -206,26 +206,32 @@ static inline void zram_fill_page(void *ptr, unsigned long len,
 	memset_l(ptr, value, len / sizeof(unsigned long));
 }
 
-static bool page_same_filled(void *ptr, unsigned long *element)
+static bool page_same_filled(struct page *page, unsigned long *element)
 {
-	unsigned long *page;
+	unsigned long *mem;
 	unsigned long val;
+	bool ret = true;
 	unsigned int pos, last_pos = PAGE_SIZE / sizeof(*page) - 1;
 
-	page = (unsigned long *)ptr;
-	val = page[0];
+	mem = kmap_atomic(page);
+	val = mem[0];
 
-	if (val != page[last_pos])
-		return false;
+	if (val != mem[last_pos]) {
+		ret = false;
+		goto out;
+	}
 
 	for (pos = 1; pos < last_pos; pos++) {
-		if (val != page[pos])
-			return false;
+		if (val != mem[pos]) {
+			ret = false;
+			goto out;
+		}
 	}
 
 	*element = val;
-
-	return true;
+out:
+	kunmap_atomic(mem);
+	return ret;
 }
 
 static ssize_t initstate_show(struct device *dev,
@@ -1161,6 +1167,34 @@ static bool zram_meta_alloc(struct zram *zram, u64 disksize)
 	return true;
 }
 
+static void zram_slot_update(struct zram *zram, u32 index,
+		unsigned long handle, unsigned int comp_len)
+{
+	/*
+	 * free memory associated with this sector
+	 * before overwriting unused sectors.
+	 */
+	atomic64_inc(&zram->stats.pages_stored);
+	zram_slot_lock(zram, index);
+	zram_free_page(zram, index);
+
+	if (comp_len == 0) {
+		zram_set_flag(zram, index, ZRAM_SAME);
+		zram_set_element(zram, index, handle);
+		atomic64_inc(&zram->stats.same_pages);
+	} else {
+		if (comp_len == PAGE_SIZE) {
+			zram_set_flag(zram, index, ZRAM_HUGE);
+			atomic64_inc(&zram->stats.huge_pages);
+		}
+		zram_set_handle(zram, index, handle);
+		zram_set_obj_size(zram, index, comp_len);
+	}
+	zram_slot_unlock(zram, index);
+	if (comp_len)
+		atomic64_add(comp_len, &zram->stats.compr_data_size);
+}
+
 /*
  * To protect concurrent access to the same index entry,
  * caller should hold this table index entry's bit_spinlock to
@@ -1313,22 +1347,15 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
 	int ret = 0;
 	unsigned long alloced_pages;
 	unsigned long handle = 0;
-	unsigned int comp_len = 0;
-	void *src, *dst, *mem;
+	unsigned int comp_len;
+	void *src, *dst;
 	struct zcomp_strm *zstrm;
 	struct page *page = bvec->bv_page;
-	unsigned long element = 0;
-	enum zram_pageflags flags = 0;
 
-	mem = kmap_atomic(page);
-	if (page_same_filled(mem, &element)) {
-		kunmap_atomic(mem);
-		/* Free memory associated with this sector now. */
-		flags = ZRAM_SAME;
-		atomic64_inc(&zram->stats.same_pages);
+	if (page_same_filled(page, &handle)) {
+		comp_len = 0;
 		goto out;
 	}
-	kunmap_atomic(mem);
 
 compress_again:
 	zstrm = zcomp_stream_get(zram->comp);
@@ -1395,31 +1422,8 @@ compress_again:
 
 	zcomp_stream_put(zram->comp);
 	zs_unmap_object(zram->mem_pool, handle);
-	atomic64_add(comp_len, &zram->stats.compr_data_size);
 out:
-	/*
-	 * Free memory associated with this sector
-	 * before overwriting unused sectors.
-	 */
-	zram_slot_lock(zram, index);
-	zram_free_page(zram, index);
-
-	if (comp_len == PAGE_SIZE) {
-		zram_set_flag(zram, index, ZRAM_HUGE);
-		atomic64_inc(&zram->stats.huge_pages);
-	}
-
-	if (flags) {
-		zram_set_flag(zram, index, flags);
-		zram_set_element(zram, index, element);
-	}  else {
-		zram_set_handle(zram, index, handle);
-		zram_set_obj_size(zram, index, comp_len);
-	}
-	zram_slot_unlock(zram, index);
-
-	/* Update stats */
-	atomic64_inc(&zram->stats.pages_stored);
+	zram_slot_update(zram, index, handle, comp_len);
 	return ret;
 }
 
