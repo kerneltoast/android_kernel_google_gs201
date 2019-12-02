@@ -12,6 +12,7 @@
  */
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
+#include <drm/drm_atomic.h>
 
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -260,11 +261,13 @@ static void dpp_test_fixed_config_params(struct dpp_params_info *config, u32 w,
 }
 
 static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
-				const struct exynos_drm_plane_state *state)
+				const struct exynos_drm_plane_state *state,
+				const struct drm_display_mode *mode)
 {
 	struct drm_framebuffer *fb = state->base.fb;
-	struct drm_display_mode *mode = &state->base.crtc->mode;
 	unsigned int simplified_rot;
+
+	pr_debug("%s: mode(%dx%d)\n", __func__, mode->hdisplay, mode->vdisplay);
 
 	config->src.x = state->base.src_x >> 16;
 	config->src.y = state->base.src_y >> 16;
@@ -279,7 +282,6 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	config->dst.h = state->crtc.h;
 	config->dst.f_w = mode->hdisplay;
 	config->dst.f_h = mode->vdisplay;
-
 	config->rot = 0;
 	simplified_rot = drm_rotation_simplify(state->base.rotation,
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
@@ -485,12 +487,17 @@ static int dpp_check(struct dpp_device *dpp,
 {
 	struct dpp_params_info config;
 	const struct dpu_fmt *fmt_info;
+	const struct drm_plane_state *plane_state = &state->base;
+	const struct drm_crtc_state *crtc_state =
+			drm_atomic_get_new_crtc_state(plane_state->state,
+							plane_state->crtc);
+	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 
 	dpp_dbg(dpp, "%s +\n", __func__);
 
 	memset(&config, 0, sizeof(struct dpp_params_info));
 
-	dpp_convert_plane_state_to_config(&config, state);
+	dpp_convert_plane_state_to_config(&config, state, mode);
 
 	if (dpp_check_scale(dpp, &config))
 		goto err;
@@ -545,11 +552,15 @@ static int dpp_update(struct dpp_device *dpp,
 {
 	struct dpp_params_info *config = &dpp->win_config;
 
+	const struct drm_plane_state *plane_state = &state->base;
+	const struct drm_crtc_state *crtc_state = plane_state->crtc->state;
+	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
+
 	dpp_dbg(dpp, "%s +\n", __func__);
 
 	__dpp_enable(dpp);
 
-	dpp_convert_plane_state_to_config(config, state);
+	dpp_convert_plane_state_to_config(config, state, mode);
 
 	dpp_reg_configure_params(dpp->id, config, dpp->attr);
 
