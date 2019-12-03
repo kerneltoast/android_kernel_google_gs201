@@ -306,7 +306,9 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 		config->addr[3] = exynos_drm_fb_dma_addr(fb, 3);
 	}
 
-	config->dataspace = state->dataspace;
+	config->standard = state->standard;
+	config->transfer = state->transfer;
+	config->range = state->range;
 	config->max_luminance = state->max_luminance;
 	config->min_luminance = state->min_luminance;
 	config->y_2b_strd = 0;

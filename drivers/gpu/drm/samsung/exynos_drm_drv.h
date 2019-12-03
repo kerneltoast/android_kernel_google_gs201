@@ -89,9 +89,11 @@ struct exynos_drm_plane_state {
 	unsigned int h_ratio;
 	unsigned int v_ratio;
 	uint32_t blob_id_restriction;
-	uint32_t dataspace;
 	uint32_t max_luminance;
 	uint32_t min_luminance;
+	uint32_t standard;
+	uint32_t transfer;
+	uint32_t range;
 };
 
 static inline struct exynos_drm_plane_state *
@@ -117,9 +119,11 @@ struct exynos_drm_plane {
 
 	struct {
 		struct drm_property *restriction;
-		struct drm_property *dataspace;
 		struct drm_property *max_luminance;
 		struct drm_property *min_luminance;
+		struct drm_property *standard;
+		struct drm_property *transfer;
+		struct drm_property *range;
 	} props;
 };
 

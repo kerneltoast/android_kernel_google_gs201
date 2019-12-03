@@ -185,12 +185,16 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 	struct exynos_drm_plane_state *exynos_state =
 						to_exynos_plane_state(state);
 
-	if (property == exynos_plane->props.dataspace)
-		exynos_state->dataspace = val;
-	else if (property == exynos_plane->props.max_luminance)
+	if (property == exynos_plane->props.max_luminance)
 		exynos_state->max_luminance = val;
 	else if (property == exynos_plane->props.min_luminance)
 		exynos_state->min_luminance = val;
+	else if (property == exynos_plane->props.standard)
+		exynos_state->standard = val;
+	else if (property == exynos_plane->props.transfer)
+		exynos_state->transfer = val;
+	else if (property == exynos_plane->props.range)
+		exynos_state->range = val;
 	else
 		return -EINVAL;
 
@@ -208,12 +212,16 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 
 	if (property == exynos_plane->props.restriction)
 		*val = exynos_state->blob_id_restriction;
-	else if (property == exynos_plane->props.dataspace)
-		*val = exynos_state->dataspace;
 	else if (property == exynos_plane->props.max_luminance)
 		*val = exynos_state->max_luminance;
 	else if (property == exynos_plane->props.min_luminance)
 		*val = exynos_state->min_luminance;
+	else if (property == exynos_plane->props.standard)
+		*val = exynos_state->standard;
+	else if (property == exynos_plane->props.transfer)
+		*val = exynos_state->transfer;
+	else if (property == exynos_plane->props.range)
+		*val = exynos_state->range;
 	else
 		return -EINVAL;
 
@@ -391,21 +399,88 @@ static int exynos_drm_plane_create_restriction_property(
 	return 0;
 }
 
-static int exynos_drm_plane_create_dataspace_property(
+static int exynos_drm_plane_create_standard_property(
 				struct exynos_drm_plane *exynos_plane)
 {
 	struct drm_plane *plane = &exynos_plane->base;
 	struct drm_property *prop;
+	static const struct drm_prop_enum_list standard_list[] = {
+		{ EXYNOS_STANDARD_UNSPECIFIED, "Unspecified" },
+		{ EXYNOS_STANDARD_BT709, "BT709" },
+		{ EXYNOS_STANDARD_BT601_625, "BT601_625" },
+		{ EXYNOS_STANDARD_BT601_625_UNADJUSTED, "BT601_625_UNADJUSTED"},
+		{ EXYNOS_STANDARD_BT601_525, "BT601_525" },
+		{ EXYNOS_STANDARD_BT601_525_UNADJUSTED, "BT601_525_UNADJUSTED"},
+		{ EXYNOS_STANDARD_BT2020, "BT2020" },
+		{ EXYNOS_STANDARD_BT2020_CONSTANT_LUMINANCE,
+						"BT2020_CONSTANT_LUMINANCE"},
+		{ EXYNOS_STANDARD_BT470M, "BT470M" },
+		{ EXYNOS_STANDARD_FILM, "FILM" },
+		{ EXYNOS_STANDARD_DCI_P3, "DCI-P3" },
+		{ EXYNOS_STANDARD_ADOBE_RGB, "Adobe RGB" },
+	};
 
-	prop = drm_property_create_range(plane->dev, 0, "dataspace", 0,
-					HAL_DATASPACE_STANDARD_MASK |
-					HAL_DATASPACE_TRANSFER_MASK |
-					HAL_DATASPACE_RANGE_MASK);
+	prop = drm_property_create_enum(plane->dev, 0, "standard",
+				standard_list, ARRAY_SIZE(standard_list));
 	if (!prop)
 		return -ENOMEM;
 
-	drm_object_attach_property(&plane->base, prop, 0);
-	exynos_plane->props.dataspace = prop;
+	drm_object_attach_property(&plane->base, prop,
+				EXYNOS_STANDARD_UNSPECIFIED);
+	exynos_plane->props.standard = prop;
+
+	return 0;
+}
+
+static int exynos_drm_plane_create_transfer_property(
+				struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+	static const struct drm_prop_enum_list transfer_list[] = {
+		{ EXYNOS_TRANSFER_UNSPECIFIED, "Unspecified" },
+		{ EXYNOS_TRANSFER_LINEAR, "Linear" },
+		{ EXYNOS_TRANSFER_SRGB, "sRGB" },
+		{ EXYNOS_TRANSFER_SMPTE_170M, "SMPTE 170M" },
+		{ EXYNOS_TRANSFER_GAMMA2_2, "Gamma 2.2" },
+		{ EXYNOS_TRANSFER_GAMMA2_6, "Gamma 2.6" },
+		{ EXYNOS_TRANSFER_GAMMA2_8, "Gamma 2.8" },
+		{ EXYNOS_TRANSFER_ST2084, "ST2084" },
+		{ EXYNOS_TRANSFER_HLG, "HLG" },
+	};
+
+	prop = drm_property_create_enum(plane->dev, 0, "transfer",
+				transfer_list, ARRAY_SIZE(transfer_list));
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop,
+				EXYNOS_TRANSFER_UNSPECIFIED);
+	exynos_plane->props.transfer = prop;
+
+	return 0;
+}
+
+static int exynos_drm_plane_create_range_property(
+				struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+	static const struct drm_prop_enum_list range_list[] = {
+		{ EXYNOS_RANGE_UNSPECIFIED, "Unspecified" },
+		{ EXYNOS_RANGE_FULL, "Full" },
+		{ EXYNOS_RANGE_LIMITED, "Limited" },
+		{ EXYNOS_RANGE_EXTENDED, "Extended" },
+	};
+
+	prop = drm_property_create_enum(plane->dev, 0, "range", range_list,
+						ARRAY_SIZE(range_list));
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop,
+				EXYNOS_RANGE_UNSPECIFIED);
+	exynos_plane->props.range = prop;
 
 	return 0;
 }
@@ -491,7 +566,9 @@ int exynos_plane_init(struct drm_device *dev,
 	}
 
 	exynos_drm_plane_create_restriction_property(exynos_plane, config);
-	exynos_drm_plane_create_dataspace_property(exynos_plane);
+	exynos_drm_plane_create_standard_property(exynos_plane);
+	exynos_drm_plane_create_transfer_property(exynos_plane);
+	exynos_drm_plane_create_range_property(exynos_plane);
 
 	return 0;
 }
