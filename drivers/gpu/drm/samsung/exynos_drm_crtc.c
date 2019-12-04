@@ -181,17 +181,136 @@ static u32 exynos_drm_crtc_get_vblank_counter(struct drm_crtc *crtc)
 	return 0;
 }
 
+static void exynos_drm_crtc_destroy_state(struct drm_crtc *crtc,
+					struct drm_crtc_state *state)
+{
+	struct exynos_drm_crtc_state *exynos_crtc_state;
+
+	exynos_crtc_state = to_exynos_crtc_state(state);
+	__drm_atomic_helper_crtc_destroy_state(state);
+	kfree(exynos_crtc_state);
+}
+
+static void exynos_drm_crtc_reset(struct drm_crtc *crtc)
+{
+	struct exynos_drm_crtc_state *exynos_crtc_state;
+
+	if (crtc->state) {
+		exynos_drm_crtc_destroy_state(crtc, crtc->state);
+		crtc->state = NULL;
+	}
+
+	exynos_crtc_state = kzalloc(sizeof(*exynos_crtc_state), GFP_KERNEL);
+	if (exynos_crtc_state) {
+		crtc->state = &exynos_crtc_state->base;
+		crtc->state->crtc = crtc;
+	} else {
+		pr_err("failed to allocate exynos crtc state\n");
+	}
+}
+
+static struct drm_crtc_state *
+exynos_drm_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct exynos_drm_crtc_state *exynos_crtc_state;
+	struct exynos_drm_crtc_state *copy;
+
+	exynos_crtc_state = to_exynos_crtc_state(crtc->state);
+	copy = kzalloc(sizeof(*copy), GFP_KERNEL);
+	if (!copy)
+		return NULL;
+
+	memcpy(copy, exynos_crtc_state, sizeof(*copy));
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &copy->base);
+
+	return &copy->base;
+}
+
+static int exynos_drm_crtc_set_property(struct drm_crtc *crtc,
+					struct drm_crtc_state *state,
+					struct drm_property *property,
+					uint64_t val)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct exynos_drm_crtc_state *exynos_crtc_state;
+
+	exynos_crtc_state = to_exynos_crtc_state(state);
+
+	if (property == exynos_crtc->props.color_mode)
+		exynos_crtc_state->color_mode = val;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int exynos_drm_crtc_get_property(struct drm_crtc *crtc,
+					const struct drm_crtc_state *state,
+					struct drm_property *property,
+					uint64_t *val)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct exynos_drm_crtc_state *exynos_crtc_state;
+
+	exynos_crtc_state =
+		to_exynos_crtc_state((struct drm_crtc_state *)state);
+
+	if (property == exynos_crtc->props.color_mode)
+		*val = exynos_crtc_state->color_mode;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs exynos_crtc_funcs = {
-	.set_config	= drm_atomic_helper_set_config,
-	.page_flip	= drm_atomic_helper_page_flip,
-	.destroy	= exynos_drm_crtc_destroy,
-	.reset = drm_atomic_helper_crtc_reset,
-	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
-	.enable_vblank = exynos_drm_crtc_enable_vblank,
-	.disable_vblank = exynos_drm_crtc_disable_vblank,
-	.get_vblank_counter = exynos_drm_crtc_get_vblank_counter,
+	.set_config		= drm_atomic_helper_set_config,
+	.page_flip		= drm_atomic_helper_page_flip,
+	.destroy		= exynos_drm_crtc_destroy,
+	.reset			= exynos_drm_crtc_reset,
+	.atomic_duplicate_state	= exynos_drm_crtc_duplicate_state,
+	.atomic_destroy_state	= exynos_drm_crtc_destroy_state,
+	.atomic_set_property	= exynos_drm_crtc_set_property,
+	.atomic_get_property	= exynos_drm_crtc_get_property,
+	.enable_vblank		= exynos_drm_crtc_enable_vblank,
+	.disable_vblank		= exynos_drm_crtc_disable_vblank,
+	.get_vblank_counter	= exynos_drm_crtc_get_vblank_counter,
 };
+
+static int
+exynos_drm_crtc_create_color_mode_property(struct exynos_drm_crtc *exynos_crtc)
+{
+	struct drm_crtc *crtc = &exynos_crtc->base;
+	struct drm_property *prop;
+	static const struct drm_prop_enum_list color_mode_list[] = {
+		{ HAL_COLOR_MODE_NATIVE, "Native" },
+		{ HAL_COLOR_MODE_STANDARD_BT601_625, "BT601_625" },
+		{ HAL_COLOR_MODE_STANDARD_BT601_625_UNADJUSTED,
+						"BT601_625_UNADJUSTED" },
+		{ HAL_COLOR_MODE_STANDARD_BT601_525, "BT601_525" },
+		{ HAL_COLOR_MODE_STANDARD_BT601_525_UNADJUSTED,
+						"BT601_525_UNADJUSTED" },
+		{ HAL_COLOR_MODE_STANDARD_BT709, "BT709" },
+		{ HAL_COLOR_MODE_DCI_P3, "DCI-P3" },
+		{ HAL_COLOR_MODE_SRGB, "sRGB" },
+		{ HAL_COLOR_MODE_ADOBE_RGB, "Adobe RGB" },
+		{ HAL_COLOR_MODE_DISPLAY_P3, "Display P3" },
+		{ HAL_COLOR_MODE_BT2020, "BT2020" },
+		{ HAL_COLOR_MODE_BT2100_PQ, "BT2100 PQ" },
+		{ HAL_COLOR_MODE_BT2100_HLG, "BT2100 HLG" },
+	};
+
+	prop = drm_property_create_enum(crtc->dev, 0, "color mode",
+			color_mode_list, ARRAY_SIZE(color_mode_list));
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&crtc->base, prop, HAL_COLOR_MODE_NATIVE);
+	exynos_crtc->props.color_mode = prop;
+
+	return 0;
+}
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					struct drm_plane *plane,
@@ -219,6 +338,10 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 		goto err_crtc;
 
 	drm_crtc_helper_add(crtc, &exynos_crtc_helper_funcs);
+
+	ret = exynos_drm_crtc_create_color_mode_property(exynos_crtc);
+	if (ret)
+		goto err_crtc;
 
 	return exynos_crtc;
 

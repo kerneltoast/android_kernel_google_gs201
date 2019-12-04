@@ -187,6 +187,17 @@ struct exynos_drm_crtc_ops {
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 };
 
+struct exynos_drm_crtc_state {
+	struct drm_crtc_state base;
+	uint32_t color_mode;
+};
+
+static inline struct exynos_drm_crtc_state *
+to_exynos_crtc_state(struct drm_crtc_state *state)
+{
+	return container_of(state, struct exynos_drm_crtc_state, base);
+}
+
 /*
  * Exynos specific crtc structure.
  *
@@ -202,6 +213,9 @@ struct exynos_drm_crtc {
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 	struct drm_connector		*connector;
+	struct {
+		struct drm_property *color_mode;
+	} props;
 };
 
 struct drm_exynos_file_private {

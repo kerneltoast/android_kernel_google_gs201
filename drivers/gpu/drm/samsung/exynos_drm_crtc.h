@@ -18,6 +18,20 @@
 
 #include <exynos_drm_drv.h>
 
+#define HAL_COLOR_MODE_NATIVE				0
+#define HAL_COLOR_MODE_STANDARD_BT601_625		1
+#define HAL_COLOR_MODE_STANDARD_BT601_625_UNADJUSTED	2
+#define HAL_COLOR_MODE_STANDARD_BT601_525		3
+#define HAL_COLOR_MODE_STANDARD_BT601_525_UNADJUSTED	4
+#define HAL_COLOR_MODE_STANDARD_BT709			5
+#define HAL_COLOR_MODE_DCI_P3				6
+#define HAL_COLOR_MODE_SRGB				7
+#define HAL_COLOR_MODE_ADOBE_RGB			8
+#define HAL_COLOR_MODE_DISPLAY_P3			9
+#define HAL_COLOR_MODE_BT2020				10
+#define HAL_COLOR_MODE_BT2100_PQ			11
+#define HAL_COLOR_MODE_BT2100_HLG			12
+
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					struct drm_plane *plane,
 					enum exynos_drm_output_type out_type,
