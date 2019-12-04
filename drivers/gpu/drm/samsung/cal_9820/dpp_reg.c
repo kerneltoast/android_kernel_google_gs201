@@ -389,7 +389,7 @@ static int dpp_reg_wait_sw_reset_status(u32 id)
 }
 
 #if defined(SUPPORT_USER_COEF)
-static void dpp_reg_set_csc_coef(u32 id, u32 hal_std, u32 hal_range)
+static void dpp_reg_set_csc_coef(u32 id, u32 std, u32 range)
 {
 	u32 val, mask;
 	u32 csc_id = DPP_CSC_IDX_BT601_625;
@@ -397,33 +397,33 @@ static void dpp_reg_set_csc_coef(u32 id, u32 hal_std, u32 hal_range)
 	u32 c10, c11, c12;
 	u32 c20, c21, c22;
 
-	switch (hal_std) {
-	case HAL_DATASPACE_STANDARD_BT601_625:
+	switch (std) {
+	case EXYNOS_STANDARD_BT601_625:
 		csc_id = DPP_CSC_IDX_BT601_625;
 		break;
-	case HAL_DATASPACE_STANDARD_BT601_625_UNADJUSTED:
+	case EXYNOS_STANDARD_BT601_625_UNADJUSTED:
 		csc_id = DPP_CSC_IDX_BT601_625_UNADJUSTED;
 		break;
-	case HAL_DATASPACE_STANDARD_BT601_525:
+	case EXYNOS_STANDARD_BT601_525:
 		csc_id = DPP_CSC_IDX_BT601_525;
 		break;
-	case HAL_DATASPACE_STANDARD_BT601_525_UNADJUSTED:
+	case EXYNOS_STANDARD_BT601_525_UNADJUSTED:
 		csc_id = DPP_CSC_IDX_BT601_525_UNADJUSTED;
 		break;
-	case HAL_DATASPACE_STANDARD_BT2020_CONSTANT_LUMINANCE:
+	case EXYNOS_STANDARD_BT2020_CONSTANT_LUMINANCE:
 		csc_id = DPP_CSC_IDX_BT2020_CONSTANT_LUMINANCE;
 		break;
-	case HAL_DATASPACE_STANDARD_BT470M:
+	case EXYNOS_STANDARD_BT470M:
 		csc_id = DPP_CSC_IDX_BT470M;
 		break;
-	case HAL_DATASPACE_STANDARD_FILM:
+	case EXYNOS_STANDARD_FILM:
 		csc_id = DPP_CSC_IDX_FILM;
 		break;
-	case HAL_DATASPACE_STANDARD_ADOBE_RGB:
+	case EXYNOS_STANDARD_ADOBE_RGB:
 		csc_id = DPP_CSC_IDX_ADOBE_RGB;
 		break;
 	default:
-		hal_range = HAL_DATASPACE_RANGE_LIMITED;
+		range = EXYNOS_RANGE_LIMITED;
 		cal_log_err(id, "invalid CSC type\n");
 		cal_log_err(id, "BT601 with limited range is set as default\n");
 	}
@@ -432,7 +432,7 @@ static void dpp_reg_set_csc_coef(u32 id, u32 hal_std, u32 hal_range)
 	 * The matrices are provided only for full or limited range
 	 * and limited range is used as default.
 	 */
-	if (hal_range == HAL_DATASPACE_RANGE_FULL)
+	if (range == EXYNOS_RANGE_FULL)
 		csc_id += 1;
 
 	c00 = csc_y2r_3x3_t[csc_id][0][0];
@@ -465,41 +465,39 @@ static void dpp_reg_set_csc_coef(u32 id, u32 hal_std, u32 hal_range)
 	dpp_write_mask(id, DPP_CSC_COEF4, val, mask);
 
 	cal_log_debug(id, "---[DPP%d Y2R CSC Type: std=%d, rng=%d]---\n",
-		id, hal_std, hal_range);
+		id, std, range);
 	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c00, c01, c02);
 	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c10, c11, c12);
 	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c20, c21, c22);
 }
 #else
-static inline void dpp_reg_set_csc_coef(u32 id, u32 hal_std, u32 hal_range) { }
+static inline void dpp_reg_set_csc_coef(u32 id, u32 std, u32 range) { }
 #endif
 
-static void dpp_reg_set_csc_params(u32 id, u32 dataspace)
+static void dpp_reg_set_csc_params(u32 id, u32 std, u32 range)
 {
-	u32 hal_std = (dataspace & HAL_DATASPACE_STANDARD_MASK);
-	u32 hal_range = (dataspace & HAL_DATASPACE_RANGE_MASK);
-	u32 type, range, mode, val, mask;
+	u32 type, hw_range, mode, val, mask;
 
 	mode = DPP_CSC_MODE_HARDWIRED;
 
-	switch (hal_std) {
-	case HAL_DATASPACE_STANDARD_UNSPECIFIED:
+	switch (std) {
+	case EXYNOS_STANDARD_UNSPECIFIED:
 		type = DPP_CSC_TYPE_BT601;
 		cal_log_debug(id, "unspecified CSC type! -> BT_601\n");
 		break;
-	case HAL_DATASPACE_STANDARD_BT709:
+	case EXYNOS_STANDARD_BT709:
 		type = DPP_CSC_TYPE_BT709;
 		break;
-	case HAL_DATASPACE_STANDARD_BT601_625:
-	case HAL_DATASPACE_STANDARD_BT601_625_UNADJUSTED:
-	case HAL_DATASPACE_STANDARD_BT601_525:
-	case HAL_DATASPACE_STANDARD_BT601_525_UNADJUSTED:
+	case EXYNOS_STANDARD_BT601_625:
+	case EXYNOS_STANDARD_BT601_625_UNADJUSTED:
+	case EXYNOS_STANDARD_BT601_525:
+	case EXYNOS_STANDARD_BT601_525_UNADJUSTED:
 		type = DPP_CSC_TYPE_BT601;
 		break;
-	case HAL_DATASPACE_STANDARD_BT2020:
+	case EXYNOS_STANDARD_BT2020:
 		type = DPP_CSC_TYPE_BT2020;
 		break;
-	case HAL_DATASPACE_STANDARD_DCI_P3:
+	case EXYNOS_STANDARD_DCI_P3:
 		type = DPP_CSC_TYPE_DCI_P3;
 		break;
 	default:
@@ -512,19 +510,19 @@ static void dpp_reg_set_csc_params(u32 id, u32 dataspace)
 	 * DPP hardware supports full or limited range.
 	 * Limited range is used as default
 	 */
-	if (hal_range == HAL_DATASPACE_RANGE_FULL)
-		range = DPP_CSC_RANGE_FULL;
-	else if (hal_range == HAL_DATASPACE_RANGE_LIMITED)
-		range = DPP_CSC_RANGE_LIMITED;
+	if (range == EXYNOS_RANGE_FULL)
+		hw_range = DPP_CSC_RANGE_FULL;
+	else if (range == EXYNOS_RANGE_LIMITED)
+		hw_range = DPP_CSC_RANGE_LIMITED;
 	else
-		range = DPP_CSC_RANGE_LIMITED;
+		hw_range = DPP_CSC_RANGE_LIMITED;
 
-	val = type | range | mode;
+	val = type | hw_range | mode;
 	mask = (DPP_CSC_TYPE_MASK | DPP_CSC_RANGE_MASK | DPP_CSC_MODE_MASK);
 	dpp_write_mask(id, DPP_IN_CON, val, mask);
 
 	if (mode == DPP_CSC_MODE_CUSTOMIZED)
-		dpp_reg_set_csc_coef(id, hal_std, hal_range);
+		dpp_reg_set_csc_coef(id, std, range);
 }
 
 static void dpp_reg_set_h_coef(u32 id, u32 h_ratio)
@@ -621,9 +619,8 @@ static void dpp_reg_set_eotf_lut(u32 id, struct dpp_params_info *p)
 	u32 i = 0;
 	const u32 *lut_x;
 	const u32 *lut_y;
-	u32 hal_transfer = p->dataspace & HAL_DATASPACE_TRANSFER_MASK;
 
-	if (hal_transfer == HAL_DATASPACE_TRANSFER_ST2084) {
+	if (p->transfer == EXYNOS_TRANSFER_ST2084) {
 		if (p->max_luminance > 4000) {
 			cal_log_err(id, "%d nits is not supported now.\n",
 					p->max_luminance);
@@ -635,7 +632,7 @@ static void dpp_reg_set_eotf_lut(u32 id, struct dpp_params_info *p)
 			lut_x = eotf_x_axis_st2084_1000;
 			lut_y = eotf_y_axis_st2084_1000;
 		}
-	} else if (hal_transfer == HAL_DATASPACE_TRANSFER_HLG) {
+	} else if (p->transfer == EXYNOS_TRANSFER_HLG) {
 		lut_x = eotf_x_axis_hlg;
 		lut_y = eotf_y_axis_hlg;
 	} else {
@@ -659,9 +656,8 @@ static void dpp_reg_set_gm_lut(u32 id, struct dpp_params_info *p)
 {
 	u32 i = 0;
 	const u32 *lut_gm;
-	u32 hal_std = (p->dataspace & HAL_DATASPACE_STANDARD_MASK);
 
-	if (hal_std == HAL_DATASPACE_STANDARD_BT2020) {
+	if (p->standard == EXYNOS_STANDARD_BT2020) {
 		lut_gm = gm_coef_2020_p3;
 	} else {
 		cal_log_err(id, "Undefined HDR CSC Type!!!\n");
@@ -713,16 +709,13 @@ static void dpp_reg_set_tm_lut(u32 id, struct dpp_params_info *p)
 static void dpp_reg_set_hdr_params(u32 id, struct dpp_params_info *p)
 {
 	u32 val, val2, mask;
-	u32 hal_std, hal_transfer;
 
-	hal_transfer = (p->dataspace & HAL_DATASPACE_TRANSFER_MASK);
-	val = ((hal_transfer == HAL_DATASPACE_TRANSFER_ST2084) ||
-		(hal_transfer == HAL_DATASPACE_TRANSFER_HLG)) ? ~0 : 0;
+	val = ((p->transfer == EXYNOS_TRANSFER_ST2084) ||
+		(p->transfer == EXYNOS_TRANSFER_HLG)) ? ~0 : 0;
 	mask = DPP_HDR_ON_MASK | DPP_EOTF_ON_MASK | DPP_TM_ON_MASK;
 	dpp_write_mask(id, DPP_VGRF_HDR_CON, val, mask);
 
-	hal_std = (p->dataspace & HAL_DATASPACE_STANDARD_MASK);
-	val2 = (hal_std != HAL_DATASPACE_STANDARD_DCI_P3) ? ~0 : 0;
+	val2 = (p->standard != EXYNOS_STANDARD_DCI_P3) ? ~0 : 0;
 	dpp_write_mask(id, DPP_VGRF_HDR_CON, val2,  DPP_GM_ON_MASK);
 
 	if (val) {
@@ -795,28 +788,26 @@ static void wb_mux_reg_set_uv_offset(u32 id, u32 off_x, u32 off_y)
 	dpp_write_mask(id, DPU_WB_CSC_CON, val, mask);
 }
 
-static void wb_mux_reg_set_csc_params(u32 id, u32 dataspace)
+static void wb_mux_reg_set_csc_params(u32 id, u32 std, u32 range)
 {
-	u32 hal_std = (dataspace & HAL_DATASPACE_STANDARD_MASK);
-	u32 hal_range = (dataspace & HAL_DATASPACE_RANGE_MASK);
 	u32 val = 0;
 
-	switch (hal_std) {
-	case HAL_DATASPACE_STANDARD_BT601_625:
-	case HAL_DATASPACE_STANDARD_BT601_625_UNADJUSTED:
-	case HAL_DATASPACE_STANDARD_BT601_525:
-	case HAL_DATASPACE_STANDARD_BT601_525_UNADJUSTED:
-		if (hal_range == HAL_DATASPACE_RANGE_LIMITED)
+	switch (std) {
+	case EXYNOS_STANDARD_BT601_625:
+	case EXYNOS_STANDARD_BT601_625_UNADJUSTED:
+	case EXYNOS_STANDARD_BT601_525:
+	case EXYNOS_STANDARD_BT601_525_UNADJUSTED:
+		if (range == EXYNOS_RANGE_LIMITED)
 			val = DPU_WB_CSC_TYPE_601_LIMIT;
-		else if (hal_range == HAL_DATASPACE_RANGE_FULL)
+		else if (range == EXYNOS_RANGE_FULL)
 			val = DPU_WB_CSC_TYPE_601_FULL;
 		else
 			goto not_supp;
 		break;
-	case HAL_DATASPACE_STANDARD_BT709:
-		if (hal_range == HAL_DATASPACE_RANGE_LIMITED)
+	case EXYNOS_STANDARD_BT709:
+		if (range == EXYNOS_RANGE_LIMITED)
 			val = DPU_WB_CSC_TYPE_709_LIMIT;
-		else if (hal_range == HAL_DATASPACE_RANGE_FULL)
+		else if (range == EXYNOS_RANGE_FULL)
 			val = DPU_WB_CSC_TYPE_709_FULL;
 		else
 			goto not_supp;
@@ -829,7 +820,7 @@ static void wb_mux_reg_set_csc_params(u32 id, u32 dataspace)
 	return;
 
 not_supp:
-	cal_log_warn(id, "Not supported dataspace(0x%x)\n", dataspace);
+	cal_log_warn(id, "Not supported standard(%d) range(%d)\n", std, range);
 }
 
 static void wb_mux_reg_set_dst_size(u32 id, u32 w, u32 h)
@@ -1031,10 +1022,10 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
 {
 	if (test_bit(DPP_ATTR_CSC, &attr) && test_bit(DPP_ATTR_DPP, &attr))
-		dpp_reg_set_csc_params(id, p->dataspace);
+		dpp_reg_set_csc_params(id, p->standard, p->range);
 	else if (test_bit(DPP_ATTR_CSC, &attr) &&
 			test_bit(DPP_ATTR_ODMA, &attr))
-		wb_mux_reg_set_csc_params(id, p->dataspace);
+		wb_mux_reg_set_csc_params(id, p->standard, p->range);
 
 	if (test_bit(DPP_ATTR_SCALE, &attr))
 		dpp_reg_set_scale_ratio(id, p);

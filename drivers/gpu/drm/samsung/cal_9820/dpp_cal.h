@@ -190,9 +190,11 @@ struct dpp_params_info {
 	bool is_block;
 	u32 format;
 	dma_addr_t addr[MAX_PLANE_ADDR_CNT];
-	u32 dataspace;
 	int h_ratio;
 	int v_ratio;
+	u32 standard;
+	u32 transfer;
+	u32 range;
 
 	unsigned long rcv_num;
 };
