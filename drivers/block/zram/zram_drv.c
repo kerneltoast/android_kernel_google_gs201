@@ -184,19 +184,12 @@ static void update_position(u32 *index, int *offset, struct bio_vec *bvec)
 	*offset = (*offset + bvec->bv_len) % PAGE_SIZE;
 }
 
-static inline void update_used_max(struct zram *zram,
-					const unsigned long pages)
+static inline void update_max_used_page(struct zram *zram)
 {
-	unsigned long old_max, cur_max;
+	unsigned long alloced_pages = zs_get_total_pages(zram->mem_pool);
 
-	old_max = atomic_long_read(&zram->stats.max_used_pages);
-
-	do {
-		cur_max = old_max;
-		if (pages > cur_max)
-			old_max = atomic_long_cmpxchg(
-				&zram->stats.max_used_pages, cur_max, pages);
-	} while (old_max != cur_max);
+	if (atomic_long_read(&zram->stats.max_used_pages) < alloced_pages)
+		atomic_long_set(&zram->stats.max_used_pages, alloced_pages);
 }
 
 static inline void zram_fill_page(void *ptr, unsigned long len,
@@ -1191,8 +1184,10 @@ static void zram_slot_update(struct zram *zram, u32 index,
 		zram_set_obj_size(zram, index, comp_len);
 	}
 	zram_slot_unlock(zram, index);
-	if (comp_len)
+	if (comp_len) {
 		atomic64_add(comp_len, &zram->stats.compr_data_size);
+		update_max_used_page(zram);
+	}
 }
 
 /*
@@ -1352,6 +1347,10 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
 	struct zcomp_strm *zstrm;
 	struct page *page = bvec->bv_page;
 
+	if (zram->limit_pages &&
+			zs_get_total_pages(zram->mem_pool) > zram->limit_pages)
+		return -ENOMEM;
+
 	if (page_same_filled(page, &handle)) {
 		comp_len = 0;
 		goto out;
@@ -1399,15 +1398,6 @@ compress_again:
 				__GFP_MOVABLE);
 		if (handle)
 			goto compress_again;
-		return -ENOMEM;
-	}
-
-	alloced_pages = zs_get_total_pages(zram->mem_pool);
-	update_used_max(zram, alloced_pages);
-
-	if (zram->limit_pages && alloced_pages > zram->limit_pages) {
-		zcomp_stream_put(zram->comp);
-		zs_free(zram->mem_pool, handle);
 		return -ENOMEM;
 	}
 
