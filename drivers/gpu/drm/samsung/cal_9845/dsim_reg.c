@@ -1992,9 +1992,7 @@ void dsim_regs_desc_init(void __iomem *regs, const char *name,
 	cal_regs_desc_set(regs_desc, regs, name, type, id);
 }
 
-/******************** EXPORTED DSIM CAL APIs ********************/
-
-void dpu_sysreg_select_dphy_rst_control(u32 id, u32 sel)
+static void dpu_sysreg_select_dphy_rst_control(u32 id, u32 sel)
 {
 	u32 phy_num = id;
 	u32 val = sel ? ~0 : 0;
@@ -2005,13 +2003,17 @@ void dpu_sysreg_select_dphy_rst_control(u32 id, u32 sel)
 			dsim_sys_read(id, DISP_DPU_MIPI_PHY_CON));
 }
 
-void dpu_sysreg_dphy_reset(u32 id, u32 rst)
+#if !defined(CONFIG_BOARD_EMULATOR)
+static void dpu_sysreg_dphy_reset(u32 id, u32 rst)
 {
 	u32 val = rst ? ~0 : 0;
 	u32 mask = id ? M_RESETN_M1_MASK : M_RESETN_M0_MASK;
 
 	dsim_sys_write_mask(id, DISP_DPU_MIPI_PHY_CON, val, mask);
 }
+#endif
+
+/******************** EXPORTED DSIM CAL APIs ********************/
 
 void dsim_reg_init(u32 id, struct dsim_reg_config *config,
 		struct dsim_clks *clks, bool panel_ctrl)
