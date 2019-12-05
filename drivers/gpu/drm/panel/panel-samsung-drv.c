@@ -203,7 +203,7 @@ int exynos_panel_get_modes(struct drm_panel *panel)
 
 	panel_info(ctx, "%s -\n", __func__);
 
-	return 0;
+	return 1;
 }
 
 static int exynos_panel_probe(struct mipi_dsi_device *dsi)
