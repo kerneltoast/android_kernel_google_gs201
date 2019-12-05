@@ -31,12 +31,25 @@ void ion_page_clean(struct page *pages, unsigned long size)
 
 static int __init ion_exynos_init(void)
 {
-	return ion_exynos_cma_heap_init();
+	int ret;
+
+	ret = ion_exynos_cma_heap_init();
+	if (ret)
+		return ret;
+
+	ret = ion_carveout_heap_init();
+	if (ret) {
+		ion_exynos_cma_heap_exit();
+		return ret;
+	}
+
+	return 0;
 }
 
 static void __exit ion_exynos_exit(void)
 {
 	ion_exynos_cma_heap_exit();
+	ion_carveout_heap_exit();
 }
 
 module_init(ion_exynos_init);
