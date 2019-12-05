@@ -159,6 +159,9 @@ struct dpp_params_info {
 	u32 dataspace;
 	int h_ratio;
 	int v_ratio;
+	u32 standard;
+	u32 transfer;
+	u32 range;
 
 	unsigned long rcv_num;
 	enum dpp_comp_type comp_type;
