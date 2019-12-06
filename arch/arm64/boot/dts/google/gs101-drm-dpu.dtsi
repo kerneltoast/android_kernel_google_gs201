@@ -15,7 +15,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/interrupt-controller/gs101_ml3_dev06.h>
+#include <dt-bindings/interrupt-controller/gs101.h>
 #include <dt-bindings/display/exynos-display.h>
 #include "gs101-pinctrl.dtsi"
 #include "gs101-sysmmu.dtsi"
