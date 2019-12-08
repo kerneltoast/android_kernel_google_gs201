@@ -210,7 +210,10 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	win_info.plane_alpha = hw_alpha;
 	win_info.blend = state->base.pixel_blend_mode;
 
-	zpos = state->base.zpos;
+	zpos = state->base.normalized_zpos;
+	if (zpos == 0 && hw_alpha == EXYNOS_PLANE_ALPHA_MAX)
+		win_info.blend = DRM_MODE_BLEND_PIXEL_NONE;
+
 	decon_reg_set_window_control(decon->id, zpos, &win_info, is_colormap);
 
 	if (!is_colormap) {

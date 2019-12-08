@@ -20,7 +20,6 @@
 #include <exynos_drm_crtc.h>
 #include <exynos_drm_fb.h>
 #include <exynos_drm_plane.h>
-#include <exynos_drm_decon.h>
 #include <exynos_drm_dpp.h>
 
 /*
@@ -173,6 +172,9 @@ static void exynos_drm_plane_reset(struct drm_plane *plane)
 		plane->state = &exynos_state->base;
 		plane->state->plane = plane;
 		plane->state->zpos = exynos_plane->config->zpos;
+		plane->state->normalized_zpos = exynos_plane->config->zpos;
+		plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
+		plane->state->pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
 	}
 }
 
@@ -245,6 +247,9 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 {
 	struct drm_framebuffer *fb = state->base.fb;
 
+	if (!fb)
+		return 0;
+
 	if (fb->modifier) {
 		if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0))
 			return 0;
@@ -266,7 +271,6 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	struct exynos_drm_plane_state *exynos_state =
 						to_exynos_plane_state(state);
 	struct dpp_device *dpp = plane_to_dpp(exynos_plane);
-	struct decon_device *decon;
 	struct drm_crtc_state *new_crtc_state;
 	int ret = 0;
 
@@ -274,8 +278,6 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 
 	if (!state->crtc || !state->fb)
 		return 0;
-
-	decon = to_exynos_crtc(state->crtc)->ctx;
 
 	new_crtc_state = drm_atomic_get_new_crtc_state(state->state,
 							state->crtc);
@@ -296,70 +298,58 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	/*
-	 * If multiple planes request the same zpos which means DECON window
-	 * number, HW resources can be conflicted.
-	 */
-	if (test_and_set_bit(exynos_state->base.zpos, &decon->req_windows)) {
-		DRM_ERROR("zpos %d conflict.\n", exynos_state->base.zpos);
-		clear_bit(exynos_state->base.zpos, &decon->req_windows);
-		return -EINVAL;
-	}
-
 	DRM_DEBUG("%s -\n", __func__);
 
 	return ret;
+}
+
+static void exynos_plane_disable(struct drm_plane *plane, struct drm_crtc *crtc)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
+	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
+	const unsigned int num_planes = hweight32(crtc->state->plane_mask);
+
+	pr_debug("%s: win_id=%d/%d zpos=%d", __func__,
+		 dpp->win_id, num_planes, plane->state->normalized_zpos);
+
+	/*
+	 * By using normalized zpos, any zpos beyond number of planes can be
+	 * disabled safely (i.e. window zpos is not going to be used)
+	 */
+	if (exynos_crtc->ops->disable_plane && (dpp->win_id < MAX_PLANE) &&
+	    (dpp->win_id >= num_planes))
+		exynos_crtc->ops->disable_plane(exynos_crtc, exynos_plane);
 }
 
 static void exynos_plane_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = plane->state;
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(state->crtc);
+	struct exynos_drm_crtc *exynos_crtc;
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
-	struct decon_device *decon;
 
 	if (!state->crtc)
 		return;
 
-	/*
-	 * If requested zpos(window) and previously connected window(zpos) are
-	 * NOT same for the plane, previous connected window should be disabled.
-	 *
-	 * However, currently requested zpos(window) can NOT disabled.
-	 */
-	decon = exynos_crtc->ctx;
-	if ((dpp->win_id != plane->state->zpos) && (dpp->win_id < MAX_PLANE) &&
-			!test_bit(dpp->win_id, &decon->req_windows))
-		exynos_crtc->ops->disable_plane(exynos_crtc, exynos_plane);
+	exynos_crtc = to_exynos_crtc(state->crtc);
+
+	if (!state->visible || (dpp->win_id != state->normalized_zpos))
+		exynos_plane_disable(plane, state->crtc);
 
 	if (state->visible && exynos_crtc->ops->update_plane)
 		exynos_crtc->ops->update_plane(exynos_crtc, exynos_plane);
-	else if ((exynos_crtc->ops->disable_plane) && (dpp->win_id < MAX_PLANE))
-		exynos_crtc->ops->disable_plane(exynos_crtc, exynos_plane);
 }
 
 static void exynos_plane_atomic_disable(struct drm_plane *plane,
 					struct drm_plane_state *old_state)
 {
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_crtc *exynos_crtc;
-	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
-	const struct decon_device *decon;
-
 	if (!old_state || !old_state->crtc)
 		return;
 
-	exynos_crtc = to_exynos_crtc(old_state->crtc);
-	decon = exynos_crtc->ctx;
-	/*
-	 * Currently requested zpos(window) can NOT disabled even if window is
-	 * used previously.
-	 */
-	if ((exynos_crtc->ops->disable_plane) && (dpp->win_id < MAX_PLANE) &&
-			!test_bit(dpp->win_id, &decon->req_windows))
-		exynos_crtc->ops->disable_plane(exynos_crtc, exynos_plane);
+	if (old_state->visible)
+		exynos_plane_disable(plane, old_state->crtc);
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {

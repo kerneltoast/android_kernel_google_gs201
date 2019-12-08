@@ -229,9 +229,6 @@ struct decon_device {
 	spinlock_t			slock;
 
 	int				decon_cnt;
-
-	/* bitmask of newly requested windows */
-	unsigned long			req_windows;
 };
 
 extern struct dpu_bts_ops dpu_bts_control;

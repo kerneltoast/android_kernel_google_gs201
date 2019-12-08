@@ -286,7 +286,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	int zpos;
 	unsigned int simplified_rot;
 
-	zpos = state->base.zpos;
+	zpos = state->base.normalized_zpos;
 	win_config = &decon->bts.win_config[zpos];
 
 	win_config->src_x = state->base.src_x >> 16;
