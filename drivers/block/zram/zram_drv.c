@@ -36,6 +36,7 @@
 #include <linux/part_stat.h>
 
 #include "zram_drv.h"
+#include "zcomp.h"
 
 static DEFINE_IDR(zram_index_idr);
 /* idr index must be protected */
@@ -62,12 +63,12 @@ static int zram_slot_trylock(struct zram *zram, u32 index)
 	return bit_spin_trylock(ZRAM_LOCK, &zram->table[index].flags);
 }
 
-static void zram_slot_lock(struct zram *zram, u32 index)
+void zram_slot_lock(struct zram *zram, u32 index)
 {
 	bit_spin_lock(ZRAM_LOCK, &zram->table[index].flags);
 }
 
-static void zram_slot_unlock(struct zram *zram, u32 index)
+void zram_slot_unlock(struct zram *zram, u32 index)
 {
 	bit_spin_unlock(ZRAM_LOCK, &zram->table[index].flags);
 }
@@ -82,7 +83,7 @@ static inline struct zram *dev_to_zram(struct device *dev)
 	return (struct zram *)dev_to_disk(dev)->private_data;
 }
 
-static unsigned long zram_get_handle(struct zram *zram, u32 index)
+unsigned long zram_get_handle(struct zram *zram, u32 index)
 {
 	return zram->table[index].handle;
 }
@@ -93,7 +94,7 @@ static void zram_set_handle(struct zram *zram, u32 index, unsigned long handle)
 }
 
 /* flag operations require table entry bit_spin_lock() being held */
-static bool zram_test_flag(struct zram *zram, u32 index,
+bool zram_test_flag(struct zram *zram, u32 index,
 			enum zram_pageflags flag)
 {
 	return zram->table[index].flags & BIT(flag);
@@ -117,12 +118,12 @@ static inline void zram_set_element(struct zram *zram, u32 index,
 	zram->table[index].element = element;
 }
 
-static unsigned long zram_get_element(struct zram *zram, u32 index)
+unsigned long zram_get_element(struct zram *zram, u32 index)
 {
 	return zram->table[index].element;
 }
 
-static size_t zram_get_obj_size(struct zram *zram, u32 index)
+size_t zram_get_obj_size(struct zram *zram, u32 index)
 {
 	return zram->table[index].flags & (BIT(ZRAM_FLAG_SHIFT) - 1);
 }
@@ -1154,12 +1155,10 @@ static bool zram_meta_alloc(struct zram *zram, u64 disksize)
 		return false;
 	}
 
-	if (!huge_class_size)
-		huge_class_size = zs_huge_class_size(zram->mem_pool);
 	return true;
 }
 
-static void zram_slot_update(struct zram *zram, u32 index,
+void zram_slot_update(struct zram *zram, u32 index,
 		unsigned long handle, unsigned int comp_len)
 {
 	/*
@@ -1241,35 +1240,20 @@ out:
 		~(1UL << ZRAM_LOCK | 1UL << ZRAM_UNDER_WB));
 }
 
-static int __zram_bvec_read(struct zram *zram, struct page *page, u32 index,
-				struct bio *bio, bool partial_io)
+/* It's called under zram_slot_lock */
+static int decompress(struct zram *zram, u32 index, struct page *page)
 {
 	int ret;
 	unsigned long handle;
 	unsigned int size;
 	void *src, *dst;
 
-	zram_slot_lock(zram, index);
-	if (zram_test_flag(zram, index, ZRAM_WB)) {
-		struct bio_vec bvec;
-
-		zram_slot_unlock(zram, index);
-
-		bvec.bv_page = page;
-		bvec.bv_len = PAGE_SIZE;
-		bvec.bv_offset = 0;
-		return read_from_bdev(zram, &bvec,
-				zram_get_element(zram, index),
-				bio, partial_io);
-	}
-
 	handle = zram_get_handle(zram, index);
 	if (!handle || zram_test_flag(zram, index, ZRAM_SAME)) {
-		unsigned long value;
-		void *mem;
+		unsigned long value = handle ?
+				zram_get_element(zram, index) : 0;
+		void *mem = kmap_atomic(page);
 
-		value = handle ? zram_get_element(zram, index) : 0;
-		mem = kmap_atomic(page);
 		zram_fill_page(mem, PAGE_SIZE, value);
 		kunmap_atomic(mem);
 		zram_slot_unlock(zram, index);
@@ -1300,6 +1284,27 @@ static int __zram_bvec_read(struct zram *zram, struct page *page, u32 index,
 		pr_err("Decompression failed! err=%d, page=%u\n", ret, index);
 
 	return ret;
+
+}
+
+static int __zram_bvec_read(struct zram *zram, struct page *page, u32 index,
+				struct bio *bio, bool partial_io)
+{
+	zram_slot_lock(zram, index);
+	if (zram_test_flag(zram, index, ZRAM_WB)) {
+		struct bio_vec bvec;
+
+		zram_slot_unlock(zram, index);
+
+		bvec.bv_page = page;
+		bvec.bv_len = PAGE_SIZE;
+		bvec.bv_offset = 0;
+		return read_from_bdev(zram, &bvec,
+				zram_get_element(zram, index),
+				bio, partial_io);
+	}
+
+	return decompress(zram, index, page);
 }
 
 static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
@@ -1335,23 +1340,17 @@ out:
 	return ret;
 }
 
-static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
-				u32 index, struct bio *bio)
+static int compress(struct zram *zram, u32 index, struct page *page)
 {
 	int ret = 0;
-	unsigned long handle;
+	unsigned long handle, element;
 	unsigned int comp_len;
 	void *src, *dst;
 	struct zcomp_strm *zstrm;
-	struct page *page = bvec->bv_page;
 
-	if (zram->limit_pages &&
-			zs_get_total_pages(zram->mem_pool) > zram->limit_pages)
-		return -ENOMEM;
-
-	if (page_same_filled(page, &handle)) {
-		comp_len = 0;
-		goto out;
+	if (page_same_filled(page, &element)) {
+		zram_slot_update(zram, index, element, 0);
+		return 0;
 	}
 
 	zstrm = zcomp_stream_get(zram->comp);
@@ -1387,9 +1386,21 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
 
 	zcomp_stream_put(zram->comp);
 	zs_unmap_object(zram->mem_pool, handle);
-out:
 	zram_slot_update(zram, index, handle, comp_len);
+
 	return ret;
+}
+
+static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
+		u32 index, struct bio *bio)
+{
+	struct page *page = bvec->bv_page;
+
+	if (zram->limit_pages &&
+			zs_get_total_pages(zram->mem_pool) > zram->limit_pages)
+		return -ENOMEM;
+
+	return compress(zram, index, page);
 }
 
 static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec,

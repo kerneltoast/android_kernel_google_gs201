@@ -19,8 +19,6 @@
 #include <linux/zsmalloc.h>
 #include <linux/crypto.h>
 
-#include "zcomp.h"
-
 #define SECTORS_PER_PAGE_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
 #define SECTORS_PER_PAGE	(1 << SECTORS_PER_PAGE_SHIFT)
 #define ZRAM_LOGICAL_BLOCK_SHIFT 12
@@ -126,4 +124,16 @@ struct zram {
 	struct dentry *debugfs_dir;
 #endif
 };
+
+
+void zram_slot_lock(struct zram *zram, u32 index);
+void zram_slot_unlock(struct zram *zram, u32 index);
+void zram_slot_update(struct zram *zram, u32 index, unsigned long handle,
+			unsigned int comp_len);
+
+unsigned long zram_get_handle(struct zram *zram, u32 index);
+size_t zram_get_obj_size(struct zram *zram, u32 index);
+unsigned long zram_get_element(struct zram *zram, u32 index);
+bool zram_test_flag(struct zram *zram, u32 index, enum zram_pageflags flag);
+
 #endif
