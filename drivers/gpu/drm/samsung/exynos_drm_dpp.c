@@ -446,12 +446,12 @@ static int dpp_check_size(struct dpp_device *dpp,
 		return -ENOTSUPP;
 	}
 
-	if (!IS_ALIGNED(dst->x, res->dst_x_align * mul) ||
-			!IS_ALIGNED(dst->y, res->dst_y_align * mul) ||
-			!IS_ALIGNED(dst->w, res->dst_w.align * mul) ||
-			!IS_ALIGNED(dst->h, res->dst_h.align * mul) ||
-			!IS_ALIGNED(dst->f_w, res->dst_f_w.align * mul) ||
-			!IS_ALIGNED(dst->f_h, res->dst_f_h.align * mul)) {
+	if (!IS_ALIGNED(dst->x, res->dst_x_align) ||
+			!IS_ALIGNED(dst->y, res->dst_y_align) ||
+			!IS_ALIGNED(dst->w, res->dst_w.align) ||
+			!IS_ALIGNED(dst->h, res->dst_h.align) ||
+			!IS_ALIGNED(dst->f_w, res->dst_f_w.align) ||
+			!IS_ALIGNED(dst->f_h, res->dst_f_h.align)) {
 		dpp_err(dpp, "not supported destination alignment\n");
 		return -ENOTSUPP;
 	}
