@@ -1,0 +1,13 @@
+menuconfig MISC_DEBUG
+	bool "Miscellaneous Debug Features"
+	default y
+	help
+	  Provides a number of drivers related to miscellaneous debug features.
+
+config PIXEL_DEBUG_TEST
+	tristate "Pixel Debug Test Error Triggers"
+	depends on ARM || ARM64
+	depends on MISC_DEBUG
+	help
+	  Say m or y here to add support for commands that can trigger
+	  intentional errors.
