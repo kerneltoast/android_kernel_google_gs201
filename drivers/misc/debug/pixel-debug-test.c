@@ -16,17 +16,100 @@
  * The test names are in the list of force_error_vector.errcmd.
  * E.g., echo panic>/sys/kernel/pixel_debug/trigger can trigger the
  * intentional panic.
+ *
+ * Two error triggers support additional parameters.
+ * 1. "memcorrupt" can have an optional parameter "panic" to immediately panic
+ * the kernel. E.g.,
+ * "echo memcorrupt>/sys/kernel/pixel_debug/trigger" causes memory corruption,
+ * but kernel may continue to run, unless KASAN configs are enabled and
+ * triggers panic.
+ * "echo memcorrupt panic>/sys/kernel/pixel_debug/trigger" causes memory
+ * corruption, and call panic immediately.
+ * 2. "reg_access" may take one or two parameters, separated by space.
+ *    "reg_access <addr>" is a read request;
+ *    "reg_access <addr> <value>" is a write request.
+ * E.g., "echo "reg_access 0x17420000">/sys/kernel/pixel_debug/trigger" causes
+ *	 results in reading address 0x17420000;
+ * E.g., "echo "reg_access 0x17420000 0x12345678">
+ *	  /sys/kernel/pixel_debug/trigger"
+ *	 results in writing 0x12345678 into 0x17420000.
  */
 
 #define pr_fmt(fmt) "PIXEL DEBUG TEST: %s() " fmt, __func__
 
+#include <linux/cpu.h>
+#include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/io.h>
 #include <linux/kobject.h>
+#include <linux/module.h>
+#include <linux/nmi.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
 #include <linux/sysfs.h>
 #include <linux/string.h>
 #include <linux/fs.h>
+
+/*
+ * Utility functions
+ */
+static inline void infinite_loop(void)
+{
+#ifdef CONFIG_ARM64
+	asm("b .");
+#else
+	for (;;)
+		;
+#endif
+}
+
+static void pull_down_other_cpus(void)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	int cpu, ret, curr_cpu;
+
+	curr_cpu = smp_processor_id();
+
+	for_each_possible_cpu(cpu) {
+		if (cpu == curr_cpu)
+			continue;
+		ret = cpu_down(cpu);
+		if (ret)
+			pr_crit("CORE%d ret: %x\n", cpu, ret);
+	}
+#endif
+}
+
+#define BUFFER_SIZE SZ_1K
+static int recursive_loop(int remaining)
+{
+	char buf[BUFFER_SIZE];
+
+	pr_crit("remaining = [%d]\n", remaining);
+
+	/* Make sure compiler does not optimize this away. */
+	memset(buf, (remaining & 0xff) | 0x1, BUFFER_SIZE);
+	if (!remaining)
+		return 0;
+	return recursive_loop(remaining - 1);
+}
+
+static int get_index_of_space_or_null(char *arg)
+{
+	int i = 0;
+
+	if (arg == NULL)
+		return 0;
+
+	/*
+	 * A parameter ends with either a space, or \0.
+	 */
+	while (!isspace(arg[i]) && arg[i])
+		i++;
+
+	return i;
+}
 
 /*
  * Error trigger functions
@@ -41,6 +124,259 @@ static void simulate_panic(char *arg)
 	pr_crit("failed!\n");
 }
 
+static void simulate_bug(char *arg)
+{
+	pr_crit("called!\n");
+
+	BUG();
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+}
+
+static void simulate_warn(char *arg)
+{
+	pr_crit("called\n");
+
+	WARN_ON(1);
+}
+
+static void simulate_null(char *arg)
+{
+	char *pointer = NULL;
+
+	pr_crit("called!\n");
+
+	/* Intentional null pointer dereference */
+	*pointer = 'a';
+
+	/* Should not reach here */
+	pr_crit("failed!");
+}
+
+static void (*undefined_function)(void) = (void *)0x1234;
+static void simulate_undefined_function(char *arg)
+{
+	pr_crit("function address=[%llx]\n", undefined_function);
+
+	undefined_function();
+
+	/* Should not reach here */
+	pr_crit("failed!");
+}
+
+static void simulate_double_free(char *arg)
+{
+	void *p;
+
+	pr_crit("called!\n");
+
+	p = kmalloc(sizeof(unsigned int), GFP_KERNEL);
+	if (p) {
+		*(unsigned int *)p = 0x0;
+		kfree(p);
+		msleep(1000);
+		kfree(p);
+	}
+}
+
+static void simulate_use_after_free(char *arg)
+{
+	unsigned int *p;
+
+	pr_crit("called!\n");
+
+	p = kmalloc(sizeof(int), GFP_KERNEL);
+	kfree(p);
+	*p = 0x1234;
+}
+
+static void simulate_memory_corruption(char *arg)
+{
+	int *ptr;
+	int len;
+	const char *panic_str = "panic";
+
+	if (arg == NULL)
+		len = 0;
+	else
+		len = min(strlen(arg), strlen(panic_str));
+
+	pr_crit("arg [%s]\n", arg);
+
+	ptr = kmalloc(sizeof(int), GFP_KERNEL);
+	if (ptr) {
+		*ptr++ = 4;
+		*ptr = 2;
+
+		if (len > 0 && !strncmp(panic_str, arg, len))
+			panic("MEMORY CORRUPTION");
+	}
+}
+
+static void simulate_low_memory(char *arg)
+{
+	int i = 0;
+
+	pr_crit("called!\n");
+
+	pr_crit("Allocating memory until failure!\n");
+	while (kmalloc(128 * 1024, GFP_KERNEL))
+		i++;
+	pr_crit("Allocated %d KB!\n", i * 128);
+}
+
+static void simulate_softlockup(char *arg)
+{
+	pr_crit("called!\n");
+
+	local_irq_disable();
+	preempt_disable();
+	local_irq_enable();
+
+	/* If CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC=y, this should cause a panic */
+	infinite_loop();
+
+	preempt_enable();
+
+	/* Should not reach here */
+	pr_crit("failed!");
+}
+
+static void simulate_hardlockup(char *arg)
+{
+	pr_crit("called!\n");
+
+	local_irq_disable();
+	infinite_loop();
+
+	/* Should not reach here */
+	pr_crit("failed!");
+}
+
+static void simulate_spinlock_lockup(char *arg)
+{
+	spinlock_t debug_test_lock;
+
+	pr_crit("called!\n");
+	spin_lock_init(&debug_test_lock);
+
+	spin_lock(&debug_test_lock);
+	spin_lock(&debug_test_lock);
+
+	/* Should not reach here */
+	pr_crit("failed!");
+}
+
+/* timeout for dog bark/bite */
+#define DELAY_TIME 30000
+
+static void simulate_watchdog(char *arg)
+{
+	pr_crit("called!\n");
+
+	pull_down_other_cpus();
+	pr_crit("start to hang\n");
+	local_irq_disable();
+	mdelay(DELAY_TIME);
+	local_irq_enable();
+
+	/* Should not reach here */
+	pr_crit("failed!");
+}
+
+static void simulate_writero(char *arg)
+{
+	unsigned long *ptr;
+
+	pr_crit("called!\n");
+
+	ptr = (unsigned long *)simulate_writero;
+	*ptr ^= 0x12345678;
+
+	/* Should not reach here */
+	pr_crit("failed!");
+}
+
+static void simulate_buffer_overflow(char *arg)
+{
+	pr_crit("called!\n");
+
+	recursive_loop(600);
+}
+
+static void simulate_schedule_while_atomic(char *arg)
+{
+	spinlock_t debug_test_lock;
+
+	pr_crit("called!\n");
+	spin_lock_init(&debug_test_lock);
+
+	spin_lock(&debug_test_lock);
+	msleep(1000);
+
+	spin_lock(&debug_test_lock);
+	/* Should not reach here */
+	pr_crit("failed!");
+}
+
+static void simulate_register_access(char *arg)
+{
+	int ret, index = 0;
+	unsigned long reg, val;
+	char *tmp, *tmparg;
+	void __iomem *addr;
+
+	pr_crit("start with arg [%s]\n", arg);
+
+	index = get_index_of_space_or_null(arg);
+	if (index == 0) {
+		pr_crit("no address given! Exit the test.\n");
+		return;
+	}
+	if (index > PAGE_SIZE)
+		return;
+
+	tmp = kstrndup(arg, index, GFP_KERNEL);
+	if (!tmp)
+		return;
+
+	ret = kstrtoul(tmp, 16, &reg);
+	addr = ioremap(reg, 0x10);
+	if (!addr) {
+		pr_crit("failed to remap 0x%lx, quit\n", reg);
+		kfree(tmp);
+		return;
+	}
+	pr_crit("1st parameter: 0x%lx\n", reg);
+
+	tmparg = &arg[index + 1];
+	index = get_index_of_space_or_null(tmparg);
+	if (index == 0) {
+		pr_crit("there is no 2nd parameter\n");
+		pr_crit("try to read 0x%lx\n", reg);
+
+		ret = __raw_readl(addr);
+		pr_crit("result : 0x%x\n", ret);
+
+	} else {
+		if (index > PAGE_SIZE) {
+			kfree(tmp);
+			return;
+		}
+		memcpy(tmp, tmparg, index);
+		tmp[index] = '\0';
+		ret = kstrtoul(tmp, 16, &val);
+		pr_crit("2nd parameter: 0x%lx\n", val);
+		pr_crit("try to write 0x%lx to 0x%lx\n", val, reg);
+
+		__raw_writel(val, addr);
+	}
+	kfree(tmp);
+	/* should not reach here */
+	pr_crit("failed!");
+}
+
 /*
  * Error trigger definitions
  */
@@ -48,6 +384,22 @@ typedef void (*force_error_func)(char *arg);
 
 enum {
 	FORCE_PANIC = 0,
+	FORCE_BUG,
+	FORCE_WARN,
+	FORCE_NULL,
+	FORCE_UNDEFINED_FUNCTION,
+	FORCE_DOUBLE_FREE,
+	FORCE_USE_AFTER_FREE,
+	FORCE_MEMORY_CORRUPTION,
+	FORCE_LOW_MEMORY,
+	FORCE_SOFT_LOCKUP,
+	FORCE_HARD_LOCKUP,
+	FORCE_SPIN_LOCKUP,
+	FORCE_WATCHDOG,
+	FORCE_WRITE_RO,
+	FORCE_OVERFLOW,
+	FORCE_SCHED_ATOMIC,
+	FORCE_REGISTER_ACCESS,
 	NR_FORCE_ERROR,
 };
 
@@ -58,6 +410,22 @@ struct force_error_item {
 
 static const struct force_error_item force_error_vector[NR_FORCE_ERROR] = {
 	{ "panic",		&simulate_panic },
+	{ "bug",		&simulate_bug },
+	{ "warn",		&simulate_warn },
+	{ "null",		&simulate_null },
+	{ "undef_func",		&simulate_undefined_function },
+	{ "double_free",	&simulate_double_free },
+	{ "use_after_free",	&simulate_use_after_free },
+	{ "memcorrupt",		&simulate_memory_corruption },
+	{ "lowmem",		&simulate_low_memory },
+	{ "softlockup",		&simulate_softlockup },
+	{ "hardlockup",		&simulate_hardlockup },
+	{ "spinlockup",		&simulate_spinlock_lockup },
+	{ "watchdog",		&simulate_watchdog },
+	{ "writero",		&simulate_writero },
+	{ "overflow",		&simulate_buffer_overflow },
+	{ "sched_atomic",	&simulate_schedule_while_atomic },
+	{ "reg_access",		&simulate_register_access },
 };
 
 static void parse_and_trigger(const char *buf)
