@@ -1,0 +1,94 @@
+What:		/sys/class/sscoredump/clients
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		Reading from this file provides list of class drivers.
+
+
+What:		/sys/class/sscoredump/enabled
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		This file controls enable/disable coredump feature for all
+		class drivers.
+
+		Writing 0 to this file disables coredump.
+
+		Writing non-zero to this file enables coredump.
+
+
+What:		/sys/class/sscoredump/level
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		This file controls coredump feature for all class drivers.
+
+		Writing 0 to this file results in report containing
+		crashinfo only.
+
+		Writing non-zero to this file results in report containing
+		crashinfo + coredump.
+
+
+What:		/sys/class/sscoredump/sscd_<device>/crash_info
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		Reading from this file provides crash information for last crash
+		report.
+
+
+What:		/sys/class/sscoredump/sscd_<device>/enabled
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		This file controls enable/disable coredump feature for driver.
+
+		Writing 0 to this file disables coredump.
+
+		Writing non-zero to this file enables coredump.
+
+
+What:		/sys/class/sscoredump/sscd_<device>/read_count
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		Reading from this file provides number of times crash report was
+		read.
+
+
+What:		/sys/class/sscoredump/sscd_<device>/report_count
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		Reading from this file provides number of times crash report
+		was generated.
+
+
+What:		/sys/class/sscoredump/sscd_<device>/report_time
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		Reading from this file provides crash report time information.
+		Report time format: %d.%d (sec.msec)
+
+
+What:		/sys/class/sscoredump/sscd_<device>/timeout
+Date:		January 2020
+KernelVersion:	4.19
+Contact:	Oleg Matcovschi <omatcovschi@google.com>
+Description:
+		This file controls timeout configuration. Timeout value is in
+		miliseconds.
+
+		Reading from this file provides current timeout value.
+
+		Writing to this file sets timeout value.
