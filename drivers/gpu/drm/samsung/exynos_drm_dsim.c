@@ -11,6 +11,8 @@
  * option) any later version.
  */
 
+#define pr_fmt(fmt)  "%s: " fmt, __func__
+
 #include <asm/unaligned.h>
 
 #include <drm/drmP.h>
@@ -117,7 +119,6 @@ int dsim_set_panel_power(int id, bool on)
 	return ret;
 }
 
-#if defined(DSIM_BIST)
 static void dsim_dump(struct dsim_device *dsim)
 {
 	struct dsim_regs regs;
@@ -130,7 +131,6 @@ static void dsim_dump(struct dsim_device *dsim)
 	regs.phy_regs_ex = dsim->res.phy_regs_ex;
 	__dsim_dump(dsim->id, &regs);
 }
-#endif
 
 static void dsim_enable(struct drm_encoder *encoder)
 {
@@ -1143,7 +1143,8 @@ static bool dsim_fifo_empty_needed(struct dsim_device *dsim,
 	return false;
 }
 
-int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0, u32 d1)
+static int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0,
+		u32 d1)
 {
 	int ret = 0;
 	bool must_wait = true;
@@ -1243,16 +1244,147 @@ static int dsim_wr_data(struct dsim_device *dsim, u32 type, const u8 data[],
 	return ret;
 }
 
+#define DSIM_RX_PHK_HEADER_SIZE	4
+static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
+		u8 *buf)
+{
+	u32 rx_fifo, rx_size = 0;
+	int i = 0, ret = 0;
+
+	if (dsim->state != DSIM_STATE_HSCLKEN) {
+		pr_err("DSI-%d is not ready(%d)\n", dsim->id, dsim->state);
+		return -EINVAL;
+	}
+
+	if (cnt > DSIM_RX_FIFO_MAX_DEPTH * 4 - DSIM_RX_PHK_HEADER_SIZE) {
+		pr_err("requested rx size is wrong(%d)\n", cnt);
+		return -EINVAL;
+	}
+
+	pr_debug("type[0x%x], cmd[0x%x], rx cnt[%d]\n", id, addr, cnt);
+
+	/* Init RX FIFO before read and clear DSIM_INTSRC */
+	dsim_reg_clear_int(dsim->id, DSIM_INTSRC_RX_DATA_DONE);
+
+	reinit_completion(&dsim->rd_comp);
+
+	/* Set the maximum packet size returned */
+	dsim_write_data(dsim,
+		MIPI_DSI_SET_MAXIMUM_RETURN_PACKET_SIZE, cnt, 0);
+
+	/* Read request */
+	if (id == MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM)
+		dsim_write_data(dsim, id, addr & 0xff, (addr >> 8) & 0xff);
+	else
+		dsim_write_data(dsim, id, addr, 0);
+
+	if (!wait_for_completion_timeout(&dsim->rd_comp, MIPI_RD_TIMEOUT)) {
+		pr_err("DSI-%d read timeout\n", dsim->id);
+		return -ETIMEDOUT;
+	}
+
+	mutex_lock(&dsim->cmd_lock);
+
+	rx_fifo = dsim_reg_get_rx_fifo(dsim->id);
+	pr_debug("rx fifo:0x%8x, response:0x%x, rx_size:%d\n", rx_fifo,
+		 rx_fifo & 0xff, rx_size);
+
+	/* Parse the RX packet data types */
+	switch (rx_fifo & 0xff) {
+	case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
+		ret = dsim_reg_rx_err_handler(dsim->id, rx_fifo);
+		if (ret < 0) {
+			dsim_dump(dsim);
+			goto exit;
+		}
+		break;
+	case MIPI_DSI_RX_END_OF_TRANSMISSION:
+		pr_debug("EoTp was received\n");
+		break;
+	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE:
+	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE:
+		buf[1] = (rx_fifo >> 16) & 0xff;
+	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
+	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
+		buf[0] = (rx_fifo >> 8) & 0xff;
+		pr_debug("short packet was received\n");
+		rx_size = cnt;
+		break;
+	case MIPI_DSI_RX_DCS_LONG_READ_RESPONSE:
+	case MIPI_DSI_RX_GENERIC_LONG_READ_RESPONSE:
+		pr_debug("long packet was received\n");
+		rx_size = (rx_fifo & 0x00ffff00) >> 8;
+
+		while (i < rx_size) {
+			const u32 rx_max =
+				min_t(u32, rx_size, i + sizeof(rx_fifo));
+
+			rx_fifo = dsim_reg_get_rx_fifo(dsim->id);
+			pr_debug("payload: 0x%x i=%d max=%d\n", rx_fifo, i,
+					rx_max);
+			for (; i < rx_max; i++, rx_fifo >>= 8)
+				buf[i] = rx_fifo & 0xff;
+		}
+		break;
+	default:
+		pr_err("packet format is invalid.\n");
+		dsim_dump(dsim);
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	if (!dsim_reg_rx_fifo_is_empty(dsim->id)) {
+		pr_err("RX FIFO is not empty\n");
+		dsim_dump(dsim);
+		ret = -EBUSY;
+	} else  {
+		ret = rx_size;
+	}
+exit:
+	mutex_unlock(&dsim->cmd_lock);
+
+	return ret;
+}
+
+static int dsim_rd_data(struct dsim_device *dsim, u32 type, const u8 tx_data[],
+		u8 rx_data[], u32 rx_len)
+{
+	u32 cmd = 0;
+
+	switch (type) {
+	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
+		cmd = tx_data[1] << 8;
+	case MIPI_DSI_DCS_READ:
+	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
+		cmd |= tx_data[0];
+	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
+		break;
+	default:
+		pr_err("Invalid rx type (%d)\n", type);
+	}
+	return dsim_read_data(dsim, type, cmd, rx_len, rx_data);
+}
+
 static ssize_t dsim_host_transfer(struct mipi_dsi_host *host,
 			    const struct mipi_dsi_msg *msg)
 {
 	struct dsim_device *dsim = host_to_dsi(host);
-	const u8 *data;
+	int ret;
 
-	data = msg->tx_buf;
-	dsim_wr_data(dsim, msg->type, data, msg->tx_len);
+	switch (msg->type) {
+	case MIPI_DSI_DCS_READ:
+	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
+	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
+	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
+		ret = dsim_rd_data(dsim, msg->type, msg->tx_buf,
+				   msg->rx_buf, msg->rx_len);
+		break;
+	default:
+		ret = dsim_wr_data(dsim, msg->type, msg->tx_buf, msg->tx_len);
+		break;
+	}
 
-	return 0;
+	return ret;
 }
 
 /* TODO: Below operation will be registered after panel driver is created. */

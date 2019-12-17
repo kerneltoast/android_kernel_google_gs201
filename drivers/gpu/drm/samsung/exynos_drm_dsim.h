@@ -96,10 +96,12 @@ struct dsim_device {
 
 extern struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 
-int dsim_write_data(struct dsim_device *dsi, u32 id, unsigned long d0, u32 d1);
 #define to_dsi(nm)	container_of(nm, struct dsim_device, nm)
 
 #define MIPI_WR_TIMEOUT				msecs_to_jiffies(50)
+#define MIPI_RD_TIMEOUT				msecs_to_jiffies(100)
+
+#define DSIM_RX_FIFO_MAX_DEPTH			64
 
 struct decon_device;
 static inline const struct decon_device *
