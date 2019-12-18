@@ -377,6 +377,72 @@ static void simulate_register_access(char *arg)
 	pr_crit("failed!");
 }
 
+static void simulate_svc(char *arg)
+{
+	pr_crit("called!\n");
+#ifdef CONFIG_ARM64
+	asm("svc #0x0");
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+#endif
+}
+
+static void simulate_undefined_memory(char *arg)
+{
+	pr_crit("called!\n");
+
+#ifdef CONFIG_ARM64
+	asm volatile(".word 0xe7f001f2\n\t");
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+#endif
+}
+
+static void simulate_pc_abort(char *arg)
+{
+	pr_crit("called!\n");
+
+#ifdef CONFIG_ARM64
+	asm("add x30, x30, #0x1\n\t"
+	    "ret"
+	    ::: "x30");
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+#endif
+}
+
+static void simulate_sp_abort(char *arg)
+{
+	pr_crit("called!\n");
+
+#ifdef CONFIG_ARM64
+	/* X29(FP) or SP cannot be added to the clobber list */
+	asm("mov x29, #0xff00\n\t"
+	    "mov sp, #0xff00\n\t"
+	    "ret");
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+#endif
+}
+
+static void simulate_jump_zero(char *arg)
+{
+	pr_crit("called!\n");
+
+#ifdef CONFIG_ARM64
+	asm("mov x0, #0x0\n\t"
+	    "br x0"
+	    ::: "x0");
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+#endif
+}
+
 /*
  * Error trigger definitions
  */
@@ -400,6 +466,11 @@ enum {
 	FORCE_OVERFLOW,
 	FORCE_SCHED_ATOMIC,
 	FORCE_REGISTER_ACCESS,
+	FORCE_SVC,
+	FORCE_UNDEF,
+	FORCE_PC_ABORT,
+	FORCE_SP_ABORT,
+	FORCE_JUMP_ZERO,
 	NR_FORCE_ERROR,
 };
 
@@ -426,6 +497,11 @@ static const struct force_error_item force_error_vector[NR_FORCE_ERROR] = {
 	{ "overflow",		&simulate_buffer_overflow },
 	{ "sched_atomic",	&simulate_schedule_while_atomic },
 	{ "reg_access",		&simulate_register_access },
+	{ "svc",		&simulate_svc },
+	{ "undef",		&simulate_undefined_memory },
+	{ "pcabort",		&simulate_pc_abort },
+	{ "spabort",		&simulate_sp_abort },
+	{ "jumpzero",		&simulate_jump_zero },
 };
 
 static void parse_and_trigger(const char *buf)
