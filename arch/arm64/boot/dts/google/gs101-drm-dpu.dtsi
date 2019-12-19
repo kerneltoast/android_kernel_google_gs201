@@ -144,7 +144,6 @@
 		dsim,id = <0>;
 
 		interrupts = <GIC_SPI INTREQ__DISP_DSIM0_DISP IRQ_TYPE_LEVEL_HIGH>;
-		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 
 		phys = <&mipi_phy_dsim0_m4m4 0>;
 		phy-names = "dsim_dphy";
@@ -167,6 +166,7 @@
 		interrupts = <GIC_SPI INTREQ__DISP_DECON0_FRAME_START_DISP IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DISP_DECON0_FRAME_DONE_DISP IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DISP_DECON0_EXTRA_DISP IRQ_TYPE_LEVEL_HIGH>;
+		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 
 		/* pinctrl */
 		pinctrl-names = "hw_te_on", "hw_te_off";
