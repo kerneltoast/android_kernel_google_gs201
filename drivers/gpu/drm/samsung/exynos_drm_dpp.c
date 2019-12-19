@@ -607,8 +607,7 @@ static void dpp_print_restriction(struct dpp_device *dpp)
 			res->scale_down);
 }
 
-static int __init exynos_dpp_parse_dt(struct dpp_device *dpp,
-		struct device_node *np)
+static int exynos_dpp_parse_dt(struct dpp_device *dpp, struct device_node *np)
 {
 	int ret = 0;
 	struct dpp_restriction *res = &dpp->restriction;
