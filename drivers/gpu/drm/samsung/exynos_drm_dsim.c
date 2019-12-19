@@ -132,6 +132,60 @@ static void dsim_dump(struct dsim_device *dsim)
 	__dsim_dump(dsim->id, &regs);
 }
 
+static int dsim_phy_power_on(struct dsim_device *dsim)
+{
+	int ret;
+
+	pr_debug("%s +\n", __func__);
+
+	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
+		return 0;
+
+	ret = phy_power_on(dsim->res.phy);
+	if (ret) {
+		pr_err("failed to enable dphy(%d)\n", ret);
+		return ret;
+	}
+	if (dsim->res.phy_ex) {
+		ret = phy_power_on(dsim->res.phy_ex);
+		if (ret) {
+			pr_err("failed to enable extra dphy(%d)\n", ret);
+			return ret;
+		}
+	}
+
+	pr_debug("%s -\n", __func__);
+
+	return 0;
+}
+
+static int dsim_phy_power_off(struct dsim_device *dsim)
+{
+	int ret;
+
+	pr_debug("%s +\n", __func__);
+
+	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
+		return 0;
+
+	ret = phy_power_off(dsim->res.phy);
+	if (ret) {
+		pr_err("failed to disable dphy(%d)\n", ret);
+		return ret;
+	}
+	if (dsim->res.phy_ex) {
+		ret = phy_power_off(dsim->res.phy_ex);
+		if (ret) {
+			pr_err("failed to disable extra dphy(%d)\n", ret);
+			return ret;
+		}
+	}
+
+	pr_debug("%s -\n", __func__);
+
+	return 0;
+}
+
 static void dsim_enable(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
@@ -150,7 +204,7 @@ static void dsim_enable(struct drm_encoder *encoder)
 	exynos_update_ip_idle_status(dsim->idle_ip_index, 0);
 #endif
 
-	pm_runtime_get_sync(dsim->dev);
+	dsim_phy_power_on(dsim);
 
 	dsim_reg_init(dsim->id, &dsim->config, &dsim->clk_param, true);
 	dsim_reg_start(dsim->id);
@@ -163,7 +217,7 @@ static void dsim_enable(struct drm_encoder *encoder)
 	ret = drm_panel_enable(dsim->panel);
 	if (ret < 0) {
 		drm_panel_unprepare(dsim->panel);
-		pm_runtime_put_sync(dsim->dev);
+		dsim_phy_power_off(dsim);
 		dsim_err(dsim, "drm_panel_enable is failed(%d)\n", ret);
 		return;
 	}
@@ -215,7 +269,7 @@ static void dsim_disable(struct drm_encoder *encoder)
 		return;
 	}
 
-	pm_runtime_put_sync(dsim->dev);
+	dsim_phy_power_off(dsim);
 
 #if defined(CONFIG_CPU_IDLE)
 	exynos_update_ip_idle_status(dsim->idle_ip_index, 1);
@@ -610,26 +664,17 @@ static int dsim_create_connector(struct drm_encoder *encoder)
 	return 0;
 }
 
-static int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
-	struct device *dev, unsigned long iova, int flags, void *token)
-{
-	pr_info("%s +\n", __func__);
-	return 0;
-}
-
 static int dsim_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_encoder *encoder = dev_get_drvdata(dev);
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_private *priv = drm_dev->dev_private;
 	int ret = 0;
 
 	dsim_dbg(dsim, "%s +\n", __func__);
 
 	drm_encoder_init(drm_dev, encoder, &dsim_encoder_funcs,
 			 DRM_MODE_ENCODER_DSI, NULL);
-
 	drm_encoder_helper_add(encoder, &dsim_encoder_helper_funcs);
 
 	encoder->possible_crtcs = exynos_drm_get_possible_crtcs(encoder,
@@ -648,15 +693,6 @@ static int dsim_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	ret = mipi_dsi_host_register(&dsim->dsi_host);
-
-	ret = iovmm_activate(dsim->dev);
-	if (ret) {
-		pr_err("failed to activate iovmm\n");
-		return ret;
-	}
-	priv->iommu_client = dsim->dev;
-
-	iovmm_set_fault_handler(dsim->dev, dpu_sysmmu_fault_handler, NULL);
 
 	dsim_dbg(dsim, "%s -\n", __func__);
 
@@ -1535,80 +1571,12 @@ static int dsim_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused dsim_suspend(struct device *dev)
-{
-	struct drm_encoder *encoder = dev_get_drvdata(dev);
-	struct dsim_device *dsim = encoder_to_dsim(encoder);
-	int ret;
-
-	dsim_dbg(dsim, "%s +\n", __func__);
-
-	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
-		return 0;
-
-	ret = phy_power_off(dsim->res.phy);
-	if (ret < 0) {
-		dsim_err(dsim, "failed to disable phy(%d)\n", ret);
-		return ret;
-	}
-	if (dsim->res.phy_ex) {
-		ret = phy_power_off(dsim->res.phy_ex);
-		if (ret < 0) {
-			dsim_err(dsim, "failed to disable extra phy(%d)\n",
-					ret);
-			return ret;
-		}
-	}
-
-	clk_disable_unprepare(dsim->res.aclk);
-
-	dsim_dbg(dsim, "%s -\n", __func__);
-
-	return 0;
-}
-
-static int __maybe_unused dsim_resume(struct device *dev)
-{
-	struct drm_encoder *encoder = dev_get_drvdata(dev);
-	struct dsim_device *dsim = encoder_to_dsim(encoder);
-	int ret;
-
-	dsim_dbg(dsim, "%s +\n", __func__);
-
-	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
-		return 0;
-
-	clk_prepare_enable(dsim->res.aclk);
-
-	ret = phy_power_on(dsim->res.phy);
-	if (ret < 0) {
-		dsim_err(dsim, "failed to enable phy(%d)\n", ret);
-		return ret;
-	}
-	if (dsim->res.phy_ex) {
-		ret = phy_power_on(dsim->res.phy_ex);
-		if (ret < 0) {
-			dsim_err(dsim, "failed to enable extra phy(%d)\n", ret);
-			return ret;
-		}
-	}
-
-	dsim_dbg(dsim, "%s -\n", __func__);
-
-	return 0;
-}
-
-static const struct dev_pm_ops dsim_pm_ops = {
-	SET_RUNTIME_PM_OPS(dsim_suspend, dsim_resume, NULL)
-};
-
 struct platform_driver dsim_driver = {
 	.probe = dsim_probe,
 	.remove = dsim_remove,
 	.driver = {
 		   .name = "exynos-dsim",
 		   .owner = THIS_MODULE,
-		   .pm = &dsim_pm_ops,
 		   .of_match_table = dsim_of_match,
 	},
 };

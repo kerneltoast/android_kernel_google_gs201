@@ -181,9 +181,9 @@ static dma_addr_t dpp_alloc_map_buf_test(void)
 	size_t size;
 	void *vaddr;
 	dma_addr_t dma_addr;
-	struct dsim_device *dsim;
-
-	dsim = dsim_drvdata[0];
+	struct decon_device *decon = get_decon_drvdata(0);
+	struct drm_device *drm_dev = decon->drm_dev;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 
 	size = PAGE_ALIGN(1440 * 3040 * 4);
 	buf = ion_alloc_dmabuf("ion_system_heap", size, 0);
@@ -197,7 +197,7 @@ static dma_addr_t dpp_alloc_map_buf_test(void)
 	dma_buf_vunmap(buf, vaddr);
 
 	/* mapping buffer for translating to DVA */
-	attachment = dma_buf_attach(buf, dsim->dev);
+	attachment = dma_buf_attach(buf, priv->iommu_client);
 	if (IS_ERR_OR_NULL(attachment)) {
 		pr_err("failed to attach dma_buf\n");
 		return -EINVAL;
@@ -854,36 +854,12 @@ static int dpp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int dpp_suspend(struct device *dev)
-{
-	struct dpp_device *dpp = dev_get_drvdata(dev);
-
-	dpp_info(dpp, "dpp%d suspended\n", dpp->id);
-
-	return 0;
-}
-
-static int dpp_resume(struct device *dev)
-{
-	struct dpp_device *dpp = dev_get_drvdata(dev);
-
-	dpp_info(dpp, "dpp%d resumed\n", dpp->id);
-
-	return 0;
-}
-
-static const struct dev_pm_ops dpp_pm_ops = {
-	SET_RUNTIME_PM_OPS(dpp_suspend, dpp_resume, NULL)
-};
-
-
 struct platform_driver dpp_driver = {
 	.probe = dpp_probe,
 	.remove = dpp_remove,
 	.driver = {
 		   .name = "exynos-dpp",
 		   .owner = THIS_MODULE,
-		   .pm = &dpp_pm_ops,
 		   .of_match_table = dpp_of_match,
 	},
 };

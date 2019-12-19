@@ -127,10 +127,8 @@ err:
 }
 
 int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
-		size_t size)
+		size_t size, struct device *dev)
 {
-	struct dsim_device *dsim = dsim_drvdata[0];
-
 	obj->dmabuf = dma_buf_get(handle);
 	if (IS_ERR_OR_NULL(obj->dmabuf)) {
 		pr_debug("failed to get dma_buf:%ld from ion handle\n",
@@ -141,7 +139,7 @@ int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
 	DRM_DEBUG("%s:%d, dma_buf->size(%lu)\n", __func__, __LINE__,
 			obj->dmabuf->size);
 
-	obj->attachment = dma_buf_attach(obj->dmabuf, dsim->dev);
+	obj->attachment = dma_buf_attach(obj->dmabuf, dev);
 	if (IS_ERR_OR_NULL(obj->attachment)) {
 		DRM_ERROR("dma_buf_attach() failed: %ld\n",
 				PTR_ERR(obj->attachment));
@@ -180,6 +178,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	const struct drm_format_info *info = drm_get_format_info(dev, mode_cmd);
 	struct exynos_drm_buf *exynos_buf[MAX_FB_BUFFER];
 	struct exynos_drm_gem *exynos_gem = NULL;
+	struct exynos_drm_private *priv = dev->dev_private;
 	u32 height;
 	size_t size;
 	int i;
@@ -220,7 +219,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		}
 
 		ret = exynos_drm_import_handle(exynos_buf[i],
-				mode_cmd->handles[i], size);
+				mode_cmd->handles[i], size, priv->iommu_client);
 		if (ret) {
 			exynos_gem = exynos_drm_gem_get(file_priv,
 					mode_cmd->handles[i]);
