@@ -50,6 +50,7 @@
 #include <linux/sysfs.h>
 #include <linux/string.h>
 #include <linux/fs.h>
+#include <linux/debug-test.h>
 
 /*
  * Utility functions
@@ -238,17 +239,6 @@ static void simulate_softlockup(char *arg)
 	infinite_loop();
 
 	preempt_enable();
-
-	/* Should not reach here */
-	pr_crit("failed!");
-}
-
-static void simulate_hardlockup(char *arg)
-{
-	pr_crit("called!\n");
-
-	local_irq_disable();
-	infinite_loop();
 
 	/* Should not reach here */
 	pr_crit("failed!");
@@ -444,6 +434,56 @@ static void simulate_jump_zero(char *arg)
 }
 
 /*
+ * SOC dependent triggers
+ */
+extern struct debug_trigger soc_test_trigger;
+static void simulate_hardlockup(char *arg)
+{
+	pr_crit("called!\n");
+
+	if (soc_test_trigger.hard_lockup == NULL) {
+		pr_crit("SOC specific trigger is not registered! Using default.\n");
+
+		local_irq_disable();
+		infinite_loop();
+
+		/* Should not reach here */
+		pr_crit("failed!\n");
+	} else {
+		(*soc_test_trigger.hard_lockup)(arg);
+	}
+
+}
+
+static void simulate_cold_reset(char *arg)
+{
+	pr_crit("called!\n");
+	if (soc_test_trigger.cold_reset == NULL) {
+		pr_crit("SOC specific trigger is not registered! Exit the test.\n");
+		return;
+	}
+
+	(*soc_test_trigger.cold_reset)(arg);
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+}
+
+static void simulate_watchdog_emergency_reset(char *arg)
+{
+	pr_crit("called!\n");
+	if (soc_test_trigger.watchdog_emergency_reset == NULL) {
+		pr_crit("SOC specific trigger is not registered! Exit the test.\n");
+		return;
+	}
+
+	(*soc_test_trigger.watchdog_emergency_reset)(arg);
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+}
+
+/*
  * Error trigger definitions
  */
 typedef void (*force_error_func)(char *arg);
@@ -471,6 +511,8 @@ enum {
 	FORCE_PC_ABORT,
 	FORCE_SP_ABORT,
 	FORCE_JUMP_ZERO,
+	FORCE_COLD_RESET,
+	FORCE_WDG_EMERGENCY_RESET,
 	NR_FORCE_ERROR,
 };
 
@@ -502,6 +544,8 @@ static const struct force_error_item force_error_vector[NR_FORCE_ERROR] = {
 	{ "pcabort",		&simulate_pc_abort },
 	{ "spabort",		&simulate_sp_abort },
 	{ "jumpzero",		&simulate_jump_zero },
+	{ "cold_reset",		&simulate_cold_reset },
+	{ "emerg_reset",	&simulate_watchdog_emergency_reset },
 };
 
 static void parse_and_trigger(const char *buf)

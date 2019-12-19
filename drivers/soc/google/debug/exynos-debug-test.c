@@ -21,6 +21,7 @@
 #include <linux/nmi.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
+#include <linux/debug-test.h>
 
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-pmu-if.h>
@@ -713,7 +714,12 @@ static int exynos_debug_test_parsing_dt(struct device_node *np)
 		dev_info(exynos_debug_desc.dev, "no data(nr_big_cpu)\n");
 		exynos_debug_desc.nr_big_cpu = -1;
 	}
+edt_desc_init_out:
+	return ret;
+}
 
+static void exynos_debug_test_desc_init(void)
+{
 	exynos_debug_desc.null_function = (void (*)(void))0x1234;
 	spin_lock_init(&exynos_debug_desc.debug_test_lock);
 
@@ -721,12 +727,14 @@ static int exynos_debug_test_parsing_dt(struct device_node *np)
 	debugfs_create_file("test", 0644,
 			exynos_debug_desc.debugfs_root,
 			NULL, &exynos_debug_test_file_fops);
-	ret = 0;
 	exynos_debug_desc.enabled = 1;
-
-edt_desc_init_out:
-	return ret;
 }
+
+static struct debug_trigger exynos_debug_test_trigger = {
+	.hard_lockup = simulate_HARD_LOCKUP,
+	.cold_reset = simulate_WP,
+	.watchdog_emergency_reset = simulate_QDP,
+};
 
 static int exynos_debug_test_probe(struct platform_device *pdev)
 {
@@ -734,6 +742,15 @@ static int exynos_debug_test_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	dev_info(&pdev->dev, "%s() called\n", __func__);
+
+	/* Parse data from DT and register to the general test trigger */
+	exynos_debug_desc.dev = &pdev->dev;
+	ret = exynos_debug_test_parsing_dt(np);
+	if (ret) {
+		dev_err(&pdev->dev, "cannot parse test data from dt\n");
+		goto edt_out;
+	}
+	debug_trigger_register(&exynos_debug_test_trigger, "exynos");
 
 	exynos_debug_desc.debugfs_root =
 			debugfs_create_dir("exynos-debug-test", NULL);
@@ -743,10 +760,7 @@ static int exynos_debug_test_probe(struct platform_device *pdev)
 		goto edt_out;
 	}
 
-	exynos_debug_desc.dev = &pdev->dev;
-	ret = exynos_debug_test_parsing_dt(np);
-	if (ret)
-		goto edt_out;
+	exynos_debug_test_desc_init();
 
 edt_out:
 	dev_info(exynos_debug_desc.dev, "%s() ret=[0x%x]\n", __func__, ret);
