@@ -34,8 +34,6 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-bool enable_kms_display = true;
-
 int exynos_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
 {
@@ -447,11 +445,9 @@ static int exynos_drm_init(void)
 {
 	int ret;
 
-	if (IS_ENABLED(CONFIG_EXYNOS_DPU30)) {
-		pr_info("KMS driver is %sselected\n",
-				enable_kms_display ? "" : "not ");
-		if (!enable_kms_display)
-			return -EINVAL;
+	if (enable_fbdev_display) {
+		pr_info("DRM/KMS not selected\n");
+		return -EINVAL;
 	}
 
 	ret = exynos_drm_register_devices();
@@ -478,10 +474,6 @@ static void exynos_drm_exit(void)
 
 module_init(exynos_drm_init);
 module_exit(exynos_drm_exit);
-
-#ifdef CONFIG_EXYNOS_DPU30
-module_param_named(enable, enable_kms_display, bool, 0);
-#endif
 
 MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");

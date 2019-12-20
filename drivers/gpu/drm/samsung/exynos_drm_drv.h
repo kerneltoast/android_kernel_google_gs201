@@ -27,6 +27,12 @@
 
 #define DEFAULT_WIN	0
 
+#if !defined(MODULE) && defined(CONFIG_EXYNOS_DPU30)
+extern bool enable_fbdev_display;
+#else
+#define enable_fbdev_display 0
+#endif
+
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
 
