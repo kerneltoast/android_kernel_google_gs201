@@ -9,6 +9,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/of_platform.h>
+#include <linux/module.h>
 #include <panel-samsung-drv.h>
 
 static unsigned char SEQ_PPS_SLICE2[] = {
@@ -143,3 +145,23 @@ const struct exynos_panel_desc samsung_s6e3ha9 = {
 	.mode = &s6e3ha9_mode,
 	.panel_func = &s6e3ha9_drm_funcs,
 };
+
+static const struct of_device_id exynos_panel_of_match[] = {
+	{ .compatible = "samsung,s6e3ha9", .data = &samsung_s6e3ha9 },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, exynos_panel_of_match);
+
+static struct mipi_dsi_driver exynos_panel_driver = {
+	.probe = exynos_panel_probe,
+	.remove = exynos_panel_remove,
+	.driver = {
+		.name = "panel-samsung-s6e3ha9",
+		.of_match_table = exynos_panel_of_match,
+	},
+};
+module_mipi_dsi_driver(exynos_panel_driver);
+
+MODULE_AUTHOR("Jiun Yu <jiun.yu@samsung.com>");
+MODULE_DESCRIPTION("MIPI-DSI based Samsung s6e3ha9 panel driver");
+MODULE_LICENSE("GPL");

@@ -345,6 +345,38 @@ config DRM_PANEL_SAMSUNG_COMMON
 	depends on DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
 
+config DRM_PANEL_SAMSUNG_EMUL
+	tristate "Samsung EMUL DSI command mode panel"
+	depends on DRM_PANEL_SAMSUNG_COMMON
+	help
+	  This driver supports virtual panel on samsung emulator. It just
+	  supports to turn on and off the virtual panel. Also if proper
+	  panel driver couldn't be found, it can be chosen.
+
+config DRM_PANEL_SAMSUNG_S6E3HA8
+	tristate "Samsung S6E3HA8 DSI command mode panel"
+	depends on DRM_PANEL_SAMSUNG_COMMON
+	help
+	  This driver supports S6E3HA8 panel on samsung SoC. It supports
+	  to turn on and off the S6E3HA8 panel and it can also supports
+	  panel specific features.
+
+config DRM_PANEL_SAMSUNG_S6E3HA9
+	tristate "Samsung S6E3HA9 DSI command mode panel"
+	depends on DRM_PANEL_SAMSUNG_COMMON
+	help
+	  This driver supports S6E3HA9 panel on samsung SoC. It supports
+	  to turn on and off the S6E3HA9 panel and it can also supports
+	  panel specific features.
+
+config DRM_PANEL_SAMSUNG_S6E3HC2
+	tristate "Samsung S6E3HC2 DSI command mode panel"
+	depends on DRM_PANEL_SAMSUNG_COMMON
+	help
+	  This driver supports S6E3HC2 panel on samsung SoC. It supports
+	  to turn on and off the S6E3HC2 panel and it can also supports
+	  panel specific features.
+
 config DRM_PANEL_SAMSUNG_S6E8AA0
 	tristate "Samsung S6E8AA0 DSI video mode panel"
 	depends on OF

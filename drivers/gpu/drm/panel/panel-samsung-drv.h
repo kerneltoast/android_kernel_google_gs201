@@ -31,7 +31,7 @@
 #define HDR_HDR10		BIT(2)
 #define HDR_HLG			BIT(3)
 
-extern int panel_log_level;
+static int panel_log_level = 7;
 
 #define panel_info(ctx, fmt, ...)					\
 	do {								\
@@ -153,9 +153,6 @@ int exynos_panel_get_modes(struct drm_panel *panel);
 void exynos_panel_reset(struct exynos_panel *ctx);
 int exynos_panel_set_power(struct exynos_panel *ctx, bool on);
 
-extern const struct exynos_panel_desc samsung_emul;
-extern const struct exynos_panel_desc samsung_s6e3ha8;
-extern const struct exynos_panel_desc samsung_s6e3ha9;
-extern const struct exynos_panel_desc samsung_s6e3hc2;
-
+int exynos_panel_probe(struct mipi_dsi_device *dsi);
+int exynos_panel_remove(struct mipi_dsi_device *dsi);
 #endif /* _PANEL_SAMSUNG_DRV_ */

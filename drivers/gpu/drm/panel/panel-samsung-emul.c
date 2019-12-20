@@ -9,6 +9,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/of_platform.h>
+#include <linux/module.h>
 #include <panel-samsung-drv.h>
 
 static int emul_disable(struct drm_panel *panel)
@@ -97,3 +99,23 @@ const struct exynos_panel_desc samsung_emul = {
 	.mode = &emul_mode,
 	.panel_func = &emul_drm_funcs,
 };
+
+static const struct of_device_id exynos_panel_of_match[] = {
+	{ .compatible = "samsung,emul", .data = &samsung_emul },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, exynos_panel_of_match);
+
+static struct mipi_dsi_driver exynos_panel_driver = {
+	.probe = exynos_panel_probe,
+	.remove = exynos_panel_remove,
+	.driver = {
+		.name = "panel-samsung-emul",
+		.of_match_table = exynos_panel_of_match,
+	},
+};
+module_mipi_dsi_driver(exynos_panel_driver);
+
+MODULE_AUTHOR("Jiun Yu <jiun.yu@samsung.com>");
+MODULE_DESCRIPTION("MIPI-DSI based Samsung emul panel driver");
+MODULE_LICENSE("GPL");

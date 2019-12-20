@@ -10,7 +10,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
@@ -23,8 +22,6 @@
 #include <drm/drm_atomic_helper.h>
 
 #include <panel-samsung-drv.h>
-
-int panel_log_level = 7;
 
 static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 {
@@ -226,7 +223,7 @@ static const struct backlight_ops exynos_backlight_ops = {
 	.update_status = exynos_update_status,
 };
 
-static int exynos_panel_probe(struct mipi_dsi_device *dsi)
+int exynos_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
 	struct exynos_panel *ctx;
@@ -281,7 +278,7 @@ done:
 	return ret;
 }
 
-static int exynos_panel_remove(struct mipi_dsi_device *dsi)
+int exynos_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct exynos_panel *ctx = mipi_dsi_get_drvdata(dsi);
 
@@ -291,25 +288,6 @@ static int exynos_panel_remove(struct mipi_dsi_device *dsi)
 
 	return 0;
 }
-
-static const struct of_device_id exynos_panel_of_match[] = {
-	{ .compatible = "samsung,emul", .data = &samsung_emul },
-	{ .compatible = "samsung,s6e3ha8", .data = &samsung_s6e3ha8 },
-	{ .compatible = "samsung,s6e3ha9", .data = &samsung_s6e3ha9 },
-	{ .compatible = "samsung,s6e3hc2", .data = &samsung_s6e3hc2 },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, exynos_panel_of_match);
-
-static struct mipi_dsi_driver exynos_panel_driver = {
-	.probe = exynos_panel_probe,
-	.remove = exynos_panel_remove,
-	.driver = {
-		.name = "panel-samsung-drv",
-		.of_match_table = exynos_panel_of_match,
-	},
-};
-module_mipi_dsi_driver(exynos_panel_driver);
 
 MODULE_AUTHOR("Jiun Yu <jiun.yu@samsung.com>");
 MODULE_DESCRIPTION("MIPI-DSI based Samsung common panel driver");
