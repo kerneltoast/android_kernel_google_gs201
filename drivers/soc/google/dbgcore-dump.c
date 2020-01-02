@@ -131,6 +131,81 @@ static ssize_t dbgcore_logdump_write(struct file *file, const char __user *buf,
 	return count;
 }
 
+static ssize_t dbgcore_nmi_info_read(struct file *file, char __user *ubuf,
+				     size_t count, loff_t *ppos)
+{
+	struct adv_tracer_ipc_cmd cmd = {
+		.cmd_raw = {
+			.cmd = EAT_IPC_CMD_GET_NMI_INFO,
+			.size = 1,
+		}
+	};
+	char buf[64];
+	int len;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd) < 0) {
+		pr_err("sending GET_NMI_INFO cmd failed\n");
+		return -EIO;
+	}
+
+	len = scnprintf(buf, sizeof(buf), "prev NMI:\t%x\ncurr NMI:\t%x\n",
+		       cmd.buffer[2], cmd.buffer[1]);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static ssize_t dbgcore_irq_info_read(struct file *file, char __user *ubuf,
+				     size_t count, loff_t *ppos)
+{
+	struct adv_tracer_ipc_cmd cmd = {
+		.cmd_raw = {
+			.cmd = EAT_IPC_CMD_GET_IRQ_INFO,
+			.size = 2,
+		},
+	};
+	char buf[64];
+	int len;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd) < 0) {
+		pr_err("sending GET_IRQ_INFO cmd failed\n");
+		return -EIO;
+	}
+
+	len = scnprintf(buf, sizeof(buf), "IRQ count:\t%u\nhandled IRQ:\t%#x\n",
+		       cmd.buffer[2], cmd.buffer[3]);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static ssize_t dbgcore_irq_info_write(struct file *file, const char __user *buf,
+				      size_t count, loff_t *ppos)
+{
+	struct adv_tracer_ipc_cmd cmd = {
+		.cmd_raw = {
+			.cmd = EAT_IPC_CMD_GET_IRQ_INFO,
+			.size = 2,
+		},
+	};
+	cmd.buffer[1] = 1;
+
+	if (*ppos != 0)
+		return -EINVAL;
+
+	if (adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd) < 0) {
+		pr_err("sending GET_IRQ_INFO cmd failed\n");
+		return -EIO;
+	}
+
+	*ppos = count;
+	return count;
+}
+
 static const struct file_operations dbgcore_version_fops = {
 	.open	= simple_open,
 	.read	= dbgcore_version_read,
@@ -144,10 +219,25 @@ static const struct file_operations dbgcore_logdump_fops = {
 	.llseek	= default_llseek,
 };
 
+static const struct file_operations dbgcore_nmi_info_fops = {
+	.open	= simple_open,
+	.read	= dbgcore_nmi_info_read,
+	.llseek	= default_llseek,
+};
+
+static const struct file_operations dbgcore_irq_info_fops = {
+	.open	= simple_open,
+	.read	= dbgcore_irq_info_read,
+	.write	= dbgcore_irq_info_write,
+	.llseek	= default_llseek,
+};
+
 static __init int dbgcore_dump_init(void)
 {
 	struct dentry *version;
 	struct dentry *logdump;
+	struct dentry *nmi_info;
+	struct dentry *irq_info;
 
 	dbgcore_dentry = debugfs_create_dir("dbgcore", NULL);
 	if (dbgcore_dentry == NULL) {
@@ -163,6 +253,16 @@ static __init int dbgcore_dump_init(void)
 	logdump = debugfs_create_file("logdump", 0644, dbgcore_dentry, NULL,
 				      &dbgcore_logdump_fops);
 	if (logdump == NULL)
+		goto out;
+
+	nmi_info = debugfs_create_file("nmi_info", 0444, dbgcore_dentry, NULL,
+				       &dbgcore_nmi_info_fops);
+	if (nmi_info == NULL)
+		goto out;
+
+	irq_info = debugfs_create_file("irq_info", 0644, dbgcore_dentry, NULL,
+				       &dbgcore_irq_info_fops);
+	if (irq_info == NULL)
 		goto out;
 
 	pr_info("init ok\n");
