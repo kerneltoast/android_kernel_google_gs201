@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
+#include <linux/backlight.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_mipi_dsi.h>
@@ -64,6 +65,11 @@ extern int panel_log_level;
 		}							\
 	} while (0)
 
+struct exynos_panel;
+struct exynos_panel_funcs {
+	int (*set_brightness)(struct exynos_panel *exynos_panel, u16 br);
+};
+
 struct exynos_panel_desc {
 	bool dsc_en;
 	u32 dsc_slice_cnt;
@@ -73,9 +79,12 @@ struct exynos_panel_desc {
 	u32 max_luminance;
 	u32 max_avg_luminance;
 	u32 min_luminance;
+	u32 max_brightness;
+	u32 dft_brightness; /* default brightness */
 	unsigned long mode_flags;
 	const struct drm_display_mode *mode;
 	const struct drm_panel_funcs *panel_func;
+	const struct exynos_panel_funcs *exynos_panel_func;
 };
 
 struct exynos_panel {
@@ -86,6 +95,8 @@ struct exynos_panel {
 	struct regulator *vci;
 	struct regulator *vddi;
 	const struct exynos_panel_desc *desc;
+	struct backlight_device *bl;
+	bool enabled;
 };
 
 static inline int exynos_dcs_write(struct exynos_panel *ctx, const void *data,
@@ -101,6 +112,13 @@ static inline int exynos_dcs_compression_mode(struct exynos_panel *ctx, u8 mode)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
 	return mipi_dsi_dcs_compression_mode(dsi, mode);
+}
+
+static inline int exynos_dcs_set_brightness(struct exynos_panel *ctx, u16 br)
+{
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
+
+	return mipi_dsi_dcs_set_display_brightness(dsi, br);
 }
 
 #define EXYNOS_DCS_WRITE_SEQ(ctx, seq...) do {				\

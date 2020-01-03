@@ -194,11 +194,44 @@ int exynos_panel_get_modes(struct drm_panel *panel)
 	return 1;
 }
 
+static int exynos_get_brightness(struct backlight_device *bl)
+{
+	return bl->props.brightness;
+}
+
+static int exynos_update_status(struct backlight_device *bl)
+{
+	struct exynos_panel *ctx = bl_get_data(bl);
+	const struct exynos_panel_funcs *exynos_panel_func;
+	int brightness = bl->props.brightness;
+
+	pr_debug("br: %d, max br: %d\n", brightness, bl->props.max_brightness);
+
+	if (!ctx->enabled) {
+		pr_err("panel is not enabled\n");
+		return -EPERM;
+	}
+
+	exynos_panel_func = ctx->desc->exynos_panel_func;
+	if (exynos_panel_func && exynos_panel_func->set_brightness)
+		exynos_panel_func->set_brightness(ctx, brightness);
+	else
+		exynos_dcs_set_brightness(ctx, brightness);
+
+	return 0;
+}
+
+static const struct backlight_ops exynos_backlight_ops = {
+	.get_brightness = exynos_get_brightness,
+	.update_status = exynos_update_status,
+};
+
 static int exynos_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
 	struct exynos_panel *ctx;
 	int ret = 0;
+	char name[16];
 
 	ctx = devm_kzalloc(dev, sizeof(struct exynos_panel), GFP_KERNEL);
 	if (!ctx)
@@ -215,6 +248,16 @@ static int exynos_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = ctx->desc->mode_flags;
 
 	exynos_panel_parse_dt(ctx);
+
+	snprintf(name, sizeof(name), "panel_%d", dsi->channel);
+	ctx->bl = devm_backlight_device_register(ctx->dev, name, NULL,
+			ctx, &exynos_backlight_ops, NULL);
+	if (IS_ERR(ctx->bl)) {
+		pr_err("failed to register backlight device\n");
+		return PTR_ERR(ctx->bl);
+	}
+	ctx->bl->props.max_brightness = ctx->desc->max_brightness;
+	ctx->bl->props.brightness = ctx->desc->dft_brightness;
 
 	drm_panel_init(&ctx->panel);
 	ctx->panel.dev = dev;
@@ -244,6 +287,7 @@ static int exynos_panel_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
+	devm_backlight_device_unregister(ctx->dev, ctx->bl);
 
 	return 0;
 }

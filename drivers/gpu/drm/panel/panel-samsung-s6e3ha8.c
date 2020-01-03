@@ -36,6 +36,7 @@ static int s6e3ha8_disable(struct drm_panel *panel)
 	struct exynos_panel *ctx;
 
 	ctx = container_of(panel, struct exynos_panel, panel);
+	ctx->enabled = false;
 	panel_info(ctx, "%s +\n", __func__);
 	return 0;
 }
@@ -63,6 +64,14 @@ static int s6e3ha8_prepare(struct drm_panel *panel)
 	panel_dbg(ctx, "%s -\n", __func__);
 
 	return 0;
+}
+
+static int s6e3ha8_set_brightness(struct exynos_panel *exynos_panel, u16 br)
+{
+	u16 brightness;
+
+	brightness = (br & 0xff) << 8 | br >> 8;
+	return exynos_dcs_set_brightness(exynos_panel, brightness);
 }
 
 static int s6e3ha8_enable(struct drm_panel *panel)
@@ -102,9 +111,12 @@ static int s6e3ha8_enable(struct drm_panel *panel)
 			0x0F, 0x23);
 
 	EXYNOS_DCS_WRITE_SEQ(ctx, 0x53, 0x20); /* enable brightness control */
-	EXYNOS_DCS_WRITE_SEQ(ctx, 0x51, 0x01, 0x80); /* brightness level */
+
+	s6e3ha8_set_brightness(ctx, ctx->bl->props.brightness);
 
 	EXYNOS_DCS_WRITE_SEQ(ctx, 0x29); /* display on */
+
+	ctx->enabled = true;
 
 	panel_dbg(ctx, "%s -\n", __func__);
 
@@ -135,12 +147,19 @@ static const struct drm_panel_funcs s6e3ha8_drm_funcs = {
 	.get_modes = exynos_panel_get_modes,
 };
 
+static const struct exynos_panel_funcs s6e3ha8_exynos_funcs = {
+	.set_brightness = s6e3ha8_set_brightness,
+};
+
 const struct exynos_panel_desc samsung_s6e3ha8 = {
 	.dsc_en = true,
 	.dsc_slice_cnt = 2,
 	.dsc_slice_height = 40,
 	.data_lane_cnt = 4,
+	.max_brightness = 1023,
+	.dft_brightness = 511,
 	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	.mode = &s6e3ha8_mode,
 	.panel_func = &s6e3ha8_drm_funcs,
+	.exynos_panel_func = &s6e3ha8_exynos_funcs,
 };

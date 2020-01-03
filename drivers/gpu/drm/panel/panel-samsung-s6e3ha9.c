@@ -36,6 +36,7 @@ static int s6e3ha9_disable(struct drm_panel *panel)
 	struct exynos_panel *ctx;
 
 	ctx = container_of(panel, struct exynos_panel, panel);
+	ctx->enabled = false;
 	panel_info(ctx, "%s +\n", __func__);
 	return 0;
 }
@@ -96,6 +97,8 @@ static int s6e3ha9_enable(struct drm_panel *panel)
 #endif
 	EXYNOS_DCS_WRITE_SEQ(ctx, 0xC5, 0x0D, 0x10, 0xB4, 0x3E, 0x01);
 	EXYNOS_DCS_WRITE_SEQ(ctx, 0x29); /* display on */
+
+	ctx->enabled = true;
 
 	panel_dbg(ctx, "%s -\n", __func__);
 

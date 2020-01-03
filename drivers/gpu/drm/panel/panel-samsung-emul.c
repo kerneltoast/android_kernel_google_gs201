@@ -16,6 +16,7 @@ static int emul_disable(struct drm_panel *panel)
 	struct exynos_panel *ctx;
 
 	ctx = container_of(panel, struct exynos_panel, panel);
+	ctx->enabled = false;
 	panel_info(ctx, "%s +\n", __func__);
 	return 0;
 }
@@ -57,6 +58,8 @@ static int emul_enable(struct drm_panel *panel)
 	EXYNOS_DCS_WRITE_SEQ_DELAY(ctx, 120, 0x11);
 
 	EXYNOS_DCS_WRITE_SEQ(ctx, 0x29); /* display on */
+
+	ctx->enabled = true;
 
 	panel_dbg(ctx, "%s -\n", __func__);
 
