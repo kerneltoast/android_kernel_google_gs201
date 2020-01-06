@@ -314,14 +314,87 @@ static void decon_reg_set_blender_bg_image_size(u32 id,
 	decon_write_mask(id, BLENDER_BG_IMAGE_SIZE_0, val, mask);
 }
 
-static void decon_reg_set_data_path(u32 id, enum decon_data_path d_path,
-		enum decon_scaler_path s_path)
+#define OUTIF_DSI0	BIT(0)
+#define OUTIF_DSI1	BIT(1)
+#define OUTIF_WB	BIT(2)
+#define OUTIF_DPIF	BIT(3)
+#define COMP_DSC(id)	BIT(id + 4) /* DSC 0,1,2 */
+#define COMP_DSCC	BIT(7)
+static void decon_reg_set_data_path(u32 id, struct decon_config *cfg)
 {
-	u32 val, mask;
+	enum decon_out_type out_type = cfg->out_type;
+	u32 dsc_count = cfg->dsc.dsc_count;
+	u32 dsim_conn_val = 0, dsim_conn_mask = 0;
+	u32 dp_conn_val = 0, dp_conn_mask = 0;
+	u32 val;
 
-	val = SCALER_PATH_F(s_path) | COMP_OUTIF_PATH_F(d_path);
-	mask = SCALER_PATH_MASK | COMP_OUTIF_PATH_MASK;
-	decon_write_mask(id, DATA_PATH_CONTROL_2, val, mask);
+	switch (out_type) {
+	case DECON_OUT_DSI0:
+		val = OUTIF_DSI0;
+		dsim_conn_val = DSIM_CONNECTION_DSIM0_F(id == 1 ? 2 : 0);
+		dsim_conn_mask = DSIM_CONNECTION_DSIM0_MASK;
+		break;
+	/*
+	 * OUTIF_DSIx in DECON determines that blended data is transferred
+	 * to which output device. It may be a little confusing, In single
+	 * DSI mode, only OUTIF_DSI0 is used whether the output device is
+	 * DSI0 or DSI1.
+	 * OUTIF_DSI1 is only used in case of dual DSI mode.
+	 */
+	case DECON_OUT_DSI1:
+		val = OUTIF_DSI0;
+		dsim_conn_val = DSIM_CONNECTION_DSIM1_F(id == 1 ? 2 : 0);
+		dsim_conn_mask = DSIM_CONNECTION_DSIM1_MASK;
+		break;
+	case DECON_OUT_DSI:
+		val = OUTIF_DSI0 | OUTIF_DSI1;
+		dsim_conn_val = DSIM_CONNECTION_DSIM0_F(0) |
+					DSIM_CONNECTION_DSIM1_F(1);
+		dsim_conn_mask = DSIM_CONNECTION_DSIM0_MASK |
+					DSIM_CONNECTION_DSIM1_MASK;
+		break;
+	case DECON_OUT_DP0:
+		val = OUTIF_DPIF;
+		dp_conn_val = DP_CONNECTION_SEL_DP0(id);
+		dp_conn_mask = DP_CONNECTION_SEL_DP0_MASK;
+		break;
+	case DECON_OUT_DP1:
+		val = OUTIF_DPIF;
+		dp_conn_val = DP_CONNECTION_SEL_DP1(id);
+		dp_conn_mask = DP_CONNECTION_SEL_DP1_MASK;
+		break;
+	case DECON_OUT_WB:
+		val = OUTIF_WB;
+		break;
+	default:
+		val = OUTIF_DSI0;
+		cal_log_warn(id, "default outif is set(DSI0)\n");
+		break;
+	}
+
+	if (dsc_count == 2) {
+		if (id != 0) {
+			cal_log_err(id, "unsupported dsc path\n");
+			return;
+		}
+		val |= COMP_DSCC | COMP_DSC(1) | COMP_DSC(0);
+	} else if (dsc_count == 1) {
+		if (id > 2) {
+			cal_log_err(id, "invalid decon id(%d)\n", id);
+			return;
+		}
+		val |= COMP_DSC(id);
+	}
+
+	decon_write_mask(id, DATA_PATH_CONTROL_2, COMP_OUTIF_PATH_F(val),
+			COMP_OUTIF_PATH_MASK);
+
+	if (dsim_conn_mask)
+		decon_write_mask(0, DSIM_CONNECTION_CONTROL, dsim_conn_val,
+				dsim_conn_mask);
+	if (dp_conn_mask)
+		decon_write_mask(0, DP_CONNECTION_CONTROL, dp_conn_val,
+				dp_conn_mask);
 }
 
 /*
@@ -455,91 +528,6 @@ static void decon_reg_config_data_path_size(u32 id, u32 width, u32 height,
 		decon_reg_set_outfifo_size_ctl0(id, width, height);
 	}
 }
-
-/*
- * [ CAUTION ]
- * 'DATA_PATH_CONTROL_2' SFR must be set before calling this function!!
- *
- * [ Implementation Info about CONNECTION ]
- * 1) DECON 0 - DSIMIF0
- * 2) DECON 0 - DSIMIF1
- * 3) DECON 1 - DSIMIF0
- * --> modify code if you want to change connection between dsim_if and dsim
- */
-
-/*
- * later check.
- * Dual DSI connection
- * DP connection
- *
- */
-static void decon_reg_set_interface_dsi(u32 id)
-{
-	/* connection sfrs are changed in Lhotse */
-	u32 val = DSIM_CONNECTION_DSIM0_F(0);
-	u32 mask = DSIM_CONNECTION_DSIM0_MASK;
-	u32 dsim_if0 = 1;
-	u32 dsim_if1 = 0;
-	u32 dual_dsi = 0;
-
-	dsim_if0 = decon_reg_get_data_path_cfg(id, PATH_CON_ID_DSIM_IF0);
-	dsim_if1 = decon_reg_get_data_path_cfg(id, PATH_CON_ID_DSIM_IF1);
-	if (dsim_if0 && dsim_if1)
-		dual_dsi = 1;
-
-	if (dual_dsi) {
-		/* decon0 - (dsim_if0-dsim0) - (dsim_if1-dsim1) */
-		val = DSIM_CONNECTION_DSIM0_F(0)
-			| DSIM_CONNECTION_DSIM1_F(1);
-		mask =  DSIM_CONNECTION_DSIM0_MASK
-			| DSIM_CONNECTION_DSIM1_MASK;
-	} else { /* single dsi : DSIM0 only */
-		if (dsim_if0) {
-			if (id == 0) {
-				/* DECON0 - DSIMIF0 - DSIM0 */
-				val = DSIM_CONNECTION_DSIM0_F(0);
-				mask =  DSIM_CONNECTION_DSIM0_MASK;
-			} else if (id == 1) {
-				/* DECON1 - DSIMIF0 - DSIM0 */
-				val = DSIM_CONNECTION_DSIM0_F(2);
-				mask =  DSIM_CONNECTION_DSIM0_MASK;
-			}
-		}
-		if (dsim_if1) {
-			if (id == 0) {
-				/* DECON0 - DSIMIF1 - DSIM0 */
-				val = DSIM_CONNECTION_DSIM0_F(1);
-				mask =  DSIM_CONNECTION_DSIM0_MASK;
-			}
-		}
-	}
-
-	decon_write_mask(0, DSIM_CONNECTION_CONTROL, val, mask);
-}
-
-#if defined(CONFIG_EXYNOS_DISPLAYPORT)
-static void decon_reg_set_interface_dp(u32 id)
-{
-	/* connection sfrs are changed in Lhotse */
-	u32 val = DSIM_CONNECTION_DSIM0_F(0);
-	u32 mask = DSIM_CONNECTION_DSIM0_MASK;
-
-	/* for MST support */
-	if (id == 2) {
-		/* decon2 - DP0 : default for single DP */
-		val = DP_CONNECTION_SEL_DP0(2);
-		mask =  DP_CONNECTION_SEL_DP0_MASK;
-	} else if (id == 1) {
-		/* decon1 - DP1 */
-		val = DP_CONNECTION_SEL_DP1(1);
-		mask =  DP_CONNECTION_SEL_DP0_MASK;
-	}
-
-	decon_write_mask(0, DP_CONNECTION_CONTROL, val, mask);
-}
-#else
-static inline void decon_reg_set_interface_dp(u32 id) { }
-#endif
 
 static void decon_reg_set_bpc(u32 id, u32 bpc)
 {
@@ -1395,8 +1383,6 @@ static void decon_reg_clear_int_all(u32 id)
 static void decon_reg_configure_lcd(u32 id, struct decon_config *config)
 {
 	u32 overlap_w = 0;
-	enum decon_data_path d_path = DPATH_DSCENC0_OUTFIFO0_DSIMIF0;
-	enum decon_scaler_path s_path = SCALERPATH_OFF;
 	enum decon_rgb_order rgb_order = DECON_RGB;
 
 	if ((config->out_type & DECON_OUT_DSI)
@@ -1406,30 +1392,12 @@ static void decon_reg_configure_lcd(u32 id, struct decon_config *config)
 		rgb_order = DECON_RGB;
 	decon_reg_set_rgb_order(id, rgb_order);
 
-	if (config->dsc.enabled) {
-		if (config->dsc.dsc_count == 1)
-			d_path = (id == 0) ?
-				DPATH_DSCENC0_OUTFIFO0_DSIMIF0 :
-				DECON2_DSCENC2_OUTFIFO0_DPIF;
-		else if (config->dsc.dsc_count == 2 && !id)
-			d_path = DPATH_DSCC_DSCENC01_OUTFIFO01_DSIMIF0;
-		else
-			cal_log_err(id, "dsc_cnt=%d : not supported\n",
-					config->dsc.dsc_count);
+	decon_reg_set_data_path(id, config);
 
-		decon_reg_set_data_path(id, d_path, s_path);
+	if (config->dsc.enabled) {
 		/* call decon_reg_config_data_path_size () inside */
 		dsc_reg_init(id, config, overlap_w, 0);
 	} else {
-		if (config->mode.dsi_mode == DSI_MODE_DUAL_DSI)
-			d_path = DPATH_NOCOMP_SPLITTER_OUTFIFO01_DSIMIF01;
-		else
-			d_path = (id == 0) ?
-				DPATH_NOCOMP_OUTFIFO0_DSIMIF0 :
-				DECON2_NOCOMP_OUTFIFO0_DPIF;
-
-		decon_reg_set_data_path(id, d_path, s_path);
-
 		decon_reg_config_data_path_size(id, config->image_width,
 				config->image_height, overlap_w, NULL,
 				&config->dsc);
@@ -1745,8 +1713,6 @@ void decon_reg_update_req_global(u32 id)
 
 int decon_reg_init(u32 id, struct decon_config *config)
 {
-	enum decon_scaler_path s_path = SCALERPATH_OFF;
-
 	dpu_reg_set_qactive_pll(id, true);
 	decon_reg_set_clkgate_mode(id, 0);
 
@@ -1774,18 +1740,8 @@ int decon_reg_init(u32 id, struct decon_config *config)
 		decon_reg_set_trigger(id, &config->mode, DECON_TRIG_MASK);
 	}
 
-	/* FIXME: DECON_T dedicated to PRE_WB */
-	if (config->out_type & DECON_OUT_WB)
-		decon_reg_set_data_path(id, DPATH_NOCOMP_OUTFIFO0_WB, s_path);
-
 	/* asserted interrupt should be cleared before initializing decon hw */
 	decon_reg_clear_int_all(id);
-
-	/* Configure DECON dsim connection  : 'data_path' setting is required */
-	if (config->out_type & DECON_OUT_DSI)
-		decon_reg_set_interface_dsi(id);
-	else if (config->out_type & DECON_OUT_DP)
-		decon_reg_set_interface_dp(id);
 
 #if defined(CONFIG_EXYNOS_PLL_SLEEP)
 	/* TODO : register for outfifo2 doesn't exist, needs a confirm */
