@@ -794,7 +794,8 @@ static int dsim_remap_regs(struct dsim_device *dsim)
 		dsim_err(dsim, "failed to find dphy extra memory resource\n");
 		return -EINVAL;
 	}
-	dsim->res.phy_regs_ex = devm_ioremap_resource(dsim->dev, res);
+	dsim->res.phy_regs_ex = devm_ioremap(dsim->dev, res->start,
+			resource_size(res));
 	if (IS_ERR(dsim->res.phy_regs_ex))
 		dsim_warn(dsim, "failed to remap io region. it's optional\n");
 	dsim_regs_desc_init(dsim->res.phy_regs_ex, "dphy-extra",
