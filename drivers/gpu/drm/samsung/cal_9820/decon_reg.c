@@ -550,12 +550,21 @@ static void decon_reg_config_win_channel(u32 id, u32 win_idx, int ch)
 	decon_write_mask(id, DATA_PATH_CONTROL_1, val, mask);
 }
 
-static void decon_reg_configure_trigger(u32 id, enum decon_trig_mode mode)
+static void decon_reg_init_trigger(u32 id, struct decon_config *cfg)
 {
 	u32 val, mask;
+	enum decon_trig_mode mode = cfg->mode.trig_mode;
 
-	mask = HW_TRIG_EN;
-	val = (mode == DECON_SW_TRIG) ? 0 : ~0;
+	mask = HW_TRIG_EN | HW_TRIG_SEL_MASK | HW_TRIG_MASK_DECON;
+	val = (mode == DECON_SW_TRIG) ? 0 : HW_TRIG_EN;
+	if (cfg->out_type == DECON_OUT_DSI0 || cfg->out_type == DECON_OUT_DSI)
+		val |= HW_TRIG_SEL_FROM_DDI0;
+	else if (cfg->out_type == DECON_OUT_DSI1)
+		val |= HW_TRIG_SEL_FROM_DDI1;
+
+	/* The trigger is masked initially */
+	val |= HW_TRIG_MASK_DECON;
+
 	decon_write_mask(id, HW_SW_TRIG_CONTROL, val, mask);
 }
 
@@ -1730,15 +1739,8 @@ int decon_reg_init(u32 id, struct decon_config *config)
 	decon_reg_set_scaled_image_size(id, config->image_width,
 			config->image_height);
 
-	if (id == 2) {
-		/* Set a TRIG mode */
-		/* This code is for only DECON 2 s/w trigger mode */
-		decon_reg_configure_trigger(id, config->mode.trig_mode);
-		decon_reg_configure_lcd(id, config);
-	} else {
-		decon_reg_configure_lcd(id, config);
-		decon_reg_set_trigger(id, &config->mode, DECON_TRIG_MASK);
-	}
+	decon_reg_init_trigger(id, config);
+	decon_reg_configure_lcd(id, config);
 
 	/* asserted interrupt should be cleared before initializing decon hw */
 	decon_reg_clear_int_all(id);
