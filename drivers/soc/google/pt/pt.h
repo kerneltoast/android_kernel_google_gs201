@@ -77,6 +77,11 @@ void pt_client_free(struct pt_handle *handle, int id);
 ptid_t pt_client_mutate(struct pt_handle *handle, int old_id, int new_id);
 
 /*
+ * Get the pbha for a previously enabled or allocated ptid
+ */
+ptpbha_t pt_pbha(struct device_node *node, int id);
+
+/*
  * Get a global pbha for leftover cache (PT_GLOBAL_LEFTOVER)
  * or not cachable (PT_GLOBAL_BYPASS), never fail.
  */
