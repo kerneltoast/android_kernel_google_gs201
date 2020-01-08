@@ -81,11 +81,11 @@ struct g2d_qos {
 };
 
 /* Proved that G2D does not leak protected conents that it is processing. */
-#define G2D_DEVICE_CAPS_SELF_PROTECTION		1
+#define G2D_DEVICE_CAPS_SELF_PROTECTION		BIT(0)
 /* Separate bitfield to select YCbCr Bitdepth at REG_COLORMODE[29:28] */
-#define G2D_DEVICE_CAPS_YUV_BITDEPTH		2
+#define G2D_DEVICE_CAPS_YUV_BITDEPTH		BIT(1)
 /* Support SBWC format */
-#define G2D_DEVICE_CAPS_SBWC			3
+#define G2D_DEVICE_CAPS_SBWC			BIT(2)
 
 struct g2d_device {
 	unsigned long		state;
