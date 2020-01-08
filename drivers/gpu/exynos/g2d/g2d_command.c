@@ -817,7 +817,7 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 			}
 		}
 
-		if (!(g2d_dev->caps & G2D_DEVICE_CAPS_COMPRESSED_YUV)) {
+		if (!(g2d_dev->caps & G2D_DEVICE_CAPS_SBWC)) {
 			perrfndev(g2d_dev, "SBWC format is not supported");
 			return false;
 		}

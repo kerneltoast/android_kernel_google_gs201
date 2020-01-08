@@ -84,8 +84,8 @@ struct g2d_qos {
 #define G2D_DEVICE_CAPS_SELF_PROTECTION		1
 /* Separate bitfield to select YCbCr Bitdepth at REG_COLORMODE[29:28] */
 #define G2D_DEVICE_CAPS_YUV_BITDEPTH		2
-/* Support compressed YUV format */
-#define G2D_DEVICE_CAPS_COMPRESSED_YUV		3
+/* Support SBWC format */
+#define G2D_DEVICE_CAPS_SBWC			3
 
 struct g2d_device {
 	unsigned long		state;
