@@ -405,8 +405,8 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		task = g2d_get_free_task(g2d_dev, ctx, IS_HWFC(data.flags));
-		if (task == NULL) {
-			ret = -EBUSY;
+		if (IS_ERR(task)) {
+			ret = PTR_ERR(task);
 			break;
 		}
 
@@ -915,7 +915,8 @@ const struct g2d_device_data g2d_9810_data __initconst = {
 };
 
 const struct g2d_device_data g2d_9820_data __initconst = {
-	.caps = G2D_DEVICE_CAPS_SELF_PROTECTION | G2D_DEVICE_CAPS_YUV_BITDEPTH,
+	.caps = G2D_DEVICE_CAPS_SELF_PROTECTION | G2D_DEVICE_CAPS_YUV_BITDEPTH |
+		G2D_DEVICE_CAPS_HWFC,
 	.max_layers = G2D_MAX_IMAGES,
 };
 
