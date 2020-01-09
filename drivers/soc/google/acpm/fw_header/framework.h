@@ -77,6 +77,10 @@ struct acpm_framework {
 	u32 preempt_log_buf_front;
 	u32 preempt_log_data;
 	u32 preempt_log_entry_len;
+	unsigned long long timestamps[32];
+#ifndef CONFIG_GS_ACPM_MODULE
+	struct power_stats_buffer power_stats;
+#endif
 };
 
 /**
@@ -195,6 +199,8 @@ struct apm_peri {
 	u32 (*set_idle_ip)(u32 is_idle, u32 intr_filed);
 	s32 (*udelay_systick)(u32 udelay_us);
 	void (*set_wdtrst_req)(void);
+	void (*uart_write_str)(const char *str);
+	void (*bl2_release)(void);
 };
 
 extern struct apm_peri apm_peri;
@@ -289,6 +295,82 @@ struct speedyops {
 };
 
 extern struct speedyops speedyops;
+
+#ifdef CONFIG_GS_ACPM_MODULE
+/**
+ * acpm_get_buffer - Get an ACPM named buffer. This handle old ACPM cases.
+ *
+ * @sram:	Pointer to ACPM sram.
+ * @acpm:	Pointer to ACPM struct.
+ * @name:	Name of the buffer we are looking for.
+ * @addr:	On success, the address of the buffer we are looking for.
+ * @size:	On success, the size of the buffer we are looking for.
+ *
+ * @return:	0 success (buffer found)
+ *		-1 failed (buffer not found)
+ */
+static inline int acpm_get_buffer(char *sram, const struct acpm_framework *acpm,
+				  const char *name, char **addr, u32 *size)
+{
+	struct plugin *plugins = (struct plugin *)(sram + acpm->plugins);
+	u32 i;
+
+	for (i = 0; i < acpm->num_plugins; i++) {
+		const u32 *next;
+		struct plugin_ops *plugin_ops;
+
+		if (!plugins[i].plugin_ops)
+			continue; /* No plugin attached */
+		plugin_ops =
+			(struct plugin_ops *)(sram + plugins[i].plugin_ops);
+		if (plugin_ops->info.build_version
+			    [sizeof(plugin_ops->info.build_version) - 1] != 0) {
+			/*
+			 * Old acpm has info.build_version[25],build_time[25]
+			 * instead of info.build_version[48] and info.major,
+			 * info.minor.
+			 * 1) info.build_time[22] ==
+			 *		new info.build_version[47] != 0
+			 *    It's an old version and the string is too big
+			 *    to fit in 23 char.
+			 * 2) info.build_time[22] ==
+			 *		new info.build_version[47] == 0
+			 *    If it's an old version and the string fit in
+			 *    23 char
+			 *    In that case info.build_time[23] == 0, so
+			 *    info.major == 0.
+			 * 3) info.build_time[22] ==
+			 *		new info.build_version[47] == 0
+			 *    If it's a new version, info.major > 0
+			 */
+			continue; /* Old ACPM not supporting version */
+		}
+		if (plugin_ops->info.major < BUILD_INFO_MAJOR_BUFFERS)
+			continue; /* No buffers in this struct */
+
+		next = &plugin_ops->buffers;
+		while (*next) {
+			u32 i = 0;
+			struct plugin_buffer *buffer =
+				(struct plugin_buffer *)(sram + *next);
+			while ((i < sizeof(buffer->name)) &&
+			       (buffer->name[i] == name[i]) &&
+			       (buffer->name[i] != 0)) {
+				i++;
+			}
+			if (i < sizeof(buffer->name) &&
+			    buffer->name[i] != name[i]) {
+				next = &buffer->next;
+				continue;
+			}
+			*addr = sram + buffer->address;
+			*size = buffer->size;
+			return 0;
+		}
+	}
+	return -1;
+}
+#endif
 
 #define speedy_init()			speedyops.init()
 #ifdef CONFIG_MULTI_PMIC

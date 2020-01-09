@@ -15,6 +15,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <soc/google/acpm_ipc_ctrl.h>
 
 #define ACPM_FLEXPMU_DBG_PREFIX	"ACPM-FLEXPMU-DBG: "
 
@@ -444,9 +445,6 @@ void exynos_flexpmu_dbg_log_stop(void)
 static int exynos_flexpmu_dbg_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	const __be32 *prop;
-	unsigned int len = 0;
-	unsigned int data_base = 0;
 	unsigned int data_size = 0;
 	struct dentry *den;
 	int i;
@@ -458,9 +456,9 @@ static int exynos_flexpmu_dbg_probe(struct platform_device *pdev)
 		goto err_flexpmu_info;
 	}
 
-	prop = of_get_property(pdev->dev.of_node, "data-base", &len);
-	if (!prop) {
-		pr_err("%s %s: can not read data-base in DT\n",
+	if (acpm_ipc_get_buffer("FLEXPMU_DBG", (char **)&flexpmu_dbg_base,
+				&data_size) < 0) {
+		pr_err("%s %s: can not find FLEXPMU_DBG in ACPM\n",
 		       ACPM_FLEXPMU_DBG_PREFIX, __func__);
 		ret = -EINVAL;
 		goto err_dbgfs_probe;

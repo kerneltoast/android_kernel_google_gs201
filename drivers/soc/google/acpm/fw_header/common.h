@@ -8,6 +8,12 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
+#ifndef CONFIG_GS_ACPM_MODULE
+#include "acpm_power_stats.h"
+#else
+struct power_stats_buffer;
+#endif
+
 /**
  * struct ipc_cmd_info - RX command buffer info for framework and plugins
  *
@@ -28,12 +34,24 @@ struct dbg_log_info {
 	u32 log_level;
 };
 
+/*
+ * First MAJOR version to support "buffers" field in plugin_ops
+ */
+#define BUILD_INFO_MAJOR_BUFFERS 1
+
 /**
  * struct build_info
+ *
+ * @build_version:	build version including builder, last char must be 0.
+ * @major:		major version of API
+ *				if major >= BUILD_INFO_MAJOR_BUFFERS then
+ *					plugin_ops contains "buffers" field.
+ * @minor:		minor version of API
  */
 struct build_info {
-	char build_version[25];
-	char build_time[25];
+	char build_version[48];
+	char major;
+	char minor;
 };
 
 /**
@@ -68,6 +86,29 @@ struct acpm_ops {
 	void (*udelay)(u32 udelay);
 	void (*intr_enable)(u32 pid, u32 intr);
 	void (*intr_disable)(u32 pid, u32 intr);
+	void (*preempt_disable_irq_save)(u32 *flag);
+	void (*preempt_enable_irq_restore)(u32 *flag);
+	void (*print)(u32 id, const char *s, u32 int_data, u32 level);
+	struct power_stats_buffer *(*get_power_stats_buffer)(void);
+};
+
+/**
+ * struct plugin_buffer - List of buffer exported from a plugin
+ *
+ * @size:	buffer size.
+ * @address:	buffer address relative to APM SRAM start.
+ * @next:	next plugin_buffer, address relative to APM SRAM start.
+ * @name:	Name of the buffer, must be unique in the binary.
+ */
+struct plugin_buffer {
+	u32 size;
+	u32 address;
+#ifndef CONFIG_GS_ACPM_MODULE
+	const struct plugin_buffer *next;
+#else
+	u32 next;
+#endif
+	char name[12];
 };
 
 /**
@@ -76,13 +117,28 @@ struct acpm_ops {
  * @ipc_handler:	handler to be executed when ipc for this plugin is arrived.
  * @irq_handler:	handler to be executed when hw irq for this plugin is arrived.
  * @timer_event_handler:handler to be executed when requested timer is expired.
+ * @buffers:		buffers list, only exist
+ *				if info.major >= BUILD_INFO_MAJOR_BUFFERS
+ *			and info.build_version[47] == 0
  */
 struct plugin_ops {
+#ifndef CONFIG_GS_ACPM_MODULE
 	s32 (*ipc_handler)(struct ipc_cmd_info *cmd, u32 ch_num);
 	s32 (*irq_handler)(u32 intr);
 	s32 (*timer_event_handler)(void);
 	s32 (*extern_func)(u32 *arg0, u32 *arg1, u32 *arg2);
+#else
+	u32 ipc_handler;
+	u32 irq_handler;
+	u32 timer_event_handler;
+	u32 extern_func;
+#endif
 	struct build_info info;
+#ifndef CONFIG_GS_ACPM_MODULE
+	const struct plugin_buffer *buffers;
+#else
+	const u32 buffers;
+#endif
 };
 
 /**

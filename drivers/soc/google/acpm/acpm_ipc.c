@@ -50,6 +50,13 @@ static bool is_rt_dl_task_policy(void)
 		current->policy == SCHED_DEADLINE);
 }
 
+int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size)
+{
+	if (!acpm_srambase)
+		return -1;
+	return acpm_get_buffer(acpm_srambase, acpm_initdata, name, addr, size);
+}
+
 void acpm_ipc_set_waiting_mode(bool mode)
 {
 	acpm_ipc->w_mode = mode;
