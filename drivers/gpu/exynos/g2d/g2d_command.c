@@ -725,6 +725,56 @@ static bool g2d_validate_image_dimension(struct g2d_device *g2d_dev,
 
 #define IS_EVEN(value) (((value) & 1) == 0)
 
+/*
+ * Offsets of G2DSFR_IMG_RIGHT/TOP/BOTTOM from G2DSFR_IMG_LEFT are the same with
+ * the offsets from G2DSFR_SRC_DSTRIGHT/TOP/BOTTOM from G2DSFR_SRC_DSTLEFT,
+ * respectively.
+ */
+enum {
+	G2D_CLIP_LEFT = G2DSFR_IMG_LEFT - G2DSFR_IMG_LEFT,
+	G2D_CLIP_RIGHT = G2DSFR_IMG_RIGHT - G2DSFR_IMG_LEFT,
+	G2D_CLIP_TOP = G2DSFR_IMG_TOP - G2DSFR_IMG_LEFT,
+	G2D_CLIP_BOTTOM = G2DSFR_IMG_BOTTOM - G2DSFR_IMG_LEFT,
+};
+
+static bool g2d_validate_clip_region(u32 mode, struct g2d_reg cmds[])
+{
+	u32 hori = cmds[G2D_CLIP_LEFT].value | cmds[G2D_CLIP_RIGHT].value;
+	u32 vert = cmds[G2D_CLIP_TOP].value | cmds[G2D_CLIP_BOTTOM].value;
+
+	if (IS_AFBC(mode)) {
+		if (!IS_AFBC_WIDTH_ALIGNED(hori | vert))
+			return false;
+	} else if (IS_SBWC(mode)) {
+		if (!IS_SBWC_WIDTH_ALIGNED(hori))
+			return false;
+		if (IS_YUV420(mode) && !IS_SBWC_HEIGHT_420_ALIGNED(vert))
+			return false;
+		if (!IS_SBWC_HEIGHT_ALIGNED(vert))
+			return false;
+	} else if (IS_YUV(mode)) {
+		/*
+		 * DST clip region has the alignment restrictions
+		 * accroding to the chroma subsampling
+		 */
+		if (!IS_EVEN(hori))
+			return false;
+		if (IS_YUV420(mode) && !IS_EVEN(vert))
+			return false;
+	}
+
+	return true;
+}
+
+static const char *g2d_mode_comp_string(u32 colormode)
+{
+	if (IS_AFBC(colormode))
+		return "AFBC";
+	if (IS_SBWC(colormode))
+		return "SBWC";
+	return "";
+}
+
 static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		struct g2d_task *task, struct g2d_reg commands[], bool dst)
 {
@@ -842,33 +892,8 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		return true;
 	}
 
-	width = commands[G2DSFR_IMG_LEFT].value |
-				commands[G2DSFR_IMG_RIGHT].value;
-	height = commands[G2DSFR_IMG_TOP].value |
-					commands[G2DSFR_IMG_BOTTOM].value;
-
-	if (IS_AFBC(mode) && !IS_AFBC_WIDTH_ALIGNED(width | height))
+	if (!g2d_validate_clip_region(mode, &commands[G2DSFR_IMG_LEFT]))
 		goto err_align;
-
-	if (dst && IS_SBWC(mode)) {
-		if (!IS_SBWC_WIDTH_ALIGNED(width))
-			goto err_align;
-
-		if (IS_YUV420(mode) && !IS_SBWC_HEIGHT_420_ALIGNED(height))
-			goto err_align;
-
-		if (IS_YUV422_2P(mode) && !IS_SBWC_HEIGHT_ALIGNED(height))
-			goto err_align;
-	}
-
-	if (IS_YUV(mode)) {
-		/*
-		 * DST clip region has the alignment restrictions
-		 * accroding to the chroma subsampling
-		 */
-		if (!IS_EVEN(width) || (!IS_YUV422(mode) && !IS_EVEN(height)))
-			goto err_align;
-	}
 
 	return true;
 err_align:
@@ -880,11 +905,8 @@ err_align:
 		  commands[G2DSFR_IMG_TOP].value,
 		  commands[G2DSFR_IMG_RIGHT].value,
 		  commands[G2DSFR_IMG_BOTTOM].value,
-		  IS_AFBC(mode) ? "AFBC" :
-			  IS_YUV422(mode) ? "YUV422" : "YUV20",
-		  IS_YUV_82(mode, yuvbitdepth) ? "8+2" : "",
-		  IS_HWFC(task->flags) ? "HWFC" : IS_SBWC(mode) ? "SBWC" : "");
-
+		  g2d_mode_comp_string(mode), fmt->name,
+		  IS_HWFC(task->flags) ? "HWFC" : "");
 	return false;
 }
 
@@ -926,6 +948,15 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 				source->commands[G2DSFR_SRC_DSTBOTTOM].value)) {
 		perrfndev(g2d_dev, "Window of source[%d] floods the target", i);
 		return false;
+	}
+
+	if (!g2d_validate_clip_region(colormode,
+	    &source->commands[G2DSFR_SRC_DSTLEFT])) {
+		perrfndev(g2d_dev, "Unaligned crop region [%ux%u, %ux%u)",
+			  source->commands[G2DSFR_SRC_DSTLEFT].value,
+			  source->commands[G2DSFR_SRC_DSTTOP].value,
+			  source->commands[G2DSFR_SRC_DSTRIGHT].value,
+			  source->commands[G2DSFR_SRC_DSTBOTTOM].value);
 	}
 
 	return true;
