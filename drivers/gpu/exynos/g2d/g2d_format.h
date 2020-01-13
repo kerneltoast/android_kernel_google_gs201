@@ -115,9 +115,6 @@
 #define IS_YUV_82(fmt, bitdepthfield) \
 		(!(bitdepthfield) ? IS_YUV_82_9810(fmt) : IS_YUV_82_9820(fmt))
 
-#define IS_AFBC_WIDTH_ALIGNED(width)	IS_ALIGNED((width), 16)
-#define IS_AFBC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 4)
-
 #define IS_SBWC_WIDTH_ALIGNED(width)	IS_ALIGNED((width), 32)
 #define IS_SBWC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 4)
 /* SBWC top and bottom coordinate should be aligned by 8 */

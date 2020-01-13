@@ -88,6 +88,8 @@ struct g2d_qos {
 #define G2D_DEVICE_CAPS_HWFC			BIT(2)
 /* Support SBWC format */
 #define G2D_DEVICE_CAPS_SBWC			BIT(3)
+/* Support AFBC v1.2 */
+#define G2D_DEVICE_CAPS_AFBC_V12		BIT(4)
 
 struct g2d_device {
 	unsigned long		state;

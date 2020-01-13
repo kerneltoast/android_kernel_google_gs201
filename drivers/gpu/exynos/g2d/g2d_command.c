@@ -377,9 +377,61 @@ static unsigned char dst_sbwc_reg_offset[4] = {0x34, 0x54, 0x30, 0x50};
 
 #define BASE_REG_OFFSET(base, offsets, buf_idx)	((base) + (offsets)[(buf_idx)])
 
-#define AFBC_HEADER_SIZE(cmd)						\
-		((ALIGN((cmd)[G2DSFR_IMG_WIDTH].value, 16) / 16) *	\
-		 (ALIGN((cmd)[G2DSFR_IMG_HEIGHT].value, 16) / 16) * 16)
+#define AFBCv1_ALIGN_LEN_SRC (64 / 4)
+#define AFBCv1_ALIGN_LEN 64
+#define AFBCv12_ALIGN_LEN 128
+
+#define AFBC_HEADER_BLOCK_LEN 16
+#define AFBC_BLOCK_WIDTH 16
+#define AFBC_BLOCK_HEIGHT 16
+
+
+static inline bool caps_has_afbcv12(unsigned long caps)
+{
+	return !!(caps & G2D_DEVICE_CAPS_AFBC_V12);
+}
+
+static inline uint32_t afbc_header_len(unsigned long caps,
+				       struct g2d_reg cmd[])
+{
+	unsigned int align = AFBCv12_ALIGN_LEN;
+	u32 len;
+	/*
+	 * AFBC v1.x requires alignment of 16-byte for both of the header and
+	 * the payload address. It is safe to make the address of payload
+	 * aligned by AFBC_ALIGN_LEN(128) because the AFBC decoders can find the
+	 * offset of the payload from the header but we need to use 16-byte
+	 * alignment when we check the buffer length for the compatibility with
+	 * the legacy applications that work with AFBC 1.x
+	 */
+	if (!caps_has_afbcv12(caps))
+		align = AFBCv1_ALIGN_LEN;
+
+	len  = DIV_ROUND_UP(cmd[G2DSFR_IMG_WIDTH].value, AFBC_BLOCK_WIDTH);
+	len *= DIV_ROUND_UP(cmd[G2DSFR_IMG_HEIGHT].value, AFBC_BLOCK_HEIGHT);
+	len *= AFBC_HEADER_BLOCK_LEN;
+	return ALIGN(len, align);
+}
+
+
+static inline bool is_afbc_aligned(u32 width, u32 height, bool dst,
+				   unsigned long caps)
+{
+	u32 afbc_block_height_align = AFBC_BLOCK_HEIGHT;
+
+	/* G2D with AFBCv1 allows multiple of 4 for the source image widths. */
+	if (!dst && !caps_has_afbcv12(caps))
+		afbc_block_height_align = 4;
+	if (!IS_ALIGNED(width, AFBC_BLOCK_WIDTH))
+		return false;
+	if (!IS_ALIGNED(height, afbc_block_height_align))
+		return false;
+	return true;
+}
+
+#define IS_AFBC_WIDTH_ALIGNED(width)	IS_ALIGNED((width), 16)
+#define IS_AFBC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 4)
+
 
 #define SBWC_BLOCK_WIDTH 32
 #define SBWC_BLOCK_HEIGHT 4
@@ -543,7 +595,8 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 				payload += (pixcount * fmt->bpp[i]) / 8;
 		}
 	} else if (IS_AFBC(mode)) {
-		payload = AFBC_HEADER_SIZE(cmd) + (pixcount * fmt->bpp[0]) / 8;
+		payload = afbc_header_len(cap, cmd) +
+			  (pixcount * fmt->bpp[0]) / 8;
 	} else {
 		payload = cmd[G2DSFR_IMG_STRIDE].value *
 				cmd[G2DSFR_IMG_BOTTOM].value;
@@ -791,8 +844,8 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 	const struct g2d_fmt *fmt;
 
 	if (IS_AFBC(mode) && !dst) {
-		width++;
-		height++;
+		width = ALIGN(width, AFBC_BLOCK_WIDTH);
+		height = ALIGN(height, AFBC_BLOCK_HEIGHT);
 	}
 
 	if (!g2d_validate_image_dimension(g2d_dev, width, height,
@@ -830,7 +883,7 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		if (!IS_EVEN(width) || (!IS_YUV422(mode) && !IS_EVEN(height)))
 			goto err_align;
 	} else if (!IS_AFBC(mode)) {
-		perrfndev(g2d_dev, "Non AFBC RGB requires valid stride");
+		perrfndev(g2d_dev, "Non AFBC requires valid stride");
 		return false;
 	}
 
@@ -881,11 +934,11 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 			goto err_align;
 	}
 
-	if (!dst) {
-		if (IS_AFBC(mode) && (!IS_AFBC_WIDTH_ALIGNED(width) ||
-					!IS_AFBC_HEIGHT_ALIGNED(height)))
-			goto err_align;
+	if (IS_AFBC(mode) &&
+	    !is_afbc_aligned(width, height, dst, g2d_dev->caps))
+		goto err_align;
 
+	if (!dst) {
 		if (IS_YUV_82(mode, yuvbitdepth) && !IS_ALIGNED(width, 64))
 			goto err_align;
 
@@ -937,8 +990,8 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 	height = target->commands[G2DSFR_IMG_HEIGHT].value;
 
 	if (IS_AFBC(colormode)) {
-		width++;
-		height++;
+		width = ALIGN(width, AFBC_BLOCK_WIDTH);
+		height = ALIGN(height, AFBC_BLOCK_HEIGHT);
 	}
 
 	if (!g2d_validate_image_dimension(g2d_dev, width, height,
@@ -1269,9 +1322,17 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 					u32 base_offset)
 {
 	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
-	u32 align = (base_offset == TARGET_OFFSET) ? 64 : 16;
+	u32 align;
 	unsigned char *reg_offset = (base_offset == TARGET_OFFSET) ?
 				dst_base_reg_offset : src_base_reg_offset;
+	unsigned long caps = task->g2d_dev->caps;
+
+	if (caps_has_afbcv12(caps))
+		align = AFBCv12_ALIGN_LEN;
+	else if (base_offset == TARGET_OFFSET)
+		align = AFBCv1_ALIGN_LEN;
+	else
+		align = AFBCv1_ALIGN_LEN_SRC;
 
 	if (!IS_ALIGNED(layer->buffer[0].dma_addr, align)) {
 		perrfndev(task->g2d_dev, "AFBC base %#llx is not aligned by %u",
@@ -1284,8 +1345,8 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 	reg[task->sec.cmd_count + 1].offset = base_offset + reg_offset[3];
 	if (base_offset == TARGET_OFFSET)
 		reg[task->sec.cmd_count + 1].value =
-			ALIGN(AFBC_HEADER_SIZE(layer->commands)
-					+ layer->buffer[0].dma_addr, align);
+			ALIGN(afbc_header_len(caps, layer->commands)
+				+ layer->buffer[0].dma_addr, align);
 	else
 		reg[task->sec.cmd_count + 1].value = layer->buffer[0].dma_addr;
 
