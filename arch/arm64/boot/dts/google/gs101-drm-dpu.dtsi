@@ -135,15 +135,16 @@
 		#phy-cells = <1>;
 	};
 
-	drmdsim0: drmdsim@0x1C2C0000 {
+	drmdsim1: drmdsim@0x1C2D0000 {
 		compatible = "samsung,exynos-dsim";
-		reg = <0x0 0x1C2C0000 0x300>,	/* DSI */
-		      <0x0 0x1C2E0100 0x700>,	/* M4M4S0 PHY */
+		reg = <0x0 0x1C2D0000 0x300>,	/* DSI */
+		      <0x0 0x1C2E0900 0x700>,	/* M4M4S0 PHY */
 		      <0x0 0x1C2E0000 0x100>;	/* M4M4S0 PHY BIAS */
 
-		dsim,id = <0>;
+		dsim,id = <1>;
 
-		interrupts = <GIC_SPI INTREQ__DISP_DSIM0_DISP IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI INTREQ__DISP_DSIM1_DISP
+				IRQ_TYPE_LEVEL_HIGH>;
 
 		phys = <&mipi_phy_dsim0_m4m4 0>;
 		phy-names = "dsim_dphy";
@@ -176,7 +177,7 @@
 		max_win = <6>;
 		op_mode = <0>;	  /* 0: video mode, 1: command mode */
 		trig_mode = <0>;  /* 0: hw trigger, 1: sw trigger */
-		out_type = <0x1>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
+		out_type = <0x2>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
 
 		/* BTS */
 		ppc = <2>;
