@@ -34,7 +34,7 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
-bool enable_kms_display;
+bool enable_kms_display = true;
 
 int exynos_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
