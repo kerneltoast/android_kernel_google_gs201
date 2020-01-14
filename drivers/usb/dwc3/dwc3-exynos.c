@@ -34,6 +34,7 @@
 
 #include <linux/io.h>
 #include <linux/usb/otg-fsm.h>
+#include <linux/extcon.h>
 
 #include <linux/suspend.h>
 //#include <soc/samsung/exynos-pm.h>
@@ -819,6 +820,61 @@ static int dwc3_exynos_remove_child(struct device *dev, void *unused)
 	return 0;
 }
 
+static int dwc3_exynos_vbus_notifier(struct notifier_block *nb,
+				     unsigned long action, void *dev)
+{
+	struct dwc3_exynos *exynos = container_of(nb, struct dwc3_exynos, vbus_nb);
+
+	dev_info(exynos->dev, "%s: vbus:%d\n", __func__, action);
+
+	dwc3_exynos_vbus_event(exynos->dev, action);
+
+	return NOTIFY_OK;
+}
+
+static int dwc3_exynos_id_notifier(struct notifier_block *nb,
+				   unsigned long action, void *dev)
+{
+	struct dwc3_exynos *exynos = container_of(nb, struct dwc3_exynos, id_nb);
+
+	dev_info(exynos->dev, "%s: host enabled:%d\n", __func__, action);
+
+	dwc3_exynos_id_event(exynos->dev, !action);
+
+	return NOTIFY_OK;
+}
+
+static int dwc3_exynos_extcon_register(struct dwc3_exynos *exynos)
+{
+	struct device *dev = exynos->dev;
+	int ret = 0;
+
+	if (!of_property_read_bool(dev->of_node, "extcon"))
+		return -EINVAL;
+
+	exynos->edev = extcon_get_edev_by_phandle(dev, 0);
+	if (IS_ERR_OR_NULL(exynos->edev)) {
+		dev_err(exynos->dev, "couldn't get extcon\n");
+		return exynos->edev ? PTR_ERR(exynos->edev) : -ENODEV;
+	}
+
+	exynos->vbus_nb.notifier_call = dwc3_exynos_vbus_notifier;
+	ret = extcon_register_notifier(exynos->edev, EXTCON_USB, &exynos->vbus_nb);
+
+	if (ret < 0) {
+		dev_err(exynos->dev, "couldn't register notifier for EXTCON_USB\n");
+		return ret;
+	}
+
+	exynos->id_nb.notifier_call = dwc3_exynos_id_notifier;
+	ret = extcon_register_notifier(exynos->edev, EXTCON_USB_HOST, &exynos->id_nb);
+
+	if (ret < 0)
+		dev_err(exynos->dev, "couldn't register notifier for EXTCON_USB_HOST\n");
+
+	return ret;
+}
+
 static int dwc3_exynos_probe(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos;
@@ -861,6 +917,13 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	if (ret) {
 		dwc3_exynos_clk_unprepare(exynos);
 		return ret;
+	}
+
+	ret = dwc3_exynos_extcon_register(exynos);
+	if (ret < 0) {
+		dev_err(dev, "failed to register extcon\n");
+		ret = -EPROBE_DEFER;
+		goto vdd33_err;
 	}
 
 	pm_runtime_set_active(dev);
@@ -911,6 +974,15 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to lookup Sysreg regmap\n");
 	regmap_update_bits(reg_sysreg, 0x704, 0x6, 0x6);
 #endif
+
+	/*
+	 * To avoid missing notification in kernel booting check extcon
+	 * state to run state machine.
+	 */
+	if (extcon_get_state(exynos->edev, EXTCON_USB))
+		dwc3_exynos_vbus_event(exynos->dev, 1);
+	else if (extcon_get_state(exynos->edev, EXTCON_USB_HOST))
+		dwc3_exynos_id_event(exynos->dev, 0);
 
 	pr_info("%s: ---\n", __func__);
 	return 0;

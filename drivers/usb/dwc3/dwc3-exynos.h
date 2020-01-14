@@ -37,6 +37,10 @@ struct dwc3_exynos {
 	struct regulator	*vdd33;
 	struct regulator	*vdd10;
 
+	struct extcon_dev	*edev;
+	struct notifier_block	vbus_nb;
+	struct notifier_block	id_nb;
+
 	int			idle_ip_index;
 	unsigned long		bus_clock_rate;
 
