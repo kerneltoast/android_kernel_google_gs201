@@ -58,30 +58,17 @@ static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 static int exynos_panel_parse_regulators(struct exynos_panel *ctx)
 {
 	struct device *dev = ctx->dev;
-	char *str_regulator[MAX_REGULATORS];
-	int i;
 
-	for (i = 0; i < MAX_REGULATORS; ++i) {
-		ctx->regulator[i] = NULL;
-		str_regulator[i] = NULL;
+	ctx->vddi = devm_regulator_get(dev, "vddi");
+	if (IS_ERR(ctx->vddi)) {
+		panel_info(ctx, "failed to get panel vddi.\n");
+		ctx->vddi = NULL;
 	}
 
-	if (!of_property_read_string(dev->of_node, "regulator_1p8v",
-				(const char **)&str_regulator[0])) {
-		ctx->regulator[0] = regulator_get(dev, str_regulator[0]);
-		if (IS_ERR(ctx->regulator[0])) {
-			panel_err(ctx, "panel regulator 1.8V get failed\n");
-			ctx->regulator[0] = NULL;
-		}
-	}
-
-	if (!of_property_read_string(dev->of_node, "regulator_3p3v",
-				(const char **)&str_regulator[1])) {
-		ctx->regulator[1] = regulator_get(dev, str_regulator[1]);
-		if (IS_ERR(ctx->regulator[1])) {
-			panel_err(ctx, "panel regulator 3.3V get failed\n");
-			ctx->regulator[1] = NULL;
-		}
+	ctx->vci = devm_regulator_get(dev, "vci");
+	if (IS_ERR(ctx->vci)) {
+		panel_info(ctx, "failed to get panel vci.\n");
+		ctx->vci = NULL;
 	}
 
 	return 0;
@@ -115,19 +102,19 @@ int exynos_panel_set_power(struct exynos_panel *ctx, bool on)
 		gpiod_set_value(ctx->enable_gpio, 1);
 		usleep_range(10000, 11000);
 
-		if (ctx->regulator[0] > 0) {
-			ret = regulator_enable(ctx->regulator[0]);
+		if (ctx->vddi) {
+			ret = regulator_enable(ctx->vddi);
 			if (ret) {
-				panel_err(ctx, "panel regulator 1.8V enable failed\n");
+				panel_err(ctx, "vddi enable failed\n");
 				return ret;
 			}
 			usleep_range(5000, 6000);
 		}
 
-		if (ctx->regulator[1] > 0) {
-			ret = regulator_enable(ctx->regulator[1]);
+		if (ctx->vci) {
+			ret = regulator_enable(ctx->vci);
 			if (ret) {
-				panel_err(ctx, "panel regulator 3.3V enable failed\n");
+				panel_err(ctx, "vci enable failed\n");
 				return ret;
 			}
 		}
@@ -135,18 +122,18 @@ int exynos_panel_set_power(struct exynos_panel *ctx, bool on)
 		gpiod_set_value(ctx->reset_gpio, 0);
 		gpiod_set_value(ctx->enable_gpio, 0);
 
-		if (ctx->regulator[0] > 0) {
-			ret = regulator_disable(ctx->regulator[0]);
+		if (ctx->vddi) {
+			ret = regulator_disable(ctx->vddi);
 			if (ret) {
-				panel_err(ctx, "panel regulator 1.8V disable failed\n");
+				panel_err(ctx, "vddi disable failed\n");
 				return ret;
 			}
 		}
 
-		if (ctx->regulator[1] > 0) {
-			ret = regulator_disable(ctx->regulator[1]);
+		if (ctx->vci > 0) {
+			ret = regulator_disable(ctx->vci);
 			if (ret) {
-				panel_err(ctx, "panel regulator 3.3V disable failed\n");
+				panel_err(ctx, "vci disable failed\n");
 				return ret;
 			}
 		}

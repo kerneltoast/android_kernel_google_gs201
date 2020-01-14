@@ -83,7 +83,8 @@ struct exynos_panel {
 	struct drm_panel panel;
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *enable_gpio;
-	struct regulator *regulator[MAX_REGULATORS];
+	struct regulator *vci;
+	struct regulator *vddi;
 	const struct exynos_panel_desc *desc;
 };
 
