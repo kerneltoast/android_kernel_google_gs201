@@ -536,10 +536,8 @@ ptpbha_t pt_pbha(struct device_node *node, int id)
 
 	spin_lock_irqsave(&pt_internal_data.sl, flags);
 	handle = pt_handle_search(node);
-	if (id >= handle->id_cnt)
-		handle = NULL;
 	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
-	if (!handle)
+	if (!handle || id >= handle->id_cnt)
 		return PT_PBHA_INVALID;
 	mutex_lock(&handle->mt);
 	ptid = handle->pts[id].ptid;
