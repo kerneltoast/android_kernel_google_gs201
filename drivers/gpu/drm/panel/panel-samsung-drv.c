@@ -46,9 +46,7 @@ static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 
 	ctx->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->enable_gpio)) {
-		panel_err(ctx, "failed to get enable-gpios %ld\n",
-				PTR_ERR(ctx->enable_gpio));
-		return PTR_ERR(ctx->enable_gpio);
+		ctx->enable_gpio = NULL;
 	}
 
 	panel_info(ctx, "%s -\n", __func__);
@@ -99,8 +97,10 @@ int exynos_panel_set_power(struct exynos_panel *ctx, bool on)
 		return 0;
 
 	if (on) {
-		gpiod_set_value(ctx->enable_gpio, 1);
-		usleep_range(10000, 11000);
+		if (ctx->enable_gpio) {
+			gpiod_set_value(ctx->enable_gpio, 1);
+			usleep_range(10000, 11000);
+		}
 
 		if (ctx->vddi) {
 			ret = regulator_enable(ctx->vddi);
@@ -120,7 +120,8 @@ int exynos_panel_set_power(struct exynos_panel *ctx, bool on)
 		}
 	} else {
 		gpiod_set_value(ctx->reset_gpio, 0);
-		gpiod_set_value(ctx->enable_gpio, 0);
+		if (ctx->enable_gpio)
+			gpiod_set_value(ctx->enable_gpio, 0);
 
 		if (ctx->vddi) {
 			ret = regulator_disable(ctx->vddi);
