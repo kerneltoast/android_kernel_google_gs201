@@ -382,9 +382,26 @@ static unsigned char dst_sbwc_reg_offset[4] = {0x34, 0x54, 0x30, 0x50};
 #define AFBCv12_ALIGN_LEN 128
 
 #define AFBC_HEADER_BLOCK_LEN 16
-#define AFBC_BLOCK_WIDTH 16
-#define AFBC_BLOCK_HEIGHT 16
+/* SQBLOCK: 16x16 Sqaure superblock */
+#define AFBC_SQBLOCK_WIDTH 16
+#define AFBC_SQBLOCK_HEIGHT 16
+/* LSBLOCK: 32x8 Landscape superblock */
+#define AFBC_LSBLOCK_WIDTH 32
+#define AFBC_LSBLOCK_HEIGHT 8
 
+static u32 get_afbc_width_align(int layer_flags)
+{
+	bool landscape = !!(layer_flags & G2D_LAYERFLAG_AFBC_LANDSCAPE);
+
+	return landscape ? AFBC_LSBLOCK_WIDTH : AFBC_SQBLOCK_WIDTH;
+}
+
+static u32 get_afbc_height_align(int layer_flags)
+{
+	bool landscape = !!(layer_flags & G2D_LAYERFLAG_AFBC_LANDSCAPE);
+
+	return landscape ? AFBC_LSBLOCK_HEIGHT : AFBC_SQBLOCK_HEIGHT;
+}
 
 static inline bool caps_has_afbcv12(unsigned long caps)
 {
@@ -392,8 +409,11 @@ static inline bool caps_has_afbcv12(unsigned long caps)
 }
 
 static inline uint32_t afbc_header_len(unsigned long caps,
+				       int layer_flags,
 				       struct g2d_reg cmd[])
 {
+	u32 walign = get_afbc_width_align(layer_flags);
+	u32 halign = get_afbc_height_align(layer_flags);
 	unsigned int align = AFBCv12_ALIGN_LEN;
 	u32 len;
 	/*
@@ -407,31 +427,30 @@ static inline uint32_t afbc_header_len(unsigned long caps,
 	if (!caps_has_afbcv12(caps))
 		align = AFBCv1_ALIGN_LEN;
 
-	len  = DIV_ROUND_UP(cmd[G2DSFR_IMG_WIDTH].value, AFBC_BLOCK_WIDTH);
-	len *= DIV_ROUND_UP(cmd[G2DSFR_IMG_HEIGHT].value, AFBC_BLOCK_HEIGHT);
+	len  = DIV_ROUND_UP(cmd[G2DSFR_IMG_WIDTH].value, walign);
+	len *= DIV_ROUND_UP(cmd[G2DSFR_IMG_HEIGHT].value, halign);
 	len *= AFBC_HEADER_BLOCK_LEN;
 	return ALIGN(len, align);
 }
 
 
 static inline bool is_afbc_aligned(u32 width, u32 height, bool dst,
-				   unsigned long caps)
+				   int layer_flags, unsigned long caps)
 {
-	u32 afbc_block_height_align = AFBC_BLOCK_HEIGHT;
-
-	/* G2D with AFBCv1 allows multiple of 4 for the source image widths. */
+	u32 walign = get_afbc_width_align(layer_flags);
+	u32 halign = get_afbc_height_align(layer_flags);
+	/*
+	 * G2D with AFBCv1 allows multiple of 4 for the source image widths.
+	 * Also, 32x8 superblock is supported from AFBC v1.2.
+	 */
 	if (!dst && !caps_has_afbcv12(caps))
-		afbc_block_height_align = 4;
-	if (!IS_ALIGNED(width, AFBC_BLOCK_WIDTH))
+		halign = 4;
+	if (!IS_ALIGNED(width, walign))
 		return false;
-	if (!IS_ALIGNED(height, afbc_block_height_align))
+	if (!IS_ALIGNED(height, halign))
 		return false;
 	return true;
 }
-
-#define IS_AFBC_WIDTH_ALIGNED(width)	IS_ALIGNED((width), 16)
-#define IS_AFBC_HEIGHT_ALIGNED(height)	IS_ALIGNED((height), 4)
-
 
 #define SBWC_BLOCK_WIDTH 32
 #define SBWC_BLOCK_HEIGHT 4
@@ -595,7 +614,7 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 				payload += (pixcount * fmt->bpp[i]) / 8;
 		}
 	} else if (IS_AFBC(mode)) {
-		payload = afbc_header_len(cap, cmd) +
+		payload = afbc_header_len(cap, flags, cmd) +
 			  (pixcount * fmt->bpp[0]) / 8;
 	} else {
 		payload = cmd[G2DSFR_IMG_STRIDE].value *
@@ -790,13 +809,14 @@ enum {
 	G2D_CLIP_BOTTOM = G2DSFR_IMG_BOTTOM - G2DSFR_IMG_LEFT,
 };
 
-static bool g2d_validate_clip_region(u32 mode, struct g2d_reg cmds[])
+static bool g2d_validate_clip_region(unsigned long caps, int layer_flags,
+				     u32 mode, struct g2d_reg cmds[])
 {
 	u32 hori = cmds[G2D_CLIP_LEFT].value | cmds[G2D_CLIP_RIGHT].value;
 	u32 vert = cmds[G2D_CLIP_TOP].value | cmds[G2D_CLIP_BOTTOM].value;
 
 	if (IS_AFBC(mode)) {
-		if (!IS_AFBC_WIDTH_ALIGNED(hori | vert))
+		if (!is_afbc_aligned(hori, vert, true, layer_flags, caps))
 			return false;
 	} else if (IS_SBWC(mode)) {
 		if (!IS_SBWC_WIDTH_ALIGNED(hori))
@@ -829,8 +849,9 @@ static const char *g2d_mode_comp_string(u32 colormode)
 }
 
 static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
-		struct g2d_task *task, struct g2d_reg commands[], bool dst)
+		struct g2d_task *task, struct g2d_layer *layer, bool dst)
 {
+	struct g2d_reg *commands = layer->commands;
 	bool yuvbitdepth = !!(g2d_dev->caps & G2D_DEVICE_CAPS_YUV_BITDEPTH);
 	u32 stride = commands[G2DSFR_IMG_STRIDE].value;
 	u32 mode   = commands[G2DSFR_IMG_COLORMODE].value;
@@ -844,8 +865,8 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 	const struct g2d_fmt *fmt;
 
 	if (IS_AFBC(mode) && !dst) {
-		width = ALIGN(width, AFBC_BLOCK_WIDTH);
-		height = ALIGN(height, AFBC_BLOCK_HEIGHT);
+		width = ALIGN(width, get_afbc_width_align(layer->flags));
+		height = ALIGN(height, get_afbc_height_align(layer->flags));
 	}
 
 	if (!g2d_validate_image_dimension(g2d_dev, width, height,
@@ -935,7 +956,7 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 	}
 
 	if (IS_AFBC(mode) &&
-	    !is_afbc_aligned(width, height, dst, g2d_dev->caps))
+	    !is_afbc_aligned(width, height, dst, layer->flags, g2d_dev->caps))
 		goto err_align;
 
 	if (!dst) {
@@ -945,7 +966,8 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		return true;
 	}
 
-	if (!g2d_validate_clip_region(mode, &commands[G2DSFR_IMG_LEFT]))
+	if (!g2d_validate_clip_region(g2d_dev->caps, layer->flags, mode,
+				      &commands[G2DSFR_IMG_LEFT]))
 		goto err_align;
 
 	return true;
@@ -971,8 +993,7 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 	u32 colormode = source->commands[G2DSFR_IMG_COLORMODE].value;
 	u32 width, height;
 
-	if (!g2d_validate_image_format(
-			g2d_dev, task, source->commands, false)) {
+	if (!g2d_validate_image_format(g2d_dev, task, source, false)) {
 		perrfndev(g2d_dev, "Failed to validate source[%d] commands", i);
 		return false;
 	}
@@ -990,8 +1011,8 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 	height = target->commands[G2DSFR_IMG_HEIGHT].value;
 
 	if (IS_AFBC(colormode)) {
-		width = ALIGN(width, AFBC_BLOCK_WIDTH);
-		height = ALIGN(height, AFBC_BLOCK_HEIGHT);
+		width = ALIGN(width, get_afbc_width_align(source->flags));
+		height = ALIGN(height, get_afbc_height_align(source->flags));
 	}
 
 	if (!g2d_validate_image_dimension(g2d_dev, width, height,
@@ -1003,8 +1024,8 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 		return false;
 	}
 
-	if (!g2d_validate_clip_region(colormode,
-	    &source->commands[G2DSFR_SRC_DSTLEFT])) {
+	if (!g2d_validate_clip_region(g2d_dev->caps, source->flags, colormode,
+				      &source->commands[G2DSFR_SRC_DSTLEFT])) {
 		perrfndev(g2d_dev, "Unaligned crop region [%ux%u, %ux%u)",
 			  source->commands[G2DSFR_SRC_DSTLEFT].value,
 			  source->commands[G2DSFR_SRC_DSTTOP].value,
@@ -1018,8 +1039,7 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 bool g2d_validate_target_commands(struct g2d_device *g2d_dev,
 				  struct g2d_task *task)
 {
-	if (!g2d_validate_image_format(g2d_dev, task,
-			task->target.commands, true)) {
+	if (!g2d_validate_image_format(g2d_dev, task, &task->target, true)) {
 		perrfndev(g2d_dev, "Failed to validate target commands");
 		return false;
 	}
@@ -1058,6 +1078,36 @@ static bool g2d_validate_extra_command(struct g2d_device *g2d_dev,
 	}
 
 	return true;
+}
+
+static unsigned int update_afbc_supblock_size(struct g2d_task *task,
+					      struct g2d_reg regs[])
+{
+	unsigned int i;
+	unsigned int count = 0;
+
+	if (!caps_has_afbcv12(task->g2d_dev->caps))
+		return 0;
+
+	if (IS_AFBC(task->target.commands[G2DSFR_IMG_COLORMODE].value) &&
+	    !!(task->target.flags & G2D_LAYERFLAG_AFBC_LANDSCAPE)) {
+		regs[count].offset = TARGET_OFFSET + 0x94;
+		regs[count].value = 1; /* 0: 16x16, 1: 32x8 */
+		count++;
+	}
+
+	for (i = 0; i < task->num_source; i++) {
+		struct g2d_layer *layer = &task->source[i];
+
+		if (IS_AFBC(layer->commands[G2DSFR_IMG_COLORMODE].value) &&
+		    !!(layer->flags & G2D_LAYERFLAG_AFBC_LANDSCAPE)) {
+			regs[count].offset = LAYER_OFFSET(i) + 0xB4;
+			regs[count].value = 1; /* 0: 16x16, 1: 32x8 */
+			count++;
+		}
+	}
+
+	return count;
 }
 
 #define G2D_MAX_IMAGE_COMMAND	\
@@ -1154,6 +1204,9 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 			}
 		}
 	}
+
+	/* Stack commands from users then add commands generated by driver */
+	task->sec.cmd_count += update_afbc_supblock_size(task, cmdaddr);
 
 	return 0;
 }
@@ -1308,6 +1361,7 @@ static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 
 	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 2);
 	reg[cmd_count].value = layer->buffer[0].dma_addr;
+
 	if (IS_YUV420(colormode))
 		reg[cmd_count].value += MFC_SBWC_PAYLOAD_Y_SIZE(w, h, dep);
 	else
@@ -1345,7 +1399,8 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 	reg[task->sec.cmd_count + 1].offset = base_offset + reg_offset[3];
 	if (base_offset == TARGET_OFFSET)
 		reg[task->sec.cmd_count + 1].value =
-			ALIGN(afbc_header_len(caps, layer->commands)
+			ALIGN(afbc_header_len(caps, layer->flags,
+					      layer->commands)
 				+ layer->buffer[0].dma_addr, align);
 	else
 		reg[task->sec.cmd_count + 1].value = layer->buffer[0].dma_addr;

@@ -135,6 +135,8 @@ struct g2d_buffer_data {
 #define G2D_LAYERFLAG_COLORFILL		(1 << 3)
 /* Informs that the image has stride restrictions for MFC */
 #define G2D_LAYERFLAG_MFC_STRIDE	(1 << 4)
+/* Force superblock size of AFBC as 32x8 instead of 16x16 */
+#define G2D_LAYERFLAG_AFBC_LANDSCAPE	(1 << 5)
 /* cleaning of the CPU caches is unneccessary before processing */
 #define G2D_LAYERFLAG_NO_CACHECLEAN	(1 << 16)
 /* invalidation of the CPU caches is unneccessary after processing */
