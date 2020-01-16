@@ -372,8 +372,9 @@ static unsigned char src_base_reg_offset[4] = {0x1C, 0x80, 0x64, 0x68};
 static unsigned char src_base_reg_offset_yuv82[4] = {0x1C, 0x64, 0x80, 0x68};
 static unsigned char dst_base_reg_offset[4] = {0x00, 0x50, 0x30, 0x34};
 
-static unsigned char src_sbwc_reg_offset[4] = {0x68, 0x84, 0x64, 0x80};
-static unsigned char dst_sbwc_reg_offset[4] = {0x34, 0x54, 0x30, 0x50};
+/* {PAYLOAD_BASE, HEADER_BASE, PLANE3_BASE(C_PAYLOAD), PLANE2_BASE(C_HEADER)} */
+static unsigned char src_sbwc_reg_offset[4] = {0x68, 0x64, 0x84, 0x80};
+static unsigned char dst_sbwc_reg_offset[4] = {0x34, 0x30, 0x54, 0x50};
 
 #define BASE_REG_OFFSET(base, offsets, buf_idx)	((base) + (offsets)[(buf_idx)])
 
@@ -1309,6 +1310,43 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 	return cmd_count;
 }
 
+static u32 get_sbwc_y_payload_size(u32 width, u32 height,
+				   u32 bitdepth, u32 colormode)
+{
+	if (IS_YUV420(colormode))
+		return MFC_SBWC_PAYLOAD_Y_SIZE(width, height, bitdepth);
+	return SBWC_PAYLOAD_Y_SIZE(width, height, bitdepth);
+}
+
+static u32 get_sbwc_c_payload_size(u32 width, u32 height,
+				   u32 bitdepth, u32 colormode)
+{
+	if (IS_YUV420(colormode))
+		return MFC_SBWC_PAYLOAD_420_C_SIZE(width, height, bitdepth);
+	return SBWC_PAYLOAD_422_C_SIZE(width, height, bitdepth);
+}
+
+static u32 get_sbwc_c_base(struct g2d_layer *layer, u32 bitdepth, u32 colormode)
+{
+	u32 width = layer_width(layer);
+	u32 height = layer_height(layer);
+
+	if (layer->num_buffers == 2)
+		return layer->buffer[1].dma_addr;
+
+	if (IS_YUV420(colormode))
+		return MFC_SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
+					  width, height, bitdepth);
+	return SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
+			      width, height, bitdepth);
+}
+
+/*
+ * SBWC buffer layout:
+ * Single buffer: luma payload, luma header, chroma payload, chroma header
+ * Dual buffer: Buffer[0]: luma payload, chroma payload
+ *              Buffer[1]: luma header, chroma header
+ */
 static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 					struct g2d_layer *layer, u32 colormode,
 					u32 base)
@@ -1319,9 +1357,14 @@ static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 	u32 w = layer_width(layer);
 	u32 h = layer_height(layer);
 	u32 align = (base == TARGET_OFFSET) ? 64 : 32;
-	unsigned int cmd_count = task->sec.cmd_count;
-	unsigned int i;
+	unsigned int cmd_cnt = task->sec.cmd_count;
 	unsigned int dep;
+
+	if (layer->num_buffers > 2) {
+		perrfndev(task->g2d_dev, "invalid number of SBWC buffers %d",
+			  layer->num_buffers);
+		return 0;
+	}
 
 	dep = IS_YUV_P10(colormode, task->g2d_dev->caps &
 			G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
@@ -1332,43 +1375,21 @@ static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 		return 0;
 	}
 
-	for (i = 0; i < layer->num_buffers; i++) {
-		reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, i);
-		reg[cmd_count].value = layer->buffer[i].dma_addr;
-		cmd_count++;
-	}
+	reg[cmd_cnt + 0].offset = BASE_REG_OFFSET(base, offsets, 0);
+	reg[cmd_cnt + 0].value = layer->buffer[0].dma_addr;
 
-	if (layer->num_buffers == 1) {
-		reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 1);
-		if (IS_YUV420(colormode))
-			reg[cmd_count].value =
-				MFC_SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
-						   w, h, dep);
-		else
-			reg[cmd_count].value =
-				SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
-					       w, h, dep);
-		cmd_count++;
-	}
+	reg[cmd_cnt + 1].offset = BASE_REG_OFFSET(base, offsets, 1);
+	reg[cmd_cnt + 1].value = reg[cmd_cnt + 0].value;
+	reg[cmd_cnt + 1].value += get_sbwc_y_payload_size(w, h, dep, colormode);
 
-	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 3);
-	reg[cmd_count].value = reg[cmd_count - 1].value;
-	if (IS_YUV420(colormode))
-		reg[cmd_count].value += MFC_SBWC_PAYLOAD_420_C_SIZE(w, h, dep);
-	else
-		reg[cmd_count].value += SBWC_PAYLOAD_422_C_SIZE(w, h, dep);
-	cmd_count++;
+	reg[cmd_cnt + 2].offset = BASE_REG_OFFSET(base, offsets, 2);
+	reg[cmd_cnt + 2].value = get_sbwc_c_base(layer, dep, colormode);
 
-	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 2);
-	reg[cmd_count].value = layer->buffer[0].dma_addr;
+	reg[cmd_cnt + 3].offset = BASE_REG_OFFSET(base, offsets, 3);
+	reg[cmd_cnt + 3].value = reg[cmd_cnt + 2].value;
+	reg[cmd_cnt + 3].value += get_sbwc_c_payload_size(w, h, dep, colormode);
 
-	if (IS_YUV420(colormode))
-		reg[cmd_count].value += MFC_SBWC_PAYLOAD_Y_SIZE(w, h, dep);
-	else
-		reg[cmd_count].value += SBWC_PAYLOAD_Y_SIZE(w, h, dep);
-	cmd_count++;
-
-	return cmd_count;
+	return cmd_cnt + 4;
 }
 
 static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
