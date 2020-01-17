@@ -409,6 +409,11 @@ static inline bool caps_has_afbcv12(unsigned long caps)
 	return !!(caps & G2D_DEVICE_CAPS_AFBC_V12);
 }
 
+static inline bool caps_has_align64(unsigned long caps)
+{
+	return !!(caps & G2D_DEVICE_CAPS_COMP_ALIGN_64);
+}
+
 static inline uint32_t afbc_header_len(unsigned long caps,
 				       int layer_flags,
 				       struct g2d_reg cmd[])
@@ -455,37 +460,33 @@ static inline bool is_afbc_aligned(u32 width, u32 height, bool dst,
 
 #define SBWC_BLOCK_WIDTH 32
 #define SBWC_BLOCK_HEIGHT 4
-#define SBWC_BLOCK_SIZE(bit) (SBWC_BLOCK_WIDTH * SBWC_BLOCK_HEIGHT * (bit) / 8)
 
 #define SBWC_HEADER_ALIGN 16
 #define SBWC_PAYLOAD_ALIGN 32
 
-#define SBWC_HEADER_STRIDE(w) \
-	ALIGN(((w) / SBWC_BLOCK_WIDTH / 2), SBWC_HEADER_ALIGN)
-#define SBWC_PAYLOAD_STRIDE(w, dep)\
-	ALIGN(((w) / SBWC_BLOCK_WIDTH) * SBWC_BLOCK_SIZE(dep), \
-	      SBWC_PAYLOAD_ALIGN)
+static u32 get_sbwc_stride(unsigned long caps, u32 stride, u32 align)
+{
+	if (caps_has_align64(caps))
+		align = max(64U, align);
 
-#define SBWC_PAYLOAD_Y_SIZE(w, h, dep) \
-	(SBWC_PAYLOAD_STRIDE(w, dep) * ((h) / 4))
-#define SBWC_HEADER_Y_SIZE(w, h) \
-	(SBWC_HEADER_STRIDE(w) * ((h) / 4))
+	return ALIGN(stride, align);
+}
 
-#define SBWC_PAYLOAD_422_C_SIZE(w, h, dep) SBWC_PAYLOAD_Y_SIZE(w, h, dep)
-#define SBWC_HEADER_422_C_SIZE(w, h) SBWC_HEADER_Y_SIZE(w, h)
+static u32 get_sbwc_stride_header(unsigned long caps, u32 width)
+{
+	/* length of a header is 2 bytes per a block */
+	u32 stride = width / SBWC_BLOCK_WIDTH / 2;
 
-#define SBWC_PAYLOAD_420_C_SIZE(w, h, dep) \
-	(SBWC_PAYLOAD_STRIDE(w, dep) * (ALIGN((h), 8) / 8))
-#define SBWC_HEADER_420_C_SIZE(w, h) \
-	(SBWC_HEADER_STRIDE(w) * (ALIGN((h), 8) / 8))
+	return get_sbwc_stride(caps, stride, SBWC_HEADER_ALIGN);
+}
 
-#define SBWC_Y_SIZE(w, h, dep) \
-	(SBWC_PAYLOAD_Y_SIZE(w, h, dep) + SBWC_HEADER_Y_SIZE(w, h))
-#define SBWC_422_C_SIZE(w, h, dep) \
-	(SBWC_PAYLOAD_422_C_SIZE(w, h, dep) + SBWC_HEADER_422_C_SIZE(w, h))
+static u32 get_sbwc_stride_payload(unsigned long caps, u32 width, u32 bitdepth)
+{
+	/* width is aligned by SBWC_BLOCK_WIDTH */
+	u32 stride = width * SBWC_BLOCK_HEIGHT * bitdepth / BITS_PER_BYTE;
 
-#define SBWC_CBCR_BASE(base, w, h, dep) \
-	((base) + SBWC_Y_SIZE(w, h, dep))
+	return get_sbwc_stride(caps, stride, SBWC_PAYLOAD_ALIGN);
+}
 
 /*
  * Buffer stride alignment and padding restriction of MFC
@@ -501,29 +502,89 @@ static inline bool is_afbc_aligned(u32 width, u32 height, bool dst,
  */
 #define MFC_SBWC_PAYLOAD_PAD	64
 #define MFC_SBWC_HEADER_PAD	256
+#define MFC_SBWC_HEIGHT_ALIGN	8
 
-#define MFC_SBWC_PAYLOAD_Y_SIZE(w, h, dep) \
-	(SBWC_PAYLOAD_STRIDE(w, dep) * (ALIGN((h), 8) / 4) + \
-	 MFC_SBWC_PAYLOAD_PAD)
-#define MFC_SBWC_HEADER_Y_SIZE(w, h) \
-	(SBWC_HEADER_STRIDE(w) * (ALIGN((h), 8) / 4) + \
-	 MFC_SBWC_HEADER_PAD)
+static u32 get_sbwc_payload_basis(unsigned long caps, u32 colormode,
+				  u32 width, u32 height, u32 bitdepth)
+{
+	u32 size = get_sbwc_stride_payload(caps, width, bitdepth);
 
-#define MFC_SBWC_PAYLOAD_420_C_SIZE(w, h, dep) \
-	(SBWC_PAYLOAD_420_C_SIZE(w, h, dep) + MFC_SBWC_PAYLOAD_PAD)
-#define MFC_SBWC_HEADER_420_C_SIZE(w, h) \
-	(SBWC_HEADER_420_C_SIZE(w, h) + (MFC_SBWC_HEADER_PAD / 2))
+	if (IS_YUV420(colormode))
+		height = ALIGN(height, MFC_SBWC_HEIGHT_ALIGN);
 
-#define MFC_SBWC_Y_SIZE(w, h, dep) (\
-	MFC_SBWC_PAYLOAD_Y_SIZE(w, h, dep) + \
-	MFC_SBWC_HEADER_Y_SIZE(w, h))
+	return size * height / SBWC_BLOCK_HEIGHT;
+}
 
-#define MFC_SBWC_420_C_SIZE(w, h, dep) \
-	(MFC_SBWC_PAYLOAD_420_C_SIZE(w, h, dep) + \
-	MFC_SBWC_HEADER_420_C_SIZE(w, h))
+static u32 get_sbwc_payload_y_size(unsigned long caps, u32 colormode,
+				   u32 width, u32 height, u32 bitdepth)
+{
+	u32 size = get_sbwc_payload_basis(caps, colormode,
+					  width, height, bitdepth);
 
-#define MFC_SBWC_CBCR_BASE(base, w, h, dep) \
-	((base) + MFC_SBWC_Y_SIZE(w, h, dep))
+	if (IS_YUV420(colormode))
+		size += MFC_SBWC_PAYLOAD_PAD;
+
+	return size;
+}
+
+static u32 get_sbwc_payload_c_size(unsigned long caps, u32 colormode,
+				   u32 width, u32 height, u32 bitdepth)
+{
+	u32 size = get_sbwc_payload_basis(caps, colormode,
+					  width, height, bitdepth);
+	/* chroma of ycbcr420 is vertically subsampled */
+	if (IS_YUV420(colormode))
+		size = (size / 2) + MFC_SBWC_PAYLOAD_PAD;
+
+	return size;
+}
+
+static u32 get_sbwc_header_size(unsigned long caps, u32 colormode,
+				u32 width, u32 height)
+{
+	u32 size = get_sbwc_stride_header(caps, width);
+
+	if (IS_YUV420(colormode))
+		height = ALIGN(height, MFC_SBWC_HEIGHT_ALIGN);
+
+	return size * height / SBWC_BLOCK_HEIGHT;
+}
+
+static u32 get_sbwc_header_y_size(unsigned long caps, u32 colormode,
+				  u32 width, u32 height)
+{
+	u32 size = get_sbwc_header_size(caps, colormode, width, height);
+
+	if (IS_YUV420(colormode))
+		size += MFC_SBWC_HEADER_PAD;
+
+	return size;
+}
+
+static u32 get_sbwc_header_c_size(unsigned long caps, u32 colormode,
+				  u32 width, u32 height)
+{
+	u32 size = get_sbwc_header_size(caps, colormode, width, height);
+
+	if (IS_YUV420(colormode))
+		size = (size / 2) + (MFC_SBWC_HEADER_PAD / 2);
+
+	return size;
+}
+
+static u32 get_sbwc_y_size(unsigned long caps, u32 colormode,
+			   u32 width, u32 height, u32 bitdepth)
+{
+	return get_sbwc_payload_y_size(caps, colormode, width, height, bitdepth)
+	       + get_sbwc_header_y_size(caps, colormode, width, height);
+}
+
+static u32 get_sbwc_c_size(unsigned long caps, u32 colormode,
+			   u32 width, u32 height, u32 bitdepth)
+{
+	return get_sbwc_payload_c_size(caps, colormode, width, height, bitdepth)
+	       + get_sbwc_header_c_size(caps, colormode, width, height);
+}
 
 size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 			     unsigned int idx, unsigned int buffer_count,
@@ -540,21 +601,11 @@ size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 	if (IS_SBWC(colormode)) {
 		unsigned int dep = IS_YUV_P10(colormode,
 			       caps & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
-		size_t payload = 0;
 
-		if (IS_YUV420(colormode)) {
-			/* YUV420 with SBWC must observe MFC restriction */
-			if (idx == 0)
-				payload = MFC_SBWC_Y_SIZE(width, height, dep);
-			else
-				payload = MFC_SBWC_420_C_SIZE(width, height, dep);
-		} else if (IS_YUV422_2P(colormode)) {
-			if (idx == 0)
-				payload = SBWC_Y_SIZE(width, height, dep);
-			else
-				payload = SBWC_422_C_SIZE(width, height, dep);
-		}
-		return payload;
+		if (idx == 0)
+			return get_sbwc_y_size(caps, colormode,
+					       width, height, dep);
+		return get_sbwc_c_size(caps, colormode, width, height, dep);
 	}
 
 	if (yuv82 && (buffer_count == 2)) {
@@ -584,13 +635,8 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 		unsigned int dep = IS_YUV_P10(mode,
 				cap & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
 
-		/* YUV420 with SBWC must observe MFC restriction */
-		if (IS_YUV420(mode))
-			payload = MFC_SBWC_Y_SIZE(width, height, dep) +
-				MFC_SBWC_420_C_SIZE(width, height, dep);
-		else if (IS_YUV422_2P(mode))
-			payload = SBWC_Y_SIZE(width, height, dep) +
-				SBWC_422_C_SIZE(width, height, dep);
+		return get_sbwc_y_size(cap, mode, width, height, dep) +
+		       get_sbwc_c_size(cap, mode, width, height, dep);
 	} else if (yuv82) {
 		if (!mfc_stride) {
 			/*
@@ -925,19 +971,21 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 			G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
 		u32 offset = dst ? G2DSFR_DST_Y_HEADER_STRIDE :
 			G2DSFR_SRC_Y_HEADER_STRIDE;
-		u32 header_stride = SBWC_HEADER_STRIDE(width);
-		u32 payload_stride = SBWC_PAYLOAD_STRIDE(width, dep);
+		u32 hdr_strd = get_sbwc_stride_header(g2d_dev->caps, width);
+		u32 pld_strd = get_sbwc_stride_payload(g2d_dev->caps,
+						       width, dep);
 		int i;
 
 		/* Stride is in the order : header, payload, header, payload */
 		for (i = 0; i < 4; i += 2) {
-			if ((commands[offset + i].value != header_stride) ||
-			    (commands[offset + i + 1].value !=
-			     payload_stride)) {
+			if ((commands[offset + i].value != hdr_strd) ||
+			    (commands[offset + i + 1].value != pld_strd)) {
 				perrfndev(g2d_dev,
 					  "Bad stride %u, %u for w %u mode %x",
-					  header_stride, payload_stride,
+					  commands[offset + i].value,
+					  commands[offset + i + 1].value,
 					  width, mode);
+
 				return false;
 			}
 		}
@@ -1310,23 +1358,8 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 	return cmd_count;
 }
 
-static u32 get_sbwc_y_payload_size(u32 width, u32 height,
-				   u32 bitdepth, u32 colormode)
-{
-	if (IS_YUV420(colormode))
-		return MFC_SBWC_PAYLOAD_Y_SIZE(width, height, bitdepth);
-	return SBWC_PAYLOAD_Y_SIZE(width, height, bitdepth);
-}
-
-static u32 get_sbwc_c_payload_size(u32 width, u32 height,
-				   u32 bitdepth, u32 colormode)
-{
-	if (IS_YUV420(colormode))
-		return MFC_SBWC_PAYLOAD_420_C_SIZE(width, height, bitdepth);
-	return SBWC_PAYLOAD_422_C_SIZE(width, height, bitdepth);
-}
-
-static u32 get_sbwc_c_base(struct g2d_layer *layer, u32 bitdepth, u32 colormode)
+static u32 get_sbwc_c_base(unsigned long caps, struct g2d_layer *layer,
+			   u32 bitdepth, u32 mode)
 {
 	u32 width = layer_width(layer);
 	u32 height = layer_height(layer);
@@ -1334,11 +1367,9 @@ static u32 get_sbwc_c_base(struct g2d_layer *layer, u32 bitdepth, u32 colormode)
 	if (layer->num_buffers == 2)
 		return layer->buffer[1].dma_addr;
 
-	if (IS_YUV420(colormode))
-		return MFC_SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
-					  width, height, bitdepth);
-	return SBWC_CBCR_BASE(layer->buffer[0].dma_addr,
-			      width, height, bitdepth);
+	return layer->buffer[0].dma_addr +
+		get_sbwc_payload_y_size(caps, mode, width, height, bitdepth) +
+		get_sbwc_header_y_size(caps, mode, width, height);
 }
 
 /*
@@ -1356,9 +1387,13 @@ static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 				dst_sbwc_reg_offset : src_sbwc_reg_offset;
 	u32 w = layer_width(layer);
 	u32 h = layer_height(layer);
-	u32 align = (base == TARGET_OFFSET) ? 64 : 32;
+	u32 align = 32;
+	unsigned long caps = task->g2d_dev->caps;
 	unsigned int cmd_cnt = task->sec.cmd_count;
 	unsigned int dep;
+
+	if (caps_has_align64(caps))
+		align = 64;
 
 	if (layer->num_buffers > 2) {
 		perrfndev(task->g2d_dev, "invalid number of SBWC buffers %d",
@@ -1379,16 +1414,17 @@ static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 	reg[cmd_cnt + 0].value = layer->buffer[0].dma_addr;
 
 	reg[cmd_cnt + 1].offset = BASE_REG_OFFSET(base, offsets, 1);
-	reg[cmd_cnt + 1].value = reg[cmd_cnt + 0].value;
-	reg[cmd_cnt + 1].value += get_sbwc_y_payload_size(w, h, dep, colormode);
+	reg[cmd_cnt + 1].value = reg[cmd_cnt + 0].value +
+				 get_sbwc_payload_y_size(caps, colormode,
+							 w, h, dep);
 
 	reg[cmd_cnt + 2].offset = BASE_REG_OFFSET(base, offsets, 2);
-	reg[cmd_cnt + 2].value = get_sbwc_c_base(layer, dep, colormode);
+	reg[cmd_cnt + 2].value = get_sbwc_c_base(caps, layer, dep, colormode);
 
 	reg[cmd_cnt + 3].offset = BASE_REG_OFFSET(base, offsets, 3);
-	reg[cmd_cnt + 3].value = reg[cmd_cnt + 2].value;
-	reg[cmd_cnt + 3].value += get_sbwc_c_payload_size(w, h, dep, colormode);
-
+	reg[cmd_cnt + 3].value = reg[cmd_cnt + 2].value +
+				 get_sbwc_payload_c_size(caps, colormode,
+							 w, h, dep);
 	return cmd_cnt + 4;
 }
 
@@ -1404,7 +1440,7 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 
 	if (caps_has_afbcv12(caps))
 		align = AFBCv12_ALIGN_LEN;
-	else if (base_offset == TARGET_OFFSET)
+	else if ((base_offset == TARGET_OFFSET) || caps_has_align64(caps))
 		align = AFBCv1_ALIGN_LEN;
 	else
 		align = AFBCv1_ALIGN_LEN_SRC;

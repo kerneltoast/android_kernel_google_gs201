@@ -90,6 +90,8 @@ struct g2d_qos {
 #define G2D_DEVICE_CAPS_SBWC			BIT(3)
 /* Support AFBC v1.2 */
 #define G2D_DEVICE_CAPS_AFBC_V12		BIT(4)
+/* Force address alignment of compressed formats to 64-byte */
+#define G2D_DEVICE_CAPS_COMP_ALIGN_64		BIT(5)
 
 struct g2d_device {
 	unsigned long		state;
