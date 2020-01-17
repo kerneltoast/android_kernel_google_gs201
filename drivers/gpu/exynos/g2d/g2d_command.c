@@ -415,13 +415,10 @@ static inline bool caps_has_align64(unsigned long caps)
 }
 
 static inline uint32_t afbc_header_len(unsigned long caps,
-				       int layer_flags,
-				       struct g2d_reg cmd[])
+				       u32 nr_h_blocks, u32 nr_v_blocks)
 {
-	u32 walign = get_afbc_width_align(layer_flags);
-	u32 halign = get_afbc_height_align(layer_flags);
 	unsigned int align = AFBCv12_ALIGN_LEN;
-	u32 len;
+	u32 len = nr_h_blocks * nr_v_blocks * AFBC_HEADER_BLOCK_LEN;
 	/*
 	 * AFBC v1.x requires alignment of 16-byte for both of the header and
 	 * the payload address. It is safe to make the address of payload
@@ -432,13 +429,54 @@ static inline uint32_t afbc_header_len(unsigned long caps,
 	 */
 	if (!caps_has_afbcv12(caps))
 		align = AFBCv1_ALIGN_LEN;
-
-	len  = DIV_ROUND_UP(cmd[G2DSFR_IMG_WIDTH].value, walign);
-	len *= DIV_ROUND_UP(cmd[G2DSFR_IMG_HEIGHT].value, halign);
-	len *= AFBC_HEADER_BLOCK_LEN;
 	return ALIGN(len, align);
 }
 
+static size_t afbc_payload_len(u32 width, u32 height, const struct g2d_fmt *fmt)
+{
+	size_t bpp = 0;
+	unsigned int i;
+
+	for (i = 0; i < fmt->num_planes; i++)
+		bpp += fmt->bpp[i];
+
+	if (fmt->fmtvalue & G2D_FMT_10) { // 10bit
+		/*
+		 * bitdepth treated by AFBC payload is not the same as the
+		 * bitdepth of P010(24) and P210(32).
+		 * Rather the required bitdepth values seem effective bitdepth:
+		 * P010 - 15(round up to 16), P210 - 20
+		 */
+		bpp = ALIGN(bpp * 10 / 16, 4);
+	}
+
+	return width * height * bpp / BITS_PER_BYTE;
+}
+
+static size_t afbc_buffer_len(unsigned long caps, int layer_flags,
+			      struct g2d_reg cmd[], const struct g2d_fmt *fmt)
+{
+	bool landscape = !!(layer_flags & G2D_LAYERFLAG_AFBC_LANDSCAPE);
+	u32 walign = get_afbc_width_align(landscape);
+	u32 halign = get_afbc_height_align(landscape);
+	u32 width = ALIGN(cmd[G2DSFR_IMG_WIDTH].value, walign);
+	u32 height = ALIGN(cmd[G2DSFR_IMG_HEIGHT].value, halign);
+	size_t len = afbc_header_len(caps, width / walign, height / halign);
+
+	return len + afbc_payload_len(width, height, fmt);
+}
+
+static u32 afbc_header_len_only(unsigned long caps, int layer_flags,
+				struct g2d_reg cmd[])
+{
+	bool landscape = !!(layer_flags & G2D_LAYERFLAG_AFBC_LANDSCAPE);
+	u32 walign = get_afbc_width_align(landscape);
+	u32 halign = get_afbc_height_align(landscape);
+	u32 width = ALIGN(cmd[G2DSFR_IMG_WIDTH].value, walign);
+	u32 height = ALIGN(cmd[G2DSFR_IMG_HEIGHT].value, halign);
+
+	return afbc_header_len(caps, width / walign, height / halign);
+}
 
 static inline bool is_afbc_aligned(u32 width, u32 height, bool dst,
 				   int layer_flags, unsigned long caps)
@@ -661,8 +699,7 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 				payload += (pixcount * fmt->bpp[i]) / 8;
 		}
 	} else if (IS_AFBC(mode)) {
-		payload = afbc_header_len(cap, flags, cmd) +
-			  (pixcount * fmt->bpp[0]) / 8;
+		payload = afbc_buffer_len(cap, flags, cmd, fmt);
 	} else {
 		payload = cmd[G2DSFR_IMG_STRIDE].value *
 				cmd[G2DSFR_IMG_BOTTOM].value;
@@ -1456,8 +1493,8 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 	reg[task->sec.cmd_count + 1].offset = base_offset + reg_offset[3];
 	if (base_offset == TARGET_OFFSET)
 		reg[task->sec.cmd_count + 1].value =
-			ALIGN(afbc_header_len(caps, layer->flags,
-					      layer->commands)
+			ALIGN(afbc_header_len_only(caps, layer->flags,
+						   layer->commands)
 				+ layer->buffer[0].dma_addr, align);
 	else
 		reg[task->sec.cmd_count + 1].value = layer->buffer[0].dma_addr;
