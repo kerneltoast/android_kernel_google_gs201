@@ -2416,8 +2416,9 @@ void dsim_reg_set_bist(u32 id, u32 en)
 		dsim_reg_set_bist_te_interval(id, 4505);
 		dsim_reg_set_bist_mode(id, DSIM_GRAY_GRADATION);
 		dsim_reg_enable_bist_pattern_move(id, true);
-		dsim_reg_enable_bist(id, en);
 	}
+
+	dsim_reg_enable_bist(id, en);
 }
 
 void dsim_reg_set_cmd_transfer_mode(u32 id, u32 lp)

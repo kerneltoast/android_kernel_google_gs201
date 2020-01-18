@@ -45,6 +45,7 @@ enum {
 	DSIM_GRAY_GRADATION,
 	DSIM_USER_DEFINED,
 	DSIM_PRB7_RANDOM,
+	DSIM_BIST_MODE_MAX,
 };
 
 /* define DSI lane types. */

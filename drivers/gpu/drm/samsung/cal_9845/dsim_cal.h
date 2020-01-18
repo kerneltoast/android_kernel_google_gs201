@@ -23,12 +23,6 @@
 /* EVT1 feature */
 #define DPHY_PLL_CLK_GATE_EN	0
 
-/* DSI bist pattern */
-#define DSIM_COLOR_BAR		0
-#define DSIM_GRAY_GRADATION	1
-#define DSIM_USER_DEFINED	2
-#define DSIM_PRB7_RANDOM	3
-
 #define DSIM_LANE_CLOCK		(1 << 0)
 #define DSIM_LANE_DATA0		(1 << 1)
 #define DSIM_LANE_DATA1		(1 << 2)
@@ -74,6 +68,14 @@ enum dsim_regs_type {
 	REGS_DSIM_PHY_BIAS,
 	REGS_DSIM_SYS,
 	REGS_DSIM_TYPE_MAX
+};
+
+enum {
+	DSIM_COLOR_BAR = 0,
+	DSIM_GRAY_GRADATION,
+	DSIM_USER_DEFINED,
+	DSIM_PRB7_RANDOM,
+	DSIM_BIST_MODE_MAX,
 };
 
 struct dsim_clks {

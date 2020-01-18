@@ -1467,23 +1467,33 @@ static ssize_t bist_mode_store(struct device *dev,
 {
 	struct dsim_device *dsim = dev_get_drvdata(dev);
 	int rc;
+	unsigned int bist_mode;
+	bool bist_en;
 
-	rc = kstrtouint(buf, 0, &dsim->bist_mode);
+	rc = kstrtouint(buf, 0, &bist_mode);
 	if (rc < 0)
 		return rc;
 
-	/*
-	 * 1: Color Bar, 2: GRAY Gradient, 3: User-Defined, 4: Prbs7 Random
-	 */
-	if (dsim->bist_mode > 0) {
-		if (dsim->state == DSIM_STATE_SUSPEND)
-			dsim_enable(&dsim->encoder);
-		//dsim_reg_set_bist(dsi->id, dsi->bist_mode);
-	} else {
-		//dsim_reg_set_bist(dsi->id, dsi->bist_mode);
-		if (dsim->state == DSIM_STATE_HSCLKEN)
-			dsim_disable(&dsim->encoder);
+	if (bist_mode >= DSIM_BIST_MODE_MAX) {
+		dsim_err(dsim, "invalid bist mode\n");
+		return -EINVAL;
 	}
+
+	/*
+	 * BIST modes:
+	 * 0: Disable, 1: Color Bar, 2: GRAY Gradient, 3: User-Defined,
+	 * 4: Prbs7 Random
+	 */
+	bist_en = bist_mode > 0;
+
+	if (bist_en && dsim->state == DSIM_STATE_SUSPEND)
+		dsim_enable(&dsim->encoder);
+
+	dsim_reg_set_bist(dsim->id, bist_mode);
+	dsim->bist_mode = bist_mode;
+
+	if (!bist_en && dsim->state == DSIM_STATE_HSCLKEN)
+		dsim_disable(&dsim->encoder);
 
 	dsim_info(dsim, "0:Disable 1:Color Bar 2:GRAY Gradient 3:User-Defined\n");
 	dsim_info(dsim, "4:Prbs7 Random (%d)\n", dsim->bist_mode);
