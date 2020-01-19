@@ -52,6 +52,10 @@ struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 
 int dsim_log_level = 6;
 
+static char panel_name[64];
+module_param_string(panel_name, panel_name, sizeof(panel_name), 0644);
+MODULE_PARM_DESC(panel_name, "preferred panel name");
+
 #define dsim_info(dsim, fmt, ...)					  \
 	do {								  \
 		if (dsim_log_level >= 6) {				  \
@@ -664,6 +668,35 @@ static int dsim_create_connector(struct drm_encoder *encoder)
 	return 0;
 }
 
+static int dsim_add_mipi_dsi_device(struct dsim_device *dsim)
+{
+	struct mipi_dsi_device_info info = { };
+	struct device_node *node;
+	const char *name;
+
+	dsim_dbg(dsim, "%s preferred panel is %s\n", __func__, panel_name);
+
+	for_each_available_child_of_node(dsim->dsi_host.dev->of_node, node) {
+		/* panel w/ reg node will be added in mipi_dsi_host_register */
+		if (of_find_property(node, "reg", NULL))
+			continue;
+
+		if (of_property_read_u32(node, "channel", &info.channel))
+			continue;
+
+		name = of_get_property(node, "label", NULL);
+		if (name && !strcmp(name, panel_name)) {
+			strlcpy(info.type, name, sizeof(info.type));
+			info.node = of_node_get(node);
+			mipi_dsi_device_register_full(&dsim->dsi_host, &info);
+
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+
 static int dsim_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_encoder *encoder = dev_get_drvdata(dev);
@@ -691,6 +724,9 @@ static int dsim_bind(struct device *dev, struct device *master, void *data)
 		drm_encoder_cleanup(encoder);
 		return ret;
 	}
+
+	/* add the dsi device for the detected panel */
+	dsim_add_mipi_dsi_device(dsim);
 
 	ret = mipi_dsi_host_register(&dsim->dsi_host);
 
