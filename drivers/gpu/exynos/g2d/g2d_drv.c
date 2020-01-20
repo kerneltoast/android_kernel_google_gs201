@@ -922,6 +922,25 @@ const struct g2d_device_data g2d_9820_data __initconst = {
 	.max_layers = G2D_MAX_IMAGES,
 };
 
+const struct g2d_device_data g2d_gs101_data __initconst = {
+	.caps = G2D_DEVICE_CAPS_SELF_PROTECTION | G2D_DEVICE_CAPS_YUV_BITDEPTH |
+		G2D_DEVICE_CAPS_SBWC | G2D_DEVICE_CAPS_AFBC_V12 |
+		G2D_DEVICE_CAPS_POLYFILTER,
+	.max_layers = G2D_MAX_IMAGES_QUARTER,
+	.fmts_src = BIT(G2D_FMT_IDX_8888) | BIT(G2D_FMT_IDX_565) |
+		    BIT(G2D_FMT_IDX_4444) | BIT(G2D_FMT_IDX_888) |
+		    BIT(G2D_FMT_IDX_1555) | BIT(G2D_FMT_IDX_5551) |
+		    BIT(G2D_FMT_IDX_YUV420SP) | BIT(G2D_FMT_IDX_YUV420P) |
+		    BIT(G2D_FMT_IDX_YUV422SP) | BIT(G2D_FMT_IDX_2101010) |
+		    BIT(G2D_FMT_IDX_1010102),
+	.fmts_dst = BIT(G2D_FMT_IDX_8888) | BIT(G2D_FMT_IDX_565) |
+		    BIT(G2D_FMT_IDX_4444) | BIT(G2D_FMT_IDX_888) |
+		    BIT(G2D_FMT_IDX_1555) | BIT(G2D_FMT_IDX_5551) |
+		    BIT(G2D_FMT_IDX_YUV420SP) | BIT(G2D_FMT_IDX_YUV420P) |
+		    BIT(G2D_FMT_IDX_YUV422SP) | BIT(G2D_FMT_IDX_2101010) |
+		    BIT(G2D_FMT_IDX_1010102),
+};
+
 static const struct of_device_id of_g2d_match[] __refconst = {
 	{
 		.compatible = "samsung,exynos9810-g2d",
@@ -932,6 +951,9 @@ static const struct of_device_id of_g2d_match[] __refconst = {
 	}, {
 		.compatible = "samsung,exynos9820-g2d",
 		.data = &g2d_9820_data,
+	}, {
+		.compatible = "samsung,gs101-g2d",
+		.data = &g2d_gs101_data,
 	},
 	{},
 };
