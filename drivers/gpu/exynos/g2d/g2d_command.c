@@ -708,13 +708,13 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 	return payload;
 }
 
-static bool check_width_height(u32 value)
+static bool check_width_height(struct g2d_device *g2d_dev, u32 value)
 {
 	return (value > 0) && (value <= G2D_MAX_SIZE);
 }
 
 /* 8bpp(grayscale) format is not supported */
-static bool check_srccolor_mode(u32 value)
+static bool check_srccolor_mode(struct g2d_device *g2d_dev, u32 value)
 {
 	u32 fmt = ((value) & G2D_DATAFMT_MASK) >> G2D_DATAFMT_SHIFT;
 
@@ -730,7 +730,7 @@ static bool check_srccolor_mode(u32 value)
 	return true;
 }
 
-static bool check_dstcolor_mode(u32 value)
+static bool check_dstcolor_mode(struct g2d_device *g2d_dev, u32 value)
 {
 	u32 fmt = ((value) & G2D_DATAFMT_MASK) >> G2D_DATAFMT_SHIFT;
 	u32 mode = value & (G2D_DATAFORMAT_AFBC | G2D_DATAFORMAT_UORDER |
@@ -754,7 +754,7 @@ static bool check_dstcolor_mode(u32 value)
 	return true;
 }
 
-static bool check_blend_mode(u32 value)
+static bool check_blend_mode(struct g2d_device *g2d_dev, u32 value)
 {
 	int i = 0;
 
@@ -773,16 +773,18 @@ static bool check_blend_mode(u32 value)
 	return true;
 }
 
-static bool check_scale_control(u32 value)
+static bool check_scale_control(struct g2d_device *g2d_dev, u32 value)
 {
-	return value != 3;
+	if (!(g2d_dev->caps & G2D_DEVICE_CAPS_POLYFILTER))
+		return ((value >> 4) == 0) && (value != 3);
+	return !value || ((value & 3) == 3);
 }
 
 struct command_checker {
 	const char *cmdname;
 	u32 offset;
 	u32 mask;
-	bool (*checker)(u32 value);
+	bool (*checker)(struct g2d_device *g2d_dev, u32 value);
 };
 
 static struct command_checker source_command_checker[G2DSFR_SRC_FIELD_COUNT] = {
@@ -801,7 +803,7 @@ static struct command_checker source_command_checker[G2DSFR_SRC_FIELD_COUNT] = {
 	{"DSTTOP",	0x0010, 0x00001FFF, NULL,},
 	{"DSTRIGHT",	0x0014, 0x00003FFF, check_width_height,},
 	{"DSTBOTTOM",	0x0018, 0x00003FFF, check_width_height,},
-	{"SCALECONTROL", 0x048, 0x00000003, check_scale_control,},
+	{"SCALECONTROL", 0x048, 0x00000033, check_scale_control,},
 	{"XSCALE",	0x004C, 0x3FFFFFFF, NULL,},
 	{"YSCALE",	0x0050, 0x3FFFFFFF, NULL,},
 	{"XPHASE",	0x0054, 0x0000FFFF, NULL,},
@@ -849,7 +851,7 @@ static int g2d_copy_commands(struct g2d_device *g2d_dev, int index,
 	for (i = 0; i < num_cmds; i++) {
 		if (((cmd[i] & ~checker[i].mask) != 0) ||
 				(checker[i].checker &&
-					!checker[i].checker(cmd[i]))) {
+				 !checker[i].checker(g2d_dev, cmd[i]))) {
 			perrfndev(g2d_dev, "Invalid %s[%d] SFR '%s' value %#x",
 				  (index < 0) ? "target" : "source",
 				  index, checker[i].cmdname, cmd[i]);
@@ -1145,6 +1147,7 @@ bool g2d_validate_target_commands(struct g2d_device *g2d_dev,
  * {0x3600, 0x3680}, HDR Tone Mapping Coefficients
  * {0x3700, 0x3780}, Degamma Tone Mapping Coefficients
  * {0x5000, 0x5C40}, SET 0,1,2 Coefficients
+ * {0x6000, 0x6FAC}, Coeficients for polyphase filter[0-3]
  */
 static u16 extra_valid_range[2] = {0x2000, 0x8000}; // {0x2000, 0x8000]
 

@@ -92,6 +92,8 @@ struct g2d_qos {
 #define G2D_DEVICE_CAPS_AFBC_V12		BIT(4)
 /* Force address alignment of compressed formats to 64-byte */
 #define G2D_DEVICE_CAPS_COMP_ALIGN_64		BIT(5)
+/* G2D has poly-phase filter and nearest/bilinear are absent */
+#define G2D_DEVICE_CAPS_POLYFILTER		BIT(6)
 
 struct g2d_device {
 	unsigned long		state;
