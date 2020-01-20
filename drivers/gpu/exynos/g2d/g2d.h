@@ -143,6 +143,10 @@ struct g2d_device {
 
 	struct g2d_dvfs_table *dvfs_table;
 	u32 dvfs_table_cnt;
+	/* bitflags of available values in LAYERn_COLOR_MODE_REG[19:16] */
+	unsigned short		fmts_src;
+	/* bitflags of available values in DST_COLOR_MODE_REG[19:16] */
+	unsigned short		fmts_dst;
 
 	struct notifier_block	itmon_nb;
 

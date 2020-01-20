@@ -904,6 +904,8 @@ int g2d_itmon_notifier(struct notifier_block *nb,
 struct g2d_device_data {
 	unsigned long caps;
 	unsigned int max_layers;
+	unsigned short fmts_src;
+	unsigned short fmts_dst;
 };
 
 const struct g2d_device_data g2d_9610_data __initconst = {
@@ -988,6 +990,8 @@ static int g2d_probe(struct platform_device *pdev)
 
 		g2d_dev->caps = devdata->caps;
 		g2d_dev->max_layers = devdata->max_layers;
+		g2d_dev->fmts_src = devdata->fmts_src;
+		g2d_dev->fmts_dst = devdata->fmts_dst;
 	}
 
 	ret = iovmm_activate(&pdev->dev);

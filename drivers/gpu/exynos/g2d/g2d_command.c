@@ -245,7 +245,12 @@ static const struct g2d_fmt g2d_formats_common[] = {
 		.num_planes	= 2,
 	}, {
 		.name		= "ABGR2101010",
-		.fmtvalue	= G2D_FMT_ABGR2101010,	/* [31:0] ABGR */
+		.fmtvalue	= G2D_FMT_ABGR2101010,
+		.bpp		= { 32 },
+		.num_planes	= 1,
+	}, {
+		.name		= "ABGR1010102",
+		.fmtvalue	= G2D_FMT_ABGR1010102,
 		.bpp		= { 32 },
 		.num_planes	= 1,
 	},
@@ -713,45 +718,68 @@ static bool check_width_height(struct g2d_device *g2d_dev, u32 value)
 	return (value > 0) && (value <= G2D_MAX_SIZE);
 }
 
+#define G2D_SRC_FMTS ((BIT(G2D_FMT_IDX_MAX) - 1) & ~(\
+			BIT(G2D_FMT_IDX_RESERVED) | BIT(G2D_FMT_IDX_8) |\
+			BIT(G2D_FMT_IDX_YUV420P) | BIT(G2D_FMT_IDX_1010102)))
+#define G2D_DST_FMTS ((BIT(G2D_FMT_IDX_MAX) - 1) & ~(\
+			BIT(G2D_FMT_IDX_RESERVED) | BIT(G2D_FMT_IDX_8) |\
+			BIT(G2D_FMT_IDX_YUV420SP82_9810) |\
+			BIT(G2D_FMT_IDX_1010102)))
+#define G2D_RGB_FMTS (BIT(G2D_FMT_IDX_MAX_RGB) - 1)
+
+#define G2D_AFBCV1_FMTS (BIT(G2D_FMT_IDX_8888) | BIT(G2D_FMT_IDX_565) |\
+			 BIT(G2D_FMT_IDX_4444) | BIT(G2D_FMT_IDX_1555))
+#define G2D_SBWC_FMTS (BIT(G2D_FMT_IDX_YUV420SP) | BIT(G2D_FMT_IDX_YUV422SP))
+#define G2D_AFBCV1_2_FMTS (G2D_AFBCV1_FMTS | G2D_SBWC_FMTS |\
+			   BIT(G2D_FMT_IDX_2101010))
+
 /* 8bpp(grayscale) format is not supported */
 static bool check_srccolor_mode(struct g2d_device *g2d_dev, u32 value)
 {
-	u32 fmt = ((value) & G2D_DATAFMT_MASK) >> G2D_DATAFMT_SHIFT;
+	u32 fmt = (value & G2D_DATAFMT_MASK) >> G2D_DATAFMT_SHIFT;
+	u32 available;
 
-	if ((fmt > 14) || (fmt == 6) || (fmt == 7) || (fmt == 9))
+	if (IS_AFBC(value) && IS_SBWC(value))
 		return false;
 
-	if (IS_YUV(value) && (value & G2D_DATAFORMAT_AFBC))
-		return false;
+	if (IS_AFBC(value))
+		available = caps_has_afbcv12(g2d_dev->caps) ? G2D_AFBCV1_2_FMTS
+							    : G2D_AFBCV1_FMTS;
+	else if (IS_SBWC(value))
+		available = G2D_SBWC_FMTS;
+	else
+		available = g2d_dev->fmts_src ? g2d_dev->fmts_src
+					      : G2D_SRC_FMTS;
 
-	if (IS_SBWC(value) && !(IS_YUV420(value) || IS_YUV422_2P(value)))
-		return false;
-
-	return true;
+	return !!(BIT(fmt) & available);
 }
 
 static bool check_dstcolor_mode(struct g2d_device *g2d_dev, u32 value)
 {
-	u32 fmt = ((value) & G2D_DATAFMT_MASK) >> G2D_DATAFMT_SHIFT;
+	u32 fmt = (value & G2D_DATAFMT_MASK) >> G2D_DATAFMT_SHIFT;
 	u32 mode = value & (G2D_DATAFORMAT_AFBC | G2D_DATAFORMAT_UORDER |
 			    G2D_DATAFORMAT_SBWC);
+	u32 available;
 
-	/* src + YCbCr420 3p, - YCbCr420 2p 8.2 */
-	if ((fmt > 14) || (fmt == 13) || (fmt == 6) || (fmt == 7))
+	if (value & G2D_FMT_82)
 		return false;
 
 	/* SBWC, AFBC and UORDER should not be set together */
 	if (mode & (mode - 1))
 		return false;
 
-	if (IS_SBWC(mode) && !(IS_YUV420(value) || IS_YUV422_2P(value)))
-		return false;
+	if (IS_AFBC(value))
+		available = caps_has_afbcv12(g2d_dev->caps) ? G2D_AFBCV1_2_FMTS
+							    : G2D_AFBCV1_FMTS;
+	else if (IS_SBWC(value))
+		available = G2D_SBWC_FMTS;
+	else if (IS_UORDER(value))
+		available = G2D_RGB_FMTS;
+	else
+		available = g2d_dev->fmts_dst ? g2d_dev->fmts_dst
+					      : G2D_DST_FMTS;
 
-	mode &= ~G2D_DATAFORMAT_SBWC;
-	if (mode && IS_YUV(value))
-		return false;
-
-	return true;
+	return !!(BIT(fmt) & available);
 }
 
 static bool check_blend_mode(struct g2d_device *g2d_dev, u32 value)
