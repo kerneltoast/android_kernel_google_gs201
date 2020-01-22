@@ -800,6 +800,12 @@ static int decon_get_clock(struct decon_device *decon)
 		return PTR_ERR(decon->res.aclk);
 	}
 
+	decon->res.aclk_disp = devm_clk_get(decon->dev, "aclk-disp");
+	if (IS_ERR_OR_NULL(decon->res.aclk_disp)) {
+		decon_info(decon, "failed to get aclk_disp(optional)\n");
+		decon->res.aclk_disp = NULL;
+	}
+
 	return 0;
 }
 #else
@@ -904,6 +910,9 @@ static int decon_suspend(struct device *dev)
 
 	clk_disable_unprepare(decon->res.aclk);
 
+	if (decon->res.aclk_disp)
+		clk_disable_unprepare(decon->res.aclk_disp);
+
 	decon_info(decon, "suspended\n");
 
 	return 0;
@@ -914,6 +923,9 @@ static int decon_resume(struct device *dev)
 	struct decon_device *decon = dev_get_drvdata(dev);
 
 	clk_prepare_enable(decon->res.aclk);
+
+	if (decon->res.aclk_disp)
+		clk_prepare_enable(decon->res.aclk_disp);
 
 	decon_info(decon, "resumed\n");
 

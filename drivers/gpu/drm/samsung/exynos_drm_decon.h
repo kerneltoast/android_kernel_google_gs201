@@ -53,6 +53,7 @@ struct decon_resources {
 	struct pinctrl_state *te_on;
 	struct pinctrl_state *te_off;
 	struct clk *aclk;
+	struct clk *aclk_disp;
 };
 
 struct dpu_bts_ops {

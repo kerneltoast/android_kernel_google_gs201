@@ -42,7 +42,6 @@ struct dsim_resources {
 	void __iomem *ss_reg_base;
 	struct phy *phy;
 	struct phy *phy_ex;
-	struct clk *aclk;
 };
 
 struct dsim_device {

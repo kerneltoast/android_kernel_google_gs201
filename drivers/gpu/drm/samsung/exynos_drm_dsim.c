@@ -908,21 +908,6 @@ static int dsim_get_phys(struct dsim_device *dsim)
 	return 0;
 }
 
-#ifndef CONFIG_BOARD_EMULATOR
-static int dsim_get_clock(struct dsim_device *dsim)
-{
-	dsim->res.aclk = devm_clk_get(dsim->dev, "aclk");
-	if (IS_ERR_OR_NULL(dsim->res.aclk)) {
-		dsim_err(dsim, "failed to get aclk\n");
-		return PTR_ERR(dsim->res.aclk);
-	}
-
-	return 0;
-}
-#else
-static inline int dsim_get_clock(struct dsim_device *dsim) { return 0; }
-#endif
-
 static int dsim_init_resources(struct dsim_device *dsim)
 {
 	int ret = 0;
@@ -936,10 +921,6 @@ static int dsim_init_resources(struct dsim_device *dsim)
 		goto err;
 
 	ret = dsim_get_phys(dsim);
-	if (ret)
-		goto err;
-
-	ret = dsim_get_clock(dsim);
 	if (ret)
 		goto err;
 
