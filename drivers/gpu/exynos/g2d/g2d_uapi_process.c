@@ -526,8 +526,7 @@ static void g2d_put_image(struct g2d_device *g2d_dev, struct g2d_layer *layer,
 }
 
 #define IS_DST_SBWC(task) \
-	(((task)->target.commands[G2DSFR_IMG_COLORMODE].value) & \
-	 G2D_DATAFORMAT_SBWC)
+	IS_SBWC((task)->target.commands[G2DSFR_IMG_COLORMODE].value)
 
 static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 			  struct g2d_layer *layer, struct g2d_layer_data *data,
