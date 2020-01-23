@@ -32,6 +32,7 @@
 #include <exynos_drm_dsim.h>
 #include <exynos_drm_format.h>
 #include <exynos_drm_gem.h>
+#include <exynos_drm_hibernation.h>
 
 #define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
 
@@ -438,6 +439,9 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 						false);
 			}
 		}
+
+		if (new_crtc_state->active)
+			hibernation_block_exit(decon[id]->hibernation);
 	}
 
 	drm_atomic_helper_commit_tail_rpm(old_state);
@@ -473,6 +477,9 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 						true);
 			DPU_EVENT_LOG(DPU_EVT_DECON_RSC_OCCUPANCY, 0, NULL);
 		}
+
+		if (new_crtc_state->active)
+			hibernation_unblock(decon[id]->hibernation);
 
 		if ((old_crtc_state->active && !new_crtc_state->active) &&
 				IS_ENABLED(CONFIG_EXYNOS_BTS))

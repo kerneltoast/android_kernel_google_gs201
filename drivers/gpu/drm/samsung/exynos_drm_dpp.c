@@ -339,12 +339,11 @@ static void __dpp_enable(struct dpp_device *dpp)
 
 	dpp_reg_init(dpp->id, dpp->attr);
 
+	dpp->state = DPP_STATE_ON;
 	enable_irq(dpp->dma_irq);
 	enable_irq(dpp->dpp_irq);
 
-	dpp->state = DPP_STATE_ON;
-
-	dpp_info(dpp, "enabled\n");
+	dpp_dbg(dpp, "enabled\n");
 }
 
 static void __dpp_disable(struct dpp_device *dpp)
@@ -359,7 +358,7 @@ static void __dpp_disable(struct dpp_device *dpp)
 
 	dpp->state = DPP_STATE_OFF;
 
-	dpp_info(dpp, "disabled\n");
+	dpp_dbg(dpp, "disabled\n");
 }
 
 static int dpp_disable(struct dpp_device *this_dpp)

@@ -29,6 +29,7 @@
 #include <exynos_drm_drv.h>
 #include <exynos_drm_fb.h>
 #include <exynos_drm_dsim.h>
+#include <exynos_drm_hibernation.h>
 
 #include <decon_cal.h>
 
@@ -36,7 +37,7 @@ enum decon_state {
 	DECON_STATE_INIT = 0,
 	DECON_STATE_ON,
 	DECON_STATE_DOZE,
-	DECON_STATE_HIBER,
+	DECON_STATE_HIBERNATION,
 	DECON_STATE_DOZE_SUSPEND,
 	DECON_STATE_OFF,
 	DECON_STATE_TUI,
@@ -221,6 +222,7 @@ struct decon_device {
 	struct decon_resources		res;
 	struct dpu_bts			bts;
 	struct decon_debug		d;
+	struct exynos_hibernation	*hibernation;
 
 	u32				irq_fs;	/* frame start irq number*/
 	u32				irq_fd;	/* frame done irq number*/
@@ -246,5 +248,28 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv);
 void DPU_EVENT_LOG_ATOMIC_COMMIT(int index);
 void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,
 		unsigned long data);
+
+void decon_enter_hibernation(struct decon_device *decon);
+void decon_exit_hibernation(struct decon_device *decon);
+
+static inline struct dsim_device*
+decon_get_dsim(struct decon_device *decon)
+{
+	struct exynos_drm_crtc *exynos_crtc = decon->crtc;
+	struct drm_connector *connector = exynos_crtc->connector;
+	struct drm_encoder *encoder;
+
+	if (!connector)
+		return NULL;
+
+	encoder = connector->state->best_encoder;
+	if (!encoder)
+		return NULL;
+
+	if (encoder->encoder_type != DRM_MODE_ENCODER_DSI)
+		return NULL;
+
+	return container_of(encoder, struct dsim_device, encoder);
+}
 
 #endif /* __EXYNOS_DRM_DECON_H__ */

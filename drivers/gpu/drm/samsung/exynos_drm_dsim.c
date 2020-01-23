@@ -190,6 +190,28 @@ static int dsim_phy_power_off(struct dsim_device *dsim)
 	return 0;
 }
 
+void dsim_exit_ulps(struct dsim_device *dsim)
+{
+	pr_debug("%s +\n", __func__);
+
+	if (dsim->state != DSIM_STATE_ULPS)
+		return;
+
+#if defined(CONFIG_CPU_IDLE)
+	exynos_update_ip_idle_status(dsim->idle_ip_index, 0);
+#endif
+
+	dsim_phy_power_on(dsim);
+
+	dsim_reg_init(dsim->id, &dsim->config, &dsim->clk_param, false);
+	dsim_reg_exit_ulps_and_start(dsim->id, 0, 0x1F);
+
+	dsim->state = DSIM_STATE_HSCLKEN;
+	enable_irq(dsim->irq);
+
+	pr_debug("%s -\n", __func__);
+}
+
 static void dsim_enable(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
@@ -235,6 +257,30 @@ static void dsim_enable(struct drm_encoder *encoder)
 		DPU_EVENT_LOG(DPU_EVT_DSIM_ENABLED, decon->id, dsim);
 
 	dsim_dbg(dsim, "%s -\n", __func__);
+}
+
+void dsim_enter_ulps(struct dsim_device *dsim)
+{
+	if (dsim->state != DSIM_STATE_HSCLKEN)
+		return;
+
+	pr_debug("%s +\n", __func__);
+
+	/* Wait for current read & write CMDs. */
+	mutex_lock(&dsim->cmd_lock);
+	dsim->state = DSIM_STATE_ULPS;
+	mutex_unlock(&dsim->cmd_lock);
+
+	disable_irq(dsim->irq);
+	dsim_reg_stop_and_enter_ulps(dsim->id, 0, 0x1F);
+
+	dsim_phy_power_off(dsim);
+
+#if defined(CONFIG_CPU_IDLE)
+	exynos_update_ip_idle_status(dsim->idle_ip_index, 1);
+#endif
+
+	pr_debug("%s -\n", __func__);
 }
 
 static void dsim_disable(struct drm_encoder *encoder)
@@ -864,7 +910,7 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 
 	dsim_dbg(dsim, "%s +\n", __func__);
 
-	if (dsim->state == DSIM_STATE_SUSPEND) {
+	if (dsim->state != DSIM_STATE_HSCLKEN) {
 		dsim_info(dsim, "dsim power is off state(0x%x)\n", dsim->state);
 		spin_unlock(&dsim->slock);
 		return IRQ_HANDLED;
@@ -1221,6 +1267,8 @@ static int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0,
 	bool must_wait = true;
 	const struct decon_device *decon = dsim_get_decon(dsim);
 
+	hibernation_block_exit(decon->hibernation);
+
 	mutex_lock(&dsim->cmd_lock);
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
 		dsim_err(dsim, "dsim%d is not ready(%d)\n",
@@ -1284,6 +1332,7 @@ static int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0,
 
 err_exit:
 	mutex_unlock(&dsim->cmd_lock);
+	hibernation_unblock(decon->hibernation);
 
 	return ret;
 }
@@ -1321,6 +1370,9 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 {
 	u32 rx_fifo, rx_size = 0;
 	int i = 0, ret = 0;
+	const struct decon_device *decon = dsim_get_decon(dsim);
+
+	hibernation_block_exit(decon->hibernation);
 
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
 		pr_err("DSI-%d is not ready(%d)\n", dsim->id, dsim->state);
@@ -1413,6 +1465,7 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 	}
 exit:
 	mutex_unlock(&dsim->cmd_lock);
+	hibernation_unblock(decon->hibernation);
 
 	return ret;
 }

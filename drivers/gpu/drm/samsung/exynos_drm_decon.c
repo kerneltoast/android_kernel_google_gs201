@@ -335,6 +335,12 @@ static void decon_enable_irqs(struct decon_device *decon)
 		enable_irq(decon->irq_te);
 }
 
+static void _decon_enable(struct decon_device *decon)
+{
+	decon_reg_init(decon->id, &decon->config);
+	decon_enable_irqs(decon);
+}
+
 static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
@@ -352,13 +358,11 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	decon_set_te_pinctrl(decon, true);
 
-	decon_reg_init(decon->id, &decon->config);
+	_decon_enable(decon);
 
 	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE)
 		decon_set_color_map(decon, 0, decon->config.image_width,
 				decon->config.image_height);
-
-	decon_enable_irqs(decon);
 
 	decon_print_config_info(decon);
 
@@ -372,6 +376,20 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 	decon_info(decon, "%s -\n", __func__);
 }
 
+void decon_exit_hibernation(struct decon_device *decon)
+{
+	if (decon->state != DECON_STATE_HIBERNATION)
+		return;
+
+	pr_debug("%s +\n", __func__);
+
+	_decon_enable(decon);
+
+	decon->state = DECON_STATE_ON;
+
+	pr_debug("%s -\n", __func__);
+}
+
 static void decon_disable_irqs(struct decon_device *decon)
 {
 	disable_irq(decon->irq_fs);
@@ -383,25 +401,53 @@ static void decon_disable_irqs(struct decon_device *decon)
 		disable_irq(decon->irq_te);
 }
 
+static void _decon_disable(struct decon_device *decon)
+{
+	int i;
+
+	decon_disable_irqs(decon);
+	decon_reg_stop(decon->id, &decon->config, true, decon->bts.fps);
+
+	for (i = 0; i < decon->dpp_cnt; ++i) {
+		struct dpp_device *dpp = decon->dpp[i];
+
+		if (!dpp)
+			continue;
+
+		dpp->disable(dpp);
+	}
+}
+
+void decon_enter_hibernation(struct decon_device *decon)
+{
+	pr_debug("%s +\n", __func__);
+
+	if (decon->state != DECON_STATE_ON)
+		return;
+
+	_decon_disable(decon);
+
+	decon->state = DECON_STATE_HIBERNATION;
+	pr_debug("%s -\n", __func__);
+}
+
 static void decon_disable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
 
-	decon_info(decon, "%s +\n", __func__);
+	pr_info("%s +\n", __func__);
 
-	decon_disable_irqs(decon);
-
-	decon_reg_stop(decon->id, &decon->config, true, decon->bts.fps);
+	_decon_disable(decon);
 
 	decon_set_te_pinctrl(decon, false);
 
-	decon->state = DECON_STATE_OFF;
-
 	pm_runtime_put_sync(decon->dev);
+
+	decon->state = DECON_STATE_OFF;
 
 	DPU_EVENT_LOG(DPU_EVT_DECON_DISABLED, decon->id, decon);
 
-	decon_info(decon, "%s -\n", __func__);
+	pr_info("%s -\n", __func__);
 }
 
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
@@ -683,14 +729,20 @@ static int decon_remap_regs(struct decon_device *decon)
 static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 {
 	struct decon_device *decon = dev_id;
+	struct exynos_hibernation *hibernation;
 
-	if (decon->state != DECON_STATE_ON)
+	if (!decon || decon->state != DECON_STATE_ON)
 		goto end;
 
 	DPU_EVENT_LOG(DPU_EVT_TE_INTERRUPT, decon->id, NULL);
 
 	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE)
 		drm_crtc_handle_vblank(&decon->crtc->base);
+
+	hibernation = decon->hibernation;
+
+	if (hibernation && !is_hibernaton_blocked(hibernation))
+		kthread_queue_work(&hibernation->worker, &hibernation->work);
 
 end:
 	return IRQ_HANDLED;
@@ -886,6 +938,8 @@ static int decon_probe(struct platform_device *pdev)
 	/* set drvdata */
 	platform_set_drvdata(pdev, decon);
 
+	decon->hibernation = exynos_hibernation_register(decon);
+
 	ret = dpu_init_debug(decon);
 	if (ret)
 		goto err;
@@ -908,6 +962,8 @@ static int decon_remove(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_EXYNOS_BTS))
 		decon->bts.ops->bts_deinit(decon);
 
+	exynos_hibernation_destroy(decon->hibernation);
+
 	dpu_deinit_debug(decon);
 	component_del(&pdev->dev, &decon_component_ops);
 
@@ -925,7 +981,7 @@ static int decon_suspend(struct device *dev)
 	if (decon->res.aclk_disp)
 		clk_disable_unprepare(decon->res.aclk_disp);
 
-	decon_info(decon, "suspended\n");
+	pr_debug("suspended\n");
 
 	return 0;
 }
@@ -940,7 +996,7 @@ static int decon_resume(struct device *dev)
 	if (decon->res.aclk_disp)
 		clk_prepare_enable(decon->res.aclk_disp);
 
-	decon_info(decon, "resumed\n");
+	pr_debug("resumed\n");
 
 	return 0;
 }

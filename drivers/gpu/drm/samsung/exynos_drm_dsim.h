@@ -114,4 +114,6 @@ dsim_get_decon(const struct dsim_device *dsim)
 	return to_exynos_crtc(crtc)->ctx;
 }
 
+void dsim_enter_ulps(struct dsim_device *dsim);
+void dsim_exit_ulps(struct dsim_device *dsim);
 #endif /* __EXYNOS_DRM_DSI_H__ */
