@@ -230,6 +230,26 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 	return 0;
 }
 
+static void exynos_drm_plane_print_state(struct drm_printer *p,
+					 const struct drm_plane_state *state)
+{
+	struct exynos_drm_plane_state *exynos_state =
+		to_exynos_plane_state(state);
+	struct exynos_drm_plane *exynos_plane = to_exynos_plane(state->plane);
+	struct dpp_device *dpp = plane_to_dpp(exynos_plane);
+
+	drm_printf(p, "\tluminance: min=%d max=%d\n",
+		   exynos_state->min_luminance, exynos_state->max_luminance);
+	drm_printf(p, "\tDPP #%d", dpp->id);
+	if (dpp->state == DPP_STATE_OFF) {
+		drm_printf(p, " (off)\n");
+	} else {
+		drm_printf(p, "\n\t\tdecon_id=%d\n", dpp->decon_id);
+		if (dpp->is_win_connected)
+			drm_printf(p, "\t\twin_id=%d\n", dpp->win_id);
+	}
+}
+
 static struct drm_plane_funcs exynos_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
@@ -239,6 +259,7 @@ static struct drm_plane_funcs exynos_plane_funcs = {
 	.atomic_destroy_state = exynos_drm_plane_destroy_state,
 	.atomic_set_property = exynos_drm_plane_set_property,
 	.atomic_get_property = exynos_drm_plane_get_property,
+	.atomic_print_state = exynos_drm_plane_print_state,
 };
 
 static int

@@ -261,6 +261,21 @@ static int exynos_drm_crtc_get_property(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void exynos_drm_crtc_print_state(struct drm_printer *p,
+					const struct drm_crtc_state *state)
+{
+	const struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(state->crtc);
+	const struct decon_device *decon = exynos_crtc->ctx;
+	const struct decon_config *cfg = &decon->config;
+
+	drm_printf(p, "\tDecon #%d (state:%d)\n", decon->id, decon->state);
+	drm_printf(p, "\t\ttype=0x%x\n", cfg->out_type);
+	drm_printf(p, "\t\tsize=%dx%d\n", cfg->image_width, cfg->image_height);
+	drm_printf(p, "\t\tmode=%s (%d)\n",
+		   cfg->mode.op_mode == DECON_VIDEO_MODE ? "vid" : "cmd",
+		   cfg->mode.dsi_mode);
+}
+
 static const struct drm_crtc_funcs exynos_crtc_funcs = {
 	.set_config		= drm_atomic_helper_set_config,
 	.page_flip		= drm_atomic_helper_page_flip,
@@ -270,6 +285,7 @@ static const struct drm_crtc_funcs exynos_crtc_funcs = {
 	.atomic_destroy_state	= exynos_drm_crtc_destroy_state,
 	.atomic_set_property	= exynos_drm_crtc_set_property,
 	.atomic_get_property	= exynos_drm_crtc_get_property,
+	.atomic_print_state     = exynos_drm_crtc_print_state,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
 	.get_vblank_counter	= exynos_drm_crtc_get_vblank_counter,

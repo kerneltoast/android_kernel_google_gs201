@@ -97,7 +97,7 @@ struct exynos_drm_plane_state {
 };
 
 static inline struct exynos_drm_plane_state *
-to_exynos_plane_state(struct drm_plane_state *state)
+to_exynos_plane_state(const struct drm_plane_state *state)
 {
 	return container_of(state, struct exynos_drm_plane_state, base);
 }
