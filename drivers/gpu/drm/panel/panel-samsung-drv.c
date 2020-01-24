@@ -85,6 +85,7 @@ void exynos_panel_reset(struct exynos_panel *ctx)
 
 	panel_dbg(ctx, "%s -\n", __func__);
 }
+EXPORT_SYMBOL(exynos_panel_reset);
 
 int exynos_panel_set_power(struct exynos_panel *ctx, bool on)
 {
@@ -139,6 +140,7 @@ int exynos_panel_set_power(struct exynos_panel *ctx, bool on)
 
 	return 0;
 }
+EXPORT_SYMBOL(exynos_panel_set_power);
 
 static int exynos_panel_parse_dt(struct exynos_panel *ctx)
 {
@@ -190,6 +192,7 @@ int exynos_panel_get_modes(struct drm_panel *panel)
 
 	return 1;
 }
+EXPORT_SYMBOL(exynos_panel_get_modes);
 
 static int exynos_get_brightness(struct backlight_device *bl)
 {
@@ -277,6 +280,7 @@ done:
 
 	return ret;
 }
+EXPORT_SYMBOL(exynos_panel_probe);
 
 int exynos_panel_remove(struct mipi_dsi_device *dsi)
 {
@@ -288,6 +292,7 @@ int exynos_panel_remove(struct mipi_dsi_device *dsi)
 
 	return 0;
 }
+EXPORT_SYMBOL(exynos_panel_remove);
 
 MODULE_AUTHOR("Jiun Yu <jiun.yu@samsung.com>");
 MODULE_DESCRIPTION("MIPI-DSI based Samsung common panel driver");
