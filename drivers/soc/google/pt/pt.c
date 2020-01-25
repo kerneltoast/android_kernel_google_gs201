@@ -701,11 +701,11 @@ struct pt_handle *pt_client_register(struct device_node *node, void *data,
 	size_t size;
 
 	if (len <= 0)
-		return ERR_PTR(EEXIST);
+		return ERR_PTR(-EEXIST);
 	size = sizeof(*handle) + sizeof(*(handle->pts)) * len;
 	handle = kmalloc(size, GFP_KERNEL);
 	if (IS_ERR(handle))
-		return ERR_PTR(ENOMEM);
+		return ERR_PTR(-ENOMEM);
 	memset(handle, 0, size);
 	handle->data = data;
 	handle->id_cnt = len;
@@ -726,11 +726,11 @@ struct pt_handle *pt_client_register(struct device_node *node, void *data,
 
 		if (ret != 0) {
 			kfree(handle);
-			return ERR_PTR(ENOENT);
+			return ERR_PTR(-ENOENT);
 		}
 		if (pt_driver_get(name, &driver, &index) < 0) {
 			kfree(handle);
-			return ERR_PTR(ENOENT);
+			return ERR_PTR(-ENOENT);
 		}
 		handle->pts[id].driver = driver;
 		handle->pts[id].property_index = index;
@@ -908,7 +908,7 @@ static int pt_sysctl_command(struct ctl_table *ctl, int write,
 		handle = pt_client_register(node, (void *)node->name,
 				pt_test_resize_callback);
 		if (IS_ERR(handle))
-			return -PTR_ERR(handle);
+			return PTR_ERR(handle);
 		break;
 	case PT_FN_ENABLE:
 		if (retscanf < 3)
