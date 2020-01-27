@@ -119,5 +119,19 @@ config EXYNOS_CPUHP
 	help
 	Support CPU Hotplug for Exynos SoC.
 
+config SLC_PARTITION_MANAGER
+	bool "PT API framework"
+	default y
+	help
+	Enable PT framework for managing system level cache.
+
+config GS_SLC_ACPM
+	tristate "PT ACPM driver"
+	depends on SLC_PARTITION_MANAGER && GS_ACPM
+	default m
+	help
+	Support PT ACPM drvier
+
 source "drivers/soc/google/gsa/Kconfig"
+
 endmenu

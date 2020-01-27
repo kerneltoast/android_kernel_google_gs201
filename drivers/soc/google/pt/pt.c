@@ -704,7 +704,7 @@ struct pt_handle *pt_client_register(struct device_node *node, void *data,
 		return ERR_PTR(-EEXIST);
 	size = sizeof(*handle) + sizeof(*(handle->pts)) * len;
 	handle = kmalloc(size, GFP_KERNEL);
-	if (IS_ERR(handle))
+	if (!handle)
 		return ERR_PTR(-ENOMEM);
 	memset(handle, 0, size);
 	handle->data = data;
@@ -865,6 +865,12 @@ int pt_driver_get_property_value(struct pt_driver *driver, int property_index,
 		"id_size_priority", index, value);
 }
 
+void pt_driver_log_module(const char *name, const char *fct, unsigned int arg0,
+	unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4)
+{
+	trace_pt_driver_log(name, fct, arg0, arg1, arg2, arg3, arg4);
+}
+
 static void pt_test_resize_callback(void *data, int id, size_t size_allocated)
 {
 	msleep(100);
@@ -1022,6 +1028,18 @@ static void __exit pt_exit(void)
 
 subsys_initcall(pt_init);
 module_exit(pt_exit);
+
+EXPORT_SYMBOL(pt_client_register);
+EXPORT_SYMBOL(pt_client_enable);
+EXPORT_SYMBOL(pt_client_mutate);
+EXPORT_SYMBOL(pt_client_disable);
+EXPORT_SYMBOL(pt_client_unregister);
+
+EXPORT_SYMBOL(pt_driver_register);
+EXPORT_SYMBOL(pt_driver_unregister);
+EXPORT_SYMBOL(pt_driver_get_property_value);
+EXPORT_SYMBOL(pt_driver_log_module);
+
 
 MODULE_DESCRIPTION("PT API");
 MODULE_AUTHOR("<cozette@google.com>");

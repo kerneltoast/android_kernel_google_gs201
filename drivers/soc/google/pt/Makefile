@@ -3,6 +3,5 @@
 # Makefile for the PT API
 #
 
-# Object files in subdirectories
-
-obj-y                                   += pt.o pt_trace_points.o slc_dummy.o slc_acpm.o
+obj-y				+= pt.o pt_trace_points.o slc_dummy.o
+obj-$(CONFIG_GS_SLC_ACPM)	+= slc_acpm.o

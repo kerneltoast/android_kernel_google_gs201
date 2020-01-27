@@ -128,8 +128,8 @@ static int slc_acpm(struct slc_acpm_driver_data *driver_data,
 	mutex_unlock(&driver_data->mt);
 	if (ret == 0)
 		ret = config.cmd[1];
-	trace_pt_driver_log(driver_data->pdev->dev.of_node->name, __func__,
-			command, arg, arg1, 0, ret);
+	pt_driver_log_module(driver_data->pdev->dev.of_node->name,
+			__func__, command, arg, arg1, 0, ret);
 	return ret;
 }
 
@@ -236,7 +236,7 @@ static void slc_acpm_ipc_callback(unsigned int *cmd, unsigned int size)
 {
 	struct slc_acpm_driver_data *driver_data = slc_acpm_driver_data;
 
-	trace_pt_driver_log(driver_data->pdev->dev.of_node->name,
+	pt_driver_log_module(driver_data->pdev->dev.of_node->name,
 				__func__, 0, 0, 0, 0, 0);
 	/*
 	 * This callback happen in acpm thread context,

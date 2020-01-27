@@ -41,6 +41,8 @@ struct pt_handle;
 typedef void (*pt_resize_callback_t)(void *data, int id,
 					size_t size_allocated);
 
+#ifdef CONFIG_SLC_PARTITION_MANAGER
+
 /*
  * Register a callback and a device node for managing partition (ptid)
  * associated to that device node.
@@ -93,6 +95,59 @@ ptpbha_t pt_pbha_global(enum pt_global_t type);
  */
 ptid_t pt_pid_global(enum pt_global_t type);
 
+#else /* CONFIG_SLC_PARTITION_MANAGER */
+
+static inline struct pt_handle *pt_client_register(struct device_node *node,
+						   void *data,
+						   pt_resize_callback_t
+						   resize_callback)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline void pt_client_unregister(struct pt_handle *handle)
+{
+}
+
+static inline ptid_t pt_client_enable(struct pt_handle *handle, int id)
+{
+	return PT_PTID_INVALID;
+}
+
+static inline void pt_client_disable(struct pt_handle *handle, int id)
+{
+}
+
+static inline void pt_client_disable_no_free(struct pt_handle *handle, int id)
+{
+}
+
+static inline void pt_client_free(struct pt_handle *handle, int id)
+{
+}
+
+static inline ptid_t pt_client_mutate(struct pt_handle *handle, int old_id,
+				      int new_id)
+{
+	return PT_PTID_INVALID;
+}
+
+static inline ptpbha_t pt_pbha(struct device_node *node, int id)
+{
+	return 0;
+}
+
+static inline ptpbha_t pt_pbha_global(enum pt_global_t type)
+{
+	return 0;
+}
+
+static inline ptid_t pt_pid_global(enum pt_global_t type)
+{
+	return PT_PTID_INVALID;
+}
+
+#endif /* CONFIG_SLC_PARTITION_MANAGER */
 
 /*
  * API for driver implementing PT
@@ -150,4 +205,7 @@ struct pt_driver *pt_driver_register(struct device_node *node,
 int pt_driver_unregister(struct pt_driver *driver);
 int pt_driver_get_property_value(struct pt_driver *driver, int property_index,
 	int index, u32 *value);
+void pt_driver_log_module(const char *name, const char *fct, unsigned int arg0,
+	unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4);
+
 #endif /* __GOOGLE_PT_H_ */
