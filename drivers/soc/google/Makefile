@@ -34,3 +34,5 @@ obj-$(CONFIG_GOOGLE_EH) += eh/
 
 # S2MPU
 obj-$(CONFIG_GS_S2MPU)			+= s2mpu/
+
+obj-$(CONFIG_HARDLOCKUP_DEBUG)		+= hardlockup-debug.o

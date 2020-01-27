@@ -150,4 +150,9 @@ source "drivers/soc/google/eh/Kconfig"
 
 source "drivers/soc/google/s2mpu/Kconfig"
 
+config HARDLOCKUP_DEBUG
+	tristate "Hardlockup Debugging"
+	depends on ARM64
+	depends on TRUSTY_FIQ_ARM64
+
 endmenu
