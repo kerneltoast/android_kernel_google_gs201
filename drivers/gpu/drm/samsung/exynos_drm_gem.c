@@ -11,6 +11,7 @@
  * option) any later version.
  *
  */
+#define pr_fmt(fmt)  "%s: " fmt, __func__
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -32,100 +33,61 @@ struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
 	return to_exynos_gem(obj);
 }
 
-static int exynos_drm_gem_map(struct exynos_drm_gem *exynos_gem_obj,
-			      struct device *client)
-{
-	int ret;
-
-	exynos_gem_obj->attachment = dma_buf_attach(exynos_gem_obj->dmabuf,
-						    client);
-	if (IS_ERR(exynos_gem_obj->attachment)) {
-		pr_err("Failed to attach dmabuf to %s: %ld\n",
-			dev_name(client), PTR_ERR(exynos_gem_obj->attachment));
-		return PTR_ERR(exynos_gem_obj->attachment);
-	}
-
-	exynos_gem_obj->sgt = dma_buf_map_attachment(exynos_gem_obj->attachment,
-						     DMA_TO_DEVICE);
-	if (IS_ERR(exynos_gem_obj->sgt)) {
-		ret = PTR_ERR(exynos_gem_obj->sgt);
-		pr_err("Failed to map attachment of %s: %d\n",
-			  dev_name(client), ret);
-		goto err_map;
-	}
-
-	exynos_gem_obj->dma_addr = ion_iovmm_map(exynos_gem_obj->attachment, 0,
-			exynos_gem_obj->size, DMA_TO_DEVICE, 0);
-	if (IS_ERR_VALUE(exynos_gem_obj->dma_addr)) {
-		pr_err("Failed to allocate IOVM of %s\n", dev_name(client));
-		ret = (int)exynos_gem_obj->dma_addr;
-		goto err_dmaaddr;
-	}
-
-	pr_debug("dma_addr(0x%llx)\n", exynos_gem_obj->dma_addr);
-
-	return 0;
-
-err_dmaaddr:
-	dma_buf_unmap_attachment(exynos_gem_obj->attachment,
-				 exynos_gem_obj->sgt, DMA_TO_DEVICE);
-err_map:
-	dma_buf_detach(exynos_gem_obj->dmabuf, exynos_gem_obj->attachment);
-
-	return ret;
-}
-
-static struct exynos_drm_gem *exynos_drm_gem_alloc(struct drm_device *dev,
+struct exynos_drm_gem *exynos_drm_gem_alloc(struct drm_device *dev,
 					    size_t size, unsigned int flags)
 {
 	struct exynos_drm_gem *exynos_gem_obj;
-	const char *heap_name = "ion_system_heap";
-	struct exynos_drm_private *priv = dev->dev_private;
-	int ret;
 
 	exynos_gem_obj = kzalloc(sizeof(*exynos_gem_obj), GFP_KERNEL);
 	if (!exynos_gem_obj)
 		return ERR_PTR(-ENOMEM);
 
-	exynos_gem_obj->size = size;
 	exynos_gem_obj->flags = flags;
 
 	/* no need to release initialized private gem object */
 	drm_gem_private_object_init(dev, &exynos_gem_obj->base, size);
 
-	exynos_gem_obj->dmabuf = ion_alloc_dmabuf(heap_name, size, 0);
-	if (IS_ERR(exynos_gem_obj->dmabuf)) {
-		pr_err("ION Failed to alloc %#zx bytes\n", size);
-		ret = PTR_ERR(exynos_gem_obj->dmabuf);
-		goto err_alloc;
-	}
-
-	ret = exynos_drm_gem_map(exynos_gem_obj, priv->iommu_client);
-	if (ret)
-		goto err_map;
-
 	pr_debug("allocated %zu bytes with flags %#x\n", size, flags);
 
 	return exynos_gem_obj;
+}
 
-err_map:
-	dma_buf_put(exynos_gem_obj->dmabuf);
-err_alloc:
-	kfree(exynos_gem_obj);
+struct drm_gem_object *
+exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
+				     struct dma_buf_attachment *attach,
+				     struct sg_table *sgt)
+{
+	const unsigned long size = attach->dmabuf->size;
+	struct exynos_drm_gem *exynos_gem_obj =
+		exynos_drm_gem_alloc(dev, size, 0);
 
-	return ERR_PTR(ret);
+	if (IS_ERR(exynos_gem_obj))
+		return ERR_CAST(exynos_gem_obj);
+
+	exynos_gem_obj->sgt = sgt;
+	exynos_gem_obj->dma_addr = ion_iovmm_map(attach, 0, size,
+						 DMA_TO_DEVICE, 0);
+	if (IS_ERR_VALUE(exynos_gem_obj->dma_addr)) {
+		pr_err("Failed to allocate IOVM\n");
+		kfree(exynos_gem_obj);
+		return ERR_PTR(exynos_gem_obj->dma_addr);
+	}
+
+	pr_debug("dma_addr(0x%llx)\n", exynos_gem_obj->dma_addr);
+
+	return &exynos_gem_obj->base;
 }
 
 static void exynos_drm_gem_unmap(struct exynos_drm_gem *exynos_gem_obj,
 				 struct device *client)
 {
-	if (client)
-		ion_iovmm_unmap(exynos_gem_obj->attachment,
-				exynos_gem_obj->dma_addr);
+	struct dma_buf_attachment *attach = exynos_gem_obj->base.import_attach;
 
-	dma_buf_unmap_attachment(exynos_gem_obj->attachment,
-				 exynos_gem_obj->sgt, DMA_TO_DEVICE);
-	dma_buf_detach(exynos_gem_obj->dmabuf, exynos_gem_obj->attachment);
+	if (client)
+		ion_iovmm_unmap(attach, exynos_gem_obj->dma_addr);
+
+	if (exynos_gem_obj->kaddr)
+		dma_buf_vunmap(attach->dmabuf, exynos_gem_obj->kaddr);
 
 	pr_debug("unmapped the dma address and the attachment\n");
 }
@@ -133,21 +95,12 @@ static void exynos_drm_gem_unmap(struct exynos_drm_gem *exynos_gem_obj,
 void exynos_drm_gem_free_object(struct drm_gem_object *obj)
 {
 	struct exynos_drm_gem *exynos_gem_obj = to_exynos_gem(obj);
-	struct exynos_drm_private *priv = exynos_gem_obj->base.dev->dev_private;
+	const struct exynos_drm_private *priv = obj->dev->dev_private;
 
 	exynos_drm_gem_unmap(exynos_gem_obj, priv->iommu_client);
 
-	if (exynos_gem_obj->kaddr)
-		dma_buf_vunmap(exynos_gem_obj->dmabuf, exynos_gem_obj->kaddr);
-
-	if (exynos_gem_obj->dmabuf) {
-		pr_debug("destroying imported gem object of size %lu\n",
-			  exynos_gem_obj->size);
-		dma_buf_put(exynos_gem_obj->dmabuf);
-	}
-
 	if (obj->import_attach)
-		drm_prime_gem_destroy(obj, NULL);
+		drm_prime_gem_destroy(obj, exynos_gem_obj->sgt);
 
 	drm_gem_object_release(&exynos_gem_obj->base);
 	kfree(exynos_gem_obj);
@@ -158,23 +111,40 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 				 unsigned int *gem_handle)
 {
 	struct exynos_drm_gem *exynos_gem_obj;
+	const char *heap_name = "ion_system_heap";
+	struct dma_buf *dmabuf;
+	struct drm_gem_object *obj;
 	int ret;
 
-	exynos_gem_obj = exynos_drm_gem_alloc(dev, size, flags);
-	if (IS_ERR(exynos_gem_obj))
-		return PTR_ERR(exynos_gem_obj);
-
-	ret = drm_gem_handle_create(filep, &exynos_gem_obj->base, gem_handle);
-	if (ret) {
-		pr_err("Failed to create a handle of GEM\n");
-		exynos_drm_gem_free_object(&exynos_gem_obj->base);
-		return ret;
+	dmabuf = ion_alloc_dmabuf(heap_name, size, 0);
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		pr_err("ION Failed to alloc %#zx bytes\n", size);
+		return PTR_ERR(dmabuf);
 	}
 
-	/* drop reference from allocate - handle holds it now. */
+	obj = exynos_drm_gem_prime_import(dev, dmabuf);
+	if (IS_ERR(obj)) {
+		pr_err("Unable to import created ION buffer\n");
+		ret = PTR_ERR(obj);
+		goto err_import;
+	}
+
+	ret = drm_gem_handle_create(filep, obj, gem_handle);
+	if (ret) {
+		pr_err("Failed to create a handle of GEM\n");
+		goto err_handle;
+	}
+
+	/* drop reference from import - handle holds it now. */
 	drm_gem_object_unreference_unlocked(&exynos_gem_obj->base);
 
 	return 0;
+err_handle:
+	exynos_drm_gem_free_object(obj);
+err_import:
+	dma_buf_put(dmabuf);
+
+	return ret;
 }
 
 int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
@@ -200,25 +170,31 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	return 0;
 }
 
+struct drm_gem_object *exynos_drm_gem_prime_import(struct drm_device *dev,
+						   struct dma_buf *dma_buf)
+{
+	struct exynos_drm_private *priv = dev->dev_private;
+
+	return drm_gem_prime_import_dev(dev, dma_buf, priv->iommu_client);
+}
+
 int exynos_drm_gem_mmap_object(struct exynos_drm_gem *exynos_gem_obj,
 			       struct vm_area_struct *vma)
 {
-
+	struct dma_buf_attachment *attach = exynos_gem_obj->base.import_attach;
 	int ret;
 
-	if (exynos_gem_obj->dmabuf) {
-		ret = dma_buf_mmap(exynos_gem_obj->dmabuf, vma, 0);
-		if (ret) {
-			pr_err("Failed to mmap imported buffer: %d\n", ret);
-			return ret;
-		}
 
-	} else {
-		pr_err("exynos_gem_obj->dmabuf should not be NULL!\n");
+	if (unlikely(!attach)) {
+		pr_err("Invalid mmap with empty attach!\n");
 		return (-EINVAL);
 	}
 
-	return 0;
+	ret = dma_buf_mmap(attach->dmabuf, vma, 0);
+	if (ret)
+		pr_err("Failed to mmap imported buffer: %d\n", ret);
+
+	return ret;
 }
 
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)

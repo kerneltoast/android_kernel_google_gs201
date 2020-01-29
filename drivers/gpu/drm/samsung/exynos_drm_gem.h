@@ -21,9 +21,6 @@
 
 struct exynos_drm_gem {
 	struct drm_gem_object base;
-	unsigned long size;
-	struct dma_buf *dmabuf;
-	struct dma_buf_attachment *attachment;
 	struct sg_table *sgt;
 	dma_addr_t dma_addr;
 	void *kaddr;
@@ -38,6 +35,12 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 				   struct drm_device *dev, uint32_t handle,
 				   uint64_t *offset);
 void exynos_drm_gem_free_object(struct drm_gem_object *obj);
+struct drm_gem_object *
+exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
+				     struct dma_buf_attachment *attach,
+				     struct sg_table *sgt);
+struct drm_gem_object *exynos_drm_gem_prime_import(struct drm_device *dev,
+						   struct dma_buf *dma_buf);
 struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
 					  unsigned int gem_handle);
 
