@@ -216,7 +216,7 @@ void dsim_reg_set_partial_update(u32 id, struct dsim_reg_config *config);
 void dsim_reg_set_mres(u32 id, struct dsim_reg_config *config);
 
 /* DSIM BIST for test */
-void dsim_reg_set_bist(u32 id, u32 en);
+void dsim_reg_set_bist(u32 id, bool en, u32 mode);
 
 void dsim_reg_set_cmd_transfer_mode(u32 id, u32 lp);
 

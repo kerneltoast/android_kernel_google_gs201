@@ -2410,11 +2410,11 @@ void dsim_reg_set_mres(u32 id, struct dsim_reg_config *config)
 	}
 }
 
-void dsim_reg_set_bist(u32 id, u32 en)
+void dsim_reg_set_bist(u32 id, bool en, u32 mode)
 {
 	if (en) {
 		dsim_reg_set_bist_te_interval(id, 4505);
-		dsim_reg_set_bist_mode(id, DSIM_GRAY_GRADATION);
+		dsim_reg_set_bist_mode(id, mode);
 		dsim_reg_enable_bist_pattern_move(id, true);
 	}
 

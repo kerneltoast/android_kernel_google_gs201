@@ -223,7 +223,7 @@ static void dsim_enable(struct drm_encoder *encoder)
 	}
 
 #if defined(DSIM_BIST)
-	dsim_reg_set_bist(dsim->id, true);
+	dsim_reg_set_bist(dsim->id, true, DSIM_GRAY_GRADATION);
 	dsim_dump(dsim);
 #endif
 
@@ -1455,22 +1455,22 @@ static ssize_t bist_mode_store(struct device *dev,
 	if (rc < 0)
 		return rc;
 
-	if (bist_mode >= DSIM_BIST_MODE_MAX) {
-		dsim_err(dsim, "invalid bist mode\n");
-		return -EINVAL;
-	}
-
 	/*
 	 * BIST modes:
 	 * 0: Disable, 1: Color Bar, 2: GRAY Gradient, 3: User-Defined,
 	 * 4: Prbs7 Random
 	 */
+	if (bist_mode > DSIM_BIST_MODE_MAX) {
+		dsim_err(dsim, "invalid bist mode\n");
+		return -EINVAL;
+	}
+
 	bist_en = bist_mode > 0;
 
 	if (bist_en && dsim->state == DSIM_STATE_SUSPEND)
 		dsim_enable(&dsim->encoder);
 
-	dsim_reg_set_bist(dsim->id, bist_mode);
+	dsim_reg_set_bist(dsim->id, bist_en, bist_mode - 1);
 	dsim->bist_mode = bist_mode;
 
 	if (!bist_en && dsim->state == DSIM_STATE_HSCLKEN)
