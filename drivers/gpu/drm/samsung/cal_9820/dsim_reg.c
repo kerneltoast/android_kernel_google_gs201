@@ -1088,17 +1088,16 @@ static void dsim_reg_set_video_mode(u32 id, u32 mode)
 
 static int dsim_reg_wait_idle_status(u32 id, u32 is_vm)
 {
-	u32 val, reg_id;
+	u32 val;
 	int ret;
 
-	if (is_vm)
-		reg_id = DSIM_LINK_STATUS0;
-	else
-		reg_id = DSIM_LINK_STATUS1;
+	if (!is_vm)
+		return 0;
 
-	ret = readl_poll_timeout_atomic(dsim_regs_desc(id)->regs + reg_id, val,
-			is_vm ? !DSIM_LINK_STATUS0_VIDEO_MODE_STATUS_GET(val) :
-			!DSIM_LINK_STATUS1_CMD_MODE_STATUS_GET(val), 10, 2000);
+	ret = readl_poll_timeout_atomic(
+			dsim_regs_desc(id)->regs + DSIM_LINK_STATUS0, val,
+			!DSIM_LINK_STATUS0_VIDEO_MODE_STATUS_GET(val), 10,
+			2000);
 	if (ret) {
 		cal_log_err(id, "dsim%d wait timeout idle status\n", id);
 		return ret;
