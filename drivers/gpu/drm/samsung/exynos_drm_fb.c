@@ -37,6 +37,11 @@
 
 static void exynos_drm_free_buf_object(struct exynos_drm_buf *obj)
 {
+	if (obj->obj) {
+		drm_gem_object_put_unlocked(obj->obj);
+		goto free;
+	}
+
 	if (obj->is_colormap)
 		goto free;
 
@@ -227,12 +232,8 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 				pr_err("failed to look up gem object\n");
 				return ERR_PTR(-ENOENT);
 			}
-			exynos_buf[i]->dmabuf = exynos_gem->dmabuf;
-			exynos_buf[i]->attachment = exynos_gem->attachment;
-			exynos_buf[i]->sgt = exynos_gem->sgt;
+			exynos_buf[i]->obj = &exynos_gem->base;
 			exynos_buf[i]->dma_addr = exynos_gem->dma_addr;
-
-			exynos_drm_gem_put(exynos_gem);
 		}
 	}
 

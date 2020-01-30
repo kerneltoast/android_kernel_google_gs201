@@ -17,6 +17,8 @@
 
 #include <linux/dma-buf.h>
 
+#include "exynos_drm_gem.h"
+
 #define MAX_FB_BUFFER	4
 
 struct exynos_drm_buf {
@@ -26,6 +28,7 @@ struct exynos_drm_buf {
 	dma_addr_t dma_addr;
 	bool is_colormap;
 	u32 color;
+	struct drm_gem_object *obj;
 };
 
 struct exynos_drm_fb {
