@@ -5,5 +5,5 @@ obj-$(CONFIG_TYPEC_WCOVE)	+= typec_wcove.o
 typec_wcove-y			:= wcove.o
 obj-$(CONFIG_TYPEC_TCPCI)	+= tcpci.o
 obj-$(CONFIG_TYPEC_RT1711H)	+= tcpci_rt1711h.o
-obj-$(CONFIG_TYPEC_FUSB307)	+= tcpci_fusb307.o
+obj-$(CONFIG_TYPEC_FUSB307)	+= tcpci_fusb307.o slg46826.o
 obj-$(CONFIG_USB_PSY)		+= usb_psy.o
