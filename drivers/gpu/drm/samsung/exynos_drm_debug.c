@@ -151,7 +151,7 @@ void DPU_EVENT_LOG_ATOMIC_COMMIT(int index)
 			dpp_ch = decon->bts.win_config[i].dpp_ch;
 
 			log->data.atomic.win_config[i].dma_addr =
-				decon->dpp[dpp_ch]->fb.exynos_buf[0]->dma_addr;
+				decon->dpp[dpp_ch]->dbg_dma_addr;
 		}
 	}
 }

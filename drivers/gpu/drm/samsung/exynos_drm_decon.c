@@ -194,7 +194,6 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	struct decon_device *decon = crtc->ctx;
 	struct decon_window_regs win_info;
 	unsigned int zpos;
-	struct exynos_drm_fb *exynos_fb;
 	bool is_colormap = false;
 	u16 hw_alpha;
 
@@ -202,12 +201,10 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	memset(&win_info, 0, sizeof(struct decon_window_regs));
 
-	if (state->base.fb) {
-		exynos_fb = container_of(state->base.fb, struct exynos_drm_fb,
-				fb);
-		is_colormap = exynos_fb->exynos_buf[0]->is_colormap;
-		win_info.colormap = exynos_fb->exynos_buf[0]->color;
-	}
+	is_colormap = state->base.fb &&
+			exynos_drm_fb_is_colormap(state->base.fb);
+	if (is_colormap)
+		win_info.colormap = exynos_drm_fb_dma_addr(state->base.fb, 0);
 
 	win_info.start_pos = win_start_pos(state->crtc.x, state->crtc.y);
 	win_info.end_pos = win_end_pos(state->crtc.x, state->crtc.y,

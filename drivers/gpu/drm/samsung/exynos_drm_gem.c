@@ -22,17 +22,6 @@
 #include <exynos_drm_gem.h>
 #include <exynos_drm_dsim.h>
 
-struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
-					  unsigned int gem_handle)
-{
-	struct drm_gem_object *obj;
-
-	obj = drm_gem_object_lookup(filp, gem_handle);
-	if (!obj)
-		return NULL;
-	return to_exynos_gem(obj);
-}
-
 struct exynos_drm_gem *exynos_drm_gem_alloc(struct drm_device *dev,
 					    size_t size, unsigned int flags)
 {
@@ -83,6 +72,10 @@ static void exynos_drm_gem_unmap(struct exynos_drm_gem *exynos_gem_obj,
 {
 	struct dma_buf_attachment *attach = exynos_gem_obj->base.import_attach;
 
+	/* nothing to do for color map buffers */
+	if (exynos_gem_obj->flags & EXYNOS_DRM_GEM_FLAG_COLORMAP)
+		return;
+
 	if (client)
 		ion_iovmm_unmap(attach, exynos_gem_obj->dma_addr);
 
@@ -115,6 +108,11 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 	struct dma_buf *dmabuf;
 	struct drm_gem_object *obj;
 	int ret;
+
+	if (flags & EXYNOS_DRM_GEM_FLAG_COLORMAP) {
+		pr_err("unsupported color map gem creation\n");
+		return -EINVAL;
+	}
 
 	dmabuf = ion_alloc_dmabuf(heap_name, size, 0);
 	if (IS_ERR_OR_NULL(dmabuf)) {
@@ -270,4 +268,17 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 			      *offset, handle);
 
 	return ret;
+}
+
+void exynos_drm_gem_print_info(struct drm_printer *p, unsigned int indent,
+			       const struct drm_gem_object *obj)
+{
+	struct exynos_drm_gem *exynos_gem_obj = to_exynos_gem(obj);
+	const char *buf_type = NULL;
+
+	if (exynos_gem_obj->flags & EXYNOS_DRM_GEM_FLAG_COLORMAP)
+		buf_type = "colormap";
+
+	if (buf_type)
+		drm_printf_indent(p, indent, "type=%s\n", buf_type);
 }

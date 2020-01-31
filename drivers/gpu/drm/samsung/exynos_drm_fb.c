@@ -17,6 +17,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <uapi/drm/exynos_drm.h>
@@ -34,143 +35,38 @@
 #include <exynos_drm_gem.h>
 #include <exynos_drm_hibernation.h>
 
-#define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
-
-static void exynos_drm_free_buf_object(struct exynos_drm_buf *obj)
-{
-	if (obj->obj) {
-		drm_gem_object_put_unlocked(obj->obj);
-		goto free;
-	}
-
-	if (obj->is_colormap)
-		goto free;
-
-	if (!IS_ERR_VALUE(obj->dma_addr))
-		ion_iovmm_unmap(obj->attachment, obj->dma_addr);
-
-	if (!IS_ERR_OR_NULL(obj->attachment) && !IS_ERR_OR_NULL(obj->sgt))
-		dma_buf_unmap_attachment(obj->attachment, obj->sgt,
-				DMA_TO_DEVICE);
-
-	if (obj->dmabuf && !IS_ERR_OR_NULL(obj->attachment))
-		dma_buf_detach(obj->dmabuf, obj->attachment);
-
-	if (obj->dmabuf)
-		dma_buf_put(obj->dmabuf);
-
-free:
-	kfree(obj);
-}
-
-static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
-{
-	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
-	unsigned int i;
-
-	drm_framebuffer_cleanup(fb);
-
-	for (i = 0; i < ARRAY_SIZE(exynos_fb->exynos_buf); i++) {
-		if (exynos_fb->exynos_buf[i] == NULL)
-			continue;
-
-		exynos_drm_free_buf_object(exynos_fb->exynos_buf[i]);
-	}
-
-	kfree(exynos_fb);
-	exynos_fb = NULL;
-}
-
-static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
-					struct drm_file *file_priv,
-					unsigned int *handle)
-{
-	return 0;
-}
-
 static const struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
-	.destroy	= exynos_drm_fb_destroy,
-	.create_handle	= exynos_drm_fb_create_handle,
+	.destroy	= drm_gem_fb_destroy,
+	.create_handle	= drm_gem_fb_create_handle,
 };
 
 struct drm_framebuffer *
 exynos_drm_framebuffer_init(struct drm_device *dev,
 			    const struct drm_mode_fb_cmd2 *mode_cmd,
-			    struct exynos_drm_buf **exynos_buf,
+			    struct drm_gem_object **obj,
 			    int count)
 {
-	struct exynos_drm_fb *exynos_fb;
+	struct drm_framebuffer *fb;
 	int i;
 	int ret;
 
-	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
-	if (!exynos_fb)
+	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < count; i++) {
-		exynos_fb->exynos_buf[i] = exynos_buf[i];
-		/*
-		 * TODO: buffer handling will be modified in case of
-		 * multi planar
-		 */
-		exynos_fb->dma_addr[i] = exynos_buf[i]->dma_addr
-						+ mode_cmd->offsets[i];
-	}
+	for (i = 0; i < count; i++)
+		fb->obj[i] = obj[i];
 
-	drm_helper_mode_fill_fb_struct(dev, &exynos_fb->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
 
-	ret = drm_framebuffer_init(dev, &exynos_fb->fb, &exynos_drm_fb_funcs);
+	ret = drm_framebuffer_init(dev, fb, &exynos_drm_fb_funcs);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize framebuffer\n");
-		goto err;
+		kfree(fb);
+		return ERR_PTR(ret);
 	}
 
-	return &exynos_fb->fb;
-
-err:
-	kfree(exynos_fb);
-	return ERR_PTR(ret);
-}
-
-int exynos_drm_import_handle(struct exynos_drm_buf *obj, u32 handle,
-		size_t size, struct device *dev)
-{
-	obj->dmabuf = dma_buf_get(handle);
-	if (IS_ERR_OR_NULL(obj->dmabuf)) {
-		pr_debug("failed to get dma_buf:%ld from ion handle\n",
-				PTR_ERR(obj->dmabuf));
-		return PTR_ERR(obj->dmabuf);
-	}
-
-	DRM_DEBUG("%s:%d, dma_buf->size(%lu)\n", __func__, __LINE__,
-			obj->dmabuf->size);
-
-	obj->attachment = dma_buf_attach(obj->dmabuf, dev);
-	if (IS_ERR_OR_NULL(obj->attachment)) {
-		DRM_ERROR("dma_buf_attach() failed: %ld\n",
-				PTR_ERR(obj->attachment));
-		return PTR_ERR(obj->attachment);
-	}
-
-	obj->sgt = dma_buf_map_attachment(obj->attachment, DMA_TO_DEVICE);
-	if (IS_ERR_OR_NULL(obj->sgt)) {
-		DRM_ERROR("dma_buf_map_attachment() failed: %ld\n",
-				PTR_ERR(obj->sgt));
-		return PTR_ERR(obj->sgt);
-	}
-
-	/* This is DVA(Device Virtual Address) for setting base address SFR */
-	obj->dma_addr = ion_iovmm_map(obj->attachment, 0, size, DMA_TO_DEVICE,
-			0);
-	if (IS_ERR_VALUE(obj->dma_addr)) {
-		DRM_ERROR("ion_iovmm_map() failed: %pa\n", &obj->dma_addr);
-		return -EINVAL;
-	}
-
-	DRM_DEBUG("%s:%d, handle(%d), DVA(0x%llx)\n", __func__, __LINE__,
-			handle, obj->dma_addr);
-
-	return 0;
+	return fb;
 }
 
 #define Y_SIZE_8P2(w, h)	(NV12N_10B_Y_8B_SIZE(w, h) +		\
@@ -182,9 +78,8 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		      const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	const struct drm_format_info *info = drm_get_format_info(dev, mode_cmd);
-	struct exynos_drm_buf *exynos_buf[MAX_FB_BUFFER];
-	struct exynos_drm_gem *exynos_gem = NULL;
-	struct exynos_drm_private *priv = dev->dev_private;
+	struct drm_gem_object *obj[MAX_FB_BUFFER] = { 0 };
+	struct drm_framebuffer *fb;
 	u32 height;
 	size_t size;
 	int i;
@@ -192,17 +87,10 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 	DRM_DEBUG("%s +\n", __func__);
 
-	for (i = 0; i < MAX_FB_BUFFER; i++)
-		exynos_buf[i] = NULL;
+	if (unlikely(info->num_planes > MAX_FB_BUFFER))
+		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < info->num_planes; i++) {
-		exynos_buf[i] = kzalloc(sizeof(struct exynos_drm_buf),
-				GFP_KERNEL);
-		if (!exynos_buf[i]) {
-			pr_err("failed to allocate exynos_buf\n");
-			return ERR_PTR(-ENOMEM);
-		}
-
 		height = (i == 0) ? mode_cmd->height :
 				     DIV_ROUND_UP(mode_cmd->height, info->vsub);
 		size = height * mode_cmd->pitches[i] + mode_cmd->offsets[i];
@@ -217,24 +105,33 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 						mode_cmd->height);
 		}
 
-		exynos_buf[i]->is_colormap = false;
 		if (mode_cmd->modifier[i] == DRM_FORMAT_MOD_SAMSUNG_COLORMAP) {
-			exynos_buf[i]->is_colormap = true;
-			exynos_buf[i]->color = mode_cmd->handles[i];
+			struct exynos_drm_gem *exynos_gem;
+
+			exynos_gem = exynos_drm_gem_alloc(dev, 0,
+						EXYNOS_DRM_GEM_FLAG_COLORMAP);
+			if (IS_ERR(exynos_gem)) {
+				DRM_ERROR("failed to create colormap gem\n");
+				ret = PTR_ERR(exynos_gem);
+				goto err;
+			}
+
+			exynos_gem->dma_addr = mode_cmd->handles[i];
+			obj[i] = &exynos_gem->base;
 			continue;
 		}
 
-		ret = exynos_drm_import_handle(exynos_buf[i],
-				mode_cmd->handles[i], size, priv->iommu_client);
-		if (ret) {
-			exynos_gem = exynos_drm_gem_get(file_priv,
-					mode_cmd->handles[i]);
-			if (!exynos_gem) {
-				pr_err("failed to look up gem object\n");
-				return ERR_PTR(-ENOENT);
-			}
-			exynos_buf[i]->obj = &exynos_gem->base;
-			exynos_buf[i]->dma_addr = exynos_gem->dma_addr;
+		obj[i] = drm_gem_object_lookup(file_priv, mode_cmd->handles[i]);
+		if (!obj[i]) {
+			DRM_ERROR("failed to lookup gem object\n");
+			ret = -ENOENT;
+			goto err;
+		}
+
+		if (size > obj[i]->size) {
+			i++;
+			ret = -EINVAL;
+			goto err;
 		}
 	}
 
@@ -243,7 +140,20 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	DRM_DEBUG("offset(%d), handle(%d), size(%lu)\n", mode_cmd->offsets[0],
 			mode_cmd->handles[0], size);
 
-	return exynos_drm_framebuffer_init(dev, mode_cmd, exynos_buf, i);
+	fb = exynos_drm_framebuffer_init(dev, mode_cmd, obj, i);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
+		goto err;
+	}
+
+	return fb;
+
+err:
+	while (i--)
+		drm_gem_object_put_unlocked(obj[i]);
+
+	return ERR_PTR(ret);
+
 }
 
 static const struct drm_format_info *
@@ -265,16 +175,19 @@ exynos_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
 	return NULL;
 }
 
-dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index)
+dma_addr_t exynos_drm_fb_dma_addr(const struct drm_framebuffer *fb, int index)
 {
-	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
+	const struct exynos_drm_gem *exynos_gem;
 
-	if (WARN_ON_ONCE(index >= MAX_FB_BUFFER))
+	if (WARN_ON_ONCE(index >= MAX_FB_BUFFER) || !fb->obj[index])
 		return 0;
 
-	DRM_DEBUG("%s:%d, dma_addr[%d] = 0x%llx\n", __func__, __LINE__,
-			index, exynos_fb->dma_addr[index]);
-	return exynos_fb->dma_addr[index];
+	exynos_gem = to_exynos_gem(fb->obj[index]);
+
+	DRM_DEBUG("%s:%d, dma_addr[%d] = 0x%llx (+%llx)\n", __func__, __LINE__,
+			index, exynos_gem->dma_addr, fb->offsets[index]);
+
+	return exynos_gem->dma_addr + fb->offsets[index];
 }
 
 void plane_state_to_win_config(struct decon_device *decon,
@@ -282,8 +195,6 @@ void plane_state_to_win_config(struct decon_device *decon,
 {
 	struct dpu_bts_win_config *win_config;
 	const struct drm_framebuffer *fb = state->base.fb;
-	const struct exynos_drm_fb *exynos_fb =
-				container_of(fb, struct exynos_drm_fb, fb);
 	int zpos;
 	unsigned int simplified_rot;
 
@@ -306,7 +217,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	else
 		win_config->is_comp = false;
 
-	if (exynos_fb->exynos_buf[0]->is_colormap)
+	if (exynos_drm_fb_is_colormap(fb))
 		win_config->state = DPU_WIN_STATE_COLOR;
 	else
 		win_config->state = DPU_WIN_STATE_BUFFER;
@@ -326,7 +237,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	if (simplified_rot & DRM_MODE_ROTATE_90)
 		win_config->is_rot = true;
 
-	memcpy(&decon->dpp[plane_idx]->fb, exynos_fb, sizeof(*exynos_fb));
+	decon->dpp[plane_idx]->dbg_dma_addr = exynos_drm_fb_dma_addr(fb, 0);
 
 	DRM_DEBUG("src[%d %d %d %d], dst[%d %d %d %d]\n",
 			win_config->src_x, win_config->src_y,
@@ -410,9 +321,7 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 			for (j = 0; j < max_planes; ++j) {
 				decon[id]->bts.win_config[j].state =
 					DPU_WIN_STATE_DISABLED;
-
-				memset(&decon[id]->dpp[i]->fb, 0,
-						sizeof(struct exynos_drm_fb));
+				decon[id]->dpp[i]->dbg_dma_addr = 0;
 			}
 		}
 	}

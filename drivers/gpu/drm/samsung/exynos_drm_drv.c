@@ -108,6 +108,7 @@ static struct drm_driver exynos_drm_driver = {
 	.prime_fd_to_handle	  = drm_gem_prime_fd_to_handle,
 	.gem_prime_import	  = exynos_drm_gem_prime_import,
 	.gem_prime_import_sg_table = exynos_drm_gem_prime_import_sg_table,
+	.gem_print_info		  = exynos_drm_gem_print_info,
 	.fops			  = &exynos_drm_driver_fops,
 	.name			  = DRIVER_NAME,
 	.desc			  = DRIVER_DESC,

@@ -21,23 +21,14 @@
 
 #define MAX_FB_BUFFER	4
 
-struct exynos_drm_buf {
-	struct dma_buf *dmabuf;
-	struct dma_buf_attachment *attachment;
-	struct sg_table *sgt;
-	dma_addr_t dma_addr;
-	bool is_colormap;
-	u32 color;
-	struct drm_gem_object *obj;
-};
+static inline bool exynos_drm_fb_is_colormap(const struct drm_framebuffer *fb)
+{
+	const struct exynos_drm_gem *exynos_gem = to_exynos_gem(fb->obj[0]);
 
-struct exynos_drm_fb {
-	struct drm_framebuffer fb;
-	dma_addr_t dma_addr[MAX_FB_BUFFER];
-	struct exynos_drm_buf *exynos_buf[MAX_FB_BUFFER];
-};
+	return (exynos_gem->flags & EXYNOS_DRM_GEM_FLAG_COLORMAP) != 0;
+}
 
-dma_addr_t exynos_drm_fb_dma_addr(struct drm_framebuffer *fb, int index);
+dma_addr_t exynos_drm_fb_dma_addr(const struct drm_framebuffer *fb, int index);
 
 void exynos_drm_mode_config_init(struct drm_device *dev);
 

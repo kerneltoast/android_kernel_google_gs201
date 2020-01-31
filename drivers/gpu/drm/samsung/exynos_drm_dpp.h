@@ -15,7 +15,6 @@
 #define _EXYNOS_DRM_DPP_H_
 
 #include <exynos_drm_drv.h>
-#include <exynos_drm_fb.h>
 
 #include <dpp_cal.h>
 
@@ -119,7 +118,11 @@ struct dpp_device {
 				const struct exynos_drm_plane_state *state);
 	int (*disable)(struct dpp_device *this_dpp);
 
-	struct exynos_drm_fb fb;
+	/*
+	 * this dma_addr is used for debugging purposes only, should look at
+	 * plane->state->fb for current framebuffer instead
+	 */
+	dma_addr_t dbg_dma_addr;
 	struct exynos_drm_plane plane;
 };
 
