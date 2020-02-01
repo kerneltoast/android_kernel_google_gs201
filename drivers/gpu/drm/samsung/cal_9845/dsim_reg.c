@@ -2065,6 +2065,7 @@ void dsim_reg_start(u32 id)
 {
 	dsim_reg_set_hs_clock(id, 1);
 	dsim_reg_set_int(id, 1);
+	dsim_reg_clear_int(id, 0xffffffff);
 }
 
 /* Unset clocks and lanes and stop_state */
