@@ -808,6 +808,7 @@ static int decon_register_irqs(struct decon_device *decon)
 		decon->irq_te = gpio_to_irq(gpio);
 
 		decon_info(decon, "TE irq number(%d)\n", decon->irq_te);
+		irq_set_status_flags(decon->irq_te, IRQ_DISABLE_UNLAZY);
 		ret = devm_request_irq(dev, decon->irq_te, decon_te_irq_handler,
 				IRQF_TRIGGER_RISING, pdev->name, decon);
 		disable_irq(decon->irq_te);
