@@ -168,6 +168,7 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 	struct decon_device *decon = crtc->ctx;
 
 	decon_dbg(decon, "%s +\n", __func__);
+	DPU_EVENT_LOG(DPU_EVT_ATOMIC_BEGIN, decon->id, NULL);
 	decon_reg_wait_update_done_and_mask(decon->id, &decon->config.mode,
 			SHADOW_UPDATE_TIMEOUT_US);
 
@@ -268,7 +269,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 	decon_dbg(decon, "%s +\n", __func__);
 	decon_reg_all_win_shadow_update_req(decon->id);
 	decon_reg_start(decon->id, &decon->config);
-	DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_UNMASK, decon->id, decon);
+	DPU_EVENT_LOG(DPU_EVT_ATOMIC_FLUSH, decon->id, NULL);
 	decon_dbg(decon, "%s -\n", __func__);
 }
 

@@ -467,10 +467,13 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 			}
 
 			if (decon[id]->config.mode.op_mode ==
-					DECON_MIPI_COMMAND_MODE)
+					DECON_MIPI_COMMAND_MODE) {
+				DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_MASK,
+						decon[id]->id, NULL);
 				decon_reg_set_trigger(decon[id]->id,
 						&decon[id]->config.mode,
 						DECON_TRIG_MASK);
+			}
 
 			if (IS_ENABLED(CONFIG_EXYNOS_BTS))
 				decon[id]->bts.ops->bts_update_bw(decon[i],

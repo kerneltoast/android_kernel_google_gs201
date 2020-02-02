@@ -924,8 +924,11 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 	}
 	if (int_src & DSIM_INTSRC_RX_DATA_DONE)
 		complete(&dsim->rd_comp);
-	if (int_src & DSIM_INTSRC_FRAME_DONE)
+	if (int_src & DSIM_INTSRC_FRAME_DONE) {
 		dsim_dbg(dsim, "dsim%d framedone irq occurs\n", dsim->id);
+		if (decon)
+			DPU_EVENT_LOG(DPU_EVT_DSIM_FRAMEDONE, decon->id, NULL);
+	}
 	if (int_src & DSIM_INTSRC_ERR_RX_ECC)
 		dsim_err(dsim, "RX ECC Multibit error was detected!\n");
 

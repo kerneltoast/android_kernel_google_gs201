@@ -66,10 +66,14 @@ static void exynos_hibernation_enter(struct exynos_hibernation *hiber)
 	if (decon->state != DECON_STATE_ON)
 		goto ret;
 
+	DPU_EVENT_LOG(DPU_EVT_ENTER_HIBERNATION_IN, decon->id, NULL);
+
 	decon_enter_hibernation(decon);
 	dsim_enter_ulps(dsim);
 
 	pm_runtime_put_sync(decon->dev);
+
+	DPU_EVENT_LOG(DPU_EVT_ENTER_HIBERNATION_OUT, decon->id, NULL);
 
 ret:
 	hibernation_unblock(hiber);
@@ -103,12 +107,16 @@ static void exynos_hibernation_exit(struct exynos_hibernation *hiber)
 	if (decon->state != DECON_STATE_HIBERNATION)
 		goto ret;
 
+	DPU_EVENT_LOG(DPU_EVT_EXIT_HIBERNATION_IN, decon->id, NULL);
+
 	pm_runtime_get_sync(decon->dev);
 
 	dsim_exit_ulps(dsim);
 	decon_exit_hibernation(decon);
 
 	exynos_hibernation_trig_reset(hiber);
+
+	DPU_EVENT_LOG(DPU_EVT_EXIT_HIBERNATION_OUT, decon->id, NULL);
 
 ret:
 	mutex_unlock(&hiber->lock);

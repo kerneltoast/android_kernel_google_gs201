@@ -133,19 +133,28 @@ enum dpu_event_type {
 	DPU_EVT_DECON_DISABLED,
 	DPU_EVT_DECON_FRAMEDONE,
 	DPU_EVT_DECON_FRAMESTART,
-	DPU_EVT_DECON_TRIG_UNMASK,
 	DPU_EVT_DECON_RSC_OCCUPANCY,
+	DPU_EVT_DECON_TRIG_MASK,
 
 	DPU_EVT_DSIM_ENABLED,
 	DPU_EVT_DSIM_DISABLED,
 	DPU_EVT_DSIM_COMMAND,
 	DPU_EVT_DSIM_UNDERRUN,
+	DPU_EVT_DSIM_FRAMEDONE,
 
 	DPU_EVT_DPP_FRAMEDONE,
 	DPU_EVT_DMA_RECOVERY,
 
 	DPU_EVT_ATOMIC_COMMIT,
 	DPU_EVT_TE_INTERRUPT,
+
+	DPU_EVT_ENTER_HIBERNATION_IN,
+	DPU_EVT_ENTER_HIBERNATION_OUT,
+	DPU_EVT_EXIT_HIBERNATION_IN,
+	DPU_EVT_EXIT_HIBERNATION_OUT,
+
+	DPU_EVT_ATOMIC_BEGIN,
+	DPU_EVT_ATOMIC_FLUSH,
 
 	DPU_EVT_MAX, /* End of EVENT */
 };
@@ -177,6 +186,11 @@ struct dpu_log_atomic {
 	struct decon_win_config win_config[MAX_WIN_PER_DECON];
 };
 
+/* Event log structure for DPU power domain status */
+struct dpu_log_pd {
+	bool rpm_active;
+};
+
 struct dpu_log {
 	ktime_t time;
 	enum dpu_event_type type;
@@ -186,6 +200,7 @@ struct dpu_log {
 		struct dpu_log_atomic atomic;
 		struct dpu_log_dsim_cmd cmd;
 		struct dpu_log_rsc_occupancy rsc;
+		struct dpu_log_pd pd;
 	} data;
 };
 

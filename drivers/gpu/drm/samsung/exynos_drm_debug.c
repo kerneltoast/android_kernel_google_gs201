@@ -12,6 +12,7 @@
 
 #include <linux/ktime.h>
 #include <linux/debugfs.h>
+#include <linux/pm_runtime.h>
 #include <video/mipi_display.h>
 #include <drm/drmP.h>
 
@@ -99,6 +100,13 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 	case DPU_EVT_DECON_RSC_OCCUPANCY:
 		log->data.rsc.rsc_ch = decon_reg_get_rsc_ch(decon->id);
 		log->data.rsc.rsc_win = decon_reg_get_rsc_win(decon->id);
+		break;
+
+	case DPU_EVT_ENTER_HIBERNATION_IN:
+	case DPU_EVT_ENTER_HIBERNATION_OUT:
+	case DPU_EVT_EXIT_HIBERNATION_IN:
+	case DPU_EVT_EXIT_HIBERNATION_OUT:
+		log->data.pd.rpm_active = pm_runtime_active(decon->dev);
 		break;
 	default:
 		break;
@@ -297,8 +305,8 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 		case DPU_EVT_DECON_FRAMESTART:
 			seq_printf(s, "%20s  %20s", "DECON_FRAMESTART", "-\n");
 			break;
-		case DPU_EVT_DECON_TRIG_UNMASK:
-			seq_printf(s, "%20s  %20s", "TRIG_UNMASK", "-\n");
+		case DPU_EVT_DECON_TRIG_MASK:
+			seq_printf(s, "%20s  %20s", "DECON_TRIG_MASK", "-\n");
 			break;
 		case DPU_EVT_DECON_RSC_OCCUPANCY:
 			seq_printf(s, "%20s  ", "RSC_OCCUPANCY");
@@ -314,6 +322,12 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 			seq_printf(s, "%20s  ", "DSIM_COMMAND");
 			seq_printf(s, "\tCMD_ID: 0x%x\tDATA[0]: 0x%x\n",
 					log->data.cmd.id, log->data.cmd.buf);
+			break;
+		case DPU_EVT_DSIM_UNDERRUN:
+			seq_printf(s, "%20s  %20s", "DSIM_UNDERRUN", "-\n");
+			break;
+		case DPU_EVT_DSIM_FRAMEDONE:
+			seq_printf(s, "%20s  %20s", "DSIM_FRAMEDONE", "-\n");
 			break;
 		case DPU_EVT_TE_INTERRUPT:
 			seq_printf(s, "%20s  %20s", "TE", "-\n");
@@ -332,6 +346,32 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 		case DPU_EVT_ATOMIC_COMMIT:
 			seq_printf(s, "%20s  %20s", "ATOMIC_COMMIT", "-\n");
 			dpu_print_log_atomic(s, &log->data.atomic);
+			break;
+		case DPU_EVT_ATOMIC_BEGIN:
+			seq_printf(s, "%20s  %20s", "ATOMIC_BEGIN", "-\n");
+			break;
+		case DPU_EVT_ATOMIC_FLUSH:
+			seq_printf(s, "%20s  %20s", "ATOMIC_FLUSH", "-\n");
+			break;
+		case DPU_EVT_ENTER_HIBERNATION_IN:
+			seq_printf(s, "%20s  ", "ENTER_HIBERNATION_IN");
+			seq_printf(s, "\tDPU POWER %s\n",
+					log->data.pd.rpm_active ? "ON" : "OFF");
+			break;
+		case DPU_EVT_ENTER_HIBERNATION_OUT:
+			seq_printf(s, "%20s  ", "ENTER_HIBERNATION_OUT");
+			seq_printf(s, "\tDPU POWER %s\n",
+					log->data.pd.rpm_active ? "ON" : "OFF");
+			break;
+		case DPU_EVT_EXIT_HIBERNATION_IN:
+			seq_printf(s, "%20s  ", "EXIT_HIBERNATION_IN");
+			seq_printf(s, "\tDPU POWER %s\n",
+					log->data.pd.rpm_active ? "ON" : "OFF");
+			break;
+		case DPU_EVT_EXIT_HIBERNATION_OUT:
+			seq_printf(s, "%20s  ", "EXIT_HIBERNATION_OUT");
+			seq_printf(s, "\tDPU POWER %s\n",
+					log->data.pd.rpm_active ? "ON" : "OFF");
 			break;
 		default:
 			seq_printf(s, "%20s  (%2d)\n", "NO_DEFINED", log->type);
