@@ -67,7 +67,6 @@ enum dpp_comp_type {
 	COMP_TYPE_NONE = 0,
 	COMP_TYPE_AFBC,
 	COMP_TYPE_SBWC,
-	COMP_TYPE_CSET,
 };
 
 struct dpp_regs {
@@ -145,13 +144,11 @@ struct dpp_params_info {
 	enum dpp_hdr_standard hdr;
 	u32 min_luminance;
 	u32 max_luminance;
-	bool is_4p;
-	u32 y_2b_strd;
-	u32 c_2b_strd;
-	u32 chd_strd;
-	u32 cpl_strd;
+	u32 y_hd_y2_stride; /* Luminance header (or Y-2B) stride */
+	u32 y_pl_c2_stride; /* Luminance payload (or C-2B) stride */
+	u32 c_hd_stride;    /* Chrominance header stride */
+	u32 c_pl_stride;    /* Chrominance payload stride */
 
-	bool is_comp;
 	bool is_scale;
 	bool is_block;
 	u32 format;
@@ -179,6 +176,9 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 /* DPU_DMA, DPP DEBUG */
 void __dpp_dump(u32 id, void __iomem *regs, void __iomem *dma_regs,
 		unsigned long attr);
+
+/* DPP hw limitation check */
+int __dpp_check(u32 id, const struct dpp_params_info *p, unsigned long attr);
 
 /* DPU_DMA and DPP interrupt handler */
 u32 dpp_reg_get_irq_and_clear(u32 id);

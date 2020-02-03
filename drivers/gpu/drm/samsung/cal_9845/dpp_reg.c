@@ -206,34 +206,18 @@ static void idma_reg_set_test_pattern(u32 id, u32 pat_id, const u32 *pat_dat)
 }
 #endif
 
-static void idma_reg_set_afbc(u32 id, enum dpp_comp_type ct, u32 rcv_num)
+static void idma_reg_set_comp(u32 id, enum dpp_comp_type comp_type, u32 rcv_num)
 {
-	u32 afbc_en = 0;
-	u32 rcv_en = 0;
+	const u32 mask = IDMA_SBWC_EN | IDMA_AFBC_EN;
+	u32 val = 0;
 
-	if (ct == COMP_TYPE_AFBC)
-		afbc_en = IDMA_AFBC_EN;
-	if (ct != COMP_TYPE_NONE)
-		rcv_en = IDMA_RECOVERY_EN;
+	if (comp_type == COMP_TYPE_SBWC)
+		val = IDMA_SBWC_EN;
+	else if (comp_type == COMP_TYPE_AFBC)
+		val = IDMA_AFBC_EN;
 
-	dma_write_mask(id, RDMA_IN_CTRL_0, afbc_en, IDMA_AFBC_EN);
-	dma_write_mask(id, RDMA_RECOVERY_CTRL, rcv_en, IDMA_RECOVERY_EN);
-	dma_write_mask(id, RDMA_RECOVERY_CTRL, IDMA_RECOVERY_NUM(rcv_num),
-				IDMA_RECOVERY_NUM_MASK);
-}
-
-static void idma_reg_set_sbwc(u32 id, enum dpp_comp_type ct, u32 rcv_num)
-{
-	u32 sbwc_en = 0;
-	u32 rcv_en = 0;
-
-	if (ct == COMP_TYPE_SBWC)
-		sbwc_en = IDMA_SBWC_EN;
-	if (ct != COMP_TYPE_NONE)
-		rcv_en = IDMA_RECOVERY_EN;
-
-	dma_write_mask(id, RDMA_IN_CTRL_0, sbwc_en, IDMA_SBWC_EN);
-	dma_write_mask(id, RDMA_RECOVERY_CTRL, rcv_en, IDMA_RECOVERY_EN);
+	dma_write_mask(id, RDMA_IN_CTRL_0, val, mask);
+	dma_write_mask(id, RDMA_RECOVERY_CTRL, val ? ~0 : 0, IDMA_RECOVERY_EN);
 	dma_write_mask(id, RDMA_RECOVERY_CTRL, IDMA_RECOVERY_NUM(rcv_num),
 				IDMA_RECOVERY_NUM_MASK);
 }
@@ -767,10 +751,10 @@ static void dpp_reg_print_irqs_msg(u32 id, u32 irqs)
  * Y2 : (SBWC disable - Y2 base), (SBWC enable - C header)
  * C2 : (SBWC disable - C2 base), (SBWC enable - C payload)
  *
- * PLANE_0_STRIDE : Y-HD (or Y-2B) stride -> y_2b_strd
- * PLANE_1_STRIDE : Y-PL (or C-2B) stride -> c_2b_strd
- * PLANE_2_STRIDE : C-HD stride           -> chd_strd
- * PLANE_3_STRIDE : C-PL stride           -> cpl_strd
+ * PLANE_0_STRIDE : Y-HD (or Y-2B) stride -> y_hd_y2_stride
+ * PLANE_1_STRIDE : Y-PL (or C-2B) stride -> y_pl_c2_stride
+ * PLANE_2_STRIDE : C-HD stride           -> c_hd_stride
+ * PLANE_3_STRIDE : C-PL stride           -> c_pl_stride
  *
  * [ MFC encoder: buffer for SBWC - similar to 8+2 ]
  * plane[0] fd : Y payload(base addr) + Y header => Y header calc.
@@ -786,44 +770,45 @@ static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 		else
 			dma_write(id, RDMA_BASEADDR_C8, p->addr[1]);
 
-		if (p->is_4p) {		/* use 4 base addresses */
+		/* use 4 base addresses */
+		if (p->comp_type == COMP_TYPE_SBWC) {
 			dma_write(id, RDMA_BASEADDR_Y2, p->addr[2]);
 			dma_write(id, RDMA_BASEADDR_C2, p->addr[3]);
 			dma_write_mask(id, RDMA_SRC_STRIDE_1,
-					IDMA_STRIDE_0(p->y_2b_strd),
+					IDMA_STRIDE_0(p->y_hd_y2_stride),
 					IDMA_STRIDE_0_MASK);
 			dma_write_mask(id, RDMA_SRC_STRIDE_1,
-					IDMA_STRIDE_1(p->c_2b_strd),
+					IDMA_STRIDE_1(p->y_pl_c2_stride),
 					IDMA_STRIDE_1_MASK);
 
 			/* C-stride of SBWC: valid if STRIDE_SEL is enabled */
 			dma_write_mask(id, RDMA_SRC_STRIDE_2,
-					IDMA_STRIDE_2(p->chd_strd),
+					IDMA_STRIDE_2(p->c_hd_stride),
 					IDMA_STRIDE_2_MASK);
 			dma_write_mask(id, RDMA_SRC_STRIDE_2,
-					IDMA_STRIDE_3(p->cpl_strd),
+					IDMA_STRIDE_3(p->c_pl_stride),
 					IDMA_STRIDE_3_MASK);
 		}
 	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
 		dma_write(id, WDMA_BASEADDR_Y8, p->addr[0]);
 		dma_write(id, WDMA_BASEADDR_C8, p->addr[1]);
 
-		if (p->is_4p) {
+		if (p->comp_type == COMP_TYPE_SBWC) {
 			dma_write(id, WDMA_BASEADDR_Y2, p->addr[2]);
 			dma_write(id, WDMA_BASEADDR_C2, p->addr[3]);
 			dma_write_mask(id, WDMA_STRIDE_1,
-					ODMA_STRIDE_0(p->y_2b_strd),
+					ODMA_STRIDE_0(p->y_hd_y2_stride),
 					ODMA_STRIDE_0_MASK);
 			dma_write_mask(id, WDMA_STRIDE_1,
-					ODMA_STRIDE_1(p->c_2b_strd),
+					ODMA_STRIDE_1(p->y_pl_c2_stride),
 					ODMA_STRIDE_1_MASK);
 
 			/* C-stride of SBWC: valid if STRIDE_SEL is enabled */
 			dma_write_mask(id, WDMA_STRIDE_2,
-					ODMA_STRIDE_2(p->chd_strd),
+					ODMA_STRIDE_2(p->c_hd_stride),
 					ODMA_STRIDE_2_MASK);
 			dma_write_mask(id, WDMA_STRIDE_2,
-					ODMA_STRIDE_3(p->cpl_strd),
+					ODMA_STRIDE_3(p->c_pl_stride),
 					ODMA_STRIDE_3_MASK);
 		}
 	}
@@ -832,11 +817,9 @@ static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 			(unsigned long)p->addr[0], (unsigned long)p->addr[1],
 			(unsigned long)p->addr[2], (unsigned long)p->addr[3]);
 	if (p->comp_type == COMP_TYPE_SBWC)
-		cal_log_debug(id, "[stride] y(0x%lx 0x%lx) c(0x%lx 0x%lx)\n",
-			(unsigned long)p->y_2b_strd,
-			(unsigned long)p->c_2b_strd,
-			(unsigned long)p->chd_strd,
-			(unsigned long)p->cpl_strd);
+		cal_log_debug(id, "[stride] y(0x%x 0x%x) c(0x%x 0x%x)\n",
+			p->y_hd_y2_stride, p->y_pl_c2_stride, p->c_hd_stride,
+			p->c_pl_stride);
 }
 
 /********** IDMA, ODMA, DPP and WB MUX combination CAL functions **********/
@@ -1017,11 +1000,8 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 	if (test_bit(DPP_ATTR_HDR, &attr))
 		dpp_reg_set_hdr_params(id, p);
 
-	if (test_bit(DPP_ATTR_AFBC, &attr))
-		idma_reg_set_afbc(id, p->comp_type, p->rcv_num);
-
-	if (test_bit(DPP_ATTR_SBWC, &attr))
-		idma_reg_set_sbwc(id, p->comp_type, p->rcv_num);
+	if (test_bit(DPP_ATTR_AFBC, &attr) || test_bit(DPP_ATTR_SBWC, &attr))
+		idma_reg_set_comp(id, p->comp_type, p->rcv_num);
 
 	/*
 	 * To check HW stuck
@@ -1191,4 +1171,43 @@ void __dpp_dump(u32 id, void __iomem *regs, void __iomem *dma_regs,
 
 	dpp_dump_regs(id, regs, attr);
 	dpp_reg_dump_debug_regs(id);
+}
+
+int __dpp_check(u32 id, const struct dpp_params_info *p, unsigned long attr)
+{
+	const struct dpu_fmt *fmt = dpu_find_fmt_info(p->format);
+
+	if (p->comp_type == COMP_TYPE_SBWC) {
+		if (!test_bit(DPP_ATTR_SBWC, &attr)) {
+			cal_log_err(id, "SBWC is not supported\n");
+			return -EINVAL;
+		}
+
+		if (IS_RGB(fmt)) {
+			cal_log_err(id, "SBWC + RGB format is not supported\n");
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * In user's manual, GS101 doesn't support RGBA1010102 and BGRA1010102
+	 * for AFBC. But ARGB2101010 and ABGR2101010 are restricted in
+	 * drm driver. Because big endian is used in user's manual, but little
+	 * endian is used in drm driver for RGB format definition.
+	 */
+	if (p->comp_type == COMP_TYPE_AFBC) {
+		if (!test_bit(DPP_ATTR_AFBC, &attr)) {
+			cal_log_err(id, "AFBC is not supported\n");
+			return -EINVAL;
+		}
+
+		if (fmt->fmt == DRM_FORMAT_ARGB2101010 ||
+				fmt->fmt == DRM_FORMAT_ABGR2101010) {
+			cal_log_err(id, "AFBC + ARGB2101010, ABGR2101010 ",
+					"is not supported\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }
