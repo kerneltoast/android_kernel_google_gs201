@@ -585,6 +585,10 @@ static void decon_reg_set_ewr_control(u32 id, u32 cnt, u32 en)
 	decon_reg_set_ewr_enable(id, en);
 }
 #endif
+static void decon_reg_update_req_compress(u32 id)
+{
+	decon_write_mask(id, SHD_REG_UP_REQ, ~0, SHD_REG_UP_REQ_CMP);
+}
 
 static void dsc_reg_swreset(u32 dsc_id)
 {
@@ -722,7 +726,7 @@ static void dsc_reg_config_control(u32 dsc_id, u32 ds_en, u32 sm_ch,
 	val |= DSC_DUAL_SLICE_EN_F(ds_en);
 	val |= DSC_SLICE_MODE_CH_F(sm_ch);
 	val |= DSC_FLATNESS_DET_TH_F(0x2);
-	dsc_write(DSC_CONTROL0(dsc_id), val);
+	dsc_write(DSC_CONTROL1(dsc_id), val);
 
 	remainder = slice_width % 3 ? : 3;
 	grpcntline = (slice_width + 2) / 3;
@@ -1192,6 +1196,7 @@ static int dsc_reg_init(u32 id, struct decon_config *config, u32 overlap_w,
 	decon_reg_config_data_path_size(id, dsc_enc.width_per_enc,
 			config->image_height, overlap_w, &dsc_enc,
 			&config->dsc);
+	decon_reg_update_req_compress(id);
 
 	return 0;
 }
@@ -1822,6 +1827,8 @@ void decon_reg_set_partial_update(u32 id, struct decon_config *config,
 		if (config->dsc.dsc_count == 2)
 			dsc_reg_set_partial_update(1, dual_slice_en[1],
 					slice_mode_ch[1], partial_h);
+
+		decon_reg_update_req_compress(id);
 	}
 
 	decon_reg_set_data_path_size(id, partial_w, partial_h,
