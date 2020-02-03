@@ -197,7 +197,7 @@ static void idma_reg_set_test_pattern(u32 id, u32 pat_id, u32 *pat_dat)
 }
 #endif
 
-static void idma_reg_set_afbc(u32 id, u32 en, u32 rcv_num)
+static void idma_reg_set_afbc(u32 id, bool en, u32 rcv_num)
 {
 	u32 val = en ? ~0 : 0;
 
@@ -845,7 +845,7 @@ static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 
 	if (test_bit(DPP_ATTR_IDMA, &attr)) {
 		dma_write(id, IDMA_IN_BASE_ADDR_Y8, p->addr[0]);
-		if (p->is_comp)
+		if (p->comp_type == COMP_TYPE_AFBC)
 			dma_write(id, IDMA_IN_BASE_ADDR_C8, p->addr[0]);
 		else
 			dma_write(id, IDMA_IN_BASE_ADDR_C8, p->addr[1]);
@@ -854,11 +854,11 @@ static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 			dma_write(id, IDMA_IN_BASE_ADDR_Y2, p->addr[2]);
 			dma_write(id, IDMA_IN_BASE_ADDR_C2, p->addr[3]);
 			dma_write_mask(id, IDMA_2BIT_STRIDE,
-					IDMA_LUMA_2B_STRIDE(p->y_2b_strd),
-					IDMA_LUMA_2B_STRIDE_MASK);
+				IDMA_LUMA_2B_STRIDE(p->y_hd_y2_stride),
+				IDMA_LUMA_2B_STRIDE_MASK);
 			dma_write_mask(id, IDMA_2BIT_STRIDE,
-					IDMA_CHROMA_2B_STRIDE(p->c_2b_strd),
-					IDMA_CHROMA_2B_STRIDE_MASK);
+				IDMA_CHROMA_2B_STRIDE(p->y_pl_c2_stride),
+				IDMA_CHROMA_2B_STRIDE_MASK);
 		}
 	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
 		dma_write(id, ODMA_IN_BASE_ADDR_Y8, p->addr[0]);
@@ -868,11 +868,11 @@ static void dma_reg_set_base_addr(u32 id, struct dpp_params_info *p,
 			dma_write(id, ODMA_IN_BASE_ADDR_Y2, p->addr[2]);
 			dma_write(id, ODMA_IN_BASE_ADDR_C2, p->addr[3]);
 			dma_write_mask(id, ODMA_2BIT_STRIDE,
-					ODMA_LUMA_2BIT_STRIDE(p->y_2b_strd),
-					ODMA_LUMA_2BIT_STRIDE_MASK);
+				ODMA_LUMA_2BIT_STRIDE(p->y_hd_y2_stride),
+				ODMA_LUMA_2BIT_STRIDE_MASK);
 			dma_write_mask(id, ODMA_2BIT_STRIDE,
-					ODMA_CHROM_2BIT_STRIDE(p->c_2b_strd),
-					ODMA_CHROM_2BIT_STRIDE_MASK);
+				ODMA_CHROM_2BIT_STRIDE(p->y_pl_c2_stride),
+				ODMA_CHROM_2BIT_STRIDE_MASK);
 		}
 	}
 	cal_log_debug(id, "dpp%d: addr 1p(0x%p) 2p(0x%p) 3p(0x%p) 4p(0x%p)\n",
@@ -1050,7 +1050,8 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		dpp_reg_set_hdr_params(id, p);
 
 	if (test_bit(DPP_ATTR_AFBC, &attr))
-		idma_reg_set_afbc(id, p->is_comp, p->rcv_num);
+		idma_reg_set_afbc(id, p->comp_type == COMP_TYPE_AFBC,
+				p->rcv_num);
 
 #if defined(DMA_BIST)
 	idma_reg_set_test_pattern(id, 0, pattern_data);
@@ -1320,6 +1321,27 @@ void __dpp_dump(u32 id, void __iomem *regs, void __iomem *dma_regs,
 
 	dpp_dump_regs(id, regs, attr);
 	dpp_reg_dump_debug_regs(id);
+}
+
+int __dpp_check(u32 id, const struct dpp_params_info *p, unsigned long attr)
+{
+	const struct dpu_fmt *fmt = dpu_find_fmt_info(p->format);
+
+	if (p->comp_type == COMP_TYPE_AFBC) {
+		if (p->rot & DPP_ROT_FLIP_MASK) {
+			cal_log_err(id,	"AFBC with rot is not supported\n");
+			return -EINVAL;
+		} else if (IS_YUV(fmt)) {
+			cal_log_err(id,	"AFBC with YUV fmt is not supported\n");
+			return -EINVAL;
+		} else if (IS_RGB32(fmt) && IS_10BPC(fmt)) {
+			cal_log_err(id,
+				"AFBC with 10BPC RGB fmt is not supported\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }
 
 #ifdef __linux__

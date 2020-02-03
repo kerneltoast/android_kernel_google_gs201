@@ -45,7 +45,7 @@ enum dpp_attr {
 	DPP_ATTR_IDMA		= 16,
 	DPP_ATTR_ODMA		= 17,
 	DPP_ATTR_DPP		= 18,
-	DPP_ATTR_WBMUX		= 19,
+	DPP_ATTR_WBMUX          = 19,
 };
 
 enum dpp_csc_defs {
@@ -61,6 +61,12 @@ enum dpp_csc_defs {
 	/* csc_id used in csc_3x3_t[] : increase by even value */
 	DPP_CSC_ID_BT_2020 = 0,
 	DPP_CSC_ID_DCI_P3 = 2,
+};
+
+enum dpp_comp_type {
+	COMP_TYPE_NONE = 0,
+	COMP_TYPE_AFBC,
+	COMP_TYPE_SBWC,
 };
 
 struct dpp_regs {
@@ -123,8 +129,8 @@ struct dpp_config {
 	bool is_scale;
 	bool is_block;
 	bool is_4p;
-	u32 y_2b_strd;
-	u32 c_2b_strd;
+	u32 y_hd_y2_stride;
+	u32 y_pl_c2_stride;
 };
 
 struct decon_frame {
@@ -181,11 +187,11 @@ struct dpp_params_info {
 	enum dpp_hdr_standard hdr;
 	u32 min_luminance;
 	u32 max_luminance;
-	bool is_4p;
-	u32 y_2b_strd;
-	u32 c_2b_strd;
+	u32 y_hd_y2_stride; /* Luminance header (or Y-2B) stride */
+	u32 y_pl_c2_stride; /* Luminance payload (or C-2B) stride */
+	u32 c_hd_stride;    /* Chrominance header stride */
+	u32 c_pl_stride;    /* Chrominance payload stride */
 
-	bool is_comp;
 	bool is_scale;
 	bool is_block;
 	u32 format;
@@ -197,6 +203,7 @@ struct dpp_params_info {
 	u32 range;
 
 	unsigned long rcv_num;
+	enum dpp_comp_type comp_type;
 };
 
 void dpp_regs_desc_init(void __iomem *regs, const char *name,
@@ -208,6 +215,9 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		const unsigned long attr);
 void __dpp_dump(u32 id, void __iomem *regs, void __iomem *dma_regs,
 		unsigned long attr);
+
+/* DPP hw limitation check */
+int __dpp_check(u32 id, const struct dpp_params_info *p, unsigned long attr);
 
 /* DPU_DMA and DPP interrupt handler */
 u32 dpp_reg_get_irq_and_clear(u32 id);
