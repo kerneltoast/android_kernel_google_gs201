@@ -82,7 +82,7 @@ struct dpu_bts_win_config {
 	u32 dst_w;
 	u32 dst_h;
 	bool is_rot;
-	bool is_afbc;
+	bool is_comp;
 	int dpp_ch;
 	u32 format;
 	u64 comp_src;

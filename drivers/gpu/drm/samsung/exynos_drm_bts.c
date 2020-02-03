@@ -283,7 +283,7 @@ u64 dpu_bts_calc_aclk_disp(struct decon_device *decon,
 	cycle_per_line = decon->bts.cycle_per_line;
 	line_mem_cnt = decon->bts.line_mem_cnt;
 	lat_cycle = dpu_bts_get_initial_latency(config->is_rot, is_scale,
-			config->is_afbc, &decon->config.dsc, src_w,
+			config->is_comp, &decon->config.dsc, src_w,
 			config->dst_w, (u32)ppc, cycle_per_line, line_mem_cnt);
 	line_time = dpu_bts_get_one_line_time(decon->config.image_height,
 			decon->bts.vbp, decon->bts.vfp, decon->bts.vsa,
@@ -302,7 +302,7 @@ u64 dpu_bts_calc_aclk_disp(struct decon_device *decon,
 			config->is_rot, rot_factor);
 
 	DPU_DEBUG_BTS("\t[R:%d C:%d S:%d] (lat_cycle=%d) (line_time=%d)\n",
-		config->is_rot, config->is_afbc, is_scale, lat_cycle,
+		config->is_rot, config->is_comp, is_scale, lat_cycle,
 		line_time);
 	DPU_DEBUG_BTS("AFTER latency calc: aclk_disp = %d\n", (u32)aclk_disp);
 
