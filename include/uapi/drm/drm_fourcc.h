@@ -540,6 +540,16 @@ extern "C" {
 #define DRM_FORMAT_MOD_SAMSUNG_COLORMAP		fourcc_mod_code(SAMSUNG, 4)
 
 /*
+ * Samsung Band Width Compression (SBWC) modifier
+ *
+ * SBWC is a specific lossless or lossy image compression protocol and format.
+ * It supports video image (YUV) compression to reduce the amount of data
+ * transferred between IP blocks. This modifier is used when to decode data or
+ * when to encode data through writeback.
+ */
+#define DRM_FORMAT_MOD_SAMSUNG_SBWC		fourcc_mod_code(SAMSUNG, 5)
+
+/*
  * Qualcomm Compressed Format
  *
  * Refers to a compressed variant of the base format that is compressed.
