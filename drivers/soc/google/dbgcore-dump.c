@@ -206,6 +206,44 @@ static ssize_t dbgcore_irq_info_write(struct file *file, const char __user *buf,
 	return count;
 }
 
+static int attr_uart_mux_get(void *data, u64 *val)
+{
+	struct adv_tracer_ipc_cmd cmd = {
+		.cmd_raw = {
+			.cmd = EAT_IPC_CMD_CONFIG_READ_UART_MUX,
+			.size = 2,
+		},
+	};
+	if (adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd) < 0) {
+		pr_err("sending READ_UART_MUX cmd failed\n");
+		return -EIO;
+	}
+
+	*val = cmd.buffer[1];
+
+	return 0;
+}
+
+static int attr_uart_mux_write(void *data, u64 val)
+{
+	struct adv_tracer_ipc_cmd cmd = {
+		.cmd_raw = {
+			.cmd = EAT_IPC_CMD_CONFIG_WRITE_UART_MUX,
+			.size = 2,
+		},
+	};
+	cmd.buffer[1] = val;
+
+	if (adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd) < 0) {
+		pr_err("sending WRITE_UART_MUX cmd failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(dbgcore_uart_mux_fops, attr_uart_mux_get,
+			attr_uart_mux_write, "%llu\n");
+
 static const struct file_operations dbgcore_version_fops = {
 	.open	= simple_open,
 	.read	= dbgcore_version_read,
@@ -262,6 +300,11 @@ static __init int dbgcore_dump_init(void)
 
 	irq_info = debugfs_create_file("irq_info", 0644, dbgcore_dentry, NULL,
 				       &dbgcore_irq_info_fops);
+	if (irq_info == NULL)
+		goto out;
+
+	irq_info = debugfs_create_file("uart_mux", 0644, dbgcore_dentry, NULL,
+				       &dbgcore_uart_mux_fops);
 	if (irq_info == NULL)
 		goto out;
 
