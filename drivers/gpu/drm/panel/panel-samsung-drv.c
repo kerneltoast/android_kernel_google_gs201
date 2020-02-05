@@ -20,6 +20,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
 
 #include <panel-samsung-drv.h>
 
@@ -29,6 +30,9 @@
 #define PANEL_ID_READ_SIZE	(PANEL_ID_LEN + PANEL_ID_OFFSET)
 
 static const char ext_info_regs[] = { 0xDA, 0xDB, 0xDC };
+
+#define connector_to_exynos_panel(c)                                           \
+	container_of((c), struct exynos_panel, connector)
 
 static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 {
@@ -333,6 +337,164 @@ static const struct attribute *panel_attrs[] = {
 	NULL
 };
 
+static enum drm_connector_status
+exynos_drm_connector_detect(struct drm_connector *connector, bool force)
+{
+	return connector->status;
+}
+
+static int exynos_drm_connector_get_property(struct drm_connector *connector,
+				const struct drm_connector_state *state,
+				struct drm_property *property,
+				uint64_t *val)
+{
+	const struct exynos_panel *ctx = connector_to_exynos_panel(connector);
+
+	if (property == ctx->props.max_luminance)
+		*val = ctx->desc->max_luminance;
+	else if (property == ctx->props.max_avg_luminance)
+		*val = ctx->desc->max_avg_luminance;
+	else if (property == ctx->props.min_luminance)
+		*val = ctx->desc->min_luminance;
+	else if (property == ctx->props.hdr_formats)
+		*val = ctx->desc->hdr_formats;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+void exynos_drm_connector_print_state(struct drm_printer *p,
+				      const struct drm_connector_state *state)
+{
+	const struct exynos_panel *ctx =
+		connector_to_exynos_panel(state->connector);
+	const struct exynos_panel_desc *desc = ctx->desc;
+
+	drm_printf(p, "\tenabled: %d\n", ctx->enabled);
+	drm_printf(p, "\text_info: %s\n", ctx->panel_extinfo);
+	drm_printf(p, "\tluminance: [%u, %u] avg: %u\n",
+		   desc->min_luminance, desc->max_luminance,
+		   desc->max_avg_luminance);
+	drm_printf(p, "\thdr_formats: 0x%x\n", desc->hdr_formats);
+}
+
+static const struct drm_connector_funcs exynos_connector_funcs = {
+	.detect = exynos_drm_connector_detect,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_get_property = exynos_drm_connector_get_property,
+	.atomic_print_state = exynos_drm_connector_print_state,
+};
+
+static int exynos_drm_connector_modes(struct drm_connector *connector)
+{
+	struct exynos_panel *ctx = connector_to_exynos_panel(connector);
+	int ret;
+
+	ret = drm_panel_get_modes(&ctx->panel);
+	if (ret < 0) {
+		dev_err(ctx->dev, "failed to get panel display modes\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+static const struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
+	.get_modes = exynos_drm_connector_modes,
+};
+
+static int exynos_drm_connector_create_luminance_properties(
+				struct drm_connector *connector)
+{
+	struct exynos_panel *ctx = connector_to_exynos_panel(connector);
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(connector->dev, 0, "max_luminance",
+			0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+	ctx->props.max_luminance = prop;
+
+	prop = drm_property_create_range(connector->dev, 0, "max_avg_luminance",
+			0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+	ctx->props.max_avg_luminance = prop;
+
+	prop = drm_property_create_range(connector->dev, 0, "min_luminance",
+			0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+	ctx->props.min_luminance = prop;
+
+	return 0;
+}
+
+static int exynos_drm_connector_create_hdr_formats_property(
+				struct drm_connector *connector)
+{
+	static const struct drm_prop_enum_list props[] = {
+		{ __builtin_ffs(HDR_DOLBY_VISION) - 1,	"Dolby Vision"	},
+		{ __builtin_ffs(HDR_HDR10) - 1,		"HDR10"		},
+		{ __builtin_ffs(HDR_HLG) - 1,		"HLG"		},
+	};
+	struct exynos_panel *ctx = connector_to_exynos_panel(connector);
+	struct drm_property *prop;
+
+	prop = drm_property_create_bitmask(connector->dev, 0, "hdr_formats",
+					   props, ARRAY_SIZE(props),
+					   HDR_DOLBY_VISION | HDR_HDR10 |
+					   HDR_HLG);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&connector->base, prop, 0);
+	ctx->props.hdr_formats = prop;
+
+	return 0;
+}
+
+static int exynos_drm_create_connector(struct mipi_dsi_device *dsi,
+				       struct drm_connector *connector)
+{
+	const struct mipi_dsi_host *host = dsi->host;
+	struct drm_encoder *encoder;
+	int ret;
+
+	encoder = dev_get_drvdata(host->dev);
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
+
+	ret = drm_connector_init(encoder->dev, connector,
+				 &exynos_connector_funcs,
+				 DRM_MODE_CONNECTOR_DSI);
+	if (ret) {
+		dev_err(&dsi->dev, "failed to initialize connector with drm\n");
+		return ret;
+	}
+
+	drm_connector_helper_add(connector, &exynos_connector_helper_funcs);
+	drm_connector_register(connector);
+
+	exynos_drm_connector_create_luminance_properties(connector);
+	exynos_drm_connector_create_hdr_formats_property(connector);
+
+	drm_connector_attach_encoder(connector, encoder);
+	connector->funcs->reset(connector);
+	connector->status = connector_status_connected;
+
+	return 0;
+}
+
 int exynos_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
@@ -372,37 +534,49 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 	ctx->bl->props.max_brightness = ctx->desc->max_brightness;
 	ctx->bl->props.brightness = ctx->desc->dft_brightness;
 
+	ret = exynos_drm_create_connector(dsi, &ctx->connector);
+	if (ret)
+		goto err;
+
 	drm_panel_init(&ctx->panel);
 	ctx->panel.dev = dev;
 	ctx->panel.funcs = ctx->desc->panel_func;
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		goto done;
+	drm_panel_add(&ctx->panel);
+
+	ret = drm_panel_attach(&ctx->panel, &ctx->connector);
+	if (ret)
+		goto err_connector;
 
 	ret = mipi_dsi_attach(dsi);
-	if (ret < 0) {
-		drm_panel_remove(&ctx->panel);
-		goto done;
-	}
+	if (ret)
+		goto err_panel;
 
 	ret = sysfs_create_files(&dev->kobj, panel_attrs);
 	if (ret)
 		pr_warn("unable to add panel sysfs files (%d)\n", ret);
 
-	if (ctx->panel.connector) {
-		const struct drm_connector *conn = ctx->panel.connector;
-
-		ret = sysfs_create_link(&conn->kdev->kobj, &dev->kobj, "panel");
-		if (ret)
-			pr_warn("unable to link panel sysfs (%d)\n", ret);
-	}
+	ret = sysfs_create_link(&ctx->connector.kdev->kobj, &dev->kobj,
+				"panel");
+	if (ret)
+		pr_warn("unable to link panel sysfs (%d)\n", ret);
 	ret = 0;
 
 	mipi_dsi_debugfs_add(dsi, ctx->panel.debugfs_entry);
 
-done:
-	dev_dbg(ctx->dev, "%s - %d\n", __func__, ret);
+	drm_kms_helper_hotplug_event(ctx->connector.dev);
+
+	dev_info(ctx->dev, "samsung common panel driver has been probed\n");
+
+	return 0;
+
+err_panel:
+	drm_panel_detach(&ctx->panel);
+err_connector:
+	drm_panel_remove(&ctx->panel);
+	drm_connector_unregister(&ctx->connector);
+err:
+	dev_err(ctx->dev, "failed to probe samsung panel driver(%d)\n", ret);
 
 	return ret;
 }
@@ -414,6 +588,7 @@ int exynos_panel_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
+	drm_connector_unregister(&ctx->connector);
 	devm_backlight_device_unregister(ctx->dev, ctx->bl);
 
 	return 0;

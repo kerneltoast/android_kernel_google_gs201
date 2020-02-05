@@ -19,8 +19,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/backlight.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_property.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/exynos_display_common.h>
 
@@ -62,6 +64,7 @@ struct exynos_panel {
 	struct gpio_desc *enable_gpio;
 	struct regulator *vci;
 	struct regulator *vddi;
+	struct drm_connector connector;
 	const struct exynos_panel_desc *desc;
 	struct backlight_device *bl;
 	bool enabled;
@@ -69,6 +72,13 @@ struct exynos_panel {
 
 	char panel_id[PANEL_ID_MAX];
 	char panel_extinfo[PANEL_EXTINFO_MAX];
+
+	struct {
+		struct drm_property *max_luminance;
+		struct drm_property *max_avg_luminance;
+		struct drm_property *min_luminance;
+		struct drm_property *hdr_formats;
+	} props;
 };
 
 static inline int exynos_dcs_write(struct exynos_panel *ctx, const void *data,
