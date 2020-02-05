@@ -19,7 +19,7 @@ static int emul_disable(struct drm_panel *panel)
 
 	ctx = container_of(panel, struct exynos_panel, panel);
 	ctx->enabled = false;
-	panel_info(ctx, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 	return 0;
 }
 
@@ -29,9 +29,9 @@ static int emul_unprepare(struct drm_panel *panel)
 
 	ctx = container_of(panel, struct exynos_panel, panel);
 
-	panel_dbg(ctx, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 	exynos_panel_set_power(ctx, false);
-	panel_dbg(ctx, "%s -\n", __func__);
+	dev_dbg(ctx->dev, "%s -\n", __func__);
 	return 0;
 }
 
@@ -41,9 +41,9 @@ static int emul_prepare(struct drm_panel *panel)
 
 	ctx = container_of(panel, struct exynos_panel, panel);
 
-	panel_dbg(ctx, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 	exynos_panel_set_power(ctx, true);
-	panel_dbg(ctx, "%s -\n", __func__);
+	dev_dbg(ctx->dev, "%s -\n", __func__);
 
 	return 0;
 }
@@ -54,7 +54,7 @@ static int emul_enable(struct drm_panel *panel)
 
 	ctx = container_of(panel, struct exynos_panel, panel);
 
-	panel_dbg(ctx, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 
 	/* sleep out: 120ms delay */
 	EXYNOS_DCS_WRITE_SEQ_DELAY(ctx, 120, 0x11);
@@ -63,7 +63,7 @@ static int emul_enable(struct drm_panel *panel)
 
 	ctx->enabled = true;
 
-	panel_dbg(ctx, "%s -\n", __func__);
+	dev_dbg(ctx->dev, "%s -\n", __func__);
 
 	return 0;
 }

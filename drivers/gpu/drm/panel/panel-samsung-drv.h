@@ -31,40 +31,6 @@
 #define HDR_HDR10		BIT(2)
 #define HDR_HLG			BIT(3)
 
-static int panel_log_level = 7;
-
-#define panel_info(ctx, fmt, ...)					\
-	do {								\
-		if (panel_log_level >= 6) {				\
-			pr_info("%s: "fmt, ctx->dev->driver->name,	\
-					##__VA_ARGS__);			\
-		}							\
-	} while (0)
-
-#define panel_warn(ctx, fmt, ...)					\
-	do {								\
-		if (panel_log_level >= 4) {				\
-			pr_warn("%s: "fmt, ctx->dev->driver->name,	\
-					##__VA_ARGS__);			\
-		}							\
-	} while (0)
-
-#define panel_err(ctx, fmt, ...)					\
-	do {								\
-		if (panel_log_level >= 3) {				\
-			pr_err("%s: "fmt, ctx->dev->driver->name,	\
-					##__VA_ARGS__);			\
-		}							\
-	} while (0)
-
-#define panel_dbg(ctx, fmt, ...)					\
-	do {								\
-		if (panel_log_level >= 7) {				\
-			pr_info("%s: "fmt, ctx->dev->driver->name,	\
-					##__VA_ARGS__);			\
-		}							\
-	} while (0)
-
 struct exynos_panel;
 struct exynos_panel_funcs {
 	int (*set_brightness)(struct exynos_panel *exynos_panel, u16 br);
@@ -126,7 +92,7 @@ static inline int exynos_dcs_set_brightness(struct exynos_panel *ctx, u16 br)
 	int ret;							\
 	ret = exynos_dcs_write(ctx, d, ARRAY_SIZE(d));			\
 	if (ret < 0)							\
-		panel_err(ctx, "failed to write cmd(%d)\n", ret);	\
+		dev_err(ctx->dev, "failed to write cmd(%d)\n", ret);	\
 } while (0)
 
 #define EXYNOS_DCS_WRITE_SEQ_DELAY(ctx, delay, seq...) do {		\
@@ -138,7 +104,7 @@ static inline int exynos_dcs_set_brightness(struct exynos_panel *ctx, u16 br)
 	int ret;							\
 	ret = exynos_dcs_write(ctx, table, ARRAY_SIZE(table));		\
 	if (ret < 0)							\
-		panel_err(ctx, "failed to write cmd(%d)\n", ret);	\
+		dev_err(ctx->dev, "failed to write cmd(%d)\n", ret);	\
 } while (0)
 
 #define EXYNOS_PPS_LONG_WRITE(ctx, pps) do {				\
@@ -146,7 +112,7 @@ static inline int exynos_dcs_set_brightness(struct exynos_panel *ctx, u16 br)
 	int ret;							\
 	ret = mipi_dsi_pps_long_write(dsi, pps, ARRAY_SIZE(pps));	\
 	if (ret < 0)							\
-		panel_err(ctx, "failed to write cmd(%d)\n", ret);	\
+		dev_err(ctx->dev, "failed to write cmd(%d)\n", ret);	\
 } while (0)
 
 int exynos_panel_get_modes(struct drm_panel *panel);

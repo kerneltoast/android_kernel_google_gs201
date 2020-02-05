@@ -38,7 +38,7 @@ static int s6e3hc2_disable(struct drm_panel *panel)
 	struct exynos_panel *ctx;
 
 	ctx = container_of(panel, struct exynos_panel, panel);
-	panel_info(ctx, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 	return 0;
 }
 
@@ -48,9 +48,9 @@ static int s6e3hc2_unprepare(struct drm_panel *panel)
 
 	ctx = container_of(panel, struct exynos_panel, panel);
 
-	panel_dbg(ctx, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 	exynos_panel_set_power(ctx, false);
-	panel_dbg(ctx, "%s -\n", __func__);
+	dev_dbg(ctx->dev, "%s -\n", __func__);
 	return 0;
 }
 
@@ -60,9 +60,9 @@ static int s6e3hc2_prepare(struct drm_panel *panel)
 
 	ctx = container_of(panel, struct exynos_panel, panel);
 
-	panel_dbg(ctx, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 	exynos_panel_set_power(ctx, true);
-	panel_dbg(ctx, "%s -\n", __func__);
+	dev_dbg(ctx->dev, "%s -\n", __func__);
 
 	return 0;
 }
@@ -73,7 +73,7 @@ static int s6e3hc2_enable(struct drm_panel *panel)
 
 	ctx = container_of(panel, struct exynos_panel, panel);
 
-	panel_dbg(ctx, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 
 	exynos_panel_reset(ctx);
 
@@ -107,7 +107,7 @@ static int s6e3hc2_enable(struct drm_panel *panel)
 
 	EXYNOS_DCS_WRITE_SEQ(ctx, 0x29); /* display on */
 
-	panel_dbg(ctx, "%s -\n", __func__);
+	dev_dbg(ctx->dev, "%s -\n", __func__);
 
 	return 0;
 }
