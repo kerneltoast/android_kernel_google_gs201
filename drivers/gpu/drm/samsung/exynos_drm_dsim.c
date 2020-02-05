@@ -22,6 +22,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_modes.h>
+#include <drm/exynos_display_common.h>
 
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
@@ -47,8 +48,6 @@
 #include <exynos_drm_decon.h>
 
 #include <regs-dsim.h>
-
-#include <panel-samsung-drv.h>
 
 struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 
@@ -91,7 +90,6 @@ MODULE_PARM_DESC(panel_name, "preferred panel name");
 	} while (0)
 
 #define host_to_dsi(host) container_of(host, struct dsim_device, dsi_host)
-#define connector_to_dsi(c) container_of(c, struct dsim_device, connector)
 
 #define DSIM_ESCAPE_CLK_20MHZ	20
 
@@ -333,71 +331,6 @@ static void dsim_disable(struct drm_encoder *encoder)
 	dsim_dbg(dsim, "%s -\n", __func__);
 }
 
-static enum drm_connector_status
-dsim_detect(struct drm_connector *connector, bool force)
-{
-	return connector->status;
-}
-
-static void dsim_connector_destroy(struct drm_connector *connector)
-{
-}
-
-static int exynos_drm_connector_get_property(struct drm_connector *connector,
-				const struct drm_connector_state *state,
-				struct drm_property *property,
-				uint64_t *val)
-{
-	const struct dsim_device *dsim = connector_to_dsi(connector);
-	const struct exynos_panel *panel;
-
-	if (!dsim->panel)
-		return -ENODEV;
-
-	panel = container_of(dsim->panel, struct exynos_panel, panel);
-
-	if (property == dsim->props.max_luminance)
-		*val = panel->desc->max_luminance;
-	else if (property == dsim->props.max_avg_luminance)
-		*val = panel->desc->max_avg_luminance;
-	else if (property == dsim->props.min_luminance)
-		*val = panel->desc->min_luminance;
-	else if (property == dsim->props.hdr_formats)
-		*val = panel->desc->hdr_formats;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static const struct drm_connector_funcs dsim_connector_funcs = {
-	.detect = dsim_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = dsim_connector_destroy,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-	.atomic_get_property = exynos_drm_connector_get_property,
-};
-
-static int dsim_get_modes(struct drm_connector *connector)
-{
-	struct dsim_device *dsim = connector_to_dsi(connector);
-	int ret = 0;
-
-	ret = drm_panel_get_modes(dsim->panel);
-	if (ret < 0) {
-		dsim_err(dsim, "failed to get panel display modes\n");
-		return ret;
-	}
-
-	return ret;
-}
-
-static const struct drm_connector_helper_funcs dsim_connector_helper_funcs = {
-	.get_modes = dsim_get_modes,
-};
-
 static void dsim_modes_release(struct dsim_pll_params *pll_params)
 {
 	if (pll_params->params) {
@@ -410,10 +343,10 @@ static void dsim_modes_release(struct dsim_pll_params *pll_params)
 	kfree(pll_params);
 }
 
-static void dsim_get_clock_modes(struct dsim_device *dsim, char *name)
+static void dsim_get_clock_modes(struct dsim_device *dsim, const char *name)
 {
 	int i;
-	struct dsim_pll_params *pll_params = dsim->pll_params;
+	const struct dsim_pll_params *pll_params = dsim->pll_params;
 
 	for (i = 0; i < pll_params->num_modes; i++) {
 		if (!strcmp(name, pll_params->params[i]->name)) {
@@ -578,19 +511,20 @@ getnode_fail:
 }
 
 static void dsim_adjust_video_timing(struct dsim_device *dsim,
-		struct videomode videomode, char *name)
+				     const struct videomode *videomode,
+				     const char *name)
 {
 	struct dpu_panel_timing *p_timing = &dsim->config.p_timing;
 
-	p_timing->vactive = videomode.vactive;
-	p_timing->vfp = videomode.vfront_porch;
-	p_timing->vbp = videomode.vback_porch;
-	p_timing->vsa = videomode.vsync_len;
+	p_timing->vactive = videomode->vactive;
+	p_timing->vfp = videomode->vfront_porch;
+	p_timing->vbp = videomode->vback_porch;
+	p_timing->vsa = videomode->vsync_len;
 
-	p_timing->hactive = videomode.hactive;
-	p_timing->hfp = videomode.hfront_porch;
-	p_timing->hbp = videomode.hback_porch;
-	p_timing->hsa = videomode.hsync_len;
+	p_timing->hactive = videomode->hactive;
+	p_timing->hfp = videomode->hfront_porch;
+	p_timing->hbp = videomode->hback_porch;
+	p_timing->hsa = videomode->hsync_len;
 
 	dsim_get_clock_modes(dsim, name);
 }
@@ -606,6 +540,10 @@ static void dsim_update_config_for_mode(struct dsim_device *dsim,
 
 	dsim->config.mode = (mode_priv->mode_flags & MIPI_DSI_MODE_VIDEO) ?
 				DSIM_VIDEO_MODE : DSIM_COMMAND_MODE;
+
+	dsim->config.data_lane_cnt = dsim->lanes;
+	/* TODO: This hard coded information will be defined in device tree */
+	dsim->config.mres_mode = 0;
 
 	dsim->config.dsc.enabled = mode_priv->dsc.enabled;
 	if (dsim->config.dsc.enabled) {
@@ -626,17 +564,54 @@ static void dsim_update_config_for_mode(struct dsim_device *dsim,
 			dsim->config.dsc.slice_height);
 }
 
+static void dsim_set_display_mode(struct dsim_device *dsim,
+				  struct drm_display_mode *mode)
+{
+	struct videomode vm;
+
+	drm_display_mode_to_videomode(mode, &vm);
+	dsim_adjust_video_timing(dsim, &vm, mode->name);
+
+	dsim_update_config_for_mode(dsim, mode);
+}
+
 static void dsim_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
-	struct videomode vm = dsim->vm;
 
-	dsim_update_config_for_mode(dsim, adjusted_mode);
-	drm_display_mode_to_videomode(adjusted_mode, &vm);
+	dsim_set_display_mode(dsim, adjusted_mode);
+}
 
-	dsim_adjust_video_timing(dsim, vm, adjusted_mode->name);
+static int dsim_set_native_display_mode(struct dsim_device *dsim)
+{
+	const struct drm_connector *connector = dsim_get_connector(dsim);
+	int ret;
+
+	if (unlikely(!connector))
+		return -ENODEV;
+
+	ret = drm_panel_get_modes(dsim->panel);
+	if (ret < 0) {
+		dsim_err(dsim, "failed to get panel display modes\n");
+		return ret;
+	}
+
+	if (!list_empty(&connector->probed_modes)) {
+		struct drm_display_mode *mode;
+
+		list_for_each_entry(mode, &connector->probed_modes, head) {
+			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+				dsim->native_mode = *mode;
+				dsim_set_display_mode(dsim, &dsim->native_mode);
+			}
+		}
+	} else {
+		dsim->native_mode.clock = 0;
+	}
+
+	return 0;
 }
 
 static int dsim_atomic_check(struct drm_encoder *encoder,
@@ -673,109 +648,6 @@ static const struct drm_encoder_helper_funcs dsim_encoder_helper_funcs = {
 static const struct drm_encoder_funcs dsim_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
-
-static int exynos_drm_connector_create_max_luminance_property(
-				struct drm_connector *connector)
-{
-	struct dsim_device *dsim = connector_to_dsi(connector);
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(connector->dev, 0, "max_luminance",
-			0, UINT_MAX);
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&connector->base, prop, 0);
-	dsim->props.max_luminance = prop;
-
-	return 0;
-}
-
-static int exynos_drm_connector_create_max_avg_luminance_property(
-				struct drm_connector *connector)
-{
-	struct dsim_device *dsim = connector_to_dsi(connector);
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(connector->dev, 0, "max_avg_luminance",
-			0, UINT_MAX);
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&connector->base, prop, 0);
-	dsim->props.max_avg_luminance = prop;
-
-	return 0;
-}
-
-static int exynos_drm_connector_create_min_luminance_property(
-				struct drm_connector *connector)
-{
-	struct dsim_device *dsim = connector_to_dsi(connector);
-	struct drm_property *prop;
-
-	prop = drm_property_create_range(connector->dev, 0, "min_luminance",
-			0, UINT_MAX);
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&connector->base, prop, 0);
-	dsim->props.min_luminance = prop;
-
-	return 0;
-}
-
-static int exynos_drm_connector_create_hdr_formats_property(
-				struct drm_connector *connector)
-{
-	static const struct drm_prop_enum_list props[] = {
-		{ __builtin_ffs(HDR_DOLBY_VISION) - 1,	"Dolby Vision"	},
-		{ __builtin_ffs(HDR_HDR10) - 1,		"HDR10"		},
-		{ __builtin_ffs(HDR_HLG) - 1,		"HLG"		},
-	};
-	struct drm_property *prop;
-	struct dsim_device *dsim = connector_to_dsi(connector);
-
-	prop = drm_property_create_bitmask(connector->dev, 0, "hdr_formats",
-					   props, ARRAY_SIZE(props),
-					   HDR_DOLBY_VISION | HDR_HDR10 |
-					   HDR_HLG);
-	if (!prop)
-		return -ENOMEM;
-
-	drm_object_attach_property(&connector->base, prop, 0);
-	dsim->props.hdr_formats = prop;
-
-	return 0;
-}
-
-static int dsim_create_connector(struct drm_encoder *encoder)
-{
-	struct dsim_device *dsim = encoder_to_dsim(encoder);
-	struct drm_connector *connector = &dsim->connector;
-	int ret;
-
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
-
-	ret = drm_connector_init(encoder->dev, connector,
-				 &dsim_connector_funcs,
-				 DRM_MODE_CONNECTOR_DSI);
-	if (ret) {
-		dsim_err(dsim, "Failed to initialize connector with drm\n");
-		return ret;
-	}
-
-	drm_connector_helper_add(connector, &dsim_connector_helper_funcs);
-	drm_connector_register(connector);
-	drm_connector_attach_encoder(connector, encoder);
-
-	exynos_drm_connector_create_max_luminance_property(connector);
-	exynos_drm_connector_create_max_avg_luminance_property(connector);
-	exynos_drm_connector_create_min_luminance_property(connector);
-	exynos_drm_connector_create_hdr_formats_property(connector);
-
-	return 0;
-}
 
 static int dsim_add_mipi_dsi_device(struct dsim_device *dsim)
 {
@@ -825,13 +697,6 @@ static int dsim_bind(struct device *dev, struct device *master, void *data)
 		dsim_err(dsim, "failed to get possible crtc, ret = %d\n", ret);
 		drm_encoder_cleanup(encoder);
 		return -ENOTSUPP;
-	}
-
-	ret = dsim_create_connector(encoder);
-	if (ret) {
-		dsim_err(dsim, "failed to create connector ret = %d\n", ret);
-		drm_encoder_cleanup(encoder);
-		return ret;
 	}
 
 	/* add the dsi device for the detected panel */
@@ -951,7 +816,8 @@ static int dsim_remap_regs(struct dsim_device *dsim)
 static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 {
 	struct dsim_device *dsim = dev_id;
-	struct drm_crtc *crtc = dsim->connector.state->crtc;
+	const struct drm_connector *connector = dsim_get_connector(dsim);
+	struct drm_crtc *crtc = connector_get_crtc(connector);
 	const struct decon_device *decon = dsim_get_decon(dsim);
 	unsigned int int_src;
 
@@ -1062,87 +928,30 @@ err:
 	return ret;
 }
 
-static void dsim_convert_cal_data(struct dsim_device *dsim)
-{
-	struct drm_display_mode *native_mode = &dsim->native_mode;
-	struct videomode videomode;
-
-	drm_display_mode_to_videomode(native_mode, &videomode);
-
-	dsim_adjust_video_timing(dsim, videomode, native_mode->name);
-
-	dsim->config.data_lane_cnt = dsim->lanes;
-	/* TODO: This hard coded information will be defined in device tree */
-	dsim->config.mres_mode = 0;
-}
-
-static int dsim_get_display_mode(struct dsim_device *dsim)
-{
-	struct drm_connector *connector = &dsim->connector;
-	int ret;
-
-	ret = drm_panel_get_modes(dsim->panel);
-	if (ret < 0) {
-		dsim_err(dsim, "failed to get panel display modes\n");
-		return ret;
-	}
-
-	if (!list_empty(&connector->probed_modes)) {
-		struct drm_display_mode *preferred_mode;
-
-		list_for_each_entry(preferred_mode, &connector->probed_modes,
-				head) {
-			if (preferred_mode->type & DRM_MODE_TYPE_PREFERRED) {
-				dsim->native_mode = *preferred_mode;
-				dsim_convert_cal_data(dsim);
-			}
-		}
-	} else {
-		dsim->native_mode.clock = 0;
-	}
-
-	return 0;
-}
-
 static int dsim_host_attach(struct mipi_dsi_host *host,
 				  struct mipi_dsi_device *device)
 {
 	struct dsim_device *dsim = host_to_dsi(host);
-	struct drm_device *drm = dsim->connector.dev;
+	struct drm_device *drm_dev = dsim->encoder.dev;
 	int ret;
 
-	dsim_info(dsim, "%s +\n", __func__);
-
-	mutex_lock(&drm->mode_config.mutex);
+	pr_debug("%s +\n", __func__);
 
 	dsim->lanes = device->lanes;
 	dsim->format = device->format;
 	dsim->mode_flags = device->mode_flags;
 
 	dsim->panel = of_drm_find_panel(device->dev.of_node);
-	if (dsim->panel) {
-		ret = drm_panel_attach(dsim->panel, &dsim->connector);
-		if (ret < 0) {
-			dsim_err(dsim, "failed to attach drm panel\n");
-			mutex_unlock(&drm->mode_config.mutex);
-			return ret;
-		}
-		dsim->connector.status = connector_status_connected;
+	if (IS_ERR(dsim->panel)) {
+		pr_info("failed to find panel\n");
+		return PTR_ERR(dsim->panel);
 	}
 
-	ret = dsim_get_display_mode(dsim);
-	if (ret < 0) {
-		dsim_err(dsim, "failed to get panel display info\n");
-		mutex_unlock(&drm->mode_config.mutex);
-		return ret;
-	}
+	mutex_lock(&drm_dev->mode_config.mutex);
+	ret = dsim_set_native_display_mode(dsim);
+	mutex_unlock(&drm_dev->mode_config.mutex);
 
-	mutex_unlock(&drm->mode_config.mutex);
-
-	if (drm->mode_config.poll_enabled)
-		drm_kms_helper_hotplug_event(drm);
-
-	dsim_info(dsim, "%s -\n", __func__);
+	pr_debug("%s -\n", __func__);
 	return 0;
 }
 
@@ -1150,22 +959,14 @@ static int dsim_host_detach(struct mipi_dsi_host *host,
 				  struct mipi_dsi_device *device)
 {
 	struct dsim_device *dsim = host_to_dsi(host);
-	struct drm_device *drm = dsim->connector.dev;
 
 	dsim_info(dsim, "%s +\n", __func__);
-	mutex_lock(&drm->mode_config.mutex);
 
 	if (dsim->panel) {
 		dsim_disable(&dsim->encoder);
 		drm_panel_detach(dsim->panel);
 		dsim->panel = NULL;
-		dsim->connector.status = connector_status_disconnected;
 	}
-
-	mutex_unlock(&drm->mode_config.mutex);
-
-	if (drm->mode_config.poll_enabled)
-		drm_kms_helper_hotplug_event(drm);
 
 	dsim_info(dsim, "%s -\n", __func__);
 	return 0;

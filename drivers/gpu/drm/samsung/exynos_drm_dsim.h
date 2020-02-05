@@ -19,6 +19,7 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_property.h>
+#include <drm/drm_panel.h>
 #include <video/videomode.h>
 
 #include <exynos_drm_drv.h>
@@ -46,15 +47,9 @@ struct dsim_resources {
 
 struct dsim_device {
 	struct drm_encoder encoder;
-	struct drm_bridge *bridge;
 	struct mipi_dsi_host dsi_host;
-	struct drm_connector connector;
-	struct device_node *panel_node;
-	struct device_node *bridge_node;
 	struct drm_panel *panel;
-	struct display_timing *timings;
 	struct drm_display_mode native_mode;
-	struct videomode vm;
 	struct device *dev;
 
 	enum exynos_drm_output_type output_type;
@@ -84,13 +79,6 @@ struct dsim_device {
 	struct dsim_clks clk_param;
 
 	int idle_ip_index;
-
-	struct {
-		struct drm_property *max_luminance;
-		struct drm_property *max_avg_luminance;
-		struct drm_property *min_luminance;
-		struct drm_property *hdr_formats;
-	} props;
 };
 
 extern struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
@@ -103,10 +91,30 @@ extern struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 #define DSIM_RX_FIFO_MAX_DEPTH			64
 
 struct decon_device;
+
+static inline const struct drm_connector *
+dsim_get_connector(const struct dsim_device *dsim)
+{
+	if (!dsim || !dsim->panel)
+		return NULL;
+
+	return dsim->panel->connector;
+}
+
+static inline struct drm_crtc *
+connector_get_crtc(const struct drm_connector *connector)
+{
+	if (!connector)
+		return NULL;
+
+	return connector->state->crtc;
+}
+
 static inline const struct decon_device *
 dsim_get_decon(const struct dsim_device *dsim)
 {
-	const struct drm_crtc *crtc = dsim->connector.state->crtc;
+	const struct drm_connector *connector = dsim_get_connector(dsim);
+	const struct drm_crtc *crtc = connector_get_crtc(connector);
 
 	if (!crtc)
 		return NULL;
