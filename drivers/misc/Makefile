@@ -61,5 +61,6 @@ obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
 obj-$(CONFIG_GSC_TPM)		+= gsc-spi.o
 obj-$(CONFIG_GOOGLE_LOGBUFFER)	+= logbuffer.o
 obj-$(CONFIG_GOOGLE_VOTABLE)	+= gvotable.o
+obj-$(CONFIG_SBB_MUX)		+= sbb-mux/
 obj-$(CONFIG_SUBSYSTEM_COREDUMP)	+= sscoredump/
 obj-$(CONFIG_ACCESS_RAMOOPS)	+= access_ramoops.o
