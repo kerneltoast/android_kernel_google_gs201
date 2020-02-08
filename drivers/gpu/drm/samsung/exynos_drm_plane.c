@@ -329,18 +329,8 @@ static void exynos_plane_disable(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	const struct dpp_device *dpp = plane_to_dpp(exynos_plane);
-	const unsigned int num_planes = hweight32(crtc->state->plane_mask);
 
-	pr_debug("%s: win_id=%d/%d zpos=%d", __func__,
-		 dpp->win_id, num_planes, plane->state->normalized_zpos);
-
-	/*
-	 * By using normalized zpos, any zpos beyond number of planes can be
-	 * disabled safely (i.e. window zpos is not going to be used)
-	 */
-	if (exynos_crtc->ops->disable_plane && (dpp->win_id < MAX_PLANE) &&
-	    (dpp->win_id >= num_planes))
+	if (exynos_crtc->ops->disable_plane)
 		exynos_crtc->ops->disable_plane(exynos_crtc, exynos_plane);
 }
 
@@ -370,8 +360,7 @@ static void exynos_plane_atomic_disable(struct drm_plane *plane,
 	if (!old_state || !old_state->crtc)
 		return;
 
-	if (old_state->visible)
-		exynos_plane_disable(plane, old_state->crtc);
+	exynos_plane_disable(plane, old_state->crtc);
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {

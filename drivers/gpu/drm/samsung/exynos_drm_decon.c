@@ -229,6 +229,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 		dpp->update(dpp, state);
 		dpp->is_win_connected = true;
 	} else {
+		dpp->disable(dpp);
 		dpp->is_win_connected = false;
 	}
 
@@ -242,28 +243,42 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
-static void decon_disable_plane(struct exynos_drm_crtc *crtc,
-				struct exynos_drm_plane *plane)
+static void decon_disable_plane(struct exynos_drm_crtc *exynos_crtc,
+				struct exynos_drm_plane *exynos_plane)
 {
-	struct decon_device *decon = crtc->ctx;
-	struct dpp_device *dpp = plane_to_dpp(plane);
+	struct decon_device *decon = exynos_crtc->ctx;
+	struct dpp_device *dpp = plane_to_dpp(exynos_plane);
+	const struct drm_plane *plane = &exynos_plane->base;
+	const struct drm_crtc *crtc = &exynos_crtc->base;
+	const unsigned int num_planes = hweight32(crtc->state->plane_mask);
 
 	decon_dbg(decon, "%s +\n", __func__);
 
-	/*
-	 * When disabling the plane, previously connected window(zpos) should
-	 * be disabled not newly requested zpos(window).
-	 */
-	decon_reg_set_win_enable(decon->id, dpp->win_id, 0);
+	pr_debug("%s win_id(%d/%d) zpos(%d) is_win_connected(%d) visible(%d)\n",
+		 plane->name, dpp->win_id, num_planes,
+		 plane->state->normalized_zpos, dpp->is_win_connected,
+		 plane->state->visible);
 
-	if (dpp->is_win_connected) {
+	/*
+	 * When disabling the plane, previously connected window(zpos) should be
+	 * disabled not newly requested zpos(window). Only disable window if it
+	 * was previously connected and it's not going to be used by any other
+	 * plane, by using normalized zpos as win_id we know that any win_id
+	 * beyond the number of planes will not be used.
+	 */
+	if (dpp->win_id < MAX_PLANE && dpp->win_id >= num_planes)
+		decon_reg_set_win_enable(decon->id, dpp->win_id, 0);
+
+	/*
+	 * This can be called when changing zpos. Only disable dpp if plane is
+	 * not going to be visible anymore (with different win_id)
+	 */
+	if (dpp->is_win_connected &&
+	    (!plane->state->visible || !plane->state->crtc)) {
 		dpp->decon_id = decon->id;
 		dpp->disable(dpp);
+		dpp->is_win_connected = false;
 	}
-
-	decon_dbg(decon, "plane idx[%d] win_id(%d) is_win_connected(%d)\n",
-			drm_plane_index(&plane->base), dpp->win_id,
-			dpp->is_win_connected);
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
