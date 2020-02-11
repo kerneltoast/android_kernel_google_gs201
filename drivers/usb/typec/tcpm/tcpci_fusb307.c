@@ -5,11 +5,11 @@
  * FUSB307B TCPCI driver
  */
 
-#include <linux/ccic/core.h>
+#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
-#include <linux/ifconn/ifconn_notifier.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -31,6 +31,8 @@
 #define VBUS_VOLTAGE_LSB_MV		25
 #define VBUS_HI_HEADROOM_MV		500
 #define VBUS_LO_MV			4500
+
+#include <../../../power/supply/google/logbuffer.h>
 
 struct fusb307b_plat {
 	struct tcpci_data data;
@@ -59,6 +61,8 @@ struct fusb307b_plat {
 	/** Set vbus voltage alarms **/
 	bool set_voltage_alarm;
 	unsigned int vbus_mv;
+	/* USB Data notification */
+	struct extcon_dev *extcon;
 
 	struct logbuffer *log;
 };
@@ -366,20 +370,17 @@ static int fusb307b_set_current_limit(struct tcpci *tcpci,
 
 static void enable_data_path(struct fusb307b_plat *chip)
 {
-	mutex_lock(&chip->data_path_lock);
-	if (chip->attached && chip->data_capable) {
-		USBPD_SEND_DNOTI(IFCONN_NOTIFY_MUIC, ATTACH,
-				 IFCONN_NOTIFY_EVENT_ATTACH, NULL);
+	int ret;
 
-		if (chip->data_role == TYPEC_DEVICE) {
-			USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
-					 IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP,
-					 NULL);
-		} else if (chip->data_role == TYPEC_HOST) {
-			USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
-					 IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP,
-					 NULL);
-		}
+	mutex_lock(&chip->data_path_lock);
+	if (chip->attached && chip->data_capable && !chip->data_active) {
+		ret = extcon_set_state_sync(chip->extcon,
+			chip->data_role == TYPEC_HOST ?
+			EXTCON_USB_HOST : EXTCON_USB, 1);
+		logbuffer_log(chip->log, "%s turning on %s", ret < 0 ?
+			      "Failed" : "Succeeded", chip->data_role ==
+			      TYPEC_HOST ? "Host" : "Device");
+
 		chip->data_active = true;
 		chip->active_data_role = chip->data_role;
 	}
@@ -392,13 +393,19 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 			     enum typec_data_role data_role)
 {
 	struct fusb307b_plat *chip = tdata_to_fusb307(data);
+	int ret;
 
 	if (chip->data_active && ((chip->active_data_role != data_role) ||
 				  !attached)) {
-		USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
-				 IFCONN_NOTIFY_EVENT_DETACH, NULL);
-		USBPD_SEND_DNOTI(IFCONN_NOTIFY_MUIC, ATTACH,
-				 IFCONN_NOTIFY_EVENT_DETACH, NULL);
+		ret = extcon_set_state_sync(chip->extcon,
+					    chip->active_data_role ==
+					    TYPEC_HOST ? EXTCON_USB_HOST :
+					    EXTCON_USB, 0);
+
+		logbuffer_log(chip->log, "%s turning off %s", ret < 0 ?
+			      "Failed" : "Succeeded",
+			      chip->active_data_role == TYPEC_HOST ? "Host"
+			      : "Device");
 		chip->data_active = false;
 	}
 
@@ -433,6 +440,13 @@ void tcpc_set_port_data_capable(struct i2c_client *tcpc_client,
 	}
 }
 EXPORT_SYMBOL_GPL(tcpc_set_port_data_capable);
+
+static const unsigned int usbpd_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_DISP_DP,
+	EXTCON_NONE,
+};
 
 static int fusb307b_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
@@ -517,6 +531,20 @@ static int fusb307b_probe(struct i2c_client *client,
 		dev_err(&client->dev, "usb psy not up\n");
 		ret = -EPROBE_DEFER;
 		goto unreg_psy;
+	}
+
+	chip->extcon = devm_extcon_dev_allocate(&client->dev,
+						usbpd_extcon_cable);
+	if (IS_ERR(chip->extcon)) {
+		dev_err(&client->dev, "Error allocating extcon: %d\n",
+			PTR_ERR(chip->extcon));
+		return PTR_ERR(chip->extcon);
+	}
+
+	ret = devm_extcon_dev_register(&client->dev, chip->extcon);
+	if (ret < 0) {
+		dev_err(&client->dev, "failed to register extcon device");
+		return ret;
 	}
 
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
