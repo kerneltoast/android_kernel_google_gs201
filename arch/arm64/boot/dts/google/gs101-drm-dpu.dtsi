@@ -175,7 +175,7 @@
 		pinctrl-1 = <&decon_f_te_off>;
 
 		max_win = <6>;
-		op_mode = <0>;	  /* 0: video mode, 1: command mode */
+		op_mode = <1>;	  /* 0: video mode, 1: command mode */
 		trig_mode = <0>;  /* 0: hw trigger, 1: sw trigger */
 		out_type = <0x2>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
 
