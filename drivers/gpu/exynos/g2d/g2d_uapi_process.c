@@ -204,7 +204,7 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 			return PTR_ERR(dmabuf);
 		}
 	} else {
-		dmabuf = ctx->hwfc_info->bufs[task->sec.job_id];
+		dmabuf = ctx->hwfc_info->bufs[g2d_task_id(task)];
 		get_dma_buf(dmabuf);
 	}
 
@@ -679,7 +679,7 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 				ptask = ptask->next;
 				continue;
 			}
-			if ((ptask->sec.job_id == task->bufidx) &&
+			if ((g2d_task_id(task) == task->bufidx) &&
 					!is_task_state_idle(ptask)) {
 				perrfndev(g2d_dev, "The %d task is not idle",
 					  task->bufidx);
@@ -694,7 +694,7 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 
 		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF, task->bufidx);
 
-		task->sec.job_id = task->bufidx;
+		g2d_task_set_id(task, task->bufidx);
 
 		spin_unlock_irqrestore(&task->g2d_dev->lock_task, flags);
 

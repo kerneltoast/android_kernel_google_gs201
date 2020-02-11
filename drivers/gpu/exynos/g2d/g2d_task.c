@@ -71,7 +71,7 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 	struct g2d_task *task;
 
 	list_for_each_entry(task, &g2d_dev->tasks_active, node) {
-		if (task->sec.job_id == id)
+		if (g2d_task_id(task) == id)
 			return task;
 	}
 
@@ -341,7 +341,7 @@ void g2d_show_task_status(struct g2d_device *g2d_dev)
 
 	for (task = g2d_dev->tasks; task; task = task->next) {
 		perrfndev(g2d_dev, "TASK[%d]: state %#lx flags %#x",
-			  task->sec.job_id, task->state, task->flags);
+			  g2d_task_id(task), task->state, task->flags);
 		perrfndev(g2d_dev, "prio %d begin@%llu end@%llu nr_src %d",
 			  task->sec.priority, ktime_to_us(task->ktime_begin),
 			  ktime_to_us(task->ktime_end), task->num_source);
@@ -440,7 +440,7 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	if (IS_HWFC(task->flags)) {
 		/* hwfc job id will be set from repeater driver info */
-		task->sec.job_id = G2D_MAX_JOBS;
+		g2d_task_set_id(task, G2D_MAX_JOBS);
 		list_add(&task->node, &g2d_dev->tasks_free_hwfc);
 	} else {
 		list_add(&task->node, &g2d_dev->tasks_free);
@@ -503,7 +503,7 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 		goto err_page;
 	}
 
-	task->sec.job_id = id;
+	g2d_task_set_id(task, id);
 	task->bufidx = -1;
 	task->g2d_dev = g2d_dev;
 
