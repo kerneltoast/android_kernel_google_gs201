@@ -1549,7 +1549,8 @@ void decon_reg_set_pll_wakeup(u32 id, u32 en)
 /* TODO: maybe this function will be moved to internal DECON CAL function */
 void decon_reg_update_req_global(u32 id)
 {
-	decon_write_mask(id, SHD_REG_UP_REQ, ~0, SHD_REG_UP_REQ_GLOBAL);
+	decon_write_mask(id, SHD_REG_UP_REQ, ~0, SHD_REG_UP_REQ_GLOBAL |
+			SHD_REG_UP_REQ_CMP);
 }
 
 int decon_reg_init(u32 id, struct decon_config *config)
