@@ -23,3 +23,7 @@ obj-$(CONFIG_EXYNOS_CORESIGHT)		+= exynos-coresight.o
 obj-$(CONFIG_EXYNOS_ECC_HANDLER)	+= exynos-ecc-handler.o
 
 obj-$(CONFIG_EXYNOS_CORESIGHT_ETM)	+= exynos-coresight-etm.o
+
+obj-$(CONFIG_EXYNOS_ADV_TRACER) 	+= exynos-adv-tracer.o
+
+obj-$(CONFIG_EXYNOS_ADV_TRACER_S2D)	+= exynos-adv-tracer-s2d.o

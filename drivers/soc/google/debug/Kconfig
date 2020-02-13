@@ -129,3 +129,19 @@ config EXYNOS_CORESIGHT_ETR
         help
           ETR is the sink part of coresight component. Trace data is stored
 	  into DRAM. If say Y here, ETF is set link and this is set sink.
+
+config EXYNOS_ADV_TRACER
+        tristate "Exynos Advanced Tracer"
+        depends on ARM || ARM64
+        default n
+	help
+	  This driver communicates with debugcore via mailbox. This supports
+	  ipc API with debugcore. If you make a driver to communicates with
+	  debugcore, you should use this API.
+
+config EXYNOS_ADV_TRACER_S2D
+        tristate "Exynos Advanced Tracer: Plug-in - S2D"
+        depends on EXYNOS_ADV_TRACER
+        default n
+	help
+	  This driver communicates with scan2dram plugin in debugcore.
