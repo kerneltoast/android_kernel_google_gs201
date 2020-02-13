@@ -180,6 +180,13 @@ enum decon_set_trig {
 	DECON_TRIG_UNMASK
 };
 
+enum decon_te_from {
+	DECON_TE_FROM_DDI0 = 0,
+	DECON_TE_FROM_DDI1 = 1,
+	DECON_TE_FROM_DDI2 = 2,
+	MAX_DECON_TE_FROM_DDI = 3,
+};
+
 struct decon_mode {
 	enum decon_op_mode op_mode;
 	enum decon_dsi_mode dsi_mode;
@@ -188,6 +195,7 @@ struct decon_mode {
 
 struct decon_config {
 	enum decon_out_type	out_type;
+	enum decon_te_from	te_from;
 	unsigned int		image_height;
 	unsigned int		image_width;
 	struct decon_mode	mode;

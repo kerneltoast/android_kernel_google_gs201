@@ -536,8 +536,13 @@ static void decon_reg_init_trigger(u32 id, struct decon_config *cfg)
 
 	mask = HW_TRIG_EN | HW_TRIG_SEL_MASK | HW_TRIG_MASK_DECON;
 	val = (mode == DECON_SW_TRIG) ? 0 : HW_TRIG_EN;
-	/* TODO: supporting only DDI0 as HW trig, this should be more dynamic */
-	val |= HW_TRIG_SEL_FROM_DDI0;
+
+	if (cfg->te_from == DECON_TE_FROM_DDI2)
+		val |= HW_TRIG_SEL_FROM_DDI2;
+	else if (cfg->te_from == DECON_TE_FROM_DDI1)
+		val |= HW_TRIG_SEL_FROM_DDI1;
+	else
+		val |= HW_TRIG_SEL_FROM_DDI0;
 
 	/* The trigger is masked initially */
 	val |= HW_TRIG_MASK_DECON;
