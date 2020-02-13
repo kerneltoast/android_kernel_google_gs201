@@ -19,3 +19,5 @@ obj-$(CONFIG_PIXEL_DEBUG_TEST)		+= pixel-debug-test.o
 obj-$(CONFIG_EXYNOS_ITMON) 		+= gs101-itmon.o
 
 obj-$(CONFIG_EXYNOS_CORESIGHT)		+= exynos-coresight.o
+
+obj-$(CONFIG_EXYNOS_ECC_HANDLER)	+= exynos-ecc-handler.o

@@ -97,3 +97,10 @@ config EXYNOS_CORESIGHT
 	help
 	  This is support to show PC values of each cpus when kernel panic
 	  caused by hard lockup.
+
+config EXYNOS_ECC_HANDLER
+	tristate "Exynos support ECC handler"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  If ECC happened in cache of CPU, interrupt occurs to cpu.
