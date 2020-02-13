@@ -565,6 +565,17 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 		return ret;
 	}
 
+	ret = of_property_read_u32(np, "te_from", &decon->config.te_from);
+	if (ret) {
+		pr_err("failed to get value of TE from DDI\n");
+		return ret;
+	}
+	if (decon->config.te_from >= MAX_DECON_TE_FROM_DDI) {
+		pr_err("TE from DDI is wrong(%d)\n", decon->config.te_from);
+		return ret;
+	}
+	pr_info("DECON TE from DDI%d\n", decon->config.te_from);
+
 	if (of_property_read_u32(np, "ppc", (u32 *)&decon->bts.ppc))
 		decon->bts.ppc = 2UL;
 	decon_info(decon, "PPC(%llu)\n", decon->bts.ppc);
