@@ -83,3 +83,11 @@ config EXYNOS_ITMON
 	  and TIMEOUT. This was implemented based on AXI protocol.
 	  Each error is handled according to policy. There are
 	  panic, scan2dram, halt and so on in policy.
+
+config EXYNOS_CORESIGHT
+        tristate "Enable Coresight of exynos"
+	depends on DEBUG_SNAPSHOT
+        default n
+	help
+	  This is support to show PC values of each cpus when kernel panic
+	  caused by hard lockup.

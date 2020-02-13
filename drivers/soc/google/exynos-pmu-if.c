@@ -224,6 +224,7 @@ struct exynos_cpu_power_ops exynos_cpu = {
 	.cluster_down = exynos_cluster_down,
 	.cluster_state = exynos_cluster_state,
 };
+EXPORT_SYMBOL_GPL(exynos_cpu);
 
 #ifdef CONFIG_CP_PMUCAL
 #define PMU_CP_STAT		0x0038
