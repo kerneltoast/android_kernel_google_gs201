@@ -1,0 +1,57 @@
+menuconfig DEBUG_SNAPSHOT
+	tristate "Debug SnapShot Support"
+	default n
+	help
+	  Debug snapshot supports SoC debugging easily. This feature supports
+	  to trace other module events such frequceny change and IPC.
+	  This supports to save GPR and PC when panic or exception and
+	  to enter ramdump mode when panic is occurred and other exception.
+	  This supports to reserve memory for h/w debug feature such as
+	  scan2dram, arraydump.
+
+config DEBUG_SNAPSHOT_FREQ_DOMAIN_NUM
+	int "Number of freq logging domain type"
+	depends on DEBUG_SNAPSHOT
+	range 4 32
+	default 32
+	help
+	  This option decides number of frequency logging domain type.
+
+config DEBUG_SNAPSHOT_LOG_ITEM_SIZE
+	int "Size of logging item"
+	depends on DEBUG_SNAPSHOT
+	range 256 1024
+	default 1024
+	help
+	  This option decides size of logging item.
+
+config DEBUG_SNAPSHOT_BUILT_IN
+	bool "Debug SnapShot Built-In Support"
+	depends on DEBUG_SNAPSHOT
+	default y
+	help
+	  There are some kernel events in only core-kernel.
+	  If we get the events, we should need built-in driver.
+	  This supports to get kernel events of core-kernel such as
+	  interrupts, task switching, workqueue and cpuidle.
+
+config DEBUG_SNAPSHOT_SFRDUMP
+	tristate "Debug Snapshot SFR dump when panic"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  This supports sfrdump to string format into the DRAM
+	  if kernel panic happened. If you want to get dump,
+	  you should write list of sfr registers in device tree.
+	  If you want to dump sfr register, you say Y here.
+
+config DEBUG_SNAPSHOT_QUICKDUMP
+	tristate "Debug Snapshot quickdump"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  This is for weight ligntening of ramdump. If DRAM size is too big,
+	  Ramdump is also big. Then it takes a long time to get ramdump.
+	  So we get important data such as dss logging and H/W raw data.
+	  If you access text symbol and stack data, you could get them.
+	  But in GKI, we can't access section symbol and stack symbol.

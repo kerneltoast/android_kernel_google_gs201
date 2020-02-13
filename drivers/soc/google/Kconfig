@@ -141,4 +141,6 @@ source "drivers/soc/google/gsa/Kconfig"
 
 source "drivers/soc/google/cpif/Kconfig"
 
+source "drivers/soc/google/debug/Kconfig"
+
 endmenu
