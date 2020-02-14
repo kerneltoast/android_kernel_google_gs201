@@ -253,6 +253,16 @@ static const struct g2d_fmt g2d_formats_common[] = {
 		.fmtvalue	= G2D_FMT_ABGR1010102,
 		.bpp		= { 32 },
 		.num_planes	= 1,
+	}, {
+		.name		= "YUV420P",
+		.fmtvalue	= G2D_FMT_YUV420P,
+		.bpp		= { 8, 2, 2},
+		.num_planes	= 3,
+	}, {
+		.name		= "YV12",
+		.fmtvalue	= G2D_FMT_YV12,
+		.bpp		= { 8, 2, 2},
+		.num_planes	= 3,
 	},
 };
 
@@ -385,6 +395,9 @@ static unsigned char src_sbwc_reg_offset[4] = {0x68, 0x64, 0x84, 0x80};
 static unsigned char dst_sbwc_reg_offset[4] = {0x34, 0x30, 0x54, 0x50};
 
 #define BASE_REG_OFFSET(base, offsets, buf_idx)	((base) + (offsets)[(buf_idx)])
+
+#define REG_SRC_CHROMA_STRIDE 0xAC
+#define REG_DST_CHROMA_STRIDE 0x60
 
 #define AFBCv1_ALIGN_LEN_SRC (64 / 4)
 #define AFBCv1_ALIGN_LEN 64
@@ -662,6 +675,9 @@ size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 				  : NV12_82_MFC_C_PAYLOAD(width, height);
 	}
 
+	if (!IS_YUV420P(fmt->fmtvalue) && (idx > 0))
+		return ALIGN(ALIGN(width / 2, 16) * height / 2, 16);
+
 	return ((cmd[G2DSFR_IMG_WIDTH].value * fmt->bpp[idx]) / 8) *
 						cmd[G2DSFR_IMG_BOTTOM].value;
 }
@@ -670,12 +686,17 @@ static size_t g2d_get_ycbcr_payload(const struct g2d_fmt *fmt, u32 flags,
 				    u32 mode, u32 width, u32 height)
 {
 	bool mfc_stride = flags & G2D_LAYERFLAG_MFC_STRIDE;
+	size_t pixcount = width * height;
 	size_t payload = 0;
 
 	if (mfc_stride && IS_YUV420(mode)) {
 		payload = NV12_MFC_PAYLOAD(width, height);
+	} else if (IS_YUV420P(fmt->fmtvalue)) {
+		u32 stride = ALIGN(width / 2, 16);
+
+		payload = (pixcount * fmt->bpp[0]) / 8;
+		payload += ALIGN(stride * height / 2, 16) * 2;
 	} else {
-		size_t pixcount = width * height;
 		unsigned int i;
 
 		payload = (pixcount * fmt->bpp[0]) / 8;
@@ -1456,12 +1477,30 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 		return cmd_count + fmt->num_planes;
 	}
 
-	for (i = 1; i < fmt->num_planes; i++) {
-		reg[cmd_count + i].offset = BASE_REG_OFFSET(base, offsets, i);
-		reg[cmd_count + i].value = width * height * fmt->bpp[i - 1];
-		reg[cmd_count + i].value /= BITS_PER_BYTE;
-		reg[cmd_count + i].value += reg[cmd_count + i - 1].value;
-		reg[cmd_count + i].value = ALIGN(reg[cmd_count + i].value, 16);
+	reg[cmd_count + 1].offset = BASE_REG_OFFSET(base, offsets, 1);
+	reg[cmd_count + 1].value = width * height * fmt->bpp[0];
+	reg[cmd_count + 1].value /= BITS_PER_BYTE;
+	reg[cmd_count + 1].value += reg[cmd_count + 0].value;
+	reg[cmd_count + 1].value = ALIGN(reg[cmd_count + 1].value, 16);
+
+	if (fmt->num_planes == 3) {
+		/* YCbCr420 planar */
+		u32 yv12_stride = ALIGN(width / 2, 16);
+
+		reg[cmd_count + 2].offset = BASE_REG_OFFSET(base, offsets, 2);
+		reg[cmd_count + 2].value = yv12_stride * height / 2;
+		reg[cmd_count + 2].value += reg[cmd_count + 1].value;
+		reg[cmd_count + 2].value = ALIGN(reg[cmd_count + 2].value, 16);
+
+		/* YCbCr420 planar needs to set chroma stride additionally */
+		reg[cmd_count + 3].offset = base;
+		if (base == TARGET_OFFSET)
+			reg[cmd_count + 3].offset += REG_DST_CHROMA_STRIDE;
+		else
+			reg[cmd_count + 3].offset += REG_SRC_CHROMA_STRIDE;
+		reg[cmd_count + 3].value = yv12_stride;
+
+		cmd_count++;
 	}
 
 	return cmd_count + fmt->num_planes;
