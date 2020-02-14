@@ -94,6 +94,10 @@ struct g2d_qos {
 #define G2D_DEVICE_CAPS_COMP_ALIGN_64		BIT(5)
 /* G2D has poly-phase filter and nearest/bilinear are absent */
 #define G2D_DEVICE_CAPS_POLYFILTER		BIT(6)
+/* Support HDR conversion for HDR10 */
+#define G2D_DEVICE_CAPS_HDR10			BIT(7)
+/* Support HDR conversion for HDR10+ */
+#define G2D_DEVICE_CAPS_HDR10PLUS		BIT(8)
 
 struct g2d_device {
 	unsigned long		state;

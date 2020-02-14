@@ -282,37 +282,79 @@ void g2d_destroy_debug(struct g2d_device *g2d_dev)
 	debugfs_remove_recursive(g2d_dev->debug_root);
 }
 
-static struct regs_info g2d_reg_info[] = {
-		/* Start, Size, Name */
-		{ 0x0,		0x20,	"General" },
-		{ 0x34,		0x10,	"Secure Layer" },
-		{ 0xF0,		0x10,	"AFBC debugging" },
-		{ 0x80,		0x70,	"Job manager" },
-		{ 0x2000,	0x120,	"Layer CSC Coefficient" },
-		{ 0x3000,	0x110,	"HDR EOTF" },
-		{ 0x3200,	0x110,	"DEGAMMA EOTF" },
-		{ 0x3400,	0x30,	"HDR GM" },
-		{ 0x3500,	0x30,	"DEGAMMA 2.2" },
-		{ 0x3600,	0x90,	"HDR TM" },
-		{ 0x3700,	0x90,	"DEGAMMA TM" },
-		{ 0x8000,	0x100,	"HW flow control" },
-		{ 0x120,	0xE0,	"Destination" },
-		{ 0x200,	0x100,	"Layer0" },
-		{ 0x300,	0x100,	"Layer1" },
-		{ 0x400,	0x100,	"Layer2" },
-		{ 0x500,	0x100,	"Layer3" },
-		{ 0x600,	0x100,	"Layer4" },
-		{ 0x700,	0x100,	"Layer5" },
-		{ 0x800,	0x100,	"Layer6" },
-		{ 0x900,	0x100,	"Layer7" },
-		{ 0xA00,	0x100,	"Layer8" },
-		{ 0xB00,	0x100,	"Layer9" },
-		{ 0xC00,	0x100,	"Layer10" },
-		{ 0xD00,	0x100,	"Layer11" },
-		{ 0xE00,	0x100,	"Layer12" },
-		{ 0xF00,	0x100,	"Layer13" },
-		{ 0x1000,	0x100,	"Layer14" },
-		{ 0x1100,	0x100,	"Layer15" },
+static struct regs_info g2d_reg_info_common[] = {
+	/* Start, Size, Name */
+	{ 0x0,		0x20,	"General" },
+	{ 0x34,		0x10,	"Secure Layer" },
+	{ 0x80,		0x70,	"Job manager" },
+	{ 0x2000,	0x90,	"Layer CSC Coefficient" },
+	{ 0x2100,	0x24,	"Dest CSC Coefficient" },
+};
+
+static struct regs_info g2d_reg_info_afbc = { 0xF0, 0x10, "AFBC debugging" };
+
+static struct regs_info g2d_reg_info_hdr10[] = {
+	{ 0x3000,	0x110,	"HDR EOTF" },
+	{ 0x3200,	0x110,	"DEGAMMA EOTF" },
+	{ 0x3400,	0x30,	"HDR GM" },
+	{ 0x3500,	0x30,	"DEGAMMA 2.2" },
+	{ 0x3600,	0x90,	"HDR TM" },
+	{ 0x3700,	0x90,	"DEGAMMA TM" },
+};
+
+static struct regs_info g2d_reg_info_hwfc = {0x8000, 0x100, "HW flow control"};
+
+static struct regs_info g2d_reg_info_dst = {0x120, 0xE0, "Destination"};
+
+#define LAYER_REG_INFO(n) { 0x200 + 0x100 * n, 0x100, "Layer" #n }
+static struct regs_info g2d_reg_info_layer[] = {
+	LAYER_REG_INFO(0), LAYER_REG_INFO(1),
+	LAYER_REG_INFO(2), LAYER_REG_INFO(3),
+	LAYER_REG_INFO(4), LAYER_REG_INFO(5),
+	LAYER_REG_INFO(6), LAYER_REG_INFO(7),
+	LAYER_REG_INFO(8), LAYER_REG_INFO(9),
+	LAYER_REG_INFO(10), LAYER_REG_INFO(11),
+	LAYER_REG_INFO(12), LAYER_REG_INFO(13),
+	LAYER_REG_INFO(14), LAYER_REG_INFO(15)
+};
+
+static struct regs_info g2d_reg_info_hdr10p_ctrl = {0x3000, 8, "HDR_CONTROL"};
+
+#define HDR10P_INFO_OETF(n) \
+	{ 0x3000 + 0x800 * n + 8, 0x88, "L" #n "_MOD_CTRL+L" #n "_OETF" }
+#define HDR10P_INFO_EOTF(n) \
+	{ 0x3000 + 0x800 * n + 0x94, 0x308, "L" #n "_EOTF" }
+#define HDR10P_INFO_GM(n) \
+	{ 0x3000 + 0x800 * n + 0x39C, 0x30, "L" #n "_GM" }
+#define HDR10P_INFO_TM(n) \
+	{ 0x3000 + 0x800 * n + 0x3CC, 0xD4, "L" #n "_TM" }
+static struct regs_info g2d_reg_info_hdr10p_oetf[] = {
+	HDR10P_INFO_OETF(0), HDR10P_INFO_OETF(1),
+	HDR10P_INFO_OETF(2), HDR10P_INFO_OETF(3)
+};
+static struct regs_info g2d_reg_info_hdr10p_eotf[] = {
+	HDR10P_INFO_EOTF(0), HDR10P_INFO_EOTF(1),
+	HDR10P_INFO_EOTF(2), HDR10P_INFO_EOTF(3)
+};
+static struct regs_info g2d_reg_info_hdr10p_gm[] = {
+	HDR10P_INFO_GM(0), HDR10P_INFO_GM(1),
+	HDR10P_INFO_GM(2), HDR10P_INFO_GM(3)
+};
+static struct regs_info g2d_reg_info_hdr10p_tm[] = {
+	HDR10P_INFO_TM(0), HDR10P_INFO_TM(1),
+	HDR10P_INFO_TM(2), HDR10P_INFO_TM(3)
+};
+
+#define FILTER_REG_INFO_H(n) { 0x6000 + n * 0x200, 0x90, "FILTER" #n "_HCOEF" }
+#define FILTER_REG_INFO_V(n) \
+	{ 0x6000 + n * 0x200 + 0x90, 0x120, "FILTER" #n "_VCOEF" }
+static struct regs_info g2d_reg_info_filter_h[] = {
+	FILTER_REG_INFO_H(0), FILTER_REG_INFO_H(1),
+	FILTER_REG_INFO_H(2), FILTER_REG_INFO_H(3)
+};
+static struct regs_info g2d_reg_info_filter_v[] = {
+	FILTER_REG_INFO_V(0), FILTER_REG_INFO_V(1),
+	FILTER_REG_INFO_V(2), FILTER_REG_INFO_V(3)
 };
 
 #define G2D_COMP_DEBUG_DATA_COUNT 16
@@ -321,6 +363,10 @@ void g2d_dump_afbcdata(struct g2d_device *g2d_dev)
 {
 	int i, cluster;
 	u32 cfg;
+
+	/* AFBC debugging register is not present with AFBCv1.2 */
+	if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_AFBC_V12))
+		return;
 
 	for (cluster = 0; cluster < 2; cluster++) {
 		for (i = 0; i < G2D_COMP_DEBUG_DATA_COUNT; i++) {
@@ -335,21 +381,125 @@ void g2d_dump_afbcdata(struct g2d_device *g2d_dev)
 	}
 }
 
+static void g2d_dump_sfr_entry(const char *name, void *base,
+			       unsigned int offset, size_t len)
+{
+	pr_info("[%s: %#04x .. %#04x]\n", name, offset, offset + len - 4);
+	print_hex_dump(KERN_INFO, "+", DUMP_PREFIX_OFFSET, 32, 4,
+		       base + offset, len, false);
+}
+
+static void __g2d_dump_sfr(void *base, struct regs_info *regs, size_t count)
+{
+	size_t i;
+
+	for (i = 0; i < count; i++)
+		g2d_dump_sfr_entry(regs[i].name, base,
+				   regs[i].start, regs[i].size);
+}
+
+static void g2d_dump_common_sfr(struct g2d_device *g2d_dev,
+				struct g2d_task *task,
+				unsigned int *hdrmap, unsigned int *filtermap)
+{
+	unsigned int nr_layer = task ? task->num_source : g2d_dev->max_layers;
+	unsigned int i;
+
+	__g2d_dump_sfr(g2d_dev->reg, g2d_reg_info_common,
+			ARRAY_SIZE(g2d_reg_info_common));
+
+	__g2d_dump_sfr(g2d_dev->reg, &g2d_reg_info_dst, 1);
+
+	for (i = 0; i < nr_layer; i++) {
+		struct regs_info *info = &g2d_reg_info_layer[i];
+		unsigned int val;
+
+		g2d_dump_sfr_entry(info->name, g2d_dev->reg,
+				     info->start, info->size);
+
+		if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_POLYFILTER)) {
+			val = readl_relaxed(g2d_dev->reg + info->start + 0x48);
+			if ((val & 0x3) == 3) {
+				val >>= 4;
+				*filtermap |= 1 << (val & 0x3);
+			}
+		}
+
+		if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_HDR10PLUS)) {
+			val = readl_relaxed(g2d_dev->reg + info->start + 0x90);
+			if (!!(val & (1 << 12)))
+				*hdrmap |= 1 << (val & 0x3);
+		}
+	}
+}
+
+static void __g2d_dump_hdr10p(void __iomem *reg, unsigned int map)
+{
+	unsigned int i;
+
+	if (!map)
+		return;
+
+	__g2d_dump_sfr(reg, &g2d_reg_info_hdr10p_ctrl, 1);
+
+	for (i = 0; i < 4; i++) {
+		if (!(map & (1 << i)))
+			continue;
+
+		g2d_dump_sfr_entry(g2d_reg_info_hdr10p_eotf[i].name, reg,
+				   g2d_reg_info_hdr10p_eotf[i].start,
+				   g2d_reg_info_hdr10p_eotf[i].size);
+		g2d_dump_sfr_entry(g2d_reg_info_hdr10p_oetf[i].name, reg,
+				   g2d_reg_info_hdr10p_oetf[i].start,
+				   g2d_reg_info_hdr10p_oetf[i].size);
+		g2d_dump_sfr_entry(g2d_reg_info_hdr10p_gm[i].name, reg,
+				   g2d_reg_info_hdr10p_gm[i].start,
+				   g2d_reg_info_hdr10p_gm[i].size);
+		g2d_dump_sfr_entry(g2d_reg_info_hdr10p_tm[i].name, reg,
+				   g2d_reg_info_hdr10p_tm[i].start,
+				   g2d_reg_info_hdr10p_tm[i].size);
+	}
+}
+
+static void __g2d_dump_filter(void __iomem *reg, unsigned int map)
+{
+	unsigned int i;
+
+	for (i = 0; i < 4; i++) {
+		if (!(map & (1 << i)))
+			continue;
+
+		g2d_dump_sfr_entry(g2d_reg_info_filter_v[i].name, reg,
+				   g2d_reg_info_filter_v[i].start,
+				   g2d_reg_info_filter_v[i].size);
+		g2d_dump_sfr_entry(g2d_reg_info_filter_h[i].name, reg,
+				   g2d_reg_info_filter_h[i].start,
+				   g2d_reg_info_filter_h[i].size);
+	}
+}
+
 void g2d_dump_sfr(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
-	unsigned int i, num_array;
+	unsigned int hdrmap = task ? 0 : ~0;
+	unsigned int filtermap = task ? 0 : ~0;
 
-	num_array = (unsigned int)ARRAY_SIZE(g2d_reg_info) - g2d_dev->max_layers
-		    + ((task) ? task->num_source : g2d_dev->max_layers);
+	g2d_dump_common_sfr(g2d_dev, task, &hdrmap, &filtermap);
 
-	for (i = 0; i < num_array; i++) {
-		pr_info("[%s: %04X .. %04X]\n",
-			g2d_reg_info[i].name, g2d_reg_info[i].start,
-			g2d_reg_info[i].start + g2d_reg_info[i].size);
-		print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS, 32, 4,
-			g2d_dev->reg + g2d_reg_info[i].start,
-			g2d_reg_info[i].size, false);
-	}
+	if (!(g2d_dev->caps & G2D_DEVICE_CAPS_AFBC_V12))
+		__g2d_dump_sfr(g2d_dev->reg, &g2d_reg_info_afbc, 1);
+
+	if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_HWFC))
+		__g2d_dump_sfr(g2d_dev->reg, &g2d_reg_info_hwfc, 1);
+
+	if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_HDR10))
+		__g2d_dump_sfr(g2d_dev->reg, g2d_reg_info_hdr10,
+				ARRAY_SIZE(g2d_reg_info_hdr10));
+
+	if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_HDR10PLUS))
+		__g2d_dump_hdr10p(g2d_dev->reg, hdrmap);
+
+	if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_POLYFILTER))
+		__g2d_dump_filter(g2d_dev->reg, filtermap);
 }
 
 void g2d_dump_cmd(struct g2d_task *task)

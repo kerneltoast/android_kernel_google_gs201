@@ -37,8 +37,8 @@ do {									\
 #define g2d_perf(fmt, args...)	g2d_print(DBG_PERF, fmt, ##args)
 
 struct regs_info {
-	int start;
-	int size;
+	unsigned int start;
+	unsigned int size;
 	const char *name;
 };
 
