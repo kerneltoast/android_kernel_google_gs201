@@ -21,10 +21,18 @@ enum sbbm_signal_id {
 	SBB_SIG_ONE, /* Constant value of 1, for testing purposes. */
 	SBB_SIG_KERNEL_TEST, /* Test signal for kernel API. */
 	SBB_SIG_USERLAND_TEST, /* Test signal for sysfs-driven changes. */
+	SBB_SIG_USERLAND_GP0, /* Userland general purpose area of interest. */
+	SBB_SIG_USERLAND_GP1, /* Userland general purpose area of interest. */
+	SBB_SIG_USERLAND_GP2, /* Userland general purpose area of interest. */
+	SBB_SIG_USERLAND_GP3, /* Userland general purpose area of interest. */
+	SBB_SIG_KERNEL_GP0, /* Kernel general purpose area of interest. */
+	SBB_SIG_KERNEL_GP1, /* Kernel general purpose area of interest. */
+	SBB_SIG_KERNEL_GP2, /* Kernel general purpose area of interest. */
+	SBB_SIG_KERNEL_GP3, /* Kernel general purpose area of interest. */
 	SBB_SIG_NUM_SIGNALS /* The total number of signals. Has to be last. */
 };
 
-extern int sbbm_signal_update(enum sbbm_signal_id signal_id, int value);
+extern int sbbm_signal_update(enum sbbm_signal_id signal_id, bool value);
 
 #define SBBM_SIGNAL_UPDATE(signal_id, val) sbbm_signal_update(signal_id, val)
 

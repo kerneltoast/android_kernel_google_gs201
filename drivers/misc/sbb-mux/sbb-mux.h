@@ -19,6 +19,8 @@
 #ifndef __SBB_MUX_H__
 #define __SBB_MUX_H__
 
+#include <linux/mutex.h>
+#include <linux/spinlock_types.h>
 #include <misc/sbbm.h>
 
 /*
@@ -58,10 +60,18 @@ struct sbb_signal {
  * include/misc/sbbm.h.
  */
 const struct sbb_signal signals[SBB_SIG_NUM_SIGNALS] = {
-	{ SBB_SIG_ZERO, "zero", CONSTANT },
-	{ SBB_SIG_ONE, "one", CONSTANT },
+	{ SBB_SIG_ZERO, "0", CONSTANT },
+	{ SBB_SIG_ONE, "1", CONSTANT },
 	{ SBB_SIG_KERNEL_TEST, "kernel_test", KERNEL_DRIVEN },
 	{ SBB_SIG_USERLAND_TEST, "userland_test", USERLAND_DRIVEN },
+	{ SBB_SIG_USERLAND_GP0, "gp_region_0", USERLAND_DRIVEN },
+	{ SBB_SIG_USERLAND_GP1, "gp_region_1", USERLAND_DRIVEN },
+	{ SBB_SIG_USERLAND_GP2, "gp_region_2", USERLAND_DRIVEN },
+	{ SBB_SIG_USERLAND_GP3, "gp_region_3", USERLAND_DRIVEN },
+	{ SBB_SIG_KERNEL_GP0, "k_gp_region_0", KERNEL_DRIVEN },
+	{ SBB_SIG_KERNEL_GP1, "k_gp_region_1", KERNEL_DRIVEN },
+	{ SBB_SIG_KERNEL_GP2, "k_gp_region_2", KERNEL_DRIVEN },
+	{ SBB_SIG_KERNEL_GP3, "k_gp_region_3", KERNEL_DRIVEN },
 };
 
 /*
@@ -69,7 +79,7 @@ const struct sbb_signal signals[SBB_SIG_NUM_SIGNALS] = {
  * Pointers to kobj_attribute objects are the only driver-customizable
  * component that get given back to us as part of the show/store callbacks
  * when users interact with our sysfs files. 'Overload' the structure to
- * add an 'id' field, that can be used by callbacks to identify which the
+ * add an 'id' field, that can be used by callbacks to identify which
  * signal or GPIO file is being accessed.
  */
 struct ext_kobj_attribute {
@@ -97,12 +107,22 @@ struct sbb_signal_tracker {
 	/*
 	 * Current value for the signal.
 	 */
-	atomic_t value;
+	int value;
 	/*
 	 * The number of times the signal was successfully toggled (i.e. the
 	 * number of times the value changed).
 	 */
-	atomic_long_t toggle_count;
+	unsigned long toggle_count;
+	/*
+	 * Mask containing the index bits for all GPIOs tracking the signal.
+	 * E.g. 0x5 means that GPIOs #2 and #0 are tracking the signal, and
+	 * need to be updated when the signal value changes.
+	 */
+	unsigned long assigned_gpios_mask;
+	/*
+	 * Lock protecting value, toggle_count and assigned_gpios_mask.
+	 */
+	spinlock_t lock;
 
 	/*
 	 * The sysfs folder for the signal. Contains all the files listed
@@ -126,26 +146,46 @@ struct sbb_signal_tracker {
 	 * The sysfs file exposing the signal's toggle_count to userland.
 	 */
 	struct sysfs_file toggle_count_file;
+
+	/*
+	 * The sysfs file exposing the signal's assigned GPIOs to userland.
+	 */
+	struct sysfs_file assigned_gpios_file;
 };
 
 /*
  * Interface for updating Kernel signals.
  * 'value' has to be 0 or 1.
- * Returns 0 on success, -1 or -EINVAL on error.
+ * Returns 0 on success, -EINVAL on error.
  * Error cases are:
- * - the signal_id is invalid (-EINVAL)
- * - the signal's value was already set to the target value (-1).
+ * - the signal_id is invalid
+ * - the signal's value was already set to the target value.
  */
-int sbbm_signal_update(enum sbbm_signal_id signal_id, int value);
+int sbbm_signal_update(enum sbbm_signal_id signal_id, bool value);
 EXPORT_SYMBOL(sbbm_signal_update);
 
 /*
- * Setter for signal values.
- * Returns 0 on success, -1 on error.
- * Note: this is an internal function. The API function should first check
- * that the target signal is within bounds, and is indeed KERNEL_DRIVEN.
+ * Finds the signal id for the specified signal name.
+ * Returns -EINVAL if no match could be found.
+ */
+static int sbb_signal_find(const char *name);
+
+/*
+ * Setter for signal values. Input values can be 0, 1, or SBB_REFRESH_VALUE.
+ * On SBB_REFRESH_VALUE, any GPIOs tracking the signal will have their value
+ * refreshed. This is only useful for initialization purposes.
+ * Returns 0 on success, -EINVAL on error.
+ * Note: this is an internal function, which does not check that the target
+ * signal is within bounds or that it is indeed KERNEL_DRIVEN.
  */
 static int sbb_signal_set_value(enum sbbm_signal_id signal_id, int value);
+#define SBB_REFRESH_VALUE -1
+
+/*
+ * Refreshes GPIO values for all signals. Only needed right after initializing
+ * the GPIO trackers array.
+ */
+static void sbb_gpio_refresh_all(void);
 
 /*
  * Callback for reads to a signal's "id" file.
@@ -171,8 +211,8 @@ static ssize_t sbb_signal_value_show(struct kobject *kobj,
 /*
  * Callback for writes to a signal's "value" file.
  * Note that only USERLAND_DRIVEN files may be written to. Expected inputs are
- * "0" and "1". Will return -1 if the signal could not be writtne to (e.g. due
- * due trying to write the signal's current value).
+ * "0" and "1". Will return -EINVAL if the signal could not be written to (e.g.
+ * due to trying to write the signal's current value).
  */
 static ssize_t sbb_signal_value_store(struct kobject *kobj,
 				      struct kobj_attribute *attr,
@@ -187,8 +227,17 @@ static ssize_t sbb_signal_toggle_count_show(struct kobject *kobj,
 					    char *buf);
 
 /*
+ * Callback for reads to a signal's "assigned_gpios" file.
+ * Will output the names of all GPIOs tracking the signal (each name on
+ * a new line).
+ */
+static ssize_t sbb_signal_assigned_gpios_show(struct kobject *kobj,
+					      struct kobj_attribute *attr,
+					      char *buf);
+
+/*
  * Creates a new sysfs file in the target 'parent' sysfs folder.
- * Returns 0 on success, -1 on error.
+ * Returns 0 on success, -EEXIST or -EINVAL on error.
  */
 static int sbb_mux_init_sysfs_file(
 	struct sysfs_file *file, struct kobject *parent, enum sbbm_signal_id id,
@@ -227,6 +276,82 @@ static int sbb_mux_initialize_sysfs_nodes(void);
  * sbb_mux_initialize_sysfs_nodes).
  */
 static void sbb_mux_clean_up_sysfs_nodes(void);
+
+/*
+ * Run-time information on GPIOs.
+ */
+struct sbb_gpio_tracker {
+	/*
+	 * Is set with its index in the DTS 'gpios' array (which is also its
+	 * index in the 'gpio_trackers' array).
+	 */
+	int id;
+	/*
+	 * The name of the GPIO, as specified in the DTS.
+	 */
+	const char *name;
+	/*
+	 * The GPIO id returned when calling get_gpio.
+	 */
+	int system_id;
+	/*
+	 * The GPIO's descriptor.
+	 */
+	struct gpio_desc *gd;
+
+	/*
+	 * The SBBM signal tracked by the GPIO.
+	 */
+	enum sbbm_signal_id tracked_signal;
+	/*
+	 * Lock protecting tracked_signal.
+	 * This lock is *NOT* needed when updating the GPIO's value.
+	 */
+	struct mutex lock;
+
+	/*
+	 * The sysfs folder for the GPIO. Contains all the files listed
+	 * below.
+	 */
+	struct kobject *sysfs_folder;
+	/*
+	 * The sysfs file exposing the GPIO's tracked signal to userland.
+	 */
+	struct sysfs_file tracked_signal_file;
+	/*
+	 * The sysfs file exposing the GPIO's value to userland.
+	 */
+	struct sysfs_file value_file;
+};
+
+/*
+ * Initializes the target GPIO tracker.
+ * A sysfs folder in sbb-mux's "gpios" folder will be created as part of
+ * this, as well as new sysfs files exposing the GPIO's properties.
+ * Returns -EINVAL in case of irrecoverable error, -EPROBE_DEFER otherwise.
+ */
+static int sbb_mux_initialize_gpio_tracker(struct sbb_gpio_tracker *tracker,
+					   int gpio_id);
+
+/*
+ * Cleans up the target GPIO tracker, deallocating resources as necessary.
+ */
+static void sbb_mux_cleanup_gpio_tracker(struct sbb_gpio_tracker *tracker);
+
+/*
+ * Driver probe point: find allocated GPIOs and initialize GPIO trackers.
+ */
+static int sbb_mux_drv_probe(struct platform_device *dev);
+
+/*
+ * Undo any initialization work done in probe.
+ */
+static void sbb_mux_drv_undo_probe(struct sbb_gpio_tracker **gpio_trackers_ptr);
+
+/*
+ * Driver remove point: free up resources allocated during probe.
+ */
+static int sbb_mux_drv_remove(struct platform_device *dev);
 
 /*
  * Driver entry point.
