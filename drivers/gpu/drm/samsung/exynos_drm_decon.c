@@ -229,7 +229,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	dpp->win_id = zpos;
 
 	decon_dbg(decon, "plane idx[%d]: alpha(0x%x) hw alpha(0x%x)\n",
-			drm_plane_index(&plane->base), win_info.plane_alpha,
+			drm_plane_index(&plane->base), state->base.alpha,
 			hw_alpha);
 	decon_dbg(decon, "blend_mode(%d) color(%s:0x%x)\n", win_info.blend,
 			is_colormap ? "enable" : "disable", win_info.colormap);
