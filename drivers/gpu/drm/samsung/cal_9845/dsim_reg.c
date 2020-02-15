@@ -1775,7 +1775,7 @@ static int dsim_reg_set_clocks(u32 id, struct dsim_clks *clks,
 		dsim_reg_set_esc_clk_prescaler(id, 0, 0xff);
 
 		/* check dither sequence */
-		if (dphy_pms->dither_en)
+		if (dphy_pms && dphy_pms->dither_en)
 			dsim_reg_set_dphy_dither_en(id, 0);
 
 		dsim_reg_enable_pll(id, 0);
