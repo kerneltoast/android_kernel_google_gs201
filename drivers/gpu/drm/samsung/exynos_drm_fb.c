@@ -69,10 +69,43 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 	return fb;
 }
 
-#define Y_SIZE_8P2(w, h)	(NV12N_10B_Y_8B_SIZE(w, h) +		\
-					NV12N_10B_Y_2B_SIZE(w, h))
-#define UV_SIZE_8P2(w, h)	(NV12N_10B_CBCR_8B_SIZE(w, h) +		\
-					NV12N_10B_CBCR_2B_SIZE(w, h))
+#define has_all_bits(bits, mask)    (((bits) & (mask)) == (bits))
+static size_t get_plane_size(const struct drm_mode_fb_cmd2 *mode_cmd, u32 idx)
+{
+	u32 height;
+	size_t size;
+	bool is_10bpc;
+	u8 vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
+
+	if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_YUV_8_2_SPLIT,
+				mode_cmd->modifier[idx])) {
+		if (idx == 0)
+			size = Y_SIZE_8P2(mode_cmd->width, mode_cmd->height);
+		else if (idx == 1)
+			size = UV_SIZE_8P2(mode_cmd->width, mode_cmd->height);
+	} else if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_SBWC(0),
+				mode_cmd->modifier[idx])) {
+		is_10bpc = IS_10BPC(dpu_find_fmt_info(mode_cmd->pixel_format));
+
+		/*
+		 * mapping size[0] : luminance PL/HD
+		 * mapping size[1] : chrominance PL/HD
+		 */
+		if (idx == 0)
+			size = Y_SIZE_SBWC(mode_cmd->width, mode_cmd->height,
+					is_10bpc);
+		else if (idx == 1)
+			size = UV_SIZE_SBWC(mode_cmd->width, mode_cmd->height,
+					is_10bpc);
+	} else {
+		height = (idx == 0) ? mode_cmd->height :
+			DIV_ROUND_UP(mode_cmd->height, vsub);
+		size = height * mode_cmd->pitches[idx];
+	}
+
+	return size;
+}
+
 static struct drm_framebuffer *
 exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		      const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -80,7 +113,6 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	const struct drm_format_info *info = drm_get_format_info(dev, mode_cmd);
 	struct drm_gem_object *obj[MAX_FB_BUFFER] = { 0 };
 	struct drm_framebuffer *fb;
-	u32 height;
 	size_t size;
 	int i;
 	int ret;
@@ -91,21 +123,8 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < info->num_planes; i++) {
-		height = (i == 0) ? mode_cmd->height :
-				     DIV_ROUND_UP(mode_cmd->height, info->vsub);
-		size = height * mode_cmd->pitches[i] + mode_cmd->offsets[i];
-
 		if (mode_cmd->modifier[i] ==
-				DRM_FORMAT_MOD_SAMSUNG_YUV_8_2_SPLIT) {
-			if (i == 0)
-				size = Y_SIZE_8P2(mode_cmd->width,
-						mode_cmd->height);
-			else if (i == 1)
-				size = UV_SIZE_8P2(mode_cmd->width,
-						mode_cmd->height);
-		}
-
-		if (mode_cmd->modifier[i] == DRM_FORMAT_MOD_SAMSUNG_COLORMAP) {
+				DRM_FORMAT_MOD_SAMSUNG_COLORMAP) {
 			struct exynos_drm_gem *exynos_gem;
 
 			exynos_gem = exynos_drm_gem_alloc(dev, 0,
@@ -128,7 +147,11 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			goto err;
 		}
 
-		if (size > obj[i]->size) {
+		size = get_plane_size(mode_cmd, i);
+		if (mode_cmd->offsets[i] + size > obj[i]->size) {
+			DRM_ERROR("offsets[%d](%d) size(%d) obj[%d]->size(%d)\n",
+					i, mode_cmd->offsets[i], size, i,
+					obj[i]->size);
 			i++;
 			ret = -EINVAL;
 			goto err;
@@ -212,7 +235,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dst_h = state->base.crtc_h;
 
 	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0) ||
-			fb->modifier == DRM_FORMAT_MOD_SAMSUNG_SBWC)
+			fb->modifier & DRM_FORMAT_MOD_SAMSUNG_SBWC(0))
 		win_config->is_comp = true;
 	else
 		win_config->is_comp = false;
@@ -226,7 +249,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dpp_ch = plane_idx;
 
 	win_config->comp_src = 0;
-	if (win_config->is_comp)
+	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0))
 		win_config->comp_src =
 			(fb->modifier & AFBC_FORMAT_MOD_SOURCE_MASK);
 

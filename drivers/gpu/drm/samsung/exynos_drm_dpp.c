@@ -294,12 +294,14 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	if (simplified_rot & DRM_MODE_REFLECT_Y)
 		config->rot |= DPP_Y_FLIP;
 
-	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0))
+	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0)) {
 		config->comp_type = COMP_TYPE_AFBC;
-	else if (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_SBWC)
+	} else if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_SBWC(0)) {
 		config->comp_type = COMP_TYPE_SBWC;
-	else
+		config->blk_size = SBWC_BLOCK_SIZE_GET(fb->modifier);
+	} else {
 		config->comp_type = COMP_TYPE_NONE;
+	}
 
 	config->format = fb->format->format;
 	config->standard = state->standard;
@@ -319,6 +321,30 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 			NV12N_10B_Y_8B_SIZE(fb->width, fb->height);
 		config->addr[3] = config->addr[1] +
 			NV12N_10B_CBCR_8B_SIZE(fb->width, fb->height);
+	} else if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_SBWC(0)) {
+		const struct dpu_fmt *fmt_info =
+			dpu_find_fmt_info(config->format);
+		bool is_10bpc = IS_10BPC(fmt_info);
+		/* Luminance header */
+		config->addr[0] += Y_PL_SIZE_SBWC(config->src.f_w,
+				config->src.f_h, is_10bpc);
+		config->y_hd_y2_stride = HD_STRIDE_SIZE_SBWC(config->src.f_w);
+
+		/* Luminance payload */
+		config->addr[1] = exynos_drm_fb_dma_addr(fb, 0);
+		config->y_pl_c2_stride = PL_STRIDE_SIZE_SBWC(config->src.f_w,
+				is_10bpc);
+
+		/* Chrominance header */
+		config->addr[2] = exynos_drm_fb_dma_addr(fb, 1) +
+			UV_PL_SIZE_SBWC(config->src.f_w, config->src.f_h,
+					is_10bpc);
+		config->c_hd_stride = HD_STRIDE_SIZE_SBWC(config->src.f_w);
+
+		/* Chrominance payload */
+		config->addr[3] = exynos_drm_fb_dma_addr(fb, 1);
+		config->c_pl_stride = PL_STRIDE_SIZE_SBWC(config->src.f_w,
+				is_10bpc);
 	} else {
 		config->addr[2] = exynos_drm_fb_dma_addr(fb, 2);
 		config->addr[3] = exynos_drm_fb_dma_addr(fb, 3);

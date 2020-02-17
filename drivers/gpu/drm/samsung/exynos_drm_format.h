@@ -50,6 +50,32 @@ struct dpu_fmt {
 #define IS_10BPC(f)		((f)->bpc == 10)
 #define IS_OPAQUE(f)		((f)->len_alpha == 0)
 
+#define Y_SIZE_8P2(w, h)	(NV12N_10B_Y_8B_SIZE(w, h) +		\
+					NV12N_10B_Y_2B_SIZE(w, h))
+#define UV_SIZE_8P2(w, h)	(NV12N_10B_CBCR_8B_SIZE(w, h) +		\
+					NV12N_10B_CBCR_2B_SIZE(w, h))
+#define Y_SIZE_SBWC_8B(w, h)	(SBWC_8B_Y_SIZE(w, h) +			\
+					SBWC_8B_Y_HEADER_SIZE(w, h))
+#define UV_SIZE_SBWC_8B(w, h)	(SBWC_8B_CBCR_SIZE(w, h) +		\
+					SBWC_8B_CBCR_HEADER_SIZE(w, h))
+#define Y_SIZE_SBWC_10B(w, h)	(SBWC_10B_Y_SIZE(w, h) +		\
+					SBWC_10B_Y_HEADER_SIZE(w, h))
+#define UV_SIZE_SBWC_10B(w, h)	(SBWC_10B_CBCR_SIZE(w, h) +		\
+					SBWC_10B_CBCR_HEADER_SIZE(w, h))
+
+#define Y_SIZE_SBWC(w, h, bpc)	((bpc) ? Y_SIZE_SBWC_10B(w, h) :	\
+					Y_SIZE_SBWC_8B(w, h))
+#define UV_SIZE_SBWC(w, h, bpc)	((bpc) ? UV_SIZE_SBWC_10B(w, h) :	\
+					UV_SIZE_SBWC_8B(w, h))
+#define Y_PL_SIZE_SBWC(w, h, bpc)	((bpc) ? SBWC_10B_Y_SIZE(w, h) :\
+						SBWC_8B_Y_SIZE(w, h))
+#define UV_PL_SIZE_SBWC(w, h, bpc)	((bpc) ? SBWC_10B_CBCR_SIZE(w, h) :\
+						SBWC_8B_CBCR_SIZE(w, h))
+
+#define HD_STRIDE_SIZE_SBWC(w)		(SBWC_HEADER_STRIDE(w))
+#define PL_STRIDE_SIZE_SBWC(w, bpc)	((bpc) ? SBWC_10B_STRIDE(w) :	\
+						SBWC_8B_STRIDE(w))
+
 const struct dpu_fmt *dpu_find_fmt_info(u32 fmt);
 
 #endif /* __EXYNOS_FORMAT_H__ */

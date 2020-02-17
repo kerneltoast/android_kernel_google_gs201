@@ -279,6 +279,9 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 		if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_COLORMAP)
 			return 0;
 
+		if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_SBWC(0))
+			return 0;
+
 		DRM_ERROR("not supported modifier(0x%llx)\n", fb->modifier);
 		return -ENOTSUPP;
 	}
