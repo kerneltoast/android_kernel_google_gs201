@@ -238,6 +238,7 @@ static void exynos_drm_plane_print_state(struct drm_printer *p,
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(state->plane);
 	struct dpp_device *dpp = plane_to_dpp(exynos_plane);
 
+	drm_printf(p, "\talpha: 0x%x\n", state->alpha);
 	drm_printf(p, "\tluminance: min=%d max=%d\n",
 		   exynos_state->min_luminance, exynos_state->max_luminance);
 	drm_printf(p, "\tDPP #%d", dpp->id);
