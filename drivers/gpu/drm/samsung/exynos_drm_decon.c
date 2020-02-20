@@ -125,12 +125,20 @@ static inline u32 win_end_pos(int x, int y,  u32 xres, u32 yres)
 /* ARGB value */
 #define COLOR_MAP_VALUE			0x00340080
 
+/*
+ * This function is used to disable all windows and make black frame via
+ * decon on the first frame after enabling.
+ */
 static void decon_set_color_map(struct decon_device *decon, u32 win_id,
 						u32 hactive, u32 vactive)
 {
 	struct decon_window_regs win_info;
+	int i;
 
 	decon_dbg(decon, "%s +\n", __func__);
+
+	for (i = 0; i < MAX_WIN_PER_DECON; ++i)
+		decon_reg_set_win_enable(decon->id, i, 0);
 
 	memset(&win_info, 0, sizeof(struct decon_window_regs));
 	win_info.start_pos = win_start_pos(0, 0);
