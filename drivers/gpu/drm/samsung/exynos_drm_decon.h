@@ -88,6 +88,30 @@ struct dpu_bts_win_config {
 	u64 comp_src;
 };
 
+struct bts_layer_position {
+	u32 x1;
+	u32 x2; /* x2 = x1 + width */
+	u32 y1;
+	u32 y2; /* y2 = y1 + height */
+};
+
+struct bts_dpp_info {
+	bool used;
+	u32 bpp;
+	u32 src_h;
+	u32 src_w;
+	struct bts_layer_position dst;
+	u32 bw;
+	bool rotation;
+};
+
+struct bts_decon_info {
+	struct bts_dpp_info dpp[MAX_DPP_CNT];
+	u32 vclk; /* Khz */
+	u32 lcd_w;
+	u32 lcd_h;
+};
+
 struct dpu_bts {
 	bool enabled;
 	u32 resol_clk;
@@ -104,11 +128,11 @@ struct dpu_bts {
 	u32 vsa;
 	u32 fps;
 #if defined(CONFIG_EXYNOS_BTS)
-	struct dpu_bts_bw bw[BTS_DPP_MAX];
+	struct dpu_bts_bw bw[MAX_DPP_CNT];
 
 	/* each decon must know other decon's BW to get overall BW */
-	u32 ch_bw[3][BTS_DPU_MAX];
-	enum bts_bw_type type;
+	u32 ch_bw[3][MAX_DECON_CNT];
+	int bw_idx;
 	struct bts_decon_info bts_info;
 #endif
 	struct dpu_bts_ops *ops;

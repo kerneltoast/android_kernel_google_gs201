@@ -14,6 +14,10 @@
 #include <exynos_drm_format.h>
 
 #include <soc/samsung/bts.h>
+#if defined(CONFIG_SOC_GS101)
+#include <soc/samsung/exynos-devfreq.h>
+#include <dt-bindings/soc/google/gs101-devfreq.h>
+#endif
 #if defined(CONFIG_CAL_IF)
 #include <soc/samsung/cal-if.h>
 #endif
@@ -24,7 +28,7 @@
 #endif
 
 #define DISP_FACTOR		100UL
-#define LCD_REFRESH_RATE	63UL
+#define LCD_REFRESH_RATE	60UL
 #define MULTI_FACTOR		(1UL << 10)
 /* bus utilization 75% */
 #define BUS_UTIL		75
@@ -34,7 +38,7 @@
 #define DPP_SCALE_DOWN		2
 
 #define ACLK_100MHZ_PERIOD	10000UL
-#define ACLK_MHZ_INC_STEP	50UL	/* 50Mhz */
+#define ACLK_MHZ_INC_STEP	50U	/* 50Mhz */
 #define FRAME_TIME_NSEC		1000000000UL	/* 1sec */
 #define TOTAL_BUS_LATENCY	3000UL	/* 3us: BUS(1) + PWT(1) + Request(1) */
 
@@ -226,6 +230,35 @@ static u32 dpu_bts_find_latency_meet_aclk(u32 lat_cycle, u32 line_time,
 	return (aclk_mhz * 1000UL);
 }
 
+/*
+ * return : kHz value based on 1-pixel processing pipe-line
+ */
+static u64 dpu_bts_get_resol_clock(u32 xres, u32 yres, u32 fps)
+{
+	u32 op_fps;
+	u64 margin;
+	u64 resol_khz;
+
+	/*
+	 * check lower limit of fps
+	 * this can be removed if there is no stuck issue
+	 */
+	op_fps = (fps < LCD_REFRESH_RATE) ? LCD_REFRESH_RATE : fps;
+
+	/*
+	 * aclk_khz = vclk_1pix * ( 1.1 + (48+20)/WIDTH ) : x1000
+	 * @ (1.1)   : BUS Latency Considerable Margin (10%)
+	 * @ (48+20) : HW bubble cycles
+	 *      - 48 : 12 cycles per slice, total 4 slice
+	 *      - 20 : hblank cycles for other HW module
+	 */
+	margin = 1100 + (48000 + 20000) / xres;
+	/* convert to kHz unit */
+	resol_khz = (xres * yres * op_fps * margin / 1000) / 1000;
+
+	return resol_khz;
+}
+
 u64 dpu_bts_calc_aclk_disp(struct decon_device *decon,
 		struct dpu_bts_win_config *config, u64 resol_clock)
 {
@@ -319,14 +352,14 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 		return;
 	}
 
-	for (i = 0; i < BTS_DPU_MAX; ++i)
+	for (i = 0; i < MAX_DECON_CNT; ++i)
 		decon->bts.ch_bw[decon->id][i] = ch_bw[i];
 
 	for (i = 0; i < decon->decon_cnt; ++i) {
 		if (decon->id == i)
 			continue;
 
-		for (j = 0; j < BTS_DPU_MAX; ++j)
+		for (j = 0; j < MAX_DECON_CNT; ++j)
 			ch_bw[j] += decon->bts.ch_bw[i][j];
 	}
 }
@@ -334,39 +367,32 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 static void dpu_bts_find_max_disp_freq(struct decon_device *decon)
 {
 	int i, j;
-	u32 disp_ch_bw[BTS_DPU_MAX];
+	u32 disp_ch_bw[MAX_DECON_CNT];
 	u32 max_disp_ch_bw;
 	u32 disp_op_freq = 0, freq = 0;
-	u64 resol_clock;
-	u64 op_fps = LCD_REFRESH_RATE;
 	struct dpu_bts_win_config *config = decon->bts.win_config;
 
 	memset(disp_ch_bw, 0, sizeof(disp_ch_bw));
 
-	for (i = 0; i < BTS_DPP_MAX; ++i)
-		for (j = 0; j < BTS_DPU_MAX; ++j)
+	for (i = 0; i < MAX_DPP_CNT; ++i)
+		for (j = 0; j < MAX_DECON_CNT; ++j)
 			if (decon->bts.bw[i].ch_num == j)
 				disp_ch_bw[j] += decon->bts.bw[i].val;
 
 	/* must be considered other decon's bw */
 	dpu_bts_sum_all_decon_bw(decon, disp_ch_bw);
 
-	for (i = 0; i < BTS_DPU_MAX; ++i)
+	for (i = 0; i < MAX_DECON_CNT; ++i)
 		if (disp_ch_bw[i])
 			DPU_DEBUG_BTS("\tPort%d = %d\n", i, disp_ch_bw[i]);
 
 	max_disp_ch_bw = disp_ch_bw[0];
-	for (i = 1; i < BTS_DPU_MAX; ++i)
+	for (i = 1; i < MAX_DECON_CNT; ++i)
 		if (max_disp_ch_bw < disp_ch_bw[i])
 			max_disp_ch_bw = disp_ch_bw[i];
 
 	decon->bts.peak = max_disp_ch_bw;
 	decon->bts.max_disp_freq = max_disp_ch_bw * 100 / (16 * BUS_UTIL) + 1;
-
-	/* 1.1: 10% margin, 1000: for KHZ, 1: for raising to a unit */
-	resol_clock = decon->config.image_width * decon->config.image_height *
-		op_fps * 11 / 10 / 1000 + 1;
-	decon->bts.resol_clk = resol_clock;
 
 	DPU_DEBUG_BTS("\tDECON%d : resol clock = %d Khz\n", decon->id,
 			decon->bts.resol_clk);
@@ -376,7 +402,8 @@ static void dpu_bts_find_max_disp_freq(struct decon_device *decon)
 				(config[i].state != DPU_WIN_STATE_COLOR))
 			continue;
 
-		freq = dpu_bts_calc_aclk_disp(decon, &config[i], resol_clock);
+		freq = dpu_bts_calc_aclk_disp(decon, &config[i],
+				(u64)decon->bts.resol_clk);
 		if (disp_op_freq < freq)
 			disp_op_freq = freq;
 	}
@@ -405,10 +432,24 @@ static void dpu_bts_share_bw_info(int id, int decon_cnt)
 		if (id == i || decon[i] == NULL)
 			continue;
 
-		for (j = 0; j < BTS_DPU_MAX; ++j)
+		for (j = 0; j < MAX_DECON_CNT; ++j)
 			decon[i]->bts.ch_bw[id][j] =
 				decon[id]->bts.ch_bw[id][j];
 	}
+}
+
+static void dpu_bts_calc_dpp_bw(struct bts_decon_info *bts_info, int idx)
+{
+	struct bts_dpp_info *dpp = &bts_info->dpp[idx];
+	unsigned int dst_w, dst_h;
+
+	dst_w = dpp->dst.x2 - dpp->dst.x1;
+	dst_h = dpp->dst.y2 - dpp->dst.y1;
+
+	dpp->bw = ((u64)dpp->src_h * dpp->src_w * dpp->bpp * bts_info->vclk) /
+		(8 * dst_h * bts_info->lcd_w);
+
+	DPU_DEBUG_BTS("\tDPP%d bandwidth = %d\n", idx, dpp->bw);
 }
 
 void dpu_bts_calc_bw(struct decon_device *decon)
@@ -417,6 +458,8 @@ void dpu_bts_calc_bw(struct decon_device *decon)
 	struct bts_decon_info bts_info;
 	const struct dpu_fmt *fmt_info;
 	int idx, i;
+	u32 total_bw = 0;
+	u64 resol_clock;
 
 	if (!decon->bts.enabled)
 		return;
@@ -425,9 +468,20 @@ void dpu_bts_calc_bw(struct decon_device *decon)
 	DPU_DEBUG_BTS("%s + : DECON%d\n", __func__, decon->id);
 
 	memset(&bts_info, 0, sizeof(struct bts_decon_info));
+
+	resol_clock = dpu_bts_get_resol_clock(decon->config.image_width,
+				decon->config.image_height, decon->bts.fps);
+	decon->bts.resol_clk = (u32)resol_clock;
+	DPU_DEBUG_BTS("[Run: D%d] resol clock = %d Khz @%d fps\n",
+		decon->id, decon->bts.resol_clk, decon->bts.fps);
+
+	bts_info.vclk = decon->bts.resol_clk;
+	bts_info.lcd_w = decon->config.image_width;
+	bts_info.lcd_h = decon->config.image_height;
+
 	for (i = 0; i < decon->win_cnt; ++i) {
 		if (config[i].state == DPU_WIN_STATE_BUFFER) {
-			idx = DPU_CH2DMA(config[i].dpp_ch); /* ch */
+			idx = config[i].dpp_ch; /* ch */
 			/*
 			 * TODO: Array index of bts_info structure uses dma type
 			 * This array index will be changed to DPP channel
@@ -475,15 +529,15 @@ void dpu_bts_calc_bw(struct decon_device *decon)
 				bts_info.dpp[idx].dst.x2,
 				bts_info.dpp[idx].dst.y1,
 				bts_info.dpp[idx].dst.y2);
+
+		dpu_bts_calc_dpp_bw(&bts_info, idx);
+		total_bw += bts_info.dpp[idx].bw;
 	}
 
-	bts_info.vclk = decon->bts.resol_clk;
-	bts_info.lcd_w = decon->config.image_width;
-	bts_info.lcd_h = decon->config.image_height;
-	decon->bts.total_bw = bts_calc_bw(decon->bts.type, &bts_info);
+	decon->bts.total_bw = total_bw;
 	memcpy(&decon->bts.bts_info, &bts_info, sizeof(struct bts_decon_info));
 
-	for (i = 0; i < BTS_DPP_MAX; ++i) {
+	for (i = 0; i < MAX_DPP_CNT; ++i) {
 		decon->bts.bw[i].val = bts_info.dpp[i].bw;
 		if (decon->bts.bw[i].val)
 			DPU_DEBUG_BTS("\tDPP%d bandwidth = %d\n",
@@ -521,7 +575,7 @@ void dpu_bts_update_bw(struct decon_device *decon, bool shadow_updated)
 	if (shadow_updated) {
 		/* after DECON h/w configs are updated to shadow SFR */
 		if (decon->bts.total_bw <= decon->bts.prev_total_bw)
-			bts_update_bw(decon->bts.type, bw);
+			bts_update_bw(decon->bts.bw_idx, bw);
 
 		if (decon->bts.max_disp_freq <= decon->bts.prev_max_disp_freq)
 			pm_qos_update_request(&decon->bts.disp_qos,
@@ -531,7 +585,7 @@ void dpu_bts_update_bw(struct decon_device *decon, bool shadow_updated)
 		decon->bts.prev_max_disp_freq = decon->bts.max_disp_freq;
 	} else {
 		if (decon->bts.total_bw > decon->bts.prev_total_bw)
-			bts_update_bw(decon->bts.type, bw);
+			bts_update_bw(decon->bts.bw_idx, bw);
 
 		if (decon->bts.max_disp_freq > decon->bts.prev_max_disp_freq)
 			pm_qos_update_request(&decon->bts.disp_qos,
@@ -557,9 +611,9 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 		config.src_h = config.dst_h = decon->config.image_height;
 		config.format = DRM_FORMAT_ARGB8888;
 
-		decon->bts.resol_clk = decon->config.image_width *
-			decon->config.image_height *
-			LCD_REFRESH_RATE * 11 / 10 / 1000 + 1;
+		decon->bts.resol_clk = dpu_bts_get_resol_clock(
+				decon->config.image_width,
+				decon->config.image_height, decon->bts.fps);
 
 		aclk_freq = dpu_bts_calc_aclk_disp(decon, &config,
 				decon->bts.resol_clk);
@@ -568,11 +622,19 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 		 * If current disp freq is higher than calculated freq,
 		 * it must not be set. if not, underrun can occur.
 		 */
+#if defined(CONFIG_SOC_GS101)
+		if (exynos_devfreq_get_domain_freq(DEVFREQ_DISP) < aclk_freq)
+			pm_qos_update_request(&decon->bts.disp_qos, aclk_freq);
+
+		DPU_DEBUG_BTS("Get initial disp freq(%lu)\n",
+				exynos_devfreq_get_domain_freq(DEVFREQ_DISP));
+#else
 		if (cal_dfs_get_rate(ACPM_DVFS_DISP) < aclk_freq)
 			pm_qos_update_request(&decon->bts.disp_qos, aclk_freq);
 
 		DPU_DEBUG_BTS("Get initial disp freq(%lu)\n",
 				cal_dfs_get_rate(ACPM_DVFS_DISP));
+#endif
 
 		return;
 	}
@@ -590,7 +652,7 @@ void dpu_bts_release_bw(struct decon_device *decon)
 		return;
 
 	if (decon->config.out_type & DECON_OUT_DSI) {
-		bts_update_bw(decon->bts.type, bw);
+		bts_update_bw(decon->bts.bw_idx, bw);
 		decon->bts.prev_total_bw = 0;
 		pm_qos_update_request(&decon->bts.disp_qos, 0);
 		decon->bts.prev_max_disp_freq = 0;
@@ -599,9 +661,11 @@ void dpu_bts_release_bw(struct decon_device *decon)
 	DPU_DEBUG_BTS("%s -\n", __func__);
 }
 
+#define MAX_IDX_NAME_SIZE	16
 void dpu_bts_init(struct decon_device *decon)
 {
 	int i;
+	char bts_idx_name[MAX_IDX_NAME_SIZE];
 
 	DPU_DEBUG_BTS("%s +\n", __func__);
 
@@ -612,23 +676,20 @@ void dpu_bts_init(struct decon_device *decon)
 		return;
 	}
 
-	if (decon->id == 1)
-		decon->bts.type = BTS_BW_DECON1;
-	else if (decon->id == 2)
-		decon->bts.type = BTS_BW_DECON2;
-	else
-		decon->bts.type = BTS_BW_DECON0;
+	memset(bts_idx_name, 0, MAX_IDX_NAME_SIZE);
+	snprintf(bts_idx_name, MAX_IDX_NAME_SIZE, "DECON%d", decon->id);
+	decon->bts.bw_idx = bts_get_bwindex(bts_idx_name);
 
-	for (i = 0; i < BTS_DPU_MAX; i++)
+	for (i = 0; i < MAX_DECON_CNT; i++)
 		decon->bts.ch_bw[decon->id][i] = 0;
 
-	DPU_DEBUG_BTS("BTS_BW_TYPE(%d)\n", decon->bts.type);
+	DPU_DEBUG_BTS("BTS_BW_TYPE(%d)\n", decon->bts.bw_idx);
 	pm_qos_add_request(&decon->bts.mif_qos, PM_QOS_BUS_THROUGHPUT, 0);
 	pm_qos_add_request(&decon->bts.int_qos, PM_QOS_DEVICE_THROUGHPUT, 0);
 	pm_qos_add_request(&decon->bts.disp_qos, PM_QOS_DISPLAY_THROUGHPUT, 0);
 	decon->bts.scen_updated = 0;
 
-	for (i = 0; i < BTS_DPP_MAX; ++i) { /* dma type order */
+	for (i = 0; i < MAX_DPP_CNT; ++i) { /* dma type order */
 		decon->bts.bw[i].ch_num = decon->dpp[DPU_DMA2CH(i)]->port;
 		DPU_INFO_BTS("IDMA_TYPE(%d) CH(%d) Port(%d)\n", i,
 				DPU_DMA2CH(i), decon->bts.bw[i].ch_num);
