@@ -30,8 +30,8 @@
 #define DISP_FACTOR		100UL
 #define LCD_REFRESH_RATE	60UL
 #define MULTI_FACTOR		(1UL << 10)
-/* bus utilization 75% */
-#define BUS_UTIL		75
+/* bus utilization 70% : same value with INT_UTIL */
+#define BUS_UTIL		70
 
 #define DPP_SCALE_NONE		0
 #define DPP_SCALE_UP		1
