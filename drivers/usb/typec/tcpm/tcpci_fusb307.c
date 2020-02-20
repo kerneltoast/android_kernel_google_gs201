@@ -148,16 +148,22 @@ static int fusb307b_init_alert(struct fusb307b_plat *chip,
 
 	irq_gpio = of_get_named_gpio(client->dev.of_node, "usbpd,usbpd_int", 0);
 	client->irq = gpio_to_irq(irq_gpio);
-	if (!client->irq)
+	if (!client->irq) {
+		dev_err(&client->dev, "gpio not found\n");
 		return -ENODEV;
+	}
 
 	ret = devm_request_threaded_irq(chip->dev, client->irq, NULL,
 					fusb307b_irq,
 					(IRQF_TRIGGER_LOW | IRQF_NO_SUSPEND |
 					 IRQF_ONESHOT),
 					dev_name(chip->dev), chip);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"Interrupt failed to allocate err:%d\n",
+			ret);
 		return ret;
+	}
 
 	enable_irq_wake(client->irq);
 	return 0;
@@ -171,7 +177,7 @@ static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 
 	/** Ordering is needed here. DO NOT REFACTOR if..else.. **/
 	if (!source) {
-		if (chip->vbus_enabled) {
+		if (!IS_ERR_OR_NULL(chip->vbus) && chip->vbus_enabled) {
 			ret = regulator_disable(chip->vbus);
 			if (ret < 0)
 				return ret;
@@ -192,7 +198,7 @@ static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 	}
 
 	if (source) {
-		if (!chip->vbus_enabled) {
+		if (!IS_ERR_OR_NULL(chip->vbus) && !chip->vbus_enabled) {
 			ret = regulator_enable(chip->vbus);
 			if (ret < 0)
 				return ret;
@@ -436,7 +442,6 @@ static int fusb307b_probe(struct i2c_client *client,
 	struct device_node *dn;
 	char *usb_psy_name;
 
-
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
@@ -454,7 +459,6 @@ static int fusb307b_probe(struct i2c_client *client,
 
 	ret = fusb307b_init_alert(chip, client);
 	if (ret < 0) {
-		dev_err(&client->dev, "Alert failed to initialize: %d\n", ret);
 		return ret;
 	}
 
@@ -462,7 +466,6 @@ static int fusb307b_probe(struct i2c_client *client,
 	if (IS_ERR(chip->vbus)) {
 		dev_err(&client->dev, "Regulator init: %d\n", PTR_ERR(
 			chip->vbus));
-		return PTR_ERR(chip->vbus);
 	}
 
 	chip->log = debugfs_logbuffer_register("usbpd");
