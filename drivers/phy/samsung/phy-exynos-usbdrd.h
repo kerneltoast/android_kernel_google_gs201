@@ -200,6 +200,9 @@ struct exynos_usbdrd_phy {
 	u32 phy_port;
 	u32 reverse_phy_port;
 	spinlock_t lock; /* protect phy setting */
+	struct extcon_dev *edev;
+	struct notifier_block usb_nb;
+	struct notifier_block usb_host_nb;
 	u32 use_default_tune_val;
 };
 

@@ -1330,6 +1330,74 @@ static int exynos_usbdrd_get_iptype(struct exynos_usbdrd_phy *phy_drd)
 	return 0;
 }
 
+static int exynos_usbdrd_usb_update(struct notifier_block *nb,
+				    unsigned long action, void *dev)
+{
+	struct exynos_usbdrd_phy *phy_drd = container_of(nb, struct exynos_usbdrd_phy, usb_nb);
+	union extcon_property_value property = { 0 };
+
+	if (action) {
+		extcon_get_property(phy_drd->edev, EXTCON_USB, EXTCON_PROP_USB_TYPEC_POLARITY,
+				    &property);
+		phy_drd->usbphy_info.used_phy_port = property.intval;
+		phy_drd->usbphy_sub_info.used_phy_port = property.intval;
+
+		dev_info(phy_drd->dev, "%s: phy port[%d]\n", __func__,
+			 phy_drd->usbphy_info.used_phy_port);
+	}
+
+	return NOTIFY_OK;
+}
+
+static int exynos_usbdrd_usb_host_update(struct notifier_block *nb,
+					 unsigned long action, void *dev)
+{
+	struct exynos_usbdrd_phy *phy_drd =
+		container_of(nb, struct exynos_usbdrd_phy, usb_host_nb);
+	union extcon_property_value property = { 0 };
+
+	if (action) {
+		extcon_get_property(phy_drd->edev, EXTCON_USB_HOST, EXTCON_PROP_USB_TYPEC_POLARITY,
+				    &property);
+		phy_drd->usbphy_info.used_phy_port = property.intval;
+		phy_drd->usbphy_sub_info.used_phy_port = property.intval;
+
+		dev_info(phy_drd->dev, "%s: phy port[%d]\n", __func__,
+			 phy_drd->usbphy_info.used_phy_port);
+	}
+
+	return NOTIFY_OK;
+}
+
+static int exynos_usbdrd_extcon_register(struct exynos_usbdrd_phy *phy_drd)
+{
+	struct device *dev = phy_drd->dev;
+	int ret = 0;
+
+	if (!of_property_read_bool(dev->of_node, "extcon"))
+		return -EINVAL;
+
+	phy_drd->edev = extcon_get_edev_by_phandle(dev, 0);
+	if (IS_ERR_OR_NULL(phy_drd->edev)) {
+		dev_err(dev, "couldn't get extcon\n");
+		return phy_drd->edev ? PTR_ERR(phy_drd->edev) : -ENODEV;
+	}
+
+	phy_drd->usb_nb.notifier_call = exynos_usbdrd_usb_update;
+	ret = extcon_register_notifier(phy_drd->edev, EXTCON_USB, &phy_drd->usb_nb);
+	if (ret < 0) {
+		dev_err(dev, "EXTCON_USB notifier register failed\n");
+		return ret;
+	}
+
+	phy_drd->usb_host_nb.notifier_call = exynos_usbdrd_usb_host_update;
+	ret = extcon_register_notifier(phy_drd->edev, EXTCON_USB_HOST, &phy_drd->usb_host_nb);
+	if (ret < 0)
+		dev_err(dev, "EXTCON_USB_HOST notifier register failed\n");
+
+	return ret;
+}
+
 static void exynos_usbdrd_pipe3_exit(struct exynos_usbdrd_phy *phy_drd)
 {
 	/* pipe3 phy disable is exucuted in utmi_exit.
@@ -1448,6 +1516,35 @@ static void exynos_usbdrd_pipe3_init(struct exynos_usbdrd_phy *phy_drd)
 	phy_exynos_usb_v3p1_g2_link_pclk_sel(&phy_drd->usbphy_info);
 
 #elif defined(CONFIG_PHY_SAMSUNG_USB_GEN2_V4)
+	int ret = 0;
+	union extcon_property_value property = { 0 };
+
+	if (!phy_drd->edev) {
+		ret = exynos_usbdrd_extcon_register(phy_drd);
+		if (ret < 0)
+			dev_err(phy_drd->dev, "%s: extcon register failed\n", __func__);
+
+		if (extcon_get_state(phy_drd->edev, EXTCON_USB)) {
+			ret = extcon_get_property(phy_drd->edev, EXTCON_USB,
+						  EXTCON_PROP_USB_TYPEC_POLARITY, &property);
+		} else if (extcon_get_state(phy_drd->edev, EXTCON_USB_HOST)) {
+			ret = extcon_get_property(phy_drd->edev, EXTCON_USB_HOST,
+						  EXTCON_PROP_USB_TYPEC_POLARITY, &property);
+		}
+
+		if (ret) {
+			/* set phy port to 0 as default */
+			property.intval = 0;
+			dev_err(phy_drd->dev, "get cc orientation failed, ret=%d\n", __func__, ret);
+		}
+
+		phy_drd->usbphy_info.used_phy_port = property.intval;
+		phy_drd->usbphy_sub_info.used_phy_port = property.intval;
+
+		dev_info(phy_drd->dev, "%s: phy port[%d]\n", __func__,
+			 phy_drd->usbphy_info.used_phy_port);
+	}
+
 	phy_exynos_usb_v3p1_g2_pma_ready(&phy_drd->usbphy_info);
 	phy_exynos_usbdp_g2_v4_enable(&phy_drd->usbphy_sub_info);
 #endif
@@ -2172,6 +2269,10 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 	} else {
 		dev_err(dev, "non-DT: PHY CON Selection\n");
 	}
+
+	ret = exynos_usbdrd_extcon_register(phy_drd);
+	if (ret < 0)
+		phy_drd->edev = 0;
 
 	ret = of_property_read_u32(dev->of_node, "reverse_con_dir", &phy_drd->reverse_phy_port);
 	dev_info(dev, "reverse_con_dir = %d\n", phy_drd->reverse_phy_port);
