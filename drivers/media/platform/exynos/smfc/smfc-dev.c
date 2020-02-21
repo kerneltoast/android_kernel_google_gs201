@@ -413,7 +413,7 @@ static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &smfc_vb2_ops;
 	src_vq->mem_ops = &vb2_dma_sg_memops;
 	src_vq->drv_priv = ctx;
-	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	src_vq->buf_struct_size = sizeof(struct vb2_smfc_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->smfc->video_device_mutex;
 
@@ -427,7 +427,7 @@ static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &smfc_vb2_ops;
 	dst_vq->mem_ops = &vb2_dma_sg_memops;
 	dst_vq->drv_priv = ctx;
-	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	dst_vq->buf_struct_size = sizeof(struct vb2_smfc_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->smfc->video_device_mutex;
 

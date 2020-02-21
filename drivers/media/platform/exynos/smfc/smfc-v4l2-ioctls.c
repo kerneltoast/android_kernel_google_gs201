@@ -890,6 +890,33 @@ static int smfc_v4l2_s_selection(struct file *file, void *fh,
 	return ret;
 }
 
+static int v4l2_smfc_qbuf(struct file *file, void *priv,
+		struct v4l2_buffer *buf)
+{
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file->private_data);
+	struct vb2_queue *vq;
+	unsigned int index;
+
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buf->type);
+
+	for (index = 0; index < vq->num_buffers; index++) {
+		struct vb2_v4l2_buffer *vbuf =
+			to_vb2_v4l2_buffer(vq->bufs[index]);
+		struct v4l2_m2m_buffer *mbuf =
+			container_of(vbuf, typeof(*mbuf), vb);
+		struct vb2_smfc_buffer *sbuf =
+			container_of(mbuf, typeof(*sbuf), mb);
+
+		if ((!V4L2_TYPE_IS_OUTPUT(buf->type)) &&
+				V4L2_TYPE_IS_MULTIPLANAR(buf->type))
+			sbuf->offset[index] = buf->m.planes[index].data_offset;
+		else
+			sbuf->offset[index] = 0;
+	}
+
+	return v4l2_m2m_qbuf(file, ctx->fh.m2m_ctx, buf);
+}
+
 const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 	.vidioc_querycap		= smfc_v4l2_querycap,
 	.vidioc_enum_fmt_vid_cap	= smfc_v4l2_enum_fmt,
@@ -910,7 +937,7 @@ const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
 
 	.vidioc_reqbufs			= v4l2_m2m_ioctl_reqbufs,
 	.vidioc_querybuf		= v4l2_m2m_ioctl_querybuf,
-	.vidioc_qbuf			= v4l2_m2m_ioctl_qbuf,
+	.vidioc_qbuf			= v4l2_smfc_qbuf,
 	.vidioc_dqbuf			= v4l2_m2m_ioctl_dqbuf,
 
 	.vidioc_streamon		= v4l2_m2m_ioctl_streamon,

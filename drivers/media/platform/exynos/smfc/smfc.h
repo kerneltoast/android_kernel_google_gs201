@@ -23,6 +23,8 @@
 
 #define MODULE_NAME	"exynos-jpeg"
 
+#define SMFC_MAX_PLANES 6
+
 struct device;
 struct video_device;
 
@@ -161,6 +163,16 @@ struct smfc_crop {
 	u32 height;
 	u32 po[SMFC_MAX_NUM_COMP];
 	u32 so[SMFC_MAX_NUM_COMP];
+};
+
+/*
+ * SMFC supports 6 planes for one buffer.
+ * It needs up to 6 planes, because three planes are required
+ * for main image and thumbnail image respectively.
+ */
+struct vb2_smfc_buffer {
+	struct v4l2_m2m_buffer mb;
+	unsigned int offset[SMFC_MAX_PLANES];
 };
 
 struct smfc_ctx {

@@ -310,10 +310,19 @@ static u32 smfc_hwconfigure_jpeg_base(struct smfc_ctx *ctx,
 {
 	dma_addr_t addr;
 	struct sg_table *sgt;
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb2buf);
+	struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
+	struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
 	u32 off = thumbnail ? REG_SEC_JPEG_BASE : REG_MAIN_JPEG_BASE;
 
 	sgt = vb2_dma_sg_plane_desc(vb2buf, thumbnail ? 1 : 0);
 	addr = sg_dma_address(sgt->sgl);
+
+	/* main image offset for encoding */
+	if (!thumbnail)
+		addr += sbuf->offset[0];
+
+	/* sos offset for decoding */
 	addr += offset;
 	__raw_writel((u32)addr, ctx->smfc->reg + off);
 	return (u32)addr;
