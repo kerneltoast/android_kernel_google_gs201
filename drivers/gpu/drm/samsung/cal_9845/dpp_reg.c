@@ -885,9 +885,20 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 }
 
 /******************** EXPORTED DPP CAL APIs ********************/
+/*
+ * When LCD is turned on in the bootloader, sometimes the hardware state of
+ * DPU_DMA is not cleaned up normally while booting up the kernel.
+ * At this time, the hardware may go into abnormal state, so it needs to reset
+ * hardware. However, if it resets every time, it could have an overhead, so
+ * it's better to reset once.
+ */
 void dpp_reg_init(u32 id, const unsigned long attr)
 {
 	if (test_bit(DPP_ATTR_IDMA, &attr)) {
+		if (dma_read(id, RDMA_IRQ) & IDMA_DEADLOCK_IRQ) {
+			idma_reg_set_sw_reset(id);
+			idma_reg_wait_sw_reset_status(id);
+		}
 		idma_reg_set_irq_mask_all(id, 0);
 		idma_reg_set_irq_enable(id);
 		idma_reg_set_in_qos_lut(id, 0, 0x44444444);
@@ -907,6 +918,10 @@ void dpp_reg_init(u32 id, const unsigned long attr)
 	}
 
 	if (test_bit(DPP_ATTR_ODMA, &attr)) {
+		if (dma_read(id, WDMA_IRQ) & ODMA_DEADLOCK_IRQ) {
+			odma_reg_set_sw_reset(id);
+			odma_reg_wait_sw_reset_status(id);
+		}
 		odma_reg_set_irq_mask_all(id, 0); /* irq unmask */
 		odma_reg_set_irq_enable(id);
 		odma_reg_set_in_qos_lut(id, 0, 0x44444444);
