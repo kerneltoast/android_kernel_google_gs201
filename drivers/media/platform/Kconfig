@@ -522,8 +522,10 @@ config VIDEO_SUN8I_ROTATE
 	   Support for the Allwinner DE2 rotation unit.
 	   To compile this driver as a module choose m here.
 
+endif # V4L_MEM2MEM_DRIVERS
+
 config VIDEO_EXYNOS_SMFC
-	bool "Exynos Still MFC(H/W JPEG CODEC) Driver"
+	tristate "Exynos Still MFC(H/W JPEG CODEC) Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
 	depends on ARCH_EXYNOS
 	select V4L2_MEM2MEM_DEV
@@ -532,8 +534,6 @@ config VIDEO_EXYNOS_SMFC
 	---help---
 	  Still MFC(Multi Format Codec) V4L2 Driver for Exynos SoCs.
 	  The driver supports for mem2mem V4L2 device.
-
-endif # V4L_MEM2MEM_DRIVERS
 
 # TI VIDEO PORT Helper Modules
 # These will be selected by VPE and VIP
