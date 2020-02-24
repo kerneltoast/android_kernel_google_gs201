@@ -300,7 +300,12 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dst_w = state->base.crtc_w;
 	win_config->dst_h = state->base.crtc_h;
 
-	win_config->is_afbc = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
+	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0) ||
+			fb->modifier == DRM_FORMAT_MOD_SAMSUNG_SBWC)
+		win_config->is_comp = true;
+	else
+		win_config->is_comp = false;
+
 	if (exynos_fb->exynos_buf[0]->is_colormap)
 		win_config->state = DPU_WIN_STATE_COLOR;
 	else
@@ -310,7 +315,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dpp_ch = plane_idx;
 
 	win_config->comp_src = 0;
-	if (win_config->is_afbc)
+	if (win_config->is_comp)
 		win_config->comp_src =
 			(fb->modifier & AFBC_FORMAT_MOD_SOURCE_MASK);
 
@@ -329,7 +334,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 			win_config->dst_x, win_config->dst_y,
 			win_config->dst_w, win_config->dst_h);
 	DRM_DEBUG("rot[%d] afbc[%d] format[%d] ch[%d] zpos[%d] comp_src[%lu]\n",
-			win_config->is_rot, win_config->is_afbc,
+			win_config->is_rot, win_config->is_comp,
 			win_config->format, win_config->dpp_ch, zpos,
 			win_config->comp_src);
 	DRM_DEBUG("alpha[%d] blend mode[%d]\n",
@@ -462,7 +467,7 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 				win_config =
 					&decon[id]->bts.win_config[dpp->win_id];
 				if (win_config->state == DPU_WIN_STATE_BUFFER &&
-						win_config->is_afbc)
+						win_config->is_comp)
 					dpp->comp_src = win_config->comp_src;
 			}
 

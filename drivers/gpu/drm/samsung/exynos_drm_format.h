@@ -44,6 +44,7 @@ struct dpu_fmt {
 #define IS_YUV(f)		(((f)->cs == DPU_COLORSPACE_YUV420) ||	\
 				((f)->cs == DPU_COLORSPACE_YUV422))
 #define IS_YUV10(f)		(IS_YUV(f) && ((f)->bpc == 10))
+#define IS_RGB(f)		((f)->cs == DPU_COLORSPACE_RGB)
 #define IS_RGB32(f)	\
 	(((f)->cs == DPU_COLORSPACE_RGB) && (((f)->bpp + (f)->padding) == 32))
 #define IS_10BPC(f)		((f)->bpc == 10)

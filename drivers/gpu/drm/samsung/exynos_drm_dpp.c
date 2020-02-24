@@ -238,7 +238,7 @@ static void dpp_test_fixed_config_params(struct dpp_params_info *config, u32 w,
 	config->dst.f_h = h;
 
 	config->rot = 0; /* no rotation */
-	config->is_comp = false;
+	config->comp_type = COMP_TYPE_NONE;
 	config->format = DRM_FORMAT_BGRA8888;
 
 	/* TODO: how to handle ? ... I don't know ... */
@@ -246,8 +246,8 @@ static void dpp_test_fixed_config_params(struct dpp_params_info *config, u32 w,
 
 	config->max_luminance = 0;
 	config->min_luminance = 0;
-	config->y_2b_strd = 0;
-	config->c_2b_strd = 0;
+	config->y_hd_y2_stride = 0;
+	config->y_pl_c2_stride = 0;
 
 	config->h_ratio = (config->src.w << 20) / config->dst.w;
 	config->v_ratio = (config->src.h << 20) / config->dst.h;
@@ -293,8 +293,23 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	if (simplified_rot & DRM_MODE_REFLECT_Y)
 		config->rot |= DPP_Y_FLIP;
 
-	config->is_comp = !!(fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0));
+	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0))
+		config->comp_type = COMP_TYPE_AFBC;
+	else if (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_SBWC)
+		config->comp_type = COMP_TYPE_SBWC;
+	else
+		config->comp_type = COMP_TYPE_NONE;
+
 	config->format = fb->format->format;
+	config->standard = state->standard;
+	config->transfer = state->transfer;
+	config->range = state->range;
+	config->max_luminance = state->max_luminance;
+	config->min_luminance = state->min_luminance;
+	config->y_hd_y2_stride = 0;
+	config->y_pl_c2_stride = 0;
+	config->c_hd_stride = 0;
+	config->c_pl_stride = 0;
 
 	config->addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	config->addr[1] = exynos_drm_fb_dma_addr(fb, 1);
@@ -307,14 +322,6 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 		config->addr[2] = exynos_drm_fb_dma_addr(fb, 2);
 		config->addr[3] = exynos_drm_fb_dma_addr(fb, 3);
 	}
-
-	config->standard = state->standard;
-	config->transfer = state->transfer;
-	config->range = state->range;
-	config->max_luminance = state->max_luminance;
-	config->min_luminance = state->min_luminance;
-	config->y_2b_strd = 0;
-	config->c_2b_strd = 0;
 
 	if (config->rot & DPP_ROT) {
 		config->h_ratio = (config->src.h << 20) / config->dst.w;
@@ -510,25 +517,14 @@ static int dpp_check(struct dpp_device *dpp,
 		goto err;
 	}
 
-	if (!test_bit(DPP_ATTR_AFBC, &dpp->attr) && config.is_comp) {
+	if (!test_bit(DPP_ATTR_AFBC, &dpp->attr) &&
+			(config.comp_type == COMP_TYPE_AFBC)) {
 		dpp_err(dpp, "not support AFBC\n");
 		goto err;
 	}
 
-	if (config.is_comp && (config.rot & DPP_ROT_FLIP_MASK)) {
-		dpp_err(dpp, "not support compression with rotation\n");
+	if (__dpp_check(dpp->id, &config, dpp->attr))
 		goto err;
-	}
-
-	if (config.is_comp && IS_YUV(fmt_info)) {
-		dpp_err(dpp, "not support compression with YUV format\n");
-		goto err;
-	}
-
-	if (config.is_comp && IS_RGB32(fmt_info) && IS_10BPC(fmt_info)) {
-		dpp_err(dpp, "not support compression with 10BPC RGB format\n");
-		goto err;
-	}
 
 	dpp_dbg(dpp, "%s -\n", __func__);
 
@@ -541,7 +537,7 @@ err:
 			config.dst.x, config.dst.y, config.dst.w, config.dst.h,
 			config.dst.f_w, config.dst.f_h,
 			config.format);
-	dpp_err(dpp, "rot[0x%x] afbc[%d]\n", config.rot, config.is_comp);
+	dpp_err(dpp, "rot[0x%x] comp_type[%d]\n", config.rot, config.comp_type);
 
 	return -ENOTSUPP;
 }
