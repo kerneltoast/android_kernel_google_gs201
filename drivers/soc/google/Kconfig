@@ -8,6 +8,11 @@ menu "Google SoC drivers"
 config SOC_GOOGLE
 	bool "Google SoC driver support"
 
+config SLC_PARTITION_MANAGER
+	bool
+	depends on SOC_GS101
+	default y
+
 config SOC_GS101
 	bool "Google GS101"
 	depends on SOC_GOOGLE

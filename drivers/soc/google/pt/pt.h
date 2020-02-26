@@ -20,8 +20,8 @@
 #define PT_PBHA_MASK 0x0fff
 
 enum pt_global_t {
-	PT_GLOBAL_BYPASS,
-	PT_GLOBAL_LEFTOVER,
+	PT_GLOBAL_BYPASS = 0,
+	PT_GLOBAL_LEFTOVER = 1,
 	PT_GLOBAL_LAST
 };
 
@@ -98,9 +98,9 @@ ptid_t pt_pid_global(enum pt_global_t type);
 #else /* CONFIG_SLC_PARTITION_MANAGER */
 
 static inline struct pt_handle *pt_client_register(struct device_node *node,
-						   void *data,
-						   pt_resize_callback_t
-						   resize_callback)
+						void *data,
+						pt_resize_callback_t
+						resize_callback)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -127,7 +127,7 @@ static inline void pt_client_free(struct pt_handle *handle, int id)
 }
 
 static inline ptid_t pt_client_mutate(struct pt_handle *handle, int old_id,
-				      int new_id)
+				int new_id)
 {
 	return PT_PTID_INVALID;
 }
@@ -198,6 +198,13 @@ struct pt_ops {
 	 * 	PT_PBHA_INVALID on error
 	 */
 	ptpbha_t (*pbha)(void *data, int ptid);
+
+	/*
+	 * Call internal function of the driver
+	 *
+	 * return >=0 on success
+	 */
+	int (*ioctl)(void *data, int arg_cnt, int *args);
 };
 
 struct pt_driver *pt_driver_register(struct device_node *node,

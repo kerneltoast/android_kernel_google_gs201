@@ -19,6 +19,9 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/sched/clock.h>
+#include <linux/vmalloc.h>
+#include <asm/sysreg.h>
 
 
 #define PT_SYSCTL_ENTRY 8
@@ -120,7 +123,11 @@ enum pt_fn {
 	PT_FN_RESIZE = 4,
 	PT_FN_MUTATE = 5,
 	PT_FN_DISABLE_NO_FREE = 6,
-	PT_FN_FREE = 7
+	PT_FN_FREE = 7,
+	PT_FN_TEST = 8,
+	PT_FN_GLOBAL_PID = 9,
+	PT_FN_GLOBAL_PBHA = 10,
+	PT_FN_IOCTL = 11,
 };
 
 static void pt_trace(struct pt_handle *handle, int id, bool enable)
@@ -404,6 +411,43 @@ static int pt_driver_get(const char *name, struct pt_driver **driver,
 	return ret;
 }
 
+static int pt_driver_get_by_name(const char *driver_name,
+				struct pt_driver **driver)
+{
+	unsigned long flags;
+	struct pt_driver *driver_temp = NULL;
+
+	spin_lock_irqsave(&pt_internal_data.sl, flags);
+	list_for_each_entry(driver_temp,
+		&pt_internal_data.driver_list, list) {
+		if (strcmp(driver_name, driver_temp->node->name))
+			continue;
+		*driver = driver_temp;
+		driver_temp->ref++;
+		spin_unlock_irqrestore(&pt_internal_data.sl, flags);
+		return 0;
+	}
+	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
+	return -1;
+}
+
+static int pt_driver_ioctl3(struct pt_driver *driver, int arg0,
+				int arg1, int arg2)
+{
+	int ret;
+	int args[3];
+
+	if (!driver->ops->ioctl)
+		return -EINVAL;
+	mutex_lock(&driver->mt);
+	args[0] = arg0;
+	args[1] = arg1;
+	args[2] = arg2;
+	ret = driver->ops->ioctl(driver->data, 3, args);
+	mutex_unlock(&driver->mt);
+	return ret;
+}
+
 static struct pt_handle *pt_handle_search(struct device_node *node)
 {
 	struct pt_handle *temp = NULL;
@@ -508,7 +552,7 @@ static void pt_global_enable(struct pt_global *global)
 	if (!global->driver)
 		return;
 	mutex_lock(&global->driver->mt);
-	if (global->ptid == PT_PTID_INVALID) {
+	if (global->ptid != PT_PTID_INVALID) {
 		mutex_unlock(&global->driver->mt);
 		return;
 	}
@@ -556,8 +600,10 @@ ptpbha_t pt_pbha_global(enum pt_global_t type)
 
 	if (type == PT_GLOBAL_LEFTOVER)
 		global = &pt_internal_data.global_leftover;
-	if (type == PT_GLOBAL_BYPASS)
+	else if (type == PT_GLOBAL_BYPASS)
 		global = &pt_internal_data.global_bypass;
+	else
+		return PT_PBHA_INVALID;
 	pt_global_enable(global);
 	return global->pbha;
 }
@@ -572,8 +618,10 @@ ptid_t pt_pid_global(enum pt_global_t type)
 
 	if (type == PT_GLOBAL_LEFTOVER)
 		global = &pt_internal_data.global_leftover;
-	if (type == PT_GLOBAL_BYPASS)
+	else if (type == PT_GLOBAL_BYPASS)
 		global = &pt_internal_data.global_bypass;
+	else
+		return PT_PTID_INVALID;
 	pt_global_enable(global);
 	return global->ptid;
 }
@@ -876,6 +924,131 @@ static void pt_test_resize_callback(void *data, int id, size_t size_allocated)
 	msleep(100);
 }
 
+
+struct pt_test_data {
+	size_t size;
+	char *data;
+};
+
+static uint64_t pt_test_memcpy(long loop, struct pt_test_data *test)
+{
+	unsigned long prime_number = 103483;
+	uint64_t time;
+	long i;
+	char *data = (char *)test->data;
+	size_t size = test->size;
+
+	for (i = 0; i < size / sizeof(unsigned long); i++) {
+		((unsigned long *)data)[i] =
+			(unsigned long)(i % prime_number);
+	}
+	preempt_disable();
+	time = sched_clock();
+	for (i = 0; i < loop; i++) {
+		/*
+		 * make sure the memcpy is always changing the memory values
+		 * We have 4 area, area 0 contains A, area 1 contains B
+		 * we do:
+		 * - memcpy(area0   , area3  ) : area become BBAB
+		 * - memcpy(area1   , area2  ) : area become BAAB
+		 * - memcpy(area0-1 , area2-3) : area become ABAB
+		 */
+		memcpy(data         , data + size / 2 + size / 4, size / 4);
+		memcpy(data + size/4, data + size / 2           , size / 4);
+
+		memcpy(data         , data + size / 2           , size / 2);
+	}
+
+	time = sched_clock() - time;
+	preempt_enable();
+
+	return time;
+}
+
+static uint64_t pt_test_chasing(long loop, struct pt_test_data *test)
+{
+	uint64_t cache_line_size = 64;
+	uint64_t time;
+	long i;
+	long j;
+	long next;
+	unsigned long index = 0;
+	volatile unsigned long *data = (volatile unsigned long *)test->data;
+	size_t size = test->size / sizeof (*data);
+
+	for (i = 0; i < size; i++) {
+		if (i == size - 1) {
+			next = 0;
+		} else if (i >= size/2) {
+			next = i + cache_line_size / sizeof(*data) - size/2;
+		} else {
+			next = i + size / 2;
+		}
+		data[i] = next;
+	}
+
+	preempt_disable();
+	time = sched_clock();
+	for (i = 0; i < loop; i++)
+		for (j = 0; j < size / cache_line_size; j++)
+			index = data[index];
+
+	time = sched_clock() - time;
+	preempt_enable();
+
+	return time;
+}
+
+
+#define CLUSTERRCTLR sys_reg(3, 0, 15, 3 ,4)
+
+static void pt_testfct(const char *name)
+{
+	long size;
+	long loop_chasing = 1024;
+	long loop_memcpy = 1024;
+	uint64_t time_chasing;
+	uint64_t time_memcpy;
+	uint64_t clusterectlr;
+	struct pt_test_data test;
+
+	clusterectlr = read_sysreg_s(CLUSTERRCTLR);
+	printk("pt: clusterectlr 0x%lx\n", clusterectlr);
+
+	for (size = 128*1024; size < 32*1024*1024; size += 16*1024) {
+		test.data = vmalloc(size);
+		if (IS_ERR(test.data)) {
+			return;
+		}
+		test.size = size;
+
+		loop_chasing = loop_chasing / 2;
+		do {
+			loop_chasing = loop_chasing * 2;
+			time_chasing = pt_test_chasing(loop_chasing, &test);
+		} while (time_chasing < 500000000 /* .5s */ );
+
+		loop_memcpy = loop_memcpy / 2;
+		do {
+			loop_memcpy = loop_memcpy * 2;
+			time_memcpy = pt_test_memcpy(loop_memcpy, &test);
+		} while (time_memcpy < 500000000 /* .5s */ );
+
+		vfree(test.data);
+		pr_info("%ld %ld %ld %ld %ld TESTPT %s\n",
+			size, loop_chasing, time_chasing,
+			loop_memcpy, time_memcpy, name);
+
+		if (time_memcpy > 1000000000 /* 1s */) {
+			loop_memcpy = loop_memcpy / 2;
+		}
+		if (time_chasing > 1000000000 /* 1s */) {
+			loop_chasing = loop_chasing / 2;
+		}
+	}
+
+}
+
 static int pt_sysctl_command(struct ctl_table *ctl, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -884,9 +1057,11 @@ static int pt_sysctl_command(struct ctl_table *ctl, int write,
 	int id;
 	int size_newid; // used as size or new_id
 	int fn;
+	int arg3;
 	unsigned long flags;
 	struct pt_handle *handle = NULL;
 	struct device_node *node;
+	struct pt_driver *driver;
 
 	if (!write)
 		return -EPERM;
@@ -894,12 +1069,13 @@ static int pt_sysctl_command(struct ctl_table *ctl, int write,
 	if (ret != 0)
 		return ret;
 	retscanf = sscanf(pt_internal_data.sysctl_command,
-			"%" PT_COMMAND_SIZE_STR "s %d %d %d",
-		pt_internal_data.sysctl_node_name, &fn, &id, &size_newid);
+			"%" PT_COMMAND_SIZE_STR "s %d %d %d %d",
+		pt_internal_data.sysctl_node_name,
+		&fn, &id, &size_newid, &arg3);
 	node = of_find_node_by_name(NULL, pt_internal_data.sysctl_node_name);
 
-	if (IS_ERR(node))
-		return -ENOENT;
+	/*if (IS_ERR(node))
+		return -ENOENT;*/
 
 	spin_lock_irqsave(&pt_internal_data.sl, flags);
 	handle = pt_handle_search(node);
@@ -966,6 +1142,24 @@ static int pt_sysctl_command(struct ctl_table *ctl, int write,
 			return -ENOENT;
 		pt_client_free(handle, id);
 		break;
+	case PT_FN_TEST:
+		pt_testfct(pt_internal_data.sysctl_node_name);
+		break;
+	case PT_FN_GLOBAL_PBHA:
+		pr_info("Global pbha %d is %d\n", id,
+				(int)pt_pbha_global((enum pt_global_t)id));
+		break;
+	case PT_FN_GLOBAL_PID:
+		pr_info("Global pid %d is %d\n", id,
+				(int)pt_pid_global((enum pt_global_t)id));
+		break;
+	case PT_FN_IOCTL:
+		if (retscanf < 5)
+			return -EINVAL;
+		if (pt_driver_get_by_name(
+			pt_internal_data.sysctl_node_name, &driver) < 0)
+			return -ENOENT;
+		return pt_driver_ioctl3(driver, id, size_newid, arg3);
 	default:
 		return -EINVAL;
 	}

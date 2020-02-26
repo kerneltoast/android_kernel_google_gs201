@@ -49,6 +49,8 @@ static int slc_acpm_mutate(void *data, ptid_t ptid, void *resize_data,
 	int new_property_index);
 static int slc_acpm_pbha(void *data, ptid_t ptid);
 
+static int slc_acpm_ioctl(void *data, int arg_cnt, int *args);
+
 struct pt_ops slc_acpm_ops = {
 	.alloc = slc_acpm_alloc,
 	.free = slc_acpm_free,
@@ -56,6 +58,7 @@ struct pt_ops slc_acpm_ops = {
 	.disable = slc_acpm_disable,
 	.mutate = slc_acpm_mutate,
 	.pbha = slc_acpm_pbha,
+	.ioctl = slc_acpm_ioctl,
 };
 
 struct slc_acpm_driver_data {
@@ -207,13 +210,35 @@ static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
 	int size4kB;
 
 	ret = slc_acpm(driver_data, PT_CHECK, 0, 0);
-	while (ret >= 0) {
+	while (ret > 0) {
 		pt_ptid_data_decode(ret, &ptid, &size4kB);
+		dev_info(&driver_data->pdev->dev,
+				"ptid %d size %dK\n",
+				ptid, 4 * size4kB);
+		if ((ptid >= PT_PTID_MAX) || (ptid < 0)) {
+			dev_err(&driver_data->pdev->dev,
+				"wrong ptid %d size %dK\n",
+				ptid, 4 * size4kB);
+			break;
+		}
+		break;
 		driver_data->ptids[ptid].resize(
 				driver_data->ptids[ptid].data,
 				size4kB * 4096);
 		ret = slc_acpm(driver_data, PT_CHECK, 0, 0);
 	}
+}
+
+/*
+ * Send as is parameters to SLC
+ */
+static int slc_acpm_ioctl(void *data, int arg_cnt, int *args)
+{
+	struct slc_acpm_driver_data *driver_data = data;
+
+	if (arg_cnt < 3)
+		return -EINVAL;
+	return slc_acpm(driver_data, args[0], args[1], args[2]);
 }
 
 /*
@@ -305,6 +330,8 @@ static ptid_t slc_acpm_alloc(void *data, int property_index, void *resize_data,
 	driver_data->ptids[ptid].resize = resize;
 
 	slc_acpm_check(driver_data);
+
+	dev_info(&driver_data->pdev->dev, "allocated ptid %d\n", ptid);
 	return (int)ptid;
 }
 
@@ -374,6 +401,7 @@ static void slc_acpm_enable(void *data, ptid_t ptid)
 		return;
 	slc_acpm_apply(driver_data, ptid, false);
 	slc_acpm_check(driver_data);
+	dev_info(&driver_data->pdev->dev, "enabled ptid %d\n", ptid);
 }
 
 static void slc_acpm_disable(void *data, ptid_t ptid)
@@ -398,6 +426,8 @@ static int slc_acpm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, driver_data);
 	driver_data->pdev = pdev;
 	mutex_init(&driver_data->mt);
+	slc_version_check(driver_data);
+
 	driver_data->driver = pt_driver_register(pdev->dev.of_node,
 			&slc_acpm_ops, driver_data);
 	WARN_ON(driver_data->driver == NULL);
