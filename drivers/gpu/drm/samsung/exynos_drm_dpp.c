@@ -110,6 +110,7 @@ static const uint32_t dpp_vg_formats[] = {
 	DRM_FORMAT_NV21,
 	DRM_FORMAT_NV16,
 	DRM_FORMAT_NV61,
+	DRM_FORMAT_P010,
 };
 
 static const struct dpp_restriction dpp_drv_data = {
