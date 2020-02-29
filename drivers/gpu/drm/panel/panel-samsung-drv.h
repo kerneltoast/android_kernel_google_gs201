@@ -53,6 +53,10 @@ struct exynos_panel_desc {
 	const struct exynos_panel_funcs *exynos_panel_func;
 };
 
+
+#define PANEL_ID_MAX		32
+#define PANEL_EXTINFO_MAX	16
+
 struct exynos_panel {
 	struct device *dev;
 	struct drm_panel panel;
@@ -63,6 +67,10 @@ struct exynos_panel {
 	const struct exynos_panel_desc *desc;
 	struct backlight_device *bl;
 	bool enabled;
+	bool initialized;
+
+	char panel_id[PANEL_ID_MAX];
+	char panel_extinfo[PANEL_EXTINFO_MAX];
 };
 
 static inline int exynos_dcs_write(struct exynos_panel *ctx, const void *data,
@@ -85,6 +93,17 @@ static inline int exynos_dcs_set_brightness(struct exynos_panel *ctx, u16 br)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
 	return mipi_dsi_dcs_set_display_brightness(dsi, br);
+}
+
+static inline void exynos_bin2hex(const void *buf, size_t len,
+				 char *linebuf, size_t linebuflen)
+{
+	const size_t max_size = (linebuflen - 1) / 2;
+	const size_t count = min(max_size, len);
+	char *end;
+
+	end = bin2hex(linebuf, buf, count);
+	*end = '\0';
 }
 
 #define EXYNOS_DCS_WRITE_SEQ(ctx, seq...) do {				\

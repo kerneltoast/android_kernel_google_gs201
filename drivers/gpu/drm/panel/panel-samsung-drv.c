@@ -23,6 +23,13 @@
 
 #include <panel-samsung-drv.h>
 
+#define PANEL_ID_REG		0xA1
+#define PANEL_ID_LEN		7
+#define PANEL_ID_OFFSET		6
+#define PANEL_ID_READ_SIZE	(PANEL_ID_LEN + PANEL_ID_OFFSET)
+
+static const char ext_info_regs[] = { 0xDA, 0xDB, 0xDC };
+
 static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 {
 	struct device *dev = ctx->dev;
@@ -42,9 +49,8 @@ static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 	}
 
 	ctx->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(ctx->enable_gpio)) {
+	if (IS_ERR(ctx->enable_gpio))
 		ctx->enable_gpio = NULL;
-	}
 
 	dev_dbg(ctx->dev, "%s -\n", __func__);
 	return 0;
@@ -69,6 +75,65 @@ static int exynos_panel_parse_regulators(struct exynos_panel *ctx)
 	return 0;
 }
 
+static int exynos_panel_read_id(struct exynos_panel *ctx)
+{
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
+	char buf[PANEL_ID_READ_SIZE];
+	int ret;
+
+	ret = mipi_dsi_dcs_read(dsi, PANEL_ID_REG, buf, PANEL_ID_READ_SIZE);
+	if (ret != PANEL_ID_READ_SIZE) {
+		dev_warn(ctx->dev, "Unable to read panel id (%d)\n", ret);
+		return ret;
+	}
+
+	exynos_bin2hex(buf + PANEL_ID_OFFSET, PANEL_ID_LEN,
+		       ctx->panel_id, sizeof(ctx->panel_id));
+
+	return 0;
+}
+
+static int exynos_panel_read_extinfo(struct exynos_panel *ctx)
+{
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
+	const size_t extinfo_len = ARRAY_SIZE(ext_info_regs);
+	char buf[extinfo_len];
+	int i, ret;
+
+	for (i = 0; i < extinfo_len; i++) {
+		ret = mipi_dsi_dcs_read(dsi, ext_info_regs[i], buf + i, 1);
+		if (ret != 1) {
+			dev_warn(ctx->dev,
+				 "Unable to read panel extinfo (0x%x: %d)\n",
+				 ext_info_regs[i], ret);
+			return ret;
+		}
+
+	}
+	exynos_bin2hex(buf, i, ctx->panel_extinfo, sizeof(ctx->panel_extinfo));
+
+	return 0;
+}
+
+static int exynos_panel_init(struct exynos_panel *ctx)
+{
+	int ret;
+
+	if (ctx->initialized)
+		return 0;
+
+
+	ret = exynos_panel_read_id(ctx);
+	if (ret)
+		return ret;
+
+	ret = exynos_panel_read_extinfo(ctx);
+	if (!ret)
+		ctx->initialized = true;
+
+	return ret;
+}
+
 void exynos_panel_reset(struct exynos_panel *ctx)
 {
 	dev_dbg(ctx->dev, "%s +\n", __func__);
@@ -84,6 +149,8 @@ void exynos_panel_reset(struct exynos_panel *ctx)
 	usleep_range(10000, 11000);
 
 	dev_dbg(ctx->dev, "%s -\n", __func__);
+
+	exynos_panel_init(ctx);
 }
 EXPORT_SYMBOL(exynos_panel_reset);
 
@@ -233,6 +300,39 @@ static const struct backlight_ops exynos_backlight_ops = {
 	.update_status = exynos_update_status,
 };
 
+static ssize_t serial_number_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	const struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	const struct exynos_panel *ctx = mipi_dsi_get_drvdata(dsi);
+
+	if (!ctx->initialized)
+		return -EPERM;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", ctx->panel_id);
+}
+
+static ssize_t panel_extinfo_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	const struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	const struct exynos_panel *ctx = mipi_dsi_get_drvdata(dsi);
+
+	if (!ctx->initialized)
+		return -EPERM;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", ctx->panel_extinfo);
+}
+
+static DEVICE_ATTR_RO(serial_number);
+static DEVICE_ATTR_RO(panel_extinfo);
+
+static const struct attribute *panel_attrs[] = {
+	&dev_attr_serial_number.attr,
+	&dev_attr_panel_extinfo.attr,
+	NULL
+};
+
 int exynos_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
@@ -279,6 +379,19 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 		drm_panel_remove(&ctx->panel);
 		goto done;
 	}
+
+	ret = sysfs_create_files(&dev->kobj, panel_attrs);
+	if (ret)
+		pr_warn("unable to add panel sysfs files (%d)\n", ret);
+
+	if (ctx->panel.connector) {
+		const struct drm_connector *conn = ctx->panel.connector;
+
+		ret = sysfs_create_link(&conn->kdev->kobj, &dev->kobj, "panel");
+		if (ret)
+			pr_warn("unable to link panel sysfs (%d)\n", ret);
+	}
+	ret = 0;
 
 	mipi_dsi_debugfs_add(dsi, ctx->panel.debugfs_entry);
 
