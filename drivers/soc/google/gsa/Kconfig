@@ -1,0 +1,3 @@
+config GSA
+	tristate "GSA driver"
+	default n

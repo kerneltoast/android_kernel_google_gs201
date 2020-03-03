@@ -119,4 +119,5 @@ config EXYNOS_CPUHP
 	help
 	Support CPU Hotplug for Exynos SoC.
 
+source "drivers/soc/google/gsa/Kconfig"
 endmenu
