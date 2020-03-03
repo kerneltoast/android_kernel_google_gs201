@@ -462,6 +462,8 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 
 	exynos_ufs_fmp_init(hba);
 
+	pixel_init_manual_gc(hba);
+
 	return 0;
 }
 

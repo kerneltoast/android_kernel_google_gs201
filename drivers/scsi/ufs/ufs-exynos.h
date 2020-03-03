@@ -16,6 +16,7 @@
 #include <ufs-vs-mmio.h>
 #include <ufs-vs-regs.h>
 #include "ufs-cal-if.h"
+#include "ufs-pixel.h"
 
 /* Version check */
 #define UFS_EXYNOS_COMPAT_CAL_MMIO_VER 1
@@ -151,6 +152,9 @@ struct exynos_ufs {
 
 	/* sysfs */
 	struct kobject sysfs_kobj;
+
+	/* manual_gc */
+	struct ufs_manual_gc manual_gc;
 };
 
 static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)
