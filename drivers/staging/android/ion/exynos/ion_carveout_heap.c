@@ -23,6 +23,7 @@
 struct ion_carveout_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
+	unsigned int alignment;
 };
 
 #define to_carveout_heap(x) container_of(x, struct ion_carveout_heap, heap)
@@ -32,7 +33,8 @@ static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 {
 	struct ion_carveout_heap *carveout_heap = to_carveout_heap(heap);
 
-	return gen_pool_alloc(carveout_heap->pool, size);
+	return gen_pool_alloc(carveout_heap->pool,
+			      ALIGN(size, carveout_heap->alignment));
 }
 
 static void ion_carveout_free(struct ion_heap *heap, phys_addr_t addr,
@@ -40,7 +42,8 @@ static void ion_carveout_free(struct ion_heap *heap, phys_addr_t addr,
 {
 	struct ion_carveout_heap *carveout_heap = to_carveout_heap(heap);
 
-	gen_pool_free(carveout_heap->pool, addr, size);
+	gen_pool_free(carveout_heap->pool, addr,
+		      ALIGN(size, carveout_heap->alignment));
 }
 
 static int ion_carveout_heap_allocate(struct ion_heap *heap,
@@ -107,6 +110,7 @@ static int ion_carveout_heap_probe(struct platform_device *pdev)
 	struct ion_carveout_heap *carveout_heap;
 	struct reserved_mem *rmem;
 	struct device_node *rmem_np;
+	struct exynos_fdt_attrs attrs;
 	int ret;
 
 	rmem_np = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
@@ -131,6 +135,9 @@ static int ion_carveout_heap_probe(struct platform_device *pdev)
 		(enum ion_heap_type)ION_EXYNOS_HEAP_TYPE_CARVEOUT;
 
 	ion_page_clean(phys_to_page(rmem->base), rmem->size);
+
+	exynos_fdt_setup(&pdev->dev, &attrs);
+	carveout_heap->alignment = attrs.alignment;
 
 	ret = ion_device_add_heap(&carveout_heap->heap);
 	if (ret) {

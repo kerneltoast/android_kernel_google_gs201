@@ -22,12 +22,10 @@
 struct ion_exynos_cma_heap {
 	struct ion_heap heap;
 	struct cma *cma;
+	unsigned int alignment;
 };
 
 #define to_cma_heap(x) container_of(x, struct ion_exynos_cma_heap, heap)
-
-/* Maximun PAGE_SIZE order of alignment for contiguous buffers */
-#define DEFAULT_CMA_ALIGNMENT 8
 
 /* ION CMA heap operations functions */
 static int ion_exynos_cma_allocate(struct ion_heap *heap,
@@ -39,13 +37,11 @@ static int ion_exynos_cma_allocate(struct ion_heap *heap,
 	struct sg_table *table;
 	struct page *pages;
 	unsigned long size = PAGE_ALIGN(len);
-	unsigned long nr_pages = size >> PAGE_SHIFT;
-	unsigned long align = get_order(size);
+	unsigned long align_order = get_order(cma_heap->alignment);
+	unsigned long nr_pages = ALIGN(size >> PAGE_SHIFT, 1 << align_order);
 	int ret;
 
-	align = min_t(unsigned long, align, DEFAULT_CMA_ALIGNMENT);
-
-	pages = cma_alloc(cma_heap->cma, nr_pages, align, false);
+	pages = cma_alloc(cma_heap->cma, nr_pages, align_order, false);
 	if (!pages)
 		return -ENOMEM;
 
@@ -79,7 +75,8 @@ static void ion_exynos_cma_free(struct ion_buffer *buffer)
 {
 	struct ion_exynos_cma_heap *cma_heap = to_cma_heap(buffer->heap);
 	struct page *pages = buffer->priv_virt;
-	unsigned long nr_pages = PAGE_ALIGN(buffer->size) >> PAGE_SHIFT;
+	unsigned long nr_pages = ALIGN(PAGE_ALIGN(buffer->size) >> PAGE_SHIFT,
+				       1 << get_order(cma_heap->alignment));
 
 	sg_free_table(buffer->sg_table);
 	kfree(buffer->sg_table);
@@ -99,6 +96,7 @@ static void rmem_remove_callback(void *p)
 static int ion_exynos_cma_heap_probe(struct platform_device *pdev)
 {
 	struct ion_exynos_cma_heap *cma_heap;
+	struct exynos_fdt_attrs attrs;
 	int ret;
 
 	cma_heap = devm_kzalloc(&pdev->dev, sizeof(*cma_heap), GFP_KERNEL);
@@ -122,6 +120,9 @@ static int ion_exynos_cma_heap_probe(struct platform_device *pdev)
 	cma_heap->heap.ops = &ion_exynos_cma_ops;
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
 	cma_heap->heap.name = cma_get_name(cma_heap->cma);
+
+	exynos_fdt_setup(&pdev->dev, &attrs);
+	cma_heap->alignment = attrs.alignment;
 
 	ret = ion_device_add_heap(&cma_heap->heap);
 	if (ret)

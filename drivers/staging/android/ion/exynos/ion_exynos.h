@@ -40,4 +40,10 @@ static inline int __init ion_carveout_heap_init(void)
 #define ion_carveout_heap_exit() do { } while (0)
 #endif
 
+struct exynos_fdt_attrs {
+	unsigned int alignment;
+};
+
+void exynos_fdt_setup(struct device *dev, struct exynos_fdt_attrs *attrs);
+
 #endif

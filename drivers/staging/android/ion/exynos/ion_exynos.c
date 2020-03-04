@@ -5,6 +5,9 @@
  * Copyright (c) 2020 Samsung Electronics Co., Ltd.
  */
 
+#include <linux/mm.h>
+#include <linux/device.h>
+#include <linux/of_device.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
 
@@ -27,6 +30,12 @@ void ion_page_clean(struct page *pages, unsigned long size)
 		memset(vaddr, 0, PAGE_SIZE);
 		kunmap_atomic(vaddr);
 	}
+}
+
+void exynos_fdt_setup(struct device *dev, struct exynos_fdt_attrs *attrs)
+{
+	of_property_read_u32(dev->of_node, "ion,alignment", &attrs->alignment);
+	attrs->alignment = 1UL << (get_order(attrs->alignment) + PAGE_SHIFT);
 }
 
 static int __init ion_exynos_init(void)
