@@ -138,6 +138,8 @@ int exynos_panel_set_power(struct exynos_panel *ctx, bool on)
 		}
 	}
 
+	ctx->bl->props.power = on ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+
 	return 0;
 }
 EXPORT_SYMBOL(exynos_panel_set_power);
@@ -213,6 +215,10 @@ static int exynos_update_status(struct backlight_device *bl)
 		return -EPERM;
 	}
 
+	/* check if backlight is forced off */
+	if (bl->props.power != FB_BLANK_UNBLANK)
+		brightness = 0;
+
 	exynos_panel_func = ctx->desc->exynos_panel_func;
 	if (exynos_panel_func && exynos_panel_func->set_brightness)
 		exynos_panel_func->set_brightness(ctx, brightness);
@@ -232,7 +238,7 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 	struct device *dev = &dsi->dev;
 	struct exynos_panel *ctx;
 	int ret = 0;
-	char name[16];
+	char name[32];
 
 	ctx = devm_kzalloc(dev, sizeof(struct exynos_panel), GFP_KERNEL);
 	if (!ctx)
@@ -250,7 +256,7 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 
 	exynos_panel_parse_dt(ctx);
 
-	snprintf(name, sizeof(name), "panel_%d", dsi->channel);
+	snprintf(name, sizeof(name), "panel%d-backlight", dsi->channel);
 	ctx->bl = devm_backlight_device_register(ctx->dev, name, NULL,
 			ctx, &exynos_backlight_ops, NULL);
 	if (IS_ERR(ctx->bl)) {
