@@ -38,6 +38,7 @@ static int s6e3hc2_disable(struct drm_panel *panel)
 	struct exynos_panel *ctx;
 
 	ctx = container_of(panel, struct exynos_panel, panel);
+	ctx->enabled = false;
 	dev_dbg(ctx->dev, "%s +\n", __func__);
 	return 0;
 }
@@ -107,9 +108,19 @@ static int s6e3hc2_enable(struct drm_panel *panel)
 
 	EXYNOS_DCS_WRITE_SEQ(ctx, 0x29); /* display on */
 
+	ctx->enabled = true;
+
 	dev_dbg(ctx->dev, "%s -\n", __func__);
 
 	return 0;
+}
+
+static int s6e3hc2_set_brightness(struct exynos_panel *exynos_panel, u16 br)
+{
+	u16 brightness;
+
+	brightness = (br & 0xff) << 8 | br >> 8;
+	return exynos_dcs_set_brightness(exynos_panel, brightness);
 }
 
 static const struct drm_display_mode s6e3hc2_mode = {
@@ -136,11 +147,17 @@ static const struct drm_panel_funcs s6e3hc2_drm_funcs = {
 	.get_modes = exynos_panel_get_modes,
 };
 
+static const struct exynos_panel_funcs s6e3hc2_exynos_funcs = {
+	.set_brightness = s6e3hc2_set_brightness,
+};
+
 const struct exynos_panel_desc samsung_s6e3hc2 = {
 	.dsc_en = true,
 	.dsc_slice_cnt = 2,
 	.dsc_slice_height = 40,
 	.data_lane_cnt = 4,
+	.max_brightness = 1023,
+	.dft_brightness = 511,
 	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	/* supported HDR format bitmask : 1(DOLBY_VISION), 2(HDR10), 3(HLG) */
 	.hdr_formats = BIT(2),
@@ -149,6 +166,7 @@ const struct exynos_panel_desc samsung_s6e3hc2 = {
 	.min_luminance = 5,
 	.mode = &s6e3hc2_mode,
 	.panel_func = &s6e3hc2_drm_funcs,
+	.exynos_panel_func = &s6e3hc2_exynos_funcs,
 };
 
 static const struct of_device_id exynos_panel_of_match[] = {
