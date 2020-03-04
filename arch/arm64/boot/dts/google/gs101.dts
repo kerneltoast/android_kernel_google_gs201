@@ -69,33 +69,6 @@
 		bootargs = "console androidboot.first_stage_console=1 earlycon=exynos4210,mmio32,0x10A00000 clocksource=arch_sys_counter root=/dev/ram0 androidboot.hardware=gs101 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware reserve-fimc=0xffffff90f9fe0000 maxcpus=4 clk_ignore_unused loop.max_part=7";
 	};
 
-	firmware {
-		android: android {
-			compatible = "android,firmware";
-
-			fstab {
-				compatible = "android,fstab";
-
-				system: system {
-					compatible = "android,system";
-					dev = "/dev/block/platform/14700000.ufs/by-name/system";
-					type = "ext4";
-					mnt_flags = "ro";
-					fsmgr_flags = "wait";
-					status = "okay";
-				};
-
-				vendor: vendor {
-					compatible = "android,vendor";
-					dev = "/dev/block/platform/14700000.ufs/by-name/vendor";
-					type = "ext4";
-					mnt_flags = "ro";
-					fsmgr_flags = "wait";
-					status = "okay";
-				};
-			};
-		};
-	};
 	gic: interrupt-controller@10400000 {
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
