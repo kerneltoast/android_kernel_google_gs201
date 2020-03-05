@@ -547,7 +547,21 @@ extern "C" {
  * transferred between IP blocks. This modifier is used when to decode data or
  * when to encode data through writeback.
  */
-#define DRM_FORMAT_MOD_SAMSUNG_SBWC		fourcc_mod_code(SAMSUNG, 5)
+#define SBWC_IDENTIFIER				(1 << 4)
+#define SBWC_FORMAT_MOD_BLOCK_SIZE_MASK		(0xfULL << 5)
+#define SBWC_BLOCK_SIZE_SET(blk_size)		\
+		((blk_size << 5) & SBWC_FORMAT_MOD_BLOCK_SIZE_MASK)
+#define SBWC_BLOCK_SIZE_GET(modifier)		\
+		(((modifier) & SBWC_FORMAT_MOD_BLOCK_SIZE_MASK) >> 5)
+#define SBWC_FORMAT_MOD_BLOCK_SIZE_32x2		(2ULL)
+#define SBWC_FORMAT_MOD_BLOCK_SIZE_32x3		(3ULL)
+#define SBWC_FORMAT_MOD_BLOCK_SIZE_32x4		(4ULL)
+#define SBWC_FORMAT_MOD_BLOCK_SIZE_32x5		(5ULL)
+#define SBWC_FORMAT_MOD_BLOCK_SIZE_32x6		(6ULL)
+
+#define DRM_FORMAT_MOD_SAMSUNG_SBWC(blk_size)	\
+		fourcc_mod_code(SAMSUNG,	\
+		(SBWC_BLOCK_SIZE_SET(blk_size) | SBWC_IDENTIFIER))
 
 /*
  * Qualcomm Compressed Format
