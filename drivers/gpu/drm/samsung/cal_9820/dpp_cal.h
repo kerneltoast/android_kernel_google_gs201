@@ -69,6 +69,14 @@ enum dpp_comp_type {
 	COMP_TYPE_SBWC,
 };
 
+enum dpp_sbwc_blk_size {
+	SBWC_BLK_32x2 = 2,
+	SBWC_BLK_32x3 = 3,
+	SBWC_BLK_32x4 = 4,
+	SBWC_BLK_32x5 = 5,
+	SBWC_BLK_32x6 = 6,
+};
+
 struct dpp_regs {
 	void __iomem *dpp_base_regs;
 	void __iomem *dma_base_regs;
@@ -204,6 +212,7 @@ struct dpp_params_info {
 
 	unsigned long rcv_num;
 	enum dpp_comp_type comp_type;
+	enum dpp_sbwc_blk_size blk_size;
 };
 
 void dpp_regs_desc_init(void __iomem *regs, const char *name,
