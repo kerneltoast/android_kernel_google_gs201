@@ -365,6 +365,11 @@
 		interrupts = <GIC_SPI IRQ_GPIO_HSI2_HSI2 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	arm-pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
 	exynos-pmu {
 		compatible = "samsung,exynos-pmu";
 		samsung,syscon-phandle = <&pmu_system_controller>;
