@@ -22,8 +22,9 @@
 
 struct ion_carveout_heap {
 	struct ion_heap heap;
+	struct platform_device *pdev;
 	struct gen_pool *pool;
-	unsigned int alignment;
+	struct exynos_fdt_attrs attrs;
 };
 
 #define to_carveout_heap(x) container_of(x, struct ion_carveout_heap, heap)
@@ -33,8 +34,7 @@ static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
 {
 	struct ion_carveout_heap *carveout_heap = to_carveout_heap(heap);
 
-	return gen_pool_alloc(carveout_heap->pool,
-			      ALIGN(size, carveout_heap->alignment));
+	return gen_pool_alloc(carveout_heap->pool, size);
 }
 
 static void ion_carveout_free(struct ion_heap *heap, phys_addr_t addr,
@@ -42,8 +42,7 @@ static void ion_carveout_free(struct ion_heap *heap, phys_addr_t addr,
 {
 	struct ion_carveout_heap *carveout_heap = to_carveout_heap(heap);
 
-	gen_pool_free(carveout_heap->pool, addr,
-		      ALIGN(size, carveout_heap->alignment));
+	gen_pool_free(carveout_heap->pool, addr, size);
 }
 
 static int ion_carveout_heap_allocate(struct ion_heap *heap,
@@ -51,6 +50,8 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 				      unsigned long size,
 				      unsigned long flags)
 {
+	struct ion_carveout_heap *carveout_heap = to_carveout_heap(heap);
+	unsigned long alloc_size = ALIGN(size, carveout_heap->attrs.alignment);
 	struct sg_table *table;
 	phys_addr_t paddr;
 	int ret;
@@ -64,7 +65,7 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 		goto err_free;
 	}
 
-	paddr = ion_carveout_allocate(heap, size);
+	paddr = ion_carveout_allocate(heap, alloc_size);
 	if (!paddr) {
 		perr("failed to allocate from %s(id %u/type %d), size %lu",
 		       heap->name, heap->id, heap->type, size);
@@ -72,13 +73,33 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 		goto err_free_table;
 	}
 
-	sg_set_page(table->sgl, phys_to_page(paddr), size, 0);
+	sg_set_page(table->sgl, phys_to_page(paddr), alloc_size, 0);
+
 	buffer->sg_table = table;
 
+	/*
+	 * No need to flush more than the requiered size. But clearing dirty
+	 * data from the CPU caches should be performed on the entire area
+	 * to be protected because writing back from the CPU caches with non-
+	 * secure property to the protected area results system error.
+	 */
 	ion_buffer_prep_noncached(buffer);
 
-	return 0;
+	if (carveout_heap->attrs.secure && ion_buffer_protected(buffer)) {
+		buffer->priv_virt =
+			ion_buffer_protect(&carveout_heap->pdev->dev,
+					   carveout_heap->attrs.protection_id,
+					   (unsigned int)alloc_size, paddr,
+					   carveout_heap->attrs.alignment);
+		if (IS_ERR(buffer->priv_virt)) {
+			ret = PTR_ERR(buffer->priv_virt);
+			goto err_prot;
+		}
+	}
 
+	return 0;
+err_prot:
+	ion_carveout_free(heap, paddr, buffer->size);
 err_free_table:
 	sg_free_table(table);
 err_free:
@@ -89,17 +110,31 @@ err_free:
 static void ion_carveout_heap_free(struct ion_buffer *buffer)
 {
 	struct ion_heap *heap = buffer->heap;
+	struct ion_carveout_heap *carveout_heap = to_carveout_heap(heap);
+	unsigned long alloc_size = ALIGN(buffer->size, carveout_heap->attrs.alignment);
 	struct sg_table *table = buffer->sg_table;
 	struct page *page = sg_page(table->sgl);
 	phys_addr_t paddr = PFN_PHYS(page_to_pfn(page));
+	int unprot_err = 0;
+
+	if (carveout_heap->attrs.secure && ion_buffer_protected(buffer))
+		unprot_err = ion_buffer_unprotect(buffer->priv_virt);
 
 	/*
-	 * There is no need to map and memset with write combine
-	 * for non-cachable buffer because that is flushed when allocation
+	 * If releasing H/W protection to a buffer fails, the buffer might not
+	 * be unusable in Linux forever because we do not have an idea to
+	 * determine if the buffer is accessible in Linux. So, we should mark
+	 * that buffer unusable with holding allocated buffer.
 	 */
-	ion_page_clean(page, buffer->size);
+	if (!unprot_err) {
+		/*
+		 * There is no need to map and memset with write combine for
+		 * non-cachable buffer because that is flushed when allocation
+		 */
+		ion_page_clean(page, buffer->size);
+		ion_carveout_free(heap, paddr, alloc_size);
+	}
 
-	ion_carveout_free(heap, paddr, buffer->size);
 	sg_free_table(table);
 	kfree(table);
 }
@@ -114,7 +149,6 @@ static int ion_carveout_heap_probe(struct platform_device *pdev)
 	struct ion_carveout_heap *carveout_heap;
 	struct reserved_mem *rmem;
 	struct device_node *rmem_np;
-	struct exynos_fdt_attrs attrs;
 	int ret;
 
 	rmem_np = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
@@ -139,11 +173,17 @@ static int ion_carveout_heap_probe(struct platform_device *pdev)
 	carveout_heap->heap.name = rmem->name;
 	carveout_heap->heap.type =
 		(enum ion_heap_type)ION_EXYNOS_HEAP_TYPE_CARVEOUT;
+	carveout_heap->heap.buf_ops = exynos_dma_buf_ops;
 
 	ion_page_clean(phys_to_page(rmem->base), rmem->size);
 
-	exynos_fdt_setup(&pdev->dev, &attrs);
-	carveout_heap->alignment = attrs.alignment;
+	carveout_heap->pdev = pdev;
+
+	arch_setup_dma_ops(&pdev->dev, 0x0ULL, 1ULL << 36, NULL, false);
+
+	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
+
+	exynos_fdt_setup(&pdev->dev, &carveout_heap->attrs);
 
 	ret = ion_device_add_heap(&carveout_heap->heap);
 	if (ret) {

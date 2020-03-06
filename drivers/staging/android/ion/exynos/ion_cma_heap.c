@@ -21,8 +21,9 @@
 
 struct ion_exynos_cma_heap {
 	struct ion_heap heap;
+	struct platform_device *pdev;
 	struct cma *cma;
-	unsigned int alignment;
+	struct exynos_fdt_attrs attrs;
 };
 
 #define to_cma_heap(x) container_of(x, struct ion_exynos_cma_heap, heap)
@@ -34,14 +35,13 @@ static int ion_exynos_cma_allocate(struct ion_heap *heap,
 				   unsigned long flags)
 {
 	struct ion_exynos_cma_heap *cma_heap = to_cma_heap(heap);
+	unsigned long alloc_size = ALIGN(len, cma_heap->attrs.alignment);
 	struct sg_table *table;
 	struct page *pages;
-	unsigned long size = PAGE_ALIGN(len);
-	unsigned long align_order = get_order(cma_heap->alignment);
-	unsigned long nr_pages = ALIGN(size >> PAGE_SHIFT, 1 << align_order);
 	int ret;
 
-	pages = cma_alloc(cma_heap->cma, nr_pages, align_order, false);
+	pages = cma_alloc(cma_heap->cma, alloc_size / PAGE_SIZE,
+			  get_order(cma_heap->attrs.alignment), false);
 	if (!pages) {
 		perr("failed to allocate from %s(id %u/type %d), size %lu",
 		     cma_heap->heap.name, cma_heap->heap.id, cma_heap->heap.type, len);
@@ -58,34 +58,69 @@ static int ion_exynos_cma_allocate(struct ion_heap *heap,
 		goto free_mem;
 	}
 
-	sg_set_page(table->sgl, pages, size, 0);
+	sg_set_page(table->sgl, pages, alloc_size, 0);
 
-	buffer->priv_virt = pages;
 	buffer->sg_table = table;
 
-	ion_page_clean(pages, size);
+	ion_page_clean(pages, alloc_size);
 
+	/*
+	 * Pages from the CMA heap tends to be cached in the CPU caches with
+	 * dirty state since they are served as anon and page cache pages for
+	 * the userspace.
+	 * Flushing caches on buffer allocation is intended for preventing
+	 * corruption from writing back to DRAM from the dirty cache lines
+	 * while updating the buffer from DMA. However, cache flush should be
+	 * performed on the entire allocated area if the buffer is to be
+	 * protected from non-secure access to prevent the dirty write-back
+	 * to the protected area.
+	 */
 	ion_buffer_prep_noncached(buffer);
 
-	return 0;
+	if (cma_heap->attrs.secure && ion_buffer_protected(buffer)) {
+		buffer->priv_virt =
+			ion_buffer_protect(&cma_heap->pdev->dev,
+					   cma_heap->attrs.protection_id,
+					   (unsigned int)alloc_size,
+					   page_to_phys(pages),
+					   cma_heap->attrs.alignment);
+		if (IS_ERR(buffer->priv_virt)) {
+			ret = PTR_ERR(buffer->priv_virt);
+			goto err_prot;
+		}
+	}
 
+	return 0;
+err_prot:
+	sg_free_table(buffer->sg_table);
 free_mem:
 	kfree(table);
 err:
-	cma_release(cma_heap->cma, pages, nr_pages);
+	cma_release(cma_heap->cma, pages, alloc_size / PAGE_SIZE);
 	return -ENOMEM;
 }
 
 static void ion_exynos_cma_free(struct ion_buffer *buffer)
 {
 	struct ion_exynos_cma_heap *cma_heap = to_cma_heap(buffer->heap);
-	struct page *pages = buffer->priv_virt;
-	unsigned long nr_pages = ALIGN(PAGE_ALIGN(buffer->size) >> PAGE_SHIFT,
-				       1 << get_order(cma_heap->alignment));
+	struct page *pages = sg_page(buffer->sg_table->sgl);
+	unsigned long alloc_size = buffer->sg_table->sgl->length;
+	int unprot_err = 0;
+
+	if (cma_heap->attrs.secure && ion_buffer_protected(buffer))
+		unprot_err = ion_buffer_unprotect(buffer->priv_virt);
 
 	sg_free_table(buffer->sg_table);
 	kfree(buffer->sg_table);
-	cma_release(cma_heap->cma, pages, nr_pages);
+
+	/*
+	 * If releasing H/W protection to a buffer fails, the buffer might not
+	 * be unusable in Linux forever because we do not have an idea to
+	 * determine if the buffer is accessible in Linux. So, we should mark
+	 * that buffer unusable with holding allocated buffer.
+	 */
+	if (!unprot_err)
+		cma_release(cma_heap->cma, pages, alloc_size / PAGE_SIZE);
 }
 
 static struct ion_heap_ops ion_exynos_cma_ops = {
@@ -101,7 +136,6 @@ static void rmem_remove_callback(void *p)
 static int ion_exynos_cma_heap_probe(struct platform_device *pdev)
 {
 	struct ion_exynos_cma_heap *cma_heap;
-	struct exynos_fdt_attrs attrs;
 	int ret;
 
 	cma_heap = devm_kzalloc(&pdev->dev, sizeof(*cma_heap), GFP_KERNEL);
@@ -129,9 +163,15 @@ static int ion_exynos_cma_heap_probe(struct platform_device *pdev)
 	cma_heap->heap.ops = &ion_exynos_cma_ops;
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;
 	cma_heap->heap.name = cma_get_name(cma_heap->cma);
+	cma_heap->heap.buf_ops = exynos_dma_buf_ops;
 
-	exynos_fdt_setup(&pdev->dev, &attrs);
-	cma_heap->alignment = attrs.alignment;
+	cma_heap->pdev = pdev;
+
+	arch_setup_dma_ops(&pdev->dev, 0x0ULL, 1ULL << 36, NULL, false);
+
+	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
+
+	exynos_fdt_setup(&pdev->dev, &cma_heap->attrs);
 
 	ret = ion_device_add_heap(&cma_heap->heap);
 	if (ret)
