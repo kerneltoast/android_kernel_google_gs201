@@ -238,8 +238,8 @@ static void idma_reg_print_irqs_msg(u32 id, u32 irqs)
 	if (irqs & IDMA_AFBC_CONFLICT_IRQ)
 		cal_log_err(id, "IDMA AFBC conflict irq occur\n");
 
-	if (irqs & IDMA_SBWC_ERR_IRQ)
-		cal_log_err(id, "IDMA SBWC error irq occur\n");
+	if (irqs & IDMA_FBC_ERR_IRQ)
+		cal_log_err(id, "IDMA FBC error irq occur\n");
 
 	if (irqs & IDMA_READ_SLAVE_ERROR)
 		cal_log_err(id, "IDMA read slave error irq occur\n");

@@ -47,7 +47,7 @@
 #define IDMA_AXI_ADDR_ERR_IRQ			(1 << 26)
 #define IDMA_LB_CONFLICT_IRQ			(1 << 25)
 #define IDMA_MO_CONFLICT_IRQ			(1 << 24)
-#define IDMA_SBWC_ERR_IRQ			(1 << 23)
+#define IDMA_FBC_ERR_IRQ			(1 << 23)
 #define IDMA_RECOVERY_TRG_IRQ			(1 << 22)
 #define IDMA_CONFIG_ERR_IRQ			(1 << 21)
 #define IDMA_INST_OFF_DONE			(1 << 20)
