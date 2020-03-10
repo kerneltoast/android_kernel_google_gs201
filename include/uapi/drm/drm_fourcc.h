@@ -400,6 +400,16 @@ extern "C" {
  */
 #define DRM_FORMAT_MOD_LINEAR	fourcc_mod_code(NONE, 0)
 
+/*
+ * Set to access the secure buffer
+ *
+ * The secure buffer is used to store DRM(Digital Right Management) contents.
+ * DMA needs special authority to access the secure buffer. This modifier can
+ * be set to allow the DMA to access the secure buffer. This can be used in
+ * combination with another modifier.
+ */
+#define DRM_FORMAT_MOD_PROTECTION	fourcc_mod_code(NONE, (1ULL << 51))
+
 /* Intel framebuffer modifiers */
 
 /*
