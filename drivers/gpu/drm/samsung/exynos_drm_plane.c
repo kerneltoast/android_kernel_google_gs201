@@ -21,6 +21,7 @@
 #include <exynos_drm_fb.h>
 #include <exynos_drm_plane.h>
 #include <exynos_drm_dpp.h>
+#include <exynos_drm_format.h>
 
 /*
  * This function is to get X or Y size shown via screen. This needs length and
@@ -273,13 +274,13 @@ exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
 		return 0;
 
 	if (fb->modifier) {
-		if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0))
+		if (has_all_bits(DRM_FORMAT_MOD_ARM_AFBC(0), fb->modifier))
 			return 0;
 
-		if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_COLORMAP)
+		if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_COLORMAP, fb->modifier))
 			return 0;
 
-		if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_SBWC(0))
+		if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_SBWC(0), fb->modifier))
 			return 0;
 
 		DRM_ERROR("not supported modifier(0x%llx)\n", fb->modifier);

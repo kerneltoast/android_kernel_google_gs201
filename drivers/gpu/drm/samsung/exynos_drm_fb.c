@@ -69,7 +69,6 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 	return fb;
 }
 
-#define has_all_bits(bits, mask)    (((bits) & (mask)) == (bits))
 static size_t get_plane_size(const struct drm_mode_fb_cmd2 *mode_cmd, u32 idx)
 {
 	u32 height;
@@ -234,8 +233,9 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dst_w = state->base.crtc_w;
 	win_config->dst_h = state->base.crtc_h;
 
-	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0) ||
-			fb->modifier & DRM_FORMAT_MOD_SAMSUNG_SBWC(0))
+	if (has_all_bits(DRM_FORMAT_MOD_ARM_AFBC(0), fb->modifier) ||
+			has_all_bits(DRM_FORMAT_MOD_SAMSUNG_SBWC(0),
+				fb->modifier))
 		win_config->is_comp = true;
 	else
 		win_config->is_comp = false;
@@ -249,7 +249,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	win_config->dpp_ch = plane_idx;
 
 	win_config->comp_src = 0;
-	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0))
+	if (has_all_bits(DRM_FORMAT_MOD_ARM_AFBC(0), fb->modifier))
 		win_config->comp_src =
 			(fb->modifier & AFBC_FORMAT_MOD_SOURCE_MASK);
 

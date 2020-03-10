@@ -294,9 +294,9 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 	if (simplified_rot & DRM_MODE_REFLECT_Y)
 		config->rot |= DPP_Y_FLIP;
 
-	if (fb->modifier & DRM_FORMAT_MOD_ARM_AFBC(0)) {
+	if (has_all_bits(DRM_FORMAT_MOD_ARM_AFBC(0), fb->modifier)) {
 		config->comp_type = COMP_TYPE_AFBC;
-	} else if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_SBWC(0)) {
+	} else if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_SBWC(0), fb->modifier)) {
 		config->comp_type = COMP_TYPE_SBWC;
 		config->blk_size = SBWC_BLOCK_SIZE_GET(fb->modifier);
 	} else {
@@ -316,12 +316,12 @@ static void dpp_convert_plane_state_to_config(struct dpp_params_info *config,
 
 	config->addr[0] = exynos_drm_fb_dma_addr(fb, 0);
 	config->addr[1] = exynos_drm_fb_dma_addr(fb, 1);
-	if (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_YUV_8_2_SPLIT) {
+	if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_YUV_8_2_SPLIT, fb->modifier)) {
 		config->addr[2] = config->addr[0] +
 			NV12N_10B_Y_8B_SIZE(fb->width, fb->height);
 		config->addr[3] = config->addr[1] +
 			NV12N_10B_CBCR_8B_SIZE(fb->width, fb->height);
-	} else if (fb->modifier & DRM_FORMAT_MOD_SAMSUNG_SBWC(0)) {
+	} else if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_SBWC(0), fb->modifier)) {
 		const struct dpu_fmt *fmt_info =
 			dpu_find_fmt_info(config->format);
 		bool is_10bpc = IS_10BPC(fmt_info);

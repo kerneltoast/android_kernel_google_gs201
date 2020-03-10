@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 
 #define DPU_UNDEF_BITS_DEPTH		0xabcd
+#define has_all_bits(bits, mask)	(((bits) & (mask)) == (bits))
 
 enum dpu_colorspace {
 	DPU_COLORSPACE_RGB,
