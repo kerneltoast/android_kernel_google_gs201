@@ -206,6 +206,51 @@ static ssize_t dbgcore_irq_info_write(struct file *file, const char __user *buf,
 	return count;
 }
 
+static ssize_t dbgcore_apm_ping_read(struct file *file, char __user *ubuf,
+				     size_t count, loff_t *ppos)
+{
+	struct adv_tracer_ipc_cmd cmd = {
+		.cmd_raw = {
+			.cmd = EAT_IPC_CMD_APM_PING_TEST,
+			.size = 1,
+		},
+	};
+	char buf[64];	/* Sufficient for printout w/ longest status message */
+	int len;
+	const char *status_msg;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd) < 0) {
+		pr_err("sending APM_PING_TEST cmd failed\n");
+		return -EIO;
+	}
+
+	switch (cmd.buffer[1]) {
+	case 0:
+		status_msg = "Pass";
+		break;
+	case ENXIO:
+		status_msg = "Mailbox not supported";
+		break;
+	case EINVAL:
+		status_msg = "Bad response from APM";
+		break;
+	case EBUSY:
+		status_msg = "No response from APM";
+		break;
+	default:
+		status_msg = "<unknown status>";
+		break;
+	}
+
+	len = scnprintf(buf, sizeof(buf), "APM-SWD mailbox Ping result: %s\n",
+		       status_msg);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
 static int attr_uart_mux_get(void *data, u64 *val)
 {
 	struct adv_tracer_ipc_cmd cmd = {
@@ -270,12 +315,19 @@ static const struct file_operations dbgcore_irq_info_fops = {
 	.llseek	= default_llseek,
 };
 
+static const struct file_operations dbgcore_apm_ping_fops = {
+	.open	= simple_open,
+	.read	= dbgcore_apm_ping_read,
+	.llseek	= default_llseek,
+};
+
 static __init int dbgcore_dump_init(void)
 {
 	struct dentry *version;
 	struct dentry *logdump;
 	struct dentry *nmi_info;
 	struct dentry *irq_info;
+	struct dentry *apm_ping;
 
 	dbgcore_dentry = debugfs_create_dir("dbgcore", NULL);
 	if (dbgcore_dentry == NULL) {
@@ -301,6 +353,11 @@ static __init int dbgcore_dump_init(void)
 	irq_info = debugfs_create_file("irq_info", 0644, dbgcore_dentry, NULL,
 				       &dbgcore_irq_info_fops);
 	if (irq_info == NULL)
+		goto out;
+
+	apm_ping = debugfs_create_file("apm_ping", 0644, dbgcore_dentry, NULL,
+				       &dbgcore_apm_ping_fops);
+	if (apm_ping == NULL)
 		goto out;
 
 	irq_info = debugfs_create_file("uart_mux", 0644, dbgcore_dentry, NULL,
