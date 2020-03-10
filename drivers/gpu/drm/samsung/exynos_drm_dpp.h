@@ -96,6 +96,7 @@ struct dpp_device {
 	int decon_id;		/* connected DECON id */
 	unsigned int win_id;	/* connected window id */
 	bool is_win_connected;	/* Is dpp connected to window ? */
+	bool protection;
 
 	/*
 	 * comp_src means compression source of input buffer compressed by

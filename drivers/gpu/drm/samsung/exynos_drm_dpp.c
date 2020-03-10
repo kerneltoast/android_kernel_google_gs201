@@ -24,6 +24,7 @@
 #include <linux/videodev2_exynos_media.h>
 #include <linux/ion_exynos.h>
 #include <linux/dma-buf.h>
+#include <linux/smc.h>
 
 #include <exynos_drm_fb.h>
 #include <exynos_drm_dpp.h>
@@ -383,6 +384,41 @@ static void __dpp_enable(struct dpp_device *dpp)
 	dpp_dbg(dpp, "enabled\n");
 }
 
+static int set_protection(struct dpp_device *dpp, uint64_t modifier)
+{
+	bool protection;
+	u32 protection_id;
+	int ret = 0;
+	static const u32 protection_ids[] = { PROT_L0, PROT_L1, PROT_L2,
+					PROT_L3, PROT_L4, PROT_L5, PROT_L12 };
+
+	protection = (modifier & DRM_FORMAT_MOD_PROTECTION) != 0;
+	if (dpp->protection == protection)
+		return ret;
+
+	if (dpp->id >= ARRAY_SIZE(protection_ids)) {
+		pr_err("%s: failed to get protection id(%u)\n", __func__,
+				dpp->id);
+		return -EINVAL;
+	}
+	protection_id = protection_ids[dpp->id];
+
+	ret = exynos_smc(SMC_PROTECTION_SET, 0, protection_id,
+			(protection ? SMC_PROTECTION_ENABLE :
+			SMC_PROTECTION_DISABLE));
+	if (ret) {
+		pr_err("%s: failed to %s protection(ch:%u, ret:%d)\n", __func__,
+				protection ? "enable" : "disable", dpp->id,
+				ret);
+		return ret;
+	}
+	dpp->protection = protection;
+
+	pr_debug("%s: ch:%u, en:%d\n", __func__, dpp->id, protection);
+
+	return ret;
+}
+
 static void __dpp_disable(struct dpp_device *dpp)
 {
 	if (dpp->state == DPP_STATE_OFF)
@@ -398,6 +434,7 @@ static void __dpp_disable(struct dpp_device *dpp)
 	dpp->hdr_state.gm = NULL;
 	dpp->hdr_state.tm = NULL;
 
+	set_protection(dpp, 0);
 	dpp->state = DPP_STATE_OFF;
 
 	dpp_dbg(dpp, "disabled\n");
@@ -613,7 +650,6 @@ static int dpp_update(struct dpp_device *dpp,
 			const struct exynos_drm_plane_state *state)
 {
 	struct dpp_params_info *config = &dpp->win_config;
-
 	const struct drm_plane_state *plane_state = &state->base;
 	const struct drm_crtc_state *crtc_state = plane_state->crtc->state;
 	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
@@ -625,6 +661,8 @@ static int dpp_update(struct dpp_device *dpp,
 	dpp_convert_plane_state_to_config(config, state, mode);
 
 	dpp_hdr_update(dpp, state);
+	set_protection(dpp, plane_state->fb->modifier);
+
 	dpp_reg_configure_params(dpp->id, config, dpp->attr);
 
 	dpp_dbg(dpp, "%s -\n", __func__);
