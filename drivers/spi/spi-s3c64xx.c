@@ -638,8 +638,11 @@ static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 	}
 
 	cs = spi->controller_data;
-	if (cs->line != 0)
+	if (cs->line != 0) {
 		gpio_set_value(cs->line, spi->mode & SPI_CS_HIGH ? 1 : 0);
+		if (cs->cs_delay)
+			udelay(cs->cs_delay);
+	}
 
 	if (cs->cs_mode == AUTO_CS_MODE) {
 		/* Set auto chip selection */
@@ -1160,6 +1163,7 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata
 	struct device_node *slave_np, *data_np = NULL;
 	u32 fb_delay = 0;
 	u32 cs_mode = 0;
+	u32 cs_delay = 0;
 
 	slave_np = spi->dev.of_node;
 	if (!slave_np) {
@@ -1185,6 +1189,13 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata
 			cs->line = 0;
 	} else {
 		cs->line = 0;
+	}
+
+	if (cs->line) {
+		if (!of_property_read_u32(data_np, "cs-clock-delay", &cs_delay))
+			cs->cs_delay = cs_delay;
+		else
+			cs->cs_delay = 0;
 	}
 
 	of_property_read_u32(data_np, "samsung,spi-feedback-delay", &fb_delay);

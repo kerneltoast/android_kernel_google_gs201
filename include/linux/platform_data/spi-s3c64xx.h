@@ -64,6 +64,7 @@ struct s3c64xx_spi_csinfo {
 	u8 fb_delay;
 	u8 cs_mode;
 	unsigned int line;
+	unsigned int cs_delay;
 };
 
 /**
