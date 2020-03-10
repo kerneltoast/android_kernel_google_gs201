@@ -45,4 +45,15 @@ config DRM_SAMSUNG_DSI
 	  supports to read and write mipi command to and from the mipi panel.
 	  So, this driver can use various panel feature.
 
+config DRM_SAMSUNG_WB
+	bool "WB on Exynos"
+	depends on DRM_SAMSUNG_DECON
+	default DRM_SAMSUNG
+	help
+	  This enables support for Exynos Concurrent Writeback device.
+	  It can be attached writeback at runtime. It will dump blended
+	  output buffer which is displaying on LCD.
+	  This means that both writeback and LCD display can be operated
+	  simultaneously.
+
 endif

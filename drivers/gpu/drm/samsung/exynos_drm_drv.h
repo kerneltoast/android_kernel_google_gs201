@@ -288,4 +288,5 @@ extern struct platform_driver decon_driver;
 extern struct platform_driver dsim_driver;
 extern struct platform_driver dp_driver;
 extern struct platform_driver dpp_driver;
+extern struct platform_driver writeback_driver;
 #endif

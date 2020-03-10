@@ -31,13 +31,12 @@ static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
-	/* Exynos CRTC can connect only one connector to operating */
 	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (crtc->state->connector_mask &
 				(1 << drm_connector_index(connector))) {
-			exynos_crtc->connector = connector;
-			break;
+			if (connector->connector_type == DRM_MODE_CONNECTOR_DSI)
+				exynos_crtc->connector = connector;
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);

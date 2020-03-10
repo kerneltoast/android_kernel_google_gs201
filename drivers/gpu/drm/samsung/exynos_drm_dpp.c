@@ -113,7 +113,7 @@ static const uint32_t dpp_vg_formats[] = {
 	DRM_FORMAT_P010,
 };
 
-static const struct dpp_restriction dpp_drv_data = {
+const struct dpp_restriction dpp_drv_data = {
 	.src_f_w.min = 16,
 	.src_f_w.max = 65534,
 	.src_f_w.align = 1,

@@ -27,6 +27,7 @@
 #include <exynos_drm_fb.h>
 #include <exynos_drm_plane.h>
 #include <exynos_drm_gem.h>
+#include <exynos_drm_writeback.h>
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -190,6 +191,9 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(dsim_driver, CONFIG_DRM_SAMSUNG_DSI),
 		DRM_COMPONENT_DRIVER
 	}, {
+		DRV_PTR(writeback_driver, CONFIG_DRM_SAMSUNG_WB),
+		DRM_COMPONENT_DRIVER
+	}, {
 		&exynos_drm_platform_driver,
 		DRM_VIRTUAL_DEVICE
 	}
@@ -230,8 +234,9 @@ static int exynos_drm_bind(struct device *dev)
 	struct exynos_drm_private *private;
 	struct drm_encoder *encoder;
 	struct drm_device *drm;
-	unsigned int clone_mask;
-	int cnt, ret;
+	u32 wb_mask = 0;
+	u32 encoder_mask = 0;
+	int ret;
 
 	drm = drm_dev_alloc(&exynos_drm_driver, dev);
 	if (IS_ERR(drm))
@@ -253,19 +258,29 @@ static int exynos_drm_bind(struct device *dev)
 
 	exynos_drm_mode_config_init(drm);
 
-	/* setup possible_clones. */
-	cnt = 0;
-	clone_mask = 0;
-	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head)
-		clone_mask |= (1 << (cnt++));
-
-	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head)
-		encoder->possible_clones = clone_mask;
-
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(drm->dev, drm);
 	if (ret)
 		goto err_mode_config_cleanup;
+
+	drm_for_each_encoder(encoder, drm) {
+		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
+			wb_mask |= drm_encoder_mask(encoder);
+
+		encoder_mask |= drm_encoder_mask(encoder);
+	}
+
+	drm_for_each_encoder(encoder, drm) {
+		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
+			encoder->possible_clones = encoder_mask;
+		else
+			encoder->possible_clones = drm_encoder_mask(encoder) |
+				wb_mask;
+
+		pr_info("encoder[%d] type(0x%x) possible_clones(0x%x)\n",
+				encoder->index, encoder->encoder_type,
+				encoder->possible_clones);
+	}
 
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret)
