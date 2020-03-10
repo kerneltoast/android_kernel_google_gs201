@@ -463,7 +463,7 @@
 #define ODMA_IC_MAX_MASK			(0xff << 16)
 #define ODMA_SBWC_LOSSY				(1 << 14)
 #define ODMA_IMG_FORMAT(_v)			((_v) << 8)
-#define ODMA_IMG_FORMAT_MASK			(0x3f << 11)
+#define ODMA_IMG_FORMAT_MASK			(0x3f << 8)
 #define ODMA_CSET_EN				(1 << 3) // must keep as '0'
 #define ODMA_SBWC_EN				(1 << 2)
 #define ODMA_AFBC_EN				(1 << 1)

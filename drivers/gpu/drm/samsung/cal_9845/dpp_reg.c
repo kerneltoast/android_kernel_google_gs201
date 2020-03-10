@@ -853,15 +853,14 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 
 	alpha_type = (fmt_info->len_alpha > 0) ? 1 : 0;
 
-	if (test_bit(DPP_ATTR_IDMA, &attr)) {
+	if (test_bit(DPP_ATTR_IDMA, &attr))
 		idma_reg_set_format(id, fmt_info->dma_fmt);
-		if (test_bit(DPP_ATTR_DPP, &attr)) {
-			dpp_reg_set_alpha_type(id, alpha_type);
-			dpp_reg_set_format(id, fmt_info->dpp_fmt);
-		}
-	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
+	else if (test_bit(DPP_ATTR_ODMA, &attr))
 		odma_reg_set_format(id, fmt_info->dma_fmt);
-		/* TODO: This will be implemented in the future */
+
+	if (test_bit(DPP_ATTR_DPP, &attr)) {
+		dpp_reg_set_alpha_type(id, alpha_type);
+		dpp_reg_set_format(id, fmt_info->dpp_fmt);
 	}
 
 	return 0;

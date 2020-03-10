@@ -89,6 +89,7 @@ enum dpp_regs_id {
 	REGS_DPP3_ID,
 	REGS_DPP4_ID,
 	REGS_DPP5_ID,
+	REGS_DPP12_ID,
 	REGS_DPP_ID_MAX
 };
 
