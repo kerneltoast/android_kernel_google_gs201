@@ -197,5 +197,7 @@
 		 * refer to enum exynos_drm_output_type in exynos_drm_drv.h
 		 */
 		connector = <0x1 0x2>;
+
+		hibernation;
 	};
 };
