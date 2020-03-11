@@ -412,6 +412,17 @@ static int set_state_periodic(struct clock_event_device *evt)
 	return 0;
 }
 
+static int set_state_resume(struct clock_event_device *evt)
+{
+	struct mct_clock_event_device *mevt;
+
+	mevt = container_of(evt, struct mct_clock_event_device, evt);
+	exynos4_mct_tick_stop(mevt, 1);
+
+	exynos4_mct_write(TICK_BASE_CNT, mevt->base + MCT_L_TCNTB_OFFSET);
+	return 0;
+}
+
 static irqreturn_t exynos4_mct_tick_isr(int irq, void *dev_id)
 {
 	struct mct_clock_event_device *mevt = dev_id;
@@ -448,7 +459,7 @@ static int exynos4_mct_starting_cpu(unsigned int cpu)
 	evt->set_state_shutdown = set_state_shutdown;
 	evt->set_state_oneshot = set_state_shutdown;
 	evt->set_state_oneshot_stopped = set_state_shutdown;
-	evt->tick_resume = set_state_shutdown;
+	evt->tick_resume = set_state_resume;
 	evt->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	evt->rating = 500;	/* use value higher than ARM arch timer */
 
