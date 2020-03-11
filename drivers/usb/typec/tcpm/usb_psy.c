@@ -250,21 +250,11 @@ static int vote_comp(struct usb_vote *v1, struct usb_vote *v2)
 	return v1_pri - v2_pri;
 }
 
-/*
- * Priority based voting. USER_VOTER has higher precedence than
- * COMBINED_VOTER.
- */
-static inline int usb_icl_comp(void *vote1, void *vote2)
-{
-	return vote_comp(vote1, vote2);
-}
-
 static void usb_icl_callback(struct gvotable_election *el,
 			     const char *reason, void *result)
 {
 	struct usb_psy_data *usb = gvotable_get_data(el);
-	struct usb_vote *vote = result;
-	union power_supply_propval val = {.intval = vote->val};
+	union power_supply_propval val = {.intval = (unsigned int)result};
 	int ret;
 
 	ret = power_supply_set_property(usb->usb_psy,
@@ -279,16 +269,15 @@ static void usb_icl_combined_callback(struct gvotable_election *el,
 				      const char *reason, void *result)
 {
 	struct usb_psy_data *usb = gvotable_get_data(el);
-	struct usb_vote *vote_result = result, vote;
+	struct usb_vote *vote_result = result;
 	int ret;
 
-	init_vote(&vote, icl_voter_reason[USB_ICL_COMB],
-		  USB_ICL_COMB, vote_result->val);
-	ret = gvotable_cast_vote(usb->usb_icl_el, vote.reason,
-				 &vote, true);
+	ret = gvotable_cast_vote(usb->usb_icl_el,
+				 icl_voter_reason[USB_ICL_COMB],
+				 (void *)(long)vote_result->val, true);
 	logbuffer_log(usb->log, "%s: %s:%d voting usb_icl_el: %d by %s",
 		      __func__, ret < 0 ? "error" : "success", ret,
-		      vote.val, vote.reason);
+		      vote_result->val, icl_voter_reason[USB_ICL_COMB]);
 }
 
 /*
@@ -402,27 +391,26 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log)
 	 * 1. USER
 	 * 2. COMBINED
 	 */
-	usb->usb_icl_el = gvotable_create_election(USB_ICL_EL,
-						sizeof(struct usb_vote),
-						usb_icl_comp,
-						usb_icl_callback,
-						usb);
+	usb->usb_icl_el =
+		gvotable_create_int_election(USB_ICL_EL,
+					     gvotable_comparator_int_min,
+					     usb_icl_callback, usb);
 	if (IS_ERR_OR_NULL(usb->usb_icl_el)) {
 		ret = usb->usb_icl_el;
 		goto psy_put;
 	}
-	gvotable_set_vote2str(usb->usb_icl_el, debug_print_vote);
+	gvotable_set_vote2str(usb->usb_icl_el, gvotable_v2s_uint);
 
 	/*
 	 * MIN VOTE: will have two voters
 	 * 1. Thermal
 	 * 2. PROTOCOL vote
 	 */
-	usb->usb_icl_combined_el = gvotable_create_election(USB_ICL_COMBINED_EL,
-						sizeof(struct usb_vote),
-						usb_icl_combined_comp,
-						usb_icl_combined_callback,
-						usb);
+	usb->usb_icl_combined_el =
+		gvotable_create_election(USB_ICL_COMBINED_EL,
+					 sizeof(struct usb_vote),
+					 usb_icl_combined_comp,
+					 usb_icl_combined_callback, usb);
 	if (IS_ERR_OR_NULL(usb->usb_icl_combined_el)) {
 		ret = usb->usb_icl_combined_el;
 		goto unreg_icl_el;
@@ -433,11 +421,11 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log)
 	 * PRIORITY VOTE: Various players of the protocol stack such as
 	 * PD, BC12, TYPEC, DEAD_BATTERY etc.
 	 */
-	usb->usb_icl_proto_el = gvotable_create_election(USB_ICL_PROTO_EL,
-						sizeof(struct usb_vote),
-						usb_icl_proto_comp,
-						usb_icl_proto_callback,
-						usb);
+	usb->usb_icl_proto_el =
+		gvotable_create_election(USB_ICL_PROTO_EL,
+					 sizeof(struct usb_vote),
+					 usb_icl_proto_comp,
+					 usb_icl_proto_callback, usb);
 	if (IS_ERR_OR_NULL(usb->usb_icl_proto_el)) {
 		ret = usb->usb_icl_proto_el;
 		goto unreg_icl_combined_el;
