@@ -47,6 +47,15 @@
 				esc-clk = <20>;
 				cmd_underrun_cnt = <3022>;
 			};
+			1080x2340 {
+				mode-name = "1080x2340";
+				pmsk = <
+					0x2 0xB3 0x3 0x0955 /* p m s k */
+					>;
+				hs-clk = <550>;
+				esc-clk = <20>;
+				cmd_underrun_cnt = <2032>;
+			};
 			720x1280 {
 				mode-name = "720x1280";
 				pmsk = <
