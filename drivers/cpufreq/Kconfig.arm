@@ -342,3 +342,12 @@ config ARM_PXA2xx_CPUFREQ
 	  This add the CPUFreq driver support for Intel PXA2xx SOCs.
 
 	  If in doubt, say N.
+
+config ARM_EXYNOS_ACME
+        tristate "SAMSUNG EXYNOS ACME(A Cpufreq that Meets Every chipset) driver"
+	default n
+        help
+          This adds the CPUFreq driver for every exynos chipset. Exynos
+          ACME supported SoC must use the exynos CAL framework.
+
+          If in doubt, say N.
