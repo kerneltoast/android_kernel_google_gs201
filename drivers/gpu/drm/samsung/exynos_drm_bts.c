@@ -364,6 +364,22 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 	}
 }
 
+static u32 dpu_bts_calc_disp_with_full_size(struct decon_device *decon)
+{
+	struct dpu_bts_win_config config;
+
+	memset(&config, 0, sizeof(struct dpu_bts_win_config));
+	config.src_w = config.dst_w = decon->config.image_width;
+	config.src_h = config.dst_h = decon->config.image_height;
+	config.format = DRM_FORMAT_ARGB8888;
+
+	decon->bts.resol_clk = dpu_bts_get_resol_clock(
+			decon->config.image_width,
+			decon->config.image_height, decon->bts.fps);
+
+	return dpu_bts_calc_aclk_disp(decon, &config, decon->bts.resol_clk);
+}
+
 static void dpu_bts_find_max_disp_freq(struct decon_device *decon)
 {
 	int i, j;
@@ -407,6 +423,14 @@ static void dpu_bts_find_max_disp_freq(struct decon_device *decon)
 		if (disp_op_freq < freq)
 			disp_op_freq = freq;
 	}
+
+	/*
+	 * At least one window is used for colormap if there is a request of
+	 * disabling all windows. So, disp frequency for a window of LCD full
+	 * size is necessary.
+	 */
+	if (disp_op_freq == 0)
+		disp_op_freq = dpu_bts_calc_disp_with_full_size(decon);
 
 	DPU_DEBUG_BTS("\tDISP bus freq(%d), operating freq(%d)\n",
 			decon->bts.max_disp_freq, disp_op_freq);
@@ -597,7 +621,6 @@ void dpu_bts_update_bw(struct decon_device *decon, bool shadow_updated)
 
 void dpu_bts_acquire_bw(struct decon_device *decon)
 {
-	struct dpu_bts_win_config config;
 	u32 aclk_freq = 0;
 
 	DPU_DEBUG_BTS("%s +\n", __func__);
@@ -606,17 +629,7 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 		return;
 
 	if (decon->config.out_type & DECON_OUT_DSI) {
-		memset(&config, 0, sizeof(struct dpu_bts_win_config));
-		config.src_w = config.dst_w = decon->config.image_width;
-		config.src_h = config.dst_h = decon->config.image_height;
-		config.format = DRM_FORMAT_ARGB8888;
-
-		decon->bts.resol_clk = dpu_bts_get_resol_clock(
-				decon->config.image_width,
-				decon->config.image_height, decon->bts.fps);
-
-		aclk_freq = dpu_bts_calc_aclk_disp(decon, &config,
-				decon->bts.resol_clk);
+		aclk_freq = dpu_bts_calc_disp_with_full_size(decon);
 		DPU_DEBUG_BTS("Initial calculated disp freq(%u)\n", aclk_freq);
 		/*
 		 * If current disp freq is higher than calculated freq,

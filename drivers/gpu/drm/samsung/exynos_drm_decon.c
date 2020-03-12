@@ -182,6 +182,7 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 
 	/* consumed crtc event completion of drm_atomic_helper_commit_hw_done */
 	exynos_crtc_handle_event(crtc);
+
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
@@ -287,6 +288,15 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 	struct decon_device *decon = crtc->ctx;
 
 	decon_dbg(decon, "%s +\n", __func__);
+
+	/* if there are no planes attached, enable colormap as fallback */
+	if (exynos_crtc->base.state->plane_mask == 0) {
+		decon_dbg(decon, "no planes, enable color map\n");
+
+		decon_set_color_map(decon, 0, decon->config.image_width,
+				decon->config.image_height);
+	}
+
 	decon_reg_all_win_shadow_update_req(decon->id);
 	decon_reg_start(decon->id, &decon->config);
 	DPU_EVENT_LOG(DPU_EVT_ATOMIC_FLUSH, decon->id, NULL);
