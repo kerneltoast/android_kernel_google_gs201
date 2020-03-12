@@ -389,6 +389,19 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		id = crtc->index;
 		decon[id] = exynos_crtc->ctx;
 
+		if (new_crtc_state->active) {
+			struct decon_mode *mode = &decon[id]->config.mode;
+
+			if (mode->op_mode == DECON_MIPI_COMMAND_MODE) {
+				DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_MASK,
+						decon[id]->id, NULL);
+				decon_reg_set_trigger(decon[id]->id, mode,
+						DECON_TRIG_MASK);
+			}
+
+			hibernation_unblock(decon[id]->hibernation);
+		}
+
 		if (new_crtc_state->planes_changed && new_crtc_state->active) {
 			/* plane order == dpp channel order */
 			for (j = 0; j < MAX_PLANE; ++j) {
@@ -403,23 +416,11 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 					dpp->comp_src = win_config->comp_src;
 			}
 
-			if (decon[id]->config.mode.op_mode ==
-					DECON_MIPI_COMMAND_MODE) {
-				DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_MASK,
-						decon[id]->id, NULL);
-				decon_reg_set_trigger(decon[id]->id,
-						&decon[id]->config.mode,
-						DECON_TRIG_MASK);
-			}
-
 			if (IS_ENABLED(CONFIG_EXYNOS_BTS))
 				decon[id]->bts.ops->bts_update_bw(decon[i],
 						true);
 			DPU_EVENT_LOG(DPU_EVT_DECON_RSC_OCCUPANCY, 0, NULL);
 		}
-
-		if (new_crtc_state->active)
-			hibernation_unblock(decon[id]->hibernation);
 
 		if ((old_crtc_state->active && !new_crtc_state->active) &&
 				IS_ENABLED(CONFIG_EXYNOS_BTS))
