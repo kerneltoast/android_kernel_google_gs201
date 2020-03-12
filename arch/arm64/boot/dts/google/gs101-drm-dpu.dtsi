@@ -135,6 +135,28 @@
 		#phy-cells = <1>;
 	};
 
+	drmdsim0: drmdsim@0x1C2C0000 {
+		status = "disabled";
+
+		compatible = "samsung,exynos-dsim";
+		reg = <0x0 0x1C2C0000 0x300>,	/* DSI */
+		      <0x0 0x1C2E0100 0x700>,	/* M4M4S0 PHY */
+		      <0x0 0x1C2E0000 0x100>;	/* M4M4S0 PHY BIAS */
+
+		dsim,id = <0>;
+
+		interrupts = <GIC_SPI INTREQ__DISP_DSIM0_DISP
+				IRQ_TYPE_LEVEL_HIGH>;
+
+		phys = <&mipi_phy_dsim0_m4m4 0>;
+		phy-names = "dsim_dphy";
+
+		dsim_mode = <&dsim_modes>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
 	drmdsim1: drmdsim@0x1C2D0000 {
 		compatible = "samsung,exynos-dsim";
 		reg = <0x0 0x1C2D0000 0x300>,	/* DSI */
