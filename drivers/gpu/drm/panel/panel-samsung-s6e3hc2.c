@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <panel-samsung-drv.h>
 
-static unsigned char SEQ_PPS_WQHD[] = {
+static const unsigned char SEQ_PPS_WQHD[] = {
 	// WQHD+ :1440x3040
 	0x11, 0x00, 0x00, 0x89, 0x30, 0x80, 0x0B, 0xE0,
 	0x05, 0xA0, 0x00, 0x28, 0x02, 0xD0, 0x02, 0xD0,
@@ -33,7 +33,7 @@ static unsigned char SEQ_PPS_WQHD[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static unsigned char SEQ_PPS_FHD[] = {
+static const unsigned char SEQ_PPS_FHD[] = {
 	//FHD+ :1080x2340
 	0x11, 0x00, 0x00, 0x89, 0x30, 0x80, 0x09, 0x24,
 	0x04, 0x38, 0x00, 0x41, 0x02, 0x1C, 0x02, 0x1C,
@@ -88,9 +88,6 @@ static int s6e3hc2_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-const struct exynos_panel_desc samsung_s6e3hc2_fhd;
-const struct exynos_panel_desc samsung_s6e3hc2_wqhd;
-
 static int s6e3hc2_enable(struct drm_panel *panel)
 {
 	struct exynos_panel *ctx;
@@ -107,13 +104,7 @@ static int s6e3hc2_enable(struct drm_panel *panel)
 	/* DSC related configuration */
 	exynos_dcs_compression_mode(ctx, 0x1);
 
-	if (ctx->desc == &samsung_s6e3hc2_wqhd)
-		EXYNOS_PPS_LONG_WRITE(ctx, SEQ_PPS_WQHD);
-	else if (ctx->desc == &samsung_s6e3hc2_fhd)
-		EXYNOS_PPS_LONG_WRITE(ctx, SEQ_PPS_FHD);
-	else
-		dev_warn(ctx->dev, "%s: invalid panel\n", __func__);
-
+	EXYNOS_PPS_LONG_WRITE(ctx);
 	/* sleep out: 120ms delay */
 	EXYNOS_DCS_WRITE_SEQ_DELAY(ctx, 120, 0x11);
 	EXYNOS_DCS_WRITE_SEQ(ctx, 0xB9, 0x00, 0xB0, 0x8F, 0x09, 0x00, 0x00,
@@ -197,9 +188,8 @@ static const struct exynos_panel_funcs s6e3hc2_exynos_funcs = {
 };
 
 const struct exynos_panel_desc samsung_s6e3hc2_wqhd = {
-	.dsc_en = true,
-	.dsc_slice_cnt = 2,
-	.dsc_slice_height = 40,
+	.dsc_pps = SEQ_PPS_WQHD,
+	.dsc_pps_len = ARRAY_SIZE(SEQ_PPS_WQHD),
 	.data_lane_cnt = 4,
 	.max_brightness = 1023,
 	.dft_brightness = 511,
@@ -215,9 +205,8 @@ const struct exynos_panel_desc samsung_s6e3hc2_wqhd = {
 };
 
 const struct exynos_panel_desc samsung_s6e3hc2_fhd = {
-	.dsc_en = true,
-	.dsc_slice_cnt = 2,
-	.dsc_slice_height = 65,
+	.dsc_pps = SEQ_PPS_FHD,
+	.dsc_pps_len = ARRAY_SIZE(SEQ_PPS_FHD),
 	.data_lane_cnt = 4,
 	.max_brightness = 1023,
 	.dft_brightness = 511,

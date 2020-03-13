@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <panel-samsung-drv.h>
 
-static unsigned char SEQ_PPS_SLICE2[] = {
+static const unsigned char SEQ_PPS_SLICE2[] = {
 	// WQHD+ :1440x3040
 	0x11, 0x00, 0x00, 0x89, 0x30, 0x80, 0x0B, 0xE0,
 	0x05, 0xA0, 0x00, 0x28, 0x02, 0xD0, 0x02, 0xD0,
@@ -83,7 +83,7 @@ static int s6e3ha9_enable(struct drm_panel *panel)
 
 	/* DSC related configuration */
 	exynos_dcs_compression_mode(ctx, 0x1);
-	EXYNOS_PPS_LONG_WRITE(ctx, SEQ_PPS_SLICE2);
+	EXYNOS_PPS_LONG_WRITE(ctx);
 
 	/* sleep out: 120ms delay */
 	EXYNOS_DCS_WRITE_SEQ_DELAY(ctx, 120, 0x11);
@@ -132,9 +132,8 @@ static const struct drm_panel_funcs s6e3ha9_drm_funcs = {
 };
 
 const struct exynos_panel_desc samsung_s6e3ha9 = {
-	.dsc_en = true,
-	.dsc_slice_cnt = 2,
-	.dsc_slice_height = 40,
+	.dsc_pps = SEQ_PPS_SLICE2,
+	.dsc_len = ARRAY_SIZE(SEQ_PPS_SLICE2),
 	.data_lane_cnt = 4,
 	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	/* supported HDR format bitmask : 1(DOLBY_VISION), 2(HDR10), 3(HLG) */

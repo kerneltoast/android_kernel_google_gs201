@@ -37,9 +37,8 @@ struct exynos_panel_funcs {
 };
 
 struct exynos_panel_desc {
-	bool dsc_en;
-	u32 dsc_slice_cnt;
-	u32 dsc_slice_height;
+	const u8 *dsc_pps;
+	u32 dsc_pps_len;
 	u32 data_lane_cnt;
 	u32 hdr_formats; /* supported HDR formats bitmask */
 	u32 max_luminance;
@@ -126,10 +125,11 @@ static inline void exynos_bin2hex(const void *buf, size_t len,
 		dev_err(ctx->dev, "failed to write cmd(%d)\n", ret);	\
 } while (0)
 
-#define EXYNOS_PPS_LONG_WRITE(ctx, pps) do {				\
+#define EXYNOS_PPS_LONG_WRITE(ctx) do {					\
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);	\
 	int ret;							\
-	ret = mipi_dsi_pps_long_write(dsi, pps, ARRAY_SIZE(pps));	\
+	ret = mipi_dsi_pps_long_write(dsi, (u8 *)ctx->desc->dsc_pps,	\
+				      ctx->desc->dsc_pps_len);		\
 	if (ret < 0)							\
 		dev_err(ctx->dev, "failed to write cmd(%d)\n", ret);	\
 } while (0)

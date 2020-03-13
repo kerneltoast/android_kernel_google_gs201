@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <panel-samsung-drv.h>
 
-static unsigned char SEQ_PPS_SLICE2[] = {
+static const unsigned char SEQ_PPS_SLICE2[] = {
 	// QHD :2960x1440
 	0x11, 0x00, 0x00, 0x89, 0x30, 0x80, 0x0B, 0x90,
 	0x05, 0xA0, 0x00, 0x28, 0x02, 0xD0, 0x02, 0xD0,
@@ -91,7 +91,7 @@ static int s6e3ha8_enable(struct drm_panel *panel)
 
 	/* DSC related configuration */
 	exynos_dcs_compression_mode(ctx, 0x1);
-	EXYNOS_PPS_LONG_WRITE(ctx, SEQ_PPS_SLICE2);
+	EXYNOS_PPS_LONG_WRITE(ctx);
 
 	/* sleep out: 120ms delay */
 	EXYNOS_DCS_WRITE_SEQ_DELAY(ctx, 120, 0x11);
@@ -154,9 +154,8 @@ static const struct exynos_panel_funcs s6e3ha8_exynos_funcs = {
 };
 
 const struct exynos_panel_desc samsung_s6e3ha8 = {
-	.dsc_en = true,
-	.dsc_slice_cnt = 2,
-	.dsc_slice_height = 40,
+	.dsc_pps = SEQ_PPS_SLICE2,
+	.dsc_pps_len = ARRAY_SIZE(SEQ_PPS_SLICE2),
 	.data_lane_cnt = 4,
 	.max_brightness = 1023,
 	.dft_brightness = 511,

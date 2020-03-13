@@ -93,7 +93,6 @@ static const struct drm_panel_funcs emul_drm_funcs = {
 };
 
 const struct exynos_panel_desc samsung_emul = {
-	.dsc_en = false,
 	.data_lane_cnt = 4,
 	.mode_flags = MIPI_DSI_MODE_VIDEO,
 	.mode = &emul_mode,
