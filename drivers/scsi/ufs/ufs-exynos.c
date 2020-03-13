@@ -26,9 +26,6 @@
 #include <linux/spinlock.h>
 #include <soc/google/exynos-pmu-if.h>
 
-/* Performance */
-#include "ufs-exynos-perf.h"
-
 #define IS_C_STATE_ON(h) ((h)->c_state == C_ON)
 #define PRINT_STATES(h)						\
 	dev_err((h)->dev, "%s: prev h_state %d, cur c_state %d\n",	\
@@ -379,8 +376,6 @@ static int exynos_ufs_config_externals(struct exynos_ufs *ufs)
 		regmap_update_bits(*p, q->offset, q->mask, q->val);
 	}
 
-	/* performance */
-	ufs_perf_reset(ufs->perf, true);
 out:
 	return ret;
 }
@@ -520,8 +515,6 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 		if (notify == PRE_CHANGE) {
 			ufs->c_state = C_OFF;
 
-			/* reset perf context to start again */
-			ufs_perf_reset(ufs->perf, false);
 			/* PM Qos Release for stability */
 #ifdef PM_QOS_DEVICE_THROUGHPUT
 			pm_qos_update_request(&ufs->pm_qos_int, 0);
@@ -1400,10 +1393,6 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* init io perf stat, need an identifier later */
-	if (!ufs_perf_init(&ufs->perf, dev))
-		dev_err(dev, "Not enable UFS performance mode\n");
-
 	/* init cal */
 	ufs->cal_param.handle = &ufs->handle;
 	ufs->cal_param.board = 0;	/* ken: need a dt node for board */
@@ -1456,9 +1445,6 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 	pm_qos_remove_request(&ufs->pm_qos_int);
 #endif
 
-	/* performance */
-	ufs_perf_exit(ufs->perf);
-
 	exynos_ufs_ctrl_phy_pwr(ufs, false);
 
 	return 0;
@@ -1485,10 +1471,7 @@ static int exynos_ufs_resume(struct device *dev)
 
 static void exynos_ufs_shutdown(struct platform_device *pdev)
 {
-	struct exynos_ufs *ufs = dev_get_platdata(&pdev->dev);
-
 	ufshcd_shutdown((struct ufs_hba *)platform_get_drvdata(pdev));
-	ufs_perf_exit(ufs->perf);
 }
 
 static const struct dev_pm_ops exynos_ufs_dev_pm_ops = {
