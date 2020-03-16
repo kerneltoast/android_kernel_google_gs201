@@ -24,6 +24,10 @@ config PINCTRL_EXYNOS_ARM64
 	bool "ARMv8-specific pinctrl driver for Samsung Exynos SoCs" if COMPILE_TEST
 	depends on PINCTRL_EXYNOS
 
+config PINCTRL_GS
+	tristate "pinctrl driver data for GSxxx"
+	depends on PINCTRL_EXYNOS
+
 config PINCTRL_S3C24XX
 	bool "Samsung S3C24XX SoC pinctrl driver"
 	depends on OF_GPIO
