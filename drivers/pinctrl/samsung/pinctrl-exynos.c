@@ -18,6 +18,7 @@
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/slab.h>
@@ -721,3 +722,4 @@ exynos_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 
 	return ctrl;
 }
+MODULE_LICENSE("GPL");
