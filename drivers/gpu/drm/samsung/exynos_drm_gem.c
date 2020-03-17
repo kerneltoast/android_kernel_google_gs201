@@ -103,7 +103,6 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 				 size_t size, unsigned int flags,
 				 unsigned int *gem_handle)
 {
-	struct exynos_drm_gem *exynos_gem_obj;
 	const char *heap_name = "ion_system_heap";
 	struct dma_buf *dmabuf;
 	struct drm_gem_object *obj;
@@ -134,7 +133,7 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 	}
 
 	/* drop reference from import - handle holds it now. */
-	drm_gem_object_unreference_unlocked(&exynos_gem_obj->base);
+	drm_gem_object_unreference_unlocked(obj);
 
 	return 0;
 err_handle:
