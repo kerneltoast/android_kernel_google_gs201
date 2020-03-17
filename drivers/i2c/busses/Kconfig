@@ -618,7 +618,6 @@ config I2C_EMEV2
 config I2C_EXYNOS5
 	tristate "Exynos high-speed I2C driver"
 	depends on OF
-	depends on ARCH_EXYNOS || COMPILE_TEST
 	default y if ARCH_EXYNOS
 	help
 	  High-speed I2C controller on Exynos5 and newer Samsung SoCs.
