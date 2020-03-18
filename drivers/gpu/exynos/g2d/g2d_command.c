@@ -1457,8 +1457,8 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 	}
 
 	for (i = 0; i < layer->num_buffers; i++) {
-		reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, i);
-		reg[cmd_count].value = layer->buffer[i].dma_addr;
+		reg[cmd_count + i].offset = BASE_REG_OFFSET(base, offsets, i);
+		reg[cmd_count + i].value = layer->buffer[i].dma_addr;
 	}
 
 	if (layer->num_buffers == fmt->num_planes)
