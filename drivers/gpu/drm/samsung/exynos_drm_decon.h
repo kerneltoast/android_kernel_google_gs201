@@ -181,6 +181,16 @@ enum dpu_event_type {
 	DPU_EVT_ATOMIC_BEGIN,
 	DPU_EVT_ATOMIC_FLUSH,
 
+	DPU_EVT_WB_ENABLE,
+	DPU_EVT_WB_DISABLE,
+	DPU_EVT_WB_ATOMIC_COMMIT,
+	DPU_EVT_WB_FRAMEDONE,
+	DPU_EVT_WB_ENTER_HIBERNATION,
+	DPU_EVT_WB_EXIT_HIBERNATION,
+
+	DPU_EVT_PLANE_UPDATE,
+	DPU_EVT_PLANE_DISABLE,
+
 	DPU_EVT_MAX, /* End of EVENT */
 };
 
@@ -195,6 +205,11 @@ struct dpu_log_dpp {
 	u32 id;
 	u64 comp_src;
 	u32 recovery_cnt;
+};
+
+struct dpu_log_win {
+	u32 win_idx;
+	u32 plane_idx;
 };
 
 struct dpu_log_rsc_occupancy {
@@ -226,6 +241,7 @@ struct dpu_log {
 		struct dpu_log_dsim_cmd cmd;
 		struct dpu_log_rsc_occupancy rsc;
 		struct dpu_log_pd pd;
+		struct dpu_log_win win;
 	} data;
 };
 

@@ -232,6 +232,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	dpp->win_id = zpos;
 
+	DPU_EVENT_LOG(DPU_EVT_PLANE_UPDATE, decon->id, dpp);
 	decon_dbg(decon, "plane idx[%d]: alpha(0x%x) hw alpha(0x%x)\n",
 			drm_plane_index(&plane->base), state->base.alpha,
 			hw_alpha);
@@ -276,6 +277,7 @@ static void decon_disable_plane(struct exynos_drm_crtc *exynos_crtc,
 		dpp->disable(dpp);
 		dpp->is_win_connected = false;
 	}
+	DPU_EVENT_LOG(DPU_EVT_PLANE_DISABLE, decon->id, dpp);
 	decon_dbg(decon, "%s -\n", __func__);
 }
 

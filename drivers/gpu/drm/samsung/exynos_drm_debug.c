@@ -18,6 +18,7 @@
 
 #include <exynos_drm_decon.h>
 #include <exynos_drm_dsim.h>
+#include <exynos_drm_writeback.h>
 #include <cal_config.h>
 
 /* If event are happened continuously, then ignore */
@@ -108,6 +109,12 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 	case DPU_EVT_EXIT_HIBERNATION_IN:
 	case DPU_EVT_EXIT_HIBERNATION_OUT:
 		log->data.pd.rpm_active = pm_runtime_active(decon->dev);
+		break;
+	case DPU_EVT_PLANE_UPDATE:
+	case DPU_EVT_PLANE_DISABLE:
+		dpp = (struct dpp_device *)priv;
+		log->data.win.win_idx = dpp->win_id;
+		log->data.win.plane_idx = dpp->id;
 		break;
 	default:
 		break;
@@ -373,6 +380,36 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 			seq_printf(s, "%20s  ", "EXIT_HIBERNATION_OUT");
 			seq_printf(s, "\tDPU POWER %s\n",
 					log->data.pd.rpm_active ? "ON" : "OFF");
+			break;
+		case DPU_EVT_WB_ENABLE:
+			seq_printf(s, "%20s  %20s", "WB_ENABLE", "-\n");
+			break;
+		case DPU_EVT_WB_DISABLE:
+			seq_printf(s, "%20s  %20s", "WB_DISABLE", "-\n");
+			break;
+		case DPU_EVT_WB_ATOMIC_COMMIT:
+			seq_printf(s, "%20s  %20s", "WB_ATOMIC_COMMIT", "-\n");
+			break;
+		case DPU_EVT_WB_FRAMEDONE:
+			seq_printf(s, "%20s  %20s", "WB_FRAMEDONE", "-\n");
+			break;
+		case DPU_EVT_WB_ENTER_HIBERNATION:
+			seq_printf(s, "%20s  %20s", "WB_ENTER_HIBER", "-\n");
+			break;
+		case DPU_EVT_WB_EXIT_HIBERNATION:
+			seq_printf(s, "%20s  %20s", "WB_EXIT_HIBER", "-\n");
+			break;
+		case DPU_EVT_PLANE_UPDATE:
+			seq_printf(s, "%20s  ", "PLANE_UPDATE");
+			seq_printf(s, "\tCH:%d, WIN:%d\n",
+					log->data.win.plane_idx,
+					log->data.win.win_idx);
+			break;
+		case DPU_EVT_PLANE_DISABLE:
+			seq_printf(s, "%20s  ", "PLANE_DISABLE");
+			seq_printf(s, "\tch:%d, win:%d\n",
+					log->data.win.plane_idx,
+					log->data.win.win_idx);
 			break;
 		default:
 			seq_printf(s, "%20s  (%2d)\n", "NO_DEFINED", log->type);

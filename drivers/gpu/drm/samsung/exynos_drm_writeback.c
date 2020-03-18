@@ -162,6 +162,8 @@ static void writeback_atomic_commit(struct drm_connector *connector,
 		decon_reg_set_cwb_enable(decon->id, false);
 	}
 
+	DPU_EVENT_LOG(DPU_EVT_WB_ATOMIC_COMMIT, wb->decon_id, wb);
+
 	pr_debug("%s -\n", __func__);
 }
 
@@ -309,6 +311,7 @@ static void writeback_enable(struct drm_encoder *encoder)
 	decon = wb_get_decon(wb);
 	wb->decon_id = decon->id;
 	wb->state = WB_STATE_ON;
+	DPU_EVENT_LOG(DPU_EVT_WB_ENABLE, wb->decon_id, wb);
 
 	pr_debug("%s -\n", __func__);
 }
@@ -320,6 +323,7 @@ void writeback_exit_hibernation(struct writeback_device *wb)
 
 	_writeback_enable(wb);
 	wb->state = WB_STATE_ON;
+	DPU_EVENT_LOG(DPU_EVT_WB_EXIT_HIBERNATION, wb->decon_id, wb);
 }
 
 static void _writeback_disable(struct writeback_device *wb)
@@ -342,6 +346,7 @@ static void writeback_disable(struct drm_encoder *encoder)
 
 	_writeback_disable(wb);
 	wb->state = WB_STATE_OFF;
+	DPU_EVENT_LOG(DPU_EVT_WB_DISABLE, wb->decon_id, wb);
 
 	wb->decon_id = -1;
 
@@ -355,6 +360,7 @@ void writeback_enter_hibernation(struct writeback_device *wb)
 
 	_writeback_disable(wb);
 	wb->state = WB_STATE_HIBERNATION;
+	DPU_EVENT_LOG(DPU_EVT_WB_ENTER_HIBERNATION, wb->decon_id, wb);
 }
 
 static const struct drm_encoder_helper_funcs wb_encoder_helper_funcs = {
@@ -573,6 +579,7 @@ static irqreturn_t odma_irq_handler(int irq, void *priv)
 		pr_debug("wb(%d) framedone irq occurs\n", wb->id);
 		decon_reg_set_cwb_enable(wb->decon_id, false);
 		drm_writeback_signal_completion(&wb->writeback, 0);
+		DPU_EVENT_LOG(DPU_EVT_WB_FRAMEDONE, wb->decon_id, wb);
 	}
 
 irq_end:
