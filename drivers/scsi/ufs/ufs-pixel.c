@@ -296,12 +296,21 @@ void pixel_init_manual_gc(struct ufs_hba *hba)
 	ufs->manual_gc.mgc_workq = create_singlethread_workqueue(wq_name);
 }
 
+static ssize_t host_capabilities_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%lx\n", hba->caps);
+}
+
 static DEVICE_ATTR_RO(vendor);
 static DEVICE_ATTR_RO(model);
 static DEVICE_ATTR_RO(rev);
 static DEVICE_ATTR_RO(platform_version);
 static DEVICE_ATTR_RW(manual_gc);
 static DEVICE_ATTR_RW(manual_gc_hold);
+static DEVICE_ATTR_RO(host_capabilities);
 
 static struct attribute *pixel_sysfs_ufshcd_attrs[] = {
 	&dev_attr_vendor.attr,
@@ -310,6 +319,7 @@ static struct attribute *pixel_sysfs_ufshcd_attrs[] = {
 	&dev_attr_platform_version.attr,
 	&dev_attr_manual_gc.attr,
 	&dev_attr_manual_gc_hold.attr,
+	&dev_attr_host_capabilities.attr,
 	NULL
 };
 
