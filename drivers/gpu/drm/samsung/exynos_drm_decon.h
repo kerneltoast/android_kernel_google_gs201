@@ -262,6 +262,7 @@ struct decon_device {
 	struct dpu_bts			bts;
 	struct decon_debug		d;
 	struct exynos_hibernation	*hibernation;
+	struct completion		framestart_done;
 
 	u32				irq_fs;	/* frame start irq number*/
 	u32				irq_fd;	/* frame done irq number*/

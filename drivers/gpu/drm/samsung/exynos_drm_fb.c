@@ -293,6 +293,7 @@ static void display_mode_to_bts_info(struct drm_display_mode *mode,
 	decon->bts.fps = mode->vrefresh;
 }
 
+#define FRAMESTART_TIMEOUT	msecs_to_jiffies(50)
 void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
 	int i, j;
@@ -388,6 +389,12 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
 		id = crtc->index;
 		decon[id] = exynos_crtc->ctx;
+
+		if (new_crtc_state->active)
+			if (!wait_for_completion_timeout(
+					&decon[id]->framestart_done,
+					FRAMESTART_TIMEOUT))
+				pr_warn("timeout: framestart doesn't occur\n");
 
 		if (new_crtc_state->active) {
 			struct decon_mode *mode = &decon[id]->config.mode;

@@ -179,10 +179,6 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 	DPU_EVENT_LOG(DPU_EVT_ATOMIC_BEGIN, decon->id, NULL);
 	decon_reg_wait_update_done_and_mask(decon->id, &decon->config.mode,
 			SHADOW_UPDATE_TIMEOUT_US);
-
-	/* consumed crtc event completion of drm_atomic_helper_commit_hw_done */
-	exynos_crtc_handle_event(crtc);
-
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
@@ -283,9 +279,9 @@ static void decon_disable_plane(struct exynos_drm_crtc *exynos_crtc,
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
-static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
+static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc)
 {
-	struct decon_device *decon = crtc->ctx;
+	struct decon_device *decon = exynos_crtc->ctx;
 
 	decon_dbg(decon, "%s +\n", __func__);
 
@@ -299,6 +295,8 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	decon_reg_all_win_shadow_update_req(decon->id);
 	decon_reg_start(decon->id, &decon->config);
+	exynos_crtc_handle_event(exynos_crtc);
+	reinit_completion(&decon->framestart_done);
 	DPU_EVENT_LOG(DPU_EVT_ATOMIC_FLUSH, decon->id, NULL);
 	decon_dbg(decon, "%s -\n", __func__);
 }
@@ -584,6 +582,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 			irq_sts_reg, ext_irq);
 
 	if (irq_sts_reg & DPU_FRAME_START_INT_PEND) {
+		complete(&decon->framestart_done);
 		DPU_EVENT_LOG(DPU_EVT_DECON_FRAMESTART, decon->id, decon);
 		decon_dbg(decon, "%s: frame start\n", __func__);
 	}
@@ -956,6 +955,7 @@ static int decon_probe(struct platform_device *pdev)
 	decon_drvdata[decon->id] = decon;
 
 	spin_lock_init(&decon->slock);
+	init_completion(&decon->framestart_done);
 
 	if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
 		decon->bts.ops = &dpu_bts_control;
