@@ -25,6 +25,7 @@
 
 #include <exynos_drm_hibernation.h>
 #include <exynos_drm_decon.h>
+#include <exynos_drm_writeback.h>
 
 #define CAMERA_OPERATION_MASK	0xF
 static bool is_camera_operating(struct exynos_hibernation *hiber)
@@ -54,6 +55,7 @@ static void exynos_hibernation_enter(struct exynos_hibernation *hiber)
 {
 	struct decon_device *decon = hiber->decon;
 	struct dsim_device *dsim = decon_get_dsim(decon);
+	struct writeback_device *wb;
 
 	pr_debug("%s +\n", __func__);
 
@@ -68,6 +70,9 @@ static void exynos_hibernation_enter(struct exynos_hibernation *hiber)
 
 	DPU_EVENT_LOG(DPU_EVT_ENTER_HIBERNATION_IN, decon->id, NULL);
 
+	wb = decon_get_wb(decon);
+	if (wb)
+		writeback_enter_hibernation(wb);
 	decon_enter_hibernation(decon);
 	dsim_enter_ulps(dsim);
 
@@ -87,6 +92,7 @@ static void exynos_hibernation_exit(struct exynos_hibernation *hiber)
 {
 	struct decon_device *decon = hiber->decon;
 	struct dsim_device *dsim = decon_get_dsim(decon);
+	struct writeback_device *wb;
 
 	pr_debug("%s +\n", __func__);
 
@@ -113,6 +119,9 @@ static void exynos_hibernation_exit(struct exynos_hibernation *hiber)
 
 	dsim_exit_ulps(dsim);
 	decon_exit_hibernation(decon);
+	wb = decon_get_wb(decon);
+	if (wb)
+		writeback_exit_hibernation(wb);
 
 	exynos_hibernation_trig_reset(hiber);
 

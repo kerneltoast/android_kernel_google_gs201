@@ -22,11 +22,17 @@
 
 extern const struct dpp_restriction dpp_drv_data;
 
+enum writeback_state {
+	WB_STATE_OFF = 0,
+	WB_STATE_ON,
+	WB_STATE_HIBERNATION,
+};
+
 struct writeback_device {
 	struct device *dev;
 	u32 id;
 	u32 port;
-	enum dpp_state state;
+	enum writeback_state state;
 	unsigned long attr;
 	int odma_irq;
 	const uint32_t *pixel_formats;
@@ -83,5 +89,7 @@ wb_get_decon(const struct writeback_device *wb)
 int exynos_drm_atomic_check_writeback(struct drm_device *dev,
 		struct drm_atomic_state *state);
 void wb_dump(struct writeback_device *wb);
-#endif
 
+void writeback_exit_hibernation(struct writeback_device *wb);
+void writeback_enter_hibernation(struct writeback_device *wb);
+#endif

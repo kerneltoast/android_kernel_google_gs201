@@ -30,6 +30,7 @@
 #include <exynos_drm_fb.h>
 #include <exynos_drm_dsim.h>
 #include <exynos_drm_hibernation.h>
+#include <exynos_drm_writeback.h>
 
 #include <decon_cal.h>
 
@@ -320,5 +321,23 @@ decon_get_dsim(struct decon_device *decon)
 		return NULL;
 
 	return container_of(encoder, struct dsim_device, encoder);
+}
+
+static inline struct writeback_device*
+decon_get_wb(struct decon_device *decon)
+{
+	struct drm_encoder *encoder;
+	struct drm_writeback_connector *wb_connector;
+
+	encoder = decon_get_encoder(decon, DRM_MODE_ENCODER_VIRTUAL);
+	if (!encoder)
+		return NULL;
+
+	wb_connector = container_of(encoder, struct drm_writeback_connector,
+			encoder);
+	if (!wb_connector)
+		return NULL;
+
+	return container_of(wb_connector, struct writeback_device, writeback);
 }
 #endif /* __EXYNOS_DRM_DECON_H__ */

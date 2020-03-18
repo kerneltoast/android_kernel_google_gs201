@@ -38,10 +38,9 @@
 #include <exynos_drm_crtc.h>
 #include <regs-dpp.h>
 
-
 void wb_dump(struct writeback_device *wb)
 {
-	if (wb->state != DPP_STATE_ON) {
+	if (wb->state != WB_STATE_ON) {
 		pr_info("writeback state is off\n");
 		return;
 	}
@@ -145,7 +144,7 @@ static void writeback_atomic_commit(struct drm_connector *connector,
 
 	pr_debug("%s +\n", __func__);
 
-	if (wb->state == DPP_STATE_OFF) {
+	if (wb->state == WB_STATE_OFF) {
 		pr_info("writeback(dpp%d) disabled(%d)\n", wb->id, wb->state);
 		return;
 	}
@@ -288,6 +287,12 @@ static const struct drm_connector_funcs wb_connector_funcs = {
 	.atomic_get_property = exynos_drm_writeback_get_property,
 };
 
+static void _writeback_enable(struct writeback_device *wb)
+{
+	dpp_reg_init(wb->id, wb->attr);
+	enable_irq(wb->odma_irq);
+}
+
 static void writeback_enable(struct drm_encoder *encoder)
 {
 	struct writeback_device *wb = enc_to_wb_dev(encoder);
@@ -295,20 +300,32 @@ static void writeback_enable(struct drm_encoder *encoder)
 
 	pr_debug("%s +\n", __func__);
 
-	if (wb->state == DPP_STATE_ON) {
-		pr_info("writeback(dpp%d) already enabled(%d)\n",
-				wb->id, wb->state);
+	if (wb->state == WB_STATE_ON) {
+		pr_info("wb(%d) already enabled(%d)\n", wb->id, wb->state);
 		return;
 	}
 
-	dpp_reg_init(wb->id, wb->attr);
-	wb->state = DPP_STATE_ON;
-	enable_irq(wb->odma_irq);
-
+	_writeback_enable(wb);
 	decon = wb_get_decon(wb);
 	wb->decon_id = decon->id;
+	wb->state = WB_STATE_ON;
 
 	pr_debug("%s -\n", __func__);
+}
+
+void writeback_exit_hibernation(struct writeback_device *wb)
+{
+	if (wb->state != WB_STATE_HIBERNATION)
+		return;
+
+	_writeback_enable(wb);
+	wb->state = WB_STATE_ON;
+}
+
+static void _writeback_disable(struct writeback_device *wb)
+{
+	disable_irq(wb->odma_irq);
+	dpp_reg_deinit(wb->id, false, wb->attr);
 }
 
 static void writeback_disable(struct drm_encoder *encoder)
@@ -317,19 +334,27 @@ static void writeback_disable(struct drm_encoder *encoder)
 
 	pr_debug("%s +\n", __func__);
 
-	if (wb->state == DPP_STATE_OFF) {
+	if (wb->state == WB_STATE_OFF) {
 		pr_info("writeback(dpp%d) already disabled(%d)\n",
 				wb->id, wb->state);
 		return;
 	}
 
-	disable_irq(wb->odma_irq);
-	dpp_reg_deinit(wb->id, false, wb->attr);
-	wb->state = DPP_STATE_OFF;
+	_writeback_disable(wb);
+	wb->state = WB_STATE_OFF;
 
 	wb->decon_id = -1;
 
 	pr_debug("%s -\n", __func__);
+}
+
+void writeback_enter_hibernation(struct writeback_device *wb)
+{
+	if (wb->state != WB_STATE_ON)
+		return;
+
+	_writeback_disable(wb);
+	wb->state = WB_STATE_HIBERNATION;
 }
 
 static const struct drm_encoder_helper_funcs wb_encoder_helper_funcs = {
@@ -539,7 +564,7 @@ static irqreturn_t odma_irq_handler(int irq, void *priv)
 	u32 irqs;
 
 	spin_lock(&wb->odma_slock);
-	if (wb->state == DPP_STATE_OFF)
+	if (wb->state == WB_STATE_OFF)
 		goto irq_end;
 
 	irqs = odma_reg_get_irq_and_clear(wb->id);
@@ -548,7 +573,6 @@ static irqreturn_t odma_irq_handler(int irq, void *priv)
 		pr_debug("wb(%d) framedone irq occurs\n", wb->id);
 		decon_reg_set_cwb_enable(wb->decon_id, false);
 		drm_writeback_signal_completion(&wb->writeback, 0);
-		DPU_EVENT_LOG(DPU_EVT_DPP_FRAMEDONE, wb->decon_id, wb);
 	}
 
 irq_end:
@@ -626,7 +650,7 @@ static int writeback_probe(struct platform_device *pdev)
 
 	spin_lock_init(&writeback->odma_slock);
 
-	writeback->state = DPP_STATE_OFF;
+	writeback->state = WB_STATE_OFF;
 
 	ret = wb_init_resources(writeback);
 	if (ret)
