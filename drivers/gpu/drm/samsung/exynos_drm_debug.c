@@ -237,21 +237,21 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 void dpu_print_log_rsc(struct seq_file *s, struct dpu_log_rsc_occupancy *rsc)
 {
 	int i, len_chs, len_wins;
-	u32 status_chs, status_wins;
 	char str_chs[128];
 	char str_wins[128];
+	bool using_ch, using_win;
 
 	len_chs = sprintf(str_chs, "CHs: ");
 	len_wins = sprintf(str_wins, "WINs: ");
 
 	for (i = 0; i < MAX_PLANE; ++i) {
-		status_chs = (rsc->rsc_ch >> (i * 4 + 4)) & 0xF;
+		using_ch = is_decon_using_ch(0, rsc->rsc_ch, i);
 		len_chs += sprintf(str_chs + len_chs, "%d[%c] ", i,
-				status_chs ? 'X' : 'O');
+				using_ch ? 'O' : 'X');
 
-		status_wins = (rsc->rsc_win >> (i * 4 + 4)) & 0xF;
+		using_win = is_decon_using_win(0, rsc->rsc_win, i);
 		len_wins += sprintf(str_wins + len_wins, "%d[%c] ", i,
-				status_wins ? 'X' : 'O');
+				using_win ? 'O' : 'X');
 	}
 
 	seq_printf(s, "\t%s\t%s\n", str_chs, str_wins);
