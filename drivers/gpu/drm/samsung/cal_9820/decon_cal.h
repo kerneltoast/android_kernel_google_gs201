@@ -327,6 +327,8 @@ struct decon_device;
 static inline int
 __decon_init_resources(struct decon_device *decon) { return 0; }
 #endif
+bool is_decon_using_ch(u32 id, u32 rsc_ch, u32 ch);
+bool is_decon_using_win(u32 id, u32 rsc_win, u32 win);
 /*********************************************************************/
 
 #endif /* __SAMSUNG_DECON_CAL_H__ */

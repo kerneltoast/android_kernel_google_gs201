@@ -2205,3 +2205,14 @@ u32 DPU_CH2DMA(u32 ch)
 
 	return dma;
 }
+
+#define OCCUPIED_BY_DECON(id)	(id)
+bool is_decon_using_ch(u32 id, u32 rsc_ch, u32 ch)
+{
+	return ((rsc_ch >> (ch * 4 + 4)) & 0xF) == OCCUPIED_BY_DECON(id);
+}
+
+bool is_decon_using_win(u32 id, u32 rsc_win, u32 win)
+{
+	return ((rsc_win >> (win * 4 + 4)) & 0xF) == OCCUPIED_BY_DECON(id);
+}
