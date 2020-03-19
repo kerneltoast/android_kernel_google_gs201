@@ -291,24 +291,33 @@ void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,
 void decon_enter_hibernation(struct decon_device *decon);
 void decon_exit_hibernation(struct decon_device *decon);
 
+static inline struct drm_encoder*
+decon_get_encoder(const struct decon_device *decon, u32 encoder_type)
+{
+	const struct drm_crtc *crtc = &decon->crtc->base;
+	const struct drm_device *dev = crtc->dev;
+	struct drm_encoder *encoder;
+
+	if (!crtc->state)
+		return NULL;
+
+	drm_for_each_encoder_mask(encoder, dev, crtc->state->encoder_mask)
+		if (encoder->crtc == crtc &&
+				encoder->encoder_type == encoder_type)
+			return encoder;
+
+	return NULL;
+}
+
 static inline struct dsim_device*
 decon_get_dsim(struct decon_device *decon)
 {
-	struct exynos_drm_crtc *exynos_crtc = decon->crtc;
-	struct drm_connector *connector = exynos_crtc->connector;
 	struct drm_encoder *encoder;
 
-	if (!connector)
-		return NULL;
-
-	encoder = connector->state->best_encoder;
+	encoder = decon_get_encoder(decon, DRM_MODE_ENCODER_DSI);
 	if (!encoder)
-		return NULL;
-
-	if (encoder->encoder_type != DRM_MODE_ENCODER_DSI)
 		return NULL;
 
 	return container_of(encoder, struct dsim_device, encoder);
 }
-
 #endif /* __EXYNOS_DRM_DECON_H__ */

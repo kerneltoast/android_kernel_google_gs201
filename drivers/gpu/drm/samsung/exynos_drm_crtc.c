@@ -28,18 +28,6 @@ static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-
-	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (crtc->state->connector_mask &
-				(1 << drm_connector_index(connector))) {
-			if (connector->connector_type == DRM_MODE_CONNECTOR_DSI)
-				exynos_crtc->connector = connector;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
 
 	if (exynos_crtc->ops->enable)
 		exynos_crtc->ops->enable(exynos_crtc);

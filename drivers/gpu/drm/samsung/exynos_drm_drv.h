@@ -218,7 +218,6 @@ struct exynos_drm_crtc {
 	enum exynos_drm_output_type	possible_type;
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
-	struct drm_connector		*connector;
 	struct {
 		struct drm_property *color_mode;
 	} props;
