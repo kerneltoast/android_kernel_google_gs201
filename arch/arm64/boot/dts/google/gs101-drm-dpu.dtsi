@@ -126,6 +126,7 @@
 	drmdpp12: drmdpp@0x1C0BC000 {	/* L12 : WB */
 		compatible = "samsung,exynos-writeback";
 		reg = <0x0 0x1C0BC000 0x1000>, <0x0 0x1C0DC000 0x1000>;
+		reg-names = "dma", "dpp";
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_WB_DPU
 				IRQ_TYPE_LEVEL_HIGH>;
