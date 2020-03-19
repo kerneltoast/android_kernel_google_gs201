@@ -398,8 +398,6 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 				decon_reg_set_trigger(decon[id]->id, mode,
 						DECON_TRIG_MASK);
 			}
-
-			hibernation_unblock(decon[id]->hibernation);
 		}
 
 		if (new_crtc_state->planes_changed && new_crtc_state->active) {
@@ -421,6 +419,9 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 						true);
 			DPU_EVENT_LOG(DPU_EVT_DECON_RSC_OCCUPANCY, 0, NULL);
 		}
+
+		if (new_crtc_state->active || new_crtc_state->active_changed)
+			hibernation_unblock(decon[id]->hibernation);
 
 		if ((old_crtc_state->active && !new_crtc_state->active) &&
 				IS_ENABLED(CONFIG_EXYNOS_BTS))
