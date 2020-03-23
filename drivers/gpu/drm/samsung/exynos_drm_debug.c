@@ -98,10 +98,11 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 		log->data.dpp.recovery_cnt = dpp->recovery_cnt;
 		break;
 	case DPU_EVT_DECON_RSC_OCCUPANCY:
+		pm_runtime_get_sync(decon->dev);
 		log->data.rsc.rsc_ch = decon_reg_get_rsc_ch(decon->id);
 		log->data.rsc.rsc_win = decon_reg_get_rsc_win(decon->id);
+		pm_runtime_put_sync(decon->dev);
 		break;
-
 	case DPU_EVT_ENTER_HIBERNATION_IN:
 	case DPU_EVT_ENTER_HIBERNATION_OUT:
 	case DPU_EVT_EXIT_HIBERNATION_IN:
