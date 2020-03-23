@@ -54,12 +54,16 @@ static bool exynos_hibernation_check(struct exynos_hibernation *hiber)
 static void exynos_hibernation_enter(struct exynos_hibernation *hiber)
 {
 	struct decon_device *decon = hiber->decon;
-	struct dsim_device *dsim = decon_get_dsim(decon);
+	struct dsim_device *dsim;
 	struct writeback_device *wb;
 
 	pr_debug("%s +\n", __func__);
 
-	if (!decon || !dsim)
+	if (!decon)
+		return;
+
+	dsim = decon_get_dsim(decon);
+	if (!dsim)
 		return;
 
 	mutex_lock(&hiber->lock);
@@ -91,12 +95,16 @@ ret:
 static void exynos_hibernation_exit(struct exynos_hibernation *hiber)
 {
 	struct decon_device *decon = hiber->decon;
-	struct dsim_device *dsim = decon_get_dsim(decon);
+	struct dsim_device *dsim;
 	struct writeback_device *wb;
 
 	pr_debug("%s +\n", __func__);
 
-	if (!decon || !dsim)
+	if (!decon)
+		return;
+
+	dsim = decon_get_dsim(decon);
+	if (!dsim)
 		return;
 
 	hibernation_block(hiber);
