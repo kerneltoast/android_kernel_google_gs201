@@ -165,6 +165,11 @@ struct smfc_crop {
 	u32 so[SMFC_MAX_NUM_COMP];
 };
 
+struct smfc_map_info {
+	struct dma_buf_attachment *dba;
+	struct sg_table *sgt;
+};
+
 /*
  * SMFC supports 6 planes for one buffer.
  * It needs up to 6 planes, because three planes are required
@@ -172,6 +177,7 @@ struct smfc_crop {
  */
 struct vb2_smfc_buffer {
 	struct v4l2_m2m_buffer mb;
+	struct smfc_map_info info[SMFC_MAX_PLANES];
 	unsigned int offset[SMFC_MAX_PLANES];
 };
 

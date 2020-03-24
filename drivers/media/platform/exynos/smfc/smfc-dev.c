@@ -270,6 +270,37 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 	return 0;
 }
 
+static int smfc_vb2_buf_init(struct vb2_buffer *vb)
+{
+	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct smfc_dev *smfc = ctx->smfc;
+	struct dma_buf *dbuf;
+	unsigned int plane;
+
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
+	struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
+
+	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type) || !ctx->enable_hwfc)
+		return 0;
+
+	if (vb->vb2_queue->memory != VB2_MEMORY_DMABUF) {
+		dev_err(smfc->dev, "Unsupported buffer type(%d) for HWFC\n",
+				vb->vb2_queue->memory);
+		return -EINVAL;
+	}
+
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		dbuf = dma_buf_get(vb->planes[plane].m.fd);
+		sbuf->info[plane].dba = dma_buf_attach(dbuf, smfc->dev);
+		sbuf->info[plane].dba->dma_map_attrs = DMA_ATTR_PRIVILEGED;
+		sbuf->info[plane].sgt =
+			dma_buf_map_attachment(sbuf->info[plane].dba,
+					vb->vb2_queue->dma_dir);
+	}
+	return 0;
+}
+
 static int smfc_vb2_buf_prepare(struct vb2_buffer *vb)
 {
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
@@ -357,6 +388,11 @@ static void smfc_vb2_buf_finish(struct vb2_buffer *vb)
 static void smfc_vb2_buf_cleanup(struct vb2_buffer *vb)
 {
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
+	struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
+	unsigned int plane;
+
 	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type) &&
 			!!(ctx->flags & SMFC_CTX_COMPRESS)) {
 		/*
@@ -364,6 +400,20 @@ static void smfc_vb2_buf_cleanup(struct vb2_buffer *vb)
 		 * of the start of the JPEG stream to be written by H/W
 		 * for the later use of this buffer.
 		 */
+	}
+
+	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type))
+		return;
+
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		if (sbuf->info[plane].sgt == NULL)
+			continue;
+		dma_buf_unmap_attachment(sbuf->info[plane].dba,
+			sbuf->info[plane].sgt, vb->vb2_queue->dma_dir);
+		dma_buf_detach(sbuf->info[plane].dba->dmabuf,
+			sbuf->info[plane].dba);
+		sbuf->info[plane].dba = NULL;
+		sbuf->info[plane].sgt = NULL;
 	}
 }
 
@@ -392,6 +442,7 @@ static void smfc_vb2_stop_streaming(struct vb2_queue *vq)
 
 static struct vb2_ops smfc_vb2_ops = {
 	.queue_setup	= smfc_vb2_queue_setup,
+	.buf_init	= smfc_vb2_buf_init,
 	.buf_prepare	= smfc_vb2_buf_prepare,
 	.buf_finish	= smfc_vb2_buf_finish,
 	.buf_cleanup	= smfc_vb2_buf_cleanup,

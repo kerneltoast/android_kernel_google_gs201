@@ -276,16 +276,29 @@ static void smfc_hwconfigure_image_base(struct smfc_ctx *ctx,
 {
 	dma_addr_t addr;
 	struct sg_table *sgt;
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb2buf);
+	struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
+	struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
 	unsigned int i;
 	unsigned int num_buffers = ctx->img_fmt->num_buffers;
+	unsigned int base_plane = thumbnail ? num_buffers : 0;
 	bool multiplane = (num_buffers == ctx->img_fmt->num_planes);
 	u32 off = thumbnail ? REG_SEC_IMAGE_BASE : REG_MAIN_IMAGE_BASE;
 
-	if (multiplane) {
+	if (ctx->enable_hwfc &&
+			V4L2_TYPE_IS_OUTPUT(vb2buf->vb2_queue->type) &&
+			vb2buf->vb2_queue->memory == VB2_MEMORY_DMABUF) {
 		/* Note that this includes a single-plane format such as YUYV */
 		for (i = 0; i < num_buffers; i++) {
-			sgt = vb2_dma_sg_plane_desc(vb2buf,
-					thumbnail ? i + num_buffers : i);
+			addr = sg_dma_address(
+				sbuf->info[base_plane + i].sgt->sgl);
+			__raw_writel((u32)addr,
+				ctx->smfc->reg + REG_IMAGE_BASE(off, i));
+		}
+	} else if (multiplane) {
+		/* Note that this includes a single-plane format such as YUYV */
+		for (i = 0; i < num_buffers; i++) {
+			sgt = vb2_dma_sg_plane_desc(vb2buf, base_plane + i);
 			addr = sg_dma_address(sgt->sgl);
 			__raw_writel((u32)addr,
 				ctx->smfc->reg + REG_IMAGE_BASE(off, i));
@@ -293,7 +306,7 @@ static void smfc_hwconfigure_image_base(struct smfc_ctx *ctx,
 	} else {
 		u32 width = thumbnail ? ctx->thumb_width : ctx->width;
 		u32 height = thumbnail ? ctx->thumb_height : ctx->height;
-		sgt = vb2_dma_sg_plane_desc(vb2buf, thumbnail ? 1 : 0);
+		sgt = vb2_dma_sg_plane_desc(vb2buf, base_plane);
 		addr = sg_dma_address(sgt->sgl);
 
 		for (i = 0; i < ctx->img_fmt->num_planes; i++) {
