@@ -70,18 +70,24 @@ static int emul_enable(struct drm_panel *panel)
 
 static const struct exynos_display_mode emul_exynos_mode = {
 	.mode_flags = MIPI_DSI_MODE_VIDEO,
+	.dsc = {
+		.enabled = true,
+		.dsc_count = 2,
+		.slice_count = 2,
+		.slice_height = 65,
+	},
 };
 
 static const struct drm_display_mode emul_mode = {
-	.clock = 64125,	/* 898Mbps / 2 = 449Mhz / 8 = 56.125Mhz */
-	.hdisplay = 720,
-	.hsync_start = 720 + 20,
-	.hsync_end = 720 + 20 + 20,
-	.htotal = 720 + 20 + 20 + 20,
-	.vdisplay = 1280,
-	.vsync_start = 1280 + 20,
-	.vsync_end = 1280 + 20 + 20,
-	.vtotal = 1280 + 20 + 20 + 20,
+	.clock = 34375,
+	.hdisplay = 1080,
+	.hsync_start = 1080 + 32,
+	.hsync_end = 1080 + 32 + 12,
+	.htotal = 1080 + 32 + 12 + 16,
+	.vdisplay = 2340,
+	.vsync_start = 2340 + 12,
+	.vsync_end = 2340 + 12 + 4,
+	.vtotal = 2340 + 12 + 4 + 16,
 	.vrefresh = 60,
 	.flags = 0,
 	.width_mm = 80,
