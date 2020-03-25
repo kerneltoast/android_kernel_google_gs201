@@ -35,9 +35,6 @@ static struct hwrng rng;
 
 /* spinlock to lock hw_random */
 spinlock_t hwrandom_lock;
-#if defined(CONFIG_EXYRNG_FAIL_POLICY_DISABLE)
-static int hwrng_disabled;
-#endif
 static int start_up_test;
 
 #ifdef CONFIG_EXYRNG_DEBUG
@@ -48,12 +45,7 @@ static int start_up_test;
 
 void exynos_swd_test_fail(void)
 {
-#if defined(CONFIG_EXYRNG_FAIL_POLICY_DISABLE)
-	hwrng_disabled = 1;
-	pr_info("[ExyRNG] disabled for test failures\n");
-#else /* defined(CONFIG_EXYRNG_POLICY_RESET) */
 	panic("[ExyRNG] It failed to health tests. It means that it detects the malfunction of TRNG(HW) which generates random numbers. If it doesn't offer enough entropy, it should not be used. The system reset could be a way to solve it. The health tests are designed to have the false positive rate of approximately once per billion based on min-entropy of TRNG.\n");
-#endif
 }
 
 static int exynos_cm_smc(u64 *arg0, u64 *arg1,
@@ -103,16 +95,6 @@ static int exynos_swd_startup_test(void)
 		}
 
 		if (ret == HWRNG_RET_TEST_ERROR || ret == HWRNG_RET_TEST_KAT_ERROR) {
-#ifndef CONFIG_EXYRNG_USE_CRYPTOMANAGER
-			if (ret == HWRNG_RET_TEST_KAT_ERROR) {
-				pr_info("[ExyRNG] start-up KAT test failed: %d\n", ret);
-			} else if (test_cnt < EXYRNG_START_UP_TEST_MAX_RETRY) {
-				start_up_size = EXYRNG_START_UP_SIZE;
-				test_cnt++;
-				pr_info("[ExyRNG] It performs start-up test again to detect the malfunction of TRNG with accuracy\n");
-				continue;
-			}
-#endif
 			exynos_swd_test_fail();
 			return -EFAULT;
 		}
@@ -152,10 +134,6 @@ static int exynos_swd_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	u32 retry_cnt;
 	int ret = HWRNG_RET_OK;
 
-#if defined(CONFIG_EXYRNG_FAIL_POLICY_DISABLE)
-	if (hwrng_disabled)
-		return -EPERM;
-#endif
 	retry_cnt = 0;
 	do {
 		spin_lock_irqsave(&hwrandom_lock, flag);
@@ -271,9 +249,8 @@ static int exyswd_rng_probe(struct platform_device *pdev)
 	rng.quality = 500;
 
 	spin_lock_init(&hwrandom_lock);
-#if defined(CONFIG_EXYRNG_FIPS_COMPLIANCE)
+
 	start_up_test = 1;
-#endif
 
 	ret = hwrng_register(&rng);
 	if (ret)
@@ -327,7 +304,7 @@ static int exyswd_rng_resume(struct device *dev)
 	int ret = HWRNG_RET_OK;
 
 	spin_lock_irqsave(&hwrandom_lock, flag);
-#if defined(CONFIG_EXYRNG_FIPS_COMPLIANCE)
+
 	reg0 = SMC_CMD_RANDOM;
 	reg1 = HWRNG_RESUME;
 	reg2 = 0;
@@ -336,7 +313,6 @@ static int exyswd_rng_resume(struct device *dev)
 	ret = exynos_cm_smc(&reg0, &reg1, &reg2, &reg3);
 	if (ret != HWRNG_RET_OK)
 		pr_info("[ExyRNG] failed to resume with %d\n", ret);
-#endif
 	if (hwrng_read_flag) {
 		reg0 = SMC_CMD_RANDOM;
 		reg1 = HWRNG_INIT;
