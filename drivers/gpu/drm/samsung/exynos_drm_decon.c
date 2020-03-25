@@ -14,6 +14,7 @@
  */
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
+#include <drm/exynos_display_common.h>
 
 #include <linux/clk.h>
 #include <linux/component.h>
@@ -329,12 +330,6 @@ static void decon_print_config_info(struct decon_device *decon)
 			str_trigger, str_output,
 			decon->config.image_width, decon->config.image_height,
 			decon->bts.fps);
-
-	decon_info(decon, "DSC: en(%d), cnt(%d), slice: cnt(%d), size(%dx%d)\n",
-			decon->config.dsc.enabled, decon->config.dsc.dsc_count,
-			decon->config.dsc.slice_count,
-			decon->config.dsc.slice_width,
-			decon->config.dsc.slice_height);
 }
 
 static void decon_set_te_pinctrl(struct decon_device *decon, bool en)
@@ -372,6 +367,53 @@ static void _decon_enable(struct decon_device *decon)
 	decon_enable_irqs(decon);
 }
 
+static bool decon_mode_fixup(struct exynos_drm_crtc *crtc,
+			const struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode)
+{
+	const struct exynos_display_mode *mode_priv;
+	struct decon_device *decon = crtc->ctx;
+
+	mode_priv = drm_mode_to_exynos(adjusted_mode);
+	if (!mode_priv)
+		return true;
+
+	if (!(mode_priv->mode_flags & MIPI_DSI_MODE_VIDEO)) {
+		if (!decon->irq_te || !decon->res.pinctrl) {
+			decon_err(decon, "TE error: irq_te %p, te_pinctrl %p\n",
+				  decon->irq_te, decon->res.pinctrl);
+
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static void decon_update_config_for_display_mode(struct exynos_drm_crtc *crtc)
+{
+	struct decon_device *decon = crtc->ctx;
+	const struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
+	const struct exynos_display_mode *mode_priv =
+						      drm_mode_to_exynos(mode);
+
+	if (!mode_priv) {
+		decon_info(decon, "%s: no private mode config\n", __func__);
+		return;
+	}
+
+	decon->config.dsc.enabled = mode_priv->dsc.enabled;
+	if (mode_priv->dsc.enabled) {
+		decon->config.dsc.dsc_count = mode_priv->dsc.dsc_count;
+		decon->config.dsc.slice_count = mode_priv->dsc.slice_count;
+		decon->config.dsc.slice_height = mode_priv->dsc.slice_height;
+	}
+
+	decon->config.mode.op_mode =
+		(mode_priv->mode_flags & MIPI_DSI_MODE_VIDEO) ?
+			DECON_VIDEO_MODE : DECON_MIPI_COMMAND_MODE;
+}
+
 static void decon_enable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
@@ -385,6 +427,8 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	decon_info(decon, "%s +\n", __func__);
 
+	if (crtc->base.state->mode_changed)
+		decon_update_config_for_display_mode(crtc);
 	pm_runtime_get_sync(decon->dev);
 
 	decon_set_te_pinctrl(decon, true);
@@ -488,6 +532,7 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.disable = decon_disable,
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
+	.mode_fixup = decon_mode_fixup,
 	.atomic_begin = decon_atomic_begin,
 	.update_plane = decon_update_plane,
 	.disable_plane = decon_disable_plane,
@@ -610,7 +655,6 @@ irq_end:
 
 static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 {
-	struct device_node *dsc_np;
 	struct device_node *dpp_np = NULL;
 	struct property *prop;
 	const __be32 *cur;
@@ -679,20 +723,6 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 		decon_warn(decon, "WARN: decon count is not defined in DT.\n");
 	}
 	decon_info(decon, "decon count(%d)\n", decon->decon_cnt);
-
-	dsc_np = of_parse_phandle(np, "dsc-config", 0);
-	if (!dsc_np) {
-		decon->config.dsc.enabled = false;
-	} else {
-		decon->config.dsc.enabled = true;
-		of_property_read_u32(dsc_np, "dsc_count",
-				&decon->config.dsc.dsc_count);
-		of_property_read_u32(dsc_np, "slice_count",
-				&decon->config.dsc.slice_count);
-		of_property_read_u32(dsc_np, "slice_height",
-				&decon->config.dsc.slice_height);
-		of_node_put(dsc_np);
-	}
 
 	if (decon->config.out_type == DECON_OUT_DSI)
 		decon->config.mode.dsi_mode = DSI_MODE_DUAL_DSI;
@@ -825,28 +855,27 @@ static int decon_register_irqs(struct decon_device *decon)
 	}
 	disable_irq(decon->irq_ext);
 
-	if ((decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) &&
-			(decon->config.mode.trig_mode == DECON_HW_TRIG)) {
-		/* Get IRQ resource and register IRQ handler. */
-		if (of_get_property(dev->of_node, "gpios", NULL) != NULL) {
-			gpio = of_get_gpio(dev->of_node, 0);
-			if (gpio < 0) {
-				decon_err(decon, "failed to get TE gpio\n");
-				return -EINVAL;
-			}
-		} else {
-			decon_info(decon, "failed to find TE gpio node\n");
-			return 0;
+	/* Get IRQ resource and register IRQ handler. Only enabled in command
+	 * mode.
+	 */
+	if (of_get_property(dev->of_node, "gpios", NULL) != NULL) {
+		gpio = of_get_gpio(dev->of_node, 0);
+		if (gpio < 0) {
+			decon_err(decon, "failed to get TE gpio\n");
+			return -ENODEV;
 		}
-
-		decon->irq_te = gpio_to_irq(gpio);
-
-		decon_info(decon, "TE irq number(%d)\n", decon->irq_te);
-		irq_set_status_flags(decon->irq_te, IRQ_DISABLE_UNLAZY);
-		ret = devm_request_irq(dev, decon->irq_te, decon_te_irq_handler,
-				IRQF_TRIGGER_RISING, pdev->name, decon);
-		disable_irq(decon->irq_te);
+	} else {
+		decon_dbg(decon, "failed to find TE gpio node\n");
+		return 0;
 	}
+
+	decon->irq_te = gpio_to_irq(gpio);
+
+	decon_info(decon, "TE irq number(%d)\n", decon->irq_te);
+	irq_set_status_flags(decon->irq_te, IRQ_DISABLE_UNLAZY);
+	ret = devm_request_irq(dev, decon->irq_te, decon_te_irq_handler,
+			IRQF_TRIGGER_RISING, pdev->name, decon);
+	disable_irq(decon->irq_te);
 
 	return ret;
 }
@@ -855,18 +884,13 @@ static int decon_get_pinctrl(struct decon_device *decon)
 {
 	int ret = 0;
 
-	if ((decon->config.mode.op_mode != DECON_MIPI_COMMAND_MODE) ||
-			(decon->config.mode.trig_mode != DECON_HW_TRIG)) {
-		decon_warn(decon, "doesn't need pinctrl\n");
-		return 0;
-	}
-
 	decon->res.pinctrl = devm_pinctrl_get(decon->dev);
 	if (IS_ERR(decon->res.pinctrl)) {
-		decon_err(decon, "failed to get pinctrl\n");
+		decon_dbg(decon, "failed to get pinctrl\n");
 		ret = PTR_ERR(decon->res.pinctrl);
 		decon->res.pinctrl = NULL;
-		goto err;
+		/* optional in video mode */
+		return 0;
 	}
 
 	decon->res.te_on = pinctrl_lookup_state(decon->res.pinctrl, "hw_te_on");

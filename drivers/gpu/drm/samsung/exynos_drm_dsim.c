@@ -19,7 +19,9 @@
 #include <drm/drm_of.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_modes.h>
 
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
@@ -589,6 +591,37 @@ static void dsim_adjust_video_timing(struct dsim_device *dsim,
 	dsim_get_clock_modes(dsim, name);
 }
 
+static void dsim_update_config_for_mode(struct dsim_device *dsim,
+				     struct drm_display_mode *mode)
+{
+	const struct exynos_display_mode *mode_priv =
+					drm_mode_to_exynos(mode);
+
+	if (!mode_priv)
+		return;
+
+	dsim->config.mode = (mode_priv->mode_flags & MIPI_DSI_MODE_VIDEO) ?
+				DSIM_VIDEO_MODE : DSIM_COMMAND_MODE;
+
+	dsim->config.dsc.enabled = mode_priv->dsc.enabled;
+	if (dsim->config.dsc.enabled) {
+		dsim->config.dsc.dsc_count = mode_priv->dsc.dsc_count;
+		dsim->config.dsc.slice_count = mode_priv->dsc.slice_count;
+		dsim->config.dsc.slice_height = mode_priv->dsc.slice_height;
+		dsim->config.dsc.slice_width = DIV_ROUND_UP(
+				dsim->config.p_timing.hactive,
+				dsim->config.dsc.slice_count);
+	}
+
+	dsim_info(dsim, "dsim mode %s dsc is %s [%d %d %d %d]\n",
+			dsim->config.mode == DSIM_VIDEO_MODE ? "video" : "cmd",
+			dsim->config.dsc.enabled ? "enabled" : "disabled",
+			dsim->config.dsc.dsc_count,
+			dsim->config.dsc.slice_count,
+			dsim->config.dsc.slice_width,
+			dsim->config.dsc.slice_height);
+}
+
 static void dsim_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -596,15 +629,41 @@ static void dsim_mode_set(struct drm_encoder *encoder,
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 	struct videomode vm = dsim->vm;
 
+	dsim_update_config_for_mode(dsim, adjusted_mode);
 	drm_display_mode_to_videomode(adjusted_mode, &vm);
 
 	dsim_adjust_video_timing(dsim, vm, adjusted_mode->name);
+}
+
+static int dsim_atomic_check(struct drm_encoder *encoder,
+			     struct drm_crtc_state *crtc_state,
+			     struct drm_connector_state *state)
+{
+	struct dsim_device *dsim = encoder_to_dsim(encoder);
+	struct drm_display_mode *mode;
+
+	if (!crtc_state->mode_changed)
+		return 0;
+
+	list_for_each_entry(mode, &state->connector->modes, head) {
+		if (drm_mode_equal(mode, &crtc_state->adjusted_mode)) {
+			crtc_state->adjusted_mode.private = mode->private;
+			crtc_state->adjusted_mode.private_flags =
+			    mode->private_flags;
+
+			return 0;
+		}
+	}
+
+	dsim_warn(dsim, "%s: failed to find the display mode\n", __func__);
+	return -EINVAL;
 }
 
 static const struct drm_encoder_helper_funcs dsim_encoder_helper_funcs = {
 	.mode_set = dsim_mode_set,
 	.enable = dsim_enable,
 	.disable = dsim_disable,
+	.atomic_check = dsim_atomic_check,
 };
 
 static const struct drm_encoder_funcs dsim_encoder_funcs = {
@@ -802,7 +861,6 @@ static const struct component_ops dsim_component_ops = {
 static int dsim_parse_dt(struct dsim_device *dsim)
 {
 	struct device_node *np = dsim->dev->of_node;
-	struct device_node *dsc_np;
 
 	if (!np) {
 		dsim_err(dsim, "no device tree information\n");
@@ -813,19 +871,6 @@ static int dsim_parse_dt(struct dsim_device *dsim)
 	if (dsim->id < 0 || dsim->id >= MAX_DSI_CNT) {
 		dsim_err(dsim, "wrong dsim id(%d)\n", dsim->id);
 		return -ENODEV;
-	}
-
-	dsc_np = of_parse_phandle(np, "dsc-config", 0);
-	if (!dsc_np) {
-		dsim->config.dsc.enabled = false;
-	} else {
-		dsim->config.dsc.enabled = true;
-		of_property_read_u32(dsc_np, "dsc_count",
-				&dsim->config.dsc.dsc_count);
-		of_property_read_u32(dsc_np, "slice_count",
-				&dsim->config.dsc.slice_count);
-		of_property_read_u32(dsc_np, "slice_height",
-				&dsim->config.dsc.slice_height);
 	}
 
 	dsim->pll_params = dsim_of_get_clock_mode(dsim);
@@ -1023,23 +1068,8 @@ static void dsim_convert_cal_data(struct dsim_device *dsim)
 	dsim_adjust_video_timing(dsim, videomode, native_mode->name);
 
 	dsim->config.data_lane_cnt = dsim->lanes;
-	if (dsim->mode_flags & MIPI_DSI_MODE_VIDEO)
-		dsim->config.mode = DSIM_VIDEO_MODE;
-	else
-		dsim->config.mode = DSIM_COMMAND_MODE;
-
 	/* TODO: This hard coded information will be defined in device tree */
 	dsim->config.mres_mode = 0;
-	dsim->config.dsc.slice_width = DIV_ROUND_UP(
-			dsim->config.p_timing.hactive,
-			dsim->config.dsc.slice_count);
-
-	dsim_info(dsim, "dsc is %s [%d %d %d %d]\n",
-			dsim->config.dsc.enabled ? "enabled" : "disabled",
-			dsim->config.dsc.dsc_count,
-			dsim->config.dsc.slice_count,
-			dsim->config.dsc.slice_width,
-			dsim->config.dsc.slice_height);
 }
 
 static int dsim_get_display_mode(struct dsim_device *dsim)
