@@ -125,6 +125,16 @@ static int s6e3ha8_enable(struct drm_panel *panel)
 	return 0;
 }
 
+static const struct exynos_display_mode s6e3ha8_mode_private = {
+	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.dsc = {
+		.enabled = true,
+		.dsc_count = 2,
+		.slice_count = 2,
+		.slice_height = 40,
+	},
+};
+
 static const struct drm_display_mode s6e3ha8_mode = {
 	.clock = 56125,	/* 898Mbps / 2 = 449Mhz / 8 = 56.125Mhz */
 	.hdisplay = 1440,
@@ -139,6 +149,8 @@ static const struct drm_display_mode s6e3ha8_mode = {
 	.flags = 0,
 	.width_mm = 69,
 	.height_mm = 142,
+	.private = (int *) &s6e3ha8_mode_private,
+	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
 };
 
 static const struct drm_panel_funcs s6e3ha8_drm_funcs = {
@@ -159,7 +171,6 @@ const struct exynos_panel_desc samsung_s6e3ha8 = {
 	.data_lane_cnt = 4,
 	.max_brightness = 1023,
 	.dft_brightness = 511,
-	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	.mode = &s6e3ha8_mode,
 	.panel_func = &s6e3ha8_drm_funcs,
 	.exynos_panel_func = &s6e3ha8_exynos_funcs,

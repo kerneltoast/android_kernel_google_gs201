@@ -39,7 +39,7 @@ static int s6e3ha9_disable(struct drm_panel *panel)
 
 	ctx = container_of(panel, struct exynos_panel, panel);
 	ctx->enabled = false;
-	dev_dbg(ctx->, "%s +\n", __func__);
+	dev_dbg(ctx->dev, "%s +\n", __func__);
 	return 0;
 }
 
@@ -102,10 +102,20 @@ static int s6e3ha9_enable(struct drm_panel *panel)
 
 	ctx->enabled = true;
 
-	dev_dbg(ctx, "%s -\n", __func__);
+	dev_dbg(ctx->dev, "%s -\n", __func__);
 
 	return 0;
 }
+
+static const struct exynos_display_mode s6e3ha9_wqhd_exynos_mode = {
+	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.dsc = {
+		.enabled = true,
+		.dsc_count = 2,
+		.slice_count = 2,
+		.slice_height = 40,
+	},
+};
 
 static const struct drm_display_mode s6e3ha9_mode = {
 	.clock = 56125,	/* 898Mbps / 2 = 449Mhz / 8 = 56.125Mhz */
@@ -121,6 +131,8 @@ static const struct drm_display_mode s6e3ha9_mode = {
 	.flags = 0,
 	.width_mm = 69,
 	.height_mm = 142,
+	.private = (int *) &s6e3ha9_wqhd_exynos_mode,
+	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
 };
 
 static const struct drm_panel_funcs s6e3ha9_drm_funcs = {
@@ -133,9 +145,8 @@ static const struct drm_panel_funcs s6e3ha9_drm_funcs = {
 
 const struct exynos_panel_desc samsung_s6e3ha9 = {
 	.dsc_pps = SEQ_PPS_SLICE2,
-	.dsc_len = ARRAY_SIZE(SEQ_PPS_SLICE2),
+	.dsc_pps_len = ARRAY_SIZE(SEQ_PPS_SLICE2),
 	.data_lane_cnt = 4,
-	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	/* supported HDR format bitmask : 1(DOLBY_VISION), 2(HDR10), 3(HLG) */
 	.hdr_formats = BIT(2),
 	.max_luminance = 5400000,

@@ -143,6 +143,16 @@ static int s6e3hc2_set_brightness(struct exynos_panel *exynos_panel, u16 br)
 	return exynos_dcs_set_brightness(exynos_panel, brightness);
 }
 
+static const struct exynos_display_mode s6e3hc2_wqhd_mode_private = {
+	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.dsc = {
+		.enabled = true,
+		.dsc_count = 2,
+		.slice_count = 2,
+		.slice_height = 40,
+	},
+};
+
 static const struct drm_display_mode s6e3hc2_wqhd_mode = {
 	.clock = 56125,	/* 898Mbps / 2 = 449Mhz / 8 = 56.125Mhz */
 	.hdisplay = 1440,
@@ -157,6 +167,18 @@ static const struct drm_display_mode s6e3hc2_wqhd_mode = {
 	.flags = 0,
 	.width_mm = 69,
 	.height_mm = 142,
+	.private = (int *) &s6e3hc2_wqhd_mode_private,
+	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
+};
+
+static const struct exynos_display_mode s6e3hc2_fhd_mode_private = {
+	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.dsc = {
+		.enabled = true,
+		.dsc_count = 2,
+		.slice_count = 2,
+		.slice_height = 65,
+	},
 };
 
 static const struct drm_display_mode s6e3hc2_fhd_mode = {
@@ -173,6 +195,8 @@ static const struct drm_display_mode s6e3hc2_fhd_mode = {
 	.flags = 0,
 	.width_mm = 63,
 	.height_mm = 137,
+	.private = (int *) &s6e3hc2_fhd_mode_private,
+	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
 };
 
 static const struct drm_panel_funcs s6e3hc2_drm_funcs = {
@@ -193,7 +217,6 @@ const struct exynos_panel_desc samsung_s6e3hc2_wqhd = {
 	.data_lane_cnt = 4,
 	.max_brightness = 1023,
 	.dft_brightness = 511,
-	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	/* supported HDR format bitmask : 1(DOLBY_VISION), 2(HDR10), 3(HLG) */
 	.hdr_formats = BIT(2),
 	.max_luminance = 5400000,
@@ -210,7 +233,6 @@ const struct exynos_panel_desc samsung_s6e3hc2_fhd = {
 	.data_lane_cnt = 4,
 	.max_brightness = 1023,
 	.dft_brightness = 511,
-	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	/* supported HDR format bitmask : 1(DOLBY_VISION), 2(HDR10), 3(HLG) */
 	.hdr_formats = BIT(2),
 	.max_luminance = 5400000,

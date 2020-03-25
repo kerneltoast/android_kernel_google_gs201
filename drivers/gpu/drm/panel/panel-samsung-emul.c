@@ -68,6 +68,10 @@ static int emul_enable(struct drm_panel *panel)
 	return 0;
 }
 
+static const struct exynos_display_mode emul_exynos_mode = {
+	.mode_flags = MIPI_DSI_MODE_VIDEO,
+};
+
 static const struct drm_display_mode emul_mode = {
 	.clock = 64125,	/* 898Mbps / 2 = 449Mhz / 8 = 56.125Mhz */
 	.hdisplay = 720,
@@ -82,6 +86,8 @@ static const struct drm_display_mode emul_mode = {
 	.flags = 0,
 	.width_mm = 80,
 	.height_mm = 120,
+	.private = (int *) &emul_exynos_mode,
+	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
 };
 
 static const struct drm_panel_funcs emul_drm_funcs = {
@@ -94,7 +100,6 @@ static const struct drm_panel_funcs emul_drm_funcs = {
 
 const struct exynos_panel_desc samsung_emul = {
 	.data_lane_cnt = 4,
-	.mode_flags = MIPI_DSI_MODE_VIDEO,
 	.mode = &emul_mode,
 	.panel_func = &emul_drm_funcs,
 };

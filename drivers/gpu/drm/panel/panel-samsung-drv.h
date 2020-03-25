@@ -22,7 +22,7 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_mipi_dsi.h>
-
+#include <drm/exynos_display_common.h>
 
 #define MAX_REGULATORS		3
 #define MAX_HDR_FORMATS		4
@@ -46,7 +46,6 @@ struct exynos_panel_desc {
 	u32 min_luminance;
 	u32 max_brightness;
 	u32 dft_brightness; /* default brightness */
-	unsigned long mode_flags;
 	const struct drm_display_mode *mode;
 	const struct drm_panel_funcs *panel_func;
 	const struct exynos_panel_funcs *exynos_panel_func;

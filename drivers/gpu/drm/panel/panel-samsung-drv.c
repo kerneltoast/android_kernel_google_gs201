@@ -337,6 +337,7 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
 	struct exynos_panel *ctx;
+	const struct exynos_display_mode *mode_priv;
 	int ret = 0;
 	char name[32];
 
@@ -344,15 +345,20 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 	if (!ctx)
 		return -ENOMEM;
 
+	dev_dbg(dev, "%s +\n", __func__);
+
 	mipi_dsi_set_drvdata(dsi, ctx);
 	ctx->dev = dev;
 	ctx->desc = of_device_get_match_data(dev);
-
-	dev_dbg(ctx->dev, "%s +\n", __func__);
+	mode_priv = drm_mode_to_exynos(ctx->desc->mode);
+	if (!mode_priv) {
+		dev_err(ctx->dev, "missing exynos display mode config\n");
+		return -EINVAL;
+	}
 
 	dsi->lanes = ctx->desc->data_lane_cnt;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = ctx->desc->mode_flags;
+	dsi->mode_flags = mode_priv->mode_flags;
 
 	exynos_panel_parse_dt(ctx);
 
