@@ -1148,6 +1148,7 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 				  struct g2d_layer *target)
 {
 	u32 colormode = source->commands[G2DSFR_IMG_COLORMODE].value;
+	u32 dst_mode = target->commands[G2DSFR_IMG_COLORMODE].value;
 	u32 width, height;
 
 	if (!g2d_validate_image_format(g2d_dev, task, source, false)) {
@@ -1181,13 +1182,14 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 		return false;
 	}
 
-	if (!g2d_validate_clip_region(g2d_dev->caps, source->flags, colormode,
+	if (!g2d_validate_clip_region(g2d_dev->caps, source->flags, dst_mode,
 				      &source->commands[G2DSFR_SRC_DSTLEFT])) {
-		perrfndev(g2d_dev, "Unaligned crop region [%ux%u, %ux%u)",
+		perrfndev(g2d_dev, "Unaligned sink region [%ux%u, %ux%u)",
 			  source->commands[G2DSFR_SRC_DSTLEFT].value,
 			  source->commands[G2DSFR_SRC_DSTTOP].value,
 			  source->commands[G2DSFR_SRC_DSTRIGHT].value,
 			  source->commands[G2DSFR_SRC_DSTBOTTOM].value);
+		return false;
 	}
 
 	return true;
