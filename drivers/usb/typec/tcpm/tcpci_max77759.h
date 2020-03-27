@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0-only
-/*
  * Copyright 2019 Google LLC
  *
  */
@@ -9,6 +7,8 @@
 
 #include <linux/interrupt.h>
 #include <linux/usb/tcpm.h>
+
+#include "usb_psy.h"
 
 struct gvotable_election;
 struct logbuffer;
@@ -48,6 +48,7 @@ struct max77759_plat {
 	struct extcon_dev *extcon;
 	bool no_bc_12;
 	struct tcpm_port *port;
+	struct usb_psy_ops psy_ops;
 
 	struct logbuffer *log;
 };
@@ -86,10 +87,5 @@ int enable_contaminant_detection(struct max77759_plat *chip);
 #define VBUS_VOLTAGE_LSB_MV		25
 #define VBUS_HI_HEADROOM_MV		500
 #define VBUS_LO_MV			4500
-
-int max77759_get_vbus_voltage_mv(struct max77759_plat *chip);
-int max77759_get_vbus_voltage_max_mv(struct max77759_plat *chip);
-int max77759_set_vbus_voltage_max_mv(struct max77759_plat *chip, unsigned int
-				      mv);
 
 #endif /* __TCPCI_MAX77759_H */

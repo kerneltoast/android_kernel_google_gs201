@@ -520,7 +520,7 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 			    TCPC_CMD_LOOK4CONNECTION);
 }
 
-int tcpc_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
+static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 {
 	u16 raw;
 	int ret;
@@ -532,7 +532,6 @@ int tcpc_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 	return ret ? 0 : ((raw & TCPC_VBUS_VOLTAGE_MASK) *
 		TCPC_VBUS_VOLTAGE_LSB_MV);
 }
-EXPORT_SYMBOL_GPL(tcpc_get_vbus_voltage_mv);
 
 static int max77759_get_current_limit(struct tcpci *tcpci,
 				      struct tcpci_data *tdata)
@@ -623,7 +622,7 @@ static int max77759_set_current_limit(struct tcpci *tcpci,
 	return ret;
 }
 
-int tcpc_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
+static int max77759_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
 {
 	u16 raw;
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
@@ -636,10 +635,9 @@ int tcpc_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
 
 	return raw * TCPC_VBUS_VOLTAGE_ALARM_HI_CFG - VBUS_HI_HEADROOM_MV;
 }
-EXPORT_SYMBOL_GPL(tcpc_get_vbus_voltage_max_mv);
 
-int tcpc_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
-				 unsigned int mv)
+static int max77759_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
+					    unsigned int mv)
 {
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
 
@@ -664,7 +662,6 @@ int tcpc_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
 			       TCPC_ALERT_V_ALARM_LO | TCPC_ALERT_V_ALARM_HI);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tcpc_set_vbus_voltage_max_mv);
 
 static void enable_data_path(struct max77759_plat *chip)
 {
@@ -721,8 +718,9 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data
 	return 0;
 }
 
-void tcpc_set_port_data_capable(struct i2c_client *tcpc_client,
-				enum power_supply_usb_type usb_type)
+static void max77759_set_port_data_capable(struct i2c_client *tcpc_client,
+					   enum power_supply_usb_type
+					   usb_type)
 {
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
 
@@ -742,8 +740,6 @@ void tcpc_set_port_data_capable(struct i2c_client *tcpc_client,
 		break;
 	}
 }
-EXPORT_SYMBOL_GPL(tcpc_set_port_data_capable);
-
 
 static const unsigned int usbpd_extcon_cable[] = {
 	EXTCON_USB,
@@ -804,7 +800,16 @@ static int max77759_probe(struct i2c_client *client,
 		return PTR_ERR(chip->log);
 	}
 
-	chip->usb_psy_data = usb_psy_setup(client, chip->log);
+	chip->psy_ops.tcpc_get_vbus_voltage_mv =
+		max77759_get_vbus_voltage_mv;
+	chip->psy_ops.tcpc_get_vbus_voltage_max_mv =
+		max77759_get_vbus_voltage_max_mv;
+	chip->psy_ops.tcpc_set_vbus_voltage_max_mv =
+		max77759_set_vbus_voltage_max_mv;
+	chip->psy_ops.tcpc_set_port_data_capable =
+		max77759_set_port_data_capable;
+	chip->usb_psy_data = usb_psy_setup(client, chip->log,
+					   &chip->psy_ops);
 	if (IS_ERR_OR_NULL(chip->usb_psy_data)) {
 		dev_err(&client->dev, "USB psy failed to initialize");
 		ret = PTR_ERR(chip->usb_psy_data);
@@ -916,14 +921,14 @@ static int max77759_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max77759_id[] = {
-	{ "max77759_tcpc", 0 },
+	{ "max77759tcpc", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max77759_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id max77759_of_match[] = {
-	{ .compatible = "max77759_tcpc", },
+	{ .compatible = "max77759tcpc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, max77759_of_match);
@@ -931,7 +936,7 @@ MODULE_DEVICE_TABLE(of, max77759_of_match);
 
 static struct i2c_driver max77759_i2c_driver = {
 	.driver = {
-		.name = "max77759_tcpc",
+		.name = "max77759tcpc",
 		.of_match_table = of_match_ptr(max77759_of_match),
 	},
 	.probe = max77759_probe,
