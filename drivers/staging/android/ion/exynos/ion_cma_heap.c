@@ -42,16 +42,21 @@ static int ion_exynos_cma_allocate(struct ion_heap *heap,
 	int ret;
 
 	pages = cma_alloc(cma_heap->cma, nr_pages, align_order, false);
-	if (!pages)
+	if (!pages) {
+		perr("failed to allocate from %s(id %u/type %d), size %lu",
+		     cma_heap->heap.name, cma_heap->heap.id, cma_heap->heap.type, len);
 		return -ENOMEM;
+	}
 
 	table = kmalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		goto err;
 
 	ret = sg_alloc_table(table, 1, GFP_KERNEL);
-	if (ret)
+	if (ret) {
+		perr("failed to alloc sgtable with 1 entry (err %d)", -ret);
 		goto free_mem;
+	}
 
 	sg_set_page(table->sgl, pages, size, 0);
 
@@ -104,8 +109,10 @@ static int ion_exynos_cma_heap_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret)
+	if (ret) {
+		perrfn("%s: Failed to get reserved memory region", pdev->name);
 		return ret;
+	}
 
 	ret = devm_add_action(&pdev->dev, rmem_remove_callback, &pdev->dev);
 	if (ret) {
@@ -114,8 +121,10 @@ static int ion_exynos_cma_heap_probe(struct platform_device *pdev)
 	}
 
 	cma_heap->cma = pdev->dev.cma_area;
-	if (!cma_heap->cma)
+	if (!cma_heap->cma) {
+		perrfn("%s: No CMA region found", pdev->name);
 		return -ENODEV;
+	}
 
 	cma_heap->heap.ops = &ion_exynos_cma_ops;
 	cma_heap->heap.type = ION_HEAP_TYPE_DMA;

@@ -59,11 +59,15 @@ static int ion_carveout_heap_allocate(struct ion_heap *heap,
 	if (!table)
 		return -ENOMEM;
 	ret = sg_alloc_table(table, 1, GFP_KERNEL);
-	if (ret)
+	if (ret) {
+		perr("failed to alloc sgtable with 1 entry (err %d)", -ret);
 		goto err_free;
+	}
 
 	paddr = ion_carveout_allocate(heap, size);
 	if (!paddr) {
+		perr("failed to allocate from %s(id %u/type %d), size %lu",
+		       heap->name, heap->id, heap->type, size);
 		ret = -ENOMEM;
 		goto err_free_table;
 	}
@@ -115,8 +119,10 @@ static int ion_carveout_heap_probe(struct platform_device *pdev)
 
 	rmem_np = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
 	rmem = of_reserved_mem_lookup(rmem_np);
-	if (!rmem)
+	if (!rmem) {
+		perrfn("%s: memory-region handle not found", pdev->name);
 		return -ENODEV;
+	}
 
 	carveout_heap = devm_kzalloc(&pdev->dev, sizeof(*carveout_heap),
 				     GFP_KERNEL);

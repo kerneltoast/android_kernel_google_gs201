@@ -46,4 +46,17 @@ struct exynos_fdt_attrs {
 
 void exynos_fdt_setup(struct device *dev, struct exynos_fdt_attrs *attrs);
 
+#define IONPREFIX "[Exynos][ION] "
+#define perr(format, arg...) \
+	pr_err(IONPREFIX format "\n", ##arg)
+
+#define perrfn(format, arg...) \
+	pr_err(IONPREFIX "%s: " format "\n", __func__, ##arg)
+
+#define perrdev(dev, format, arg...) \
+	dev_err(dev, IONPREFIX format "\n", ##arg)
+
+#define perrfndev(dev, format, arg...) \
+	dev_err(dev, IONPREFIX "%s: " format "\n", __func__, ##arg)
+
 #endif
