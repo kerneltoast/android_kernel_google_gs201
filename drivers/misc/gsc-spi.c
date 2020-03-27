@@ -27,8 +27,8 @@
 
 #define GSC_TPM_READ	0x80000000
 
-#define MAX_DATA_SIZE		2044
-#define GSC_MAX_DEVICES	4
+#define MAX_DATA_SIZE 2048
+#define GSC_MAX_DEVICES 1
 #define GSC_TPM_TIMEOUT_MS	10
 
 struct gsc_data {
@@ -46,13 +46,41 @@ struct gsc_data {
 static struct class *gsc_class;
 static dev_t gsc_devt;
 
+static int gsc_is_awake(struct gsc_data *gsc)
+{
+	static const u8 mosi[6] = { 0x80, 0xd4, 0x0f, 0x04, 0x00, 0x00 };
+	u8 miso[sizeof(mosi)];
+	struct spi_device *spi = gsc->spi;
+	struct spi_message m;
+	struct spi_transfer spi_xfer = {
+		.tx_buf = mosi,
+		.rx_buf = miso,
+		.len = sizeof(mosi),
+		.cs_change = 0,
+	};
+	int ret;
+
+	spi_message_init(&m);
+	spi_message_add_tail(&spi_xfer, &m);
+	ret = spi_sync_locked(spi, &m);
+	if (ret)
+		return ret;
+
+	/* If GSC is awake, miso will have 0x00 0x00 0x00 0x00 0x01 0xd1 */
+	if (miso[4] == 0x01 && miso[5] == 0xd1)
+		return 0;
+
+	/* If GSC is asleep, poking at it like this should start waking it up */
+	return -EAGAIN;
+}
+
 static int gsc_wait_cmd_done(struct gsc_data *gsc)
 {
 	struct spi_device *spi = gsc->spi;
 	struct spi_message m;
 	int ret;
-	unsigned long to = jiffies + 1 +	/* at least one jiffy */
-			msecs_to_jiffies(GSC_TPM_TIMEOUT_MS);
+	unsigned long to = jiffies + 1 + /* at least one jiffy */
+			   msecs_to_jiffies(GSC_TPM_TIMEOUT_MS);
 	struct spi_transfer spi_xfer = {
 		.rx_buf = gsc->rx_buf,
 		.len = 1,
@@ -66,14 +94,8 @@ static int gsc_wait_cmd_done(struct gsc_data *gsc)
 	 * is not immediately set, we'll keep sending one more don't-care byte
 	 * on MOSI just to read MISO until it is. If GSC is awake and
 	 * functioning correctly its hardware implementation should always
-	 * return 0x00 while it's thinking and return 0x01 when ready to
-	 * continue. However, there are a couple of ways this can fail. First,
-	 * if GSC is in deep sleep, it should send 0x5A on MISO until it
-	 * wakes up. This may take ~40ms or so but it's not unexpected, so if
-	 * we time out we just give up and try again. Second, if GSC
-	 * unexpectedly reboots, it will probably return 0xFF or 0xDF, which
-	 * will exit the loop but we shouldn't continue the transaction because
-	 * GSC won't know what's going on.
+	 * return 0x00 while it's thinking and return 0x01 when it's ready to
+	 * continue. Any other value indicates that something went wrong.
 	 */
 	do {
 		if (time_after(jiffies, to)) {
@@ -87,15 +109,14 @@ static int gsc_wait_cmd_done(struct gsc_data *gsc)
 			return ret;
 	} while (!*val);
 
-	/* Return EAGAIN if unexpected bytes were received. */
-	return *val & 0x01 ? 0 : -EAGAIN;
+	/* Should be 0x01 */
+	return *val == 0x01 ? 0 : -EAGAIN;
 }
 
 static int gsc_tpm_datagram(struct gsc_data *gsc,
 			    struct gsc_ioc_tpm_datagram *dg)
 {
-	int is_read;
-	int gsc_is_awake;
+	int is_read = dg->command & GSC_TPM_READ;
 	int ret;
 	int ignore_result = 0;
 	struct spi_device *spi = gsc->spi;
@@ -106,49 +127,53 @@ static int gsc_tpm_datagram(struct gsc_data *gsc,
 		.len = 4,
 		.cs_change = 1,
 	};
-	u32 *command = gsc->tx_buf;
-	u32 *response = gsc->rx_buf;
-	/* Read == from SPI, to userland. */
-	is_read = dg->command & GSC_TPM_READ;
+	u32 *command_ptr = gsc->tx_buf;
+	u32 *response_ptr = gsc->rx_buf;
+	u32 response_val;
+	int gsc_fell_over = 0;
 
 	/* Lock the SPI bus until we're completely done */
 	spi_bus_lock(spi->master);
 
-	/* The command must be big-endian */
-	*command = cpu_to_be32(dg->command);
+	/* Check whether GSC is awake (b/142475097) */
+	ret = gsc_is_awake(gsc);
+	if (ret)
+		goto exit;
+
+	/* The command must be big-endian on the wire */
+	*command_ptr = cpu_to_be32(dg->command);
 
 	/* Prepare to send the command */
 	spi_message_init(&m);
 	spi_message_add_tail(&spi_xfer, &m);
+	/*
+	 * Note: When we prepare only one message but .cs_change is 1, it leaves
+	 * the chip-select asserted afterwards. We have to send another message
+	 * with .cs_change clear to deassert it. I think. This flag has not
+	 * always been consistently implemented.
+	 */
 
 	/* Send the command out */
 	ret = spi_sync_locked(spi, &m);
 	if (ret)
 		goto exit;
 
-	/* Verify that gsc is idle. If it isn't, deassert CS and return
-	 * -EAGAIN. 0xdf is what gsc sends when the SPI FIFO is empty, and it is
-	 *  in the TPM wait mode. Once a command is sent to GSC, the last bit
-	 *  shows whether or not GSC is ready to send the response. This
-	 *  typically happens by a 0x01 byte, but may be preceded by several
-	 *  0x00 bytes while GSC does any necessary work.
+	/*
+	 *  As the command is sent over MOSI, the last bit of MISO indicates
+	 *  whether or not GSC is ready to continue to the data phase. A zero
+	 *  bit means it's not.
 	 */
-	gsc_is_awake = *response == be32_to_cpu(0xdfdfdfde);
-
-	// TODO(dtwlin): This is to workaround some GSC does not response the
-	// 0xdfdf pattern
-	gsc_is_awake = 1;
-
-	if (gsc_is_awake) {
+	response_val == be32_to_cpu(*response_ptr);
+	if (!(response_val & 0x00000001)) {
 		/* Wait for the reply bit to go high */
 		ret = gsc_wait_cmd_done(gsc);
 		/* Reset CS in the case of unexpected bytes. */
 		if (ret)
-			gsc_is_awake = 0;
+			gsc_fell_over = 1;
 	}
 
-	/* TODO: If there's no data, how do we disable the CS? */
-	if (!dg->len || !gsc_is_awake) {
+	/* If there's no data or something's wrong, how do we deassert CS? */
+	if (!dg->len || gsc_fell_over) {
 		/* For now, just transfer one more byte and throw it away */
 		is_read = 1;
 		dg->len = 1;
@@ -171,19 +196,14 @@ static int gsc_tpm_datagram(struct gsc_data *gsc,
 			goto exit;
 		}
 	}
-
 	spi_message_init(&m);
 	spi_message_add_tail(&spi_xfer, &m);
 	ret = spi_sync_locked(spi, &m);
 	if (ret)
 		goto exit;
 
-	/* This condition typically happens when gsc is asleep. Toggling CS
-	 * should be sufficient to wake up gsc, but some time needs to pass
-	 * before it will be ready.
-	 */
-	if (!gsc_is_awake)
-		ret = -EAGAIN;
+	if (gsc_fell_over)
+		ret = -EFAULT;
 
 	if (ignore_result)
 		goto exit;
@@ -382,7 +402,6 @@ static int gsc_request_named_gpio(struct gsc_data *gsc,
 static int gsc_probe(struct spi_device *spi)
 {
 	struct device *dev;
-	struct cdev cdev;
 	struct gsc_data *gsc;
 	int ret;
 	dev_t devt;
@@ -458,7 +477,7 @@ static int gsc_probe(struct spi_device *spi)
 	}
 
 	cdev_init(&gsc->cdev, &gsc_fops);
-	cdev.owner = THIS_MODULE;
+	gsc->cdev.owner = THIS_MODULE;
 	ret = cdev_add(&gsc->cdev, gsc_devt, 1);
 	if (ret)
 		goto destroy_device;
@@ -500,8 +519,7 @@ static int __init gsc_init(void)
 {
 	int ret;
 
-	ret = alloc_chrdev_region(&gsc_devt, 0, GSC_MAX_DEVICES,
-				  "gsc");
+	ret = alloc_chrdev_region(&gsc_devt, 0, GSC_MAX_DEVICES, "gsc");
 	if (ret) {
 		pr_err("%s: failed to alloc cdev region %d\n", __func__, ret);
 		return ret;
