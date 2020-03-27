@@ -13,7 +13,7 @@
 #include "../../../power/supply/google/gvotable.h"
 #include "../../../power/supply/google/logbuffer.h"
 
-#include "tcpci_chip.h"
+#include "usb_psy.h"
 #include "usb_icl_voter.h"
 
 #define ONLINE_THRESHOLD_UA 125000
@@ -42,6 +42,8 @@ struct usb_psy_data {
 
 	/* Cache and return values when chg power supply is not up. */
 	int current_max_cache;
+
+	struct usb_psy_ops *psy_ops;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -150,6 +152,8 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 				 union power_supply_propval *val)
 {
 	struct usb_psy_data *usb = power_supply_get_drvdata(psy);
+	struct usb_psy_ops *ops = usb->psy_ops;
+	struct i2c_client *client = usb->tcpc_client;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -161,13 +165,13 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		/** Report in uv **/
-		val->intval = tcpc_get_vbus_voltage_max_mv(usb->tcpc_client)
+		val->intval = ops->tcpc_get_vbus_voltage_max_mv(client)
 			* 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = tcpc_get_vbus_voltage_mv(usb->tcpc_client);
+		val->intval = ops->tcpc_get_vbus_voltage_mv(client);
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = usb->usb_type;
@@ -185,18 +189,21 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 {
 	struct usb_psy_data *usb = power_supply_get_drvdata(psy);
 	int ret;
+	struct usb_psy_ops *ops = usb->psy_ops;
+	struct i2c_client *client = usb->tcpc_client;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		ret = usb_set_current_max_ma(usb, val->intval);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		ret = tcpc_set_vbus_voltage_max_mv(usb->tcpc_client,
-						   val->intval / 1000);
+		ret = ops->tcpc_set_vbus_voltage_max_mv(client,
+							val->intval /
+							1000);
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		usb->usb_type = val->intval;
-		tcpc_set_port_data_capable(usb->tcpc_client, usb->usb_type);
+		ops->tcpc_set_port_data_capable(client, usb->usb_type);
 		set_bc_current_limit(usb->usb_icl_proto_el, usb->usb_type,
 				     usb->log);
 		break;
@@ -342,7 +349,8 @@ static int debug_print_vote(char *str,  size_t len, const void *vote)
 			 usb_vote->val, (unsigned int)usb_vote->priority);
 }
 
-void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log)
+void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
+		    struct usb_psy_ops *ops)
 {
 	struct usb_psy_data *usb;
 	struct power_supply_config usb_cfg = {};
@@ -351,12 +359,22 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log)
 	char *chg_psy_name;
 	void *ret;
 
+	if (!ops)
+		return ERR_PTR(-EINVAL);
+
+	if (!ops->tcpc_get_vbus_voltage_max_mv ||
+	    !ops->tcpc_set_vbus_voltage_max_mv ||
+	    !ops->tcpc_get_vbus_voltage_mv ||
+	    !ops->tcpc_set_port_data_capable)
+		return ERR_PTR(-EINVAL);
+
 	usb = devm_kzalloc(dev, sizeof(*usb), GFP_KERNEL);
 	if (!usb)
 		return ERR_PTR(-ENOMEM);
 
 	usb->tcpc_client = client;
 	usb->log = log;
+	usb->psy_ops = ops;
 
 	dn = dev_of_node(dev);
 	if (!dn) {
