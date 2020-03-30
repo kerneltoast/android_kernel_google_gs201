@@ -1,0 +1,297 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GS101 SoC
+ *
+ * Copyright 2019 Google LLC
+ *
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/gs101.h>
+#include "gs101-pinctrl.dtsi"
+
+/ {
+	compatible = "google,gs101";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	aliases {
+		pinctrl0 = &pinctrl_0;
+		pinctrl1 = &pinctrl_1;
+		pinctrl2 = &pinctrl_2;
+		pinctrl3 = &pinctrl_3;
+		pinctrl4 = &pinctrl_4;
+		pinctrl5 = &pinctrl_5;
+		pinctrl6 = &pinctrl_6;
+		pinctrl7 = &pinctrl_7;
+		uart0 = &serial_0;
+
+	};
+
+	ect {
+		parameter_address = <0x90000000>;
+		parameter_size = <0x53000>;
+	};
+
+	chipid@10000000 {
+		compatible = "google,gs101-chipid";
+		reg = <0x0 0x10000000 0x100>;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x80000000>;
+	};
+
+	memory@880000000 {
+		device_type = "memory";
+		reg = <0x00000008 0x80000000 0x80000000>;
+	};
+
+	memory@900000000 {
+		device_type = "memory";
+		reg = <0x00000009 0x00000000 0x80000000>;
+	};
+
+	memory@980000000 {
+		device_type = "memory";
+		reg = <0x00000009 0x80000000 0x80000000>;
+	};
+
+	chosen {
+		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 root=/dev/ram0 androidboot.hardware=gs101 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware reserve-fimc=0xffffff90f9fe0000 maxcpus=4 clk_ignore_unused loop.max_part=7";
+	};
+
+	firmware {
+		android: android {
+			compatible = "android,firmware";
+
+			fstab {
+				compatible = "android,fstab";
+
+				system: system {
+					compatible = "android,system";
+					dev = "/dev/block/platform/14700000.ufs/by-name/system";
+					type = "ext4";
+					mnt_flags = "ro";
+					fsmgr_flags = "wait";
+					status = "okay";
+				};
+
+				vendor: vendor {
+					compatible = "android,vendor";
+					dev = "/dev/block/platform/14700000.ufs/by-name/vendor";
+					type = "ext4";
+					mnt_flags = "ro";
+					fsmgr_flags = "wait";
+					status = "okay";
+				};
+			};
+		};
+	};
+	gic: interrupt-controller@10400000 {
+		compatible = "arm,gic-v3";
+		#interrupt-cells = <3>;
+		interrupt-controller;
+		reg = <0x0 0x10400000 0x10000>,		/* GICD */
+		      <0x0 0x10440000 0x100000>;	/* GICR * 8 */
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+		clock-frequency = <24576000>;
+		use-clocksource-only;
+	};
+
+	ext_26m: ext_26m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+		clock-output-names = "ext-26m";
+	};
+
+	ext_200m: ext_200m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <200000000>;
+		clock-output-names = "ext-200m";
+	};
+
+	mct@10050000 {
+		compatible = "samsung,exynos4210-mct";
+		reg = <0x0 0x10050000 0x800>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		interrupt-parent = <&mct_map>;
+		interrupts = <0>, <1>, <2>, <3>,
+			     <4>, <5>, <6>, <7>,
+			     <8>, <9>, <10>, <11>;
+		clocks = <&ext_26m>, <&ext_26m>;
+		clock-names = "fin_pll", "mct";
+		use-clockevent-only;
+
+		mct_map: mct-map {
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = <0 &gic 0 IRQ_MCT_G0_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<1 &gic 0 IRQ_MCT_G1_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<2 &gic 0 IRQ_MCT_G2_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<3 &gic 0 IRQ_MCT_G3_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<4 &gic 0 IRQ_MCT_L0_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<5 &gic 0 IRQ_MCT_L1_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<6 &gic 0 IRQ_MCT_L2_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<7 &gic 0 IRQ_MCT_L3_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<8 &gic 0 IRQ_MCT_L4_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<9 &gic 0 IRQ_MCT_L5_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<10 &gic 0 IRQ_MCT_L6_MISC IRQ_TYPE_LEVEL_HIGH>,
+					<11 &gic 0 IRQ_MCT_L7_MISC IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	serial_0: uart@10A00000 {
+		compatible = "samsung,exynos-uart";
+		samsung,separate-uart-clk;
+		samsung,usi-serial-v2;
+		reg-io-width = <4>;
+		reg = <0x0 0x10A00000 0x100>;
+		samsung,fifo-size = <256>;
+		interrupts = <GIC_SPI IRQ_USI0_UART_PERIC0 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_bus>;
+		samsung,console-dbg;
+		clocks = <&ext_200m>, <&ext_200m>;
+		clock-names = "gate_uart_clk0", "ipclk_uart0";
+		status = "disabled";
+	};
+
+	/* GPIO_ALIVE */
+	pinctrl_0: pinctrl@174D0000 {
+		compatible = "google,gs101-pinctrl";
+		reg = <0x00000000 0x174d0000 0x00001000>;
+		interrupts = <GIC_SPI IRQ_ALIVE_EINT0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT1 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT2 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT3 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT4 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT5 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT8 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT9 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT10 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT11 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT12 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT13 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT14 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT15 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT16 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT17 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT18 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT19 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT20 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT21 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT22 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT23 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT24 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT25 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT26 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT27 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT28 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT29 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT30 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT31 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT32 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT33 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT34 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT35 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT36 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT37 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT38 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT39 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT40 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT41 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT42 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT43 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT44 IRQ_TYPE_LEVEL_HIGH>;
+
+		wakeup-interrupt-controller {
+			compatible = "samsung,exynos7-wakeup-eint";
+		};
+	};
+
+	/* GPIO_FAR_ALIVE */
+	pinctrl_1: pinctrl@174E0000 {
+		compatible = "google,gs101-pinctrl";
+		reg = <0x00000000 0x174e0000 0x00001000>;
+		interrupts = <GIC_SPI IRQ_ALIVE_EINT45 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT46 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT47 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT48 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT49 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT50 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT51 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT52 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT53 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT54 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT55 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT56 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT57 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT58 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT59 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT60 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT61 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT62 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT63 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT64 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT65 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_ALIVE_EINT66 IRQ_TYPE_LEVEL_HIGH>;
+
+		wakeup-interrupt-controller {
+			compatible = "samsung,exynos7-wakeup-eint";
+		};
+	};
+
+	/* GPIO_GSACORE */
+	pinctrl_2: pinctrl@17A80000 {
+		compatible = "google,gs101-pinctrl";
+		reg = <0x00000000 0x17a80000 0x00001000>;
+	};
+	/* GPIO_GSACTRL */
+	pinctrl_3: pinctrl@17940000 {
+		compatible = "google,gs101-pinctrl";
+		reg = <0x00000000 0x17940000 0x00001000>;
+	};
+	/* GPIO_PERIC0 */
+	pinctrl_4: pinctrl@10840000 {
+		compatible = "google,gs101-pinctrl";
+		reg = <0x00000000 0x10840000 0x00001000>;
+		interrupts = <GIC_SPI IRQ_GPIO_PERIC0_PERIC0 IRQ_TYPE_LEVEL_HIGH>;
+	};
+	/* GPIO_PERIC1 */
+	pinctrl_5: pinctrl@10C40000 {
+		compatible = "google,gs101-pinctrl";
+		reg = <0x00000000 0x10C40000 0x00001000>;
+		interrupts = <GIC_SPI IRQ_GPIO_PERIC1_PERIC1 IRQ_TYPE_LEVEL_HIGH>;
+	};
+	/* GPIO_HSI1 */
+	pinctrl_6: pinctrl@11840000 {
+		compatible = "google,gs101-pinctrl";
+		reg = <0x00000000 0x11840000 0x00001000>;
+		interrupts = <GIC_SPI IRQ_GPIO_HSI1_HSI1 IRQ_TYPE_LEVEL_HIGH>;
+	};
+	/* GPIO_HSI2 */
+	pinctrl_7: pinctrl@14440000 {
+		compatible = "google,gs101-pinctrl";
+		reg = <0x00000000 0x14440000 0x00001000>;
+		interrupts = <GIC_SPI IRQ_GPIO_HSI2_HSI2 IRQ_TYPE_LEVEL_HIGH>;
+	};
+};
