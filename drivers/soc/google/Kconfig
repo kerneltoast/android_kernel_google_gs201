@@ -12,6 +12,11 @@ config SOC_GS101
 	bool "Google GS101"
 	depends on SOC_GOOGLE
 
+config BOARD_SLIDER
+	bool "Google Slider Board"
+	depends on SOC_GS101
+	select OF_GENERATE_SYMBOLS
+
 config GS_CHIPID
 	tristate "GS Chipid controller driver"
 	depends on ARM64
