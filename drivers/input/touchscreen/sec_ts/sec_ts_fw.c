@@ -12,6 +12,7 @@
 
 #include "sec_ts.h"
 
+#define SEC_TS_ENABLE_FW_VERIFY		0
 #define SEC_TS_FW_BLK_SIZE		256
 
 enum {
@@ -54,7 +55,7 @@ static int sec_ts_enter_fw_mode(struct sec_ts_data *ts)
 	u8 fw_status;
 	u8 id[3];
 
-	ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_ENTER_FW_MODE, fw_update_mode_passwd, sizeof(fw_update_mode_passwd));
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_ENTER_FW_MODE, fw_update_mode_passwd, sizeof(fw_update_mode_passwd));
 	sec_ts_delay(20);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: write fail, enter_fw_mode\n", __func__);
@@ -64,7 +65,7 @@ static int sec_ts_enter_fw_mode(struct sec_ts_data *ts)
 	input_info(true, &ts->client->dev, "%s: write ok, enter_fw_mode - 0x%x 0x%x 0x%x\n",
 		__func__, SEC_TS_CMD_ENTER_FW_MODE, fw_update_mode_passwd[0], fw_update_mode_passwd[1]);
 
-	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_BOOT_STATUS, &fw_status, 1);
+	ret = ts->sec_ts_read(ts, SEC_TS_READ_BOOT_STATUS, &fw_status, 1);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: read fail, read_boot_status\n", __func__);
 		return 0;
@@ -78,7 +79,7 @@ static int sec_ts_enter_fw_mode(struct sec_ts_data *ts)
 
 	sec_ts_delay(10);
 
-	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_ID, id, 3);
+	ret = ts->sec_ts_read(ts, SEC_TS_READ_ID, id, 3);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: read id fail\n", __func__);
 		return 0;
@@ -89,19 +90,34 @@ static int sec_ts_enter_fw_mode(struct sec_ts_data *ts)
 	ts->boot_ver[2] = id[2];
 
 	ts->flash_page_size = SEC_TS_FW_BLK_SIZE_DEFAULT;
-	if ((ts->boot_ver[1] == 0x37) && (ts->boot_ver[2] == 0x61))
-		ts->flash_page_size = 512;
 
 	input_info(true, &ts->client->dev, "%s: read_boot_id = %02X%02X%02X\n", __func__, id[0], id[1], id[2]);
 
 	return 1;
 }
 
-static int sec_ts_sw_reset(struct sec_ts_data *ts)
+int sec_ts_hw_reset(struct sec_ts_data *ts)
+{
+	int reset_gpio = ts->plat_data->reset_gpio;
+
+	if (!gpio_is_valid(reset_gpio)) {
+		input_err(true, &ts->client->dev, "%s: invalid gpio %d\n",
+			__func__, reset_gpio);
+		return -EINVAL;
+	}
+
+	gpio_set_value(reset_gpio, 0);
+	sec_ts_delay(10);
+	gpio_set_value(reset_gpio, 1);
+
+	return 0;
+}
+
+int sec_ts_sw_reset(struct sec_ts_data *ts)
 {
 	int ret;
 
-	ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SW_RESET, NULL, 0);
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SW_RESET, NULL, 0);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: write fail, sw_reset\n", __func__);
 		return 0;
@@ -118,13 +134,77 @@ static int sec_ts_sw_reset(struct sec_ts_data *ts)
 	input_info(true, &ts->client->dev, "%s: sw_reset\n", __func__);
 
 	/* Sense_on */
-	ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SENSE_ON, NULL, 0);
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SENSE_ON, NULL, 0);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: write fail, Sense_on\n", __func__);
 		return 0;
 	}
 
 	return ret;
+}
+
+int sec_ts_system_reset(struct sec_ts_data *ts)
+{
+	int ret = -1;
+
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SW_RESET, NULL, 0);
+	if (ret < 0)
+		input_err(true, &ts->client->dev, "%s: write fail, sw_reset\n",
+			__func__);
+	else {
+		sec_ts_delay(100);
+		/* Normally it should not happen with any retry.
+		 * But, if happened, retry less time to wait ack
+		 */
+		ret = sec_ts_wait_for_ready_with_count(ts,
+						SEC_TS_ACK_BOOT_COMPLETE, 10);
+		if (ret < 0)
+			input_err(true, &ts->client->dev,
+				"%s: sw_reset time out!\n", __func__);
+		else
+			input_info(true,
+				&ts->client->dev, "%s: sw_reset done\n",
+				__func__);
+	}
+
+	if (ret < 0) {
+		if (!gpio_is_valid(ts->plat_data->reset_gpio)) {
+			input_err(true, &ts->client->dev,
+				"%s: reset gpio is unavailable!\n", __func__);
+			return ret;
+		}
+
+		input_err(true, &ts->client->dev,
+			"%s: sw_reset failed or time out, try hw_reset to recover!\n",
+			__func__);
+		ret = sec_ts_hw_reset(ts);
+		if (ret) {
+			input_err(true, &ts->client->dev,
+				"%s: hw_reset failed\n", __func__);
+			return ret;
+		}
+
+		ret = sec_ts_wait_for_ready_with_count(ts,
+						SEC_TS_ACK_BOOT_COMPLETE, 10);
+		if (ret < 0) {
+			input_err(true,
+				  &ts->client->dev, "%s: hw_reset time out\n",
+				  __func__);
+			return ret;
+		}
+		input_info(true, &ts->client->dev, "%s: hw_reset done\n",
+			__func__);
+	}
+
+	/* Sense_on */
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SENSE_ON, NULL, 0);
+	if (ret < 0) {
+		input_err(true, &ts->client->dev, "%s: write fail, Sense_on\n",
+			__func__);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void sec_ts_save_version_of_bin(struct sec_ts_data *ts, const fw_header *fw_hd)
@@ -171,7 +251,7 @@ static int sec_ts_save_version_of_ic(struct sec_ts_data *ts)
 	int ret;
 
 	/* Image ver */
-	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_IMG_VERSION, img_ver, 4);
+	ret = ts->sec_ts_read(ts, SEC_TS_READ_IMG_VERSION, img_ver, 4);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: Image version read error\n", __func__);
 		return -EIO;
@@ -185,7 +265,7 @@ static int sec_ts_save_version_of_ic(struct sec_ts_data *ts)
 	ts->plat_data->img_version_of_ic[3] = img_ver[3];
 
 	/* Core ver */
-	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_FW_VERSION, core_ver, 4);
+	ret = ts->sec_ts_read(ts, SEC_TS_READ_FW_VERSION, core_ver, 4);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: core version read error\n", __func__);
 		return -EIO;
@@ -199,7 +279,7 @@ static int sec_ts_save_version_of_ic(struct sec_ts_data *ts)
 	ts->plat_data->core_version_of_ic[3] = core_ver[3];
 
 	/* Config ver */
-	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_PARA_VERSION, config_ver, 4);
+	ret = ts->sec_ts_read(ts, SEC_TS_READ_PARA_VERSION, config_ver, 4);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: config version read error\n", __func__);
 		return -EIO;
@@ -232,7 +312,7 @@ static int sec_ts_check_firmware_version(struct sec_ts_data *ts, const u8 *fw_in
 	sec_ts_save_version_of_bin(ts, fw_hd);
 
 	/* firmware download if READ_BOOT_STATUS = 0x10 */
-	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_BOOT_STATUS, buff, 1);
+	ret = ts->sec_ts_read(ts, SEC_TS_READ_BOOT_STATUS, buff, 1);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev,
 					"%s: fail to read BootStatus\n", __func__);
@@ -264,7 +344,8 @@ static int sec_ts_check_firmware_version(struct sec_ts_data *ts, const u8 *fw_in
 	}
 
 	for (i = 2; i < 4; i++) {
-		if (ts->plat_data->img_version_of_ic[i] < ts->plat_data->img_version_of_bin[i])
+		if (ts->plat_data->img_version_of_ic[i] !=
+		    ts->plat_data->img_version_of_bin[i])
 			return 1;
 	}
 
@@ -294,7 +375,7 @@ static int sec_ts_flashpageerase(struct sec_ts_data *ts, u32 page_idx, u32 page_
 	tCmd[4] = (u8)((page_num >> 0) & 0xFF);
 	tCmd[5] = sec_ts_checksum(tCmd, 1, 4);
 
-	ret = ts->sec_ts_i2c_write_burst(ts, tCmd, 6);
+	ret = ts->sec_ts_write_burst(ts, tCmd, 6);
 
 	return ret;
 }
@@ -312,18 +393,18 @@ static int sec_ts_flashpagewrite(struct sec_ts_data *ts, u32 page_idx, u8 *page_
 	memcpy(&tCmd[3], page_data, flash_page_size);
 	tCmd[1 + 2 + flash_page_size] = sec_ts_checksum(tCmd, 1, 2 + flash_page_size);
 
-	ret = ts->sec_ts_i2c_write_burst(ts, tCmd, 1 + 2 + flash_page_size + 1);
+	ret = ts->sec_ts_write_burst(ts, tCmd, 1 + 2 + flash_page_size + 1);
 	return ret;
 }
 
 static bool sec_ts_limited_flashpagewrite(struct sec_ts_data *ts, u32 page_idx, u8 *page_data)
 {
-	int ret;
+	int ret = 0;
 	u8 *tCmd;
 	u8 copy_data[3 + SEC_TS_FW_BLK_SIZE_MAX];
 	int copy_left = (int)ts->flash_page_size + 3;
 	int copy_size = 0;
-	int copy_max = ts->i2c_burstmax - 1;
+	int copy_max = ts->io_burstmax - 1;
 	int flash_page_size = (int)ts->flash_page_size;
 
 	copy_data[0] = (u8)((page_idx >> 8) & 0xFF);	/* addH */
@@ -346,7 +427,7 @@ static bool sec_ts_limited_flashpagewrite(struct sec_ts_data *ts, u32 page_idx, 
 
 		memcpy(&tCmd[1], &copy_data[copy_size], copy_cur);
 
-		ret = ts->sec_ts_i2c_write_burst(ts, tCmd, 1 + copy_cur);
+		ret = ts->sec_ts_write_burst_heap(ts, tCmd, 1 + copy_cur);
 		if (ret < 0)
 			input_err(true, &ts->client->dev,
 						"%s: failed, ret:%d\n", __func__, ret);
@@ -446,6 +527,7 @@ err:
 	return -EIO;
 }
 
+#if SEC_TS_ENABLE_FW_VERIFY
 static int sec_ts_memoryblockread(struct sec_ts_data *ts, u32 mem_addr, int mem_size, u8 *buf)
 {
 	int ret;
@@ -464,7 +546,7 @@ static int sec_ts_memoryblockread(struct sec_ts_data *ts, u32 mem_addr, int mem_
 	cmd[3] = (u8)((mem_addr >> 8) & 0xff);
 	cmd[4] = (u8)((mem_addr >> 0) & 0xff);
 
-	ret = ts->sec_ts_i2c_write_burst(ts, cmd, 5);
+	ret = ts->sec_ts_write_burst(ts, cmd, 5);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev,
 					"%s: send command failed, %02X\n", __func__, cmd[0]);
@@ -476,7 +558,7 @@ static int sec_ts_memoryblockread(struct sec_ts_data *ts, u32 mem_addr, int mem_
 	cmd[1] = (u8)((mem_size >> 8) & 0xff);
 	cmd[2] = (u8)((mem_size >> 0) & 0xff);
 
-	ret = ts->sec_ts_i2c_write_burst(ts, cmd, 3);
+	ret = ts->sec_ts_write_burst(ts, cmd, 3);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: send command failed, %02X\n", __func__, cmd[0]);
 		return -EIO;
@@ -488,14 +570,14 @@ static int sec_ts_memoryblockread(struct sec_ts_data *ts, u32 mem_addr, int mem_
 	data = buf;
 
 
-	ret = ts->sec_ts_i2c_read(ts, cmd[0], data, mem_size);
+	ret = ts->sec_ts_read_heap(ts, cmd[0], data, mem_size);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: memory read failed\n", __func__);
 		return -EIO;
 	}
 /*
-	ret = ts->sec_ts_i2c_write(ts, cmd[0], NULL, 0);
-	ret = ts->sec_ts_i2c_read_bulk(ts, data, mem_size);
+	ret = ts->sec_ts_write(ts, cmd[0], NULL, 0);
+	ret = ts->sec_ts_read_bulk_heap(ts, data, mem_size);
 */
 	return 0;
 }
@@ -542,6 +624,7 @@ static int sec_ts_memoryread(struct sec_ts_data *ts, u32 mem_addr, u8 *mem_data,
 
 	return read_size;
 }
+#endif
 
 static int sec_ts_chunk_update(struct sec_ts_data *ts, u32 addr, u32 size, u8 *data, int retry)
 {
@@ -554,7 +637,7 @@ static int sec_ts_chunk_update(struct sec_ts_data *ts, u32 addr, u32 size, u8 *d
 
 	write_size = sec_ts_flashwrite(ts, addr, data, fw_size, retry);
 	if (write_size != fw_size) {
-		input_err(true, &ts->client->dev, "%s: fw write failed\n", __func__);
+		input_err(true, &ts->client->dev, "%s: fw write failed, write_size %d != fw_size %d\n", __func__, write_size, fw_size);
 		ret = -1;
 		goto err_write_fail;
 	}
@@ -566,16 +649,19 @@ static int sec_ts_chunk_update(struct sec_ts_data *ts, u32 addr, u32 size, u8 *d
 		goto err_write_fail;
 	}
 
+#if SEC_TS_ENABLE_FW_VERIFY
 	if (sec_ts_memoryread(ts, addr, mem_rb, fw_size) >= 0) {
 		u32 ii;
 
 		for (ii = 0; ii < fw_size; ii++) {
-			if (data[ii] != mem_rb[ii])
+			if (data[ii] != mem_rb[ii]) {
+				input_info(true, &ts->client->dev, "%s: data = %X, mem_rb = %X, ii = %d\n", __func__, data[ii], mem_rb[ii], ii);
 				break;
+                        }
 		}
 
 		if (fw_size != ii) {
-			input_err(true, &ts->client->dev, "%s: fw verify fail\n", __func__);
+			input_err(true, &ts->client->dev, "%s: fw verify fail, fw_size %d != ii %d\n", __func__, fw_size, ii);
 			ret = -1;
 			goto out;
 		}
@@ -587,6 +673,7 @@ static int sec_ts_chunk_update(struct sec_ts_data *ts, u32 addr, u32 size, u8 *d
 	input_info(true, &ts->client->dev, "%s: verify done(%d)\n", __func__, ret);
 
 out:
+#endif
 	vfree(mem_rb);
 err_write_fail:
 	sec_ts_delay(10);
@@ -698,7 +785,7 @@ static int sec_ts_firmware_update(struct sec_ts_data *ts, const u8 *data, size_t
 				buff[1] = 0;
 				buff[2] = ts->cal_count;
 
-				ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_NVM, buff, 3);
+				ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 3);
 				if (ret < 0)
 					input_err(true, &ts->client->dev,
 						"%s: nvm write failed. ret: %d\n", __func__, ret);
@@ -709,7 +796,7 @@ static int sec_ts_firmware_update(struct sec_ts_data *ts, const u8 *data, size_t
 							__func__, ts->cal_count);
 			}
 
-			ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_IMG_VERSION, img_ver, 4);
+			ret = ts->sec_ts_read(ts, SEC_TS_READ_IMG_VERSION, img_ver, 4);
 			if (ret < 0) {
 				input_err(true, &ts->client->dev, "%s: Image version read error\n", __func__);
 			} else {
@@ -725,7 +812,7 @@ static int sec_ts_firmware_update(struct sec_ts_data *ts, const u8 *data, size_t
 				buff[1] = 1;// 2bytes
 				buff[2] = img_ver[2];
 				buff[3] = img_ver[3];
-				ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_NVM, buff, 4);
+				ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 4);
 				if (ret < 0) {
 					input_err(true, &ts->client->dev,
 						"%s: nvm write failed. ret: %d\n", __func__, ret);
@@ -741,28 +828,96 @@ static int sec_ts_firmware_update(struct sec_ts_data *ts, const u8 *data, size_t
 			input_err(true, &ts->client->dev, "%s: DO NOT CALIBRATION(0x%02X)\n", __func__, ts->cal_count);
 		}
 #else
-		/* always calibration after fw update */
-		input_err(true, &ts->client->dev, "%s: RUN OFFSET CALIBRATION\n", __func__);
+		/* auto-calibration if restore_cal = 0 */
+		if (!restore_cal) {
+			input_err(true, &ts->client->dev,
+					"%s: RUN OFFSET CALIBRATION\n",
+					__func__);
 
-		ret = sec_ts_execute_force_calibration(ts, OFFSET_CAL_SEC);
-		if (ret < 0)
-			input_err(true, &ts->client->dev, "%s: fail to write OFFSET CAL SEC!\n", __func__);
+			ret = sec_ts_execute_force_calibration(ts,
+					OFFSET_CAL_SEC);
+			if (ret < 0)
+				input_err(true, &ts->client->dev,
+						"%s: fail to write OFFSET CAL SEC!\n",
+						__func__);
 
 #ifdef USE_PRESSURE_SENSOR
-		ret = sec_ts_execute_force_calibration(ts, PRESSURE_CAL);
-		if (ret < 0)
-			input_err(true, &ts->client->dev, "%s: fail to write PRESSURE CAL!\n", __func__);
+			ret = sec_ts_execute_force_calibration(ts,
+					PRESSURE_CAL);
+			if (ret < 0)
+				input_err(true, &ts->client->dev,
+						"%s: fail to write PRESSURE CAL!\n",
+						__func__);
 #endif
+
+			/* check mis-cal */
+			if (ts->plat_data->mis_cal_check) {
+				u8 buff[2];
+				u8 mis_cal_data;
+
+				buff[0] = STATE_MANAGE_OFF;
+				ret = ts->sec_ts_write(ts,
+					SEC_TS_CMD_STATEMANAGE_ON, buff, 1);
+				if (ret < 0)
+					input_err(true, &ts->client->dev,
+						"%s: mis_cal_check error[1] ret: %d\n",
+						__func__, ret);
+
+				buff[0] = TOUCH_SYSTEM_MODE_TOUCH;
+				buff[1] = TOUCH_MODE_STATE_TOUCH;
+				ret = ts->sec_ts_write(ts,
+					SEC_TS_CMD_CHG_SYSMODE, buff, 2);
+				if (ret < 0)
+					input_err(true, &ts->client->dev,
+						"%s: mis_cal_check error[2] ret: %d\n",
+						__func__, ret);
+
+				input_info(true, &ts->client->dev,
+					"%s: mis_cal check\n", __func__);
+				ret = ts->sec_ts_write(ts,
+					SEC_TS_CMD_MIS_CAL_CHECK, NULL, 0);
+				if (ret < 0)
+					input_err(true, &ts->client->dev,
+						"%s: mis_cal_check error[3] ret: %d\n",
+						__func__, ret);
+				sec_ts_delay(200);
+
+				ret = ts->sec_ts_read(ts,
+					SEC_TS_CMD_MIS_CAL_READ,
+					&mis_cal_data, 1);
+				if (ret < 0)
+					input_err(true, &ts->client->dev,
+						"%s: fail!, %d\n",
+						__func__, ret);
+				else
+					input_info(true, &ts->client->dev,
+						"%s: mis_cal data : %d\n",
+						__func__, mis_cal_data);
+
+				buff[0] = STATE_MANAGE_ON;
+				ret = ts->sec_ts_write(ts,
+					SEC_TS_CMD_STATEMANAGE_ON, buff, 1);
+				if (ret < 0)
+					input_err(true, &ts->client->dev,
+						"%s: mis_cal_check error[4] ret: %d\n",
+						__func__, ret);
+			}
+
+			/* Update calibration report */
+			sec_ts_read_calibration_report(ts);
+		} else
+			input_info(true, &ts->client->dev, "%s: No calibration: restore_cal = %d\n",
+					__func__, restore_cal);
 #endif
 
 		/* Sense_on */
-		ret = ts->sec_ts_i2c_write(ts, SEC_TS_CMD_SENSE_ON, NULL, 0);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SENSE_ON, NULL, 0);
 		if (ret < 0) {
 			input_err(true, &ts->client->dev, "%s: write fail, Sense_on\n", __func__);
 			return -EIO;
 		}
 
-		if (ts->sec_ts_i2c_read(ts, SEC_TS_READ_BOOT_STATUS, &fw_status, 1) < 0) {
+		if (ts->sec_ts_read(ts, SEC_TS_READ_BOOT_STATUS, &fw_status, 1) < 0) {
 			input_err(true, &ts->client->dev, "%s: read fail, read_boot_status = 0x%x\n", __func__, fw_status);
 			return -EIO;
 		}
@@ -777,7 +932,7 @@ static int sec_ts_firmware_update(struct sec_ts_data *ts, const u8 *data, size_t
 		return 1;
 	} else {
 
-		if (ts->sec_ts_i2c_read(ts, SEC_TS_READ_ID, tBuff, 3) < 0) {
+		if (ts->sec_ts_read(ts, SEC_TS_READ_ID, tBuff, 3) < 0) {
 			input_err(true, &ts->client->dev, "%s: read device id fail after bl fw download\n", __func__);
 			return -EIO;
 		}
@@ -827,7 +982,7 @@ int sec_ts_bl_update(struct sec_ts_data *ts)
 	u8 tCmd[5] = { 0xDE, 0xAD, 0xBE, 0xEF };
 	u8 tBuff[3];
 
-	ret = ts->sec_ts_i2c_write(ts, SEC_TS_READ_BL_UPDATE_STATUS, tCmd, 4);
+	ret = ts->sec_ts_write(ts, SEC_TS_READ_BL_UPDATE_STATUS, tCmd, 4);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: bl update command send fail!\n", __func__);
 		goto err;
@@ -835,7 +990,7 @@ int sec_ts_bl_update(struct sec_ts_data *ts)
 	sec_ts_delay(10);
 
 	do {
-		ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_BL_UPDATE_STATUS, tBuff, 1);
+		ret = ts->sec_ts_read(ts, SEC_TS_READ_BL_UPDATE_STATUS, tBuff, 1);
 		if (ret < 0) {
 			input_err(true, &ts->client->dev, "%s: read bl update status fail!\n", __func__);
 			goto err;
@@ -846,13 +1001,13 @@ int sec_ts_bl_update(struct sec_ts_data *ts)
 
 	tCmd[0] = 0x55;
 	tCmd[1] = 0xAC;
-	ret = ts->sec_ts_i2c_write(ts, 0x57, tCmd, 2);
+	ret = ts->sec_ts_write(ts, 0x57, tCmd, 2);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: write passwd fail!\n", __func__);
 		goto err;
 	}
 
-	ret = ts->sec_ts_i2c_read(ts, SEC_TS_READ_ID, tBuff, 3);
+	ret = ts->sec_ts_read(ts, SEC_TS_READ_ID, tBuff, 3);
 
 	if (tBuff[0]  == 0xB4) {
 		input_info(true, &ts->client->dev, "%s: bl update completed!\n", __func__);
@@ -875,7 +1030,7 @@ int sec_ts_firmware_update_on_probe(struct sec_ts_data *ts, bool force_update)
 	int ii = 0;
 	int ret = 0;
 
-	if (ts->plat_data->bringup == 1) {
+	if (ts->plat_data->bringup == 1 && ts->is_fw_corrupted == false) {
 		input_err(true, &ts->client->dev, "%s: bringup. do not update\n", __func__);
 		return 0;
 	}
@@ -902,7 +1057,7 @@ int sec_ts_firmware_update_on_probe(struct sec_ts_data *ts, bool force_update)
 
 	result = sec_ts_check_firmware_version(ts, fw_entry->data);
 
-	if (ts->plat_data->bringup == 2) {
+	if (ts->plat_data->bringup == 2 && ts->is_fw_corrupted == false) {
 		input_err(true, &ts->client->dev, "%s: bringup. do not update\n", __func__);
 		result = 0;
 		goto err_request_fw;
@@ -956,6 +1111,20 @@ int sec_ts_firmware_update_on_probe(struct sec_ts_data *ts, bool force_update)
 		goto err_request_fw;
 	}
 #endif
+	input_info(true, &ts->client->dev, "%s: IC config %x %x, Bin config %x %x\n",
+			__func__, ts->plat_data->config_version_of_ic[2],
+			ts->plat_data->config_version_of_ic[3],
+			ts->plat_data->config_version_of_bin[2],
+			ts->plat_data->config_version_of_bin[3]);
+
+	/*judge auto-k by comparing config version*/
+	if (ts->plat_data->config_version_of_ic[2] !=
+		ts->plat_data->config_version_of_bin[2] ||
+		ts->plat_data->config_version_of_ic[3] !=
+		ts->plat_data->config_version_of_bin[3])
+		restore_cal = 0;
+	else
+		restore_cal = 1;
 
 	for (ii = 0; ii < 3; ii++) {
 		ret = sec_ts_firmware_update(ts, fw_entry->data, fw_entry->size, 0, restore_cal, ii);
@@ -1100,7 +1269,7 @@ static int sec_ts_load_fw_from_ffu(struct sec_ts_data *ts)
 {
 	const struct firmware *fw_entry;
 	const char *fw_path = SEC_TS_DEFAULT_FFU_FW;
-	int result = -1;
+	int result = -1, restore_cal = 0;
 
 	disable_irq(ts->client->irq);
 
@@ -1115,7 +1284,22 @@ static int sec_ts_load_fw_from_ffu(struct sec_ts_data *ts)
 
 	sec_ts_check_firmware_version(ts, fw_entry->data);
 
-	if (sec_ts_firmware_update(ts, fw_entry->data, fw_entry->size, 0, 0, 0) < 0)
+	input_info(true, &ts->client->dev, "%s: IC config %x %x, Bin config %x %x\n",
+			__func__, ts->plat_data->config_version_of_ic[2],
+			ts->plat_data->config_version_of_ic[3],
+			ts->plat_data->config_version_of_bin[2],
+			ts->plat_data->config_version_of_bin[3]);
+
+	if (ts->plat_data->config_version_of_ic[2] !=
+		ts->plat_data->config_version_of_bin[2] ||
+		ts->plat_data->config_version_of_ic[3] !=
+		ts->plat_data->config_version_of_bin[3])
+		restore_cal = 0;
+	else
+		restore_cal = 1;
+
+	if (sec_ts_firmware_update(ts, fw_entry->data,
+			fw_entry->size, 0, restore_cal, 0) < 0)
 		result = -1;
 	else
 		result = 0;
@@ -1173,7 +1357,9 @@ int sec_ts_firmware_update_on_hidden_menu(struct sec_ts_data *ts, int update_typ
 		break;
 	}
 
+#ifdef SEC_TS_SUPPORT_CUSTOMLIB
 	sec_ts_check_custom_library(ts);
+#endif
 
 	return ret;
 }

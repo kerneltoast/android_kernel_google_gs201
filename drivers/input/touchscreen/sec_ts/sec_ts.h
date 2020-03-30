@@ -21,63 +21,75 @@
 #include <linux/gpio.h>
 #include <linux/hrtimer.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/input.h>
+#if defined(CONFIG_TOUCHSCREEN_HEATMAP) || \
+	defined(CONFIG_TOUCHSCREEN_HEATMAP_MODULE)
+#include <linux/input/heatmap.h>
+#endif
 #include <linux/input/mt.h>
-#include <linux/input/sec_cmd.h>
+#include "sec_cmd.h"
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <drm/drm_panel.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
-
-#if defined(CONFIG_TRUSTONIC_TRUSTED_UI)
-#include <linux/t-base-tui.h>
-#endif
 #ifdef CONFIG_SEC_SYSFS
 #include <linux/sec_sysfs.h>
 #endif
-
-#include "../../../i2c/busses/i2c-exynos5.h"
 
 #ifdef CONFIG_INPUT_BOOSTER
 #include <linux/input/input_booster.h>
 #endif
 
-#ifdef CONFIG_SECURE_TOUCH
-#include <linux/atomic.h>
-#include <linux/clk.h>
-#include <linux/pm_runtime.h>
-#include <soc/qcom/scm.h>
-
-#define SECURE_TOUCH_ENABLE	1
-#define SECURE_TOUCH_DISABLE	0
+#ifdef CONFIG_TOUCHSCREEN_TBN
+#include <linux/input/touch_bus_negotiator.h>
 #endif
 
-#define SEC_TS_I2C_NAME		"sec_ts"
+#define SEC_TS_NAME		"sec_ts"
 #define SEC_TS_DEVICE_NAME	"SEC_TS"
 
+#undef SEC_TS_DEBUG_IO
 #define USE_OPEN_CLOSE
 #undef USE_RESET_DURING_POWER_ON
 #undef USE_RESET_EXIT_LPM
-#define USE_POR_AFTER_I2C_RETRY
+#undef USE_POR_AFTER_I2C_RETRY
 #undef USER_OPEN_DWORK
-#define USE_PRESSURE_SENSOR
-#define PAT_CONTROL
+#undef USE_PRESSURE_SENSOR //TODO: check this
+#undef PAT_CONTROL //TODO: check this
 
 #if defined(USE_RESET_DURING_POWER_ON) || defined(USE_POR_AFTER_I2C_RETRY) || defined(USE_RESET_EXIT_LPM)
 #define USE_POWER_RESET_WORK
 #endif
 
+#ifndef I2C_INTERFACE
+#define SPI_CLOCK_FREQ			10000000
+#define SPI_DELAY_CS			10
+#define SEC_TS_SPI_SYNC_CODE		0xAA
+#define SEC_TS_SPI_HEADER_SIZE		5
+#define SEC_TS_SPI_READ_HEADER_SIZE	7
+#define SEC_TS_SPI_CHECKSUM_SIZE	1
+
+#define SEC_TS_SPI_CMD_OK		0x0
+#define SEC_TS_SPI_CMD_NG		(1u<<7)
+#define SEC_TS_SPI_CMD_UNKNOWN		(SEC_TS_SPI_CMD_NG | (1))
+#define SEC_TS_SPI_CMD_FAIL		(SEC_TS_SPI_CMD_NG | (2))
+#define SEC_TS_SPI_CMD_BAD_PARAM	(SEC_TS_SPI_CMD_NG | (3))
+#define SEC_TS_SPI_CMD_CHKSUM_FAIL	(SEC_TS_SPI_CMD_NG | (4))
+#endif
+
 #define TOUCH_RESET_DWORK_TIME		10
-#define BRUSH_Z_DATA		63	/* for ArtCanvas */
+#define BRUSH_Z_DATA			63	/* for ArtCanvas */
 
 #define MASK_1_BITS			0x0001
 #define MASK_2_BITS			0x0003
@@ -89,13 +101,13 @@
 #define MASK_8_BITS			0x00FF
 
 /* support feature */
-#define SEC_TS_SUPPORT_SPONGELIB	/* support display lab algorithm */
+//#define SEC_TS_SUPPORT_CUSTOMLIB	/* support user defined library */
 
 #define TYPE_STATUS_EVENT_CMD_DRIVEN	0
 #define TYPE_STATUS_EVENT_ERR		1
 #define TYPE_STATUS_EVENT_INFO		2
 #define TYPE_STATUS_EVENT_USER_INPUT	3
-#define TYPE_STATUS_EVENT_SPONGE_INFO	6
+#define TYPE_STATUS_EVENT_CUSTOMLIB_INFO	6
 #define TYPE_STATUS_EVENT_VENDOR_INFO	7
 #define TYPE_STATUS_CODE_SAR	0x28
 
@@ -119,14 +131,26 @@
 #define SEC_TS_DEFAULT_FFU_FW		"ffu_tsp.bin"
 #define SEC_TS_MAX_FW_PATH		64
 #define SEC_TS_FW_BLK_SIZE_MAX		(512)
-#define SEC_TS_FW_BLK_SIZE_DEFAULT	(256)
+#define SEC_TS_FW_BLK_SIZE_DEFAULT	(512)
 #define SEC_TS_SELFTEST_REPORT_SIZE	80
+#define SEC_TS_PRESSURE_MAX		0x3f
 
-#define I2C_WRITE_BUFFER_SIZE		(256 - 1)//10
+#define IO_WRITE_BUFFER_SIZE		(256 - 1)//10
+
+#ifdef I2C_INTERFACE
+/* max read size: from sec_ts_read_event() at sec_ts.c */
+#define IO_PREALLOC_READ_BUF_SZ	(32 * SEC_TS_EVENT_BUFF_SIZE)
+/* max write size: from sec_ts_flashpagewrite() at sec_ts_fw.c */
+#define IO_PREALLOC_WRITE_BUF_SZ	(SEC_TS_SPI_HEADER_SIZE + 1 + 2 + SEC_TS_FW_BLK_SIZE_MAX + 1)
+#else
+#define IO_PREALLOC_READ_BUF_SZ	2048
+#define IO_PREALLOC_WRITE_BUF_SZ	1024
+#endif
 
 #define SEC_TS_FW_HEADER_SIGN		0x53494654
 #define SEC_TS_FW_CHUNK_SIGN		0x53434654
 
+#define SEC_TS_FW_UPDATE_ON_PROBE
 
 #define AMBIENT_CAL			0
 #define OFFSET_CAL_SDC			1
@@ -177,6 +201,7 @@
 #define SEC_TS_READ_DEVICE_ID			0x22
 #define SEC_TS_READ_PANEL_INFO			0x23
 #define SEC_TS_READ_CORE_CONFIG_VERSION		0x24
+#define SEC_TS_CMD_DISABLE_GAIN_LIMIT		0x2A
 
 #define SEC_TS_CMD_SET_TOUCHFUNCTION		0x30
 #define SEC_TS_CMD_SET_TSC_MODE			0x31
@@ -190,7 +215,19 @@
 #define SEC_TS_CMD_WAKEUP_GESTURE_MODE		0x39
 #define SEC_TS_WRITE_POSITION_FILTER		0x3A
 #define SEC_TS_CMD_WET_MODE			0x3B
+#define SEC_TS_CMD_DISABLE_NORM_TABLE		0x40
+#define SEC_TS_CMD_READ_NORM_TABLE		0x41
+#define SEC_TS_CMD_DISABLE_BASELINE_ADAPT	0x43
+#define SEC_TS_CMD_DISABLE_DF			0x44
 #define SEC_TS_CMD_ERASE_FLASH			0x45
+#define SEC_TS_CMD_RESET_BASELINE		0x47
+#define SEC_TS_CMD_SET_CONT_REPORT		0x49
+#define SEC_TS_CMD_WRITE_NORM_TABLE		0x49
+#if defined(CONFIG_TOUCHSCREEN_HEATMAP) || \
+	defined(CONFIG_TOUCHSCREEN_HEATMAP_MODULE)
+#define SEC_TS_CMD_HEATMAP_READ			0x4A
+#define SEC_TS_CMD_HEATMAP_ENABLE		0x4B
+#endif
 #define SEC_TS_READ_ID				0x52
 #define SEC_TS_READ_BOOT_STATUS			0x55
 #define SEC_TS_CMD_ENTER_FW_MODE		0x57
@@ -203,18 +240,22 @@
 #define SEC_TS_READ_TOUCH_SELF_RAWDATA		0x73
 #define SEC_TS_READ_SELFTEST_RESULT		0x80
 #define SEC_TS_CMD_CALIBRATION_AMBIENT		0x81
+#define SEC_TS_CMD_P2PTEST			0x82
+#define SEC_TS_CMD_SET_P2PTEST_MODE		0x83
 #define SEC_TS_CMD_NVM				0x85
+#define SEC_TS_CMD_SET_WET_MODE			0x8B
 #define SEC_TS_CMD_STATEMANAGE_ON		0x8E
 #define SEC_TS_CMD_CALIBRATION_OFFSET_SDC	0x8F
 
-/* SEC_TS SPONGE OPCODE COMMAND */
-#define SEC_TS_CMD_SPONGE_GET_INFO	0x90
-#define SEC_TS_CMD_SPONGE_WRITE_PARAM	0x91
-#define SEC_TS_CMD_SPONGE_READ_PARAM	0x92
-#define SEC_TS_CMD_SPONGE_NOTIFY_PACKET	0x93
-#define SEC_TS_CMD_SPONGE_OFFSET_PRESSURE_LEVEL		0x5E
-#define SEC_TS_CMD_SPONGE_OFFSET_PRESSURE_THD_HIGH	0x84
-#define SEC_TS_CMD_SPONGE_OFFSET_PRESSURE_THD_LOW	0x86
+/* SEC_TS CUSTOMLIB OPCODE COMMAND */
+#define SEC_TS_CMD_CUSTOMLIB_GET_INFO			0x90
+#define SEC_TS_CMD_CUSTOMLIB_WRITE_PARAM			0x91
+#define SEC_TS_CMD_CUSTOMLIB_READ_PARAM			0x92
+#define SEC_TS_CMD_CUSTOMLIB_NOTIFY_PACKET			0x93
+#define SEC_TS_CMD_CUSTOMLIB_OFFSET_PRESSURE_LEVEL		0x5E
+#define SEC_TS_CMD_CUSTOMLIB_OFFSET_PRESSURE_THD_HIGH	0x84
+#define SEC_TS_CMD_CUSTOMLIB_OFFSET_PRESSURE_THD_LOW	0x86
+#define SEC_TS_CMD_CUSTOMLIB_LP_DUMP			0x01F0
 
 #define SEC_TS_CMD_STATUS_EVENT_TYPE	0xA0
 #define SEC_TS_READ_FW_INFO		0xA2
@@ -231,6 +272,13 @@
 #define SEC_TS_CMD_LONGPRESS_DROP_DIFF	0xAD
 #define SEC_TS_READ_TS_STATUS		0xAF
 #define SEC_TS_CMD_SELFTEST		0xAE
+#define SEC_TS_READ_FORCE_RECAL_COUNT	0xB0
+#define SEC_TS_READ_FORCE_SIG_MAX_VAL	0xB1
+#define SEC_TS_CAAT_READ_STORED_DATA	0xB7
+#define SEC_TS_CMD_SET_NOISE_MODE	0xBB
+#define SEC_TS_CMD_SET_GRIP_DETEC	0xBC
+#define SEC_TS_CMD_SET_PALM_DETEC	0xBE
+#define SEC_TS_READ_CSRAM_RTDP_DATA	0xC3
 
 /* SEC_TS FLASH COMMAND */
 #define SEC_TS_CMD_FLASH_READ_ADDR	0xD0
@@ -242,6 +290,7 @@
 #define SEC_TS_CMD_FLASH_PADDING	0xDA
 
 #define SEC_TS_READ_BL_UPDATE_STATUS	0xDB
+#define SEC_TS_CMD_SET_TOUCH_ENGINE_MODE	0xE1
 #define SEC_TS_CMD_SET_POWER_MODE	0xE4
 #define SEC_TS_CMD_EDGE_DEADZONE	0xE5
 #define SEC_TS_CMD_SET_DEX_MODE		0xE7
@@ -307,12 +356,13 @@
 /* SEC_TS_VENDOR_INFO : Vendor acknowledge event */
 #define SEC_TS_VENDOR_ACK_OFFSET_CAL_DONE	0x40
 #define SEC_TS_VENDOR_ACK_SELF_TEST_DONE	0x41
+#define SEC_TS_VENDOR_ACK_P2P_TEST_DONE		0x42
 
 /* SEC_TS_STATUS_EVENT_USER_INPUT */
 #define SEC_TS_EVENT_FORCE_KEY	0x1
 
-/* SEC_TS_STATUS_EVENT_SPONGE_INFO */
-#define SEC_TS_EVENT_SPONGE_FORCE_KEY	0x00
+/* SEC_TS_STATUS_EVENT_CUSTOMLIB_INFO */
+#define SEC_TS_EVENT_CUSTOMLIB_FORCE_KEY	0x00
 
 /* SEC_TS_ERROR : Error event */
 #define SEC_TS_ERR_EVNET_CORE_ERR	0x0
@@ -373,6 +423,24 @@
 #define SEC_TS_CMD_DEAD_ZONE		0xAC
 #define SEC_TS_CMD_LANDSCAPE_MODE	0xAD
 
+enum spec_check_type {
+	SPEC_NO_CHECK			= 0,
+	SPEC_CHECK			= 1,
+	SPEC_PASS			= 2,
+	SPEC_FAIL			= 3,
+};
+
+enum region_type {
+	REGION_NORMAL			= 0,
+	REGION_EDGE			= 1,
+	REGION_CORNER			= 2,
+	REGION_NOTCH			= 3,
+	REGION_TYPE_COUNT		= 4,
+	/* REGION type should be continuous number start from 0,
+	 * since REGION_TYPE_COUNT is used for type count
+	 */
+};
+
 enum grip_write_mode {
 	G_NONE				= 0,
 	G_SET_EDGE_HANDLER		= 1,
@@ -388,6 +456,7 @@ enum grip_set_data {
 
 typedef enum {
 	SEC_TS_STATE_POWER_OFF = 0,
+	SEC_TS_STATE_SUSPEND,
 	SEC_TS_STATE_LPM,
 	SEC_TS_STATE_POWER_ON
 } TOUCH_POWER_MODE;
@@ -399,18 +468,28 @@ typedef enum {
 	TOUCH_SYSTEM_MODE_SELFTEST	= 3,
 	TOUCH_SYSTEM_MODE_FLASH		= 4,
 	TOUCH_SYSTEM_MODE_LOWPOWER	= 5,
-	TOUCH_SYSTEM_MODE_LISTEN
+	TOUCH_SYSTEM_MODE_SLEEP		= 6
 } TOUCH_SYSTEM_MODE;
 
 typedef enum {
 	TOUCH_MODE_STATE_IDLE		= 0,
 	TOUCH_MODE_STATE_HOVER		= 1,
+	TOUCH_MODE_STATE_STOP		= 1,
 	TOUCH_MODE_STATE_TOUCH		= 2,
 	TOUCH_MODE_STATE_NOISY		= 3,
 	TOUCH_MODE_STATE_CAL		= 4,
 	TOUCH_MODE_STATE_CAL2		= 5,
 	TOUCH_MODE_STATE_WAKEUP		= 10
 } TOUCH_MODE_STATE;
+
+enum {
+	TEST_OPEN			= (0x1 << 0),
+	TEST_NODE_VARIANCE		= (0x1 << 1),
+	TEST_SHORT			= (0x1 << 2),
+	TEST_SELF_NODE			= (0x1 << 5),
+	TEST_NOT_SAVE			= (0x1 << 7),
+	TEST_HIGH_FREQ			= (0x1 << 8),
+};
 
 enum switch_system_mode {
 	TO_TOUCH_MODE			= 0,
@@ -427,42 +506,67 @@ enum {
 	TYPE_REMV_BASELINE_DATA	= 4,
 	TYPE_DECODED_DATA		= 5,	/* Raw */
 	TYPE_REMV_AMB_DATA		= 6,	/*  TYPE_RAW_DATA - TYPE_AMBIENT_DATA */
+	TYPE_NORM2_DATA			= 15,	/* After fs norm. data */
 	TYPE_OFFSET_DATA_SEC	= 19,	/* Cap Offset in SEC Manufacturing Line */
 	TYPE_OFFSET_DATA_SDC	= 29,	/* Cap Offset in SDC Manufacturing Line */
+	TYPE_NOI_P2P_MIN		= 30,	/* Peak-to-peak noise Min */
+	TYPE_NOI_P2P_MAX		= 31,	/* Peak-to-peak noise Max */
+	TYPE_OFFSET_DATA_SDC_CM2	= 129,
+	TYPE_OFFSET_DATA_SDC_NOT_SAVE	= 229,
 	TYPE_INVALID_DATA		= 0xFF,	/* Invalid data type for release factory mode */
 };
 
 typedef enum {
-	SPONGE_EVENT_TYPE_SPAY			= 0x04,
-	SPONGE_EVENT_TYPE_PRESSURE_TOUCHED = 0x05,
-	SPONGE_EVENT_TYPE_PRESSURE_RELEASED	= 0x06,
-	SPONGE_EVENT_TYPE_AOD			= 0x08,
-	SPONGE_EVENT_TYPE_AOD_PRESS		= 0x09,
-	SPONGE_EVENT_TYPE_AOD_LONGPRESS		= 0x0A,
-	SPONGE_EVENT_TYPE_AOD_DOUBLETAB		= 0x0B,
-	SPONGE_EVENT_TYPE_AOD_HOMEKEY_PRESS	= 0x0C,
-	SPONGE_EVENT_TYPE_AOD_HOMEKEY_RELEASE	= 0x0D,
-	SPONGE_EVENT_TYPE_AOD_HOMEKEY_RELEASE_NO_HAPTIC	= 0x0E
-} SPONGE_EVENT_TYPE;
+	CUSTOMLIB_EVENT_TYPE_SPAY			= 0x04,
+	CUSTOMLIB_EVENT_TYPE_PRESSURE_TOUCHED = 0x05,
+	CUSTOMLIB_EVENT_TYPE_PRESSURE_RELEASED	= 0x06,
+	CUSTOMLIB_EVENT_TYPE_AOD			= 0x08,
+	CUSTOMLIB_EVENT_TYPE_AOD_PRESS		= 0x09,
+	CUSTOMLIB_EVENT_TYPE_AOD_LONGPRESS		= 0x0A,
+	CUSTOMLIB_EVENT_TYPE_AOD_DOUBLETAB		= 0x0B,
+	CUSTOMLIB_EVENT_TYPE_AOD_HOMEKEY_PRESS	= 0x0C,
+	CUSTOMLIB_EVENT_TYPE_AOD_HOMEKEY_RELEASE	= 0x0D,
+	CUSTOMLIB_EVENT_TYPE_AOD_HOMEKEY_RELEASE_NO_HAPTIC	= 0x0E
+} CUSTOMLIB_EVENT_TYPE;
+
+enum {
+	SEC_TS_BUS_REF_SCREEN_ON	= 0x01,
+	SEC_TS_BUS_REF_IRQ		= 0x02,
+	SEC_TS_BUS_REF_RESET		= 0x04,
+	SEC_TS_BUS_REF_FW_UPDATE	= 0x08,
+	SEC_TS_BUS_REF_INPUT_DEV	= 0x10,
+	SEC_TS_BUS_REF_READ_INFO	= 0x20,
+	SEC_TS_BUS_REF_SYSFS		= 0x40,
+	SEC_TS_BUS_REF_FORCE_ACTIVE	= 0x80
+};
+
+enum {
+	SEC_TS_ERR_NA = 0,
+	SEC_TS_ERR_INIT,
+	SEC_TS_ERR_ALLOC_FRAME,
+	SEC_TS_ERR_ALLOC_GAINTABLE,
+	SEC_TS_ERR_REG_INPUT_DEV,
+	SEC_TS_ERR_REG_INPUT_PAD_DEV
+};
 
 #define CMD_RESULT_WORD_LEN		10
 
 #define SEC_TS_I2C_RETRY_CNT		3
 #define SEC_TS_WAIT_RETRY_CNT		100
 
-#define SEC_TS_MODE_SPONGE_SPAY			(1 << 1)
-#define SEC_TS_MODE_SPONGE_AOD			(1 << 2)
-#define SEC_TS_MODE_SPONGE_FORCE_KEY	(1 << 6)
+#define SEC_TS_MODE_CUSTOMLIB_SPAY			(1 << 1)
+#define SEC_TS_MODE_CUSTOMLIB_AOD			(1 << 2)
+#define SEC_TS_MODE_CUSTOMLIB_FORCE_KEY	(1 << 6)
 
-#define SEC_TS_MODE_LOWPOWER_FLAG			(SEC_TS_MODE_SPONGE_SPAY | SEC_TS_MODE_SPONGE_AOD \
-											| SEC_TS_MODE_SPONGE_FORCE_KEY)
+#define SEC_TS_MODE_LOWPOWER_FLAG			(SEC_TS_MODE_CUSTOMLIB_SPAY | SEC_TS_MODE_CUSTOMLIB_AOD \
+											| SEC_TS_MODE_CUSTOMLIB_FORCE_KEY)
 
 #define SEC_TS_AOD_GESTURE_PRESS		(1 << 7)
 #define SEC_TS_AOD_GESTURE_LONGPRESS		(1 << 6)
 #define SEC_TS_AOD_GESTURE_DOUBLETAB		(1 << 5)
 
-#define SEC_TS_SPONGE_EVENT_PRESSURE_TOUCHED		(1 << 6)
-#define SEC_TS_SPONGE_EVENT_PRESSURE_RELEASED		(1 << 7)
+#define SEC_TS_CUSTOMLIB_EVENT_PRESSURE_TOUCHED		(1 << 6)
+#define SEC_TS_CUSTOMLIB_EVENT_PRESSURE_RELEASED		(1 << 7)
 
 enum sec_ts_cover_id {
 	SEC_TS_FLIP_WALLET = 0,
@@ -495,6 +599,28 @@ enum tsp_hw_parameter {
 	TSP_MODULE_ID		= 6,
 };
 
+enum {
+	HEATMAP_OFF	= 0,
+	HEATMAP_PARTIAL	= 1,
+	HEATMAP_FULL	= 2
+};
+
+#if defined(CONFIG_TOUCHSCREEN_HEATMAP) || \
+	defined(CONFIG_TOUCHSCREEN_HEATMAP_MODULE)
+/* Local heatmap */
+#define LOCAL_HEATMAP_WIDTH 7
+#define LOCAL_HEATMAP_HEIGHT 7
+
+struct heatmap_report {
+	int8_t offset_x;
+	uint8_t size_x;
+	int8_t offset_y;
+	uint8_t size_y;
+	/* data is in BE order; order should be enforced after data is read */
+	strength_t data[LOCAL_HEATMAP_WIDTH * LOCAL_HEATMAP_HEIGHT];
+} __attribute__((packed));
+#endif
+
 #define TEST_MODE_MIN_MAX		false
 #define TEST_MODE_ALL_NODE		true
 #define TEST_MODE_READ_FRAME		false
@@ -503,10 +629,11 @@ enum tsp_hw_parameter {
 /* factory test mode */
 struct sec_ts_test_mode {
 	u8 type;
-	short min;
-	short max;
+	short min[REGION_TYPE_COUNT];
+	short max[REGION_TYPE_COUNT];
 	bool allnode;
 	bool frame_channel;
+	enum spec_check_type spec_check;
 };
 
 struct sec_ts_fw_file {
@@ -561,6 +688,12 @@ struct sec_ts_gesture_status {
 	u8 reserved_2:2;
 } __attribute__ ((packed));
 
+
+/* status id for sec_ts event */
+#define SEC_TS_EVENT_STATUS_ID_NOISE	0x64
+#define SEC_TS_EVENT_STATUS_ID_GRIP	0x69
+#define SEC_TS_EVENT_STATUS_ID_PALM	0x70
+
 /* 8 byte */
 struct sec_ts_event_status {
 	u8 eid:2;
@@ -612,7 +745,6 @@ struct sec_ts_coordinate {
 	u8 left_event;
 };
 
-
 struct sec_ts_data {
 	u32 isr_pin;
 
@@ -623,12 +755,19 @@ struct sec_ts_data {
 	u8 boot_ver[3];
 
 	struct device *dev;
+#ifdef I2C_INTERFACE
 	struct i2c_client *client;
+#else
+	struct spi_device *client;
+#endif
 	struct input_dev *input_dev;
 	struct input_dev *input_dev_pad;
 	struct input_dev *input_dev_touch;
 	struct sec_ts_plat_data *plat_data;
 	struct sec_ts_coordinate coord[MAX_SUPPORT_TOUCH_COUNT + MAX_SUPPORT_HOVER_COUNT];
+
+	ktime_t timestamp; /* time that the event was first received from the
+		touch IC, acquired during hard interrupt, in CLOCK_MONOTONIC */
 
 	struct timeval time_pressed[MAX_SUPPORT_TOUCH_COUNT + MAX_SUPPORT_HOVER_COUNT];
 	struct timeval time_released[MAX_SUPPORT_TOUCH_COUNT + MAX_SUPPORT_HOVER_COUNT];
@@ -642,10 +781,14 @@ struct sec_ts_data {
 	u8 touchable_area;
 	volatile bool input_closed;
 
+	struct mutex bus_mutex;
+	u16 bus_refmask;
+	struct completion bus_resumed;
+
 	int touch_count;
 	int tx_count;
 	int rx_count;
-	int i2c_burstmax;
+	int io_burstmax;
 	int ta_status;
 	volatile int power_status;
 	int raw_status;
@@ -658,28 +801,34 @@ struct sec_ts_data {
 	u8 cal_status;
 	struct mutex lock;
 	struct mutex device_mutex;
-	struct mutex i2c_mutex;
+	struct mutex io_mutex;
 	struct mutex eventlock;
+
+	struct notifier_block notifier;
+
+	struct pm_qos_request pm_qos_req;
+
+	u8 frame_type;
+#if defined(CONFIG_TOUCHSCREEN_HEATMAP) || \
+	defined(CONFIG_TOUCHSCREEN_HEATMAP_MODULE)
+	struct v4l2_heatmap v4l2;
+	strength_t *heatmap_buff;
+#endif
 
 	struct delayed_work work_read_info;
 #ifdef USE_POWER_RESET_WORK
 	struct delayed_work reset_work;
 	volatile bool reset_is_on_going;
 #endif
-#ifdef CONFIG_SECURE_TOUCH
-	atomic_t secure_enabled;
-	atomic_t secure_pending_irqs;
-	struct completion secure_powerdown;
-	struct completion secure_interrupt;
-#if defined(CONFIG_TRUSTONIC_TRUSTED_UI)
-	struct completion st_irq_received;
-#endif
-	struct clk *core_clk;
-	struct clk *iface_clk;
-#endif
+	struct work_struct work_fw_update;
+	struct work_struct suspend_work;
+	struct work_struct resume_work;
+	struct workqueue_struct *event_wq;	/* Used for event handler,
+						 * suspend, resume threads */
 	struct completion resume_done;
 	struct sec_cmd_data sec;
 	short *pFrame;
+	u8 *gainTable;
 
 	bool probe_done;
 	bool reinit_done;
@@ -691,7 +840,7 @@ struct sec_ts_data {
 	int tspid_val;
 	int tspicid_val;
 
-	bool use_sponge;
+	bool use_customlib;
 	unsigned int scrub_id;
 	unsigned int scrub_x;
 	unsigned int scrub_y;
@@ -709,8 +858,8 @@ struct sec_ts_data {
 
 #ifdef CONFIG_TOUCHSCREEN_DUMP_MODE
 	struct delayed_work ghost_check;
-	u8 tsp_dump_lock;
 #endif
+	u8 tsp_dump_lock;
 
 	int nv;
 	int cal_count;
@@ -724,7 +873,7 @@ struct sec_ts_data {
 	unsigned int multi_count;		/* multi touch count */
 	unsigned int wet_count;			/* wet mode count */
 	unsigned int dive_count;		/* dive mode count */
-	unsigned int comm_err_count;	/* i2c comm error count */
+	unsigned int comm_err_count;	/* comm error count */
 	unsigned int checksum_result;	/* checksum result */
 	unsigned char module_id[4];
 	unsigned int all_finger_count;
@@ -745,11 +894,49 @@ struct sec_ts_data {
 #endif
 	int temp;
 
-	int (*sec_ts_i2c_write)(struct sec_ts_data *ts, u8 reg, u8 *data, int len);
-	int (*sec_ts_i2c_read)(struct sec_ts_data *ts, u8 reg, u8 *data, int len);
-	int (*sec_ts_i2c_write_burst)(struct sec_ts_data *ts, u8 *data, int len);
-	int (*sec_ts_i2c_read_bulk)(struct sec_ts_data *ts, u8 *data, int len);
-	int (*sec_ts_read_sponge)(struct sec_ts_data *ts, u8 *data);
+	int fs_postcal_mean;
+
+	bool is_fw_corrupted;
+	union {
+		u8 cali_report[8];
+		struct {
+		u8 cali_report_try_cnt;
+		u8 cali_report_pass_cnt;
+		u8 cali_report_fail_cnt;
+		u8 cali_report_status;
+		u8 cali_report_param_ver[4];
+		};
+	};
+
+#ifdef CONFIG_TOUCHSCREEN_TBN
+	struct tbn_context *tbn;
+#endif
+
+	int (*sec_ts_write)(struct sec_ts_data *ts, u8 reg,
+				u8 *data, int len);
+
+	int (*sec_ts_read)(struct sec_ts_data *ts, u8 reg,
+				    u8 *data, int len);
+	int (*sec_ts_read_heap)(struct sec_ts_data *ts, u8 reg,
+				    u8 *data, int len);
+
+	int (*sec_ts_write_burst)(struct sec_ts_data *ts,
+					   u8 *data, int len);
+	int (*sec_ts_write_burst_heap)(struct sec_ts_data *ts,
+					   u8 *data, int len);
+
+	int (*sec_ts_read_bulk)(struct sec_ts_data *ts,
+					 u8 *data, int len);
+	int (*sec_ts_read_bulk_heap)(struct sec_ts_data *ts,
+					 u8 *data, int len);
+
+	int (*sec_ts_read_customlib)(struct sec_ts_data *ts,
+				     u8 *data, int len);
+
+	/* alloc for io read buffer */
+	u8 io_read_buf[IO_PREALLOC_READ_BUF_SZ];
+	/* alloc for io write buffer */
+	u8 io_write_buf[IO_PREALLOC_WRITE_BUF_SZ];
 };
 
 struct sec_ts_plat_data {
@@ -757,10 +944,11 @@ struct sec_ts_plat_data {
 	int max_y;
 	unsigned irq_gpio;
 	int irq_type;
-	int i2c_burstmax;
+	int io_burstmax;
 	int always_lpmode;
 	int bringup;
 	int mis_cal_check;
+	int heatmap_mode;
 #ifdef PAT_CONTROL
 	int pat_function;
 	int afe_base;
@@ -786,21 +974,34 @@ struct sec_ts_plat_data {
 	int tsp_icid;
 	int tsp_id;
 	int tsp_vsync;
+	int switch_gpio;
+	int reset_gpio;
 
 	bool regulator_boot_on;
 	bool support_mt_pressure;
 	bool support_dex;
 	bool support_sidegesture;
+
+	struct drm_panel *panel;
+	u32 initial_panel_index;
 };
 
 int sec_ts_stop_device(struct sec_ts_data *ts);
 int sec_ts_start_device(struct sec_ts_data *ts);
+int sec_ts_hw_reset(struct sec_ts_data *ts);
+int sec_ts_sw_reset(struct sec_ts_data *ts);
+int sec_ts_system_reset(struct sec_ts_data *ts);
 int sec_ts_set_lowpowermode(struct sec_ts_data *ts, u8 mode);
 int sec_ts_firmware_update_on_probe(struct sec_ts_data *ts, bool force_update);
 int sec_ts_firmware_update_on_hidden_menu(struct sec_ts_data *ts, int update_type);
 int sec_ts_glove_mode_enables(struct sec_ts_data *ts, int mode);
 int sec_ts_set_cover_type(struct sec_ts_data *ts, bool enable);
 int sec_ts_wait_for_ready(struct sec_ts_data *ts, unsigned int ack);
+int sec_ts_wait_for_ready_with_count(struct sec_ts_data *ts, unsigned int ack,
+				     unsigned int count);
+int sec_ts_try_wake(struct sec_ts_data *ts, bool wake_setting);
+int sec_ts_set_bus_ref(struct sec_ts_data *ts, u16 ref, bool enable);
+
 int sec_ts_function(int (*func_init)(void *device_data), void (*func_remove)(void));
 int sec_ts_fn_init(struct sec_ts_data *ts);
 int sec_ts_read_calibration_report(struct sec_ts_data *ts);
@@ -809,8 +1010,8 @@ int sec_ts_fix_tmode(struct sec_ts_data *ts, u8 mode, u8 state);
 int sec_ts_release_tmode(struct sec_ts_data *ts);
 int get_tsp_nvm_data(struct sec_ts_data *ts, u8 offset);
 void set_tsp_nvm_data_clear(struct sec_ts_data *ts, u8 offset);
+#ifdef SEC_TS_SUPPORT_CUSTOMLIB
 int sec_ts_set_custom_library(struct sec_ts_data *ts);
-#ifdef SEC_TS_SUPPORT_SPONGELIB
 int sec_ts_check_custom_library(struct sec_ts_data *ts);
 #endif
 void sec_ts_unlocked_release_all_finger(struct sec_ts_data *ts);
@@ -821,15 +1022,17 @@ int sec_ts_read_information(struct sec_ts_data *ts);
 #ifdef PAT_CONTROL
 void set_pat_magic_number(struct sec_ts_data *ts);
 #endif
-void sec_ts_run_rawdata_all(struct sec_ts_data *ts);
-int execute_selftest(struct sec_ts_data *ts, bool save_result);
+int sec_ts_run_rawdata_type(struct sec_ts_data *ts, struct sec_cmd_data *sec);
+void sec_ts_run_rawdata_all(struct sec_ts_data *ts, bool full_read);
+int execute_selftest(struct sec_ts_data *ts, u32 option);
+int execute_p2ptest(struct sec_ts_data *ts);
 int sec_ts_read_raw_data(struct sec_ts_data *ts,
 		struct sec_cmd_data *sec, struct sec_ts_test_mode *mode);
-void sec_ts_reinit(struct sec_ts_data *ts);
 
-#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+#if (1)//!defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
 int sec_ts_raw_device_init(struct sec_ts_data *ts);
 #endif
+void sec_ts_raw_device_exit(struct sec_ts_data *ts);
 
 extern struct class *sec_class;
 
@@ -860,10 +1063,5 @@ extern unsigned int lpcharge;
 extern void set_grip_data_to_ic(struct sec_ts_data *ts, u8 flag);
 extern void sec_ts_set_grip_type(struct sec_ts_data *ts, u8 set_type);
 
-#ifdef CONFIG_TRUSTONIC_TRUSTED_UI
-extern void trustedui_mode_on(void);
-extern void trustedui_mode_off(void);
-extern int tui_force_close(uint32_t arg);
-#endif
 
 #endif
