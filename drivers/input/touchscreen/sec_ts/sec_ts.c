@@ -1862,7 +1862,7 @@ static irqreturn_t sec_ts_isr(int irq, void *handle)
 	struct sec_ts_data *ts = (struct sec_ts_data *)handle;
 
 	ts->timestamp = ktime_get();
-	input_set_timestamp(ts->input_dev, ts->timestamp);
+	/* input_set_timestamp(ts->input_dev, ts->timestamp); */
 
 	return IRQ_WAKE_THREAD;
 }
@@ -2741,7 +2741,7 @@ static void sec_ts_device_init(struct sec_ts_data *ts)
 #endif
 }
 
-static struct notifier_block sec_ts_screen_nb;
+/* static struct notifier_block sec_ts_screen_nb; */
 
 #ifdef I2C_INTERFACE
 static int sec_ts_probe(struct i2c_client *client,
@@ -2996,6 +2996,8 @@ static int sec_ts_probe(struct spi_device *client)
 		goto err_heatmap;
 	}
 
+/* Workaround for b/150324257 */
+#if 0
 	ts->notifier = sec_ts_screen_nb;
 	ret = drm_panel_notifier_register(pdata->panel, &ts->notifier);
 	if (ret < 0) {
@@ -3004,6 +3006,7 @@ static int sec_ts_probe(struct spi_device *client)
 			  __func__, ret);
 		goto err_register_drm_client;
 	}
+#endif
 
 #ifndef CONFIG_SEC_SYSFS
 	sec_class = class_create(THIS_MODULE, "sec");
@@ -3044,7 +3047,7 @@ static int sec_ts_probe(struct spi_device *client)
 	sec_ts_fn_remove(ts);
 	free_irq(client->irq, ts);
 */
-err_register_drm_client:
+/* err_register_drm_client: */
 	free_irq(client->irq, ts);
 err_heatmap:
 #if defined(CONFIG_TOUCHSCREEN_HEATMAP) || \
@@ -3507,7 +3510,7 @@ static int sec_ts_remove(struct spi_device *client)
 #else
 	struct sec_ts_data *ts = spi_get_drvdata(client);
 #endif
-	const struct sec_ts_plat_data *pdata = ts->plat_data;
+	/* const struct sec_ts_plat_data *pdata = ts->plat_data; */
 
 	input_info(true, &ts->client->dev, "%s\n", __func__);
 
@@ -3517,7 +3520,10 @@ static int sec_ts_remove(struct spi_device *client)
 	/* Force the bus active throughout removal of the client */
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_FORCE_ACTIVE, true);
 
+/* Workaround for b/150324257 */
+#if 0
 	drm_panel_notifier_unregister(pdata->panel, &ts->notifier);
+#endif
 
 	cancel_work_sync(&ts->suspend_work);
 	cancel_work_sync(&ts->resume_work);
@@ -4020,6 +4026,8 @@ int sec_ts_set_bus_ref(struct sec_ts_data *ts, u16 ref, bool enable)
 	return result;
 }
 
+/* Workaround for b/150324257 */
+#if 0
 static int sec_ts_screen_state_chg_callback(struct notifier_block *nb,
 					    unsigned long val, void *data)
 {
@@ -4068,6 +4076,7 @@ static int sec_ts_screen_state_chg_callback(struct notifier_block *nb,
 static struct notifier_block sec_ts_screen_nb = {
 	.notifier_call = sec_ts_screen_state_chg_callback,
 };
+#endif
 
 #ifdef CONFIG_OF
 static const struct of_device_id sec_ts_match_table[] = {

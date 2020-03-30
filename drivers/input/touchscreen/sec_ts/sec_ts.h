@@ -28,7 +28,7 @@
 #include <linux/input/heatmap.h>
 #endif
 #include <linux/input/mt.h>
-#include "sec_cmd.h"
+#include <linux/input/sec_cmd.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
