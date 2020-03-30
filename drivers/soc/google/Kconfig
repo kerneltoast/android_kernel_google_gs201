@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Google SoC drivers
+#
+
+menu "Google SoC drivers"
+
+config SOC_GOOGLE
+	bool "Google SoC driver support"
+
+config SOC_GS101
+	bool "Google GS101"
+	depends on SOC_GOOGLE
+
+config GS_CHIPID
+	tristate "GS Chipid controller driver"
+	depends on ARM64
+	depends on SOC_GOOGLE
+	select SOC_BUS
+	default y
+
+endmenu
