@@ -264,6 +264,8 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 		}
 	}
 
+	vq->is_multiplanar = V4L2_TYPE_IS_MULTIPLANAR(vq->type);
+
 	return 0;
 }
 
@@ -373,15 +375,15 @@ static void smfc_vb2_buf_queue(struct vb2_buffer *vb)
 
 static void smfc_vb2_stop_streaming(struct vb2_queue *vq)
 {
-	struct vb2_buffer *vb;
+	struct vb2_v4l2_buffer *vb;
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vq);
 
 	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
 		while ((vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx)))
-			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
+			v4l2_m2m_buf_done(vb, VB2_BUF_STATE_ERROR);
 	} else {
 		while ((vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx)))
-			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
+			v4l2_m2m_buf_done(vb, VB2_BUF_STATE_ERROR);
 	}
 
 	vb2_wait_for_all_buffers(vq);
@@ -711,6 +713,7 @@ static int smfc_init_v4l2(struct device *dev, struct smfc_dev *smfc)
 	smfc->videodev->lock		= &smfc->video_device_mutex;
 	smfc->videodev->vfl_dir		= VFL_DIR_M2M;
 	smfc->videodev->v4l2_dev	= &smfc->v4l2_dev;
+	smfc->videodev->device_caps = smfc->devdata->device_caps | V4L2_CAP_EXYNOS_JPEG_DMABUF_OFFSET;
 
 	video_set_drvdata(smfc->videodev, smfc);
 
@@ -927,6 +930,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
+#if defined(CONFIG_PM_DEVFREQ) && defined(NEVER_DEFINED)
 	if (!of_property_read_u32(pdev->dev.of_node, "smfc,int_qos_minlock",
 				(u32 *)&smfc->qosreq_int_level)) {
 		if (smfc->qosreq_int_level > 0) {
@@ -938,6 +942,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 			smfc->qosreq_int_level = 0;
 		}
 	}
+#endif
 
 	platform_set_drvdata(pdev, smfc);
 
@@ -969,8 +974,10 @@ err_hwver:
 err_iommu:
 	smfc_deinit_v4l2(&pdev->dev, smfc);
 err_v4l2:
+#if defined(CONFIG_PM_DEVFREQ) && defined(NEVER_DEFINED)
 	if (smfc->qosreq_int_level > 0)
 		pm_qos_remove_request(&smfc->qosreq_int);
+#endif
 
 	return ret;
 }
