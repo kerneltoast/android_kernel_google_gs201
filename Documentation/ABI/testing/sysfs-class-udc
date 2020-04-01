@@ -1,0 +1,19 @@
+What:		/sys/class/udc/<udc name>/device/force_speed
+Date:		December 2020
+Contact:	"Ray Chi" <raychi@google.com>
+Description:
+		This attribute is used for forcing usb connection speed.
+		It can change the max_speed of dwc3 in the runtime and
+		do re-enumeration with new max_speed.
+
+		Writing a string of USB speed to this node to trigger
+		re-enumeration. e.g. echo "super-speed" > force_speed
+
+		The valid strings are defined in driver/usb/common/common.c.
+
+		'high-speed'
+		'super-speed'
+		'super-speed-plus'
+
+		According to hardware capability, you can select the speeds
+		you want to support.
