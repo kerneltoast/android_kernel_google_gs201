@@ -275,6 +275,7 @@ static void smfc_hwconfigure_image_base(struct smfc_ctx *ctx,
 					bool thumbnail)
 {
 	dma_addr_t addr;
+	struct sg_table *sgt;
 	unsigned int i;
 	unsigned int num_buffers = ctx->img_fmt->num_buffers;
 	bool multiplane = (num_buffers == ctx->img_fmt->num_planes);
@@ -283,15 +284,17 @@ static void smfc_hwconfigure_image_base(struct smfc_ctx *ctx,
 	if (multiplane) {
 		/* Note that this includes a single-plane format such as YUYV */
 		for (i = 0; i < num_buffers; i++) {
-			addr = vb2_dma_sg_plane_dma_addr(vb2buf,
+			sgt = vb2_dma_sg_plane_desc(vb2buf,
 					thumbnail ? i + num_buffers : i);
+			addr = sg_dma_address(sgt->sgl);
 			__raw_writel((u32)addr,
 				ctx->smfc->reg + REG_IMAGE_BASE(off, i));
 		}
 	} else {
 		u32 width = thumbnail ? ctx->thumb_width : ctx->width;
 		u32 height = thumbnail ? ctx->thumb_height : ctx->height;
-		addr = vb2_dma_sg_plane_dma_addr(vb2buf, thumbnail ? 1 : 0);
+		sgt = vb2_dma_sg_plane_desc(vb2buf, thumbnail ? 1 : 0);
+		addr = sg_dma_address(sgt->sgl);
 
 		for (i = 0; i < ctx->img_fmt->num_planes; i++) {
 			__raw_writel((u32)addr,
@@ -306,9 +309,11 @@ static u32 smfc_hwconfigure_jpeg_base(struct smfc_ctx *ctx,
 					u32 offset, bool thumbnail)
 {
 	dma_addr_t addr;
+	struct sg_table *sgt;
 	u32 off = thumbnail ? REG_SEC_JPEG_BASE : REG_MAIN_JPEG_BASE;
 
-	addr = vb2_dma_sg_plane_dma_addr(vb2buf, thumbnail ? 1 : 0);
+	sgt = vb2_dma_sg_plane_desc(vb2buf, thumbnail ? 1 : 0);
+	addr = sg_dma_address(sgt->sgl);
 	addr += offset;
 	__raw_writel((u32)addr, ctx->smfc->reg + off);
 	return (u32)addr;
@@ -331,7 +336,7 @@ static u32 smfc_get_jpeg_format(unsigned int hfactor, unsigned int vfactor)
 
 void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx, bool hwfc_enabled)
 {
-	struct vb2_buffer *vb2buf_img, *vb2buf_jpg;
+	struct vb2_v4l2_buffer *vb2buf_img, *vb2buf_jpg;
 	u32 format;
 
 	if (!(ctx->flags & SMFC_CTX_COMPRESS))
@@ -343,12 +348,12 @@ void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx, bool hwfc_enabled)
 	vb2buf_img = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	vb2buf_jpg = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
-	smfc_hwconfigure_image_base(ctx, vb2buf_img, true);
+	smfc_hwconfigure_image_base(ctx, &(vb2buf_img->vb2_buf), true);
 	/*
 	 * secondary image stream base is not required because there is no
 	 * MAX_COMPRESSED_SIZE register for the secondary image
 	 */
-	smfc_hwconfigure_jpeg_base(ctx, vb2buf_jpg, 0, true);
+	smfc_hwconfigure_jpeg_base(ctx, &(vb2buf_jpg->vb2_buf), 0, true);
 
 	format = ctx->img_fmt->regcfg;
 	/*
@@ -406,13 +411,13 @@ void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 					ctx->img_fmt->chroma_vfactor));
 	}
 
-	smfc_hwconfigure_image_base(ctx, &vb2buf_img->vb2_buf, false);
+	smfc_hwconfigure_image_base(ctx, &(vb2buf_img->vb2_buf), false);
 	__raw_writel(format, ctx->smfc->reg + REG_MAIN_IMAGE_FORMAT);
 
-	stream_address = smfc_hwconfigure_jpeg_base(ctx, &vb2buf_jpg->vb2_buf,
+	stream_address = smfc_hwconfigure_jpeg_base(ctx, &(vb2buf_jpg->vb2_buf),
 						    ctx->offset_of_sos, false);
 	if (!(ctx->flags & SMFC_CTX_COMPRESS)) {
-		u32 streamsize = (u32)vb2_plane_size(&vb2buf_jpg->vb2_buf, 0);
+		u32 streamsize = (u32)vb2_plane_size(&(vb2buf_jpg->vb2_buf), 0);
 
 		streamsize -= ctx->offset_of_sos;
 		streamsize += stream_address & SMFC_ADDR_ALIGN_MASK(burstlen);

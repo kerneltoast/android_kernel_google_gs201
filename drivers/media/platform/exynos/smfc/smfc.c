@@ -20,7 +20,7 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
-#include <linux/exynos_iovmm.h>
+#include <linux/iommu.h>
 
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-sg.h>
@@ -31,6 +31,9 @@
 static atomic_t smfc_hwfc_state;
 static wait_queue_head_t smfc_hwfc_sync_wq;
 static wait_queue_head_t smfc_suspend_wq;
+
+extern int iommu_register_device_fault_handler(
+	struct device *dev, iommu_dev_fault_handler_t handler, void *data);
 
 enum {
 	SMFC_HWFC_STANDBY = 0,
@@ -53,6 +56,7 @@ int exynos_smfc_wait_done(bool enable_hwfc)
 
 	return 0;
 }
+EXPORT_SYMBOL(exynos_smfc_wait_done);
 
 static void __exynos_smfc_wakeup_done_waiters(struct smfc_ctx *ctx)
 {
@@ -66,7 +70,6 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 {
 	struct smfc_dev *smfc = priv;
 	struct smfc_ctx *ctx = v4l2_m2m_get_curr_priv(smfc->m2mdev);
-	ktime_t ktime = ktime_get();
 	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
 	u32 streamsize = smfc_get_streamsize(smfc);
 	u32 thumb_streamsize = smfc_get_2nd_streamsize(smfc);
@@ -121,8 +124,6 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 							thumb_streamsize);
 			}
 
-			vb->reserved2 =
-				(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
 			v4l2_m2m_buf_done(vb, state);
 		}
 
@@ -713,7 +714,8 @@ static int smfc_init_v4l2(struct device *dev, struct smfc_dev *smfc)
 	smfc->videodev->lock		= &smfc->video_device_mutex;
 	smfc->videodev->vfl_dir		= VFL_DIR_M2M;
 	smfc->videodev->v4l2_dev	= &smfc->v4l2_dev;
-	smfc->videodev->device_caps = smfc->devdata->device_caps | V4L2_CAP_EXYNOS_JPEG_DMABUF_OFFSET;
+	smfc->videodev->device_caps = smfc->devdata->device_caps |
+		V4L2_CAP_EXYNOS_JPEG_DMABUF_OFFSET;
 
 	video_set_drvdata(smfc->videodev, smfc);
 
@@ -810,9 +812,7 @@ err_clk:
 	return ret;
 }
 
-static int __attribute__((unused)) smfc_iommu_fault_handler(
-		struct iommu_domain *domain, struct device *dev,
-		unsigned long fault_addr, int fault_flags, void *token)
+int smfc_iommu_fault_handler(struct iommu_fault *fault, void *token)
 {
 	struct smfc_dev *smfc = token;
 
@@ -950,11 +950,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_v4l2;
 
-	iovmm_set_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
-
-	ret = iovmm_activate(&pdev->dev);
-	if (ret < 0)
-		goto err_iommu;
+	iommu_register_device_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
 
 	timer_setup(&smfc->timer, smfc_timedout_handler, 0);
 
@@ -970,8 +966,6 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	return 0;
 
 err_hwver:
-	iovmm_deactivate(&pdev->dev);
-err_iommu:
 	smfc_deinit_v4l2(&pdev->dev, smfc);
 err_v4l2:
 #if defined(CONFIG_PM_DEVFREQ) && defined(NEVER_DEFINED)
@@ -996,6 +990,8 @@ static int exynos_smfc_remove(struct platform_device *pdev)
 
 	pm_qos_remove_request(&smfc->qosreq_int);
 	smfc_deinit_clock(smfc);
+
+	iommu_unregister_device_fault_handler(&pdev->dev);
 
 	return 0;
 }
@@ -1070,8 +1066,6 @@ static void exynos_smfc_shutdown(struct platform_device *pdev)
 		smfc->flags |= SMFC_DEV_SUSPENDING;
 	spin_unlock_irqrestore(&smfc->flag_lock, flags);
 	wait_event(smfc_suspend_wq, !(smfc->flags & SMFC_DEV_SUSPENDING));
-
-	iovmm_deactivate(&pdev->dev);
 }
 
 static const struct dev_pm_ops exynos_smfc_pm_ops = {
