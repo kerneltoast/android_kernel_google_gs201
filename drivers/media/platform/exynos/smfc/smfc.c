@@ -37,6 +37,30 @@ enum {
 	SMFC_HWFC_WAIT,
 };
 
+int exynos_smfc_wait_done(bool enable_hwfc)
+{
+	int prev, new;
+
+	wait_event(smfc_hwfc_sync_wq,
+			atomic_read(&smfc_hwfc_state) < SMFC_HWFC_WAIT);
+
+	prev = atomic_read(&smfc_hwfc_state);
+	while (enable_hwfc && prev == SMFC_HWFC_RUN
+			&& (new = atomic_cmpxchg((&smfc_hwfc_state),
+					prev, SMFC_HWFC_WAIT)) != prev)
+		prev = new;
+
+	return 0;
+}
+
+static void __exynos_smfc_wakeup_done_waiters(struct smfc_ctx *ctx)
+{
+	if ((!!(ctx->flags & SMFC_CTX_COMPRESS)) && ctx->enable_hwfc) {
+		atomic_set(&smfc_hwfc_state, SMFC_HWFC_STANDBY);
+		wake_up(&smfc_hwfc_sync_wq);
+	}
+}
+
 static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 {
 	struct smfc_dev *smfc = priv;
@@ -99,17 +123,13 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 			vb->reserved2 =
 				(__u32)ktime_us_delta(ktime, ctx->ktime_beg);
 			v4l2_m2m_buf_done(vb, state);
-
-			if ((!!(ctx->flags & SMFC_CTX_COMPRESS)) &&
-					ctx->enable_hwfc) {
-				atomic_set(&smfc_hwfc_state, SMFC_HWFC_STANDBY);
-				wake_up(&smfc_hwfc_sync_wq);
-			}
 		}
 
 		vb = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		if (vb)
 			v4l2_m2m_buf_done(vb, state);
+
+		__exynos_smfc_wakeup_done_waiters(ctx);
 
 		if (!suspending) {
 			v4l2_m2m_job_finish(smfc->m2mdev, ctx->fh.m2m_ctx);
@@ -169,6 +189,9 @@ static void smfc_timedout_handler(unsigned long arg)
 							VB2_BUF_STATE_ERROR);
 		v4l2_m2m_buf_done(v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx),
 							VB2_BUF_STATE_ERROR);
+
+		__exynos_smfc_wakeup_done_waiters(ctx);
+
 		if (!suspending) {
 			v4l2_m2m_job_finish(smfc->m2mdev, ctx->fh.m2m_ctx);
 		} else {
@@ -400,26 +423,6 @@ static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->lock = &ctx->smfc->video_device_mutex;
 
 	return vb2_queue_init(dst_vq);
-}
-
-int exynos_smfc_wait_done(bool enable_hwfc)
-{
-	int prev, new;
-	int ret = 0;
-
-	ret = wait_event_interruptible(smfc_hwfc_sync_wq,
-			atomic_read(&smfc_hwfc_state) < SMFC_HWFC_WAIT);
-
-	if (ret < 0)
-		return ret;
-
-	prev = atomic_read(&smfc_hwfc_state);
-	while (enable_hwfc && prev == SMFC_HWFC_RUN
-			&& (new = atomic_cmpxchg((&smfc_hwfc_state),
-					prev, SMFC_HWFC_WAIT)) != prev)
-		prev = new;
-
-	return ret;
 }
 
 static int exynos_smfc_open(struct file *filp)
