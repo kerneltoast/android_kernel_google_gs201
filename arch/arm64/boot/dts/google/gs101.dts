@@ -404,6 +404,38 @@
 		dump-size = <0x3B000>;                  /* 236KB */
 	};
 
+	slc-dummy {
+		compatible = "google,pt";
+		dummy {
+			id_size_priority = < 0x5 0x1001 0x1000 0x8002>;
+		};
+	};
+
+	slc-acpm {
+		compatible = "google,slc-acpm";
+		acpm-ipc-channel = <10>;
+		pt_id = "AoC_Sleep"; /* for testing */
+		async {
+			acpm-ipc-channel = <11>;
+		};
+		BYPASS {
+			/* vptid 0, size 0, priority 15 (lowest), pbha 0 */
+			id_size_priority = < 0x0 0x1 0xf 0x0 >;
+		};
+		LEFTOVER {
+			/* vptid 1, all size, priority 15 (lowest), pbha 1 */
+			id_size_priority = < 0x1 0xffffffff 0xf 0x1 >;
+		};
+		AoC_Sleep {
+			/* vptid 2, size 0, priority 0 (highest), pbha 2 */
+			id_size_priority = < 0x2 0xffffffff 0x0 0x2 >;
+		};
+		GPU {
+			/* vptid 2, all size, priority 0 (highest), pbha 5 */
+			id_size_priority = < 0x2 0xffffffff 0x0 0x5 >;
+		};
+	};
+
 	acpm_mfd_bus0: acpm_mfd_bus@17500000 {
 		compatible = "google,i2c-acpm";
 		status = "okay";
