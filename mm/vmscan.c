@@ -5471,7 +5471,7 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
 
 	if (!sc->proactive)
 		vmpressure(sc->gfp_mask, memcg, false, sc->nr_scanned - scanned,
-			   sc->nr_reclaimed - reclaimed);
+			   sc->nr_reclaimed - reclaimed, sc->order);
 
 	sc->nr_reclaimed += current->reclaim_state->reclaimed_slab;
 	current->reclaim_state->reclaimed_slab = 0;
@@ -6594,7 +6594,7 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
 		if (!sc->proactive)
 			vmpressure(sc->gfp_mask, memcg, false,
 				   sc->nr_scanned - scanned,
-				   sc->nr_reclaimed - reclaimed);
+				   sc->nr_reclaimed - reclaimed, sc->order);
 
 	} while ((memcg = mem_cgroup_iter(target_memcg, memcg, NULL)));
 }
@@ -6633,7 +6633,7 @@ again:
 	if (!sc->proactive)
 		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
 			   sc->nr_scanned - nr_scanned,
-			   sc->nr_reclaimed - nr_reclaimed);
+			   sc->nr_reclaimed - nr_reclaimed, sc->order);
 
 	if (sc->nr_reclaimed - nr_reclaimed)
 		reclaimable = true;
