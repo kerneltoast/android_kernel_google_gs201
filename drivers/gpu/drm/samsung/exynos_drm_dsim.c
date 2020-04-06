@@ -348,9 +348,13 @@ static int exynos_drm_connector_get_property(struct drm_connector *connector,
 				struct drm_property *property,
 				uint64_t *val)
 {
-	struct dsim_device *dsim = connector_to_dsi(connector);
-	struct exynos_panel *panel =
-			container_of(dsim->panel, struct exynos_panel, panel);
+	const struct dsim_device *dsim = connector_to_dsi(connector);
+	const struct exynos_panel *panel;
+
+	if (!dsim->panel)
+		return -ENODEV;
+
+	panel = container_of(dsim->panel, struct exynos_panel, panel);
 
 	if (property == dsim->props.max_luminance)
 		*val = panel->desc->max_luminance;
