@@ -79,8 +79,6 @@ extern void dbg_snapshot_scratch_reg(unsigned int val);
 extern void dbg_snapshot_print_log_report(void);
 extern void dbg_snapshot_set_debug_test_buffer_addr(u64 paddr, unsigned int cpu);
 extern unsigned int dbg_snapshot_get_debug_test_buffer_addr(unsigned int cpu);
-extern unsigned long dbg_snapshot_get_last_pc(unsigned int cpu);
-extern unsigned long dbg_snapshot_get_last_pc_paddr(void);
 extern void dbg_snapshot_set_qd_entry(unsigned long address);
 extern int dbg_snapshot_get_num_items(void);
 extern int dbg_snapshot_log_get_num_items(void);
@@ -89,7 +87,6 @@ extern struct dbg_snapshot_log_item *dbg_snapshot_log_get_item_by_index(int inde
 extern void dbg_snapshot_set_enable_log_item(const char *name, int en);
 extern int dbg_snapshot_get_dpm_none_dump_mode(void);
 extern void dbg_snapshot_set_dpm_none_dump_mode(unsigned int mode);
-extern void cache_flush_all(void);
 extern void flush_cache_all(void);
 
 extern struct dbg_snapshot_log *dss_log;

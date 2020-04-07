@@ -422,7 +422,7 @@ static inline void dbg_snapshot_save_core(struct pt_regs *regs)
 	dev_emerg(dss_desc.dev, "core register saved(CPU:%d)\n", cpu);
 }
 
-static void dbg_snapshot_save_context(struct pt_regs *regs)
+void dbg_snapshot_save_context(struct pt_regs *regs)
 {
 	int cpu;
 	unsigned long flags;
@@ -447,6 +447,7 @@ static void dbg_snapshot_save_context(struct pt_regs *regs)
 
 	cache_flush_all();
 }
+EXPORT_SYMBOL_GPL(dbg_snapshot_save_context);
 
 static struct die_args *tombstone;
 

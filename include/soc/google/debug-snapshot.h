@@ -33,6 +33,9 @@ extern void dbg_snapshot_output(void);
 extern void dbg_snapshot_log_output(void);
 extern void dbg_snapshot_scratch_clear(void);
 extern bool dbg_snapshot_is_scratch(void);
+extern unsigned int dbg_snapshot_get_hardlockup_magic(void);
+extern unsigned long dbg_snapshot_get_last_pc(unsigned int cpu);
+extern unsigned long dbg_snapshot_get_last_pc_paddr(void);
 /* debug-snapshot-dpm functions */
 extern bool dbg_snapshot_get_dpm_status(void);
 extern void dbg_snapshot_do_dpm_policy(unsigned int policy);
@@ -50,6 +53,8 @@ extern unsigned int dbg_snapshot_get_val_offset(unsigned int offset);
 extern void dbg_snapshot_set_val_offset(unsigned int val, unsigned int offset);
 extern void dbg_snapshot_register_wdt_ops(void *start, void *expire, void *stop);
 extern void dbg_snapshot_register_debug_ops(void *halt, void *arraydump, void *scandump);
+extern void dbg_snapshot_save_context(struct pt_regs *regs);
+extern void cache_flush_all(void);
 
 /* debug-snapshot-log functions */
 extern int dbg_snapshot_get_freq_idx(const char *name);
@@ -134,6 +139,8 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_ecc_dump()			do { } while (0)
 #define dbg_snapshot_register_wdt_ops(a, b, c)	do { } while (0)
 #define dbg_snapshot_register_debug_ops(a, b, c)	do { } while (0)
+#define dbg_snapshot_save_context(a)		do { } while (0)
+#define cache_flush_all()			do { } while (0)
 
 #define dbg_snapshot_set_val_offset(a)		do { } while (0)
 
@@ -143,6 +150,9 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_get_item_paddr(a) 		(0)
 #define dbg_snapshot_get_item_vaddr(a) 		(0)
 #define dbg_snapshot_is_scratch() 		(0)
+#define dbg_snapshot_get_hardlockup_magic	(0)
+#define dbg_snapshot_get_last_pc(a)		(0)
+#define dbg_snapshot_get_last_pc_paddr		(0)
 
 #define dbg_snapshot_get_dpm_status() 		(0)
 #define dbg_snapshot_qd_add_region(a, b)	(-1)
