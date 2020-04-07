@@ -987,6 +987,8 @@ static int __init pt_init(void)
 	INIT_LIST_HEAD(&pt_internal_data.handle_list);
 	INIT_LIST_HEAD(&pt_internal_data.driver_list);
 	INIT_LIST_HEAD(&pt_internal_data.resize_list);
+	init_waitqueue_head(&pt_internal_data.resize_wq);
+	init_waitqueue_head(&pt_internal_data.resize_remove_wq);
 	sysctl_table = &pt_internal_data.sysctl_table[0];
 	sysctl_table[0].procname = "dev";
 	sysctl_table[0].mode = 0550;
@@ -1014,8 +1016,6 @@ static int __init pt_init(void)
 		pt_internal_data.sysctl_header = NULL;
 	pt_internal_data.resize_thread = kthread_run(pt_resize_thread, NULL,
 							"PT_resize");
-	init_waitqueue_head(&pt_internal_data.resize_wq);
-	init_waitqueue_head(&pt_internal_data.resize_remove_wq);
 	return 0;
 }
 
