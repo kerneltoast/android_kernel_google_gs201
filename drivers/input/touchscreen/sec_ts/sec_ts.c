@@ -2297,12 +2297,7 @@ static int sec_ts_parse_dt(struct spi_device *client)
 				  __func__, pdata->reset_gpio, ret);
 			pdata->reset_gpio = -1;
 		}
-                //TODO: check this
-		ret = gpio_direction_output(pdata->reset_gpio, 1);
-                mdelay(10);
 		ret = gpio_direction_output(pdata->reset_gpio, 0);
-                mdelay(10);
-		ret = gpio_direction_output(pdata->reset_gpio, 1);
 
 	} else
 		input_err(true, dev, "%s: Failed to get reset_gpio\n",
@@ -2912,6 +2907,13 @@ static int sec_ts_probe(struct spi_device *client)
 
 	/* power enable */
 	sec_ts_power(ts, true);
+	mdelay(10);
+	ret = gpio_direction_output(pdata->reset_gpio, 1);
+	mdelay(10);
+	ret = gpio_direction_output(pdata->reset_gpio, 0);
+	mdelay(10);
+	ret = gpio_direction_output(pdata->reset_gpio, 1);
+	mdelay(10);
 	if (!pdata->regulator_boot_on)
 		sec_ts_delay(70);
 	ts->power_status = SEC_TS_STATE_POWER_ON;
