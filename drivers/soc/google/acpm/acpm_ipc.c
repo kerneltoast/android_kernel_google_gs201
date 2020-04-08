@@ -113,7 +113,7 @@ void timestamp_write(void)
 }
 
 static void acpm_log_print_helper_raw(struct acpm_log_buff *buffer,
-		unsigned int rear, unsigned long long time,
+		unsigned int rear, unsigned int id, unsigned long long time,
 		unsigned int log_level)
 {
 	unsigned int arg0, arg1, arg2;
@@ -127,8 +127,8 @@ static void acpm_log_print_helper_raw(struct acpm_log_buff *buffer,
 			   buffer->log_buff_size * rear + 12);
 
 	if (acpm_debug->debug_log_level == 1 || !log_level) {
-		pr_info("[ACPM_FW] : %llu, %x, %x, %x\n",
-			time, arg0, arg1, arg2);
+		pr_info("[ACPM_FW] : %llu id:%u, %x, %x, %x\n",
+			time, id, arg0, arg1, arg2);
 	}
 }
 
@@ -186,11 +186,11 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 		 * log level: [19]
 		 * apm systick count: [15:0]
 		 */
-		id = (log_header & (0xF << LOG_ID_SHIFT)) >>
+		id = (log_header & (0xf << LOG_ID_SHIFT)) >>
 				LOG_ID_SHIFT;
 		is_raw = (log_header & (0x1 << LOG_IS_RAW_SHIFT)) >>
 				LOG_IS_RAW_SHIFT;
-		index = (log_header & (0x3f << LOG_TIME_INDEX)) >>
+		index = (log_header & (0x7f << LOG_TIME_INDEX)) >>
 				LOG_TIME_INDEX;
 		log_level = (log_header & (0x1 << LOG_LEVEL)) >>
 				LOG_LEVEL;
@@ -203,7 +203,7 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 		time += count * acpm_period;
 
 		if (is_raw) {
-			acpm_log_print_helper_raw(buffer, rear, time,
+			acpm_log_print_helper_raw(buffer, rear, id, time,
 						  log_level);
 		} else {
 			acpm_log_print_helper(buffer, rear, id, time,
