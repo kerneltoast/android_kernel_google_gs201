@@ -1304,8 +1304,6 @@ static int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0,
 	bool must_wait = true;
 	const struct decon_device *decon = dsim_get_decon(dsim);
 
-	hibernation_block_exit(decon->hibernation);
-
 	mutex_lock(&dsim->cmd_lock);
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
 		dsim_err(dsim, "dsim%d is not ready(%d)\n",
@@ -1369,7 +1367,6 @@ static int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0,
 
 err_exit:
 	mutex_unlock(&dsim->cmd_lock);
-	hibernation_unblock(decon->hibernation);
 
 	return ret;
 }
@@ -1407,9 +1404,6 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 {
 	u32 rx_fifo, rx_size = 0;
 	int i = 0, ret = 0;
-	const struct decon_device *decon = dsim_get_decon(dsim);
-
-	hibernation_block_exit(decon->hibernation);
 
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
 		pr_err("DSI-%d is not ready(%d)\n", dsim->id, dsim->state);
@@ -1502,7 +1496,6 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 	}
 exit:
 	mutex_unlock(&dsim->cmd_lock);
-	hibernation_unblock(decon->hibernation);
 
 	return ret;
 }
@@ -1530,7 +1523,10 @@ static ssize_t dsim_host_transfer(struct mipi_dsi_host *host,
 			    const struct mipi_dsi_msg *msg)
 {
 	struct dsim_device *dsim = host_to_dsi(host);
+	const struct decon_device *decon = dsim_get_decon(dsim);
 	int ret;
+
+	hibernation_block_exit(decon->hibernation);
 
 	switch (msg->type) {
 	case MIPI_DSI_DCS_READ:
@@ -1544,6 +1540,8 @@ static ssize_t dsim_host_transfer(struct mipi_dsi_host *host,
 		ret = dsim_wr_data(dsim, msg->type, msg->tx_buf, msg->tx_len);
 		break;
 	}
+
+	hibernation_unblock(decon->hibernation);
 
 	return ret;
 }
