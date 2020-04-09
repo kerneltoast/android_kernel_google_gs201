@@ -38,6 +38,22 @@ static const char ext_info_regs[] = { 0xDA, 0xDB, 0xDC };
 #define bridge_to_exynos_panel(b) \
 	container_of((b), struct exynos_panel, bridge)
 
+static inline bool in_tui(struct exynos_panel *ctx)
+{
+	const struct drm_connector_state *conn_state = ctx->connector.state;
+
+	if (conn_state && conn_state->crtc) {
+		const struct drm_crtc_state *crtc_state =
+						conn_state->crtc->state;
+
+		if (crtc_state && (crtc_state->adjusted_mode.private_flags &
+				 EXYNOS_DISPLAY_MODE_FLAG_TUI))
+			return true;
+	}
+
+	return false;
+}
+
 static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 {
 	struct device *dev = ctx->dev;
@@ -571,12 +587,22 @@ static void exynos_panel_enable(struct drm_bridge *bridge)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
 
+	if (in_tui(ctx)) {
+		dev_info(ctx->dev, "tui state : skip %s\n", __func__);
+		return;
+	}
+
 	drm_panel_enable(&ctx->panel);
 }
 
 static void exynos_panel_pre_enable(struct drm_bridge *bridge)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+
+	if (in_tui(ctx)) {
+		dev_info(ctx->dev, "tui state : skip %s\n", __func__);
+		return;
+	}
 
 	drm_panel_prepare(&ctx->panel);
 }
@@ -585,12 +611,22 @@ static void exynos_panel_disable(struct drm_bridge *bridge)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
 
+	if (in_tui(ctx)) {
+		dev_info(ctx->dev, "tui state : skip %s\n", __func__);
+		return;
+	}
+
 	drm_panel_disable(&ctx->panel);
 }
 
 static void exynos_panel_post_disable(struct drm_bridge *bridge)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+
+	if (in_tui(ctx)) {
+		dev_info(ctx->dev, "tui state : skip %s\n", __func__);
+		return;
+	}
 
 	drm_panel_unprepare(&ctx->panel);
 }
@@ -606,6 +642,13 @@ static bool exynos_panel_mode_fixup(struct drm_bridge *bridge,
 		if (drm_mode_equal(m, adjusted_mode)) {
 			adjusted_mode->private = m->private;
 			adjusted_mode->private_flags = m->private_flags;
+
+			if (mode->private_flags & EXYNOS_DISPLAY_MODE_FLAG_TUI)
+				adjusted_mode->private_flags |=
+					EXYNOS_DISPLAY_MODE_FLAG_TUI;
+			else
+				adjusted_mode->private_flags &=
+					~EXYNOS_DISPLAY_MODE_FLAG_TUI;
 
 			return true;
 		}

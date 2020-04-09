@@ -15,7 +15,8 @@
 
 /* Structures and definitions shared across exynos display pipeline. */
 
-#define EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL 1
+#define EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL	(1 << 0)
+#define EXYNOS_DISPLAY_MODE_FLAG_TUI		(1 << 1)
 
 struct exynos_display_dsc {
 	bool enabled;

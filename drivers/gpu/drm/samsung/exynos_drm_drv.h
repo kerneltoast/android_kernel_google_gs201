@@ -282,6 +282,8 @@ struct exynos_drm_private {
 	struct device *dma_dev;
 	void *mapping;
 
+	bool tui_enabled;
+
 	/* for atomic commit */
 	u32			pending;
 	spinlock_t		lock;
@@ -317,7 +319,8 @@ static inline int exynos_dpi_bind(struct drm_device *dev,
 int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 			 bool nonblock);
 int exynos_atomic_check(struct drm_device *dev, struct drm_atomic_state *state);
-
+int exynos_atomic_enter_tui(void);
+int exynos_atomic_exit_tui(void);
 
 extern struct platform_driver decon_driver;
 extern struct platform_driver dsim_driver;

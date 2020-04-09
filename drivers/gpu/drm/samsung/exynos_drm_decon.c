@@ -102,6 +102,15 @@ static inline u32 win_end_pos(int x, int y,  u32 xres, u32 yres)
 	return (WIN_ENDPTR_Y_F(y + yres - 1) | WIN_ENDPTR_X_F(x + xres - 1));
 }
 
+static inline bool is_tui(const struct drm_crtc_state *crtc_state)
+{
+	if (crtc_state && (crtc_state->adjusted_mode.private_flags &
+				EXYNOS_DISPLAY_MODE_FLAG_TUI))
+		return true;
+
+	return false;
+}
+
 /* ARGB value */
 #define COLOR_MAP_VALUE			0x00340080
 
@@ -490,9 +499,12 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	decon_info(decon, "%s +\n", __func__);
 
-	pm_runtime_get_sync(decon->dev);
-
-	decon_set_te_pinctrl(decon, true);
+	if (is_tui(crtc->base.state)) {
+		decon_debug(decon, "tui_state : skip power enable\n");
+	} else {
+		pm_runtime_get_sync(decon->dev);
+		decon_set_te_pinctrl(decon, true);
+	}
 
 	_decon_enable(decon);
 
@@ -571,9 +583,12 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 
 	_decon_disable(decon);
 
-	decon_set_te_pinctrl(decon, false);
-
-	pm_runtime_put_sync(decon->dev);
+	if (is_tui(crtc->base.state)) {
+		decon_debug(decon, "tui_state : skip power disable\n");
+	} else {
+		decon_set_te_pinctrl(decon, false);
+		pm_runtime_put_sync(decon->dev);
+	}
 
 	decon->state = DECON_STATE_OFF;
 
