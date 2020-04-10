@@ -231,6 +231,11 @@ static void process_tx(struct tcpci *tcpci, u16 status, struct logbuffer *log)
 		logbuffer_log(log, "TCPC_ALERT_TX_FAILED");
 		tcpm_pd_transmit_complete(tcpci->port, TCPC_TX_FAILED);
 	}
+
+	/* Reinit regs as Hard reset sets them to default value */
+	if ((status & TCPC_ALERT_TX_SUCCESS) && (status &
+						 TCPC_ALERT_TX_FAILED))
+		max77759_init_regs(tcpci->regmap, log);
 }
 
 static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
