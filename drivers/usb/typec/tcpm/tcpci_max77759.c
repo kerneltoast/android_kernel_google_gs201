@@ -81,7 +81,10 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 	int ret;
 
 	ret = max77759_write16(regmap, TCPC_ALERT, 0xffff);
+	if (ret < 0)
+		return;
 
+	ret = max77759_write16(regmap, TCPC_VENDOR_ALERT, 0xffff);
 	if (ret < 0)
 		return;
 
@@ -108,6 +111,10 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 	if (ret < 0)
 		return;
 	logbuffer_log(log, "[%s] Init ALERT_MASK: %u", __func__,
+		      alert_mask);
+
+	max77759_read16(regmap, TCPC_ALERT_MASK, &alert_mask);
+	logbuffer_log(log, "[%s] Init ALERT_MASK read : %u", __func__,
 		      alert_mask);
 
 	/* Enable vbus voltage monitoring and voltage alerts */
@@ -271,6 +278,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				      , 0x0);
 		if (ret < 0)
 			return ret;
+
 		ret = max77759_write8(tcpci->regmap,
 				      TCPC_VENDOR_ALERT_MASK2, 0x1);
 		if (ret < 0)
@@ -281,6 +289,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				      &vendor_status);
 		if (ret < 0)
 			return ret;
+
 		process_bc12_alert(chip->bc12, vendor_status);
 		ret = max77759_write16(tcpci->regmap, TCPC_VENDOR_ALERT,
 				       vendor_status);
@@ -313,6 +322,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				      &raw);
 		if (ret < 0)
 			return ret;
+
 		logbuffer_log(log, "VBUS LOW ALARM triggered: %u", (raw &
 			      TCPC_VBUS_VOLTAGE_MASK) *
 			      TCPC_VBUS_VOLTAGE_LSB_MV);
@@ -324,6 +334,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 			;
 		if (ret < 0)
 			return ret;
+
 		logbuffer_log(log, "VBUS HIGH ALARM triggered: %u", (raw &
 			      TCPC_VBUS_VOLTAGE_MASK) *
 			      TCPC_VBUS_VOLTAGE_LSB_MV);
@@ -337,6 +348,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				       0);
 		if (ret < 0)
 			return ret;
+
 		tcpm_pd_hard_reset(tcpci->port);
 		max77759_init_regs(tcpci->regmap, log);
 	}
@@ -345,7 +357,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	    TCPC_ALERT_TX_DISCARDED || status & TCPC_ALERT_TX_FAILED)
 		process_tx(tcpci, status, log);
 
-	if (status & TCPC_VENDOR_ALERT) {
+	if (status & TCPC_ALERT_VENDOR) {
 		logbuffer_log(log, "Exit TCPC_VENDOR_ALERT Unmask");
 		ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_ALERT_MASK
 				      , 0xff);
