@@ -823,6 +823,7 @@ struct pt_driver *pt_driver_register(struct device_node *node,
 	if (driver == NULL)
 		return NULL;
 	memset(driver, 0, size);
+	mutex_init(&driver->mt);
 	driver->ops = ops;
 	driver->node = node;
 	driver->data = data;
