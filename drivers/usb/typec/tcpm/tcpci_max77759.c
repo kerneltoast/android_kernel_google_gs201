@@ -765,6 +765,15 @@ static const unsigned int usbpd_extcon_cable[] = {
 	EXTCON_NONE,
 };
 
+static int tcpci_init(struct tcpci *tcpci, struct tcpci_data *data)
+{
+	/*
+	 * Generic TCPCI overwrites the regs once this driver initializes
+	 * them. Prevent this by returning -1.
+	 */
+	return -1;
+}
+
 static int max77759_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
@@ -810,6 +819,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.override_toggling = true;
 	chip->data.set_pd_capable = max77759_set_pd_capable;
 	chip->data.set_roles = max77759_set_roles;
+	chip->data.init = tcpci_init;
 
 	chip->log = debugfs_logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
