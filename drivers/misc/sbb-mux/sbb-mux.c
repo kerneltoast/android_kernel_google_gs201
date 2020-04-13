@@ -219,6 +219,8 @@ static int sbb_mux_init_sysfs_file(
 		return -EEXIST;
 	}
 
+	sysfs_attr_init(&file->extended_attribute.base_attribute.attr);
+
 	file->extended_attribute.base_attribute.attr.name = file_name;
 	file->extended_attribute.base_attribute.attr.mode = mode;
 	file->extended_attribute.base_attribute.show = show;
