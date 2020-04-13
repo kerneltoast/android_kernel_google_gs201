@@ -258,6 +258,8 @@ struct decon_debug {
 	struct dpu_log *event_log;
 	/* count of log buffers in each event log */
 	u32 event_log_cnt;
+	/* count of underrun interrupt */
+	u32 underrun_cnt;
 	/* array index of log buffer in event log */
 	atomic_t event_log_idx;
 };

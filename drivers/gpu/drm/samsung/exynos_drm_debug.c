@@ -68,8 +68,9 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 		return;
 
 	switch (type) {
-	case DPU_EVT_TE_INTERRUPT:
 	case DPU_EVT_DSIM_UNDERRUN:
+		decon->d.underrun_cnt++;
+	case DPU_EVT_TE_INTERRUPT:
 		/*
 		 * If the same event occurs DPU_EVENT_KEEP_CNT times
 		 * continuously, it will be skipped.
@@ -447,6 +448,7 @@ int dpu_init_debug(struct decon_device *decon)
 	int ret = 0;
 	int i;
 	u32 event_cnt;
+	struct dentry *underrun_cnt_dent;
 
 	decon->d.event_log = NULL;
 	event_cnt = DPU_EVENT_LOG_MAX;
@@ -484,6 +486,14 @@ int dpu_init_debug(struct decon_device *decon)
 			decon->d.debug_root, decon, &dpu_event_fops);
 	if (!decon->d.debug_event) {
 		DRM_ERROR("failed to create debugfs file\n");
+		ret = -ENOENT;
+		goto err_debugfs;
+	}
+
+	underrun_cnt_dent = debugfs_create_u32("underrun_cnt", 0664,
+			decon->d.debug_root, &decon->d.underrun_cnt);
+	if (!underrun_cnt_dent) {
+		DRM_ERROR("failed to create debugfs underrun_cnt file\n");
 		ret = -ENOENT;
 		goto err_debugfs;
 	}
