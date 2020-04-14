@@ -118,50 +118,6 @@ static struct drm_driver exynos_drm_driver = {
 	.minor			  = DRIVER_MINOR,
 };
 
-#ifdef CONFIG_PM_SLEEP
-static int exynos_drm_suspend(struct device *dev)
-{
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct exynos_drm_private *private;
-
-	if (pm_runtime_suspended(dev) || !drm_dev)
-		return 0;
-
-	private = drm_dev->dev_private;
-
-	drm_kms_helper_poll_disable(drm_dev);
-	exynos_drm_fbdev_suspend(drm_dev);
-	private->suspend_state = drm_atomic_helper_suspend(drm_dev);
-	if (IS_ERR(private->suspend_state)) {
-		exynos_drm_fbdev_resume(drm_dev);
-		drm_kms_helper_poll_enable(drm_dev);
-		return PTR_ERR(private->suspend_state);
-	}
-
-	return 0;
-}
-
-static int exynos_drm_resume(struct device *dev)
-{
-	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct exynos_drm_private *private;
-
-	if (pm_runtime_suspended(dev) || !drm_dev)
-		return 0;
-
-	private = drm_dev->dev_private;
-	drm_atomic_helper_resume(drm_dev, private->suspend_state);
-	exynos_drm_fbdev_resume(drm_dev);
-	drm_kms_helper_poll_enable(drm_dev);
-
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops exynos_drm_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(exynos_drm_suspend, exynos_drm_resume)
-};
-
 /* forward declaration */
 static struct platform_driver exynos_drm_platform_driver;
 
@@ -378,7 +334,6 @@ static struct platform_driver exynos_drm_platform_driver = {
 	.remove	= exynos_drm_platform_remove,
 	.driver	= {
 		.name	= "exynos-drm",
-		.pm	= &exynos_drm_pm_ops,
 	},
 };
 
