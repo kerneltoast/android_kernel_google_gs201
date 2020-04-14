@@ -106,10 +106,8 @@ static int usb_set_current_max_ma(struct usb_psy_data *usb, int current_max
 	ret = power_supply_set_property(usb->chg_psy,
 					POWER_SUPPLY_PROP_CURRENT_MAX,
 					&val);
-	if (ret < 0)
-		logbuffer_log(usb->log,
-			      "unable to set max current to %d, ret=%d",
-			      current_max, ret);
+	logbuffer_log(usb->log, "set input max current %d to %s, ret=%d",
+		      current_max, usb->chg_psy_name, ret);
 	return ret;
 }
 
@@ -272,9 +270,9 @@ static int vote_comp(struct usb_vote *v1, struct usb_vote *v2)
 	WARN_ON(!v2);
 
 	if (v1_pri == v2_pri)
-		return v1->val - v2->val;
+		return v2->val - v1->val;
 
-	return v1_pri - v2_pri;
+	return v2_pri - v1_pri;
 }
 
 static void usb_icl_callback(struct gvotable_election *el,
