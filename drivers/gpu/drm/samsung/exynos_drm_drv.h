@@ -120,7 +120,6 @@ to_exynos_plane_state(const struct drm_plane_state *state)
 
 struct exynos_drm_plane {
 	struct drm_plane base;
-	const struct exynos_drm_plane_config *config;
 	unsigned int index;
 
 	struct {

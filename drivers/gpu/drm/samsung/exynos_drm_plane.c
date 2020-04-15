@@ -172,8 +172,8 @@ static void exynos_drm_plane_reset(struct drm_plane *plane)
 	if (exynos_state) {
 		plane->state = &exynos_state->base;
 		plane->state->plane = plane;
-		plane->state->zpos = exynos_plane->config->zpos;
-		plane->state->normalized_zpos = exynos_plane->config->zpos;
+		plane->state->zpos = exynos_plane->index;
+		plane->state->normalized_zpos = exynos_plane->index;
 		plane->state->alpha = DRM_BLEND_ALPHA_OPAQUE;
 		plane->state->pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
 	}
@@ -265,8 +265,7 @@ static struct drm_plane_funcs exynos_plane_funcs = {
 };
 
 static int
-exynos_drm_plane_check_format(const struct exynos_drm_plane_config *config,
-			      struct exynos_drm_plane_state *state)
+exynos_drm_plane_check_format(struct exynos_drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->base.fb;
 
@@ -320,7 +319,7 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 			return ret;
 	}
 
-	ret = exynos_drm_plane_check_format(exynos_plane->config, exynos_state);
+	ret = exynos_drm_plane_check_format(exynos_state);
 	if (ret)
 		return ret;
 
@@ -374,8 +373,7 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 };
 
 static int exynos_drm_plane_create_restriction_property(
-				struct exynos_drm_plane *exynos_plane,
-				const struct exynos_drm_plane_config *config)
+				struct exynos_drm_plane *exynos_plane)
 {
 	struct drm_plane *plane = &exynos_plane->base;
 	struct drm_property_blob *blob;
@@ -549,11 +547,10 @@ int exynos_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &plane_helper_funcs);
 
 	exynos_plane->index = index;
-	exynos_plane->config = config;
 
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_blend_mode_property(plane, supported_modes);
-	drm_plane_create_zpos_property(plane, 0, 0, MAX_PLANE - 1);
+	drm_plane_create_zpos_property(plane, config->zpos, 0, MAX_PLANE - 1);
 
 	if (test_bit(DPP_ATTR_ROT, &dpp->attr))
 		drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
@@ -570,7 +567,7 @@ int exynos_plane_init(struct drm_device *dev,
 		exynos_drm_plane_create_min_luminance_property(exynos_plane);
 	}
 
-	exynos_drm_plane_create_restriction_property(exynos_plane, config);
+	exynos_drm_plane_create_restriction_property(exynos_plane);
 	exynos_drm_plane_create_standard_property(exynos_plane);
 	exynos_drm_plane_create_transfer_property(exynos_plane);
 	exynos_drm_plane_create_range_property(exynos_plane);
