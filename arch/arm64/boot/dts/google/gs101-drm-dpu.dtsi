@@ -258,6 +258,15 @@
 		line_mem_cnt = <4>;
 		cycle_per_line = <8>;   /* 4ppc */
 
+		/* Urgent */
+		rd_en = <1>;
+		rd_hi_thres = <0x800>;
+		rd_lo_thres = <0x400>;
+		rd_wait_cycle = <0x10>;
+		wr_en = <0>;
+		wr_hi_thres = <0x0>;
+		wr_lo_thres = <0x0>;
+
 		/* EINT for TE */
 		gpios = <&gpp0 3 0xf>;
 
