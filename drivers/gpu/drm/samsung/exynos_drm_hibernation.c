@@ -55,7 +55,6 @@ static void exynos_hibernation_enter(struct exynos_hibernation *hiber)
 {
 	struct decon_device *decon = hiber->decon;
 	struct dsim_device *dsim;
-	struct writeback_device *wb;
 
 	pr_debug("%s +\n", __func__);
 
@@ -74,13 +73,15 @@ static void exynos_hibernation_enter(struct exynos_hibernation *hiber)
 
 	DPU_EVENT_LOG(DPU_EVT_ENTER_HIBERNATION_IN, decon->id, NULL);
 
-	wb = decon_get_wb(decon);
-	if (wb)
-		writeback_enter_hibernation(wb);
+	hiber->wb = decon_get_wb(decon);
+	if (hiber->wb)
+		writeback_enter_hibernation(hiber->wb);
 	decon_enter_hibernation(decon);
 	dsim_enter_ulps(dsim);
 
 	pm_runtime_put_sync(decon->dev);
+
+	hiber->dsim = dsim;
 
 	DPU_EVENT_LOG(DPU_EVT_ENTER_HIBERNATION_OUT, decon->id, NULL);
 
@@ -95,16 +96,13 @@ ret:
 static void exynos_hibernation_exit(struct exynos_hibernation *hiber)
 {
 	struct decon_device *decon = hiber->decon;
-	struct dsim_device *dsim;
-	struct writeback_device *wb;
 
 	pr_debug("%s +\n", __func__);
 
 	if (!decon)
 		return;
 
-	dsim = decon_get_dsim(decon);
-	if (!dsim)
+	if (!hiber->dsim)
 		return;
 
 	hibernation_block(hiber);
@@ -125,11 +123,13 @@ static void exynos_hibernation_exit(struct exynos_hibernation *hiber)
 
 	pm_runtime_get_sync(decon->dev);
 
-	dsim_exit_ulps(dsim);
+	dsim_exit_ulps(hiber->dsim);
 	decon_exit_hibernation(decon);
-	wb = decon_get_wb(decon);
-	if (wb)
-		writeback_exit_hibernation(wb);
+	if (hiber->wb) {
+		writeback_exit_hibernation(hiber->wb);
+		hiber->wb = NULL;
+	}
+	hiber->dsim = NULL;
 
 	exynos_hibernation_trig_reset(hiber);
 

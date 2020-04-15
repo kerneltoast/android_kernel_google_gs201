@@ -26,6 +26,7 @@
 struct decon_device;
 struct dsim_device;
 struct exynos_hibernation;
+struct writeback_device;
 
 struct exynos_hibernation_funcs {
 	void (*enter)(struct exynos_hibernation *hiber);
@@ -44,6 +45,8 @@ struct exynos_hibernation {
 	struct kthread_worker worker;
 	struct kthread_work work;
 	struct decon_device *decon;
+	struct dsim_device *dsim;
+	struct writeback_device *wb;
 	const struct exynos_hibernation_funcs *funcs;
 };
 
