@@ -444,12 +444,11 @@ static const struct file_operations dpu_event_fops = {
 #define MAX_NAME_SIZE	32
 int dpu_init_debug(struct decon_device *decon)
 {
-	int ret = 0;
 	int i;
 	u32 event_cnt;
 	struct drm_crtc *crtc;
-	struct dentry *underrun_cnt_dent;
 	struct dentry *debug_event;
+	struct dentry *urgent_dent;
 
 	decon->d.event_log = NULL;
 	event_cnt = DPU_EVENT_LOG_MAX;
@@ -479,25 +478,72 @@ int dpu_init_debug(struct decon_device *decon)
 			decon, &dpu_event_fops);
 	if (!debug_event) {
 		DRM_ERROR("failed to create debugfs event file\n");
-		ret = -ENOENT;
 		goto err_event_log;
 	}
 
-	underrun_cnt_dent = debugfs_create_u32("underrun_cnt", 0664,
-			crtc->debugfs_entry, &decon->d.underrun_cnt);
-	if (!underrun_cnt_dent) {
+	if (!debugfs_create_u32("underrun_cnt", 0664,
+			crtc->debugfs_entry, &decon->d.underrun_cnt)) {
 		DRM_ERROR("failed to create debugfs underrun_cnt file\n");
-		ret = -ENOENT;
 		goto err_debugfs;
 	}
 
-	return ret;
+	urgent_dent = debugfs_create_dir("urgent", crtc->debugfs_entry);
+	if (!urgent_dent) {
+		DRM_ERROR("failed to create debugfs urgent directory\n");
+		goto err_debugfs;
+	}
 
+	if (!debugfs_create_u32("rd_en", 0664,
+			urgent_dent, &decon->config.urgent.rd_en)) {
+		DRM_ERROR("failed to create debugfs rd_en file\n");
+		goto err_urgent;
+	}
+
+	if (!debugfs_create_x32("rd_hi_thres", 0664,
+			urgent_dent, &decon->config.urgent.rd_hi_thres)) {
+		DRM_ERROR("failed to create debugfs rd_hi_thres file\n");
+		goto err_urgent;
+	}
+
+	if (!debugfs_create_x32("rd_lo_thres", 0664,
+			urgent_dent, &decon->config.urgent.rd_lo_thres)) {
+		DRM_ERROR("failed to create debugfs rd_lo_thres file\n");
+		goto err_urgent;
+	}
+
+	if (!debugfs_create_x32("rd_wait_cycle", 0664,
+			urgent_dent, &decon->config.urgent.rd_wait_cycle)) {
+		DRM_ERROR("failed to create debugfs rd_wait_cycle file\n");
+		goto err_urgent;
+	}
+
+	if (!debugfs_create_u32("wr_en", 0664,
+			urgent_dent, &decon->config.urgent.wr_en)) {
+		DRM_ERROR("failed to create debugfs wr_en file\n");
+		goto err_urgent;
+	}
+
+	if (!debugfs_create_x32("wr_hi_thres", 0664,
+			urgent_dent, &decon->config.urgent.wr_hi_thres)) {
+		DRM_ERROR("failed to create debugfs wr_hi_thres file\n");
+		goto err_urgent;
+	}
+
+	if (!debugfs_create_x32("wr_lo_thres", 0664,
+			urgent_dent, &decon->config.urgent.wr_lo_thres)) {
+		DRM_ERROR("failed to create debugfs wr_lo_thres file\n");
+		goto err_urgent;
+	}
+
+	return 0;
+
+err_urgent:
+	debugfs_remove_recursive(urgent_dent);
 err_debugfs:
 	debugfs_remove(debug_event);
 err_event_log:
 	kfree(decon->d.event_log);
-	return ret;
+	return -ENOENT;
 }
 
 #define PREFIX_LEN	40
