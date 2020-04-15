@@ -369,7 +369,7 @@
 
 #define OF_URGENT_EN				(0x02C0)
 #define WRITE_URGENT_GENERATION_EN_F		(0x1 << 1)
-#define READ_URGETN_GENERATION_EN_F		(0x1 << 0)
+#define READ_URGENT_GENERATION_EN_F		(0x1 << 0)
 
 #define OF_RD_URGENT_0				(0x02C4)
 #define READ_URGENT_HIGH_THRESHOLD_F(_v)	((_v) << 16)

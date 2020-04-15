@@ -737,6 +737,49 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 		return ret;
 	}
 
+	ret = of_property_read_u32(np, "rd_en", &decon->config.urgent.rd_en);
+	if (ret)
+		decon_warn(decon, "failed to parse urgent rd_en(%d)\n", ret);
+
+	ret = of_property_read_u32(np, "rd_hi_thres",
+			&decon->config.urgent.rd_hi_thres);
+	if (ret) {
+		decon_warn(decon, "failed to parse urgent rd_hi_thres(%d)\n",
+				ret);
+	}
+
+	ret = of_property_read_u32(np, "rd_lo_thres",
+			&decon->config.urgent.rd_lo_thres);
+	if (ret) {
+		decon_warn(decon, "failed to parse urgent rd_lo_thres(%d)\n",
+				ret);
+	}
+
+	ret = of_property_read_u32(np, "rd_wait_cycle",
+			&decon->config.urgent.rd_wait_cycle);
+	if (ret) {
+		decon_warn(decon, "failed to parse urgent rd_wait_cycle(%d)\n",
+				ret);
+	}
+
+	ret = of_property_read_u32(np, "wr_en", &decon->config.urgent.wr_en);
+	if (ret)
+		decon_warn(decon, "failed to parse urgent wr_en(%d)\n", ret);
+
+	ret = of_property_read_u32(np, "wr_hi_thres",
+			&decon->config.urgent.wr_hi_thres);
+	if (ret) {
+		decon_warn(decon, "failed to parse urgent wr_hi_thres(%d)\n",
+				ret);
+	}
+
+	ret = of_property_read_u32(np, "wr_lo_thres",
+			&decon->config.urgent.wr_lo_thres);
+	if (ret) {
+		decon_warn(decon, "failed to parse urgent wr_lo_thres(%d)\n",
+				ret);
+	}
+
 	ret = of_property_read_u32(np, "out_type", &decon->config.out_type);
 	if (ret) {
 		decon_err(decon, "failed to parse output type(%d)\n", ret);

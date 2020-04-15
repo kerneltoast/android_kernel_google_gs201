@@ -316,6 +316,51 @@ static void decon_reg_set_latency_monitor_enable(u32 id, u32 en)
 static inline void decon_reg_set_latency_monitor_enable(u32 id, u32 en) { }
 #endif
 
+/* Enable WR/RD urgent signal */
+static void decon_reg_set_wr_urgent_enable(u32 id, u32 en)
+{
+	u32 val, mask;
+
+	val = en ? ~0 : 0;
+	mask = WRITE_URGENT_GENERATION_EN_F;
+	decon_write_mask(id, OF_URGENT_EN, val, mask);
+}
+
+static void decon_reg_set_rd_urgent_enable(u32 id, u32 en)
+{
+	u32 val, mask;
+
+	val = en ? ~0 : 0;
+	mask = READ_URGENT_GENERATION_EN_F;
+	decon_write_mask(id, OF_URGENT_EN, val, mask);
+}
+
+static void decon_reg_set_rd_urgent_threshold(u32 id, u32 high, u32 low)
+{
+	u32 val;
+
+	val = READ_URGENT_HIGH_THRESHOLD_F(high) |
+		READ_URGENT_LOW_THRESHOLD_F(low);
+	decon_write(id, OF_RD_URGENT_0, val);
+}
+
+static void decon_reg_set_rd_wait_cycle(u32 id, u32 wait_cycle)
+{
+	u32 val;
+
+	val = READ_URGENT_WAIT_CYCLE_F(wait_cycle);
+	decon_write(id, OF_RD_URGENT_1, val);
+}
+
+static void decon_reg_set_wr_urgent_threshold(u32 id, u32 high, u32 low)
+{
+	u32 val;
+
+	val = WRITE_URGENT_HIGH_THRESHOLD_F(high) |
+		WRITE_URGENT_LOW_THRESHOLD_F(low);
+	decon_write(id, OF_WR_URGENT_0, val);
+}
+
 #define OUTIF_DSI0	BIT(0)
 #define OUTIF_DSI1	BIT(1)
 #define OUTIF_WB	BIT(2)
@@ -1580,6 +1625,22 @@ static void decon_reg_set_dither(u32 id, struct decon_config *config)
 	}
 }
 
+static void decon_reg_set_urgent(u32 id, struct decon_config *config)
+{
+	// Only set urgent for DECON0 now
+	if (id == 0) {
+		decon_reg_set_rd_urgent_enable(id, config->urgent.rd_en);
+		decon_reg_set_rd_urgent_threshold(id,
+						  config->urgent.rd_hi_thres,
+						  config->urgent.rd_lo_thres);
+		decon_reg_set_rd_wait_cycle(id, config->urgent.rd_wait_cycle);
+		decon_reg_set_wr_urgent_enable(id, config->urgent.wr_en);
+		decon_reg_set_wr_urgent_threshold(id,
+						  config->urgent.wr_hi_thres,
+						  config->urgent.wr_lo_thres);
+	}
+}
+
 /******************** EXPORTED DECON CAL APIs ********************/
 /* TODO: maybe this function will be moved to internal DECON CAL function */
 void decon_reg_update_req_global(u32 id)
@@ -1633,6 +1694,9 @@ int decon_reg_init(u32 id, struct decon_config *config)
 	 * dither which changes 10bpc to 8bpc data in decon must be enabled.
 	 */
 	decon_reg_set_dither(id, config);
+
+	/* enable rd/wr urgent */
+	decon_reg_set_urgent(id, config);
 
 	decon_reg_init_trigger(id, config);
 	decon_reg_configure_lcd(id, config);

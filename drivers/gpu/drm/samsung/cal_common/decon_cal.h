@@ -193,12 +193,23 @@ struct decon_mode {
 	enum decon_trig_mode trig_mode;
 };
 
+struct decon_urgent {
+	u32 rd_en;
+	u32 rd_hi_thres;
+	u32 rd_lo_thres;
+	u32 rd_wait_cycle;
+	u32 wr_en;
+	u32 wr_hi_thres;
+	u32 wr_lo_thres;
+};
+
 struct decon_config {
 	enum decon_out_type	out_type;
 	enum decon_te_from	te_from;
 	unsigned int		image_height;
 	unsigned int		image_width;
 	struct decon_mode	mode;
+	struct decon_urgent	urgent;
 	struct exynos_dsc	dsc;
 	unsigned int		out_bpc;
 };
