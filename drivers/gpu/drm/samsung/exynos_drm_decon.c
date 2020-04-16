@@ -316,7 +316,9 @@ static void decon_print_config_info(struct decon_device *decon)
 	if (decon->config.mode.op_mode == DECON_VIDEO_MODE)
 		str_trigger = "";
 
-	if (decon->config.out_type & DECON_OUT_DSI0)
+	if (decon->config.out_type == DECON_OUT_DSI)
+		str_output = "Dual DSI";
+	else if (decon->config.out_type & DECON_OUT_DSI0)
 		str_output = "DSI0";
 	else if  (decon->config.out_type & DECON_OUT_DSI1)
 		str_output = "DSI1";
@@ -324,6 +326,8 @@ static void decon_print_config_info(struct decon_device *decon)
 		str_output = "DP0";
 	else if  (decon->config.out_type & DECON_OUT_DP1)
 		str_output = "DP1";
+	else if  (decon->config.out_type & DECON_OUT_WB)
+		str_output = "WB";
 
 	decon_info(decon, "%s mode. %s %s output.(%dx%d@%dhz)\n",
 			decon->config.mode.op_mode ? "command" : "video",
@@ -560,28 +564,32 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	decon->drm_dev = drm_dev;
 
 	/* plane initialization in DPP channel order */
-	for (i = 0; i < decon->dpp_cnt; ++i) {
-		struct dpp_device *dpp = decon->dpp[i];
+	if (decon->id == 0) {
+		for (i = 0; i < decon->dpp_cnt; ++i) {
+			struct dpp_device *dpp = decon->dpp[i];
 
-		if (!dpp)
-			continue;
+			if (!dpp)
+				continue;
 
-		memset(&plane_config, 0, sizeof(plane_config));
+			memset(&plane_config, 0, sizeof(plane_config));
 
-		plane_config.pixel_formats = dpp->pixel_formats;
-		plane_config.num_pixel_formats = dpp->num_pixel_formats;
-		plane_config.zpos = i;
-		plane_config.type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
-						DRM_PLANE_TYPE_OVERLAY;
-		if (dpp->is_support & DPP_SUPPORT_AFBC)
-			plane_config.capabilities |= EXYNOS_DRM_PLANE_CAP_AFBC;
+			plane_config.pixel_formats = dpp->pixel_formats;
+			plane_config.num_pixel_formats = dpp->num_pixel_formats;
+			plane_config.zpos = i;
+			plane_config.type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
+				DRM_PLANE_TYPE_OVERLAY;
+			if (dpp->is_support & DPP_SUPPORT_AFBC)
+				plane_config.capabilities |=
+					EXYNOS_DRM_PLANE_CAP_AFBC;
 
-		ret = exynos_plane_init(drm_dev, &dpp->plane, i, &plane_config);
-		if (ret)
-			return ret;
+			ret = exynos_plane_init(drm_dev, &dpp->plane, i,
+					&plane_config);
+			if (ret)
+				return ret;
+		}
 	}
 
-	default_plane = &decon->dpp[0]->plane.base;
+	default_plane = &decon->dpp[decon->id]->plane.base;
 
 	decon->crtc = exynos_drm_crtc_create(drm_dev, default_plane,
 			decon->con_type, &decon_crtc_ops, decon);
@@ -729,8 +737,10 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 
 	if (decon->config.out_type == DECON_OUT_DSI)
 		decon->config.mode.dsi_mode = DSI_MODE_DUAL_DSI;
-	else
+	else if (decon->config.out_type & (DECON_OUT_DSI0 | DECON_OUT_DSI1))
 		decon->config.mode.dsi_mode = DSI_MODE_SINGLE;
+	else
+		decon->config.mode.dsi_mode = DSI_MODE_NONE;
 
 	decon->dpp_cnt = of_count_phandle_with_args(np, "dpps", NULL);
 	for (i = 0; i < decon->dpp_cnt; ++i) {
@@ -769,7 +779,7 @@ static int decon_remap_regs(struct decon_device *decon)
 	pdev = container_of(dev, struct platform_device, dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	decon->regs.regs = devm_ioremap_resource(dev, res);
+	decon->regs.regs = devm_ioremap(dev, res->start, resource_size(res));
 	if (IS_ERR(decon->regs.regs)) {
 		DRM_DEV_ERROR(decon->dev, "failed decon ioremap\n");
 		return PTR_ERR(decon->regs.regs);
