@@ -399,6 +399,14 @@ void decon_reg_set_cwb_enable(u32 id, u32 en)
 	decon_write_mask(id, DATA_PATH_CON, d_path, mask);
 }
 
+void decon_reg_set_dqe_enable(u32 id, bool en)
+{
+	u32 val;
+
+	val = en ? (ENHANCE_DQE_ON | ENHANCE_DITHER_ON) : 0;
+	decon_write_mask(id, DATA_PATH_CON, val, ENHANCE_PATH_MASK);
+}
+
 /*
  * Check major configuration of data_path_control
  *    DSCC[7]
@@ -1735,6 +1743,11 @@ void decon_reg_update_req_window(u32 id, u32 win_idx)
 
 	mask = SHD_REG_UP_REQ_WIN(win_idx);
 	decon_write_mask(id, SHD_REG_UP_REQ, ~0, mask);
+}
+
+void decon_reg_update_req_dqe(u32 id)
+{
+	decon_write_mask(id, SHD_REG_UP_REQ, ~0, SHD_REG_UP_REQ_DQE);
 }
 
 void decon_reg_set_trigger(u32 id, struct decon_mode *mode,

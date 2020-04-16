@@ -242,6 +242,8 @@
 
 #define DATA_PATH_CON				(0x0200)
 #define ENHANCE_PATH_F(_v)			((_v) << 12)
+#define ENHANCE_DITHER_ON			ENHANCE_PATH_F(1)
+#define ENHANCE_DQE_ON				ENHANCE_PATH_F(2)
 #define ENHANCE_PATH_MASK			(0x7 << 12)
 #define ENHANCE_PATH_GET(_v)			(((_v) >> 12) & 0x7)
 #define COMP_OUTIF_PATH_F(_v)			((_v) << 0)
