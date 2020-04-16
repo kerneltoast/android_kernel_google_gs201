@@ -199,7 +199,9 @@
 		reg = <0x0 0x1C300000 0x6000>,	/* DECON_MAIN */
 		      <0x0 0x1C310000 0x6000>,	/* DECON_WIN */
 		      <0x0 0x1C320000 0x10000>,	/* DECON_SUB */
-		      <0x0 0x1C330000 0x6000>;	/* DECON0_WINCON */
+		      <0x0 0x1C330000 0x6000>,	/* DECON0_WINCON */
+		      <0x0 0x1C360000 0xF000>;	/* DQE */
+		reg-names = "main", "win", "sub", "wincon", "dqe";
 
 		decon,id = <0>;
 
