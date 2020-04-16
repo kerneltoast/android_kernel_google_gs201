@@ -73,6 +73,8 @@ struct exynos_panel {
 	char panel_id[PANEL_ID_MAX];
 	char panel_extinfo[PANEL_EXTINFO_MAX];
 
+	struct device_node *touch_dev;
+
 	struct {
 		struct drm_property *max_luminance;
 		struct drm_property *max_avg_luminance;

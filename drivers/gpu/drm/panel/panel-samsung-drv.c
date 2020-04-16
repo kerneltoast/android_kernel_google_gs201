@@ -19,6 +19,7 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -232,6 +233,8 @@ static int exynos_panel_parse_dt(struct exynos_panel *ctx)
 	if (ret)
 		goto err;
 
+	ctx->touch_dev = of_parse_phandle(ctx->dev->of_node, "touch", 0);
+
 err:
 	return ret;
 }
@@ -403,7 +406,35 @@ static int exynos_drm_connector_modes(struct drm_connector *connector)
 	return ret;
 }
 
+int exynos_drm_connector_atomic_check(struct drm_connector *connector,
+				      struct drm_connector_state *state)
+{
+	struct drm_bridge *bridge;
+	struct drm_crtc_state *crtc_state;
+	struct drm_encoder *encoder = state->best_encoder;
+	struct exynos_panel *ctx = connector_to_exynos_panel(connector);
+
+	if (!encoder) {
+		dev_warn(ctx->dev, "%s encoder is null\n", __func__);
+		return 0;
+	}
+
+	crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
+	if (!drm_atomic_crtc_needs_modeset(crtc_state))
+		return 0;
+
+	bridge = of_drm_find_bridge(ctx->touch_dev);
+	if (!bridge || bridge->dev)
+		return 0;
+
+	drm_bridge_attach(encoder, bridge, NULL);
+	dev_info(ctx->dev, "attach bridge %p to encoder %p\n", bridge, encoder);
+
+	return 0;
+}
+
 static const struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
+	.atomic_check = exynos_drm_connector_atomic_check,
 	.get_modes = exynos_drm_connector_modes,
 };
 
