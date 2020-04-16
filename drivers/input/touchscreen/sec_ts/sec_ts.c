@@ -1565,6 +1565,9 @@ static void sec_ts_read_event(struct sec_ts_data *ts)
 	ret = sec_ts_read(ts, SEC_TS_READ_ONE_EVENT, (u8 *)read_event_buff[0], SEC_TS_EVENT_BUFF_SIZE);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev, "%s: read one event failed\n", __func__);
+#ifdef USE_POR_AFTER_SPI_RETRY
+		schedule_work(&ts->reset_work.work);
+#endif
 		return;
 	}
 

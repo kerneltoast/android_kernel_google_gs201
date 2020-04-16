@@ -64,11 +64,13 @@
 #undef USE_RESET_DURING_POWER_ON
 #undef USE_RESET_EXIT_LPM
 #undef USE_POR_AFTER_I2C_RETRY
+#define USE_POR_AFTER_SPI_RETRY
 #undef USER_OPEN_DWORK
 #undef USE_PRESSURE_SENSOR //TODO: check this
 #undef PAT_CONTROL //TODO: check this
 
-#if defined(USE_RESET_DURING_POWER_ON) || defined(USE_POR_AFTER_I2C_RETRY) || defined(USE_RESET_EXIT_LPM)
+#if defined(USE_RESET_DURING_POWER_ON) || defined(USE_POR_AFTER_I2C_RETRY) || \
+    defined(USE_RESET_EXIT_LPM) || defined(USE_POR_AFTER_SPI_RETRY)
 #define USE_POWER_RESET_WORK
 #endif
 
