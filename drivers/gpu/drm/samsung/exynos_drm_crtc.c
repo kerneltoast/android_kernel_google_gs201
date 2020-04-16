@@ -18,11 +18,15 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_color_mgmt.h>
+#include <drm/samsung_drm.h>
 
 #include <exynos_drm_crtc.h>
 #include <exynos_drm_drv.h>
 #include <exynos_drm_plane.h>
 #include <exynos_drm_decon.h>
+
+#include <dqe_cal.h>
 
 static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_state)
@@ -56,6 +60,44 @@ static void exynos_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 }
 
+static void exynos_crtc_update_lut(struct drm_crtc *crtc,
+					struct drm_crtc_state *state)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct drm_color_lut *degamma_lut, *gamma_lut;
+	struct cgc_lut *cgc_lut;
+	struct decon_device *decon = exynos_crtc->ctx;
+	struct exynos_drm_crtc_state *exynos_state;
+	struct exynos_dqe_state *dqe_state;
+
+	if (!decon->dqe)
+		return;
+
+	exynos_state = to_exynos_crtc_state(state);
+	dqe_state = &exynos_state->dqe;
+
+	if (exynos_state->cgc_lut) {
+		cgc_lut = (struct cgc_lut *)exynos_state->cgc_lut->data;
+		dqe_state->cgc_lut = cgc_lut;
+	} else {
+		dqe_state->cgc_lut = NULL;
+	}
+
+	if (state->degamma_lut) {
+		degamma_lut = (struct drm_color_lut *)state->degamma_lut->data;
+		dqe_state->degamma_lut = degamma_lut;
+	} else {
+		dqe_state->degamma_lut = NULL;
+	}
+
+	if (state->gamma_lut) {
+		gamma_lut = (struct drm_color_lut *)state->gamma_lut->data;
+		dqe_state->regamma_lut = gamma_lut;
+	} else {
+		dqe_state->regamma_lut = NULL;
+	}
+}
+
 static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
@@ -65,6 +107,8 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 
 	if (!state->enable)
 		return 0;
+
+	exynos_crtc_update_lut(crtc, state);
 
 	if (exynos_crtc->ops->atomic_check)
 		return exynos_crtc->ops->atomic_check(exynos_crtc, state);
@@ -87,6 +131,16 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_crtc_state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct exynos_drm_crtc_state *exynos_state;
+	struct decon_device *decon = exynos_crtc->ctx;
+	struct exynos_dqe *dqe = decon->dqe;
+
+	if (dqe) {
+		exynos_state = to_exynos_crtc_state(crtc->state);
+		exynos_dqe_update(dqe, &exynos_state->dqe,
+				decon->config.image_width,
+				decon->config.image_height);
+	}
 
 	if (exynos_crtc->ops->atomic_flush)
 		exynos_crtc->ops->atomic_flush(exynos_crtc);
@@ -184,6 +238,7 @@ static void exynos_drm_crtc_destroy_state(struct drm_crtc *crtc,
 	struct exynos_drm_crtc_state *exynos_crtc_state;
 
 	exynos_crtc_state = to_exynos_crtc_state(state);
+	drm_property_blob_put(exynos_crtc_state->cgc_lut);
 	__drm_atomic_helper_crtc_destroy_state(state);
 	kfree(exynos_crtc_state);
 }
@@ -219,6 +274,9 @@ exynos_drm_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	memcpy(copy, exynos_crtc_state, sizeof(*copy));
 
+	if (copy->cgc_lut)
+		drm_property_blob_get(copy->cgc_lut);
+
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &copy->base);
 
 	return &copy->base;
@@ -231,13 +289,29 @@ static int exynos_drm_crtc_set_property(struct drm_crtc *crtc,
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_crtc_state *exynos_crtc_state;
+	struct drm_property_blob *blob = NULL;
 
 	exynos_crtc_state = to_exynos_crtc_state(state);
 
-	if (property == exynos_crtc->props.color_mode)
+	if (property == exynos_crtc->props.color_mode) {
 		exynos_crtc_state->color_mode = val;
-	else
+	} else if (property == exynos_crtc->props.cgc_lut) {
+		if (val != 0) {
+			blob = drm_property_lookup_blob(state->crtc->dev, val);
+			if (!blob)
+				return -EINVAL;
+
+			if (blob->length != sizeof(struct cgc_lut)) {
+				drm_property_blob_put(blob);
+				return -EINVAL;
+			}
+		}
+
+		drm_property_replace_blob(&exynos_crtc_state->cgc_lut, blob);
+		drm_property_blob_put(blob);
+	} else {
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -255,6 +329,9 @@ static int exynos_drm_crtc_get_property(struct drm_crtc *crtc,
 
 	if (property == exynos_crtc->props.color_mode)
 		*val = exynos_crtc_state->color_mode;
+	else if (property == exynos_crtc->props.cgc_lut)
+		*val = (exynos_crtc_state->cgc_lut) ?
+			exynos_crtc_state->cgc_lut->base.id : 0;
 	else
 		return -EINVAL;
 
@@ -325,6 +402,22 @@ exynos_drm_crtc_create_color_mode_property(struct exynos_drm_crtc *exynos_crtc)
 	return 0;
 }
 
+static int
+exynos_drm_crtc_create_cgc_lut_property(struct exynos_drm_crtc *exynos_crtc)
+{
+	struct drm_crtc *crtc = &exynos_crtc->base;
+	struct drm_property *prop;
+
+	prop = drm_property_create(crtc->dev, DRM_MODE_PROP_BLOB, "cgc_lut", 0);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&crtc->base, prop, 0);
+	exynos_crtc->props.cgc_lut = prop;
+
+	return 0;
+}
+
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 					struct drm_plane *plane,
 					enum exynos_drm_output_type type,
@@ -355,6 +448,13 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	ret = exynos_drm_crtc_create_color_mode_property(exynos_crtc);
 	if (ret)
 		goto err_crtc;
+
+	ret = exynos_drm_crtc_create_cgc_lut_property(exynos_crtc);
+	if (ret)
+		goto err_crtc;
+
+	drm_crtc_enable_color_mgmt(crtc, DEGAMMA_LUT_SIZE, false,
+			REGAMMA_LUT_SIZE);
 
 	return exynos_crtc;
 

@@ -1000,6 +1000,8 @@ static int decon_probe(struct platform_device *pdev)
 
 	decon->hibernation = exynos_hibernation_register(decon);
 
+	decon->dqe = exynos_dqe_register(decon);
+
 	ret = dpu_init_debug(decon);
 	if (ret)
 		goto err;
@@ -1040,6 +1042,9 @@ static int decon_suspend(struct device *dev)
 
 	if (decon->res.aclk_disp)
 		clk_disable_unprepare(decon->res.aclk_disp);
+
+	if (decon->dqe)
+		exynos_dqe_reset(decon->dqe);
 
 	pr_debug("suspended\n");
 

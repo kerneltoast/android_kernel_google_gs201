@@ -19,6 +19,7 @@
 #include <drm/drmP.h>
 #include <linux/module.h>
 
+#include <exynos_drm_dqe.h>
 #include <decon_cal.h>
 
 #define MAX_CRTC	3
@@ -198,6 +199,8 @@ struct exynos_drm_crtc_ops {
 struct exynos_drm_crtc_state {
 	struct drm_crtc_state base;
 	uint32_t color_mode;
+	struct exynos_dqe_state dqe;
+	struct drm_property_blob *cgc_lut;
 };
 
 static inline struct exynos_drm_crtc_state *
@@ -222,6 +225,7 @@ struct exynos_drm_crtc {
 	void				*ctx;
 	struct {
 		struct drm_property *color_mode;
+		struct drm_property *cgc_lut;
 	} props;
 };
 

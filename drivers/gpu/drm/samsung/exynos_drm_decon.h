@@ -31,6 +31,7 @@
 #include <exynos_drm_dsim.h>
 #include <exynos_drm_hibernation.h>
 #include <exynos_drm_writeback.h>
+#include <exynos_drm_dqe.h>
 
 #include <decon_cal.h>
 
@@ -282,6 +283,7 @@ struct decon_device {
 	struct decon_debug		d;
 	struct exynos_hibernation	*hibernation;
 	struct completion		framestart_done;
+	struct exynos_dqe		*dqe;
 
 	u32				irq_fs;	/* frame start irq number*/
 	u32				irq_fd;	/* frame done irq number*/
