@@ -21,6 +21,7 @@
 #include <regs-decon.h>
 #ifdef __linux__
 #include <exynos_drm_decon.h>
+#include <linux/of_address.h>
 #endif
 
 enum decon_dsc_id {
@@ -203,7 +204,7 @@ static void decon_reg_set_clkgate_mode(u32 id, u32 en)
 	val = en ? ~0 : 0;
 	/* all unmask */
 	mask = CLOCK_CON_AUTO_CG_MASK | CLOCK_CON_QACTIVE_MASK;
-	decon_write_mask(0, CLOCK_CON, val, mask);
+	decon_write_mask(id, CLOCK_CON(id), val, mask);
 }
 
 static void decon_reg_set_qactive_pll_mode(u32 id, u32 en)
@@ -213,7 +214,7 @@ static void decon_reg_set_qactive_pll_mode(u32 id, u32 en)
 	val = en ? ~0 : 0;
 	/* all unmask */
 	mask = CLOCK_CON_QACTIVE_PLL_ON;
-	decon_write_mask(0, CLOCK_CON, val, mask);
+	decon_write_mask(id, CLOCK_CON(id), val, mask);
 }
 
 /*
@@ -2111,7 +2112,8 @@ int __decon_init_resources(struct decon_device *decon)
 	pdev = container_of(dev, struct platform_device, dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	decon->regs.win_regs = devm_ioremap_resource(dev, res);
+	decon->regs.win_regs =
+		devm_ioremap(dev, res->start, resource_size(res));
 	if (IS_ERR(decon->regs.win_regs)) {
 		cal_log_err(decon->id, "failed decon win ioremap\n");
 		return PTR_ERR(decon->regs.win_regs);
@@ -2120,7 +2122,8 @@ int __decon_init_resources(struct decon_device *decon)
 			REGS_DECON_WIN, decon->id);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	decon->regs.sub_regs = devm_ioremap_resource(dev, res);
+	decon->regs.sub_regs =
+		devm_ioremap(dev, res->start, resource_size(res));
 	if (IS_ERR(decon->regs.sub_regs)) {
 		cal_log_err(decon->id, "failed decon sub ioremap\n");
 		return PTR_ERR(decon->regs.sub_regs);
@@ -2129,7 +2132,8 @@ int __decon_init_resources(struct decon_device *decon)
 			REGS_DECON_SUB, decon->id);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	decon->regs.wincon_regs = devm_ioremap_resource(dev, res);
+	decon->regs.wincon_regs =
+		devm_ioremap(dev, res->start, resource_size(res));
 	if (IS_ERR(decon->regs.wincon_regs)) {
 		cal_log_err(decon->id, "failed wincon ioremap\n");
 		return PTR_ERR(decon->regs.wincon_regs);

@@ -432,9 +432,7 @@
 #define WAIT_CYCLE_AFTER_SFR_UPDATE_V(_v)	((_v) << 0)
 #define WAIT_CYCLE_AFTER_SFR_UPDATE_MASK	(0x3f << 0)
 
-
-
-#define CLOCK_CON				(0x5000)
+#define CLOCK_CON(_id)				(0x5000 - (0x1000 * (_id)))
 /*
  * [28] QACTIVE_PLL_VALUE = 0
  * [24] QACTIVE_VALUE = 0
@@ -451,7 +449,7 @@
 #define CLOCK_CON_QACTIVE_MASK			((0x1 << 24) | (0x1 << 28))
 #define CLOCK_CON_QACTIVE_PLL_ON		(0x1 << 28)
 
-#define SECURE_CON				(0x5010)
+#define SECURE_CON(_id)				(0x5010 - (0x1000 * (_id)))
 #define PSLVERR_EN				(1 << 0)
 
 //-------------------------------------------------------------------
