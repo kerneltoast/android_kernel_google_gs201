@@ -219,7 +219,7 @@
 
 	drmdecon0: drmdecon@0x1C300000 {
 		compatible = "samsung,exynos-decon";
-		reg = <0x0 0x1C300000 0x6000>,	/* DECON_MAIN */
+		reg = <0x0 0x1C300000 0x6000>,	/* DECON0_MAIN */
 		      <0x0 0x1C310000 0x6000>,	/* DECON_WIN */
 		      <0x0 0x1C320000 0x10000>,	/* DECON_SUB */
 		      <0x0 0x1C330000 0x6000>,	/* DECON0_WINCON */
@@ -242,14 +242,14 @@
 		op_mode = <1>;	  /* 0: video mode, 1: command mode */
 		trig_mode = <0>;  /* 0: hw trigger, 1: sw trigger */
 		out_type = <0x2>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
-		te_from = <0>;	  /* 0: from DDI0, 1: from DDI1, 2: from DDI2 */
+
+		/* 0: from DDI0, 1: from DDI1, 2: from DDI2 3: not receive TE */
+		te_from = <0>;
 
 		/* BTS */
 		ppc = <2>;
 		line_mem_cnt = <4>;
 		cycle_per_line = <8>;   /* 4ppc */
-
-		decon_cnt = <3>;
 
 		/* EINT for TE */
 		gpios = <&gpp0 3 0xf>;
@@ -265,5 +265,39 @@
 		connector = <0x1 0x2 0x8>;
 
 		hibernation;
+	};
+
+	drmdecon2: drmdecon@0x1C302000 {
+		compatible = "samsung,exynos-decon";
+		reg = <0x0 0x1C302000 0x4000>,	/* DECON2_MAIN */
+		      <0x0 0x1C310000 0x6000>,	/* DECON_WIN */
+		      <0x0 0x1C320000 0x10000>,	/* DECON_SUB */
+		      <0x0 0x1C350000 0x6000>;	/* DECON2_WINCON */
+
+		decon,id = <2>;
+
+		interrupts = <GIC_SPI INTREQ__DISP_DECON2_FRAME_START_DISP IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DISP_DECON2_FRAME_DONE_DISP IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI INTREQ__DISP_DECON2_EXTRA_DISP IRQ_TYPE_LEVEL_HIGH>;
+		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
+
+		max_win = <6>;
+		op_mode = <1>;		/* 0: video mode, 1: command mode */
+		trig_mode = <1>;	/* 0: hw trigger, 1: sw trigger */
+		out_type = <0x100>;	/* BIT8: WB */
+
+		/* BTS */
+		ppc = <2>;
+		line_mem_cnt = <4>;
+		cycle_per_line = <8>;   /* 4ppc */
+
+		dpps = <&drmdpp0 &drmdpp1 &drmdpp2 &drmdpp3 &drmdpp4 &drmdpp5>;
+		/*
+		 * connector type that can be connected to the DECON. please
+		 * refer to enum exynos_drm_output_type in exynos_drm_drv.h
+		 *
+		 * DSI0(0x1), DSI1(0x2), VIDI(0x8)
+		 */
+		connector = <0x8>;
 	};
 };
