@@ -70,6 +70,7 @@ static int emul_enable(struct drm_panel *panel)
 
 static const struct exynos_display_mode emul_exynos_mode = {
 	.mode_flags = MIPI_DSI_MODE_VIDEO,
+	.bpc = 8,
 	.dsc = {
 		.enabled = true,
 		.dsc_count = 2,

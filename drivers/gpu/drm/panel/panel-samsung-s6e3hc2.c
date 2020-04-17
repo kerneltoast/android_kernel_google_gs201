@@ -145,6 +145,7 @@ static int s6e3hc2_set_brightness(struct exynos_panel *exynos_panel, u16 br)
 
 static const struct exynos_display_mode s6e3hc2_wqhd_mode_private = {
 	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.bpc = 8,
 	.dsc = {
 		.enabled = true,
 		.dsc_count = 2,
@@ -173,6 +174,7 @@ static const struct drm_display_mode s6e3hc2_wqhd_mode = {
 
 static const struct exynos_display_mode s6e3hc2_fhd_mode_private = {
 	.mode_flags = MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.bpc = 8,
 	.dsc = {
 		.enabled = true,
 		.dsc_count = 2,
