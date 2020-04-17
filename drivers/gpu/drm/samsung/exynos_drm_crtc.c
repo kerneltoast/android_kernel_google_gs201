@@ -351,6 +351,7 @@ static void exynos_drm_crtc_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tmode=%s (%d)\n",
 		   cfg->mode.op_mode == DECON_VIDEO_MODE ? "vid" : "cmd",
 		   cfg->mode.dsi_mode);
+	drm_printf(p, "\t\tbpc=%d\n", cfg->out_bpc);
 }
 
 static const struct drm_crtc_funcs exynos_crtc_funcs = {

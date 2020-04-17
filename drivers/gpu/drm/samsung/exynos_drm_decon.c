@@ -412,6 +412,8 @@ static void decon_update_config_for_display_mode(struct exynos_drm_crtc *crtc)
 	decon->config.mode.op_mode =
 		(mode_priv->mode_flags & MIPI_DSI_MODE_VIDEO) ?
 			DECON_VIDEO_MODE : DECON_MIPI_COMMAND_MODE;
+
+	decon->config.out_bpc = mode_priv->bpc;
 }
 
 static void decon_enable(struct exynos_drm_crtc *crtc)
