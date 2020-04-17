@@ -27,6 +27,7 @@ struct exynos_display_dsc {
 struct exynos_display_mode {
 	/* DSI mode flags in drm_mipi_dsi.h */
 	unsigned long mode_flags;
+	unsigned int bpc;
 	struct exynos_display_dsc dsc;
 };
 
