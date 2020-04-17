@@ -25,4 +25,6 @@ void dqe_reg_init(u32 width, u32 height);
 void dqe_reg_set_degamma_lut(const struct drm_color_lut *lut);
 void dqe_reg_set_cgc_lut(const struct cgc_lut *lut);
 void dqe_reg_set_regamma_lut(const struct drm_color_lut *lut);
+void dqe_reg_set_cgc_dither(bool en);
+void dqe_reg_set_disp_dither(bool en);
 #endif /* __SAMSUNG_DQE_CAL_H__ */

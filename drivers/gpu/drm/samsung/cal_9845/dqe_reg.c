@@ -142,3 +142,13 @@ void dqe_reg_set_regamma_lut(const struct drm_color_lut *lut)
 
 	cal_log_debug(0, "%s -\n", __func__);
 }
+
+void dqe_reg_set_cgc_dither(bool en)
+{
+	dqe_write_mask(DQE0_CGC_DITHER, DITHER_EN(en), DITHER_EN_MASK);
+}
+
+void dqe_reg_set_disp_dither(bool en)
+{
+	dqe_write_mask(DQE0_DISP_DITHER, DITHER_EN(en), DITHER_EN_MASK);
+}

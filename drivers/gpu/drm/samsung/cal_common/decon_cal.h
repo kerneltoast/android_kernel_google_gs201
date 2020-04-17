@@ -200,6 +200,7 @@ struct decon_config {
 	unsigned int		image_width;
 	struct decon_mode	mode;
 	struct exynos_dsc	dsc;
+	unsigned int		out_bpc;
 };
 
 struct decon_regs {

@@ -142,6 +142,11 @@ enum dpp_reg_area {
 	REG_AREA_DMA_COM,
 };
 
+enum dpp_bpc {
+	DPP_BPC_8 = 0,
+	DPP_BPC_10,
+};
+
 #define MAX_PLANE_ADDR_CNT	4
 
 struct dpp_params_info {

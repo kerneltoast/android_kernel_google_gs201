@@ -744,6 +744,12 @@ static void dpp_reg_print_irqs_msg(u32 id, u32 irqs)
 	}
 }
 
+static void dpp_reg_set_bpc(u32 id, enum dpp_bpc bpc)
+{
+	dpp_write_mask(id, DPP_COM_IO_CON, DPP_BPC_MODE(bpc),
+			DPP_BPC_MODE_MASK);
+}
+
 /********** IDMA and ODMA combination CAL functions **********/
 /*
  * Y8 : Y8 or RGB base, AFBC or SBWC-Y header
@@ -897,6 +903,7 @@ void dpp_reg_init(u32 id, const unsigned long attr)
 		dpp_reg_set_irq_mask_all(id, 0);
 		dpp_reg_set_irq_enable(id);
 		dpp_reg_set_linecnt(id, 1);
+		dpp_reg_set_bpc(id, DPP_BPC_10);
 	}
 
 	if (test_bit(DPP_ATTR_ODMA, &attr)) {

@@ -17,6 +17,7 @@
 
 #include <cal_config.h>
 #include <decon_cal.h>
+#include <dqe_cal.h>
 #include <regs-decon.h>
 #ifdef __linux__
 #include <exynos_drm_decon.h>
@@ -1244,10 +1245,6 @@ static void decon_reg_configure_lcd(u32 id, struct decon_config *config)
 		decon_reg_config_data_path_size(id, config->image_width,
 				config->image_height, overlap_w, NULL,
 				&config->dsc);
-
-		/* TODO: if 10 BPC is supported, this will be changed later */
-		if (id == 2)
-			decon_reg_set_bpc(id, 8);
 	}
 
 	decon_reg_per_frame_off(id);
@@ -1558,6 +1555,28 @@ void decon_reg_set_pll_wakeup(u32 id, u32 en)
 	decon_write_mask(id, PLL_SLEEP_CON, val, mask);
 }
 
+static void decon_reg_set_dither(u32 id, struct decon_config *config)
+{
+	u32 val;
+
+	if (config->out_bpc == 10)
+		return;
+
+	if (id == 0) {
+		dqe_reg_init(config->image_width, config->image_height);
+		dqe_reg_set_disp_dither(true);
+		decon_reg_update_req_dqe(id);
+
+		val = ENHANCE_PATH_F(ENHANCEPATH_DQE_DITHER_ON);
+		decon_write_mask(id, DATA_PATH_CON, val, ENHANCE_PATH_MASK);
+	} else if (id == 1 || id == 2) {
+		val = ENHANCE_PATH_F(ENHANCEPATH_DITHER_ON);
+		decon_write_mask(id, DATA_PATH_CON, val, ENHANCE_PATH_MASK);
+	} else {
+		cal_log_warn(id, "decon(%d) is invalid to set dither\n", id);
+	}
+}
+
 /******************** EXPORTED DECON CAL APIs ********************/
 /* TODO: maybe this function will be moved to internal DECON CAL function */
 void decon_reg_update_req_global(u32 id)
@@ -1594,6 +1613,15 @@ int decon_reg_init(u32 id, struct decon_config *config)
 
 	/* enable once at init time */
 	decon_reg_set_latency_monitor_enable(id, 1);
+
+	/* decon processes data in 10bpc mode as default */
+	decon_reg_set_bpc(id, 10);
+
+	/*
+	 * If output data of decon is transferred to 8bpc mode panel,
+	 * dither which changes 10bpc to 8bpc data in decon must be enabled.
+	 */
+	decon_reg_set_dither(id, config);
 
 	decon_reg_init_trigger(id, config);
 	decon_reg_configure_lcd(id, config);

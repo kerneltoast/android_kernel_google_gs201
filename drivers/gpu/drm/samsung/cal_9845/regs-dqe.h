@@ -519,7 +519,8 @@
 #define DITHER_FRAME_OFFSET_MASK	(0x3 << 3)
 #define DITHER_FRAME_CON		(0x1 << 2)
 #define DITHER_MODE			(0x1 << 1)
-#define DITHER_EN			(0x1 << 0)
+#define DITHER_EN(_v)			((_v) << 0)
+#define DITHER_EN_MASK			(0x1 << 0)
 
 /*----------------------[HIST]-----------------------------------------------*/
 
