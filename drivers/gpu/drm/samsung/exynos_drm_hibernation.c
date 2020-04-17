@@ -102,9 +102,6 @@ static void exynos_hibernation_exit(struct exynos_hibernation *hiber)
 	if (!decon)
 		return;
 
-	if (!hiber->dsim)
-		return;
-
 	hibernation_block(hiber);
 
 	/*
@@ -116,7 +113,7 @@ static void exynos_hibernation_exit(struct exynos_hibernation *hiber)
 
 	mutex_lock(&hiber->lock);
 
-	if (decon->state != DECON_STATE_HIBERNATION)
+	if (decon->state != DECON_STATE_HIBERNATION || !hiber->dsim)
 		goto ret;
 
 	DPU_EVENT_LOG(DPU_EVT_EXIT_HIBERNATION_IN, decon->id, NULL);
