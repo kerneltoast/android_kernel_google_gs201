@@ -16,6 +16,8 @@
 
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/component.h>
 #include <linux/irq.h>
@@ -741,38 +743,26 @@ irq_end:
 
 static int dpp_init_resources(struct dpp_device *dpp)
 {
-	struct resource *res;
 	struct device *dev = dpp->dev;
+	struct device_node *np = dev->of_node;
 	struct platform_device *pdev;
 	int ret = 0;
+	int idx;
 
 	pdev = container_of(dev, struct platform_device, dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dpp_err(dpp, "failed to get mem resource\n");
-		return -ENOENT;
-	}
-
-	dpp->regs.dma_base_regs = devm_ioremap_resource(dev, res);
+	idx = of_property_match_string(np, "reg-names", "dma");
+	dpp->regs.dma_base_regs = of_iomap(np, idx);
 	if (!dpp->regs.dma_base_regs) {
-		dpp_err(dpp, "failed to remap DPU_DMA SFR region\n");
+		pr_err("failed to remap DPU_DMA SFR region\n");
 		return -EINVAL;
 	}
 	dpp_regs_desc_init(dpp->regs.dma_base_regs, "dma", REGS_DMA, dpp->id);
-	dpp_info(dpp, "dma res: start(0x%x), end(0x%x), vir(0x%llx)\n",
-			(u32)res->start, (u32)res->end,
-			(u64)dpp->regs.dma_base_regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dpp_err(dpp, "failed to get dpu dma irq resource\n");
-		return -ENOENT;
-	}
-	dpp_info(dpp, "dma irq no = %lld\n", res->start);
-
-	dpp->dma_irq = res->start;
-	ret = devm_request_irq(dev, res->start, dma_irq_handler, 0,
+	idx = of_property_match_string(np, "interrupts-names", "dma");
+	dpp->dma_irq = of_irq_get(np, idx);
+	dpp_info(dpp, "dma irq no = %lld\n", dpp->dma_irq);
+	ret = devm_request_irq(dev, dpp->dma_irq, dma_irq_handler, 0,
 			pdev->name, dpp);
 	if (ret) {
 		dpp_err(dpp, "failed to install DPU DMA irq\n");
@@ -782,34 +772,21 @@ static int dpp_init_resources(struct dpp_device *dpp)
 
 	if (test_bit(DPP_ATTR_DPP, &dpp->attr) ||
 			test_bit(DPP_ATTR_WBMUX, &dpp->attr)) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!res) {
-			dpp_err(dpp, "failed to get mem resource\n");
-			return -ENOENT;
-		}
-
-		dpp->regs.dpp_base_regs = devm_ioremap_resource(dev, res);
+		idx = of_property_match_string(np, "reg-names", "dpp");
+		dpp->regs.dpp_base_regs = of_iomap(np, idx);
 		if (!dpp->regs.dpp_base_regs) {
-			dpp_err(dpp, "failed to remap DPP SFR region\n");
+			pr_err("failed to remap DPP SFR region\n");
 			return -EINVAL;
 		}
 		dpp_regs_desc_init(dpp->regs.dpp_base_regs, "dpp", REGS_DPP,
 				dpp->id);
-		dpp_info(dpp, "dpp res: start(0x%x), end(0x%x), vir(0x%llx)\n",
-				(u32)res->start, (u32)res->end,
-				(u64)dpp->regs.dpp_base_regs);
 	}
 
 	if (test_bit(DPP_ATTR_DPP, &dpp->attr)) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
-		if (!res) {
-			dpp_err(dpp, "failed to get dpp irq resource\n");
-			return -ENOENT;
-		}
-		dpp_info(dpp, "dpp irq no = %lld\n", res->start);
-
-		dpp->dpp_irq = res->start;
-		ret = devm_request_irq(dev, res->start, dpp_irq_handler, 0,
+		idx = of_property_match_string(np, "interrupts-names", "dpp");
+		dpp->dpp_irq = of_irq_get(np, idx);
+		dpp_info(dpp, "dpp irq no = %lld\n", dpp->dpp_irq);
+		ret = devm_request_irq(dev, dpp->dpp_irq, dpp_irq_handler, 0,
 				pdev->name, dpp);
 		if (ret) {
 			dpp_err(dpp, "failed to install DPP irq\n");
