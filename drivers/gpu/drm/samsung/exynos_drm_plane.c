@@ -145,6 +145,15 @@ exynos_drm_plane_duplicate_state(struct drm_plane *plane)
 
 	memcpy(copy, exynos_state, sizeof(*exynos_state));
 
+	if (copy->eotf_lut)
+		drm_property_blob_get(copy->eotf_lut);
+	if (copy->oetf_lut)
+		drm_property_blob_get(copy->oetf_lut);
+	if (copy->gm)
+		drm_property_blob_get(copy->gm);
+	if (copy->tm)
+		drm_property_blob_get(copy->tm);
+
 	__drm_atomic_helper_plane_duplicate_state(plane, &copy->base);
 	return &copy->base;
 }
@@ -154,6 +163,10 @@ static void exynos_drm_plane_destroy_state(struct drm_plane *plane,
 {
 	struct exynos_drm_plane_state *old_exynos_state =
 					to_exynos_plane_state(old_state);
+	drm_property_blob_put(old_exynos_state->eotf_lut);
+	drm_property_blob_put(old_exynos_state->oetf_lut);
+	drm_property_blob_put(old_exynos_state->gm);
+	drm_property_blob_put(old_exynos_state->tm);
 	__drm_atomic_helper_plane_destroy_state(old_state);
 	kfree(old_exynos_state);
 }
@@ -179,6 +192,31 @@ static void exynos_drm_plane_reset(struct drm_plane *plane)
 	}
 }
 
+static int
+exynos_drm_replace_property_blob_from_id(struct drm_device *dev,
+					 struct drm_property_blob **blob,
+					 uint64_t blob_id,
+					 ssize_t expected_size)
+{
+	struct drm_property_blob *new_blob = NULL;
+
+	if (blob_id != 0) {
+		new_blob = drm_property_lookup_blob(dev, blob_id);
+		if (!new_blob)
+			return -EINVAL;
+
+		if (new_blob->length != expected_size) {
+			drm_property_blob_put(new_blob);
+			return -EINVAL;
+		}
+	}
+
+	drm_property_replace_blob(blob, new_blob);
+	drm_property_blob_put(new_blob);
+
+	return 0;
+}
+
 static int exynos_drm_plane_set_property(struct drm_plane *plane,
 				   struct drm_plane_state *state,
 				   struct drm_property *property,
@@ -187,21 +225,39 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_plane_state *exynos_state =
 						to_exynos_plane_state(state);
+	int ret = 0;
 
-	if (property == exynos_plane->props.max_luminance)
+	if (property == exynos_plane->props.max_luminance) {
 		exynos_state->max_luminance = val;
-	else if (property == exynos_plane->props.min_luminance)
+	} else if (property == exynos_plane->props.min_luminance) {
 		exynos_state->min_luminance = val;
-	else if (property == exynos_plane->props.standard)
+	} else if (property == exynos_plane->props.standard) {
 		exynos_state->standard = val;
-	else if (property == exynos_plane->props.transfer)
+	} else if (property == exynos_plane->props.transfer) {
 		exynos_state->transfer = val;
-	else if (property == exynos_plane->props.range)
+	} else if (property == exynos_plane->props.range) {
 		exynos_state->range = val;
-	else
+	} else if (property == exynos_plane->props.eotf_lut) {
+		ret = exynos_drm_replace_property_blob_from_id(
+				state->plane->dev, &exynos_state->eotf_lut,
+				val, sizeof(struct hdr_eotf_lut));
+	} else if (property == exynos_plane->props.oetf_lut) {
+		ret = exynos_drm_replace_property_blob_from_id(
+				state->plane->dev, &exynos_state->oetf_lut,
+				val, sizeof(struct hdr_oetf_lut));
+	} else if (property == exynos_plane->props.gm) {
+		ret = exynos_drm_replace_property_blob_from_id(
+				state->plane->dev, &exynos_state->gm,
+				val, sizeof(struct hdr_gm_data));
+	} else if (property == exynos_plane->props.tm) {
+		ret = exynos_drm_replace_property_blob_from_id(
+				state->plane->dev, &exynos_state->tm,
+				val, sizeof(struct hdr_tm_data));
+	} else {
 		return -EINVAL;
+	}
 
-	return 0;
+	return ret;
 }
 
 static int exynos_drm_plane_get_property(struct drm_plane *plane,
@@ -225,6 +281,16 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 		*val = exynos_state->transfer;
 	else if (property == exynos_plane->props.range)
 		*val = exynos_state->range;
+	else if (property == exynos_plane->props.eotf_lut)
+		*val = (exynos_state->eotf_lut) ?
+			exynos_state->eotf_lut->base.id : 0;
+	else if (property == exynos_plane->props.oetf_lut)
+		*val = (exynos_state->oetf_lut) ?
+			exynos_state->oetf_lut->base.id : 0;
+	else if (property == exynos_plane->props.gm)
+		*val = (exynos_state->gm) ? exynos_state->gm->base.id : 0;
+	else if (property == exynos_plane->props.tm)
+		*val = (exynos_state->tm) ? exynos_state->tm->base.id : 0;
 	else
 		return -EINVAL;
 
@@ -289,6 +355,44 @@ exynos_drm_plane_check_format(struct exynos_drm_plane_state *state)
 	return 0;
 }
 
+static void
+exynos_plane_update_hdr_params(struct exynos_drm_plane_state *exynos_state)
+{
+	struct exynos_hdr_state *hdr_state = &exynos_state->hdr_state;
+	struct hdr_eotf_lut *eotf_lut;
+	struct hdr_oetf_lut *oetf_lut;
+	struct hdr_gm_data *gm;
+	struct hdr_tm_data *tm;
+
+	if (exynos_state->eotf_lut) {
+		eotf_lut = (struct hdr_eotf_lut *)exynos_state->eotf_lut->data;
+		hdr_state->eotf_lut = eotf_lut;
+	} else {
+		hdr_state->eotf_lut = NULL;
+	}
+
+	if (exynos_state->oetf_lut) {
+		oetf_lut = (struct hdr_oetf_lut *)exynos_state->oetf_lut->data;
+		hdr_state->oetf_lut = oetf_lut;
+	} else {
+		hdr_state->oetf_lut = NULL;
+	}
+
+	if (exynos_state->gm) {
+		gm = (struct hdr_gm_data *)exynos_state->gm->data;
+		hdr_state->gm = gm;
+	} else {
+		hdr_state->gm = NULL;
+	}
+
+	if (exynos_state->tm) {
+		tm = (struct hdr_tm_data *)exynos_state->tm->data;
+		hdr_state->tm = tm;
+	} else {
+		hdr_state->tm = NULL;
+	}
+}
+
 static int exynos_plane_atomic_check(struct drm_plane *plane,
 				     struct drm_plane_state *state)
 {
@@ -309,6 +413,8 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 
 	if (!new_crtc_state->planes_changed || !new_crtc_state->active)
 		return 0;
+
+	exynos_plane_update_hdr_params(exynos_state);
 
 	/* translate state into exynos_state */
 	exynos_plane_mode_set(exynos_state);
@@ -522,6 +628,74 @@ static int exynos_drm_plane_create_min_luminance_property(
 	return 0;
 }
 
+static int
+exynos_drm_plane_create_eotf_lut_property(struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_device *dev = plane->dev;
+	struct drm_property *prop;
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB, "eotf_lut", 0);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.eotf_lut = prop;
+
+	return 0;
+}
+
+static int
+exynos_drm_plane_create_oetf_lut_property(struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_device *dev = plane->dev;
+	struct drm_property *prop;
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB, "oetf_lut", 0);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.oetf_lut = prop;
+
+	return 0;
+}
+
+static int
+exynos_drm_plane_create_gm_property(struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_device *dev = plane->dev;
+	struct drm_property *prop;
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB, "gammut_matrix", 0);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.gm = prop;
+
+	return 0;
+}
+
+static int
+exynos_drm_plane_create_tm_property(struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_device *dev = plane->dev;
+	struct drm_property *prop;
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB, "tone_mapping", 0);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.tm = prop;
+
+	return 0;
+}
+
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane, unsigned int index,
 		      const struct exynos_drm_plane_config *config)
@@ -565,7 +739,13 @@ int exynos_plane_init(struct drm_device *dev,
 	if (test_bit(DPP_ATTR_HDR, &dpp->attr)) {
 		exynos_drm_plane_create_max_luminance_property(exynos_plane);
 		exynos_drm_plane_create_min_luminance_property(exynos_plane);
+		exynos_drm_plane_create_eotf_lut_property(exynos_plane);
+		exynos_drm_plane_create_oetf_lut_property(exynos_plane);
+		exynos_drm_plane_create_gm_property(exynos_plane);
 	}
+
+	if (test_bit(DPP_ATTR_HDR10_PLUS, &dpp->attr))
+		exynos_drm_plane_create_tm_property(exynos_plane);
 
 	exynos_drm_plane_create_restriction_property(exynos_plane);
 	exynos_drm_plane_create_standard_property(exynos_plane);

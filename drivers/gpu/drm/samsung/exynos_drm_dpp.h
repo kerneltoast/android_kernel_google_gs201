@@ -124,6 +124,8 @@ struct dpp_device {
 	 */
 	dma_addr_t dbg_dma_addr;
 	struct exynos_drm_plane plane;
+
+	struct exynos_hdr_state hdr_state;
 };
 
 #ifdef CONFIG_OF

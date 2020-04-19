@@ -32,6 +32,7 @@
 #include <exynos_drm_decon.h>
 
 #include <regs-dpp.h>
+#include <hdr_cal.h>
 
 static int dpp_log_level = 6;
 
@@ -392,6 +393,11 @@ static void __dpp_disable(struct dpp_device *dpp)
 
 	dpp_reg_deinit(dpp->id, false, dpp->attr);
 
+	dpp->hdr_state.eotf_lut = NULL;
+	dpp->hdr_state.oetf_lut = NULL;
+	dpp->hdr_state.gm = NULL;
+	dpp->hdr_state.tm = NULL;
+
 	dpp->state = DPP_STATE_OFF;
 
 	dpp_dbg(dpp, "disabled\n");
@@ -571,6 +577,38 @@ err:
 	return -ENOTSUPP;
 }
 
+static void dpp_hdr_update(struct dpp_device *dpp,
+			const struct exynos_drm_plane_state *state)
+{
+	bool enable = false;
+
+	if (dpp->hdr_state.eotf_lut != state->hdr_state.eotf_lut) {
+		hdr_reg_set_eotf_lut(dpp->id, state->hdr_state.eotf_lut);
+		dpp->hdr_state.eotf_lut = state->hdr_state.eotf_lut;
+		enable = true;
+	}
+
+	if (dpp->hdr_state.oetf_lut != state->hdr_state.oetf_lut) {
+		hdr_reg_set_oetf_lut(dpp->id, state->hdr_state.oetf_lut);
+		dpp->hdr_state.oetf_lut = state->hdr_state.oetf_lut;
+		enable = true;
+	}
+
+	if (dpp->hdr_state.gm != state->hdr_state.gm) {
+		hdr_reg_set_gm(dpp->id, state->hdr_state.gm);
+		dpp->hdr_state.gm = state->hdr_state.gm;
+		enable = true;
+	}
+
+	if (dpp->hdr_state.tm != state->hdr_state.tm) {
+		hdr_reg_set_tm(dpp->id, state->hdr_state.tm);
+		dpp->hdr_state.tm = state->hdr_state.tm;
+		enable = true;
+	}
+
+	hdr_reg_set_hdr(dpp->id, enable);
+}
+
 static int dpp_update(struct dpp_device *dpp,
 			const struct exynos_drm_plane_state *state)
 {
@@ -586,6 +624,7 @@ static int dpp_update(struct dpp_device *dpp,
 
 	dpp_convert_plane_state_to_config(config, state, mode);
 
+	dpp_hdr_update(dpp, state);
 	dpp_reg_configure_params(dpp->id, config, dpp->attr);
 
 	dpp_dbg(dpp, "%s -\n", __func__);
@@ -793,6 +832,17 @@ static int dpp_init_resources(struct dpp_device *dpp)
 			return -EINVAL;
 		}
 		disable_irq(dpp->dpp_irq);
+	}
+
+	if (test_bit(DPP_ATTR_HDR, &dpp->attr) ||
+			test_bit(DPP_ATTR_HDR10_PLUS, &dpp->attr)) {
+		idx = of_property_match_string(np, "reg-names", "hdr");
+		dpp->regs.hdr_base_regs = of_iomap(np, idx);
+		if (!dpp->regs.hdr_base_regs) {
+			pr_err("failed to remap HDR SFR region\n");
+			return -EINVAL;
+		}
+		hdr_regs_desc_init(dpp->regs.hdr_base_regs, "hdr", dpp->id);
 	}
 
 	ret = __dpp_init_resources(dpp);

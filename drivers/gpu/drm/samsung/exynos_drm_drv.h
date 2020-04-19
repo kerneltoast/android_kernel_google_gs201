@@ -17,6 +17,8 @@
 #define _EXYNOS_DRM_DRV_H_
 
 #include <drm/drmP.h>
+#include <drm/drm_property.h>
+#include <drm/samsung_drm.h>
 #include <linux/module.h>
 
 #include <exynos_drm_dqe.h>
@@ -74,6 +76,13 @@ struct exynos_drm_rect {
 	unsigned int w, h;
 };
 
+struct exynos_hdr_state {
+	struct hdr_eotf_lut *eotf_lut;
+	struct hdr_oetf_lut *oetf_lut;
+	struct hdr_gm_data *gm;
+	struct hdr_tm_data *tm;
+};
+
 /*
  * Exynos drm plane state structure.
  *
@@ -101,6 +110,11 @@ struct exynos_drm_plane_state {
 	uint32_t standard;
 	uint32_t transfer;
 	uint32_t range;
+	struct exynos_hdr_state hdr_state;
+	struct drm_property_blob *eotf_lut;
+	struct drm_property_blob *oetf_lut;
+	struct drm_property_blob *gm;
+	struct drm_property_blob *tm;
 };
 
 static inline struct exynos_drm_plane_state *
@@ -130,6 +144,10 @@ struct exynos_drm_plane {
 		struct drm_property *standard;
 		struct drm_property *transfer;
 		struct drm_property *range;
+		struct drm_property *eotf_lut;
+		struct drm_property *oetf_lut;
+		struct drm_property *gm;
+		struct drm_property *tm;
 	} props;
 };
 
