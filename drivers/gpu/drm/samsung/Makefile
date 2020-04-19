@@ -19,7 +19,7 @@ exynos-drm-$(CONFIG_DRM_SAMSUNG_DSI)	+= exynos_drm_dsim.o
 exynos-drm-$(CONFIG_DRM_SAMSUNG_WB)	+= exynos_drm_writeback.o
 
 exynos-drm-$(CONFIG_SOC_EXYNOS9820)	+= cal_9820/decon_reg.o cal_9820/dsim_reg.o cal_9820/dpp_reg.o
-exynos-drm-$(CONFIG_SOC_GS101)		+= cal_9845/decon_reg.o cal_9845/dsim_reg.o cal_9845/dpp_reg.o cal_9845/dqe_reg.o
+exynos-drm-$(CONFIG_SOC_GS101)		+= cal_9845/decon_reg.o cal_9845/dsim_reg.o cal_9845/dpp_reg.o cal_9845/dqe_reg.o cal_9845/hdr_reg.o
 
 exynos-drm-$(CONFIG_EXYNOS_BTS)		+= exynos_drm_bts.o
 

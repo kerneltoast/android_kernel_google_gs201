@@ -15,6 +15,7 @@
 
 #include <exynos_drm_format.h>
 #include <exynos_drm_plane.h>
+#include <drm/samsung_drm.h>
 
 #define MAX_DPP_CNT		6
 
@@ -80,6 +81,7 @@ enum dpp_sbwc_blk_size {
 struct dpp_regs {
 	void __iomem *dpp_base_regs;
 	void __iomem *dma_base_regs;
+	void __iomem *hdr_base_regs;
 };
 
 enum dpp_regs_id {

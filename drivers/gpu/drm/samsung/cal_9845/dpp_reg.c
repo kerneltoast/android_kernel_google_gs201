@@ -27,6 +27,7 @@
 #include <exynos_drm_format.h>
 #include <cal_config.h>
 #include <dpp_cal.h>
+#include <hdr_cal.h>
 #include <regs-dpp.h>
 
 #define DPP_SC_RATIO_MAX	((1 << 20) * 8 / 8)
@@ -626,114 +627,6 @@ static void dpp_reg_set_format(u32 id, u32 fmt)
 			DPP_IMG_FORMAT_MASK);
 }
 
-static void dpp_reg_set_eotf_lut(u32 id, struct dpp_params_info *p)
-{
-	u32 i = 0;
-	const u32 *lut_x;
-	const u32 *lut_y;
-
-	if (p->transfer == EXYNOS_TRANSFER_ST2084) {
-		if (p->max_luminance > 4000) {
-			cal_log_err(id, "%d nits is not supported now.\n",
-					p->max_luminance);
-			return;
-		} else if (p->max_luminance > 1000) {
-			lut_x = eotf_x_axis_st2084_4000;
-			lut_y = eotf_y_axis_st2084_4000;
-		} else {
-			lut_x = eotf_x_axis_st2084_1000;
-			lut_y = eotf_y_axis_st2084_1000;
-		}
-	} else if (p->transfer == EXYNOS_TRANSFER_HLG) {
-		lut_x = eotf_x_axis_hlg;
-		lut_y = eotf_y_axis_hlg;
-	} else {
-		cal_log_err(id, "Undefined HDR standard Type!!!\n");
-		return;
-	}
-
-	for (i = 0; i < MAX_EOTF; i++) {
-		dpp_write_mask(id,
-			DPP_HDR_EOTF_X_AXIS_ADDR(i),
-			DPP_HDR_EOTF_X_AXIS_VAL(i, lut_x[i]),
-			DPP_HDR_EOTF_MASK(i));
-		dpp_write_mask(id,
-			DPP_HDR_EOTF_Y_AXIS_ADDR(i),
-			DPP_HDR_EOTF_Y_AXIS_VAL(i, lut_y[i]),
-			DPP_HDR_EOTF_MASK(i));
-	}
-}
-
-static void dpp_reg_set_gm_lut(u32 id, struct dpp_params_info *p)
-{
-	u32 i = 0;
-	const u32 *lut_gm;
-
-	if (p->standard == EXYNOS_STANDARD_BT2020) {
-		lut_gm = gm_coef_2020_p3;
-	} else {
-		cal_log_err(id, "Undefined HDR CSC Type!!!\n");
-		return;
-	}
-
-	for (i = 0; i < MAX_GM; i++)
-		dpp_write_mask(id, DPP_HDR_GM_COEF_ADDR(i), lut_gm[i],
-				DPP_HDR_GM_COEF_MASK);
-}
-
-static void dpp_reg_set_tm_lut(u32 id, struct dpp_params_info *p)
-{
-	u32 i = 0;
-	const u32 *lut_x;
-	const u32 *lut_y;
-	u32 tm_x_tune[MAX_TM] = { 0, };
-	u32 tm_y_tune[MAX_TM] = { 0, };
-
-	if ((p->max_luminance > 1000) && (p->max_luminance < 10000)) {
-		lut_x = tm_x_axis_gamma_2P2_4000;
-		lut_y = tm_y_axis_gamma_2P2_4000;
-	} else {
-		lut_x = tm_x_axis_gamma_2P2_1000;
-		lut_y = tm_y_axis_gamma_2P2_1000;
-	}
-
-	if (IS_ENABLED(CONFIG_EXYNOS_HDR_TUNABLE_TONEMAPPING) &&
-			exynos_hdr_get_tm_lut_xy(tm_x_tune, tm_y_tune)) {
-		lut_x = tm_x_tune;
-		lut_y = tm_y_tune;
-	}
-
-	for (i = 0; i < MAX_TM; i++) {
-		dpp_write_mask(id,
-			DPP_HDR_TM_X_AXIS_ADDR(i),
-			DPP_HDR_TM_X_AXIS_VAL(i, lut_x[i]),
-			DPP_HDR_TM_MASK(i));
-		dpp_write_mask(id,
-			DPP_HDR_TM_Y_AXIS_ADDR(i),
-			DPP_HDR_TM_Y_AXIS_VAL(i, lut_y[i]),
-			DPP_HDR_TM_MASK(i));
-	}
-}
-
-static void dpp_reg_set_hdr_params(u32 id, struct dpp_params_info *p)
-{
-	u32 val, val2, mask;
-
-	val = ((p->transfer == EXYNOS_TRANSFER_ST2084) ||
-		(p->transfer == EXYNOS_TRANSFER_HLG)) ? ~0 : 0;
-	mask = DPP_HDR_ON_MASK | DPP_EOTF_ON_MASK | DPP_TM_ON_MASK;
-	dpp_write_mask(id, DPP_VGRF_HDR_CON, val, mask);
-
-	val2 = (p->standard != EXYNOS_STANDARD_DCI_P3) ? ~0 : 0;
-	dpp_write_mask(id, DPP_VGRF_HDR_CON, val2,  DPP_GM_ON_MASK);
-
-	if (val) {
-		dpp_reg_set_eotf_lut(id, p);
-		dpp_reg_set_gm_lut(id, p);
-		dpp_reg_set_tm_lut(id, p);
-	}
-}
-
 static void dpp_reg_print_irqs_msg(u32 id, u32 irqs)
 {
 	u32 cfg_err;
@@ -1002,9 +895,6 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 
 	/* configure image format of IDMA, DPP, ODMA and WB MUX */
 	dma_dpp_reg_set_format(id, p, attr);
-
-	if (test_bit(DPP_ATTR_HDR, &attr))
-		dpp_reg_set_hdr_params(id, p);
 
 	if (test_bit(DPP_ATTR_AFBC, &attr) || test_bit(DPP_ATTR_SBWC, &attr))
 		idma_reg_set_comp(id, p->comp_type, p->rcv_num);
