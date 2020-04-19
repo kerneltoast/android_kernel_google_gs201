@@ -26,10 +26,12 @@
 		compatible = "samsung,exynos-dpp";
 		reg = <0x0 0x1C0B0000 0x1000>,	/* DPU_DMA */
 		      <0x0 0x1C0D0000 0x1000>;	/* DPP */
+		reg-names = "dma", "dpp";
 
 		/* DPU_DMA IRQ, DPP IRQ */
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L0_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L0_DPU IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-names = "dma", "dpp";
 
 		/* Each bit indicates DPP attribute */
 		/* 0:AFBC 1:BLOCK 2:FLIP 3:ROT 4:CSC 5:SCALE 6:HDR 7:HDR10 */
@@ -47,10 +49,13 @@
 
 	drmdpp1: drmdpp@0x1C0B1000 {	/* L1 */
 		compatible = "samsung,exynos-dpp";
-		reg = <0x0 0x1C0B1000 0x1000>, <0x0 0x1C0D1000 0x1000>;
+		reg = <0x0 0x1C0B1000 0x1000>,
+		      <0x0 0x1C0D1000 0x1000>;
+		reg-names = "dma", "dpp";
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L1_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L1_DPU IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-names = "dma", "dpp";
 
 		attr = <0x50C7F>;
 		port = <0>;
@@ -63,10 +68,13 @@
 
 	drmdpp2: drmdpp@0x1C0B2000 {	/* L2 */
 		compatible = "samsung,exynos-dpp";
-		reg = <0x0 0x1C0B2000 0x1000>, <0x0 0x1C0D2000 0x1000>;
+		reg = <0x0 0x1C0B2000 0x1000>,
+		      <0x0 0x1C0D2000 0x1000>;
+		reg-names = "dma", "dpp";
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L2_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L2_DPU IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-names = "dma", "dpp";
 
 		attr = <0x50047>;
 		port = <1>;
@@ -78,10 +86,13 @@
 
 	drmdpp3: drmdpp@0x1C0B3000 {	/* L3 */
 		compatible = "samsung,exynos-dpp";
-		reg = <0x0 0x1C0B3000 0x1000>, <0x0 0x1C0D3000 0x1000>;
+		reg = <0x0 0x1C0B3000 0x1000>,
+		      <0x0 0x1C0D3000 0x1000>;
+		reg-names = "dma", "dpp";
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L3_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L3_DPU IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-names = "dma", "dpp";
 
 		attr = <0x50C7F>;
 		port = <1>;
@@ -94,10 +105,13 @@
 
 	drmdpp4: drmdpp@0x1C0B4000 {	/* L4 */
 		compatible = "samsung,exynos-dpp";
-		reg = <0x0 0x1C0B4000 0x1000>, <0x0 0x1C0D4000 0x1000>;
+		reg = <0x0 0x1C0B4000 0x1000>,
+		      <0x0 0x1C0D4000 0x1000>;
+		reg-names = "dma", "dpp";
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L4_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L4_DPU IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-names = "dma", "dpp";
 
 		attr = <0x50047>;
 		port = <2>;
@@ -109,10 +123,13 @@
 
 	drmdpp5: drmdpp@0x1C0B5000 {	/* L5 */
 		compatible = "samsung,exynos-dpp";
-		reg = <0x0 0x1C0B5000 0x1000>, <0x0 0x1C0D5000 0x1000>;
+		reg = <0x0 0x1C0B5000 0x1000>,
+		      <0x0 0x1C0D5000 0x1000>;
+		reg-names = "dma", "dpp";
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L5_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L5_DPU IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-names = "dma", "dpp";
 
 		attr = <0x50C7F>;
 		port = <2>;
