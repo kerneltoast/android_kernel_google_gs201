@@ -9,6 +9,7 @@
 #define _ION_EXYNOS_H
 
 #include <uapi/linux/ion.h>
+#include "ion_exynos_prot.h"
 
 void ion_page_clean(struct page *pages, unsigned long size);
 
