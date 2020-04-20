@@ -28,6 +28,8 @@
 #include <soc/google/exynos_cpu_cooling.h>
 #include <soc/google/debug-snapshot.h>
 
+#include <trace/events/power.h>
+
 #include "exynos-acme.h"
 
 /*
@@ -133,10 +135,13 @@ static int set_freq(struct exynos_cpufreq_domain *domain,
 		disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
 	err = cal_dfs_set_rate(domain->cal_id, target_freq);
-	if (err < 0)
+	if (err < 0) {
 		pr_err("failed to scale frequency of domain%d (%d -> %d)\n",
 		       domain->id, domain->old, target_freq);
-
+	} else {
+		trace_clock_set_rate(domain->dn->full_name, target_freq,
+				     raw_smp_processor_id());
+	}
 	if (domain->need_awake)
 		enable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
