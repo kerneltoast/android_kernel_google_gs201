@@ -1645,6 +1645,13 @@ static void sec_ts_read_event(struct sec_ts_data *ts)
 							"%s: noise mode change to %x\n",
 							__func__,
 							status_data_1);
+						/* Workaround for b/150324257 : Touch is
+						 * unresponive after screen off/on
+						 */
+						#ifdef USE_POWER_RESET_WORK
+						if (status_data_1)
+							schedule_work(&ts->reset_work.work);
+						#endif
 						break;
 
 					case SEC_TS_EVENT_STATUS_ID_GRIP:
