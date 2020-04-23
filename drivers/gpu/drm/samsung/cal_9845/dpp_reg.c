@@ -404,13 +404,24 @@ static int dpp_reg_wait_sw_reset_status(u32 id)
 	return 0;
 }
 
-static void dpp_reg_set_csc_coef(u32 id, u32 std, u32 range)
+static void dpp_reg_set_uv_offset(u32 id, u32 off_x, u32 off_y)
+{
+	u32 val, mask;
+
+	val = DPP_UV_OFFSET_Y(off_y) | DPP_UV_OFFSET_X(off_x);
+	mask = DPP_UV_OFFSET_Y_MASK | DPP_UV_OFFSET_X_MASK;
+	dpp_write_mask(id, DPP_COM_SUB_CON, val, mask);
+}
+
+static void
+dpp_reg_set_csc_coef(u32 id, u32 std, u32 range, const unsigned long attr)
 {
 	u32 val, mask;
 	u32 csc_id = DPP_CSC_IDX_BT601_625;
 	u32 c00, c01, c02;
 	u32 c10, c11, c12;
 	u32 c20, c21, c22;
+	const u16 (*csc_arr)[3][3];
 
 	switch (std) {
 	case EXYNOS_STANDARD_BT601_625:
@@ -443,6 +454,11 @@ static void dpp_reg_set_csc_coef(u32 id, u32 std, u32 range)
 		cal_log_err(id, "BT601 with limited range is set as default\n");
 	}
 
+	if (test_bit(DPP_ATTR_ODMA, &attr))
+		csc_arr = csc_r2y_3x3_t;
+	else
+		csc_arr = csc_y2r_3x3_t;
+
 	/*
 	 * The matrices are provided only for full or limited range
 	 * and limited range is used as default.
@@ -450,17 +466,17 @@ static void dpp_reg_set_csc_coef(u32 id, u32 std, u32 range)
 	if (range == EXYNOS_RANGE_FULL)
 		csc_id += 1;
 
-	c00 = csc_y2r_3x3_t[csc_id][0][0];
-	c01 = csc_y2r_3x3_t[csc_id][0][1];
-	c02 = csc_y2r_3x3_t[csc_id][0][2];
+	c00 = csc_arr[csc_id][0][0];
+	c01 = csc_arr[csc_id][0][1];
+	c02 = csc_arr[csc_id][0][2];
 
-	c10 = csc_y2r_3x3_t[csc_id][1][0];
-	c11 = csc_y2r_3x3_t[csc_id][1][1];
-	c12 = csc_y2r_3x3_t[csc_id][1][2];
+	c10 = csc_arr[csc_id][1][0];
+	c11 = csc_arr[csc_id][1][1];
+	c12 = csc_arr[csc_id][1][2];
 
-	c20 = csc_y2r_3x3_t[csc_id][2][0];
-	c21 = csc_y2r_3x3_t[csc_id][2][1];
-	c22 = csc_y2r_3x3_t[csc_id][2][2];
+	c20 = csc_arr[csc_id][2][0];
+	c21 = csc_arr[csc_id][2][1];
+	c22 = csc_arr[csc_id][2][2];
 
 	mask = (DPP_CSC_COEF_H_MASK | DPP_CSC_COEF_L_MASK);
 	val = (DPP_CSC_COEF_H(c01) | DPP_CSC_COEF_L(c00));
@@ -486,7 +502,8 @@ static void dpp_reg_set_csc_coef(u32 id, u32 std, u32 range)
 	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c20, c21, c22);
 }
 
-static void dpp_reg_set_csc_params(u32 id, u32 std, u32 range)
+static void
+dpp_reg_set_csc_params(u32 id, u32 std, u32 range, const unsigned long attr)
 {
 	u32 type, hw_range, mode, val, mask;
 
@@ -518,6 +535,9 @@ static void dpp_reg_set_csc_params(u32 id, u32 std, u32 range)
 		break;
 	}
 
+	if (test_bit(DPP_ATTR_ODMA, &attr))
+		mode = DPP_CSC_MODE_CUSTOMIZED;
+
 	/*
 	 * DPP hardware supports full or limited range.
 	 * Limited range is used as default
@@ -534,7 +554,7 @@ static void dpp_reg_set_csc_params(u32 id, u32 std, u32 range)
 	dpp_write_mask(id, DPP_COM_CSC_CON, val, mask);
 
 	if (mode == DPP_CSC_MODE_CUSTOMIZED)
-		dpp_reg_set_csc_coef(id, std, range);
+		dpp_reg_set_csc_coef(id, std, range, attr);
 }
 
 static void dpp_reg_set_h_coef(u32 id, u32 h_ratio)
@@ -752,10 +772,13 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 
 	alpha_type = (fmt_info->len_alpha > 0) ? 1 : 0;
 
-	if (test_bit(DPP_ATTR_IDMA, &attr))
+	if (test_bit(DPP_ATTR_IDMA, &attr)) {
 		idma_reg_set_format(id, fmt_info->dma_fmt);
-	else if (test_bit(DPP_ATTR_ODMA, &attr))
+	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
 		odma_reg_set_format(id, fmt_info->dma_fmt);
+		if (test_bit(DPP_ATTR_DPP, &attr))
+			dpp_reg_set_uv_offset(id, 0, 0);
+	}
 
 	if (test_bit(DPP_ATTR_DPP, &attr)) {
 		dpp_reg_set_alpha_type(id, alpha_type);
@@ -875,7 +898,7 @@ void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
 {
 	if (test_bit(DPP_ATTR_CSC, &attr))
-		dpp_reg_set_csc_params(id, p->standard, p->range);
+		dpp_reg_set_csc_params(id, p->standard, p->range, attr);
 
 	if (test_bit(DPP_ATTR_SCALE, &attr))
 		dpp_reg_set_scale_ratio(id, p);

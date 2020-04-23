@@ -257,7 +257,6 @@ static void decon_reg_set_sram_enable(u32 id,
 	if (id != 2) {
 		/* sram8 ~ 12 */
 		decon_write(id, SRAM_EN_OF_PRI_1, val1);
-		decon_write(id, SRAM_EN_OF_SEC_1, val2);
 	}
 }
 
@@ -360,6 +359,7 @@ static void decon_reg_set_data_path(u32 id, struct decon_config *cfg)
 		break;
 	case DECON_OUT_WB:
 		val = OUTIF_WB;
+		cal_log_debug(id, "OUTIF is WB\n");
 		break;
 	default:
 		val = OUTIF_DSI0;
@@ -551,8 +551,10 @@ static void decon_reg_init_trigger(u32 id, struct decon_config *cfg)
 		val |= HW_TRIG_SEL_FROM_DDI2;
 	else if (cfg->te_from == DECON_TE_FROM_DDI1)
 		val |= HW_TRIG_SEL_FROM_DDI1;
-	else
+	else if (cfg->te_from == DECON_TE_FROM_DDI0)
 		val |= HW_TRIG_SEL_FROM_DDI0;
+	else
+		val |= HW_TRIG_SEL_FROM_NONE;
 
 	/* The trigger is masked initially */
 	val |= HW_TRIG_MASK_DECON;
@@ -1369,7 +1371,7 @@ void decon_reg_set_win_enable(u32 id, u32 win_idx, u32 en)
 	val = en ? ~0 : 0;
 	mask = _WIN_EN_F;
 	wincon_write_mask(id, DECON_CON_WIN(win_idx), val, mask);
-	cal_log_debug(id, "%s: 0x%x\n", __func__,
+	cal_log_debug(id, "%s: WINCON%d = 0x%x\n", __func__, win_idx,
 			wincon_read(id, DECON_CON_WIN(win_idx)));
 }
 
@@ -1582,8 +1584,12 @@ static void decon_reg_set_dither(u32 id, struct decon_config *config)
 /* TODO: maybe this function will be moved to internal DECON CAL function */
 void decon_reg_update_req_global(u32 id)
 {
-	decon_write_mask(id, SHD_REG_UP_REQ, ~0, SHD_REG_UP_REQ_GLOBAL |
-			SHD_REG_UP_REQ_CMP);
+	u32 mask = SHD_REG_UP_REQ_GLOBAL;
+
+	if (id != 2)
+		mask |= SHD_REG_UP_REQ_CMP;
+
+	decon_write_mask(id, SHD_REG_UP_REQ, ~0, mask);
 }
 
 int decon_reg_init(u32 id, struct decon_config *config)
@@ -1592,11 +1598,11 @@ int decon_reg_init(u32 id, struct decon_config *config)
 	u32 pri_sram[3][MAX_SRAM_EN_CNT] = {
 		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon0 : 13 */
 		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon1 : 13 */
-		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon2 : 7 */
+		{0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0}, /* decon2 : 7 */
 	};
 	u32 sec_sram[3][MAX_SRAM_EN_CNT] = {
-		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon0 : 13 */
-		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon1 : 13 */
+		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon0 : 7 */
+		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon1 : 7 */
 		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon2 : none */
 	};
 
@@ -1745,7 +1751,7 @@ void decon_reg_set_window_control(u32 id, int win_idx,
 		struct decon_window_regs *regs, u32 winmap_en)
 {
 	cal_log_debug(id, "win id = %d\n", win_idx);
-	decon_reg_set_win_bnd_function(0, win_idx, regs);
+	decon_reg_set_win_bnd_function(id, win_idx, regs);
 	win_write(id, WIN_START_POSITION(win_idx), regs->start_pos);
 	win_write(id, WIN_END_POSITION(win_idx), regs->end_pos);
 	win_write(id, WIN_START_TIME_CON(win_idx), regs->start_time);

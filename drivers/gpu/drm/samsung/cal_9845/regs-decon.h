@@ -98,6 +98,7 @@
 #define HW_SW_TRIG_HS_STATUS			(1 << 28)
 #define HW_TRIG_SEL(_v)				((_v) << 24)
 #define HW_TRIG_SEL_MASK			(0x3 << 24)
+#define HW_TRIG_SEL_FROM_NONE			(3 << 24)
 #define HW_TRIG_SEL_FROM_DDI2			(2 << 24)
 #define HW_TRIG_SEL_FROM_DDI1			(1 << 24)
 #define HW_TRIG_SEL_FROM_DDI0			(0 << 24)
