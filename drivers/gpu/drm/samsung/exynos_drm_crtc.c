@@ -143,7 +143,7 @@ static void exynos_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 
 	if (exynos_crtc->ops->atomic_flush)
-		exynos_crtc->ops->atomic_flush(exynos_crtc);
+		exynos_crtc->ops->atomic_flush(exynos_crtc, old_crtc_state);
 }
 
 static enum drm_mode_status exynos_crtc_mode_valid(struct drm_crtc *crtc,

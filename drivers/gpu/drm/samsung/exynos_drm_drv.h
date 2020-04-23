@@ -71,6 +71,13 @@ enum exynos_drm_output_type {
 					EXYNOS_DISPLAY_TYPE_DP1_SST4,
 };
 
+
+enum exynos_drm_writeback_type {
+	EXYNOS_WB_NONE,
+	EXYNOS_WB_CWB,
+	EXYNOS_WB_SWB,
+};
+
 struct exynos_drm_rect {
 	unsigned int x, y;
 	unsigned int w, h;
@@ -210,7 +217,8 @@ struct exynos_drm_crtc_ops {
 			     struct exynos_drm_plane *plane);
 	void (*disable_plane)(struct exynos_drm_crtc *crtc,
 			      struct exynos_drm_plane *plane);
-	void (*atomic_flush)(struct exynos_drm_crtc *crtc);
+	void (*atomic_flush)(struct exynos_drm_crtc *crtc,
+			struct drm_crtc_state *old_crtc_state);
 	void (*te_handler)(struct exynos_drm_crtc *crtc);
 };
 
@@ -219,6 +227,7 @@ struct exynos_drm_crtc_state {
 	uint32_t color_mode;
 	struct exynos_dqe_state dqe;
 	struct drm_property_blob *cgc_lut;
+	enum exynos_drm_writeback_type wb_type;
 };
 
 static inline struct exynos_drm_crtc_state *

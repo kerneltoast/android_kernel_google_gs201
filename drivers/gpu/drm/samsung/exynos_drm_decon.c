@@ -13,6 +13,7 @@
  *
  */
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/exynos_drm.h>
 #include <drm/exynos_display_common.h>
 
@@ -172,6 +173,45 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 
 }
 
+static bool has_writeback_job(struct drm_crtc_state *new_crtc_state)
+{
+	int i;
+	struct drm_atomic_state *state = new_crtc_state->state;
+	struct drm_connector_state *conn_state;
+	struct drm_connector *conn;
+
+	for_each_new_connector_in_state(state, conn, conn_state, i) {
+		if (!(new_crtc_state->connector_mask &
+					drm_connector_mask(conn)))
+			continue;
+
+		if (conn_state->writeback_job && conn_state->writeback_job->fb)
+			return true;
+	}
+	return false;
+}
+
+static int decon_atomic_check(struct exynos_drm_crtc *exynos_crtc,
+		struct drm_crtc_state *state)
+{
+	const struct decon_device *decon = exynos_crtc->ctx;
+	bool is_wb = has_writeback_job(state);
+	bool is_swb = decon->config.out_type == DECON_OUT_WB;
+	struct exynos_drm_crtc_state *exynos_crtc_state =
+					to_exynos_crtc_state(state);
+
+	if (is_wb)
+		exynos_crtc_state->wb_type =
+			is_swb ? EXYNOS_WB_SWB : EXYNOS_WB_CWB;
+	else
+		exynos_crtc_state->wb_type = EXYNOS_WB_NONE;
+
+	if (is_swb)
+		state->no_vblank = true;
+
+	return 0;
+}
+
 static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
@@ -282,14 +322,29 @@ static void decon_disable_plane(struct exynos_drm_crtc *exynos_crtc,
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
-static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc)
+static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc,
+		struct drm_crtc_state *old_crtc_state)
 {
 	struct decon_device *decon = exynos_crtc->ctx;
+	struct drm_crtc_state *new_crtc_state = exynos_crtc->base.state;
+	struct exynos_drm_crtc_state *new_exynos_crtc_state =
+					to_exynos_crtc_state(new_crtc_state);
+	struct exynos_drm_crtc_state *old_exynos_crtc_state =
+					to_exynos_crtc_state(old_crtc_state);
 
 	decon_dbg(decon, "%s +\n", __func__);
 
+	if (new_exynos_crtc_state->wb_type == EXYNOS_WB_NONE &&
+			decon->config.out_type == DECON_OUT_WB)
+		return;
+
+	if (new_exynos_crtc_state->wb_type == EXYNOS_WB_CWB)
+		decon_reg_set_cwb_enable(decon->id, true);
+	else if (old_exynos_crtc_state->wb_type == EXYNOS_WB_CWB)
+		decon_reg_set_cwb_enable(decon->id, false);
+
 	/* if there are no planes attached, enable colormap as fallback */
-	if (exynos_crtc->base.state->plane_mask == 0) {
+	if (new_crtc_state->plane_mask == 0) {
 		decon_dbg(decon, "no planes, enable color map\n");
 
 		decon_set_color_map(decon, 0, decon->config.image_width,
@@ -298,7 +353,10 @@ static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc)
 
 	decon_reg_all_win_shadow_update_req(decon->id);
 	decon_reg_start(decon->id, &decon->config);
-	exynos_crtc_handle_event(exynos_crtc);
+
+	if (!new_crtc_state->no_vblank)
+		exynos_crtc_handle_event(exynos_crtc);
+
 	reinit_completion(&decon->framestart_done);
 	DPU_EVENT_LOG(DPU_EVT_ATOMIC_FLUSH, decon->id, NULL);
 	decon_dbg(decon, "%s -\n", __func__);
@@ -441,7 +499,8 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	_decon_enable(decon);
 
-	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) {
+	if ((decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) &&
+			(decon->config.out_type & DECON_OUT_DSI)) {
 		decon_set_color_map(decon, 0, decon->config.image_width,
 				decon->config.image_height);
 		decon_reg_start(decon->id, &decon->config);
@@ -539,6 +598,7 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
 	.mode_fixup = decon_mode_fixup,
+	.atomic_check = decon_atomic_check,
 	.atomic_begin = decon_atomic_begin,
 	.update_plane = decon_update_plane,
 	.disable_plane = decon_disable_plane,
@@ -564,7 +624,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	decon->drm_dev = drm_dev;
 
 	/* plane initialization in DPP channel order */
-	if (decon->id == 0) {
+	if (decon->config.out_type & DECON_OUT_DSI) {
 		for (i = 0; i < decon->dpp_cnt; ++i) {
 			struct dpp_device *dpp = decon->dpp[i];
 
@@ -595,6 +655,16 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 			decon->con_type, &decon_crtc_ops, decon);
 	if (IS_ERR(decon->crtc))
 		return PTR_ERR(decon->crtc);
+
+	for (i = 0; i < decon->dpp_cnt; ++i) {
+		struct dpp_device *dpp = decon->dpp[i];
+		struct drm_plane *plane = &dpp->plane.base;
+
+		plane->possible_crtcs |=
+			drm_crtc_mask(&decon->crtc->base);
+		pr_debug("plane possible_crtcs = 0x%x\n",
+				plane->possible_crtcs);
+	}
 
 	ret = iovmm_activate(dev);
 	if (ret) {

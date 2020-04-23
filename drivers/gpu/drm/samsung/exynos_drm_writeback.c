@@ -38,6 +38,13 @@
 #include <exynos_drm_crtc.h>
 #include <regs-dpp.h>
 
+static inline bool wb_is_cwb(const struct writeback_device *wb)
+{
+	const struct decon_device *decon = wb_get_decon(wb);
+
+	return decon->config.out_type != DECON_OUT_WB;
+}
+
 void wb_dump(struct writeback_device *wb)
 {
 	if (wb->state != WB_STATE_ON) {
@@ -140,7 +147,6 @@ static void writeback_atomic_commit(struct drm_connector *connector,
 	struct drm_writeback_connector *wb_conn = conn_to_wb_conn(connector);
 	struct writeback_device *wb = conn_to_wb_dev(connector);
 	struct dpp_params_info *config = &wb->win_config;
-	const struct decon_device *decon;
 
 	pr_debug("%s +\n", __func__);
 
@@ -149,18 +155,9 @@ static void writeback_atomic_commit(struct drm_connector *connector,
 		return;
 	}
 
-	decon = wb_get_decon(wb);
-
-	if (state->writeback_job && state->writeback_job->fb) {
-		decon_reg_set_cwb_enable(decon->id, true);
-
-		wb_convert_connector_state_to_config(config,
-				to_exynos_wb_state(state));
-		dpp_reg_configure_params(wb->id, config, wb->attr);
-		drm_writeback_queue_job(wb_conn, state->writeback_job);
-	} else {
-		decon_reg_set_cwb_enable(decon->id, false);
-	}
+	wb_convert_connector_state_to_config(config, to_exynos_wb_state(state));
+	dpp_reg_configure_params(wb->id, config, wb->attr);
+	drm_writeback_queue_job(wb_conn, state->writeback_job);
 
 	DPU_EVENT_LOG(DPU_EVT_WB_ATOMIC_COMMIT, wb->decon_id, wb);
 
@@ -577,7 +574,10 @@ static irqreturn_t odma_irq_handler(int irq, void *priv)
 
 	if (irqs & ODMA_STATUS_FRAMEDONE_IRQ) {
 		pr_debug("wb(%d) framedone irq occurs\n", wb->id);
-		decon_reg_set_cwb_enable(wb->decon_id, false);
+
+		if (wb_is_cwb(wb))
+			decon_reg_set_cwb_enable(wb->decon_id, false);
+
 		drm_writeback_signal_completion(&wb->writeback, 0);
 		DPU_EVENT_LOG(DPU_EVT_WB_FRAMEDONE, wb->decon_id, wb);
 	}
