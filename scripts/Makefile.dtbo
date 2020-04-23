@@ -25,6 +25,12 @@ $(obj)/%.dtbo: $(src)/%.dts FORCE
 	$(call if_changed_dep,dtc,dtb)
 	$(call if_changed,dtbo_verify)
 
+ifneq ($(__dtbo),)
+$(obj)/dtbo.img: $(__dtbo) FORCE
+	$(call if_changed,mkdtimg)
+always +=  $(obj)/dtbo.img
+endif
+
 $(call multi_depend, $(dtbo), , -base)
 
 always +=  $(dtbo)
