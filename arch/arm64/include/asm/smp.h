@@ -92,14 +92,7 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 extern int nr_ipi_get(void);
 extern struct irq_desc **ipi_desc_get(void);
 
-#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
 extern void arch_send_wakeup_ipi_mask(const struct cpumask *mask);
-#else
-static inline void arch_send_wakeup_ipi_mask(const struct cpumask *mask)
-{
-	BUILD_BUG();
-}
-#endif
 
 extern int __cpu_disable(void);
 
