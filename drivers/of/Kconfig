@@ -107,4 +107,13 @@ config OF_DMA_DEFAULT_COHERENT
 	# arches should select this if DMA is coherent by default for OF devices
 	bool
 
+config OF_GENERATE_SYMBOLS
+	bool "Enable symbol generation in DTC"
+	depends on DTC
+	help
+	  Enable generation of symbols when compiling device tree source into
+	  device tree blobs. Enabling this option will add --symbols to DTC
+	  command line. This is necessary to apply device tree overlays in the
+	  bootloader.
+
 endif # OF

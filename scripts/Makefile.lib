@@ -295,6 +295,10 @@ DTC_FLAGS += -Wnode_name_chars_strict \
 	-Winterrupt_provider
 endif
 
+ifeq ($(CONFIG_OF_GENERATE_SYMBOLS),y)
+DTC_FLAGS += --symbols
+endif
+
 DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
 
 # Generate an assembly file to wrap the output of the device tree compiler
