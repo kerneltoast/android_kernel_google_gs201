@@ -221,7 +221,6 @@ static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
 				ptid, 4 * size4kB);
 			break;
 		}
-		break;
 		driver_data->ptids[ptid].resize(
 				driver_data->ptids[ptid].data,
 				size4kB * 4096);

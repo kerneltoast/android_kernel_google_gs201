@@ -237,7 +237,6 @@ static void pt_resize_list_enable(struct pt_pts *pts)
 
 	spin_lock_irqsave(&pt_internal_data.sl, flags);
 	pts->enabled = true;
-	pts->size = 0;
 	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
 }
 
@@ -682,7 +681,7 @@ void pt_client_disable(struct pt_handle *handle, int id)
 	pt_client_free(handle, id);
 }
 
-int pt_client_enable(struct pt_handle *handle, int id)
+ptid_t pt_client_enable_size(struct pt_handle *handle, int id, size_t *size)
 {
 	ptid_t ptid;
 	mutex_lock(&handle->mt);
@@ -701,11 +700,19 @@ int pt_client_enable(struct pt_handle *handle, int id)
 		pt_driver_enable(handle, id);
 		pt_trace(handle, id, true);
 	}
+	*size = handle->pts[id].size; // Update by driver callback
 	mutex_unlock(&handle->mt);
 	if (ptid != PT_PTID_INVALID)
 		pt_resize_list_enable(&handle->pts[id]);
 	return ptid;
 }
+
+ptid_t pt_client_enable(struct pt_handle *handle, int id)
+{
+	size_t size;
+	return pt_client_enable_size(handle, id, &size);
+}
+
 
 void pt_client_unregister(struct pt_handle *handle)
 {
@@ -1229,6 +1236,7 @@ EXPORT_SYMBOL(pt_client_enable);
 EXPORT_SYMBOL(pt_client_mutate);
 EXPORT_SYMBOL(pt_client_disable);
 EXPORT_SYMBOL(pt_client_unregister);
+EXPORT_SYMBOL(pt_client_enable_size);
 
 EXPORT_SYMBOL(pt_driver_register);
 EXPORT_SYMBOL(pt_driver_unregister);

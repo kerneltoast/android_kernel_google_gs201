@@ -59,6 +59,13 @@ void pt_client_unregister(struct pt_handle *handle);
 /* Enable id and allocate a ptid for it if none was already allocated */
 ptid_t pt_client_enable(struct pt_handle *handle, int id);
 
+/*
+ * Enable id and allocate a ptid for it if none was already allocated
+ * size is output only and will contain the size allocated.
+ * Any further size change will be notified through callback.
+ */
+ptid_t pt_client_enable_size(struct pt_handle *handle, int id, size_t *size);
+
 /* Disable id and free its ptid */
 void pt_client_disable(struct pt_handle *handle, int id);
 
