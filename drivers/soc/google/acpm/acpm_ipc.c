@@ -126,7 +126,7 @@ static void acpm_log_print_helper_raw(struct acpm_log_buff *buffer,
 	arg2 = __raw_readl(buffer->log_buff_base +
 			   buffer->log_buff_size * rear + 12);
 
-	if (acpm_debug->debug_log_level == 1 || !log_level) {
+	if (acpm_debug->debug_log_level >= 1 || !log_level) {
 		pr_info("[ACPM_FW] : %llu id:%u, %x, %x, %x\n",
 			time, id, arg0, arg1, arg2);
 	}
@@ -153,7 +153,7 @@ static void acpm_log_print_helper(struct acpm_log_buff *buffer,
 	if (id == REGULATOR_INFO_ID)
 		exynos_rgt_dbg_snapshot_regulator(val, time);
 
-	if (acpm_debug->debug_log_level == 1 || !log_level)
+	if (acpm_debug->debug_log_level >= 1 || !log_level)
 		pr_info("[ACPM_FW] : %llu id:%u, %s, %x\n", time, id, str, val);
 }
 
