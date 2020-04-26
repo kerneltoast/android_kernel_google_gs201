@@ -289,8 +289,6 @@ struct decon_device {
 	u32				irq_te;
 
 	spinlock_t			slock;
-
-	int				decon_cnt;
 };
 
 extern struct dpu_bts_ops dpu_bts_control;

@@ -346,7 +346,7 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 {
 	int i, j;
 
-	if (decon->id < 0 || decon->id >= decon->decon_cnt) {
+	if (decon->id < 0 || decon->id >= MAX_DECON_CNT) {
 		DPU_INFO_BTS("[%s] undefined decon id(%d)!\n", __func__,
 				decon->id);
 		return;
@@ -355,7 +355,7 @@ static void dpu_bts_sum_all_decon_bw(struct decon_device *decon, u32 ch_bw[])
 	for (i = 0; i < MAX_DECON_CNT; ++i)
 		decon->bts.ch_bw[decon->id][i] = ch_bw[i];
 
-	for (i = 0; i < decon->decon_cnt; ++i) {
+	for (i = 0; i < MAX_DECON_CNT; ++i) {
 		if (decon->id == i)
 			continue;
 
@@ -441,7 +441,7 @@ static void dpu_bts_find_max_disp_freq(struct decon_device *decon)
 	DPU_DEBUG_BTS("\tMAX DISP CH FREQ = %d\n", decon->bts.max_disp_freq);
 }
 
-static void dpu_bts_share_bw_info(int id, int decon_cnt)
+static void dpu_bts_share_bw_info(int id)
 {
 	int i, j;
 	struct decon_device *decon[3];
@@ -449,10 +449,10 @@ static void dpu_bts_share_bw_info(int id, int decon_cnt)
 	for (i = 0; i < MAX_DECON_CNT; i++)
 		decon[i] = NULL;
 
-	for (i = 0; i < decon_cnt; i++)
+	for (i = 0; i < MAX_DECON_CNT; i++)
 		decon[i] = get_decon_drvdata(i);
 
-	for (i = 0; i < decon_cnt; ++i) {
+	for (i = 0; i < MAX_DECON_CNT; ++i) {
 		if (id == i || decon[i] == NULL)
 			continue;
 
@@ -574,7 +574,7 @@ void dpu_bts_calc_bw(struct decon_device *decon)
 	dpu_bts_find_max_disp_freq(decon);
 
 	/* update bw for other decons */
-	dpu_bts_share_bw_info(decon->id, decon->decon_cnt);
+	dpu_bts_share_bw_info(decon->id);
 
 	DPU_DEBUG_BTS("%s -\n", __func__);
 }

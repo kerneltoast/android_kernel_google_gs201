@@ -727,12 +727,6 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 	}
 	decon_info(decon, "cycle per line(%d)\n", decon->bts.cycle_per_line);
 
-	if (of_property_read_u32(np, "decon_cnt", &decon->decon_cnt)) {
-		decon->decon_cnt = 1;
-		decon_warn(decon, "WARN: decon count is not defined in DT.\n");
-	}
-	decon_info(decon, "decon count(%d)\n", decon->decon_cnt);
-
 	if (decon->config.out_type == DECON_OUT_DSI)
 		decon->config.mode.dsi_mode = DSI_MODE_DUAL_DSI;
 	else
