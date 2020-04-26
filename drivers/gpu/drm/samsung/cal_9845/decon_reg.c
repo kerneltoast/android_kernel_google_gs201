@@ -143,7 +143,7 @@ static void decon_reg_set_operation_mode(u32 id, enum decon_op_mode mode)
 	u32 val, mask;
 
 	mask = GLOBAL_CON_OPERATION_MODE_F;
-	if (mode == DECON_MIPI_COMMAND_MODE)
+	if (mode == DECON_COMMAND_MODE)
 		val = GLOBAL_CON_OPERATION_MODE_CMD_F;
 	else
 		val = GLOBAL_CON_OPERATION_MODE_VIDEO_F;
@@ -1275,7 +1275,7 @@ static int decon_reg_stop_perframe_dsi(u32 id, struct decon_config *config,
 
 	cal_log_debug(id, "%s +\n", __func__);
 
-	if ((config->mode.op_mode == DECON_MIPI_COMMAND_MODE) &&
+	if ((config->mode.op_mode == DECON_COMMAND_MODE) &&
 			(config->mode.trig_mode == DECON_HW_TRIG))
 		decon_reg_set_trigger(id, &config->mode, DECON_TRIG_MASK);
 
@@ -1322,7 +1322,7 @@ static int decon_reg_stop_inst_dsi(u32 id, struct decon_config *config, u32 fps)
 
 	cal_log_debug(id, "%s +\n", __func__);
 
-	if ((config->mode.op_mode == DECON_MIPI_COMMAND_MODE) &&
+	if ((config->mode.op_mode == DECON_COMMAND_MODE) &&
 			(config->mode.trig_mode == DECON_HW_TRIG))
 		decon_reg_set_trigger(id, &config->mode, DECON_TRIG_MASK);
 
@@ -1633,7 +1633,7 @@ int decon_reg_init(u32 id, struct decon_config *config)
 	decon_reg_init_trigger(id, config);
 	decon_reg_configure_lcd(id, config);
 
-	if (config->mode.op_mode == DECON_MIPI_COMMAND_MODE) {
+	if (config->mode.op_mode == DECON_COMMAND_MODE) {
 #if defined(CONFIG_EXYNOS_EWR)
 		/* 60fps: request wakeup at 16.566ms after TE rising */
 		/* TODO: 60 will be changed to fps value */
@@ -1647,7 +1647,7 @@ int decon_reg_init(u32 id, struct decon_config *config)
 
 #if defined(CONFIG_EXYNOS_PLL_SLEEP)
 	/* TODO : register for outfifo2 doesn't exist, needs a confirm */
-	if (config->mode.op_mode == DECON_MIPI_COMMAND_MODE &&
+	if (config->mode.op_mode == DECON_COMMAND_MODE &&
 			config->mode.dsi_mode != DSI_MODE_DUAL_DSI)
 		decon_reg_set_pll_sleep(id, 1);
 #endif
@@ -1677,7 +1677,7 @@ int decon_reg_start(u32 id, struct decon_config *config)
 	ret = decon_reg_wait_run_status_timeout(id, 2 * 1000); /* timeout 2ms */
 
 	/* wait until run-status, then trigger */
-	if (config->mode.op_mode == DECON_MIPI_COMMAND_MODE)
+	if (config->mode.op_mode == DECON_COMMAND_MODE)
 		decon_reg_set_trigger(id, &config->mode, DECON_TRIG_UNMASK);
 	return ret;
 }
@@ -1694,7 +1694,7 @@ int decon_reg_stop(u32 id, struct decon_config *config, bool rst, u32 fps)
 
 #if defined(CONFIG_EXYNOS_PLL_SLEEP)
 	/* when pll is asleep, need to wake it up before stopping */
-	if (config->mode.op_mode == DECON_MIPI_COMMAND_MODE &&
+	if (config->mode.op_mode == DECON_COMMAND_MODE &&
 			config->mode.dsi_mode != DSI_MODE_DUAL_DSI)
 		decon_reg_set_pll_wakeup(id, 1);
 #endif
@@ -1810,7 +1810,7 @@ void decon_reg_update_req_and_unmask(u32 id, struct decon_mode *mode)
 {
 	decon_reg_update_req_global(id);
 
-	if (mode->op_mode == DECON_MIPI_COMMAND_MODE)
+	if (mode->op_mode == DECON_COMMAND_MODE)
 		decon_reg_set_trigger(id, mode, DECON_TRIG_UNMASK);
 }
 
@@ -1837,7 +1837,7 @@ int decon_reg_wait_update_done_and_mask(u32 id, struct decon_mode *mode,
 
 	result = decon_reg_wait_update_done_timeout(id, timeout_us);
 
-	if (mode->op_mode == DECON_MIPI_COMMAND_MODE)
+	if (mode->op_mode == DECON_COMMAND_MODE)
 		decon_reg_set_trigger(id, mode, DECON_TRIG_MASK);
 
 	return result;
@@ -1893,7 +1893,7 @@ void decon_reg_set_mres(u32 id, struct decon_config *config)
 {
 	u32 overlap_w = 0;
 
-	if (config->mode.op_mode != DECON_MIPI_COMMAND_MODE) {
+	if (config->mode.op_mode != DECON_COMMAND_MODE) {
 		cal_log_info(id, "op mode[%d] doesn't support multi resol\n",
 				config->mode.op_mode);
 		return;

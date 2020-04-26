@@ -129,7 +129,7 @@ enum decon_path_cfg {
 
 enum decon_op_mode {
 	DECON_VIDEO_MODE = 0,
-	DECON_MIPI_COMMAND_MODE = 1,
+	DECON_COMMAND_MODE = 1,
 };
 
 enum decon_trig_mode {
