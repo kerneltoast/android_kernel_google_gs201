@@ -618,36 +618,9 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct drm_plane *default_plane;
-	struct exynos_drm_plane_config plane_config;
 	int i, ret = 0;
 
 	decon->drm_dev = drm_dev;
-
-	/* plane initialization in DPP channel order */
-	if (decon->config.out_type & DECON_OUT_DSI) {
-		for (i = 0; i < decon->dpp_cnt; ++i) {
-			struct dpp_device *dpp = decon->dpp[i];
-
-			if (!dpp)
-				continue;
-
-			memset(&plane_config, 0, sizeof(plane_config));
-
-			plane_config.pixel_formats = dpp->pixel_formats;
-			plane_config.num_pixel_formats = dpp->num_pixel_formats;
-			plane_config.zpos = i;
-			plane_config.type = (i == 0) ? DRM_PLANE_TYPE_PRIMARY :
-				DRM_PLANE_TYPE_OVERLAY;
-			if (dpp->is_support & DPP_SUPPORT_AFBC)
-				plane_config.capabilities |=
-					EXYNOS_DRM_PLANE_CAP_AFBC;
-
-			ret = exynos_plane_init(drm_dev, &dpp->plane, i,
-					&plane_config);
-			if (ret)
-				return ret;
-		}
-	}
 
 	default_plane = &decon->dpp[decon->id]->plane.base;
 

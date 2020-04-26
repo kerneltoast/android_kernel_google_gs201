@@ -296,7 +296,10 @@ extern struct decon_device *decon_drvdata[MAX_DECON_CNT];
 
 static inline struct decon_device *get_decon_drvdata(u32 id)
 {
-	return decon_drvdata[id];
+	if (id >= 0 && id < MAX_DECON_CNT)
+		return decon_drvdata[id];
+
+	return NULL;
 }
 
 int dpu_init_debug(struct decon_device *decon);

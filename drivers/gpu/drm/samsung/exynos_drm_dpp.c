@@ -672,6 +672,33 @@ static int dpp_update(struct dpp_device *dpp,
 
 static int dpp_bind(struct device *dev, struct device *master, void *data)
 {
+	struct dpp_device *dpp = dev_get_drvdata(dev);
+	struct drm_device *drm_dev = data;
+	struct exynos_drm_plane_config plane_config;
+	int ret = 0;
+	int id = dpp->id;
+
+	dpp_dbg(dpp, "%s +\n", __func__);
+
+	memset(&plane_config, 0, sizeof(plane_config));
+
+	plane_config.pixel_formats = dpp->pixel_formats;
+	plane_config.num_pixel_formats = dpp->num_pixel_formats;
+	plane_config.zpos = id;
+	plane_config.type = get_decon_drvdata(id) ? DRM_PLANE_TYPE_PRIMARY :
+		DRM_PLANE_TYPE_OVERLAY;
+
+	if (dpp->is_support & DPP_SUPPORT_AFBC)
+		plane_config.capabilities |=
+			EXYNOS_DRM_PLANE_CAP_AFBC;
+
+	ret = exynos_plane_init(drm_dev, &dpp->plane, id,
+			&plane_config);
+	if (ret)
+		return ret;
+
+	dpp_dbg(dpp, "%s -\n", __func__);
+
 	return 0;
 }
 
