@@ -392,7 +392,7 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		if (new_crtc_state->active) {
 			struct decon_mode *mode = &decon->config.mode;
 
-			if (mode->op_mode == DECON_MIPI_COMMAND_MODE) {
+			if (mode->op_mode == DECON_COMMAND_MODE) {
 				DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_MASK,
 						decon->id, NULL);
 				decon_reg_set_trigger(decon->id, mode,

@@ -398,7 +398,7 @@ static void decon_set_te_pinctrl(struct decon_device *decon, bool en)
 {
 	int ret;
 
-	if ((decon->config.mode.op_mode != DECON_MIPI_COMMAND_MODE) ||
+	if ((decon->config.mode.op_mode != DECON_COMMAND_MODE) ||
 			(decon->config.mode.trig_mode != DECON_HW_TRIG))
 		return;
 
@@ -418,7 +418,7 @@ static void decon_enable_irqs(struct decon_device *decon)
 	enable_irq(decon->irq_fs);
 	enable_irq(decon->irq_fd);
 	enable_irq(decon->irq_ext);
-	if ((decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) &&
+	if ((decon->config.mode.op_mode == DECON_COMMAND_MODE) &&
 			(decon->config.mode.trig_mode == DECON_HW_TRIG))
 		enable_irq(decon->irq_te);
 }
@@ -473,7 +473,7 @@ static void decon_update_config_for_display_mode(struct exynos_drm_crtc *crtc)
 
 	decon->config.mode.op_mode =
 		(mode_priv->mode_flags & MIPI_DSI_MODE_VIDEO) ?
-			DECON_VIDEO_MODE : DECON_MIPI_COMMAND_MODE;
+			DECON_VIDEO_MODE : DECON_COMMAND_MODE;
 
 	decon->config.out_bpc = mode_priv->bpc;
 }
@@ -499,7 +499,7 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	_decon_enable(decon);
 
-	if ((decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) &&
+	if ((decon->config.mode.op_mode == DECON_COMMAND_MODE) &&
 			(decon->config.out_type & DECON_OUT_DSI)) {
 		decon_set_color_map(decon, 0, decon->config.image_width,
 				decon->config.image_height);
@@ -538,7 +538,7 @@ static void decon_disable_irqs(struct decon_device *decon)
 	disable_irq(decon->irq_fd);
 	disable_irq(decon->irq_ext);
 	decon_reg_set_interrupts(decon->id, 0);
-	if ((decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE) &&
+	if ((decon->config.mode.op_mode == DECON_COMMAND_MODE) &&
 			(decon->config.mode.trig_mode == DECON_HW_TRIG))
 		disable_irq(decon->irq_te);
 }
@@ -883,7 +883,7 @@ static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
 
 	DPU_EVENT_LOG(DPU_EVT_TE_INTERRUPT, decon->id, NULL);
 
-	if (decon->config.mode.op_mode == DECON_MIPI_COMMAND_MODE)
+	if (decon->config.mode.op_mode == DECON_COMMAND_MODE)
 		drm_crtc_handle_vblank(&decon->crtc->base);
 
 	hibernation = decon->hibernation;
