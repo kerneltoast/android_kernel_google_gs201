@@ -24,7 +24,7 @@
 #include <asm/sysreg.h>
 
 
-#define PT_SYSCTL_ENTRY 8
+#define PT_SYSCTL_ENTRY 9
 #define PT_COMMAND_SIZE 128
 #define PT_COMMAND_SIZE_STR "128"
 
@@ -78,6 +78,7 @@ struct pt_driver { /* one per driver */
 	const struct pt_ops *ops;
 	struct mutex mt; /* serialize access to the driver */
 	int ref;
+	int ioctl_ret; /* return of last successful ops->ioctl() */
 	struct device_node *node; /* driver node */
 	void *data; /* driver private data */
 	struct ctl_table_header *sysctl_header;
@@ -443,6 +444,8 @@ static int pt_driver_ioctl3(struct pt_driver *driver, int arg0,
 	args[1] = arg1;
 	args[2] = arg2;
 	ret = driver->ops->ioctl(driver->data, 3, args);
+	if (ret >= 0)
+		driver->ioctl_ret = args[0];
 	mutex_unlock(&driver->mt);
 	return ret;
 }
@@ -879,6 +882,12 @@ struct pt_driver *pt_driver_register(struct device_node *node,
 	driver->sysctl_table[6].maxlen = sizeof(driver->ref);
 	driver->sysctl_table[6].mode = 0440;
 	driver->sysctl_table[6].proc_handler = proc_dointvec;
+	driver->sysctl_table[7].procname = "ioctl_ret";
+	driver->sysctl_table[7].data = &driver->ioctl_ret;
+	driver->sysctl_table[7].maxlen = sizeof(driver->ioctl_ret);
+	driver->sysctl_table[7].mode = 0440;
+	driver->sysctl_table[7].proc_handler = proc_dointvec;
+
 	driver->sysctl_header = register_sysctl_table(
 					&driver->sysctl_table[0]);
 	if (IS_ERR(driver->sysctl_header))

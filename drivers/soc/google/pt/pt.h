@@ -208,6 +208,7 @@ struct pt_ops {
 
 	/*
 	 * Call internal function of the driver
+	 * args[0] is return value
 	 *
 	 * return >=0 on success
 	 */

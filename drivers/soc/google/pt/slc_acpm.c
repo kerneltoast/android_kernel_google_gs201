@@ -237,7 +237,10 @@ static int slc_acpm_ioctl(void *data, int arg_cnt, int *args)
 
 	if (arg_cnt < 3)
 		return -EINVAL;
-	return slc_acpm(driver_data, args[0], args[1], args[2]);
+	if (!slc_version_check(driver_data))
+		return -ENOENT;
+	args[0] = slc_acpm(driver_data, args[0], args[1], args[2]);
+	return 0;
 }
 
 /*
