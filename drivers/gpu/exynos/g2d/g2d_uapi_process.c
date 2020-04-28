@@ -544,6 +544,10 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return -EINVAL;
 	}
 
+	if (!g2d_validate_source_commands(
+			g2d_dev, task, index, layer, &task->target))
+		return -EINVAL;
+
 	/* color fill has no buffer */
 	if (layer->buffer_type == G2D_BUFTYPE_EMPTY) {
 		if (layer->flags & G2D_LAYERFLAG_COLORFILL) {
@@ -564,10 +568,6 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 			  IS_HWFC(task->flags) ? "HWFC" : "SBWC for encoding");
 		return -EINVAL;
 	}
-
-	if (!g2d_validate_source_commands(
-			g2d_dev, task, index, layer, &task->target))
-		return -EINVAL;
 
 	ret = g2d_prepare_buffer(g2d_dev, layer, data);
 	if (ret)
