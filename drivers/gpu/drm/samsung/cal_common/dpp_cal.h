@@ -27,6 +27,10 @@
 #define DPP_CSC_IDX_BT470M			10
 #define DPP_CSC_IDX_FILM			12
 #define DPP_CSC_IDX_ADOBE_RGB			14
+/* for R-to-Y conversion */
+#define DPP_CSC_IDX_BT709			16
+#define DPP_CSC_IDX_BT2020			18
+#define DPP_CSC_IDX_DCI_P3			20
 
 enum dpp_attr {
 	DPP_ATTR_AFBC		= 0,

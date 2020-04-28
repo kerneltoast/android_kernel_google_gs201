@@ -448,6 +448,15 @@ dpp_reg_set_csc_coef(u32 id, u32 std, u32 range, const unsigned long attr)
 	case EXYNOS_STANDARD_ADOBE_RGB:
 		csc_id = DPP_CSC_IDX_ADOBE_RGB;
 		break;
+	case EXYNOS_STANDARD_BT709:
+		csc_id = DPP_CSC_IDX_BT709;
+		break;
+	case EXYNOS_STANDARD_BT2020:
+		csc_id = DPP_CSC_IDX_BT2020;
+		break;
+	case EXYNOS_STANDARD_DCI_P3:
+		csc_id = DPP_CSC_IDX_DCI_P3;
+		break;
 	default:
 		range = EXYNOS_RANGE_LIMITED;
 		cal_log_err(id, "invalid CSC type\n");
@@ -495,8 +504,8 @@ dpp_reg_set_csc_coef(u32 id, u32 std, u32 range, const unsigned long attr)
 	val = DPP_CSC_COEF_L(c22);
 	dpp_write_mask(id, DPP_COM_CSC_COEF4, val, mask);
 
-	cal_log_debug(id, "---[DPP%d Y2R CSC Type: std=%d, rng=%d]---\n",
-		id, std, range);
+	cal_log_debug(id, "---[%s CSC Type: std=%d, rng=%d]---\n",
+		test_bit(DPP_ATTR_ODMA, &attr) ? "R2Y" : "Y2R", std, range);
 	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c00, c01, c02);
 	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c10, c11, c12);
 	cal_log_debug(id, "0x%4x  0x%4x  0x%4x\n", c20, c21, c22);
