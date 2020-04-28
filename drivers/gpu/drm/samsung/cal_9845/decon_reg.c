@@ -1592,17 +1592,21 @@ void decon_reg_update_req_global(u32 id)
 	decon_write_mask(id, SHD_REG_UP_REQ, ~0, mask);
 }
 
+/* Sharing Resources
+ * DECON0_SEC / DECON1_SEC / DECON2_PRI
+ * -> set exclusively (if not, DECON run status fail happenns)
+ */
 int decon_reg_init(u32 id, struct decon_config *config)
 {
 	/* for bring-up */
 	u32 pri_sram[3][MAX_SRAM_EN_CNT] = {
-		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon0 : 13 */
-		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon1 : 13 */
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, /* decon0 : 13 */
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, /* decon1 : 13 */
 		{0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0}, /* decon2 : 7 */
 	};
 	u32 sec_sram[3][MAX_SRAM_EN_CNT] = {
-		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon0 : 7 */
-		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon1 : 7 */
+		{1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon0 : 7 */
+		{0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon1 : 7 */
 		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, /* decon2 : none */
 	};
 
