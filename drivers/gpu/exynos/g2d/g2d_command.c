@@ -952,6 +952,17 @@ static bool g2d_validate_image_dimension(struct g2d_device *g2d_dev,
 
 #define IS_EVEN(value) (((value) & 1) == 0)
 
+static bool g2d_global_clip_okay(unsigned long caps, struct g2d_task *task)
+{
+	struct g2d_reg *l0 = task->source[0].commands;
+	struct g2d_reg *dst = task->target.commands;
+
+	return (l0[G2DSFR_SRC_DSTLEFT].value == 0) &&
+	       (l0[G2DSFR_SRC_DSTTOP].value == 0) &&
+	       (l0[G2DSFR_SRC_DSTRIGHT].value == dst[G2DSFR_IMG_WIDTH].value) &&
+	       (l0[G2DSFR_SRC_DSTBOTTOM].value == dst[G2DSFR_IMG_HEIGHT].value);
+}
+
 /*
  * Offsets of G2DSFR_IMG_RIGHT/TOP/BOTTOM from G2DSFR_IMG_LEFT are the same with
  * the offsets from G2DSFR_SRC_DSTRIGHT/TOP/BOTTOM from G2DSFR_SRC_DSTLEFT,
@@ -1181,6 +1192,9 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 		perrfndev(g2d_dev, "Window of source[%d] floods the target", i);
 		return false;
 	}
+
+	if (g2d_global_clip_okay(g2d_dev->caps, task))
+		return true;
 
 	if (!g2d_validate_clip_region(g2d_dev->caps, source->flags, dst_mode,
 				      &source->commands[G2DSFR_SRC_DSTLEFT])) {
