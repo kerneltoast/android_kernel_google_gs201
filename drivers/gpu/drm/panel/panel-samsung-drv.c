@@ -414,6 +414,9 @@ int exynos_drm_connector_atomic_check(struct drm_connector *connector,
 	struct drm_encoder *encoder = state->best_encoder;
 	struct exynos_panel *ctx = connector_to_exynos_panel(connector);
 
+	if (!ctx->touch_dev)
+		return 0;
+
 	if (!encoder) {
 		dev_warn(ctx->dev, "%s encoder is null\n", __func__);
 		return 0;
