@@ -354,6 +354,14 @@ static void exynos_drm_crtc_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tbpc=%d\n", cfg->out_bpc);
 }
 
+static int exynos_drm_crtc_late_register(struct drm_crtc *crtc)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct decon_device *decon = exynos_crtc->ctx;
+
+	return dpu_init_debug(decon);
+}
+
 static const struct drm_crtc_funcs exynos_crtc_funcs = {
 	.set_config		= drm_atomic_helper_set_config,
 	.page_flip		= drm_atomic_helper_page_flip,
@@ -367,6 +375,7 @@ static const struct drm_crtc_funcs exynos_crtc_funcs = {
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
 	.get_vblank_counter	= exynos_drm_crtc_get_vblank_counter,
+	.late_register		= exynos_drm_crtc_late_register,
 };
 
 static int

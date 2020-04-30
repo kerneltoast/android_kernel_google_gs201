@@ -253,8 +253,6 @@ struct dpu_log {
 #define DPU_EVENT_KEEP_CNT	3
 
 struct decon_debug {
-	struct dentry *debug_root;
-	struct dentry *debug_event;
 	/* ring buffer of event log */
 	struct dpu_log *event_log;
 	/* count of log buffers in each event log */
@@ -304,7 +302,6 @@ static inline struct decon_device *get_decon_drvdata(u32 id)
 }
 
 int dpu_init_debug(struct decon_device *decon);
-void dpu_deinit_debug(struct decon_device *decon);
 void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv);
 void DPU_EVENT_LOG_ATOMIC_COMMIT(int index);
 void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,

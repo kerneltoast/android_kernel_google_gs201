@@ -444,11 +444,12 @@ static const struct file_operations dpu_event_fops = {
 #define MAX_NAME_SIZE	32
 int dpu_init_debug(struct decon_device *decon)
 {
-	char name[MAX_NAME_SIZE];
 	int ret = 0;
 	int i;
 	u32 event_cnt;
+	struct drm_crtc *crtc;
 	struct dentry *underrun_cnt_dent;
+	struct dentry *debug_event;
 
 	decon->d.event_log = NULL;
 	event_cnt = DPU_EVENT_LOG_MAX;
@@ -467,51 +468,36 @@ int dpu_init_debug(struct decon_device *decon)
 		break;
 	}
 	decon->d.event_log_cnt = event_cnt;
-
-	if (!decon->id) {
-		decon->d.debug_root = debugfs_create_dir("decon", NULL);
-		if (!decon->d.debug_root) {
-			DRM_ERROR("failed to create debugfs root directory.\n");
-			ret = -ENOENT;
-			goto err_event_log;
-		}
-	}
-
-	if (decon->id == 1 || decon->id == 2)
-		decon->d.debug_root = decon_drvdata[0]->d.debug_root;
-
-	snprintf(name, MAX_NAME_SIZE, "event%d", decon->id);
 	atomic_set(&decon->d.event_log_idx, -1);
-	decon->d.debug_event = debugfs_create_file(name, 0444,
-			decon->d.debug_root, decon, &dpu_event_fops);
-	if (!decon->d.debug_event) {
-		DRM_ERROR("failed to create debugfs file\n");
+
+	if (!decon->crtc)
+		goto err_event_log;
+
+	crtc = &decon->crtc->base;
+
+	debug_event = debugfs_create_file("event", 0444, crtc->debugfs_entry,
+			decon, &dpu_event_fops);
+	if (!debug_event) {
+		DRM_ERROR("failed to create debugfs event file\n");
 		ret = -ENOENT;
-		goto err_debugfs;
+		goto err_event_log;
 	}
 
 	underrun_cnt_dent = debugfs_create_u32("underrun_cnt", 0664,
-			decon->d.debug_root, &decon->d.underrun_cnt);
+			crtc->debugfs_entry, &decon->d.underrun_cnt);
 	if (!underrun_cnt_dent) {
 		DRM_ERROR("failed to create debugfs underrun_cnt file\n");
 		ret = -ENOENT;
 		goto err_debugfs;
 	}
 
-	return 0;
+	return ret;
 
 err_debugfs:
-	debugfs_remove_recursive(decon->d.debug_root);
+	debugfs_remove(debug_event);
 err_event_log:
 	kfree(decon->d.event_log);
-	decon->d.event_log = NULL;
 	return ret;
-}
-
-void dpu_deinit_debug(struct decon_device *decon)
-{
-	debugfs_remove(decon->d.debug_root);
-	debugfs_remove(decon->d.debug_event);
 }
 
 #define PREFIX_LEN	40

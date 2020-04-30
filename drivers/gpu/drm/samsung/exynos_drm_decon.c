@@ -1004,10 +1004,6 @@ static int decon_probe(struct platform_device *pdev)
 
 	decon->dqe = exynos_dqe_register(decon);
 
-	ret = dpu_init_debug(decon);
-	if (ret)
-		goto err;
-
 	ret = component_add(dev, &decon_component_ops);
 	if (ret)
 		goto err;
@@ -1028,7 +1024,6 @@ static int decon_remove(struct platform_device *pdev)
 
 	exynos_hibernation_destroy(decon->hibernation);
 
-	dpu_deinit_debug(decon);
 	component_del(&pdev->dev, &decon_component_ops);
 
 	return 0;
