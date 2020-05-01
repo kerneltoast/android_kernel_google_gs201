@@ -17,12 +17,19 @@
 	};
 };
 
+&pinctrl_5 {
+	ap_dtls_cs: ap-dtls-cs {
+		samsung,pins = "gpp21-3";
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
 &spi_10 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi10_bus &spi10_cs_func>;
+	pinctrl-0 = <&spi10_bus &spi10_cs_func &ap_dtls_cs>;
 
 	gsc@0 {
 		compatible = "google,gsc";
