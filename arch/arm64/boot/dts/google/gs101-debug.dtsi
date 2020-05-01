@@ -64,4 +64,11 @@
 		mid_cpu_start = <0x4>;
 		big_cpu_start = <0x6>;
 	};
+
+	keydebug {
+		compatible = "keydebug";
+		key_down_delay = <6000>;
+		keys_down = <116>;
+		dbg_fn_delay = <2000>;
+	};
 };
