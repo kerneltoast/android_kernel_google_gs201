@@ -9,6 +9,19 @@
 
 / {
 	dsim_modes: dsim_modes {
+		/* parameters used to calcuate dsim_mode at runtime */
+		pll-input = /bits/ 64 <24576000>; /* 24.576 MHz */
+		pll-optimum = /bits/ 64 <13000000>; /* 13 MHz */
+		pll-out-range = /bits/ 64 <52000000 6600000000>; /* 55 to 6600 MHz*/
+		pll-vco-range = /bits/ 64 <3300000000 6600000000>; /* 3300 to 6600 MHz */
+		p-range = <1 63>; /* inclusive */
+		m-range = <64 1023>; /* inclusive */
+		s-range = <0 6>; /* inclusive */
+		k-bits = <16>; /* K is a two's complement 16-bit intger */
+
+		te-idle = <1000>; /* microsecond */
+		te-var = <1>; /* te variation, percentage */
+
 		dsim-modes {
 			1440x3040 {
 				mode-name = "1440x3040";
