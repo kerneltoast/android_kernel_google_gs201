@@ -393,8 +393,7 @@ static void dsim_get_clock_modes(struct dsim_device *dsim, const char *name)
 					dsim->clk_param.hs_clk,
 					dsim->clk_param.esc_clk);
 
-
-			dsim->config.cmd_underrun_cnt[i] =
+			dsim->config.cmd_underrun_cnt[0] =
 				pll_params->params[i]->cmd_underrun_cnt;
 			break;
 		}
