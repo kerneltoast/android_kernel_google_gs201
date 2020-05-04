@@ -778,6 +778,7 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 {
 	u32 alpha_type = 0; /* 0: per-frame, 1: per-pixel */
 	const struct dpu_fmt *fmt_info = dpu_find_fmt_info(p->format);
+	enum dpp_bpc bpc = (fmt_info->bpc == 10) ? DPP_BPC_10 : DPP_BPC_8;
 
 	alpha_type = (fmt_info->len_alpha > 0) ? 1 : 0;
 
@@ -785,8 +786,10 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 		idma_reg_set_format(id, fmt_info->dma_fmt);
 	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
 		odma_reg_set_format(id, fmt_info->dma_fmt);
-		if (test_bit(DPP_ATTR_DPP, &attr))
+		if (test_bit(DPP_ATTR_DPP, &attr)) {
+			dpp_reg_set_bpc(id, bpc);
 			dpp_reg_set_uv_offset(id, 0, 0);
+		}
 	}
 
 	if (test_bit(DPP_ATTR_DPP, &attr)) {
