@@ -244,8 +244,11 @@ static void dsim_enable(struct drm_encoder *encoder)
 	ret = drm_panel_enable(dsim->panel);
 	if (ret < 0) {
 		drm_panel_unprepare(dsim->panel);
+		dsim_reg_stop(dsim->id, 0x1F);
+		disable_irq(dsim->irq);
 		dsim_phy_power_off(dsim);
 		dsim_err(dsim, "drm_panel_enable is failed(%d)\n", ret);
+		dsim->state = DSIM_STATE_SUSPEND;
 		return;
 	}
 
