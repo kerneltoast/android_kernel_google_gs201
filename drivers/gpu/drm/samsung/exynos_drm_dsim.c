@@ -401,7 +401,7 @@ static void dsim_get_clock_modes(struct dsim_device *dsim, const char *name)
 	}
 }
 
-static void dsim_of_parse_modes(struct device_node *entry,
+static int dsim_of_parse_modes(struct device_node *entry,
 		struct dsim_pll_param *pll_param)
 {
 	u32 res[14];
@@ -413,9 +413,14 @@ static void dsim_of_parse_modes(struct device_node *entry,
 			(const char **)&pll_param->name);
 
 	cnt = of_property_count_u32_elems(entry, "pmsk");
+	if (cnt != 4 && cnt != 14) {
+		pr_err("%s: mode %s has wrong pmsk elements number %d\n",
+		       __func__, pll_param->name, cnt);
+		return -EINVAL;
+	}
 
 	/* TODO: how dsi dither handle ? */
-	of_property_read_u32_array(entry, "pmsk", res, 14);
+	of_property_read_u32_array(entry, "pmsk", res, cnt);
 	pll_param->dither_en = false;
 	pll_param->p = res[0];
 	pll_param->m = res[1];
@@ -439,6 +444,8 @@ static void dsim_of_parse_modes(struct device_node *entry,
 	of_property_read_u32(entry, "esc-clk", &pll_param->esc_freq);
 	of_property_read_u32(entry, "cmd_underrun_cnt",
 			&pll_param->cmd_underrun_cnt);
+
+	return 0;
 }
 
 static struct dsim_pll_params *dsim_of_get_clock_mode(struct dsim_device *dsim)
@@ -489,7 +496,11 @@ static struct dsim_pll_params *dsim_of_get_clock_mode(struct dsim_device *dsim)
 		if (!pll_param)
 			goto getpll_fail;
 
-		dsim_of_parse_modes(entry, pll_param);
+		if (dsim_of_parse_modes(entry, pll_param) < 0) {
+			kfree(pll_param);
+			continue;
+		}
+
 		pll_params->params[pll_params->num_modes] = pll_param;
 		pll_params->num_modes++;
 	}
