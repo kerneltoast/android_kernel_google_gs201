@@ -1,0 +1,20 @@
+#
+# Power sensors
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Power sensors"
+
+config ODPM
+	tristate "ODPM driver for M/S PMICs"
+	depends on MFD_S2MPG10
+	depends on MFD_S2MPG11
+	select DRV_SAMSUNG_PMIC
+	help
+	  Say Y here to enable the On-Device Power Monitor (ODPM) driver.
+	  The On-Device Power Monitor allows for rail-specific energy and power
+	  measurements of the different subdomains of a PMIC device. The ODPM
+	  driver also allows for rail selection out of a subset of measurement
+	  "channels".
+
+endmenu
