@@ -32,7 +32,9 @@ struct max77759_plat {
 	/* protects tcpc_enable_data_path */
 	struct mutex data_path_lock;
 	/* Vote for data from BC1.2 */
-	bool data_capable;
+	bool bc12_data_capable;
+	/* Infered from pd caps */
+	bool pd_data_capable;
 	/* Vote from TCPC for attached */
 	bool attached;
 	/* Reflects the signal sent out to the data stack */
