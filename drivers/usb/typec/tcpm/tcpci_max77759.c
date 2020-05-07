@@ -423,8 +423,7 @@ static int max77759_init_alert(struct max77759_plat *chip,
 
 	ret = devm_request_threaded_irq(chip->dev, client->irq, NULL,
 					max77759_irq,
-					(IRQF_TRIGGER_LOW | IRQF_NO_SUSPEND
-					 | IRQF_ONESHOT),
+					(IRQF_TRIGGER_LOW | IRQF_ONESHOT),
 					dev_name(chip->dev), chip);
 
 	if (ret < 0)
