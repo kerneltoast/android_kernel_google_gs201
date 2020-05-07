@@ -54,7 +54,9 @@ struct fusb307b_plat {
 	/* protects tcpc_enable_data_path */
 	struct mutex data_path_lock;
 	/* Vote for data from BC1.2 */
-	bool data_capable;
+	bool bc12_data_capable;
+	/* Infered from pd caps */
+	bool pd_data_capable;
 	/* Vote from TCPC for attached */
 	bool attached;
 	/* Reflects the signal sent out to the data stack */
@@ -356,12 +358,56 @@ static int fusb307b_get_current_limit(struct tcpci *tcpci,
 	return ret;
 }
 
+static void enable_data_path_locked(struct fusb307b_plat *chip)
+{
+	int ret;
+	bool enable_data = false;
+
+	logbuffer_log(chip->log,
+		      "%s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u",
+		      __func__, chip->pd_capable ? 1 : 0,
+		      chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
+		      chip->bc12_data_capable ? 1 : 0, chip->attached ? 1
+		      : 0);
+	if (chip->pd_capable)
+		enable_data = chip->pd_data_capable;
+	else
+		enable_data = chip->no_bc_12 || chip->bc12_data_capable;
+
+	if (chip->attached && enable_data && !chip->data_active) {
+		ret = extcon_set_state_sync(chip->extcon,
+					    chip->data_role == TYPEC_HOST ?
+					    EXTCON_USB_HOST : EXTCON_USB,
+					    1);
+		logbuffer_log(chip->log, "%s turning on %s", ret < 0 ?
+			      "Failed" : "Succeeded", chip->data_role ==
+			      TYPEC_HOST ? "Host" : "Device");
+
+		chip->data_active = true;
+		chip->active_data_role = chip->data_role;
+	} else if (chip->data_active && (!chip->attached || !enable_data)) {
+		ret = extcon_set_state_sync(chip->extcon,
+					    chip->active_data_role ==
+					    TYPEC_HOST ? EXTCON_USB_HOST :
+					    EXTCON_USB, 0);
+
+		logbuffer_log(chip->log, "%s turning off %s", ret < 0 ?
+			      "Failed" : "Succeeded",
+			      chip->active_data_role == TYPEC_HOST ? "Host"
+			      : "Device");
+		chip->data_active = false;
+	}
+}
+
 static void fusb307b_set_pd_capable(struct tcpci *tcpci, struct tcpci_data
 				    *data, bool capable)
 {
 	struct fusb307b_plat *chip = tdata_to_fusb307b(data);
 
+	mutex_lock(&chip->data_path_lock);
 	chip->pd_capable = capable;
+	enable_data_path_locked(chip);
+	mutex_unlock(&chip->data_path_lock);
 }
 
 static void fusb307b_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data
@@ -443,36 +489,25 @@ static int fusb307b_set_current_limit(struct tcpci *tcpci,
 	return ret;
 }
 
-static void enable_data_path(struct fusb307b_plat *chip)
-{
-	int ret;
-
-	mutex_lock(&chip->data_path_lock);
-	if (chip->attached && (chip->no_bc_12 || chip->data_capable) &&
-	    !chip->data_active) {
-		ret = extcon_set_state_sync(chip->extcon,
-			chip->data_role == TYPEC_HOST ?
-			EXTCON_USB_HOST : EXTCON_USB, 1);
-		logbuffer_log(chip->log, "%s turning on %s", ret < 0 ?
-			      "Failed" : "Succeeded", chip->data_role ==
-			      TYPEC_HOST ? "Host" : "Device");
-
-		chip->data_active = true;
-		chip->active_data_role = chip->data_role;
-	}
-	mutex_unlock(&chip->data_path_lock);
-}
-
 /* Notifier structure inferred from usbpd-manager.c */
 static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 			     bool attached, enum typec_role role,
-			     enum typec_data_role data_role)
+			     enum typec_data_role data_role,
+			     bool usb_comm_capable)
 {
 	struct fusb307b_plat *chip = tdata_to_fusb307(data);
 	int ret;
+	bool enable_data;
+
+	mutex_lock(&chip->data_path_lock);
+	chip->pd_data_capable = usb_comm_capable;
+	if (chip->pd_capable)
+		enable_data = chip->pd_data_capable;
+	else
+		enable_data = chip->no_bc_12 || chip->bc12_data_capable;
 
 	if (chip->data_active && ((chip->active_data_role != data_role) ||
-				  !attached)) {
+				  !attached || !enable_data)) {
 		ret = extcon_set_state_sync(chip->extcon,
 					    chip->active_data_role ==
 					    TYPEC_HOST ? EXTCON_USB_HOST :
@@ -490,7 +525,8 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 
 	chip->attached = attached;
 	chip->data_role = data_role;
-	enable_data_path(chip);
+	enable_data_path_locked(chip);
+	mutex_unlock(&chip->data_path_lock);
 	if (!chip->attached)
 		fusb307b_vote_icl(tcpci, data, 0);
 
@@ -508,11 +544,13 @@ static void fusb307b_set_port_data_capable(struct i2c_client *tcpc_client,
 	case POWER_SUPPLY_USB_TYPE_CDP:
 	/* Being conservative, enable data path for UNKNOWN as well */
 	case POWER_SUPPLY_USB_TYPE_UNKNOWN:
-		chip->data_capable = true;
-		enable_data_path(chip);
+		mutex_lock(&chip->data_path_lock);
+		chip->bc12_data_capable = true;
+		enable_data_path_locked(chip);
+		mutex_unlock(&chip->data_path_lock);
 		break;
 	default:
-		chip->data_capable = false;
+		chip->bc12_data_capable = false;
 		break;
 	}
 }
