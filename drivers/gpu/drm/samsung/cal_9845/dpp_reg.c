@@ -908,7 +908,9 @@ static const u32 pattern_data[] = {
 void dpp_reg_configure_params(u32 id, struct dpp_params_info *p,
 		const unsigned long attr)
 {
-	if (test_bit(DPP_ATTR_CSC, &attr))
+	const struct dpu_fmt *fmt = dpu_find_fmt_info(p->format);
+
+	if (test_bit(DPP_ATTR_CSC, &attr) && IS_YUV(fmt))
 		dpp_reg_set_csc_params(id, p->standard, p->range, attr);
 
 	if (test_bit(DPP_ATTR_SCALE, &attr))
