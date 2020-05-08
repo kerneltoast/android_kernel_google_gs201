@@ -339,13 +339,17 @@ exynos_drm_plane_check_format(struct exynos_drm_plane_state *state)
 		return 0;
 
 	if (fb->modifier) {
-		if (has_all_bits(DRM_FORMAT_MOD_ARM_AFBC(0), fb->modifier))
+		uint64_t modifier = fb->modifier;
+
+		if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_COLORMAP, modifier))
 			return 0;
 
-		if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_COLORMAP, fb->modifier))
-			return 0;
+		/* allow rest of the modifiers to support content protection */
+		modifier &= ~DRM_FORMAT_MOD_PROTECTION;
 
-		if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_SBWC(0), fb->modifier))
+		if (!modifier ||
+		    has_all_bits(DRM_FORMAT_MOD_ARM_AFBC(0), modifier) ||
+		    has_all_bits(DRM_FORMAT_MOD_SAMSUNG_SBWC(0), modifier))
 			return 0;
 
 		DRM_ERROR("not supported modifier(0x%llx)\n", fb->modifier);
