@@ -807,36 +807,26 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 	if (dpp->state == DPP_STATE_OFF)
 		goto irq_end;
 
-	if (test_bit(DPP_ATTR_ODMA, &dpp->attr)) { /* ODMA case */
-		irqs = odma_reg_get_irq_and_clear(dpp->id);
+	/* IDMA case */
+	irqs = idma_reg_get_irq_and_clear(dpp->id);
 
-		if (irqs & ODMA_STATUS_FRAMEDONE_IRQ) {
-			dpp_dbg(dpp, "dpp%d framedone irq occurs\n", dpp->id);
-			DPU_EVENT_LOG(DPU_EVT_DPP_FRAMEDONE, dpp->decon_id,
-					dpp);
-			goto irq_end;
-		}
-	} else { /* IDMA case */
-		irqs = idma_reg_get_irq_and_clear(dpp->id);
+	if (irqs & IDMA_RECOVERY_START_IRQ) {
+		DPU_EVENT_LOG(DPU_EVT_DMA_RECOVERY, dpp->decon_id, dpp);
+		dpp->recovery_cnt++;
+		str_comp = get_comp_src_name(dpp->comp_src);
+		dpp_info(dpp, "recovery start(0x%x) cnt(%d) src(%s)\n",
+				irqs, dpp->recovery_cnt, str_comp);
+		goto irq_end;
+	}
 
-		if (irqs & IDMA_RECOVERY_START_IRQ) {
-			DPU_EVENT_LOG(DPU_EVT_DMA_RECOVERY, dpp->decon_id, dpp);
-			dpp->recovery_cnt++;
-			str_comp = get_comp_src_name(dpp->comp_src);
-			dpp_info(dpp, "recovery start(0x%x) cnt(%d) src(%s)\n",
-					irqs, dpp->recovery_cnt, str_comp);
-			goto irq_end;
-		}
-
-		/*
-		 * TODO: Normally, DMA framedone occurs before DPP framedone.
-		 * But DMA framedone can occur in case of AFBC crop mode
-		 */
-		if (irqs & IDMA_STATUS_FRAMEDONE_IRQ) {
-			DPU_EVENT_LOG(DPU_EVT_DPP_FRAMEDONE, dpp->decon_id,
-					dpp);
-			goto irq_end;
-		}
+	/*
+	 * TODO: Normally, DMA framedone occurs before DPP framedone.
+	 * But DMA framedone can occur in case of AFBC crop mode
+	 */
+	if (irqs & IDMA_STATUS_FRAMEDONE_IRQ) {
+		DPU_EVENT_LOG(DPU_EVT_DPP_FRAMEDONE, dpp->decon_id,
+				dpp);
+		goto irq_end;
 	}
 
 irq_end:
