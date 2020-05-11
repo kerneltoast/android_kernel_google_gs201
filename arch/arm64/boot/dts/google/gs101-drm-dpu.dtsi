@@ -32,7 +32,7 @@
 		/* DPU_DMA IRQ, DPP IRQ */
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L0_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L0_DPU IRQ_TYPE_LEVEL_HIGH>;
-		interrupts-names = "dma", "dpp";
+		interrupt-names = "dma", "dpp";
 
 		/* Each bit indicates DPP attribute */
 		/* 0:AFBC 1:BLOCK 2:FLIP 3:ROT 4:CSC 5:SCALE 6:HDR 11:HDR10P */
@@ -57,7 +57,7 @@
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L1_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L1_DPU IRQ_TYPE_LEVEL_HIGH>;
-		interrupts-names = "dma", "dpp";
+		interrupt-names = "dma", "dpp";
 
 		attr = <0x50C7F>;
 		port = <0>;
@@ -77,7 +77,7 @@
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L2_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L2_DPU IRQ_TYPE_LEVEL_HIGH>;
-		interrupts-names = "dma", "dpp";
+		interrupt-names = "dma", "dpp";
 
 		attr = <0x50047>;
 		port = <1>;
@@ -96,7 +96,7 @@
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L3_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L3_DPU IRQ_TYPE_LEVEL_HIGH>;
-		interrupts-names = "dma", "dpp";
+		interrupt-names = "dma", "dpp";
 
 		attr = <0x50C7F>;
 		port = <1>;
@@ -116,7 +116,7 @@
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L4_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L4_DPU IRQ_TYPE_LEVEL_HIGH>;
-		interrupts-names = "dma", "dpp";
+		interrupt-names = "dma", "dpp";
 
 		attr = <0x50047>;
 		port = <2>;
@@ -135,7 +135,7 @@
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_L5_DPU IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DPU_DPP_L5_DPU IRQ_TYPE_LEVEL_HIGH>;
-		interrupts-names = "dma", "dpp";
+		interrupt-names = "dma", "dpp";
 
 		attr = <0x50C7F>;
 		port = <2>;
@@ -153,6 +153,7 @@
 
 		interrupts = <GIC_SPI INTREQ__DPU_DMA_WB_DPU
 				IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "dma";
 
 		/* 4:CSC 10:SBWC 17:ODMA 18:DPP */
 		attr = <0x60410>;
@@ -166,6 +167,7 @@
 	disp_ss: disp_ss@0x1C221000 {
 		compatible = "samsung,exynos9-disp_ss";
 		reg = <0x0 0x1C221000 0x10>;
+		reg-names = "sys";
 	};
 
 	mipi_phy_dsim0_m4m4: dphy_m4s4_dsim0@0x1C2E0000 {
@@ -182,11 +184,13 @@
 		reg = <0x0 0x1C2C0000 0x300>,	/* DSI */
 		      <0x0 0x1C2E0100 0x700>,	/* M4M4S0 PHY */
 		      <0x0 0x1C2E0000 0x100>;	/* M4M4S0 PHY BIAS */
+		reg-names = "dsi", "dphy", "dphy-extra";
 
 		dsim,id = <0>;
 
 		interrupts = <GIC_SPI INTREQ__DISP_DSIM0_DISP
 				IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "dsim";
 
 		phys = <&mipi_phy_dsim0_m4m4 0>;
 		phy-names = "dsim_dphy";
@@ -202,11 +206,13 @@
 		reg = <0x0 0x1C2D0000 0x300>,	/* DSI */
 		      <0x0 0x1C2E0900 0x700>,	/* M4M4S0 PHY */
 		      <0x0 0x1C2E0000 0x100>;	/* M4M4S0 PHY BIAS */
+		reg-names = "dsi", "dphy", "dphy-extra";
 
 		dsim,id = <1>;
 
 		interrupts = <GIC_SPI INTREQ__DISP_DSIM1_DISP
 				IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "dsim";
 
 		phys = <&mipi_phy_dsim0_m4m4 0>;
 		phy-names = "dsim_dphy";
@@ -231,6 +237,7 @@
 		interrupts = <GIC_SPI INTREQ__DISP_DECON0_FRAME_START_DISP IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DISP_DECON0_FRAME_DONE_DISP IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DISP_DECON0_EXTRA_DISP IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "frame_start", "frame_done", "extra";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 
 		/* pinctrl */
@@ -273,12 +280,14 @@
 		      <0x0 0x1C310000 0x6000>,	/* DECON_WIN */
 		      <0x0 0x1C320000 0x10000>,	/* DECON_SUB */
 		      <0x0 0x1C350000 0x6000>;	/* DECON2_WINCON */
+		reg-names = "main", "win", "sub", "wincon";
 
 		decon,id = <2>;
 
 		interrupts = <GIC_SPI INTREQ__DISP_DECON2_FRAME_START_DISP IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DISP_DECON2_FRAME_DONE_DISP IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI INTREQ__DISP_DECON2_EXTRA_DISP IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "frame_start", "frame_done", "extra";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 
 		max_win = <6>;
