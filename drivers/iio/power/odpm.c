@@ -59,24 +59,41 @@ enum odpm_chip_id {
 	ODPM_CHIP_S2MPG11,
 };
 
+enum odpm_rail_type {
+	ODPM_RAIL_TYPE_REGULATOR,
+	ODPM_RAIL_TYPE_SHUNT,
+};
+
 struct odpm_rail_data {
+	/* Config */
 	const char *name;
+	const char *schematic_name;
+	const char *subsys_name;
+	enum odpm_rail_type type;
 	u32 mux_select;
 
+	/* External rail specific config */
+	u32 shunt_uohms;
+	u8 chip_enable_index;
+
+	/* Data */
 	u64 acc_power_uW_sec;
 };
 
 struct odpm_chip {
+	/* Config */
 	const char *name;
 	enum odpm_chip_id id;
+	u32 max_refresh_time_ms;
 
 	int num_rails;
 	struct odpm_rail_data *rails;
 
-	int max_refresh_time_ms;
+	/* Data */
 	u64 acc_count;
 	u64 acc_timestamp;
-	s2mpg1x_int_samp_rate sampling_rate_i;
+	s2mpg1x_int_samp_rate int_sampling_rate_i;
+	s2mpg1x_ext_samp_rate ext_sampling_rate_i;
 };
 
 struct odpm_channel_data {
@@ -102,23 +119,17 @@ struct odpm_info {
 /* TODO(stayfan): b/156109515
  * Dynamically configure based on DTS
  */
-static int sample_rate_enum_to_int_hz[] = {
-	[INT_7P_8125HZ] = 8, [INT_15P_625HZ] = 16, [INT_31P_25HZ] = 31,
-	[INT_62P_5HZ] = 63,  [INT_125HZ] = 125,	 [INT_250HZ] = 250,
-	[INT_500HZ] = 500,  [INT_1000HZ] = 1000,
+static u32 int_sample_rate_i_to_uhz[] = {
+	[INT_7P_8125HZ] = 7812500, [INT_15P_625HZ] = 15625000,
+	[INT_31P_25HZ] = 31250000, [INT_62P_5HZ] = 62500000,
+	[INT_125HZ] = 125000000,   [INT_250HZ] = 250000000,
+	[INT_500HZ] = 500000000,   [INT_1000HZ] = 1000000000,
 };
 
-static const char *const sample_rate_enum_to_str_hz[] = {
-	[INT_7P_8125HZ] = "7.8125", [INT_15P_625HZ] = "15.625",
-	[INT_31P_25HZ] = "31.25",   [INT_62P_5HZ] = "62.5",
-	[INT_125HZ] = "125",	   [INT_250HZ] = "250",
-	[INT_500HZ] = "500",	   [INT_1000HZ] = "1000",
-};
-
-static int sample_rate_enum_to_int_ms[] = {
-	[INT_7P_8125HZ] = 128, [INT_15P_625HZ] = 64, [INT_31P_25HZ] = 32,
-	[INT_62P_5HZ] = 16,    [INT_125HZ] = 8,	   [INT_250HZ] = 4,
-	[INT_500HZ] = 2,      [INT_1000HZ] = 1,
+static u32 ext_sample_rate_i_to_uhz[] = {
+	[EXT_7P_628125HZ] = 7628125, [EXT_15P_25625HZ] = 15256250,
+	[EXT_30P_5125HZ] = 30512500, [EXT_61P_025HZ] = 61025000,
+	[EXT_122P_05HZ] = 122050000,
 };
 
 /**
@@ -139,7 +150,7 @@ static const struct iio_chan_spec s2mpg1x_single_channel[ODPM_CHANNEL_MAX] = {
 
 static int odpm_take_snapshot(struct odpm_info *info);
 
-static int odpm_io_set_channel(struct odpm_info *info, size_t channel)
+static int odpm_io_set_channel(struct odpm_info *info, int channel)
 {
 	int ret = -1;
 	int rail_i = info->channels[channel].rail_i;
@@ -149,12 +160,21 @@ static int odpm_io_set_channel(struct odpm_info *info, size_t channel)
 	return ret;
 }
 
-static int odpm_io_set_sample_rate(struct odpm_info *info,
-				   s2mpg1x_int_samp_rate hz)
+static int odpm_io_set_int_sample_rate(struct odpm_info *info,
+				       s2mpg1x_int_samp_rate hz)
 {
 	int ret = -1;
 
 	SWITCH_METER_FUNC(info, set_int_samp_rate, hz);
+	return ret;
+}
+
+static int odpm_io_set_ext_sample_rate(struct odpm_info *info,
+				       s2mpg1x_ext_samp_rate hz)
+{
+	int ret = -1;
+
+	SWITCH_METER_FUNC(info, set_ext_samp_rate, hz);
 	return ret;
 }
 
@@ -174,20 +194,39 @@ static int odpm_io_set_ext_meter_on(struct odpm_info *info, bool is_on)
 	return ret;
 }
 
+static int odpm_io_set_ext_channel_on(struct odpm_info *info, u8 channels)
+{
+	int ret = -1;
+
+	SWITCH_METER_FUNC(info, meter_ext_channel_onoff, channels);
+	return ret;
+}
+
 int odpm_configure_chip(struct odpm_info *info)
 {
 	int ch;
+	u8 ext_channels_en = 0;
 
 	/* TODO(stayfan): b/156107234
 	 * error conditions
 	 */
-	odpm_io_set_sample_rate(info, info->chip.sampling_rate_i);
+	odpm_io_set_int_sample_rate(info, info->chip.int_sampling_rate_i);
+	odpm_io_set_ext_sample_rate(info, info->chip.ext_sampling_rate_i);
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
-		if (info->channels[ch].enabled)
+		if (info->channels[ch].enabled) {
+			int rail_i = info->channels[ch].rail_i;
+
 			odpm_io_set_channel(info, ch);
+
+			ext_channels_en |=
+				info->chip.rails[rail_i].chip_enable_index;
+		}
 	}
+
+	odpm_io_set_ext_channel_on(info, ext_channels_en);
+
 	odpm_io_set_meter_on(info, true);
-	odpm_io_set_ext_meter_on(info, false);
+	odpm_io_set_ext_meter_on(info, true);
 
 	return 0;
 }
@@ -202,6 +241,7 @@ void odpm_periodic_refresh_timeout(struct timer_list *t)
 			msecs_to_jiffies(info->chip.max_refresh_time_ms));
 	if (ret < 0)
 		pr_err("odpm: Refresh timer cannot be modified!\n");
+
 	/* schedule the periodic reading from the chip */
 	queue_work(info->work_queue, &info->work_refresh);
 }
@@ -229,14 +269,30 @@ static void odpm_periodic_refresh_setup(struct odpm_info *info)
 	add_timer(&info->timer_refresh);
 }
 
-bool odpm_match_sample_rate(struct odpm_info *info, int sample_rate)
+static bool odpm_match_int_sample_rate(struct odpm_info *info, u32 sample_rate)
 {
 	bool success = false;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(sample_rate_enum_to_int_hz); i++) {
-		if (sample_rate == sample_rate_enum_to_int_hz[i]) {
-			info->chip.sampling_rate_i = i;
+	for (i = 0; i < ARRAY_SIZE(int_sample_rate_i_to_uhz); i++) {
+		if (sample_rate == int_sample_rate_i_to_uhz[i]) {
+			info->chip.int_sampling_rate_i = i;
+			success = true;
+			break;
+		}
+	}
+
+	return success;
+}
+
+static bool odpm_match_ext_sample_rate(struct odpm_info *info, u32 sample_rate)
+{
+	bool success = false;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ext_sample_rate_i_to_uhz); i++) {
+		if (sample_rate == ext_sample_rate_i_to_uhz[i]) {
+			info->chip.ext_sampling_rate_i = i;
 			success = true;
 			break;
 		}
@@ -248,14 +304,46 @@ bool odpm_match_sample_rate(struct odpm_info *info, int sample_rate)
 static int odpm_parse_dt_rail(struct odpm_rail_data *rail_data,
 			      struct device_node *node)
 {
-	u32 mux_sel = 0;
+	if (!node->name) {
+		pr_err("odpm: cannot read node name\n");
+		return -EINVAL;
+	}
+	rail_data->name = node->name;
 
-	if (of_property_read_u32(node, "channel-mux-selection", &mux_sel)) {
+	/* If the read fails, the pointers are not assigned; thus the pointers
+	 * are left NULL if the values don't exist in the DT
+	 */
+	of_property_read_string(node, "schematic-name",
+				&rail_data->schematic_name);
+	of_property_read_string(node, "subsys-name", &rail_data->subsys_name);
+
+	if (of_property_read_bool(node, "external_rail"))
+		rail_data->type = ODPM_RAIL_TYPE_SHUNT;
+	else
+		rail_data->type = ODPM_RAIL_TYPE_REGULATOR;
+
+	if (of_property_read_u32(node, "channel-mux-selection",
+				 &rail_data->mux_select)) {
 		pr_err("odpm: cannot read channel-mux-selection\n");
 		return -EINVAL;
 	}
-	rail_data->mux_select = mux_sel;
-	rail_data->name = node->name;
+
+	if (rail_data->type == ODPM_RAIL_TYPE_SHUNT) {
+		u32 external_chip_en;
+
+		if (of_property_read_u32(node, "shunt-res-uohms",
+					 &rail_data->shunt_uohms)) {
+			pr_err("odpm: cannot read shunt-res-uohms\n");
+			return -EINVAL;
+		}
+
+		if (of_property_read_u32(node, "external-chip-en-index",
+					 &external_chip_en)) {
+			pr_err("odpm: cannot read external-chip-en-index\n");
+			return -EINVAL;
+		}
+		rail_data->chip_enable_index = external_chip_en;
+	}
 
 	return 0;
 }
@@ -388,7 +476,7 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 {
 	struct device_node *pmic_np = dev->parent->parent->of_node;
 	struct device_node *odpm_np, *channels_np;
-	int sample_rate, max_refresh_time_ms;
+	u32 sample_rate;
 	int ret;
 
 	if (!pmic_np) {
@@ -411,27 +499,94 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 		pr_err("odpm: cannot read sample rate value\n");
 		return -EINVAL;
 	}
-	if (of_property_read_u32(odpm_np, "sample-rate", &sample_rate)) {
+	if (of_property_read_u32(odpm_np, "sample-rate-uhz", &sample_rate)) {
 		pr_err("odpm: cannot read sample rate value\n");
 		return -EINVAL;
 	}
-	if (!odpm_match_sample_rate(info, sample_rate)) {
+	if (!odpm_match_int_sample_rate(info, sample_rate)) {
 		pr_err("odpm: cannot parse sample rate value %d\n",
 		       sample_rate);
 		return -EINVAL;
 	}
+	if (of_property_read_u32(odpm_np, "sample-rate-external-uhz",
+				 &sample_rate)) {
+		pr_err("odpm: cannot read external sample rate value\n");
+		return -EINVAL;
+	}
+	if (!odpm_match_ext_sample_rate(info, sample_rate)) {
+		pr_err("odpm: cannot parse external sample rate value %d\n",
+		       sample_rate);
+		return -EINVAL;
+	}
 	if (of_property_read_u32(odpm_np, "max-refresh-time-ms",
-				 &max_refresh_time_ms)) {
+				 &info->chip.max_refresh_time_ms)) {
 		pr_err("odpm: cannot read max refresh time value\n");
 		return -EINVAL;
 	}
-	info->chip.max_refresh_time_ms = max_refresh_time_ms;
 
 	ret = odpm_parse_dt_rails(dev, info, pmic_np);
 	if (ret != 0)
 		return ret;
 
 	return odpm_parse_dt_channels(info, channels_np);
+}
+
+static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
+				 u64 acc_data)
+{
+	u32 sampling_frequency_uhz;
+	u64 sampling_period_ms_iq30;
+	u32 sampling_period_ms_iq22;
+	u32 resolution_mW_iq30 = INVALID_RESOLUTION;
+	u32 ret = 0;
+	__uint128_t power_acc_mW_iq30;
+	__uint128_t power_acc_uW_s_iq52;
+
+	switch (info->chip.rails[rail_i].type) {
+	case ODPM_RAIL_TYPE_REGULATOR: {
+		int sample_rate_i = info->chip.int_sampling_rate_i;
+
+		sampling_frequency_uhz =
+			int_sample_rate_i_to_uhz[sample_rate_i];
+
+		SWITCH_CHIP_FUNC(info, muxsel_to_power_resolution,
+				 info->chip.rails[rail_i].mux_select);
+
+	} break;
+	case ODPM_RAIL_TYPE_SHUNT: {
+		u64 resolution_W_iq60;
+		int sampling_rate_i = info->chip.ext_sampling_rate_i;
+
+		sampling_frequency_uhz =
+			ext_sample_rate_i_to_uhz[sampling_rate_i];
+
+		/* Losing a fraction of resolution performing u64 divisions,
+		 * as there is no support for 128 bit divisions
+		 */
+		resolution_W_iq60 = ((u64)EXTERNAL_RESOLUTION_VRAIL *
+				     (u64)EXTERNAL_RESOLUTION_VSHUNT) /
+				    info->chip.rails[rail_i].shunt_uohms;
+
+		/* Scale back to iq30 (with conversion to mW) */
+		ret = _IQ30_to_int(resolution_W_iq60 * 1000);
+
+	} break;
+	}
+	resolution_mW_iq30 = ret;
+
+	/* Maintain as much precision as possible computing period in ms */
+	sampling_period_ms_iq30 =
+		_IQ30(u64, (u64)(1000 * 1000000)) / sampling_frequency_uhz;
+
+	/* Allocate 10-bits in u32 for sample rate in ms (max: 1023 ms) */
+	sampling_period_ms_iq22 = _IQ30_to_IQ22(sampling_period_ms_iq30);
+
+	/* Use 128 bit to prevent overflow on multiplied iq values */
+	power_acc_mW_iq30 = (__uint128_t)acc_data * resolution_mW_iq30;
+	power_acc_uW_s_iq52 = power_acc_mW_iq30 * sampling_period_ms_iq22;
+
+	/* Scale back u128 from iq to value */
+	return _IQ22_to_int(_IQ30_to_int(power_acc_uW_s_iq52));
 }
 
 static int odpm_refresh_registers(struct odpm_info *info)
@@ -456,28 +611,11 @@ static int odpm_refresh_registers(struct odpm_info *info)
 	info->chip.acc_count += acc_count;
 
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
-		int rail_i = info->channels[ch].rail_i;
-		int sampling_period_ms =
-			sample_rate_enum_to_int_ms[info->chip.sampling_rate_i];
-		u32 resolution_mW_iq30 = INVALID_RESOLUTION;
-		u32 ret = 0;
-		__uint128_t power_acc_mW_iq30;
-		__uint128_t power_acc_uW_sec_iq30;
+		const int rail_i = info->channels[ch].rail_i;
+		const u64 uW_sec =
+			odpm_calculate_uW_sec(info, rail_i, acc_data[ch]);
 
-		u32 muxsel = info->chip.rails[rail_i].mux_select;
-
-		SWITCH_CHIP_FUNC(info,
-				 muxsel_to_power_resolution, muxsel);
-		resolution_mW_iq30 = ret;
-
-		/* Use 128 bit to prevent overflow on multiplied iq30 values */
-		power_acc_mW_iq30 =
-			(__uint128_t)acc_data[ch] * resolution_mW_iq30;
-		power_acc_uW_sec_iq30 = power_acc_mW_iq30 * sampling_period_ms;
-
-		/* Scale back to value */
-		info->chip.rails[rail_i].acc_power_uW_sec +=
-			_IQ30_to_int(power_acc_uW_sec_iq30);
+		info->chip.rails[rail_i].acc_power_uW_sec += uW_sec;
 	}
 
 	return 0;
@@ -518,13 +656,47 @@ static ssize_t sampling_rate_show(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct odpm_info *info = iio_priv(indio_dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n",
-		sample_rate_enum_to_str_hz[info->chip.sampling_rate_i]);
+	return scnprintf(buf, PAGE_SIZE, "%d.%d\n",
+		int_sample_rate_i_to_uhz[info->chip.int_sampling_rate_i] /
+			1000000,
+		int_sample_rate_i_to_uhz[info->chip.int_sampling_rate_i] %
+			1000000);
 }
 
 static ssize_t sampling_rate_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
+{
+	int sampling_rate;
+
+	if (kstrtoint(buf, 10, &sampling_rate)) {
+		pr_err("sampling_rate is not a number\n");
+		return -EINVAL;
+	}
+	/* TODO(stayfan): 156107511
+	 * Write sample value to the driver
+	 * Force a snapshot on chip
+	 */
+
+	return count;
+}
+
+static ssize_t ext_sampling_rate_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct odpm_info *info = iio_priv(indio_dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d.%d\n",
+		ext_sample_rate_i_to_uhz[info->chip.ext_sampling_rate_i] /
+			1000000,
+		ext_sample_rate_i_to_uhz[info->chip.ext_sampling_rate_i] %
+			1000000);
+}
+
+static ssize_t ext_sampling_rate_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
 {
 	int sampling_rate;
 
@@ -554,7 +726,7 @@ static ssize_t energy_value_show(struct device *dev,
 	/**
 	 * Output format:
 	 * <time since boot in ms>
-	 * <RAIL NAME>, <energy value in uW-secs>
+	 * <Schematic name>, <energy value in uW-secs>
 	 */
 	count += scnprintf(buf + count, PAGE_SIZE - count, "%ld\n",
 			   info->chip.acc_timestamp);
@@ -562,8 +734,9 @@ static ssize_t energy_value_show(struct device *dev,
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
 		int rail_i = info->channels[ch].rail_i;
 
-		count += scnprintf(buf + count, PAGE_SIZE - count, "%s, %ld\n",
-				   info->chip.rails[rail_i].name,
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "CH%d[%s], %ld\n", ch,
+				   info->chip.rails[rail_i].schematic_name,
 				   info->chip.rails[rail_i].acc_power_uW_sec);
 	}
 
@@ -579,8 +752,11 @@ static ssize_t available_rails_show(struct device *dev,
 	ssize_t count = 0;
 
 	for (rail_i = 0; rail_i < info->chip.num_rails; rail_i++) {
-		count += scnprintf(buf + count, PAGE_SIZE - count, "%s\n",
-				   info->chip.rails[rail_i].name);
+		struct odpm_rail_data *rail = &info->chip.rails[rail_i];
+
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "%s(%s):%s\n", rail->name,
+				   rail->schematic_name, rail->subsys_name);
 	}
 
 	return count;
@@ -595,17 +771,21 @@ static ssize_t enabled_rails_show(struct device *dev,
 	int ch;
 
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
-		size_t rail_i = info->channels[ch].rail_i;
+		if (info->channels[ch].enabled) {
+			size_t rail_i = info->channels[ch].rail_i;
+			struct odpm_rail_data *rail = &info->chip.rails[rail_i];
 
-		if (info->channels[ch].enabled)
 			count += scnprintf(buf + count, PAGE_SIZE - count,
-					   "%s\n",
-					   info->chip.rails[rail_i].name);
+					   "CH%d[%s]:%s\n", ch,
+					   rail->schematic_name,
+					   rail->subsys_name);
+		}
 	}
 
 	return count;
 }
 
+static IIO_DEVICE_ATTR_RW(ext_sampling_rate, 0);
 static IIO_DEVICE_ATTR_RW(sampling_rate, 0);
 static IIO_DEVICE_ATTR_RO(energy_value, 0);
 static IIO_DEVICE_ATTR_RO(available_rails, 0);
@@ -624,8 +804,9 @@ static IIO_DEVICE_ATTR_RO(enabled_rails, 0);
 #define ODPM_DEV_ATTR(name) (&iio_dev_attr_##name.dev_attr.attr)
 
 static struct attribute *odpm_custom_attributes[] = {
-	ODPM_DEV_ATTR(sampling_rate), ODPM_DEV_ATTR(energy_value),
-	ODPM_DEV_ATTR(available_rails), ODPM_DEV_ATTR(enabled_rails), NULL
+	ODPM_DEV_ATTR(sampling_rate), ODPM_DEV_ATTR(ext_sampling_rate),
+	ODPM_DEV_ATTR(energy_value),  ODPM_DEV_ATTR(available_rails),
+	ODPM_DEV_ATTR(enabled_rails), NULL
 };
 
 static const struct attribute_group odpm_group = {
@@ -731,7 +912,6 @@ static int odpm_probe(struct platform_device *pdev)
 	}
 	odpm_info->meter = iodev;
 
-	odpm_info->chip.name = NULL;
 	if (!pdev->id_entry) {
 		pr_err("odpm: Could not find id_entry!\n");
 		odpm_remove(pdev);
@@ -749,7 +929,7 @@ static int odpm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* 1. read device tree data */
+	/* Read device tree data */
 	if (!pdev->dev.parent->parent ||
 	    (!of_get_next_child(pdev->dev.parent->parent->of_node, NULL))) {
 		pr_err("odpm: DT does not exist!\n");
@@ -766,19 +946,19 @@ static int odpm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* 2. initialize other data in odpm_info */
+	/* Initialize other data in odpm_info */
 
-	/* 3. configure ODPM channels based on device tree input */
+	/* Configure ODPM channels based on device tree input */
 	ret = odpm_configure_chip(odpm_info);
 	if (ret < 0) {
 		odpm_remove(pdev);
 		return ret;
 	}
 
-	/* 4. configure work to kick off every XHz */
+	/* Configure work to kick off every XHz */
 	odpm_periodic_refresh_setup(odpm_info);
 
-	/* 5. Setup IIO */
+	/* Setup IIO */
 	indio_dev->channels = s2mpg1x_single_channel;
 	indio_dev->num_channels = ARRAY_SIZE(s2mpg1x_single_channel);
 	indio_dev->info = &odpm_iio_info;
