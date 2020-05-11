@@ -321,6 +321,7 @@ static inline u32 DPU_CH2DMA(u32 ch) { return ch; }
 #ifdef __linux__
 struct decon_device;
 int __decon_init_resources(struct decon_device *decon);
+void __decon_unmap_regs(struct decon_device *decon);
 #endif
 bool is_decon_using_ch(u32 id, u32 rsc_ch, u32 ch);
 bool is_decon_using_win(u32 id, u32 rsc_win, u32 win);

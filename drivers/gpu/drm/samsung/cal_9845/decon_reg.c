@@ -2115,43 +2115,55 @@ u32 decon_reg_get_rsc_win(u32 id)
 #ifdef __linux__
 int __decon_init_resources(struct decon_device *decon)
 {
-	struct resource *res;
 	struct device *dev = decon->dev;
-	struct platform_device *pdev;
+	struct device_node *np = dev->of_node;
+	int i, ret = 0;
 
-	pdev = container_of(dev, struct platform_device, dev);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	decon->regs.win_regs =
-		devm_ioremap(dev, res->start, resource_size(res));
+	i = of_property_match_string(np, "reg-names", "win");
+	decon->regs.win_regs = of_iomap(np, i);
 	if (IS_ERR(decon->regs.win_regs)) {
 		cal_log_err(decon->id, "failed decon win ioremap\n");
-		return PTR_ERR(decon->regs.win_regs);
+		ret = PTR_ERR(decon->regs.win_regs);
+		goto err;
 	}
 	decon_regs_desc_init(decon->regs.win_regs, "decon_win",
 			REGS_DECON_WIN, decon->id);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	decon->regs.sub_regs =
-		devm_ioremap(dev, res->start, resource_size(res));
+	i = of_property_match_string(np, "reg-names", "sub");
+	decon->regs.sub_regs = of_iomap(np, i);
 	if (IS_ERR(decon->regs.sub_regs)) {
 		cal_log_err(decon->id, "failed decon sub ioremap\n");
-		return PTR_ERR(decon->regs.sub_regs);
+		ret = PTR_ERR(decon->regs.sub_regs);
+		goto err_win;
 	}
 	decon_regs_desc_init(decon->regs.sub_regs, "decon_sub",
 			REGS_DECON_SUB, decon->id);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	decon->regs.wincon_regs =
-		devm_ioremap(dev, res->start, resource_size(res));
+	i = of_property_match_string(np, "reg-names", "wincon");
+	decon->regs.wincon_regs = of_iomap(np, i);
 	if (IS_ERR(decon->regs.wincon_regs)) {
 		cal_log_err(decon->id, "failed wincon ioremap\n");
-		return PTR_ERR(decon->regs.wincon_regs);
+		ret = PTR_ERR(decon->regs.wincon_regs);
+		goto err_sub;
 	}
 	decon_regs_desc_init(decon->regs.wincon_regs, "decon_wincon",
 			REGS_DECON_WINCON, decon->id);
 
-	return 0;
+	return ret;
+
+err_sub:
+	iounmap(decon->regs.sub_regs);
+err_win:
+	iounmap(decon->regs.win_regs);
+err:
+	return ret;
+}
+
+void __decon_unmap_regs(struct decon_device *decon)
+{
+	iounmap(decon->regs.wincon_regs);
+	iounmap(decon->regs.sub_regs);
+	iounmap(decon->regs.win_regs);
 }
 #endif
 
