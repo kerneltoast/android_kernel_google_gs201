@@ -864,8 +864,7 @@ static int dpp_init_resources(struct dpp_device *dpp)
 	}
 	disable_irq(dpp->dma_irq);
 
-	if (test_bit(DPP_ATTR_DPP, &dpp->attr) ||
-			test_bit(DPP_ATTR_WBMUX, &dpp->attr)) {
+	if (test_bit(DPP_ATTR_DPP, &dpp->attr)) {
 		idx = of_property_match_string(np, "reg-names", "dpp");
 		dpp->regs.dpp_base_regs = of_iomap(np, idx);
 		if (!dpp->regs.dpp_base_regs) {
@@ -874,9 +873,7 @@ static int dpp_init_resources(struct dpp_device *dpp)
 		}
 		dpp_regs_desc_init(dpp->regs.dpp_base_regs, "dpp", REGS_DPP,
 				dpp->id);
-	}
 
-	if (test_bit(DPP_ATTR_DPP, &dpp->attr)) {
 		idx = of_property_match_string(np, "interrupts-names", "dpp");
 		dpp->dpp_irq = of_irq_get(np, idx);
 		dpp_info(dpp, "dpp irq no = %lld\n", dpp->dpp_irq);
