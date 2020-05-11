@@ -12,6 +12,7 @@
 #include <dqe_cal.h>
 #include <decon_cal.h>
 #include <exynos_drm_decon.h>
+#include <linux/of_address.h>
 
 static void __exynos_dqe_update(struct exynos_dqe *dqe,
 		struct exynos_dqe_state *state, u32 width, u32 height)
@@ -70,16 +71,13 @@ void exynos_dqe_reset(struct exynos_dqe *dqe)
 
 struct exynos_dqe *exynos_dqe_register(struct decon_device *decon)
 {
-	struct device_node *np;
 	struct device *dev = decon->dev;
+	struct device_node *np = dev->of_node;
 	struct exynos_dqe *dqe;
-	struct platform_device *pdev;
-	struct resource *res;
-	int idx;
+	int i;
 
-	np = dev->of_node;
-	idx = of_property_match_string(np, "reg-names", "dqe");
-	if (idx < 0) {
+	i = of_property_match_string(np, "reg-names", "dqe");
+	if (i < 0) {
 		pr_info("display quality enhancer is not supported\n");
 		return NULL;
 	}
@@ -88,9 +86,7 @@ struct exynos_dqe *exynos_dqe_register(struct decon_device *decon)
 	if (!dqe)
 		return NULL;
 
-	pdev = container_of(dev, struct platform_device, dev);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, idx);
-	dqe->regs = devm_ioremap_resource(dev, res);
+	dqe->regs = of_iomap(np, i);
 	if (IS_ERR(dqe->regs)) {
 		pr_err("failed to remap dqe registers\n");
 		return NULL;

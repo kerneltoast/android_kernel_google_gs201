@@ -28,6 +28,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_graph.h>
@@ -749,68 +750,56 @@ static int dsim_parse_dt(struct dsim_device *dsim)
 
 static int dsim_remap_regs(struct dsim_device *dsim)
 {
-	struct resource *res;
-	struct device_node *np;
 	struct device *dev = dsim->dev;
-	struct platform_device *pdev;
-	int ret = 0;
+	struct device_node *np = dev->of_node;
+	int i, ret = 0;
 
-	pdev = container_of(dev, struct platform_device, dev);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dsim_err(dsim, "failed to find dsim memory resource\n");
-		return -EINVAL;
-	}
-	dsim->res.regs = devm_ioremap_resource(dsim->dev, res);
+	i = of_property_match_string(np, "reg-names", "dsi");
+	dsim->res.regs = of_iomap(np, i);
 	if (IS_ERR(dsim->res.regs)) {
 		dsim_err(dsim, "failed to remap io region\n");
 		ret = PTR_ERR(dsim->res.regs);
-		return -EINVAL;
+		goto err;
 	}
-
 	dsim_regs_desc_init(dsim->res.regs, "dsi", REGS_DSIM_DSI, dsim->id);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (res == NULL) {
-		dsim_err(dsim, "failed to find dphy memory resource\n");
-		return -EINVAL;
-	}
-	dsim->res.phy_regs = devm_ioremap_resource(dsim->dev, res);
+	i = of_property_match_string(np, "reg-names", "dphy");
+	dsim->res.phy_regs = of_iomap(np, i);
 	if (IS_ERR(dsim->res.phy_regs)) {
 		dsim_err(dsim, "failed to remap io region\n");
 		ret = PTR_ERR(dsim->res.regs);
-		return -EINVAL;
+		goto err_dsi;
 	}
 	dsim_regs_desc_init(dsim->res.phy_regs, "dphy", REGS_DSIM_PHY,
 			dsim->id);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	if (res == NULL) {
-		dsim_err(dsim, "failed to find dphy extra memory resource\n");
-		return -EINVAL;
-	}
-	dsim->res.phy_regs_ex = devm_ioremap(dsim->dev, res->start,
-			resource_size(res));
+	i = of_property_match_string(np, "reg-names", "dphy-extra");
+	dsim->res.phy_regs_ex = of_iomap(np, i);
 	if (IS_ERR(dsim->res.phy_regs_ex))
 		dsim_warn(dsim, "failed to remap io region. it's optional\n");
 	dsim_regs_desc_init(dsim->res.phy_regs_ex, "dphy-extra",
 			REGS_DSIM_PHY_BIAS, dsim->id);
 
 	np = of_find_compatible_node(NULL, NULL, "samsung,exynos9-disp_ss");
-	if (IS_ERR_OR_NULL(np)) {
-		dsim_err(dsim, "failed to find compatible node(sysreg-disp)");
-		return PTR_ERR(np);
-	}
-	dsim->res.ss_reg_base = of_iomap(np, 0);
+	i = of_property_match_string(np, "reg-names", "sys");
+	dsim->res.ss_reg_base = of_iomap(np, i);
 	if (!dsim->res.ss_reg_base) {
 		dsim_err(dsim, "failed to map sysreg-disp address.");
-		return -ENOMEM;
+		ret = PTR_ERR(dsim->res.ss_reg_base);
+		goto err_dphy_ext;
 	}
 	dsim_regs_desc_init(dsim->res.ss_reg_base, np->name, REGS_DSIM_SYS,
 			dsim->id);
 
-	return 0;
+	return ret;
+
+err_dphy_ext:
+	iounmap(dsim->res.phy_regs_ex);
+	iounmap(dsim->res.phy_regs);
+err_dsi:
+	iounmap(dsim->res.regs);
+err:
+	return ret;
 }
 
 static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
@@ -867,21 +856,15 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 static int dsim_register_irq(struct dsim_device *dsim)
 {
 	struct device *dev = dsim->dev;
+	struct device_node *np = dev->of_node;
 	struct platform_device *pdev;
-	struct resource *res;
 	int ret = 0;
 
 	pdev = container_of(dev, struct platform_device, dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dsim_err(dsim, "failed to get irq resource\n");
-		return -ENOENT;
-	}
-
-	dsim->irq = res->start;
-	ret = devm_request_irq(dsim->dev, res->start,
-			dsim_irq_handler, 0, pdev->name, dsim);
+	dsim->irq = of_irq_get_byname(np, "dsim");
+	ret = devm_request_irq(dsim->dev, dsim->irq, dsim_irq_handler, 0,
+			pdev->name, dsim);
 	if (ret) {
 		dsim_err(dsim, "failed to install DSIM irq\n");
 		return -EINVAL;
@@ -1483,7 +1466,13 @@ static int dsim_remove(struct platform_device *pdev)
 
 	device_remove_file(dsim->dev, &dev_attr_bist_mode);
 	pm_runtime_disable(&pdev->dev);
+
 	component_del(&pdev->dev, &dsim_component_ops);
+
+	iounmap(dsim->res.ss_reg_base);
+	iounmap(dsim->res.phy_regs_ex);
+	iounmap(dsim->res.phy_regs);
+	iounmap(dsim->res.regs);
 
 	return 0;
 }

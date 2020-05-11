@@ -840,21 +840,19 @@ static int dpp_init_resources(struct dpp_device *dpp)
 	struct device *dev = dpp->dev;
 	struct device_node *np = dev->of_node;
 	struct platform_device *pdev;
-	int ret = 0;
-	int idx;
+	int i, ret = 0;
 
 	pdev = container_of(dev, struct platform_device, dev);
 
-	idx = of_property_match_string(np, "reg-names", "dma");
-	dpp->regs.dma_base_regs = of_iomap(np, idx);
+	i = of_property_match_string(np, "reg-names", "dma");
+	dpp->regs.dma_base_regs = of_iomap(np, i);
 	if (!dpp->regs.dma_base_regs) {
 		pr_err("failed to remap DPU_DMA SFR region\n");
 		return -EINVAL;
 	}
 	dpp_regs_desc_init(dpp->regs.dma_base_regs, "dma", REGS_DMA, dpp->id);
 
-	idx = of_property_match_string(np, "interrupts-names", "dma");
-	dpp->dma_irq = of_irq_get(np, idx);
+	dpp->dma_irq = of_irq_get_byname(np, "dma");
 	dpp_info(dpp, "dma irq no = %lld\n", dpp->dma_irq);
 	ret = devm_request_irq(dev, dpp->dma_irq, dma_irq_handler, 0,
 			pdev->name, dpp);
@@ -865,8 +863,8 @@ static int dpp_init_resources(struct dpp_device *dpp)
 	disable_irq(dpp->dma_irq);
 
 	if (test_bit(DPP_ATTR_DPP, &dpp->attr)) {
-		idx = of_property_match_string(np, "reg-names", "dpp");
-		dpp->regs.dpp_base_regs = of_iomap(np, idx);
+		i = of_property_match_string(np, "reg-names", "dpp");
+		dpp->regs.dpp_base_regs = of_iomap(np, i);
 		if (!dpp->regs.dpp_base_regs) {
 			pr_err("failed to remap DPP SFR region\n");
 			return -EINVAL;
@@ -874,8 +872,7 @@ static int dpp_init_resources(struct dpp_device *dpp)
 		dpp_regs_desc_init(dpp->regs.dpp_base_regs, "dpp", REGS_DPP,
 				dpp->id);
 
-		idx = of_property_match_string(np, "interrupts-names", "dpp");
-		dpp->dpp_irq = of_irq_get(np, idx);
+		dpp->dpp_irq = of_irq_get_byname(np, "dpp");
 		dpp_info(dpp, "dpp irq no = %lld\n", dpp->dpp_irq);
 		ret = devm_request_irq(dev, dpp->dpp_irq, dpp_irq_handler, 0,
 				pdev->name, dpp);
@@ -888,8 +885,8 @@ static int dpp_init_resources(struct dpp_device *dpp)
 
 	if (test_bit(DPP_ATTR_HDR, &dpp->attr) ||
 			test_bit(DPP_ATTR_HDR10_PLUS, &dpp->attr)) {
-		idx = of_property_match_string(np, "reg-names", "hdr");
-		dpp->regs.hdr_base_regs = of_iomap(np, idx);
+		i = of_property_match_string(np, "reg-names", "hdr");
+		dpp->regs.hdr_base_regs = of_iomap(np, i);
 		if (!dpp->regs.hdr_base_regs) {
 			pr_err("failed to remap HDR SFR region\n");
 			return -EINVAL;
@@ -950,7 +947,16 @@ fail:
 
 static int dpp_remove(struct platform_device *pdev)
 {
+	struct dpp_device *dpp = platform_get_drvdata(pdev);
+
 	component_del(&pdev->dev, &exynos_dpp_component_ops);
+
+	if (test_bit(DPP_ATTR_HDR, &dpp->attr) ||
+			test_bit(DPP_ATTR_HDR10_PLUS, &dpp->attr))
+		iounmap(dpp->regs.hdr_base_regs);
+	if (test_bit(DPP_ATTR_DPP, &dpp->attr))
+		iounmap(dpp->regs.dpp_base_regs);
+	iounmap(dpp->regs.dma_base_regs);
 
 	return 0;
 }

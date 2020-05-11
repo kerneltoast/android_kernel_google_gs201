@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -814,18 +815,16 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 
 static int decon_remap_regs(struct decon_device *decon)
 {
-	struct resource *res;
 	struct device *dev = decon->dev;
-	struct device_node *np;
-	struct platform_device *pdev;
+	struct device_node *np = dev->of_node;
+	int i, ret = 0;
 
-	pdev = container_of(dev, struct platform_device, dev);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	decon->regs.regs = devm_ioremap(dev, res->start, resource_size(res));
+	i = of_property_match_string(np, "reg-names", "main");
+	decon->regs.regs = of_iomap(np, i);
 	if (IS_ERR(decon->regs.regs)) {
 		DRM_DEV_ERROR(decon->dev, "failed decon ioremap\n");
-		return PTR_ERR(decon->regs.regs);
+		ret = PTR_ERR(decon->regs.regs);
+		goto err;
 	}
 	decon_regs_desc_init(decon->regs.regs, "decon", REGS_DECON,
 			decon->id);
@@ -833,17 +832,25 @@ static int decon_remap_regs(struct decon_device *decon)
 	np = of_find_compatible_node(NULL, NULL, "samsung,exynos9-disp_ss");
 	if (IS_ERR_OR_NULL(np)) {
 		DRM_DEV_ERROR(decon->dev, "failed to find disp_ss node");
-		return PTR_ERR(np);
+		ret = PTR_ERR(np);
+		goto err_main;
 	}
-	decon->regs.ss_regs = of_iomap(np, 0);
+	i = of_property_match_string(np, "reg-names", "sys");
+	decon->regs.ss_regs = of_iomap(np, i);
 	if (!decon->regs.ss_regs) {
 		DRM_DEV_ERROR(decon->dev, "failed to map sysreg-disp address.");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_main;
 	}
 	decon_regs_desc_init(decon->regs.ss_regs, "decon-ss", REGS_DECON_SYS,
 			decon->id);
 
-	return 0;
+	return ret;
+
+err_main:
+	iounmap(decon->regs.regs);
+err:
+	return ret;
 }
 
 static irqreturn_t decon_te_irq_handler(int irq, void *dev_id)
@@ -871,17 +878,16 @@ end:
 static int decon_register_irqs(struct decon_device *decon)
 {
 	struct device *dev = decon->dev;
+	struct device_node *np = dev->of_node;
 	struct platform_device *pdev;
-	struct resource *res;
 	int ret = 0;
 	int gpio;
 
 	pdev = container_of(dev, struct platform_device, dev);
 
 	/* 1: FRAME START */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	decon->irq_fs = res->start;
-	ret = devm_request_irq(dev, res->start, decon_irq_handler,
+	decon->irq_fs = of_irq_get_byname(np, "frame_start");
+	ret = devm_request_irq(dev, decon->irq_fs, decon_irq_handler,
 			0, pdev->name, decon);
 	if (ret) {
 		decon_err(decon, "failed to install FRAME START irq\n");
@@ -890,9 +896,8 @@ static int decon_register_irqs(struct decon_device *decon)
 	disable_irq(decon->irq_fs);
 
 	/* 2: FRAME DONE */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
-	decon->irq_fd = res->start;
-	ret = devm_request_irq(dev, res->start, decon_irq_handler,
+	decon->irq_fd = of_irq_get_byname(np, "frame_done");
+	ret = devm_request_irq(dev, decon->irq_fd, decon_irq_handler,
 			0, pdev->name, decon);
 	if (ret) {
 		decon_err(decon, "failed to install FRAME DONE irq\n");
@@ -901,9 +906,8 @@ static int decon_register_irqs(struct decon_device *decon)
 	disable_irq(decon->irq_fd);
 
 	/* 3: EXTRA: resource conflict, timeout and error irq */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 2);
-	decon->irq_ext = res->start;
-	ret = devm_request_irq(dev, res->start, decon_irq_handler,
+	decon->irq_ext = of_irq_get_byname(np, "extra");
+	ret = devm_request_irq(dev, decon->irq_ext, decon_irq_handler,
 			0, pdev->name, decon);
 	if (ret) {
 		decon_err(decon, "failed to install EXTRA irq\n");
@@ -1070,15 +1074,17 @@ err:
 
 static int decon_remove(struct platform_device *pdev)
 {
-	struct decon_device *decon;
+	struct decon_device *decon = platform_get_drvdata(pdev);
 
-	decon = platform_get_drvdata(pdev);
 	if (IS_ENABLED(CONFIG_EXYNOS_BTS))
 		decon->bts.ops->bts_deinit(decon);
 
 	exynos_hibernation_destroy(decon->hibernation);
 
 	component_del(&pdev->dev, &decon_component_ops);
+
+	__decon_unmap_regs(decon);
+	iounmap(decon->regs.regs);
 
 	return 0;
 }

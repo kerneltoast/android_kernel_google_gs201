@@ -607,7 +607,7 @@ static int wb_init_resources(struct writeback_device *wb)
 	}
 	dpp_regs_desc_init(wb->regs.dma_base_regs, "dma", REGS_DMA, wb->id);
 
-	wb->odma_irq = of_irq_get(np, 0);
+	wb->odma_irq = of_irq_get_byname(np, "dma");
 	pr_info("dma irq no = %lld\n", wb->odma_irq);
 	ret = devm_request_irq(dev, wb->odma_irq, odma_irq_handler, 0,
 			pdev->name, wb);
@@ -683,7 +683,13 @@ fail:
 
 static int writeback_remove(struct platform_device *pdev)
 {
+	struct writeback_device *wb = platform_get_drvdata(pdev);
+
 	component_del(&pdev->dev, &exynos_wb_component_ops);
+
+	if (test_bit(DPP_ATTR_DPP, &wb->attr))
+		iounmap(wb->regs.dpp_base_regs);
+	iounmap(wb->regs.dma_base_regs);
 
 	return 0;
 }
