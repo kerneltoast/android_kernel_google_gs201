@@ -154,8 +154,10 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	vfree(pages);
 
-	if (!vaddr)
+	if (!vaddr) {
+		pr_err("%s: failed vmap %d pages\n", __func__, npages);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	return vaddr;
 }

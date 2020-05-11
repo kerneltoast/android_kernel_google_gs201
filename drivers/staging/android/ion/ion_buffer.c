@@ -90,6 +90,8 @@ err1:
 	heap->ops->free(buffer);
 err2:
 	kfree(buffer);
+	pr_err("%s: failed to alloc (len %zu flag %#lx) buffer from %s heap\n",
+	       __func__, len, flags, heap->name);
 	return ERR_PTR(ret);
 }
 
@@ -146,8 +148,11 @@ struct ion_buffer *ion_buffer_alloc(struct ion_device *dev, size_t len,
 	 * succeeded or all heaps have been tried
 	 */
 	len = PAGE_ALIGN(len);
-	if (!len)
+	if (!len) {
+		pr_err("%s: zero size allocation - heapmask %#x, flags %#x\n",
+		       __func__, heap_id_mask, flags);
 		return ERR_PTR(-EINVAL);
+	}
 
 	down_read(&dev->lock);
 	plist_for_each_entry(heap, &dev->heaps, node) {
@@ -160,8 +165,11 @@ struct ion_buffer *ion_buffer_alloc(struct ion_device *dev, size_t len,
 	}
 	up_read(&dev->lock);
 
-	if (!buffer)
+	if (!buffer) {
+		pr_err("%s: no matching heap found against heapmaks %#x\n",
+		       __func__, heap_id_mask);
 		return ERR_PTR(-ENODEV);
+	}
 
 	if (IS_ERR(buffer))
 		return ERR_CAST(buffer);
@@ -256,8 +264,11 @@ void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 	if (WARN_ONCE(!vaddr,
 		      "heap->ops->map_kernel should return ERR_PTR on error"))
 		return ERR_PTR(-EINVAL);
-	if (IS_ERR(vaddr))
+	if (IS_ERR(vaddr)) {
+		pr_err("%s: failed to alloc kernel address of %zu buffer\n",
+		       __func__, buffer->size);
 		return vaddr;
+	}
 	buffer->vaddr = vaddr;
 	buffer->kmap_cnt++;
 	return vaddr;
