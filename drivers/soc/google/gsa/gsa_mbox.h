@@ -32,6 +32,10 @@ enum gsa_mbox_cmd {
 	GSA_MB_CMD_LOAD_TPU_FW_IMG = 50,
 	GSA_MB_CMD_TPU_CMD = 51,
 	GSA_MB_CMD_UNLOAD_TPU_FW_IMG = 52,
+
+	/* GSC commands */
+	GSA_MB_CMD_GSC_HARD_RESET = 60,
+	GSA_MB_CMD_GSC_TPM_DATAGRAM = 61,
 };
 
 /**
@@ -53,6 +57,14 @@ enum img_loader_args {
 	IMG_LOADER_BODY_ADDR_LO_IDX = 2,
 	IMG_LOADER_BODY_ADDR_HI_IDX = 3,
 	IMG_LOADER_ARGC = 4,
+};
+
+enum gsc_tpm_datagram_args {
+	GSC_TPM_CMD_IDX = 0,
+	GSC_TPM_LEN_IDX,
+	GSC_TPM_ADDR_LO_IDX,
+	GSC_TPM_ADDR_HI_IDX,
+	GSC_TPM_ARGC,
 };
 
 struct gsa_mbox;
