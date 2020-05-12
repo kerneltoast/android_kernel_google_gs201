@@ -202,6 +202,15 @@ static int odpm_io_set_ext_channel_on(struct odpm_info *info, u8 channels)
 	return ret;
 }
 
+static int odpm_io_send_blank_async(struct odpm_info *info,
+				    unsigned long *jiffies)
+{
+	int ret = -1;
+
+	SWITCH_METER_FUNC(info, meter_set_async_blocking, jiffies);
+	return ret;
+}
+
 int odpm_configure_chip(struct odpm_info *info)
 {
 	int ch;
@@ -229,6 +238,18 @@ int odpm_configure_chip(struct odpm_info *info)
 	odpm_io_set_ext_meter_on(info, true);
 
 	return 0;
+}
+
+int odpm_configure_start_measurement(struct odpm_info *info)
+{
+	unsigned long jiffies_capture = 0;
+
+	/* For s2mpg1x chips, clear ACC registers */
+	int ret = odpm_io_send_blank_async(info, &jiffies_capture);
+
+	info->jiffies_last_poll = jiffies_capture;
+
+	return ret;
 }
 
 void odpm_periodic_refresh_timeout(struct timer_list *t)
@@ -564,7 +585,8 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 		 * as there is no support for 128 bit divisions
 		 */
 		resolution_W_iq60 = ((u64)EXTERNAL_RESOLUTION_VRAIL *
-				     (u64)EXTERNAL_RESOLUTION_VSHUNT) /
+				     (u64)EXTERNAL_RESOLUTION_VSHUNT *
+				     (u64)EXTERNAL_RESOLUTION_TRIM) /
 				    info->chip.rails[rail_i].shunt_uohms;
 
 		/* Scale back to iq30 (with conversion to mW) */
@@ -957,6 +979,9 @@ static int odpm_probe(struct platform_device *pdev)
 
 	/* Configure work to kick off every XHz */
 	odpm_periodic_refresh_setup(odpm_info);
+
+	/* Start measurement of default rails */
+	odpm_configure_start_measurement(odpm_info);
 
 	/* Setup IIO */
 	indio_dev->channels = s2mpg1x_single_channel;

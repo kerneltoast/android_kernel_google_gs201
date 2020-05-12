@@ -418,7 +418,7 @@ static int s2mpg10_i2c_probe(struct i2c_client *i2c,
 	u8 reg_data;
 	int ret = 0;
 
-	pr_info("[DEBUG GKI]%s:%s\n", S2MPG10_MFD_DEV_NAME, __func__);
+	pr_info("%s:%s\n", S2MPG10_MFD_DEV_NAME, __func__);
 
 	s2mpg10 = kzalloc(sizeof(*s2mpg10), GFP_KERNEL);
 	if (!s2mpg10)

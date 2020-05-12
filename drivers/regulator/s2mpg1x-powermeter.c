@@ -25,8 +25,8 @@
 		}                                                         \
 	} while (0)
 
-static int s2mpg1x_update_reg(s2mpg1x_id_t id, struct i2c_client *i2c,
-			      u8 reg, u8 val, u8 mask)
+static int s2mpg1x_update_reg(s2mpg1x_id_t id, struct i2c_client *i2c, u8 reg,
+			      u8 val, u8 mask)
 {
 	int ret = -1;
 
