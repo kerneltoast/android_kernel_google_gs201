@@ -44,6 +44,8 @@
  */
 #define TCPC_RECEIVE_BUFFER_LEN                         32
 
+#define PD_ACTIVITY_TIMEOUT_MS				10000
+
 struct tcpci {
 	struct device *dev;
 	struct tcpm_port *port;
@@ -248,6 +250,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		~(TCPC_ALERT_RX_STATUS | TCPC_ALERT_RX_BUF_OVF) :
 		status & ~TCPC_ALERT_RX_STATUS;
 
+	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
 	logbuffer_log(log, "TCPC_ALERT status: %#x", status);
 	/**
 	 * Clear alert status for everything except RX_STATUS, which shouldn't
@@ -944,6 +947,7 @@ static int max77759_probe(struct i2c_client *client,
 		goto unreg_port;
 	}
 
+	device_init_wakeup(chip->dev, true);
 	return 0;
 
 unreg_port:
