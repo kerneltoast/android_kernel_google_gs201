@@ -2650,7 +2650,7 @@ static int exynos_serial_probe(struct platform_device *pdev)
 	struct exynos_uart_port *ourport;
 	struct device *dev = &pdev->dev;
 	int index = probe_index;
-	int ret, fifo_size;
+	int ret, fifo_size, prop = 0;
 	int port_index = probe_index;
 
 	dev_dbg(&pdev->dev, "%s %d\n", __func__, index);
@@ -2781,6 +2781,22 @@ static int exynos_serial_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Please add FIFO size in device tree!(UART%d)\n",
 			port_index);
 		return -EINVAL;
+	}
+
+	if (of_property_read_u32(pdev->dev.of_node, "reg-io-width", &prop) == 0) {
+		switch (prop) {
+		case 1:
+			ourport->port.iotype = UPIO_MEM;
+			break;
+		case 4:
+			ourport->port.iotype = UPIO_MEM32;
+			break;
+		default:
+			dev_warn(&pdev->dev, "unsupported reg-io-width (%d)\n",
+					prop);
+			ret = -EINVAL;
+			break;
+		}
 	}
 
 	/*
