@@ -93,6 +93,12 @@ config POWER_RESET_GPIO_RESTART
 	  If your board needs a GPIO high/low to restart, say Y and
 	  create a binding in your devicetree.
 
+config POWER_RESET_EXYNOS
+	tristate "Samsung Exynos power-off driver"
+	depends on SOC_GS101
+	help
+	  Reboot support for Samsung Exynos boards.
+
 config POWER_RESET_HISI
 	bool "Hisilicon power-off driver"
 	depends on ARCH_HISI
