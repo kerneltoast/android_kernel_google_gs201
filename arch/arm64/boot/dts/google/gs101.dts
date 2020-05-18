@@ -294,4 +294,19 @@
 		reg = <0x00000000 0x14440000 0x00001000>;
 		interrupts = <GIC_SPI IRQ_GPIO_HSI2_HSI2 IRQ_TYPE_LEVEL_HIGH>;
 	};
+
+	pmu_system_controller: system-controller@17460000 {
+		compatible = "samsung,gs101-pmu", "syscon";
+		reg = <0x0 0x17460000 0x10000>;
+	};
+
+	exynos-reboot {
+		compatible = "samsung,exynos-reboot";
+		syscon = <&pmu_system_controller>;
+		shutdown-offset = <0x3E9C>;
+		shutdown-trigger = <0x100>;
+		reboot-offset = <0x3A00>;
+		reboot-trigger = <0x2>;
+		reboot-cmd-offset = <0x0810>;
+	};
 };
