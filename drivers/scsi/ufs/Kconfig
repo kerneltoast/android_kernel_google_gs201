@@ -162,6 +162,16 @@ config SCSI_UFS_BSG
 	  Select this if you need a bsg device node for your UFS controller.
 	  If unsure, say N.
 
+config SCSI_UFS_EXYNOS
+	tristate "EXYNOS UFS Host Controller Driver"
+	depends on SCSI_UFSHCD && SCSI_UFSHCD_PLATFORM
+	---help---
+	  This selects the EXYNOS UFS host controller driver which
+	  run with Exynos SoCs.
+
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
 config SCSI_UFS_CRYPTO
 	bool "UFS Crypto Engine Support"
 	depends on SCSI_UFSHCD && BLK_INLINE_ENCRYPTION
