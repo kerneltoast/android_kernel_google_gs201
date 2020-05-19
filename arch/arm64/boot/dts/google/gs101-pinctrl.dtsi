@@ -320,6 +320,7 @@
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
 			samsung,pin-con-pdn = <3>;
+			samsung,pin-pud-pdn = <0>;
 		};
 
 		ufs_refclk_out: ufs-refclk-out {
@@ -327,6 +328,7 @@
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
 			samsung,pin-con-pdn = <3>;
+			samsung,pin-pud-pdn = <0>;
 		};
 		pcie1_clkreq: pcie1_clkreq {
 			samsung,pins = "gph2-1";
