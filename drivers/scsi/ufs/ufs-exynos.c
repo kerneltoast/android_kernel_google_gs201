@@ -24,7 +24,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
-#include <soc/samsung/exynos-pmu-if.h>
+#include <soc/google/exynos-pmu-if.h>
 
 /* Performance */
 #include "ufs-exynos-perf.h"
