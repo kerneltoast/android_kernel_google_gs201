@@ -505,6 +505,30 @@ static void s3c64xx_dma_debug(struct s3c64xx_spi_driver_data *sdd,
 #endif
 }
 
+static inline void writesb_32(void __iomem *addr, const void *buffer,
+			      unsigned int count)
+{
+	if (count) {
+		const u8 *buf = buffer;
+
+		do {
+			__raw_writel(*buf++, addr);
+		} while (--count);
+	}
+}
+
+static inline void writesw_32(void __iomem *addr, const void *buffer,
+			      unsigned int count)
+{
+	if (count) {
+		const u16 *buf = buffer;
+
+		do {
+			__raw_writel(*buf++, addr);
+		} while (--count);
+	}
+}
+
 static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 			    struct spi_device *spi,
 			    struct spi_transfer *xfer, int dma_mode)
@@ -560,12 +584,12 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 					      xfer->tx_buf, xfer->len / 4);
 				break;
 			case 16:
-				iowrite16_rep(regs + S3C64XX_SPI_TX_DATA,
-					      xfer->tx_buf, xfer->len / 2);
+				writesw_32(regs + S3C64XX_SPI_TX_DATA,
+					   xfer->tx_buf, xfer->len / 2);
 				break;
 			default:
-				iowrite8_rep(regs + S3C64XX_SPI_TX_DATA,
-					     xfer->tx_buf, xfer->len);
+				writesb_32(regs + S3C64XX_SPI_TX_DATA,
+					   xfer->tx_buf, xfer->len);
 				break;
 			}
 		}
