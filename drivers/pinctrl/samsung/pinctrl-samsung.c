@@ -1256,6 +1256,9 @@ static void samsung_pinctrl_suspend_dev(
 	int i;
 	int ret;
 
+	if (!drvdata->suspend)
+		return;
+
 	if (!IS_ERR(drvdata->pctl_dev->p)) {
 		/* This is ignore to disable mux configuration. */
 		drvdata->pctl_dev->p->state = NULL;
@@ -1294,8 +1297,7 @@ static void samsung_pinctrl_suspend_dev(
 		}
 	}
 
-	if (drvdata->suspend)
-		drvdata->suspend(drvdata);
+	drvdata->suspend(drvdata);
 	if (drvdata->retention_ctrl && drvdata->retention_ctrl->enable)
 		drvdata->retention_ctrl->enable(drvdata);
 }
@@ -1312,8 +1314,10 @@ static void samsung_pinctrl_resume_dev(struct samsung_pinctrl_drv_data *drvdata)
 {
 	int i;
 
-	if (drvdata->resume)
-		drvdata->resume(drvdata);
+	if (!drvdata->resume)
+		return;
+
+	drvdata->resume(drvdata);
 
 	for (i = 0; i < drvdata->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &drvdata->pin_banks[i];
