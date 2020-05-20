@@ -10,6 +10,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/gs101.h>
+#include <dt-bindings/clock/gs101.h>
 #include "gs101-pinctrl.dtsi"
 
 / {
@@ -317,6 +318,13 @@
 	cal_if {
 		compatible = "samsung,exynos_cal_if";
 		reg = <0x0 0x1e080000 0x8000>;
+		acpm-ipc-channel = <0>;
+	};
+
+	clock: clock-controller@0x1e080000 {
+		compatible = "samsung,gs101-clock";
+		reg = <0x0 0x1e080000 0x8000>;
+		#clock-cells = <1>;
 		acpm-ipc-channel = <0>;
 	};
 };
