@@ -325,60 +325,62 @@ static void dsim_modes_release(struct dsim_pll_params *pll_params)
 	kfree(pll_params);
 }
 
-static void dsim_get_clock_modes(struct dsim_device *dsim, const char *name)
+static const struct dsim_pll_param *
+dsim_get_clock_mode(const struct dsim_device *dsim,
+		    const struct drm_display_mode *mode)
 {
 	int i;
 	const struct dsim_pll_params *pll_params = dsim->pll_params;
 
 	for (i = 0; i < pll_params->num_modes; i++) {
-		if (!strcmp(name, pll_params->params[i]->name)) {
-			dsim->config.dphy_pms.p = pll_params->params[i]->p;
-			dsim->config.dphy_pms.m = pll_params->params[i]->m;
-			dsim->config.dphy_pms.s = pll_params->params[i]->s;
-			dsim->config.dphy_pms.k = pll_params->params[i]->k;
+		const struct dsim_pll_param *p = pll_params->params[i];
 
-			dsim->config.dphy_pms.mfr = pll_params->params[i]->mfr;
-			dsim->config.dphy_pms.mrr = pll_params->params[i]->mrr;
-			dsim->config.dphy_pms.sel_pf =
-				pll_params->params[i]->sel_pf;
-			dsim->config.dphy_pms.icp = pll_params->params[i]->icp;
-			dsim->config.dphy_pms.afc_enb =
-				pll_params->params[i]->afc_enb;
-			dsim->config.dphy_pms.extafc =
-				pll_params->params[i]->extafc;
-			dsim->config.dphy_pms.feed_en =
-				pll_params->params[i]->feed_en;
-			dsim->config.dphy_pms.fsel =
-				pll_params->params[i]->fsel;
-			dsim->config.dphy_pms.fout_mask =
-				pll_params->params[i]->fout_mask;
-			dsim->config.dphy_pms.rsel =
-				pll_params->params[i]->rsel;
-			dsim->config.dphy_pms.dither_en =
-				pll_params->params[i]->dither_en;
-
-			dsim->clk_param.hs_clk =
-				pll_params->params[i]->pll_freq;
-			dsim->clk_param.esc_clk =
-				pll_params->params[i]->esc_freq;
-			dsim_debug(dsim, "found proper pll parameter\n");
-			dsim_debug(dsim, "\t%s(p:0x%x,m:0x%x,s:0x%x,k:0x%x)\n",
-					pll_params->params[i]->name,
-					dsim->config.dphy_pms.p,
-					dsim->config.dphy_pms.m,
-					dsim->config.dphy_pms.s,
-					dsim->config.dphy_pms.k);
-
-			dsim_debug(dsim, "\t%s(hs:%d,esc:%d)\n",
-					pll_params->params[i]->name,
-					dsim->clk_param.hs_clk,
-					dsim->clk_param.esc_clk);
-
-			dsim->config.cmd_underrun_cnt[0] =
-				pll_params->params[i]->cmd_underrun_cnt;
-			break;
-		}
+		if (!strcmp(mode->name, p->name))
+			return p;
 	}
+
+	return NULL;
+}
+
+static int dsim_set_clock_mode(struct dsim_device *dsim,
+			       const struct drm_display_mode *mode)
+{
+	const struct dsim_pll_param *p = dsim_get_clock_mode(dsim, mode);
+
+	if (!p)
+		return -ENOENT;
+
+	dsim->config.dphy_pms.p = p->p;
+	dsim->config.dphy_pms.m = p->m;
+	dsim->config.dphy_pms.s = p->s;
+	dsim->config.dphy_pms.k = p->k;
+
+	dsim->config.dphy_pms.mfr = p->mfr;
+	dsim->config.dphy_pms.mrr = p->mrr;
+	dsim->config.dphy_pms.sel_pf = p->sel_pf;
+	dsim->config.dphy_pms.icp = p->icp;
+	dsim->config.dphy_pms.afc_enb = p->afc_enb;
+	dsim->config.dphy_pms.extafc = p->extafc;
+	dsim->config.dphy_pms.feed_en = p->feed_en;
+	dsim->config.dphy_pms.fsel = p->fsel;
+	dsim->config.dphy_pms.fout_mask = p->fout_mask;
+	dsim->config.dphy_pms.rsel = p->rsel;
+	dsim->config.dphy_pms.dither_en = p->dither_en;
+
+	dsim->clk_param.hs_clk = p->pll_freq;
+	dsim->clk_param.esc_clk = p->esc_freq;
+
+	dsim_debug(dsim, "found proper pll parameter\n");
+	dsim_debug(dsim, "\t%s(p:0x%x,m:0x%x,s:0x%x,k:0x%x)\n", p->name,
+		 dsim->config.dphy_pms.p, dsim->config.dphy_pms.m,
+		 dsim->config.dphy_pms.s, dsim->config.dphy_pms.k);
+
+	dsim_debug(dsim, "\t%s(hs:%d,esc:%d)\n", p->name, dsim->clk_param.hs_clk,
+		 dsim->clk_param.esc_clk);
+
+	dsim->config.cmd_underrun_cnt[0] = p->cmd_underrun_cnt;
+
+	return 0;
 }
 
 static int dsim_of_parse_modes(struct device_node *entry,
@@ -503,26 +505,28 @@ getnode_fail:
 }
 
 static void dsim_adjust_video_timing(struct dsim_device *dsim,
-				     const struct videomode *videomode,
-				     const char *name)
+				     const struct drm_display_mode *mode)
 {
+	struct videomode vm;
 	struct dpu_panel_timing *p_timing = &dsim->config.p_timing;
 
-	p_timing->vactive = videomode->vactive;
-	p_timing->vfp = videomode->vfront_porch;
-	p_timing->vbp = videomode->vback_porch;
-	p_timing->vsa = videomode->vsync_len;
+	drm_display_mode_to_videomode(mode, &vm);
 
-	p_timing->hactive = videomode->hactive;
-	p_timing->hfp = videomode->hfront_porch;
-	p_timing->hbp = videomode->hback_porch;
-	p_timing->hsa = videomode->hsync_len;
+	p_timing->vactive = vm.vactive;
+	p_timing->vfp = vm.vfront_porch;
+	p_timing->vbp = vm.vback_porch;
+	p_timing->vsa = vm.vsync_len;
 
-	dsim_get_clock_modes(dsim, name);
+	p_timing->hactive = vm.hactive;
+	p_timing->hfp = vm.hfront_porch;
+	p_timing->hbp = vm.hback_porch;
+	p_timing->hsa = vm.hsync_len;
+
+	dsim_set_clock_mode(dsim, mode);
 }
 
 static void dsim_update_config_for_mode(struct dsim_device *dsim,
-				     struct drm_display_mode *mode)
+					const struct drm_display_mode *mode)
 {
 	const struct exynos_display_mode *mode_priv =
 					drm_mode_to_exynos(mode);
@@ -557,12 +561,9 @@ static void dsim_update_config_for_mode(struct dsim_device *dsim,
 }
 
 static void dsim_set_display_mode(struct dsim_device *dsim,
-				  struct drm_display_mode *mode)
+				  const struct drm_display_mode *mode)
 {
-	struct videomode vm;
-
-	drm_display_mode_to_videomode(mode, &vm);
-	dsim_adjust_video_timing(dsim, &vm, mode->name);
+	dsim_adjust_video_timing(dsim, mode);
 
 	dsim_update_config_for_mode(dsim, mode);
 }
@@ -574,6 +575,17 @@ static void dsim_mode_set(struct drm_encoder *encoder,
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 
 	dsim_set_display_mode(dsim, adjusted_mode);
+}
+
+static enum drm_mode_status dsim_mode_valid(struct drm_encoder *encoder,
+					    const struct drm_display_mode *mode)
+{
+	struct dsim_device *dsim = encoder_to_dsim(encoder);
+
+	if (!dsim_get_clock_mode(dsim, mode))
+		return MODE_NOMODE;
+
+	return MODE_OK;
 }
 
 static int dsim_set_native_display_mode(struct dsim_device *dsim)
@@ -631,6 +643,7 @@ static int dsim_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs dsim_encoder_helper_funcs = {
+	.mode_valid = dsim_mode_valid,
 	.mode_set = dsim_mode_set,
 	.enable = dsim_enable,
 	.disable = dsim_disable,
