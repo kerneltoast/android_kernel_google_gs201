@@ -359,6 +359,13 @@ config COMMON_CLK_FIXED_MMIO
 	help
 	  Support for Memory Mapped IO Fixed clocks
 
+config COMMON_CLK_SAMSUNG
+	tristate "Samsung clock driver support"
+	depends on COMMON_CLK && OF
+	select COMPOSITE_CLK_SAMSUNG
+	help
+	Support ACPM for Exynos SoC.
+
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
 source "drivers/clk/baikal-t1/Kconfig"
