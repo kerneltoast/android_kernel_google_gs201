@@ -361,12 +361,6 @@ static const struct attribute *panel_attrs[] = {
 	NULL
 };
 
-static enum drm_connector_status
-exynos_drm_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector->status;
-}
-
 static int exynos_drm_connector_get_property(struct drm_connector *connector,
 				const struct drm_connector_state *state,
 				struct drm_property *property,
@@ -404,7 +398,6 @@ void exynos_drm_connector_print_state(struct drm_printer *p,
 }
 
 static const struct drm_connector_funcs exynos_connector_funcs = {
-	.detect = exynos_drm_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -602,6 +595,27 @@ static void exynos_panel_post_disable(struct drm_bridge *bridge)
 	drm_panel_unprepare(&ctx->panel);
 }
 
+static bool exynos_panel_mode_fixup(struct drm_bridge *bridge,
+				    const struct drm_display_mode *mode,
+				    struct drm_display_mode *adjusted_mode)
+{
+	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+	struct drm_display_mode *m;
+
+	list_for_each_entry(m, &ctx->connector.modes, head) {
+		if (drm_mode_equal(m, adjusted_mode)) {
+			adjusted_mode->private = m->private;
+			adjusted_mode->private_flags = m->private_flags;
+
+			return true;
+		}
+	}
+
+	dev_err(ctx->dev, "unsupported mode %s\n", adjusted_mode->name);
+
+	return false;
+}
+
 static const struct drm_bridge_funcs exynos_panel_bridge_funcs = {
 	.attach = exynos_panel_bridge_attach,
 	.detach = exynos_panel_bridge_detach,
@@ -609,6 +623,7 @@ static const struct drm_bridge_funcs exynos_panel_bridge_funcs = {
 	.enable = exynos_panel_enable,
 	.disable = exynos_panel_disable,
 	.post_disable = exynos_panel_post_disable,
+	.mode_fixup = exynos_panel_mode_fixup,
 };
 
 int exynos_panel_probe(struct mipi_dsi_device *dsi)

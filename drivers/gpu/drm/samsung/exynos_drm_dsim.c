@@ -550,24 +550,21 @@ static int dsim_atomic_check(struct drm_encoder *encoder,
 			     struct drm_crtc_state *crtc_state,
 			     struct drm_connector_state *state)
 {
-	struct drm_display_mode *mode;
-	struct dsim_device *dsim = encoder_to_dsim(encoder);
+	const struct drm_display_mode *mode;
+	const struct dsim_device *dsim = encoder_to_dsim(encoder);
+	const struct exynos_display_mode *mode_priv;
 
-	if (!crtc_state->mode_changed)
-		return 0;
-
-	list_for_each_entry(mode, &state->connector->modes, head) {
-		if (drm_mode_equal(mode, &crtc_state->adjusted_mode)) {
-			crtc_state->adjusted_mode.private = mode->private;
-			crtc_state->adjusted_mode.private_flags =
-			    mode->private_flags;
-
-			return 0;
+	if (crtc_state->mode_changed) {
+		mode = &crtc_state->adjusted_mode;
+		mode_priv = drm_mode_to_exynos(mode);
+		if (!mode_priv) {
+			dsim_warn(dsim, "%s: mode %s is not supported",
+				  __func__, mode->name);
+			return -EINVAL;
 		}
 	}
 
-	dsim_warn(dsim, "%s: failed to find the display mode\n", __func__);
-	return -EINVAL;
+	return 0;
 }
 
 static const struct drm_encoder_helper_funcs dsim_encoder_helper_funcs = {
