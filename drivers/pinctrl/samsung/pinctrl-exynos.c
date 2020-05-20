@@ -205,11 +205,17 @@ static void exynos_irq_release_resources(struct irq_data *irqd)
 
 /*
  * irq_chip for gpio interrupts.
+ * For normal interrupt action, interrupt mask / unmask must be paired.
+ * When suspend to resume, irq mask cannot be done without irq_disable callback.
+ * We added irq mask & unmask to disable & enable callback to
+ * set the interrupt mask and unmask value completely.
  */
 static struct exynos_irq_chip exynos_gpio_irq_chip = {
 	.chip = {
 		.name = "exynos_gpio_irq_chip",
+		.irq_enable = exynos_irq_unmask,
 		.irq_unmask = exynos_irq_unmask,
+		.irq_disable = exynos_irq_mask,
 		.irq_mask = exynos_irq_mask,
 		.irq_ack = exynos_irq_ack,
 		.irq_set_type = exynos_irq_set_type,
