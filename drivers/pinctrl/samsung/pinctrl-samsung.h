@@ -126,6 +126,7 @@ struct samsung_pin_bank_data {
 	enum eint_type	eint_type;
 	u32		eint_mask;
 	u32		eint_offset;
+	u32		eint_num;
 	u32		fltcon_offset;
 	const char	*name;
 };
@@ -164,6 +165,7 @@ struct samsung_pin_bank {
 	enum eint_type	eint_type;
 	u32		eint_mask;
 	u32		eint_offset;
+	u32		eint_num;
 	u32		fltcon_offset;
 	const char	*name;
 

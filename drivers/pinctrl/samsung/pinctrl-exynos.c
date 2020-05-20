@@ -384,19 +384,28 @@ err_domains:
 	return ret;
 }
 
+DECLARE_BITMAP(exynos_eint_wake_mask_array, 96) = { [0 ... BITS_TO_LONGS(96) - 1] = ~0UL};
+EXPORT_SYMBOL(exynos_eint_wake_mask_array);
+
 static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 {
-	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
-	struct exynos_irq_chip *our_chip = to_exynos_irq_chip(chip);
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
-	unsigned long bit = 1UL << (2 * bank->eint_offset + irqd->hwirq);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	u32 bit = 0;
 
-	pr_info("wake %s for irq %d\n", on ? "enabled" : "disabled", irqd->irq);
-
+	bit = bank->eint_num + irqd->hwirq;
 	if (!on)
-		our_chip->eint_wake_mask_value |= bit;
+		exynos_eint_wake_mask_array[BIT_WORD(bit)] |= BIT_MASK(bit);
 	else
-		our_chip->eint_wake_mask_value &= ~bit;
+		exynos_eint_wake_mask_array[BIT_WORD(bit)] &= ~BIT_MASK(bit);
+
+	dev_info(d->dev, "wake %s for irq %d\n", on ? "enabled" : "disabled",
+		 irqd->irq);
+	dev_info(d->dev, "(%s:0x%x) dirq = %d, eint_num = %u\n",
+		 bank->name, bank->eint_offset, d->irq, bank->eint_num);
+	dev_info(d->dev, "exynos_eint_wake_mask value (0x%lX, 0x%lX)\n",
+		 exynos_eint_wake_mask_array[0],
+		 exynos_eint_wake_mask_array[1]);
 
 	return 0;
 }
@@ -521,6 +530,8 @@ static void exynos_irq_demux_eint16_31(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+
+static int eint_num;
 /*
  * exynos_eint_wkup_init() - setup handling of external wakeup interrupts.
  * @d: driver data of samsung pinctrl driver.
@@ -575,6 +586,8 @@ int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 		}
 
 		bank->irq_chip = irq_chip;
+		bank->eint_num = eint_num;
+		eint_num = eint_num + bank->nr_pins;
 
 		if (!of_find_property(bank->of_node, "interrupts", NULL)) {
 			bank->eint_type = EINT_TYPE_WKUP_MUX;
