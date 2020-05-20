@@ -394,7 +394,7 @@ int pmucal_rae_handle_seq(struct pmucal_seq *seq, unsigned int seq_size)
  *  Returns 0 on success. Otherwise, negative error code.
  */
 
-#ifdef CONFIG_CP_PMUCAL
+#if IS_ENABLED(CONFIG_CP_PMUCAL)
 static unsigned int pmucal_rae_cp_seq_idx;
 int pmucal_rae_handle_cp_seq(struct pmucal_seq *seq, unsigned int seq_size)
 {
@@ -462,7 +462,7 @@ int pmucal_rae_handle_cp_seq(struct pmucal_seq *seq, unsigned int seq_size)
  *
  *  Returns 0 on success. Otherwise, negative error code.
  */
-int __init pmucal_rae_init(void)
+int pmucal_rae_init(void)
 {
 	int i;
 

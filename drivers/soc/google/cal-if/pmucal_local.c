@@ -1,6 +1,6 @@
 #include "pmucal_local.h"
 #include "pmucal_rae.h"
-#include <soc/samsung/exynos-debug.h>
+#include <soc/google/exynos-debug.h>
 
 #ifndef PWRCAL_TARGET_LINUX
 struct pmucal_pd *pmucal_blkpwr_list[PMUCAL_NUM_PDS];
@@ -17,8 +17,9 @@ struct pmucal_pd *pmucal_blkpwr_list[PMUCAL_NUM_PDS];
 int pmucal_local_enable(unsigned int pd_id)
 {
 	int ret = 0;
-
+#if 0
 	dbg_snapshot_pmu(pd_id, __func__, DSS_FLAG_IN);
+#endif
 
 	if (pd_id >= pmucal_pd_list_size) {
 		pr_err("%s pd index(%d) is out of supported range (0~%d).\n",
@@ -42,6 +43,7 @@ int pmucal_local_enable(unsigned int pd_id)
 		goto err_out;
 	}
 
+#if 0
 	if (pmucal_pd_list[pd_id].need_smc) {
 		ret = exynos_pd_tz_restore(pmucal_pd_list[pd_id].need_smc);
 		if (ret) {
@@ -50,6 +52,7 @@ int pmucal_local_enable(unsigned int pd_id)
 			goto err_out;
 		}
 	}
+#endif
 
 	ret = pmucal_rae_restore_seq(pmucal_pd_list[pd_id].save,
 				pmucal_pd_list[pd_id].num_save);
@@ -59,8 +62,9 @@ int pmucal_local_enable(unsigned int pd_id)
 
 		goto err_out;
 	}
-
+#if 0
 	dbg_snapshot_pmu(pd_id, __func__, DSS_FLAG_OUT);
+#endif
 
 	pmucal_dbg_do_profile(pmucal_pd_list[pd_id].dbg, true);
 
@@ -84,8 +88,9 @@ err_out:
 int pmucal_local_disable(unsigned int pd_id)
 {
 	int ret = 0, i;
-
+#if 0
 	dbg_snapshot_pmu(pd_id, __func__, DSS_FLAG_IN);
+#endif
 
 	if (pd_id >= pmucal_pd_list_size) {
 		pr_err("%s pd index(%d) is out of supported range (0~%d).\n",
@@ -104,6 +109,7 @@ int pmucal_local_disable(unsigned int pd_id)
 	pmucal_rae_save_seq(pmucal_pd_list[pd_id].save,
 				pmucal_pd_list[pd_id].num_save);
 
+#if 0
 	if (pmucal_pd_list[pd_id].need_smc) {
 		ret = exynos_pd_tz_save(pmucal_pd_list[pd_id].need_smc);
 		if (ret) {
@@ -112,6 +118,7 @@ int pmucal_local_disable(unsigned int pd_id)
 			goto err_out;
 		}
 	}
+#endif
 
 	pmucal_dbg_set_emulation(pmucal_pd_list[pd_id].dbg);
 
@@ -129,8 +136,9 @@ int pmucal_local_disable(unsigned int pd_id)
 
 		goto err_out;
 	}
-
+#if 0
 	dbg_snapshot_pmu(pd_id, __func__, DSS_FLAG_OUT);
+#endif
 
 	pmucal_dbg_do_profile(pmucal_pd_list[pd_id].dbg, false);
 
@@ -202,7 +210,7 @@ void pmucal_local_set_smc_id(unsigned int pd_id, unsigned int need_smc)
  *
  *  Returns 0 on success. Otherwise, negative error code.
  */
-int __init pmucal_local_init(void)
+int pmucal_local_init(void)
 {
 	int ret = 0, i;
 

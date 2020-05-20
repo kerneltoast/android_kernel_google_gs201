@@ -1,4 +1,5 @@
 #include "cmucal.h"
+#include <linux/module.h>
 #include "ra.h"
 
 static struct pll_spec gpll1416X_spec = {
@@ -500,3 +501,5 @@ int pll_find_table(struct cmucal_pll *pll,
 	return -EVCLKINVAL;
 }
 EXPORT_SYMBOL_GPL(pll_find_table);
+
+MODULE_LICENSE("GPL");

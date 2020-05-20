@@ -43,7 +43,7 @@ struct dvfs_table {
 	unsigned char val[0];
 };
 
-#ifdef CONFIG_ACPM_DVFS
+#if IS_ENABLED(CONFIG_ACPM_DVFS)
 extern int fvmap_init(void __iomem *sram_base);
 extern int fvmap_get_voltage_table(unsigned int id, unsigned int *table);
 #else

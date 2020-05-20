@@ -393,15 +393,20 @@ int __init pmucal_dbg_init(void)
 		pmucal_dbg_clear_profile(&pmucal_dbg_system_list[i]);
 	}
 
+	pmucal_dbg_init_ok = true;
+
 	return 0;
 }
 
-static int __init pmucal_dbg_debugfs_init(void)
+int pmucal_dbg_debugfs_init(void)
 {
 	int i = 0;
 	struct dentry *dentry;
 	struct device_node *node = NULL;
 	const char *buf;
+
+	if (!pmucal_dbg_init_ok)
+		return 0;
 
 	/* Common */
 	pmucal_dbg_root = debugfs_create_dir("pmucal-dbg", NULL);
@@ -463,4 +468,6 @@ static int __init pmucal_dbg_debugfs_init(void)
 
 	return 0;
 }
-fs_initcall_sync(pmucal_dbg_debugfs_init);
+EXPORT_SYMBOL_GPL(pmucal_dbg_debugfs_init);
+
+MODULE_LICENSE("GPL");

@@ -24,7 +24,9 @@ struct acpm_dvfs {
 
 #define SET_INIT_FREQ	3
 
-#ifdef CONFIG_ACPM_DVFS
+#if IS_ENABLED(CONFIG_ACPM_DVFS)
+int exynos_acpm_dvfs_init(void);
+
 extern int exynos_acpm_set_rate(unsigned int id, unsigned long rate);
 extern int exynos_acpm_set_init_freq(unsigned int dfs_id, unsigned long freq);
 extern unsigned long exynos_acpm_get_rate(unsigned int id,
@@ -33,6 +35,10 @@ extern void exynos_acpm_set_device(void *dev);
 extern int exynos_acpm_set_volt_margin(unsigned int id, int volt);
 extern int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp);
 #else
+static inline int exynos_acpm_dvfs_init(void)
+{
+	return 0;
+}
 static inline int exynos_acpm_set_rate(unsigned int id, unsigned long rate)
 {
 	return 0;

@@ -1,4 +1,11 @@
-#include <soc/samsung/cal-if.h>
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * PMUCAL powermode support.
+ *
+ * Copyright (c) 2020 Samsung Electronics Co., Ltd.
+ */
+
+#include <soc/google/cal-if.h>
 #include "pwrcal-env.h"
 #include "pmucal_system.h"
 #include "pmucal_powermode.h"
@@ -45,7 +52,7 @@ void pmucal_powermode_hint_clear(void)
 			+ pmucal_cpuinform_list[cpu].offset);
 }
 
-int __init pmucal_cpuinform_init(void)
+int pmucal_cpuinform_init(void)
 {
 	int i, j;
 

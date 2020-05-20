@@ -16,9 +16,11 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
+#if 0
 #include <linux/debug-snapshot.h>
+#endif
 
-#include <soc/samsung/cmu_ewf.h>
+#include <soc/google/cmu_ewf.h>
 
 static void __iomem *cmu_cmu;
 static spinlock_t cmuewf_lock;
@@ -72,13 +74,16 @@ int set_cmuewf(unsigned int index, unsigned int en)
 		return -EINVAL;
 
 	spin_lock_irqsave(&cmuewf_lock, flags);
-
+#if 0
 	dbg_snapshot_clk(&ewf_clk, __func__, 1, DSS_FLAG_IN);
+#endif
 
 	if (wa_set_cmuewf) {
 		ret = wa_set_cmuewf(index, en, cmu_cmu, ewf_refcnt);
 		if (ret)
+#if 0
 			dbg_snapshot_clk(&ewf_clk, __func__, 1, DSS_FLAG_ON);
+#endif
 	} else {
 		if (en) {
 			__set_cmuewf(index, en);
@@ -90,8 +95,9 @@ int set_cmuewf(unsigned int index, unsigned int en)
 				__set_cmuewf(index, en);
 			} else if (tmp < 0) {
 				pr_err("[EWF]%s ref count mismatch. ewf_index:%u\n", __func__,  index);
-
+#if 0
 				dbg_snapshot_clk(&ewf_clk, __func__, 1, DSS_FLAG_ON);
+#endif
 				ret = -EINVAL;
 				goto exit;
 			}
@@ -99,7 +105,9 @@ int set_cmuewf(unsigned int index, unsigned int en)
 			ewf_refcnt[index] -= 1;
 		}
 	}
+#if 0
 	dbg_snapshot_clk(&ewf_clk, __func__, 1, DSS_FLAG_OUT);
+#endif
 exit:
 	spin_unlock_irqrestore(&cmuewf_lock, flags);
 
@@ -147,7 +155,7 @@ static struct platform_driver samsung_cmuewf_driver = {
 	},
 };
 
-static int __init early_wakeup_forced_enable_init(void)
+static int early_wakeup_forced_enable_init(void)
 {
 
 	return platform_driver_register(&samsung_cmuewf_driver);

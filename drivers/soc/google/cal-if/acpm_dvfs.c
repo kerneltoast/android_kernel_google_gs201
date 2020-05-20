@@ -1,13 +1,13 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/pm_qos.h>
+#include <soc/google/exynos_pm_qos.h>
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 
-#include <soc/samsung/acpm_ipc_ctrl.h>
-#include <soc/samsung/exynos-devfreq.h>
-#include <soc/samsung/tmu.h>
+#include <soc/google/acpm_ipc_ctrl.h>
+#include <soc/google/exynos-devfreq.h>
+#include <linux/module.h>
 
 #include "acpm_dvfs.h"
 #include "cmucal.h"
@@ -18,7 +18,7 @@
 
 static struct acpm_dvfs acpm_dvfs;
 static struct acpm_dvfs acpm_noti_mif;
-static struct pm_qos_request mif_request_from_acpm;
+static struct exynos_pm_qos_request mif_request_from_acpm;
 
 int exynos_acpm_set_rate(unsigned int id, unsigned long rate)
 {
@@ -36,7 +36,7 @@ int exynos_acpm_set_rate(unsigned int id, unsigned long rate)
 	config.cmd[3] = 0;
 
 	before = sched_clock();
-	ret = acpm_ipc_send_data(acpm_dvfs.ch_num, &config);
+	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
 	after = sched_clock();
 	latency = after - before;
 	if (ret)
@@ -45,7 +45,7 @@ int exynos_acpm_set_rate(unsigned int id, unsigned long rate)
 
 	return ret;
 }
-EXPORT_SYMBOL(exynos_acpm_set_rate);
+EXPORT_SYMBOL_GPL(exynos_acpm_set_rate);
 
 int exynos_acpm_set_init_freq(unsigned int dfs_id, unsigned long freq)
 {
@@ -60,12 +60,12 @@ int exynos_acpm_set_init_freq(unsigned int dfs_id, unsigned long freq)
 	config.response = true;
 	config.indirection = false;
 	config.cmd[0] = id;
-	config.cmd[1] = freq;
+	config.cmd[1] = (unsigned int)freq;
 	config.cmd[2] = DATA_INIT;
 	config.cmd[3] = SET_INIT_FREQ;
 
 	before = sched_clock();
-	ret = acpm_ipc_send_data(acpm_dvfs.ch_num, &config);
+	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
 	after = sched_clock();
 	latency = after - before;
 	if (ret)
@@ -74,7 +74,7 @@ int exynos_acpm_set_init_freq(unsigned int dfs_id, unsigned long freq)
 
 	return ret;
 }
-EXPORT_SYMBOL(exynos_acpm_set_init_freq);
+EXPORT_SYMBOL_GPL(exynos_acpm_set_init_freq);
 
 unsigned long exynos_acpm_get_rate(unsigned int id, unsigned long dbg_val)
 {
@@ -92,7 +92,7 @@ unsigned long exynos_acpm_get_rate(unsigned int id, unsigned long dbg_val)
 	config.cmd[3] = 0;
 
 	before = sched_clock();
-	ret = acpm_ipc_send_data(acpm_dvfs.ch_num, &config);
+	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
 	after = sched_clock();
 	latency = after - before;
 	if (ret)
@@ -119,7 +119,7 @@ int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 	config.cmd[3] = 0;
 
 	before = sched_clock();
-	ret = acpm_ipc_send_data(acpm_dvfs.ch_num, &config);
+	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
 	after = sched_clock();
 	latency = after - before;
 	if (ret)
@@ -129,139 +129,142 @@ int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 	return ret;
 }
 
-#ifndef CONFIG_EXYNOS_ACPM_THERMAL
-int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp)
-{
-	struct ipc_config config;
-	unsigned int cmd[4];
-	unsigned long long before, after, latency;
-	int ret;
-
-	config.cmd = cmd;
-	config.response = true;
-	config.indirection = false;
-	config.cmd[0] = id;
-	config.cmd[1] = is_cold_temp;
-	config.cmd[2] = COLDTEMP_REQ;
-	config.cmd[3] = 0;
-
-	before = sched_clock();
-	ret = acpm_ipc_send_data(acpm_dvfs.ch_num, &config);
-	after = sched_clock();
-	latency = after - before;
-	if (ret)
-		pr_err("%s:[%d] latency = %llu ret = %d",
-			__func__, id, latency, ret);
-
-	return ret;
-}
-#endif
+//#ifndef CONFIG_EXYNOS_ACPM_THERMAL
+//int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp)
+//{
+//	struct ipc_config config;
+//	unsigned int cmd[4];
+//	unsigned long long before, after, latency;
+//	int ret;
+//
+//	config.cmd = cmd;
+//	config.response = true;
+//	config.indirection = false;
+//	config.cmd[0] = id;
+//	config.cmd[1] = is_cold_temp;
+//	config.cmd[2] = COLDTEMP_REQ;
+//	config.cmd[3] = 0;
+//
+//	before = sched_clock();
+//	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
+//	after = sched_clock();
+//	latency = after - before;
+//	if (ret)
+//		pr_err("%s:[%d] latency = %llu ret = %d",
+//			__func__, id, latency, ret);
+//
+//	return ret;
+//}
+//EXPORT_SYMBOL_GPL(exynos_acpm_set_volt_margin);
+//#endif
 
 static void acpm_noti_mif_callback(unsigned int *cmd, unsigned int size)
 {
 	pr_info("%s : req %d KHz\n", __func__, cmd[1]);
-	pm_qos_update_request(&mif_request_from_acpm, cmd[1]);
+	exynos_pm_qos_update_request(&mif_request_from_acpm, cmd[1]);
 }
 
-#ifndef CONFIG_EXYNOS_ACPM_THERMAL
-static int acpm_cpu_tmu_notifier(struct notifier_block *nb, unsigned long event, void *v)
-{
-	unsigned int *is_cold_temp = v;
-	int i;
-	int ret = NOTIFY_OK;
-
-	if (event != TMU_COLD)
-		return ret;
-
-	if (!acpm_dvfs.cpu_coldtemp)
-		return ret;
-
-	for (i = 0; i < acpm_dvfs.cpu_len; i++)
-		exynos_acpm_set_cold_temp(GET_IDX(acpm_dvfs.cpu_coldtemp[i]),
-					*is_cold_temp);
-
-	return NOTIFY_OK;
-}
-#endif
-
-#ifndef CONFIG_EXYNOS_ACPM_THERMAL
-static int acpm_gpu_tmu_notifier(struct notifier_block *nb, unsigned long event, void *v)
-{
-	unsigned int *is_cold_temp = v;
-	int i;
-	int ret = NOTIFY_OK;
-
-	if (event != GPU_COLD && event != GPU_NORMAL)
-		return ret;
-
-	if (!acpm_dvfs.gpu_coldtemp)
-		return ret;
-
-	for (i = 0; i < acpm_dvfs.gpu_len; i++)
-		exynos_acpm_set_cold_temp(GET_IDX(acpm_dvfs.gpu_coldtemp[i]),
-					*is_cold_temp);
-
-	return ret;
-}
-#endif
-
-#ifndef CONFIG_EXYNOS_ACPM_THERMAL
-static void acpm_dvfs_get_cpu_cold_temp_list(struct device *dev)
-{
-	struct device_node *node = dev->of_node;
-	int proplen;
-
-	proplen = of_property_count_u32_elems(node, "cpu_cold_temp_list");
-
-	if (proplen <= 0)
-		return;
-
-	acpm_dvfs.cpu_coldtemp = kcalloc(proplen, sizeof(u32), GFP_KERNEL);
-
-	if (!acpm_dvfs.cpu_coldtemp) {
-		pr_err("acpm_dvfs memory allocation fail\n");
-		return;
-	}
-
-	of_property_read_u32_array(node, "cpu_cold_temp_list",
-					acpm_dvfs.cpu_coldtemp, proplen);
-
-	acpm_dvfs.cpu_len = proplen;
-
-	acpm_dvfs.cpu_tmu_notifier.notifier_call = acpm_cpu_tmu_notifier;
-	if (exynos_tmu_add_notifier(&acpm_dvfs.cpu_tmu_notifier))
-		dev_err(dev, "failed register cpu tmu notifier\n");
-
-}
-#endif
-
-#ifndef CONFIG_EXYNOS_ACPM_THERMAL
-static void acpm_dvfs_get_gpu_cold_temp_list(struct device *dev)
-{
-	struct device_node *node = dev->of_node;
-	int proplen;
-
-	proplen = of_property_count_u32_elems(node, "gpu_cold_temp_list");
-
-	if (proplen <= 0)
-		return;
-
-	acpm_dvfs.gpu_coldtemp = kcalloc(proplen, sizeof(u32), GFP_KERNEL);
-	if (!acpm_dvfs.gpu_coldtemp) {
-		pr_err("acpm_dvfs memory allocation fail\n");
-		return;
-	}
-
-	of_property_read_u32_array(node, "gpu_cold_temp_list",
-					acpm_dvfs.gpu_coldtemp, proplen);
-
-	acpm_dvfs.gpu_len = proplen;
-
-	acpm_dvfs.gpu_tmu_notifier.notifier_call = acpm_gpu_tmu_notifier;
-	if (exynos_gpu_add_notifier(&acpm_dvfs.gpu_tmu_notifier))
-		dev_err(dev, "failed register gpu tmu notifier\n");
-}
-#endif
+//#ifndef CONFIG_EXYNOS_ACPM_THERMAL
+//static int acpm_cpu_tmu_notifier(struct notifier_block *nb,
+//					unsigned long event, void *v)
+//{
+//	unsigned int *is_cold_temp = v;
+//	int i;
+//	int ret = NOTIFY_OK;
+//
+//	if (event != TMU_COLD)
+//		return ret;
+//
+//	if (!acpm_dvfs.cpu_coldtemp)
+//		return ret;
+//
+//	for (i = 0; i < acpm_dvfs.cpu_len; i++)
+//		exynos_acpm_set_cold_temp(GET_IDX(acpm_dvfs.cpu_coldtemp[i]),
+//					*is_cold_temp);
+//
+//	return NOTIFY_OK;
+//}
+//#endif
+//
+//#ifndef CONFIG_EXYNOS_ACPM_THERMAL
+//static int acpm_gpu_tmu_notifier(struct notifier_block *nb,
+//					unsigned long event, void *v)
+//{
+//	unsigned int *is_cold_temp = v;
+//	int i;
+//	int ret = NOTIFY_OK;
+//
+//	if (event != GPU_COLD && event != GPU_NORMAL)
+//		return ret;
+//
+//	if (!acpm_dvfs.gpu_coldtemp)
+//		return ret;
+//
+//	for (i = 0; i < acpm_dvfs.gpu_len; i++)
+//		exynos_acpm_set_cold_temp(GET_IDX(acpm_dvfs.gpu_coldtemp[i]),
+//					*is_cold_temp);
+//
+//	return ret;
+//}
+//#endif
+//
+//#ifndef CONFIG_EXYNOS_ACPM_THERMAL
+//static void acpm_dvfs_get_cpu_cold_temp_list(struct device *dev)
+//{
+//	struct device_node *node = dev->of_node;
+//	int proplen;
+//
+//	proplen = of_property_count_u32_elems(node, "cpu_cold_temp_list");
+//
+//	if (proplen <= 0)
+//		return;
+//
+//	acpm_dvfs.cpu_coldtemp = kcalloc(proplen, sizeof(u32), GFP_KERNEL);
+//
+//	if (!acpm_dvfs.cpu_coldtemp) {
+//		pr_err("acpm_dvfs memory allocation fail\n");
+//		return;
+//	}
+//
+//	of_property_read_u32_array(node, "cpu_cold_temp_list",
+//					acpm_dvfs.cpu_coldtemp, proplen);
+//
+//	acpm_dvfs.cpu_len = proplen;
+//
+//	acpm_dvfs.cpu_tmu_notifier.notifier_call = acpm_cpu_tmu_notifier;
+//	if (exynos_tmu_add_notifier(&acpm_dvfs.cpu_tmu_notifier))
+//		dev_err(dev, "failed register cpu tmu notifier\n");
+//
+//}
+//#endif
+//
+//#ifndef CONFIG_EXYNOS_ACPM_THERMAL
+//static void acpm_dvfs_get_gpu_cold_temp_list(struct device *dev)
+//{
+//	struct device_node *node = dev->of_node;
+//	int proplen;
+//
+//	proplen = of_property_count_u32_elems(node, "gpu_cold_temp_list");
+//
+//	if (proplen <= 0)
+//		return;
+//
+//	acpm_dvfs.gpu_coldtemp = kcalloc(proplen, sizeof(u32), GFP_KERNEL);
+//	if (!acpm_dvfs.gpu_coldtemp) {
+//		pr_err("acpm_dvfs memory allocation fail\n");
+//		return;
+//	}
+//
+//	of_property_read_u32_array(node, "gpu_cold_temp_list",
+//					acpm_dvfs.gpu_coldtemp, proplen);
+//
+//	acpm_dvfs.gpu_len = proplen;
+//
+//	acpm_dvfs.gpu_tmu_notifier.notifier_call = acpm_gpu_tmu_notifier;
+//	if (exynos_gpu_add_notifier(&acpm_dvfs.gpu_tmu_notifier))
+//		dev_err(dev, "failed register gpu tmu notifier\n");
+//}
+//#endif
 
 static int acpm_dvfs_probe(struct platform_device *pdev)
 {
@@ -278,15 +281,21 @@ static int acpm_dvfs_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	pm_qos_add_request(&mif_request_from_acpm, PM_QOS_BUS_THROUGHPUT, 0);
+	exynos_pm_qos_add_request(&mif_request_from_acpm,
+			PM_QOS_BUS_THROUGHPUT, 0);
 
-#ifndef CONFIG_EXYNOS_ACPM_THERMAL
-	acpm_dvfs_get_cpu_cold_temp_list(dev);
-	acpm_dvfs_get_gpu_cold_temp_list(dev);
-#endif
-
+//#ifndef CONFIG_EXYNOS_ACPM_THERMAL
+//	acpm_dvfs_get_cpu_cold_temp_list(dev);
+//	acpm_dvfs_get_gpu_cold_temp_list(dev);
+//#endif
 	return ret;
 }
+
+void exynos_acpm_set_device(void *dev)
+{
+	acpm_dvfs.dev = dev;
+}
+EXPORT_SYMBOL_GPL(exynos_acpm_set_device);
 
 static int acpm_dvfs_remove(struct platform_device *pdev)
 {
@@ -297,6 +306,7 @@ static const struct of_device_id acpm_dvfs_match[] = {
 	{ .compatible = "samsung,exynos-acpm-dvfs" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, acpm_dvfs_match);
 
 static struct platform_driver samsung_acpm_dvfs_driver = {
 	.probe	= acpm_dvfs_probe,
@@ -308,7 +318,7 @@ static struct platform_driver samsung_acpm_dvfs_driver = {
 	},
 };
 
-static int __init exynos_acpm_dvfs_init(void)
+int exynos_acpm_dvfs_init(void)
 {
 	int ret;
 
@@ -322,9 +332,5 @@ static int __init exynos_acpm_dvfs_init(void)
 
 	return platform_driver_register(&samsung_acpm_dvfs_driver);
 }
-fs_initcall(exynos_acpm_dvfs_init);
 
-void __init exynos_acpm_set_device(void *dev)
-{
-	acpm_dvfs.dev = dev;
-}
+MODULE_LICENSE("GPL");

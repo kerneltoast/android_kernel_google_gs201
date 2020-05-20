@@ -37,11 +37,12 @@ struct pmucal_dbg_info {
 	u64 off_cnt;
 };
 
-#ifdef CONFIG_PMUCAL_DBG
+#if IS_ENABLED(CONFIG_PMUCAL_DBG)
 void pmucal_dbg_set_emulation(struct pmucal_dbg_info *dbg);
 void pmucal_dbg_req_emulation(struct pmucal_dbg_info *dbg, bool en);
 void pmucal_dbg_do_profile(struct pmucal_dbg_info *dbg, bool is_on);
 int pmucal_dbg_init(void);
+int pmucal_dbg_debugfs_init(void);
 #else
 static inline void pmucal_dbg_set_emulation(struct pmucal_dbg_info *dbg)
 {
@@ -56,6 +57,10 @@ static inline void pmucal_dbg_do_profile(struct pmucal_dbg_info *dbg, bool is_on
 	return;
 }
 static inline int pmucal_dbg_init(void)
+{
+	return 0;
+}
+static inline int pmucal_dbg_debugfs_init(void)
 {
 	return 0;
 }

@@ -1,7 +1,8 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <soc/samsung/ect_parser.h>
+#include <linux/module.h>
+#include <soc/google/ect_parser.h>
 
 #include "cmucal.h"
 #include "vclk.h"
@@ -671,7 +672,7 @@ int vclk_register_ops(unsigned int id, struct vclk_trans_ops *ops)
 	return -EVCLKNOENT;
 }
 
-int __init vclk_initialize(void)
+int vclk_initialize(void)
 {
 	pr_info("vclk initialize for cmucal\n");
 
@@ -680,7 +681,9 @@ int __init vclk_initialize(void)
 	asv_table_ver = asv_table_init();
 	id_get_rev(&main_rev, &sub_rev);
 
-	vclk_bind();
+//	vclk_bind();
 
 	return 0;
 }
+
+MODULE_LICENSE("GPL");

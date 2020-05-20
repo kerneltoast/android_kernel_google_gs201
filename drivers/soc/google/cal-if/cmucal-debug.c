@@ -1,8 +1,9 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <soc/samsung/cal-if.h>
-#include <soc/samsung/exynos-pd.h>
+#include <linux/module.h>
+#include <soc/google/cal-if.h>
+#include <soc/google/exynos-pd.h>
 #include <trace/events/power.h>
 
 #include "cmucal.h"
@@ -464,8 +465,8 @@ vclk_write_set_freq(struct file *filp, const char __user *ubuf,
 	if (dvfs_domain && !kstrtoint(buf, 0, &freq)) {
 		debug_freq = freq;
 		cal_dfs_set_rate(dvfs_domain->id, freq);
-		trace_clock_set_rate(dvfs_domain->name, freq,
-				     raw_smp_processor_id());
+		//trace_clock_set_rate(dvfs_domain->name, freq,
+		//		     raw_smp_processor_id());
 	}
 
 	return len;
@@ -592,7 +593,7 @@ EXPORT_SYMBOL_GPL(cmucal_dbg_set_cmu_top_base);
 /**
  * vclk_debug_init - lazily create the debugfs clk tree visualization
  */
-static int __init vclk_debug_init(void)
+int vclk_debug_init(void)
 {
 	struct vclk *vclk;
 	struct dentry *d;
@@ -639,5 +640,7 @@ static int __init vclk_debug_init(void)
 
 	return 0;
 }
-late_initcall(vclk_debug_init);
+EXPORT_SYMBOL_GPL(vclk_debug_init);
 #endif
+
+MODULE_LICENSE("GPL");

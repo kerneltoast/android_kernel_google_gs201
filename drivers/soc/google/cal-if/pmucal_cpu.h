@@ -6,7 +6,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/uaccess.h>
-#include <soc/samsung/exynos-pmu.h>
+#include <soc/google/exynos-pmu-if.h>
 #include "pmucal_dbg.h"
 
 struct pmucal_cpu {

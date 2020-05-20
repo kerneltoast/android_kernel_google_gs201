@@ -1,14 +1,6 @@
-/* linux/drivers/soc/samsung/cal-if/fvmap_asv.h
- *
- * Copyright (c) 2016 Samsung Electronics Co., Ltd.
- *	      http://www.samsung.com/
- *
- * ASV common header file for Exynos
- * Author: Hyunju Kang <hjtop.kang@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2020 Samsung Electronics Co., Ltd.
  */
 
 #ifndef __FVMAP_ASV_H__

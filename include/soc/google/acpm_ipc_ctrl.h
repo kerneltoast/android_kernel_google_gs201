@@ -1,0 +1,111 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Header for ACPM_IPC.
+ *
+ * Copyright (c) 2020 Samsung Electronics Co., Ltd.
+ */
+
+#ifndef __ACPM_IPC_CTRL_H__
+#define __ACPM_IPC_CTRL_H__
+
+typedef void (*ipc_callback)(unsigned int *cmd, unsigned int size);
+
+struct ipc_config {
+	unsigned int *cmd;
+	unsigned int *indirection_base;
+	unsigned int indirection_size;
+	bool response;
+	bool indirection;
+};
+
+#define ACPM_IPC_PROTOCOL_OWN			(31)
+#define ACPM_IPC_PROTOCOL_RSP			(30)
+#define ACPM_IPC_PROTOCOL_INDIRECTION		(29)
+#define ACPM_IPC_PROTOCOL_ID			(26)
+#define ACPM_IPC_PROTOCOL_IDX			(0x7 << ACPM_IPC_PROTOCOL_ID)
+#define ACPM_IPC_PROTOCOL_DP_ATTACH		(25)
+#define ACPM_IPC_PROTOCOL_DP_DETACH		(24)
+#define ACPM_IPC_PROTOCOL_DP_CMD		((1 << IPC_PROTOCOL_DP_ATTACH)|\
+						 (1 << IPC_PROTOCOL_DP_DETACH))
+#define ACPM_IPC_PROTOCOL_TEST			(23)
+#define ACPM_IPC_PROTOCOL_STOP			(22)
+#define ACPM_IPC_PROTOCOL_SEQ_NUM		(16)
+#define ACPM_IPC_PROTOCOL_SETTINGS		(13) /* 15-14 used as arg */
+
+/* 4 types of settings requests can be made */
+enum acpm_print_settings {
+	ACPM_SET_UART_GPRIO_LEVEL,
+	ACPM_SET_LOGB_GPRIO_LEVEL,
+	ACPM_GET_UART_GPRIO_LEVEL,
+	ACPM_GET_LOGB_GPRIO_LEVEL,
+};
+
+#if IS_ENABLED(CONFIG_EXYNOS_ACPM)
+extern unsigned int acpm_ipc_request_channel(struct device_node *np,
+		ipc_callback handler,
+		unsigned int *id, unsigned int *size);
+extern unsigned int acpm_ipc_release_channel(struct device_node *np,
+		unsigned int channel_id);
+extern int acpm_ipc_send_data(unsigned int channel_id,
+		struct ipc_config *cfg);
+extern int acpm_ipc_send_data_sync(unsigned int channel_id,
+		struct ipc_config *cfg);
+extern int acpm_ipc_send_data_lazy(unsigned int channel_id,
+		struct ipc_config *cfg);
+extern int acpm_ipc_set_ch_mode(struct device_node *np, bool polling);
+extern int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size);
+extern void exynos_acpm_reboot(void);
+extern void acpm_stop_log(void);
+#else
+
+static inline unsigned int acpm_ipc_request_channel(struct device_node *np,
+		ipc_callback handler,
+		unsigned int *id, unsigned int *size)
+{
+	return 0;
+}
+
+static inline unsigned int acpm_ipc_release_channel(struct device_node *np,
+		unsigned int channel_id)
+{
+	return 0;
+}
+
+static inline int acpm_ipc_send_data(unsigned int channel_id,
+		struct ipc_config *cfg)
+{
+	return 0;
+}
+
+static inline int acpm_ipc_send_data_sync(unsigned int channel_id,
+		struct ipc_config *cfg)
+{
+	return 0;
+}
+
+static inline int acpm_ipc_send_data_lazy(unsigned int channel_id,
+		struct ipc_config *cfg)
+{
+	return 0;
+}
+
+static inline int acpm_ipc_set_ch_mode(struct device_node *np, bool polling)
+{
+	return 0;
+}
+
+static inline int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size)
+{
+	return -1;
+}
+
+static inline void exynos_acpm_reboot(void)
+{
+}
+
+static inline void acpm_stop_log(void)
+{
+}
+#endif
+
+#endif

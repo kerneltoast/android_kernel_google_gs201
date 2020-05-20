@@ -26,7 +26,7 @@
 
 #include "../ra.h"
 
-#include <soc/samsung/cmu_ewf.h>
+#include <soc/google/cmu_ewf.h>
 
 extern unsigned int fin_hz_var;
 void __iomem *gpio_alive;

@@ -5,7 +5,8 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/kobject.h>
-#include <soc/samsung/cal-if.h>
+#include <soc/google/cal-if.h>
+#include <linux/module.h>
 
 #include "fvmap.h"
 #include "cmucal.h"
@@ -19,10 +20,10 @@ void __iomem *fvmap_base;
 void __iomem *sram_fvmap_base;
 
 static int init_margin_table[MAX_MARGIN_ID];
-static int volt_offset_percent;
+#if !defined(CONFIG_ACPM_DVFS_MODULE) && !defined(CONFIG_MODULES)
 static int percent_margin_table[MAX_MARGIN_ID];
 
-static int __init get_mif_volt(char *str)
+static int get_mif_volt(char *str)
 {
 	int volt;
 
@@ -33,7 +34,7 @@ static int __init get_mif_volt(char *str)
 }
 early_param("mif", get_mif_volt);
 
-static int __init get_int_volt(char *str)
+static int get_int_volt(char *str)
 {
 	int volt;
 
@@ -44,7 +45,7 @@ static int __init get_int_volt(char *str)
 }
 early_param("int", get_int_volt);
 
-static int __init get_big_volt(char *str)
+static int get_big_volt(char *str)
 {
 	int volt;
 
@@ -55,7 +56,7 @@ static int __init get_big_volt(char *str)
 }
 early_param("big", get_big_volt);
 
-static int __init get_mid_volt(char *str)
+static int get_mid_volt(char *str)
 {
 	int volt;
 
@@ -66,7 +67,7 @@ static int __init get_mid_volt(char *str)
 }
 early_param("mid", get_mid_volt);
 
-static int __init get_lit_volt(char *str)
+static int get_lit_volt(char *str)
 {
 	int volt;
 
@@ -77,7 +78,7 @@ static int __init get_lit_volt(char *str)
 }
 early_param("lit", get_lit_volt);
 
-static int __init get_g3d_volt(char *str)
+static int get_g3d_volt(char *str)
 {
 	int volt;
 
@@ -88,7 +89,7 @@ static int __init get_g3d_volt(char *str)
 }
 early_param("g3d", get_g3d_volt);
 
-static int __init get_intcam_volt(char *str)
+static int get_intcam_volt(char *str)
 {
 	int volt;
 
@@ -99,7 +100,7 @@ static int __init get_intcam_volt(char *str)
 }
 early_param("intcam", get_intcam_volt);
 
-static int __init get_cam_volt(char *str)
+static int get_cam_volt(char *str)
 {
 	int volt;
 
@@ -110,7 +111,7 @@ static int __init get_cam_volt(char *str)
 }
 early_param("cam", get_cam_volt);
 
-static int __init get_disp_volt(char *str)
+static int get_disp_volt(char *str)
 {
 	int volt;
 
@@ -121,7 +122,7 @@ static int __init get_disp_volt(char *str)
 }
 early_param("disp", get_disp_volt);
 
-static int __init get_g3dm_volt(char *str)
+static int get_g3dm_volt(char *str)
 {
 	int volt;
 
@@ -132,7 +133,7 @@ static int __init get_g3dm_volt(char *str)
 }
 early_param("g3dm", get_g3dm_volt);
 
-static int __init get_cp_volt(char *str)
+static int get_cp_volt(char *str)
 {
 	int volt;
 
@@ -143,7 +144,7 @@ static int __init get_cp_volt(char *str)
 }
 early_param("cp", get_cp_volt);
 
-static int __init get_fsys0_volt(char *str)
+static int get_fsys0_volt(char *str)
 {
 	int volt;
 
@@ -154,7 +155,7 @@ static int __init get_fsys0_volt(char *str)
 }
 early_param("fsys0", get_fsys0_volt);
 
-static int __init get_aud_volt(char *str)
+static int get_aud_volt(char *str)
 {
 	int volt;
 
@@ -165,7 +166,7 @@ static int __init get_aud_volt(char *str)
 }
 early_param("aud", get_aud_volt);
 
-static int __init get_iva_volt(char *str)
+static int get_iva_volt(char *str)
 {
 	int volt;
 
@@ -176,7 +177,7 @@ static int __init get_iva_volt(char *str)
 }
 early_param("iva", get_iva_volt);
 
-static int __init get_score_volt(char *str)
+static int get_score_volt(char *str)
 {
 	int volt;
 
@@ -187,7 +188,7 @@ static int __init get_score_volt(char *str)
 }
 early_param("score", get_score_volt);
 
-static int __init get_npu_volt(char *str)
+static int get_npu_volt(char *str)
 {
 	int volt;
 
@@ -198,7 +199,7 @@ static int __init get_npu_volt(char *str)
 }
 early_param("npu", get_npu_volt);
 
-static int __init get_mfc_volt(char *str)
+static int get_mfc_volt(char *str)
 {
 	int volt;
 
@@ -209,7 +210,7 @@ static int __init get_mfc_volt(char *str)
 }
 early_param("mfc", get_mfc_volt);
 
-static int __init get_tpu_volt(char *str)
+static int get_tpu_volt(char *str)
 {
 	int volt;
 
@@ -220,7 +221,7 @@ static int __init get_tpu_volt(char *str)
 }
 early_param("tpu", get_tpu_volt);
 
-static int __init get_g3dl2_volt(char *str)
+static int get_g3dl2_volt(char *str)
 {
 	int volt;
 
@@ -231,7 +232,7 @@ static int __init get_g3dl2_volt(char *str)
 }
 early_param("g3dl2", get_g3dl2_volt);
 
-static int __init get_tnr_volt(char *str)
+static int get_tnr_volt(char *str)
 {
 	int volt;
 
@@ -242,7 +243,7 @@ static int __init get_tnr_volt(char *str)
 }
 early_param("tnr", get_tnr_volt);
 
-static int __init get_bo_volt(char *str)
+static int get_bo_volt(char *str)
 {
 	int volt;
 
@@ -253,7 +254,7 @@ static int __init get_bo_volt(char *str)
 }
 early_param("bo", get_bo_volt);
 
-static int __init get_percent_margin_volt(char *str)
+static int get_percent_margin_volt(char *str)
 {
 	int percent;
 
@@ -432,6 +433,7 @@ static struct attribute *percent_margin_attrs[] = {
 static const struct attribute_group percent_margin_group = {
 	.attrs = percent_margin_attrs,
 };
+#endif
 
 static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base)
 {
@@ -481,7 +483,9 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 		old = sram_base + fvmap_header[i].o_ratevolt;
 		new = map_base + fvmap_header[i].o_ratevolt;
 
+#if !defined(CONFIG_ACPM_DVFS_MODULE) && !defined(CONFIG_MODULES)
 		check_percent_margin(old, fvmap_header[i].num_of_lv);
+#endif
 
 		margin = init_margin_table[vclk->margin_id];
 		if (margin)
@@ -522,7 +526,9 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 int fvmap_init(void __iomem *sram_base)
 {
 	void __iomem *map_base;
+#if !defined(CONFIG_ACPM_DVFS_MODULE) && !defined(CONFIG_MODULES)
 	struct kobject *kobj;
+#endif
 
 	map_base = kzalloc(FVMAP_SIZE, GFP_KERNEL);
 
@@ -531,6 +537,7 @@ int fvmap_init(void __iomem *sram_base)
 	pr_info("%s:fvmap initialize %p\n", __func__, sram_base);
 	fvmap_copy_from_sram(map_base, sram_base);
 
+#if !defined(CONFIG_ACPM_DVFS_MODULE) && !defined(CONFIG_MODULES)
 	/* percent margin for each doamin at runtime */
 	kobj = kobject_create_and_add("percent_margin", power_kobj);
 	if (!kobj)
@@ -538,6 +545,10 @@ int fvmap_init(void __iomem *sram_base)
 
 	if (sysfs_create_group(kobj, &percent_margin_group))
 		pr_err("Fail to create percent_margin group\n");
+#endif
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(fvmap_init);
+
+MODULE_LICENSE("GPL");

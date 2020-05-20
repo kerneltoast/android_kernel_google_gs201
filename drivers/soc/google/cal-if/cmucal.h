@@ -206,19 +206,26 @@ enum margin_id {
 #define IS_FIXED_FACTOR(_id)	((_id & MASK_OF_TYPE) == FIXED_FACTOR_TYPE)
 #define IS_PLL(_id)		((_id & MASK_OF_TYPE) == PLL_TYPE)
 #define IS_MUX(_id)		((_id & MASK_OF_TYPE) == MUX_TYPE)
-#define IS_USER_MUX(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE)) == USER_MUX_TYPE)
-#define IS_CONST_MUX(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE)) == CONST_MUX_TYPE)
+#define IS_USER_MUX(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE))\
+							== USER_MUX_TYPE)
+#define IS_CONST_MUX(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE))\
+							== CONST_MUX_TYPE)
 #define IS_DIV(_id)		((_id & MASK_OF_TYPE) == DIV_TYPE)
-#define IS_CONST_DIV(_id)	((_id & MASK_OF_TYPE | MASK_OF_SUBTYPE) == CONST_DIV_TYPE)
+#define IS_CONST_DIV(_id)	((_id & MASK_OF_TYPE | MASK_OF_SUBTYPE)\
+							== CONST_DIV_TYPE)
 #define IS_GATE(_id)		((_id & MASK_OF_TYPE) == GATE_TYPE)
 #define IS_QCH(_id)		((_id & MASK_OF_TYPE) == QCH_TYPE)
 #define IS_OPTION(_id)		((_id & MASK_OF_TYPE) == OPTION_TYPE)
 
 #define IS_VCLK(_id)		((_id & MASK_OF_TYPE) == VCLK_TYPE)
-#define IS_DFS_VCLK(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE)) == DFS_VCLK_TYPE)
-#define IS_COMMON_VCLK(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE)) == COMMON_VCLK_TYPE)
-#define IS_GATE_VCLK(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE)) == GATE_VCLK_TYPE)
-#define IS_ACPM_VCLK(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE)) == ACPM_VCLK_TYPE)
+#define IS_DFS_VCLK(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE))\
+							== DFS_VCLK_TYPE)
+#define IS_COMMON_VCLK(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE))\
+							== COMMON_VCLK_TYPE)
+#define IS_GATE_VCLK(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE))\
+							== GATE_VCLK_TYPE)
+#define IS_ACPM_VCLK(_id)	((_id & (MASK_OF_TYPE | MASK_OF_SUBTYPE))\
+							== ACPM_VCLK_TYPE)
 
 #define GET_TYPE(_id)		(_id & MASK_OF_TYPE)
 #define GET_IDX(_id)		(_id & MASK_OF_ID)
@@ -424,8 +431,8 @@ struct cmucal_clkout {
 	.lut		= _lut,						\
 	.list		= _list,					\
 	.seq		= _seq,						\
-	.num_rates	= (sizeof(_lut) / sizeof(struct vclk_lut)),		\
-	.num_list	= (sizeof(_list) / sizeof(enum clk_id)),		\
+	.num_rates	= (sizeof(_lut) / sizeof(struct vclk_lut)),	\
+	.num_list	= (sizeof(_list) / sizeof(enum clk_id)),	\
 	.switch_info	= _switch,					\
 	.ops		= NULL,						\
 }
@@ -437,8 +444,8 @@ struct cmucal_clkout {
 	.lut		= _lut,						\
 	.list		= _list,					\
 	.seq		= _seq,						\
-	.num_rates	= (sizeof(_lut) / sizeof(struct vclk_lut)),		\
-	.num_list	= (sizeof(_list) / sizeof(enum clk_id)),		\
+	.num_rates	= (sizeof(_lut) / sizeof(struct vclk_lut)),	\
+	.num_list	= (sizeof(_list) / sizeof(enum clk_id)),	\
 	.switch_info	= _switch,					\
 	.ops		= NULL,						\
 	.margin_id	= _margin_id,					\
@@ -518,7 +525,7 @@ struct cmucal_clkout {
 	.clk.status_idx	= _so,				\
 	.clk.enable_idx	= _eo,				\
 }
-#ifdef CONFIG_CMUCAL_QCH_IGNORE_SUPPORT
+#if IS_ENABLED(CONFIG_CMUCAL_QCH_IGNORE_SUPPORT)
 #define CLK_QCH(_id, _o, _so, _eo, _ig)			\
 [_id & MASK_OF_ID] = {	\
 	.clk.id		= _id,				\
@@ -597,14 +604,22 @@ struct cmucal_clkout {
 		.kdiv	=	(_k),			\
 	}
 
-#define to_fixed_rate_clk(_clk)		container_of(_clk, struct cmucal_clk_fixed_rate, clk)
-#define to_fixed_factor_clk(_clk)	container_of(_clk, struct cmucal_clk_fixed_factor, clk)
-#define to_pll_clk(_clk)		container_of(_clk, struct cmucal_pll, clk)
-#define to_mux_clk(_clk)		container_of(_clk, struct cmucal_mux, clk)
-#define to_div_clk(_clk)		container_of(_clk, struct cmucal_div, clk)
-#define to_gate_clk(_clk)		container_of(_clk, struct cmucal_gate, clk)
-#define to_clkout(_clk)			container_of(_clk, struct cmucal_clkout, clk)
-#define to_qch(_clk)			container_of(_clk, struct cmucal_qch, clk)
+#define to_fixed_rate_clk(_clk)	\
+	container_of(_clk, struct cmucal_clk_fixed_rate, clk)
+#define to_fixed_factor_clk(_clk)	\
+	container_of(_clk, struct cmucal_clk_fixed_factor, clk)
+#define to_pll_clk(_clk)	\
+	container_of(_clk, struct cmucal_pll, clk)
+#define to_mux_clk(_clk)	\
+	container_of(_clk, struct cmucal_mux, clk)
+#define to_div_clk(_clk)	\
+	container_of(_clk, struct cmucal_div, clk)
+#define to_gate_clk(_clk)	\
+	container_of(_clk, struct cmucal_gate, clk)
+#define to_clkout(_clk)	\
+	container_of(_clk, struct cmucal_clkout, clk)
+#define to_qch(_clk)	\
+	container_of(_clk, struct cmucal_qch, clk)
 
 extern unsigned int cmucal_get_list_size(unsigned int type);
 extern void *cmucal_get_node(unsigned int id);
@@ -615,7 +630,7 @@ extern void (*cal_data_init)(void);
 extern int (*cal_check_hiu_dvfs_id)(u32 id);
 extern void (*cal_set_cmu_smpl_warn)(void);
 extern void (*cal_set_cmu_ocp_warn)(void);
-#ifdef CONFIG_CMUCAL_DEBUG
+#if defined(CONFIG_DEBUG_FS) && IS_ENABLED(CONFIG_CMUCAL_DEBUG)
 extern void cmucal_dbg_set_cmu_top_base(u32 base_addr);
 #else
 static inline void cmucal_dbg_set_cmu_top_base(u32 base_addr)

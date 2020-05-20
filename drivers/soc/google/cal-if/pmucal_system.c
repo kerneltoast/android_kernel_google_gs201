@@ -1,7 +1,7 @@
 #include "pmucal_system.h"
 #include "pmucal_rae.h"
 #include "pmucal_powermode.h"
-#include <soc/samsung/exynos-debug.h>
+#include <soc/google/exynos-debug.h>
 
 unsigned int pmucal_sys_powermode[NUM_SYS_POWERDOWN] = {0xffffffff, };
 
@@ -18,7 +18,9 @@ int pmucal_system_enter(int mode)
 	int ret;
 
 	if (mode != SYS_SICD)
+#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_IN);
+#endif
 
 	if (mode >= NUM_SYS_POWERDOWN) {
 		pr_err("%s %s: mode index(%d) is out of supported range (0~%d).\n",
@@ -47,7 +49,9 @@ int pmucal_system_enter(int mode)
 	}
 
 	if (mode != SYS_SICD)
+#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_OUT);
+#endif
 
 	pmucal_dbg_set_emulation(pmucal_lpm_list[mode].dbg);
 	pmucal_dbg_do_profile(pmucal_lpm_list[mode].dbg, false);
@@ -74,7 +78,9 @@ int pmucal_system_exit(int mode)
 	int ret;
 
 	if (mode != SYS_SICD)
+#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_IN);
+#endif
 
 	if (mode >= NUM_SYS_POWERDOWN) {
 		pr_err("%s %s: mode index(%d) is out of supported range (0~%d).\n",
@@ -107,7 +113,9 @@ int pmucal_system_exit(int mode)
 	}
 
 	if (mode != SYS_SICD)
+#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_OUT);
+#endif
 
 	pmucal_dbg_do_profile(pmucal_lpm_list[mode].dbg, true);
 
@@ -133,7 +141,9 @@ int pmucal_system_earlywakeup(int mode)
 	int ret;
 
 	if (mode != SYS_SICD)
+#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_IN);
+#endif
 
 	if (mode >= NUM_SYS_POWERDOWN) {
 		pr_err("%s %s: mode index(%d) is out of supported range (0~%d).\n",
@@ -167,7 +177,9 @@ int pmucal_system_earlywakeup(int mode)
 	pmucal_powermode_hint_clear();
 
 	if (mode != SYS_SICD)
+#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_OUT);
+#endif
 
 	return 0;
 
@@ -184,7 +196,7 @@ err_out:
  *
  *  Returns 0 on success. Otherwise, negative error code.
  */
-int __init pmucal_system_init(void)
+int pmucal_system_init(void)
 {
 	int ret = 0, i;
 

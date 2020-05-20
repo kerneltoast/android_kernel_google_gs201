@@ -1,9 +1,10 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/delay.h>
-#include <soc/samsung/ect_parser.h>
-#include <soc/samsung/exynos-pmu.h>
+#include <soc/google/ect_parser.h>
+#include <soc/google/exynos-pmu-if.h>
 
 #include "cmucal.h"
 #include "ra.h"
@@ -732,7 +733,7 @@ unsigned long ra_get_value(unsigned int id)
 	return val;
 }
 
-static unsigned int __init ra_get_sfr_address(unsigned short idx,
+static unsigned int ra_get_sfr_address(unsigned short idx,
 			       void __iomem **addr,
 			       unsigned char *shift,
 			       unsigned char *width)
@@ -1165,7 +1166,7 @@ unsigned long ra_recalc_rate(unsigned int id)
 }
 EXPORT_SYMBOL_GPL(ra_recalc_rate);
 
-int __init ra_init(void)
+int ra_init(void)
 {
 	struct cmucal_clk *clk;
 	struct sfr_block *block;
@@ -1377,3 +1378,5 @@ int __init ra_init(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ra_init);
+
+MODULE_LICENSE("GPL");

@@ -24,4 +24,45 @@ config GS_CHIPID
 	select SOC_BUS
 	default y
 
+config CAL_IF
+       tristate "Exynos Chip Abstraction Layer Interface"
+       help
+       Support PMU/CMU CAL for Exynos SoC.
+
+config CMUCAL
+	tristate "Exynos CMU Chip Abstraction Layer"
+	default y
+	depends on CAL_IF
+	help
+	Support CMUCAL for Exynos SoC.
+
+config CMUCAL_DEBUG
+	tristate "CMUCAL Debug Interface"
+	default y
+	depends on CMUCAL
+
+config CMUCAL_QCH_IGNORE_SUPPORT
+	tristate "CMUCAL QCH IGNORE Support"
+	default y
+	depends on CMUCAL
+
+config PMUCAL
+        bool "Exynos PMU Chip Abstraction Layer"
+        depends on CAL_IF
+        default y
+        help
+        Support PMUCAL for Exynos SoC.
+
+config PMUCAL_DBG
+        tristate "Exynos PMUCAL debugging interface"
+        depends on PMUCAL
+        help
+        Support PMUCAL debugging for Exynos SoC.
+
+config EXYNOS_FLEXPMU_DBG
+        tristate "Exynos FLEXPMU debugging interface"
+	depends on PMUCAL
+	help
+	Support FLEXPMU for Exynos SoC.
+
 endmenu

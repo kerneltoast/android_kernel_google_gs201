@@ -1,20 +1,13 @@
-/* linux/drivers/soc/samsung/cal-if/pmucal_asv.c
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * ASV common header file for Exynos
  *
- * Copyright (c) 2016 Samsung Electronics Co., Ltd.
- *	      http://www.samsung.com/
- *
- * ASV common driver for Exynos
- * Author: Hyunju Kang <hjtop.kang@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (c) 2020 Samsung Electronics Co., Ltd.
  */
-
 #include "fvmap_asv.h"
 #include "pwrcal.h"
 #include "vclk.h"
-#include <soc/samsung/ect_parser.h>
+#include <soc/google/ect_parser.h>
 #include "cmucal.h"
 
 static void asv_set_grp(unsigned int id, unsigned int asvgrp)
