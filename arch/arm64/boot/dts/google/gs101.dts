@@ -313,4 +313,10 @@
 	gpio_keys: gpio_keys {
 		compatible = "gpio-keys";
 	};
+
+	cal_if {
+		compatible = "samsung,exynos_cal_if";
+		reg = <0x0 0x1e080000 0x8000>;
+		acpm-ipc-channel = <0>;
+	};
 };
