@@ -50,6 +50,7 @@ struct dsim_device {
 	struct mipi_dsi_host dsi_host;
 	struct device *dev;
 	struct drm_bridge *panel_bridge;
+	struct mipi_dsi_device *dsi_device;
 
 	enum exynos_drm_output_type output_type;
 
@@ -63,10 +64,6 @@ struct dsim_device {
 	struct completion ph_wr_comp;
 	struct completion rd_comp;
 	struct timer_list cmd_timer;
-
-	u32 lanes;
-	u32 mode_flags;
-	u32 format;
 
 	enum dsim_state state;
 

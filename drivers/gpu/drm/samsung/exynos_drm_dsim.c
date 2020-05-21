@@ -489,13 +489,13 @@ static void dsim_update_config_for_mode(struct dsim_device *dsim,
 	const struct exynos_display_mode *mode_priv =
 					drm_mode_to_exynos(mode);
 
-	if (!mode_priv)
+	if (!mode_priv || !dsim->dsi_device)
 		return;
 
 	dsim->config.mode = (mode_priv->mode_flags & MIPI_DSI_MODE_VIDEO) ?
 				DSIM_VIDEO_MODE : DSIM_COMMAND_MODE;
 
-	dsim->config.data_lane_cnt = dsim->lanes;
+	dsim->config.data_lane_cnt = dsim->dsi_device->lanes;
 	/* TODO: This hard coded information will be defined in device tree */
 	dsim->config.mres_mode = 0;
 
@@ -856,10 +856,6 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 
 	dsim_debug(dsim, "%s +\n", __func__);
 
-	dsim->lanes = device->lanes;
-	dsim->format = device->format;
-	dsim->mode_flags = device->mode_flags;
-
 	bridge = of_drm_find_bridge(device->dev.of_node);
 	if (!bridge) {
 		struct drm_panel *panel;
@@ -879,10 +875,12 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 	}
 
 	ret = drm_bridge_attach(&dsim->encoder, bridge, dsim->encoder.bridge);
-	if (ret)
+	if (ret) {
 		dsim_err(dsim, "Unable to attach panel bridge\n");
-	else
+	} else {
 		dsim->panel_bridge = bridge;
+		dsim->dsi_device = device;
+	}
 
 	dsim_debug(dsim, "%s -\n", __func__);
 
@@ -904,6 +902,7 @@ static int dsim_host_detach(struct mipi_dsi_host *host,
 			bridge->funcs->detach(bridge);
 		dsim->panel_bridge = NULL;
 	}
+	dsim->dsi_device = NULL;
 
 	dsim_info(dsim, "%s -\n", __func__);
 	return 0;
