@@ -19,6 +19,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/clocksource.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 
 #define EXYNOS4_MCTREG(x)		(x)
 #define EXYNOS4_MCT_G_CNT_L		EXYNOS4_MCTREG(0x100)
@@ -222,7 +224,7 @@ static cycles_t exynos4_read_current_timer(void)
 }
 #endif
 
-static int __init exynos4_clocksource_init(void)
+static int exynos4_clocksource_init(void)
 {
 	exynos4_mct_frc_start();
 
@@ -461,7 +463,11 @@ static int exynos4_mct_starting_cpu(unsigned int cpu)
 		if (evt->irq == -1)
 			return -EIO;
 
+#ifdef MODULE
+		irq_set_affinity_hint(evt->irq, cpumask_of(cpu));
+#else
 		irq_force_affinity(evt->irq, cpumask_of(cpu));
+#endif
 		enable_irq(evt->irq);
 	} else {
 		enable_percpu_irq(mct_irqs[MCT_L0_IRQ], 0);
@@ -489,7 +495,7 @@ static int exynos4_mct_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int __init exynos4_timer_resources(struct device_node *np, void __iomem *base)
+static int exynos4_timer_resources(struct device_node *np, void __iomem *base)
 {
 	int err, cpu;
 	struct clk *mct_clk, *tick_clk;
@@ -528,7 +534,7 @@ static int __init exynos4_timer_resources(struct device_node *np, void __iomem *
 					exynos4_mct_tick_isr,
 					IRQF_TIMER | IRQF_NOBALANCING |
 					IRQF_PERCPU,
-					pcpu_mevt->name, pcpu_mevt)) {
+					"exynos-mct", pcpu_mevt)) {
 				pr_err("exynos-mct: cannot register IRQ (cpu%d)\n",
 									cpu);
 
@@ -565,9 +571,10 @@ out_irq:
 	return err;
 }
 
-static int __init mct_init_dt(struct device_node *np, unsigned int int_type)
+static int mct_init_dt(struct device_node *np, unsigned int int_type)
 {
-	u32 nr_irqs, i;
+	u32 nr_irqs = 0, i;
+	struct of_phandle_args irq;
 	int ret;
 
 	mct_int_type = int_type;
@@ -580,7 +587,9 @@ static int __init mct_init_dt(struct device_node *np, unsigned int int_type)
 	 * timer irqs are specified after the four global timer
 	 * irqs are specified.
 	 */
-	nr_irqs = of_irq_count(np);
+	while (of_irq_parse_one(np, nr_irqs, &irq) == 0)
+		nr_irqs++;
+
 	for (i = MCT_L0_IRQ; i < nr_irqs; i++)
 		mct_irqs[i] = irq_of_parse_and_map(np, i);
 
@@ -596,14 +605,45 @@ static int __init mct_init_dt(struct device_node *np, unsigned int int_type)
 }
 
 
-static int __init mct_init_spi(struct device_node *np)
+static int mct_init_spi(struct device_node *np)
 {
 	return mct_init_dt(np, MCT_INT_SPI);
 }
 
-static int __init mct_init_ppi(struct device_node *np)
+static int mct_init_ppi(struct device_node *np)
 {
 	return mct_init_dt(np, MCT_INT_PPI);
 }
+
+#ifdef MODULE
+static int exynos4_mct_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	if (of_machine_is_compatible("samsung,exynos4412-mct"))
+		return mct_init_ppi(np);
+
+	return mct_init_spi(np);
+}
+
+static const struct of_device_id exynos4_mct_match_table[] = {
+	{ .compatible = "samsung,exynos4210-mct" },
+	{ .compatible = "samsung,exynos4412-mct" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, exynos4_mct_match_table);
+
+static struct platform_driver exynos4_mct_driver = {
+	.probe		= exynos4_mct_probe,
+	.driver		= {
+		.name	= "exynos-mct",
+		.of_match_table = exynos4_mct_match_table,
+	},
+};
+module_platform_driver(exynos4_mct_driver);
+
+#else
 TIMER_OF_DECLARE(exynos4210, "samsung,exynos4210-mct", mct_init_spi);
 TIMER_OF_DECLARE(exynos4412, "samsung,exynos4412-mct", mct_init_ppi);
+#endif
+MODULE_LICENSE("GPL v2");
