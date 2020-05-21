@@ -2040,10 +2040,6 @@ void dsim_reg_init(u32 id, struct dsim_reg_config *config,
 	dpu_sysreg_dphy_reset(id, 0);
 #endif
 
-	/* Panel power on */
-	if (panel_ctrl)
-		dsim_set_panel_power(id, 1);
-
 #if !defined(CONFIG_BOARD_EMULATOR)
 	dsim_reg_set_clocks(id, clks, &config->dphy_pms, 1);
 

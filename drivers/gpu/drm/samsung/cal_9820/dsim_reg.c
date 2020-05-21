@@ -2119,10 +2119,6 @@ void dsim_reg_init(u32 id, struct dsim_reg_config *config,
 	/* Enable DPHY reset : DPHY reset start */
 	dpu_sysreg_dphy_reset(id, 0);
 
-	/* Panel power on */
-	if (panel_ctrl)
-		dsim_set_panel_power(id, 1);
-
 	dsim_reg_set_clocks(id, clks, &config->dphy_pms, 1);
 
 	dsim_reg_set_lanes_dphy(id, lanes, true);

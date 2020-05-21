@@ -48,8 +48,8 @@ struct dsim_resources {
 struct dsim_device {
 	struct drm_encoder encoder;
 	struct mipi_dsi_host dsi_host;
-	struct drm_panel *panel;
 	struct device *dev;
+	struct drm_bridge *panel_bridge;
 
 	enum exynos_drm_output_type output_type;
 
@@ -91,29 +91,10 @@ extern struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 
 struct decon_device;
 
-static inline const struct drm_connector *
-dsim_get_connector(const struct dsim_device *dsim)
-{
-	if (!dsim || !dsim->panel)
-		return NULL;
-
-	return dsim->panel->connector;
-}
-
-static inline struct drm_crtc *
-connector_get_crtc(const struct drm_connector *connector)
-{
-	if (!connector)
-		return NULL;
-
-	return connector->state->crtc;
-}
-
 static inline const struct decon_device *
 dsim_get_decon(const struct dsim_device *dsim)
 {
-	const struct drm_connector *connector = dsim_get_connector(dsim);
-	const struct drm_crtc *crtc = connector_get_crtc(connector);
+	const struct drm_crtc *crtc = dsim->encoder.crtc;
 
 	if (!crtc)
 		return NULL;

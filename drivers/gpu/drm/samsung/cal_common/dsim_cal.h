@@ -211,6 +211,4 @@ void dsim_reg_set_dphy_freq_hopping(u32 id, u32 p, u32 m, u32 k, u32 en);
 
 /* DSIM SFR dump */
 void __dsim_dump(u32 id, struct dsim_regs *regs);
-
-int dsim_set_panel_power(int id, bool on);
 #endif /* __SAMSUNG_DSIM_CAL_H__ */

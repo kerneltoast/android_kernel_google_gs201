@@ -35,6 +35,9 @@ static const char ext_info_regs[] = { 0xDA, 0xDB, 0xDC };
 #define connector_to_exynos_panel(c)                                           \
 	container_of((c), struct exynos_panel, connector)
 
+#define bridge_to_exynos_panel(b) \
+	container_of((b), struct exynos_panel, bridge)
+
 static int exynos_panel_parse_gpios(struct exynos_panel *ctx)
 {
 	struct device *dev = ctx->dev;
@@ -518,36 +521,95 @@ static int exynos_drm_connector_create_hdr_formats_property(
 	return 0;
 }
 
-static int exynos_drm_create_connector(struct mipi_dsi_device *dsi,
-				       struct drm_connector *connector)
+static int exynos_panel_bridge_attach(struct drm_bridge *bridge)
 {
-	const struct mipi_dsi_host *host = dsi->host;
-	struct drm_encoder *encoder;
+	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+	struct drm_connector *connector = &ctx->connector;
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
-	encoder = dev_get_drvdata(host->dev);
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
-
-	ret = drm_connector_init(encoder->dev, connector,
+	ret = drm_connector_init(bridge->dev, connector,
 				 &exynos_connector_funcs,
 				 DRM_MODE_CONNECTOR_DSI);
 	if (ret) {
-		dev_err(&dsi->dev, "failed to initialize connector with drm\n");
+		dev_err(ctx->dev, "failed to initialize connector with drm\n");
+		return ret;
+	}
+
+	ret = drm_panel_attach(&ctx->panel, connector);
+	if (ret) {
+		dev_err(ctx->dev, "unable to attach drm panel\n");
 		return ret;
 	}
 
 	drm_connector_helper_add(connector, &exynos_connector_helper_funcs);
-	drm_connector_register(connector);
 
 	exynos_drm_connector_create_luminance_properties(connector);
 	exynos_drm_connector_create_hdr_formats_property(connector);
 
-	drm_connector_attach_encoder(connector, encoder);
+	drm_connector_register(connector);
+
+	drm_connector_attach_encoder(connector, bridge->encoder);
 	connector->funcs->reset(connector);
 	connector->status = connector_status_connected;
 
+	ret = sysfs_create_link(&connector->kdev->kobj, &ctx->dev->kobj,
+				"panel");
+	if (ret)
+		dev_warn(ctx->dev, "unable to link panel sysfs (%d)\n", ret);
+
+	mipi_dsi_debugfs_add(dsi, ctx->panel.debugfs_entry);
+
+	drm_kms_helper_hotplug_event(connector->dev);
+
 	return 0;
 }
+
+static void exynos_panel_bridge_detach(struct drm_bridge *bridge)
+{
+	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+
+	drm_panel_detach(&ctx->panel);
+	drm_connector_unregister(&ctx->connector);
+	drm_connector_cleanup(&ctx->connector);
+}
+
+static void exynos_panel_enable(struct drm_bridge *bridge)
+{
+	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+
+	drm_panel_enable(&ctx->panel);
+}
+
+static void exynos_panel_pre_enable(struct drm_bridge *bridge)
+{
+	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+
+	drm_panel_prepare(&ctx->panel);
+}
+
+static void exynos_panel_disable(struct drm_bridge *bridge)
+{
+	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+
+	drm_panel_disable(&ctx->panel);
+}
+
+static void exynos_panel_post_disable(struct drm_bridge *bridge)
+{
+	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
+
+	drm_panel_unprepare(&ctx->panel);
+}
+
+static const struct drm_bridge_funcs exynos_panel_bridge_funcs = {
+	.attach = exynos_panel_bridge_attach,
+	.detach = exynos_panel_bridge_detach,
+	.pre_enable = exynos_panel_pre_enable,
+	.enable = exynos_panel_enable,
+	.disable = exynos_panel_disable,
+	.post_disable = exynos_panel_post_disable,
+};
 
 int exynos_panel_probe(struct mipi_dsi_device *dsi)
 {
@@ -588,37 +650,25 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 	ctx->bl->props.max_brightness = ctx->desc->max_brightness;
 	ctx->bl->props.brightness = ctx->desc->dft_brightness;
 
-	ret = exynos_drm_create_connector(dsi, &ctx->connector);
-	if (ret)
-		goto err;
-
 	drm_panel_init(&ctx->panel);
 	ctx->panel.dev = dev;
 	ctx->panel.funcs = ctx->desc->panel_func;
 
 	drm_panel_add(&ctx->panel);
 
-	ret = drm_panel_attach(&ctx->panel, &ctx->connector);
-	if (ret)
-		goto err_connector;
-
-	ret = mipi_dsi_attach(dsi);
-	if (ret)
-		goto err_panel;
+	ctx->bridge.funcs = &exynos_panel_bridge_funcs;
+#ifdef CONFIG_OF
+	ctx->bridge.of_node = ctx->dev->of_node;
+#endif
+	drm_bridge_add(&ctx->bridge);
 
 	ret = sysfs_create_files(&dev->kobj, panel_attrs);
 	if (ret)
 		pr_warn("unable to add panel sysfs files (%d)\n", ret);
 
-	ret = sysfs_create_link(&ctx->connector.kdev->kobj, &dev->kobj,
-				"panel");
+	ret = mipi_dsi_attach(dsi);
 	if (ret)
-		pr_warn("unable to link panel sysfs (%d)\n", ret);
-	ret = 0;
-
-	mipi_dsi_debugfs_add(dsi, ctx->panel.debugfs_entry);
-
-	drm_kms_helper_hotplug_event(ctx->connector.dev);
+		goto err_panel;
 
 	dev_info(ctx->dev, "samsung common panel driver has been probed\n");
 
@@ -626,10 +676,7 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 
 err_panel:
 	drm_panel_detach(&ctx->panel);
-err_connector:
 	drm_panel_remove(&ctx->panel);
-	drm_connector_unregister(&ctx->connector);
-err:
 	dev_err(ctx->dev, "failed to probe samsung panel driver(%d)\n", ret);
 
 	return ret;
@@ -642,7 +689,7 @@ int exynos_panel_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-	drm_connector_unregister(&ctx->connector);
+	drm_bridge_remove(&ctx->bridge);
 	devm_backlight_device_unregister(ctx->dev, ctx->bl);
 
 	return 0;

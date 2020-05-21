@@ -88,22 +88,6 @@ static const struct of_device_id dsim_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dsim_of_match);
 
-/*
- * TODO: Currently, this function is only supported 'on' case, but
- * 'off' case will also be implemented in the future.
- */
-int dsim_set_panel_power(int id, bool on)
-{
-	struct dsim_device *dsim = dsim_drvdata[id];
-	int ret;
-
-	ret = drm_panel_prepare(dsim->panel);
-	if (ret)
-		dsim_err(dsim, "failed to prepare dsim%d panel\n", dsim->id);
-
-	return ret;
-}
-
 static void dsim_dump(struct dsim_device *dsim)
 {
 	struct dsim_regs regs;
@@ -197,7 +181,6 @@ static void dsim_enable(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 	const struct decon_device *decon = dsim_get_decon(dsim);
-	int ret;
 
 	if (dsim->state == DSIM_STATE_HSCLKEN) {
 		dsim_info(dsim, "already enabled(%d)\n", dsim->state);
@@ -218,18 +201,6 @@ static void dsim_enable(struct drm_encoder *encoder)
 	/* TODO: dsi start: enable irq, sfr configuration */
 	dsim->state = DSIM_STATE_HSCLKEN;
 	enable_irq(dsim->irq);
-
-	/* panel enable */
-	ret = drm_panel_enable(dsim->panel);
-	if (ret < 0) {
-		drm_panel_unprepare(dsim->panel);
-		dsim_reg_stop(dsim->id, 0x1F);
-		disable_irq(dsim->irq);
-		dsim_phy_power_off(dsim);
-		dsim_err(dsim, "drm_panel_enable is failed(%d)\n", ret);
-		dsim->state = DSIM_STATE_SUSPEND;
-		return;
-	}
 
 #if defined(DSIM_BIST)
 	dsim_reg_set_bist(dsim->id, true, DSIM_GRAY_GRADATION);
@@ -270,7 +241,6 @@ static void dsim_disable(struct drm_encoder *encoder)
 {
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 	const struct decon_device *decon = dsim_get_decon(dsim);
-	int ret;
 
 	if (dsim->state == DSIM_STATE_SUSPEND) {
 		dsim_info(dsim, "already disabled(%d)\n", dsim->state);
@@ -278,12 +248,6 @@ static void dsim_disable(struct drm_encoder *encoder)
 	}
 
 	dsim_debug(dsim, "%s +\n", __func__);
-
-	ret = drm_panel_disable(dsim->panel);
-	if (ret < 0) {
-		dsim_err(dsim, "drm_panel_disable is failed(%d)\n", ret);
-		return;
-	}
 
 	/* TODO: 0x1F will be changed */
 	dsim_reg_stop(dsim->id, 0x1F);
@@ -294,12 +258,6 @@ static void dsim_disable(struct drm_encoder *encoder)
 	del_timer(&dsim->cmd_timer);
 	dsim->state = DSIM_STATE_SUSPEND;
 	mutex_unlock(&dsim->cmd_lock);
-
-	ret = drm_panel_unprepare(dsim->panel);
-	if (ret < 0) {
-		dsim_err(dsim, "drm_panel_unprepare is failed(%d)\n", ret);
-		return;
-	}
 
 	dsim_phy_power_off(dsim);
 
@@ -787,8 +745,7 @@ static void dsim_underrun_info(struct dsim_device *dsim)
 static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 {
 	struct dsim_device *dsim = dev_id;
-	const struct drm_connector *connector = dsim_get_connector(dsim);
-	struct drm_crtc *crtc = connector_get_crtc(connector);
+	struct drm_crtc *crtc = dsim->encoder.crtc;
 	const struct decon_device *decon = dsim_get_decon(dsim);
 	unsigned int int_src;
 
@@ -897,6 +854,8 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 				  struct mipi_dsi_device *device)
 {
 	struct dsim_device *dsim = host_to_dsi(host);
+	struct drm_bridge *bridge;
+	int ret;
 
 	dsim_debug(dsim, "%s +\n", __func__);
 
@@ -904,14 +863,33 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 	dsim->format = device->format;
 	dsim->mode_flags = device->mode_flags;
 
-	dsim->panel = of_drm_find_panel(device->dev.of_node);
-	if (IS_ERR(dsim->panel)) {
-		dsim_info(dsim, "failed to find panel\n");
-		return PTR_ERR(dsim->panel);
+	bridge = of_drm_find_bridge(device->dev.of_node);
+	if (!bridge) {
+		struct drm_panel *panel;
+
+		panel = of_drm_find_panel(device->dev.of_node);
+		if (IS_ERR(panel)) {
+			dsim_err(dsim, "failed to find panel\n");
+			return PTR_ERR(panel);
+		}
+
+		bridge = devm_drm_panel_bridge_add(host->dev, panel,
+						   DRM_MODE_CONNECTOR_DSI);
+		if (IS_ERR(bridge)) {
+			dsim_err(dsim, "failed to create panel bridge\n");
+			return PTR_ERR(bridge);
+		}
 	}
 
+	ret = drm_bridge_attach(&dsim->encoder, bridge, dsim->encoder.bridge);
+	if (ret)
+		dsim_err(dsim, "Unable to attach panel bridge\n");
+	else
+		dsim->panel_bridge = bridge;
+
 	dsim_debug(dsim, "%s -\n", __func__);
-	return 0;
+
+	return ret;
 }
 
 static int dsim_host_detach(struct mipi_dsi_host *host,
@@ -921,10 +899,13 @@ static int dsim_host_detach(struct mipi_dsi_host *host,
 
 	dsim_info(dsim, "%s +\n", __func__);
 
-	if (dsim->panel) {
-		dsim_disable(&dsim->encoder);
-		drm_panel_detach(dsim->panel);
-		dsim->panel = NULL;
+	dsim_disable(&dsim->encoder);
+	if (dsim->panel_bridge) {
+		struct drm_bridge *bridge = dsim->panel_bridge;
+
+		if (bridge->funcs && bridge->funcs->detach)
+			bridge->funcs->detach(bridge);
+		dsim->panel_bridge = NULL;
 	}
 
 	dsim_info(dsim, "%s -\n", __func__);
