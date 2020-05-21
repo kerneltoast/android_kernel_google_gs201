@@ -334,4 +334,8 @@
 		#clock-cells = <1>;
 		acpm-ipc-channel = <0>;
 	};
+
+	exynos_flexpmu_dbg {
+		compatible = "samsung,exynos-flexpmu-dbg";
+	};
 };
