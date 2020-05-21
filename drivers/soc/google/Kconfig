@@ -65,4 +65,9 @@ config EXYNOS_FLEXPMU_DBG
 	help
 	Support FLEXPMU for Exynos SoC.
 
+config EXYNOS_PMU_IF
+	tristate "Exynos PMU controller Interface driver"
+	help
+	Support PMU register API for Exynos SoC.
+
 endmenu
