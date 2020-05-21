@@ -588,36 +588,6 @@ static enum drm_mode_status dsim_mode_valid(struct drm_encoder *encoder,
 	return MODE_OK;
 }
 
-static int dsim_set_native_display_mode(struct dsim_device *dsim)
-{
-	const struct drm_connector *connector = dsim_get_connector(dsim);
-	int ret;
-
-	if (unlikely(!connector))
-		return -ENODEV;
-
-	ret = drm_panel_get_modes(dsim->panel);
-	if (ret < 0) {
-		dsim_err(dsim, "failed to get panel display modes\n");
-		return ret;
-	}
-
-	if (!list_empty(&connector->probed_modes)) {
-		struct drm_display_mode *mode;
-
-		list_for_each_entry(mode, &connector->probed_modes, head) {
-			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-				dsim->native_mode = *mode;
-				dsim_set_display_mode(dsim, &dsim->native_mode);
-			}
-		}
-	} else {
-		dsim->native_mode.clock = 0;
-	}
-
-	return 0;
-}
-
 static int dsim_atomic_check(struct drm_encoder *encoder,
 			     struct drm_crtc_state *crtc_state,
 			     struct drm_connector_state *state)
@@ -927,8 +897,6 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 				  struct mipi_dsi_device *device)
 {
 	struct dsim_device *dsim = host_to_dsi(host);
-	struct drm_device *drm_dev = dsim->encoder.dev;
-	int ret;
 
 	dsim_debug(dsim, "%s +\n", __func__);
 
@@ -941,10 +909,6 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 		dsim_info(dsim, "failed to find panel\n");
 		return PTR_ERR(dsim->panel);
 	}
-
-	mutex_lock(&drm_dev->mode_config.mutex);
-	ret = dsim_set_native_display_mode(dsim);
-	mutex_unlock(&drm_dev->mode_config.mutex);
 
 	dsim_debug(dsim, "%s -\n", __func__);
 	return 0;

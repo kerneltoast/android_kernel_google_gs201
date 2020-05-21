@@ -49,7 +49,6 @@ struct dsim_device {
 	struct drm_encoder encoder;
 	struct mipi_dsi_host dsi_host;
 	struct drm_panel *panel;
-	struct drm_display_mode native_mode;
 	struct device *dev;
 
 	enum exynos_drm_output_type output_type;
