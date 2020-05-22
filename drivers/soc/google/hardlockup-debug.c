@@ -20,6 +20,9 @@
 #include <asm/stacktrace.h>
 
 #include <soc/google/debug-snapshot.h>
+#ifdef CONFIG_GS_ACPM
+#include <soc/google/acpm_ipc_ctrl.h>
+#endif
 
 #define HARDLOCKUP_DEBUG_MAGIC		(0xDEADBEEF)
 #define BUG_BRK_IMM_HARDLOCKUP		(0x801)
@@ -34,6 +37,7 @@ static raw_spinlock_t hardlockup_log_lock;
 static int watchdog_fiq;
 static int allcorelockup_detected;
 static unsigned long hardlockup_core_mask;
+static unsigned long hardlockup_core_handled_mask;
 
 static void hardlockup_debug_bug_func(void)
 {
@@ -128,6 +132,14 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 
 		if (ret)
 			raw_spin_unlock(&hardlockup_log_lock);
+
+		hardlockup_core_handled_mask |= (1 << cpu);
+
+		if (hardlockup_core_mask == hardlockup_core_handled_mask) {
+#ifdef CONFIG_GS_ACPM
+			exynos_acpm_reboot();
+#endif
+		}
 
 		/* If cpu is locked, wait for WDT reset without executing
 		 * code anymore.
