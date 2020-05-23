@@ -2127,6 +2127,7 @@ void __decon_dump(u32 id, struct decon_regs *regs, bool dsc_en)
 	/* decon_main */
 	cal_log_info(id, "\n=== DECON%d_MAIN SFR DUMP ===\n", id);
 	dpu_print_hex_dump(main_regs, main_regs + 0x0000, 0x344);
+	dpu_print_hex_dump(main_regs, main_regs + 0x400, 0x300);
 	/* shadow */
 	cal_log_info(id, "=== DECON%d_MAIN SHADOW SFR DUMP ===\n", id);
 	dpu_print_hex_dump(main_regs, main_regs + SHADOW_OFFSET, 0x2B0);
