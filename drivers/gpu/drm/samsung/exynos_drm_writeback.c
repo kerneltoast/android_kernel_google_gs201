@@ -59,7 +59,6 @@ void wb_dump(struct writeback_device *wb)
 static const uint32_t writeback_formats[] = {
 	/* TODO : add DRM_FORMAT_RGBA1010102 */
 	DRM_FORMAT_RGBA8888,
-	DRM_FORMAT_RGB888,
 };
 
 static const struct of_device_id wb_of_match[] = {
