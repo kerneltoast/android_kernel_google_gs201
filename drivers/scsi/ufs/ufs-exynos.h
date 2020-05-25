@@ -25,14 +25,8 @@
 #define UFS_VER_0005	5
 
 enum {
-	UFSHCD_DEBUG_LEVEL1 = (1 << 0),
-	UFSHCD_DEBUG_LEVEL2 = (1 << 1),
-};
-
-struct exynos_ufs_debug {
-	/* Support debugfs */
-	struct dentry *root;
-	unsigned long monitor;
+	UFS_S_MON_LV1 = (1 << 0),
+	UFS_S_MON_LV2 = (1 << 1),
 };
 
 struct ext_cxt {
@@ -65,6 +59,16 @@ enum exynos_ufs_ext_blks {
 	EXT_SYSREG = 0,
 	EXT_BLK_MAX,
 #define EXT_BLK_MAX 1
+};
+
+enum exynos_ufs_param_id {
+	UFS_S_PARAM_EOM_VER = 0,
+	UFS_S_PARAM_EOM_SZ,
+	UFS_S_PARAM_EOM_OFS,
+	UFS_S_PARAM_LANE,
+	UFS_S_PARAM_H8_D_MS,
+	UFS_S_PARAM_MON,
+	UFS_S_PARAM_NUM,
 };
 
 struct exynos_ufs {
@@ -113,7 +117,6 @@ struct exynos_ufs {
 	/* to prevent races to dump among threads */
 	spinlock_t dbg_lock;
 	int under_dump;
-	struct exynos_ufs_debug debug;
 
 	/* Support system power mode */
 	int idle_ip_index;
@@ -133,6 +136,16 @@ struct exynos_ufs {
 	u32 peer_available_lane_tx;
 	u32 available_lane_rx;
 	u32 available_lane_tx;
+
+	/*
+	 * This variable is to make UFS driver's operations change
+	 * for specific purposes, e.g. unit test cases, or report
+	 * some information to user land.
+	 */
+	u32 params[UFS_S_PARAM_NUM];
+
+	/* sysfs */
+	struct kobject sysfs_kobj;
 };
 
 static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)
