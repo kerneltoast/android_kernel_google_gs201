@@ -46,6 +46,15 @@ static const char *res_token[2] = {
 	"fails",
 };
 
+enum {
+	UFS_S_TOKEN_FAIL,
+	UFS_S_TOKEN_NUM,
+};
+
+static const char *ufs_s_str_token[UFS_S_TOKEN_NUM] = {
+	"fail to",
+};
+
 static const char *ufs_pmu_token = "ufs-phy-iso";
 static const char *ufs_ext_blks[EXT_BLK_MAX][2] = {
 	{"samsung,sysreg-phandle", "ufs-iocc"},	/* sysreg */
@@ -1001,7 +1010,8 @@ static int __ufs_populate_dt_extern(struct device *dev,
 			ret = of_property_read_u32(np, "val", &cxt->val);
 	}
 	if (ret != 0) {
-		dev_err(dev, "failed to set cxt(%s) val\n", name);
+		dev_err(dev, "%s set cxt(%s) val\n",
+			ufs_s_str_token[UFS_S_TOKEN_FAIL], name);
 		goto out;
 	}
 
@@ -1030,8 +1040,8 @@ static int exynos_ufs_populate_dt_extern(struct device *dev,
 	cxt = &ufs->cxt_phy_iso;
 	ret = __ufs_populate_dt_extern(dev, ufs_pmu_token, cxt);
 	if (ret) {
-		dev_err(dev, "%s: %u: fail to get %s\n",
-			__func__, __LINE__, ufs_pmu_token);
+		dev_err(dev, "%s: %u: %s get %s\n", __func__, __LINE__,
+			ufs_s_str_token[UFS_S_TOKEN_FAIL], ufs_pmu_token);
 		goto out;
 	}
 
@@ -1041,8 +1051,10 @@ static int exynos_ufs_populate_dt_extern(struct device *dev,
 		/* look up phandle for external regions */
 		*reg = syscon_regmap_lookup_by_phandle(np, ufs_ext_blks[i][0]);
 		if (IS_ERR(*reg)) {
-			dev_err(dev, "%s: %u: fail to find %s\n",
-				__func__, __LINE__, ufs_ext_blks[i][0]);
+			dev_err(dev, "%s: %u: %s find %s\n",
+				__func__, __LINE__,
+				ufs_s_str_token[UFS_S_TOKEN_FAIL],
+				ufs_ext_blks[i][0]);
 			if (ufs_ext_ignore[i])
 				continue;
 			else
@@ -1054,8 +1066,9 @@ static int exynos_ufs_populate_dt_extern(struct device *dev,
 		ret = __ufs_populate_dt_extern(dev,
 					       ufs_ext_blks[i][1], cxt);
 		if (ret) {
-			dev_err(dev, "%s: %u: fail to get %s\n",
+			dev_err(dev, "%s: %u: %s get %s\n",
 				__func__, __LINE__,
+				ufs_s_str_token[UFS_S_TOKEN_FAIL],
 				ufs_ext_blks[i][1]);
 			if (ufs_ext_ignore[i]) {
 				ret = 0;
@@ -1108,7 +1121,8 @@ static int exynos_ufs_populate_dt(struct device *dev,
 	/* Regmap for external regions */
 	ret = exynos_ufs_populate_dt_extern(dev, ufs);
 	if (ret) {
-		dev_err(dev, "failed to populate dt-pmu\n");
+		dev_err(dev, "%s populate dt-pmu\n",
+			ufs_s_str_token[UFS_S_TOKEN_FAIL]);
 		goto out;
 	}
 
@@ -1276,7 +1290,8 @@ static int exynos_ufs_ioremap(struct exynos_ufs *ufs,
 	}
 
 	if (ret)
-		dev_err(dev, "fail to ioremap for %s, 0x%llx\n",
+		dev_err(dev, "%s ioremap for %s, 0x%llx\n",
+			ufs_s_str_token[UFS_S_TOKEN_FAIL],
 			ufs_region_names[i]);
 	dev_info(dev, "\n");
 	return ret;
@@ -1310,7 +1325,8 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	/* populate device tree nodes */
 	ret = exynos_ufs_populate_dt(dev, ufs);
 	if (ret) {
-		dev_err(dev, "failed to get dt info.\n");
+		dev_err(dev, "%s get dt info.\n",
+			ufs_s_str_token[UFS_S_TOKEN_FAIL]);
 		return ret;
 	}
 
