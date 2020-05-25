@@ -111,11 +111,11 @@
 		clock-frequency = <24576000>;
 	};
 
-	ext_26m: ext_26m {
+	ext_24_5m: ext_24_5m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <26000000>;
-		clock-output-names = "ext-26m";
+		clock-frequency = <24576000>;
+		clock-output-names = "ext-24_5m";
 	};
 
 	ext_200m: ext_200m {
@@ -134,7 +134,7 @@
 		interrupts = <0>, <1>, <2>, <3>,
 			     <4>, <5>, <6>, <7>,
 			     <8>, <9>, <10>, <11>;
-		clocks = <&ext_26m>, <&ext_26m>;
+		clocks = <&ext_24_5m>, <&ext_24_5m>;
 		clock-names = "fin_pll", "mct";
 
 		mct_map: mct-map {
