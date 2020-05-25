@@ -63,7 +63,7 @@
 	};
 
 	chosen {
-		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 root=/dev/ram0 androidboot.hardware=gs101 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware reserve-fimc=0xffffff90f9fe0000 maxcpus=4 clk_ignore_unused loop.max_part=7";
+		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 clocksource=arch_sys_counter root=/dev/ram0 androidboot.hardware=gs101 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware reserve-fimc=0xffffff90f9fe0000 maxcpus=4 clk_ignore_unused loop.max_part=7";
 	};
 
 	firmware {
@@ -109,7 +109,6 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <24576000>;
-		use-clocksource-only;
 	};
 
 	ext_26m: ext_26m {
@@ -137,7 +136,6 @@
 			     <8>, <9>, <10>, <11>;
 		clocks = <&ext_26m>, <&ext_26m>;
 		clock-names = "fin_pll", "mct";
-		use-clockevent-only;
 
 		mct_map: mct-map {
 			#interrupt-cells = <1>;
