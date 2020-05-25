@@ -533,6 +533,20 @@ static struct ufs_cal_phy_cfg loopback_set_2[] = {
 	{0, 0, PHY_CFG_NONE, 0, BRD_ALL},
 };
 
+static struct ufs_cal_phy_cfg eom_prepare[] = {
+	{0xBC0, 0x00, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
+	{0xA88, 0x05, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
+	{0x93C, 0x0F, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
+	{0x940, 0x4F, (PMD_HS_G4_L1 | PMD_HS_G4_L2), PHY_PMA_TRSV, BRD_ALL},
+	{0x940, 0x2F, (PMD_HS_G3_L1 | PMD_HS_G3_L2), PHY_PMA_TRSV, BRD_ALL},
+	{0x940, 0x1F, (PMD_HS_G2_L1 | PMD_HS_G2_L2), PHY_PMA_TRSV, BRD_ALL},
+	{0x940, 0x0F, (PMD_HS_G1_L1 | PMD_HS_G1_L2), PHY_PMA_TRSV, BRD_ALL},
+	{0xB64, 0xE3, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
+	{0xB68, 0x04, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
+	{0xB6C, 0x00, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
+	{0, 0, PHY_CFG_NONE, 0, BRD_ALL},
+};
+
 static const struct ufs_cal_phy_cfg init_cfg_card[] = {
 	{0, 0, PHY_CFG_NONE, 0, BRD_ALL},
 };
@@ -1132,6 +1146,86 @@ enum ufs_cal_errno ufs_cal_pre_link(struct ufs_cal_param *p)
 	ret = ufs_cal_config_uic(p, cfg, NULL);
 
 	return ret;
+}
+
+static enum ufs_cal_errno ufs_cal_eom_prepare(struct ufs_cal_param *p)
+{
+	enum ufs_cal_errno ret = UFS_CAL_NO_ERROR;
+	struct ufs_cal_phy_cfg *cfg;
+
+	cfg = eom_prepare;
+	ret = ufs_cal_config_uic(p, cfg, p->pmd);
+
+	return ret;
+}
+
+static u32 ufs_cal_get_eom_err_cnt(void *hba, u32 lane_loop)
+{
+	return (u32)((ufs_lld_pma_read(hba, PHY_PMA_TRSV_ADDR(0xD20, lane_loop)) << 16)
+		+ (ufs_lld_pma_read(hba, PHY_PMA_TRSV_ADDR(0xD24, lane_loop)) << 8)
+		+ (ufs_lld_pma_read(hba, PHY_PMA_TRSV_ADDR(0xD28, lane_loop))));
+}
+
+static void ufs_cal_sweep_get_eom_data(void *hba, u32 *cnt,
+				       struct ufs_cal_param *p, u32 lane, u32 repeat)
+{
+	u32 phase, vref;
+	u32 errors;
+	struct ufs_eom_result_s *data = p->eom[lane];
+
+	for (phase = 0; phase < EOM_PH_SEL_MAX; phase++) {
+		ufs_lld_pma_write(hba, phase, PHY_PMA_TRSV_ADDR(0xB78, lane));
+
+		for (vref = 0; vref < EOM_DEF_VREF_MAX; vref++) {
+			ufs_lld_pma_write(hba, 0x18, PHY_PMA_TRSV_ADDR(0xB5C, lane));
+			ufs_lld_pma_write(hba, vref, PHY_PMA_TRSV_ADDR(0xB74, lane));
+			ufs_lld_pma_write(hba, 0x19, PHY_PMA_TRSV_ADDR(0xB5C, lane));
+
+			errors = ufs_cal_get_eom_err_cnt(hba, lane);
+
+			ufs_lld_usleep_delay(1, 1);
+
+			data[*cnt].v_phase =
+					phase + (repeat * EOM_PH_SEL_MAX);
+			data[*cnt].v_vref = vref;
+			data[*cnt].v_err = errors;
+			(*cnt)++;
+		}
+	}
+}
+
+enum ufs_cal_errno ufs_cal_eom(struct ufs_cal_param *p)
+{
+	u32 repeat;
+	u32 lane;
+	u32 i;
+	u32 cnt;
+	void *hba = p->host;
+	u32 num_of_active_rx = p->available_lane;
+	enum ufs_cal_errno res = UFS_CAL_NO_ERROR;
+
+	ufs_cal_eom_prepare(p);
+
+	repeat = (p->max_gear <= GEAR_MAX) ? ufs_s_eom_repeat[p->max_gear] : 0;
+	if (repeat == 0) {
+		res = UFS_CAL_ERROR;
+		goto end;
+	} else {
+		for (i = GEAR_1 ; i <= GEAR_MAX ; i++) {
+			if (repeat > EOM_RTY_MAX) {
+				res = UFS_CAL_INV_CONF;
+				goto end;
+			}
+		}
+	}
+
+	for (lane = 0; lane < num_of_active_rx; lane++) {
+		cnt = 0;
+		for (i = 0; i < repeat; i++)
+			ufs_cal_sweep_get_eom_data(hba, &cnt, p, lane, i);
+	}
+end:
+	return res;
 }
 
 enum ufs_cal_errno ufs_cal_init(struct ufs_cal_param *p, int idx)
