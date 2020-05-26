@@ -20,10 +20,26 @@
 #include <linux/debugfs.h>
 
 #include <linux/mfd/samsung/core.h>
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG)
 #include <soc/google/exynos-bcm_dbg.h>
+#endif
 
 #include <soc/google/exynos-cpupm.h>
 #include <dt-bindings/power/exynos-power.h>
+
+#define EXYNOS_PD_PREFIX	"EXYNOS-PD: "
+#define EXYNOS_PD_DBG_PREFIX	"EXYNOS-PD-DBG: "
+
+#ifndef pr_fmt
+#define pr_fmt(fmt) fmt
+#endif
+
+#ifdef CONFIG_EXYNOS_PM_DOMAIN_DEBUG
+#define DEBUG_PRINT_INFO(fmt, ...) \
+	pr_info(EXYNOS_PD_DBG_PREFIX pr_fmt(fmt), ##__VA_ARGS__)
+#else
+#define DEBUG_PRINT_INFO(fmt, ...)
+#endif
 
 /* In Exynos, the number of MAX_POWER_DOMAIN is less than 15 */
 #define MAX_PARENT_POWER_DOMAIN	15
@@ -42,12 +58,11 @@ struct exynos_pm_domain {
 	int devfreq_index;
 	struct mutex access_lock;
 	int idle_ip_index;
-#if defined(CONFIG_EXYNOS_BCM_DBG)
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG)
 	struct exynos_bcm_pd_info *bcm;
 #endif
 	bool power_down_skipped;
 	unsigned int need_smc;
-	unsigned int cmu_id;
 	bool skip_idle_ip;
 };
 
@@ -59,7 +74,7 @@ struct exynos_pd_dbg_info {
 #endif
 };
 
-#ifdef CONFIG_EXYNOS_PD
+#if IS_ENABLED(CONFIG_EXYNOS_PD)
 struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name);
 int exynos_pd_status(struct exynos_pm_domain *pd);
 #else
