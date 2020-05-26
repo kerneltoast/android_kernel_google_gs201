@@ -82,4 +82,10 @@ config EXYNOS_PD_DBG
 	depends on PM
 	select PM_GENERIC_DOMAINS
 
+config EXYNOS_PD_EL3
+	tristate "Exynos PD Save/Restore Support"
+	default m
+	help
+	Support Exynos Power Domain Save/Restore
+
 endmenu
