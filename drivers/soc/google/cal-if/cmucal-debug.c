@@ -48,20 +48,53 @@ static int clk_store(char *buf, int r, struct cmucal_clk *clk, u32 val,
 	return r;
 }
 
-static bool cal_cmublk_acquire(unsigned int cmu_id,
+static struct exynos_pm_domain *exynos_pd_lookup(const char *domain_name)
+{
+	struct device_node *np;
+
+	if (IS_ERR_OR_NULL(domain_name))
+		return NULL;
+
+	for_each_compatible_node(np, NULL, "samsung,exynos-pd") {
+		struct platform_device *pdev;
+		struct exynos_pm_domain *pd;
+
+		if (!of_device_is_available(np))
+			continue;
+
+		pdev = of_find_device_by_node(np);
+		if (!pdev)
+			continue;
+
+		pd = platform_get_drvdata(pdev);
+		if (!strcmp(pd->name, domain_name))
+			return pd;
+	}
+
+	return NULL;
+}
+
+static bool cal_cmublk_acquire(unsigned int addr,
 			       struct exynos_pm_domain **p_pd)
 {
 	struct exynos_pm_domain *pd = NULL;
+	char *p = NULL;
 
-	pd = exynos_pd_lookup_cmu_id(cmu_id);
-	if (pd) {
-		*p_pd = pd;
-		mutex_lock(&pd->access_lock);
-		if (!cal_pd_status(pd->cal_pdid))
-			return false;
-	}
+	if (!cal_get_pd_name_by_cmu)
+		return true;
 
-	return true;
+	p = cal_get_pd_name_by_cmu(addr & 0xFFFF0000);
+	if (!p)
+		return true;
+
+	pd = exynos_pd_lookup(p);
+	if (!pd)
+		return true;
+
+	*p_pd = pd;
+	mutex_lock(&pd->access_lock);
+
+	return cal_pd_status(pd->cal_pdid) == 1;
 }
 
 static void cal_cmublk_release(struct exynos_pm_domain *pd)

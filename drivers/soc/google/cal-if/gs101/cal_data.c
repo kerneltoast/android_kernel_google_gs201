@@ -17,6 +17,7 @@
 #include "cmucal-sfr.c"
 #include "cmucal-vclk.c"
 #include "cmucal-vclklut.c"
+#include "cmu-pmu_map.h"
 
 #include "clkout_gs101.c"
 
@@ -33,6 +34,32 @@ void __iomem *gpio_alive;
 
 #define GPIO_ALIVE_BASE		(0x174d0000)
 #define GPA1_DAT		(0x24)
+
+struct cmu_pmu cmu_pmu_map[] = {
+	{0x1A000000, "pd-aoc"},
+	{0x1F000000, "pd-bus1"},
+	{0x20000000, "pd-bus2"},
+	{0x17000000, "pd-eh"},
+	{0x1C400000, "pd-g3d"},
+	{0x1C400000, "pd-embedded_g3d"},
+	{0x11000000, "pd-hsi0"},
+	{0x14400000, "pd-hsi2"},
+	{0x1C200000, "pd-disp"},
+	{0x1C000000, "pd-dpu"},
+	{0x1C600000, "pd-g2d"},
+	{0x1C800000, "pd-mfc"},
+	{0x1A400000, "pd-csis"},
+	{0x1AA00000, "pd-pdp"},
+	{0x1B400000, "pd-itp"},
+	{0x1B000000, "pd-dns"},
+	{0x1A800000, "pd-g3aa"},
+	{0x1AC00000, "pd-ipp"},
+	{0x1B700000, "pd-mcsc"},
+	{0x1BA00000, "pd-gdc"},
+	{0x1BC00000, "pd-tnr"},
+	{0x1CA00000, "pd-bo"},
+	{0x1CC00000, "pd-tpu"},
+};
 
 void gs101_cal_data_init(void)
 {
@@ -62,3 +89,21 @@ void gs101_cal_data_init(void)
 void (*cal_data_init)(void) = gs101_cal_data_init;
 int (*wa_set_cmuewf)(unsigned int index, unsigned int en, void *cmu_cmu, int *ewf_refcnt) = NULL;
 void (*cal_set_cmu_smpl_warn)(void) = NULL;
+
+char *gs101_get_pd_name_by_cmu(unsigned int addr)
+{
+	int i, map_size;
+
+	map_size = ARRAY_SIZE(cmu_pmu_map);
+	for (i = 0; i < map_size; i++) {
+		if (cmu_pmu_map[i].cmu == addr)
+			break;
+	}
+
+	if (i < map_size)
+		return cmu_pmu_map[i].pmu;
+
+	return NULL;
+}
+
+char *(*cal_get_pd_name_by_cmu)(unsigned int addr) = gs101_get_pd_name_by_cmu;

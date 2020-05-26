@@ -630,6 +630,7 @@ extern void (*cal_data_init)(void);
 extern int (*cal_check_hiu_dvfs_id)(u32 id);
 extern void (*cal_set_cmu_smpl_warn)(void);
 extern void (*cal_set_cmu_ocp_warn)(void);
+extern char *(*cal_get_pd_name_by_cmu)(unsigned int addr);
 #if defined(CONFIG_DEBUG_FS) && IS_ENABLED(CONFIG_CMUCAL_DEBUG)
 extern void cmucal_dbg_set_cmu_top_base(u32 base_addr);
 #else
