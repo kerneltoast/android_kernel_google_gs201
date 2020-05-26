@@ -417,6 +417,7 @@ unsigned int vclk_get_resume_freq(unsigned int id)
 	return rate;
 }
 
+#if 0
 static int vclk_get_dfs_info(struct vclk *vclk)
 {
 	int i, j;
@@ -560,8 +561,8 @@ static struct ect_voltage_table *get_max_min_freq_lv(struct ect_voltage_domain *
 
 	return table;
 }
-
-
+#endif
+#if 0
 static int vclk_get_asv_info(struct vclk *vclk)
 {
 	void *asv_block;
@@ -655,7 +656,7 @@ static void vclk_bind(void)
 		}
 	}
 }
-
+#endif
 int vclk_register_ops(unsigned int id, struct vclk_trans_ops *ops)
 {
 	struct vclk *vclk;
