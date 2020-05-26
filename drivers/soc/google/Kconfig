@@ -70,4 +70,16 @@ config EXYNOS_PMU_IF
 	help
 	Support PMU register API for Exynos SoC.
 
+config EXYNOS_PD
+	tristate "Exynos PM domain Support"
+	depends on CAL_IF && CMUCAL
+	depends on PM
+	select PM_GENERIC_DOMAINS
+
+config EXYNOS_PD_DBG
+	tristate "Exynos PM domain Support"
+	depends on CAL_IF && CMUCAL
+	depends on PM
+	select PM_GENERIC_DOMAINS
+
 endmenu
