@@ -43,7 +43,6 @@ int pmucal_local_enable(unsigned int pd_id)
 		goto err_out;
 	}
 
-#if 0
 	if (pmucal_pd_list[pd_id].need_smc) {
 		ret = exynos_pd_tz_restore(pmucal_pd_list[pd_id].need_smc);
 		if (ret) {
@@ -52,7 +51,6 @@ int pmucal_local_enable(unsigned int pd_id)
 			goto err_out;
 		}
 	}
-#endif
 
 	ret = pmucal_rae_restore_seq(pmucal_pd_list[pd_id].save,
 				pmucal_pd_list[pd_id].num_save);
@@ -109,7 +107,6 @@ int pmucal_local_disable(unsigned int pd_id)
 	pmucal_rae_save_seq(pmucal_pd_list[pd_id].save,
 				pmucal_pd_list[pd_id].num_save);
 
-#if 0
 	if (pmucal_pd_list[pd_id].need_smc) {
 		ret = exynos_pd_tz_save(pmucal_pd_list[pd_id].need_smc);
 		if (ret) {
@@ -118,7 +115,6 @@ int pmucal_local_disable(unsigned int pd_id)
 			goto err_out;
 		}
 	}
-#endif
 
 	pmucal_dbg_set_emulation(pmucal_pd_list[pd_id].dbg);
 
