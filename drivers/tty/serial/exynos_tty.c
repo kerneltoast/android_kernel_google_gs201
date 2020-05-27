@@ -54,6 +54,7 @@
 
 #include <asm/irq.h>
 
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/consumer.h>
 
 #ifdef CONFIG_PM_DEVFREQ
@@ -75,6 +76,7 @@ struct exynos_uart_info {
 	unsigned long		tx_fifomask;
 	unsigned long		tx_fifoshift;
 	unsigned long		tx_fifofull;
+	unsigned int		rts_trig_shift;
 	unsigned int		def_clk_sel;
 	unsigned long		num_clks;
 	unsigned long		clksel_mask;
@@ -118,9 +120,6 @@ struct exynos_uart_dma {
 
 	int				tx_bytes_requested;
 	int				rx_bytes_requested;
-
-	spinlock_t rx_lock;
-	spinlock_t tx_lock;
 };
 
 struct uart_local_buf {
@@ -160,8 +159,9 @@ struct exynos_uart_port {
 	unsigned int			uart_panic_log;
 	struct pinctrl_state	*uart_pinctrl_rts;
 	struct pinctrl_state	*uart_pinctrl_default;
-	struct pinctrl *default_uart_pinctrl;
+	struct pinctrl *pinctrl;
 	unsigned int		rts_control;
+	unsigned int		rts_trig_level;
 
 	struct regmap			*usi_reg;
 	unsigned int			usi_offset;
@@ -265,7 +265,7 @@ static inline void exynos_clear_bit(struct uart_port *port, int idx,
 #define EXYNOS_RX_DMA			2
 
 /* Baudrate definition*/
-#define MAX_BAUD	3000000
+#define MAX_BAUD	4000000
 #define MIN_BAUD	0
 
 #define DEFAULT_SOURCE_CLK	200000000
@@ -307,24 +307,19 @@ static int exynos_uart_panic_handler(struct notifier_block *nb,
 	struct uart_port *port = &panic_port->port;
 
 	dev_err(panic_port->port.dev, " Register dump\n"
-		"ULCON	0x%08x	"
-		"UCON	0x%08x	"
-		"UFCON	0x%08x\n"
-		"UMCON	0x%08x	"
-		"UTRSTAT	0x%08x	"
-		"UERSTAT	0x%08x	"
-		"UMSTAT	0x%08x\n"
-		"UBRDIV	0x%08x	"
-		"UINTP	0x%08x	"
-		"UINTM	0x%08x\n"
+		"ULCON	0x%08x	UCON	0x%08x	UFCON	0x%08x	UMCON	0x%08x\n"
+		"UTRSTAT	0x%08x	UERSTAT	0x%08x	UFSTAT	0x%08x	UMSTAT	0x%08x\n"
+		"UBRDIV	0x%08x	UFRACVAL	0x%08x	UINTP	0x%08x	UINTM	0x%08x\n"
 		, readl(port->membase + S3C2410_ULCON)
 		, readl(port->membase + S3C2410_UCON)
 		, readl(port->membase + S3C2410_UFCON)
 		, readl(port->membase + S3C2410_UMCON)
 		, readl(port->membase + S3C2410_UTRSTAT)
 		, readl(port->membase + S3C2410_UERSTAT)
+		, readl(port->membase + S3C2410_UFSTAT)
 		, readl(port->membase + S3C2410_UMSTAT)
 		, readl(port->membase + S3C2410_UBRDIV)
+		, readl(port->membase + S3C2443_DIVSLOT)
 		, readl(port->membase + S3C64XX_UINTP)
 		, readl(port->membase + S3C64XX_UINTM)
 	);
@@ -341,17 +336,9 @@ static void uart_sfr_dump(struct exynos_uart_port *ourport)
 	struct uart_port *port = &ourport->port;
 
 	dev_err(ourport->port.dev, " Register dump\n"
-		"ULCON	0x%08x	"
-		"UCON	0x%08x	"
-		"UFCON	0x%08x\n"
-		"UMCON	0x%08x	"
-		"UTRSTAT	0x%08x	"
-		"UERSTAT	0x%08x	"
-		"UFSTAT	0x%08x	"
-		"UMSTAT	0x%08x\n"
-		"UBRDIV	0x%08x	"
-		"UINTP	0x%08x	"
-		"UINTM	0x%08x\n"
+		"ULCON	0x%08x	UCON	0x%08x	UFCON	0x%08x	UMCON	0x%08x\n"
+		"UTRSTAT	0x%08x	UERSTAT	0x%08x	UFSTAT	0x%08x	UMSTAT	0x%08x\n"
+		"UBRDIV	0x%08x	UFRACVAL	0x%08x	UINTP	0x%08x	UINTM	0x%08x\n"
 		, readl(port->membase + S3C2410_ULCON)
 		, readl(port->membase + S3C2410_UCON)
 		, readl(port->membase + S3C2410_UFCON)
@@ -361,6 +348,7 @@ static void uart_sfr_dump(struct exynos_uart_port *ourport)
 		, readl(port->membase + S3C2410_UFSTAT)
 		, readl(port->membase + S3C2410_UMSTAT)
 		, readl(port->membase + S3C2410_UBRDIV)
+		, readl(port->membase + S3C2443_DIVSLOT)
 		, readl(port->membase + S3C64XX_UINTP)
 		, readl(port->membase + S3C64XX_UINTM)
 	);
@@ -372,19 +360,17 @@ static void change_uart_gpio(int value, struct exynos_uart_port *ourport)
 
 	if (value) {
 		if (!IS_ERR(ourport->uart_pinctrl_rts)) {
-			status = pinctrl_select_state(ourport->default_uart_pinctrl,
+			status = pinctrl_select_state(ourport->pinctrl,
 						      ourport->uart_pinctrl_rts);
 			if (status)
-				dev_err(ourport->port.dev,
-					"Can't set RTS uart pins!!!\n");
+				dev_err(ourport->port.dev, "Can't set RTS uart pins!!!\n");
 		}
 	} else {
 		if (!IS_ERR(ourport->uart_pinctrl_default)) {
-			status = pinctrl_select_state(ourport->default_uart_pinctrl,
+			status = pinctrl_select_state(ourport->pinctrl,
 						      ourport->uart_pinctrl_default);
 			if (status)
-				dev_err(ourport->port.dev,
-					"Can't set default uart pins!!!\n");
+				dev_err(ourport->port.dev, "Can't set default uart pins!!!\n");
 		}
 	}
 }
@@ -517,13 +503,14 @@ static void uart_copy_to_local_buf(int dir, struct uart_local_buf *local_buf,
 					     local_buf->index, "[TX] ");
 
 	for (i = 0; i < len; i++) {
-		local_buf->index += snprintf(local_buf->buffer + local_buf->index,
-					local_buf->size - local_buf->index,
-					"%02X ", trace_buf[i]);
+		local_buf->index += snprintf(local_buf->buffer +
+					     local_buf->index,
+					     local_buf->size - local_buf->index,
+					     "%02X ", trace_buf[i]);
 	}
 
 	local_buf->index += snprintf(local_buf->buffer + local_buf->index,
-					local_buf->size - local_buf->index, "\n");
+				     local_buf->size - local_buf->index, "\n");
 }
 
 static void exynos_serial_resetport(struct uart_port *port,
@@ -581,7 +568,7 @@ static void exynos_serial_rx_enable(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 
 	while (--count && !exynos_serial_txempty_nofifo(port))
-		udelay(100);
+		usleep_range(100, 200);
 
 	ufcon = rd_regl(port, S3C2410_UFCON);
 	ufcon |= S3C2410_UFCON_RESETRX;
@@ -667,7 +654,7 @@ static void exynos_serial_tx_dma_complete(void *args)
 	dma_sync_single_for_cpu(ourport->port.dev, dma->tx_transfer_addr,
 				dma->tx_size, DMA_TO_DEVICE);
 
-	spin_lock_irqsave(&dma->tx_lock, flags);
+	spin_lock_irqsave(&port->lock, flags);
 
 	xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
 	port->icount.tx += count;
@@ -677,7 +664,7 @@ static void exynos_serial_tx_dma_complete(void *args)
 		uart_write_wakeup(port);
 
 	exynos_serial_start_next_tx(ourport);
-	spin_unlock_irqrestore(&dma->tx_lock, flags);
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void enable_tx_dma(struct exynos_uart_port *ourport)
@@ -821,7 +808,7 @@ static void exynos_serial_start_tx(struct uart_port *port)
 }
 
 static void exynos_uart_copy_rx_to_tty(struct exynos_uart_port *ourport, struct
-				       tty_port *tty, int count)
+				       tty_port * tty, int count)
 {
 	struct exynos_uart_dma *dma = ourport->dma;
 	int copied;
@@ -927,7 +914,7 @@ static void exynos_serial_rx_dma_complete(void *args)
 	received  = dma->rx_bytes_requested - state.residue;
 	async_tx_ack(dma->rx_desc);
 
-	spin_lock_irqsave(&dma->rx_lock, flags);
+	spin_lock_irqsave(&port->lock, flags);
 
 	if (received)
 		exynos_uart_copy_rx_to_tty(ourport, t, received);
@@ -939,7 +926,7 @@ static void exynos_serial_rx_dma_complete(void *args)
 
 	s3c64xx_start_rx_dma(ourport);
 
-	spin_unlock_irqrestore(&dma->rx_lock, flags);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	flush_workqueue(system_unbound_wq);
 }
@@ -1083,6 +1070,9 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 	unsigned char trace_buf[256] = {0, };
 	int trace_cnt = 0;
 
+	exynos_set_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
+	wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
+
 	while (max_count-- > 0) {
 		/*
 		 * Receive all characters known to be in FIFO
@@ -1091,11 +1081,8 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 		if (fifocnt == 0) {
 			ufstat = rd_regl(port, S3C2410_UFSTAT);
 			fifocnt = exynos_serial_rx_fifocnt(ourport, ufstat);
-			if (fifocnt == 0) {
-				wr_regl(port, S3C64XX_UINTP,
-					S3C64XX_UINTM_RXD_MSK);
+			if (fifocnt == 0)
 				break;
-			}
 		}
 		fifocnt--;
 
@@ -1174,6 +1161,8 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 		uart_copy_to_local_buf(1, &ourport->uart_local_buf, trace_buf,
 				       trace_cnt);
 
+	exynos_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
+
 	tty_insert_flip_string(&port->state->port, insert_buf, insert_cnt);
 	tty_flip_buffer_push(&port->state->port);
 }
@@ -1183,121 +1172,14 @@ exynos_serial_rx_chars_pio(void *dev_id)
 {
 	struct exynos_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
-	unsigned int ufcon, ch, flag, ufstat, uerstat;
 	unsigned long flags;
-	int fifocnt = 0;
-	int max_count = port->fifosize;
-	unsigned char insert_buf[256] = {0, };
-	unsigned int insert_cnt = 0;
-	unsigned char trace_buf[256] = {0, };
-	int trace_cnt = 0;
 
 	spin_lock_irqsave(&port->lock, flags);
-
-	while (max_count-- > 0) {
-		/*
-		 * Receive all characters known to be in FIFO
-		 * before reading FIFO level again
-		 */
-		if (fifocnt == 0) {
-			ufstat = rd_regl(port, S3C2410_UFSTAT);
-			fifocnt = exynos_serial_rx_fifocnt(ourport, ufstat);
-			if (fifocnt == 0) {
-				wr_regl(port, S3C64XX_UINTP,
-					S3C64XX_UINTM_RXD_MSK);
-				break;
-			}
-		}
-		fifocnt--;
-
-		uerstat = rd_regl(port, S3C2410_UERSTAT);
-		ch = rd_reg(port, S3C2410_URXH);
-
-		if (port->flags & UPF_CONS_FLOW) {
-			int txe = exynos_serial_txempty_nofifo(port);
-
-			if (rx_enabled(port)) {
-				if (!txe) {
-					rx_enabled(port) = 0;
-					continue;
-				}
-			} else {
-				if (txe) {
-					ufcon = rd_regl(port, S3C2410_UFCON);
-					ufcon |= S3C2410_UFCON_RESETRX;
-					wr_regl(port, S3C2410_UFCON, ufcon);
-					rx_enabled(port) = 1;
-					spin_unlock_irqrestore(&port->lock,
-							       flags);
-					goto out;
-				}
-				continue;
-			}
-		}
-
-		/* insert the character into the buffer */
-
-		flag = TTY_NORMAL;
-		port->icount.rx++;
-
-		if (unlikely(uerstat & S3C2410_UERSTAT_ANY)) {
-			pr_debug("rxerr: port ch=0x%02x, rxs=0x%08x\n",
-				 ch, uerstat);
-
-			uart_sfr_dump(ourport);
-
-			/* check for break */
-			if (uerstat & S3C2410_UERSTAT_BREAK) {
-				pr_debug("break!\n");
-				port->icount.brk++;
-				if (uart_handle_break(port))
-					goto ignore_char;
-			}
-
-			if (uerstat & S3C2410_UERSTAT_FRAME) {
-				pr_err("[tty] uerstat & S3C2410_UERSTAT_FRAME!\n");
-				port->icount.frame++;
-			}
-			if (uerstat & S3C2410_UERSTAT_OVERRUN) {
-				pr_err("[tty] uerstat & S3C2410_UERSTAT_OVERRUN!\n");
-				port->icount.overrun++;
-			}
-			uerstat &= port->read_status_mask;
-
-			if (uerstat & S3C2410_UERSTAT_BREAK) {
-				pr_err("[tty] uerstat & S3C2410_UERSTAT_BREAK2!\n");
-				flag = TTY_BREAK;
-			} else if (uerstat & S3C2410_UERSTAT_PARITY) {
-				pr_err("[tty] uerstat & S3C2410_UERSTAT_PARITY!\n");
-				flag = TTY_PARITY;
-			} else if (uerstat & (S3C2410_UERSTAT_FRAME |
-					    S3C2410_UERSTAT_OVERRUN))
-				flag = TTY_FRAME;
-		}
-
-		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
-
-		insert_buf[insert_cnt++] = ch;
-		if (ourport->uart_logging)
-			trace_buf[trace_cnt++] = ch;
-
- ignore_char:
-		continue;
-	}
-
-	if (ourport->uart_logging && trace_cnt)
-		uart_copy_to_local_buf(1, &ourport->uart_local_buf, trace_buf,
-				       trace_cnt);
-
-	wr_regl(port, S3C2410_UTRSTAT, S3C2410_UTRSTAT_TIMEOUT);
-
+	exynos_serial_rx_drain_fifo(ourport);
 	spin_unlock_irqrestore(&port->lock, flags);
-	tty_insert_flip_string(&port->state->port, insert_buf, insert_cnt);
-	tty_flip_buffer_push(&port->state->port);
+
 	flush_workqueue(system_unbound_wq);
 
- out:
 	return IRQ_HANDLED;
 }
 
@@ -1656,53 +1538,6 @@ static void exynos_serial_shutdown(struct uart_port *port)
 static int exynos_serial_startup(struct uart_port *port)
 {
 	struct exynos_uart_port *ourport = to_ourport(port);
-	int ret;
-
-	dev_dbg(port->dev, "%s: port=%p (%08llx,%p)\n", __func__, port,
-		(unsigned long long)port->mapbase, port->membase);
-
-	rx_enabled(port) = 1;
-
-	ret = request_irq(ourport->rx_irq, exynos_serial_rx_chars, 0,
-			  exynos_serial_portname(port), ourport);
-
-	if (ret != 0) {
-		dev_err(port->dev, "cannot get irq %d\n", ourport->rx_irq);
-		return ret;
-	}
-
-	ourport->rx_claimed = 1;
-
-	dev_dbg(port->dev, "requesting tx irq...\n");
-
-	tx_enabled(port) = 1;
-
-	ret = request_irq(ourport->tx_irq, exynos_serial_tx_chars, 0,
-			  exynos_serial_portname(port), ourport);
-
-	if (ret) {
-		dev_err(port->dev, "cannot get irq %d\n", ourport->tx_irq);
-		goto err;
-	}
-
-	ourport->tx_claimed = 1;
-
-	dev_dbg(port->dev, "%s ok\n", __func__);
-
-	/* the port reset code should have done the correct
-	 * register setup for the port controls
-	 */
-
-	return ret;
-
-err:
-	exynos_serial_shutdown(port);
-	return ret;
-}
-
-static int s3c64xx_serial_startup(struct uart_port *port)
-{
-	struct exynos_uart_port *ourport = to_ourport(port);
 	unsigned long flags;
 	unsigned int ufcon;
 	int ret;
@@ -2044,8 +1879,6 @@ static void exynos_serial_set_termios(struct uart_port *port,
 	umcon = rd_regl(port, S3C2410_UMCON);
 	if (termios->c_cflag & CRTSCTS) {
 		umcon |= S3C2410_UMCOM_AFC;
-		/* Disable RTS when RX FIFO contains 63 bytes */
-		umcon &= ~S3C2412_UMCON_AFC_8;
 		port->status = UPSTAT_AUTOCTS;
 	} else {
 		umcon &= ~S3C2410_UMCOM_AFC;
@@ -2159,7 +1992,7 @@ static void exynos_serial_put_poll_char(struct uart_port *port,
 					unsigned char c);
 #endif
 
-static struct uart_ops exynos_serial_ops = {
+static const struct uart_ops exynos_serial_ops = {
 	.pm		= exynos_serial_pm,
 	.tx_empty	= exynos_serial_tx_empty,
 	.get_mctrl	= exynos_serial_get_mctrl,
@@ -2333,6 +2166,7 @@ static void exynos_serial_resetport(struct uart_port *port,
 	struct exynos_uart_info *info = exynos_port_to_info(port);
 	struct exynos_uart_port *ourport = to_ourport(port);
 	unsigned long ucon = rd_regl(port, S3C2410_UCON);
+	unsigned long umcon = rd_regl(port, S3C2410_UMCON);
 	unsigned int ucon_mask;
 
 	ucon_mask = info->clksel_mask;
@@ -2344,6 +2178,13 @@ static void exynos_serial_resetport(struct uart_port *port,
 		dev_err(port->dev, "Change Loopback mode!\n");
 		ucon |= S3C2443_UCON_LOOPBACK;
 	}
+
+	/* Disable RTS when RX FIFO contains 63 bytes */
+	umcon &= ~S3C2412_UMCON_AFC_8;
+	/* Set rts trigger level if declared */
+	if (ourport->rts_trig_level && info->rts_trig_shift)
+		umcon |= ourport->rts_trig_level << info->rts_trig_shift;
+	wr_regl(port, S3C2410_UMCON, umcon);
 
 	/* To prevent unexpected Interrupt before enabling the channel */
 	wr_regl(port, S3C64XX_UINTM, 0xf);
@@ -2383,10 +2224,6 @@ static int exynos_serial_init_port(struct exynos_uart_port *ourport,
 	/* setup info for port */
 	port->dev	= &platdev->dev;
 	ourport->pdev	= platdev;
-
-	/* Startup sequence is different for s3c64xx and higher SoC's */
-	if (exynos_serial_has_interrupt_mask(port))
-		exynos_serial_ops.startup = s3c64xx_serial_startup;
 
 	port->uartclk = 1;
 
@@ -2435,8 +2272,7 @@ static int exynos_serial_init_port(struct exynos_uart_port *ourport,
 					    GFP_KERNEL);
 		if (!ourport->dma)
 			return -ENOMEM;
-		spin_lock_init(&ourport->dma->rx_lock);
-		spin_lock_init(&ourport->dma->tx_lock);
+
 		dev_info(port->dev, "DMA ENABLED\n");
 	}
 
@@ -2503,7 +2339,8 @@ static int exynos_serial_init_port(struct exynos_uart_port *ourport,
 static const struct of_device_id exynos_uart_dt_match[];
 static int probe_index;
 
-static inline struct exynos_serial_drv_data *exynos_get_driver_data(struct platform_device *pdev)
+static inline struct exynos_serial_drv_data *exynos_get_driver_data
+(struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
@@ -2517,27 +2354,21 @@ static inline struct exynos_serial_drv_data *exynos_get_driver_data(struct platf
 			platform_get_device_id(pdev)->driver_data;
 }
 
-void exynos_serial_rx_fifo_wait(void)
+static void exynos_serial_rx_fifo_wait(struct exynos_uart_port *ourport)
 {
-	struct exynos_uart_port *ourport;
-	struct uart_port *port;
+	struct uart_port *port = &ourport->port;
 	unsigned int fifo_stat;
 	unsigned long wait_time;
 	unsigned int fifo_count;
 
 	fifo_count = 0;
 
-	list_for_each_entry(ourport, &drvdata_list, node) {
-		port = &ourport->port;
-		fifo_stat = rd_regl(port, S3C2410_UFSTAT);
-		fifo_count = exynos_serial_rx_fifocnt(ourport, fifo_stat);
-		if (fifo_count) {
-			uart_clock_enable(ourport);
-			exynos_clear_bit(port, S3C64XX_UINTM_RXD,
-					 S3C64XX_UINTM);
-			uart_clock_disable(ourport);
-			rx_enabled(port) = 1;
-		}
+	fifo_stat = rd_regl(port, S3C2410_UFSTAT);
+	fifo_count = exynos_serial_rx_fifocnt(ourport, fifo_stat);
+	if (fifo_count) {
+		exynos_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
+		rx_enabled(port) = 1;
+
 		wait_time = jiffies + HZ;
 		do {
 			port = &ourport->port;
@@ -2545,12 +2376,11 @@ void exynos_serial_rx_fifo_wait(void)
 			cpu_relax();
 		} while (exynos_serial_rx_fifocnt(ourport, fifo_stat) &&
 			 time_before(jiffies, wait_time));
-
-		if (rx_enabled(port))
-			exynos_serial_stop_rx(port);
 	}
+
+	if (rx_enabled(port))
+		exynos_serial_stop_rx(port);
 }
-EXPORT_SYMBOL_GPL(exynos_serial_rx_fifo_wait);
 
 void exynos_serial_fifo_wait(void)
 {
@@ -2652,6 +2482,7 @@ static int exynos_serial_probe(struct platform_device *pdev)
 	int index = probe_index;
 	int ret, fifo_size, prop = 0;
 	int port_index = probe_index;
+	int rts_trig_level;
 
 	dev_dbg(&pdev->dev, "%s %d\n", __func__, index);
 
@@ -2753,24 +2584,27 @@ static int exynos_serial_probe(struct platform_device *pdev)
 	if (of_get_property(pdev->dev.of_node, "samsung,rts-gpio-control",
 			    NULL)) {
 		ourport->rts_control = 1;
-		ourport->default_uart_pinctrl = devm_pinctrl_get(&pdev->dev);
-		if (IS_ERR(ourport->default_uart_pinctrl)) {
+		ourport->pinctrl = devm_pinctrl_get(&pdev->dev);
+		if (IS_ERR(ourport->pinctrl)) {
 			dev_err(&pdev->dev, "Can't get uart pinctrl!!!\n");
 		} else {
 			ourport->uart_pinctrl_rts =
-				pinctrl_lookup_state(ourport->default_uart_pinctrl,
-						     "rts");
+				pinctrl_lookup_state(ourport->pinctrl, "rts");
 			if (IS_ERR(ourport->uart_pinctrl_rts))
 				dev_err(&pdev->dev,
 					"Can't get RTS pinstate!!!\n");
 
 			ourport->uart_pinctrl_default =
-				pinctrl_lookup_state(ourport->default_uart_pinctrl,
+				pinctrl_lookup_state(ourport->pinctrl,
 						     "default");
 			if (IS_ERR(ourport->uart_pinctrl_default))
 				dev_err(&pdev->dev,
 					"Can't get Default pinstate!!!\n");
 		}
+	}
+	if (!of_property_read_u32(pdev->dev.of_node, "samsung,rts-trig-level",
+				  &rts_trig_level)) {
+		ourport->rts_trig_level = rts_trig_level;
 	}
 
 	if (!of_property_read_u32(pdev->dev.of_node, "samsung,fifo-size",
@@ -2783,7 +2617,8 @@ static int exynos_serial_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(pdev->dev.of_node, "reg-io-width", &prop) == 0) {
+	if (of_property_read_u32(pdev->dev.of_node,
+				 "reg-io-width", &prop) == 0) {
 		switch (prop) {
 		case 1:
 			ourport->port.iotype = UPIO_MEM;
@@ -2793,7 +2628,7 @@ static int exynos_serial_probe(struct platform_device *pdev)
 			break;
 		default:
 			dev_warn(&pdev->dev, "unsupported reg-io-width (%d)\n",
-					prop);
+				 prop);
 			ret = -EINVAL;
 			break;
 		}
@@ -2850,7 +2685,8 @@ static int exynos_serial_probe(struct platform_device *pdev)
 	else
 		ourport->uart_logging = 0;
 
-	if (of_find_property(pdev->dev.of_node, "samsung,use-default-irq", NULL))
+	if (of_find_property(pdev->dev.of_node,
+			     "samsung,use-default-irq", NULL))
 		ourport->use_default_irq = 1;
 	else
 		ourport->use_default_irq = 0;
@@ -2944,8 +2780,8 @@ static int exynos_serial_suspend(struct device *dev)
 		if (ourport->rts_control)
 			change_uart_gpio(RTS_PINCTRL, ourport);
 
-		udelay(300);//dealy for sfr update
-		exynos_serial_rx_fifo_wait();
+		usleep_range(200, 300);//delay for sfr update
+		exynos_serial_rx_fifo_wait(ourport);
 
 		uart_suspend_port(&exynos_uart_drv, port);
 		uart_clock_enable(ourport);
