@@ -1659,16 +1659,10 @@ static unsigned int exynos_serial_getclk(struct exynos_uart_port *ourport,
 
 		rate = clk_get_rate(ourport->clk);
 
-		if (ourport->src_clk_rate && rate != ourport->src_clk_rate) {
+		if (rate == 0 && ourport->src_clk_rate) {
 			ret = clk_set_rate(ourport->clk, ourport->src_clk_rate);
 			if (ret < 0)
 				dev_err(&ourport->pdev->dev, "UART clk set failed\n");
-
-			rate = clk_get_rate(ourport->clk);
-		} else {
-			ret = clk_set_rate(ourport->clk, ourport->src_clk_rate);
-			if (ret < 0)
-				dev_err(&ourport->pdev->dev, "UART Default clk set failed\n");
 
 			rate = clk_get_rate(ourport->clk);
 		}
@@ -2957,7 +2951,6 @@ exynos_serial_get_options(struct uart_port *port, int *baud, int *parity,
 	unsigned int ucon;
 	unsigned int ubrdiv;
 	unsigned long rate;
-	int ret;
 
 	ulcon  = rd_regl(port, S3C2410_ULCON);
 	ucon   = rd_regl(port, S3C2410_UCON);
@@ -3000,14 +2993,6 @@ exynos_serial_get_options(struct uart_port *port, int *baud, int *parity,
 
 		/* now calculate the baud rate */
 		rate = clk_get_rate(ourport->clk);
-
-		if (ourport->src_clk_rate && rate != ourport->src_clk_rate) {
-			ret = clk_set_rate(ourport->clk, ourport->src_clk_rate);
-			if (ret < 0)
-				dev_err(&ourport->pdev->dev, "UART clk set failed\n");
-
-			rate = clk_get_rate(ourport->clk);
-		}
 
 		*baud = rate / (16 * (ubrdiv + 1));
 		dev_dbg(&ourport->pdev->dev, "calculated baud %d\n", *baud);
