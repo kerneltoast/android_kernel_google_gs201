@@ -17,6 +17,8 @@
 #include "gs101-cpu.dtsi"
 #include "gs101-sysmmu.dtsi"
 #include "gs101-ufs.dtsi"
+#include "gs101-rmem.dtsi"
+#include "gs101-ion.dtsi"
 
 / {
 	compatible = "google,gs101";

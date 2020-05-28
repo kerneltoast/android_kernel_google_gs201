@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * GS101 SoC ION
+ *
+ * Copyright 2019 Google LLC
+ */
+
+/ {
+	ion_crypto_heap {
+		compatible = "exynos,ion,cma_heap";
+		memory-region = <&crypto_heap>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_video_fw_heap {
+		compatible = "exynos,ion,cma_heap";
+		memory-region = <&vfw_heap>;
+		ion,secure;
+		ion,protection_id = <2>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_video_stream_heap {
+		compatible = "exynos,ion,cma_heap";
+		memory-region = <&vstream_heap>;
+		ion,secure;
+		ion,protection_id = <3>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_video_frame_heap {
+		compatible = "exynos,ion,carveout_heap";
+		memory-region = <&vframe_heap>;
+		ion,secure;
+		ion,protection_id = <5>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_video_scaler_heap {
+		compatible = "exynos,ion,carveout_heap";
+		memory-region = <&vscaler_heap>;
+		ion,secure;
+		ion,protection_id = <6>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_video_nfw_heap {
+		compatible = "exynos,ion,cma_heap";
+		memory-region = <&vnfw_heap>;
+		ion,protection_id = <7>;
+		ion,alignment = <0x10000>;
+	};
+};
+
+&reserved_memory {
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	vfw_heap: vfw_heap {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x400000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	crypto_heap: crypto_heap {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x1800000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	vstream_heap: vstream_heap {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x4800000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	vframe_heap: vframe_heap {
+		size = <0x20000000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	vscaler_heap: vscaler_heap {
+		size = <0x3400000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	vnfw_heap: vnfw_heap {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x400000>;
+		alignment = <0x0 0x00010000>;
+	};
+};
