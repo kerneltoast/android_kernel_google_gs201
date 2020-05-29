@@ -12,6 +12,7 @@
 #include <dt-bindings/interrupt-controller/gs101.h>
 #include <dt-bindings/clock/gs101.h>
 #include "gs101-pinctrl.dtsi"
+#include "gs101-usi.dtsi"
 #include "gs101-pm-domains.dtsi"
 
 / {
