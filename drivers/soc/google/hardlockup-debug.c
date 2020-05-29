@@ -91,7 +91,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 
 				allcorelockup_detected = 1;
 				hardlockup_core_mask = 0;
-				for_each_possible_cpu(_cpu)
+				for_each_online_cpu(_cpu)
 					hardlockup_core_mask |= (1 << _cpu);
 			} else {
 				pr_emerg("%s: invalid magic from "
