@@ -382,6 +382,12 @@
 		reg = <0x0 0x17460000 0x10000>;
 	};
 
+	dsu-pmu-0 {
+		compatible = "arm,dsu-pmu";
+		interrupts = <GIC_SPI IRQ_CPUCL0_CLUSTERPMUIRQ_CPUCL0 IRQ_TYPE_LEVEL_HIGH>;
+		cpus = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>, <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
+	};
+
 	exynos-reboot {
 		compatible = "samsung,exynos-reboot";
 		syscon = <&pmu_system_controller>;
