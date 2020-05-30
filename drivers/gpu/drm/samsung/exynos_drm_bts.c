@@ -582,10 +582,10 @@ void dpu_bts_update_bw(struct decon_device *decon, bool shadow_updated)
 
 	if (shadow_updated) {
 		/* after DECON h/w configs are updated to shadow SFR */
-		if (decon->bts.total_bw <= decon->bts.prev_total_bw)
+		if (decon->bts.total_bw < decon->bts.prev_total_bw)
 			bts_update_bw(decon->bts.bw_idx, bw);
 
-		if (decon->bts.max_disp_freq <= decon->bts.prev_max_disp_freq)
+		if (decon->bts.max_disp_freq < decon->bts.prev_max_disp_freq)
 			exynos_pm_qos_update_request(&decon->bts.disp_qos,
 					decon->bts.max_disp_freq);
 
@@ -634,6 +634,8 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 		DPU_DEBUG_BTS("Get initial disp freq(%lu)\n",
 				cal_dfs_get_rate(ACPM_DVFS_DISP));
 #endif
+
+		decon->bts.prev_max_disp_freq = aclk_freq;
 
 		return;
 	}
