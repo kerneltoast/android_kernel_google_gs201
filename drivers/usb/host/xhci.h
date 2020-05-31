@@ -17,6 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/pm_wakeup.h>
+#include <linux/phy/phy.h>
 
 /* Code sharing between pci-quirks and xhci hcd */
 #include	"xhci-ext-caps.h"
@@ -1805,6 +1807,9 @@ struct xhci_hcd {
 	struct dma_pool	*small_streams_pool;
 	struct dma_pool	*medium_streams_pool;
 
+	struct wakeup_source *main_wakelock; /* Wakelock for HS HCD */
+	struct wakeup_source *shared_wakelock; /* Wakelock for SS HCD */
+
 	/* Host controller watchdog timer structures */
 	unsigned int		xhc_state;
 
@@ -1874,6 +1879,7 @@ struct xhci_hcd {
 #define XHCI_RESET_PLL_ON_DISCONNECT	BIT_ULL(34)
 #define XHCI_SNPS_BROKEN_SUSPEND    BIT_ULL(35)
 #define XHCI_RENESAS_FW_QUIRK	BIT_ULL(36)
+#define XHCI_L2_SUPPORT			BIT_ULL(63)
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
@@ -1902,6 +1908,9 @@ struct xhci_hcd {
 	struct list_head	regset_list;
 
 	void			*dbc;
+	struct phy		*phy_usb2;
+	struct phy		*phy_usb3;
+
 	/* platform-specific data -- must come last */
 	unsigned long		priv[] __aligned(sizeof(s64));
 };
@@ -2146,6 +2155,7 @@ int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1);
 struct xhci_hub *xhci_get_rhub(struct usb_hcd *hcd);
 
 void xhci_hc_died(struct xhci_hcd *xhci);
+int xhci_wake_lock(struct usb_hcd *hcd, int is_lock);
 
 #ifdef CONFIG_PM
 int xhci_bus_suspend(struct usb_hcd *hcd);
@@ -2156,6 +2166,10 @@ unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd);
 #define	xhci_bus_resume		NULL
 #define	xhci_get_resuming_ports	NULL
 #endif	/* CONFIG_PM */
+
+int exynos_usbdrd_phy_vendor_set(struct phy *phy, int is_enable,
+				 int is_cancel);
+int exynos_usbdrd_phy_tune(struct phy *phy, int phy_state);
 
 u32 xhci_port_state_to_neutral(u32 state);
 int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,

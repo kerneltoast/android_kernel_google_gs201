@@ -19,7 +19,6 @@
 #include <linux/usb.h>
 #include <linux/notifier.h>
 #include <linux/version.h>
-#include <linux/usb_notify.h>
 #include "usb_power_notify.h"
 #include "../core/hub.h"
 #include "core.h"
@@ -164,21 +163,27 @@ static int check_usb3_hub(struct usb_device *dev, bool on)
 		dev_dbg(ddev, "%s, class = %d, speed = %d\n",
 			__func__, udev->descriptor.bDeviceClass,
 						udev->speed);
-		if (udev && udev->state != USB_STATE_NOTATTACHED) {
-			bInterfaceClass	= dev->config->interface[0]
-					->cur_altsetting->desc.bInterfaceClass;
-			if (bInterfaceClass == USB_CLASS_HID) {
-				udev->do_remote_wakeup =
-					(udev->config->desc.bmAttributes &
-						USB_CONFIG_ATT_WAKEUP) ? 1 : 0;
-				if (udev->do_remote_wakeup == 1) {
-					device_init_wakeup(ddev, 1);
-					usb_enable_autosuspend(dev);
-				}
-				dev_dbg(ddev, "%s, remote_wakeup = %d\n",
-					__func__, udev->do_remote_wakeup);
-			}
+		dev_dbg(ddev, "udev = 0x%8x, state = %d\n", udev, udev->state);
+		if (udev && udev->state == USB_STATE_CONFIGURED) {
+			if (!dev->config->interface[0])
+				continue;
 
+			bInterfaceClass	= udev->config->interface[0]
+					->cur_altsetting->desc.bInterfaceClass;
+			if (on) {
+				if (bInterfaceClass == USB_CLASS_HID ||
+				    bInterfaceClass == USB_CLASS_AUDIO) {
+					udev->do_remote_wakeup =
+						(udev->config->desc.bmAttributes &
+							USB_CONFIG_ATT_WAKEUP) ? 1 : 0;
+					if (udev->do_remote_wakeup == 1) {
+						device_init_wakeup(ddev, 1);
+						usb_enable_autosuspend(dev);
+					}
+					dev_dbg(ddev, "%s, remote_wakeup = %d\n",
+						__func__, udev->do_remote_wakeup);
+				}
+			}
 			if (bInterfaceClass == USB_CLASS_HUB) {
 				port_state = PORT_HUB;
 				usb3_hub_detect = 1;
@@ -196,6 +201,11 @@ static int check_usb3_hub(struct usb_device *dev, bool on)
 			}
 			port_state = PORT_USB2;
 			usb2_detect = 1;
+		} else {
+			pr_info("not configured, state = %d\n",
+				udev->state);
+			port_state = PORT_USB3;
+			usb3_hub_detect = 1;
 		}
 	}
 

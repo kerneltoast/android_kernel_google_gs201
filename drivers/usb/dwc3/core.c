@@ -1694,6 +1694,13 @@ int dwc3_probe(struct platform_device *pdev,
 	 * since it will be requested by the xhci-plat driver.
 	 */
 	dwc_res = *res;
+	/*
+	 * devm_ioremap_resource is also used in XHCI host driver
+	 * so host register region from 0 to 0xc100 is excluded in
+	 * dwc3 driver. dwc3_readl, dwc3_writel recover
+	 * DWC3_GLOBALS_REGS_START offset again.
+	 */
+	dwc_res.start += DWC3_GLOBALS_REGS_START;
 
 	regs = devm_ioremap_resource(dev, &dwc_res);
 	if (IS_ERR(regs))
@@ -1701,8 +1708,6 @@ int dwc3_probe(struct platform_device *pdev,
 
 	dwc->regs	= regs;
 	dwc->regs_size	= resource_size(&dwc_res);
-
-	usb3_portsc = dwc->regs + PORTSC_OFFSET;
 
 	dwc3_get_properties(dwc);
 

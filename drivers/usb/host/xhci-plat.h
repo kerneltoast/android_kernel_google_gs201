@@ -20,4 +20,13 @@ struct xhci_plat_priv {
 
 #define hcd_to_xhci_priv(h) ((struct xhci_plat_priv *)hcd_to_xhci(h)->priv)
 #define xhci_to_priv(x) ((struct xhci_plat_priv *)(x)->priv)
+
+#if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
+extern void __iomem *usb3_portsc;
+extern u32 pp_set_delayed;
+extern int port_off_done;
+extern u32 portsc_control_priority;
+extern spinlock_t xhcioff_lock;
+#endif
+
 #endif	/* _XHCI_PLAT_H */

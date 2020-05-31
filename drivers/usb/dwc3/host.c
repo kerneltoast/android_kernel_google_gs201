@@ -117,11 +117,14 @@ int dwc3_host_init(struct dwc3 *dwc)
 		}
 	}
 
+/* block that host enable is called in booting time */
+#ifdef CONFIG_USB_DWC3_EXYNOS_NOT_DEFINED
 	ret = platform_device_add(xhci);
 	if (ret) {
 		dev_err(dwc->dev, "failed to register xHCI device\n");
 		goto err;
 	}
+#endif
 
 	return 0;
 err:
