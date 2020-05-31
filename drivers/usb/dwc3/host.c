@@ -78,6 +78,8 @@ int dwc3_host_init(struct dwc3 *dwc)
 	xhci->dev.parent	= dwc->dev;
 	ACPI_COMPANION_SET(&xhci->dev, ACPI_COMPANION(dwc->dev));
 
+	dma_set_coherent_mask(&xhci->dev, dwc->dev->coherent_dma_mask);
+
 	dwc->xhci = xhci;
 
 	ret = platform_device_add_resources(xhci, dwc->xhci_resources,

@@ -2,13 +2,15 @@
 # define_trace.h needs to know how to find our header
 CFLAGS_trace.o				:= -I$(src)
 
-obj-$(CONFIG_USB_DWC3)			+= dwc3.o
+obj-$(CONFIG_USB_DWC3_MODULE)			+= dwc3.o
 
 dwc3-y					:= core.o
 
 ifneq ($(CONFIG_TRACING),)
 	dwc3-y				+= trace.o
 endif
+
+dwc3-y					+= otg.o
 
 ifneq ($(filter y,$(CONFIG_USB_DWC3_HOST) $(CONFIG_USB_DWC3_DUAL_ROLE)),)
 	dwc3-y				+= host.o
@@ -30,6 +32,12 @@ ifneq ($(CONFIG_DEBUG_FS),)
 	dwc3-y				+= debugfs.o
 endif
 
+dwc3-y					+= dwc3-exynos.o
+
+ifneq ($(CONFIG_USB_PORT_POWER_OPTIMIZATION),)
+	dwc3-y				+= usb_power_notify.o
+endif
+
 ##
 # Platform-specific glue layers go here
 #
@@ -43,7 +51,7 @@ endif
 ##
 
 obj-$(CONFIG_USB_DWC3_OMAP)		+= dwc3-omap.o
-obj-$(CONFIG_USB_DWC3_EXYNOS)		+= dwc3-exynos.o
+#obj-$(CONFIG_USB_DWC3_EXYNOS)		+= dwc3-exynos.o
 obj-$(CONFIG_USB_DWC3_PCI)		+= dwc3-pci.o
 obj-$(CONFIG_USB_DWC3_HAPS)		+= dwc3-haps.o
 obj-$(CONFIG_USB_DWC3_KEYSTONE)		+= dwc3-keystone.o
