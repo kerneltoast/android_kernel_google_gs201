@@ -361,4 +361,97 @@
 		compatible = "google,i2c-acpm";
 		status = "okay";
 	};
+
+	udc: usb@11110000 {
+		compatible = "samsung,exynos-dwusb";
+		clocks = <&clock GATE_USB31DRD_SLV_LINK>,
+			<&clock MUX_HSI0_USB20_REF>;
+		clock-names = "aclk", "sclk";
+		reg = <0x0 0x11110000 0x10000>;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+		power-domains = <&pd_hsi0>;
+		status = "okay";
+
+		interrupts = <GIC_SPI IRQ_USB31DRD_GIC_0_HSI0 IRQ_TYPE_LEVEL_HIGH>;
+		tx-fifo-resize = <0>;
+		adj-sof-accuracy = <0>;
+		is_not_vbus_pad = <1>;
+		enable_sprs_transfer = <1>;
+		phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
+		phy-names = "usb2-phy", "usb3-phy";
+		/* check susphy support */
+		xhci_l2_support = <1>;
+		dr_mode = "otg";
+		suspend_clk_freq = <19200000>;
+		/* support usb audio offloading: 1, if not: 0 */
+		usb_audio_offloading = <0>;
+		/* INT min lock support */
+		//usb-pm-qos-int = <400000>;
+	};
+
+	usbdrd_phy0: phy@11100000 {
+		compatible = "samsung,exynos-usbdrd-phy";
+		reg = <0x0 0x11100000 0x200>,
+				<0x0 0x110E0000 0x2800>,
+				<0x0 0x110F0000 0x800>,
+				<0x0 0x11110000 0x10000>;
+		interrupts = <GIC_SPI IRQ_USB2_REMOTE_WAKEUP_GIC_HSI0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_USB2_REMOTE_CONNECT_GIC_HSI0 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock MUX_HSI0_USB20_REF>,
+			<&clock GATE_USB31DRD_SLV_LINK>;
+		clock-names = "phy_ref", "aclk";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		pmu_mask = <0x0>;
+		/*pmu_mask_pll = <0x1>;*/
+		pmu_offset = <0x3EB0>;
+		pmu_offset_dp = <0x3EB4>;
+		/* USBDP combo phy version	- 0x200 */
+		phy_version = <0x301>;
+		/* if it doesn't need phy user mux, */
+		/*	you should write "none" */
+		/*	but refclk shouldn't be omitted */
+		phyclk_mux = "none";
+		phy_refclk = "phy_ref";
+
+		/*
+		 * if Main phy has the other phy,
+		 * it must be set to 1 just for usbphy_info
+		 */
+		has_other_phy = <0>;
+		/*
+		 * if combo phy is used, it must be set to 1.
+		 * usbphy_sub_info is enabled
+		 */
+		has_combo_phy = <1>;
+		sub_phy_version = <0x404>;
+
+		/* ip type */
+		/* USB3DRD = 0 */
+		/*	USB3HOST = 1 */
+		/*	USB2DRD = 2 */
+		/*	USB2HOST = 3 */
+		ip_type = <0x0>;
+
+		/* for PHY CAL */
+		/* choice only one item */
+		phy_refsel_clockcore = <1>;
+		phy_refsel_ext_osc = <0>;
+		phy_refsel_xtal = <0>;
+		phy_refsel_diff_pad = <0>;
+		phy_refsel_diff_internal = <0>;
+		phy_refsel_diff_single = <0>;
+
+		/* true : 1 , false : 0 */
+		use_io_for_ovc = <0>;
+		common_block_disable = <1>;
+		is_not_vbus_pad = <1>;
+		used_phy_port = <0>;
+
+		status = "okay";
+
+		#phy-cells = <1>;
+		ranges;
+	};
 };
