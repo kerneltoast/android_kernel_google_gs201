@@ -1050,6 +1050,27 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 			goto fail_f_midi;
 	}
 
+	if (gadget_is_superspeed_plus(c->cdev->gadget)) {
+		bulk_in_desc.wMaxPacketSize = cpu_to_le16(1024);
+		bulk_out_desc.wMaxPacketSize = cpu_to_le16(1024);
+		i = endpoint_descriptor_index;
+		midi_function[i++] =
+			(struct usb_descriptor_header *)&bulk_out_desc;
+		midi_function[i++] =
+			(struct usb_descriptor_header *)&bulk_out_ss_comp_desc;
+		midi_function[i++] =
+			(struct usb_descriptor_header *)&ms_out_desc;
+		midi_function[i++] =
+			(struct usb_descriptor_header *)&bulk_in_desc;
+		midi_function[i++] =
+			(struct usb_descriptor_header *)&bulk_in_ss_comp_desc;
+		midi_function[i++] =
+			(struct usb_descriptor_header *)&ms_in_desc;
+		f->ssp_descriptors = usb_copy_descriptors(midi_function);
+		if (!f->ssp_descriptors)
+			goto fail_f_midi;
+	}
+
 	kfree(midi_function);
 
 	return 0;
