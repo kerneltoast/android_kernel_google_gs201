@@ -19,7 +19,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/clocksource.h>
-#include <linux/sched_clock.h>
 
 #define EXYNOS4_MCTREG(x)		(x)
 #define EXYNOS4_MCT_G_CNT_L		EXYNOS4_MCTREG(0x100)
@@ -184,12 +183,11 @@ static u64 exynos4_read_count_64(void)
 /**
  * exynos4_read_count_32 - Read the lower 32-bits of the global counter
  *
- * This will read just the lower 32-bits of the global counter.  This is marked
- * as notrace so it can be used by the scheduler clock.
+ * This will read just the lower 32-bits of the global counter.
  *
  * Returns the number of cycles in the global counter (lower 32 bits).
  */
-static u32 notrace exynos4_read_count_32(void)
+static u32 exynos4_read_count_32(void)
 {
 	return readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_L);
 }
@@ -212,11 +210,6 @@ static struct clocksource mct_frc = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.resume		= exynos4_frc_resume,
 };
-
-static u64 notrace exynos4_read_sched_clock(void)
-{
-	return exynos4_read_count_32();
-}
 
 #if defined(CONFIG_ARM)
 static struct delay_timer exynos4_delay_timer;
@@ -241,8 +234,6 @@ static int __init exynos4_clocksource_init(void)
 
 	if (clocksource_register_hz(&mct_frc, clk_rate))
 		panic("%s: can't register clocksource\n", mct_frc.name);
-
-	sched_clock_register(exynos4_read_sched_clock, 32, clk_rate);
 
 	return 0;
 }
