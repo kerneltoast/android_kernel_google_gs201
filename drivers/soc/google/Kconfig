@@ -88,4 +88,12 @@ config EXYNOS_PD_EL3
 	help
 	Support Exynos Power Domain Save/Restore
 
+source "drivers/soc/google/acpm/Kconfig"
+
+config ACPM_DVFS
+	tristate "ACPM DVFS manager"
+	depends on CAL_IF && CMUCAL
+	help
+	 Support ACPM DVFS for GS SoC.
+
 endmenu

@@ -23,10 +23,10 @@ struct ipc_config {
 #define ACPM_IPC_PROTOCOL_INDIRECTION		(29)
 #define ACPM_IPC_PROTOCOL_ID			(26)
 #define ACPM_IPC_PROTOCOL_IDX			(0x7 << ACPM_IPC_PROTOCOL_ID)
-#define ACPM_IPC_PROTOCOL_DP_ATTACH		(25)
-#define ACPM_IPC_PROTOCOL_DP_DETACH		(24)
-#define ACPM_IPC_PROTOCOL_DP_CMD		((1 << IPC_PROTOCOL_DP_ATTACH)|\
-						 (1 << IPC_PROTOCOL_DP_DETACH))
+#define ACPM_IPC_PROTOCOL_DP_A			(25)
+#define ACPM_IPC_PROTOCOL_DP_D			(24)
+#define ACPM_IPC_PROTOCOL_DP_CMD		((1 << ACPM_IPC_PROTOCOL_DP_A) |\
+						 (1 << ACPM_IPC_PROTOCOL_DP_D))
 #define ACPM_IPC_PROTOCOL_TEST			(23)
 #define ACPM_IPC_PROTOCOL_STOP			(22)
 #define ACPM_IPC_PROTOCOL_SEQ_NUM		(16)
@@ -40,7 +40,7 @@ enum acpm_print_settings {
 	ACPM_GET_LOGB_GPRIO_LEVEL,
 };
 
-#if IS_ENABLED(CONFIG_EXYNOS_ACPM)
+#if IS_ENABLED(CONFIG_GS_ACPM_MODULE)
 extern unsigned int acpm_ipc_request_channel(struct device_node *np,
 		ipc_callback handler,
 		unsigned int *id, unsigned int *size);

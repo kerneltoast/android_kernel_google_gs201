@@ -1,0 +1,26 @@
+#
+# ACPM driver configuration
+#
+
+menuconfig GS_ACPM
+	tristate "ACPM driver support"
+	default n
+	help
+	  Enable ACPM support
+
+if GS_ACPM
+
+config GS_ACPM_MFD
+	bool "GS_ACPM_MFD support"
+	default y
+	help
+	  Enable ACPM_MFD support
+
+config ACPM_FLEXPMU_DBG
+	bool "ACPM FLEXPMU DBG"
+	depends on FLEXPMU
+	default y
+	help
+	Support FLEXPMU for GS SoC
+
+endif
