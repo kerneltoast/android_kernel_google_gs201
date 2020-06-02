@@ -60,12 +60,12 @@ struct decon_resources {
 };
 
 struct dpu_bts_ops {
-	void (*bts_init)(struct decon_device *decon);
-	void (*bts_acquire_bw)(struct decon_device *decon);
-	void (*bts_release_bw)(struct decon_device *decon);
-	void (*bts_calc_bw)(struct decon_device *decon);
-	void (*bts_update_bw)(struct decon_device *decon, bool shadow_updated);
-	void (*bts_deinit)(struct decon_device *decon);
+	void (*init)(struct decon_device *decon);
+	void (*acquire_bw)(struct decon_device *decon);
+	void (*release_bw)(struct decon_device *decon);
+	void (*calc_bw)(struct decon_device *decon);
+	void (*update_bw)(struct decon_device *decon, bool shadow_updated);
+	void (*deinit)(struct decon_device *decon);
 };
 
 struct dpu_bts_bw {

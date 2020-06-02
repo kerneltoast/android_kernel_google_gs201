@@ -1088,7 +1088,7 @@ static int decon_probe(struct platform_device *pdev)
 
 	if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
 		decon->bts.ops = &dpu_bts_control;
-		decon->bts.ops->bts_init(decon);
+		decon->bts.ops->init(decon);
 	}
 
 	decon->state = DECON_STATE_OFF;
@@ -1120,7 +1120,7 @@ static int decon_remove(struct platform_device *pdev)
 	struct decon_device *decon = platform_get_drvdata(pdev);
 
 	if (IS_ENABLED(CONFIG_EXYNOS_BTS))
-		decon->bts.ops->bts_deinit(decon);
+		decon->bts.ops->deinit(decon);
 
 	exynos_hibernation_destroy(decon->hibernation);
 

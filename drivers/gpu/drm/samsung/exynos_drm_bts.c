@@ -726,10 +726,10 @@ void dpu_bts_deinit(struct decon_device *decon)
 }
 
 struct dpu_bts_ops dpu_bts_control = {
-	.bts_init		= dpu_bts_init,
-	.bts_calc_bw		= dpu_bts_calc_bw,
-	.bts_update_bw		= dpu_bts_update_bw,
-	.bts_acquire_bw		= dpu_bts_acquire_bw,
-	.bts_release_bw		= dpu_bts_release_bw,
-	.bts_deinit		= dpu_bts_deinit,
+	.init		= dpu_bts_init,
+	.calc_bw	= dpu_bts_calc_bw,
+	.update_bw	= dpu_bts_update_bw,
+	.acquire_bw	= dpu_bts_acquire_bw,
+	.release_bw	= dpu_bts_release_bw,
+	.deinit		= dpu_bts_deinit,
 };
