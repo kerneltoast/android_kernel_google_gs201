@@ -46,39 +46,17 @@
 
 struct decon_device *decon_drvdata[MAX_DECON_CNT];
 
-static int decon_log_level = 6;
+#define decon_info(decon, fmt, ...)	\
+pr_info("%s[%d]: "fmt, decon->dev->driver->name, decon->id, ##__VA_ARGS__)
 
-#define decon_info(decon, fmt, ...)					   \
-	do {								   \
-		if (decon_log_level >= 6) {				   \
-			DRM_INFO("%s[%d]: "fmt, decon->dev->driver->name,  \
-					decon->id, ##__VA_ARGS__);	   \
-		}							   \
-	} while (0)
+#define decon_warn(decon, fmt, ...)	\
+pr_warn("%s[%d]: "fmt, decon->dev->driver->name, decon->id, ##__VA_ARGS__)
 
-#define decon_warn(decon, fmt, ...)					   \
-	do {								   \
-		if (decon_log_level >= 4) {				   \
-			DRM_WARN("%s[%d]: "fmt, decon->dev->driver->name,  \
-					decon->id, ##__VA_ARGS__);	   \
-		}							   \
-	} while (0)
+#define decon_err(decon, fmt, ...)	\
+pr_err("%s[%d]: "fmt, decon->dev->driver->name, decon->id, ##__VA_ARGS__)
 
-#define decon_err(decon, fmt, ...)					   \
-	do {								   \
-		if (decon_log_level >= 3) {				   \
-			DRM_ERROR("%s[%d]: "fmt, decon->dev->driver->name, \
-					decon->id, ##__VA_ARGS__);	   \
-		}							   \
-	} while (0)
-
-#define decon_dbg(decon, fmt, ...)					   \
-	do {								   \
-		if (decon_log_level >= 7) {				   \
-			DRM_INFO("%s[%d]: "fmt, decon->dev->driver->name,  \
-					decon->id, ##__VA_ARGS__);	   \
-		}							   \
-	} while (0)
+#define decon_debug(decon, fmt, ...)	\
+pr_debug("%s[%d]: "fmt, decon->dev->driver->name, decon->id, ##__VA_ARGS__)
 
 #define SHADOW_UPDATE_TIMEOUT_US	(300 * USEC_PER_MSEC) /* 300ms */
 
@@ -137,7 +115,7 @@ static void decon_set_color_map(struct decon_device *decon, u32 win_id,
 	struct decon_window_regs win_info;
 	int i;
 
-	decon_dbg(decon, "%s +\n", __func__);
+	decon_debug(decon, "%s +\n", __func__);
 
 	for (i = 0; i < MAX_WIN_PER_DECON; ++i)
 		decon_reg_set_win_enable(decon->id, i, 0);
@@ -151,7 +129,7 @@ static void decon_set_color_map(struct decon_device *decon, u32 win_id,
 	decon_reg_set_window_control(decon->id, win_id, &win_info, true);
 	decon_reg_update_req_window(decon->id, win_id);
 
-	decon_dbg(decon, "%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 }
 
 static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
@@ -159,7 +137,7 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	struct decon_device *decon = crtc->ctx;
 
 	/* TODO : need to write code completely */
-	decon_dbg(decon, "%s\n", __func__);
+	decon_debug(decon, "%s\n", __func__);
 
 	return 0;
 }
@@ -169,8 +147,7 @@ static void decon_disable_vblank(struct exynos_drm_crtc *crtc)
 	struct decon_device *decon = crtc->ctx;
 
 	/* TODO : need to write code completely */
-	decon_dbg(decon, "%s\n", __func__);
-
+	decon_debug(decon, "%s\n", __func__);
 }
 
 static bool has_writeback_job(struct drm_crtc_state *new_crtc_state)
@@ -216,11 +193,11 @@ static void decon_atomic_begin(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
 
-	decon_dbg(decon, "%s +\n", __func__);
+	decon_debug(decon, "%s +\n", __func__);
 	DPU_EVENT_LOG(DPU_EVT_ATOMIC_BEGIN, decon->id, NULL);
 	decon_reg_wait_update_done_and_mask(decon->id, &decon->config.mode,
 			SHADOW_UPDATE_TIMEOUT_US);
-	decon_dbg(decon, "%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 }
 
 static void decon_update_plane(struct exynos_drm_crtc *crtc,
@@ -235,7 +212,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	bool is_colormap = false;
 	u16 hw_alpha;
 
-	decon_dbg(decon, "%s +\n", __func__);
+	decon_debug(decon, "%s +\n", __func__);
 
 	memset(&win_info, 0, sizeof(struct decon_window_regs));
 
@@ -274,12 +251,12 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	dpp->win_id = zpos;
 
 	DPU_EVENT_LOG(DPU_EVT_PLANE_UPDATE, decon->id, dpp);
-	decon_dbg(decon, "plane idx[%d]: alpha(0x%x) hw alpha(0x%x)\n",
+	decon_debug(decon, "plane idx[%d]: alpha(0x%x) hw alpha(0x%x)\n",
 			drm_plane_index(&plane->base), state->base.alpha,
 			hw_alpha);
-	decon_dbg(decon, "blend_mode(%d) color(%s:0x%x)\n", win_info.blend,
+	decon_debug(decon, "blend_mode(%d) color(%s:0x%x)\n", win_info.blend,
 			is_colormap ? "enable" : "disable", win_info.colormap);
-	decon_dbg(decon, "%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 }
 
 static void decon_disable_plane(struct exynos_drm_crtc *exynos_crtc,
@@ -291,9 +268,9 @@ static void decon_disable_plane(struct exynos_drm_crtc *exynos_crtc,
 	const struct drm_crtc *crtc = &exynos_crtc->base;
 	const unsigned int num_planes = hweight32(crtc->state->plane_mask);
 
-	decon_dbg(decon, "%s +\n", __func__);
+	decon_debug(decon, "%s +\n", __func__);
 
-	pr_debug("%s win_id(%d/%d) zpos(%d) is_win_connected(%d) visible(%d)\n",
+	decon_debug(decon, "%s winid:%d/%d zpos:%d win_connect:%d visible:%d\n",
 		 plane->name, dpp->win_id, num_planes,
 		 plane->state->normalized_zpos, dpp->is_win_connected,
 		 plane->state->visible);
@@ -319,7 +296,7 @@ static void decon_disable_plane(struct exynos_drm_crtc *exynos_crtc,
 		dpp->is_win_connected = false;
 	}
 	DPU_EVENT_LOG(DPU_EVT_PLANE_DISABLE, decon->id, dpp);
-	decon_dbg(decon, "%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 }
 
 static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc,
@@ -332,7 +309,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc,
 	struct exynos_drm_crtc_state *old_exynos_crtc_state =
 					to_exynos_crtc_state(old_crtc_state);
 
-	decon_dbg(decon, "%s +\n", __func__);
+	decon_debug(decon, "%s +\n", __func__);
 
 	if (new_exynos_crtc_state->wb_type == EXYNOS_WB_NONE &&
 			decon->config.out_type == DECON_OUT_WB)
@@ -345,7 +322,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc,
 
 	/* if there are no planes attached, enable colormap as fallback */
 	if (new_crtc_state->plane_mask == 0) {
-		decon_dbg(decon, "no planes, enable color map\n");
+		decon_debug(decon, "no planes, enable color map\n");
 
 		decon_set_color_map(decon, 0, decon->config.image_width,
 				decon->config.image_height);
@@ -360,7 +337,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc,
 
 	DPU_EVENT_LOG(DPU_EVT_ATOMIC_FLUSH, decon->id, NULL);
 
-	decon_dbg(decon, "%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 }
 
 static void decon_print_config_info(struct decon_device *decon)
@@ -485,8 +462,7 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 	int i;
 
 	if (decon->state == DECON_STATE_ON) {
-		decon_info(decon, "decon%d already enabled(%d)\n",
-				decon->id, decon->state);
+		decon_info(decon, "already enabled(%d)\n", decon->state);
 		return;
 	}
 
@@ -517,13 +493,13 @@ void decon_exit_hibernation(struct decon_device *decon)
 	if (decon->state != DECON_STATE_HIBERNATION)
 		return;
 
-	pr_debug("%s +\n", __func__);
+	decon_debug(decon, "%s +\n", __func__);
 
 	_decon_enable(decon);
 
 	decon->state = DECON_STATE_ON;
 
-	pr_debug("%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 }
 
 static void decon_disable_irqs(struct decon_device *decon)
@@ -556,7 +532,7 @@ static void _decon_disable(struct decon_device *decon)
 
 void decon_enter_hibernation(struct decon_device *decon)
 {
-	pr_debug("%s +\n", __func__);
+	decon_debug(decon, "%s +\n", __func__);
 
 	if (decon->state != DECON_STATE_ON)
 		return;
@@ -564,14 +540,14 @@ void decon_enter_hibernation(struct decon_device *decon)
 	_decon_disable(decon);
 
 	decon->state = DECON_STATE_HIBERNATION;
-	pr_debug("%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 }
 
 static void decon_disable(struct exynos_drm_crtc *crtc)
 {
 	struct decon_device *decon = crtc->ctx;
 
-	pr_info("%s +\n", __func__);
+	decon_info(decon, "%s +\n", __func__);
 
 	_decon_disable(decon);
 
@@ -583,7 +559,7 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 
 	DPU_EVENT_LOG(DPU_EVT_DECON_DISABLED, decon->id, decon);
 
-	pr_info("%s -\n", __func__);
+	decon_info(decon, "%s -\n", __func__);
 }
 
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
@@ -628,7 +604,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 		plane->possible_crtcs |=
 			drm_crtc_mask(&decon->crtc->base);
-		pr_debug("plane possible_crtcs = 0x%x\n",
+		decon_debug(decon, "plane possible_crtcs = 0x%x\n",
 				plane->possible_crtcs);
 	}
 
@@ -642,7 +618,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	itmon_notifier_chain_register(&decon->itmon_nb);
 #endif
 
-	decon_dbg(decon, "%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 	return 0;
 }
 
@@ -651,9 +627,9 @@ static void decon_unbind(struct device *dev, struct device *master,
 {
 	struct decon_device *decon = dev_get_drvdata(dev);
 
-	decon_dbg(decon, "%s +\n", __func__);
+	decon_debug(decon, "%s +\n", __func__);
 	decon_disable(decon->crtc);
-	decon_dbg(decon, "%s -\n", __func__);
+	decon_debug(decon, "%s -\n", __func__);
 }
 
 static const struct component_ops decon_component_ops = {
@@ -672,25 +648,25 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 		goto irq_end;
 
 	irq_sts_reg = decon_reg_get_interrupt_and_clear(decon->id, &ext_irq);
-	decon_dbg(decon, "%s: irq_sts_reg = %x, ext_irq = %x\n", __func__,
-			irq_sts_reg, ext_irq);
+	decon_debug(decon, "%s: irq_sts_reg = %x, ext_irq = %x\n",
+			__func__, irq_sts_reg, ext_irq);
 
 	if (irq_sts_reg & DPU_FRAME_START_INT_PEND) {
 		decon->busy = true;
 		complete(&decon->framestart_done);
 		DPU_EVENT_LOG(DPU_EVT_DECON_FRAMESTART, decon->id, decon);
-		decon_dbg(decon, "%s: frame start\n", __func__);
+		decon_debug(decon, "%s: frame start\n", __func__);
 	}
 
 	if (irq_sts_reg & DPU_FRAME_DONE_INT_PEND) {
 		DPU_EVENT_LOG(DPU_EVT_DECON_FRAMEDONE, decon->id, decon);
 		decon->busy = false;
 		wake_up_interruptible_all(&decon->framedone_wait);
-		decon_dbg(decon, "%s: frame done\n", __func__);
+		decon_debug(decon, "%s: frame done\n", __func__);
 	}
 
 	if (ext_irq & DPU_RESOURCE_CONFLICT_INT_PEND)
-		decon_dbg(decon, "%s: resource conflict\n", __func__);
+		decon_debug(decon, "%s: resource conflict\n", __func__);
 
 	if (ext_irq & DPU_TIME_OUT_INT_PEND) {
 		decon_err(decon, "%s: timeout irq occurs\n", __func__);
@@ -786,18 +762,18 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 		ret = of_property_read_u32(np, "te_from",
 				&decon->config.te_from);
 		if (ret) {
-			pr_err("failed to get value of TE from DDI\n");
+			decon_err(decon, "failed to get TE from DDI\n");
 			return ret;
 		}
 		if (decon->config.te_from >= MAX_DECON_TE_FROM_DDI) {
-			pr_err("TE from DDI is wrong(%d)\n",
+			decon_err(decon, "TE from DDI is wrong(%d)\n",
 					decon->config.te_from);
 			return ret;
 		}
-		pr_info("DECON TE from DDI%d\n", decon->config.te_from);
+		decon_info(decon, "TE from DDI%d\n", decon->config.te_from);
 	} else {
 		decon->config.te_from = MAX_DECON_TE_FROM_DDI;
-		pr_info("DECON TE from NONE\n");
+		decon_info(decon, "TE from NONE\n");
 	}
 
 	if (of_property_read_u32(np, "ppc", (u32 *)&decon->bts.ppc))
@@ -807,14 +783,14 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 	if (of_property_read_u32(np, "line_mem_cnt",
 				(u32 *)&decon->bts.line_mem_cnt)) {
 		decon->bts.line_mem_cnt = 4UL;
-		decon_warn(decon, "WARN: line memory cnt is not defined in DT.\n");
+		decon_warn(decon, "line memory cnt is not defined in DT.\n");
 	}
 	decon_info(decon, "line memory cnt(%d)\n", decon->bts.line_mem_cnt);
 
 	if (of_property_read_u32(np, "cycle_per_line",
 				(u32 *)&decon->bts.cycle_per_line)) {
 		decon->bts.cycle_per_line = 8UL;
-		decon_warn(decon, "WARN: cycle per line is not defined in DT.\n");
+		decon_warn(decon, "cycle per line is not defined in DT.\n");
 	}
 	decon_info(decon, "cycle per line(%d)\n", decon->bts.cycle_per_line);
 
@@ -861,7 +837,7 @@ static int decon_remap_regs(struct decon_device *decon)
 	i = of_property_match_string(np, "reg-names", "main");
 	decon->regs.regs = of_iomap(np, i);
 	if (IS_ERR(decon->regs.regs)) {
-		DRM_DEV_ERROR(decon->dev, "failed decon ioremap\n");
+		decon_err(decon, "failed decon ioremap\n");
 		ret = PTR_ERR(decon->regs.regs);
 		goto err;
 	}
@@ -870,14 +846,14 @@ static int decon_remap_regs(struct decon_device *decon)
 
 	np = of_find_compatible_node(NULL, NULL, "samsung,exynos9-disp_ss");
 	if (IS_ERR_OR_NULL(np)) {
-		DRM_DEV_ERROR(decon->dev, "failed to find disp_ss node");
+		decon_err(decon, "failed to find disp_ss node");
 		ret = PTR_ERR(np);
 		goto err_main;
 	}
 	i = of_property_match_string(np, "reg-names", "sys");
 	decon->regs.ss_regs = of_iomap(np, i);
 	if (!decon->regs.ss_regs) {
-		DRM_DEV_ERROR(decon->dev, "failed to map sysreg-disp address.");
+		decon_err(decon, "failed to map sysreg-disp address.");
 		ret = -ENOMEM;
 		goto err_main;
 	}
@@ -954,7 +930,8 @@ static int decon_register_irqs(struct decon_device *decon)
 	}
 	disable_irq(decon->irq_ext);
 
-	/* Get IRQ resource and register IRQ handler. Only enabled in command
+	/*
+	 * Get IRQ resource and register IRQ handler. Only enabled in command
 	 * mode.
 	 */
 	if (of_get_property(dev->of_node, "gpios", NULL) != NULL) {
@@ -964,7 +941,7 @@ static int decon_register_irqs(struct decon_device *decon)
 			return -ENODEV;
 		}
 	} else {
-		decon_dbg(decon, "failed to find TE gpio node\n");
+		decon_debug(decon, "failed to find TE gpio node\n");
 		return 0;
 	}
 
@@ -985,7 +962,7 @@ static int decon_get_pinctrl(struct decon_device *decon)
 
 	decon->res.pinctrl = devm_pinctrl_get(decon->dev);
 	if (IS_ERR(decon->res.pinctrl)) {
-		decon_dbg(decon, "failed to get pinctrl\n");
+		decon_debug(decon, "failed to get pinctrl\n");
 		ret = PTR_ERR(decon->res.pinctrl);
 		decon->res.pinctrl = NULL;
 		/* optional in video mode */
@@ -1106,7 +1083,7 @@ static int decon_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	dev_info(dev, "successfully probed");
+	decon_info(decon, "successfully probed");
 
 err:
 	return ret;
@@ -1143,7 +1120,7 @@ static int decon_suspend(struct device *dev)
 	if (decon->dqe)
 		exynos_dqe_reset(decon->dqe);
 
-	pr_debug("suspended\n");
+	decon_debug(decon, "suspended\n");
 
 	return 0;
 }
@@ -1158,7 +1135,7 @@ static int decon_resume(struct device *dev)
 	if (decon->res.aclk_disp)
 		clk_prepare_enable(decon->res.aclk_disp);
 
-	pr_debug("resumed\n");
+	decon_debug(decon, "resumed\n");
 
 	return 0;
 }

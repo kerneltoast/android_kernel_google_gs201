@@ -51,43 +51,21 @@
 
 struct dsim_device *dsim_drvdata[MAX_DSI_CNT];
 
-int dsim_log_level = 6;
-
 static char panel_name[64];
 module_param_string(panel_name, panel_name, sizeof(panel_name), 0644);
 MODULE_PARM_DESC(panel_name, "preferred panel name");
 
-#define dsim_info(dsim, fmt, ...)					  \
-	do {								  \
-		if (dsim_log_level >= 6) {				  \
-			DRM_INFO("%s[%d]: "fmt, dsim->dev->driver->name,  \
-					dsim->id, ##__VA_ARGS__);	  \
-		}							  \
-	} while (0)
+#define dsim_info(dsim, fmt, ...)	\
+pr_info("%s[%d]: "fmt, dsim->dev->driver->name, dsim->id, ##__VA_ARGS__)
 
-#define dsim_warn(dsim, fmt, ...)					  \
-	do {								  \
-		if (dsim_log_level >= 4) {				  \
-			DRM_WARN("%s[%d]: "fmt, dsim->dev->driver->name,  \
-					dsim->id, ##__VA_ARGS__);	  \
-		}							  \
-	} while (0)
+#define dsim_warn(dsim, fmt, ...)	\
+pr_warn("%s[%d]: "fmt, dsim->dev->driver->name, dsim->id, ##__VA_ARGS__)
 
-#define dsim_err(dsim, fmt, ...)					  \
-	do {								  \
-		if (dsim_log_level >= 3) {				  \
-			DRM_ERROR("%s[%d]: "fmt, dsim->dev->driver->name, \
-					dsim->id, ##__VA_ARGS__);	  \
-		}							  \
-	} while (0)
+#define dsim_err(dsim, fmt, ...)	\
+pr_err("%s[%d]: "fmt, dsim->dev->driver->name, dsim->id, ##__VA_ARGS__)
 
-#define dsim_dbg(dsim, fmt, ...)					  \
-	do {								  \
-		if (dsim_log_level >= 7) {				  \
-			DRM_INFO("%s[%d]: "fmt, dsim->dev->driver->name,  \
-					dsim->id, ##__VA_ARGS__);	  \
-		}							  \
-	} while (0)
+#define dsim_debug(dsim, fmt, ...)	\
+pr_debug("%s[%d]: "fmt, dsim->dev->driver->name, dsim->id, ##__VA_ARGS__)
 
 #define host_to_dsi(host) container_of(host, struct dsim_device, dsi_host)
 
@@ -140,25 +118,25 @@ static int dsim_phy_power_on(struct dsim_device *dsim)
 {
 	int ret;
 
-	pr_debug("%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
 		return 0;
 
 	ret = phy_power_on(dsim->res.phy);
 	if (ret) {
-		pr_err("failed to enable dphy(%d)\n", ret);
+		dsim_err(dsim, "failed to enable dphy(%d)\n", ret);
 		return ret;
 	}
 	if (dsim->res.phy_ex) {
 		ret = phy_power_on(dsim->res.phy_ex);
 		if (ret) {
-			pr_err("failed to enable extra dphy(%d)\n", ret);
+			dsim_err(dsim, "failed to enable ext dphy(%d)\n", ret);
 			return ret;
 		}
 	}
 
-	pr_debug("%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 
 	return 0;
 }
@@ -167,32 +145,32 @@ static int dsim_phy_power_off(struct dsim_device *dsim)
 {
 	int ret;
 
-	pr_debug("%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
 		return 0;
 
 	ret = phy_power_off(dsim->res.phy);
 	if (ret) {
-		pr_err("failed to disable dphy(%d)\n", ret);
+		dsim_err(dsim, "failed to disable dphy(%d)\n", ret);
 		return ret;
 	}
 	if (dsim->res.phy_ex) {
 		ret = phy_power_off(dsim->res.phy_ex);
 		if (ret) {
-			pr_err("failed to disable extra dphy(%d)\n", ret);
+			dsim_err(dsim, "failed to disable ext dphy(%d)\n", ret);
 			return ret;
 		}
 	}
 
-	pr_debug("%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 
 	return 0;
 }
 
 void dsim_exit_ulps(struct dsim_device *dsim)
 {
-	pr_debug("%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	if (dsim->state != DSIM_STATE_ULPS)
 		return;
@@ -209,7 +187,7 @@ void dsim_exit_ulps(struct dsim_device *dsim)
 	dsim->state = DSIM_STATE_HSCLKEN;
 	enable_irq(dsim->irq);
 
-	pr_debug("%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 }
 
 static void dsim_enable(struct drm_encoder *encoder)
@@ -219,12 +197,11 @@ static void dsim_enable(struct drm_encoder *encoder)
 	int ret;
 
 	if (dsim->state == DSIM_STATE_HSCLKEN) {
-		dsim_info(dsim, "dsim%d already enabled(%d)\n",
-				dsim->id, dsim->state);
+		dsim_info(dsim, "already enabled(%d)\n", dsim->state);
 		return;
 	}
 
-	dsim_dbg(dsim, "%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 #if defined(CONFIG_CPU_IDLE)
 	exynos_update_ip_idle_status(dsim->idle_ip_index, 0);
@@ -259,7 +236,7 @@ static void dsim_enable(struct drm_encoder *encoder)
 	if (decon)
 		DPU_EVENT_LOG(DPU_EVT_DSIM_ENABLED, decon->id, dsim);
 
-	dsim_dbg(dsim, "%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 }
 
 void dsim_enter_ulps(struct dsim_device *dsim)
@@ -267,7 +244,7 @@ void dsim_enter_ulps(struct dsim_device *dsim)
 	if (dsim->state != DSIM_STATE_HSCLKEN)
 		return;
 
-	pr_debug("%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	/* Wait for current read & write CMDs. */
 	mutex_lock(&dsim->cmd_lock);
@@ -283,7 +260,7 @@ void dsim_enter_ulps(struct dsim_device *dsim)
 	exynos_update_ip_idle_status(dsim->idle_ip_index, 1);
 #endif
 
-	pr_debug("%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 }
 
 static void dsim_disable(struct drm_encoder *encoder)
@@ -293,12 +270,11 @@ static void dsim_disable(struct drm_encoder *encoder)
 	int ret;
 
 	if (dsim->state == DSIM_STATE_SUSPEND) {
-		dsim_info(dsim, "dsim%d already disabled(%d)\n",
-				dsim->id, dsim->state);
+		dsim_info(dsim, "already disabled(%d)\n", dsim->state);
 		return;
 	}
 
-	dsim_dbg(dsim, "%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	ret = drm_panel_disable(dsim->panel);
 	if (ret < 0) {
@@ -331,7 +307,7 @@ static void dsim_disable(struct drm_encoder *encoder)
 	if (decon)
 		DPU_EVENT_LOG(DPU_EVT_DSIM_DISABLED, decon->id, dsim);
 
-	dsim_dbg(dsim, "%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 }
 
 static void dsim_modes_release(struct dsim_pll_params *pll_params)
@@ -382,15 +358,15 @@ static void dsim_get_clock_modes(struct dsim_device *dsim, const char *name)
 				pll_params->params[i]->pll_freq;
 			dsim->clk_param.esc_clk =
 				pll_params->params[i]->esc_freq;
-			dsim_dbg(dsim, "found proper pll parameter\n");
-			dsim_dbg(dsim, "\t%s(p:0x%x,m:0x%x,s:0x%x,k:0x%x)\n",
+			dsim_debug(dsim, "found proper pll parameter\n");
+			dsim_debug(dsim, "\t%s(p:0x%x,m:0x%x,s:0x%x,k:0x%x)\n",
 					pll_params->params[i]->name,
 					dsim->config.dphy_pms.p,
 					dsim->config.dphy_pms.m,
 					dsim->config.dphy_pms.s,
 					dsim->config.dphy_pms.k);
 
-			dsim_dbg(dsim, "\t%s(hs:%d,esc:%d)\n",
+			dsim_debug(dsim, "\t%s(hs:%d,esc:%d)\n",
 					pll_params->params[i]->name,
 					dsim->clk_param.hs_clk,
 					dsim->clk_param.esc_clk);
@@ -415,8 +391,8 @@ static int dsim_of_parse_modes(struct device_node *entry,
 
 	cnt = of_property_count_u32_elems(entry, "pmsk");
 	if (cnt != 4 && cnt != 14) {
-		pr_err("%s: mode %s has wrong pmsk elements number %d\n",
-		       __func__, pll_param->name, cnt);
+		pr_err("mode %s has wrong pmsk elements number %d\n",
+				pll_param->name, cnt);
 		return -EINVAL;
 	}
 
@@ -631,8 +607,8 @@ static int dsim_atomic_check(struct drm_encoder *encoder,
 			     struct drm_crtc_state *crtc_state,
 			     struct drm_connector_state *state)
 {
-	struct dsim_device *dsim = encoder_to_dsim(encoder);
 	struct drm_display_mode *mode;
+	struct dsim_device *dsim = encoder_to_dsim(encoder);
 
 	if (!crtc_state->mode_changed)
 		return 0;
@@ -668,7 +644,7 @@ static int dsim_add_mipi_dsi_device(struct dsim_device *dsim)
 	struct device_node *node;
 	const char *name;
 
-	dsim_dbg(dsim, "%s preferred panel is %s\n", __func__, panel_name);
+	dsim_debug(dsim, "preferred panel is %s\n", panel_name);
 
 	for_each_available_child_of_node(dsim->dsi_host.dev->of_node, node) {
 		/* panel w/ reg node will be added in mipi_dsi_host_register */
@@ -698,7 +674,7 @@ static int dsim_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	int ret = 0;
 
-	dsim_dbg(dsim, "%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	drm_encoder_init(drm_dev, encoder, &dsim_encoder_funcs,
 			 DRM_MODE_ENCODER_DSI, NULL);
@@ -717,7 +693,7 @@ static int dsim_bind(struct device *dev, struct device *master, void *data)
 
 	ret = mipi_dsi_host_register(&dsim->dsi_host);
 
-	dsim_dbg(dsim, "%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 
 	return ret;
 }
@@ -728,7 +704,7 @@ static void dsim_unbind(struct device *dev, struct device *master,
 	struct drm_encoder *encoder = dev_get_drvdata(dev);
 	struct dsim_device *dsim = encoder_to_dsim(encoder);
 
-	dsim_dbg(dsim, "%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 	if (dsim->pll_params)
 		dsim_modes_release(dsim->pll_params);
 
@@ -824,7 +800,7 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 
 	spin_lock(&dsim->slock);
 
-	dsim_dbg(dsim, "%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
 		dsim_info(dsim, "dsim power is off state(0x%x)\n", dsim->state);
@@ -836,12 +812,12 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 	if (int_src & DSIM_INTSRC_SFR_PH_FIFO_EMPTY) {
 		del_timer(&dsim->cmd_timer);
 		complete(&dsim->ph_wr_comp);
-		dsim_dbg(dsim, "dsim%d PH_FIFO_EMPTY irq occurs\n", dsim->id);
+		dsim_debug(dsim, "PH_FIFO_EMPTY irq occurs\n");
 	}
 	if (int_src & DSIM_INTSRC_RX_DATA_DONE)
 		complete(&dsim->rd_comp);
 	if (int_src & DSIM_INTSRC_FRAME_DONE) {
-		dsim_dbg(dsim, "dsim%d framedone irq occurs\n", dsim->id);
+		dsim_debug(dsim, "framedone irq occurs\n");
 		if (decon)
 			DPU_EVENT_LOG(DPU_EVT_DSIM_FRAMEDONE, decon->id, NULL);
 	}
@@ -849,13 +825,13 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 		dsim_err(dsim, "RX ECC Multibit error was detected!\n");
 
 	if (int_src & DSIM_INTSRC_UNDER_RUN) {
-		dsim_info(dsim, "dsim%d underrun irq occurs\n", dsim->id);
+		dsim_info(dsim, "underrun irq occurs\n");
 		if (decon)
 			DPU_EVENT_LOG(DPU_EVT_DSIM_UNDERRUN, decon->id, dsim);
 	}
 
 	if (int_src & DSIM_INTSRC_VT_STATUS) {
-		dsim_dbg(dsim, "dsim%d vt_status irq occurs\n", dsim->id);
+		dsim_debug(dsim, "vt_status irq occurs\n");
 		if ((dsim->config.mode == DSIM_VIDEO_MODE) && crtc)
 			drm_crtc_handle_vblank(crtc);
 	}
@@ -930,7 +906,7 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 	struct drm_device *drm_dev = dsim->encoder.dev;
 	int ret;
 
-	pr_debug("%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	dsim->lanes = device->lanes;
 	dsim->format = device->format;
@@ -938,7 +914,7 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 
 	dsim->panel = of_drm_find_panel(device->dev.of_node);
 	if (IS_ERR(dsim->panel)) {
-		pr_info("failed to find panel\n");
+		dsim_info(dsim, "failed to find panel\n");
 		return PTR_ERR(dsim->panel);
 	}
 
@@ -946,7 +922,7 @@ static int dsim_host_attach(struct mipi_dsi_host *host,
 	ret = dsim_set_native_display_mode(dsim);
 	mutex_unlock(&drm_dev->mode_config.mutex);
 
-	pr_debug("%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 	return 0;
 }
 
@@ -971,7 +947,7 @@ static void dsim_cmd_fail_detector(struct timer_list *arg)
 {
 	struct dsim_device *dsim = from_timer(dsim, arg, cmd_timer);
 
-	dsim_dbg(dsim, "%s +\n", __func__);
+	dsim_debug(dsim, "%s +\n", __func__);
 
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
 		dsim_err(dsim, "%s: DSIM is not ready. state(%d)\n", __func__,
@@ -988,7 +964,7 @@ static void dsim_cmd_fail_detector(struct timer_list *arg)
 	}
 
 exit:
-	dsim_dbg(dsim, "%s -\n", __func__);
+	dsim_debug(dsim, "%s -\n", __func__);
 }
 
 static int dsim_wait_for_cmd_fifo_empty(struct dsim_device *dsim,
@@ -1001,12 +977,12 @@ static int dsim_wait_for_cmd_fifo_empty(struct dsim_device *dsim,
 		if (dsim_reg_header_fifo_is_empty(dsim->id))
 			del_timer(&dsim->cmd_timer);
 
-		dsim_dbg(dsim, "Doesn't need to wait fifo_completion\n");
+		dsim_debug(dsim, "Doesn't need to wait fifo_completion\n");
 		return ret;
 	}
 
 	del_timer(&dsim->cmd_timer);
-	dsim_dbg(dsim, "%s Waiting for fifo_completion...\n", __func__);
+	dsim_debug(dsim, "Waiting for fifo_completion...\n");
 
 	if (!wait_for_completion_timeout(&dsim->ph_wr_comp, MIPI_WR_TIMEOUT)) {
 		if (dsim_reg_header_fifo_is_empty(dsim->id)) {
@@ -1019,7 +995,7 @@ static int dsim_wait_for_cmd_fifo_empty(struct dsim_device *dsim,
 	}
 
 	if ((dsim->state == DSIM_STATE_HSCLKEN) && (ret == -ETIMEDOUT))
-		dsim_err(dsim, "%s have timed out\n", __func__);
+		dsim_err(dsim, "have timed out\n");
 
 	return ret;
 }
@@ -1040,14 +1016,14 @@ static void dsim_long_data_wr(struct dsim_device *dsim, unsigned long d0,
 				payload = *(u8 *)(d0 + data_cnt) |
 				    (*(u8 *)(d0 + (data_cnt + 1))) << 8 |
 					(*(u8 *)(d0 + (data_cnt + 2))) << 16;
-			dsim_dbg(dsim, "count = 3 payload = %x, %x %x %x\n",
+			dsim_debug(dsim, "count = 3 payload = %x, %x %x %x\n",
 				payload, *(u8 *)(d0 + data_cnt),
 				*(u8 *)(d0 + (data_cnt + 1)),
 				*(u8 *)(d0 + (data_cnt + 2)));
 			} else if ((d1 - data_cnt) == 2) {
 				payload = *(u8 *)(d0 + data_cnt) |
 					(*(u8 *)(d0 + (data_cnt + 1))) << 8;
-			dsim_dbg(dsim, "count = 2 payload = %x, %x %x\n",
+			dsim_debug(dsim, "count = 2 payload = %x, %x %x\n",
 				payload,
 				*(u8 *)(d0 + data_cnt),
 				*(u8 *)(d0 + (data_cnt + 1)));
@@ -1063,7 +1039,7 @@ static void dsim_long_data_wr(struct dsim_device *dsim, unsigned long d0,
 				(*(u8 *)(d0 + (data_cnt + 2))) << 16 |
 				(*(u8 *)(d0 + (data_cnt + 3))) << 24;
 
-			dsim_dbg(dsim, "count = 4 payload = %x, %x %x %x %x\n",
+			dsim_debug(dsim, "count = 4 payload = %x, %x %x %x %x\n",
 				payload, *(u8 *)(d0 + data_cnt),
 				*(u8 *)(d0 + (data_cnt + 1)),
 				*(u8 *)(d0 + (data_cnt + 2)),
@@ -1081,8 +1057,7 @@ static bool dsim_fifo_empty_needed(struct dsim_device *dsim,
 	if (data_id == MIPI_DSI_DCS_READ
 			|| data0 == MIPI_DCS_SET_COLUMN_ADDRESS
 			|| data0 == MIPI_DCS_SET_PAGE_ADDRESS) {
-		dsim_dbg(dsim, "%s: id:%d, data=%ld\n", __func__, data_id,
-				data0);
+		dsim_debug(dsim, "id:%d, data=%ld\n", data_id, data0);
 		return true;
 	}
 
@@ -1102,8 +1077,7 @@ static int dsim_write_data(struct dsim_device *dsim, u32 id, unsigned long d0,
 
 	mutex_lock(&dsim->cmd_lock);
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
-		dsim_err(dsim, "dsim%d is not ready(%d)\n",
-				dsim->id, dsim->state);
+		dsim_err(dsim, "Not ready(%d)\n", dsim->state);
 		ret = -EINVAL;
 		goto err_exit;
 	}
@@ -1202,16 +1176,16 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 	int i = 0, ret = 0;
 
 	if (dsim->state != DSIM_STATE_HSCLKEN) {
-		pr_err("DSI-%d is not ready(%d)\n", dsim->id, dsim->state);
+		dsim_err(dsim, "Not ready(%d)\n", dsim->state);
 		return -EINVAL;
 	}
 
 	if (cnt > DSIM_RX_FIFO_MAX_DEPTH * 4 - DSIM_RX_PHK_HEADER_SIZE) {
-		pr_err("requested rx size is wrong(%d)\n", cnt);
+		dsim_err(dsim, "requested rx size is wrong(%d)\n", cnt);
 		return -EINVAL;
 	}
 
-	pr_debug("type[0x%x], cmd[0x%x], rx cnt[%d]\n", id, addr, cnt);
+	dsim_debug(dsim, "type[0x%x], cmd[0x%x], rx cnt[%d]\n", id, addr, cnt);
 
 	/* Init RX FIFO before read and clear DSIM_INTSRC */
 	dsim_reg_clear_int(dsim->id, DSIM_INTSRC_RX_DATA_DONE);
@@ -1229,14 +1203,14 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 		dsim_write_data(dsim, id, addr, 0);
 
 	if (!wait_for_completion_timeout(&dsim->rd_comp, MIPI_RD_TIMEOUT)) {
-		pr_err("DSI-%d read timeout\n", dsim->id);
+		dsim_err(dsim, "read timeout\n");
 		return -ETIMEDOUT;
 	}
 
 	mutex_lock(&dsim->cmd_lock);
 
 	rx_fifo = dsim_reg_get_rx_fifo(dsim->id);
-	pr_debug("rx fifo:0x%8x, response:0x%x, rx_size:%d\n", rx_fifo,
+	dsim_debug(dsim, "rx fifo:0x%8x, response:0x%x, rx_size:%d\n", rx_fifo,
 		 rx_fifo & 0xff, rx_size);
 
 	/* Parse the RX packet data types */
@@ -1249,7 +1223,7 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 		}
 		break;
 	case MIPI_DSI_RX_END_OF_TRANSMISSION:
-		pr_debug("EoTp was received\n");
+		dsim_debug(dsim, "EoTp was received\n");
 		break;
 	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE:
 	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE:
@@ -1257,12 +1231,12 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
 	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
 		buf[0] = (rx_fifo >> 8) & 0xff;
-		pr_debug("short packet was received\n");
+		dsim_debug(dsim, "short packet was received\n");
 		rx_size = cnt;
 		break;
 	case MIPI_DSI_RX_DCS_LONG_READ_RESPONSE:
 	case MIPI_DSI_RX_GENERIC_LONG_READ_RESPONSE:
-		pr_debug("long packet was received\n");
+		dsim_debug(dsim, "long packet was received\n");
 		rx_size = (rx_fifo & 0x00ffff00) >> 8;
 
 		while (i < rx_size) {
@@ -1270,21 +1244,21 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 				min_t(u32, rx_size, i + sizeof(rx_fifo));
 
 			rx_fifo = dsim_reg_get_rx_fifo(dsim->id);
-			pr_debug("payload: 0x%x i=%d max=%d\n", rx_fifo, i,
-					rx_max);
+			dsim_debug(dsim, "payload: 0x%x i=%d max=%d\n", rx_fifo,
+					i, rx_max);
 			for (; i < rx_max; i++, rx_fifo >>= 8)
 				buf[i] = rx_fifo & 0xff;
 		}
 		break;
 	default:
-		pr_err("packet format is invalid.\n");
+		dsim_err(dsim, "packet format is invaild.\n");
 		dsim_dump(dsim);
 		ret = -EBUSY;
 		goto exit;
 	}
 
 	if (!dsim_reg_rx_fifo_is_empty(dsim->id)) {
-		pr_err("RX FIFO is not empty\n");
+		dsim_err(dsim, "RX FIFO is not empty\n");
 		dsim_dump(dsim);
 		ret = -EBUSY;
 	} else  {
@@ -1310,7 +1284,7 @@ static int dsim_rd_data(struct dsim_device *dsim, u32 type, const u8 tx_data[],
 	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
 		break;
 	default:
-		pr_err("Invalid rx type (%d)\n", type);
+		dsim_err(dsim, "Invalid rx type (%d)\n", type);
 	}
 	return dsim_read_data(dsim, type, cmd, rx_len, rx_data);
 }
@@ -1392,7 +1366,7 @@ static ssize_t bist_mode_store(struct device *dev,
 	if (!bist_en && dsim->state == DSIM_STATE_HSCLKEN)
 		dsim_disable(&dsim->encoder);
 
-	dsim_info(dsim, "0:Disable 1:Color Bar 2:GRAY Gradient 3:User-Defined\n");
+	dsim_info(dsim, "0:Disable 1:ColorBar 2:GRAY Gradient 3:UserDefined\n");
 	dsim_info(dsim, "4:Prbs7 Random (%d)\n", dsim->bist_mode);
 
 	return len;
@@ -1404,7 +1378,7 @@ static int dsim_probe(struct platform_device *pdev)
 	struct dsim_device *dsim;
 	int ret;
 
-	pr_info("%s +\n", __func__);
+	dsim_info(dsim, "%s +\n", __func__);
 
 	dsim = devm_kzalloc(&pdev->dev, sizeof(*dsim), GFP_KERNEL);
 	if (!dsim)
@@ -1446,8 +1420,7 @@ static int dsim_probe(struct platform_device *pdev)
 	dsim->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 	dsim_info(dsim, "dsim idle_ip_index[%d]\n", dsim->idle_ip_index);
 	if (dsim->idle_ip_index < 0)
-		dsim_warn(dsim, "idle ip index is not provided for dsim%d\n",
-				dsim->id);
+		dsim_warn(dsim, "idle ip index is not provided\n");
 	exynos_update_ip_idle_status(dsim->idle_ip_index, 1);
 #endif
 
@@ -1460,7 +1433,7 @@ static int dsim_probe(struct platform_device *pdev)
 			phy_init(dsim->res.phy_ex);
 	}
 
-	dsim_info(dsim, "dsim%d driver has been probed.\n", dsim->id);
+	dsim_info(dsim, "driver has been probed.\n");
 	return component_add(dsim->dev, &dsim_component_ops);
 
 err:

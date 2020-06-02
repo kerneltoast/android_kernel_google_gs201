@@ -35,39 +35,17 @@
 #include <regs-dpp.h>
 #include <hdr_cal.h>
 
-static int dpp_log_level = 6;
+#define dpp_info(dpp, fmt, ...)	\
+pr_info("%s[%d]: "fmt, dpp->dev->driver->name, dpp->id, ##__VA_ARGS__)
 
-#define dpp_info(dpp, fmt, ...)						\
-	do {								\
-		if (dpp_log_level >= 6) {				\
-			DRM_INFO("%s[%d]: "fmt, dpp->dev->driver->name,	\
-					dpp->id, ##__VA_ARGS__);	\
-		}							\
-	} while (0)
+#define dpp_warn(dpp, fmt, ...)	\
+pr_warn("%s[%d]: "fmt, dpp->dev->driver->name, dpp->id, ##__VA_ARGS__)
 
-#define dpp_warn(dpp, fmt, ...)						\
-	do {								\
-		if (dpp_log_level >= 4) {				\
-			DRM_WARN("%s[%d]: "fmt, dpp->dev->driver->name,	\
-					dpp->id, ##__VA_ARGS__);	\
-		}							\
-	} while (0)
+#define dpp_err(dpp, fmt, ...)	\
+pr_err("%s[%d]: "fmt, dpp->dev->driver->name, dpp->id, ##__VA_ARGS__)
 
-#define dpp_err(dpp, fmt, ...)						\
-	do {								\
-		if (dpp_log_level >= 3) {				\
-			DRM_ERROR("%s[%d]: "fmt, dpp->dev->driver->name,\
-					dpp->id, ##__VA_ARGS__);	\
-		}							\
-	} while (0)
-
-#define dpp_dbg(dpp, fmt, ...)						\
-	do {								\
-		if (dpp_log_level >= 7) {				\
-			DRM_INFO("%s[%d]: "fmt, dpp->dev->driver->name,	\
-					dpp->id, ##__VA_ARGS__);	\
-		}							\
-	} while (0)
+#define dpp_debug(dpp, fmt, ...)	\
+pr_debug("%s[%d]: "fmt, dpp->dev->driver->name, dpp->id, ##__VA_ARGS__)
 
 #define P010_Y_SIZE(w, h)		((w) * (h) * 2)
 #define P010_CBCR_SIZE(w, h)		((w) * (h))
@@ -381,7 +359,7 @@ static void __dpp_enable(struct dpp_device *dpp)
 	enable_irq(dpp->dma_irq);
 	enable_irq(dpp->dpp_irq);
 
-	dpp_dbg(dpp, "enabled\n");
+	dpp_debug(dpp, "enabled\n");
 }
 
 #if defined(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
@@ -398,7 +376,7 @@ static int set_protection(struct dpp_device *dpp, uint64_t modifier)
 		return ret;
 
 	if (dpp->id >= ARRAY_SIZE(protection_ids)) {
-		pr_err("%s: failed to get protection id(%u)\n", __func__,
+		dpp_err(dpp, "%s: failed to get protection id(%u)\n", __func__,
 				dpp->id);
 		return -EINVAL;
 	}
@@ -408,14 +386,14 @@ static int set_protection(struct dpp_device *dpp, uint64_t modifier)
 			(protection ? SMC_PROTECTION_ENABLE :
 			SMC_PROTECTION_DISABLE));
 	if (ret) {
-		pr_err("%s: failed to %s protection(ch:%u, ret:%d)\n", __func__,
-				protection ? "enable" : "disable", dpp->id,
-				ret);
+		dpp_err(dpp, "%s: failed to %s protection(ch:%u, ret:%d)\n",
+				__func__, protection ? "enable" : "disable",
+				dpp->id, ret);
 		return ret;
 	}
 	dpp->protection = protection;
 
-	pr_debug("%s: ch:%u, en:%d\n", __func__, dpp->id, protection);
+	dpp_debug(dpp, "%s: ch:%u, en:%d\n", __func__, dpp->id, protection);
 
 	return ret;
 }
@@ -442,7 +420,7 @@ static void __dpp_disable(struct dpp_device *dpp)
 	set_protection(dpp, 0);
 	dpp->state = DPP_STATE_OFF;
 
-	dpp_dbg(dpp, "disabled\n");
+	dpp_debug(dpp, "disabled\n");
 }
 
 static int dpp_disable(struct dpp_device *this_dpp)
@@ -576,7 +554,7 @@ static int dpp_check(struct dpp_device *dpp,
 							plane_state->crtc);
 	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 
-	dpp_dbg(dpp, "%s +\n", __func__);
+	dpp_debug(dpp, "%s +\n", __func__);
 
 	memset(&config, 0, sizeof(struct dpp_params_info));
 
@@ -603,12 +581,12 @@ static int dpp_check(struct dpp_device *dpp,
 	if (__dpp_check(dpp->id, &config, dpp->attr))
 		goto err;
 
-	dpp_dbg(dpp, "%s -\n", __func__);
+	dpp_debug(dpp, "%s -\n", __func__);
 
 	return 0;
 
 err:
-	dpp_err(dpp, "src[%d %d %d %d %d %d] dst[%d %d %d %d %d %d] format[%d]\n",
+	dpp_err(dpp, "src[%d %d %d %d %d %d] dst[%d %d %d %d %d %d] fmt[%d]\n",
 			config.src.x, config.src.y, config.src.w, config.src.h,
 			config.src.f_w, config.src.f_h,
 			config.dst.x, config.dst.y, config.dst.w, config.dst.h,
@@ -659,7 +637,7 @@ static int dpp_update(struct dpp_device *dpp,
 	const struct drm_crtc_state *crtc_state = plane_state->crtc->state;
 	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 
-	dpp_dbg(dpp, "%s +\n", __func__);
+	dpp_debug(dpp, "%s +\n", __func__);
 
 	__dpp_enable(dpp);
 
@@ -670,7 +648,7 @@ static int dpp_update(struct dpp_device *dpp,
 
 	dpp_reg_configure_params(dpp->id, config, dpp->attr);
 
-	dpp_dbg(dpp, "%s -\n", __func__);
+	dpp_debug(dpp, "%s -\n", __func__);
 
 	return 0;
 }
@@ -683,7 +661,7 @@ static int dpp_bind(struct device *dev, struct device *master, void *data)
 	int ret = 0;
 	int id = dpp->id;
 
-	dpp_dbg(dpp, "%s +\n", __func__);
+	dpp_debug(dpp, "%s +\n", __func__);
 
 	memset(&plane_config, 0, sizeof(plane_config));
 
@@ -702,10 +680,11 @@ static int dpp_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
-	dpp_dbg(dpp, "%s -\n", __func__);
+	dpp_debug(dpp, "%s -\n", __func__);
 
 	return 0;
 }
+
 
 static void dpp_unbind(struct device *dev, struct device *master, void *data)
 {
@@ -819,8 +798,8 @@ static irqreturn_t dma_irq_handler(int irq, void *priv)
 		DPU_EVENT_LOG(DPU_EVT_DMA_RECOVERY, dpp->decon_id, dpp);
 		dpp->recovery_cnt++;
 		str_comp = get_comp_src_name(dpp->comp_src);
-		dpp_info(dpp, "recovery start(0x%x) cnt(%d) src(%s)\n",
-				irqs, dpp->recovery_cnt, str_comp);
+		dpp_info(dpp, "recovery start(0x%x) cnt(%d) src(%s)\n", irqs,
+				dpp->recovery_cnt, str_comp);
 		goto irq_end;
 	}
 
@@ -852,7 +831,7 @@ static int dpp_init_resources(struct dpp_device *dpp)
 	i = of_property_match_string(np, "reg-names", "dma");
 	dpp->regs.dma_base_regs = of_iomap(np, i);
 	if (!dpp->regs.dma_base_regs) {
-		pr_err("failed to remap DPU_DMA SFR region\n");
+		dpp_err(dpp, "failed to remap DPU_DMA SFR region\n");
 		return -EINVAL;
 	}
 	dpp_regs_desc_init(dpp->regs.dma_base_regs, "dma", REGS_DMA, dpp->id);
@@ -871,7 +850,7 @@ static int dpp_init_resources(struct dpp_device *dpp)
 		i = of_property_match_string(np, "reg-names", "dpp");
 		dpp->regs.dpp_base_regs = of_iomap(np, i);
 		if (!dpp->regs.dpp_base_regs) {
-			pr_err("failed to remap DPP SFR region\n");
+			dpp_err(dpp, "failed to remap DPP SFR region\n");
 			return -EINVAL;
 		}
 		dpp_regs_desc_init(dpp->regs.dpp_base_regs, "dpp", REGS_DPP,
@@ -893,7 +872,7 @@ static int dpp_init_resources(struct dpp_device *dpp)
 		i = of_property_match_string(np, "reg-names", "hdr");
 		dpp->regs.hdr_base_regs = of_iomap(np, i);
 		if (!dpp->regs.hdr_base_regs) {
-			pr_err("failed to remap HDR SFR region\n");
+			dpp_err(dpp, "failed to remap HDR SFR region\n");
 			return -EINVAL;
 		}
 		hdr_regs_desc_init(dpp->regs.hdr_base_regs, "hdr", dpp->id);
@@ -940,12 +919,12 @@ static int dpp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dpp);
 
-	dpp_info(dpp, "dpp%d successfully probed", dpp->id);
+	dpp_info(dpp, "successfully probed");
 
 	return component_add(dev, &exynos_dpp_component_ops);
 
 fail:
-	dpp_err(dpp, "dpp%d probe failed", dpp->id);
+	dpp_err(dpp, "probe failed");
 
 	return ret;
 }
