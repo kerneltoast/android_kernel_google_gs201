@@ -75,6 +75,22 @@ static inline int hardlockup_debug_try_lock_timeout(raw_spinlock_t *lock,
 	return ret;
 }
 
+static unsigned long hardlockup_debug_get_locked_cpu_mask(void)
+{
+	unsigned long mask = 0;
+	unsigned int val;
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		val = dbg_snapshot_get_hardlockup_magic(cpu);
+		if (val == HARDLOCKUP_DEBUG_MAGIC ||
+			val == (HARDLOCKUP_DEBUG_MAGIC + 1))
+			mask |= (1 << cpu);
+	}
+
+	return mask;
+}
+
 static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 {
 	int cpu = raw_smp_processor_id();
@@ -91,12 +107,9 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 			val = dbg_snapshot_get_hardlockup_magic(cpu);
 			if (val == HARDLOCKUP_DEBUG_MAGIC ||
 				val == (HARDLOCKUP_DEBUG_MAGIC + 1)) {
-				int _cpu;
-
 				allcorelockup_detected = 1;
-				hardlockup_core_mask = 0;
-				for_each_online_cpu(_cpu)
-					hardlockup_core_mask |= (1 << _cpu);
+				hardlockup_core_mask =
+					hardlockup_debug_get_locked_cpu_mask();
 			} else {
 				pr_emerg("%s: invalid magic from "
 					"el3 fiq handler\n", __func__);
@@ -125,7 +138,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 
 		pr_emerg("%s - Debugging Information for Hardlockup core(%d) -"
 			" locked CPUs mask (0x%lx)\n",
-			allcorelockup_detected ? "All Core" : "Core", cpu,
+			allcorelockup_detected ? "WDT expired" : "Core", cpu,
 			hardlockup_core_mask);
 		dump_backtrace(regs, NULL);
 		dbg_snapshot_save_context(regs);
