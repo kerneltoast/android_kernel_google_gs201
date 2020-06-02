@@ -36,6 +36,10 @@
  */
 #define ODPM_MIN_POLLING_TIME_MS 50 /* ms */
 
+#define str(val) #val
+#define xstr(s) str(s)
+#define ODPM_RAIL_NAME_STR_LEN_MAX 49
+
 #define SWITCH_CHIP_FUNC(infop, func, args...)                                 \
 	do {                                                                   \
 		switch ((infop)->chip.id) {                                    \
@@ -77,7 +81,9 @@ struct odpm_rail_data {
 	u8 chip_enable_index;
 
 	/* Data */
-	u64 acc_power_uW_sec;
+	u64 acc_power_uW_sec_cached;
+	u64 measurement_stop_ms;
+	u64 measurement_start_ms_cached;
 };
 
 struct odpm_chip {
@@ -99,6 +105,9 @@ struct odpm_chip {
 struct odpm_channel_data {
 	int rail_i;
 	bool enabled;
+
+	u64 measurement_start_ms;
+	u64 acc_power_uW_sec;
 };
 
 /**
@@ -149,6 +158,11 @@ static const struct iio_chan_spec s2mpg1x_single_channel[ODPM_CHANNEL_MAX] = {
 };
 
 static int odpm_take_snapshot(struct odpm_info *info);
+
+static u64 odpm_get_timestamp_now_ms(void)
+{
+	return ktime_get_boottime_ns() / 1000000;
+}
 
 static int odpm_io_set_channel(struct odpm_info *info, int channel)
 {
@@ -243,9 +257,17 @@ int odpm_configure_chip(struct odpm_info *info)
 int odpm_configure_start_measurement(struct odpm_info *info)
 {
 	unsigned long jiffies_capture = 0;
+	int ch;
+	u64 timestamp;
 
 	/* For s2mpg1x chips, clear ACC registers */
 	int ret = odpm_io_send_blank_async(info, &jiffies_capture);
+
+	timestamp = odpm_get_timestamp_now_ms();
+	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
+		if (info->channels[ch].enabled)
+			info->channels[ch].measurement_start_ms = timestamp;
+	}
 
 	info->jiffies_last_poll = jiffies_capture;
 
@@ -613,7 +635,7 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 
 static int odpm_refresh_registers(struct odpm_info *info)
 {
-	const u64 tstamp_ms = ktime_get_boottime_ns() / 1000000;
+	const u64 tstamp_ms = odpm_get_timestamp_now_ms(); /* Approximate */
 	int ch;
 	int ret = 0;
 
@@ -637,7 +659,7 @@ static int odpm_refresh_registers(struct odpm_info *info)
 		const u64 uW_sec =
 			odpm_calculate_uW_sec(info, rail_i, acc_data[ch]);
 
-		info->chip.rails[rail_i].acc_power_uW_sec += uW_sec;
+		info->channels[ch].acc_power_uW_sec += uW_sec;
 	}
 
 	return 0;
@@ -759,7 +781,7 @@ static ssize_t energy_value_show(struct device *dev,
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "CH%d[%s], %ld\n", ch,
 				   info->chip.rails[rail_i].schematic_name,
-				   info->chip.rails[rail_i].acc_power_uW_sec);
+				   info->channels[ch].acc_power_uW_sec);
 	}
 
 	return count;
@@ -807,11 +829,118 @@ static ssize_t enabled_rails_show(struct device *dev,
 	return count;
 }
 
+static ssize_t enabled_rails_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct odpm_info *info = iio_priv(indio_dev);
+
+	char rail_name[ODPM_RAIL_NAME_STR_LEN_MAX + 1];
+	int channel = -1;
+	bool channel_valid = false;
+	int rail_i;
+	int scan_result;
+
+	scan_result = sscanf(buf, "CH%d=%" xstr(ODPM_RAIL_NAME_STR_LEN_MAX) "s",
+			     &channel, rail_name);
+
+	if (scan_result == 2 && channel >= 0 && channel < ODPM_CHANNEL_MAX) {
+		for (rail_i = 0; rail_i < info->chip.num_rails; rail_i++) {
+			if (strncmp(info->chip.rails[rail_i].name, rail_name,
+				    ODPM_RAIL_NAME_STR_LEN_MAX) == 0) {
+				channel_valid = true;
+				break;
+			}
+		}
+	}
+
+	if (channel_valid) {
+		int current_rail = info->channels[channel].rail_i;
+
+		/* Send a refresh and store values */
+		odpm_take_snapshot(info);
+
+		/* Capture measurement time for current rail */
+		info->chip.rails[current_rail].measurement_start_ms_cached =
+			info->channels[channel].measurement_start_ms;
+		info->chip.rails[current_rail].measurement_stop_ms =
+			odpm_get_timestamp_now_ms();
+
+		/* Reset stored energy for channel */
+		info->chip.rails[current_rail].acc_power_uW_sec_cached =
+			info->channels[channel].acc_power_uW_sec;
+		info->channels[channel].acc_power_uW_sec = 0;
+
+		/* Change rail muxsel */
+		info->channels[channel].rail_i = rail_i;
+		odpm_io_set_channel(info, channel);
+
+		/* Record measurement start time / reset stop time */
+		info->channels[channel].measurement_start_ms =
+			odpm_get_timestamp_now_ms();
+		info->chip.rails[rail_i].measurement_stop_ms = 0;
+
+		return count;
+	}
+
+	// The channel syntax was invalid if this is reached.
+	return -EINVAL;
+}
+
+static ssize_t measurement_start_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct odpm_info *info = iio_priv(indio_dev);
+	int ch;
+	ssize_t count = 0;
+
+	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
+		int rail_i = info->channels[ch].rail_i;
+
+		if (info->channels[ch].enabled) {
+			count += scnprintf(buf + count, PAGE_SIZE - count,
+				"CH%d[%s], %ld\n", ch,
+				info->chip.rails[rail_i].schematic_name,
+				info->channels[ch].measurement_start_ms);
+		}
+	}
+
+	return count;
+}
+
+static ssize_t measurement_stop_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct odpm_info *info = iio_priv(indio_dev);
+	int rail_i;
+	ssize_t count = 0;
+
+	for (rail_i = 0; rail_i < info->chip.num_rails; rail_i++) {
+		struct odpm_rail_data *rail = &info->chip.rails[rail_i];
+
+		if (rail->measurement_stop_ms != 0) {
+			count += scnprintf(buf + count, PAGE_SIZE - count,
+					   "%s(%s), %ld, %ld, %ld\n",
+					   rail->name, rail->schematic_name,
+					   rail->measurement_start_ms_cached,
+					   rail->measurement_stop_ms,
+					   rail->acc_power_uW_sec_cached);
+		}
+	}
+
+	return count;
+}
+
 static IIO_DEVICE_ATTR_RW(ext_sampling_rate, 0);
 static IIO_DEVICE_ATTR_RW(sampling_rate, 0);
 static IIO_DEVICE_ATTR_RO(energy_value, 0);
 static IIO_DEVICE_ATTR_RO(available_rails, 0);
-static IIO_DEVICE_ATTR_RO(enabled_rails, 0);
+static IIO_DEVICE_ATTR_RW(enabled_rails, 0);
+static IIO_DEVICE_ATTR_RO(measurement_start, 0);
+static IIO_DEVICE_ATTR_RO(measurement_stop, 0);
 
 /**
  * TODO(stayfan): b/156109194
@@ -826,9 +955,10 @@ static IIO_DEVICE_ATTR_RO(enabled_rails, 0);
 #define ODPM_DEV_ATTR(name) (&iio_dev_attr_##name.dev_attr.attr)
 
 static struct attribute *odpm_custom_attributes[] = {
-	ODPM_DEV_ATTR(sampling_rate), ODPM_DEV_ATTR(ext_sampling_rate),
-	ODPM_DEV_ATTR(energy_value),  ODPM_DEV_ATTR(available_rails),
-	ODPM_DEV_ATTR(enabled_rails), NULL
+	ODPM_DEV_ATTR(sampling_rate),	 ODPM_DEV_ATTR(ext_sampling_rate),
+	ODPM_DEV_ATTR(energy_value),	 ODPM_DEV_ATTR(available_rails),
+	ODPM_DEV_ATTR(enabled_rails),	 ODPM_DEV_ATTR(measurement_start),
+	ODPM_DEV_ATTR(measurement_stop), NULL
 };
 
 static const struct attribute_group odpm_group = {
