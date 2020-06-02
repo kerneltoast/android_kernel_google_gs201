@@ -1219,7 +1219,7 @@ static int dsim_read_data(struct dsim_device *dsim, u32 id, u32 addr, u32 cnt,
 		}
 		break;
 	default:
-		dsim_err(dsim, "packet format is invaild.\n");
+		dsim_err(dsim, "packet format is invalid.\n");
 		dsim_dump(dsim);
 		ret = -EBUSY;
 		goto exit;
