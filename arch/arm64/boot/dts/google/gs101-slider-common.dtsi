@@ -44,3 +44,25 @@
 		samsung,pin-drv = <0>;
 	};
 };
+
+&gpio_keys {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&key_voldown &key_volup &key_power>;
+	button@1 {
+		label = "gpio-keys: KEY_VOLUMEDOWN";
+		linux,code = <114>;
+		gpios = <&gpa7 3 0xf>;
+	};
+	button@2 {
+		label = "gpio-keys: KEY_VOLUMEUP";
+		linux,code = <115>;
+		gpios = <&gpa8 1 0xf>;
+	};
+	button@3 {
+		label = "gpio-keys: KEY_POWER";
+		linux,code = <116>;
+		gpios = <&gpa10 1 0xf>;
+		gpio-key,wakeup = <1>;
+	};
+};
