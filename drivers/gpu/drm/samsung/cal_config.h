@@ -89,6 +89,12 @@ static inline void cal_write(struct cal_regs_desc *regs_desc,
 	writel(val, regs_desc->regs + offset);
 }
 
+static inline void cal_write_relaxed(struct cal_regs_desc *regs_desc,
+		uint32_t offset, uint32_t val)
+{
+	writel_relaxed(val, regs_desc->regs + offset);
+}
+
 static inline uint32_t cal_read_mask(struct cal_regs_desc *regs_desc,
 		uint32_t offset, uint32_t mask)
 {

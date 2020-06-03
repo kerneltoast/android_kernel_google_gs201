@@ -24,6 +24,8 @@ static struct cal_regs_desc regs_dqe;
 		cal_read_mask((&regs_dqe), offset, mask)
 #define dqe_write_mask(offset, val, mask)	\
 		cal_write_mask((&regs_dqe), offset, val, mask)
+#define dqe_write_relaxed(offset, val)		\
+		cal_write_relaxed((&regs_dqe), offset, val)
 
 void dqe_regs_desc_init(void __iomem *regs, const char *name)
 {
@@ -95,17 +97,13 @@ void dqe_reg_set_cgc_lut(const struct cgc_lut *lut)
 		return;
 	}
 
-	dqe_write_mask(DQE0_CGC_CON, ~0, CGC_EN);
 	for (i = 0; i < DRM_SAMSUNG_CGC_LUT_REG_CNT; ++i) {
-		dqe_write(DQE0_CGC_LUT_R(i), lut->r_values[i]);
-		cal_log_debug(0, "[%d]   red: 0x%x\n", i, lut->r_values[i]);
-
-		dqe_write(DQE0_CGC_LUT_G(i), lut->g_values[i]);
-		cal_log_debug(0, "[%d] green: 0x%x\n", i, lut->g_values[i]);
-
-		dqe_write(DQE0_CGC_LUT_B(i), lut->b_values[i]);
-		cal_log_debug(0, "[%d]  blue: 0x%x\n", i, lut->b_values[i]);
+		dqe_write_relaxed(DQE0_CGC_LUT_R(i), lut->r_values[i]);
+		dqe_write_relaxed(DQE0_CGC_LUT_G(i), lut->g_values[i]);
+		dqe_write_relaxed(DQE0_CGC_LUT_B(i), lut->b_values[i]);
 	}
+
+	dqe_write_mask(DQE0_CGC_CON, ~0, CGC_EN);
 
 	cal_log_debug(0, "%s -\n", __func__);
 }
