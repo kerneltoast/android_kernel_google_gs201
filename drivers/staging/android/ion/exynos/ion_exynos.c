@@ -242,7 +242,8 @@ static struct exynos_iovm_map *exynos_get_iovm_map(struct dma_buf_attachment *a,
 	} else if (!dma_map_sg_attrs(iovm_map->dev,
 				     iovm_map->table.sgl,
 				     iovm_map->table.nents, dir,
-				     iovm_map->attrs)) {
+				     iovm_map->attrs |
+				     DMA_ATTR_SKIP_CPU_SYNC)) {
 		exynos_iova_remove(iovm_map);
 		return NULL;
 	}
