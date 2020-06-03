@@ -107,4 +107,10 @@ config EXYNOS_PM_QOS
 	help
 	Support Exynos PM QOS
 
+config EXYNOS_CPUHP
+	tristate "CPU Hotplug driver support"
+	default n
+	help
+	Support CPU Hotplug for Exynos SoC.
+
 endmenu
