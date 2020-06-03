@@ -96,4 +96,10 @@ config ECT
 	help
 	Support ECT for Exynos SoC.
 
+config EXYNOS_DVFS_MANAGER
+	tristate "Exynos DVFS Manager"
+	help
+	Enable DVFS Manager for Exynos SoC.
+	This module controls constraint between each DVFS domains.
+
 endmenu

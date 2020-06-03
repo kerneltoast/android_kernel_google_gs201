@@ -66,7 +66,7 @@ struct exynos_dm_constraint {
 struct exynos_dm_data {
 	/* use for DVFS domain available */
 	bool				available;
-#if IS_ENABLED(CONFIG_EXYNOS_ACPM)
+#if IS_ENABLED(CONFIG_GS_ACPM)
 	bool				policy_use;
 #endif
 	int		dm_type;
@@ -94,7 +94,7 @@ struct exynos_dm_data {
 	struct list_head		min_masters;
 	struct list_head		max_masters;
 
-#if IS_ENABLED(CONFIG_EXYNOS_ACPM)
+#if IS_ENABLED(CONFIG_GS_ACPM)
 	u32				cal_id;
 #endif
 
