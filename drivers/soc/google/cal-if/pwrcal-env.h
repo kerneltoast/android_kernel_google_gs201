@@ -8,7 +8,7 @@
 #include <linux/spinlock.h>
 #include <linux/math64.h>
 #include <linux/delay.h>
-#include <linux/smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 #include <soc/google/exynos-el3_mon.h>
 
 #else
