@@ -293,6 +293,7 @@
 		port-name = "G3AA";
 		#iommu-cells = <0>;
 		power-domains = <&pd_g3aa>;
+		sysmmu,no-s2pf;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x8,  0x38)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x10, 0x38)>,
