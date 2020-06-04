@@ -29,6 +29,8 @@
 #include <linux/mfd/samsung/s2mpg10-meter.h>
 #include <linux/mfd/samsung/s2mpg11-meter.h>
 
+#define ODPM_PRINT_ESTIMATED_CLOCK_SKEW 0
+
 /* Cache accumulated values to prevent too frequent updates,
  * allow a refresh only every 50 ms.
  * Note: s2mpg1x chips can take on average between 1-2 ms
@@ -96,7 +98,6 @@ struct odpm_chip {
 	struct odpm_rail_data *rails;
 
 	/* Data */
-	u64 acc_count;
 	u64 acc_timestamp;
 	s2mpg1x_int_samp_rate int_sampling_rate_i;
 	s2mpg1x_ext_samp_rate ext_sampling_rate_i;
@@ -575,7 +576,7 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 }
 
 static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
-				 u64 acc_data)
+				 u64 acc_data, u32 int_sampling_frequency_uhz)
 {
 	u32 sampling_frequency_uhz;
 	u64 sampling_period_ms_iq30;
@@ -587,10 +588,7 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 
 	switch (info->chip.rails[rail_i].type) {
 	case ODPM_RAIL_TYPE_REGULATOR: {
-		int sample_rate_i = info->chip.int_sampling_rate_i;
-
-		sampling_frequency_uhz =
-			int_sample_rate_i_to_uhz[sample_rate_i];
+		sampling_frequency_uhz = int_sampling_frequency_uhz;
 
 		SWITCH_CHIP_FUNC(info, muxsel_to_power_resolution,
 				 info->chip.rails[rail_i].mux_select);
@@ -598,10 +596,19 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 	} break;
 	case ODPM_RAIL_TYPE_SHUNT: {
 		u64 resolution_W_iq60;
-		int sampling_rate_i = info->chip.ext_sampling_rate_i;
 
+		int int_sampling_rate_i = info->chip.int_sampling_rate_i;
+		int int_sampling_frequency_table_uhz =
+			int_sample_rate_i_to_uhz[int_sampling_rate_i];
+		int ext_sampling_rate_i = info->chip.ext_sampling_rate_i;
+		int ext_sampling_frequency_table_uhz =
+			ext_sample_rate_i_to_uhz[ext_sampling_rate_i];
+
+		/* b/156680376 - int/ext clocks are correlated */
 		sampling_frequency_uhz =
-			ext_sample_rate_i_to_uhz[sampling_rate_i];
+			((u64)int_sampling_frequency_uhz *
+			 (u64)ext_sampling_frequency_table_uhz) /
+			int_sampling_frequency_table_uhz;
 
 		/* Losing a fraction of resolution performing u64 divisions,
 		 * as there is no support for 128 bit divisions
@@ -633,31 +640,116 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 	return _IQ22_to_int(_IQ30_to_int(power_acc_uW_s_iq52));
 }
 
+#if ODPM_PRINT_ESTIMATED_CLOCK_SKEW
+static void odpm_print_clock_skew(struct odpm_info *info, u64 elapsed_ms,
+				  u32 acc_count)
+{
+	u64 uHz_estimated = ((u64)acc_count * 1000 * 1000000) / elapsed_ms;
+	u64 uHz = int_sample_rate_i_to_uhz[info->chip.int_sampling_rate_i];
+
+	u64 ratio_u = (1000000 * uHz_estimated) / uHz;
+	s64 pct_u = (((s64)ratio_u - (1 * 1000000)) * 100);
+
+	pr_info("odpm: %s: internal clock skew: %d.%d %%\n", info->chip.name,
+		pct_u / 1000000, abs(pct_u) % 1000000);
+}
+#endif
+
+static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
+					    unsigned long jiffies_before,
+					    unsigned long jiffies_after,
+					    u32 acc_count)
+{
+	/* b/156680376
+	 * Instead of using the configured sampling rate, we want to approximate
+	 * the sampling rate based on acc_count
+	 */
+
+	u64 elapsed_ms =
+		jiffies_to_msecs(jiffies_after - info->jiffies_last_poll);
+	u64 sampling_frequency_estimated_uhz =
+		((u64)acc_count * 1000 * 1000000) / elapsed_ms;
+
+	int sampling_rate_i = info->chip.int_sampling_rate_i;
+	int sampling_frequency_table_uhz =
+		int_sample_rate_i_to_uhz[sampling_rate_i];
+	u64 freq_lower_bound;
+	u64 freq_upper_bound;
+	int refresh_reg_time_ms;
+
+#if ODPM_PRINT_ESTIMATED_CLOCK_SKEW
+	odpm_print_clock_skew(info, elapsed_ms, acc_count);
+#endif
+
+	/* 100 ms check on register refresh...
+	 * We want to verify that the transaction time isn't too long, as the
+	 * process may have been pre-empted between the command to refresh
+	 * registers and when jiffies were captured (jiffies_after).
+	 */
+	refresh_reg_time_ms = jiffies_to_msecs(jiffies_after - jiffies_before);
+	if (refresh_reg_time_ms >= 100) {
+		pr_err("odpm: %s: refresh registers took too long; %ld ms\n",
+		       info->chip.name, refresh_reg_time_ms);
+
+		/* Fall back to configured frequency */
+		return sampling_frequency_table_uhz;
+	}
+
+	/* +-50% error bounds check */
+	freq_lower_bound = sampling_frequency_table_uhz / 2;
+	freq_upper_bound =
+		sampling_frequency_table_uhz + sampling_frequency_table_uhz / 2;
+	if (sampling_frequency_estimated_uhz < freq_lower_bound ||
+	    sampling_frequency_estimated_uhz > freq_upper_bound) {
+		pr_err("odpm: %s: clock error too large! fsel: %d, fest: %ld\n",
+		       info->chip.name, sampling_frequency_table_uhz,
+		       sampling_frequency_estimated_uhz);
+
+		/* Fall back to configured frequency */
+		return sampling_frequency_table_uhz;
+	} else {
+		return sampling_frequency_estimated_uhz;
+	}
+}
+
 static int odpm_refresh_registers(struct odpm_info *info)
 {
-	const u64 tstamp_ms = odpm_get_timestamp_now_ms(); /* Approximate */
 	int ch;
 	int ret = 0;
 
 	u64 acc_data[ODPM_CHANNEL_MAX];
 	u32 acc_count = 0;
-	unsigned long jiffies_capture = 0;
+	u64 absolute_timestamp_ms;
+	u32 sampling_frequency_uhz;
+
+	unsigned long jiffies_before_async = jiffies;
+	unsigned long jiffies_after_async;
 
 	SWITCH_METER_FUNC(info, meter_load_measurement,
 			  S2MPG1X_METER_POWER, acc_data, &acc_count,
-			  &jiffies_capture);
+			  &jiffies_after_async);
+	absolute_timestamp_ms = odpm_get_timestamp_now_ms();
 
-	/* TODO(stayfan): b/156107234
-	 * check for success; store values only if success
-	 */
-	info->jiffies_last_poll = jiffies_capture;
-	info->chip.acc_timestamp = tstamp_ms;
-	info->chip.acc_count += acc_count;
+	if (ret < 0) {
+		pr_err("odpm: %s: i2c error; count not measure interval\n",
+		       info->chip.name);
+		return ret;
+	}
+
+	sampling_frequency_uhz =
+		odpm_estimate_sampling_frequency(info,
+						 jiffies_before_async,
+						 jiffies_after_async,
+						 acc_count);
+
+	info->jiffies_last_poll = jiffies_after_async;
+	info->chip.acc_timestamp = absolute_timestamp_ms;
 
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
 		const int rail_i = info->channels[ch].rail_i;
 		const u64 uW_sec =
-			odpm_calculate_uW_sec(info, rail_i, acc_data[ch]);
+			odpm_calculate_uW_sec(info, rail_i, acc_data[ch],
+					      (u32)sampling_frequency_uhz);
 
 		info->channels[ch].acc_power_uW_sec += uW_sec;
 	}
@@ -884,7 +976,7 @@ static ssize_t enabled_rails_store(struct device *dev,
 		return count;
 	}
 
-	// The channel syntax was invalid if this is reached.
+	/* The channel syntax was invalid if this is reached. */
 	return -EINVAL;
 }
 
@@ -1107,11 +1199,11 @@ static int odpm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Configure work to kick off every XHz */
-	odpm_periodic_refresh_setup(odpm_info);
-
 	/* Start measurement of default rails */
 	odpm_configure_start_measurement(odpm_info);
+
+	/* Configure work to kick off every XHz */
+	odpm_periodic_refresh_setup(odpm_info);
 
 	/* Setup IIO */
 	indio_dev->channels = s2mpg1x_single_channel;
