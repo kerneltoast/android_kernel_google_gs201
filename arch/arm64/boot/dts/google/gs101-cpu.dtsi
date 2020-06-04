@@ -102,4 +102,9 @@
 		compatible = "arm,psci-1.0";
 		method = "smc";
 	};
+
+	exynos-cpuphp {
+		compatible = "samsung,exynos-cpuhp";
+		status = "okay";
+	};
 };
