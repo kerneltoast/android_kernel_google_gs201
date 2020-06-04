@@ -1443,9 +1443,12 @@ static int exynos_ufs_sysfs_init(struct exynos_ufs *ufs)
 	 * As for eom_version, you have to move it to store a value
 	 * from device tree when eom code is revised, even though I expect
 	 * it's not gonna to happen.
+	 *
+	 * h8_delay_ms is set to 12ms recently required from customers
 	 */
 	ufs->params[UFS_S_PARAM_EOM_VER] = 0;
 	ufs->params[UFS_S_PARAM_MON] = 0;
+	ufs->params[UFS_S_PARAM_H8_D_MS] = 12;
 
 	return 0;
 
