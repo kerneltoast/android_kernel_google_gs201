@@ -384,7 +384,8 @@ err_domains:
 	return ret;
 }
 
-DECLARE_BITMAP(exynos_eint_wake_mask_array, 96) = { [0 ... BITS_TO_LONGS(96) - 1] = ~0UL};
+DECLARE_BITMAP(exynos_eint_wake_mask_bitmap, 96) = { [0 ... BITS_TO_LONGS(96) - 1] = ~0UL};
+u32 exynos_eint_wake_mask_array[3] = {~0U, ~0U, ~0U};
 EXPORT_SYMBOL(exynos_eint_wake_mask_array);
 
 static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
@@ -395,17 +396,20 @@ static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 
 	bit = bank->eint_num + irqd->hwirq;
 	if (!on)
-		exynos_eint_wake_mask_array[BIT_WORD(bit)] |= BIT_MASK(bit);
+		exynos_eint_wake_mask_bitmap[BIT_WORD(bit)] |= BIT_MASK(bit);
 	else
-		exynos_eint_wake_mask_array[BIT_WORD(bit)] &= ~BIT_MASK(bit);
+		exynos_eint_wake_mask_bitmap[BIT_WORD(bit)] &= ~BIT_MASK(bit);
+
+	bitmap_to_arr32(exynos_eint_wake_mask_array, exynos_eint_wake_mask_bitmap, 96);
 
 	dev_info(d->dev, "wake %s for irq %d\n", on ? "enabled" : "disabled",
 		 irqd->irq);
 	dev_info(d->dev, "(%s:0x%x) dirq = %d, eint_num = %u\n",
 		 bank->name, bank->eint_offset, d->irq, bank->eint_num);
-	dev_info(d->dev, "exynos_eint_wake_mask value (0x%lX, 0x%lX)\n",
+	dev_info(d->dev, "exynos_eint_wake_mask value (0x%X, 0x%X, 0x%X)\n",
 		 exynos_eint_wake_mask_array[0],
-		 exynos_eint_wake_mask_array[1]);
+		 exynos_eint_wake_mask_array[1],
+		 exynos_eint_wake_mask_array[2]);
 
 	return 0;
 }
