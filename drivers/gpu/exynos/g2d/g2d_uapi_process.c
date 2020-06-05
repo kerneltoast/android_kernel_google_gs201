@@ -182,6 +182,30 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
+static struct dma_buf *g2d_get_hwfc_dmabuf(struct g2d_context *ctx,
+					   struct g2d_task *task)
+{
+	struct dma_buf *dmabuf = ctx->hwfc_info->bufs[g2d_task_id(task)];
+
+	get_dma_buf(dmabuf);
+
+	return dmabuf;
+}
+#else
+static struct dma_buf *g2d_get_hwfc_dmabuf(struct g2d_context *ctx,
+					   struct g2d_task *task)
+{
+	perrfndev(task->g2d_dev, "HWFC without repeater is not supported.\n");
+	return ERR_PTR(-EINVAL);
+}
+/* hwfc_get_valid_buffer is defined in the repeater driver */
+static int hwfc_get_valid_buffer(int *buf_idx)
+{
+	return -ENOTSUPP;
+}
+#endif
+
 static int g2d_get_dmabuf(struct g2d_task *task,
 			  struct g2d_context *ctx,
 			  struct g2d_buffer *buffer,
@@ -204,8 +228,9 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 			return PTR_ERR(dmabuf);
 		}
 	} else {
-		dmabuf = ctx->hwfc_info->bufs[g2d_task_id(task)];
-		get_dma_buf(dmabuf);
+		dmabuf = g2d_get_hwfc_dmabuf(ctx, task);
+		if (IS_ERR(dmabuf))
+			return PTR_ERR(dmabuf);
 	}
 
 	if (dmabuf->size < data->dmabuf.offset) {
@@ -653,6 +678,7 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 	if (IS_HWFC(task->flags)) {
 		struct g2d_task *ptask;
 		unsigned long flags;
+		struct dma_buf *dmabuf;
 
 		target->buffer_type = G2D_BUFTYPE_DMABUF;
 
@@ -667,8 +693,6 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 			perrfndev(g2d_dev, "Failed to get buffer for HWFC");
 			return ret;
 		}
-
-		BUG_ON(task->bufidx >= ctx->hwfc_info->buffer_count);
 
 		spin_lock_irqsave(&task->g2d_dev->lock_task, flags);
 
@@ -692,16 +716,26 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 			ptask = ptask->next;
 		}
 
-		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF, task->bufidx);
-
 		g2d_task_set_id(task, task->bufidx);
 
 		spin_unlock_irqrestore(&task->g2d_dev->lock_task, flags);
 
+		/*
+		 * HWFC buffer is not given by the userspace. So, userspace does
+		 * not fill buffer information. Let's initialize buffer
+		 * information with the HWFC buffer.
+		 */
+		dmabuf = g2d_get_hwfc_dmabuf(ctx, task);
+		if (IS_ERR(dmabuf))
+			return PTR_ERR(dmabuf);
+
 		data->num_buffers = 1;
 		data->buffer[0].dmabuf.offset = 0;
-		data->buffer[0].length =
-			(__u32)ctx->hwfc_info->bufs[task->bufidx]->size;
+		data->buffer[0].length = dmabuf->size;
+
+		dma_buf_put(dmabuf);
+
+		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF, task->bufidx);
 	}
 
 	if (target->buffer_type == G2D_BUFTYPE_EMPTY) {

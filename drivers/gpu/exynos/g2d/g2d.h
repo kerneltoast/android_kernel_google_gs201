@@ -19,7 +19,11 @@
 #include <linux/miscdevice.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
+
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 #include <media/exynos_repeater.h>
+#endif
+
 #include <linux/pm_qos.h>
 #include <soc/samsung/exynos-itmon.h>
 
@@ -168,16 +172,22 @@ struct g2d_device {
 struct g2d_context {
 	struct list_head	node;
 	struct g2d_device	*g2d_dev;
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	struct shared_buffer_info *hwfc_info;
+	struct mutex		lock_hwfc_info;
+#endif
 	u32 priority;
 	int authority;
 	struct task_struct	*owner;
 
 	struct list_head qos_node;
-	struct mutex	lock_hwfc_info;
-
 	struct g2d_qos	ctxqos;
 };
+
+#if !IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
+/* MAX_SHARED_BUF_NUM is defined in media/exynos_repeater.h if exists */
+#define MAX_SHARED_BUF_NUM 0
+#endif
 
 #define IPPREFIX "[Exynos][G2D] "
 #define perr(format, arg...) \

@@ -569,7 +569,6 @@ int g2d_create_tasks(struct g2d_device *g2d_dev)
 		task->next = g2d_dev->tasks;
 		g2d_dev->tasks = task;
 
-		/* MAX_SHARED_BUF_NUM is defined in media/exynos_repeater.h */
 		if ((g2d_dev->caps & G2D_DEVICE_CAPS_HWFC) &&
 		    (i < MAX_SHARED_BUF_NUM))
 			list_add(&task->node, &g2d_dev->tasks_free_hwfc);

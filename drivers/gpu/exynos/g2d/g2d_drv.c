@@ -115,6 +115,13 @@ void g2d_hw_timeout_handler(struct timer_list *arg)
 	return;
 }
 
+#if !IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
+static inline int hwfc_set_valid_buffer(int buf_idx, int capture_idx)
+{
+	return 0;
+}
+#endif
+
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	g2d_hw_push_task(g2d_dev, task);
@@ -241,6 +248,63 @@ static void g2d_timeout_perf_work(struct work_struct *work)
 	mutex_unlock(&g2d_dev->lock_qos);
 }
 
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
+static int g2d_init_hwfc_info(struct g2d_context *ctx)
+{
+	mutex_lock(&ctx->lock_hwfc_info);
+
+	if (!ctx->hwfc_info) {
+		int ret;
+
+		ctx->hwfc_info = kzalloc(sizeof(*ctx->hwfc_info), GFP_KERNEL);
+		if (!ctx->hwfc_info) {
+			mutex_unlock(&ctx->lock_hwfc_info);
+			return -ENOMEM;
+		}
+
+		ret = hwfc_request_buffer(ctx->hwfc_info, 0);
+		if (!ret && ctx->hwfc_info->buffer_count > MAX_SHARED_BUF_NUM) {
+			perrfndev(ctx->g2d_dev, "Invalid HWFC buffer count %d (max %d)",
+				  ctx->hwfc_info->buffer_count, MAX_SHARED_BUF_NUM);
+			ret = -EINVAL;
+		}
+		if (ret) {
+			kfree(ctx->hwfc_info);
+			ctx->hwfc_info = NULL;
+			mutex_unlock(&ctx->lock_hwfc_info);
+			perrfndev(ctx->g2d_dev, "Failed to get hwfc info");
+			return ret;
+		}
+	}
+
+	mutex_unlock(&ctx->lock_hwfc_info);
+
+	return 0;
+}
+
+static void g2d_release_hwfc_info(struct g2d_context *g2d_ctx)
+{
+	if (g2d_ctx->hwfc_info) {
+		int i;
+
+		for (i = 0; i < g2d_ctx->hwfc_info->buffer_count; i++)
+			dma_buf_put(g2d_ctx->hwfc_info->bufs[i]);
+		kfree(g2d_ctx->hwfc_info);
+	}
+}
+#else
+static inline int g2d_init_hwfc_info(struct g2d_context *ctx)
+{
+	perrdev(ctx->g2d_dev, "HWFC is not supported");
+	return -ENOTSUPP;
+}
+
+static inline void g2d_release_hwfc_info(struct g2d_context *g2d_ctx)
+{
+}
+
+#endif
+
 static int g2d_open(struct inode *inode, struct file *filp)
 {
 	struct g2d_device *g2d_dev;
@@ -272,7 +336,9 @@ static int g2d_open(struct inode *inode, struct file *filp)
 	list_add(&g2d_ctx->node, &g2d_dev->ctx_list);
 	spin_unlock(&g2d_dev->lock_ctx_list);
 
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	mutex_init(&g2d_ctx->lock_hwfc_info);
+#endif
 
 	INIT_LIST_HEAD(&g2d_ctx->qos_node);
 
@@ -286,13 +352,7 @@ static int g2d_release(struct inode *inode, struct file *filp)
 
 	atomic_dec(&g2d_dev->prior_stats[g2d_ctx->priority]);
 
-	if (g2d_ctx->hwfc_info) {
-		int i;
-
-		for (i = 0; i < g2d_ctx->hwfc_info->buffer_count; i++)
-			dma_buf_put(g2d_ctx->hwfc_info->bufs[i]);
-		kfree(g2d_ctx->hwfc_info);
-	}
+	g2d_release_hwfc_info(g2d_ctx);
 
 	mutex_lock(&g2d_dev->lock_qos);
 
@@ -367,30 +427,9 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				break;
 			}
 
-			mutex_lock(&ctx->lock_hwfc_info);
-
-			if (!ctx->hwfc_info) {
-				ctx->hwfc_info = kzalloc(
-					sizeof(*ctx->hwfc_info), GFP_KERNEL);
-				if (!ctx->hwfc_info) {
-					mutex_unlock(&ctx->lock_hwfc_info);
-					ret = -ENOMEM;
-					break;
-				}
-
-				ret = hwfc_request_buffer(ctx->hwfc_info, 0);
-				if (ret || (ctx->hwfc_info->buffer_count >
-				    MAX_SHARED_BUF_NUM)) {
-					kfree(ctx->hwfc_info);
-					ctx->hwfc_info = NULL;
-					mutex_unlock(&ctx->lock_hwfc_info);
-					perrfndev(g2d_dev,
-						  "Failed to get hwfc info");
-					break;
-				}
-			}
-
-			mutex_unlock(&ctx->lock_hwfc_info);
+			ret = g2d_init_hwfc_info(ctx);
+			if (ret)
+				break;
 		}
 
 		task = g2d_get_free_task(g2d_dev, ctx, IS_HWFC(data.flags));

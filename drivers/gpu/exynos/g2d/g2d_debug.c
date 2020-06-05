@@ -18,7 +18,9 @@
 #include <linux/debugfs.h>
 #include <linux/sched/task.h>
 
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 #include <media/exynos_tsmux.h>
+#endif
 
 #include "g2d.h"
 #include "g2d_task.h"
@@ -554,6 +556,19 @@ static void tracing_mark_write(struct g2d_task *task, u32 stampid, s32 val)
 #else
 #define tracing_mark_write(task, stampid, val)	do { } while (0)
 #endif
+
+#if !IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
+static inline int g2d_blending_start(int32_t index)
+{
+	return 0;
+}
+
+static inline int g2d_blending_end(int32_t index)
+{
+	return 0;
+}
+#endif
+
 void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 {
 	int idx = G2D_STAMP_CLAMP_ID(atomic_inc_return(&g2d_stamp_id));
