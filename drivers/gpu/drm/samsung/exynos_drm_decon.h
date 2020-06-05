@@ -22,7 +22,11 @@
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
 #include <soc/google/exynos_pm_qos.h>
 #endif
+#include <linux/notifier.h>
 
+#if defined(CONFIG_EXYNOS_ITMON)
+#include <soc/samsung/exynos-itmon.h>
+#endif
 #include <soc/google/bts.h>
 #include <drm/drm_device.h>
 #include <video/videomode.h>
@@ -292,6 +296,11 @@ struct decon_device {
 	u32				irq_te;
 
 	spinlock_t			slock;
+
+#if defined(CONFIG_EXYNOS_ITMON)
+	struct notifier_block itmon_nb;
+	bool itmon_notified;
+#endif
 };
 
 extern struct dpu_bts_ops dpu_bts_control;
@@ -305,6 +314,7 @@ static inline struct decon_device *get_decon_drvdata(u32 id)
 	return NULL;
 }
 
+void decon_dump(struct decon_device *decon);
 int dpu_init_debug(struct decon_device *decon);
 void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv);
 void DPU_EVENT_LOG_ATOMIC_COMMIT(int index);
@@ -313,6 +323,11 @@ void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,
 
 void decon_enter_hibernation(struct decon_device *decon);
 void decon_exit_hibernation(struct decon_device *decon);
+
+#if defined(CONFIG_EXYNOS_ITMON)
+int dpu_itmon_notifier(struct notifier_block *nb, unsigned long action,
+		void *data);
+#endif
 
 static inline struct drm_encoder*
 decon_get_encoder(const struct decon_device *decon, u32 encoder_type)

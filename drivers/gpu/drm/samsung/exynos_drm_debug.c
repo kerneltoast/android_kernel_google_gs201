@@ -15,6 +15,7 @@
 #include <linux/pm_runtime.h>
 #include <video/mipi_display.h>
 #include <drm/drmP.h>
+#include <drm/drm_print.h>
 
 #include <exynos_drm_decon.h>
 #include <exynos_drm_dsim.h>
@@ -211,13 +212,16 @@ void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,
 			(void *)((size_t)return_address(i + 1));
 }
 
-void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
+static void dpu_print_log_atomic(struct dpu_log_atomic *atomic,
+						struct drm_printer *p)
 {
 	int i;
 	struct dpu_bts_win_config *win;
 	char *str_state[3] = {"DISABLED", "COLOR", "BUFFER"};
 	const char *str_comp;
 	const struct dpu_fmt *fmt;
+	char buf[128];
+	int len;
 
 	for (i = 0; i < MAX_WIN_PER_DECON; ++i) {
 		win = &atomic->win_config[i].win;
@@ -227,22 +231,25 @@ void dpu_print_log_atomic(struct seq_file *s, struct dpu_log_atomic *atomic)
 
 		fmt = dpu_find_fmt_info(win->format);
 
-		seq_printf(s, "\t\t\t\t\tWIN%d: %s[0x%llx] SRC[%d %d %d %d] ",
+		len = scnprintf(buf, sizeof(buf),
+				"\t\t\t\t\tWIN%d: %s[0x%llx] SRC[%d %d %d %d] ",
 				i, str_state[win->state],
 				(win->state == DPU_WIN_STATE_BUFFER) ?
 				atomic->win_config[i].dma_addr : 0,
 				win->src_x, win->src_y, win->src_w, win->src_h);
-		seq_printf(s, "DST[%d %d %d %d] ",
+		len += scnprintf(buf + len, sizeof(buf) - len,
+				"DST[%d %d %d %d] ",
 				win->dst_x, win->dst_y, win->dst_w, win->dst_h);
 		if (win->state == DPU_WIN_STATE_BUFFER)
-			seq_printf(s, "CH%d ", win->dpp_ch);
+			len += scnprintf(buf + len, sizeof(buf) - len, "CH%d ",
+					win->dpp_ch);
 
 		str_comp = get_comp_src_name(win->comp_src);
-		seq_printf(s, "%s %s\n", fmt->name, str_comp);
+		drm_printf(p, "%s %s %s\n", buf, fmt->name, str_comp);
 	}
 }
 
-void dpu_print_log_rsc(struct seq_file *s, struct dpu_log_rsc_occupancy *rsc)
+void dpu_print_log_rsc(char *buf, int len, struct dpu_log_rsc_occupancy *rsc)
 {
 	int i, len_chs, len_wins;
 	char str_chs[128];
@@ -262,10 +269,36 @@ void dpu_print_log_rsc(struct seq_file *s, struct dpu_log_rsc_occupancy *rsc)
 				using_win ? 'O' : 'X');
 	}
 
-	seq_printf(s, "\t%s\t%s\n", str_chs, str_wins);
+	sprintf(buf + len, "\t%s\t%s", str_chs, str_wins);
 }
 
-void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
+const char *get_event_name(enum dpu_event_type type)
+{
+	static const char events[][32] = {
+		"NONE",			"DECON_ENABLED",
+		"DECON_DISABLED",	"DECON_FRAMEDONE",
+		"DECON_FRAMESTART",	"DECON_RSC_OCCUPANCY",
+		"DECON_TRIG_MASK",	"DSIM_ENABLED",
+		"DSIM_DISABLED",	"DSIM_COMMAND",
+		"DSIM_UNDERRUN",	"DSIM_FRAMEDONE",
+		"DPP_FRAMEDONE", 	"DMA_RECOVERY",
+		"ATOMIC_COMMIT",	"TE_INTERRUPT",
+		"ENTER_HIBERNATION_IN",	"ENTER_HIBERNATION_OUT",
+		"EXIT_HIBERNATION_IN",	"EXIT_HIBERNATION_OUT",
+		"ATOMIC_BEGIN",		"ATOMIC_FLUSH",
+		"WB_ENABLE",		"WB_DISABLE",
+		"WB_ATOMIC_COMMIT",	"WB_FRAMEDONE",
+		"WB_ENTER_HIBERNATION",	"WB_EXIT_HIBERNATION",
+		"PLANE_UPDATE",		"PLANE_DISABLE",
+	};
+
+	if (type >= DPU_EVT_MAX)
+		return NULL;
+
+	return events[type];
+}
+
+static void DPU_EVENT_SHOW(struct decon_device *decon, struct drm_printer *p)
 {
 	int idx = atomic_read(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
 	struct dpu_log *log;
@@ -273,13 +306,15 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 	struct timeval tv;
 	ktime_t prev_ktime;
 	const char *str_comp;
+	char buf[128];
+	int len;
 
 	if (IS_ERR_OR_NULL(decon->d.event_log))
 		return;
 
-	seq_puts(s, "-------------------------------------------------------------\n");
-	seq_printf(s, "%14s  %20s  %20s\n", "Time", "Event ID", "Remarks");
-	seq_puts(s, "-------------------------------------------------------------\n");
+	drm_printf(p, "----------------------------------------------------\n");
+	drm_printf(p, "%14s  %20s  %20s\n", "Time", "Event ID", "Remarks");
+	drm_printf(p, "----------------------------------------------------\n");
 
 	/* Seek a oldest from current index */
 	idx = (idx + DPU_EVENT_LOG_MAX - DPU_EVENT_PRINT_MAX) %
@@ -294,138 +329,76 @@ void DPU_EVENT_SHOW(struct seq_file *s, struct decon_device *decon)
 
 		/* TIME */
 		tv = ktime_to_timeval(log->time);
-		seq_printf(s, "[%6ld.%06ld] ", tv.tv_sec, tv.tv_usec);
+
+		len = scnprintf(buf, sizeof(buf), "[%6ld.%06ld] ", tv.tv_sec,
+				tv.tv_usec);
 
 		/* If there is no timestamp, then exit directly */
 		if (!tv.tv_sec)
 			break;
 
-		/* EVETN ID + Information */
+		len += scnprintf(buf + len, sizeof(buf) - len,  "%20s",
+				get_event_name(log->type));
+
 		switch (log->type) {
-		case DPU_EVT_DECON_ENABLED:
-			seq_printf(s, "%20s  %20s", "DECON_ENABLED", "-\n");
-			break;
-		case DPU_EVT_DECON_DISABLED:
-			seq_printf(s, "%20s  %20s", "DECON_DISABLED", "-\n");
-			break;
-		case DPU_EVT_DECON_FRAMEDONE:
-			seq_printf(s, "%20s  %20s", "DECON_FRAMEDONE", "-\n");
-			break;
-		case DPU_EVT_DECON_FRAMESTART:
-			seq_printf(s, "%20s  %20s", "DECON_FRAMESTART", "-\n");
-			break;
-		case DPU_EVT_DECON_TRIG_MASK:
-			seq_printf(s, "%20s  %20s", "DECON_TRIG_MASK", "-\n");
-			break;
 		case DPU_EVT_DECON_RSC_OCCUPANCY:
-			seq_printf(s, "%20s  ", "RSC_OCCUPANCY");
-			dpu_print_log_rsc(s, &log->data.rsc);
-			break;
-		case DPU_EVT_DSIM_ENABLED:
-			seq_printf(s, "%20s  %20s", "DSIM_ENABLED", "-\n");
-			break;
-		case DPU_EVT_DSIM_DISABLED:
-			seq_printf(s, "%20s  %20s", "DSIM_DISABLED", "-\n");
+			dpu_print_log_rsc(buf, len, &log->data.rsc);
 			break;
 		case DPU_EVT_DSIM_COMMAND:
-			seq_printf(s, "%20s  ", "DSIM_COMMAND");
-			seq_printf(s, "\tCMD_ID: 0x%x\tDATA[0]: 0x%x\n",
+			scnprintf(buf + len, sizeof(buf) - len,
+					"\tCMD_ID: 0x%x\tDATA[0]: 0x%x",
 					log->data.cmd.id, log->data.cmd.buf);
 			break;
-		case DPU_EVT_DSIM_UNDERRUN:
-			seq_printf(s, "%20s  %20s", "DSIM_UNDERRUN", "-\n");
-			break;
-		case DPU_EVT_DSIM_FRAMEDONE:
-			seq_printf(s, "%20s  %20s", "DSIM_FRAMEDONE", "-\n");
-			break;
-		case DPU_EVT_TE_INTERRUPT:
-			seq_printf(s, "%20s  %20s", "TE", "-\n");
-			break;
 		case DPU_EVT_DPP_FRAMEDONE:
-			seq_printf(s, "%20s  ", "DPP_FRAMEDONE");
-			seq_printf(s, "\tID:%d\n", log->data.dpp.id);
+			scnprintf(buf + len, sizeof(buf) - len,
+					"\tID:%d", log->data.dpp.id);
 			break;
 		case DPU_EVT_DMA_RECOVERY:
-			seq_printf(s, "%20s  ", "DMA_RECOVERY");
 			str_comp = get_comp_src_name(log->data.dpp.comp_src);
-			seq_printf(s, "\tID:%d SRC:%s COUNT:%d\n",
+			scnprintf(buf + len, sizeof(buf) - len,
+					"\tID:%d SRC:%s COUNT:%d",
 					log->data.dpp.id, str_comp,
 					log->data.dpp.recovery_cnt);
 			break;
-		case DPU_EVT_ATOMIC_COMMIT:
-			seq_printf(s, "%20s  %20s", "ATOMIC_COMMIT", "-\n");
-			dpu_print_log_atomic(s, &log->data.atomic);
-			break;
-		case DPU_EVT_ATOMIC_BEGIN:
-			seq_printf(s, "%20s  %20s", "ATOMIC_BEGIN", "-\n");
-			break;
-		case DPU_EVT_ATOMIC_FLUSH:
-			seq_printf(s, "%20s  %20s", "ATOMIC_FLUSH", "-\n");
-			break;
 		case DPU_EVT_ENTER_HIBERNATION_IN:
-			seq_printf(s, "%20s  ", "ENTER_HIBERNATION_IN");
-			seq_printf(s, "\tDPU POWER %s\n",
-					log->data.pd.rpm_active ? "ON" : "OFF");
-			break;
 		case DPU_EVT_ENTER_HIBERNATION_OUT:
-			seq_printf(s, "%20s  ", "ENTER_HIBERNATION_OUT");
-			seq_printf(s, "\tDPU POWER %s\n",
-					log->data.pd.rpm_active ? "ON" : "OFF");
-			break;
 		case DPU_EVT_EXIT_HIBERNATION_IN:
-			seq_printf(s, "%20s  ", "EXIT_HIBERNATION_IN");
-			seq_printf(s, "\tDPU POWER %s\n",
-					log->data.pd.rpm_active ? "ON" : "OFF");
-			break;
 		case DPU_EVT_EXIT_HIBERNATION_OUT:
-			seq_printf(s, "%20s  ", "EXIT_HIBERNATION_OUT");
-			seq_printf(s, "\tDPU POWER %s\n",
+			scnprintf(buf + len, sizeof(buf) - len,
+					"\tDPU POWER %s",
 					log->data.pd.rpm_active ? "ON" : "OFF");
-			break;
-		case DPU_EVT_WB_ENABLE:
-			seq_printf(s, "%20s  %20s", "WB_ENABLE", "-\n");
-			break;
-		case DPU_EVT_WB_DISABLE:
-			seq_printf(s, "%20s  %20s", "WB_DISABLE", "-\n");
-			break;
-		case DPU_EVT_WB_ATOMIC_COMMIT:
-			seq_printf(s, "%20s  %20s", "WB_ATOMIC_COMMIT", "-\n");
-			break;
-		case DPU_EVT_WB_FRAMEDONE:
-			seq_printf(s, "%20s  %20s", "WB_FRAMEDONE", "-\n");
-			break;
-		case DPU_EVT_WB_ENTER_HIBERNATION:
-			seq_printf(s, "%20s  %20s", "WB_ENTER_HIBER", "-\n");
-			break;
-		case DPU_EVT_WB_EXIT_HIBERNATION:
-			seq_printf(s, "%20s  %20s", "WB_EXIT_HIBER", "-\n");
 			break;
 		case DPU_EVT_PLANE_UPDATE:
-			seq_printf(s, "%20s  ", "PLANE_UPDATE");
-			seq_printf(s, "\tCH:%d, WIN:%d\n",
-					log->data.win.plane_idx,
-					log->data.win.win_idx);
-			break;
 		case DPU_EVT_PLANE_DISABLE:
-			seq_printf(s, "%20s  ", "PLANE_DISABLE");
-			seq_printf(s, "\tch:%d, win:%d\n",
+			scnprintf(buf + len, sizeof(buf) - len,
+					"\tCH:%d, WIN:%d",
 					log->data.win.plane_idx,
 					log->data.win.win_idx);
 			break;
 		default:
-			seq_printf(s, "%20s  (%2d)\n", "NO_DEFINED", log->type);
+			break;
+		}
+
+		drm_printf(p, "%s\n", buf);
+
+		switch (log->type) {
+		case DPU_EVT_ATOMIC_COMMIT:
+			dpu_print_log_atomic(&log->data.atomic, p);
+			break;
+		default:
 			break;
 		}
 	} while (latest != idx);
 
-	seq_puts(s, "-------------------------------------------------------------\n");
+	drm_printf(p, "----------------------------------------------------\n");
 }
 
 static int dpu_debug_event_show(struct seq_file *s, void *unused)
 {
 	struct decon_device *decon = s->private;
+	struct drm_printer p = drm_seq_file_printer(s);
 
-	DPU_EVENT_SHOW(s, decon);
+	DPU_EVENT_SHOW(decon, &p);
 	return 0;
 }
 
@@ -567,3 +540,48 @@ void dpu_print_hex_dump(void __iomem *regs, const void *buf, size_t len)
 				32, 4, buf + i, row, false);
 	}
 }
+
+#if defined(CONFIG_EXYNOS_ITMON)
+int dpu_itmon_notifier(struct notifier_block *nb, unsigned long act, void *data)
+{
+	struct decon_device *decon;
+	struct itmon_notifier *itmon_data = data;
+	struct drm_printer p;
+	bool active;
+
+	decon = container_of(nb, struct decon_device, itmon_nb);
+	p = drm_info_printer(decon->dev);
+
+	pr_debug("%s: DECON%d +\n", __func__, decon->id);
+
+	if (decon->itmon_notified)
+		return NOTIFY_DONE;
+
+	if (IS_ERR_OR_NULL(itmon_data))
+		return NOTIFY_DONE;
+
+	/* port is master and dest is target */
+	if ((itmon_data->port &&
+		(strncmp("DISP", itmon_data->port, sizeof("DISP") - 1) == 0)) ||
+		(itmon_data->dest &&
+		(strncmp("DISP", itmon_data->dest, sizeof("DISP") - 1) == 0))) {
+		pr_info("%s: port: %s, dest: %s\n", __func__,
+				itmon_data->port, itmon_data->dest);
+
+		active = pm_runtime_active(decon->dev);
+		pr_info("DPU power %s state\n", active ? "on" : "off");
+
+		DPU_EVENT_SHOW(decon, &p);
+
+		if (active)
+			decon_dump(decon);
+
+		decon->itmon_notified = true;
+		return NOTIFY_OK;
+	}
+
+	pr_debug("%s -\n", __func__);
+
+	return NOTIFY_DONE;
+}
+#endif

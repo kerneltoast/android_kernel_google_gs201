@@ -643,6 +643,11 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	iommu_register_device_fault_handler(dev, dpu_sysmmu_fault_handler,
 			NULL);
 
+#if defined(CONFIG_EXYNOS_ITMON)
+	decon->itmon_nb.notifier_call = dpu_itmon_notifier;
+	itmon_notifier_chain_register(&decon->itmon_nb);
+#endif
+
 	decon_dbg(decon, "%s -\n", __func__);
 	return 0;
 }
