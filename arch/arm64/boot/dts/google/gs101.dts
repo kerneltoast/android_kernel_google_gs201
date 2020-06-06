@@ -341,4 +341,30 @@
 	acpm_flexpmu_dbg {
 		compatible = "google,acpm-flexpmu-dbg";
 	};
+
+	acpm {
+		compatible = "google,gs-acpm";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		acpm-ipc-channel = <4>;
+		reg = <0x0 0x17440000 0x1000>;          /* TIMER_APM */
+		reg-names = "timer_apm";
+		peritimer-cnt = <0xFFFF>;
+		fvmap_addr = <0x31000>;
+	};
+
+	acpm_ipc {
+		compatible = "google,gs-acpm-ipc";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		interrupts = <GIC_SPI IRQ_MAILBOX_APM2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0x17610000 0x1000>,          /* AP2APM MAILBOX */
+		    <0x0 0x2039000 0x40000>;        /* APM SRAM */
+		initdata-base = <0xA000>;
+		num-timestamps = <32>;
+		debug-log-level = <0>;
+		logging-period = <500>;
+		dump-base = <0x203E000>;
+		dump-size = <0x3B000>;                  /* 236KB */
+	};
 };
