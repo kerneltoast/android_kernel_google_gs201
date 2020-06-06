@@ -59,12 +59,6 @@ config PMUCAL_DBG
         help
         Support PMUCAL debugging for Exynos SoC.
 
-config EXYNOS_FLEXPMU_DBG
-        tristate "Exynos FLEXPMU debugging interface"
-	depends on PMUCAL
-	help
-	Support FLEXPMU for Exynos SoC.
-
 config EXYNOS_PMU_IF
 	tristate "Exynos PMU controller Interface driver"
 	help
