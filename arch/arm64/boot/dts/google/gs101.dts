@@ -367,4 +367,14 @@
 		dump-base = <0x203E000>;
 		dump-size = <0x3B000>;                  /* 236KB */
 	};
+
+	acpm_mfd_bus0: acpm_mfd_bus@17500000 {
+		compatible = "google,i2c-acpm";
+		status = "okay";
+	};
+
+	acpm_mfd_bus1: acpm_mfd_bus@17510000 {
+		compatible = "google,i2c-acpm";
+		status = "okay";
+	};
 };
