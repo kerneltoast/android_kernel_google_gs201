@@ -50,13 +50,20 @@ static int plugins_init(void)
 			continue;
 
 		if (strstr(name, "DVFS") || strstr(name, "dvfs")) {
-			base_addr = acpm_srambase;
-			base_addr += (plugins[i].base_addr & ~0x1);
 			prop = of_get_property(exynos_acpm->dev->of_node,
 					       "fvmap_offset", &len);
 			if (prop) {
+				base_addr = acpm_srambase;
+				base_addr += (plugins[i].base_addr & ~0x1);
 				offset = be32_to_cpup(prop);
 				fvmap_init(base_addr + offset);
+			}
+
+			prop = of_get_property(exynos_acpm->dev->of_node,
+					       "fvmap_addr", &len);
+			if (prop) {
+				offset = be32_to_cpup(prop);
+				fvmap_init(acpm_srambase + offset);
 			}
 		}
 	}
