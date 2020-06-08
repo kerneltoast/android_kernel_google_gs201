@@ -37,10 +37,10 @@ enum decon_win_alpha_coef {
 	BND_COEF_1_M_AF		  = 0x3,
 	BND_COEF_AB		  = 0x4,
 	BND_COEF_1_M_AB		  = 0x5,
-	BND_COEF_PLNAE_ALPHA0	  = 0x6,
-	BND_COEF_1_M_PLNAE_ALPHA0 = 0x7,
-	BND_COEF_PLNAE_ALPHA1	  = 0x8,
-	BND_COEF_1_M_PLNAE_ALPHA1 = 0x9,
+	BND_COEF_PLANE_ALPHA0	  = 0x6,
+	BND_COEF_1_M_PLANE_ALPHA0 = 0x7,
+	BND_COEF_PLANE_ALPHA1	  = 0x8,
+	BND_COEF_1_M_PLANE_ALPHA1 = 0x9,
 	BND_COEF_ALPHA_MULT	  = 0xA,
 	BND_COEF_1_M_ALPHA_MULT	  = 0xB,
 };
@@ -1540,43 +1540,32 @@ static void decon_reg_set_win_bnd_function(u32 id, u32 win_idx,
 	int plane_a = regs->plane_alpha;
 	u32 blend = regs->blend;
 	enum decon_win_func pd_func = PD_FUNC_USER_DEFINED;
-	u8 alpha0 = 0xff;
-	u8 alpha1 = 0xff;
+	u8 alpha0 = plane_a;
+	u8 alpha1 = 0;
 	bool is_plane_a = false;
 	u32 af_d = BND_COEF_ONE, ab_d = BND_COEF_ZERO,
 		af_a = BND_COEF_ONE, ab_a = BND_COEF_ZERO;
 
-	if (blend == DECON_BLENDING_NONE)
-		pd_func = PD_FUNC_COPY;
-
-	if ((plane_a >= 0) && (plane_a <= 0xff)) {
-		alpha0 = plane_a;
-		alpha1 = 0;
+	if ((plane_a > 0) && (plane_a <= 0xff))
 		is_plane_a = true;
-	}
 
-	if ((blend == DECON_BLENDING_COVERAGE) && !is_plane_a) {
-		af_d = BND_COEF_AF;
-		ab_d = BND_COEF_1_M_AF;
-		af_a = BND_COEF_AF;
-		ab_a = BND_COEF_1_M_AF;
-	} else if ((blend == DECON_BLENDING_COVERAGE) && is_plane_a) {
+	if ((blend == DECON_BLENDING_NONE) && is_plane_a) {
+		af_d = BND_COEF_PLANE_ALPHA0;
+		ab_d = BND_COEF_ZERO;
+		af_a = BND_COEF_PLANE_ALPHA0;
+		ab_a = BND_COEF_ZERO;
+	} else if (blend == DECON_BLENDING_COVERAGE) {
 		af_d = BND_COEF_ALPHA_MULT;
 		ab_d = BND_COEF_1_M_ALPHA_MULT;
 		af_a = BND_COEF_ALPHA_MULT;
 		ab_a = BND_COEF_1_M_ALPHA_MULT;
-	} else if ((blend == DECON_BLENDING_PREMULT) && !is_plane_a) {
-		af_d = BND_COEF_ONE;
-		ab_d = BND_COEF_1_M_AF;
-		af_a = BND_COEF_ONE;
-		ab_a = BND_COEF_1_M_AF;
-	} else if ((blend == DECON_BLENDING_PREMULT) && is_plane_a) {
-		af_d = BND_COEF_PLNAE_ALPHA0;
+	} else if (blend == DECON_BLENDING_PREMULT) {
+		af_d = BND_COEF_PLANE_ALPHA0;
 		ab_d = BND_COEF_1_M_ALPHA_MULT;
-		af_a = BND_COEF_PLNAE_ALPHA0;
+		af_a = BND_COEF_PLANE_ALPHA0;
 		ab_a = BND_COEF_1_M_ALPHA_MULT;
 	} else if (blend == DECON_BLENDING_NONE) {
-		cal_log_debug(id, "none blending mode\n");
+		cal_log_debug(id, "none blending(no plane alpha) mode\n");
 	} else {
 		cal_log_warn(id, "undefined blending mode\n");
 	}
