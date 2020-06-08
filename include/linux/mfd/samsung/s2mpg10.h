@@ -10,6 +10,7 @@
 #ifndef __S2MPG10_MFD_H__
 #define __S2MPG10_MFD_H__
 #include <linux/platform_device.h>
+#include <linux/thermal.h>
 #include <linux/regmap.h>
 
 #include "s2mpg10-meter.h"

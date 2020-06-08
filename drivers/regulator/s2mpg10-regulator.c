@@ -446,7 +446,7 @@ static int s2mpg10_pmic_dt_parse_pdata(struct s2mpg10_dev *iodev,
 		dev_err(iodev->dev, "smpl_warn_pin < 0: %d\n",
 			pdata->smpl_warn_pin);
 
-	ret = of_property_read_u32(pmic_np, "smpl_warn_lvl", &val);
+	ret = of_property_read_u32(pmic_np, "smpl_warn_vth", &val);
 	pdata->smpl_warn_lvl = ret ? 0 : val;
 
 	ret = of_property_read_u32(pmic_np, "smpl_warn_hys", &val);

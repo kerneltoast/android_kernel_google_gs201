@@ -20,6 +20,27 @@
 
 /*#define CONFIG_WEEKDAY_ALARM_ENABLE*/
 
+#define THERMAL_DELAY_INIT_MS 5000
+
+enum IRQ_SOURCE {
+	IRQ_SMPL_WARN,
+	IRQ_OCP_WARN_CPUCL1,
+	IRQ_OCP_WARN_CPUCL2,
+	IRQ_SOFT_OCP_WARN_CPUCL1,
+	IRQ_SOFT_OCP_WARN_CPUCL2,
+	IRQ_OCP_WARN_TPU,
+	IRQ_SOFT_OCP_WARN_TPU,
+};
+
+static struct wakeup_source *rtc_ws;
+static struct thermal_zone_device *tz_smpl_warn;
+static struct thermal_zone_device *tz_soft_ocp_cpucl1;
+static struct thermal_zone_device *tz_soft_ocp_cpucl2;
+static struct thermal_zone_device *tz_ocp_cpucl1;
+static struct thermal_zone_device *tz_ocp_cpucl2;
+static struct thermal_zone_device *tz_ocp_tpu;
+static struct thermal_zone_device *tz_soft_ocp_tpu;
+
 static void s2m_data_to_tm(u8 *data, struct rtc_time *tm)
 {
 	// tm->tm_msec = (data[RTC_MSEC] & 0x0f) + (data[RTC_MSEC] & 0xf0) * 10;
@@ -294,6 +315,273 @@ out:
 	return ret;
 }
 
+static int smpl_warn_read_voltage(void *data, int *val)
+{
+	struct s2m_rtc_info *s2mpg10 = data;
+	*val = s2mpg10->smpl_warn_lvl;
+	return 0;
+}
+
+static int smpl_warn_get_mode(struct thermal_zone_device *tzd,
+			      enum thermal_device_mode *mode)
+{
+	*mode = THERMAL_DEVICE_ENABLED;
+	return 0;
+}
+
+static const struct thermal_zone_of_device_ops s2mpg10_smpl_warn_ops = {
+	.get_temp = smpl_warn_read_voltage,
+};
+
+static int soft_ocp_cpu1_read_current(void *data, int *val)
+{
+	struct s2m_rtc_info *s2mpg10 = data;
+	*val = s2mpg10->soft_ocp_cpucl1_lvl;
+	return 0;
+}
+
+static int soft_ocp_cpu1_get_mode(struct thermal_zone_device *tzd,
+				  enum thermal_device_mode *mode)
+{
+	*mode = THERMAL_DEVICE_ENABLED;
+	return 0;
+}
+
+static const struct thermal_zone_of_device_ops s2mpg10_soft_ocp_cpu1_ops = {
+	.get_temp = soft_ocp_cpu1_read_current,
+};
+
+static int ocp_cpu1_read_current(void *data, int *val)
+{
+	struct s2m_rtc_info *s2mpg10 = data;
+	*val = s2mpg10->ocp_cpucl1_lvl;
+	return 0;
+}
+
+static int ocp_cpu1_get_mode(struct thermal_zone_device *tzd,
+			     enum thermal_device_mode *mode)
+{
+	*mode = THERMAL_DEVICE_ENABLED;
+	return 0;
+}
+
+static const struct thermal_zone_of_device_ops s2mpg10_ocp_cpu1_ops = {
+	.get_temp = ocp_cpu1_read_current,
+};
+
+static int soft_ocp_cpu2_read_current(void *data, int *val)
+{
+	struct s2m_rtc_info *s2mpg10 = data;
+	*val = s2mpg10->soft_ocp_cpucl2_lvl;
+	return 0;
+}
+
+static int soft_ocp_cpu2_get_mode(struct thermal_zone_device *tzd,
+				  enum thermal_device_mode *mode)
+{
+	*mode = THERMAL_DEVICE_ENABLED;
+	return 0;
+}
+
+static const struct thermal_zone_of_device_ops s2mpg10_soft_ocp_cpu2_ops = {
+	.get_temp = soft_ocp_cpu2_read_current,
+};
+
+static int ocp_cpu2_read_current(void *data, int *val)
+{
+	struct s2m_rtc_info *s2mpg10 = data;
+	*val = s2mpg10->ocp_cpucl2_lvl;
+	return 0;
+}
+
+static int ocp_cpu2_get_mode(struct thermal_zone_device *tzd,
+			     enum thermal_device_mode *mode)
+{
+	*mode = THERMAL_DEVICE_ENABLED;
+	return 0;
+}
+
+static const struct thermal_zone_of_device_ops s2mpg10_ocp_cpu2_ops = {
+	.get_temp = ocp_cpu2_read_current,
+};
+
+static int soft_ocp_tpu_read_current(void *data, int *val)
+{
+	struct s2m_rtc_info *s2mpg10 = data;
+	*val = s2mpg10->soft_ocp_tpu_lvl;
+	return 0;
+}
+
+static int soft_ocp_tpu_get_mode(struct thermal_zone_device *tzd,
+				 enum thermal_device_mode *mode)
+{
+	*mode = THERMAL_DEVICE_ENABLED;
+	return 0;
+}
+
+static const struct thermal_zone_of_device_ops s2mpg10_soft_ocp_tpu_ops = {
+	.get_temp = soft_ocp_tpu_read_current,
+};
+
+static int ocp_tpu_read_current(void *data, int *val)
+{
+	struct s2m_rtc_info *s2mpg10 = data;
+	*val = s2mpg10->ocp_tpu_lvl;
+	return 0;
+}
+
+static int ocp_tpu_get_mode(struct thermal_zone_device *tzd,
+			    enum thermal_device_mode *mode)
+{
+	*mode = THERMAL_DEVICE_ENABLED;
+	return 0;
+}
+
+static const struct thermal_zone_of_device_ops s2mpg10_ocp_tpu_ops = {
+	.get_temp = ocp_tpu_read_current,
+};
+
+static void s2m_thermal_work(struct work_struct *work)
+{
+	struct s2m_rtc_info *s2mpg10 =
+		container_of(work, struct s2m_rtc_info, thermal_work.work);
+	tz_smpl_warn = thermal_zone_of_sensor_register(s2mpg10->iodev->dev,
+						       IRQ_SMPL_WARN, s2mpg10,
+						       &s2mpg10_smpl_warn_ops);
+	if (IS_ERR(tz_smpl_warn)) {
+		pr_err("smpl_warn TZ register failed. err:%ld\n",
+		       PTR_ERR(tz_smpl_warn));
+	} else {
+		tz_smpl_warn->ops->get_mode = smpl_warn_get_mode;
+		thermal_zone_device_update(tz_smpl_warn, THERMAL_DEVICE_UP);
+	}
+	tz_ocp_cpucl1 =
+		thermal_zone_of_sensor_register(s2mpg10->iodev->dev,
+						IRQ_OCP_WARN_CPUCL1, s2mpg10,
+						&s2mpg10_ocp_cpu1_ops);
+	if (IS_ERR(tz_ocp_cpucl1)) {
+		pr_err("cpu1 TZ register failed. err:%ld\n",
+		       PTR_ERR(tz_ocp_cpucl1));
+	} else {
+		tz_ocp_cpucl1->ops->get_mode = ocp_cpu1_get_mode;
+		thermal_zone_device_update(tz_ocp_cpucl1, THERMAL_DEVICE_UP);
+	}
+	tz_ocp_cpucl2 =
+		thermal_zone_of_sensor_register(s2mpg10->iodev->dev,
+						IRQ_OCP_WARN_CPUCL2, s2mpg10,
+						&s2mpg10_ocp_cpu2_ops);
+	if (IS_ERR(tz_ocp_cpucl2)) {
+		pr_err("cpu2 TZ register failed. err:%ld\n",
+		       PTR_ERR(tz_ocp_cpucl2));
+	} else {
+		tz_ocp_cpucl2->ops->get_mode = ocp_cpu2_get_mode;
+		thermal_zone_device_update(tz_ocp_cpucl2, THERMAL_DEVICE_UP);
+	}
+	tz_ocp_tpu = thermal_zone_of_sensor_register(s2mpg10->iodev->dev,
+						     IRQ_OCP_WARN_TPU, s2mpg10,
+						     &s2mpg10_ocp_tpu_ops);
+	if (IS_ERR(tz_ocp_tpu)) {
+		pr_err("tpu TZ register failed. err:%ld\n",
+		       PTR_ERR(tz_ocp_tpu));
+	} else {
+		tz_ocp_tpu->ops->get_mode = ocp_tpu_get_mode;
+		thermal_zone_device_update(tz_ocp_tpu, THERMAL_DEVICE_UP);
+	}
+	tz_soft_ocp_cpucl1 = thermal_zone_of_sensor_register(
+		s2mpg10->iodev->dev, IRQ_SOFT_OCP_WARN_CPUCL1, s2mpg10,
+		&s2mpg10_soft_ocp_cpu1_ops);
+	if (IS_ERR(tz_soft_ocp_cpucl1)) {
+		pr_err("soft cpu1 TZ register failed. err:%ld\n",
+		       PTR_ERR(tz_soft_ocp_cpucl1));
+	} else {
+		tz_soft_ocp_cpucl1->ops->get_mode = soft_ocp_cpu1_get_mode;
+		thermal_zone_device_update(tz_soft_ocp_cpucl1,
+					   THERMAL_DEVICE_UP);
+	}
+	tz_soft_ocp_cpucl2 = thermal_zone_of_sensor_register(
+		s2mpg10->iodev->dev, IRQ_SOFT_OCP_WARN_CPUCL2, s2mpg10,
+		&s2mpg10_soft_ocp_cpu2_ops);
+	if (IS_ERR(tz_soft_ocp_cpucl2)) {
+		pr_err("soft cpu2 TZ register failed. err:%ld\n",
+		       PTR_ERR(tz_soft_ocp_cpucl2));
+	} else {
+		tz_soft_ocp_cpucl2->ops->get_mode = soft_ocp_cpu2_get_mode;
+		thermal_zone_device_update(tz_soft_ocp_cpucl2,
+					   THERMAL_DEVICE_UP);
+	}
+	tz_soft_ocp_tpu =
+		thermal_zone_of_sensor_register(s2mpg10->iodev->dev,
+						IRQ_SOFT_OCP_WARN_TPU, s2mpg10,
+						&s2mpg10_soft_ocp_tpu_ops);
+	if (IS_ERR(tz_soft_ocp_tpu)) {
+		pr_err("soft tpu TZ register failed. err:%ld\n",
+		       PTR_ERR(tz_soft_ocp_tpu));
+	} else {
+		tz_soft_ocp_tpu->ops->get_mode = soft_ocp_tpu_get_mode;
+		thermal_zone_device_update(tz_soft_ocp_tpu, THERMAL_DEVICE_UP);
+	}
+}
+
+static irqreturn_t s2mpg10_cpu1_ocp_warn_irq_handler(int irq, void *data)
+{
+	pr_info_ratelimited("OCP : CPU1 IRQ : %d triggered\n", irq);
+	if (tz_ocp_cpucl1)
+		thermal_zone_device_update(tz_ocp_cpucl1,
+					   THERMAL_EVENT_UNSPECIFIED);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t s2mpg10_soft_cpu1_ocp_warn_irq_handler(int irq, void *data)
+{
+	pr_info_ratelimited("OCP : SOFT CPU1 IRQ : %d triggered\n", irq);
+	if (tz_soft_ocp_cpucl1)
+		thermal_zone_device_update(tz_soft_ocp_cpucl1,
+					   THERMAL_EVENT_UNSPECIFIED);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t s2mpg10_cpu2_ocp_warn_irq_handler(int irq, void *data)
+{
+	pr_info_ratelimited("OCP : CPU2 IRQ : %d triggered\n", irq);
+	if (tz_ocp_cpucl2)
+		thermal_zone_device_update(tz_ocp_cpucl2,
+					   THERMAL_EVENT_UNSPECIFIED);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t s2mpg10_soft_cpu2_ocp_warn_irq_handler(int irq, void *data)
+{
+	pr_info_ratelimited("OCP : SOFT CPU2 IRQ : %d triggered\n", irq);
+	if (tz_soft_ocp_cpucl2)
+		thermal_zone_device_update(tz_soft_ocp_cpucl2,
+					   THERMAL_EVENT_UNSPECIFIED);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t s2mpg10_tpu_ocp_warn_irq_handler(int irq, void *data)
+{
+	pr_info_ratelimited("OCP : TPU IRQ : %d triggered\n", irq);
+	if (tz_ocp_tpu)
+		thermal_zone_device_update(tz_ocp_tpu,
+					   THERMAL_EVENT_UNSPECIFIED);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t s2mpg10_soft_tpu_ocp_warn_irq_handler(int irq, void *data)
+{
+	pr_info_ratelimited("OCP : SOFT TPU IRQ : %d triggered\n", irq);
+	if (tz_soft_ocp_tpu)
+		thermal_zone_device_update(tz_soft_ocp_tpu,
+					   THERMAL_EVENT_UNSPECIFIED);
+
+	return IRQ_HANDLED;
+}
+
 static int s2m_rtc_set_alarm_enable(struct s2m_rtc_info *info, bool enabled)
 {
 	if (!info->use_irq)
@@ -508,6 +796,9 @@ static irqreturn_t s2m_smpl_warn_irq_handler(int irq, void *data)
 	struct s2m_rtc_info *info = data;
 
 	pr_info_ratelimited("%s : SMPL IRQ : %d triggered\n", __func__, irq);
+	if (tz_smpl_warn)
+		thermal_zone_device_update(tz_smpl_warn,
+					   THERMAL_EVENT_UNSPECIFIED);
 
 	if (!info->rtc_dev)
 		return IRQ_HANDLED;
@@ -800,6 +1091,83 @@ static int s2m_rtc_probe(struct platform_device *pdev)
 	}
 
 	info->smpl_warn_pin = pdata->smpl_warn_pin;
+	info->smpl_warn_lvl = (pdata->smpl_warn_lvl / 32) * 100 + 2600;
+	info->ocp_cpucl1_lvl = 7000 - (pdata->b3_ocp_warn_lvl * 166);
+	info->soft_ocp_cpucl1_lvl = 7000 - (pdata->b3_soft_ocp_warn_lvl * 166);
+	info->ocp_cpucl2_lvl = 12000 - (pdata->b2_ocp_warn_lvl * 250);
+	info->soft_ocp_cpucl2_lvl = 12000 - (pdata->b2_soft_ocp_warn_lvl * 250);
+	info->ocp_tpu_lvl = 10500 - (pdata->b10_ocp_warn_lvl * 250);
+	info->soft_ocp_tpu_lvl = 10500 - (pdata->b10_soft_ocp_warn_lvl * 250);
+	info->cpu1_ocp_warn_irq = gpio_to_irq(pdata->b3_ocp_warn_pin);
+	irq_set_status_flags(info->cpu1_ocp_warn_irq, IRQ_DISABLE_UNLAZY);
+	ret = devm_request_threaded_irq(&pdev->dev, info->cpu1_ocp_warn_irq,
+					NULL, s2mpg10_cpu1_ocp_warn_irq_handler,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"CPU1_OCP_IRQ", info);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to request CPU1 OCP IRQ: %d: %d\n",
+			info->cpu1_ocp_warn_irq, ret);
+	}
+
+	info->soft_cpu1_ocp_warn_irq = gpio_to_irq(pdata->b3_soft_ocp_warn_pin);
+	ret = devm_request_threaded_irq(&pdev->dev,
+					info->soft_cpu1_ocp_warn_irq, NULL,
+					s2mpg10_soft_cpu1_ocp_warn_irq_handler,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"SOFT_CPU1_OCP_IRQ", info);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Failed to request SOFT CPU1 OCP IRQ: %d: %d\n",
+			info->soft_cpu1_ocp_warn_irq, ret);
+	}
+
+	info->cpu2_ocp_warn_irq = gpio_to_irq(pdata->b2_ocp_warn_pin);
+	ret = devm_request_threaded_irq(&pdev->dev, info->cpu2_ocp_warn_irq,
+					NULL, s2mpg10_cpu2_ocp_warn_irq_handler,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"CPU2_OCP_IRQ", info);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to request CPU2 OCP IRQ: %d: %d\n",
+			info->cpu2_ocp_warn_irq, ret);
+	}
+
+	info->soft_cpu2_ocp_warn_irq = gpio_to_irq(pdata->b2_soft_ocp_warn_pin);
+	ret = devm_request_threaded_irq(&pdev->dev,
+					info->soft_cpu2_ocp_warn_irq, NULL,
+					s2mpg10_soft_cpu2_ocp_warn_irq_handler,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"SOFT_CPU2_OCP_IRQ", info);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Failed to request SOFT CPU2 OCP IRQ: %d: %d\n",
+			info->soft_cpu2_ocp_warn_irq, ret);
+	}
+
+	info->tpu_ocp_warn_irq = gpio_to_irq(pdata->b10_ocp_warn_pin);
+	ret = devm_request_threaded_irq(&pdev->dev, info->tpu_ocp_warn_irq,
+					NULL, s2mpg10_tpu_ocp_warn_irq_handler,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"TPU_OCP_IRQ", info);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to request TPU OCP IRQ: %d: %d\n",
+			info->tpu_ocp_warn_irq, ret);
+	}
+
+	info->soft_tpu_ocp_warn_irq = gpio_to_irq(pdata->b10_soft_ocp_warn_pin);
+	ret = devm_request_threaded_irq(&pdev->dev, info->soft_tpu_ocp_warn_irq,
+					NULL,
+					s2mpg10_soft_tpu_ocp_warn_irq_handler,
+					IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+					"SOFT_TPU_OCP_IRQ", info);
+	if (ret < 0) {
+		dev_err(&pdev->dev,
+			"Failed to request SOFT TPU OCP IRQ: %d: %d\n",
+			info->soft_tpu_ocp_warn_irq, ret);
+	}
+
+	INIT_DELAYED_WORK(&info->thermal_work, s2m_thermal_work);
+	schedule_delayed_work(&info->thermal_work,
+			      msecs_to_jiffies(THERMAL_DELAY_INIT_MS));
 
 	enable_irq(info->alarm0_irq);
 	return 0;
