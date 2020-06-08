@@ -301,6 +301,9 @@ struct decon_device {
 	struct notifier_block itmon_nb;
 	bool itmon_notified;
 #endif
+
+	bool busy;
+	wait_queue_head_t framedone_wait;
 };
 
 extern struct dpu_bts_ops dpu_bts_control;

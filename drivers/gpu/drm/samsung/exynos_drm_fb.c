@@ -292,10 +292,10 @@ static void display_mode_to_bts_info(struct drm_display_mode *mode,
 	decon->bts.fps = mode->vrefresh;
 }
 
-#define FRAMESTART_TIMEOUT	msecs_to_jiffies(50)
+#define TIMEOUT	msecs_to_jiffies(50)
 void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
-	int i, j;
+	int i, j, ret;
 	struct drm_plane *plane;
 	struct drm_plane_state *new_plane_state;
 	struct exynos_drm_plane_state *new_exynos_state;
@@ -373,6 +373,20 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 		if (new_crtc_state->active || new_crtc_state->active_changed)
 			hibernation_block_exit(decon->hibernation);
+
+		if (old_crtc_state->active && !new_crtc_state->active) {
+			/*
+			 * If hw related to crtc is processing, it also should
+			 * be delayed. If not, the hw does not shut down
+			 * normally.
+			 */
+			ret = wait_event_interruptible_timeout(
+					decon->framedone_wait,
+					decon->busy == false, TIMEOUT);
+			if (ret == 0)
+				pr_err("decon%d framedone timeout\n",
+						decon->id);
+		}
 	}
 
 	drm_atomic_helper_commit_tail_rpm(old_state);
@@ -384,9 +398,9 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 		if (new_crtc_state->active)
 			if (!wait_for_completion_timeout(
-					&decon->framestart_done,
-					FRAMESTART_TIMEOUT))
-				pr_warn("timeout: framestart doesn't occur\n");
+					&decon->framestart_done, TIMEOUT))
+				pr_warn("decon%d framestart timeout\n",
+						decon->id);
 
 		if (new_crtc_state->active) {
 			struct decon_mode *mode = &decon->config.mode;

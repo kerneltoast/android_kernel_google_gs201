@@ -359,6 +359,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc,
 
 	reinit_completion(&decon->framestart_done);
 	DPU_EVENT_LOG(DPU_EVT_ATOMIC_FLUSH, decon->id, NULL);
+
 	decon_dbg(decon, "%s -\n", __func__);
 }
 
@@ -682,6 +683,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 			irq_sts_reg, ext_irq);
 
 	if (irq_sts_reg & DPU_FRAME_START_INT_PEND) {
+		decon->busy = true;
 		complete(&decon->framestart_done);
 		DPU_EVENT_LOG(DPU_EVT_DECON_FRAMESTART, decon->id, decon);
 		decon_dbg(decon, "%s: frame start\n", __func__);
@@ -689,6 +691,8 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_data)
 
 	if (irq_sts_reg & DPU_FRAME_DONE_INT_PEND) {
 		DPU_EVENT_LOG(DPU_EVT_DECON_FRAMEDONE, decon->id, decon);
+		decon->busy = false;
+		wake_up_interruptible_all(&decon->framedone_wait);
 		decon_dbg(decon, "%s: frame done\n", __func__);
 	}
 
@@ -1084,6 +1088,7 @@ static int decon_probe(struct platform_device *pdev)
 
 	spin_lock_init(&decon->slock);
 	init_completion(&decon->framestart_done);
+	init_waitqueue_head(&decon->framedone_wait);
 
 	if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
 		decon->bts.ops = &dpu_bts_control;
