@@ -297,6 +297,7 @@ static void display_mode_to_bts_info(struct drm_display_mode *mode,
 void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
 	int i, j;
+	struct drm_device *dev = old_state->dev;
 	struct drm_plane *plane;
 	struct drm_plane_state *new_plane_state;
 	struct exynos_drm_plane_state *new_exynos_state;
@@ -376,21 +377,25 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 			hibernation_block_exit(decon->hibernation);
 	}
 
-	drm_atomic_helper_commit_tail_rpm(old_state);
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	drm_atomic_helper_commit_planes(dev, old_state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
 			new_crtc_state, i) {
 		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
 		decon = exynos_crtc->ctx;
 
-		if (new_crtc_state->active)
+		if (new_crtc_state->active) {
+			struct decon_mode *mode = &decon->config.mode;
+
 			if (!wait_for_completion_timeout(
 					&decon->framestart_done,
 					FRAMESTART_TIMEOUT))
 				pr_warn("timeout: framestart doesn't occur\n");
-
-		if (new_crtc_state->active) {
-			struct decon_mode *mode = &decon->config.mode;
 
 			if (mode->op_mode == DECON_COMMAND_MODE) {
 				DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_MASK,
@@ -426,6 +431,13 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 				IS_ENABLED(CONFIG_EXYNOS_BTS))
 			decon->bts.ops->bts_release_bw(decon);
 	}
+
+	drm_atomic_helper_fake_vblank(old_state);
+
+	drm_atomic_helper_commit_hw_done(old_state);
+	drm_atomic_helper_wait_for_flip_done(dev, old_state);
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
 }
 
 static struct drm_mode_config_helper_funcs exynos_drm_mode_config_helpers = {
