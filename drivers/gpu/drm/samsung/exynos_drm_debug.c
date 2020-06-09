@@ -57,6 +57,7 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 	struct decon_device *decon = NULL;
 	struct dpp_device *dpp = NULL;
 	struct dpu_log *log;
+	struct drm_crtc_state *crtc_state;
 	int idx;
 
 	if (index < 0) {
@@ -117,6 +118,15 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 		dpp = (struct dpp_device *)priv;
 		log->data.win.win_idx = dpp->win_id;
 		log->data.win.plane_idx = dpp->id;
+		break;
+	case DPU_EVT_REQ_CRTC_INFO_OLD:
+	case DPU_EVT_REQ_CRTC_INFO_NEW:
+		crtc_state = (struct drm_crtc_state *)priv;
+		log->data.crtc_info.enable = crtc_state->enable;
+		log->data.crtc_info.active = crtc_state->active;
+		log->data.crtc_info.planes_changed = crtc_state->planes_changed;
+		log->data.crtc_info.mode_changed = crtc_state->mode_changed;
+		log->data.crtc_info.active_changed = crtc_state->active_changed;
 		break;
 	default:
 		break;
@@ -275,21 +285,23 @@ void dpu_print_log_rsc(char *buf, int len, struct dpu_log_rsc_occupancy *rsc)
 const char *get_event_name(enum dpu_event_type type)
 {
 	static const char events[][32] = {
-		"NONE",			"DECON_ENABLED",
-		"DECON_DISABLED",	"DECON_FRAMEDONE",
-		"DECON_FRAMESTART",	"DECON_RSC_OCCUPANCY",
-		"DECON_TRIG_MASK",	"DSIM_ENABLED",
-		"DSIM_DISABLED",	"DSIM_COMMAND",
-		"DSIM_UNDERRUN",	"DSIM_FRAMEDONE",
-		"DPP_FRAMEDONE", 	"DMA_RECOVERY",
-		"ATOMIC_COMMIT",	"TE_INTERRUPT",
-		"ENTER_HIBERNATION_IN",	"ENTER_HIBERNATION_OUT",
-		"EXIT_HIBERNATION_IN",	"EXIT_HIBERNATION_OUT",
-		"ATOMIC_BEGIN",		"ATOMIC_FLUSH",
-		"WB_ENABLE",		"WB_DISABLE",
-		"WB_ATOMIC_COMMIT",	"WB_FRAMEDONE",
-		"WB_ENTER_HIBERNATION",	"WB_EXIT_HIBERNATION",
-		"PLANE_UPDATE",		"PLANE_DISABLE",
+		"NONE",				"DECON_ENABLED",
+		"DECON_DISABLED",		"DECON_FRAMEDONE",
+		"DECON_FRAMESTART",		"DECON_RSC_OCCUPANCY",
+		"DECON_TRIG_MASK",		"DSIM_ENABLED",
+		"DSIM_DISABLED",		"DSIM_COMMAND",
+		"DSIM_UNDERRUN",		"DSIM_FRAMEDONE",
+		"DPP_FRAMEDONE", 		"DMA_RECOVERY",
+		"ATOMIC_COMMIT",		"TE_INTERRUPT",
+		"ENTER_HIBERNATION_IN",		"ENTER_HIBERNATION_OUT",
+		"EXIT_HIBERNATION_IN",		"EXIT_HIBERNATION_OUT",
+		"ATOMIC_BEGIN",			"ATOMIC_FLUSH",
+		"WB_ENABLE",			"WB_DISABLE",
+		"WB_ATOMIC_COMMIT",		"WB_FRAMEDONE",
+		"WB_ENTER_HIBERNATION",		"WB_EXIT_HIBERNATION",
+		"PLANE_UPDATE",			"PLANE_DISABLE",
+		"REQ_CRTC_INFO_OLD",		"REQ_CRTC_INFO_NEW",
+		"FRAMESTART_TIMEOUT",
 	};
 
 	if (type >= DPU_EVT_MAX)
@@ -374,6 +386,16 @@ static void DPU_EVENT_SHOW(struct decon_device *decon, struct drm_printer *p)
 					"\tCH:%d, WIN:%d",
 					log->data.win.plane_idx,
 					log->data.win.win_idx);
+			break;
+		case DPU_EVT_REQ_CRTC_INFO_OLD:
+		case DPU_EVT_REQ_CRTC_INFO_NEW:
+			scnprintf(buf + len, sizeof(buf) - len,
+				"\tenable(%d) active(%d) [p:%d m:%d a:%d]",
+					log->data.crtc_info.enable,
+					log->data.crtc_info.active,
+					log->data.crtc_info.planes_changed,
+					log->data.crtc_info.mode_changed,
+					log->data.crtc_info.active_changed);
 			break;
 		default:
 			break;

@@ -309,15 +309,15 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
 			new_crtc_state, i) {
-		DRM_DEBUG("[CRTC:%d:%s] old en:%d active:%d change[%d %d %d]\n",
-				crtc->base.id, crtc->name,
+		DRM_DEBUG("[CRTC-%d] old en:%d active:%d change[%d %d %d]\n",
+				drm_crtc_index(crtc),
 				old_crtc_state->enable, old_crtc_state->active,
 				old_crtc_state->planes_changed,
 				old_crtc_state->mode_changed,
 				old_crtc_state->active_changed);
 
-		DRM_DEBUG("[CRTC:%d:%s] new en:%d active:%d change[%d %d %d]\n",
-				crtc->base.id, crtc->name,
+		DRM_DEBUG("[CRTC-%d] new en:%d active:%d change[%d %d %d]\n",
+				drm_crtc_index(crtc),
 				new_crtc_state->enable, new_crtc_state->active,
 				new_crtc_state->planes_changed,
 				new_crtc_state->mode_changed,
@@ -325,6 +325,11 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
 		decon = exynos_crtc->ctx;
+
+		DPU_EVENT_LOG(DPU_EVT_REQ_CRTC_INFO_OLD, decon->id,
+				old_crtc_state);
+		DPU_EVENT_LOG(DPU_EVT_REQ_CRTC_INFO_NEW, decon->id,
+				new_crtc_state);
 
 		/* acquire initial bandwidth when DECON is enabled. */
 		if (!old_crtc_state->active && new_crtc_state->active) {
@@ -398,9 +403,12 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 		if (new_crtc_state->active)
 			if (!wait_for_completion_timeout(
-					&decon->framestart_done, TIMEOUT))
+					&decon->framestart_done, TIMEOUT)) {
+				DPU_EVENT_LOG(DPU_EVT_FRAMESTART_TIMEOUT,
+						decon->id, NULL);
 				pr_warn("decon%d framestart timeout\n",
 						decon->id);
+			}
 
 		if (new_crtc_state->active) {
 			struct decon_mode *mode = &decon->config.mode;
