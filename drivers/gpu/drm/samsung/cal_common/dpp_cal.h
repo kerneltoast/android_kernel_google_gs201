@@ -17,7 +17,8 @@
 #include <exynos_drm_plane.h>
 #include <drm/samsung_drm.h>
 
-#define MAX_DPP_CNT		6
+/* RDMA + ODMA */
+#define MAX_DPP_CNT		7
 
 #define DPP_CSC_IDX_BT601_625			0
 #define DPP_CSC_IDX_BT601_625_UNADJUSTED	2

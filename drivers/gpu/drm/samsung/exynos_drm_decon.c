@@ -171,7 +171,7 @@ static bool has_writeback_job(struct drm_crtc_state *new_crtc_state)
 					drm_connector_mask(conn)))
 			continue;
 
-		if (conn_state->writeback_job && conn_state->writeback_job->fb)
+		if (wb_check_job(conn_state))
 			return true;
 	}
 	return false;
@@ -654,6 +654,11 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	itmon_notifier_chain_register(&decon->itmon_nb);
 #endif
 
+	if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
+		decon->bts.ops = &dpu_bts_control;
+		decon->bts.ops->init(decon);
+	}
+
 	decon_debug(decon, "%s -\n", __func__);
 	return 0;
 }
@@ -664,6 +669,9 @@ static void decon_unbind(struct device *dev, struct device *master,
 	struct decon_device *decon = dev_get_drvdata(dev);
 
 	decon_debug(decon, "%s +\n", __func__);
+	if (IS_ENABLED(CONFIG_EXYNOS_BTS))
+		decon->bts.ops->deinit(decon);
+
 	decon_disable(decon->crtc);
 	decon_debug(decon, "%s -\n", __func__);
 }
@@ -1112,11 +1120,6 @@ static int decon_probe(struct platform_device *pdev)
 	init_completion(&decon->framestart_done);
 	init_waitqueue_head(&decon->framedone_wait);
 
-	if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
-		decon->bts.ops = &dpu_bts_control;
-		decon->bts.ops->init(decon);
-	}
-
 	decon->state = DECON_STATE_OFF;
 	pm_runtime_enable(decon->dev);
 
@@ -1144,9 +1147,6 @@ err:
 static int decon_remove(struct platform_device *pdev)
 {
 	struct decon_device *decon = platform_get_drvdata(pdev);
-
-	if (IS_ENABLED(CONFIG_EXYNOS_BTS))
-		decon->bts.ops->deinit(decon);
 
 	exynos_hibernation_destroy(decon->hibernation);
 

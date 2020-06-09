@@ -26,6 +26,7 @@
 #include <exynos_drm_fbdev.h>
 #include <exynos_drm_fb.h>
 #include <exynos_drm_plane.h>
+#include <exynos_drm_crtc.h>
 #include <exynos_drm_gem.h>
 #include <exynos_drm_writeback.h>
 #include <exynos_drm_decon.h>
@@ -319,13 +320,14 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(dpp_driver, CONFIG_DRM_SAMSUNG_DPP),
 		DRM_COMPONENT_DRIVER
 	}, {
+		/* writeback connector should be bound before bts init. */
+		DRV_PTR(writeback_driver, CONFIG_DRM_SAMSUNG_WB),
+		DRM_COMPONENT_DRIVER
+	}, {
 		DRV_PTR(decon_driver, CONFIG_DRM_SAMSUNG_DECON),
 		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
 	}, {
 		DRV_PTR(dsim_driver, CONFIG_DRM_SAMSUNG_DSI),
-		DRM_COMPONENT_DRIVER
-	}, {
-		DRV_PTR(writeback_driver, CONFIG_DRM_SAMSUNG_WB),
 		DRM_COMPONENT_DRIVER
 	}, {
 		&exynos_drm_platform_driver,
@@ -404,11 +406,16 @@ static int exynos_drm_bind(struct device *dev)
 	}
 
 	drm_for_each_encoder(encoder, drm) {
-		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
+		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL) {
+			struct writeback_device *wb = enc_to_wb_dev(encoder);
+
 			encoder->possible_clones = encoder_mask;
-		else
+			encoder->possible_crtcs =
+				exynos_drm_get_possible_crtcs(encoder, wb->output_type);
+		} else {
 			encoder->possible_clones = drm_encoder_mask(encoder) |
 				wb_mask;
+		}
 
 		pr_info("encoder[%d] type(0x%x) possible_clones(0x%x)\n",
 				encoder->index, encoder->encoder_type,

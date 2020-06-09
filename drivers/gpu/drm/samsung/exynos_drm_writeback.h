@@ -86,6 +86,11 @@ wb_get_decon(const struct writeback_device *wb)
 	return to_exynos_crtc(conn_state->crtc)->ctx;
 }
 
+static inline bool wb_check_job(const struct drm_connector_state *conn_state)
+{
+	return (conn_state->writeback_job && conn_state->writeback_job->fb);
+}
+
 int exynos_drm_atomic_check_writeback(struct drm_device *dev,
 		struct drm_atomic_state *state);
 void wb_dump(struct writeback_device *wb);

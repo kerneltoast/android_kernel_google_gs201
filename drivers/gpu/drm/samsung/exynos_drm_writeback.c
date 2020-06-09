@@ -120,7 +120,7 @@ static int writeback_atomic_check(struct drm_encoder *encoder,
 	const struct drm_framebuffer *fb;
 	int i;
 
-	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
+	if (!wb_check_job(conn_state))
 		return 0;
 
 	fb = conn_state->writeback_job->fb;
@@ -461,7 +461,6 @@ static int writeback_bind(struct device *dev, struct device *master, void *data)
 	struct writeback_device *wb = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct drm_connector *connector = &wb->writeback.base;
-	struct drm_encoder *encoder = &wb->writeback.encoder;
 	int ret;
 
 	pr_info("%s +\n", __func__);
@@ -474,9 +473,6 @@ static int writeback_bind(struct device *dev, struct device *master, void *data)
 		pr_err("%s: failed to init writeback connector\n", __func__);
 		return ret;
 	}
-
-	encoder->possible_crtcs = exynos_drm_get_possible_crtcs(encoder,
-			wb->output_type);
 
 	exynos_drm_wb_conn_create_standard_property(connector);
 	exynos_drm_wb_conn_create_range_property(connector);

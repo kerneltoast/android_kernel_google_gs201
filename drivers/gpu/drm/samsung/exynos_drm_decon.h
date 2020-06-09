@@ -114,7 +114,8 @@ struct bts_dpp_info {
 };
 
 struct bts_decon_info {
-	struct bts_dpp_info dpp[MAX_DPP_CNT];
+	struct bts_dpp_info rdma[MAX_WIN_PER_DECON];
+	struct bts_dpp_info odma;
 	u32 vclk; /* Khz */
 	u32 lcd_w;
 	u32 lcd_h;
@@ -124,6 +125,8 @@ struct dpu_bts {
 	bool enabled;
 	u32 resol_clk;
 	u32 peak;
+	u32 read_bw;
+	u32 write_bw;
 	u32 total_bw;
 	u32 prev_total_bw;
 	u32 max_disp_freq;
@@ -135,6 +138,7 @@ struct dpu_bts {
 	u32 vfp;
 	u32 vsa;
 	u32 fps;
+	/* includes writeback dpp */
 	struct dpu_bts_bw bw[MAX_DPP_CNT];
 
 	/* each decon must know other decon's BW to get overall BW */
@@ -151,6 +155,7 @@ struct dpu_bts {
 	u32 scen_updated;
 
 	struct dpu_bts_win_config win_config[MAX_WIN_PER_DECON];
+	struct dpu_bts_win_config wb_config;
 };
 
 /**
@@ -292,7 +297,7 @@ struct decon_device {
 	struct drm_device		*drm_dev;
 	struct exynos_drm_crtc		*crtc;
 	/* dpp information saved in dpp channel number order */
-	struct dpp_device		*dpp[MAX_DPP_CNT];
+	struct dpp_device		*dpp[MAX_WIN_PER_DECON];
 	u32				dpp_cnt;
 	u32				win_cnt;
 	enum exynos_drm_output_type	con_type;
@@ -388,6 +393,7 @@ decon_get_wb(struct decon_device *decon)
 
 	wb_connector = container_of(encoder, struct drm_writeback_connector,
 			encoder);
+
 	if (!wb_connector)
 		return NULL;
 

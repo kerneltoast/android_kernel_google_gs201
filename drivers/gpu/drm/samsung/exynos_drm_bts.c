@@ -11,6 +11,7 @@
  */
 
 #include <exynos_drm_decon.h>
+#include <exynos_drm_writeback.h>
 #include <exynos_drm_format.h>
 
 #include <soc/google/bts.h>
@@ -438,34 +439,71 @@ static void dpu_bts_share_bw_info(int id)
 	}
 }
 
-static void dpu_bts_calc_dpp_bw(struct bts_decon_info *bts_info, int idx)
+static void
+dpu_bts_calc_dpp_bw(struct bts_dpp_info *dpp, u32 vclk, u32 lcd_w, int idx)
 {
-	struct bts_dpp_info *dpp = &bts_info->dpp[idx];
 	unsigned int dst_w, dst_h;
 
 	dst_w = dpp->dst.x2 - dpp->dst.x1;
 	dst_h = dpp->dst.y2 - dpp->dst.y1;
 
-	dpp->bw = ((u64)dpp->src_h * dpp->src_w * dpp->bpp * bts_info->vclk) /
-		(8 * dst_h * bts_info->lcd_w);
+	dpp->bw = ((u64)dpp->src_h * dpp->src_w * dpp->bpp * vclk) /
+							(8 * dst_h * lcd_w);
 
 	DPU_DEBUG_BTS("\tDPP%d bandwidth = %d\n", idx, dpp->bw);
 }
 
+static void dpu_bts_convert_config_to_info(struct bts_dpp_info *dpp,
+				const struct dpu_bts_win_config *config)
+{
+	const struct dpu_fmt *fmt_info;
+
+	fmt_info = dpu_find_fmt_info(config->format);
+	dpp->bpp = fmt_info->bpp + fmt_info->padding;
+	dpp->src_w = config->src_w;
+	dpp->src_h = config->src_h;
+	dpp->dst.x1 = config->dst_x;
+	dpp->dst.x2 = config->dst_x + config->dst_w;
+	dpp->dst.y1 = config->dst_y;
+	dpp->dst.y2 = config->dst_y + config->dst_h;
+	dpp->rotation = config->is_rot;
+
+	/*
+	 * [ GUIDE : #if 0 ]
+	 * Need to apply twice instead of x1.25 as many bandwidth
+	 * of 8-bit YUV if it is a 8P2 format rotation.
+	 *
+	 * [ APPLY : #else ]
+	 * In case of rotation, MIF & INT and DISP clock frequencies
+	 * are important factors related to the issue of underrun.
+	 * So, relatively high frequency is required to avoid underrun.
+	 * By using 32 instead of 12/15/24 as bpp(bit-per-pixel) value,
+	 * MIF & INT frequency can be increased because
+	 * those are decided by the bandwidth.
+	 * ROTATION_FACTOR_BPP(= ARGB8888 value) is a tunable value.
+	 */
+	if (dpp->rotation)
+		dpp->bpp = ROTATION_FACTOR_BPP;
+
+	DPU_DEBUG_BTS("\tDPP%d : bpp(%d) src w(%d) h(%d) rot(%d)\n",
+			DPU_DMA2CH(config->dpp_ch), dpp->bpp, dpp->src_w,
+			dpp->src_h, dpp->rotation);
+	DPU_DEBUG_BTS("\t\t\t\tdst x(%d) right(%d) y(%d) bottom(%d)\n",
+			dpp->dst.x1, dpp->dst.x2, dpp->dst.y1, dpp->dst.y2);
+}
+
 void dpu_bts_calc_bw(struct decon_device *decon)
 {
-	struct dpu_bts_win_config *config = decon->bts.win_config;
+	struct dpu_bts_win_config *config;
 	struct bts_decon_info bts_info;
-	const struct dpu_fmt *fmt_info;
 	int idx, i;
-	u32 total_bw = 0;
+	u32 read_bw = 0, write_bw;
 	u64 resol_clock;
 
 	if (!decon->bts.enabled)
 		return;
 
-	DPU_DEBUG_BTS("\n");
-	DPU_DEBUG_BTS("%s + : DECON%d\n", __func__, decon->id);
+	DPU_DEBUG_BTS("\n%s + : DECON%d\n", __func__, decon->id);
 
 	memset(&bts_info, 0, sizeof(struct bts_decon_info));
 
@@ -479,73 +517,38 @@ void dpu_bts_calc_bw(struct decon_device *decon)
 	bts_info.lcd_w = decon->config.image_width;
 	bts_info.lcd_h = decon->config.image_height;
 
+	/* read bw calculation */
+	config = decon->bts.win_config;
 	for (i = 0; i < decon->win_cnt; ++i) {
-		if (config[i].state == DPU_WIN_STATE_BUFFER) {
-			idx = config[i].dpp_ch; /* ch */
-			/*
-			 * TODO: Array index of bts_info structure uses dma type
-			 * This array index will be changed to DPP channel
-			 * number in the future.
-			 */
-			bts_info.dpp[idx].used = true;
-		} else {
+		if (config[i].state != DPU_WIN_STATE_BUFFER)
 			continue;
-		}
 
-		fmt_info = dpu_find_fmt_info(config[i].format);
-		bts_info.dpp[idx].bpp = fmt_info->bpp + fmt_info->padding;
-		bts_info.dpp[idx].src_w = config[i].src_w;
-		bts_info.dpp[idx].src_h = config[i].src_h;
-		bts_info.dpp[idx].dst.x1 = config[i].dst_x;
-		bts_info.dpp[idx].dst.x2 = config[i].dst_x + config[i].dst_w;
-		bts_info.dpp[idx].dst.y1 = config[i].dst_y;
-		bts_info.dpp[idx].dst.y2 = config[i].dst_y + config[i].dst_h;
-		bts_info.dpp[idx].rotation = config[i].is_rot;
-
-		/*
-		 * [ GUIDE : #if 0 ]
-		 * Need to apply twice instead of x1.25 as many bandwidth
-		 * of 8-bit YUV if it is a 8P2 format rotation.
-		 *
-		 * [ APPLY : #else ]
-		 * In case of rotation, MIF & INT and DISP clock frequencies
-		 * are important factors related to the issue of underrun.
-		 * So, relatively high frequency is required to avoid underrun.
-		 * By using 32 instead of 12/15/24 as bpp(bit-per-pixel) value,
-		 * MIF & INT frequency can be increased because
-		 * those are decided by the bandwidth.
-		 * ROTATION_FACTOR_BPP(= ARGB8888 value) is a tunable value.
-		 */
-		if (bts_info.dpp[idx].rotation)
-			bts_info.dpp[idx].bpp = ROTATION_FACTOR_BPP;
-
-		DPU_DEBUG_BTS("\tDPP%d : bpp(%d) src w(%d) h(%d) rot(%d)\n",
-				DPU_DMA2CH(idx), bts_info.dpp[idx].bpp,
-				bts_info.dpp[idx].src_w,
-				bts_info.dpp[idx].src_h,
-				bts_info.dpp[idx].rotation);
-		DPU_DEBUG_BTS("\t\t\t\tdst x(%d) right(%d) y(%d) bottom(%d)\n",
-				bts_info.dpp[idx].dst.x1,
-				bts_info.dpp[idx].dst.x2,
-				bts_info.dpp[idx].dst.y1,
-				bts_info.dpp[idx].dst.y2);
-
-		dpu_bts_calc_dpp_bw(&bts_info, idx);
-		total_bw += bts_info.dpp[idx].bw;
+		idx = config[i].dpp_ch;
+		dpu_bts_convert_config_to_info(&bts_info.rdma[idx], &config[i]);
+		dpu_bts_calc_dpp_bw(&bts_info.rdma[idx], bts_info.vclk,
+							bts_info.lcd_w, idx);
+		decon->bts.bw[i].val = bts_info.rdma[i].bw;
+		read_bw += bts_info.rdma[idx].bw;
 	}
 
-	decon->bts.total_bw = total_bw;
+	/* write bw calculation */
+	config = &decon->bts.wb_config;
+	if (config->state == DPU_WIN_STATE_BUFFER) {
+		dpu_bts_convert_config_to_info(&bts_info.odma, config);
+		dpu_bts_calc_dpp_bw(&bts_info.odma, bts_info.vclk,
+						bts_info.lcd_w, config->dpp_ch);
+		decon->bts.bw[i].val = bts_info.odma.bw;
+		write_bw = bts_info.odma.bw;
+	}
+
+	decon->bts.read_bw = read_bw;
+	decon->bts.write_bw = write_bw;
+	decon->bts.total_bw = read_bw + write_bw;
 	memcpy(&decon->bts.bts_info, &bts_info, sizeof(struct bts_decon_info));
 
-	for (i = 0; i < MAX_DPP_CNT; ++i) {
-		decon->bts.bw[i].val = bts_info.dpp[i].bw;
-		if (decon->bts.bw[i].val)
-			DPU_DEBUG_BTS("\tDPP%d bandwidth = %d\n",
-					DPU_DMA2CH(i), decon->bts.bw[i].val);
-	}
-
-	DPU_DEBUG_BTS("\tDECON%d total bandwidth = %d\n", decon->id,
-			decon->bts.total_bw);
+	DPU_DEBUG_BTS("\tDECON%d total bw = %d, read bw = %d, write bw = %d\n",
+			decon->id, decon->bts.total_bw, decon->bts.read_bw,
+			decon->bts.write_bw);
 
 	dpu_bts_find_max_disp_freq(decon);
 
@@ -566,11 +569,10 @@ void dpu_bts_update_bw(struct decon_device *decon, bool shadow_updated)
 
 	/* update peak & read bandwidth per DPU port */
 	bw.peak = decon->bts.peak;
-	bw.read = decon->bts.total_bw;
-	DPU_DEBUG_BTS("\tpeak = %d, read = %d\n", bw.peak, bw.read);
-
-	if (bw.read == 0)
-		bw.peak = 0;
+	bw.read = decon->bts.read_bw;
+	bw.write = decon->bts.write_bw;
+	DPU_DEBUG_BTS("\tpeak = %d, read = %d, write = %d\n", bw.peak, bw.read,
+			bw.write);
 
 	if (shadow_updated) {
 		/* after DECON h/w configs are updated to shadow SFR */
@@ -659,6 +661,7 @@ void dpu_bts_init(struct decon_device *decon)
 {
 	int i;
 	char bts_idx_name[MAX_IDX_NAME_SIZE];
+	const struct drm_encoder *encoder;
 
 	DPU_DEBUG_BTS("%s +\n", __func__);
 
@@ -688,10 +691,20 @@ void dpu_bts_init(struct decon_device *decon)
 					PM_QOS_DISPLAY_THROUGHPUT, 0);
 	decon->bts.scen_updated = 0;
 
-	for (i = 0; i < MAX_DPP_CNT; ++i) { /* dma type order */
+	for (i = 0; i < MAX_WIN_PER_DECON; ++i) { /* dma type order */
 		decon->bts.bw[i].ch_num = decon->dpp[DPU_DMA2CH(i)]->port;
 		DPU_INFO_BTS("IDMA_TYPE(%d) CH(%d) Port(%d)\n", i,
 				DPU_DMA2CH(i), decon->bts.bw[i].ch_num);
+	}
+
+	drm_for_each_encoder(encoder, decon->drm_dev) {
+		const struct writeback_device *wb;
+
+		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL) {
+			wb = enc_to_wb_dev(encoder);
+			decon->bts.bw[wb->id].ch_num = wb->port;
+			break;
+		}
 	}
 
 	decon->bts.enabled = true;

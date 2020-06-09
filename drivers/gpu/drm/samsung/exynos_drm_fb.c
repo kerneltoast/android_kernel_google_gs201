@@ -273,6 +273,39 @@ static void plane_state_to_win_config(struct dpu_bts_win_config *win_config,
 	DRM_DEBUG("simplified rot[0x%x]\n", simplified_rot);
 }
 
+static void conn_state_to_win_config(struct dpu_bts_win_config *win_config,
+				const struct drm_connector_state *conn_state)
+{
+	const struct writeback_device *wb = conn_to_wb_dev(conn_state->connector);
+	const struct drm_framebuffer *fb = conn_state->writeback_job->fb;
+
+	win_config->src_x = 0;
+	win_config->src_y = 0;
+	win_config->src_w = fb->width;
+	win_config->src_h = fb->height;
+	win_config->dst_x = 0;
+	win_config->dst_y = 0;
+	win_config->dst_w = fb->width;
+	win_config->dst_h = fb->height;
+
+	win_config->is_comp = false;
+	win_config->state = DPU_WIN_STATE_BUFFER;
+	win_config->format = fb->format->format;
+	win_config->dpp_ch = wb->id;
+	win_config->comp_src = 0;
+	win_config->is_rot = false;
+
+	DRM_DEBUG("src[%d %d %d %d], dst[%d %d %d %d]\n",
+			win_config->src_x, win_config->src_y,
+			win_config->src_w, win_config->src_h,
+			win_config->dst_x, win_config->dst_y,
+			win_config->dst_w, win_config->dst_h);
+	DRM_DEBUG("rot[%d] afbc[%d] format[%d] ch[%d] comp_src[%lu]\n",
+			win_config->is_rot, win_config->is_comp,
+			win_config->format, win_config->dpp_ch,
+			win_config->comp_src);
+}
+
 static void exynos_atomic_bts_pre_update(struct drm_device *dev,
 					 struct drm_atomic_state *old_state)
 {
@@ -282,6 +315,8 @@ static void exynos_atomic_bts_pre_update(struct drm_device *dev,
 	struct drm_plane *plane;
 	const struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct dpu_bts_win_config *win_config;
+	struct drm_connector *conn;
+	const struct drm_connector_state *old_conn_state, *new_conn_state;
 	int i;
 
 	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state,
@@ -303,6 +338,30 @@ static void exynos_atomic_bts_pre_update(struct drm_device *dev,
 			decon = crtc_to_decon(old_plane_state->crtc);
 
 			decon->dpp[i]->dbg_dma_addr = 0;
+		}
+	}
+
+	for_each_oldnew_connector_in_state(old_state, conn, old_conn_state,
+					new_conn_state, i) {
+		struct writeback_device *wb;
+		bool old_job, new_job;
+
+		if (conn->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
+			continue;
+
+		wb = conn_to_wb_dev(conn);
+
+		old_job = wb_check_job(old_conn_state);
+		new_job = wb_check_job(new_conn_state);
+
+		if (!old_job && new_job) {
+			decon = crtc_to_decon(new_conn_state->crtc);
+			win_config = &decon->bts.wb_config;
+			conn_state_to_win_config(win_config, new_conn_state);
+		} else if (old_job && !new_job) {
+			decon = crtc_to_decon(old_conn_state->crtc);
+			win_config = &decon->bts.wb_config;
+			win_config->state = DPU_WIN_STATE_DISABLED;
 		}
 	}
 
