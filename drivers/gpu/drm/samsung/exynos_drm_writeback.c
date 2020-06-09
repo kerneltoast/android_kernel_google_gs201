@@ -572,8 +572,11 @@ static irqreturn_t odma_irq_handler(int irq, void *priv)
 
 	irqs = odma_reg_get_irq_and_clear(wb->id);
 
-	if (irqs & ODMA_STATUS_FRAMEDONE_IRQ) {
-		pr_debug("wb(%d) framedone irq occurs\n", wb->id);
+	if (irqs & ODMA_STATUS_FRAMEDONE_IRQ || irqs & ODMA_INST_OFF_DONE_IRQ) {
+		if (irqs & ODMA_STATUS_FRAMEDONE_IRQ)
+			pr_debug("wb(%d) framedone irq occurs\n", wb->id);
+		else
+			pr_warn("wb(%d) instant off irq occurs\n", wb->id);
 
 		if (wb_is_cwb(wb))
 			decon_reg_set_cwb_enable(wb->decon_id, false);
