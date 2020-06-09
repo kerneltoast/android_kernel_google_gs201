@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GS101 Mali GPU  device tree source
+ *
+ * Copyright 2020 Google LLC
+ *
+ */
+
+/ {
+	mali: mali@1C500000 {
+		compatible = "arm,malit6xx";
+		reg = <0x0 0x1C500000 0x5000>;
+		interrupts =
+			<GIC_SPI IRQ_G3D_IRQJOB_G3D IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_G3D_IRQMMU_G3D IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_G3D_IRQGPU_G3D IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "JOB", "MMU", "GPU";
+		power-domains = <&pd_embedded_g3d>;
+	};
+
+};
