@@ -500,13 +500,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	_decon_enable(decon);
 
-	if ((decon->config.mode.op_mode == DECON_COMMAND_MODE) &&
-			(decon->config.out_type & DECON_OUT_DSI)) {
-		decon_set_color_map(decon, 0, decon->config.image_width,
-				decon->config.image_height);
-		decon_reg_start(decon->id, &decon->config);
-	}
-
 	decon_print_config_info(decon);
 
 	for (i = 0; i < MAX_PLANE; ++i)
