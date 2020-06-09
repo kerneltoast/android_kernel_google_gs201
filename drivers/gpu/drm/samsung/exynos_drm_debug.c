@@ -13,6 +13,7 @@
 #include <linux/ktime.h>
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
+#include <linux/moduleparam.h>
 #include <video/mipi_display.h>
 #include <drm/drm_print.h>
 
@@ -21,18 +22,27 @@
 #include <exynos_drm_writeback.h>
 #include <cal_config.h>
 
+/* Default is 1024 entries array for event log buffer */
+static unsigned int dpu_event_log_max = 1024;
+static unsigned int dpu_event_print_max = 512;
+
+module_param_named(event_log_max, dpu_event_log_max, uint, 0);
+module_param_named(event_print_max, dpu_event_print_max, uint, 0600);
+MODULE_PARM_DESC(event_log_max, "entry count of event log buffer array");
+MODULE_PARM_DESC(event_print_max, "print entry count of event log buffer");
+
 /* If event are happened continuously, then ignore */
 static bool dpu_event_ignore
 	(enum dpu_event_type type, struct decon_device *decon)
 {
-	int latest = atomic_read(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
+	int latest = atomic_read(&decon->d.event_log_idx) % dpu_event_log_max;
 	int idx, offset;
 
 	if (IS_ERR_OR_NULL(decon->d.event_log))
 		return true;
 
 	for (offset = 0; offset < DPU_EVENT_KEEP_CNT; ++offset) {
-		idx = (latest + DPU_EVENT_LOG_MAX - offset) % DPU_EVENT_LOG_MAX;
+		idx = (latest + dpu_event_log_max - offset) % dpu_event_log_max;
 		if (type != decon->d.event_log[idx].type)
 			return false;
 	}
@@ -57,6 +67,7 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 	struct dpp_device *dpp = NULL;
 	struct dpu_log *log;
 	struct drm_crtc_state *crtc_state;
+	unsigned long flags;
 	int idx;
 
 	if (index < 0) {
@@ -83,8 +94,10 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 		break;
 	}
 
-	idx = atomic_inc_return(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
+	spin_lock_irqsave(&decon->d.event_lock, flags);
+	idx = atomic_inc_return(&decon->d.event_log_idx) % dpu_event_log_max;
 	log = &decon->d.event_log[idx];
+	spin_unlock_irqrestore(&decon->d.event_lock, flags);
 
 	log->time = ktime_get();
 	log->type = type;
@@ -143,6 +156,7 @@ void DPU_EVENT_LOG_ATOMIC_COMMIT(int index)
 {
 	struct decon_device *decon;
 	struct dpu_log *log;
+	unsigned long flags;
 	int idx, i, dpp_ch;
 
 	if (index < 0) {
@@ -155,8 +169,10 @@ void DPU_EVENT_LOG_ATOMIC_COMMIT(int index)
 	if (IS_ERR_OR_NULL(decon->d.event_log))
 		return;
 
-	idx = atomic_inc_return(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
+	spin_lock_irqsave(&decon->d.event_lock, flags);
+	idx = atomic_inc_return(&decon->d.event_log_idx) % dpu_event_log_max;
 	log = &decon->d.event_log[idx];
+	spin_unlock_irqrestore(&decon->d.event_lock, flags);
 
 	log->type = DPU_EVT_ATOMIC_COMMIT;
 	log->time = ktime_get();
@@ -192,6 +208,7 @@ void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,
 {
 	struct decon_device *decon;
 	struct dpu_log *log;
+	unsigned long flags;
 	int idx, i;
 
 	if (index < 0) {
@@ -204,8 +221,10 @@ void DPU_EVENT_LOG_CMD(int index, struct dsim_device *dsim, u32 cmd_id,
 	if (IS_ERR_OR_NULL(decon->d.event_log))
 		return;
 
-	idx = atomic_inc_return(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
+	spin_lock_irqsave(&decon->d.event_lock, flags);
+	idx = atomic_inc_return(&decon->d.event_log_idx) % dpu_event_log_max;
 	log = &decon->d.event_log[idx];
+	spin_unlock_irqrestore(&decon->d.event_lock, flags);
 
 	log->type = DPU_EVT_DSIM_COMMAND;
 	log->time = ktime_get();
@@ -311,7 +330,7 @@ const char *get_event_name(enum dpu_event_type type)
 
 static void DPU_EVENT_SHOW(struct decon_device *decon, struct drm_printer *p)
 {
-	int idx = atomic_read(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
+	int idx = atomic_read(&decon->d.event_log_idx) % dpu_event_log_max;
 	struct dpu_log *log;
 	int latest = idx;
 	struct timespec64 ts;
@@ -328,11 +347,13 @@ static void DPU_EVENT_SHOW(struct decon_device *decon, struct drm_printer *p)
 	drm_printf(p, "----------------------------------------------------\n");
 
 	/* Seek a oldest from current index */
-	idx = (idx + DPU_EVENT_LOG_MAX - DPU_EVENT_PRINT_MAX) %
-						DPU_EVENT_LOG_MAX;
+	if (dpu_event_print_max > dpu_event_log_max)
+		dpu_event_print_max = dpu_event_log_max;
+	idx = (idx + dpu_event_log_max - dpu_event_print_max) %
+						dpu_event_log_max;
 	prev_ktime = ktime_set(0, 0);
 	do {
-		if (++idx >= DPU_EVENT_LOG_MAX)
+		if (++idx >= dpu_event_log_max)
 			idx = 0;
 
 		/* Seek a index */
@@ -445,12 +466,12 @@ int dpu_init_debug(struct decon_device *decon)
 	struct dentry *urgent_dent;
 
 	decon->d.event_log = NULL;
-	event_cnt = DPU_EVENT_LOG_MAX;
+	event_cnt = dpu_event_log_max;
 
 	for (i = 0; i < DPU_EVENT_LOG_RETRY; ++i) {
 		event_cnt = event_cnt >> i;
-		decon->d.event_log = kcalloc(event_cnt, sizeof(struct dpu_log),
-				GFP_KERNEL);
+		decon->d.event_log =
+			vzalloc(sizeof(struct dpu_log) * event_cnt);
 		if (IS_ERR_OR_NULL(decon->d.event_log)) {
 			DRM_WARN("failed to alloc event log buf[%d]. retry\n",
 					event_cnt);
@@ -460,6 +481,7 @@ int dpu_init_debug(struct decon_device *decon)
 		DRM_INFO("#%d event log buffers are allocated\n", event_cnt);
 		break;
 	}
+	spin_lock_init(&decon->d.event_lock);
 	decon->d.event_log_cnt = event_cnt;
 	atomic_set(&decon->d.event_log_idx, -1);
 
@@ -519,7 +541,7 @@ int dpu_init_debug(struct decon_device *decon)
 err_debugfs:
 	debugfs_remove(debug_event);
 err_event_log:
-	kfree(decon->d.event_log);
+	vfree(decon->d.event_log);
 	return -ENOENT;
 }
 

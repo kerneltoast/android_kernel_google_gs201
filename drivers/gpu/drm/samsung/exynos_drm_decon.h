@@ -273,8 +273,6 @@ struct dpu_log {
 };
 
 /* Definitions below are used in the DECON */
-#define DPU_EVENT_LOG_MAX	SZ_512
-#define DPU_EVENT_PRINT_MAX	(DPU_EVENT_LOG_MAX >> 1)
 #define DPU_EVENT_LOG_RETRY	3
 #define DPU_EVENT_KEEP_CNT	3
 
@@ -287,6 +285,8 @@ struct decon_debug {
 	u32 underrun_cnt;
 	/* array index of log buffer in event log */
 	atomic_t event_log_idx;
+	/* lock for saving log to event log buffer */
+	spinlock_t event_lock;
 };
 
 struct decon_device {
