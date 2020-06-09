@@ -352,12 +352,12 @@ static void decon_atomic_flush(struct exynos_drm_crtc *exynos_crtc,
 	}
 
 	decon_reg_all_win_shadow_update_req(decon->id);
+	reinit_completion(&decon->framestart_done);
 	decon_reg_start(decon->id, &decon->config);
 
 	if (!new_crtc_state->no_vblank)
 		exynos_crtc_handle_event(exynos_crtc);
 
-	reinit_completion(&decon->framestart_done);
 	DPU_EVENT_LOG(DPU_EVT_ATOMIC_FLUSH, decon->id, NULL);
 
 	decon_dbg(decon, "%s -\n", __func__);
