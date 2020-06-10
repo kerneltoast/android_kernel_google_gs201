@@ -20,6 +20,7 @@
 #include <linux/dma-buf.h>
 
 #define EXYNOS_DRM_GEM_FLAG_COLORMAP	BIT(0)
+#define EXYNOS_DRM_GEM_FLAG_DUMB_BUF	BIT(1)
 
 struct exynos_drm_gem {
 	struct drm_gem_object base;

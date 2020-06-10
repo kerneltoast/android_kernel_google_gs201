@@ -62,35 +62,39 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 		return ERR_PTR(exynos_gem_obj->dma_addr);
 	}
 
-	pr_debug("dma_addr(0x%llx)\n", exynos_gem_obj->dma_addr);
+	pr_debug("mapped dma_addr: 0x%pK\n", exynos_gem_obj->dma_addr);
 
 	return &exynos_gem_obj->base;
 }
 
-static void exynos_drm_gem_unmap(struct exynos_drm_gem *exynos_gem_obj,
-				 struct device *client)
+static void exynos_drm_gem_unmap(struct exynos_drm_gem *exynos_gem_obj)
 {
 	struct dma_buf_attachment *attach = exynos_gem_obj->base.import_attach;
+
+	if (!attach)
+		return;
 
 	/* nothing to do for color map buffers */
 	if (exynos_gem_obj->flags & EXYNOS_DRM_GEM_FLAG_COLORMAP)
 		return;
 
-	if (client)
+	if (exynos_gem_obj->dma_addr) {
 		ion_iovmm_unmap(attach, exynos_gem_obj->dma_addr);
+		pr_debug("unmapped dma_addr: 0x%pK\n",
+			 exynos_gem_obj->dma_addr);
+	}
 
-	if (exynos_gem_obj->kaddr)
+	if (exynos_gem_obj->kaddr) {
 		dma_buf_vunmap(attach->dmabuf, exynos_gem_obj->kaddr);
-
-	pr_debug("unmapped the dma address and the attachment\n");
+		pr_debug("unmapped kaddr: %pK\n");
+	}
 }
 
 void exynos_drm_gem_free_object(struct drm_gem_object *obj)
 {
 	struct exynos_drm_gem *exynos_gem_obj = to_exynos_gem(obj);
-	const struct exynos_drm_private *priv = obj->dev->dev_private;
 
-	exynos_drm_gem_unmap(exynos_gem_obj, priv->iommu_client);
+	exynos_drm_gem_unmap(exynos_gem_obj);
 
 	if (obj->import_attach)
 		drm_prime_gem_destroy(obj, exynos_gem_obj->sgt);
@@ -123,22 +127,23 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 	if (IS_ERR(obj)) {
 		pr_err("Unable to import created ION buffer\n");
 		ret = PTR_ERR(obj);
-		goto err_import;
+	} else {
+		struct exynos_drm_gem *exynos_gem_obj = to_exynos_gem(obj);
+
+		exynos_gem_obj->flags |= flags;
+
+		ret = drm_gem_handle_create(filep, obj, gem_handle);
+		if (ret) {
+			pr_err("Failed to create a handle of GEM\n");
+			/* drop ref from import */
+			dma_buf_put(dmabuf);
+		}
+
+		/* drop ref from import - handle holds it now */
+		drm_gem_object_unreference_unlocked(obj);
 	}
 
-	ret = drm_gem_handle_create(filep, obj, gem_handle);
-	if (ret) {
-		pr_err("Failed to create a handle of GEM\n");
-		goto err_handle;
-	}
-
-	/* drop reference from import - handle holds it now. */
-	drm_gem_object_unreference_unlocked(obj);
-
-	return 0;
-err_handle:
-	exynos_drm_gem_free_object(obj);
-err_import:
+	/* drop ref from alloc - import holds it now */
 	dma_buf_put(dmabuf);
 
 	return ret;
@@ -155,7 +160,7 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	args->size = PAGE_ALIGN(args->pitch * args->height);
 
 	ret = exynos_drm_gem_create(dev, file_priv, args->size,
-				    0, &handle);
+				    EXYNOS_DRM_GEM_FLAG_DUMB_BUF, &handle);
 	if (ret) {
 		pr_err("Failed to create dumb of %llu bytes (%ux%u/%ubpp)\n",
 			  args->size, args->width, args->height, args->bpp);
@@ -272,12 +277,9 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 void exynos_drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 			       const struct drm_gem_object *obj)
 {
-	struct exynos_drm_gem *exynos_gem_obj = to_exynos_gem(obj);
-	const char *buf_type = NULL;
+	const struct exynos_drm_gem *exynos_gem_obj = to_exynos_gem(obj);
 
-	if (exynos_gem_obj->flags & EXYNOS_DRM_GEM_FLAG_COLORMAP)
-		buf_type = "colormap";
-
-	if (buf_type)
-		drm_printf_indent(p, indent, "type=%s\n", buf_type);
+	drm_printf_indent(p, indent, "dma_addr=0x%pK\n",
+			  exynos_gem_obj->dma_addr);
+	drm_printf_indent(p, indent, "flags=0x%x\n", exynos_gem_obj->flags);
 }
