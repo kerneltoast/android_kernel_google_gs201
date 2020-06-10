@@ -1037,6 +1037,20 @@
 	};
 
 	thermal_zones: thermal-zones {
+		soc {
+			zone_name  = "BATT_SOC_MOD";
+			polling-delay-passive = <1000>;
+			polling-delay = <0>;
+			thermal-sensors = <&bcl_soc>;
+
+			trips {
+				soc_trip:soc-trip {
+					temperature = <90>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+			};
+		};
 		mid_thermal: MID {
 			zone_name  = "MID_THERMAL";
 			polling-delay-passive = <0>;
