@@ -7,14 +7,14 @@
 #define __EXYNOS_DEVFREQ_H_
 
 #include <linux/devfreq.h>
-#include <linux/pm_qos.h>
+#include <soc/google/exynos_pm_qos.h>
 #include <linux/clk.h>
 #include <soc/google/exynos-devfreq-dep.h>
-#ifdef CONFIG_EXYNOS_DVFS_MANAGER
+#if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 #include <soc/google/exynos-dm.h>
 #endif
 
-#define EXYNOS_DEVFREQ_MODULE_NAME	"exynos-devfreq"
+#define EXYNOS_DEVFREQ_MODULE_NAME	"gs101-devfreq"
 #define VOLT_STEP			25000
 #define MAX_NR_CONSTRAINT		DM_TYPE_END
 #define DATA_INIT			5
@@ -23,6 +23,93 @@
 
 /* DEVFREQ GOV TYPE */
 #define SIMPLE_INTERACTIVE 0
+
+int devfreq_simple_interactive_init(void);
+#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#define LOAD_BUFFER_MAX			10
+#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
+#define MAX_LOG_TIME 300
+#endif
+struct devfreq_alt_load {
+	unsigned long long	delta;
+	unsigned int		load;
+#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
+	unsigned long long clock;
+	unsigned int alt_freq;
+#endif
+};
+
+#define ALTDVFS_MIN_SAMPLE_TIME		15
+#define ALTDVFS_HOLD_SAMPLE_TIME	100
+#define ALTDVFS_TARGET_LOAD		75
+#define ALTDVFS_NUM_TARGET_LOAD		1
+#define ALTDVFS_HISPEED_LOAD		99
+#define ALTDVFS_HISPEED_FREQ		1000000
+#define ALTDVFS_TOLERANCE		1
+
+struct devfreq_alt_dvfs_data {
+	struct devfreq_alt_load	buffer[LOAD_BUFFER_MAX];
+	struct devfreq_alt_load	*front;
+	struct devfreq_alt_load	*rear;
+
+	unsigned long long	busy;
+	unsigned long long	total;
+	unsigned int		min_load;
+	unsigned int		max_load;
+	unsigned long long	max_spent;
+
+	struct devfreq_alt_dvfs_param *alt_param;
+	struct devfreq_alt_dvfs_param *alt_param_set;
+	struct devfreq_alt_dvfs_param *alt_user_mode;
+	int default_mode, current_mode, num_modes;
+#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
+	bool				load_track;
+	unsigned int		log_top;
+	struct devfreq_alt_load *log;
+#endif
+};
+
+struct devfreq_alt_dvfs_param {
+	/* ALT-DVFS parameter */
+	unsigned int		*target_load;
+	unsigned int		num_target_load;
+	unsigned int		min_sample_time;
+	unsigned int		hold_sample_time;
+	unsigned int		hispeed_load;
+	unsigned int		hispeed_freq;
+	unsigned int		tolerance;
+};
+#endif /* ALT_DVFS */
+
+#define DEFAULT_DELAY_TIME		10 /* msec */
+#define DEFAULT_NDELAY_TIME		1
+#define DELAY_TIME_RANGE		10
+#define BOUND_CPU_NUM			0
+
+struct devfreq_notifier_block {
+	struct notifier_block nb;
+	struct devfreq *df;
+};
+
+struct devfreq_simple_interactive_data {
+	bool use_delay_time;
+	int *delay_time;
+	int ndelay_time;
+	unsigned long prev_freq;
+	u64 changed_time;
+	struct timer_list freq_timer;
+	struct timer_list freq_slack_timer;
+	struct task_struct *change_freq_task;
+	int pm_qos_class;
+	int pm_qos_class_max;
+	struct devfreq_notifier_block nb;
+	struct devfreq_notifier_block nb_max;
+
+#if defined(CONFIG_EXYNOS_ALT_DVFS)
+	struct devfreq_alt_dvfs_data alt_data;
+	unsigned int governor_freq;
+#endif
+};
 
 struct exynos_devfreq_opp_table {
 	u32 idx;
@@ -45,7 +132,7 @@ struct um_exynos {
 struct exynos_devfreq_data {
 	struct device				*dev;
 	struct devfreq				*devfreq;
-	struct mutex				lock;
+	struct mutex				lock;			/* lock */
 	struct clk				*clk;
 
 	bool					devfreq_disabled;
@@ -63,9 +150,7 @@ struct exynos_devfreq_data {
 	const char				*governor_name;
 	u32					cal_qos_max;
 	void					*governor_data;
-#if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_INTERACTIVE)
 	struct devfreq_simple_interactive_data	simple_interactive_data;
-#endif
 	u32					dfs_id;
 	s32					old_idx;
 	s32					new_idx;
@@ -75,20 +160,20 @@ struct exynos_devfreq_data {
 	u32					max_freq;
 	u32					reboot_freq;
 	u32					boot_freq;
+	unsigned long				suspend_freq;
+	bool					suspend_flag;
 
 	u32					old_volt;
 	u32					new_volt;
 
 	u32					pm_qos_class;
 	u32					pm_qos_class_max;
-	struct pm_qos_request			sys_pm_qos_min;
-#ifdef CONFIG_ARM_EXYNOS_DEVFREQ_DEBUG
-	struct pm_qos_request			debug_pm_qos_min;
-	struct pm_qos_request			debug_pm_qos_max;
-#endif
-	struct pm_qos_request			default_pm_qos_min;
-	struct pm_qos_request			default_pm_qos_max;
-	struct pm_qos_request			boot_pm_qos;
+	struct exynos_pm_qos_request		sys_pm_qos_min;
+	struct exynos_pm_qos_request		debug_pm_qos_min;
+	struct exynos_pm_qos_request		debug_pm_qos_max;
+	struct exynos_pm_qos_request		default_pm_qos_min;
+	struct exynos_pm_qos_request		default_pm_qos_max;
+	struct exynos_pm_qos_request		boot_pm_qos;
 	u32					boot_qos_timeout;
 
 	struct notifier_block			reboot_notifier;
@@ -97,7 +182,7 @@ struct exynos_devfreq_data {
 
 	s32					target_delay;
 
-#ifdef CONFIG_EXYNOS_DVFS_MANAGER
+#if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 	u32		dm_type;
 	u32		nr_constraint;
 	struct exynos_dm_constraint		**constraint;
@@ -115,23 +200,28 @@ struct exynos_devfreq_data {
 	u32					last_um_usage_rate;
 
 	struct exynos_pm_domain *pm_domain;
+	unsigned long previous_freq;
+	unsigned long *time_in_state;
+	unsigned long last_stat_updated;
+};
+
+struct exynos_profile_data {
+	unsigned long long total_time;
+	unsigned long long busy_time;
+	unsigned long long delta_time;
 };
 
 s32 exynos_devfreq_get_opp_idx(struct exynos_devfreq_opp_table *table,
-				unsigned int size, u32 freq);
-#if defined(CONFIG_ARM_EXYNOS_DEVFREQ) && defined(CONFIG_EXYNOS_DVFS_MANAGER)
+			       unsigned int size, u32 freq);
+#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ) && IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 u32 exynos_devfreq_get_dm_type(u32 devfreq_type);
 u32 exynos_devfreq_get_devfreq_type(int dm_type);
-struct devfreq *find_exynos_devfreq_device(void *devdata);
-int find_exynos_devfreq_dm_type(struct device *dev, int *dm_type);
 #endif
 
-
-#if defined(CONFIG_ARM_EXYNOS_DEVFREQ)
-extern unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type);
+#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
+unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type);
 #else
-static inline unsigned long exynos_devfreq_get_domain_freq(unsigned int
-								devfreq_type)
+static inline unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type)
 {
 	return 0;
 }

@@ -143,6 +143,22 @@ config ARM_RK3399_DMC_DEVFREQ
 	  It sets the frequency for the memory controller and reads the usage counts
 	  from hardware.
 
+config ARM_EXYNOS_DEVFREQ
+	tristate "ARM EXYNOS DEVFREQ Common driver"
+	select PM_OPP
+	help
+	  This adds the DEVFREQ driver for Exynos series common bus
+
+config EXYNOS_ALT_DVFS
+	tristate "ALT(Active Load Tracing) DVFS"
+	depends on ARM_EXYNOS_DEVFREQ
+	help
+	  Enable ALT-DVFS scheme for simpleinteractive governor.
+	  When ALT-DVFS is enabled, governor will start to trace and
+	  calculate memory load based on activated cycle. Simpleinteractive
+	  governor decides new frequency for DVFS by comparing current load
+	  and PM QoS requests.
+
 source "drivers/devfreq/event/Kconfig"
 
 endif # PM_DEVFREQ
