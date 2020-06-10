@@ -1453,6 +1453,16 @@ static void decon_reg_set_win_mapcolor(u32 id, u32 win_idx, u32 argb_color)
 	mc_green = (argb_color >> 8) & 0xFF;
 	mc_blue = (argb_color >> 0) & 0xFF;
 
+	val = decon_read(id, GLOBAL_CON) & GLOBAL_CON_TEN_BPC_MODE_F;
+	if (val) {
+		mc_red = (mc_red << 2) | ((mc_red >> 6) & 0x3);
+		mc_green = (mc_green << 2) | ((mc_green >> 6) & 0x3);
+		mc_blue = (mc_blue << 2) | ((mc_blue >> 6) & 0x3);
+	}
+	cal_log_debug(id, "TEN_BPC=%d : A=%02Xh, R=%03Xh, G=%03Xh, B=%03Xh\n",
+			val ? 1 : 0, mc_alpha, mc_red, mc_green, mc_blue);
+
+
 	val = WIN_MAPCOLOR_A_F(mc_alpha) | WIN_MAPCOLOR_R_F(mc_red);
 	mask = WIN_MAPCOLOR_A_MASK | WIN_MAPCOLOR_R_MASK;
 	win_write_mask(id, WIN_COLORMAP_0(win_idx), val, mask);
