@@ -369,6 +369,12 @@ static void enable_data_path_locked(struct fusb307b_plat *chip)
 		      chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
 		      chip->bc12_data_capable ? 1 : 0, chip->attached ? 1
 		      : 0);
+	dev_info(chip->dev,
+		 "TCPM_DEBUG %s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u",
+		 __func__, chip->pd_capable ? 1 : 0, chip->pd_data_capable
+		 ? 1 : 0, chip->no_bc_12 ? 1 : 0, chip->bc12_data_capable
+		 ? 1 : 0, chip->attached ? 1 : 0);
+
 	if (chip->pd_capable)
 		enable_data = chip->pd_data_capable;
 	else
@@ -382,6 +388,9 @@ static void enable_data_path_locked(struct fusb307b_plat *chip)
 		logbuffer_log(chip->log, "%s turning on %s", ret < 0 ?
 			      "Failed" : "Succeeded", chip->data_role ==
 			      TYPEC_HOST ? "Host" : "Device");
+		dev_info(chip->dev, "TCPM_DEBUG %s turning on %s", ret < 0 ?
+			 "Failed" : "Succeeded", chip->data_role ==
+			 TYPEC_HOST ? "Host" : "Device");
 
 		chip->data_active = true;
 		chip->active_data_role = chip->data_role;
@@ -395,6 +404,10 @@ static void enable_data_path_locked(struct fusb307b_plat *chip)
 			      "Failed" : "Succeeded",
 			      chip->active_data_role == TYPEC_HOST ? "Host"
 			      : "Device");
+		dev_info(chip->dev, "TCPM_DEBUG %s turning off %s",
+			 ret < 0 ? "Failed" : "Succeeded",
+			 chip->active_data_role == TYPEC_HOST ? "Host"
+			 : "Device");
 		chip->data_active = false;
 	}
 }
@@ -422,6 +435,8 @@ static void fusb307b_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data
 				  (int)polarity);
 	logbuffer_log(chip->log, "%s setting polarity USB %d", ret < 0 ?
 		      "Failed" : "Succeeded", polarity);
+	dev_info(chip->dev, "TCPM_DEBUG %s setting polarity USB %d",
+		 ret < 0 ? "Failed" : "Succeeded", polarity);
 
 	ret = extcon_set_property(chip->extcon, EXTCON_USB_HOST,
 				  EXTCON_PROP_USB_TYPEC_POLARITY,
@@ -429,6 +444,8 @@ static void fusb307b_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data
 				  (int)polarity);
 	logbuffer_log(chip->log, "%s setting polarity USB_HOST %d", ret < 0 ?
 		      "Failed" : "Succeeded", polarity);
+	dev_info(chip->dev, "TCPM_DEBUG %s setting polarity USB %d",
+		 ret < 0 ? "Failed" : "Succeeded", polarity);
 }
 
 static int fusb307b_vote_icl(struct tcpci *tcpci, struct tcpci_data *tdata,
@@ -517,6 +534,10 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 			      "Failed" : "Succeeded",
 			      chip->active_data_role == TYPEC_HOST ? "Host"
 			      : "Device");
+		dev_info(chip->dev, "TCPM_DEBUG s turning off %s", ret < 0 ?
+			 "Failed" : "Succeeded", chip->active_data_role ==
+			 TYPEC_HOST ? "Host" : "Device");
+
 		chip->data_active = false;
 	}
 
