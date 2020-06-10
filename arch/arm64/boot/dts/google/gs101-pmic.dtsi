@@ -184,7 +184,7 @@
 				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x6>;
-				schematic-name = "S6M_VDD_CPUCL2";
+				schematic-name = "S6M_VDD_CPUCL2_M";
 			};
 
 			m_buck7_reg: BUCK7M {
