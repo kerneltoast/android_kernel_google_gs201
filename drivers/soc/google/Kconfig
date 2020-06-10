@@ -102,4 +102,9 @@ config EXYNOS_DVFS_MANAGER
 	Enable DVFS Manager for Exynos SoC.
 	This module controls constraint between each DVFS domains.
 
+config EXYNOS_PM_QOS
+	tristate "Exynos PM QOS"
+	help
+	Support Exynos PM QOS
+
 endmenu

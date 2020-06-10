@@ -10,3 +10,5 @@ obj-$(CONFIG_ECT)			+= ect_parser.o
 obj-$(CONFIG_GS_ACPM)			+= acpm/
 
 obj-$(CONFIG_EXYNOS_DVFS_MANAGER)       += exynos-dm.o
+
+obj-$(CONFIG_EXYNOS_PM_QOS)	+= exynos_pm_qos.o
