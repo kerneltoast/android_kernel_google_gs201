@@ -216,6 +216,45 @@
 		};
 	};
 
+	/* DMA */
+	amba {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "arm,amba-bus";
+		interrupt-parent = <&gic>;
+		ranges;
+		pdma0: pdma0@10110000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x0 0x10110000 0x1000>;
+			interrupts = <GIC_SPI IRQ_PDMA_MISC IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock GATE_PDMA>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
+			#dma-multi-irq = <1>;
+			dma-arwrapper = <0x10114400>,
+					<0x10114420>,
+					<0x10114440>,
+					<0x10114460>,
+					<0x10114480>,
+					<0x101144A0>,
+					<0x101144C0>,
+					<0x101144E0>;
+			dma-awwrapper = <0x10114404>,
+					<0x10114424>,
+					<0x10114444>,
+					<0x10114464>,
+					<0x10114484>,
+					<0x101144A4>,
+					<0x101144C4>,
+					<0x101144E4>;
+			dma-instwrapper = <0x10114500>;
+			dma-mask-bit = <36>;
+			coherent-mask-bit = <36>;
+		};
+	};
+
 	/* GPIO_FAR_ALIVE */
 	pinctrl_1: pinctrl@174E0000 {
 		compatible = "google,gs101-pinctrl";
