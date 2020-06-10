@@ -384,46 +384,6 @@ static void s2mpg11_meter_read_acc_count(struct s2mpg11_meter *s2mpg11,
 	*count = data[0] | (data[1] << 8) | ((data[2] & 0x0F) << 16);
 }
 
-static void s2mpg11_meter_set_ntc_mode(struct s2mpg11_meter *s2mpg11,
-				       bool onoff)
-{
-	/* in EVT0, ADC_EN should be set as '1' */
-	/* if any channel of NTC is set to be '1' */
-	if (onoff && !s2mpg11->meter_en &&
-	    s2mpg11->iodev->pmic_rev == S2MPG11_EVT0)
-		s2mpg11_meter_onoff(s2mpg11, true);
-
-	if (onoff) {
-		/* disable IC power shutdown reaching NTC_H_WARN threshold */
-		if (s2mpg11->iodev->pmic_rev == S2MPG11_EVT0)
-			s2mpg11_write_reg(s2mpg11->trim, 0xEA, 0x02);
-		s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_METER_CTRL3, 0x37);
-	} else {
-		s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_METER_CTRL3, 0x00);
-	}
-}
-
-static void s2mpg11_set_ntc_samp_rate(struct s2mpg11_meter *s2mpg11,
-				      unsigned int hz)
-{
-	s2mpg11_update_reg(s2mpg11->i2c, S2MPG11_METER_CTRL1,
-			   hz << NTC_SAMP_RATE_SHIFT, NTC_SAMP_RATE_MASK);
-}
-
-static void s2mpg11_meter_read_ntc_data_reg(struct s2mpg11_meter *s2mpg11)
-{
-	int i;
-	u8 data[S2MPG11_METER_NTC_BUF];
-	u8 reg = S2MPG11_METER_LPF_DATA_NTC0_1;	/* first ntc data register */
-
-	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg11_bulk_read(s2mpg11->i2c, reg, S2MPG11_METER_NTC_BUF,
-				  data);
-		s2mpg11->ntc_data[i] = data[0] + ((data[1] & 0xf) << 8);
-		reg += S2MPG11_METER_NTC_BUF;
-	}
-}
-
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 static ssize_t s2mpg11_muxsel_table_show(struct device *dev,
 					 struct device_attribute *attr,
@@ -615,33 +575,12 @@ static ssize_t s2mpg11_acc_power_show(struct device *dev,
 	return count;
 }
 
-static ssize_t s2mpg11_ntc_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct s2mpg11_meter *s2mpg11 = dev_get_drvdata(dev);
-	int i;
-	size_t count = 0;
-
-	mutex_lock(&s2mpg11->meter_lock);
-
-	s2mpg11_meter_set_ntc_mode(s2mpg11, true);
-	s2mpg11_meter_read_ntc_data_reg(s2mpg11);
-
-	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-			"NTC_CH%d: 0x%x\n", i, s2mpg11->ntc_data[i]);
-	}
-	mutex_unlock(&s2mpg11->meter_lock);
-	return count;
-}
-
 static DEVICE_ATTR_RO(s2mpg11_muxsel_table);
 static DEVICE_ATTR_RW(s2mpg11_channel_muxsel);
 static DEVICE_ATTR_RO(s2mpg11_lpf_current);
 static DEVICE_ATTR_RO(s2mpg11_lpf_power);
 static DEVICE_ATTR_RO(s2mpg11_acc_current);
 static DEVICE_ATTR_RO(s2mpg11_acc_power);
-static DEVICE_ATTR_RO(s2mpg11_ntc);
 
 int create_s2mpg11_meter_sysfs(struct s2mpg11_meter *s2mpg11)
 {
@@ -680,12 +619,6 @@ int create_s2mpg11_meter_sysfs(struct s2mpg11_meter *s2mpg11)
 		       dev_attr_s2mpg11_acc_power.attr.name);
 	}
 
-	err = device_create_file(s2mpg11_meter_dev, &dev_attr_s2mpg11_ntc);
-	if (err) {
-		pr_err("s2mpg11_sysfs: failed to create device file, %s\n",
-		       dev_attr_s2mpg11_ntc.attr.name);
-	}
-
 	err = device_create_file(s2mpg11_meter_dev,
 				 &dev_attr_s2mpg11_muxsel_table);
 	if (err) {
@@ -710,7 +643,6 @@ static int s2mpg11_meter_probe(struct platform_device *pdev)
 	struct s2mpg11_platform_data *pdata = iodev->pdata;
 	struct s2mpg11_meter *s2mpg11;
 	int ret;
-	int i;
 
 	if (!pdata) {
 		dev_err(pdev->dev.parent, "Platform data not supplied\n");
@@ -728,15 +660,6 @@ static int s2mpg11_meter_probe(struct platform_device *pdev)
 	s2mpg11->trim = iodev->trim;
 	mutex_init(&s2mpg11->meter_lock);
 	platform_set_drvdata(pdev, s2mpg11);
-
-	/* w/a for reversed NTC_LPF_DATA */
-	/* 0x00 is the highest threshold for NTC values, not 0xff  */
-	if (s2mpg11->iodev->pmic_rev >= S2MPG11_EVT1) {
-		for (i = S2MPG11_METER_NTC_L_WARN0;
-			i <= S2MPG11_METER_NTC_H_WARN7; i++)
-			s2mpg11_write_reg(s2mpg11->i2c, i, 0x00);
-	}
-	s2mpg11_set_ntc_samp_rate(s2mpg11, NTC_0P15625HZ);
 
 #if !IS_ENABLED(CONFIG_ODPM)
 

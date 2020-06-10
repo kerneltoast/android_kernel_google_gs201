@@ -1,2 +1,2 @@
-obj-$(CONFIG_GOOGLE_BCL_SOC)	+= bcl_soc.o
 obj-$(CONFIG_GOOGLE_BCL)	+= gs101_bcl.o
+obj-$(CONFIG_GSOC_PMIC_THERMAL)	+= gs101_spmic_thermal.o

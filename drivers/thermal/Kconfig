@@ -443,6 +443,7 @@ endmenu
 menu "Samsung thermal drivers"
 depends on ARCH_EXYNOS || COMPILE_TEST
 source "drivers/thermal/samsung/Kconfig"
+source "drivers/thermal/google/Kconfig"
 endmenu
 
 menu "STMicroelectronics thermal drivers"
