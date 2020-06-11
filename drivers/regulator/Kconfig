@@ -918,6 +918,64 @@ config REGULATOR_S2MPS11
 	 Buck converters including Dual-Phase Buck converter, Buck-Boost
 	 converter, various LDOs.
 
+config DRV_SAMSUNG_PMIC
+        tristate "Samsung PMIC sysfs system"
+	depends on MFD_S2MPG10 || MFD_S2MPG11
+        help
+         This driver supports a Samsung PMIC sysfs.
+	 The sysfs directory made by this config includes directories of
+	 regulator and powermeter of S2MPG10 and S2MPG11.
+	 They provide Speedy read and write function through for debugging.
+
+config REGULATOR_S2MPG10
+        tristate "Samsung S2MPG10 voltage regulator"
+        depends on MFD_S2MPG10
+        help
+         This driver supports a Samsung S2MPG10 voltage output regulator
+         via speedy bus. S2MPG10 is comprised of high efficient Buck converters
+         including Dual-Phase Buck converter, Buck-Boost converter and
+	 various LDOs. This driver file includes functions for reading and
+	 writing output voltage, controlling operation mode, setting ramp
+	 rate of each regulator.
+
+config REGULATOR_S2MPG11
+        tristate "Samsung S2MPG11 voltage regulator"
+        depends on MFD_S2MPG11
+        help
+         This driver supports a Samsung S2MPG11 voltage output regulator
+         via I2C bus. S2MPG11 is comprised of high efficient Buck converters
+         including Dual-Phase Buck converter, Buck-Boost converter and
+	 various LDOs. This driver file includes functions for reading and
+	 writing output voltage, controlling operation mode, setting ramp
+	 rate of each regulator.
+
+config POWERMETER_S2MPG10
+        tristate "Samsung S2MPG10 Powermeter"
+        depends on MFD_S2MPG10
+        help
+         This driver supports a Samsung S2MPG10 powermeter which has 8 ADC
+	 channels for saving current and voltage data of each regulator.
+	 The sysfs files in the sysfs directory created by the config
+	 DRV_SAMSUNG_PMIC is are made by this driver for debugging.
+
+config POWERMETER_S2MPG11
+        tristate "Samsung S2MPG11 Powermeter"
+        depends on MFD_S2MPG11
+        help
+         This driver supports a Samsung S2MPG11 powermeter which has 8 ADC
+	 channels for saving current and voltage data of each regulator.
+	 The sysfs files in the sysfs directory created by the config
+	 DRV_SAMSUNG_PMIC is are made by this driver for debugging.
+
+config POWERMETER_S2MPG1X
+        tristate "Samsung S2MPG1X Powermeter"
+        depends on POWERMETER_S2MPG10 || POWRMETER_S2MPG11
+        help
+         This driver provides common functions for s2mpg10/s2mpg11 powermeter
+	 including speedy read/write, waiting for ASYNC_RD bit to be cleared
+	 for async mode and providing common and easy-to-read format for
+	 printing S2MPG1X powermeter data.
+
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
 	depends on MFD_SEC_CORE
