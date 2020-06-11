@@ -82,6 +82,12 @@ config EXYNOS_PD_EL3
 	help
 	Support Exynos Power Domain Save/Restore
 
+config EXYNOS_CPUPM
+	tristate "CPU Power Management driver"
+	depends on SOC_GS101 && PMUCAL
+	help
+	Support CPU Power Control for GS101 SoC.
+
 source "drivers/soc/google/acpm/Kconfig"
 
 config ACPM_DVFS

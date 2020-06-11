@@ -21,14 +21,6 @@ enum exynos_pm_event {
 
 	/* CPU is exiting the LPA state */
 	LPA_EXIT,
-
-	/* CPU is entering the SICD/SICD_AUD state */
-	SICD_ENTER,
-	SICD_AUD_ENTER,
-
-	/* CPU is exiting the SICD/SICD_AUD state */
-	SICD_EXIT,
-	SICD_AUD_EXIT,
 };
 
 #define EXYNOS_PM_PREFIX	"EXYNOS-PM:"
