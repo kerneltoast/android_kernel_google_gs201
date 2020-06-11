@@ -541,9 +541,6 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		chip->data_active = false;
 	}
 
-	/* Data stack needs a clean up to fix this. */
-	msleep(300);
-
 	chip->attached = attached;
 	chip->data_role = data_role;
 	enable_data_path_locked(chip);
