@@ -40,7 +40,7 @@ struct s2mpg11_irq_data {
 	enum s2mpg11_irq_source group;
 };
 
-#define DECLARE_IRQ(idx, _group, _mask)                                        \
+#define DECLARE_IRQ(idx, _group, _mask)	\
 	[(idx)] = { .group = (_group), .mask = (_mask) }
 
 static const struct s2mpg11_irq_data s2mpg11_irqs[] = {

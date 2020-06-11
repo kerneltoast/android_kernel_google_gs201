@@ -68,38 +68,50 @@ enum mfd_func {
 };
 
 #if IS_ENABLED(CONFIG_GS_ACPM_MODULE)
-extern int exynos_acpm_read_reg(u8 channel,
-				u16 type,
-				u8 reg,
-				u8 *dest);
-extern int exynos_acpm_bulk_read(u8 channel,
-				u16 type,
-				u8 reg,
-				int count,
-				u8 *buf);
-extern int exynos_acpm_write_reg(u8 channel,
-				u16 type,
-				u8 reg,
-				u8 value);
-extern int exynos_acpm_bulk_write(u8 channel,
-				u16 type,
-				u8 reg,
-				int count,
-				u8 *buf);
-extern int exynos_acpm_update_reg(u8 channel,
-				u16 type,
-				u8 reg,
-				u8 value,
-				u8 mask);
+int exynos_acpm_read_reg(struct device_node *acpm_mfd_node,
+			 u8 channel,
+			 u16 type,
+			 u8 reg,
+			 u8 *dest);
+
+int exynos_acpm_bulk_read(struct device_node *acpm_mfd_node,
+			  u8 channel,
+			  u16 type,
+			  u8 reg,
+			  int count,
+			  u8 *buf);
+
+int exynos_acpm_write_reg(struct device_node *acpm_mfd_node,
+			  u8 channel,
+			  u16 type,
+			  u8 reg,
+			  u8 value);
+
+int exynos_acpm_bulk_write(struct device_node *acpm_mfd_node,
+			   u8 channel,
+			   u16 type,
+			   u8 reg,
+			   int count,
+			   u8 *buf);
+
+int exynos_acpm_update_reg(struct device_node *acpm_mfd_node,
+			   u8 channel,
+			   u16 type,
+			   u8 reg,
+			   u8 value,
+			   u8 mask);
 #else
-static inline int exynos_acpm_read_reg(u8 channel,
-					u16 type,
-					u8 reg,
-					u8 *dest)
+static inline int exynos_acpm_read_reg(struct device_node *acpm_mfd_node,
+				       u8 channel,
+				       u16 type,
+				       u8 reg,
+				       u8 *dest)
 {
 	return 0;
 }
-static inline int exynos_acpm_bulk_read(u8 channel,
+
+static inline int exynos_acpm_bulk_read(struct device_node *acpm_mfd_node,
+					u8 channel,
 					u16 type,
 					u8 reg,
 					int count,
@@ -107,28 +119,35 @@ static inline int exynos_acpm_bulk_read(u8 channel,
 {
 	return 0;
 }
-static inline int exynos_acpm_write_reg(u8 channel,
+
+static inline int exynos_acpm_write_reg(struct device_node *acpm_mfd_node,
+					u8 channel,
 					u16 type,
 					u8 reg,
 					u8 value)
 {
 	return 0;
 }
-static inline int exynos_acpm_bulk_write(u8 channel,
-					u16 type,
-					u8 reg,
-					int count,
-					u8 *buf)
+
+static inline int exynos_acpm_bulk_write(struct device_node *acpm_mfd_node,
+					 u8 channel,
+					 u16 type,
+					 u8 reg,
+					 int count,
+					 u8 *buf)
 {
 	return 0;
 }
-static inline int exynos_acpm_update_reg(u8 channel,
-					u16 type,
-					u8 reg,
-					u8 value,
-					u8 mask)
+
+static inline int exynos_acpm_update_reg(struct device_node *acpm_mfd_node,
+					 u8 channel,
+					 u16 type,
+					 u8 reg,
+					 u8 value,
+					 u8 mask)
 {
 	return 0;
 }
+
 #endif
 #endif /* __ACPM_MFD_H__ */

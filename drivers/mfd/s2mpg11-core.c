@@ -52,7 +52,8 @@ int s2mpg11_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 	int ret;
 
 	mutex_lock(&s2mpg11->i2c_lock);
-	ret = exynos_acpm_read_reg(channel, i2c->addr, reg, dest);
+	ret = exynos_acpm_read_reg(acpm_mfd_node, channel,
+				   i2c->addr, reg, dest);
 	mutex_unlock(&s2mpg11->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -69,7 +70,8 @@ int s2mpg11_bulk_read(struct i2c_client *i2c, u8 reg, int count, u8 *buf)
 	int ret;
 
 	mutex_lock(&s2mpg11->i2c_lock);
-	ret = exynos_acpm_bulk_read(channel, i2c->addr, reg, count, buf);
+	ret = exynos_acpm_bulk_read(acpm_mfd_node, channel,
+				    i2c->addr, reg, count, buf);
 	mutex_unlock(&s2mpg11->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -86,7 +88,8 @@ int s2mpg11_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
 	int ret;
 
 	mutex_lock(&s2mpg11->i2c_lock);
-	ret = exynos_acpm_write_reg(channel, i2c->addr, reg, value);
+	ret = exynos_acpm_write_reg(acpm_mfd_node, channel,
+				    i2c->addr, reg, value);
 	mutex_unlock(&s2mpg11->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -103,7 +106,8 @@ int s2mpg11_bulk_write(struct i2c_client *i2c, u8 reg, int count, u8 *buf)
 	int ret;
 
 	mutex_lock(&s2mpg11->i2c_lock);
-	ret = exynos_acpm_bulk_write(channel, i2c->addr, reg, count, buf);
+	ret = exynos_acpm_bulk_write(acpm_mfd_node, channel,
+				     i2c->addr, reg, count, buf);
 	mutex_unlock(&s2mpg11->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -120,7 +124,8 @@ int s2mpg11_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 	int ret;
 
 	mutex_lock(&s2mpg11->i2c_lock);
-	ret = exynos_acpm_update_reg(channel, i2c->addr, reg, val, mask);
+	ret = exynos_acpm_update_reg(acpm_mfd_node, channel,
+				     i2c->addr, reg, val, mask);
 	mutex_unlock(&s2mpg11->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -145,7 +150,8 @@ struct i2c_client *s2mpg11_get_i2c_client(struct s2mpg11_dev *dev,
 	return client;
 }
 
-int s2mpg11_regmap_read_reg(void *context, unsigned int reg, unsigned int *dest)
+int s2mpg11_regmap_read_reg(void *context, unsigned int reg,
+			    unsigned int *dest)
 {
 	u8 ureg = reg;
 	u8 *udest = (u8 *)dest;
@@ -389,9 +395,8 @@ static int s2mpg11_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct i2c_device_id s2mpg11_i2c_id[] = { { S2MPG11_MFD_DEV_NAME,
-							 TYPE_S2MPG11 },
-						       {} };
+static const struct i2c_device_id s2mpg11_i2c_id[] = {
+	{ S2MPG11_MFD_DEV_NAME, TYPE_S2MPG11 }, {} };
 
 MODULE_DEVICE_TABLE(i2c, s2mpg11_i2c_id);
 

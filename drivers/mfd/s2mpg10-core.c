@@ -56,7 +56,8 @@ int s2mpg10_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 	int ret;
 
 	mutex_lock(&s2mpg10->i2c_lock);
-	ret = exynos_acpm_read_reg(channel, i2c->addr, reg, dest);
+	ret = exynos_acpm_read_reg(acpm_mfd_node, channel, i2c->addr,
+				   reg, dest);
 	mutex_unlock(&s2mpg10->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -73,7 +74,8 @@ int s2mpg10_bulk_read(struct i2c_client *i2c, u8 reg, int count, u8 *buf)
 	int ret;
 
 	mutex_lock(&s2mpg10->i2c_lock);
-	ret = exynos_acpm_bulk_read(channel, i2c->addr, reg, count, buf);
+	ret = exynos_acpm_bulk_read(acpm_mfd_node, channel, i2c->addr,
+				    reg, count, buf);
 	mutex_unlock(&s2mpg10->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -90,7 +92,8 @@ int s2mpg10_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
 	int ret;
 
 	mutex_lock(&s2mpg10->i2c_lock);
-	ret = exynos_acpm_write_reg(channel, i2c->addr, reg, value);
+	ret = exynos_acpm_write_reg(acpm_mfd_node, channel,
+				    i2c->addr, reg, value);
 	mutex_unlock(&s2mpg10->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -107,7 +110,8 @@ int s2mpg10_bulk_write(struct i2c_client *i2c, u8 reg, int count, u8 *buf)
 	int ret;
 
 	mutex_lock(&s2mpg10->i2c_lock);
-	ret = exynos_acpm_bulk_write(channel, i2c->addr, reg, count, buf);
+	ret = exynos_acpm_bulk_write(acpm_mfd_node, channel,
+				     i2c->addr, reg, count, buf);
 	mutex_unlock(&s2mpg10->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -124,7 +128,8 @@ int s2mpg10_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 	int ret;
 
 	mutex_lock(&s2mpg10->i2c_lock);
-	ret = exynos_acpm_update_reg(channel, i2c->addr, reg, val, mask);
+	ret = exynos_acpm_update_reg(acpm_mfd_node, channel,
+				     i2c->addr, reg, val, mask);
 	mutex_unlock(&s2mpg10->i2c_lock);
 	if (ret) {
 		pr_err("[%s] acpm ipc fail!\n", __func__);
@@ -151,7 +156,8 @@ struct i2c_client *s2mpg10_get_i2c_client(struct s2mpg10_dev *dev,
 	return client;
 }
 
-int s2mpg10_regmap_read_reg(void *context, unsigned int reg, unsigned int *dest)
+int s2mpg10_regmap_read_reg(void *context, unsigned int reg,
+			    unsigned int *dest)
 {
 	u8 ureg = reg;
 	u8 *udest = (u8 *)dest;
@@ -529,9 +535,8 @@ static int s2mpg10_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct i2c_device_id s2mpg10_i2c_id[] = { { S2MPG10_MFD_DEV_NAME,
-							 TYPE_S2MPG10 },
-						       {} };
+static const struct i2c_device_id s2mpg10_i2c_id[] = {
+	{ S2MPG10_MFD_DEV_NAME, TYPE_S2MPG10 }, {} };
 
 MODULE_DEVICE_TABLE(i2c, s2mpg10_i2c_id);
 
