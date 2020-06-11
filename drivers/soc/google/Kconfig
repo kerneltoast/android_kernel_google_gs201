@@ -90,4 +90,10 @@ config ACPM_DVFS
 	help
 	 Support ACPM DVFS for GS SoC.
 
+config ECT
+	tristate "Enable Exynos Characteristic Table File"
+	default n
+	help
+	Support ECT for Exynos SoC.
+
 endmenu
