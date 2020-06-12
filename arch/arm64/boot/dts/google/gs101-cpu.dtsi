@@ -15,6 +15,11 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
+		#define CPU_CL0 "0-3"
+		#define CPU_CL1 "4-5"
+		#define CPU_CL2 "6-7"
+		#define CPU_ALL "0-7"
+
 		cpu-map {
 			cluster0 {
 				core0 {
@@ -53,48 +58,90 @@
 			compatible = "arm,armv8";
 			reg = <0x0 0x0000>;
 			enable-method = "psci";
+			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
 		};
 		cpu1: cpu@0100 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0100>;
 			enable-method = "psci";
+			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
 		};
 		cpu2: cpu@0200 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0200>;
 			enable-method = "psci";
+			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
 		};
 		cpu3: cpu@0300 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0300>;
 			enable-method = "psci";
+			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
 		};
 		cpu4: cpu@0400 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0400>;
 			enable-method = "psci";
+			cpu-idle-states =  <&ENYO_CPU_SLEEP>;
 		};
 		cpu5: cpu@0500 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0500>;
 			enable-method = "psci";
+			cpu-idle-states =  <&ENYO_CPU_SLEEP>;
 		};
 		cpu6: cpu@0600 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0600>;
 			enable-method = "psci";
+			cpu-idle-states =  <&HERA_CPU_SLEEP>;
 		};
 		cpu7: cpu@0700 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x0700>;
 			enable-method = "psci";
+			cpu-idle-states =  <&HERA_CPU_SLEEP>;
+		};
+
+		idle-states {
+			entry-method = "arm,psci";
+
+			ANANKE_CPU_SLEEP: ananke-cpu-sleep {
+				idle-state-name = "c2";
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <70>;
+				exit-latency-us = <160>;
+				min-residency-us = <2000>;
+				status = "okay";
+			};
+
+			ENYO_CPU_SLEEP: enyo-cpu-sleep {
+				idle-state-name = "c2";
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <150>;
+				exit-latency-us = <190>;
+				min-residency-us = <2500>;
+				status = "okay";
+			};
+
+			HERA_CPU_SLEEP: hera-cpu-sleep {
+				idle-state-name = "c2";
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <235>;
+				exit-latency-us = <220>;
+				min-residency-us = <3500>;
+				status = "okay";
+			};
 		};
 	};
 
@@ -106,5 +153,79 @@
 	exynos-cpuphp {
 		compatible = "samsung,exynos-cpuhp";
 		status = "okay";
+	};
+
+	cpupm {
+		#define POWERMODE_TYPE_CLUSTER  0
+		#define POWERMODE_TYPE_SYSTEM   1
+
+		compatible = "samsung,exynos-cpupm";
+		status = "okay";
+
+		cpd_cl0 {
+			device_type = "cpupm";
+			target-residency = <10000>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			cal-id = <0>;
+			siblings = CPU_CL0;
+		};
+
+		cpd_cl1 {
+			device_type = "cpupm";
+			target-residency = <10000>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			cal-id = <1>;
+			siblings = CPU_CL1;
+			entry-allowed = CPU_CL1;
+		};
+
+		cpd_cl2 {
+			device_type = "cpupm";
+			target-residency = <10000>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			cal-id = <2>;
+			siblings = CPU_CL2;
+			entry-allowed = CPU_CL2;
+		};
+
+		sicd {
+			device_type = "cpupm";
+			target-residency = <10000>;
+			type = <POWERMODE_TYPE_SYSTEM>;
+			siblings = CPU_ALL;
+			entry-allowed = CPU_ALL;
+
+			wakeup-masks {
+				wakeup-mask {
+					mask-reg-offset = <0x3944>;
+					stat-reg-offset = <0x3950>;
+					mask = <0x7f8f00ff>;
+				};
+				wakeup-mask2 {
+					mask-reg-offset = <0x3964>;
+					stat-reg-offset = <0x3954>;
+					mask = <0xc>;
+				};
+			};
+
+			eint-wakeup-masks {
+				eint-wakeup-mask {
+					mask-reg-offset = <0x3a80>;
+				};
+				eint-wakeup-mask2 {
+					mask-reg-offset = <0x3a84>;
+				};
+				eint-wakeup-mask3 {
+					mask-reg-offset = <0x3a88>;
+				};
+			};
+		};
+
+		idle-ip {
+			fix-idle-ip =
+				"dbg_core";
+			fix-idle-ip-index =
+				<0>;
+		};
 	};
 };
