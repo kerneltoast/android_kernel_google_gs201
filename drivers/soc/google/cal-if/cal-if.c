@@ -539,9 +539,8 @@ static int cal_if_probe(struct platform_device *pdev)
 	ret = cal_if_init(np);
 	if (ret)
 		goto out;
-#if 0
+
 	ret = fvmap_init(get_fvmap_base());
-#endif
 
 out:
 	return ret;
@@ -572,13 +571,12 @@ static int exynos_cal_if_init(void)
 		goto err_out;
 	}
 
-#if 0
 	ret = exynos_acpm_dvfs_init();
 	if (ret) {
 		pr_err("samsung_cal_if_driver probe failed.\n");
-		return platform_driver_unregister(&samsung_cal_if_driver);
+		platform_driver_unregister(&samsung_cal_if_driver);
+		ret = -EINVAL;
 	}
-#endif
 
 err_out:
 	return ret;
