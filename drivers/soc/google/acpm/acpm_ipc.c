@@ -669,6 +669,7 @@ int acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(acpm_ipc_send_data);
 
 int acpm_ipc_send_data_lazy(unsigned int channel_id, struct ipc_config *cfg)
 {
