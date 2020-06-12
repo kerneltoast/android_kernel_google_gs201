@@ -66,6 +66,12 @@ void acpm_ipc_set_waiting_mode(bool mode)
 void acpm_fw_set_log_level(unsigned int level)
 {
 	acpm_debug->debug_log_level = level;
+
+	if (!level)
+		cancel_delayed_work_sync(&acpm_debug->periodic_work);
+	else if (level <= 2)
+		queue_delayed_work(update_log_wq, &acpm_debug->periodic_work,
+			msecs_to_jiffies(acpm_debug->period));
 }
 
 unsigned int acpm_fw_get_log_level(void)
@@ -284,10 +290,10 @@ int acpm_ipc_set_ch_mode(struct device_node *np, bool polling)
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_set_ch_mode);
 
-unsigned int acpm_ipc_request_channel(struct device_node *np,
-				      ipc_callback handler,
-				      unsigned int *id,
-				      unsigned int *size)
+int acpm_ipc_request_channel(struct device_node *np,
+			     ipc_callback handler,
+			     unsigned int *id,
+			     unsigned int *size)
 {
 	struct callback_info *cb;
 	int i, len, req_ch_id;
@@ -328,8 +334,8 @@ unsigned int acpm_ipc_request_channel(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_request_channel);
 
-unsigned int acpm_ipc_release_channel(struct device_node *np,
-				      unsigned int channel_id)
+int acpm_ipc_release_channel(struct device_node *np,
+			     unsigned int channel_id)
 {
 	struct acpm_ipc_ch *channel = &acpm_ipc->channel[channel_id];
 	struct list_head *cb_list = &channel->list;
@@ -437,6 +443,9 @@ static void dequeue_policy(struct acpm_ipc_ch *channel)
 
 	mutex_lock(&channel->rx_lock);
 
+	pr_debug("[ACPM]%s, ipc_ch=%d, rx_ch.size=0x%X, type=0x%X\n",
+			__func__, channel->id, channel->rx_ch.size, channel->type);
+
 	if (channel->type == TYPE_BUFFER) {
 		memcpy_align_4(channel->cmd, channel->rx_ch.base, channel->rx_ch.size);
 		mutex_unlock(&channel->rx_lock);
@@ -502,6 +511,7 @@ static irqreturn_t acpm_ipc_irq_handler_thread(int irq, void *data)
 	struct acpm_ipc_info *ipc = data;
 	int i;
 
+	pr_debug("[ACPM]%s, status=0x%X\n", __func__, ipc->intr_status);
 	for (i = 0; i < acpm_ipc->num_channels; i++)
 		if (!ipc->channel[i].polling && (ipc->intr_status & (1 << i)))
 			dequeue_policy(&ipc->channel[i]);
@@ -861,6 +871,12 @@ static int channel_init(void)
 	return 0;
 }
 
+static void acpm_error_log_ipc_callback(unsigned int *cmd, unsigned int size)
+{
+	acpm_log_print();
+	timestamp_write();
+}
+
 int acpm_ipc_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -927,11 +943,13 @@ int acpm_ipc_probe(struct platform_device *pdev)
 					1, "acpm_update_log");
 	INIT_WORK(&acpm_debug->update_log_work, acpm_update_log);
 
-	if (acpm_debug->period) {
+	if (acpm_debug->period)
 		INIT_DELAYED_WORK(&acpm_debug->periodic_work, acpm_debug_logging);
 
-		queue_delayed_work_on(0, update_log_wq, &acpm_debug->periodic_work,
-				      msecs_to_jiffies(acpm_debug->period));
+	if (acpm_ipc_request_channel(node, acpm_error_log_ipc_callback,
+				     &acpm_debug->async_id,
+				     &acpm_debug->async_size)) {
+		dev_err(&pdev->dev, "No asynchronous channeln");
 	}
 
 	dev_info(&pdev->dev, "acpm_ipc probe done.\n");

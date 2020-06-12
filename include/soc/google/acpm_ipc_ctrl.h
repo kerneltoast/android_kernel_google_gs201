@@ -41,10 +41,10 @@ enum acpm_print_settings {
 };
 
 #if IS_ENABLED(CONFIG_GS_ACPM_MODULE)
-extern unsigned int acpm_ipc_request_channel(struct device_node *np,
+extern int acpm_ipc_request_channel(struct device_node *np,
 		ipc_callback handler,
 		unsigned int *id, unsigned int *size);
-extern unsigned int acpm_ipc_release_channel(struct device_node *np,
+extern int acpm_ipc_release_channel(struct device_node *np,
 		unsigned int channel_id);
 extern int acpm_ipc_send_data(unsigned int channel_id,
 		struct ipc_config *cfg);
@@ -58,14 +58,14 @@ extern void exynos_acpm_reboot(void);
 extern void acpm_stop_log(void);
 #else
 
-static inline unsigned int acpm_ipc_request_channel(struct device_node *np,
+static inline int acpm_ipc_request_channel(struct device_node *np,
 		ipc_callback handler,
 		unsigned int *id, unsigned int *size)
 {
 	return 0;
 }
 
-static inline unsigned int acpm_ipc_release_channel(struct device_node *np,
+static inline int acpm_ipc_release_channel(struct device_node *np,
 		unsigned int channel_id)
 {
 	return 0;
