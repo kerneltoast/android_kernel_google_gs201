@@ -10,5 +10,10 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges;
+
+		ect_binary: ect_binary {
+			compatible = "exynos,ect_rmem";
+			reg = <0x0 0x90000000 0x0003A000>;
+		};
 	};
 };

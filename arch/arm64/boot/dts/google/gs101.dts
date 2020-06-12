@@ -44,6 +44,11 @@
 		parameter_size = <0x53000>;
 	};
 
+	exynos-ect {
+		compatible = "samsung,exynos-ect";
+		memory-region = <&ect_binary>;
+	};
+
 	chipid@10000000 {
 		compatible = "google,gs101-chipid";
 		reg = <0x0 0x10000000 0x100>;
