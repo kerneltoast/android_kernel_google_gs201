@@ -682,6 +682,7 @@ int acpm_ipc_send_data_lazy(unsigned int channel_id, struct ipc_config *cfg)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(acpm_ipc_send_data_lazy);
 
 static void log_buffer_init(struct device *dev, struct device_node *node)
 {

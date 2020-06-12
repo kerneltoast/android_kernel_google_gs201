@@ -24,11 +24,18 @@
 static int ipc_done;
 static unsigned long long ipc_time_start;
 static unsigned long long ipc_time_end;
+static void __iomem *fvmap_base_address;
 
 static struct acpm_info *exynos_acpm;
 
 static int acpm_send_data(struct device_node *node, unsigned int check_id,
 			  struct ipc_config *config);
+
+void *get_fvmap_base(void)
+{
+	return fvmap_base_address;
+}
+EXPORT_SYMBOL_GPL(get_fvmap_base);
 
 static int plugins_init(void)
 {
@@ -56,15 +63,18 @@ static int plugins_init(void)
 				base_addr = acpm_srambase;
 				base_addr += (plugins[i].base_addr & ~0x1);
 				offset = be32_to_cpup(prop);
-				fvmap_init(base_addr + offset);
+				base_addr += offset;
 			}
 
 			prop = of_get_property(exynos_acpm->dev->of_node,
 					       "fvmap_addr", &len);
 			if (prop) {
+				base_addr = acpm_srambase;
 				offset = be32_to_cpup(prop);
-				fvmap_init(acpm_srambase + offset);
+				base_addr += offset;
 			}
+
+			fvmap_base_address = base_addr;
 		}
 	}
 
