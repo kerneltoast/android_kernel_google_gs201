@@ -43,6 +43,9 @@
 #include <soc/samsung/exynos-cpupm.h>
 #endif
 
+#include <dt-bindings/soc/google/gs101-devfreq.h>
+#include <soc/samsung/exynos-devfreq.h>
+
 #include <exynos_drm_crtc.h>
 #include <exynos_drm_dsim.h>
 #include <exynos_drm_decon.h>
@@ -790,6 +793,14 @@ err:
 	return ret;
 }
 
+static void dsim_underrun_info(struct dsim_device *dsim)
+{
+	dsim_info(dsim, "underrun irq occurs: MIF(%lu), INT(%lu), DISP(%lu)\n",
+			exynos_devfreq_get_domain_freq(DEVFREQ_MIF),
+			exynos_devfreq_get_domain_freq(DEVFREQ_INT),
+			exynos_devfreq_get_domain_freq(DEVFREQ_DISP));
+}
+
 static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 {
 	struct dsim_device *dsim = dev_id;
@@ -825,7 +836,7 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 		dsim_err(dsim, "RX ECC Multibit error was detected!\n");
 
 	if (int_src & DSIM_INTSRC_UNDER_RUN) {
-		dsim_info(dsim, "underrun irq occurs\n");
+		dsim_underrun_info(dsim);
 		if (decon)
 			DPU_EVENT_LOG(DPU_EVT_DSIM_UNDERRUN, decon->id, dsim);
 	}
