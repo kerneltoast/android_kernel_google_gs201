@@ -507,6 +507,18 @@
 		status = "okay";
 	};
 
+	smfc: smfc@1C700000 {
+		compatible = "samsung,exynos-jpeg";
+		reg = <0x0 0x1C700000 0x1000>;
+		interrupts = <0 IRQ_JPEG_G2D IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock GATE_JPEG>;
+		clock-names = "gate";
+		power-domains = <&pd_g2d>;
+		samsung,iommu-group = <&iommu_group_smfc>;
+		iommus = <&sysmmu_g2d2>;
+		dma-coherent;
+	};
+
 	udc: usb@11110000 {
 		compatible = "samsung,exynos-dwusb";
 		clocks = <&clock GATE_USB31DRD_SLV_LINK>,
