@@ -20,8 +20,7 @@ static bool smfc_alloc_tables(struct smfc_ctx *ctx)
 	int i;
 
 	if (!ctx->quantizer_tables) {
-		ctx->quantizer_tables = kmalloc(
-				sizeof(*ctx->quantizer_tables), GFP_KERNEL);
+		ctx->quantizer_tables = kmalloc(sizeof(*ctx->quantizer_tables), GFP_KERNEL);
 		if (!ctx->quantizer_tables)
 			return false;
 	}
@@ -30,8 +29,7 @@ static bool smfc_alloc_tables(struct smfc_ctx *ctx)
 		ctx->quantizer_tables->compsel[i] = INVALID_QTBLIDX;
 
 	if (!ctx->huffman_tables) {
-		ctx->huffman_tables = kmalloc(
-				sizeof(*ctx->huffman_tables), GFP_KERNEL);
+		ctx->huffman_tables = kmalloc(sizeof(*ctx->huffman_tables), GFP_KERNEL);
 		if (!ctx->huffman_tables)
 			return false;
 	}
@@ -78,8 +76,10 @@ static int smfc_get_segment_length(struct smfc_ctx *ctx,
 	__v;					\
 })
 
-#define __halfbytes_larger_than(val, maxval) \
-			(max((val) & 0xF, ((val) >> 4) & 0xF) > (maxval))
+static bool __halfbytes_larger_than(u8 val, u8 maxval)
+{
+		return max(val & 0xF, (val >> 4) & 0xF) > maxval;
+}
 
 unsigned int smfc_get_num_huffval(u8 *hufflen)
 {
@@ -118,8 +118,7 @@ static int smfc_parse_dht(struct smfc_ctx *ctx, unsigned long *cursor)
 			dev_err(ctx->smfc->dev, "Failed to read TcTh in DHT\n");
 			return ret;
 		} else if (__halfbytes_larger_than(tcth, 1)) {
-			dev_err(ctx->smfc->dev,
-					"Unsupported TcTh %#x in DHT\n", tcth);
+			dev_err(ctx->smfc->dev, "Unsupported TcTh %#x in DHT\n", tcth);
 			return -EINVAL;
 		}
 
@@ -131,14 +130,13 @@ static int smfc_parse_dht(struct smfc_ctx *ctx, unsigned long *cursor)
 		pcursor += SMFC_NUM_HCODE;
 		if (ret) {
 			dev_err(ctx->smfc->dev,
-					"Failed to read HUFFLEN of %d,%d\n",
-					tcth >> 4, tcth & 1);
+				"Failed to read HUFFLEN of %d,%d\n", tcth >> 4, tcth & 1);
 			return ret;
 		}
 
 		num_values = smfc_get_num_huffval(table);
-		if ((dc && (num_values > SMFC_NUM_DC_HVAL)) ||
-				(!dc && (num_values > SMFC_NUM_AC_HVAL))) {
+		if ((dc && num_values > SMFC_NUM_DC_HVAL) ||
+		    (!dc && num_values > SMFC_NUM_AC_HVAL)) {
 			dev_err(ctx->smfc->dev,
 				"Too many values %u in huffman table %d,%d\n",
 				num_values, tcth >> 4, tcth & 1);
@@ -155,8 +153,7 @@ static int smfc_parse_dht(struct smfc_ctx *ctx, unsigned long *cursor)
 		pcursor += (unsigned long)num_values;
 		if (ret) {
 			dev_err(ctx->smfc->dev,
-				"Failed to read huffval of %d,%d\n",
-				tcth >> 4, tcth & 1);
+				"Failed to read huffval of %d,%d\n", tcth >> 4, tcth & 1);
 			return -EINVAL;
 		}
 	}
@@ -195,17 +192,14 @@ static int smfc_parse_dqt(struct smfc_ctx *ctx, unsigned long *cursor)
 			return ret;
 		} else if (pqtq >= SMFC_MAX_QTBL_COUNT) {
 			/* Pq should be 0, Tq should be < 4 */
-			dev_err(ctx->smfc->dev,
-					"Invalid PqTq %02xin DQT\n", pqtq);
+			dev_err(ctx->smfc->dev, "Invalid PqTq %02xin DQT\n", pqtq);
 			return -EINVAL;
 		}
 
-		ret = copy_from_user(ctx->quantizer_tables->table[pqtq],
-							pcursor, SMFC_MCU_SIZE);
+		ret = copy_from_user(ctx->quantizer_tables->table[pqtq], pcursor, SMFC_MCU_SIZE);
 		pcursor += (unsigned long)SMFC_MCU_SIZE;
 		if (ret) {
-			dev_err(ctx->smfc->dev,
-				"Failed to read %dth Q-Table\n", pqtq);
+			dev_err(ctx->smfc->dev, "Failed to read %dth Q-Table\n", pqtq);
 			return ret;
 		}
 	}
@@ -250,9 +244,8 @@ static int smfc_parse_frameheader(struct smfc_ctx *ctx, unsigned long *cursor)
 	}
 
 	/* ctx->num_components is not 0 if SOS appeared earlier than SOF0 */
-	if ((ctx->num_components != 0) && (ctx->num_components != *pos)) {
-		dev_err(ctx->smfc->dev,
-			"comp. count differs in Ns(%u) and Nf(%u)\n",
+	if (ctx->num_components != 0 && ctx->num_components != *pos) {
+		dev_err(ctx->smfc->dev, "comp. count differs in Ns(%u) and Nf(%u)\n",
 			ctx->num_components, *pos);
 		return -EINVAL;
 	}
@@ -265,10 +258,8 @@ static int smfc_parse_frameheader(struct smfc_ctx *ctx, unsigned long *cursor)
 		u8 h = (pos[1] >> 4) & 0xF;
 		u8 v = pos[1] & 0xF;
 
-		if ((pos[0] < 1) || (pos[0] > 4) || (pos[2] > 4)
-						|| (h > 4) || (v > 4)) {
-			dev_err(ctx->smfc->dev,
-				"Invalid component data in SOF0 %02x%02x%02x",
+		if (pos[0] < 1 || pos[0] > 4 || pos[2] > 4 || h > 4 || v > 4) {
+			dev_err(ctx->smfc->dev, "Invalid component data in SOF0 %02x%02x%02x",
 				pos[0], pos[1], pos[2]);
 			return -EINVAL;
 		}
@@ -276,9 +267,8 @@ static int smfc_parse_frameheader(struct smfc_ctx *ctx, unsigned long *cursor)
 		if (pos[0] == 1) { /* Luma component */
 			ctx->stream_hfactor = h;
 			ctx->stream_vfactor = v;
-		} else if ((h != 1) || (v != 1)) { /* Chroma component */
-			dev_err(ctx->smfc->dev,
-				"Unsupported chroma factor %dx%d\n", h, v);
+		} else if (h != 1 || v != 1) { /* Chroma component */
+			dev_err(ctx->smfc->dev, "Unsupported chroma factor %dx%d\n", h, v);
 			return -EINVAL;
 		}
 
@@ -292,7 +282,7 @@ static int smfc_parse_frameheader(struct smfc_ctx *ctx, unsigned long *cursor)
 
 #define SOS_LENGTH 12 /* Ls+Ns+Ns*Comp+Ss+Se+AhAl */
 static int smfc_parse_scanheader(struct smfc_ctx *ctx,
-				unsigned long streambase, unsigned long *cursor)
+				 unsigned long streambase, unsigned long *cursor)
 {
 	u8 *pos;
 	int i, ret;
@@ -313,15 +303,14 @@ static int smfc_parse_scanheader(struct smfc_ctx *ctx,
 		return ret;
 	}
 
-	if ((*pos != 3) && (*pos != 1)) { /* Ns: number of components */
+	if (*pos != 3 && *pos != 1) { /* Ns: number of components */
 		dev_err(ctx->smfc->dev, "Unsupported component count %d", *pos);
 		return -EINVAL;
 	}
 
 	/* ctx->num_components is not 0 if SOF0 appeared earlier than SOS */
-	if ((ctx->num_components != 0) && (ctx->num_components != *pos)) {
-		dev_err(ctx->smfc->dev,
-			"comp. count differs in Nf(%u) and Ns(%u)\n",
+	if (ctx->num_components != 0 && ctx->num_components != *pos) {
+		dev_err(ctx->smfc->dev, "comp. count differs in Nf(%u) and Ns(%u)\n",
 			ctx->num_components, *pos);
 		return -EINVAL;
 	}
@@ -331,15 +320,13 @@ static int smfc_parse_scanheader(struct smfc_ctx *ctx,
 	pos++;
 
 	for (i = 0; i < ctx->num_components; i++, pos += 2) {
-		if ((pos[0] > 3) || __halfbytes_larger_than(pos[1], 1)) {
-			dev_err(ctx->smfc->dev,
-				"Invalid component %d data %02x%02x in SOS\n",
+		if (pos[0] > 3 || __halfbytes_larger_than(pos[1], 1)) {
+			dev_err(ctx->smfc->dev, "Invalid component %d data %02x%02x in SOS\n",
 				i, pos[0], pos[1]);
 			return -EINVAL;
 		}
 
-		ctx->huffman_tables->compsel[pos[0] - 1].idx_dc =
-							(pos[1] >> 4) & 0xF;
+		ctx->huffman_tables->compsel[pos[0] - 1].idx_dc = (pos[1] >> 4) & 0xF;
 		ctx->huffman_tables->compsel[pos[0] - 1].idx_ac = pos[1] & 0xF;
 	}
 
@@ -377,12 +364,12 @@ int smfc_parse_jpeg_header(struct smfc_ctx *ctx, struct vb2_buffer *vb)
 	/* SOI */
 	ret = get_user(marker.byte[0], (u16 *)cursor++);
 	ret |= get_user(marker.byte[1], (u16 *)cursor++);
-	if (ret || (marker.byte[0] != 0xFF) || (marker.byte[1] != 0xD8)) {
+	if (ret || marker.byte[0] != 0xFF || marker.byte[1] != 0xD8) {
 		dev_err(ctx->smfc->dev, "SOS maker is not found\n");
 		return -EINVAL;
 	}
 
-	while (cursor < (streamend - SMFC_JPEG_MARKER_LEN)) {
+	while (cursor < streamend - SMFC_JPEG_MARKER_LEN) {
 		ret = get_user(marker.byte[0], (u16 *)cursor++);
 		ret |= get_user(marker.byte[1], (u16 *)cursor++);
 		if (ret) {
@@ -419,15 +406,13 @@ int smfc_parse_jpeg_header(struct smfc_ctx *ctx, struct vb2_buffer *vb)
 			return -EINVAL;
 		default: /* error checking */
 			if ((marker.byte[1] & 0xF0) == 0xC0) {
-				dev_err(ctx->smfc->dev,
-					"Unsupported marker 0xFF%02X found\n",
+				dev_err(ctx->smfc->dev, "Unsupported marker 0xFF%02X found\n",
 					marker.byte[1]);
 				return -EINVAL;
 			}
 
 			/* Ignores all other markers */
-			ret = smfc_get_segment_length(
-					ctx, cursor, marker.byte[1], &len);
+			ret = smfc_get_segment_length(ctx, cursor, marker.byte[1], &len);
 			if (ret)
 				return ret;
 

@@ -236,8 +236,7 @@ const struct smfc_image_format smfc_image_formats[] = {
 	}
 };
 
-static const struct smfc_image_format *smfc_find_format(
-				struct smfc_dev *smfc, __u32 v4l2_pixfmt)
+static const struct smfc_image_format *smfc_find_format(struct smfc_dev *smfc, __u32 v4l2_pixfmt)
 {
 	size_t i;
 
@@ -245,8 +244,7 @@ static const struct smfc_image_format *smfc_find_format(
 		if (smfc_image_formats[i].v4l2_pixfmt == v4l2_pixfmt)
 			return &smfc_image_formats[i];
 
-	dev_warn(smfc->dev, "Pixel format '%08X' not found, YUYV is forced.\n",
-		v4l2_pixfmt);
+	dev_warn(smfc->dev, "Pixel format '%08X' not found, YUYV is forced.\n", v4l2_pixfmt);
 
 	return V4L2_TYPE_IS_OUTPUT(v4l2_pixfmt) ? SMFC_DEFAULT_OUTPUT_FORMAT
 						: SMFC_DEFAULT_CAPTURE_FORMAT;
@@ -259,8 +257,8 @@ static const char *buf_type_name(__u32 type)
 
 static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct smfc_ctx *ctx = container_of(ctrl->handler,
-					    struct smfc_ctx, v4l2_ctrlhdlr);
+	struct smfc_ctx *ctx = container_of(ctrl->handler, struct smfc_ctx, v4l2_ctrlhdlr);
+
 	switch (ctrl->id) {
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
 		ctx->quality_factor = (unsigned char)ctrl->val;
@@ -269,10 +267,8 @@ static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctx->thumb_quality_factor = (unsigned char)ctrl->val;
 		break;
 	case V4L2_CID_JPEG_HWFC_ENABLE:
-		if (!smfc_is_capable(ctx->smfc,
-				V4L2_CAP_EXYNOS_JPEG_HWFC)) {
-			dev_err(ctx->smfc->dev,
-				"HWFC(OTF mode) not supported (ver.%08X)",
+		if (!smfc_is_capable(ctx->smfc, V4L2_CAP_EXYNOS_JPEG_HWFC)) {
+			dev_err(ctx->smfc->dev, "HWFC(OTF mode) not supported (ver.%08X)",
 				ctx->smfc->hwver);
 			return -EINVAL;
 		}
@@ -300,8 +296,7 @@ static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 			ctx->chroma_vfactor = 0;
 			break;
 		case V4L2_JPEG_CHROMA_SUBSAMPLING_410:
-			dev_info(ctx->smfc->dev,
-				"Compression to YUV410 is not supported\n");
+			dev_info(ctx->smfc->dev, "Compression to YUV410 is not supported\n");
 			/* pass through to 422 */
 		case V4L2_JPEG_CHROMA_SUBSAMPLING_422:
 		default:
@@ -330,34 +325,29 @@ static const struct v4l2_ctrl_ops smfc_ctrl_ops = {
 	.s_ctrl = smfc_s_ctrl,
 };
 
-int smfc_init_controls(struct smfc_dev *smfc,
-			struct v4l2_ctrl_handler *hdlr)
+int smfc_init_controls(struct smfc_dev *smfc, struct v4l2_ctrl_handler *hdlr)
 {
-	struct smfc_ctx *ctx =
-			container_of(hdlr, struct smfc_ctx, v4l2_ctrlhdlr);
+	struct smfc_ctx *ctx = container_of(hdlr, struct smfc_ctx, v4l2_ctrlhdlr);
 	const char *msg;
 	struct v4l2_ctrl_config ctrlcfg;
 
 	v4l2_ctrl_handler_init(hdlr, 1);
 
 	if (!v4l2_ctrl_new_std(hdlr, &smfc_ctrl_ops,
-				V4L2_CID_JPEG_COMPRESSION_QUALITY,
-				1, 100, 1, 96)) {
+			       V4L2_CID_JPEG_COMPRESSION_QUALITY, 1, 100, 1, 96)) {
 		msg = "quality factor";
 		goto err;
 	}
 
-	if (!v4l2_ctrl_new_std(hdlr, &smfc_ctrl_ops,
-				V4L2_CID_JPEG_RESTART_INTERVAL,
-				0, 64, 1, 0)) {
+	if (!v4l2_ctrl_new_std(hdlr, &smfc_ctrl_ops, V4L2_CID_JPEG_RESTART_INTERVAL, 0, 64, 1, 0)) {
 		msg = "restart interval";
 		goto err;
 	}
 
 	if (!v4l2_ctrl_new_std_menu(hdlr, &smfc_ctrl_ops,
-				V4L2_CID_JPEG_CHROMA_SUBSAMPLING,
-				V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY, 0,
-				V4L2_JPEG_CHROMA_SUBSAMPLING_422)) {
+				    V4L2_CID_JPEG_CHROMA_SUBSAMPLING,
+				    V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY, 0,
+				    V4L2_JPEG_CHROMA_SUBSAMPLING_422)) {
 		msg = "chroma subsampling";
 		goto err;
 	}
@@ -411,21 +401,18 @@ int smfc_init_controls(struct smfc_dev *smfc,
 err:
 	v4l2_ctrl_handler_free(hdlr);
 
-	dev_err(smfc->dev, "Failed to install %s control (%d)\n",
-		msg, hdlr->error);
+	dev_err(smfc->dev, "Failed to install %s control (%d)\n", msg, hdlr->error);
 	return hdlr->error;
 }
 
-static int smfc_v4l2_querycap(struct file *filp, void *fh,
-			     struct v4l2_capability *cap)
+static int smfc_v4l2_querycap(struct file *filp, void *fh, struct v4l2_capability *cap)
 {
 	struct smfc_dev *smfc = v4l2_fh_to_smfc_ctx(fh)->smfc;
 
 	strncpy(cap->driver, MODULE_NAME, sizeof(cap->driver));
 	strncpy(cap->bus_info, dev_name(smfc->dev), sizeof(cap->bus_info));
 	scnprintf(cap->card, sizeof(cap->card), "Still MFC %02x.%02x.%04x",
-			(smfc->hwver >> 24) & 0xFF, (smfc->hwver >> 16) & 0xFF,
-			smfc->hwver & 0xFFFF);
+		  (smfc->hwver >> 24) & 0xFF, (smfc->hwver >> 16) & 0xFF, smfc->hwver & 0xFFFF);
 
 	cap->driver[sizeof(cap->driver) - 1] = '\0';
 	cap->card[sizeof(cap->card) - 1] = '\0';
@@ -437,8 +424,7 @@ static int smfc_v4l2_querycap(struct file *filp, void *fh,
 	return 0;
 }
 
-static int smfc_v4l2_enum_fmt(struct file *filp, void *fh,
-				     struct v4l2_fmtdesc *f)
+static int smfc_v4l2_enum_fmt(struct file *filp, void *fh, struct v4l2_fmtdesc *f)
 {
 	const struct smfc_image_format *fmt;
 
@@ -470,12 +456,10 @@ static int smfc_v4l2_g_fmt_mplane(struct file *filp, void *fh,
 		f->fmt.pix_mp.num_planes = ctx->img_fmt->num_buffers;
 		for (i = 0; i < ctx->img_fmt->num_buffers; i++) {
 			f->fmt.pix_mp.plane_fmt[i].bytesperline =
-				(f->fmt.pix_mp.width *
-					 ctx->img_fmt->bpp_buf[i]) / 8;
+				(f->fmt.pix_mp.width * ctx->img_fmt->bpp_buf[i]) / 8;
 			f->fmt.pix_mp.plane_fmt[i].sizeimage =
 					f->fmt.pix_mp.plane_fmt[i].bytesperline;
-			f->fmt.pix_mp.plane_fmt[i].sizeimage *=
-							f->fmt.pix_mp.height;
+			f->fmt.pix_mp.plane_fmt[i].sizeimage *= f->fmt.pix_mp.height;
 		}
 	} else {
 		f->fmt.pix_mp.pixelformat = V4L2_PIX_FMT_JPEG;
@@ -499,15 +483,13 @@ static int smfc_v4l2_g_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 
 	if (!smfc_is_compressed_type(ctx, f->type)) {
 		if (ctx->img_fmt->num_buffers > 1) {
-			dev_err(ctx->smfc->dev,
-				"Current format is a multi-planar format\n");
+			dev_err(ctx->smfc->dev, "Current format is a multi-planar format\n");
 			return -EINVAL;
 		}
 
 		/* uncompressed image */
 		f->fmt.pix.pixelformat = ctx->img_fmt->v4l2_pixfmt;
-		f->fmt.pix.bytesperline =
-			(f->fmt.pix.width * ctx->img_fmt->bpp_buf[0]) / 8;
+		f->fmt.pix.bytesperline = (f->fmt.pix.width * ctx->img_fmt->bpp_buf[0]) / 8;
 		f->fmt.pix.sizeimage = f->fmt.pix.bytesperline;
 		f->fmt.pix.sizeimage *= f->fmt.pix.height;
 	} else {
@@ -523,26 +505,25 @@ static int smfc_v4l2_g_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 }
 
 static bool __smfc_check_image_size(struct device *dev, __u32 type,
-				  const struct smfc_image_format *smfc_fmt,
-				  __u32 width, __u32 height)
+				    const struct smfc_image_format *smfc_fmt,
+				    __u32 width, __u32 height)
 {
 	__u32 min_width = SMFC_MIN_WIDTH << smfc_fmt->chroma_hfactor;
 	__u32 min_height = SMFC_MIN_WIDTH << smfc_fmt->chroma_vfactor;
 
-	if ((width < min_width) || (height < min_height)) {
+	if (width < min_width || height < min_height) {
 		dev_warn(dev, "Too small image size(%ux%u) for '%s'\n",
-				width, height, buf_type_name(type));
+			 width, height, buf_type_name(type));
 		return false;
 	}
 
-	if ((width > SMFC_MAX_WIDTH) || (height > SMFC_MAX_HEIGHT)) {
+	if (width > SMFC_MAX_WIDTH || height > SMFC_MAX_HEIGHT) {
 		dev_warn(dev, "Too large image size(%ux%u) for '%s'\n",
-				width, height, buf_type_name(type));
+			 width, height, buf_type_name(type));
 		return false;
 	}
 
-	if (((width % smfc_fmt->chroma_hfactor) != 0) ||
-		((height % smfc_fmt->chroma_vfactor) != 0)) {
+	if ((width % smfc_fmt->chroma_hfactor) != 0 || (height % smfc_fmt->chroma_vfactor) != 0) {
 		dev_err(dev, "Invalid size %ux%u for format '%s'\n",
 			width, height, smfc_fmt->description);
 		return false;
@@ -550,6 +531,7 @@ static bool __smfc_check_image_size(struct device *dev, __u32 type,
 
 	return true;
 }
+
 static bool smfc_check_image_size(struct device *dev, __u32 type,
 				  const struct smfc_image_format *smfc_fmt,
 				  __u32 width, __u32 height)
@@ -573,7 +555,8 @@ static bool smfc_check_image_size(struct device *dev, __u32 type,
 }
 
 static bool smfc_check_capable_of_decompression(const struct smfc_dev *smfc,
-		const struct smfc_image_format *smfc_fmt, __u32 type)
+						const struct smfc_image_format *smfc_fmt,
+						__u32 type)
 {
 	if (smfc_is_capable(smfc, V4L2_CAP_EXYNOS_JPEG_DECOMPRESSION))
 		return true;
@@ -581,8 +564,7 @@ static bool smfc_check_capable_of_decompression(const struct smfc_dev *smfc,
 	if (is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(type)) /* compression? */
 		return true;
 
-	dev_err(smfc->dev, "Decompression is not supported (ver.%08X)",
-		smfc->hwver);
+	dev_err(smfc->dev, "Decompression is not supported (ver.%08X)", smfc->hwver);
 
 	return false;
 }
@@ -593,7 +575,7 @@ static int smfc_calc_crop(struct smfc_ctx *ctx, struct v4l2_selection *s)
 	u32 top = s->r.top;
 	u32 frame_width = ctx->width;
 	u32 crop_width = s->r.width;
-	unsigned char bpp_pix = ctx->img_fmt->bpp_pix[0]/8;
+	unsigned char bpp_pix = ctx->img_fmt->bpp_pix[0] / 8;
 	unsigned char chroma_hfactor = ctx->img_fmt->chroma_hfactor;
 	unsigned char chroma_vfactor = ctx->img_fmt->chroma_vfactor;
 	unsigned int i;
@@ -602,14 +584,19 @@ static int smfc_calc_crop(struct smfc_ctx *ctx, struct v4l2_selection *s)
 	ctx->crop.so[0] = (frame_width - crop_width) * bpp_pix;
 
 	for (i = 1; i < ctx->img_fmt->num_planes; i++) {
-		ctx->crop.po[i] = (frame_width * top / chroma_vfactor + left)
-			* bpp_pix * 2 / chroma_hfactor / i;
-		ctx->crop.so[i] = (frame_width - crop_width) * bpp_pix
-			* 2 / chroma_hfactor / i;
+		ctx->crop.po[i] = frame_width * top / chroma_vfactor + left;
+		ctx->crop.po[i] *= bpp_pix * 2;
+		ctx->crop.po[i] /= chroma_hfactor;
+		ctx->crop.po[i] /= i;
+
+		ctx->crop.so[i] = frame_width - crop_width;
+		ctx->crop.so[i] *= bpp_pix * 2;
+		ctx->crop.so[i] /= chroma_hfactor;
+		ctx->crop.so[i] /= i;
 
 		if (i == 2) {
-			ctx->crop.po[i-1] = ctx->crop.po[i];
-			ctx->crop.so[i-1] = ctx->crop.so[i];
+			ctx->crop.po[i - 1] = ctx->crop.po[i];
+			ctx->crop.so[i - 1] = ctx->crop.so[i];
 		}
 	}
 
@@ -617,34 +604,32 @@ static int smfc_calc_crop(struct smfc_ctx *ctx, struct v4l2_selection *s)
 }
 
 static bool smfc_v4l2_init_fmt_mplane(const struct smfc_ctx *ctx,
-			const struct smfc_image_format *smfc_fmt,
-			__u32 type, struct v4l2_pix_format_mplane *pix_mp)
+				      const struct smfc_image_format *smfc_fmt,
+				      __u32 type, struct v4l2_pix_format_mplane *pix_mp)
 {
 	unsigned int i;
 
 	if (!smfc_check_capable_of_decompression(ctx->smfc, smfc_fmt, type))
 		return false;
 
-	if (!smfc_check_image_size(ctx->smfc->dev, type,
-				smfc_fmt, pix_mp->width, pix_mp->height))
+	if (!smfc_check_image_size(ctx->smfc->dev, type, smfc_fmt, pix_mp->width, pix_mp->height))
 		return false;
 	/* informs the user that the format might be changed to the default */
 	pix_mp->pixelformat = smfc_fmt->v4l2_pixfmt;
 	/* JPEG format has zero in smfc_fmt->bpp_buf[0] */
 	for (i = 0; i < smfc_fmt->num_buffers; i++) {
-		pix_mp->plane_fmt[i].bytesperline =
-				(SMFC_FMT_MAIN_SIZE(pix_mp->width) *
-				 smfc_fmt->bpp_buf[i]) / 8;
-		pix_mp->plane_fmt[i].sizeimage =
-				pix_mp->plane_fmt[i].bytesperline *
-					SMFC_FMT_MAIN_SIZE(pix_mp->height);
+		pix_mp->plane_fmt[i].bytesperline = SMFC_FMT_MAIN_SIZE(pix_mp->width);
+		pix_mp->plane_fmt[i].bytesperline *= smfc_fmt->bpp_buf[i];
+		pix_mp->plane_fmt[i].bytesperline /= 8;
+
+		pix_mp->plane_fmt[i].sizeimage = pix_mp->plane_fmt[i].bytesperline;
+		pix_mp->plane_fmt[i].sizeimage *= SMFC_FMT_MAIN_SIZE(pix_mp->height);
 	}
 
 	pix_mp->field = 0;
 	pix_mp->num_planes = smfc_fmt->num_buffers;
 
-	if (SMFC_FMT_SEC_SIZE(pix_mp->width) &&
-				SMFC_FMT_SEC_SIZE(pix_mp->height)) {
+	if (SMFC_FMT_SEC_SIZE(pix_mp->width) && SMFC_FMT_SEC_SIZE(pix_mp->height)) {
 		/*
 		 * Format information for the secondary image is stored after
 		 * the last plane of the main image. It is okay to use more
@@ -653,54 +638,48 @@ static bool smfc_v4l2_init_fmt_mplane(const struct smfc_ctx *ctx,
 		unsigned int j;
 
 		for (j = 0; j < smfc_fmt->num_buffers; j++) {
-			pix_mp->plane_fmt[i + j].bytesperline =
-				(SMFC_FMT_SEC_SIZE(pix_mp->width) *
-					smfc_fmt->bpp_buf[j]) / 8;
-			pix_mp->plane_fmt[i + j].sizeimage =
-				pix_mp->plane_fmt[i + j].bytesperline *
-					SMFC_FMT_SEC_SIZE(pix_mp->height);
+			pix_mp->plane_fmt[i + j].bytesperline = SMFC_FMT_SEC_SIZE(pix_mp->width);
+			pix_mp->plane_fmt[i + j].bytesperline *= smfc_fmt->bpp_buf[j];
+			pix_mp->plane_fmt[i + j].bytesperline /= 8;
+
+			pix_mp->plane_fmt[i + j].sizeimage = pix_mp->plane_fmt[i + j].bytesperline;
+			pix_mp->plane_fmt[i + j].sizeimage *= SMFC_FMT_SEC_SIZE(pix_mp->height);
 		}
 	}
 
 	return true;
 }
 
-static int smfc_v4l2_try_fmt_mplane(struct file *filp, void *fh,
-				  struct v4l2_format *f)
+static int smfc_v4l2_try_fmt_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
-	const struct smfc_image_format *smfc_fmt =
-			smfc_find_format(ctx->smfc, f->fmt.pix_mp.pixelformat);
+	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
+								    f->fmt.pix_mp.pixelformat);
 
-	return smfc_v4l2_init_fmt_mplane(
-			ctx, smfc_fmt, f->type, &f->fmt.pix_mp) ? 0 : -EINVAL;
+	return smfc_v4l2_init_fmt_mplane(ctx, smfc_fmt, f->type, &f->fmt.pix_mp) ? 0 : -EINVAL;
 }
 
 static int smfc_v4l2_prepare_s_fmt(struct smfc_ctx *ctx,
 				   const struct smfc_image_format *smfc_fmt,
 				   __u32 type)
 {
+	enum v4l2_buf_type othertype = V4L2_TYPE_IS_OUTPUT(type) ? V4L2_BUF_TYPE_VIDEO_CAPTURE :
+								   V4L2_BUF_TYPE_VIDEO_OUTPUT;
 	struct vb2_queue *thisvq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, type);
-	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
-			V4L2_TYPE_IS_OUTPUT(type) ?
-				V4L2_BUF_TYPE_VIDEO_CAPTURE :
-				V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, othertype);
 	u32 flags;
 
 	if (thisvq->num_buffers > 0) {
-		dev_err(ctx->smfc->dev,
-			"S_FMT after REQBUFS is not allowed\n");
+		dev_err(ctx->smfc->dev, "S_FMT after REQBUFS is not allowed\n");
 		return -EBUSY;
 	}
 
 	flags = smfc_config_ctxflag(ctx, SMFC_CTX_COMPRESS,
-			is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(type));
+				    is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(type));
 
 	if (othervq->num_buffers > 0) { /* REQBUFSed on other vq */
-		if ((flags & SMFC_CTX_COMPRESS) !=
-					(ctx->flags & SMFC_CTX_COMPRESS)) {
-			dev_err(ctx->smfc->dev,
-				"Changing mode is prohibited after reqbufs\n");
+		if ((flags & SMFC_CTX_COMPRESS) != (ctx->flags & SMFC_CTX_COMPRESS)) {
+			dev_err(ctx->smfc->dev, "Changing mode is prohibited after reqbufs\n");
 			ctx->flags = flags;
 			return -EBUSY;
 		}
@@ -718,12 +697,11 @@ static __u32 v4l2_to_multiplane_type(__u32 type)
 	return V4L2_TYPE_IS_MULTIPLANAR(type) ? type : type + 8;
 }
 
-static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
-				    struct v4l2_format *f)
+static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
-	const struct smfc_image_format *smfc_fmt =
-			smfc_find_format(ctx->smfc, f->fmt.pix_mp.pixelformat);
+	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
+								    f->fmt.pix_mp.pixelformat);
 	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
 
 	if (ret)
@@ -745,10 +723,8 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 	}
 
 	if (ctx->thumb_width && ctx->thumb_height) {
-		if (!smfc_is_capable(ctx->smfc,
-				V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION)) {
-			dev_err(ctx->smfc->dev,
-				"back-to-back mode not supported (ver.%08X)",
+		if (!smfc_is_capable(ctx->smfc, V4L2_CAP_EXYNOS_JPEG_B2B_COMPRESSION)) {
+			dev_err(ctx->smfc->dev, "back-to-back mode not supported (ver.%08X)",
 				ctx->smfc->hwver);
 			return -EINVAL;
 		}
@@ -761,10 +737,10 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 		ctx->img_fmt = smfc_fmt;
 
 	if (ctx->flags & SMFC_CTX_B2B_COMPRESS) {
-		struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
-			V4L2_TYPE_IS_OUTPUT(f->type) ?
-				V4L2_BUF_TYPE_VIDEO_CAPTURE :
-				V4L2_BUF_TYPE_VIDEO_OUTPUT);
+		enum v4l2_buf_type buftype =
+			V4L2_TYPE_IS_OUTPUT(f->type) ? V4L2_BUF_TYPE_VIDEO_CAPTURE :
+						       V4L2_BUF_TYPE_VIDEO_OUTPUT;
+		struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buftype);
 		/*
 		 * type change of the current queue is completed in
 		 * smfc_v4l2_prepare_s_fmt()
@@ -776,8 +752,8 @@ static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh,
 }
 
 static bool smfc_v4l2_init_fmt(const struct smfc_ctx *ctx,
-				const struct smfc_image_format *smfc_fmt,
-				__u32 type, struct v4l2_pix_format *pix)
+			       const struct smfc_image_format *smfc_fmt,
+			       __u32 type, struct v4l2_pix_format *pix)
 {
 	if (V4L2_TYPE_IS_MULTIPLANAR(pix->pixelformat)) {
 		dev_err(ctx->smfc->dev,
@@ -788,8 +764,7 @@ static bool smfc_v4l2_init_fmt(const struct smfc_ctx *ctx,
 	if (!smfc_check_capable_of_decompression(ctx->smfc, smfc_fmt, type))
 		return false;
 
-	if (!smfc_check_image_size(ctx->smfc->dev, type,
-				smfc_fmt, pix->width, pix->height))
+	if (!smfc_check_image_size(ctx->smfc->dev, type, smfc_fmt, pix->width, pix->height))
 		return false;
 	/* informs the user that the format might be changed to the default */
 	pix->pixelformat = smfc_fmt->v4l2_pixfmt;
@@ -804,18 +779,17 @@ static bool smfc_v4l2_init_fmt(const struct smfc_ctx *ctx,
 static int smfc_v4l2_try_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
-	const struct smfc_image_format *smfc_fmt =
-			smfc_find_format(ctx->smfc, f->fmt.pix.pixelformat);
+	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
+								    f->fmt.pix.pixelformat);
 
-	return smfc_v4l2_init_fmt(ctx, smfc_fmt, f->type, &f->fmt.pix)
-								? 0 : -EINVAL;
+	return smfc_v4l2_init_fmt(ctx, smfc_fmt, f->type, &f->fmt.pix) ? 0 : -EINVAL;
 }
 
 static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
-	const struct smfc_image_format *smfc_fmt =
-			smfc_find_format(ctx->smfc, f->fmt.pix.pixelformat);
+	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
+								    f->fmt.pix.pixelformat);
 	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
 
 	if (ret)
@@ -843,33 +817,26 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 	return 0;
 }
 
-static int smfc_v4l2_s_selection(struct file *file, void *fh,
-		struct v4l2_selection *s)
+static int smfc_v4l2_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
 	unsigned int i;
 	int ret = 0;
 
-	if ((s->r.left < 0) || (s->r.top < 0) ||
-			(s->r.width < 16) || (s->r.height < 16)) {
-		v4l2_err(&ctx->smfc->v4l2_dev,
-			"Invalid crop region (%d,%d):%dx%d\n",
-			s->r.left, s->r.top, s->r.width, s->r.height);
+	if (s->r.left < 0 || s->r.top < 0 || s->r.width < 16 || s->r.height < 16) {
+		v4l2_err(&ctx->smfc->v4l2_dev, "Invalid crop region (%d,%d):%dx%d\n",
+			 s->r.left, s->r.top, s->r.width, s->r.height);
 		return -EINVAL;
 	}
 
-	if (((s->r.left + s->r.width) > ctx->width) ||
-			((s->r.top + s->r.height) > ctx->height)) {
-		v4l2_err(&ctx->smfc->v4l2_dev,
-			"Crop (%d,%d):%dx%d overflows the image %dx%d\n",
-			s->r.left, s->r.top, s->r.width, s->r.height,
-			ctx->width, ctx->height);
+	if ((s->r.left + s->r.width) > ctx->width || (s->r.top + s->r.height) > ctx->height) {
+		v4l2_err(&ctx->smfc->v4l2_dev, "Crop (%d,%d):%dx%d overflows the image %dx%d\n",
+			 s->r.left, s->r.top, s->r.width, s->r.height, ctx->width, ctx->height);
 		return -EINVAL;
 	}
 
 	if (!V4L2_TYPE_IS_OUTPUT(s->type)) {
-		v4l2_err(&ctx->smfc->v4l2_dev,
-			"Cropping on the capture buffer is not supported\n");
+		v4l2_err(&ctx->smfc->v4l2_dev, "Cropping on the capture buffer is not supported\n");
 		return -EINVAL;
 	}
 
@@ -887,8 +854,7 @@ static int smfc_v4l2_s_selection(struct file *file, void *fh,
 	return ret;
 }
 
-static int v4l2_smfc_qbuf(struct file *file, void *priv,
-		struct v4l2_buffer *buf)
+static int v4l2_smfc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file->private_data);
 	struct vb2_queue *vq;
@@ -897,15 +863,11 @@ static int v4l2_smfc_qbuf(struct file *file, void *priv,
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buf->type);
 
 	for (index = 0; index < vq->num_buffers; index++) {
-		struct vb2_v4l2_buffer *vbuf =
-			to_vb2_v4l2_buffer(vq->bufs[index]);
-		struct v4l2_m2m_buffer *mbuf =
-			container_of(vbuf, typeof(*mbuf), vb);
-		struct vb2_smfc_buffer *sbuf =
-			container_of(mbuf, typeof(*sbuf), mb);
+		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vq->bufs[index]);
+		struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
+		struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
 
-		if ((!V4L2_TYPE_IS_OUTPUT(buf->type)) &&
-				V4L2_TYPE_IS_MULTIPLANAR(buf->type))
+		if (!V4L2_TYPE_IS_OUTPUT(buf->type) && V4L2_TYPE_IS_MULTIPLANAR(buf->type))
 			sbuf->offset[index] = buf->m.planes[index].data_offset;
 		else
 			sbuf->offset[index] = 0;

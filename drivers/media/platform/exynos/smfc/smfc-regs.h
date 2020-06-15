@@ -38,9 +38,9 @@
 #  define JPEG_CNTL_INT_EN_SHIFT	28
 #  define JPEG_CNTL_HWFC_EN_SHIFT	30
 #  define JPEG_CNTL_BTB_EN_SHIFT	31
-#  define JPEG_CNTL_RESET_MASK		\
-	((1 <<JPEG_CNTL_HWFC_EN_SHIFT) | (1 << JPEG_CNTL_BTB_EN_SHIFT) | \
-	 JPEG_CNTL_CODECON_MASK)
+#  define JPEG_CNTL_RESET_MASK		(BIT(JPEG_CNTL_HWFC_EN_SHIFT) |\
+					 BIT(JPEG_CNTL_BTB_EN_SHIFT) |\
+					 JPEG_CNTL_CODECON_MASK)
 
 #define REG_INT_EN			0x004
 #define REG_TIMER_COUNT			0x008
@@ -77,8 +77,8 @@
  * Component 1 and 2: Q-table 3, AC/DC table 1
  */
 #define VAL_SEC_TABLE_SELECT		0xF3E
-#define SMFC_TABLE_READ_REQ_MASK	(1 << 13)
-#define SMFC_TABLE_READ_OK_MASK		(1 << 12)
+#define SMFC_TABLE_READ_REQ_MASK	BIT(13)
+#define SMFC_TABLE_READ_OK_MASK		BIT(12)
 
 /* 64 reigsters for four quantization tables are prepared */
 #define REG_QTBL_BASE			0x100
@@ -116,12 +116,14 @@ enum {
 	IMGSEL_422V,	/* YUV */
 	IMGSEL_411	/* YUV */
 };
+
 #define IMGFMT_RGBSHIFT		6
 enum {
 	RGBSEL_RGB565 = 4,
 	RGBSEL_ARGB32,
 	RGBSEL_RGB24,
 };
+
 #define IMGFMT_444SHIFT		9
 #define IMGFMT_422SHIFT		12
 #define IMGFMT_420SHIFT		15
@@ -135,8 +137,8 @@ enum {
 	YUV422SEL_3P = 6,
 };
 
-#define IMGFMT_RGBSWAP		(1 << 30)
-#define IMGFMT_UVSWAP		(1 << 27)
+#define IMGFMT_RGBSWAP		BIT(30)
+#define IMGFMT_UVSWAP		BIT(27)
 enum {
 	YUVSEL_YUYV = 0,
 	YUVSEL_YVYU = 1 << 28,

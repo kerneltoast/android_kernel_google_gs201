@@ -29,9 +29,6 @@ static atomic_t smfc_hwfc_state;
 static wait_queue_head_t smfc_hwfc_sync_wq;
 static wait_queue_head_t smfc_suspend_wq;
 
-extern int iommu_register_device_fault_handler(
-	struct device *dev, iommu_dev_fault_handler_t handler, void *data);
-
 enum {
 	SMFC_HWFC_STANDBY = 0,
 	SMFC_HWFC_RUN,
@@ -42,13 +39,11 @@ int exynos_smfc_wait_done(bool enable_hwfc)
 {
 	int prev, new;
 
-	wait_event(smfc_hwfc_sync_wq,
-			atomic_read(&smfc_hwfc_state) < SMFC_HWFC_WAIT);
+	wait_event(smfc_hwfc_sync_wq, atomic_read(&smfc_hwfc_state) < SMFC_HWFC_WAIT);
 
 	prev = atomic_read(&smfc_hwfc_state);
-	while (enable_hwfc && prev == SMFC_HWFC_RUN
-			&& (new = atomic_cmpxchg((&smfc_hwfc_state),
-					prev, SMFC_HWFC_WAIT)) != prev)
+	while (enable_hwfc && prev == SMFC_HWFC_RUN &&
+	       (new = atomic_cmpxchg((&smfc_hwfc_state), prev, SMFC_HWFC_WAIT)) != prev)
 		prev = new;
 
 	return 0;
@@ -83,7 +78,10 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 
 	if (!(smfc->flags & SMFC_DEV_RUNNING)) {
 		smfc_dump_registers(smfc);
-		BUG();
+		/* The tieout handler does the rest */
+		dev_err(smfc->dev, "Interrupt occurred but HW state was not running.\n");
+		spin_unlock(&smfc->flag_lock);
+		return IRQ_HANDLED;
 	}
 
 	suspending = !!(smfc->flags & SMFC_DEV_SUSPENDING);
@@ -114,11 +112,9 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 		vb = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		if (vb) {
 			if (!!(ctx->flags & SMFC_CTX_COMPRESS)) {
-				vb2_set_plane_payload(&vb->vb2_buf,
-						      0, streamsize);
+				vb2_set_plane_payload(&vb->vb2_buf, 0, streamsize);
 				if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS))
-					vb2_set_plane_payload(&vb->vb2_buf, 1,
-							thumb_streamsize);
+					vb2_set_plane_payload(&vb->vb2_buf, 1, thumb_streamsize);
 			}
 
 			v4l2_m2m_buf_done(vb, state);
@@ -166,7 +162,7 @@ static void smfc_timedout_handler(struct timer_list *arg)
 	}
 
 	/* timer is enabled only when HWFC is enabled */
-	BUG_ON(!(smfc->flags & SMFC_DEV_OTF_EMUMODE));
+	WARN_ON(!(smfc->flags & SMFC_DEV_OTF_EMUMODE));
 	suspending = !!(smfc->flags & SMFC_DEV_SUSPENDING);
 	smfc->flags |= SMFC_DEV_TIMEDOUT; /* indicate the timedout is handled */
 	smfc->flags &= ~(SMFC_DEV_RUNNING | SMFC_DEV_OTF_EMUMODE);
@@ -186,10 +182,8 @@ static void smfc_timedout_handler(struct timer_list *arg)
 
 	ctx = v4l2_m2m_get_curr_priv(smfc->m2mdev);
 	if (ctx) {
-		v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx),
-							VB2_BUF_STATE_ERROR);
-		v4l2_m2m_buf_done(v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx),
-							VB2_BUF_STATE_ERROR);
+		v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx), VB2_BUF_STATE_ERROR);
+		v4l2_m2m_buf_done(v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx), VB2_BUF_STATE_ERROR);
 
 		__exynos_smfc_wakeup_done_waiters(ctx);
 
@@ -210,7 +204,6 @@ static void smfc_timedout_handler(struct timer_list *arg)
 	spin_unlock_irqrestore(&smfc->flag_lock, flags);
 }
 
-
 static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 				unsigned int *num_planes, unsigned int sizes[],
 				struct device *alloc_devs[])
@@ -218,8 +211,7 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vq);
 
 	if (!(ctx->flags & SMFC_CTX_COMPRESS) && (*num_buffers > 1)) {
-		dev_info(ctx->smfc->dev,
-			"Decompression does not allow >1 buffers\n");
+		dev_info(ctx->smfc->dev, "Decompression does not allow >1 buffers\n");
 		dev_info(ctx->smfc->dev, "forced buffer count to 1\n");
 		*num_buffers = 1;
 	}
@@ -240,6 +232,7 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 		}
 	} else {
 		unsigned int i;
+
 		*num_planes = ctx->img_fmt->num_buffers;
 		for (i = 0; i < *num_planes; i++) {
 			sizes[i] = ctx->width * ctx->height;
@@ -249,6 +242,7 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 
 		if (!!(ctx->flags & SMFC_CTX_B2B_COMPRESS)) {
 			unsigned int idx;
+
 			for (i = 0; i < *num_planes; i++) {
 				idx = *num_planes + i;
 				sizes[idx] = ctx->thumb_width;
@@ -269,21 +263,20 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 
 static int smfc_vb2_buf_init(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
+	struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct smfc_dev *smfc = ctx->smfc;
 	struct dma_buf *dbuf;
 	unsigned int plane;
-
-	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
-	struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
 
 	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type) || !ctx->enable_hwfc)
 		return 0;
 
 	if (vb->vb2_queue->memory != VB2_MEMORY_DMABUF) {
 		dev_err(smfc->dev, "Unsupported buffer type(%d) for HWFC\n",
-				vb->vb2_queue->memory);
+			vb->vb2_queue->memory);
 		return -EINVAL;
 	}
 
@@ -291,9 +284,8 @@ static int smfc_vb2_buf_init(struct vb2_buffer *vb)
 		dbuf = dma_buf_get(vb->planes[plane].m.fd);
 		sbuf->info[plane].dba = dma_buf_attach(dbuf, smfc->dev);
 		sbuf->info[plane].dba->dma_map_attrs = DMA_ATTR_PRIVILEGED;
-		sbuf->info[plane].sgt =
-			dma_buf_map_attachment(sbuf->info[plane].dba,
-					vb->vb2_queue->dma_dir);
+		sbuf->info[plane].sgt = dma_buf_map_attachment(sbuf->info[plane].dba,
+							       vb->vb2_queue->dma_dir);
 	}
 	return 0;
 }
@@ -316,9 +308,8 @@ static int smfc_vb2_buf_prepare(struct vb2_buffer *vb)
 				planebytes /= 8;
 				if (vb2_get_plane_payload(vb, i) < planebytes) {
 					dev_err(ctx->smfc->dev,
-					"Too small payload[%u]=%lu (req:%lu)\n",
-					i, vb2_get_plane_payload(vb, i),
-					planebytes);
+						"Too small payload[%u]=%lu (req:%lu)\n",
+						i, vb2_get_plane_payload(vb, i), planebytes);
 					return -EINVAL;
 				}
 			}
@@ -391,7 +382,7 @@ static void smfc_vb2_buf_cleanup(struct vb2_buffer *vb)
 	unsigned int plane;
 
 	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type) &&
-			!!(ctx->flags & SMFC_CTX_COMPRESS)) {
+	    !!(ctx->flags & SMFC_CTX_COMPRESS)) {
 		/*
 		 * TODO: clean the APP segments written by CPU in front
 		 * of the start of the JPEG stream to be written by H/W
@@ -403,12 +394,13 @@ static void smfc_vb2_buf_cleanup(struct vb2_buffer *vb)
 		return;
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
-		if (sbuf->info[plane].sgt == NULL)
+		if (!sbuf->info[plane].sgt)
 			continue;
 		dma_buf_unmap_attachment(sbuf->info[plane].dba,
-			sbuf->info[plane].sgt, vb->vb2_queue->dma_dir);
+					 sbuf->info[plane].sgt,
+					 vb->vb2_queue->dma_dir);
 		dma_buf_detach(sbuf->info[plane].dba->dmabuf,
-			sbuf->info[plane].dba);
+			       sbuf->info[plane].dba);
 		sbuf->info[plane].dba = NULL;
 		sbuf->info[plane].sgt = NULL;
 	}
@@ -450,7 +442,7 @@ static struct vb2_ops smfc_vb2_ops = {
 };
 
 static int smfc_queue_init(void *priv, struct vb2_queue *src_vq,
-		      struct vb2_queue *dst_vq)
+			   struct vb2_queue *dst_vq)
 {
 	struct smfc_ctx *ctx = priv;
 	int ret;
@@ -489,10 +481,8 @@ static int exynos_smfc_open(struct file *filp)
 	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
-		dev_err(smfc->dev, "Failed to allocate smfc_ctx");
+	if (!ctx)
 		return -ENOMEM;
-	}
 
 	ctx->smfc = smfc;
 
@@ -594,20 +584,20 @@ static const struct v4l2_file_operations smfc_v4l2_fops = {
 static bool smfc_check_hwfc_configuration(struct smfc_ctx *ctx, bool hwfc_en)
 {
 	const struct smfc_image_format *fmt = ctx->img_fmt;
+
 	if (!(ctx->flags & SMFC_CTX_COMPRESS) || !hwfc_en)
 		return true;
 
 	if (fmt->chroma_hfactor == 2) {
 		/* YUV422 1-plane */
-		if ((fmt->chroma_vfactor == 1) && (fmt->num_planes == 1))
+		if (fmt->chroma_vfactor == 1 && fmt->num_planes == 1)
 			return true;
 		/* YUV420 2-plane */
-		if ((fmt->chroma_vfactor == 2) && (fmt->num_planes == 2))
+		if (fmt->chroma_vfactor == 2 && fmt->num_planes == 2)
 			return true;
 	}
 
-	dev_err(ctx->smfc->dev,
-		"HWFC is only available with YUV420-2p and YUV422-1p\n");
+	dev_err(ctx->smfc->dev, "HWFC is only available with YUV420-2p and YUV422-1p\n");
 
 	return false;
 }
@@ -624,8 +614,7 @@ static void smfc_m2m_device_run(void *priv)
 	unsigned char thumb_quality_factor = ctx->thumb_quality_factor;
 	unsigned char enable_hwfc = ctx->enable_hwfc;
 
-	ret = in_irq() ? pm_runtime_get(ctx->smfc->dev) :
-			 pm_runtime_get_sync(ctx->smfc->dev);
+	ret = in_irq() ? pm_runtime_get(ctx->smfc->dev) : pm_runtime_get_sync(ctx->smfc->dev);
 	if (ret < 0) {
 		pr_err("Failed to enable power\n");
 		goto err_pm;
@@ -659,16 +648,15 @@ static void smfc_m2m_device_run(void *priv)
 			smfc_hwconfigure_2nd_image(ctx, !!enable_hwfc);
 		}
 	} else {
-		if ((ctx->stream_width != ctx->width) ||
-				(ctx->stream_height != ctx->height)) {
+		if (ctx->stream_width != ctx->width || ctx->stream_height != ctx->height) {
 			dev_err(ctx->smfc->dev,
 				"Downscaling on decompression not allowed\n");
 			/* It is okay to abort after reset */
 			goto err_invalid_size;
 		}
 
-		smfc_hwconfigure_image(ctx,
-				ctx->stream_hfactor, ctx->stream_vfactor);
+		smfc_hwconfigure_image(ctx, ctx->stream_hfactor,
+				       ctx->stream_vfactor);
 		smfc_hwconfigure_tables_for_decompression(ctx);
 	}
 
@@ -702,10 +690,8 @@ err_hwfc:
 err_clk:
 	pm_runtime_put(ctx->smfc->dev);
 err_pm:
-	v4l2_m2m_buf_done(
-		v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx), VB2_BUF_STATE_ERROR);
-	v4l2_m2m_buf_done(
-		v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx), VB2_BUF_STATE_ERROR);
+	v4l2_m2m_buf_done(v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx), VB2_BUF_STATE_ERROR);
+	v4l2_m2m_buf_done(v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx), VB2_BUF_STATE_ERROR);
 	/*
 	 * It is safe to call v4l2_m2m_job_finish() here because .device_run()
 	 * is called without any lock held
@@ -818,7 +804,7 @@ static int smfc_init_clock(struct device *dev, struct smfc_dev *smfc)
 	smfc->clk_gate2 = devm_clk_get(dev, "gate2");
 	if (IS_ERR(smfc->clk_gate2) && (PTR_ERR(smfc->clk_gate2) != -ENOENT)) {
 		dev_err(dev, "Failed(%ld) to get 'gate2' clock\n",
-				PTR_ERR(smfc->clk_gate2));
+			PTR_ERR(smfc->clk_gate2));
 		clk_put(smfc->clk_gate);
 		return PTR_ERR(smfc->clk_gate2);
 	}
@@ -829,6 +815,7 @@ static int smfc_init_clock(struct device *dev, struct smfc_dev *smfc)
 static int smfc_find_hw_version(struct device *dev, struct smfc_dev *smfc)
 {
 	int ret = pm_runtime_get_sync(dev);
+
 	if (ret < 0) {
 		dev_err(dev, "Failed(%d) to get the local power\n", ret);
 		return ret;
@@ -985,10 +972,8 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	init_waitqueue_head(&smfc_suspend_wq);
 
 	smfc = devm_kzalloc(&pdev->dev, sizeof(*smfc), GFP_KERNEL);
-	if (!smfc) {
-		dev_err(&pdev->dev, "Failed to get allocate drvdata");
+	if (!smfc)
 		return -ENOMEM;
-	}
 
 	smfc->dev = &pdev->dev;
 
@@ -1003,13 +988,13 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	smfc->devdata = of_id->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
+	if (!res) {
 		dev_err(&pdev->dev, "Failed to get IRQ resource");
 		return -ENOENT;
 	}
 
 	ret = devm_request_irq(&pdev->dev, res->start, exynos_smfc_irq_handler,
-				0, pdev->name, smfc);
+			       0, pdev->name, smfc);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to install IRQ handler");
 		return ret;
@@ -1022,7 +1007,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	smfc->device_id = of_alias_get_id(pdev->dev.of_node, "jpeg");
 	if (smfc->device_id < 0) {
 		dev_info(&pdev->dev,
-			"device ID is not declared: unique device\n");
+			 "device ID is not declared: unique device\n");
 		smfc->device_id = -1;
 	}
 
@@ -1047,8 +1032,8 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	spin_lock_init(&smfc->flag_lock);
 
 	dev_info(&pdev->dev, "Probed H/W Version: %02x.%02x.%04x\n",
-			(smfc->hwver >> 24) & 0xFF, (smfc->hwver >> 16) & 0xFF,
-			smfc->hwver & 0xFFFF);
+		 (smfc->hwver >> 24) & 0xFF, (smfc->hwver >> 16) & 0xFF,
+		 smfc->hwver & 0xFFFF);
 	return 0;
 
 err_hwver:

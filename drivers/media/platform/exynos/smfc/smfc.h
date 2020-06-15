@@ -88,13 +88,13 @@ struct smfc_device_data {
 };
 
 /* Set when H/W starts, cleared in irq/timeout handler */
-#define SMFC_DEV_RUNNING	(1 << 0)
+#define SMFC_DEV_RUNNING	BIT(0)
 /* Set when suspend handler is called, cleared before irq handler returns. */
-#define SMFC_DEV_SUSPENDING	(1 << 1)
+#define SMFC_DEV_SUSPENDING	BIT(1)
 /* Set when timeout handler is called, cleared before the handler returns. */
-#define SMFC_DEV_TIMEDOUT	(1 << 3)
+#define SMFC_DEV_TIMEDOUT	BIT(3)
 /* Set if HWFC is enabled in device_run, cleared in irq/timeout handler */
-#define SMFC_DEV_OTF_EMUMODE	(1 << 4)
+#define SMFC_DEV_OTF_EMUMODE	BIT(4)
 
 struct smfc_dev {
 	struct v4l2_device v4l2_dev;
@@ -103,7 +103,7 @@ struct smfc_dev {
 	struct device *dev;
 	void __iomem *reg;
 	const struct smfc_device_data *devdata;
-	spinlock_t flag_lock;
+	spinlock_t flag_lock; /* lock for updates to @flags */
 	struct mutex video_device_mutex;
 	struct timer_list timer;
 	int device_id;
@@ -119,8 +119,8 @@ struct smfc_dev {
 
 };
 
-#define SMFC_CTX_COMPRESS	(1 << 0)
-#define SMFC_CTX_B2B_COMPRESS	(1 << 1) /* valid if SMFC_CTX_COMPRESS is set */
+#define SMFC_CTX_COMPRESS	BIT(0)
+#define SMFC_CTX_B2B_COMPRESS	BIT(1) /* valid if SMFC_CTX_COMPRESS is set */
 
 static inline bool smfc_is_capable(const struct smfc_dev *smfc, u32 capability)
 {
@@ -237,6 +237,7 @@ static inline struct smfc_ctx *v4l2_fh_to_smfc_ctx(struct v4l2_fh *fh)
 static inline u32 smfc_config_ctxflag(struct smfc_ctx *ctx, u32 flag, bool set)
 {
 	u32 prevflags = ctx->flags;
+
 	ctx->flags = set ? ctx->flags | flag : ctx->flags & ~flag;
 	return prevflags;
 }
