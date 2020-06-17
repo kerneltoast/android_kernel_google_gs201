@@ -1015,6 +1015,15 @@
 		#thermal-sensor-cells = <0>;
 	};
 
+	google_bcl: google,bcl{
+		compatible = "google,gs101-bcl";
+	};
+
+	bcl_soc: bcl-soc {
+		compatible = "google,bcl";
+		#thermal-sensor-cells = <0>;
+	};
+
 	thermal_zones: thermal-zones {
 		mid_thermal: MID {
 			zone_name  = "MID_THERMAL";
