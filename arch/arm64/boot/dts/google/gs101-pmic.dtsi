@@ -840,7 +840,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	s2mpg11mfd@2f {
+	s2mpg11mfd:s2mpg11mfd@2f {
 		compatible = "samsung,s2mpg11mfd";
 		acpm-ipc-channel = <2>;
 		acpm-speedy-channel = <1>;
@@ -848,22 +848,24 @@
 		s2mpg11,wakeup = "enabled";
 		s2mpg11,irq-gpio = <&gpa0 7 0>;
 		reg = <0x2f>;
-		interrupts = <1 0 0>;
+		interrupts = <1 0 0>, // OCP_WARN_GPU
+			     <1 0 1>; // SOFT_OCP_WARN_GPU
 		interrupt-parent = <&gpa0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&s_pmic_irq>;
 		gpios = <&gpp19 0 0>,
 			<&gpp19 2 0>;
 
+		#thermal-sensor-cells = <1>;
 		b2_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b2_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b2_ocp_warn_dvs_mask = <0>; /* 0 : not masked, 1 : masked  */
-		b2_ocp_warn_lv = <0x0>; /* step : -250mA */
+		b2_ocp_warn_lvl = <0x0>; /* step : -250mA */
 		b2_soft_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b2_soft_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b2_soft_ocp_warn_dvs_mask = <0>; /* 0 : not masked */
 						 /* 1 : masked	   */
-		b2_soft_ocp_warn_lv = <0x0>; /* step : -250mA */
+		b2_soft_ocp_warn_lvl = <0x0>; /* step : -250mA */
 
 		regulators {
 			s_buck1_reg: BUCK1S {
