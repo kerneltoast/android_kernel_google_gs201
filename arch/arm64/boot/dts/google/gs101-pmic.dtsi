@@ -130,6 +130,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x1>;
 				schematic-name = "S1M_VDD_MIF";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x1>;
 			};
 
 			m_buck2_reg: BUCK2M {
@@ -141,6 +144,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2>;
 				schematic-name = "S2M_VDD_CPUCL2";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x2>;
 			};
 
 			m_buck3_reg: BUCK3M {
@@ -152,6 +158,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x3>;
 				schematic-name = "S3M_VDD_CPUCL1";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x4>;
 			};
 
 			m_buck4_reg: BUCK4M {
@@ -163,6 +172,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x4>;
 				schematic-name = "S4M_VDD_CPUCL0";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x8>;
 			};
 
 			m_buck5_reg: BUCK5M {
@@ -174,6 +186,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x5>;
 				schematic-name = "S5M_VDD_INT";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x10>;
 			};
 
 			m_buck6_reg: BUCK6M {
@@ -185,6 +200,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x6>;
 				schematic-name = "S6M_VDD_CPUCL2_M";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x20>;
 			};
 
 			m_buck7_reg: BUCK7M {
@@ -196,6 +214,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x7>;
 				schematic-name = "S7M_VDD_INT";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x40>;
 			};
 
 			m_buck8_reg: BUCK8M {
@@ -207,6 +228,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x8>;
 				schematic-name = "S8M_LLDO2";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x80>;
 			};
 
 			m_buck9_reg: BUCK9M {
@@ -218,6 +242,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x9>;
 				schematic-name = "S9M_LLDO3";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x1>;
 			};
 
 			m_buck10_reg: BUCK10M {
@@ -229,6 +256,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0xA>;
 				schematic-name = "S10M_VDD_TPU";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x2>;
 			};
 
 			m_ldo1_reg: LDO1M {
@@ -629,7 +659,7 @@
 				/* Additional rails */
 				m_ext1_rail: VSEN_V1 {
 					external_rail;
-					external-chip-en-index = <1>;
+					channel-en-index = <1>;
 					channel-mux-selection = <0x1C>;
 					shunt-res-uohms = <10000>;
 					schematic-name = "PPVAR_VSYS_PWR_DISP";
@@ -638,7 +668,7 @@
 
 				m_ext2_rail: VSEN_V2 {
 					external_rail;
-					external-chip-en-index = <2>;
+					channel-en-index = <2>;
 					channel-mux-selection = <0x1D>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "VSYS_PWR_MODEM";
@@ -647,7 +677,7 @@
 
 				m_ext3_rail: VSEN_V3 {
 					external_rail;
-					external-chip-en-index = <4>;
+					channel-en-index = <4>;
 					channel-mux-selection = <0x1E>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "VSYS_PWR_RFFE";
@@ -656,7 +686,7 @@
 
 				m_ext4_rail: VSEN_C1 {
 					external_rail;
-					external-chip-en-index = <1>;
+					channel-en-index = <1>;
 					channel-mux-selection = <0x5C>;
 					shunt-res-uohms = <10000>;
 					schematic-name = "PPVAR_VSYS_PWR_DISP";
@@ -665,7 +695,7 @@
 
 				m_ext5_rail: VSEN_C2 {
 					external_rail;
-					external-chip-en-index = <2>;
+					channel-en-index = <2>;
 					channel-mux-selection = <0x5D>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "VSYS_PWR_MODEM";
@@ -674,7 +704,7 @@
 
 				m_ext6_rail: VSEN_C3 {
 					external_rail;
-					external-chip-en-index = <4>;
+					channel-en-index = <4>;
 					channel-mux-selection = <0x5E>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "VSYS_PWR_RFFE";
@@ -881,6 +911,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x1>;
 				schematic-name = "S1S_VDD_CAM";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x1>;
 			};
 
 			s_buck2_reg: BUCK2S {
@@ -892,6 +925,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2>;
 				schematic-name = "S2S_VDD_G3D";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x2>;
 			};
 
 			s_buck3_reg: BUCK3S {
@@ -903,6 +939,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3>;
 				schematic-name = "S3S_LLDO1";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x4>;
 			};
 
 			s_buck4_reg: BUCK4S {
@@ -914,6 +953,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x4>;
 				schematic-name = "S4S_VDD2H_MEM";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x8>;
 			};
 
 			s_buck5_reg: BUCK5S {
@@ -925,6 +967,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x5>;
 				schematic-name = "S5S_VDDQ_MEM";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x10>;
 			};
 
 			s_buck6_reg: BUCK6S {
@@ -936,6 +981,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x6>;
 				schematic-name = "S6S_LLDO4";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x20>;
 			};
 
 			s_buck7_reg: BUCK7S {
@@ -947,6 +995,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x7>;
 				schematic-name = "S7S_MLDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x40>;
 			};
 
 			s_buck8_reg: BUCK8S {
@@ -958,6 +1009,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x8>;
 				schematic-name = "S8S_VDD_G3D_L2";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x80>;
 			};
 
 			s_buck9_reg: BUCK9S {
@@ -969,6 +1023,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x9>;
 				schematic-name = "S9S_VDD_AOC";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x1>;
 			};
 
 			s_buck10_reg: BUCK10S {
@@ -980,6 +1037,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xA>;
 				schematic-name = "S10S_VDD2L";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x2>;
 			};
 
 			s_buckd_reg: BUCKD {
@@ -991,6 +1051,9 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0xB>;
 				schematic-name = "SD";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x4>;
 			};
 
 			s_bucka_reg: BUCKA {
@@ -1002,6 +1065,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xC>;
 				schematic-name = "SA";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x8>;
 			};
 
 			s_buckboost_reg: BUCKBOOST {
@@ -1013,6 +1079,9 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xD>;
 				schematic-name = "BB_HLDO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x10>;
 			};
 
 			s_ldo1_reg: LDO1S {
@@ -1245,7 +1314,7 @@
 				/* Additional rails */
 				s_ext1_rail: VSEN_P4 {
 					external_rail;
-					external-chip-en-index = <1>;
+					channel-en-index = <1>;
 					channel-mux-selection = <0x1C>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "VSYS_PWR_WLAN_BT";
@@ -1254,7 +1323,7 @@
 
 				s_ext2_rail: VSEN_P5 {
 					external_rail;
-					external-chip-en-index = <2>;
+					channel-en-index = <2>;
 					channel-mux-selection = <0x1D>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "P5_GRAS";
@@ -1263,7 +1332,7 @@
 
 				s_ext3_rail: VSEN_P6 {
 					external_rail;
-					external-chip-en-index = <4>;
+					channel-en-index = <4>;
 					channel-mux-selection = <0x1E>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "P6_GRAS";
@@ -1272,7 +1341,7 @@
 
 				s_ext4_rail: VSEN_C4 {
 					external_rail;
-					external-chip-en-index = <1>;
+					channel-en-index = <1>;
 					channel-mux-selection = <0x5C>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "VSYS_PWR_WLAN_BT";
@@ -1281,7 +1350,7 @@
 
 				s_ext5_rail: VSEN_C5 {
 					external_rail;
-					external-chip-en-index = <2>;
+					channel-en-index = <2>;
 					channel-mux-selection = <0x5D>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "P5_GRAS";
@@ -1290,7 +1359,7 @@
 
 				s_ext6_rail: VSEN_C6 {
 					external_rail;
-					external-chip-en-index = <4>;
+					channel-en-index = <4>;
 					channel-mux-selection = <0x5E>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "P6_GRAS";
