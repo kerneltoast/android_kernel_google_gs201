@@ -53,6 +53,7 @@ typedef enum {
 #define S2MPG1X_METER_LPF_BUF 3 /* 21-bit */
 #define S2MPG1X_METER_ACC_BUF 6 /* 41-bit */
 #define S2MPG1X_METER_COUNT_BUF 3 /* 20-bit */
+#define S2MPG1X_METER_BUCKEN_BUF 2
 
 /* S2MPG1x_METER_CTRL1 */
 #define METER_EN_MASK BIT(0)

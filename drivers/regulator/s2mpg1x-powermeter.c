@@ -7,9 +7,10 @@
  */
 
 #include <linux/mfd/samsung/s2mpg1x-meter.h>
-#include <linux/mfd/samsung/s2mpg1x-register.h>
 #include <linux/mfd/samsung/s2mpg10.h>
 #include <linux/mfd/samsung/s2mpg11.h>
+#include <linux/mfd/samsung/s2mpg10-register.h>
+#include <linux/mfd/samsung/s2mpg11-register.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 
@@ -22,8 +23,23 @@
 		case ID_S2MPG11:                                          \
 			ret = s2mpg11_##func(args);                       \
 			break;                                            \
+		default:						  \
+			break;                                            \
 		}                                                         \
 	} while (0)
+
+enum address {
+	ADDRESS_CTRL1,
+	ADDRESS_CTRL2,
+	ADDRESS_BUCKEN1,
+	ADDRESS_COUNT,
+};
+
+const int COMMON_ADDRESS[ADDRESS_COUNT][ID_COUNT] = {
+	[ADDRESS_CTRL1] = { S2MPG10_METER_CTRL1, S2MPG11_METER_CTRL1 },
+	[ADDRESS_CTRL2] = { S2MPG10_METER_CTRL2, S2MPG11_METER_CTRL2 },
+	[ADDRESS_BUCKEN1] = { S2MPG10_METER_BUCKEN1, S2MPG11_METER_BUCKEN1 },
+};
 
 static int s2mpg1x_update_reg(s2mpg1x_id_t id, struct i2c_client *i2c, u8 reg,
 			      u8 val, u8 mask)
@@ -43,11 +59,21 @@ static int s2mpg1x_read_reg(s2mpg1x_id_t id, struct i2c_client *i2c,
 	return ret;
 }
 
+static int s2mpg1x_bulk_write(s2mpg1x_id_t id, struct i2c_client *i2c, u8 reg,
+			      int count, u8 *buf)
+{
+	int ret = -1;
+
+	SWITCH_ID_FUNC(id, ret, bulk_write, i2c, reg, count, buf);
+	return ret;
+}
+
 int s2mpg1x_meter_set_async_blocking(s2mpg1x_id_t id, struct i2c_client *i2c,
-				     unsigned long *jiffies_capture, u8 reg)
+				     unsigned long *jiffies_capture)
 {
 	u8 val = 0xFF;
 	int ret;
+	u8 reg = COMMON_ADDRESS[ADDRESS_CTRL2][id];
 
 	/* When 1 is written into ASYNC_RD bit, */
 	/* transfer the accumulator data to readable registers->self-cleared */
@@ -71,7 +97,7 @@ int s2mpg1x_meter_set_async_blocking(s2mpg1x_id_t id, struct i2c_client *i2c,
 }
 EXPORT_SYMBOL_GPL(s2mpg1x_meter_set_async_blocking);
 
-ssize_t s2mpg1x_format_meter_channel(char *buf, ssize_t count, int ch,
+ssize_t s2mpg1x_meter_format_channel(char *buf, ssize_t count, int ch,
 				     const char *name, const char *units,
 				     u64 acc_data, u32 resolution,
 				     u32 acc_count)
@@ -86,7 +112,44 @@ ssize_t s2mpg1x_format_meter_channel(char *buf, ssize_t count, int ch,
 			 acc_data, resolution_max / one_billion,
 			 resolution_max % one_billion, acc_count, units);
 }
-EXPORT_SYMBOL_GPL(s2mpg1x_format_meter_channel);
+EXPORT_SYMBOL_GPL(s2mpg1x_meter_format_channel);
+
+int s2mpg1x_meter_set_buck_channel_en(s2mpg1x_id_t id, struct i2c_client *i2c,
+				      u8 *channels, int num_bytes)
+{
+	if (num_bytes > S2MPG1X_METER_BUCKEN_BUF)
+		return -EINVAL;
+
+	return s2mpg1x_bulk_write(id, i2c, COMMON_ADDRESS[ADDRESS_BUCKEN1][id],
+				  num_bytes, channels);
+}
+EXPORT_SYMBOL_GPL(s2mpg1x_meter_set_buck_channel_en);
+
+int s2mpg1x_meter_set_ext_channel_en(s2mpg1x_id_t id, struct i2c_client *i2c,
+				     u8 channels)
+{
+	return s2mpg1x_update_reg(id, i2c, COMMON_ADDRESS[ADDRESS_CTRL2][id],
+				  channels << EXT_METER_CHANNEL_EN_OFFSET,
+				  EXT_METER_CHANNEL_EN_MASK);
+}
+EXPORT_SYMBOL_GPL(s2mpg1x_meter_set_ext_channel_en);
+
+int s2mpg1x_meter_set_int_samp_rate(s2mpg1x_id_t id, struct i2c_client *i2c,
+				    s2mpg1x_int_samp_rate hz)
+{
+	return s2mpg1x_update_reg(id, i2c, COMMON_ADDRESS[ADDRESS_CTRL1][id],
+				  hz << INT_SAMP_RATE_SHIFT,
+				  INT_SAMP_RATE_MASK);
+}
+EXPORT_SYMBOL_GPL(s2mpg1x_meter_set_int_samp_rate);
+
+int s2mpg1x_meter_set_ext_samp_rate(s2mpg1x_id_t id, struct i2c_client *i2c,
+				    s2mpg1x_ext_samp_rate hz)
+{
+	return s2mpg1x_update_reg(id, i2c, COMMON_ADDRESS[ADDRESS_CTRL2][id],
+				  hz, EXT_SAMP_RATE_MASK);
+}
+EXPORT_SYMBOL_GPL(s2mpg1x_meter_set_ext_samp_rate);
 
 MODULE_DESCRIPTION("SAMSUNG S2MPG1X Powermeter Driver");
 MODULE_LICENSE("GPL");

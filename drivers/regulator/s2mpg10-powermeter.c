@@ -44,15 +44,6 @@ static struct mfd_cell s2mpg10_meter_devs[] = {
 };
 #endif
 
-int s2mpg10_meter_ext_channel_onoff(struct s2mpg10_meter *s2mpg10,
-				    u8 channels)
-{
-	return s2mpg10_update_reg(s2mpg10->i2c, S2MPG10_METER_CTRL2,
-				  channels << EXT_METER_CHANNEL_EN_OFFSET,
-				  EXT_METER_CHANNEL_EN_MASK);
-}
-EXPORT_SYMBOL_GPL(s2mpg10_meter_ext_channel_onoff);
-
 /**
  * Load measurement into registers and read measurement from the registers
  *
@@ -66,7 +57,8 @@ int s2mpg10_meter_load_measurement(struct s2mpg10_meter *s2mpg10,
 
 	s2mpg10_meter_set_acc_mode(s2mpg10, mode);
 
-	s2mpg10_meter_set_async_blocking(s2mpg10, jiffies_capture);
+	s2mpg1x_meter_set_async_blocking(ID_S2MPG10, s2mpg10->i2c,
+					 jiffies_capture);
 
 	if (data)
 		s2mpg10_meter_read_acc_data_reg(s2mpg10, data);
@@ -299,23 +291,6 @@ int s2mpg10_ext_meter_onoff(struct s2mpg10_meter *s2mpg10, bool onoff)
 }
 EXPORT_SYMBOL_GPL(s2mpg10_ext_meter_onoff);
 
-int s2mpg10_set_int_samp_rate(struct s2mpg10_meter *s2mpg10,
-			      s2mpg1x_int_samp_rate hz)
-{
-	return s2mpg10_update_reg(s2mpg10->i2c, S2MPG10_METER_CTRL1,
-				  hz << INT_SAMP_RATE_SHIFT,
-				  INT_SAMP_RATE_MASK);
-}
-EXPORT_SYMBOL_GPL(s2mpg10_set_int_samp_rate);
-
-int s2mpg10_set_ext_samp_rate(struct s2mpg10_meter *s2mpg10,
-			      s2mpg1x_ext_samp_rate hz)
-{
-	return s2mpg10_update_reg(s2mpg10->i2c, S2MPG10_METER_CTRL2, hz,
-				  EXT_SAMP_RATE_MASK);
-}
-EXPORT_SYMBOL_GPL(s2mpg10_set_ext_samp_rate);
-
 int s2mpg10_meter_set_muxsel(struct s2mpg10_meter *s2mpg10, int channel,
 			     s2mpg10_meter_muxsel m)
 {
@@ -381,15 +356,6 @@ static void s2mpg10_meter_set_acc_mode(struct s2mpg10_meter *s2mpg10,
 		break;
 	}
 }
-
-int s2mpg10_meter_set_async_blocking(struct s2mpg10_meter *s2mpg10,
-				     unsigned long *jiffies_capture)
-{
-	return s2mpg1x_meter_set_async_blocking(ID_S2MPG10, s2mpg10->i2c,
-						jiffies_capture,
-						S2MPG10_METER_CTRL2);
-}
-EXPORT_SYMBOL_GPL(s2mpg10_meter_set_async_blocking);
 
 static void s2mpg10_meter_read_acc_data_reg(struct s2mpg10_meter *s2mpg10,
 					    u64 *data)
@@ -527,7 +493,7 @@ static ssize_t s2mpg10_lpf_current_show(struct device *dev,
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg10_meter_muxsel muxsel = s2mpg10->chg_mux_sel[i];
 
-		count += s2mpg1x_format_meter_channel(buf, count, i,
+		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mA)",
 			s2mpg10->lpf_data[i],
 			muxsel_to_current_resolution(muxsel), 1);
@@ -551,7 +517,7 @@ static ssize_t s2mpg10_lpf_power_show(struct device *dev,
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg10_meter_muxsel muxsel = s2mpg10->chg_mux_sel[i];
 
-		count += s2mpg1x_format_meter_channel(buf, count, i,
+		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mW)",
 			s2mpg10->lpf_data[i],
 			s2mpg10_muxsel_to_power_resolution(muxsel), 1);
@@ -577,7 +543,7 @@ static ssize_t s2mpg10_acc_current_show(struct device *dev,
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg10_meter_muxsel muxsel = s2mpg10->chg_mux_sel[i];
 
-		count += s2mpg1x_format_meter_channel(buf, count, i,
+		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mA)",
 			acc_data[i], muxsel_to_current_resolution(muxsel),
 			acc_count);
@@ -602,7 +568,7 @@ static ssize_t s2mpg10_acc_power_show(struct device *dev,
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg10_meter_muxsel muxsel = s2mpg10->chg_mux_sel[i];
 
-		count += s2mpg1x_format_meter_channel(buf, count, i,
+		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mW)",
 			acc_data[i], s2mpg10_muxsel_to_power_resolution(muxsel),
 			acc_count);
@@ -701,7 +667,7 @@ static int s2mpg10_meter_probe(struct platform_device *pdev)
 	/* initial setting */
 	/* set BUCK1M ~ BUCK8m muxsel from CH0 to CH7 */
 	/* any necessary settings can be added */
-	s2mpg10_set_int_samp_rate(s2mpg10, INT_500HZ);
+	s2mpg1x_meter_set_int_samp_rate(ID_S2MPG10, s2mpg10->i2c, INT_500HZ);
 
 	s2mpg10_meter_set_muxsel(s2mpg10, 0, BUCK1M);
 	s2mpg10_meter_set_muxsel(s2mpg10, 1, BUCK2M);
