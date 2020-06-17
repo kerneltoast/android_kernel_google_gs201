@@ -10,6 +10,7 @@
 #ifndef __S2MPG11_MFD_H__
 #define __S2MPG11_MFD_H__
 #include <linux/platform_device.h>
+#include <linux/thermal.h>
 #include <linux/regmap.h>
 
 #include "s2mpg11-meter.h"
@@ -150,6 +151,8 @@ struct s2mpg11_pmic {
 	int gpu_ocp_warn_irq;
 	int soft_gpu_ocp_warn_irq;
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
+	unsigned int ocp_gpu_lvl;
+	unsigned int soft_ocp_gpu_lvl;
 	struct device *dev;
 	u8 read_val;
 	u8 read_addr;
