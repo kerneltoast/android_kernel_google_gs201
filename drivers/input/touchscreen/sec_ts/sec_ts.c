@@ -3762,6 +3762,19 @@ static int sec_ts_pm_suspend(struct device *dev)
 		input_info(true, &ts->client->dev,
 			"%s: bus_refmask 0x%X\n", __func__, ts->bus_refmask);
 
+#ifndef CONFIG_DRM
+	/* Workaround b/158866465 by directly clearing the SCREEN_ON bus
+	 * reference, then waiting a fixed interval for suspend to complete.
+	 * Normally we would block suspend until the display is off, but since
+	 * there's no information about the display state, use PM suspend/resume
+	 * as a substitute.
+	 */
+	pr_err("%s: WORKAROUND FOR b/158866465: TREATING SUSPEND AS SUBSTITUTE FOR DISPLAY CALLBACK!\n",
+	       __func__);
+	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SCREEN_ON, false);
+	msleep(500);
+#endif
+
 	if (ts->power_status != SEC_TS_STATE_SUSPEND) {
 		input_err(true, &ts->client->dev,
 			"%s: can't suspend because touch bus is in use!\n",
@@ -3781,6 +3794,12 @@ static int sec_ts_pm_resume(struct device *dev)
 
 	if (ts->lowpower_mode)
 		complete_all(&ts->resume_done);
+
+#ifndef CONFIG_DRM
+	pr_err("%s: WORKAROUND FOR b/158866465: TREATING RESUME AS SUBSTITUTE FOR DISPLAY CALLBACK!\n",
+	       __func__);
+	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SCREEN_ON, true);
+#endif
 
 	return 0;
 }

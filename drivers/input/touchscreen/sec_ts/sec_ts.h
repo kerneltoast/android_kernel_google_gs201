@@ -56,6 +56,9 @@
 #include <linux/input/touch_bus_negotiator.h>
 #endif
 
+/* Workaround b/158866465 */
+#undef CONFIG_DRM
+
 #define SEC_TS_NAME		"sec_ts"
 #define SEC_TS_DEVICE_NAME	"SEC_TS"
 
