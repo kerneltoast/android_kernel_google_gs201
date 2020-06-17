@@ -1,0 +1,22 @@
+config GOOGLE_BCL_SOC
+	tristate "Google Battery current limiter for SOC"
+	depends on THERMAL_OF
+	help
+	  This enables the thermal sysfs driver for battery current limiter
+	  for battery state of charge.
+
+config GSOC_PMIC_THERMAL
+	tristate "Google LLC. Granville SPMIC thermal driver"
+	depends on THERMAL
+	help
+	  This enables the thermal driver for the Granville PMIC adc thermistors
+	  device. It registers thermal zone with multiple trip points.
+	  Thermal client sets threshold temperature and  gets updated when
+	  a threshold is reached.
+
+config GOOGLE_BCL
+	tristate "Google Battery current limiter"
+	depends on THERMAL
+	help
+	  This enables the monitoring and reporting of different types of system
+	  throttling as a result of battery current limiter.
