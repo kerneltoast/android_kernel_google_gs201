@@ -48,25 +48,9 @@
 #define ROTATION_FACTOR_SCDN	1434UL	/* 1.4x */
 #define RESOL_QHDP_21_TO_9	(3440 * 1440UL) /* for MIF min-lock */
 
-int dpu_bts_log_level = 6;
-
-#define DPU_DEBUG_BTS(fmt, args...)					\
-	do {								\
-		if (dpu_bts_log_level >= 7)				\
-			DRM_INFO("[BTS] "fmt,  ##args);			\
-	} while (0)
-
-#define DPU_INFO_BTS(fmt, args...)					\
-	do {								\
-		if (dpu_bts_log_level >= 6)				\
-			DRM_INFO("[BTS] "fmt,  ##args);			\
-	} while (0)
-
-#define DPU_ERR_BTS(fmt, args...)					\
-	do {								\
-		if (dpu_bts_log_level >= 3)				\
-			DRM_ERROR("[BTS] "fmt, ##args);			\
-	} while (0)
+#define DPU_DEBUG_BTS(fmt, args...)	pr_debug("[BTS] "fmt,  ##args)
+#define DPU_INFO_BTS(fmt, args...)	pr_info("[BTS] "fmt,  ##args)
+#define DPU_ERR_BTS(fmt, args...)	pr_err("[BTS] "fmt, ##args)
 
 /* unit : usec x 1000 -> 5592 (5.592us) for WQHD+ case */
 static inline u32 dpu_bts_get_one_line_time(u32 lcd_height, u32 vbp, u32 vfp,
