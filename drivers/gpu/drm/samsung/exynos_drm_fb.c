@@ -368,6 +368,9 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
 		decon = exynos_crtc->ctx;
 
+		if (new_crtc_state->active || new_crtc_state->active_changed)
+			hibernation_block_exit(decon->hibernation);
+
 		if (new_crtc_state->planes_changed && new_crtc_state->active) {
 			DPU_EVENT_LOG_ATOMIC_COMMIT(decon->id);
 			if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
@@ -375,9 +378,6 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 				decon->bts.ops->update_bw(decon, false);
 			}
 		}
-
-		if (new_crtc_state->active || new_crtc_state->active_changed)
-			hibernation_block_exit(decon->hibernation);
 
 		if (old_crtc_state->active && !new_crtc_state->active) {
 			/*
