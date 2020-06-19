@@ -34,6 +34,15 @@
 	dev_err((h)->dev, "%s: prev h_state %d, cur c_state %d\n",	\
 				__func__, (h)->h_state, (h)->c_state)
 
+/* phy context retention control */
+#define UNIP_PA_DBG_OPTION_SUITE_1	0x956A
+#define DBG_SUITE1_ENABLE		0x90913C1C
+#define DBG_SUITE1_DISABLE		0x98913C1C
+
+#define UNIP_PA_DBG_OPTION_SUITE_2	0x956D
+#define DBG_SUITE2_ENABLE		0xE01C115F
+#define DBG_SUITE2_DISABLE		0xE01C195F
+
 static struct exynos_ufs *ufs_host_backup[1];
 static int ufs_host_index;
 static const char *res_token[2] = {
@@ -81,21 +90,33 @@ static inline void ufs_map_vs_regions(struct exynos_ufs *ufs)
 }
 
 /* Helper for UFS CAL interface */
-static inline int ufs_init_cal(struct exynos_ufs *ufs, int idx,
-			       struct platform_device *pdev)
+static int ufs_call_cal(struct exynos_ufs *ufs, int init, void *func)
 {
-	int ret = 0;
 	struct ufs_cal_param *p = &ufs->cal_param;
+	struct ufs_vs_handle *handle = &ufs->handle;
+	int ret;
+	u32 reg;
+	cal_if_func_init fn_init;
+	cal_if_func fn;
 
-	p->host = ufs;
-	p->board = 0;	/* ken: need a dt node for board */
-	ret = ufs_cal_init(p, idx);
-	if (ret != UFS_CAL_NO_ERROR) {
-		dev_err(ufs->dev, "ufs_init_cal = %d!!!\n", ret);
-		return -EPERM;
+	/* Enable MPHY APB */
+	reg = hci_readl(handle, HCI_CLKSTOP_CTRL);
+	hci_writel(handle, reg & ~MPHY_APBCLK_STOP, HCI_CLKSTOP_CTRL);
+	if (init) {
+		fn_init = (cal_if_func_init)func;
+		ret = fn_init(p, ufs_host_index);
+	} else {
+		fn = (cal_if_func)func;
+		ret = fn(p);
 	}
+	if (ret != UFS_CAL_NO_ERROR) {
+		dev_err(ufs->dev, "%s: %d\n", __func__, ret);
+		ret = -EPERM;
+	}
+	/* Disable MPHY APB */
+	hci_writel(handle, reg | MPHY_APBCLK_STOP, HCI_CLKSTOP_CTRL);
+	return ret;
 
-	return 0;
 }
 
 static void exynos_ufs_update_active_lanes(struct ufs_hba *hba)
@@ -113,15 +134,13 @@ static void exynos_ufs_update_active_lanes(struct ufs_hba *hba)
 	 * Exynos driver doesn't consider asymmetric lanes, e.g. rx=2, tx=1
 	 * so, for the cases, panic occurs to detect when you face new hardware
 	 */
-	if (!active_rx_lane || !active_tx_lane ||
-	    active_rx_lane != active_tx_lane) {
-		dev_err(hba->dev, "%s: invalid host active lanes. rx=%d, tx=%d\n",
+	if (!active_rx_lane || !active_tx_lane || active_rx_lane != active_tx_lane) {
+		dev_err(hba->dev, "%s: invalid active lanes. rx=%d, tx=%d\n",
 			__func__, active_rx_lane, active_tx_lane);
 		WARN_ON(1);
 	}
-
-	p->active_tx_lane = (u8)active_tx_lane;
 	p->active_rx_lane = (u8)active_rx_lane;
+	p->active_tx_lane = (u8)active_tx_lane;
 
 	dev_info(ufs->dev, "PA_ActiveTxDataLanes(%d), PA_ActiveRxDataLanes(%d)\n",
 		 active_tx_lane, active_rx_lane);
@@ -139,157 +158,6 @@ static void exynos_ufs_update_max_gear(struct ufs_hba *hba)
 	p->max_gear = min_t(u8, max_rx_hs_gear, pmd->gear);
 
 	dev_info(ufs->dev, "max_gear(%d), PA_MaxRxHSGear(%d)\n", p->max_gear, max_rx_hs_gear);
-
-	/* set for sysfs */
-	ufs->params[UFS_S_PARAM_EOM_SZ] =
-			EOM_PH_SEL_MAX * EOM_DEF_VREF_MAX *
-			ufs_s_eom_repeat[ufs->cal_param.max_gear];
-}
-
-static inline int ufs_pre_link(struct exynos_ufs *ufs)
-{
-	int ret = 0;
-	struct ufs_cal_param *p = &ufs->cal_param;
-
-	p->mclk_rate = ufs->mclk_rate;
-	/*
-	 * assume that unipro clock is supposed to be unsigned
-	 * and less than 1GHz.
-	 */
-	if (p->mclk_rate >= 1000000000U)
-		WARN_ON(1);
-
-	p->available_lane = ufs->num_rx_lanes;
-
-	ret = ufs_cal_pre_link(p);
-	if (ret != UFS_CAL_NO_ERROR) {
-		dev_err(ufs->dev, "%s: %d!!!\n", __func__, ret);
-		return -EPERM;
-	}
-
-	return 0;
-}
-
-static inline int ufs_post_link(struct exynos_ufs *ufs)
-{
-	int ret = 0;
-
-	/* update max gear after link*/
-	exynos_ufs_update_max_gear(ufs->hba);
-
-	ret = ufs_cal_post_link(&ufs->cal_param);
-	if (ret != UFS_CAL_NO_ERROR) {
-		dev_err(ufs->dev, "%s: %d!!!\n", __func__, ret);
-		return -EPERM;
-	}
-
-	return 0;
-}
-
-static inline int ufs_pre_gear_change(struct exynos_ufs *ufs,
-				      struct uic_pwr_mode *pmd)
-{
-	struct ufs_cal_param *p = &ufs->cal_param;
-	int ret = 0;
-
-	p->pmd = pmd;
-	ret = ufs_cal_pre_pmc(p);
-	if (ret != UFS_CAL_NO_ERROR) {
-		dev_err(ufs->dev, "%s: %d!!!\n", __func__, ret);
-		return -EPERM;
-	}
-
-	return 0;
-}
-
-static inline int ufs_post_gear_change(struct exynos_ufs *ufs)
-{
-	int ret = 0;
-
-	ret = ufs_cal_post_pmc(&ufs->cal_param);
-	if (ret != UFS_CAL_NO_ERROR) {
-		dev_err(ufs->dev, "%s: %d!!!\n", __func__, ret);
-		return -EPERM;
-	}
-
-	return 0;
-}
-
-static inline int ufs_post_h8_enter(struct exynos_ufs *ufs)
-{
-	int ret = 0;
-
-	ret = ufs_cal_post_h8_enter(&ufs->cal_param);
-	if (ret != UFS_CAL_NO_ERROR) {
-		dev_err(ufs->dev, "%s: %d!!!\n", __func__, ret);
-		return -EPERM;
-	}
-
-	return 0;
-}
-
-static inline int ufs_pre_h8_exit(struct exynos_ufs *ufs)
-{
-	int ret = 0;
-
-	ret = ufs_cal_pre_h8_exit(&ufs->cal_param);
-	if (ret != UFS_CAL_NO_ERROR) {
-		dev_err(ufs->dev, "%s: %d!!!\n", __func__, ret);
-		return -EPERM;
-	}
-
-	return 0;
-}
-
-/* Adaptor for UFS CAL */
-void ufs_lld_dme_set(void *h, u32 addr, u32 val)
-{
-	ufshcd_dme_set(((struct exynos_ufs *)h)->hba, addr, val);
-}
-
-void ufs_lld_dme_get(void *h, u32 addr, u32 *val)
-{
-	ufshcd_dme_get(((struct exynos_ufs *)h)->hba, addr, val);
-}
-
-void ufs_lld_dme_peer_set(void *h, u32 addr, u32 val)
-{
-	ufshcd_dme_peer_set(((struct exynos_ufs *)h)->hba, addr, val);
-}
-
-void ufs_lld_pma_write(void *h, u32 val, u32 addr)
-{
-	pma_writel(&((struct exynos_ufs *)h)->handle, val, addr);
-}
-
-u32 ufs_lld_pma_read(void *h, u32 addr)
-{
-	return pma_readl(&((struct exynos_ufs *)h)->handle, addr);
-}
-
-void ufs_lld_unipro_write(void *h, u32 val, u32 addr)
-{
-	unipro_writel(&((struct exynos_ufs *)h)->handle, val, addr);
-}
-
-void ufs_lld_udelay(u32 val)
-{
-	udelay(val);
-}
-
-void ufs_lld_usleep_delay(u32 min, u32 max)
-{
-	usleep_range(min, max);
-}
-
-unsigned long ufs_lld_get_time_count(unsigned long offset)
-{
-	return jiffies;
-}
-
-unsigned long ufs_lld_calc_timeout(const unsigned int ms)
-{
-	return msecs_to_jiffies(ms);
 }
 
 static inline void exynos_ufs_ctrl_phy_pwr(struct exynos_ufs *ufs, bool en)
@@ -409,10 +277,17 @@ static void exynos_ufs_init_pmc_req(struct ufs_hba *hba,
 	struct uic_pwr_mode *act_pmd = &ufs->act_pmd_parm;
 	struct ufs_cal_param *p = &ufs->cal_param;
 
-	/* update lane variable after link */
-	ufs->num_rx_lanes = pwr_max->lane_rx;
-	ufs->num_tx_lanes = pwr_max->lane_tx;
-
+	/*
+	 * Exynos driver doesn't consider asymmetric lanes, e.g. rx=2, tx=1
+	 * so, for the cases, panic occurs to detect when you face new hardware.
+	 * pwr_max comes from core driver, i.e. ufshcd. That keeps the number
+	 * of connected lanes.
+	 */
+	if (pwr_max->lane_rx != pwr_max->lane_tx) {
+		dev_err(hba->dev, "%s: invalid connected lanes. rx=%d, tx=%d\n",
+			__func__, pwr_max->lane_rx, pwr_max->lane_tx);
+		WARN_ON(1);
+	}
 	p->connected_rx_lane = pwr_max->lane_rx;
 	p->connected_tx_lane = pwr_max->lane_tx;
 
@@ -689,9 +564,7 @@ static int exynos_ufs_get_available_lane(struct ufs_hba *hba)
 	if (ret)
 		goto out;
 
-	ufs->num_rx_lanes = ufs->available_lane_rx;
-	ufs->num_tx_lanes = ufs->available_lane_tx;
-
+	ufs->num_lanes = ufs->available_lane_rx;
 	ret = 0;
 out:
 	return ret;
@@ -749,6 +622,8 @@ static int exynos_ufs_link_startup_notify(struct ufs_hba *hba,
 					  enum ufs_notify_change_status notify)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct ufs_cal_param *p = &ufs->cal_param;
+	struct ufs_vs_handle *handle = &ufs->handle;
 	int ret = 0;
 
 	switch (notify) {
@@ -766,11 +641,27 @@ static int exynos_ufs_link_startup_notify(struct ufs_hba *hba,
 
 		ufs->mclk_rate = clk_get_rate(ufs->clk_unipro);
 
-		ret = ufs_pre_link(ufs);
+		/*
+		 * unipro, keep phy context even if link startup fails
+		 * and for unipro v1.8.
+		 */
+		unipro_writel(handle, DBG_SUITE1_ENABLE, UNIP_PA_DBG_OPTION_SUITE_1);
+		unipro_writel(handle, DBG_SUITE2_ENABLE, UNIP_PA_DBG_OPTION_SUITE_2);
+
+		/* cal */
+		p->mclk_rate = ufs->mclk_rate;
+		p->available_lane = ufs->num_lanes;
+		ret = ufs_call_cal(ufs, 0, ufs_cal_pre_link);
 		break;
 	case POST_CHANGE:
-		/* UIC configuration table after link startup */
-		ret = ufs_post_link(ufs);
+		/* update max gear after link*/
+		exynos_ufs_update_max_gear(ufs->hba);
+
+		/* cal */
+		ret = ufs_call_cal(ufs, 0, ufs_cal_post_link);
+
+		/* set for sysfs */
+		ufs->params[UFS_S_PARAM_EOM_SZ] = p->eom_sz;
 
 		/* print link start-up result */
 		dev_info(ufs->dev, "UFS link start-up %s\n",
@@ -808,16 +699,17 @@ static int exynos_ufs_pwr_change_notify(struct ufs_hba *hba,
 		/* Set PMC parameters to be requested */
 		exynos_ufs_init_pmc_req(hba, pwr_max, pwr_req);
 
-		/* UIC configuration table before power mode change */
-		ret = ufs_pre_gear_change(ufs, act_pmd);
+		/* cal */
+		ufs->cal_param.pmd = act_pmd;
+		ret = ufs_call_cal(ufs, 0, ufs_cal_pre_pmc);
 
 		break;
 	case POST_CHANGE:
 		/* update active lanes after pmc */
 		exynos_ufs_update_active_lanes(hba);
 
-		/* UIC configuration table after power mode change */
-		ret = ufs_post_gear_change(ufs);
+		/* cal */
+		ret = ufs_call_cal(ufs, 0, ufs_cal_post_pmc);
 
 		dev_info(ufs->dev,
 			 "Power mode change(%d): M(%d)G(%d)L(%d)HS-series(%d)\n",
@@ -914,8 +806,8 @@ static void exynos_ufs_hibern8_notify(struct ufs_hba *hba,
 		if (notify == PRE_CHANGE) {
 			;
 		} else {
-			/* BG/SQ off */
-			ufs_post_h8_enter(ufs);
+			/* cal */
+			ufs_call_cal(ufs, 0, ufs_cal_post_h8_enter);
 			/* Internal clock off */
 			exynos_ufs_gate_clk(ufs, true);
 
@@ -928,8 +820,9 @@ static void exynos_ufs_hibern8_notify(struct ufs_hba *hba,
 
 			/* Internal clock on */
 			exynos_ufs_gate_clk(ufs, false);
-			/* BG/SQ on */
-			ufs_pre_h8_exit(ufs);
+
+			/* cal */
+			ufs_call_cal(ufs, 0, ufs_cal_pre_h8_exit);
 		} else {
 			int h8_delay_ms_ovly =
 				ufs->params[UFS_S_PARAM_H8_D_MS];
@@ -1223,9 +1116,9 @@ UFS_S_RW(h8_delay_ms, UFS_S_PARAM_H8_D_MS);
 static int exynos_ufs_sysfs_lane_store(struct exynos_ufs *ufs, u32 value,
 				       enum exynos_ufs_param_id id)
 {
-	if (value >= ufs->num_rx_lanes) {
+	if (value >= ufs->num_lanes) {
 		dev_err(ufs->dev, "%s set lane to %u. Its max is %u\n",
-			ufs_s_str_token[UFS_S_TOKEN_FAIL], value, ufs->num_rx_lanes);
+			ufs_s_str_token[UFS_S_TOKEN_FAIL], value, ufs->num_lanes);
 		return -EINVAL;
 	}
 
@@ -1508,7 +1401,9 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 		dev_err(dev, "Not enable UFS performance mode\n");
 
 	/* init cal */
-	ret = ufs_init_cal(ufs, ufs_host_index, pdev);
+	ufs->cal_param.handle = &ufs->handle;
+	ufs->cal_param.board = 0;	/* ken: need a dt node for board */
+	ret = ufs_call_cal(ufs, 1, ufs_cal_init);
 	if (ret)
 		return ret;
 	dev_info(dev, "===============================\n");
@@ -1519,7 +1414,7 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 #endif
 
 	/* init dbg */
-	ret = exynos_ufs_init_dbg(&ufs->handle);
+	ret = exynos_ufs_init_dbg(&ufs->handle, dev);
 	if (ret)
 		return ret;
 	spin_lock_init(&ufs->dbg_lock);

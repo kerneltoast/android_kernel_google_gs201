@@ -15,10 +15,16 @@
 #include <linux/pm_qos.h>
 #include <ufs-vs-mmio.h>
 #include <ufs-vs-regs.h>
-#ifdef CONFIG_SOC_GS101
-#include "ufs-cal-gs101.h"
-#else
-#include "ufs-cal-9820.h"
+#include "ufs-cal-if.h"
+
+/* Version check */
+#define UFS_EXYNOS_COMPAT_CAL_MMIO_VER 1
+#define UFS_EXYNOS_COMPAT_CAL_IF_VER 1
+#if (UFS_VS_MMIO_VER != UFS_EXYNOS_COMPAT_CAL_MMIO_VER)
+#error "UFS_VS_MMIO_VER and UFS_EXYNOS_COMPAT_CAL_MMIO_VER aren't matched"
+#endif
+#if (UFS_CAL_IF_VER != UFS_EXYNOS_COMPAT_CAL_IF_VER)
+#error "UFS_CAL_IF_VER and UFS_EXYNOS_COMPAT_CAL_IF_VER aren't matched"
 #endif
 
 #define UFS_VER_0004	4
@@ -106,8 +112,7 @@ struct exynos_ufs {
 
 	u32 mclk_rate;
 
-	int num_rx_lanes;
-	int num_tx_lanes;
+	int num_lanes;
 
 	struct uic_pwr_mode req_pmd_parm;
 	struct uic_pwr_mode act_pmd_parm;
@@ -153,7 +158,7 @@ static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)
 	return dev_get_platdata(hba->dev);
 }
 
-int exynos_ufs_init_dbg(struct ufs_vs_handle *handle);
+int exynos_ufs_init_dbg(struct ufs_vs_handle *handle, struct device *dev);
 int exynos_ufs_dbg_set_lanes(struct ufs_vs_handle *handle,
 			     struct device *dev, u32 lane);
 void exynos_ufs_dump_info(struct ufs_vs_handle *handle, struct device *dev);

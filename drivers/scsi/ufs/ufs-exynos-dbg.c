@@ -123,6 +123,17 @@ static const char *ufs_attr_field_name[4] = {
 #define CPORT_UCD_PTR           (CPORT_UTRL_PTR + CPORT_UTRL_SIZE)
 #define CPORT_UTMRL_PTR         (CPORT_UCD_PTR + CPORT_UCD_SIZE)
 
+enum {
+	TX_LANE_0 = 0,
+	TX_LANE_1 = 1,
+	TX_LANE_2 = 2,
+	TX_LANE_3 = 3,
+	RX_LANE_0 = 4,
+	RX_LANE_1 = 5,
+	RX_LANE_2 = 6,
+	RX_LANE_3 = 7,
+};
+
 struct ufs_log_cport {
 	u32 ptr;
 	u8 buf[CPORT_BUF_SIZE];
@@ -147,6 +158,15 @@ struct ufs_dbg_mgr {
 
 static struct ufs_dbg_mgr ufs_dbg[DBG_NUM_OF_HOSTS];
 static int ufs_dbg_mgr_idx;
+
+/* hardware, pma */
+#define PHY_PMA_COMN_ADDR(reg)			(reg)
+#define PHY_PMA_TRSV_ADDR(reg, lane)		((reg) + (0x800 * (lane)))
+
+/* hardware, pcs */
+#define UNIP_COMP_AXI_AUX_FIELD			0x040
+#define __WSTRB					(0xF << 24)
+#define __SEL_IDX(L)				((L) & 0xFFFF)
 
 static struct exynos_ufs_sfr_log ufs_log_sfr[] = {
 	{"STD HCI SFR",	LOG_STD_HCI_SFR},
@@ -456,7 +476,7 @@ static inline u32 __ufs_set_pcs_read(struct ufs_vs_handle *handle, u32 lane,
 {
 	unipro_writel(handle, __WSTRB | __SEL_IDX(lane),
 		      UNIP_COMP_AXI_AUX_FIELD);
-	return unipro_readl(handle, PCS_TRSV_OFFSET(cfg->mib));
+	return unipro_readl(handle, cfg->offset);
 }
 
 static void __ufs_get_attr(struct ufs_dbg_mgr *mgr,
@@ -484,7 +504,7 @@ static void __ufs_get_attr(struct ufs_dbg_mgr *mgr,
 		if (sel_api == DBG_ATTR_UNIPRO) {
 			*pval = unipro_readl(handle, cfg->offset);
 		} else if (sel_api == DBG_ATTR_PCS_CMN) {
-			*pval = unipro_readl(handle, PCS_CMN_OFFSET(cfg->mib));
+			*pval = unipro_readl(handle, cfg->offset);
 		} else if (sel_api == DBG_ATTR_PCS_TX) {
 			for (i = 0 ; i < ATTR_NUM_MAX_LANES ; i++) {
 				if (i >= mgr->lanes)
@@ -865,7 +885,7 @@ int exynos_ufs_dbg_set_lanes(struct ufs_vs_handle *handle,
 	return ret;
 }
 
-int exynos_ufs_init_dbg(struct ufs_vs_handle *handle)
+int exynos_ufs_init_dbg(struct ufs_vs_handle *handle, struct device *dev)
 {
 	struct ufs_dbg_mgr *mgr;
 	int ret = -1;
@@ -877,6 +897,11 @@ int exynos_ufs_init_dbg(struct ufs_vs_handle *handle)
 	handle->private = (void *)mgr;
 	mgr->handle = handle;
 	mgr->active = 1;
+
+	/* print hardware specific definitions */
+	dev_info(dev, "%s:\n", __func__);
+	dev_info(dev, "UNIP_COMP_AXI_AUX_FIELD = 0x%08x\n", UNIP_COMP_AXI_AUX_FIELD);
+	dev_info(dev, "__WSTRB = 0x%08x\n", __WSTRB);
 
 	/* cmd log */
 	spin_lock_init(&mgr->cmd_lock);

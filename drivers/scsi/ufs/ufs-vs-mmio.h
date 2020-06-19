@@ -26,30 +26,6 @@ struct ufs_vs_handle {
 	void *private;
 };
 
-/* Hardware */
-#define UIC_ARG_MIB_SEL(attr, sel)		((((attr) & 0xFFFF) << 16) |\
-						((sel) & 0xFFFF))
-#define UIC_ARG_MIB(attr)			UIC_ARG_MIB_SEL(attr, 0)
-#define PCS_CMN_OFFSET(ofs)			(0x2800 + ((ofs) - 0x200) * 4)
-#define PCS_TRSV_OFFSET(ofs)			(0x2000 + (ofs) * 4)
-#define PHY_PMA_COMN_ADDR(reg)			(reg)
-#define PHY_PMA_TRSV_ADDR(reg, lane)		((reg) + (0x400 * (lane)))
-
-#define UNIP_COMP_AXI_AUX_FIELD			0x040
-#define __WSTRB					(0xF << 24)
-#define __SEL_IDX(L)				((L) & 0xFFFF)
-
-enum {
-	TX_LANE_0 = 0,
-	TX_LANE_1 = 1,
-	TX_LANE_2 = 2,
-	TX_LANE_3 = 3,
-	RX_LANE_0 = 4,
-	RX_LANE_1 = 5,
-	RX_LANE_2 = 6,
-	RX_LANE_3 = 7,
-};
-
 #define EXYNOS_UFS_MMIO_FUNC(name)					\
 static inline void name##_writel(struct ufs_vs_handle *handle,		\
 		u32 val, u32 ofs)					\
