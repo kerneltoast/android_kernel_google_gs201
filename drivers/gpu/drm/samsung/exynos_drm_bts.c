@@ -555,6 +555,8 @@ void dpu_bts_calc_bw(struct decon_device *decon)
 	/* update bw for other decons */
 	dpu_bts_share_bw_info(decon->id);
 
+	DPU_EVENT_LOG(DPU_EVT_BTS_CALC_BW, decon->id, NULL);
+
 	DPU_DEBUG_BTS("%s -\n", __func__);
 }
 
@@ -594,6 +596,7 @@ void dpu_bts_update_bw(struct decon_device *decon, bool shadow_updated)
 					decon->bts.max_disp_freq);
 	}
 
+	DPU_EVENT_LOG(DPU_EVT_BTS_UPDATE_BW, decon->id, NULL);
 	DPU_DEBUG_BTS("%s -\n", __func__);
 }
 
@@ -634,6 +637,8 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 		return;
 	}
 
+	DPU_EVENT_LOG(DPU_EVT_BTS_ACQUIRE_BW, decon->id, NULL);
+
 	DPU_DEBUG_BTS("%s -\n", __func__);
 }
 
@@ -653,6 +658,7 @@ void dpu_bts_release_bw(struct decon_device *decon)
 		decon->bts.prev_max_disp_freq = 0;
 	}
 
+	DPU_EVENT_LOG(DPU_EVT_BTS_RELEASE_BW, decon->id, NULL);
 	DPU_DEBUG_BTS("%s -\n", __func__);
 }
 

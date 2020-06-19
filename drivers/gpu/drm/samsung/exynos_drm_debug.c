@@ -21,6 +21,8 @@
 #include <exynos_drm_dsim.h>
 #include <exynos_drm_writeback.h>
 #include <cal_config.h>
+#include <dt-bindings/soc/google/gs101-devfreq.h>
+#include <soc/google/exynos-devfreq.h>
 
 /* Default is 1024 entries array for event log buffer */
 static unsigned int dpu_event_log_max = 1024;
@@ -48,6 +50,13 @@ static bool dpu_event_ignore
 	}
 
 	return true;
+}
+
+static void dpu_event_save_freqs(struct dpu_log_freqs *freqs)
+{
+	freqs->mif_freq = exynos_devfreq_get_domain_freq(DEVFREQ_MIF);
+	freqs->int_freq = exynos_devfreq_get_domain_freq(DEVFREQ_INT);
+	freqs->disp_freq = exynos_devfreq_get_domain_freq(DEVFREQ_DISP);
 }
 
 /* ===== EXTERN APIs ===== */
@@ -139,6 +148,19 @@ void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv)
 		log->data.crtc_info.planes_changed = crtc_state->planes_changed;
 		log->data.crtc_info.mode_changed = crtc_state->mode_changed;
 		log->data.crtc_info.active_changed = crtc_state->active_changed;
+		break;
+	case DPU_EVT_BTS_ACQUIRE_BW:
+	case DPU_EVT_BTS_RELEASE_BW:
+	case DPU_EVT_BTS_UPDATE_BW:
+		dpu_event_save_freqs(&log->data.freqs);
+		break;
+	case DPU_EVT_BTS_CALC_BW:
+		dpu_event_save_freqs(&log->data.bts.freqs);
+		log->data.bts.calc_disp = decon->bts.max_disp_freq;
+		break;
+	case DPU_EVT_DSIM_UNDERRUN:
+		dpu_event_save_freqs(&log->data.underrun.freqs);
+		log->data.underrun.underrun_cnt = decon->d.underrun_cnt;
 		break;
 	default:
 		break;
@@ -300,6 +322,14 @@ void dpu_print_log_rsc(char *buf, int len, struct dpu_log_rsc_occupancy *rsc)
 	sprintf(buf + len, "\t%s\t%s", str_chs, str_wins);
 }
 
+#define LOG_BUF_SIZE	128
+static int dpu_print_log_freqs(char *buf, int len, struct dpu_log_freqs *freqs)
+{
+	return scnprintf(buf + len, LOG_BUF_SIZE - len,
+			"\tmif(%lu) int(%lu) disp(%lu)",
+			freqs->mif_freq, freqs->int_freq, freqs->disp_freq);
+}
+
 const char *get_event_name(enum dpu_event_type type)
 {
 	static const char events[][32] = {
@@ -319,7 +349,9 @@ const char *get_event_name(enum dpu_event_type type)
 		"WB_ENTER_HIBERNATION",		"WB_EXIT_HIBERNATION",
 		"PLANE_UPDATE",			"PLANE_DISABLE",
 		"REQ_CRTC_INFO_OLD",		"REQ_CRTC_INFO_NEW",
-		"FRAMESTART_TIMEOUT",
+		"FRAMESTART_TIMEOUT",		"BTS_ACQUIRE_BW",
+		"BTS_RELEASE_BW",		"BTS_CALC_BW",
+		"BTS_UPDATE_BW",
 	};
 
 	if (type >= DPU_EVT_MAX)
@@ -336,7 +368,7 @@ static void DPU_EVENT_SHOW(struct decon_device *decon, struct drm_printer *p)
 	struct timespec64 ts;
 	ktime_t prev_ktime;
 	const char *str_comp;
-	char buf[128];
+	char buf[LOG_BUF_SIZE];
 	int len;
 
 	if (IS_ERR_OR_NULL(decon->d.event_log))
@@ -415,6 +447,25 @@ static void DPU_EVENT_SHOW(struct decon_device *decon, struct drm_printer *p)
 					log->data.crtc_info.planes_changed,
 					log->data.crtc_info.mode_changed,
 					log->data.crtc_info.active_changed);
+			break;
+		case DPU_EVT_BTS_ACQUIRE_BW:
+		case DPU_EVT_BTS_RELEASE_BW:
+		case DPU_EVT_BTS_UPDATE_BW:
+			dpu_print_log_freqs(buf, len, &log->data.freqs);
+			break;
+		case DPU_EVT_BTS_CALC_BW:
+			len += dpu_print_log_freqs(buf, len,
+					&log->data.bts.freqs);
+			scnprintf(buf + len, sizeof(buf) - len,
+					" calculated disp(%u)",
+					log->data.bts.calc_disp);
+			break;
+		case DPU_EVT_DSIM_UNDERRUN:
+			len += dpu_print_log_freqs(buf, len,
+					&log->data.underrun.freqs);
+			scnprintf(buf + len, sizeof(buf) - len,
+					" underrun count(%d)",
+					log->data.underrun.underrun_cnt);
 			break;
 		default:
 			break;
