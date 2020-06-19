@@ -10,6 +10,9 @@
 #include <linux/highmem.h>
 #include <linux/bio.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/zram.h>
+
 #include "zram_drv.h"
 #include "zcomp.h"
 
@@ -343,7 +346,9 @@ int zcomp_decompress(struct zcomp *comp, u32 index, struct page *page)
 	}
 
 	src = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
+	trace_zcomp_decompress_start(page, index);
 	ret = comp->op->decompress(comp, src, src_len, page);
+	trace_zcomp_decompress_end(page, index);
 	zs_unmap_object(zram->mem_pool, handle);
 out:
 	return ret;
