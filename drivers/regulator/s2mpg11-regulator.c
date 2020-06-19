@@ -775,8 +775,8 @@ static int s2mpg11_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
-	s2mpg11->ocp_gpu_lvl = 13200 - (pdata->b2_ocp_warn_lvl * 250);
-	s2mpg11->soft_ocp_gpu_lvl = 13200 - (pdata->b2_soft_ocp_warn_lvl * 250);
+	s2mpg11->ocp_gpu_lvl = 13100 - (pdata->b2_ocp_warn_lvl * 250);
+	s2mpg11->soft_ocp_gpu_lvl = 13100 - (pdata->b2_soft_ocp_warn_lvl * 250);
 	s2mpg11->num_regulators = pdata->num_regulators;
 
 	/* request IRQ */
