@@ -2,6 +2,10 @@
 #ifndef __SAMSUNG_DRM_H__
 #define __SAMSUNG_DRM_H__
 
+#if defined(__linux__)
+#include <linux/types.h>
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
