@@ -96,26 +96,26 @@ static const struct file_operations exynos_drm_driver_fops = {
 };
 
 static struct drm_driver exynos_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_PRIME
-	    | DRIVER_ATOMIC | DRIVER_RENDER | DRIVER_GEM,
-	.open			  = exynos_drm_open,
-	.lastclose		  = exynos_drm_lastclose,
-	.postclose		  = exynos_drm_postclose,
-	.gem_free_object_unlocked = exynos_drm_gem_free_object,
-	.gem_vm_ops		  = &exynos_drm_gem_vm_ops,
-	.dumb_create		  = exynos_drm_gem_dumb_create,
-	.dumb_map_offset	  = exynos_drm_gem_dumb_map_offset,
-	.prime_handle_to_fd	  = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle	  = drm_gem_prime_fd_to_handle,
-	.gem_prime_import	  = exynos_drm_gem_prime_import,
+	.driver_features	   = DRIVER_MODESET | DRIVER_ATOMIC |
+				     DRIVER_RENDER | DRIVER_GEM,
+	.open			   = exynos_drm_open,
+	.lastclose		   = exynos_drm_lastclose,
+	.postclose		   = exynos_drm_postclose,
+	.gem_free_object_unlocked  = exynos_drm_gem_free_object,
+	.gem_vm_ops		   = &exynos_drm_gem_vm_ops,
+	.dumb_create		   = exynos_drm_gem_dumb_create,
+	.dumb_map_offset	   = exynos_drm_gem_dumb_map_offset,
+	.prime_handle_to_fd	   = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle	   = drm_gem_prime_fd_to_handle,
+	.gem_prime_import	   = exynos_drm_gem_prime_import,
 	.gem_prime_import_sg_table = exynos_drm_gem_prime_import_sg_table,
-	.gem_print_info		  = exynos_drm_gem_print_info,
-	.fops			  = &exynos_drm_driver_fops,
-	.name			  = DRIVER_NAME,
-	.desc			  = DRIVER_DESC,
-	.date			  = DRIVER_DATE,
-	.major			  = DRIVER_MAJOR,
-	.minor			  = DRIVER_MINOR,
+	.gem_print_info		   = exynos_drm_gem_print_info,
+	.fops			   = &exynos_drm_driver_fops,
+	.name			   = DRIVER_NAME,
+	.desc			   = DRIVER_DESC,
+	.date			   = DRIVER_DATE,
+	.major			   = DRIVER_MAJOR,
+	.minor			   = DRIVER_MINOR,
 };
 
 /* forward declaration */
