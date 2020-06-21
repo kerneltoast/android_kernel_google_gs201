@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/ktime.h>
 #include <linux/iopoll.h>
-#include <video/exynos_hdr_tunables.h>
 
 #include <exynos_dpp_coef.h>
 #include <exynos_hdr_lut.h>
