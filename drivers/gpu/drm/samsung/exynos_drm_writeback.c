@@ -29,6 +29,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_probe_helper.h>
 
 #include <exynos_drm_fb.h>
 #include <exynos_drm_dsim.h>
