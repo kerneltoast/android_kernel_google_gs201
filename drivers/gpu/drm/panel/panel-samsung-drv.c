@@ -407,11 +407,13 @@ static int exynos_drm_connector_modes(struct drm_connector *connector)
 }
 
 int exynos_drm_connector_atomic_check(struct drm_connector *connector,
-				      struct drm_connector_state *state)
+				      struct drm_atomic_state *state)
 {
+	struct drm_connector_state *new_state =
+		drm_atomic_get_new_connector_state(state, connector);
 	struct drm_bridge *bridge;
 	struct drm_crtc_state *crtc_state;
-	struct drm_encoder *encoder = state->best_encoder;
+	struct drm_encoder *encoder = new_state->best_encoder;
 	struct exynos_panel *ctx = connector_to_exynos_panel(connector);
 
 	if (!ctx->touch_dev)
@@ -422,7 +424,7 @@ int exynos_drm_connector_atomic_check(struct drm_connector *connector,
 		return 0;
 	}
 
-	crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
 	if (!drm_atomic_crtc_needs_modeset(crtc_state))
 		return 0;
 
