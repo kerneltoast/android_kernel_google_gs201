@@ -24,13 +24,15 @@ struct gs_chipid_variant {
 	int sub_rev_bit;
 };
 
+#define RAW_HEX_STR_SIZE 116
+
 /**
  * Struct gs_chipid_info
  * @soc_product_id: product id allocated to gs SoC
  * @soc_revision: revision of gs SoC
  */
 struct gs_chipid_info {
-	void __iomem *reg;
+	bool initialized;
 	u32 product_id;
 	u32 revision;
 	u32 main_rev;
@@ -38,6 +40,7 @@ struct gs_chipid_info {
 	u32 lot_id;
 	char *lot_id2;
 	u64 unique_id;
+	char raw_str[RAW_HEX_STR_SIZE];
 	struct gs_chipid_variant *drv_data;
 	struct platform_device *pdev;
 };
@@ -159,12 +162,19 @@ static ssize_t evt_ver_show(struct device *dev,
 			 gs_soc_info.main_rev, gs_soc_info.sub_rev);
 }
 
+static ssize_t raw_str_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s\n", gs_soc_info.raw_str);
+}
+
 static DEVICE_ATTR_RO(product_id);
 static DEVICE_ATTR_RO(unique_id);
 static DEVICE_ATTR_RO(lot_id);
 static DEVICE_ATTR_RO(lot_id2);
 static DEVICE_ATTR_RO(revision);
 static DEVICE_ATTR_RO(evt_ver);
+static DEVICE_ATTR_RO(raw_str);
 
 static struct attribute *chipid_sysfs_attrs[] = {
 	&dev_attr_product_id.attr,
@@ -173,6 +183,7 @@ static struct attribute *chipid_sysfs_attrs[] = {
 	&dev_attr_lot_id2.attr,
 	&dev_attr_revision.attr,
 	&dev_attr_evt_ver.attr,
+	&dev_attr_raw_str.attr,
 	NULL,
 };
 
@@ -197,14 +208,14 @@ static int chipid_sysfs_init(void)
 	return ret;
 }
 
-static void gs_chipid_get_chipid_info(void)
+static void gs_chipid_get_chipid_info(void __iomem *reg)
 {
 	const struct gs_chipid_variant *data = gs_soc_info.drv_data;
 	u64 val;
 	u32 uniq_id0, uniq_id1;
 	u32 temp;
 
-	val = readl_relaxed(gs_soc_info.reg);
+	val = readl_relaxed(reg);
 
 	switch (data->product_ver) {
 	case 2:
@@ -216,14 +227,14 @@ static void gs_chipid_get_chipid_info(void)
 		break;
 	}
 
-	val = readl_relaxed(gs_soc_info.reg + data->rev_reg);
+	val = readl_relaxed(reg + data->rev_reg);
 	gs_soc_info.main_rev = (val >> data->main_rev_bit) & REV_MASK;
 	gs_soc_info.sub_rev = (val >> data->sub_rev_bit) & REV_MASK;
 	gs_soc_info.revision = (gs_soc_info.main_rev << 4)
 	    | gs_soc_info.sub_rev;
 
-	uniq_id0 = readl_relaxed(gs_soc_info.reg + data->unique_id_reg);
-	uniq_id1 = readl_relaxed(gs_soc_info.reg + data->unique_id_reg + 4);
+	uniq_id0 = readl_relaxed(reg + data->unique_id_reg);
+	uniq_id1 = readl_relaxed(reg + data->unique_id_reg + 4);
 	val = (u64)uniq_id0 | ((u64)uniq_id1 << 32UL);
 	gs_soc_info.unique_id = val;
 	gs_soc_info.lot_id = val & LOTID_MASK;
@@ -233,6 +244,33 @@ static void gs_chipid_get_chipid_info(void)
 	chipid_dec_to_36(temp, uniq_id1, lot_id);
 	gs_soc_info.lot_id2 = lot_id;
 }
+
+static void gs_chipid_get_raw_str(void __iomem *reg)
+{
+	u32 addr;
+	u8 val;
+	int str_pos = 0;
+
+	for (addr = 0x4; addr < 0xA; addr++) {
+		val = readb_relaxed(reg + addr);
+		str_pos += scnprintf(gs_soc_info.raw_str + str_pos,
+				     RAW_HEX_STR_SIZE - str_pos,
+				     "%02x", val);
+	}
+	for (addr = 0xA000; addr < 0xA024; addr++) {
+		val = readb_relaxed(reg + addr);
+		str_pos += scnprintf(gs_soc_info.raw_str + str_pos,
+				     RAW_HEX_STR_SIZE - str_pos,
+				     "%02x", val);
+	}
+	for (addr = 0x9000; addr < 0x9010; addr++) {
+		val = readb_relaxed(reg + addr);
+		str_pos += scnprintf(gs_soc_info.raw_str + str_pos,
+				     RAW_HEX_STR_SIZE - str_pos,
+				     "%02x", val);
+	}
+}
+
 
 static const struct of_device_id of_gs_chipid_ids[] = {
 	{
@@ -250,8 +288,9 @@ void gs_chipid_early_init(void)
 {
 	struct device_node *np;
 	const struct of_device_id *match;
+	void __iomem *reg;
 
-	if (gs_soc_info.reg)
+	if (gs_soc_info.initialized)
 		return;
 
 	np = of_find_matching_node_and_match(NULL, of_gs_chipid_ids, &match);
@@ -259,11 +298,14 @@ void gs_chipid_early_init(void)
 		panic("%s, failed to find chipid node or match\n", __func__);
 
 	gs_soc_info.drv_data = (struct gs_chipid_variant *)match->data;
-	gs_soc_info.reg = of_iomap(np, 0);
-	if (!gs_soc_info.reg)
+	reg = of_iomap(np, 0);
+	if (!reg)
 		panic("%s: failed to map registers\n", __func__);
 
-	gs_chipid_get_chipid_info();
+	gs_chipid_get_chipid_info(reg);
+	gs_chipid_get_raw_str(reg);
+	iounmap(reg);
+	gs_soc_info.initialized = true;
 }
 
 static int gs_chipid_probe(struct platform_device *pdev)
