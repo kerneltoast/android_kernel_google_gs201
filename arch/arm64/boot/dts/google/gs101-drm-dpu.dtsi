@@ -267,6 +267,11 @@
 		wr_hi_thres = <0x0>;
 		wr_lo_thres = <0x0>;
 
+		/* DTA */
+		dta_en = <1>;
+		dta_hi_thres = <0x3200>;
+		dta_lo_thres = <0x600>;
+
 		/* EINT for TE */
 		gpios = <&gpp0 3 0xf>;
 
