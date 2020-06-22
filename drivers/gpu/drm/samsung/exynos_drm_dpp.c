@@ -972,7 +972,7 @@ struct platform_driver dpp_driver = {
 };
 
 #ifdef CONFIG_OF
-static int of_device_match(struct device *dev, void *data)
+static int of_device_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data;
 }
