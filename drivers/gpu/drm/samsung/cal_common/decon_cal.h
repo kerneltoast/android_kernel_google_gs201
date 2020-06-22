@@ -201,6 +201,9 @@ struct decon_urgent {
 	u32 wr_en;
 	u32 wr_hi_thres;
 	u32 wr_lo_thres;
+	bool dta_en;
+	u32 dta_hi_thres;
+	u32 dta_lo_thres;
 };
 
 struct decon_config {

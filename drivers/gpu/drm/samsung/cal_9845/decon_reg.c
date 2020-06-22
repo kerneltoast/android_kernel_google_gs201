@@ -361,6 +361,24 @@ static void decon_reg_set_wr_urgent_threshold(u32 id, u32 high, u32 low)
 	decon_write(id, OF_WR_URGENT_0, val);
 }
 
+/* Enable DTA control */
+static void decon_reg_set_dta_enable(u32 id, bool en)
+{
+	u32 val, mask;
+
+	val = en ? ~0 : 0;
+	mask = DTA_EN_F;
+	decon_write_mask(id, OF_DTA_CONTROL, val, mask);
+}
+
+static void decon_reg_set_dta_threshold(u32 id, u32 high, u32 low)
+{
+	u32 val;
+
+	val = DTA_HIGH_TH_F(high) | DTA_LOW_TH_F(low);
+	decon_write(id, OF_DTA_THRESHOLD, val);
+}
+
 #define OUTIF_DSI0	BIT(0)
 #define OUTIF_DSI1	BIT(1)
 #define OUTIF_WB	BIT(2)
@@ -1638,6 +1656,10 @@ static void decon_reg_set_urgent(u32 id, struct decon_config *config)
 		decon_reg_set_wr_urgent_threshold(id,
 						  config->urgent.wr_hi_thres,
 						  config->urgent.wr_lo_thres);
+		decon_reg_set_dta_enable(id, config->urgent.dta_en);
+		decon_reg_set_dta_threshold(id,
+					    config->urgent.dta_hi_thres,
+					    config->urgent.dta_lo_thres);
 	}
 }
 

@@ -752,6 +752,22 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 				ret);
 	}
 
+	decon->config.urgent.dta_en = of_property_read_bool(np, "dta_en");
+	if (decon->config.urgent.dta_en) {
+		ret = of_property_read_u32(np, "dta_hi_thres",
+				&decon->config.urgent.dta_hi_thres);
+		if (ret) {
+			decon_err(decon, "failed to parse dta_hi_thres(%d)\n",
+					ret);
+		}
+		ret = of_property_read_u32(np, "dta_lo_thres",
+				&decon->config.urgent.dta_lo_thres);
+		if (ret) {
+			decon_err(decon, "failed to parse dta_lo_thres(%d)\n",
+					ret);
+		}
+	}
+
 	ret = of_property_read_u32(np, "out_type", &decon->config.out_type);
 	if (ret) {
 		decon_err(decon, "failed to parse output type(%d)\n", ret);
