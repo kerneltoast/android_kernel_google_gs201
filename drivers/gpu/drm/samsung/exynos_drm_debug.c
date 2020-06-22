@@ -530,6 +530,24 @@ int dpu_init_debug(struct decon_device *decon)
 		goto err_urgent;
 	}
 
+	if (!debugfs_create_bool("dta_en", 0664,
+			urgent_dent, &decon->config.urgent.dta_en)) {
+		DRM_ERROR("failed to create debugfs dta_en file\n");
+		goto err_urgent;
+	}
+
+	if (!debugfs_create_x32("dta_hi_thres", 0664,
+			urgent_dent, &decon->config.urgent.dta_hi_thres)) {
+		DRM_ERROR("failed to create debugfs dta_hi_thres file\n");
+		goto err_urgent;
+	}
+
+	if (!debugfs_create_x32("dta_lo_thres", 0664,
+			urgent_dent, &decon->config.urgent.dta_lo_thres)) {
+		DRM_ERROR("failed to create debugfs dta_lo_thres file\n");
+		goto err_urgent;
+	}
+
 	return 0;
 
 err_urgent:
