@@ -140,7 +140,7 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 		}
 
 		/* drop ref from import - handle holds it now */
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 	}
 
 	/* drop ref from alloc - import holds it now */
@@ -253,7 +253,7 @@ static int exynos_drm_gem_offset(struct drm_device *dev, struct drm_file *filep,
 
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 out:
-	drm_gem_object_unreference(obj);
+	drm_gem_object_put(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 
