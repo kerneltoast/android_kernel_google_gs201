@@ -58,6 +58,26 @@
 
 #define V4L2_PIX_FMT_NV12_P010		v4l2_fourcc('P', 'N', '1', '2')
 
+/* 12 Y/CbCr 4:2:0 SBWC */
+#define V4L2_PIX_FMT_NV12M_SBWC_8B	v4l2_fourcc('M', '1', 'S', '8')
+#define V4L2_PIX_FMT_NV12M_SBWC_10B	v4l2_fourcc('M', '1', 'S', '1')
+
+/* 21 Y/CrCb 4:2:0 SBWC */
+#define V4L2_PIX_FMT_NV21M_SBWC_8B	v4l2_fourcc('M', '2', 'S', '8')
+#define V4L2_PIX_FMT_NV21M_SBWC_10B	v4l2_fourcc('M', '2', 'S', '1')
+
+/* 12 Y/CbCr 4:2:0 SBWC single */
+#define V4L2_PIX_FMT_NV12N_SBWC_8B	v4l2_fourcc('N', '1', 'S', '8')
+#define V4L2_PIX_FMT_NV12N_SBWC_10B	v4l2_fourcc('N', '1', 'S', '1')
+
+/* 12 Y/CbCr 4:2:0 SBWC Lossy */
+#define V4L2_PIX_FMT_NV12M_SBWCL_8B	v4l2_fourcc('M', '1', 'L', '8')
+#define V4L2_PIX_FMT_NV12M_SBWCL_10B	v4l2_fourcc('M', '1', 'L', '1')
+
+/* 12 Y/CbCr 4:2:0 SBWC Lossy single */
+#define V4L2_PIX_FMT_NV12N_SBWCL_8B	v4l2_fourcc('N', '1', 'L', '8')
+#define V4L2_PIX_FMT_NV12N_SBWCL_10B	v4l2_fourcc('N', '1', 'L', '1')
+
 /* helper macros */
 #ifndef __ALIGN_UP
 #define __ALIGN_UP(x, a)		(((x) + ((a) - 1)) & ~((a) - 1))
