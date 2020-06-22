@@ -69,12 +69,12 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 	return fb;
 }
 
-static size_t get_plane_size(const struct drm_mode_fb_cmd2 *mode_cmd, u32 idx)
+static size_t get_plane_size(const struct drm_mode_fb_cmd2 *mode_cmd, u32 idx,
+		const struct drm_format_info *info)
 {
 	u32 height;
-	size_t size;
+	size_t size = 0;
 	bool is_10bpc;
-	u8 vsub = drm_format_vert_chroma_subsampling(mode_cmd->pixel_format);
 
 	if (has_all_bits(DRM_FORMAT_MOD_SAMSUNG_YUV_8_2_SPLIT,
 				mode_cmd->modifier[idx])) {
@@ -98,7 +98,7 @@ static size_t get_plane_size(const struct drm_mode_fb_cmd2 *mode_cmd, u32 idx)
 					is_10bpc);
 	} else {
 		height = (idx == 0) ? mode_cmd->height :
-			DIV_ROUND_UP(mode_cmd->height, vsub);
+			DIV_ROUND_UP(mode_cmd->height, info->vsub);
 		size = height * mode_cmd->pitches[idx];
 	}
 
@@ -146,7 +146,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			goto err;
 		}
 
-		size = get_plane_size(mode_cmd, i);
+		size = get_plane_size(mode_cmd, i, info);
 		if (mode_cmd->offsets[i] + size > obj[i]->size) {
 			DRM_ERROR("offsets[%d](%d) size(%d) obj[%d]->size(%d)\n",
 					i, mode_cmd->offsets[i], size, i,
