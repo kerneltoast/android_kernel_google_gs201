@@ -278,7 +278,7 @@ err_mode_config_cleanup:
 	drm_mode_config_cleanup(drm);
 	kfree(private);
 err_free_drm:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	drm_mode_config_cleanup(drm);
 	kfree(private);
 
@@ -301,7 +301,7 @@ static void exynos_drm_unbind(struct device *dev)
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
 
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops exynos_drm_ops = {
