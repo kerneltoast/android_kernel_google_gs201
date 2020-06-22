@@ -129,7 +129,7 @@
 	(__ALIGN_UP((w / 4), 16) * __ALIGN_UP((h), 16) + 256)
 
 #define S10B_8B_STRIDE(w)		(__ALIGN_UP((w), 64))
-#define S10B_2B_STRIDE(w)		(__ALIGN_UP((w / 4), 16))
+#define S10B_2B_STRIDE(w)		(__ALIGN_UP(((w + 3) / 4), 16))
 
 /* SBWC */
 #define SBWC_8B_STRIDE(w)		(128 * (((w) + 31) / 32))
