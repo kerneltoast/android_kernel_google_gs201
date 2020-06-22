@@ -19,7 +19,7 @@
 #include <linux/kthread.h>
 #include <linux/pm_runtime.h>
 #include <linux/sched.h>
-#include <linux/sched/types.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/err.h>
 #include <linux/atomic.h>
 
