@@ -158,7 +158,7 @@ static void writeback_atomic_commit(struct drm_connector *connector,
 
 	wb_convert_connector_state_to_config(config, to_exynos_wb_state(state));
 	dpp_reg_configure_params(wb->id, config, wb->attr);
-	drm_writeback_queue_job(wb_conn, state->writeback_job);
+	drm_writeback_queue_job(wb_conn, state);
 
 	DPU_EVENT_LOG(DPU_EVT_WB_ATOMIC_COMMIT, wb->decon_id, wb);
 
