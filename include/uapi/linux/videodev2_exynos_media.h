@@ -56,6 +56,8 @@
 #define V4L2_PIX_FMT_NV16M_P210		v4l2_fourcc('P', 'M', '1', '6')
 #define V4L2_PIX_FMT_NV61M_P210		v4l2_fourcc('P', 'M', '6', '1')
 
+#define V4L2_PIX_FMT_NV12_P010		v4l2_fourcc('P', 'N', '1', '2')
+
 /* helper macros */
 #ifndef __ALIGN_UP
 #define __ALIGN_UP(x, a)		(((x) + ((a) - 1)) & ~((a) - 1))
