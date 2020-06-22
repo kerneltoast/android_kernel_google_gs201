@@ -17,7 +17,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/mm_types.h>
-#include <linux/ion_exynos.h>
+#include <linux/ion.h>
 #include <exynos_drm_dsim.h>
 #include <exynos_drm_gem.h>
 #include <exynos_drm_dsim.h>
@@ -54,8 +54,7 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 		return ERR_CAST(exynos_gem_obj);
 
 	exynos_gem_obj->sgt = sgt;
-	exynos_gem_obj->dma_addr = ion_iovmm_map(attach, 0, size,
-						 DMA_TO_DEVICE, 0);
+	exynos_gem_obj->dma_addr = sg_dma_address(sgt->sgl);
 	if (IS_ERR_VALUE(exynos_gem_obj->dma_addr)) {
 		pr_err("Failed to allocate IOVM\n");
 		kfree(exynos_gem_obj);
@@ -78,14 +77,8 @@ static void exynos_drm_gem_unmap(struct exynos_drm_gem *exynos_gem_obj)
 	if (exynos_gem_obj->flags & EXYNOS_DRM_GEM_FLAG_COLORMAP)
 		return;
 
-	if (exynos_gem_obj->dma_addr) {
-		ion_iovmm_unmap(attach, exynos_gem_obj->dma_addr);
-		pr_debug("unmapped dma_addr: 0x%pK\n",
-			 exynos_gem_obj->dma_addr);
-	}
-
 	if (exynos_gem_obj->kaddr) {
-		dma_buf_vunmap(attach->dmabuf, exynos_gem_obj->kaddr);
+		dma_buf_kunmap(attach->dmabuf, 0, exynos_gem_obj->kaddr);
 		pr_debug("unmapped kaddr: %pK\n");
 	}
 }
@@ -107,7 +100,6 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 				 size_t size, unsigned int flags,
 				 unsigned int *gem_handle)
 {
-	const char *heap_name = "ion_system_heap";
 	struct dma_buf *dmabuf;
 	struct drm_gem_object *obj;
 	int ret;
@@ -117,7 +109,7 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 		return -EINVAL;
 	}
 
-	dmabuf = ion_alloc_dmabuf(heap_name, size, 0);
+	dmabuf = ion_alloc(size, ION_HEAP_SYSTEM, 0);
 	if (IS_ERR_OR_NULL(dmabuf)) {
 		pr_err("ION Failed to alloc %#zx bytes\n", size);
 		return PTR_ERR(dmabuf);

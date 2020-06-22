@@ -36,7 +36,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
 #include <linux/iommu.h>
-#include <linux/exynos_iovmm.h>
 
 #include <video/mipi_display.h>
 

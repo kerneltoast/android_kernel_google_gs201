@@ -22,9 +22,9 @@
 #include <linux/component.h>
 #include <linux/irq.h>
 #include <linux/videodev2_exynos_media.h>
-#include <linux/ion_exynos.h>
 #include <linux/dma-buf.h>
 #include <linux/soc/samsung/exynos-smc.h>
+#include <linux/ion.h>
 
 #include <exynos_drm_fb.h>
 #include <exynos_drm_dpp.h>
@@ -191,15 +191,15 @@ static dma_addr_t dpp_alloc_map_buf_test(void)
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
 	size = PAGE_ALIGN(1440 * 3040 * 4);
-	buf = ion_alloc_dmabuf("ion_system_heap", size, 0);
+	buf = ion_alloc(size, ION_HEAP_SYSTEM, 0);
 	if (IS_ERR(buf)) {
 		pr_err("failed to allocate test buffer memory\n");
 		return PTR_ERR(buf);
 	}
 
-	vaddr = dma_buf_vmap(buf);
+	vaddr = dma_buf_kmap(buf, 0);
 	memset(vaddr, 0x80, size);
-	dma_buf_vunmap(buf, vaddr);
+	dma_buf_kunmap(buf, 0, vaddr);
 
 	/* mapping buffer for translating to DVA */
 	attachment = dma_buf_attach(buf, priv->iommu_client);
@@ -214,7 +214,7 @@ static dma_addr_t dpp_alloc_map_buf_test(void)
 		return -EINVAL;
 	}
 
-	dma_addr = ion_iovmm_map(attachment, 0, size, DMA_TO_DEVICE, 0);
+	dma_addr = sg_dma_address(sg_table->sgl);
 	if (IS_ERR_VALUE(dma_addr)) {
 		pr_err("failed to map iovmm\n");
 		return -EINVAL;

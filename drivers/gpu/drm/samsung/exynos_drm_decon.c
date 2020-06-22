@@ -30,7 +30,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/console.h>
 #include <linux/iommu.h>
-#include <linux/exynos_iovmm.h>
 
 #include <video/videomode.h>
 
@@ -606,8 +605,7 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.atomic_flush = decon_atomic_flush,
 };
 
-static int dpu_sysmmu_fault_handler(struct iommu_domain *domain,
-	struct device *dev, unsigned long iova, int flags, void *token)
+static int dpu_sysmmu_fault_handler(struct iommu_fault *fault, void *data)
 {
 	pr_info("%s +\n", __func__);
 	return 0;
@@ -619,7 +617,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 	struct drm_plane *default_plane;
-	int i, ret = 0;
+	int i;
 
 	decon->drm_dev = drm_dev;
 
@@ -640,14 +638,10 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 				plane->possible_crtcs);
 	}
 
-	ret = iovmm_activate(dev);
-	if (ret) {
-		pr_err("failed to activate iovmm\n");
-		return ret;
-	}
 	priv->iommu_client = dev;
 
-	iovmm_set_fault_handler(dev, dpu_sysmmu_fault_handler, NULL);
+	iommu_register_device_fault_handler(dev, dpu_sysmmu_fault_handler,
+			NULL);
 
 	decon_dbg(decon, "%s -\n", __func__);
 	return 0;

@@ -17,7 +17,6 @@
 #include <linux/component.h>
 #include <linux/irq.h>
 #include <linux/videodev2_exynos_media.h>
-#include <linux/ion_exynos.h>
 #include <linux/dma-buf.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>

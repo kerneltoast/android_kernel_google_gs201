@@ -23,7 +23,6 @@
 #include <uapi/drm/exynos_drm.h>
 #include <uapi/linux/videodev2_exynos_media.h>
 #include <linux/dma-buf.h>
-#include <linux/ion_exynos.h>
 
 #include <exynos_drm_decon.h>
 #include <exynos_drm_drv.h>
