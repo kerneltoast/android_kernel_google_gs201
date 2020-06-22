@@ -1355,12 +1355,8 @@ static ssize_t bist_mode_show(struct device *dev,
 {
 
 	struct dsim_device *dsim = dev_get_drvdata(dev);
-	char temp[1];
 
-	sprintf(temp, "%d\n", dsim->bist_mode);
-	strcpy(buf, temp);
-
-	return strlen(buf);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", dsim->bist_mode);
 }
 
 static ssize_t bist_mode_store(struct device *dev,
