@@ -24,7 +24,7 @@
 #include <linux/videodev2_exynos_media.h>
 #include <linux/ion_exynos.h>
 #include <linux/dma-buf.h>
-#include <linux/smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 
 #include <exynos_drm_fb.h>
 #include <exynos_drm_dpp.h>
