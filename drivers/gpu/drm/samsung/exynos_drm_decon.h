@@ -21,7 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/pm_qos.h>
 
-#include <soc/samsung/bts.h>
+#include <soc/google/bts.h>
 #include <drm/drm_device.h>
 #include <video/videomode.h>
 
@@ -129,14 +129,12 @@ struct dpu_bts {
 	u32 vfp;
 	u32 vsa;
 	u32 fps;
-#if defined(CONFIG_EXYNOS_BTS)
 	struct dpu_bts_bw bw[MAX_DPP_CNT];
 
 	/* each decon must know other decon's BW to get overall BW */
 	u32 ch_bw[3][MAX_DECON_CNT];
 	int bw_idx;
 	struct bts_decon_info bts_info;
-#endif
 	struct dpu_bts_ops *ops;
 	struct pm_qos_request mif_qos;
 	struct pm_qos_request int_qos;

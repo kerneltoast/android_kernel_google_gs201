@@ -13,9 +13,9 @@
 #include <exynos_drm_decon.h>
 #include <exynos_drm_format.h>
 
-#include <soc/samsung/bts.h>
+#include <soc/google/bts.h>
 #if defined(CONFIG_SOC_GS101)
-#include <soc/samsung/exynos-devfreq.h>
+#include <soc/google/exynos-devfreq.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #endif
 #if defined(CONFIG_CAL_IF)
