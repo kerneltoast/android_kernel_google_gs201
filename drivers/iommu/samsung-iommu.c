@@ -1082,8 +1082,10 @@ static void samsung_sysmmu_flush_iotlb_all(struct iommu_domain *dom)
 	list_for_each_entry(drvdata, sysmmu_list, list) {
 		spin_lock_irqsave(&drvdata->lock, flags);
 		if (drvdata->attached_count &&
-		    !pm_runtime_suspended(drvdata->dev))
+		    pm_runtime_get_if_in_use(drvdata->dev)) {
 			__sysmmu_tlb_invalidate_all(drvdata);
+			pm_runtime_put(drvdata->dev);
+		}
 		spin_unlock_irqrestore(&drvdata->lock, flags);
 	}
 }
@@ -1108,9 +1110,11 @@ static void samsung_sysmmu_iotlb_sync(struct iommu_domain *dom,
 	list_for_each_entry(drvdata, sysmmu_list, list) {
 		spin_lock_irqsave(&drvdata->lock, flags);
 		if (drvdata->attached_count &&
-		    !pm_runtime_suspended(drvdata->dev))
+		    pm_runtime_get_if_in_use(drvdata->dev)) {
 			__sysmmu_tlb_invalidate(drvdata,
 						gather->start, gather->end);
+			pm_runtime_put(drvdata->dev);
+		}
 		spin_unlock_irqrestore(&drvdata->lock, flags);
 	}
 }
