@@ -110,6 +110,14 @@ typedef u32 sysmmu_pte_t;
 
 #define SYSMMU_FAULTS_NUM         (SYSMMU_FAULT_UNKNOWN + 1)
 
+#define REG_MMU_CAPA0_V7		0x870
+#define REG_MMU_CAPA1_V7		0x874
+
+#define MMU_CAPA1_EXIST(reg)		(((reg) >> 11) & 0x1)
+#define MMU_CAPA1_TYPE(reg)		(((reg) >> 28) & 0xF)
+#define MMU_CAPA1_NO_BLOCK_MODE(reg)	(((reg) >> 15) & 0x1)
+#define MMU_CAPA1_VCR_ENABLED(reg)	(((reg) >> 14) & 0x1)
+
 static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 	"PTW ACCESS FAULT",
 	"PAGE FAULT",
@@ -128,6 +136,60 @@ static int sysmmu_fault_type[SYSMMU_FAULTS_NUM] = {
 	IOMMU_FAULT_REASON_UNKNOWN,
 };
 
+struct tlb_priv_addr {
+	unsigned int cfg;
+};
+
+struct tlb_priv_id {
+	unsigned int cfg;
+	unsigned int id;
+};
+
+struct tlb_port_cfg {
+	unsigned int cfg;
+	unsigned int id;
+};
+
+/*
+ * flags[7:4] specifies TLB matching types.
+ * 0x1 : TLB way dedication
+ * 0x2 : TLB port dedication
+ */
+#define TLB_TYPE_MASK(x)	((x) & (0xF << 4))
+#define TLB_TYPE_WAY		(0x1 << 4)
+#define TLB_TYPE_PORT		(0x2 << 4)
+#define IS_TLB_WAY_TYPE(data)	(TLB_TYPE_MASK((data)->tlb_props.flags)	\
+				== TLB_TYPE_WAY)
+#define IS_TLB_PORT_TYPE(data)	(TLB_TYPE_MASK((data)->tlb_props.flags)	\
+				== TLB_TYPE_PORT)
+
+#define TLB_WAY_PRIVATE_ID	BIT(0)
+#define TLB_WAY_PRIVATE_ADDR	BIT(1)
+#define TLB_WAY_PUBLIC		BIT(2)
+
+struct tlb_way_props {
+	int priv_id_cnt;
+	int priv_addr_cnt;
+	unsigned int public_cfg;
+	struct tlb_priv_id *priv_id_cfg;
+	struct tlb_priv_addr *priv_addr_cfg;
+};
+
+struct tlb_port_props {
+	int port_id_cnt;
+	int slot_cnt;
+	struct tlb_port_cfg *port_cfg;
+	unsigned int *slot_cfg;
+};
+
+struct tlb_props {
+	int flags;
+	union {
+		struct tlb_way_props way_props;
+		struct tlb_port_props port_props;
+	};
+};
+
 struct sysmmu_drvdata {
 	struct list_head list;
 	struct iommu_device iommu;
@@ -139,6 +201,9 @@ struct sysmmu_drvdata {
 	spinlock_t lock; /* protect atomic update to H/W status */
 	u32 version;
 	int attached_count;
+	struct tlb_props tlb_props;
+	bool no_block_mode;
+	bool has_vcr;
 };
 
 struct sysmmu_clientdata {
@@ -171,6 +236,28 @@ static struct kmem_cache *flpt_cache, *slpt_cache;
 static inline u32 __sysmmu_get_hw_version(struct sysmmu_drvdata *data)
 {
 	return MMU_RAW_VER(readl_relaxed(data->sfrbase + REG_MMU_VERSION));
+}
+
+static inline bool __sysmmu_has_capa1(struct sysmmu_drvdata *data)
+{
+	return MMU_CAPA1_EXIST(readl_relaxed(data->sfrbase + REG_MMU_CAPA0_V7));
+}
+
+static inline u32 __sysmmu_get_capa_type(struct sysmmu_drvdata *data)
+{
+	return MMU_CAPA1_TYPE(readl_relaxed(data->sfrbase + REG_MMU_CAPA1_V7));
+}
+
+static inline bool __sysmmu_get_capa_no_block_mode(struct sysmmu_drvdata *data)
+{
+	return MMU_CAPA1_NO_BLOCK_MODE(readl_relaxed(data->sfrbase +
+						     REG_MMU_CAPA1_V7));
+}
+
+static inline bool __sysmmu_get_capa_vcr_enabled(struct sysmmu_drvdata *data)
+{
+	return MMU_CAPA1_VCR_ENABLED(readl_relaxed(data->sfrbase +
+						   REG_MMU_CAPA1_V7));
 }
 
 static inline void __sysmmu_tlb_invalidate_all(struct sysmmu_drvdata *data)
@@ -1013,9 +1100,24 @@ static irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 
 static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 {
+	struct tlb_props *tlb_props = &data->tlb_props;
+
 	data->version = __sysmmu_get_hw_version(data);
 
-	/* TODO: read more capability in HW */
+	/*
+	 * If CAPA1 doesn't exist, sysmmu uses TLB way dedication.
+	 * If CAPA1[31:28] is zero, sysmmu uses TLB port dedication.
+	 */
+	if (!__sysmmu_has_capa1(data)) {
+		tlb_props->flags |= TLB_TYPE_WAY;
+	} else {
+		if (__sysmmu_get_capa_type(data) == 0)
+			tlb_props->flags |= TLB_TYPE_PORT;
+		if (__sysmmu_get_capa_vcr_enabled(data))
+			data->has_vcr = true;
+		if (__sysmmu_get_capa_no_block_mode(data))
+			data->no_block_mode = true;
+	}
 
 	return 0;
 }
