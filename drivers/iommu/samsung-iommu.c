@@ -83,9 +83,16 @@ typedef u32 sysmmu_pte_t;
 #define MMU_RAW_VER(reg)	(((reg) >> 17) & 0x7FFF)
 
 #define REG_MMU_CTRL			0x000
-#define CTRL_ENABLE			0x5
 #define CTRL_DISABLE			0x0
+#define CTRL_VID_ENABLE			0x1
+#define CTRL_BLOCK_DISABLE		0x3
+#define CTRL_ENABLE			0x5
+#define CTRL_BLOCK			0x7
+#define CTRL_FAULT_STALL_MODE		0x8
 #define REG_MMU_CFG			0x004
+#define CFG_MASK_GLOBAL			0x00000F80	/* Bit 11, 10-7 */
+					/* Bit 31, 29, 28, 19-16, 12, 2 */
+#define CFG_MASK_VM			0xB00F1004
 #define REG_MMU_STATUS			0x008
 #define REG_MMU_FLPT_BASE		0x00C
 
@@ -113,10 +120,73 @@ typedef u32 sysmmu_pte_t;
 #define REG_MMU_CAPA0_V7		0x870
 #define REG_MMU_CAPA1_V7		0x874
 
+#define REG_MMU_CTRL_VM			0x8000
+#define REG_MMU_CFG_VM			0x8004
+
 #define MMU_CAPA1_EXIST(reg)		(((reg) >> 11) & 0x1)
 #define MMU_CAPA1_TYPE(reg)		(((reg) >> 28) & 0xF)
 #define MMU_CAPA1_NO_BLOCK_MODE(reg)	(((reg) >> 15) & 0x1)
 #define MMU_CAPA1_VCR_ENABLED(reg)	(((reg) >> 14) & 0x1)
+
+#define MMU_REG(data, idx)		((data)->sfrbase + (data)->reg_set[idx])
+#define MMU_VM_REG(data, idx, vmid)	((data)->sfrbase + \
+					 (data)->reg_set[idx] + (vmid) * 0x10)
+
+enum {
+	REG_IDX_DEFAULT = 0,
+	REG_IDX_VM,
+
+	MAX_SET_IDX,
+};
+
+enum {
+	IDX_FLPT_BASE = 0,
+	IDX_ALL_INV,
+	IDX_VPN_INV,
+	IDX_RANGE_INV,
+	IDX_RANGE_INV_START,
+	IDX_RANGE_INV_END,
+	IDX_FAULT_VA,
+	IDX_FAULT_TRANS_INFO,
+	IDX_TLB_READ,
+	IDX_TLB_VPN,
+	IDX_TLB_PPN,
+	IDX_TLB_ATTR,
+	IDX_SBB_READ,
+	IDX_SBB_VPN,
+	IDX_SBB_LINK,
+	IDX_SBB_ATTR,
+	IDX_SEC_FLPT_BASE,
+
+	MAX_REG_IDX,
+};
+
+static const unsigned int sysmmu_reg_set[MAX_SET_IDX][MAX_REG_IDX] = {
+	/* Default without VM */
+	{
+		/* FLPT base, TLB invalidation, Fault information */
+		0x000C,	0x0010,	0x0014,	0x0018,
+		0x0020,	0x0024,	0x0070,	0x0078,
+		/* TLB information */
+		0x8000,	0x8004,	0x8008,	0x800C,
+		/* SBB information */
+		0x8020,	0x8024,	0x8028,	0x802C,
+		/* secure FLPT base (same as non-secure) */
+		0x000C,
+	},
+	/* VM */
+	{
+		/* FLPT base, TLB invalidation, Fault information */
+		0x800C,	0x8010,	0x8014,	0x8018,
+		0x8020,	0x8024,	0x1000,	0x1004,
+		/* TLB information */
+		0x3000,	0x3004,	0x3008,	0x300C,
+		/* SBB information */
+		0x3020,	0x3024,	0x3028,	0x302C,
+		/* secure FLPT base */
+		0x000C,
+	},
+};
 
 static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 	"PTW ACCESS FAULT",
@@ -201,6 +271,7 @@ struct sysmmu_drvdata {
 	spinlock_t lock; /* protect atomic update to H/W status */
 	u32 version;
 	int attached_count;
+	const unsigned int *reg_set;
 	struct tlb_props tlb_props;
 	bool no_block_mode;
 	bool has_vcr;
@@ -262,30 +333,64 @@ static inline bool __sysmmu_get_capa_vcr_enabled(struct sysmmu_drvdata *data)
 
 static inline void __sysmmu_tlb_invalidate_all(struct sysmmu_drvdata *data)
 {
-	writel(0x1, data->sfrbase + REG_MMU_INV_ALL);
+	writel(0x1, MMU_REG(data, IDX_ALL_INV));
 }
 
 static inline void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *data,
 					   dma_addr_t start, dma_addr_t end)
 {
-	writel_relaxed(start, data->sfrbase + REG_MMU_INV_START);
-	writel_relaxed(end - 1, data->sfrbase + REG_MMU_INV_END);
-	writel(0x1, data->sfrbase + REG_MMU_INV_RANGE);
+	writel_relaxed(start, MMU_REG(data, IDX_RANGE_INV_START));
+	writel_relaxed(end - 1, MMU_REG(data, IDX_RANGE_INV_END));
+	writel(0x1, MMU_REG(data, IDX_RANGE_INV));
 }
 
 static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 {
-	writel_relaxed(CTRL_DISABLE, data->sfrbase + REG_MMU_CTRL);
-	__sysmmu_tlb_invalidate_all(data);
+	if (data->no_block_mode) {
+		__sysmmu_tlb_invalidate_all(data);
+	} else {
+		if (data->has_vcr) {
+			writel_relaxed(0, data->sfrbase + REG_MMU_CFG_VM);
+			writel_relaxed(CTRL_BLOCK_DISABLE,
+				       data->sfrbase + REG_MMU_CTRL_VM);
+		}
+
+		writel_relaxed(0, data->sfrbase + REG_MMU_CFG);
+		writel_relaxed(CTRL_BLOCK_DISABLE,
+			       data->sfrbase + REG_MMU_CTRL);
+	}
+}
+
+static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
+{
+	unsigned long cfg = 0, cfg_vm = 0;
+
+	if (!data->no_block_mode)
+		writel_relaxed(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
+
+	if (data->has_vcr) {
+		cfg_vm = cfg & ~CFG_MASK_VM;
+		cfg &= ~CFG_MASK_GLOBAL;
+		writel_relaxed(cfg, data->sfrbase + REG_MMU_CFG);
+		writel_relaxed(cfg_vm, data->sfrbase + REG_MMU_CFG_VM);
+	} else {
+		writel_relaxed(cfg, data->sfrbase + REG_MMU_CFG);
+	}
 }
 
 static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
 {
-	void __iomem *sfrbase = data->sfrbase;
+	__sysmmu_init_config(data);
 
-	writel_relaxed(data->pgtable / SPAGE_SIZE, sfrbase + REG_MMU_FLPT_BASE);
+	writel_relaxed(data->pgtable / SPAGE_SIZE,
+		       MMU_REG(data, IDX_FLPT_BASE));
 	__sysmmu_tlb_invalidate_all(data);
-	writel(CTRL_ENABLE, sfrbase + REG_MMU_CTRL);
+
+	writel(CTRL_ENABLE, data->sfrbase + REG_MMU_CTRL);
+
+	if (data->has_vcr)
+		writel(CTRL_VID_ENABLE | CTRL_FAULT_STALL_MODE,
+		       data->sfrbase + REG_MMU_CTRL_VM);
 }
 
 static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *data)
@@ -295,7 +400,7 @@ static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *data)
 
 static inline u32 __sysmmu_get_fault_address(struct sysmmu_drvdata *data)
 {
-	return readl_relaxed(data->sfrbase + REG_MMU_FAULT_VA);
+	return readl_relaxed(MMU_VM_REG(data, IDX_FAULT_VA, 0));
 }
 
 static struct samsung_sysmmu_domain *to_sysmmu_domain(struct iommu_domain *dom)
@@ -1009,10 +1114,10 @@ static inline void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 	unsigned int info;
 	phys_addr_t pgtable;
 
-	pgtable = readl_relaxed(drvdata->sfrbase + REG_MMU_FLPT_BASE);
+	pgtable = readl_relaxed(MMU_REG(drvdata, IDX_FLPT_BASE));
 	pgtable <<= PAGE_SHIFT;
 
-	info = readl_relaxed(drvdata->sfrbase + REG_MMU_FAULT_TRANS_INFO);
+	info = readl_relaxed(MMU_REG(drvdata, IDX_FAULT_TRANS_INFO));
 
 	pr_crit("----------------------------------------------------------\n");
 	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
@@ -1104,6 +1209,9 @@ static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 
 	data->version = __sysmmu_get_hw_version(data);
 
+	/* Default value */
+	data->reg_set = sysmmu_reg_set[REG_IDX_DEFAULT];
+
 	/*
 	 * If CAPA1 doesn't exist, sysmmu uses TLB way dedication.
 	 * If CAPA1[31:28] is zero, sysmmu uses TLB port dedication.
@@ -1113,8 +1221,10 @@ static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 	} else {
 		if (__sysmmu_get_capa_type(data) == 0)
 			tlb_props->flags |= TLB_TYPE_PORT;
-		if (__sysmmu_get_capa_vcr_enabled(data))
+		if (__sysmmu_get_capa_vcr_enabled(data)) {
+			data->reg_set = sysmmu_reg_set[REG_IDX_VM];
 			data->has_vcr = true;
+		}
 		if (__sysmmu_get_capa_no_block_mode(data))
 			data->no_block_mode = true;
 	}
