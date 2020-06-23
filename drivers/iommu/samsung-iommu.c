@@ -47,6 +47,12 @@ struct sysmmu_drvdata {
 	u32 version;
 };
 
+struct sysmmu_clientdata {
+	struct device *dev;
+	struct sysmmu_drvdata **sysmmus;
+	int sysmmu_count;
+};
+
 static struct iommu_ops samsung_sysmmu_ops;
 static struct platform_driver samsung_sysmmu_driver;
 
@@ -239,21 +245,25 @@ static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 	return generic_device_group(dev);
 }
 
+static void samsung_sysmmu_clientdata_release(struct device *dev, void *res)
+{
+	struct sysmmu_clientdata *client = res;
+
+	kfree(client->sysmmus);
+}
+
 static int samsung_sysmmu_of_xlate(struct device *dev,
 				   struct of_phandle_args *args)
 {
 	struct platform_device *sysmmu = of_find_device_by_node(args->np);
 	struct sysmmu_drvdata *data = platform_get_drvdata(sysmmu);
+	struct sysmmu_drvdata **new_link;
+	struct sysmmu_clientdata *client;
 	struct iommu_fwspec *fwspec;
 	unsigned int fwid = 0;
 	int ret;
 
-	ret = iommu_device_link(&data->iommu, dev);
-	if (ret) {
-		dev_err(dev, "failed to iommu device link. (err:%d)\n", ret);
-		return ret;
-	}
-
+	iommu_device_link(&data->iommu, dev);
 	ret = iommu_fwspec_add_ids(dev, &fwid, 1);
 	if (ret) {
 		dev_err(dev, "failed to add fwspec. (err:%d)\n", ret);
@@ -262,7 +272,29 @@ static int samsung_sysmmu_of_xlate(struct device *dev,
 	}
 
 	fwspec = dev_iommu_fwspec_get(dev);
-	fwspec->iommu_priv = data;
+	if (!fwspec->iommu_priv) {
+		client = devres_alloc(samsung_sysmmu_clientdata_release,
+				      sizeof(*client), GFP_KERNEL);
+		if (!client)
+			return -ENOMEM;
+		client->dev = dev;
+		fwspec->iommu_priv = client;
+		devres_add(dev, client);
+	}
+
+	client = (struct sysmmu_clientdata *)fwspec->iommu_priv;
+	new_link = krealloc(client->sysmmus,
+			    sizeof(*data) * (client->sysmmu_count + 1),
+			    GFP_KERNEL);
+	if (!new_link)
+		return -ENOMEM;
+
+	client->sysmmus = new_link;
+	client->sysmmus[client->sysmmu_count++] = data;
+
+	dev_info(dev, "has sysmmu %s (total count:%d)\n",
+		 dev_name(data->dev), client->sysmmu_count);
+
 	return ret;
 }
 
