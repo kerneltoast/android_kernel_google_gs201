@@ -124,13 +124,48 @@ typedef u32 sysmmu_pte_t;
 #define REG_MMU_CAPA0_V7		0x870
 #define REG_MMU_CAPA1_V7		0x874
 
+#define REG_PUBLIC_WAY_CFG		0x120
+#define REG_PRIVATE_WAY_CFG(n)		(0x200 + ((n) * 0x10))
+#define REG_PRIVATE_ADDR_START(n)	(0x204 + ((n) * 0x10))
+#define REG_PRIVATE_ADDR_END(n)		(0x208 + ((n) * 0x10))
+#define REG_PRIVATE_ID(n)		(0x20C + ((n) * 0x10))
+
+#define MMU_WAY_CFG_MASK_PREFETCH	GENMASK(1, 1)
+#define MMU_WAY_CFG_MASK_PREFETCH_DIR	GENMASK(3, 2)
+#define MMU_WAY_CFG_MASK_MATCH_METHOD	GENMASK(4, 4)
+#define MMU_WAY_CFG_MASK_FETCH_SIZE	GENMASK(7, 5)
+#define MMU_WAY_CFG_MASK_TARGET_CH	GENMASK(9, 8)
+
+#define MMU_WAY_CFG_ID_MATCHING		(1 << 4)
+#define MMU_WAY_CFG_ADDR_MATCHING	(0 << 4)
+#define MMU_WAY_CFG_PRIVATE_ENABLE	(1 << 0)
+
+#define MMU_PUBLIC_WAY_MASK	(MMU_WAY_CFG_MASK_PREFETCH |	\
+		MMU_WAY_CFG_MASK_PREFETCH_DIR | MMU_WAY_CFG_MASK_FETCH_SIZE)
+#define MMU_PRIVATE_WAY_MASK	(MMU_PUBLIC_WAY_MASK |		\
+		MMU_WAY_CFG_MASK_MATCH_METHOD | MMU_WAY_CFG_MASK_TARGET_CH)
+
 #define REG_MMU_CTRL_VM			0x8000
 #define REG_MMU_CFG_VM			0x8004
+
+#define MMU_TLB_CFG_MASK(reg)		((reg) & (GENMASK(7, 5) | GENMASK(3, 2) | GENMASK(1, 1)))
+#define MMU_TLB_MATCH_CFG_MASK(reg)	((reg) & (GENMASK(31, 16) | GENMASK(9, 8)))
 
 #define MMU_CAPA1_EXIST(reg)		(((reg) >> 11) & 0x1)
 #define MMU_CAPA1_TYPE(reg)		(((reg) >> 28) & 0xF)
 #define MMU_CAPA1_NO_BLOCK_MODE(reg)	(((reg) >> 15) & 0x1)
 #define MMU_CAPA1_VCR_ENABLED(reg)	(((reg) >> 14) & 0x1)
+
+#define MMU_CAPA_NUM_TLB_WAY(reg)	((reg) & 0xFF)
+#define MMU_CAPA1_NUM_TLB(reg)		(((reg) >> 4) & 0xFF)
+#define MMU_CAPA1_NUM_PORT(reg)		((reg) & 0xF)
+#define REG_MMU_TLB_CFG(n)		(0x2000 + ((n) * 0x20) + 0x4)
+#define REG_MMU_TLB_MATCH_CFG(n)	(0x2000 + ((n) * 0x20) + 0x8)
+#define REG_MMU_TLB_MATCH_SVA(n)	(0x2000 + ((n) * 0x20) + 0xC)
+#define REG_MMU_TLB_MATCH_EVA(n)	(0x2000 + ((n) * 0x20) + 0x10)
+#define REG_MMU_TLB_MATCH_ID(n)		(0x2000 + ((n) * 0x20) + 0x14)
+
+#define REG_SLOT_RSV(n)			(0x4000 + ((n) * 0x20))
 
 #define MMU_REG(data, idx)		((data)->sfrbase + (data)->reg_set[idx])
 #define MMU_VM_REG(data, idx, vmid)	((data)->sfrbase + \
@@ -368,6 +403,132 @@ static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 	}
 }
 
+static inline void __sysmmu_set_public_way(struct sysmmu_drvdata *data,
+					   unsigned int public_cfg)
+{
+	u32 cfg = readl_relaxed(data->sfrbase + REG_PUBLIC_WAY_CFG);
+
+	cfg &= ~MMU_PUBLIC_WAY_MASK;
+	cfg |= public_cfg;
+
+	writel_relaxed(cfg, data->sfrbase + REG_PUBLIC_WAY_CFG);
+
+	dev_dbg(data->dev, "public_cfg : %#x\n", cfg);
+}
+
+static inline void __sysmmu_set_private_way_id(struct sysmmu_drvdata *data,
+					       unsigned int way_idx)
+{
+	struct tlb_priv_id *priv_cfg = data->tlb_props.way_props.priv_id_cfg;
+	u32 cfg = readl_relaxed(data->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
+
+	cfg &= ~MMU_PRIVATE_WAY_MASK;
+	cfg |= MMU_WAY_CFG_ID_MATCHING | MMU_WAY_CFG_PRIVATE_ENABLE;
+	cfg |= priv_cfg[way_idx].cfg;
+
+	writel_relaxed(cfg, data->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
+	writel_relaxed(priv_cfg[way_idx].id,
+		       data->sfrbase + REG_PRIVATE_ID(way_idx));
+
+	dev_dbg(data->dev, "priv ID way[%d] cfg : %#x, id : %#x\n",
+		way_idx, cfg, priv_cfg[way_idx].id);
+}
+
+static inline void __sysmmu_set_private_way_addr(struct sysmmu_drvdata *data,
+						 unsigned int idx)
+{
+	struct tlb_priv_addr *privcfg = data->tlb_props.way_props.priv_addr_cfg;
+	unsigned int way_idx = data->tlb_props.way_props.priv_id_cnt + idx;
+	u32 cfg = readl_relaxed(data->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
+
+	cfg &= ~MMU_PRIVATE_WAY_MASK;
+	cfg |= MMU_WAY_CFG_ADDR_MATCHING | MMU_WAY_CFG_PRIVATE_ENABLE;
+	cfg |= privcfg[idx].cfg;
+
+	writel_relaxed(cfg, data->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
+
+	dev_dbg(data->dev, "priv ADDR way[%d] cfg : %#x\n", way_idx, cfg);
+}
+
+static inline void __sysmmu_set_tlb_way_type(struct sysmmu_drvdata *data)
+{
+	u32 cfg = readl_relaxed(data->sfrbase + REG_MMU_CAPA0_V7);
+	u32 waycnt = MMU_CAPA_NUM_TLB_WAY(cfg);
+	struct tlb_props *tlb_props = &data->tlb_props;
+	int priv_id_cnt = tlb_props->way_props.priv_id_cnt;
+	int priv_addr_cnt = tlb_props->way_props.priv_addr_cnt;
+	u32 setcnt = 0;
+	unsigned int i;
+
+	if (tlb_props->flags & TLB_WAY_PUBLIC)
+		__sysmmu_set_public_way(data, tlb_props->way_props.public_cfg);
+
+	if (tlb_props->flags & TLB_WAY_PRIVATE_ID)
+		for (i = 0; i < priv_id_cnt && setcnt < waycnt; i++, setcnt++)
+			__sysmmu_set_private_way_id(data, i);
+
+	if (tlb_props->flags & TLB_WAY_PRIVATE_ADDR)
+		for (i = 0; i < priv_addr_cnt && setcnt < waycnt; i++, setcnt++)
+			__sysmmu_set_private_way_addr(data, i);
+
+	if (priv_id_cnt + priv_addr_cnt > waycnt) {
+		dev_warn(data->dev,
+			 "Ignoring larger TLB way count than %d!\n", waycnt);
+		dev_warn(data->dev, "Number of private way id/addr = %d/%d\n",
+			 priv_id_cnt, priv_addr_cnt);
+	}
+}
+
+static inline void __sysmmu_set_tlb_port(struct sysmmu_drvdata *data,
+					 unsigned int port_idx)
+{
+	struct tlb_port_cfg *port_cfg = data->tlb_props.port_props.port_cfg;
+
+	writel_relaxed(MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg),
+		       data->sfrbase + REG_MMU_TLB_CFG(port_idx));
+
+	/* port_idx 0 is default port. */
+	if (port_idx == 0) {
+		dev_dbg(data->dev, "port[%d] cfg : %#x for common\n", port_idx,
+			MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg));
+		return;
+	}
+
+	writel_relaxed(MMU_TLB_MATCH_CFG_MASK(port_cfg[port_idx].cfg),
+		       data->sfrbase + REG_MMU_TLB_MATCH_CFG(port_idx));
+	writel_relaxed(port_cfg[port_idx].id,
+		       data->sfrbase + REG_MMU_TLB_MATCH_ID(port_idx));
+
+	dev_dbg(data->dev, "port[%d] cfg : %#x, match : %#x, id : %#x\n",
+		port_idx,
+		MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg),
+		MMU_TLB_MATCH_CFG_MASK(port_cfg[port_idx].cfg),
+		port_cfg[port_idx].id);
+}
+
+static inline void __sysmmu_set_tlb_port_type(struct sysmmu_drvdata *data)
+{
+	u32 cfg = readl_relaxed(data->sfrbase + REG_MMU_CAPA1_V7);
+	u32 tlb_num = MMU_CAPA1_NUM_TLB(cfg);
+	struct tlb_props *tlb_props = &data->tlb_props;
+	int port_id_cnt = tlb_props->port_props.port_id_cnt;
+	int slot_cnt = tlb_props->port_props.slot_cnt;
+	unsigned int i;
+
+	if (port_id_cnt > tlb_num) {
+		dev_warn(data->dev, "Ignoring %d larger than TLB count %d\n",
+			 port_id_cnt, tlb_num);
+		port_id_cnt = tlb_num;
+	}
+
+	for (i = 0; i < port_id_cnt; i++)
+		__sysmmu_set_tlb_port(data, i);
+
+	for (i = 0; i < slot_cnt; i++)
+		writel_relaxed(tlb_props->port_props.slot_cfg[i],
+			       data->sfrbase + REG_SLOT_RSV(i));
+}
+
 static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 {
 	unsigned long cfg = 0, cfg_vm = 0;
@@ -377,6 +538,11 @@ static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 
 	if (!data->no_block_mode)
 		writel_relaxed(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
+
+	if (IS_TLB_WAY_TYPE(data))
+		__sysmmu_set_tlb_way_type(data);
+	else if (IS_TLB_PORT_TYPE(data))
+		__sysmmu_set_tlb_port_type(data);
 
 	if (data->has_vcr) {
 		cfg_vm = cfg & ~CFG_MASK_VM;
