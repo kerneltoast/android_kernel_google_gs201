@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/smc.h>
+#include <linux/arm-smccc.h>
 
 #include <dt-bindings/soc/samsung,sysmmu-v8.h>
 
@@ -186,6 +188,11 @@ typedef u32 sysmmu_pte_t;
 #define MMU_REG(data, idx)		((data)->sfrbase + (data)->reg_set[idx])
 #define MMU_VM_REG(data, idx, vmid)	((data)->sfrbase + \
 					 (data)->reg_set[idx] + (vmid) * 0x10)
+#define MMU_SEC_REG(data, offset_idx)	((data)->secure_base + \
+					 (data)->reg_set[offset_idx])
+#define MMU_SEC_VM_REG(data, offset_idx, vmid) ((data)->secure_base + \
+						(data)->reg_set[offset_idx] + \
+						(vmid) * 0x10)
 
 #define DEFAULT_QOS_VALUE	-1
 
@@ -329,6 +336,8 @@ struct sysmmu_drvdata {
 	u32 version;
 	int qos;
 	int attached_count;
+	int secure_irq;
+	unsigned int secure_base;
 	const unsigned int *reg_set;
 	struct tlb_props tlb_props;
 	bool no_block_mode;
@@ -361,6 +370,34 @@ struct samsung_sysmmu_fault_info {
 static bool sysmmu_global_init_done;
 static struct device sync_dev;
 static struct kmem_cache *flpt_cache, *slpt_cache;
+
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+#define SMC_DRM_SEC_SMMU_INFO          (0x820020D0)
+/* secure SysMMU SFR access */
+enum sec_sysmmu_sfr_access_t {
+	SEC_SMMU_SFR_READ,
+	SEC_SMMU_SFR_WRITE,
+};
+
+#define is_secure_info_fail(x)		((((x) >> 16) & 0xffff) == 0xdead)
+static inline u32 read_sec_info(unsigned int addr)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SMC_DRM_SEC_SMMU_INFO,
+		      (unsigned long)addr, 0, SEC_SMMU_SFR_READ, 0, 0, 0, 0,
+		      &res);
+	if (is_secure_info_fail(res.a0))
+		pr_err("Invalid value returned, %#lx\n", res.a0);
+
+	return (u32)res.a0;
+}
+#else
+static inline u32 read_sec_info(unsigned int addr)
+{
+	return 0xdead;
+}
+#endif
 
 static inline u32 __sysmmu_get_hw_version(struct sysmmu_drvdata *data)
 {
@@ -585,14 +622,22 @@ static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
 		       data->sfrbase + REG_MMU_CTRL_VM);
 }
 
-static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *data)
+static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *data,
+					   bool is_secure)
 {
-	return readl_relaxed(data->sfrbase + REG_MMU_INT_STATUS);
+	if (is_secure)
+		return read_sec_info(data->secure_base + REG_MMU_INT_STATUS);
+	else
+		return readl_relaxed(data->sfrbase + REG_MMU_INT_STATUS);
 }
 
-static inline u32 __sysmmu_get_fault_address(struct sysmmu_drvdata *data)
+static inline u32 __sysmmu_get_fault_address(struct sysmmu_drvdata *data,
+					     bool is_secure)
 {
-	return readl_relaxed(MMU_VM_REG(data, IDX_FAULT_VA, 0));
+	if (is_secure)
+		return read_sec_info(MMU_SEC_VM_REG(data, IDX_FAULT_VA, 0));
+	else
+		return readl_relaxed(MMU_VM_REG(data, IDX_FAULT_VA, 0));
 }
 
 static struct samsung_sysmmu_domain *to_sysmmu_domain(struct iommu_domain *dom)
@@ -1616,12 +1661,64 @@ finish:
 	pr_crit("----------------------------------------------------------\n");
 }
 
-static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data,
-				      int *intr_type, unsigned long *addr)
+static inline void
+sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,
+				     int intr_type, unsigned long fault_addr)
 {
-	*intr_type =  __ffs(__sysmmu_get_intr_status(data));
+	unsigned int info;
+	phys_addr_t pgtable;
+	unsigned int sfrbase = drvdata->secure_base;
+
+	pgtable = read_sec_info(MMU_SEC_REG(drvdata, IDX_SEC_FLPT_BASE));
+	pgtable <<= PAGE_SHIFT;
+
+	info = read_sec_info(MMU_SEC_REG(drvdata, IDX_FAULT_TRANS_INFO));
+
+	pr_crit("----------------------------------------------------------\n");
+	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
+		dev_name(drvdata->dev), IS_READ_FAULT(info) ? "READ" : "WRITE",
+		sysmmu_fault_name[intr_type], fault_addr, &pgtable);
+
+	if (intr_type == SYSMMU_FAULT_UNKNOWN) {
+		pr_crit("The fault is not caused by this System MMU.\n");
+		pr_crit("Please check IRQ and SFR base address.\n");
+		goto finish;
+	}
+
+	pr_crit("AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
+
+	if (!pfn_valid(pgtable >> PAGE_SHIFT)) {
+		pr_crit("Page table base is not in a valid memory region\n");
+		pgtable = 0;
+	}
+
+	if (intr_type == SYSMMU_FAULT_PTW_ACCESS) {
+		pr_crit("System MMU has failed to access page table\n");
+		pgtable = 0;
+	}
+
+	info = MMU_RAW_VER(read_sec_info(sfrbase + REG_MMU_VERSION));
+
+	pr_crit("ADDR: %#x, MMU_CTRL: %#010x, PT_BASE: %#010x\n",
+		sfrbase,
+		read_sec_info(sfrbase + REG_MMU_CTRL),
+		read_sec_info(MMU_SEC_REG(drvdata, IDX_SEC_FLPT_BASE)));
+	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
+		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
+		read_sec_info(sfrbase + REG_MMU_CFG),
+		read_sec_info(sfrbase + REG_MMU_STATUS));
+
+finish:
+	pr_crit("----------------------------------------------------------\n");
+}
+
+static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data,
+				      int *intr_type, unsigned long *addr,
+				      bool is_secure)
+{
+	*intr_type =  __ffs(__sysmmu_get_intr_status(data, is_secure));
 	*intr_type %= 4;
-	*addr = __sysmmu_get_fault_address(data);
+	*addr = __sysmmu_get_fault_address(data, is_secure);
 }
 
 static irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
@@ -1629,11 +1726,16 @@ static irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 	int itype;
 	unsigned long addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
+	bool is_secure = (irq == drvdata->secure_irq);
 
-	dev_info(drvdata->dev, "irq(%d) happened\n", irq);
+	dev_info(drvdata->dev, "[%s] interrupt (%d) happened\n",
+		 is_secure ? "Secure" : "Non-secure", irq);
 
-	sysmmu_get_interrupt_info(drvdata, &itype, &addr);
-	sysmmu_show_fault_information(drvdata, itype, addr);
+	sysmmu_get_interrupt_info(drvdata, &itype, &addr, is_secure);
+	if (is_secure)
+		sysmmu_show_secure_fault_information(drvdata, itype, addr);
+	else
+		sysmmu_show_fault_information(drvdata, itype, addr);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -1643,13 +1745,14 @@ static irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 	int itype;
 	unsigned long addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
+	bool is_secure = (irq == drvdata->secure_irq);
 	struct iommu_group *group = drvdata->group;
 	struct samsung_sysmmu_fault_info fi = {
 		.drvdata = drvdata,
 		.event.fault.type = IOMMU_FAULT_DMA_UNRECOV,
 	};
 
-	sysmmu_get_interrupt_info(drvdata, &itype, &addr);
+	sysmmu_get_interrupt_info(drvdata, &itype, &addr, is_secure);
 	fi.event.fault.event.addr = addr;
 	fi.event.fault.event.reason = sysmmu_fault_type[itype];
 	iommu_group_for_each_dev(group, &fi, samsung_sysmmu_fault_notifier);
@@ -1877,6 +1980,40 @@ err_slot_prop:
 	return ret;
 }
 
+static int __sysmmu_secure_irq_init(struct device *sysmmu,
+				    struct sysmmu_drvdata *data)
+{
+	struct platform_device *pdev = to_platform_device(sysmmu);
+	int ret;
+
+	ret = platform_get_irq(pdev, 1);
+	if (ret <= 0) {
+		dev_err(sysmmu, "unable to find secure IRQ resource\n");
+		return -EINVAL;
+	}
+	data->secure_irq = ret;
+
+	ret = devm_request_threaded_irq(sysmmu, data->secure_irq,
+					samsung_sysmmu_irq,
+					samsung_sysmmu_irq_thread,
+					IRQF_ONESHOT, dev_name(sysmmu), data);
+	if (ret) {
+		dev_err(sysmmu, "failed to set secure irq handler %d, ret:%d\n",
+			data->secure_irq, ret);
+		return ret;
+	}
+
+	ret = of_property_read_u32(sysmmu->of_node, "sysmmu,secure_base",
+				   &data->secure_base);
+	if (ret) {
+		dev_err(sysmmu, "failed to get secure base\n");
+		return ret;
+	}
+	dev_info(sysmmu, "secure base = %#x\n", data->secure_base);
+
+	return ret;
+}
+
 static int sysmmu_parse_dt(struct device *sysmmu, struct sysmmu_drvdata *data)
 {
 	unsigned int qos = DEFAULT_QOS_VALUE;
@@ -1890,6 +2027,15 @@ static int sysmmu_parse_dt(struct device *sysmmu, struct sysmmu_drvdata *data)
 	}
 
 	data->qos = qos;
+
+	/* Secure IRQ */
+	if (of_find_property(sysmmu->of_node, "sysmmu,secure-irq", NULL)) {
+		ret = __sysmmu_secure_irq_init(sysmmu, data);
+		if (ret) {
+			dev_err(sysmmu, "failed to init secure irq\n");
+			return ret;
+		}
+	}
 
 	if (IS_TLB_WAY_TYPE(data)) {
 		ret = sysmmu_parse_tlb_way_dt(sysmmu, data);
