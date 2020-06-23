@@ -13,6 +13,22 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+typedef u32 sysmmu_iova_t;
+typedef u32 sysmmu_pte_t;
+
+#define SECT_ORDER 20
+#define LPAGE_ORDER 16
+#define SPAGE_ORDER 12
+
+#define SECT_SIZE  (1UL << SECT_ORDER)
+#define LPAGE_SIZE (1UL << LPAGE_ORDER)
+#define SPAGE_SIZE (1UL << SPAGE_ORDER)
+
+#define NUM_LV1ENTRIES	4096
+#define NUM_LV2ENTRIES (SECT_SIZE / SPAGE_SIZE)
+#define LV1TABLE_SIZE (NUM_LV1ENTRIES * sizeof(sysmmu_pte_t))
+#define LV2TABLE_SIZE (NUM_LV2ENTRIES * sizeof(sysmmu_pte_t))
+
 struct sysmmu_drvdata {
 	struct iommu_device iommu;
 	struct device *dev;
@@ -23,11 +39,24 @@ static struct platform_driver samsung_sysmmu_driver;
 
 struct samsung_sysmmu_domain {
 	struct iommu_domain domain;
+	sysmmu_pte_t *page_table;
+	atomic_t *lv2entcnt;
+	spinlock_t pgtablelock; /* serialize races to page table updates */
 };
+
+static bool sysmmu_global_init_done;
+static struct device sync_dev;
+static struct kmem_cache *flpt_cache, *slpt_cache;
 
 static struct samsung_sysmmu_domain *to_sysmmu_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct samsung_sysmmu_domain, domain);
+}
+
+static inline void pgtable_flush(void *vastart, void *vaend)
+{
+	dma_sync_single_for_device(&sync_dev, virt_to_phys(vastart),
+				   vaend - vastart, DMA_TO_DEVICE);
 }
 
 static bool samsung_sysmmu_capable(enum iommu_cap cap)
@@ -50,17 +79,39 @@ static struct iommu_domain *samsung_sysmmu_domain_alloc(unsigned int type)
 	if (!domain)
 		return NULL;
 
+	domain->page_table =
+		(sysmmu_pte_t *)kmem_cache_alloc(flpt_cache,
+						 GFP_KERNEL | __GFP_ZERO);
+	if (!domain->page_table)
+		goto err_pgtable;
+
+	domain->lv2entcnt = kcalloc(NUM_LV1ENTRIES, sizeof(*domain->lv2entcnt),
+				    GFP_KERNEL);
+	if (!domain->lv2entcnt)
+		goto err_counter;
+
 	if (type == IOMMU_DOMAIN_DMA) {
 		int ret = iommu_get_dma_cookie(&domain->domain);
 
 		if (ret) {
 			pr_err("failed to get dma cookie (%d)\n", ret);
-			kfree(domain);
-			return NULL;
+			goto err_get_dma_cookie;
 		}
 	}
 
+	pgtable_flush(domain->page_table, domain->page_table + NUM_LV1ENTRIES);
+
+	spin_lock_init(&domain->pgtablelock);
+
 	return &domain->domain;
+
+err_get_dma_cookie:
+	kfree(domain->lv2entcnt);
+err_counter:
+	kmem_cache_free(flpt_cache, domain->page_table);
+err_pgtable:
+	kfree(domain);
+	return NULL;
 }
 
 static void samsung_sysmmu_domain_free(struct iommu_domain *dom)
@@ -68,6 +119,8 @@ static void samsung_sysmmu_domain_free(struct iommu_domain *dom)
 	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
 
 	iommu_put_dma_cookie(dom);
+	kmem_cache_free(flpt_cache, domain->page_table);
+	kfree(domain->lv2entcnt);
 	kfree(domain);
 }
 
@@ -209,8 +262,39 @@ static struct iommu_ops samsung_sysmmu_ops = {
 	.remove_device		= samsung_sysmmu_remove_device,
 	.device_group		= samsung_sysmmu_device_group,
 	.of_xlate		= samsung_sysmmu_of_xlate,
-	.pgsize_bitmap		= -1UL << 12,
+	.pgsize_bitmap		= SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
 };
+
+static int samsung_sysmmu_init_global(void)
+{
+	int ret = 0;
+
+	flpt_cache = kmem_cache_create("samsung-iommu-lv1table",
+				       LV1TABLE_SIZE, LV1TABLE_SIZE,
+				       0, NULL);
+	if (!flpt_cache)
+		return -ENOMEM;
+
+	slpt_cache = kmem_cache_create("samsung-iommu-lv2table",
+				       LV2TABLE_SIZE, LV2TABLE_SIZE,
+				       0, NULL);
+	if (!slpt_cache) {
+		ret = -ENOMEM;
+		goto err_init_slpt_fail;
+	}
+
+	bus_set_iommu(&platform_bus_type, &samsung_sysmmu_ops);
+
+	device_initialize(&sync_dev);
+	sysmmu_global_init_done = true;
+
+	return 0;
+
+err_init_slpt_fail:
+	kmem_cache_destroy(flpt_cache);
+
+	return ret;
+}
 
 static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 {
@@ -226,7 +310,7 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 	err = iommu_device_sysfs_add(&data->iommu, data->dev,
 				     NULL, dev_name(dev));
 	if (err) {
-		dev_err(dev, "Failed to register iommu in sysfs\n");
+		dev_err(dev, "failed to register iommu in sysfs\n");
 		return err;
 	}
 
@@ -235,19 +319,26 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 
 	err = iommu_device_register(&data->iommu);
 	if (err) {
-		dev_err(dev, "Failed to register iommu\n");
+		dev_err(dev, "failed to register iommu\n");
 		goto err_iommu_register;
+	}
+
+	if (!sysmmu_global_init_done) {
+		err = samsung_sysmmu_init_global();
+		if (err) {
+			dev_err(dev, "failed to initialize global data\n");
+			goto err_global_init;
+		}
 	}
 
 	platform_set_drvdata(pdev, data);
 
-	if (!iommu_present(&platform_bus_type)
-		bus_set_iommu(&platform_bus_type, &samsung_sysmmu_ops);
-
-	dev_info(dev, "Initialized IOMMU\n");
+	dev_info(dev, "initialized IOMMU\n");
 
 	return 0;
 
+err_global_init:
+	iommu_device_unregister(&data->iommu);
 err_iommu_register:
 	iommu_device_sysfs_remove(&data->iommu);
 	return err;
