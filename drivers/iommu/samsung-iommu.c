@@ -31,6 +31,10 @@ typedef u32 sysmmu_pte_t;
 #define LPAGE_MASK (~(LPAGE_SIZE - 1))
 #define SPAGE_MASK (~(SPAGE_SIZE - 1))
 
+#define SECT_ENT_MASK	~((SECT_SIZE >> PG_ENT_SHIFT) - 1)
+#define LPAGE_ENT_MASK	~((LPAGE_SIZE >> PG_ENT_SHIFT) - 1)
+#define SPAGE_ENT_MASK	~((SPAGE_SIZE >> PG_ENT_SHIFT) - 1)
+
 #define SPAGES_PER_LPAGE	(LPAGE_SIZE / SPAGE_SIZE)
 
 #define NUM_LV1ENTRIES	4096
@@ -62,6 +66,15 @@ typedef u32 sysmmu_pte_t;
 
 #define FLPD_SHAREABLE_FLAG	BIT(6)
 #define SLPD_SHAREABLE_FLAG	BIT(4)
+
+#define PGBASE_TO_PHYS(pgent)	((phys_addr_t)(pgent) << PG_ENT_SHIFT)
+#define ENT_TO_PHYS(ent) (phys_addr_t)(*(ent))
+#define section_phys(sent) PGBASE_TO_PHYS(ENT_TO_PHYS(sent) & SECT_ENT_MASK)
+#define section_offs(iova) ((iova) & (SECT_SIZE - 1))
+#define lpage_phys(pent) PGBASE_TO_PHYS(ENT_TO_PHYS(pent) & LPAGE_ENT_MASK)
+#define lpage_offs(iova) ((iova) & (LPAGE_SIZE - 1))
+#define spage_phys(pent) PGBASE_TO_PHYS(ENT_TO_PHYS(pent) & SPAGE_ENT_MASK)
+#define spage_offs(iova) ((iova) & (SPAGE_SIZE - 1))
 
 #define MMU_MAJ_VER(val)	((val) >> 11)
 #define MMU_MIN_VER(val)	(((val) >> 4) & 0x7F)
@@ -507,9 +520,27 @@ static void samsung_sysmmu_iotlb_sync(struct iommu_domain *dom,
 }
 
 static phys_addr_t samsung_sysmmu_iova_to_phys(struct iommu_domain *dom,
-					       dma_addr_t iova)
+					       dma_addr_t d_iova)
 {
-	return 0;
+	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
+	sysmmu_iova_t iova = (sysmmu_iova_t)d_iova;
+	sysmmu_pte_t *entry;
+	phys_addr_t phys = 0;
+
+	entry = section_entry(domain->page_table, iova);
+
+	if (lv1ent_section(entry)) {
+		phys = section_phys(entry) + section_offs(iova);
+	} else if (lv1ent_page(entry)) {
+		entry = page_entry(entry, iova);
+
+		if (lv2ent_large(entry))
+			phys = lpage_phys(entry) + lpage_offs(iova);
+		else if (lv2ent_small(entry))
+			phys = spage_phys(entry) + spage_offs(iova);
+	}
+
+	return phys;
 }
 
 void samsung_sysmmu_dump_pagetable(struct device *dev, dma_addr_t iova)
