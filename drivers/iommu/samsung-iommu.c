@@ -96,6 +96,38 @@ typedef u32 sysmmu_pte_t;
 
 #define REG_MMU_VERSION			0x034
 
+#define REG_MMU_INT_STATUS		0x060
+#define REG_MMU_FAULT_VA		0x070
+#define REG_MMU_FAULT_TRANS_INFO	0x078
+#define REG_MMU_FAULT_RW_MASK		(0x1 << 20)
+#define IS_READ_FAULT(x)		(((x) & REG_MMU_FAULT_RW_MASK) == 0)
+
+#define SYSMMU_FAULT_PTW_ACCESS   0
+#define SYSMMU_FAULT_PAGE_FAULT   1
+#define SYSMMU_FAULT_ACCESS       3
+#define SYSMMU_FAULT_SECURITY     4
+#define SYSMMU_FAULT_UNKNOWN      5
+
+#define SYSMMU_FAULTS_NUM         (SYSMMU_FAULT_UNKNOWN + 1)
+
+static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
+	"PTW ACCESS FAULT",
+	"PAGE FAULT",
+	"RESERVED",
+	"ACCESS FAULT",
+	"SECURITY FAULT",
+	"UNKNOWN FAULT"
+};
+
+static int sysmmu_fault_type[SYSMMU_FAULTS_NUM] = {
+	IOMMU_FAULT_REASON_WALK_EABT,
+	IOMMU_FAULT_REASON_PTE_FETCH,
+	IOMMU_FAULT_REASON_UNKNOWN,
+	IOMMU_FAULT_REASON_ACCESS,
+	IOMMU_FAULT_REASON_PERMISSION,
+	IOMMU_FAULT_REASON_UNKNOWN,
+};
+
 struct sysmmu_drvdata {
 	struct list_head list;
 	struct iommu_device iommu;
@@ -125,6 +157,11 @@ struct samsung_sysmmu_domain {
 	sysmmu_pte_t *page_table;
 	atomic_t *lv2entcnt;
 	spinlock_t pgtablelock; /* serialize races to page table updates */
+};
+
+struct samsung_sysmmu_fault_info {
+	struct sysmmu_drvdata *drvdata;
+	struct iommu_fault_event event;
 };
 
 static bool sysmmu_global_init_done;
@@ -162,6 +199,16 @@ static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
 	writel_relaxed(data->pgtable / SPAGE_SIZE, sfrbase + REG_MMU_FLPT_BASE);
 	__sysmmu_tlb_invalidate_all(data);
 	writel(CTRL_ENABLE, sfrbase + REG_MMU_CTRL);
+}
+
+static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *data)
+{
+	return readl_relaxed(data->sfrbase + REG_MMU_INT_STATUS);
+}
+
+static inline u32 __sysmmu_get_fault_address(struct sysmmu_drvdata *data)
+{
+	return readl_relaxed(data->sfrbase + REG_MMU_FAULT_VA);
 }
 
 static struct samsung_sysmmu_domain *to_sysmmu_domain(struct iommu_domain *dom)
@@ -829,13 +876,121 @@ static struct iommu_ops samsung_sysmmu_ops = {
 	.pgsize_bitmap		= SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
 };
 
+static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
+{
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct samsung_sysmmu_fault_info *fi;
+	struct sysmmu_clientdata *client;
+	struct sysmmu_drvdata *drvdata;
+	int i;
+
+	fi = (struct samsung_sysmmu_fault_info *)data;
+	drvdata = fi->drvdata;
+
+	client = (struct sysmmu_clientdata *)fwspec->iommu_priv;
+
+	for (i = 0; i < client->sysmmu_count; i++) {
+		if (drvdata == client->sysmmus[i]) {
+			iommu_report_device_fault(dev, &fi->event);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static inline void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
+						 int intr_type,
+						 unsigned long fault_addr)
+{
+	unsigned int info;
+	phys_addr_t pgtable;
+
+	pgtable = readl_relaxed(drvdata->sfrbase + REG_MMU_FLPT_BASE);
+	pgtable <<= PAGE_SHIFT;
+
+	info = readl_relaxed(drvdata->sfrbase + REG_MMU_FAULT_TRANS_INFO);
+
+	pr_crit("----------------------------------------------------------\n");
+	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
+		dev_name(drvdata->dev), IS_READ_FAULT(info) ? "READ" : "WRITE",
+		sysmmu_fault_name[intr_type], fault_addr, &pgtable);
+
+	if (intr_type == SYSMMU_FAULT_UNKNOWN) {
+		pr_crit("The fault is not caused by this System MMU.\n");
+		pr_crit("Please check IRQ and SFR base address.\n");
+		goto finish;
+	}
+
+	pr_crit("AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
+
+	if (pgtable != drvdata->pgtable)
+		pr_crit("Page table base of driver: %pa\n",
+			&drvdata->pgtable);
+
+	if (!pfn_valid(pgtable >> PAGE_SHIFT)) {
+		pr_crit("Page table base is not in a valid memory region\n");
+		pgtable = 0;
+	} else {
+		sysmmu_pte_t *ent;
+
+		ent = section_entry(phys_to_virt(pgtable), fault_addr);
+		pr_crit("Lv1 entry: %#010x\n", *ent);
+
+		if (lv1ent_page(ent)) {
+			ent = page_entry(ent, fault_addr);
+			pr_crit("Lv2 entry: %#010x\n", *ent);
+		}
+	}
+
+	if (intr_type == SYSMMU_FAULT_PTW_ACCESS) {
+		pr_crit("System MMU has failed to access page table\n");
+		pgtable = 0;
+	}
+
+finish:
+	pr_crit("----------------------------------------------------------\n");
+}
+
+static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data,
+				      int *intr_type, unsigned long *addr)
+{
+	*intr_type =  __ffs(__sysmmu_get_intr_status(data));
+	*intr_type %= 4;
+	*addr = __sysmmu_get_fault_address(data);
+}
+
 static irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 {
+	int itype;
+	unsigned long addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
 
 	dev_info(drvdata->dev, "irq(%d) happened\n", irq);
 
-	/* TODO: Call the fault handler */
+	sysmmu_get_interrupt_info(drvdata, &itype, &addr);
+	sysmmu_show_fault_information(drvdata, itype, addr);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
+{
+	int itype;
+	unsigned long addr;
+	struct sysmmu_drvdata *drvdata = dev_id;
+	struct iommu_group *group = drvdata->group;
+	struct samsung_sysmmu_fault_info fi = {
+		.drvdata = drvdata,
+		.event.fault.type = IOMMU_FAULT_DMA_UNRECOV,
+	};
+
+	sysmmu_get_interrupt_info(drvdata, &itype, &addr);
+	fi.event.fault.event.addr = addr;
+	fi.event.fault.event.reason = sysmmu_fault_type[itype];
+	iommu_group_for_each_dev(group, &fi, samsung_sysmmu_fault_notifier);
+
+	panic("Unrecoverable System MMU Fault!!");
 
 	return IRQ_HANDLED;
 }
@@ -905,8 +1060,9 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = devm_request_irq(dev, irq, samsung_sysmmu_irq, 0,
-			       dev_name(dev), data);
+	ret = devm_request_threaded_irq(dev, irq, samsung_sysmmu_irq,
+					samsung_sysmmu_irq_thread,
+					IRQF_ONESHOT, dev_name(dev), data);
 	if (ret) {
 		dev_err(dev, "unabled to register handler of irq %d\n", irq);
 		return ret;
