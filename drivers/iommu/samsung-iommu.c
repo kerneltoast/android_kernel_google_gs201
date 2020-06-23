@@ -910,6 +910,10 @@ static int samsung_sysmmu_map(struct iommu_domain *dom, unsigned long l_iova,
 	sysmmu_pte_t *entry;
 	int ret = -ENOMEM;
 
+	/* Do not use IO coherency if iOMMU_PRIV exists */
+	if (!!(prot & IOMMU_PRIV))
+		prot &= ~IOMMU_CACHE;
+
 	entry = section_entry(domain->page_table, iova);
 
 	if (size == SECT_SIZE) {
