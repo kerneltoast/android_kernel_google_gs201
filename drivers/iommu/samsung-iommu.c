@@ -5,7 +5,9 @@
 
 #define pr_fmt(fmt) "sysmmu: " fmt
 
+#include <linux/clk.h>
 #include <linux/dma-iommu.h>
+#include <linux/interrupt.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/of_iommu.h>
@@ -29,9 +31,20 @@ typedef u32 sysmmu_pte_t;
 #define LV1TABLE_SIZE (NUM_LV1ENTRIES * sizeof(sysmmu_pte_t))
 #define LV2TABLE_SIZE (NUM_LV2ENTRIES * sizeof(sysmmu_pte_t))
 
+#define MMU_MAJ_VER(val)	((val) >> 11)
+#define MMU_MIN_VER(val)	(((val) >> 4) & 0x7F)
+#define MMU_REV_VER(val)	((val) & 0xF)
+#define MMU_RAW_VER(reg)	(((reg) >> 17) & 0x7FFF)
+
+#define REG_MMU_VERSION		0x034
+
 struct sysmmu_drvdata {
 	struct iommu_device iommu;
 	struct device *dev;
+	void __iomem *sfrbase;
+	struct clk *clk;
+	phys_addr_t pgtable;
+	u32 version;
 };
 
 static struct iommu_ops samsung_sysmmu_ops;
@@ -47,6 +60,11 @@ struct samsung_sysmmu_domain {
 static bool sysmmu_global_init_done;
 static struct device sync_dev;
 static struct kmem_cache *flpt_cache, *slpt_cache;
+
+static inline u32 __sysmmu_get_hw_version(struct sysmmu_drvdata *data)
+{
+	return MMU_RAW_VER(readl_relaxed(data->sfrbase + REG_MMU_VERSION));
+}
 
 static struct samsung_sysmmu_domain *to_sysmmu_domain(struct iommu_domain *dom)
 {
@@ -265,6 +283,26 @@ static struct iommu_ops samsung_sysmmu_ops = {
 	.pgsize_bitmap		= SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
 };
 
+static irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
+{
+	struct sysmmu_drvdata *drvdata = dev_id;
+
+	dev_info(drvdata->dev, "irq(%d) happened\n", irq);
+
+	/* TODO: Call the fault handler */
+
+	return IRQ_HANDLED;
+}
+
+static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
+{
+	data->version = __sysmmu_get_hw_version(data);
+
+	/* TODO: read more capability in HW */
+
+	return 0;
+}
+
 static int samsung_sysmmu_init_global(void)
 {
 	int ret = 0;
@@ -300,11 +338,49 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 {
 	struct sysmmu_drvdata *data;
 	struct device *dev = &pdev->dev;
-	int err = 0;
+	struct resource *res;
+	int irq, ret, err = 0;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "failed to get resource info\n");
+		return -ENOENT;
+	}
+
+	data->sfrbase = devm_ioremap_resource(dev, res);
+	if (IS_ERR(data->sfrbase))
+		return PTR_ERR(data->sfrbase);
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(dev, irq, samsung_sysmmu_irq, 0,
+			       dev_name(dev), data);
+	if (ret) {
+		dev_err(dev, "unabled to register handler of irq %d\n", irq);
+		return ret;
+	}
+
+	data->clk = devm_clk_get(dev, "gate");
+	if (PTR_ERR(data->clk) == -ENOENT) {
+		dev_info(dev, "no gate clock exists. it's okay.\n");
+		data->clk = NULL;
+	} else if (IS_ERR(data->clk)) {
+		dev_err(dev, "failed to get clock!\n");
+		return PTR_ERR(data->clk);
+	}
+
+	ret = sysmmu_get_hw_info(data);
+	if (ret) {
+		dev_err(dev, "failed to get h/w info\n");
+		return ret;
+	}
+
 	data->dev = dev;
 
 	err = iommu_device_sysfs_add(&data->iommu, data->dev,
@@ -333,8 +409,10 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	dev_info(dev, "initialized IOMMU\n");
-
+	dev_info(dev, "initialized IOMMU. Ver %d.%d.%d\n",
+		 MMU_MAJ_VER(data->version),
+		 MMU_MIN_VER(data->version),
+		 MMU_REV_VER(data->version));
 	return 0;
 
 err_global_init:
