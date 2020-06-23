@@ -15,6 +15,7 @@
 #include "gs101-usi.dtsi"
 #include "gs101-pm-domains.dtsi"
 #include "gs101-cpu.dtsi"
+#include "gs101-sysmmu.dtsi"
 #include "gs101-ufs.dtsi"
 
 / {
