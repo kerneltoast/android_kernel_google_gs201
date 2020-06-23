@@ -766,6 +766,7 @@ static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 	struct device_node *np;
 	struct platform_device *pdev;
 	struct list_head *list;
+	bool need_unmanaged_domain = false;
 
 	if (device_iommu_mapped(dev))
 		return iommu_group_get(dev);
@@ -782,6 +783,9 @@ static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 		of_node_put(np);
 		return ERR_PTR(-ENODEV);
 	}
+
+	if (of_property_read_bool(np, "samsung,unmanaged-domain"))
+		need_unmanaged_domain = true;
 
 	of_node_put(np);
 
@@ -801,6 +805,18 @@ static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 	INIT_LIST_HEAD(list);
 	iommu_group_set_iommudata(group, list,
 				  samsung_sysmmu_group_data_release);
+
+	if (need_unmanaged_domain) {
+		int ret;
+		struct iommu_domain *domain =
+				iommu_domain_alloc(&platform_bus_type);
+
+		ret = iommu_attach_group(domain, group);
+		if (ret) {
+			dev_err(dev, "failed to attach group, ret:%d\n", ret);
+			return ERR_PTR(ret);
+		}
+	}
 
 	return group;
 }
