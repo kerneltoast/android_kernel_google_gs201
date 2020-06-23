@@ -515,8 +515,14 @@ config SAMSUNG_IOMMU
 	tristate "Samsung IOMMU Support"
 	select ARM_DMA_USE_IOMMU
 	select IOMMU_DMA
+	select SAMSUNG_IOMMU_GROUP
 	help
 	  Support for IOMMU on Samsung Exynos SoCs.
+
+config SAMSUNG_IOMMU_GROUP
+	tristate "Samsung IOMMU Group Support"
+	help
+	  Support for IOMMU group on Samsung Exynos SoCs.
 
 config HYPERV_IOMMU
 	bool "Hyper-V x2APIC IRQ Handling"
