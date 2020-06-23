@@ -17,6 +17,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+#include <dt-bindings/soc/samsung,sysmmu-v8.h>
+
 typedef u32 sysmmu_iova_t;
 typedef u32 sysmmu_pte_t;
 
@@ -93,6 +95,8 @@ typedef u32 sysmmu_pte_t;
 #define CFG_MASK_GLOBAL			0x00000F80	/* Bit 11, 10-7 */
 					/* Bit 31, 29, 28, 19-16, 12, 2 */
 #define CFG_MASK_VM			0xB00F1004
+#define CFG_QOS_OVRRIDE			BIT(11)
+#define CFG_QOS(n)			(((n) & 0xF) << 7)
 #define REG_MMU_STATUS			0x008
 #define REG_MMU_FLPT_BASE		0x00C
 
@@ -131,6 +135,8 @@ typedef u32 sysmmu_pte_t;
 #define MMU_REG(data, idx)		((data)->sfrbase + (data)->reg_set[idx])
 #define MMU_VM_REG(data, idx, vmid)	((data)->sfrbase + \
 					 (data)->reg_set[idx] + (vmid) * 0x10)
+
+#define DEFAULT_QOS_VALUE	-1
 
 enum {
 	REG_IDX_DEFAULT = 0,
@@ -270,6 +276,7 @@ struct sysmmu_drvdata {
 	phys_addr_t pgtable;
 	spinlock_t lock; /* protect atomic update to H/W status */
 	u32 version;
+	int qos;
 	int attached_count;
 	const unsigned int *reg_set;
 	struct tlb_props tlb_props;
@@ -364,6 +371,9 @@ static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 {
 	unsigned long cfg = 0, cfg_vm = 0;
+
+	if (data->qos != DEFAULT_QOS_VALUE)
+		cfg |= CFG_QOS_OVRRIDE | CFG_QOS(data->qos);
 
 	if (!data->no_block_mode)
 		writel_relaxed(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
@@ -1232,6 +1242,233 @@ static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 	return 0;
 }
 
+static int sysmmu_parse_tlb_way_dt(struct device *dev,
+				   struct sysmmu_drvdata *drvdata)
+{
+	const char *props_name = "sysmmu,tlb_property";
+	struct tlb_props *tlb_props = &drvdata->tlb_props;
+	struct tlb_priv_id *id_cfg = NULL;
+	struct tlb_priv_addr *addr_cfg = NULL;
+	int i, cnt, id_cnt = 0, addr_cnt = 0;
+	unsigned int id_idx = 0, addr_idx = 0;
+	unsigned int prop;
+	int ret;
+
+	/* Parsing TLB way properties */
+	cnt = of_property_count_u32_elems(dev->of_node, props_name);
+	for (i = 0; i < cnt; i += 2) {
+		ret = of_property_read_u32_index(dev->of_node, props_name, i,
+						 &prop);
+		if (ret) {
+			dev_err(dev,
+				"failed to get property. cnt = %d, ret = %d\n",
+				i, ret);
+			return -EINVAL;
+		}
+
+		switch (prop & WAY_TYPE_MASK) {
+		case _PRIVATE_WAY_ID:
+			id_cnt++;
+			tlb_props->flags |= TLB_WAY_PRIVATE_ID;
+			break;
+		case _PRIVATE_WAY_ADDR:
+			addr_cnt++;
+			tlb_props->flags |= TLB_WAY_PRIVATE_ADDR;
+			break;
+		case _PUBLIC_WAY:
+			tlb_props->flags |= TLB_WAY_PUBLIC;
+			tlb_props->way_props.public_cfg = prop & ~WAY_TYPE_MASK;
+			break;
+		default:
+			dev_err(dev, "Undefined properties!: %#x\n", prop);
+			break;
+		}
+	}
+
+	if (id_cnt) {
+		id_cfg = kcalloc(id_cnt, sizeof(*id_cfg), GFP_KERNEL);
+		if (!id_cfg)
+			return -ENOMEM;
+	}
+
+	if (addr_cnt) {
+		addr_cfg = kcalloc(addr_cnt, sizeof(*addr_cfg), GFP_KERNEL);
+		if (!addr_cfg) {
+			ret = -ENOMEM;
+			goto err_priv_id;
+		}
+	}
+
+	for (i = 0; i < cnt; i += 2) {
+		ret = of_property_read_u32_index(dev->of_node, props_name, i,
+						 &prop);
+		if (ret) {
+			dev_err(dev, "failed to get TLB property of %d/%d\n",
+				i, cnt);
+			ret = -EINVAL;
+			goto err_priv_addr;
+		}
+
+		switch (prop & WAY_TYPE_MASK) {
+		case _PRIVATE_WAY_ID:
+			id_cfg[id_idx].cfg = prop & ~WAY_TYPE_MASK;
+			ret = of_property_read_u32_index(dev->of_node,
+							 props_name, i + 1,
+							 &id_cfg[id_idx].id);
+			if (ret) {
+				dev_err(dev,
+					"failed to get ID property of %d/%d\n",
+					i + 1, cnt);
+				goto err_priv_addr;
+			}
+			id_idx++;
+			break;
+		case _PRIVATE_WAY_ADDR:
+			addr_cfg[addr_idx].cfg = prop & ~WAY_TYPE_MASK;
+			addr_idx++;
+			break;
+		case _PUBLIC_WAY:
+			break;
+		}
+	}
+
+	tlb_props->way_props.priv_id_cfg = id_cfg;
+	tlb_props->way_props.priv_id_cnt = id_cnt;
+
+	tlb_props->way_props.priv_addr_cfg = addr_cfg;
+	tlb_props->way_props.priv_addr_cnt = addr_cnt;
+
+	return 0;
+
+err_priv_addr:
+	kfree(addr_cfg);
+err_priv_id:
+	kfree(id_cfg);
+
+	return ret;
+}
+
+static int sysmmu_parse_tlb_port_dt(struct device *dev,
+				    struct sysmmu_drvdata *drvdata)
+{
+	const char *props_name = "sysmmu,tlb_property";
+	const char *slot_props_name = "sysmmu,slot_property";
+	struct tlb_props *tlb_props = &drvdata->tlb_props;
+	struct tlb_port_cfg *port_cfg = NULL;
+	unsigned int *slot_cfg = NULL;
+	int i, cnt, ret;
+	int port_id_cnt = 0;
+
+	cnt = of_property_count_u32_elems(dev->of_node, slot_props_name);
+	if (cnt > 0) {
+		slot_cfg = kcalloc(cnt, sizeof(*slot_cfg), GFP_KERNEL);
+		if (!slot_cfg)
+			return -ENOMEM;
+
+		for (i = 0; i < cnt; i++) {
+			ret = of_property_read_u32_index(dev->of_node,
+							 slot_props_name,
+							 i, &slot_cfg[i]);
+			if (ret) {
+				dev_err(dev,
+					"failed to read slot_property %d/%d\n",
+					i, cnt);
+				ret = -EINVAL;
+				goto err_slot_prop;
+			}
+		}
+
+		tlb_props->port_props.slot_cnt = cnt;
+		tlb_props->port_props.slot_cfg = slot_cfg;
+	}
+
+	cnt = of_property_count_u32_elems(dev->of_node, props_name);
+	if (cnt <= 0) {
+		dev_info(dev, "No TLB port propeties found.\n");
+		return 0;
+	}
+
+	port_cfg = kcalloc(cnt / 2, sizeof(*port_cfg), GFP_KERNEL);
+	if (!port_cfg) {
+		ret = -ENOMEM;
+		goto err_slot_prop;
+	}
+
+	for (i = 0; i < cnt; i += 2) {
+		ret = of_property_read_u32_index(dev->of_node,
+						 props_name, i,
+						 &port_cfg[port_id_cnt].cfg);
+		if (ret) {
+			dev_err(dev, "failed to read tlb_property of %d/%d\n",
+				i, cnt);
+			ret = -EINVAL;
+			goto err_port_prop;
+		}
+
+		ret = of_property_read_u32_index(dev->of_node,
+						 props_name, i + 1,
+						 &port_cfg[port_id_cnt].id);
+		if (ret) {
+			dev_err(dev, "failed to read tlb_property of %d/%d\n",
+				i + 1, cnt);
+			ret = -EINVAL;
+			goto err_port_prop;
+		}
+		port_id_cnt++;
+	}
+
+	tlb_props->port_props.port_id_cnt = port_id_cnt;
+	tlb_props->port_props.port_cfg = port_cfg;
+
+	return 0;
+
+err_port_prop:
+	kfree(port_cfg);
+
+err_slot_prop:
+	kfree(slot_cfg);
+
+	return ret;
+}
+
+static int sysmmu_parse_dt(struct device *sysmmu, struct sysmmu_drvdata *data)
+{
+	unsigned int qos = DEFAULT_QOS_VALUE;
+	int ret;
+
+	/* Parsing QoS */
+	ret = of_property_read_u32_index(sysmmu->of_node, "qos", 0, &qos);
+	if (!ret && qos > 15) {
+		dev_err(sysmmu, "Invalid QoS value %d, use default.\n", qos);
+		qos = DEFAULT_QOS_VALUE;
+	}
+
+	data->qos = qos;
+
+	if (IS_TLB_WAY_TYPE(data)) {
+		ret = sysmmu_parse_tlb_way_dt(sysmmu, data);
+		if (ret)
+			dev_err(sysmmu, "Failed to parse TLB way property\n");
+	} else if (IS_TLB_PORT_TYPE(data)) {
+		ret = sysmmu_parse_tlb_port_dt(sysmmu, data);
+		if (ret)
+			dev_err(sysmmu, "Failed to parse TLB port property\n");
+	};
+
+	return ret;
+}
+
+static void sysmmu_release_tlb_info(struct sysmmu_drvdata *data)
+{
+	if (IS_TLB_WAY_TYPE(data)) {
+		kfree(data->tlb_props.way_props.priv_id_cfg);
+		kfree(data->tlb_props.way_props.priv_addr_cfg);
+	} else if (IS_TLB_PORT_TYPE(data)) {
+		kfree(data->tlb_props.port_props.slot_cfg);
+		kfree(data->tlb_props.port_props.port_cfg);
+	}
+}
+
 static int samsung_sysmmu_init_global(void)
 {
 	int ret = 0;
@@ -1315,11 +1552,15 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 	spin_lock_init(&data->lock);
 	data->dev = dev;
 
+	ret = sysmmu_parse_dt(data->dev, data);
+	if (ret)
+		return ret;
+
 	err = iommu_device_sysfs_add(&data->iommu, data->dev,
 				     NULL, dev_name(dev));
 	if (err) {
 		dev_err(dev, "failed to register iommu in sysfs\n");
-		return err;
+		goto err_sysfs_add;
 	}
 
 	iommu_device_set_ops(&data->iommu, &samsung_sysmmu_ops);
@@ -1348,6 +1589,8 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 		 MMU_REV_VER(data->version));
 	return 0;
 
+err_sysfs_add:
+	sysmmu_release_tlb_info(data);
 err_global_init:
 	iommu_device_unregister(&data->iommu);
 err_iommu_register:
