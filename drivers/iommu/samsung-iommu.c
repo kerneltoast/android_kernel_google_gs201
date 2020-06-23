@@ -2076,7 +2076,7 @@ static int __maybe_unused samsung_sysmmu_runtime_resume(struct device *sysmmu)
 
 static int __maybe_unused samsung_sysmmu_suspend(struct device *dev)
 {
-	if (pm_runtime_suspended(dev))
+	if (pm_runtime_status_suspended(dev))
 		return 0;
 
 	return samsung_sysmmu_runtime_suspend(dev);
@@ -2084,7 +2084,7 @@ static int __maybe_unused samsung_sysmmu_suspend(struct device *dev)
 
 static int __maybe_unused samsung_sysmmu_resume(struct device *dev)
 {
-	if (pm_runtime_suspended(dev))
+	if (pm_runtime_status_suspended(dev))
 		return 0;
 
 	return samsung_sysmmu_runtime_resume(dev);
