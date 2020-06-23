@@ -39,12 +39,16 @@ typedef u32 sysmmu_pte_t;
 #define REG_MMU_VERSION		0x034
 
 struct sysmmu_drvdata {
+	struct list_head list;
 	struct iommu_device iommu;
 	struct device *dev;
+	struct iommu_group *group;
 	void __iomem *sfrbase;
 	struct clk *clk;
 	phys_addr_t pgtable;
+	spinlock_t lock; /* protect atomic update to H/W status */
 	u32 version;
+	int attached_count;
 };
 
 struct sysmmu_clientdata {
@@ -58,6 +62,7 @@ static struct platform_driver samsung_sysmmu_driver;
 
 struct samsung_sysmmu_domain {
 	struct iommu_domain domain;
+	struct iommu_group *group;
 	sysmmu_pte_t *page_table;
 	atomic_t *lv2entcnt;
 	spinlock_t pgtablelock; /* serialize races to page table updates */
@@ -148,10 +153,31 @@ static void samsung_sysmmu_domain_free(struct iommu_domain *dom)
 	kfree(domain);
 }
 
+static inline void samsung_sysmmu_detach_drvdata(struct sysmmu_drvdata *data)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&data->lock, flags);
+	if (--data->attached_count == 0) {
+		list_del(&data->list);
+		data->pgtable = 0;
+		data->group = NULL;
+	}
+	spin_unlock_irqrestore(&data->lock, flags);
+}
+
 static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 				     struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct sysmmu_clientdata *client;
+	struct samsung_sysmmu_domain *domain;
+	struct list_head *group_list;
+	struct sysmmu_drvdata *drvdata;
+	struct iommu_group *group = dev->iommu_group;
+	unsigned long flags;
+	phys_addr_t page_table;
+	int i;
 
 	if (!fwspec || fwspec->ops != &samsung_sysmmu_ops) {
 		dev_err(dev, "failed to attach, IOMMU instance data %s.\n",
@@ -164,7 +190,65 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 		return -ENODEV;
 	}
 
+	domain = to_sysmmu_domain(dom);
+	domain->group = group;
+	group_list = iommu_group_get_iommudata(group);
+	page_table = virt_to_phys(domain->page_table);
+
+	client = fwspec->iommu_priv;
+	for (i = 0; i < client->sysmmu_count; i++) {
+		drvdata = client->sysmmus[i];
+
+		spin_lock_irqsave(&drvdata->lock, flags);
+		if (drvdata->attached_count++ == 0) {
+			list_add(&drvdata->list, group_list);
+			drvdata->group = group;
+			drvdata->pgtable = page_table;
+		} else if (drvdata->pgtable != page_table) {
+			dev_err(dev, "%s is already attached to other domain\n",
+				dev_name(drvdata->dev));
+			spin_unlock_irqrestore(&drvdata->lock, flags);
+			goto err_drvdata_add;
+		}
+		spin_unlock_irqrestore(&drvdata->lock, flags);
+	}
+
+	dev_info(dev, "attached with pgtable %pa\n", &domain->page_table);
+
 	return 0;
+
+err_drvdata_add:
+	while (i-- > 0) {
+		drvdata = client->sysmmus[i];
+
+		samsung_sysmmu_detach_drvdata(drvdata);
+	}
+
+	return -EINVAL;
+}
+
+static void samsung_sysmmu_detach_dev(struct iommu_domain *dom,
+				      struct device *dev)
+{
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct sysmmu_clientdata *client;
+	struct samsung_sysmmu_domain *domain;
+	struct list_head *group_list;
+	struct sysmmu_drvdata *drvdata;
+	struct iommu_group *group = dev->iommu_group;
+	int i;
+
+	domain = to_sysmmu_domain(dom);
+	group_list = iommu_group_get_iommudata(group);
+
+	client = fwspec->iommu_priv;
+	for (i = 0; i < client->sysmmu_count; i++) {
+		drvdata = client->sysmmus[i];
+
+		samsung_sysmmu_detach_drvdata(drvdata);
+	}
+
+	dev_info(dev, "detached from pgtable %pa\n", &domain->page_table);
 }
 
 static int samsung_sysmmu_map(struct iommu_domain *dom, unsigned long iova,
@@ -345,6 +429,7 @@ static struct iommu_ops samsung_sysmmu_ops = {
 	.domain_alloc		= samsung_sysmmu_domain_alloc,
 	.domain_free		= samsung_sysmmu_domain_free,
 	.attach_dev		= samsung_sysmmu_attach_dev,
+	.detach_dev		= samsung_sysmmu_detach_dev,
 	.map			= samsung_sysmmu_map,
 	.unmap			= samsung_sysmmu_unmap,
 	.flush_iotlb_all	= samsung_sysmmu_flush_iotlb_all,
@@ -455,6 +540,8 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	INIT_LIST_HEAD(&data->list);
+	spin_lock_init(&data->lock);
 	data->dev = dev;
 
 	err = iommu_device_sysfs_add(&data->iommu, data->dev,
