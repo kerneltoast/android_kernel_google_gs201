@@ -89,6 +89,11 @@ typedef u32 sysmmu_pte_t;
 #define REG_MMU_STATUS			0x008
 #define REG_MMU_FLPT_BASE		0x00C
 
+#define REG_MMU_INV_ALL			0x010
+#define REG_MMU_INV_RANGE		0x018
+#define REG_MMU_INV_START		0x020
+#define REG_MMU_INV_END			0x024
+
 #define REG_MMU_VERSION			0x034
 
 struct sysmmu_drvdata {
@@ -131,9 +136,23 @@ static inline u32 __sysmmu_get_hw_version(struct sysmmu_drvdata *data)
 	return MMU_RAW_VER(readl_relaxed(data->sfrbase + REG_MMU_VERSION));
 }
 
+static inline void __sysmmu_tlb_invalidate_all(struct sysmmu_drvdata *data)
+{
+	writel(0x1, data->sfrbase + REG_MMU_INV_ALL);
+}
+
+static inline void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *data,
+					   dma_addr_t start, dma_addr_t end)
+{
+	writel_relaxed(start, data->sfrbase + REG_MMU_INV_START);
+	writel_relaxed(end - 1, data->sfrbase + REG_MMU_INV_END);
+	writel(0x1, data->sfrbase + REG_MMU_INV_RANGE);
+}
+
 static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 {
 	writel_relaxed(CTRL_DISABLE, data->sfrbase + REG_MMU_CTRL);
+	__sysmmu_tlb_invalidate_all(data);
 }
 
 static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
@@ -141,6 +160,7 @@ static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
 	void __iomem *sfrbase = data->sfrbase;
 
 	writel_relaxed(data->pgtable / SPAGE_SIZE, sfrbase + REG_MMU_FLPT_BASE);
+	__sysmmu_tlb_invalidate_all(data);
 	writel(CTRL_ENABLE, sfrbase + REG_MMU_CTRL);
 }
 
@@ -528,6 +548,8 @@ static size_t samsung_sysmmu_unmap(struct iommu_domain *dom,
 	atomic_sub(SPAGES_PER_LPAGE, lv2entcnt);
 
 done:
+	iommu_iotlb_gather_add_page(dom, gather, iova, size);
+
 	return size;
 
 err:
@@ -539,11 +561,54 @@ err:
 
 static void samsung_sysmmu_flush_iotlb_all(struct iommu_domain *dom)
 {
+	unsigned long flags;
+	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
+	struct list_head *sysmmu_list;
+	struct sysmmu_drvdata *drvdata;
+
+	/*
+	 * domain->group might be NULL if flush_iotlb_all is called
+	 * before attach_dev. Just ignore it.
+	 */
+	if (!domain->group)
+		return;
+
+	sysmmu_list = iommu_group_get_iommudata(domain->group);
+
+	list_for_each_entry(drvdata, sysmmu_list, list) {
+		spin_lock_irqsave(&drvdata->lock, flags);
+		if (drvdata->attached_count &&
+		    !pm_runtime_suspended(drvdata->dev))
+			__sysmmu_tlb_invalidate_all(drvdata);
+		spin_unlock_irqrestore(&drvdata->lock, flags);
+	}
 }
 
 static void samsung_sysmmu_iotlb_sync(struct iommu_domain *dom,
 				      struct iommu_iotlb_gather *gather)
 {
+	unsigned long flags;
+	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
+	struct list_head *sysmmu_list;
+	struct sysmmu_drvdata *drvdata;
+
+	/*
+	 * domain->group might be NULL if iotlb_sync is called
+	 * before attach_dev. Just ignore it.
+	 */
+	if (!domain->group)
+		return;
+
+	sysmmu_list = iommu_group_get_iommudata(domain->group);
+
+	list_for_each_entry(drvdata, sysmmu_list, list) {
+		spin_lock_irqsave(&drvdata->lock, flags);
+		if (drvdata->attached_count &&
+		    !pm_runtime_suspended(drvdata->dev))
+			__sysmmu_tlb_invalidate(drvdata,
+						gather->start, gather->end);
+		spin_unlock_irqrestore(&drvdata->lock, flags);
+	}
 }
 
 static phys_addr_t samsung_sysmmu_iova_to_phys(struct iommu_domain *dom,
