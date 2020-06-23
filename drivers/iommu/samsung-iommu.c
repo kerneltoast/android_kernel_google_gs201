@@ -14,6 +14,7 @@
 #include <linux/of_iommu.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 typedef u32 sysmmu_iova_t;
@@ -81,7 +82,14 @@ typedef u32 sysmmu_pte_t;
 #define MMU_REV_VER(val)	((val) & 0xF)
 #define MMU_RAW_VER(reg)	(((reg) >> 17) & 0x7FFF)
 
-#define REG_MMU_VERSION		0x034
+#define REG_MMU_CTRL			0x000
+#define CTRL_ENABLE			0x5
+#define CTRL_DISABLE			0x0
+#define REG_MMU_CFG			0x004
+#define REG_MMU_STATUS			0x008
+#define REG_MMU_FLPT_BASE		0x00C
+
+#define REG_MMU_VERSION			0x034
 
 struct sysmmu_drvdata {
 	struct list_head list;
@@ -121,6 +129,19 @@ static struct kmem_cache *flpt_cache, *slpt_cache;
 static inline u32 __sysmmu_get_hw_version(struct sysmmu_drvdata *data)
 {
 	return MMU_RAW_VER(readl_relaxed(data->sfrbase + REG_MMU_VERSION));
+}
+
+static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
+{
+	writel_relaxed(CTRL_DISABLE, data->sfrbase + REG_MMU_CTRL);
+}
+
+static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
+{
+	void __iomem *sfrbase = data->sfrbase;
+
+	writel_relaxed(data->pgtable / SPAGE_SIZE, sfrbase + REG_MMU_FLPT_BASE);
+	writel(CTRL_ENABLE, sfrbase + REG_MMU_CTRL);
 }
 
 static struct samsung_sysmmu_domain *to_sysmmu_domain(struct iommu_domain *dom)
@@ -217,6 +238,9 @@ static inline void samsung_sysmmu_detach_drvdata(struct sysmmu_drvdata *data)
 
 	spin_lock_irqsave(&data->lock, flags);
 	if (--data->attached_count == 0) {
+		if (pm_runtime_active(data->dev))
+			__sysmmu_disable(data);
+
 		list_del(&data->list);
 		data->pgtable = 0;
 		data->group = NULL;
@@ -262,6 +286,9 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 			list_add(&drvdata->list, group_list);
 			drvdata->group = group;
 			drvdata->pgtable = page_table;
+
+			if (pm_runtime_active(drvdata->dev))
+				__sysmmu_enable(drvdata);
 		} else if (drvdata->pgtable != page_table) {
 			dev_err(dev, "%s is already attached to other domain\n",
 				dev_name(drvdata->dev));
@@ -862,6 +889,7 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 			goto err_global_init;
 		}
 	}
+	pm_runtime_enable(dev);
 
 	platform_set_drvdata(pdev, data);
 
@@ -882,6 +910,55 @@ static void samsung_sysmmu_device_shutdown(struct platform_device *pdev)
 {
 }
 
+static int __maybe_unused samsung_sysmmu_runtime_suspend(struct device *sysmmu)
+{
+	unsigned long flags;
+	struct sysmmu_drvdata *drvdata = dev_get_drvdata(sysmmu);
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (drvdata->attached_count > 0)
+		__sysmmu_disable(drvdata);
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
+	return 0;
+}
+
+static int __maybe_unused samsung_sysmmu_runtime_resume(struct device *sysmmu)
+{
+	unsigned long flags;
+	struct sysmmu_drvdata *drvdata = dev_get_drvdata(sysmmu);
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (drvdata->attached_count > 0)
+		__sysmmu_enable(drvdata);
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
+	return 0;
+}
+
+static int __maybe_unused samsung_sysmmu_suspend(struct device *dev)
+{
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return samsung_sysmmu_runtime_suspend(dev);
+}
+
+static int __maybe_unused samsung_sysmmu_resume(struct device *dev)
+{
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	return samsung_sysmmu_runtime_resume(dev);
+}
+
+static const struct dev_pm_ops samsung_sysmmu_pm_ops = {
+	SET_RUNTIME_PM_OPS(samsung_sysmmu_runtime_suspend,
+			   samsung_sysmmu_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(samsung_sysmmu_suspend,
+				     samsung_sysmmu_resume)
+};
+
 static const struct of_device_id sysmmu_of_match[] = {
 	{ .compatible = "samsung,sysmmu-v8" },
 	{ }
@@ -891,6 +968,7 @@ static struct platform_driver samsung_sysmmu_driver = {
 	.driver	= {
 		.name			= "samsung-sysmmu",
 		.of_match_table		= of_match_ptr(sysmmu_of_match),
+		.pm			= &samsung_sysmmu_pm_ops,
 		.suppress_bind_attrs	= true,
 	},
 	.probe	= samsung_sysmmu_device_probe,
