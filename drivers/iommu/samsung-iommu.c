@@ -817,6 +817,8 @@ static inline void clear_lv2_page_table(sysmmu_pte_t *ent, int n)
 	memset(ent, 0, sizeof(*ent) * n);
 }
 
+static void samsung_sysmmu_iotlb_sync(struct iommu_domain *dom,
+				      struct iommu_iotlb_gather *gather);
 static int lv1set_section(struct samsung_sysmmu_domain *domain,
 			  sysmmu_pte_t *sent, sysmmu_iova_t iova,
 			  phys_addr_t paddr, int prot, atomic_t *pgcnt)
@@ -829,12 +831,20 @@ static int lv1set_section(struct samsung_sysmmu_domain *domain,
 	}
 
 	if (lv1ent_page(sent)) {
+		struct iommu_iotlb_gather gather = {
+			.start = (unsigned long)iova,
+			.end = (unsigned long)iova + SECT_SIZE,
+			.pgsize = SECT_SIZE,
+		};
+
 		if (WARN_ON(atomic_read(pgcnt) != 0)) {
 			WARN(1, "Trying mapping 1MB@%#08x on valid SLPD", iova);
 			return -EADDRINUSE;
 		}
+
 		kmem_cache_free(slpt_cache, page_entry(sent, 0));
 		atomic_set(pgcnt, NUM_LV2ENTRIES);
+		samsung_sysmmu_iotlb_sync(&domain->domain, &gather);
 	}
 
 	*sent = make_sysmmu_pte(paddr, SECT_FLAG, attr);
