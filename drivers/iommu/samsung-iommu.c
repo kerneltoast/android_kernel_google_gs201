@@ -157,6 +157,7 @@ typedef u32 sysmmu_pte_t;
 #define MMU_CAPA1_VCR_ENABLED(reg)	(((reg) >> 14) & 0x1)
 
 #define MMU_CAPA_NUM_TLB_WAY(reg)	((reg) & 0xFF)
+#define MMU_CAPA_NUM_SBB_ENTRY(reg)	(((reg) >> 12) & 0xF)
 #define MMU_CAPA1_NUM_TLB(reg)		(((reg) >> 4) & 0xFF)
 #define MMU_CAPA1_NUM_PORT(reg)		((reg) & 0xF)
 #define REG_MMU_TLB_CFG(n)		(0x2000 + ((n) * 0x20) + 0x4)
@@ -164,6 +165,21 @@ typedef u32 sysmmu_pte_t;
 #define REG_MMU_TLB_MATCH_SVA(n)	(0x2000 + ((n) * 0x20) + 0xC)
 #define REG_MMU_TLB_MATCH_EVA(n)	(0x2000 + ((n) * 0x20) + 0x10)
 #define REG_MMU_TLB_MATCH_ID(n)		(0x2000 + ((n) * 0x20) + 0x14)
+
+#define MMU_TLB_INFO(n)			(0x2000 + ((n) * 0x20))
+#define MMU_CAPA1_NUM_TLB_SET(reg)	(((reg) >> 16) & 0xFF)
+#define MMU_CAPA1_NUM_TLB_WAY(reg)	((reg) & 0xFF)
+#define MMU_CAPA1_SET_TLB_READ_ENTRY(tid, set, way, line)		\
+					((set) | ((way) << 8) |		\
+					 ((line) << 16) | ((tid) << 20))
+
+#define MMU_TLB_ENTRY_VALID(reg)	((reg) >> 28)
+#define MMU_SBB_ENTRY_VALID(reg)	((reg) >> 28)
+
+#define MMU_VADDR_FROM_TLB(reg, idx)	(((reg) & 0xFFFFC | (idx) & 0x3) << 12)
+#define MMU_PADDR_FROM_TLB(reg)		(((reg) & 0xFFFFFF) << 12)
+#define MMU_VADDR_FROM_SBB(reg)		(((reg) & 0xFFFFF) << 12)
+#define MMU_PADDR_FROM_SBB(reg)		(((reg) & 0x3FFFFFF) << 10)
 
 #define REG_SLOT_RSV(n)			(0x4000 + ((n) * 0x20))
 
@@ -1293,6 +1309,192 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 	return 0;
 }
 
+static inline void sysmmu_tlb_compare(phys_addr_t pgtable,
+				      int idx_sub, u32 vpn, u32 ppn)
+{
+	sysmmu_pte_t *entry;
+	unsigned long vaddr = MMU_VADDR_FROM_TLB((unsigned long)vpn, idx_sub);
+	unsigned long paddr = MMU_PADDR_FROM_TLB((unsigned long)ppn);
+	unsigned long phys = 0;
+
+	if (!pgtable)
+		return;
+
+	entry = section_entry(phys_to_virt(pgtable), vaddr);
+
+	if (lv1ent_section(entry)) {
+		phys = section_phys(entry);
+	} else if (lv1ent_page(entry)) {
+		entry = page_entry(entry, vaddr);
+
+		if (lv2ent_large(entry))
+			phys = lpage_phys(entry);
+		else if (lv2ent_small(entry))
+			phys = spage_phys(entry);
+	} else {
+		pr_crit(">> Invalid address detected! entry: %#lx",
+			(unsigned long)*entry);
+		return;
+	}
+
+	if (paddr != phys) {
+		pr_crit(">> TLB mismatch detected!\n");
+		pr_crit("   TLB: %#010lx, PT entry: %#010lx\n", paddr, phys);
+	}
+}
+
+static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link,
+				      phys_addr_t pgtable)
+{
+	sysmmu_pte_t *entry;
+	unsigned long vaddr = MMU_VADDR_FROM_SBB((unsigned long)sbb_vpn);
+	unsigned long paddr = MMU_PADDR_FROM_SBB((unsigned long)sbb_link);
+	unsigned long phys = 0;
+
+	if (!pgtable)
+		return;
+
+	entry = section_entry(phys_to_virt(pgtable), vaddr);
+
+	if (lv1ent_page(entry)) {
+		phys = lv2table_base(entry);
+
+		if (paddr != phys) {
+			pr_crit(">> SBB mismatch detected!\n");
+			pr_crit("   entry addr: %lx / SBB addr %lx\n",
+				paddr, phys);
+		}
+	} else {
+		pr_crit(">> Invalid address detected! entry: %#lx",
+			(unsigned long)*entry);
+	}
+}
+
+static inline
+unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata,
+				      phys_addr_t pgtable,
+				      int idx_way, int idx_set, int idx_sub)
+{
+	u32 attr = readl_relaxed(MMU_REG(drvdata, IDX_TLB_ATTR));
+
+	if (MMU_TLB_ENTRY_VALID(attr)) {
+		u32 vpn, ppn;
+
+		vpn = readl_relaxed(MMU_REG(drvdata, IDX_TLB_VPN)) + idx_sub;
+		ppn = readl_relaxed(MMU_REG(drvdata, IDX_TLB_PPN));
+
+		pr_crit("[%02d][%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
+			idx_way, idx_set, vpn, ppn, attr);
+		sysmmu_tlb_compare(pgtable, idx_sub, vpn, ppn);
+
+		return 1;
+	}
+
+	return 0;
+}
+
+#define MMU_NUM_TLB_SUBLINE		4
+static unsigned int dump_tlb_entry_port(struct sysmmu_drvdata *drvdata,
+					phys_addr_t pgtable,
+					int tlb, int way, int num_set)
+{
+	int cnt = 0;
+	int set, line, val;
+
+	for (set = 0; set < num_set; set++) {
+		for (line = 0; line < MMU_NUM_TLB_SUBLINE; line++) {
+			val = MMU_CAPA1_SET_TLB_READ_ENTRY(tlb, set, way, line);
+			writel_relaxed(val, MMU_REG(drvdata, IDX_TLB_READ));
+			cnt += dump_tlb_entry_port_type(drvdata, pgtable,
+							way, set, line);
+		}
+	}
+
+	return cnt;
+}
+
+static inline void dump_sysmmu_tlb_port(struct sysmmu_drvdata *drvdata,
+					phys_addr_t pgtable)
+{
+	int t, i;
+	u32 capa0, capa1, info;
+	unsigned int cnt;
+	int num_tlb, num_port, num_sbb;
+	void __iomem *sfrbase = drvdata->sfrbase;
+
+	capa0 = readl_relaxed(sfrbase + REG_MMU_CAPA0_V7);
+	capa1 = readl_relaxed(sfrbase + REG_MMU_CAPA1_V7);
+
+	num_tlb = MMU_CAPA1_NUM_TLB(capa1);
+	num_port = MMU_CAPA1_NUM_PORT(capa1);
+	num_sbb = 1 << MMU_CAPA_NUM_SBB_ENTRY(capa0);
+
+	pr_crit("SysMMU has %d TLBs, %d ports, %d sbb entries\n",
+		num_tlb, num_port, num_sbb);
+
+	for (t = 0; t < num_tlb; t++) {
+		int num_set, num_way;
+
+		info = readl_relaxed(sfrbase + MMU_TLB_INFO(t));
+		num_way = MMU_CAPA1_NUM_TLB_WAY(info);
+		num_set = MMU_CAPA1_NUM_TLB_SET(info);
+
+		pr_crit("TLB.%d has %d way, %d set.\n", t, num_way, num_set);
+		pr_crit("------------- TLB[WAY][SET][ENTRY] -------------\n");
+		for (i = 0, cnt = 0; i < num_way; i++)
+			cnt += dump_tlb_entry_port(drvdata, pgtable,
+						   t, i, num_set);
+	}
+	if (!cnt)
+		pr_crit(">> No Valid TLB Entries\n");
+
+	pr_crit("--- SBB(Second-Level Page Table Base Address Buffer) ---\n");
+	for (i = 0, cnt = 0; i < num_sbb; i++) {
+		u32 sbb_vpn, sbblink;
+
+		writel_relaxed(i, MMU_REG(drvdata, IDX_SBB_READ));
+		sbb_vpn = readl_relaxed(MMU_REG(drvdata, IDX_SBB_VPN));
+
+		if (MMU_SBB_ENTRY_VALID(sbb_vpn)) {
+			sbblink = readl_relaxed(MMU_REG(drvdata, IDX_SBB_LINK));
+
+			pr_crit("[%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x",
+				i, sbb_vpn, sbblink,
+				readl_relaxed(MMU_REG(drvdata, IDX_SBB_ATTR)));
+			sysmmu_sbb_compare(sbb_vpn, sbblink, pgtable);
+			cnt++;
+		}
+	}
+	if (!cnt)
+		pr_crit(">> No Valid SBB Entries\n");
+}
+
+static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
+				      phys_addr_t pgtable)
+{
+	int info;
+	void __iomem *sfrbase = drvdata->sfrbase;
+
+	info = MMU_RAW_VER(readl_relaxed(sfrbase + REG_MMU_VERSION));
+
+	pr_crit("ADDR: (VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
+		sfrbase,
+		readl_relaxed(sfrbase + REG_MMU_CTRL),
+		readl_relaxed(MMU_REG(drvdata, IDX_FLPT_BASE)));
+	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
+		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
+		readl_relaxed(sfrbase + REG_MMU_CFG),
+		readl_relaxed(sfrbase + REG_MMU_STATUS));
+
+	if (drvdata->has_vcr)
+		pr_crit("MMU_CTRL_VM: %#010x, MMU_CFG_VM: %#010x\n",
+			readl_relaxed(sfrbase + REG_MMU_CTRL_VM),
+			readl_relaxed(sfrbase + REG_MMU_CFG_VM));
+
+	if (IS_TLB_PORT_TYPE(drvdata))
+		dump_sysmmu_tlb_port(drvdata, pgtable);
+}
+
 static inline void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 						 int intr_type,
 						 unsigned long fault_addr)
@@ -1342,6 +1544,7 @@ static inline void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 		pgtable = 0;
 	}
 
+	dump_sysmmu_status(drvdata, pgtable);
 finish:
 	pr_crit("----------------------------------------------------------\n");
 }
