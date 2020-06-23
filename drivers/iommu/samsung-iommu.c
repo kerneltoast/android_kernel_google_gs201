@@ -237,12 +237,54 @@ static void samsung_sysmmu_remove_device(struct device *dev)
 	iommu_fwspec_free(dev);
 }
 
+static void samsung_sysmmu_group_data_release(void *iommu_data)
+{
+	kfree(iommu_data);
+}
+
 static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 {
+	struct iommu_group *group;
+	struct device_node *np;
+	struct platform_device *pdev;
+	struct list_head *list;
+
 	if (device_iommu_mapped(dev))
 		return iommu_group_get(dev);
 
-	return generic_device_group(dev);
+	np = of_parse_phandle(dev->of_node, "samsung,iommu-group", 0);
+	if (!np) {
+		dev_err(dev, "group is not registered\n");
+		return ERR_PTR(-ENODEV);
+	}
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		dev_err(dev, "no device in device_node[%s]\n", np->name);
+		of_node_put(np);
+		return ERR_PTR(-ENODEV);
+	}
+
+	of_node_put(np);
+
+	group = platform_get_drvdata(pdev);
+	if (!group) {
+		dev_err(dev, "no group in device_node[%s]\n", np->name);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
+
+	if (iommu_group_get_iommudata(group))
+		return group;
+
+	list = kzalloc(sizeof(*list), GFP_KERNEL);
+	if (!list)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(list);
+	iommu_group_set_iommudata(group, list,
+				  samsung_sysmmu_group_data_release);
+
+	return group;
 }
 
 static void samsung_sysmmu_clientdata_release(struct device *dev, void *res)
@@ -473,4 +515,5 @@ static struct platform_driver samsung_sysmmu_driver = {
 	.shutdown = samsung_sysmmu_device_shutdown,
 };
 module_platform_driver(samsung_sysmmu_driver);
+MODULE_SOFTDEP("pre: samsung-iommu-group");
 MODULE_LICENSE("GPL v2");
