@@ -34,6 +34,8 @@
 
 #include <../../../power/supply/google/logbuffer.h>
 
+#define PD_ACTIVITY_TIMEOUT_MS 10000
+
 struct fusb307b_plat {
 	struct tcpci_data data;
 	struct tcpci *tcpci;
@@ -154,6 +156,8 @@ static struct fusb307b_plat *tdata_to_fusb307(struct tcpci_data *tdata)
 static irqreturn_t fusb307b_irq(int irq, void *dev_id)
 {
 	struct fusb307b_plat *chip = dev_id;
+
+	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
 
 	if (!chip->tcpci)
 		return IRQ_HANDLED;
@@ -725,6 +729,7 @@ static int fusb307b_probe(struct i2c_client *client,
 		goto psy_put;
 	}
 
+	device_init_wakeup(chip->dev, true);
 	return 0;
 
 psy_put:
