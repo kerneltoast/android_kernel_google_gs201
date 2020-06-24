@@ -6,6 +6,8 @@
  *
  */
 
+#include "gs101-slider-trusty.dtsi"
+
 / {
 	fragment@model {
 		target-path = "/";

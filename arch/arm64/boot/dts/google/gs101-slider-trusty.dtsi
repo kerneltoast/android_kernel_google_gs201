@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google Slider Board device tree source
+ *
+ * Copyright 2019-2020 Google LLC
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+&odm {
+	IPI: interrupt-controller {
+		compatible = "android,CustomIPI";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+	};
+
+	trusty {
+		compatible = "android,trusty-smc-v1";
+
+		irq {
+			compatible = "android,trusty-irq-v1";
+			interrupt-templates = <&IPI 0>;
+			interrupt-ranges = <0 15 0>;
+		};
+
+		fiq {
+			compatible = "android,trusty-fiq-v1";
+		};
+
+		log {
+			compatible = "android,trusty-log-v1";
+		};
+
+		virtio {
+			compatible = "android,trusty-virtio-v1";
+		};
+	};
+};
