@@ -14,12 +14,15 @@
 #include <linux/iommu.h>
 
 struct tlb_config {
-	unsigned int cfg;
-	unsigned int id;
+	unsigned int index;
+	u32 cfg;
+	u32 match_cfg;
+	u32 match_id;
 };
 
 struct tlb_props {
 	int id_cnt;
+	u32 default_cfg;
 	struct tlb_config *cfg;
 };
 
@@ -33,6 +36,7 @@ struct sysmmu_drvdata {
 	phys_addr_t pgtable;
 	spinlock_t lock; /* protect atomic update to H/W status */
 	u32 version;
+	int num_tlb;
 	int qos;
 	int attached_count;
 	int secure_irq;

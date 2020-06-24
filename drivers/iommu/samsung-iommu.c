@@ -32,6 +32,8 @@
 #define REG_MMU_TLB_MATCH_ID(n)		(0x2000 + ((n) * 0x20) + 0x14)
 
 #define DEFAULT_QOS_VALUE	-1
+#define DEFAULT_TLB_NONE	~0U
+#define UNUSED_TLB_INDEX	~0U
 
 static const unsigned int sysmmu_reg_set[MAX_SET_IDX][MAX_REG_IDX] = {
 	/* Default without VM */
@@ -74,6 +76,12 @@ struct samsung_sysmmu_domain {
 static bool sysmmu_global_init_done;
 static struct device sync_dev;
 static struct kmem_cache *flpt_cache, *slpt_cache;
+
+static inline u32 __sysmmu_get_tlb_num(struct sysmmu_drvdata *data)
+{
+	return MMU_CAPA1_NUM_TLB(readl_relaxed(data->sfrbase +
+					       REG_MMU_CAPA1_V7));
+}
 
 static inline u32 __sysmmu_get_hw_version(struct sysmmu_drvdata *data)
 {
@@ -132,49 +140,29 @@ static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 	}
 }
 
-static inline void __sysmmu_set_one_tlb(struct sysmmu_drvdata *data,
-					unsigned int idx)
-{
-	struct tlb_config *cfg = data->tlb_props.cfg;
-
-	writel_relaxed(MMU_TLB_CFG_MASK(cfg[idx].cfg),
-		       data->sfrbase + REG_MMU_TLB_CFG(idx));
-
-	/* idx 0 is default TLB */
-	if (idx == 0) {
-		dev_dbg(data->dev, "TLB[%d] cfg : %#x for default\n", idx,
-			MMU_TLB_CFG_MASK(cfg[idx].cfg));
-		return;
-	}
-
-	writel_relaxed(MMU_TLB_MATCH_CFG_MASK(cfg[idx].cfg),
-		       data->sfrbase + REG_MMU_TLB_MATCH_CFG(idx));
-	writel_relaxed(cfg[idx].id,
-		       data->sfrbase + REG_MMU_TLB_MATCH_ID(idx));
-
-	dev_dbg(data->dev, "TLB[%d] cfg : %#x, match : %#x, id : %#x\n",
-		idx,
-		MMU_TLB_CFG_MASK(cfg[idx].cfg),
-		MMU_TLB_MATCH_CFG_MASK(cfg[idx].cfg),
-		cfg[idx].id);
-}
-
 static inline void __sysmmu_set_tlb(struct sysmmu_drvdata *data)
 {
-	u32 cfg = readl_relaxed(data->sfrbase + REG_MMU_CAPA1_V7);
-	u32 tlb_num = MMU_CAPA1_NUM_TLB(cfg);
 	struct tlb_props *tlb_props = &data->tlb_props;
+	struct tlb_config *cfg = tlb_props->cfg;
 	int id_cnt = tlb_props->id_cnt;
-	unsigned int i;
+	unsigned int i, index;
 
-	if (id_cnt > tlb_num) {
-		dev_warn(data->dev, "Ignoring %d larger than TLB count %d\n",
-			 id_cnt, tlb_num);
-		id_cnt = tlb_num;
+	if (tlb_props->default_cfg != DEFAULT_TLB_NONE)
+		writel_relaxed(MMU_TLB_CFG_MASK(tlb_props->default_cfg),
+			       data->sfrbase + REG_MMU_TLB_CFG(0));
+
+	for (i = 0; i < id_cnt; i++) {
+		if (cfg[i].index == UNUSED_TLB_INDEX)
+			continue;
+
+		index = cfg[i].index;
+		writel_relaxed(MMU_TLB_CFG_MASK(cfg[i].cfg),
+			       data->sfrbase + REG_MMU_TLB_CFG(index));
+		writel_relaxed(MMU_TLB_MATCH_CFG_MASK(cfg[i].match_cfg),
+			       data->sfrbase + REG_MMU_TLB_MATCH_CFG(index));
+		writel_relaxed(cfg[i].match_id,
+			       data->sfrbase + REG_MMU_TLB_MATCH_ID(index));
 	}
-
-	for (i = 0; i < id_cnt; i++)
-		__sysmmu_set_one_tlb(data, i);
 }
 
 static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
@@ -963,6 +951,7 @@ static struct iommu_ops samsung_sysmmu_ops = {
 static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 {
 	data->version = __sysmmu_get_hw_version(data);
+	data->num_tlb = __sysmmu_get_tlb_num(data);
 
 	/* Default value */
 	data->reg_set = sysmmu_reg_set[REG_IDX_DEFAULT];
@@ -980,44 +969,43 @@ static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 static int sysmmu_parse_tlb_property(struct device *dev,
 				     struct sysmmu_drvdata *drvdata)
 {
+	const char *default_props_name = "sysmmu,default_tlb";
 	const char *props_name = "sysmmu,tlb_property";
 	struct tlb_props *tlb_props = &drvdata->tlb_props;
-	struct tlb_config *cfg = NULL;
-	int i, cnt, ret;
-	int id_cnt = 0;
+	struct tlb_config *cfg;
+	int i, readsize, cnt, ret;
 
-	cnt = of_property_count_u32_elems(dev->of_node, props_name);
-	if (cnt <= 0) {
-		dev_info(dev, "No TLB propeties found.\n");
+	if (of_property_read_u32(dev->of_node, default_props_name,
+				 &tlb_props->default_cfg))
+		tlb_props->default_cfg = DEFAULT_TLB_NONE;
+
+	cnt = of_property_count_elems_of_size(dev->of_node, props_name,
+					      sizeof(*cfg));
+	if (cnt <= 0)
 		return 0;
-	}
 
-	cfg = devm_kcalloc(dev, cnt / 2, sizeof(*cfg), GFP_KERNEL);
+	cfg = devm_kcalloc(dev, cnt, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
 		return -ENOMEM;
 
-	for (i = 0; i < cnt; i += 2) {
-		ret = of_property_read_u32_index(dev->of_node,
-						 props_name, i,
-						 &cfg[id_cnt].cfg);
-		if (ret) {
-			dev_err(dev, "failed to read tlb_property of %d/%d\n",
-				i, cnt);
-			return -EINVAL;
-		}
-
-		ret = of_property_read_u32_index(dev->of_node,
-						 props_name, i + 1,
-						 &cfg[id_cnt].id);
-		if (ret) {
-			dev_err(dev, "failed to read tlb_property of %d/%d\n",
-				i + 1, cnt);
-			return -EINVAL;
-		}
-		id_cnt++;
+	readsize = cnt * sizeof(*cfg) / sizeof(u32);
+	ret = of_property_read_variable_u32_array(dev->of_node, props_name,
+						  (u32 *)cfg,
+						  readsize, readsize);
+	if (ret < 0) {
+		dev_err(dev, "failed to get tlb property, return %d\n", ret);
+		return ret;
 	}
 
-	tlb_props->id_cnt = id_cnt;
+	for (i = 0; i < cnt; i++) {
+		if (cfg[i].index >= drvdata->num_tlb) {
+			dev_err(dev, "invalid index %d is ignored. (max:%d)\n",
+				cfg[i].index, drvdata->num_tlb);
+			cfg[i].index = UNUSED_TLB_INDEX;
+		}
+	}
+
+	tlb_props->id_cnt = cnt;
 	tlb_props->cfg = cfg;
 
 	return 0;
