@@ -211,8 +211,8 @@ static unsigned int dump_tlb_entry_port(struct sysmmu_drvdata *drvdata,
 	return cnt;
 }
 
-static inline void dump_sysmmu_tlb_port(struct sysmmu_drvdata *drvdata,
-					phys_addr_t pgtable)
+static inline void dump_sysmmu_tlb_status(struct sysmmu_drvdata *drvdata,
+					  phys_addr_t pgtable)
 {
 	int t, i;
 	u32 capa0, capa1, info;
@@ -289,8 +289,7 @@ static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
 			readl_relaxed(sfrbase + REG_MMU_CTRL_VM),
 			readl_relaxed(sfrbase + REG_MMU_CFG_VM));
 
-	if (IS_TLB_PORT_TYPE(drvdata))
-		dump_sysmmu_tlb_port(drvdata, pgtable);
+	dump_sysmmu_tlb_status(drvdata, pgtable);
 }
 
 static void sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,

@@ -14,8 +14,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-#include <dt-bindings/soc/samsung,sysmmu-v8.h>
-
 #include "samsung-iommu.h"
 
 #define FLPD_SHAREABLE_FLAG	BIT(6)
@@ -26,37 +24,12 @@
 #define REG_MMU_INV_START		0x020
 #define REG_MMU_INV_END			0x024
 
-#define REG_PUBLIC_WAY_CFG		0x120
-#define REG_PRIVATE_WAY_CFG(n)		(0x200 + ((n) * 0x10))
-#define REG_PRIVATE_ADDR_START(n)	(0x204 + ((n) * 0x10))
-#define REG_PRIVATE_ADDR_END(n)		(0x208 + ((n) * 0x10))
-#define REG_PRIVATE_ID(n)		(0x20C + ((n) * 0x10))
-
-#define MMU_WAY_CFG_MASK_PREFETCH	GENMASK(1, 1)
-#define MMU_WAY_CFG_MASK_PREFETCH_DIR	GENMASK(3, 2)
-#define MMU_WAY_CFG_MASK_MATCH_METHOD	GENMASK(4, 4)
-#define MMU_WAY_CFG_MASK_FETCH_SIZE	GENMASK(7, 5)
-#define MMU_WAY_CFG_MASK_TARGET_CH	GENMASK(9, 8)
-
-#define MMU_WAY_CFG_ID_MATCHING		(1 << 4)
-#define MMU_WAY_CFG_ADDR_MATCHING	(0 << 4)
-#define MMU_WAY_CFG_PRIVATE_ENABLE	(1 << 0)
-
-#define MMU_PUBLIC_WAY_MASK	(MMU_WAY_CFG_MASK_PREFETCH |	\
-		MMU_WAY_CFG_MASK_PREFETCH_DIR | MMU_WAY_CFG_MASK_FETCH_SIZE)
-#define MMU_PRIVATE_WAY_MASK	(MMU_PUBLIC_WAY_MASK |		\
-		MMU_WAY_CFG_MASK_MATCH_METHOD | MMU_WAY_CFG_MASK_TARGET_CH)
-
 #define MMU_TLB_CFG_MASK(reg)		((reg) & (GENMASK(7, 5) | GENMASK(3, 2) | GENMASK(1, 1)))
 #define MMU_TLB_MATCH_CFG_MASK(reg)	((reg) & (GENMASK(31, 16) | GENMASK(9, 8)))
 
 #define REG_MMU_TLB_CFG(n)		(0x2000 + ((n) * 0x20) + 0x4)
 #define REG_MMU_TLB_MATCH_CFG(n)	(0x2000 + ((n) * 0x20) + 0x8)
-#define REG_MMU_TLB_MATCH_SVA(n)	(0x2000 + ((n) * 0x20) + 0xC)
-#define REG_MMU_TLB_MATCH_EVA(n)	(0x2000 + ((n) * 0x20) + 0x10)
 #define REG_MMU_TLB_MATCH_ID(n)		(0x2000 + ((n) * 0x20) + 0x14)
-
-#define REG_SLOT_RSV(n)			(0x4000 + ((n) * 0x20))
 
 #define DEFAULT_QOS_VALUE	-1
 
@@ -159,130 +132,49 @@ static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 	}
 }
 
-static inline void __sysmmu_set_public_way(struct sysmmu_drvdata *data,
-					   unsigned int public_cfg)
+static inline void __sysmmu_set_one_tlb(struct sysmmu_drvdata *data,
+					unsigned int idx)
 {
-	u32 cfg = readl_relaxed(data->sfrbase + REG_PUBLIC_WAY_CFG);
+	struct tlb_config *cfg = data->tlb_props.cfg;
 
-	cfg &= ~MMU_PUBLIC_WAY_MASK;
-	cfg |= public_cfg;
+	writel_relaxed(MMU_TLB_CFG_MASK(cfg[idx].cfg),
+		       data->sfrbase + REG_MMU_TLB_CFG(idx));
 
-	writel_relaxed(cfg, data->sfrbase + REG_PUBLIC_WAY_CFG);
-
-	dev_dbg(data->dev, "public_cfg : %#x\n", cfg);
-}
-
-static inline void __sysmmu_set_private_way_id(struct sysmmu_drvdata *data,
-					       unsigned int way_idx)
-{
-	struct tlb_priv_id *priv_cfg = data->tlb_props.way_props.priv_id_cfg;
-	u32 cfg = readl_relaxed(data->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
-
-	cfg &= ~MMU_PRIVATE_WAY_MASK;
-	cfg |= MMU_WAY_CFG_ID_MATCHING | MMU_WAY_CFG_PRIVATE_ENABLE;
-	cfg |= priv_cfg[way_idx].cfg;
-
-	writel_relaxed(cfg, data->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
-	writel_relaxed(priv_cfg[way_idx].id,
-		       data->sfrbase + REG_PRIVATE_ID(way_idx));
-
-	dev_dbg(data->dev, "priv ID way[%d] cfg : %#x, id : %#x\n",
-		way_idx, cfg, priv_cfg[way_idx].id);
-}
-
-static inline void __sysmmu_set_private_way_addr(struct sysmmu_drvdata *data,
-						 unsigned int idx)
-{
-	struct tlb_priv_addr *privcfg = data->tlb_props.way_props.priv_addr_cfg;
-	unsigned int way_idx = data->tlb_props.way_props.priv_id_cnt + idx;
-	u32 cfg = readl_relaxed(data->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
-
-	cfg &= ~MMU_PRIVATE_WAY_MASK;
-	cfg |= MMU_WAY_CFG_ADDR_MATCHING | MMU_WAY_CFG_PRIVATE_ENABLE;
-	cfg |= privcfg[idx].cfg;
-
-	writel_relaxed(cfg, data->sfrbase + REG_PRIVATE_WAY_CFG(way_idx));
-
-	dev_dbg(data->dev, "priv ADDR way[%d] cfg : %#x\n", way_idx, cfg);
-}
-
-static inline void __sysmmu_set_tlb_way_type(struct sysmmu_drvdata *data)
-{
-	u32 cfg = readl_relaxed(data->sfrbase + REG_MMU_CAPA0_V7);
-	u32 waycnt = MMU_CAPA_NUM_TLB_WAY(cfg);
-	struct tlb_props *tlb_props = &data->tlb_props;
-	int priv_id_cnt = tlb_props->way_props.priv_id_cnt;
-	int priv_addr_cnt = tlb_props->way_props.priv_addr_cnt;
-	u32 setcnt = 0;
-	unsigned int i;
-
-	if (tlb_props->flags & TLB_WAY_PUBLIC)
-		__sysmmu_set_public_way(data, tlb_props->way_props.public_cfg);
-
-	if (tlb_props->flags & TLB_WAY_PRIVATE_ID)
-		for (i = 0; i < priv_id_cnt && setcnt < waycnt; i++, setcnt++)
-			__sysmmu_set_private_way_id(data, i);
-
-	if (tlb_props->flags & TLB_WAY_PRIVATE_ADDR)
-		for (i = 0; i < priv_addr_cnt && setcnt < waycnt; i++, setcnt++)
-			__sysmmu_set_private_way_addr(data, i);
-
-	if (priv_id_cnt + priv_addr_cnt > waycnt) {
-		dev_warn(data->dev,
-			 "Ignoring larger TLB way count than %d!\n", waycnt);
-		dev_warn(data->dev, "Number of private way id/addr = %d/%d\n",
-			 priv_id_cnt, priv_addr_cnt);
-	}
-}
-
-static inline void __sysmmu_set_tlb_port(struct sysmmu_drvdata *data,
-					 unsigned int port_idx)
-{
-	struct tlb_port_cfg *port_cfg = data->tlb_props.port_props.port_cfg;
-
-	writel_relaxed(MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg),
-		       data->sfrbase + REG_MMU_TLB_CFG(port_idx));
-
-	/* port_idx 0 is default port. */
-	if (port_idx == 0) {
-		dev_dbg(data->dev, "port[%d] cfg : %#x for common\n", port_idx,
-			MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg));
+	/* idx 0 is default TLB */
+	if (idx == 0) {
+		dev_dbg(data->dev, "TLB[%d] cfg : %#x for default\n", idx,
+			MMU_TLB_CFG_MASK(cfg[idx].cfg));
 		return;
 	}
 
-	writel_relaxed(MMU_TLB_MATCH_CFG_MASK(port_cfg[port_idx].cfg),
-		       data->sfrbase + REG_MMU_TLB_MATCH_CFG(port_idx));
-	writel_relaxed(port_cfg[port_idx].id,
-		       data->sfrbase + REG_MMU_TLB_MATCH_ID(port_idx));
+	writel_relaxed(MMU_TLB_MATCH_CFG_MASK(cfg[idx].cfg),
+		       data->sfrbase + REG_MMU_TLB_MATCH_CFG(idx));
+	writel_relaxed(cfg[idx].id,
+		       data->sfrbase + REG_MMU_TLB_MATCH_ID(idx));
 
-	dev_dbg(data->dev, "port[%d] cfg : %#x, match : %#x, id : %#x\n",
-		port_idx,
-		MMU_TLB_CFG_MASK(port_cfg[port_idx].cfg),
-		MMU_TLB_MATCH_CFG_MASK(port_cfg[port_idx].cfg),
-		port_cfg[port_idx].id);
+	dev_dbg(data->dev, "TLB[%d] cfg : %#x, match : %#x, id : %#x\n",
+		idx,
+		MMU_TLB_CFG_MASK(cfg[idx].cfg),
+		MMU_TLB_MATCH_CFG_MASK(cfg[idx].cfg),
+		cfg[idx].id);
 }
 
-static inline void __sysmmu_set_tlb_port_type(struct sysmmu_drvdata *data)
+static inline void __sysmmu_set_tlb(struct sysmmu_drvdata *data)
 {
 	u32 cfg = readl_relaxed(data->sfrbase + REG_MMU_CAPA1_V7);
 	u32 tlb_num = MMU_CAPA1_NUM_TLB(cfg);
 	struct tlb_props *tlb_props = &data->tlb_props;
-	int port_id_cnt = tlb_props->port_props.port_id_cnt;
-	int slot_cnt = tlb_props->port_props.slot_cnt;
+	int id_cnt = tlb_props->id_cnt;
 	unsigned int i;
 
-	if (port_id_cnt > tlb_num) {
+	if (id_cnt > tlb_num) {
 		dev_warn(data->dev, "Ignoring %d larger than TLB count %d\n",
-			 port_id_cnt, tlb_num);
-		port_id_cnt = tlb_num;
+			 id_cnt, tlb_num);
+		id_cnt = tlb_num;
 	}
 
-	for (i = 0; i < port_id_cnt; i++)
-		__sysmmu_set_tlb_port(data, i);
-
-	for (i = 0; i < slot_cnt; i++)
-		writel_relaxed(tlb_props->port_props.slot_cfg[i],
-			       data->sfrbase + REG_SLOT_RSV(i));
+	for (i = 0; i < id_cnt; i++)
+		__sysmmu_set_one_tlb(data, i);
 }
 
 static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
@@ -295,10 +187,7 @@ static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 	if (!data->no_block_mode)
 		writel_relaxed(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
 
-	if (IS_TLB_WAY_TYPE(data))
-		__sysmmu_set_tlb_way_type(data);
-	else if (IS_TLB_PORT_TYPE(data))
-		__sysmmu_set_tlb_port_type(data);
+	__sysmmu_set_tlb(data);
 
 	if (data->has_vcr) {
 		cfg_vm = cfg & ~CFG_MASK_VM;
@@ -1073,220 +962,65 @@ static struct iommu_ops samsung_sysmmu_ops = {
 
 static int sysmmu_get_hw_info(struct sysmmu_drvdata *data)
 {
-	struct tlb_props *tlb_props = &data->tlb_props;
-
 	data->version = __sysmmu_get_hw_version(data);
 
 	/* Default value */
 	data->reg_set = sysmmu_reg_set[REG_IDX_DEFAULT];
 
-	/*
-	 * If CAPA1 doesn't exist, sysmmu uses TLB way dedication.
-	 * If CAPA1[31:28] is zero, sysmmu uses TLB port dedication.
-	 */
-	if (!__sysmmu_has_capa1(data)) {
-		tlb_props->flags |= TLB_TYPE_WAY;
-	} else {
-		if (__sysmmu_get_capa_type(data) == 0)
-			tlb_props->flags |= TLB_TYPE_PORT;
-		if (__sysmmu_get_capa_vcr_enabled(data)) {
-			data->reg_set = sysmmu_reg_set[REG_IDX_VM];
-			data->has_vcr = true;
-		}
-		if (__sysmmu_get_capa_no_block_mode(data))
-			data->no_block_mode = true;
+	if (__sysmmu_get_capa_vcr_enabled(data)) {
+		data->reg_set = sysmmu_reg_set[REG_IDX_VM];
+		data->has_vcr = true;
 	}
+	if (__sysmmu_get_capa_no_block_mode(data))
+		data->no_block_mode = true;
 
 	return 0;
 }
 
-static int sysmmu_parse_tlb_way_dt(struct device *dev,
-				   struct sysmmu_drvdata *drvdata)
+static int sysmmu_parse_tlb_property(struct device *dev,
+				     struct sysmmu_drvdata *drvdata)
 {
 	const char *props_name = "sysmmu,tlb_property";
 	struct tlb_props *tlb_props = &drvdata->tlb_props;
-	struct tlb_priv_id *id_cfg = NULL;
-	struct tlb_priv_addr *addr_cfg = NULL;
-	int i, cnt, id_cnt = 0, addr_cnt = 0;
-	unsigned int id_idx = 0, addr_idx = 0;
-	unsigned int prop;
-	int ret;
-
-	/* Parsing TLB way properties */
-	cnt = of_property_count_u32_elems(dev->of_node, props_name);
-	for (i = 0; i < cnt; i += 2) {
-		ret = of_property_read_u32_index(dev->of_node, props_name, i,
-						 &prop);
-		if (ret) {
-			dev_err(dev,
-				"failed to get property. cnt = %d, ret = %d\n",
-				i, ret);
-			return -EINVAL;
-		}
-
-		switch (prop & WAY_TYPE_MASK) {
-		case _PRIVATE_WAY_ID:
-			id_cnt++;
-			tlb_props->flags |= TLB_WAY_PRIVATE_ID;
-			break;
-		case _PRIVATE_WAY_ADDR:
-			addr_cnt++;
-			tlb_props->flags |= TLB_WAY_PRIVATE_ADDR;
-			break;
-		case _PUBLIC_WAY:
-			tlb_props->flags |= TLB_WAY_PUBLIC;
-			tlb_props->way_props.public_cfg = prop & ~WAY_TYPE_MASK;
-			break;
-		default:
-			dev_err(dev, "Undefined properties!: %#x\n", prop);
-			break;
-		}
-	}
-
-	if (id_cnt) {
-		id_cfg = kcalloc(id_cnt, sizeof(*id_cfg), GFP_KERNEL);
-		if (!id_cfg)
-			return -ENOMEM;
-	}
-
-	if (addr_cnt) {
-		addr_cfg = kcalloc(addr_cnt, sizeof(*addr_cfg), GFP_KERNEL);
-		if (!addr_cfg) {
-			ret = -ENOMEM;
-			goto err_priv_id;
-		}
-	}
-
-	for (i = 0; i < cnt; i += 2) {
-		ret = of_property_read_u32_index(dev->of_node, props_name, i,
-						 &prop);
-		if (ret) {
-			dev_err(dev, "failed to get TLB property of %d/%d\n",
-				i, cnt);
-			ret = -EINVAL;
-			goto err_priv_addr;
-		}
-
-		switch (prop & WAY_TYPE_MASK) {
-		case _PRIVATE_WAY_ID:
-			id_cfg[id_idx].cfg = prop & ~WAY_TYPE_MASK;
-			ret = of_property_read_u32_index(dev->of_node,
-							 props_name, i + 1,
-							 &id_cfg[id_idx].id);
-			if (ret) {
-				dev_err(dev,
-					"failed to get ID property of %d/%d\n",
-					i + 1, cnt);
-				goto err_priv_addr;
-			}
-			id_idx++;
-			break;
-		case _PRIVATE_WAY_ADDR:
-			addr_cfg[addr_idx].cfg = prop & ~WAY_TYPE_MASK;
-			addr_idx++;
-			break;
-		case _PUBLIC_WAY:
-			break;
-		}
-	}
-
-	tlb_props->way_props.priv_id_cfg = id_cfg;
-	tlb_props->way_props.priv_id_cnt = id_cnt;
-
-	tlb_props->way_props.priv_addr_cfg = addr_cfg;
-	tlb_props->way_props.priv_addr_cnt = addr_cnt;
-
-	return 0;
-
-err_priv_addr:
-	kfree(addr_cfg);
-err_priv_id:
-	kfree(id_cfg);
-
-	return ret;
-}
-
-static int sysmmu_parse_tlb_port_dt(struct device *dev,
-				    struct sysmmu_drvdata *drvdata)
-{
-	const char *props_name = "sysmmu,tlb_property";
-	const char *slot_props_name = "sysmmu,slot_property";
-	struct tlb_props *tlb_props = &drvdata->tlb_props;
-	struct tlb_port_cfg *port_cfg = NULL;
-	unsigned int *slot_cfg = NULL;
+	struct tlb_config *cfg = NULL;
 	int i, cnt, ret;
-	int port_id_cnt = 0;
-
-	cnt = of_property_count_u32_elems(dev->of_node, slot_props_name);
-	if (cnt > 0) {
-		slot_cfg = kcalloc(cnt, sizeof(*slot_cfg), GFP_KERNEL);
-		if (!slot_cfg)
-			return -ENOMEM;
-
-		for (i = 0; i < cnt; i++) {
-			ret = of_property_read_u32_index(dev->of_node,
-							 slot_props_name,
-							 i, &slot_cfg[i]);
-			if (ret) {
-				dev_err(dev,
-					"failed to read slot_property %d/%d\n",
-					i, cnt);
-				ret = -EINVAL;
-				goto err_slot_prop;
-			}
-		}
-
-		tlb_props->port_props.slot_cnt = cnt;
-		tlb_props->port_props.slot_cfg = slot_cfg;
-	}
+	int id_cnt = 0;
 
 	cnt = of_property_count_u32_elems(dev->of_node, props_name);
 	if (cnt <= 0) {
-		dev_info(dev, "No TLB port propeties found.\n");
+		dev_info(dev, "No TLB propeties found.\n");
 		return 0;
 	}
 
-	port_cfg = kcalloc(cnt / 2, sizeof(*port_cfg), GFP_KERNEL);
-	if (!port_cfg) {
-		ret = -ENOMEM;
-		goto err_slot_prop;
-	}
+	cfg = devm_kcalloc(dev, cnt / 2, sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
+		return -ENOMEM;
 
 	for (i = 0; i < cnt; i += 2) {
 		ret = of_property_read_u32_index(dev->of_node,
 						 props_name, i,
-						 &port_cfg[port_id_cnt].cfg);
+						 &cfg[id_cnt].cfg);
 		if (ret) {
 			dev_err(dev, "failed to read tlb_property of %d/%d\n",
 				i, cnt);
-			ret = -EINVAL;
-			goto err_port_prop;
+			return -EINVAL;
 		}
 
 		ret = of_property_read_u32_index(dev->of_node,
 						 props_name, i + 1,
-						 &port_cfg[port_id_cnt].id);
+						 &cfg[id_cnt].id);
 		if (ret) {
 			dev_err(dev, "failed to read tlb_property of %d/%d\n",
 				i + 1, cnt);
-			ret = -EINVAL;
-			goto err_port_prop;
+			return -EINVAL;
 		}
-		port_id_cnt++;
+		id_cnt++;
 	}
 
-	tlb_props->port_props.port_id_cnt = port_id_cnt;
-	tlb_props->port_props.port_cfg = port_cfg;
+	tlb_props->id_cnt = id_cnt;
+	tlb_props->cfg = cfg;
 
 	return 0;
-
-err_port_prop:
-	kfree(port_cfg);
-
-err_slot_prop:
-	kfree(slot_cfg);
-
-	return ret;
 }
 
 static int __sysmmu_secure_irq_init(struct device *sysmmu,
@@ -1346,28 +1080,11 @@ static int sysmmu_parse_dt(struct device *sysmmu, struct sysmmu_drvdata *data)
 		}
 	}
 
-	if (IS_TLB_WAY_TYPE(data)) {
-		ret = sysmmu_parse_tlb_way_dt(sysmmu, data);
-		if (ret)
-			dev_err(sysmmu, "Failed to parse TLB way property\n");
-	} else if (IS_TLB_PORT_TYPE(data)) {
-		ret = sysmmu_parse_tlb_port_dt(sysmmu, data);
-		if (ret)
-			dev_err(sysmmu, "Failed to parse TLB port property\n");
-	};
+	ret = sysmmu_parse_tlb_property(sysmmu, data);
+	if (ret)
+		dev_err(sysmmu, "Failed to parse TLB property\n");
 
 	return ret;
-}
-
-static void sysmmu_release_tlb_info(struct sysmmu_drvdata *data)
-{
-	if (IS_TLB_WAY_TYPE(data)) {
-		kfree(data->tlb_props.way_props.priv_id_cfg);
-		kfree(data->tlb_props.way_props.priv_addr_cfg);
-	} else if (IS_TLB_PORT_TYPE(data)) {
-		kfree(data->tlb_props.port_props.slot_cfg);
-		kfree(data->tlb_props.port_props.port_cfg);
-	}
 }
 
 static int samsung_sysmmu_init_global(void)
@@ -1457,11 +1174,11 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	err = iommu_device_sysfs_add(&data->iommu, data->dev,
+	ret = iommu_device_sysfs_add(&data->iommu, data->dev,
 				     NULL, dev_name(dev));
-	if (err) {
+	if (ret) {
 		dev_err(dev, "failed to register iommu in sysfs\n");
-		goto err_sysfs_add;
+		return ret;
 	}
 
 	iommu_device_set_ops(&data->iommu, &samsung_sysmmu_ops);
@@ -1490,8 +1207,6 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 		 MMU_REV_VER(data->version));
 	return 0;
 
-err_sysfs_add:
-	sysmmu_release_tlb_info(data);
 err_global_init:
 	iommu_device_unregister(&data->iommu);
 err_iommu_register:

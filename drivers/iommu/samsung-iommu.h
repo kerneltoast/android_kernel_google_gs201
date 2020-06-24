@@ -13,57 +13,16 @@
 #include <linux/interrupt.h>
 #include <linux/iommu.h>
 
-/*
- * flags[7:4] specifies TLB matching types.
- * 0x1 : TLB way dedication
- * 0x2 : TLB port dedication
- */
-#define TLB_TYPE_MASK(x)	((x) & (0xF << 4))
-#define TLB_TYPE_WAY		(0x1 << 4)
-#define TLB_TYPE_PORT		(0x2 << 4)
-#define IS_TLB_WAY_TYPE(data)	(TLB_TYPE_MASK((data)->tlb_props.flags)	== TLB_TYPE_WAY)
-#define IS_TLB_PORT_TYPE(data)	(TLB_TYPE_MASK((data)->tlb_props.flags)	== TLB_TYPE_PORT)
-
-#define TLB_WAY_PRIVATE_ID	BIT(0)
-#define TLB_WAY_PRIVATE_ADDR	BIT(1)
-#define TLB_WAY_PUBLIC		BIT(2)
-
-struct tlb_priv_addr {
-	unsigned int cfg;
-};
-
-struct tlb_priv_id {
+struct tlb_config {
 	unsigned int cfg;
 	unsigned int id;
-};
-
-struct tlb_port_cfg {
-	unsigned int cfg;
-	unsigned int id;
-};
-
-struct tlb_way_props {
-	int priv_id_cnt;
-	int priv_addr_cnt;
-	unsigned int public_cfg;
-	struct tlb_priv_id *priv_id_cfg;
-	struct tlb_priv_addr *priv_addr_cfg;
-};
-
-struct tlb_port_props {
-	int port_id_cnt;
-	int slot_cnt;
-	struct tlb_port_cfg *port_cfg;
-	unsigned int *slot_cfg;
 };
 
 struct tlb_props {
-	int flags;
-	union {
-		struct tlb_way_props way_props;
-		struct tlb_port_props port_props;
-	};
+	int id_cnt;
+	struct tlb_config *cfg;
 };
+
 struct sysmmu_drvdata {
 	struct list_head list;
 	struct iommu_device iommu;
