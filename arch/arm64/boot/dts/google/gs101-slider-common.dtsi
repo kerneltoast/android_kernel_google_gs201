@@ -7,6 +7,7 @@
  */
 
 #include "gs101-slider-trusty.dtsi"
+#include "gs101-pmic.dtsi"
 
 / {
 	fragment@model {
