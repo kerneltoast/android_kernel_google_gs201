@@ -19,7 +19,7 @@ enum ion_exynos_heap_type {
 
 #if defined(CONFIG_ION_EXYNOS_CMA_HEAP)
 int __init ion_exynos_cma_heap_init(void);
-void __exit ion_exynos_cma_heap_exit(void);
+void ion_exynos_cma_heap_exit(void);
 #else
 static inline int __init ion_exynos_cma_heap_init(void)
 {
@@ -31,7 +31,7 @@ static inline int __init ion_exynos_cma_heap_init(void)
 
 #if defined(CONFIG_ION_EXYNOS_CARVEOUT_HEAP)
 int __init ion_carveout_heap_init(void);
-void __exit ion_carveout_heap_exit(void);
+void ion_carveout_heap_exit(void);
 #else
 static inline int __init ion_carveout_heap_init(void)
 {
