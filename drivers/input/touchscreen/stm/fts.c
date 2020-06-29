@@ -4157,6 +4157,12 @@ static irqreturn_t fts_interrupt_handler(int irq, void *handle)
  *
  * @return	0 if success, -EBUSY if timeout
  */
+#if 1
+static int fts_read_panel_extinfo(struct fts_ts_info *info, int wait_seconds)
+{
+	return 0;
+}
+#else
 static int fts_read_panel_extinfo(struct fts_ts_info *info, int wait_seconds)
 {
 	const int RETRIES_PER_S = 4;
@@ -4236,6 +4242,7 @@ error:
 	info->extinfo.is_read = false;
 	return ret;
 }
+#endif
 
 /*
  * Determine the display panel based on the device tree and any extinfo read
