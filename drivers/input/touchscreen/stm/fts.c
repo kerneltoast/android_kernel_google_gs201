@@ -1513,7 +1513,7 @@ static void touchsim_work(struct work_struct *work)
 	struct fts_ts_info *info  = container_of(touchsim,
 						struct fts_ts_info,
 						touchsim);
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	ktime_t timestamp = ktime_get();
 #endif
 
@@ -1532,7 +1532,7 @@ static void touchsim_work(struct work_struct *work)
 
 	input_sync(info->input_dev);
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	heatmap_read(&info->v4l2, ktime_to_ns(timestamp));
 #endif
 
@@ -2690,7 +2690,7 @@ END:
  * 1 = FTS_HEATMAP_PARTIAL
  * 2 = FTS_HEATMAP_FULL
  */
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 static ssize_t fts_heatmap_mode_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -2730,7 +2730,7 @@ static DEVICE_ATTR(fw_file_test, 0444, fts_fw_test_show, NULL);
 static DEVICE_ATTR(status, 0444, fts_status_show, NULL);
 static DEVICE_ATTR(stm_fts_cmd, 0664, stm_fts_cmd_show,
 		   stm_fts_cmd_store);
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 static DEVICE_ATTR(heatmap_mode, 0664, fts_heatmap_mode_show,
 		   fts_heatmap_mode_store);
 #endif
@@ -2802,7 +2802,7 @@ static struct attribute *fts_attr_group[] = {
 	&dev_attr_fw_file_test.attr,
 	&dev_attr_status.attr,
 	&dev_attr_stm_fts_cmd.attr,
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	&dev_attr_heatmap_mode.attr,
 #endif
 #ifdef USE_ONE_FILE_NODE
@@ -3865,7 +3865,7 @@ static bool fts_user_report_event_handler(struct fts_ts_info *info, unsigned
 	return false;
 }
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 static void heatmap_enable(void)
 {
 	u8 command[] = {FTS_CMD_SYSTEM, SYS_CMD_LOAD_DATA,
@@ -4129,7 +4129,7 @@ static irqreturn_t fts_interrupt_handler(int irq, void *handle)
 
 	input_sync(info->input_dev);
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	if (processed_pointer_event)
 		heatmap_read(&info->v4l2, ktime_to_ns(info->timestamp));
 #endif
@@ -4832,7 +4832,7 @@ static int fts_init_sensing(struct fts_ts_info *info)
 		pr_err("%s Init after Probe error (ERROR = %08X)\n",
 			__func__, error);
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	heatmap_enable();
 #endif
 
@@ -5078,7 +5078,7 @@ static void fts_resume_work(struct work_struct *work)
 
 	info->sensor_sleep = false;
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	/* heatmap must be enabled after every chip reset (fts_system_reset) */
 	heatmap_enable();
 #endif
@@ -5663,7 +5663,7 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 		pr_info("Automatic firmware update disabled\n");
 	}
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	bdata->heatmap_mode_full_init = false;
 	if (of_property_read_bool(np, "st,heatmap_mode_full")) {
 		bdata->heatmap_mode_full_init = true;
@@ -5962,7 +5962,7 @@ static int fts_probe(struct spi_device *client)
 	/* Set initial heatmap mode based on the device tree configuration.
 	 * Default is partial heatmap mode.
 	 */
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	if (info->board->heatmap_mode_full_init)
 		info->heatmap_mode = FTS_HEATMAP_FULL;
 	else
@@ -5992,7 +5992,7 @@ static int fts_probe(struct spi_device *client)
 		goto ProbeErrorExit_6;
 	}
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	/*
 	 * Heatmap_probe must be called before irq routine is registered,
 	 * because heatmap_read is called from interrupt context.
@@ -6076,7 +6076,7 @@ ProbeErrorExit_7:
 	drm_panel_notifier_unregister(info->board->panel, &info->notifier);
 #endif
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	heatmap_remove(&info->v4l2);
 #endif
 
@@ -6145,7 +6145,7 @@ static int fts_remove(struct spi_device *client)
 	/* remove interrupt and event handlers */
 	fts_interrupt_uninstall(info);
 
-#ifdef TOUCHSCREEN_HEATMAP
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	heatmap_remove(&info->v4l2);
 #endif
 
