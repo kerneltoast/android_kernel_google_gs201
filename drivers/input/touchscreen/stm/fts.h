@@ -46,6 +46,7 @@
 #endif
 
 #undef DYNAMIC_REFRESH_RATE
+#undef CONFIG_DRM
 
 /****************** CONFIGURATION SECTION ******************/
 /** @defgroup conf_section	 Driver Configuration Section
