@@ -1202,7 +1202,8 @@ int production_test_initialization(u8 type)
 int production_test_main(const char *pathThresholds, int stop_on_fail,
 			 int saveInit, TestToDo *todo, u8 mpflag)
 {
-	int res, ret;
+	int res = 0;
+	int ret = 0;
 
 	pr_info("MAIN Production test is starting...\n");
 
