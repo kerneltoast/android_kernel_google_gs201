@@ -25,7 +25,7 @@
 #include <linux/types.h>
 #include "ftsHardware.h"
 
-#define SUPPORT_PROX_PALM
+#undef SUPPORT_PROX_PALM
 
 /* signed type */
 typedef signed char i8;	/* /< basic type that represent one signed byte (or 8
