@@ -856,7 +856,7 @@ static ssize_t fts_driver_test_write(struct file *file, const char __user *buf,
 	/*for(temp = 0; temp<count; temp++){
 	  *      pr_err("p[%d] = %02X\n", temp, p[temp]);
 	  * }*/
-	if (access_ok(VERIFY_READ, buf, count) < OK ||
+	if (access_ok(buf, count) < OK ||
 	    copy_from_user(pbuf, buf, count) != 0) {
 		res = ERROR_ALLOC;
 		goto END;
