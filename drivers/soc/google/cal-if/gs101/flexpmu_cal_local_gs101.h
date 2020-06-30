@@ -1766,6 +1766,26 @@ struct pmucal_seq tnr_save[] = {
 };
 
 struct pmucal_seq tnr_off[] = {
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE,
+			"QCH_CON_TNR_QCH_ACLK",
+			0x1BC00000,
+			0x30E4,
+			(0x7 << 0),
+			(0x4 << 0),
+			0,
+			0,
+			0xffffffff,
+			0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE,
+			"QCH_CON_TNR_QCH_C2",
+			0x1BC00000,
+			0x30E8,
+			(0x7 << 0),
+			(0x4 << 0),
+			0,
+			0,
+			0xffffffff,
+			0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "TNR_CONFIGURATION", 0x17460000, 0x2800, (0x1 << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WAIT, "TNR_STATUS", 0x17460000, 0x2804, (0x1 << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 };
