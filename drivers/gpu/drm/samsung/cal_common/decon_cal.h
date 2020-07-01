@@ -215,6 +215,7 @@ struct decon_config {
 	struct decon_urgent	urgent;
 	struct exynos_dsc	dsc;
 	unsigned int		out_bpc;
+	unsigned int		in_bpc;
 };
 
 struct decon_regs {
@@ -274,6 +275,7 @@ void decon_regs_desc_init(void __iomem *regs, const char *name,
 int decon_reg_init(u32 id, struct decon_config *config);
 int decon_reg_start(u32 id, struct decon_config *config);
 int decon_reg_stop(u32 id, struct decon_config *config, bool rst, u32 fps);
+void decon_reg_set_bpc_and_dither(u32 id, struct decon_config *config);
 
 /* DECON window control */
 void decon_reg_set_win_enable(u32 id, u32 win_idx, u32 en);

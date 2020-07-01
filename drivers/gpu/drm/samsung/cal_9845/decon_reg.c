@@ -468,8 +468,8 @@ void decon_reg_set_dqe_enable(u32 id, bool en)
 {
 	u32 val;
 
-	val = en ? (ENHANCE_DQE_ON | ENHANCE_DITHER_ON) : 0;
-	decon_write_mask(id, DATA_PATH_CON, val, ENHANCE_PATH_MASK);
+	val = en ? ENHANCE_DQE_ON : 0;
+	decon_write_mask(id, DATA_PATH_CON, val, ENHANCE_DQE_ON);
 }
 
 /*
@@ -1620,26 +1620,24 @@ void decon_reg_set_pll_wakeup(u32 id, u32 en)
 	decon_write_mask(id, PLL_SLEEP_CON, val, mask);
 }
 
-static void decon_reg_set_dither(u32 id, struct decon_config *config)
+static void decon_reg_set_dither(u32 id, struct decon_config *config, bool en)
 {
 	u32 val;
 
-	if (config->out_bpc == 10)
-		return;
-
-	if (id == 0) {
-		dqe_reg_init(config->image_width, config->image_height);
-		dqe_reg_set_disp_dither(true);
-		decon_reg_update_req_dqe(id);
-
-		val = ENHANCE_PATH_F(ENHANCEPATH_DQE_DITHER_ON);
-		decon_write_mask(id, DATA_PATH_CON, val, ENHANCE_PATH_MASK);
-	} else if (id == 1 || id == 2) {
-		val = ENHANCE_PATH_F(ENHANCEPATH_DITHER_ON);
-		decon_write_mask(id, DATA_PATH_CON, val, ENHANCE_PATH_MASK);
-	} else {
+	if (id >= 3) {
 		cal_log_warn(id, "decon(%d) is invalid to set dither\n", id);
+		return;
+	} else if (id == 0) {
+		if (en) {
+			decon_reg_set_dqe_enable(0, true);
+			dqe_reg_init(config->image_width, config->image_height);
+		}
+		dqe_reg_set_disp_dither(en);
+		decon_reg_update_req_dqe(id);
 	}
+
+	val = en ? ENHANCE_PATH_F(ENHANCEPATH_DITHER_ON) : 0;
+	decon_write_mask(id, DATA_PATH_CON, val, ENHANCE_DITHER_ON);
 }
 
 static void decon_reg_set_urgent(u32 id, struct decon_config *config)
@@ -1706,15 +1704,6 @@ int decon_reg_init(u32 id, struct decon_config *config)
 
 	/* enable once at init time */
 	decon_reg_set_latency_monitor_enable(id, 1);
-
-	/* decon processes data in 10bpc mode as default */
-	decon_reg_set_bpc(id, 10);
-
-	/*
-	 * If output data of decon is transferred to 8bpc mode panel,
-	 * dither which changes 10bpc to 8bpc data in decon must be enabled.
-	 */
-	decon_reg_set_dither(id, config);
 
 	/* enable rd/wr urgent */
 	decon_reg_set_urgent(id, config);
@@ -1819,6 +1808,26 @@ int decon_reg_stop(u32 id, struct decon_config *config, bool rst, u32 fps)
 	decon_reg_clear_int_all(id);
 
 	return ret;
+}
+
+void decon_reg_set_bpc_and_dither(u32 id, struct decon_config *config)
+{
+	/*
+	 * decon processes data in the bpc mode of DPP,
+	 * If any input data of DECON from DPP is 10bpc mode,
+	 * then DECON and the others DPP also support 10bpc mode.
+	 */
+	decon_reg_set_bpc(id, config->in_bpc);
+
+	/*
+	 * If input data of decon is 10bpc and output data of decon
+	 * is transferred to 8bpc mode panel, dither in decon must be enabled
+	 * to change 10bpc to 8bpc data.
+	 */
+	if (config->in_bpc == 10 && config->out_bpc == 8)
+		decon_reg_set_dither(id, config, true);
+	else
+		decon_reg_set_dither(id, config, false);
 }
 
 void decon_reg_win_enable_and_update(u32 id, u32 win_idx, u32 en)

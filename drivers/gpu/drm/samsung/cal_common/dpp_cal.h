@@ -180,6 +180,7 @@ struct dpp_params_info {
 	u32 standard;
 	u32 transfer;
 	u32 range;
+	enum dpp_bpc in_bpc;
 
 	unsigned long rcv_num;
 	enum dpp_comp_type comp_type;

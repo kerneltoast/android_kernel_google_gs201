@@ -783,17 +783,19 @@ static int dma_dpp_reg_set_format(u32 id, struct dpp_params_info *p,
 
 	if (test_bit(DPP_ATTR_IDMA, &attr)) {
 		idma_reg_set_format(id, fmt_info->dma_fmt);
+		if (test_bit(DPP_ATTR_DPP, &attr)) {
+			dpp_reg_set_bpc(id, p->in_bpc);
+			dpp_reg_set_alpha_type(id, alpha_type);
+			dpp_reg_set_format(id, fmt_info->dpp_fmt);
+		}
 	} else if (test_bit(DPP_ATTR_ODMA, &attr)) {
 		odma_reg_set_format(id, fmt_info->dma_fmt);
 		if (test_bit(DPP_ATTR_DPP, &attr)) {
 			dpp_reg_set_bpc(id, bpc);
 			dpp_reg_set_uv_offset(id, 0, 0);
+			dpp_reg_set_alpha_type(id, alpha_type);
+			dpp_reg_set_format(id, fmt_info->dpp_fmt);
 		}
-	}
-
-	if (test_bit(DPP_ATTR_DPP, &attr)) {
-		dpp_reg_set_alpha_type(id, alpha_type);
-		dpp_reg_set_format(id, fmt_info->dpp_fmt);
 	}
 
 	return 0;
@@ -830,7 +832,6 @@ void dpp_reg_init(u32 id, const unsigned long attr)
 		dpp_reg_set_irq_mask_all(id, 0);
 		dpp_reg_set_irq_enable(id);
 		dpp_reg_set_linecnt(id, 1);
-		dpp_reg_set_bpc(id, DPP_BPC_10);
 	}
 
 	if (test_bit(DPP_ATTR_ODMA, &attr)) {

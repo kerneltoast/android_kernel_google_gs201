@@ -56,7 +56,6 @@ static void dqe_reg_set_full_img_size(u32 width, u32 height)
 void dqe_reg_init(u32 width, u32 height)
 {
 	cal_log_debug(0, "%s +\n", __func__);
-	decon_reg_set_dqe_enable(0, true);
 	dqe_reg_set_img_size(width, height);
 	dqe_reg_set_full_img_size(width, height);
 	cal_log_debug(0, "%s -\n", __func__);
