@@ -636,12 +636,15 @@ static int dpp_update(struct dpp_device *dpp,
 	const struct drm_plane_state *plane_state = &state->base;
 	const struct drm_crtc_state *crtc_state = plane_state->crtc->state;
 	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
+	const struct exynos_drm_crtc_state *exynos_crtc_state =
+					to_exynos_crtc_state(crtc_state);
 
 	dpp_debug(dpp, "%s +\n", __func__);
 
 	__dpp_enable(dpp);
 
 	dpp_convert_plane_state_to_config(config, state, mode);
+	config->in_bpc = exynos_crtc_state->in_bpc == 8 ? DPP_BPC_8 : DPP_BPC_10;
 
 	dpp_hdr_update(dpp, state);
 	set_protection(dpp, plane_state->fb->modifier);

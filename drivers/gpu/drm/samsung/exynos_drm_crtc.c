@@ -102,6 +102,11 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	struct exynos_drm_crtc_state *new_exynos_state =
+						to_exynos_crtc_state(state);
+	struct drm_plane *plane;
+	const struct drm_plane_state *new_plane_state;
+	uint32_t max_bpc;
 
 	DRM_DEBUG("%s +\n", __func__);
 
@@ -111,7 +116,24 @@ static int exynos_crtc_atomic_check(struct drm_crtc *crtc,
 	exynos_crtc_update_lut(crtc, state);
 
 	if (exynos_crtc->ops->atomic_check)
-		return exynos_crtc->ops->atomic_check(exynos_crtc, state);
+		exynos_crtc->ops->atomic_check(exynos_crtc, state);
+
+	max_bpc = 8; /* initial bpc value */
+	drm_atomic_crtc_state_for_each_plane(plane, state) {
+		const struct drm_format_info *info;
+		const struct dpu_fmt *fmt_info;
+
+		new_plane_state =
+			drm_atomic_get_new_plane_state(state->state, plane);
+
+		info = new_plane_state->fb->format;
+		fmt_info = dpu_find_fmt_info(info->format);
+		if (fmt_info->bpc == 10) {
+			max_bpc = 10;
+			break;
+		}
+	}
+	new_exynos_state->in_bpc = max_bpc;
 
 	DRM_DEBUG("%s -\n", __func__);
 

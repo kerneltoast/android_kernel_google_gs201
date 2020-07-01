@@ -228,13 +228,14 @@ struct exynos_drm_crtc_ops {
 struct exynos_drm_crtc_state {
 	struct drm_crtc_state base;
 	uint32_t color_mode;
+	uint32_t in_bpc;
 	struct exynos_dqe_state dqe;
 	struct drm_property_blob *cgc_lut;
 	enum exynos_drm_writeback_type wb_type;
 };
 
 static inline struct exynos_drm_crtc_state *
-to_exynos_crtc_state(struct drm_crtc_state *state)
+to_exynos_crtc_state(const struct drm_crtc_state *state)
 {
 	return container_of(state, struct exynos_drm_crtc_state, base);
 }
