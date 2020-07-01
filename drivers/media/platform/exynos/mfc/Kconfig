@@ -1,0 +1,15 @@
+config VIDEO_EXYNOS_MFC
+	bool "Exynos MFC Driver"
+	default n
+	depends on VIDEO_EXYNOS
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_DMA_SG
+	---help---
+	  MFC driver for V4L2.
+
+config MFC_USES_LLC
+	bool "MFC LLC support"
+	default n
+	depends on VIDEO_EXYNOS_MFC
+	---help---
+	  Uses the LLC of MFC.
