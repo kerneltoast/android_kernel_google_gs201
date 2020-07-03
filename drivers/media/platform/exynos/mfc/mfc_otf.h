@@ -16,10 +16,40 @@
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 #include <media/exynos_tsmux.h>
 #endif
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
+#include <media/exynos_repeater.h>
+#endif
 
 #include "mfc_common.h"
 
 extern struct mfc_dev *g_mfc_dev;
+
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
+extern int repeater_request_buffer(struct shared_buffer_info *info, int owner);
+extern int repeater_register_encode_cb(
+	int (*repeater_encode_cb)(int, int, struct repeater_encoding_param *param));
+extern int repeater_encoding_done(int encoding_ret);
+#endif
+
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
+extern int tsmux_packetize(struct packetizing_param *param);
+extern int tsmux_encoding_start(int32_t index);
+extern int tsmux_encoding_end(void);
+extern void tsmux_sfr_dump(void);
+#endif
+
+enum hwfc_err {
+	HWFC_ERR_NONE			= 0,
+	HWFC_ERR_TSMUX			= 1,
+	HWFC_ERR_MFC			= 2,
+	HWFC_ERR_MFC_NOT_PREPARED	= 3,
+	HWFC_ERR_MFC_TIMEOUT		= 4,
+	HWFC_ERR_MFC_NOT_ENABLED		= 5,
+};
+
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
+int mfc_hwfc_encode(int buf_index, int job_id, struct repeater_encoding_param *param);
+#endif
 
 int mfc_otf_create(struct mfc_ctx *ctx);
 void mfc_otf_destroy(struct mfc_ctx *ctx);

@@ -10,11 +10,6 @@
  * (at your option) any later version.
  */
 
-#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
-#include <media/exynos_repeater.h>
-#endif
-#include <media/mfc_hwfc.h>
-
 #include "mfc_otf.h"
 #include "mfc_hwfc_internal.h"
 
@@ -87,7 +82,6 @@ static int __mfc_otf_map_buf(struct mfc_ctx *ctx)
 	struct _otf_handle *handle = ctx->otf_handle;
 	struct _otf_buf_addr *buf_addr = &handle->otf_buf_addr;
 	struct _otf_buf_info *buf_info = &handle->otf_buf_info;
-	struct mfc_raw_info *raw = &ctx->raw_buf;
 	int i;
 
 	mfc_debug_enter();
@@ -96,15 +90,23 @@ static int __mfc_otf_map_buf(struct mfc_ctx *ctx)
 	/* map buffers */
 	for (i = 0; i < buf_info->buffer_count; i++) {
 		mfc_debug(2, "[OTF] dma_buf: 0x%p\n", buf_info->bufs[i]);
-		buf_addr->otf_buf_attach[i] = dma_buf_attach(buf_info->bufs[i], dev->device);
+		buf_addr->otf_buf_attach[i] = dma_buf_attach(buf_info->bufs[i],
+				dev->device);
 		if (IS_ERR(buf_addr->otf_buf_attach[i])) {
 			mfc_ctx_err("[OTF] Failed to get attachment (err %ld)",
 				PTR_ERR(buf_addr->otf_buf_attach[i]));
 			buf_addr->otf_buf_attach[i] = 0;
 			return -EINVAL;
 		}
-		buf_addr->otf_daddr[i][0] = ion_iovmm_map(buf_addr->otf_buf_attach[i], 0,
-				raw->total_plane_size, DMA_BIDIRECTIONAL, 0);
+		buf_addr->sgt[i] = dma_buf_map_attachment(buf_addr->otf_buf_attach[i],
+				DMA_BIDIRECTIONAL);
+		if (IS_ERR(buf_addr->sgt[i])) {
+			mfc_ctx_err("[OTF] Failed to map attach (err %ld)",
+				PTR_ERR(buf_addr->sgt[i]));
+			return -EINVAL;
+		}
+
+		buf_addr->otf_daddr[i][0] = sg_dma_address(buf_addr->sgt[i]->sgl);
 		if (IS_ERR_VALUE(buf_addr->otf_daddr[i][0])) {
 			mfc_ctx_err("[OTF] Failed to get daddr (0x%08llx)",
 					buf_addr->otf_daddr[i][0]);
@@ -138,8 +140,9 @@ static void __mfc_otf_unmap_buf(struct mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	for (i = 0; i < buf_info->buffer_count; i++) {
-		if (buf_addr->otf_daddr[i][0]) {
-			ion_iovmm_unmap(buf_addr->otf_buf_attach[i], buf_addr->otf_daddr[i][0]);
+		if (buf_addr->sgt[i]) {
+			dma_buf_unmap_attachment(buf_addr->otf_buf_attach[i],
+					buf_addr->sgt[i], DMA_BIDIRECTIONAL);
 			buf_addr->otf_daddr[i][0] = 0;
 		}
 		if (buf_addr->otf_buf_attach[i]) {
@@ -183,8 +186,13 @@ static int __mfc_otf_init_hwfc_buf(struct mfc_ctx *ctx)
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	shared_buf_info = (struct shared_buffer_info *)buf_info;
 	/* request buffers */
-	if (hwfc_request_buffer(shared_buf_info, 1)) {
+	if (repeater_request_buffer(shared_buf_info, 1)) {
 		mfc_ctx_err("[OTF] request_buffer failed\n");
+		return -EFAULT;
+	}
+
+	if (repeater_register_encode_cb(mfc_hwfc_encode)) {
+		mfc_ctx_err("[OTF] failed to register encode call back function\n");
 		return -EFAULT;
 	}
 #endif
@@ -486,7 +494,7 @@ int mfc_otf_run_enc_init(struct mfc_ctx *ctx)
 	if (reg_test && !__check_disable_header_gen(dev)) {
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 		packet_param.time_stamp = 0;
-		ret = packetize(&packet_param);
+		ret = tsmux_packetize(&packet_param);
 		if (ret)
 			return ret;
 #endif
@@ -598,7 +606,7 @@ int mfc_otf_handle_stream(struct mfc_ctx *ctx)
 	mfc_debug_enter();
 
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
-	mfc_encoding_end();
+	tsmux_encoding_end();
 #endif
 
 	slice_type = mfc_get_enc_slice_type();
@@ -655,7 +663,7 @@ int mfc_otf_handle_stream(struct mfc_ctx *ctx)
 	handle->otf_job_id = 0;
 
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
-	hwfc_encoding_done(enc_ret);
+	repeater_encoding_done(enc_ret);
 #endif
 
 	mfc_debug_leave();
@@ -710,7 +718,7 @@ void mfc_otf_handle_error(struct mfc_ctx *ctx,
 			mfc_ctx_err("[OTF] failed in cleanup_buf_ctrls\n");
 
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
-		hwfc_encoding_done(enc_ret);
+		repeater_encoding_done(enc_ret);
 #endif
 		break;
 	default:
@@ -749,7 +757,9 @@ int __mfc_hwfc_check_run(struct mfc_ctx *ctx)
 	return 0;
 }
 
-int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
+int mfc_hwfc_encode(int buf_index, int job_id,
+		struct repeater_encoding_param *param)
 {
 	struct mfc_dev *dev = g_mfc_dev;
 	struct _otf_handle *handle;
@@ -762,7 +772,7 @@ int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 	mfc_dev_debug_enter();
 
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
-	mfc_encoding_start(buf_index);
+	tsmux_encoding_start(buf_index);
 #endif
 
 	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
@@ -786,7 +796,7 @@ int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 	packet_param.time_stamp = param->time_stamp;
 	if (debug_ts == 1)
 		mfc_ctx_info("[OTF][TS] timestamp: %llu\n", param->time_stamp);
-	if (packetize(&packet_param)) {
+	if (tsmux_packetize(&packet_param)) {
 		mfc_ctx_err("[OTF] packetize failed\n");
 		return -HWFC_ERR_TSMUX;
 	}
@@ -806,3 +816,4 @@ int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 
 	return HWFC_ERR_NONE;
 }
+#endif
