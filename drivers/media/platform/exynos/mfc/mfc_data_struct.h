@@ -1471,6 +1471,7 @@ struct dpb_table {
 	int queued;
 	struct dma_buf *dmabufs[MFC_MAX_PLANES];
 	struct dma_buf_attachment *attach[MFC_MAX_PLANES];
+	struct sg_table *sgt[MFC_MAX_PLANES];
 };
 
 struct mfc_dec {
