@@ -405,7 +405,7 @@ struct mfc_ctx_buf_size {
 struct mfc_buf_size {
 	size_t firmware_code;
 	unsigned int cpb_buf;
-	void *ctx_buf;
+	struct mfc_ctx_buf_size *ctx_buf;
 };
 
 struct mfc_variant {
