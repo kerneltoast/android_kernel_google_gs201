@@ -46,7 +46,6 @@ enum g2d_priority {
  * g2d_dev->tasks_active.
  */
 #define G2D_DEVICE_STATE_SUSPEND	1
-#define G2D_DEVICE_STATE_IOVMM_DISABLED	2
 
 enum g2d_hw_ppc_rot {
 	PPC_NO_ROTATE,

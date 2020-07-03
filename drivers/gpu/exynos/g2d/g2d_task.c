@@ -16,10 +16,9 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-#include <linux/exynos_iovmm.h>
 #include <linux/module.h>
 #include <linux/sched/types.h>
-#include <linux/ion_exynos.h>
+#include <linux/dma-mapping.h>
 
 #include "g2d.h"
 #include "g2d_task.h"
@@ -42,24 +41,18 @@ static void g2d_secure_disable(void)
 static int g2d_map_cmd_data(struct g2d_task *task)
 {
 	bool self_prot = task->g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION;
-	struct scatterlist sgl;
-	int prot = IOMMU_READ;
+	int ret;
 
 	if (!self_prot && IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
 		return 0;
 
-	if (device_get_dma_attr(task->g2d_dev->dev) == DEV_DMA_COHERENT)
-		prot |= IOMMU_CACHE;
-
-	/* mapping the command data */
-	sg_init_table(&sgl, 1);
-	sg_set_page(&sgl, task->cmd_page, G2D_CMD_LIST_SIZE, 0);
-	task->cmd_addr = iovmm_map(task->g2d_dev->dev, &sgl, 0,
-				   G2D_CMD_LIST_SIZE, DMA_TO_DEVICE, prot);
-
-	if (IS_ERR_VALUE(task->cmd_addr)) {
+	task->cmd_addr = dma_map_page_attrs(task->g2d_dev->dev, task->cmd_page,
+					    0, G2D_CMD_LIST_SIZE, DMA_TO_DEVICE,
+					    DMA_ATTR_SKIP_CPU_SYNC);
+	ret = dma_mapping_error(task->g2d_dev->dev, task->cmd_addr);
+	if (ret) {
 		perrfndev(task->g2d_dev, "Unable to alloc IOVA for cmd data");
-		return task->cmd_addr;
+		return ret;
 	}
 
 	return 0;
@@ -92,9 +85,6 @@ static void g2d_task_completion_work(struct work_struct *work)
 
 static void __g2d_finish_task(struct g2d_task *task, bool success)
 {
-	unsigned int i;
-	bool need_invalidate = false;
-
 	change_task_state_finished(task);
 	if (!success)
 		mark_task_state_error(task);
@@ -103,25 +93,13 @@ static void __g2d_finish_task(struct g2d_task *task, bool success)
 
 	if (!(task->flags & G2D_FLAG_NONBLOCK))
 		return;
-
-	for (i = 0; i < task->target.num_buffers; i++) {
-		if (ion_cached_dmabuf(task->target.buffer[i].dmabuf.dmabuf)) {
-			need_invalidate = true;
-			break;
-		}
-	}
-
-	if (task->release_fence && (!need_invalidate ||
-	    (device_get_dma_attr(task->g2d_dev->dev) == DEV_DMA_COHERENT))) {
-		if (!success)
-			dma_fence_set_error(task->release_fence->fence, -EIO);
-
-		dma_fence_signal(task->release_fence->fence);
-		fput(task->release_fence->file);
-
-		task->release_fence = NULL;
-	}
-
+	/*
+	 * NOTE: task->release_fence cannot be signaled here because of possible
+	 * cache coherency problems. Since cache maintenance is expensive task,
+	 * it should be done in a process context. The fence signaling is done by
+	 * g2d_put_images() called by g2d_task_completion_work() which is the worker
+	 * function of task->completion_work.
+	 */
 	queue_work(task->g2d_dev->completion_workq, &task->completion_work);
 }
 
@@ -467,7 +445,8 @@ void g2d_destroy_tasks(struct g2d_device *g2d_dev)
 
 		list_del(&task->node);
 
-		iovmm_unmap(g2d_dev->dev, task->cmd_addr);
+		dma_unmap_page_attrs(task->g2d_dev->dev, task->cmd_addr,
+				     G2D_CMD_LIST_SIZE, DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
 
 		__free_pages(task->cmd_page, get_order(G2D_CMD_LIST_SIZE));
 

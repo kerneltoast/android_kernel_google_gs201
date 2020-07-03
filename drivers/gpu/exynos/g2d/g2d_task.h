@@ -42,21 +42,24 @@ struct g2d_buffer_prot_info {
 	unsigned long bus_address;
 };
 
+struct page;
+struct frame_vector;
+
 struct g2d_buffer {
 	union {
 		struct {
 			unsigned int			offset;
 			struct dma_buf			*dmabuf;
 			struct dma_buf_attachment	*attachment;
-			struct sg_table			*sgt;
 		} dmabuf;
 		struct {
 			unsigned long			addr;
-			struct vm_area_struct		*vma;
+			struct frame_vector		*vec;
 		} userptr;
 	};
 	unsigned int	length;
 	unsigned int	payload;
+	struct sg_table	*sgt;
 	dma_addr_t	dma_addr;
 };
 
@@ -121,8 +124,6 @@ struct g2d_task {
 	struct work_struct	completion_work;
 	struct completion	completion;
 
-	unsigned int		total_cached_len;
-	unsigned int		total_hwrender_len;
 	spinlock_t		fence_timeout_lock;
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	struct g2d_buffer_prot_info prot_info;

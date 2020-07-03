@@ -17,7 +17,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/exynos_iovmm.h>
+#include <linux/iommu.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
@@ -188,12 +188,9 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_EXYNOS_IOVMM
-static int g2d_iommu_fault_handler(struct iommu_domain *domain,
-				struct device *dev, unsigned long fault_addr,
-				int fault_flags, void *token)
+static int g2d_fault_handler(struct iommu_fault *fault, void *data)
 {
-	struct g2d_device *g2d_dev = token;
+	struct g2d_device *g2d_dev = data;
 	struct g2d_task *task;
 	int job_id = g2d_hw_get_current_task(g2d_dev);
 	unsigned long flags;
@@ -208,7 +205,6 @@ static int g2d_iommu_fault_handler(struct iommu_domain *domain,
 
 	return 0;
 }
-#endif
 
 static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 {
@@ -1032,11 +1028,14 @@ static int g2d_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	iovmm_set_fault_handler(&pdev->dev, g2d_iommu_fault_handler, g2d_dev);
+	/* it is okay if fault handler is not registered since it is just for debugging */
+	ret = iommu_register_device_fault_handler(&pdev->dev, g2d_fault_handler, &pdev->dev);
+	if (ret)
+		perrdev(g2d_dev, "Failed to register IOMMU fault handler (%d)", ret);
 
 	ret = g2d_parse_dt(g2d_dev);
 	if (ret < 0)
-		return ret;
+		goto err_dt;
 
 	of_id = of_match_node(of_g2d_match, pdev->dev.of_node);
 	if (of_id->data) {
@@ -1046,12 +1045,6 @@ static int g2d_probe(struct platform_device *pdev)
 		g2d_dev->max_layers = devdata->max_layers;
 		g2d_dev->fmts_src = devdata->fmts_src;
 		g2d_dev->fmts_dst = devdata->fmts_dst;
-	}
-
-	ret = iovmm_activate(&pdev->dev);
-	if (ret < 0) {
-		perrdev(g2d_dev, "Failed to activate iommu");
-		return ret;
 	}
 
 	/* prepare clock and enable runtime pm */
@@ -1130,7 +1123,8 @@ err_misc:
 	misc_deregister(&g2d_dev->misc[0]);
 err:
 	pm_runtime_disable(&pdev->dev);
-	iovmm_deactivate(g2d_dev->dev);
+err_dt:
+	iommu_unregister_device_fault_handler(&pdev->dev);
 
 	perrdev(g2d_dev, "Failed to probe FIMG2D");
 
@@ -1145,9 +1139,6 @@ static void g2d_shutdown(struct platform_device *pdev)
 	g2d_prepare_suspend(g2d_dev);
 
 	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
-
-	if (test_and_set_bit(G2D_DEVICE_STATE_IOVMM_DISABLED, &g2d_dev->state))
-		iovmm_deactivate(g2d_dev->dev);
 
 	g2d_stamp_task(NULL, G2D_STAMP_STATE_SHUTDOWN, 1);
 }
