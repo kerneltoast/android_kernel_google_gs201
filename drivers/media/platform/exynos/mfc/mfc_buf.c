@@ -10,7 +10,7 @@
  * (at your option) any later version.
  */
 
-#include <linux/smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 #include <linux/firmware.h>
 #include <trace/events/mfc.h>
 

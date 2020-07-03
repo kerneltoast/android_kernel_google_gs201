@@ -15,7 +15,7 @@
 #include <linux/of_address.h>
 #include <linux/proc_fs.h>
 #include <linux/of.h>
-#include <linux/smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
