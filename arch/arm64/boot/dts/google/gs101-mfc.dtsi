@@ -26,6 +26,7 @@
 		clock-names = "aclk_mfc";
 		clocks = <&clock GATE_MFC>;
 		iommus = <&sysmmu_mfc0>, <&sysmmu_mfc1>;
+		samsung,iommu-group = <&iommu_group_mfc>;
 
 		/* MFC version */
 		ip_ver = <0x14020000>;
