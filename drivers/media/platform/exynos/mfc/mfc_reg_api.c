@@ -298,7 +298,7 @@ int mfc_set_dec_stream_buffer(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 		  unsigned int start_num_byte, unsigned int strm_size)
 {
 	struct mfc_dev *dev = ctx->dev;
-	unsigned int cpb_buf_size;
+	unsigned int cpb_buf_size = 0;
 	dma_addr_t addr;
 	size_t dbuf_size;
 	struct vb2_buffer *vb = &mfc_buf->vb.vb2_buf;
