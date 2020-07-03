@@ -455,6 +455,8 @@ struct mfc_special_buf {
 	dma_addr_t			daddr;
 	void				*vaddr;
 	size_t				size;
+	struct iommu_domain		*domain;
+	size_t				map_size;
 };
 
 struct mfc_bw_data {

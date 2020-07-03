@@ -43,6 +43,9 @@
 #define EXYNOS_VIDEONODE_MFC_ENC_OTF           10
 #define EXYNOS_VIDEONODE_MFC_ENC_OTF_DRM       11
 
+
+/* MFC base address */
+#define MFC_BASE_ADDR		0x10000000
 /* Interrupt timeout */
 #define MFC_INT_TIMEOUT		4000
 /* Interrupt short timeout */

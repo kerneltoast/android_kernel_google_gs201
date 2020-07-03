@@ -13,6 +13,7 @@
 #include <linux/soc/samsung/exynos-smc.h>
 #include <linux/firmware.h>
 #include <trace/events/mfc.h>
+#include <linux/iommu.h>
 
 #include "mfc_buf.h"
 
@@ -624,6 +625,7 @@ int mfc_alloc_firmware(struct mfc_dev *dev)
 {
 	size_t firmware_size;
 	struct mfc_ctx_buf_size *buf_size;
+	struct mfc_special_buf *fw_buf;
 
 	mfc_dev_debug_enter();
 
@@ -644,6 +646,18 @@ int mfc_alloc_firmware(struct mfc_dev *dev)
 		return -ENOMEM;
 	}
 
+	fw_buf = &dev->fw_buf;
+	fw_buf->domain = iommu_get_domain_for_dev(dev->device);
+	fw_buf->map_size = iommu_map_sg(fw_buf->domain, MFC_BASE_ADDR, fw_buf->sgt->sgl,
+			fw_buf->sgt->nents,
+			IOMMU_READ|IOMMU_WRITE);
+	if (!fw_buf->map_size) {
+		mfc_dev_err("Failed to remap iova (err %#llx)\n",
+				fw_buf->daddr);
+		return -ENOMEM;
+	}
+	fw_buf->daddr = MFC_BASE_ADDR;
+
 	mfc_dev_debug(2, "[MEMINFO][F/W] FW normal: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
 			dev->fw_buf.daddr, dev->fw_buf.vaddr,
 			dev->fw_buf.size);
@@ -653,7 +667,7 @@ int mfc_alloc_firmware(struct mfc_dev *dev)
 	dev->drm_fw_buf.size = dev->fw.size;
 	if (mfc_mem_ion_alloc(dev, &dev->drm_fw_buf)) {
 		mfc_dev_err("[F/W] Allocating DRM firmware buffer failed\n");
-		return -ENOMEM;
+		goto err_daddr;
 	}
 
 	mfc_dev_debug(2, "[MEMINFO][F/W] FW DRM: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
@@ -664,6 +678,12 @@ int mfc_alloc_firmware(struct mfc_dev *dev)
 	mfc_dev_debug_leave();
 
 	return 0;
+
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+err_daddr:
+#endif
+	iommu_unmap(fw_buf->domain, MFC_BASE_ADDR, fw_buf->map_size);
+	return -ENOMEM;
 }
 
 /* Load firmware to MFC */
@@ -723,12 +743,16 @@ int mfc_load_firmware(struct mfc_dev *dev)
 /* Release firmware memory */
 int mfc_release_firmware(struct mfc_dev *dev)
 {
+	struct mfc_special_buf *fw_buf;
+
 	/* Before calling this function one has to make sure
 	 * that MFC is no longer processing */
-	if (!dev->fw_buf.dma_buf) {
+	fw_buf = &dev->fw_buf;
+	if (!fw_buf->dma_buf) {
 		mfc_dev_err("[F/W] firmware memory is already freed\n");
 		return -EINVAL;
 	}
+	iommu_unmap(fw_buf->domain, MFC_BASE_ADDR, fw_buf->map_size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	mfc_mem_ion_free(dev, &dev->drm_fw_buf);
