@@ -560,7 +560,7 @@ static void __mfc_nal_q_set_slice_mode(struct mfc_ctx *ctx, EncoderInputStr *pIn
 	struct mfc_enc *enc = ctx->enc_priv;
 
 	/* multi-slice control */
-	if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES)
+	if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES)
 		pInStr->MsliceMode = enc->slice_mode + 0x4;
 	else if (enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW)
 		pInStr->MsliceMode = enc->slice_mode - 0x2;
@@ -570,7 +570,7 @@ static void __mfc_nal_q_set_slice_mode(struct mfc_ctx *ctx, EncoderInputStr *pIn
 		pInStr->MsliceMode = enc->slice_mode;
 
 	/* multi-slice MB number or bit size */
-	if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) ||
+	if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB) ||
 			(enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB_ROW)) {
 		pInStr->MsliceSizeMb = enc->slice_size_mb;
 	} else if ((enc->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES) ||

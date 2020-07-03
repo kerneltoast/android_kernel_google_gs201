@@ -74,12 +74,15 @@ static int mfc_enc_queue_setup(struct vb2_queue *vq,
 		if (*buf_count > MFC_MAX_BUFFERS)
 			*buf_count = MFC_MAX_BUFFERS;
 
-		/* psize used to min length in vb2 */
+		/* need to use minimum size to prevent qbuf fail */
 		if (*plane_count == 1) {
+			psize[0] = 1;
 			alloc_devs[0] = dev->device;
 		} else {
-			for (i = 0; i < *plane_count; i++)
+			for (i = 0; i < *plane_count; i++) {
+				psize[i] = 1;
 				alloc_devs[i] = dev->device;
+			}
 		}
 	} else {
 		mfc_ctx_err("invalid queue type: %d\n", vq->type);

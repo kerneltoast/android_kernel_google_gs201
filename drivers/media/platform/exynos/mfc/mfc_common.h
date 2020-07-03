@@ -246,7 +246,7 @@
 #define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw.date >= (f).version))
 
 /* Low memory check */
-#define IS_LOW_MEM			(totalram_pages <= ((SZ_1G + SZ_512M) >> PAGE_SHIFT))
+#define IS_LOW_MEM			(totalram_pages() <= ((SZ_1G + SZ_512M) >> PAGE_SHIFT))
 #define SZ_600M				(6 * 1024 * 1024)
 
 #endif /* __MFC_COMMON_H */

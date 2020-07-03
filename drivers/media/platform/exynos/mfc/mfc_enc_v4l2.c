@@ -695,16 +695,17 @@ static int mfc_enc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	return 0;
 }
 
-static int mfc_enc_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
+static int mfc_enc_g_selection(struct file *file, void *fh,
+		struct v4l2_selection *s)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 
 	mfc_debug_enter();
 
-	cr->c.left = ctx->crop_left;
-	cr->c.top = ctx->crop_top;
-	cr->c.width = ctx->crop_width;
-	cr->c.height = ctx->crop_height;
+	s->r.left = ctx->crop_left;
+	s->r.top = ctx->crop_top;
+	s->r.width = ctx->crop_width;
+	s->r.height = ctx->crop_height;
 
 	mfc_debug(2, "[FRAME] enc crop w: %d, h: %d, offset l: %d t: %d\n",
 			ctx->crop_width, ctx->crop_height, ctx->crop_left, ctx->crop_top);
@@ -714,36 +715,37 @@ static int mfc_enc_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 	return 0;
 }
 
-static int mfc_enc_s_crop(struct file *file, void *priv, const struct v4l2_crop *cr)
+static int mfc_enc_s_selection(struct file *file, void *priv,
+		struct v4l2_selection *s)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 
 	mfc_debug_enter();
 
-	if (cr->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_ctx_err("not supported type (It can only in the source)\n");
 		return -EINVAL;
 	}
 
-	if (cr->c.left < 0 || cr->c.top < 0) {
+	if (s->r.left < 0 || s->r.top < 0) {
 		mfc_ctx_err("[FRAME] crop position is negative\n");
 		return -EINVAL;
 	}
 
-	if ((cr->c.height > ctx->img_height) || (cr->c.top > ctx->img_height) ||
-			(cr->c.width > ctx->img_width) || (cr->c.left > ctx->img_width) ||
-			(cr->c.left >= (ctx->img_width - cr->c.width)) ||
-			(cr->c.top >= (ctx->img_height - cr->c.height))) {
+	if ((s->r.height > ctx->img_height) || (s->r.top > ctx->img_height) ||
+			(s->r.width > ctx->img_width) || (s->r.left > ctx->img_width) ||
+			(s->r.left >= (ctx->img_width - s->r.width)) ||
+			(s->r.top >= (ctx->img_height - s->r.height))) {
 		mfc_ctx_err("[FRAME] Out of crop range: (%d,%d,%d,%d) from %dx%d\n",
-				cr->c.left, cr->c.top, cr->c.width, cr->c.height,
+				s->r.left, s->r.top, s->r.width, s->r.height,
 				ctx->img_width, ctx->img_height);
 		return -EINVAL;
 	}
 
-	ctx->crop_top = cr->c.top;
-	ctx->crop_left = cr->c.left;
-	ctx->crop_height = cr->c.height;
-	ctx->crop_width = cr->c.width;
+	ctx->crop_top = s->r.top;
+	ctx->crop_left = s->r.left;
+	ctx->crop_height = s->r.height;
+	ctx->crop_width = s->r.width;
 
 	mfc_debug(3, "[FRAME] enc original: %dx%d, crop: %dx%d, offset l: %d t: %d\n",
 			ctx->img_width, ctx->img_height,
@@ -898,10 +900,10 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 						i, buf->m.planes[i].bytesused);
 			}
 		}
-		ret = vb2_qbuf(&ctx->vq_src, buf);
+		ret = vb2_qbuf(&ctx->vq_src, NULL, buf);
 	} else {
 		mfc_debug(4, "enc dst buf[%d] Q\n", buf->index);
-		ret = vb2_qbuf(&ctx->vq_dst, buf);
+		ret = vb2_qbuf(&ctx->vq_dst, NULL, buf);
 	}
 
 	atomic_inc(&dev->queued_cnt);
@@ -2241,16 +2243,16 @@ static int mfc_enc_try_ext_ctrls(struct file *file, void *priv,
 
 static const struct v4l2_ioctl_ops mfc_enc_ioctl_ops = {
 	.vidioc_querycap		= mfc_enc_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane	= mfc_enc_enum_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_out_mplane	= mfc_enc_enum_fmt_vid_out_mplane,
+	.vidioc_enum_fmt_vid_cap	= mfc_enc_enum_fmt_vid_cap_mplane,
+	.vidioc_enum_fmt_vid_out	= mfc_enc_enum_fmt_vid_out_mplane,
 	.vidioc_g_fmt_vid_cap_mplane	= mfc_enc_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane	= mfc_enc_g_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= mfc_enc_try_fmt,
 	.vidioc_try_fmt_vid_out_mplane	= mfc_enc_try_fmt,
 	.vidioc_s_fmt_vid_cap_mplane	= mfc_enc_s_fmt_vid_cap_mplane,
 	.vidioc_s_fmt_vid_out_mplane	= mfc_enc_s_fmt_vid_out_mplane,
-	.vidioc_g_crop			= mfc_enc_g_crop,
-	.vidioc_s_crop			= mfc_enc_s_crop,
+	.vidioc_g_selection		= mfc_enc_g_selection,
+	.vidioc_s_selection		= mfc_enc_s_selection,
 	.vidioc_reqbufs			= mfc_enc_reqbufs,
 	.vidioc_querybuf		= mfc_enc_querybuf,
 	.vidioc_qbuf			= mfc_enc_qbuf,

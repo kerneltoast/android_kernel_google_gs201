@@ -956,11 +956,11 @@ static int mfc_dec_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		} else {
 			mfc_debug(2, "Src size = %d\n", buf->m.planes[0].bytesused);
 		}
-		ret = vb2_qbuf(&ctx->vq_src, buf);
+		ret = vb2_qbuf(&ctx->vq_src, NULL, buf);
 	} else {
 		mfc_debug(4, "dec dst buf[%d] Q\n", buf->index);
 		mfc_qos_update_framerate(ctx, buf->m.planes[0].bytesused, 1);
-		ret = vb2_qbuf(&ctx->vq_dst, buf);
+		ret = vb2_qbuf(&ctx->vq_dst, NULL, buf);
 	}
 
 	atomic_inc(&dev->queued_cnt);
@@ -1367,25 +1367,28 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 }
 
 /* Get cropping information */
-static int mfc_dec_g_crop(struct file *file, void *priv,
-		struct v4l2_crop *cr)
+static int mfc_dec_g_selection(struct file *file, void *priv,
+		struct v4l2_selection *s)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_dec *dec = ctx->dec_priv;
 
 	mfc_debug_enter();
 
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
 	if (!ready_to_get_crop(ctx)) {
-		mfc_ctx_err("ready to get crop failed\n");
+		mfc_ctx_err("ready to get compose failed\n");
 		return -EINVAL;
 	}
 
 	if (ctx->state == MFCINST_RUNNING && dec->detect_black_bar
 			&& dec->black_bar_updated) {
-		cr->c.left = dec->black_bar.left;
-		cr->c.top = dec->black_bar.top;
-		cr->c.width = dec->black_bar.width;
-		cr->c.height = dec->black_bar.height;
+		s->r.left = dec->black_bar.left;
+		s->r.top = dec->black_bar.top;
+		s->r.width = dec->black_bar.width;
+		s->r.height = dec->black_bar.height;
 		mfc_debug(2, "[FRAME][BLACKBAR] Cropping info: l=%d t=%d w=%d h=%d\n",
 				dec->black_bar.left,
 				dec->black_bar.top,
@@ -1395,23 +1398,23 @@ static int mfc_dec_g_crop(struct file *file, void *priv,
 		if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_H264 ||
 			ctx->src_fmt->fourcc == V4L2_PIX_FMT_HEVC ||
 			ctx->src_fmt->fourcc == V4L2_PIX_FMT_BPG) {
-			cr->c.left = dec->cr_left;
-			cr->c.top = dec->cr_top;
-			cr->c.width = ctx->img_width - dec->cr_left - dec->cr_right;
-			cr->c.height = ctx->img_height - dec->cr_top - dec->cr_bot;
-			mfc_debug(2, "[FRAME] Cropping info: l=%d t=%d "
+			s->r.left = dec->cr_left;
+			s->r.top = dec->cr_top;
+			s->r.width = ctx->img_width - dec->cr_left - dec->cr_right;
+			s->r.height = ctx->img_height - dec->cr_top - dec->cr_bot;
+			mfc_debug(2, "[FRAME] Composing info: l=%d t=%d "
 					"w=%d h=%d (r=%d b=%d fw=%d fh=%d)\n",
-					dec->cr_left, dec->cr_top,
-					cr->c.width, cr->c.height,
+					s->r.left, s->r.top,
+					s->r.width, s->r.height,
 					dec->cr_right, dec->cr_bot,
 					ctx->img_width, ctx->img_height);
 		} else {
-			cr->c.left = 0;
-			cr->c.top = 0;
-			cr->c.width = ctx->img_width;
-			cr->c.height = ctx->img_height;
-			mfc_debug(2, "[FRAME] Cropping info: w=%d h=%d fw=%d fh=%d\n",
-					cr->c.width, cr->c.height,
+			s->r.left = 0;
+			s->r.top = 0;
+			s->r.width = ctx->img_width;
+			s->r.height = ctx->img_height;
+			mfc_debug(2, "[FRAME] Composing info: w=%d h=%d fw=%d fh=%d\n",
+					s->r.width, s->r.height,
 					ctx->img_width, ctx->img_height);
 		}
 	}
@@ -1455,8 +1458,8 @@ static int mfc_dec_g_ext_ctrls(struct file *file, void *priv,
 /* v4l2_ioctl_ops */
 static const struct v4l2_ioctl_ops mfc_dec_ioctl_ops = {
 	.vidioc_querycap		= mfc_dec_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane	= mfc_dec_enum_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_out_mplane	= mfc_dec_enum_fmt_vid_out_mplane,
+	.vidioc_enum_fmt_vid_cap	= mfc_dec_enum_fmt_vid_cap_mplane,
+	.vidioc_enum_fmt_vid_out	= mfc_dec_enum_fmt_vid_out_mplane,
 	.vidioc_g_fmt_vid_cap_mplane	= mfc_dec_g_fmt_vid_cap_mplane,
 	.vidioc_g_fmt_vid_out_mplane	= mfc_dec_g_fmt_vid_out_mplane,
 	.vidioc_try_fmt_vid_cap_mplane	= mfc_dec_try_fmt,
@@ -1472,7 +1475,7 @@ static const struct v4l2_ioctl_ops mfc_dec_ioctl_ops = {
 	.vidioc_queryctrl		= mfc_dec_queryctrl,
 	.vidioc_g_ctrl			= mfc_dec_g_ctrl,
 	.vidioc_s_ctrl			= mfc_dec_s_ctrl,
-	.vidioc_g_crop			= mfc_dec_g_crop,
+	.vidioc_g_selection		= mfc_dec_g_selection,
 	.vidioc_g_ext_ctrls		= mfc_dec_g_ext_ctrls,
 };
 
