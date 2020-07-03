@@ -6,6 +6,7 @@
  *
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "gs101-slider-trusty.dtsi"
 #include "gs101-pmic.dtsi"
 #include "gs101-slider-gsc.dtsi"
@@ -350,4 +351,28 @@
 	max-link-speed = <LINK_SPEED_GEN1>;
 	ep-device-type = <EP_BCM_WIFI>;
 	pcie,wlan-gpio = <&gpp14 2 0x1 /* WLAN_EN */ >;
+};
+
+&drmdsim1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	panel@0 {
+		compatible = "samsung,s6e3hc2";
+		label = "samsung-s6e3hc2";
+		channel = <0>;
+		/* touch = <&spitouch>; */
+
+		/* reset, power */
+		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo22_reg>;
+		vddi-supply = <&m_ldo30_reg>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;
+	};
 };

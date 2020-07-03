@@ -6,6 +6,8 @@
  *
  */
 
+#include <dt-bindings/interrupt-controller/gs101.h>
+
 / {
 	/* GPIO_ALIVE */
 	pinctrl@174D0000 {
