@@ -29,8 +29,6 @@
 #include "g2d_regs.h"
 #include "g2d_perf.h"
 
-#include <soc/samsung/exynos-devfreq.h>
-
 unsigned int g2d_debug;
 
 #define G2D_MAX_STAMP_ID 1024

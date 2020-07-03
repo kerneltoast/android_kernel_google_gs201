@@ -15,32 +15,31 @@
  * General Public License for more details.
  */
 
+#include <linux/workqueue.h>
+
 #include "g2d.h"
 #include "g2d_perf.h"
 #include "g2d_task.h"
 #include "g2d_uapi.h"
 #include "g2d_debug.h"
 
-#include <linux/workqueue.h>
-#include <soc/samsung/exynos-devfreq.h>
-
-#ifdef CONFIG_PM_DEVFREQ
-static void g2d_pm_qos_update_devfreq(struct pm_qos_request *req, u32 freq)
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+static void g2d_pm_qos_update_devfreq(struct g2d_device *g2d_dev, u32 freq)
 {
-	if (!pm_qos_request_active(req))
-		pm_qos_add_request(req, PM_QOS_DEVICE_THROUGHPUT, 0);
+	if (!exynos_pm_qos_request_active(&g2d_dev->req))
+		exynos_pm_qos_add_request(&g2d_dev->req, PM_QOS_DEVICE_THROUGHPUT, 0);
 
-	pm_qos_update_request(req, freq);
+	exynos_pm_qos_update_request(&g2d_dev->req, freq);
 }
 
-static void g2d_pm_qos_remove_devfreq(struct pm_qos_request *req)
+static void g2d_pm_qos_remove_devfreq(struct g2d_device *g2d_dev)
 {
-	if (pm_qos_request_active(req))
-		pm_qos_remove_request(req);
+	if (exynos_pm_qos_request_active(&g2d_dev->req))
+		exynos_pm_qos_remove_request(&g2d_dev->req);
 }
 #else
-#define g2d_pm_qos_update_devfreq(req, freq) do { } while (0)
-#define g2d_pm_qos_remove_devfreq(req) do { } while (0)
+#define g2d_pm_qos_update_devfreq(g2d_dev, freq) do { } while (0)
+#define g2d_pm_qos_remove_devfreq(g2d_dev) do { } while (0)
 #endif
 
 /*
@@ -173,9 +172,9 @@ void g2d_update_performance(struct g2d_device *g2d_dev)
 	}
 
 	if (!qos.devfreq)
-		g2d_pm_qos_remove_devfreq(&g2d_dev->req);
+		g2d_pm_qos_remove_devfreq(g2d_dev);
 	else
-		g2d_pm_qos_update_devfreq(&g2d_dev->req, qos.devfreq);
+		g2d_pm_qos_update_devfreq(g2d_dev, qos.devfreq);
 
 	g2d_perf("DVFS_INT freq : request %u, current %lu",
 		 qos.devfreq, g2d_get_current_freq(g2d_dev->dvfs_int));

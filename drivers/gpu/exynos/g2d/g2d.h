@@ -24,7 +24,9 @@
 #include <media/exynos_repeater.h>
 #endif
 
-#include <linux/pm_qos.h>
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+#include <soc/google/exynos_pm_qos.h>
+#endif
 #include <soc/samsung/exynos-itmon.h>
 
 struct g2d_task; /* defined in g2d_task.h */
@@ -146,8 +148,10 @@ struct g2d_device {
 	struct mutex			lock_qos;
 	struct list_head		qos_contexts;
 
-	struct g2d_qos		qos;
-	struct pm_qos_request	req;
+	struct g2d_qos			qos;
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+	struct exynos_pm_qos_request	req;
+#endif
 
 	u32 hw_ppc[PPC_END];
 	u32				max_layers;
