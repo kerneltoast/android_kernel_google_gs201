@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/proc_fs.h>
-#include <video/videonode.h>
 #include <linux/of.h>
 #include <linux/smc.h>
 #include <linux/debugfs.h>

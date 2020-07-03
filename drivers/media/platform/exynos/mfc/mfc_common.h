@@ -38,6 +38,14 @@
 
 #define MFC_MAX_DRM_CTX		2
 
+/* MFC video node */
+#define EXYNOS_VIDEONODE_MFC_DEC               6
+#define EXYNOS_VIDEONODE_MFC_ENC               7
+#define EXYNOS_VIDEONODE_MFC_DEC_DRM           8
+#define EXYNOS_VIDEONODE_MFC_ENC_DRM           9
+#define EXYNOS_VIDEONODE_MFC_ENC_OTF           10
+#define EXYNOS_VIDEONODE_MFC_ENC_OTF_DRM       11
+
 /* Interrupt timeout */
 #define MFC_INT_TIMEOUT		4000
 /* Interrupt short timeout */
