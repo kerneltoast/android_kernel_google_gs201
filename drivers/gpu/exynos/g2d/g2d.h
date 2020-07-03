@@ -114,6 +114,7 @@ struct g2d_device {
 	struct device		*dev;
 	struct clk		*clock;
 	void __iomem		*reg;
+	struct device		*noncoherent_dev;
 
 	u64			fence_context;
 	atomic_t		fence_timeline;

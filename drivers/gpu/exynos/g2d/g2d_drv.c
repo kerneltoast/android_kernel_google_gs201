@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/compat.h>
 #include <linux/sched/task.h>
+#include <linux/dma-noncoherent.h>
 
 #include <soc/samsung/exynos-itmon.h>
 
@@ -1047,6 +1048,17 @@ static int g2d_probe(struct platform_device *pdev)
 		g2d_dev->fmts_dst = devdata->fmts_dst;
 	}
 
+	if (!(g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION)) {
+		if (!dev_is_dma_coherent(&pdev->dev)) {
+			g2d_dev->noncoherent_dev = &pdev->dev;
+		} else {
+			g2d_dev->noncoherent_dev = devm_kzalloc(&pdev->dev, sizeof(struct device),
+								GFP_KERNEL);
+			if (!g2d_dev->noncoherent_dev)
+				return -ENOMEM;
+			device_initialize(g2d_dev->noncoherent_dev);
+		}
+	}
 	/* prepare clock and enable runtime pm */
 	pm_runtime_enable(&pdev->dev);
 

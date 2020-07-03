@@ -17,7 +17,7 @@
 #include <linux/io.h>
 #include <linux/property.h>
 
-#include <asm/cacheflush.h>
+#include <linux/dma-noncoherent.h>
 
 #include "g2d.h"
 #include "g2d_regs.h"
@@ -41,8 +41,11 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 		!!(task->sec.secure_layer_mask))
 		task->sec.secure_layer_mask |= 1 << 24;
 
-	__flush_dcache_area(&task->sec, sizeof(task->sec));
-	__flush_dcache_area(page_address(task->cmd_page), G2D_CMD_LIST_SIZE);
+	dma_sync_single_for_device(g2d_dev->noncoherent_dev, virt_to_phys(&task->sec),
+				   sizeof(task->sec), DMA_TO_DEVICE);
+	dma_sync_single_for_device(g2d_dev->noncoherent_dev, page_to_phys(task->cmd_page),
+				  G2D_CMD_LIST_SIZE, DMA_TO_DEVICE);
+
 	if (g2d_smc(SMC_DRM_G2D_CMD_DATA, virt_to_phys(&task->sec), 0, 0)) {
 		perrfndev(g2d_dev, "Failed to push %d %d %d %d",
 			  task->sec.cmd_count, task->sec.priority,
@@ -85,8 +88,8 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	}
 
 	if (device_get_dma_attr(g2d_dev->dev) != DEV_DMA_COHERENT)
-		__flush_dcache_area(page_address(task->cmd_page),
-				    G2D_CMD_LIST_SIZE);
+		dma_sync_single_for_device(g2d_dev->dev, task->cmd_addr,
+					   G2D_CMD_LIST_SIZE, DMA_TO_DEVICE);
 
 	writel_relaxed(G2D_JOB_HEADER_DATA(task->sec.priority,
 					   g2d_task_id(task)),
