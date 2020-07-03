@@ -13,6 +13,10 @@
 #ifndef __MFC_MEM_H
 #define __MFC_MEM_H __FILE__
 
+#if IS_ENABLED(CONFIG_MFC_USE_DMABUF_CONTAINER)
+#include <linux/dma-buf-container.h>
+#endif
+
 #include "mfc_common.h"
 
 /* Offset base used to differentiate between CAPTURE and OUTPUT
@@ -30,10 +34,17 @@ static inline dma_addr_t mfc_mem_get_daddr_vb(
 	return addr;
 }
 
+#if IS_ENABLED(CONFIG_MFC_USE_DMABUF_CONTAINER)
 static inline int mfc_bufcon_get_buf_count(struct dma_buf *dmabuf)
 {
 	return dmabuf_container_get_count(dmabuf);
 }
+#else
+static inline int mfc_bufcon_get_buf_count(struct dma_buf *dmabuf)
+{
+	return -1;
+}
+#endif
 
 static inline void mfc_print_dpb_table(struct mfc_ctx *ctx)
 {
@@ -96,8 +107,16 @@ void mfc_mem_ion_free(struct mfc_dev *dev,
 		struct mfc_special_buf *special_buf);
 
 void mfc_bufcon_put_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf, int plane);
+#if IS_ENABLED(CONFIG_MFC_USE_DMABUF_CONTAINER)
 int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
-					struct dma_buf *bufcon_dmabuf, int plane);
+			struct dma_buf *bufcon_dmabuf, int plane);
+#else
+int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
+			struct dma_buf *bufcon_dmabuf, int plane)
+{
+	return 0;
+}
+#endif
 void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb,
 			int num_planes, int index);
 void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb,

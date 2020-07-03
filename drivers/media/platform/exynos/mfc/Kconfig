@@ -13,3 +13,10 @@ config MFC_USES_LLC
 	depends on VIDEO_EXYNOS_MFC
 	help
 	  Uses the LLC of MFC.
+
+config MFC_USE_DMABUF_CONTAINER
+	bool "MFC dma-buf container support"
+	default n
+	depends on VIDEO_EXYNOS_MFC
+	help
+	  Use dma-buf container for MFC.

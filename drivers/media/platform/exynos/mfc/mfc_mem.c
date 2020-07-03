@@ -212,6 +212,7 @@ void mfc_bufcon_put_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf, int plan
 	}
 }
 
+#if IS_ENABLED(CONFIG_MFC_USE_DMABUF_CONTAINER)
 int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 					struct dma_buf *bufcon_dmabuf, int plane)
 {
@@ -277,6 +278,7 @@ err_get_daddr:
 	mfc_bufcon_put_daddr(ctx, mfc_buf, plane);
 	return -1;
 }
+#endif
 
 void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb,
 			int num_planes, int index)
