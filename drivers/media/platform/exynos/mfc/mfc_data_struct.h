@@ -794,6 +794,7 @@ typedef struct _nal_queue_handle {
 struct _otf_buf_addr {
 	dma_addr_t otf_daddr[HWFC_MAX_BUF][3];
 	struct dma_buf_attachment *otf_buf_attach[HWFC_MAX_BUF];
+	struct sg_table *sgt[HWFC_MAX_BUF];
 };
 
 struct _otf_buf_info {

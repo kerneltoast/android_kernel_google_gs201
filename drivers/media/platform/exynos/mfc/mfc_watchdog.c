@@ -747,10 +747,6 @@ static void __mfc_dump_info(struct mfc_dev *dev)
 		tsmux_sfr_dump();
 #endif
 	}
-
-	/* If there was fault addr, sysmmu info is already printed out */
-	if (!dev->logging_data->fault_addr)
-		exynos_sysmmu_show_status(dev->device);
 }
 
 static void __mfc_dump_info_and_stop_hw(struct mfc_dev *dev)

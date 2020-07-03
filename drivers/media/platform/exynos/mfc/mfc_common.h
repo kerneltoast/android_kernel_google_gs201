@@ -13,11 +13,9 @@
 #ifndef __MFC_COMMON_H
 #define __MFC_COMMON_H __FILE__
 
-#include <linux/exynos_iovmm.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
-#include <linux/ion_exynos.h>
 #include <media/videobuf2-dma-sg.h>
 #include <asm/cacheflush.h>
 

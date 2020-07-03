@@ -19,6 +19,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
+#include <linux/iommu.h>
 
 #include <../../../../soc/google/pt/pt.h>
 
@@ -915,8 +916,7 @@ static int __mfc_parse_mfc_qos_platdata(struct device_node *np, char *node_name,
 	return 0;
 }
 
-int mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *device,
-		unsigned long addr, int id, void *param)
+int mfc_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
 {
 	struct mfc_dev *dev = (struct mfc_dev *)param;
 	unsigned int trans_info;
@@ -968,7 +968,7 @@ int mfc_sysmmu_fault_handler(struct iommu_domain *iodmn, struct device *device,
 					MFC_MMU1_READL(trans_info);
 		}
 	}
-	dev->logging_data->fault_addr = (unsigned int)addr;
+	dev->logging_data->fault_addr = (unsigned int)(fault->event.addr);
 
 	call_dop(dev, dump_info, dev);
 	s3c2410wdt_set_emergency_reset(3, 0);
@@ -1681,16 +1681,15 @@ static int mfc_probe(struct platform_device *pdev)
 				dev->pdata->encoder_qos_table[i].name,
 				dev->pdata->encoder_qos_table[i].bts_scen_idx);
 
-	iovmm_set_fault_handler(dev->device,
-		mfc_sysmmu_fault_handler, dev);
+	ret = iommu_register_device_fault_handler(dev->device,
+			mfc_sysmmu_fault_handler, dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register sysmmu fault handler %d\n", ret);
+		ret = -EPROBE_DEFER;
+		goto err_sysmmu_fault_handler;
+	}
 
 	g_mfc_dev = dev;
-
-	ret = iovmm_activate(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to activate iommu\n");
-		goto err_iovmm_active;
-	}
 
 	dev->logging_data = devm_kzalloc(&pdev->dev, sizeof(struct mfc_debug), GFP_KERNEL);
 	if (!dev->logging_data) {
@@ -1718,8 +1717,8 @@ static int mfc_probe(struct platform_device *pdev)
 
 /* Deinit MFC if probe had failed */
 err_alloc_debug:
-	iovmm_deactivate(&pdev->dev);
-err_iovmm_active:
+	iommu_unregister_device_fault_handler(&pdev->dev);
+err_sysmmu_fault_handler:
 	destroy_workqueue(dev->butler_wq);
 err_butler_wq:
 	destroy_workqueue(dev->mfc_idle_wq);
@@ -1770,6 +1769,7 @@ static int mfc_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s++\n", __func__);
 	v4l2_info(&dev->v4l2_dev, "Removing %s\n", pdev->name);
+	iommu_unregister_device_fault_handler(&pdev->dev);
 	if (timer_pending(&dev->watchdog_timer))
 		del_timer(&dev->watchdog_timer);
 	flush_workqueue(dev->watchdog_wq);
@@ -1792,7 +1792,6 @@ static int mfc_remove(struct platform_device *pdev)
 	remove_proc_entry(MFC_PROC_ROOT, NULL);
 #endif
 	mfc_destroy_listable_wq_dev(dev);
-	iovmm_deactivate(&pdev->dev);
 	mfc_dev_debug(2, "Will now deinit HW\n");
 	mfc_run_deinit_hw(dev);
 	free_irq(dev->irq, dev);
@@ -1839,7 +1838,6 @@ static void mfc_shutdown(struct platform_device *pdev)
 		mfc_risc_off(dev);
 		dev->shutdown = 1;
 		mfc_clear_all_bits(&dev->work_bits);
-		iovmm_deactivate(&pdev->dev);
 	}
 	mfc_release_hwlock_dev(dev);
 	mfc_dev_info("MFC shutdown completed\n");
