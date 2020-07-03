@@ -68,7 +68,7 @@ int mfc_pm_clock_on(struct mfc_dev *dev)
 	}
 
 	dev->pm.clock_on_steps |= 0x1 << 4;
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (dev->curr_ctx_is_drm) {
 		unsigned long flags;
 
@@ -140,7 +140,7 @@ void mfc_pm_clock_off(struct mfc_dev *dev)
 		clk_disable(dev->pm.clock);
 
 		dev->pm.clock_off_steps |= 0x1 << 4;
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 		if (dev->curr_ctx_is_drm) {
 			unsigned long flags;
 			int ret = 0;

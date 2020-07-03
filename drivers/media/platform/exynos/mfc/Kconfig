@@ -1,5 +1,5 @@
 config VIDEO_EXYNOS_MFC
-	bool "Exynos MFC Driver"
+	tristate "Exynos MFC Driver"
 	default n
 	depends on VIDEO_EXYNOS
 	select VIDEOBUF2_CORE

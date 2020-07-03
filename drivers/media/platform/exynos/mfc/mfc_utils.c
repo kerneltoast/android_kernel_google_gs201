@@ -649,7 +649,7 @@ void mfc_idle_checker(struct timer_list *t)
 		return;
 	}
 
-#ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+#ifdef MFC_USE_BUS_DEVFREQ
 	mfc_change_idle_mode(dev, MFC_IDLE_MODE_RUNNING);
 	queue_work(dev->mfc_idle_wq, &dev->mfc_idle_work);
 #endif

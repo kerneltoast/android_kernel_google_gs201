@@ -114,7 +114,7 @@ static int __mfc_init_hw(struct mfc_dev *dev, enum mfc_buf_usage_type buf_type)
 		goto err_init_hw;
 	}
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	/* Cache flush for base address change */
 	mfc_cmd_cache_flush(dev);
 	if (mfc_wait_for_done_dev(dev, MFC_REG_R2H_CMD_CACHE_FLUSH_RET)) {
@@ -148,7 +148,7 @@ int mfc_run_init_hw(struct mfc_dev *dev)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (dev->fw.drm_status)
 		ret = __mfc_init_hw(dev, MFCBUF_DRM);
 #endif

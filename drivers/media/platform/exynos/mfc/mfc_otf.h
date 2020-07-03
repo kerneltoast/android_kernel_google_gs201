@@ -13,7 +13,7 @@
 #ifndef __MFC_OTF_H
 #define __MFC_OTF_H __FILE__
 
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 #include <media/exynos_tsmux.h>
 #endif
 

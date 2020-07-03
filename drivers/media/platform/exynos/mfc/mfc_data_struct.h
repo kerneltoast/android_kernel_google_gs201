@@ -13,25 +13,25 @@
 #ifndef __MFC_DATA_STRUCT_H
 #define __MFC_DATA_STRUCT_H __FILE__
 
-#ifdef CONFIG_ARM_EXYNOS_DEVFREQ
-#define CONFIG_MFC_USE_BUS_DEVFREQ
+#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
+#define MFC_USE_BUS_DEVFREQ
 #endif
 
-#ifdef CONFIG_EXYNOS_BTS
-#define CONFIG_MFC_USE_BTS
-#if defined(CONFIG_EXYNOS9820_BTS)
-#define CONFIG_MFC_NO_RENEWAL_BTS
+#if IS_ENABLED(CONFIG_EXYNOS_BTS)
+#define MFC_USE_BTS
+#if IS_ENABLED(CONFIG_EXYNOS9820_BTS)
+#define MFC_NO_RENEWAL_BTS
 #endif
 #endif
 
-#ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+#ifdef MFC_USE_BUS_DEVFREQ
 #include <linux/pm_qos.h>
 #endif
-#ifdef CONFIG_MFC_USE_BTS
+#ifdef MFC_USE_BTS
 #include <soc/samsung/bts.h>
 #endif
 #include <linux/videodev2.h>
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 #include <soc/samsung/exynos-itmon.h>
 #endif
 
@@ -956,7 +956,7 @@ struct mfc_dev {
 
 	struct list_head qos_queue;
 	atomic_t qos_req_cur;
-#ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+#ifdef MFC_USE_BUS_DEVFREQ
 	struct pm_qos_request qos_req_mfc;
 	struct pm_qos_request qos_req_int;
 	struct pm_qos_request qos_req_mif;
@@ -986,7 +986,7 @@ struct mfc_dev {
 
 	struct mfc_special_buf dbg_info_buf;
 
-#ifdef CONFIG_EXYNOS_BTS
+#if IS_ENABLED(CONFIG_EXYNOS_BTS)
 	struct bts_bw mfc_bw;
 	unsigned int prev_bts_scen_idx;
 #endif
@@ -1003,7 +1003,7 @@ struct mfc_dev {
 
 	struct mfc_mmcache mmcache;
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	struct notifier_block itmon_nb;
 #endif
 	int itmon_notified;

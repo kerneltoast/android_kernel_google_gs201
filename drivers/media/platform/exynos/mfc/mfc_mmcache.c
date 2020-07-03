@@ -231,6 +231,7 @@ void mfc_mmcache_dump_info(struct mfc_dev *dev)
 
 void mfc_invalidate_mmcache(struct mfc_dev *dev)
 {
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	int ret;
 
 	mfc_dev_debug_enter();
@@ -244,6 +245,6 @@ void mfc_invalidate_mmcache(struct mfc_dev *dev)
 	}
 	mfc_dev_debug(2, "[MMCACHE] invalidated\n");
 	MFC_TRACE_DEV("[MMCACHE] invalidated\n");
-
+#endif
 	mfc_dev_debug_leave();
 }

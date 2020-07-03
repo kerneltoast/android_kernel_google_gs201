@@ -30,7 +30,7 @@ static void __mfc_alloc_common_context(struct mfc_dev *dev,
 	ctx_buf = &dev->common_ctx_buf;
 	fw_daddr = dev->fw_buf.daddr;
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (buf_type == MFCBUF_DRM) {
 		ctx_buf = &dev->drm_common_ctx_buf;
 		fw_daddr = dev->drm_fw_buf.daddr;
@@ -51,7 +51,7 @@ void mfc_alloc_common_context(struct mfc_dev *dev)
 {
 	__mfc_alloc_common_context(dev, MFCBUF_NORMAL);
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (dev->fw.drm_status)
 		__mfc_alloc_common_context(dev, MFCBUF_DRM);
 #endif
@@ -64,7 +64,7 @@ static void __mfc_release_common_context(struct mfc_dev *dev,
 	struct mfc_special_buf *ctx_buf;
 
 	ctx_buf = &dev->common_ctx_buf;
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (buf_type == MFCBUF_DRM)
 		ctx_buf = &dev->drm_common_ctx_buf;
 #endif
@@ -79,7 +79,7 @@ void mfc_release_common_context(struct mfc_dev *dev)
 {
 	__mfc_release_common_context(dev, MFCBUF_NORMAL);
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	__mfc_release_common_context(dev, MFCBUF_DRM);
 #endif
 }
@@ -648,7 +648,7 @@ int mfc_alloc_firmware(struct mfc_dev *dev)
 			dev->fw_buf.daddr, dev->fw_buf.vaddr,
 			dev->fw_buf.size);
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	dev->drm_fw_buf.buftype = MFCBUF_DRM_FW;
 	dev->drm_fw_buf.size = dev->fw.size;
 	if (mfc_mem_ion_alloc(dev, &dev->drm_fw_buf)) {
@@ -730,7 +730,7 @@ int mfc_release_firmware(struct mfc_dev *dev)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	mfc_mem_ion_free(dev, &dev->drm_fw_buf);
 #endif
 

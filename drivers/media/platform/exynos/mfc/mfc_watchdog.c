@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+#if IS_ENABLED(CONFIG_SEC_DEBUG_EXTRA_INFO)
 #include <linux/sec_debug.h>
 #endif
 
@@ -241,7 +241,7 @@ static void mfc_merge_errorinfo_data(struct mfc_dev *dev, bool px_fault)
 
 	dev_err(dev->device, "%s\n", errorinfo);
 
-#ifdef CONFIG_SEC_DEBUG_EXTRA_INFO
+#if IS_ENABLED(CONFIG_SEC_DEBUG_EXTRA_INFO)
 	sec_debug_set_extra_info_mfc_error(errorinfo);
 #endif
 }
@@ -581,7 +581,7 @@ void __mfc_dump_buffer_info(struct mfc_dev *dev)
 			dev->fw_buf.daddr, dev->fw_buf.daddr + dev->fw_buf.size,
 			dev->common_ctx_buf.daddr,
 			dev->common_ctx_buf.daddr + PAGE_ALIGN(0x7800));
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	dev_err(dev->device, "Secure FW:%llx~%#llx (common ctx buf:%#llx~%#llx)\n",
 			dev->drm_fw_buf.daddr,
 			dev->drm_fw_buf.daddr + dev->drm_fw_buf.size,
@@ -743,7 +743,7 @@ static void __mfc_dump_info(struct mfc_dev *dev)
 
 	if (dev->num_otf_inst) {
 		dev_err(dev->device, "-----------dumping TS-MUX info-----------\n");
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 		tsmux_sfr_dump();
 #endif
 	}

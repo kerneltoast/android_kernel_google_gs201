@@ -10,7 +10,7 @@
  * (at your option) any later version.
  */
 
-#ifdef CONFIG_VIDEO_EXYNOS_REPEATER
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 #include <media/exynos_repeater.h>
 #endif
 #include <media/mfc_hwfc.h>
@@ -172,7 +172,7 @@ static void __mfc_otf_put_buf(struct mfc_ctx *ctx)
 
 static int __mfc_otf_init_hwfc_buf(struct mfc_ctx *ctx)
 {
-#ifdef CONFIG_VIDEO_EXYNOS_REPEATER
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	struct shared_buffer_info *shared_buf_info;
 	struct _otf_handle *handle = ctx->otf_handle;
 	struct _otf_buf_info *buf_info = &handle->otf_buf_info;
@@ -180,7 +180,7 @@ static int __mfc_otf_init_hwfc_buf(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
-#ifdef CONFIG_VIDEO_EXYNOS_REPEATER
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	shared_buf_info = (struct shared_buffer_info *)buf_info;
 	/* request buffers */
 	if (hwfc_request_buffer(shared_buf_info, 1)) {
@@ -472,7 +472,7 @@ int mfc_otf_run_enc_init(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_raw_info *raw = &ctx->raw_buf;
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 	struct packetizing_param packet_param;
 #endif
 
@@ -484,7 +484,7 @@ int mfc_otf_run_enc_init(struct mfc_ctx *ctx)
 	mfc_clean_ctx_int_flags(ctx);
 
 	if (reg_test && !__check_disable_header_gen(dev)) {
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 		packet_param.time_stamp = 0;
 		ret = packetize(&packet_param);
 		if (ret)
@@ -597,7 +597,7 @@ int mfc_otf_handle_stream(struct mfc_ctx *ctx)
 
 	mfc_debug_enter();
 
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 	mfc_encoding_end();
 #endif
 
@@ -654,7 +654,7 @@ int mfc_otf_handle_stream(struct mfc_ctx *ctx)
 	handle->otf_buf_index = 0;
 	handle->otf_job_id = 0;
 
-#ifdef CONFIG_VIDEO_EXYNOS_REPEATER
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	hwfc_encoding_done(enc_ret);
 #endif
 
@@ -709,7 +709,7 @@ void mfc_otf_handle_error(struct mfc_ctx *ctx,
 					MFC_CTRL_TYPE_SRC, handle->otf_buf_index) < 0)
 			mfc_ctx_err("[OTF] failed in cleanup_buf_ctrls\n");
 
-#ifdef CONFIG_VIDEO_EXYNOS_REPEATER
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 		hwfc_encoding_done(enc_ret);
 #endif
 		break;
@@ -754,14 +754,14 @@ int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 	struct mfc_dev *dev = g_mfc_dev;
 	struct _otf_handle *handle;
 	struct mfc_ctx *ctx = NULL;
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 	struct packetizing_param packet_param;
 #endif
 	int i;
 
 	mfc_dev_debug_enter();
 
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 	mfc_encoding_start(buf_index);
 #endif
 
@@ -782,7 +782,7 @@ int mfc_hwfc_encode(int buf_index, int job_id, struct encoding_param *param)
 		return -HWFC_ERR_MFC_NOT_PREPARED;
 	}
 
-#ifdef CONFIG_VIDEO_EXYNOS_TSMUX
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 	packet_param.time_stamp = param->time_stamp;
 	if (debug_ts == 1)
 		mfc_ctx_info("[OTF][TS] timestamp: %llu\n", param->time_stamp);

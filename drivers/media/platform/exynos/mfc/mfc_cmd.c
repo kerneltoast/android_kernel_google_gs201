@@ -37,7 +37,7 @@ void mfc_cmd_sys_init(struct mfc_dev *dev,
 
 	buf_size = dev->variant->buf_size->ctx_buf;
 	ctx_buf = &dev->common_ctx_buf;
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (buf_type == MFCBUF_DRM)
 		ctx_buf = &dev->drm_common_ctx_buf;
 #endif

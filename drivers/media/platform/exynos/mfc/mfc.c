@@ -67,7 +67,7 @@ struct _mfc_trace g_mfc_trace_longterm[MFC_TRACE_COUNT_MAX];
 struct _mfc_trace_logging g_mfc_trace_logging[MFC_TRACE_LOG_COUNT_MAX];
 struct mfc_dev *g_mfc_dev;
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 static struct proc_dir_entry *mfc_proc_entry;
 
 #define MFC_PROC_ROOT			"mfc"
@@ -331,7 +331,7 @@ static int __mfc_init_instance(struct mfc_dev *dev, struct mfc_ctx *ctx)
 	if (ret)
 		goto err_fw_load;
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	trace_mfc_dcpp_start(ctx->num, 1, dev->fw.drm_status);
 	if (!dev->drm_fw_buf.daddr) {
 		mfc_ctx_err("DRM F/W buffer is not allocated\n");
@@ -410,7 +410,7 @@ err_pwr_enable:
 err_hw_lock:
 	mfc_release_common_context(dev);
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (dev->fw.drm_status) {
 		int smc_ret = 0;
 		dev->fw.drm_status = 0;
@@ -536,7 +536,7 @@ static int mfc_open(struct file *file)
 		goto err_ctx_ctrls;
 	}
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (mfc_is_drm_node(node)) {
 		if (dev->num_drm_inst < MFC_MAX_DRM_CTX) {
 			dev->num_drm_inst++;
@@ -571,7 +571,7 @@ static int mfc_open(struct file *file)
 			mfc_perf_boost_enable(dev);
 	}
 
-#ifdef CONFIG_VIDEO_EXYNOS_REPEATER
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	if (mfc_is_encoder_otf_node(node)) {
 		ret = mfc_otf_create(ctx);
 		if (ret)
@@ -590,7 +590,7 @@ static int mfc_open(struct file *file)
 
 	/* Deinit when failure occured */
 err_init_inst:
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (ctx->is_drm)
 		dev->num_drm_inst--;
 
@@ -740,7 +740,7 @@ static int mfc_release(struct file *file)
 
 		mfc_release_common_context(dev);
 
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 		if (dev->fw.drm_status) {
 			dev->fw.drm_status = 0;
 			/* Request buffer unprotection for DRM F/W */
@@ -793,7 +793,7 @@ static int mfc_release(struct file *file)
 	else if (ctx->type == MFCINST_ENCODER)
 		__mfc_deinit_enc_ctx(ctx);
 
-#ifdef CONFIG_VIDEO_EXYNOS_REPEATER
+#if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	if (ctx->otf_handle) {
 		mfc_otf_deinit(ctx);
 		mfc_otf_destroy(ctx);
@@ -907,8 +907,8 @@ static int __mfc_parse_mfc_qos_platdata(struct device_node *np, char *node_name,
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_MFC_USE_BTS
-#ifndef CONFIG_MFC_NO_RENEWAL_BTS
+#ifdef MFC_USE_BTS
+#ifndef MFC_NO_RENEWAL_BTS
 	qosdata->bts_scen_idx = bts_get_scenindex(qosdata->name);
 #endif
 #endif
@@ -1118,8 +1118,8 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 			&pdata->mfc_bw_info_sbwc.bw_dec_mpeg4.peak, 3);
 	}
 
-#ifdef CONFIG_MFC_USE_BTS
-#ifndef CONFIG_MFC_NO_RENEWAL_BTS
+#ifdef MFC_USE_BTS
+#ifndef MFC_NO_RENEWAL_BTS
 	pdata->mfc_bw_index = bts_get_bwindex("mfc");
 #endif
 #endif
@@ -1174,8 +1174,8 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_MFC_USE_BTS
-#ifndef CONFIG_MFC_NO_RENEWAL_BTS
+#ifdef MFC_USE_BTS
+#ifndef MFC_NO_RENEWAL_BTS
 	pdata->qos_boost_table->bts_scen_idx =
 		bts_get_scenindex(pdata->qos_boost_table->name);
 #endif
@@ -1441,7 +1441,7 @@ err_ioremap:
 	return -ENOENT;
 }
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb_data)
 {
 	struct mfc_dev *dev;
@@ -1698,14 +1698,14 @@ static int mfc_probe(struct platform_device *pdev)
 		goto err_alloc_debug;
 	}
 
-#ifdef CONFIG_SLC_PARTITION_MANAGER
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
 	dev->pt_handle = pt_client_register(dev->device->of_node, (void *)dev,
 			mfc_pt_resize_callback);
 	if (dev->pt_handle)
 		dev->has_slc = 1;
 #endif
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	dev->itmon_nb.notifier_call = __mfc_itmon_notifier;
 	itmon_notifier_chain_register(&dev->itmon_nb);
 #endif
@@ -1784,7 +1784,7 @@ static int mfc_remove(struct platform_device *pdev)
 	video_unregister_device(dev->vfd_enc_otf);
 	video_unregister_device(dev->vfd_enc_otf_drm);
 	v4l2_device_unregister(&dev->v4l2_dev);
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	remove_proc_entry(MFC_PROC_FW_STATUS, mfc_proc_entry);
 	remove_proc_entry(MFC_PROC_DRM_INSTANCE_NUMBER, mfc_proc_entry);
 	remove_proc_entry(MFC_PROC_INSTANCE_NUMBER, mfc_proc_entry);
@@ -1844,7 +1844,7 @@ static void mfc_shutdown(struct platform_device *pdev)
 	mfc_dev_info("MFC shutdown completed\n");
 }
 
-#ifdef CONFIG_PM_SLEEP
+#if IS_ENABLED(CONFIG_PM_SLEEP)
 static int mfc_suspend(struct device *device)
 {
 	struct mfc_dev *dev = platform_get_drvdata(to_platform_device(device));
@@ -1925,7 +1925,7 @@ static int mfc_resume(struct device *device)
 }
 #endif
 
-#ifdef CONFIG_PM
+#if IS_ENABLED(CONFIG_PM)
 static int mfc_runtime_suspend(struct device *device)
 {
 	struct mfc_dev *dev = platform_get_drvdata(to_platform_device(device));
