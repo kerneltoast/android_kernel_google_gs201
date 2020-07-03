@@ -140,6 +140,11 @@
 		qos_weight_num_of_tile = <75>;
 		qos_weight_super64_bframe = <60>;
 
+		/* Device virtual address */
+		#dma-address-cells = <1>;
+		#dma-size-cells = <1>;
+		dma-window = <0x0 0xC0000000>;
+
 		/* Sub nodes for sysmmu, hwfc and mmcache */
 		#address-cells = <2>;
 		#size-cells = <1>;
