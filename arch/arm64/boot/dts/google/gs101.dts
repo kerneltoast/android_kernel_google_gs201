@@ -25,6 +25,7 @@
 #include "gs101-ion.dtsi"
 #include "gs101-pcie.dtsi"
 #include "gs101-drm-dpu.dtsi"
+#include "gs101-mfc.dtsi"
 
 / {
 	compatible = "google,gs101";
@@ -42,6 +43,7 @@
 		pinctrl6 = &pinctrl_6;
 		pinctrl7 = &pinctrl_7;
 		uart0 = &serial_0;
+		mfc0 = &mfc_0;
 
 	};
 
