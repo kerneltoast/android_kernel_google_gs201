@@ -278,7 +278,7 @@ static int devfreq_simple_interactive_func(struct devfreq *df,
 	}
 
 	if (exynos_pm_qos_max > df->previous_freq && *freq < df->previous_freq &&
-	    data->freq_timer.expires > jiffies) {
+	    time_after(data->freq_timer.expires, jiffies)) {
 		*freq = df->previous_freq;
 		if (!timer_pending(&data->freq_timer))
 			/* timer is bound to cpu0 */
