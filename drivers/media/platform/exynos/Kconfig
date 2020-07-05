@@ -3,12 +3,13 @@
 #
 config VIDEO_EXYNOS
         bool "Exynos Multimedia Devices"
-        depends on ARCH_EXYNOS
         default y
         help
           This is a representative exynos multimedia device.
 
-source "drivers/media/platform/exynos/mfc/Kconfig"
+if VIDEO_EXYNOS
+	source "drivers/media/platform/exynos/mfc/Kconfig"
+endif
 
 config MEDIA_EXYNOS
         bool
