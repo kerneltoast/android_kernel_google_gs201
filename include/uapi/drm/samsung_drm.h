@@ -115,6 +115,44 @@ struct cgc_lut {
 	__u32 b_values[DRM_SAMSUNG_CGC_LUT_REG_CNT];
 };
 
+struct dpp_size_range {
+	__u32 min;
+	__u32 max;
+	__u32 align;
+};
+
+struct dpp_restriction {
+	struct dpp_size_range src_f_w;
+	struct dpp_size_range src_f_h;
+	struct dpp_size_range src_w;
+	struct dpp_size_range src_h;
+	__u32 src_x_align;
+	__u32 src_y_align;
+
+	struct dpp_size_range dst_f_w;
+	struct dpp_size_range dst_f_h;
+	struct dpp_size_range dst_w;
+	struct dpp_size_range dst_h;
+	__u32 dst_x_align;
+	__u32 dst_y_align;
+
+	struct dpp_size_range blk_w;
+	struct dpp_size_range blk_h;
+	__u32 blk_x_align;
+	__u32 blk_y_align;
+
+	__u32 src_h_rot_max; /* limit of source img height in case of rotation */
+
+	__u32 scale_down;
+	__u32 scale_up;
+};
+
+struct dpp_ch_restriction {
+	__s32 id;
+	__u64 attr;
+	struct dpp_restriction restriction;
+};
+
 #if defined(__cplusplus)
 }
 #endif
