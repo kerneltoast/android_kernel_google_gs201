@@ -716,7 +716,8 @@ static int mfc_dec_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			break;
 		/* If new dynamic controls are added, insert here */
 		default:
-			mfc_ctx_info("[NALQ] can't find control, id: 0x%x\n",
+			if (buf_ctrl->mode == MFC_CTRL_MODE_SFR)
+				mfc_ctx_info("[NALQ] can't find control, id: 0x%x\n",
 					buf_ctrl->id);
 		}
 		buf_ctrl->has_new = 0;
@@ -818,7 +819,8 @@ static int mfc_dec_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			break;
 			/* If new dynamic controls are added, insert here */
 		default:
-			mfc_ctx_info("[NALQ] can't find control, id: 0x%x\n",
+			if (buf_ctrl->mode == MFC_CTRL_MODE_SFR)
+				mfc_ctx_info("[NALQ] can't find control, id: 0x%x\n",
 					buf_ctrl->id);
 		}
 		value = (value >> buf_ctrl->shft) & buf_ctrl->mask;
