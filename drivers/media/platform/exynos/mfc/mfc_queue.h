@@ -147,6 +147,6 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb);
 
 void mfc_cleanup_nal_queue(struct mfc_ctx *ctx);
 
-int mfc_check_buf_vb_flag(struct mfc_ctx *ctx, enum mfc_vb_flag f);
+int mfc_check_buf_mb_flag(struct mfc_ctx *ctx, enum mfc_mb_flag f);
 
 #endif /* __MFC_QUEUE_H */

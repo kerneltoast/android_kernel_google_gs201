@@ -32,6 +32,26 @@ int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb)
 	return 0;
 }
 
+void mfc_copy_to_mb_flag(struct mfc_ctx *ctx, struct v4l2_buffer *buf)
+{
+	struct vb2_buffer *vb = ctx->vq_src.bufs[buf->index];
+	struct mfc_buf *mfc_buf = vb_to_mfc_buf(vb);
+
+	mfc_buf->flag = buf->reserved2;
+	mfc_debug(4, "[FLAG] src buf[%d] flag = %#lx\n",
+			buf->index, mfc_buf->flag);
+}
+
+void mfc_copy_from_mb_flag(struct mfc_ctx *ctx, struct v4l2_buffer *buf)
+{
+	struct vb2_buffer *vb = ctx->vq_dst.bufs[buf->index];
+	struct mfc_buf *mfc_buf = vb_to_mfc_buf(vb);
+
+	buf->reserved2 = mfc_buf->flag;
+	mfc_debug(4, "[FLAG] dst buf[%d] reserved2 = %#lx\n",
+			buf->index, buf->reserved2);
+}
+
 static int __mfc_calc_plane(int width, int height, int is_tiled)
 {
 	int mbX, mbY;

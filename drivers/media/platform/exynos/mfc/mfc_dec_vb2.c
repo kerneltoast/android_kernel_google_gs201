@@ -246,7 +246,7 @@ static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 	int ret = 0;
 
 	while (1) {
-		csd = mfc_check_buf_vb_flag(ctx, MFC_FLAG_CSD);
+		csd = mfc_check_buf_mb_flag(ctx, MFC_FLAG_CSD);
 
 		if (csd == 1) {
 			mfc_clean_ctx_int_flags(ctx);

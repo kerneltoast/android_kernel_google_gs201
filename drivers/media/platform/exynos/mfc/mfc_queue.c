@@ -810,7 +810,7 @@ void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
-int mfc_check_buf_vb_flag(struct mfc_ctx *ctx, enum mfc_vb_flag f)
+int mfc_check_buf_mb_flag(struct mfc_ctx *ctx, enum mfc_mb_flag f)
 {
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
@@ -827,7 +827,7 @@ int mfc_check_buf_vb_flag(struct mfc_ctx *ctx, enum mfc_vb_flag f)
 
 	mfc_debug(2, "[BUFINFO] addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
 
-	if (mfc_check_vb_flag(mfc_buf, f)) {
+	if (mfc_check_mb_flag(mfc_buf, f)) {
 		mfc_debug(2, "find flag %d\n", f);
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 		return 1;

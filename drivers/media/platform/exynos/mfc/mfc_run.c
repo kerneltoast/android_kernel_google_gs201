@@ -344,7 +344,7 @@ int mfc_run_dec_init(struct mfc_ctx *ctx)
 
 static int __mfc_check_last_frame(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 {
-	if (mfc_check_vb_flag(mfc_buf, MFC_FLAG_LAST_FRAME)) {
+	if (mfc_check_mb_flag(mfc_buf, MFC_FLAG_LAST_FRAME)) {
 		mfc_debug(2, "Setting ctx->state to FINISHING\n");
 		mfc_change_state(ctx, MFCINST_FINISHING);
 		return 1;
@@ -368,7 +368,7 @@ int mfc_run_dec_frame(struct mfc_ctx *ctx)
 		return -EAGAIN;
 	}
 
-	if (mfc_check_vb_flag(src_mb, MFC_FLAG_EMPTY_DATA))
+	if (mfc_check_mb_flag(src_mb, MFC_FLAG_EMPTY_DATA))
 		src_mb->vb.vb2_buf.planes[0].bytesused = 0;
 
 	if (dec->consumed)
@@ -493,7 +493,7 @@ int mfc_run_enc_frame(struct mfc_ctx *ctx)
 	/* Support per-frame SBWC change for encoder source */
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->sbwc_enc_src_ctrl)
 			&& ctx->is_sbwc) {
-		if (mfc_check_vb_flag(src_mb, MFC_FLAG_ENC_SRC_UNCOMP)) {
+		if (mfc_check_mb_flag(src_mb, MFC_FLAG_ENC_SRC_UNCOMP)) {
 			is_uncomp = 1;
 			mfc_debug(2, "[SBWC] src is uncomp\n");
 		} else {

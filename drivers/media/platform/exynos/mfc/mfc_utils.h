@@ -113,19 +113,19 @@ static inline int mfc_is_encoder_otf_node(enum mfc_node_type node)
 	return 0;
 }
 
-static inline void mfc_clear_vb_flag(struct mfc_buf *mfc_buf)
+static inline void mfc_clear_mb_flag(struct mfc_buf *mfc_buf)
 {
-	mfc_buf->vb.reserved2 = 0;
+	mfc_buf->flag = 0;
 }
 
-static inline void mfc_set_vb_flag(struct mfc_buf *mfc_buf, enum mfc_vb_flag f)
+static inline void mfc_set_mb_flag(struct mfc_buf *mfc_buf, enum mfc_mb_flag f)
 {
-	mfc_buf->vb.reserved2 |= (1 << f);
+	mfc_buf->flag |= (1 << f);
 }
 
-static inline int mfc_check_vb_flag(struct mfc_buf *mfc_buf, enum mfc_vb_flag f)
+static inline int mfc_check_mb_flag(struct mfc_buf *mfc_buf, enum mfc_mb_flag f)
 {
-	if (mfc_buf->vb.reserved2 & (1 << f))
+	if (mfc_buf->flag & (1 << f))
 		return 1;
 
 	return 0;
@@ -133,6 +133,8 @@ static inline int mfc_check_vb_flag(struct mfc_buf *mfc_buf, enum mfc_vb_flag f)
 
 int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb);
 void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt);
+void mfc_copy_to_mb_flag(struct mfc_ctx *ctx, struct v4l2_buffer *buf);
+void mfc_copy_from_mb_flag(struct mfc_ctx *ctx, struct v4l2_buffer *buf);
 void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx);
 void mfc_enc_calc_src_size(struct mfc_ctx *ctx);
 void mfc_calc_base_addr(struct mfc_ctx *ctx, struct vb2_buffer *vb,

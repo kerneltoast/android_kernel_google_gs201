@@ -57,7 +57,7 @@ int mfc_nal_q_check_enable(struct mfc_dev *dev)
 				return 0;
 			}
 			/* NAL-Q can't use the command about last frame */
-			if (mfc_check_buf_vb_flag(ctx, MFC_FLAG_LAST_FRAME) ==
+			if (mfc_check_buf_mb_flag(ctx, MFC_FLAG_LAST_FRAME) ==
 								1) {
 				dev->nal_q_stop_cause |=
 					(1 << NALQ_STOP_LAST_FRAME);
@@ -898,7 +898,7 @@ static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInS
 			&& ctx->is_sbwc) {
 		pInStr->ParamChange &= ~(0xf << 14);
 
-		if (mfc_check_vb_flag(src_mb, MFC_FLAG_ENC_SRC_UNCOMP)) {
+		if (mfc_check_mb_flag(src_mb, MFC_FLAG_ENC_SRC_UNCOMP)) {
 			mfc_debug(2, "[NALQ][SBWC] src is uncomp\n");
 			is_uncomp = 1;
 			pInStr->ParamChange |= (MFC_ENC_SRC_SBWC_OFF << 14);
@@ -1371,7 +1371,7 @@ static void __mfc_nal_q_handle_frame_all_extracted(struct mfc_ctx *ctx,
 			vb2_set_plane_payload(&dst_mb->vb.vb2_buf, i, 0);
 
 		dst_mb->vb.sequence = (ctx->sequence++);
-		mfc_clear_vb_flag(dst_mb);
+		mfc_clear_mb_flag(dst_mb);
 
 		clear_bit(dst_mb->dpb_index, &dec->available_dpb);
 
@@ -1551,25 +1551,25 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 
 		dst_mb->vb.sequence = ctx->sequence;
 
-		/* Set reserved2 bits in order to inform SEI information */
-		mfc_clear_vb_flag(dst_mb);
+		/* Set flag bits in order to inform SEI information */
+		mfc_clear_mb_flag(dst_mb);
 
 		if (is_content_light) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_CONTENT_LIGHT);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_CONTENT_LIGHT);
 			mfc_debug(2, "[NALQ][HDR] content light level parsed\n");
 		}
 		if (is_display_colour) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_DISPLAY_COLOUR);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_DISPLAY_COLOUR);
 			mfc_debug(2, "[NALQ][HDR] mastering display colour parsed\n");
 		}
 		if (is_video_signal_type) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[NALQ][HDR] video signal type parsed\n");
 			if (is_colour_description) {
-				mfc_set_vb_flag(dst_mb,
+				mfc_set_mb_flag(dst_mb,
 						MFC_FLAG_HDR_MAXTIX_COEFF);
 				mfc_debug(2, "[NALQ][HDR] matrix coefficients parsed\n");
-				mfc_set_vb_flag(dst_mb,
+				mfc_set_mb_flag(dst_mb,
 						MFC_FLAG_HDR_COLOUR_DESC);
 				mfc_debug(2, "[NALQ][HDR] colour description parsed\n");
 			}
@@ -1577,11 +1577,11 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 
 		if (IS_VP9_DEC(ctx) && MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
 			if (dec->color_space != MFC_REG_D_COLOR_UNKNOWN) {
-				mfc_set_vb_flag(dst_mb,
+				mfc_set_mb_flag(dst_mb,
 						MFC_FLAG_HDR_COLOUR_DESC);
 				mfc_debug(2, "[NALQ][HDR] color space parsed\n");
 			}
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[NALQ][HDR] color range parsed\n");
 		}
 
@@ -1595,7 +1595,7 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 				__mfc_nal_q_get_img_size(ctx, pOutStr,
 						MFC_GET_RESOL_SIZE);
 				dec->disp_res_change = 1;
-				mfc_set_vb_flag(dst_mb,
+				mfc_set_mb_flag(dst_mb,
 						MFC_FLAG_DISP_RES_CHANGE);
 			}
 		}
@@ -1604,7 +1604,7 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 			if (dec->hdr10_plus_info) {
 				__mfc_nal_q_get_hdr_plus_info(ctx, pOutStr,
 						&dec->hdr10_plus_info[index]);
-				mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_PLUS);
+				mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_PLUS);
 				mfc_debug(2, "[NALQ][HDR+] HDR10 plus dyanmic SEI metadata parsed\n");
 			} else {
 				mfc_ctx_err("[NALQ][HDR+] HDR10 plus cannot be copied\n");
@@ -1615,7 +1615,7 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 		}
 
 		if (ctx->update_framerate) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_FRAMERATE_CH);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_FRAMERATE_CH);
 			ctx->update_framerate = false;
 			mfc_debug(2, "[NALQ][QoS] framerate changed\n");
 		}
@@ -1635,7 +1635,7 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 		case MFC_REG_DISPLAY_FRAME_I:
 			dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
 			if (idr_flag) {
-				mfc_set_vb_flag(dst_mb, MFC_FLAG_IDR);
+				mfc_set_mb_flag(dst_mb, MFC_FLAG_IDR);
 				mfc_debug(2, "[NALQ][FRAME] keyframe IDR\n");
 			}
 			break;
@@ -1890,7 +1890,7 @@ static void __mfc_nal_q_handle_frame_input(struct mfc_ctx *ctx, unsigned int err
 		return;
 	}
 
-	mfc_clear_vb_flag(src_mb);
+	mfc_clear_mb_flag(src_mb);
 	/*
 	 * VP8/VP9 decoder has decoding only frame,
 	 * - VP8: DPB of decoding_only is used for only reference picture,
@@ -1907,7 +1907,7 @@ static void __mfc_nal_q_handle_frame_input(struct mfc_ctx *ctx, unsigned int err
 				& MFC_REG_DISP_STATUS_DISPLAY_STATUS_MASK;
 	if ((IS_VP8_DEC(ctx) || IS_VP9_DEC(ctx)) &&
 		 (dst_frame_status == MFC_REG_DEC_STATUS_DECODING_ONLY)) {
-		mfc_set_vb_flag(src_mb, MFC_FLAG_NO_OUTPUT);
+		mfc_set_mb_flag(src_mb, MFC_FLAG_NO_OUTPUT);
 		mfc_debug(2, "[NALQ][STREAM] decoding only stream has no buffer to DQ\n");
 	}
 

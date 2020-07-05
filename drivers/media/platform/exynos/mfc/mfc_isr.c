@@ -129,7 +129,7 @@ static void __mfc_handle_last_frame(struct mfc_ctx *ctx)
 
 	dst_mb->vb.sequence = (++ctx->sequence);
 	dst_mb->vb.field = __mfc_handle_frame_field(ctx);
-	mfc_clear_vb_flag(dst_mb);
+	mfc_clear_mb_flag(dst_mb);
 
 	clear_bit(dst_mb->dpb_index, &dec->available_dpb);
 
@@ -185,7 +185,7 @@ static void __mfc_handle_frame_all_extracted(struct mfc_ctx *ctx)
 
 		dst_mb->vb.sequence = (ctx->sequence++);
 		dst_mb->vb.field = __mfc_handle_frame_field(ctx);
-		mfc_clear_vb_flag(dst_mb);
+		mfc_clear_mb_flag(dst_mb);
 
 		clear_bit(dst_mb->dpb_index, &dec->available_dpb);
 
@@ -302,27 +302,27 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx, unsigned int err)
 		dst_mb->vb.sequence = ctx->sequence;
 		dst_mb->vb.field = __mfc_handle_frame_field(ctx);
 
-		/* Set reserved2 bits in order to inform SEI information */
-		mfc_clear_vb_flag(dst_mb);
+		/* Set flag bits in order to inform SEI information */
+		mfc_clear_mb_flag(dst_mb);
 
 		if (is_content_light) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_CONTENT_LIGHT);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_CONTENT_LIGHT);
 			mfc_debug(2, "[HDR] content light level parsed\n");
 		}
 
 		if (is_display_colour) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_DISPLAY_COLOUR);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_DISPLAY_COLOUR);
 			mfc_debug(2, "[HDR] mastering display colour parsed\n");
 		}
 
 		if (is_video_signal_type) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[HDR] video signal type parsed\n");
 			if (is_colour_description) {
-				mfc_set_vb_flag(dst_mb,
+				mfc_set_mb_flag(dst_mb,
 						MFC_FLAG_HDR_MAXTIX_COEFF);
 				mfc_debug(2, "[HDR] matrix coefficients parsed\n");
-				mfc_set_vb_flag(dst_mb,
+				mfc_set_mb_flag(dst_mb,
 						MFC_FLAG_HDR_COLOUR_DESC);
 				mfc_debug(2, "[HDR] colour description parsed\n");
 			}
@@ -330,11 +330,11 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx, unsigned int err)
 
 		if (IS_VP9_DEC(ctx) && MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
 			if (dec->color_space != MFC_REG_D_COLOR_UNKNOWN) {
-				mfc_set_vb_flag(dst_mb,
+				mfc_set_mb_flag(dst_mb,
 						MFC_FLAG_HDR_COLOUR_DESC);
 				mfc_debug(2, "[HDR] color space parsed\n");
 			}
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_VIDEO_SIGNAL_TYPE);
 			mfc_debug(2, "[HDR] color range parsed\n");
 		}
 
@@ -343,11 +343,11 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx, unsigned int err)
 			ctx->wait_state = WAIT_G_FMT;
 			mfc_get_img_size(ctx, MFC_GET_RESOL_SIZE);
 			dec->disp_res_change = 1;
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_DISP_RES_CHANGE);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_DISP_RES_CHANGE);
 		}
 
 		if (dec->black_bar_updated) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_BLACKBAR_DETECT);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_BLACKBAR_DETECT);
 			mfc_debug(3, "[BLACKBAR] black bar detected\n");
 		}
 
@@ -355,7 +355,7 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx, unsigned int err)
 			if (dec->hdr10_plus_info) {
 				mfc_get_hdr_plus_info(ctx,
 						&dec->hdr10_plus_info[index]);
-				mfc_set_vb_flag(dst_mb, MFC_FLAG_HDR_PLUS);
+				mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_PLUS);
 				mfc_debug(2, "[HDR+] HDR10 plus dyanmic SEI metadata parsed\n");
 			} else {
 				mfc_ctx_err("[HDR+] HDR10 plus cannot be copied\n");
@@ -366,7 +366,7 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx, unsigned int err)
 		}
 
 		if (ctx->update_framerate) {
-			mfc_set_vb_flag(dst_mb, MFC_FLAG_FRAMERATE_CH);
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_FRAMERATE_CH);
 			ctx->update_framerate = false;
 			mfc_debug(2, "[QoS] framerate changed\n");
 		}
@@ -393,7 +393,7 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx, unsigned int err)
 		case MFC_REG_DISPLAY_FRAME_I:
 			dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
 			if (idr_flag) {
-				mfc_set_vb_flag(dst_mb, MFC_FLAG_IDR);
+				mfc_set_mb_flag(dst_mb, MFC_FLAG_IDR);
 				mfc_debug(2, "[FRAME] keyframe IDR\n");
 			}
 			break;
@@ -598,8 +598,8 @@ static void __mfc_handle_frame_error(struct mfc_ctx *ctx,
 		mfc_debug(2, "MFC needs next buffer\n");
 		dec->consumed = 0;
 		dec->remained_size = 0;
-		mfc_clear_vb_flag(src_mb);
-		mfc_set_vb_flag(src_mb, MFC_FLAG_NO_OUTPUT);
+		mfc_clear_mb_flag(src_mb);
+		mfc_set_mb_flag(src_mb, MFC_FLAG_NO_OUTPUT);
 
 		if (call_cop(ctx, get_buf_ctrls_val, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_ctx_err("failed in get_buf_ctrls_val\n");
@@ -666,7 +666,7 @@ static void __mfc_handle_frame_input(struct mfc_ctx *ctx, unsigned int err)
 	dec->consumed = 0;
 	dec->remained_size = 0;
 
-	mfc_clear_vb_flag(src_mb);
+	mfc_clear_mb_flag(src_mb);
 	/*
 	 * VP8/VP9 decoder has decoding only frame,
 	 * - VP8: DPB of decoding_only is used for only reference picture,
@@ -682,7 +682,7 @@ static void __mfc_handle_frame_input(struct mfc_ctx *ctx, unsigned int err)
 	if (((IS_VP8_DEC(ctx) || IS_VP9_DEC(ctx)) &&
 		 (mfc_get_disp_status() == MFC_REG_DEC_STATUS_DECODING_ONLY)) ||
 		(mfc_get_int_reason() == MFC_REG_R2H_CMD_FIELD_DONE_RET)) {
-		mfc_set_vb_flag(src_mb, MFC_FLAG_NO_OUTPUT);
+		mfc_set_mb_flag(src_mb, MFC_FLAG_NO_OUTPUT);
 		mfc_debug(2, "[STREAM] decoding only stream has no buffer to DQ\n");
 	}
 
@@ -1075,8 +1075,8 @@ static inline void __mfc_handle_error(struct mfc_ctx *ctx,
 							DUMP_PREFIX_ADDRESS, 32, 4,
 							stream_vir, strm_size, false);
 			}
-			mfc_clear_vb_flag(src_mb);
-			mfc_set_vb_flag(src_mb, MFC_FLAG_NO_OUTPUT);
+			mfc_clear_mb_flag(src_mb);
+			mfc_set_mb_flag(src_mb, MFC_FLAG_NO_OUTPUT);
 
 			vb2_buffer_done(&src_mb->vb.vb2_buf,
 					VB2_BUF_STATE_DONE);

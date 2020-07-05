@@ -996,6 +996,9 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 			return -EINVAL;
 		}
 
+		/* Copy updated flag in reserved2 of struct v4l2_buffer */
+		mfc_copy_from_mb_flag(ctx, buf);
+
 		/* Memcpy from dec->hdr10_plus_info to shared memory */
 		if (dec->hdr10_plus_info) {
 			src_sei_meta = &dec->hdr10_plus_info[buf->index];

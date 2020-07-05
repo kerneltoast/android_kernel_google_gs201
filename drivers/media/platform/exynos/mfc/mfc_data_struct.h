@@ -196,7 +196,7 @@ enum mfc_ctrl_mode {
 	MFC_CTRL_MODE_CST	= 0x2,
 };
 
-enum mfc_vb_flag {
+enum mfc_mb_flag {
 	/* Driver set to user when DST DQbuf */
 	MFC_FLAG_HDR_CONTENT_LIGHT	= 0,
 	MFC_FLAG_HDR_DISPLAY_COLOUR	= 1,
@@ -343,6 +343,7 @@ struct mfc_buf {
 	int num_bufs_in_batch;
 	int num_valid_bufs;
 	unsigned char *vir_addr;
+	u32 flag;
 };
 
 struct mfc_buf_queue {
