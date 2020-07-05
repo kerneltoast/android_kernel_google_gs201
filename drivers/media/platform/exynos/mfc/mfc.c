@@ -21,8 +21,6 @@
 #include <linux/poll.h>
 #include <linux/iommu.h>
 
-#include <../../../../soc/google/pt/pt.h>
-
 #include "mfc_common.h"
 
 #include "mfc_isr.h"
@@ -1698,12 +1696,7 @@ static int mfc_probe(struct platform_device *pdev)
 		goto err_alloc_debug;
 	}
 
-#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
-	dev->pt_handle = pt_client_register(dev->device->of_node, (void *)dev,
-			mfc_pt_resize_callback);
-	if (dev->pt_handle)
-		dev->has_slc = 1;
-#endif
+	mfc_client_pt_register(dev);
 
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	dev->itmon_nb.notifier_call = __mfc_itmon_notifier;
@@ -1809,7 +1802,9 @@ static int mfc_remove(struct platform_device *pdev)
 		iounmap(dev->sysmmu1_base);
 	iounmap(dev->sysmmu0_base);
 	iounmap(dev->regs_base);
-	pt_client_unregister(dev->pt_handle);
+
+	mfc_client_pt_unregister(dev);
+
 	release_mem_region(dev->mfc_mem->start, resource_size(dev->mfc_mem));
 	mfc_pm_final(dev);
 	kfree(dev);

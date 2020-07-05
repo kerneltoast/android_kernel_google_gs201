@@ -11,12 +11,15 @@
  * (at your option) any later version.
  */
 
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
 #include <../../../../soc/google/pt/pt.h>
+#endif
 
 #include "mfc_slc.h"
 
 #include "mfc_reg_api.h"
 
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
 void mfc_slc_enable(struct mfc_dev *dev)
 {
 	int i;
@@ -98,7 +101,6 @@ void mfc_slc_flush(struct mfc_dev *dev)
 	mfc_dev_debug_leave();
 }
 
-#ifdef CONFIG_SLC_PARTITION_MANAGER
 void mfc_pt_resize_callback(void *data, int id, size_t resize_allocated)
 {
 	struct mfc_dev *dev = (struct mfc_dev *)data;
@@ -108,5 +110,37 @@ void mfc_pt_resize_callback(void *data, int id, size_t resize_allocated)
 				resize_allocated);
 		mfc_slc_disable(dev);
 	}
+}
+
+void mfc_client_pt_register(struct mfc_dev *dev)
+{
+
+	mfc_dev_debug_enter();
+
+	dev->pt_handle = pt_client_register(dev->device->of_node, (void *)dev,
+		mfc_pt_resize_callback);
+	if (dev->pt_handle) {
+		dev->has_slc = 1;
+		mfc_dev_info("[SLC] PT Client Register success\n");
+	} else {
+		dev->has_slc = 0;
+		mfc_dev_info("[SLC] PT Client Register fail\n");
+	}
+
+	mfc_dev_debug_leave();
+}
+
+void mfc_client_pt_unregister(struct mfc_dev *dev)
+{
+	mfc_dev_debug_enter();
+
+	if (dev->pt_handle) {
+		dev->has_slc = 0;
+		pt_client_unregister(dev->pt_handle);
+
+		mfc_dev_info("[SLC] PT Client Unregister.\n");
+	}
+
+	mfc_dev_debug_leave();
 }
 #endif

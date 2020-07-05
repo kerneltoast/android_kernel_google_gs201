@@ -884,8 +884,10 @@ struct mfc_dev {
 
 	int			irq;
 	struct resource		*mfc_mem;
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
 	struct pt_handle	*pt_handle;
 	int			ptid;
+#endif
 
 	struct mfc_pm	pm;
 	struct mfc_fw	fw;

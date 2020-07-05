@@ -16,15 +16,21 @@
 
 #include "mfc_common.h"
 
-#ifdef CONFIG_SLC_PARTITION_MANAGER
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
 void mfc_slc_enable(struct mfc_dev *dev);
 void mfc_slc_disable(struct mfc_dev *dev);
 void mfc_slc_flush(struct mfc_dev *dev);
 void mfc_pt_resize_callback(void *data, int id, size_t resize_allocated);
+
+void mfc_client_pt_register(struct mfc_dev *dev);
+void mfc_client_pt_unregister(struct mfc_dev *dev);
 #else
 #define mfc_slc_enable(dev)	do {} while (0)
 #define mfc_slc_disable(dev)	do {} while (0)
 #define mfc_slc_flush(dev)	do {} while (0)
+
+#define mfc_client_pt_register(dev) do {} while (0)
+#define mfc_client_pt_unregister(dev) do {} while (0)
 #endif
 
 #endif /* __MFC_SLC_H */

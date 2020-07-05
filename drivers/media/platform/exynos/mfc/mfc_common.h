@@ -19,7 +19,7 @@
 #include <media/videobuf2-dma-sg.h>
 #include <asm/cacheflush.h>
 
-#include <soc/samsung/exynos-debug.h>
+#include <soc/google/exynos-debug.h>
 
 #include "mfc_regs.h"
 #include "mfc_macros.h"
