@@ -15,6 +15,7 @@
 #define _EXYNOS_DRM_DPP_H_
 
 #include <exynos_drm_drv.h>
+#include <drm/samsung_drm.h>
 
 #include <dpp_cal.h>
 
@@ -32,44 +33,6 @@ enum EXYNOS9_DPP_FEATURES {
 enum dpp_state {
 	DPP_STATE_OFF = 0,
 	DPP_STATE_ON,
-};
-
-struct dpp_size_range {
-	u32 min;
-	u32 max;
-	u32 align;
-};
-
-struct dpp_restriction {
-	struct dpp_size_range src_f_w;
-	struct dpp_size_range src_f_h;
-	struct dpp_size_range src_w;
-	struct dpp_size_range src_h;
-	u32 src_x_align;
-	u32 src_y_align;
-
-	struct dpp_size_range dst_f_w;
-	struct dpp_size_range dst_f_h;
-	struct dpp_size_range dst_w;
-	struct dpp_size_range dst_h;
-	u32 dst_x_align;
-	u32 dst_y_align;
-
-	struct dpp_size_range blk_w;
-	struct dpp_size_range blk_h;
-	u32 blk_x_align;
-	u32 blk_y_align;
-
-	u32 src_h_rot_max; /* limit of source img height in case of rotation */
-
-	u32 scale_down;
-	u32 scale_up;
-};
-
-struct dpp_ch_restriction {
-	int id;
-	unsigned long attr;
-	struct dpp_restriction restriction;
 };
 
 struct dpp_device {
