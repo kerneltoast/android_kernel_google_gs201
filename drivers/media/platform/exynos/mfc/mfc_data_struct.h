@@ -1348,6 +1348,8 @@ struct mfc_ctrls_ops {
 			struct list_head *head);
 	int (*get_buf_ctrls_val) (struct mfc_ctx *ctx,
 			struct list_head *head);
+	int (*get_buf_ctrl_val_by_id)(struct mfc_ctx *ctx,
+			struct list_head *head, unsigned int id);
 	int (*recover_buf_ctrls_val) (struct mfc_ctx *ctx,
 			struct list_head *head);
 	int (*get_buf_update_val) (struct mfc_ctx *ctx,

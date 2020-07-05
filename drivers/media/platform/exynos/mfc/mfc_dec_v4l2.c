@@ -956,6 +956,7 @@ static int mfc_dec_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		} else {
 			mfc_debug(2, "Src size = %d\n", buf->m.planes[0].bytesused);
 		}
+
 		ret = vb2_qbuf(&ctx->vq_src, NULL, buf);
 	} else {
 		mfc_debug(4, "dec dst buf[%d] Q\n", buf->index);
@@ -995,9 +996,6 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 					buf->index);
 			return -EINVAL;
 		}
-
-		/* Copy updated flag in reserved2 of struct v4l2_buffer */
-		mfc_copy_from_mb_flag(ctx, buf);
 
 		/* Memcpy from dec->hdr10_plus_info to shared memory */
 		if (dec->hdr10_plus_info) {
@@ -1099,6 +1097,7 @@ static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 	val |= DEC_SET_DYNAMIC_DPB;
 	val |= DEC_SET_DRV_DPB_MANAGER;
 	val |= DEC_SET_C2_INTERFACE;
+	val |= DEC_SET_BUF_FLAG_CTRL;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->skype))
 		val |= DEC_SET_SKYPE_FLAG;

@@ -133,8 +133,6 @@ static inline int mfc_check_mb_flag(struct mfc_buf *mfc_buf, enum mfc_mb_flag f)
 
 int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb);
 void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt);
-void mfc_copy_to_mb_flag(struct mfc_ctx *ctx, struct v4l2_buffer *buf);
-void mfc_copy_from_mb_flag(struct mfc_ctx *ctx, struct v4l2_buffer *buf);
 void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx);
 void mfc_enc_calc_src_size(struct mfc_ctx *ctx);
 void mfc_calc_base_addr(struct mfc_ctx *ctx, struct vb2_buffer *vb,

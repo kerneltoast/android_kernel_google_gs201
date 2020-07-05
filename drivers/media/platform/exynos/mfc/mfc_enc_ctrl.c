@@ -671,6 +671,13 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_mode = MFC_CTRL_MODE_NONE,
 		.flag_addr = 0,
 		.flag_shft = 0,
+	},
+	{	/* buffer additional information */
+		.type = MFC_CTRL_TYPE_SRC | MFC_CTRL_TYPE_DST,
+		.id = V4L2_CID_MPEG_VIDEO_BUF_FLAG,
+		.is_volatile = 1,
+		.mode = MFC_CTRL_MODE_NONE,
+		.flag_mode = MFC_CTRL_MODE_NONE,
 	}
 };
 
@@ -1229,17 +1236,19 @@ static int mfc_enc_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET) || !buf_ctrl->has_new)
 			continue;
 
-		/* read old vlaue */
-		value = MFC_READL(buf_ctrl->addr);
+		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR) {
+			/* read old vlaue */
+			value = MFC_READL(buf_ctrl->addr);
 
-		/* save old value for recovery */
-		if (buf_ctrl->is_volatile)
-			buf_ctrl->old_val = (value >> buf_ctrl->shft) & buf_ctrl->mask;
+			/* save old value for recovery */
+			if (buf_ctrl->is_volatile)
+				buf_ctrl->old_val = (value >> buf_ctrl->shft) & buf_ctrl->mask;
 
-		/* write new value */
-		value &= ~(buf_ctrl->mask << buf_ctrl->shft);
-		value |= ((buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft);
-		MFC_WRITEL(value, buf_ctrl->addr);
+			/* write new value */
+			value &= ~(buf_ctrl->mask << buf_ctrl->shft);
+			value |= ((buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft);
+			MFC_WRITEL(value, buf_ctrl->addr);
+		}
 
 		/* set change flag bit */
 		if (buf_ctrl->flag_mode == MFC_CTRL_MODE_SFR) {
@@ -1294,6 +1303,24 @@ static int mfc_enc_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 	}
 
 	return 0;
+}
+
+static int mfc_enc_get_buf_ctrl_val_by_id(struct mfc_ctx *ctx,
+			struct list_head *head, unsigned int id)
+{
+	struct mfc_buf_ctrl *buf_ctrl;
+	int value = 0;
+
+	list_for_each_entry(buf_ctrl, head, list) {
+		if (buf_ctrl->id == id) {
+			value = buf_ctrl->val;
+			mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d\n",
+					buf_ctrl->id, value);
+			break;
+		}
+	}
+
+	return value;
 }
 
 static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
@@ -1735,6 +1762,7 @@ struct mfc_ctrls_ops encoder_ctrls_ops = {
 	.to_ctx_ctrls			= mfc_enc_to_ctx_ctrls,
 	.set_buf_ctrls_val		= mfc_enc_set_buf_ctrls_val,
 	.get_buf_ctrls_val		= mfc_enc_get_buf_ctrls_val,
+	.get_buf_ctrl_val_by_id	= mfc_enc_get_buf_ctrl_val_by_id,
 	.recover_buf_ctrls_val		= mfc_enc_recover_buf_ctrls_val,
 	.get_buf_update_val		= mfc_enc_get_buf_update_val,
 	.set_buf_ctrls_val_nal_q_enc	= mfc_enc_set_buf_ctrls_val_nal_q,

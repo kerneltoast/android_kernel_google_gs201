@@ -225,6 +225,7 @@
 #define	DEC_SET_HDR10_PLUS		(1 << 4)
 #define	DEC_SET_DRV_DPB_MANAGER		(1 << 5)
 #define	DEC_SET_C2_INTERFACE		(1 << 6) //can be changed display_delay
+#define	DEC_SET_BUF_FLAG_CTRL		(1 << 16)
 
 /* Extra information for Encoder */
 #define	ENC_SET_RGB_INPUT		(1 << 0)
@@ -242,6 +243,7 @@
 #define	ENC_SET_HDR10_PLUS		(1 << 12)
 #define	ENC_SET_VP9_PROFILE_LEVEL	(1 << 13)
 #define	ENC_SET_DROP_CONTROL		(1 << 14)
+#define	ENC_SET_BUF_FLAG_CTRL		(1 << 16)
 
 #define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw.date >= (f).version))
 

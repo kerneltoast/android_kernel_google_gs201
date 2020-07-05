@@ -900,6 +900,7 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 						i, buf->m.planes[i].bytesused);
 			}
 		}
+
 		ret = vb2_qbuf(&ctx->vq_src, NULL, buf);
 	} else {
 		mfc_debug(4, "enc dst buf[%d] Q\n", buf->index);
@@ -1040,6 +1041,7 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	val |= ENC_SET_PVC_MODE;
 	val |= ENC_SET_RATIO_OF_INTRA;
 	val |= ENC_SET_DROP_CONTROL;
+	val |= ENC_SET_BUF_FLAG_CTRL;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc))
 		val |= ENC_SET_COLOR_ASPECT;
@@ -1085,6 +1087,7 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	case V4L2_CID_MPEG_MFC51_VIDEO_LUMA_ADDR:
 	case V4L2_CID_MPEG_MFC51_VIDEO_CHROMA_ADDR:
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_STATUS:
+	case V4L2_CID_MPEG_VIDEO_BUF_FLAG:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
 			if (!(ctx_ctrl->type & MFC_CTRL_TYPE_GET))
 				continue;
@@ -2061,6 +2064,7 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	case V4L2_CID_MPEG_VIDEO_YSUM:
 	case V4L2_CID_MPEG_VIDEO_RATIO_OF_INTRA:
 	case V4L2_CID_MPEG_VIDEO_DROP_CONTROL:
+	case V4L2_CID_MPEG_VIDEO_BUF_FLAG:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
 			if (!(ctx_ctrl->type & MFC_CTRL_TYPE_SET))
 				continue;
