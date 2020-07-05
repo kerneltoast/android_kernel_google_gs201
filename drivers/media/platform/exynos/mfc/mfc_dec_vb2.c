@@ -176,6 +176,10 @@ static int mfc_dec_buf_prepare(struct vb2_buffer *vb)
 				}
 			}
 		}
+		/* Copy dst buffer flag to buf_ctrl */
+		buf->flag = call_cop(ctx, get_buf_ctrl_val_by_id, ctx,
+				&ctx->dst_ctrls[index],
+				V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		buf_size = vb2_plane_size(vb, 0);
 		mfc_debug(2, "[STREAM] vb size: %lu, s_fmt sizeimage: %d\n",
@@ -184,10 +188,10 @@ static int mfc_dec_buf_prepare(struct vb2_buffer *vb)
 		if (call_cop(ctx, to_buf_ctrls, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_ctx_err("failed in to_buf_ctrls\n");
 
-		/* Copy updated buffer flag */
+		/* Copy src buffer flag to buf_ctrl */
 		buf->flag = call_cop(ctx, get_buf_ctrl_val_by_id, ctx,
 				&ctx->src_ctrls[index],
-				V4L2_CID_MPEG_VIDEO_BUF_FLAG);
+				V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG);
 	}
 
 	return 0;
@@ -201,18 +205,18 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 	unsigned int index = vb->index;
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		/* Copy updated buffer flag */
+		/* Copy to dst buffer flag */
 		call_cop(ctx, get_buf_update_val, ctx, &ctx->dst_ctrls[index],
-				V4L2_CID_MPEG_VIDEO_BUF_FLAG, buf->flag);
+				V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG, buf->flag);
 		mfc_debug(4, "[FLAG] dst update buf[%d] flag = %#lx\n",
 				index, buf->flag);
 
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->dst_ctrls[index]) < 0)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		/* Copy updated buffer flag */
+		/* Copy to src buffer flag */
 		call_cop(ctx, get_buf_update_val, ctx, &ctx->src_ctrls[index],
-				V4L2_CID_MPEG_VIDEO_BUF_FLAG, buf->flag);
+				V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG, buf->flag);
 		mfc_debug(4, "[FLAG] src update buf[%d] flag = %#lx\n",
 				index, buf->flag);
 

@@ -1087,7 +1087,8 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	case V4L2_CID_MPEG_MFC51_VIDEO_LUMA_ADDR:
 	case V4L2_CID_MPEG_MFC51_VIDEO_CHROMA_ADDR:
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_STATUS:
-	case V4L2_CID_MPEG_VIDEO_BUF_FLAG:
+	case V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG:
+	case V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
 			if (!(ctx_ctrl->type & MFC_CTRL_TYPE_GET))
 				continue;
@@ -1987,6 +1988,8 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 	case V4L2_CID_MPEG_MFC_H264_USE_LTR:
 	case V4L2_CID_MPEG_MFC_H264_MARK_LTR:
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG:
+	case V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG:
+	case V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG:
 		break;
 	default:
 		mfc_ctx_err("Invalid control: 0x%08x\n", ctrl->id);
@@ -2064,7 +2067,8 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	case V4L2_CID_MPEG_VIDEO_YSUM:
 	case V4L2_CID_MPEG_VIDEO_RATIO_OF_INTRA:
 	case V4L2_CID_MPEG_VIDEO_DROP_CONTROL:
-	case V4L2_CID_MPEG_VIDEO_BUF_FLAG:
+	case V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG:
+	case V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
 			if (!(ctx_ctrl->type & MFC_CTRL_TYPE_SET))
 				continue;

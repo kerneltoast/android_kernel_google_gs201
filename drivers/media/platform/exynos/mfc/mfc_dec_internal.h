@@ -604,7 +604,16 @@ static struct v4l2_queryctrl controls[] = {
 		.default_value = 0,
 	},
 	{
-		.id = V4L2_CID_MPEG_VIDEO_BUF_FLAG,
+		.id = V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Buffer flag",
+		.minimum = INT_MIN,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Buffer flag",
 		.minimum = INT_MIN,

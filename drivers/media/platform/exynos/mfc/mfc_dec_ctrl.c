@@ -355,8 +355,15 @@ struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* buffer additional information */
-		.type = MFC_CTRL_TYPE_SRC | MFC_CTRL_TYPE_DST,
-		.id = V4L2_CID_MPEG_VIDEO_BUF_FLAG,
+		.type = MFC_CTRL_TYPE_SRC,
+		.id = V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG,
+		.is_volatile = 1,
+		.mode = MFC_CTRL_MODE_NONE,
+		.flag_mode = MFC_CTRL_MODE_NONE,
+	},
+	{	/* buffer additional information */
+		.type = MFC_CTRL_TYPE_DST,
+		.id = V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_NONE,
 		.flag_mode = MFC_CTRL_MODE_NONE,
