@@ -13,11 +13,13 @@
  * General Public License for more details.
  */
 
+#include <uapi/linux/sched/types.h>
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
-#include <linux/sched/types.h>
+#include <linux/sched.h>
 #include <linux/dma-mapping.h>
 
 #include "g2d.h"
