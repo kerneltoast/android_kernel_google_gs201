@@ -910,6 +910,10 @@ static void __mfc_handle_stream_input(struct mfc_ctx *ctx)
 						&ctx->src_ctrls[index]) < 0)
 				mfc_ctx_err("failed in recover_buf_ctrls_val\n");
 
+			if (call_cop(ctx, get_buf_ctrls_val, ctx,
+						&ctx->src_ctrls[index]) < 0)
+				mfc_ctx_err("failed in get_buf_ctrls_val\n");
+
 			mfc_debug(3, "find src buf in src_queue\n");
 			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		} else {
@@ -923,6 +927,7 @@ static void __mfc_handle_stream_input(struct mfc_ctx *ctx)
 				mfc_ctx_err("couldn't find src buffer\n");
 			}
 		}
+
 	}
 
 move_buf:

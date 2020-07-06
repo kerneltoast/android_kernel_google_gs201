@@ -1141,7 +1141,7 @@ static void __mfc_nal_q_handle_stream_input(struct mfc_ctx *ctx, EncoderOutputSt
 	dma_addr_t enc_addr[3] = { 0, 0, 0 };
 	struct mfc_raw_info *raw;
 	int found_in_src_queue = 0;
-	unsigned int i;
+	unsigned int i, index;
 
 	raw = &ctx->raw_buf;
 
@@ -1193,6 +1193,11 @@ static void __mfc_nal_q_handle_stream_input(struct mfc_ctx *ctx, EncoderOutputSt
 		if (src_mb) {
 			mfc_debug(3, "[NALQ] find src buf in src_queue\n");
 			found_in_src_queue = 1;
+			index = src_mb->vb.vb2_buf.index;
+			if (call_cop(ctx, get_buf_ctrls_val_nal_q_enc, ctx,
+						&ctx->src_ctrls[index], pOutStr) < 0)
+				mfc_ctx_err("[NALQ] failed in get_buf_ctrls_val\n");
+
 			vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		} else {
 			mfc_debug(3, "[NALQ] no src buf in src_queue\n");
