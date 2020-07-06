@@ -64,13 +64,13 @@ struct g2d_layer {
 	struct g2d_reg		*commands;
 };
 
-#define G2D_TASKSTATE_WAITING		(1 << 1)
-#define G2D_TASKSTATE_UNPREPARED	(1 << 2)
-#define G2D_TASKSTATE_PREPARED		(1 << 3)
-#define G2D_TASKSTATE_ACTIVE		(1 << 4)
-#define G2D_TASKSTATE_PROCESSED		(1 << 5)
-#define G2D_TASKSTATE_ERROR		(1 << 6)
-#define G2D_TASKSTATE_TIMEOUT		(1 << 8)
+#define G2D_TASKSTATE_WAITING		BIT(1)
+#define G2D_TASKSTATE_UNPREPARED	BIT(2)
+#define G2D_TASKSTATE_PREPARED		BIT(3)
+#define G2D_TASKSTATE_ACTIVE		BIT(4)
+#define G2D_TASKSTATE_PROCESSED		BIT(5)
+#define G2D_TASKSTATE_ERROR		BIT(6)
+#define G2D_TASKSTATE_TIMEOUT		BIT(8)
 
 struct g2d_context;
 struct g2d_device;
@@ -114,6 +114,12 @@ struct g2d_task {
 	struct work_struct	completion_work;
 	struct completion	completion;
 
+	/*
+	 * lock to prevent race of calling g2d_queuework_task() and g2d_fence_timeout_handler().
+	 * g2d_fence_timeout_handler() may be called by other fences the driver is waiting for.
+	 * Since g2d_fence_timeout_handler() shows all fences related to the active task,
+	 * fence_timeout_lock is required not to refer to a freed fence.
+	 */
 	spinlock_t		fence_timeout_lock;
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	struct g2d_buffer_prot_info prot_info;
@@ -122,22 +128,25 @@ struct g2d_task {
 	struct g2d_qos		taskqos;
 };
 
-/* The below macros should be called with g2d_device.lock_tasks held */
-#define change_task_state_active(task) do {		\
-	(task)->state &= ~G2D_TASKSTATE_PREPARED;	\
-	(task)->state |= G2D_TASKSTATE_ACTIVE;		\
-} while (0)
+/* The below functions should be called with g2d_device.lock_tasks held */
 
-#define change_task_state_prepared(task) do {		\
-	(task)->state |= G2D_TASKSTATE_PREPARED;	\
-	(task)->state &= ~G2D_TASKSTATE_UNPREPARED;	\
-} while (0)
+static inline void change_task_state_active(struct g2d_task *task)
+{
+	task->state &= ~G2D_TASKSTATE_PREPARED;
+	task->state |= G2D_TASKSTATE_ACTIVE;
+}
 
-#define change_task_state_finished(task) do {		\
-	(task)->state &= ~(G2D_TASKSTATE_ACTIVE |	\
-			   G2D_TASKSTATE_TIMEOUT);	\
-	(task)->state |= G2D_TASKSTATE_PROCESSED;	\
-} while (0)
+static inline void change_task_state_prepared(struct g2d_task *task)
+{
+	task->state |= G2D_TASKSTATE_PREPARED;
+	task->state &= ~G2D_TASKSTATE_UNPREPARED;
+}
+
+static inline void change_task_state_finished(struct g2d_task *task)
+{
+	task->state &= ~(G2D_TASKSTATE_ACTIVE |	G2D_TASKSTATE_TIMEOUT);
+	task->state |= G2D_TASKSTATE_PROCESSED;
+}
 
 static inline void mark_task_state_error(struct g2d_task *task)
 {
@@ -177,13 +186,12 @@ static inline void g2d_task_set_id(struct g2d_task *task, unsigned int id)
 #define G2D_HW_TIMEOUT_MSEC	500
 #define G2D_FENCE_TIMEOUT_MSEC	800
 
-struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
-					     unsigned int id);
+struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev, unsigned int id);
 void g2d_destroy_tasks(struct g2d_device *g2d_dev);
 int g2d_create_tasks(struct g2d_device *g2d_dev);
 
 struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
-				    struct g2d_context *g2d_ctx, bool hwfc);
+				   struct g2d_context *g2d_ctx, bool hwfc);
 void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 
 void g2d_start_task(struct g2d_task *task);

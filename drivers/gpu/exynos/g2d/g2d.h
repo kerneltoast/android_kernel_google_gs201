@@ -112,9 +112,9 @@ struct g2d_device {
 
 	u64			fence_context;
 	atomic_t		fence_timeline;
-	spinlock_t		fence_lock;
+	spinlock_t		fence_lock; /* dma_fence->lock for fences created in this driver */
 
-	spinlock_t		lock_ctx_list;
+	spinlock_t		lock_ctx_list; /* lock for ctx_list of struct g2d_ctx */
 	struct list_head	ctx_list;
 
 	/* task management */
@@ -138,7 +138,10 @@ struct g2d_device {
 	struct dentry *debug_tasks;
 
 	atomic_t	prior_stats[G2D_PRIORITY_END];
-
+	/*
+	 * lock for updating qos_contexts
+	 * and the state of performance requests to pm_qos and devfreq.
+	 */
 	struct mutex			lock_qos;
 	struct list_head		qos_contexts;
 
@@ -172,7 +175,7 @@ struct g2d_context {
 	struct g2d_device	*g2d_dev;
 #if IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
 	struct shared_buffer_info *hwfc_info;
-	struct mutex		lock_hwfc_info;
+	struct mutex		lock_hwfc_info; /* lock for upating hwfc_info */
 #endif
 	u32 priority;
 	int authority;
@@ -195,10 +198,10 @@ struct g2d_context {
 	pr_err(IPPREFIX  "%s: " format "\n", __func__, ##arg)
 
 #define perrdev(g2d, format, arg...) \
-	dev_err(g2d->dev, IPPREFIX format "\n", ##arg)
+	dev_err((g2d)->dev, IPPREFIX format "\n", ##arg)
 
 #define perrfndev(g2d, format, arg...) \
-	dev_err(g2d->dev, IPPREFIX  "%s: " format "\n", __func__, ##arg)
+	dev_err((g2d)->dev, IPPREFIX  "%s: " format "\n", __func__, ##arg)
 
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task);
 void g2d_hw_timeout_handler(struct timer_list *arg);

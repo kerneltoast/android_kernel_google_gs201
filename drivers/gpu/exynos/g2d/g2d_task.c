@@ -105,7 +105,7 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 	del_timer(&task->hw_timer);
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_DONE,
-		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
+		       (int)ktime_us_delta(task->ktime_end, task->ktime_begin));
 
 	g2d_secure_disable();
 
@@ -174,7 +174,6 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev)
 	clear_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
 
 	while (!list_empty(&g2d_dev->tasks_prepared)) {
-
 		task = list_first_entry(&g2d_dev->tasks_prepared,
 					struct g2d_task, node);
 		g2d_execute_task(g2d_dev, task);
@@ -287,7 +286,7 @@ void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
 	spin_unlock_irqrestore(&layer->task->fence_timeout_lock, flags);
 }
 
-static bool block_on_contention = false;
+static bool block_on_contention;
 module_param(block_on_contention, bool, 0644);
 
 static int max_queued = G2D_MAX_JOBS;
@@ -321,7 +320,7 @@ void g2d_show_task_status(struct g2d_device *g2d_dev)
 }
 
 struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
-				    struct g2d_context *g2d_ctx, bool hwfc)
+				   struct g2d_context *g2d_ctx, bool hwfc)
 {
 	struct g2d_task *task;
 	struct list_head *taskfree;
@@ -400,7 +399,8 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	unsigned long flags;
 
-	task->taskqos.rbw = task->taskqos.wbw = 0;
+	task->taskqos.rbw = 0;
+	task->taskqos.wbw = 0;
 	task->taskqos.devfreq = 0;
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
@@ -432,7 +432,7 @@ void g2d_destroy_tasks(struct g2d_device *g2d_dev)
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
 	task = g2d_dev->tasks;
-	while (task != NULL) {
+	while (task) {
 		next = task->next;
 
 		list_del(&task->node);
@@ -531,7 +531,6 @@ int g2d_create_tasks(struct g2d_device *g2d_dev)
 	sched_setscheduler(g2d_dev->schedule_workq->task, SCHED_FIFO, &param);
 	for (i = 0; i < G2D_MAX_JOBS; i++) {
 		task = g2d_create_task(g2d_dev, i);
-
 		if (IS_ERR(task)) {
 			g2d_destroy_tasks(g2d_dev);
 			return PTR_ERR(task);
@@ -540,8 +539,7 @@ int g2d_create_tasks(struct g2d_device *g2d_dev)
 		task->next = g2d_dev->tasks;
 		g2d_dev->tasks = task;
 
-		if ((g2d_dev->caps & G2D_DEVICE_CAPS_HWFC) &&
-		    (i < MAX_SHARED_BUF_NUM))
+		if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_HWFC) && i < MAX_SHARED_BUF_NUM)
 			list_add(&task->node, &g2d_dev->tasks_free_hwfc);
 		else
 			list_add(&task->node, &g2d_dev->tasks_free);

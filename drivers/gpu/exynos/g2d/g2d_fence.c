@@ -28,12 +28,9 @@ void g2d_fence_timeout_handler(struct timer_list *arg)
 	for (i = 0; i < task->num_source; i++) {
 		fence = task->source[i].fence;
 		if (fence) {
-			strlcpy(name, fence->ops->get_driver_name(fence),
-			       sizeof(name));
-			perrfndev(g2d_dev, " SOURCE[%d]:  %s #%d (%s)",
-				  i, name, fence->seqno,
-				  dma_fence_is_signaled(fence)
-					? "signaled" : "active");
+			strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
+			perrfndev(g2d_dev, " SOURCE[%d]:  %s #%d (%s)", i, name, fence->seqno,
+				  dma_fence_is_signaled(fence) ? "signaled" : "active");
 		}
 	}
 
@@ -101,11 +98,9 @@ void g2d_fence_timeout_handler(struct timer_list *arg)
 	kref_init(&task->starter);
 
 	/* check compressed buffer because crashed buffer makes recovery */
-	for (i = 0; i < task->num_source; i++) {
-		if (IS_AFBC(
-			task->source[i].commands[G2DSFR_IMG_COLORMODE].value))
+	for (i = 0; i < task->num_source; i++)
+		if (IS_AFBC(task->source[i].commands[G2DSFR_IMG_COLORMODE].value))
 			afbc |= 1 << i;
-	}
 
 	if (IS_AFBC(task->target.commands[G2DSFR_IMG_COLORMODE].value))
 		afbc |= 1 << G2D_MAX_IMAGES;
@@ -159,8 +154,7 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 		return NULL;
 
 	if (data->num_release_fences > (task->num_source + 1)) {
-		perrfndev(g2d_dev,
-			  "Too many release fences %d required (src: %d)",
+		perrfndev(g2d_dev, "Too many release fences %d required (src: %d)",
 			  data->num_release_fences, task->num_source);
 		return ERR_PTR(-EINVAL);
 	}
@@ -169,9 +163,8 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 	if (!fence)
 		return ERR_PTR(-ENOMEM);
 
-	dma_fence_init(fence, &g2d_fence_ops, &g2d_dev->fence_lock,
-		   g2d_dev->fence_context,
-		   atomic_inc_return(&g2d_dev->fence_timeline));
+	dma_fence_init(fence, &g2d_fence_ops, &g2d_dev->fence_lock, g2d_dev->fence_context,
+		       atomic_inc_return(&g2d_dev->fence_timeline));
 
 	file = sync_file_create(fence);
 	dma_fence_put(fence);
@@ -189,7 +182,7 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 	}
 
 	if (copy_to_user(data->release_fences, release_fences,
-				sizeof(u32) * data->num_release_fences)) {
+			 sizeof(u32) * data->num_release_fences)) {
 		ret = -EFAULT;
 		perrfndev(g2d_dev, "Failed to copy release fences to user");
 		goto err_fd;

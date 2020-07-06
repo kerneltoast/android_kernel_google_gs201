@@ -130,9 +130,9 @@ struct g2d_buffer_data {
 #define G2D_LAYERFLAG_MFC_STRIDE	(1 << 4)
 /* Force superblock size of AFBC as 32x8 instead of 16x16 */
 #define G2D_LAYERFLAG_AFBC_LANDSCAPE	(1 << 5)
-/* cleaning of the CPU caches is unneccessary before processing */
+/* cleaning of the CPU caches is unnecessary before processing */
 #define G2D_LAYERFLAG_NO_CACHECLEAN	(1 << 16)
-/* invalidation of the CPU caches is unneccessary after processing */
+/* invalidation of the CPU caches is unnecessary after processing */
 #define G2D_LAYERFLAG_NO_CACHEINV	(1 << 17)
 
 /*
@@ -280,5 +280,3 @@ struct g2d_performance_data {
 #define G2D_IOC_VERSION		_IOR('M', 7, uint32_t)
 
 #endif /* _G2D_UAPI_H_ */
-
-

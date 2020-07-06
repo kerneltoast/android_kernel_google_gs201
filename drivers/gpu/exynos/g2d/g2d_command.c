@@ -14,15 +14,30 @@
 #include "g2d_regs.h"
 #include "g2d_format.h"
 
-#define layer_crop_width(layer)					\
-		(((layer)->commands[G2DSFR_IMG_RIGHT].value) -	\
-		 ((layer)->commands[G2DSFR_IMG_LEFT].value))
-#define layer_crop_height(layer)				\
-		(((layer)->commands[G2DSFR_IMG_BOTTOM].value) -	\
-		 ((layer)->commands[G2DSFR_IMG_TOP].value))
-#define layer_width(layer)	((layer)->commands[G2DSFR_IMG_WIDTH].value)
-#define layer_height(layer)	((layer)->commands[G2DSFR_IMG_HEIGHT].value)
-#define layer_pixelcount(layer)	(layer_width(layer) * layer_height(layer))
+static u32 layer_crop_width(struct g2d_layer *layer)
+{
+	return layer->commands[G2DSFR_IMG_RIGHT].value - layer->commands[G2DSFR_IMG_LEFT].value;
+}
+
+static u32 layer_crop_height(struct g2d_layer *layer)
+{
+	return layer->commands[G2DSFR_IMG_BOTTOM].value - layer->commands[G2DSFR_IMG_TOP].value;
+}
+
+static u32 layer_width(struct g2d_layer *layer)
+{
+	return layer->commands[G2DSFR_IMG_WIDTH].value;
+}
+
+static u32 layer_height(struct g2d_layer *layer)
+{
+	return layer->commands[G2DSFR_IMG_HEIGHT].value;
+}
+
+static u32 layer_pixelcount(struct g2d_layer *layer)
+{
+	return layer_width(layer) * layer_height(layer);
+}
 
 enum {
 	TASK_REG_SOFT_RESET,
@@ -44,8 +59,7 @@ static struct g2d_reg g2d_setup_commands[TASK_REG_COUNT] = {
 
 void g2d_init_commands(struct g2d_task *task)
 {
-	memcpy(page_address(task->cmd_page),
-		&g2d_setup_commands, sizeof(g2d_setup_commands));
+	memcpy(page_address(task->cmd_page), &g2d_setup_commands, sizeof(g2d_setup_commands));
 	task->sec.cmd_count = ARRAY_SIZE(g2d_setup_commands);
 }
 
@@ -93,7 +107,7 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 	 * split index is half the width or height divided by 16
 	 */
 	regs[task->sec.cmd_count].offset = G2D_DST_SPLIT_TILE_IDX_REG;
-	if (vertical && !IS_HWFC(task->flags) && (height > width))
+	if (vertical && !IS_HWFC(task->flags) && height > width)
 		regs[task->sec.cmd_count].value = ((height / 2) >> 4);
 	else
 		regs[task->sec.cmd_count].value =
@@ -329,6 +343,8 @@ const struct g2d_fmt *g2d_find_format(u32 fmtval, unsigned long devcaps)
 			if (g2d_formats_9820[i].fmtvalue == G2D_IMGFMT(fmtval))
 				return &g2d_formats_9820[i];
 	}
+
+	WARN(1, "Unknown format %#x with device caps %#x", fmtval, devcaps);
 	return NULL;
 }
 
@@ -353,23 +369,38 @@ const struct g2d_fmt *g2d_find_format(u32 fmtval, unsigned long devcaps)
 #define NV12_MFC_Y_PAYLOAD_PAD(w, h) (NV12_MFC_Y_PAYLOAD(w, h) + MFC_PAD_SIZE)
 #define NV12_MFC_C_PAYLOAD(w, h)     (MFC_ALIGN(w) * (h) / 2)
 #define NV12_MFC_C_PAYLOAD_ALIGNED(w, h) (NV12_MFC_Y_PAYLOAD(w, h) / 2)
-#define NV12_MFC_C_PAYLOAD_PAD(w, h) (NV12_MFC_C_PAYLOAD_ALIGNED(w, h) +      \
-				      MFC_PAD_SIZE)
-#define NV12_MFC_PAYLOAD(w, h)       (NV12_MFC_Y_PAYLOAD_PAD(w, h) +	      \
-				      NV12_MFC_C_PAYLOAD(w, h))
-#define NV12_82_MFC_Y_PAYLOAD(w, h)  (NV12_MFC_Y_PAYLOAD_PAD(w, h) +	      \
-				      MFC_ALIGN((w) / 4) * (h))
-#define NV12_82_MFC_C_PAYLOAD(w, h)  (NV12_MFC_C_PAYLOAD_PAD(w, h) +	      \
-				      MFC_ALIGN((w) / 4) * (h) / 2)
-#define NV12_82_MFC_PAYLOAD(w, h)    (NV12_MFC_Y_PAYLOAD_PAD(w, h) +	      \
-				      MFC_ALIGN((w) / 4) * MFC_ALIGN(h) +     \
-				      MFC_2B_PAD_SIZE +			      \
-				      NV12_82_MFC_C_PAYLOAD(w, h))
-#define NV12_82_MFC_2Y_PAYLOAD(w, h) (MFC_ALIGN((w) / 4) * MFC_ALIGN(h))
-#define NV12_MFC_CBASE(base, w, h)   (base + NV12_MFC_Y_PAYLOAD_PAD(w, h))
+#define NV12_MFC_C_PAYLOAD_PAD(w, h) (NV12_MFC_C_PAYLOAD_ALIGNED(w, h) + MFC_PAD_SIZE)
 
-#define YUV82_BASE_ALIGNED(addr, idx) IS_ALIGNED((addr), 32 >> (idx & 1))
-#define YUV82_BASE_ALIGN(addr, idx)   ALIGN((addr), 32 >> (idx & 1))
+#define NV12_82_MFC_2Y_PAYLOAD(w, h) (MFC_ALIGN((w) / 4) * MFC_ALIGN(h))
+#define NV12_MFC_CBASE(base, w, h)   ((base) + NV12_MFC_Y_PAYLOAD_PAD(w, h))
+
+#define YUV82_BASE_ALIGNED(addr, idx) IS_ALIGNED(addr, 32 >> ((idx) & 1))
+#define YUV82_BASE_ALIGN(addr, idx)   ALIGN(addr, 32 >> ((idx) & 1))
+
+static size_t nv12_mfc_payload(u32 w, u32 h)
+{
+	return NV12_MFC_Y_PAYLOAD_PAD(w, h) + NV12_MFC_C_PAYLOAD(w, h);
+}
+
+static size_t nv12_82_mfc_y_payload(u32 w, u32 h)
+{
+	return NV12_MFC_Y_PAYLOAD_PAD(w, h) + MFC_ALIGN(w / 4) * h;
+}
+
+static size_t nv12_82_mfc_c_payload(u32 w, u32 h)
+{
+	return NV12_MFC_C_PAYLOAD_PAD(w, h) + MFC_ALIGN(w / 4) * h / 2;
+}
+
+static size_t nv12_82_mfc_payload(u32 w, u32 h)
+{
+	size_t payload = NV12_MFC_Y_PAYLOAD_PAD(w, h);
+
+	payload += MFC_ALIGN(w / 4) * MFC_ALIGN(h);
+	payload += MFC_2B_PAD_SIZE;
+
+	return payload + nv12_82_mfc_c_payload(w, h);
+}
 
 static unsigned char src_base_reg_offset[3] = {0x1C, 0x80, 0x84};
 static unsigned char dst_base_reg_offset[3] = {0x00, 0x50, 0x54};
@@ -387,9 +418,9 @@ static unsigned char dst_sbwc_reg_offset[4] = {0x34, 0x30, 0x54, 0x50};
 #define REG_SRC_CHROMA_STRIDE 0xAC
 #define REG_DST_CHROMA_STRIDE 0x60
 
-#define AFBCv1_ALIGN_LEN_SRC (64 / 4)
-#define AFBCv1_ALIGN_LEN 64
-#define AFBCv12_ALIGN_LEN 128
+#define AFBCV1_ALIGN_LEN_SRC (64 / 4)
+#define AFBCV1_ALIGN_LEN 64
+#define AFBCV12_ALIGN_LEN 128
 
 #define AFBC_HEADER_BLOCK_LEN 16
 /* SQBLOCK: 16x16 Sqaure superblock */
@@ -426,7 +457,7 @@ static inline bool caps_has_align64(unsigned long caps)
 static inline uint32_t afbc_header_len(unsigned long caps,
 				       u32 nr_h_blocks, u32 nr_v_blocks)
 {
-	unsigned int align = AFBCv12_ALIGN_LEN;
+	unsigned int align = AFBCV12_ALIGN_LEN;
 	u32 len = nr_h_blocks * nr_v_blocks * AFBC_HEADER_BLOCK_LEN;
 	/*
 	 * AFBC v1.x requires alignment of 16-byte for both of the header and
@@ -437,7 +468,7 @@ static inline uint32_t afbc_header_len(unsigned long caps,
 	 * the legacy applications that work with AFBC 1.x
 	 */
 	if (!caps_has_afbcv12(caps))
-		align = AFBCv1_ALIGN_LEN;
+		align = AFBCV1_ALIGN_LEN;
 	return ALIGN(len, align);
 }
 
@@ -633,9 +664,9 @@ static u32 get_sbwc_c_size(unsigned long caps, u32 colormode,
 	       + get_sbwc_header_c_size(caps, colormode, width, height);
 }
 
-size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
-			     unsigned int idx, unsigned int buffer_count,
-			     unsigned long caps, u32 flags)
+unsigned int g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
+				   unsigned int idx, unsigned int buffer_count,
+				   unsigned long caps, u32 flags)
 {
 	bool yuv82 = IS_YUV_82(fmt->fmtvalue,
 			       caps & G2D_DEVICE_CAPS_YUV_BITDEPTH);
@@ -655,19 +686,18 @@ size_t g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 		return get_sbwc_c_size(caps, colormode, width, height, dep);
 	}
 
-	if (yuv82 && (buffer_count == 2)) {
+	if (yuv82 && buffer_count == 2) {
 		/* YCbCr420 8+2 semi-planar in two buffers */
 		/* regard G2D_LAYERFLAG_MFC_STRIDE is set */
 
-		return (idx == 0) ? NV12_82_MFC_Y_PAYLOAD(width, height)
-				  : NV12_82_MFC_C_PAYLOAD(width, height);
+		return (idx == 0) ? nv12_82_mfc_y_payload(width, height)
+				  : nv12_82_mfc_c_payload(width, height);
 	}
 
-	if (!IS_YUV420P(fmt->fmtvalue) && (idx > 0))
+	if (!IS_YUV420P(fmt->fmtvalue) && idx > 0)
 		return ALIGN(ALIGN(width / 2, 16) * height / 2, 16);
 
-	return ((cmd[G2DSFR_IMG_WIDTH].value * fmt->bpp[idx]) / 8) *
-						cmd[G2DSFR_IMG_BOTTOM].value;
+	return ((cmd[G2DSFR_IMG_WIDTH].value * fmt->bpp[idx]) / 8) * cmd[G2DSFR_IMG_BOTTOM].value;
 }
 
 static size_t g2d_get_ycbcr_payload(const struct g2d_fmt *fmt, u32 flags,
@@ -678,7 +708,7 @@ static size_t g2d_get_ycbcr_payload(const struct g2d_fmt *fmt, u32 flags,
 	size_t payload = 0;
 
 	if (mfc_stride && IS_YUV420(mode)) {
-		payload = NV12_MFC_PAYLOAD(width, height);
+		payload = nv12_mfc_payload(width, height);
 	} else if (IS_YUV420P(fmt->fmtvalue)) {
 		u32 stride = ALIGN(width / 2, 16);
 
@@ -727,7 +757,7 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 			payload += ALIGN((pixcount * fmt->bpp[2]) / 8, 16);
 			payload += (pixcount * fmt->bpp[3]) / 8;
 		} else {
-			payload += NV12_82_MFC_PAYLOAD(width, height);
+			payload += nv12_82_mfc_payload(width, height);
 		}
 	} else if (IS_YUV(mode)) {
 		payload = g2d_get_ycbcr_payload(fmt, flags,
@@ -898,17 +928,16 @@ static struct command_checker target_command_checker[G2DSFR_DST_FIELD_COUNT] = {
 #define LAYER_OFFSET(idx)	((2 + (idx)) << 8)
 
 static int g2d_copy_commands(struct g2d_device *g2d_dev, int index,
-			      struct g2d_reg regs[], __u32 cmd[],
-			      struct command_checker checker[],
-			      unsigned int num_cmds)
+			     struct g2d_reg regs[], __u32 cmd[],
+			     struct command_checker checker[],
+			     unsigned int num_cmds)
 {
 	unsigned int base = (index < 0) ? TARGET_OFFSET : LAYER_OFFSET(index);
 	int i;
 
 	for (i = 0; i < num_cmds; i++) {
 		if (((cmd[i] & ~checker[i].mask) != 0) ||
-				(checker[i].checker &&
-				 !checker[i].checker(g2d_dev, cmd[i]))) {
+		    (checker[i].checker && !checker[i].checker(g2d_dev, cmd[i]))) {
 			perrfndev(g2d_dev, "Invalid %s[%d] SFR '%s' value %#x",
 				  (index < 0) ? "target" : "source",
 				  index, checker[i].cmdname, cmd[i]);
@@ -928,8 +957,8 @@ static bool g2d_validate_image_dimension(struct g2d_device *g2d_dev,
 					 u32 left, u32 top,
 					 u32 right, u32 bottom)
 {
-	if ((left >= right) || (top >= bottom) ||
-			(width < (right - left)) || (height < (bottom - top))) {
+	if (left >= right || top >= bottom ||
+	    width < (right - left) || height < (bottom - top)) {
 		perrfndev(g2d_dev, "Invalid dimension [%ux%u, %ux%u) / %ux%u",
 			  left, top, right, bottom, width, height);
 		return false;
@@ -1002,8 +1031,8 @@ static const char *g2d_mode_comp_string(u32 colormode)
 	return "";
 }
 
-static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
-		struct g2d_task *task, struct g2d_layer *layer, bool dst)
+static bool g2d_validate_image_format(struct g2d_device *g2d_dev, struct g2d_task *task,
+				      struct g2d_layer *layer, bool dst)
 {
 	struct g2d_reg *commands = layer->commands;
 	bool yuvbitdepth = !!(g2d_dev->caps & G2D_DEVICE_CAPS_YUV_BITDEPTH);
@@ -1015,7 +1044,7 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 	u32 right  = commands[G2DSFR_IMG_RIGHT].value;
 	u32 top    = commands[G2DSFR_IMG_TOP].value;
 	u32 bottom = commands[G2DSFR_IMG_BOTTOM].value;
-	u32 Bpp = 0;
+	u32 byte_per_pix = 0;
 	const struct g2d_fmt *fmt;
 
 	if (IS_AFBC(mode) && !dst) {
@@ -1023,28 +1052,25 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 		height = ALIGN(height, get_afbc_height_align(layer->flags));
 	}
 
-	if (!g2d_validate_image_dimension(g2d_dev, width, height,
-					left, top, right, bottom))
+	if (!g2d_validate_image_dimension(g2d_dev, width, height, left, top, right, bottom))
 		return false;
 
 	fmt = g2d_find_format(mode, g2d_dev->caps);
-	if (fmt == NULL) {
-		perrfndev(g2d_dev, "Color mode %#x is not supported", mode);
+	if (!fmt)
 		return false;
-	}
 
-	Bpp = fmt->bpp[0] / 8;
+	byte_per_pix = fmt->bpp[0] / 8;
 
 	if (stride) {
 		int err = 0;
 
 		if (IS_SBWC(mode) || IS_AFBC(mode) || IS_YUV(mode))
 			err |= 1 << 1;
-		if (IS_UORDER(mode) & (stride != ALIGN(width * Bpp, 16)))
+		if (IS_UORDER(mode) && stride != ALIGN(width * byte_per_pix, 16))
 			err |= 1 << 2;
-		if (stride < (width * Bpp))
+		if (stride < width * byte_per_pix)
 			err |= 1 << 4;
-		if (stride > (G2D_MAX_SIZE * Bpp))
+		if (stride > G2D_MAX_SIZE * byte_per_pix)
 			err |= 1 << 5;
 
 		if (err) {
@@ -1068,25 +1094,21 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 				  IS_AFBC(mode) ? "AFBC" : "UORDER");
 			return false;
 		}
-		if (dst &&
-			((width != right - left) || (height != bottom - top)))
+		if (dst && (width != (right - left) || height != (bottom - top)))
 			goto err_align;
 	}
 
 	if (IS_SBWC(mode)) {
-		int dep = IS_YUV_P10(mode, g2d_dev->caps &
-			G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
-		u32 offset = dst ? G2DSFR_DST_Y_HEADER_STRIDE :
-			G2DSFR_SRC_Y_HEADER_STRIDE;
+		int dep = IS_YUV_P10(mode, g2d_dev->caps & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
+		u32 offset = dst ? G2DSFR_DST_Y_HEADER_STRIDE : G2DSFR_SRC_Y_HEADER_STRIDE;
 		u32 hdr_strd = get_sbwc_stride_header(g2d_dev->caps, width);
-		u32 pld_strd = get_sbwc_stride_payload(g2d_dev->caps,
-						       width, dep);
+		u32 pld_strd = get_sbwc_stride_payload(g2d_dev->caps, width, dep);
 		int i;
 
 		/* Stride is in the order : header, payload, header, payload */
 		for (i = 0; i < 4; i += 2) {
-			if ((commands[offset + i].value != hdr_strd) ||
-			    (commands[offset + i + 1].value != pld_strd)) {
+			if (commands[offset + i].value != hdr_strd ||
+			    commands[offset + i + 1].value != pld_strd) {
 				perrfndev(g2d_dev,
 					  "Bad stride %u, %u for w %u mode %x",
 					  commands[offset + i].value,
@@ -1102,17 +1124,13 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev,
 			return false;
 		}
 
-		if (!IS_SBWC_WIDTH_ALIGNED(width) ||
-			!IS_SBWC_HEIGHT_ALIGNED(height)) {
+		if (!IS_SBWC_WIDTH_ALIGNED(width) || !IS_SBWC_HEIGHT_ALIGNED(height))
 			goto err_align;
-		}
-		if (dst &&
-			((width != right - left) || (height != bottom - top)))
+		if (dst && (width != (right - left) || height != (bottom - top)))
 			goto err_align;
 	}
 
-	if (IS_AFBC(mode) &&
-	    !is_afbc_aligned(width, height, dst, layer->flags, g2d_dev->caps))
+	if (IS_AFBC(mode) && !is_afbc_aligned(width, height, dst, layer->flags, g2d_dev->caps))
 		goto err_align;
 
 	if (!dst) {
@@ -1155,10 +1173,8 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 		return false;
 	}
 
-	if (((source->flags & G2D_LAYERFLAG_COLORFILL) != 0) &&
-							!IS_RGB(colormode)) {
-		perrfndev(g2d_dev,
-			  "Image type should be RGB for Solid color layer:");
+	if ((source->flags & G2D_LAYERFLAG_COLORFILL) != 0 && !IS_RGB(colormode)) {
+		perrfndev(g2d_dev, "Image type should be RGB for Solid color layer:");
 		perrdev(g2d_dev, "\tindex: %d, flags %#x, colormode: %#010x",
 			i, source->flags, colormode);
 		return false;
@@ -1173,10 +1189,10 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 	}
 
 	if (!g2d_validate_image_dimension(g2d_dev, width, height,
-				source->commands[G2DSFR_SRC_DSTLEFT].value,
-				source->commands[G2DSFR_SRC_DSTTOP].value,
-				source->commands[G2DSFR_SRC_DSTRIGHT].value,
-				source->commands[G2DSFR_SRC_DSTBOTTOM].value)) {
+					  source->commands[G2DSFR_SRC_DSTLEFT].value,
+					  source->commands[G2DSFR_SRC_DSTTOP].value,
+					  source->commands[G2DSFR_SRC_DSTRIGHT].value,
+					  source->commands[G2DSFR_SRC_DSTBOTTOM].value)) {
 		perrfndev(g2d_dev, "Window of source[%d] floods the target", i);
 		return false;
 	}
@@ -1231,10 +1247,9 @@ static bool g2d_validate_extra_command(struct g2d_device *g2d_dev,
 	unsigned int n;
 
 	for (n = 0; n < num_regs; n++) {
-		if ((extra[n].offset < extra_valid_range[0]) ||
-			(extra[n].offset >= extra_valid_range[1])) {
-			perrfndev(g2d_dev, "wrong offset %#x @ extra cmd[%d]",
-				  extra[n].offset, n);
+		if (extra[n].offset < extra_valid_range[0] ||
+		    extra[n].offset >= extra_valid_range[1]) {
+			perrfndev(g2d_dev, "wrong offset %#x @ extra cmd[%d]", extra[n].offset, n);
 			return false;
 		}
 	}
@@ -1311,7 +1326,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return -EFAULT;
 	}
 	copied = g2d_copy_commands(g2d_dev, -1, cmdaddr, tgtcmds,
-				target_command_checker, G2DSFR_DST_FIELD_COUNT);
+				   target_command_checker, G2DSFR_DST_FIELD_COUNT);
 	if (copied < 0)
 		return -EINVAL;
 
@@ -1329,7 +1344,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 		}
 
 		copied = g2d_copy_commands(g2d_dev, i, cmdaddr, srccmds,
-				source_command_checker, G2DSFR_SRC_FIELD_COUNT);
+					   source_command_checker, G2DSFR_SRC_FIELD_COUNT);
 		if (copied < 0)
 			return -EINVAL;
 
@@ -1360,20 +1375,23 @@ static unsigned int g2d_set_yuv82_buffer(struct g2d_task *task,
 					 struct g2d_layer *layer, u32 colormode,
 					 u32 base)
 {
-	const struct g2d_fmt *fmt = g2d_find_format(colormode,
-						    task->g2d_dev->caps);
+	const struct g2d_fmt *fmt = g2d_find_format(colormode, task->g2d_dev->caps);
+	unsigned int nbufs = min_t(unsigned int, layer->num_buffers, fmt->num_planes);
 	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
 	unsigned char *offsets = src_base_reg_offset_yuv82;
 	unsigned int cmd_count = task->sec.cmd_count;
 	u32 width = layer_width(layer);
 	u32 height = layer_height(layer);
+	unsigned int i;
+
+	if (!fmt)
+		return 0;
 
 	reg[cmd_count].offset = BASE_REG_OFFSET(base, offsets, 0);
 	reg[cmd_count].value = layer->buffer[0].dma_addr;
 	cmd_count++;
 
-	if ((layer->num_buffers == 1) &&
-			!(layer->flags & G2D_LAYERFLAG_MFC_STRIDE)) {
+	if (layer->num_buffers == 1 && !(layer->flags & G2D_LAYERFLAG_MFC_STRIDE)) {
 		dma_addr_t addr = layer->buffer[0].dma_addr;
 		unsigned int i;
 		/* YCbCr semi-planar 8+2 in a single buffer */
@@ -1387,17 +1405,12 @@ static unsigned int g2d_set_yuv82_buffer(struct g2d_task *task,
 		}
 
 		return cmd_count;
-	} else {
-		unsigned int nbufs = min_t(unsigned int,
-					   layer->num_buffers, fmt->num_planes);
-		unsigned int i;
+	}
 
-		for (i = 0; i < nbufs; i++) {
-			if (!YUV82_BASE_ALIGNED(layer->buffer[i].dma_addr, i)) {
-				perrfndev(task->g2d_dev,
-					  "addr[%d] not aligned for YUV8+2", i);
-				return 0;
-			}
+	for (i = 0; i < nbufs; i++) {
+		if (!YUV82_BASE_ALIGNED(layer->buffer[i].dma_addr, i)) {
+			perrfndev(task->g2d_dev, "addr[%d] not aligned for YUV8+2", i);
+			return 0;
 		}
 	}
 
@@ -1428,8 +1441,7 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 					 struct g2d_layer *layer, u32 colormode,
 					 u32 base)
 {
-	const struct g2d_fmt *fmt = g2d_find_format(colormode,
-						    task->g2d_dev->caps);
+	const struct g2d_fmt *fmt = g2d_find_format(colormode, task->g2d_dev->caps);
 	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
 	unsigned int cmd_count = task->sec.cmd_count;
 	unsigned char *offsets = (base == TARGET_OFFSET) ?
@@ -1437,6 +1449,9 @@ static unsigned int g2d_set_image_buffer(struct g2d_task *task,
 	u32 width = layer_width(layer);
 	u32 height = layer_height(layer);
 	unsigned int i;
+
+	if (!fmt)
+		return 0;
 
 	if (!IS_ALIGNED(layer->buffer[0].dma_addr, 4)) {
 		perrfndev(task->g2d_dev, "Plane 0 address isn't aligned by 4.");
@@ -1574,11 +1589,11 @@ static unsigned int g2d_set_afbc_buffer(struct g2d_task *task,
 	unsigned long caps = task->g2d_dev->caps;
 
 	if (caps_has_afbcv12(caps))
-		align = AFBCv12_ALIGN_LEN;
+		align = AFBCV12_ALIGN_LEN;
 	else if ((base_offset == TARGET_OFFSET) || caps_has_align64(caps))
-		align = AFBCv1_ALIGN_LEN;
+		align = AFBCV1_ALIGN_LEN;
 	else
-		align = AFBCv1_ALIGN_LEN_SRC;
+		align = AFBCV1_ALIGN_LEN_SRC;
 
 	if (!IS_ALIGNED(layer->buffer[0].dma_addr, align)) {
 		perrfndev(task->g2d_dev, "AFBC base %#llx is not aligned by %u",
@@ -1610,8 +1625,7 @@ static bool g2d_prepare_layer(struct g2d_task *task, struct g2d_layer *layer,
 		cmd_count = g2d_set_afbc_buffer(task, layer, base);
 	else if (IS_SBWC(colormode))
 		cmd_count = g2d_set_sbwc_buffer(task, layer, colormode, base);
-	else if (IS_YUV_82(colormode,
-		 task->g2d_dev->caps & G2D_DEVICE_CAPS_YUV_BITDEPTH))
+	else if (IS_YUV_82(colormode, task->g2d_dev->caps & G2D_DEVICE_CAPS_YUV_BITDEPTH))
 		cmd_count = g2d_set_yuv82_buffer(task, layer, colormode, base);
 	else
 		cmd_count = g2d_set_image_buffer(task, layer, colormode, base);

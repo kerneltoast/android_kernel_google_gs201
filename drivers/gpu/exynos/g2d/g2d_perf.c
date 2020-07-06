@@ -146,19 +146,17 @@ void g2d_update_performance(struct g2d_device *g2d_dev)
 	list_for_each_entry(ctx, &g2d_dev->qos_contexts, qos_node) {
 		qos.rbw = max_t(u64, ctx->ctxqos.rbw, qos.rbw);
 		qos.wbw = max_t(u64, ctx->ctxqos.wbw, qos.wbw);
-		qos.devfreq = max_t(u32, ctx->ctxqos.devfreq,
-				       qos.devfreq);
+		qos.devfreq = max_t(u32, ctx->ctxqos.devfreq, qos.devfreq);
 	}
 
 	/* Update maximum performance among contexts */
 	g2d_dev->qos = qos;
 
 	/* Find task to need more than current performance */
-	for (task = g2d_dev->tasks; task != NULL; task = task->next) {
+	for (task = g2d_dev->tasks; task; task = task->next) {
 		qos.rbw = max_t(u64, task->taskqos.rbw, qos.rbw);
 		qos.wbw = max_t(u64, task->taskqos.wbw, qos.wbw);
-		qos.devfreq = max_t(u32, task->taskqos.devfreq,
-				       qos.devfreq);
+		qos.devfreq = max_t(u32, task->taskqos.devfreq, qos.devfreq);
 	}
 
 	if (!qos.devfreq)

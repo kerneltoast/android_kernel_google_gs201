@@ -19,7 +19,7 @@ extern unsigned int g2d_debug;
 
 #define g2d_print(level, fmt, args...)					\
 do {									\
-	if (g2d_debug & (1 << level))					\
+	if (g2d_debug & (1 << (level)))					\
 		pr_info(fmt, ##args);					\
 } while (0)
 

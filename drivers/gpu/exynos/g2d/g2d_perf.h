@@ -59,6 +59,7 @@ struct bts_bw {
 	unsigned int read;
 	unsigned int write;
 };
+
 #define g2d_update_bw(bw) do { } while (0)
 #endif
 

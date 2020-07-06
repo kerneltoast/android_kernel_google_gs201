@@ -23,7 +23,7 @@
 #define buferr_show(dev, i, payload, w, h, b, name, len)		       \
 perrfndev(dev,								       \
 	  "Too small buffer[%d]: expected %u for %ux%u(bt%u)/%s but %u given", \
-	  i, payload,w, h, b, name, len)
+	  i, payload, w, h, b, name, len)
 
 static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 			      struct g2d_layer *layer,
@@ -35,8 +35,8 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 	int i;
 
 	fmt = g2d_find_format(cmd[G2DSFR_IMG_COLORMODE].value, g2d_dev->caps);
-
-	BUG_ON(!fmt);
+	if (!fmt)
+		return -EINVAL;
 
 	if (data->num_buffers == 0) {
 		perrfndev(g2d_dev, "Invalid number of buffer %u for %s",
@@ -44,9 +44,9 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 		return -EINVAL;
 	}
 
-	if ((data->num_buffers > 1) && (data->num_buffers != fmt->num_planes)) {
+	if (data->num_buffers > 1 && data->num_buffers != fmt->num_planes) {
 		/* NV12 8+2 in two buffers is valid */
-		if ((fmt->num_planes != 4) || (data->num_buffers != 2)) {
+		if (fmt->num_planes != 4 || data->num_buffers != 2) {
 			perrfndev(g2d_dev, "Invalid number of buffer %u for %s",
 				  data->num_buffers, fmt->name);
 			return -EINVAL;
@@ -55,9 +55,8 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 
 	if (data->num_buffers > 1) {
 		for (i = 0; i < data->num_buffers; i++) {
-			payload = (unsigned int)g2d_get_payload_index(
-						cmd, fmt, i, data->num_buffers,
-						g2d_dev->caps, layer->flags);
+			payload = g2d_get_payload_index(cmd, fmt, i, data->num_buffers,
+							g2d_dev->caps, layer->flags);
 			if (data->buffer[i].length < payload) {
 				buferr_show(g2d_dev, i, payload,
 					    cmd[G2DSFR_IMG_WIDTH].value,
@@ -106,6 +105,7 @@ static struct dma_buf *g2d_get_hwfc_dmabuf(struct g2d_context *ctx,
 	perrfndev(task->g2d_dev, "HWFC without repeater is not supported.\n");
 	return ERR_PTR(-EINVAL);
 }
+
 /* hwfc_get_valid_buffer is defined in the repeater driver */
 static int hwfc_get_valid_buffer(int *buf_idx)
 {
@@ -125,7 +125,7 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 	struct sg_table *sgt;
 	int ret = -EINVAL;
 
-	if (!IS_HWFC(task->flags) || (dir == DMA_TO_DEVICE)) {
+	if (!IS_HWFC(task->flags) || dir == DMA_TO_DEVICE) {
 		dmabuf = dma_buf_get(data->dmabuf.fd);
 		if (IS_ERR(dmabuf)) {
 			perrfndev(g2d_dev, "Failed to get dmabuf from fd %d",
@@ -282,19 +282,17 @@ static int g2d_put_userptr(struct g2d_device *g2d_dev,
 	return 0;
 }
 
-static int g2d_get_buffer(struct g2d_device *g2d_dev,
-				struct g2d_context *ctx,
-				struct g2d_layer *layer,
-				struct g2d_layer_data *data,
-				enum dma_data_direction dir)
+static int g2d_get_buffer(struct g2d_device *g2d_dev, struct g2d_context *ctx,
+			  struct g2d_layer *layer, struct g2d_layer_data *data,
+			  enum dma_data_direction dir)
 {
 	int ret = 0;
 	unsigned int i;
-	int (*get_func)(struct g2d_task *, struct g2d_context *,
-			struct g2d_buffer *, struct g2d_buffer_data *,
-			enum dma_data_direction);
-	int (*put_func)(struct g2d_device *, struct g2d_buffer *,
-			enum dma_data_direction);
+	int (*get_func)(struct g2d_task *task, struct g2d_context *ctx,
+			struct g2d_buffer *buf, struct g2d_buffer_data *data,
+			enum dma_data_direction dir);
+	int (*put_func)(struct g2d_device *dev, struct g2d_buffer *buf,
+			enum dma_data_direction dir);
 
 	if (layer->buffer_type == G2D_BUFTYPE_DMABUF) {
 		get_func = g2d_get_dmabuf;
@@ -303,12 +301,12 @@ static int g2d_get_buffer(struct g2d_device *g2d_dev,
 		get_func = g2d_get_userptr;
 		put_func = g2d_put_userptr;
 	} else {
-		BUG();
+		perrfndev(g2d_dev, "invalid buffer type %u specified", layer->buffer_type);
+		return -EINVAL;
 	}
 
 	for (i = 0; i < layer->num_buffers; i++) {
-		ret = get_func(layer->task, ctx, &layer->buffer[i],
-			       &data->buffer[i], dir);
+		ret = get_func(layer->task, ctx, &layer->buffer[i], &data->buffer[i], dir);
 		if (ret) {
 			while (i-- > 0)
 				put_func(g2d_dev, &layer->buffer[i], dir);
@@ -321,13 +319,12 @@ static int g2d_get_buffer(struct g2d_device *g2d_dev,
 	return 0;
 }
 
-static void g2d_put_buffer(struct g2d_device *g2d_dev,
-			u32 buffer_type, struct g2d_buffer buffer[],
-			unsigned int num_buffer, enum dma_data_direction dir)
+static void g2d_put_buffer(struct g2d_device *g2d_dev, u32 buffer_type, struct g2d_buffer buffer[],
+			   unsigned int num_buffer, enum dma_data_direction dir)
 {
 	unsigned int i;
-	int (*put_func)(struct g2d_device *, struct g2d_buffer *,
-			enum dma_data_direction);
+	int (*put_func)(struct g2d_device *dev, struct g2d_buffer *buf,
+			enum dma_data_direction dir);
 
 	switch (buffer_type) {
 	case G2D_BUFTYPE_DMABUF:
@@ -336,10 +333,10 @@ static void g2d_put_buffer(struct g2d_device *g2d_dev,
 	case G2D_BUFTYPE_USERPTR:
 		put_func = g2d_put_userptr;
 		break;
-	case G2D_BUFTYPE_EMPTY:
-		return;
 	default:
-		BUG();
+		if (buffer_type != G2D_BUFTYPE_EMPTY)
+			perrfndev(g2d_dev, "Unexpected buftype %d is ignored", buffer_type);
+		return;
 	}
 
 	for (i = 0; i < num_buffer; i++)
@@ -349,8 +346,7 @@ static void g2d_put_buffer(struct g2d_device *g2d_dev,
 static void g2d_put_image(struct g2d_device *g2d_dev, struct g2d_layer *layer,
 			  enum dma_data_direction dir)
 {
-	g2d_put_buffer(g2d_dev, layer->buffer_type,
-			layer->buffer, layer->num_buffers, dir);
+	g2d_put_buffer(g2d_dev, layer->buffer_type, layer->buffer, layer->num_buffers, dir);
 
 	if (layer->fence)
 		dma_fence_remove_callback(layer->fence, &layer->fence_cb);
@@ -378,8 +374,7 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return -EINVAL;
 	}
 
-	if (!g2d_validate_source_commands(
-			g2d_dev, task, index, layer, &task->target))
+	if (!g2d_validate_source_commands(g2d_dev, task, index, layer, &task->target))
 		return -EINVAL;
 
 	/* color fill has no buffer */
@@ -397,7 +392,7 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 		return -EINVAL;
 	}
 
-	if ((index == 0) && (IS_HWFC(task->flags) || IS_DST_SBWC(task))) {
+	if (index == 0 && (IS_HWFC(task->flags) || IS_DST_SBWC(task))) {
 		perrfndev(g2d_dev, "Layer0 can be used as a constant layer %s",
 			  IS_HWFC(task->flags) ? "HWFC" : "SBWC for encoding");
 		return -EINVAL;
@@ -409,8 +404,7 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 
 	layer->fence = g2d_get_acquire_fence(g2d_dev, layer, data->fence);
 	if (IS_ERR(layer->fence)) {
-		perrfndev(g2d_dev, "Invalid fence fd %d on source[%d]",
-			  data->fence, index);
+		perrfndev(g2d_dev, "Invalid fence fd %d on source[%d]", data->fence, index);
 		return PTR_ERR(layer->fence);
 	}
 
@@ -446,15 +440,13 @@ static int g2d_get_sources(struct g2d_device *g2d_dev, struct g2d_task *task,
 		struct g2d_layer_data data;
 
 		if (copy_from_user(&data, src, sizeof(*src))) {
-			perrfndev(g2d_dev,
-				  "Failed to read source image data %d/%d",
+			perrfndev(g2d_dev, "Failed to read source image data %d/%d",
 				  i, task->num_source);
 			ret = -EFAULT;
 			break;
 		}
 
-		ret = g2d_get_source(g2d_dev, task,
-				     &task->source[i], &data, i);
+		ret = g2d_get_source(g2d_dev, task, &task->source[i], &data, i);
 		if (ret)
 			break;
 	}
@@ -507,18 +499,15 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 
 		ptask = task->g2d_dev->tasks;
 
-		while (ptask != NULL) {
+		while (ptask) {
 			if (ptask == task) {
 				ptask = ptask->next;
 				continue;
 			}
-			if ((g2d_task_id(task) == task->bufidx) &&
-					!is_task_state_idle(ptask)) {
-				perrfndev(g2d_dev, "The %d task is not idle",
-					  task->bufidx);
+			if ((g2d_task_id(task) == task->bufidx) && !is_task_state_idle(ptask)) {
+				perrfndev(g2d_dev, "The %d task is not idle", task->bufidx);
 
-				spin_unlock_irqrestore(
-					&task->g2d_dev->lock_task, flags);
+				spin_unlock_irqrestore(&task->g2d_dev->lock_task, flags);
 
 				return -EINVAL;
 			}
@@ -579,7 +568,7 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 	return 0;
 err_prepare:
 	g2d_put_buffer(g2d_dev, target->buffer_type, target->buffer,
-				target->num_buffers, DMA_FROM_DEVICE);
+		       target->num_buffers, DMA_FROM_DEVICE);
 err_buffer:
 	if (target->fence)
 		dma_fence_remove_callback(target->fence, &target->fence_cb);
@@ -595,15 +584,13 @@ int g2d_get_userdata(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 	int ret;
 
 	/* invalid range check */
-	if ((data->num_source < 1) || (data->num_source > g2d_dev->max_layers)) {
-		perrfndev(g2d_dev, "Invalid number of source images %u",
-			  data->num_source);
+	if (data->num_source < 1 || data->num_source > g2d_dev->max_layers) {
+		perrfndev(g2d_dev, "Invalid number of source images %u", data->num_source);
 		return -EINVAL;
 	}
 
 	if (data->priority > G2D_MAX_PRIORITY) {
-		perrfndev(g2d_dev, "Invalid number of priority %u",
-			  data->priority);
+		perrfndev(g2d_dev, "Invalid number of priority %u", data->priority);
 		return -EINVAL;
 	}
 

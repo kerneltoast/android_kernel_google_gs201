@@ -27,8 +27,7 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 		if (!!(task->source[i].flags & G2D_LAYERFLAG_SECURE))
 			task->sec.secure_layer_mask |= 1 << i;
 
-	if (!!(task->target.flags & G2D_LAYERFLAG_SECURE) ||
-		!!(task->sec.secure_layer_mask))
+	if (!!(task->target.flags & G2D_LAYERFLAG_SECURE) || !!(task->sec.secure_layer_mask))
 		task->sec.secure_layer_mask |= 1 << 24;
 
 	dma_sync_single_for_device(g2d_dev->noncoherent_dev, virt_to_phys(&task->sec),
@@ -42,7 +41,6 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 			  g2d_task_id(task), task->sec.secure_layer_mask);
 
 		g2d_dump_info(g2d_dev, task);
-		BUG();
 	}
 }
 
@@ -73,24 +71,21 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 			state |= 1 << 24;
 
 		writel_relaxed(state,
-			       g2d_dev->reg +
-			       G2D_JOBn_LAYER_SECURE_REG(g2d_task_id(task)));
+			       g2d_dev->reg + G2D_JOB_N_LAYER_SECURE_REG(g2d_task_id(task)));
 	}
 
 	if (device_get_dma_attr(g2d_dev->dev) != DEV_DMA_COHERENT)
 		dma_sync_single_for_device(g2d_dev->dev, task->cmd_addr,
 					   G2D_CMD_LIST_SIZE, DMA_TO_DEVICE);
 
-	writel_relaxed(G2D_JOB_HEADER_DATA(task->sec.priority,
-					   g2d_task_id(task)),
-			g2d_dev->reg + G2D_JOB_HEADER_REG);
+	writel_relaxed(G2D_JOB_HEADER_DATA(task->sec.priority, g2d_task_id(task)),
+		       g2d_dev->reg + G2D_JOB_HEADER_REG);
 
 	writel_relaxed(G2D_ERR_INT_ENABLE, g2d_dev->reg + G2D_INTEN_REG);
 
 	writel_relaxed(task->cmd_addr, g2d_dev->reg + G2D_JOB_BASEADDR_REG);
 	writel_relaxed(task->sec.cmd_count, g2d_dev->reg + G2D_JOB_SFRNUM_REG);
-	writel_relaxed(1 << g2d_task_id(task),
-		       g2d_dev->reg + G2D_JOB_INT_ID_REG);
+	writel_relaxed(1 << g2d_task_id(task), g2d_dev->reg + G2D_JOB_INT_ID_REG);
 	writel(G2D_JOBPUSH_INT_ENABLE, g2d_dev->reg + G2D_JOB_PUSH_REG);
 }
 
@@ -103,8 +98,7 @@ bool g2d_hw_stuck_state(struct g2d_device *g2d_dev)
 
 	while (retry_count-- > 0) {
 		for (i = 0; i < G2D_MAX_JOBS; i++) {
-			val = readl_relaxed(
-				g2d_dev->reg + G2D_JOB_IDn_STATE_REG(i));
+			val = readl_relaxed(g2d_dev->reg + G2D_JOB_ID_N_STATE_REG(i));
 
 			val &= G2D_JOB_STATE_MASK;
 
@@ -137,7 +131,7 @@ u32 g2d_hw_errint_status(struct g2d_device *g2d_dev)
 	int idx;
 
 	/* IRQPEND_SCF should not be set because we don't use ABP mode */
-	BUG_ON((status & 0x1) == 1);
+	WARN((status & 0x1) == 1, "Unexpected interrupt status bit(0) in %#x", status);
 
 	errstatus >>= 16;
 	errstatus &= 0x7;
@@ -145,11 +139,9 @@ u32 g2d_hw_errint_status(struct g2d_device *g2d_dev)
 	if (errstatus == 0)
 		return 0;
 
-	for (idx = 0; idx < 3; idx++) {
+	for (idx = 0; idx < 3; idx++)
 		if (errstatus & (1 << idx))
-			perrdev(g2d_dev, "G2D ERROR INTERRUPT: %s",
-				error_desc[idx]);
-	}
+			perrdev(g2d_dev, "G2D ERROR INTERRUPT: %s", error_desc[idx]);
 
 	perrdev(g2d_dev, "G2D FIFO STATUS: %#x", g2d_hw_fifo_status(g2d_dev));
 
@@ -167,13 +159,13 @@ int g2d_hw_get_current_task(struct g2d_device *g2d_dev)
 	int i, val;
 
 	for (i = 0; i < G2D_MAX_JOBS; i++) {
-		val = readl_relaxed(g2d_dev->reg + G2D_JOB_IDn_STATE_REG(i));
+		val = readl_relaxed(g2d_dev->reg + G2D_JOB_ID_N_STATE_REG(i));
 		if ((val & G2D_JOB_STATE_MASK) == G2D_JOB_STATE_RUNNING)
 			return i;
 	}
 
 	for (i = 0; i < G2D_MAX_JOBS; i++) {
-		val = readl_relaxed(g2d_dev->reg + G2D_JOB_IDn_STATE_REG(i));
+		val = readl_relaxed(g2d_dev->reg + G2D_JOB_ID_N_STATE_REG(i));
 		perrdev(g2d_dev, "G2D TASK[%03d] STATE : %d", i, val);
 	}
 

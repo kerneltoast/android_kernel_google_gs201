@@ -51,6 +51,7 @@ enum {
 	G2D_STAMPTYPE_ALLOCFREE,
 	G2D_STAMPTYPE_FENCE,
 };
+
 static struct g2d_stamp_type {
 	const char *name;
 	int type;
@@ -152,7 +153,7 @@ static int g2d_debug_contexts_show(struct seq_file *s, void *unused)
 	struct g2d_context *ctx;
 
 	seq_printf(s, "%16s %6s %4s %6s %10s %10s %10s\n",
-		"task", "pid", "prio", "dev", "rbw", "wbw", "devfreq");
+		   "task", "pid", "prio", "dev", "rbw", "wbw", "devfreq");
 	seq_puts(s, "------------------------------------------------------\n");
 
 	spin_lock(&g2d_dev->lock_ctx_list);
@@ -160,10 +161,10 @@ static int g2d_debug_contexts_show(struct seq_file *s, void *unused)
 	list_for_each_entry(ctx, &g2d_dev->ctx_list, node) {
 		task_lock(ctx->owner);
 		seq_printf(s, "%16s %6u %4d %6s %10llu %10llu %10u\n",
-			ctx->owner->comm, ctx->owner->pid, ctx->priority,
-			g2d_dev->misc[(ctx->authority + 1) & 1].name,
-			ctx->ctxqos.rbw, ctx->ctxqos.wbw,
-			ctx->ctxqos.devfreq);
+			   ctx->owner->comm, ctx->owner->pid, ctx->priority,
+			   g2d_dev->misc[(ctx->authority + 1) & 1].name,
+			   ctx->ctxqos.rbw, ctx->ctxqos.wbw,
+			   ctx->ctxqos.devfreq);
 
 		task_unlock(ctx->owner);
 	}
@@ -236,31 +237,28 @@ void g2d_init_debug(struct g2d_device *g2d_dev)
 		return;
 	}
 
-	g2d_dev->debug = debugfs_create_u32("debug",
-					0644, g2d_dev->debug_root, &g2d_debug);
+	g2d_dev->debug = debugfs_create_u32("debug", 0644, g2d_dev->debug_root, &g2d_debug);
 	if (!g2d_dev->debug) {
 		perrdev(g2d_dev, "debugfs: failed to create debug file");
 		return;
 	}
 
-	g2d_dev->debug_logs = debugfs_create_file("logs",
-					0444, g2d_dev->debug_root, g2d_dev, &g2d_debug_logs_fops);
+	g2d_dev->debug_logs = debugfs_create_file("logs", 0444, g2d_dev->debug_root,
+						  g2d_dev, &g2d_debug_logs_fops);
 	if (!g2d_dev->debug_logs) {
 		perrdev(g2d_dev, "debugfs: failed to create logs file");
 		return;
 	}
 
-	g2d_dev->debug_contexts = debugfs_create_file("contexts",
-					0400, g2d_dev->debug_root, g2d_dev,
-					&g2d_debug_contexts_fops);
+	g2d_dev->debug_contexts = debugfs_create_file("contexts", 0400, g2d_dev->debug_root,
+						      g2d_dev, &g2d_debug_contexts_fops);
 	if (!g2d_dev->debug_logs) {
 		perrdev(g2d_dev, "debugfs: failed to create contexts file");
 		return;
 	}
 
-	g2d_dev->debug_tasks= debugfs_create_file("tasks",
-					0400, g2d_dev->debug_root, g2d_dev,
-					&g2d_debug_tasks_fops);
+	g2d_dev->debug_tasks = debugfs_create_file("tasks", 0400, g2d_dev->debug_root,
+						   g2d_dev, &g2d_debug_tasks_fops);
 	if (!g2d_dev->debug_logs) {
 		perrdev(g2d_dev, "debugfs: failed to create tasks file");
 		return;
@@ -296,7 +294,7 @@ static struct regs_info g2d_reg_info_hwfc = {0x8000, 0x100, "HW flow control"};
 
 static struct regs_info g2d_reg_info_dst = {0x120, 0xE0, "Destination"};
 
-#define LAYER_REG_INFO(n) { 0x200 + 0x100 * n, 0x100, "Layer" #n }
+#define LAYER_REG_INFO(n) { 0x200 + 0x100 * (n), 0x100, "Layer" #n }
 static struct regs_info g2d_reg_info_layer[] = {
 	LAYER_REG_INFO(0), LAYER_REG_INFO(1),
 	LAYER_REG_INFO(2), LAYER_REG_INFO(3),
@@ -310,38 +308,39 @@ static struct regs_info g2d_reg_info_layer[] = {
 
 static struct regs_info g2d_reg_info_hdr10p_ctrl = {0x3000, 8, "HDR_CONTROL"};
 
-#define HDR10P_INFO_OETF(n) \
-	{ 0x3000 + 0x800 * n + 8, 0x88, "L" #n "_MOD_CTRL+L" #n "_OETF" }
-#define HDR10P_INFO_EOTF(n) \
-	{ 0x3000 + 0x800 * n + 0x94, 0x308, "L" #n "_EOTF" }
-#define HDR10P_INFO_GM(n) \
-	{ 0x3000 + 0x800 * n + 0x39C, 0x30, "L" #n "_GM" }
-#define HDR10P_INFO_TM(n) \
-	{ 0x3000 + 0x800 * n + 0x3CC, 0xD4, "L" #n "_TM" }
+#define HDR10P_INFO_OETF(n) { 0x3000 + 0x800 * (n) + 8, 0x88, "L" #n "_MOD_CTRL+L" #n "_OETF" }
+#define HDR10P_INFO_EOTF(n) { 0x3000 + 0x800 * (n) + 0x94, 0x308, "L" #n "_EOTF" }
+#define HDR10P_INFO_GM(n)   { 0x3000 + 0x800 * (n) + 0x39C, 0x30, "L" #n "_GM" }
+#define HDR10P_INFO_TM(n)   { 0x3000 + 0x800 * (n) + 0x3CC, 0xD4, "L" #n "_TM" }
+
 static struct regs_info g2d_reg_info_hdr10p_oetf[] = {
 	HDR10P_INFO_OETF(0), HDR10P_INFO_OETF(1),
 	HDR10P_INFO_OETF(2), HDR10P_INFO_OETF(3)
 };
+
 static struct regs_info g2d_reg_info_hdr10p_eotf[] = {
 	HDR10P_INFO_EOTF(0), HDR10P_INFO_EOTF(1),
 	HDR10P_INFO_EOTF(2), HDR10P_INFO_EOTF(3)
 };
+
 static struct regs_info g2d_reg_info_hdr10p_gm[] = {
 	HDR10P_INFO_GM(0), HDR10P_INFO_GM(1),
 	HDR10P_INFO_GM(2), HDR10P_INFO_GM(3)
 };
+
 static struct regs_info g2d_reg_info_hdr10p_tm[] = {
 	HDR10P_INFO_TM(0), HDR10P_INFO_TM(1),
 	HDR10P_INFO_TM(2), HDR10P_INFO_TM(3)
 };
 
-#define FILTER_REG_INFO_H(n) { 0x6000 + n * 0x200, 0x90, "FILTER" #n "_HCOEF" }
-#define FILTER_REG_INFO_V(n) \
-	{ 0x6000 + n * 0x200 + 0x90, 0x120, "FILTER" #n "_VCOEF" }
+#define FILTER_REG_INFO_H(n) { 0x6000 + (n) * 0x200, 0x90, "FILTER" #n "_HCOEF" }
+#define FILTER_REG_INFO_V(n) { 0x6000 + (n) * 0x200 + 0x90, 0x120, "FILTER" #n "_VCOEF" }
+
 static struct regs_info g2d_reg_info_filter_h[] = {
 	FILTER_REG_INFO_H(0), FILTER_REG_INFO_H(1),
 	FILTER_REG_INFO_H(2), FILTER_REG_INFO_H(3)
 };
+
 static struct regs_info g2d_reg_info_filter_v[] = {
 	FILTER_REG_INFO_V(0), FILTER_REG_INFO_V(1),
 	FILTER_REG_INFO_V(2), FILTER_REG_INFO_V(3)
@@ -360,13 +359,10 @@ void g2d_dump_afbcdata(struct g2d_device *g2d_dev)
 
 	for (cluster = 0; cluster < 2; cluster++) {
 		for (i = 0; i < G2D_COMP_DEBUG_DATA_COUNT; i++) {
-			writel_relaxed(i | cluster << 5,
-				g2d_dev->reg + G2D_COMP_DEBUG_ADDR_REG);
-			cfg = readl_relaxed(
-				g2d_dev->reg + G2D_COMP_DEBUG_DATA_REG);
+			writel_relaxed(i | cluster << 5, g2d_dev->reg + G2D_COMP_DEBUG_ADDR_REG);
+			cfg = readl_relaxed(g2d_dev->reg + G2D_COMP_DEBUG_DATA_REG);
 
-			pr_err("AFBC_DEBUGGING_DATA cluster%d [%d] %#x",
-				cluster, i, cfg);
+			pr_err("AFBC_DEBUGGING_DATA cluster%d [%d] %#x", cluster, i, cfg);
 		}
 	}
 }
@@ -395,17 +391,14 @@ static void g2d_dump_common_sfr(struct g2d_device *g2d_dev,
 	unsigned int nr_layer = task ? task->num_source : g2d_dev->max_layers;
 	unsigned int i;
 
-	__g2d_dump_sfr(g2d_dev->reg, g2d_reg_info_common,
-			ARRAY_SIZE(g2d_reg_info_common));
-
+	__g2d_dump_sfr(g2d_dev->reg, g2d_reg_info_common, ARRAY_SIZE(g2d_reg_info_common));
 	__g2d_dump_sfr(g2d_dev->reg, &g2d_reg_info_dst, 1);
 
 	for (i = 0; i < nr_layer; i++) {
 		struct regs_info *info = &g2d_reg_info_layer[i];
 		unsigned int val;
 
-		g2d_dump_sfr_entry(info->name, g2d_dev->reg,
-				     info->start, info->size);
+		g2d_dump_sfr_entry(info->name, g2d_dev->reg, info->start, info->size);
 
 		if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_POLYFILTER)) {
 			val = readl_relaxed(g2d_dev->reg + info->start + 0x48);
@@ -482,8 +475,7 @@ void g2d_dump_sfr(struct g2d_device *g2d_dev, struct g2d_task *task)
 		__g2d_dump_sfr(g2d_dev->reg, &g2d_reg_info_hwfc, 1);
 
 	if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_HDR10))
-		__g2d_dump_sfr(g2d_dev->reg, g2d_reg_info_hdr10,
-				ARRAY_SIZE(g2d_reg_info_hdr10));
+		__g2d_dump_sfr(g2d_dev->reg, g2d_reg_info_hdr10, ARRAY_SIZE(g2d_reg_info_hdr10));
 
 	if (!!(g2d_dev->caps & G2D_DEVICE_CAPS_HDR10PLUS))
 		__g2d_dump_hdr10p(g2d_dev->reg, hdrmap);
@@ -607,7 +599,7 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 
 	/* LLWFD latency measure */
 	/* media/exynos_tsmux.h includes below functions */
-	if (task != NULL && IS_HWFC(task->flags)) {
+	if (task && IS_HWFC(task->flags)) {
 		if (stampid == G2D_STAMP_STATE_PUSH)
 			g2d_blending_start(g2d_task_id(task));
 		if (stampid == G2D_STAMP_STATE_DONE)

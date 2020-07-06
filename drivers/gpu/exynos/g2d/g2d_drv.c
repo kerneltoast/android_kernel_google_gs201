@@ -27,8 +27,7 @@
 
 #define MODULE_NAME "exynos-g2d"
 
-static int g2d_update_priority(struct g2d_context *ctx,
-					    enum g2d_priority priority)
+static int g2d_update_priority(struct g2d_context *ctx, enum g2d_priority priority)
 {
 	struct g2d_device *g2d_dev = ctx->g2d_dev;
 	struct g2d_task *task;
@@ -47,9 +46,8 @@ static int g2d_update_priority(struct g2d_context *ctx,
 	 */
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
-	for (task = g2d_dev->tasks; task != NULL; task = task->next) {
-		if (!is_task_state_idle(task) &&
-		    (task->sec.priority < priority)) {
+	for (task = g2d_dev->tasks; task; task = task->next) {
+		if (!is_task_state_idle(task) && task->sec.priority < priority) {
 			spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 			return -EBUSY;
 		}
@@ -82,7 +80,7 @@ void g2d_hw_timeout_handler(struct timer_list *arg)
 	 * It might be just finished by interrupt.
 	 * Or, it will be processed in the interrupt handler.
 	 */
-	if (!is_task_state_active(task) || (state == G2D_JOB_STATE_DONE)) {
+	if (!is_task_state_active(task) || state == G2D_JOB_STATE_DONE) {
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
 		return;
@@ -100,8 +98,6 @@ void g2d_hw_timeout_handler(struct timer_list *arg)
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
 	wake_up(&g2d_dev->freeze_wait);
-
-	return;
 }
 
 #if !IS_ENABLED(CONFIG_VIDEO_EXYNOS_REPEATER)
@@ -119,7 +115,7 @@ int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	/* record the time between user request and H/W push */
 	g2d_stamp_task(task, G2D_STAMP_STATE_PUSH,
-		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
+		       (int)ktime_us_delta(task->ktime_end, task->ktime_begin));
 
 	task->ktime_begin = ktime_get();
 
@@ -144,19 +140,15 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 	errstatus = g2d_hw_errint_status(g2d_dev);
 	if (errstatus != 0) {
 		int job_id = g2d_hw_get_current_task(g2d_dev);
-		struct g2d_task *task =
-				g2d_get_active_task_from_id(g2d_dev, job_id);
+		struct g2d_task *task = g2d_get_active_task_from_id(g2d_dev, job_id);
 		bool ret;
 
 		if (job_id < 0)
 			perrdev(g2d_dev, "No task is running in HW");
-		else if (task == NULL)
-			perrfndev(g2d_dev, "Current job %d in HW is not active",
-				  job_id);
+		else if (!task)
+			perrfndev(g2d_dev, "Current job %d in HW is not active", job_id);
 		else
-			perrfndev(g2d_dev,
-				  "Error occurred during running job %d",
-				  job_id);
+			perrfndev(g2d_dev, "Error occurred during running job %d", job_id);
 
 		g2d_stamp_task(task, G2D_STAMP_STATE_ERR_INT, errstatus);
 
@@ -385,8 +377,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		if (ret) {
 			if (ctx->authority == G2D_AUTHORITY_HIGHUSER)
-				perrfndev(g2d_dev,
-					  "prio %d/%d found higher than %d", i,
+				perrfndev(g2d_dev, "prio %d/%d found higher than %d", i,
 					  atomic_read(&g2d_dev->prior_stats[i]),
 					  ctx->priority);
 			break;
@@ -428,7 +419,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = g2d_get_userdata(g2d_dev, ctx, task, &data);
 		if (ret < 0) {
 			/* release hwfc buffer */
-			if (IS_HWFC(task->flags) && (task->bufidx >= 0))
+			if (IS_HWFC(task->flags) && task->bufidx >= 0)
 				hwfc_set_valid_buffer(task->bufidx, -1);
 			g2d_put_free_task(g2d_dev, task);
 			break;
@@ -460,7 +451,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		if ((data < G2D_LOW_PRIORITY) || (data >= G2D_PRIORITY_END)) {
+		if (data < G2D_LOW_PRIORITY || data >= G2D_PRIORITY_END) {
 			perrfndev(g2d_dev, "Wrong priority %u", data);
 			ret = -EINVAL;
 			break;
@@ -609,8 +600,7 @@ static int g2d_compat_get_layerdata(struct g2d_layer_data __user *img,
 	return ret ? -EFAULT : 0;
 }
 
-static long g2d_compat_ioctl(struct file *filp,
-			     unsigned int cmd, unsigned long arg)
+static long g2d_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct g2d_context *ctx = filp->private_data;
 	struct g2d_task_data __user *data;
@@ -636,8 +626,7 @@ static long g2d_compat_ioctl(struct file *filp,
 		if (!filp->f_op->unlocked_ioctl)
 			return -ENOTTY;
 
-		return filp->f_op->unlocked_ioctl(filp, cmd,
-						(unsigned long)compat_ptr(arg));
+		return filp->f_op->unlocked_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
 	default:
 		perrfndev(ctx->g2d_dev, "unknown ioctl command %#x", cmd);
 		return -EINVAL;
@@ -690,8 +679,7 @@ static long g2d_compat_ioctl(struct file *filp,
 	get_user(cptr, &ccmd->target);
 	alloc_size += sizeof(__u32) * G2DSFR_DST_FIELD_COUNT;
 	ptr = compat_alloc_user_space(alloc_size);
-	ret = copy_in_user(ptr, compat_ptr(cptr),
-			   sizeof(__u32) * G2DSFR_DST_FIELD_COUNT);
+	ret = copy_in_user(ptr, compat_ptr(cptr), sizeof(__u32) * G2DSFR_DST_FIELD_COUNT);
 	ret |= put_user(ptr, &command->target);
 	if (ret) {
 		perrfndev(ctx->g2d_dev, "failed to read target command data");
@@ -702,8 +690,7 @@ static long g2d_compat_ioctl(struct file *filp,
 		get_user(cptr, &ccmd->source[w]);
 		alloc_size += sizeof(__u32) * G2DSFR_SRC_FIELD_COUNT;
 		ptr = compat_alloc_user_space(alloc_size);
-		ret = copy_in_user(ptr, compat_ptr(cptr),
-				sizeof(__u32) * G2DSFR_SRC_FIELD_COUNT);
+		ret = copy_in_user(ptr, compat_ptr(cptr), sizeof(__u32) * G2DSFR_SRC_FIELD_COUNT);
 		ret |= put_user(ptr, &command->source[w]);
 		if (ret) {
 			perrfndev(ctx->g2d_dev,
@@ -719,8 +706,7 @@ static long g2d_compat_ioctl(struct file *filp,
 	get_user(cptr, &ccmd->extra);
 	alloc_size += sizeof(*extra) * w;
 	extra = compat_alloc_user_space(alloc_size);
-	ret |= copy_in_user(extra, compat_ptr(cptr),
-				sizeof(*extra) * w);
+	ret |= copy_in_user(extra, compat_ptr(cptr), sizeof(*extra) * w);
 	ret |= put_user(extra, &command->extra);
 	if (ret) {
 		perrfndev(ctx->g2d_dev, "failed to read extra command data");
@@ -735,8 +721,7 @@ static long g2d_compat_ioctl(struct file *filp,
 	ret |= put_user(w, &cdata->laptime_in_usec);
 
 	get_user(cptr, &cdata->release_fences);
-	ret |= copy_in_user(compat_ptr(cptr), fences,
-					sizeof(__s32) * num_release_fences);
+	ret |= copy_in_user(compat_ptr(cptr), fences, sizeof(__s32) * num_release_fences);
 	if (ret)
 		perrfndev(ctx->g2d_dev, "failed to write userdata");
 
@@ -801,36 +786,29 @@ static int g2d_parse_dt(struct g2d_device *g2d_dev)
 	struct device *dev = g2d_dev->dev;
 	int len;
 
-	if (of_property_read_u32_array(dev->of_node, "hw_ppc",
-			(u32 *)g2d_dev->hw_ppc,
-			(size_t)(ARRAY_SIZE(g2d_dev->hw_ppc)))) {
+	if (of_property_read_u32_array(dev->of_node, "hw_ppc", (u32 *)g2d_dev->hw_ppc,
+				       (size_t)(ARRAY_SIZE(g2d_dev->hw_ppc)))) {
 		perrdev(g2d_dev, "Failed to parse device tree for hw ppc");
-
-		memcpy(g2d_dev->hw_ppc, g2d_default_ppc,
-			sizeof(g2d_default_ppc[0]) * PPC_END);
+		memcpy(g2d_dev->hw_ppc, g2d_default_ppc, sizeof(g2d_default_ppc[0]) * PPC_END);
 	}
 
 	len = of_property_count_u32_elems(dev->of_node, "g2d_dvfs_table");
-	if (len < 0)
+	if (len <= 0)
 		g2d_dev->dvfs_table_cnt = ARRAY_SIZE(g2d_default_dvfs_table);
 	else
 		g2d_dev->dvfs_table_cnt = len / 2;
 
-	g2d_dev->dvfs_table = devm_kzalloc(dev,
-				sizeof(struct g2d_dvfs_table) *
-				g2d_dev->dvfs_table_cnt,
-				GFP_KERNEL);
+	g2d_dev->dvfs_table = devm_kcalloc(dev, g2d_dev->dvfs_table_cnt,
+					   sizeof(struct g2d_dvfs_table), GFP_KERNEL);
 	if (!g2d_dev->dvfs_table)
 		return -ENOMEM;
 
-	if (len < 0) {
+	if (len < 0)
 		memcpy(g2d_dev->dvfs_table, g2d_default_dvfs_table,
-			sizeof(struct g2d_dvfs_table) *
-			g2d_dev->dvfs_table_cnt);
-	} else {
+		       sizeof(struct g2d_dvfs_table) * g2d_dev->dvfs_table_cnt);
+	else
 		of_property_read_u32_array(dev->of_node, "g2d_dvfs_table",
-				(unsigned int *)g2d_dev->dvfs_table, len);
-	}
+					   (unsigned int *)g2d_dev->dvfs_table, len);
 
 	if (of_property_read_u32(dev->of_node, "dvfs_int", &g2d_dev->dvfs_int))
 		g2d_dev->dvfs_int = 0;
@@ -867,8 +845,7 @@ bool g2d_itmon_check(struct g2d_device *g2d_dev, char *str_itmon, char *str_attr
 	return false;
 }
 
-int g2d_itmon_notifier(struct notifier_block *nb,
-		unsigned long action, void *nb_data)
+int g2d_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb_data)
 {
 	struct g2d_device *g2d_dev = container_of(nb, struct g2d_device, itmon_nb);
 	struct itmon_notifier *itmon_info = nb_data;
