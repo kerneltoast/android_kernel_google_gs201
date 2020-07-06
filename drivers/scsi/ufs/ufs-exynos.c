@@ -35,11 +35,11 @@
 				__func__, (h)->h_state, (h)->c_state)
 
 /* phy context retention control */
-#define UNIP_PA_DBG_OPTION_SUITE_1	0x956A
+#define UNIP_PA_DBG_OPTION_SUITE_1	0x39A8
 #define DBG_SUITE1_ENABLE		0x90913C1C
 #define DBG_SUITE1_DISABLE		0x98913C1C
 
-#define UNIP_PA_DBG_OPTION_SUITE_2	0x956D
+#define UNIP_PA_DBG_OPTION_SUITE_2	0x39B4
 #define DBG_SUITE2_ENABLE		0xE01C115F
 #define DBG_SUITE2_DISABLE		0xE01C195F
 
