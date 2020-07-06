@@ -40,11 +40,11 @@ void mfc_perf_boost_enable(struct mfc_dev *dev)
 
 	if (perf_boost_mode & MFC_PERF_BOOST_DVFS) {
 		if (pdata->mfc_freq_control)
-			pm_qos_add_request(&dev->qos_req_mfc, PM_QOS_MFC_THROUGHPUT,
+			exynos_pm_qos_add_request(&dev->qos_req_mfc, PM_QOS_MFC_THROUGHPUT,
 					qos_boost_table->freq_mfc);
-		pm_qos_add_request(&dev->qos_req_int, PM_QOS_DEVICE_THROUGHPUT,
+		exynos_pm_qos_add_request(&dev->qos_req_int, PM_QOS_DEVICE_THROUGHPUT,
 				qos_boost_table->freq_int);
-		pm_qos_add_request(&dev->qos_req_mif, PM_QOS_BUS_THROUGHPUT,
+		exynos_pm_qos_add_request(&dev->qos_req_mif, PM_QOS_BUS_THROUGHPUT,
 				qos_boost_table->freq_mif);
 		mfc_dev_debug(3, "[QoS][BOOST] DVFS mfc: %d, int:%d, mif:%d\n",
 				qos_boost_table->freq_mfc, qos_boost_table->freq_int,
@@ -69,7 +69,8 @@ void mfc_perf_boost_enable(struct mfc_dev *dev)
 
 	if (perf_boost_mode & MFC_PERF_BOOST_CPU) {
 		for (i = 0; i < qos_boost_table->num_cluster; i++) {
-			pm_qos_add_request(&dev->qos_req_cluster[i], PM_QOS_CLUSTER0_FREQ_MIN + (i * 2),
+			exynos_pm_qos_add_request(&dev->qos_req_cluster[i],
+					PM_QOS_CLUSTER0_FREQ_MIN + (i * 2),
 					qos_boost_table->freq_cluster[i]);
 			mfc_dev_debug(3, "[QoS][BOOST] CPU cluster[%d]: %d\n",
 					i, qos_boost_table->freq_cluster[i]);
@@ -84,9 +85,9 @@ void mfc_perf_boost_disable(struct mfc_dev *dev)
 
 	if (perf_boost_mode & MFC_PERF_BOOST_DVFS) {
 		if (pdata->mfc_freq_control)
-			pm_qos_remove_request(&dev->qos_req_mfc);
-		pm_qos_remove_request(&dev->qos_req_int);
-		pm_qos_remove_request(&dev->qos_req_mif);
+			exynos_pm_qos_remove_request(&dev->qos_req_mfc);
+		exynos_pm_qos_remove_request(&dev->qos_req_int);
+		exynos_pm_qos_remove_request(&dev->qos_req_mif);
 		mfc_dev_debug(3, "[QoS][BOOST] DVFS off\n");
 	}
 
@@ -108,7 +109,7 @@ void mfc_perf_boost_disable(struct mfc_dev *dev)
 
 	if (perf_boost_mode & MFC_PERF_BOOST_CPU) {
 		for (i = 0; i < pdata->qos_boost_table->num_cluster; i++) {
-			pm_qos_remove_request(&dev->qos_req_cluster[i]);
+			exynos_pm_qos_remove_request(&dev->qos_req_cluster[i]);
 			mfc_dev_debug(3, "[QoS][BOOST] CPU cluster[%d] off\n",
 								i);
 		}
@@ -137,13 +138,13 @@ static void __mfc_qos_operate(struct mfc_dev *dev, int opr_type,
 		}
 
 		if (pdata->mfc_freq_control)
-			pm_qos_add_request(&dev->qos_req_mfc,
+			exynos_pm_qos_add_request(&dev->qos_req_mfc,
 					PM_QOS_MFC_THROUGHPUT,
 					freq_mfc);
-		pm_qos_add_request(&dev->qos_req_int,
+		exynos_pm_qos_add_request(&dev->qos_req_int,
 				PM_QOS_DEVICE_THROUGHPUT,
 				qos_table[idx].freq_int);
-		pm_qos_add_request(&dev->qos_req_mif,
+		exynos_pm_qos_add_request(&dev->qos_req_mif,
 				PM_QOS_BUS_THROUGHPUT,
 				qos_table[idx].freq_mif);
 
@@ -197,10 +198,10 @@ static void __mfc_qos_operate(struct mfc_dev *dev, int opr_type,
 		}
 
 		if (pdata->mfc_freq_control)
-			pm_qos_update_request(&dev->qos_req_mfc, freq_mfc);
-		pm_qos_update_request(&dev->qos_req_int,
+			exynos_pm_qos_update_request(&dev->qos_req_mfc, freq_mfc);
+		exynos_pm_qos_update_request(&dev->qos_req_int,
 				qos_table[idx].freq_int);
-		pm_qos_update_request(&dev->qos_req_mif,
+		exynos_pm_qos_update_request(&dev->qos_req_mif,
 				qos_table[idx].freq_mif);
 
 #ifdef MFC_USE_BTS
@@ -254,9 +255,9 @@ static void __mfc_qos_operate(struct mfc_dev *dev, int opr_type,
 		}
 
 		if (pdata->mfc_freq_control)
-			pm_qos_remove_request(&dev->qos_req_mfc);
-		pm_qos_remove_request(&dev->qos_req_int);
-		pm_qos_remove_request(&dev->qos_req_mif);
+			exynos_pm_qos_remove_request(&dev->qos_req_mfc);
+		exynos_pm_qos_remove_request(&dev->qos_req_int);
+		exynos_pm_qos_remove_request(&dev->qos_req_mif);
 
 #ifdef MFC_USE_BTS
 		if (pdata->mo_control) {
