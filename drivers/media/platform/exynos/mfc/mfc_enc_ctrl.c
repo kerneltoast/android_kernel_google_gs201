@@ -714,8 +714,8 @@ static int mfc_enc_get_buf_update_val(struct mfc_ctx *ctx,
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (buf_ctrl->id == id) {
 			buf_ctrl->val = value;
-			mfc_debug(6, "[CTRLS] Update buffer control id: 0x%08x, val: %d\n",
-					buf_ctrl->id, buf_ctrl->val);
+			mfc_debug(6, "[CTRLS] Update buffer control id: 0x%08x, val: %d (%#x)\n",
+					buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 			break;
 		}
 	}
@@ -1272,8 +1272,8 @@ static int mfc_enc_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 
 		__mfc_enc_set_buf_ctrls_exception(ctx, buf_ctrl);
 
-		mfc_debug(6, "[CTRLS] Set buffer control id: 0x%08x, val: %d\n",
-				buf_ctrl->id, buf_ctrl->val);
+		mfc_debug(6, "[CTRLS] Set buffer control id: 0x%08x, val: %d (%#x)\n",
+				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
 
 	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp) {
@@ -1308,8 +1308,8 @@ static int mfc_enc_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 		buf_ctrl->val = value;
 		buf_ctrl->has_new = 1;
 
-		mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d\n",
-				buf_ctrl->id, buf_ctrl->val);
+		mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d (%#x)\n",
+				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
 
 	return 0;
@@ -1324,8 +1324,8 @@ static int mfc_enc_get_buf_ctrl_val_by_id(struct mfc_ctx *ctx,
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (buf_ctrl->id == id) {
 			value = buf_ctrl->val;
-			mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d\n",
-					buf_ctrl->id, value);
+			mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d (%#x)\n",
+					buf_ctrl->id, value, value);
 			break;
 		}
 	}
@@ -1598,8 +1598,8 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 		buf_ctrl->has_new = 0;
 		buf_ctrl->updated = 1;
 
-		mfc_debug(6, "[NALQ][CTRLS] Set buffer control id: 0x%08x, val: %d\n",
-				buf_ctrl->id, buf_ctrl->val);
+		mfc_debug(6, "[NALQ][CTRLS] Set buffer control id: 0x%08x, val: %d (%#x)\n",
+				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
 
 	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp) {
@@ -1650,8 +1650,8 @@ static int mfc_enc_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 		buf_ctrl->val = value;
 		buf_ctrl->has_new = 1;
 
-		mfc_debug(6, "[NALQ][CTRLS] Get buffer control id: 0x%08x, val: %d\n",
-				buf_ctrl->id, buf_ctrl->val);
+		mfc_debug(6, "[NALQ][CTRLS] Get buffer control id: 0x%08x, val: %d (%#x)\n",
+				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
 
 	mfc_debug_leave();
@@ -1689,8 +1689,8 @@ static int mfc_enc_recover_buf_ctrls_val(struct mfc_ctx *ctx,
 			MFC_WRITEL(value, buf_ctrl->flag_addr);
 		}
 
-		mfc_debug(6, "[CTRLS] Recover buffer control id: 0x%08x, old val: %d\n",
-				buf_ctrl->id, buf_ctrl->old_val);
+		mfc_debug(6, "[CTRLS] Recover buffer control id: 0x%08x, old val: %d (%#x)\n",
+				buf_ctrl->id, buf_ctrl->old_val, buf_ctrl->old_val);
 
 		if (buf_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH) {
 			value = MFC_READL(MFC_REG_E_GOP_CONFIG2);
@@ -1757,8 +1757,8 @@ static int mfc_enc_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx,
 		buf_ctrl->has_new = 1;
 		buf_ctrl->updated = 0;
 
-		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
-				buf_ctrl->id, buf_ctrl->val);
+		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d (%#x)\n",
+				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
 
 	return 0;

@@ -2007,7 +2007,8 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	int ret = 0;
 	int found = 0;
 
-	mfc_debug(5, "[CTRLS] id: %#x, value: %d\n", ctrl->id, ctrl->value);
+	mfc_debug(5, "[CTRLS] id: %#x, value: %d (%#x)\n",
+			ctrl->id, ctrl->value, ctrl->value);
 
 	/* update parameter value */
 	ret = __mfc_enc_set_param(ctx, ctrl);

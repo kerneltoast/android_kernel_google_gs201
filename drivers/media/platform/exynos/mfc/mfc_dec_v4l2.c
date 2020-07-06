@@ -1273,7 +1273,8 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	mfc_debug(5, "[CTRLS] set id: %#x, value: %d\n", ctrl->id, ctrl->value);
+	mfc_debug(5, "[CTRLS] set id: %#x, value: %d (%#x)\n",
+			ctrl->id, ctrl->value, ctrl->value);
 
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:
