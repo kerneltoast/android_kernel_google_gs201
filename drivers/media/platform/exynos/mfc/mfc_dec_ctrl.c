@@ -18,7 +18,7 @@
 
 struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 	{
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -362,7 +362,7 @@ struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_mode = MFC_CTRL_MODE_NONE,
 	},
 	{	/* buffer additional information */
-		.type = MFC_CTRL_TYPE_DST | MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_DST,
 		.id = V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_NONE,
@@ -573,6 +573,7 @@ static int mfc_dec_to_buf_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 			if (buf_ctrl->id == ctx_ctrl->id) {
 				buf_ctrl->has_new = 1;
 				buf_ctrl->val = ctx_ctrl->set.val;
+
 				if (buf_ctrl->is_volatile)
 					buf_ctrl->updated = 0;
 

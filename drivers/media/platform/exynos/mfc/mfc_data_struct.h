@@ -187,7 +187,8 @@ enum mfc_buf_process_type {
 enum mfc_ctrl_type {
 	MFC_CTRL_TYPE_GET_SRC	= 0x1,
 	MFC_CTRL_TYPE_GET_DST	= 0x2,
-	MFC_CTRL_TYPE_SET	= 0x4,
+	MFC_CTRL_TYPE_SET_SRC	= 0x4,
+	MFC_CTRL_TYPE_SET_DST	= 0x8,
 };
 
 enum mfc_ctrl_mode {

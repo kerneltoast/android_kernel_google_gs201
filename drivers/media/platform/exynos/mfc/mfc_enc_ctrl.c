@@ -35,7 +35,7 @@ static int __mfc_enc_ctrl_read_cst(struct mfc_ctx *ctx,
 
 static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 	{	/* set frame tag */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -83,7 +83,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* I, not coded frame insertion */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_FORCE_FRAME_TYPE,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -95,7 +95,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* I period change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -107,7 +107,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* frame rate change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE_CH,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -119,7 +119,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 1,
 	},
 	{	/* bit rate change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC51_VIDEO_BIT_RATE_CH,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -145,7 +145,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.write_cst = NULL,
 	},
 	{	/* H.264 I frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_MAX_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -157,7 +157,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.264 I frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_MIN_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -169,7 +169,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.263 I frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H263_MAX_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -181,7 +181,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.263 I frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H263_MIN_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -193,7 +193,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* MPEG4 I frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -205,7 +205,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* MPEG4 I frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_MPEG4_MIN_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -217,7 +217,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* VP8 I frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP8_MAX_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -229,7 +229,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* VP8 I frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP8_MIN_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -241,7 +241,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* VP9 I frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP9_MAX_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -253,7 +253,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* VP9 I frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP9_MIN_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -265,7 +265,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* HEVC I frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -277,7 +277,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* HEVC I frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -289,7 +289,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.264 P frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_MAX_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -301,7 +301,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.264 P frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_MIN_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -313,7 +313,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.263 P frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H263_MAX_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -325,7 +325,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.263 P frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H263_MIN_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -337,7 +337,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* MPEG4 P frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -349,7 +349,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* MPEG4 P frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_MPEG4_MIN_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -361,7 +361,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* VP8 P frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP8_MAX_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -373,7 +373,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* VP8 P frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP8_MIN_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -385,7 +385,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* VP9 P frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP9_MAX_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -397,7 +397,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* VP9 P frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP9_MIN_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -409,7 +409,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* HEVC P frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -421,7 +421,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* HEVC P frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP_P,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -433,7 +433,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.264 B frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_MAX_QP_B,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -445,7 +445,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.264 B frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_MIN_QP_B,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -457,7 +457,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* MPEG4 B frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP_B,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -469,7 +469,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* MPEG4 B frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_MPEG4_MIN_QP_B,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -481,7 +481,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* HEVC B frame QP Max change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP_B,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -493,7 +493,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* HEVC B frame QP Min change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP_B,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -505,7 +505,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 4,
 	},
 	{	/* H.264 Dynamic Temporal Layer & bitrate change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER_CH,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -517,7 +517,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 10,
 	},
 	{	/* HEVC Dynamic Temporal Layer & bitrate change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -529,7 +529,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 10,
 	},
 	{	/* VP8 Dynamic Temporal Layer change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP8_HIERARCHICAL_CODING_LAYER_CH,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -541,7 +541,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 10,
 	},
 	{	/* VP9 Dynamic Temporal Layer change */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_VP9_HIERARCHICAL_CODING_LAYER_CH,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -553,7 +553,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 10,
 	},
 	{	/* set level */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_LEVEL,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -565,7 +565,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 5,
 	},
 	{	/* set profile */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_H264_PROFILE,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -577,7 +577,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 5,
 	},
 	{	/* set store LTR */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC_H264_MARK_LTR,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -589,7 +589,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* set use LTR */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC_H264_USE_LTR,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -601,7 +601,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* set base layer priority */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC_H264_BASE_PRIORITY,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -613,7 +613,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 12,
 	},
 	{	/* set QP per each frame */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_MFC_CONFIG_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -625,7 +625,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* Region-Of-Interest control */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_ROI_CONTROL,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -637,7 +637,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* set YSUM for weighted prediction */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_YSUM,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -649,7 +649,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 0,
 	},
 	{	/* set base layer priority */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_RATIO_OF_INTRA,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -661,7 +661,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_shft = 13,
 	},
 	{	/* sync the timestamp for drop control */
-		.type = MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_SET_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_DROP_CONTROL,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
@@ -680,7 +680,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_mode = MFC_CTRL_MODE_NONE,
 	},
 	{	/* buffer additional information */
-		.type = MFC_CTRL_TYPE_DST | MFC_CTRL_TYPE_SET,
+		.type = MFC_CTRL_TYPE_DST,
 		.id = V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_NONE,
