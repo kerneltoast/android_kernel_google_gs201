@@ -1283,13 +1283,18 @@ struct mfc_enc_params {
 	} codec;
 };
 
+struct mfc_ctx_ctrl_val {
+	int has_new;
+	int val;
+};
+
 struct mfc_ctx_ctrl {
 	struct list_head list;
 	enum mfc_ctrl_type type;
 	unsigned int id;
 	unsigned int addr;
-	int has_new;
-	int val;
+	struct mfc_ctx_ctrl_val set;
+	struct mfc_ctx_ctrl_val get;
 };
 
 struct mfc_buf_ctrl {

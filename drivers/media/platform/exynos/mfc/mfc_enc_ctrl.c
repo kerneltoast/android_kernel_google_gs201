@@ -680,7 +680,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_mode = MFC_CTRL_MODE_NONE,
 	},
 	{	/* buffer additional information */
-		.type = MFC_CTRL_TYPE_DST,
+		.type = MFC_CTRL_TYPE_DST | MFC_CTRL_TYPE_SET,
 		.id = V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_NONE,
@@ -739,8 +739,10 @@ static int mfc_enc_init_ctx_ctrls(struct mfc_ctx *ctx)
 
 		ctx_ctrl->type = mfc_ctrl_list[i].type;
 		ctx_ctrl->id = mfc_ctrl_list[i].id;
-		ctx_ctrl->has_new = 0;
-		ctx_ctrl->val = 0;
+		ctx_ctrl->set.has_new = 0;
+		ctx_ctrl->set.val = 0;
+		ctx_ctrl->get.has_new = 0;
+		ctx_ctrl->get.val = 0;
 
 		list_add_tail(&ctx_ctrl->list, &ctx->ctrls);
 	}
@@ -920,7 +922,8 @@ static int mfc_enc_to_buf_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 	struct mfc_buf_ctrl *buf_ctrl;
 
 	list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
-		if (!(ctx_ctrl->type & MFC_CTRL_TYPE_SET) || !ctx_ctrl->has_new)
+		if (!(ctx_ctrl->type & MFC_CTRL_TYPE_SET) ||
+					!ctx_ctrl->set.has_new)
 			continue;
 
 		list_for_each_entry(buf_ctrl, head, list) {
@@ -929,11 +932,11 @@ static int mfc_enc_to_buf_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 
 			if (buf_ctrl->id == ctx_ctrl->id) {
 				buf_ctrl->has_new = 1;
-				buf_ctrl->val = ctx_ctrl->val;
+				buf_ctrl->val = ctx_ctrl->set.val;
 				if (buf_ctrl->is_volatile)
 					buf_ctrl->updated = 0;
 
-				ctx_ctrl->has_new = 0;
+				ctx_ctrl->set.has_new = 0;
 				if (buf_ctrl->id ==
 						V4L2_CID_MPEG_VIDEO_ROI_CONTROL)
 					__mfc_enc_set_roi(ctx, buf_ctrl);
@@ -959,14 +962,14 @@ static int mfc_enc_to_ctx_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 				continue;
 
 			if (ctx_ctrl->id == buf_ctrl->id) {
-				if (ctx_ctrl->has_new)
+				if (ctx_ctrl->get.has_new)
 					mfc_debug(8,
 					"Overwrite context control "
 					"value id: 0x%08x, val: %d\n",
-						ctx_ctrl->id, ctx_ctrl->val);
+						ctx_ctrl->id, ctx_ctrl->get.val);
 
-				ctx_ctrl->has_new = 1;
-				ctx_ctrl->val = buf_ctrl->val;
+				ctx_ctrl->get.has_new = 1;
+				ctx_ctrl->get.val = buf_ctrl->val;
 
 				buf_ctrl->has_new = 0;
 			}

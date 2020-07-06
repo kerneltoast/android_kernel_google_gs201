@@ -1216,9 +1216,9 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 				continue;
 
 			if (ctx_ctrl->id == ctrl->id) {
-				if (ctx_ctrl->has_new) {
-					ctx_ctrl->has_new = 0;
-					ctrl->value = ctx_ctrl->val;
+				if (ctx_ctrl->get.has_new) {
+					ctx_ctrl->get.has_new = 0;
+					ctrl->value = ctx_ctrl->get.val;
 				} else {
 					mfc_debug(5, "[CTRLS] Control value "
 							"is not up to date: "
@@ -1348,8 +1348,8 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 				continue;
 
 			if (ctx_ctrl->id == ctrl->id) {
-				ctx_ctrl->has_new = 1;
-				ctx_ctrl->val = ctrl->value;
+				ctx_ctrl->set.has_new = 1;
+				ctx_ctrl->set.val = ctrl->value;
 
 				found = 1;
 				break;

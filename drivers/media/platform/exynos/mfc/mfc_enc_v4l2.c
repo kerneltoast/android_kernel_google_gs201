@@ -1094,9 +1094,9 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 				continue;
 
 			if (ctx_ctrl->id == ctrl->id) {
-				if (ctx_ctrl->has_new) {
-					ctx_ctrl->has_new = 0;
-					ctrl->value = ctx_ctrl->val;
+				if (ctx_ctrl->get.has_new) {
+					ctx_ctrl->get.has_new = 0;
+					ctrl->value = ctx_ctrl->get.val;
 					found = 1;
 					break;
 				}
@@ -2074,8 +2074,8 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 				continue;
 
 			if (ctx_ctrl->id == ctrl->id) {
-				ctx_ctrl->has_new = 1;
-				ctx_ctrl->val = ctrl->value;
+				ctx_ctrl->set.has_new = 1;
+				ctx_ctrl->set.val = ctrl->value;
 				if ((ctx_ctrl->id == \
 					V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER_CH) ||
 					(ctx_ctrl->id == \
@@ -2096,17 +2096,21 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH &&
 						p->i_frm_ctrl_mode) {
-					ctx_ctrl->val = ctx_ctrl->val * (p->num_b_frame + 1);
-					if (ctx_ctrl->val >= 0x3FFFFFFF) {
+					ctx_ctrl->set.val = ctx_ctrl->set.val *
+						(p->num_b_frame + 1);
+					if (ctx_ctrl->set.val >= 0x3FFFFFFF) {
 						mfc_ctx_info("I frame interval is bigger than max: %d\n",
-								ctx_ctrl->val);
-						ctx_ctrl->val = 0x3FFFFFFF;
+								ctx_ctrl->set.val);
+						ctx_ctrl->set.val = 0x3FFFFFFF;
 					}
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_LEVEL)
-					ctx_ctrl->val = __mfc_enc_h264_level((enum v4l2_mpeg_video_h264_level)(ctrl->value));
+					ctx_ctrl->set.val = __mfc_enc_h264_level(
+						(enum v4l2_mpeg_video_h264_level)(ctrl->value));
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_PROFILE)
-					ctx_ctrl->val = __mfc_enc_h264_profile(ctx, (enum v4l2_mpeg_video_h264_profile)(ctrl->value));
+					ctx_ctrl->set.val = __mfc_enc_h264_profile(
+						ctx,
+						(enum v4l2_mpeg_video_h264_profile)(ctrl->value));
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
 					ret = __mfc_enc_get_roi(ctx,
 							ctrl->value);
