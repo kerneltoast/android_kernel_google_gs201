@@ -27,7 +27,6 @@
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
 #include <soc/google/exynos_pm_qos.h>
 #endif
-#include <soc/samsung/exynos-itmon.h>
 
 struct g2d_task; /* defined in g2d_task.h */
 
