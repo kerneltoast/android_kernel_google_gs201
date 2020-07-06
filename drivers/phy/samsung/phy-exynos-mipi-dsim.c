@@ -21,7 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
-#include <soc/samsung/exynos-pmu.h>
+#include <soc/google/exynos-pmu-if.h>
 
 /* the maximum number of PHY for each module */
 #define EXYNOS_MIPI_PHYS_MASTER_NUM	4

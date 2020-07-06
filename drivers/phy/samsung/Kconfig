@@ -106,8 +106,6 @@ config PHY_EXYNOS5250_SATA
 
 config PHY_EXYNOS_MIPI_DSIM
 	tristate "Samsung EXYNOS SoC MIPI DSI D-PHY driver"
-	depends on HAS_IOMEM
-	depends on ARCH_EXYNOS && OF || COMPILE_TEST
 	select GENERIC_PHY
 	help
 	  Support for MIPI DSI DPHY found on Samsung
