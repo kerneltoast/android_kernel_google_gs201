@@ -190,15 +190,6 @@ static int mfc_enc_querycap(struct file *file, void *priv,
 {
 	strncpy(cap->driver, "MFC", sizeof(cap->driver) - 1);
 	strncpy(cap->card, "encoder", sizeof(cap->card) - 1);
-	cap->bus_info[0] = 0;
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
-			| V4L2_CAP_VIDEO_OUTPUT
-			| V4L2_CAP_VIDEO_CAPTURE_MPLANE
-			| V4L2_CAP_VIDEO_OUTPUT_MPLANE
-			| V4L2_CAP_STREAMING
-			| V4L2_CAP_DEVICE_CAPS;
-
-	cap->capabilities = cap->device_caps;
 
 	return 0;
 }

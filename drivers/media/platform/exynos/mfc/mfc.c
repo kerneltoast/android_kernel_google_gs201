@@ -1231,7 +1231,11 @@ static struct video_device *__mfc_video_device_register(struct mfc_dev *dev,
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->vfl_dir = VFL_DIR_M2M;
 	set_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags);
-	vfd->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
+	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE
+			| V4L2_CAP_VIDEO_OUTPUT
+			| V4L2_CAP_VIDEO_CAPTURE_MPLANE
+			| V4L2_CAP_VIDEO_OUTPUT_MPLANE
+			| V4L2_CAP_STREAMING;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s%d", vfd->name, dev->id);
 
