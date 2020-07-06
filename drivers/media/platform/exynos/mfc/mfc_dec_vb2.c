@@ -47,7 +47,8 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 		if (*buf_count > MFC_MAX_BUFFERS)
 			*buf_count = MFC_MAX_BUFFERS;
 
-		/* psize used to min length in vb2 */
+		/* need to use minimum size to prevent qbuf fail */
+		psize[0] = 1;
 		alloc_devs[0] = dev->device;
 	/* Video capture for decoding (destination)
 	 * this can be set after the header was parsed */
