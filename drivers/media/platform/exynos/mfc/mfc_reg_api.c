@@ -618,7 +618,7 @@ void mfc_set_pixel_format(struct mfc_ctx *ctx, unsigned int format)
 	unsigned int compress = 0;
 	unsigned int afbc = 0;
 
-	if (dev->pdata->P010_decoding && !ctx->is_drm)
+	if (dev->pdata->P010_decoding)
 		ctx->mem_type_10bit = 1;
 
 	switch (format) {

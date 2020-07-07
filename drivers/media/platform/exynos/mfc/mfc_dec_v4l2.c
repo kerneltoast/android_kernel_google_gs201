@@ -187,8 +187,6 @@ static void __mfc_dec_change_format_10bit_422(struct mfc_ctx *ctx,
 	struct mfc_dev *dev = ctx->dev;
 
 	switch (org_fmt) {
-	case V4L2_PIX_FMT_NV16M_S10B:
-	case V4L2_PIX_FMT_NV61M_S10B:
 	case V4L2_PIX_FMT_NV16M_P210:
 	case V4L2_PIX_FMT_NV61M_P210:
 		/* It is right format */
@@ -197,6 +195,7 @@ static void __mfc_dec_change_format_10bit_422(struct mfc_ctx *ctx,
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV12M_S10B:
 	case V4L2_PIX_FMT_NV12M_P010:
+	case V4L2_PIX_FMT_NV16M_S10B:
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
 	case V4L2_PIX_FMT_NV12M_SBWC_10B:
 		if (dev->pdata->P010_decoding)
@@ -210,6 +209,7 @@ static void __mfc_dec_change_format_10bit_422(struct mfc_ctx *ctx,
 	case V4L2_PIX_FMT_NV61M:
 	case V4L2_PIX_FMT_NV21M_S10B:
 	case V4L2_PIX_FMT_NV21M_P010:
+	case V4L2_PIX_FMT_NV61M_S10B:
 		if (dev->pdata->P010_decoding)
 			ctx->dst_fmt = __mfc_dec_find_format(ctx,
 					V4L2_PIX_FMT_NV61M_P210);
@@ -235,26 +235,13 @@ static void __mfc_dec_change_format_10bit(struct mfc_ctx *ctx,
 {
 	struct mfc_dev *dev = ctx->dev;
 
-	if (ctx->dst_fmt->mem_planes == 1) {
-		/* YUV420 only supports the single plane */
-		if (ctx->is_sbwc)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12N_SBWC_10B);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12N_10B);
-		ctx->raw_buf.num_planes = 2;
-		return;
-	}
-
 	switch (org_fmt) {
-	case V4L2_PIX_FMT_NV12M_S10B:
-	case V4L2_PIX_FMT_NV21M_S10B:
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV21M_P010:
 		/* It is right format */
 		break;
 	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV12M_S10B:
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV16M_S10B:
 	case V4L2_PIX_FMT_NV16M_P210:
@@ -266,11 +253,16 @@ static void __mfc_dec_change_format_10bit(struct mfc_ctx *ctx,
 					V4L2_PIX_FMT_NV12M_S10B);
 		break;
 	case V4L2_PIX_FMT_NV21M:
+	case V4L2_PIX_FMT_NV21M_S10B:
 	case V4L2_PIX_FMT_NV61M:
 	case V4L2_PIX_FMT_NV61M_S10B:
 	case V4L2_PIX_FMT_NV61M_P210:
-		ctx->dst_fmt = __mfc_dec_find_format(ctx,
-				V4L2_PIX_FMT_NV21M_S10B);
+		if (dev->pdata->P010_decoding)
+			ctx->dst_fmt = __mfc_dec_find_format(ctx,
+					V4L2_PIX_FMT_NV21M_P010);
+		else
+			ctx->dst_fmt = __mfc_dec_find_format(ctx,
+					V4L2_PIX_FMT_NV21M_S10B);
 		break;
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
 	case V4L2_PIX_FMT_NV12M_SBWC_10B:
