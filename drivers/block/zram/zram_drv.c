@@ -1505,14 +1505,35 @@ static int zram_bvec_rw(struct zram *zram, struct bio_vec *bvec, u32 index,
 	zram_accessed(zram, index);
 	zram_slot_unlock(zram, index);
 
-	if (unlikely(ret < 0)) {
-		if (!op_is_write(op))
-			atomic64_inc(&zram->stats.failed_reads);
-		else
-			atomic64_inc(&zram->stats.failed_writes);
-	}
-
 	return ret;
+}
+
+void zram_bio_endio(struct zram *zram, struct bio *bio, bool is_write, int err)
+{
+	if (unlikely(err < 0)) {
+		if (is_write)
+			atomic64_inc(&zram->stats.failed_writes);
+		else
+			atomic64_inc(&zram->stats.failed_reads);
+		bio_io_error(bio);
+	} else {
+		bio_endio(bio);
+	}
+}
+
+void zram_page_write_endio(struct zram *zram, struct page *page, int err)
+{
+	/*
+	 * XXX: Unfortunately, there is no way to call bio's end_io
+	 * in rw_page write case. To prevent reclaming swap page
+	 * reclaiming, it set page to dirty.
+	 */
+	if (unlikely(err)) {
+		atomic64_inc(&zram->stats.failed_writes);
+		if (!PageDirty(page))
+			SetPageDirty(page);
+	}
+	page_endio(page, true, err);
 }
 
 static void __zram_make_request(struct zram *zram, struct bio *bio)
@@ -1522,12 +1543,14 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 	unsigned long start_time;
+	int ret = 0;
+	const int op = bio_op(bio);
 
 	index = bio->bi_iter.bi_sector >> SECTORS_PER_PAGE_SHIFT;
 	offset = (bio->bi_iter.bi_sector &
 		  (SECTORS_PER_PAGE - 1)) << SECTOR_SHIFT;
 
-	switch (bio_op(bio)) {
+	switch (op) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_WRITE_ZEROES:
 		zram_bio_discard(zram, index, offset, bio);
@@ -1545,8 +1568,8 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 		do {
 			bv.bv_len = min_t(unsigned int, PAGE_SIZE - offset,
 							unwritten);
-			if (zram_bvec_rw(zram, &bv, index, offset,
-					 bio_op(bio), bio) < 0) {
+			ret = zram_bvec_rw(zram, &bv, index, offset, op, bio);
+			if (ret < 0) {
 				bio->bi_status = BLK_STS_IOERR;
 				break;
 			}
@@ -1558,7 +1581,7 @@ static void __zram_make_request(struct zram *zram, struct bio *bio)
 		} while (unwritten);
 	}
 	bio_end_io_acct(bio, start_time);
-	bio_endio(bio);
+	zram_bio_endio(zram, bio, op_is_write(op), ret);
 }
 
 /*
