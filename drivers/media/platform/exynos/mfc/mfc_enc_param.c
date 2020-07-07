@@ -63,6 +63,21 @@ void mfc_set_aso_slice_order_h264(struct mfc_ctx *ctx)
 	}
 }
 
+void mfc_set_enc_config_qp(struct mfc_ctx *ctx)
+{
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+	unsigned int reg = 0;
+
+	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp) {
+		reg = MFC_RAW_READL(MFC_REG_E_FIXED_PICTURE_QP);
+		reg &= ~(0xFF000000);
+		reg |= (enc->config_qp & 0xFF) << 24;
+		MFC_RAW_WRITEL(reg, MFC_REG_E_FIXED_PICTURE_QP);
+	}
+}
+
 static void __mfc_set_gop_size(struct mfc_ctx *ctx, int ctrl_mode)
 {
 	struct mfc_dev *dev = ctx->dev;
@@ -173,6 +188,9 @@ static void __mfc_set_enc_params(struct mfc_ctx *ctx)
 	}
 
 	mfc_set_slice_mode(ctx);
+
+	/* config qp */
+	enc->config_qp = p->config_qp;
 
 	/* cyclic intra refresh */
 	MFC_RAW_WRITEL(p->intra_refresh_mb, MFC_REG_E_IR_SIZE);

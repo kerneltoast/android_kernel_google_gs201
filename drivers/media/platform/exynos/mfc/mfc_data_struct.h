@@ -1580,6 +1580,8 @@ struct mfc_enc {
 	unsigned int in_slice;
 	unsigned int buf_full;
 
+	int config_qp;
+
 	int sbwc_option;
 	struct mfc_fmt *uncomp_fmt;
 

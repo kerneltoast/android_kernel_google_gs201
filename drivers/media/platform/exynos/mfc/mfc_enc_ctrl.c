@@ -1232,15 +1232,17 @@ static void __mfc_enc_set_buf_ctrls_exception(struct mfc_ctx *ctx,
 				USEC_PER_SEC / ctx->ts_last_interval,
 				p->rc_frame_delta, value);
 	}
+
+	/* store last config qp value in F/W */
+	if (buf_ctrl->id == V4L2_CID_MPEG_MFC_CONFIG_QP)
+		enc->config_qp = p->config_qp;
 }
 
 static int mfc_enc_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf_ctrl *buf_ctrl;
-	struct mfc_enc *enc = ctx->enc_priv;
 	unsigned int value = 0;
-	struct mfc_enc_params *p = &enc->params;
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET) || !buf_ctrl->has_new)
@@ -1274,15 +1276,6 @@ static int mfc_enc_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 
 		mfc_debug(6, "[CTRLS] Set buffer control id: 0x%08x, val: %d (%#x)\n",
 				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
-	}
-
-	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp) {
-		value = MFC_READL(MFC_REG_E_FIXED_PICTURE_QP);
-		value &= ~(0xFF000000);
-		value |= (p->config_qp & 0xFF) << 24;
-		MFC_WRITEL(value, MFC_REG_E_FIXED_PICTURE_QP);
-		mfc_debug(6, "[CTRLS] Dynamic QP changed %#x\n",
-				MFC_READL(MFC_REG_E_FIXED_PICTURE_QP));
 	}
 
 	return 0;
@@ -1549,6 +1542,7 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			pInStr->Weight &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			pInStr->Weight |=
 				(buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft;
+			enc->config_qp = p->config_qp;
 			break;
 		case V4L2_CID_MPEG_VIDEO_RATIO_OF_INTRA:
 			pInStr->RcMode &= ~(buf_ctrl->mask << buf_ctrl->shft);
@@ -1600,13 +1594,6 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 
 		mfc_debug(6, "[NALQ][CTRLS] Set buffer control id: 0x%08x, val: %d (%#x)\n",
 				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
-	}
-
-	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp) {
-		pInStr->FixedPictureQp &= ~(0xFF000000);
-		pInStr->FixedPictureQp |= (p->config_qp & 0xFF) << 24;
-		mfc_debug(6, "[NALQ][CTRLS] Dynamic QP changed %#x\n",
-				pInStr->FixedPictureQp);
 	}
 
 	mfc_debug_leave();

@@ -347,6 +347,7 @@ int mfc_set_enc_stream_buffer(struct mfc_ctx *ctx,
 void mfc_get_enc_frame_buffer(struct mfc_ctx *ctx,
 		dma_addr_t addr[], int num_planes);
 void mfc_set_enc_stride(struct mfc_ctx *ctx);
+void mfc_set_enc_config_qp(struct mfc_ctx *ctx);
 
 int mfc_set_dynamic_dpb(struct mfc_ctx *ctx, struct mfc_buf *dst_vb);
 

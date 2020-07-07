@@ -582,6 +582,20 @@ static void __mfc_nal_q_set_slice_mode(struct mfc_ctx *ctx, EncoderInputStr *pIn
 	}
 }
 
+static void __mfc_nal_q_set_enc_config_qp(struct mfc_ctx *ctx,
+		EncoderInputStr *pInStr)
+{
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+
+	if (!p->rc_frame && !p->rc_mb && p->dynamic_qp) {
+		pInStr->FixedPictureQp &= ~(0xFF000000);
+		pInStr->FixedPictureQp |= (enc->config_qp & 0xFF) << 24;
+		mfc_debug(6, "[NALQ][CTRLS] Dynamic QP changed %#x\n",
+				pInStr->FixedPictureQp);
+	}
+}
+
 static void __mfc_nal_q_get_hdr_plus_info(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr,
 		struct hdr10_plus_meta *sei_meta)
 {
@@ -964,6 +978,7 @@ static int __mfc_nal_q_run_in_buf_enc(struct mfc_ctx *ctx, EncoderInputStr *pInS
 			dst_mb->vb.vb2_buf.index);
 
 	__mfc_nal_q_set_slice_mode(ctx, pInStr);
+	__mfc_nal_q_set_enc_config_qp(ctx, pInStr);
 
 	mfc_debug_leave();
 
