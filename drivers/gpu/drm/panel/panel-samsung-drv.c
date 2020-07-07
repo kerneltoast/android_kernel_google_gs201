@@ -166,6 +166,24 @@ int exynos_panel_set_power(struct exynos_panel *ctx, bool on)
 	if (IS_ENABLED(CONFIG_BOARD_EMULATOR))
 		return 0;
 
+	if (!ctx->vddi) {
+		dev_dbg(ctx->dev, "trying to get vddi regulator\n");
+		ctx->vddi = devm_regulator_get(ctx->dev, "vddi");
+		if (IS_ERR(ctx->vddi)) {
+			dev_warn(ctx->dev, "failed to get vddi regulator\n");
+			ctx->vddi = NULL;
+		}
+	}
+
+	if (!ctx->vci) {
+		dev_dbg(ctx->dev, "trying to get vci regulator\n");
+		ctx->vci = devm_regulator_get(ctx->dev, "vci");
+		if (IS_ERR(ctx->vci)) {
+			dev_warn(ctx->dev, "failed to get vci regulator\n");
+			ctx->vci = NULL;
+		}
+	}
+
 	if (on) {
 		if (ctx->enable_gpio) {
 			gpiod_set_value(ctx->enable_gpio, 1);
