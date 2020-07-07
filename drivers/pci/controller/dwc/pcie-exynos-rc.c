@@ -80,7 +80,7 @@ void exynos_pcie_set_perst_gpio(int ch_num, bool on)
 		}
 	}
 }
-EXPORT_SYMBOL(exynos_pcie_set_perst_gpio);
+EXPORT_SYMBOL_GPL(exynos_pcie_set_perst_gpio);
 
 static ssize_t exynos_pcie_rc_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -776,7 +776,7 @@ int exynos_pcie_rc_set_outbound_atu(int ch_num, u32 target_addr, u32 offset, u32
 
 	return ret;
 }
-EXPORT_SYMBOL(exynos_pcie_rc_set_outbound_atu);
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_outbound_atu);
 
 static int exynos_pcie_rc_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus, u32 devfn,
 					int where, int size, u32 *val)
@@ -1457,7 +1457,7 @@ void exynos_pcie_rc_register_dump(int ch_num)
 	}
 	pr_err("\n");
 }
-EXPORT_SYMBOL(exynos_pcie_rc_register_dump);
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_register_dump);
 
 void exynos_pcie_rc_dump_link_down_status(int ch_num)
 {
@@ -2528,13 +2528,13 @@ void exynos_pcie_pm_suspend(int ch_num)
 
 	exynos_pcie_rc_poweroff(ch_num);
 }
-EXPORT_SYMBOL(exynos_pcie_pm_suspend);
+EXPORT_SYMBOL_GPL(exynos_pcie_pm_suspend);
 
 int exynos_pcie_pm_resume(int ch_num)
 {
 	return exynos_pcie_rc_poweron(ch_num);
 }
-EXPORT_SYMBOL(exynos_pcie_pm_resume);
+EXPORT_SYMBOL_GPL(exynos_pcie_pm_resume);
 
 /* get EP pci_dev structure of BUS */
 static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp)
@@ -2626,7 +2626,7 @@ int exynos_pcie_l1_exit(int ch_num)
 
 	return ret;
 }
-EXPORT_SYMBOL(exynos_pcie_l1_exit);
+EXPORT_SYMBOL_GPL(exynos_pcie_l1_exit);
 
 static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 {
@@ -2942,20 +2942,20 @@ int exynos_pcie_rc_l1ss_ctrl(int enable, int id, int ch_num)
 	else
 		return -EINVAL;
 }
-EXPORT_SYMBOL(exynos_pcie_rc_l1ss_ctrl);
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_l1ss_ctrl);
 
 /* to support CP driver */
 int exynos_pcie_poweron(int ch_num)
 {
 	return exynos_pcie_rc_poweron(ch_num);
 }
-EXPORT_SYMBOL(exynos_pcie_poweron);
+EXPORT_SYMBOL_GPL(exynos_pcie_poweron);
 
 void exynos_pcie_poweroff(int ch_num)
 {
 	return exynos_pcie_rc_poweroff(ch_num);
 }
-EXPORT_SYMBOL(exynos_pcie_poweroff);
+EXPORT_SYMBOL_GPL(exynos_pcie_poweroff);
 
 /*	to support WiFi driver
  *	exynos_pcie_l1ss_ctrl() function in pcie-exynos-host-v0.c & .h
@@ -2968,7 +2968,7 @@ int exynos_pcie_l1ss_ctrl(int enable, int id)
 	/* return exynos_pcie_rc_l1ss_ctrl(enable, id); */
 	return -EINVAL;
 }
-EXPORT_SYMBOL(exynos_pcie_l1ss_ctrl);
+EXPORT_SYMBOL_GPL(exynos_pcie_l1ss_ctrl);
 
 /* PCIe link status check function */
 int exynos_pcie_rc_chk_link_status(int ch_num)
@@ -3007,7 +3007,7 @@ int exynos_pcie_rc_chk_link_status(int ch_num)
 
 	return 0;
 }
-EXPORT_SYMBOL(exynos_pcie_rc_chk_link_status);
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_chk_link_status);
 
 /* LINK SPEED: check and change */
 int exynos_pcie_rc_check_link_speed(int ch_num)
@@ -3152,7 +3152,7 @@ int exynos_pcie_host_v1_register_event(struct exynos_pcie_register_event *reg)
 
 	return ret;
 }
-EXPORT_SYMBOL(exynos_pcie_host_v1_register_event);
+EXPORT_SYMBOL_GPL(exynos_pcie_host_v1_register_event);
 
 int exynos_pcie_host_v1_deregister_event(struct exynos_pcie_register_event *reg)
 {
@@ -3186,7 +3186,7 @@ int exynos_pcie_host_v1_deregister_event(struct exynos_pcie_register_event *reg)
 
 	return ret;
 }
-EXPORT_SYMBOL(exynos_pcie_host_v1_deregister_event);
+EXPORT_SYMBOL_GPL(exynos_pcie_host_v1_deregister_event);
 
 int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 {
@@ -3207,7 +3207,7 @@ int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 
 	return 0;
 }
-EXPORT_SYMBOL(exynos_pcie_rc_set_affinity);
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_affinity);
 
 #ifdef CONFIG_CPU_IDLE
 static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct pcie_port *pp, int max)

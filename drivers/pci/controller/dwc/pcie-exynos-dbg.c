@@ -6,6 +6,7 @@
  *		http://www.samsung.com
  */
 
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -319,6 +320,7 @@ int exynos_pcie_dbg_unit_test(struct device *dev, struct exynos_pcie *exynos_pci
 done:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(exynos_pcie_dbg_unit_test);
 
 int exynos_pcie_dbg_link_test(struct device *dev, struct exynos_pcie *exynos_pcie, int enable)
 {
@@ -377,3 +379,4 @@ int exynos_pcie_dbg_link_test(struct device *dev, struct exynos_pcie *exynos_pci
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(exynos_pcie_dbg_link_test);

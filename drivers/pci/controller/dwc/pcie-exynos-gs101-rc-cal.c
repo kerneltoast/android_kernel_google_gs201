@@ -385,6 +385,7 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	val = readl(exynos_pcie->phy_pcs_base + 0x8);
 	val2 = readl(exynos_pcie->phy_pcs_base + 0x808);
 }
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_pcie_phy_config);
 
 int exynos_pcie_rc_eom(struct device *dev, void *phy_base_regs)
 {
@@ -539,6 +540,7 @@ void exynos_pcie_rc_phy_init(struct pcie_port *pp)
 	exynos_pcie->phy_ops.phy_config = exynos_pcie_rc_pcie_phy_config;
 	exynos_pcie->phy_ops.phy_eom = exynos_pcie_rc_eom;
 }
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_phy_init);
 
 static void exynos_pcie_quirks(struct pci_dev *dev)
 {
