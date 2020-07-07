@@ -14,6 +14,10 @@
 #include <linux/ion.h>
 #include <linux/dma-buf.h>
 
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+#include <../../../../staging/android/ion/exynos/ion_exynos_prot.h>
+#endif
+
 #include "mfc_mem.h"
 
 struct vb2_mem_ops *mfc_mem_ops(void)
@@ -65,6 +69,29 @@ void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,
 	handle->fd = -1;
 }
 
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+static unsigned int mfc_mem_ion_get_heapmask_by_name(struct mfc_dev *dev,
+		const char *heap_name)
+{
+	struct ion_heap_data data[ION_NUM_MAX_HEAPS];
+	int i, cnt = ion_query_heaps_kernel(NULL, 0);
+
+	ion_query_heaps_kernel((struct ion_heap_data *)data, cnt);
+
+	for (i = 0; i < cnt; i++) {
+		if (!strncmp(data[i].name, heap_name, MAX_HEAP_NAME))
+			break;
+	}
+
+	if (i == cnt) {
+		mfc_dev_err("heap %s is not found\n", heap_name);
+		return 0;
+	}
+
+	return 1 << data[i].heap_id;
+}
+#endif
+
 int mfc_mem_ion_alloc(struct mfc_dev *dev,
 		struct mfc_special_buf *special_buf)
 {
@@ -84,11 +111,17 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	case MFCBUF_DRM:
 		heapname = "vframe_heap";
-		heapmask = ION_HEAP_SYSTEM;
+		heapmask = mfc_mem_ion_get_heapmask_by_name(dev, heapname);
+		if (!heapmask)
+			return -EINVAL;
+		flag |= ION_EXYNOS_FLAG_PROTECTED;
 		break;
 	case MFCBUF_DRM_FW:
 		heapname = "vfw_heap";
-		heapmask = ION_HEAP_SYSTEM;
+		heapmask = mfc_mem_ion_get_heapmask_by_name(dev, heapname);
+		if (!heapmask)
+			return -EINVAL;
+		flag |= ION_EXYNOS_FLAG_PROTECTED;
 		break;
 #endif
 	default:
