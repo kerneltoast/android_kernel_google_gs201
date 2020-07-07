@@ -111,6 +111,8 @@ static void set_grip_detection_enable(void *device_data);
 static void set_wet_mode_enable(void *device_data);
 static void set_noise_mode_enable(void *device_data);
 static void set_continuous_report_enable(void *device_data);
+static void set_charger_nb_enable(void *device_data);
+static void set_print_format(void *device_data);
 
 static struct sec_cmd sec_cmds[] = {
 	{SEC_CMD("fw_update", fw_update),},
@@ -161,12 +163,17 @@ static struct sec_cmd sec_cmds[] = {
 	{SEC_CMD("run_force_calibration", run_force_calibration),},
 	{SEC_CMD("get_force_calibration", get_force_calibration),},
 #ifdef USE_PRESSURE_SENSOR
-	{SEC_CMD("run_force_pressure_calibration", run_force_pressure_calibration),},
+	{SEC_CMD("run_force_pressure_calibration",
+		 run_force_pressure_calibration),},
 	{SEC_CMD("set_pressure_test_mode", set_pressure_test_mode),},
-	{SEC_CMD("run_pressure_filtered_strength_read_all", run_pressure_filtered_strength_read_all),},
-	{SEC_CMD("run_pressure_strength_read_all", run_pressure_strength_read_all),},
-	{SEC_CMD("run_pressure_rawdata_read_all", run_pressure_rawdata_read_all),},
-	{SEC_CMD("run_pressure_offset_read_all", run_pressure_offset_read_all),},
+	{SEC_CMD("run_pressure_filtered_strength_read_all",
+		 run_pressure_filtered_strength_read_all),},
+	{SEC_CMD("run_pressure_strength_read_all",
+		 run_pressure_strength_read_all),},
+	{SEC_CMD("run_pressure_rawdata_read_all",
+		 run_pressure_rawdata_read_all),},
+	{SEC_CMD("run_pressure_offset_read_all",
+		 run_pressure_offset_read_all),},
 	{SEC_CMD("set_pressure_strength", set_pressure_strength),},
 	{SEC_CMD("set_pressure_rawdata", set_pressure_rawdata),},
 	{SEC_CMD("set_pressure_data_index", set_pressure_data_index),},
@@ -213,9 +220,10 @@ static struct sec_cmd sec_cmds[] = {
 	{SEC_CMD("set_noise_mode_enable", set_noise_mode_enable),},
 	{SEC_CMD("set_continuous_report_enable",
 		set_continuous_report_enable),},
+	{SEC_CMD("set_charger_nb_enable", set_charger_nb_enable),},
+	{SEC_CMD("set_print_format", set_print_format),},
 	{SEC_CMD("not_support_cmd", not_support_cmd),},
 };
-
 
 static void set_palm_detection_enable(void *device_data)
 {
@@ -370,9 +378,9 @@ static void set_noise_mode_enable(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (sec->cmd_param[0] == 1)
-		para = 0x00;
+		para = NOISE_MODE_DEFALUT;
 	else if (sec->cmd_param[0] == 0)
-		para = 0x10;
+		para = NOISE_MODE_OFF;
 	else {
 		input_info(true, &ts->client->dev,
 			"%s: param error! param = %d\n",
@@ -434,6 +442,7 @@ static void set_continuous_report_enable(void *device_data)
 		goto err_out;
 	}
 
+	ts->use_default_mf = para;
 	scnprintf(buff, sizeof(buff), "%s", "OK");
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
@@ -447,7 +456,43 @@ err_out:
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
 }
 
-static ssize_t scrub_position_show(struct device *dev,
+static void set_charger_nb_enable(void *device_data)
+{
+	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
+	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
+	char buff[4] = { 0 };
+
+	input_info(true, &ts->client->dev,
+		"%s: %d\n", __func__, sec->cmd_param[0]);
+
+	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, true);
+	sec_cmd_set_default_result(sec);
+
+	if (sec->cmd_param[0] == 1)
+		ts->ignore_charger_nb = 0;
+	else if (sec->cmd_param[0] == 0)
+		ts->ignore_charger_nb = 1;
+	else {
+		input_info(true, &ts->client->dev,
+			"%s: param error! param = %d\n",
+			__func__, sec->cmd_param[0]);
+		goto err_out;
+	}
+
+	scnprintf(buff, sizeof(buff), "%s", "OK");
+	sec->cmd_state = SEC_CMD_STATUS_OK;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
+	return;
+
+err_out:
+	scnprintf(buff, sizeof(buff), "%s", "NG");
+	sec->cmd_state = SEC_CMD_STATUS_FAIL;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
+}
+
+static ssize_t scrub_pos_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -462,7 +507,8 @@ static ssize_t scrub_position_show(struct device *dev,
 			"%s: scrub_id: %d, X:%d, Y:%d\n", __func__,
 			ts->scrub_id, ts->scrub_x, ts->scrub_y);
 #endif
-	snprintf(buff, sizeof(buff), "%d %d %d", ts->scrub_id, ts->scrub_x, ts->scrub_y);
+	snprintf(buff, sizeof(buff), "%d %d %d",
+		 ts->scrub_id, ts->scrub_x, ts->scrub_y);
 
 	ts->scrub_x = 0;
 	ts->scrub_y = 0;
@@ -470,9 +516,9 @@ static ssize_t scrub_position_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s", buff);
 }
 
-static DEVICE_ATTR(scrub_pos, S_IRUGO, scrub_position_show, NULL);
+static DEVICE_ATTR_RO(scrub_pos);
 
-static ssize_t read_ito_check_show(struct device *dev,
+static ssize_t ito_check_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -490,7 +536,7 @@ static ssize_t read_ito_check_show(struct device *dev,
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "%s", buff);
 }
 
-static ssize_t read_raw_check_show(struct device *dev,
+static ssize_t raw_check_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -526,7 +572,7 @@ static ssize_t read_raw_check_show(struct device *dev,
 	return ret;
 }
 
-static ssize_t read_multi_count_show(struct device *dev,
+static ssize_t multi_count_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -538,7 +584,7 @@ static ssize_t read_multi_count_show(struct device *dev,
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "%d", ts->multi_count);
 }
 
-static ssize_t clear_multi_count_store(struct device *dev,
+static ssize_t multi_count_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -552,7 +598,7 @@ static ssize_t clear_multi_count_store(struct device *dev,
 	return count;
 }
 
-static ssize_t read_wet_mode_show(struct device *dev,
+static ssize_t wet_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -564,7 +610,7 @@ static ssize_t read_wet_mode_show(struct device *dev,
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "%d", ts->wet_count);
 }
 
-static ssize_t clear_wet_mode_store(struct device *dev,
+static ssize_t wet_mode_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -572,14 +618,14 @@ static ssize_t clear_wet_mode_store(struct device *dev,
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 
 	ts->wet_count = 0;
-	ts->dive_count= 0;
+	ts->dive_count = 0;
 
 	input_info(true, &ts->client->dev, "%s: clear\n", __func__);
 
 	return count;
 }
 
-static ssize_t read_comm_err_count_show(struct device *dev,
+static ssize_t comm_err_count_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -591,7 +637,7 @@ static ssize_t read_comm_err_count_show(struct device *dev,
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "%d", ts->comm_err_count);
 }
 
-static ssize_t clear_comm_err_count_store(struct device *dev,
+static ssize_t comm_err_count_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -605,7 +651,7 @@ static ssize_t clear_comm_err_count_store(struct device *dev,
 	return count;
 }
 
-static ssize_t read_module_id_show(struct device *dev,
+static ssize_t module_id_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -616,14 +662,15 @@ static ssize_t read_module_id_show(struct device *dev,
 		ts->multi_count);
 
 	snprintf(buff, sizeof(buff), "SE%02X%02X%02X%02X%02X%02X%02X",
-		ts->plat_data->panel_revision, ts->plat_data->img_version_of_bin[2],
+		ts->plat_data->panel_revision,
+		ts->plat_data->img_version_of_bin[2],
 		ts->plat_data->img_version_of_bin[3], ts->nv, ts->cal_count,
 		ts->pressure_cal_base, ts->pressure_cal_delta);
 
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "%s", buff);
 }
 
-static ssize_t read_vendor_show(struct device *dev,
+static ssize_t vendor_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -635,7 +682,7 @@ static ssize_t read_vendor_show(struct device *dev,
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "LSI_%s", buffer);
 }
 
-static ssize_t clear_checksum_store(struct device *dev,
+static ssize_t checksum_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -649,7 +696,7 @@ static ssize_t clear_checksum_store(struct device *dev,
 	return count;
 }
 
-static ssize_t read_checksum_show(struct device *dev,
+static ssize_t checksum_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -661,7 +708,7 @@ static ssize_t read_checksum_show(struct device *dev,
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "%d", ts->checksum_result);
 }
 
-static ssize_t clear_holding_time_store(struct device *dev,
+static ssize_t holding_time_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -675,7 +722,7 @@ static ssize_t clear_holding_time_store(struct device *dev,
 	return count;
 }
 
-static ssize_t read_holding_time_show(struct device *dev,
+static ssize_t holding_time_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
@@ -687,15 +734,16 @@ static ssize_t read_holding_time_show(struct device *dev,
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "%ld", ts->time_longest);
 }
 
-static ssize_t read_all_touch_count_show(struct device *dev,
+static ssize_t all_touch_count_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 
-	input_info(true, &ts->client->dev, "%s: touch:%d, force:%d, aod:%d, spay:%d\n", __func__,
-			ts->all_finger_count, ts->all_force_count,
-			ts->all_aod_tap_count, ts->all_spay_count);
+	input_info(true, &ts->client->dev,
+		"%s: touch:%d, force:%d, aod:%d, spay:%d\n", __func__,
+		ts->all_finger_count, ts->all_force_count,
+		ts->all_aod_tap_count, ts->all_spay_count);
 
 	return snprintf(buf, SEC_CMD_BUF_SIZE,
 			"\"TTCN\":\"%d\",\"TFCN\":\"%d\",\"TACN\":\"%d\",\"TSCN\":\"%d\"",
@@ -703,7 +751,7 @@ static ssize_t read_all_touch_count_show(struct device *dev,
 			ts->all_aod_tap_count, ts->all_spay_count);
 }
 
-static ssize_t clear_all_touch_count_store(struct device *dev,
+static ssize_t all_touch_count_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -719,15 +767,14 @@ static ssize_t clear_all_touch_count_store(struct device *dev,
 	return count;
 }
 
-static ssize_t read_z_value_show(struct device *dev,
+static ssize_t z_value_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 
-	input_info(true, &ts->client->dev, "%s: max:%d, min:%d, avg:%d\n", __func__,
-			ts->max_z_value, ts->min_z_value,
-			ts->sum_z_value);
+	input_info(true, &ts->client->dev, "%s: max:%d, min:%d, avg:%d\n",
+		   __func__, ts->max_z_value, ts->min_z_value, ts->sum_z_value);
 
 	if (ts->all_finger_count)
 		return snprintf(buf, SEC_CMD_BUF_SIZE,
@@ -741,16 +788,16 @@ static ssize_t read_z_value_show(struct device *dev,
 
 }
 
-static ssize_t clear_z_value_store(struct device *dev,
+static ssize_t z_value_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 
-	ts->max_z_value= 0;
-	ts->min_z_value= 0xFFFFFFFF;
-	ts->sum_z_value= 0;
+	ts->max_z_value = 0;
+	ts->min_z_value = 0xFFFFFFFF;
+	ts->sum_z_value = 0;
 	ts->all_finger_count = 0;
 
 	input_info(true, &ts->client->dev, "%s: clear\n", __func__);
@@ -773,7 +820,7 @@ static ssize_t pressure_enable_show(struct device *dev,
 	return snprintf(buf, SEC_CMD_BUF_SIZE, "%s\n", buff);
 }
 
-static ssize_t pressure_enable_strore(struct device *dev,
+static ssize_t pressure_enable_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -806,7 +853,9 @@ static ssize_t pressure_enable_strore(struct device *dev,
 	return count;
 }
 
-static ssize_t get_lp_dump(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t get_lp_dump_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
@@ -817,7 +866,8 @@ static ssize_t get_lp_dump(struct device *dev, struct device_attribute *attr, ch
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, true);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n",
+			  __func__);
 		sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
 		return snprintf(buf, SEC_CMD_BUF_SIZE, "TSP turned off");
 	}
@@ -829,7 +879,8 @@ static ssize_t get_lp_dump(struct device *dev, struct device_attribute *attr, ch
 
 	ret = ts->sec_ts_read_customlib(ts, string_data, 2);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: Failed to read rect\n", __func__);
+		input_err(true, &ts->client->dev, "%s: Failed to read rect\n",
+			  __func__);
 		snprintf(buf, SEC_CMD_BUF_SIZE, "NG, Failed to read rect");
 		goto out;
 	}
@@ -837,15 +888,15 @@ static ssize_t get_lp_dump(struct device *dev, struct device_attribute *attr, ch
 	current_index = (string_data[1] & 0xFF) << 8 | (string_data[0] & 0xFF);
 	if (current_index > 1000 || current_index < 500) {
 		input_err(true, &ts->client->dev,
-				"Failed to Custom Library LP log %d\n", current_index);
+			"Failed to Custom Library LP log %d\n", current_index);
 		snprintf(buf, SEC_CMD_BUF_SIZE,
-				"NG, Failed to Custom Library LP log, current_index=%d",
-				current_index);
+			"NG, Failed to Custom Library LP log, current_index=%d",
+			current_index);
 		goto out;
 	}
 
 	input_info(true, &ts->client->dev,
-			"%s: DEBUG current_index = %d\n", __func__, current_index);
+		"%s: DEBUG current_index = %d\n", __func__, current_index);
 
 	/* Custom Library has 62 stacks for LP dump */
 	for (i = 61; i >= 0; i--) {
@@ -875,8 +926,8 @@ static ssize_t get_lp_dump(struct device *dev, struct device_attribute *attr, ch
 		data3 = (string_data[7] & 0xFF) << 8 | (string_data[6] & 0xFF);
 		if (data0 || data1 || data2 || data3) {
 			snprintf(buff, sizeof(buff),
-					"%d: %04x%04x%04x%04x\n",
-					string_addr, data0, data1, data2, data3);
+				"%d: %04x%04x%04x%04x\n",
+				string_addr, data0, data1, data2, data3);
 			strncat(buf, buff, SEC_CMD_BUF_SIZE);
 		}
 	}
@@ -887,8 +938,8 @@ out:
 	return strlen(buf);
 }
 
-static ssize_t get_force_recal_count(struct device *dev,
-					struct device_attribute *attr, char *buf)
+static ssize_t force_recal_count_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
@@ -899,7 +950,8 @@ static ssize_t get_force_recal_count(struct device *dev,
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, true);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Touch is stopped!\n", __func__);
 		sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
 		return snprintf(buf, SEC_CMD_BUF_SIZE, "%d", -ENODEV);
 	}
@@ -931,8 +983,7 @@ static ssize_t heatmap_mode_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-#if defined(CONFIG_TOUCHSCREEN_HEATMAP) || \
-	defined(CONFIG_TOUCHSCREEN_HEATMAP_MODULE)
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 	struct sec_ts_plat_data *pdata = ts->plat_data;
@@ -974,8 +1025,7 @@ static ssize_t heatmap_mode_store(struct device *dev,
 static ssize_t heatmap_mode_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-#if defined(CONFIG_TOUCHSCREEN_HEATMAP) || \
-	defined(CONFIG_TOUCHSCREEN_HEATMAP_MODULE)
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	struct sec_cmd_data *sec = dev_get_drvdata(dev);
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 	const struct sec_ts_plat_data *pdata = ts->plat_data;
@@ -1002,7 +1052,7 @@ static ssize_t fw_version_show(struct device *dev,
 	 */
 	if (ts->plat_data->panel_revision == 0 &&
 		ts->plat_data->img_version_of_bin[2] == 0 &&
-		ts->plat_data->img_version_of_bin[3] == 0 ) {
+		ts->plat_data->img_version_of_bin[3] == 0) {
 		u8 fw_ver[4];
 
 		ret = ts->sec_ts_read(ts, SEC_TS_READ_IMG_VERSION, fw_ver, 4);
@@ -1030,7 +1080,7 @@ static ssize_t fw_version_show(struct device *dev,
 	}
 
 	written += scnprintf(buf + written, PAGE_SIZE - written,
-		"Cal: %02X %02X %02X %02X %02X %02X %02X %02X \n",
+		"Cal: %02X %02X %02X %02X %02X %02X %02X %02X\n",
 		ts->cali_report[0], ts->cali_report[1], ts->cali_report[2],
 		ts->cali_report[3], ts->cali_report[4], ts->cali_report[5],
 		ts->cali_report[6], ts->cali_report[7]);
@@ -1089,8 +1139,8 @@ static ssize_t status_show(struct device *dev,
 	ret = ts->sec_ts_read(ts, SEC_TS_CMD_SET_TOUCHFUNCTION, data, 2);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev,
-					"%s: failed to read touch functions(%d)\n",
-					__func__, ret);
+				"%s: failed to read touch functions(%d)\n",
+				__func__, ret);
 		goto out;
 	}
 	written += scnprintf(buf + written, PAGE_SIZE - written,
@@ -1102,23 +1152,23 @@ out:
 	return written;
 }
 
-static DEVICE_ATTR(ito_check, S_IRUGO, read_ito_check_show, NULL);
-static DEVICE_ATTR(raw_check, S_IRUGO, read_raw_check_show, NULL);
-static DEVICE_ATTR(multi_count, S_IRUGO | S_IWUSR | S_IWGRP, read_multi_count_show, clear_multi_count_store);
-static DEVICE_ATTR(wet_mode, S_IRUGO | S_IWUSR | S_IWGRP, read_wet_mode_show, clear_wet_mode_store);
-static DEVICE_ATTR(comm_err_count, S_IRUGO | S_IWUSR | S_IWGRP, read_comm_err_count_show, clear_comm_err_count_store);
-static DEVICE_ATTR(checksum, S_IRUGO | S_IWUSR | S_IWGRP, read_checksum_show, clear_checksum_store);
-static DEVICE_ATTR(holding_time, S_IRUGO | S_IWUSR | S_IWGRP, read_holding_time_show, clear_holding_time_store);
-static DEVICE_ATTR(all_touch_count, S_IRUGO | S_IWUSR | S_IWGRP, read_all_touch_count_show, clear_all_touch_count_store);
-static DEVICE_ATTR(z_value, S_IRUGO | S_IWUSR | S_IWGRP, read_z_value_show, clear_z_value_store);
-static DEVICE_ATTR(module_id, S_IRUGO, read_module_id_show, NULL);
-static DEVICE_ATTR(vendor, S_IRUGO, read_vendor_show, NULL);
-static DEVICE_ATTR(pressure_enable, S_IRUGO | S_IWUSR | S_IWGRP, pressure_enable_show, pressure_enable_strore);
-static DEVICE_ATTR(get_lp_dump, S_IRUGO, get_lp_dump, NULL);
-static DEVICE_ATTR(force_recal_count, S_IRUGO, get_force_recal_count, NULL);
+static DEVICE_ATTR_RO(ito_check);
+static DEVICE_ATTR_RO(raw_check);
+static DEVICE_ATTR_RW(multi_count);
+static DEVICE_ATTR_RW(wet_mode);
+static DEVICE_ATTR_RW(comm_err_count);
+static DEVICE_ATTR_RW(checksum);
+static DEVICE_ATTR_RW(holding_time);
+static DEVICE_ATTR_RW(all_touch_count);
+static DEVICE_ATTR_RW(z_value);
+static DEVICE_ATTR_RO(module_id);
+static DEVICE_ATTR_RO(vendor);
+static DEVICE_ATTR_RW(pressure_enable);
+static DEVICE_ATTR_RO(get_lp_dump);
+static DEVICE_ATTR_RO(force_recal_count);
 static DEVICE_ATTR_RW(heatmap_mode);
-static DEVICE_ATTR(fw_version, 0444, fw_version_show, NULL);
-static DEVICE_ATTR(status, 0444, status_show, NULL);
+static DEVICE_ATTR_RO(fw_version);
+static DEVICE_ATTR_RO(status);
 
 
 static struct attribute *cmd_attributes[] = {
@@ -1159,8 +1209,9 @@ static int sec_ts_check_index(struct sec_ts_data *ts)
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		input_info(true, &ts->client->dev, "%s: parameter error: %u, %u\n",
-				__func__, sec->cmd_param[0], sec->cmd_param[0]);
+		input_info(true, &ts->client->dev,
+			   "%s: parameter error: %u, %u\n",
+			   __func__, sec->cmd_param[0], sec->cmd_param[0]);
 		node = -1;
 		return node;
 	}
@@ -1180,8 +1231,8 @@ static void fw_update(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n",
-				__func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -1195,12 +1246,14 @@ static void fw_update(void *device_data)
 		snprintf(buff, sizeof(buff), "%s", "NA");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		input_err(true, &ts->client->dev, "%s: failed [%d]\n", __func__, retval);
+		input_err(true, &ts->client->dev, "%s: failed [%d]\n",
+			  __func__, retval);
 	} else {
 		snprintf(buff, sizeof(buff), "%s", "OK");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_OK;
-		input_info(true, &ts->client->dev, "%s: success [%d]\n", __func__, retval);
+		input_info(true, &ts->client->dev, "%s: success [%d]\n",
+			   __func__, retval);
 	}
 
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
@@ -1218,7 +1271,8 @@ int sec_ts_fix_tmode(struct sec_ts_data *ts, u8 mode, u8 state)
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_STATEMANAGE_ON, onoff, 1);
 	sec_ts_delay(20);
 
-	ret = ts->sec_ts_write(ts, SEC_TS_CMD_CHG_SYSMODE, tBuff, sizeof(tBuff));
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_CHG_SYSMODE, tBuff,
+			       sizeof(tBuff));
 	sec_ts_delay(20);
 
 	return ret;
@@ -1591,10 +1645,12 @@ static void sec_ts_print_frame(struct sec_ts_data *ts, short *min, short *max)
 
 			if (i > 0) {
 				if (ts->pFrame[(j * ts->rx_count) + i] < *min)
-					*min = ts->pFrame[(j * ts->rx_count) + i];
+					*min = ts->pFrame[(j * ts->rx_count) +
+								i];
 
 				if (ts->pFrame[(j * ts->rx_count) + i] > *max)
-					*max = ts->pFrame[(j * ts->rx_count) + i];
+					*max = ts->pFrame[(j * ts->rx_count) +
+								i];
 			}
 		}
 		input_info(true, &ts->client->dev, "%s\n", pStr);
@@ -1651,7 +1707,8 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_MUTU_RAW_TYPE, &w_type, 1);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: Set rawdata type failed\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Set rawdata type failed\n", __func__);
 		goto ErrorExit;
 	}
 	ts->frame_type = w_type;
@@ -1660,7 +1717,9 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 
 	if (type == TYPE_OFFSET_DATA_SDC || type == TYPE_OFFSET_DATA_SDC_CM2
 		|| type == TYPE_OFFSET_DATA_SDC_NOT_SAVE) {
-		/* excute selftest for real cap offset data, because real cap data is not memory data in normal touch. */
+		/* excute selftest for real cap offset data, because real cap
+		 * data is not memory data in normal touch.
+		 **/
 		char para = TO_TOUCH_MODE;
 
 		disable_irq(ts->client->irq);
@@ -1685,14 +1744,19 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 			goto ErrorRelease;
 		}
 
+		/* read data and check ret later */
+		ret = ts->sec_ts_read_heap(ts, SEC_TS_READ_TOUCH_RAWDATA, pRead,
+					readbytes);
 		enable_irq(ts->client->irq);
-	}
+	} else
+		/* read data and check ret later */
+		ret = ts->sec_ts_read_heap(ts, SEC_TS_READ_TOUCH_RAWDATA, pRead,
+					readbytes);
 
-	/* read data */
-	ret = ts->sec_ts_read_heap(ts, SEC_TS_READ_TOUCH_RAWDATA, pRead,
-				readbytes);
+	/* check read data */
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: read rawdata failed!\n", __func__);
+		input_err(true, &ts->client->dev,
+				  "%s: read rawdata failed!\n", __func__);
 		goto ErrorRelease;
 	}
 
@@ -1702,8 +1766,9 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 		ts->pFrame[i / 2] = pRead[i + 1] + (pRead[i] << 8);
 
 #ifdef DEBUG_MSG
-	input_info(true, &ts->client->dev, "%s: 02X%02X%02X readbytes=%d\n", __func__,
-			pRead[0], pRead[1], pRead[2], readbytes);
+	input_info(true, &ts->client->dev,
+		   "%s: 02X%02X%02X readbytes=%d\n", __func__,
+		   pRead[0], pRead[1], pRead[2], readbytes);
 #endif
 	sec_ts_print_frame(ts, min, max);
 
@@ -1716,7 +1781,8 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 
 	for (i = 0; i < ts->tx_count; i++) {
 		for (j = 0; j < ts->rx_count; j++)
-			ts->pFrame[(j * ts->tx_count) + i] = temp[(i * ts->rx_count) + j];
+			ts->pFrame[(j * ts->tx_count) + i] =
+					temp[(i * ts->rx_count) + j];
 	}
 
 	/* spec check */
@@ -1748,8 +1814,9 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 						specover_count++;
 				}
 			}
-			input_info(true, &ts->client->dev, "%s: type = %d, specover = %d\n",
-					__func__, type, specover_count);
+			input_info(true, &ts->client->dev,
+				   "%s: type = %d, specover = %d\n",
+				   __func__, type, specover_count);
 
 			if (specover_count == 0 &&
 			    (max[REGION_NORMAL] - min[REGION_NORMAL] <
@@ -1770,8 +1837,9 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 						specover_count++;
 				}
 			}
-			input_info(true, &ts->client->dev, "%s: type = %d, specover = %d\n",
-					__func__, type, specover_count);
+			input_info(true, &ts->client->dev,
+				   "%s: type = %d, specover = %d\n",
+				   __func__, type, specover_count);
 
 			if (specover_count == 0)
 				*spec_check = SPEC_PASS;
@@ -1786,8 +1854,9 @@ static int sec_ts_read_frame(struct sec_ts_data *ts, u8 type, short *min,
 						specover_count++;
 				}
 			}
-			input_info(true, &ts->client->dev, "%s: type = %d, specover = %d\n",
-					__func__, type, specover_count);
+			input_info(true, &ts->client->dev,
+				   "%s: type = %d, specover = %d\n",
+				   __func__, type, specover_count);
 
 			if (specover_count == 0)
 				*spec_check = SPEC_PASS;
@@ -1802,7 +1871,8 @@ ErrorRelease:
 	/* release data monitory (unprepare AFE data memory) */
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_MUTU_RAW_TYPE, &mode, 1);
 	if (ret < 0)
-		input_err(true, &ts->client->dev, "%s: Set rawdata type failed\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Set rawdata type failed\n", __func__);
 	else
 		ts->frame_type = mode;
 
@@ -1915,8 +1985,11 @@ static int sec_ts_read_channel(struct sec_ts_data *ts, u8 type, short *min,
 
 	if (type == TYPE_OFFSET_DATA_SDC ||
 		type == TYPE_OFFSET_DATA_SDC_NOT_SAVE) {
-		/* excute selftest for real cap offset data, because real cap data is not memory data in normal touch. */
+		/* excute selftest for real cap offset data, because real cap
+		 * data is not memory data in normal touch.
+		 **/
 		char para = TO_TOUCH_MODE;
+
 		disable_irq(ts->client->irq);
 		if (type == TYPE_OFFSET_DATA_SDC)
 			execute_selftest(ts, TEST_SELF_NODE);
@@ -1924,19 +1997,26 @@ static int sec_ts_read_channel(struct sec_ts_data *ts, u8 type, short *min,
 			execute_selftest(ts, TEST_SELF_NODE | TEST_NOT_SAVE);
 		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_POWER_MODE, &para, 1);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: set rawdata type failed!\n", __func__);
+			input_err(true, &ts->client->dev,
+				  "%s: set rawdata type failed!\n", __func__);
 			enable_irq(ts->client->irq);
 			goto err_read_data;
 		}
+
+		/* read data and check ret later */
+		ret = ts->sec_ts_read_heap(ts, SEC_TS_READ_TOUCH_SELF_RAWDATA,
+					pRead, data_length);
 		enable_irq(ts->client->irq);
 		/* end */
-	}
+	} else
+		/* read data and check ret later */
+		ret = ts->sec_ts_read_heap(ts, SEC_TS_READ_TOUCH_SELF_RAWDATA,
+					pRead, data_length);
 
-	/* read data */
-	ret = ts->sec_ts_read_heap(ts, SEC_TS_READ_TOUCH_SELF_RAWDATA,
-				pRead, data_length);
+	/* check read data */
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: read rawdata failed!\n", __func__);
+		input_err(true, &ts->client->dev,
+				  "%s: read rawdata failed!\n", __func__);
 		goto err_read_data;
 	}
 
@@ -1983,8 +2063,9 @@ static int sec_ts_read_channel(struct sec_ts_data *ts, u8 type, short *min,
 			}
 		}
 
-		input_info(true, &ts->client->dev, "%s: type : %d, specover = %d\n",
-				__func__, type, specover_count);
+		input_info(true, &ts->client->dev,
+			   "%s: type : %d, specover = %d\n",
+			   __func__, type, specover_count);
 
 		if (specover_count == 0 &&
 			(max[0] - min[0]) < cs_tx_mm &&
@@ -1998,7 +2079,8 @@ err_read_data:
 	/* release data monitory (unprepare AFE data memory) */
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SELF_RAW_TYPE, &mode, 1);
 	if (ret < 0)
-		input_err(true, &ts->client->dev, "%s: Set rawdata type failed\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Set rawdata type failed\n", __func__);
 
 out_read_channel:
 	kfree(pRead);
@@ -2045,7 +2127,7 @@ ErrorRead:
 int sec_ts_read_raw_data(struct sec_ts_data *ts,
 		struct sec_cmd_data *sec, struct sec_ts_test_mode *mode)
 {
-	int ii;
+	int ii, jj;
 	int ret = 0;
 	const unsigned int buff_size = ts->tx_count * ts->rx_count *
 					CMD_RESULT_WORD_LEN;
@@ -2100,14 +2182,34 @@ int sec_ts_read_raw_data(struct sec_ts_data *ts,
 			}
 			buff_len += scnprintf(buff + buff_len,
 					      buff_size - buff_len, "\n      ");
-			for (ii = 0; ii < (ts->rx_count + ts->tx_count); ii++) {
-				buff_len += scnprintf(buff + buff_len,
-						      buff_size - buff_len,
-						      "%3d,", ts->pFrame[ii]);
-				if (ii >= ts->tx_count - 1)
+			if (!ts->print_format) {
+				for (ii = 0;
+				     ii < (ts->rx_count + ts->tx_count);
+				     ii++) {
 					buff_len += scnprintf(buff + buff_len,
+						buff_size - buff_len,
+						"%3d,", ts->pFrame[ii]);
+					if (ii >= ts->tx_count - 1)
+						buff_len += scnprintf(
+							buff + buff_len,
 							buff_size - buff_len,
 							"\n");
+				}
+			} else {
+				for (ii = ts->tx_count;
+				     ii < (ts->rx_count + ts->tx_count);
+				     ii++) {
+					buff_len += scnprintf(buff + buff_len,
+							buff_size - buff_len,
+							"%3d,", ts->pFrame[ii]);
+				}
+				buff_len += scnprintf(buff + buff_len,
+						buff_size - buff_len, "\n");
+				for (ii = 0; ii < ts->tx_count; ii++) {
+					buff_len += scnprintf(buff + buff_len,
+						buff_size - buff_len,
+						"%3d,\n", ts->pFrame[ii]);
+				}
 			}
 		} else {
 			if (mode->spec_check == SPEC_NO_CHECK)
@@ -2124,14 +2226,31 @@ int sec_ts_read_raw_data(struct sec_ts_data *ts,
 						    "NG %d %d\n", ts->rx_count,
 						    ts->tx_count);
 			}
-			for (ii = 0; ii < (ts->rx_count * ts->tx_count); ii++) {
-				buff_len += scnprintf(buff + buff_len,
-						    buff_size - buff_len,
-						    "%3d,", ts->pFrame[ii]);
+			if (!ts->print_format) {
+				for (ii = 0;
+				     ii < (ts->rx_count * ts->tx_count); ii++) {
+					buff_len += scnprintf(buff + buff_len,
+							buff_size - buff_len,
+							"%3d,", ts->pFrame[ii]);
 				if (ii % ts->tx_count == (ts->tx_count - 1))
 					buff_len += scnprintf(buff + buff_len,
 							buff_size - buff_len,
 							"\n");
+				}
+			} else {
+				for (ii = 0; ii < ts->tx_count; ii++) {
+					for (jj = 0; jj < ts->rx_count; jj++) {
+						buff_len += scnprintf(
+							buff + buff_len,
+							buff_size - buff_len,
+							"%3d,",
+							ts->pFrame[(jj *
+							  ts->tx_count) + ii]);
+					}
+					buff_len += scnprintf(buff + buff_len,
+							buff_size - buff_len,
+							"\n");
+				}
 			}
 		}
 	} else {
@@ -2203,7 +2322,8 @@ static void get_fw_ver_bin(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	snprintf(buff, sizeof(buff), "SE-V%02X.%02X.%02X",
-		ts->plat_data->panel_revision, ts->plat_data->img_version_of_bin[2],
+		ts->plat_data->panel_revision,
+		ts->plat_data->img_version_of_bin[2],
 		ts->plat_data->img_version_of_bin[3]);
 
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
@@ -2224,8 +2344,8 @@ static void get_fw_ver_ic(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n",
-				__func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -2235,7 +2355,8 @@ static void get_fw_ver_ic(void *device_data)
 
 	ret = ts->sec_ts_read(ts, SEC_TS_READ_IMG_VERSION, fw_ver, 4);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: firmware version read error\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: firmware version read error\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
@@ -2263,7 +2384,8 @@ static void get_config_ver(void *device_data)
 
 	snprintf(buff, sizeof(buff), "%s_SE_%02X%02X",
 		ts->plat_data->model_name,
-		ts->plat_data->config_version_of_ic[2], ts->plat_data->config_version_of_ic[3]);
+		ts->plat_data->config_version_of_ic[2],
+		ts->plat_data->config_version_of_ic[3]);
 
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -2318,21 +2440,26 @@ static void get_threshold(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		goto err;
 	}
 
-	ret = ts->sec_ts_write(ts, SEC_TS_CMD_TOUCH_MODE_FOR_THRESHOLD, threshold, 1);
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_TOUCH_MODE_FOR_THRESHOLD,
+			       threshold, 1);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: threshold write type failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: threshold write type failed. ret: %d\n",
+			  __func__, ret);
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		goto err;
 	}
 
 	ret = ts->sec_ts_read(ts, SEC_TS_CMD_TOUCH_THRESHOLD, threshold, 2);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: read threshold fail!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: read threshold fail!\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		goto err;
 	}
@@ -2353,7 +2480,6 @@ err:
 	sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
 
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
-	return;
 }
 
 static void module_off_master(void *device_data)
@@ -2394,12 +2520,12 @@ static void module_on_master(void *device_data)
 
 	ret = sec_ts_start_device(ts);
 
-#if 0 //TODO: check this for SPI case
- 	if (ts->input_dev->disabled) {
-		sec_ts_set_lowpowermode(ts, TO_LOWPOWER_MODE);
-		ts->power_status = SEC_TS_STATE_LPM;
-	}
-#endif
+/* TODO: check this for SPI case
+ *	if (ts->input_dev->disabled) {
+ *		sec_ts_set_lowpowermode(ts, TO_LOWPOWER_MODE);
+ *		ts->power_status = SEC_TS_STATE_LPM;
+ *	}
+ **/
 
 	if (ret == 0)
 		snprintf(buff, sizeof(buff), "%s", "OK");
@@ -2466,10 +2592,12 @@ static void set_mis_cal_spec(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->plat_data->mis_cal_check == 0) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] not support, %d\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] not support, %d\n", __func__);
 		goto NG;
 	} else if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		goto NG;
 	} else {
 		if ((sec->cmd_param[0] < 0 || sec->cmd_param[0] > 255) ||
@@ -2482,12 +2610,17 @@ static void set_mis_cal_spec(void *device_data)
 			wreg[1] = sec->cmd_param[1];
 			wreg[2] = sec->cmd_param[2];
 
-			ret = ts->sec_ts_write(ts, SEC_TS_CMD_MIS_CAL_SPEC, wreg, 3);
+			ret = ts->sec_ts_write(ts, SEC_TS_CMD_MIS_CAL_SPEC,
+					       wreg, 3);
 			if (ret < 0) {
-				input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+				input_err(true, &ts->client->dev,
+					  "%s: nvm write failed. ret: %d\n",
+					  __func__, ret);
 				goto NG;
 			} else {
-				input_info(true, &ts->client->dev, "%s: tx gap=%d, rx gap=%d, peak=%d\n", __func__, wreg[0], wreg[1], wreg[2]);
+				input_info(true, &ts->client->dev,
+					   "%s: tx gap=%d, rx gap=%d, peak=%d\n",
+					   __func__, wreg[0], wreg[1], wreg[2]);
 				sec_ts_delay(20);
 			}
 		}
@@ -2521,11 +2654,13 @@ NG:
  *	F1 : not support mis cal concept
  *	F0 : initial value in fucntion
  *	08 : Ambient Ambient condition check(PEAK) result 0 (PASS), 1(FAIL)
- *	04 : Ambient Ambient condition check(DIFF MAX TX) result 0 (PASS), 1(FAIL)
- *	02 : Ambient Ambient condition check(DIFF MAX RX) result 0 (PASS), 1(FAIL)
+ *	04 : Ambient Ambient condition check(DIFF MAX TX)
+ *	     result 0 (PASS), 1(FAIL)
+ *	02 : Ambient Ambient condition check(DIFF MAX RX)
+ *	     result 0 (PASS), 1(FAIL)
  *	01 : Wet Wet mode result 0 (PASS), 1(FAIL)
  *	00 : Pass
- */
+ **/
 static void get_mis_cal_info(void *device_data)
 {
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
@@ -2540,35 +2675,44 @@ static void get_mis_cal_info(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->plat_data->mis_cal_check == 0) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] not support, %d\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] not support, %d\n", __func__);
 		mis_cal_data = 0xF1;
 		goto NG;
 	} else if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		mis_cal_data = 0xF2;
 		goto NG;
 	} else {
-		ret = ts->sec_ts_read(ts, SEC_TS_CMD_MIS_CAL_READ, &mis_cal_data, 1);
+		ret = ts->sec_ts_read(ts, SEC_TS_CMD_MIS_CAL_READ,
+				      &mis_cal_data, 1);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: fail!, %d\n", __func__, ret);
+			input_err(true, &ts->client->dev,
+				  "%s: fail!, %d\n", __func__, ret);
 			mis_cal_data = 0xF3;
 			goto NG;
 		} else {
-			input_info(true, &ts->client->dev, "%s: miss cal data : %d\n", __func__, mis_cal_data);
+			input_info(true, &ts->client->dev,
+				   "%s: miss cal data : %d\n",
+				   __func__, mis_cal_data);
 		}
 
 		ret = ts->sec_ts_read(ts, SEC_TS_CMD_MIS_CAL_SPEC, wreg, 3);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: fail!, %d\n", __func__, ret);
+			input_err(true, &ts->client->dev,
+				  "%s: fail!, %d\n", __func__, ret);
 			mis_cal_data = 0xF4;
 			goto NG;
 		} else {
-			input_info(true, &ts->client->dev, "%s: miss cal spec : %d,%d,%d\n", __func__,
+			input_info(true, &ts->client->dev,
+				"%s: miss cal spec : %d,%d,%d\n", __func__,
 				wreg[0], wreg[1], wreg[2]);
 		}
 	}
 
-	snprintf(buff, sizeof(buff), "%d,%d,%d,%d", mis_cal_data, wreg[0], wreg[1], wreg[2]);
+	snprintf(buff, sizeof(buff), "%d,%d,%d,%d",
+		 mis_cal_data, wreg[0], wreg[1], wreg[2]);
 
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -2598,7 +2742,8 @@ static void get_wet_mode(void *device_data)
 
 	ret = ts->sec_ts_read(ts, SEC_TS_CMD_WET_MODE, &wet_mode_info, 1);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: fail!, %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: fail!, %d\n", __func__, ret);
 		goto NG;
 	}
 
@@ -2692,7 +2837,8 @@ static void get_checksum_data(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		goto err;
 	}
@@ -2700,7 +2846,8 @@ static void get_checksum_data(void *device_data)
 	temp = DO_FW_CHECKSUM | DO_PARA_CHECKSUM;
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_GET_CHECKSUM, &temp, 1);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: send get_checksum_cmd fail!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: send get_checksum_cmd fail!\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "SendCMDfail");
 		goto err;
 	}
@@ -2712,8 +2859,9 @@ static void get_checksum_data(void *device_data)
 #else
 	ret = ts->sec_ts_read(ts, SEC_TS_CMD_GET_CHECKSUM, csum_result, 4);
 #endif
-        if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: read get_checksum result fail!\n", __func__);
+	if (ret < 0) {
+		input_err(true, &ts->client->dev,
+			  "%s: read get_checksum result fail!\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "ReadCSUMfail");
 		goto err;
 	}
@@ -2731,7 +2879,8 @@ static void get_checksum_data(void *device_data)
 
 	csum = ~csum;
 
-	input_info(true, &ts->client->dev, "%s: checksum = %02X\n", __func__, csum);
+	input_info(true, &ts->client->dev,
+		   "%s: checksum = %02X\n", __func__, csum);
 	snprintf(buff, sizeof(buff), "%02X", csum);
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -2795,8 +2944,8 @@ static void get_reference(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n",
-				__func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -2871,8 +3020,8 @@ static void get_rawcap(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n",
-				__func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -3041,8 +3190,8 @@ static void get_delta(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n",
-				__func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -3311,8 +3460,9 @@ ErrorDataType:
 	/* release mode fix */
 	ret = sec_ts_release_tmode(ts);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: failed to release tmode\n",
-				__func__);
+		input_err(true,
+			&ts->client->dev, "%s: failed to release tmode\n",
+			__func__);
 	}
 
 ErrorAlloc:
@@ -3673,7 +3823,8 @@ void set_tsp_nvm_data_clear(struct sec_ts_data *ts, u8 offset)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 3);
 	if (ret < 0)
-		input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm write failed. ret: %d\n", __func__, ret);
 
 	sec_ts_delay(20);
 }
@@ -3686,7 +3837,8 @@ int get_tsp_nvm_data(struct sec_ts_data *ts, u8 offset)
 	/* SENSE OFF -> CELAR EVENT STACK -> READ NV -> SENSE ON */
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SENSE_OFF, NULL, 0);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: fail to write Sense_off\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: fail to write Sense_off\n", __func__);
 		goto out_nvm;
 	}
 
@@ -3696,7 +3848,8 @@ int get_tsp_nvm_data(struct sec_ts_data *ts, u8 offset)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_CLEAR_EVENT_STACK, NULL, 0);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: write clear event failed\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: write clear event failed\n", __func__);
 		goto out_nvm;
 	}
 
@@ -3709,13 +3862,16 @@ int get_tsp_nvm_data(struct sec_ts_data *ts, u8 offset)
 	/* send NV data using command
 	 * Use TSP NV area : in this model, use only one byte
 	 * buff[0] : offset from user NVM storage
-	 * buff[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
-	 */
+	 * buff[1] : length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
+	 **/
 	memset(buff, 0x00, 2);
 	buff[0] = offset;
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 2);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm send command failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			"%s: nvm send command failed. ret: %d\n",
+			__func__, ret);
 		goto out_nvm;
 	}
 
@@ -3730,23 +3886,28 @@ int get_tsp_nvm_data(struct sec_ts_data *ts, u8 offset)
 	ret = ts->sec_ts_read(ts, SEC_TS_CMD_NVM, buff, 1);
 #endif
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm send command failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			"%s: nvm send command failed. ret: %d\n",
+			__func__, ret);
 		goto out_nvm;
 	}
 
-	input_info(true, &ts->client->dev, "%s: offset:%u  data:%02X\n", __func__,offset, buff[0]);
+	input_info(true, &ts->client->dev,
+		   "%s: offset:%u  data:%02X\n", __func__, offset, buff[0]);
 
 out_nvm:
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SENSE_ON, NULL, 0);
 	if (ret < 0)
-		input_err(true, &ts->client->dev, "%s: fail to write Sense_on\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: fail to write Sense_on\n", __func__);
 
 	input_dbg(true, &ts->client->dev, "%s: SENSE ON\n", __func__);
 
 	return buff[0];
 }
 
-int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset, int length, u8 *data)
+int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset,
+			     int length, u8 *data)
 {
 	char *buff = NULL;
 	int ret;
@@ -3755,12 +3916,15 @@ int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset, int length, u8 *
 	if (!buff)
 		return -ENOMEM;
 
-	input_info(true, &ts->client->dev, "%s: offset:%u, length:%d, size:%d\n", __func__, offset, length, sizeof(data));
+	input_info(true, &ts->client->dev,
+		   "%s: offset:%u, length:%d, size:%d\n",
+		   __func__, offset, length, sizeof(data));
 
 	/* SENSE OFF -> CELAR EVENT STACK -> READ NV -> SENSE ON */
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SENSE_OFF, NULL, 0);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: fail to write Sense_off\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: fail to write Sense_off\n", __func__);
 		goto out_nvm;
 	}
 
@@ -3770,7 +3934,8 @@ int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset, int length, u8 *
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_CLEAR_EVENT_STACK, NULL, 0);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: write clear event failed\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: write clear event failed\n", __func__);
 		goto out_nvm;
 	}
 
@@ -3783,14 +3948,17 @@ int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset, int length, u8 *
 	/* send NV data using command
 	 * Use TSP NV area : in this model, use only one byte
 	 * buff[0] : offset from user NVM storage
-	 * buff[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
-	 */
+	 * buff[1] : length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
+	 **/
 	memset(buff, 0x00, 2);
 	buff[0] = offset;
 	buff[1] = length - 1;
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 2);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm send command failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			"%s: nvm send command failed. ret: %d\n",
+			__func__, ret);
 		goto out_nvm;
 	}
 
@@ -3804,8 +3972,10 @@ int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset, int length, u8 *
 #else
 	ret = ts->sec_ts_read(ts, SEC_TS_CMD_NVM, buff, length);
 #endif
-        if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm send command failed. ret: %d\n", __func__, ret);
+	if (ret < 0) {
+		input_err(true, &ts->client->dev,
+			"%s: nvm send command failed. ret: %d\n",
+			__func__, ret);
 		goto out_nvm;
 	}
 
@@ -3814,7 +3984,8 @@ int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset, int length, u8 *
 out_nvm:
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SENSE_ON, NULL, 0);
 	if (ret < 0)
-		input_err(true, &ts->client->dev, "%s: fail to write Sense_on\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: fail to write Sense_on\n", __func__);
 
 	input_dbg(true, &ts->client->dev, "%s: SENSE ON\n", __func__);
 
@@ -3880,8 +4051,8 @@ static void set_tsp_test_result(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n",
-				__func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP_truned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -3907,24 +4078,27 @@ static void set_tsp_test_result(void *device_data)
 			result->module_count++;
 	}
 
-	input_info(true, &ts->client->dev, "%s: %d, %d, %d, %d, 0x%X\n", __func__,
-			result->module_result, result->module_count,
-			result->assy_result, result->assy_count, result->data[0]);
+	input_info(true, &ts->client->dev,
+		"%s: %d, %d, %d, %d, 0x%X\n", __func__,
+		result->module_result, result->module_count,
+		result->assy_result, result->assy_count, result->data[0]);
 
 	/* Use TSP NV area : in this model, use only one byte
 	 * buff[0] : offset from user NVM storage
-	 * buff[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+	 * buff[1] : length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
 	 * buff[2] : write data
-	 */
+	 **/
 	memset(buff, 0x00, SEC_CMD_STR_LEN);
 	buff[2] = *result->data;
 
 	input_info(true, &ts->client->dev, "%s: command (1)%X, (2)%X: %X\n",
-				__func__, sec->cmd_param[0], sec->cmd_param[1], buff[2]);
+		__func__, sec->cmd_param[0], sec->cmd_param[1], buff[2]);
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 3);
 	if (ret < 0)
-		input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm write failed. ret: %d\n", __func__, ret);
 
 	sec_ts_delay(20);
 
@@ -3972,16 +4146,19 @@ static void get_tsp_test_result(void *device_data)
 
 	result = (struct sec_ts_test_result *)buff;
 
-	input_info(true, &ts->client->dev, "%s: [0x%X][0x%X] M:%d, M:%d, A:%d, A:%d\n",
+	input_info(true, &ts->client->dev,
+			 "%s: [0x%X][0x%X] M:%d, M:%d, A:%d, A:%d\n",
 			__func__, *result->data, buff[0],
 			result->module_result, result->module_count,
 			result->assy_result, result->assy_count);
 
 	snprintf(buff, sizeof(buff), "M:%s, M:%d, A:%s, A:%d",
 			result->module_result == 0 ? "NONE" :
-			result->module_result == 1 ? "FAIL" : "PASS", result->module_count,
+			result->module_result == 1 ? "FAIL" : "PASS",
+			result->module_count,
 			result->assy_result == 0 ? "NONE" :
-			result->assy_result == 1 ? "FAIL" : "PASS", result->assy_count);
+			result->assy_result == 1 ? "FAIL" : "PASS",
+			result->assy_count);
 
 	sec_cmd_set_cmd_result(sec, buff, strlen(buff));
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -4003,8 +4180,8 @@ static void increase_disassemble_count(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n",
-				__func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP_truned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -4015,7 +4192,8 @@ static void increase_disassemble_count(void *device_data)
 
 	buff[2] = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_DISASSEMBLE_COUNT);
 
-	input_info(true, &ts->client->dev, "%s: disassemble count is #1 %d\n", __func__, buff[2]);
+	input_info(true, &ts->client->dev,
+		   "%s: disassemble count is #1 %d\n", __func__, buff[2]);
 
 	if (buff[2] == 0xFF)
 		buff[2] = 0;
@@ -4025,21 +4203,24 @@ static void increase_disassemble_count(void *device_data)
 
 	/* Use TSP NV area : in this model, use only one byte
 	 * buff[0] : offset from user NVM storage
-	 * buff[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+	 * buff[1] : length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
 	 * buff[2] : write data
-	 */
+	 **/
 	buff[0] = SEC_TS_NVM_OFFSET_DISASSEMBLE_COUNT;
 	buff[1] = 0;
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 3);
 	if (ret < 0)
-		input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm write failed. ret: %d\n", __func__, ret);
 
 	sec_ts_delay(20);
 
 	memset(buff, 0x00, 3);
 	buff[0] = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_DISASSEMBLE_COUNT);
-	input_info(true, &ts->client->dev, "%s: check disassemble count: %d\n", __func__, buff[0]);
+	input_info(true, &ts->client->dev,
+		   "%s: check disassemble count: %d\n", __func__, buff[0]);
 
 	snprintf(buff, sizeof(buff), "OK");
 	sec_cmd_set_cmd_result(sec, buff, strlen(buff));
@@ -4061,8 +4242,8 @@ static void get_disassemble_count(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: [ERROR] Touch is stopped\n",
-				__func__);
+		input_err(true, &ts->client->dev,
+			  "%s: [ERROR] Touch is stopped\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP_truned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -4078,7 +4259,8 @@ static void get_disassemble_count(void *device_data)
 		buff[0] = 0;
 	}
 
-	input_info(true, &ts->client->dev, "%s: read disassemble count: %d\n", __func__, buff[0]);
+	input_info(true, &ts->client->dev,
+		   "%s: read disassemble count: %d\n", __func__, buff[0]);
 
 	snprintf(buff, sizeof(buff), "%d", buff[0]);
 
@@ -4116,7 +4298,8 @@ static void glove_mode(void *device_data)
 		retval = sec_ts_glove_mode_enables(ts, glove_mode_enables);
 
 		if (retval < 0) {
-			input_err(true, &ts->client->dev, "%s: failed, retval = %d\n", __func__, retval);
+			input_err(true, &ts->client->dev,
+				"%s: failed, retval = %d\n", __func__, retval);
 			snprintf(buff, sizeof(buff), "NG");
 			sec->cmd_state = SEC_CMD_STATUS_FAIL;
 		} else {
@@ -4138,7 +4321,8 @@ static void clear_cover_mode(void *device_data)
 	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
 	char buff[SEC_CMD_STR_LEN] = { 0 };
 
-	input_info(true, &ts->client->dev, "%s: start clear_cover_mode %s\n", __func__, buff);
+	input_info(true, &ts->client->dev,
+		   "%s...\n", __func__, buff);
 
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, true);
 
@@ -4156,7 +4340,8 @@ static void clear_cover_mode(void *device_data)
 			ts->flip_enable = false;
 		}
 
-		if (!(ts->power_status == SEC_TS_STATE_POWER_OFF) && ts->reinit_done) {
+		if (!(ts->power_status == SEC_TS_STATE_POWER_OFF) &&
+		    ts->reinit_done) {
 			if (ts->flip_enable)
 				sec_ts_set_cover_type(ts, true);
 			else
@@ -4195,7 +4380,7 @@ static void dead_zone_enable(void *device_data)
 		ret = ts->sec_ts_write(ts, SEC_TS_CMD_EDGE_DEADZONE, &data, 1);
 		if (ret < 0) {
 			input_err(true, &ts->client->dev,
-						"%s: failed to set deadzone\n", __func__);
+				"%s: failed to set deadzone\n", __func__);
 			snprintf(buff, sizeof(buff), "%s", "NG");
 			sec->cmd_state = SEC_CMD_STATUS_FAIL;
 			goto err_set_dead_zone;
@@ -4230,9 +4415,11 @@ static void drawing_test_enable(void *device_data)
 	} else {
 		if (ts->use_customlib) {
 			if (sec->cmd_param[0])
-				ts->lowpower_mode &= ~SEC_TS_MODE_CUSTOMLIB_FORCE_KEY;
+				ts->lowpower_mode &=
+					~SEC_TS_MODE_CUSTOMLIB_FORCE_KEY;
 			else
-				ts->lowpower_mode |= SEC_TS_MODE_CUSTOMLIB_FORCE_KEY;
+				ts->lowpower_mode |=
+					SEC_TS_MODE_CUSTOMLIB_FORCE_KEY;
 
 			#ifdef SEC_TS_SUPPORT_CUSTOMLIB
 			ret = sec_ts_set_custom_library(ts);
@@ -4270,7 +4457,7 @@ static void rearrange_sft_result(u8 *data, int length)
 {
 	int i;
 
-	for(i = 0; i < length; i += 4) {
+	for (i = 0; i < length; i += 4) {
 		sec_ts_swap(&data[i], &data[i + 3]);
 		sec_ts_swap(&data[i + 1], &data[i + 2]);
 	}
@@ -4338,7 +4525,8 @@ int execute_selftest(struct sec_ts_data *ts, u32 option)
 	u8 tpara[2] = {(u8)(option & 0xff), (u8)((option & 0xff00) >> 8)};
 	u8 *rBuff;
 	int i;
-	int result_size = SEC_TS_SELFTEST_REPORT_SIZE + ts->tx_count * ts->rx_count * 2;
+	int result_size = SEC_TS_SELFTEST_REPORT_SIZE +
+				ts->tx_count * ts->rx_count * 2;
 
 	rBuff = kzalloc(result_size, GFP_KERNEL);
 	if (!rBuff)
@@ -4347,7 +4535,8 @@ int execute_selftest(struct sec_ts_data *ts, u32 option)
 	input_info(true, &ts->client->dev, "%s: Self test start!\n", __func__);
 	rc = ts->sec_ts_write(ts, SEC_TS_CMD_SELFTEST, tpara, 2);
 	if (rc < 0) {
-		input_err(true, &ts->client->dev, "%s: Send selftest cmd failed!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Send selftest cmd failed!\n", __func__);
 		goto err_exit;
 	}
 
@@ -4355,7 +4544,8 @@ int execute_selftest(struct sec_ts_data *ts, u32 option)
 
 	rc = sec_ts_wait_for_ready(ts, SEC_TS_VENDOR_ACK_SELF_TEST_DONE);
 	if (rc < 0) {
-		input_err(true, &ts->client->dev, "%s: Selftest execution time out!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Selftest execution time out!\n", __func__);
 		goto err_exit;
 	}
 
@@ -4364,7 +4554,8 @@ int execute_selftest(struct sec_ts_data *ts, u32 option)
 	rc = ts->sec_ts_read_heap(ts, SEC_TS_READ_SELFTEST_RESULT, rBuff,
 				result_size);
 	if (rc < 0) {
-		input_err(true, &ts->client->dev, "%s: Selftest execution time out!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Selftest execution time out!\n", __func__);
 		goto err_exit;
 	}
 	rearrange_sft_result(rBuff, result_size);
@@ -4960,7 +5151,8 @@ static void run_trx_short_test(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Touch is stopped!\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -5014,7 +5206,8 @@ int sec_ts_execute_force_calibration(struct sec_ts_data *ts, int cal_mode)
 		return rc;
 
 	if (ts->sec_ts_write(ts, cmd, NULL, 0) < 0) {
-		input_err(true, &ts->client->dev, "%s: Write Cal commend failed!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Write Cal commend failed!\n", __func__);
 		return rc;
 	}
 
@@ -5042,7 +5235,8 @@ static void run_force_calibration(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Touch is stopped!\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -5069,50 +5263,65 @@ static void run_force_calibration(void *device_data)
 #ifdef USE_PRESSURE_SENSOR
 		rc = sec_ts_execute_force_calibration(ts, PRESSURE_CAL);
 		if (rc < 0)
-			input_err(true, &ts->client->dev, "%s: fail to write PRESSURE CAL!\n", __func__);
+			input_err(true, &ts->client->dev,
+				"%s: fail to write PRESSURE CAL!\n", __func__);
 #endif
 
 		if (ts->plat_data->mis_cal_check) {
 			buff[0] = 0;
-			rc = ts->sec_ts_write(ts, SEC_TS_CMD_STATEMANAGE_ON, buff, 1);
+			rc = ts->sec_ts_write(ts, SEC_TS_CMD_STATEMANAGE_ON,
+					      buff, 1);
 			if (rc < 0) {
 				input_err(true, &ts->client->dev,
-					"%s: mis_cal_check error[1] ret: %d\n", __func__, rc);
+					"%s: mis_cal_check error[1] ret: %d\n",
+					__func__, rc);
 			}
 
 			buff[0] = 0x2;
 			buff[1] = 0x2;
-			rc = ts->sec_ts_write(ts, SEC_TS_CMD_CHG_SYSMODE, buff, 2);
+			rc = ts->sec_ts_write(ts, SEC_TS_CMD_CHG_SYSMODE,
+					      buff, 2);
 			if (rc < 0) {
 				input_err(true, &ts->client->dev,
-					"%s: mis_cal_check error[2] ret: %d\n", __func__, rc);
+					"%s: mis_cal_check error[2] ret: %d\n",
+					__func__, rc);
 			}
 
-			input_err(true, &ts->client->dev, "%s: try mis Cal. check\n", __func__);
-			rc = ts->sec_ts_write(ts, SEC_TS_CMD_MIS_CAL_CHECK, NULL, 0);
+			input_err(true, &ts->client->dev,
+				  "%s: try mis Cal. check\n", __func__);
+			rc = ts->sec_ts_write(ts, SEC_TS_CMD_MIS_CAL_CHECK,
+					      NULL, 0);
 			if (rc < 0) {
 				input_err(true, &ts->client->dev,
-					"%s: mis_cal_check error[3] ret: %d\n", __func__, rc);
+					"%s: mis_cal_check error[3] ret: %d\n",
+					__func__, rc);
 			}
 			sec_ts_delay(200);
 
-			rc = ts->sec_ts_read(ts, SEC_TS_CMD_MIS_CAL_READ, &mis_cal_data, 1);
+			rc = ts->sec_ts_read(ts, SEC_TS_CMD_MIS_CAL_READ,
+					     &mis_cal_data, 1);
 			if (rc < 0) {
-				input_err(true, &ts->client->dev, "%s: fail!, %d\n", __func__, rc);
+				input_err(true, &ts->client->dev,
+					  "%s: fail!, %d\n", __func__, rc);
 				mis_cal_data = 0xF3;
 			} else {
-				input_info(true, &ts->client->dev, "%s: miss cal data : %d\n", __func__, mis_cal_data);
+				input_info(true, &ts->client->dev,
+					"%s: miss cal data : %d\n",
+					__func__, mis_cal_data);
 			}
 
 			buff[0] = 1;
-			rc = ts->sec_ts_write(ts, SEC_TS_CMD_STATEMANAGE_ON, buff, 1);
+			rc = ts->sec_ts_write(ts, SEC_TS_CMD_STATEMANAGE_ON,
+					      buff, 1);
 			if (rc < 0) {
 				input_err(true, &ts->client->dev,
-					"%s: mis_cal_check error[4] ret: %d\n", __func__, rc);
+					"%s: mis_cal_check error[4] ret: %d\n",
+					__func__, rc);
 			}
 
-			if (mis_cal_data) {			
-				memset(&mode, 0x00, sizeof(struct sec_ts_test_mode));
+			if (mis_cal_data) {
+				memset(&mode, 0x00,
+				       sizeof(struct sec_ts_test_mode));
 				mode.type = TYPE_AMBIENT_DATA;
 				mode.allnode = TEST_MODE_ALL_NODE;
 
@@ -5127,21 +5336,27 @@ static void run_force_calibration(void *device_data)
 		}
 
 #ifdef PAT_CONTROL
-		ts->cal_count = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_CAL_COUNT);
+		ts->cal_count = get_tsp_nvm_data(ts,
+					SEC_TS_NVM_OFFSET_CAL_COUNT);
 
-		if(ts->external_factory == true) {
+		if (ts->external_factory == true) {
 			/* for external factory mode */
 			if (ts->cal_count == PAT_MAX_EXT)
 				ts->cal_count = PAT_MAX_EXT;
-			else if (PAT_EXT_FACT <= ts->cal_count && ts->cal_count < PAT_MAX_EXT)
+			else if (ts->cal_count >= PAT_EXT_FACT &&
+				 ts->cal_count < PAT_MAX_EXT)
 				ts->cal_count++;
 			else
 				ts->cal_count = PAT_EXT_FACT;
 
-			/* not to enter external factory mode without setting everytime */
+			/* not to enter external factory mode without setting
+			 * everytime
+			 **/
 			ts->external_factory = false;
 		} else {
-			/*change  from ( virtual pat  or vpat by external fatory )  to real pat by forced calibarion by LCIA   */
+			/* change from (virtual pat or vpat by external fatory)
+			 * to real pat by forced calibarion by LCIA
+			 **/
 			if (ts->cal_count >= PAT_MAGIC_NUMBER)
 				ts->cal_count = 1;
 			else if (ts->cal_count == PAT_MAX_LCIA)
@@ -5152,34 +5367,42 @@ static void run_force_calibration(void *device_data)
 
 		/* Use TSP NV area : in this model, use only one byte
 		 * buff[0] : offset from user NVM storage
-		 * buff[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+		 * buff[1] : length of stroed data - 1 (ex. using 1byte,
+				value is 1 - 1 = 0)
 		 * buff[2] : write data
-		 */
+		 **/
 		buff[0] = SEC_TS_NVM_OFFSET_CAL_COUNT;
 		buff[1] = 0;
 		buff[2] = ts->cal_count;
-		input_info(true, &ts->client->dev, "%s: write to nvm cal_count(%2X)\n",
-					__func__, buff[2]);
+		input_info(true, &ts->client->dev,
+			   "%s: write to nvm cal_count(%2X)\n",
+			   __func__, buff[2]);
 
 		rc = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 3);
 		if (rc < 0) {
 			input_err(true, &ts->client->dev,
-				"%s: nvm write failed. ret: %d\n", __func__, rc);
+				"%s: nvm write failed. ret: %d\n",
+				__func__, rc);
 		}
 
 		sec_ts_delay(20);
 
-		ts->cal_count = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_CAL_COUNT);
+		ts->cal_count = get_tsp_nvm_data(ts,
+						 SEC_TS_NVM_OFFSET_CAL_COUNT);
 
 		rc = ts->sec_ts_read(ts, SEC_TS_READ_IMG_VERSION, img_ver, 4);
 		if (rc < 0) {
-			input_err(true, &ts->client->dev, "%s: Image version read error\n", __func__);
+			input_err(true, &ts->client->dev,
+				  "%s: Image version read error\n", __func__);
 		} else {
 			memset(buff, 0x00, SEC_CMD_STR_LEN);
-			buff[0] = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_TUNE_VERSION);
+			buff[0] = get_tsp_nvm_data(ts,
+						SEC_TS_NVM_OFFSET_TUNE_VERSION);
 			if (buff[0] == 0xFF) {
-				set_tsp_nvm_data_clear(ts, SEC_TS_NVM_OFFSET_TUNE_VERSION);
-				set_tsp_nvm_data_clear(ts, SEC_TS_NVM_OFFSET_TUNE_VERSION+1);
+				set_tsp_nvm_data_clear(ts,
+					SEC_TS_NVM_OFFSET_TUNE_VERSION);
+				set_tsp_nvm_data_clear(ts,
+					SEC_TS_NVM_OFFSET_TUNE_VERSION + 1);
 			}
 
 			ts->tune_fix_ver = (img_ver[2]<<8 | img_ver[3]);
@@ -5187,20 +5410,26 @@ static void run_force_calibration(void *device_data)
 			buff[1] = 1;// 2bytes
 			buff[2] = img_ver[2];
 			buff[3] = img_ver[3];
-			input_info(true, &ts->client->dev, "%s: write tune_ver to nvm (%2X %2X)\n", __func__, buff[2], buff[3]);
+			input_info(true, &ts->client->dev,
+				   "%s: write tune_ver to nvm (%2X %2X)\n",
+				   __func__, buff[2], buff[3]);
 
 			rc = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, buff, 4);
 			if (rc < 0) {
 				input_err(true, &ts->client->dev,
-					"%s: nvm write failed. ret: %d\n", __func__, rc);
+					"%s: nvm write failed. ret: %d\n",
+					__func__, rc);
 			}
 			sec_ts_delay(20);
 
-			buff[0] = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_TUNE_VERSION);
-			buff[1] = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_TUNE_VERSION+1);
+			buff[0] = get_tsp_nvm_data(ts,
+					SEC_TS_NVM_OFFSET_TUNE_VERSION);
+			buff[1] = get_tsp_nvm_data(ts,
+					SEC_TS_NVM_OFFSET_TUNE_VERSION + 1);
 			ts->tune_fix_ver = buff[0]<<8 | buff[1];
 			input_info(true, &ts->client->dev,
-				"%s: cal_count [%2X] tune_fix_ver [%04X]\n", __func__, ts->cal_count, ts->tune_fix_ver);
+				"%s: cal_count [%2X] tune_fix_ver [%04X]\n",
+				__func__, ts->cal_count, ts->tune_fix_ver);
 		}
 #endif
 		snprintf(buff, sizeof(buff), "%s", "OK");
@@ -5230,7 +5459,8 @@ static void get_force_calibration(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n",
+			  __func__);
 		written += scnprintf(buff + written, buff_len - written,
 			"%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
@@ -5284,7 +5514,8 @@ static void run_force_pressure_calibration(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n",
+			  __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -5310,7 +5541,8 @@ static void run_force_pressure_calibration(void *device_data)
 		sec->cmd_state = SEC_CMD_STATUS_OK;
 	}
 
-	ts->pressure_cal_base = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_PRESSURE_BASE_CAL_COUNT);
+	ts->pressure_cal_base = get_tsp_nvm_data(ts,
+				SEC_TS_NVM_OFFSET_PRESSURE_BASE_CAL_COUNT);
 	if (ts->pressure_cal_base == 0xFF)
 		ts->pressure_cal_base = 0;
 	if (ts->pressure_cal_base > 0xFD)
@@ -5318,9 +5550,10 @@ static void run_force_pressure_calibration(void *device_data)
 
 	/* Use TSP NV area : in this model, use only one byte
 	 * data[0] : offset from user NVM storage
-	 * data[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+	 * data[1] : length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
 	 * data[2] : write data
-	 */
+	 **/
 	data[0] = SEC_TS_NVM_OFFSET_PRESSURE_BASE_CAL_COUNT;
 	data[1] = 0;
 	data[2] = ts->pressure_cal_base + 1;
@@ -5330,9 +5563,11 @@ static void run_force_pressure_calibration(void *device_data)
 		input_err(true, &ts->client->dev,
 			"%s: nvm write failed. ret: %d\n", __func__, rc);
 
-	ts->pressure_cal_base = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_PRESSURE_BASE_CAL_COUNT);
+	ts->pressure_cal_base = get_tsp_nvm_data(ts,
+				SEC_TS_NVM_OFFSET_PRESSURE_BASE_CAL_COUNT);
 
-	input_info(true, &ts->client->dev, "%s: count:%d\n", __func__, ts->pressure_cal_base);
+	input_info(true, &ts->client->dev, "%s: count:%d\n",
+		   __func__, ts->pressure_cal_base);
 
 	enable_irq(ts->client->irq);
 
@@ -5357,7 +5592,8 @@ static void set_pressure_test_mode(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n",
+			  __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -5368,14 +5604,16 @@ static void set_pressure_test_mode(void *device_data)
 
 	if (sec->cmd_param[0] == 1) {
 		enable = 0x1;
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_TEMPERATURE_COMP_MODE, &enable, 1);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_TEMPERATURE_COMP_MODE,
+				       &enable, 1);
 		if (ret < 0) {
 			snprintf(buff, sizeof(buff), "%s", "NG");
 			sec->cmd_state = SEC_CMD_STATUS_FAIL;
 			goto out_test_mode;
 		}
 
-		ret = sec_ts_fix_tmode(ts, TOUCH_SYSTEM_MODE_TOUCH, TOUCH_MODE_STATE_TOUCH);
+		ret = sec_ts_fix_tmode(ts, TOUCH_SYSTEM_MODE_TOUCH,
+				       TOUCH_MODE_STATE_TOUCH);
 		if (ret < 0) {
 			snprintf(buff, sizeof(buff), "%s", "NG");
 			sec->cmd_state = SEC_CMD_STATUS_FAIL;
@@ -5383,7 +5621,8 @@ static void set_pressure_test_mode(void *device_data)
 		}
 
 	} else {
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SELECT_PRESSURE_TYPE, &data, 1);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SELECT_PRESSURE_TYPE,
+				       &data, 1);
 		if (ret < 0) {
 			snprintf(buff, sizeof(buff), "%s", "NG");
 			sec->cmd_state = SEC_CMD_STATUS_FAIL;
@@ -5398,7 +5637,8 @@ static void set_pressure_test_mode(void *device_data)
 		}
 
 		enable = 0x0;
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_TEMPERATURE_COMP_MODE, &enable, 1);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_TEMPERATURE_COMP_MODE,
+				       &enable, 1);
 		if (ret < 0) {
 			snprintf(buff, sizeof(buff), "%s", "NG");
 			sec->cmd_state = SEC_CMD_STATUS_FAIL;
@@ -5430,11 +5670,13 @@ static int read_pressure_data(struct sec_ts_data *ts, u8 type, short *value)
 		return -EIO;
 
 	if (data[0] != type) {
-		input_info(true, &ts->client->dev, "%s: type change to %02X\n", __func__, type);
+		input_info(true, &ts->client->dev, "%s: type change to %02X\n",
+			   __func__, type);
 
 		data[1] = type;
 
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SELECT_PRESSURE_TYPE, &data[1], 1);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SELECT_PRESSURE_TYPE,
+				       &data[1], 1);
 		if (ret < 0)
 			return -EIO;
 
@@ -5451,8 +5693,9 @@ static int read_pressure_data(struct sec_ts_data *ts, u8 type, short *value)
 	pressure[1] = (data[2] << 8 | data[3]);
 	pressure[2] = (data[4] << 8 | data[5]);
 
-	input_info(true, &ts->client->dev, "%s: Left: %d, Center: %d, Rignt: %d\n",
-		__func__, pressure[2], pressure[1], pressure[0]);
+	input_info(true, &ts->client->dev,
+		   "%s: Left: %d, Center: %d, Rignt: %d\n",
+		   __func__, pressure[2], pressure[1], pressure[0]);
 
 	memcpy(value, pressure, 3 * 2);
 
@@ -5477,7 +5720,8 @@ static void run_pressure_filtered_strength_read_all(void *device_data)
 		goto error_read_str;
 	}
 
-	snprintf(buff, sizeof(buff), "%d,%d,%d", pressure[2], pressure[1], pressure[0]);
+	snprintf(buff, sizeof(buff), "%d,%d,%d",
+		 pressure[2], pressure[1], pressure[0]);
 
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
@@ -5512,7 +5756,8 @@ static void run_pressure_strength_read_all(void *device_data)
 		goto error_read_str;
 	}
 
-	snprintf(buff, sizeof(buff), "%d,%d,%d", pressure[2], pressure[1], pressure[0]);
+	snprintf(buff, sizeof(buff), "%d,%d,%d",
+		 pressure[2], pressure[1], pressure[0]);
 
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
@@ -5547,7 +5792,8 @@ static void run_pressure_rawdata_read_all(void *device_data)
 		goto error_read_rawdata;
 	}
 
-	snprintf(buff, sizeof(buff), "%d,%d,%d", pressure[2], pressure[1], pressure[0]);
+	snprintf(buff, sizeof(buff), "%d,%d,%d",
+		 pressure[2], pressure[1], pressure[0]);
 
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
@@ -5582,7 +5828,8 @@ static void run_pressure_offset_read_all(void *device_data)
 		goto error_read_str;
 	}
 
-	snprintf(buff, sizeof(buff), "%d,%d,%d", pressure[2], pressure[1], pressure[0]);
+	snprintf(buff, sizeof(buff), "%d,%d,%d",
+		 pressure[2], pressure[1], pressure[0]);
 
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
@@ -5631,7 +5878,8 @@ static void set_pressure_strength(void *device_data)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_GET_PRESSURE, cal_data, 18);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: cmd write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: cmd write failed. ret: %d\n", __func__, ret);
 		goto err_comm_str;
 	}
 
@@ -5640,7 +5888,8 @@ static void set_pressure_strength(void *device_data)
 	memset(cal_data, 0x00, 18);
 	ret = ts->sec_ts_read(ts, SEC_TS_CMD_SET_GET_PRESSURE, cal_data, 18);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: cmd write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: cmd write failed. ret: %d\n", __func__, ret);
 		goto err_comm_str;
 	}
 
@@ -5648,14 +5897,17 @@ static void set_pressure_strength(void *device_data)
 	pressure[1] = ((cal_data[8] << 8) | cal_data[9]);
 	pressure[2] = ((cal_data[0] << 8) | cal_data[1]);
 
-	input_info(true, &ts->client->dev, "%s: [%d] : %d, %d, %d\n", __func__, pressure[0], pressure[1], pressure[2]);
+	input_info(true, &ts->client->dev, "%s: [%d] : %d, %d, %d\n",
+		   __func__, pressure[0], pressure[1], pressure[2]);
 
 	/* Use TSP NV area : in this model, use only one byte
 	 * buff[0] : offset from user NVM storage
-	 * buff[1] : [n] length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+	 * buff[1] : [n] length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
 	 * buff[2] ... [n] : write data ...
-	 */
-	data[0] = SEC_TS_NVM_OFFSET_PRESSURE_STRENGTH + (index * SEC_TS_NVM_SIZE_PRESSURE_BLOCK);
+	 **/
+	data[0] = SEC_TS_NVM_OFFSET_PRESSURE_STRENGTH +
+			(index * SEC_TS_NVM_SIZE_PRESSURE_BLOCK);
 	data[1] = SEC_TS_NVM_SIZE_PRESSURE_BLOCK - 1;
 	/* RIGHT */
 	data[2] = (sec->cmd_param[3] >> 8);
@@ -5669,14 +5921,18 @@ static void set_pressure_strength(void *device_data)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, data, 8);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm write failed. ret: %d\n", __func__, ret);
 		goto err_comm_str;
 	}
 
 	sec_ts_delay(20);
 
 	input_info(true, &ts->client->dev, "%s: [%d] : %d, %d, %d\n",
-		__func__, index, (data[6] << 8) + data[7], (data[4] << 8) + data[5], (data[0] << 8) + data[1]);
+		__func__, index,
+		(data[6] << 8) + data[7],
+		(data[4] << 8) + data[5],
+		(data[0] << 8) + data[1]);
 
 	memset(data, 0x00, 8);
 
@@ -5686,7 +5942,8 @@ static void set_pressure_strength(void *device_data)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, data, 3);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm write failed. ret: %d\n", __func__, ret);
 		goto err_comm_str;
 	}
 
@@ -5697,7 +5954,8 @@ static void set_pressure_strength(void *device_data)
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
-	ts->pressure_cal_delta = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_PRESSURE_DELTA_CAL_COUNT);
+	ts->pressure_cal_delta = get_tsp_nvm_data(ts,
+				SEC_TS_NVM_OFFSET_PRESSURE_DELTA_CAL_COUNT);
 	if (ts->pressure_cal_delta == 0xFF)
 		ts->pressure_cal_delta = 0;
 
@@ -5706,21 +5964,24 @@ static void set_pressure_strength(void *device_data)
 
 	/* Use TSP NV area : in this model, use only one byte
 	 * data[0] : offset from user NVM storage
-	 * data[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+	 * data[1] : length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
 	 * data[2] : write data
-	 */
+	 **/
 	data[0] = SEC_TS_NVM_OFFSET_PRESSURE_DELTA_CAL_COUNT;
 	data[1] = 0;
 	data[2] = ts->pressure_cal_delta + 1;
-	
-	ret= ts->sec_ts_write(ts, SEC_TS_CMD_NVM, data, 3);
+
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, data, 3);
 	if (ret < 0)
 		input_err(true, &ts->client->dev,
 			"%s: nvm write failed. ret: %d\n", __func__, ret);
 
-	ts->pressure_cal_delta = get_tsp_nvm_data(ts, SEC_TS_NVM_OFFSET_PRESSURE_DELTA_CAL_COUNT);
+	ts->pressure_cal_delta = get_tsp_nvm_data(ts,
+				SEC_TS_NVM_OFFSET_PRESSURE_DELTA_CAL_COUNT);
 
-	input_info(true, &ts->client->dev, "%s: count:%d\n", __func__, ts->pressure_cal_delta);
+	input_info(true, &ts->client->dev,
+		   "%s: count:%d\n", __func__, ts->pressure_cal_delta);
 
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
 	return;
@@ -5756,10 +6017,12 @@ static void set_pressure_rawdata(void *device_data)
 
 	/* Use TSP NV area : in this model, use only one byte
 	 * buff[0] : offset from user NVM storage
-	 * buff[1] : [n] length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+	 * buff[1] : [n] length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
 	 * buff[2] ... [n] : write data ...
-	 */
-	data[0] = SEC_TS_NVM_OFFSET_PRESSURE_RAWDATA + (index * SEC_TS_NVM_SIZE_PRESSURE_BLOCK);
+	 **/
+	data[0] = SEC_TS_NVM_OFFSET_PRESSURE_RAWDATA +
+			(index * SEC_TS_NVM_SIZE_PRESSURE_BLOCK);
 	data[1] = SEC_TS_NVM_SIZE_PRESSURE_BLOCK - 1;
 	data[2] = (sec->cmd_param[3] >> 8);
 	data[3] = (sec->cmd_param[3] & 0xFF);
@@ -5770,16 +6033,20 @@ static void set_pressure_rawdata(void *device_data)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, data, 8);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm write failed. ret: %d\n", __func__, ret);
 		goto err_comm_raw;
 	}
 	sec_ts_delay(20);
 
 	memset(data, 0x00, 8);
 
-	ret = get_tsp_nvm_data_by_size(ts, SEC_TS_NVM_OFFSET_PRESSURE_RAWDATA + (index * SEC_TS_NVM_SIZE_PRESSURE_BLOCK), SEC_TS_NVM_SIZE_PRESSURE_BLOCK, data);
+	ret = get_tsp_nvm_data_by_size(ts, SEC_TS_NVM_OFFSET_PRESSURE_RAWDATA +
+				(index * SEC_TS_NVM_SIZE_PRESSURE_BLOCK),
+				SEC_TS_NVM_SIZE_PRESSURE_BLOCK, data);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm read failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm read failed. ret: %d\n", __func__, ret);
 		goto err_comm_raw;
 	}
 
@@ -5789,7 +6056,10 @@ static void set_pressure_rawdata(void *device_data)
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
 	input_info(true, &ts->client->dev, "%s: [%d] : %d, %d, %d\n",
-		__func__, index, (data[4] << 8) + data[5], (data[2] << 8) + data[3], (data[1] << 8) + data[0]);
+		__func__, index,
+		(data[4] << 8) + data[5],
+		(data[2] << 8) + data[3],
+		(data[1] << 8) + data[0]);
 
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
 	return;
@@ -5824,14 +6094,18 @@ static void set_pressure_data_index(void *device_data)
 		goto err_set_cmd_param_index;
 
 	if (sec->cmd_param[0] == 0) {
-		input_info(true, &ts->client->dev, "%s: clear calibration result\n", __func__);
+		input_info(true, &ts->client->dev,
+			   "%s: clear calibration result\n", __func__);
 		/* clear pressure calibrated data */
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_GET_PRESSURE, cal_data, 18);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_GET_PRESSURE,
+				       cal_data, 18);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: cmd write failed. ret: %d\n", __func__, ret);
+			input_err(true, &ts->client->dev,
+				"%s: cmd write failed. ret: %d\n",
+				__func__, ret);
 			goto err_set_comm_index;
 		}
-		
+
 		sec_ts_delay(30);
 
 		goto clear_index;
@@ -5839,9 +6113,11 @@ static void set_pressure_data_index(void *device_data)
 
 	index = sec->cmd_param[0] - 1;
 
-	ret = get_tsp_nvm_data_by_size(ts, SEC_TS_NVM_OFFSET_PRESSURE_STRENGTH, 24, data);
+	ret = get_tsp_nvm_data_by_size(ts, SEC_TS_NVM_OFFSET_PRESSURE_STRENGTH,
+				       24, data);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm read failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm read failed. ret: %d\n", __func__, ret);
 		goto err_set_comm_index;
 	}
 
@@ -5856,7 +6132,8 @@ static void set_pressure_data_index(void *device_data)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_GET_PRESSURE, cal_data, 18);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: cmd write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: cmd write failed. ret: %d\n", __func__, ret);
 		goto err_set_comm_index;
 	}
 
@@ -5864,9 +6141,10 @@ static void set_pressure_data_index(void *device_data)
 
 	/* Use TSP NV area : in this model, use only one byte
 	 * buff[0] : offset from user NVM storage
-	 * buff[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+	 * buff[1] : length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
 	 * buff[2] : write data
-	 */
+	 **/
 	memset(data, 0x00, 8);
 	data[0] = SEC_TS_NVM_OFFSET_PRESSURE_INDEX;
 	data[1] = 0;
@@ -5874,7 +6152,8 @@ static void set_pressure_data_index(void *device_data)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, data, 3);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm write failed. ret: %d\n", __func__, ret);
 		goto err_set_comm_index;
 	}
 
@@ -5921,9 +6200,11 @@ static void get_pressure_strength(void *device_data)
 
 	index = sec->cmd_param[0] - 1;
 
-	ret = get_tsp_nvm_data_by_size(ts, SEC_TS_NVM_OFFSET_PRESSURE_STRENGTH, 24, data);
+	ret = get_tsp_nvm_data_by_size(ts, SEC_TS_NVM_OFFSET_PRESSURE_STRENGTH,
+				       24, data);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm read failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm read failed. ret: %d\n", __func__, ret);
 		goto err_get_comm_str;
 	}
 
@@ -5931,7 +6212,8 @@ static void get_pressure_strength(void *device_data)
 	pressure[1] = ((data[6 * index + 2] << 8) + data[6 * index + 3]);
 	pressure[2] = ((data[6 * index + 0] << 8) + data[6 * index + 1]);
 
-	snprintf(buff, sizeof(buff), "%d,%d,%d", pressure[0], pressure[1], pressure[2]);
+	snprintf(buff, sizeof(buff), "%d,%d,%d",
+		 pressure[0], pressure[1], pressure[2]);
 
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -5973,9 +6255,11 @@ static void get_pressure_rawdata(void *device_data)
 
 	index = sec->cmd_param[0] - 1;
 
-	ret = get_tsp_nvm_data_by_size(ts, SEC_TS_NVM_OFFSET_PRESSURE_RAWDATA, 24, data);
+	ret = get_tsp_nvm_data_by_size(ts, SEC_TS_NVM_OFFSET_PRESSURE_RAWDATA,
+				       24, data);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm read failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm read failed. ret: %d\n", __func__, ret);
 		goto err_get_comm_raw;
 	}
 
@@ -5983,7 +6267,8 @@ static void get_pressure_rawdata(void *device_data)
 	pressure[1] = ((data[6 * index + 2] << 8) + data[6 * index + 3]);
 	pressure[2] = ((data[6 * index + 0] << 8) + data[6 * index + 1]);
 
-	snprintf(buff, sizeof(buff), "%d,%d,%d", pressure[0], pressure[1], pressure[2]);
+	snprintf(buff, sizeof(buff), "%d,%d,%d",
+		 pressure[0], pressure[1], pressure[2]);
 
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -6042,7 +6327,6 @@ err_get_index:
 
 	sec->cmd_state = SEC_CMD_STATUS_FAIL;
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
-	return;
 }
 static void set_pressure_strength_clear(void *device_data)
 {
@@ -6060,7 +6344,8 @@ static void set_pressure_strength_clear(void *device_data)
 	/* clear pressure calibrated data */
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_GET_PRESSURE, cal_data, 18);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: cmd write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: cmd write failed. ret: %d\n", __func__, ret);
 		goto err_comm_str;
 	}
 
@@ -6068,14 +6353,17 @@ static void set_pressure_strength_clear(void *device_data)
 
 	/* Use TSP NV area : in this model, use only one byte
 	 * buff[0] : offset from user NVM storage
-	 * buff[1] : length of stroed data - 1 (ex. using 1byte, value is  1 - 1 = 0)
+	 * buff[1] : length of stroed data - 1 (ex. using 1byte,
+	 *           value is  1 - 1 = 0)
 	 * buff[2] : write data
-	 */
+	 **/
 
 	/* strength 6 * 4,  rawdata 6 * 4, buff[0], buff[1] */
 	data = kzalloc(50, GFP_KERNEL);
 	if (!data) {
-		input_err(true, &ts->client->dev, "%s failed to allocate memory. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			"%s failed to allocate memory. ret: %d\n",
+			__func__, ret);
 		goto err_comm_str;
 	}
 
@@ -6085,7 +6373,8 @@ static void set_pressure_strength_clear(void *device_data)
 	/* remove calicated strength, rawdata in NVM */
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_NVM, data, 50);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: nvm write failed. ret: %d\n", __func__, ret);
+		input_err(true, &ts->client->dev,
+			  "%s: nvm write failed. ret: %d\n", __func__, ret);
 		goto err_mem_str;
 	}
 
@@ -6139,7 +6428,8 @@ static void set_pressure_user_level(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n",
+			  __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
@@ -6156,7 +6446,7 @@ static void set_pressure_user_level(void *device_data)
 	 * byte[1]: m_customlib_ifpacket_addr[15:8]
 	 * byte[n] : user data (max 32 bytes)
 	 */
-	addr[0] = SEC_TS_CMD_CUSTOMLIB_OFFSET_PRESSURE_LEVEL;	
+	addr[0] = SEC_TS_CMD_CUSTOMLIB_OFFSET_PRESSURE_LEVEL;
 	addr[1] = 0x00;
 	addr[2] = sec->cmd_param[0];
 
@@ -6176,7 +6466,8 @@ static void set_pressure_user_level(void *device_data)
 	if (ret < 0)
 		goto out_set_user_level;
 
-	input_info(true, &ts->client->dev, "%s: set user level: %d\n", __func__, data[0]);
+	input_info(true, &ts->client->dev, "%s: set user level: %d\n",
+		   __func__, data[0]);
 
 	ts->pressure_user_level = data[0];
 
@@ -6189,7 +6480,8 @@ static void set_pressure_user_level(void *device_data)
 	if (ret < 0)
 		goto out_set_user_level;
 
-	input_info(true, &ts->client->dev, "%s: HIGH THD: %d\n", __func__, data[0]);
+	input_info(true, &ts->client->dev, "%s: HIGH THD: %d\n",
+		   __func__, data[0]);
 
 	addr[0] = SEC_TS_CMD_CUSTOMLIB_OFFSET_PRESSURE_THD_LOW;
 
@@ -6201,7 +6493,8 @@ static void set_pressure_user_level(void *device_data)
 	if (ret < 0)
 		goto out_set_user_level;
 
-	input_info(true, &ts->client->dev, "%s: LOW THD: %d\n", __func__, data[0]);
+	input_info(true, &ts->client->dev, "%s: LOW THD: %d\n",
+		   __func__, data[0]);
 
 	snprintf(buff, sizeof(buff), "%s", "OK");
 
@@ -6234,7 +6527,7 @@ static void get_pressure_user_level(void *device_data)
 
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 
-	addr[0] = SEC_TS_CMD_CUSTOMLIB_OFFSET_PRESSURE_LEVEL;	
+	addr[0] = SEC_TS_CMD_CUSTOMLIB_OFFSET_PRESSURE_LEVEL;
 	addr[1] = 0x00;
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_CUSTOMLIB_READ_PARAM, addr, 2);
@@ -6245,7 +6538,8 @@ static void get_pressure_user_level(void *device_data)
 	if (ret < 0)
 		goto out_get_user_level;
 
-	input_err(true, &ts->client->dev, "%s: set user level: %d\n", __func__, data[0]);
+	input_err(true, &ts->client->dev, "%s: set user level: %d\n",
+		  __func__, data[0]);
 	ts->pressure_user_level = data[0];
 
 	snprintf(buff, sizeof(buff), "%s", "OK");
@@ -6282,8 +6576,8 @@ static void set_lowpower_mode(void *device_data)
 	}
 
 /* set lowpower mode by spay, edge_swipe function.
-	ts->lowpower_mode = sec->cmd_param[0];
-*/
+ *	ts->lowpower_mode = sec->cmd_param[0];
+ **/
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 
 	sec_cmd_set_cmd_exit(sec);
@@ -6316,26 +6610,34 @@ static void set_wirelesscharger_mode(void *device_data)
 	}
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: fail to enable w-charger status, POWER_STATUS=OFF\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: fail to enable w-charger status, POWER_STATUS=OFF\n",
+			  __func__);
 		goto NG;
 	}
 
 	if (sec->cmd_param[0] == 1)
-		ts->charger_mode = ts->charger_mode | SEC_TS_BIT_CHARGER_MODE_WIRELESS_CHARGER;
+		ts->charger_mode = ts->charger_mode |
+				SEC_TS_BIT_CHARGER_MODE_WIRELESS_CHARGER;
 	else if (sec->cmd_param[0] == 3)
-		ts->charger_mode = ts->charger_mode | SEC_TS_BIT_CHARGER_MODE_WIRELESS_BATTERY_PACK;
+		ts->charger_mode = ts->charger_mode |
+				SEC_TS_BIT_CHARGER_MODE_WIRELESS_BATTERY_PACK;
 	else if (mode == false)
-		ts->charger_mode = ts->charger_mode & (~SEC_TS_BIT_CHARGER_MODE_WIRELESS_CHARGER) & (~SEC_TS_BIT_CHARGER_MODE_WIRELESS_BATTERY_PACK);
+		ts->charger_mode = ts->charger_mode &
+			(~SEC_TS_BIT_CHARGER_MODE_WIRELESS_CHARGER) &
+			(~SEC_TS_BIT_CHARGER_MODE_WIRELESS_BATTERY_PACK);
 
 	w_data[0] = ts->charger_mode;
 	ret = ts->sec_ts_write(ts, SET_TS_CMD_SET_CHARGER_MODE, w_data, 1);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: Failed to send command 74\n", __func__);
+		input_err(true, &ts->client->dev,
+			  "%s: Failed to send command 74\n", __func__);
 		goto NG;
 	}
 
 	input_err(true, &ts->client->dev, "%s: %s, status =%x\n",
-		__func__, (mode) ? "wireless enable" : "wireless disable", ts->charger_mode);
+		__func__, (mode) ? "wireless enable" : "wireless disable",
+		ts->charger_mode);
 
 	snprintf(buff, sizeof(buff), "%s", "OK");
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -6347,7 +6649,8 @@ static void set_wirelesscharger_mode(void *device_data)
 
 NG:
 	input_err(true, &ts->client->dev, "%s: %s, status =%x\n",
-		__func__, (mode) ? "wireless enable" : "wireless disable", ts->charger_mode);
+		__func__, (mode) ? "wireless enable" : "wireless disable",
+		ts->charger_mode);
 
 OUT:
 	snprintf(buff, sizeof(buff), "%s", "NG");
@@ -6379,7 +6682,8 @@ static void spay_enable(void *device_data)
 			ts->lowpower_mode &= ~SEC_TS_MODE_CUSTOMLIB_SPAY;
 	}
 
-	input_info(true, &ts->client->dev, "%s: %02X\n", __func__, ts->lowpower_mode);
+	input_info(true, &ts->client->dev,
+		   "%s: %02X\n", __func__, ts->lowpower_mode);
 
 	#ifdef SEC_TS_SUPPORT_CUSTOMLIB
 	if (ts->use_customlib)
@@ -6426,15 +6730,19 @@ static void set_aod_rect(void *device_data)
 
 	if (ts->use_customlib) {
 		disable_irq(ts->client->irq);
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_CUSTOMLIB_WRITE_PARAM, &data[0], 10);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_CUSTOMLIB_WRITE_PARAM,
+				       &data[0], 10);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: Failed to write offset\n", __func__);
+			input_err(true, &ts->client->dev,
+				  "%s: Failed to write offset\n", __func__);
 			goto NG;
 		}
 
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_CUSTOMLIB_NOTIFY_PACKET, NULL, 0);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_CUSTOMLIB_NOTIFY_PACKET,
+				       NULL, 0);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: Failed to send notify\n", __func__);
+			input_err(true, &ts->client->dev,
+				  "%s: Failed to send notify\n", __func__);
 			goto NG;
 		}
 		enable_irq(ts->client->irq);
@@ -6473,17 +6781,20 @@ static void get_aod_rect(void *device_data)
 		disable_irq(ts->client->irq);
 		ret = ts->sec_ts_read_customlib(ts, data, 8);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: Failed to read rect\n", __func__);
+			input_err(true, &ts->client->dev,
+				  "%s: Failed to read rect\n", __func__);
 			goto NG;
 		}
 		enable_irq(ts->client->irq);
 	}
 
 	for (i = 0; i < 4; i++)
-		rect_data[i] = (data[i * 2 + 1] & 0xFF) << 8 | (data[i * 2] & 0xFF);
+		rect_data[i] = (data[i * 2 + 1] & 0xFF) << 8 |
+					(data[i * 2] & 0xFF);
 
 	input_info(true, &ts->client->dev, "%s: w:%d, h:%d, x:%d, y:%d\n",
-			__func__, rect_data[0], rect_data[1], rect_data[2], rect_data[3]);
+			__func__,
+			rect_data[0], rect_data[1], rect_data[2], rect_data[3]);
 
 	snprintf(buff, sizeof(buff), "%s", "OK");
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -6521,7 +6832,8 @@ static void aod_enable(void *device_data)
 			ts->lowpower_mode &= ~SEC_TS_MODE_CUSTOMLIB_AOD;
 	}
 
-	input_info(true, &ts->client->dev, "%s: %02X\n", __func__, ts->lowpower_mode);
+	input_info(true, &ts->client->dev,
+		   "%s: %02X\n", __func__, ts->lowpower_mode);
 
 	#ifdef SEC_TS_SUPPORT_CUSTOMLIB
 	if (ts->use_customlib)
@@ -6567,7 +6879,8 @@ void set_grip_data_to_ic(struct sec_ts_data *ts, u8 flag)
 {
 	u8 data[8] = { 0 };
 
-	input_info(true, &ts->client->dev, "%s: flag: %02X (clr,lan,nor,edg,han)\n", __func__, flag);
+	input_info(true, &ts->client->dev, "%s: flag: %02X (clr,lan,nor,edg,han)\n",
+		   __func__, flag);
 
 	if (flag & G_SET_EDGE_HANDLER) {
 		if (ts->grip_edgehandler_direction == 0) {
@@ -6577,13 +6890,15 @@ void set_grip_data_to_ic(struct sec_ts_data *ts, u8 flag)
 			data[3] = 0x0;
 		} else {
 			data[0] = (ts->grip_edgehandler_start_y >> 4) & 0xFF;
-			data[1] = (ts->grip_edgehandler_start_y << 4 & 0xF0) | ((ts->grip_edgehandler_end_y >> 8) & 0xF);
+			data[1] = (ts->grip_edgehandler_start_y << 4 & 0xF0) |
+				((ts->grip_edgehandler_end_y >> 8) & 0xF);
 			data[2] = ts->grip_edgehandler_end_y & 0xFF;
 			data[3] = ts->grip_edgehandler_direction & 0x3;
 		}
 		ts->sec_ts_write(ts, SEC_TS_CMD_EDGE_HANDLER, data, 4);
 		input_info(true, &ts->client->dev, "%s: 0x%02X %02X,%02X,%02X,%02X\n",
-			__func__, SEC_TS_CMD_EDGE_HANDLER, data[0], data[1], data[2], data[3]);
+			__func__, SEC_TS_CMD_EDGE_HANDLER,
+			data[0], data[1], data[2], data[3]);
 	}
 
 	if (flag & G_SET_EDGE_ZONE) {
@@ -6601,17 +6916,20 @@ void set_grip_data_to_ic(struct sec_ts_data *ts, u8 flag)
 		data[3] = ts->grip_deadzone_y & 0xFF;
 		ts->sec_ts_write(ts, SEC_TS_CMD_DEAD_ZONE, data, 4);
 		input_info(true, &ts->client->dev, "%s: 0x%02X %02X,%02X,%02X,%02X\n",
-			__func__, SEC_TS_CMD_DEAD_ZONE, data[0], data[1], data[2], data[3]);
+			__func__, SEC_TS_CMD_DEAD_ZONE,
+			data[0], data[1], data[2], data[3]);
 	}
 
 	if (flag & G_SET_LANDSCAPE_MODE) {
 		data[0] = ts->grip_landscape_mode & 0x1;
 		data[1] = (ts->grip_landscape_edge >> 4) & 0xFF;
-		data[2] = (ts->grip_landscape_edge << 4 & 0xF0) | ((ts->grip_landscape_deadzone >> 8) & 0xF);
+		data[2] = (ts->grip_landscape_edge << 4 & 0xF0) |
+				((ts->grip_landscape_deadzone >> 8) & 0xF);
 		data[3] = ts->grip_landscape_deadzone & 0xFF;
 		ts->sec_ts_write(ts, SEC_TS_CMD_LANDSCAPE_MODE, data, 4);
 		input_info(true, &ts->client->dev, "%s: 0x%02X %02X,%02X,%02X,%02X\n",
-			__func__, SEC_TS_CMD_LANDSCAPE_MODE, data[0], data[1], data[2], data[3]);
+			__func__, SEC_TS_CMD_LANDSCAPE_MODE,
+			data[0], data[1], data[2], data[3]);
 	}
 
 	if (flag & G_CLR_LANDSCAPE_MODE) {
@@ -6623,23 +6941,23 @@ void set_grip_data_to_ic(struct sec_ts_data *ts, u8 flag)
 }
 
 /*
- *	index  0 :  set edge handler
- *		1 :  portrait (normal) mode
- *		2 :  landscape mode
+ * index  0 :  set edge handler
+ *  1 :  portrait (normal) mode
+ *  2 :  landscape mode
  *
- *	data
- *		0, X (direction), X (y start), X (y end)
- *		direction : 0 (off), 1 (left), 2 (right)
- *			ex) echo set_grip_data,0,2,600,900 > cmd
+ * data
+ *  0, X (direction), X (y start), X (y end)
+ *  direction : 0 (off), 1 (left), 2 (right)
+ *	ex) echo set_grip_data,0,2,600,900 > cmd
  *
- *		1, X (edge zone), X (dead zone up x), X (dead zone down x), X (dead zone y)
- *			ex) echo set_grip_data,1,200,10,50,1500 > cmd
+ *  1, X (edge zone), X (dead zone up x), X (dead zone down x), X (dead zone y)
+ *	ex) echo set_grip_data,1,200,10,50,1500 > cmd
  *
- *		2, 1 (landscape mode), X (edge zone), X (dead zone)
- *			ex) echo set_grip_data,2,1,200,100 > cmd
+ *  2, 1 (landscape mode), X (edge zone), X (dead zone)
+ *	ex) echo set_grip_data,2,1,200,100 > cmd
  *
- *		2, 0 (portrait mode)
- *			ex) echo set_grip_data,2,0  > cmd
+ *2, 0 (portrait mode)
+ *	ex) echo set_grip_data,2,0  > cmd
  */
 
 static void set_grip_data(void *device_data)
@@ -6665,58 +6983,62 @@ static void set_grip_data(void *device_data)
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_DEADZONE_RANGE, tPara, 2);
 	if (ret < 0)
 		goto err_grip_data;
-	/*
-	if (sec->cmd_param[0] == 0) {	// edge handler
-		if (sec->cmd_param[1] == 0) {	// clear
-			ts->grip_edgehandler_direction = 0;
-		} else if (sec->cmd_param[1] < 3) {
-			ts->grip_edgehandler_direction = sec->cmd_param[1];
-			ts->grip_edgehandler_start_y = sec->cmd_param[2];
-			ts->grip_edgehandler_end_y = sec->cmd_param[3];
-		} else {
-			input_err(true, &ts->client->dev, "%s: cmd1 is abnormal, %d (%d)\n",
-				__func__, sec->cmd_param[1], __LINE__);
-			goto err_grip_data;
-		}
-
-		mode = mode | G_SET_EDGE_HANDLER;
-		set_grip_data_to_ic(ts, mode);
-
-	} else if (sec->cmd_param[0] == 1) {	// normal mode
-		if (ts->grip_edge_range != sec->cmd_param[1])
-			mode = mode | G_SET_EDGE_ZONE;
-
-		ts->grip_edge_range = sec->cmd_param[1];
-		ts->grip_deadzone_up_x = sec->cmd_param[2];
-		ts->grip_deadzone_dn_x = sec->cmd_param[3];
-		ts->grip_deadzone_y = sec->cmd_param[4];
-		mode = mode | G_SET_NORMAL_MODE;
-
-		if (ts->grip_landscape_mode == 1) {
-			ts->grip_landscape_mode = 0;
-			mode = mode | G_CLR_LANDSCAPE_MODE;
-		}
-		set_grip_data_to_ic(ts, mode);
-	} else if (sec->cmd_param[0] == 2) {	// landscape mode
-		if (sec->cmd_param[1] == 0) {	// normal mode
-			ts->grip_landscape_mode = 0;
-			mode = mode | G_CLR_LANDSCAPE_MODE;
-		} else if (sec->cmd_param[1] == 1) {
-			ts->grip_landscape_mode = 1;
-			ts->grip_landscape_edge = sec->cmd_param[2];
-			ts->grip_landscape_deadzone	= sec->cmd_param[3];
-			mode = mode | G_SET_LANDSCAPE_MODE;
-		} else {
-			input_err(true, &ts->client->dev, "%s: cmd1 is abnormal, %d (%d)\n",
-				__func__, sec->cmd_param[1], __LINE__);
-			goto err_grip_data;
-		}
-		set_grip_data_to_ic(ts, mode);
-	} else {
-		input_err(true, &ts->client->dev, "%s: cmd0 is abnormal, %d", __func__, sec->cmd_param[0]);
-		goto err_grip_data;
-	}
-	*/
+/*
+ *	if (sec->cmd_param[0] == 0) {	// edge handler
+ *		if (sec->cmd_param[1] == 0) {	// clear
+ *			ts->grip_edgehandler_direction = 0;
+ *		} else if (sec->cmd_param[1] < 3) {
+ *			ts->grip_edgehandler_direction = sec->cmd_param[1];
+ *			ts->grip_edgehandler_start_y = sec->cmd_param[2];
+ *			ts->grip_edgehandler_end_y = sec->cmd_param[3];
+ *		} else {
+ *			input_err(true, &ts->client->dev,
+ *				"%s: cmd1 is abnormal, %d (%d)\n",
+ *				__func__, sec->cmd_param[1], __LINE__);
+ *			goto err_grip_data;
+ *		}
+ *
+ *		mode = mode | G_SET_EDGE_HANDLER;
+ *		set_grip_data_to_ic(ts, mode);
+ *
+ *	} else if (sec->cmd_param[0] == 1) {	// normal mode
+ *		if (ts->grip_edge_range != sec->cmd_param[1])
+ *			mode = mode | G_SET_EDGE_ZONE;
+ *
+ *		ts->grip_edge_range = sec->cmd_param[1];
+ *		ts->grip_deadzone_up_x = sec->cmd_param[2];
+ *		ts->grip_deadzone_dn_x = sec->cmd_param[3];
+ *		ts->grip_deadzone_y = sec->cmd_param[4];
+ *		mode = mode | G_SET_NORMAL_MODE;
+ *
+ *		if (ts->grip_landscape_mode == 1) {
+ *			ts->grip_landscape_mode = 0;
+ *			mode = mode | G_CLR_LANDSCAPE_MODE;
+ *		}
+ *		set_grip_data_to_ic(ts, mode);
+ *	} else if (sec->cmd_param[0] == 2) {	// landscape mode
+ *		if (sec->cmd_param[1] == 0) {	// normal mode
+ *			ts->grip_landscape_mode = 0;
+ *			mode = mode | G_CLR_LANDSCAPE_MODE;
+ *		} else if (sec->cmd_param[1] == 1) {
+ *			ts->grip_landscape_mode = 1;
+ *			ts->grip_landscape_edge = sec->cmd_param[2];
+ *			ts->grip_landscape_deadzone	= sec->cmd_param[3];
+ *			mode = mode | G_SET_LANDSCAPE_MODE;
+ *		} else {
+ *			input_err(true, &ts->client->dev,
+ *				"%s: cmd1 is abnormal, %d (%d)\n",
+ *				__func__, sec->cmd_param[1], __LINE__);
+ *			goto err_grip_data;
+ *		}
+ *		set_grip_data_to_ic(ts, mode);
+ *	} else {
+ *		input_err(true, &ts->client->dev,
+ *			"%s: cmd0 is abnormal, %d",
+ *			__func__, sec->cmd_param[0]);
+ *		goto err_grip_data;
+ *	}
+ **/
 
 	mutex_unlock(&ts->device_mutex);
 
@@ -6738,7 +7060,7 @@ err_grip_data:
 }
 
 /*
- * Set/Get Dex Mode 0xE7 
+ * Set/Get Dex Mode 0xE7
  *  0: Disable dex mode
  *  1: Full screen mode
  *  2: Iris mode
@@ -6755,13 +7077,15 @@ static void dex_enable(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (!ts->plat_data->support_dex) {
-		input_err(true, &ts->client->dev, "%s: not support DeX mode\n", __func__);
+		input_err(true, &ts->client->dev, "%s: not support DeX mode\n",
+			  __func__);
 		goto NG;
 	}
 
 	if ((sec->cmd_param[0] < 0 || sec->cmd_param[0] > 1) &&
 		(sec->cmd_param[1] < 0 || sec->cmd_param[1] > 1)) {
-		input_err(true, &ts->client->dev, "%s: not support param\n", __func__);
+		input_err(true, &ts->client->dev, "%s: not support param\n",
+			  __func__);
 		goto NG;
 	}
 
@@ -6778,13 +7102,15 @@ static void dex_enable(void *device_data)
 			ts->dex_name = "[DeX]";
 		}
 	} else {
-		input_err(true, &ts->client->dev, "%s: set touch mode\n", __func__);
+		input_err(true, &ts->client->dev, "%s: set touch mode\n",
+			  __func__);
 		ts->input_dev = ts->input_dev_touch;
 		ts->dex_name = "";
 	}
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n",
+			  __func__);
 		goto NG;
 	}
 
@@ -6831,21 +7157,25 @@ static void brush_enable(void *device_data)
 	ts->brush_mode = sec->cmd_param[0];
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev,
+			"%s: Touch is stopped!\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
 		goto out;
 	}
 
 	input_info(true, &ts->client->dev,
-		"%s: set brush mode %s\n", __func__, ts->brush_mode ? "enable" : "disable");
+		"%s: set brush mode %s\n", __func__,
+		ts->brush_mode ? "enable" : "disable");
 
-	/*  - 0: Disable Artcanvas min phi mode
-	- 1: Enable Artcanvas min phi mode */
-	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_BRUSH_MODE, &ts->brush_mode, 1);
+	/* - 0: Disable Artcanvas min phi mode
+	 * - 1: Enable Artcanvas min phi mode
+	 **/
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_BRUSH_MODE,
+				&ts->brush_mode, 1);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev,
-					"%s: failed to set brush mode\n", __func__);
+				"%s: failed to set brush mode\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
 		goto out;
@@ -6924,21 +7254,25 @@ static void set_touchable_area(void *device_data)
 	ts->touchable_area = sec->cmd_param[0];
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev,
+			"%s: Touch is stopped!\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec->cmd_state = SEC_CMD_STATUS_NOT_APPLICABLE;
 		goto out;
 	}
 
 	input_info(true, &ts->client->dev,
-		"%s: set 16:9 mode %s\n", __func__, ts->touchable_area ? "enable" : "disable");
+		"%s: set 16:9 mode %s\n", __func__,
+		ts->touchable_area ? "enable" : "disable");
 
 	/*  - 0: Disable 16:9 mode
-	  *  - 1: Enable 16:9 mode */
-	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_TOUCHABLE_AREA, &ts->touchable_area, 1);
+	 *  - 1: Enable 16:9 mode
+	 **/
+	ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_TOUCHABLE_AREA,
+				&ts->touchable_area, 1);
 	if (ret < 0) {
 		input_err(true, &ts->client->dev,
-					"%s: failed to set 16:9 mode\n", __func__);
+				"%s: failed to set 16:9 mode\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "NG");
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
 		goto out;
@@ -6969,7 +7303,8 @@ static void set_log_level(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	if (ts->power_status == SEC_TS_STATE_POWER_OFF) {
-		input_err(true, &ts->client->dev, "%s: Touch is stopped!\n", __func__);
+		input_err(true, &ts->client->dev,
+				"%s: Touch is stopped!\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "TSP turned off");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
@@ -6986,7 +7321,8 @@ static void set_log_level(void *device_data)
 		(sec->cmd_param[5] < 0 || sec->cmd_param[5] > 1) ||
 		(sec->cmd_param[6] < 0 || sec->cmd_param[6] > 1) ||
 		(sec->cmd_param[7] < 0 || sec->cmd_param[7] > 1)) {
-		input_err(true, &ts->client->dev, "%s: para out of range\n", __func__);
+		input_err(true, &ts->client->dev,
+				"%s: para out of range\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "Para out of range");
 		sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
@@ -6997,7 +7333,8 @@ static void set_log_level(void *device_data)
 
 	ret = ts->sec_ts_read(ts, SEC_TS_CMD_STATUS_EVENT_TYPE, tBuff, 2);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: Read Event type enable status fail\n", __func__);
+		input_err(true, &ts->client->dev,
+			"%s: Read Event type enable status fail\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "Read Stat Fail");
 		goto err;
 	}
@@ -7012,32 +7349,44 @@ static void set_log_level(void *device_data)
 
 	ret = ts->sec_ts_write(ts, SEC_TS_CMD_STATUS_EVENT_TYPE, tBuff, 2);
 	if (ret < 0) {
-		input_err(true, &ts->client->dev, "%s: Write Event type enable status fail\n", __func__);
+		input_err(true, &ts->client->dev,
+			"%s: Write Event type enable status fail\n", __func__);
 		snprintf(buff, sizeof(buff), "%s", "Write Stat Fail");
 		goto err;
 	}
 
-	if (sec->cmd_param[0] == 1 && sec->cmd_param[1] == 1 && sec->cmd_param[2] == 1  && sec->cmd_param[3] == 1 &&
-		 sec->cmd_param[4] == 1 &&  sec->cmd_param[5] == 1 &&  sec->cmd_param[6] == 1 && sec->cmd_param[7] == 1) {
+	if (sec->cmd_param[0] == 1 && sec->cmd_param[1] == 1 &&
+		sec->cmd_param[2] == 1  && sec->cmd_param[3] == 1 &&
+		sec->cmd_param[4] == 1 &&  sec->cmd_param[5] == 1 &&
+		sec->cmd_param[6] == 1 && sec->cmd_param[7] == 1) {
 		w_data[0] = 0x1;
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_VENDOR_EVENT_LEVEL, w_data, 1);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_VENDOR_EVENT_LEVEL,
+				       w_data, 1);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: Write Vendor Event Level fail\n", __func__);
+			input_err(true, &ts->client->dev,
+				  "%s: Write Vendor Event Level fail\n",
+				  __func__);
 			snprintf(buff, sizeof(buff), "%s", "Write Stat Fail");
 			goto err;
 		}
 	} else {
 		w_data[0] = 0x0;
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_VENDOR_EVENT_LEVEL, w_data, 0);
+		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SET_VENDOR_EVENT_LEVEL,
+				       w_data, 0);
 		if (ret < 0) {
-			input_err(true, &ts->client->dev, "%s: Write Vendor Event Level fail\n", __func__);
+			input_err(true, &ts->client->dev,
+				"%s: Write Vendor Event Level fail\n",
+				__func__);
 			snprintf(buff, sizeof(buff), "%s", "Write Stat Fail");
 			goto err;
 		}
 	}
 
-	input_info(true, &ts->client->dev, "%s: ERROR : %d, INFO : %d, USER_INPUT : %d, INFO_CUSTOMLIB : %d, VENDOR_INFO : %d, VENDOR_EVENT_LEVEL : %d\n",
-			__func__, sec->cmd_param[0], sec->cmd_param[1], sec->cmd_param[2], sec->cmd_param[5], sec->cmd_param[6], w_data[0]);
+	input_info(true, &ts->client->dev,
+		"%s: ERROR : %d, INFO : %d, USER_INPUT : %d, INFO_CUSTOMLIB : %d, VENDOR_INFO : %d, VENDOR_EVENT_LEVEL : %d\n",
+		__func__, sec->cmd_param[0], sec->cmd_param[1],
+		sec->cmd_param[2], sec->cmd_param[5],
+		sec->cmd_param[6], w_data[0]);
 
 	snprintf(buff, sizeof(buff), "%s", "OK");
 	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
@@ -7060,6 +7409,21 @@ static void debug(void *device_data)
 	sec_cmd_set_default_result(sec);
 
 	ts->temp = sec->cmd_param[0];
+
+	snprintf(buff, sizeof(buff), "%s", "OK");
+	sec->cmd_state = SEC_CMD_STATUS_OK;
+	sec_cmd_set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
+}
+
+static void set_print_format(void *device_data)
+{
+	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
+	struct sec_ts_data *ts = container_of(sec, struct sec_ts_data, sec);
+	char buff[SEC_CMD_STR_LEN] = { 0 };
+
+	sec_cmd_set_default_result(sec);
+
+	ts->print_format = !!sec->cmd_param[0];
 
 	snprintf(buff, sizeof(buff), "%s", "OK");
 	sec->cmd_state = SEC_CMD_STATUS_OK;
@@ -7144,13 +7508,9 @@ static void set_touch_mode(void *device_data)
 		break;
 	case 7:
 		input_info(true, &ts->client->dev,
-			"%s: param = %d, SW Reset\n",
+			"%s: param = %d, do touch system reset\n",
 			__func__, sec->cmd_param[0]);
-		ret = ts->sec_ts_write(ts, SEC_TS_CMD_SW_RESET, NULL, 0);
-		if (ret < 0)
-			input_err(true, &ts->client->dev,
-				"%s: fail to write SW Reset\n", __func__);
-		sec_ts_delay(300);
+		sec_ts_system_reset(ts);
 		break;
 	case 8:
 		input_info(true, &ts->client->dev,
@@ -7224,7 +7584,8 @@ int sec_ts_fn_init(struct sec_ts_data *ts)
 			&cmd_attr_group);
 	if (retval < 0) {
 		input_err(true, &ts->client->dev,
-			"%s: FTS Failed to create sysfs attributes\n", __func__);
+			"%s: Failed to create sysfs attributes\n",
+			__func__);
 		goto exit;
 	}
 
@@ -7262,7 +7623,7 @@ int sec_ts_run_rawdata_type(struct sec_ts_data *ts, struct sec_cmd_data *sec)
 {
 	short min[REGION_TYPE_COUNT], max[REGION_TYPE_COUNT];
 	enum spec_check_type spec_check = SPEC_NO_CHECK;
-	int i, ii;
+	int i, ii, jj;
 	int ret = -1;
 	u8 data_type = 0;
 	u8 touch_type = sec->cmd_param[1];
@@ -7353,17 +7714,30 @@ int sec_ts_run_rawdata_type(struct sec_ts_data *ts, struct sec_cmd_data *sec)
 
 		buff_len += scnprintf(buff + buff_len,
 					buff_size - buff_len, "\n");
-
-		for (ii = 0; ii < (ts->rx_count * ts->tx_count); ii++) {
-			buff_len += scnprintf(buff + buff_len,
+		if (!ts->print_format) {
+			for (ii = 0; ii < (ts->rx_count * ts->tx_count); ii++) {
+				buff_len += scnprintf(buff + buff_len,
 					buff_size - buff_len,
 					"%3d,", ts->pFrame[ii]);
-			if (ii % ts->tx_count == (ts->tx_count - 1))
+				if (ii % ts->tx_count == (ts->tx_count - 1))
+					buff_len += scnprintf(buff + buff_len,
+						buff_size - buff_len,
+						"\n");
+			}
+		} else {
+			for (ii = 0; ii < ts->tx_count; ii++) {
+				for (jj = 0; jj < ts->rx_count; jj++) {
+					buff_len += scnprintf(buff + buff_len,
+						buff_size - buff_len,
+						"%3d,",
+						ts->pFrame[(jj * ts->tx_count)
+								+ ii]);
+				}
 				buff_len += scnprintf(buff + buff_len,
 						buff_size - buff_len,
 						"\n");
+			}
 		}
-
 	} else if (touch_type > 0) {
 		ret = sec_ts_read_channel(ts, data_type, min,
 					max, &spec_check);
@@ -7381,15 +7755,30 @@ int sec_ts_run_rawdata_type(struct sec_ts_data *ts, struct sec_cmd_data *sec)
 
 		buff_len += scnprintf(buff + buff_len,
 				buff_size - buff_len, "\n      ");
-
-		for (ii = 0; ii < (ts->rx_count + ts->tx_count); ii++) {
-			buff_len += scnprintf(buff + buff_len,
+		if (!ts->print_format) {
+			for (ii = 0; ii < (ts->rx_count + ts->tx_count); ii++) {
+				buff_len += scnprintf(buff + buff_len,
 					buff_size - buff_len,
 					"%3d,", ts->pFrame[ii]);
-			if (ii >= ts->tx_count - 1)
+				if (ii >= ts->tx_count - 1)
+					buff_len += scnprintf(buff + buff_len,
+							buff_size - buff_len,
+							"\n");
+			}
+		} else {
+			for (ii = ts->tx_count;
+			     ii < (ts->rx_count + ts->tx_count); ii++) {
 				buff_len += scnprintf(buff + buff_len,
 						buff_size - buff_len,
-						"\n");
+						"%3d,", ts->pFrame[ii]);
+			}
+			buff_len += scnprintf(buff + buff_len,
+					      buff_size - buff_len, "\n");
+			for (ii = 0; ii < ts->tx_count; ii++) {
+				buff_len += scnprintf(buff + buff_len,
+						buff_size - buff_len,
+						"%3d,\n", ts->pFrame[ii]);
+			}
 		}
 	}
 
