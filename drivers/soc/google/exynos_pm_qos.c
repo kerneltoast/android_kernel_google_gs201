@@ -140,6 +140,7 @@ static struct exynos_pm_qos_constraints device_tput_constraints = {
 	.default_value = PM_QOS_DEVICE_THROUGHPUT_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &device_throughput_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(device_tput_constraints.lock),
 };
 
 static struct exynos_pm_qos_object device_throughput_pm_qos = {
@@ -154,6 +155,7 @@ static struct exynos_pm_qos_constraints device_tput_max_constraints = {
 	.default_value = PM_QOS_DEVICE_THROUGHPUT_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &device_throughput_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(device_tput_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object device_throughput_max_pm_qos = {
@@ -168,6 +170,7 @@ static struct exynos_pm_qos_constraints intcam_tput_constraints = {
 	.default_value = PM_QOS_INTCAM_THROUGHPUT_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &intcam_throughput_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(intcam_tput_constraints.lock),
 };
 
 static struct exynos_pm_qos_object intcam_throughput_pm_qos = {
@@ -182,6 +185,7 @@ static struct exynos_pm_qos_constraints intcam_tput_max_constraints = {
 	.default_value = PM_QOS_INTCAM_THROUGHPUT_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &intcam_throughput_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(intcam_tput_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object intcam_throughput_max_pm_qos = {
@@ -196,6 +200,7 @@ static struct exynos_pm_qos_constraints bus_tput_constraints = {
 	.default_value = PM_QOS_BUS_THROUGHPUT_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &bus_throughput_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(bus_tput_constraints.lock),
 };
 
 static struct exynos_pm_qos_object bus_throughput_pm_qos = {
@@ -210,6 +215,7 @@ static struct exynos_pm_qos_constraints bus_tput_max_constraints = {
 	.default_value = PM_QOS_BUS_THROUGHPUT_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &bus_throughput_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(bus_tput_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object bus_throughput_max_pm_qos = {
@@ -224,6 +230,7 @@ static struct exynos_pm_qos_constraints cluster2_freq_min_constraints = {
 	.default_value = PM_QOS_CLUSTER2_FREQ_MIN_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &cluster2_freq_min_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(cluster2_freq_min_constraints.lock),
 };
 
 static struct exynos_pm_qos_object cluster2_freq_min_pm_qos = {
@@ -238,6 +245,7 @@ static struct exynos_pm_qos_constraints cluster2_freq_max_constraints = {
 	.default_value = PM_QOS_CLUSTER2_FREQ_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &cluster2_freq_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(cluster2_freq_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object cluster2_freq_max_pm_qos = {
@@ -252,6 +260,7 @@ static struct exynos_pm_qos_constraints cluster1_freq_min_constraints = {
 	.default_value = PM_QOS_CLUSTER1_FREQ_MIN_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &cluster1_freq_min_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(cluster1_freq_min_constraints.lock),
 };
 
 static struct exynos_pm_qos_object cluster1_freq_min_pm_qos = {
@@ -266,6 +275,7 @@ static struct exynos_pm_qos_constraints cluster1_freq_max_constraints = {
 	.default_value = PM_QOS_CLUSTER1_FREQ_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &cluster1_freq_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(cluster1_freq_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object cluster1_freq_max_pm_qos = {
@@ -280,6 +290,7 @@ static struct exynos_pm_qos_constraints cluster0_freq_min_constraints = {
 	.default_value = PM_QOS_CLUSTER0_FREQ_MIN_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &cluster0_freq_min_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(cluster0_freq_min_constraints.lock),
 };
 
 static struct exynos_pm_qos_object cluster0_freq_min_pm_qos = {
@@ -294,6 +305,7 @@ static struct exynos_pm_qos_constraints cluster0_freq_max_constraints = {
 	.default_value = PM_QOS_CLUSTER0_FREQ_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &cluster0_freq_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(cluster0_freq_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object cluster0_freq_max_pm_qos = {
@@ -308,6 +320,7 @@ static struct exynos_pm_qos_constraints display_tput_constraints = {
 	.default_value = PM_QOS_DISPLAY_THROUGHPUT_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &display_throughput_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(display_tput_constraints.lock),
 };
 
 static struct exynos_pm_qos_object display_throughput_pm_qos = {
@@ -322,6 +335,7 @@ static struct exynos_pm_qos_constraints display_tput_max_constraints = {
 	.default_value = PM_QOS_DISPLAY_THROUGHPUT_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &display_throughput_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(display_tput_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object display_throughput_max_pm_qos = {
@@ -336,6 +350,7 @@ static struct exynos_pm_qos_constraints cam_tput_constraints = {
 	.default_value = PM_QOS_CAM_THROUGHPUT_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &cam_throughput_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(cam_tput_constraints.lock),
 };
 
 static struct exynos_pm_qos_object cam_throughput_pm_qos = {
@@ -350,6 +365,7 @@ static struct exynos_pm_qos_constraints cam_tput_max_constraints = {
 	.default_value = PM_QOS_CAM_THROUGHPUT_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &cam_throughput_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(cam_tput_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object cam_throughput_max_pm_qos = {
@@ -364,6 +380,7 @@ static struct exynos_pm_qos_constraints mfc_tput_constraints = {
 	.default_value = PM_QOS_MFC_THROUGHPUT_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &mfc_throughput_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(mfc_tput_constraints.lock),
 };
 
 static struct exynos_pm_qos_object mfc_throughput_pm_qos = {
@@ -378,6 +395,7 @@ static struct exynos_pm_qos_constraints gpu_freq_min_constraints = {
 	.default_value = PM_QOS_GPU_FREQ_MIN_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &gpu_freq_min_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(gpu_freq_min_constraints.lock),
 };
 
 static struct exynos_pm_qos_object gpu_freq_min_pm_qos = {
@@ -392,6 +410,7 @@ static struct exynos_pm_qos_constraints gpu_freq_max_constraints = {
 	.default_value = PM_QOS_GPU_FREQ_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &gpu_freq_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(gpu_freq_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object gpu_freq_max_pm_qos = {
@@ -406,6 +425,7 @@ static struct exynos_pm_qos_constraints mfc_tput_max_constraints = {
 	.default_value = PM_QOS_MFC_THROUGHPUT_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &mfc_throughput_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(mfc_tput_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object mfc_throughput_max_pm_qos = {
@@ -420,6 +440,7 @@ static struct exynos_pm_qos_constraints tnr_tput_constraints = {
 	.default_value = PM_QOS_TNR_THROUGHPUT_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &tnr_throughput_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(tnr_tput_constraints.lock),
 };
 
 static struct exynos_pm_qos_object tnr_throughput_pm_qos = {
@@ -434,6 +455,7 @@ static struct exynos_pm_qos_constraints tnr_tput_max_constraints = {
 	.default_value = PM_QOS_TNR_THROUGHPUT_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &tnr_throughput_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(tnr_tput_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object tnr_throughput_max_pm_qos = {
@@ -448,6 +470,7 @@ static struct exynos_pm_qos_constraints bo_tput_constraints = {
 	.default_value = PM_QOS_BO_THROUGHPUT_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MAX,
 	.notifiers = &bo_throughput_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(bo_tput_constraints.lock),
 };
 
 static struct exynos_pm_qos_object bo_throughput_pm_qos = {
@@ -462,6 +485,7 @@ static struct exynos_pm_qos_constraints bo_tput_max_constraints = {
 	.default_value = PM_QOS_BO_THROUGHPUT_MAX_DEFAULT_VALUE,
 	.type = EXYNOS_PM_QOS_MIN,
 	.notifiers = &bo_throughput_max_notifier,
+	.lock = __SPIN_LOCK_UNLOCKED(bo_tput_max_constraints.lock),
 };
 
 static struct exynos_pm_qos_object bo_throughput_max_pm_qos = {
