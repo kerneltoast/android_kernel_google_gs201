@@ -47,6 +47,28 @@ static inline phys_addr_t mfc_mem_get_paddr_vb(struct vb2_buffer *vb)
 	return page_to_phys(sg_page(sgt->sgl));
 }
 
+static inline void mfc_mem_buf_prepare(struct vb2_buffer *vb)
+{
+	int i;
+
+	if (!V4L2_TYPE_IS_OUTPUT(vb->type))
+		return;
+
+	for (i = 0; i < vb->num_planes; i++)
+		dma_buf_end_cpu_access(vb->planes[i].dbuf, DMA_TO_DEVICE);
+}
+
+static inline void mfc_mem_buf_finish(struct vb2_buffer *vb)
+{
+	int i;
+
+	if (V4L2_TYPE_IS_OUTPUT(vb->type))
+		return;
+
+	for (i = 0; i < vb->num_planes; i++)
+		dma_buf_begin_cpu_access(vb->planes[i].dbuf, DMA_FROM_DEVICE);
+}
+
 #if IS_ENABLED(CONFIG_MFC_USE_DMABUF_CONTAINER)
 static inline int mfc_bufcon_get_buf_count(struct dma_buf *dmabuf)
 {

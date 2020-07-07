@@ -200,6 +200,8 @@ static int mfc_dec_buf_prepare(struct vb2_buffer *vb)
 				V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG);
 	}
 
+	mfc_mem_buf_prepare(vb);
+
 	return 0;
 }
 
@@ -229,6 +231,8 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
 	}
+
+	mfc_mem_buf_finish(vb);
 }
 
 static void mfc_dec_buf_cleanup(struct vb2_buffer *vb)

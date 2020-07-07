@@ -257,6 +257,8 @@ static int mfc_enc_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 
+	mfc_mem_buf_prepare(vb);
+
 	mfc_debug_leave();
 	return 0;
 
@@ -293,6 +295,8 @@ static void mfc_enc_buf_finish(struct vb2_buffer *vb)
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
 	}
+
+	mfc_mem_buf_finish(vb);
 }
 
 static void mfc_enc_buf_cleanup(struct vb2_buffer *vb)
