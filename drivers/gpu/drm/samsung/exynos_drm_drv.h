@@ -117,6 +117,7 @@ struct exynos_drm_plane_state {
 	uint32_t standard;
 	uint32_t transfer;
 	uint32_t range;
+	uint32_t colormap;
 	struct exynos_hdr_state hdr_state;
 	struct drm_property_blob *eotf_lut;
 	struct drm_property_blob *oetf_lut;
@@ -155,6 +156,7 @@ struct exynos_drm_plane {
 		struct drm_property *oetf_lut;
 		struct drm_property *gm;
 		struct drm_property *tm;
+		struct drm_property *colormap;
 	} props;
 };
 

@@ -133,7 +133,6 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 				goto err;
 			}
 
-			exynos_gem->dma_addr = mode_cmd->handles[i];
 			obj[i] = &exynos_gem->base;
 			continue;
 		}

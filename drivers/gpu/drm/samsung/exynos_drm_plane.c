@@ -237,6 +237,8 @@ static int exynos_drm_plane_set_property(struct drm_plane *plane,
 		exynos_state->transfer = val;
 	} else if (property == exynos_plane->props.range) {
 		exynos_state->range = val;
+	} else if (property == exynos_plane->props.colormap) {
+		exynos_state->colormap = val;
 	} else if (property == exynos_plane->props.eotf_lut) {
 		ret = exynos_drm_replace_property_blob_from_id(
 				state->plane->dev, &exynos_state->eotf_lut,
@@ -281,6 +283,8 @@ static int exynos_drm_plane_get_property(struct drm_plane *plane,
 		*val = exynos_state->transfer;
 	else if (property == exynos_plane->props.range)
 		*val = exynos_state->range;
+	else if (property == exynos_plane->props.colormap)
+		*val = exynos_state->colormap;
 	else if (property == exynos_plane->props.eotf_lut)
 		*val = (exynos_state->eotf_lut) ?
 			exynos_state->eotf_lut->base.id : 0;
@@ -598,6 +602,23 @@ static int exynos_drm_plane_create_range_property(
 	return 0;
 }
 
+static int exynos_drm_plane_create_colormap_property(
+				struct exynos_drm_plane *exynos_plane)
+{
+	struct drm_plane *plane = &exynos_plane->base;
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(plane->dev, 0, "colormap", 0,
+			UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&plane->base, prop, 0);
+	exynos_plane->props.colormap = prop;
+
+	return 0;
+}
+
 static int exynos_drm_plane_create_max_luminance_property(
 				struct exynos_drm_plane *exynos_plane)
 {
@@ -753,6 +774,7 @@ int exynos_plane_init(struct drm_device *dev,
 	exynos_drm_plane_create_standard_property(exynos_plane);
 	exynos_drm_plane_create_transfer_property(exynos_plane);
 	exynos_drm_plane_create_range_property(exynos_plane);
+	exynos_drm_plane_create_colormap_property(exynos_plane);
 
 	return 0;
 }

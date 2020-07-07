@@ -228,7 +228,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	is_colormap = state->base.fb &&
 			exynos_drm_fb_is_colormap(state->base.fb);
 	if (is_colormap)
-		win_info.colormap = exynos_drm_fb_dma_addr(state->base.fb, 0);
+		win_info.colormap = state->colormap;
 
 	win_info.start_pos = win_start_pos(state->crtc.x, state->crtc.y);
 	win_info.end_pos = win_end_pos(state->crtc.x, state->crtc.y,
