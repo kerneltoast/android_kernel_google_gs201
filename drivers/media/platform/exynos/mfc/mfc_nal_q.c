@@ -1847,10 +1847,9 @@ static void __mfc_nal_q_handle_frame_output(struct mfc_ctx *ctx,
 
 	/* Broken buffer is not dequeued to user */
 	if (!dev->pdata->broken_display && IS_NO_DISPLAY(ctx, err))
-		return;
-
-	/* Dequeued display buffer for user */
-	__mfc_nal_q_handle_frame_output_del(ctx, pOutStr, err);
+		__mfc_nal_q_handle_reuse_buffer(ctx, pOutStr);
+	else
+		__mfc_nal_q_handle_frame_output_del(ctx, pOutStr, err);
 
 	mfc_debug_leave();
 }
