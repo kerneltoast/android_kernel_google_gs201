@@ -41,7 +41,9 @@
 #include <soc/samsung/exynos-cpupm.h>
 #endif
 
+#if 0	/* to be updated when ready */
 #include <linux/shm_ipc.h>     /* to get Exynos Modem - MSI target addr. */
+#endif	/* to be updated when ready */
 #ifdef CONFIG_LINK_DEVICE_PCIE
 #define MODIFY_MSI_ADDR
 #endif	/* CONFIG_LINK_DEVICE_PCIE */
@@ -516,6 +518,7 @@ static inline int create_pcie_sys_file(struct device *dev)
 		return ret;
 	}
 
+#if 0	/* to be updated when ready */
 	ret = device_create_file(dev, &dev_attr_power_stats);
 	if (ret) {
 		dev_err(dev, "%s: couldn't create device file for power_stats(%d)\n",
@@ -523,6 +526,7 @@ static inline int create_pcie_sys_file(struct device *dev)
 
 		return ret;
 	}
+#endif	/* to be updated when ready */
 
 	return 0;
 }
@@ -531,7 +535,9 @@ static inline void remove_pcie_sys_file(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_pcie_rc_test);
 	device_remove_file(dev, &dev_attr_link_state);
+#if 0	/* to be updated when ready */
 	device_remove_file(dev, &dev_attr_power_stats);
+#endif	/* to be updated when ready */
 }
 
 static int exynos_pcie_rc_clock_enable(struct pcie_port *pp, int enable)
@@ -714,7 +720,9 @@ int exynos_pcie_rc_set_bar(int ch_num, u32 bar_num)
 	ep_pci_dev->resource[bar_num].end =
 		exynos_pcie->btl_target_addr + exynos_pcie->btl_offset + exynos_pcie->btl_size;
 	ep_pci_dev->resource[bar_num].flags = 0x82000000;
+#if 0	/* to be updated when ready */
 	pci_update_resource(ep_pci_dev, bar_num);
+#endif	/* to be updated when ready */
 
 	pci_read_config_dword(ep_pci_dev, PCI_BASE_ADDRESS_0 + (bar_num * 0x4), &val);
 	pr_info("%s: Check EP BAR[%d] = 0x%x\n", __func__, bar_num, val);
@@ -1120,9 +1128,11 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	if (of_property_read_u32(np, "pcie-pm-qos-int", &exynos_pcie->int_min_lock))
 		exynos_pcie->int_min_lock = 0;
 
+#if 0	/* to be updated when ready */
 	if (exynos_pcie->int_min_lock)
 		pm_qos_add_request(&exynos_pcie_int_qos[exynos_pcie->ch_num],
 				   PM_QOS_DEVICE_THROUGHPUT, 0);
+#endif	/* to be updated when ready */
 
 	dev_info(dev, "%s: pcie int_min_lock = %d\n", __func__, exynos_pcie->int_min_lock);
 #endif
@@ -1853,6 +1863,35 @@ static struct dw_pcie_host_ops exynos_pcie_rc_ops = {
 	.host_init = exynos_pcie_rc_init,
 };
 
+irqreturn_t exynos_rc_handle_msi_irq(struct pcie_port *pp)
+{
+	int i, pos, irq;
+	unsigned long val;
+	u32 status, num_ctrls;
+	irqreturn_t ret = IRQ_NONE;
+
+	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+
+	for (i = 0; i < num_ctrls; i++) {
+		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_STATUS +
+					   (i * MSI_REG_CTRL_BLOCK_SIZE), 4, &status);
+		if (!status)
+			continue;
+
+		ret = IRQ_HANDLED;
+		val = status;
+		pos = 0;
+		while ((pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, pos)) !=
+		       MAX_MSI_IRQS_PER_CTRL) {
+			irq = irq_find_mapping(pp->irq_domain, (i * MAX_MSI_IRQS_PER_CTRL) + pos);
+			generic_handle_irq(irq);
+			pos++;
+		}
+	}
+
+	return ret;
+}
+
 static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
@@ -1896,7 +1935,10 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 #ifdef CONFIG_PCI_MSI
 	if (val_irq2 & IRQ_MSI_RISING_ASSERT && exynos_pcie->use_msi) {
+#if 0	/* to be updated when ready */
 		dw_handle_msi_irq(pp);
+#endif	/* to be updated when ready */
+		exynos_rc_handle_msi_irq(pp);
 
 		/* Mask & Clear MSI to pend MSI interrupt.
 		 * After clearing IRQ_PULSE, MSI interrupt can be ignored if
@@ -3203,7 +3245,9 @@ int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 	pci = exynos_pcie->pci;
 	pp = &pci->pp;
 
+#if 0	/* to be updated when ready */
 	irq_set_affinity(pp->irq, cpumask_of(affinity));
+#endif	/* to be updated when ready */
 
 	return 0;
 }
@@ -3540,14 +3584,17 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	exynos_pcie_rc_pcie_ops_init(pp);
 
+#if 0	/* All PCIe PHY related setting updatged later - after LDO turn on*/
 	exynos_pcie_rc_resumed_phydown(pp);
 
 	if (exynos_pcie->use_nclkoff_en)
 		exynos_pcie_rc_nclkoff_ctrl(pdev, exynos_pcie);
 #ifdef CONFIG_EXYNOS_PCIE_IOMMU
 	/* if it needed for msi init, property should be added on dt */
+#if 0	/* to be updated when ready */
 	set_dma_ops(&pdev->dev, &exynos_pcie_dma_ops);
 	dev_info(&pdev->dev, "DMA operations are changed\n");
+#endif	/* to be updated when ready */
 #endif
 
 	ret = exynos_pcie_rc_make_reg_tb(&pdev->dev, exynos_pcie);
@@ -3610,6 +3657,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "## register pcie connection function\n");
 		/* need to check: register_pcie_is_connect(pcie_linkup_stat); */
 	}
+#endif	/* All PCIe PHY related setting updatged later - after LDO turn on*/
 
 	platform_set_drvdata(pdev, exynos_pcie);
 
