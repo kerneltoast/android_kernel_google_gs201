@@ -13,6 +13,8 @@
 #ifndef __MFC_MEM_H
 #define __MFC_MEM_H __FILE__
 
+#include <linux/dma-direct.h>
+
 #if IS_ENABLED(CONFIG_MFC_USE_DMABUF_CONTAINER)
 #include <linux/dma-buf-container.h>
 #endif
@@ -34,6 +36,15 @@ static inline dma_addr_t mfc_mem_get_daddr_vb(
 	WARN_ON((addr == 0) || IS_ERR_VALUE(addr));
 
 	return addr;
+}
+
+static inline phys_addr_t mfc_mem_get_paddr_vb(struct vb2_buffer *vb)
+{
+	struct sg_table *sgt;
+
+	sgt = vb2_dma_sg_plane_desc(vb, 0);
+
+	return page_to_phys(sg_page(sgt->sgl));
 }
 
 #if IS_ENABLED(CONFIG_MFC_USE_DMABUF_CONTAINER)
@@ -78,9 +89,10 @@ static inline void mfc_print_dpb_table(struct mfc_ctx *ctx)
 			}
 		}
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
-		mfc_debug(3, "[%d] dpb [%d] %#010llx %#010llx (%s, %s, %s%s)\n",
+		mfc_debug(3, "[%d] dpb [%d] %#010llx %#010llx %#010llx (%s, %s, %s%s)\n",
 				i, found ? mfc_buf->vb.vb2_buf.index : -1,
 				dec->dpb[i].addr[0], dec->dpb[i].addr[1],
+				dec->dpb[i].paddr,
 				dec->dpb[i].mapcnt ? "map" : "unmap",
 				dec->dpb[i].ref ? "ref" : "free",
 				dec->dpb[i].queued ? "Q" : "DQ",

@@ -119,6 +119,11 @@ static int mfc_dec_buf_init(struct vb2_buffer *vb)
 			return ret;
 
 		mfc_calc_base_addr(ctx, vb, ctx->dst_fmt);
+
+		buf->paddr = mfc_mem_get_paddr_vb(vb);
+		mfc_debug(2, "[DPB] vb index [%d] vb paddr %#llx daddr %#llx\n",
+				vb->index, buf->paddr, buf->addr[0][0]);
+
 		if (call_cop(ctx, init_buf_ctrls, ctx, MFC_CTRL_TYPE_DST,
 					vb->index) < 0)
 			mfc_ctx_err("failed in init_buf_ctrls\n");

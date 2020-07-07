@@ -669,10 +669,10 @@ int __mfc_assign_dpb_index(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 	int i;
 
 	/* case 1: dpb has same address with vb index */
-	if (mfc_buf->addr[0][0] ==
-			dec->dpb[mfc_buf->vb.vb2_buf.index].addr[0]) {
+	if (mfc_buf->paddr ==
+			dec->dpb[mfc_buf->vb.vb2_buf.index].paddr) {
 		mfc_debug(2, "[DPB] vb index [%d] %#llx has same address\n",
-				mfc_buf->vb.vb2_buf.index, mfc_buf->addr[0][0]);
+				mfc_buf->vb.vb2_buf.index, mfc_buf->paddr);
 		index = mfc_buf->vb.vb2_buf.index;
 		return index;
 	}
@@ -681,10 +681,10 @@ int __mfc_assign_dpb_index(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 	used = dec->dynamic_used;
 	if (used) {
 		for (i = __ffs(used); i < MFC_MAX_DPBS;) {
-			if (mfc_buf->addr[0][0] == dec->dpb[i].addr[0]) {
+			if (mfc_buf->paddr == dec->dpb[i].paddr) {
 				mfc_debug(2, "[DPB] index [%d][%d] %#llx is referenced\n",
 						mfc_buf->vb.vb2_buf.index, i,
-						mfc_buf->addr[0][0]);
+						mfc_buf->paddr);
 				index = i;
 				return index;
 			}
@@ -704,6 +704,31 @@ int __mfc_assign_dpb_index(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 	index = __ffs(~dec->dpb_table_used);
 
 	return index;
+}
+
+void __mfc_update_base_addr_dpb(struct mfc_ctx *ctx, struct mfc_buf *buf,
+					int index)
+{
+	struct mfc_dec *dec = ctx->dec_priv;
+	dma_addr_t start_raw;
+	size_t offset;
+	int i;
+
+	if (ctx->dst_fmt->mem_planes == 1) {
+		start_raw = buf->addr[0][0];
+
+		for (i = 0; i < ctx->dst_fmt->num_planes; i++) {
+			offset = buf->addr[0][i] - start_raw;
+			start_raw = buf->addr[0][i];
+			buf->addr[0][i] = dec->dpb[index].addr[i] + offset;
+		}
+	} else {
+		for (i = 0; i < ctx->dst_fmt->mem_planes; i++)
+			buf->addr[0][i] = dec->dpb[index].addr[i];
+	}
+
+	mfc_debug(2, "[DPB] index [%d] daddr plane[0] %#llx [1] %#llx [2] %#llx\n",
+			index, buf->addr[0][0], buf->addr[0][1], buf->addr[0][2]);
 }
 
 /* Add dst buffer in dst_buf_queue */
@@ -735,15 +760,17 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 	if (!dec->dpb[index].mapcnt) {
 		mfc_get_iovmm(ctx, vb, dec->dpb);
 	} else {
-		if (dec->dpb[index].addr[0] == mfc_buf->addr[0][0]) {
+		if (dec->dpb[index].paddr == mfc_buf->paddr) {
 			mfc_debug(2, "[DPB] DPB[%d] is same %#llx(used: %#lx)\n",
-					index, dec->dpb[index].addr[0],
+					index, dec->dpb[index].paddr,
 					dec->dynamic_used);
 		} else {
 			mfc_ctx_err("[DPB] wrong assign dpb index\n");
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 		}
 	}
+	__mfc_update_base_addr_dpb(ctx, mfc_buf, index);
+
 	dec->dpb[index].queued = 1;
 	dec->dpb_table_used |= (1UL << index);
 	mutex_unlock(&dec->dpb_mutex);

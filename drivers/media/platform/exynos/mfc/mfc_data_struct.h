@@ -335,6 +335,7 @@ struct mfc_buf {
 	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 	dma_addr_t addr[MAX_NUM_IMAGES_IN_VB][MFC_MAX_PLANES];
+	phys_addr_t paddr;
 	struct dma_buf *dmabufs[MAX_NUM_IMAGES_IN_VB][MFC_MAX_PLANES];
 	struct dma_buf_attachment *attachments[MAX_NUM_IMAGES_IN_VB][MFC_MAX_PLANES];
 	int dpb_index;
@@ -1478,6 +1479,7 @@ struct mfc_bitrate {
 
 struct dpb_table {
 	dma_addr_t addr[MFC_MAX_PLANES];
+	phys_addr_t paddr;
 	int fd[MFC_MAX_PLANES];
 	int mapcnt;
 	int ref;

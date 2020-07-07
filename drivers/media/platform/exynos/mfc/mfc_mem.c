@@ -396,6 +396,11 @@ void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb,
 				index, i, dpb[index].fd[i], dpb[index].addr[i]);
 	}
 
+	dpb[index].paddr = page_to_phys(sg_page(dpb[index].sgt[0]->sgl));
+	mfc_debug(2, "[DPB] dpb index [%d][%d] paddr %#llx daddr %#llx\n",
+			mfc_buf->vb.vb2_buf.index,
+			index, dpb[index].paddr, dpb[index].addr[0]);
+
 	dpb[index].mapcnt++;
 	mfc_debug(2, "[IOVMM] index %d mapcnt %d\n", index, dpb[index].mapcnt);
 	MFC_TRACE_CTX("DPB[%d] fd: %d addr: %#llx get(%d)\n",
