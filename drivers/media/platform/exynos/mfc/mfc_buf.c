@@ -155,11 +155,9 @@ int mfc_alloc_instance_context(struct mfc_ctx *ctx)
 /* Release instance buffer */
 void mfc_release_instance_context(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
-
 	mfc_debug_enter();
 
-	mfc_mem_ion_free(dev, &ctx->instance_ctx_buf);
+	mfc_mem_ion_free(&ctx->instance_ctx_buf);
 	mfc_debug(2, "[MEMINFO] Release the instance buffer ctx[%d]\n", ctx->num);
 
 	mfc_debug_leave();
@@ -399,9 +397,7 @@ int mfc_alloc_codec_buffers(struct mfc_ctx *ctx)
 /* Release buffers allocated for codec */
 void mfc_release_codec_buffers(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
-
-	mfc_mem_ion_free(dev, &ctx->codec_buf);
+	mfc_mem_ion_free(&ctx->codec_buf);
 	ctx->codec_buffer_allocated = 0;
 	mfc_release_scratch_buffer(ctx);
 	mfc_debug(2, "[MEMINFO] Release the codec buffer ctx[%d]\n", ctx->num);
@@ -414,7 +410,7 @@ int mfc_alloc_scratch_buffer(struct mfc_ctx *ctx)
 	mfc_debug_enter();
 
 	if (ctx->scratch_buffer_allocated) {
-		mfc_mem_ion_free(dev, &ctx->scratch_buf);
+		mfc_mem_ion_free(&ctx->scratch_buf);
 		ctx->scratch_buffer_allocated = 0;
 		mfc_debug(2, "[MEMINFO] Release the scratch buffer ctx[%d]\n",
 							ctx->num);
@@ -444,11 +440,9 @@ int mfc_alloc_scratch_buffer(struct mfc_ctx *ctx)
 
 void mfc_release_scratch_buffer(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
-
 	mfc_debug_enter();
 	if (ctx->scratch_buffer_allocated) {
-		mfc_mem_ion_free(dev, &ctx->scratch_buf);
+		mfc_mem_ion_free(&ctx->scratch_buf);
 		ctx->scratch_buffer_allocated = 0;
 		mfc_debug(2, "[MEMINFO] Release the scratch buffer ctx[%d]\n",
 							ctx->num);
@@ -481,7 +475,7 @@ void mfc_release_dbg_info_buffer(struct mfc_dev *dev)
 	if (!dev->dbg_info_buf.dma_buf)
 		mfc_dev_debug(2, "debug info buffer is already freed\n");
 
-	mfc_mem_ion_free(dev, &dev->dbg_info_buf);
+	mfc_mem_ion_free(&dev->dbg_info_buf);
 	mfc_dev_debug(2, "[MEMINFO] Release the debug info buffer\n");
 }
 
@@ -566,7 +560,7 @@ void mfc_release_enc_roi_buffer(struct mfc_ctx *ctx)
 
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++)
 		if (enc->roi_buf[i].dma_buf)
-			mfc_mem_ion_free(ctx->dev, &enc->roi_buf[i]);
+			mfc_mem_ion_free(&enc->roi_buf[i]);
 
 	mfc_debug(2, "[MEMINFO][ROI] Release the ROI buffer\n");
 }
@@ -602,7 +596,6 @@ int mfc_otf_alloc_stream_buf(struct mfc_ctx *ctx)
 
 void mfc_otf_release_stream_buf(struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct _otf_handle *handle = ctx->otf_handle;
 	struct _otf_debug *debug = &handle->otf_debug;
 	struct mfc_special_buf *buf;
@@ -613,7 +606,7 @@ void mfc_otf_release_stream_buf(struct mfc_ctx *ctx)
 	for (i = 0; i < OTF_MAX_BUF; i++) {
 		buf = &debug->stream_buf[i];
 		if (buf->dma_buf)
-			mfc_mem_ion_free(dev, buf);
+			mfc_mem_ion_free(buf);
 	}
 
 	mfc_debug(2, "[OTF][MEMINFO] Release the OTF stream buffer\n");
@@ -755,10 +748,10 @@ int mfc_release_firmware(struct mfc_dev *dev)
 	iommu_unmap(fw_buf->domain, MFC_BASE_ADDR, fw_buf->map_size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	mfc_mem_ion_free(dev, &dev->drm_fw_buf);
+	mfc_mem_ion_free(&dev->drm_fw_buf);
 #endif
 
-	mfc_mem_ion_free(dev, &dev->fw_buf);
+	mfc_mem_ion_free(&dev->fw_buf);
 
 	return 0;
 }

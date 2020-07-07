@@ -70,7 +70,7 @@ void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,
 }
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-static unsigned int mfc_mem_ion_get_heapmask_by_name(struct mfc_dev *dev,
+static unsigned int __mfc_mem_ion_get_heapmask_by_name(struct mfc_dev *dev,
 		const char *heap_name)
 {
 	struct ion_heap_data data[ION_NUM_MAX_HEAPS];
@@ -111,14 +111,14 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	case MFCBUF_DRM:
 		heapname = "vframe_heap";
-		heapmask = mfc_mem_ion_get_heapmask_by_name(dev, heapname);
+		heapmask = __mfc_mem_ion_get_heapmask_by_name(dev, heapname);
 		if (!heapmask)
 			return -EINVAL;
 		flag |= ION_EXYNOS_FLAG_PROTECTED;
 		break;
 	case MFCBUF_DRM_FW:
 		heapname = "vfw_heap";
-		heapmask = mfc_mem_ion_get_heapmask_by_name(dev, heapname);
+		heapmask = __mfc_mem_ion_get_heapmask_by_name(dev, heapname);
 		if (!heapmask)
 			return -EINVAL;
 		flag |= ION_EXYNOS_FLAG_PROTECTED;
@@ -185,8 +185,7 @@ err_ion_alloc:
 	return -ENOMEM;
 }
 
-void mfc_mem_ion_free(struct mfc_dev *dev,
-		struct mfc_special_buf *special_buf)
+void mfc_mem_ion_free(struct mfc_special_buf *special_buf)
 {
 	if (special_buf->vaddr)
 		dma_buf_kunmap(special_buf->dma_buf, 0, special_buf->vaddr);

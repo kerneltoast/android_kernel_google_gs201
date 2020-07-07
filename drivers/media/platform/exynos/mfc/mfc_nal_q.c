@@ -304,7 +304,7 @@ static void __mfc_nal_q_destroy_in_q(struct mfc_dev *dev,
 	mfc_dev_debug_enter();
 
 	if (nal_q_in_handle) {
-		mfc_mem_ion_free(dev, &nal_q_in_handle->in_buf);
+		mfc_mem_ion_free(&nal_q_in_handle->in_buf);
 		kfree(nal_q_in_handle);
 	}
 
@@ -317,7 +317,7 @@ static void __mfc_nal_q_destroy_out_q(struct mfc_dev *dev,
 	mfc_dev_debug_enter();
 
 	if (nal_q_out_handle) {
-		mfc_mem_ion_free(dev, &nal_q_out_handle->out_buf);
+		mfc_mem_ion_free(&nal_q_out_handle->out_buf);
 		kfree(nal_q_out_handle);
 	}
 
