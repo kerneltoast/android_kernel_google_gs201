@@ -3772,8 +3772,9 @@ static int sec_ts_pm_suspend(struct device *dev)
 	pr_err("%s: WORKAROUND FOR b/158866465: TREATING SUSPEND AS SUBSTITUTE FOR DISPLAY CALLBACK!\n",
 	       __func__);
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SCREEN_ON, false);
-	msleep(500);
 #endif
+	/* Flush work in case a suspend is in progress */
+	flush_workqueue(ts->event_wq);
 
 	if (ts->power_status != SEC_TS_STATE_SUSPEND) {
 		input_err(true, &ts->client->dev,
@@ -3860,8 +3861,6 @@ static void sec_ts_suspend_work(struct work_struct *work)
 		return;
 	}
 
-	pm_stay_awake(&ts->client->dev);
-
 	/* Stop T-IC */
 	sec_ts_fix_tmode(ts, TOUCH_SYSTEM_MODE_SLEEP, TOUCH_MODE_STATE_STOP);
 	ret = sec_ts_write(ts, SEC_TS_CMD_CLEAR_EVENT_STACK, NULL, 0);
@@ -3885,7 +3884,6 @@ static void sec_ts_suspend_work(struct work_struct *work)
 	if (ts->tbn)
 		tbn_release_bus(ts->tbn);
 #endif
-	pm_relax(&ts->client->dev);
 	mutex_unlock(&ts->device_mutex);
 }
 
