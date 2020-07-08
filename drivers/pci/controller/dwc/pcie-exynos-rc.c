@@ -226,7 +226,8 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 	return count;
 }
 
-static DEVICE_ATTR(pcie_rc_test, 660, exynos_pcie_rc_show, exynos_pcie_rc_store);
+static DEVICE_ATTR(pcie_rc_test, S_IWUSR | S_IWGRP | S_IRUSR | S_IRGRP,
+		   exynos_pcie_rc_show, exynos_pcie_rc_store);
 
 static ssize_t exynos_pcie_eom1_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -267,8 +268,6 @@ exit:
 	return len;
 }
 
-static DEVICE_ATTR(eom1, 660, exynos_pcie_eom1_show, exynos_pcie_eom1_store);
-
 static ssize_t exynos_pcie_eom1_store(struct device *dev, struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
@@ -291,6 +290,9 @@ static ssize_t exynos_pcie_eom1_store(struct device *dev, struct device_attribut
 
 	return count;
 }
+
+static DEVICE_ATTR(eom1, S_IWUSR | S_IWGRP | S_IRUSR | S_IRGRP,
+		   exynos_pcie_eom1_show, exynos_pcie_eom1_store);
 
 static ssize_t exynos_pcie_eom2_store(struct device *dev, struct device_attribute *attr,
 				      const char *buf, size_t count)
@@ -351,7 +353,8 @@ exit:
 	return len;
 }
 
-static DEVICE_ATTR(eom2, 660, exynos_pcie_eom2_show, exynos_pcie_eom2_store);
+static DEVICE_ATTR(eom2, S_IWUSR | S_IWGRP | S_IRUSR | S_IRGRP,
+		   exynos_pcie_eom2_show, exynos_pcie_eom2_store);
 
 static ssize_t link_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -3685,7 +3688,7 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 	int ret;
 
 	dev_dbg(dev, "## SUSPEND[%s]: %s(pcie_is_linkup: %d)\n", __func__,
-		 EXUNOS_PCIE_STATE_NAME(exynos_pcie->state), pcie_is_linkup);
+		 EXYNOS_PCIE_STATE_NAME(exynos_pcie->state), pcie_is_linkup);
 
 	ret = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0xff;
 	dev_dbg(dev, "## SUSPEND[%s] PCIE_ELBI_RDLH_LINKUP :0x%x\n", __func__, ret);
@@ -3703,7 +3706,7 @@ static int exynos_pcie_rc_resume_noirq(struct device *dev)
 	int ret;
 
 	dev_dbg(dev, "## RESUME[%s]: %s(pcie_is_linkup: %d)\n", __func__,
-		 EXUNOS_PCIE_STATE_NAME(exynos_pcie->state), pcie_is_linkup);
+		 EXYNOS_PCIE_STATE_NAME(exynos_pcie->state), pcie_is_linkup);
 	ret = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0xff;
 	dev_dbg(dev, "## RESUME[%s] PCIE_ELBI_RDLH_LINKUP :0x%x\n", __func__, ret);
 	if (exynos_pcie->state == STATE_LINK_DOWN) {

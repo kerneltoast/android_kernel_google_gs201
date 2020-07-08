@@ -173,7 +173,7 @@ enum exynos_pcie_state {
 	STATE_LINK_UP,
 };
 
-#define EXUNOS_PCIE_STATE_NAME(state)						\
+#define EXYNOS_PCIE_STATE_NAME(state)						\
 	((state) == STATE_LINK_DOWN)	?	"LINK_DOWN" :			\
 	((state) == STATE_LINK_UP_TRY)	?	"LINK_UP_TRY" :			\
 	((state) == STATE_LINK_DOWN_TRY)	?	"LINK_DOWN_TRY" :	\
