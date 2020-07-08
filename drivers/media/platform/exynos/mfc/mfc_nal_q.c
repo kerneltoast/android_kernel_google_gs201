@@ -1648,8 +1648,7 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 		dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 					V4L2_BUF_FLAG_PFRAME |
 					V4L2_BUF_FLAG_BFRAME |
-					V4L2_BUF_FLAG_ERROR |
-					V4L2_BUF_FLAG_BROKEN);
+					V4L2_BUF_FLAG_ERROR);
 
 		switch (frame_type) {
 		case MFC_REG_DISPLAY_FRAME_I:
@@ -1674,8 +1673,6 @@ static void __mfc_nal_q_handle_frame_output_del(struct mfc_ctx *ctx,
 			mfc_ctx_err("[NALQ] Warning for displayed frame: %d\n",
 					disp_err);
 			dst_mb->vb.flags |= V4L2_BUF_FLAG_ERROR;
-			if (IS_NO_DISPLAY(ctx, err))
-				dst_mb->vb.flags |= V4L2_BUF_FLAG_BROKEN;
 		}
 
 		if (call_cop(ctx, get_buf_ctrls_val_nal_q_dec, ctx,

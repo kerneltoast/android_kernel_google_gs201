@@ -386,8 +386,7 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx, unsigned int err)
 		dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 					V4L2_BUF_FLAG_PFRAME |
 					V4L2_BUF_FLAG_BFRAME |
-					V4L2_BUF_FLAG_ERROR |
-					V4L2_BUF_FLAG_BROKEN);
+					V4L2_BUF_FLAG_ERROR);
 
 		switch (frame_type) {
 		case MFC_REG_DISPLAY_FRAME_I:
@@ -411,8 +410,6 @@ static void __mfc_handle_frame_output_del(struct mfc_ctx *ctx, unsigned int err)
 			mfc_ctx_err("Warning for displayed frame: %d\n",
 					mfc_get_warn(err));
 			dst_mb->vb.flags |= V4L2_BUF_FLAG_ERROR;
-			if (IS_NO_DISPLAY(ctx, err))
-				dst_mb->vb.flags |= V4L2_BUF_FLAG_BROKEN;
 		}
 
 		if (call_cop(ctx, get_buf_ctrls_val, ctx, &ctx->dst_ctrls[index]) < 0)
