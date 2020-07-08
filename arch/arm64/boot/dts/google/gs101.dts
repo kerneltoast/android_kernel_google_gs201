@@ -23,6 +23,7 @@
 #include "gs101-ufs.dtsi"
 #include "gs101-rmem.dtsi"
 #include "gs101-ion.dtsi"
+#include "gs101-pcie.dtsi"
 
 / {
 	compatible = "google,gs101";

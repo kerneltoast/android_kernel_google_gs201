@@ -9,6 +9,7 @@
 #include "gs101-slider-trusty.dtsi"
 #include "gs101-pmic.dtsi"
 #include "gs101-slider-gsc.dtsi"
+#include <dt-bindings/pci/pci.h>
 
 / {
 	fragment@model {
@@ -327,4 +328,26 @@
 	hs_tune_param = <&usb_hs_tune>;
 	ss_tune_param = <&usb_ss_tune>;
 	//extcon = <&fusb307b>;
+};
+
+&pcie_0 {	/* pcie ch0 used for the connection with CP on Slider */
+	status = "okay";
+	use-cache-coherency = "true";
+	use-msi = "true";
+	use-sicd = "true";
+	use-ia = "true";
+	use-l1ss = "true";
+	phy-power-off = "false";
+	ep-device-type = <EP_SAMSUNG_MODEM>;
+};
+
+&pcie_1 {	/* pcie ch1 used for the connection with WiFi on Slider */
+	status = "okay";
+	num-lanes = <1>;
+	use-sicd = "true";
+	use-ia = "true";
+	use-l1ss = "true";
+	max-link-speed = <LINK_SPEED_GEN1>;
+	ep-device-type = <EP_BCM_WIFI>;
+	pcie,wlan-gpio = <&gpp14 2 0x1 /* WLAN_EN */ >;
 };
