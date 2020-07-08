@@ -20,7 +20,7 @@
 			0x0 0x40FFE000 0x2000	/* configuration space */
 			0x0 0x11900000 0x1000>;	/* I/A space */
 		reg-names = "elbi", "phy", "sysreg", "dbi", "pcs", "config", "ia";
-		interrupts = <GIC_SPI INTREQ__PCIE_GEN4A_0_HSI1 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI IRQ_PCIE_GEN4A_0_HSI1 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "msi";
 		#interrupt-cells = <1>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
@@ -61,10 +61,10 @@
 			0x0 0x60FFE000 0x2000	/* configuration space */
 			0x0 0x14500000 0x1000>;	/* I/A space */
 		reg-names = "elbi", "phy", "sysreg", "dbi", "pcs", "config", "ia";
-		interrupts = <GIC_SPI INTREQ__PCIE_GEN4A_1_HSI2 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI IRQ_PCIE_GEN4A_1_HSI2 IRQ_TYPE_LEVEL_HIGH>;
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 0>;
-		interrupt-map = <0 0 0 0 &gic 0 INTREQ__PCIE_GEN4A_1_HSI2 0x4>;
+		interrupt-map = <0 0 0 0 &gic 0 IRQ_PCIE_GEN4A_1_HSI2 0x4>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pcie1_clkreq &pcie1_perst>;
