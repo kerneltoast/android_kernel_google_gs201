@@ -59,3 +59,9 @@ config UCLAMP_STATS
         bool "Uclamp stats"
         depends on VH_KERNEL
         default y
+
+config VH_PREEMPTIRQ_TRACEPOINTS
+        tristate "Vendor hooks for long preemptirq trace points"
+        depends on VH_SCHED
+        default m
+
