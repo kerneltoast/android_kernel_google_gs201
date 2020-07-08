@@ -880,7 +880,13 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(4, "enc src buf[%d] Q\n", buf->index);
-		for (i = 0; i < ctx->src_fmt->num_planes; i++) {
+		if (ctx->src_fmt->mem_planes != buf->length) {
+			mfc_ctx_err("number of memory container miss-match between Src planes(%d) and buffer length(%d)\n",
+					ctx->src_fmt->mem_planes, buf->length);
+			return -EINVAL;
+		}
+
+		for (i = 0; i < ctx->src_fmt->mem_planes; i++) {
 			if (!buf->m.planes[i].bytesused) {
 				mfc_debug(2, "[FRAME] enc src[%d] size zero, "
 						"changed to buf size %d\n",
