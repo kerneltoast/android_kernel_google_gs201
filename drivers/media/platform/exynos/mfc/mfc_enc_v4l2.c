@@ -103,8 +103,9 @@ static void __mfc_enc_uncomp_format(struct mfc_ctx *ctx)
 
 	if (uncomp_fmt) {
 		enc->uncomp_fmt = __mfc_enc_find_format(ctx, uncomp_fmt);
-		mfc_debug(2, "[SBWC] Uncompressed format is %s\n",
-				enc->uncomp_fmt->name);
+		if (enc->uncomp_fmt)
+			mfc_debug(2, "[SBWC] Uncompressed format is %s\n",
+					enc->uncomp_fmt->name);
 	}
 }
 
