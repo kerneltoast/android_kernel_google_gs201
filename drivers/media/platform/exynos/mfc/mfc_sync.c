@@ -218,7 +218,7 @@ static int __mfc_dec_ctx_ready_set_bit(struct mfc_ctx *ctx,
 {
 	struct mfc_dev *dev = ctx->dev;
 	int src_buf_queue_greater_than_0 = 0;
-	int dst_buf_queue_greater_than_0 = 0;
+	int dst_buf_queue_check_available = 0;
 	unsigned long flags;
 	int is_ready = 0;
 
@@ -231,8 +231,7 @@ static int __mfc_dec_ctx_ready_set_bit(struct mfc_ctx *ctx,
 
 	src_buf_queue_greater_than_0
 		= mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0);
-	dst_buf_queue_greater_than_0
-		= mfc_is_queue_count_greater(&ctx->buf_queue_lock, &ctx->dst_buf_queue, 0);
+	dst_buf_queue_check_available = mfc_check_for_dpb(ctx);
 
 	/* If shutdown is called, do not try any cmd */
 	if (dev->shutdown)
@@ -249,23 +248,23 @@ static int __mfc_dec_ctx_ready_set_bit(struct mfc_ctx *ctx,
 	/* Context is to decode a frame */
 	else if (ctx->state == MFCINST_RUNNING &&
 		ctx->wait_state == WAIT_NONE && src_buf_queue_greater_than_0 &&
-		dst_buf_queue_greater_than_0)
+		dst_buf_queue_check_available)
 		is_ready = 1;
 
 	/* Context is to return last frame */
 	else if (ctx->state == MFCINST_FINISHING &&
-		dst_buf_queue_greater_than_0)
+		dst_buf_queue_check_available)
 		is_ready = 1;
 
 	/* Context is to set buffers */
 	else if (ctx->state == MFCINST_HEAD_PARSED &&
-		(dst_buf_queue_greater_than_0 && ctx->wait_state == WAIT_NONE))
+		(dst_buf_queue_check_available && ctx->wait_state == WAIT_NONE))
 		is_ready = 1;
 
 	/* Resolution change */
 	else if ((ctx->state == MFCINST_RES_CHANGE_INIT ||
 		ctx->state == MFCINST_RES_CHANGE_FLUSH) &&
-		dst_buf_queue_greater_than_0)
+		dst_buf_queue_check_available)
 		is_ready = 1;
 
 	else if (ctx->state == MFCINST_RES_CHANGE_END &&

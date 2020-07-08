@@ -141,6 +141,7 @@ void mfc_cleanup_queue(spinlock_t *plock, struct mfc_buf_queue *queue);
 void mfc_cleanup_enc_src_queue(struct mfc_ctx *ctx);
 void mfc_cleanup_enc_dst_queue(struct mfc_ctx *ctx);
 
+int mfc_check_for_dpb(struct mfc_ctx *ctx);
 struct mfc_buf *mfc_search_for_dpb(struct mfc_ctx *ctx);
 struct mfc_buf *mfc_search_move_dpb_nal_q(struct mfc_ctx *ctx);
 void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb);

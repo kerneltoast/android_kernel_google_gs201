@@ -513,11 +513,9 @@ static int __mfc_nal_q_just_run(struct mfc_ctx *ctx, int drm_switch)
 
 			mfc_clear_bit(ctx->num, &dev->work_bits);
 
-			if (!ctx->clear_work_bit)
-				mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
+			mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
 			if (nal_q_handle->nal_q_exception)
 				mfc_set_bit(ctx->num, &dev->work_bits);
-			ctx->clear_work_bit = 0;
 
 			mfc_release_hwlock_ctx(ctx);
 
@@ -567,11 +565,9 @@ static int __mfc_nal_q_just_run(struct mfc_ctx *ctx, int drm_switch)
 
 			mfc_clear_bit(ctx->num, &dev->work_bits);
 
-			if (!ctx->clear_work_bit)
-				mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
+			mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
 			if (nal_q_handle->nal_q_exception)
 				mfc_set_bit(ctx->num, &dev->work_bits);
-			ctx->clear_work_bit = 0;
 
 			mfc_release_hwlock_ctx(ctx);
 
