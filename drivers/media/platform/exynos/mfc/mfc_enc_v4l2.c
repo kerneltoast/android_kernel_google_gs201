@@ -873,7 +873,12 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return -EIO;
 	}
 
-	if (V4L2_TYPE_IS_MULTIPLANAR(buf->type) && !buf->length) {
+	if (!V4L2_TYPE_IS_MULTIPLANAR(buf->type)) {
+		mfc_ctx_err("Invalid V4L2 Buffer for driver: type(%d)\n", buf->type);
+		return -EINVAL;
+	}
+
+	if (!buf->length) {
 		mfc_ctx_err("multiplanar but length is zero\n");
 		return -EIO;
 	}
@@ -927,6 +932,12 @@ static int mfc_enc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		mfc_ctx_err("Call on DQBUF after unrecoverable error\n");
 		return -EIO;
 	}
+
+	if (!V4L2_TYPE_IS_MULTIPLANAR(buf->type)) {
+		mfc_ctx_err("Invalid V4L2 Buffer for driver: type(%d)\n", buf->type);
+		return -EINVAL;
+	}
+
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(4, "enc src buf[%d] DQ\n", buf->index);
 		ret = vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_NONBLOCK);
@@ -950,6 +961,11 @@ static int mfc_enc_streamon(struct file *file, void *priv,
 	if (ctx->otf_handle) {
 		mfc_ctx_info("[OTF] skip streamon\n");
 		return 0;
+	}
+
+	if (!V4L2_TYPE_IS_MULTIPLANAR(type)) {
+		mfc_ctx_err("Invalid V4L2 Buffer for driver: type(%d)\n", type);
+		return -EINVAL;
 	}
 
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
@@ -977,7 +993,7 @@ static int mfc_enc_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	int ret;
+	int ret = 0;
 
 	mfc_debug_enter();
 
@@ -986,7 +1002,11 @@ static int mfc_enc_streamoff(struct file *file, void *priv,
 		return 0;
 	}
 
-	ret = -EINVAL;
+	if (!V4L2_TYPE_IS_MULTIPLANAR(type)) {
+		mfc_ctx_err("Invalid V4L2 Buffer for driver: type(%d)\n", type);
+		return -EINVAL;
+	}
+
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(4, "enc src streamoff\n");
 		mfc_qos_reset_last_framerate(ctx);
