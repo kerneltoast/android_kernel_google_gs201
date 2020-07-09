@@ -1692,15 +1692,6 @@ static int mfc_probe(struct platform_device *pdev)
 		goto err_sysmmu_fault_handler;
 	}
 
-	ret = iommu_dma_reserve_iova(dev->device, 0x0,
-			MFC_BASE_ADDR + dev->variant->buf_size->firmware_code
-			+ dev->variant->buf_size->ctx_buf->dev_ctx);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to reserve dva for firmware %d\n", ret);
-		ret = -EPROBE_DEFER;
-		goto err_reserve_iova;
-	}
-
 	g_mfc_dev = dev;
 
 	dev->logging_data = devm_kzalloc(&pdev->dev, sizeof(struct mfc_debug), GFP_KERNEL);
@@ -1724,7 +1715,6 @@ static int mfc_probe(struct platform_device *pdev)
 
 /* Deinit MFC if probe had failed */
 err_alloc_debug:
-err_reserve_iova:
 	iommu_unregister_device_fault_handler(&pdev->dev);
 err_sysmmu_fault_handler:
 	destroy_workqueue(dev->butler_wq);

@@ -393,6 +393,9 @@ static void __mfc_dump_state(struct mfc_dev *dev, int curr_ctx)
 			dev->mmcache.is_on_status, dev->llc_on_status,
 			dev->slc_on_status, perf_boost_mode,
 			dev->pdata->wait_fw_status.support);
+	dev_err(dev->device, "fw addr %#llx size %08zu drm_fw addr %#llx\n",
+			dev->fw_buf.daddr, dev->fw_buf.size,
+			dev->drm_fw_buf.daddr);
 	if (nal_q_handle)
 		dev_err(dev->device, "NAL-Q state:%d, exception:%d, in_exe_cnt: %d, out_exe_cnt: %d, stop cause: %#x\n",
 				nal_q_handle->nal_q_state,

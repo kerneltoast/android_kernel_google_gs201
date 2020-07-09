@@ -894,6 +894,8 @@ struct mfc_dev {
 	int			ptid;
 #endif
 
+	size_t fw_base_offset;
+
 	struct mfc_pm	pm;
 	struct mfc_fw	fw;
 	struct mfc_variant	*variant;
