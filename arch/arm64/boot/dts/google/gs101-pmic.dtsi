@@ -29,7 +29,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	s2mpg10mfd:s2mpg10mfd@1f {
+	s2mpg10mfd: s2mpg10mfd@00 {
 		compatible = "samsung,s2mpg10mfd";
 		acpm-ipc-channel = <2>;
 		acpm-speedy-channel = <0>;
@@ -840,7 +840,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	s2mpg11mfd:s2mpg11mfd@2f {
+	s2mpg11mfd: s2mpg11mfd@00 {
 		compatible = "samsung,s2mpg11mfd";
 		acpm-ipc-channel = <2>;
 		acpm-speedy-channel = <1>;

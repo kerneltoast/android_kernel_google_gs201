@@ -13,6 +13,7 @@
 #include "gs101-whitefin1-cp-s5200-sit.dtsi"
 #include "gs101-whitefin1-display.dtsi"
 #include "gs101-common-gsc.dtsi"
+#include "gs101-whitefin1-thermal.dtsi"
 
 / {
 	board_id = <0x201>;
