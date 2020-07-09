@@ -19,6 +19,10 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-ctrls.h>
 
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+#include <soc/google/exynos_pm_qos.h>
+#endif
+
 #include "smfc-regs.h"
 
 #define MODULE_NAME	"exynos-jpeg"
@@ -110,7 +114,9 @@ struct smfc_dev {
 
 	struct clk *clk_gate;
 	struct clk *clk_gate2; /* available if clk_gate is valid */
-	struct pm_qos_request qosreq_int;
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+	struct exynos_pm_qos_request qosreq_int;
+#endif
 	s32 qosreq_int_level;
 
 };

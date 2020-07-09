@@ -863,6 +863,56 @@ err_clk:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+static void g2d_pm_qos_add_request(struct device *dev, struct smfc_dev *smfc)
+{
+	if (of_property_read_u32(dev->of_node, "smfc,int_qos_minlock",
+				 (u32 *)&smfc->qosreq_int_level))
+		return;
+
+	if (smfc->qosreq_int_level > 0) {
+		exynos_pm_qos_add_request(&smfc->qosreq_int, PM_QOS_DEVICE_THROUGHPUT, 0);
+		dev_info(dev, "INT Min.Lock Freq. = %d\n", smfc->qosreq_int_level);
+	} else {
+		smfc->qosreq_int_level = 0;
+	}
+}
+
+static void g2d_pm_qos_remove_request(struct smfc_dev *smfc)
+{
+	if (smfc->qosreq_int_level > 0)
+		exynos_pm_qos_remove_request(&smfc->qosreq_int);
+}
+
+static void g2d_pm_qos_update_request(struct smfc_dev *smfc)
+{
+	if (smfc->qosreq_int_level > 0)
+		exynos_pm_qos_update_request(&smfc->qosreq_int, smfc->qosreq_int_level);
+}
+
+static void g2d_pm_qos_reset_request(struct smfc_dev *smfc)
+{
+	if (smfc->qosreq_int_level > 0)
+		exynos_pm_qos_update_request(&smfc->qosreq_int, 0);
+}
+#else
+static void g2d_pm_qos_add_request(struct smfc_dev *smfc)
+{
+}
+
+static void g2d_pm_qos_remove_request(struct smfc_dev *smfc)
+{
+}
+
+static void g2d_pm_qos_update_request(struct smfc_dev *smfc)
+{
+}
+
+static void g2d_pm_qos_reset_request(struct smfc_dev *smfc)
+{
+}
+#endif
+
 int smfc_iommu_fault_handler(struct iommu_fault *fault, void *token)
 {
 	struct smfc_dev *smfc = token;
@@ -981,19 +1031,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-#if defined(CONFIG_PM_DEVFREQ) && defined(NEVER_DEFINED)
-	if (!of_property_read_u32(pdev->dev.of_node, "smfc,int_qos_minlock",
-				(u32 *)&smfc->qosreq_int_level)) {
-		if (smfc->qosreq_int_level > 0) {
-			pm_qos_add_request(&smfc->qosreq_int,
-					PM_QOS_DEVICE_THROUGHPUT, 0);
-			dev_info(&pdev->dev, "INT Min.Lock Freq. = %d\n",
-					smfc->qosreq_int_level);
-		} else {
-			smfc->qosreq_int_level = 0;
-		}
-	}
-#endif
+	g2d_pm_qos_add_request(&pdev->dev, smfc);
 
 	platform_set_drvdata(pdev, smfc);
 
@@ -1019,11 +1057,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 err_hwver:
 	smfc_deinit_v4l2(&pdev->dev, smfc);
 err_v4l2:
-#if defined(CONFIG_PM_DEVFREQ) && defined(NEVER_DEFINED)
-	if (smfc->qosreq_int_level > 0)
-		pm_qos_remove_request(&smfc->qosreq_int);
-#endif
-
+	g2d_pm_qos_remove_request(smfc);
 	return ret;
 }
 
@@ -1039,7 +1073,8 @@ static int exynos_smfc_remove(struct platform_device *pdev)
 {
 	struct smfc_dev *smfc = platform_get_drvdata(pdev);
 
-	pm_qos_remove_request(&smfc->qosreq_int);
+	g2d_pm_qos_remove_request(smfc);
+
 	smfc_deinit_clock(smfc);
 
 	iommu_unregister_device_fault_handler(&pdev->dev);
@@ -1090,8 +1125,7 @@ static int smfc_runtime_resume(struct device *dev)
 {
 	struct smfc_dev *smfc = dev_get_drvdata(dev);
 
-	if (smfc->qosreq_int_level > 0)
-		pm_qos_update_request(&smfc->qosreq_int, smfc->qosreq_int_level);
+	g2d_pm_qos_update_request(smfc);
 
 	return 0;
 }
@@ -1100,8 +1134,7 @@ static int smfc_runtime_suspend(struct device *dev)
 {
 	struct smfc_dev *smfc = dev_get_drvdata(dev);
 
-	if (smfc->qosreq_int_level > 0)
-		pm_qos_update_request(&smfc->qosreq_int, 0);
+	g2d_pm_qos_reset_request(smfc);
 
 	return 0;
 }
