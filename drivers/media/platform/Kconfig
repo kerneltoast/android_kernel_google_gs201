@@ -527,7 +527,6 @@ endif # V4L_MEM2MEM_DRIVERS
 config VIDEO_EXYNOS_SMFC
 	tristate "Exynos Still MFC(H/W JPEG CODEC) Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
-	depends on ARCH_EXYNOS
 	select V4L2_MEM2MEM_DEV
 	select VIDEOBUF2_DMA_SG
 	default n
