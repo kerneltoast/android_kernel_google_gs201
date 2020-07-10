@@ -37,6 +37,10 @@
 #include <linux/input/heatmap.h>
 #endif
 #include <linux/pm_qos.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_device.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 #include "fts_lib/ftsSoftware.h"
 #include "fts_lib/ftsHardware.h"
@@ -46,7 +50,6 @@
 #endif
 
 #undef DYNAMIC_REFRESH_RATE
-#undef CONFIG_DRM
 
 /****************** CONFIGURATION SECTION ******************/
 /** @defgroup conf_section	 Driver Configuration Section
@@ -451,9 +454,7 @@ struct fts_ts_info {
 
 	struct fts_disp_extinfo extinfo;	/* Display extended info */
 
-#ifdef CONFIG_DRM
-	struct notifier_block notifier;	/* Notify on suspend/resume */
-#endif
+	struct drm_bridge panel_bridge;
 #ifdef DYNAMIC_REFRESH_RATE
 	int display_refresh_rate;	/* Display rate in Hz */
 #endif
