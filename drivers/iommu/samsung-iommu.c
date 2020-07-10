@@ -35,6 +35,9 @@
 #define DEFAULT_TLB_NONE	~0U
 #define UNUSED_TLB_INDEX	~0U
 
+#define REG_MMU_S2PF_ENABLE	0x7000
+#define MMU_S2PF_ENABLE		BIT(0)
+
 static const unsigned int sysmmu_reg_set[MAX_SET_IDX][MAX_REG_IDX] = {
 	/* Default without VM */
 	{
@@ -174,6 +177,12 @@ static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 
 	if (!data->no_block_mode)
 		writel_relaxed(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
+
+	if (data->no_s2pf) {
+		u32 val = readl_relaxed(data->sfrbase + REG_MMU_S2PF_ENABLE);
+
+		writel_relaxed(val & ~MMU_S2PF_ENABLE, data->sfrbase + REG_MMU_S2PF_ENABLE);
+	}
 
 	__sysmmu_set_tlb(data);
 
@@ -1058,6 +1067,7 @@ static int sysmmu_parse_dt(struct device *sysmmu, struct sysmmu_drvdata *data)
 	}
 
 	data->qos = qos;
+	data->no_s2pf = of_property_read_bool(sysmmu->of_node, "sysmmu,no-s2pf");
 
 	/* Secure IRQ */
 	if (of_find_property(sysmmu->of_node, "sysmmu,secure-irq", NULL)) {
