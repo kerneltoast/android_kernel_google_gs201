@@ -136,6 +136,43 @@ static int acpm_get_print_setting(struct acpm_info *acpm,
 	return ret;
 }
 
+static int acpm_framework_debug_cmd_setting(struct acpm_info *acpm,
+				  u64 subcmd)
+{
+	struct ipc_config config;
+	int ret = 0;
+	unsigned int cmd[4] = {0, };
+	unsigned int channel_num, size;
+
+	if (subcmd >= ACPM_FRAMEWORK_COMMAND_DEBUG_MAX) {
+		pr_err("%s, sub-cmd:%d, out of range!\n", __func__, subcmd);
+		return 0;
+	}
+
+	ret = acpm_ipc_request_channel(acpm->dev->of_node, NULL, &channel_num,
+				       &size);
+	if (ret) {
+		pr_err("%s ipc request_channel fail (%d)\n", __func__, ret);
+		return ret;
+	}
+
+	config.cmd = cmd;
+	config.cmd[0] = subcmd;
+	config.cmd[0] |= ACPM_FRAMEWORK_COMMAND_DEBUG <<
+				(ACPM_IPC_PROTOCOL_SETTINGS + 1);
+
+	config.response = true;
+	config.indirection = false;
+
+	pr_info("%s, command:0x%X, sub-cmd:0x%X\n", __func__, config.cmd[0], subcmd);
+
+	ret = acpm_ipc_send_data(channel_num, &config);
+
+	acpm_ipc_release_channel(acpm->dev->of_node, channel_num);
+
+	return ret;
+}
+
 static int debug_uart_gprio_level_get(void *data, u64 *val)
 {
 	struct acpm_info *acpm = (struct acpm_info *) data;
@@ -164,6 +201,13 @@ static int debug_logb_gprio_level_set(void *data, u64 val)
 	return acpm_set_print_setting(acpm, ACPM_SET_LOGB_GPRIO_LEVEL, val);
 }
 
+static int debug_acpm_framework_cmd_set(void *data, u64 val)
+{
+	struct acpm_info *acpm = (struct acpm_info *) data;
+
+	return acpm_framework_debug_cmd_setting(acpm, val);
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(debug_log_level_fops,
 		debug_log_level_get, debug_log_level_set, "0%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(debug_ipc_loopback_test_fops,
@@ -174,6 +218,8 @@ DEFINE_SIMPLE_ATTRIBUTE(debug_uart_gprio_level_fops,
 DEFINE_SIMPLE_ATTRIBUTE(debug_logb_gprio_level_fops,
 		debug_logb_gprio_level_get,
 		debug_logb_gprio_level_set, "0x%016llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_framework_cmd_fops,
+		NULL, debug_acpm_framework_cmd_set, "0x%016llx\n");
 
 static void acpm_debugfs_init(struct acpm_info *acpm)
 {
@@ -188,6 +234,8 @@ static void acpm_debugfs_init(struct acpm_info *acpm)
 			    &debug_uart_gprio_level_fops);
 	debugfs_create_file("logb_gprio_level", 0644, den, acpm,
 			    &debug_logb_gprio_level_fops);
+	debugfs_create_file("acpm_debug_cmd", 0644, den, acpm,
+			    &debug_acpm_framework_cmd_fops);
 }
 
 void *memcpy_align_4(void *dest, const void *src, unsigned int n)
