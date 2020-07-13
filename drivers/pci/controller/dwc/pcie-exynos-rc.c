@@ -2089,7 +2089,7 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 	dev_dbg(dev, "DBI Link Control Register: 0x%x\n", readl(exynos_pcie->rc_dbi_base + 0x80));
 
 	val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-	dev_info(dev, "%s: link state:%x\n", __func__, val);
+	dev_dbg(dev, "%s: link state:%x\n", __func__, val);
 	if (!(val >= 0x0d && val <= 0x14)) {
 		dev_info(dev, "%s, pcie link is not up\n", __func__);
 
@@ -2125,7 +2125,7 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP);
 		val = val & 0x1f;
 		if (val == 0x15) {
-			dev_info(dev, "received Enter_L23_READY DLLP packet\n");
+			dev_dbg(dev, "received Enter_L23_READY DLLP packet\n");
 
 			break;
 		}
@@ -2489,7 +2489,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 		}
 	}
 
-	dev_info(dev, "pcie end of poweron, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "pcie end of poweron, state: %d\n", exynos_pcie->state);
 
 	return 0;
 
@@ -2603,7 +2603,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		pcie_is_linkup = 0;
 	}
 
-	dev_info(dev, "end of poweroff, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "end of poweroff, state: %d\n", exynos_pcie->state);
 }
 
 void exynos_pcie_pm_suspend(int ch_num)
