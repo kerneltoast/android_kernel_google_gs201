@@ -174,9 +174,6 @@
 				IS_HEVC_DEC(ctx))
 #define ON_RES_CHANGE(ctx)	(((ctx)->state >= MFCINST_RES_CHANGE_INIT) &&	\
 				 ((ctx)->state <= MFCINST_RES_CHANGE_END))
-#define IS_NO_DISPLAY(ctx, err)						\
-	((mfc_get_warn(err) == MFC_REG_ERR_SYNC_POINT_NOT_RECEIVED) ||	\
-	(mfc_get_warn(err) == MFC_REG_ERR_BROKEN_LINK))
 #define IS_NO_ERROR(err)	((err) == 0 ||		\
 				(mfc_get_warn(err)	\
 				 == MFC_REG_ERR_SYNC_POINT_NOT_RECEIVED))
@@ -226,6 +223,7 @@
 #define	DEC_SET_HDR10_PLUS		(1 << 4)
 #define	DEC_SET_DRV_DPB_MANAGER		(1 << 5)
 #define	DEC_SET_C2_INTERFACE		(1 << 6) //can be changed display_delay
+#define DEC_SET_FRAME_ERR_TYPE		(1 << 7)
 #define	DEC_SET_BUF_FLAG_CTRL		(1 << 16)
 
 /* Extra information for Encoder */

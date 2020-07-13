@@ -331,6 +331,8 @@ void mfc_otf_set_frame_addr(struct mfc_ctx *ctx, int num_planes);
 void mfc_otf_set_stream_size(struct mfc_ctx *ctx, unsigned int size);
 void mfc_otf_set_hwfc_index(struct mfc_ctx *ctx, int job_id);
 
+unsigned int mfc_get_frame_error_type(struct mfc_ctx *ctx, unsigned int err);
+
 int mfc_set_dec_codec_buffers(struct mfc_ctx *ctx);
 int mfc_set_enc_codec_buffers(struct mfc_ctx *mfc_ctx);
 

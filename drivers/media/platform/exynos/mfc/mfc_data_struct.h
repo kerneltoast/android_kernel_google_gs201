@@ -219,6 +219,13 @@ enum mfc_mb_flag {
 	MFC_FLAG_LAST_FRAME		= 31,
 };
 
+enum mfc_frame_error_type {
+	MFC_ERR_FRAME_NO_ERR		= 0,
+	MFC_ERR_FRAME_CONCEALMENT	= 1,
+	MFC_ERR_FRAME_SYNC_POINT	= 2,
+	MFC_ERR_FRAME_BROKEN		= 3,
+};
+
 enum mfc_do_cache_flush {
 	MFC_NO_CACHEFLUSH		= 0,
 	MFC_CACHEFLUSH			= 1,
@@ -542,8 +549,6 @@ struct mfc_platdata {
 	unsigned int axid_mask;
 	unsigned int mfc_fault_num;
 	unsigned int trans_info_offset;
-	/* Ditermine whether to display the broken buffer */
-	unsigned int broken_display;
 	/* Default 10bit format for decoding */
 	unsigned int P010_decoding;
 	/* Formats */

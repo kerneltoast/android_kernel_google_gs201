@@ -119,6 +119,26 @@ void mfc_otf_set_hwfc_index(struct mfc_ctx *ctx, int job_id)
 	HWFC_WRITEL(job_id, HWFC_ENCODING_IDX);
 }
 
+unsigned int mfc_get_frame_error_type(struct mfc_ctx *ctx, unsigned int err)
+{
+	if (!err) {
+		mfc_debug(4, "[FRAME] there is no error frame\n");
+		return MFC_ERR_FRAME_NO_ERR;
+	}
+
+	if ((IS_VC1_RCV_DEC(ctx) && (mfc_get_warn(err) == MFC_REG_ERR_SYNC_POINT_NOT_RECEIVED))
+			|| (mfc_get_warn(err) == MFC_REG_ERR_BROKEN_LINK)) {
+		mfc_debug(2, "[FRAME] Broken frame error (%d)\n", mfc_get_warn(err));
+		return MFC_ERR_FRAME_BROKEN;
+	} else if (mfc_get_warn(err) == MFC_REG_ERR_SYNC_POINT_NOT_RECEIVED) {
+		mfc_debug(2, "[FRAME] Sync point frame error (%d)\n", mfc_get_warn(err));
+		return MFC_ERR_FRAME_SYNC_POINT;
+	}
+
+	mfc_debug(2, "[FRAME] Concealment frame error (%d)\n", mfc_get_warn(err));
+	return MFC_ERR_FRAME_CONCEALMENT;
+}
+
 /* Set decoding frame buffer */
 int mfc_set_dec_codec_buffers(struct mfc_ctx *ctx)
 {

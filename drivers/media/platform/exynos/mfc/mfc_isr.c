@@ -554,10 +554,6 @@ static void __mfc_handle_frame_output(struct mfc_ctx *ctx, unsigned int err)
 		if (!CODEC_NOT_CODED(ctx))
 			return;
 
-	/* Broken buffer is not dequeued to user */
-	if (!dev->pdata->broken_display && IS_NO_DISPLAY(ctx, err))
-		return;
-
 	/* Dequeued display buffer for user */
 	__mfc_handle_frame_output_del(ctx, err);
 }

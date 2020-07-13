@@ -1097,6 +1097,7 @@ static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 	val |= DEC_SET_DRV_DPB_MANAGER;
 	val |= DEC_SET_C2_INTERFACE;
 	val |= DEC_SET_BUF_FLAG_CTRL;
+	val |= DEC_SET_FRAME_ERR_TYPE;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->skype))
 		val |= DEC_SET_SKYPE_FLAG;

@@ -354,6 +354,18 @@ struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_addr = 0,
 		.flag_shft = 0,
 	},
+	{
+		.type = MFC_CTRL_TYPE_GET_DST,
+		.id = V4L2_CID_MPEG_VIDEO_FRAME_ERROR_TYPE,
+		.is_volatile = 0,
+		.mode = MFC_CTRL_MODE_SFR,
+		.addr = MFC_REG_ERROR_CODE,
+		.mask = 0xFFFFFFFF,
+		.shft = 0,
+		.flag_mode = MFC_CTRL_MODE_NONE,
+		.flag_addr = 0,
+		.flag_shft = 0,
+	},
 	{	/* buffer additional information */
 		.type = MFC_CTRL_TYPE_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG,
@@ -682,6 +694,9 @@ static int mfc_dec_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 				buf_ctrl->val = dec->color_space;
 		}
 
+		if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_FRAME_ERROR_TYPE)
+			buf_ctrl->val = mfc_get_frame_error_type(ctx, value);
+
 		mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d (%#x)\n",
 				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
@@ -827,6 +842,9 @@ static int mfc_dec_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			break;
 		case V4L2_CID_MPEG_VIDEO_SEI_DISPLAY_PRIMARIES_2:
 			value = pOutStr->MasteringDisplayColourVolumeSei5;
+			break;
+		case V4L2_CID_MPEG_VIDEO_FRAME_ERROR_TYPE:
+			value = mfc_get_frame_error_type(ctx, pOutStr->ErrorCode);
 			break;
 			/* If new dynamic controls are added, insert here */
 		default:
