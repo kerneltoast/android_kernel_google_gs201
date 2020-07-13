@@ -212,7 +212,7 @@ struct mfc_buf *mfc_get_move_buf_used(struct mfc_ctx *ctx,
 
 struct mfc_buf *mfc_get_move_buf_addr(struct mfc_ctx *ctx,
 		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue,
-		dma_addr_t addr)
+		dma_addr_t addr, unsigned long used_flag)
 {
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
@@ -227,6 +227,13 @@ struct mfc_buf *mfc_get_move_buf_addr(struct mfc_ctx *ctx,
 
 	list_for_each_entry(mfc_buf, &from_queue->head, list) {
 		if (mfc_buf->addr[0][0] == addr) {
+			if (used_flag & (1UL << mfc_buf->dpb_index)) {
+				mfc_debug(2, "[DPB] addr[0]: 0x%08llx still referenced\n",
+						mfc_buf->addr[0][0]);
+				spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+				return NULL;
+			}
+
 			mfc_debug(2, "[DPB] addr[0]: 0x%08llx\n",
 					mfc_buf->addr[0][0]);
 

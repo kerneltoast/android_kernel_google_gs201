@@ -1345,13 +1345,15 @@ static void __mfc_nal_q_handle_reuse_buffer(struct mfc_ctx *ctx, DecoderOutputSt
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *dst_mb;
 	dma_addr_t disp_addr;
+	unsigned long used_flag = ((unsigned long)(pOutStr->UsedDpbFlagUpper) << 32) |
+				(pOutStr->UsedDpbFlagLower & 0xffffffff);
 
 	/* reuse not used buf: dst_buf_nal_queue -> dst_queue */
 	disp_addr = pOutStr->DisplayAddr[0];
 	if (disp_addr) {
-		mfc_debug(2, "[NALQ][DPB] decoding only but there is disp addr: 0x%llx\n", disp_addr);
+		mfc_debug(2, "[NALQ][DPB] disp addr: 0x%llx\n", disp_addr);
 		dst_mb = mfc_get_move_buf_addr(ctx, &ctx->dst_buf_queue,
-				&ctx->dst_buf_nal_queue, disp_addr);
+				&ctx->dst_buf_nal_queue, disp_addr, used_flag);
 		if (dst_mb) {
 			mfc_debug(2, "[NALQ][DPB] buf[%d][%d] will reused. addr: 0x%08llx\n",
 					dst_mb->vb.vb2_buf.index,
@@ -1359,7 +1361,7 @@ static void __mfc_nal_q_handle_reuse_buffer(struct mfc_ctx *ctx, DecoderOutputSt
 			dst_mb->used = 0;
 			clear_bit(dst_mb->dpb_index, &dec->available_dpb);
 		} else {
-			mfc_ctx_err("[NALQ][DPB] couldn't find DPB 0x%08llx\n",
+			mfc_debug(2, "[NALQ][DPB] couldn't find DPB 0x%08llx\n",
 								disp_addr);
 			mfc_print_dpb_table(ctx);
 		}
@@ -2375,7 +2377,8 @@ EncoderOutputStr *mfc_nal_q_dequeue_out_buf(struct mfc_dev *dev,
 
 	if (pStr->ErrorCode) {
 		*reason = MFC_REG_R2H_CMD_ERR_RET;
-		mfc_ctx_err("[NALQ] Error : %d\n", pStr->ErrorCode);
+		mfc_ctx_err("[NALQ] Interrupt Error: display: %d, decoded: %d\n",
+				mfc_get_warn(pStr->ErrorCode), mfc_get_err(pStr->ErrorCode));
 	}
 
 	input_diff = mfc_get_nal_q_input_count() - mfc_get_nal_q_input_exe_count();

@@ -120,7 +120,7 @@ struct mfc_buf *mfc_get_move_buf_used(struct mfc_ctx *ctx,
 		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue);
 struct mfc_buf *mfc_get_move_buf_addr(struct mfc_ctx *ctx,
 		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue,
-		dma_addr_t addr);
+		dma_addr_t addr, unsigned long used_flag);
 struct mfc_buf *mfc_get_move_buf_index(struct mfc_ctx *ctx,
 				struct mfc_buf_queue *to_queue,
 				struct mfc_buf_queue *from_queue,
