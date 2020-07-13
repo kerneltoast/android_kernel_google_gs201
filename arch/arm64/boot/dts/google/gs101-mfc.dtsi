@@ -67,9 +67,6 @@
 		/* Support SBWC per-frame control for encoder src */
 		sbwc_enc_src_ctrl = <1 0x0>;
 
-		/* Ditermine whether to display the broken buffer */
-		broken_display = <1>;
-
 		/* Default 10bit format for decoding (1: P010, 0: 8+2) */
 		P010_decoding = <1>;
 
