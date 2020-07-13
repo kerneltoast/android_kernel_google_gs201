@@ -413,11 +413,11 @@ static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 
 	bitmap_to_arr32(exynos_eint_wake_mask_array, exynos_eint_wake_mask_bitmap, 96);
 
-	dev_info(d->dev, "wake %s for irq %d\n", on ? "enabled" : "disabled",
+	dev_dbg(d->dev, "wake %s for irq %d\n", on ? "enabled" : "disabled",
 		 irqd->irq);
-	dev_info(d->dev, "(%s:0x%x) dirq = %d, eint_num = %u\n",
+	dev_dbg(d->dev, "(%s:0x%x) dirq = %d, eint_num = %u\n",
 		 bank->name, bank->eint_offset, d->irq, bank->eint_num);
-	dev_info(d->dev, "exynos_eint_wake_mask value (0x%X, 0x%X, 0x%X)\n",
+	dev_dbg(d->dev, "exynos_eint_wake_mask value (0x%X, 0x%X, 0x%X)\n",
 		 exynos_eint_wake_mask_array[0],
 		 exynos_eint_wake_mask_array[1],
 		 exynos_eint_wake_mask_array[2]);
