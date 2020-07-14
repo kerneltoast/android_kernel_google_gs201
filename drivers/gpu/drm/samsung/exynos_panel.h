@@ -56,6 +56,8 @@ struct dpu_panel_timing {
 	unsigned int hfp;
 	unsigned int hsa;
 	unsigned int hbp;
+
+	unsigned int vrefresh;
 };
 
 /*

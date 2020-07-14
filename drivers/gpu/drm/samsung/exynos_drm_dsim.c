@@ -479,6 +479,7 @@ static void dsim_adjust_video_timing(struct dsim_device *dsim,
 	p_timing->hfp = vm.hfront_porch;
 	p_timing->hbp = vm.hback_porch;
 	p_timing->hsa = vm.hsync_len;
+	p_timing->vrefresh = mode->vrefresh;
 
 	dsim_set_clock_mode(dsim, mode);
 }

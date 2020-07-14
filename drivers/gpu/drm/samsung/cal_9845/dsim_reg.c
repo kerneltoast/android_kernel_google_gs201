@@ -1004,9 +1004,8 @@ static void dsim_reg_set_hperiod(u32 id, struct dsim_reg_config *config,
 			config->p_timing.hfp;
 		vblank = config->p_timing.vsa + config->p_timing.vbp +
 			config->p_timing.vfp;
-		/* TODO: 60 will be changed to fps */
 		vclk = DIV_ROUND_CLOSEST((width + hblank) * (height + vblank) *
-				60, 1000000);
+				config->p_timing.vrefresh, 1000000);
 		wclk = DIV_ROUND_CLOSEST(clks->hs_clk, 16);
 
 		/* round calculation to reduce fps error */
