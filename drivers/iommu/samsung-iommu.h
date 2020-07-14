@@ -47,6 +47,7 @@ struct sysmmu_drvdata {
 	bool has_vcr;
 	bool no_s2pf;		/* Disable stage 2 prefetch */
 	bool rpm_resume;	/* true if .runtime_resume() is called */
+	bool async_fault_mode;
 };
 
 struct sysmmu_clientdata {
@@ -188,7 +189,7 @@ static inline sysmmu_pte_t *section_entry(sysmmu_pte_t *pgtable,
 #define CTRL_MMU_ENABLE			BIT(0)
 #define CTRL_MMU_BLOCK			BIT(1)
 #define CTRL_INT_ENABLE			BIT(2)
-#define CTRL_FAULT_STALL_MODE		0x8
+#define CTRL_FAULT_STALL_MODE		BIT(3)
 
 #define CFG_MASK_GLOBAL			0x00000F80 /* Bit 11, 10-7 */
 #define CFG_MASK_VM			0xB00F1004 /* Bit 31, 29, 28, 19-16, 12, 2 */

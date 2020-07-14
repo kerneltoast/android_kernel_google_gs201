@@ -25,6 +25,7 @@
 #define MMU_PADDR_FROM_SBB(reg)		(((reg) & 0x3FFFFFF) << 10)
 
 #define REG_MMU_INT_STATUS		0x060
+#define REG_MMU_INT_CLEAR		0x064
 #define REG_MMU_FAULT_VA		0x070
 #define REG_MMU_FAULT_TRANS_INFO	0x078
 #define REG_MMU_FAULT_RW_MASK		GENMASK(20, 20)
@@ -346,11 +347,12 @@ finish:
 	pr_crit("----------------------------------------------------------\n");
 }
 
-static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
-					  int intr_type, unsigned long fault_addr)
+static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
+					  int intr_type, unsigned long fault_addr,
+					  phys_addr_t *pt)
 {
 	const char *port_name = NULL;
-	unsigned int info;
+	u32 info;
 	phys_addr_t pgtable;
 
 	pgtable = readl_relaxed(MMU_REG(drvdata, IDX_FLPT_BASE));
@@ -360,19 +362,28 @@ static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 
 	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
 
-	pr_crit("----------------------------------------------------------\n");
-	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
+	pr_crit("From [%s], SysMMU %s %s at %#010lx (pgtable @ %pa, AxID: %#x)\n",
 		port_name ? port_name : dev_name(drvdata->dev),
 		IS_READ_FAULT(info) ? "READ" : "WRITE",
-		sysmmu_fault_name[intr_type], fault_addr, &pgtable);
+		sysmmu_fault_name[intr_type], fault_addr, &pgtable, info & 0xFFFF);
+
+	if (pt)
+		*pt = pgtable;
+}
+
+static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
+					  int intr_type, unsigned long fault_addr)
+{
+	phys_addr_t pgtable;
+
+	pr_crit("----------------------------------------------------------\n");
+	sysmmu_show_fault_info_simple(drvdata, intr_type, fault_addr, &pgtable);
 
 	if (intr_type == SYSMMU_FAULT_UNKNOWN) {
 		pr_crit("The fault is not caused by this System MMU.\n");
 		pr_crit("Please check IRQ and SFR base address.\n");
 		goto finish;
 	}
-
-	pr_crit("AxID: %#x, AxLEN: %#x\n", info & 0xFFFF, (info >> 16) & 0xF);
 
 	if (pgtable != drvdata->pgtable)
 		pr_crit("Page table base of driver: %pa\n",
@@ -412,6 +423,13 @@ static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data,
 	*addr = __sysmmu_get_fault_address(data, is_secure);
 }
 
+static void sysmmu_clear_interrupt(struct sysmmu_drvdata *data)
+{
+	u32 val = __sysmmu_get_intr_status(data, false);
+
+	writel(val, data->sfrbase + REG_MMU_INT_CLEAR);
+}
+
 irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 {
 	int itype;
@@ -421,6 +439,9 @@ irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 
 	dev_info(drvdata->dev, "[%s] interrupt (%d) happened\n",
 		 is_secure ? "Secure" : "Non-secure", irq);
+
+	if (drvdata->async_fault_mode)
+		return IRQ_WAKE_THREAD;
 
 	sysmmu_get_interrupt_info(drvdata, &itype, &addr, is_secure);
 	if (is_secure)
@@ -436,7 +457,7 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 	struct samsung_sysmmu_fault_info *fi;
 	struct sysmmu_clientdata *client;
 	struct sysmmu_drvdata *drvdata;
-	int i;
+	int i, ret, result = -EFAULT;
 
 	fi = (struct samsung_sysmmu_fault_info *)data;
 	drvdata = fi->drvdata;
@@ -445,31 +466,52 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 
 	for (i = 0; i < client->sysmmu_count; i++) {
 		if (drvdata == client->sysmmus[i]) {
-			iommu_report_device_fault(dev, &fi->event);
+			ret = iommu_report_device_fault(dev, &fi->event);
+			if (ret == -EAGAIN)
+				result = ret;
 			break;
 		}
 	}
 
-	return 0;
+	return result;
 }
 
 irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 {
-	int itype;
+	int itype, ret;
 	unsigned long addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
 	bool is_secure = (irq == drvdata->secure_irq);
 	struct iommu_group *group = drvdata->group;
+	enum iommu_fault_reason reason;
 	struct samsung_sysmmu_fault_info fi = {
 		.drvdata = drvdata,
 		.event.fault.type = IOMMU_FAULT_DMA_UNRECOV,
 	};
 
 	sysmmu_get_interrupt_info(drvdata, &itype, &addr, is_secure);
-	fi.event.fault.event.addr = addr;
-	fi.event.fault.event.reason = sysmmu_fault_type[itype];
-	iommu_group_for_each_dev(group, &fi, samsung_sysmmu_fault_notifier);
+	reason = sysmmu_fault_type[itype];
 
+	fi.event.fault.event.addr = addr;
+	fi.event.fault.event.reason = reason;
+	if (reason == IOMMU_FAULT_REASON_PTE_FETCH ||
+	    reason == IOMMU_FAULT_REASON_PERMISSION)
+		fi.event.fault.type = IOMMU_FAULT_PAGE_REQ;
+
+	ret = iommu_group_for_each_dev(group, &fi,
+				       samsung_sysmmu_fault_notifier);
+	if (ret == -EAGAIN && !is_secure) {
+		sysmmu_show_fault_info_simple(drvdata, itype, addr, NULL);
+		sysmmu_clear_interrupt(drvdata);
+		return IRQ_HANDLED;
+	}
+
+	if (drvdata->async_fault_mode) {
+		if (is_secure)
+			sysmmu_show_secure_fault_information(drvdata, itype, addr);
+		else
+			sysmmu_show_fault_information(drvdata, itype, addr);
+	}
 	panic("Unrecoverable System MMU Fault!!");
 
 	return IRQ_HANDLED;
