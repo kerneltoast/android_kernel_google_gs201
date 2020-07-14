@@ -56,14 +56,14 @@
 				esc-clk = <20>;
 				cmd_underrun_cnt = <2032>;
 			};
-			720x1280 {
-				mode-name = "720x1280";
+			1440x3120 {
+				mode-name = "1440x3120";
 				pmsk = <
-					0x1 0x60 0x2 0x0 /* p m s k */
+					0x2 0xF3 0x2 0x8355 /* p m s k */
 					>;
-				hs-clk = <1026>;
+				hs-clk = <1490>;
 				esc-clk = <20>;
-				cmd_underrun_cnt = <1203>;
+				cmd_underrun_cnt = <1575>;
 			};
 		};
 	};
