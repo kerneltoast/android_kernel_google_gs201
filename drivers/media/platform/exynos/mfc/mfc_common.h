@@ -24,7 +24,7 @@
 #include "mfc_regs.h"
 #include "mfc_macros.h"
 #include "mfc_debug.h"
-#include "exynos_mfc_media.h"
+#include "mfc_media.h"
 #include "mfc_data_struct.h"
 
 #define MFC_DRIVER_INFO		190319

@@ -39,7 +39,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-v4l2.h>
 
-#include "exynos_mfc_media.h"
+#include "mfc_media.h"
 
 #define MFC_NUM_CONTEXTS		32
 #define MFC_MAX_PLANES			3
