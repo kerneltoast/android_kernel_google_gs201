@@ -37,7 +37,7 @@ int mfc_mem_get_user_shared_handle(struct mfc_ctx *ctx,
 		goto import_dma_fail;
 	}
 
-	handle->vaddr = dma_buf_kmap(handle->dma_buf, 0);
+	handle->vaddr = dma_buf_vmap(handle->dma_buf);
 	if (handle->vaddr == NULL) {
 		mfc_ctx_err("Failed to get kernel virtual address\n");
 		ret = -EINVAL;
@@ -60,7 +60,7 @@ void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,
 		struct mfc_user_shared_handle *handle)
 {
 	if (handle->vaddr)
-		dma_buf_kunmap(handle->dma_buf, 0, handle->vaddr);
+		dma_buf_vunmap(handle->dma_buf, handle->vaddr);
 	if (handle->dma_buf)
 		dma_buf_put(handle->dma_buf);
 
@@ -160,7 +160,7 @@ int mfc_mem_ion_alloc(struct mfc_dev *dev,
 		goto err_daddr;
 	}
 
-	special_buf->vaddr = dma_buf_kmap(special_buf->dma_buf, 0);
+	special_buf->vaddr = dma_buf_vmap(special_buf->dma_buf);
 	if (IS_ERR(special_buf->vaddr)) {
 		mfc_dev_err("Failed to get vaddr (err 0x%p)\n",
 				&special_buf->vaddr);
@@ -188,7 +188,7 @@ err_ion_alloc:
 void mfc_mem_ion_free(struct mfc_special_buf *special_buf)
 {
 	if (special_buf->vaddr)
-		dma_buf_kunmap(special_buf->dma_buf, 0, special_buf->vaddr);
+		dma_buf_vunmap(special_buf->dma_buf, special_buf->vaddr);
 	if (special_buf->sgt)
 		dma_buf_unmap_attachment(special_buf->attachment,
 					 special_buf->sgt, DMA_BIDIRECTIONAL);
