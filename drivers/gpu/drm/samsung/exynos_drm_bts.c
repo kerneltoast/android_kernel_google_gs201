@@ -28,7 +28,6 @@
 #endif
 
 #define DISP_FACTOR		100UL
-#define LCD_REFRESH_RATE	60U
 #define MULTI_FACTOR		(1UL << 10)
 /* bus utilization 70% : same value with INT_UTIL */
 #define BUS_UTIL		70
@@ -219,15 +218,8 @@ static u32 dpu_bts_find_latency_meet_aclk(u32 lat_cycle, u32 line_time,
  */
 static u64 dpu_bts_get_resol_clock(u32 xres, u32 yres, u32 fps)
 {
-	u32 op_fps;
 	u64 margin;
 	u64 resol_khz;
-
-	/*
-	 * check lower limit of fps
-	 * this can be removed if there is no stuck issue
-	 */
-	op_fps = min(LCD_REFRESH_RATE, fps);
 
 	/*
 	 * aclk_khz = vclk_1pix * ( 1.1 + (48+20)/WIDTH ) : x1000
@@ -238,7 +230,7 @@ static u64 dpu_bts_get_resol_clock(u32 xres, u32 yres, u32 fps)
 	 */
 	margin = 1100 + ((48000 + 20000) / xres);
 	/* convert to kHz unit */
-	resol_khz = (xres * yres * op_fps * margin / 1000) / 1000;
+	resol_khz = (xres * yres * fps * margin / 1000) / 1000;
 
 	return resol_khz;
 }
