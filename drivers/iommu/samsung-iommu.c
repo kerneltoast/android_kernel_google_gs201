@@ -131,15 +131,18 @@ static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 	if (data->no_block_mode) {
 		__sysmmu_tlb_invalidate_all(data);
 	} else {
+		u32 ctrl_val;
+
 		if (data->has_vcr) {
+			ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL_VM);
+			writel(ctrl_val & ~CTRL_MMU_ENABLE, data->sfrbase + REG_MMU_CTRL_VM);
 			writel_relaxed(0, data->sfrbase + REG_MMU_CFG_VM);
-			writel_relaxed(CTRL_BLOCK_DISABLE,
-				       data->sfrbase + REG_MMU_CTRL_VM);
 		}
 
+		ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL);
+		ctrl_val &= ~CTRL_MMU_ENABLE;
+		writel(ctrl_val | CTRL_MMU_BLOCK, data->sfrbase + REG_MMU_CTRL);
 		writel_relaxed(0, data->sfrbase + REG_MMU_CFG);
-		writel_relaxed(CTRL_BLOCK_DISABLE,
-			       data->sfrbase + REG_MMU_CTRL);
 	}
 }
 
@@ -175,9 +178,6 @@ static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 	if (data->qos != DEFAULT_QOS_VALUE)
 		cfg |= CFG_QOS_OVRRIDE | CFG_QOS(data->qos);
 
-	if (!data->no_block_mode)
-		writel_relaxed(CTRL_BLOCK, data->sfrbase + REG_MMU_CTRL);
-
 	if (data->no_s2pf) {
 		u32 val = readl_relaxed(data->sfrbase + REG_MMU_S2PF_ENABLE);
 
@@ -198,13 +198,18 @@ static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 
 static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
 {
+	u32 ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL);
+
+	if (!data->no_block_mode)
+		writel_relaxed(ctrl_val | CTRL_MMU_BLOCK, data->sfrbase + REG_MMU_CTRL);
+
 	__sysmmu_init_config(data);
 
 	writel_relaxed(data->pgtable / SPAGE_SIZE,
 		       MMU_REG(data, IDX_FLPT_BASE));
 	__sysmmu_tlb_invalidate_all(data);
 
-	writel(CTRL_ENABLE, data->sfrbase + REG_MMU_CTRL);
+	writel(ctrl_val | CTRL_MMU_ENABLE, data->sfrbase + REG_MMU_CTRL);
 
 	if (data->has_vcr)
 		writel(CTRL_VID_ENABLE | CTRL_FAULT_STALL_MODE,

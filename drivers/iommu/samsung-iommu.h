@@ -183,11 +183,10 @@ static inline sysmmu_pte_t *section_entry(sysmmu_pte_t *pgtable,
 #define MMU_REV_VER(val)	((val) & 0xF)
 #define MMU_RAW_VER(reg)	(((reg) >> 17) & 0x7FFF)
 
-#define CTRL_DISABLE			0x0
 #define CTRL_VID_ENABLE			0x1
-#define CTRL_BLOCK_DISABLE		0x3
-#define CTRL_ENABLE			0x5
-#define CTRL_BLOCK			0x7
+#define CTRL_MMU_ENABLE			BIT(0)
+#define CTRL_MMU_BLOCK			BIT(1)
+#define CTRL_INT_ENABLE			BIT(2)
 #define CTRL_FAULT_STALL_MODE		0x8
 
 #define CFG_MASK_GLOBAL			0x00000F80 /* Bit 11, 10-7 */
