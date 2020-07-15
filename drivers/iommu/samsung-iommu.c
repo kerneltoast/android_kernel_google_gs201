@@ -121,8 +121,8 @@ static inline void __sysmmu_tlb_invalidate_all(struct sysmmu_drvdata *data)
 static inline void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *data,
 					   dma_addr_t start, dma_addr_t end)
 {
-	writel_relaxed(start, MMU_REG(data, IDX_RANGE_INV_START));
-	writel_relaxed(end - 1, MMU_REG(data, IDX_RANGE_INV_END));
+	writel_relaxed(ALIGN_DOWN(start, SPAGE_SIZE), MMU_REG(data, IDX_RANGE_INV_START));
+	writel_relaxed(ALIGN_DOWN(end - 1, SPAGE_SIZE), MMU_REG(data, IDX_RANGE_INV_END));
 	writel(0x1, MMU_REG(data, IDX_RANGE_INV));
 }
 
