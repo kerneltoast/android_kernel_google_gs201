@@ -295,6 +295,7 @@ static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
 static void sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 						 int intr_type, unsigned long fault_addr)
 {
+	const char *port_name = NULL;
 	unsigned int info;
 	phys_addr_t pgtable;
 	unsigned int sfrbase = drvdata->secure_base;
@@ -304,9 +305,12 @@ static void sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 
 	info = read_sec_info(MMU_SEC_REG(drvdata, IDX_FAULT_TRANS_INFO));
 
+	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
+
 	pr_crit("----------------------------------------------------------\n");
 	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
-		dev_name(drvdata->dev), IS_READ_FAULT(info) ? "READ" : "WRITE",
+		port_name ? port_name : dev_name(drvdata->dev),
+		IS_READ_FAULT(info) ? "READ" : "WRITE",
 		sysmmu_fault_name[intr_type], fault_addr, &pgtable);
 
 	if (intr_type == SYSMMU_FAULT_UNKNOWN) {
@@ -345,6 +349,7 @@ finish:
 static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 					  int intr_type, unsigned long fault_addr)
 {
+	const char *port_name = NULL;
 	unsigned int info;
 	phys_addr_t pgtable;
 
@@ -353,9 +358,12 @@ static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 
 	info = readl_relaxed(MMU_REG(drvdata, IDX_FAULT_TRANS_INFO));
 
+	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
+
 	pr_crit("----------------------------------------------------------\n");
 	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
-		dev_name(drvdata->dev), IS_READ_FAULT(info) ? "READ" : "WRITE",
+		port_name ? port_name : dev_name(drvdata->dev),
+		IS_READ_FAULT(info) ? "READ" : "WRITE",
 		sysmmu_fault_name[intr_type], fault_addr, &pgtable);
 
 	if (intr_type == SYSMMU_FAULT_UNKNOWN) {
