@@ -938,10 +938,12 @@ int pt_driver_get_property_value(struct pt_driver *driver, int property_index,
 		"id_size_priority", index, value);
 }
 
-void pt_driver_log_module(const char *name, const char *fct, unsigned int arg0,
-	unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4)
+void pt_driver_log_module(const char *driver_name, const char *fn_name, u64 arg0,
+	u64 arg1, u64 arg2, u64 arg3, int ret, u64 sec_ret0,
+	u64 sec_ret1, u64 sec_ret2)
 {
-	trace_pt_driver_log(name, fct, arg0, arg1, arg2, arg3, arg4);
+	trace_pt_driver_log(driver_name, fn_name, arg0, arg1, arg2, arg3,
+		ret, sec_ret0, sec_ret1, sec_ret2);
 }
 
 static void pt_test_resize_callback(void *data, int id, size_t size_allocated)

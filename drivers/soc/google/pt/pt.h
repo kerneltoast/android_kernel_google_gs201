@@ -220,7 +220,8 @@ struct pt_driver *pt_driver_register(struct device_node *node,
 int pt_driver_unregister(struct pt_driver *driver);
 int pt_driver_get_property_value(struct pt_driver *driver, int property_index,
 	int index, u32 *value);
-void pt_driver_log_module(const char *name, const char *fct, unsigned int arg0,
-	unsigned int arg1, unsigned int arg2, unsigned int arg3, unsigned int arg4);
+void pt_driver_log_module(const char *driver_name, const char *fn_name, u64 arg0,
+	u64 arg1, u64 arg2, u64 arg3, int ret, u64 sec_ret0,
+	u64 sec_ret1, u64 sec_ret2);
 
 #endif /* __GOOGLE_PT_H_ */

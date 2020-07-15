@@ -77,9 +77,11 @@ TRACE_EVENT(pt_resize_callback,
 );
 
 TRACE_EVENT(pt_driver_log,
-		TP_PROTO(const char *driver_name, const char *fn_name,
-			u64 arg0, u64 arg1, u64 arg2, u64 arg3, int ret),
-		TP_ARGS(driver_name, fn_name, arg0, arg1, arg2, arg3, ret),
+		TP_PROTO(const char *driver_name, const char *fn_name, u64 arg0,
+			 u64 arg1, u64 arg2, u64 arg3, int ret, u64 sec_ret0,
+			 u64 sec_ret1, u64 sec_ret2),
+		TP_ARGS(driver_name, fn_name, arg0, arg1, arg2, arg3, ret,
+			sec_ret0, sec_ret1, sec_ret2),
 
 		TP_STRUCT__entry(
 				__field(const char *, driver_name)
@@ -89,6 +91,9 @@ TRACE_EVENT(pt_driver_log,
 				__field(u64, arg2)
 				__field(u64, arg3)
 				__field(int, ret)
+				__field(u64, sec_ret0)
+				__field(u64, sec_ret1)
+				__field(u64, sec_ret2)
 				),
 		TP_fast_assign(
 				__entry->driver_name = driver_name;
@@ -98,16 +103,24 @@ TRACE_EVENT(pt_driver_log,
 				__entry->arg2 = arg2;
 				__entry->arg3 = arg3;
 				__entry->ret = ret;
+				__entry->sec_ret0 = sec_ret0;
+				__entry->sec_ret1 = sec_ret1;
+				__entry->sec_ret2 = sec_ret2;
 				),
 
-		TP_printk("PT: %s %s 0x%llx 0x%llx 0x%llx 0x%llx ret: 0x%x",
+		TP_printk("PT: %s %s 0x%llx 0x%llx 0x%llx 0x%llx ret: 0x%x, "
+			  "sec_ret0: 0x%llx, sec_ret1: 0x%llx, "
+			  "sec_ret2: 0x%llx",
 				__entry->driver_name,
 				__entry->fn_name,
 				__entry->arg0,
 				__entry->arg1,
 				__entry->arg2,
 				__entry->arg3,
-				__entry->ret)
+				__entry->ret,
+				__entry->sec_ret0,
+				__entry->sec_ret1,
+				__entry->sec_ret2)
 );
 
 

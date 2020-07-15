@@ -115,7 +115,7 @@ static int slc_acpm(struct slc_acpm_driver_data *driver_data,
 	unsigned int command, unsigned int arg, unsigned long arg1)
 {
 	struct ipc_config config;
-	unsigned int cmd[4];
+	unsigned int cmd[8];
 	int ret;
 
 	config.cmd = cmd;
@@ -129,10 +129,14 @@ static int slc_acpm(struct slc_acpm_driver_data *driver_data,
 	mutex_lock(&driver_data->mt);
 	ret = acpm_ipc_send_data(driver_data->id, &config);
 	mutex_unlock(&driver_data->mt);
+
 	if (ret == 0)
 		ret = config.cmd[1];
-	pt_driver_log_module(driver_data->pdev->dev.of_node->name,
-			__func__, command, arg, arg1, 0, ret);
+	pt_driver_log_module(driver_data->pdev->dev.of_node->name, __func__,
+			    command, arg, arg1, 0, ret,
+			    ((u64)config.cmd[2]) << 32 | config.cmd[3],
+			    ((u64)config.cmd[4]) << 32 | config.cmd[5],
+			    ((u64)config.cmd[6]) << 32 | config.cmd[7]);
 	return ret;
 }
 
@@ -271,8 +275,8 @@ static void slc_acpm_ipc_callback(unsigned int *cmd, unsigned int size)
 {
 	struct slc_acpm_driver_data *driver_data = slc_acpm_driver_data;
 
-	pt_driver_log_module(driver_data->pdev->dev.of_node->name,
-				__func__, 0, 0, 0, 0, 0);
+	pt_driver_log_module(driver_data->pdev->dev.of_node->name, __func__, 0,
+			0, 0, 0, 0, 0, 0, 0);
 	/*
 	 * This callback happen in acpm thread context,
 	 * it is ok to wait
