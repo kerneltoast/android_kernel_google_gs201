@@ -163,7 +163,7 @@ static int gsc_tpm_datagram(struct gsc_data *gsc,
 	 *  whether or not GSC is ready to continue to the data phase. A zero
 	 *  bit means it's not.
 	 */
-	response_val == be32_to_cpu(*response_ptr);
+	response_val = be32_to_cpu(*response_ptr);
 	if (!(response_val & 0x00000001)) {
 		/* Wait for the reply bit to go high */
 		ret = gsc_wait_cmd_done(gsc);
