@@ -55,7 +55,7 @@
 
 	chipid@10000000 {
 		compatible = "google,gs101-chipid";
-		reg = <0x0 0x10000000 0xB000>;
+		reg = <0x0 0x10000000 0xD000>;
 	};
 
 	memory@80000000 {
