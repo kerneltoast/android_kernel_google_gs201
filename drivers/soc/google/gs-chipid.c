@@ -25,6 +25,7 @@ struct gs_chipid_variant {
 };
 
 #define RAW_HEX_STR_SIZE 116
+#define AP_HW_TUNE_HEX_STR_SIZE 64
 
 /**
  * Struct gs_chipid_info
@@ -40,6 +41,7 @@ struct gs_chipid_info {
 	u32 lot_id;
 	char *lot_id2;
 	u64 unique_id;
+	char ap_hw_tune_str[AP_HW_TUNE_HEX_STR_SIZE];
 	char raw_str[RAW_HEX_STR_SIZE];
 	struct gs_chipid_variant *drv_data;
 	struct platform_device *pdev;
@@ -168,6 +170,12 @@ static ssize_t raw_str_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%s\n", gs_soc_info.raw_str);
 }
 
+static ssize_t ap_hw_tune_str_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s\n", gs_soc_info.ap_hw_tune_str);
+}
+
 static DEVICE_ATTR_RO(product_id);
 static DEVICE_ATTR_RO(unique_id);
 static DEVICE_ATTR_RO(lot_id);
@@ -175,6 +183,7 @@ static DEVICE_ATTR_RO(lot_id2);
 static DEVICE_ATTR_RO(revision);
 static DEVICE_ATTR_RO(evt_ver);
 static DEVICE_ATTR_RO(raw_str);
+static DEVICE_ATTR_RO(ap_hw_tune_str);
 
 static struct attribute *chipid_sysfs_attrs[] = {
 	&dev_attr_product_id.attr,
@@ -184,6 +193,7 @@ static struct attribute *chipid_sysfs_attrs[] = {
 	&dev_attr_revision.attr,
 	&dev_attr_evt_ver.attr,
 	&dev_attr_raw_str.attr,
+	&dev_attr_ap_hw_tune_str.attr,
 	NULL,
 };
 
@@ -271,6 +281,19 @@ static void gs_chipid_get_raw_str(void __iomem *reg)
 	}
 }
 
+static void gs_chipid_get_ap_hw_tune_str(void __iomem *reg)
+{
+	u32 addr;
+	u8 val;
+	int str_pos = 0;
+
+	for (addr = 0xC300; addr < 0xC320; addr++) {
+		val = readb_relaxed(reg + addr);
+		str_pos += scnprintf(gs_soc_info.ap_hw_tune_str + str_pos,
+				     AP_HW_TUNE_HEX_STR_SIZE - str_pos, "%02x",
+				     val);
+	}
+}
 
 static const struct of_device_id of_gs_chipid_ids[] = {
 	{
@@ -304,6 +327,7 @@ void gs_chipid_early_init(void)
 
 	gs_chipid_get_chipid_info(reg);
 	gs_chipid_get_raw_str(reg);
+	gs_chipid_get_ap_hw_tune_str(reg);
 	iounmap(reg);
 	gs_soc_info.initialized = true;
 }
