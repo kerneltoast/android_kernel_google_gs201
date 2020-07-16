@@ -46,6 +46,7 @@ struct sysmmu_drvdata {
 	bool no_block_mode;
 	bool has_vcr;
 	bool no_s2pf;		/* Disable stage 2 prefetch */
+	bool rpm_resume;	/* true if .runtime_resume() is called */
 };
 
 struct sysmmu_clientdata {
