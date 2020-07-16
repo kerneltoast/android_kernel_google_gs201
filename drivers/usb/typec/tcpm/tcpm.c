@@ -4744,6 +4744,10 @@ static void _tcpm_pd_hard_reset(struct tcpm_port *port)
 		port->ams = NONE_AMS;
 	if (port->hard_reset_count < PD_N_HARD_RESET_COUNT)
 		port->ams = HARD_RESET;
+
+	if (port->bist_request == BDO_MODE_TESTDATA && port->tcpc->set_bist_data)
+		port->tcpc->set_bist_data(port->tcpc, false);
+
 	/*
 	 * If we keep receiving hard reset requests, executing the hard reset
 	 * must have failed. Revert to error recovery if that happens.
