@@ -292,22 +292,6 @@ static void acpm_enter_wfi(struct acpm_info *acpm)
 	acpm_ipc_release_channel(acpm->dev->of_node, channel_num);
 }
 
-u32 exynos_get_peri_timer_icvra(void)
-{
-	u32 cnt = GS_PERI_TIMER_MAX;
-
-	cnt -=  __raw_readl(exynos_acpm->timer_base + GS_TIMER_APM_TCVR);
-	cnt &= GS_PERI_TIMER_MAX;
-
-	return cnt;
-}
-
-void exynos_acpm_timer_clear(void)
-{
-	writel(exynos_acpm->timer_cnt,
-	       exynos_acpm->timer_base + GS_TIMER_APM_TCVR);
-}
-
 void exynos_acpm_reboot(void)
 {
 	acpm_ipc_set_waiting_mode(BUSY_WAIT);
@@ -350,8 +334,6 @@ static int acpm_probe(struct platform_device *pdev)
 	exynos_acpm = acpm;
 
 	acpm_debugfs_init(acpm);
-
-	exynos_acpm_timer_clear();
 
 	ret = plugins_init();
 	dev_info(&pdev->dev, "acpm probe done.\n");

@@ -84,8 +84,8 @@ struct acpm_debug_info {
 
 #define LOG_ID_SHIFT				(28)
 #define LOG_IS_RAW_SHIFT			(27)
-#define LOG_TIME_INDEX				(20)
-#define LOG_LEVEL				(19)
+#define LOG_IS_ERR_SHIFT			(26)
+
 #define BUSY_WAIT				(0)
 #define SLEEP_WAIT				(1)
 #define INTGR0					0x0020
@@ -105,9 +105,6 @@ struct acpm_debug_info {
 #define SR1					0x0084
 #define SR2					0x0088
 #define SR3					0x008C
-
-#define IPC_TIMEOUT				(15000000)
-#define APM_PERITIMER_NS_PERIOD			(10416)
 
 #define UNTIL_EQUAL(arg0, arg1, flag)			\
 do {							\

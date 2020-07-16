@@ -26,6 +26,9 @@
 #include "acpm_ipc.h"
 #include "fw_header/framework.h"
 
+#define IPC_TIMEOUT				(15000000)
+#define APM_SYSTICK_PERIOD_US			(20345)
+
 static struct acpm_ipc_info *acpm_ipc;
 static struct workqueue_struct *update_log_wq;
 static struct acpm_debug_info *acpm_debug;
@@ -33,15 +36,6 @@ static bool is_acpm_stop_log;
 static bool acpm_stop_log_req;
 struct acpm_framework *acpm_initdata;
 void __iomem *acpm_srambase;
-static u32 acpm_period = APM_PERITIMER_NS_PERIOD;
-
-#ifdef CONFIG_GS_RGT
-extern void exynos_rgt_dbg_snapshot_regulator(u32 val, unsigned long long time);
-#else
-static inline void exynos_rgt_dbg_snapshot_regulator(u32 val, unsigned long long time)
-{
-}
-#endif
 
 static bool is_rt_dl_task_policy(void)
 {
@@ -85,136 +79,67 @@ void acpm_ramdump(void)
 		memcpy(acpm_debug->dump_dram_base, acpm_debug->dump_base, acpm_debug->dump_size);
 }
 
-void timestamp_write(void)
+/*
+ * -----------------------------------------------------------------
+ * |               |      arg0     |     arg1      |      arg2     |
+ * | u32 log_header| u32 MSBsystick|   u32 *msg    |    u32 val    |
+ * -----------------------------------------------------------------
+ * systick is 56 bits: arg0 = systicks[55:24]
+ * log_header format:
+ * [31:28]: id
+ * [27]:    is_raw
+ * [26]:    log_err
+ * [23:0]:  systicks[23:0]
+ */
+static void acpm_log_print_helper(unsigned int head, unsigned int arg0,
+				  unsigned int arg1, unsigned int arg2)
 {
-	unsigned long long cur_clk;
-	unsigned long long sys_tick;
-	unsigned long flags;
-	unsigned int tmp_index;
+	u8 id, is_raw;
+	u8 is_err = (head & (0x1 << LOG_IS_ERR_SHIFT)) >> LOG_IS_ERR_SHIFT;
+	u64 time;
+	char *str;
 
-	spin_lock_irqsave(&acpm_debug->lock, flags);
+	if (acpm_debug->debug_log_level >= 1 || !is_err) {
+		id  = (head >> LOG_ID_SHIFT) & 0xf;
+		is_raw = (head >> LOG_IS_RAW_SHIFT) & 0x1;
+		if (is_raw) {
+			pr_info("[ACPM_FW] : id:%u, %x, %x, %x\n",
+				id, arg0, arg1, arg2);
+		} else {
+			time = ((u64) arg0 << 24) | ((u64) head & 0xffffff);
+			/* report time in ns */
+			time = (time * APM_SYSTICK_PERIOD_US) / 1000;
+			str = (char *) acpm_srambase + (arg1 & 0xffffff);
 
-	tmp_index = __raw_readl(acpm_debug->time_index);
-
-	sys_tick = exynos_get_peri_timer_icvra();
-	sys_tick = acpm_debug->timestamps[tmp_index] + sys_tick * acpm_period;
-	cur_clk = sched_clock();
-
-	tmp_index++;
-
-	if (tmp_index == acpm_debug->num_timestamps)
-		tmp_index = 0;
-
-	acpm_debug->timestamps[tmp_index] = cur_clk;
-
-	__raw_writel(tmp_index, acpm_debug->time_index);
-	exynos_acpm_timer_clear();
-
-	if (sys_tick > cur_clk)
-		acpm_period--;
-	else
-		acpm_period++;
-
-	spin_unlock_irqrestore(&acpm_debug->lock, flags);
-}
-
-static void acpm_log_print_helper_raw(struct acpm_log_buff *buffer,
-		unsigned int rear, unsigned int id, unsigned long long time,
-		unsigned int log_level)
-{
-	unsigned int arg0, arg1, arg2;
-
-
-	arg0 = __raw_readl(buffer->log_buff_base +
-			   buffer->log_buff_size * rear + 4);
-	arg1 = __raw_readl(buffer->log_buff_base +
-			   buffer->log_buff_size * rear + 8);
-	arg2 = __raw_readl(buffer->log_buff_base +
-			   buffer->log_buff_size * rear + 12);
-
-	if (acpm_debug->debug_log_level >= 1 || !log_level) {
-		pr_info("[ACPM_FW] : %llu id:%u, %x, %x, %x\n",
-			time, id, arg0, arg1, arg2);
+			pr_info("[ACPM_FW] : %llu id:%u, %s, %x\n",
+				time, id, str, arg2);
+		}
 	}
-}
-
-static void acpm_log_print_helper(struct acpm_log_buff *buffer,
-		unsigned int rear, unsigned int id, unsigned long long time,
-		unsigned int log_level)
-{
-	unsigned char str[9] = {0,};
-	unsigned int val;
-
-	/* string length: log_buff_size - header(4) - integer_data(4) */
-	memcpy_align_4(str,
-		       buffer->log_buff_base +
-		       (buffer->log_buff_size * rear) + 4,
-		       buffer->log_buff_size - 8);
-
-	val = __raw_readl(buffer->log_buff_base +
-			  buffer->log_buff_size * rear +
-			  buffer->log_buff_size - 4);
-
-	/* speedy channel: [31:28] addr : [23:12], data : [11:4]*/
-	if (id == REGULATOR_INFO_ID)
-		exynos_rgt_dbg_snapshot_regulator(val, time);
-
-	if (acpm_debug->debug_log_level >= 1 || !log_level)
-		pr_info("[ACPM_FW] : %llu id:%u, %s, %x\n", time, id, str, val);
 }
 
 void acpm_log_print_buff(struct acpm_log_buff *buffer)
 {
-	unsigned int front;
-	unsigned int rear;
-	unsigned int id;
-	unsigned int is_raw;
-	unsigned int index;
-	unsigned int log_level;
-	unsigned int count;
-	unsigned int log_header;
-	unsigned long long time;
+	unsigned int front, rear;
+	unsigned int head, arg0, arg1, arg2;
 
 	if (is_acpm_stop_log)
 		return;
+
 	/* ACPM Log data dequeue & print */
 	front = __raw_readl(buffer->log_buff_front);
 	rear = __raw_readl(buffer->log_buff_rear);
 
 	while (rear != front) {
-		log_header = __raw_readl(buffer->log_buff_base +
-					 buffer->log_buff_size * rear);
+		head = __raw_readl(buffer->log_buff_base +
+				   buffer->log_buff_size * rear);
+		arg0 = __raw_readl(buffer->log_buff_base +
+				   buffer->log_buff_size * rear + 4);
+		arg1 = __raw_readl(buffer->log_buff_base +
+				   buffer->log_buff_size * rear + 8);
+		arg2 = __raw_readl(buffer->log_buff_base +
+				   buffer->log_buff_size * rear + 12);
 
-		/* log header information
-		 * id: [31:28]
-		 * is raw : [27]
-		 * index: [26:20]
-		 * log level: [19]
-		 * apm systick count: [15:0]
-		 */
-		id = (log_header & (0xf << LOG_ID_SHIFT)) >>
-				LOG_ID_SHIFT;
-		is_raw = (log_header & (0x1 << LOG_IS_RAW_SHIFT)) >>
-				LOG_IS_RAW_SHIFT;
-		index = (log_header & (0x7f << LOG_TIME_INDEX)) >>
-				LOG_TIME_INDEX;
-		log_level = (log_header & (0x1 << LOG_LEVEL)) >>
-				LOG_LEVEL;
-		index = index >> LOG_TIME_INDEX;
-		count = log_header & 0xffff;
-
-		time = acpm_debug->timestamps[index];
-
-		/* peritimer period: (1 * 256) / 24.576MHz*/
-		time += count * acpm_period;
-
-		if (is_raw) {
-			acpm_log_print_helper_raw(buffer, rear, id, time,
-						  log_level);
-		} else {
-			acpm_log_print_helper(buffer, rear, id, time,
-					      log_level);
-		}
+		acpm_log_print_helper(head, arg0, arg1, arg2);
 
 		if (buffer->log_buff_len == (rear + 1))
 			rear = 0;
@@ -253,7 +178,6 @@ static void acpm_update_log(struct work_struct *work)
 static void acpm_debug_logging(struct work_struct *work)
 {
 	acpm_log_print();
-	timestamp_write();
 
 	queue_delayed_work_on(0, update_log_wq, &acpm_debug->periodic_work,
 			      msecs_to_jiffies(acpm_debug->period));
@@ -815,6 +739,8 @@ static void log_buffer_init(struct device *dev, struct device_node *node)
 	pr_info("[ACPM] acpm framework SRAM dump to dram base: 0x%llx\n",
 		virt_to_phys(acpm_debug->dump_dram_base));
 
+	__raw_writel(0xffffffff, acpm_debug->time_index);
+
 	spin_lock_init(&acpm_debug->lock);
 }
 
@@ -874,7 +800,6 @@ static int channel_init(void)
 static void acpm_error_log_ipc_callback(unsigned int *cmd, unsigned int size)
 {
 	acpm_log_print();
-	timestamp_write();
 }
 
 int acpm_ipc_probe(struct platform_device *pdev)

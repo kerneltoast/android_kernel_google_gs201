@@ -24,15 +24,12 @@ extern void *memcpy_align_4(void *dest, const void *src, unsigned int n);
 #define GS_PMU_CORTEX_APM_DURATION3                               (0x011C)
 
 #define GS_TIMER_APM_TCVR					      (0x0008)
-#define GS_PERI_TIMER_MAX					      (0xFFFF)
 
 
 #define APM_LOCAL_PWR_CFG_RESET         (~(0x1 << 0))
 
 extern struct acpm_framework *acpm_initdata;
 extern void __iomem *acpm_srambase;
-extern void exynos_acpm_timer_clear(void);
-extern u32 exynos_get_peri_timer_icvra(void);
 extern void *get_fvmap_base(void);
 
 #endif
