@@ -131,14 +131,8 @@ static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 	if (data->no_block_mode) {
 		__sysmmu_tlb_invalidate_all(data);
 	} else {
-		u32 ctrl_val;
+		u32 ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL);
 
-		if (data->has_vcr) {
-			ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL_VM);
-			writel(ctrl_val & ~CTRL_MMU_ENABLE, data->sfrbase + REG_MMU_CTRL_VM);
-		}
-
-		ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL);
 		ctrl_val &= ~CTRL_MMU_ENABLE;
 		writel(ctrl_val | CTRL_MMU_BLOCK, data->sfrbase + REG_MMU_CTRL);
 	}
