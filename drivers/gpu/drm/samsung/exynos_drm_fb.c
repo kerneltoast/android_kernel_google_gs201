@@ -279,23 +279,6 @@ static void plane_state_to_win_config(struct decon_device *decon,
 	DRM_DEBUG("simplified rot[0x%x]\n", simplified_rot);
 }
 
-static void display_mode_to_bts_info(const struct drm_display_mode *mode,
-		struct decon_device *decon)
-{
-	struct videomode vm;
-
-	drm_display_mode_to_videomode(mode, &vm);
-
-	decon->config.image_width = vm.hactive;
-	decon->config.image_height = vm.vactive;
-	decon->config.dsc.slice_width = DIV_ROUND_UP(decon->config.image_width,
-			decon->config.dsc.slice_count);
-	decon->bts.vbp = vm.vback_porch;
-	decon->bts.vfp = vm.vfront_porch;
-	decon->bts.vsa = vm.vsync_len;
-	decon->bts.fps = mode->vrefresh;
-}
-
 static void exynos_atomic_bts_pre_update(struct drm_device *dev,
 					 struct drm_atomic_state *old_state)
 {
@@ -312,8 +295,6 @@ static void exynos_atomic_bts_pre_update(struct drm_device *dev,
 		/* acquire initial bandwidth when there is a mode change */
 		if (new_crtc_state->active &&
 		    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
-			display_mode_to_bts_info(&new_crtc_state->mode, decon);
-
 			decon->bts.ops->acquire_bw(decon);
 		}
 

@@ -169,9 +169,22 @@ static bool exynos_crtc_mode_fixup(struct drm_crtc *crtc,
 
 	return true;
 }
+
+static void exynos_crtc_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
+	const struct drm_crtc_state *crtc_state = crtc->state;
+
+	if (exynos_crtc->ops->mode_set)
+		return exynos_crtc->ops->mode_set(exynos_crtc,
+						  &crtc_state->mode,
+						  &crtc_state->adjusted_mode);
+}
+
 static const struct drm_crtc_helper_funcs exynos_crtc_helper_funcs = {
 	.mode_valid	= exynos_crtc_mode_valid,
 	.mode_fixup	= exynos_crtc_mode_fixup,
+	.mode_set_nofb	= exynos_crtc_mode_set_nofb,
 	.atomic_check	= exynos_crtc_atomic_check,
 	.atomic_begin	= exynos_crtc_atomic_begin,
 	.atomic_flush	= exynos_crtc_atomic_flush,

@@ -430,12 +430,30 @@ static bool decon_mode_fixup(struct exynos_drm_crtc *crtc,
 	return true;
 }
 
-static void decon_update_config_for_display_mode(struct exynos_drm_crtc *crtc)
+static void decon_mode_set(struct exynos_drm_crtc *crtc,
+			   const struct drm_display_mode *mode,
+			   const struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = crtc->base.dev;
 	struct decon_device *decon = crtc->ctx;
-	const struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
 	const struct exynos_display_mode *mode_priv =
-						      drm_mode_to_exynos(mode);
+		drm_mode_to_exynos(adjusted_mode);
+	struct videomode vm;
+	int i;
+
+	drm_display_mode_to_videomode(adjusted_mode, &vm);
+
+	decon->config.image_width = vm.hactive;
+	decon->config.image_height = vm.vactive;
+	decon->bts.vbp = vm.vback_porch;
+	decon->bts.vfp = vm.vfront_porch;
+	decon->bts.vsa = vm.vsync_len;
+	decon->bts.fps = adjusted_mode->vrefresh;
+
+	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
+		decon->bts.win_config[i].state = DPU_WIN_STATE_DISABLED;
+		decon->dpp[i]->dbg_dma_addr = 0;
+	}
 
 	if (!mode_priv) {
 		decon_info(decon, "%s: no private mode config\n", __func__);
@@ -447,11 +465,15 @@ static void decon_update_config_for_display_mode(struct exynos_drm_crtc *crtc)
 		decon->config.dsc.dsc_count = mode_priv->dsc.dsc_count;
 		decon->config.dsc.slice_count = mode_priv->dsc.slice_count;
 		decon->config.dsc.slice_height = mode_priv->dsc.slice_height;
+		decon->config.dsc.slice_width =
+			DIV_ROUND_UP(decon->config.image_width,
+				     decon->config.dsc.slice_count);
 	}
 
 	decon->config.mode.op_mode =
 		(mode_priv->mode_flags & MIPI_DSI_MODE_VIDEO) ?
-			DECON_VIDEO_MODE : DECON_COMMAND_MODE;
+			      DECON_VIDEO_MODE :
+			      DECON_COMMAND_MODE;
 
 	decon->config.out_bpc = mode_priv->bpc;
 }
@@ -468,8 +490,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 
 	decon_info(decon, "%s +\n", __func__);
 
-	if (crtc->base.state->mode_changed)
-		decon_update_config_for_display_mode(crtc);
 	pm_runtime_get_sync(decon->dev);
 
 	decon_set_te_pinctrl(decon, true);
@@ -568,6 +588,7 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
 	.mode_fixup = decon_mode_fixup,
+	.mode_set = decon_mode_set,
 	.atomic_check = decon_atomic_check,
 	.atomic_begin = decon_atomic_begin,
 	.update_plane = decon_update_plane,
