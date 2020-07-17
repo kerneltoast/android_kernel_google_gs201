@@ -211,8 +211,12 @@ dma_addr_t exynos_drm_fb_dma_addr(const struct drm_framebuffer *fb, int index)
 	return exynos_gem->dma_addr + fb->offsets[index];
 }
 
-void plane_state_to_win_config(struct decon_device *decon,
-		struct exynos_drm_plane_state *state, int plane_idx)
+#define crtc_to_decon(crtc)                                                    \
+	(container_of((crtc), struct exynos_drm_crtc, base)->ctx)
+
+#if defined(CONFIG_EXYNOS_BTS)
+static void plane_state_to_win_config(struct decon_device *decon,
+		const struct exynos_drm_plane_state *state, int plane_idx)
 {
 	struct dpu_bts_win_config *win_config;
 	const struct drm_framebuffer *fb = state->base.fb;
@@ -275,7 +279,7 @@ void plane_state_to_win_config(struct decon_device *decon,
 	DRM_DEBUG("simplified rot[0x%x]\n", simplified_rot);
 }
 
-static void display_mode_to_bts_info(struct drm_display_mode *mode,
+static void display_mode_to_bts_info(const struct drm_display_mode *mode,
 		struct decon_device *decon)
 {
 	struct videomode vm;
@@ -292,24 +296,122 @@ static void display_mode_to_bts_info(struct drm_display_mode *mode,
 	decon->bts.fps = mode->vrefresh;
 }
 
+static void exynos_atomic_bts_pre_update(struct drm_device *dev,
+					 struct drm_atomic_state *old_state)
+{
+	struct decon_device *decon;
+	struct drm_crtc *crtc;
+	const struct drm_crtc_state *new_crtc_state;
+	struct drm_plane *plane;
+	const struct drm_plane_state *new_plane_state;
+	int i, j;
+
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		decon = crtc_to_decon(crtc);
+
+		/* acquire initial bandwidth when there is a mode change */
+		if (new_crtc_state->active &&
+		    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
+			display_mode_to_bts_info(&new_crtc_state->mode, decon);
+
+			decon->bts.ops->acquire_bw(decon);
+		}
+
+		/* initialize BTS structure of each DECON */
+		if (new_crtc_state->planes_changed && new_crtc_state->active) {
+			int max_planes = dev->mode_config.num_total_plane;
+
+			for (j = 0; j < max_planes; ++j) {
+				decon->bts.win_config[j].state =
+					DPU_WIN_STATE_DISABLED;
+				decon->dpp[i]->dbg_dma_addr = 0;
+			}
+		}
+	}
+
+	for_each_new_plane_in_state(old_state, plane, new_plane_state, i) {
+		const struct exynos_drm_plane_state *new_exynos_state;
+
+		if (!new_plane_state->crtc)
+			continue;
+
+		new_exynos_state = to_exynos_plane_state(new_plane_state);
+		decon = crtc_to_decon(crtc);
+
+		plane_state_to_win_config(decon, new_exynos_state, i);
+	}
+
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+
+		if (new_crtc_state->planes_changed && new_crtc_state->active) {
+			decon = crtc_to_decon(crtc);
+
+			DPU_EVENT_LOG_ATOMIC_COMMIT(decon->id);
+
+			decon->bts.ops->calc_bw(decon);
+			decon->bts.ops->update_bw(decon, false);
+		}
+	}
+}
+
+static void exynos_atomic_bts_post_update(struct drm_device *dev,
+					  struct drm_atomic_state *old_state)
+{
+	struct decon_device *decon;
+	struct drm_crtc *crtc;
+	const struct drm_crtc_state *new_crtc_state;
+	struct dpp_device *dpp;
+	const struct dpu_bts_win_config *win_config;
+	int i, j;
+
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		decon = crtc_to_decon(crtc);
+
+		if (new_crtc_state->planes_changed && new_crtc_state->active) {
+			/* plane order == dpp channel order */
+			for (j = 0; j < MAX_PLANE; ++j) {
+				dpp = decon->dpp[j];
+				if (dpp->win_id >= MAX_PLANE)
+					continue;
+
+				win_config =
+					&decon->bts.win_config[dpp->win_id];
+				if (win_config->state == DPU_WIN_STATE_BUFFER &&
+						win_config->is_comp)
+					dpp->comp_src = win_config->comp_src;
+			}
+
+			decon->bts.ops->update_bw(decon, true);
+			DPU_EVENT_LOG(DPU_EVT_DECON_RSC_OCCUPANCY, 0, NULL);
+		}
+
+		if (!new_crtc_state->active && new_crtc_state->active_changed)
+			decon->bts.ops->release_bw(decon);
+	}
+}
+#else
+static inline void
+exynos_atomic_bts_pre_update(struct drm_device *dev,
+			     struct drm_atomic_state *old_state) { }
+static inline void
+exynos_atomic_bts_post_update(struct drm_device *dev,
+			      struct drm_atomic_state *old_state) { }
+#endif
+
 #define TIMEOUT	msecs_to_jiffies(50)
 void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
-	int i, j, ret;
+	int i, ret;
 	struct drm_device *dev = old_state->dev;
-	struct drm_plane *plane;
-	struct drm_plane_state *new_plane_state;
-	struct exynos_drm_plane_state *new_exynos_state;
-	struct exynos_drm_crtc *exynos_crtc;
 	struct decon_device *decon;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	const struct dpu_bts_win_config *win_config;
-	struct dpp_device *dpp;
-	int max_planes;
+	unsigned int hibernation_crtc_mask = 0;
 
 	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
 			new_crtc_state, i) {
+		decon = crtc_to_decon(crtc);
+
 		DRM_DEBUG("[CRTC-%d] old en:%d active:%d change[%d %d %d]\n",
 				drm_crtc_index(crtc),
 				old_crtc_state->enable, old_crtc_state->active,
@@ -324,61 +426,14 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 				new_crtc_state->mode_changed,
 				new_crtc_state->active_changed);
 
-		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
-		decon = exynos_crtc->ctx;
-
 		DPU_EVENT_LOG(DPU_EVT_REQ_CRTC_INFO_OLD, decon->id,
 				old_crtc_state);
 		DPU_EVENT_LOG(DPU_EVT_REQ_CRTC_INFO_NEW, decon->id,
 				new_crtc_state);
 
-		/* acquire initial bandwidth when there is a mode change */
-		if (new_crtc_state->active &&
-		    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
-			display_mode_to_bts_info(&new_crtc_state->mode, decon);
-
-			if (IS_ENABLED(CONFIG_EXYNOS_BTS))
-				decon->bts.ops->acquire_bw(decon);
-		}
-
-		/* initialize BTS structure of each DECON */
-		if (new_crtc_state->planes_changed && new_crtc_state->active) {
-			max_planes =
-				old_state->dev->mode_config.num_total_plane;
-			for (j = 0; j < max_planes; ++j) {
-				decon->bts.win_config[j].state =
-					DPU_WIN_STATE_DISABLED;
-				decon->dpp[i]->dbg_dma_addr = 0;
-			}
-		}
-	}
-
-	for_each_new_plane_in_state(old_state, plane, new_plane_state, i) {
-		if (!new_plane_state->crtc)
-			continue;
-
-		new_exynos_state = to_exynos_plane_state(new_plane_state);
-		exynos_crtc = container_of(new_plane_state->crtc,
-				struct exynos_drm_crtc, base);
-		decon = exynos_crtc->ctx;
-
-		plane_state_to_win_config(decon, new_exynos_state, i);
-	}
-
-	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
-			new_crtc_state, i) {
-		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
-		decon = exynos_crtc->ctx;
-
-		if (new_crtc_state->active || new_crtc_state->active_changed)
+		if (new_crtc_state->active || new_crtc_state->active_changed) {
 			hibernation_block_exit(decon->hibernation);
-
-		if (new_crtc_state->planes_changed && new_crtc_state->active) {
-			DPU_EVENT_LOG_ATOMIC_COMMIT(decon->id);
-			if (IS_ENABLED(CONFIG_EXYNOS_BTS)) {
-				decon->bts.ops->calc_bw(decon);
-				decon->bts.ops->update_bw(decon, false);
-			}
+			hibernation_crtc_mask |= drm_crtc_mask(crtc);
 		}
 
 		if (old_crtc_state->active && !new_crtc_state->active) {
@@ -398,6 +453,8 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
+	exynos_atomic_bts_pre_update(dev, old_state);
+
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
 	drm_atomic_helper_commit_planes(dev, old_state,
@@ -414,55 +471,38 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_wait_for_vblanks(dev, old_state);
 
-	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
-			new_crtc_state, i) {
-		exynos_crtc = container_of(crtc, struct exynos_drm_crtc, base);
-		decon = exynos_crtc->ctx;
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		struct decon_mode *mode;
 
-		if (new_crtc_state->active) {
-			struct decon_mode *mode = &decon->config.mode;
+		decon = crtc_to_decon(crtc);
 
-			if (!wait_for_completion_timeout(
-					&decon->framestart_done, TIMEOUT)) {
-				DPU_EVENT_LOG(DPU_EVT_FRAMESTART_TIMEOUT,
-						decon->id, NULL);
-				pr_warn("decon%d framestart timeout\n",
-						decon->id);
-			}
+		if (!new_crtc_state->active)
+			continue;
 
-			if (mode->op_mode == DECON_COMMAND_MODE) {
-				DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_MASK,
-						decon->id, NULL);
-				decon_reg_set_trigger(decon->id, mode,
-						DECON_TRIG_MASK);
-			}
+		if (!wait_for_completion_timeout(&decon->framestart_done,
+						 TIMEOUT)) {
+			DPU_EVENT_LOG(DPU_EVT_FRAMESTART_TIMEOUT,
+					decon->id, NULL);
+			pr_warn("decon%d framestart timeout\n",
+					decon->id);
 		}
 
-		if (new_crtc_state->planes_changed && new_crtc_state->active) {
-			/* plane order == dpp channel order */
-			for (j = 0; j < MAX_PLANE; ++j) {
-				dpp = decon->dpp[j];
-				if (dpp->win_id >= MAX_PLANE)
-					continue;
-
-				win_config =
-					&decon->bts.win_config[dpp->win_id];
-				if (win_config->state == DPU_WIN_STATE_BUFFER &&
-						win_config->is_comp)
-					dpp->comp_src = win_config->comp_src;
-			}
-
-			if (IS_ENABLED(CONFIG_EXYNOS_BTS))
-				decon->bts.ops->update_bw(decon, true);
-			DPU_EVENT_LOG(DPU_EVT_DECON_RSC_OCCUPANCY, 0, NULL);
+		mode = &decon->config.mode;
+		if (mode->op_mode == DECON_COMMAND_MODE) {
+			DPU_EVENT_LOG(DPU_EVT_DECON_TRIG_MASK,
+					decon->id, NULL);
+			decon_reg_set_trigger(decon->id, mode,
+					DECON_TRIG_MASK);
 		}
+	}
 
-		if (new_crtc_state->active || new_crtc_state->active_changed)
+	exynos_atomic_bts_post_update(dev, old_state);
+
+	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
+		if (hibernation_crtc_mask & drm_crtc_mask(crtc)) {
+			decon = crtc_to_decon(crtc);
 			hibernation_unblock(decon->hibernation);
-
-		if ((old_crtc_state->active && !new_crtc_state->active) &&
-				IS_ENABLED(CONFIG_EXYNOS_BTS))
-			decon->bts.ops->release_bw(decon);
+		}
 	}
 
 	drm_atomic_helper_commit_hw_done(old_state);
