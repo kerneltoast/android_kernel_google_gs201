@@ -332,8 +332,9 @@ void exynos_atomic_commit_tail(struct drm_atomic_state *old_state)
 		DPU_EVENT_LOG(DPU_EVT_REQ_CRTC_INFO_NEW, decon->id,
 				new_crtc_state);
 
-		/* acquire initial bandwidth when DECON is enabled. */
-		if (!old_crtc_state->active && new_crtc_state->active) {
+		/* acquire initial bandwidth when there is a mode change */
+		if (new_crtc_state->active &&
+		    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 			display_mode_to_bts_info(&new_crtc_state->mode, decon);
 
 			if (IS_ENABLED(CONFIG_EXYNOS_BTS))
