@@ -215,26 +215,21 @@ dma_addr_t exynos_drm_fb_dma_addr(const struct drm_framebuffer *fb, int index)
 	(container_of((crtc), struct exynos_drm_crtc, base)->ctx)
 
 #if defined(CONFIG_EXYNOS_BTS)
-static void plane_state_to_win_config(struct decon_device *decon,
-		const struct exynos_drm_plane_state *state, int plane_idx)
+static void plane_state_to_win_config(struct dpu_bts_win_config *win_config,
+				      const struct drm_plane_state *plane_state)
 {
-	struct dpu_bts_win_config *win_config;
-	const struct drm_framebuffer *fb = state->base.fb;
-	int zpos;
+	const struct drm_framebuffer *fb = plane_state->fb;
 	unsigned int simplified_rot;
 
-	zpos = state->base.normalized_zpos;
-	win_config = &decon->bts.win_config[zpos];
+	win_config->src_x = plane_state->src_x >> 16;
+	win_config->src_y = plane_state->src_y >> 16;
+	win_config->src_w = plane_state->src_w >> 16;
+	win_config->src_h = plane_state->src_h >> 16;
 
-	win_config->src_x = state->base.src_x >> 16;
-	win_config->src_y = state->base.src_y >> 16;
-	win_config->src_w = state->base.src_w >> 16;
-	win_config->src_h = state->base.src_h >> 16;
-
-	win_config->dst_x = state->base.crtc_x;
-	win_config->dst_y = state->base.crtc_y;
-	win_config->dst_w = state->base.crtc_w;
-	win_config->dst_h = state->base.crtc_h;
+	win_config->dst_x = plane_state->crtc_x;
+	win_config->dst_y = plane_state->crtc_y;
+	win_config->dst_w = plane_state->crtc_w;
+	win_config->dst_h = plane_state->crtc_h;
 
 	if (has_all_bits(DRM_FORMAT_MOD_ARM_AFBC(0), fb->modifier) ||
 			has_all_bits(DRM_FORMAT_MOD_SAMSUNG_SBWC(0),
@@ -249,21 +244,19 @@ static void plane_state_to_win_config(struct decon_device *decon,
 		win_config->state = DPU_WIN_STATE_BUFFER;
 
 	win_config->format = fb->format->format;
-	win_config->dpp_ch = plane_idx;
+	win_config->dpp_ch = plane_state->plane->index;
 
 	win_config->comp_src = 0;
 	if (has_all_bits(DRM_FORMAT_MOD_ARM_AFBC(0), fb->modifier))
 		win_config->comp_src =
 			(fb->modifier & AFBC_FORMAT_MOD_SOURCE_MASK);
 
-	simplified_rot = drm_rotation_simplify(state->base.rotation,
+	simplified_rot = drm_rotation_simplify(plane_state->rotation,
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
 			DRM_MODE_REFLECT_X | DRM_MODE_REFLECT_Y);
 	win_config->is_rot = false;
 	if (simplified_rot & DRM_MODE_ROTATE_90)
 		win_config->is_rot = true;
-
-	decon->dpp[plane_idx]->dbg_dma_addr = exynos_drm_fb_dma_addr(fb, 0);
 
 	DRM_DEBUG("src[%d %d %d %d], dst[%d %d %d %d]\n",
 			win_config->src_x, win_config->src_y,
@@ -272,10 +265,11 @@ static void plane_state_to_win_config(struct decon_device *decon,
 			win_config->dst_w, win_config->dst_h);
 	DRM_DEBUG("rot[%d] afbc[%d] format[%d] ch[%d] zpos[%d] comp_src[%lu]\n",
 			win_config->is_rot, win_config->is_comp,
-			win_config->format, win_config->dpp_ch, zpos,
+			win_config->format, win_config->dpp_ch,
+			plane_state->normalized_zpos,
 			win_config->comp_src);
 	DRM_DEBUG("alpha[%d] blend mode[%d]\n",
-			state->base.alpha, state->base.pixel_blend_mode);
+			plane_state->alpha, plane_state->pixel_blend_mode);
 	DRM_DEBUG("simplified rot[0x%x]\n", simplified_rot);
 }
 
@@ -286,49 +280,55 @@ static void exynos_atomic_bts_pre_update(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	const struct drm_crtc_state *new_crtc_state;
 	struct drm_plane *plane;
-	const struct drm_plane_state *new_plane_state;
-	int i, j;
+	const struct drm_plane_state *old_plane_state, *new_plane_state;
+	struct dpu_bts_win_config *win_config;
+	int i;
+
+	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state,
+				       new_plane_state, i) {
+		if (new_plane_state->crtc) {
+			const int zpos = new_plane_state->normalized_zpos;
+
+			decon = crtc_to_decon(new_plane_state->crtc);
+			win_config = &decon->bts.win_config[zpos];
+
+			plane_state_to_win_config(win_config, new_plane_state);
+
+			decon->dpp[i]->dbg_dma_addr =
+				exynos_drm_fb_dma_addr(new_plane_state->fb, 0);
+		}
+
+		if ((old_plane_state->crtc != new_plane_state->crtc) &&
+		    old_plane_state->crtc) {
+			decon = crtc_to_decon(old_plane_state->crtc);
+
+			decon->dpp[i]->dbg_dma_addr = 0;
+		}
+	}
 
 	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
 		decon = crtc_to_decon(crtc);
 
-		/* acquire initial bandwidth when there is a mode change */
-		if (new_crtc_state->active &&
-		    drm_atomic_crtc_needs_modeset(new_crtc_state)) {
-			decon->bts.ops->acquire_bw(decon);
-		}
-
-		/* initialize BTS structure of each DECON */
-		if (new_crtc_state->planes_changed && new_crtc_state->active) {
-			int max_planes = dev->mode_config.num_total_plane;
-
-			for (j = 0; j < max_planes; ++j) {
-				decon->bts.win_config[j].state =
-					DPU_WIN_STATE_DISABLED;
-				decon->dpp[i]->dbg_dma_addr = 0;
-			}
-		}
-	}
-
-	for_each_new_plane_in_state(old_state, plane, new_plane_state, i) {
-		const struct exynos_drm_plane_state *new_exynos_state;
-
-		if (!new_plane_state->crtc)
+		if (!new_crtc_state->active)
 			continue;
 
-		new_exynos_state = to_exynos_plane_state(new_plane_state);
-		decon = crtc_to_decon(crtc);
+		/* acquire initial bandwidth when there is a mode change */
+		if (drm_atomic_crtc_needs_modeset(new_crtc_state))
+			decon->bts.ops->acquire_bw(decon);
 
-		plane_state_to_win_config(decon, new_exynos_state, i);
-	}
+		if (new_crtc_state->planes_changed) {
+			const size_t max_planes =
+				dev->mode_config.num_total_plane;
+			const size_t num_planes =
+				hweight32(new_crtc_state->plane_mask);
+			int j;
 
-	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
-
-		if (new_crtc_state->planes_changed && new_crtc_state->active) {
-			decon = crtc_to_decon(crtc);
+			for (j = num_planes; j < max_planes; j++) {
+				win_config = &decon->bts.win_config[j];
+				win_config->state = DPU_WIN_STATE_DISABLED;
+			}
 
 			DPU_EVENT_LOG_ATOMIC_COMMIT(decon->id);
-
 			decon->bts.ops->calc_bw(decon);
 			decon->bts.ops->update_bw(decon, false);
 		}
@@ -349,7 +349,12 @@ static void exynos_atomic_bts_post_update(struct drm_device *dev,
 		decon = crtc_to_decon(crtc);
 
 		if (new_crtc_state->planes_changed && new_crtc_state->active) {
-			/* plane order == dpp channel order */
+
+			/*
+			 * keeping a copy of comp src in dpp after it has been
+			 * applied in hardware for debugging purposes.
+			 * plane order == dpp channel order
+			 */
 			for (j = 0; j < MAX_PLANE; ++j) {
 				dpp = decon->dpp[j];
 				if (dpp->win_id >= MAX_PLANE)
