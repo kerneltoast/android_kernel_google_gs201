@@ -359,8 +359,7 @@
 	#size-cells = <0>;
 	panel@0 {
 		compatible = "samsung,s6e3hc2";
-		label = "samsung-s6e3hc2";
-		channel = <0>;
+		reg = <0>;
 		/* touch = <&spitouch>; */
 
 		/* reset, power */
