@@ -24,6 +24,7 @@
 
 #include "acpm.h"
 #include "acpm_ipc.h"
+#include "../cal-if/fvmap.h"
 #include "fw_header/framework.h"
 
 #define IPC_TIMEOUT				(15000000)
@@ -34,8 +35,58 @@ static struct workqueue_struct *update_log_wq;
 static struct acpm_debug_info *acpm_debug;
 static bool is_acpm_stop_log;
 static bool acpm_stop_log_req;
-struct acpm_framework *acpm_initdata;
-void __iomem *acpm_srambase;
+
+static struct acpm_framework *acpm_initdata;
+static void __iomem *acpm_srambase;
+static void __iomem *fvmap_base_address;
+
+void *get_fvmap_base(void)
+{
+	return fvmap_base_address;
+}
+EXPORT_SYMBOL_GPL(get_fvmap_base);
+
+static int plugins_init(struct device_node *node)
+{
+	struct plugin *plugins;
+	int i, len, ret = 0;
+	const char *name = NULL;
+	void __iomem *base_addr = NULL;
+	const __be32 *prop;
+	unsigned int offset;
+
+	plugins = (struct plugin *)(acpm_srambase + acpm_initdata->plugins);
+
+	for (i = 0; i < acpm_initdata->num_plugins; i++) {
+		if (plugins[i].is_attached == 0)
+			continue;
+
+		name = (const char *)(acpm_srambase + plugins[i].fw_name);
+		if (!plugins[i].fw_name || !name)
+			continue;
+
+		if (strstr(name, "DVFS") || strstr(name, "dvfs")) {
+			prop = of_get_property(node, "fvmap_offset", &len);
+			if (prop) {
+				base_addr = acpm_srambase;
+				base_addr += (plugins[i].base_addr & ~0x1);
+				offset = be32_to_cpup(prop);
+				base_addr += offset;
+			}
+
+			prop = of_get_property(node, "fvmap_addr", &len);
+			if (prop) {
+				base_addr = acpm_srambase;
+				offset = be32_to_cpup(prop);
+				base_addr += offset;
+			}
+
+			fvmap_base_address = base_addr;
+		}
+	}
+
+	return ret;
+}
 
 static bool is_rt_dl_task_policy(void)
 {
@@ -877,6 +928,7 @@ int acpm_ipc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No asynchronous channeln");
 	}
 
+	ret = plugins_init(node);
 	dev_info(&pdev->dev, "acpm_ipc probe done.\n");
 	return ret;
 }

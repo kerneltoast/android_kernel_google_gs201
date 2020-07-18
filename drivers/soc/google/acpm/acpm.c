@@ -18,62 +18,9 @@
 
 #include "acpm.h"
 #include "acpm_ipc.h"
-#include "../cal-if/fvmap.h"
 #include "fw_header/framework.h"
 
-static void __iomem *fvmap_base_address;
-
 static struct acpm_info *exynos_acpm;
-
-void *get_fvmap_base(void)
-{
-	return fvmap_base_address;
-}
-EXPORT_SYMBOL_GPL(get_fvmap_base);
-
-static int plugins_init(void)
-{
-	struct plugin *plugins;
-	int i, len, ret = 0;
-	const char *name = NULL;
-	void __iomem *base_addr = NULL;
-	const __be32 *prop;
-	unsigned int offset;
-
-	plugins = (struct plugin *)(acpm_srambase + acpm_initdata->plugins);
-
-	for (i = 0; i < acpm_initdata->num_plugins; i++) {
-		if (plugins[i].is_attached == 0)
-			continue;
-
-		name = (const char *)(acpm_srambase + plugins[i].fw_name);
-		if (!plugins[i].fw_name || !name)
-			continue;
-
-		if (strstr(name, "DVFS") || strstr(name, "dvfs")) {
-			prop = of_get_property(exynos_acpm->dev->of_node,
-					       "fvmap_offset", &len);
-			if (prop) {
-				base_addr = acpm_srambase;
-				base_addr += (plugins[i].base_addr & ~0x1);
-				offset = be32_to_cpup(prop);
-				base_addr += offset;
-			}
-
-			prop = of_get_property(exynos_acpm->dev->of_node,
-					       "fvmap_addr", &len);
-			if (prop) {
-				base_addr = acpm_srambase;
-				offset = be32_to_cpup(prop);
-				base_addr += offset;
-			}
-
-			fvmap_base_address = base_addr;
-		}
-	}
-
-	return ret;
-}
 
 static int debug_log_level_get(void *data, unsigned long long *val)
 {
@@ -304,7 +251,6 @@ static int acpm_probe(struct platform_device *pdev)
 {
 	struct acpm_info *acpm;
 	struct device_node *node = pdev->dev.of_node;
-	struct resource *res;
 	int ret = 0;
 
 	dev_info(&pdev->dev, "acpm probe\n");
@@ -322,20 +268,10 @@ static int acpm_probe(struct platform_device *pdev)
 
 	acpm->dev = &pdev->dev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "timer_apm");
-	acpm->timer_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(acpm->timer_base))
-		dev_info(&pdev->dev, "could not find timer base addr\n");
-
-		if (of_property_read_u32(node, "peritimer-cnt",
-					 &acpm->timer_cnt))
-			pr_warn("No matching property: peritiemr_cnt\n");
-
 	exynos_acpm = acpm;
 
 	acpm_debugfs_init(acpm);
 
-	ret = plugins_init();
 	dev_info(&pdev->dev, "acpm probe done.\n");
 	return ret;
 }
