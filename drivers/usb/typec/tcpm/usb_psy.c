@@ -7,8 +7,10 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/power_supply.h>
+#include <uapi/linux/sched/types.h>
 
 #include "../../../power/supply/google/gvotable.h"
 #include "../../../power/supply/google/logbuffer.h"
@@ -21,6 +23,10 @@
 #define CDP_DCP_ICL_UA	1500000
 /* TODO: needs to be 100mA when SDP_CONFIGURED is voted */
 #define SDP_ICL_UA	500000
+
+/* At least get one more try to meet sub state sync requirement */
+#define ERR_RETRY_DELAY_MS 20
+#define ERR_RETRY_COUNT    3
 
 struct usb_psy_data {
 	struct logbuffer *log;
@@ -40,12 +46,22 @@ struct usb_psy_data {
 	 */
 	struct gvotable_election *usb_icl_proto_el;
 
-	/* Cache and return values when chg power supply is not up. */
+	/* Cached/Request usb ilim to charger psy */
 	int current_max_cache;
 
 	struct usb_psy_ops *psy_ops;
 
 	char *chg_psy_name;
+
+	/*
+	 * Setting CURRENT limit on charger side can fail.
+	 * Implement retry mechanism.
+	 * Needs to be at RT priority to confirm to Type-C timing
+	 * constraints.
+	 */
+	struct kthread_worker *wq;
+	struct kthread_delayed_work icl_work;
+	atomic_t retry_count;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -82,17 +98,12 @@ static int usb_get_current_max_ma(struct usb_psy_data *usb)
 	return val.intval;
 }
 
-static int usb_set_current_max_ma(struct usb_psy_data *usb, int current_max
-				  )
+static int usb_set_current_max_ma(struct usb_psy_data *usb,
+				  int current_max)
 {
 	union power_supply_propval val = {0};
 	int ret;
 	struct i2c_client *client = usb->tcpc_client;
-
-	if (!usb->chg_psy_name) {
-		usb->current_max_cache = current_max;
-		return 0;
-	}
 
 	if (!usb->chg_psy) {
 		usb->chg_psy = power_supply_get_by_name(usb->chg_psy_name);
@@ -106,6 +117,7 @@ static int usb_set_current_max_ma(struct usb_psy_data *usb, int current_max
 	ret = power_supply_set_property(usb->chg_psy,
 					POWER_SUPPLY_PROP_CURRENT_MAX,
 					&val);
+
 	logbuffer_log(usb->log, "set input max current %d to %s, ret=%d",
 		      current_max, usb->chg_psy_name, ret);
 	return ret;
@@ -212,7 +224,9 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		ret = usb_set_current_max_ma(usb, val->intval);
+		usb->current_max_cache = val->intval;
+		atomic_set(&usb->retry_count, ERR_RETRY_COUNT);
+		ret = kthread_mod_delayed_work(usb->wq, &usb->icl_work, 0);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		ret = ops->tcpc_set_vbus_voltage_max_mv(client,
@@ -367,6 +381,18 @@ static int debug_print_vote(char *str,  size_t len, const void *vote)
 			 usb_vote->val, (unsigned int)usb_vote->priority);
 }
 
+static void icl_work_item(struct kthread_work *work)
+{
+	struct usb_psy_data *usb =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct usb_psy_data, icl_work);
+
+	if (usb_set_current_max_ma(usb, usb->current_max_cache) < 0 &&
+	    !atomic_sub_and_test(1, &usb->retry_count))
+		kthread_mod_delayed_work(usb->wq, &usb->icl_work,
+					 msecs_to_jiffies(ERR_RETRY_DELAY_MS));
+}
+
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 		    struct usb_psy_ops *ops)
 {
@@ -465,8 +491,18 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	}
 	gvotable_set_vote2str(usb->usb_icl_proto_el, debug_print_vote);
 
+	usb->wq = kthread_create_worker(0, "wq-tcpm-usb-psy");
+	if (IS_ERR_OR_NULL(usb->wq)) {
+		ret = usb->wq;
+		goto unreg_icl_proto_el;
+	}
+
+	kthread_init_delayed_work(&usb->icl_work, icl_work_item);
+
 	return usb;
 
+unreg_icl_proto_el:
+	gvotable_destroy_election(usb->usb_icl_proto_el);
 unreg_icl_combined_el:
 	gvotable_destroy_election(usb->usb_icl_combined_el);
 unreg_icl_el:
@@ -483,6 +519,7 @@ void usb_psy_teardown(void *usb_data)
 {
 	struct usb_psy_data *usb = (struct usb_psy_data *)usb_data;
 
+	kthread_destroy_worker(usb->wq);
 	gvotable_destroy_election(usb->usb_icl_proto_el);
 	gvotable_destroy_election(usb->usb_icl_combined_el);
 	gvotable_destroy_election(usb->usb_icl_el);
