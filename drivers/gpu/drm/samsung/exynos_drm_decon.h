@@ -19,7 +19,9 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/spinlock.h>
-#include <linux/pm_qos.h>
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+#include <soc/google/exynos_pm_qos.h>
+#endif
 
 #include <soc/google/bts.h>
 #include <drm/drm_device.h>
@@ -136,9 +138,12 @@ struct dpu_bts {
 	int bw_idx;
 	struct bts_decon_info bts_info;
 	struct dpu_bts_ops *ops;
-	struct pm_qos_request mif_qos;
-	struct pm_qos_request int_qos;
-	struct pm_qos_request disp_qos;
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+	struct exynos_pm_qos_request mif_qos;
+	struct exynos_pm_qos_request int_qos;
+	struct exynos_pm_qos_request disp_qos;
+#endif
+
 	u32 scen_updated;
 
 	struct dpu_bts_win_config win_config[MAX_WIN_PER_DECON];

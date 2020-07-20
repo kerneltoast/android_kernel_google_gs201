@@ -602,7 +602,7 @@ void dpu_bts_update_bw(struct decon_device *decon, bool shadow_updated)
 			bts_update_bw(decon->bts.bw_idx, bw);
 
 		if (decon->bts.max_disp_freq <= decon->bts.prev_max_disp_freq)
-			pm_qos_update_request(&decon->bts.disp_qos,
+			exynos_pm_qos_update_request(&decon->bts.disp_qos,
 					decon->bts.max_disp_freq);
 
 		decon->bts.prev_total_bw = decon->bts.total_bw;
@@ -612,7 +612,7 @@ void dpu_bts_update_bw(struct decon_device *decon, bool shadow_updated)
 			bts_update_bw(decon->bts.bw_idx, bw);
 
 		if (decon->bts.max_disp_freq > decon->bts.prev_max_disp_freq)
-			pm_qos_update_request(&decon->bts.disp_qos,
+			exynos_pm_qos_update_request(&decon->bts.disp_qos,
 					decon->bts.max_disp_freq);
 	}
 
@@ -637,13 +637,15 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 		 */
 #if defined(CONFIG_SOC_GS101)
 		if (exynos_devfreq_get_domain_freq(DEVFREQ_DISP) < aclk_freq)
-			pm_qos_update_request(&decon->bts.disp_qos, aclk_freq);
+			exynos_pm_qos_update_request(&decon->bts.disp_qos,
+					aclk_freq);
 
 		DPU_DEBUG_BTS("Get initial disp freq(%lu)\n",
 				exynos_devfreq_get_domain_freq(DEVFREQ_DISP));
 #else
 		if (cal_dfs_get_rate(ACPM_DVFS_DISP) < aclk_freq)
-			pm_qos_update_request(&decon->bts.disp_qos, aclk_freq);
+			exynos_pm_qos_update_request(&decon->bts.disp_qos,
+					aclk_freq);
 
 		DPU_DEBUG_BTS("Get initial disp freq(%lu)\n",
 				cal_dfs_get_rate(ACPM_DVFS_DISP));
@@ -667,7 +669,7 @@ void dpu_bts_release_bw(struct decon_device *decon)
 	if (decon->config.out_type & DECON_OUT_DSI) {
 		bts_update_bw(decon->bts.bw_idx, bw);
 		decon->bts.prev_total_bw = 0;
-		pm_qos_update_request(&decon->bts.disp_qos, 0);
+		exynos_pm_qos_update_request(&decon->bts.disp_qos, 0);
 		decon->bts.prev_max_disp_freq = 0;
 	}
 
@@ -684,8 +686,11 @@ void dpu_bts_init(struct decon_device *decon)
 
 	decon->bts.enabled = false;
 
-	if (!IS_ENABLED(CONFIG_EXYNOS_BTS)) {
+	if (!IS_ENABLED(CONFIG_EXYNOS_BTS) ||
+			(!IS_ENABLED(CONFIG_EXYNOS_PM_QOS) &&
+			 !IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE))) {
 		DPU_ERR_BTS("decon%d bts feature is disabled\n", decon->id);
+		pr_info("%s:%d\n", __func__, __LINE__);
 		return;
 	}
 
@@ -697,9 +702,12 @@ void dpu_bts_init(struct decon_device *decon)
 		decon->bts.ch_bw[decon->id][i] = 0;
 
 	DPU_DEBUG_BTS("BTS_BW_TYPE(%d)\n", decon->bts.bw_idx);
-	pm_qos_add_request(&decon->bts.mif_qos, PM_QOS_BUS_THROUGHPUT, 0);
-	pm_qos_add_request(&decon->bts.int_qos, PM_QOS_DEVICE_THROUGHPUT, 0);
-	pm_qos_add_request(&decon->bts.disp_qos, PM_QOS_DISPLAY_THROUGHPUT, 0);
+	exynos_pm_qos_add_request(&decon->bts.mif_qos,
+					PM_QOS_BUS_THROUGHPUT, 0);
+	exynos_pm_qos_add_request(&decon->bts.int_qos,
+					PM_QOS_DEVICE_THROUGHPUT, 0);
+	exynos_pm_qos_add_request(&decon->bts.disp_qos,
+					PM_QOS_DISPLAY_THROUGHPUT, 0);
 	decon->bts.scen_updated = 0;
 
 	for (i = 0; i < MAX_DPP_CNT; ++i) { /* dma type order */
@@ -719,9 +727,9 @@ void dpu_bts_deinit(struct decon_device *decon)
 		return;
 
 	DPU_DEBUG_BTS("%s +\n", __func__);
-	pm_qos_remove_request(&decon->bts.disp_qos);
-	pm_qos_remove_request(&decon->bts.int_qos);
-	pm_qos_remove_request(&decon->bts.mif_qos);
+	exynos_pm_qos_remove_request(&decon->bts.disp_qos);
+	exynos_pm_qos_remove_request(&decon->bts.int_qos);
+	exynos_pm_qos_remove_request(&decon->bts.mif_qos);
 	DPU_DEBUG_BTS("%s -\n", __func__);
 }
 
