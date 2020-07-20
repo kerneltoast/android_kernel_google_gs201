@@ -1,6 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * Copyright (c) 2020 Samsung Electronics Co., Ltd.
+/* SPDX-License-Identifier: GPL-2.0-only
+ *
+ * Copyright 2014 Samsung Electronics Co., Ltd.
+ *      http://www.samsung.com/
+ *
+ * Header file for tmu support
+ *
  */
 
 #ifndef __ASM_ARCH_TMU_H
@@ -9,6 +13,8 @@
 #define EXYNOS_MAX_TEMP		125
 #define EXYNOS_MIN_TEMP		10
 #define EXYNOS_COLD_TEMP	15
+
+#define THERMAL_CFREQ_INVALID -1
 
 enum tmu_noti_state_t {
 	TMU_NORMAL,
@@ -39,7 +45,7 @@ enum isp_noti_state_t {
 	ISP_TRIPPING,
 };
 
-#ifdef CONFIG_EXYNOS_THERMAL_V2
+#if IS_ENABLED(CONFIG_EXYNOS_THERMAL_V2)
 extern int exynos_tmu_add_notifier(struct notifier_block *n);
 #else
 static inline int exynos_tmu_add_notifier(struct notifier_block *n)
@@ -47,7 +53,7 @@ static inline int exynos_tmu_add_notifier(struct notifier_block *n)
 	return 0;
 }
 #endif
-#if defined(CONFIG_GPU_THERMAL)
+#if IS_ENABLED(CONFIG_GPU_THERMAL)
 extern int exynos_gpu_add_notifier(struct notifier_block *n);
 #else
 static inline int exynos_gpu_add_notifier(struct notifier_block *n)
@@ -55,7 +61,7 @@ static inline int exynos_gpu_add_notifier(struct notifier_block *n)
 	return 0;
 }
 #endif
-#if defined(CONFIG_ISP_THERMAL)
+#if IS_ENABLED(CONFIG_ISP_THERMAL)
 extern int exynos_tmu_isp_add_notifier(struct notifier_block *n);
 #else
 static inline int exynos_tmu_isp_add_notifier(struct notifier_block *n)
