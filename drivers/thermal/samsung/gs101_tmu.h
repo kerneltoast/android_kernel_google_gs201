@@ -44,6 +44,7 @@ struct gs101_tmu_data {
 	void __iomem *base;
 	int irq;
 	struct work_struct irq_work;
+	struct work_struct hotplug_work;
 	struct mutex lock;			/* lock to protect gs101 tmu */
 	struct thermal_zone_device *tzd;
 	unsigned int ntrip;
@@ -52,6 +53,8 @@ struct gs101_tmu_data {
 	struct list_head node;
 	char tmu_name[THERMAL_NAME_LENGTH + 1];
 	struct device_node *np;
+	bool is_cpu_hotplugged_out;
+	int temperature;
 };
 
 #endif /* _GS101_TMU_H */

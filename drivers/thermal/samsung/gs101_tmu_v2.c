@@ -42,8 +42,6 @@ static struct workqueue_struct *gs101_tmu_wq;
 static struct acpm_tmu_cap cap;
 static unsigned int num_of_devices, suspended_count;
 
-static bool is_cpu_hotplugged_out;
-
 /* list of multiple instance for each thermal sensor */
 static LIST_HEAD(dtm_dev_list);
 
@@ -157,6 +155,11 @@ static int gs101_get_temp(void *p, int *temp)
 		}
 	}
 
+	data->temperature = *temp / 1000;
+
+	if (data->hotplug_enable)
+		schedule_work(&data->hotplug_work);
+
 	mutex_unlock(&data->lock);
 
 #if IS_ENABLED(CONFIG_EXYNOS_MCINFO)
@@ -252,6 +255,38 @@ static irqreturn_t gs101_tmu_irq(int irq, void *id)
 	return IRQ_HANDLED;
 }
 
+static void gs101_throttle_cpu_hotplug(struct work_struct *work)
+{
+	struct gs101_tmu_data *data = container_of(work,
+						   struct gs101_tmu_data, hotplug_work);
+	struct cpumask mask;
+
+	mutex_lock(&data->lock);
+
+	if (data->is_cpu_hotplugged_out) {
+		if (data->temperature < data->hotplug_in_threshold) {
+			/*
+			 * If current temperature is lower than low threshold,
+			 * call cluster1_cores_hotplug(false) for hotplugged out cpus.
+			 */
+			exynos_cpuhp_request("DTM", *cpu_possible_mask);
+			data->is_cpu_hotplugged_out = false;
+		}
+	} else {
+		if (data->temperature >= data->hotplug_out_threshold) {
+			/*
+			 * If current temperature is higher than high threshold,
+			 * call cluster1_cores_hotplug(true) to hold temperature down.
+			 */
+			data->is_cpu_hotplugged_out = true;
+			cpumask_and(&mask, cpu_possible_mask, &cpu_topology[0].core_sibling);
+			exynos_cpuhp_request("DTM", mask);
+		}
+	}
+
+	mutex_unlock(&data->lock);
+}
+
 static const struct of_device_id gs101_tmu_match[] = {
 	{ .compatible = "samsung,gs101-tmu-v2", },
 	{ /* sentinel */ },
@@ -311,38 +346,6 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 	}
 
 	return 0;
-}
-
-static int gs101_throttle_cpu_hotplug(void *p, int temp)
-{
-	struct gs101_tmu_data *data = p;
-	int ret = 0;
-	struct cpumask mask;
-
-	temp = temp / MCELSIUS;
-
-	if (is_cpu_hotplugged_out) {
-		if (temp < data->hotplug_in_threshold) {
-			/*
-			 * If current temperature is lower than low threshold,
-			 * call cluster1_cores_hotplug(false) for hotplugged out cpus.
-			 */
-			exynos_cpuhp_request("DTM", *cpu_possible_mask);
-			is_cpu_hotplugged_out = false;
-		}
-	} else {
-		if (temp >= data->hotplug_out_threshold) {
-			/*
-			 * If current temperature is higher than high threshold,
-			 * call cluster1_cores_hotplug(true) to hold temperature down.
-			 */
-			is_cpu_hotplugged_out = true;
-			cpumask_and(&mask, cpu_possible_mask, cpu_coregroup_mask(0));
-			exynos_cpuhp_request("DTM", mask);
-		}
-	}
-
-	return ret;
 }
 
 static const struct thermal_zone_of_device_ops gs101_sensor_ops = {
@@ -811,8 +814,10 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	 * data->tzd must be registered before calling gs101_tmu_initialize(),
 	 * requesting irq and calling gs101_tmu_control().
 	 */
-	if (data->hotplug_enable)
+	if (data->hotplug_enable) {
 		exynos_cpuhp_register("DTM", *cpu_online_mask);
+		INIT_WORK(&data->hotplug_work, gs101_throttle_cpu_hotplug);
+	}
 
 	if (list_empty(&dtm_dev_list)) {
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
