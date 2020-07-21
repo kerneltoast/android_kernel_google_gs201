@@ -37,6 +37,9 @@
 #endif
 #include <soc/google/exynos-cpuhp.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/thermal_exynos.h>
+
 #define EXYNOS_GPU_TMU_GRP_ID		(3)
 
 #define FRAC_BITS 10
@@ -392,6 +395,11 @@ static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
 
 	power_range = clamp(power_range, (s64)0, (s64)max_allocatable_power);
 
+	trace_thermal_exynos_power_allocator_pid(tz, frac_to_int(err),
+						 frac_to_int(params->err_integral),
+						 frac_to_int(p), frac_to_int(i),
+						 power_range);
+
 	return power_range;
 }
 
@@ -428,6 +436,10 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	mutex_lock(&cdev->lock);
 	ret = cdev->ops->set_cur_state(cdev, state);
 	mutex_unlock(&cdev->lock);
+
+	trace_thermal_exynos_power_allocator(tz, power_range,
+					     max_power, tz->temperature,
+					     control_temp - tz->temperature);
 
 	return ret;
 }

@@ -19,6 +19,8 @@
 
 #include "../thermal_core.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/thermal_exynos_gpu.h>
 /**
  * struct power_table - frequency to power conversion
  * @frequency:	frequency in KHz
@@ -668,6 +670,11 @@ static int gpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	if (ret)
 		return ret;
 
+	if (trace_thermal_exynos_power_gpu_get_power_enabled()) {
+		trace_thermal_exynos_power_gpu_get_power(freq, load_gpu,
+							 dynamic_power, static_power);
+	}
+
 	*power = static_power + dynamic_power;
 	return 0;
 }
@@ -755,6 +762,7 @@ static int gpufreq_power2state(struct thermal_cooling_device *cdev,
 		return -EINVAL;
 	}
 
+	trace_thermal_exynos_power_gpu_limit(target_freq, *state, power);
 	return 0;
 }
 

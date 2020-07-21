@@ -26,6 +26,7 @@
 #include <soc/google/exynos_cpu_cooling.h>
 #include "../thermal_core.h"
 
+#include <trace/events/thermal_exynos.h>
 /*
  * Cooling state <-> CPUFreq frequency
  *
@@ -599,12 +600,19 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	u32 static_power, dynamic_power, total_load = 0;
 	struct exynos_cpu_cooling_device *cpufreq_cdev = cdev->devdata;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
+	u32 *load_cpu = NULL;
+	u32 ncpus;
 
 	freq = cpufreq_quick_get(policy->cpu);
 
 	if (freq == 0) {
 		*power = 0;
 		return 0;
+	}
+
+	if (trace_thermal_exynos_power_cpu_get_power_enabled()) {
+		ncpus = cpumask_weight(policy->related_cpus);
+		load_cpu = kcalloc(ncpus, sizeof(*load_cpu), GFP_KERNEL);
 	}
 
 	for_each_cpu(cpu, policy->related_cpus) {
@@ -616,6 +624,8 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 			load = 0;
 
 		total_load += load;
+		if (load_cpu)
+			load_cpu[i] = load;
 
 		i++;
 	}
@@ -624,8 +634,18 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 
 	dynamic_power = get_dynamic_power(cpufreq_cdev, freq);
 	ret = get_static_power(cpufreq_cdev, tz, freq, &static_power);
-	if (ret)
+	if (ret) {
+		kfree(load_cpu);
 		return ret;
+	}
+
+	if (load_cpu) {
+		trace_thermal_exynos_power_cpu_get_power(tz->id, policy->cpu, freq,
+							 load_cpu, i, dynamic_power,
+							 static_power);
+
+		kfree(load_cpu);
+	}
 
 	*power = static_power + dynamic_power;
 	return 0;
@@ -721,6 +741,8 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 	target_freq = cpu_power_to_freq(cpufreq_cdev, normalised_power);
 
 	*state = get_level(cpufreq_cdev, target_freq);
+	trace_thermal_exynos_power_cpu_limit(tz->id, policy->cpu, target_freq, *state,
+					     power);
 	return 0;
 }
 
