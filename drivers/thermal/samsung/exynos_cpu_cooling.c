@@ -24,6 +24,7 @@
 #include <soc/google/cal-if.h>
 #include <soc/google/ect_parser.h>
 #include <soc/google/exynos_cpu_cooling.h>
+#include "../thermal_core.h"
 
 /*
  * Cooling state <-> CPUFreq frequency
@@ -754,6 +755,67 @@ static unsigned int find_next_max(struct cpufreq_frequency_table *table,
 	return max;
 }
 
+static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
+				   char *cooling_name)
+{
+	struct thermal_instance *instance;
+	struct thermal_zone_device *tz;
+	bool foundtz = false;
+	void *thermal_block;
+	struct ect_ap_thermal_function *function;
+	int i, temperature;
+	unsigned int freq;
+
+	mutex_lock(&cdev->lock);
+	list_for_each_entry(instance, &cdev->thermal_instances, cdev_node) {
+		tz = instance->tz;
+		if (!strncasecmp(cooling_name, tz->type, THERMAL_NAME_LENGTH)) {
+			foundtz = true;
+			break;
+		}
+	}
+	mutex_unlock(&cdev->lock);
+
+	if (!foundtz)
+		goto skip_ect;
+
+	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
+	if (!thermal_block)
+		goto skip_ect;
+
+	function = ect_ap_thermal_get_function(thermal_block, cooling_name);
+	if (!function)
+		goto skip_ect;
+
+	for (i = 0; i < function->num_of_range; ++i) {
+		struct exynos_cpu_cooling_device *cpufreq_cdev = cdev->devdata;
+		unsigned long max_level = 0;
+		int level;
+
+		temperature = function->range_list[i].lower_bound_temperature;
+		freq = function->range_list[i].max_frequency;
+
+		instance = get_thermal_instance(tz, cdev, i);
+		if (!instance) {
+			pr_err("%s: (%s, %d)instance isn't valid\n", __func__, cooling_name, i);
+			goto skip_ect;
+		}
+
+		cdev->ops->get_max_state(cdev, &max_level);
+		level = get_level(cpufreq_cdev, freq);
+
+		if (level == THERMAL_CSTATE_INVALID)
+			level = max_level;
+
+		instance->upper = level;
+
+		pr_info("Parsed From ECT : %s: [%d] Temperature : %d, frequency : %u, level: %d\n",
+			cooling_name, i, temperature, freq, level);
+	}
+skip_ect:
+	return 0;
+}
+
 /**
  * __exynos_cpu_cooling_register - helper function to create cpufreq cooling device
  * @np: a valid struct device_node to the cooling device device tree node
@@ -866,6 +928,8 @@ __exynos_cpu_cooling_register(struct device_node *np,
 						  cooling_ops);
 	if (IS_ERR(cdev))
 		goto remove_qos_req;
+
+	parse_ect_cooling_level(cdev, cooling_name);
 
 	mutex_lock(&cooling_list_lock);
 	list_add(&cpufreq_cdev->node, &cpufreq_cdev_list);

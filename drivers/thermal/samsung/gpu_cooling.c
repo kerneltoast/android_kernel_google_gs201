@@ -17,6 +17,8 @@
 #include <soc/google/gpu_cooling.h>
 #include <soc/google/tmu.h>
 
+#include "../thermal_core.h"
+
 /**
  * struct power_table - frequency to power conversion
  * @frequency:	frequency in KHz
@@ -777,6 +779,66 @@ int exynos_gpu_add_notifier(struct notifier_block *n)
 	return blocking_notifier_chain_register(&gpu_notifier, n);
 }
 
+static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
+				   char *cooling_name)
+{
+	struct thermal_instance *instance;
+	struct thermal_zone_device *tz;
+	bool foundtz = false;
+	void *thermal_block;
+	struct ect_ap_thermal_function *function;
+	int i, temperature;
+	unsigned int freq;
+
+	mutex_lock(&cdev->lock);
+	list_for_each_entry(instance, &cdev->thermal_instances, cdev_node) {
+		tz = instance->tz;
+		if (!strncasecmp(cooling_name, tz->type, THERMAL_NAME_LENGTH)) {
+			foundtz = true;
+			break;
+		}
+	}
+	mutex_unlock(&cdev->lock);
+
+	if (!foundtz)
+		goto skip_ect;
+
+	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
+	if (!thermal_block)
+		goto skip_ect;
+
+	function = ect_ap_thermal_get_function(thermal_block, cooling_name);
+	if (!function)
+		goto skip_ect;
+
+	for (i = 0; i < function->num_of_range; ++i) {
+		unsigned long max_level = 0;
+		int level;
+
+		temperature = function->range_list[i].lower_bound_temperature;
+		freq = function->range_list[i].max_frequency;
+
+		instance = get_thermal_instance(tz, cdev, i);
+		if (!instance) {
+			pr_err("%s: (%s, %d)instance isn't valid\n", __func__, cooling_name, i);
+			goto skip_ect;
+		}
+
+		cdev->ops->get_max_state(cdev, &max_level);
+		level = gpufreq_cooling_get_level(0, freq);
+
+		if (level == THERMAL_CSTATE_INVALID)
+			level = max_level;
+
+		instance->upper = level;
+
+		pr_info("Parsed From ECT : %s: [%d] Temperature : %d, frequency : %u, level: %d\n",
+			cooling_name, i, temperature, freq, level);
+	}
+skip_ect:
+	return 0;
+}
+
 /**
  * __gpufreq_cooling_register - helper function to create gpufreq cooling device
  * @np: a valid struct device_node to the cooling device device tree node
@@ -829,6 +891,9 @@ __gpufreq_cooling_register(struct device_node *np,
 			dev_name);
 		return cool_dev;
 	}
+
+	parse_ect_cooling_level(cool_dev, "G3D");
+
 	gpufreq_cdev->cool_dev = cool_dev;
 	gpufreq_cdev->gpufreq_state = 0;
 	mutex_lock(&cooling_gpu_lock);
