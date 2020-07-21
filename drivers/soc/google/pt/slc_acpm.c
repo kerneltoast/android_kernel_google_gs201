@@ -209,22 +209,25 @@ static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
 	ptid_t ptid;
 	int size4kB;
 
-	ret = slc_acpm(driver_data, PT_CHECK, 0, 0);
-	while (ret > 0) {
+	while ((ret = slc_acpm(driver_data, PT_CHECK, 0, 0)) > 0) {
 		pt_ptid_data_decode(ret, &ptid, &size4kB);
-		dev_info(&driver_data->pdev->dev,
-				"ptid %d size %dK\n",
-				ptid, 4 * size4kB);
 		if ((ptid >= PT_PTID_MAX) || (ptid < 0)) {
 			dev_err(&driver_data->pdev->dev,
 				"wrong ptid %d size %dK\n",
 				ptid, 4 * size4kB);
+			/* An out-of-range PTID could be a sign of an ACPM
+			 * protocol error (e.g. ACPM crash or protocol version
+			 * mismatch). Break out of this loop to avoid a
+			 * potential infinite loop.
+			 */
 			break;
 		}
+		dev_info(&driver_data->pdev->dev,
+			 "ptid %d size %dK\n",
+			 ptid, 4 * size4kB);
 		driver_data->ptids[ptid].resize(
 				driver_data->ptids[ptid].data,
 				size4kB * 4096);
-		ret = slc_acpm(driver_data, PT_CHECK, 0, 0);
 	}
 }
 
