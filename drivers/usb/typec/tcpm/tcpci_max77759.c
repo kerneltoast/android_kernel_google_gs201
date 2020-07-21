@@ -142,7 +142,9 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	 * plus one (for the RX_BUF_FRAME_TYPE) Table 4-36.
 	 * Read the count and frame type.
 	 */
+	logbuffer_log(log, "%d", __LINE__);
 	ret = regmap_raw_read(chip->data.regmap, TCPC_RX_BYTE_CNT, rx_buf, 2);
+	logbuffer_log(log, "%d", __LINE__);
 	if (ret < 0) {
 		dev_err(chip->dev, "TCPC_RX_BYTE_CNT read failed ret:%d", ret);
 		return;
@@ -169,6 +171,7 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	 */
 	count += 1;
 	ret = regmap_raw_read(chip->data.regmap, TCPC_RX_BYTE_CNT, rx_buf, count);
+	logbuffer_log(log, "%d", __LINE__);
 	if (ret < 0) {
 		dev_err(chip->dev, "Error: TCPC_RX_BYTE_CNT read failed: %d", ret);
 		return;
@@ -180,6 +183,8 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	for (payload_index = 0; payload_index < pd_header_cnt_le(msg.header); payload_index++,
 	     rx_buf_ptr += sizeof(msg.payload[0]))
 		msg.payload[payload_index] = cpu_to_le32(*(u32 *)rx_buf_ptr);
+
+	logbuffer_log(log, "%d", __LINE__);
 
 	/*
 	 * Read complete, clear RX status alert bit.
