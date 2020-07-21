@@ -240,6 +240,8 @@
 			min-freq = <300000>;
 
 			#cooling-cells = <2>; /* min followed by max */
+			ect-coeff-index = <2>;
+			tz-cooling-name = "LITTLE";
 
 			dm-constraints {
 				list = <&lit_mif_perf>;
@@ -255,6 +257,8 @@
 			min-freq = <400000>;
 
 			#cooling-cells = <2>; /* min followed by max */
+			ect-coeff-index = <1>;
+			tz-cooling-name = "MID";
 
 			dm-constraints {
 				list = <&med_mif_perf>,
@@ -271,6 +275,8 @@
 			min-freq = <500000>;
 
 			#cooling-cells = <2>; /* min followed by max */
+			ect-coeff-index = <0>;
+			tz-cooling-name = "BIG";
 
 			dm-constraints {
 				list = <&big_mif_perf>;
