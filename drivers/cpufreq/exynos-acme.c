@@ -19,13 +19,13 @@
 #include <linux/cpufreq.h>
 #include <linux/tick.h>
 #include <linux/pm_opp.h>
-#include <linux/cpu_cooling.h>
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
 
 #include <soc/google/cal-if.h>
 #include <soc/google/ect_parser.h>
 #include <soc/google/exynos-cpupm.h>
+#include <soc/google/exynos_cpu_cooling.h>
 
 #include "exynos-acme.h"
 
@@ -1331,8 +1331,8 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 		if (!policy)
 			continue;
 
-#ifdef CONFIG_CPU_THERMAL
-	//	exynos_cpufreq_cooling_register(domain->dn, policy);
+#if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
+		exynos_cpufreq_cooling_register(domain->dn, policy);
 #endif
 		ret = init_freq_qos(domain, policy);
 		if (ret) {
