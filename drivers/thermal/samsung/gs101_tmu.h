@@ -8,6 +8,7 @@
 
 #ifndef _GS101_TMU_H
 #define _GS101_TMU_H
+#include <linux/kthread.h>
 #include <soc/google/exynos_pm_qos.h>
 
 #define MCELSIUS        1000
@@ -43,8 +44,9 @@ struct gs101_tmu_data {
 	bool limited;
 	void __iomem *base;
 	int irq;
-	struct work_struct irq_work;
-	struct work_struct hotplug_work;
+	struct kthread_worker irq_worker;
+	struct kthread_work irq_work;
+	struct kthread_work hotplug_work;
 	struct mutex lock;			/* lock to protect gs101 tmu */
 	struct thermal_zone_device *tzd;
 	unsigned int ntrip;

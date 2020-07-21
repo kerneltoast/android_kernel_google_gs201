@@ -22,6 +22,7 @@
 #include <linux/thermal.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
+#include <uapi/linux/sched/types.h>
 #include <soc/google/tmu.h>
 #include <soc/google/ect_parser.h>
 #if IS_ENABLED(CONFIG_EXYNOS_MCINFO)
@@ -37,7 +38,7 @@
 
 #define EXYNOS_GPU_TMU_GRP_ID		(3)
 
-static struct workqueue_struct *gs101_tmu_wq;
+struct kthread_worker *hotplug_worker;
 
 static struct acpm_tmu_cap cap;
 static unsigned int num_of_devices, suspended_count;
@@ -158,7 +159,7 @@ static int gs101_get_temp(void *p, int *temp)
 	data->temperature = *temp / 1000;
 
 	if (data->hotplug_enable)
-		schedule_work(&data->hotplug_work);
+		kthread_queue_work(hotplug_worker, &data->hotplug_work);
 
 	mutex_unlock(&data->lock);
 
@@ -227,7 +228,7 @@ static int gs101_tmu_set_emulation(void *drv_data, int temp)
 }
 #endif /* CONFIG_THERMAL_EMULATION */
 
-static void gs101_tmu_work(struct work_struct *work)
+static void gs101_tmu_work(struct kthread_work *work)
 {
 	struct gs101_tmu_data *data = container_of(work,
 			struct gs101_tmu_data, irq_work);
@@ -250,12 +251,12 @@ static irqreturn_t gs101_tmu_irq(int irq, void *id)
 	struct gs101_tmu_data *data = id;
 
 	disable_irq_nosync(irq);
-	queue_work(gs101_tmu_wq, &data->irq_work);
+	kthread_queue_work(&data->irq_worker, &data->irq_work);
 
 	return IRQ_HANDLED;
 }
 
-static void gs101_throttle_cpu_hotplug(struct work_struct *work)
+static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 {
 	struct gs101_tmu_data *data = container_of(work,
 						   struct gs101_tmu_data, hotplug_work);
@@ -292,6 +293,58 @@ static const struct of_device_id gs101_tmu_match[] = {
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, gs101_tmu_match);
+
+static int gs101_tmu_irq_work_init(struct platform_device *pdev)
+{
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct cpumask mask;
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 4 - 1 };
+	struct task_struct *thread;
+	int ret = 0;
+
+	kthread_init_worker(&data->irq_worker);
+	thread = kthread_create(kthread_worker_fn, &data->irq_worker,
+				"thermal_irq_%s", data->tmu_name);
+	if (IS_ERR(thread)) {
+		dev_err(&pdev->dev, "failed to create thermal thread: %ld\n",
+			PTR_ERR(thread));
+		return PTR_ERR(thread);
+	}
+
+	cpumask_and(&mask, cpu_possible_mask, &cpu_topology[0].core_sibling);
+	set_cpus_allowed_ptr(thread, &mask);
+
+	ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
+	if (ret) {
+		kthread_stop(thread);
+		dev_warn(&pdev->dev, "thermal failed to set SCHED_FIFO\n");
+		return ret;
+	}
+
+	kthread_init_work(&data->irq_work, gs101_tmu_work);
+
+	wake_up_process(thread);
+
+	if (data->hotplug_enable) {
+		exynos_cpuhp_register("DTM", *cpu_possible_mask);
+		kthread_init_work(&data->hotplug_work, gs101_throttle_cpu_hotplug);
+
+		if (!hotplug_worker) {
+			hotplug_worker = kzalloc(sizeof(*hotplug_worker), GFP_KERNEL);
+			if (!hotplug_worker)
+				return -ENOMEM;
+
+			kthread_init_worker(hotplug_worker);
+			thread = kthread_create(kthread_worker_fn, hotplug_worker,
+						"thermal_hotplug_kworker");
+			kthread_bind(thread, 0);
+			sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
+			wake_up_process(thread);
+		}
+	}
+
+	return ret;
+}
 
 static int gs101_map_dt_data(struct platform_device *pdev)
 {
@@ -782,9 +835,7 @@ struct gs101_tmu_data *gpu_thermal_data;
 static int gs101_tmu_probe(struct platform_device *pdev)
 {
 	struct gs101_tmu_data *data;
-	struct workqueue_attrs attr;
 	int ret;
-	unsigned int wq_flag;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct gs101_tmu_data),
 			    GFP_KERNEL);
@@ -798,26 +849,6 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_sensor;
 
-	if (!gs101_tmu_wq) {
-		attr.nice = -20;
-		attr.no_numa = true;
-		cpumask_copy(attr.cpumask, cpu_coregroup_mask(0));
-		wq_flag =  WQ_HIGHPRI | WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_FREEZABLE;
-		gs101_tmu_wq = alloc_workqueue("%s", wq_flag,
-					       0, "gs101_tmu_wq");
-		apply_workqueue_attrs(gs101_tmu_wq, &attr);
-	}
-
-	INIT_WORK(&data->irq_work, gs101_tmu_work);
-
-	/*
-	 * data->tzd must be registered before calling gs101_tmu_initialize(),
-	 * requesting irq and calling gs101_tmu_control().
-	 */
-	if (data->hotplug_enable) {
-		exynos_cpuhp_register("DTM", *cpu_online_mask);
-		INIT_WORK(&data->hotplug_work, gs101_throttle_cpu_hotplug);
-	}
 
 	if (list_empty(&dtm_dev_list)) {
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
@@ -855,6 +886,12 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 			       IRQF_SHARED, dev_name(&pdev->dev), data);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
+		goto err_thermal;
+	}
+
+	ret = gs101_tmu_irq_work_init(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "cannot gs101 interrupt work initialize\n");
 		goto err_thermal;
 	}
 
@@ -921,6 +958,10 @@ static int gs101_tmu_suspend(struct device *dev)
 	suspended_count++;
 	disable_irq(data->irq);
 
+	if (data->hotplug_enable)
+		kthread_flush_work(&data->hotplug_work);
+	kthread_flush_work(&data->irq_work);
+
 	gs101_tmu_control(pdev, false);
 	if (suspended_count == num_of_devices) {
 		exynos_acpm_tmu_set_suspend(false);
@@ -935,6 +976,7 @@ static int gs101_tmu_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct cpumask mask;
 	int temp, stat;
 
 	if (suspended_count == num_of_devices)
@@ -949,6 +991,9 @@ static int gs101_tmu_resume(struct device *dev)
 
 	enable_irq(data->irq);
 	suspended_count--;
+
+	cpumask_and(&mask, cpu_possible_mask, &cpu_topology[0].core_sibling);
+	set_cpus_allowed_ptr(data->irq_worker.task, &mask);
 
 	if (!suspended_count)
 		pr_info("%s: TMU resume complete\n", __func__);
