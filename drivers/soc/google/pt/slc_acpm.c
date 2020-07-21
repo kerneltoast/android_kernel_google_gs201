@@ -225,6 +225,11 @@ static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
 		dev_info(&driver_data->pdev->dev,
 			 "ptid %d size %dK\n",
 			 ptid, 4 * size4kB);
+		if (!driver_data->ptids[ptid].resize) {
+			WARN_ONCE(1, "unallocated ptid %d size %dK\n",
+				  ptid, 4 * size4kB);
+			continue;
+		}
 		driver_data->ptids[ptid].resize(
 				driver_data->ptids[ptid].data,
 				size4kB * 4096);
