@@ -392,6 +392,7 @@ static void slc_acpm_free(void *data, ptid_t ptid)
 	arg = (unsigned int)ptid;
 	WARN_ON(slc_acpm(driver_data, PT_DISABLE, arg, 0 /* unused */) < 0);
 	slc_acpm_check(driver_data);
+	memset(&driver_data->ptids[ptid], 0, sizeof(driver_data->ptids[ptid]));
 }
 
 static void slc_acpm_enable(void *data, ptid_t ptid)
