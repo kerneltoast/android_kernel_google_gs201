@@ -137,6 +137,11 @@ config GS_SLC_ACPM
 	help
 	Support PT ACPM drvier
 
+config SLC_PMON
+	bool
+	depends on SLC_PARTITION_MANAGER
+	default y
+
 source "drivers/soc/google/gsa/Kconfig"
 
 endmenu

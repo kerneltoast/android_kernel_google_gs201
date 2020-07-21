@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include "pt.h"
 #include "pt_trace.h"
+#include "slc_pmon.h"
 #include "../cal-if/acpm_dvfs.h"
 #include <soc/google/acpm_ipc_ctrl.h>
 #include <linux/errno.h>
@@ -112,13 +113,14 @@ static void pt_ptid_data_decode(int ptid_data, ptid_t *ptid, int *data)
  * Send a command to APM and get back the return value.
  */
 static int slc_acpm(struct slc_acpm_driver_data *driver_data,
-	unsigned int command, unsigned int arg, unsigned long arg1)
+		    unsigned int command, unsigned int arg, unsigned long arg1,
+		    uint32_t *opt_buffer)
 {
 	struct ipc_config config;
 	unsigned int cmd[8];
 	int ret;
 
-	config.cmd = cmd;
+	config.cmd = opt_buffer ? opt_buffer : cmd;
 	config.response = true;
 	config.indirection = false;
 	config.cmd[0] = 0;
@@ -171,7 +173,7 @@ static bool slc_version_check(struct slc_acpm_driver_data *driver_data)
 		return false;
 	}
 	dev_info(&driver_data->pdev->dev, "channel %d\n", driver_data->id);
-	driver_data->version = slc_acpm(driver_data, PT_VERSION, 0, 0);
+	driver_data->version = slc_acpm(driver_data, PT_VERSION, 0, 0, NULL);
 	if ((driver_data->version >> 16) != PT_VERSION_KNOWN) {
 		dev_err(&driver_data->pdev->dev,
 			"found invalid acpm firmware %d.%d.\n",
@@ -213,7 +215,7 @@ static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
 	ptid_t ptid;
 	int size4kB;
 
-	while ((ret = slc_acpm(driver_data, PT_CHECK, 0, 0)) > 0) {
+	while ((ret = slc_acpm(driver_data, PT_CHECK, 0, 0, NULL)) > 0) {
 		pt_ptid_data_decode(ret, &ptid, &size4kB);
 		if ((ptid >= PT_PTID_MAX) || (ptid < 0)) {
 			dev_err(&driver_data->pdev->dev,
@@ -251,7 +253,7 @@ static int slc_acpm_ioctl(void *data, int arg_cnt, int *args)
 		return -EINVAL;
 	if (!slc_version_check(driver_data))
 		return -ENOENT;
-	args[0] = slc_acpm(driver_data, args[0], args[1], args[2]);
+	args[0] = slc_acpm(driver_data, args[0], args[1], args[2], NULL);
 	return 0;
 }
 
@@ -267,7 +269,7 @@ static void slc_acpm_apply(struct slc_acpm_driver_data *driver_data,
 
 	arg = (ptid << 8) | (driver_data->ptids[ptid].vptid << 16);
 	arg1 = zero_size ? 1 : driver_data->ptids[ptid].size_bits;
-	ret = slc_acpm(driver_data, PT_MUTATE, arg, arg1);
+	ret = slc_acpm(driver_data, PT_MUTATE, arg, arg1, NULL);
 }
 
 
@@ -331,7 +333,7 @@ static ptid_t slc_acpm_alloc(void *data, int property_index, void *resize_data,
 	}
 
 	arg = priority | (vptid << 8) | ((pbha & 0xff) << 16);
-	ret = slc_acpm(driver_data, PT_ENABLE, arg, 1 /* 0 size alloc */);
+	ret = slc_acpm(driver_data, PT_ENABLE, arg, 1 /* 0 size alloc */, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -402,7 +404,8 @@ static void slc_acpm_free(void *data, ptid_t ptid)
 	if (!slc_version_check(driver_data))
 		return;
 	arg = (unsigned int)ptid;
-	WARN_ON(slc_acpm(driver_data, PT_DISABLE, arg, 0 /* unused */) < 0);
+	WARN_ON(slc_acpm(driver_data, PT_DISABLE, arg, 0 /* unused */, NULL) <
+		0);
 	slc_acpm_check(driver_data);
 	memset(&driver_data->ptids[ptid], 0, sizeof(driver_data->ptids[ptid]));
 }
@@ -446,6 +449,9 @@ static int slc_acpm_probe(struct platform_device *pdev)
 	driver_data->driver = pt_driver_register(pdev->dev.of_node,
 			&slc_acpm_ops, driver_data);
 	WARN_ON(driver_data->driver == NULL);
+
+	slc_pmon_init(driver_data, slc_acpm);
+
 	return 0;
 }
 
@@ -472,6 +478,7 @@ static int __init slc_acpm_init(void)
 
 static void __exit slc_acpm_exit(void)
 {
+	slc_pmon_exit();
 	platform_driver_unregister(&slc_acpm_driver);
 }
 
