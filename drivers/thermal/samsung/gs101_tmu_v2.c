@@ -25,6 +25,7 @@
 #include <uapi/linux/sched/types.h>
 #include <soc/google/tmu.h>
 #include <soc/google/ect_parser.h>
+#include <soc/google/isp_cooling.h>
 #if IS_ENABLED(CONFIG_EXYNOS_MCINFO)
 #include <soc/google/exynos-mcinfo.h>
 #endif
@@ -918,6 +919,10 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 		gpu_thermal_data = data;
 #endif
 
+#if IS_ENABLED(CONFIG_ISP_THERMAL)
+	if (!strncmp(data->tmu_name, "ISP", 3))
+		exynos_isp_cooling_init();
+#endif
 	return 0;
 
 err_thermal:
