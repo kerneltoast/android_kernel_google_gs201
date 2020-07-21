@@ -39,6 +39,40 @@
 
 #define EXYNOS_GPU_TMU_GRP_ID		(3)
 
+#define FRAC_BITS 10
+#define int_to_frac(x) ((x) << FRAC_BITS)
+#define frac_to_int(x) ((x) >> FRAC_BITS)
+
+#define INVALID_TRIP -1
+
+/**
+ * mul_frac() - multiply two fixed-point numbers
+ * @x:	first multiplicand
+ * @y:	second multiplicand
+ *
+ * Return: the result of multiplying two fixed-point numbers.  The
+ * result is also a fixed-point number.
+ */
+static inline s64 mul_frac(s64 x, s64 y)
+{
+	return (x * y) >> FRAC_BITS;
+}
+
+/**
+ * div_frac() - divide two fixed-point numbers
+ * @x:	the dividend
+ * @y:	the divisor
+ *
+ * Return: the result of dividing two fixed-point numbers.  The
+ * result is also a fixed-point number.
+ */
+static inline s64 div_frac(s64 x, s64 y)
+{
+	return div_s64(x << FRAC_BITS, y);
+}
+
+static atomic_t gs101_tmu_in_suspend;
+
 struct kthread_worker *hotplug_worker;
 
 static struct acpm_tmu_cap cap;
@@ -196,10 +230,14 @@ static int gs101_get_trend(void *p, int trip, enum thermal_trend *trend)
 	if (ret < 0)
 		return ret;
 
-	if (tz->temperature >= trip_temp)
-		*trend = THERMAL_TREND_RAISE_FULL;
-	else
-		*trend = THERMAL_TREND_DROP_FULL;
+	if (data->use_pi_thermal) {
+		*trend = THERMAL_TREND_STABLE;
+	} else {
+		if (tz->temperature >= trip_temp)
+			*trend = THERMAL_TREND_RAISE_FULL;
+		else
+			*trend = THERMAL_TREND_DROP_FULL;
+	}
 
 	return 0;
 }
@@ -229,6 +267,239 @@ static int gs101_tmu_set_emulation(void *drv_data, int temp)
 }
 #endif /* CONFIG_THERMAL_EMULATION */
 
+static void start_pi_polling(struct gs101_tmu_data *data, int delay)
+{
+	kthread_mod_delayed_work(&data->thermal_worker, &data->pi_work,
+				 msecs_to_jiffies(delay));
+}
+
+static void reset_pi_trips(struct gs101_tmu_data *data)
+{
+	struct thermal_zone_device *tz = data->tzd;
+	struct gs101_pi_param *params = data->pi_param;
+	int i, last_active, last_passive;
+	bool found_first_passive;
+
+	found_first_passive = false;
+	last_active = INVALID_TRIP;
+	last_passive = INVALID_TRIP;
+
+	for (i = 0; i < tz->trips; i++) {
+		enum thermal_trip_type type;
+		int ret;
+
+		ret = tz->ops->get_trip_type(tz, i, &type);
+		if (ret) {
+			dev_warn(&tz->device,
+				 "Failed to get trip point %d type: %d\n", i,
+				 ret);
+			continue;
+		}
+
+		if (type == THERMAL_TRIP_PASSIVE) {
+			if (!found_first_passive) {
+				params->trip_switch_on = i;
+				found_first_passive = true;
+				break;
+			}
+
+			last_passive = i;
+		} else if (type == THERMAL_TRIP_ACTIVE) {
+			last_active = i;
+		} else {
+			break;
+		}
+	}
+
+	if (last_passive != INVALID_TRIP) {
+		params->trip_control_temp = last_passive;
+	} else if (found_first_passive) {
+		params->trip_control_temp = params->trip_switch_on;
+		params->trip_switch_on = last_active;
+	} else {
+		params->trip_switch_on = INVALID_TRIP;
+		params->trip_control_temp = last_active;
+	}
+}
+
+static void reset_pi_params(struct gs101_tmu_data *data)
+{
+	s64 i = int_to_frac(data->pi_param->i_max);
+
+	data->pi_param->err_integral = div_frac(i, data->pi_param->k_i);
+}
+
+static void allow_maximum_power(struct gs101_tmu_data *data)
+{
+	struct thermal_instance *instance;
+	struct thermal_zone_device *tz = data->tzd;
+	struct gs101_pi_param *params = data->pi_param;
+
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		if (instance->trip != params->trip_control_temp ||
+		    (!cdev_is_power_actor(instance->cdev)))
+			continue;
+
+		mutex_lock(&instance->cdev->lock);
+		instance->cdev->ops->set_cur_state(instance->cdev, 0);
+		mutex_unlock(&instance->cdev->lock);
+	}
+}
+
+static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
+			u32 max_allocatable_power)
+{
+	struct thermal_zone_device *tz = data->tzd;
+	struct gs101_pi_param *params = data->pi_param;
+	s64 p, i, power_range;
+	s32 err, max_power_frac;
+
+	max_power_frac = int_to_frac(max_allocatable_power);
+
+	err = (control_temp - tz->temperature) / 1000;
+	err = int_to_frac(err);
+
+	/* Calculate the proportional term */
+	p = mul_frac(err < 0 ? params->k_po : params->k_pu, err);
+
+	/*
+	 * Calculate the integral term
+	 *
+	 * if the error is less than cut off allow integration (but
+	 * the integral is limited to max power)
+	 */
+	i = mul_frac(params->k_i, params->err_integral);
+
+	if (err < int_to_frac(params->integral_cutoff)) {
+		s64 i_next = i + mul_frac(params->k_i, err);
+		s64 i_windup = int_to_frac(-1 * (s64)params->sustainable_power);
+
+		if (i_next > int_to_frac((s64)params->i_max)) {
+			i = int_to_frac((s64)params->i_max);
+			params->err_integral = div_frac(i, params->k_i);
+		} else if (i_next <= i_windup) {
+			i = i_windup;
+			params->err_integral = div_frac(i, params->k_i);
+		} else {
+			i = i_next;
+			params->err_integral += err;
+		}
+	}
+
+	power_range = p + i;
+
+	power_range = params->sustainable_power + frac_to_int(power_range);
+
+	power_range = clamp(power_range, (s64)0, (s64)max_allocatable_power);
+
+	return power_range;
+}
+
+static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
+{
+	struct thermal_zone_device *tz = data->tzd;
+	struct gs101_pi_param *params = data->pi_param;
+	struct thermal_instance *instance;
+	struct thermal_cooling_device *cdev;
+	int ret = 0;
+	bool found_actor = false;
+	u32 max_power, power_range;
+	unsigned long state;
+
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		if (instance->trip == params->trip_control_temp &&
+		    cdev_is_power_actor(instance->cdev)) {
+			found_actor = true;
+			cdev = instance->cdev;
+		}
+	}
+
+	if (!found_actor)
+		return -ENODEV;
+
+	cdev->ops->state2power(cdev, tz, 0, &max_power);
+
+	power_range = pi_calculate(data, control_temp, max_power);
+
+	ret = cdev->ops->power2state(cdev, tz, power_range, &state);
+	if (ret)
+		return ret;
+
+	mutex_lock(&cdev->lock);
+	ret = cdev->ops->set_cur_state(cdev, state);
+	mutex_unlock(&cdev->lock);
+
+	return ret;
+}
+
+static void gs101_pi_thermal(struct gs101_tmu_data *data)
+{
+	struct thermal_zone_device *tz = data->tzd;
+	struct gs101_pi_param *params = data->pi_param;
+	int ret = 0;
+	int switch_on_temp, control_temp, delay;
+	enum thermal_device_mode mode;
+
+	if (atomic_read(&gs101_tmu_in_suspend))
+		return;
+
+	if (data->tzd) {
+		data->tzd->ops->get_mode(data->tzd, &mode);
+		if (mode == THERMAL_DEVICE_DISABLED) {
+			params->switched_on = false;
+			goto polling;
+		}
+	}
+
+	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+
+	mutex_lock(&data->lock);
+
+	ret = tz->ops->get_trip_temp(tz, params->trip_switch_on,
+				     &switch_on_temp);
+	if (!ret && tz->temperature < switch_on_temp) {
+		reset_pi_params(data);
+		allow_maximum_power(data);
+		params->switched_on = false;
+		goto polling;
+	}
+
+	params->switched_on = true;
+
+	ret = tz->ops->get_trip_temp(tz, params->trip_control_temp,
+				     &control_temp);
+	if (ret) {
+		pr_warn("Failed to get the maximum desired temperature: %d\n",
+			ret);
+		goto polling;
+	}
+
+	ret = gs101_pi_controller(data, control_temp);
+
+	if (ret) {
+		pr_debug("Failed to calculate pi controller: %d\n",
+			 ret);
+		goto polling;
+	}
+
+polling:
+	if (params->switched_on)
+		delay = params->polling_delay_on;
+	else
+		delay = params->polling_delay_off;
+
+	start_pi_polling(data, delay);
+	mutex_unlock(&data->lock);
+}
+
+static void gs101_pi_polling(struct kthread_work *work)
+{
+	struct gs101_tmu_data *data =
+			container_of(work, struct gs101_tmu_data, pi_work.work);
+
+	gs101_pi_thermal(data);
+}
+
 static void gs101_tmu_work(struct kthread_work *work)
 {
 	struct gs101_tmu_data *data = container_of(work,
@@ -244,6 +515,10 @@ static void gs101_tmu_work(struct kthread_work *work)
 			    tz->type, tz->temperature);
 
 	mutex_unlock(&data->lock);
+
+	if (data->use_pi_thermal)
+		gs101_pi_thermal(data);
+
 	enable_irq(data->irq);
 }
 
@@ -252,7 +527,7 @@ static irqreturn_t gs101_tmu_irq(int irq, void *id)
 	struct gs101_tmu_data *data = id;
 
 	disable_irq_nosync(irq);
-	kthread_queue_work(&data->irq_worker, &data->irq_work);
+	kthread_queue_work(&data->thermal_worker, &data->irq_work);
 
 	return IRQ_HANDLED;
 }
@@ -289,6 +564,40 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 	mutex_unlock(&data->lock);
 }
 
+static int gs101_tmu_pm_notify(struct notifier_block *nb,
+			       unsigned long mode, void *_unused)
+{
+	struct gs101_tmu_data *data;
+
+	switch (mode) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_RESTORE_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		list_for_each_entry(data, &dtm_dev_list, node) {
+			if (data->use_pi_thermal)
+				kthread_cancel_delayed_work_sync(&data->pi_work);
+		}
+		atomic_set(&gs101_tmu_in_suspend, 1);
+		break;
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+	case PM_POST_SUSPEND:
+		atomic_set(&gs101_tmu_in_suspend, 0);
+		list_for_each_entry(data, &dtm_dev_list, node) {
+			if (data->use_pi_thermal)
+				gs101_pi_thermal(data);
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block gs101_tmu_pm_nb = {
+	.notifier_call = gs101_tmu_pm_notify,
+};
+
 static const struct of_device_id gs101_tmu_match[] = {
 	{ .compatible = "samsung,gs101-tmu-v2", },
 	{ /* sentinel */ },
@@ -303,9 +612,9 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	struct task_struct *thread;
 	int ret = 0;
 
-	kthread_init_worker(&data->irq_worker);
-	thread = kthread_create(kthread_worker_fn, &data->irq_worker,
-				"thermal_irq_%s", data->tmu_name);
+	kthread_init_worker(&data->thermal_worker);
+	thread = kthread_create(kthread_worker_fn, &data->thermal_worker,
+				"thermal_%s", data->tmu_name);
 	if (IS_ERR(thread)) {
 		dev_err(&pdev->dev, "failed to create thermal thread: %ld\n",
 			PTR_ERR(thread));
@@ -352,6 +661,7 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
 	struct resource res;
 	const char *tmu_name;
+	int ret;
 
 	if (!data || !pdev->dev.of_node)
 		return -ENODEV;
@@ -397,6 +707,73 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 				     &data->hotplug_out_threshold);
 		if (!data->hotplug_out_threshold)
 			dev_err(&pdev->dev, "No input hotplug_out_threshold\n");
+	}
+
+	if (of_property_read_bool(pdev->dev.of_node, "use-pi-thermal")) {
+		struct gs101_pi_param *params;
+		u32 value;
+
+		data->use_pi_thermal = true;
+
+		params = kzalloc(sizeof(*params), GFP_KERNEL);
+		if (!params)
+			return -ENOMEM;
+
+		of_property_read_u32(pdev->dev.of_node, "polling_delay_on",
+				     &params->polling_delay_on);
+		if (!params->polling_delay_on)
+			dev_err(&pdev->dev, "No input polling_delay_on\n");
+
+		of_property_read_u32(pdev->dev.of_node, "polling_delay_off",
+				     &params->polling_delay_off);
+		if (!params->polling_delay_off)
+			dev_err(&pdev->dev, "No input polling_delay_off\n");
+
+		ret = of_property_read_u32(pdev->dev.of_node, "k_po",
+					   &value);
+		if (ret < 0)
+			dev_err(&pdev->dev, "No input k_po\n");
+		else
+			params->k_po = int_to_frac(value);
+
+		ret = of_property_read_u32(pdev->dev.of_node, "k_pu",
+					   &value);
+		if (ret < 0)
+			dev_err(&pdev->dev, "No input k_pu\n");
+		else
+			params->k_pu = int_to_frac(value);
+
+		ret = of_property_read_u32(pdev->dev.of_node, "k_i",
+					   &value);
+		if (ret < 0)
+			dev_err(&pdev->dev, "No input k_i\n");
+		else
+			params->k_i = int_to_frac(value);
+
+		ret = of_property_read_u32(pdev->dev.of_node, "i_max",
+					   &value);
+		if (ret < 0)
+			dev_err(&pdev->dev, "No input i_max\n");
+		else
+			params->i_max = int_to_frac(value);
+
+		ret = of_property_read_u32(pdev->dev.of_node, "integral_cutoff",
+					   &value);
+		if (ret < 0)
+			dev_err(&pdev->dev, "No input integral_cutoff\n");
+		else
+			params->integral_cutoff = value;
+
+		ret = of_property_read_u32(pdev->dev.of_node, "sustainable_power",
+					   &value);
+		if (ret < 0)
+			dev_err(&pdev->dev, "No input sustainable_power\n");
+		else
+			params->sustainable_power = value;
+
+		data->pi_param = params;
+	} else {
+		data->use_pi_thermal = false;
 	}
 
 	return 0;
@@ -472,12 +849,90 @@ hotplug_in_temp_store(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
+static ssize_t
+sustainable_power_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	if (data->pi_param)
+		return sprintf(buf, "%u\n", data->pi_param->sustainable_power);
+	else
+		return -EIO;
+}
+
+static ssize_t
+sustainable_power_store(struct device *dev, struct device_attribute *devattr,
+			const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	u32 sustainable_power;
+
+	if (!data->pi_param)
+		return -EIO;
+
+	if (kstrtou32(buf, 10, &sustainable_power))
+		return -EINVAL;
+
+	data->pi_param->sustainable_power = sustainable_power;
+
+	return count;
+}
+
+#define create_s32_param_attr(name)						\
+	static ssize_t								\
+	name##_show(struct device *dev, struct device_attribute *devattr,	\
+		    char *buf)							\
+	{									\
+	struct platform_device *pdev = to_platform_device(dev);			\
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);		\
+										\
+	if (data->pi_param)							\
+		return sprintf(buf, "%d\n", data->pi_param->name);		\
+	else									\
+		return -EIO;							\
+	}									\
+										\
+	static ssize_t								\
+	name##_store(struct device *dev, struct device_attribute *devattr,	\
+		     const char *buf, size_t count)				\
+	{									\
+		struct platform_device *pdev = to_platform_device(dev);		\
+		struct gs101_tmu_data *data = platform_get_drvdata(pdev);	\
+		s32 value;							\
+										\
+		if (!data->pi_param)						\
+			return -EIO;						\
+										\
+		if (kstrtos32(buf, 10, &value))					\
+			return -EINVAL;						\
+										\
+		data->pi_param->name = value;					\
+										\
+		return count;							\
+	}									\
+	static DEVICE_ATTR_RW(name)
+
 static DEVICE_ATTR_RW(hotplug_out_temp);
 static DEVICE_ATTR_RW(hotplug_in_temp);
+static DEVICE_ATTR_RW(sustainable_power);
+create_s32_param_attr(k_po);
+create_s32_param_attr(k_pu);
+create_s32_param_attr(k_i);
+create_s32_param_attr(i_max);
+create_s32_param_attr(integral_cutoff);
 
 static struct attribute *gs101_tmu_attrs[] = {
 	&dev_attr_hotplug_out_temp.attr,
 	&dev_attr_hotplug_in_temp.attr,
+	&dev_attr_sustainable_power.attr,
+	&dev_attr_k_po.attr,
+	&dev_attr_k_pu.attr,
+	&dev_attr_k_i.attr,
+	&dev_attr_i_max.attr,
+	&dev_attr_integral_cutoff.attr,
 	NULL,
 };
 
@@ -607,7 +1062,6 @@ static int gs101_thermal_create_debugfs(void)
 }
 
 #define PARAM_NAME_LENGTH	25
-#define FRAC_BITS 10	/* FRAC_BITS should be same with power_allocator */
 
 #if IS_ENABLED(CONFIG_ECT)
 static int gs101_tmu_ect_get_param(struct ect_pidtm_block *pidtm_block, char *name)
@@ -633,9 +1087,9 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 	if (!tz)
 		return -EINVAL;
 
-	if (strncasecmp(tz->tzp->governor_name, "power_allocator",
-			THERMAL_NAME_LENGTH)) {
-		/* if governor is not power_allocator */
+	if (!data->use_pi_thermal) {
+		/* if pi thermal not used */
+
 		void *thermal_block;
 		struct ect_ap_thermal_function *function;
 		int i, temperature;
@@ -701,6 +1155,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 	} else {
 		void *block;
 		struct ect_pidtm_block *pidtm_block;
+		struct gs101_pi_param *params;
 		int i, temperature, value;
 		int hotplug_out_threshold = 0, hotplug_in_threshold = 0, limited_frequency = 0;
 		int limited_threshold = 0, limited_threshold_release = 0;
@@ -731,10 +1186,12 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			pr_info("Parsed From ECT : [%d] Temperature : %d\n", i, temperature);
 		}
 
+		params = data->pi_param;
+
 		value = gs101_tmu_ect_get_param(pidtm_block, "k_po");
 		if (value != -1) {
 			pr_info("Parse from ECT k_po: %d\n", value);
-			tz->tzp->k_po = value << FRAC_BITS;
+			params->k_po = int_to_frac(value);
 		} else {
 			pr_err("Fail to parse k_po parameter\n");
 		}
@@ -742,7 +1199,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 		value = gs101_tmu_ect_get_param(pidtm_block, "k_pu");
 		if (value != -1) {
 			pr_info("Parse from ECT k_pu: %d\n", value);
-			tz->tzp->k_pu = value << FRAC_BITS;
+			params->k_pu = int_to_frac(value);
 		} else {
 			pr_err("Fail to parse k_pu parameter\n");
 		}
@@ -750,7 +1207,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 		value = gs101_tmu_ect_get_param(pidtm_block, "k_i");
 		if (value != -1) {
 			pr_info("Parse from ECT k_i: %d\n", value);
-			tz->tzp->k_i = value << FRAC_BITS;
+			params->k_i = int_to_frac(value);
 		} else {
 			pr_err("Fail to parse k_i parameter\n");
 		}
@@ -758,7 +1215,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 		value = gs101_tmu_ect_get_param(pidtm_block, "i_max");
 		if (value != -1) {
 			pr_info("Parse from ECT i_max: %d\n", value);
-			tz->tzp->integral_max = value;
+			params->i_max = value;
 		} else {
 			pr_err("Fail to parse i_max parameter\n");
 		}
@@ -766,7 +1223,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 		value = gs101_tmu_ect_get_param(pidtm_block, "integral_cutoff");
 		if (value != -1) {
 			pr_info("Parse from ECT integral_cutoff: %d\n", value);
-			tz->tzp->integral_cutoff = value;
+			params->integral_cutoff = value;
 		} else {
 			pr_err("Fail to parse integral_cutoff parameter\n");
 		}
@@ -774,7 +1231,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 		value = gs101_tmu_ect_get_param(pidtm_block, "p_control_t");
 		if (value != -1) {
 			pr_info("Parse from ECT p_control_t: %d\n", value);
-			tz->tzp->sustainable_power = value;
+			params->sustainable_power = value;
 		} else {
 			pr_err("Fail to parse p_control_t parameter\n");
 		}
@@ -850,7 +1307,6 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_sensor;
 
-
 	if (list_empty(&dtm_dev_list)) {
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 		exynos_acpm_tmu_init();
@@ -865,6 +1321,8 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
 		goto err_sensor;
 	}
+
+	data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_DISABLED);
 
 #if IS_ENABLED(CONFIG_ECT)
 	if (!of_property_read_bool(pdev->dev.of_node, "ect_nouse"))
@@ -896,6 +1354,9 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 		goto err_thermal;
 	}
 
+	if (data->use_pi_thermal)
+		kthread_init_delayed_work(&data->pi_work, gs101_pi_polling);
+
 	gs101_tmu_control(pdev, true);
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &gs101_tmu_attr_group);
@@ -907,12 +1368,19 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	num_of_devices++;
 	mutex_unlock(&data->lock);
 
+	if (data->use_pi_thermal) {
+		reset_pi_trips(data);
+		reset_pi_params(data);
+		start_pi_polling(data, 0);
+	}
 
 	if (!IS_ERR(data->tzd))
 		data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_ENABLED);
 
-	if (list_is_singular(&dtm_dev_list))
+	if (list_is_singular(&dtm_dev_list)) {
 		gs101_thermal_create_debugfs();
+		register_pm_notifier(&gs101_tmu_pm_nb);
+	}
 
 #if IS_ENABLED(CONFIG_MALI_DEBUG_KERNEL_SYSFS)
 	if (data->id == EXYNOS_GPU_TMU_GRP_ID)
@@ -998,7 +1466,7 @@ static int gs101_tmu_resume(struct device *dev)
 	suspended_count--;
 
 	cpumask_and(&mask, cpu_possible_mask, &cpu_topology[0].core_sibling);
-	set_cpus_allowed_ptr(data->irq_worker.task, &mask);
+	set_cpus_allowed_ptr(data->thermal_worker.task, &mask);
 
 	if (!suspended_count)
 		pr_info("%s: TMU resume complete\n", __func__);

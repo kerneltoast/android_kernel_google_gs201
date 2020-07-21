@@ -13,6 +13,24 @@
 
 #define MCELSIUS        1000
 
+struct gs101_pi_param {
+	s64 err_integral;
+	int trip_switch_on;
+	int trip_control_temp;
+
+	u32 sustainable_power;
+	s32 k_po;
+	s32 k_pu;
+	s32 k_i;
+	s32 i_max;
+	s32 integral_cutoff;
+
+	int polling_delay_on;
+	int polling_delay_off;
+
+	bool switched_on;
+};
+
 /**
  * struct gs101_tmu_data : A structure to hold the private data of the TMU
 	driver
@@ -44,7 +62,7 @@ struct gs101_tmu_data {
 	bool limited;
 	void __iomem *base;
 	int irq;
-	struct kthread_worker irq_worker;
+	struct kthread_worker thermal_worker;
 	struct kthread_work irq_work;
 	struct kthread_work hotplug_work;
 	struct mutex lock;			/* lock to protect gs101 tmu */
@@ -57,6 +75,9 @@ struct gs101_tmu_data {
 	struct device_node *np;
 	bool is_cpu_hotplugged_out;
 	int temperature;
+	bool use_pi_thermal;
+	struct kthread_delayed_work pi_work;
+	struct gs101_pi_param *pi_param;
 };
 
 #endif /* _GS101_TMU_H */
