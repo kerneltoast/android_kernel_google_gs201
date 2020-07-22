@@ -225,7 +225,7 @@ static bool pt_resize_list_disable(struct pt_pts *pts)
 	if (!in_progress)
 		return enabled;
 	wait_event(pt_internal_data.resize_remove_wq,
-			pt_internal_data.resize_pts_in_progress == pts);
+			pt_internal_data.resize_pts_in_progress != pts);
 	return enabled;
 }
 
