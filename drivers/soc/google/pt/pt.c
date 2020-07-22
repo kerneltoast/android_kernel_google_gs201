@@ -205,16 +205,13 @@ static void pt_resize_list_add(struct pt_pts *pts, u32 size)
  */
 static bool pt_resize_list_disable(struct pt_pts *pts)
 {
-	bool in_progress = false;
 	unsigned long flags;
 	bool enabled;
 
 	spin_lock_irqsave(&pt_internal_data.sl, flags);
 	enabled = pts->enabled;
 	pts->enabled = false;
-	if (pt_internal_data.resize_pts_in_progress == pts)
-		in_progress = true;
-	else if (pts->resize_list.next != NULL) {
+	if (pts->resize_list.next != NULL) {
 		list_del(&pts->resize_list);
 		pts->resize_list.next = NULL;
 		pts->resize_list.prev = NULL;
@@ -222,8 +219,6 @@ static bool pt_resize_list_disable(struct pt_pts *pts)
 	}
 	spin_unlock_irqrestore(&pt_internal_data.sl, flags);
 
-	if (!in_progress)
-		return enabled;
 	wait_event(pt_internal_data.resize_remove_wq,
 			pt_internal_data.resize_pts_in_progress != pts);
 	return enabled;
