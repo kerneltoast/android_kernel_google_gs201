@@ -286,11 +286,24 @@ static void pt_resize_internal_nop(void *data, size_t size)
 static void pt_resize_internal(void *data, size_t size)
 {
 	struct pt_pts *pts = (struct pt_pts *)data;
+	struct pt_handle *handle = pts->handle;
 
 	trace_pt_resize_callback(pts->handle->node->name,
 		pts->driver->properties->nodes[pts->property_index]->name,
 		true, (int)size, pts->ptid);
-	pt_resize_list_add(pts, size);
+	if (handle->resize_callback) {
+		pt_resize_list_add(pts, size);
+	} else {
+		/* pts->size is usually set by pt_resize_list_add(). If we
+		 * don't call pt_resize_list_add(), we need to set pts->size
+		 * here.
+		 */
+		unsigned long flags;
+
+		spin_lock_irqsave(&pt_internal_data.sl, flags);
+		pts->size = size;
+		spin_unlock_irqrestore(&pt_internal_data.sl, flags);
+	}
 }
 
 /*
