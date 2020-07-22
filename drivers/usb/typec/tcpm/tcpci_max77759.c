@@ -398,6 +398,7 @@ static irqreturn_t max77759_irq(int irq, void *dev_id)
 	irqreturn_t irq_return;
 	int ret;
 
+	logbuffer_log(chip->log, "TCPC_ALERT threaded irq running ");
 	if (!chip->tcpci)
 		return IRQ_HANDLED;
 
@@ -406,12 +407,29 @@ static irqreturn_t max77759_irq(int irq, void *dev_id)
 		return ret;
 	while (status) {
 		irq_return = _max77759_irq(chip, status, chip->log);
-		max77759_read16(chip->tcpci->regmap, TCPC_ALERT, &status);
+		/* Do not return if the ALERT is already set. */
+		logbuffer_log(chip->log, "TCPC_ALERT read alert status");
+		ret = max77759_read16(chip->tcpci->regmap, TCPC_ALERT, &status);
+		if (ret < 0)
+			break;
 		logbuffer_log(chip->log, "TCPC_ALERT status pending: %#x",
 			      status);
 	}
 
 	return irq_return;
+}
+
+static irqreturn_t max77759_isr(int irq, void *dev_id)
+{
+	struct max77759_plat *chip = dev_id;
+
+	logbuffer_log(chip->log, "TCPC_ALERT triggered ");
+	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
+
+	if (!chip->tcpci)
+		return IRQ_HANDLED;
+
+	return IRQ_WAKE_THREAD;
 }
 
 static int max77759_init_alert(struct max77759_plat *chip,
@@ -424,7 +442,7 @@ static int max77759_init_alert(struct max77759_plat *chip,
 	if (!client->irq)
 		return -ENODEV;
 
-	ret = devm_request_threaded_irq(chip->dev, client->irq, NULL,
+	ret = devm_request_threaded_irq(chip->dev, client->irq, max77759_isr,
 					max77759_irq,
 					(IRQF_TRIGGER_LOW | IRQF_ONESHOT),
 					dev_name(chip->dev), chip);
