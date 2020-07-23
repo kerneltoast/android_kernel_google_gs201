@@ -455,7 +455,8 @@ static void __mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 			mfc_ctx_info("Set Level 6.0 for MB %d\n", mb);
 			p_264->level = 60;
 		}
-		if (p_264->profile < 0x1) {
+		/* In case of profile is baseline or constrained baseline */
+		if (p_264->profile == 0x0 || p_264->profile == 0x3) {
 			mfc_ctx_info("Set High profile for MB %d\n", mb);
 			p_264->profile = 0x2;
 		}
@@ -471,7 +472,8 @@ static void __mfc_set_enc_params_h264(struct mfc_ctx *ctx)
 			mfc_ctx_info("Set Level 5.1 for MB %d\n", mb);
 			p_264->level = 51;
 		}
-		if (p_264->profile < 0x1) {
+		/* In case of profile is baseline or constrained baseline */
+		if (p_264->profile == 0x0 || p_264->profile == 0x3) {
 			mfc_ctx_info("Set High profile for MB %d\n", mb);
 			p_264->profile = 0x2;
 		}
