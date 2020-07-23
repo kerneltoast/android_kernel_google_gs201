@@ -1219,6 +1219,11 @@ static void __mfc_nal_q_handle_stream_input(struct mfc_ctx *ctx, EncoderOutputSt
 			ref_mb = mfc_find_del_buf(ctx, &ctx->ref_buf_queue,
 						enc_addr[0]);
 			if (ref_mb) {
+				index = ref_mb->vb.vb2_buf.index;
+				if (call_cop(ctx, get_buf_ctrls_val_nal_q_enc, ctx,
+							&ctx->src_ctrls[index], pOutStr) < 0)
+					mfc_ctx_err("[NALQ] failed in get_buf_ctrls_val\n");
+
 				mfc_debug(3, "[NALQ] find src buf in ref_queue\n");
 				vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			} else {

@@ -914,6 +914,15 @@ static void __mfc_handle_stream_input(struct mfc_ctx *ctx)
 			ref_mb = mfc_find_del_buf(ctx, &ctx->ref_buf_queue,
 					enc_addr[0]);
 			if (ref_mb) {
+				index = ref_mb->vb.vb2_buf.index;
+				if (call_cop(ctx, recover_buf_ctrls_val, ctx,
+							&ctx->src_ctrls[index]) < 0)
+					mfc_ctx_err("failed in recover_buf_ctrls_val\n");
+
+				if (call_cop(ctx, get_buf_ctrls_val, ctx,
+							&ctx->src_ctrls[index]) < 0)
+					mfc_ctx_err("failed in get_buf_ctrls_val\n");
+
 				mfc_debug(3, "find src buf in ref_queue\n");
 				vb2_buffer_done(&ref_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			} else {
