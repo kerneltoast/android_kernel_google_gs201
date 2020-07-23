@@ -146,7 +146,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		}
 
 		size = get_plane_size(mode_cmd, i, info);
-		if (mode_cmd->offsets[i] + size > obj[i]->size) {
+		if (!size || mode_cmd->offsets[i] + size > obj[i]->size) {
 			DRM_ERROR("offsets[%d](%d) size(%d) obj[%d]->size(%d)\n",
 					i, mode_cmd->offsets[i], size, i,
 					obj[i]->size);
