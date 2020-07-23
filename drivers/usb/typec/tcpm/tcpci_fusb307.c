@@ -538,7 +538,7 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 			      "Failed" : "Succeeded",
 			      chip->active_data_role == TYPEC_HOST ? "Host"
 			      : "Device");
-		dev_info(chip->dev, "TCPM_DEBUG s turning off %s", ret < 0 ?
+		dev_info(chip->dev, "TCPM_DEBUG %s turning off %s", ret < 0 ?
 			 "Failed" : "Succeeded", chip->active_data_role ==
 			 TYPEC_HOST ? "Host" : "Device");
 
