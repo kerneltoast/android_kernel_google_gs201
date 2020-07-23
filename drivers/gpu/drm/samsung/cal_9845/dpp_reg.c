@@ -1140,8 +1140,7 @@ int __dpp_check(u32 id, const struct dpp_params_info *p, unsigned long attr)
 
 		if (fmt->fmt == DRM_FORMAT_ARGB2101010 ||
 				fmt->fmt == DRM_FORMAT_ABGR2101010) {
-			cal_log_err(id, "AFBC + ARGB2101010, ABGR2101010 ",
-					"is not supported\n");
+			cal_log_err(id, "AFBC + ARGB2101010, ABGR2101010 is not supported\n");
 			return -EINVAL;
 		}
 	}
