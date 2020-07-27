@@ -23,7 +23,7 @@ struct bts_bw {
 	unsigned int write;
 };
 
-#if defined(CONFIG_EXYNOS_BTS)
+#if IS_ENABLED(CONFIG_EXYNOS_BTS) || IS_ENABLED(CONFIG_EXYNOS_BTS_MODULE)
 int bts_get_bwindex(const char *name);
 int bts_update_bw(unsigned int index, struct bts_bw bw);
 unsigned int bts_get_scenindex(const char *name);
