@@ -61,6 +61,7 @@
 #define S3C2410_WATCHDOG_DEFAULT_TIME	(15)
 
 #define EXYNOS5_RST_STAT_REG_OFFSET		0x0404
+#define EXYNOS_RST_STAT_REG_OFFSET		0x3B44
 #define EXYNOS5_WDT_DISABLE_REG_OFFSET		0x0408
 #define EXYNOS5_WDT_MASK_RESET_REG_OFFSET	0x040c
 #define QUIRK_HAS_PMU_CONFIG			BIT(0)
@@ -70,6 +71,7 @@
 #define QUIRK_HAS_WTMINCNT_REG			BIT(4)
 
 #define EXYNOS_CLUSTER0_NONCPU_INT_EN		(0x1244)
+#define EXYNOS_CLUSTER1_NONCPU_INT_EN		(0x1444)
 #define EXYNOS_CLUSTER2_NONCPU_INT_EN		(0x1644)
 
 /* These quirks require that we have a PMU register map */
@@ -276,6 +278,26 @@ static const struct s3c2410_wdt_variant drv_data_exynos9_v4 = {
 		  QUIRK_HAS_DBGACK_BIT | QUIRK_HAS_WTMINCNT_REG,
 };
 
+static const struct s3c2410_wdt_variant drv_data_gs101_cl0 = {
+	.noncpu_int_en = EXYNOS_CLUSTER0_NONCPU_INT_EN,
+	.mask_bit = 2,
+	.rst_stat_reg = EXYNOS_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = 0,      /* CLUSTER0 WDTRESET */
+	.pmu_reset_func = s3c2410wdt_noncpu_int_en,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT | QUIRK_HAS_WTCLRINT_REG |
+		  QUIRK_HAS_DBGACK_BIT | QUIRK_HAS_WTMINCNT_REG,
+};
+
+static const struct s3c2410_wdt_variant drv_data_gs101_cl1 = {
+	.noncpu_int_en = EXYNOS_CLUSTER1_NONCPU_INT_EN,
+	.mask_bit = 2,
+	.rst_stat_reg = EXYNOS_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = 1,      /* CLUSTER1 WDTRESET */
+	.pmu_reset_func = s3c2410wdt_noncpu_int_en,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT | QUIRK_HAS_WTCLRINT_REG |
+		  QUIRK_HAS_DBGACK_BIT | QUIRK_HAS_WTMINCNT_REG,
+};
+
 static const struct of_device_id s3c2410_wdt_match[] = {
 	{ .compatible = "samsung,s3c2410-wdt",
 	  .data = &drv_data_s3c2410 },
@@ -297,6 +319,10 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 	  .data = &drv_data_exynos9_v3 },
 	{ .compatible = "samsung,exynos9-v4-wdt",
 	  .data = &drv_data_exynos9_v4 },
+	{ .compatible = "google,gs101-cl0-wdt",
+	  .data = &drv_data_gs101_cl0 },
+	{ .compatible = "google,gs101-cl1-wdt",
+	  .data = &drv_data_gs101_cl1 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
