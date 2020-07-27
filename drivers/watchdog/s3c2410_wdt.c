@@ -30,6 +30,7 @@
 #include <linux/rtc.h>
 #include <linux/syscore_ops.h>
 #include <soc/google/exynos-pmu-if.h>
+#include <linux/preempt.h>
 
 #define S3C2410_WTCON		0x00
 #define S3C2410_WTDAT		0x04
@@ -127,11 +128,6 @@ struct s3c2410_wdt {
 	unsigned int noncpu_out_reg_val;
 	int in_suspend;
 	int in_panic;
-
-	struct task_struct	*tsk;
-	struct thread_info	*thr;
-	struct rtc_time		tm;
-	int last_ping_cpu;
 };
 
 /*
@@ -532,28 +528,12 @@ static void s3c2410wdt_mask_dbgack(struct s3c2410_wdt *wdt, bool mask)
 	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
 }
 
-static void s3c2410wdt_gettime(int index)
-{
-	struct s3c2410_wdt *wdt = s3c_wdt[index];
-	struct rtc_device *rtc;
-
-	wdt->tsk = current;
-	wdt->thr = current_thread_info();
-	wdt->last_ping_cpu = raw_smp_processor_id();
-
-	rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
-	if (!rtc) {
-		dev_info(wdt->dev, "Unable to open rtc device\n");
-	} else {
-		rtc_read_time(rtc, &wdt->tm);
-		rtc_class_close(rtc);
-	}
-}
-
 static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 {
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
 	unsigned long flags, old_wtcnt = 0, wtcnt = 0;
+
+	preempt_disable();
 
 	if (wdt->cluster == LITTLE_CLUSTER)
 		s3c2410wdt_multistage_wdt_keepalive();
@@ -567,8 +547,8 @@ static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 	wtcnt = readl(wdt->reg_base + S3C2410_WTCNT);
 	dev_info(wdt->dev, "Watchdog cluster %u keepalive!, old_wtcnt = %lx, wtcnt = %lx\n",
 		 wdt->cluster, old_wtcnt, wtcnt);
-	if (!(wdt->in_panic || in_interrupt() || wdt->in_suspend))
-		s3c2410wdt_gettime(wdt->cluster);
+
+	preempt_enable();
 
 	return 0;
 }
@@ -994,8 +974,6 @@ static void s3c2410wdt_multistage_wdt_keepalive(void)
 	dev_info(s3c_wdt[index]->dev,
 		 "Watchdog cluster %u keepalive!, old_wtcnt = %lx, wtcnt = %lx\n",
 		 s3c_wdt[index]->cluster, old_wtcnt, wtcnt);
-	if (!(s3c_wdt[index]->in_panic || in_interrupt() || s3c_wdt[index]->in_suspend))
-		s3c2410wdt_gettime(index);
 }
 
 static int s3c2410wdt_multistage_wdt_stop(void)
