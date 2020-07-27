@@ -26,6 +26,7 @@
 #include "gs101-pcie.dtsi"
 #include "gs101-drm-dpu.dtsi"
 #include "gs101-mfc.dtsi"
+#include "gs101-bts.dtsi"
 
 / {
 	compatible = "google,gs101";
