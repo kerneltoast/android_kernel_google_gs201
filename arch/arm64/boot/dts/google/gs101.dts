@@ -826,4 +826,27 @@
 		clocks = <&clock GATE_G2D>;
 		clock-names = "gate";
 	};
+
+	watchdog_cl0@10060000 {
+		compatible = "google,gs101-cl0-wdt";
+		reg = <0x0 0x10060000 0x100>;
+		interrupts = <GIC_SPI IRQ_WDT_CLUSTER0_MISC IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock OSCCLK>, <&clock GATE_WDT_CL0>;
+		clock-names = "rate_watchdog", "gate_watchdog";
+		timeout-sec = <30>;
+		samsung,syscon-phandle = <&pmu_system_controller>;
+		index = <0>; /* if little cluster then index is 0*/
+	};
+
+	watchdog_cl1@10070000 {
+		compatible = "google,gs101-cl1-wdt";
+		reg = <0x0 0x10070000 0x100>;
+		interrupts = <GIC_SPI IRQ_WDT_CLUSTER1_MISC IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock OSCCLK>, <&clock GATE_WDT_CL1>;
+		clock-names = "rate_watchdog", "gate_watchdog";
+		timeout-sec = <30>;
+		samsung,syscon-phandle = <&pmu_system_controller>;
+		index = <1>; /* if little cluster then index is 0*/
+		use_multistage_wdt; /* Use FIQ debug watchdog */
+	};
 };
