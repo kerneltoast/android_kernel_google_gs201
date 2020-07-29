@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google Slider Board device tree source
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+/* Touch is connected to spi_11, pins:
+ *   CLK=GPP23[0], MOSI=GPP23[1], MISO=GPP23[2], CS=GPP23[3]
+ * TS_RESET_L = AE34 = XAPC_GPIO10 = GPP26[0] = <&gpp26 0 0>
+ * TS_SPI_SEL = AD34 = XAPC_GPIO11 = GPP26[1] = <&gpp26 1 0>
+ * TS_INT_R2_L = D11 = XEINT_20 = GPA9[0] = <&gpa9 0 0>
+ * DISP_RATE = N34 = XAPC_GPIO5 = GPP22[1] = <&gpp22 1 0>
+ *
+ * DVDD = PP1800_L25M_TSP_DVDD = F10 = VLDO25M = Maybe "PP1800_L25M_TSP"?
+ *     Indicator is LED DS1105
+ * AVDD = PP3300_L26M_TS_AVDD  = E13 = VLDO26M = Maybe "PP3300_L26M_TSP"?
+ *     Indicator is LED DS1114
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+
+&pinctrl_0 {
+	fts_irq: fts-irq {
+		samsung,pins = "gpa9-0";
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
+};
+
+&pinctrl_5 {
+	fts_reset: fts-reset {
+		samsung,pins = "gpp26-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	fts_switch: fts-switch {
+		samsung,pins = "gpp26-1";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&spi_11 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi11_bus &spi11_cs_func>;
+
+	spitouch: touchscreen@0 {
+		status = "ok";
+		compatible = "st,fts";
+		pinctrl-names = "default";
+		pinctrl-0 = <&fts_irq &fts_reset &fts_switch>;
+		spi-max-frequency = <10000000>;
+		reg = <0>;
+
+		st,irq-gpio = <&gpa9 0 0>;
+		st,reset-gpio = <&gpp26 0 0>;
+		st,switch_gpio = <&gpp26 1 0>;	// Low: AP, High: SLPI
+		st,disp-rate-gpio = <&gpp22 1 0>;
+
+		/* TODO: regulator names below are speculative. They might need
+		 * to be changed when the slider regulator names are defined.
+		 */
+		st,regulator_dvdd = "S2MPG10_LDO25"; /* VIO 1.8V */
+		st,regulator_avdd = "S2MPG10_LDO26"; /* AVDD 3.3V */
+
+		/* Temporarily disable the panel_map. While the DTS compiles
+		 * successfully, its presence causes a kernel panic during
+		 * boot because the panels below are not defined in the maran
+		 * kernel.
+		 */
+#if 0
+		st,panel_map = <&dsi_s6e3hc2_dsc_wqhd_cmd 0>,
+			       <&dsi_nt37280_dsc_fhd_cmd 1>,
+			       <&dsi_nt37280_2a8t_dsc_fhd_cmd 1>,
+			       <&dsi_nt37280_2b8t_dsc_fhd_cmd 1>,
+			       <&dsi_nt37280_7t_dsc_fhd_cmd 1>;
+#endif
+		/* Override table format:
+		 * panel number, extinfo index, mask, value, firmware index
+		 */
+		st,extinfo_override_table = <1  1 0xF0 0x00 2>,
+					    <1  1 0xF0 0x10 2>,
+					    <1  1 0xFC 0x24 3>,
+					    <1  1 0xFC 0x28 4>;
+
+		st,firmware_names = "ftm5_fw_c2.ftb",
+				    "ftm5_fw_f2.ftb",
+				    "ftm5_fw_f2_p2.ftb",
+				    "ftm5_fw_f2_evt1.ftb",
+				    "ftm5_fw_f2_evt2.ftb";
+		st,limits_names = "stm_fts_production_limits_c2.csv",
+				  "stm_fts_production_limits_f2.csv",
+				  "stm_fts_production_limits_f2_p2.csv",
+				  "stm_fts_production_limits_f2_evt1.csv",
+				  "stm_fts_production_limits_f2_evt2.csv";
+		st,sensor_inverted = <0>, <1>, <1>, <1>, <1>;
+
+		/* TODO: remove hardcoded max-coords when the panel_map is
+		 * enabled.
+		 */
+		st,max-coords = <1439 3039>;
+
+		controller-data {
+			samsung,spi-feedback-delay = <1>;
+			samsung,spi-chip-select-mode = <0>;
+		};
+	};
+};
+
