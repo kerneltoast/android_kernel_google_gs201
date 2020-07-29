@@ -88,7 +88,7 @@
 		clock-names = "ipclk_hsi2c", "gate_hsi2c_clk";
 		gpio_scl= <&gpp2 0 0x1>;
 		gpio_sda= <&gpp2 1 0x1>;
-		usireg_offset = <0x00000000>;
+		samsung,usi-offset = <0x00000000>;
 		reg = <0x00000000 0x10900000 0x00001000>;
 		status = "disabled";
 	};
@@ -108,7 +108,7 @@
 		gpio_scl= <&gpp4 0 0x1>;
 		gpio_sda= <&gpp4 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000004>;
+		samsung,usi-offset = <0x00000004>;
 		reg = <0x00000000 0x10910000 0x00001000>;
 		status = "disabled";
 	};
@@ -128,7 +128,7 @@
 		gpio_scl= <&gpp6 0 0x1>;
 		gpio_sda= <&gpp6 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000008>;
+		samsung,usi-offset = <0x00000008>;
 		reg = <0x00000000 0x10920000 0x00001000>;
 		status = "disabled";
 	};
@@ -148,7 +148,7 @@
 		gpio_scl= <&gpp8 0 0x1>;
 		gpio_sda= <&gpp8 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x0000000c>;
+		samsung,usi-offset = <0x0000000c>;
 		reg = <0x00000000 0x10930000 0x00001000>;
 		status = "disabled";
 	};
@@ -168,7 +168,7 @@
 		gpio_scl= <&gpp10 0 0x1>;
 		gpio_sda= <&gpp10 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000010>;
+		samsung,usi-offset = <0x00000010>;
 		reg = <0x00000000 0x10940000 0x00001000>;
 		status = "disabled";
 	};
@@ -188,7 +188,7 @@
 		gpio_scl= <&gpp12 0 0x1>;
 		gpio_sda= <&gpp12 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000014>;
+		samsung,usi-offset = <0x00000014>;
 		reg = <0x00000000 0x10950000 0x00001000>;
 		status = "disabled";
 	};
@@ -208,7 +208,7 @@
 		gpio_scl= <&gpp14 0 0x1>;
 		gpio_sda= <&gpp14 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000018>;
+		samsung,usi-offset = <0x00000018>;
 		reg = <0x00000000 0x10960000 0x00001000>;
 		status = "disabled";
 	};
@@ -228,7 +228,7 @@
 		gpio_scl= <&gpp16 0 0x1>;
 		gpio_sda= <&gpp16 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x0000001c>;
+		samsung,usi-offset = <0x0000001c>;
 		reg = <0x00000000 0x10970000 0x00001000>;
 		status = "disabled";
 	};
@@ -248,7 +248,7 @@
 		gpio_scl= <&gpp18 0 0x1>;
 		gpio_sda= <&gpp18 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000028>;
+		samsung,usi-offset = <0x00000028>;
 		reg = <0x00000000 0x10a20000 0x00001000>;
 		status = "disabled";
 	};
@@ -268,7 +268,7 @@
 		gpio_scl= <&gpp20 0 0x1>;
 		gpio_sda= <&gpp20 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000000>;
+		samsung,usi-offset = <0x00000000>;
 		reg = <0x00000000 0x10d10000 0x00001000>;
 		status = "disabled";
 	};
@@ -288,7 +288,7 @@
 		gpio_scl= <&gpp20 4 0x1>;
 		gpio_sda= <&gpp20 5 0x1>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000004>;
+		samsung,usi-offset = <0x00000004>;
 		reg = <0x00000000 0x10d20000 0x00001000>;
 		status = "disabled";
 	};
@@ -308,7 +308,7 @@
 		gpio_scl= <&gpp21 0 0x1>;
 		gpio_sda= <&gpp21 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000008>;
+		samsung,usi-offset = <0x00000008>;
 		reg = <0x00000000 0x10d30000 0x00001000>;
 		status = "disabled";
 	};
@@ -328,7 +328,7 @@
 		gpio_scl= <&gpp23 0 0x1>;
 		gpio_sda= <&gpp23 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x0000000c>;
+		samsung,usi-offset = <0x0000000c>;
 		reg = <0x00000000 0x10d40000 0x00001000>;
 		status = "disabled";
 	};
@@ -348,7 +348,7 @@
 		gpio_scl= <&gpp23 4 0x1>;
 		gpio_sda= <&gpp23 5 0x1>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000010>;
+		samsung,usi-offset = <0x00000010>;
 		reg = <0x00000000 0x10d50000 0x00001000>;
 		status = "disabled";
 	};
@@ -368,7 +368,7 @@
 		gpio_scl= <&gpp25 0 0x1>;
 		gpio_sda= <&gpp25 1 0x1>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000014>;
+		samsung,usi-offset = <0x00000014>;
 		reg = <0x00000000 0x10d60000 0x00001000>;
 		status = "disabled";
 	};
@@ -387,7 +387,7 @@
 		pinctrl-0 = <&spi1_bus>;
 		interrupts = <GIC_SPI IRQ_USI1_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000000>;
+		samsung,usi-offset = <0x00000000>;
 		reg = <0x00000000 0x10900000 0x00001000>;
 		status = "disabled";
 	};
@@ -406,7 +406,7 @@
 		pinctrl-0 = <&spi2_bus>;
 		interrupts = <GIC_SPI IRQ_USI2_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000004>;
+		samsung,usi-offset = <0x00000004>;
 		reg = <0x00000000 0x10910000 0x00001000>;
 		status = "disabled";
 	};
@@ -425,7 +425,7 @@
 		pinctrl-0 = <&spi3_bus>;
 		interrupts = <GIC_SPI IRQ_USI3_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000008>;
+		samsung,usi-offset = <0x00000008>;
 		reg = <0x00000000 0x10920000 0x00001000>;
 		status = "disabled";
 	};
@@ -444,7 +444,7 @@
 		pinctrl-0 = <&spi4_bus>;
 		interrupts = <GIC_SPI IRQ_USI4_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x0000000c>;
+		samsung,usi-offset = <0x0000000c>;
 		reg = <0x00000000 0x10930000 0x00001000>;
 		status = "disabled";
 	};
@@ -463,7 +463,7 @@
 		pinctrl-0 = <&spi5_bus>;
 		interrupts = <GIC_SPI IRQ_USI5_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000010>;
+		samsung,usi-offset = <0x00000010>;
 		reg = <0x00000000 0x10940000 0x00001000>;
 		status = "disabled";
 	};
@@ -482,7 +482,7 @@
 		pinctrl-0 = <&spi6_bus>;
 		interrupts = <GIC_SPI IRQ_USI6_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000014>;
+		samsung,usi-offset = <0x00000014>;
 		reg = <0x00000000 0x10950000 0x00001000>;
 		status = "disabled";
 	};
@@ -501,7 +501,7 @@
 		pinctrl-0 = <&spi7_bus>;
 		interrupts = <GIC_SPI IRQ_USI7_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000018>;
+		samsung,usi-offset = <0x00000018>;
 		reg = <0x00000000 0x10960000 0x00001000>;
 		status = "disabled";
 	};
@@ -520,7 +520,7 @@
 		pinctrl-0 = <&spi8_bus>;
 		interrupts = <GIC_SPI IRQ_USI8_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x0000001c>;
+		samsung,usi-offset = <0x0000001c>;
 		reg = <0x00000000 0x10970000 0x00001000>;
 		status = "disabled";
 	};
@@ -539,7 +539,7 @@
 		pinctrl-0 = <&spi14_bus>;
 		interrupts = <GIC_SPI IRQ_USI14_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000028>;
+		samsung,usi-offset = <0x00000028>;
 		reg = <0x00000000 0x10a20000 0x00001000>;
 		status = "disabled";
 	};
@@ -558,7 +558,7 @@
 		pinctrl-0 = <&spi0_bus>;
 		interrupts = <GIC_SPI IRQ_USI0_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000000>;
+		samsung,usi-offset = <0x00000000>;
 		reg = <0x00000000 0x10d10000 0x00001000>;
 		status = "disabled";
 	};
@@ -577,7 +577,7 @@
 		pinctrl-0 = <&spi9_bus>;
 		interrupts = <GIC_SPI IRQ_USI9_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000004>;
+		samsung,usi-offset = <0x00000004>;
 		reg = <0x00000000 0x10d20000 0x00001000>;
 		status = "disabled";
 	};
@@ -596,7 +596,7 @@
 		pinctrl-0 = <&spi10_bus>;
 		interrupts = <GIC_SPI IRQ_USI10_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000008>;
+		samsung,usi-offset = <0x00000008>;
 		reg = <0x00000000 0x10d30000 0x00001000>;
 		status = "disabled";
 	};
@@ -615,7 +615,7 @@
 		pinctrl-0 = <&spi11_bus>;
 		interrupts = <GIC_SPI IRQ_USI11_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x0000000c>;
+		samsung,usi-offset = <0x0000000c>;
 		reg = <0x00000000 0x10d40000 0x00001000>;
 		status = "disabled";
 	};
@@ -634,7 +634,7 @@
 		pinctrl-0 = <&spi12_bus>;
 		interrupts = <GIC_SPI IRQ_USI12_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000010>;
+		samsung,usi-offset = <0x00000010>;
 		reg = <0x00000000 0x10d50000 0x00001000>;
 		status = "disabled";
 	};
@@ -653,7 +653,7 @@
 		pinctrl-0 = <&spi13_bus>;
 		interrupts = <GIC_SPI IRQ_USI13_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000014>;
+		samsung,usi-offset = <0x00000014>;
 		reg = <0x00000000 0x10d60000 0x00001000>;
 		status = "disabled";
 	};
@@ -671,7 +671,7 @@
 		clock-names = "gate_uart_clk1", "ipclk_uart1";
 		interrupts = <GIC_SPI IRQ_USI1_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000000>;
+		samsung,usi-offset = <0x00000000>;
 		reg = <0x00000000 0x10900000 0x00001000>;
 		status = "disabled";
 	};
@@ -688,7 +688,7 @@
 		clock-names = "gate_uart_clk2", "ipclk_uart2";
 		interrupts = <GIC_SPI IRQ_USI2_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000004>;
+		samsung,usi-offset = <0x00000004>;
 		reg = <0x00000000 0x10910000 0x00001000>;
 		status = "disabled";
 	};
@@ -705,7 +705,7 @@
 		clock-names = "gate_uart_clk3", "ipclk_uart3";
 		interrupts = <GIC_SPI IRQ_USI3_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000008>;
+		samsung,usi-offset = <0x00000008>;
 		reg = <0x00000000 0x10920000 0x00001000>;
 		status = "disabled";
 	};
@@ -722,7 +722,7 @@
 		clock-names = "gate_uart_clk4", "ipclk_uart4";
 		interrupts = <GIC_SPI IRQ_USI4_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x0000000c>;
+		samsung,usi-offset = <0x0000000c>;
 		reg = <0x00000000 0x10930000 0x00001000>;
 		status = "disabled";
 	};
@@ -739,7 +739,7 @@
 		clock-names = "gate_uart_clk5", "ipclk_uart5";
 		interrupts = <GIC_SPI IRQ_USI5_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000010>;
+		samsung,usi-offset = <0x00000010>;
 		reg = <0x00000000 0x10940000 0x00001000>;
 		status = "disabled";
 	};
@@ -756,7 +756,7 @@
 		clock-names = "gate_uart_clk6", "ipclk_uart6";
 		interrupts = <GIC_SPI IRQ_USI6_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000014>;
+		samsung,usi-offset = <0x00000014>;
 		reg = <0x00000000 0x10950000 0x00001000>;
 		status = "disabled";
 	};
@@ -773,7 +773,7 @@
 		clock-names = "gate_uart_clk7", "ipclk_uart7";
 		interrupts = <GIC_SPI IRQ_USI7_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000018>;
+		samsung,usi-offset = <0x00000018>;
 		reg = <0x00000000 0x10960000 0x00001000>;
 		status = "disabled";
 	};
@@ -790,7 +790,7 @@
 		clock-names = "gate_uart_clk8", "ipclk_uart8";
 		interrupts = <GIC_SPI IRQ_USI8_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x0000001c>;
+		samsung,usi-offset = <0x0000001c>;
 		reg = <0x00000000 0x10970000 0x00001000>;
 		status = "disabled";
 	};
@@ -807,7 +807,7 @@
 		clock-names = "gate_uart_clk14", "ipclk_uart14";
 		interrupts = <GIC_SPI IRQ_USI14_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
-		usireg_offset = <0x00000028>;
+		samsung,usi-offset = <0x00000028>;
 		reg = <0x00000000 0x10a20000 0x00001000>;
 		status = "disabled";
 	};
@@ -825,7 +825,7 @@
 		clock-names = "gate_uart_clk15", "ipclk_uart15";
 		interrupts = <GIC_SPI IRQ_USI0_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000000>;
+		samsung,usi-offset = <0x00000000>;
 		reg = <0x00000000 0x10d10000 0x00001000>;
 		status = "disabled";
 	};
@@ -842,7 +842,7 @@
 		clock-names = "gate_uart_clk9", "ipclk_uart9";
 		interrupts = <GIC_SPI IRQ_USI9_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000004>;
+		samsung,usi-offset = <0x00000004>;
 		reg = <0x00000000 0x10d20000 0x00001000>;
 		status = "disabled";
 	};
@@ -859,7 +859,7 @@
 		clock-names = "gate_uart_clk10", "ipclk_uart10";
 		interrupts = <GIC_SPI IRQ_USI10_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000008>;
+		samsung,usi-offset = <0x00000008>;
 		reg = <0x00000000 0x10d30000 0x00001000>;
 		status = "disabled";
 	};
@@ -876,7 +876,7 @@
 		clock-names = "gate_uart_clk11", "ipclk_uart11";
 		interrupts = <GIC_SPI IRQ_USI11_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x0000000c>;
+		samsung,usi-offset = <0x0000000c>;
 		reg = <0x00000000 0x10d40000 0x00001000>;
 		status = "disabled";
 	};
@@ -893,7 +893,7 @@
 		clock-names = "gate_uart_clk12", "ipclk_uart12";
 		interrupts = <GIC_SPI IRQ_USI12_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000010>;
+		samsung,usi-offset = <0x00000010>;
 		reg = <0x00000000 0x10d50000 0x00001000>;
 		status = "disabled";
 	};
@@ -910,7 +910,7 @@
 		clock-names = "gate_uart_clk13", "ipclk_uart13";
 		interrupts = <GIC_SPI IRQ_USI13_USI_PERIC1 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric1>;
-		usireg_offset = <0x00000014>;
+		samsung,usi-offset = <0x00000014>;
 		reg = <0x00000000 0x10d60000 0x00001000>;
 		status = "disabled";
 	};
@@ -928,7 +928,7 @@
 		clock-names = "gate_uart_clk15", "ipclk_uart15";
 		interrupts = <GIC_SPI IRQ_APM_USI0_UART_ALIVE ITLH>;
 		samsung,usi-phandle = <&sysreg_apm>;
-		usireg_offset = <0x00000000>;
+		samsung,usi-offset = <0x00000000>;
 		reg = <0x00000000 0x175a0000 0x00001000>;
 		status = "disabled";
 	};
@@ -946,7 +946,7 @@
 		clock-names = "gate_uart_clk16", "ipclk_uart16";
 		interrupts = <GIC_SPI IRQ_APM_USI1_UART_ALIVE ITLH>;
 		samsung,usi-phandle = <&sysreg_apm>;
-		usireg_offset = <0x00000004>;
+		samsung,usi-offset = <0x00000004>;
 		reg = <0x00000000 0x175b0000 0x00001000>;
 		status = "disabled";
 	};
@@ -964,7 +964,7 @@
 		clock-names = "gate_uart_clk17", "ipclk_uart17";
 		interrupts = <GIC_SPI IRQ_APM_USI0_USI_ALIVE ITLH>;
 		samsung,usi-phandle = <&sysreg_apm>;
-		usireg_offset = <0x00000008>;
+		samsung,usi-offset = <0x00000008>;
 		reg = <0x00000000 0x175c0000 0x00001000>;
 		status = "disabled";
 	};
