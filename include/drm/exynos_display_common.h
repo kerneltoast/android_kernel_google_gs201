@@ -28,6 +28,8 @@ struct exynos_display_dsc {
 struct exynos_display_mode {
 	/* DSI mode flags in drm_mipi_dsi.h */
 	unsigned long mode_flags;
+	/* command: TE pulse time, video: vbp+vfp time */
+	unsigned int vblank_usec;
 	unsigned int bpc;
 	struct exynos_display_dsc dsc;
 };
