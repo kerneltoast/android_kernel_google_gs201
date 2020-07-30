@@ -34,6 +34,7 @@
 #include "gs101-usi.dtsi"
 #include "gs101-isp.dtsi"
 #include "gs101-sbbm.dtsi"
+#include "gs101-debug.dtsi"
 
 / {
 	compatible = "google,gs101";
