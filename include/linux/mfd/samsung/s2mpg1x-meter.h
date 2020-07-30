@@ -35,4 +35,7 @@ ssize_t s2mpg1x_meter_format_channel(char *buf, ssize_t count, int ch,
 				     u64 acc_data, u32 resolution,
 				     u32 acc_count);
 
+const u32 *s2mpg1x_meter_get_int_samping_rate_table(void);
+const u32 *s2mpg1x_meter_get_ext_samping_rate_table(void);
+
 #endif /* __LINUX_MFD_S2MPG1X_METER_H */

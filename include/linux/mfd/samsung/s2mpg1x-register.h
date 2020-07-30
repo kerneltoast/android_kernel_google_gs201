@@ -28,6 +28,7 @@ typedef enum {
 	INT_250HZ,
 	INT_500HZ,
 	INT_1000HZ,
+	S2MPG1X_INT_FREQ_COUNT,
 } s2mpg1x_int_samp_rate;
 
 typedef enum {
@@ -36,6 +37,7 @@ typedef enum {
 	EXT_30P_5125HZ,
 	EXT_61P_025HZ,
 	EXT_122P_05HZ,
+	S2MPG1X_EXT_FREQ_COUNT,
 } s2mpg1x_ext_samp_rate;
 
 typedef enum {

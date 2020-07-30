@@ -42,6 +42,7 @@
 #define str(val) #val
 #define xstr(s) str(s)
 #define ODPM_RAIL_NAME_STR_LEN_MAX 49
+#define ODPM_FREQ_DECIMAL_UHZ_STR_LEN_MAX 6
 
 #define SWITCH_CHIP_FUNC(infop, func, args...)                                 \
 	do {                                                                   \
@@ -106,6 +107,11 @@ struct odpm_chip {
 	int num_rails;
 	struct odpm_rail_data *rails;
 
+	const u32 *sample_rate_int_uhz;
+	int sample_rate_int_count;
+	const u32 *sample_rate_ext_uhz;
+	int sample_rate_ext_count;
+
 	/* Data */
 	u64 acc_timestamp;
 	s2mpg1x_int_samp_rate int_sampling_rate_i;
@@ -135,22 +141,6 @@ struct odpm_info {
 	struct work_struct work_refresh;
 	struct timer_list timer_refresh;
 	unsigned long jiffies_last_poll;
-};
-
-/* TODO(stayfan): b/156109515
- * Dynamically configure based on DTS
- */
-static u32 int_sample_rate_i_to_uhz[] = {
-	[INT_7P_8125HZ] = 7812500, [INT_15P_625HZ] = 15625000,
-	[INT_31P_25HZ] = 31250000, [INT_62P_5HZ] = 62500000,
-	[INT_125HZ] = 125000000,   [INT_250HZ] = 250000000,
-	[INT_500HZ] = 500000000,   [INT_1000HZ] = 1000000000,
-};
-
-static u32 ext_sample_rate_i_to_uhz[] = {
-	[EXT_7P_628125HZ] = 7628125, [EXT_15P_25625HZ] = 15256250,
-	[EXT_30P_5125HZ] = 30512500, [EXT_61P_025HZ] = 61025000,
-	[EXT_122P_05HZ] = 122050000,
 };
 
 /**
@@ -355,14 +345,15 @@ static void odpm_periodic_refresh_setup(struct odpm_info *info)
 	add_timer(&info->timer_refresh);
 }
 
-static bool odpm_match_int_sample_rate(struct odpm_info *info, u32 sample_rate)
+static bool odpm_match_int_sample_rate(struct odpm_info *info, u32 sample_rate,
+				       int *index)
 {
 	bool success = false;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(int_sample_rate_i_to_uhz); i++) {
-		if (sample_rate == int_sample_rate_i_to_uhz[i]) {
-			info->chip.int_sampling_rate_i = i;
+	for (i = 0; i < info->chip.sample_rate_int_count; i++) {
+		if (sample_rate == info->chip.sample_rate_int_uhz[i]) {
+			*index = i;
 			success = true;
 			break;
 		}
@@ -371,14 +362,15 @@ static bool odpm_match_int_sample_rate(struct odpm_info *info, u32 sample_rate)
 	return success;
 }
 
-static bool odpm_match_ext_sample_rate(struct odpm_info *info, u32 sample_rate)
+static bool odpm_match_ext_sample_rate(struct odpm_info *info, u32 sample_rate,
+				       int *index)
 {
 	bool success = false;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ext_sample_rate_i_to_uhz); i++) {
-		if (sample_rate == ext_sample_rate_i_to_uhz[i]) {
-			info->chip.ext_sampling_rate_i = i;
+	for (i = 0; i < info->chip.sample_rate_ext_count; i++) {
+		if (sample_rate == info->chip.sample_rate_ext_uhz[i]) {
+			*index = i;
 			success = true;
 			break;
 		}
@@ -588,6 +580,7 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 	struct device_node *pmic_np = dev->parent->parent->of_node;
 	struct device_node *odpm_np, *channels_np;
 	u32 sample_rate;
+	int sample_rate_i;
 	int ret;
 
 	if (!pmic_np) {
@@ -614,21 +607,23 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 		pr_err("odpm: cannot read sample rate value\n");
 		return -EINVAL;
 	}
-	if (!odpm_match_int_sample_rate(info, sample_rate)) {
+	if (!odpm_match_int_sample_rate(info, sample_rate, &sample_rate_i)) {
 		pr_err("odpm: cannot parse sample rate value %d\n",
 		       sample_rate);
 		return -EINVAL;
 	}
+	info->chip.int_sampling_rate_i = sample_rate_i;
 	if (of_property_read_u32(odpm_np, "sample-rate-external-uhz",
 				 &sample_rate)) {
 		pr_err("odpm: cannot read external sample rate value\n");
 		return -EINVAL;
 	}
-	if (!odpm_match_ext_sample_rate(info, sample_rate)) {
+	if (!odpm_match_ext_sample_rate(info, sample_rate, &sample_rate_i)) {
 		pr_err("odpm: cannot parse external sample rate value %d\n",
 		       sample_rate);
 		return -EINVAL;
 	}
+	info->chip.ext_sampling_rate_i = sample_rate_i;
 	if (of_property_read_u32(odpm_np, "max-refresh-time-ms",
 				 &info->chip.max_refresh_time_ms)) {
 		pr_err("odpm: cannot read max refresh time value\n");
@@ -668,10 +663,10 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 
 		int int_sampling_rate_i = info->chip.int_sampling_rate_i;
 		int int_sampling_frequency_table_uhz =
-			int_sample_rate_i_to_uhz[int_sampling_rate_i];
+			info->chip.sample_rate_int_uhz[int_sampling_rate_i];
 		int ext_sampling_rate_i = info->chip.ext_sampling_rate_i;
 		int ext_sampling_frequency_table_uhz =
-			ext_sample_rate_i_to_uhz[ext_sampling_rate_i];
+			info->chip.sample_rate_ext_uhz[ext_sampling_rate_i];
 
 		/* b/156680376 - int/ext clocks are correlated */
 		sampling_frequency_uhz =
@@ -714,7 +709,8 @@ static void odpm_print_clock_skew(struct odpm_info *info, u64 elapsed_ms,
 				  u32 acc_count)
 {
 	u64 uHz_estimated = ((u64)acc_count * 1000 * 1000000) / elapsed_ms;
-	u64 uHz = int_sample_rate_i_to_uhz[info->chip.int_sampling_rate_i];
+	u64 uHz =
+		info->chip.sample_rate_int_uhz[info->chip.int_sampling_rate_i];
 
 	u64 ratio_u = (1000000 * uHz_estimated) / uHz;
 	s64 pct_u = (((s64)ratio_u - (1 * 1000000)) * 100);
@@ -738,7 +734,7 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 
 	int sampling_rate_i = info->chip.int_sampling_rate_i;
 	int sampling_frequency_table_uhz =
-		int_sample_rate_i_to_uhz[sampling_rate_i];
+		info->chip.sample_rate_int_uhz[sampling_rate_i];
 	u64 freq_lower_bound;
 	u64 freq_upper_bound;
 
@@ -878,6 +874,52 @@ static int odpm_take_snapshot(struct odpm_info *info)
 	return ret;
 }
 
+/**
+ * Verify and return sampling rate
+ *
+ * @return Sampling rate if >= 0, else error number
+ */
+static int sampling_rate_verify(const char *buf)
+{
+	int hz;
+	int i;
+	char decimal_str[ODPM_FREQ_DECIMAL_UHZ_STR_LEN_MAX + 1];
+	int decimal_len = 0;
+	int decimal_uHz = 0;
+
+	decimal_str[0] = 0;
+
+	if (sscanf(buf, "%d.%" xstr(ODPM_FREQ_DECIMAL_UHZ_STR_LEN_MAX) "s", &hz,
+		   decimal_str) != 2) {
+		decimal_str[0] = 0;
+
+		if (kstrtoint(buf, 10, &hz)) {
+			pr_err("odpm: sampling rate is not a number\n");
+			return -EINVAL;
+		}
+	}
+
+	decimal_len = strlen(decimal_str);
+
+	/* Got a decimal value */
+	if (decimal_len > 0) {
+		const int power_of_10 =
+			(ODPM_FREQ_DECIMAL_UHZ_STR_LEN_MAX - decimal_len);
+
+		/* Parse integer */
+		if (kstrtoint(decimal_str, 10, &decimal_uHz)) {
+			pr_err("odpm: sampling rate decimal is not a number\n");
+			return -EINVAL;
+		}
+
+		/* Multiply by powers of 10 */
+		for (i = 0; i < power_of_10; i++)
+			decimal_uHz *= 10;
+	}
+
+	return 1000000 * hz + decimal_uHz;
+}
+
 static ssize_t sampling_rate_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -885,9 +927,9 @@ static ssize_t sampling_rate_show(struct device *dev,
 	struct odpm_info *info = iio_priv(indio_dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d.%d\n",
-		int_sample_rate_i_to_uhz[info->chip.int_sampling_rate_i] /
+		info->chip.sample_rate_int_uhz[info->chip.int_sampling_rate_i] /
 			1000000,
-		int_sample_rate_i_to_uhz[info->chip.int_sampling_rate_i] %
+		info->chip.sample_rate_int_uhz[info->chip.int_sampling_rate_i] %
 			1000000);
 }
 
@@ -895,16 +937,32 @@ static ssize_t sampling_rate_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
-	int sampling_rate;
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct odpm_info *info = iio_priv(indio_dev);
 
-	if (kstrtoint(buf, 10, &sampling_rate)) {
-		pr_err("sampling_rate is not a number\n");
+	int new_sampling_rate_i;
+	int new_sampling_rate;
+
+	int ret = sampling_rate_verify(buf);
+
+	if (ret < 0)
+		return ret;
+
+	new_sampling_rate = ret;
+	if (!odpm_match_int_sample_rate(info, new_sampling_rate,
+					&new_sampling_rate_i)) {
+		pr_err("odpm: cannot parse new sample rate value; %d uHz\n",
+		       new_sampling_rate);
 		return -EINVAL;
 	}
-	/* TODO(stayfan): 156107511
-	 * Write sample value to the driver
-	 * Force a snapshot on chip
-	 */
+
+	/* Send a refresh and store values */
+	odpm_take_snapshot(info);
+
+	mutex_lock(&info->lock);
+	info->chip.int_sampling_rate_i = new_sampling_rate_i;
+	odpm_io_set_int_sample_rate(info, new_sampling_rate_i);
+	mutex_unlock(&info->lock);
 
 	return count;
 }
@@ -917,9 +975,9 @@ static ssize_t ext_sampling_rate_show(struct device *dev,
 
 	/* No locking needed until sampling rates are dynamic */
 	return scnprintf(buf, PAGE_SIZE, "%d.%d\n",
-		ext_sample_rate_i_to_uhz[info->chip.ext_sampling_rate_i] /
+		info->chip.sample_rate_ext_uhz[info->chip.ext_sampling_rate_i] /
 			1000000,
-		ext_sample_rate_i_to_uhz[info->chip.ext_sampling_rate_i] %
+		info->chip.sample_rate_ext_uhz[info->chip.ext_sampling_rate_i] %
 			1000000);
 }
 
@@ -927,16 +985,32 @@ static ssize_t ext_sampling_rate_store(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int sampling_rate;
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct odpm_info *info = iio_priv(indio_dev);
 
-	if (kstrtoint(buf, 10, &sampling_rate)) {
-		pr_err("sampling_rate is not a number\n");
+	int new_sampling_rate_i;
+	int new_sampling_rate;
+
+	int ret = sampling_rate_verify(buf);
+
+	if (ret < 0)
+		return ret;
+
+	new_sampling_rate = ret;
+	if (!odpm_match_ext_sample_rate(info, new_sampling_rate,
+					&new_sampling_rate_i)) {
+		pr_err("odpm: cannot match new sample rate value; %d uHz\n",
+		       new_sampling_rate);
 		return -EINVAL;
 	}
-	/* TODO(stayfan): 156107511
-	 * Write sample value to the driver
-	 * Force a snapshot on chip
-	 */
+
+	/* Send a refresh and store values */
+	odpm_take_snapshot(info);
+
+	mutex_lock(&info->lock);
+	info->chip.ext_sampling_rate_i = new_sampling_rate_i;
+	odpm_io_set_ext_sample_rate(info, new_sampling_rate_i);
+	mutex_unlock(&info->lock);
 
 	return count;
 }
@@ -1036,8 +1110,8 @@ static ssize_t enabled_rails_store(struct device *dev,
 
 	if (scan_result == 2 && channel >= 0 && channel < ODPM_CHANNEL_MAX) {
 		for (rail_i = 0; rail_i < info->chip.num_rails; rail_i++) {
-			if (strncmp(info->chip.rails[rail_i].name, rail_name,
-				    ODPM_RAIL_NAME_STR_LEN_MAX) == 0) {
+			if (strcmp(info->chip.rails[rail_i].name, rail_name) ==
+			    0) {
 				channel_valid = true;
 				break;
 			}
@@ -1274,14 +1348,28 @@ static int odpm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/* s2mpg1x-specific data */
 	switch (pdev->id_entry->driver_data) {
 	case ODPM_CHIP_S2MPG10:
+	case ODPM_CHIP_S2MPG11:
 		odpm_info->chip.id = pdev->id_entry->driver_data;
+		odpm_info->chip.sample_rate_int_uhz =
+			s2mpg1x_meter_get_int_samping_rate_table();
+		odpm_info->chip.sample_rate_int_count = S2MPG1X_INT_FREQ_COUNT;
+		odpm_info->chip.sample_rate_ext_uhz =
+			s2mpg1x_meter_get_ext_samping_rate_table();
+		odpm_info->chip.sample_rate_ext_count = S2MPG1X_EXT_FREQ_COUNT;
+		break;
+	default:
+		break;
+	}
+
+	switch (pdev->id_entry->driver_data) {
+	case ODPM_CHIP_S2MPG10:
 		odpm_info->chip.hw_id = ID_S2MPG10;
 		odpm_info->i2c = ((struct s2mpg10_meter *)iodev)->i2c;
 		break;
 	case ODPM_CHIP_S2MPG11:
-		odpm_info->chip.id = pdev->id_entry->driver_data;
 		odpm_info->chip.hw_id = ID_S2MPG11;
 		odpm_info->i2c = ((struct s2mpg11_meter *)iodev)->i2c;
 		break;

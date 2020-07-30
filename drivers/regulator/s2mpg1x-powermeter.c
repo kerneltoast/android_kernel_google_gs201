@@ -41,6 +41,19 @@ const int COMMON_ADDRESS[ADDRESS_COUNT][ID_COUNT] = {
 	[ADDRESS_BUCKEN1] = { S2MPG10_METER_BUCKEN1, S2MPG11_METER_BUCKEN1 },
 };
 
+const u32 s2mpg1x_int_sample_rate_uhz[S2MPG1X_INT_FREQ_COUNT] = {
+	[INT_7P_8125HZ] = 7812500, [INT_15P_625HZ] = 15625000,
+	[INT_31P_25HZ] = 31250000, [INT_62P_5HZ] = 62500000,
+	[INT_125HZ] = 125000000,   [INT_250HZ] = 250000000,
+	[INT_500HZ] = 500000000,   [INT_1000HZ] = 1000000000,
+};
+
+const u32 s2mpg1x_ext_sample_rate_uhz[S2MPG1X_EXT_FREQ_COUNT] = {
+	[EXT_7P_628125HZ] = 7628125, [EXT_15P_25625HZ] = 15256250,
+	[EXT_30P_5125HZ] = 30512500, [EXT_61P_025HZ] = 61025000,
+	[EXT_122P_05HZ] = 122050000,
+};
+
 static int s2mpg1x_update_reg(s2mpg1x_id_t id, struct i2c_client *i2c, u8 reg,
 			      u8 val, u8 mask)
 {
@@ -150,6 +163,18 @@ int s2mpg1x_meter_set_ext_samp_rate(s2mpg1x_id_t id, struct i2c_client *i2c,
 				  hz, EXT_SAMP_RATE_MASK);
 }
 EXPORT_SYMBOL_GPL(s2mpg1x_meter_set_ext_samp_rate);
+
+const u32 *s2mpg1x_meter_get_int_samping_rate_table(void)
+{
+	return s2mpg1x_int_sample_rate_uhz;
+}
+EXPORT_SYMBOL_GPL(s2mpg1x_meter_get_int_samping_rate_table);
+
+const u32 *s2mpg1x_meter_get_ext_samping_rate_table(void)
+{
+	return s2mpg1x_ext_sample_rate_uhz;
+}
+EXPORT_SYMBOL_GPL(s2mpg1x_meter_get_ext_samping_rate_table);
 
 MODULE_DESCRIPTION("SAMSUNG S2MPG1X Powermeter Driver");
 MODULE_LICENSE("GPL");
