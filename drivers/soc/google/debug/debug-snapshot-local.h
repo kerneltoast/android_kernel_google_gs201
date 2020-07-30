@@ -111,6 +111,7 @@ extern struct dbg_snapshot_log_misc dss_log_misc;
 #define DSS_MMU_REG_OFFSET		SZ_512
 #define DSS_CORE_REG_OFFSET		SZ_512
 #define DSS_MAX_BL_SIZE			(24)
+#define DSS_PANIC_LOG_SIZE		SZ_1K
 
 /* Sign domain */
 #define DSS_SIGN_RESET			0x0

@@ -444,17 +444,39 @@ static void dbg_snapshot_dump_panic(char *str, size_t len)
 				str, len);
 }
 
+static struct die_args *tombstone;
+
 static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 				   unsigned long l, void *buf)
 {
+	char kernel_panic_msg[DSS_PANIC_LOG_SIZE] = "Kernel Panic";
 	unsigned long cpu;
 
 	if (!dbg_snapshot_get_enable())
 		return 0;
 
+	if (tombstone) { /* tamper the panic message for Oops */
+		char pc_symn[KSYM_SYMBOL_LEN] = "<unknown>";
+		char lr_symn[KSYM_SYMBOL_LEN] = "<unknown>";
+
+#if defined(CONFIG_ARM)
+		sprint_symbol(pc_symn, tombstone->regs->ARM_pc);
+		sprint_symbol(lr_symn, tombstone->regs->ARM_lr);
+#elif defined(CONFIG_ARM64)
+		sprint_symbol(pc_symn, tombstone->regs->pc);
+		sprint_symbol(lr_symn, tombstone->regs->regs[30]);
+#endif
+		scnprintf(kernel_panic_msg, sizeof(kernel_panic_msg),
+				"KP: %s: comm:%s PC:%s LR:%s", (char *)buf,
+				current->comm, pc_symn, lr_symn);
+	} else {
+		scnprintf(kernel_panic_msg, sizeof(kernel_panic_msg), "KP: %s",
+				(char *)buf);
+	}
+
 	/* Again disable log_kevents */
 	dbg_snapshot_set_item_enable("log_kevents", false);
-	dbg_snapshot_dump_panic(buf, strnlen(buf, sizeof(buf)));
+	dbg_snapshot_dump_panic(kernel_panic_msg, strlen(kernel_panic_msg));
 	dbg_snapshot_report_reason(DSS_SIGN_PANIC);
 	for_each_possible_cpu(cpu) {
 		if (cpu_is_offline(cpu))
@@ -476,15 +498,17 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 }
 
 static int dbg_snapshot_die_handler(struct notifier_block *nb,
-				   unsigned long l, void *buf)
+				   unsigned long l, void *data)
 {
-	struct die_args *args = (struct die_args *)buf;
-	struct pt_regs *regs = args->regs;
+	static struct die_args args;
 
-	if (user_mode(regs))
+	memcpy(&args, data, sizeof(args));
+	tombstone = &args;
+
+	if (user_mode(tombstone->regs))
 		return NOTIFY_DONE;
 
-	dbg_snapshot_save_context(regs);
+	dbg_snapshot_save_context(tombstone->regs);
 	dbg_snapshot_set_item_enable("log_kevents", false);
 
 	return NOTIFY_DONE;
