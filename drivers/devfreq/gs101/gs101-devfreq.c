@@ -43,6 +43,7 @@
 #include "../../soc/google/acpm/acpm.h"
 #include "../../soc/google/acpm/acpm_ipc.h"
 #endif
+#include <soc/google/debug-snapshot.h>
 
 #include "../governor.h"
 
