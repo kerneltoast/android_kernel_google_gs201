@@ -933,7 +933,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.init = tcpci_init;
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 
-	chip->log = debugfs_logbuffer_register("usbpd");
+	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
 		dev_err(&client->dev, "logbuffer get failed");
 		return PTR_ERR(chip->log);
@@ -1040,7 +1040,7 @@ teardown_bc12:
 unreg_psy:
 	usb_psy_teardown(chip->usb_psy_data);
 logbuffer_unreg:
-	debugfs_logbuffer_unregister(chip->log);
+	logbuffer_unregister(chip->log);
 
 	return ret;
 }
@@ -1058,7 +1058,7 @@ static int max77759_remove(struct i2c_client *client)
 	if (!IS_ERR_OR_NULL(chip->bc12))
 		bc12_teardown(chip->bc12);
 	if (!IS_ERR_OR_NULL(chip->log))
-		debugfs_logbuffer_unregister(chip->log);
+		logbuffer_unregister(chip->log);
 	if (!IS_ERR_OR_NULL(chip->extcon))
 		devm_extcon_dev_free(chip->dev, chip->extcon);
 
