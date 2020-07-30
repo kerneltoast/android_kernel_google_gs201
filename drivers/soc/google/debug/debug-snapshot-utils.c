@@ -205,7 +205,10 @@ static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_mai
 	unsigned char idx = 0;
 	unsigned long state, pc = 0;
 
-	if ((tsk == NULL) || !try_get_task_stack(tsk))
+	if ((!tsk) || !try_get_task_stack(tsk) ||
+			!(tsk->state == TASK_RUNNING ||
+				tsk->state == TASK_UNINTERRUPTIBLE ||
+				tsk->state == TASK_KILLABLE))
 		return;
 
 	state = tsk->state | tsk->exit_state;
@@ -221,17 +224,12 @@ static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_mai
 	 */
 	touch_softlockup_watchdog();
 
-	if (tsk->state == TASK_RUNNING ||
-	    tsk->state == TASK_UNINTERRUPTIBLE ||
-	    tsk->state == TASK_KILLABLE) {
-		pr_info("%8d %16llu %16llu %16llu %c(%ld) %3d %16pK %16pK %c %16s\n",
-			tsk->pid, tsk->utime, tsk->stime,
-			tsk->se.exec_start, state_array[idx], (tsk->state),
-			task_cpu(tsk), pc, (unsigned long)tsk,
-			is_main ? '*' : ' ', tsk->comm);
+	pr_info("%8d %16llu %16llu %16llu %c(%ld) %3d %16pK %16pK %c %16s\n",
+		tsk->pid, tsk->utime, tsk->stime,
+		tsk->se.exec_start, state_array[idx], (tsk->state),
+		task_cpu(tsk), pc, tsk, is_main ? '*' : ' ', tsk->comm);
 
-		sched_show_task(tsk);
-	}
+	sched_show_task(tsk);
 }
 
 static inline struct task_struct *get_next_thread(struct task_struct *tsk)
