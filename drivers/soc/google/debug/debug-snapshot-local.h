@@ -119,6 +119,7 @@ extern struct dbg_snapshot_log_misc dss_log_misc;
 #define DSS_SIGN_ALIVE			0xFACE
 #define DSS_SIGN_DEAD			0xDEAD
 #define DSS_SIGN_PANIC			0xBABA
+#define DSS_SIGN_UNKNOWN_REBOOT		0xCACA
 #define DSS_SIGN_SAFE_FAULT		0xFAFA
 #define DSS_SIGN_NORMAL_REBOOT		0xCAFE
 #define DSS_SIGN_LOCKUP			0xDEADBEEF

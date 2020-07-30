@@ -611,6 +611,8 @@ void dbg_snapshot_init_utils(void)
 					   (vaddr + DSS_HEADER_SZ + DSS_MMU_REG_SZ +
 					    i * DSS_CORE_REG_OFFSET);
 	}
+	/* write default reboot reason as unknown reboot */
+	dbg_snapshot_report_reason(DSS_SIGN_UNKNOWN_REBOOT);
 
 	register_die_notifier(&nb_die_block);
 	register_restart_handler(&nb_restart_block);
