@@ -5,6 +5,8 @@
  * Copyright 2019 Google LLC
  */
 
+#include <dt-bindings/soc/google/debug-snapshot-def.h>
+
 / {
 
 	ramoops {
@@ -80,6 +82,33 @@
 			compatible = "exynos,modem_if";
 			reg = <0x0 0xE8000000 0x08000000>;
 			rmem_index = <2>;
+		};
+
+		debug_snapshot {
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+			header: header {
+				reg = <0 DSS_HEADER_ADDR DSS_HEADER_SIZE>;
+			};
+			log_kevents: log_kevents {
+				reg = <0 DSS_LOG_KEVENTS_ADDR
+						DSS_LOG_KEVENTS_SIZE>;
+			};
+			log_s2d: log_s2d {
+				reg = <0 DSS_LOG_S2D_ADDR DSS_LOG_S2D_SIZE>;
+				no-map;
+			};
+			log_arrdumpreset: log_arrdumpreset {
+				reg = <0 DSS_LOG_ARRAYRESET_ADDR
+						DSS_LOG_ARRAYRESET_SIZE>;
+				no-map;
+			};
+			log_arrdumppanic: log_arrdumppanic {
+				reg = <0 DSS_LOG_ARRAYPANIC_ADDR
+						DSS_LOG_ARRAYPANIC_SIZE>;
+				no-map;
+			};
 		};
 	};
 };
