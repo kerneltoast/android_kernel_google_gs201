@@ -44,7 +44,7 @@ extern void dbg_snapshot_qd_dump_stack(u64 sp);
 extern int dbg_snapshot_get_sjtag_status(void);
 extern void dbg_snapshot_ecc_dump(void);
 extern int dbg_snapshot_start_watchdog(int sec);
-extern int dbg_snapshot_expire_watchdog(void);
+extern int dbg_snapshot_emergency_reboot(char *str);
 extern int dbg_snapshot_kick_watchdog(void);
 extern unsigned int dbg_snapshot_get_val_offset(unsigned int offset);
 extern void dbg_snapshot_set_val_offset(unsigned int val, unsigned int offset);
@@ -149,7 +149,7 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_qd_enabled()		(0)
 
 #define dbg_snapshot_start_watchdog(a)		(-1)
-#define dbg_snapshot_expire_watchdog()		(-1)
+#define dbg_snapshot_emergency_reboot(a)	(-1)
 #define dbg_snapshot_kick_watchdog()		(-1)
 #define dbg_snapshot_get_val_offset(a)		(0)
 

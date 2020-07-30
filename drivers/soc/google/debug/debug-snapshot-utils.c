@@ -114,6 +114,14 @@ static u64 read_erxaddr_el1(void)
 	return reg;
 }
 
+static void dbg_snapshot_dump_panic(char *str, size_t len)
+{
+	/*  This function is only one which runs in panic function */
+	if (str && len && len < DSS_PANIC_LOG_SIZE)
+		memcpy(dbg_snapshot_get_header_vaddr() + DSS_OFFSET_PANIC_STRING,
+				str, len);
+}
+
 static void dbg_snapshot_set_core_power_stat(unsigned int val, unsigned int cpu)
 {
 	void __iomem *header = dbg_snapshot_get_header_vaddr();
@@ -169,25 +177,29 @@ int dbg_snapshot_start_watchdog(int sec)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_start_watchdog);
 
-int dbg_snapshot_expire_watchdog(void)
+int dbg_snapshot_emergency_reboot(char *str)
 {
 	void *addr;
+	char reboot_msg[DSS_PANIC_LOG_SIZE] = "Emergency Reboot";
 
 	if (!dss_soc_ops.expire_watchdog) {
 		dev_emerg(dss_desc.dev, "There is no wdt functions!\n");
 		return -ENODEV;
 	}
-
 	addr = return_address(0);
 
-	dbg_snapshot_set_wdt_caller(addr);
-	dss_soc_ops.expire_watchdog(1000, 0);
-	cache_flush_all();
-	dev_emerg(dss_desc.dev, "Caller: %pS, WDTRESET right now!\n", addr);
+	dbg_snapshot_set_wdt_caller((unsigned long)addr);
+	if (str)
+		scnprintf(reboot_msg, sizeof(reboot_msg), str);
 
-	return dss_soc_ops.expire_watchdog(5, 0);
+	dev_emerg(dss_desc.dev, "WDT Caller: %pS %s\n", addr, str ? str : "");
+
+	dbg_snapshot_dump_panic(reboot_msg, strlen(reboot_msg));
+	dump_stack();
+
+	return dss_soc_ops.expire_watchdog(3, 0);
 }
-EXPORT_SYMBOL_GPL(dbg_snapshot_expire_watchdog);
+EXPORT_SYMBOL_GPL(dbg_snapshot_emergency_reboot);
 
 int dbg_snapshot_kick_watchdog(void)
 {
@@ -436,14 +448,6 @@ static void dbg_snapshot_save_context(struct pt_regs *regs)
 	cache_flush_all();
 }
 
-static void dbg_snapshot_dump_panic(char *str, size_t len)
-{
-	/*  This function is only one which runs in panic function */
-	if (str && len && len < SZ_512)
-		memcpy(dbg_snapshot_get_header_vaddr() + DSS_OFFSET_PANIC_STRING,
-				str, len);
-}
-
 static struct die_args *tombstone;
 
 static int dbg_snapshot_panic_handler(struct notifier_block *nb,
@@ -492,7 +496,7 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	dbg_snapshot_save_context(NULL);
 
 	if (dss_desc.panic_to_wdt)
-		dbg_snapshot_expire_watchdog();
+		dbg_snapshot_emergency_reboot(kernel_panic_msg);
 
 	return 0;
 }
@@ -565,7 +569,7 @@ void dbg_snapshot_do_dpm_policy(unsigned int policy)
 		break;
 	case GO_WATCHDOG_ID:
 	case GO_S2D_ID:
-		if (dbg_snapshot_expire_watchdog())
+		if (dbg_snapshot_emergency_reboot("For S2D"))
 			panic("WDT rst fail for s2d, wdt device not probed");
 		dbg_snapshot_spin_func();
 		break;
