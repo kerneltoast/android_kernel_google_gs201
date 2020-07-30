@@ -104,8 +104,8 @@ extern struct dbg_snapshot_log_misc dss_log_misc;
 #define DSS_HEADER_SZ			SZ_4K	/* 0x0 -- 0x1000 */
 #define DSS_MMU_REG_SZ			SZ_4K	/* 0x1000 -- 0x2000 */
 #define DSS_CORE_REG_SZ			SZ_4K	/* 0x2000 -- 0x3000 */
+#define DSS_APM_CORE_REG_SZ		SZ_256
 #define DSS_DBGC_SRAM_LOG_SZ		SZ_8K	/* 0x3100 -- 0x5100 */
-#define DSS_DPM_DT_SZ			SZ_8K	/* 0x5000 -- 0x7000 */
 #define DSS_DBGC_DRAM_LOG_SZ		SZ_16K	/* 0x7000 -- 0xB000 */
 
 #define DSS_MMU_REG_OFFSET		SZ_512
