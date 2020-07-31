@@ -581,6 +581,10 @@ void dbg_snapshot_do_dpm_policy(unsigned int policy)
 		if (dss_soc_ops.run_scandump_mode)
 			dss_soc_ops.run_scandump_mode();
 		break;
+	case GO_HALT_ID:
+		if (dss_soc_ops.stop_all_cpus)
+			dss_soc_ops.stop_all_cpus();
+		break;
 	}
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_do_dpm_policy);
