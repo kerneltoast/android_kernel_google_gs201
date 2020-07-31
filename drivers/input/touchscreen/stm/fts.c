@@ -6314,7 +6314,7 @@ static void __exit fts_driver_exit(void)
 #endif
 }
 
-
+MODULE_SOFTDEP("pre: i2c-acpm");
 MODULE_DESCRIPTION("STMicroelectronics MultiTouch IC Driver");
 MODULE_AUTHOR("STMicroelectronics");
 MODULE_LICENSE("GPL v2");
