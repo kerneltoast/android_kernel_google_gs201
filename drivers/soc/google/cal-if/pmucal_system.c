@@ -1,7 +1,7 @@
 #include "pmucal_system.h"
 #include "pmucal_rae.h"
 #include "pmucal_powermode.h"
-#include <soc/google/exynos-debug.h>
+#include <soc/google/debug-snapshot.h>
 
 unsigned int pmucal_sys_powermode[NUM_SYS_POWERDOWN] = {0xffffffff, };
 
@@ -16,22 +16,26 @@ unsigned int pmucal_sys_powermode[NUM_SYS_POWERDOWN] = {0xffffffff, };
 int pmucal_system_enter(int mode)
 {
 	int ret;
+	char err_msg[128];
 
+	err_msg[0] = '\0';
 	if (mode != SYS_SICD)
-#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_IN);
-#endif
 
 	if (mode >= NUM_SYS_POWERDOWN) {
-		pr_err("%s %s: mode index(%d) is out of supported range (0~%d).\n",
-				PMUCAL_PREFIX, __func__, mode, NUM_SYS_POWERDOWN);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: mode index(%d) is out of supported range (0~%d).",
+			PMUCAL_PREFIX, __func__, mode, NUM_SYS_POWERDOWN);
 		ret = -EINVAL;
 		goto err_out;
 	}
 
 	if (!pmucal_lpm_list[mode].enter) {
-		pr_err("%s %s: there is no sequence element for entering mode(%d).\n",
-				PMUCAL_PREFIX, __func__, mode);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: there is no sequence element for entering mode(%d).",
+			PMUCAL_PREFIX, __func__, mode);
 		ret = -ENOENT;
 		goto err_out;
 	}
@@ -43,15 +47,15 @@ int pmucal_system_enter(int mode)
 	ret = pmucal_rae_handle_seq(pmucal_lpm_list[mode].enter,
 				pmucal_lpm_list[mode].num_enter);
 	if (ret) {
-		pr_err("%s %s: error on handling enter sequence. (mode : %d)\n",
-				PMUCAL_PREFIX, __func__, mode);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: error on handling enter sequence. (mode : %d)",
+			PMUCAL_PREFIX, __func__, mode);
 		goto err_out;
 	}
 
 	if (mode != SYS_SICD)
-#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_OUT);
-#endif
 
 	pmucal_dbg_set_emulation(pmucal_lpm_list[mode].dbg);
 	pmucal_dbg_do_profile(pmucal_lpm_list[mode].dbg, false);
@@ -59,8 +63,7 @@ int pmucal_system_enter(int mode)
 	return 0;
 
 err_out:
-	dump_stack();
-	s3c2410wdt_set_emergency_reset(0, 0);
+	dbg_snapshot_emergency_reboot(err_msg);
 
 	return ret;
 }
@@ -76,22 +79,26 @@ err_out:
 int pmucal_system_exit(int mode)
 {
 	int ret;
+	char err_msg[128];
 
+	err_msg[0] = '\0';
 	if (mode != SYS_SICD)
-#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_IN);
-#endif
 
 	if (mode >= NUM_SYS_POWERDOWN) {
-		pr_err("%s %s: mode index(%d) is out of supported range (0~%d).\n",
-				PMUCAL_PREFIX, __func__, mode, NUM_SYS_POWERDOWN);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: mode index(%d) is out of supported range (0~%d).",
+			PMUCAL_PREFIX, __func__, mode, NUM_SYS_POWERDOWN);
 		ret = -EINVAL;
 		goto err_out;
 	}
 
 	if (!pmucal_lpm_list[mode].exit) {
-		pr_err("%s %s: there is no sequence element for exiting mode(%d).\n",
-				PMUCAL_PREFIX, __func__, mode);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: there is no sequence element for exiting mode(%d).",
+			PMUCAL_PREFIX, __func__, mode);
 		ret = -ENOENT;
 		goto err_out;
 	}
@@ -99,31 +106,31 @@ int pmucal_system_exit(int mode)
 	ret = pmucal_rae_handle_seq(pmucal_lpm_list[mode].exit,
 				pmucal_lpm_list[mode].num_exit);
 	if (ret) {
-		pr_err("%s %s: error on handling exit sequence. (mode : %d)\n",
-				PMUCAL_PREFIX, __func__, mode);
+		scnprintf(err_msg, sizeof(err_msg),
+			  "%s %s: error on handling exit sequence. (mode : %d)",
+			  PMUCAL_PREFIX, __func__, mode);
 		goto err_out;
 	}
 
 	ret = pmucal_rae_restore_seq(pmucal_lpm_list[mode].save,
 				pmucal_lpm_list[mode].num_save);
 	if (ret) {
-		pr_err("%s %s: error on handling restore sequence. (mode : %d)\n",
-				PMUCAL_PREFIX, __func__, mode);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: error on handling restore sequence. (mode : %d)",
+			PMUCAL_PREFIX, __func__, mode);
 		goto err_out;
 	}
 
 	if (mode != SYS_SICD)
-#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_OUT);
-#endif
 
 	pmucal_dbg_do_profile(pmucal_lpm_list[mode].dbg, true);
 
 	return 0;
 
 err_out:
-	dump_stack();
-	s3c2410wdt_set_emergency_reset(0, 0);
+	dbg_snapshot_emergency_reboot(err_msg);
 
 	return ret;
 }
@@ -139,22 +146,26 @@ err_out:
 int pmucal_system_earlywakeup(int mode)
 {
 	int ret;
+	char err_msg[128];
 
+	err_msg[0] = '\0';
 	if (mode != SYS_SICD)
-#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_IN);
-#endif
 
 	if (mode >= NUM_SYS_POWERDOWN) {
-		pr_err("%s %s: mode index(%d) is out of supported range (0~%d).\n",
-				PMUCAL_PREFIX, __func__, mode, NUM_SYS_POWERDOWN);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: mode index(%d) is out of supported range (0~%d).",
+			PMUCAL_PREFIX, __func__, mode, NUM_SYS_POWERDOWN);
 		ret = -EINVAL;
 		goto err_out;
 	}
 
 	if (!pmucal_lpm_list[mode].early_wakeup) {
-		pr_err("%s %s: there is no sequence element for early_wkup mode(%d).\n",
-				PMUCAL_PREFIX, __func__, mode);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: there is no sequence element for early_wkup mode(%d).",
+			PMUCAL_PREFIX, __func__, mode);
 		ret = -ENOENT;
 		goto err_out;
 	}
@@ -162,30 +173,31 @@ int pmucal_system_earlywakeup(int mode)
 	ret = pmucal_rae_handle_seq(pmucal_lpm_list[mode].early_wakeup,
 				pmucal_lpm_list[mode].num_early_wakeup);
 	if (ret) {
-		pr_err("%s %s: error on handling elry_wkup sequence. (mode : %d)\n",
-				PMUCAL_PREFIX, __func__, mode);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: error on handling elry_wkup sequence. (mode : %d)",
+			PMUCAL_PREFIX, __func__, mode);
 		goto err_out;
 	}
 
 	ret = pmucal_rae_restore_seq(pmucal_lpm_list[mode].save,
 				pmucal_lpm_list[mode].num_save);
 	if (ret) {
-		pr_err("%s %s: error on handling restore sequence. (mode : %d)\n",
-				PMUCAL_PREFIX, __func__, mode);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: error on handling restore sequence. (mode : %d)",
+			PMUCAL_PREFIX, __func__, mode);
 		goto err_out;
 	}
 	pmucal_powermode_hint_clear();
 
 	if (mode != SYS_SICD)
-#if 0
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_OUT);
-#endif
 
 	return 0;
 
 err_out:
-	dump_stack();
-	s3c2410wdt_set_emergency_reset(0, 0);
+	dbg_snapshot_emergency_reboot(err_msg);
 
 	return ret;
 }

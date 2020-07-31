@@ -1,6 +1,6 @@
 #include "pmucal_local.h"
 #include "pmucal_rae.h"
-#include <soc/google/exynos-debug.h>
+#include <soc/google/debug-snapshot.h>
 
 #ifndef PWRCAL_TARGET_LINUX
 struct pmucal_pd *pmucal_blkpwr_list[PMUCAL_NUM_PDS];
@@ -17,20 +17,24 @@ struct pmucal_pd *pmucal_blkpwr_list[PMUCAL_NUM_PDS];
 int pmucal_local_enable(unsigned int pd_id)
 {
 	int ret = 0;
-#if 0
+	char err_msg[128];
+
+	err_msg[0] = '\0';
 	dbg_snapshot_pmu(pd_id, __func__, DSS_FLAG_IN);
-#endif
 
 	if (pd_id >= pmucal_pd_list_size) {
-		pr_err("%s pd index(%d) is out of supported range (0~%d).\n",
-				PMUCAL_PREFIX, pd_id, pmucal_pd_list_size);
+		scnprintf(err_msg, sizeof(err_msg),
+			  "%s pd index(%d) is out of supported range (0~%d).",
+			  PMUCAL_PREFIX, pd_id, pmucal_pd_list_size);
 		ret = -EINVAL;
 		goto err_out;
 	}
 
 	if (!pmucal_pd_list[pd_id].on) {
-		pr_err("%s there is no sequence element for pd(%d) power-on.\n",
-				PMUCAL_PREFIX, pd_id);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s there is no sequence element for pd(%d) power-on.",
+			PMUCAL_PREFIX, pd_id);
 		ret = -ENOENT;
 		goto err_out;
 	}
@@ -38,16 +42,20 @@ int pmucal_local_enable(unsigned int pd_id)
 	ret = pmucal_rae_handle_seq(pmucal_pd_list[pd_id].on,
 				pmucal_pd_list[pd_id].num_on);
 	if (ret) {
-		pr_err("%s %s: error on handling enable sequence. (pd_id : %d)\n",
-				PMUCAL_PREFIX, __func__, pd_id);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: error on handling enable sequence. (pd_id : %d)",
+			PMUCAL_PREFIX, __func__, pd_id);
 		goto err_out;
 	}
 
 	if (pmucal_pd_list[pd_id].need_smc) {
 		ret = exynos_pd_tz_restore(pmucal_pd_list[pd_id].need_smc);
 		if (ret) {
-			pr_err("%s %s: DTZPC restore smc error. (pd_id : %d)\n",
-					PMUCAL_PREFIX, __func__, pd_id);
+			scnprintf(
+				err_msg, sizeof(err_msg),
+				"%s %s: DTZPC restore smc error. (pd_id : %d)",
+				PMUCAL_PREFIX, __func__, pd_id);
 			goto err_out;
 		}
 	}
@@ -55,9 +63,10 @@ int pmucal_local_enable(unsigned int pd_id)
 	ret = pmucal_rae_restore_seq(pmucal_pd_list[pd_id].save,
 				pmucal_pd_list[pd_id].num_save);
 	if (ret) {
-		pr_err("%s %s: error on handling restore sequence. (pd_id : %d)\n",
-				PMUCAL_PREFIX, __func__, pd_id);
-
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s %s: error on handling restore sequence. (pd_id : %d)",
+			PMUCAL_PREFIX, __func__, pd_id);
 		goto err_out;
 	}
 #if 0
@@ -69,8 +78,7 @@ int pmucal_local_enable(unsigned int pd_id)
 	return 0;
 
 err_out:
-	dump_stack();
-	s3c2410wdt_set_emergency_reset(0, 0);
+	dbg_snapshot_emergency_reboot(err_msg);
 
 	return ret;
 }
@@ -86,20 +94,25 @@ err_out:
 int pmucal_local_disable(unsigned int pd_id)
 {
 	int ret = 0, i;
-#if 0
+	char err_msg[128];
+
+	err_msg[0] = '\0';
+
 	dbg_snapshot_pmu(pd_id, __func__, DSS_FLAG_IN);
-#endif
 
 	if (pd_id >= pmucal_pd_list_size) {
-		pr_err("%s pd index(%d) is out of supported range (0~%d).\n",
-				PMUCAL_PREFIX, pd_id, pmucal_pd_list_size);
+		scnprintf(err_msg, sizeof(err_msg),
+			  "%s pd index(%d) is out of supported range (0~%d).",
+			  PMUCAL_PREFIX, pd_id, pmucal_pd_list_size);
 		ret = -EINVAL;
 		goto err_out;
 	}
 
 	if (!pmucal_pd_list[pd_id].off) {
-		pr_err("%s there is no sequence element for pd(%d) power-off.\n",
-				PMUCAL_PREFIX, pd_id);
+		scnprintf(
+			err_msg, sizeof(err_msg),
+			"%s there is no sequence element for pd(%d) power-off.",
+			PMUCAL_PREFIX, pd_id);
 		ret = -ENOENT;
 		goto err_out;
 	}
@@ -110,8 +123,9 @@ int pmucal_local_disable(unsigned int pd_id)
 	if (pmucal_pd_list[pd_id].need_smc) {
 		ret = exynos_pd_tz_save(pmucal_pd_list[pd_id].need_smc);
 		if (ret) {
-			pr_err("%s %s: DTZPC save smc error. (pd_id : %d)\n",
-					PMUCAL_PREFIX, __func__, pd_id);
+			scnprintf(err_msg, sizeof(err_msg),
+				  "%s %s: DTZPC save smc error. (pd_id : %d)",
+				  PMUCAL_PREFIX, __func__, pd_id);
 			goto err_out;
 		}
 	}
@@ -121,8 +135,10 @@ int pmucal_local_disable(unsigned int pd_id)
 	ret = pmucal_rae_handle_seq(pmucal_pd_list[pd_id].off,
 				pmucal_pd_list[pd_id].num_off);
 	if (ret) {
-		pr_err("%s %s: error on handling disable sequence. (pd_id : %d)\n",
-				PMUCAL_PREFIX, __func__, pd_id);
+		scnprintf(err_msg, sizeof(err_msg),
+			  "%s %s: error on handling disable sequence. (pd: %s)",
+			  PMUCAL_PREFIX, __func__, pmucal_pd_list[pd_id].name);
+		pr_err("%s\n", err_msg);
 
 		for (i = 0; i < pmucal_pd_list[pd_id].num_save; i++) {
 			pr_err("%s[0x%x] = 0x%x\n", pmucal_pd_list[pd_id].save[i].sfr_name,
@@ -132,17 +148,15 @@ int pmucal_local_disable(unsigned int pd_id)
 
 		goto err_out;
 	}
-#if 0
+
 	dbg_snapshot_pmu(pd_id, __func__, DSS_FLAG_OUT);
-#endif
 
 	pmucal_dbg_do_profile(pmucal_pd_list[pd_id].dbg, false);
 
 	return 0;
 
 err_out:
-	dump_stack();
-	s3c2410wdt_set_emergency_reset(0, 0);
+	dbg_snapshot_emergency_reboot(err_msg);
 
 	return ret;
 }
