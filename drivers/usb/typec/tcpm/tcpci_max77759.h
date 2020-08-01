@@ -24,6 +24,7 @@ struct max77759_plat {
 	struct power_supply *usb_psy;
 	struct max77759_contaminant *contaminant;
 	struct gvotable_election *usb_icl_proto_el;
+	struct gvotable_election *charger_mode_votable;
 	bool vbus_enabled;
 	/* Data role notified to the data stack */
 	enum typec_data_role active_data_role;

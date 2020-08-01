@@ -45,6 +45,13 @@
 
 #define PD_ACTIVITY_TIMEOUT_MS				10000
 
+#define GBMS_MODE_VOTABLE "CHARGER_MODE"
+
+enum gbms_charger_modes {
+	GBMS_CHGR_MODE_CHGR_BUCK_ON = 0x05,
+	GBMS_CHGR_MODE_OTG_BOOST_ON = 0x0a,
+};
+
 struct tcpci {
 	struct device *dev;
 	struct tcpm_port *port;
@@ -458,57 +465,45 @@ static int max77759_init_alert(struct max77759_plat *chip,
 	return 0;
 }
 
-#if 0
-struct regmap *get_chg_regmap(void);
-
-static int vote_mode(struct max77759_plat *chip, const char *client, u8 value)
-{
-	struct regmap *chg_regmap;
-
-	// TODO based on b/151248868
-	return 0;
-
-	//struct regmap *chg_regmap = get_chg_regmap();
-
-	if (!chg_regmap) {
-		logbuffer_log(chip->log, "vote_mode chg_regmap null\n");
-		return 0;
-	}
-
-	return max77759_update_bits8(chg_regmap, CHG_CNFG_00, MODE_MASK,
-				  value);
-}
-
-#else
-static void max77759_vbus_enable(struct i2c_client *i2c, int slave_addr, bool
-				 enable)
-{
-	u8 buffer_en[2] = {0xb9, 0xa};
-	u8 buffer_dis[2] = {0xb9, 0x5};
-
-	struct i2c_msg msgs[] = {
-		{
-			.addr = slave_addr,
-			.flags = i2c->flags & I2C_M_TEN,
-			.len = 2,
-			.buf = enable ? buffer_en : buffer_dis,
-		},
-	};
-
-	i2c_transfer(i2c->adapter, msgs, 1);
-
-}
-#endif
-
-static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
-			     bool source, bool sink)
+static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool source, bool sink)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
+	int ret;
+	enum gbms_charger_modes vote = 0xff;
 
-	if (source && sink)
-		logbuffer_log(chip->log, "WARN: both source and sink set");
+	if (source && sink) {
+		logbuffer_log(chip->log, "ERR: both source and sink set. Not voting");
+		return -EINVAL;
+	}
 
-	max77759_vbus_enable(chip->client, 0x69, source);
+	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
+		chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
+		if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
+			logbuffer_log(chip->log, "ERR: GBMS_MODE_VOTABLE lazy get failed",
+				      PTR_ERR(chip->charger_mode_votable));
+			return 0;
+		}
+	}
+
+	if (!source && !sink) {
+		vote = 0;
+		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+					 (void *)GBMS_CHGR_MODE_CHGR_BUCK_ON, false);
+		if (ret < 0)
+			return ret;
+		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+					 (void *)GBMS_CHGR_MODE_OTG_BOOST_ON, false);
+	}
+
+	if (source || sink) {
+		vote = source ? GBMS_CHGR_MODE_OTG_BOOST_ON : GBMS_CHGR_MODE_CHGR_BUCK_ON;
+		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER, (void *)vote,
+					 true);
+	}
+
+	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE voting source:%c sink:%c vote:%u ret:%d",
+		      ret < 0 ? "Error" : "Success", source ? 'y' : 'n', sink ? 'y' : 'n',
+		      (unsigned int)vote, ret);
 
 	return 0;
 }
@@ -1031,6 +1026,12 @@ static int max77759_probe(struct i2c_client *client,
 			PTR_ERR(chip->usb_icl_proto_el));
 		ret = -ENODEV;
 		goto unreg_port;
+	}
+
+	chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
+	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
+		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed",
+			PTR_ERR(chip->charger_mode_votable));
 	}
 
 	device_init_wakeup(chip->dev, true);
