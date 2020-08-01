@@ -636,6 +636,27 @@ static void max77759_set_pd_capable(struct tcpci *tcpci, struct tcpci_data
 	mutex_unlock(&chip->data_path_lock);
 }
 
+static void max77759_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data *data,
+				     enum typec_cc_polarity polarity)
+{
+	struct max77759_plat *chip = tdata_to_max77759(data);
+	int ret;
+
+	ret = extcon_set_property(chip->extcon, EXTCON_USB, EXTCON_PROP_USB_TYPEC_POLARITY,
+				  (union extcon_property_value)(int)polarity);
+	logbuffer_log(chip->log, "%s setting polarity USB %d", ret < 0 ? "Failed" : "Succeeded",
+		      polarity);
+	dev_info(chip->dev, "TCPM_DEBUG %s setting polarity USB %d", ret < 0 ? "Failed" :
+		 "Succeeded", polarity);
+
+	ret = extcon_set_property(chip->extcon, EXTCON_USB_HOST, EXTCON_PROP_USB_TYPEC_POLARITY,
+				  (union extcon_property_value)(int)polarity);
+	logbuffer_log(chip->log, "%s setting polarity USB_HOST %d", ret < 0 ?
+		      "Failed" : "Succeeded", polarity);
+	dev_info(chip->dev, "TCPM_DEBUG %s setting polarity USB %d", ret < 0 ? "Failed" :
+		 "Succeeded", polarity);
+}
+
 static int max77759_vote_icl(struct tcpci *tcpci, struct tcpci_data *tdata,
 			     u32 max_ma)
 {
@@ -867,6 +888,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.set_pd_capable = max77759_set_pd_capable;
 	chip->data.set_roles = max77759_set_roles;
 	chip->data.init = tcpci_init;
+	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 
 	chip->log = debugfs_logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
@@ -936,6 +958,11 @@ static int max77759_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to register extcon device");
 		goto psy_put;
 	}
+
+	extcon_set_property_capability(chip->extcon, EXTCON_USB,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+	extcon_set_property_capability(chip->extcon, EXTCON_USB_HOST,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
 
 	max77759_init_regs(chip->data.regmap, chip->log);
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
