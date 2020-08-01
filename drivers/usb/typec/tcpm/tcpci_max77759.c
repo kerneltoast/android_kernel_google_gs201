@@ -577,6 +577,7 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 {
 	int ret;
 	bool enable_data = false;
+	struct regmap *regmap = chip->data.regmap;
 
 	logbuffer_log(chip->log,
 		      "%s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u",
@@ -593,9 +594,15 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 	if (chip->pd_capable)
 		enable_data = chip->pd_data_capable;
 	else
-		enable_data = chip->no_bc_12 || chip->bc12_data_capable;
+		enable_data = chip->no_bc_12 || chip->bc12_data_capable || chip->data_role ==
+			TYPEC_HOST;
 
 	if (chip->attached && enable_data && !chip->data_active) {
+		if (chip->data_role == TYPEC_HOST) {
+			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
+			logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
+				      "success");
+		}
 		ret = extcon_set_state_sync(chip->extcon,
 					    chip->data_role == TYPEC_HOST ?
 					    EXTCON_USB_HOST : EXTCON_USB,
@@ -622,6 +629,11 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 			 chip->active_data_role == TYPEC_HOST ? "Host"
 			 : "Device");
 		chip->data_active = false;
+		if  (chip->active_data_role == TYPEC_HOST) {
+			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_DISCONNECT);
+			logbuffer_log(chip->log, "Turning off dp switches %s", ret < 0 ? "fail" :
+				      "success");
+		}
 	}
 }
 
@@ -773,7 +785,8 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 	if (chip->pd_capable)
 		enable_data = chip->pd_data_capable;
 	else
-		enable_data = chip->no_bc_12 || chip->bc12_data_capable;
+		enable_data = chip->no_bc_12 || chip->bc12_data_capable || chip->data_role ==
+			TYPEC_HOST;
 
 	if (chip->data_active && ((chip->active_data_role != data_role) ||
 				  !attached || !enable_data)) {
@@ -787,6 +800,13 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 			      chip->active_data_role == TYPEC_HOST ? "Host"
 			      : "Device");
 		chip->data_active = false;
+
+		if  (chip->active_data_role == TYPEC_HOST) {
+			ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_USBSW_CTRL,
+					      USBSW_DISCONNECT);
+			logbuffer_log(chip->log, "Turning off dp switches %s", ret < 0 ? "fail" :
+				      "success");
+		}
 	}
 
 	/*
