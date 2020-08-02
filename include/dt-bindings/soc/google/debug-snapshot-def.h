@@ -60,6 +60,8 @@
 #define GO_ARRAYDUMP_ID		4
 #define GO_SCANDUMP		"scandump"
 #define GO_SCANDUMP_ID		5
+#define GO_HALT			"halt"
+#define GO_HALT_ID		6
 
 /* EXCEPTION POLICY */
 #define DPM_F			"feature"
