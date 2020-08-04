@@ -521,7 +521,6 @@ static inline int create_pcie_sys_file(struct device *dev)
 		return ret;
 	}
 
-#if 0	/* to be updated when ready */
 	ret = device_create_file(dev, &dev_attr_power_stats);
 	if (ret) {
 		dev_err(dev, "%s: couldn't create device file for power_stats(%d)\n",
@@ -529,7 +528,6 @@ static inline int create_pcie_sys_file(struct device *dev)
 
 		return ret;
 	}
-#endif	/* to be updated when ready */
 
 	return 0;
 }
@@ -538,9 +536,7 @@ static inline void remove_pcie_sys_file(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_pcie_rc_test);
 	device_remove_file(dev, &dev_attr_link_state);
-#if 0	/* to be updated when ready */
 	device_remove_file(dev, &dev_attr_power_stats);
-#endif	/* to be updated when ready */
 }
 
 static int exynos_pcie_rc_clock_enable(struct pcie_port *pp, int enable)
@@ -1737,7 +1733,7 @@ static void exynos_pcie_rc_use_ia(struct exynos_pcie *exynos_pcie)
 	exynos_ia_write(exynos_pcie, 0x00000001, 0x000);
 }
 
-static void exynos_pcie_rc_assert_phy_reset(struct pcie_port *pp)
+void exynos_pcie_rc_assert_phy_reset(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
@@ -1753,7 +1749,7 @@ static void exynos_pcie_rc_assert_phy_reset(struct pcie_port *pp)
 	exynos_pcie_rc_use_ia(exynos_pcie);
 }
 
-static void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
+void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
@@ -3587,7 +3583,6 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	exynos_pcie_rc_pcie_ops_init(pp);
 
-#if 0	/* All PCIe PHY related setting updatged later - after LDO turn on*/
 	exynos_pcie_rc_resumed_phydown(pp);
 
 	if (exynos_pcie->use_nclkoff_en)
@@ -3660,7 +3655,6 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "## register pcie connection function\n");
 		/* need to check: register_pcie_is_connect(pcie_linkup_stat); */
 	}
-#endif	/* All PCIe PHY related setting updatged later - after LDO turn on*/
 
 	platform_set_drvdata(pdev, exynos_pcie);
 
