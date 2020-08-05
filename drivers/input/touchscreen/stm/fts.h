@@ -288,8 +288,6 @@ struct fts_hw_platform_data {
 			 * */
 	int reset_gpio;	/* /< number of the gpio associated to the reset pin */
 	int disp_rate_gpio; /* disp_rate gpio: LOW=60Hz, HIGH=90Hz */
-	const char *vdd_reg_name;	/* /< name of the VDD regulator */
-	const char *avdd_reg_name;	/* /< name of the AVDD regulator */
 	const char *fw_name;
 	const char *limits_name;
 	bool sensor_inverted;

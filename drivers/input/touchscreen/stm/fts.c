@@ -5151,21 +5151,21 @@ static int fts_get_reg(struct fts_ts_info *info, bool get)
 		goto regulator_put;
 	}
 
-	if ((bdata->vdd_reg_name != NULL) && (*bdata->vdd_reg_name != 0)) {
-		info->vdd_reg = regulator_get(info->dev, bdata->vdd_reg_name);
+	if (of_property_read_bool(info->dev->of_node, "vdd-supply")) {
+		info->vdd_reg = regulator_get(info->dev, "vdd");
 		if (IS_ERR(info->vdd_reg)) {
 			pr_err("%s: Failed to get power regulator\n", __func__);
-			retval = PTR_ERR(info->vdd_reg);
+			retval = -EPROBE_DEFER;
 			goto regulator_put;
 		}
 	}
 
-	if ((bdata->avdd_reg_name != NULL) && (*bdata->avdd_reg_name != 0)) {
-		info->avdd_reg = regulator_get(info->dev, bdata->avdd_reg_name);
+	if (of_property_read_bool(info->dev->of_node, "avdd-supply")) {
+		info->avdd_reg = regulator_get(info->dev, "avdd");
 		if (IS_ERR(info->avdd_reg)) {
 			pr_err("%s: Failed to get bus pullup regulator\n",
-				__func__);
-			retval = PTR_ERR(info->avdd_reg);
+			__func__);
+			retval = -EPROBE_DEFER;
 			goto regulator_put;
 		}
 	}
@@ -5476,26 +5476,6 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 	bdata->irq_gpio = of_get_named_gpio_flags(np, "st,irq-gpio", 0, NULL);
 	pr_info("irq_gpio = %d\n", bdata->irq_gpio);
 
-	retval = of_property_read_string(np, "st,regulator_dvdd", &name);
-	if (retval == -EINVAL)
-		bdata->vdd_reg_name = NULL;
-	else if (retval < 0)
-		return retval;
-	else {
-		bdata->vdd_reg_name = name;
-		pr_info("pwr_reg_name = %s\n", name);
-	}
-
-	retval = of_property_read_string(np, "st,regulator_avdd", &name);
-	if (retval == -EINVAL)
-		bdata->avdd_reg_name = NULL;
-	else if (retval < 0)
-		return retval;
-	else {
-		bdata->avdd_reg_name = name;
-		pr_info("bus_reg_name = %s\n", name);
-	}
-
 	if (of_property_read_bool(np, "st,reset-gpio")) {
 		bdata->reset_gpio = of_get_named_gpio_flags(np,
 							    "st,reset-gpio", 0,
@@ -5634,21 +5614,21 @@ static int fts_probe(struct spi_device *client)
 	}
 
 	pr_info("SET Regulators:\n");
-	retval = fts_get_reg(info, true);
-	if (retval < 0) {
+	error = fts_get_reg(info, true);
+	if (error < 0) {
 		pr_err("ERROR: %s: Failed to get regulators\n", __func__);
 		goto ProbeErrorExit_1;
 	}
 
-	retval = fts_enable_reg(info, true);
-	if (retval < 0) {
+	error = fts_enable_reg(info, true);
+	if (error < 0) {
 		pr_err("%s: ERROR Failed to enable regulators\n", __func__);
 		goto ProbeErrorExit_2;
 	}
 
 	pr_info("SET GPIOS:\n");
-	retval = fts_set_gpio(info);
-	if (retval < 0) {
+	error = fts_set_gpio(info);
+	if (error < 0) {
 		pr_err("%s: ERROR Failed to set up GPIO's\n", __func__);
 		goto ProbeErrorExit_2;
 	}
@@ -5896,8 +5876,8 @@ static int fts_probe(struct spi_device *client)
 		goto ProbeErrorExit_7;
 	}
 
-	error = fts_proc_init();
-	if (error < OK)
+	retval = fts_proc_init();
+	if (retval < OK)
 		pr_err("Error: can not create /proc file!\n");
 
 	if (info->fwu_workqueue)
@@ -6131,7 +6111,6 @@ static void __exit fts_driver_exit(void)
 #endif
 }
 
-MODULE_SOFTDEP("pre: i2c-acpm");
 MODULE_DESCRIPTION("STMicroelectronics MultiTouch IC Driver");
 MODULE_AUTHOR("STMicroelectronics");
 MODULE_LICENSE("GPL v2");
