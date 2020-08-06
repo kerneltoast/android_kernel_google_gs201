@@ -11,7 +11,7 @@
 
 #include <linux/clk.h>
 #include <linux/pm_opp.h>
-#include <soc/samsung/bts.h>
+#include <soc/google/bts.h>
 
 #include "bigo_pm.h"
 #include "bigo_io.h"

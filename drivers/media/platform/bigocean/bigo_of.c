@@ -12,7 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
-#include <soc/samsung/bts.h>
+#include <soc/google/bts.h>
 
 #include "bigo_of.h"
 
