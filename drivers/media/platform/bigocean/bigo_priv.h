@@ -1,0 +1,106 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright 2020 Google LLC.
+ *
+ * Author: Vinay Kalia <vinaykalia@google.com>
+ */
+
+#ifndef _BIGO_PRIV_H_
+#define _BIGO_PRIV_H_
+
+#include <linux/cdev.h>
+#include <linux/clk.h>
+#include <linux/device.h>
+#include <linux/fs.h>
+#include <linux/platform_device.h>
+#include <linux/pm_qos.h>
+
+#include "uapi/linux/bigo.h"
+#include "../../../soc/google/pt/pt.h"
+
+#define AVG_CNT 30
+#define PEAK_CNT 5
+#define BUS_WIDTH 16
+
+struct bufinfo {
+	struct list_head list;
+	struct dma_buf *dmabuf;
+	struct sg_table *sgt;
+	struct dma_buf_attachment *attachment;
+	size_t size;
+	off_t offset;
+	int fd;
+	dma_addr_t iova;
+};
+
+struct bigo_opp {
+	struct list_head list;
+	u32 freq_khz;
+	u32 load_pps;
+};
+
+struct power_manager {
+	int bwindex;
+	struct pm_qos_request qos_bigo;
+	struct list_head opps;
+	u32 max_load;
+	u32 min_freq;
+};
+
+struct slc_manager {
+	void __iomem *ssmt_pid_base;
+	struct pt_handle *pt_hnd;
+	size_t size;
+	ptid_t pid;
+};
+
+struct bigo_job {
+	void *regs;
+	size_t regs_size;
+};
+
+struct bigo_bw {
+	u32 rd_bw;
+	u32 wr_bw;
+};
+
+struct bigo_core {
+	struct class *_class;
+	struct cdev cdev;
+	struct device *svc_dev;
+	struct device *dev;
+	dev_t devno;
+	/* mutex protecting this data structure */
+	struct mutex lock;
+	void __iomem *base;
+	unsigned int irq;
+	struct completion frame_done;
+	struct list_head instances;
+	struct ion_client *mem_client;
+	u32 stat_with_irq;
+	struct bigo_job job;
+	struct power_manager pm;
+	struct slc_manager slc;
+	unsigned int regs_size;
+	struct bigo_inst *curr_inst;
+};
+
+struct bigo_inst {
+	struct list_head list;
+	struct list_head buffers;
+	/* mutex protecting this data structure */
+	struct mutex lock;
+	struct bigo_core *core;
+	u32 height;
+	u32 width;
+	u32 fps;
+	struct bigo_bw avg_bw[AVG_CNT];
+	struct bigo_bw pk_bw[AVG_CNT];
+	int job_cnt;
+	u32 hw_cycles[AVG_CNT];
+};
+
+inline void set_curr_inst(struct bigo_core *core, struct bigo_inst *inst);
+inline struct bigo_inst *get_curr_inst(struct bigo_core *core);
+
+#endif //_BIGO_PRIV_H_
