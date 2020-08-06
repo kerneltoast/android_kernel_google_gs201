@@ -15,7 +15,6 @@
 
 static void bigo_unmap_one(struct bufinfo *binfo)
 {
-	ion_iovmm_unmap(binfo->attachment, binfo->iova);
 	dma_buf_unmap_attachment(binfo->attachment, binfo->sgt,
 				 DMA_BIDIRECTIONAL);
 	dma_buf_detach(binfo->dmabuf, binfo->attachment);
@@ -62,7 +61,6 @@ static int add_to_mapped_list(struct bigo_core *core, struct bigo_inst *inst,
 {
 	int rc = 0;
 	struct bufinfo *binfo;
-	int ioprot = IOMMU_READ | IOMMU_WRITE;
 
 	binfo = kzalloc(sizeof(*binfo), GFP_KERNEL);
 	if (!binfo)
@@ -87,14 +85,12 @@ static int add_to_mapped_list(struct bigo_core *core, struct bigo_inst *inst,
 		pr_err("failed to dma_buf_map_attachment: %d\n", rc);
 		goto fail_map_attachment;
 	}
-
-	binfo->iova = ion_iovmm_map(binfo->attachment, 0, mapping->size, DMA_BIDIRECTIONAL, ioprot);
-	if (IS_ERR_VALUE(binfo->iova)) {
-		pr_err("failed to get IOVA for fd: %d\n", mapping->fd);
-		rc = binfo->iova;
-		goto fail_iovmm_map;
+	if (binfo->sgt->nents != 1) {
+		pr_err("Cannot handle virtually discontiguous buffer. Number of entries: %d\n",
+		       binfo->sgt->nents);
+		goto fail_discontiguous_buffer;
 	}
-
+	binfo->iova = sg_dma_address(binfo->sgt->sgl);
 	binfo->fd = mapping->fd;
 	binfo->size = mapping->size;
 	binfo->offset = mapping->offset;
@@ -104,7 +100,7 @@ static int add_to_mapped_list(struct bigo_core *core, struct bigo_inst *inst,
 	mapping->iova = binfo->iova;
 	return rc;
 
-fail_iovmm_map:
+fail_discontiguous_buffer:
 	dma_buf_unmap_attachment(binfo->attachment, binfo->sgt, DMA_BIDIRECTIONAL);
 fail_map_attachment:
 	dma_buf_detach(binfo->dmabuf, binfo->attachment);
@@ -146,8 +142,7 @@ int bigo_unmap(struct bigo_inst *inst, struct bigo_ioc_mapping *mapping)
 	return 0;
 }
 
-int bigo_iommu_fault_handler(struct iommu_domain *iodmn, struct device *device,
-			     unsigned long addr, int id, void *param)
+int bigo_iommu_fault_handler(struct iommu_fault *fault, void *param)
 {
 	return NOTIFY_OK;
 }

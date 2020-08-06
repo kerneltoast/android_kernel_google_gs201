@@ -441,18 +441,17 @@ static int bigo_probe(struct platform_device *pdev)
 		goto err_io;
 	}
 
-	iovmm_set_fault_handler(&pdev->dev, bigo_iommu_fault_handler, core);
-	rc = iovmm_activate(&pdev->dev);
-	if (rc < 0) {
-		pr_err("failed to activate iommu\n");
-		goto err_iovmm;
+	rc = iommu_register_device_fault_handler(&pdev->dev, bigo_iommu_fault_handler, core);
+	if (rc) {
+		pr_err("failed to register iommu fault handler: %d\n", rc);
+		goto err_fault_handler;
 	}
 
 	bigo_pt_client_register(pdev->dev.of_node, core);
 
 	return rc;
 
-err_iovmm:
+err_fault_handler:
 	pm_runtime_disable(&pdev->dev);
 err_io:
 	bigo_of_dt_release(core);
@@ -469,6 +468,7 @@ static int bigo_remove(struct platform_device *pdev)
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
 	bigo_pt_client_unregister(core);
+	iommu_unregister_device_fault_handler(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	bigo_of_dt_release(core);
 	deinit_chardev(core);
