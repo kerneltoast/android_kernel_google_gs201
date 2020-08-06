@@ -115,6 +115,22 @@ struct cgc_lut {
 	__u32 b_values[DRM_SAMSUNG_CGC_LUT_REG_CNT];
 };
 
+#define DRM_SAMSUNG_MATRIX_DIMENS	3
+
+/**
+ * struct exynos_matrix - a matrix data to set by user-space
+ *
+ * @coeffs: coefficients of a matrix
+ * @offsets: offsets of a matrix
+ *
+ * A exynos_matrix represents coefficients and offsets of a matrix.
+ * It is used to set a property for calculating a matrix.
+ */
+struct exynos_matrix {
+	__u16 coeffs[DRM_SAMSUNG_MATRIX_DIMENS * DRM_SAMSUNG_MATRIX_DIMENS];
+	__u16 offsets[DRM_SAMSUNG_MATRIX_DIMENS];
+};
+
 struct dpp_size_range {
 	__u32 min;
 	__u32 max;
