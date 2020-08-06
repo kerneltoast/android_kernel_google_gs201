@@ -27,6 +27,8 @@
 #define ID_MASK			0xffff
 #define TPUT_THRESHOLD		150
 #define MAX_RC_NUM		2
+#define PHY_VREG_ON		1
+#define PHY_VREG_OFF		0
 
 #define to_exynos_pcie(x)	dev_get_drvdata((x)->dev)
 
@@ -279,6 +281,10 @@ struct exynos_pcie {
 	struct pinctrl_state	*pin_state[MAX_PCIE_PIN_STATE];
 	struct pcie_eom_result **eom_result;
 	struct notifier_block	itmon_nb;
+
+	struct regulator	*vreg1;
+	struct regulator	*vreg2;
+	bool			vreg_enable;
 
 	int wlan_gpio;
 	int ssd_gpio;

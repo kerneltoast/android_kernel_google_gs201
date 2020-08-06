@@ -30,6 +30,9 @@
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 #include <soc/samsung/exynos-itmon.h>
 #endif
+#include <linux/regulator/consumer.h>
+#include <linux/regulator/driver.h>
+#include <../../../regulator/internal.h>
 
 #include <linux/pm_runtime.h>
 #include <linux/kthread.h>
@@ -67,6 +70,75 @@ static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp);
 #if IS_ENABLED(CONFIG_PM_DEVFREQ)
 static struct exynos_pm_qos_request exynos_pcie_int_qos[MAX_RC_NUM];
 #endif
+
+static int exynos_pcie_rc_get_phy_vreg_resource(struct exynos_pcie *exynos_pcie)
+{
+	struct dw_pcie *pci = exynos_pcie->pci;
+	struct device *dev = pci->dev;
+
+	dev_dbg(dev, "[%s] Get PCIe PHY VREG resource of ch%d\n", __func__, exynos_pcie->ch_num);
+
+	if (exynos_pcie->ch_num == 0 || exynos_pcie->ch_num == 1) {
+		exynos_pcie->vreg1 = regulator_get(dev, "vreg1");
+		if (IS_ERR(exynos_pcie->vreg1)) {
+			dev_err(dev, "[%s]Fail:regulator_get: VREG1 %p %d\n", __func__,
+				exynos_pcie->vreg1, IS_ERR(exynos_pcie->vreg1));
+
+			return -EPROBE_DEFER;
+		}
+
+		exynos_pcie->vreg2 = regulator_get(dev, "vreg2");
+		if (IS_ERR(exynos_pcie->vreg2)) {
+			dev_err(dev, "[%s]Fail:regulator_get: VREG2 %p %d\n", __func__,
+				exynos_pcie->vreg2, IS_ERR(exynos_pcie->vreg2));
+
+			return -EPROBE_DEFER;
+		}
+		dev_dbg(dev, "[%s]ch%d: exynos_pcie->vreg1 & 2 = 0x%x & 0x%x\n", __func__,
+			exynos_pcie->ch_num, exynos_pcie->vreg1, exynos_pcie->vreg2);
+	} else {
+		dev_err(dev, "[%s]wrong ch# info(ch_num=%d)\n", __func__, exynos_pcie->ch_num);
+
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void exynos_pcie_vreg_control(struct exynos_pcie *exynos_pcie, bool on)
+{
+	struct dw_pcie *pci = exynos_pcie->pci;
+	struct device *dev = pci->dev;
+	struct regulator *r_vreg1, *r_vreg2;
+	int ret1 = 0;
+	int ret2 = 0;
+
+	dev_dbg(dev, "[%s] PCIe ch%d - PHY VREG Turn %s\n", __func__,
+		exynos_pcie->ch_num, on ? "On" : "Off");
+
+	r_vreg1 = exynos_pcie->vreg1;
+	r_vreg2 = exynos_pcie->vreg2;
+
+	if (on) {
+		ret1 = regulator_enable(r_vreg1);
+		ret2 = regulator_enable(r_vreg2);
+		if (ret1 || ret2)
+			dev_err(dev, "[%s]Fail to enable PHY VREG: %d %d\n", __func__, ret1, ret2);
+		else
+			exynos_pcie->vreg_enable = true;
+
+		dev_dbg(dev, "[%s] regulator_enable()\n", __func__);
+	} else {
+		ret1 = regulator_disable(r_vreg1);
+		ret2 = regulator_disable(r_vreg2);
+		if (ret1 || ret2)
+			dev_err(dev, "[%s]Fail to disable PHY VREG: %d %d\n", __func__, ret1, ret2);
+		else
+			exynos_pcie->vreg_enable = false;
+
+		dev_dbg(dev, "[%s] regulator_disable()\n", __func__);
+	}
+}
 
 void exynos_pcie_set_perst_gpio(int ch_num, bool on)
 {
@@ -1760,7 +1832,10 @@ void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
 	dev_dbg(dev, "pcie clk enable, ret value = %d\n", ret);
 
 	exynos_pcie_rc_enable_interrupts(pp, 0);
-	dev_dbg(dev, "[%s] ## PCIe PMU regmap update 1 : BYPASS ##\n", __func__);
+	/* PCIe PHY VREG on/off in L2 */
+	/* 1. PCIe PHY VREG On */
+	exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
+	/* 2. PMU: PCIe PHY input isolation bypassed - 1 (0: isolation) */
 	regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset, PCIE_PHY_CONTROL_MASK, 1);
 
 	exynos_pcie_rc_assert_phy_reset(pp);
@@ -2315,9 +2390,15 @@ int exynos_pcie_rc_poweron(int ch_num)
 		pinctrl_select_state(exynos_pcie->pcie_pinctrl,
 				     exynos_pcie->pin_state[PCIE_PIN_ACTIVE]);
 
-		dev_dbg(dev, "[%s] ## PCIe PMU regmap update 1 : BYPASS ##\n", __func__);
-		regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
-				   PCIE_PHY_CONTROL_MASK, 1);
+		if (!exynos_pcie->vreg_enable) {
+			/* PCIe PHY VREG on/off in L2 */
+			/* 1. PCIe PHY VREG On */
+			exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
+			/* 2. PMU: PCIe PHY input isolation bypassed - 1(0: isolated) */
+			regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+					   PCIE_PHY_CONTROL_MASK, 1);
+			dev_dbg(dev, "[%s]# PCIe PMU regmap update: 1(BYPASS) #\n", __func__);
+		}
 
 		/* phy all power down clear */
 		if (exynos_pcie->phy_ops.phy_all_pwrdn_clear)
@@ -3542,6 +3623,11 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 		goto probe_fail;
 	pci->dbi_base = exynos_pcie->rc_dbi_base;
 
+	if (exynos_pcie->ip_ver == EXYNOS_IP_VER_OF_WHI) {
+		if (exynos_pcie_rc_get_phy_vreg_resource(exynos_pcie))
+			dev_err(&pdev->dev, "[%s] Failed to parse PHY vreg\n", __func__);
+	}
+
 	/* NOTE: TDB */
 	/* Mapping PHY functions */
 	exynos_pcie_rc_phy_init(pp);
@@ -3644,16 +3730,17 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
-	int ret;
 
-	dev_dbg(dev, "## SUSPEND[%s]: %s(pcie_is_linkup: %d)\n", __func__,
-		 EXYNOS_PCIE_STATE_NAME(exynos_pcie->state), pcie_is_linkup);
+	if (exynos_pcie->state == STATE_LINK_DOWN) {
+		/* 1. PMU: PCIe PHY input isolation - 0: isolated (1: bypassed) */
+		dev_dbg(dev, "[%s] # PCIe PMU ISOLATION #\n", __func__);
+		regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+				   PCIE_PHY_CONTROL_MASK, 0);
 
-	ret = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0xff;
-	dev_dbg(dev, "## SUSPEND[%s] PCIE_ELBI_RDLH_LINKUP :0x%x\n", __func__, ret);
-
-	if (exynos_pcie->state == STATE_LINK_DOWN)
-		dev_info(dev, "%s: RC%d already off\n", __func__, exynos_pcie->ch_num);
+		/*  2. PCIe PHY VREG off */
+		dev_dbg(dev, "[%s] # VREG OFF: vreg_control(PHY_VREG_OFF) #\n", __func__);
+		exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_OFF);
+	}
 
 	return 0;
 }
@@ -3662,15 +3749,11 @@ static int exynos_pcie_rc_resume_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 	struct dw_pcie *pci = exynos_pcie->pci;
-	int ret;
 
-	dev_dbg(dev, "## RESUME[%s]: %s(pcie_is_linkup: %d)\n", __func__,
-		 EXYNOS_PCIE_STATE_NAME(exynos_pcie->state), pcie_is_linkup);
-	ret = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0xff;
-	dev_dbg(dev, "## RESUME[%s] PCIE_ELBI_RDLH_LINKUP :0x%x\n", __func__, ret);
+	dev_dbg(dev, "## RESUME[%s] pcie_is_linkup: %d)\n", __func__, pcie_is_linkup);
+
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
-		dev_info(dev, "%s: RC%d Link down state-> phypwr off\n",
-			 __func__, exynos_pcie->ch_num);
+		dev_dbg(dev, "[%s] dislink state after resume -> phy pwr off\n", __func__);
 		exynos_pcie_rc_resumed_phydown(&pci->pp);
 	}
 
