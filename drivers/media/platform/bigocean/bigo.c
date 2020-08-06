@@ -448,12 +448,8 @@ static int bigo_probe(struct platform_device *pdev)
 		goto err_iovmm;
 	}
 
-	core->slc.pt_hnd = pt_client_register(pdev->dev.of_node, (void *)core,
-					      bigo_pt_resize_cb);
-	if (IS_ERR(core->slc.pt_hnd)) {
-		core->slc.pt_hnd = NULL;
-		pr_warn("Failed to register pt_client.\n");
-	}
+	bigo_pt_client_register(pdev->dev.of_node, core);
+
 	return rc;
 
 err_iovmm:
@@ -472,7 +468,7 @@ static int bigo_remove(struct platform_device *pdev)
 {
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
-	pt_client_unregister(core->slc.pt_hnd);
+	bigo_pt_client_unregister(core);
 	pm_runtime_disable(&pdev->dev);
 	bigo_of_dt_release(core);
 	deinit_chardev(core);

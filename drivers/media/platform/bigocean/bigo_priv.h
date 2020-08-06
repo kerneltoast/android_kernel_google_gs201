@@ -16,7 +16,11 @@
 #include <linux/pm_qos.h>
 
 #include "uapi/linux/bigo.h"
-#include "../../../soc/google/pt/pt.h"
+
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
+#include <../../../../soc/google/pt/pt.h>
+#endif
+
 
 #define AVG_CNT 30
 #define PEAK_CNT 5
@@ -48,10 +52,12 @@ struct power_manager {
 };
 
 struct slc_manager {
-	void __iomem *ssmt_pid_base;
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
 	struct pt_handle *pt_hnd;
-	size_t size;
 	ptid_t pid;
+#endif
+	void __iomem *ssmt_pid_base;
+	size_t size;
 };
 
 struct bigo_job {

@@ -62,10 +62,24 @@ void bigo_get_cache_info(struct bigo_core *core, struct bigo_cache_info *cinfo)
 	cinfo->pid = core->slc.pid;
 }
 
-void bigo_pt_resize_cb(void *data, int id, size_t size_allocated)
+static void bigo_pt_resize_cb(void *data, int id, size_t size_allocated)
 {
 	struct bigo_core *core = (struct bigo_core *)data;
 
 	pr_debug("Received SLC resize callback, id: %d, size: %zu\n", id, size_allocated);
 	core->slc.size = size_allocated;
+}
+
+void bigo_pt_client_register(struct device_node *node, struct bigo_core *core)
+{
+	core->slc.pt_hnd = pt_client_register(node, (void *)core, bigo_pt_resize_cb);
+	if (IS_ERR(core->slc.pt_hnd)) {
+		core->slc.pt_hnd = NULL;
+		pr_warn("Failed to register pt_client.\n");
+	}
+}
+
+void bigo_pt_client_unregister(struct bigo_core *core)
+{
+	pt_client_unregister(core->slc.pt_hnd);
 }
