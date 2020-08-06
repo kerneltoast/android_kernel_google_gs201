@@ -140,7 +140,7 @@
 		/* Device virtual address */
 		#dma-address-cells = <1>;
 		#dma-size-cells = <1>;
-		dma-window = <0x0 0xC0000000>;
+		dma-window = <0x0 0xD0000000>;
 
 		/* Sub nodes for sysmmu, hwfc and mmcache */
 		#address-cells = <2>;
