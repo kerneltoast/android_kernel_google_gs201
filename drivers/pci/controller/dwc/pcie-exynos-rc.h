@@ -320,7 +320,7 @@ struct pcie_eom_result {
 
 void exynos_pcie_rc_phy_init(struct pcie_port *pp);
 
-#ifdef CONFIG_EXYNOS_PCIE_IOMMU
+#if IS_ENABLED(CONFIG_EXYNOS_PCIE_IOMMU)
 void pcie_sysmmu_enable(int ch_num);
 void pcie_sysmmu_disable(int ch_num);
 int pcie_iommu_map(int ch_num, unsigned long iova, phys_addr_t paddr, size_t size, int prot);

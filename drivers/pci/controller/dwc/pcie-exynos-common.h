@@ -9,7 +9,7 @@
 #ifndef __PCIE_EXYNOS_H
 #define __PCIE_EXYNOS_H
 
-#if defined(CONFIG_SOC_EXYNOS8890)
+#if IS_ENABLED(CONFIG_SOC_EXYNOS8890)
 #define PCI_DEVICE_ID_EXYNOS	0xa544
 #define GPIO_DEBUG_SFR		0x15601068
 #else
@@ -258,7 +258,7 @@ struct exynos_pcie {
 	struct delayed_work	dislink_work;
 	struct delayed_work	cpl_timeout_work;
 	struct exynos_pcie_register_event *event_reg;
-#ifdef CONFIG_PM_DEVFREQ
+#if IS_ENABLED(CONFIG_PM_DEVFREQ)
 	unsigned int            int_min_lock;
 #endif
 	u32			ip_ver;

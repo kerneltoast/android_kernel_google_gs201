@@ -27,7 +27,7 @@
 #include <dt-bindings/pci/pci.h>
 #include <linux/exynos-pci-noti.h>
 #include <linux/exynos-pci-ctrl.h>
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 #include <soc/samsung/exynos-itmon.h>
 #endif
 
@@ -35,7 +35,7 @@
 #include <linux/kthread.h>
 #include <linux/random.h>
 
-#ifdef CONFIG_CPU_IDLE
+#if IS_ENABLED(CONFIG_CPU_IDLE)
 #include <soc/samsung/exynos-powermode.h>
 #include <soc/samsung/exynos-pm.h>
 #include <soc/samsung/exynos-cpupm.h>
@@ -44,7 +44,7 @@
 #if 0	/* to be updated when ready */
 #include <linux/shm_ipc.h>     /* to get Exynos Modem - MSI target addr. */
 #endif	/* to be updated when ready */
-#ifdef CONFIG_LINK_DEVICE_PCIE
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #define MODIFY_MSI_ADDR
 #endif	/* CONFIG_LINK_DEVICE_PCIE */
 
@@ -61,7 +61,7 @@ static int current_cnt2;
 
 static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp);
 
-#ifdef CONFIG_PM_DEVFREQ
+#if IS_ENABLED(CONFIG_PM_DEVFREQ)
 static struct pm_qos_request exynos_pcie_int_qos[MAX_RC_NUM];
 #endif
 
@@ -1123,7 +1123,7 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	} else {
 		exynos_pcie->use_nclkoff_en = false;
 	}
-#ifdef CONFIG_PM_DEVFREQ
+#if IS_ENABLED(CONFIG_PM_DEVFREQ)
 	if (of_property_read_u32(np, "pcie-pm-qos-int", &exynos_pcie->int_min_lock))
 		exynos_pcie->int_min_lock = 0;
 
@@ -1932,7 +1932,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		queue_work(exynos_pcie->pcie_wq, &exynos_pcie->cpl_timeout_work.work);
 	}
 
-#ifdef CONFIG_PCI_MSI
+#if IS_ENABLED(CONFIG_PCI_MSI)
 	if (val_irq2 & IRQ_MSI_RISING_ASSERT && exynos_pcie->use_msi) {
 #if 0	/* to be updated when ready */
 		dw_handle_msi_irq(pp);
@@ -1959,7 +1959,7 @@ static int exynos_pcie_rc_msi_init(struct pcie_port *pp)
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	struct device *dev = pci->dev;
 	struct pci_bus *ep_pci_bus;
-#ifdef CONFIG_LINK_DEVICE_PCIE
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	unsigned long msi_addr_from_dt;
 #endif
 	/*
@@ -1973,7 +1973,7 @@ static int exynos_pcie_rc_msi_init(struct pcie_port *pp)
 			__func__, (val & MSI_64CAP_MASK) ? 64 : 32, val);
 
 		if (exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM) {
-#ifdef CONFIG_LINK_DEVICE_PCIE
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 			/* get the MSI target address from DT */
 			msi_addr_from_dt = shm_get_msi_base();
 
@@ -1998,7 +1998,7 @@ static int exynos_pcie_rc_msi_init(struct pcie_port *pp)
 		}
 	}
 
-#ifdef CONFIG_LINK_DEVICE_PCIE
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 program_msi_data:
 #endif
 	dev_dbg(dev, "%s: Program the MSI data: 0x%lx (probe ok:%d)\n",
@@ -2015,7 +2015,7 @@ program_msi_data:
 	val = (u32)(*pp->msi_irq_in_use);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, val);
 	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, &val);
-#ifdef CONFIG_LINK_DEVICE_PCIE
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	dev_dbg(dev, "MSI INIT check INTR0 ENABLE, 0x%x: 0x%x\n", PCIE_MSI_INTR0_ENABLE, val);
 	if (val != 0xf1) {
 		exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, 0xf1);
@@ -2326,14 +2326,14 @@ int exynos_pcie_rc_poweron(int ch_num)
 		ret = exynos_pcie_rc_clock_enable(pp, PCIE_ENABLE_CLOCK);
 		dev_dbg(dev, "pcie clk enable, ret value = %d\n", ret);
 
-#ifdef CONFIG_CPU_IDLE
+#if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
 			dev_dbg(dev, "ip idle status: %d, index: %d\n",
 				PCIE_IS_ACTIVE, exynos_pcie->idle_ip_index);
 			exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_ACTIVE);
 		}
 #endif
-#ifdef CONFIG_PM_DEVFREQ
+#if IS_ENABLED(CONFIG_PM_DEVFREQ)
 		if (exynos_pcie->int_min_lock) {
 			pm_qos_update_request(&exynos_pcie_int_qos[ch_num],
 					      exynos_pcie->int_min_lock);
@@ -2527,14 +2527,14 @@ void exynos_pcie_rc_poweroff(int ch_num)
 			pinctrl_select_state(exynos_pcie->pcie_pinctrl,
 					     exynos_pcie->pin_state[PCIE_PIN_IDLE]);
 
-#ifdef CONFIG_PM_DEVFREQ
+#if IS_ENABLED(CONFIG_PM_DEVFREQ)
 		if (exynos_pcie->int_min_lock) {
 			pm_qos_update_request(&exynos_pcie_int_qos[ch_num], 0);
 			dev_dbg(dev, "%s: pcie int_min_lock = %d\n",
 				__func__, exynos_pcie->int_min_lock);
 		}
 #endif
-#ifdef CONFIG_CPU_IDLE
+#if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
 			dev_dbg(dev, "%s, ip idle status: %d, idle_ip_index: %d\n",
 				__func__, PCIE_IS_IDLE, exynos_pcie->idle_ip_index);
@@ -3252,7 +3252,7 @@ int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_affinity);
 
-#ifdef CONFIG_CPU_IDLE
+#if IS_ENABLED(CONFIG_CPU_IDLE)
 static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct pcie_port *pp, int max)
 {
 	void __iomem *ep_dbi_base = pp->va_cfg0_base;
@@ -3292,7 +3292,7 @@ static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct pcie_port *pp, int
 }
 
 /* Temporary remove: Need to enable to use sicd powermode */
-#ifdef PCIE_SICD
+#if IS_ENABLED(CONFIG_EXYNOS_PCIE_SICD)
 static int exynos_pcie_rc_power_mode_event(struct notifier_block *nb, unsigned long event,
 					   void *data)
 {
@@ -3354,7 +3354,7 @@ static int exynos_pcie_msi_set_affinity(struct irq_data *irq_data, const struct 
 	return 0;
 }
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 int exynos_pcie_rc_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb_data)
 {
 	struct exynos_pcie *exynos_pcie = container_of(nb, struct exynos_pcie, itmon_nb);
@@ -3587,7 +3587,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	if (exynos_pcie->use_nclkoff_en)
 		exynos_pcie_rc_nclkoff_ctrl(pdev, exynos_pcie);
-#ifdef CONFIG_EXYNOS_PCIE_IOMMU
+#if IS_ENABLED(CONFIG_EXYNOS_PCIE_IOMMU)
 	/* if it needed for msi init, property should be added on dt */
 #if 0	/* to be updated when ready */
 	set_dma_ops(&pdev->dev, &exynos_pcie_dma_ops);
@@ -3608,7 +3608,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	disable_irq(pp->irq);
 
-#ifdef CONFIG_CPU_IDLE
+#if IS_ENABLED(CONFIG_CPU_IDLE)
 	exynos_pcie->idle_ip_index =
 			exynos_get_idle_ip_index(dev_name(&pdev->dev));
 	if (exynos_pcie->idle_ip_index < 0)
@@ -3621,7 +3621,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 		 __func__, PCIE_IS_IDLE, exynos_pcie->idle_ip_index);
 
 /* Temporary remove: Need to enable to use sicd powermode */
-#ifdef PCIE_SICD
+#if IS_ENABLED(CONFIG_EXYNOS_PCIE_SICD)
 	exynos_pcie->power_mode_nb.notifier_call = exynos_pcie_rc_power_mode_event;
 	exynos_pcie->power_mode_nb.next = NULL;
 	exynos_pcie->power_mode_nb.priority = 0;
@@ -3646,7 +3646,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&exynos_pcie->dislink_work, exynos_pcie_rc_dislink_work);
 	INIT_DELAYED_WORK(&exynos_pcie->cpl_timeout_work, exynos_pcie_rc_cpl_timeout_work);
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	exynos_pcie->itmon_nb.notifier_call = exynos_pcie_rc_itmon_notifier;
 	itmon_notifier_chain_register(&exynos_pcie->itmon_nb);
 #endif
@@ -3675,7 +3675,7 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#if IS_ENABLED(CONFIG_PM)
 static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
