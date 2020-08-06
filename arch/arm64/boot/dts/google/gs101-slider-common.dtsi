@@ -12,3 +12,4 @@
 #include "gs101-slider-touch.dtsi"
 #include "gs101-slider-nfc.dtsi"
 #include "gs101-slider-ese.dtsi"
+#include "gs101-slider-battery.dtsi"

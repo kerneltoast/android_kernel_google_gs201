@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Wireless Charger device tree entries.
+ *
+ * Copyright 2020 Google Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/* need to use an overlay until we remove dt patching from the bootloader */
+/ {
+	fragment@wlc {
+		target-path = "/";
+		__overlay__ {
+			google,charger {
+				google,wlc-power-supply = "wireless";
+			};
+
+		};
+	};
+};
+
+&pinctrl_0 {
+	/* XIENT_27 P9382 Wireless Charger Interrupt */
+	wc_irq: wc_irq {
+		samsung,pins = "gpa9-7"; /* QI_INT_R */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <0>;
+	};
+
+	/* XAPC_PWM_3 P9382 Wireless Charger Enable */
+	wc_en: wc_en {
+		samsung,pins = "gpp27-3"; /* QI_EN_L */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;
+	};
+};
+
+/*
+ * WC_BUS should be defined by including file (before including).
+ *
+ * example:
+ *        #define WC_BUS &hsi2c_8
+ *        #include gs101-slider-wcharger.dtsi
+ */
+WC_BUS {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";
+
+	p9382@3b {
+		status = "disabled";
+		compatible = "idt,p9382";
+		reg = <0x3b>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wc_irq>;
+
+		interrupt-names = "p9382_int";
+
+		idt,gpio_ben = <&max20339_gpio 1 GPIO_ACTIVE_HIGH>;
+		idt,gpio_switch = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
+	};
+
+	p9412@3c {
+		status = "ok";
+		compatible = "idt,p9412";
+		reg = <0x3c>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wc_irq>;
+
+		interrupt-names = "p9382_int";
+		idt,irq_gpio = <&gpa9 7 GPIO_ACTIVE_LOW>;
+		idt,gpio_qien = <&gpp27 3 GPIO_ACTIVE_HIGH>;
+
+		google,epp_rp_value = <15000>; /* mW */
+		max_vout_mv = <10000>;  /* max voltage in mV */
+	};
+};

@@ -1,0 +1,194 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries
+ *
+ * Copyright 2019 Google LLC
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+
+/ {
+  fragment@battery {
+    target-path = "/";
+      __overlay__ {
+
+	google_battery: google,battery {
+		status = "okay";
+		compatible = "google,battery";
+		#cooling-cells = <2>;
+		google,fg-psy-name = "maxfg";
+
+		google,chg-battery-capacity = <4000>;
+
+		/* charge table */
+		google,chg-temp-limits = <0 100 200 420 460 480 550>;
+		google,chg-cv-limits = <4200000 4300000 4400000>;
+		google,chg-cc-limits = <
+			30  10   0
+			50  30  30
+			100  70  50
+			80  50  50
+			50  50   0
+			30   0   0
+		>;
+	};
+
+	google_cpm: google,cpm {
+		status = "okay";
+		compatible = "google,cpm";
+	};
+
+	google_charger: google,charger {
+		status = "okay";
+		compatible = "google,charger";
+		#cooling-cells = <2>;
+
+		google,chg-power-supply = "gcpm";
+		google,bat-power-supply = "battery";
+		google,usb-power-supply = "usb";
+
+		google,fv-max-uv = <4400000>;
+	};
+
+	google_bms {
+		nvmem = <&pack_bee>;
+		nvmem-names = "5-00500";
+		/* pack eeprom is available only with P20+ batteries */
+		google,bee-name = "5-00500";
+	};
+
+    };
+  };
+};
+
+&pinctrl_0 {
+/* [MAX77759: FG_INTB] > FG_INT_L > [XEINT_23 : SC59845XWE] */
+	if_pmic_fg_irq: if-pmic-fg-irq {
+		samsung,pins = "gpa9-3"; /* XEINT_23 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <0>;
+	};
+
+};
+
+&pinctrl_1 {
+/* [MAX77729FEWN : INTB] > IF_PMIC_IRQ_L > [XEINT_15 : SC59845XWE] */
+	if_pmic_irq: if-pmic-irq {
+		samsung,pins = "gpa8-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <0>;
+	};
+};
+
+&hsi2c12_bus {
+	samsung,pins = "gpp23-4", "gpp23-5";
+	samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+};
+
+&hsi2c_12{
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	/* also as max77759 pmic  */
+	max77729_pmic:max77729pmic@0x66 {
+		status = "okay";
+		compatible = "maxim,max77729pmic";
+		reg = <0x66>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_irq>;
+		max777x9,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+
+		max77759,max_m5 = <&max77759_fg>;
+
+		max777x9_gpio: max777x9_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <6>;
+		};
+	};
+
+	/* disabled when running MW */
+	max77729_uic:max77729uic@0x25 {
+		status = "okay";
+		compatible = "maxim,max77729uic";
+		reg = <0x25>;
+
+		max77729,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+		bc1_config = <0xe5>;
+		usb-psy-name = "usb";
+	};
+
+	/* disabled when running MW */
+	max77729_fg:max77729fg@0x36 {
+		status = "okay";
+		compatible = "maxim,max77729f";
+		reg = <0x36>;
+
+		/* IF_PMIC_IRQ_L -> XEINT_15 */
+		maxim,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+		maxim,irqf-shared;
+
+		maxim,rsense-default = <500>;
+
+		/* no needed for EEPROM */
+		maxim,batt-id-range-pct = <0>;
+
+		maxim,psy-type-unknown;
+
+		maxim,fg-data {
+			#include "gs101-slider-battery-data.dtsi"
+		};
+	};
+
+	max77759_fg:max77759fg@0x36 {
+		status = "okay";
+		compatible = "maxim,max77759";
+		reg = <0x36>;
+
+		/* FG_INT_L -> XEINT_23 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_fg_irq>;
+		maxim,irq-gpio = <&gpa9 3 GPIO_ACTIVE_LOW>;
+
+		maxim,rsense-default = <500>;
+
+		/* no needed for EEPROM */
+		maxim,batt-id-range-pct = <0>;
+
+		maxim,psy-type-unknown;
+
+		maxim,fg-data {
+			#include "gs101-slider-battery-data.dtsi"
+		};
+	};
+
+	/* slider and whitefin */
+	max77729chrg@0x69 {
+		status = "okay";
+		compatible = "maxim,max77729chrg";
+		reg = <0x69>;
+
+		max77729,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+		max77729,psy-name = "main-charger";
+	};
+
+	/* slider (some), whitefin2 (if any), POR */
+	max77759chrg@0x69 {
+		status = "okay";
+		compatible = "maxim,max77759chrg";
+		reg = <0x69>;
+
+		interrupt-parent = <&gpa8>;
+		max77759,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+		max77759,psy-name = "main-charger";
+
+		max77759,max_m5 = <&max77759_fg>;
+		max77759,pmic = <&max77729_pmic>;
+	};
+
+};

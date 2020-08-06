@@ -11,6 +11,10 @@
 
 #include "gs101-slider-common.dtsi"
 #include "gs101-slider-cp-s5200-sit.dtsi"
+#include "gs101-slider1-battery.dtsi"
+
+#define WC_BUS &hsi2c_0
+#include "gs101-slider-wcharger.dtsi"
 
 / {
 	board_id = <0x201>;

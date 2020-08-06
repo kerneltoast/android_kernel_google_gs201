@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to slider v1
+ *
+ * Copyright 2020 Google LLC
+ *
+ */
+
+/ {
+	fragment@gcpm {
+		target-path = "/";
+		__overlay__ {
+
+			google,cpm {
+				google,chg-power-supplies = "main-charger",
+							    "pca9468-mains";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&charge_pump_en>;
+
+				google,dc-en = <&gpp23 7 0>;
+				google,dc-en-value = <1>;
+
+				google,tcpm-power-supply = <&max77759tcpc>;
+				google,pps-awake;
+			};
+		};
+	};
+};
+
+&pinctrl_5 {
+	/* XAPC_USI12_CTSN_CSN -> CHARGE_PUMP_EN_R */
+	charge_pump_en: charge-pump-en {
+		samsung,pins = "gpp23-7";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+};
+
+&hsi2c_0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsi2c0_bus>;
+
+	pack_bee: m24c08@50 {
+		status = "okay";
+		compatible = "stchip,m24c08";
+
+		reg = <0x50>;
+	};
+};
+
+&hsi2c_12 {
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pca9468@57 {
+		compatible = "nxp,pca9468";
+		reg = <0x57>;
+
+		/* TODO: add IRQ pca9468,irq-gpio = <xxx>; */
+
+		pca9468,input-current-limit = <2000000>; /* 2.0A */
+		pca9468,charging-current = <4000000>; /* 4A */
+		pca9468,float-voltage = <4300000>; /* 4.3V */
+
+		pca9468,input-itopoff = <500000>; /* 500mA */
+		pca9468,sense-resistance = <0>; /* 5mOhm */
+		pca9468,switching-frequency = <3>; /* 980KHz */
+
+		/* disable USBC NTC */
+		pca9468,ntc-threshold = <0>; /* disabled */
+
+		/* enable passthrough PPS */
+		google,tcpm-power-supply = <&max77759tcpc>;
+
+		/* USBC thermal zone */
+		google,usb-port-tz-name = "usbc-therm-adc";
+	};
+};
