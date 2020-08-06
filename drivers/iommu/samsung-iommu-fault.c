@@ -457,7 +457,7 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 	struct samsung_sysmmu_fault_info *fi;
 	struct sysmmu_clientdata *client;
 	struct sysmmu_drvdata *drvdata;
-	int i, ret, result = -EFAULT;
+	int i, ret, result = 0;
 
 	fi = (struct samsung_sysmmu_fault_info *)data;
 	drvdata = fi->drvdata;
