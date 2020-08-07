@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Bigocean device tree source
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+#include <dt-bindings/clock/gs101.h>
+/ {
+	bigocean: bigocean@1CB00000 {
+		compatible = "google,bigocean";
+		status = "ok";
+		reg = <0x0 0x1CB00000 0x550
+			0x0 0x1CA94000 0xa00>;
+		reg-names = "bo", "ssmt_bo_pid";
+		interrupts = <GIC_SPI IRQ_BO_XINT_BO IRQ_TYPE_LEVEL_HIGH>;
+		bigo-opp-table = <&bigo_opp_table>;
+		iommus = <&sysmmu_bo>;
+		samsung,iommu-group = <&iommu_group_bo>;
+		pt_id = "bigocean";
+		power-domains = <&pd_bo>;
+	};
+
+	bigo_opp_table: bigo_opp_table {
+		opp-100000000 {
+			freq-khz = <100000>;
+			/* 1080p@30fps */
+			load-pps = <61200>;
+		};
+		opp-222000000 {
+			freq-khz = <222000>;
+			/* 1080p@60fps */
+			load-pps = <122400>;
+		};
+		opp-400000000 {
+			freq-khz = <400000>;
+			/* 4K@30fps */
+			load-pps = <280800>;
+		};
+		opp-620000000 {
+			freq-khz = <620000>;
+			/* 4K@60fps */
+			load-pps = <561600>;
+		};
+	};
+};
