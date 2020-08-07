@@ -62,10 +62,10 @@ static inline u32 bigo_get_target_freq(struct bigo_core *core, u32 load)
 
 static inline void bigo_set_freq(struct bigo_core *core, u32 freq)
 {
-	if (!pm_qos_request_active(&core->pm.qos_bigo))
-		pm_qos_add_request(&core->pm.qos_bigo, PM_QOS_BO_THROUGHPUT, freq);
+	if (!exynos_pm_qos_request_active(&core->pm.qos_bigo))
+		exynos_pm_qos_add_request(&core->pm.qos_bigo, PM_QOS_BO_THROUGHPUT, freq);
 	else
-		pm_qos_update_request(&core->pm.qos_bigo, freq);
+		exynos_pm_qos_update_request(&core->pm.qos_bigo, freq);
 }
 
 static void bigo_scale_freq(struct bigo_core *core)

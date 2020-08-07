@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
-#include <linux/pm_qos.h>
+#include <soc/google/exynos_pm_qos.h>
 
 #include "uapi/linux/bigo.h"
 
@@ -45,7 +45,7 @@ struct bigo_opp {
 
 struct power_manager {
 	int bwindex;
-	struct pm_qos_request qos_bigo;
+	struct exynos_pm_qos_request qos_bigo;
 	struct list_head opps;
 	u32 max_load;
 	u32 min_freq;
