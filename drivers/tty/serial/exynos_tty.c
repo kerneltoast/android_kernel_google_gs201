@@ -2741,10 +2741,10 @@ static int exynos_serial_remove(struct platform_device *dev)
 
 #ifdef CONFIG_PM_DEVFREQ
 	if (ourport->mif_qos_val && ourport->qos_timeout)
-		pm_qos_remove_request(&ourport->exynos_uart_mif_qos);
+		cpu_latency_qos_remove_request(&ourport->exynos_uart_mif_qos);
 
 	if (ourport->cpu_qos_val && ourport->qos_timeout)
-		pm_qos_remove_request(&ourport->exynos_uart_cpu_qos);
+		cpu_latency_qos_remove_request(&ourport->exynos_uart_cpu_qos);
 #endif
 
 	if (port) {
