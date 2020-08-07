@@ -34,12 +34,12 @@ void bts_pd_sync(unsigned int cal_id, int on);
 
 #else /* CONFIG_EXYNOS_BTS */
 
-#define bts_get_bwindex(a) do {} while (0)
-#define bts_update_bw(a, b) do {} while (0)
-#define bts_get_scenindex(a) do {} while (0)
-#define bts_add_scenario(a) do {} while (0)
-#define bts_del_scenario(a) do {} while (0)
-#define bts_pd_sync(a, b) do {} while (0)
+static inline int bts_get_bwindex(const char *name) { return -ENOSYS; }
+static inline int bts_update_bw(unsigned int index, struct bts_bw bw) { return -ENOSYS; }
+static inline unsigned int bts_get_scenindex(const char *name) { return 0; }
+static inline int bts_add_scenario(unsigned int index) { return -ENOSYS; }
+static inline int bts_del_scenario(unsigned int index) { return -ENOSYS; }
+static inline void bts_pd_sync(unsigned int cal_id, int on) { }
 
 #endif /* CONFIG_EXYNOS_BTS */
 
