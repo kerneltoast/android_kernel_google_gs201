@@ -551,30 +551,22 @@ static int vclk_debug_create_one(struct vclk *vclk, struct dentry *pdentry)
 
 	vclk->dentry = d;
 
-	d = debugfs_create_x32("vclk_id", 0400, vclk->dentry,
+	debugfs_create_x32("vclk_id", 0400, vclk->dentry,
 			(u32 *)&vclk->id);
-	if (!d)
-		goto err_out;
 
-	d = debugfs_create_u32("vclk_rate", 0400, vclk->dentry,
+	debugfs_create_u32("vclk_rate", 0400, vclk->dentry,
 			(u32 *)&vclk->vrate);
-	if (!d)
-		goto err_out;
 
-	d = debugfs_create_u32("vclk_num_rates", 0400, vclk->dentry,
+	debugfs_create_u32("vclk_num_rates", 0400, vclk->dentry,
 			(u32 *)&vclk->num_rates);
-	if (!d)
-		goto err_out;
 
-	d = debugfs_create_u32("vclk_num_list", 0400, vclk->dentry,
+	debugfs_create_u32("vclk_num_list", 0400, vclk->dentry,
 			(u32 *)&vclk->num_list);
-	if (!d)
-		goto err_out;
 
 	d = debugfs_create_file("vclk_table", 0400, vclk->dentry, vclk,
 				&vclk_table_fops);
 	if (!d)
-		return -ENOMEM;
+		goto err_out;
 
 	ret = 0;
 	goto out;
