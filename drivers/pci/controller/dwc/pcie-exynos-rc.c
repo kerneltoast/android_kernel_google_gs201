@@ -719,9 +719,7 @@ int exynos_pcie_rc_set_bar(int ch_num, u32 bar_num)
 	ep_pci_dev->resource[bar_num].end =
 		exynos_pcie->btl_target_addr + exynos_pcie->btl_offset + exynos_pcie->btl_size;
 	ep_pci_dev->resource[bar_num].flags = 0x82000000;
-#if 0	/* to be updated when ready */
-	pci_update_resource(ep_pci_dev, bar_num);
-#endif	/* to be updated when ready */
+	pci_assign_resource(ep_pci_dev, bar_num);
 
 	pci_read_config_dword(ep_pci_dev, PCI_BASE_ADDRESS_0 + (bar_num * 0x4), &val);
 	pr_info("%s: Check EP BAR[%d] = 0x%x\n", __func__, bar_num, val);
@@ -1862,35 +1860,6 @@ static struct dw_pcie_host_ops exynos_pcie_rc_ops = {
 	.host_init = exynos_pcie_rc_init,
 };
 
-irqreturn_t exynos_rc_handle_msi_irq(struct pcie_port *pp)
-{
-	int i, pos, irq;
-	unsigned long val;
-	u32 status, num_ctrls;
-	irqreturn_t ret = IRQ_NONE;
-
-	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
-
-	for (i = 0; i < num_ctrls; i++) {
-		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_STATUS +
-					   (i * MSI_REG_CTRL_BLOCK_SIZE), 4, &status);
-		if (!status)
-			continue;
-
-		ret = IRQ_HANDLED;
-		val = status;
-		pos = 0;
-		while ((pos = find_next_bit(&val, MAX_MSI_IRQS_PER_CTRL, pos)) !=
-		       MAX_MSI_IRQS_PER_CTRL) {
-			irq = irq_find_mapping(pp->irq_domain, (i * MAX_MSI_IRQS_PER_CTRL) + pos);
-			generic_handle_irq(irq);
-			pos++;
-		}
-	}
-
-	return ret;
-}
-
 static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
@@ -1934,10 +1903,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
 	if (val_irq2 & IRQ_MSI_RISING_ASSERT && exynos_pcie->use_msi) {
-#if 0	/* to be updated when ready */
 		dw_handle_msi_irq(pp);
-#endif	/* to be updated when ready */
-		exynos_rc_handle_msi_irq(pp);
 
 		/* Mask & Clear MSI to pend MSI interrupt.
 		 * After clearing IRQ_PULSE, MSI interrupt can be ignored if
@@ -3244,9 +3210,7 @@ int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 	pci = exynos_pcie->pci;
 	pp = &pci->pp;
 
-#if 0	/* to be updated when ready */
-	irq_set_affinity(pp->irq, cpumask_of(affinity));
-#endif	/* to be updated when ready */
+	irq_set_affinity_hint(pp->irq, cpumask_of(affinity));
 
 	return 0;
 }
