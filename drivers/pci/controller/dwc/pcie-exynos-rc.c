@@ -40,6 +40,9 @@
 #include <soc/samsung/exynos-pm.h>
 #include <soc/samsung/exynos-cpupm.h>
 #endif
+#if IS_ENABLED(CONFIG_PM_DEVFREQ)
+#include <soc/google/exynos_pm_qos.h>
+#endif
 
 #if 0	/* to be updated when ready */
 #include <linux/shm_ipc.h>     /* to get Exynos Modem - MSI target addr. */
@@ -62,7 +65,7 @@ static int current_cnt2;
 static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp);
 
 #if IS_ENABLED(CONFIG_PM_DEVFREQ)
-static struct pm_qos_request exynos_pcie_int_qos[MAX_RC_NUM];
+static struct exynos_pm_qos_request exynos_pcie_int_qos[MAX_RC_NUM];
 #endif
 
 void exynos_pcie_set_perst_gpio(int ch_num, bool on)
@@ -1125,11 +1128,9 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	if (of_property_read_u32(np, "pcie-pm-qos-int", &exynos_pcie->int_min_lock))
 		exynos_pcie->int_min_lock = 0;
 
-#if 0	/* to be updated when ready */
 	if (exynos_pcie->int_min_lock)
-		pm_qos_add_request(&exynos_pcie_int_qos[exynos_pcie->ch_num],
-				   PM_QOS_DEVICE_THROUGHPUT, 0);
-#endif	/* to be updated when ready */
+		exynos_pm_qos_add_request(&exynos_pcie_int_qos[exynos_pcie->ch_num],
+					  PM_QOS_DEVICE_THROUGHPUT, 0);
 
 	dev_info(dev, "%s: pcie int_min_lock = %d\n", __func__, exynos_pcie->int_min_lock);
 #endif
@@ -2301,8 +2302,8 @@ int exynos_pcie_rc_poweron(int ch_num)
 #endif
 #if IS_ENABLED(CONFIG_PM_DEVFREQ)
 		if (exynos_pcie->int_min_lock) {
-			pm_qos_update_request(&exynos_pcie_int_qos[ch_num],
-					      exynos_pcie->int_min_lock);
+			exynos_pm_qos_update_request(&exynos_pcie_int_qos[ch_num],
+						     exynos_pcie->int_min_lock);
 			dev_dbg(dev, "%s: pcie int_min_lock = %d\n",
 				__func__, exynos_pcie->int_min_lock);
 		}
@@ -2495,7 +2496,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 
 #if IS_ENABLED(CONFIG_PM_DEVFREQ)
 		if (exynos_pcie->int_min_lock) {
-			pm_qos_update_request(&exynos_pcie_int_qos[ch_num], 0);
+			exynos_pm_qos_update_request(&exynos_pcie_int_qos[ch_num], 0);
 			dev_dbg(dev, "%s: pcie int_min_lock = %d\n",
 				__func__, exynos_pcie->int_min_lock);
 		}
