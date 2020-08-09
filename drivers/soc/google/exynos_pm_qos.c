@@ -817,7 +817,7 @@ static void exynos_pm_qos_work_fn(struct work_struct *work)
  * removal.
  */
 
-void exynos_pm_qos_add_request_trace(char *func, unsigned int line,
+void exynos_pm_qos_add_request_trace(const char *func, unsigned int line,
 				     struct exynos_pm_qos_request *req,
 				     int exynos_pm_qos_class, s32 value)
 {

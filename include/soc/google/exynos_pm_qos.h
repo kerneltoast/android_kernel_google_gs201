@@ -74,13 +74,13 @@ enum exynos_pm_qos_flags_status {
 #define PM_QOS_GPU_FREQ_MAX_DEFAULT_VALUE	INT_MAX
 
 #define exynos_pm_qos_add_request(arg...)					\
-	exynos_pm_qos_add_request_trace((char *)__func__, __LINE__, ##arg)
+	exynos_pm_qos_add_request_trace(__func__, __LINE__, ##arg)
 
 struct exynos_pm_qos_request {
 	struct plist_node node;
 	int exynos_pm_qos_class;
 	struct delayed_work work; /* for exynos_pm_qos_update_request_timeout */
-	char *func;
+	const char *func;
 	unsigned int line;
 };
 
@@ -128,7 +128,7 @@ int exynos_pm_qos_update_target(struct exynos_pm_qos_constraints *c, struct plis
 bool exynos_pm_qos_update_flags(struct exynos_pm_qos_flags *pqf,
 				struct exynos_pm_qos_flags_request *req,
 				enum exynos_pm_qos_req_action action, s32 val);
-void exynos_pm_qos_add_request_trace(char *func, unsigned int line,
+void exynos_pm_qos_add_request_trace(const char *func, unsigned int line,
 				     struct exynos_pm_qos_request *req,
 				     int exynos_pm_qos_class,
 				     s32 value);
