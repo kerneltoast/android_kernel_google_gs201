@@ -79,7 +79,7 @@ struct bigo_core {
 	/* mutex protecting this data structure */
 	struct mutex lock;
 	void __iomem *base;
-	unsigned int irq;
+	int irq;
 	struct completion frame_done;
 	struct list_head instances;
 	struct ion_client *mem_client;
