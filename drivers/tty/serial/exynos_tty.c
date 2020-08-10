@@ -132,6 +132,8 @@ struct exynos_uart_port {
 	struct list_head		node;
 	unsigned char			rx_claimed;
 	unsigned char			tx_claimed;
+	unsigned char			rx_enabled;
+	unsigned char			tx_enabled;
 	unsigned long			baudclk_rate;
 	unsigned int			min_dma_size;
 
@@ -269,11 +271,6 @@ static inline void exynos_clear_bit(struct uart_port *port, int idx,
 #define MIN_BAUD	0
 
 #define DEFAULT_SOURCE_CLK	200000000
-
-/* macros to change one thing to another */
-
-#define tx_enabled(port) ((port)->unused[0])
-#define rx_enabled(port) ((port)->unused[1])
 
 /* flag to ignore all characters coming in */
 #define RXSTAT_DUMMY_READ (0x10000000)
@@ -561,6 +558,7 @@ static int exynos_serial_has_interrupt_mask(struct uart_port *port)
 
 static void exynos_serial_rx_enable(struct uart_port *port)
 {
+	struct exynos_uart_port *ourport = to_ourport(port);
 	unsigned long flags;
 	unsigned int ucon, ufcon;
 	int count = 10000;
@@ -578,12 +576,13 @@ static void exynos_serial_rx_enable(struct uart_port *port)
 	ucon |= S3C2410_UCON_RXIRQMODE;
 	wr_regl(port, S3C2410_UCON, ucon);
 
-	rx_enabled(port) = 1;
+	ourport->rx_enabled = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void exynos_serial_rx_disable(struct uart_port *port)
 {
+	struct exynos_uart_port *ourport = to_ourport(port);
 	unsigned long flags;
 	unsigned int ucon;
 
@@ -593,7 +592,7 @@ static void exynos_serial_rx_disable(struct uart_port *port)
 	ucon &= ~S3C2410_UCON_RXIRQMODE;
 	wr_regl(port, S3C2410_UCON, ucon);
 
-	rx_enabled(port) = 0;
+	ourport->rx_enabled = 0;
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -605,7 +604,7 @@ static void exynos_serial_stop_tx(struct uart_port *port)
 	struct dma_tx_state state;
 	int count;
 
-	if (!tx_enabled(port))
+	if (!ourport->tx_enabled)
 		return;
 
 	if (exynos_serial_has_interrupt_mask(port))
@@ -626,7 +625,7 @@ static void exynos_serial_stop_tx(struct uart_port *port)
 		port->icount.tx += count;
 	}
 
-	tx_enabled(port) = 0;
+	ourport->tx_enabled = 0;
 	ourport->tx_in_progress = 0;
 
 	if (port->flags & UPF_CONS_FLOW)
@@ -792,11 +791,11 @@ static void exynos_serial_start_tx(struct uart_port *port)
 	struct exynos_uart_port *ourport = to_ourport(port);
 	struct circ_buf *xmit = &port->state->xmit;
 
-	if (!tx_enabled(port)) {
+	if (!ourport->tx_enabled) {
 		if (port->flags & UPF_CONS_FLOW)
 			exynos_serial_rx_disable(port);
 
-		tx_enabled(port) = 1;
+		ourport->tx_enabled = 1;
 		if (!ourport->dma || !ourport->dma->tx_chan)
 			exynos_serial_start_tx_pio(ourport);
 	}
@@ -847,13 +846,13 @@ static void exynos_serial_stop_rx(struct uart_port *port)
 	enum dma_status dma_status;
 	unsigned int received;
 
-	if (rx_enabled(port)) {
+	if (ourport->rx_enabled) {
 		pr_debug("%s: port=%p\n", __func__, port);
 		if (exynos_serial_has_interrupt_mask(port))
 			exynos_set_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
 		else
 			disable_irq_nosync(ourport->rx_irq);
-		rx_enabled(port) = 0;
+		ourport->rx_enabled = 0;
 	}
 	if (dma && dma->rx_chan) {
 		dmaengine_pause(dma->tx_chan);
@@ -1092,9 +1091,9 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 		if (port->flags & UPF_CONS_FLOW) {
 			int txe = exynos_serial_txempty_nofifo(port);
 
-			if (rx_enabled(port)) {
+			if (ourport->rx_enabled) {
 				if (!txe) {
-					rx_enabled(port) = 0;
+					ourport->rx_enabled = 0;
 					continue;
 				}
 			} else {
@@ -1102,7 +1101,7 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 					ufcon = rd_regl(port, S3C2410_UFCON);
 					ufcon |= S3C2410_UFCON_RESETRX;
 					wr_regl(port, S3C2410_UFCON, ufcon);
-					rx_enabled(port) = 1;
+					ourport->rx_enabled = 1;
 					return;
 				}
 				continue;
@@ -1509,7 +1508,7 @@ static void exynos_serial_shutdown(struct uart_port *port)
 	if (ourport->tx_claimed) {
 		if (!exynos_serial_has_interrupt_mask(port))
 			free_irq(ourport->tx_irq, ourport);
-		tx_enabled(port) = 0;
+		ourport->tx_enabled = 0;
 		ourport->tx_claimed = 0;
 		ourport->tx_mode = 0;
 	}
@@ -1518,7 +1517,7 @@ static void exynos_serial_shutdown(struct uart_port *port)
 		if (!exynos_serial_has_interrupt_mask(port))
 			free_irq(ourport->rx_irq, ourport);
 		ourport->rx_claimed = 0;
-		rx_enabled(port) = 0;
+		ourport->rx_enabled = 0;
 	}
 
 	/* Clear pending interrupts and mask all interrupts */
@@ -1571,9 +1570,9 @@ static int exynos_serial_startup(struct uart_port *port)
 	}
 
 	/* For compatibility with exynos Soc's */
-	rx_enabled(port) = 1;
+	ourport->rx_enabled = 1;
 	ourport->rx_claimed = 1;
-	tx_enabled(port) = 0;
+	ourport->tx_enabled = 0;
 	ourport->tx_claimed = 1;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -2361,7 +2360,7 @@ static void exynos_serial_rx_fifo_wait(struct exynos_uart_port *ourport)
 	fifo_count = exynos_serial_rx_fifocnt(ourport, fifo_stat);
 	if (fifo_count) {
 		exynos_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
-		rx_enabled(port) = 1;
+		ourport->rx_enabled = 1;
 
 		wait_time = jiffies + HZ;
 		do {
@@ -2372,7 +2371,7 @@ static void exynos_serial_rx_fifo_wait(struct exynos_uart_port *ourport)
 			 time_before(jiffies, wait_time));
 	}
 
-	if (rx_enabled(port))
+	if (ourport->rx_enabled)
 		exynos_serial_stop_rx(port);
 }
 
@@ -2786,8 +2785,8 @@ static int exynos_serial_suspend(struct device *dev)
 		exynos_usi_stop(port);
 		uart_clock_disable(ourport);
 
-		rx_enabled(port) = 0;
-		tx_enabled(port) = 0;
+		ourport->rx_enabled = 0;
+		ourport->tx_enabled = 0;
 		if (ourport->dbg_mode & UART_DBG_MODE)
 			dev_err(dev, "UART suspend notification for tty framework.\n");
 	}
@@ -2828,9 +2827,9 @@ static int exynos_serial_resume_noirq(struct device *dev)
 		if (exynos_serial_has_interrupt_mask(port)) {
 			unsigned int uintm = 0xf;
 
-			if (tx_enabled(port))
+			if (ourport->tx_enabled)
 				uintm &= ~S3C64XX_UINTM_TXD_MSK;
-			if (rx_enabled(port))
+			if (ourport->rx_enabled)
 				uintm &= ~S3C64XX_UINTM_RXD_MSK;
 			uart_clock_enable(ourport);
 			wr_regl(port, S3C64XX_UINTM, uintm);
