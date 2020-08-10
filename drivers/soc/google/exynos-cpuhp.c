@@ -190,7 +190,7 @@ static int cpuhp_in(const struct cpumask *mask)
 	int cpu, ret = 0;
 
 	for_each_cpu(cpu, mask) {
-		ret = cpu_up(cpu);
+		ret = add_cpu(cpu);
 		if (ret) {
 			/*
 			 * If it fails to enable cpu,
@@ -218,7 +218,7 @@ static int cpuhp_out(const struct cpumask *mask)
 		if (!cpumask_test_cpu(cpu, mask))
 			continue;
 
-		ret = cpu_down(cpu);
+		ret = remove_cpu(cpu);
 		if (ret) {
 			pr_err("Failed to hotplug out CPU%d with error %d\n",
 			       cpu, ret);
@@ -253,7 +253,7 @@ static struct cpumask cpuhp_get_online_cpus(void)
 }
 
 /*
- * Executes cpu_up
+ * Executes add_cpu
  */
 static int cpuhp_cpu_up(struct cpumask enable_cpus)
 {
@@ -264,7 +264,7 @@ static int cpuhp_cpu_up(struct cpumask enable_cpus)
 }
 
 /*
- * Executes cpu_down
+ * Executes remove_cpu
  */
 static int cpuhp_cpu_down(struct cpumask disable_cpus)
 {
