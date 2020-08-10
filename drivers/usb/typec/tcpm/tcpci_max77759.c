@@ -936,7 +936,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
 		dev_err(&client->dev, "logbuffer get failed");
-		return PTR_ERR(chip->log);
+		chip->log = NULL;
 	}
 
 	chip->psy_ops.tcpc_get_vbus_voltage_mv =

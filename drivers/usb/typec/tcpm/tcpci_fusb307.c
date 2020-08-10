@@ -623,7 +623,7 @@ static int fusb307b_probe(struct i2c_client *client,
 	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
 		dev_err(&client->dev, "logbuffer get failed");
-		return PTR_ERR(chip->log);
+		chip->log = NULL;
 	}
 
 	mutex_init(&chip->data_path_lock);
