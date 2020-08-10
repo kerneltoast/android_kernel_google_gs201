@@ -200,8 +200,7 @@ static int of_get_devfreq_sync_volt_idx(const struct device_node *device)
 
 static bool exynos_pd_power_down_ok_aud(void)
 {
-#if defined(CONFIG_SND_SOC_SAMSUNG_ABOX) || \
-	defined(CONFIG_SND_SOC_SAMSUNG_ABOX_MODULE)
+#if IS_ENABLED(CONFIG_SND_SOC_SAMSUNG_ABOX)
 	return !abox_is_on();
 #else
 	return true;
@@ -210,8 +209,7 @@ static bool exynos_pd_power_down_ok_aud(void)
 
 static bool exynos_pd_power_down_ok_vts(void)
 {
-#if defined(CONFIG_SND_SOC_SAMSUNG_VTS) || \
-	defined(CONFIG_SND_SOC_SAMSUNG_VTS_MODULE)
+#if IS_ENABLED(CONFIG_SND_SOC_SAMSUNG_VTS)
 	return !vts_is_on();
 #else
 	return true;
@@ -220,7 +218,7 @@ static bool exynos_pd_power_down_ok_vts(void)
 
 static bool exynos_pd_power_down_ok_usb(void)
 {
-#ifdef CONFIG_USB_DWC3_EXYNOS
+#if IS_ENABLED(CONFIG_USB_DWC3_EXYNOS)
 	return !otg_is_connect();
 #else
 	return true;
@@ -425,3 +423,4 @@ module_exit(exynos_pd_exit);
 
 MODULE_SOFTDEP("pre: clk_exynos");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Exynos PM domain Support");

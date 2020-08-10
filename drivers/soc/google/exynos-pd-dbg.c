@@ -334,3 +334,4 @@ static int __init exynos_pd_dbg_init(void)
 late_initcall(exynos_pd_dbg_init);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Exynos PM domain Support");
