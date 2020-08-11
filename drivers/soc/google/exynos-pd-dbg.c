@@ -138,8 +138,8 @@ static void exynos_pd_dbg_summary_show(struct generic_pm_domain *genpd)
 			dev_name(pm_data->dev), p);
 	}
 
-	list_for_each_entry(link, &genpd->master_links, master_node)
-		exynos_pd_dbg_summary_show(link->slave);
+	list_for_each_entry(link, &genpd->parent_links, parent_node)
+		exynos_pd_dbg_summary_show(link->child);
 
 	exynos_pd_dbg_genpd_unlock(genpd);
 }
