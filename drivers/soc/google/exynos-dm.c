@@ -10,8 +10,8 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
-#if 0
-#include <soc/samsung/debug-snapshot.h>
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
+#include <soc/google/debug-snapshot.h>
 #endif
 #if IS_ENABLED(CONFIG_GS_ACPM)
 #include "acpm/acpm.h"
@@ -38,10 +38,10 @@ static ssize_t available_show(struct device *dev,
 		if (!dm->dm_data[i].available)
 			continue;
 
-		count += snprintf(buf + count, PAGE_SIZE,
-				"dm_type: %d(%s), available = %s\n",
-				dm->dm_data[i].dm_type, dm->dm_data[i].dm_type_name,
-				dm->dm_data[i].available ? "true" : "false");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "dm_type: %d(%s), available = %s\n",
+				   dm->dm_data[i].dm_type, dm->dm_data[i].dm_type_name,
+				   dm->dm_data[i].available ? "true" : "false");
 	}
 
 	return count;
@@ -60,71 +60,71 @@ static ssize_t show_constraint_table(struct device *dev, struct device_attribute
 	dm = container_of(dm_attrs, struct exynos_dm_data, constraint_table_attr);
 
 	if (!dm->available) {
-		count += snprintf(buf + count, PAGE_SIZE,
-				"This dm_type is not available\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "This dm_type is not available\n");
 		return count;
 	}
 
-	count += snprintf(buf + count, PAGE_SIZE, "dm_type: %s\n",
-				dm->dm_type_name);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "dm_type: %s\n",
+			   dm->dm_type_name);
 
 	constraint_list = &dm->min_slaves;
 	if (list_empty(constraint_list)) {
-		count += snprintf(buf + count, PAGE_SIZE,
-				"This dm_type have not min constraint tables\n\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "This dm_type have not min constraint tables\n\n");
 		goto next;
 	}
 
 	list_for_each_entry(constraint, constraint_list, master_domain) {
-		count += snprintf(buf + count, PAGE_SIZE,
-				"-------------------------------------------------\n");
-		count += snprintf(buf + count, PAGE_SIZE,
-				"constraint_dm_type = %s\n", constraint->dm_type_name);
-		count += snprintf(buf + count, PAGE_SIZE, "constraint_type: %s\n",
-				constraint->constraint_type ? "MAX" : "MIN");
-		count += snprintf(buf + count, PAGE_SIZE, "guidance: %s\n",
-				constraint->guidance ? "true" : "false");
-		count += snprintf(buf + count, PAGE_SIZE,
-				"const_freq = %u, gov_freq =%u\n",
-				constraint->const_freq, constraint->gov_freq);
-		count += snprintf(buf + count, PAGE_SIZE,
-				"master_freq\t constraint_freq\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "-------------------------------------------------\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "constraint_dm_type = %s\n", constraint->dm_type_name);
+		count += scnprintf(buf + count, PAGE_SIZE - count, "constraint_type: %s\n",
+				   constraint->constraint_type ? "MAX" : "MIN");
+		count += scnprintf(buf + count, PAGE_SIZE - count, "guidance: %s\n",
+				   constraint->guidance ? "true" : "false");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "const_freq = %u, gov_freq =%u\n",
+				   constraint->const_freq, constraint->gov_freq);
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "master_freq\t constraint_freq\n");
 		for (i = 0; i < constraint->table_length; i++)
-			count += snprintf(buf + count, PAGE_SIZE, "%10u\t %10u\n",
-					constraint->freq_table[i].master_freq,
-					constraint->freq_table[i].slave_freq);
-		count += snprintf(buf + count, PAGE_SIZE,
-				"-------------------------------------------------\n");
+			count += scnprintf(buf + count, PAGE_SIZE - count, "%10u\t %10u\n",
+					   constraint->freq_table[i].master_freq,
+					   constraint->freq_table[i].slave_freq);
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "-------------------------------------------------\n");
 	}
 
 next:
 	constraint_list = &dm->max_slaves;
 	if (list_empty(constraint_list)) {
-		count += snprintf(buf + count, PAGE_SIZE,
-				"This dm_type have not max constraint tables\n\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "This dm_type have not max constraint tables\n\n");
 		return count;
 	}
 
 	list_for_each_entry(constraint, constraint_list, master_domain) {
-		count += snprintf(buf + count, PAGE_SIZE,
-				"-------------------------------------------------\n");
-		count += snprintf(buf + count, PAGE_SIZE,
-				"constraint_dm_type = %s\n", constraint->dm_type_name);
-		count += snprintf(buf + count, PAGE_SIZE, "constraint_type: %s\n",
-				constraint->constraint_type ? "MAX" : "MIN");
-		count += snprintf(buf + count, PAGE_SIZE, "guidance: %s\n",
-				constraint->guidance ? "true" : "false");
-		count += snprintf(buf + count, PAGE_SIZE,
-				"max_freq =%u\n",
-				constraint->const_freq);
-		count += snprintf(buf + count, PAGE_SIZE,
-				"master_freq\t constraint_freq\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "-------------------------------------------------\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "constraint_dm_type = %s\n", constraint->dm_type_name);
+		count += scnprintf(buf + count, PAGE_SIZE - count, "constraint_type: %s\n",
+				   constraint->constraint_type ? "MAX" : "MIN");
+		count += scnprintf(buf + count, PAGE_SIZE - count, "guidance: %s\n",
+				   constraint->guidance ? "true" : "false");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "max_freq =%u\n",
+				   constraint->const_freq);
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "master_freq\t constraint_freq\n");
 		for (i = 0; i < constraint->table_length; i++)
-			count += snprintf(buf + count, PAGE_SIZE, "%10u\t %10u\n",
-					constraint->freq_table[i].master_freq,
-					constraint->freq_table[i].slave_freq);
-		count += snprintf(buf + count, PAGE_SIZE,
-				"-------------------------------------------------\n");
+			count += scnprintf(buf + count, PAGE_SIZE - count, "%10u\t %10u\n",
+					   constraint->freq_table[i].master_freq,
+					   constraint->freq_table[i].slave_freq);
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "-------------------------------------------------\n");
 	}
 
 	return count;
@@ -144,26 +144,26 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 	dm = container_of(dm_attrs, struct exynos_dm_data, dm_policy_attr);
 
 	if (!dm->available) {
-		count += snprintf(buf + count, PAGE_SIZE,
-				"This dm_type is not available\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "This dm_type is not available\n");
 		return count;
 	}
 
-	count += snprintf(buf + count, PAGE_SIZE, "dm_type: %s\n",
-				dm->dm_type_name);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "dm_type: %s\n",
+			   dm->dm_type_name);
 
-	count += snprintf(buf + count, PAGE_SIZE,
-			"policy_min = %u, policy_max = %u\n",
-			dm->policy_min, dm->policy_max);
-	count += snprintf(buf + count, PAGE_SIZE,
-			"const_min = %u, const_max = %u\n",
-			dm->const_min, dm->const_max);
-	count += snprintf(buf + count, PAGE_SIZE,
-			"gov_min = %u, governor_freq = %u\n", dm->gov_min, dm->governor_freq);
-	count += snprintf(buf + count, PAGE_SIZE, "current_freq = %u\n", dm->cur_freq);
-	count += snprintf(buf + count, PAGE_SIZE,
-			"-------------------------------------------------\n");
-	count += snprintf(buf + count, PAGE_SIZE, "min constraint by\n");
+	count += scnprintf(buf + count, PAGE_SIZE - count,
+			   "policy_min = %u, policy_max = %u\n",
+			   dm->policy_min, dm->policy_max);
+	count += scnprintf(buf + count, PAGE_SIZE - count,
+			   "const_min = %u, const_max = %u\n",
+			   dm->const_min, dm->const_max);
+	count += scnprintf(buf + count, PAGE_SIZE - count,
+			   "gov_min = %u, governor_freq = %u\n", dm->gov_min, dm->governor_freq);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "current_freq = %u\n", dm->cur_freq);
+	count += scnprintf(buf + count, PAGE_SIZE - count,
+			   "-------------------------------------------------\n");
+	count += scnprintf(buf + count, PAGE_SIZE - count, "min constraint by\n");
 	find = 0;
 
 	for (i = 0; i < exynos_dm->domain_count; i++) {
@@ -175,7 +175,7 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 			continue;
 		list_for_each_entry(constraint, constraint_list, master_domain) {
 			if (constraint->dm_slave == dm->dm_type) {
-				count += snprintf(buf + count, PAGE_SIZE,
+				count += scnprintf(buf + count, PAGE_SIZE - count,
 					"%s ---> %s\n"
 					"policy_min(%u), const_min(%u) ---> const_freq(%u)\n"
 					"gov_min(%u), gov_freq(%u) ---> gov_freq(%u)\n",
@@ -188,23 +188,23 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 					exynos_dm->dm_data[i].governor_freq,
 					constraint->gov_freq);
 				if (constraint->guidance)
-					count += snprintf(buf + count, PAGE_SIZE,
-						" [guidance]\n");
+					count += scnprintf(buf + count, PAGE_SIZE - count,
+							   " [guidance]\n");
 				else
-					count += snprintf(buf + count, PAGE_SIZE, "\n");
+					count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
 				find = max(find, constraint->const_freq);
 			}
 		}
 	}
 	if (find == 0)
-		count += snprintf(buf + count, PAGE_SIZE,
-				"There is no min constraint\n\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "There is no min constraint\n\n");
 	else
-		count += snprintf(buf + count, PAGE_SIZE,
-				"min constraint freq = %u\n", find);
-	count += snprintf(buf + count, PAGE_SIZE,
-			"-------------------------------------------------\n");
-	count += snprintf(buf + count, PAGE_SIZE, "max constraint by\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "min constraint freq = %u\n", find);
+	count += scnprintf(buf + count, PAGE_SIZE - count,
+			   "-------------------------------------------------\n");
+	count += scnprintf(buf + count, PAGE_SIZE - count, "max constraint by\n");
 	find = INT_MAX;
 
 	for (i = 0; i < exynos_dm->domain_count; i++) {
@@ -216,7 +216,7 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 			continue;
 		list_for_each_entry(constraint, constraint_list, master_domain) {
 			if (constraint->dm_slave == dm->dm_type) {
-				count += snprintf(buf + count, PAGE_SIZE,
+				count += scnprintf(buf + count, PAGE_SIZE - count,
 					"%s ---> %s\n"
 					"policy_min(%u), const_min(%u) ---> const_freq(%u)\n",
 					exynos_dm->dm_data[i].dm_type_name,
@@ -225,22 +225,22 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 					exynos_dm->dm_data[i].const_max,
 					constraint->const_freq);
 				if (constraint->guidance)
-					count += snprintf(buf + count, PAGE_SIZE,
-						" [guidance]\n");
+					count += scnprintf(buf + count, PAGE_SIZE - count,
+							   " [guidance]\n");
 				else
-					count += snprintf(buf + count, PAGE_SIZE, "\n");
+					count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
 				find = min(find, constraint->const_freq);
 			}
 		}
 	}
 	if (find == INT_MAX)
-		count += snprintf(buf + count, PAGE_SIZE,
-				"There is no max constraint\n\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "There is no max constraint\n\n");
 	else
-		count += snprintf(buf + count, PAGE_SIZE,
-				"max constraint freq = %u\n", find);
-	count += snprintf(buf + count, PAGE_SIZE,
-			"-------------------------------------------------\n");
+		count += scnprintf(buf + count, PAGE_SIZE - count,
+				   "max constraint freq = %u\n", find);
+	count += scnprintf(buf + count, PAGE_SIZE - count,
+			   "-------------------------------------------------\n");
 	return count;
 }
 
@@ -762,7 +762,7 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 	int ret = 0, i;
 	struct exynos_dm_constraint *t;
 
-#if 0
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	dbg_snapshot_dm((int)dm_type, min_freq, max_freq, pre_time, time);
 #endif
 
@@ -856,7 +856,7 @@ out:
 	pre_time = (unsigned int)(before - pre);
 	time = (unsigned int)(after - before);
 
-#if 0
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	dbg_snapshot_dm((int)dm_type, min_freq, max_freq, pre_time, time);
 #endif
 
@@ -920,7 +920,7 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 	u64 pre, before, after;
 	s32 time = 0, pre_time = 0;
 
-#if 0
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	dbg_snapshot_dm((int)dm_type, *target_freq, 1, pre_time, time);
 #endif
 
@@ -998,7 +998,7 @@ out:
 
 	*target_freq = target_dm->cur_freq;
 
-#if 0
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	dbg_snapshot_dm((int)dm_type, *target_freq, 3, pre_time, time);
 #endif
 
@@ -1153,4 +1153,5 @@ static void __exit exynos_dm_exit(void)
 }
 module_exit(exynos_dm_exit);
 
+MODULE_DESCRIPTION("Exynos DVFS Manager driver");
 MODULE_LICENSE("GPL");
