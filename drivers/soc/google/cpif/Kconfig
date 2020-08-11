@@ -1,0 +1,178 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig EXYNOS_MODEM_IF
+	tristate "Samsung Mobile CP Interface"
+	default n
+	---help---
+	  Samsung Dual Modem Interface Driver
+
+if EXYNOS_MODEM_IF
+
+config SEC_MODEM_S5000AP
+	tristate "Exynos ModAP S5xxxAP"
+	select LINK_DEVICE_SHMEM
+	select CP_SECURE_BOOT
+	select MCU_IPC
+	select SHM_IPC
+	select CP_PMUCAL
+	default n
+
+config SEC_MODEM_S5100
+	tristate "Exynos S51xx"
+	select BOOT_DEVICE_SPI
+	select LINK_DEVICE_PCIE
+	default n
+
+menu "Configuration Description"
+config MCU_IPC
+	tristate "MCU IPC Support"
+	default n
+	help
+	  This enables MCU_IPC driver to control the MCU_IPC Device.
+	  MCU_IPC is the Mailbox which has 16 interrupts for TX/RX each
+	  and 256 bytes memory for communicating messages.
+	  AP and CP can share the messages through this device.
+
+config SHM_IPC
+	tristate "Shared Memory for IPC support"
+	default n
+	help
+	  This enables SHM_IPC driver to control the Shared memory
+	  for AP-CP Interface.
+
+config BOOT_DEVICE_SPI
+	tristate "boot device: SPI"
+	default n
+
+config LINK_DEVICE_WITH_SBD_ARCH
+	tristate "Link device with the SBD architecture from MIPI-LLI"
+	default n
+
+config CP_ZEROCOPY
+	tristate "Support zero memory copy"
+	default n
+
+config CP_PKTPROC
+	tristate "Support packet processor"
+	default n
+	help
+	Packet processor
+
+config CP_PKTPROC_UL
+	tristate "Support packet processor for UL"
+	default n
+	help
+	Packet processor UL
+
+config LINK_DEVICE_SHMEM
+	tristate "Real system-level shared-memory on a system bus"
+	default n
+
+config LINK_DEVICE_PCIE
+	tristate "modem driver link device PCIe"
+	default n
+
+config LINK_CONTROL_MSG_IOSM
+	tristate "Control Message Type: IPC Over Shared Memory (IOSM)"
+	default n
+
+config CP_SECURE_BOOT
+	tristate "Support CP Secure Boot"
+	default n
+
+config GPIO_DS_DETECT
+	tristate "Support GPIO DS Detect"
+	default n
+
+config CP_UART_NOTI
+	tristate "Support CP UART notification API"
+	default n
+
+config PMU_UART_SWITCH
+	tristate "Support AP <-> CP UART switch by PMU"
+	depends on CP_UART_NOTI
+	default n
+
+config CP_BTL
+	tristate "Support CP BTL(Back Trace Log) feature"
+	default n
+
+config HW_REV_DETECT
+	tristate "Support HW REV Detect"
+	default n
+
+config MODEM_IF_QOS
+	tristate "Implement QoS for sbd"
+	default n
+	---help---
+	  This enables QoS for SBD model
+
+config MODEM_IF_LEGACY_QOS
+	tristate "Implement QoS for legacy buffer"
+	default n
+	---help---
+	  This enables QoS for legacy buffer model
+
+config MODEM_IF_NET_GRO
+	tristate "enable GRO feature"
+	default n
+	---help---
+	 This enables GRO(Generic Receive Offload) feature
+
+config SUSPEND_DURING_VOICE_CALL
+	tristate "control wake_lock by voice call start/end notification"
+	depends on LINK_DEVICE_PCIE
+	default n
+	---help---
+	  This enables AP suspend during PCM over PCIE
+
+config CACHED_LEGACY_RAW_RX_BUFFER
+	tristate "Set cached RX RAW buffer for high data performance"
+	default n
+
+config CPIF_TP_MONITOR
+	tristate "Support CP network throughput monitor"
+	default n
+	---help---
+	  This enables CP network throughput monitor
+
+config LINK_DEVICE_PCIE_S2MPU
+	tristate "Use PCIE S2MPU"
+	depends on LINK_DEVICE_PCIE
+	default n
+	---help---
+	  Gate some addresses AP and CP shared
+
+config CPIF_CHECK_SJTAG_STATUS
+	tristate "Check secure JTAG status to disable CP memory dump"
+	default n
+	---help---
+	  Check secure JTAG status to disable CP memory dump
+
+config CP_LCD_NOTIFIER
+	tristate "Enable LCD notifier for CP"
+	default n
+	---help---
+	  This enables LCD notifier for CP
+
+config LINK_DEVICE_PCIE_GPIO_WA
+	tristate "Workaround for discarded GPIOs"
+	depends on LINK_DEVICE_PCIE
+	default n
+	---help---
+	  Use a GPIO for the other purpose instead
+
+config EXYNOS_DIT
+	tristate "Enable DIT"
+	default n
+	---help---
+	  Enable DIT (Direct Internet Packet Transfer)
+
+config CP_WRESET_WA
+    tristate "CP warm reset WA due to WRSTBI disabled"
+    depends on LINK_DEVICE_PCIE
+    default n
+    ---help---
+      CP warm reset WA
+
+endmenu
+endif

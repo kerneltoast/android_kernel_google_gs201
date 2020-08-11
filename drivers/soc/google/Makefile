@@ -22,3 +22,7 @@ obj-$(CONFIG_SLC_PARTITION_MANAGER)	+= pt/
 
 # GSA
 obj-$(CONFIG_GSA)			+= gsa/
+
+# CPIF
+obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif/
+
