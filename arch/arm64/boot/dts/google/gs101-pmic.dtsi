@@ -393,7 +393,6 @@
 				regulator-name = "S2MPG10_LDO16";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x30>;
@@ -404,7 +403,6 @@
 				regulator-name = "S2MPG10_LDO17";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x31>;
@@ -415,7 +413,6 @@
 				regulator-name = "S2MPG10_LDO18";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x32>;
@@ -426,7 +423,6 @@
 				regulator-name = "S2MPG10_LDO19";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x33>;
