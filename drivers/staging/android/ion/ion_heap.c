@@ -205,63 +205,6 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 }
 EXPORT_SYMBOL_GPL(ion_heap_map_user);
 
-static int ion_heap_clear_pages(struct page **pages, int num, pgprot_t pgprot)
-{
-	void *addr = vmap(pages, num, VM_MAP, pgprot);
-
-	if (!addr)
-		return -ENOMEM;
-	memset(addr, 0, PAGE_SIZE * num);
-	vunmap(addr);
-
-	return 0;
-}
-
-static int ion_heap_sglist_zero(struct scatterlist *sgl, unsigned int nents,
-				pgprot_t pgprot)
-{
-	int p = 0;
-	int ret = 0;
-	struct sg_page_iter piter;
-	struct page *pages[32];
-
-	for_each_sg_page(sgl, &piter, nents, 0) {
-		pages[p++] = sg_page_iter_page(&piter);
-		if (p == ARRAY_SIZE(pages)) {
-			ret = ion_heap_clear_pages(pages, p, pgprot);
-			if (ret)
-				return ret;
-			p = 0;
-		}
-	}
-	if (p)
-		ret = ion_heap_clear_pages(pages, p, pgprot);
-
-	return ret;
-}
-
-int ion_heap_buffer_zero(struct ion_buffer *buffer)
-{
-	struct sg_table *table = buffer->sg_table;
-	pgprot_t pgprot;
-
-	if (buffer->flags & ION_FLAG_CACHED)
-		pgprot = PAGE_KERNEL;
-	else
-		pgprot = pgprot_writecombine(PAGE_KERNEL);
-
-	return ion_heap_sglist_zero(table->sgl, table->nents, pgprot);
-}
-
-int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot)
-{
-	struct scatterlist sg;
-
-	sg_init_table(&sg, 1);
-	sg_set_page(&sg, page, size, 0);
-	return ion_heap_sglist_zero(&sg, 1, pgprot);
-}
-
 void ion_heap_freelist_add(struct ion_heap *heap, struct ion_buffer *buffer)
 {
 	spin_lock(&heap->free_lock);
@@ -294,8 +237,6 @@ size_t ion_heap_freelist_shrink(struct ion_heap *heap, size_t size)
 
 int ion_heap_init_deferred_free(struct ion_heap *heap)
 {
-	struct sched_param param = { .sched_priority = 0 };
-
 	INIT_LIST_HEAD(&heap->free_list);
 	init_waitqueue_head(&heap->waitqueue);
 	heap->task = kthread_run(ion_heap_deferred_free, heap,
@@ -305,7 +246,7 @@ int ion_heap_init_deferred_free(struct ion_heap *heap)
 		       __func__);
 		return PTR_ERR_OR_ZERO(heap->task);
 	}
-	sched_setscheduler(heap->task, SCHED_IDLE, &param);
+	sched_set_normal(heap->task, 19);
 
 	return 0;
 }

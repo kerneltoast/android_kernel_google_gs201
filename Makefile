@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 8
 SUBLEVEL = 0
-EXTRAVERSION = -rc7
+EXTRAVERSION =
 NAME = Kleptomaniac Octopus
 
 # *DOCUMENTATION*
@@ -448,6 +448,7 @@ OBJSIZE		= $(CROSS_COMPILE)size
 STRIP		= $(CROSS_COMPILE)strip
 endif
 PAHOLE		= pahole
+RESOLVE_BTFIDS	= $(objtree)/tools/bpf/resolve_btfids/resolve_btfids
 LEX		= flex
 YACC		= bison
 AWK		= awk
@@ -464,6 +465,7 @@ KLZOP		= lzop
 LZMA		= lzma
 LZ4		= lz4
 XZ		= xz
+ZSTD		= zstd
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void -Wno-unknown-attribute $(CF)
@@ -506,13 +508,12 @@ KBUILD_CFLAGS_MODULE  := -DMODULE
 KBUILD_LDFLAGS_MODULE :=
 export KBUILD_LDS_MODULE := $(srctree)/scripts/module-common.lds
 KBUILD_LDFLAGS :=
-GCC_PLUGINS_CFLAGS :=
 CLANG_FLAGS :=
 
 export ARCH SRCARCH CONFIG_SHELL BASH HOSTCC KBUILD_HOSTCFLAGS CROSS_COMPILE LD CC
-export CPP AR NM STRIP OBJCOPY OBJDUMP OBJSIZE READELF PAHOLE LEX YACC AWK INSTALLKERNEL
+export CPP AR NM STRIP OBJCOPY OBJDUMP OBJSIZE READELF PAHOLE RESOLVE_BTFIDS LEX YACC AWK INSTALLKERNEL
 export PERL PYTHON PYTHON3 CHECK CHECKFLAGS MAKE UTS_MACHINE HOSTCXX
-export KGZIP KBZIP2 KLZOP LZMA LZ4 XZ
+export KGZIP KBZIP2 KLZOP LZMA LZ4 XZ ZSTD
 export KBUILD_HOSTCXXFLAGS KBUILD_HOSTLDFLAGS KBUILD_HOSTLDLIBS LDFLAGS_MODULE
 
 export KBUILD_CPPFLAGS NOSTDINC_FLAGS LINUXINCLUDE OBJCOPYFLAGS KBUILD_LDFLAGS
@@ -749,9 +750,6 @@ endif
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
 KBUILD_CFLAGS	+= $(call cc-option,-fno-allow-store-data-races)
 
-include scripts/Makefile.kcov
-include scripts/Makefile.gcc-plugins
-
 ifdef CONFIG_READABLE_ASM
 # Disable optimizations that make assembler listings hard to read.
 # reorder blocks reorders the control in the function
@@ -766,7 +764,7 @@ ifneq ($(CONFIG_FRAME_WARN),0)
 KBUILD_CFLAGS += -Wframe-larger-than=$(CONFIG_FRAME_WARN)
 endif
 
-stackp-flags-$(CONFIG_CC_HAS_STACKPROTECTOR_NONE) := -fno-stack-protector
+stackp-flags-y                                    := -fno-stack-protector
 stackp-flags-$(CONFIG_STACKPROTECTOR)             := -fstack-protector
 stackp-flags-$(CONFIG_STACKPROTECTOR_STRONG)      := -fstack-protector-strong
 
@@ -806,9 +804,18 @@ KBUILD_CFLAGS	+= -fomit-frame-pointer
 endif
 endif
 
-# Initialize all stack variables with a pattern, if desired.
-ifdef CONFIG_INIT_STACK_ALL
+# Initialize all stack variables with a 0xAA pattern.
+ifdef CONFIG_INIT_STACK_ALL_PATTERN
 KBUILD_CFLAGS	+= -ftrivial-auto-var-init=pattern
+endif
+
+# Initialize all stack variables with a zero value.
+ifdef CONFIG_INIT_STACK_ALL_ZERO
+# Future support for zero initialization is still being debated, see
+# https://bugs.llvm.org/show_bug.cgi?id=45497. These flags are subject to being
+# renamed or dropped.
+KBUILD_CFLAGS	+= -ftrivial-auto-var-init=zero
+KBUILD_CFLAGS	+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
 endif
 
 DEBUG_CFLAGS	:= $(call cc-option, -fno-var-tracking-assignments)
@@ -952,10 +959,19 @@ ifdef CONFIG_RETPOLINE
 KBUILD_CFLAGS += $(call cc-option,-fcf-protection=none)
 endif
 
-include scripts/Makefile.kasan
-include scripts/Makefile.extrawarn
-include scripts/Makefile.ubsan
-include scripts/Makefile.kcsan
+# include additional Makefiles when needed
+include-y			:= scripts/Makefile.extrawarn
+include-$(CONFIG_KASAN)		+= scripts/Makefile.kasan
+include-$(CONFIG_KCSAN)		+= scripts/Makefile.kcsan
+include-$(CONFIG_UBSAN)		+= scripts/Makefile.ubsan
+include-$(CONFIG_KCOV)		+= scripts/Makefile.kcov
+include-$(CONFIG_GCC_PLUGINS)	+= scripts/Makefile.gcc-plugins
+
+include $(addprefix $(srctree)/, $(include-y))
+
+# scripts/Makefile.gcc-plugins is intentionally included last.
+# Do not add $(call cc-option,...) below this line. When you build the kernel
+# from the clean source tree, the GCC plugins do not exist at this point.
 
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
 KBUILD_CPPFLAGS += $(KCPPFLAGS)
@@ -1057,9 +1073,10 @@ export mod_sign_cmd
 
 HOST_LIBELF_LIBS = $(shell pkg-config libelf --libs 2>/dev/null || echo -lelf)
 
+has_libelf = $(call try-run,\
+               echo "int main() {}" | $(HOSTCC) -xc -o /dev/null $(HOST_LIBELF_LIBS) -,1,0)
+
 ifdef CONFIG_STACK_VALIDATION
-  has_libelf := $(call try-run,\
-		echo "int main() {}" | $(HOSTCC) -xc -o /dev/null $(HOST_LIBELF_LIBS) -,1,0)
   ifeq ($(has_libelf),1)
     objtool_target := tools/objtool FORCE
   else
@@ -1068,10 +1085,53 @@ ifdef CONFIG_STACK_VALIDATION
   endif
 endif
 
+ifdef CONFIG_DEBUG_INFO_BTF
+  ifeq ($(has_libelf),1)
+    resolve_btfids_target := tools/bpf/resolve_btfids FORCE
+  else
+    ERROR_RESOLVE_BTFIDS := 1
+  endif
+endif
+
 PHONY += prepare0
 
 export MODORDER := $(extmod-prefix)modules.order
 export MODULES_NSDEPS := $(extmod-prefix)modules.nsdeps
+
+# ---------------------------------------------------------------------------
+# Kernel headers
+
+PHONY += headers
+
+#Default location for installed headers
+ifeq ($(KBUILD_EXTMOD),)
+PHONY += archheaders archscripts
+hdr-inst := -f $(srctree)/scripts/Makefile.headersinst obj
+headers: $(version_h) scripts_unifdef uapi-asm-generic archheaders archscripts
+else
+hdr-prefix = $(KBUILD_EXTMOD)/
+hdr-inst := -f $(srctree)/scripts/Makefile.headersinst dst=$(KBUILD_EXTMOD)/usr/include objtree=$(objtree)/$(KBUILD_EXTMOD) obj
+endif
+
+export INSTALL_HDR_PATH = $(objtree)/$(hdr-prefix)usr
+
+quiet_cmd_headers_install = INSTALL $(INSTALL_HDR_PATH)/include
+      cmd_headers_install = \
+	mkdir -p $(INSTALL_HDR_PATH); \
+	rsync -mrl --include='*/' --include='*\.h' --exclude='*' \
+	usr/include $(INSTALL_HDR_PATH)
+
+PHONY += headers_install
+headers_install: headers
+	$(call cmd,headers_install)
+
+headers:
+ifeq ($(KBUILD_EXTMOD),)
+	$(if $(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/Kbuild),, \
+	  $(error Headers not exportable for the $(SRCARCH) architecture))
+endif
+	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)include/uapi
+	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)arch/$(SRCARCH)/include/uapi
 
 ifeq ($(KBUILD_EXTMOD),)
 core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
@@ -1104,7 +1164,6 @@ KBUILD_VMLINUX_OBJS += $(patsubst %/,%/built-in.a, $(drivers-y))
 
 export KBUILD_VMLINUX_OBJS KBUILD_VMLINUX_LIBS
 export KBUILD_LDS          := arch/$(SRCARCH)/kernel/vmlinux.lds
-export LDFLAGS_vmlinux
 # used by scripts/Makefile.package
 export KBUILD_ALLDIRS := $(sort $(filter-out arch/%,$(vmlinux-alldirs)) LICENSES arch include scripts tools)
 
@@ -1136,7 +1195,7 @@ ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
 
 # Final link of vmlinux with optional arch pass after final link
 cmd_link-vmlinux =                                                 \
-	$(CONFIG_SHELL) $< $(LD) $(KBUILD_LDFLAGS) $(LDFLAGS_vmlinux) ;    \
+	$(CONFIG_SHELL) $< "$(LD)" "$(KBUILD_LDFLAGS)" "$(LDFLAGS_vmlinux)";    \
 	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 
 vmlinux: scripts/link-vmlinux.sh autoksyms_recursive $(vmlinux-deps) FORCE
@@ -1149,7 +1208,8 @@ targets := vmlinux
 $(sort $(vmlinux-deps) $(subdir-modorder)): descend ;
 
 filechk_kernel.release = \
-	echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
+	echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion \
+		$(srctree) $(BRANCH) $(KMI_GENERATION))"
 
 # Store (new) KERNELRELEASE string in include/config/kernel.release
 include/config/kernel.release: FORCE
@@ -1179,7 +1239,7 @@ prepare0: archprepare
 	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
-prepare: prepare0 prepare-objtool
+prepare: prepare0 prepare-objtool prepare-resolve_btfids
 
 # Support for using generic headers in asm-generic
 asm-generic := -f $(srctree)/scripts/Makefile.asm-generic obj
@@ -1192,7 +1252,7 @@ uapi-asm-generic:
 	$(Q)$(MAKE) $(asm-generic)=arch/$(SRCARCH)/include/generated/uapi/asm \
 	generic=include/uapi/asm-generic
 
-PHONY += prepare-objtool
+PHONY += prepare-objtool prepare-resolve_btfids
 prepare-objtool: $(objtool_target)
 ifeq ($(SKIP_STACK_VALIDATION),1)
 ifdef CONFIG_UNWINDER_ORC
@@ -1203,6 +1263,11 @@ else
 endif
 endif
 
+prepare-resolve_btfids: $(resolve_btfids_target)
+ifeq ($(ERROR_RESOLVE_BTFIDS),1)
+	@echo "error: Cannot resolve BTF IDs for CONFIG_DEBUG_INFO_BTF, please install libelf-dev, libelf-devel or elfutils-libelf-devel" >&2
+	@false
+endif
 # Generate some files
 # ---------------------------------------------------------------------------
 
@@ -1240,33 +1305,6 @@ PHONY += headerdep
 headerdep:
 	$(Q)find $(srctree)/include/ -name '*.h' | xargs --max-args 1 \
 	$(srctree)/scripts/headerdep.pl -I$(srctree)/include
-
-# ---------------------------------------------------------------------------
-# Kernel headers
-
-#Default location for installed headers
-export INSTALL_HDR_PATH = $(objtree)/usr
-
-quiet_cmd_headers_install = INSTALL $(INSTALL_HDR_PATH)/include
-      cmd_headers_install = \
-	mkdir -p $(INSTALL_HDR_PATH); \
-	rsync -mrl --include='*/' --include='*\.h' --exclude='*' \
-	usr/include $(INSTALL_HDR_PATH)
-
-PHONY += headers_install
-headers_install: headers
-	$(call cmd,headers_install)
-
-PHONY += archheaders archscripts
-
-hdr-inst := -f $(srctree)/scripts/Makefile.headersinst obj
-
-PHONY += headers
-headers: $(version_h) scripts_unifdef uapi-asm-generic archheaders archscripts
-	$(if $(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/Kbuild),, \
-	  $(error Headers not exportable for the $(SRCARCH) architecture))
-	$(Q)$(MAKE) $(hdr-inst)=include/uapi
-	$(Q)$(MAKE) $(hdr-inst)=arch/$(SRCARCH)/include/uapi
 
 # Deprecated. It is no-op now.
 PHONY += headers_check
@@ -1700,6 +1738,8 @@ help:
 	@echo  ''
 	@echo  '  modules         - default target, build the module(s)'
 	@echo  '  modules_install - install the module'
+	@echo  '  headers_install - Install sanitised kernel headers to INSTALL_HDR_PATH'
+	@echo  '                    (default: $(abspath $(INSTALL_HDR_PATH)))'
 	@echo  '  clean           - remove generated files in module directory only'
 	@echo  ''
 
@@ -1844,7 +1884,8 @@ checkstack:
 	$(PERL) $(srctree)/scripts/checkstack.pl $(CHECKSTACK_ARCH)
 
 kernelrelease:
-	@echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
+	@echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion \
+		$(srctree) $(BRANCH) $(KMI_GENERATION))"
 
 kernelversion:
 	@echo $(KERNELVERSION)

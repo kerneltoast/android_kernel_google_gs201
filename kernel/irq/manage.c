@@ -320,12 +320,16 @@ static bool irq_set_affinity_deactivated(struct irq_data *data,
 	struct irq_desc *desc = irq_data_to_desc(data);
 
 	/*
+	 * Handle irq chips which can handle affinity only in activated
+	 * state correctly
+	 *
 	 * If the interrupt is not yet activated, just store the affinity
 	 * mask and do not call the chip driver at all. On activation the
 	 * driver has to make sure anyway that the interrupt is in a
 	 * useable state so startup works.
 	 */
-	if (!IS_ENABLED(CONFIG_IRQ_DOMAIN_HIERARCHY) || irqd_is_activated(data))
+	if (!IS_ENABLED(CONFIG_IRQ_DOMAIN_HIERARCHY) ||
+	    irqd_is_activated(data) || !irqd_affinity_on_activate(data))
 		return false;
 
 	cpumask_copy(desc->irq_common_data.affinity, mask);
@@ -1304,9 +1308,6 @@ static int
 setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 {
 	struct task_struct *t;
-	struct sched_param param = {
-		.sched_priority = MAX_USER_RT_PRIO/2,
-	};
 
 	if (!secondary) {
 		t = kthread_create(irq_thread, new, "irq/%d-%s", irq,
@@ -1314,13 +1315,12 @@ setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 	} else {
 		t = kthread_create(irq_thread, new, "irq/%d-s-%s", irq,
 				   new->name);
-		param.sched_priority -= 1;
 	}
 
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 
-	sched_setscheduler_nocheck(t, SCHED_FIFO, &param);
+	sched_set_fifo(t);
 
 	/*
 	 * We keep the reference to the task struct even if

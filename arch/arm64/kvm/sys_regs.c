@@ -1024,9 +1024,9 @@ static bool access_amu(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 
 /* Macro to expand the AMU counter and type registers*/
 #define AMU_AMEVCNTR0_EL0(n) { SYS_DESC(SYS_AMEVCNTR0_EL0(n)), access_amu }
-#define AMU_AMEVTYPE0_EL0(n) { SYS_DESC(SYS_AMEVTYPE0_EL0(n)), access_amu }
+#define AMU_AMEVTYPER0_EL0(n) { SYS_DESC(SYS_AMEVTYPER0_EL0(n)), access_amu }
 #define AMU_AMEVCNTR1_EL0(n) { SYS_DESC(SYS_AMEVCNTR1_EL0(n)), access_amu }
-#define AMU_AMEVTYPE1_EL0(n) { SYS_DESC(SYS_AMEVTYPE1_EL0(n)), access_amu }
+#define AMU_AMEVTYPER1_EL0(n) { SYS_DESC(SYS_AMEVTYPER1_EL0(n)), access_amu }
 
 static bool trap_ptrauth(struct kvm_vcpu *vcpu,
 			 struct sys_reg_params *p,
@@ -1629,22 +1629,22 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	AMU_AMEVCNTR0_EL0(13),
 	AMU_AMEVCNTR0_EL0(14),
 	AMU_AMEVCNTR0_EL0(15),
-	AMU_AMEVTYPE0_EL0(0),
-	AMU_AMEVTYPE0_EL0(1),
-	AMU_AMEVTYPE0_EL0(2),
-	AMU_AMEVTYPE0_EL0(3),
-	AMU_AMEVTYPE0_EL0(4),
-	AMU_AMEVTYPE0_EL0(5),
-	AMU_AMEVTYPE0_EL0(6),
-	AMU_AMEVTYPE0_EL0(7),
-	AMU_AMEVTYPE0_EL0(8),
-	AMU_AMEVTYPE0_EL0(9),
-	AMU_AMEVTYPE0_EL0(10),
-	AMU_AMEVTYPE0_EL0(11),
-	AMU_AMEVTYPE0_EL0(12),
-	AMU_AMEVTYPE0_EL0(13),
-	AMU_AMEVTYPE0_EL0(14),
-	AMU_AMEVTYPE0_EL0(15),
+	AMU_AMEVTYPER0_EL0(0),
+	AMU_AMEVTYPER0_EL0(1),
+	AMU_AMEVTYPER0_EL0(2),
+	AMU_AMEVTYPER0_EL0(3),
+	AMU_AMEVTYPER0_EL0(4),
+	AMU_AMEVTYPER0_EL0(5),
+	AMU_AMEVTYPER0_EL0(6),
+	AMU_AMEVTYPER0_EL0(7),
+	AMU_AMEVTYPER0_EL0(8),
+	AMU_AMEVTYPER0_EL0(9),
+	AMU_AMEVTYPER0_EL0(10),
+	AMU_AMEVTYPER0_EL0(11),
+	AMU_AMEVTYPER0_EL0(12),
+	AMU_AMEVTYPER0_EL0(13),
+	AMU_AMEVTYPER0_EL0(14),
+	AMU_AMEVTYPER0_EL0(15),
 	AMU_AMEVCNTR1_EL0(0),
 	AMU_AMEVCNTR1_EL0(1),
 	AMU_AMEVCNTR1_EL0(2),
@@ -1661,22 +1661,22 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	AMU_AMEVCNTR1_EL0(13),
 	AMU_AMEVCNTR1_EL0(14),
 	AMU_AMEVCNTR1_EL0(15),
-	AMU_AMEVTYPE1_EL0(0),
-	AMU_AMEVTYPE1_EL0(1),
-	AMU_AMEVTYPE1_EL0(2),
-	AMU_AMEVTYPE1_EL0(3),
-	AMU_AMEVTYPE1_EL0(4),
-	AMU_AMEVTYPE1_EL0(5),
-	AMU_AMEVTYPE1_EL0(6),
-	AMU_AMEVTYPE1_EL0(7),
-	AMU_AMEVTYPE1_EL0(8),
-	AMU_AMEVTYPE1_EL0(9),
-	AMU_AMEVTYPE1_EL0(10),
-	AMU_AMEVTYPE1_EL0(11),
-	AMU_AMEVTYPE1_EL0(12),
-	AMU_AMEVTYPE1_EL0(13),
-	AMU_AMEVTYPE1_EL0(14),
-	AMU_AMEVTYPE1_EL0(15),
+	AMU_AMEVTYPER1_EL0(0),
+	AMU_AMEVTYPER1_EL0(1),
+	AMU_AMEVTYPER1_EL0(2),
+	AMU_AMEVTYPER1_EL0(3),
+	AMU_AMEVTYPER1_EL0(4),
+	AMU_AMEVTYPER1_EL0(5),
+	AMU_AMEVTYPER1_EL0(6),
+	AMU_AMEVTYPER1_EL0(7),
+	AMU_AMEVTYPER1_EL0(8),
+	AMU_AMEVTYPER1_EL0(9),
+	AMU_AMEVTYPER1_EL0(10),
+	AMU_AMEVTYPER1_EL0(11),
+	AMU_AMEVTYPER1_EL0(12),
+	AMU_AMEVTYPER1_EL0(13),
+	AMU_AMEVTYPER1_EL0(14),
+	AMU_AMEVTYPER1_EL0(15),
 
 	{ SYS_DESC(SYS_CNTP_TVAL_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_CTL_EL0), access_arch_timer },
@@ -2156,7 +2156,7 @@ static const struct sys_reg_desc *find_reg(const struct sys_reg_params *params,
 	return bsearch((void *)pval, table, num, sizeof(table[0]), match_sys_reg);
 }
 
-int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu, struct kvm_run *run)
+int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu)
 {
 	kvm_inject_undefined(vcpu);
 	return 1;
@@ -2335,7 +2335,7 @@ static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
-int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+int kvm_handle_cp15_64(struct kvm_vcpu *vcpu)
 {
 	const struct sys_reg_desc *target_specific;
 	size_t num;
@@ -2346,7 +2346,7 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 				target_specific, num);
 }
 
-int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+int kvm_handle_cp15_32(struct kvm_vcpu *vcpu)
 {
 	const struct sys_reg_desc *target_specific;
 	size_t num;
@@ -2357,14 +2357,14 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 				target_specific, num);
 }
 
-int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+int kvm_handle_cp14_64(struct kvm_vcpu *vcpu)
 {
 	return kvm_handle_cp_64(vcpu,
 				cp14_64_regs, ARRAY_SIZE(cp14_64_regs),
 				NULL, 0);
 }
 
-int kvm_handle_cp14_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+int kvm_handle_cp14_32(struct kvm_vcpu *vcpu)
 {
 	return kvm_handle_cp_32(vcpu,
 				cp14_regs, ARRAY_SIZE(cp14_regs),
@@ -2416,9 +2416,8 @@ static void reset_sys_reg_descs(struct kvm_vcpu *vcpu,
 /**
  * kvm_handle_sys_reg -- handles a mrs/msr trap on a guest sys_reg access
  * @vcpu: The VCPU pointer
- * @run:  The kvm_run struct
  */
-int kvm_handle_sys_reg(struct kvm_vcpu *vcpu, struct kvm_run *run)
+int kvm_handle_sys_reg(struct kvm_vcpu *vcpu)
 {
 	struct sys_reg_params params;
 	unsigned long esr = kvm_vcpu_get_hsr(vcpu);

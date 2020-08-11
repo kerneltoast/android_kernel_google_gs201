@@ -45,7 +45,7 @@ static DEFINE_SPINLOCK(fscrypt_direct_keys_lock);
  * key is longer, then only the first 'derived_keysize' bytes are used.
  */
 static int derive_key_aes(const u8 *master_key,
-			  const u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE],
+			  const u8 nonce[FSCRYPT_FILE_NONCE_SIZE],
 			  u8 *derived_key, unsigned int derived_keysize)
 {
 	int res = 0;
@@ -68,7 +68,7 @@ static int derive_key_aes(const u8 *master_key,
 	skcipher_request_set_callback(req,
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 			crypto_req_done, &wait);
-	res = crypto_skcipher_setkey(tfm, nonce, FS_KEY_DERIVATION_NONCE_SIZE);
+	res = crypto_skcipher_setkey(tfm, nonce, FSCRYPT_FILE_NONCE_SIZE);
 	if (res < 0)
 		goto out;
 
@@ -155,7 +155,7 @@ static void free_direct_key(struct fscrypt_direct_key *dk)
 {
 	if (dk) {
 		fscrypt_destroy_prepared_key(&dk->dk_key);
-		kzfree(dk);
+		kfree_sensitive(dk);
 	}
 }
 
@@ -284,7 +284,7 @@ static int setup_v1_file_key_derived(struct fscrypt_info *ci,
 
 	err = fscrypt_set_per_file_enc_key(ci, derived_key);
 out:
-	kzfree(derived_key);
+	kfree_sensitive(derived_key);
 	return err;
 }
 

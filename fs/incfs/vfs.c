@@ -469,7 +469,6 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 	int new_max_sn = last_known_read_sn;
 	int reads_collected = 0;
 	ssize_t result = 0;
-	int i = 0;
 
 	if (!mi)
 		return -EFAULT;
@@ -485,15 +484,11 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 		min_t(size_t, PAGE_SIZE / sizeof(*reads_buf), reads_to_collect);
 
 	reads_collected = incfs_collect_pending_reads(
-		mi, last_known_read_sn, reads_buf, reads_to_collect);
+		mi, last_known_read_sn, reads_buf, reads_to_collect, &new_max_sn);
 	if (reads_collected < 0) {
 		result = reads_collected;
 		goto out;
 	}
-
-	for (i = 0; i < reads_collected; i++)
-		if (reads_buf[i].serial_number > new_max_sn)
-			new_max_sn = reads_buf[i].serial_number;
 
 	/*
 	 * Just to make sure that we don't accidentally copy more data
@@ -1936,17 +1931,17 @@ static int file_open(struct inode *inode, struct file *file)
 	struct file *backing_file = NULL;
 	struct path backing_path = {};
 	int err = 0;
+	int flags = O_NOATIME | O_LARGEFILE |
+		(S_ISDIR(inode->i_mode) ? O_RDONLY : O_RDWR);
 
 	if (!mi)
 		return -EBADF;
 
 	get_incfs_backing_path(file->f_path.dentry, &backing_path);
-
 	if (!backing_path.dentry)
 		return -EBADF;
 
-	backing_file = dentry_open(
-		&backing_path, O_RDWR | O_NOATIME | O_LARGEFILE, mi->mi_owner);
+	backing_file = dentry_open(&backing_path, flags, mi->mi_owner);
 	path_put(&backing_path);
 
 	if (IS_ERR(backing_file)) {
@@ -2006,10 +2001,8 @@ static int dentry_revalidate(struct dentry *d, unsigned int flags)
 
 	get_incfs_backing_path(d, &backing_path);
 	backing_dentry = backing_path.dentry;
-	if (!backing_dentry) {
-		result = -EBADF;
+	if (!backing_dentry)
 		goto out;
-	}
 
 	if (d_inode(backing_dentry) != binode) {
 		/*

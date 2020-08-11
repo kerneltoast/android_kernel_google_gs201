@@ -17,7 +17,7 @@ void
 virtcrypto_clear_request(struct virtio_crypto_request *vc_req)
 {
 	if (vc_req) {
-		kzfree(vc_req->req_data);
+		kfree_sensitive(vc_req->req_data);
 		kfree(vc_req->sgs);
 	}
 }
@@ -498,11 +498,11 @@ free_vqs:
 }
 #endif
 
-static unsigned int features[] = {
+static const unsigned int features[] = {
 	/* none */
 };
 
-static struct virtio_device_id id_table[] = {
+static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_CRYPTO, VIRTIO_DEV_ANY_ID },
 	{ 0 },
 };
