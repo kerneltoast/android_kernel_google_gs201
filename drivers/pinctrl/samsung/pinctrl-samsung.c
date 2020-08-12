@@ -1246,7 +1246,7 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
-/**
+/*
  * samsung_pinctrl_suspend_dev - save pinctrl state for suspend for a device
  *
  * Save data for all banks handled by this device.
@@ -1303,7 +1303,7 @@ static void samsung_pinctrl_suspend_dev(
 		drvdata->retention_ctrl->enable(drvdata);
 }
 
-/**
+/*
  * samsung_pinctrl_resume_dev - restore pinctrl state from suspend for a device
  *
  * Restore one of the banks that was saved during suspend.
