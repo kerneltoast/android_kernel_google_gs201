@@ -14,21 +14,22 @@
 #include <dt-bindings/soc/google/gs101-dm.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #include <dt-bindings/soc/google/gs101-pm-qos.h>
-#include "gs101-pinctrl.dtsi"
-#include "gs101-usi.dtsi"
-#include "gs101-pm-domains.dtsi"
+#include "gs101-rmem.dtsi"
+#include "gs101-bigo.dtsi"
+#include "gs101-bts.dtsi"
 #include "gs101-cpu.dtsi"
+#include "gs101-dit.dtsi"
+#include "gs101-drm-dpu.dtsi"
 #include "gs101-gpu.dtsi"
+#include "gs101-gsa.dtsi"
+#include "gs101-ion.dtsi"
+#include "gs101-mfc.dtsi"
+#include "gs101-pcie.dtsi"
+#include "gs101-pinctrl.dtsi"
+#include "gs101-pm-domains.dtsi"
 #include "gs101-sysmmu.dtsi"
 #include "gs101-ufs.dtsi"
-#include "gs101-rmem.dtsi"
-#include "gs101-ion.dtsi"
-#include "gs101-pcie.dtsi"
-#include "gs101-drm-dpu.dtsi"
-#include "gs101-mfc.dtsi"
-#include "gs101-bts.dtsi"
-#include "gs101-bigo.dtsi"
-#include "gs101-gsa.dtsi"
+#include "gs101-usi.dtsi"
 
 / {
 	compatible = "google,gs101";

@@ -19,6 +19,25 @@
 		gsa_reserved_protected: gsa@0x90200000 {
 			reg = <0x0 0x90200000 0x400000>;
 			no-map;
+
+		};
+
+		cp_rmem: cp_rmem {
+			compatible = "exynos,modem_if";
+			reg = <0x0 0xF0000000 0x00800000>;
+			rmem_index = <0>;
+		};
+
+		cp_msi_rmem: cp_msi_rmem {
+			compatible = "exynos,modem_if";
+			reg = <0x0 0xF6200000 0x00001000>;
+			rmem_index = <1>;
+		};
+
+		cp_rmem_2: cp_rmem_2 {
+			compatible = "exynos,modem_if";
+			reg = <0x0 0xD0000000 0x08000000>;
+			rmem_index = <2>;
 		};
 	};
 };
