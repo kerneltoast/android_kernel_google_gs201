@@ -456,7 +456,7 @@ static ssize_t users_show(struct device *dev,
 
 	list_for_each_entry(user, &cpuhp.users, list) {
 		online_cpus = *(unsigned int *)cpumask_bits(&user->online_cpus);
-		ret += scnprintf(&buf[ret], 30, "%s: (0x%x)\n",
+		ret += scnprintf(&buf[ret], PAGE_SIZE - ret, "%s: (0x%x)\n",
 				user->name, online_cpus);
 	}
 
