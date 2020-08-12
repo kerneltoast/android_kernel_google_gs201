@@ -12,7 +12,7 @@
 
 #include <linux/err.h>
 #ifdef MFC_USE_BTS
-#include <soc/samsung/bts.h>
+#include <soc/google/bts.h>
 #endif
 
 #include "mfc_qos.h"

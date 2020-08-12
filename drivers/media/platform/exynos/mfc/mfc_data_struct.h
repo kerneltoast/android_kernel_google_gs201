@@ -28,7 +28,7 @@
 #include <soc/google/exynos_pm_qos.h>
 #endif
 #ifdef MFC_USE_BTS
-#include <soc/samsung/bts.h>
+#include <soc/google/bts.h>
 #endif
 #include <linux/videodev2.h>
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
