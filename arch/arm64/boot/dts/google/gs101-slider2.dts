@@ -10,7 +10,6 @@
 /plugin/;
 
 #include "gs101-slider-common.dtsi"
-#include "gs101-slider-touch.dtsi"
 
 / {
 	board_id = <0x201>;
