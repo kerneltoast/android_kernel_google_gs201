@@ -425,7 +425,6 @@ irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 
 static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct samsung_sysmmu_fault_info *fi;
 	struct sysmmu_clientdata *client;
 	struct sysmmu_drvdata *drvdata;
@@ -434,7 +433,7 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 	fi = (struct samsung_sysmmu_fault_info *)data;
 	drvdata = fi->drvdata;
 
-	client = (struct sysmmu_clientdata *)fwspec->iommu_priv;
+	client = (struct sysmmu_clientdata *) dev_iommu_priv_get(dev);
 
 	for (i = 0; i < client->sysmmu_count; i++) {
 		if (drvdata == client->sysmmus[i]) {
