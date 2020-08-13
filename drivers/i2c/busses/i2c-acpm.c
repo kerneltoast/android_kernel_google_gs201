@@ -108,17 +108,7 @@ static struct platform_driver acpm_mfd_bus_driver = {
 	},
 };
 
-static int __init acpm_mfd_bus_init(void)
-{
-	return platform_driver_register(&acpm_mfd_bus_driver);
-}
-subsys_initcall(acpm_mfd_bus_init);
-
-static void __exit acpm_mfd_bus_exit(void)
-{
-	platform_driver_unregister(&acpm_mfd_bus_driver);
-}
-module_exit(acpm_mfd_bus_exit);
+module_platform_driver(acpm_mfd_bus_driver);
 
 MODULE_DESCRIPTION(" I2C ACPM driver");
 MODULE_AUTHOR("Hyeonseong Gil, <hs.gil@samsung.com>");
