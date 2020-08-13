@@ -149,7 +149,7 @@ static struct samsung_pin_bank_data gs101_pin_hsi2[] = {
 	EXYNOS9_PIN_BANK_EINTG(bank_type_6, 6, 0x40, "gph4", 0x08, 0x0c),
 };
 
-static struct samsung_pin_ctrl gs101_pin_ctrl[] = {
+static const struct samsung_pin_ctrl gs101_pin_ctrl[] __initconst = {
 	{
 		/* pin banks of gs101 pin-controller (ALIVE) */
 		.pin_banks	= gs101_pin_alive,
