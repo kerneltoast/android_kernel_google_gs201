@@ -265,6 +265,7 @@
   of_find_matching_node_and_match
   of_find_node_by_name
   of_find_node_by_type
+  of_find_node_opts_by_path
   of_find_property
   of_fwnode_ops
   of_genpd_add_provider_simple
@@ -331,6 +332,7 @@
   platform_get_resource_byname
   pm_genpd_add_subdomain
   pm_genpd_init
+  pm_power_off
   pm_runtime_allow
   __pm_runtime_disable
   pm_runtime_enable
@@ -375,6 +377,7 @@
   register_chrdev_region
   register_console
   register_pm_notifier
+  register_restart_handler
   register_syscore_ops
   regmap_read
   regmap_update_bits_base
