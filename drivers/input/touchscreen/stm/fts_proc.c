@@ -3685,12 +3685,12 @@ exit:
   * file_operations struct which define the functions for the canonical
   * operation on a device file node (open. read, write etc.)
   */
-static struct file_operations fts_driver_test_ops = {
-	.open		= fts_driver_test_open,
-	.read		= seq_read,
-	.write		= fts_driver_test_write,
-	.llseek		= seq_lseek,
-	.release	= fts_driver_test_release
+static const struct proc_ops fts_driver_test_ops = {
+	.proc_open	= fts_driver_test_open,
+	.proc_read	= seq_read,
+	.proc_write	= fts_driver_test_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= fts_driver_test_release
 };
 
 /*****************************************************************************/
