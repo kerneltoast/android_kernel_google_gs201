@@ -1293,17 +1293,6 @@ static struct platform_driver exynos_cpupm_driver = {
 	.probe		= exynos_cpupm_probe,
 };
 
-static int __init exynos_cpupm_driver_init(void)
-{
-	return platform_driver_register(&exynos_cpupm_driver);
-}
-arch_initcall(exynos_cpupm_driver_init);
-
-static void __exit exynos_cpupm_driver_exit(void)
-{
-	platform_driver_unregister(&exynos_cpupm_driver);
-}
-module_exit(exynos_cpupm_driver_exit);
-
 MODULE_DESCRIPTION("Exynos CPUPM driver");
 MODULE_LICENSE("GPL");
+module_platform_driver(exynos_cpupm_driver);
