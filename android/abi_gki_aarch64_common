@@ -1,6 +1,7 @@
 [abi_whitelist]
   add_cpu
   add_timer
+  __alloc_percpu
   alloc_workqueue
   __arch_copy_from_user
   __arch_copy_to_user
@@ -9,6 +10,7 @@
   __arm_smccc_smc
   atomic_notifier_chain_register
   bitmap_parse
+  bitmap_parselist
   bitmap_to_arr32
   blocking_notifier_call_chain
   blocking_notifier_chain_register
@@ -44,11 +46,14 @@
   complete
   complete_all
   __const_udelay
+  __cpuhp_setup_state
   cpu_hwcap_keys
   cpu_hwcaps
   cpumask_next
+  cpumask_next_and
   cpu_number
   __cpu_online_mask
+  cpu_pm_register_notifier
   __cpu_possible_mask
   cpu_subsys
   debugfs_create_dir
@@ -83,6 +88,8 @@
   devm_kfree
   devm_kmalloc
   devm_kmemdup
+  __devm_of_phy_provider_register
+  devm_phy_create
   devm_pinctrl_get
   devm_pinctrl_register
   devm_platform_get_and_ioremap_resource
@@ -138,6 +145,7 @@
   handle_nested_irq
   handle_sysrq
   i2c_adapter_type
+  i2c_add_numbered_adapter
   i2c_bus_type
   i2c_del_driver
   i2c_for_each_dev
@@ -224,6 +232,7 @@
   of_find_device_by_node
   of_find_matching_node_and_match
   of_find_node_by_name
+  of_find_node_by_type
   of_find_property
   of_fwnode_ops
   of_genpd_add_provider_simple
@@ -233,9 +242,11 @@
   of_get_property
   of_get_regulator_init_data
   of_iomap
+  of_match_device
   of_match_node
   of_node_name_eq
   of_parse_phandle
+  of_property_count_elems_of_size
   of_property_read_string
   of_property_read_string_helper
   of_property_read_variable_u32_array
@@ -260,6 +271,7 @@
   pci_set_mwi
   pci_set_power_state
   pci_unregister_driver
+  __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
   physvirt_offset
@@ -303,7 +315,11 @@
   radix_tree_lookup
   radix_tree_maybe_preload
   ___ratelimit
+  __raw_notifier_call_chain
+  raw_notifier_chain_register
+  _raw_read_lock
   _raw_read_lock_irqsave
+  _raw_read_unlock
   _raw_read_unlock_irqrestore
   _raw_spin_lock
   _raw_spin_lock_irq
@@ -356,6 +372,9 @@
   single_open
   single_open_size
   single_release
+  smp_call_function
+  smp_call_function_many
+  smp_call_function_single
   snprintf
   soc_device_register
   __spi_register_driver
@@ -369,6 +388,7 @@
   strcmp
   strcpy
   stream_open
+  strlcpy
   strlen
   strncmp
   strncpy
@@ -376,6 +396,7 @@
   strstr
   subsys_system_register
   __sw_hweight32
+  __sw_hweight64
   synchronize_irq
   syscon_regmap_lookup_by_phandle
   sysfs_add_file_to_group
