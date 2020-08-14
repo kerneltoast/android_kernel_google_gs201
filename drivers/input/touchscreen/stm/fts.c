@@ -1518,7 +1518,7 @@ static void touchsim_work(struct work_struct *work)
 #endif
 
 	/* prevent CPU from entering deep sleep */
-	pm_qos_update_request(&info->pm_qos_req, 100);
+	cpu_latency_qos_update_request(&info->pm_qos_req, 100);
 
 	/* Notify the PM core that the wakeup event will take 1 sec */
 	__pm_wakeup_event(info->wakesrc, jiffies_to_msecs(HZ));
@@ -1536,7 +1536,7 @@ static void touchsim_work(struct work_struct *work)
 	heatmap_read(&info->v4l2, ktime_to_ns(timestamp));
 #endif
 
-	pm_qos_update_request(&info->pm_qos_req, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&info->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 }
 
 /* Start the touch simulation */
@@ -4087,7 +4087,7 @@ static irqreturn_t fts_interrupt_handler(int irq, void *handle)
 	}
 
 	/* prevent CPU from entering deep sleep */
-	pm_qos_update_request(&info->pm_qos_req, 100);
+	cpu_latency_qos_update_request(&info->pm_qos_req, 100);
 
 	__pm_wakeup_event(info->wakesrc, jiffies_to_msecs(HZ));
 
@@ -4137,7 +4137,7 @@ static irqreturn_t fts_interrupt_handler(int irq, void *handle)
 	/* Disable the firmware motion filter during single touch */
 	update_motion_filter(info);
 
-	pm_qos_update_request(&info->pm_qos_req, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&info->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	fts_set_bus_ref(info, FTS_BUS_REF_IRQ, false);
 	return IRQ_HANDLED;
 }
@@ -5978,8 +5978,7 @@ static int fts_probe(struct spi_device *client)
 	 * but after the interrupt has been subscribed to, pm_qos_req
 	 * may be accessed before initialization in the interrupt handler.
 	 */
-	pm_qos_add_request(&info->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
-			PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_add_request(&info->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 
 	pr_info("Init Core Lib:\n");
 	initCore(info);
@@ -6081,7 +6080,7 @@ ProbeErrorExit_7:
 #endif
 
 ProbeErrorExit_6:
-	pm_qos_remove_request(&info->pm_qos_req);
+	cpu_latency_qos_remove_request(&info->pm_qos_req);
 	input_unregister_device(info->input_dev);
 
 ProbeErrorExit_5_1:
@@ -6149,7 +6148,7 @@ static int fts_remove(struct spi_device *client)
 	heatmap_remove(&info->v4l2);
 #endif
 
-	pm_qos_remove_request(&info->pm_qos_req);
+	cpu_latency_qos_remove_request(&info->pm_qos_req);
 
 #ifdef CONFIG_DRM
 	drm_panel_notifier_unregister(info->board->panel, &info->notifier);
