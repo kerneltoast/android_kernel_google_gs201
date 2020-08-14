@@ -39,7 +39,7 @@
   */
 void startStopWatch(StopWatch *w)
 {
-	ktime_get_ts(&w->start);
+	ktime_get_ts64(&w->start);
 }
 
 /**
@@ -48,7 +48,7 @@ void startStopWatch(StopWatch *w)
   */
 void stopStopWatch(StopWatch *w)
 {
-	ktime_get_ts(&w->end);
+	ktime_get_ts64(&w->end);
 }
 
 /**
