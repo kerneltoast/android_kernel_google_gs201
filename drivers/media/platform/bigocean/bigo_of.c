@@ -39,6 +39,7 @@ static int bigo_of_get_resource(struct bigo_core *core)
 		goto err;
 	}
 	core->regs_size = res->end - res->start + 1;
+	core->paddr = (phys_addr_t)res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ssmt_bo_pid");
 	if (IS_ERR_OR_NULL(res)) {

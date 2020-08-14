@@ -71,7 +71,7 @@ inline bool bigo_core_is_enabled(struct bigo_core *core)
 	return bigo_core_readl(core, BIGO_REG_STAT) & BIGO_STAT_ENABLE;
 }
 
-inline void bigo_wait_disabled(struct bigo_core *core, int timeout_ms)
+inline int bigo_wait_disabled(struct bigo_core *core, int timeout_ms)
 {
 	int i;
 
@@ -80,8 +80,12 @@ inline void bigo_wait_disabled(struct bigo_core *core, int timeout_ms)
 			break;
 		usleep_range(900, 1100);
 	}
-	if (i > 0)
+	if (i > 0) {
 		pr_err("wait disabled for at least %d ms\n", i);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 void bigo_check_status(struct bigo_core *core)

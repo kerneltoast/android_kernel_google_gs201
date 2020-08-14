@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>
+#include <linux/platform_data/sscoredump.h>
 
 #include "bigo_io.h"
 #include "bigo_iommu.h"
@@ -38,6 +39,42 @@ inline void set_curr_inst(struct bigo_core *core, struct bigo_inst *inst)
 inline struct bigo_inst *get_curr_inst(struct bigo_core *core)
 {
 	return core->curr_inst;
+}
+
+static struct sscd_platform_data bigo_sscd_platdata;
+
+static void bigo_sscd_release(struct device *dev)
+{
+	pr_debug("sscd release\n");
+}
+
+static struct platform_device bigo_sscd_dev = {
+	.name            = BIGO_CHRDEV_NAME,
+	.driver_override = SSCD_NAME,
+	.id              = -1,
+	.dev             = {
+		.platform_data = &bigo_sscd_platdata,
+		.release       = bigo_sscd_release,
+	},
+};
+
+void bigo_coredump(struct bigo_core *core)
+{
+	struct sscd_platform_data *sscd_platdata = &bigo_sscd_platdata;
+	struct sscd_segment seg;
+
+	if (!sscd_platdata->sscd_report)
+		return;
+
+	memset(&seg, 0, sizeof(seg));
+	seg.addr = (void *)core->base;
+	seg.size = core->regs_size;
+	seg.flags = 0;
+	seg.paddr = (void *)core->paddr;
+	seg.vaddr = (void *)core->base;
+
+	sscd_platdata->sscd_report(&bigo_sscd_dev, &seg, 1,
+		SSCD_FLAGS_ELFARM64HDR, "bigo_coredump");
 }
 
 static inline void on_first_instance_open(struct bigo_core *core)
@@ -149,8 +186,14 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 	} else {
 		rc = (ret > 0) ? 0 : ret;
 	}
+
 	bigo_check_status(core);
-	bigo_wait_disabled(core, BIGO_DISABLE_TIMEOUT_MS);
+	rc = bigo_wait_disabled(core, BIGO_DISABLE_TIMEOUT_MS);
+	if (rc) {
+		pr_err("Failed to disable hw: %d\n");
+		bigo_coredump(core);
+	}
+
 	bigo_pull_regs(core, job->regs);
 	*(u32 *)(job->regs + BIGO_REG_STAT) = core->stat_with_irq;
 	bigo_update_stats(core, job->regs);
@@ -449,6 +492,9 @@ static int bigo_probe(struct platform_device *pdev)
 
 	bigo_pt_client_register(pdev->dev.of_node, core);
 
+	if(platform_device_register(&bigo_sscd_dev))
+		pr_warn("Failed to register bigo_sscd_dev.\n");
+
 	return rc;
 
 err_fault_handler:
@@ -467,6 +513,7 @@ static int bigo_remove(struct platform_device *pdev)
 {
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
+	platform_device_unregister(&bigo_sscd_dev);
 	bigo_pt_client_unregister(core);
 	iommu_unregister_device_fault_handler(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

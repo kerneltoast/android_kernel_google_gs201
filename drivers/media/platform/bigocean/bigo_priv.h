@@ -89,6 +89,7 @@ struct bigo_core {
 	struct slc_manager slc;
 	unsigned int regs_size;
 	struct bigo_inst *curr_inst;
+	phys_addr_t paddr;
 };
 
 struct bigo_inst {

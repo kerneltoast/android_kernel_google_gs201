@@ -59,7 +59,7 @@ void bigo_pull_regs(struct bigo_core *core, void *regs);
 void bigo_core_enable(struct bigo_core *core);
 void bigo_core_disable(struct bigo_core *core);
 bool bigo_core_is_enabled(struct bigo_core *core);
-void bigo_wait_disabled(struct bigo_core *core, int timeout_ms);
+int bigo_wait_disabled(struct bigo_core *core, int timeout_ms);
 void bigo_check_status(struct bigo_core *core);
 
 #endif //_BIGO_REGS_H_
