@@ -60,11 +60,8 @@
 		st,switch_gpio = <&gpp26 1 0>;	// Low: AP, High: SLPI
 		st,disp-rate-gpio = <&gpp22 1 0>;
 
-		/* TODO: regulator names below are speculative. They might need
-		 * to be changed when the slider regulator names are defined.
-		 */
-		st,regulator_dvdd = "S2MPG10_LDO25"; /* VIO 1.8V */
-		st,regulator_avdd = "S2MPG10_LDO26"; /* AVDD 3.3V */
+		vdd-supply = <&m_ldo25_reg>;
+		avdd-supply = <&m_ldo26_reg>;
 
 		/* Temporarily disable the panel_map. While the DTS compiles
 		 * successfully, its presence causes a kernel panic during
