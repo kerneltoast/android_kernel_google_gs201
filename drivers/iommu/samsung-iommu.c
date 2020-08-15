@@ -898,7 +898,6 @@ static int samsung_sysmmu_of_xlate(struct device *dev,
 				      sizeof(*client), GFP_KERNEL);
 		if (!client)
 			return -ENOMEM;
-		client->dev = dev;
 		dev_iommu_priv_set(dev, client);
 		devres_add(dev, client);
 	}
