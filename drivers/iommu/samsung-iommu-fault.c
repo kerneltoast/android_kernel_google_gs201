@@ -74,7 +74,7 @@ static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 	"UNKNOWN FAULT"
 };
 
-static int sysmmu_fault_type[SYSMMU_FAULTS_NUM] = {
+static unsigned int sysmmu_fault_type[SYSMMU_FAULTS_NUM] = {
 	IOMMU_FAULT_REASON_WALK_EABT,
 	IOMMU_FAULT_REASON_PTE_FETCH,
 	IOMMU_FAULT_REASON_UNKNOWN,
@@ -97,8 +97,7 @@ static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *data,
 		return readl_relaxed(data->sfrbase + REG_MMU_INT_STATUS);
 }
 
-static inline u32 __sysmmu_get_fault_address(struct sysmmu_drvdata *data,
-					     bool is_secure)
+static inline sysmmu_iova_t __sysmmu_get_fault_address(struct sysmmu_drvdata *data, bool is_secure)
 {
 	if (is_secure)
 		return read_sec_info(MMU_SEC_VM_REG(data, IDX_FAULT_VA, 0));
@@ -107,11 +106,11 @@ static inline u32 __sysmmu_get_fault_address(struct sysmmu_drvdata *data,
 }
 
 static inline void sysmmu_tlb_compare(phys_addr_t pgtable,
-				      int idx_sub, u32 vpn, u32 ppn)
+				      unsigned int idx_sub, u32 vpn, u32 ppn)
 {
 	sysmmu_pte_t *entry;
-	unsigned long vaddr = MMU_VADDR_FROM_TLB((unsigned long)vpn, idx_sub);
-	unsigned long paddr = MMU_PADDR_FROM_TLB((unsigned long)ppn);
+	sysmmu_iova_t vaddr = MMU_VADDR_FROM_TLB(vpn, idx_sub);
+	unsigned long paddr = MMU_PADDR_FROM_TLB(ppn);
 	unsigned long phys = 0;
 
 	if (!pgtable)
@@ -144,7 +143,7 @@ static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link,
 				      phys_addr_t pgtable)
 {
 	sysmmu_pte_t *entry;
-	unsigned long vaddr = MMU_VADDR_FROM_SBB((unsigned long)sbb_vpn);
+	sysmmu_iova_t vaddr = MMU_VADDR_FROM_SBB(sbb_vpn);
 	unsigned long paddr = MMU_PADDR_FROM_SBB((unsigned long)sbb_link);
 	unsigned long phys = 0;
 
@@ -168,9 +167,9 @@ static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link,
 }
 
 static inline
-unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata,
-				      phys_addr_t pgtable,
-				      int idx_way, int idx_set, int idx_sub)
+unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata, phys_addr_t pgtable,
+				      unsigned int idx_way, unsigned int idx_set,
+				      unsigned int idx_sub)
 {
 	u32 attr = readl_relaxed(MMU_REG(drvdata, IDX_TLB_ATTR));
 
@@ -180,7 +179,7 @@ unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata,
 		vpn = readl_relaxed(MMU_REG(drvdata, IDX_TLB_VPN)) + idx_sub;
 		ppn = readl_relaxed(MMU_REG(drvdata, IDX_TLB_PPN));
 
-		pr_crit("[%02d][%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
+		pr_crit("[%02u][%02u] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
 			idx_way, idx_set, vpn, ppn, attr);
 		sysmmu_tlb_compare(pgtable, idx_sub, vpn, ppn);
 
@@ -193,10 +192,10 @@ unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata,
 #define MMU_NUM_TLB_SUBLINE		4
 static unsigned int dump_tlb_entry_port(struct sysmmu_drvdata *drvdata,
 					phys_addr_t pgtable,
-					int tlb, int way, int num_set)
+					unsigned int tlb, unsigned int way, unsigned int num_set)
 {
-	int cnt = 0;
-	int set, line, val;
+	unsigned int cnt = 0;
+	unsigned int set, line, val;
 
 	for (set = 0; set < num_set; set++) {
 		for (line = 0; line < MMU_NUM_TLB_SUBLINE; line++) {
@@ -213,10 +212,10 @@ static unsigned int dump_tlb_entry_port(struct sysmmu_drvdata *drvdata,
 static inline void dump_sysmmu_tlb_status(struct sysmmu_drvdata *drvdata,
 					  phys_addr_t pgtable)
 {
-	int t, i;
+	unsigned int t, i;
 	u32 capa0, capa1, info;
 	unsigned int cnt;
-	int num_tlb, num_port, num_sbb;
+	unsigned int num_tlb, num_port, num_sbb;
 	void __iomem *sfrbase = drvdata->sfrbase;
 
 	capa0 = readl_relaxed(sfrbase + REG_MMU_CAPA0_V7);
@@ -226,17 +225,17 @@ static inline void dump_sysmmu_tlb_status(struct sysmmu_drvdata *drvdata,
 	num_port = MMU_CAPA1_NUM_PORT(capa1);
 	num_sbb = 1 << MMU_CAPA_NUM_SBB_ENTRY(capa0);
 
-	pr_crit("SysMMU has %d TLBs, %d ports, %d sbb entries\n",
+	pr_crit("SysMMU has %u TLBs, %u ports, %u sbb entries\n",
 		num_tlb, num_port, num_sbb);
 
 	for (t = 0; t < num_tlb; t++) {
-		int num_set, num_way;
+		unsigned int num_set, num_way;
 
 		info = readl_relaxed(sfrbase + MMU_TLB_INFO(t));
 		num_way = MMU_CAPA1_NUM_TLB_WAY(info);
 		num_set = MMU_CAPA1_NUM_TLB_SET(info);
 
-		pr_crit("TLB.%d has %d way, %d set.\n", t, num_way, num_set);
+		pr_crit("TLB.%u has %u way, %u set.\n", t, num_way, num_set);
 		pr_crit("------------- TLB[WAY][SET][ENTRY] -------------\n");
 		for (i = 0, cnt = 0; i < num_way; i++)
 			cnt += dump_tlb_entry_port(drvdata, pgtable,
@@ -346,7 +345,7 @@ finish:
 }
 
 static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
-					  int intr_type, unsigned long fault_addr,
+					  int intr_type, sysmmu_iova_t fault_addr,
 					  phys_addr_t *pt)
 {
 	const char *port_name = NULL;
@@ -360,7 +359,7 @@ static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
 
 	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
 
-	pr_crit("From [%s], SysMMU %s %s at %#010lx (pgtable @ %pa, AxID: %#x)\n",
+	pr_crit("From [%s], SysMMU %s %s at %#010x (pgtable @ %pa, AxID: %#x)\n",
 		port_name ? port_name : dev_name(drvdata->dev),
 		IS_READ_FAULT(info) ? "READ" : "WRITE",
 		sysmmu_fault_name[intr_type], fault_addr, &pgtable, info & 0xFFFF);
@@ -413,10 +412,10 @@ finish:
 }
 
 static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data,
-				      int *intr_type, unsigned long *addr,
+				      unsigned int *intr_type, sysmmu_iova_t *addr,
 				      bool is_secure)
 {
-	*intr_type =  __ffs(__sysmmu_get_intr_status(data, is_secure));
+	*intr_type =  (unsigned int)__ffs(__sysmmu_get_intr_status(data, is_secure));
 	*intr_type %= 4;
 	*addr = __sysmmu_get_fault_address(data, is_secure);
 }
@@ -431,7 +430,7 @@ static void sysmmu_clear_interrupt(struct sysmmu_drvdata *data)
 irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 {
 	int itype;
-	unsigned long addr;
+	sysmmu_iova_t addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
 	bool is_secure = (irq == drvdata->secure_irq);
 
@@ -455,7 +454,8 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 	struct samsung_sysmmu_fault_info *fi;
 	struct sysmmu_clientdata *client;
 	struct sysmmu_drvdata *drvdata;
-	int i, ret, result = 0;
+	unsigned int i;
+	int ret, result = 0;
 
 	fi = (struct samsung_sysmmu_fault_info *)data;
 	drvdata = fi->drvdata;
@@ -476,8 +476,9 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 
 irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 {
-	int itype, ret;
-	unsigned long addr;
+	unsigned int itype;
+	int ret;
+	sysmmu_iova_t addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
 	bool is_secure = (irq == drvdata->secure_irq);
 	struct iommu_group *group = drvdata->group;

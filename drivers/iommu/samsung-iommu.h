@@ -36,7 +36,7 @@ struct sysmmu_drvdata {
 	phys_addr_t pgtable;
 	spinlock_t lock; /* protect atomic update to H/W status */
 	u32 version;
-	int num_tlb;
+	unsigned int num_tlb;
 	int qos;
 	int attached_count;
 	int secure_irq;
@@ -53,7 +53,7 @@ struct sysmmu_drvdata {
 struct sysmmu_clientdata {
 	struct sysmmu_drvdata **sysmmus;
 	struct device_link **dev_link;
-	int sysmmu_count;
+	unsigned int sysmmu_count;
 };
 
 
@@ -87,9 +87,9 @@ enum {
 };
 
 #define MMU_REG(data, idx)		((data)->sfrbase + (data)->reg_set[idx])
-#define MMU_VM_REG(data, idx, vmid)	(MMU_REG(data, idx) + (vmid) * 0x10)
+#define MMU_VM_REG(data, idx, vmid)	(MMU_REG(data, idx) + (vmid) * 0x10U)
 #define MMU_SEC_REG(data, offset_idx)	((data)->secure_base + (data)->reg_set[offset_idx])
-#define MMU_SEC_VM_REG(data, offset_idx, vmid) (MMU_SEC_REG(data, offset_idx) + (vmid) * 0x10)
+#define MMU_SEC_VM_REG(data, offset_idx, vmid) (MMU_SEC_REG(data, offset_idx) + (vmid) * 0x10U)
 
 typedef u32 sysmmu_iova_t;
 typedef u32 sysmmu_pte_t;
@@ -134,7 +134,7 @@ typedef u32 sysmmu_pte_t;
 #define lv1ent_page(sent)	((*(sent) & 7) == 1)
 
 #define lv1ent_section(sent)	((*(sent) & FLPD_FLAG_MASK) == SECT_FLAG)
-#define lv2table_base(sent)	((phys_addr_t)(*(sent) & ~0x3F) << PG_ENT_SHIFT)
+#define lv2table_base(sent)	((phys_addr_t)(*(sent) & ~0x3FU) << PG_ENT_SHIFT)
 #define lv2ent_unmapped(pent)	((*(pent) & SLPD_FLAG_MASK) == 0)
 #define lv2ent_small(pent)	((*(pent) & SLPD_FLAG_MASK) == SPAGE_FLAG)
 #define lv2ent_large(pent)	((*(pent) & SLPD_FLAG_MASK) == LPAGE_FLAG)
@@ -184,7 +184,7 @@ static inline sysmmu_pte_t *section_entry(sysmmu_pte_t *pgtable,
 #define MMU_REV_VER(val)	((val) & 0xF)
 #define MMU_RAW_VER(reg)	(((reg) >> 17) & 0x7FFF)
 
-#define CTRL_VID_ENABLE			0x1
+#define CTRL_VID_ENABLE			BIT(0)
 #define CTRL_MMU_ENABLE			BIT(0)
 #define CTRL_MMU_BLOCK			BIT(1)
 #define CTRL_INT_ENABLE			BIT(2)
@@ -193,7 +193,7 @@ static inline sysmmu_pte_t *section_entry(sysmmu_pte_t *pgtable,
 #define CFG_MASK_GLOBAL			0x00000F80 /* Bit 11, 10-7 */
 #define CFG_MASK_VM			0xB00F1004 /* Bit 31, 29, 28, 19-16, 12, 2 */
 #define CFG_QOS_OVRRIDE			BIT(11)
-#define CFG_QOS(n)			(((n) & 0xF) << 7)
+#define CFG_QOS(n)			(((n) & 0xFU) << 7)
 
 irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id);
 irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id);

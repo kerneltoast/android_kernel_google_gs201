@@ -138,7 +138,8 @@ static inline void __sysmmu_set_tlb(struct sysmmu_drvdata *data)
 	struct tlb_props *tlb_props = &data->tlb_props;
 	struct tlb_config *cfg = tlb_props->cfg;
 	int id_cnt = tlb_props->id_cnt;
-	unsigned int i, index;
+	int i;
+	unsigned int index;
 
 	if (tlb_props->default_cfg != DEFAULT_TLB_NONE)
 		writel_relaxed(MMU_TLB_CFG_MASK(tlb_props->default_cfg),
@@ -164,7 +165,7 @@ static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 
 	if (data->qos != DEFAULT_QOS_VALUE) {
 		cfg &= ~CFG_QOS(0xF);
-		cfg |= CFG_QOS_OVRRIDE | CFG_QOS(data->qos);
+		cfg |= CFG_QOS_OVRRIDE | CFG_QOS((u32)data->qos);
 	}
 
 	if (data->no_s2pf) {
@@ -213,7 +214,7 @@ static struct samsung_sysmmu_domain *to_sysmmu_domain(struct iommu_domain *dom)
 static inline void pgtable_flush(void *vastart, void *vaend)
 {
 	dma_sync_single_for_device(&sync_dev, virt_to_phys(vastart),
-				   vaend - vastart, DMA_TO_DEVICE);
+				   (size_t)(vaend - vastart), DMA_TO_DEVICE);
 }
 
 static bool samsung_sysmmu_capable(enum iommu_cap cap)
@@ -380,7 +381,7 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 	page_table = virt_to_phys(domain->page_table);
 
 	client = dev_iommu_priv_get(dev);
-	for (i = 0; i < client->sysmmu_count; i++) {
+	for (i = 0; i < (int)client->sysmmu_count; i++) {
 		drvdata = client->sysmmus[i];
 
 		spin_lock_irqsave(&drvdata->lock, flags);
@@ -426,7 +427,7 @@ static void samsung_sysmmu_detach_dev(struct iommu_domain *dom,
 	struct list_head *group_list;
 	struct sysmmu_drvdata *drvdata;
 	struct iommu_group *group = dev->iommu_group;
-	int i;
+	unsigned int i;
 
 	domain = to_sysmmu_domain(dom);
 	group_list = iommu_group_get_iommudata(group);
@@ -442,7 +443,7 @@ static void samsung_sysmmu_detach_dev(struct iommu_domain *dom,
 }
 
 static inline sysmmu_pte_t make_sysmmu_pte(phys_addr_t paddr,
-					   int pgsize, int attr)
+					   unsigned int pgsize, unsigned int attr)
 {
 	return ((sysmmu_pte_t)((paddr) >> PG_ENT_SHIFT)) | pgsize | attr;
 }
@@ -482,7 +483,7 @@ static sysmmu_pte_t *alloc_lv2entry(struct samsung_sysmmu_domain *domain,
 	return page_entry(sent, iova);
 }
 
-static inline void clear_lv2_page_table(sysmmu_pte_t *ent, int n)
+static inline void clear_lv2_page_table(sysmmu_pte_t *ent, unsigned int n)
 {
 	memset(ent, 0, sizeof(*ent) * n);
 }
@@ -491,7 +492,7 @@ static int lv1set_section(struct samsung_sysmmu_domain *domain,
 			  sysmmu_pte_t *sent, sysmmu_iova_t iova,
 			  phys_addr_t paddr, int prot, atomic_t *pgcnt)
 {
-	int attr = !!(prot & IOMMU_CACHE) ? FLPD_SHAREABLE_FLAG : 0;
+	unsigned int attr = !!(prot & IOMMU_CACHE) ? FLPD_SHAREABLE_FLAG : 0;
 	bool need_sync = false;
 
 	if (lv1ent_section(sent)) {
@@ -528,7 +529,7 @@ static int lv1set_section(struct samsung_sysmmu_domain *domain,
 static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr,
 		       size_t size, int prot, atomic_t *pgcnt)
 {
-	int attr = !!(prot & IOMMU_CACHE) ? SLPD_SHAREABLE_FLAG : 0;
+	unsigned int attr = !!(prot & IOMMU_CACHE) ? SLPD_SHAREABLE_FLAG : 0;
 
 	if (size == SPAGE_SIZE) {
 		if (WARN_ON(!lv2ent_unmapped(pent)))
@@ -538,7 +539,7 @@ static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr,
 		pgtable_flush(pent, pent + 1);
 		atomic_inc(pgcnt);
 	} else {	/* size == LPAGE_SIZE */
-		int i;
+		unsigned int i;
 
 		for (i = 0; i < SPAGES_PER_LPAGE; i++, pent++) {
 			if (WARN_ON(!lv2ent_unmapped(pent))) {
@@ -734,10 +735,6 @@ static phys_addr_t samsung_sysmmu_iova_to_phys(struct iommu_domain *dom,
 	return phys;
 }
 
-void samsung_sysmmu_dump_pagetable(struct device *dev, dma_addr_t iova)
-{
-}
-
 static struct iommu_device *samsung_sysmmu_probe_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
@@ -760,7 +757,7 @@ static struct iommu_device *samsung_sysmmu_probe_device(struct device *dev)
 	if (!client->dev_link)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < client->sysmmu_count; i++) {
+	for (i = 0; i < (int)client->sysmmu_count; i++) {
 		client->dev_link[i] =
 			device_link_add(dev,
 					client->sysmmus[i]->dev,
@@ -783,7 +780,7 @@ static void samsung_sysmmu_release_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct sysmmu_clientdata *client;
-	int i;
+	unsigned int i;
 
 	if (!fwspec || fwspec->ops != &samsung_sysmmu_ops)
 		return;
@@ -956,7 +953,8 @@ static int sysmmu_parse_tlb_property(struct device *dev,
 	const char *props_name = "sysmmu,tlb_property";
 	struct tlb_props *tlb_props = &drvdata->tlb_props;
 	struct tlb_config *cfg;
-	int i, readsize, cnt, ret;
+	int i, cnt, ret;
+	size_t readsize;
 
 	if (of_property_read_u32(dev->of_node, default_props_name,
 				 &tlb_props->default_cfg))
@@ -967,11 +965,11 @@ static int sysmmu_parse_tlb_property(struct device *dev,
 	if (cnt <= 0)
 		return 0;
 
-	cfg = devm_kcalloc(dev, cnt, sizeof(*cfg), GFP_KERNEL);
+	cfg = devm_kcalloc(dev, (unsigned int)cnt, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
 		return -ENOMEM;
 
-	readsize = cnt * sizeof(*cfg) / sizeof(u32);
+	readsize = (unsigned int)cnt * sizeof(*cfg) / sizeof(u32);
 	ret = of_property_read_variable_u32_array(dev->of_node, props_name,
 						  (u32 *)cfg,
 						  readsize, readsize);
@@ -1007,7 +1005,7 @@ static int __sysmmu_secure_irq_init(struct device *sysmmu,
 	}
 	data->secure_irq = ret;
 
-	ret = devm_request_threaded_irq(sysmmu, data->secure_irq,
+	ret = devm_request_threaded_irq(sysmmu, (unsigned int)data->secure_irq,
 					samsung_sysmmu_irq,
 					samsung_sysmmu_irq_thread,
 					IRQF_ONESHOT, dev_name(sysmmu), data);
@@ -1030,7 +1028,7 @@ static int __sysmmu_secure_irq_init(struct device *sysmmu,
 
 static int sysmmu_parse_dt(struct device *sysmmu, struct sysmmu_drvdata *data)
 {
-	unsigned int qos = DEFAULT_QOS_VALUE;
+	int qos = DEFAULT_QOS_VALUE;
 	int ret;
 
 	/* Parsing QoS */
@@ -1119,7 +1117,7 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = devm_request_threaded_irq(dev, irq, samsung_sysmmu_irq,
+	ret = devm_request_threaded_irq(dev, (unsigned int)irq, samsung_sysmmu_irq,
 					samsung_sysmmu_irq_thread,
 					IRQF_ONESHOT, dev_name(dev), data);
 	if (ret) {

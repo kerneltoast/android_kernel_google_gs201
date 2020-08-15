@@ -16,7 +16,7 @@ static int sysmmu_group_device_probe(struct platform_device *pdev)
 
 	data = iommu_group_alloc();
 	if (IS_ERR(data)) {
-		dev_err(dev, "Failed to alloc group, ret:%d\n", PTR_ERR(data));
+		dev_err(dev, "Failed to alloc group, ret:%d\n", (int)PTR_ERR(data));
 		return PTR_ERR(data);
 	}
 
