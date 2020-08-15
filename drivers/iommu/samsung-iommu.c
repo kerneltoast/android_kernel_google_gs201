@@ -36,6 +36,11 @@
 static const unsigned int sysmmu_reg_set[MAX_SET_IDX][MAX_REG_IDX] = {
 	/* Default without VM */
 	{
+		/*
+		 * SysMMUs without VM support do not have the two registers CTRL_VM and CFG_VM.
+		 * Setting the offsets to 1 will trigger an unaligned access exception.
+		 */
+		0x1,	0x1,
 		/* FLPT base, TLB invalidation, Fault information */
 		0x000C,	0x0010,	0x0014,	0x0018,
 		0x0020,	0x0024,	0x0070,	0x0078,
@@ -48,6 +53,8 @@ static const unsigned int sysmmu_reg_set[MAX_SET_IDX][MAX_REG_IDX] = {
 	},
 	/* VM */
 	{
+		/* CTRL_VM, CFG_VM */
+		0x8000,	0x8004,
 		/* FLPT base, TLB invalidation, Fault information */
 		0x800C,	0x8010,	0x8014,	0x8018,
 		0x8020,	0x8024,	0x1000,	0x1004,
@@ -66,6 +73,9 @@ static struct platform_driver samsung_sysmmu_driver;
 struct samsung_sysmmu_domain {
 	struct iommu_domain domain;
 	struct iommu_group *group;
+	struct sysmmu_drvdata *vm_sysmmu; /* valid only if vid != 0 */
+	/* if vid != 0, domain is aux domain attached to only one device and sysmmu */
+	unsigned int vid;
 	sysmmu_pte_t *page_table;
 	atomic_t *lv2entcnt;
 	spinlock_t pgtablelock; /* serialize races to page table updates */
@@ -108,23 +118,33 @@ static inline bool __sysmmu_get_capa_vcr_enabled(struct sysmmu_drvdata *data)
 						   REG_MMU_CAPA1_V7));
 }
 
-static inline void __sysmmu_tlb_invalidate_all(struct sysmmu_drvdata *data)
+static inline void __sysmmu_tlb_invalidate_all(struct sysmmu_drvdata *data, unsigned int vid)
 {
-	writel(0x1, MMU_REG(data, IDX_ALL_INV));
+	writel(0x1, MMU_VM_REG(data, IDX_ALL_INV, vid));
 }
 
-static inline void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *data,
+static inline void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *data, unsigned int vid,
 					   dma_addr_t start, dma_addr_t end)
 {
-	writel_relaxed(ALIGN_DOWN(start, SPAGE_SIZE), MMU_REG(data, IDX_RANGE_INV_START));
-	writel_relaxed(ALIGN_DOWN(end - 1, SPAGE_SIZE), MMU_REG(data, IDX_RANGE_INV_END));
-	writel(0x1, MMU_REG(data, IDX_RANGE_INV));
+	writel_relaxed(ALIGN_DOWN(start, SPAGE_SIZE), MMU_VM_REG(data, IDX_RANGE_INV_START, vid));
+	writel_relaxed(ALIGN_DOWN(end - 1, SPAGE_SIZE), MMU_VM_REG(data, IDX_RANGE_INV_END, vid));
+	writel(0x1, MMU_VM_REG(data, IDX_RANGE_INV, vid));
+}
+
+static inline void __sysmmu_disable_vid(struct sysmmu_drvdata *data, unsigned int vid)
+{
+	u32 ctrl_val = readl_relaxed(MMU_VM_REG(data, IDX_CTRL_VM, vid));
+
+	ctrl_val &= ~CTRL_VID_ENABLE;
+	writel(ctrl_val, MMU_VM_REG(data, IDX_CTRL_VM, vid));
+	__sysmmu_tlb_invalidate_all(data, vid);
+	writel_relaxed(0, MMU_VM_REG(data, IDX_FLPT_BASE, vid));
 }
 
 static inline void __sysmmu_disable(struct sysmmu_drvdata *data)
 {
 	if (data->no_block_mode) {
-		__sysmmu_tlb_invalidate_all(data);
+		__sysmmu_tlb_invalidate_all(data, 0);
 	} else {
 		u32 ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL);
 
@@ -179,8 +199,25 @@ static inline void __sysmmu_init_config(struct sysmmu_drvdata *data)
 	writel_relaxed(cfg, data->sfrbase + REG_MMU_CFG);
 }
 
+static inline void __sysmmu_enable_vid(struct sysmmu_drvdata *data, unsigned int vid)
+{
+	u32 ctrl_val;
+
+	writel_relaxed(data->pgtable[vid] / SPAGE_SIZE, MMU_VM_REG(data, IDX_FLPT_BASE, vid));
+
+	__sysmmu_tlb_invalidate_all(data, vid);
+
+	ctrl_val = readl_relaxed(MMU_VM_REG(data, IDX_CTRL_VM, vid));
+	if (!data->async_fault_mode)
+		ctrl_val |= CTRL_FAULT_STALL_MODE;
+	else
+		ctrl_val &= ~CTRL_FAULT_STALL_MODE;
+	writel(ctrl_val | CTRL_VID_ENABLE, MMU_VM_REG(data, IDX_CTRL_VM, vid));
+}
+
 static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
 {
+	unsigned int vid;
 	u32 ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL);
 
 	if (!data->no_block_mode)
@@ -188,22 +225,11 @@ static inline void __sysmmu_enable(struct sysmmu_drvdata *data)
 
 	__sysmmu_init_config(data);
 
-	writel_relaxed(data->pgtable / SPAGE_SIZE,
-		       MMU_REG(data, IDX_FLPT_BASE));
-	__sysmmu_tlb_invalidate_all(data);
+	for (vid = 0; vid < __max_vids(data); vid++)
+		if (data->pgtable[vid])
+			__sysmmu_enable_vid(data, vid);
 
 	writel(ctrl_val | CTRL_MMU_ENABLE, data->sfrbase + REG_MMU_CTRL);
-
-	if (data->has_vcr) {
-		ctrl_val = readl_relaxed(data->sfrbase + REG_MMU_CTRL_VM);
-
-		if (!data->async_fault_mode)
-			ctrl_val |= CTRL_FAULT_STALL_MODE;
-		else
-			ctrl_val &= ~CTRL_FAULT_STALL_MODE;
-
-		writel(ctrl_val | CTRL_VID_ENABLE, data->sfrbase + REG_MMU_CTRL_VM);
-	}
 }
 
 static struct samsung_sysmmu_domain *to_sysmmu_domain(struct iommu_domain *dom)
@@ -292,7 +318,7 @@ static inline void samsung_sysmmu_detach_drvdata(struct sysmmu_drvdata *data)
 			__sysmmu_disable(data);
 
 		list_del(&data->list);
-		data->pgtable = 0;
+		data->pgtable[0] = 0;
 		data->group = NULL;
 	}
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -351,6 +377,31 @@ static int samsung_sysmmu_set_domain_range(struct iommu_domain *dom,
 	return 0;
 }
 
+static struct samsung_sysmmu_domain *attach_helper(struct iommu_domain *dom, struct device *dev)
+{
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct samsung_sysmmu_domain *domain;
+
+	if (!fwspec || fwspec->ops != &samsung_sysmmu_ops) {
+		dev_err(dev, "failed to attach, IOMMU instance data %s.\n",
+			!fwspec ? "is not initialized" : "has different ops");
+		return ERR_PTR(-ENXIO);
+	}
+
+	if (!dev_iommu_priv_get(dev)) {
+		dev_err(dev, "has no IOMMU\n");
+		return ERR_PTR(-ENODEV);
+	}
+
+	domain = to_sysmmu_domain(dom);
+	if (domain->vm_sysmmu) {
+		dev_err(dev, "IOMMU domain is already used as AUX domain\n");
+		return ERR_PTR(-EBUSY);
+	}
+
+	return domain;
+}
+
 static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 				     struct device *dev)
 {
@@ -364,18 +415,10 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 	phys_addr_t page_table;
 	int i, ret = -EINVAL;
 
-	if (!fwspec || fwspec->ops != &samsung_sysmmu_ops) {
-		dev_err(dev, "failed to attach, IOMMU instance data %s.\n",
-			!fwspec ? "is not initialized" : "has different ops");
-		return -ENXIO;
-	}
+	domain = attach_helper(dom, dev);
+	if (IS_ERR(domain))
+		return (int)PTR_ERR(domain);
 
-	if (!dev_iommu_priv_get(dev)) {
-		dev_err(dev, "has no IOMMU\n");
-		return -ENODEV;
-	}
-
-	domain = to_sysmmu_domain(dom);
 	domain->group = group;
 	group_list = iommu_group_get_iommudata(group);
 	page_table = virt_to_phys(domain->page_table);
@@ -388,11 +431,11 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 		if (drvdata->attached_count++ == 0) {
 			list_add(&drvdata->list, group_list);
 			drvdata->group = group;
-			drvdata->pgtable = page_table;
+			drvdata->pgtable[0] = page_table;
 
 			if (pm_runtime_active(drvdata->dev))
 				__sysmmu_enable(drvdata);
-		} else if (drvdata->pgtable != page_table) {
+		} else if (drvdata->pgtable[0] != page_table) {
 			dev_err(dev, "%s is already attached to other domain\n",
 				dev_name(drvdata->dev));
 			spin_unlock_irqrestore(&drvdata->lock, flags);
@@ -666,23 +709,29 @@ static void samsung_sysmmu_flush_iotlb_all(struct iommu_domain *dom)
 {
 	unsigned long flags;
 	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
-	struct list_head *sysmmu_list;
 	struct sysmmu_drvdata *drvdata;
 
-	/*
-	 * domain->group might be NULL if flush_iotlb_all is called
-	 * before attach_dev. Just ignore it.
-	 */
-	if (!domain->group)
-		return;
-
-	sysmmu_list = iommu_group_get_iommudata(domain->group);
-
-	list_for_each_entry(drvdata, sysmmu_list, list) {
+	if (domain->vm_sysmmu) {
+		/* Domain is used as AUX domain */
+		drvdata = domain->vm_sysmmu;
 		spin_lock_irqsave(&drvdata->lock, flags);
 		if (drvdata->attached_count && drvdata->rpm_resume)
-			__sysmmu_tlb_invalidate_all(drvdata);
+			__sysmmu_tlb_invalidate_all(drvdata, domain->vid);
 		spin_unlock_irqrestore(&drvdata->lock, flags);
+	} else if (domain->group) {
+		/* Domain is used as regular domain */
+		/*
+		 * domain->group might be NULL if flush_iotlb_all is called
+		 * before attach_dev. Just ignore it.
+		 */
+		struct list_head *sysmmu_list = iommu_group_get_iommudata(domain->group);
+
+		list_for_each_entry(drvdata, sysmmu_list, list) {
+			spin_lock_irqsave(&drvdata->lock, flags);
+			if (drvdata->attached_count && drvdata->rpm_resume)
+				__sysmmu_tlb_invalidate_all(drvdata, 0);
+			spin_unlock_irqrestore(&drvdata->lock, flags);
+		}
 	}
 }
 
@@ -691,23 +740,29 @@ static void samsung_sysmmu_iotlb_sync(struct iommu_domain *dom,
 {
 	unsigned long flags;
 	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
-	struct list_head *sysmmu_list;
 	struct sysmmu_drvdata *drvdata;
 
-	/*
-	 * domain->group might be NULL if iotlb_sync is called
-	 * before attach_dev. Just ignore it.
-	 */
-	if (!domain->group)
-		return;
-
-	sysmmu_list = iommu_group_get_iommudata(domain->group);
-
-	list_for_each_entry(drvdata, sysmmu_list, list) {
+	if (domain->vm_sysmmu) {
+		/* Domain is used as AUX domain */
+		drvdata = domain->vm_sysmmu;
 		spin_lock_irqsave(&drvdata->lock, flags);
 		if (drvdata->attached_count && drvdata->rpm_resume)
-			__sysmmu_tlb_invalidate(drvdata, gather->start, gather->end);
+			__sysmmu_tlb_invalidate(drvdata, domain->vid, gather->start, gather->end);
 		spin_unlock_irqrestore(&drvdata->lock, flags);
+	} else if (domain->group) {
+		/* Domain is used as regular domain */
+		/*
+		 * domain->group might be NULL if iotlb_sync is called
+		 * before attach_dev. Just ignore it.
+		 */
+		struct list_head *sysmmu_list = iommu_group_get_iommudata(domain->group);
+
+		list_for_each_entry(drvdata, sysmmu_list, list) {
+			spin_lock_irqsave(&drvdata->lock, flags);
+			if (drvdata->attached_count && drvdata->rpm_resume)
+				__sysmmu_tlb_invalidate(drvdata, 0, gather->start, gather->end);
+			spin_unlock_irqrestore(&drvdata->lock, flags);
+		}
 	}
 }
 
@@ -910,6 +965,128 @@ static int samsung_sysmmu_of_xlate(struct device *dev,
 	return ret;
 }
 
+static int samsung_sysmmu_aux_attach_dev(struct iommu_domain *dom, struct device *dev)
+{
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct sysmmu_clientdata *client;
+	struct samsung_sysmmu_domain *domain;
+	struct sysmmu_drvdata *drvdata;
+	unsigned long flags;
+	unsigned int vid;
+
+	domain = attach_helper(dom, dev);
+	if (IS_ERR(domain))
+		return (int)PTR_ERR(domain);
+
+	if (domain->group) {
+		dev_err(dev, "IOMMU domain is already in use as vid 0 domain\n");
+		return -EBUSY;
+	}
+	client = fwspec->iommu_priv;
+	if (client->sysmmu_count != 1) {
+		dev_err(dev, "IOMMU AUX domains not supported for devices served by more than one IOMMU\n");
+		return -ENXIO;
+	}
+	drvdata = client->sysmmus[0];
+	if (!drvdata->has_vcr) {
+		dev_err(dev, "SysMMU does not support IOMMU AUX domains\n");
+		return -ENXIO;
+	}
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (!drvdata->attached_count) {
+		dev_err(dev, "IOMMU needs to be enabled to attach AUX domain\n");
+		spin_unlock_irqrestore(&drvdata->lock, flags);
+		return -ENXIO;
+	}
+	for (vid = 1; vid < MAX_VIDS; vid++)
+		if (!drvdata->pgtable[vid])
+			break;
+	if (vid == MAX_VIDS) {
+		dev_err(dev, "Unable to allocate vid for AUX domain\n");
+		spin_unlock_irqrestore(&drvdata->lock, flags);
+		return -EBUSY;
+	}
+	drvdata->pgtable[vid] = virt_to_phys(domain->page_table);
+	if (pm_runtime_active(drvdata->dev))
+		__sysmmu_enable_vid(drvdata, vid);
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+	domain->vm_sysmmu = drvdata;
+	domain->vid = vid;
+	return 0;
+}
+
+static void samsung_sysmmu_aux_detach_dev(struct iommu_domain *dom, struct device *dev)
+{
+	struct samsung_sysmmu_domain *domain;
+	struct sysmmu_drvdata *drvdata;
+	unsigned long flags;
+	unsigned int vid;
+
+	domain = to_sysmmu_domain(dom);
+
+	if (WARN_ON(!domain->vm_sysmmu || !domain->vid))
+		return;
+
+	drvdata = domain->vm_sysmmu;
+	vid = domain->vid;
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	drvdata->pgtable[vid] = 0;
+	__sysmmu_disable_vid(drvdata, vid);
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+
+	domain->vm_sysmmu = NULL;
+	domain->vid = 0;
+}
+
+static int samsung_sysmmu_aux_get_pasid(struct iommu_domain *dom, struct device *dev)
+{
+	struct samsung_sysmmu_domain *domain;
+
+	domain = to_sysmmu_domain(dom);
+
+	if (!domain->vm_sysmmu)
+		return -EINVAL;
+
+	return (int)domain->vid;
+}
+
+static bool samsung_sysmmu_dev_has_feat(struct device *dev, enum iommu_dev_features f)
+{
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct sysmmu_clientdata *client;
+	struct sysmmu_drvdata *drvdata;
+
+	if (f != IOMMU_DEV_FEAT_AUX)
+		return false;
+
+	if (!fwspec || !fwspec->iommu_priv || fwspec->ops != &samsung_sysmmu_ops)
+		return false;
+
+	client = fwspec->iommu_priv;
+	if (client->sysmmu_count != 1)
+		return false;
+	drvdata = client->sysmmus[0];
+	return !!drvdata->has_vcr;
+}
+
+static bool samsung_sysmmu_dev_feat_enabled(struct device *dev, enum iommu_dev_features f)
+{
+	return samsung_sysmmu_dev_has_feat(dev, f);
+}
+
+static int samsung_sysmmu_dev_enable_feat(struct device *dev, enum iommu_dev_features f)
+{
+	if (!samsung_sysmmu_dev_has_feat(dev, f))
+		return -EINVAL;
+	return 0;
+}
+
+static int samsung_sysmmu_dev_disable_feat(struct device *dev, enum iommu_dev_features f)
+{
+	return -EINVAL;
+}
+
 static struct iommu_ops samsung_sysmmu_ops = {
 	.capable		= samsung_sysmmu_capable,
 	.domain_alloc		= samsung_sysmmu_domain_alloc,
@@ -925,6 +1102,13 @@ static struct iommu_ops samsung_sysmmu_ops = {
 	.release_device		= samsung_sysmmu_release_device,
 	.device_group		= samsung_sysmmu_device_group,
 	.of_xlate		= samsung_sysmmu_of_xlate,
+	.dev_has_feat		= samsung_sysmmu_dev_has_feat,
+	.dev_feat_enabled	= samsung_sysmmu_dev_feat_enabled,
+	.dev_enable_feat	= samsung_sysmmu_dev_enable_feat,
+	.dev_disable_feat	= samsung_sysmmu_dev_disable_feat,
+	.aux_attach_dev		= samsung_sysmmu_aux_attach_dev,
+	.aux_detach_dev		= samsung_sysmmu_aux_detach_dev,
+	.aux_get_pasid		= samsung_sysmmu_aux_get_pasid,
 	.pgsize_bitmap		= SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
 };
 

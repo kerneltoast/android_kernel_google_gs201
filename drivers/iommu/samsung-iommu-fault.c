@@ -20,8 +20,10 @@
 #define MMU_TLB_ENTRY_VALID(reg)	((reg) >> 28)
 #define MMU_SBB_ENTRY_VALID(reg)	((reg) >> 28)
 #define MMU_VADDR_FROM_TLB(reg, idx)	(((reg) & 0xFFFFC | (idx) & 0x3) << 12)
+#define MMU_VID_FROM_TLB(reg)		(((reg) >> 20) & 0x7U)
 #define MMU_PADDR_FROM_TLB(reg)		(((reg) & 0xFFFFFF) << 12)
 #define MMU_VADDR_FROM_SBB(reg)		(((reg) & 0xFFFFF) << 12)
+#define MMU_VID_FROM_SBB(reg)		(((reg) >> 20) & 0x7U)
 #define MMU_PADDR_FROM_SBB(reg)		(((reg) & 0x3FFFFFF) << 10)
 
 #define REG_MMU_INT_STATUS		0x060
@@ -97,26 +99,28 @@ static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *data,
 		return readl_relaxed(data->sfrbase + REG_MMU_INT_STATUS);
 }
 
-static inline sysmmu_iova_t __sysmmu_get_fault_address(struct sysmmu_drvdata *data, bool is_secure)
+static inline sysmmu_iova_t __sysmmu_get_fault_address(struct sysmmu_drvdata *data,
+						       unsigned int vid, bool is_secure)
 {
 	if (is_secure)
-		return read_sec_info(MMU_SEC_VM_REG(data, IDX_FAULT_VA, 0));
+		return read_sec_info(MMU_SEC_VM_REG(data, IDX_FAULT_VA, vid));
 	else
-		return readl_relaxed(MMU_VM_REG(data, IDX_FAULT_VA, 0));
+		return readl_relaxed(MMU_VM_REG(data, IDX_FAULT_VA, vid));
 }
 
-static inline void sysmmu_tlb_compare(phys_addr_t pgtable,
-				      unsigned int idx_sub, u32 vpn, u32 ppn)
+static inline void sysmmu_tlb_compare(phys_addr_t pgtable[MAX_VIDS],
+				      unsigned int idx_sub, u32 vpn, u32 ppn, u32 attr)
 {
 	sysmmu_pte_t *entry;
 	sysmmu_iova_t vaddr = MMU_VADDR_FROM_TLB(vpn, idx_sub);
+	unsigned int vid = MMU_VID_FROM_TLB(attr);
 	unsigned long paddr = MMU_PADDR_FROM_TLB(ppn);
 	unsigned long phys = 0;
 
-	if (!pgtable)
+	if (!pgtable[vid])
 		return;
 
-	entry = section_entry(phys_to_virt(pgtable), vaddr);
+	entry = section_entry(phys_to_virt(pgtable[vid]), vaddr);
 
 	if (lv1ent_section(entry)) {
 		phys = section_phys(entry);
@@ -139,18 +143,19 @@ static inline void sysmmu_tlb_compare(phys_addr_t pgtable,
 	}
 }
 
-static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link,
-				      phys_addr_t pgtable)
+static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link, u32 sbbattr,
+				      phys_addr_t pgtable[MAX_VIDS])
 {
 	sysmmu_pte_t *entry;
 	sysmmu_iova_t vaddr = MMU_VADDR_FROM_SBB(sbb_vpn);
+	unsigned int vid = MMU_VID_FROM_SBB(sbbattr);
 	unsigned long paddr = MMU_PADDR_FROM_SBB((unsigned long)sbb_link);
 	unsigned long phys = 0;
 
-	if (!pgtable)
+	if (!pgtable[vid])
 		return;
 
-	entry = section_entry(phys_to_virt(pgtable), vaddr);
+	entry = section_entry(phys_to_virt(pgtable[vid]), vaddr);
 
 	if (lv1ent_page(entry)) {
 		phys = lv2table_base(entry);
@@ -167,7 +172,7 @@ static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link,
 }
 
 static inline
-unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata, phys_addr_t pgtable,
+unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata, phys_addr_t pgtable[MAX_VIDS],
 				      unsigned int idx_way, unsigned int idx_set,
 				      unsigned int idx_sub)
 {
@@ -181,7 +186,7 @@ unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata, phys_addr_
 
 		pr_crit("[%02u][%02u] VPN: %#010x, PPN: %#010x, ATTR: %#010x\n",
 			idx_way, idx_set, vpn, ppn, attr);
-		sysmmu_tlb_compare(pgtable, idx_sub, vpn, ppn);
+		sysmmu_tlb_compare(pgtable, idx_sub, vpn, ppn, attr);
 
 		return 1;
 	}
@@ -191,7 +196,7 @@ unsigned int dump_tlb_entry_port_type(struct sysmmu_drvdata *drvdata, phys_addr_
 
 #define MMU_NUM_TLB_SUBLINE		4
 static unsigned int dump_tlb_entry_port(struct sysmmu_drvdata *drvdata,
-					phys_addr_t pgtable,
+					phys_addr_t pgtable[MAX_VIDS],
 					unsigned int tlb, unsigned int way, unsigned int num_set)
 {
 	unsigned int cnt = 0;
@@ -210,7 +215,7 @@ static unsigned int dump_tlb_entry_port(struct sysmmu_drvdata *drvdata,
 }
 
 static inline void dump_sysmmu_tlb_status(struct sysmmu_drvdata *drvdata,
-					  phys_addr_t pgtable)
+					  phys_addr_t pgtable[MAX_VIDS])
 {
 	unsigned int t, i;
 	u32 capa0, capa1, info;
@@ -246,18 +251,18 @@ static inline void dump_sysmmu_tlb_status(struct sysmmu_drvdata *drvdata,
 
 	pr_crit("--- SBB(Second-Level Page Table Base Address Buffer) ---\n");
 	for (i = 0, cnt = 0; i < num_sbb; i++) {
-		u32 sbb_vpn, sbblink;
+		u32 sbb_vpn, sbblink, sbbattr;
 
 		writel_relaxed(i, MMU_REG(drvdata, IDX_SBB_READ));
 		sbb_vpn = readl_relaxed(MMU_REG(drvdata, IDX_SBB_VPN));
 
 		if (MMU_SBB_ENTRY_VALID(sbb_vpn)) {
 			sbblink = readl_relaxed(MMU_REG(drvdata, IDX_SBB_LINK));
+			sbbattr = readl_relaxed(MMU_REG(drvdata, IDX_SBB_ATTR));
 
 			pr_crit("[%02d] VPN: %#010x, PPN: %#010x, ATTR: %#010x",
-				i, sbb_vpn, sbblink,
-				readl_relaxed(MMU_REG(drvdata, IDX_SBB_ATTR)));
-			sysmmu_sbb_compare(sbb_vpn, sbblink, pgtable);
+				i, sbb_vpn, sbblink, sbbattr);
+			sysmmu_sbb_compare(sbb_vpn, sbblink, sbbattr, pgtable);
 			cnt++;
 		}
 	}
@@ -266,7 +271,7 @@ static inline void dump_sysmmu_tlb_status(struct sysmmu_drvdata *drvdata,
 }
 
 static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
-				      phys_addr_t pgtable)
+				      phys_addr_t pgtable[MAX_VIDS])
 {
 	int info;
 	void __iomem *sfrbase = drvdata->sfrbase;
@@ -284,8 +289,8 @@ static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
 
 	if (drvdata->has_vcr)
 		pr_crit("MMU_CTRL_VM: %#010x, MMU_CFG_VM: %#010x\n",
-			readl_relaxed(sfrbase + REG_MMU_CTRL_VM),
-			readl_relaxed(sfrbase + REG_MMU_CFG_VM));
+			readl_relaxed(MMU_VM_REG(drvdata, IDX_CTRL_VM, 0)),
+			readl_relaxed(MMU_VM_REG(drvdata, IDX_CFG_VM, 0)));
 
 	dump_sysmmu_tlb_status(drvdata, pgtable);
 }
@@ -345,36 +350,35 @@ finish:
 }
 
 static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
-					  int intr_type, sysmmu_iova_t fault_addr,
+					  int intr_type, unsigned int vid, sysmmu_iova_t fault_addr,
 					  phys_addr_t *pt)
 {
 	const char *port_name = NULL;
 	u32 info;
-	phys_addr_t pgtable;
-
-	pgtable = readl_relaxed(MMU_REG(drvdata, IDX_FLPT_BASE));
-	pgtable <<= PAGE_SHIFT;
 
 	info = readl_relaxed(MMU_REG(drvdata, IDX_FAULT_TRANS_INFO));
 
 	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
 
-	pr_crit("From [%s], SysMMU %s %s at %#010x (pgtable @ %pa, AxID: %#x)\n",
-		port_name ? port_name : dev_name(drvdata->dev),
+	pr_crit("From [%s] VID %u, SysMMU %s %s at %#010x (pgtable @ %pa, AxID: %#x)\n",
+		port_name ? port_name : dev_name(drvdata->dev), vid,
 		IS_READ_FAULT(info) ? "READ" : "WRITE",
-		sysmmu_fault_name[intr_type], fault_addr, &pgtable, info & 0xFFFF);
-
-	if (pt)
-		*pt = pgtable;
+		sysmmu_fault_name[intr_type], fault_addr, pt, info & 0xFFFF);
 }
 
 static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
-					  int intr_type, unsigned long fault_addr)
+					  int intr_type, unsigned int vid, unsigned long fault_addr)
 {
-	phys_addr_t pgtable;
+	unsigned int i;
+	phys_addr_t pgtable[MAX_VIDS];
+
+	for (i = 0; i < __max_vids(drvdata); i++) {
+		pgtable[i] = readl_relaxed(MMU_VM_REG(drvdata, IDX_FLPT_BASE, i));
+		pgtable[i] <<= PAGE_SHIFT;
+	}
 
 	pr_crit("----------------------------------------------------------\n");
-	sysmmu_show_fault_info_simple(drvdata, intr_type, fault_addr, &pgtable);
+	sysmmu_show_fault_info_simple(drvdata, intr_type, vid, fault_addr, &pgtable[vid]);
 
 	if (intr_type == SYSMMU_FAULT_UNKNOWN) {
 		pr_crit("The fault is not caused by this System MMU.\n");
@@ -382,17 +386,20 @@ static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 		goto finish;
 	}
 
-	if (pgtable != drvdata->pgtable)
-		pr_crit("Page table base of driver: %pa\n",
-			&drvdata->pgtable);
+	for (i = 0; i < __max_vids(drvdata); i++) {
+		if (pgtable[i] != drvdata->pgtable[i])
+			pr_crit("Page table (VID %u) base of driver: %pa\n", i,
+				&drvdata->pgtable[i]);
+		if (pgtable[i] && !pfn_valid(pgtable[i] >> PAGE_SHIFT)) {
+			pr_crit("Page table (VID %u) base is not in a valid memory region\n", i);
+			pgtable[i] = 0;
+		}
+	}
 
-	if (!pfn_valid(pgtable >> PAGE_SHIFT)) {
-		pr_crit("Page table base is not in a valid memory region\n");
-		pgtable = 0;
-	} else {
+	if (pgtable[vid]) {
 		sysmmu_pte_t *ent;
 
-		ent = section_entry(phys_to_virt(pgtable), fault_addr);
+		ent = section_entry(phys_to_virt(pgtable[vid]), fault_addr);
 		pr_crit("Lv1 entry: %#010x\n", *ent);
 
 		if (lv1ent_page(ent)) {
@@ -403,7 +410,7 @@ static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 
 	if (intr_type == SYSMMU_FAULT_PTW_ACCESS) {
 		pr_crit("System MMU has failed to access page table\n");
-		pgtable = 0;
+		pgtable[vid] = 0;
 	}
 
 	dump_sysmmu_status(drvdata, pgtable);
@@ -411,13 +418,15 @@ finish:
 	pr_crit("----------------------------------------------------------\n");
 }
 
-static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data,
-				      unsigned int *intr_type, sysmmu_iova_t *addr,
-				      bool is_secure)
+static void sysmmu_get_interrupt_info(struct sysmmu_drvdata *data, unsigned int *intr_type,
+				      unsigned int *vid, sysmmu_iova_t *addr, bool is_secure)
 {
-	*intr_type =  (unsigned int)__ffs(__sysmmu_get_intr_status(data, is_secure));
-	*intr_type %= 4;
-	*addr = __sysmmu_get_fault_address(data, is_secure);
+	u32 istatus;
+
+	istatus = (unsigned int)__ffs(__sysmmu_get_intr_status(data, is_secure));
+	*vid = istatus / 4;
+	*intr_type = istatus % 4;
+	*addr = __sysmmu_get_fault_address(data, *vid, is_secure);
 }
 
 static void sysmmu_clear_interrupt(struct sysmmu_drvdata *data)
@@ -430,6 +439,7 @@ static void sysmmu_clear_interrupt(struct sysmmu_drvdata *data)
 irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 {
 	int itype;
+	unsigned int vid;
 	sysmmu_iova_t addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
 	bool is_secure = (irq == drvdata->secure_irq);
@@ -440,11 +450,11 @@ irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 	if (drvdata->async_fault_mode)
 		return IRQ_WAKE_THREAD;
 
-	sysmmu_get_interrupt_info(drvdata, &itype, &addr, is_secure);
+	sysmmu_get_interrupt_info(drvdata, &itype, &vid, &addr, is_secure);
 	if (is_secure)
 		sysmmu_show_secure_fault_information(drvdata, itype, addr);
 	else
-		sysmmu_show_fault_information(drvdata, itype, addr);
+		sysmmu_show_fault_information(drvdata, itype, vid, addr);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -476,7 +486,7 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 
 irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 {
-	unsigned int itype;
+	unsigned int itype, vid;
 	int ret;
 	sysmmu_iova_t addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
@@ -488,10 +498,13 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 		.event.fault.type = IOMMU_FAULT_DMA_UNRECOV,
 	};
 
-	sysmmu_get_interrupt_info(drvdata, &itype, &addr, is_secure);
+	sysmmu_get_interrupt_info(drvdata, &itype, &vid, &addr, is_secure);
 	reason = sysmmu_fault_type[itype];
 
 	fi.event.fault.event.addr = addr;
+	fi.event.fault.event.pasid = vid;
+	if (vid)
+		fi.event.fault.event.flags |= IOMMU_FAULT_UNRECOV_PASID_VALID;
 	fi.event.fault.event.reason = reason;
 	if (reason == IOMMU_FAULT_REASON_PTE_FETCH ||
 	    reason == IOMMU_FAULT_REASON_PERMISSION)
@@ -500,7 +513,11 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 	ret = iommu_group_for_each_dev(group, &fi,
 				       samsung_sysmmu_fault_notifier);
 	if (ret == -EAGAIN && !is_secure) {
-		sysmmu_show_fault_info_simple(drvdata, itype, addr, NULL);
+		phys_addr_t pgtable;
+
+		pgtable = readl_relaxed(MMU_VM_REG(drvdata, IDX_FLPT_BASE, vid));
+		pgtable <<= PAGE_SHIFT;
+		sysmmu_show_fault_info_simple(drvdata, itype, vid, addr, &pgtable);
 		sysmmu_clear_interrupt(drvdata);
 		return IRQ_HANDLED;
 	}
@@ -509,7 +526,7 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 		if (is_secure)
 			sysmmu_show_secure_fault_information(drvdata, itype, addr);
 		else
-			sysmmu_show_fault_information(drvdata, itype, addr);
+			sysmmu_show_fault_information(drvdata, itype, vid, addr);
 	}
 	panic("Unrecoverable System MMU Fault!!");
 
