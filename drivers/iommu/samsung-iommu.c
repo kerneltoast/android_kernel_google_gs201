@@ -19,11 +19,6 @@
 #define FLPD_SHAREABLE_FLAG	BIT(6)
 #define SLPD_SHAREABLE_FLAG	BIT(4)
 
-#define REG_MMU_INV_ALL			0x010
-#define REG_MMU_INV_RANGE		0x018
-#define REG_MMU_INV_START		0x020
-#define REG_MMU_INV_END			0x024
-
 #define MMU_TLB_CFG_MASK(reg)		((reg) & (GENMASK(7, 5) | GENMASK(3, 2) | GENMASK(1, 1)))
 #define MMU_TLB_MATCH_CFG_MASK(reg)	((reg) & (GENMASK(31, 16) | GENMASK(9, 8)))
 
