@@ -39,3 +39,7 @@ BUILD_INITRAMFS=1
 GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-slider.img
 KERNEL_VENDOR_CMDLINE="androidboot.selinux=permissive androidboot.boot_devices=14700000.ufs buildvariant=userdebug"
 VENDOR_FSTAB=${ROOT_DIR}/prebuilts/boot-artifacts/fstabs/fstab.gs101
+
+EXT_MODULES="
+private/google-modules/gpu/mali_kbase
+"
