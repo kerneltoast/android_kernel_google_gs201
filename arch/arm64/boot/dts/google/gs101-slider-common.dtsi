@@ -11,6 +11,7 @@
 #include "gs101-pmic.dtsi"
 #include "gs101-slider-touch.dtsi"
 #include "gs101-slider-typec.dtsi"
+#include "gs101-slider-wlan.dtsi"
 #include <dt-bindings/pci/pci.h>
 
 / {
