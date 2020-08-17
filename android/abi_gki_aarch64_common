@@ -20,6 +20,7 @@
   bpf_trace_run3
   bpf_trace_run9
   bus_register_notifier
+  bus_set_iommu
   bus_unregister_notifier
   cancel_delayed_work
   cancel_delayed_work_sync
@@ -74,6 +75,8 @@
   device_for_each_child
   device_initialize
   device_init_wakeup
+  device_link_add
+  device_link_del
   device_property_present
   device_property_read_u32_array
   device_wakeup_enable
@@ -97,6 +100,8 @@
   devm_request_threaded_irq
   devm_rtc_device_register
   devm_usb_get_phy_by_phandle
+  devres_add
+  devres_alloc_node
   dev_set_name
   _dev_warn
   disable_irq
@@ -161,6 +166,25 @@
   __init_swait_queue_head
   init_timer_key
   iomem_resource
+  iommu_attach_group
+  iommu_device_link
+  iommu_device_register
+  iommu_device_sysfs_add
+  iommu_device_sysfs_remove
+  iommu_device_unlink
+  iommu_device_unregister
+  iommu_domain_alloc
+  iommu_fwspec_add_ids
+  iommu_fwspec_free
+  iommu_get_dma_cookie
+  iommu_group_alloc
+  iommu_group_for_each_dev
+  iommu_group_get
+  iommu_group_get_iommudata
+  iommu_group_set_iommudata
+  iommu_group_set_name
+  iommu_put_dma_cookie
+  iommu_report_device_fault
   __ioremap
   iounmap
   __irq_alloc_descs
@@ -185,7 +209,11 @@
   __kmalloc
   kmalloc_caches
   kmalloc_order_trace
+  kmem_cache_alloc
   kmem_cache_alloc_trace
+  kmem_cache_create
+  kmem_cache_destroy
+  kmem_cache_free
   kmemdup
   kobject_add
   kobject_create_and_add
@@ -237,6 +265,7 @@
   of_fwnode_ops
   of_genpd_add_provider_simple
   of_get_child_by_name
+  of_get_dma_window
   of_get_named_gpio_flags
   of_get_next_child
   of_get_property
@@ -249,6 +278,7 @@
   of_property_count_elems_of_size
   of_property_read_string
   of_property_read_string_helper
+  of_property_read_u32_index
   of_property_read_variable_u32_array
   of_property_read_variable_u8_array
   of_prop_next_string
@@ -274,6 +304,7 @@
   __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
+  pfn_valid
   physvirt_offset
   pinctrl_add_gpio_range
   pinctrl_dev_get_drvdata
@@ -282,6 +313,7 @@
   pinctrl_remove_gpio_range
   pinctrl_select_state
   pin_get_name
+  platform_bus_type
   platform_device_add
   platform_device_add_properties
   platform_device_add_resources
@@ -299,6 +331,7 @@
   __pm_runtime_disable
   pm_runtime_enable
   pm_runtime_forbid
+  pm_runtime_get_if_active
   __pm_runtime_idle
   __pm_runtime_resume
   __pm_runtime_set_status
