@@ -141,9 +141,11 @@
   gpiochip_unlock_as_irq
   gpiod_direction_input
   gpiod_get_raw_value
+  gpiod_set_raw_value
   gpiod_to_irq
   gpio_free
   gpio_request
+  gpio_request_one
   gpio_to_desc
   handle_edge_irq
   handle_level_irq
@@ -229,9 +231,11 @@
   kthread_should_stop
   kthread_stop
   ktime_get
+  ktime_get_mono_fast_ns
   ktime_get_real_ts64
   __list_add_valid
   __list_del_entry_valid
+  loops_per_jiffy
   memcpy
   memdup_user
   memset
@@ -334,7 +338,10 @@
   pm_runtime_get_if_active
   __pm_runtime_idle
   __pm_runtime_resume
+  pm_runtime_set_autosuspend_delay
   __pm_runtime_set_status
+  __pm_runtime_suspend
+  __pm_runtime_use_autosuspend
   pm_wakeup_ws_event
   preempt_schedule
   preempt_schedule_notrace
@@ -410,9 +417,15 @@
   smp_call_function_single
   snprintf
   soc_device_register
+  __spi_alloc_controller
+  spi_controller_resume
+  spi_controller_suspend
+  spi_finalize_current_message
+  spi_register_controller
   __spi_register_driver
   spi_setup
   spi_sync
+  spi_unregister_controller
   sprintf
   sscanf
   __stack_chk_fail
