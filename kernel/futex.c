@@ -43,6 +43,7 @@
 #include <asm/futex.h>
 
 #include "locking/rtmutex_common.h"
+#include <trace/hooks/futex.h>
 
 /*
  * READ this before attempting to hack on futexes!
@@ -678,7 +679,7 @@ static int fault_in_user_writeable(u32 __user *uaddr)
 	int ret;
 
 	mmap_read_lock(mm);
-	ret = fixup_user_fault(current, mm, (unsigned long)uaddr,
+	ret = fixup_user_fault(mm, (unsigned long)uaddr,
 			       FAULT_FLAG_WRITE, NULL);
 	mmap_read_unlock(mm);
 
@@ -2215,6 +2216,7 @@ queue_unlock(struct futex_hash_bucket *hb)
 static inline void __queue_me(struct futex_q *q, struct futex_hash_bucket *hb)
 {
 	int prio;
+	bool already_on_hb = false;
 
 	/*
 	 * The priority used to register this element is
@@ -2227,7 +2229,9 @@ static inline void __queue_me(struct futex_q *q, struct futex_hash_bucket *hb)
 	prio = min(current->normal_prio, MAX_RT_PRIO);
 
 	plist_node_init(&q->list, prio);
-	plist_add(&q->list, &hb->chain);
+	trace_android_vh_alter_futex_plist_add(&q->list, &hb->chain, &already_on_hb);
+	if (!already_on_hb)
+		plist_add(&q->list, &hb->chain);
 	q->task = current;
 }
 
