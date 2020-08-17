@@ -1174,7 +1174,7 @@
           <var-decl name='pgsize_bitmap' type-id='7359adad' visibility='default' filepath='include/linux/iommu.h' line='303' column='1'/>
         </data-member>
         <data-member access='public' layout-offset-in-bits='2560'>
-          <var-decl name='owner' type-id='2730d015' visibility='default' filepath='include/linux/iommu.h' line='304' column='1'/>
+          <var-decl name='owner' type-id='2730d016' visibility='default' filepath='include/linux/iommu.h' line='304' column='1'/>
         </data-member>
       </class-decl>
       <enum-decl name='iommu_cap' filepath='include/linux/iommu.h' line='92' column='1' id='031224de'>
