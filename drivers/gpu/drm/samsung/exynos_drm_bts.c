@@ -15,7 +15,7 @@
 #include <exynos_drm_format.h>
 
 #include <soc/google/bts.h>
-#if defined(CONFIG_SOC_GS101)
+#if defined(CONFIG_SOC_GS101) && IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 #include <soc/google/exynos-devfreq.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #endif
@@ -613,7 +613,7 @@ void dpu_bts_acquire_bw(struct decon_device *decon)
 		 * If current disp freq is higher than calculated freq,
 		 * it must not be set. if not, underrun can occur.
 		 */
-#if defined(CONFIG_SOC_GS101)
+#if defined(CONFIG_SOC_GS101) && IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 		if (exynos_devfreq_get_domain_freq(DEVFREQ_DISP) < aclk_freq)
 			exynos_pm_qos_update_request(&decon->bts.disp_qos,
 					aclk_freq);
