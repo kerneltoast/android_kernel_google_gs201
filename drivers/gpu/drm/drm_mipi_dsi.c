@@ -1154,7 +1154,7 @@ int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_get_display_brightness);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DRM_DEBUGFS_PANEL
 static int mipi_dsi_name_show(struct seq_file *m, void *data)
 {
 	struct mipi_dsi_device *dsi = m->private;

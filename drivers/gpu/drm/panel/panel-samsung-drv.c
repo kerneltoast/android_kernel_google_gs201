@@ -534,7 +534,6 @@ static int exynos_panel_bridge_attach(struct drm_bridge *bridge)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
 	struct drm_connector *connector = &ctx->connector;
-	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
 	ret = drm_connector_init(bridge->dev, connector,
@@ -567,7 +566,9 @@ static int exynos_panel_bridge_attach(struct drm_bridge *bridge)
 	if (ret)
 		dev_warn(ctx->dev, "unable to link panel sysfs (%d)\n", ret);
 
-	mipi_dsi_debugfs_add(dsi, ctx->panel.debugfs_entry);
+#ifdef CONFIG_DRM_DEBUGFS_PANEL
+	mipi_dsi_debugfs_add(to_mipi_dsi_device(ctx->dev), ctx->panel.debugfs_entry);
+#endif
 
 	drm_kms_helper_hotplug_event(connector->dev);
 

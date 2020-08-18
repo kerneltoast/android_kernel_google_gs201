@@ -116,7 +116,7 @@ EXPORT_SYMBOL(drm_panel_remove);
  */
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
 {
-	drm_debugfs_panel_add(panel);
+	drm_debugfs_panel_add(panel, connector->debugfs_entry);
 
 	return 0;
 }
@@ -367,15 +367,15 @@ int drm_panel_notifier_call_chain(struct drm_panel *panel,
 }
 EXPORT_SYMBOL_GPL(drm_panel_notifier_call_chain);
 
-#ifdef CONFIG_DEBUG_FS
-int drm_debugfs_panel_add(struct drm_panel *panel)
+#ifdef CONFIG_DRM_DEBUGFS_PANEL
+int drm_debugfs_panel_add(struct drm_panel *panel, struct dentry *parent)
 {
 	struct dentry *root;
 
-	if (!panel->connector || !panel->connector->debugfs_entry)
+	if (!parent)
 		return -EINVAL;
 
-	root = debugfs_create_dir("panel", panel->connector->debugfs_entry);
+	root = debugfs_create_dir("panel", parent);
 	if (!root)
 		return -EPERM;
 

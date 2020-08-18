@@ -229,6 +229,10 @@ config DRM_SCHED
 	tristate
 	depends on DRM
 
+config DRM_DEBUGFS_PANEL
+	bool "Panel entries for debugging DSI devices"
+	depends on DRM && DEBUG_FS
+
 source "drivers/gpu/drm/i2c/Kconfig"
 
 source "drivers/gpu/drm/arm/Kconfig"

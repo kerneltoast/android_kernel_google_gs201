@@ -337,7 +337,7 @@ void mipi_dsi_driver_unregister(struct mipi_dsi_driver *driver);
 	module_driver(__mipi_dsi_driver, mipi_dsi_driver_register, \
 			mipi_dsi_driver_unregister)
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_DRM_DEBUGFS_PANEL
 int mipi_dsi_debugfs_add(struct mipi_dsi_device *dsi,
 			 struct dentry *parent);
 #else
