@@ -1,4 +1,4 @@
-. ${ROOT_DIR}/common/build.config.common
-. ${ROOT_DIR}/common/build.config.x86_64
-. ${ROOT_DIR}/common/build.config.gki_kasan
+. ${ROOT_DIR}/private/gs-google/build.config.common
+. ${ROOT_DIR}/private/gs-google/build.config.x86_64
+. ${ROOT_DIR}/private/gs-google/build.config.gki_kasan
 

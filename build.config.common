@@ -1,6 +1,6 @@
-BRANCH=android-mainline
+BRANCH=android-mainline-staging
 KMI_GENERATION=0
-KERNEL_DIR=common
+KERNEL_DIR=private/gs-google
 
 CC=clang
 LD=ld.lld
