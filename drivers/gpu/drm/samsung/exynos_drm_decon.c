@@ -12,7 +12,7 @@
  * option) any later version.
  *
  */
-#include <drm/drmP.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/exynos_drm.h>
 #include <drm/exynos_display_common.h>
@@ -32,6 +32,8 @@
 #include <linux/iommu.h>
 
 #include <video/videomode.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 
 #include <exynos_drm_crtc.h>
 #include <exynos_drm_plane.h>
@@ -460,7 +462,7 @@ static void decon_mode_set(struct exynos_drm_crtc *crtc,
 	decon->bts.vbp = vm.vback_porch;
 	decon->bts.vfp = vm.vfront_porch;
 	decon->bts.vsa = vm.vsync_len;
-	decon->bts.fps = adjusted_mode->vrefresh;
+	decon->bts.fps = drm_mode_vrefresh(adjusted_mode);
 
 	for (i = 0; i < dev->mode_config.num_total_plane; i++) {
 		decon->bts.win_config[i].state = DPU_WIN_STATE_DISABLED;

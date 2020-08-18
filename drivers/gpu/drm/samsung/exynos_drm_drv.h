@@ -16,10 +16,13 @@
 #ifndef _EXYNOS_DRM_DRV_H_
 #define _EXYNOS_DRM_DRV_H_
 
-#include <drm/drmP.h>
+#include <linux/module.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_plane.h>
 #include <drm/drm_property.h>
 #include <drm/samsung_drm.h>
-#include <linux/module.h>
 
 #include <exynos_drm_dqe.h>
 #include <decon_cal.h>

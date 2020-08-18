@@ -146,12 +146,14 @@ static const struct drm_display_mode s6e3ha8_mode = {
 	.vsync_start = 2960 + 8,
 	.vsync_end = 2960 + 8 + 1,
 	.vtotal = 2960 + 8 + 1 + 15,
-	.vrefresh = 60,
 	.flags = 0,
 	.width_mm = 69,
 	.height_mm = 142,
+	/* TODO: b/165347448 port mode switching to android-gs-pixel-mainline */
+#if 0
 	.private = (int *) &s6e3ha8_mode_private,
 	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
+#endif
 };
 
 static const struct drm_panel_funcs s6e3ha8_drm_funcs = {

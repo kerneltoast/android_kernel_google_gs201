@@ -132,7 +132,7 @@ static int exynos_drm_gem_create(struct drm_device *dev, struct drm_file *filep,
 		}
 
 		/* drop ref from import - handle holds it now */
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 	}
 
 	/* drop ref from alloc - import holds it now */
@@ -264,14 +264,4 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 			      *offset, handle);
 
 	return ret;
-}
-
-void exynos_drm_gem_print_info(struct drm_printer *p, unsigned int indent,
-			       const struct drm_gem_object *obj)
-{
-	const struct exynos_drm_gem *exynos_gem_obj = to_exynos_gem(obj);
-
-	drm_printf_indent(p, indent, "dma_addr=0x%pK\n",
-			  exynos_gem_obj->dma_addr);
-	drm_printf_indent(p, indent, "flags=0x%x\n", exynos_gem_obj->flags);
 }

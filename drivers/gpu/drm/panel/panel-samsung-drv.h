@@ -98,7 +98,7 @@ static inline int exynos_dcs_compression_mode(struct exynos_panel *ctx, u8 mode)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 
-	return mipi_dsi_dcs_compression_mode(dsi, mode);
+	return mipi_dsi_compression_mode(dsi, mode);
 }
 
 static inline int exynos_dcs_set_brightness(struct exynos_panel *ctx, u16 br)
@@ -142,13 +142,13 @@ static inline void exynos_bin2hex(const void *buf, size_t len,
 #define EXYNOS_PPS_LONG_WRITE(ctx) do {					\
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);	\
 	int ret;							\
-	ret = mipi_dsi_pps_long_write(dsi, (u8 *)ctx->desc->dsc_pps,	\
-				      ctx->desc->dsc_pps_len);		\
+	ret = mipi_dsi_picture_parameter_set(dsi, \
+				(struct drm_dsc_picture_parameter_set *) ctx->desc->dsc_pps);	\
 	if (ret < 0)							\
 		dev_err(ctx->dev, "failed to write cmd(%d)\n", ret);	\
 } while (0)
 
-int exynos_panel_get_modes(struct drm_panel *panel);
+int exynos_panel_get_modes(struct drm_panel *panel, struct drm_connector *connector);
 void exynos_panel_reset(struct exynos_panel *ctx);
 int exynos_panel_set_power(struct exynos_panel *ctx, bool on);
 

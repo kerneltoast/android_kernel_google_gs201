@@ -15,9 +15,9 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <drm/drmP.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -276,20 +276,19 @@ err:
 	return ret;
 }
 
-int exynos_panel_get_modes(struct drm_panel *panel)
+int exynos_panel_get_modes(struct drm_panel *panel, struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct exynos_panel *ctx =
 		container_of(panel, struct exynos_panel, panel);
 	struct drm_display_mode *mode;
 
 	dev_dbg(ctx->dev, "%s +\n", __func__);
 
-	mode = drm_mode_duplicate(panel->drm, ctx->desc->mode);
+	mode = drm_mode_duplicate(connector->dev, ctx->desc->mode);
 	if (!mode) {
 		dev_err(ctx->dev, "failed to add mode %ux%ux@%u\n",
 			ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
-			ctx->desc->mode->vrefresh);
+			drm_mode_vrefresh(ctx->desc->mode));
 		return -ENOMEM;
 	}
 
@@ -427,7 +426,7 @@ static int exynos_drm_connector_modes(struct drm_connector *connector)
 	struct exynos_panel *ctx = connector_to_exynos_panel(connector);
 	int ret;
 
-	ret = drm_panel_get_modes(&ctx->panel);
+	ret = drm_panel_get_modes(&ctx->panel, connector);
 	if (ret < 0) {
 		dev_err(ctx->dev, "failed to get panel display modes\n");
 		return ret;
@@ -462,7 +461,7 @@ int exynos_drm_connector_atomic_check(struct drm_connector *connector,
 	if (!bridge || bridge->dev)
 		return 0;
 
-	drm_bridge_attach(encoder, bridge, NULL);
+	drm_bridge_attach(encoder, bridge, NULL, 0);
 	dev_info(ctx->dev, "attach bridge %p to encoder %p\n", bridge, encoder);
 
 	return 0;
@@ -530,7 +529,8 @@ static int exynos_drm_connector_create_hdr_formats_property(
 	return 0;
 }
 
-static int exynos_panel_bridge_attach(struct drm_bridge *bridge)
+static int exynos_panel_bridge_attach(struct drm_bridge *bridge,
+				enum drm_bridge_attach_flags flags)
 {
 	struct exynos_panel *ctx = bridge_to_exynos_panel(bridge);
 	struct drm_connector *connector = &ctx->connector;
@@ -641,6 +641,8 @@ static bool exynos_panel_mode_fixup(struct drm_bridge *bridge,
 
 	list_for_each_entry(m, &ctx->connector.modes, head) {
 		if (drm_mode_equal(m, adjusted_mode)) {
+		/* TODO: b/165347448 port mode switching to android-gs-pixel-mainline */
+#if 0
 			adjusted_mode->private = m->private;
 			adjusted_mode->private_flags = m->private_flags;
 
@@ -650,6 +652,7 @@ static bool exynos_panel_mode_fixup(struct drm_bridge *bridge,
 			else
 				adjusted_mode->private_flags &=
 					~EXYNOS_DISPLAY_MODE_FLAG_TUI;
+#endif
 
 			return true;
 		}
@@ -709,9 +712,7 @@ int exynos_panel_probe(struct mipi_dsi_device *dsi)
 	ctx->bl->props.max_brightness = ctx->desc->max_brightness;
 	ctx->bl->props.brightness = ctx->desc->dft_brightness;
 
-	drm_panel_init(&ctx->panel);
-	ctx->panel.dev = dev;
-	ctx->panel.funcs = ctx->desc->panel_func;
+	drm_panel_init(&ctx->panel, dev, ctx->desc->panel_func, DRM_MODE_CONNECTOR_DSI);
 
 	drm_panel_add(&ctx->panel);
 

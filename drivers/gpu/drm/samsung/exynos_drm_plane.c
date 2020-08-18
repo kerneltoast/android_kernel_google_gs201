@@ -10,14 +10,14 @@
  *
  */
 
-#include <drm/drmP.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/exynos_drm.h>
 
-#include <exynos_drm_drv.h>
 #include <exynos_drm_crtc.h>
+#include <exynos_drm_drv.h>
 #include <exynos_drm_fb.h>
 #include <exynos_drm_plane.h>
 #include <exynos_drm_dpp.h>

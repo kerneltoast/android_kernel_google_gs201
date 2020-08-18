@@ -13,22 +13,24 @@
  * option) any later version.
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_atomic_helper.h>
-#include <uapi/drm/exynos_drm.h>
-#include <uapi/linux/videodev2_exynos_media.h>
 #include <linux/dma-buf.h>
 
+#include <uapi/linux/videodev2_exynos_media.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/exynos_drm.h>
+
+#include <exynos_drm_crtc.h>
 #include <exynos_drm_decon.h>
 #include <exynos_drm_drv.h>
 #include <exynos_drm_fb.h>
 #include <exynos_drm_fbdev.h>
-#include <exynos_drm_crtc.h>
 #include <exynos_drm_dsim.h>
 #include <exynos_drm_format.h>
 #include <exynos_drm_gem.h>
@@ -170,7 +172,7 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 err:
 	while (i--)
-		drm_gem_object_put_unlocked(obj[i]);
+		drm_gem_object_put(obj[i]);
 
 	return ERR_PTR(ret);
 

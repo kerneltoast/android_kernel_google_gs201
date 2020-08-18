@@ -10,9 +10,10 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <drm/drmP.h>
+
 #include <drm/exynos_drm.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_fourcc.h>
 
 #include <linux/of.h>
 #include <linux/of_device.h>

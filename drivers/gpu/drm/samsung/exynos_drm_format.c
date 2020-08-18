@@ -10,8 +10,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <drm/drmP.h>
+
 #include <uapi/drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 
 #include <exynos_drm_format.h>
 #include <regs-dpp.h>

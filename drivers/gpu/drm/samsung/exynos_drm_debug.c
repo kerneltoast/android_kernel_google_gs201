@@ -14,7 +14,6 @@
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 #include <video/mipi_display.h>
-#include <drm/drmP.h>
 #include <drm/drm_print.h>
 
 #include <exynos_drm_decon.h>
@@ -315,7 +314,7 @@ static void DPU_EVENT_SHOW(struct decon_device *decon, struct drm_printer *p)
 	int idx = atomic_read(&decon->d.event_log_idx) % DPU_EVENT_LOG_MAX;
 	struct dpu_log *log;
 	int latest = idx;
-	struct timeval tv;
+	struct timespec64 ts;
 	ktime_t prev_ktime;
 	const char *str_comp;
 	char buf[128];
@@ -340,13 +339,12 @@ static void DPU_EVENT_SHOW(struct decon_device *decon, struct drm_printer *p)
 		log = &decon->d.event_log[idx];
 
 		/* TIME */
-		tv = ktime_to_timeval(log->time);
-
-		len = scnprintf(buf, sizeof(buf), "[%6ld.%06ld] ", tv.tv_sec,
-				tv.tv_usec);
+		ts = ktime_to_timespec64(log->time);
+		len = scnprintf(buf, sizeof(buf), "[%6ld.%09ld] ", ts.tv_sec,
+				ts.tv_nsec);
 
 		/* If there is no timestamp, then exit directly */
-		if (!tv.tv_sec)
+		if (!ts.tv_sec)
 			break;
 
 		len += scnprintf(buf + len, sizeof(buf) - len,  "%20s",
@@ -440,6 +438,7 @@ static const struct file_operations dpu_event_fops = {
 int dpu_init_debug(struct decon_device *decon)
 {
 	int i;
+	int ret = 0;
 	u32 event_cnt;
 	struct drm_crtc *crtc;
 	struct dentry *debug_event;
@@ -464,8 +463,10 @@ int dpu_init_debug(struct decon_device *decon)
 	decon->d.event_log_cnt = event_cnt;
 	atomic_set(&decon->d.event_log_idx, -1);
 
-	if (!decon->crtc)
+	if (!decon->crtc) {
+		ret = -ENOENT;
 		goto err_event_log;
+	}
 
 	crtc = &decon->crtc->base;
 
@@ -476,11 +477,8 @@ int dpu_init_debug(struct decon_device *decon)
 		goto err_event_log;
 	}
 
-	if (!debugfs_create_u32("underrun_cnt", 0664,
-			crtc->debugfs_entry, &decon->d.underrun_cnt)) {
-		DRM_ERROR("failed to create debugfs underrun_cnt file\n");
-		goto err_debugfs;
-	}
+	debugfs_create_u32("underrun_cnt", 0664, crtc->debugfs_entry,
+			&decon->d.underrun_cnt);
 
 	urgent_dent = debugfs_create_dir("urgent", crtc->debugfs_entry);
 	if (!urgent_dent) {
@@ -488,70 +486,36 @@ int dpu_init_debug(struct decon_device *decon)
 		goto err_debugfs;
 	}
 
-	if (!debugfs_create_u32("rd_en", 0664,
-			urgent_dent, &decon->config.urgent.rd_en)) {
-		DRM_ERROR("failed to create debugfs rd_en file\n");
-		goto err_urgent;
-	}
+	debugfs_create_u32("rd_en", 0664, urgent_dent, &decon->config.urgent.rd_en);
 
-	if (!debugfs_create_x32("rd_hi_thres", 0664,
-			urgent_dent, &decon->config.urgent.rd_hi_thres)) {
-		DRM_ERROR("failed to create debugfs rd_hi_thres file\n");
-		goto err_urgent;
-	}
+	debugfs_create_x32("rd_hi_thres", 0664, urgent_dent,
+			&decon->config.urgent.rd_hi_thres);
 
-	if (!debugfs_create_x32("rd_lo_thres", 0664,
-			urgent_dent, &decon->config.urgent.rd_lo_thres)) {
-		DRM_ERROR("failed to create debugfs rd_lo_thres file\n");
-		goto err_urgent;
-	}
+	debugfs_create_x32("rd_lo_thres", 0664, urgent_dent,
+			&decon->config.urgent.rd_lo_thres);
 
-	if (!debugfs_create_x32("rd_wait_cycle", 0664,
-			urgent_dent, &decon->config.urgent.rd_wait_cycle)) {
-		DRM_ERROR("failed to create debugfs rd_wait_cycle file\n");
-		goto err_urgent;
-	}
+	debugfs_create_x32("rd_wait_cycle", 0664, urgent_dent,
+			&decon->config.urgent.rd_wait_cycle);
 
-	if (!debugfs_create_u32("wr_en", 0664,
-			urgent_dent, &decon->config.urgent.wr_en)) {
-		DRM_ERROR("failed to create debugfs wr_en file\n");
-		goto err_urgent;
-	}
+	debugfs_create_u32("wr_en", 0664, urgent_dent, &decon->config.urgent.wr_en);
 
-	if (!debugfs_create_x32("wr_hi_thres", 0664,
-			urgent_dent, &decon->config.urgent.wr_hi_thres)) {
-		DRM_ERROR("failed to create debugfs wr_hi_thres file\n");
-		goto err_urgent;
-	}
+	debugfs_create_x32("wr_hi_thres", 0664, urgent_dent,
+			&decon->config.urgent.wr_hi_thres);
 
-	if (!debugfs_create_x32("wr_lo_thres", 0664,
-			urgent_dent, &decon->config.urgent.wr_lo_thres)) {
-		DRM_ERROR("failed to create debugfs wr_lo_thres file\n");
-		goto err_urgent;
-	}
+	debugfs_create_x32("wr_lo_thres", 0664,
+			urgent_dent, &decon->config.urgent.wr_lo_thres);
 
-	if (!debugfs_create_bool("dta_en", 0664,
-			urgent_dent, &decon->config.urgent.dta_en)) {
-		DRM_ERROR("failed to create debugfs dta_en file\n");
-		goto err_urgent;
-	}
+	debugfs_create_bool("dta_en", 0664,
+			urgent_dent, &decon->config.urgent.dta_en);
 
-	if (!debugfs_create_x32("dta_hi_thres", 0664,
-			urgent_dent, &decon->config.urgent.dta_hi_thres)) {
-		DRM_ERROR("failed to create debugfs dta_hi_thres file\n");
-		goto err_urgent;
-	}
+	debugfs_create_x32("dta_hi_thres", 0664,
+			urgent_dent, &decon->config.urgent.dta_hi_thres);
 
-	if (!debugfs_create_x32("dta_lo_thres", 0664,
-			urgent_dent, &decon->config.urgent.dta_lo_thres)) {
-		DRM_ERROR("failed to create debugfs dta_lo_thres file\n");
-		goto err_urgent;
-	}
+	debugfs_create_x32("dta_lo_thres", 0664,
+			urgent_dent, &decon->config.urgent.dta_lo_thres);
 
 	return 0;
 
-err_urgent:
-	debugfs_remove_recursive(urgent_dent);
 err_debugfs:
 	debugfs_remove(debug_event);
 err_event_log:

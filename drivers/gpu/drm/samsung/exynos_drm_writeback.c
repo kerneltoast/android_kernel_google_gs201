@@ -21,11 +21,12 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
-#include <drm/drmP.h>
+
 #include <drm/exynos_drm.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_probe_helper.h>

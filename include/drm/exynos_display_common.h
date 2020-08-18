@@ -35,9 +35,12 @@ struct exynos_display_mode {
 static inline const struct exynos_display_mode *drm_mode_to_exynos(
 					const struct drm_display_mode *mode)
 {
+	/* TODO: b/165347448 port mode switching to android-gs-pixel-mainline */
+#if 0
 	if ((mode &&
 		(mode->private_flags & EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL)))
 		return (const struct exynos_display_mode *) mode->private;
+#endif
 
 	return NULL;
 }

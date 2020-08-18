@@ -12,19 +12,27 @@
  * option) any later version.
  */
 
+#include <linux/component.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
-
-#include <linux/component.h>
-
+#include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
 #include <exynos_drm_drv.h>
-#include <exynos_drm_fbdev.h>
 #include <exynos_drm_fb.h>
+#include <exynos_drm_fbdev.h>
 #include <exynos_drm_plane.h>
 #include <exynos_drm_crtc.h>
 #include <exynos_drm_gem.h>
@@ -288,7 +296,6 @@ static struct drm_driver exynos_drm_driver = {
 	.prime_fd_to_handle	   = drm_gem_prime_fd_to_handle,
 	.gem_prime_import	   = exynos_drm_gem_prime_import,
 	.gem_prime_import_sg_table = exynos_drm_gem_prime_import_sg_table,
-	.gem_print_info		   = exynos_drm_gem_print_info,
 	.fops			   = &exynos_drm_driver_fops,
 	.name			   = DRIVER_NAME,
 	.desc			   = DRIVER_DESC,
