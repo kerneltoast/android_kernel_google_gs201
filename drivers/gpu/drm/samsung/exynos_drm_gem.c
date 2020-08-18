@@ -78,7 +78,7 @@ static void exynos_drm_gem_unmap(struct exynos_drm_gem *exynos_gem_obj)
 		return;
 
 	if (exynos_gem_obj->kaddr) {
-		dma_buf_kunmap(attach->dmabuf, 0, exynos_gem_obj->kaddr);
+		dma_buf_vunmap(attach->dmabuf, exynos_gem_obj->kaddr);
 		pr_debug("unmapped kaddr: %pK\n");
 	}
 }
