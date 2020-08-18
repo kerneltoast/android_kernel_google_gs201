@@ -27,10 +27,6 @@ arch/arm64/boot/dts/google/dtbo.img
 "
 
 ABI_DEFINITION=android/abi_gki_aarch64_common.xml
-KMI_SYMBOL_LIST=android/abi_gki_aarch64_common
-TRIM_NONLISTED_KMI=1
-KMI_SYMBOL_LIST_STRICT_MODE=1
-KMI_SYMBOL_LIST_MODULE_GROUPING=0
 KMI_ENFORCED=1
 
 BUILD_INITRAMFS=1
