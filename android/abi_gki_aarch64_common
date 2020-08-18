@@ -9,6 +9,7 @@
   arm64_use_ng_mappings
   __arm_smccc_smc
   atomic_notifier_chain_register
+  bin2hex
   bitmap_parse
   bitmap_parselist
   bitmap_to_arr32
@@ -24,6 +25,7 @@
   bus_unregister_notifier
   cancel_delayed_work
   cancel_delayed_work_sync
+  cancel_work_sync
   cdev_device_add
   cdev_device_del
   cdev_init
@@ -57,6 +59,7 @@
   cpu_pm_register_notifier
   __cpu_possible_mask
   cpu_subsys
+  _ctype
   debugfs_create_dir
   debugfs_create_file
   debugfs_create_regset32
@@ -67,6 +70,7 @@
   delayed_work_timer_fn
   del_timer
   del_timer_sync
+  destroy_workqueue
   dev_driver_string
   _dev_err
   device_create
@@ -94,6 +98,7 @@
   __devm_of_phy_provider_register
   devm_phy_create
   devm_pinctrl_get
+  devm_pinctrl_put
   devm_pinctrl_register
   devm_platform_get_and_ioremap_resource
   __devm_regmap_init
@@ -140,6 +145,7 @@
   gpiochip_remove
   gpiochip_unlock_as_irq
   gpiod_direction_input
+  gpiod_direction_output_raw
   gpiod_get_raw_value
   gpiod_set_raw_value
   gpiod_to_irq
@@ -151,6 +157,10 @@
   handle_level_irq
   handle_nested_irq
   handle_sysrq
+  hrtimer_cancel
+  hrtimer_forward
+  hrtimer_init
+  hrtimer_start_range_ns
   i2c_adapter_type
   i2c_add_numbered_adapter
   i2c_bus_type
@@ -167,6 +177,17 @@
   i2c_verify_client
   __init_swait_queue_head
   init_timer_key
+  input_allocate_device
+  input_event
+  input_free_device
+  input_mt_init_slots
+  input_mt_report_slot_state
+  input_register_device
+  input_set_abs_params
+  input_set_capability
+  input_set_timestamp
+  input_unregister_device
+  int_sqrt
   iomem_resource
   iommu_attach_group
   iommu_device_link
@@ -204,6 +225,7 @@
   irq_set_irq_wake
   is_vmalloc_addr
   jiffies
+  jiffies_to_msecs
   kasprintf
   kernel_kobj
   kfree
@@ -223,6 +245,7 @@
   kobject_put
   krealloc
   kstrdup
+  kstrtobool
   kstrtoint
   kstrtoll
   kstrtou8
@@ -233,6 +256,7 @@
   ktime_get
   ktime_get_mono_fast_ns
   ktime_get_real_ts64
+  ktime_get_ts64
   __list_add_valid
   __list_del_entry_valid
   loops_per_jiffy
@@ -248,6 +272,7 @@
   msleep
   __mutex_init
   mutex_lock
+  mutex_trylock
   mutex_unlock
   no_llseek
   nr_cpu_ids
@@ -260,6 +285,7 @@
   of_device_get_match_data
   of_device_is_available
   of_device_is_compatible
+  of_drm_find_panel
   of_find_compatible_node
   of_find_device_by_node
   of_find_matching_node_and_match
@@ -280,6 +306,7 @@
   of_match_node
   of_node_name_eq
   of_parse_phandle
+  of_parse_phandle_with_fixed_args
   of_property_count_elems_of_size
   of_property_read_string
   of_property_read_string_helper
@@ -333,6 +360,7 @@
   pm_genpd_add_subdomain
   pm_genpd_init
   pm_power_off
+  __pm_relax
   pm_runtime_allow
   __pm_runtime_disable
   pm_runtime_enable
@@ -344,10 +372,13 @@
   __pm_runtime_set_status
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
+  __pm_stay_awake
   pm_wakeup_ws_event
   preempt_schedule
   preempt_schedule_notrace
   printk
+  proc_create
+  proc_mkdir_data
   put_device
   __put_task_struct
   queue_delayed_work_on
@@ -382,12 +413,19 @@
   regmap_read
   regmap_update_bits_base
   regmap_write
+  regulator_disable
+  regulator_enable
+  regulator_get
   regulator_list_voltage_linear
   regulator_map_voltage_linear
+  regulator_put
   regulator_register
   regulator_unregister
+  release_firmware
   __release_region
   remove_cpu
+  remove_proc_entry
+  request_firmware
   __request_region
   request_threaded_irq
   rtc_time64_to_tm
@@ -398,9 +436,12 @@
   schedule_timeout_uninterruptible
   scnprintf
   seq_lseek
+  seq_open
   seq_printf
   seq_puts
   seq_read
+  seq_release
+  seq_write
   sg_init_table
   sg_next
   sg_pcopy_from_buffer
@@ -437,6 +478,7 @@
   strcmp
   strcpy
   stream_open
+  strlcat
   strlcpy
   strlen
   strncmp
@@ -538,4 +580,6 @@
   wait_for_completion_interruptible_timeout
   wait_for_completion_timeout
   wake_up_process
+  wakeup_source_register
+  wakeup_source_unregister
   __warn_printk
