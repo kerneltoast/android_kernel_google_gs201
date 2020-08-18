@@ -1103,6 +1103,7 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	unsigned long *freq_table;
 	unsigned int *volt_table;
 	const char *buf;
+	struct device *cpu_dev;
 	int ret;
 
 	/* Get CAL ID */
@@ -1249,7 +1250,8 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	 */
 	init_dm(domain, dn);
 
-	dev_pm_opp_of_register_em(&domain->cpus);
+	cpu_dev = get_cpu_device(cpumask_first(&domain->cpus));
+	dev_pm_opp_of_register_em(cpu_dev, &domain->cpus);
 
 	pr_info("Complete to initialize cpufreq-domain%d\n", domain->id);
 
