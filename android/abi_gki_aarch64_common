@@ -75,6 +75,7 @@
   del_timer_sync
   destroy_workqueue
   dev_driver_string
+  _dev_emerg
   _dev_err
   device_create
   device_create_file
@@ -105,6 +106,7 @@
   devm_pinctrl_put
   devm_pinctrl_register
   devm_platform_get_and_ioremap_resource
+  devm_platform_ioremap_resource
   __devm_regmap_init
   devm_request_threaded_irq
   devm_rtc_device_register
@@ -327,6 +329,7 @@
   of_usb_host_tpl_support
   panic
   panic_notifier_list
+  param_ops_bool
   param_ops_int
   param_ops_uint
   param_ops_ullong
@@ -595,3 +598,7 @@
   wakeup_source_register
   wakeup_source_unregister
   __warn_printk
+  watchdog_init_timeout
+  watchdog_register_device
+  watchdog_set_restart_priority
+  watchdog_unregister_device

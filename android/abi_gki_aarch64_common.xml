@@ -50,6 +50,7 @@
       <elf-symbol name='__usecs_to_jiffies' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xf1969a8e'/>
       <elf-symbol name='__wake_up' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x3eeb2322'/>
       <elf-symbol name='__warn_printk' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x56470118'/>
+      <elf-symbol name='_dev_emerg' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xbadd9876'/>
       <elf-symbol name='_dev_err' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x79c9d20a'/>
       <elf-symbol name='_dev_info' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x405a4938'/>
       <elf-symbol name='_dev_warn' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x33868b99'/>
@@ -151,6 +152,7 @@
       <elf-symbol name='devm_pinctrl_put' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x885fd54e'/>
       <elf-symbol name='devm_pinctrl_register' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x85d08f55'/>
       <elf-symbol name='devm_platform_get_and_ioremap_resource' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x233e1dab'/>
+      <elf-symbol name='devm_platform_ioremap_resource' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xab5d2066'/>
       <elf-symbol name='devm_request_threaded_irq' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x91819509'/>
       <elf-symbol name='devm_rtc_device_register' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x708e553'/>
       <elf-symbol name='devm_usb_get_phy_by_phandle' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xd34b69fe'/>
@@ -558,6 +560,10 @@
       <elf-symbol name='wake_up_process' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xb29ba07e'/>
       <elf-symbol name='wakeup_source_register' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x2b1149ae'/>
       <elf-symbol name='wakeup_source_unregister' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x7fc3f0c4'/>
+      <elf-symbol name='watchdog_init_timeout' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xf4e4c39'/>
+      <elf-symbol name='watchdog_register_device' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xd8561b8'/>
+      <elf-symbol name='watchdog_set_restart_priority' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x228e0474'/>
+      <elf-symbol name='watchdog_unregister_device' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xa9b69c24'/>
     </elf-function-symbols>
     <elf-variable-symbols>
       <elf-symbol name='__cpu_online_mask' size='8' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xac594e02'/>
@@ -583,6 +589,7 @@
       <elf-symbol name='of_fwnode_ops' size='144' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x9a3d3307'/>
       <elf-symbol name='of_root' size='8' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xab43ba7a'/>
       <elf-symbol name='panic_notifier_list' size='16' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x7ceeac9'/>
+      <elf-symbol name='param_ops_bool' size='32' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xc665716f'/>
       <elf-symbol name='param_ops_int' size='32' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x665d862b'/>
       <elf-symbol name='param_ops_uint' size='32' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0xb217974f'/>
       <elf-symbol name='param_ops_ullong' size='32' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x9e909aea'/>
@@ -1174,7 +1181,7 @@
           <var-decl name='pgsize_bitmap' type-id='7359adad' visibility='default' filepath='include/linux/iommu.h' line='303' column='1'/>
         </data-member>
         <data-member access='public' layout-offset-in-bits='2560'>
-          <var-decl name='owner' type-id='2730d016' visibility='default' filepath='include/linux/iommu.h' line='304' column='1'/>
+          <var-decl name='owner' type-id='2730d015' visibility='default' filepath='include/linux/iommu.h' line='304' column='1'/>
         </data-member>
       </class-decl>
       <enum-decl name='iommu_cap' filepath='include/linux/iommu.h' line='92' column='1' id='031224de'>
@@ -1907,6 +1914,12 @@
     <abi-instr version='1.0' address-size='64' path='drivers/base/core.c' language='LANG_C89'>
       <function-decl name='device_link_del' mangled-name='device_link_del' filepath='drivers/base/core.c' line='807' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='device_link_del'>
         <parameter type-id='7acfb3fa' name='link' filepath='drivers/base/core.c' line='807' column='1'/>
+        <return type-id='48b5725f'/>
+      </function-decl>
+      <function-decl name='_dev_emerg' mangled-name='_dev_emerg' filepath='drivers/base/core.c' line='4196' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_dev_emerg'>
+        <parameter type-id='8df61054' name='dev' filepath='drivers/base/core.c' line='4196' column='1'/>
+        <parameter type-id='80f4b756' name='fmt' filepath='drivers/base/core.c' line='4196' column='1'/>
+        <parameter is-variadic='yes'/>
         <return type-id='48b5725f'/>
       </function-decl>
     </abi-instr>
@@ -4050,6 +4063,13 @@
         <parameter type-id='9a537bbe'/>
         <parameter type-id='80f4b756'/>
         <return type-id='29af9a71'/>
+      </function-decl>
+    </abi-instr>
+    <abi-instr version='1.0' address-size='64' path='drivers/clk/hisilicon/reset.c' language='LANG_C89'>
+      <function-decl name='devm_platform_ioremap_resource' mangled-name='devm_platform_ioremap_resource' filepath='include/linux/platform_device.h' line='62' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='devm_platform_ioremap_resource'>
+        <parameter type-id='db362995'/>
+        <parameter type-id='f0981eeb'/>
+        <return type-id='eaa32e2f'/>
       </function-decl>
     </abi-instr>
     <abi-instr version='1.0' address-size='64' path='drivers/dma/dmaengine.c' language='LANG_C89'>
@@ -18804,6 +18824,169 @@
         <parameter type-id='f9b06939' name='index' filepath='drivers/usb/phy/phy.c' line='557' column='1'/>
         <return type-id='ca9354d1'/>
       </function-decl>
+    </abi-instr>
+    <abi-instr version='1.0' address-size='64' path='drivers/watchdog/watchdog_core.c' language='LANG_C89'>
+      <class-decl name='watchdog_core_data' is-struct='yes' visibility='default' is-declaration-only='yes' id='1d334f81'/>
+      <class-decl name='watchdog_governor' is-struct='yes' visibility='default' is-declaration-only='yes' id='b07b6d69'/>
+      <class-decl name='watchdog_device' size-in-bits='1344' is-struct='yes' visibility='default' filepath='include/linux/watchdog.h' line='94' column='1' id='b370f5a5'>
+        <data-member access='public' layout-offset-in-bits='0'>
+          <var-decl name='id' type-id='95e97e5e' visibility='default' filepath='include/linux/watchdog.h' line='95' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='64'>
+          <var-decl name='parent' type-id='fa0b179b' visibility='default' filepath='include/linux/watchdog.h' line='96' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='128'>
+          <var-decl name='groups' type-id='c97de1ac' visibility='default' filepath='include/linux/watchdog.h' line='97' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='192'>
+          <var-decl name='info' type-id='9800391a' visibility='default' filepath='include/linux/watchdog.h' line='98' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='256'>
+          <var-decl name='ops' type-id='7365a3da' visibility='default' filepath='include/linux/watchdog.h' line='99' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='320'>
+          <var-decl name='gov' type-id='22358840' visibility='default' filepath='include/linux/watchdog.h' line='100' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='384'>
+          <var-decl name='bootstatus' type-id='f0981eeb' visibility='default' filepath='include/linux/watchdog.h' line='101' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='416'>
+          <var-decl name='timeout' type-id='f0981eeb' visibility='default' filepath='include/linux/watchdog.h' line='102' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='448'>
+          <var-decl name='pretimeout' type-id='f0981eeb' visibility='default' filepath='include/linux/watchdog.h' line='103' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='480'>
+          <var-decl name='min_timeout' type-id='f0981eeb' visibility='default' filepath='include/linux/watchdog.h' line='104' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='512'>
+          <var-decl name='max_timeout' type-id='f0981eeb' visibility='default' filepath='include/linux/watchdog.h' line='105' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='544'>
+          <var-decl name='min_hw_heartbeat_ms' type-id='f0981eeb' visibility='default' filepath='include/linux/watchdog.h' line='106' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='576'>
+          <var-decl name='max_hw_heartbeat_ms' type-id='f0981eeb' visibility='default' filepath='include/linux/watchdog.h' line='107' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='640'>
+          <var-decl name='reboot_nb' type-id='9b08f7cd' visibility='default' filepath='include/linux/watchdog.h' line='108' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='832'>
+          <var-decl name='restart_nb' type-id='9b08f7cd' visibility='default' filepath='include/linux/watchdog.h' line='109' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='1024'>
+          <var-decl name='driver_data' type-id='eaa32e2f' visibility='default' filepath='include/linux/watchdog.h' line='110' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='1088'>
+          <var-decl name='wd_data' type-id='daa81219' visibility='default' filepath='include/linux/watchdog.h' line='111' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='1152'>
+          <var-decl name='status' type-id='7359adad' visibility='default' filepath='include/linux/watchdog.h' line='112' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='1216'>
+          <var-decl name='deferred' type-id='72f469ec' visibility='default' filepath='include/linux/watchdog.h' line='119' column='1'/>
+        </data-member>
+      </class-decl>
+      <class-decl name='watchdog_info' size-in-bits='320' is-struct='yes' visibility='default' filepath='include/uapi/linux/watchdog.h' line='18' column='1' id='5da1665b'>
+        <data-member access='public' layout-offset-in-bits='0'>
+          <var-decl name='options' type-id='3f1a6b60' visibility='default' filepath='include/uapi/linux/watchdog.h' line='19' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='32'>
+          <var-decl name='firmware_version' type-id='3f1a6b60' visibility='default' filepath='include/uapi/linux/watchdog.h' line='20' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='64'>
+          <var-decl name='identity' type-id='7e67d89d' visibility='default' filepath='include/uapi/linux/watchdog.h' line='21' column='1'/>
+        </data-member>
+      </class-decl>
+      <class-decl name='watchdog_ops' size-in-bits='640' is-struct='yes' visibility='default' filepath='include/linux/watchdog.h' line='43' column='1' id='27dec419'>
+        <data-member access='public' layout-offset-in-bits='0'>
+          <var-decl name='owner' type-id='2730d016' visibility='default' filepath='include/linux/watchdog.h' line='44' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='64'>
+          <var-decl name='start' type-id='26989ff9' visibility='default' filepath='include/linux/watchdog.h' line='46' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='128'>
+          <var-decl name='stop' type-id='26989ff9' visibility='default' filepath='include/linux/watchdog.h' line='48' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='192'>
+          <var-decl name='ping' type-id='26989ff9' visibility='default' filepath='include/linux/watchdog.h' line='49' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='256'>
+          <var-decl name='status' type-id='d601a214' visibility='default' filepath='include/linux/watchdog.h' line='50' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='320'>
+          <var-decl name='set_timeout' type-id='b535be93' visibility='default' filepath='include/linux/watchdog.h' line='51' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='384'>
+          <var-decl name='set_pretimeout' type-id='b535be93' visibility='default' filepath='include/linux/watchdog.h' line='52' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='448'>
+          <var-decl name='get_timeleft' type-id='d601a214' visibility='default' filepath='include/linux/watchdog.h' line='53' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='512'>
+          <var-decl name='restart' type-id='8899c21b' visibility='default' filepath='include/linux/watchdog.h' line='54' column='1'/>
+        </data-member>
+        <data-member access='public' layout-offset-in-bits='576'>
+          <var-decl name='ioctl' type-id='07da4e39' visibility='default' filepath='include/linux/watchdog.h' line='55' column='1'/>
+        </data-member>
+      </class-decl>
+      <qualified-type-def type-id='b07b6d69' const='yes' id='359a7eea'/>
+      <pointer-type-def type-id='359a7eea' size-in-bits='64' id='22358840'/>
+      <qualified-type-def type-id='5da1665b' const='yes' id='45257a94'/>
+      <pointer-type-def type-id='45257a94' size-in-bits='64' id='9800391a'/>
+      <qualified-type-def type-id='27dec419' const='yes' id='d8e81cd4'/>
+      <pointer-type-def type-id='d8e81cd4' size-in-bits='64' id='7365a3da'/>
+      <pointer-type-def type-id='066f541d' size-in-bits='64' id='26989ff9'/>
+      <pointer-type-def type-id='78d147c7' size-in-bits='64' id='b535be93'/>
+      <pointer-type-def type-id='102202df' size-in-bits='64' id='8899c21b'/>
+      <pointer-type-def type-id='b4a1f53d' size-in-bits='64' id='07da4e39'/>
+      <pointer-type-def type-id='62d1e232' size-in-bits='64' id='d601a214'/>
+      <pointer-type-def type-id='1d334f81' size-in-bits='64' id='daa81219'/>
+      <pointer-type-def type-id='b370f5a5' size-in-bits='64' id='7bf5a5e5'/>
+      <function-decl name='watchdog_init_timeout' mangled-name='watchdog_init_timeout' filepath='drivers/watchdog/watchdog_core.c' line='114' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='watchdog_init_timeout'>
+        <parameter type-id='7bf5a5e5' name='wdd' filepath='drivers/watchdog/watchdog_core.c' line='114' column='1'/>
+        <parameter type-id='f0981eeb' name='timeout_parm' filepath='drivers/watchdog/watchdog_core.c' line='115' column='1'/>
+        <parameter type-id='fa0b179b' name='dev' filepath='drivers/watchdog/watchdog_core.c' line='115' column='1'/>
+        <return type-id='95e97e5e'/>
+      </function-decl>
+      <function-decl name='watchdog_set_restart_priority' mangled-name='watchdog_set_restart_priority' filepath='drivers/watchdog/watchdog_core.c' line='202' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='watchdog_set_restart_priority'>
+        <parameter type-id='7bf5a5e5' name='wdd' filepath='drivers/watchdog/watchdog_core.c' line='202' column='1'/>
+        <parameter type-id='95e97e5e' name='priority' filepath='drivers/watchdog/watchdog_core.c' line='202' column='1'/>
+        <return type-id='48b5725f'/>
+      </function-decl>
+      <function-decl name='watchdog_register_device' mangled-name='watchdog_register_device' filepath='drivers/watchdog/watchdog_core.c' line='305' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='watchdog_register_device'>
+        <parameter type-id='7bf5a5e5' name='wdd' filepath='drivers/watchdog/watchdog_core.c' line='305' column='1'/>
+        <return type-id='95e97e5e'/>
+      </function-decl>
+      <function-decl name='watchdog_unregister_device' mangled-name='watchdog_unregister_device' filepath='drivers/watchdog/watchdog_core.c' line='351' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='watchdog_unregister_device'>
+        <parameter type-id='7bf5a5e5' name='wdd' filepath='drivers/watchdog/watchdog_core.c' line='351' column='1'/>
+        <return type-id='48b5725f'/>
+      </function-decl>
+      <function-type size-in-bits='64' id='066f541d'>
+        <parameter type-id='7bf5a5e5'/>
+        <return type-id='95e97e5e'/>
+      </function-type>
+      <function-type size-in-bits='64' id='78d147c7'>
+        <parameter type-id='7bf5a5e5'/>
+        <parameter type-id='f0981eeb'/>
+        <return type-id='95e97e5e'/>
+      </function-type>
+      <function-type size-in-bits='64' id='102202df'>
+        <parameter type-id='7bf5a5e5'/>
+        <parameter type-id='7359adad'/>
+        <parameter type-id='eaa32e2f'/>
+        <return type-id='95e97e5e'/>
+      </function-type>
+      <function-type size-in-bits='64' id='b4a1f53d'>
+        <parameter type-id='7bf5a5e5'/>
+        <parameter type-id='f0981eeb'/>
+        <parameter type-id='7359adad'/>
+        <return type-id='bd54fe1a'/>
+      </function-type>
+      <function-type size-in-bits='64' id='62d1e232'>
+        <parameter type-id='7bf5a5e5'/>
+        <return type-id='f0981eeb'/>
+      </function-type>
     </abi-instr>
     <abi-instr version='1.0' address-size='64' path='fs/char_dev.c' language='LANG_C89'>
       <class-decl name='iov_iter' is-struct='yes' visibility='default' is-declaration-only='yes' id='f2b4d088'/>
@@ -40932,6 +41115,7 @@
       <var-decl name='param_ops_int' type-id='95d0d4e8' mangled-name='param_ops_int' visibility='default' filepath='kernel/params.c' line='239' column='1' elf-symbol-id='param_ops_int'/>
       <var-decl name='param_ops_uint' type-id='95d0d4e8' mangled-name='param_ops_uint' visibility='default' filepath='kernel/params.c' line='240' column='1' elf-symbol-id='param_ops_uint'/>
       <var-decl name='param_ops_ullong' type-id='95d0d4e8' mangled-name='param_ops_ullong' visibility='default' filepath='kernel/params.c' line='243' column='1' elf-symbol-id='param_ops_ullong'/>
+      <var-decl name='param_ops_bool' type-id='95d0d4e8' mangled-name='param_ops_bool' visibility='default' filepath='kernel/params.c' line='305' column='1' elf-symbol-id='param_ops_bool'/>
       <function-decl name='kstrtou8' mangled-name='kstrtou8' filepath='include/linux/kernel.h' line='416' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='kstrtou8'>
         <parameter type-id='80f4b756'/>
         <parameter type-id='f0981eeb'/>
@@ -48431,6 +48615,10 @@
   </abi-corpus>
   <abi-corpus path='s2mpg1x-powermeter.ko' architecture='elf-arm-aarch64'>
     <abi-instr version='1.0' address-size='64' path='drivers/regulator/s2mpg1x-powermeter.c' language='LANG_C89'>
+    </abi-instr>
+  </abi-corpus>
+  <abi-corpus path='s3c2410_wdt.ko' architecture='elf-arm-aarch64'>
+    <abi-instr version='1.0' address-size='64' path='drivers/watchdog/s3c2410_wdt.c' language='LANG_C89'>
     </abi-instr>
   </abi-corpus>
   <abi-corpus path='xhci-hcd.ko' architecture='elf-arm-aarch64'>
