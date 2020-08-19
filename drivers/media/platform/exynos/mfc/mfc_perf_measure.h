@@ -58,18 +58,18 @@ static inline void mfc_perf_measure_on(struct mfc_dev *dev)
 	int diff;
 
 	if (dev->perf.drv_margin) {
-		do_gettimeofday(&dev->perf.end);
+		ktime_get_ts64(&dev->perf.end);
 
-		diff = (dev->perf.end.tv_sec * 1000000 + dev->perf.end.tv_usec)
-			- (dev->perf.begin.tv_sec * 1000000 + dev->perf.begin.tv_usec);
+		diff = (dev->perf.end.tv_sec * NSEC_PER_SEC + dev->perf.end.tv_nsec)
+			- (dev->perf.begin.tv_sec * NSEC_PER_SEC + dev->perf.begin.tv_nsec);
 
-		mfc_dev_info("IRQ -> NAL_START time(ms) = %03d.%03d\n",
-				diff / 1000, diff % 1000);
+		mfc_dev_info("IRQ -> NAL_START time(ms) = %03d.%06d\n",
+				diff / NSEC_PER_MSEC, diff % NSEC_PER_MSEC);
 
 		dev->perf.drv_margin = 0;
 	}
 
-	do_gettimeofday(&dev->perf.begin);
+	ktime_get_ts64(&dev->perf.begin);
 
 	__mfc_measure_on(dev);
 
@@ -84,19 +84,19 @@ static inline void mfc_perf_measure_off(struct mfc_dev *dev)
 	if ((dev->perf.new_start) && (dev->perf.count > 0)) {
 		__mfc_measure_off(dev);
 
-		do_gettimeofday(&dev->perf.end);
+		ktime_get_ts64(&dev->perf.end);
 
-		diff = (dev->perf.end.tv_sec * 1000000 + dev->perf.end.tv_usec)
-			- (dev->perf.begin.tv_sec * 1000000 + dev->perf.begin.tv_usec);
+		diff = (dev->perf.end.tv_sec * NSEC_PER_SEC + dev->perf.end.tv_nsec)
+			- (dev->perf.begin.tv_sec * NSEC_PER_SEC + dev->perf.begin.tv_nsec);
 
-		__mfc_measure_store(dev, diff);
+		__mfc_measure_store(dev, diff / NSEC_PER_USEC);
 
 		mfc_dev_debug(3, "uDECtype :%d, uENCtype :%d, codectype :%d\n",
 			mfc_get_dec_frame_type(), mfc_get_enc_slice_type(), MFC_READL(MFC_REG_CODEC_TYPE));
 
 		dev->perf.drv_margin = 1;
 
-		do_gettimeofday(&dev->perf.begin);
+		ktime_get_ts_64(&dev->perf.begin);
 	}
 
 	dev->perf.new_start = 0;

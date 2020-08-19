@@ -186,13 +186,13 @@ static void mfc_merge_errorinfo_data(struct mfc_dev *dev, bool px_fault)
 	idx = __mfc_change_hex_to_ascii(dev,
 			dev->logging_data->last_cmd_sec, 8, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(dev,
-			dev->logging_data->last_cmd_usec, 8, errorinfo, idx);
+			dev->logging_data->last_cmd_nsec / NSEC_PER_USEC, 8, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(dev,
 			dev->logging_data->last_int, 2, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(dev,
 			dev->logging_data->last_int_sec, 8, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(dev,
-			dev->logging_data->last_int_usec, 8, errorinfo, idx);
+			dev->logging_data->last_int_nsec / NSEC_PER_USEC, 8, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(dev,
 			dev->logging_data->frame_cnt, 8, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(dev,
@@ -302,10 +302,10 @@ static void __mfc_save_logging_sfr(struct mfc_dev *dev)
 	dev->logging_data->curr_ctx = dev->curr_ctx;
 	dev->logging_data->last_cmd = dev->last_cmd;
 	dev->logging_data->last_cmd_sec = (u32)(dev->last_cmd_time.tv_sec);
-	dev->logging_data->last_cmd_usec = (u32)(dev->last_cmd_time.tv_usec);
+	dev->logging_data->last_cmd_nsec = (u32)(dev->last_cmd_time.tv_nsec);
 	dev->logging_data->last_int = dev->last_int;
 	dev->logging_data->last_int_sec = (u32)(dev->last_int_time.tv_sec);
-	dev->logging_data->last_int_usec = (u32)(dev->last_int_time.tv_usec);
+	dev->logging_data->last_int_nsec = (u32)(dev->last_int_time.tv_nsec);
 	dev->logging_data->hwlock_dev = dev->hwlock.dev;
 	dev->logging_data->hwlock_ctx = (u32)(dev->hwlock.bits);
 	dev->logging_data->num_inst = dev->num_inst;
