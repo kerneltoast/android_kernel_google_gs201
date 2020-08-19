@@ -665,7 +665,7 @@ void exynos_cpufreq_ready_list_add(struct exynos_cpufreq_ready_block *rb)
 
 	list_add(&rb->list, &ready_list);
 }
-EXPORT_SYMBOL(exynos_cpufreq_ready_list_add);
+EXPORT_SYMBOL_GPL(exynos_cpufreq_ready_list_add);
 
 /*********************************************************************
  *                      SUPPORT for DVFS MANAGER                     *
