@@ -1099,7 +1099,7 @@ static ssize_t store_delay_time(struct device *dev,
 
 	new_delay_time = get_tokenized_data(buf, &ntokens);
 	if (IS_ERR(new_delay_time))
-		return PTR_RET(new_delay_time);
+		return PTR_ERR_OR_ZERO(new_delay_time);
 
 	mutex_lock(&data->devfreq->lock);
 	kfree(data->simple_interactive_data.delay_time);
@@ -1149,7 +1149,7 @@ static ssize_t store_target_load(struct device *dev,
 
 	new_target_load = get_tokenized_data(buf, &ntokens);
 	if (IS_ERR(new_target_load))
-		return PTR_RET(new_target_load);
+		return PTR_ERR_OR_ZERO(new_target_load);
 
 	mutex_lock(&data->devfreq->lock);
 	kfree(data->simple_interactive_data.alt_data.target_load);
