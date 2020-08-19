@@ -78,8 +78,8 @@ static void bts_calc_bw(void)
 	if (btsdev->peak_bw < (total_write / NUM_CHANNEL))
 		btsdev->peak_bw = (total_write / NUM_CHANNEL);
 
-	mif_freq = (btsdev->total_bw * 100) / BUS_WIDTH / MIF_UTIL;
-	int_freq = (btsdev->peak_bw * 100) / BUS_WIDTH / INT_UTIL;
+	mif_freq = (btsdev->total_bw / BUS_WIDTH) * 100 / MIF_UTIL;
+	int_freq = (btsdev->peak_bw / BUS_WIDTH) * 100 / INT_UTIL;
 
 	BTSDBG_LOG(btsdev->dev,
 		   "BW: T:%.8u R:%.8u W:%.8u P:%.8u MIF:%.8u INT:%.8u\n",
