@@ -113,7 +113,8 @@ static int exynos_devfreq_dm_call(struct device *parent,
 	if (err)
 		return -EINVAL;
 
-	exynos_pm_qos_max = devfreq->max_freq;
+	exynos_pm_qos_max = dev_pm_qos_read_value(devfreq->dev.parent,
+						  DEV_PM_QOS_MAX_FREQUENCY);
 
 	if (!strcmp(devfreq->governor->name, "interactive") && gov_data->pm_qos_class_max)
 		exynos_pm_qos_max =
@@ -194,6 +195,7 @@ static int devfreq_frequency_scaler(int dm_type, void *devdata,
 {
 	struct devfreq *devfreq;
 	unsigned long freq = target_freq;
+	unsigned long max_freq, min_freq;
 	u32 flags = 0;
 	int err = 0;
 
@@ -212,12 +214,16 @@ static int devfreq_frequency_scaler(int dm_type, void *devdata,
 	 * min_freq
 	 */
 
-	if (devfreq->min_freq && freq < devfreq->min_freq) {
-		freq = devfreq->min_freq;
+	min_freq = dev_pm_qos_read_value(devfreq->dev.parent,
+					 DEV_PM_QOS_MIN_FREQUENCY);
+	if (min_freq && freq < min_freq) {
+		freq = min_freq;
 		flags &= ~DEVFREQ_FLAG_LEAST_UPPER_BOUND; /* Use GLB */
 	}
-	if (devfreq->max_freq && freq > devfreq->max_freq) {
-		freq = devfreq->max_freq;
+	max_freq = dev_pm_qos_read_value(devfreq->dev.parent,
+					 DEV_PM_QOS_MAX_FREQUENCY);
+	if (max_freq && freq > max_freq) {
+		freq = max_freq;
 		flags |= DEVFREQ_FLAG_LEAST_UPPER_BOUND; /* Use LUB */
 	}
 
@@ -2093,8 +2099,18 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 		goto err_dm_scaler;
 #endif
 
-	data->devfreq->min_freq = data->min_freq;
-	data->devfreq->max_freq = data->max_freq;
+	if (data->min_freq) {
+		err = dev_pm_qos_update_request(
+			&data->devfreq->user_min_freq_req, data->min_freq);
+		if (err < 0)
+			goto err_dm_scaler;
+	}
+	if (data->max_freq) {
+		err = dev_pm_qos_update_request(
+			&data->devfreq->user_min_freq_req, data->max_freq);
+		if (err < 0)
+			goto err_dm_scaler;
+	}
 
 	exynos_pm_qos_add_request(&data->sys_pm_qos_min, (int)data->pm_qos_class,
 				  data->min_freq);
