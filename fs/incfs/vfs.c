@@ -218,6 +218,7 @@ enum parse_parameter {
 	Opt_no_backing_file_readahead,
 	Opt_rlog_pages,
 	Opt_rlog_wakeup_cnt,
+	Opt_report_uid,
 	Opt_err
 };
 
@@ -240,6 +241,7 @@ static const match_table_t option_tokens = {
 	{ Opt_no_backing_file_readahead, "no_bf_readahead=%u" },
 	{ Opt_rlog_pages, "rlog_pages=%u" },
 	{ Opt_rlog_wakeup_cnt, "rlog_wakeup_cnt=%u" },
+	{ Opt_report_uid, "report_uid" },
 	{ Opt_err, NULL }
 };
 
@@ -299,6 +301,9 @@ static int parse_options(struct mount_options *opts, char *str)
 			if (match_int(&args[0], &value))
 				return -EINVAL;
 			opts->read_log_wakeup_count = value;
+			break;
+		case Opt_report_uid:
+			opts->report_uid = true;
 			break;
 		default:
 			return -EINVAL;
@@ -463,8 +468,12 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 {
 	struct pending_reads_state *pr_state = f->private_data;
 	struct mount_info *mi = get_mount_info(file_superblock(f));
+	bool report_uid;
+	unsigned long page = 0;
 	struct incfs_pending_read_info *reads_buf = NULL;
-	size_t reads_to_collect = len / sizeof(*reads_buf);
+	struct incfs_pending_read_info2 *reads_buf2 = NULL;
+	size_t record_size;
+	size_t reads_to_collect;
 	int last_known_read_sn = READ_ONCE(pr_state->last_pending_read_sn);
 	int new_max_sn = last_known_read_sn;
 	int reads_collected = 0;
@@ -473,18 +482,29 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 	if (!mi)
 		return -EFAULT;
 
+	report_uid = mi->mi_options.report_uid;
+	record_size = report_uid ? sizeof(*reads_buf2) : sizeof(*reads_buf);
+	reads_to_collect = len / record_size;
+
 	if (!incfs_fresh_pending_reads_exist(mi, last_known_read_sn))
 		return 0;
 
-	reads_buf = (struct incfs_pending_read_info *)get_zeroed_page(GFP_NOFS);
-	if (!reads_buf)
+	page = get_zeroed_page(GFP_NOFS);
+	if (!page)
 		return -ENOMEM;
 
-	reads_to_collect =
-		min_t(size_t, PAGE_SIZE / sizeof(*reads_buf), reads_to_collect);
+	if (report_uid)
+		reads_buf2 = (struct incfs_pending_read_info2 *) page;
+	else
+		reads_buf = (struct incfs_pending_read_info *) page;
 
-	reads_collected = incfs_collect_pending_reads(
-		mi, last_known_read_sn, reads_buf, reads_to_collect, &new_max_sn);
+	reads_to_collect =
+		min_t(size_t, PAGE_SIZE / record_size, reads_to_collect);
+
+	reads_collected = incfs_collect_pending_reads(mi, last_known_read_sn,
+				reads_buf, reads_buf2, reads_to_collect,
+				&new_max_sn);
+
 	if (reads_collected < 0) {
 		result = reads_collected;
 		goto out;
@@ -495,19 +515,19 @@ static ssize_t pending_reads_read(struct file *f, char __user *buf, size_t len,
 	 * to reads buffer than userspace can handle.
 	 */
 	reads_collected = min_t(size_t, reads_collected, reads_to_collect);
-	result = reads_collected * sizeof(*reads_buf);
+	result = reads_collected * record_size;
 
 	/* Copy reads info to the userspace buffer */
-	if (copy_to_user(buf, reads_buf, result)) {
+	if (copy_to_user(buf, (void *)page, result)) {
 		result = -EFAULT;
 		goto out;
 	}
 
 	WRITE_ONCE(pr_state->last_pending_read_sn, new_max_sn);
 	*ppos = 0;
+
 out:
-	if (reads_buf)
-		free_page((unsigned long)reads_buf);
+	free_page(page);
 	return result;
 }
 
@@ -589,17 +609,34 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 	int total_reads_collected = 0;
 	int rl_size;
 	ssize_t result = 0;
-	struct incfs_pending_read_info *reads_buf;
-	ssize_t reads_to_collect = len / sizeof(*reads_buf);
-	ssize_t reads_per_page = PAGE_SIZE / sizeof(*reads_buf);
+	bool report_uid;
+	unsigned long page = 0;
+	struct incfs_pending_read_info *reads_buf = NULL;
+	struct incfs_pending_read_info2 *reads_buf2 = NULL;
+	size_t record_size;
+	ssize_t reads_to_collect;
+	ssize_t reads_per_page;
+
+	if (!mi)
+		return -EFAULT;
+
+	report_uid = mi->mi_options.report_uid;
+	record_size = report_uid ? sizeof(*reads_buf2) : sizeof(*reads_buf);
+	reads_to_collect = len / record_size;
+	reads_per_page = PAGE_SIZE / record_size;
 
 	rl_size = READ_ONCE(mi->mi_log.rl_size);
 	if (rl_size == 0)
 		return 0;
 
-	reads_buf = (struct incfs_pending_read_info *)__get_free_page(GFP_NOFS);
-	if (!reads_buf)
+	page = __get_free_page(GFP_NOFS);
+	if (!page)
 		return -ENOMEM;
+
+	if (report_uid)
+		reads_buf2 = (struct incfs_pending_read_info2 *) page;
+	else
+		reads_buf = (struct incfs_pending_read_info *) page;
 
 	reads_to_collect = min_t(ssize_t, rl_size, reads_to_collect);
 	while (reads_to_collect > 0) {
@@ -608,35 +645,32 @@ static ssize_t log_read(struct file *f, char __user *buf, size_t len,
 
 		memcpy(&next_state, &log_state->state, sizeof(next_state));
 		reads_collected = incfs_collect_logged_reads(
-			mi, &next_state, reads_buf,
+			mi, &next_state, reads_buf, reads_buf2,
 			min_t(ssize_t, reads_to_collect, reads_per_page));
 		if (reads_collected <= 0) {
 			result = total_reads_collected ?
-					 total_reads_collected *
-						 sizeof(*reads_buf) :
+					 total_reads_collected * record_size :
 					 reads_collected;
 			goto out;
 		}
-		if (copy_to_user(buf, reads_buf,
-				 reads_collected * sizeof(*reads_buf))) {
+		if (copy_to_user(buf, (void *) page,
+				 reads_collected * record_size)) {
 			result = total_reads_collected ?
-					 total_reads_collected *
-						 sizeof(*reads_buf) :
+					 total_reads_collected * record_size :
 					 -EFAULT;
 			goto out;
 		}
 
 		memcpy(&log_state->state, &next_state, sizeof(next_state));
 		total_reads_collected += reads_collected;
-		buf += reads_collected * sizeof(*reads_buf);
+		buf += reads_collected * record_size;
 		reads_to_collect -= reads_collected;
 	}
 
-	result = total_reads_collected * sizeof(*reads_buf);
+	result = total_reads_collected * record_size;
 	*ppos = 0;
 out:
-	if (reads_buf)
-		free_page((unsigned long)reads_buf);
+	free_page(page);
 	return result;
 }
 
@@ -736,26 +770,6 @@ static int incfs_init_dentry(struct dentry *dentry, struct path *path)
 	return 0;
 }
 
-static struct dentry *incfs_lookup_dentry(struct dentry *parent,
-						const char *name)
-{
-	struct inode *inode;
-	struct dentry *result = NULL;
-
-	if (!parent)
-		return ERR_PTR(-EFAULT);
-
-	inode = d_inode(parent);
-	inode_lock_nested(inode, I_MUTEX_PARENT);
-	result = lookup_one_len(name, parent, strlen(name));
-	inode_unlock(inode);
-
-	if (IS_ERR(result))
-		pr_warn("%s err:%ld\n", __func__, PTR_ERR(result));
-
-	return result;
-}
-
 static struct dentry *open_or_create_index_dir(struct dentry *backing_dir)
 {
 	static const char name[] = ".index";
@@ -810,7 +824,8 @@ static int read_single_page(struct file *f, struct page *page)
 
 	page_start = kmap(page);
 	offset = page_offset(page);
-	block_index = offset / INCFS_DATA_FILE_BLOCK_SIZE;
+	block_index = (offset + df->df_mapped_offset) /
+		INCFS_DATA_FILE_BLOCK_SIZE;
 	size = df->df_size;
 	timeout_ms = df->df_mount_info->mi_options.read_timeout_ms;
 
@@ -849,19 +864,6 @@ err:
 	flush_dcache_page(page);
 	kunmap(page);
 	unlock_page(page);
-	return result;
-}
-
-static char *file_id_to_str(incfs_uuid_t id)
-{
-	char *result = kmalloc(1 + sizeof(id.bytes) * 2, GFP_NOFS);
-	char *end;
-
-	if (!result)
-		return NULL;
-
-	end = bin2hex(result, id.bytes, sizeof(id.bytes));
-	*end = 0;
 	return result;
 }
 
@@ -976,6 +978,54 @@ out:
 	}
 	incfs_free_mtree(hash_tree);
 	kfree(raw_signature.data);
+
+	if (error)
+		pr_debug("incfs: %s error: %d\n", __func__, error);
+	return error;
+}
+
+static int init_new_mapped_file(struct mount_info *mi, struct dentry *dentry,
+			 incfs_uuid_t *uuid, u64 size, u64 offset)
+{
+	struct path path = {};
+	struct file *new_file;
+	int error = 0;
+	struct backing_file_context *bfc = NULL;
+
+	if (!mi || !dentry || !uuid)
+		return -EFAULT;
+
+	/* Resize newly created file to its true size. */
+	path = (struct path) {
+		.mnt = mi->mi_backing_dir_path.mnt,
+		.dentry = dentry
+	};
+	new_file = dentry_open(&path, O_RDWR | O_NOATIME | O_LARGEFILE,
+			       mi->mi_owner);
+
+	if (IS_ERR(new_file)) {
+		error = PTR_ERR(new_file);
+		goto out;
+	}
+
+	bfc = incfs_alloc_bfc(new_file);
+	fput(new_file);
+	if (IS_ERR(bfc)) {
+		error = PTR_ERR(bfc);
+		bfc = NULL;
+		goto out;
+	}
+
+	mutex_lock(&bfc->bc_mutex);
+	error = incfs_write_mapping_fh_to_backing_file(bfc, uuid, size, offset);
+	if (error)
+		goto out;
+
+out:
+	if (bfc) {
+		mutex_unlock(&bfc->bc_mutex);
+		incfs_free_bfc(bfc);
+	}
 
 	if (error)
 		pr_debug("incfs: %s error: %d\n", __func__, error);
@@ -1270,7 +1320,7 @@ static long ioctl_create_file(struct mount_info *mi,
 	if (error)
 		goto delete_index_file;
 
-	/* Linking a file with it's real name from the requested dir. */
+	/* Linking a file with its real name from the requested dir. */
 	error = incfs_link(index_file_dentry, named_file_dentry);
 
 	if (!error)
@@ -1483,6 +1533,150 @@ static long ioctl_get_filled_blocks(struct file *f, void __user *arg)
 	return error;
 }
 
+static long ioctl_create_mapped_file(struct mount_info *mi, void __user *arg)
+{
+	struct incfs_create_mapped_file_args __user *args_usr_ptr = arg;
+	struct incfs_create_mapped_file_args args = {};
+	char *file_name;
+	int error = 0;
+	struct path parent_dir_path = {};
+	char *source_file_name = NULL;
+	struct dentry *source_file_dentry = NULL;
+	u64 source_file_size;
+	struct dentry *file_dentry = NULL;
+	struct inode *parent_inode;
+	__le64 size_attr_value;
+
+	if (copy_from_user(&args, args_usr_ptr, sizeof(args)) > 0)
+		return -EINVAL;
+
+	file_name = strndup_user(u64_to_user_ptr(args.file_name), PATH_MAX);
+	if (IS_ERR(file_name)) {
+		error = PTR_ERR(file_name);
+		file_name = NULL;
+		goto out;
+	}
+
+	error = validate_name(file_name);
+	if (error)
+		goto out;
+
+	if (args.source_offset % INCFS_DATA_FILE_BLOCK_SIZE) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	/* Validate file mapping is in range */
+	source_file_name = file_id_to_str(args.source_file_id);
+	if (!source_file_name) {
+		pr_warn("Failed to alloc source_file_name\n");
+		error = -ENOMEM;
+		goto out;
+	}
+
+	source_file_dentry = incfs_lookup_dentry(mi->mi_index_dir,
+						       source_file_name);
+	if (!source_file_dentry) {
+		pr_warn("Source file does not exist\n");
+		error = -EINVAL;
+		goto out;
+	}
+	if (IS_ERR(source_file_dentry)) {
+		pr_warn("Error opening source file\n");
+		error = PTR_ERR(source_file_dentry);
+		source_file_dentry = NULL;
+		goto out;
+	}
+	if (!d_really_is_positive(source_file_dentry)) {
+		pr_warn("Source file dentry negative\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	error = vfs_getxattr(source_file_dentry, INCFS_XATTR_SIZE_NAME,
+			     (char *)&size_attr_value, sizeof(size_attr_value));
+	if (error < 0)
+		goto out;
+
+	if (error != sizeof(size_attr_value)) {
+		pr_warn("Mapped file has no size attr\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	source_file_size = le64_to_cpu(size_attr_value);
+	if (args.source_offset + args.size > source_file_size) {
+		pr_warn("Mapped file out of range\n");
+		error = -EINVAL;
+		goto out;
+	}
+
+	/* Find a directory to put the file into. */
+	error = dir_relative_path_resolve(mi,
+			u64_to_user_ptr(args.directory_path),
+			&parent_dir_path);
+	if (error)
+		goto out;
+
+	if (parent_dir_path.dentry == mi->mi_index_dir) {
+		/* Can't create a file directly inside .index */
+		error = -EBUSY;
+		goto out;
+	}
+
+	/* Look up a dentry in the parent dir. It should be negative. */
+	file_dentry = incfs_lookup_dentry(parent_dir_path.dentry,
+					file_name);
+	if (!file_dentry) {
+		error = -EFAULT;
+		goto out;
+	}
+	if (IS_ERR(file_dentry)) {
+		error = PTR_ERR(file_dentry);
+		file_dentry = NULL;
+		goto out;
+	}
+	if (d_really_is_positive(file_dentry)) {
+		error = -EEXIST;
+		goto out;
+	}
+
+	parent_inode = d_inode(parent_dir_path.dentry);
+	inode_lock_nested(parent_inode, I_MUTEX_PARENT);
+	error = vfs_create(parent_inode, file_dentry, args.mode | 0222, true);
+	inode_unlock(parent_inode);
+	if (error)
+		goto out;
+
+	/* Save the file's size as an xattr for easy fetching in future. */
+	size_attr_value = cpu_to_le64(args.size);
+	error = vfs_setxattr(file_dentry, INCFS_XATTR_SIZE_NAME,
+		(char *)&size_attr_value, sizeof(size_attr_value),
+		XATTR_CREATE);
+	if (error) {
+		pr_debug("incfs: vfs_setxattr err:%d\n", error);
+		goto delete_file;
+	}
+
+	error = init_new_mapped_file(mi, file_dentry, &args.source_file_id,
+			size_attr_value, cpu_to_le64(args.source_offset));
+	if (error)
+		goto delete_file;
+
+	goto out;
+
+delete_file:
+	incfs_unlink(file_dentry);
+
+out:
+	dput(file_dentry);
+	dput(source_file_dentry);
+	path_put(&parent_dir_path);
+	kfree(file_name);
+	kfree(source_file_name);
+	return error;
+}
+
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 {
 	struct mount_info *mi = get_mount_info(file_superblock(f));
@@ -1498,6 +1692,8 @@ static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg)
 		return ioctl_read_file_signature(f, (void __user *)arg);
 	case INCFS_IOC_GET_FILLED_BLOCKS:
 		return ioctl_get_filled_blocks(f, (void __user *)arg);
+	case INCFS_IOC_CREATE_MAPPED_FILE:
+		return ioctl_create_mapped_file(mi, (void __user *)arg);
 	default:
 		return -EINVAL;
 	}
@@ -2222,7 +2418,7 @@ struct dentry *incfs_mount_fs(struct file_system_type *type, int flags,
 	sb->s_op = &incfs_super_ops;
 	sb->s_d_op = &incfs_dentry_ops;
 	sb->s_flags |= S_NOATIME;
-	sb->s_magic = (long)INCFS_MAGIC_NUMBER;
+	sb->s_magic = INCFS_MAGIC_NUMBER;
 	sb->s_time_gran = 1;
 	sb->s_blocksize = INCFS_DATA_FILE_BLOCK_SIZE;
 	sb->s_blocksize_bits = blksize_bits(sb->s_blocksize);
@@ -2312,6 +2508,11 @@ static int incfs_remount_fs(struct super_block *sb, int *flags, char *data)
 	if (err)
 		return err;
 
+	if (options.report_uid != mi->mi_options.report_uid) {
+		pr_err("incfs: Can't change report_uid mount option on remount\n");
+		return -EOPNOTSUPP;
+	}
+
 	err = incfs_realloc_mount_info(mi, &options);
 	if (err)
 		return err;
@@ -2344,5 +2545,7 @@ static int show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",no_bf_cache");
 	if (mi->mi_options.no_backing_file_readahead)
 		seq_puts(m, ",no_bf_readahead");
+	if (mi->mi_options.report_uid)
+		seq_puts(m, ",report_uid");
 	return 0;
 }
