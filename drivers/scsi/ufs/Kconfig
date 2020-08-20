@@ -165,7 +165,7 @@ config SCSI_UFS_BSG
 config SCSI_UFS_EXYNOS
 	tristate "EXYNOS UFS Host Controller Driver"
 	depends on SCSI_UFSHCD && SCSI_UFSHCD_PLATFORM
-	---help---
+	help
 	  This selects the EXYNOS UFS host controller driver which
 	  run with Exynos SoCs.
 
