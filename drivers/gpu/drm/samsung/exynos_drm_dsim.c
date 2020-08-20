@@ -45,10 +45,8 @@
 #include <soc/samsung/exynos-cpupm.h>
 #endif
 
-#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 #include <dt-bindings/soc/google/gs101-devfreq.h>
-#include <soc/samsung/exynos-devfreq.h>
-#endif
+#include <soc/google/exynos-devfreq.h>
 
 #include <exynos_drm_crtc.h>
 #include <exynos_drm_dsim.h>
@@ -736,7 +734,6 @@ err:
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 static void dsim_underrun_info(struct dsim_device *dsim)
 {
 	dsim_info(dsim, "underrun irq occurs: MIF(%lu), INT(%lu), DISP(%lu)\n",
@@ -744,9 +741,6 @@ static void dsim_underrun_info(struct dsim_device *dsim)
 			exynos_devfreq_get_domain_freq(DEVFREQ_INT),
 			exynos_devfreq_get_domain_freq(DEVFREQ_DISP));
 }
-#else
-static void dsim_underrun_info(struct dsim_device *dsim) {}
-#endif
 
 static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 {
