@@ -771,23 +771,14 @@ EXPORT_SYMBOL_GPL(dwc3_exynos_phy_enable);
 
 static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 {
-	struct usb_phy_generic_platform_data pdata;
 	struct platform_device	*pdev;
 	int			ret;
-
-	memset(&pdata, 0x00, sizeof(pdata));
 
 	pdev = platform_device_alloc("usb_phy_generic", PLATFORM_DEVID_AUTO);
 	if (!pdev)
 		return -ENOMEM;
 
 	exynos->usb2_phy = pdev;
-	pdata.type = USB_PHY_TYPE_USB2;
-	pdata.gpio_reset = -1;
-
-	ret = platform_device_add_data(exynos->usb2_phy, &pdata, sizeof(pdata));
-	if (ret)
-		goto err1;
 
 	pdev = platform_device_alloc("usb_phy_generic", PLATFORM_DEVID_AUTO);
 	if (!pdev) {
@@ -796,11 +787,6 @@ static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 	}
 
 	exynos->usb3_phy = pdev;
-	pdata.type = USB_PHY_TYPE_USB3;
-
-	ret = platform_device_add_data(exynos->usb3_phy, &pdata, sizeof(pdata));
-	if (ret)
-		goto err2;
 
 	ret = platform_device_add(exynos->usb2_phy);
 	if (ret)
