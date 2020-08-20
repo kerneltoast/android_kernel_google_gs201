@@ -11,3 +11,4 @@
 #include "gs101-whitefin2-battery.dtsi"
 #include "gs101-whitefin2-cp-s5200-sit.dtsi"
 #include "gs101-whitefin2-pmic.dtsi"
+#include "gs101-whitefin2-wcharger.dtsi"
