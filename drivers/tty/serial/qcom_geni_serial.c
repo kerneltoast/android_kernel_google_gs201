@@ -768,7 +768,7 @@ static void qcom_geni_serial_handle_tx(struct uart_port *uport, bool done,
 		u8 buf[sizeof(u32)];
 		int c;
 
-		memset(buf, 0, ARRAY_SIZE(buf));
+		memset(buf, 0, sizeof(buf));
 		tx_bytes = min_t(size_t, remaining, BYTES_PER_FIFO_WORD);
 
 		for (c = 0; c < tx_bytes ; c++) {
@@ -1098,7 +1098,7 @@ static unsigned int qcom_geni_serial_tx_empty(struct uart_port *uport)
 }
 
 #ifdef CONFIG_SERIAL_QCOM_GENI_CONSOLE
-static int __init qcom_geni_console_setup(struct console *co, char *options)
+static int qcom_geni_console_setup(struct console *co, char *options)
 {
 	struct uart_port *uport;
 	struct qcom_geni_serial_port *port;
