@@ -439,31 +439,6 @@ enum mfc_get_img_size {
 
 struct mfc_debugfs {
 	struct dentry *root;
-	struct dentry *mfc_info;
-	struct dentry *debug_info;
-#ifdef CONFIG_MFC_REG_TEST
-	struct dentry *reg_info;
-	struct dentry *reg_test;
-#endif
-	struct dentry *regression_option;
-	struct dentry *regression_result;
-	struct dentry *debug_level;
-	struct dentry *debug_ts;
-	struct dentry *debug_mode_en;
-	struct dentry *dbg_enable;
-	struct dentry *nal_q_dump;
-	struct dentry *nal_q_disable;
-	struct dentry *nal_q_parallel_disable;
-	struct dentry *otf_dump;
-	struct dentry *perf_measure_option;
-	struct dentry *sfr_dump;
-	struct dentry *mmcache_dump;
-	struct dentry *mmcache_disable;
-	struct dentry *llc_disable;
-	struct dentry *slc_disable;
-	struct dentry *perf_boost_mode;
-	struct dentry *drm_predict_disable;
-	struct dentry *feature_option;
 };
 
 /**
