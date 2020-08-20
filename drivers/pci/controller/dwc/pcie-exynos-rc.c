@@ -47,9 +47,7 @@
 #include <soc/google/exynos_pm_qos.h>
 #endif
 
-#if 0	/* to be updated when ready */
 #include <linux/shm_ipc.h>     /* to get Exynos Modem - MSI target addr. */
-#endif	/* to be updated when ready */
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #define MODIFY_MSI_ADDR
 #endif	/* CONFIG_LINK_DEVICE_PCIE */
