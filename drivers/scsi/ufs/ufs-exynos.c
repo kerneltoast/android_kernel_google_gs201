@@ -423,11 +423,9 @@ static void exynos_ufs_set_features(struct ufs_hba *hba)
 			UFSHCD_CAP_INTR_AGGR;
 
 	/* quirks of common driver */
-	hba->quirks = /*TODO (b/163146021): missing ufs quirks */
-		/* UFSHCD_QUIRK_PRDT_BYTE_GRAN |
+	hba->quirks = UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 			UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
 			UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
-			UFSHCD_QUIRK_BROKEN_CRYPTO | */
 			UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR;
 
 	hba->dev_quirks &= ~(UFS_DEVICE_QUIRK_RECOVERY_FROM_DL_NAC_ERRORS);
