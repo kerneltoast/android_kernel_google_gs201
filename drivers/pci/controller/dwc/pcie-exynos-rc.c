@@ -866,7 +866,7 @@ static int exynos_pcie_rc_rd_other_conf(struct pcie_port *pp, struct pci_bus *bu
 
 	busdev = EXYNOS_PCIE_ATU_BUS(bus->number) | EXYNOS_PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 EXYNOS_PCIE_ATU_FUNC(PCI_FUNC(devfn));
-	if (bus->parent->number == pp->root_bus_nr) {
+	if (pci_is_root_bus(bus->parent)) {
 		type = EXYNOS_PCIE_ATU_TYPE_CFG0;
 		cpu_addr = pp->cfg0_base;
 		cfg_size = pp->cfg0_size;
@@ -897,7 +897,7 @@ static int exynos_pcie_rc_wr_other_conf(struct pcie_port *pp, struct pci_bus *bu
 	busdev = EXYNOS_PCIE_ATU_BUS(bus->number) | EXYNOS_PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 EXYNOS_PCIE_ATU_FUNC(PCI_FUNC(devfn));
 
-	if (bus->parent->number == pp->root_bus_nr) {
+	if (pci_is_root_bus(bus->parent)) {
 		type = EXYNOS_PCIE_ATU_TYPE_CFG0;
 		cpu_addr = pp->cfg0_base;
 		cfg_size = pp->cfg0_size;
@@ -3449,7 +3449,6 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 		return ret;
 	}
 
-	pp->root_bus_nr = 0;
 	pp->ops = &exynos_pcie_rc_ops;
 
 	exynos_pcie_setup_rc(pp);
