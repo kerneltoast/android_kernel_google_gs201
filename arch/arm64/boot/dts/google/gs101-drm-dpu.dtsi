@@ -189,6 +189,15 @@
 		dsim_mode = <&dsim_modes>;
 		dphy_diag = <&dphy_diags>;
 
+		te_from = <0>;
+		/* EINT for TE */
+		te-gpio = <&gpp0 3 0xf>;
+
+		/* pinctrl */
+		pinctrl-names = "hw_te_on", "hw_te_off";
+		pinctrl-0 = <&disp_te_pri_on>;
+		pinctrl-1 = <&disp_te_pri_off>;
+
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
@@ -210,6 +219,14 @@
 
 		dsim_mode = <&dsim_modes>;
 		dphy_diag = <&dphy_diags>;
+
+		te_from = <1>;
+		/* EINT for TE */
+		te-gpio = <&gpp0 4 0xf>;
+
+		pinctrl-names = "hw_te_on", "hw_te_off";
+		pinctrl-0 = <&disp_te_sec_on>;
+		pinctrl-1 = <&disp_te_sec_off>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
