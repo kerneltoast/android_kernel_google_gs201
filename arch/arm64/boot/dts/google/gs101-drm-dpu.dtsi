@@ -313,6 +313,62 @@
 		hibernation;
 	};
 
+	drmdecon1: drmdecon@0x1C301000 {
+		status = "disabled";
+		compatible = "samsung,exynos-decon";
+		reg = <0x0 0x1C301000 0x6000>,	/* DECON1_MAIN */
+		      <0x0 0x1C310000 0x6000>,	/* DECON_WIN */
+		      <0x0 0x1C320000 0x10000>,	/* DECON_SUB */
+		      <0x0 0x1C340000 0x6000>;	/* DECON1_WINCON */
+		reg-names = "main", "win", "sub", "wincon";
+
+		decon,id = <1>;
+
+		interrupts = <GIC_SPI IRQ_DISP_DECON1_FRAME_START_DISP IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON1_FRAME_DONE_DISP IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON1_EXTRA_DISP IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "frame_start", "frame_done", "extra";
+		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
+		samsung,iommu-group = <&iommu_group_dpu>;
+
+		max_win = <6>;
+		op_mode = <1>;	  /* 0: video mode, 1: command mode */
+		trig_mode = <0>;  /* 0: hw trigger, 1: sw trigger */
+		out_type = <0x1>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
+
+		/* 0: from DDI0, 1: from DDI1, 2: from DDI2 3: not receive TE */
+		te_from = <1>;
+
+		/* BTS */
+		ppc = <2>;
+		line_mem_cnt = <4>;
+		cycle_per_line = <8>;   /* 4ppc */
+
+		/* Urgent */
+		rd_en = <1>;
+		rd_hi_thres = <0x800>;
+		rd_lo_thres = <0x400>;
+		rd_wait_cycle = <0x11>;
+		wr_en = <0>;
+		wr_hi_thres = <0x0>;
+		wr_lo_thres = <0x0>;
+
+		/* DTA */
+		dta_en = <1>;
+		dta_hi_thres = <0x3200>;
+		dta_lo_thres = <0x600>;
+
+		dpps = <&drmdpp0 &drmdpp1 &drmdpp2 &drmdpp3 &drmdpp4 &drmdpp5>;
+
+		/*
+		 * connector type that can be connected to the DECON. please
+		 * refer to enum exynos_drm_output_type in exynos_drm_drv.h
+		 *
+		 * DSI0(0x1), DSI1(0x2), VIDI(0x8)
+		 */
+		connector = <0x1 0x2 0x8>;
+	};
+
 	drmdecon2: drmdecon@0x1C302000 {
 		compatible = "samsung,exynos-decon";
 		reg = <0x0 0x1C302000 0x4000>,	/* DECON2_MAIN */
