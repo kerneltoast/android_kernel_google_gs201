@@ -81,4 +81,4 @@ enum bigo_cmd_id {
 	_BIGO_IOR(BIGO_CMD_GET_CACHE_INFO, struct bigo_cache_info)
 #define BIGO_IOCX_ABORT _BIGO_IO(BIGO_CMD_ABORT)
 
-#endif // _UAPI_BIGO_IOC_H_
+#endif /* _UAPI_BIGO_H_ */
