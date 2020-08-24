@@ -1000,13 +1000,6 @@
   _copy_to_iter
   copy_to_user_fromio
   copy_to_user_nofault
-  coresight_alloc_device_name
-  coresight_disable
-  coresight_enable
-  coresight_get_cpu
-  coresight_get_platform_data
-  coresight_register
-  coresight_unregister
   cpuacct_cgrp_subsys_enabled_key
   cpuacct_cgrp_subsys_on_dfl_key
   __cpu_active_mask
@@ -1467,6 +1460,16 @@
   devfreq_add_governor
   devfreq_cooling_register
   devfreq_cooling_unregister
+  devfreq_event_add_edev
+  devfreq_event_disable_edev
+  devfreq_event_enable_edev
+  devfreq_event_get_edev_by_phandle
+  devfreq_event_get_edev_count
+  devfreq_event_get_event
+  devfreq_event_is_enabled
+  devfreq_event_remove_edev
+  devfreq_event_reset_event
+  devfreq_event_set_event
   devfreq_get_devfreq_by_phandle
   devfreq_monitor_resume
   devfreq_monitor_start
@@ -1612,6 +1615,8 @@
   dev_mc_sync_multiple
   dev_mc_unsync
   devm_devfreq_add_device
+  devm_devfreq_event_add_edev
+  devm_devfreq_event_remove_edev
   devm_devfreq_register_notifier
   devm_devfreq_register_opp_notifier
   devm_devfreq_remove_device
@@ -2039,6 +2044,10 @@
   dma_get_slave_caps
   dma_get_slave_channel
   dma_heap_add
+  dma_heap_buffer_alloc
+  dma_heap_bufferfd_alloc
+  dma_heap_buffer_free
+  dma_heap_find
   dma_issue_pending_all
   d_make_root
   dmam_alloc_attrs
@@ -3061,7 +3070,15 @@
   efivar_validate
   efivar_variable_is_removable
   efivar_work
+  ehci_adjust_port_wakeup_flags
   ehci_cf_port_reset_rwsem
+  ehci_handshake
+  ehci_hub_control
+  ehci_init_driver
+  ehci_reset
+  ehci_resume
+  ehci_setup
+  ehci_suspend
   elevator_alloc
   elv_bio_merge_ok
   elv_rb_add
@@ -3254,6 +3271,7 @@
   file_remove_privs
   file_update_time
   file_write_and_wait_range
+  fill_inquiry_response
   filp_close
   filp_open
   filter_match_preds
@@ -5185,13 +5203,13 @@
   jbd2_journal_load
   jbd2_journal_lock_updates
   jbd2_journal_release_jbd_inode
-  jbd2_journal_restart
   jbd2__journal_restart
+  jbd2_journal_restart
   jbd2_journal_revoke
   jbd2_journal_set_features
   jbd2_journal_set_triggers
-  jbd2__journal_start
   jbd2_journal_start
+  jbd2__journal_start
   jbd2_journal_start_commit
   jbd2_journal_start_reserved
   jbd2_journal_stop
@@ -5739,6 +5757,54 @@
   mdio_driver_register
   mdio_driver_unregister
   mdio_find_bus
+  media_create_intf_link
+  media_create_pad_link
+  media_create_pad_links
+  media_device_cleanup
+  media_device_delete
+  media_device_init
+  media_device_pci_init
+  __media_device_register
+  media_device_register_entity
+  media_device_register_entity_notify
+  media_device_unregister
+  media_device_unregister_entity
+  media_device_unregister_entity_notify
+  media_device_usb_allocate
+  __media_device_usb_init
+  media_devnode_create
+  media_devnode_remove
+  media_entity_enum_cleanup
+  __media_entity_enum_init
+  media_entity_find_link
+  media_entity_get_fwnode_pad
+  media_entity_pads_init
+  media_entity_remote_pad
+  __media_entity_remove_links
+  media_entity_remove_links
+  __media_entity_setup_link
+  media_entity_setup_link
+  media_get_pad_index
+  media_graph_walk_cleanup
+  media_graph_walk_init
+  media_graph_walk_next
+  media_graph_walk_start
+  __media_pipeline_start
+  media_pipeline_start
+  __media_pipeline_stop
+  media_pipeline_stop
+  __media_remove_intf_link
+  media_remove_intf_link
+  __media_remove_intf_links
+  media_remove_intf_links
+  media_request_get_by_fd
+  media_request_object_bind
+  media_request_object_complete
+  media_request_object_find
+  media_request_object_init
+  media_request_object_put
+  media_request_object_unbind
+  media_request_put
   memalloc_socks_key
   __memcat_p
   memcg_kmem_enabled_key
@@ -7693,6 +7759,32 @@
   pwm_request
   pwm_request_from_chip
   pwm_set_chip_data
+  qcom_scm_assign_mem
+  qcom_scm_cpu_power_down
+  qcom_scm_hdcp_available
+  qcom_scm_hdcp_req
+  qcom_scm_ice_available
+  qcom_scm_ice_invalidate_key
+  qcom_scm_ice_set_key
+  qcom_scm_iommu_secure_ptbl_init
+  qcom_scm_iommu_secure_ptbl_size
+  qcom_scm_io_readl
+  qcom_scm_io_writel
+  qcom_scm_is_available
+  qcom_scm_ocmem_lock
+  qcom_scm_ocmem_lock_available
+  qcom_scm_ocmem_unlock
+  qcom_scm_pas_auth_and_reset
+  qcom_scm_pas_init_image
+  qcom_scm_pas_mem_setup
+  qcom_scm_pas_shutdown
+  qcom_scm_pas_supported
+  qcom_scm_qsmmu500_wait_safe_toggle
+  qcom_scm_restore_sec_cfg
+  qcom_scm_restore_sec_cfg_available
+  qcom_scm_set_cold_boot_addr
+  qcom_scm_set_remote_state
+  qcom_scm_set_warm_boot_addr
   qcom_smem_state_get
   qcom_smem_state_put
   qcom_smem_state_register
@@ -9669,14 +9761,6 @@
   starget_for_each_device
   start_tty
   static_key_initialized
-  stm_data_write
-  stm_register_device
-  stm_register_protocol
-  stm_source_register_device
-  stm_source_unregister_device
-  stm_source_write
-  stm_unregister_device
-  stm_unregister_protocol
   stop_machine
   stop_one_cpu_nowait
   stop_tty
@@ -10072,7 +10156,6 @@
   to_nvdimm
   to_nvdimm_bus
   to_nvdimm_bus_dev
-  to_pdrv_policy_node
   to_software_node
   _totalram_pages
   touch_atime
@@ -10203,6 +10286,10 @@
   __tracepoint_vb2_buf_queue
   __tracepoint_vb2_dqbuf
   __tracepoint_vb2_qbuf
+  __tracepoint_vb2_v4l2_buf_done
+  __tracepoint_vb2_v4l2_buf_queue
+  __tracepoint_vb2_v4l2_dqbuf
+  __tracepoint_vb2_v4l2_qbuf
   __tracepoint_wbc_writepage
   __tracepoint_xdp_bulk_tx
   __tracepoint_xdp_exception
@@ -10980,7 +11067,31 @@
   usb_show_dynids
   usb_speed_string
   usb_state_string
+  usb_stor_access_xfer_buf
+  usb_stor_adjust_quirks
+  usb_stor_Bulk_reset
+  usb_stor_bulk_srb
+  usb_stor_bulk_transfer_buf
+  usb_stor_bulk_transfer_sg
+  usb_stor_Bulk_transport
+  usb_stor_CB_reset
+  usb_stor_CB_transport
+  usb_stor_clear_halt
+  usb_stor_control_msg
+  usb_stor_ctrl_transfer
+  usb_stor_disconnect
   usb_store_new_id
+  usb_stor_host_template_init
+  usb_stor_post_reset
+  usb_stor_pre_reset
+  usb_stor_probe1
+  usb_stor_probe2
+  usb_stor_reset_resume
+  usb_stor_resume
+  usb_stor_sense_invalidCDB
+  usb_stor_set_xfer_buf
+  usb_stor_suspend
+  usb_stor_transparent_scsi_command
   usb_string
   usb_string_id
   usb_string_ids_n
@@ -11044,6 +11155,168 @@
   uuid_is_valid
   uuid_null
   uuid_parse
+  v4l2_apply_frmsize_constraints
+  v4l2_async_notifier_add_devname_subdev
+  v4l2_async_notifier_add_fwnode_remote_subdev
+  v4l2_async_notifier_add_fwnode_subdev
+  v4l2_async_notifier_add_i2c_subdev
+  v4l2_async_notifier_add_subdev
+  v4l2_async_notifier_cleanup
+  v4l2_async_notifier_init
+  v4l2_async_notifier_register
+  v4l2_async_notifier_unregister
+  v4l2_async_register_subdev
+  v4l2_async_subdev_notifier_register
+  v4l2_async_unregister_subdev
+  v4l2_calc_aspect_ratio
+  v4l2_calc_timeperframe
+  v4l2_clk_disable
+  v4l2_clk_enable
+  v4l2_clk_get
+  v4l2_clk_get_rate
+  v4l2_clk_put
+  v4l2_clk_register
+  __v4l2_clk_register_fixed
+  v4l2_clk_set_rate
+  v4l2_clk_unregister
+  v4l2_clk_unregister_fixed
+  v4l2_compat_ioctl32
+  v4l2_create_fwnode_links
+  v4l2_create_fwnode_links_to_pad
+  v4l2_ctrl_activate
+  v4l2_ctrl_add_handler
+  v4l2_ctrl_auto_cluster
+  v4l2_ctrl_cluster
+  v4l2_ctrl_fill
+  v4l2_ctrl_find
+  v4l2_ctrl_g_ctrl
+  v4l2_ctrl_g_ctrl_int64
+  v4l2_ctrl_get_int_menu
+  v4l2_ctrl_get_menu
+  v4l2_ctrl_get_name
+  __v4l2_ctrl_grab
+  v4l2_ctrl_handler_free
+  v4l2_ctrl_handler_init_class
+  v4l2_ctrl_handler_log_status
+  __v4l2_ctrl_handler_setup
+  v4l2_ctrl_handler_setup
+  v4l2_ctrl_log_status
+  v4l2_ctrl_merge
+  __v4l2_ctrl_modify_range
+  v4l2_ctrl_new_custom
+  v4l2_ctrl_new_fwnode_properties
+  v4l2_ctrl_new_int_menu
+  v4l2_ctrl_new_std
+  v4l2_ctrl_new_std_compound
+  v4l2_ctrl_new_std_menu
+  v4l2_ctrl_new_std_menu_items
+  v4l2_ctrl_notify
+  v4l2_ctrl_poll
+  v4l2_ctrl_query_fill
+  v4l2_ctrl_radio_filter
+  v4l2_ctrl_replace
+  v4l2_ctrl_request_complete
+  v4l2_ctrl_request_hdl_ctrl_find
+  v4l2_ctrl_request_hdl_find
+  v4l2_ctrl_request_setup
+  __v4l2_ctrl_s_ctrl
+  __v4l2_ctrl_s_ctrl_compound
+  __v4l2_ctrl_s_ctrl_int64
+  __v4l2_ctrl_s_ctrl_string
+  v4l2_ctrl_subdev_log_status
+  v4l2_ctrl_subdev_subscribe_event
+  v4l2_ctrl_sub_ev_ops
+  v4l2_ctrl_subscribe_event
+  v4l2_detect_cvt
+  v4l2_detect_gtf
+  v4l2_device_disconnect
+  v4l2_device_put
+  v4l2_device_register
+  v4l2_device_register_subdev
+  __v4l2_device_register_subdev_nodes
+  v4l2_device_set_name
+  v4l2_device_unregister
+  v4l2_device_unregister_subdev
+  v4l2_dv_timings_aspect_ratio
+  v4l2_dv_timings_presets
+  v4l2_enum_dv_timings_cap
+  v4l2_event_dequeue
+  v4l2_event_pending
+  v4l2_event_queue
+  v4l2_event_queue_fh
+  v4l2_event_subdev_unsubscribe
+  v4l2_event_subscribe
+  v4l2_event_unsubscribe
+  v4l2_event_unsubscribe_all
+  v4l2_fh_add
+  v4l2_fh_del
+  v4l2_fh_exit
+  v4l2_fh_init
+  v4l2_fh_is_singular
+  v4l2_fh_open
+  v4l2_fh_release
+  v4l2_field_names
+  v4l2_fill_pixfmt
+  v4l2_fill_pixfmt_mp
+  v4l2_find_dv_timings_cap
+  v4l2_find_dv_timings_cea861_vic
+  __v4l2_find_nearest_size
+  v4l2_format_info
+  v4l2_g_ctrl
+  v4l2_get_edid_phys_addr
+  v4l2_g_ext_ctrls
+  v4l2_g_parm_cap
+  v4l2_hdmi_rx_colorimetry
+  v4l2_i2c_new_subdev
+  v4l2_i2c_new_subdev_board
+  v4l2_i2c_subdev_addr
+  v4l2_i2c_subdev_init
+  v4l2_i2c_subdev_set_name
+  v4l2_i2c_tuner_addrs
+  v4l2_match_dv_timings
+  v4l2_mc_create_media_graph
+  v4l2_norm_to_name
+  v4l2_phys_addr_for_input
+  v4l2_phys_addr_validate
+  v4l2_pipeline_link_notify
+  v4l2_pipeline_pm_get
+  v4l2_pipeline_pm_put
+  v4l2_print_dv_timings
+  v4l2_prio_change
+  v4l2_prio_check
+  v4l2_prio_close
+  v4l2_prio_init
+  v4l2_prio_max
+  v4l2_prio_open
+  v4l2_queryctrl
+  v4l2_query_ext_ctrl
+  v4l2_querymenu
+  v4l2_s_ctrl
+  v4l2_set_edid_phys_addr
+  v4l2_s_ext_ctrls
+  v4l2_s_parm_cap
+  v4l2_spi_new_subdev
+  v4l2_spi_subdev_init
+  v4l2_src_change_event_subdev_subscribe
+  v4l2_src_change_event_subscribe
+  v4l2_subdev_alloc_pad_config
+  v4l2_subdev_call_wrappers
+  v4l2_subdev_free_pad_config
+  v4l2_subdev_get_fwnode_pad_1_to_1
+  v4l2_subdev_init
+  v4l2_subdev_link_validate
+  v4l2_subdev_link_validate_default
+  v4l2_subdev_notify_event
+  v4l2_try_ext_ctrls
+  v4l2_type_names
+  v4l2_valid_dv_timings
+  v4l2_video_std_construct
+  v4l2_video_std_frame_period
+  v4l_bound_align_image
+  v4l_disable_media_source
+  v4l_enable_media_source
+  v4l_printk_ioctl
+  v4l_vb2q_enable_media_source
   vabits_actual
   validate_xmit_skb_list
   __var_waitqueue
@@ -11061,14 +11334,47 @@
   vb2_core_reqbufs
   vb2_core_streamoff
   vb2_core_streamon
+  vb2_create_bufs
   vb2_discard_done
+  vb2_dqbuf
+  vb2_expbuf
+  vb2_find_timestamp
+  vb2_fop_mmap
+  vb2_fop_poll
+  vb2_fop_read
+  _vb2_fop_release
+  vb2_fop_release
+  vb2_fop_write
+  vb2_ioctl_create_bufs
+  vb2_ioctl_dqbuf
+  vb2_ioctl_expbuf
+  vb2_ioctl_prepare_buf
+  vb2_ioctl_qbuf
+  vb2_ioctl_querybuf
+  vb2_ioctl_reqbufs
+  vb2_ioctl_streamoff
+  vb2_ioctl_streamon
   vb2_mmap
+  vb2_ops_wait_finish
+  vb2_ops_wait_prepare
   vb2_plane_cookie
   vb2_plane_vaddr
+  vb2_poll
+  vb2_prepare_buf
+  vb2_qbuf
+  vb2_querybuf
   vb2_queue_error
+  vb2_queue_init
+  vb2_queue_init_name
+  vb2_queue_release
   vb2_read
+  vb2_reqbufs
   vb2_request_buffer_cnt
   vb2_request_object_is_buffer
+  vb2_request_queue
+  vb2_request_validate
+  vb2_streamoff
+  vb2_streamon
   vb2_thread_start
   vb2_thread_stop
   vb2_verify_memory_type
@@ -11137,8 +11443,15 @@
   vfs_tmpfile
   vfs_truncate
   vfs_unlink
+  video_devdata
+  video_device_alloc
+  video_device_release
+  video_device_release_empty
+  video_ioctl2
   videomode_from_timing
   videomode_from_timings
+  __video_register_device
+  video_unregister_device
   virtio_add_status
   virtio_break_device
   virtio_check_driver_offered_feature
