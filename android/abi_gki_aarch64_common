@@ -4811,6 +4811,7 @@
   iommu_device_unlink
   iommu_device_unregister
   iommu_dma_get_resv_regions
+  iommu_dma_reserve_iova
   iommu_domain_alloc
   iommu_domain_free
   iommu_domain_get_attr
