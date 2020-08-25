@@ -437,6 +437,34 @@
 			/* vptid 2, all size, priority 0 (highest), pbha 5 */
 			id_size_priority = < 0x2 0xffffffff 0x0 0x5 >;
 		};
+		CAMERA2WAY {
+			/* vptid 3, size 512KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x3 0x00002001 0x0 0x0 >;
+		};
+		CAMERA3WAY {
+			/* vptid 3, size 768KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x3 0x00008001 0x0 0x0 >;
+		};
+		CAMERA4WAY {
+			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
+		};
+		CAMERA8WAY {
+			/* vptid 4, size 2048KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x4 0x00040001 0x0 0x0 >;
+		};
+		CAMERA12WAY {
+			/* vptid 3, size 3072KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x3 0x00080001 0x0 0x0 >;
+		};
+		bigocean {
+			/* vptid 3, 1536-256KB size, priority 0, pbha 0 */
+			id_size_priority = < 0x3 0x0003f001 0x0 0x0 >;
+		};
+		MFC {
+			/* vptid 9, 2*256KB, priority 0 (highest), pbha ? */
+			id_size_priority = < 0x9 0x00002001 0x0 0x0>;
+		};
 	};
 
 	acpm_mfd_bus0: acpm_mfd_bus@17500000 {
