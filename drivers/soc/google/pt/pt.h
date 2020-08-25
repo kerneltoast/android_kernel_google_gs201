@@ -41,7 +41,7 @@ struct pt_handle;
 typedef void (*pt_resize_callback_t)(void *data, int id,
 					size_t size_allocated);
 
-#ifdef CONFIG_SLC_PARTITION_MANAGER
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
 
 /*
  * Register a callback and a device node for managing partition (ptid)

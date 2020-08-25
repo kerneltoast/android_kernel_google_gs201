@@ -8,11 +8,6 @@ menu "Google SoC drivers"
 config SOC_GOOGLE
 	bool "Google SoC driver support"
 
-config SLC_PARTITION_MANAGER
-	bool
-	depends on SOC_GS101
-	default y
-
 config SOC_GS101
 	bool "Google GS101"
 	depends on SOC_GOOGLE
@@ -99,7 +94,7 @@ config ACPM_DVFS
 	tristate "ACPM DVFS manager"
 	depends on CAL_IF && CMUCAL
 	help
-	 Support ACPM DVFS for GS SoC.
+	Support ACPM DVFS for GS SoC.
 
 config ECT
 	tristate "Enable Exynos Characteristic Table File"
@@ -125,8 +120,7 @@ config EXYNOS_CPUHP
 	Support CPU Hotplug for Exynos SoC.
 
 config SLC_PARTITION_MANAGER
-	bool "PT API framework"
-	default y
+	tristate "PT API framework"
 	help
 	Enable PT framework for managing system level cache.
 
@@ -138,9 +132,9 @@ config GS_SLC_ACPM
 	Support PT ACPM drvier
 
 config SLC_PMON
-	bool
+	tristate "SLC perf counter"
 	depends on SLC_PARTITION_MANAGER
-	default y
+	default m
 
 source "drivers/soc/google/gsa/Kconfig"
 

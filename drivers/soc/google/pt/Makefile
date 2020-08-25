@@ -3,6 +3,6 @@
 # Makefile for the PT API
 #
 
-obj-y				+= pt.o pt_trace_points.o slc_dummy.o
+obj-$(CONFIG_SLC_PARTITION_MANAGER)    += pt.o pt_trace_points.o slc_dummy.o
 obj-$(CONFIG_GS_SLC_ACPM)	+= slc_acpm.o
-obj-$(CONFIG_SLC_PMON)	+= slc_pmon.o
+obj-$(CONFIG_SLC_PMON)		+= slc_pmon.o
