@@ -60,6 +60,7 @@ struct sscd_device {
 	struct device            *parent_dev;
 	struct list_head         node;
 	struct mutex             rx_lock; /* access to structure */
+	struct kref              refcount;
 
 	bool                     enabled;
 	atomic_t                 opened;
@@ -96,6 +97,8 @@ static u8 sscd_level = REPORT_CRASHINFO_ONLY;
 static LIST_HEAD(sscd_devs_list);
 static DEFINE_IDA(sscd_ida);
 static DEFINE_MUTEX(sscd_mutex); /* protects access to sscd dev list */
+static void sscoredump_data_release(struct kref *ref);
+
 
 static void report_read_completed(struct sscd_device *sdev)
 {
@@ -113,6 +116,7 @@ static int sscd_dev_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 
 	filp->private_data = sdev;
+	kref_get(&sdev->refcount);
 
 	return 0;
 }
@@ -123,6 +127,7 @@ static int sscd_dev_release(struct inode *nodp, struct file *filp)
 
 	atomic_set(&sdev->opened, 0);
 	report_read_completed(sdev);
+	kref_put(&sdev->refcount, sscoredump_data_release);
 
 	return 0;
 }
@@ -133,9 +138,11 @@ static unsigned int sscd_dev_poll(struct file *filp,
 	struct sscd_device *sdev = filp->private_data;
 	unsigned int mask = 0;
 
+	kref_get(&sdev->refcount);
 	poll_wait(filp, &sdev->read_wait_q, wait);
 	if (atomic_read(&sdev->report_active) == 1)
 		mask = POLLIN | POLLRDNORM;
+	kref_put(&sdev->refcount, sscoredump_data_release);
 
 	return mask;
 }
@@ -730,7 +737,7 @@ static int sscoredump_probe(struct platform_device *pdev)
 	struct sscd_device *sdev;
 	struct sscd_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
-	sdev = devm_kzalloc(&pdev->dev, sizeof(struct sscd_device), GFP_KERNEL);
+	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
 		return -ENOMEM;
 
@@ -740,6 +747,7 @@ static int sscoredump_probe(struct platform_device *pdev)
 	sdev->read_timeout = SSCD_REPORT_TIMEOUT;
 	sdev->enabled = sscd_enabled;
 	mutex_init(&sdev->rx_lock);
+	kref_init(&sdev->refcount);
 
 	/* fill crashinfo header data (static part) */
 	memcpy(sdev->crash_hdr.magic, CRASHINFO_MAGIC, CRASHINFO_MAGIC_SIZE);
@@ -795,6 +803,15 @@ fail1:
 	return -EAGAIN;
 }
 
+static void sscoredump_data_release(struct kref *ref)
+{
+	struct sscd_device *sdev = container_of(ref, struct sscd_device, refcount);
+
+	mutex_destroy(&sdev->rx_lock);
+	free_report(sdev);
+	kfree(sdev);
+}
+
 static int sscoredump_remove(struct platform_device *pdev)
 {
 	struct sscd_device *sdev = platform_get_drvdata(pdev);
@@ -818,9 +835,7 @@ static int sscoredump_remove(struct platform_device *pdev)
 	cdev_del(&sdev->chrdev);
 	ida_simple_remove(&sscd_ida, minor);
 
-	mutex_destroy(&sdev->rx_lock);
-	free_report(sdev);
-	devm_kfree(&pdev->dev, sdev);
+	kref_put(&sdev->refcount, sscoredump_data_release);
 
 	return 0;
 }
