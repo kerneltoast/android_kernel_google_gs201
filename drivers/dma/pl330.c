@@ -3061,7 +3061,7 @@ struct dma_async_tx_descriptor *__pl330_prep_dma_cyclic(struct dma_chan *chan,
 
 	return &desc->txd;
 }
-EXPORT_SYMBOL(__pl330_prep_dma_cyclic);
+EXPORT_SYMBOL_GPL(__pl330_prep_dma_cyclic);
 
 static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(struct dma_chan *chan,
 							     dma_addr_t dma_addr, size_t len,
@@ -3274,7 +3274,7 @@ int pl330_dma_debug(struct dma_chan *chan)
 
 	return 0;
 }
-EXPORT_SYMBOL(pl330_dma_debug);
+EXPORT_SYMBOL_GPL(pl330_dma_debug);
 
 int pl330_dma_getposition(struct dma_chan *chan, dma_addr_t *src, dma_addr_t *dst)
 {
@@ -3296,7 +3296,7 @@ int pl330_dma_getposition(struct dma_chan *chan, dma_addr_t *src, dma_addr_t *ds
 
 	return 0;
 }
-EXPORT_SYMBOL(pl330_dma_getposition);
+EXPORT_SYMBOL_GPL(pl330_dma_getposition);
 
 #define PL330_DMA_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
