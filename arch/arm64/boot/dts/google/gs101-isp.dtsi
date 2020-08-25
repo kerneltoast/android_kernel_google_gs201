@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS101 ISP device tree source
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+/ {
+	lwis_top: lwis_top@0 {
+		compatible = "google,lwis-top-device";
+
+		/* Device node name */
+		node-name = "top";
+	};
+};
