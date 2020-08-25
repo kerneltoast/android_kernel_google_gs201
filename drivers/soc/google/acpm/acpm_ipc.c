@@ -56,6 +56,7 @@ int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size)
 		return -1;
 	return acpm_get_buffer(acpm_srambase, acpm_initdata, name, addr, size);
 }
+EXPORT_SYMBOL_GPL(acpm_ipc_get_buffer);
 
 void acpm_ipc_set_waiting_mode(bool mode)
 {
