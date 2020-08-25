@@ -167,4 +167,19 @@ void exynos_ufs_cmd_log_start(struct ufs_vs_handle *handle,
 void exynos_ufs_cmd_log_end(struct ufs_vs_handle *handle,
 			    struct ufs_hba *hba, int tag);
 
+#ifdef CONFIG_SCSI_UFS_CRYPTO
+void exynos_ufs_fmp_init(struct ufs_hba *hba);
+void exynos_ufs_fmp_resume(struct ufs_hba *hba);
+int exynos_ufs_fmp_fill_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
+			     unsigned int segments);
+#else
+static inline void exynos_ufs_fmp_init(struct ufs_hba *hba)
+{
+}
+static inline void exynos_ufs_fmp_resume(struct ufs_hba *hba)
+{
+}
+#define exynos_ufs_fmp_fill_prdt NULL
+#endif /* !CONFIG_SCSI_UFS_CRYPTO */
+
 #endif /* _UFS_EXYNOS_H_ */

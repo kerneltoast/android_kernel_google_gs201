@@ -61,6 +61,19 @@
 #define SMC_CMD_FMP_SMU_DUMP		(0xC2001870)
 #define SMC_CMD_UFS_LOG			(0xC2001880)
 
+/* SMU IDs (third parameter to FMP/SMU Ctrls) */
+#define SMU_EMBEDDED			0
+#define SMU_UFSCARD			1
+#define SMU_SDCARD			2
+
+/* SMU commands (second parameter to SMC_CMD_SMU) */
+#define SMU_INIT			0
+#define SMU_SET				1
+#define SMU_ABORT			2
+
+/* Fourth parameter to SMC_CMD_FMP_SECURITY */
+#define CFG_DESCTYPE_3			3
+
 /* Command ID for smc */
 #define SMC_PROTECTION_SET		(0x82002010)
 #define SMC_DRM_FW_LOADING		(0x82002011)

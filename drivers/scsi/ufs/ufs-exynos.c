@@ -465,6 +465,8 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	/* set features, such as caps or quirks */
 	exynos_ufs_set_features(hba);
 
+	exynos_ufs_fmp_init(hba);
+
 	return 0;
 }
 
@@ -868,6 +870,8 @@ static int __exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	if (ret)
 		return ret;
 
+	exynos_ufs_fmp_resume(hba);
+
 	return 0;
 }
 
@@ -883,6 +887,7 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.dbg_register_dump = exynos_ufs_dump_debug_info,
 	.suspend = __exynos_ufs_suspend,
 	.resume = __exynos_ufs_resume,
+	.fill_prdt = exynos_ufs_fmp_fill_prdt,
 };
 
 /*
