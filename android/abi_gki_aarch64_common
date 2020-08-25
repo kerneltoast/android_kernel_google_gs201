@@ -1888,6 +1888,7 @@
   dev_pm_qos_hide_flags
   dev_pm_qos_hide_latency_limit
   dev_pm_qos_hide_latency_tolerance
+  dev_pm_qos_read_value
   dev_pm_qos_remove_notifier
   dev_pm_qos_remove_request
   dev_pm_qos_update_request
