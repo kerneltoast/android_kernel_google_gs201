@@ -11,6 +11,7 @@
 #include "bigo_priv.h"
 
 #if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
+#include "../../../../drivers/soc/google/pt/pt.h"
 void bigo_pt_client_register(struct device_node *node, struct bigo_core *core);
 void bigo_pt_client_unregister(struct bigo_core *core);
 int bigo_pt_client_enable(struct bigo_core *core);
