@@ -5014,8 +5014,8 @@
   ip_tunnel_setup
   ip_tunnel_uninit
   ip_tunnel_unneed_metadata
-  ip_tunnel_xmit
   iptunnel_xmit
+  ip_tunnel_xmit
   ipt_unregister_table
   ipt_unregister_table_exit
   ipt_unregister_table_pre_exit
