@@ -551,6 +551,11 @@ enum ufshcd_quirks {
 	UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8		= 1 << 11,
 
 	/*
+	 * This quirk needs to disable manual flush for write booster
+	 */
+	UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL		= 1 << 12,
+
+	/*
 	 * This quirk needs to be enabled if the host controller supports inline
 	 * encryption, but it needs to initialize the crypto capabilities in a
 	 * nonstandard way and/or it needs to override blk_ksm_ll_ops.  If
