@@ -28,6 +28,7 @@
 #include "gs101-mfc.dtsi"
 #include "gs101-bts.dtsi"
 #include "gs101-bigo.dtsi"
+#include "gs101-gsa.dtsi"
 
 / {
 	compatible = "google,gs101";
