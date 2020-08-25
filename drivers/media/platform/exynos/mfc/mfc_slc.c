@@ -12,7 +12,7 @@
  */
 
 #if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
-#include <../../../../soc/google/pt/pt.h>
+#include <../../../../drivers/soc/google/pt/pt.h>
 #endif
 
 #include "mfc_slc.h"
