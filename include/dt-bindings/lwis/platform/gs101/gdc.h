@@ -1,0 +1,44 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Google LWIS GS101 GDC Interrupt And Event Defines
+ *
+ * Copyright (c) 2020 Google, LLC
+ */
+
+#ifndef DT_BINDINGS_LWIS_PLATFORM_GS101_GDC_H_
+#define DT_BINDINGS_LWIS_PLATFORM_GS101_GDC_H_
+
+#include <dt-bindings/lwis/platform/common.h>
+
+/* clang-format off */
+#define GDC_INT_BASE (HW_EVENT_MASK + 0)
+
+#define GDC_INT_FRAME_END 0
+#define GDC_INT_FRO_END 1
+#define GDC_INT_COMP_ERROR 2
+#define GDC_INT_VOTF_SLOW_RING 3
+#define GDC_INT_VOTF_SLOW_FLUSH 4
+
+
+/* clang-format on */
+
+#define LWIS_PLATFORM_EVENT_ID_GDC_FRAME_END \
+  EVENT_ID(GDC_INT_BASE, \
+	   GDC_INT_FRAME_END)
+#define LWIS_PLATFORM_EVENT_ID_GDC_FRO_END \
+  EVENT_ID(GDC_INT_BASE, \
+	   GDC_INT_FRO_END)
+#define LWIS_PLATFORM_EVENT_ID_GDC_COMP_ERROR \
+  EVENT_ID(GDC_INT_BASE, \
+	   GDC_INT_COMP_ERROR)
+#define LWIS_PLATFORM_EVENT_ID_GDC_VOTF_SLOW_RING \
+  EVENT_ID(GDC_INT_BASE, \
+	   GDC_INT_VOTF_SLOW_RING)
+#define LWIS_PLATFORM_EVENT_ID_GDC_VOTF_SLOW_FLUSH \
+  EVENT_ID(GDC_INT_BASE, \
+	   GDC_INT_VOTF_SLOW_FLUSH)
+
+
+
+
+#endif /* DT_BINDINGS_LWIS_PLATFORM_GS101_GDC_H_ */
