@@ -342,7 +342,7 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 
 	/* PHY PMA_RST */
 	writel(0x1, elbi_base_regs + 0x1400);
-	usleep_range(10, 12);
+	udelay(10);
 	writel(0x0, elbi_base_regs + 0x1400);
 	mdelay(1);
 	writel(0x1, elbi_base_regs + 0x1400);

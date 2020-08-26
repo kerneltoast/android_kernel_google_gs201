@@ -2098,12 +2098,12 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 	while (count < MAX_L2_TIMEOUT) {
 		if ((exynos_elbi_read(exynos_pcie, PCIE_IRQ0) & IRQ_RADM_PM_TO_ACK)) {
 			dev_dbg(dev, "ack message is ok\n");
-			usleep_range(10, 12);
+			udelay(10);
 
 			break;
 		}
 
-		usleep_range(10, 12);
+		udelay(10);
 		count++;
 	}
 	if (count >= MAX_L2_TIMEOUT)
@@ -2120,7 +2120,7 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 
 			break;
 		}
-		usleep_range(10, 12);
+		udelay(10);
 		count++;
 	} while (count < MAX_L2_TIMEOUT);
 
@@ -2555,7 +2555,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		val = exynos_elbi_read(exynos_pcie, PCIE_SOFT_RESET);
 		val &= ~SOFT_PWR_RESET;
 		exynos_elbi_write(exynos_pcie, val, PCIE_SOFT_RESET);
-		usleep_range(18, 20);
+		udelay(20);
 		val |= SOFT_PWR_RESET;
 		exynos_elbi_write(exynos_pcie, val, PCIE_SOFT_RESET);
 
@@ -2681,7 +2681,7 @@ int exynos_pcie_l1_exit(int ch_num)
 
 			count++;
 
-			usleep_range(10, 12);
+			udelay(10);
 		}
 
 		if (count >= MAX_L1_EXIT_TIMEOUT) {
