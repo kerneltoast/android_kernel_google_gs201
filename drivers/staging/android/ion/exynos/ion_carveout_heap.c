@@ -179,7 +179,7 @@ static int ion_carveout_heap_probe(struct platform_device *pdev)
 
 	carveout_heap->pdev = pdev;
 
-	arch_setup_dma_ops(&pdev->dev, 0x0ULL, 1ULL << 36, NULL, false);
+	pdev->dev.dma_coherent = false;
 
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
 
