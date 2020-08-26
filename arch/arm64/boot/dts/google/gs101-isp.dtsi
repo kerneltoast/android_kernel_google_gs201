@@ -5,11 +5,42 @@
  * Copyright 2020 Google LLC.
  */
 
+#include <dt-bindings/clock/gs101.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/gs101.h>
+#include "gs101-isp-event-info.dtsi"
+
 / {
 	lwis_top: lwis_top@0 {
 		compatible = "google,lwis-top-device";
 
 		/* Device node name */
 		node-name = "top";
+	};
+
+	lwis_gdc0: lwis_gdc@1BA40000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "gdc0";
+
+		/* Register space */
+		reg = <0x0 0x1BA40000 0x10000>,	/* GDC0 */
+		      <0x0 0x1BB30000 0x10000>;	/* GDC0 SSMT */
+		reg-names = "gdc",
+			    "gdc_ssmt";
+
+		clocks = <&clock UMUX_CLKCMU_GDC_GDC0>;
+		clock-names = "UMUX_CLKCMU_GDC_GDC0";
+		clock-rates = <0>;
+
+		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
+
+		interrupts = <0 IRQ_GDC0_IRQ_GDC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "gdc-int";
+		interrupt-event-infos = <&gdc_int>;
+
+		iommus = <&sysmmu_gdc0>;
+		samsung,iommu-group = <&iommu_group_isp>;
 	};
 };
