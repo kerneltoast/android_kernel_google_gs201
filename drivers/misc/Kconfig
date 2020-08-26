@@ -482,6 +482,19 @@ config GSC_TPM
 	  To compile this driver as a module, choose M here: the
 	  module will be called gsc-spi.
 
+config GOOGLE_LOGBUFFER
+	tristate "Google logbuffer"
+	help
+	  Say Y here to enable the logbuffer driver from Google LLC. The driver
+	  exposes an API that allow drivers in GBMS and TCPM to log internal
+	  and debug information that cannot be routed to syslog to a separate
+	  ringbuffer. The content of the ringbuffer is accessible as a character
+	  device.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called logbuffer.
+
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
