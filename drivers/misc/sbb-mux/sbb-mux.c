@@ -473,7 +473,7 @@ static int sbb_mux_initialize_gpio_tracker(struct sbb_gpio_tracker *tracker,
 	gpio_system_id = of_get_gpio(platform_dev->dev.of_node, gpio_id);
 	if (gpio_system_id < 0) {
 		pr_err("sbb-mux: of_get_gpio failed for %d!\n", gpio_id);
-		return -EINVAL;
+		return gpio_system_id;
 	}
 
 	pr_info("sbb-mux: GPIO system id: %d.\n", gpio_system_id);
