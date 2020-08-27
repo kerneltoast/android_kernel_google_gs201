@@ -4,7 +4,10 @@
  *
  * Copyright (C) 2020 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
+ *
+ * Author: Hongseock Kim <hongpooh.kim@samsung.com>
  */
+
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -548,3 +551,7 @@ static void exynos_pcie_quirks(struct pci_dev *dev)
 	pr_info("[%s] async suspend disabled\n", __func__);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, exynos_pcie_quirks);
+
+MODULE_AUTHOR("Hongseock Kim <hongpooh.kim@samsung.com>");
+MODULE_DESCRIPTION("PCIe phy driver for gs101 SoC");
+MODULE_LICENSE("GPL v2");
