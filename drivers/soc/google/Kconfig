@@ -121,20 +121,21 @@ config EXYNOS_CPUHP
 
 config SLC_PARTITION_MANAGER
 	tristate "PT API framework"
+	default n
 	help
 	Enable PT framework for managing system level cache.
 
 config GS_SLC_ACPM
 	tristate "PT ACPM driver"
 	depends on SLC_PARTITION_MANAGER && GS_ACPM
-	default m
+	default n
 	help
 	Support PT ACPM drvier
 
 config SLC_PMON
 	tristate "SLC perf counter"
 	depends on SLC_PARTITION_MANAGER
-	default m
+	default n
 
 source "drivers/soc/google/gsa/Kconfig"
 
