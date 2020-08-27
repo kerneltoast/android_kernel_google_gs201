@@ -119,10 +119,11 @@ void mfc_client_pt_register(struct mfc_dev *dev)
 
 	dev->pt_handle = pt_client_register(dev->device->of_node, (void *)dev,
 		mfc_pt_resize_callback);
-	if (dev->pt_handle) {
+	if (!IS_ERR(dev->pt_handle)) {
 		dev->has_slc = 1;
 		mfc_dev_info("[SLC] PT Client Register success\n");
 	} else {
+		dev->pt_handle = NULL;
 		dev->has_slc = 0;
 		mfc_dev_info("[SLC] PT Client Register fail\n");
 	}
