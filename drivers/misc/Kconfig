@@ -494,6 +494,15 @@ config GOOGLE_LOGBUFFER
 	  To compile this driver as a module, choose M here: the module will be
 	  called logbuffer.
 
+config GOOGLE_VOTABLE
+	tristate "Google votable interface"
+	help
+	  Say Y here to enable the google voter API. The module is used from
+	  GBMS to arbitrate the access and manage the state of shared resources.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called gvotable.
+
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
