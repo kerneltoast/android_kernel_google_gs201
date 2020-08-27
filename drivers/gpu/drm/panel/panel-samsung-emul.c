@@ -92,11 +92,8 @@ static const struct drm_display_mode emul_mode = {
 	.flags = 0,
 	.width_mm = 80,
 	.height_mm = 120,
-	/* TODO: b/165347448 port mode switching to android-gs-pixel-mainline */
-#if 0
 	.private = (int *) &emul_exynos_mode,
 	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
-#endif
 };
 
 static const struct drm_panel_funcs emul_drm_funcs = {

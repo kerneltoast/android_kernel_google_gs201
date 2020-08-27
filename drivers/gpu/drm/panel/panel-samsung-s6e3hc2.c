@@ -167,11 +167,8 @@ static const struct drm_display_mode s6e3hc2_wqhd_mode = {
 	.flags = 0,
 	.width_mm = 69,
 	.height_mm = 142,
-	/* TODO: b/165347448 port mode switching to android-gs-pixel-mainline */
-#if 0
 	.private = (int *) &s6e3hc2_wqhd_mode_private,
 	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
-#endif
 };
 
 static const struct exynos_display_mode s6e3hc2_fhd_mode_private = {
@@ -198,11 +195,8 @@ static const struct drm_display_mode s6e3hc2_fhd_mode = {
 	.flags = 0,
 	.width_mm = 63,
 	.height_mm = 137,
-	/* TODO: b/165347448 port mode switching to android-gs-pixel-mainline */
-#if 0
 	.private = (int *) &s6e3hc2_fhd_mode_private,
 	.private_flags = EXYNOS_DISPLAY_MODE_FLAG_EXYNOS_PANEL,
-#endif
 };
 
 static const struct drm_panel_funcs s6e3hc2_drm_funcs = {

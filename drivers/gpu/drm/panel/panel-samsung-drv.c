@@ -641,8 +641,6 @@ static bool exynos_panel_mode_fixup(struct drm_bridge *bridge,
 
 	list_for_each_entry(m, &ctx->connector.modes, head) {
 		if (drm_mode_equal(m, adjusted_mode)) {
-		/* TODO: b/165347448 port mode switching to android-gs-pixel-mainline */
-#if 0
 			adjusted_mode->private = m->private;
 			adjusted_mode->private_flags = m->private_flags;
 
@@ -652,7 +650,6 @@ static bool exynos_panel_mode_fixup(struct drm_bridge *bridge,
 			else
 				adjusted_mode->private_flags &=
 					~EXYNOS_DISPLAY_MODE_FLAG_TUI;
-#endif
 
 			return true;
 		}
