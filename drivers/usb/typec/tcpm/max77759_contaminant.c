@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/irqreturn.h>
+#include <linux/module.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
 
@@ -629,3 +630,7 @@ struct max77759_contaminant *max77759_contaminant_init(struct max77759_plat
 	return contaminant;
 }
 EXPORT_SYMBOL_GPL(max77759_contaminant_init);
+
+MODULE_DESCRIPTION("MAX77759_CONTAMINANT Module");
+MODULE_AUTHOR("Badhri Jagan Sridharan <badhri@google.com>");
+MODULE_LICENSE("GPL");

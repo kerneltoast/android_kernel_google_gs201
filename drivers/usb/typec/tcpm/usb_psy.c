@@ -527,3 +527,7 @@ void usb_psy_teardown(void *usb_data)
 		power_supply_put(usb->usb_psy);
 }
 EXPORT_SYMBOL_GPL(usb_psy_teardown);
+
+MODULE_DESCRIPTION("USB_PSY Module");
+MODULE_AUTHOR("Badhri Jagan Sridharan <badhri@google.com>");
+MODULE_LICENSE("GPL");

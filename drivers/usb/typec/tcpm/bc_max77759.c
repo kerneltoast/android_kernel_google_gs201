@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/irqreturn.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/power_supply.h>
 #include <linux/usb/tcpm.h>
@@ -220,3 +221,7 @@ power_supply_put:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(bc12_init);
+
+MODULE_DESCRIPTION("MAX77759_BC12 Module");
+MODULE_AUTHOR("Badhri Jagan Sridharan <badhri@google.com>");
+MODULE_LICENSE("GPL");

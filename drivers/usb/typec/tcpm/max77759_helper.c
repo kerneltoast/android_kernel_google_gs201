@@ -4,7 +4,7 @@
  *
  * MAX77759 helper
  */
-
+#include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/delay.h>
 
@@ -85,3 +85,7 @@ int max77759_update_bits8(struct regmap *regmap, unsigned int reg, u8 mask,
 	MAX77759_UPDATE_BITS(8, regmap, reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(max77759_update_bits8);
+
+MODULE_DESCRIPTION("MAX77759_HELPER Module");
+MODULE_AUTHOR("Badhri Jagan Sridharan <badhri@google.com>");
+MODULE_LICENSE("GPL");

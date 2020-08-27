@@ -1092,3 +1092,4 @@ module_i2c_driver(max77759_i2c_driver);
 
 MODULE_AUTHOR("Badhri Jagan Sridharan <badhri@google.com>");
 MODULE_DESCRIPTION("MAX77759 USB Type-C Port Controller Interface Driver");
+MODULE_LICENSE("GPL");
