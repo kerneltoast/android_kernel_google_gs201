@@ -23,6 +23,25 @@
 		gpu_pmu_status_local_pwr_mask = <0x1>; /*0x1 << 0*/
 		gpu_pm_autosuspend_delay = <50>;
 
+		/* Clocks */
+		gpu0_cmu_cal_id = <ACPM_DVFS_G3DL2>;
+		gpu1_cmu_cal_id = <ACPM_DVFS_G3D>;
+
+		/* DVFS */
+		gpu_dvfs_governor = "basic";
+		gpu_dvfs_clock_down_hysteresis = <7>;
+		gpu_dvfs_table_size = <3 10>; /*<row col>*/
+		gpu_dvfs_table = <
+			/*
+			 *gpu0    gpu1   down     up    hys      int      mif   little  middle   big
+			 * clk     clk   util   util  ticks      min      min      min     min   max
+			 *--------------------------------------------------------------------------
+			 */
+			434000  302000     78     85      6   200000  1539000  1197000  1024000    0
+			302000  151000     50     80      2   200000   676000   738000        0    0
+			151000  151000      0     60      1        0        0        0        0    0
+		>;
+
 	};
 
 };
