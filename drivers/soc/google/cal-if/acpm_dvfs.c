@@ -158,6 +158,33 @@ int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 //EXPORT_SYMBOL_GPL(exynos_acpm_set_volt_margin);
 //#endif
 
+int exynos_acpm_set_policy(unsigned int id, unsigned long policy)
+{
+	struct ipc_config config;
+	unsigned int cmd[4];
+	unsigned long long before, after, latency;
+	int ret;
+
+	config.cmd = cmd;
+	config.response = true;
+	config.indirection = false;
+	config.cmd[0] = id;
+	config.cmd[1] = policy;
+	config.cmd[2] = POLICY_REQ;
+	config.cmd[3] = 0;
+
+	before = sched_clock();
+	ret = acpm_ipc_send_data(acpm_dvfs.ch_num, &config);
+	after = sched_clock();
+	latency = after - before;
+	if (ret)
+		pr_err("%s:[%d] latency = %llu ret = %d",
+			__func__, id, latency, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(exynos_acpm_set_policy);
+
 static void acpm_noti_mif_callback(unsigned int *cmd, unsigned int size)
 {
 	pr_info("%s : req %d KHz\n", __func__, cmd[1]);

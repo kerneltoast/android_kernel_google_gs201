@@ -34,6 +34,7 @@ extern unsigned long exynos_acpm_get_rate(unsigned int id,
 extern void exynos_acpm_set_device(void *dev);
 extern int exynos_acpm_set_volt_margin(unsigned int id, int volt);
 extern int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp);
+extern int exynos_acpm_set_policy(unsigned int id, unsigned long policy);
 #else
 static inline int exynos_acpm_dvfs_init(void)
 {
@@ -65,6 +66,11 @@ static inline int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 }
 
 static inline int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp)
+{
+	return 0;
+}
+
+static inline int exynos_acpm_set_policy(unsigned int id, unsigned long policy)
 {
 	return 0;
 }
