@@ -3,7 +3,6 @@
 . ${ROOT_DIR}/private/gs-google/build.config.gki
 
 ABI_DEFINITION=android/abi_gki_aarch64.xml
-KMI_ENFORCED=1
 
 MAKE_GOALS="${MAKE_GOALS}
 Image.lz4
