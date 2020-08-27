@@ -15,7 +15,14 @@
 			<GIC_SPI IRQ_G3D_IRQMMU_G3D IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI IRQ_G3D_IRQGPU_G3D IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "JOB", "MMU", "GPU";
+
+		/* Power */
 		power-domains = <&pd_embedded_g3d>;
+		g3d_genpd_name = "pd-embedded_g3d";
+		gpu_pmu_status_reg_offset = <0x2004>;
+		gpu_pmu_status_local_pwr_mask = <0x1>; /*0x1 << 0*/
+		gpu_pm_autosuspend_delay = <50>;
+
 	};
 
 };
