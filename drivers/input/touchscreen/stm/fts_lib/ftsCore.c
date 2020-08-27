@@ -98,10 +98,6 @@ int fts_system_reset(void)
 	int res = -1;
 	int i;
 	u8 data[1] = { SYSTEM_RESET_VALUE };
-#ifdef SUPPORT_PROX_PALM
-	struct fts_ts_info *info = NULL;
-	info = dev_get_drvdata(&getClient()->dev);
-#endif
 
 	event_to_search = (int)EVT_ID_CONTROLLER_READY;
 
@@ -131,9 +127,7 @@ int fts_system_reset(void)
 				pr_err("fts_system_reset: ERROR %08X\n", res);
 		}
 	}
-#ifdef SUPPORT_PROX_PALM
-	info->prox_palm_status = 0;
-#endif
+
 	if (res < OK) {
 		pr_err("fts_system_reset...failed after 3 attempts: ERROR %08X\n",
 			(res | ERROR_SYSTEM_RESET_FAIL));

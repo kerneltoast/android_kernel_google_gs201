@@ -137,20 +137,6 @@ static int fts_mode_handler(struct fts_ts_info *info, int force);
 static void fts_pinctrl_setup(struct fts_ts_info *info, bool active);
 
 static int fts_chip_initialization(struct fts_ts_info *info, int init_type);
-#ifdef SUPPORT_PROX_PALM
-static ssize_t audio_status_store(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t count);
-static ssize_t audio_status_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf);
-static ssize_t prox_palm_status_store(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t count);
-static ssize_t prox_palm_status_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf);
-#endif
 
 /**
   * Release all the touches in the linux input subsystem
@@ -2783,16 +2769,6 @@ static DEVICE_ATTR(default_mf, 0664,
 		   fts_default_mf_show,
 		   fts_default_mf_store);
 
-#ifdef SUPPORT_PROX_PALM
-static DEVICE_ATTR(audio_status, 0644,
-		   audio_status_show,
-		   audio_status_store);
-
-static DEVICE_ATTR(prox_palm_status, 0644,
-		   prox_palm_status_show,
-		   prox_palm_status_store);
-#endif
-
 /*  /sys/devices/soc.0/f9928000.i2c/i2c-6/6-0049 */
 static struct attribute *fts_attr_group[] = {
 	 &dev_attr_infoblock_getdata.attr,
@@ -2834,100 +2810,8 @@ static struct attribute *fts_attr_group[] = {
 	&dev_attr_autotune.attr,
 	&dev_attr_touchsim.attr,
 	&dev_attr_default_mf.attr,
-#ifdef SUPPORT_PROX_PALM
-	&dev_attr_prox_palm_status.attr,
-	&dev_attr_audio_status.attr,
-#endif
 	NULL,
 };
-
-#ifdef SUPPORT_PROX_PALM
-/* sysfs file node to store audio status
- * "echo cmd > audio_status" to change
- */
-static ssize_t audio_status_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct fts_ts_info *info = dev_get_drvdata(dev);
-	int result;
-	int val;
-
-	result = kstrtoint(buf, 10, &val);
-	if (result < 0) {
-		pr_err("%s: Invalid input.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (val == 0) {
-		fts_set_bus_ref(info, FTS_BUS_REF_PHONE_CALL, false);
-	} else {
-		fts_set_bus_ref(info, FTS_BUS_REF_PHONE_CALL, true);
-		sysfs_notify(&dev->kobj, NULL, dev_attr_prox_palm_status.attr.name);
-	}
-	info->audio_status = val;
-	pr_info("%s: audio status %d", __func__, val);
-	return count;
-}
-
-static ssize_t audio_status_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct fts_ts_info *info = dev_get_drvdata(dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 info->audio_status);
-}
-
-static ssize_t prox_palm_status_store(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t count)
-{
-	struct fts_ts_info *info = dev_get_drvdata(dev);
-	int result;
-	int val;
-
-	result = kstrtoint(buf, 10, &val);
-	if (result < 0) {
-		pr_err("%s: Invalid input.\n", __func__);
-		return -EINVAL;
-	}
-
-	info->prox_palm_status = val;
-	sysfs_notify(&dev->kobj, NULL, dev_attr_prox_palm_status.attr.name);
-	pr_info("%s Notify prox_palms status %d", __func__,
-		info->prox_palm_status);
-	return count;
-}
-
-static ssize_t prox_palm_status_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
-{
-	struct fts_ts_info *info = dev_get_drvdata(dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 info->prox_palm_status);
-}
-
-/**
- * When the feature is enabled, touch IC will keep in active sensing mode
- * but only report status event and gesture event and stop reporting
- * pointer location event
- */
-int enable_prox_palm_only_mode(bool enable)
-{
-	u8 cmd[3] = {0xC0, 0x0D, (u8) enable};
-	int ret = 0;
-
-	ret = fts_write(cmd, 3);
-	if (ret < 0)
-		pr_err("%s: %s failed, ret = %d", __func__,
-			enable ? "enable" : "disable", ret);
-	return ret;
-}
-#endif
 /** @}*/
 /** @}*/
 
@@ -3603,34 +3487,6 @@ static bool fts_status_event_handler(struct fts_ts_info *info, unsigned
 				event[5], event[6], event[7]);
 		break;
 
-#ifdef SUPPORT_PROX_PALM
-	case EVT_TYPE_STATUS_PROX_PALM:
-		switch (event[2]) {
-		case 0x00:
-			pr_info("%s: Proximity palm release event"
-				" = %02X %02X %02X %02X %02X %02X\n",
-				__func__, event[2], event[3], event[4],
-				event[5], event[6], event[7]);
-			info->prox_palm_status = 0;
-			sysfs_notify(&info->dev->kobj, NULL, dev_attr_prox_palm_status.attr.name);
-			break;
-
-		case 0x01:
-			pr_info("%s: Proximity palm entry event"
-				" = %02X %02X %02X %02X %02X %02X\n",
-				__func__, event[2], event[3], event[4],
-				event[5], event[6], event[7]);
-			info->prox_palm_status = 1;
-			sysfs_notify(&info->dev->kobj, NULL, dev_attr_prox_palm_status.attr.name);
-			break;
-
-		default:
-			pr_info("%s: Unknown proximity palm status = %02X %02X %02X %02X %02X %02X\n",
-				__func__, event[2], event[3], event[4],
-				event[5], event[6], event[7]);
-		}
-		break;
-#endif
 	default:
 		pr_info("%s: Received unknown status event = %02X %02X %02X %02X %02X %02X %02X %02X\n",
 			__func__, event[0], event[1], event[2], event[3],
@@ -5172,15 +5028,6 @@ int fts_set_bus_ref(struct fts_ts_info *info, u16 ref, bool enable)
 		return ERROR_OP_NOT_ALLOW;
 	}
 
-#ifdef SUPPORT_PROX_PALM
-	if (enable && ref == FTS_BUS_REF_IRQ &&
-	    info->pm_suspend_during_phone_call) {
-		__pm_wakeup_event(info->wakesrc, jiffies_to_msecs(HZ));
-		mutex_unlock(&info->bus_mutex);
-		return ERROR_OP_NOT_ALLOW;
-	}
-#endif
-
 	if (enable) {
 		/* IRQs can only keep the bus active. IRQs received while the
 		 * bus is transferred to SLPI should be ignored.
@@ -5241,27 +5088,13 @@ static int fts_screen_state_chg_callback(struct notifier_block *nb,
 	case DRM_PANEL_BLANK_LP:
 		if (val == DRM_PANEL_EARLY_EVENT_BLANK) {
 			pr_debug("%s: BLANK\n", __func__);
-#ifdef SUPPORT_PROX_PALM
-			if (info->audio_status)
-				enable_prox_palm_only_mode(true);
-#endif
 			fts_set_bus_ref(info, FTS_BUS_REF_SCREEN_ON, false);
-#ifdef SUPPORT_PROX_PALM
-			release_all_touches(info);
-#endif
 		}
 		break;
 	case DRM_PANEL_BLANK_UNBLANK:
 		if (val == DRM_PANEL_EVENT_BLANK) {
 			pr_debug("%s: UNBLANK\n", __func__);
-#ifdef SUPPORT_PROX_PALM
-			if (info->audio_status)
-				enable_prox_palm_only_mode(false);
-#endif
 			fts_set_bus_ref(info, FTS_BUS_REF_SCREEN_ON, true);
-#ifdef SUPPORT_PROX_PALM
-			release_all_touches(info);
-#endif
 		}
 		break;
 	}
@@ -6209,18 +6042,6 @@ static int fts_pm_suspend(struct device *dev)
 		pr_warn("%s: bus_refmask 0x%X\n", __func__, info->bus_refmask);
 
 	if (info->resume_bit == 1 || info->sensor_sleep == false) {
-#ifdef SUPPORT_PROX_PALM
-		/* Don't block CPU suspend during phone call*/
-		mutex_lock(&info->bus_mutex);
-		if (info->bus_refmask == FTS_BUS_REF_PHONE_CALL) {
-			fts_enableInterrupt(false);
-			enable_irq_wake(info->client->irq);
-			info->pm_suspend_during_phone_call = true;
-			mutex_unlock(&info->bus_mutex);
-			return 0;
-		}
-		mutex_unlock(&info->bus_mutex);
-#endif
 		pr_warn("%s: can't suspend because touch bus is in use!\n",
 			__func__);
 		return -EBUSY;
@@ -6231,17 +6052,6 @@ static int fts_pm_suspend(struct device *dev)
 
 static int fts_pm_resume(struct device *dev)
 {
-#ifdef SUPPORT_PROX_PALM
-	struct fts_ts_info *info = dev_get_drvdata(dev);
-	mutex_lock(&info->bus_mutex);
-	if (info->pm_suspend_during_phone_call) {
-		if (info->bus_refmask != 0)
-			fts_enableInterrupt(true);
-		disable_irq_wake(info->client->irq);
-		info->pm_suspend_during_phone_call = false;
-	}
-	mutex_unlock(&info->bus_mutex);
-#endif
 	return 0;
 }
 
