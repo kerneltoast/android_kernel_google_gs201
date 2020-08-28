@@ -17,8 +17,10 @@
 #include <linux/slab.h>
 #include <clocksource/arm_arch_timer.h>
 #include <linux/clocksource.h>
+#include <linux/list.h>
 
 #include <soc/google/acpm_ipc_ctrl.h>
+#include <soc/google/exynos-pd.h>
 #include "fw_header/acpm_power_stats.h"
 
 #define GS_POWER_STATS_PREFIX "power_stats: "
@@ -40,6 +42,11 @@ static char const *const core_names[NUM_CORES] = { "CORE00", "CORE01", "CORE02",
 
 static char const *const domain_names[NUM_DOMAINS] = { "MIF", "TPU", "CL0",
 						       "CL1", "CL2" };
+struct pd_entry {
+	struct list_head entry;
+	struct exynos_pm_domain *domain;
+};
+
 struct power_stats_device {
 	struct device *dev;
 
@@ -69,6 +76,8 @@ struct power_stats_device {
 	u32 mult;
 	u32 shift;
 	void __iomem *frc_ctrl;
+
+	struct list_head pd_list;
 
 	struct mutex lock;
 };
@@ -477,6 +486,34 @@ static ssize_t latency_stats_show(struct device *dev,
 	return s;
 }
 
+static ssize_t pd_stats_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	ssize_t s = 0;
+	struct pd_entry *pd;
+	struct exynos_pd_stat stat;
+	struct power_stats_device *ps_dev = dev_get_drvdata(dev);
+
+	list_for_each_entry (pd, &ps_dev->pd_list, entry) {
+		if (exynos_pd_get_pd_stat(pd->domain, &stat)) {
+			dev_err(ps_dev->dev, "Failed pd_stat for %s\n",
+				pd->domain->genpd.name);
+		} else {
+			s += scnprintf(buf + s, PAGE_SIZE - s,
+				       "%s:\n"
+				       "\ton_count: %llu\n"
+				       "\ttotal_on_time_ns: %llu\n"
+				       "\tlast_on_time_ns: %llu\n"
+				       "\tlast_off_time_ns: %llu\n",
+				       pd->domain->genpd.name, stat.on_count,
+				       ktime_to_ns(stat.total_on_time),
+				       ktime_to_ns(stat.last_on_time),
+				       ktime_to_ns(stat.last_off_time));
+		}
+	}
+	return s;
+}
+
 static ssize_t fail_stats_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -518,21 +555,47 @@ static int init_stat_node(struct platform_device *pdev, const char *buffer_name,
 	return ret;
 }
 
+static int init_pd_stat_node(struct power_stats_device *ps_dev)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+	struct exynos_pm_domain *pd;
+	struct pd_entry *new_pd_entry;
+
+	INIT_LIST_HEAD(&ps_dev->pd_list);
+
+	for_each_compatible_node (np, NULL, "samsung,exynos-pd") {
+		if (of_device_is_available(np)) {
+			pdev = of_find_device_by_node(np);
+			pd = (struct exynos_pm_domain *)platform_get_drvdata(
+				pdev);
+
+			new_pd_entry = devm_kzalloc(
+				ps_dev->dev, sizeof(*new_pd_entry), GFP_KERNEL);
+			if (!new_pd_entry)
+				return -ENOMEM;
+
+			new_pd_entry->domain = pd;
+			list_add(&new_pd_entry->entry, &ps_dev->pd_list);
+		}
+	}
+
+	return 0;
+}
+
 static DEVICE_ATTR_RO(soc_stats);
 static DEVICE_ATTR_RO(core_stats);
 static DEVICE_ATTR_RO(fvp_stats);
 static DEVICE_ATTR_RO(pmu_stats);
 static DEVICE_ATTR_RO(latency_stats);
+static DEVICE_ATTR_RO(pd_stats);
 static DEVICE_ATTR_RO(fail_stats);
 
 static struct attribute *power_stats_attrs[] = {
-	&dev_attr_soc_stats.attr,
-	&dev_attr_core_stats.attr,
-	&dev_attr_fvp_stats.attr,
-	&dev_attr_pmu_stats.attr,
-	&dev_attr_latency_stats.attr,
-	&dev_attr_fail_stats.attr,
-	NULL,
+	&dev_attr_soc_stats.attr,     &dev_attr_core_stats.attr,
+	&dev_attr_fvp_stats.attr,     &dev_attr_pmu_stats.attr,
+	&dev_attr_latency_stats.attr, &dev_attr_pd_stats.attr,
+	&dev_attr_fail_stats.attr,    NULL,
 };
 
 ATTRIBUTE_GROUPS(power_stats);
@@ -593,6 +656,7 @@ static int power_stats_probe(struct platform_device *pdev)
 	ret |= init_stat_node(pdev, "LAT_STATS",
 			      (char **)&ps_dev->latency_stats_base,
 			      sizeof(struct latency_stats));
+	ret |= init_pd_stat_node(ps_dev);
 
 	if (ret != 0)
 		dev_err(&pdev->dev,

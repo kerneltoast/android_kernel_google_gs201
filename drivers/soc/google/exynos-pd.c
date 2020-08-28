@@ -57,8 +57,35 @@ int exynos_pd_status(struct exynos_pm_domain *pd)
 	return status;
 }
 EXPORT_SYMBOL(exynos_pd_status);
-/*
- * Power domain on sequence.
+
+int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd, struct exynos_pd_stat *s)
+{
+	if (unlikely(!pd || !s))
+		return -EINVAL;
+
+	mutex_lock(&pd->access_lock);
+
+	s->on_count = pd->pd_stat.on_count;
+	s->last_on_time = pd->pd_stat.last_on_time;
+	s->last_off_time = pd->pd_stat.last_off_time;
+
+	/* If current state is on then include time elapsed since last on */
+	if (cal_pd_status(pd->cal_pdid) > 0) {
+		s->total_on_time =
+			ktime_add(pd->pd_stat.total_on_time,
+				  ktime_sub(ktime_get_boottime(),
+					    pd->pd_stat.last_on_time));
+	} else {
+		s->total_on_time = pd->pd_stat.total_on_time;
+	}
+
+	mutex_unlock(&pd->access_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(exynos_pd_get_pd_stat);
+
+/* Power domain on sequence.
  * on_pre, on_post functions are registered as notification handler at CAL code.
  */
 static void exynos_pd_power_on_pre(struct exynos_pm_domain *pd)
@@ -136,6 +163,9 @@ static int exynos_pd_power_on(struct generic_pm_domain *genpd)
 
 	exynos_pd_power_on_post(pd);
 
+	pd->pd_stat.on_count++;
+	pd->pd_stat.last_on_time = ktime_get_boottime();
+
 acc_unlock:
 	DEBUG_PRINT_INFO("pd_power_on:(%s)-, ret = %d\n", pd->name, ret);
 	mutex_unlock(&pd->access_lock);
@@ -148,6 +178,7 @@ static int exynos_pd_power_off(struct generic_pm_domain *genpd)
 	struct exynos_pm_domain *pd =
 		container_of(genpd, struct exynos_pm_domain, genpd);
 	int ret = 0;
+	ktime_t now;
 
 	mutex_lock(&pd->access_lock);
 
@@ -172,6 +203,12 @@ static int exynos_pd_power_off(struct generic_pm_domain *genpd)
 
 	exynos_pd_power_off_post(pd);
 	pd->power_down_skipped = false;
+
+	now = ktime_get_boottime();
+	pd->pd_stat.total_on_time =
+		ktime_add(pd->pd_stat.total_on_time,
+			  ktime_sub(now, pd->pd_stat.last_on_time));
+	pd->pd_stat.last_off_time = now;
 
 acc_unlock:
 	DEBUG_PRINT_INFO("pd_power_off:(%s)-, ret = %d\n", pd->name, ret);
@@ -284,6 +321,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 
 	int initial_state;
 	int ret;
+	ktime_t now;
 
 	if (!of_have_populated_dt()) {
 		dev_err(dev, EXYNOS_PD_PREFIX "Could not find required device tree entries\n");
@@ -328,6 +366,14 @@ static int exynos_pd_probe(struct platform_device *pdev)
 			pd->name);
 		kfree(pd->name);
 		return -EINVAL;
+	}
+
+	now = ktime_get_boottime();
+	if (initial_state > 0) {
+		pd->pd_stat.last_on_time = now;
+		pd->pd_stat.on_count = 1;
+	} else {
+		pd->pd_stat.last_off_time = now;
 	}
 
 	if (of_property_read_bool(np, "skip-idle-ip"))

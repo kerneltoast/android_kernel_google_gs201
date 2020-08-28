@@ -46,6 +46,13 @@
 
 struct exynos_pm_domain;
 
+struct exynos_pd_stat {
+	u64 on_count;
+	ktime_t total_on_time;
+	ktime_t last_on_time;
+	ktime_t last_off_time;
+};
+
 struct exynos_pm_domain {
 	struct generic_pm_domain genpd;
 	char *name;
@@ -64,6 +71,7 @@ struct exynos_pm_domain {
 	bool power_down_skipped;
 	unsigned int need_smc;
 	bool skip_idle_ip;
+	struct exynos_pd_stat pd_stat;
 };
 
 struct exynos_pd_dbg_info {
@@ -77,6 +85,8 @@ struct exynos_pd_dbg_info {
 #if IS_ENABLED(CONFIG_EXYNOS_PD)
 struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name);
 int exynos_pd_status(struct exynos_pm_domain *pd);
+int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd,
+			  struct exynos_pd_stat *s);
 #else
 static inline
 struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name)
@@ -84,6 +94,11 @@ struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name)
 	return NULL;
 }
 static inline int exynos_pd_status(struct exynos_pm_domain *pd)
+{
+	return 1;
+}
+static inline int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd,
+					struct exynos_pd_stat *s)
 {
 	return 1;
 }
