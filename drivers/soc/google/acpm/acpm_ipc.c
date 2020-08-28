@@ -299,11 +299,7 @@ EXPORT_SYMBOL_GPL(acpm_ipc_release_channel);
 
 static void apm_interrupt_gen(unsigned int id)
 {
-	/* APM NVIC INTERRUPT GENERATE */
-	if (IS_ENABLED(CONFIG_ACPM_MAILBOX_V2))
-		writel((1 << id), acpm_ipc->intr + APM_INTGR);
-	else
-		writel((1 << id) << 16, acpm_ipc->intr + APM_INTGR);
+	writel((1 << id), acpm_ipc->intr + APM_INTGR);
 }
 
 static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
