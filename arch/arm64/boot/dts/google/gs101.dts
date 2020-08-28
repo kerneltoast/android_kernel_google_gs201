@@ -407,6 +407,12 @@
 		dump-size = <0x3B000>;                  /* 236KB */
 	};
 
+	acpm_stats {
+		compatible = "google,power-stats";
+		reg = <0x0 0x1742048c 0x14>;          /* ALIVE_FRC_CTRL */
+		timer-frequency-hz = <49152000>;
+	};
+
 	slc-dummy {
 		compatible = "google,pt";
 		dummy {
