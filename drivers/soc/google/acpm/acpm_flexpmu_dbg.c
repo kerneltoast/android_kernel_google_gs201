@@ -112,7 +112,7 @@ struct flexpmu_dbg_print_arg {
 struct dbgfs_info {
 	int fid;
 	struct dentry *den;
-	const struct file_operations fops;
+	struct file_operations fops;
 };
 
 struct dbgfs_info *flexpmu_dbg_info;
@@ -231,8 +231,8 @@ static ssize_t exynos_flexpmu_dbg_cpu_status_read(int fid, char *buf)
 		{"CL0_CPU3", DEC_PRINT},
 		{"CL1_CPU0", DEC_PRINT},
 		{"CL1_CPU1", DEC_PRINT},
-		{"CL1_CPU2", DEC_PRINT},
-		{"CL1_CPU3", DEC_PRINT},
+		{"CL2_CPU0", DEC_PRINT},
+		{"CL2_CPU1", DEC_PRINT},
 	};
 
 	ret = print_dataline_8(DID_CPU_STATUS, print_arg, ret, buf, &data_count);
@@ -466,19 +466,6 @@ static int exynos_flexpmu_dbg_probe(struct platform_device *pdev)
 		pr_info("%s %s: FLEXPMU_DBG buffer with size %u found\n",
 			ACPM_FLEXPMU_DBG_PREFIX, __func__, data_size);
 	}
-	data_base = be32_to_cpup(prop);
-
-	prop = of_get_property(pdev->dev.of_node, "data-size", &len);
-	if (!prop) {
-		pr_err("%s %s: can not read data-base in DT\n",
-		       ACPM_FLEXPMU_DBG_PREFIX, __func__);
-		ret = -EINVAL;
-		goto err_dbgfs_probe;
-	}
-	data_size = be32_to_cpup(prop);
-
-	if (data_base && data_size)
-		flexpmu_dbg_base = ioremap(data_base, data_size);
 
 	flexpmu_dbg_root = debugfs_create_dir("flexpmu-dbg", NULL);
 	if (!flexpmu_dbg_root) {
@@ -543,4 +530,14 @@ static int __init exynos_flexpmu_dbg_init(void)
 {
 	return platform_driver_register(&exynos_flexpmu_dbg_drv);
 }
-late_initcall(exynos_flexpmu_dbg_init);
+
+static __exit void exynos_flexpmu_dbg_exit(void)
+{
+	platform_driver_unregister(&exynos_flexpmu_dbg_drv);
+}
+
+module_init(exynos_flexpmu_dbg_init);
+module_exit(exynos_flexpmu_dbg_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("FlexPMU DBG");

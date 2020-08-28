@@ -10,17 +10,16 @@ menuconfig GS_ACPM
 
 if GS_ACPM
 
-config GS_ACPM_MFD
-	bool "GS_ACPM_MFD support"
+config ACPM_MFD
+	bool "ACPM_MFD support"
 	default y
 	help
 	  Enable ACPM_MFD support
 
 config ACPM_FLEXPMU_DBG
-	bool "ACPM FLEXPMU DBG"
-	depends on FLEXPMU
-	default y
+	tristate "ACPM FLEXPMU DBG"
+	default n
 	help
-	Support FLEXPMU for GS SoC
+	  Support FLEXPMU DBG for GS SoC
 
 endif
