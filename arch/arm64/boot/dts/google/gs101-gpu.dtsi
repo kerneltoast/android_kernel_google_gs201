@@ -46,6 +46,11 @@
 		gpu_dvfs_qos_bts_scenario = "g3d_performance";
 		gpu_dvfs_qos_bts_level = <3>;
 
+		/* Thermal */
+		#cooling-cells = <2>;
+		gpu_power_coeff = <625>;
+		ect-coeff-index = <3>;
+
 	};
 
 };
