@@ -22,4 +22,10 @@ config ACPM_FLEXPMU_DBG
 	help
 	  Support FLEXPMU DBG for GS SoC
 
+config ACPM_POWER_STATS
+	tristate "GS Power stats collection"
+	default n
+	help
+	  Manages the collection of power stats collected by the ACPM
+
 endif
