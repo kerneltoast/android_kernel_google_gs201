@@ -44,4 +44,5 @@ VENDOR_FSTAB=${ROOT_DIR}/prebuilts/boot-artifacts/fstabs/fstab.gs101
 
 EXT_MODULES="
 private/google-modules/gpu/mali_kbase
+private/google-modules/lwis
 "
