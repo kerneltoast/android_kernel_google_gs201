@@ -42,6 +42,10 @@
 			151000  151000      0     60      1        0        0        0        0    0
 		>;
 
+		/* QOS */
+		gpu_dvfs_qos_bts_scenario = "g3d_performance";
+		gpu_dvfs_qos_bts_level = <3>;
+
 	};
 
 };
