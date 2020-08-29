@@ -21,12 +21,20 @@
 #include "../cal-if/fvmap.h"
 #include "fw_header/framework.h"
 
+#define ACPM_CHECK_ID 0x3
+
 static int ipc_done;
 static unsigned long long ipc_time_start;
 static unsigned long long ipc_time_end;
 static void __iomem *fvmap_base_address;
 
 static struct acpm_info *exynos_acpm;
+
+/* ACPM print settings */
+static unsigned long long uart_priority_level = 0xf;
+static unsigned long long uart_group = 0xffffffff;
+static unsigned long long dbg_log_priority_level;
+static unsigned long long dbg_log_group = 0xffffffff;
 
 static int acpm_send_data(struct device_node *node, unsigned int check_id,
 			  struct ipc_config *config);
@@ -125,11 +133,112 @@ static int debug_ipc_loopback_test_set(void *data, unsigned long long val)
 	return 0;
 }
 
+static int acpm_set_print_setting(enum acpm_print_settings setting,
+		unsigned long long val)
+{
+	struct ipc_config config;
+	int ret = 0;
+	unsigned int cmd[4] = {0, };
+
+	config.cmd = cmd;
+	config.cmd[0] = 0x3 << ACPM_IPC_PROTOCOL_STOP;
+	config.cmd[0] |= ACPM_CHECK_ID << ACPM_IPC_PROTOCOL_ID;
+	config.cmd[1] = setting;
+	config.cmd[2] = val;
+
+	config.response = true;
+	config.indirection = false;
+
+	ret = acpm_send_data(exynos_acpm->dev->of_node, ACPM_CHECK_ID, &config);
+
+	config.cmd = NULL;
+
+	return ret;
+}
+
+static int debug_uart_priority_level_get(void *data, unsigned long long *val)
+{
+	*val = uart_priority_level;
+
+	return 0;
+}
+
+static int debug_uart_priority_level_set(void *data, unsigned long long val)
+{
+	int ret = acpm_set_print_setting(ACPM_UART_PRIORITY_LEVEL, val);
+
+	if (!ret)
+		uart_priority_level = val;
+
+	return ret;
+}
+
+static int debug_uart_group_get(void *data, unsigned long long *val)
+{
+	*val = uart_group;
+
+	return 0;
+}
+
+static int debug_uart_group_set(void *data, unsigned long long val)
+{
+	int ret = acpm_set_print_setting(ACPM_UART_GROUP, val);
+
+	if (!ret)
+		uart_group = val;
+
+	return ret;
+}
+
+static int debug_dbg_log_priority_level_get(void *data, unsigned long long *val)
+{
+	*val = dbg_log_priority_level;
+
+	return 0;
+}
+
+static int debug_dbg_log_priority_level_set(void *data, unsigned long long val)
+{
+	int ret = acpm_set_print_setting(ACPM_DBG_LOG_PRIORITY_LEVEL, val);
+
+	if (!ret)
+		dbg_log_priority_level = val;
+
+	return ret;
+}
+
+static int debug_dbg_log_group_get(void *data, unsigned long long *val)
+{
+	*val = dbg_log_group;
+
+	return 0;
+}
+
+static int debug_dbg_log_group_set(void *data, unsigned long long val)
+{
+	int ret = acpm_set_print_setting(ACPM_DBG_LOG_GROUP, val);
+
+	if (!ret)
+		dbg_log_group = val;
+
+	return ret;
+}
+
 DEFINE_SIMPLE_ATTRIBUTE(debug_log_level_fops,
 			debug_log_level_get, debug_log_level_set, "%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(debug_ipc_loopback_test_fops,
 			debug_ipc_loopback_test_get, debug_ipc_loopback_test_set,
 			"%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_uart_priority_level_fops,
+		debug_uart_priority_level_get,
+		debug_uart_priority_level_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_uart_group_fops,
+		debug_uart_group_get, debug_uart_group_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_dbg_log_priority_level_fops,
+		debug_dbg_log_priority_level_get,
+		debug_dbg_log_priority_level_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_dbg_log_group_fops,
+		debug_dbg_log_group_get, debug_dbg_log_group_set, "%llu\n");
 
 static void acpm_debugfs_init(struct acpm_info *acpm)
 {
@@ -138,6 +247,14 @@ static void acpm_debugfs_init(struct acpm_info *acpm)
 	den = debugfs_create_dir("acpm_framework", NULL);
 	debugfs_create_file("ipc_loopback_test", 0644, den, acpm, &debug_ipc_loopback_test_fops);
 	debugfs_create_file("log_level", 0644, den, NULL, &debug_log_level_fops);
+	debugfs_create_file("uart_priority_level", 0644, den, NULL,
+			&debug_uart_priority_level_fops);
+	debugfs_create_file("uart_group", 0644, den, NULL,
+			&debug_uart_group_fops);
+	debugfs_create_file("dbg_log_priority_level", 0644, den, NULL,
+			&debug_dbg_log_priority_level_fops);
+	debugfs_create_file("dbg_log_group", 0644, den, NULL,
+			&debug_dbg_log_group_fops);
 }
 
 void *memcpy_align_4(void *dest, const void *src, unsigned int n)
@@ -170,8 +287,9 @@ void acpm_enter_wfi(void)
 	config.response = true;
 	config.indirection = false;
 	config.cmd[0] = 1 << ACPM_IPC_PROTOCOL_STOP;
+	config.cmd[0] |= ACPM_CHECK_ID << ACPM_IPC_PROTOCOL_ID;
 
-	ret = acpm_send_data(exynos_acpm->dev->of_node, ACPM_IPC_PROTOCOL_STOP, &config);
+	ret = acpm_send_data(exynos_acpm->dev->of_node, ACPM_CHECK_ID, &config);
 
 	config.cmd = NULL;
 
@@ -221,21 +339,9 @@ static int acpm_send_data(struct device_node *node, unsigned int check_id,
 		ipc_time_start = sched_clock();
 		ret = acpm_ipc_send_data(channel_num, config);
 
-		if (config->cmd[0] & ACPM_IPC_PROTOCOL_DP_CMD) {
-			id = config->cmd[0] & ACPM_IPC_PROTOCOL_IDX;
-			id = id	>> ACPM_IPC_PROTOCOL_ID;
-			ipc_done = id;
-		} else if (config->cmd[0] & (1 << ACPM_IPC_PROTOCOL_STOP)) {
-			ipc_done = ACPM_IPC_PROTOCOL_STOP;
-		} else if (config->cmd[0] & (1 << ACPM_IPC_PROTOCOL_TEST)) {
-			id = config->cmd[0] & ACPM_IPC_PROTOCOL_IDX;
-			id = id	>> ACPM_IPC_PROTOCOL_ID;
-			ipc_done = id;
-		} else {
-			id = config->cmd[0] & ACPM_IPC_PROTOCOL_IDX;
-			id = id	>> ACPM_IPC_PROTOCOL_ID;
-			ipc_done = id;
-		}
+		id = config->cmd[0] & ACPM_IPC_PROTOCOL_IDX;
+		id = id	>> ACPM_IPC_PROTOCOL_ID;
+		ipc_done = id;
 
 		/* Response interrupt waiting */
 		UNTIL_EQUAL(ipc_done, check_id, timeout_flag);
