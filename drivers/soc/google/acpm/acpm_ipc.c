@@ -63,9 +63,9 @@ void acpm_ipc_set_waiting_mode(bool mode)
 	acpm_ipc->w_mode = mode;
 }
 
-void acpm_fw_set_log_level(unsigned int on)
+void acpm_fw_set_log_level(unsigned int level)
 {
-	acpm_debug->debug_log_level = on;
+	acpm_debug->debug_log_level = level;
 }
 
 unsigned int acpm_fw_get_log_level(void)
@@ -112,7 +112,7 @@ void timestamp_write(void)
 	spin_unlock_irqrestore(&acpm_debug->lock, flags);
 }
 
-void acpm_log_print(void)
+void acpm_log_print_buff(struct acpm_log_buff *buffer)
 {
 	unsigned int front;
 	unsigned int rear;
@@ -128,12 +128,12 @@ void acpm_log_print(void)
 	if (is_acpm_stop_log)
 		return;
 	/* ACPM Log data dequeue & print */
-	front = __raw_readl(acpm_debug->log_buff_front);
-	rear = __raw_readl(acpm_debug->log_buff_rear);
+	front = __raw_readl(buffer->log_buff_front);
+	rear = __raw_readl(buffer->log_buff_rear);
 
 	while (rear != front) {
-		log_header = __raw_readl(acpm_debug->log_buff_base +
-					 acpm_debug->log_buff_size * rear);
+		log_header = __raw_readl(buffer->log_buff_base +
+					 buffer->log_buff_size * rear);
 
 		/* log header information
 		 * id: [31:28]
@@ -148,13 +148,13 @@ void acpm_log_print(void)
 		count = log_header & 0xffff;
 
 		/* string length: log_buff_size - header(4) - integer_data(4) */
-		memcpy_align_4(str, acpm_debug->log_buff_base +
-			       (acpm_debug->log_buff_size * rear) + 4,
-			       acpm_debug->log_buff_size - 8);
+		memcpy_align_4(str, buffer->log_buff_base +
+			       (buffer->log_buff_size * rear) + 4,
+			       buffer->log_buff_size - 8);
 
-		val = __raw_readl(acpm_debug->log_buff_base +
-				  acpm_debug->log_buff_size * rear +
-				  acpm_debug->log_buff_size - 4);
+		val = __raw_readl(buffer->log_buff_base +
+				  buffer->log_buff_size * rear +
+				  buffer->log_buff_size - 4);
 
 		time = acpm_debug->timestamps[index];
 
@@ -170,19 +170,26 @@ void acpm_log_print(void)
 				time, id, str, val);
 		}
 
-		if (acpm_debug->log_buff_len == (rear + 1))
+		if (buffer->log_buff_len == (rear + 1))
 			rear = 0;
 		else
 			rear++;
 
-		__raw_writel(rear, acpm_debug->log_buff_rear);
-		front = __raw_readl(acpm_debug->log_buff_front);
+		__raw_writel(rear, buffer->log_buff_rear);
+		front = __raw_readl(buffer->log_buff_front);
 	}
 
 	if (acpm_stop_log_req) {
 		is_acpm_stop_log = true;
 		acpm_ramdump();
 	}
+}
+
+void acpm_log_print(void)
+{
+	if (acpm_debug->debug_log_level >= 2)
+		acpm_log_print_buff(&acpm_debug->preempt);
+	acpm_log_print_buff(&acpm_debug->normal);
 }
 
 void acpm_stop_log(void)
@@ -567,7 +574,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	UNTIL_EQUAL(true, tmp_index != __raw_readl(channel->tx_ch.rear), timeout_flag);
 	if (timeout_flag) {
 		acpm_log_print();
-		acpm_debug->debug_log_level = 1;
+		acpm_debug->debug_log_level = 2;
 		mutex_unlock(&channel->tx_lock);
 		pr_err("[%s] tx buffer full! timeout!!!\n", __func__);
 		return -ETIMEDOUT;
@@ -650,7 +657,7 @@ retry:
 			       __raw_readl(channel->tx_ch.rear),
 			       __raw_readl(channel->tx_ch.front));
 
-			acpm_debug->debug_log_level = 1;
+			acpm_debug->debug_log_level = 2;
 			acpm_log_print();
 			acpm_debug->debug_log_level = saved_debug_log_level;
 			acpm_ramdump();
@@ -712,11 +719,25 @@ static void log_buffer_init(struct device *dev, struct device_node *node)
 	acpm_debug->timestamps = devm_kzalloc(dev,
 					      sizeof(unsigned long long) * num_timestamps,
 					      GFP_KERNEL);
-	acpm_debug->log_buff_rear = base + acpm_ipc->initdata->log_buf_rear;
-	acpm_debug->log_buff_front = base + acpm_ipc->initdata->log_buf_front;
-	acpm_debug->log_buff_base = base + acpm_ipc->initdata->log_data;
-	acpm_debug->log_buff_len = acpm_ipc->initdata->log_entry_len;
-	acpm_debug->log_buff_size = acpm_ipc->initdata->log_entry_size;
+	acpm_debug->normal.log_buff_rear = acpm_ipc->sram_base +
+	    acpm_ipc->initdata->log_buf_rear;
+	acpm_debug->normal.log_buff_front = acpm_ipc->sram_base +
+	    acpm_ipc->initdata->log_buf_front;
+	acpm_debug->normal.log_buff_base = acpm_ipc->sram_base +
+	    acpm_ipc->initdata->log_data;
+	acpm_debug->normal.log_buff_len =
+	    acpm_ipc->initdata->log_entry_len;
+	acpm_debug->normal.log_buff_size = acpm_ipc->initdata->log_entry_size;
+
+	acpm_debug->preempt.log_buff_rear = acpm_ipc->sram_base +
+	    acpm_ipc->initdata->preempt_log_buf_rear;
+	acpm_debug->preempt.log_buff_front = acpm_ipc->sram_base +
+	    acpm_ipc->initdata->preempt_log_buf_front;
+	acpm_debug->preempt.log_buff_base = acpm_ipc->sram_base +
+	    acpm_ipc->initdata->preempt_log_data;
+	acpm_debug->preempt.log_buff_len =
+	    acpm_ipc->initdata->preempt_log_entry_len;
+	acpm_debug->preempt.log_buff_size = acpm_ipc->initdata->log_entry_size;
 
 	prop = of_get_property(node, "debug-log-level", &len);
 	if (prop)

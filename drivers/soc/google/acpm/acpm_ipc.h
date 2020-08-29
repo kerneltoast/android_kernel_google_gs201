@@ -55,17 +55,21 @@ struct acpm_ipc_info {
 	unsigned int intr_status;
 };
 
+struct acpm_log_buff {
+    void __iomem *log_buff_rear;
+    void __iomem *log_buff_front;
+    void __iomem *log_buff_base;
+    unsigned int log_buff_len;
+    unsigned int log_buff_size;
+};
+
 struct acpm_debug_info {
 	unsigned int period;
 	void __iomem *time_index;
 	unsigned int num_timestamps;
 	unsigned long long *timestamps;
-
-	void __iomem *log_buff_rear;
-	void __iomem *log_buff_front;
-	void __iomem *log_buff_base;
-	unsigned int log_buff_len;
-	unsigned int log_buff_size;
+	struct acpm_log_buff normal;
+	struct acpm_log_buff preempt;
 	void __iomem *dump_base;
 	unsigned int dump_size;
 	void __iomem *dump_dram_base;
