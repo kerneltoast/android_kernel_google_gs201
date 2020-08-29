@@ -126,7 +126,8 @@ do {							\
 extern void acpm_log_print(void);
 extern void timestamp_write(void);
 extern void acpm_ramdump(void);
-extern void acpm_fw_log_level(unsigned int on);
+extern void acpm_fw_set_log_level(unsigned int on);
+extern unsigned int acpm_fw_get_log_level(void);
 extern void acpm_ipc_set_waiting_mode(bool mode);
 
 extern int acpm_ipc_remove(struct platform_device *pdev);

@@ -21,23 +21,9 @@
 #include "../cal-if/fvmap.h"
 #include "fw_header/framework.h"
 
-#define ACPM_CHECK_ID 0x3
-
-static int ipc_done;
-static unsigned long long ipc_time_start;
-static unsigned long long ipc_time_end;
 static void __iomem *fvmap_base_address;
 
 static struct acpm_info *exynos_acpm;
-
-/* ACPM print settings */
-static unsigned long long uart_priority_level = 0xf;
-static unsigned long long uart_group = 0xffffffff;
-static unsigned long long dbg_log_priority_level;
-static unsigned long long dbg_log_group = 0xffffffff;
-
-static int acpm_send_data(struct device_node *node, unsigned int check_id,
-			  struct ipc_config *config);
 
 void *get_fvmap_base(void)
 {
@@ -91,31 +77,42 @@ static int plugins_init(void)
 
 static int debug_log_level_get(void *data, unsigned long long *val)
 {
+	*val = acpm_fw_get_log_level();
 	return 0;
 }
 
 static int debug_log_level_set(void *data, unsigned long long val)
 {
-	acpm_fw_log_level((unsigned int)val);
+	acpm_fw_set_log_level(val);
 
 	return 0;
 }
 
 static int debug_ipc_loopback_test_get(void *data, unsigned long long *val)
 {
+	struct acpm_info *acpm = (struct acpm_info *) data;
 	struct ipc_config config;
 	int ret = 0;
 	unsigned int cmd[4] = {0, };
+	unsigned long long ipc_time_start;
+	unsigned long long ipc_time_end;
+	unsigned int channel_num, size;
+
+	ret = acpm_ipc_request_channel(acpm->dev->of_node, NULL, &channel_num,
+				       &size);
+	if (ret) {
+		pr_err("%s ipc request_channel fail (%d)\n", __func__, ret);
+		return ret;
+	}
 
 	config.cmd = cmd;
 	config.cmd[0] = (1 << ACPM_IPC_PROTOCOL_TEST);
-	config.cmd[0] |= 0x3 << ACPM_IPC_PROTOCOL_ID;
 
 	config.response = true;
 	config.indirection = false;
 
 	ipc_time_start = sched_clock();
-	ret = acpm_send_data(exynos_acpm->dev->of_node, 3, &config);
+	ret = acpm_ipc_send_data(channel_num, &config);
 	ipc_time_end = sched_clock();
 
 	if (!ret)
@@ -123,138 +120,127 @@ static int debug_ipc_loopback_test_get(void *data, unsigned long long *val)
 	else
 		*val = 0;
 
-	config.cmd = NULL;
+	acpm_ipc_release_channel(acpm->dev->of_node, channel_num);
 
 	return 0;
 }
 
-static int debug_ipc_loopback_test_set(void *data, unsigned long long val)
-{
-	return 0;
-}
-
-static int acpm_set_print_setting(enum acpm_print_settings setting,
-		unsigned long long val)
+static int acpm_set_print_setting(struct acpm_info *acpm,
+				  enum acpm_print_settings setting,
+				  u64 val)
 {
 	struct ipc_config config;
 	int ret = 0;
 	unsigned int cmd[4] = {0, };
+	unsigned int channel_num, size;
+
+	ret = acpm_ipc_request_channel(acpm->dev->of_node, NULL, &channel_num,
+				       &size);
+	if (ret) {
+		pr_err("%s ipc request_channel fail (%d)\n", __func__, ret);
+		return ret;
+	}
 
 	config.cmd = cmd;
-	config.cmd[0] = 0x3 << ACPM_IPC_PROTOCOL_STOP;
-	config.cmd[0] |= ACPM_CHECK_ID << ACPM_IPC_PROTOCOL_ID;
-	config.cmd[1] = setting;
-	config.cmd[2] = val;
+	config.cmd[0] = 0x1 << ACPM_IPC_PROTOCOL_SETTINGS;
+	config.cmd[0] |= (setting & 0x3) << (ACPM_IPC_PROTOCOL_SETTINGS + 1);
+	config.cmd[1] = val;
+	config.cmd[2] = val >> 32;
 
 	config.response = true;
 	config.indirection = false;
 
-	ret = acpm_send_data(exynos_acpm->dev->of_node, ACPM_CHECK_ID, &config);
+	ret = acpm_ipc_send_data(channel_num, &config);
 
-	config.cmd = NULL;
+	acpm_ipc_release_channel(acpm->dev->of_node, channel_num);
 
 	return ret;
 }
 
-static int debug_uart_priority_level_get(void *data, unsigned long long *val)
+static int acpm_get_print_setting(struct acpm_info *acpm,
+				  enum acpm_print_settings setting,
+				  u64 *val)
 {
-	*val = uart_priority_level;
+	struct ipc_config config;
+	int ret = 0;
+	unsigned int cmd[4] = {0, };
+	unsigned int channel_num, size;
 
-	return 0;
-}
+	ret = acpm_ipc_request_channel(acpm->dev->of_node, NULL, &channel_num,
+				       &size);
+	if (ret) {
+		pr_err("%s ipc request_channel fail (%d)\n", __func__, ret);
+		return ret;
+	}
 
-static int debug_uart_priority_level_set(void *data, unsigned long long val)
-{
-	int ret = acpm_set_print_setting(ACPM_UART_PRIORITY_LEVEL, val);
+	config.cmd = cmd;
+	config.cmd[0] = 0x1 << ACPM_IPC_PROTOCOL_SETTINGS;
+	config.cmd[0] |= (setting & 0x3) << (ACPM_IPC_PROTOCOL_SETTINGS + 1);
+
+	config.response = true;
+	config.indirection = false;
+	ret = acpm_ipc_send_data(channel_num, &config);
 
 	if (!ret)
-		uart_priority_level = val;
+		*val = (((u64) config.cmd[2]) << 32) | config.cmd[1];
+
+	acpm_ipc_release_channel(acpm->dev->of_node, channel_num);
 
 	return ret;
 }
 
-static int debug_uart_group_get(void *data, unsigned long long *val)
+static int debug_uart_gprio_level_get(void *data, u64 *val)
 {
-	*val = uart_group;
+	struct acpm_info *acpm = (struct acpm_info *) data;
 
-	return 0;
+	return acpm_get_print_setting(acpm, ACPM_GET_UART_GPRIO_LEVEL, val);
 }
 
-static int debug_uart_group_set(void *data, unsigned long long val)
+static int debug_uart_gprio_level_set(void *data, u64 val)
 {
-	int ret = acpm_set_print_setting(ACPM_UART_GROUP, val);
+	struct acpm_info *acpm = (struct acpm_info *) data;
 
-	if (!ret)
-		uart_group = val;
-
-	return ret;
+	return acpm_set_print_setting(acpm, ACPM_SET_UART_GPRIO_LEVEL, val);
 }
 
-static int debug_dbg_log_priority_level_get(void *data, unsigned long long *val)
+static int debug_logb_gprio_level_get(void *data, u64 *val)
 {
-	*val = dbg_log_priority_level;
+	struct acpm_info *acpm = (struct acpm_info *) data;
 
-	return 0;
+	return acpm_get_print_setting(acpm, ACPM_GET_LOGB_GPRIO_LEVEL, val);
 }
 
-static int debug_dbg_log_priority_level_set(void *data, unsigned long long val)
+static int debug_logb_gprio_level_set(void *data, u64 val)
 {
-	int ret = acpm_set_print_setting(ACPM_DBG_LOG_PRIORITY_LEVEL, val);
+	struct acpm_info *acpm = (struct acpm_info *) data;
 
-	if (!ret)
-		dbg_log_priority_level = val;
-
-	return ret;
-}
-
-static int debug_dbg_log_group_get(void *data, unsigned long long *val)
-{
-	*val = dbg_log_group;
-
-	return 0;
-}
-
-static int debug_dbg_log_group_set(void *data, unsigned long long val)
-{
-	int ret = acpm_set_print_setting(ACPM_DBG_LOG_GROUP, val);
-
-	if (!ret)
-		dbg_log_group = val;
-
-	return ret;
+	return acpm_set_print_setting(acpm, ACPM_SET_LOGB_GPRIO_LEVEL, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(debug_log_level_fops,
-			debug_log_level_get, debug_log_level_set, "%llu\n");
+		debug_log_level_get, debug_log_level_set, "0%llu\n");
 DEFINE_SIMPLE_ATTRIBUTE(debug_ipc_loopback_test_fops,
-			debug_ipc_loopback_test_get, debug_ipc_loopback_test_set,
-			"%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(debug_uart_priority_level_fops,
-		debug_uart_priority_level_get,
-		debug_uart_priority_level_set, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(debug_uart_group_fops,
-		debug_uart_group_get, debug_uart_group_set, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(debug_dbg_log_priority_level_fops,
-		debug_dbg_log_priority_level_get,
-		debug_dbg_log_priority_level_set, "%llu\n");
-DEFINE_SIMPLE_ATTRIBUTE(debug_dbg_log_group_fops,
-		debug_dbg_log_group_get, debug_dbg_log_group_set, "%llu\n");
+		debug_ipc_loopback_test_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_uart_gprio_level_fops,
+		debug_uart_gprio_level_get,
+		debug_uart_gprio_level_set, "0x%016llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_logb_gprio_level_fops,
+		debug_logb_gprio_level_get,
+		debug_logb_gprio_level_set, "0x%016llx\n");
 
 static void acpm_debugfs_init(struct acpm_info *acpm)
 {
 	struct dentry *den;
 
 	den = debugfs_create_dir("acpm_framework", NULL);
-	debugfs_create_file("ipc_loopback_test", 0644, den, acpm, &debug_ipc_loopback_test_fops);
-	debugfs_create_file("log_level", 0644, den, NULL, &debug_log_level_fops);
-	debugfs_create_file("uart_priority_level", 0644, den, NULL,
-			&debug_uart_priority_level_fops);
-	debugfs_create_file("uart_group", 0644, den, NULL,
-			&debug_uart_group_fops);
-	debugfs_create_file("dbg_log_priority_level", 0644, den, NULL,
-			&debug_dbg_log_priority_level_fops);
-	debugfs_create_file("dbg_log_group", 0644, den, NULL,
-			&debug_dbg_log_group_fops);
+	debugfs_create_file("ipc_loopback_test", 0644, den, acpm,
+			    &debug_ipc_loopback_test_fops);
+	debugfs_create_file("log_level", 0644, den, acpm,
+			    &debug_log_level_fops);
+	debugfs_create_file("uart_gprio_level", 0644, den, acpm,
+			    &debug_uart_gprio_level_fops);
+	debugfs_create_file("logb_gprio_level", 0644, den, acpm,
+			    &debug_logb_gprio_level_fops);
 }
 
 void *memcpy_align_4(void *dest, const void *src, unsigned int n)
@@ -274,31 +260,36 @@ void *memcpy_align_4(void *dest, const void *src, unsigned int n)
 	return dest;
 }
 
-void acpm_enter_wfi(void)
+static void acpm_enter_wfi(struct acpm_info *acpm)
 {
 	struct ipc_config config;
 	int ret = 0;
+	unsigned int channel_num, size;
 	unsigned int cmd[4] = {0, };
 
-	if (exynos_acpm->enter_wfi)
+	if (acpm->enter_wfi)
 		return;
 
+	ret = acpm_ipc_request_channel(acpm->dev->of_node, NULL, &channel_num,
+				       &size);
+	if (ret) {
+		pr_err("%s ipc request_channel fail (%d)\n", __func__, ret);
+		return;
+	}
 	config.cmd = cmd;
 	config.response = true;
 	config.indirection = false;
 	config.cmd[0] = 1 << ACPM_IPC_PROTOCOL_STOP;
-	config.cmd[0] |= ACPM_CHECK_ID << ACPM_IPC_PROTOCOL_ID;
 
-	ret = acpm_send_data(exynos_acpm->dev->of_node, ACPM_CHECK_ID, &config);
-
-	config.cmd = NULL;
+	ret = acpm_ipc_send_data(channel_num, &config);
 
 	if (ret) {
 		pr_err("[ACPM] acpm enter wfi fail!!\n");
 	} else {
 		pr_err("[ACPM] wfi done\n");
-		exynos_acpm->enter_wfi++;
+		acpm->enter_wfi++;
 	}
+	acpm_ipc_release_channel(acpm->dev->of_node, channel_num);
 }
 
 u32 exynos_get_peri_timer_icvra(void)
@@ -321,43 +312,9 @@ void exynos_acpm_reboot(void)
 {
 	acpm_ipc_set_waiting_mode(BUSY_WAIT);
 
-	acpm_enter_wfi();
+	acpm_enter_wfi(exynos_acpm);
 }
 EXPORT_SYMBOL_GPL(exynos_acpm_reboot);
-
-static int acpm_send_data(struct device_node *node, unsigned int check_id,
-			  struct ipc_config *config)
-{
-	unsigned int channel_num, size;
-	int ret = 0;
-	int timeout_flag;
-	unsigned int id = 0;
-
-	if (!acpm_ipc_request_channel(node, NULL, &channel_num, &size)) {
-		ipc_done = -1;
-
-		ipc_time_start = sched_clock();
-		ret = acpm_ipc_send_data(channel_num, config);
-
-		id = config->cmd[0] & ACPM_IPC_PROTOCOL_IDX;
-		id = id	>> ACPM_IPC_PROTOCOL_ID;
-		ipc_done = id;
-
-		/* Response interrupt waiting */
-		UNTIL_EQUAL(ipc_done, check_id, timeout_flag);
-
-		if (timeout_flag)
-			ret = -ETIMEDOUT;
-
-		acpm_ipc_release_channel(node, channel_num);
-	} else {
-		pr_err("%s ipc request_channel fail, id:%u, size:%u\n",
-		       __func__, channel_num, size);
-		ret = -EBUSY;
-	}
-
-	return ret;
-}
 
 static int acpm_probe(struct platform_device *pdev)
 {

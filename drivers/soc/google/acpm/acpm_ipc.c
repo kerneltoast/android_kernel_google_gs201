@@ -63,9 +63,14 @@ void acpm_ipc_set_waiting_mode(bool mode)
 	acpm_ipc->w_mode = mode;
 }
 
-void acpm_fw_log_level(unsigned int on)
+void acpm_fw_set_log_level(unsigned int on)
 {
 	acpm_debug->debug_log_level = on;
+}
+
+unsigned int acpm_fw_get_log_level(void)
+{
+	return acpm_debug->debug_log_level;
 }
 
 void acpm_ramdump(void)
@@ -160,7 +165,7 @@ void acpm_log_print(void)
 		if (id == REGULATOR_INFO_ID)
 			exynos_rgt_dbg_snapshot_regulator(val, time);
 
-		if (acpm_debug->debug_log_level == 1 || !log_level) {
+		if (acpm_debug->debug_log_level || !log_level) {
 			pr_info("[ACPM_FW] : %llu id:%u, %s, %x\n",
 				time, id, str, val);
 		}
@@ -628,6 +633,9 @@ retry:
 		}
 
 		if (timeout_flag) {
+			unsigned int saved_debug_log_level =
+			    acpm_debug->debug_log_level;
+
 			if (!check_response(channel, cfg))
 				return 0;
 			pr_err("%s Timeout error! now = %llu, timeout = %llu\n",
@@ -644,7 +652,7 @@ retry:
 
 			acpm_debug->debug_log_level = 1;
 			acpm_log_print();
-			acpm_debug->debug_log_level = 0;
+			acpm_debug->debug_log_level = saved_debug_log_level;
 			acpm_ramdump();
 
 			dump_stack();

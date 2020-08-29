@@ -77,10 +77,7 @@ struct acpm_framework {
 	u32 preempt_log_buf_front;
 	u32 preempt_log_data;
 	u32 preempt_log_entry_len;
-	unsigned long long timestamps[32];
-#ifndef CONFIG_GS_ACPM_MODULE
-	struct power_stats_buffer power_stats;
-#endif
+	unsigned long long reserved[32];
 };
 
 /**

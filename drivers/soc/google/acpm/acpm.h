@@ -7,7 +7,6 @@
 #define __ACPM_H__
 
 struct acpm_info {
-	unsigned int plugin_num;
 	struct device *dev;
 	void __iomem *timer_base;
 	unsigned int timer_cnt;
