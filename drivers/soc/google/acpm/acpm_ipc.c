@@ -112,18 +112,62 @@ void timestamp_write(void)
 	spin_unlock_irqrestore(&acpm_debug->lock, flags);
 }
 
+static void acpm_log_print_helper_raw(struct acpm_log_buff *buffer,
+		unsigned int rear, unsigned long long time,
+		unsigned int log_level)
+{
+	unsigned int arg0, arg1, arg2;
+
+
+	arg0 = __raw_readl(buffer->log_buff_base +
+			   buffer->log_buff_size * rear + 4);
+	arg1 = __raw_readl(buffer->log_buff_base +
+			   buffer->log_buff_size * rear + 8);
+	arg2 = __raw_readl(buffer->log_buff_base +
+			   buffer->log_buff_size * rear + 12);
+
+	if (acpm_debug->debug_log_level == 1 || !log_level) {
+		pr_info("[ACPM_FW] : %llu, %x, %x, %x\n",
+			time, arg0, arg1, arg2);
+	}
+}
+
+static void acpm_log_print_helper(struct acpm_log_buff *buffer,
+		unsigned int rear, unsigned int id, unsigned long long time,
+		unsigned int log_level)
+{
+	unsigned char str[9] = {0,};
+	unsigned int val;
+
+	/* string length: log_buff_size - header(4) - integer_data(4) */
+	memcpy_align_4(str,
+		       buffer->log_buff_base +
+		       (buffer->log_buff_size * rear) + 4,
+		       buffer->log_buff_size - 8);
+
+	val = __raw_readl(buffer->log_buff_base +
+			  buffer->log_buff_size * rear +
+			  buffer->log_buff_size - 4);
+
+	/* speedy channel: [31:28] addr : [23:12], data : [11:4]*/
+	if (id == REGULATOR_INFO_ID)
+		exynos_rgt_dbg_snapshot_regulator(val, time);
+
+	if (acpm_debug->debug_log_level == 1 || !log_level)
+		pr_info("[ACPM_FW] : %llu id:%u, %s, %x\n", time, id, str, val);
+}
+
 void acpm_log_print_buff(struct acpm_log_buff *buffer)
 {
 	unsigned int front;
 	unsigned int rear;
 	unsigned int id;
+	unsigned int is_raw;
 	unsigned int index;
+	unsigned int log_level;
 	unsigned int count;
-	unsigned char str[9] = {0,};
-	unsigned int val;
 	unsigned int log_header;
 	unsigned long long time;
-	unsigned int log_level;
 
 	if (is_acpm_stop_log)
 		return;
@@ -137,37 +181,33 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 
 		/* log header information
 		 * id: [31:28]
-		 * log level : [27]
-		 * index: [26:22]
+		 * is raw : [27]
+		 * index: [26:20]
+		 * log level: [19]
 		 * apm systick count: [15:0]
 		 */
-		id = (log_header & (0xF << LOG_ID_SHIFT)) >> LOG_ID_SHIFT;
-		log_level = (log_header & (0x1 << LOG_LEVEL)) >> LOG_LEVEL;
-		index = log_header & (0x1f << LOG_TIME_INDEX);
+		id = (log_header & (0xF << LOG_ID_SHIFT)) >>
+				LOG_ID_SHIFT;
+		is_raw = (log_header & (0x1 << LOG_IS_RAW_SHIFT)) >>
+				LOG_IS_RAW_SHIFT;
+		index = (log_header & (0x3f << LOG_TIME_INDEX)) >>
+				LOG_TIME_INDEX;
+		log_level = (log_header & (0x1 << LOG_LEVEL)) >>
+				LOG_LEVEL;
 		index = index >> LOG_TIME_INDEX;
 		count = log_header & 0xffff;
-
-		/* string length: log_buff_size - header(4) - integer_data(4) */
-		memcpy_align_4(str, buffer->log_buff_base +
-			       (buffer->log_buff_size * rear) + 4,
-			       buffer->log_buff_size - 8);
-
-		val = __raw_readl(buffer->log_buff_base +
-				  buffer->log_buff_size * rear +
-				  buffer->log_buff_size - 4);
 
 		time = acpm_debug->timestamps[index];
 
 		/* peritimer period: (1 * 256) / 24.576MHz*/
 		time += count * acpm_period;
 
-		/* speedy channel: [31:28] addr : [23:12], data : [11:4]*/
-		if (id == REGULATOR_INFO_ID)
-			exynos_rgt_dbg_snapshot_regulator(val, time);
-
-		if (acpm_debug->debug_log_level || !log_level) {
-			pr_info("[ACPM_FW] : %llu id:%u, %s, %x\n",
-				time, id, str, val);
+		if (is_raw) {
+			acpm_log_print_helper_raw(buffer, rear, time,
+						  log_level);
+		} else {
+			acpm_log_print_helper(buffer, rear, id, time,
+					      log_level);
 		}
 
 		if (buffer->log_buff_len == (rear + 1))

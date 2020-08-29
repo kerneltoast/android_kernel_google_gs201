@@ -81,6 +81,7 @@ struct acpm_debug_info {
 };
 
 #define LOG_ID_SHIFT				(28)
+#define LOG_IS_RAW_SHIFT			(27)
 #define LOG_TIME_INDEX				(20)
 #define LOG_LEVEL				(19)
 #define BUSY_WAIT				(0)
