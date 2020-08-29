@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2020, Google LLC
+ *
+ * P21 Type-c device-tree.
+ */
+#include <dt-bindings/usb/pd.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+&hsi2c_12{
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	fusb307b: fusb307b@50 {
+		status = "okay";
+		compatible = "fusb307b";
+		/* 52 on reworked maran */
+		reg = <0x50>;
+		pinctrl-names = "default";
+		interrupt-parent = <&gpa8>;
+		usbpd,usbpd_int = <&gpa8 2 GPIO_ACTIVE_LOW>;
+		usb-psy-name = "usb";
+		chg-psy-name = "gcpm";
+		no-bc-12;
+		/*
+		 * uic = <&max77729_uic>;
+		 * uic-io = <0x1>;
+		 */
+		ls = <&slg_pld>;
+
+		usb_con: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			self-powered;
+			op-sink-microwatt = <2600000>;
+			source-pdos = <PDO_FIXED(5000, 900,
+						 PDO_FIXED_SUSPEND |
+						 PDO_FIXED_USB_COMM |
+						 PDO_FIXED_DATA_SWAP |
+						 PDO_FIXED_DUAL_ROLE)>;
+			sink-pdos = <PDO_FIXED(5000, 3000,
+					       PDO_FIXED_USB_COMM |
+					       PDO_FIXED_DATA_SWAP |
+					       PDO_FIXED_DUAL_ROLE)
+				     PDO_FIXED(9000, 2000, 0)>;
+		};
+	};
+
+	slg_pld:slg46826@8 {
+		status = "okay";
+		compatible = "slg46826";
+		reg = <0x8>;
+	};
+
+	max20339ovp@35 {
+		/*
+		 * Enabling in bootloader instead of disabling so that
+		 * kernel changes can be merged independently.
+		 */
+		status = "disabled";
+		compatible = "max20339ovp";
+		reg = <0x35>;
+
+		/* LoadSwitch 1 and LoadSwitch 2 mapped as gpios.  */
+		max20339_gpio: max20339_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <2>;
+		};
+	};
+
+	max77759tcpc: max77759tcpc@25 {
+		status = "okay";
+		compatible = "max77759tcpc";
+		/* 52 on reworked maran */
+		reg = <0x25>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_pd_irq>;
+		interrupt-parent = <&gpa8>;
+		usbpd,usbpd_int = <&gpa8 2 GPIO_ACTIVE_LOW>;
+		usb-psy-name = "usb";
+		chg-psy-name = "gcpm";
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			self-powered;
+			op-sink-microwatt = <2600000>;
+			source-pdos = <PDO_FIXED(5000, 900,
+						 PDO_FIXED_SUSPEND |
+						 PDO_FIXED_USB_COMM |
+						 PDO_FIXED_DATA_SWAP |
+						 PDO_FIXED_DUAL_ROLE)>;
+			sink-pdos = <PDO_FIXED(5000, 3000,
+					       PDO_FIXED_USB_COMM |
+					       PDO_FIXED_DATA_SWAP |
+					       PDO_FIXED_DUAL_ROLE)
+				     PDO_FIXED(9000, 2000, 0)
+				     PDO_PPS_APDO(5000, 11000, 3000)>;
+		};
+	};
+};
+
+&pinctrl_1 {
+	usb_pd_irq: usb-pd-irq {
+		samsung,pins = "gpa8-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <0>;
+	};
+};
