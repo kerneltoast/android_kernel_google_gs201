@@ -219,3 +219,6 @@ err:
 	return rc;
 }
 #endif
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Vinay Kalia <vinaykalia@google.com>");

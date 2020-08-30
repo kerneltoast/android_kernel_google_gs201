@@ -146,3 +146,6 @@ int bigo_iommu_fault_handler(struct iommu_fault *fault, void *param)
 {
 	return NOTIFY_OK;
 }
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Vinay Kalia <vinaykalia@google.com>");

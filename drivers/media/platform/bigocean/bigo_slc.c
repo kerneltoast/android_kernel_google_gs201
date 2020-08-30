@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include "bigo_slc.h"
 
@@ -83,3 +84,6 @@ void bigo_pt_client_unregister(struct bigo_core *core)
 {
 	pt_client_unregister(core->slc.pt_hnd);
 }
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Vinay Kalia <vinaykalia@google.com>");

@@ -106,3 +106,6 @@ void bigo_check_status(struct bigo_core *core)
 	if (status & BIGO_STAT_AXI_WR_PENDING)
 		pr_err("axi write pending: 0x%x\n", status);
 }
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Vinay Kalia <vinaykalia@google.com>");

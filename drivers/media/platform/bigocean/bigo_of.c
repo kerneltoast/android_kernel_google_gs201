@@ -151,3 +151,6 @@ void bigo_of_dt_release(struct bigo_core *core)
 		return;
 	bigo_of_remove_opp_table(core);
 }
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Vinay Kalia <vinaykalia@google.com>");
