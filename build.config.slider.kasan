@@ -1,4 +1,4 @@
-. ${ROOT_DIR}/private/gs-google/build.config.slider
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.slider
 
 POST_DEFCONFIG_CMDS="${POST_DEFCONFIG_CMDS} && update_kasan_config"
 
