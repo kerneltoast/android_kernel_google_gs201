@@ -1,6 +1,6 @@
-. ${ROOT_DIR}/private/gs-google/build.config.common
-. ${ROOT_DIR}/private/gs-google/build.config.aarch64
-. ${ROOT_DIR}/private/gs-google/build.config.gki
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki
 
 ABI_DEFINITION=android/abi_gki_aarch64.xml
 
