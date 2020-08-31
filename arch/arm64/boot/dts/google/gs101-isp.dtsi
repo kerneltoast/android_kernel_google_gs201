@@ -18,6 +18,13 @@
 		node-name = "top";
 	};
 
+	lwis_dpm: lwis_dpm@0 {
+		compatible = "google,lwis-dpm-device";
+
+		/* Device node name */
+		node-name = "dpm";
+	};
+
 	lwis_gdc0: lwis_gdc@1BA40000 {
 		compatible = "google,lwis-ioreg-device";
 
