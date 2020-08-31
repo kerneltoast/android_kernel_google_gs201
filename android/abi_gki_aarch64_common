@@ -1414,6 +1414,7 @@
   default_qdisc_ops
   default_wake_function
   __delay
+  delayacct_on
   delayed_work_timer_fn
   delete_from_page_cache
   del_gendisk
@@ -3855,6 +3856,16 @@
   gf128mul_init_64k_bbe
   gf128mul_lle
   gf128mul_x8_ble
+  gfn_to_hva
+  gfn_to_hva_memslot
+  gfn_to_memslot
+  gfn_to_page
+  gfn_to_page_many_atomic
+  gfn_to_pfn
+  __gfn_to_pfn_memslot
+  gfn_to_pfn_memslot
+  gfn_to_pfn_memslot_atomic
+  gfn_to_pfn_prot
   gic_pmr_sync
   glob_match
   gnet_stats_copy_app
@@ -3985,6 +3996,10 @@
   guid_gen
   guid_null
   guid_parse
+  halt_poll_ns
+  halt_poll_ns_grow
+  halt_poll_ns_grow_start
+  halt_poll_ns_shrink
   handle_bad_irq
   handle_edge_irq
   handle_fasteoi_ack_irq
@@ -5015,8 +5030,8 @@
   ip_tunnel_setup
   ip_tunnel_uninit
   ip_tunnel_unneed_metadata
-  ip_tunnel_xmit
   iptunnel_xmit
+  ip_tunnel_xmit
   ipt_unregister_table
   ipt_unregister_table_exit
   ipt_unregister_table_pre_exit
@@ -5060,6 +5075,10 @@
   __irq_alloc_descs
   __irq_alloc_domain_generic_chips
   irq_alloc_generic_chip
+  irq_bypass_register_consumer
+  irq_bypass_register_producer
+  irq_bypass_unregister_consumer
+  irq_bypass_unregister_producer
   irq_chip_ack_parent
   irq_chip_disable_parent
   irq_chip_enable_parent
@@ -5204,13 +5223,13 @@
   jbd2_journal_load
   jbd2_journal_lock_updates
   jbd2_journal_release_jbd_inode
-  jbd2__journal_restart
   jbd2_journal_restart
+  jbd2__journal_restart
   jbd2_journal_revoke
   jbd2_journal_set_features
   jbd2_journal_set_triggers
-  jbd2__journal_start
   jbd2_journal_start
+  jbd2__journal_start
   jbd2_journal_start_commit
   jbd2_journal_start_reserved
   jbd2_journal_stop
@@ -5497,6 +5516,60 @@
   kvfree_call_rcu
   kvfree_sensitive
   kvmalloc_node
+  kvm_clear_guest
+  kvm_clear_guest_page
+  kvm_debugfs_dir
+  kvm_exit
+  kvm_get_kvm
+  kvm_get_pfn
+  kvm_get_running_vcpu
+  kvm_gfn_to_hva_cache_init
+  kvm_init
+  kvm_io_bus_get_dev
+  kvm_io_bus_write
+  kvm_irq_has_notifier
+  kvm_is_visible_gfn
+  kvm_map_gfn
+  kvm_put_kvm
+  kvm_put_kvm_no_destroy
+  kvm_read_guest
+  kvm_read_guest_cached
+  kvm_read_guest_offset_cached
+  kvm_read_guest_page
+  kvm_rebooting
+  kvm_release_page_clean
+  kvm_release_page_dirty
+  kvm_release_pfn_clean
+  kvm_release_pfn_dirty
+  __kvm_set_memory_region
+  kvm_set_memory_region
+  kvm_set_pfn_accessed
+  kvm_set_pfn_dirty
+  kvm_unmap_gfn
+  kvm_vcpu_block
+  kvm_vcpu_destroy
+  kvm_vcpu_gfn_to_hva
+  kvm_vcpu_gfn_to_memslot
+  kvm_vcpu_gfn_to_page
+  kvm_vcpu_gfn_to_pfn
+  kvm_vcpu_gfn_to_pfn_atomic
+  kvm_vcpu_is_visible_gfn
+  kvm_vcpu_kick
+  kvm_vcpu_map
+  kvm_vcpu_mark_page_dirty
+  kvm_vcpu_on_spin
+  kvm_vcpu_read_guest
+  kvm_vcpu_read_guest_atomic
+  kvm_vcpu_read_guest_page
+  kvm_vcpu_unmap
+  kvm_vcpu_wake_up
+  kvm_vcpu_write_guest
+  kvm_vcpu_write_guest_page
+  kvm_vcpu_yield_to
+  kvm_write_guest
+  kvm_write_guest_cached
+  kvm_write_guest_offset_cached
+  kvm_write_guest_page
   l2cap_add_psm
   l2cap_chan_close
   l2cap_chan_connect
@@ -5647,7 +5720,9 @@
   lock_system_sleep
   __lock_task_sighand
   lock_two_nondirectories
+  log_abnormal_wakeup_reason
   logfc
+  log_suspend_abort_reason
   log_threaded_irq_wakeup_reason
   lookup_bdev
   lookup_constant
@@ -5687,6 +5762,7 @@
   __mark_inode_dirty
   mark_mounts_for_expiry
   mark_page_accessed
+  mark_page_dirty
   match_hex
   match_int
   match_octal
@@ -5996,7 +6072,18 @@
   mm_kobj
   mmput
   mm_trace_rss_stat
+  mmu_interval_notifier_insert
+  mmu_interval_notifier_insert_locked
+  mmu_interval_notifier_remove
+  mmu_interval_read_begin
   mm_unaccount_pinned_pages
+  mmu_notifier_get_locked
+  mmu_notifier_put
+  mmu_notifier_range_update_to_read_only
+  __mmu_notifier_register
+  mmu_notifier_register
+  mmu_notifier_synchronize
+  mmu_notifier_unregister
   mnt_clone_write
   mnt_drop_write
   mnt_drop_write_file
@@ -7639,6 +7726,10 @@
   prandom_seed_full_state
   prandom_u32
   prandom_u32_state
+  preempt_notifier_dec
+  preempt_notifier_inc
+  preempt_notifier_register
+  preempt_notifier_unregister
   preempt_schedule
   preempt_schedule_notrace
   prepare_creds
@@ -7760,32 +7851,6 @@
   pwm_request
   pwm_request_from_chip
   pwm_set_chip_data
-  qcom_scm_assign_mem
-  qcom_scm_cpu_power_down
-  qcom_scm_hdcp_available
-  qcom_scm_hdcp_req
-  qcom_scm_ice_available
-  qcom_scm_ice_invalidate_key
-  qcom_scm_ice_set_key
-  qcom_scm_iommu_secure_ptbl_init
-  qcom_scm_iommu_secure_ptbl_size
-  qcom_scm_io_readl
-  qcom_scm_io_writel
-  qcom_scm_is_available
-  qcom_scm_ocmem_lock
-  qcom_scm_ocmem_lock_available
-  qcom_scm_ocmem_unlock
-  qcom_scm_pas_auth_and_reset
-  qcom_scm_pas_init_image
-  qcom_scm_pas_mem_setup
-  qcom_scm_pas_shutdown
-  qcom_scm_pas_supported
-  qcom_scm_qsmmu500_wait_safe_toggle
-  qcom_scm_restore_sec_cfg
-  qcom_scm_restore_sec_cfg_available
-  qcom_scm_set_cold_boot_addr
-  qcom_scm_set_remote_state
-  qcom_scm_set_warm_boot_addr
   qcom_smem_state_get
   qcom_smem_state_put
   qcom_smem_state_register
@@ -8206,6 +8271,7 @@
   reset_control_reset
   reset_control_status
   reset_devices
+  reset_simple_ops
   resource_list_create_entry
   resource_list_free
   restore_online_page_callback
@@ -9737,8 +9803,8 @@
   spmi_register_write
   spmi_register_zero_write
   sprintf
-  sprint_oid
   sprint_OID
+  sprint_oid
   sprint_symbol
   sprint_symbol_no_offset
   srcu_barrier
@@ -9815,6 +9881,8 @@
   subsys_interface_unregister
   subsys_system_register
   subsys_virtual_register
+  sunxi_sram_claim
+  sunxi_sram_release
   super_setup_bdi
   super_setup_bdi_name
   suspend_device_irqs
@@ -10213,6 +10281,7 @@
   __tracepoint_android_vh_binder_transaction_init
   __tracepoint_android_vh_cpu_idle
   __tracepoint_android_vh_is_fpsimd_save
+  __tracepoint_android_vh_mpam_set
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
   __tracepoint_android_vh_rwsem_init
@@ -11382,6 +11451,8 @@
   vb2_wait_for_all_buffers
   vb2_write
   vbin_printf
+  vcpu_load
+  vcpu_put
   verify_pkcs7_signature
   verify_signature
   verify_spi_info
@@ -11424,6 +11495,7 @@
   vfs_parse_fs_param
   vfs_parse_fs_string
   vfs_path_lookup
+  vfs_read
   vfs_readlink
   __vfs_removexattr
   vfs_removexattr
@@ -11444,6 +11516,57 @@
   vfs_tmpfile
   vfs_truncate
   vfs_unlink
+  vfs_write
+  vhost_add_used
+  vhost_add_used_and_signal
+  vhost_add_used_and_signal_n
+  vhost_add_used_n
+  vhost_chr_poll
+  vhost_chr_read_iter
+  vhost_chr_write_iter
+  vhost_dequeue_msg
+  vhost_dev_check_owner
+  vhost_dev_cleanup
+  vhost_dev_has_owner
+  vhost_dev_init
+  vhost_dev_ioctl
+  vhost_dev_reset_owner
+  vhost_dev_reset_owner_prepare
+  vhost_dev_set_owner
+  vhost_dev_stop
+  vhost_disable_notify
+  vhost_discard_vq_desc
+  vhost_enable_notify
+  vhost_enqueue_msg
+  vhost_exceeds_weight
+  vhost_get_vq_desc
+  vhost_has_work
+  vhost_init_device_iotlb
+  vhost_iotlb_add_range
+  vhost_iotlb_alloc
+  vhost_iotlb_del_range
+  vhost_iotlb_free
+  vhost_iotlb_itree_first
+  vhost_iotlb_itree_next
+  vhost_iotlb_map_free
+  vhost_iotlb_reset
+  vhost_log_access_ok
+  vhost_log_write
+  vhost_new_msg
+  vhost_poll_flush
+  vhost_poll_init
+  vhost_poll_queue
+  vhost_poll_start
+  vhost_poll_stop
+  vhost_set_backend_features
+  vhost_signal
+  vhost_vq_access_ok
+  vhost_vq_avail_empty
+  vhost_vq_init_access
+  vhost_vring_ioctl
+  vhost_work_flush
+  vhost_work_init
+  vhost_work_queue
   video_devdata
   video_device_alloc
   video_device_release
@@ -11463,6 +11586,39 @@
   virtio_device_restore
   virtio_finalize_features
   virtio_max_dma_size
+  virtio_transport_connect
+  virtio_transport_deliver_tap_pkt
+  virtio_transport_destruct
+  virtio_transport_dgram_allow
+  virtio_transport_dgram_bind
+  virtio_transport_dgram_dequeue
+  virtio_transport_dgram_enqueue
+  virtio_transport_do_socket_init
+  virtio_transport_free_pkt
+  virtio_transport_get_credit
+  virtio_transport_inc_tx_pkt
+  virtio_transport_notify_buffer_size
+  virtio_transport_notify_poll_in
+  virtio_transport_notify_poll_out
+  virtio_transport_notify_recv_init
+  virtio_transport_notify_recv_post_dequeue
+  virtio_transport_notify_recv_pre_block
+  virtio_transport_notify_recv_pre_dequeue
+  virtio_transport_notify_send_init
+  virtio_transport_notify_send_post_enqueue
+  virtio_transport_notify_send_pre_block
+  virtio_transport_notify_send_pre_enqueue
+  virtio_transport_put_credit
+  virtio_transport_recv_pkt
+  virtio_transport_release
+  virtio_transport_shutdown
+  virtio_transport_stream_allow
+  virtio_transport_stream_dequeue
+  virtio_transport_stream_enqueue
+  virtio_transport_stream_has_data
+  virtio_transport_stream_has_space
+  virtio_transport_stream_is_active
+  virtio_transport_stream_rcvhiwat
   virtqueue_add_inbuf
   virtqueue_add_inbuf_ctx
   virtqueue_add_outbuf
@@ -11529,6 +11685,7 @@
   vprintk
   vprintk_default
   vprintk_emit
+  vq_meta_prefetch
   vring_create_virtqueue
   vring_del_virtqueue
   vring_interrupt
@@ -11537,6 +11694,36 @@
   vring_transport_features
   vscnprintf
   vsnprintf
+  vsock_add_pending
+  vsock_addr_bound
+  vsock_addr_cast
+  vsock_addr_equals_addr
+  vsock_addr_init
+  vsock_addr_unbind
+  vsock_addr_validate
+  vsock_add_tap
+  vsock_assign_transport
+  vsock_bind_table
+  vsock_connected_table
+  vsock_core_get_transport
+  vsock_core_register
+  vsock_core_unregister
+  vsock_create_connected
+  vsock_deliver_tap
+  vsock_enqueue_accept
+  vsock_find_bound_socket
+  vsock_find_cid
+  vsock_find_connected_socket
+  vsock_for_each_connected_socket
+  vsock_insert_connected
+  vsock_remove_bound
+  vsock_remove_connected
+  vsock_remove_pending
+  vsock_remove_sock
+  vsock_remove_tap
+  vsock_stream_has_data
+  vsock_stream_has_space
+  vsock_table_lock
   vsprintf
   vsscanf
   vunmap
