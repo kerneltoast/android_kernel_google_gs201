@@ -1187,6 +1187,14 @@ static int dit_reg_backup_restore_internal(bool backup, const u16 *offset,
 	}
 
 exit:
+	/* reset buffer if failed to backup */
+	if (unlikely(ret && backup)) {
+		for (i = 0; i < arr_len; i++) {
+			if (buf[i])
+				memset(buf[i], 0, size[i]);
+		}
+	}
+
 	return ret;
 }
 
@@ -1235,31 +1243,40 @@ static int dit_reg_backup_restore(bool backup)
 
 static int dit_init_hw(void)
 {
-	u32 value = 0;
+	unsigned int dir;
+	bool done;
 	u16 count = 0;
 
-	/* set Tx port table to all zero */
-	WRITE_REG_VALUE(dc, 0x1, DIT_REG_NAT_TX_PORT_INIT_START);
-	do {
-		mdelay(1);
-		value = READ_REG_VALUE(dc, DIT_REG_NAT_TX_PORT_INIT_DONE);
-	} while (!value && count++ < 100);
+	const u16 port_offset_start[DIT_DIR_MAX] = {
+		DIT_REG_NAT_TX_PORT_INIT_START,
+		DIT_REG_NAT_RX_PORT_INIT_START
+	};
 
-	if (!value) {
-		mif_err("TX_PORT_INIT failed\n");
-		return -EIO;
-	}
+	const u16 port_offset_done[DIT_DIR_MAX] = {
+		DIT_REG_NAT_TX_PORT_INIT_DONE,
+		DIT_REG_NAT_RX_PORT_INIT_DONE
+	};
 
-	/* set Rx port table to all zero */
-	WRITE_REG_VALUE(dc, 0x1, DIT_REG_NAT_RX_PORT_INIT_START);
-	do {
-		mdelay(1);
-		value = READ_REG_VALUE(dc, DIT_REG_NAT_RX_PORT_INIT_DONE);
-	} while (!value && count++ < 100);
+	/* set Tx/Rx port table to all zero
+	 * it requires 20us at 100MHz until DONE.
+	 */
+	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
+		done = false;
 
-	if (!value) {
-		mif_err("RX_PORT_INIT failed\n");
-		return -EIO;
+		WRITE_REG_VALUE(dc, 0x0, port_offset_done[dir]);
+		WRITE_REG_VALUE(dc, 0x1, port_offset_start[dir]);
+		while (++count < 100) {
+			usleep_range(20, 22);
+			if (READ_REG_VALUE(dc, port_offset_done[dir])) {
+				done = true;
+				break;
+			}
+		}
+
+		if (!done) {
+			mif_err("PORT_INIT_DONE failed dir:%d\n", dir);
+			return -EIO;
+		}
 	}
 
 	WRITE_REG_VALUE(dc, 0x4020, DIT_REG_DMA_INIT_DATA);
