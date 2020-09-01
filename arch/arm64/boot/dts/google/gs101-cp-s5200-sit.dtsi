@@ -182,7 +182,7 @@
 					tpmon_trigger_msec_max = <500>;
 					tpmon_monitor_interval_msec = <100>;
 					tpmon_monitor_hold_msec = <3000>;
-					tpmon_boost_hold_msec = <1000>;
+					tpmon_boost_hold_msec = <2000>;
 					tpmon_unboost_tp_percent = <80>;
 
 					tpmon_rps {
