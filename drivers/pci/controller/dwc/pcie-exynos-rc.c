@@ -1994,7 +1994,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 static int exynos_pcie_rc_msi_init(struct pcie_port *pp)
 {
-	u32 val;
+	u32 val, mask_val;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	struct device *dev = pci->dev;
@@ -2055,14 +2055,23 @@ program_msi_data:
 	val = (u32)(*pp->msi_irq_in_use);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, val);
 	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, &val);
+	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, &mask_val);
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-	dev_dbg(dev, "MSI INIT check INTR0 ENABLE, 0x%x: 0x%x\n", PCIE_MSI_INTR0_ENABLE, val);
+	dev_dbg(dev, "MSI INIT: check MSI_INTR0_ENABLE(0x%x): 0x%x\n", PCIE_MSI_INTR0_ENABLE, val);
 	if (val != 0xf1) {
 		exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, 0xf1);
 		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, &val);
 	}
+
+	dev_dbg(dev, "MSI INIT: check MSI_INTR0_MASK(0x%x): 0x%x\n", PCIE_MSI_INTR0_MASK, mask_val);
+	mask_val &= ~(0xf1);
+	exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, mask_val);
+	udelay(1);
+	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, &mask_val);
 #endif
-	dev_dbg(dev, "%s: MSI INIT END, 0x%x: 0x%x\n", __func__, PCIE_MSI_INTR0_ENABLE, val);
+
+	dev_dbg(dev, "%s: MSI INIT END (MSI_ENABLE(0x%x)=0x%x, MSI_MASK(0x%x)=0x%x)\n",
+		__func__, PCIE_MSI_INTR0_ENABLE, val, PCIE_MSI_INTR0_MASK, mask_val);
 
 	return 0;
 }
