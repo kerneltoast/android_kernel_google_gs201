@@ -3646,6 +3646,7 @@ struct vclk_lut cmucal_vclk_div_clk_pericx_usixx_usi_lut[] = {
 	{100000, div_clk_peric_100_lut_params},
 	{66000, div_clk_peric_66_lut_params},
 	{50000, div_clk_peric_50_lut_params},
+	{40000, div_clk_peric_40_lut_params},
 	{24576, div_clk_peric_24_lut_params},
 	{12288, div_clk_peric_12_lut_params},
 	{8192, div_clk_peric_8_lut_params},

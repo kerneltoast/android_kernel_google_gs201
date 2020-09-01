@@ -107,6 +107,7 @@ extern unsigned int div_clk_peric_133_lut_params[];
 extern unsigned int div_clk_peric_100_lut_params[];
 extern unsigned int div_clk_peric_66_lut_params[];
 extern unsigned int div_clk_peric_50_lut_params[];
+extern unsigned int div_clk_peric_40_lut_params[];
 extern unsigned int div_clk_peric_24_lut_params[];
 extern unsigned int div_clk_peric_12_lut_params[];
 extern unsigned int div_clk_peric_8_lut_params[];
