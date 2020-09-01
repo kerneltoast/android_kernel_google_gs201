@@ -30,6 +30,7 @@
 #include <linux/rtc.h>
 #include <linux/syscore_ops.h>
 #include <soc/google/exynos-pmu-if.h>
+#include <soc/google/debug-snapshot.h>
 #include <linux/preempt.h>
 
 #define S3C2410_WTCON		0x00
@@ -1319,14 +1320,6 @@ static void s3c2410wdt_syscore_resume(void)
 #define s3c2410_wdt_syscore_resume		NULL
 #endif
 
-#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
-struct dbg_snapshot_helper_ops wdt_ops = {
-	.start_watchdog = s3c2410wdt_keepalive_emergency,
-	.expire_watchdog = s3c2410wdt_set_emergency_reset,
-	.stop_watchdog = s3c2410wdt_set_emergency_stop,
-};
-#endif
-
 static struct syscore_ops s3c2410wdt_syscore_ops = {
 	.suspend	= s3c2410wdt_syscore_suspend,
 	.resume		= s3c2410wdt_syscore_resume,
@@ -1556,9 +1549,10 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		wdt_block.nb_panic_block.priority = 256;
 		wdt_block.wdt = wdt;
 		atomic_notifier_chain_register(&panic_notifier_list, &wdt_block.nb_panic_block);
-#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
-		dbg_snapshot_register_helper_ops(&wdt_ops);
-#endif
+		dbg_snapshot_register_wdt_ops(
+				(void *)s3c2410wdt_keepalive_emergency,
+				(void *)s3c2410wdt_set_emergency_reset,
+				(void *)s3c2410wdt_set_emergency_stop);
 	}
 	dev_info(dev, "watchdog cluster %d, %sactive, reset %sabled, irq %sabled\n", cluster_index,
 		 (wtcon & S3C2410_WTCON_ENABLE) ?  "" : "in",
