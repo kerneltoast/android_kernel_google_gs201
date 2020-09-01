@@ -87,6 +87,8 @@
 	samsung,no-extra-delay;
 	usb_host_device_timeout = <0x7ff>; /* Max value */
 
+	extcon = <&fusb307b>;
+
 	/*abox = <&abox>;*/ /* Temporary block */
 	xhci_l2_support = <1>;
 };
@@ -319,7 +321,7 @@
 
 	hs_tune_param = <&usb_hs_tune>;
 	ss_tune_param = <&usb_ss_tune>;
-	//extcon = <&fusb307b>;
+	extcon = <&fusb307b>;
 };
 
 &pcie_0 {	/* pcie ch0 used for the connection with CP on Slider */
