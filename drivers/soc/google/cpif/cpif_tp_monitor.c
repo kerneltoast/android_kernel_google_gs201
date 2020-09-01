@@ -195,7 +195,6 @@ static void tpmon_print_info(struct cpif_tpmon *tpmon)
 static bool tpmon_check_to_boost(struct tpmon_data *data)
 {
 	int usage = 0;
-	u32 prev_value_pos = 0;
 	int i;
 
 	if (!data->enable)
@@ -226,18 +225,33 @@ static bool tpmon_check_to_boost(struct tpmon_data *data)
 		return false;
 	}
 
-	data->jiffies_to_unboost = get_jiffies_64();
-	prev_value_pos = data->curr_value_pos;
+	data->prev_value_pos = data->curr_value_pos;
 	data->curr_value_pos = i;
-	for (i = 0; i < data->curr_value_pos; i++) {
-		if (!data->unboost_tp_mbps[i])
+
+	data->prev_threshold_pos = data->curr_threshold_pos;
+	if (data->curr_value_pos)
+		data->curr_threshold_pos = data->curr_value_pos - 1;
+	else
+		data->curr_threshold_pos = 0;
+	for (i = data->curr_threshold_pos; i >= 0; i--) {
+		if (data->unboost_tp_mbps[i])
+			continue;
+
+		switch (data->measure) {
+		case TPMON_MEASURE_TP:
+			data->unboost_tp_mbps[i] = data->threshold[i] *
+				data->tpmon->unboost_tp_percent / 100;
+			break;
+		default:
 			data->unboost_tp_mbps[i] = data->tpmon->rx_mbps *
 				data->tpmon->unboost_tp_percent / 100;
+			break;
+		}
 	}
 
 	mif_info("%s %d->%d (usage:%d unboost@%dMbps)\n",
-		data->name, prev_value_pos, data->curr_value_pos,
-		usage, data->unboost_tp_mbps[data->curr_value_pos]);
+		data->name, data->prev_value_pos, data->curr_value_pos,
+		usage, data->unboost_tp_mbps[data->curr_threshold_pos]);
 
 	return true;
 }
@@ -246,7 +260,6 @@ static bool tpmon_check_to_unboost(struct tpmon_data *data)
 {
 	u64 jiffies_curr;
 	u64 delta_msec;
-	u32 prev_value_pos = 0;
 
 	if (!data->enable)
 		return false;
@@ -260,6 +273,11 @@ static bool tpmon_check_to_unboost(struct tpmon_data *data)
 		return false;
 	}
 
+	if (data->tpmon->rx_mbps >= data->unboost_tp_mbps[data->curr_threshold_pos]) {
+		data->jiffies_to_unboost = jiffies_curr;
+		return false;
+	}
+
 	if (jiffies_curr > data->jiffies_to_unboost)
 		delta_msec = jiffies64_to_msecs(jiffies_curr - data->jiffies_to_unboost);
 	else
@@ -268,19 +286,20 @@ static bool tpmon_check_to_unboost(struct tpmon_data *data)
 	if (delta_msec < data->tpmon->boost_hold_msec)
 		return false;
 
-	if (data->tpmon->rx_mbps >= data->unboost_tp_mbps[data->curr_value_pos - 1])
-		return false;
-
-	data->jiffies_to_unboost = jiffies_curr;
-
-	data->unboost_tp_mbps[data->curr_value_pos] = 0;
-	prev_value_pos = data->curr_value_pos;
+	data->prev_value_pos = data->curr_value_pos;
 	if (data->curr_value_pos > 0)
 		data->curr_value_pos--;
 
+	data->prev_threshold_pos = data->curr_threshold_pos;
+	if (data->curr_threshold_pos > 0)
+		data->curr_threshold_pos--;
+
 	mif_info("%s %d->%d (%ldMbps < %dMbps)\n",
-		data->name, prev_value_pos, data->curr_value_pos,
-		data->tpmon->rx_mbps, data->unboost_tp_mbps[data->curr_value_pos]);
+		data->name, data->prev_value_pos, data->curr_value_pos,
+		data->tpmon->rx_mbps, data->unboost_tp_mbps[data->prev_threshold_pos]);
+
+	data->jiffies_to_unboost = 0;
+	data->unboost_tp_mbps[data->prev_threshold_pos] = 0;
 
 	return true;
 }
@@ -674,7 +693,7 @@ static void tpmon_monitor_work(struct work_struct *ws)
 		tpmon->jiffies_to_trigger = jiffies_curr;
 
 	if (tpmon->rx_mbps >= tpmon->trigger_mbps) {
-		tpmon->jiffies_to_trigger = jiffies_curr;
+		tpmon->jiffies_to_trigger = 0;
 		goto run_again;
 	}
 
@@ -739,7 +758,10 @@ static int tpmon_init_params(struct cpif_tpmon *tpmon)
 	tpmon->jiffies_to_trigger = 0;
 
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
+		data->curr_threshold_pos = 0;
+		data->prev_threshold_pos = 0;
 		data->curr_value_pos = 0;
+		data->prev_value_pos = 0;
 		data->jiffies_to_unboost = 0;
 		memset(data->unboost_tp_mbps, 0, sizeof(data->unboost_tp_mbps));
 	}

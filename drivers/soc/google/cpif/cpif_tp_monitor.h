@@ -36,10 +36,13 @@ struct tpmon_data {
 
 	u32 num_threshold;
 	u32 threshold[MAX_TPMON_THRESHOLD];
+	u32 curr_threshold_pos;
+	u32 prev_threshold_pos;
 
 	u32 num_values;
 	u32 values[MAX_TPMON_VALUES];
 	u32 curr_value_pos;
+	u32 prev_value_pos;
 	u32 user_value;
 
 	u32 unboost_tp_mbps[MAX_TPMON_THRESHOLD];
