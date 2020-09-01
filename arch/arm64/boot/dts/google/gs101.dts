@@ -28,6 +28,7 @@
 #include "gs101-pinctrl.dtsi"
 #include "gs101-pm-domains.dtsi"
 #include "gs101-sysmmu.dtsi"
+#include "gs101-tpu.dtsi"
 #include "gs101-ufs.dtsi"
 #include "gs101-usi.dtsi"
 

@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Edge TPU device tree source
+ *
+ * Copyright 2020 Google Inc.
+ *
+ */
+
+/ {
+	/* TPU */
+	edgetpu: abrolhos@1CE00000 {
+		compatible = "google,darwinn";
+		#dma-address-cells = <1>;
+		#dma-size-cells = <1>;
+		/* TPU uses regions under 0x18000000 for special purpose */
+		dma-window = <0x18000000 0xE7FFF000>;
+		reg = <0x0 0x1CE00000 0x200000
+		       0x0 0x1CCF0000 0x10000>;
+		reg-names = "tpu", "ssmt";
+		interrupts = <GIC_SPI IRQ_NS_TPU_TPU IRQ_TYPE_LEVEL_HIGH>;
+		hardware-id = <0x0 0xb>;
+		iommus = <&sysmmu_tpu>;
+		status = "okay";
+		memory-region = <&tpu_fw_reserved>;
+		/* CSR Region for APM <-> TPU Mailbox */
+		csr-iova = <0x17690000>;
+		csr-phys = <0x17690000>;
+		csr-size = <0x10000>;
+		gsa-device = <&gsa>;
+	};
+};

@@ -16,6 +16,11 @@
 			reg = <0x0 0x90000000 0x0003A000>;
 		};
 
+		tpu_fw_reserved: tpu_fw@0x90000000 {
+			reg = <0x0 0x90000000 0x200000>;
+			no-map;
+		};
+
 		gsa_reserved_protected: gsa@0x90200000 {
 			reg = <0x0 0x90200000 0x400000>;
 			no-map;
