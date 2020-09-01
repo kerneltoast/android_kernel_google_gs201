@@ -224,8 +224,6 @@
 		idle-ip {
 			fix-idle-ip =
 				"dbg_core";
-			fix-idle-ip-index =
-				<0>;
 		};
 	};
 
