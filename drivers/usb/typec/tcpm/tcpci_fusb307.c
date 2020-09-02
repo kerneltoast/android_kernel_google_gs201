@@ -641,8 +641,6 @@ static int fusb307b_probe(struct i2c_client *client,
 		logbuffer_log(chip->log, "uic gpio: %d", chip->uic_gpio);
 	} else {
 		dev_err(&client->dev, "UIC device node not found\n");
-		ret = -EINVAL;
-		goto unreg_log;
 	}
 
 	if (!of_property_read_u32(dn, "ls", &handle)) {
