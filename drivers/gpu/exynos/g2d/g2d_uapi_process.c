@@ -20,10 +20,10 @@
 #include "g2d_regs.h"
 #include "g2d_debug.h"
 
-#define buferr_show(dev, i, payload, w, h, b, name, len)		       \
-perrfndev(dev,								       \
-	  "Too small buffer[%d]: expected %u for %ux%u(bt%u)/%s but %u given", \
-	  i, payload, w, h, b, name, len)
+#define buferr_show(dev, i, payload, w, h, b, _mode, name, len)				   \
+perrfndev(dev,										   \
+	  "Too small buffer[%d]: expected %u for %ux%u(btm %u)/%s(mode %#x) but %u given", \
+	  i, payload, w, h, b, name, _mode, len)
 
 static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 			      struct g2d_layer *layer,
@@ -62,6 +62,7 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 					    cmd[G2DSFR_IMG_WIDTH].value,
 					    cmd[G2DSFR_IMG_HEIGHT].value,
 					    cmd[G2DSFR_IMG_BOTTOM].value,
+					    cmd[G2DSFR_IMG_COLORMODE].value,
 					    fmt->name, data->buffer[i].length);
 				return -EINVAL;
 			}
@@ -76,6 +77,7 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 				    cmd[G2DSFR_IMG_WIDTH].value,
 				    cmd[G2DSFR_IMG_HEIGHT].value,
 				    cmd[G2DSFR_IMG_BOTTOM].value,
+				    cmd[G2DSFR_IMG_COLORMODE].value,
 				    fmt->name, data->buffer[0].length);
 			return -EINVAL;
 		}
