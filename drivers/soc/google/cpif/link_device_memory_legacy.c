@@ -395,7 +395,7 @@ struct sk_buff *recv_from_legacy_link(struct mem_link_device *mld,
 
 #ifdef DEBUG_MODEM_IF
 	/* Record the time-stamp */
-	getnstimeofday(&skbpriv(skb)->ts);
+	ktime_get_ts64(&skbpriv(skb)->ts);
 #endif
 
 	return skb;

@@ -106,7 +106,7 @@ enum mem_iface_type {
 /*============================================================================*/
 struct __packed mem_snapshot {
 	/* Timestamp */
-	struct timespec ts;
+	struct timespec64 ts;
 
 	/* Direction (TX or RX) */
 	enum direction dir;

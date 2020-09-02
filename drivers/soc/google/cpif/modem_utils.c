@@ -77,15 +77,11 @@ static struct raw_notifier_head cp_crash_notifier;
 
 struct mif_buff_mng *g_mif_buff_mng;
 
-static inline void ts2utc(struct timespec *ts, struct utc_time *utc)
+static inline void ts642utc(struct timespec64 *ts, struct utc_time *utc)
 {
 	struct tm tm;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	time64_to_tm((ts->tv_sec - (sys_tz.tz_minuteswest * 60)), 0, &tm);
-#else
-	time_to_tm((ts->tv_sec - (sys_tz.tz_minuteswest * 60)), 0, &tm);
-#endif
 	utc->year = 1900 + (u32)tm.tm_year;
 	utc->mon = 1 + tm.tm_mon;
 	utc->day = tm.tm_mday;
@@ -97,10 +93,10 @@ static inline void ts2utc(struct timespec *ts, struct utc_time *utc)
 
 void get_utc_time(struct utc_time *utc)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 
-	getnstimeofday(&ts);
-	ts2utc(&ts, utc);
+	ktime_get_ts64(&ts);
+	ts642utc(&ts, utc);
 }
 
 int mif_dump_log(struct modem_shared *msd, struct io_device *iod)
@@ -215,7 +211,7 @@ void _mif_com_log(enum mif_log_id id,
 }
 
 void _mif_time_log(enum mif_log_id id, struct modem_shared *msd,
-	struct timespec epoch, const char *data, size_t len)
+	struct timespec64 epoch, const char *data, size_t len)
 {
 	struct mif_time_block *block;
 	unsigned long flags;
@@ -231,7 +227,7 @@ void _mif_time_log(enum mif_log_id id, struct modem_shared *msd,
 
 	block->id = id;
 	block->time = get_kernel_time();
-	memcpy(&block->epoch, &epoch, sizeof(struct timespec));
+	block->epoch = epoch;
 
 	if (data)
 		memcpy(block->buff, data,

@@ -116,12 +116,12 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned int tailroom;
 	unsigned int tx_bytes;
 #ifdef DEBUG_MODEM_IF
-	struct timespec ts;
+	struct timespec64 ts;
 #endif
 
 #ifdef DEBUG_MODEM_IF
 	/* Record the timestamp */
-	getnstimeofday(&ts);
+	ktime_get_ts64(&ts);
 #endif
 
 	if (unlikely(!cp_online(mc))) {
@@ -183,7 +183,7 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 #ifdef DEBUG_MODEM_IF
 	/* Copy the timestamp to the skb */
-	memcpy(&skbpriv(skb_new)->ts, &ts, sizeof(struct timespec));
+	skbpriv(skb_new)->ts = ts;
 #endif
 #if defined(DEBUG_MODEM_IF_IODEV_TX) && defined(DEBUG_MODEM_IF_PS_DATA)
 	mif_pkt(iod->ch, "IOD-TX", skb_new);

@@ -271,7 +271,7 @@ struct skbuff_private {
 	struct link_device *ld;
 
 	/* for time-stamping */
-	struct timespec ts;
+	struct timespec64 ts;
 
 	u32 sipc_ch:8,	/* SIPC Channel Number			*/
 	    frm_ctrl:8,	/* Multi-framing control		*/

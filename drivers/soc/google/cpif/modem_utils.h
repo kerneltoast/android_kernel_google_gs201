@@ -35,7 +35,7 @@
 	 - sizeof(unsigned long long))
 #define MAX_TIM_LOG_SIZE \
 	(MAX_LOG_SIZE - sizeof(enum mif_log_id) \
-	 - sizeof(unsigned long long) - sizeof(struct timespec))
+	 - sizeof(unsigned long long) - sizeof(struct timespec64))
 
 enum mif_log_id {
 	MIF_IPC_RL2AP = 1,
@@ -87,7 +87,7 @@ struct mif_common_block {
 struct mif_time_block {
 	enum mif_log_id id;
 	unsigned long long time;
-	struct timespec epoch;
+	struct timespec64 epoch;
 	char buff[MAX_TIM_LOG_SIZE];
 };
 
@@ -287,7 +287,8 @@ void _mif_irq_log(enum mif_log_id id,
 void _mif_com_log(enum mif_log_id id,
 	struct modem_shared *msd, const char *data, ...);
 void _mif_time_log(enum mif_log_id id,
-	struct modem_shared *msd, struct timespec epoch, const char *data, size_t len);
+	struct modem_shared *msd, struct timespec64 epoch, const char *data,
+	size_t len);
 
 static inline struct link_device *find_linkdev(struct modem_shared *msd,
 		u32 link_type)
