@@ -2,7 +2,7 @@
 menuconfig EXYNOS_MODEM_IF
 	tristate "Samsung Mobile CP Interface"
 	default n
-	---help---
+	help
 	  Samsung Dual Modem Interface Driver
 
 if EXYNOS_MODEM_IF
@@ -103,26 +103,26 @@ config HW_REV_DETECT
 config MODEM_IF_QOS
 	tristate "Implement QoS for sbd"
 	default n
-	---help---
+	help
 	  This enables QoS for SBD model
 
 config MODEM_IF_LEGACY_QOS
 	tristate "Implement QoS for legacy buffer"
 	default n
-	---help---
+	help
 	  This enables QoS for legacy buffer model
 
 config MODEM_IF_NET_GRO
 	tristate "enable GRO feature"
 	default n
-	---help---
+	help
 	 This enables GRO(Generic Receive Offload) feature
 
 config SUSPEND_DURING_VOICE_CALL
 	tristate "control wake_lock by voice call start/end notification"
 	depends on LINK_DEVICE_PCIE
 	default n
-	---help---
+	help
 	  This enables AP suspend during PCM over PCIE
 
 config CACHED_LEGACY_RAW_RX_BUFFER
@@ -132,46 +132,46 @@ config CACHED_LEGACY_RAW_RX_BUFFER
 config CPIF_TP_MONITOR
 	tristate "Support CP network throughput monitor"
 	default n
-	---help---
+	help
 	  This enables CP network throughput monitor
 
 config LINK_DEVICE_PCIE_S2MPU
 	tristate "Use PCIE S2MPU"
 	depends on LINK_DEVICE_PCIE
 	default n
-	---help---
+	help
 	  Gate some addresses AP and CP shared
 
 config CPIF_CHECK_SJTAG_STATUS
 	tristate "Check secure JTAG status to disable CP memory dump"
 	default n
-	---help---
+	help
 	  Check secure JTAG status to disable CP memory dump
 
 config CP_LCD_NOTIFIER
 	tristate "Enable LCD notifier for CP"
 	default n
-	---help---
+	help
 	  This enables LCD notifier for CP
 
 config LINK_DEVICE_PCIE_GPIO_WA
 	tristate "Workaround for discarded GPIOs"
 	depends on LINK_DEVICE_PCIE
 	default n
-	---help---
+	help
 	  Use a GPIO for the other purpose instead
 
 config EXYNOS_DIT
 	tristate "Enable DIT"
 	default n
-	---help---
+	help
 	  Enable DIT (Direct Internet Packet Transfer)
 
 config CP_WRESET_WA
     tristate "CP warm reset WA due to WRSTBI disabled"
     depends on LINK_DEVICE_PCIE
     default n
-    ---help---
+    help
       CP warm reset WA
 
 endmenu
