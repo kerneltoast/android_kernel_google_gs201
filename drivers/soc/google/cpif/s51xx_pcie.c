@@ -50,12 +50,11 @@ static int s51xx_pcie_proc_open(struct inode *inode, struct  file *file)
 	return single_open(file, s51xx_pcie_read_procmem, NULL);
 }
 
-static const struct file_operations s51xx_pcie_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = s51xx_pcie_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+static const struct proc_ops s51xx_pcie_proc_fops = {
+	.proc_open = s51xx_pcie_proc_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
 };
 
 void s51xx_pcie_chk_ep_conf(struct pci_dev *pdev)
