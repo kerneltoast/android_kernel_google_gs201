@@ -6,6 +6,7 @@
  *
  */
 #include <dt-bindings/gpio/gpio.h>
+#include "gs101-common-bluetooth.dtsi"
 #include "gs101-common-trusty.dtsi"
 #include "gs101-common-typec.dtsi"
 #include "gs101-common-wlan.dtsi"
