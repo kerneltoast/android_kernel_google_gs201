@@ -10,13 +10,12 @@
 #include <linux/module.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
+#include <misc/logbuffer.h>
 
 #include "max77759_helper.h"
 #include "tcpci.h"
 #include "tcpci_max77759.h"
 #include "tcpci_max77759_vendor_reg.h"
-
-#include <../../../power/supply/google/logbuffer.h>
 
 enum contamiant_state {
 	NOT_DETECTED,

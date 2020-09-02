@@ -20,6 +20,7 @@
 #include <linux/usb/pd.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
+#include <misc/logbuffer.h>
 
 #include "bc_max77759.h"
 #include "max77759_helper.h"
@@ -28,8 +29,6 @@
 #include "tcpci_max77759_vendor_reg.h"
 #include "usb_icl_voter.h"
 #include "usb_psy.h"
-
-#include <../../../power/supply/google/logbuffer.h>
 
 #define TCPCI_MODE_VOTER	"TCPCI"
 

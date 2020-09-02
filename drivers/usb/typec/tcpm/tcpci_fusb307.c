@@ -18,21 +18,18 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/usb/tcpm.h>
-
-#include <../../../power/supply/google/logbuffer.h>
+#include <misc/gvotable.h>
+#include <misc/logbuffer.h>
 
 #include "tcpci_otg_helper.h"
 #include "tcpci.h"
 #include "usb_icl_voter.h"
 #include "usb_psy.h"
-#include "../../../../drivers/power/supply/google/gvotable.h"
 
 #define VBUS_VOLTAGE_MASK		0x3ff
 #define VBUS_VOLTAGE_LSB_MV		25
 #define VBUS_HI_HEADROOM_MV		500
 #define VBUS_LO_MV			4500
-
-#include <../../../power/supply/google/logbuffer.h>
 
 #define PD_ACTIVITY_TIMEOUT_MS 10000
 

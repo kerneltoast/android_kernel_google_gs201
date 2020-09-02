@@ -12,13 +12,12 @@
 #include <linux/power_supply.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
+#include <misc/logbuffer.h>
 
 #include "bc_max77759.h"
 #include "max77759_helper.h"
 #include "tcpci.h"
 #include "tcpci_max77759.h"
-
-#include <../../../power/supply/google/logbuffer.h>
 
 struct bc12_status {
 	struct workqueue_struct *wq;

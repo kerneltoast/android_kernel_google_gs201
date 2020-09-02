@@ -10,10 +10,9 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/power_supply.h>
+#include <misc/gvotable.h>
+#include <misc/logbuffer.h>
 #include <uapi/linux/sched/types.h>
-
-#include "../../../power/supply/google/gvotable.h"
-#include "../../../power/supply/google/logbuffer.h"
 
 #include "usb_psy.h"
 #include "usb_icl_voter.h"
