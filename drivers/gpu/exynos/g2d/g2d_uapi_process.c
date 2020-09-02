@@ -242,6 +242,7 @@ static int g2d_get_userptr(struct g2d_task *task,
 
 	buffer->userptr.addr = data->userptr;
 	buffer->userptr.vec = vec;
+	buffer->dma_addr = sg_dma_address(sgt->sgl);
 	buffer->sgt = sgt;
 
 	return 0;
