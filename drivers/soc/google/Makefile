@@ -28,3 +28,6 @@ obj-$(CONFIG_GSA)			+= gsa/
 obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif/
 
 obj-y				    	+= debug/
+
+# Emerald Hill
+obj-$(CONFIG_GOOGLE_EH) += eh/
