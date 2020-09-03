@@ -19,6 +19,7 @@
 		/* 52 on reworked maran */
 		reg = <0x50>;
 		pinctrl-names = "default";
+		pinctrl-0 = <&usb_pd_irq>;
 		interrupt-parent = <&gpa8>;
 		usbpd,usbpd_int = <&gpa8 2 GPIO_ACTIVE_LOW>;
 		usb-psy-name = "usb";
@@ -107,6 +108,11 @@
 				     PDO_PPS_APDO(5000, 11000, 3000)>;
 		};
 	};
+};
+
+&hsi2c12_bus {
+	samsung,pins = "gpp23-4", "gpp23-5";
+	samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 };
 
 &pinctrl_1 {
