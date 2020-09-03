@@ -9,7 +9,7 @@
  * Author: cozette@google.com
  */
 
-#include "pt.h"
+#include <soc/google/pt.h>
 
 #define CREATE_TRACE_POINTS
 #include "pt_trace.h"

@@ -16,7 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "pt.h"
+#include <soc/google/pt.h>
 #include "pt_trace.h"
 #include "slc_pmon.h"
 #include "../cal-if/acpm_dvfs.h"

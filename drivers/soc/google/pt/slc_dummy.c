@@ -16,7 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "pt.h"
+#include <soc/google/pt.h>
 
 #define PT_PTID_MAX 64
 #define PT_HIGHEST_BIT 32

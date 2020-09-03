@@ -18,7 +18,7 @@
 #include "uapi/linux/bigo.h"
 
 #if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
-#include <../../../../drivers/soc/google/pt/pt.h>
+#include <soc/google/pt.h>
 #endif
 
 

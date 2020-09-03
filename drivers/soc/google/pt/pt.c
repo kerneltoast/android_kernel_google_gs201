@@ -9,7 +9,7 @@
  * Author: cozette@google.com
  */
 
-#include "pt.h"
+#include <soc/google/pt.h>
 #include "pt_trace.h"
 #include <linux/list.h>
 #include <linux/of_platform.h>

@@ -12,7 +12,7 @@
 #if !defined(_PT_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _PT_TRACE_H_
 
-#include "./pt.h"
+#include <soc/google/pt.h>
 #include <linux/stringify.h>
 #include <linux/types.h>
 #include <linux/tracepoint.h>
