@@ -258,14 +258,25 @@ unlock:
 
 inline void bigo_config_frmrate(struct bigo_inst *inst, __u32 frmrate)
 {
+	mutex_lock(&inst->lock);
 	inst->fps = frmrate;
+	mutex_unlock(&inst->lock);
 }
 
 inline void bigo_config_frmsize(struct bigo_inst *inst,
 				struct bigo_ioc_frmsize *frmsize)
 {
+	mutex_lock(&inst->lock);
 	inst->height = frmsize->height;
 	inst->width = frmsize->width;
+	mutex_unlock(&inst->lock);
+}
+
+inline void bigo_config_secure(struct bigo_inst *inst, __u32 is_secure)
+{
+	mutex_lock(&inst->lock);
+	inst->is_secure = is_secure;
+	mutex_unlock(&inst->lock);
 }
 
 static long bigo_unlocked_ioctl(struct file *file, unsigned int cmd,
@@ -346,6 +357,11 @@ static long bigo_unlocked_ioctl(struct file *file, unsigned int cmd,
 			rc = -EFAULT;
 		}
 		break;
+	case BIGO_IOCX_CONFIG_SECURE: {
+		u32 is_secure = (u32)arg;
+		bigo_config_secure(inst, is_secure);
+		break;
+	}
 	case BIGO_IOCX_ABORT:
 		break;
 	default:

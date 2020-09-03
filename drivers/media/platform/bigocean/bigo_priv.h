@@ -101,6 +101,7 @@ struct bigo_inst {
 	u32 height;
 	u32 width;
 	u32 fps;
+	u32 is_secure;
 	struct bigo_bw avg_bw[AVG_CNT];
 	struct bigo_bw pk_bw[AVG_CNT];
 	int job_cnt;

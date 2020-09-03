@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/pm_opp.h>
+#include <linux/soc/samsung/exynos-smc.h>
 #include <soc/google/bts.h>
 
 #include "bigo_pm.h"
@@ -21,6 +22,7 @@
 #define DEFAULT_WR_BW_FACTOR 3
 #define PEAK_BW_FACTOR_NUM 3
 #define PEAK_BW_FACTOR_DEN 2
+#define BIGO_SMC_ID 0xd
 
 static inline u32 bigo_get_total_load(struct bigo_core *core)
 {
@@ -191,9 +193,21 @@ int bigo_pm_init(struct bigo_core *core)
 #if IS_ENABLED(CONFIG_PM)
 int bigo_runtime_suspend(struct device *dev)
 {
-	int rc;
+	int rc = 0;
 	struct bigo_core *core = dev_get_drvdata(dev);
 	struct bigo_inst *inst = core->curr_inst;
+
+	if (!inst) {
+		pr_err("Invalid instance");
+		return -EINVAL;
+	}
+
+	if (inst->is_secure) {
+		rc = exynos_smc(SMC_PROTECTION_SET, 0, BIGO_SMC_ID,
+				SMC_PROTECTION_DISABLE);
+		if (rc)
+			pr_err("failed to disable SMC_PROTECTION_SET: %d\n", rc);
+	}
 
 	bigo_remove_freq(core);
 	rc = bigo_remove_bw(inst);
@@ -204,7 +218,7 @@ int bigo_runtime_suspend(struct device *dev)
 
 int bigo_runtime_resume(struct device *dev)
 {
-	int rc;
+	int rc = 0;
 	struct bigo_core *core = dev_get_drvdata(dev);
 	struct bigo_inst *inst = core->curr_inst;
 
@@ -216,6 +230,12 @@ int bigo_runtime_resume(struct device *dev)
 
 	bigo_scale_freq(core);
 
+	if (inst->is_secure) {
+		rc = exynos_smc(SMC_PROTECTION_SET, 0, BIGO_SMC_ID,
+				SMC_PROTECTION_ENABLE);
+		if (rc)
+			pr_err("failed to enable SMC_PROTECTION_SET: %d\n", rc);
+	}
 err:
 	return rc;
 }

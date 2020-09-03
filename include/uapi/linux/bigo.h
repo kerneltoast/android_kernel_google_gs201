@@ -67,6 +67,7 @@ enum bigo_cmd_id {
 	BIGO_CMD_CONFIG_FRMRATE,
 	BIGO_CMD_CONFIG_FRMSIZE,
 	BIGO_CMD_GET_CACHE_INFO,
+	BIGO_CMD_CONFIG_SECURE,
 	BIGO_CMD_MAXNR,
 };
 /* <END OF HELPERS> */
@@ -80,5 +81,6 @@ enum bigo_cmd_id {
 #define BIGO_IOCX_GET_CACHE_INFO                                               \
 	_BIGO_IOR(BIGO_CMD_GET_CACHE_INFO, struct bigo_cache_info)
 #define BIGO_IOCX_ABORT _BIGO_IO(BIGO_CMD_ABORT)
+#define BIGO_IOCX_CONFIG_SECURE _BIGO_IOW(BIGO_CMD_CONFIG_SECURE, __u32)
 
 #endif /* _UAPI_BIGO_H_ */
