@@ -1250,12 +1250,17 @@ static void __exit pt_exit(void)
 subsys_initcall(pt_init);
 module_exit(pt_exit);
 
+EXPORT_SYMBOL(pt_pbha);
+EXPORT_SYMBOL(pt_pbha_global);
+
 EXPORT_SYMBOL(pt_client_register);
 EXPORT_SYMBOL(pt_client_enable);
 EXPORT_SYMBOL(pt_client_mutate);
 EXPORT_SYMBOL(pt_client_disable);
 EXPORT_SYMBOL(pt_client_unregister);
 EXPORT_SYMBOL(pt_client_enable_size);
+EXPORT_SYMBOL(pt_client_disable_no_free);
+EXPORT_SYMBOL(pt_client_free);
 
 EXPORT_SYMBOL(pt_driver_register);
 EXPORT_SYMBOL(pt_driver_unregister);
