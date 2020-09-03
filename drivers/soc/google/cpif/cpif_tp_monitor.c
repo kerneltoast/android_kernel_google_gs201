@@ -133,7 +133,6 @@ static void tpmon_calc_rx_speed(struct cpif_tpmon *tpmon)
 {
 	unsigned long divider_mbps, divider_kbps;
 	unsigned long rx_bytes;
-	static unsigned long idx;
 
 	/* mbps 131072 = 1024 * 1024 / 8 */
 	/* kbps 128 = 1024 / 8 */
@@ -148,15 +147,15 @@ static void tpmon_calc_rx_speed(struct cpif_tpmon *tpmon)
 	rx_bytes = tpmon->rx_bytes;
 	tpmon->rx_bytes = 0;
 
-	tpmon->rx_sum -= tpmon->rx_bytes_data[idx];
+	tpmon->rx_sum -= tpmon->rx_bytes_data[tpmon->rx_bytes_idx];
 	tpmon->rx_sum += rx_bytes;
-	tpmon->rx_bytes_data[idx] = rx_bytes;
+	tpmon->rx_bytes_data[tpmon->rx_bytes_idx] = rx_bytes;
 
-	idx++;
+	tpmon->rx_bytes_idx++;
 	if (tpmon->monitor_interval_msec >= 1000)
-		idx = 0;
+		tpmon->rx_bytes_idx = 0;
 	else
-		idx %= (1000 / tpmon->monitor_interval_msec);
+		tpmon->rx_bytes_idx %= (1000 / tpmon->monitor_interval_msec);
 
 	if (tpmon->rx_sum < divider_mbps)
 		tpmon->rx_mbps = 0;
@@ -172,23 +171,18 @@ static void tpmon_calc_rx_speed(struct cpif_tpmon *tpmon)
 /* Inforamtion */
 static void tpmon_print_info(struct cpif_tpmon *tpmon)
 {
-	static unsigned long idx;
-
-	if (!tpmon->debug_print)
-		return;
-
-	idx++;
-	if (tpmon->monitor_interval_msec >= 1000)
-		idx = 0;
-	else
-		idx %= (1000 / tpmon->monitor_interval_msec);
-
-	if (idx == 0)
+	if (tpmon->rx_bytes_idx == 0) {
 		mif_info("DL:%ldMbps pktproc:%d dit:%d netdev:%d\n",
 			tpmon->rx_mbps,
 			tpmon->pktproc_queue_status,
 			tpmon->dit_src_queue_status,
 			tpmon->netdev_backlog_queue_status);
+
+		if (tpmon->legacy_packet_count) {
+			mif_info("legacy:%d\n", tpmon->legacy_packet_count);
+			tpmon->legacy_packet_count = 0;
+		}
+	}
 }
 
 /* Check speed changing */
@@ -593,8 +587,13 @@ static int tpmon_cpufreq_nb(struct notifier_block *nb,
 		case TPMON_TARGET_CPU_CL2:
 			if (policy->cpu == data->extra_idx) {
 				mif_info("freq_qos_add_request for cpu%d\n", policy->cpu);
+#if IS_ENABLED(CONFIG_ARM_FREQ_QOS_TRACER)
+				freq_qos_tracer_add_request(&policy->constraints,
+					data->extra_data, FREQ_QOS_MIN, PM_QOS_DEFAULT_VALUE);
+#else
 				freq_qos_add_request(&policy->constraints,
 					data->extra_data, FREQ_QOS_MIN, PM_QOS_DEFAULT_VALUE);
+#endif
 			}
 			break;
 		default:
@@ -692,7 +691,8 @@ static void tpmon_monitor_work(struct work_struct *ws)
 	if (!tpmon->jiffies_to_trigger)
 		tpmon->jiffies_to_trigger = jiffies_curr;
 
-	if (tpmon->rx_mbps >= tpmon->trigger_mbps) {
+	if (tpmon->rx_mbps >=
+		(tpmon->trigger_mbps * tpmon->unboost_tp_percent / 100)) {
 		tpmon->jiffies_to_trigger = 0;
 		goto run_again;
 	}
@@ -711,7 +711,7 @@ static void tpmon_monitor_work(struct work_struct *ws)
 	return;
 
 run_again:
-	queue_delayed_work_on(3, tpmon->monitor_wq, &tpmon->monitor_dwork,
+	queue_delayed_work(tpmon->monitor_wq, &tpmon->monitor_dwork,
 		msecs_to_jiffies(tpmon->monitor_interval_msec));
 }
 
@@ -725,6 +725,14 @@ void tpmon_add_rx_bytes(unsigned long bytes)
 	tpmon->rx_bytes += bytes;
 }
 EXPORT_SYMBOL(tpmon_add_rx_bytes);
+
+void tpmon_add_legacy_packet_count(u32 count)
+{
+	struct cpif_tpmon *tpmon = &_tpmon;
+
+	tpmon->legacy_packet_count += count;
+}
+EXPORT_SYMBOL(tpmon_add_legacy_packet_count);
 
 void tpmon_add_net_node(struct list_head *node)
 {
@@ -750,10 +758,12 @@ static int tpmon_init_params(struct cpif_tpmon *tpmon)
 	tpmon->rx_kbps = 0;
 	tpmon->rx_sum = 0;
 	memset(tpmon->rx_bytes_data, 0, sizeof(tpmon->rx_bytes_data));
+	tpmon->rx_bytes_idx = 0;
 
 	tpmon->pktproc_queue_status = 0;
 	tpmon->netdev_backlog_queue_status = 0;
 	tpmon->dit_src_queue_status = 0;
+	tpmon->legacy_packet_count = 0;
 
 	tpmon->jiffies_to_trigger = 0;
 
@@ -809,10 +819,13 @@ static bool tpmon_check_to_start(struct cpif_tpmon *tpmon)
 
 	tpmon->jiffies_to_trigger = jiffies_curr;
 
-	if (mbps < tpmon->trigger_mbps) {
+	if ((mbps < tpmon->trigger_mbps) || tpmon->use_user_value) {
 		tpmon->rx_bytes = 0;
+		tpmon->legacy_packet_count = 0;
 		return false;
 	}
+
+	mif_info("trigger@%ldMbps\n", mbps);
 
 	return true;
 }
@@ -829,7 +842,7 @@ int tpmon_start(void)
 
 	atomic_set(&tpmon->active, 1);
 
-	queue_delayed_work_on(3, tpmon->monitor_wq, &tpmon->monitor_dwork, 0);
+	queue_delayed_work(tpmon->monitor_wq, &tpmon->monitor_dwork, 0);
 
 	if (tpmon->debug_print)
 		mif_info("started\n");
@@ -860,7 +873,7 @@ int tpmon_stop(void)
 	tpmon_init_params(tpmon);
 
 	if (atomic_read(&tpmon->need_init))
-		queue_delayed_work_on(3, tpmon->monitor_wq, &tpmon->monitor_dwork, 0);
+		queue_delayed_work(tpmon->monitor_wq, &tpmon->monitor_dwork, 0);
 
 	if (tpmon->debug_print)
 		mif_info("stopped\n");
@@ -873,6 +886,11 @@ int tpmon_init(void)
 {
 	struct cpif_tpmon *tpmon = &_tpmon;
 
+	if (tpmon->use_user_value) {
+		mif_info("enable use_user_value again if you want to set user value\n");
+		tpmon->use_user_value = 0;
+	}
+
 	if (tpmon_check_active())
 		tpmon_stop();
 
@@ -880,7 +898,7 @@ int tpmon_init(void)
 
 	mif_info("set initial values\n");
 	atomic_set(&tpmon->need_init, 1);
-	queue_delayed_work_on(3, tpmon->monitor_wq, &tpmon->monitor_dwork, 0);
+	queue_delayed_work(tpmon->monitor_wq, &tpmon->monitor_dwork, 0);
 
 	return 0;
 }
@@ -934,8 +952,15 @@ static ssize_t curr_value_show(struct device *dev, struct device_attribute *attr
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
 		ret = tpmon->use_user_value ? data->user_value : data->values[data->curr_value_pos];
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%s: 0x%x(%d) pos:%d\n",
-			data->name, ret, ret, data->curr_value_pos);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s: %d(0x%x)",
+			data->name, ret, ret);
+
+		if (tpmon->use_user_value)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
+		else
+			len += scnprintf(buf + len, PAGE_SIZE - len, " pos:%d unboost@%dMbps\n",
+				data->curr_value_pos,
+				data->unboost_tp_mbps[data->curr_threshold_pos]);
 	}
 
 	return len;
@@ -965,10 +990,11 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			"rx %ldbytes %ldMbps %ldKbps sum:%d\n",
 			tpmon->rx_bytes, tpmon->rx_mbps, tpmon->rx_kbps, tpmon->rx_sum);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
-			"queue status pktproc:%d dit:%d netdev:%d\n",
+			"queue status pktproc:%d dit:%d netdev:%d legacy:%d\n",
 			tpmon->pktproc_queue_status,
 			tpmon->dit_src_queue_status,
-			tpmon->netdev_backlog_queue_status);
+			tpmon->netdev_backlog_queue_status,
+			tpmon->legacy_packet_count);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"use_user_value:%d debug_print:%d\n",
 			tpmon->use_user_value,
@@ -1009,7 +1035,7 @@ static ssize_t use_user_value_show(struct device *dev, struct device_attribute *
 {
 	struct cpif_tpmon *tpmon = &_tpmon;
 
-	return scnprintf(buf, PAGE_SIZE, "enable use user value: %d\n", tpmon->use_user_value);
+	return scnprintf(buf, PAGE_SIZE, "use_user_value:%d\n", tpmon->use_user_value);
 }
 
 static ssize_t use_user_value_store(struct device *dev, struct device_attribute *attr,
@@ -1027,23 +1053,15 @@ static ssize_t use_user_value_store(struct device *dev, struct device_attribute 
 	}
 
 	tpmon->use_user_value = value;
+	mif_info("use_user_value:%d\n", tpmon->use_user_value);
 
-	mif_info("enable use user value: %d\n", tpmon->use_user_value);
-
-	if (tpmon->use_user_value) {
-		tpmon_stop();
-
-		list_for_each_entry(data, &tpmon->data_list, data_node) {
-			if (data->set_data) {
-				data->user_value = data->values[0];
-				data->set_data(data);
-			}
+	list_for_each_entry(data, &tpmon->data_list, data_node) {
+		if (data->set_data) {
+			data->user_value = data->values[0];
+			data->set_data(data);
 		}
-
-		return count;
 	}
-
-	tpmon_start();
+	tpmon_stop();
 
 	return count;
 }
@@ -1086,11 +1104,16 @@ static ssize_t set_user_value_store(struct device *dev, struct device_attribute 
 	int value;
 	int ret;
 
-	ret = sscanf(buf, "%s %x", name, &value);
+	if (!tpmon->use_user_value) {
+		mif_info("use_user_value is not set\n");
+		return count;
+	}
+
+	ret = sscanf(buf, "%s %i", name, &value);
 	if (ret < 1)
 		return -EINVAL;
 
-	mif_info("%s %d 0x%x\n", name, value, value);
+	mif_info("Change %s to %d(0x%x)\n", name, value, value);
 
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
 		if (strcmp(data->name, name) == 0) {

@@ -2737,6 +2737,10 @@ static int legacy_link_rx_func_napi(struct mem_link_device *mld, int budget, int
 
 	}
 
+#if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
+	tpmon_add_legacy_packet_count(*work_done);
+#endif
+
 	return ret;
 }
 

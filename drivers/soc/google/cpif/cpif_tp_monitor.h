@@ -15,6 +15,9 @@
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 #include <soc/google/exynos_pm_qos.h>
 #endif
+#if IS_ENABLED(CONFIG_ARM_FREQ_QOS_TRACER)
+#include <soc/google/freq-qos-tracer.h>
+#endif
 
 #define MAX_TPMON_DATA	16
 #define MAX_TPMON_THRESHOLD	10
@@ -81,10 +84,12 @@ struct cpif_tpmon {
 	unsigned long rx_kbps;
 	unsigned long rx_sum;
 	unsigned long rx_bytes_data[MAX_RX_BYTES_COUNT];
+	u32 rx_bytes_idx;
 
 	u32 pktproc_queue_status;
 	u32 netdev_backlog_queue_status;
 	u32 dit_src_queue_status;
+	u32 legacy_packet_count;
 
 	u32 use_user_value;
 	u32 debug_print;
@@ -121,6 +126,7 @@ extern int tpmon_start(void);
 extern int tpmon_stop(void);
 extern int tpmon_init(void);
 extern void tpmon_add_rx_bytes(unsigned long bytes);
+extern void tpmon_add_legacy_packet_count(u32 count);
 extern void tpmon_add_net_node(struct list_head *node);
 extern int tpmon_check_active(void);
 #else
@@ -129,6 +135,7 @@ static inline int tpmon_start(void) { return 0; }
 static inline int tpmon_stop(void) { return 0; }
 static inline int tpmon_init(void) { return 0; }
 static inline void tpmon_add_rx_bytes(unsigned long bytes) { return; }
+static inline void tpmon_add_legacy_packet_count(u32 count) { return; }
 static inline void tpmon_add_net_node(struct list_head *node) { return; }
 static inline int tpmon_check_active(void) { return 0; }
 #endif
