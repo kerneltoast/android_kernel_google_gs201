@@ -134,6 +134,9 @@ enum smc_error_flag {
 	CP_CHECK_SIGN_NOT_FINISH = 0x100
 };
 
+static inline void start_tx_timer(struct mem_link_device *mld,
+				  struct hrtimer *timer);
+
 #if IS_ENABLED(CONFIG_CP_SECURE_BOOT)
 static char *smc_err_string[32] = {
 	"CP_NO_ERROR",
@@ -339,6 +342,7 @@ static void link_trigger_cp_crash(struct mem_link_device *mld, u32 crash_type,
 		case CRASH_REASON_MIF_RIL_BAD_CH:
 		case CRASH_REASON_MIF_RX_BAD_DATA:
 		case CRASH_REASON_MIF_FORCED:
+		case CRASH_REASON_CLD:
 			if (strlen(string))
 				strlcat(ld->crash_reason.string, string,
 						CP_CRASH_INFO_SIZE);
@@ -746,6 +750,8 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 	modem_notify_event(MODEM_EVENT_ONLINE, mc);
 
 exit:
+	if (ld->sbd_ipc)
+		start_tx_timer(mld, &mld->sbd_print_timer);
 	spin_unlock_irqrestore(&mld->state_lock, flags);
 }
 
@@ -1020,21 +1026,6 @@ static int tx_func(struct mem_link_device *mld, struct hrtimer *timer,
 	}
 	spin_unlock_irqrestore(&mc->lock, flags);
 
-	if (unlikely(under_tx_flow_ctrl(mld, dev))) {
-		ret = check_tx_flow_ctrl(mld, dev);
-		if (ret < 0) {
-			if (ret == -EBUSY || ret == -ETIME) {
-				skb_queue_tail(skb_txq, skb);
-				need_schedule = true;
-			} else {
-				link_trigger_cp_crash(mld, CRASH_REASON_MIF_TX_ERR,
-						"check_tx_flow_ctrl error");
-				need_schedule = false;
-			}
-			goto exit;
-		}
-	}
-
 	ret = txq_write(mld, dev, skb);
 	if (unlikely(ret < 0)) {
 		if (ret == -EBUSY || ret == -ENOSPC) {
@@ -1294,21 +1285,6 @@ static int sbd_tx_func(struct mem_link_device *mld, struct hrtimer *timer,
 		goto exit;
 	}
 	spin_unlock_irqrestore(&mc->lock, flags);
-
-	if (unlikely(sbd_under_tx_flow_ctrl(rb))) {
-		ret = sbd_check_tx_flow_ctrl(rb);
-		if (ret < 0) {
-			if (ret == -EBUSY || ret == -ETIME) {
-				skb_queue_tail(&rb->skb_q, skb);
-				need_schedule = true;
-			} else {
-				link_trigger_cp_crash(mld, CRASH_REASON_MIF_TX_ERR,
-						"check_sbd_tx_flow_ctrl error");
-				need_schedule = false;
-			}
-			goto exit;
-		}
-	}
 
 	ret = sbd_pio_tx(rb, skb);
 	if (unlikely(ret < 0)) {
@@ -2615,7 +2591,7 @@ exit:
 }
 
 #if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
-long gro_flush_time;
+long gro_flush_time = 10000;
 module_param(gro_flush_time, long, 0644);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
@@ -2760,6 +2736,7 @@ static int legacy_link_rx_func_napi(struct mem_link_device *mld, int budget, int
 		*work_done += ps_rcvd;
 
 	}
+
 	return ret;
 }
 
@@ -2908,6 +2885,7 @@ static int link_start_normal_boot(struct link_device *ld, struct io_device *iod)
 	sync_net_dev(ld);
 
 	init_legacy_link(&mld->legacy_link_dev);
+	skb_queue_purge(&iod->sk_rx_q);
 
 	if (mld->attrs & LINK_ATTR_BOOT_ALIGNED)
 		ld->aligned = true;
@@ -2940,6 +2918,7 @@ static int link_start_dump_boot(struct link_device *ld, struct io_device *iod)
 	sync_net_dev(ld);
 
 	init_legacy_link(&mld->legacy_link_dev);
+	skb_queue_purge(&iod->sk_rx_q);
 
 	if (mld->attrs & LINK_ATTR_DUMP_ALIGNED)
 		ld->aligned = true;
@@ -3073,15 +3052,37 @@ static inline u16 pcie_read_ap2cp_irq(struct mem_link_device *mld)
 }
 #endif
 
-#define SHMEM_SRINFO_DATA_STR	64
-#define SHMEM_BOOTLOG_BASE		0xC00
-#define SHMEM_BOOTLOG_BUFF		0x1FF
-#define SHMEM_BOOTLOG_OFFSET	0x4
-
 struct shmem_srinfo {
 	unsigned int size;
 	char buf[0];
 };
+
+#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
+static void shmem_clr_sbdcplog(struct mem_link_device *mld)
+{
+	u8 __iomem *base = mld->base + mld->size - SHMEM_BOOTSBDLOG_SIZE;
+
+	memset(base, 0, SHMEM_BOOTSBDLOG_SIZE);
+}
+
+void shmem_pr_sbdcplog(struct timer_list *t)
+{
+	struct link_device *ld = from_timer(ld, t, cplog_timer);
+	struct mem_link_device *mld = ld_to_mem_link_device(ld);
+	u8 __iomem *base = mld->base + mld->size - SHMEM_BOOTSBDLOG_SIZE;
+	u8 __iomem *offset;
+	int i;
+
+	mif_info("dump cp logs: size: 0x%x, base: %pK\n", (unsigned int)mld->size, base);
+
+	for (i = 0; i * 32 < SHMEM_BOOTSBDLOG_SIZE; i++) {
+		offset = base + i * 32;
+		mif_info("%6X: %*ph\n", (unsigned int)(offset - mld->base), 32, offset);
+	}
+
+	shmem_clr_sbdcplog(mld);
+}
+#endif
 
 /* not in use */
 static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
@@ -3129,7 +3130,7 @@ static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
 
 	case IOCTL_GET_CP_BOOTLOG:
 	{
-
+#if !IS_ENABLED(CONFIG_SBD_BOOTLOG)
 		u8 __iomem *base = mld->base + SHMEM_BOOTLOG_BASE;
 		char str[SHMEM_BOOTLOG_BUFF];
 		unsigned int size = base[0]        + (base[1] << 8)
@@ -3142,16 +3143,20 @@ static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
 
 		strncpy(str, base + SHMEM_BOOTLOG_OFFSET, size);
 		mif_info("CP boot log[%d] : %s\n", size, str);
+#else
+		mif_add_timer(&ld->cplog_timer, 0, shmem_pr_sbdcplog);
+#endif
 		break;
 	}
 
 	case IOCTL_CLR_CP_BOOTLOG:
 	{
+#if !IS_ENABLED(CONFIG_SBD_BOOTLOG)
 		u8 __iomem *base = mld->base + SHMEM_BOOTLOG_BASE;
 
 		mif_info("Clear CP boot log\n");
 		memset(base, 0, SHMEM_BOOTLOG_BUFF);
-
+#endif
 		break;
 	}
 
@@ -3325,6 +3330,7 @@ static irqreturn_t shmem_cp2ap_rat_mode_handler(int irq, void *data)
 static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 {
 	int i, counter = 0;
+	u32 mif_max_freq, mif_max_num_of_table = 0;
 	void *dvfs_block;
 	struct ect_dvfs_domain *dvfs_domain;
 
@@ -3338,8 +3344,27 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 
 	if (!strcmp(dvfs_domain_name, "MIF")) {
 		mld->mif_table.num_of_table = dvfs_domain->num_of_level;
+		mif_max_num_of_table = dvfs_domain->num_of_level;
 		mld->total_freq_table_count++;
-		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
+
+		if (mld->mif_table.use_dfs_max_freq) {
+			mif_info("use dfs max freq\n");
+			mif_max_freq = cal_dfs_get_max_freq(mld->mif_table.cal_id_mif);
+
+			for (i = 0; i < mif_max_num_of_table; i++) {
+				if (dvfs_domain->list_level[i].level == mif_max_freq) {
+					mif_max_num_of_table = mif_max_num_of_table - i;
+					counter = i;
+					break;
+				}
+
+				mld->mif_table.freq[mif_max_num_of_table - 1 - i] = mif_max_freq;
+				mif_err("MIF_LEV[%d] : %u\n",
+						mif_max_num_of_table - i, mif_max_freq);
+			}
+		}
+
+		for (i = mif_max_num_of_table - 1; i >= 0; i--) {
 			mld->mif_table.freq[i] =
 				dvfs_domain->list_level[counter++].level;
 			mif_err("MIF_LEV[%d] : %u\n", i + 1,
@@ -3748,6 +3773,86 @@ static const struct attribute_group napi_group = {
 	.name = "napi",
 };
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+static u32 p_pktproc[3];
+static u32 c_pktproc[3];
+
+static void pktproc_print(struct mem_link_device *mld)
+{
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+	int i;
+	struct pktproc_queue *q;
+
+	for (i = 0; i < ppa->num_queue; i++) {
+		q = ppa->q[i];
+
+		c_pktproc[0] = *q->fore_ptr;
+		c_pktproc[1] = *q->rear_ptr;
+		c_pktproc[2] = q->done_ptr;
+
+		if (memcmp(p_pktproc, c_pktproc, sizeof(u32)*3)) {
+			mif_err("Queue:%d fore:%d rear:%d done:%d\n",
+				i, c_pktproc[0], c_pktproc[1], c_pktproc[2]);
+			memcpy(p_pktproc, c_pktproc, sizeof(u32)*3);
+		}
+	}
+}
+#endif
+
+#define BUFF_SIZE 256
+static u32 p_rwpointer[4];
+static u32 c_rwpointer[4];
+
+static enum hrtimer_restart sbd_print(struct hrtimer *timer)
+{
+	struct mem_link_device *mld = container_of(timer, struct mem_link_device, sbd_print_timer);
+	struct sbd_link_device *sl = &mld->sbd_link_dev;
+	u16 id;
+	struct sbd_ring_buffer *rb[ULDL];
+	struct io_device *iod;
+	char buf[BUFF_SIZE] = { 0, };
+	int len = 0;
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	pktproc_print(mld);
+#endif
+
+	if (likely(sbd_active(sl))) {
+		id = sbd_ch2id(sl, QOS_HIPRIO);
+		rb[TX] = &sl->ipc_dev[id].rb[TX];
+		rb[RX] = &sl->ipc_dev[id].rb[RX];
+
+		c_rwpointer[0] = *(u32 *)rb[TX]->rp;
+		c_rwpointer[1] = *(u32 *)rb[TX]->wp;
+		c_rwpointer[2] = *(u32 *)rb[RX]->rp;
+		c_rwpointer[3] = *(u32 *)rb[RX]->wp;
+
+		if (memcmp(p_rwpointer, c_rwpointer, sizeof(u32)*4)) {
+			mif_err("TX %04d/%04d %04d/%04d RX %04d/%04d %04d/%04d\n",
+				c_rwpointer[0] & 0xFFFF, c_rwpointer[1] & 0xFFFF,
+				c_rwpointer[0] >> 16, c_rwpointer[1] >> 16,
+				c_rwpointer[2] & 0xFFFF, c_rwpointer[3] & 0xFFFF,
+				c_rwpointer[2] >> 16, c_rwpointer[3] >> 16);
+			memcpy(p_rwpointer, c_rwpointer, sizeof(u32)*4);
+
+			spin_lock(&rb[TX]->iod->msd->active_list_lock);
+			list_for_each_entry(iod, &rb[TX]->iod->msd->activated_ndev_list,
+					node_ndev) {
+				len += snprintf(buf + len, BUFF_SIZE - len, "%s: %lu/%lu ",
+						iod->name, iod->ndev->stats.tx_packets,
+						iod->ndev->stats.rx_packets);
+			}
+			spin_unlock(&rb[TX]->iod->msd->active_list_lock);
+
+			mif_err("%s\n", buf);
+		}
+	}
+
+	hrtimer_forward_now(timer, ms_to_ktime(1000));
+
+	return HRTIMER_RESTART;
+}
+
 struct link_device *create_link_device(struct platform_device *pdev, u32 link_type)
 {
 	struct modem_data *modem;
@@ -3923,6 +4028,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 		ld->is_csd_ch = sipc_csd_ch;
 		ld->is_log_ch = sipc_log_ch;
 		ld->is_router_ch = sipc_router_ch;
+		ld->is_misc_ch = sipc_misc_ch;
 		ld->is_embms_ch = NULL;
 		ld->is_uts_ch = NULL;
 		ld->is_wfs0_ch = NULL;
@@ -4128,6 +4234,10 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		mld->sbd_tx_timer.function = sbd_tx_timer_func;
 
+		hrtimer_init(&mld->sbd_print_timer,
+				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		mld->sbd_print_timer.function = sbd_print;
+
 		err = create_sbd_link_device(ld,
 				&mld->sbd_link_dev, mld->base, mld->size);
 		if (err < 0)
@@ -4275,6 +4385,22 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 #endif
 
 	if (ld->link_type == LINKDEV_SHMEM) {
+		err = of_property_read_u32(pdev->dev.of_node, "devfreq_use_dfs_max_freq",
+				&mld->mif_table.use_dfs_max_freq);
+		if (err) {
+			mif_err("devfreq_use_dfs_max_freq error:%d\n", err);
+			goto error;
+		}
+
+		if (mld->mif_table.use_dfs_max_freq) {
+			err = of_property_read_u32(pdev->dev.of_node,
+				"devfreq_cal_id_mif", &mld->mif_table.cal_id_mif);
+			if (err) {
+				mif_err("devfreq_cal_id_mif error:%d\n", err);
+				goto error;
+			}
+		}
+
 		/* Parsing devfreq, cpufreq table from ECT */
 		mif_info("Parsing MIF frequency table...\n");
 		err = parse_ect(mld, "MIF");

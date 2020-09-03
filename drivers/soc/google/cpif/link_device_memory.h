@@ -104,6 +104,18 @@ enum mem_iface_type {
 #define FORCE_CRASH_ACK_TIMEOUT		(5 * HZ)
 
 /*============================================================================*/
+#define SHMEM_SRINFO_DATA_STR	64
+
+#if !IS_ENABLED(CONFIG_SBD_BOOTLOG)
+#define SHMEM_BOOTLOG_BASE		0xC00
+#define SHMEM_BOOTLOG_BUFF		0x1FF
+#define SHMEM_BOOTLOG_OFFSET		0x4
+#else
+#define SHMEM_BOOTSBDLOG_SIZE		0x1000 /* 4KB */
+#define SHMEM_BOOTSBDLOG_MAIN_BASE	0x400
+#endif
+
+/*============================================================================*/
 struct __packed mem_snapshot {
 	/* Timestamp */
 	struct timespec64 ts;
@@ -149,6 +161,8 @@ enum mem_ipc_mode {
 
 struct freq_table {
 	int num_of_table;
+	u32 use_dfs_max_freq;
+	u32 cal_id_mif;
 	u32 freq[FREQ_MAX_LV];
 };
 
@@ -267,6 +281,7 @@ struct mem_link_device {
 
 	struct hrtimer tx_timer;
 	struct hrtimer sbd_tx_timer;
+	struct hrtimer sbd_print_timer;
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 	struct hrtimer pktproc_tx_timer;
 #endif

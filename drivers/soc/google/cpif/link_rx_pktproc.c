@@ -801,7 +801,7 @@ static ssize_t perftest_store(struct device *dev,
 		perf->ipi_cpu[3] = 4;
 	}
 
-	ret = sscanf(buf, "%d %d %d %d %d %x:%x:%x:%x:%x:%x:%x:%x %d %d %d %d",
+	ret = sscanf(buf, "%d %d %hu %d %d %hx:%hx:%hx:%hx:%hx:%hx:%hx:%hx %d %d %d %d",
 		&perf->mode, &perf->session, &perf->ch, &cpu, &perf->udelay,
 		&perf->clat_ipv6[0], &perf->clat_ipv6[1], &perf->clat_ipv6[2], &perf->clat_ipv6[3],
 		&perf->clat_ipv6[4], &perf->clat_ipv6[5], &perf->clat_ipv6[6], &perf->clat_ipv6[7],

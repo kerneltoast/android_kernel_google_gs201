@@ -13,5 +13,9 @@ int request_pcie_msi_int(struct link_device *ld,
 				struct platform_device *pdev);
 #endif
 
+#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
+void shmem_pr_sbdcplog(struct timer_list *t);
+#endif
+
 #endif /* end of __LINK_DEVICE_H__ */
 

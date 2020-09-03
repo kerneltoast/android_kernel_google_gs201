@@ -223,10 +223,12 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (unlikely(ret < 0)) {
 		if (ret != -EBUSY) {
 			mif_err_limited("%s->%s: ERR! %s->send fail:%d (tx_bytes:%d len:%d)\n",
-					iod->name, mc->name, ld->name, ret,
-					tx_bytes, count);
+				iod->name, mc->name, ld->name, ret,
+				tx_bytes, count);
+			goto drop;
 		}
-		goto drop;
+
+		goto retry;
 	}
 
 	if (ret != tx_bytes) {

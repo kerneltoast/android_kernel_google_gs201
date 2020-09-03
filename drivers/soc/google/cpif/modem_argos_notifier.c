@@ -38,15 +38,15 @@ unsigned int lit_rmnet_clat_rps = 0x06;
 module_param(lit_rmnet_clat_rps, uint, 0664);
 MODULE_PARM_DESC(lit_rmnet_clat_rps, "rps_cpus for rmnetx: LITTLE(both up)");
 
-unsigned int lit_clat_rps = 0x30;
+unsigned int lit_clat_rps = 0x70;
 module_param(lit_clat_rps, uint, 0664);
 MODULE_PARM_DESC(lit_clat_rps, "rps_cpus for v4-rmnetx: LITTLE(both up)");
 
-unsigned int big_rmnet_rps = 0x30;
+unsigned int big_rmnet_rps = 0x70;
 module_param(big_rmnet_rps, uint, 0664);
 MODULE_PARM_DESC(big_rmnet_rps, "rps_cpus for rmnetx: BIG(only rmnetx up)");
 
-unsigned int big_rmnet_clat_rps = 0x30;
+unsigned int big_rmnet_clat_rps = 0x70;
 module_param(big_rmnet_clat_rps, uint, 0664);
 MODULE_PARM_DESC(big_rmnet_clat_rps, "rps_cpus for rmnetx: BIG(both up)");
 
@@ -54,12 +54,12 @@ unsigned int big_clat_rps = 0xc0;
 module_param(big_clat_rps, uint, 0664);
 MODULE_PARM_DESC(big_clat_rps, "rps_cpus for v4-rmnetx: BIG(both up)");
 
-unsigned int mif_rps_thresh = 200;
+unsigned int mif_rps_thresh = 300;
 module_param(mif_rps_thresh, uint, 0664);
 MODULE_PARM_DESC(mif_rps_thresh, "threshold speed");
 
 int mif_gro_flush_thresh[] = {100, 200, -1};
-long mif_gro_flush_time[] = {0, 10000, 100000};
+long mif_gro_flush_time[] = {10000, 50000, 100000};
 
 static int mif_store_rps_map(struct netdev_rx_queue *queue, char *buf, size_t len)
 {
@@ -111,9 +111,9 @@ static int mif_store_rps_map(struct netdev_rx_queue *queue, char *buf, size_t le
 	rcu_assign_pointer(queue->rps_map, map);
 
 	if (map)
-		static_key_slow_inc(&rps_needed);
+		static_branch_inc(&rps_needed);
 	if (old_map)
-		static_key_slow_dec(&rps_needed);
+		static_branch_dec(&rps_needed);
 
 	spin_unlock(&rps_map_lock);
 
@@ -210,6 +210,7 @@ static int mif_argos_notifier_ipc(struct notifier_block *nb, unsigned long speed
 	return NOTIFY_OK;
 }
 
+#ifdef SUPPORT_CLATD
 static int mif_argos_notifier_clat(struct notifier_block *nb, unsigned long speed, void *data)
 {
 	struct argos_notifier *nf = container_of(nb, struct argos_notifier, clat_nb);
@@ -252,6 +253,7 @@ static int mif_argos_notifier_clat(struct notifier_block *nb, unsigned long spee
 
 	return NOTIFY_OK;
 }
+#endif
 
 int mif_init_argos_notifier(void)
 {
@@ -273,6 +275,7 @@ int mif_init_argos_notifier(void)
 		goto exit;
 	}
 
+#ifdef SUPPORT_CLATD
 	argos_nf->clat_nb.notifier_call = mif_argos_notifier_clat;
 	ret = sec_argos_register_notifier(&argos_nf->clat_nb, MIF_ARGOS_CLAT_LABEL);
 	if (ret < 0) {
@@ -280,6 +283,7 @@ int mif_init_argos_notifier(void)
 		sec_argos_unregister_notifier(&argos_nf->ipc_nb, MIF_ARGOS_IPC_LABEL);
 		goto exit;
 	}
+#endif
 
 	/* default rmnetx rps: 0x06 */
 	mif_update_ndevs_rps(ndev_prefix[IPC], lit_rmnet_rps);

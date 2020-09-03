@@ -459,6 +459,8 @@ static int power_on_cp(struct modem_ctl *mc)
 
 	mif_info("%s: +++\n", mc->name);
 
+	mc->receive_first_ipc = 0;
+
 	mif_disable_irq(&mc->s5100_irq_phone_active);
 	mif_disable_irq(&mc->s5100_irq_ap_wakeup);
 	drain_workqueue(mc->wakeup_wq);
@@ -557,8 +559,15 @@ exit:
 static int power_reset_dump_cp(struct modem_ctl *mc)
 {
 	struct s51xx_pcie *s51xx_pcie = NULL;
+	struct link_device *ld = get_current_link(mc->iod);
+	struct mem_link_device *mld = to_mem_link_device(ld);
 
 	mif_info("%s: +++\n", mc->name);
+
+	mc->receive_first_ipc = 0;
+
+	if (ld->sbd_ipc && hrtimer_active(&mld->sbd_print_timer))
+		hrtimer_cancel(&mld->sbd_print_timer);
 
 	mc->phone_state = STATE_CRASH_EXIT;
 	mif_disable_irq(&mc->s5100_irq_phone_active);
@@ -604,8 +613,15 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 static int power_reset_cp(struct modem_ctl *mc)
 {
 	struct s51xx_pcie *s51xx_pcie = NULL;
+	struct link_device *ld = get_current_link(mc->iod);
+	struct mem_link_device *mld = to_mem_link_device(ld);
 
 	mif_info("%s: +++\n", mc->name);
+
+	mc->receive_first_ipc = 0;
+
+	if (ld->sbd_ipc && hrtimer_active(&mld->sbd_print_timer))
+		hrtimer_cancel(&mld->sbd_print_timer);
 
 	mc->phone_state = STATE_OFFLINE;
 	pcie_clean_dislink(mc);

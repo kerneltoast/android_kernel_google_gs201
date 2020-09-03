@@ -225,6 +225,11 @@ static inline bool sipc_router_ch(u8 ch)
 		true : false;
 }
 
+static inline bool sipc_misc_ch(u8 ch)
+{
+	return (ch == SIPC_CH_ID_CASS) ? true : false;
+}
+
 struct sipc5_frame_data {
 	/* Frame length calculated from the length fields */
 	unsigned int len;

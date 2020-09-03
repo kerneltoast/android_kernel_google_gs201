@@ -407,6 +407,14 @@ int create_sbd_mem_map(struct sbd_link_device *sl)
 				i, sbd_id2ch(sl, i), udl_str(dir), rb->buff_rgn,
 				calc_offset(rb->buff_rgn, sl->shmem), (rb_len * rb_buff_size));
 
+#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
+			if (rb->buff_rgn + (rb_len * rb_buff_size) >=
+				sl->shmem + sl->shmem_size - SHMEM_BOOTSBDLOG_SIZE) {
+				mif_err("sbd buffer break boot log area\n");
+				return -ENOMEM;
+			}
+#endif
+
 			rb->rp = &sl->rp[dir][i];
 			rb->wp = &sl->wp[dir][i];
 

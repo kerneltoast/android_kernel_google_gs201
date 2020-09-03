@@ -370,7 +370,7 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 				CP_CRASH_INFO_SIZE - strlen(CP_CRASH_TAG)))
 				return -EFAULT;
 		mif_info("Crash Reason: %s\n", buff);
-		panic(buff);
+		panic("%s", buff);
 		return 0;
 	}
 

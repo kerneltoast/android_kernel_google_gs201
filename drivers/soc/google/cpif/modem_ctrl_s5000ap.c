@@ -29,6 +29,9 @@
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
 #endif
+#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
+#include "link_device.h"
+#endif
 #if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 #include "../../../video/fbdev/exynos/dpu30/decon.h"
 static int s5000ap_lcd_notifier(struct notifier_block *notifier,
@@ -298,6 +301,8 @@ static int power_on_cp(struct modem_ctl *mc)
 {
 	mif_info("+++\n");
 
+	mc->receive_first_ipc = 0;
+
 #if !IS_ENABLED(CONFIG_CP_SECURE_BOOT)
 	exynos_cp_init();
 #endif
@@ -366,10 +371,15 @@ static int power_reset_cp(struct modem_ctl *mc)
 
 	mif_info("+++\n");
 
+	mc->receive_first_ipc = 0;
+
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))
 		del_timer(&mld->crash_ack_timer);
 	atomic_set(&mld->forced_cp_crash, 0);
+
+	if (ld->sbd_ipc && hrtimer_active(&mld->sbd_print_timer))
+		hrtimer_cancel(&mld->sbd_print_timer);
 
 	/* mc->phone_state = STATE_OFFLINE; */
 	if (mc->phone_state == STATE_OFFLINE) {
@@ -407,10 +417,15 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 
 	mif_info("+++\n");
 
+	mc->receive_first_ipc = 0;
+
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))
 		del_timer(&mld->crash_ack_timer);
 	atomic_set(&mld->forced_cp_crash, 0);
+
+	if (ld->sbd_ipc && hrtimer_active(&mld->sbd_print_timer))
+		hrtimer_cancel(&mld->sbd_print_timer);
 
 	/* mc->phone_state = STATE_OFFLINE; */
 	if (mc->phone_state == STATE_OFFLINE) {
@@ -531,6 +546,9 @@ static int complete_normal_boot(struct modem_ctl *mc)
 	struct modem_data *modem = mc->mdm_data;
 	struct mem_link_device *mld = modem->mld;
 #endif
+#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
+	struct link_device *ld = get_current_link(mc->bootd);
+#endif
 
 	mif_info("+++\n");
 
@@ -574,6 +592,9 @@ static int complete_normal_boot(struct modem_ctl *mc)
 			mc->sbi_lcd_status_pos);
 #endif /* CONFIG_CP_LCD_NOTIFIER */
 
+#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
+	mif_add_timer(&ld->cplog_timer, (10 * HZ), shmem_pr_sbdcplog);
+#endif
 	mif_info("---\n");
 
 exit:

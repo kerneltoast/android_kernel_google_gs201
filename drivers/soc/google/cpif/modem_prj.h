@@ -143,7 +143,8 @@ enum crash_type {
 	CRASH_REASON_MIF_RSV_MAX = 12,
 	CRASH_REASON_CP_SRST,
 	CRASH_REASON_CP_RSV_0,
-	CRASH_REASON_CP_RSV_MAX = 15,
+	CRASH_REASON_CP_RSV_MAX,
+	CRASH_REASON_CLD = 16,
 	CRASH_REASON_NONE = 0xFFFF,
 };
 
@@ -455,6 +456,7 @@ struct link_device {
 	bool (*is_csd_ch)(u8 ch);
 	bool (*is_log_ch)(u8 ch);
 	bool (*is_router_ch)(u8 ch);
+	bool (*is_misc_ch)(u8 ch);
 	bool (*is_embms_ch)(u8 ch);
 	bool (*is_uts_ch)(u8 ch);
 	bool (*is_wfs0_ch)(u8 ch);
@@ -543,6 +545,11 @@ struct link_device {
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	int (*register_pcie)(struct link_device *ld);
+#endif
+
+#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
+	/* print cp boot/main logs */
+	struct timer_list cplog_timer;
 #endif
 };
 
@@ -793,6 +800,8 @@ struct modem_ctl {
 	void (*gpio_revers_bias_clear)(void);
 	void (*gpio_revers_bias_restore)(void);
 	void (*modem_complete)(struct modem_ctl *mc);
+
+	int receive_first_ipc;
 
 	struct notifier_block lcd_notifier;
 };

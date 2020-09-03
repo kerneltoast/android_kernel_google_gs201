@@ -203,7 +203,7 @@ static long btl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case IOCTL_GET_BTL_SIZE:
-		mif_info("IOCTL_BTL_FULL_DUMP:%d 0x%08x\n", btl->id, btl_size);
+		mif_info("IOCTL_BTL_FULL_DUMP:%d 0x%08lx\n", btl->id, btl_size);
 		ret = copy_to_user((void __user *)arg, &btl_size, sizeof(btl_size));
 		if (ret) {
 			mif_err("copy_to_user() error:%d\n", ret);

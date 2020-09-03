@@ -274,6 +274,9 @@ static ssize_t ipc_write(struct file *filp, const char __user *data,
 		headroom = 0;
 	}
 
+	if (unlikely(!mc->receive_first_ipc) && ld->is_log_ch(iod->ch))
+		return -EBUSY;
+
 	while (copied < cnt) {
 		remains = cnt - copied;
 

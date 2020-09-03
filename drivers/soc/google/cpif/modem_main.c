@@ -50,7 +50,7 @@
 #include "cpif_qos_info.h"
 #endif
 
-#define FMT_WAKE_TIME   (HZ/2)
+#define FMT_WAKE_TIME   (msecs_to_jiffies(300))
 #define RAW_WAKE_TIME   (HZ*6)
 #define NET_WAKE_TIME	(HZ/2)
 
