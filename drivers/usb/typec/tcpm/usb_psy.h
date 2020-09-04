@@ -19,6 +19,8 @@ struct usb_psy_ops {
 					   enum power_supply_usb_type
 					   usb_type);
 };
+
+void usb_psy_set_sink_state(void *usb_psy, bool enabled);
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 		    struct usb_psy_ops *ops);
 void usb_psy_teardown(void *usb_data);

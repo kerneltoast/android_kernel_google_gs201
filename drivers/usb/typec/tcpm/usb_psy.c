@@ -61,6 +61,9 @@ struct usb_psy_data {
 	struct kthread_worker *wq;
 	struct kthread_delayed_work icl_work;
 	atomic_t retry_count;
+
+	/* sink connected state from Type-C */
+	bool sink_enabled;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -184,10 +187,13 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 	struct usb_psy_ops *ops = usb->psy_ops;
 	struct i2c_client *client = usb->tcpc_client;
 
+	if (!usb)
+		return 0;
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = usb_get_current_max_ma(usb) >
-			ONLINE_THRESHOLD_UA ? 1 : 0;
+		val->intval = usb->sink_enabled ? usb_get_current_max_ma(usb) > ONLINE_THRESHOLD_UA
+			? 1 : 0 : 0;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		val->intval = usb_get_current_max_ma(usb);
@@ -245,6 +251,18 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 
 	return 0;
 }
+
+void usb_psy_set_sink_state(void *usb_psy, bool enabled)
+{
+	struct usb_psy_data *usb = usb_psy;
+
+	if (!usb || !usb->usb_psy)
+		return;
+
+	usb->sink_enabled = enabled;
+	power_supply_changed(usb->usb_psy);
+}
+EXPORT_SYMBOL_GPL(usb_psy_set_sink_state);
 
 //todo: Expose settled ICL limit
 static enum power_supply_property usb_psy_data_props[] = {
