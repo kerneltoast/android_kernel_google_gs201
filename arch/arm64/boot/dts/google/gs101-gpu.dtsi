@@ -7,6 +7,11 @@
  */
 
 / {
+	mali_mgm: physical-memory-group-manager {
+		compatible = "arm,physical-memory-group-manager";
+		pt_id = "GPU";
+	};
+
 	mali: mali@1C500000 {
 		compatible = "arm,malit6xx";
 		reg = <0x0 0x1C500000 0x5000>;
@@ -22,6 +27,9 @@
 		gpu_pmu_status_reg_offset = <0x2004>;
 		gpu_pmu_status_local_pwr_mask = <0x1>; /*0x1 << 0*/
 		gpu_pm_autosuspend_delay = <50>;
+
+		/* Memory */
+		physical-memory-group-manager = <&mali_mgm>;
 
 		/* Clocks */
 		gpu0_cmu_cal_id = <ACPM_DVFS_G3DL2>;
