@@ -4,25 +4,46 @@
 #define __GPU_COOLING_H__
 
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/thermal.h>
 
 #define GPU_TABLE_END     ~1
 
+/**
+ * struct gpu_tmu_notification_data - data to store TMU data for GPU driver
+ *
+ * @gpu_drv_data: Pointer to GPU driver data obtained from GPU DT entry.
+ * @data:         Payload of this event.
+ */
+struct gpu_tmu_notification_data {
+	void *gpu_drv_data;
+	int data;
+};
+
+struct gpufreq_cooling_query_fns {
+	int (*get_num_levels)(void *gpu_drv_data);
+	int (*get_freqs_for_level)(void *gpu_drv_data, int level, int *clk0, int *clk1);
+	int (*get_vols_for_level)(void *gpu_drv_data, int level, int *vol0, int *vol1);
+	int (*get_cur_level)(void *gpu_drv_data);
+	int (*get_cur_util)(void *gpu_drv_data);
+};
+
 #if IS_ENABLED(CONFIG_GPU_THERMAL)
-#if IS_ENABLED(CONFIG_MALI_DVFS)
-int gpu_dvfs_get_clock(int level);
-int gpu_dvfs_get_voltage(int clock);
-int gpu_dvfs_get_step(void);
-int gpu_dvfs_get_cur_clock(void);
-int gpu_dvfs_get_utilization(void);
-int gpu_dvfs_get_max_freq(void);
+struct thermal_cooling_device *gpufreq_cooling_register(
+				struct device_node *np,
+				void *gpu_drv_data, struct gpufreq_cooling_query_fns *gpu_fns);
+
+void gpufreq_cooling_unregister(struct thermal_cooling_device *cdev);
 #else
-static inline int gpu_dvfs_get_clock(int level) { return 0; }
-static inline int gpu_dvfs_get_voltage(int clock) { return 0; }
-static inline int gpu_dvfs_get_step(void) { return 0; }
-static inline int gpu_dvfs_get_cur_clock(void) { return 0; }
-static inline int gpu_dvfs_get_utilization(void) { return 0; }
-static inline int gpu_dvfs_get_max_freq(void) { return 0; }
-#endif
-#endif
+static inline struct thermal_cooling_device *gpufreq_cooling_register(
+				struct device_node *np,
+				void *gpu_drv_data, struct gpufreq_cooling_query_fns *gpu_fns)
+{
+	return NULL;
+}
+static inline void gpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
+{
+}
+#endif /* IS_ENABLED(CONFIG_GPU_THERMAL) */
+
 #endif /* __GPU_COOLING_H__ */

@@ -54,9 +54,9 @@ static inline int exynos_tmu_add_notifier(struct notifier_block *n)
 }
 #endif
 #if IS_ENABLED(CONFIG_GPU_THERMAL)
-extern int exynos_gpu_add_notifier(struct notifier_block *n);
+extern int gpufreq_cooling_add_notifier(struct notifier_block *n);
 #else
-static inline int exynos_gpu_add_notifier(struct notifier_block *n)
+static inline int gpufreq_cooling_add_notifier(struct notifier_block *n)
 {
 	return 0;
 }
