@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Display nodes for slider-related boards.
+ *
+ * Copyright 2019 Google LLC
+ *
+ */
+
+&drmdsim1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	panel@0 {
+		compatible = "samsung,s6e3hc2";
+		reg = <0>;
+		/* touch = <&spitouch>; */
+
+		/* reset, power */
+		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo22_reg>;
+		vddi-supply = <&m_ldo30_reg>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;
+	};
+};
+

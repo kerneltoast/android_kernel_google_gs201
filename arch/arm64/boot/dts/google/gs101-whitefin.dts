@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Whitefin device tree source
+ *
+ * Copyright 2020 Google,LLC
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "gs101-whitefin-common.dtsi"
+#include "gs101-whitefin1-display.dtsi"
+
+/ {
+	board_id = <0x201>;
+	board_rev = <0x200>;
+	fragment@boardbase {
+		target-path="/";
+		__overlay__ {
+			model = "GS101 WHITEFIN based on GS101";
+			compatible = "google,GS101 WHITEFIN", "google,GS101";
+		};
+	};
+};
+

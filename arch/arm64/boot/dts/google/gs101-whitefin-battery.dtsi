@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to Whitefin
+ *
+ * Copyright 2020 Google,LLC
+ *
+ */
+
+/ {
+	fragment@gcpm {
+		target-path = "/";
+		__overlay__ {
+			google,cpm {
+				google,chg-power-supplies = "main-charger";
+			};
+		};
+	};
+};
+
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsi2c8_bus>;
+
+	pack_bee: m24c08@50 {
+		status = "okay";
+		compatible = "stchip,m24c08";
+
+		reg = <0x50>;
+	};
+};

@@ -10,7 +10,6 @@
 /plugin/;
 
 #include "gs101-slider-common.dtsi"
-#include "gs101-slider-gsc.dtsi"
 #include "gs101-slider2-cp-s5200-sit.dtsi"
 
 / {

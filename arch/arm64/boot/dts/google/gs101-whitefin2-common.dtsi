@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Whitefin2 common device tree source
+ *
+ * Copyright 2020 Google,LLC
+ */
+
+#include "gs101-whitefin-common.dtsi"
+
+#include "gs101-slider-gsa-gsc.dtsi"
+#include "gs101-whitefin2-pmic.dtsi"

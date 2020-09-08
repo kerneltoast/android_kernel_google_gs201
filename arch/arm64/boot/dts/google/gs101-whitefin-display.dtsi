@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS101 Whitefin-specific display device tree source
+ *
+ * Copyright (c) 2020 Google, LLC
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+&drmdecon0 {
+	out_type = <0x1>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
+};
+
+&drmdsim0 {
+	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	panel@0 {
+		compatible = "samsung,s6e3hc2-fhd";
+		reg = <0>;
+		/* touch = <&spitouch>; */
+
+		/* reset, power */
+		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo22_reg>;
+		vddi-supply = <&m_ldo31_reg>;
+	};
+
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&drmdsim1 {
+	status = "disabled";
+};
