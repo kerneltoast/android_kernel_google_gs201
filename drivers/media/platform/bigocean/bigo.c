@@ -23,6 +23,7 @@
 #include "bigo_pm.h"
 #include "bigo_priv.h"
 #include "bigo_slc.h"
+#include "bigo_debug.h"
 
 #define BIGO_DEVCLASS_NAME "video_codec"
 #define BIGO_CHRDEV_NAME "bigocean"
@@ -511,6 +512,8 @@ static int bigo_probe(struct platform_device *pdev)
 	if(platform_device_register(&bigo_sscd_dev))
 		pr_warn("Failed to register bigo_sscd_dev.\n");
 
+	bigo_init_debugfs(core);
+
 	return rc;
 
 err_fault_handler:
@@ -529,6 +532,7 @@ static int bigo_remove(struct platform_device *pdev)
 {
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
+	bigo_uninit_debugfs(core);
 	platform_device_unregister(&bigo_sscd_dev);
 	bigo_pt_client_unregister(core);
 	iommu_unregister_device_fault_handler(&pdev->dev);
