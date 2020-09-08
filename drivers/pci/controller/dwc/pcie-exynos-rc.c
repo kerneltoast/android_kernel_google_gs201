@@ -555,6 +555,25 @@ static ssize_t power_stats_show(struct device *dev, struct device_attribute *att
 
 static DEVICE_ATTR_RO(power_stats);
 
+static ssize_t link_speed_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int ret = 0;
+	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+	int link_speed;
+
+	link_speed = exynos_pcie_rc_check_link_speed(exynos_pcie->ch_num);
+	if (link_speed > 0) {
+		dev_info(dev, "\tCurrent Link Speed = GEN%d", link_speed);
+		ret = scnprintf(buf, PAGE_SIZE, "GEN%d\n", link_speed);
+	} else {
+		ret = scnprintf(buf, PAGE_SIZE, "Link is not up\n");
+	}
+
+	return ret;
+}
+
+static DEVICE_ATTR_RO(link_speed);
+
 static inline int create_pcie_sys_file(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
@@ -598,7 +617,13 @@ static inline int create_pcie_sys_file(struct device *dev)
 	if (ret) {
 		dev_err(dev, "%s: couldn't create device file for power_stats(%d)\n",
 			__func__, ret);
+		return ret;
+	}
 
+	ret = device_create_file(dev, &dev_attr_link_speed);
+	if (ret) {
+		dev_err(dev, "%s: couldn't create device file for link_speed(%d)\n",
+			__func__, ret);
 		return ret;
 	}
 
@@ -610,6 +635,7 @@ static inline void remove_pcie_sys_file(struct device *dev)
 	device_remove_file(dev, &dev_attr_pcie_rc_test);
 	device_remove_file(dev, &dev_attr_link_state);
 	device_remove_file(dev, &dev_attr_power_stats);
+	device_remove_file(dev, &dev_attr_link_speed);
 }
 
 static int exynos_pcie_rc_clock_enable(struct pcie_port *pp, int enable)
