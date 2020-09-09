@@ -22,6 +22,14 @@ config ZCOMP_CPU
 	  Support CPU compressor. User should configuire it via echo
 	  "lzo" > /sys/block/zramX/comp_algorithm
 
+config ZCOMP_EH
+	tristate "Support Emerald Hill HW compressor"
+	depends on ZRAM
+	select GOOGLE_EH
+	help
+	  Support Emerald Hill HW compressor. User should configure it via
+	  echo "lz77eh" > /sys/block/zramX/comp_algorithm
+
 config ZRAM_WRITEBACK
        bool "Write back incompressible or idle page to backing device"
        depends on ZRAM
