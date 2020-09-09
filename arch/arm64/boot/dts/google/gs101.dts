@@ -414,7 +414,6 @@
 		reg = <0x0 0x17440000 0x1000>;          /* TIMER_APM */
 		reg-names = "timer_apm";
 		peritimer-cnt = <0xFFFF>;
-		fvmap_addr = <0x31000>;
 	};
 
 	acpm_ipc {
@@ -430,6 +429,7 @@
 		logging-period = <500>;
 		dump-base = <0x203E000>;
 		dump-size = <0x3B000>;                  /* 236KB */
+		fvmap_addr = <0x31000>;
 	};
 
 	acpm_stats {
