@@ -2288,36 +2288,8 @@ static int shmem_send(struct link_device *ld, struct io_device *iod,
 {
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	u8 ch = iod->ch;
-	int ret = -ENODEV;
-	unsigned long remain;
 
-	if (ld->is_ps_ch(iod->ch)) {
-		if (unlikely(atomic_read(&ld->netif_stopped) > 0)) {
-			if (skb->queue_mapping != 1) {
-				if (in_interrupt()) {
-					mif_err("raw tx is suspended, drop size=%d\n",
-							skb->len);
-					ret = -EBUSY;
-					goto exit;
-				}
-
-				mif_err("wait TX RESUME CMD...\n");
-				reinit_completion(&ld->raw_tx_resumed);
-				remain = wait_for_completion_timeout(&ld->raw_tx_resumed,
-						msecs_to_jiffies(3000));
-				if (remain == 0)
-					mif_err("TX resume timeout\n");
-				else
-					mif_err("TX resumed done.\n");
-			} else {
-				mif_err_limited("Tx_flowctrl, but received ack from ch %d\n", ch);
-			}
-		}
-	}
-	ret = xmit_to_cp(mld, iod, ch, skb);
-
-exit:
-	return ret;
+	return xmit_to_cp(mld, iod, ch, skb);
 }
 
 static void link_prepare_normal_boot(struct link_device *ld, struct io_device *iod)
