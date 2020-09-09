@@ -188,12 +188,11 @@
 					tpmon_rps {
 						tpmon,enable = <1>;
 						tpmon,name = "RPS";
-						tpmon,measure = <TPMON_MEASURE_NETDEV_Q>;
+						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_RPS>;
 						tpmon,idx = <0>;
-						/* Netdev backlog queue */
-						tpmon,threshold = <3000>;
-						tpmon,values = <0x0E 0xD0>;
+						tpmon,threshold = <300>;	/* Mbps */
+						tpmon,values = <0x0B 0x30>;
 					};
 					tpmon_gro_flush_time {
 						tpmon,enable = <1>;
@@ -211,7 +210,7 @@
 						tpmon,target = <TPMON_TARGET_MIF>;
 						tpmon,idx = <0>;
 						tpmon,threshold = <1500>;	/* Mbps */
-						tpmon,values = <0 0x7FFFFFFF>;
+						tpmon,values = <0 1014000>;
 					};
 					tpmon_cpu_cl0 {
 						tpmon,enable = <0>;
@@ -241,7 +240,7 @@
 						tpmon,values = <1 0>;
 					};
 					tpmon_irq_affinity_0 {
-						tpmon,enable = <1>;
+						tpmon,enable = <0>;
 						tpmon,name = "IRQ_0";
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_IRQ_PCIE>;
@@ -249,23 +248,14 @@
 						tpmon,threshold = <500>;	/* Mbps */
 						tpmon,values = <0 5>;
 					};
-					tpmon_irq_affinity_1 {
-						tpmon,enable = <1>;
-						tpmon,name = "DIT";
+					tpmon_irq_affinity_dit {
+						tpmon,enable = <0>;
+						tpmon,name = "IRQ_DIT";
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_IRQ_DIT>;
 						tpmon,idx = <0>;
 						tpmon,threshold = <3000>;	/* Mbps */
 						tpmon,values = <2 4>;
-					};
-					tpmon_int_freq {
-						tpmon,enable = <1>;
-						tpmon,name = "INT";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_INT_FREQ>;
-						tpmon,idx = <0>;
-						tpmon,threshold = <2000>;	/* Mbps */
-						tpmon,values = <0 400000>;
 					};
 				};
 
