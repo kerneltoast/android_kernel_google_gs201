@@ -886,8 +886,8 @@ static int cp_itmon_notifier(struct notifier_block *nb,
 	if (IS_ERR_OR_NULL(itmon_data))
 		return NOTIFY_DONE;
 
-	if (itmon_data->port && (strncmp("MODEM", itmon_data->port,
-					sizeof("MODEM") - 1) == 0)) {
+	if (itmon_data->port && (strncmp("CP_", itmon_data->port,
+					sizeof("CP_") - 1) == 0)) {
 		modem_force_crash_exit_ext();
 		mif_info("CP itmon notifier: cp crash request complete\n");
 		return NOTIFY_OK;
