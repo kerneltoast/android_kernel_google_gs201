@@ -1,0 +1,519 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google GS101 Common Audio Device Tree Source
+ *
+ * Copyright (c) 2020 Google, LLC
+ *		https://www.google.com
+ *
+*/
+
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/sound/google-aoc.h>
+
+/ {
+	V_SYS_dummy: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_SYS_DUMMY";
+		regulator-min-microvolt = <4200000>;
+		regulator-max-microvolt = <4200000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	aoc_pcm_ep: aoc_pcm_drv {
+		compatible = "google-aoc-snd-pcm";
+	};
+
+	aoc_voice_ep: aoc_voice_drv {
+		compatible = "google-aoc-snd-voice";
+	};
+
+	aoc_compr_ep: aoc_compr_drv {
+		compatible = "google-aoc-snd-compr";
+	};
+
+	aud_aoc_path: aoc_path {
+		#sound-dai-cells = <1>;
+		compatible = "google-aoc-path";
+	};
+
+	sound-aoc {
+		compatible = "google-aoc-snd-card";
+		aoc-card-name = "google,aoc-snd-card";
+
+		dai_link {
+			dai_fe_ep1_rx: fe_ep1_rx {
+				dai-name = "audio_playback0";
+				stream-name = "EP1 playback";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP1_RX>;
+				dynamic;
+				playback;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP1_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep2_rx: fe_ep2_rx {
+				dai-name = "audio_playback1";
+				stream-name = "EP2 playback";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP2_RX>;
+				dynamic;
+				playback;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP2_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep3_rx: fe_ep3_rx  {
+				dai-name = "audio_playback2";
+				stream-name = "EP3 playback";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP3_RX>;
+				dynamic;
+				playback;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP3_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep4_rx: fe_ep4_rx  {
+				dai-name = "audio_playback3";
+				stream-name = "EP4 playback";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP4_RX>;
+				dynamic;
+				playback;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP4_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep5_rx: fe_ep5_rx  {
+				dai-name = "audio_playback4";
+				stream-name = "EP5 playback";
+				platform = <&aoc_voice_ep>;
+				id = <IDX_EP5_RX>;
+				dynamic;
+				playback;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP5_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep6_rx: fe_ep6_rx {
+				dai-name = "audio_playback5";
+				stream-name = "EP6 playback";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP6_RX>;
+				dynamic;
+				playback;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP6_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep7_rx: fe_ep7_rx  {
+				dai-name = "audio_playback6";
+				stream-name = "EP7 playback";
+				platform = <&aoc_compr_ep>;
+				id = <IDX_EP7_RX>;
+				dynamic;
+				playback;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP7_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep8_rx: fe_ep8_rx  {
+				dai-name = "audio_haptics";
+				stream-name = "EP8 playback";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP8_RX>;
+				dynamic;
+				playback;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP8_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep1_tx: fe_ep1_tx  {
+				dai-name = "audio_capture0";
+				stream-name = "EP1 capture";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP1_TX>;
+				dynamic;
+				capture;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP1_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep2_tx: fe_ep2_tx {
+				dai-name = "audio_capture1";
+				stream-name = "EP2 capture";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP2_TX>;
+				dynamic;
+				capture;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP2_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep3_tx: fe_ep3_tx {
+				dai-name = "audio_capture2";
+				stream-name = "EP3 capture";
+				platform = <&aoc_pcm_ep>;
+				id = <IDX_EP3_TX>;
+				dynamic;
+				capture;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP3_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_fe_ep4_tx: fe_ep4_tx {
+				dai-name = "audio_capture3";
+				stream-name = "EP4 capture";
+				platform = <&aoc_voice_ep>;
+				id = <IDX_EP4_TX>;
+				dynamic;
+				capture;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP4_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+			};
+
+			dai_be_i2s0_rx: be_i2s0_rx {
+				dai-name = "I2S_0_RX Playback";
+				stream-name = "I2S_0_RX Playback";
+				platform-name = "snd-soc-dummy";
+				id = <I2S_0_RX>;
+				playback;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path I2S_0_RX>;
+				};
+				daifmt {
+					dai-format = "i2s";
+				};
+			};
+
+			dai_be_i2s0_tx: be_i2s0_tx {
+				dai-name = "I2S_0_TX Capture";
+				stream-name = "I2S_0_TX Capture";
+				platform-name = "snd-soc-dummy";
+				id = <I2S_0_TX>;
+				capture;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path I2S_0_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+				daifmt {
+					dai-format = "i2s";
+				};
+			};
+
+			dai_be_i2s1_rx: be_i2s1_rx {
+				dai-name = "I2S_1_RX Playback";
+				stream-name = "I2S_1_RX Playback";
+				platform-name = "snd-soc-dummy";
+				id = <I2S_1_RX>;
+				playback;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path I2S_1_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+				daifmt {
+					dai-format = "i2s";
+				};
+			};
+
+			dai_be_i2s1_tx: be_i2s1_tx {
+				dai-name = "I2S_1_TX Capture";
+				stream-name = "I2S_1_TX Capture";
+				platform-name = "snd-soc-dummy";
+				id = <I2S_1_TX>;
+				capture;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path I2S_1_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+				daifmt {
+					dai-format = "i2s";
+				};
+			};
+
+			dai_be_i2s2_rx: be_i2s2_rx {
+				dai-name = "I2S_2_RX Playback";
+				stream-name = "I2S_2_RX Playback";
+				platform-name = "snd-soc-dummy";
+				id = <I2S_2_RX>;
+				playback;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path I2S_2_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+				daifmt {
+					dai-format = "i2s";
+					bitclock-inversion;
+				};
+			};
+
+			dai_be_i2s2_tx: be_i2s2_tx{
+				dai-name = "I2S_2_TX Capture";
+				stream-name = "I2S_2_TX Capture";
+				platform-name = "snd-soc-dummy";
+				id = <I2S_2_TX>;
+				capture;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path I2S_2_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+				daifmt {
+					dai-format = "i2s";
+				};
+			};
+
+			dai_be_tdm0_rx: be_tdm0_rx {
+				dai-name = "TDM_0_RX Playback";
+				stream-name = "TDM_0_RX Playback";
+				platform-name = "snd-soc-dummy";
+				id = <TDM_0_RX>;
+				playback;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path TDM_0_RX>;
+				};
+				daifmt {
+					dai-format = "dsp_a";
+				};
+			};
+
+			dai_be_tdm0_tx: be_tdm0_tx {
+				dai-name = "TDM_0_TX Capture";
+				stream-name = "TDM_0_TX Capture";
+				platform-name = "snd-soc-dummy";
+				id = <TDM_0_TX>;
+				capture;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path TDM_0_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+				daifmt {
+					dai-format = "i2s";
+				};
+			};
+
+			dai_be_tdm1_rx: be_tdm1_rx  {
+				dai-name = "TDM_1_RX Playback";
+				stream-name = "TDM_1_RX Playback";
+				platform-name = "snd-soc-dummy";
+				id = <TDM_1_RX>;
+				playback;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path TDM_1_RX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+				daifmt {
+					dai-format = "i2s";
+				};
+			};
+
+			dai_be_tdm1_tx: be_tdm1_tx {
+				dai-name = "TDM_1_TX Capture";
+				stream-name = "TDM_1_TX Capture";
+				platform-name = "snd-soc-dummy";
+				id = <TDM_1_TX>;
+				capture;
+				no-pcm;
+				ignore-suspend;
+				ignore-pmdown-time;
+				trigger = <1>;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path TDM_1_TX>;
+				};
+				codec {
+					codec-name = "snd-soc-dummy";
+					codec-dai-name = "snd-soc-dummy-dai";
+				};
+				daifmt {
+					dai-format = "dsp_a";
+					bitclock-inversion;
+				};
+			};
+		};
+
+		dai_codec_cfg: codec_cfg {
+		};
+	};
+
+	max98357a_hac: max98357a {
+		compatible = "maxim,max98357a";
+		#sound-dai-cells = <0>;
+
+		status = "disabled";
+	};
+};

@@ -1,0 +1,187 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google GS101 Whitefin-specific audio device tree source
+ *
+ * Copyright (c) 2020 Google, LLC
+ *		https://www.google.com
+ *
+*/
+
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/sound/google-aoc.h>
+
+&dai_be_i2s0_rx {
+	codec {
+		codec-name = "snd-soc-dummy";
+		codec-dai-name = "snd-soc-dummy-dai";
+	};
+};
+
+&dai_be_tdm0_rx {
+	codec {
+		sound-dai = <&cs35l41_l 0>,
+					<&cs35l41_r 0>;
+	};
+};
+
+&dai_codec_cfg {
+	cfg1 {
+		of_node = <&cs35l41_r>;
+		prefix = "R";
+	};
+};
+
+/* GPIO_ALIVE */
+&pinctrl_0 {
+	cs35l41_r_irq: cs35l41-r-irq {
+		samsung,pins = "gpa9-6"; /* XEINT_26 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+/* GPIO_FAR_ALIVE */
+&pinctrl_1 {
+	cs35l41_l_irq: cs35l41-l-irq {
+		samsung,pins = "gpa6-3"; /* XEINT_3 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+/* GPIO_PERIC0 */
+&pinctrl_4 {
+	cs35l41_l_rst: cs35l41-l-rst {
+		samsung,pins = "gpp16-3"; /* XAPC_USI8_CTSN_CSN */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+/* GPIO_PERIC1 */
+&pinctrl_5 {
+	cs35l41_r_rst: cs35l41-r-rst {
+		samsung,pins = "gpp23-7"; /* XAPC_USI12_CTSN_CSN */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	hapt_amp_rst: hapt-amp-rst {
+		samsung,pins = "gpp24-0"; /* XAPC_GPIO6 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	hapt_amp_trig: hapt-amp-trig {
+		samsung,pins = "gpp24-3"; /* XAPC_GPIO9 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsi2c8_bus>;
+
+	clock-frequency = <400000>;
+
+	drv2624_haptics@5a {
+		compatible = "ti,drv2624";
+		reg = <0x5a>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&hapt_amp_rst>;
+
+		ti,reset-gpio = <&gpp24 0 0>;
+
+		ti,smart-loop = <0>; /* 0-closeloop, 1-openloop */
+		ti,actuator = <1>; /* 0-ERM, 1-LRA */
+		ti,rated-voltage = <77>; /* 1.8 Vrms */
+		ti,odclamp-voltage = <165>; /* 3.5 Vpeak */
+		ti,lra-frequency = <155>; /* f0 = 155Hz */
+		ti,ol-lra-frequency = <155>; /* off-f0 in OL */
+		ti,bemf-factor = <188>;
+		ti,bemf-gain = <1>;
+		ti,voltage-comp = <9>;
+		ti,blanking-time = <2>; /* 50 us */
+		ti,idiss-time = <2>; /* 50 us */
+		ti,zc-det-time = <0>; /* 100 us*/
+		ti,lra-wave-shape = <0>; /* Square wave */
+		ti,waveform-interval = <1>; /* 1 ms */
+
+		status = "okay";
+	};
+
+	cs35l41_l: cs35l41@40 {
+		compatible = "cirrus,cs35l41";
+		#sound-dai-cells = <1>;
+		reg = <0x40>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cs35l41_l_rst &cs35l41_l_irq>;
+
+		interrupt-parent = <&gpa6>;
+		interrupts = <3 0 0>;
+
+		reset-gpios = <&gpp16 3 0>;
+
+		VA-supply = <&s_bucka_reg>;
+		VP-supply = <&V_SYS_dummy>;
+
+		cirrus,boost-peak-milliamp = <3700>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,tuning-has-prefix;
+		cirrus,left-channel-amp;
+
+		cirrus,gpio-config2 {
+			cirrus,gpio-src-select = <0x5>;
+			cirrus,gpio-output-enable;
+		};
+	};
+
+	cs35l41_r: cs35l41@41 {
+		compatible = "cirrus,cs35l41";
+		#sound-dai-cells = <1>;
+		reg = <0x41>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cs35l41_r_rst &cs35l41_r_irq>;
+
+		interrupt-parent = <&gpa9>;
+		interrupts = <6 0 0>;
+
+		reset-gpios = <&gpp23 7 0>;
+
+		VA-supply = <&s_bucka_reg>;
+		VP-supply = <&V_SYS_dummy>;
+
+		cirrus,boost-peak-milliamp = <3700>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,tuning-has-prefix;
+		cirrus,left-channel-amp;
+
+		cirrus,gpio-config2 {
+			cirrus,gpio-src-select = <0x5>;
+			cirrus,gpio-output-enable;
+		};
+	};
+};

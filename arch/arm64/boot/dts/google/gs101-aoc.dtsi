@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * AoC device tree source
+ *
+ * Copyright 2019 Google Inc.
+ */
+
+/ {
+	mbox_aoc: mbox@176a0000 {
+		compatible = "google,mailbox-whitechapel";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0x0 0x176a0000 0x1000>;
+		interrupts = <GIC_SPI INTREQ__MAILBOX_AOC2AP_ALIVE
+			IRQ_TYPE_LEVEL_HIGH>;
+		mbox-name = "aoc2ap";
+		#mbox-cells = <1>;
+	};
+
+	pinctrl@10840000 {
+		aoc_vsync_pins: aoc-vsync-pins {
+			samsung,pins = "gpp3-1", "gpp5-1", "gpp7-1", "gpp9-1";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		};
+	};
+
+	aoc {
+		compatible = "google,aoc";
+
+		reg = <0x0 0x19000000 0x01000000>,
+		      <0x0 0x175D0000 0x00001000>;
+
+		reg-names = "blk_aoc", "aoc_req";
+
+		interrupts = <GIC_SPI INTREQ__AOC_Watchdog_CPU_AOC
+			IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "watchdog";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&aoc_vsync_pins>;
+
+		iommus = <&sysmmu_asoc>;
+		memory-region = <&aoc_reserve>;
+
+		mbox-names = "aoc2ap";
+		mboxes = <&mbox_aoc 0>;
+	};
+
+};
