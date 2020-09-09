@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs101 pmic device tree source for whitefin
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+&hsi2c_7 {
+	/* SLG51000 */
+	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	slg51000: slg51000@75 {
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+		status = "ok";
+		dlg,cs-gpios = <&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
+
+		regulators {
+			slg51000_ldo1: ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <2250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_ldo2: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <2250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_ldo3: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_ldo4: ldo4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_ldo5: ldo5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_ldo6: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_ldo7: ldo7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+	};
+};

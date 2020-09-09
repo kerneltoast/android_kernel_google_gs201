@@ -9,6 +9,7 @@
 /dts-v1/;
 /plugin/;
 
+#include "gs101-camera-slider2.dtsi"
 #include "gs101-slider-common.dtsi"
 #include "gs101-slider2-cp-s5200-sit.dtsi"
 #include "gs101-slider2-battery.dtsi"

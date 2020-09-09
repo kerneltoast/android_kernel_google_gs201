@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Common device tree parts for slider camera driver
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+#include "gs101-camera-pmic-av2.dtsi"
+#include "gs101-camera-pmic-av4.dtsi"
+#include "gs101-camera-slider-av2.dtsi"
+#include "gs101-camera-slider-av4.dtsi"

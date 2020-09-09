@@ -1,0 +1,393 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs101 camera lwis device tree source for av2
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+#include <dt-bindings/clock/gs101.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+&pinctrl_4 {
+	hsi2c2_bus: hsi2c2-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c2_bus_in: hsi2c2-bus-in {
+		samsung,pins = "gpp4-0", "gpp4-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	hsi2c3_bus: hsi2c3-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c3_bus_in: hsi2c3-bus-in {
+		samsung,pins = "gpp6-0", "gpp6-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	hsi2c4_bus: hsi2c4-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c4_bus_in: hsi2c4-bus-in {
+		samsung,pins = "gpp8-0", "gpp8-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&hsi2c_2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp4 0 0 &gpp4 1 0>;
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c2_bus_in>;
+	pinctrl-1 = <&hsi2c2_bus>;
+	pinctrl-2 = <&hsi2c2_bus_in>;
+};
+
+&hsi2c_3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp6 0 0 &gpp6 1 0>;
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c3_bus_in>;
+	pinctrl-1 = <&hsi2c3_bus>;
+	pinctrl-2 = <&hsi2c3_bus_in>;
+};
+
+&hsi2c_4 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp8 0 0 &gpp8 1 0>;
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c4_bus_in>;
+	pinctrl-1 = <&hsi2c4_bus>;
+	pinctrl-2 = <&hsi2c4_bus_in>;
+};
+
+/ {
+	fragment@lwiscamera {
+		target-path = "/";
+		__overlay__ {
+			/* REAR CAMERA IMX363 */
+			sensor0: sensor@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor0";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x10>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators =
+					<&max77826_buck1 &max77826_buck2 &max77826_ldo12
+					 &max77826_ldo13 &max77826_ldo1  &max77826_ldo4
+					 &max77826_ldo9>;
+				regulator-voltages =
+					<1350000 3237500 2800000
+					 1800000 1050000 2800000
+					 1800000>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk1_fn>;
+				pinctrl-1 = <&sensor_mclk1_out>;
+				shared-pinctrl = <1>;
+			};
+
+			/* REAR CAMERA IMX481 */
+			sensor1: sensor@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor1";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x1A>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators =
+					<&max77826_buck1 &max77826_buck2 &max77826_ldo12
+					 &max77826_ldo11 &max77826_ldo13 &max77826_ldo1
+					 &max77826_ldo5>;
+				regulator-voltages =
+					<1350000 3237500 2800000
+					 1800000 1800000 1050000
+					 2800000>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk1_fn>;
+				pinctrl-1 = <&sensor_mclk1_out>;
+				shared-pinctrl = <1>;
+			};
+
+			/* FRONT CAMERA IMX520 */
+			sensor2: sensor@2 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor2";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x10>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators =
+					<&max77826_buck1 &max77826_buck2 &max77826_ldo11
+					 &max77826_ldo13 &max77826_ldo3  &max77826_ldo8>;
+				regulator-voltages =
+					<1350000 3237500 1800000
+					 1800000 1050000 2800000>;
+
+				clocks =
+					<&clock CIS_CLK1>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK1>;
+				clock-names =
+					"CIS_CLK1",
+					"GATE_DFTMUX_CMU_CIS_CLK1";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk2_fn>;
+				pinctrl-1 = <&sensor_mclk2_out>;
+
+				/* Power source */
+				//power-domains = <&pd_isppre>;
+			};
+
+			/* Actuator for imx363*/
+			actuator0: actuator@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "act0";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x3b>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* Power supplies */
+				regulators = <&max77826_ldo12>;
+				regulator-voltages = <2800000>;
+			};
+
+			/* Actuator for imx481*/
+			actuator1: actuator@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "act1";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x3c>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* Power supplies */
+				regulators = <&max77826_ldo12>;
+				regulator-voltages = <2800000>;
+			};
+
+			/* EEPROM for imx363*/
+			eeprom0: eeprom@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom0";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x3b>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* Power supplies */
+				regulators = <&max77826_ldo12>;
+				regulator-voltages = <2800000>;
+			};
+
+			/* EEPROM for imx481*/
+			eeprom1: eeprom@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom1";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x3c>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* Power supplies */
+				regulators = <&max77826_ldo12>;
+				regulator-voltages = <2800000>;
+			};
+
+			/* EEPROM for imx520*/
+			eeprom2: eeprom@2 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom2";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x50>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+
+				clocks =
+					<&clock CIS_CLK1>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK1>;
+				clock-names =
+					"CIS_CLK1",
+					"GATE_DFTMUX_CMU_CIS_CLK1";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* Power supplies */
+				regulators =
+					<&max77826_buck1 &max77826_buck2 &max77826_ldo11
+					 &max77826_ldo13 &max77826_ldo3  &max77826_ldo8>;
+				regulator-voltages =
+					<1350000 3237500 1800000
+					 1800000 1050000 2800000>;
+			};
+		};
+	};
+};

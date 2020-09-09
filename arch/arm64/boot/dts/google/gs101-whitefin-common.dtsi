@@ -6,6 +6,8 @@
  *
  */
 
+#include "gs101-camera-pmic-whitefin.dtsi"
+#include "gs101-camera-whitefin.dtsi"
 #include "gs101-common.dtsi"
 #include "gs101-whitefin-battery.dtsi"
 #include "gs101-whitefin-cp-s5200-sit-common.dtsi"

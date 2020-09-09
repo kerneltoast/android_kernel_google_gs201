@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * LWIS camera device tree entries specific to slider v2(SMT board)
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+#include "gs101-camera-slider-common.dtsi"
+
+&pinctrl_5 {
+	flash_active: flash_active {
+		samsung,pins = "gpp27-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	flash_suspend: flash_suspend {
+		samsung,pins = "gpp27-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp16 0 0 &gpp16 1 0>;
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c8_bus>;
+	pinctrl-1 = <&hsi2c8_bus>;
+	pinctrl-2 = <&hsi2c8_bus>;
+};
+
+/ {
+	fragment@lwiscamera {
+		target-path = "/";
+		__overlay__ {
+			flash0: flash@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "flash0";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_8>;
+				i2c-addr = <0x63>;
+
+				/* Registers */
+				reg-addr-bitwidth = <8>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				/* HW_ENABLE GPP27[1] */
+				/* FLASH_STROBE GPP27[0] */
+				/* FLASH_TORCH GPP27[2] */
+				enable-gpios =
+					<&gpp27 1 GPIO_ACTIVE_HIGH
+					 &gpp27 0 GPIO_ACTIVE_LOW
+					 &gpp27 2 GPIO_ACTIVE_LOW>;
+			};
+		};
+	};
+};

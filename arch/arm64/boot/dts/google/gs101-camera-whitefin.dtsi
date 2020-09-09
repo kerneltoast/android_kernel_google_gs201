@@ -1,0 +1,310 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * LWIS camera device tree entries specific to whitefin
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+#include <dt-bindings/clock/gs101.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+&pinctrl_4 {
+	hsi2c2_bus: hsi2c2-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c2_bus_in: hsi2c2-bus-in {
+		samsung,pins = "gpp4-0", "gpp4-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	hsi2c3_bus: hsi2c3-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c3_bus_in: hsi2c3-bus-in {
+		samsung,pins = "gpp6-0", "gpp6-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_5 {
+	flash_active: flash_active {
+		samsung,pins = "gpp27-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	flash_suspend: flash_suspend {
+		samsung,pins = "gpp27-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&hsi2c_2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp4 0 0 &gpp4 1 0>;
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c2_bus_in>;
+	pinctrl-1 = <&hsi2c2_bus>;
+	pinctrl-2 = <&hsi2c2_bus_in>;
+};
+
+&hsi2c_3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp6 0 0 &gpp6 1 0>; /* RCAM_SCL RCAM_SDA */
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c3_bus_in>;
+	pinctrl-1 = <&hsi2c3_bus>;
+	pinctrl-2 = <&hsi2c3_bus_in>;
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp16 0 0 &gpp16 1 0>;
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c8_bus>;
+	pinctrl-1 = <&hsi2c8_bus>;
+	pinctrl-2 = <&hsi2c8_bus>;
+};
+
+/ {
+	fragment@lwiscamera {
+		target-path = "/";
+		__overlay__ {
+			sensor0: sensor@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor0";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x10>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				enable-gpios = <&s2mpg11_gpio 3 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo1 &slg51000_ldo3
+					 &slg51000_ldo4 &slg51000_ldo6
+					 &slg51000_ldo7>;
+				regulator-voltages =
+					<2850000 2850000
+					 1800000 1100000
+					 1800000>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<24000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk1_fn>;
+				pinctrl-1 = <&sensor_mclk1_out>;
+			};
+
+			/* FRONT CAMERA IMX355 */
+			sensor2: sensor@2 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor2";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x1A>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				enable-gpios = <&s2mpg11_gpio 1 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo7>;
+				regulator-voltages = <1800000>;
+
+				clocks =
+					<&clock CIS_CLK1>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK1>;
+				clock-names =
+					"CIS_CLK1",
+					"GATE_DFTMUX_CMU_CIS_CLK1";
+				clock-rates =
+					<24000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk2_fn>;
+				pinctrl-1 = <&sensor_mclk2_out>;
+			};
+
+			actuator0: actuator@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "act0";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x3b>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				/* GPIOs */
+				enable-gpios = <&s2mpg11_gpio 4 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo3 &slg51000_ldo7>;
+				regulator-voltages =
+					<2850000 1800000>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<24000000>,
+					<0>;
+			};
+
+			eeprom0: eeprom@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom0";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x3b>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				/* GPIOs */
+				enable-gpios =
+					<&s2mpg11_gpio 3 GPIO_ACTIVE_HIGH>,
+					<&s2mpg11_gpio 4 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo7>;
+				regulator-voltages = <1800000>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<24000000>,
+					<0>;
+			};
+
+			eeprom2: eeprom@2 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom2";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x51>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				enable-gpios = <&s2mpg11_gpio 1 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo7>;
+				regulator-voltages = <1800000>;
+
+				clocks =
+					<&clock CIS_CLK1>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK1>;
+				clock-names =
+					"CIS_CLK1",
+					"GATE_DFTMUX_CMU_CIS_CLK1";
+				clock-rates =
+					<24000000>,
+					<0>;
+			};
+
+			flash0: flash@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "flash0";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_8>;
+				i2c-addr = <0x63>;
+
+				/* Registers */
+				reg-addr-bitwidth = <8>;
+				reg-value-bitwidth = <8>;
+
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&flash_active>;
+				pinctrl-1 = <&flash_suspend>;
+
+				/* GPIOs */
+				/* HW_ENABLE GPP27[1] */
+				/* FLASH_STROBE GPP27[0] */
+				/* FLASH_TORCH GPP27[2] */
+				enable-gpios =
+					<&gpp27 1 GPIO_ACTIVE_HIGH
+					 &gpp27 0 GPIO_ACTIVE_LOW
+					 &gpp27 2 GPIO_ACTIVE_LOW>;
+			};
+		};
+	};
+};
