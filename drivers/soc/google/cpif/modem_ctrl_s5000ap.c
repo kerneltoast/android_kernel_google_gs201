@@ -86,7 +86,7 @@ static irqreturn_t cp_active_handler(int irq, void *arg)
 
 	if (!cp_active) {
 		if (cp_on > 0) {
-			new_state = STATE_OFFLINE;
+			new_state = STATE_INIT;
 			complete_all(&mc->off_cmpl);
 		} else {
 			mif_info("don't care!!!\n");
@@ -349,7 +349,7 @@ static int power_shutdown_cp(struct modem_ctl *mc)
 	reinit_completion(&mc->off_cmpl);
 	remain = wait_for_completion_timeout(&mc->off_cmpl, timeout);
 	if (remain == 0)
-		change_modem_state(mc, STATE_OFFLINE);
+		change_modem_state(mc, STATE_INIT);
 
 exit:
 	cp_mbox_set_interrupt(CP_MBOX_IRQ_IDX_0, mc->int_cp_wakeup);
