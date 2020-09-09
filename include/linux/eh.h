@@ -28,8 +28,8 @@
 #ifndef _EH_H_
 #define _EH_H_
 
-#include "eh_regs.h"
 #include <asm/atomic.h>
+#include <linux/eh_regs.h>
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>

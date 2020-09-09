@@ -29,11 +29,11 @@
 #define DEBUG
 #endif
 
-#include "eh.h"
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/irqflags.h>
 #include <asm/page.h>
+#include <linux/eh.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
