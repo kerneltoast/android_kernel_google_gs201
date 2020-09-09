@@ -12,7 +12,7 @@
 	panel@0 {
 		compatible = "samsung,s6e3hc2";
 		reg = <0>;
-		/* touch = <&spitouch>; */
+		touch = <&spitouch>;
 
 		/* reset, power */
 		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;

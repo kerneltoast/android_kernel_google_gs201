@@ -52,7 +52,7 @@
 		compatible = "st,fts";
 		pinctrl-names = "default";
 		pinctrl-0 = <&fts_irq &fts_reset &fts_switch>;
-		spi-max-frequency = <10000000>;
+		spi-max-frequency = <1000000>;
 		reg = <0>;
 
 		st,irq-gpio = <&gpa9 0 0>;
