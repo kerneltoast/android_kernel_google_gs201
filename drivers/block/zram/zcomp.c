@@ -167,24 +167,151 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 	return sz;
 }
 
+static inline bool zcomp_async(struct zcomp *comp)
+{
+	return comp->op->compress_async ? true : false;
+}
+
+/*
+ * The caller needs to hold cookie_pool.lock
+ */
+static bool refill_zcomp_cookie(struct zcomp *zcomp)
+{
+	int i;
+	struct zcomp_cookie *cookie;
+
+	WARN_ON(zcomp->cookie_pool.count != 0);
+
+	for (i = 0; i < BATCH_ZCOMP_REQUEST; i++) {
+		cookie = kmalloc(sizeof(struct zcomp_cookie), GFP_ATOMIC);
+		if (!cookie)
+			break;
+		list_add(&cookie->list, &zcomp->cookie_pool.head);
+		zcomp->cookie_pool.count++;
+	}
+
+	return !zcomp->cookie_pool.count;
+}
+
+static struct zcomp_cookie *alloc_zcomp_cookie(struct zcomp *zcomp)
+{
+	struct zcomp_cookie *cookie = NULL;
+
+	WARN_ON(in_interrupt());
+
+	spin_lock(&zcomp->cookie_pool.lock);
+	if (list_empty(&zcomp->cookie_pool.head)) {
+		if (refill_zcomp_cookie(zcomp))
+			goto out;
+	}
+
+	cookie = list_first_entry(&zcomp->cookie_pool.head,
+					struct zcomp_cookie, list);
+	list_del(&cookie->list);
+	zcomp->cookie_pool.count--;
+out:
+	spin_unlock(&zcomp->cookie_pool.lock);
+
+	return cookie;
+}
+
+static void free_zcomp_cookie(struct zcomp *zcomp, struct zcomp_cookie *cookie)
+{
+	spin_lock(&zcomp->cookie_pool.lock);
+	list_add(&cookie->list, &zcomp->cookie_pool.head);
+	zcomp->cookie_pool.count++;
+
+	if (zcomp->cookie_pool.count >= BATCH_ZCOMP_REQUEST * 2) {
+		int i;
+
+		for (i = 0; i < BATCH_ZCOMP_REQUEST; i++) {
+			cookie = list_last_entry(&zcomp->cookie_pool.head,
+						struct zcomp_cookie, list);
+			list_del(&cookie->list);
+			kfree(cookie);
+			zcomp->cookie_pool.count--;
+		}
+	}
+	spin_unlock(&zcomp->cookie_pool.lock);
+}
+
+static void init_zcomp_cookie_pool(struct zcomp *zcomp)
+{
+	INIT_LIST_HEAD(&zcomp->cookie_pool.head);
+	spin_lock_init(&zcomp->cookie_pool.lock);
+	zcomp->cookie_pool.count = 0;
+}
+
+static void destroy_zcomp_cookie_pool(struct zcomp *zcomp)
+{
+	struct zcomp_cookie *cookie;
+
+	spin_lock(&zcomp->cookie_pool.lock);
+	while (!list_empty(&zcomp->cookie_pool.head)) {
+		cookie = list_first_entry(&zcomp->cookie_pool.head,
+					struct zcomp_cookie, list);
+		list_del(&cookie->list);
+		kfree(cookie);
+		zcomp->cookie_pool.count--;
+	}
+	spin_unlock(&zcomp->cookie_pool.lock);
+}
+
+
 int zcomp_compress(struct zcomp *comp, u32 index, struct page *page,
 			struct bio *bio)
 {
+	int ret;
 	unsigned long element;
-
-	struct zcomp_cookie cookie;
-
-	cookie.zram = comp->zram;
-	cookie.index = index;
-	cookie.page = page;
-	cookie.bio = bio;
 
 	if (zcomp_page_same_pattern(page, &element)) {
 		zram_slot_update(comp->zram, index, element, 0);
 		return 0;
 	}
 
-	return comp->op->compress(comp, page, &cookie);
+	if (zcomp_async(comp)) {
+		struct zcomp_cookie *cookie = alloc_zcomp_cookie(comp);
+
+		if (!cookie)
+			return -ENOMEM;
+
+		cookie->zram = comp->zram;
+		cookie->index = index;
+		cookie->page = page;
+		cookie->bio = bio;
+		/*
+		 * Since __zram_make_request has bio_endio, zcomp_async needs
+		 * to hold the bio completion until the IO request is done if
+		 * the IO is submitted successfully. zcomp_copy_buffer in
+		 * zcomp instance will handle it. If the IO submission fails,
+		 * we release the bio chain here so that __zram_make_request's
+		 * bio_endio will finally call the IO completion to handle
+		 * the error propagation.
+		 */
+		if (bio)
+			bio_inc_remaining(bio);
+		ret = comp->op->compress_async(comp, page, cookie);
+		if (!ret) {
+			/*
+			 * Async IO should return 1 instead of 0 to indicate
+			 * IO submit is successful because IO completion
+			 * callback should be handled at different context.
+			 */
+			ret = 1;
+		} else if (ret && bio)
+			bio_io_error(bio);
+	} else {
+		struct zcomp_cookie cookie;
+
+		cookie.zram = comp->zram;
+		cookie.index = index;
+		cookie.page = page;
+		cookie.bio = bio;
+
+		ret = comp->op->compress(comp, page, &cookie);
+	}
+
+	return ret;
 }
 
 int zcomp_decompress(struct zcomp *comp, u32 index, struct page *page)
@@ -225,6 +352,8 @@ out:
 void zcomp_destroy(struct zcomp *comp)
 {
 	comp->op->destroy(comp);
+	if (zcomp_async(comp))
+		destroy_zcomp_cookie_pool(comp);
 }
 
 /*
@@ -253,6 +382,8 @@ struct zcomp *zcomp_create(const char *algo_name, struct zram *zram)
 		return ERR_PTR(error);
 	}
 
+	if (zcomp_async(comp))
+		init_zcomp_cookie_pool(comp);
 	comp->zram = zram;
 	up_read(&zcomp_rwsem);
 
@@ -274,6 +405,7 @@ int zcomp_copy_buffer(int err, void *buffer, int comp_len, struct zcomp_cookie *
 	unsigned long handle;
 	struct zram *zram = cookie->zram;
 	struct page *page = cookie->page;
+	struct bio *bio = cookie->bio;
 	u32 index = cookie->index;
 
 	if (err)
@@ -307,6 +439,16 @@ int zcomp_copy_buffer(int err, void *buffer, int comp_len, struct zcomp_cookie *
 	zs_unmap_object(zram->mem_pool, handle);
 	zram_slot_update(zram, index, handle, comp_len);
 out:
+	if (zcomp_async(zram->comp)) {
+		if (!bio) { /* rw_page case */
+			zram_page_write_endio(zram, page, err);
+		} else {
+			zram_bio_endio(zram, bio, true, err);
+		}
+
+		free_zcomp_cookie(zram->comp, cookie);
+	}
+
 	return err;
 }
 EXPORT_SYMBOL(zcomp_copy_buffer);

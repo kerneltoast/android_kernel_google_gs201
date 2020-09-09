@@ -12,6 +12,8 @@
 struct zcomp;
 struct bio;
 
+#define BATCH_ZCOMP_REQUEST (128)
+
 /*
  * For compression request, zcomp generates a cookie and pass it to
  * the zcomp instance. The zcomp instance need to call zcomp_copy_buffer
@@ -22,10 +24,18 @@ struct zcomp_cookie {
 	u32 index; /* requested page-sized block index in zram block */
 	struct page *page; /* requested page for compression */
 	struct bio *bio;
+	struct list_head list;
+};
+
+struct zcomp_cookie_pool {
+	struct list_head head;
+	int count;
+	spinlock_t lock;
 };
 
 struct zcomp_operation {
 	int (*compress)(struct zcomp *comp, struct page *page, struct zcomp_cookie *cookie);
+	int (*compress_async)(struct zcomp *comp, struct page *page, struct zcomp_cookie *cookie);
 	int (*decompress)(struct zcomp *comp, void *src, unsigned int src_len, struct page *page);
 
 	int (*create)(struct zcomp *comp, const char *name);
@@ -38,6 +48,7 @@ struct zcomp {
 	void *private;
 	const struct zcomp_operation *op;
 	struct list_head list;
+	struct zcomp_cookie_pool cookie_pool;
 
 	struct hlist_node node;
 	char algo_name[64];
