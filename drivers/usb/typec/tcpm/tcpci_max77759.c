@@ -52,6 +52,8 @@ enum gbms_charger_modes {
 	GBMS_CHGR_MODE_OTG_BOOST_ON = 0x0a,
 };
 
+#define FRS_DEFAULT_DISABLE	-1
+
 struct tcpci {
 	struct device *dev;
 	struct tcpm_port *port;
@@ -76,6 +78,33 @@ static const struct regmap_config max77759_regmap_config = {
 	.val_bits = 8,
 	.max_register = 0x95,
 	.wr_table = &max77759_tcpci_write_table,
+};
+
+static ssize_t frs_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->frs);
+};
+
+static ssize_t frs_store(struct device *dev, struct device_attribute *attr, const char *buf,
+			 size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	int val;
+
+	if (kstrtoint(buf, 10, &val) < 0)
+		return -EINVAL;
+
+	chip->frs = val;
+	logbuffer_log(chip->log, "[%s]: %d", __func__, chip->frs);
+	return count;
+}
+static DEVICE_ATTR_RW(frs);
+
+static struct device_attribute *max77759_device_attrs[] = {
+	&dev_attr_frs,
+	NULL
 };
 
 static struct max77759_plat *tdata_to_max77759(struct tcpci_data *tdata)
@@ -730,6 +759,13 @@ static void max77759_set_pd_capable(struct tcpci *tcpci, struct tcpci_data
 	mutex_unlock(&chip->data_path_lock);
 }
 
+static int max77759_enable_frs(struct tcpci *tcpci, struct tcpci_data *data, bool enable)
+{
+	struct max77759_plat *chip = tdata_to_max77759(data);
+
+	return !chip->frs ? -1 : 1;
+}
+
 static void max77759_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data *data,
 				     enum typec_cc_polarity polarity)
 {
@@ -953,7 +989,7 @@ static int tcpci_init(struct tcpci *tcpci, struct tcpci_data *data)
 static int max77759_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
-	int ret;
+	int ret, i;
 	struct max77759_plat *chip;
 	char *usb_psy_name;
 	struct device_node *dn;
@@ -1005,6 +1041,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.init = tcpci_init;
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
+	chip->data.enable_frs = max77759_enable_frs;
 
 	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
@@ -1102,6 +1139,14 @@ static int max77759_probe(struct i2c_client *client,
 	}
 
 	device_init_wakeup(chip->dev, true);
+
+	for (i = 0; max77759_device_attrs[i]; i++) {
+		ret = device_create_file(&client->dev, max77759_device_attrs[i]);
+		if (ret < 0)
+			dev_err(&client->dev, "TCPCI: Unable to create device attr[%d] ret:%d:", i,
+				ret);
+	}
+
 	return 0;
 
 unreg_port:
@@ -1121,7 +1166,10 @@ logbuffer_unreg:
 static int max77759_remove(struct i2c_client *client)
 {
 	struct max77759_plat *chip = i2c_get_clientdata(client);
+	int i;
 
+	for (i = 0; max77759_device_attrs[i]; i++)
+		device_remove_file(&client->dev, max77759_device_attrs[i]);
 	if (!IS_ERR_OR_NULL(chip->tcpci))
 		tcpci_unregister_port(chip->tcpci);
 	if (!IS_ERR_OR_NULL(chip->usb_psy))

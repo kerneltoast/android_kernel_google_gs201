@@ -55,6 +55,9 @@ struct max77759_plat {
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
 	u8 debug_acc_connected:1;
 
+	/* Runtime flags */
+	int frs;
+
 	struct logbuffer *log;
 };
 
