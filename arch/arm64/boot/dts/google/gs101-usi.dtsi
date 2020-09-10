@@ -661,6 +661,7 @@
 	serial_1: serial@10900000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -678,6 +679,7 @@
 	serial_2: serial@10910000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -695,6 +697,7 @@
 	serial_3: serial@10920000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -712,6 +715,7 @@
 	serial_4: serial@10930000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -729,6 +733,7 @@
 	serial_5: serial@10940000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -746,6 +751,7 @@
 	serial_6: serial@10950000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -763,6 +769,7 @@
 	serial_7: serial@10960000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -780,6 +787,7 @@
 	serial_8: serial@10970000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -797,6 +805,7 @@
 	serial_14: serial@10A20000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -815,6 +824,7 @@
 	serial_usi0: serial@10D10000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -832,6 +842,7 @@
 	serial_9: serial@10D20000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -849,6 +860,7 @@
 	serial_10: serial@10D30000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -866,6 +878,7 @@
 	serial_11: serial@10D40000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -883,6 +896,7 @@
 	serial_12: serial@10D50000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -900,6 +914,7 @@
 	serial_13: serial@10D60000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -918,6 +933,7 @@
 	serial_15: serial@175A0000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <256>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -936,6 +952,7 @@
 	serial_16: serial@175B0000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <256>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
@@ -954,6 +971,7 @@
 	serial_17: serial@175C0000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <64>;
+		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
 		#address-cells = <0x00000001>;
