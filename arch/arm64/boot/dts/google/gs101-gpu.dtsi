@@ -54,6 +54,12 @@
 		gpu_power_coeff = <625>;
 		ect-coeff-index = <3>;
 
+		/*
+		 * Pixel Platform integration log level
+		 * (0: off, 1: debug, 2: info, 3: warn, 4: error)
+		 */
+		gpu_log_level = <2>;
+
 	};
 
 };
