@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Whitefin1-specific s5200 settings.
+ *
+ * Copyright 2020 Google Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	fragment@modemif {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <1>;
+			cpif {
+				gpio_cp2ap_phone_active = <&gph1 2 0x1>;
+			};
+		};
+	};
+};
+
+&pinctrl_6 {
+	s5100_cp2ap_phone_active: s5100_cp2ap_phone_active {
+		samsung,pins = "gph1-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PULL_UP>;
+	};
+};

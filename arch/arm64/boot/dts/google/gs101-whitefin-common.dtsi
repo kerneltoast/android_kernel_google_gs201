@@ -8,4 +8,5 @@
 
 #include "gs101-common.dtsi"
 #include "gs101-whitefin-battery.dtsi"
+#include "gs101-whitefin-cp-s5200-sit-common.dtsi"
 #include "gs101-whitefin-display.dtsi"

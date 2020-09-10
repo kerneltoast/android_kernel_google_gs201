@@ -10,6 +10,7 @@
 /plugin/;
 
 #include "gs101-whitefin-common.dtsi"
+#include "gs101-whitefin1-cp-s5200-sit.dtsi"
 #include "gs101-whitefin1-display.dtsi"
 
 / {
