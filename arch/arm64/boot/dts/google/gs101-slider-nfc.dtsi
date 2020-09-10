@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google GS101 Board device tree source
+ *
+ * Copyright (c) 2019 Google, LLC
+ *		https://www.google.com
+ *
+*/
+#include <dt-bindings/clock/gs101.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+&pinctrl_5 {
+	nfc_rst: nfc-rst {
+		samsung,pins = "gpp24-2";
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_UP>;
+	};
+};
+
+&hsi2c_7 {
+	/* XAPC_USI7 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	st21nfc@08 {
+		compatible = "st,st21nfc";
+		reg = <0x08>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_rst>;
+
+		interrupt-parent = <&gpa8>;
+		interrupts = <0 0 0>;
+		reset-gpios = <&gpp24 2 0>;
+		irq-gpios = <&gpa8 0 0>;
+		clkreq-gpios = <&gpp26 4 0>;
+		pidle-gpios = <&gpp26 2 0>;
+		clock-names = "nfc_ref_clk";
+		clocks = <&clock CLKOUT0>;
+		pmu_clk_pad = <0x3e80>;
+		st,clk_pinctrl;
+		status = "ok";
+	};
+};

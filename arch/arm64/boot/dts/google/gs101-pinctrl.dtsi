@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/gs101.h>
+#include <dt-bindings/pinctrl/samsung.h>
 
 / {
 	/* GPIO_ALIVE */
@@ -876,6 +877,12 @@
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <0>;
+		};
+		spi14_cs2: spi14-cs2 {
+			samsung,pins = "gpp23-6";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 		};
 		spi12_cs: spi12-cs {
 			samsung,pins = "gpp23-7";

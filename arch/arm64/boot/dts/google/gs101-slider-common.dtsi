@@ -10,3 +10,5 @@
 #include "gs101-common-gsc.dtsi"
 #include "gs101-slider-display.dtsi"
 #include "gs101-slider-touch.dtsi"
+#include "gs101-slider-nfc.dtsi"
+#include "gs101-slider-ese.dtsi"
