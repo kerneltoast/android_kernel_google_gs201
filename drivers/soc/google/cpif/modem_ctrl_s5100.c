@@ -106,7 +106,7 @@ static void print_mc_state(struct modem_ctl *mc)
 	int ap_status = mif_gpio_get_value(&mc->s5100_gpio_ap_status, false);
 	int phone_active = mif_gpio_get_value(&mc->s5100_gpio_phone_active, false);
 
-	mif_info("%s: %ps:GPIO - pwr:%d rst:%d phd:%d aw:%d cw:%d dmp:%d ap_status:%d phone_state:%d\n",
+	mif_debug("%s: %ps:GPIO - pwr:%d rst:%d phd:%d aw:%d cw:%d dmp:%d ap_status:%d phone_state:%d\n",
 		mc->name, CALLER, pwr, reset, pshold, ap_wakeup, cp_wakeup,
 		dump, ap_status, phone_active);
 }
@@ -941,7 +941,7 @@ int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 
 	mutex_lock(&mc->pcie_onoff_lock);
 	mutex_lock(&mc->pcie_check_lock);
-	mif_info("+++\n");
+	mif_debug("+++\n");
 
 	if (!mc->pcie_powered_on &&
 			(s51xx_check_pcie_link_status(mc->pcie_ch_num) == 0)) {
@@ -984,11 +984,11 @@ int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 
 	if (mc->s51xx_pdev != NULL && (mc->phone_state == STATE_ONLINE ||
 				mc->phone_state == STATE_BOOTING)) {
-		mif_info("save s5100_status - phone_state:%d\n",
+		mif_debug("save s5100_status - phone_state:%d\n",
 				mc->phone_state);
 		s51xx_pcie_save_state(mc->s51xx_pdev);
 	} else
-		mif_info("ignore save_s5100_status - phone_state:%d\n",
+		mif_debug("ignore save_s5100_status - phone_state:%d\n",
 				mc->phone_state);
 
 	mif_gpio_set_value(&mc->s5100_gpio_cp_wakeup, 0, 5);
@@ -1000,7 +1000,7 @@ int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 		cpif_wake_unlock(mc->ws);
 
 exit:
-	mif_info("---\n");
+	mif_debug("---\n");
 	mutex_unlock(&mc->pcie_check_lock);
 	mutex_unlock(&mc->pcie_onoff_lock);
 
@@ -1009,7 +1009,7 @@ exit:
 		mc->reserve_doorbell_int = true;
 
 	if ((mc->s51xx_pdev != NULL) && !mc->device_reboot && mc->reserve_doorbell_int) {
-		mif_info("DBG: doorbell_reserved = %d\n", mc->reserve_doorbell_int);
+		mif_debug("DBG: doorbell_reserved = %d\n", mc->reserve_doorbell_int);
 		if (mc->pcie_powered_on) {
 			mc->reserve_doorbell_int = false;
 			if (s51xx_pcie_send_doorbell_int(mc->s51xx_pdev,
@@ -1053,7 +1053,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 
 	mutex_lock(&mc->pcie_onoff_lock);
 	mutex_lock(&mc->pcie_check_lock);
-	mif_info("+++\n");
+	mif_debug("+++\n");
 	if (mc->pcie_powered_on &&
 			(s51xx_check_pcie_link_status(mc->pcie_ch_num) != 0)) {
 		mif_err("skip pci power on : already powered on\n");
@@ -1142,7 +1142,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 #endif
 
 exit:
-	mif_info("---\n");
+	mif_debug("---\n");
 	mutex_unlock(&mc->pcie_check_lock);
 	mutex_unlock(&mc->pcie_onoff_lock);
 

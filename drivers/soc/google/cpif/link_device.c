@@ -847,7 +847,7 @@ static inline int check_txq_space(struct mem_link_device *mld,
 	unsigned int space;
 
 	if (!circ_valid(qsize, in, out)) {
-		mif_err("%s: ERR! Invalid %s_TXQ{qsize:%d in:%d out:%d}\n",
+		mif_err_limited("%s: ERR! Invalid %s_TXQ{qsize:%d in:%d out:%d}\n",
 			ld->name, dev->name, qsize, in, out);
 		return -EIO;
 	}
@@ -855,7 +855,7 @@ static inline int check_txq_space(struct mem_link_device *mld,
 	space = circ_get_space(qsize, in, out);
 	if (unlikely(space < count)) {
 		if (cp_online(mc)) {
-			mif_err("%s: NOSPC %s_TX{qsize:%d in:%d out:%d space:%d len:%d}\n",
+			mif_err_limited("%s: NOSPC %s_TX{qsize:%d in:%d out:%d space:%d len:%d}\n",
 				ld->name, dev->name, qsize,
 				in, out, space, count);
 		}

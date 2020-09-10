@@ -38,8 +38,8 @@
 
 #define DEBUG_MODEM_IF
 #ifdef DEBUG_MODEM_IF
-#define DEBUG_MODEM_IF_LINK_TX
-#define DEBUG_MODEM_IF_LINK_RX
+/* #define DEBUG_MODEM_IF_LINK_TX */
+/* #define DEBUG_MODEM_IF_LINK_RX */
 
 /* #define DEBUG_MODEM_IF_IODEV_TX */
 /* #define DEBUG_MODEM_IF_IODEV_RX */

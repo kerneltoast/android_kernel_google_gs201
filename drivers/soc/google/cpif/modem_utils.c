@@ -1080,7 +1080,7 @@ void mif_enable_irq(struct modem_irq *irq)
 
 	irq->active = true;
 
-	mif_info("%s(#%d) is enabled <%ps>\n", irq->name, irq->num, CALLER);
+	mif_debug("%s(#%d) is enabled <%ps>\n", irq->name, irq->num, CALLER);
 
 exit:
 	spin_unlock_irqrestore(&irq->lock, flags);
@@ -1105,7 +1105,7 @@ void mif_disable_irq(struct modem_irq *irq)
 
 	irq->active = false;
 
-	mif_info("%s(#%d) is disabled <%ps>\n", irq->name, irq->num, CALLER);
+	mif_debug("%s(#%d) is disabled <%ps>\n", irq->name, irq->num, CALLER);
 
 exit:
 	spin_unlock_irqrestore(&irq->lock, flags);
@@ -1126,7 +1126,7 @@ bool mif_gpio_set_value(struct cpif_gpio *gpio, int value, unsigned int delay_ms
 	/* set gpio even if it is set already */
 	gpio_set_value(gpio->num, value);
 
-	mif_info("SET GPIO %s = %d (wait %dms, dup %d)\n", gpio->label, value, delay_ms, dup);
+	mif_debug("SET GPIO %s = %d (wait %dms, dup %d)\n", gpio->label, value, delay_ms, dup);
 
 	if (delay_ms > 0 && !dup) {
 		if (in_interrupt() || irqs_disabled())
@@ -1152,7 +1152,7 @@ int mif_gpio_get_value(struct cpif_gpio *gpio, bool log_print)
 	value = gpio_get_value(gpio->num);
 
 	if (log_print)
-		mif_info("GET GPIO %s = %d\n", gpio->label, value);
+		mif_debug("GET GPIO %s = %d\n", gpio->label, value);
 
 	return value;
 }

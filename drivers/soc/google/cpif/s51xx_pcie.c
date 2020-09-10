@@ -178,7 +178,7 @@ void s51xx_pcie_save_state(struct pci_dev *pdev)
 {
 	struct s51xx_pcie *s51xx_pcie = pci_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "[%s]\n", __func__);
+	dev_dbg(&pdev->dev, "[%s]\n", __func__);
 
 	if (s51xx_check_pcie_link_status(s51xx_pcie->pcie_channel_num) == 0) {
 		mif_err("It's not Linked - Ignore restore state!!!\n");
@@ -215,7 +215,7 @@ void s51xx_pcie_restore_state(struct pci_dev *pdev)
 	int ret;
 	u32 val;
 
-	dev_info(&pdev->dev, "[%s]\n", __func__);
+	dev_dbg(&pdev->dev, "[%s]\n", __func__);
 
 	if (s51xx_check_pcie_link_status(s51xx_pcie->pcie_channel_num) == 0) {
 		mif_err("It's not Linked - Ignore restore state!!!\n");
@@ -287,7 +287,7 @@ void disable_msi_int(struct pci_dev *pdev)
 {
 	struct s51xx_pcie *s51xx_pcie = pci_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "[%s]\n", __func__);
+	dev_dbg(&pdev->dev, "[%s]\n", __func__);
 
 	s51xx_pcie->link_status = 0;
 	/* It's not needed now...
@@ -436,31 +436,31 @@ void print_msi_register(struct pci_dev *pdev)
 	u32 msi_val;
 
 	pci_read_config_dword(pdev, 0x50, &msi_val);
-	mif_info("MSI Control Reg(0x50) : 0x%x\n", msi_val);
+	mif_debug("MSI Control Reg(0x50) : 0x%x\n", msi_val);
 	pci_read_config_dword(pdev, 0x54, &msi_val);
-	mif_info("MSI Message Reg(0x54) : 0x%x\n", msi_val);
+	mif_debug("MSI Message Reg(0x54) : 0x%x\n", msi_val);
 	pci_read_config_dword(pdev, 0x58, &msi_val);
-	mif_info("MSI MsgData Reg(0x58) : 0x%x\n", msi_val);
+	mif_debug("MSI MsgData Reg(0x58) : 0x%x\n", msi_val);
 
 	if (msi_val == 0x0) {
-		mif_info("MSI Message Reg == 0x0 - set MSI again!!!\n");
+		mif_debug("MSI Message Reg == 0x0 - set MSI again!!!\n");
 
 		if (s51xx_pcie->pci_saved_configs != NULL) {
-			mif_info("msi restore\n");
+			mif_debug("msi restore\n");
 			pci_restore_msi_state(pdev);
 		} else {
-			mif_info("[skip] msi restore: saved configs is NULL\n");
+			mif_debug("[skip] msi restore: saved configs is NULL\n");
 		}
 
-		mif_info("exynos_pcie_msi_init_ext is not implemented\n");
+		mif_debug("exynos_pcie_msi_init_ext is not implemented\n");
 		/* exynos_pcie_msi_init_ext(s51xx_pcie.pcie_channel_num); */
 
 		pci_read_config_dword(pdev, 0x50, &msi_val);
-		mif_info("Recheck - MSI Control Reg : 0x%x (0x50)\n", msi_val);
+		mif_debug("Recheck - MSI Control Reg : 0x%x (0x50)\n", msi_val);
 		pci_read_config_dword(pdev, 0x54, &msi_val);
-		mif_info("Recheck - MSI Message Reg : 0x%x (0x54)\n", msi_val);
+		mif_debug("Recheck - MSI Message Reg : 0x%x (0x54)\n", msi_val);
 		pci_read_config_dword(pdev, 0x58, &msi_val);
-		mif_info("Recheck - MSI MsgData Reg : 0x%x (0x58)\n", msi_val);
+		mif_debug("Recheck - MSI MsgData Reg : 0x%x (0x58)\n", msi_val);
 	}
 }
 
