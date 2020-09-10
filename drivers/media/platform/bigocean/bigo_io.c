@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include "bigo_io.h"
 

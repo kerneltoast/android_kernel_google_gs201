@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <linux/pm_opp.h>
 #include <soc/google/bts.h>
 
