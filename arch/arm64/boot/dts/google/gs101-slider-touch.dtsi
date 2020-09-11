@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Google Slider Board device tree source
  *
- * Copyright 2020 Google LLC.
+ * Copyright 2020 Google, LLC.
  */
 
 /* Touch is connected to spi_11, pins:
