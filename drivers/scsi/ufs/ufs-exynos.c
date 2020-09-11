@@ -881,6 +881,7 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.suspend = __exynos_ufs_suspend,
 	.resume = __exynos_ufs_resume,
 	.fill_prdt = exynos_ufs_fmp_fill_prdt,
+	.prepare_command = pixel_ufs_prepare_command,
 };
 
 /*

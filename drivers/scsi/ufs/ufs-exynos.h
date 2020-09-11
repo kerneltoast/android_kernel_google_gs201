@@ -182,4 +182,7 @@ static inline void exynos_ufs_fmp_resume(struct ufs_hba *hba)
 #define exynos_ufs_fmp_fill_prdt NULL
 #endif /* !CONFIG_SCSI_UFS_CRYPTO */
 
+void pixel_ufs_prepare_command(struct ufs_hba *hba,
+			struct request *rq, struct ufshcd_lrb *lrbp);
+
 #endif /* _UFS_EXYNOS_H_ */
