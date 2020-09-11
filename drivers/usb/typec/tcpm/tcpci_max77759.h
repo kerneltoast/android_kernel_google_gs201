@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Copyright 2019 Google LLC
  *
  */
@@ -54,6 +56,10 @@ struct max77759_plat {
 	struct usb_psy_ops psy_ops;
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
 	u8 debug_acc_connected:1;
+	/* Cache status when sourcing vbus. Used to modify vbus_present status */
+	u8 sourcing_vbus:1;
+	/* Cache vbus_present as MAX77759 reports vbus present = 0 when vbus < 4V */
+	u8 vbus_present:1;
 
 	/* Runtime flags */
 	int frs;

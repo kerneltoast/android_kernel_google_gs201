@@ -350,6 +350,15 @@ static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool
 		      ret < 0 ? "Error" : "Success", source ? 'y' : 'n', sink ? 'y' : 'n',
 		      (unsigned int)vote, ret);
 
+	if (source && !chip->sourcing_vbus) {
+		chip->sourcing_vbus = 1;
+	} else if (!source && chip->sourcing_vbus) {
+		chip->sourcing_vbus = 0;
+		chip->vbus_present = 0;
+		logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
+		tcpm_vbus_change(tcpci->port);
+	}
+
 	return 0;
 }
 
@@ -387,9 +396,16 @@ static void process_power_status(struct max77759_plat *chip)
 	}
 
 	if (pwr_status & TCPC_POWER_STATUS_SOURCING_VBUS) {
+		chip->sourcing_vbus = 1;
 		tcpm_sourcing_vbus(tcpci->port);
 	}
 
+	if (pwr_status & TCPC_POWER_STATUS_VBUS_PRES)
+		chip->vbus_present = 1;
+	else if (!chip->data.auto_discharge_disconnect && !(pwr_status &
+							    TCPC_POWER_STATUS_VBUS_PRES))
+		chip->vbus_present = 0;
+	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
 	tcpm_vbus_change(tcpci->port);
 
 	/*
@@ -516,6 +532,8 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 
 	if (status & TCPC_ALERT_VBUS_DISCNCT) {
 		logbuffer_log(log, "TCPC_ALERT_VBUS_DISCNCT");
+		chip->vbus_present = 0;
+		logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
 		tcpm_vbus_change(tcpci->port);
 	}
 
@@ -591,8 +609,13 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				     (u8 *)&raw);
 		if (ret < 0)
 			return ret;
-		logbuffer_log(log, "VSAFE0V: %c\n", raw &
-			      TCPC_EXTENDED_STATUS_VSAFE0V ? 'Y' : 'N');
+		logbuffer_log(log, "VSAFE0V: %c\n", raw & TCPC_EXTENDED_STATUS_VSAFE0V ? 'Y' :
+			      'N');
+		if (raw & TCPC_EXTENDED_STATUS_VSAFE0V) {
+			chip->vbus_present = 0;
+			logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
+			tcpm_vbus_change(tcpci->port);
+		}
 	}
 
 	logbuffer_log(log, "TCPC_ALERT status done: %#x", status);
@@ -891,6 +914,22 @@ static int max77759_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
 	return 0;
 }
 
+static int max77759_get_vbus(struct tcpci *tcpci, struct tcpci_data *data)
+{
+	struct max77759_plat *chip = tdata_to_max77759(data);
+	u8 pwr_status;
+	int ret;
+
+	ret = max77759_read8(tcpci->regmap, TCPC_POWER_STATUS, &pwr_status);
+	if (!ret && !chip->vbus_present && (pwr_status & TCPC_POWER_STATUS_VBUS_PRES)) {
+		logbuffer_log(chip->log, "[%s]: syncing vbus_present", __func__);
+		chip->vbus_present = 1;
+	}
+
+	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
+	return chip->vbus_present;
+}
+
 /* Notifier structure inferred from usbpd-manager.c */
 static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 			      bool attached, enum typec_role role,
@@ -1031,6 +1070,7 @@ static int max77759_probe(struct i2c_client *client,
 
 	/* Chip level tcpci callbacks */
 	chip->data.set_vbus = max77759_set_vbus;
+	chip->data.get_vbus = max77759_get_vbus;
 	chip->data.start_drp_toggling = max77759_start_toggling;
 	chip->data.get_current_limit = max77759_get_current_limit;
 	chip->data.set_current_limit = max77759_set_current_limit;
