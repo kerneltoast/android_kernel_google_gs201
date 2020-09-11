@@ -16,3 +16,4 @@ phy-exynos-usbdrd-super-y      		+= phy-exynos-usb3p1.o
 phy-exynos-usbdrd-super-y      		+= phy-exynos-usbdp-gen2-v4.o
 obj-$(CONFIG_PHY_EXYNOS5250_SATA)	+= phy-exynos5250-sata.o
 obj-$(CONFIG_PHY_EXYNOS_MIPI_DSIM)	+= phy-exynos-mipi-dsim.o
+obj-$(CONFIG_PHY_EXYNOS_MIPI)		+= phy-exynos-mipi.o

@@ -122,6 +122,13 @@ config PHY_EXYNOS5250_SATA
 	  SATA 3.0 Gb/s, SATA 6.0 Gb/s speeds. It supports one SATA host
 	  port to accept one SATA device.
 
+config PHY_EXYNOS_MIPI
+	tristate "Samsung EXYNOS SoC MIPI CSI/DSI D/C-PHY driver"
+	select GENERIC_PHY
+	help
+	  Support for MIPI CSI and MIPI DSI DPHY found on Samsung
+	  and EXYNOS SoCs.
+
 config PHY_EXYNOS_MIPI_DSIM
 	tristate "Samsung EXYNOS SoC MIPI DSI D-PHY driver"
 	select GENERIC_PHY
