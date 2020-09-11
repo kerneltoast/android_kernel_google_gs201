@@ -626,10 +626,12 @@
 		/* Register space */
 		reg =
 			<0x0 0x1A840000 0x20000>, /* G3AA */
-			<0x0 0x1A820000 0x10000>; /* SYSREG_G3AA */
+			<0x0 0x1A820000 0x10000>, /* SYSREG_G3AA */
+			<0x0 0x1A860000 0x10000>; /* LINEBUFFER_G3AA */
 		reg-names =
 			"g3aa",
-			"sysreg-g3aa";
+			"sysreg-g3aa",
+			"linebuffer-g3aa";
 
 		clocks = <&clock UMUX_CLKCMU_G3AA_G3AA>;
 		clock-names = "UMUX_CLKCMU_G3AA_G3AA";
