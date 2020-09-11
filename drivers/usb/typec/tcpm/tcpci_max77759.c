@@ -102,8 +102,33 @@ static ssize_t frs_store(struct device *dev, struct device_attribute *attr, cons
 }
 static DEVICE_ATTR_RW(frs);
 
+static ssize_t auto_discharge_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->data.auto_discharge_disconnect ? 1 : 0);
+};
+
+static ssize_t auto_discharge_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	int val;
+
+	if (kstrtoint(buf, 10, &val) < 0)
+		return -EINVAL;
+
+	chip->data.auto_discharge_disconnect = !!val;
+	logbuffer_log(chip->log, "[%s]: %d", __func__, chip->data.auto_discharge_disconnect);
+	tcpci_auto_discharge_update(chip->tcpci);
+
+	return count;
+}
+static DEVICE_ATTR_RW(auto_discharge);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
+	&dev_attr_auto_discharge,
 	NULL
 };
 
