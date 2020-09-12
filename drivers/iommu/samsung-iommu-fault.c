@@ -271,7 +271,7 @@ static inline void dump_sysmmu_tlb_status(struct sysmmu_drvdata *drvdata,
 }
 
 static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
-				      phys_addr_t pgtable[MAX_VIDS])
+				      phys_addr_t pgtable[MAX_VIDS], unsigned int vid)
 {
 	int info;
 	void __iomem *sfrbase = drvdata->sfrbase;
@@ -281,7 +281,7 @@ static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
 	pr_crit("ADDR: (VA: %p), MMU_CTRL: %#010x, PT_BASE: %#010x\n",
 		sfrbase,
 		readl_relaxed(sfrbase + REG_MMU_CTRL),
-		readl_relaxed(MMU_REG(drvdata, IDX_FLPT_BASE)));
+		readl_relaxed(MMU_VM_REG(drvdata, IDX_FLPT_BASE, vid)));
 	pr_crit("VERSION %d.%d.%d, MMU_CFG: %#010x, MMU_STATUS: %#010x\n",
 		MMU_MAJ_VER(info), MMU_MIN_VER(info), MMU_REV_VER(info),
 		readl_relaxed(sfrbase + REG_MMU_CFG),
@@ -289,8 +289,8 @@ static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
 
 	if (drvdata->has_vcr)
 		pr_crit("MMU_CTRL_VM: %#010x, MMU_CFG_VM: %#010x\n",
-			readl_relaxed(MMU_VM_REG(drvdata, IDX_CTRL_VM, 0)),
-			readl_relaxed(MMU_VM_REG(drvdata, IDX_CFG_VM, 0)));
+			readl_relaxed(MMU_VM_REG(drvdata, IDX_CTRL_VM, vid)),
+			readl_relaxed(MMU_VM_REG(drvdata, IDX_CFG_VM, vid)));
 
 	dump_sysmmu_tlb_status(drvdata, pgtable);
 }
@@ -356,7 +356,7 @@ static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
 	const char *port_name = NULL;
 	u32 info;
 
-	info = readl_relaxed(MMU_REG(drvdata, IDX_FAULT_TRANS_INFO));
+	info = readl_relaxed(MMU_VM_REG(drvdata, IDX_FAULT_TRANS_INFO, vid));
 
 	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
 
@@ -413,7 +413,7 @@ static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 		pgtable[vid] = 0;
 	}
 
-	dump_sysmmu_status(drvdata, pgtable);
+	dump_sysmmu_status(drvdata, pgtable, vid);
 finish:
 	pr_crit("----------------------------------------------------------\n");
 }
