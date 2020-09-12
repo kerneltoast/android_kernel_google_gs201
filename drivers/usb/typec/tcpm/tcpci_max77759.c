@@ -185,13 +185,13 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 	logbuffer_log(log, "[%s] Init ALERT_MASK read : %u", __func__,
 		      alert_mask);
 
-	/* Enable vbus voltage monitoring and voltage alerts */
-	ret = max77759_write8(regmap, TCPC_POWER_CTRL, 0);
+	/* Enable vbus voltage monitoring, voltage alerts, bleed discharge */
+	ret = max77759_update_bits8(regmap, TCPC_POWER_CTRL, TCPC_POWER_CTRL_VBUS_VOLT_MON |
+				    TCPC_DIS_VOLT_ALRM | TCPC_POWER_CTRL_BLEED_DISCHARGE,
+				    TCPC_POWER_CTRL_BLEED_DISCHARGE);
 	if (ret < 0)
 		return;
-	logbuffer_log(log,
-		      "TCPC_POWER_CTRL: Enable voltage monitoring and alarm"
-		      );
+	logbuffer_log(log, "TCPC_POWER_CTRL: Enable voltage monitoring, alarm, bleed discharge");
 
 	ret = max77759_write8(regmap, TCPC_ALERT_EXTENDED_MASK, TCPC_SINK_FAST_ROLE_SWAP);
 	if (ret < 0) {
