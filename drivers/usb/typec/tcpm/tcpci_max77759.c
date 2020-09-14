@@ -52,7 +52,10 @@ enum gbms_charger_modes {
 	GBMS_CHGR_MODE_OTG_BOOST_ON = 0x0a,
 };
 
-#define FRS_DEFAULT_DISABLE	-1
+#define CONTAMINANT_DETECT_MAXQ	2
+
+#define TCPM_RESTART_TOGGLING		0
+#define CONTAMINANT_HANDLES_TOGGLING	1
 
 struct tcpci {
 	struct device *dev;
@@ -126,9 +129,42 @@ static ssize_t auto_discharge_store(struct device *dev, struct device_attribute 
 }
 static DEVICE_ATTR_RW(auto_discharge);
 
+static ssize_t contaminant_detection_show(struct device *dev, struct device_attribute *attr,
+					  char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->contaminant_detection);
+};
+
+static ssize_t contaminant_detection_store(struct device *dev, struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	int val;
+
+	if (kstrtoint(buf, 10, &val) < 0)
+		return -EINVAL;
+
+	mutex_lock(&chip->contaminant_detection_lock);
+	chip->contaminant_detection = val;
+
+	if (chip->contaminant_detection)
+		enable_contaminant_detection(chip, chip->contaminant_detection ==
+					     CONTAMINANT_DETECT_MAXQ);
+	else
+		disable_contaminant_detection(chip);
+
+	logbuffer_log(chip->log, "[%s]: %d", __func__, chip->contaminant_detection);
+	mutex_unlock(&chip->contaminant_detection_lock);
+	return count;
+}
+static DEVICE_ATTR_RW(contaminant_detection);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_auto_discharge,
+	&dev_attr_contaminant_detection,
 	NULL
 };
 
@@ -567,10 +603,13 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		 * Process generic CC updates if it doesn't belong to
 		 * contaminant detection.
 		 */
-		if (!process_contaminant_alert(chip->contaminant))
+		mutex_lock(&chip->contaminant_detection_lock);
+		if (!chip->contaminant_detection || tcpci_is_debouncing(tcpci) ||
+		    !process_contaminant_alert(chip->contaminant, false))
 			tcpm_cc_change(tcpci->port);
 		else
-			logbuffer_log(log, "CC update: Contaminant");
+			logbuffer_log(log, "CC update: Contaminant algorithm responded");
+		mutex_unlock(&chip->contaminant_detection_lock);
 	}
 
 	if (status & TCPC_ALERT_POWER_STATUS)
@@ -634,6 +673,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				     (u8 *)&raw);
 		if (ret < 0)
 			return ret;
+
 		logbuffer_log(log, "VSAFE0V: %c\n", raw & TCPC_EXTENDED_STATUS_VSAFE0V ? 'Y' :
 			      'N');
 		if (raw & TCPC_EXTENDED_STATUS_VSAFE0V) {
@@ -745,18 +785,27 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 
 	max77759_init_regs(chip->tcpci->regmap, chip->log);
 
-	ret = max77759_write8(tcpci->regmap, TCPC_ROLE_CTRL, reg);
-	if (ret < 0)
-		return ret;
+	mutex_lock(&chip->contaminant_detection_lock);
+	if (chip->contaminant_detection) {
+		ret = enable_contaminant_detection(chip, chip->contaminant_detection ==
+						   CONTAMINANT_DETECT_MAXQ);
+	} else {
+		ret = max77759_write8(tcpci->regmap, TCPC_ROLE_CTRL, reg);
+		if (ret < 0)
+			return ret;
 
-	ret = max77759_update_bits8(tcpci->regmap, TCPC_TCPC_CTRL,
-				    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT,
-				    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT);
-	if (ret < 0)
-		return ret;
-	/* TODO: REMOVE when enabling contaminant detection */
-	return regmap_write(tcpci->regmap, TCPC_COMMAND,
-			    TCPC_CMD_LOOK4CONNECTION);
+		ret = max77759_update_bits8(tcpci->regmap, TCPC_TCPC_CTRL,
+					    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT,
+					    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT);
+
+		if (ret < 0)
+			return ret;
+
+		ret = regmap_write(tcpci->regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
+	}
+	mutex_unlock(&chip->contaminant_detection_lock);
+
+	return ret;
 }
 
 static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
@@ -773,6 +822,24 @@ static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 			      &raw);
 	return ret ? 0 : ((raw & TCPC_VBUS_VOLTAGE_MASK) *
 		TCPC_VBUS_VOLTAGE_LSB_MV);
+}
+
+static int max77759_check_contaminant(struct tcpci *tcpci, struct tcpci_data *tdata)
+{
+	struct max77759_plat *chip = tdata_to_max77759(tdata);
+	int ret;
+
+	logbuffer_log(chip->log, "%s: debounce path", __func__);
+	mutex_lock(&chip->contaminant_detection_lock);
+	if (chip->contaminant_detection) {
+		process_contaminant_alert(chip->contaminant, true);
+		ret = CONTAMINANT_HANDLES_TOGGLING;
+	} else {
+		ret = TCPM_RESTART_TOGGLING;
+	}
+
+	mutex_unlock(&chip->contaminant_detection_lock);
+	return ret;
 }
 
 static int max77759_get_current_limit(struct tcpci *tcpci,
@@ -1082,6 +1149,7 @@ static int max77759_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 	mutex_init(&chip->icl_proto_el_lock);
 	mutex_init(&chip->data_path_lock);
+	mutex_init(&chip->contaminant_detection_lock);
 
 	ret = max77759_read8(chip->data.regmap, TCPC_POWER_STATUS,
 			     &power_status);
@@ -1107,6 +1175,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
 	chip->data.enable_frs = max77759_enable_frs;
+	chip->data.check_contaminant = max77759_check_contaminant;
 
 	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {

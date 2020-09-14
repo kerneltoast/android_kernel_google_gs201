@@ -53,7 +53,7 @@
 #define	CCLPMODESEL_MASK			GENMASK(4, 3)
 #define LOW_POWER_MODE_DISABLE			0
 #define ULTRA_LOW_POWER_MODE			(1 << 3)
-#define AUTO_ULTRA_LOWER_MODE			(3 << 3)
+#define AUTO_ULTRA_LOW_POWER_MODE		(3 << 3)
 #define CCRPCTRL_MASK				GENMASK(2, 0)
 #define TCPCI_CONTROL				0
 #define UA_1_SRC				1

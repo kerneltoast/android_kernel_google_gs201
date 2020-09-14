@@ -63,6 +63,9 @@ struct max77759_plat {
 
 	/* Runtime flags */
 	int frs;
+	int contaminant_detection;
+	/* Protects contaminant_detection variable */
+	struct mutex contaminant_detection_lock;
 
 	struct logbuffer *log;
 };
@@ -78,24 +81,17 @@ void register_tcpc(struct max77759_usb *usb, struct max77759_plat *chip);
 #define MAXQ_DETECT_TYPE_CC_AND_SBU	0x10
 #define MAXQ_DETECT_TYPE_SBU_ONLY	0x30
 
-#ifdef MAX77759_CONTAMINANT_MAXQ
-int maxq_query_contaminant(u8 cc1_raw, u8 cc2_raw, u8 sbu1_raw, u8 sbu2_raw,
-			   u8 cc1_rd, u8 cc2_rd, u8 type,
-			   u8 cc_adc_skipped);
-#else
-static inline int maxq_query_contaminant(u8 cc1_raw, u8 cc2_raw, u8 sbu1_raw,
-					 u8 sbu2_raw, u8 cc1_rd, u8 cc2_rd,
-					 u8 type, u8 cc_adc_skipped)
+int __attribute__((weak)) maxq_query_contaminant(u8 cc1_raw, u8 cc2_raw, u8 sbu1_raw, u8 sbu2_raw,
+						 u8 cc1_rd, u8 cc2_rd, u8 type, u8 cc_adc_skipped,
+						 u8 *response, u8 length)
 {
 	return -EINVAL;
 }
-#endif
 
-struct max77759_contaminant *
-max77759_contaminant_init(struct max77759_plat *plat, bool enable);
-
-bool process_contaminant_alert(struct max77759_contaminant *contaminant);
-int enable_contaminant_detection(struct max77759_plat *chip);
+struct max77759_contaminant *max77759_contaminant_init(struct max77759_plat *plat, bool enable);
+bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool debounce_path);
+int enable_contaminant_detection(struct max77759_plat *chip, bool maxq);
+void disable_contaminant_detection(struct max77759_plat *chip);
 
 #define VBUS_VOLTAGE_MASK		0x3ff
 #define VBUS_VOLTAGE_LSB_MV		25
