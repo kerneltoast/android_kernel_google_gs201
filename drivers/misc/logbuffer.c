@@ -17,6 +17,8 @@
 #include <linux/miscdevice.h>
 #include <misc/logbuffer.h>
 
+#include <uapi/linux/time.h>
+
 #define LOG_BUFFER_ENTRIES      1024
 #define LOG_BUFFER_ENTRY_SIZE   256
 #define ID_LENGTH		50
@@ -42,11 +44,11 @@ static void __logbuffer_log(struct logbuffer *instance,
 	unsigned long rem_nsec = do_div(ts_nsec, 1000000000);
 
 	if (record_utc) {
-		struct timespec ts;
+		struct timespec64 ts;
 		struct rtc_time tm;
 
-		getnstimeofday(&ts);
-		rtc_time_to_tm(ts.tv_sec, &tm);
+		ktime_get_real_ts64(&ts);
+		rtc_time64_to_tm(ts.tv_sec, &tm);
 		scnprintf(instance->buffer + (instance->logbuffer_head *
 			  LOG_BUFFER_ENTRY_SIZE),
 			  LOG_BUFFER_ENTRY_SIZE,
