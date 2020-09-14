@@ -169,6 +169,35 @@ struct dpp_ch_restriction {
 	struct dpp_restriction restriction;
 };
 
+/**
+ * struct dither_config - a dither configuration data to set by user-space
+ *
+ * @en: enable or disable a dither
+ * @mode: 0 for dither, 1 for 2bits shift
+ * @frame_con: If frame control is on, the temporal dither is used. Otherwise,
+ *	       the spatial dither is used. If temporal dither is used, a
+ *	       different dither mask can be used for each frame counter.
+ * @frame_offset: The dithers in DQE use same frame counter. However, if two
+ *		  dithers set a different frame offsets, each dither can select
+ *		  a different dither mask according to the different frame
+ *		  counter + offset.
+ * @table_sel_r/g/b: It can select a different dither mask for each channel.
+ *
+ * A dither_config represents the information necessary for setting up the
+ * dither in DQE. It is used to set a property of a crtc for dither
+ * configuration.
+ */
+struct dither_config {
+	__u8 en:1;
+	__u8 mode:1;
+	__u8 frame_con:1;
+	__u8 frame_offset:2;
+	__u8 table_sel_r:1;
+	__u8 table_sel_g:1;
+	__u8 table_sel_b:1;
+	__u32 reserved:24;
+};
+
 #if defined(__cplusplus)
 }
 #endif
