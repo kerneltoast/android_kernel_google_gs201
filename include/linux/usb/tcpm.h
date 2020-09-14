@@ -107,6 +107,14 @@ enum tcpm_transmit_type {
  *		will be turned on. requested_vbus_voltage is set to 0 when vbus
  *		is going to disappear knowingly i.e. during PR_SWAP and
  *		HARD_RESET etc.
+ * @check_contaminant:
+ *		Optional; The callback is called when CC pins report open status
+ *		at the end of the toggling period. Chip level drivers are
+ *		expected to check for contaminant and re-enable toggling if
+ *		needed. Return > 0 when contaminant will restart toggling
+ *		when the connector is free of contaminant; this forces the TCPM
+ *		state machine to tranistion to TOGGLING state without calling
+ *		start_toggling.
  */
 struct tcpc_dev {
 	struct fwnode_handle *fwnode;
@@ -139,6 +147,7 @@ struct tcpc_dev {
 	int (*enable_auto_vbus_discharge)(struct tcpc_dev *dev, bool enable);
 	int (*set_auto_vbus_discharge_threshold)(struct tcpc_dev *dev, enum typec_pwr_opmode mode,
 						 bool pps_active, u32 requested_vbus_voltage);
+	int (*check_contaminant)(struct tcpc_dev *dev);
 };
 
 struct tcpm_port;
@@ -162,5 +171,6 @@ void tcpm_pd_hard_reset(struct tcpm_port *port);
 void tcpm_tcpc_reset(struct tcpm_port *port);
 int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **pdo);
 void tcpm_put_partner_src_caps(u32 **pdo);
+bool tcpm_is_debouncing(struct tcpm_port *tcpm);
 
 #endif /* __LINUX_USB_TCPM_H */
