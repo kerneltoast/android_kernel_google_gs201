@@ -20,6 +20,7 @@
 #if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
 #include <soc/google/exynos-s2mpu.h>
 #endif
+
 #include "modem_utils.h"
 #include "dit.h"
 #include "dit_net.h"
@@ -105,7 +106,7 @@ static int dit_get_snapshot_next_head(enum dit_direction dir,
 
 static bool dit_hw_capa_matched(u32 mask)
 {
-	if (dc->hw_capabilities | mask)
+	if (dc->hw_capabilities & mask)
 		return true;
 
 	return false;
@@ -287,9 +288,10 @@ int dit_enqueue_reg_value_with_ext_lock(u32 value, u32 offset)
 		reg_item->value = value;
 		reg_item->offset = offset;
 		list_add_tail(&reg_item->list, &dc->reg_value_q);
-	} else
+	} else {
 		if (dit_is_reg_value_valid(value, offset))
 			WRITE_REG_VALUE(dc, value, offset);
+	}
 
 	return 0;
 }
@@ -339,7 +341,7 @@ static void dit_update_stat(struct sk_buff *skb)
 	struct net_device *netdev = dit_hal_get_dst_netdev(DIT_DST_DESC_RING_0);
 
 	if (netdev) {
-#if defined(CONFIG_CPIF_TP_MONITOR)
+#if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 		struct mem_link_device *mld = to_mem_link_device(dc->ld);
 
 		mld->tpmon->add_rx_bytes(len);
@@ -610,13 +612,30 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir, u8 *src,
 	src_desc->control = 0;
 	src_desc->status = 0;
 
-	/* check filter bypass by upstream netdev */
-	if (dir == DIT_DIR_RX) {
-		upstream_netdev = dit_hal_get_dst_netdev(DIT_DST_DESC_RING_0);
-		iod = link_get_iod_with_channel(dc->ld, ch_id);
-		if (upstream_netdev && (upstream_netdev == iod->ndev))
+	do {
+		if (dir != DIT_DIR_RX)
+			break;
+		/*
+		 * check ipv6 for clat.
+		 * port table does not have entries for tun device or ipv6.
+		 * every ipv6 packets from any rmnet can see port table.
+		 */
+		if ((src[0] & 0xF0) == 0x60) {
 			filter_bypass = false;
-	}
+			break;
+		}
+
+		/* check upstream netdev */
+		upstream_netdev = dit_hal_get_dst_netdev(DIT_DST_DESC_RING_0);
+		if (upstream_netdev) {
+			iod = link_get_iod_with_channel(dc->ld, ch_id);
+			if (upstream_netdev == iod->ndev) {
+				filter_bypass = false;
+				break;
+			}
+		}
+	} while (0);
+
 	dit_set_src_desc_filter_bypass(src_desc, filter_bypass);
 
 	desc_info->src_wp = circ_new_ptr(desc_info->src_desc_ring_len, src_wp, 1);
@@ -863,8 +882,17 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			skbpriv(skb)->ld = dc->ld;
 			skbpriv(skb)->napi = napi;
 
+			/* clat */
+			if ((dst_desc->packet_info & BIT(DIT_PACKET_INFO_IPV6_BIT)) &&
+					((skb->data[0] & 0xFF) == 0x45)) {
+				skbpriv(skb)->rx_clat = 1;
+				snapshot[DIT_DIR_RX][ring_num].clat_packets++;
+			}
+
 			/* hw checksum */
 			dit_set_skb_checksum(dst_desc, ring_num, skb);
+
+			dst_desc->packet_info = 0;
 			dst_desc->status = 0;
 
 			/* update dst rp after fill data buffers */
@@ -1156,6 +1184,38 @@ exit:
 }
 EXPORT_SYMBOL(dit_kick);
 
+static bool dit_check_nat_enabled(void)
+{
+	unsigned int ring_num;
+
+	for (ring_num = DIT_DST_DESC_RING_1; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
+		if (dit_check_dst_ready(DIT_DIR_RX, ring_num) == 0)
+			return true;
+	}
+
+	return false;
+}
+
+static void dit_check_clat_enabled_internal(struct io_device *iod, void *args)
+{
+	bool *enabled = (bool *) args;
+
+	if (*enabled || !dc->ld->is_ps_ch(iod->ch))
+		return;
+
+	if (iod->clat_ndev)
+		*enabled = true;
+}
+
+static bool dit_check_clat_enabled(void)
+{
+	bool enabled = false;
+
+	iodevs_for_each(dc->ld->msd, dit_check_clat_enabled_internal, &enabled);
+
+	return enabled;
+}
+
 static int dit_reg_backup_restore_internal(bool backup, const u16 *offset,
 	const u16 *size, void **buf, const unsigned int arr_len)
 {
@@ -1200,6 +1260,7 @@ exit:
 
 static int dit_reg_backup_restore(bool backup)
 {
+	/* NAT */
 	static const u16 nat_offset[] = {
 		DIT_REG_NAT_LOCAL_ADDR,
 		DIT_REG_NAT_ETHERNET_DST_MAC_ADDR_0,
@@ -1213,30 +1274,45 @@ static int dit_reg_backup_restore(bool backup)
 	static const unsigned int nat_len = ARRAY_SIZE(nat_offset);
 	static void *nat_buf[nat_len];
 
-	bool nat_enabled = false;
+	/* CLAT */
+	static const u16 clat_offset[] = {
+		DIT_REG_CLAT_TX_FILTER,
+		DIT_REG_CLAT_TX_PLAT_PREFIX_0,
+		DIT_REG_CLAT_TX_CLAT_SRC_0,
+	};
+	static const u16 clat_size[] = {
+		DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_FILTER_INTERVAL,
+		DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL,
+		DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL,
+	};
+	static const unsigned int clat_len = ARRAY_SIZE(clat_offset);
+	static void *clat_buf[clat_len];
 
-	unsigned int ring_num;
 	int ret = 0;
 
 	if (unlikely(!dc))
 		return -EPERM;
 
 	/* NAT */
-	for (ring_num = DIT_DST_DESC_RING_1; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
-		if (dit_check_dst_ready(DIT_DIR_RX, ring_num) == 0) {
-			nat_enabled = true;
-			break;
-		}
-	}
-
-	if (nat_enabled) {
+	if (dit_check_nat_enabled()) {
 		ret = dit_reg_backup_restore_internal(backup, nat_offset, nat_size, nat_buf,
 			nat_len);
-		if (ret) {
-			mif_err("nat backup/restore failed is_backup:%d, ret:%d\n", backup, ret);
-			return ret;
-		}
+		if (ret)
+			goto error;
 	}
+
+	/* CLAT */
+	if (dit_check_clat_enabled()) {
+		ret = dit_reg_backup_restore_internal(backup, clat_offset, clat_size, clat_buf,
+			clat_len);
+		if (ret)
+			goto error;
+	}
+
+	return 0;
+
+error:
+	mif_err("backup/restore failed is_backup:%d, ret:%d\n", backup, ret);
 
 	return ret;
 }
@@ -1346,8 +1422,7 @@ static int dit_init_desc(enum dit_direction dir)
 		buf = kvzalloc(buf_size, GFP_KERNEL);
 		if (!buf) {
 			mif_err("dit dir[%d] src skb container alloc failed\n", dir);
-			ret = -ENOMEM;
-			goto error;
+			return -ENOMEM;
 		}
 		desc_info->src_skb_buf = buf;
 	}
@@ -1361,8 +1436,7 @@ static int dit_init_desc(enum dit_direction dir)
 			buf = devm_kzalloc(dc->dev, buf_size, GFP_KERNEL);
 			if (!buf) {
 				mif_err("dit dir[%d] dst desc[%d] alloc failed\n", dir, ring_num);
-				ret = -ENOMEM;
-				goto error;
+				return -ENOMEM;
 			}
 			desc_info->dst_desc_ring[ring_num] = buf;
 		}
@@ -1385,8 +1459,7 @@ static int dit_init_desc(enum dit_direction dir)
 			if (ret) {
 				mif_err("dit dir[%d] dst desc[%d] buffer fill failed\n",
 					dir, ring_num);
-				ret = -ENOMEM;
-				goto error;
+				return -ENOMEM;
 			}
 			break;
 		case DIT_DST_DESC_RING_1:
@@ -1423,26 +1496,6 @@ static int dit_init_desc(enum dit_direction dir)
 		dir, desc_info->src_desc_ring_len, desc_info->dst_desc_ring_len);
 
 	return 0;
-
-error:
-	for (ring_num = DIT_DST_DESC_RING_0; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
-		if (desc_info->dst_desc_ring[ring_num]) {
-			devm_kfree(dc->dev, desc_info->dst_desc_ring[ring_num]);
-			desc_info->dst_desc_ring[ring_num] = NULL;
-		}
-	}
-
-	if (desc_info->src_skb_buf) {
-		kvfree(desc_info->src_skb_buf);
-		desc_info->src_skb_buf = NULL;
-	}
-
-	if (desc_info->src_desc_ring) {
-		devm_kfree(dc->dev, desc_info->src_desc_ring);
-		desc_info->src_desc_ring = NULL;
-	}
-
-	return ret;
 }
 
 int dit_init(struct link_device *ld, bool retry)
@@ -1584,8 +1637,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 	unsigned int wp, rp, desc_len;
 	unsigned int dir, ring_num;
 
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "use tx: %d, rx: %d\n",
-		dc->use_tx, dc->use_rx);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "use tx: %d, rx: %d, clat: %d\n",
+		dc->use_tx, dc->use_rx, dc->use_clat);
 
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
 		desc_info = &dc->desc_info[dir];
@@ -1612,8 +1665,9 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 				snapshot[dir][ring_num].head, snapshot[dir][ring_num].tail,
 				snapshot[dir][ring_num].packets);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"  total packets: %lu\n",
-				snapshot[dir][ring_num].total_packets);
+				"  total packets: %lu, clat: %lu\n",
+				snapshot[dir][ring_num].total_packets,
+				snapshot[dir][ring_num].clat_packets);
 		}
 	}
 
@@ -1631,10 +1685,10 @@ static ssize_t register_show(struct device *dev, struct device_attribute *attr, 
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "STATUS: 0x%X\n",
 		READ_REG_VALUE(dc, DIT_REG_STATUS));
 
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "Local Address\n");
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "NAT Local Address\n");
 	for (i = 0; i < DIT_REG_NAT_LOCAL_ADDR_MAX; i++) {
 		count += scnprintf(&buf[count], PAGE_SIZE - count,
-			"  [%02d] src: 0x%08X%04X, dst: 0x%08X/0x%08X%04X\n",
+			"  [%02d] src:0x%08X%04X, dst:0x%08X/0x%08X%04X\n",
 			i,
 			ntohl(READ_REG_VALUE(dc, DIT_REG_NAT_ETHERNET_SRC_MAC_ADDR_0 +
 					(i * DIT_REG_ETHERNET_MAC_INTERVAL))),
@@ -1646,6 +1700,29 @@ static ssize_t register_show(struct device *dev, struct device_attribute *attr, 
 					(i * DIT_REG_ETHERNET_MAC_INTERVAL))),
 			ntohs(READ_REG_VALUE(dc, DIT_REG_NAT_ETHERNET_DST_MAC_ADDR_1 +
 					(i * DIT_REG_ETHERNET_MAC_INTERVAL))));
+	}
+
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "CLAT Address\n");
+	for (i = 0; i < DIT_REG_CLAT_ADDR_MAX; i++) {
+		count += scnprintf(&buf[count], PAGE_SIZE - count,
+			"  [%02d] v4:0x%08X, v6:0x%08X%08X%08X%08X, prx:0x%08X%08X%08X\n",
+		i,
+		ntohl(READ_REG_VALUE(dc, DIT_REG_CLAT_TX_FILTER +
+					(i * DIT_REG_CLAT_TX_FILTER_INTERVAL))),
+		ntohl(READ_REG_VALUE(dc, DIT_REG_CLAT_TX_CLAT_SRC_0 +
+					(i * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL))),
+		ntohl(READ_REG_VALUE(dc, DIT_REG_CLAT_TX_CLAT_SRC_1 +
+					(i * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL))),
+		ntohl(READ_REG_VALUE(dc, DIT_REG_CLAT_TX_CLAT_SRC_2 +
+					(i * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL))),
+		ntohl(READ_REG_VALUE(dc, DIT_REG_CLAT_TX_CLAT_SRC_3 +
+					(i * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL))),
+		ntohl(READ_REG_VALUE(dc, DIT_REG_CLAT_TX_PLAT_PREFIX_0 +
+					(i * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL))),
+		ntohl(READ_REG_VALUE(dc, DIT_REG_CLAT_TX_PLAT_PREFIX_1 +
+					(i * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL))),
+		ntohl(READ_REG_VALUE(dc, DIT_REG_CLAT_TX_PLAT_PREFIX_2 +
+					(i * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL))));
 	}
 
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "check logs for port table\n");
@@ -1821,6 +1898,37 @@ static ssize_t debug_use_rx_show(struct device *dev, struct device_attribute *at
 {
 	return scnprintf(buf, PAGE_SIZE, "use_rx: %d\n", dc->use_rx);
 }
+
+static ssize_t debug_use_clat_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct clat_info clat;
+	unsigned int i;
+	unsigned int flag;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &flag);
+	if (ret)
+		return -EINVAL;
+
+	if (!flag) {
+		memset(&clat, 0, sizeof(clat));
+		for (i = 0; i < DIT_REG_CLAT_ADDR_MAX; i++) {
+			clat.rmnet_index = i;
+			dit_hal_set_clat_info(&clat);
+		}
+	}
+
+	dc->use_clat = (flag > 0 ? true : false);
+
+	return count;
+}
+
+static ssize_t debug_use_clat_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "use_clat: %d\n", dc->use_clat);
+}
 #endif
 
 static DEVICE_ATTR_RO(status);
@@ -1833,6 +1941,7 @@ static DEVICE_ATTR_WO(debug_reset_usage);
 static DEVICE_ATTR_WO(debug_set_force_bypass);
 static DEVICE_ATTR_RW(debug_use_tx);
 static DEVICE_ATTR_RW(debug_use_rx);
+static DEVICE_ATTR_RW(debug_use_clat);
 #endif
 
 static struct attribute *dit_attrs[] = {
@@ -1846,6 +1955,7 @@ static struct attribute *dit_attrs[] = {
 	&dev_attr_debug_set_force_bypass.attr,
 	&dev_attr_debug_use_tx.attr,
 	&dev_attr_debug_use_rx.attr,
+	&dev_attr_debug_use_clat.attr,
 #endif
 	NULL,
 };
@@ -1986,6 +2096,15 @@ int dit_reset_dst_wp_rp(enum dit_direction dir)
 }
 EXPORT_SYMBOL(dit_reset_dst_wp_rp);
 
+struct net_device *dit_get_netdev(void)
+{
+	if (!dc)
+		return NULL;
+
+	return dc->netdev;
+}
+EXPORT_SYMBOL(dit_get_netdev);
+
 #if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
 static int s2mpufd_notifier_callback(struct s2mpufd_notifier_block *nb,
 		struct s2mpufd_notifier_info *ni)
@@ -2053,9 +2172,18 @@ int dit_create(struct platform_device *pdev)
 
 	mif_dt_read_u32(np, "dit_hw_version", dc->hw_version);
 	mif_dt_read_u32(np, "dit_hw_capabilities", dc->hw_capabilities);
+#if defined(EXYNOS2100_SOC_ID)
+	if (exynos_soc_info.product_id == EXYNOS2100_SOC_ID) {
+		if (exynos_soc_info.revision >= 0x11)
+			dc->hw_capabilities &= ~DIT_CAP_MASK_PORT_BIG_ENDIAN;
+		else
+			dc->hw_capabilities |= DIT_CAP_MASK_PORT_BIG_ENDIAN;
+	}
+#endif
 
 	mif_dt_read_bool(np, "dit_use_tx", dc->use_tx);
 	mif_dt_read_bool(np, "dit_use_rx", dc->use_rx);
+	mif_dt_read_bool(np, "dit_use_clat", dc->use_clat);
 	mif_dt_read_bool(np, "dit_hal_linked", dc->hal_linked);
 	mif_dt_read_bool(np, "dit_static_desc_ring_len", dc->static_desc_ring_len);
 	if (dc->static_desc_ring_len) {

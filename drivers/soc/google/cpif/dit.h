@@ -64,6 +64,18 @@
 #define DIT_REG_INT_PENDING			0x008C
 #define DIT_REG_STATUS				0x0090
 
+/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_FILTER_INTERVAL */
+#define DIT_REG_CLAT_TX_FILTER			0x2000
+/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL */
+#define DIT_REG_CLAT_TX_PLAT_PREFIX_0		0x2020
+#define DIT_REG_CLAT_TX_PLAT_PREFIX_1		0x2024
+#define DIT_REG_CLAT_TX_PLAT_PREFIX_2		0x2028
+/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL */
+#define DIT_REG_CLAT_TX_CLAT_SRC_0		0x2080
+#define DIT_REG_CLAT_TX_CLAT_SRC_1		0x2084
+#define DIT_REG_CLAT_TX_CLAT_SRC_2		0x2088
+#define DIT_REG_CLAT_TX_CLAT_SRC_3		0x208C
+
 /* address for Tx desc */
 #define DIT_REG_NAT_TX_DESC_ADDR_0_SRC		0x4000	/* 32 bit */
 #define DIT_REG_NAT_TX_DESC_ADDR_1_SRC		0x4004	/* 4 bit */
@@ -108,10 +120,14 @@
 #define DIT_REG_NAT_RX_PORT_TABLE_SLOT		0xC000
 
 /* total numbers and intervals */
-#define DIT_REG_NAT_LOCAL_ADDR_MAX	(16)
-#define DIT_REG_NAT_LOCAL_PORT_MAX	(2048)
-#define DIT_REG_NAT_LOCAL_INTERVAL	(4)
-#define DIT_REG_ETHERNET_MAC_INTERVAL	(0x20)
+#define DIT_REG_NAT_LOCAL_ADDR_MAX		(16)
+#define DIT_REG_NAT_LOCAL_PORT_MAX		(2048)
+#define DIT_REG_NAT_LOCAL_INTERVAL		(4)
+#define DIT_REG_ETHERNET_MAC_INTERVAL		(0x20)
+#define DIT_REG_CLAT_ADDR_MAX			(8)
+#define DIT_REG_CLAT_TX_FILTER_INTERVAL		(4)
+#define DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL	(12)
+#define DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL	(16)
 
 /* macro for DIT register operation */
 #define PADDR_LO(paddr)	(paddr & 0xFFFFFFFF)
@@ -236,6 +252,11 @@ enum dit_status_mask {
 	RX_STATUS_MASK = 0xF0,
 };
 
+enum dit_packet_info_bits {
+	DIT_PACKET_INFO_IPV6_BIT = 10,
+	DIT_PACKET_INFO_IPV4_BIT,
+};
+
 struct dit_src_desc {
 	u64	src_addr:36,
 		_reserved_0:12,
@@ -302,6 +323,7 @@ struct dit_ctrl_t {
 	u32 hw_capabilities;
 	bool use_tx;
 	bool use_rx;
+	bool use_clat;
 	bool hal_linked;
 	bool static_desc_ring_len;
 
@@ -331,6 +353,8 @@ struct dit_snapshot_t {
 	u64 packets;
 	/* cumulative amount */
 	u64 total_packets;
+	u64 clat_packets;
+
 	u32 max_usage;
 	u32 alloc_skbs;
 };
@@ -376,6 +400,7 @@ int dit_set_buf_size(enum dit_direction dir, u32 size);
 int dit_set_pktproc_base(enum dit_direction dir, phys_addr_t base);
 int dit_set_desc_ring_len(enum dit_direction dir, u32 len);
 int dit_get_src_usage(enum dit_direction dir, u32 *usage);
+struct net_device *dit_get_netdev(void);
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 int dit_enqueue_src_desc_ring(enum dit_direction dir, u8 *src, u16 len, u16 ch_id, bool csum);

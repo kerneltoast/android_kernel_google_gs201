@@ -287,23 +287,23 @@ static inline bool log_enabled(u8 ch, struct link_device *ld)
 {
 	unsigned long flags = get_log_flags();
 
-	if (ld->is_fmt_ch(ch))
+	if (ld->is_fmt_ch && ld->is_fmt_ch(ch))
 		return test_bit(DEBUG_FLAG_FMT, &flags);
-	else if (ld->is_boot_ch(ch))
+	else if (ld->is_boot_ch && ld->is_boot_ch(ch))
 		return test_bit(DEBUG_FLAG_BOOT, &flags);
-	else if (ld->is_dump_ch(ch))
+	else if (ld->is_dump_ch && ld->is_dump_ch(ch))
 		return test_bit(DEBUG_FLAG_DUMP, &flags);
-	else if (ld->is_rfs_ch(ch))
+	else if (ld->is_rfs_ch && ld->is_rfs_ch(ch))
 		return test_bit(DEBUG_FLAG_RFS, &flags);
-	else if (ld->is_csd_ch(ch))
+	else if (ld->is_csd_ch && ld->is_csd_ch(ch))
 		return test_bit(DEBUG_FLAG_CSVT, &flags);
-	else if (ld->is_log_ch(ch))
+	else if (ld->is_log_ch && ld->is_log_ch(ch))
 		return test_bit(DEBUG_FLAG_LOG, &flags);
-	else if (ld->is_ps_ch(ch))
+	else if (ld->is_ps_ch && ld->is_ps_ch(ch))
 		return test_bit(DEBUG_FLAG_PS, &flags);
-	else if (ld->is_router_ch(ch))
+	else if (ld->is_router_ch && ld->is_router_ch(ch))
 		return test_bit(DEBUG_FLAG_BT_DUN, &flags);
-	else if (ld->is_misc_ch(ch))
+	else if (ld->is_misc_ch && ld->is_misc_ch(ch))
 		return test_bit(DEBUG_FLAG_MISC, &flags);
 	else
 		return test_bit(DEBUG_FLAG_ALL, &flags);
@@ -425,18 +425,6 @@ struct io_device *insert_iod_with_format(struct modem_shared *msd,
 	rb_link_node(&iod->node_fmt, parent, p);
 	rb_insert_color(&iod->node_fmt, &msd->iodevs_tree_fmt);
 	return NULL;
-}
-
-void iodevs_for_each(struct modem_shared *msd, action_fn action, void *args)
-{
-	int i;
-
-	for (i = 0; i < msd->num_channels; i++) {
-		u8 ch = msd->ch[i];
-		struct io_device *iod = msd->ch2iod[ch];
-
-		action(iod, args);
-	}
 }
 
 void iodev_netif_wake(struct io_device *iod, void *args)

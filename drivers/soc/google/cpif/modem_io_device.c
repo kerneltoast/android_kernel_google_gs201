@@ -355,14 +355,13 @@ static int rx_multi_pdp(struct sk_buff *skb)
 {
 	struct link_device *ld = skbpriv(skb)->ld;
 	struct io_device *iod = skbpriv(skb)->iod;
-	struct net_device *ndev;
 	struct iphdr *iphdr;
 	int len = skb->len;
 	int ret = 0;
 	struct napi_struct *napi = NULL;
 
-	ndev = iod->ndev;
-	if (!ndev) {
+	skb->dev = (skbpriv(skb)->rx_clat ? iod->clat_ndev : iod->ndev);
+	if (!skb->dev || !iod->ndev) {
 		mif_info("%s: ERR! no iod->ndev\n", iod->name);
 		return -ENODEV;
 	}
@@ -372,9 +371,8 @@ static int rx_multi_pdp(struct sk_buff *skb)
 		skb_pull(skb, skbpriv(skb)->ld->get_hdr_len(skb->data));
 	}
 
-	skb->dev = ndev;
-	ndev->stats.rx_packets++;
-	ndev->stats.rx_bytes += skb->len;
+	iod->ndev->stats.rx_packets++;
+	iod->ndev->stats.rx_bytes += skb->len;
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 	tpmon_add_rx_bytes(skb->len);
 #endif

@@ -396,7 +396,17 @@ void insert_iod_with_channel(struct modem_shared *msd, unsigned int channel,
 
 /* iodev for each */
 typedef void (*action_fn)(struct io_device *iod, void *args);
-void iodevs_for_each(struct modem_shared *msd, action_fn action, void *args);
+static inline void iodevs_for_each(struct modem_shared *msd, action_fn action, void *args)
+{
+	int i;
+
+	for (i = 0; i < msd->num_channels; i++) {
+		u8 ch = msd->ch[i];
+		struct io_device *iod = msd->ch2iod[ch];
+
+		action(iod, args);
+	}
+}
 
 /* netif wake/stop queue of iod */
 void iodev_netif_wake(struct io_device *iod, void *args);

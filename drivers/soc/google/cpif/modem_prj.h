@@ -276,8 +276,9 @@ struct skbuff_private {
 
 	u32 sipc_ch:8,	/* SIPC Channel Number			*/
 	    frm_ctrl:8,	/* Multi-framing control		*/
-	    reserved:15,
-	    lnk_hdr:1;	/* Existence of a link-layer header	*/
+	    reserved:14,
+	    lnk_hdr:1,	/* Existence of a link-layer header	*/
+	    rx_clat:1;	/* IP converted by Rx CLAT		*/
 
 	struct napi_struct *napi;
 } __packed;
@@ -331,6 +332,7 @@ struct io_device {
 	struct cdev cdev;
 	struct device *cdevice;
 	struct net_device *ndev;
+	struct net_device *clat_ndev;
 	struct list_head node_ndev;
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 	struct list_head node_all_ndev;

@@ -386,12 +386,100 @@ static bool dit_hal_set_local_port(struct nat_local_port *local_port)
 	return true;
 }
 
+static void dit_hal_set_iod_clat_netdev(struct io_device *iod, void *args)
+{
+	struct clat_info *clat = (struct clat_info *) args;
+	struct net_device *ndev;
+
+	if (!dc->ld->is_ps_ch(iod->ch))
+		return;
+
+	if (strncmp(iod->name, clat->ipv6_iface, IFNAMSIZ) != 0)
+		return;
+
+	if (!clat->ipv4_iface[0]) {
+		iod->clat_ndev = NULL;
+		return;
+	}
+
+	ndev = dev_get_by_name(&init_net, clat->ipv4_iface);
+	if (ndev) {
+		dev_put(ndev);
+		iod->clat_ndev = ndev;
+		mif_info("set clat netdev[%d] ch: %d, v6:%s/v4:%s\n", clat->rmnet_index, iod->ch,
+			clat->ipv6_iface, clat->ipv4_iface);
+	}
+
+}
+
+bool dit_hal_set_clat_info(struct clat_info *clat)
+{
+	unsigned int offset;
+	unsigned long flags;
+	bool ret = false;
+
+	if (!dc->use_clat)
+		return false;
+
+	spin_lock_irqsave(&dc->src_lock, flags);
+	/* IPv4 addr of TUN device */
+	offset = clat->rmnet_index * DIT_REG_CLAT_TX_FILTER_INTERVAL;
+	if (dit_enqueue_reg_value_with_ext_lock(clat->ipv4_local_subnet.s_addr,
+			DIT_REG_CLAT_TX_FILTER + offset) < 0)
+		goto exit;
+
+	/* IPv6 addr for TUN device */
+	offset = clat->rmnet_index * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL;
+	if (dit_enqueue_reg_value_with_ext_lock(clat->ipv6_local_subnet.s6_addr32[0],
+			DIT_REG_CLAT_TX_CLAT_SRC_0 + offset) < 0)
+		goto exit;
+	if (dit_enqueue_reg_value_with_ext_lock(clat->ipv6_local_subnet.s6_addr32[1],
+			DIT_REG_CLAT_TX_CLAT_SRC_1 + offset) < 0)
+		goto exit;
+	if (dit_enqueue_reg_value_with_ext_lock(clat->ipv6_local_subnet.s6_addr32[2],
+			DIT_REG_CLAT_TX_CLAT_SRC_2 + offset) < 0)
+		goto exit;
+	if (dit_enqueue_reg_value_with_ext_lock(clat->ipv6_local_subnet.s6_addr32[3],
+			DIT_REG_CLAT_TX_CLAT_SRC_3 + offset) < 0)
+		goto exit;
+
+	/* PLAT prefix */
+	offset = clat->rmnet_index * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL;
+	if (dit_enqueue_reg_value_with_ext_lock(clat->plat_subnet.s6_addr32[0],
+			DIT_REG_CLAT_TX_PLAT_PREFIX_0 + offset) < 0)
+		goto exit;
+	if (dit_enqueue_reg_value_with_ext_lock(clat->plat_subnet.s6_addr32[1],
+			DIT_REG_CLAT_TX_PLAT_PREFIX_1 + offset) < 0)
+		goto exit;
+	if (dit_enqueue_reg_value_with_ext_lock(clat->plat_subnet.s6_addr32[2],
+			DIT_REG_CLAT_TX_PLAT_PREFIX_2 + offset) < 0)
+		goto exit;
+
+	ret = true;
+
+	/* set clat_ndev with clat registers */
+	if (clat->ipv4_iface[0])
+		iodevs_for_each(dc->ld->msd, dit_hal_set_iod_clat_netdev, clat);
+
+exit:
+	spin_unlock_irqrestore(&dc->src_lock, flags);
+
+	/* clear clat_ndev but take a delay to prevent null ndev */
+	if (ret && !clat->ipv4_iface[0]) {
+		msleep(100);
+		iodevs_for_each(dc->ld->msd, dit_hal_set_iod_clat_netdev, clat);
+	}
+
+	return ret;
+}
+
 static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct iface_info info;
 	struct forward_stats stats;
 	struct nat_local_addr local_addr;
 	struct nat_local_port local_port;
+	struct clat_info clat;
 	struct hw_info hw;
 	int ret;
 
@@ -493,7 +581,7 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 
 		if (!dit_hal_set_local_addr(&local_addr))
-			return -EFAULT;
+			return -EPERM;
 		break;
 	case OFFLOAD_IOCTL_SET_NAT_LOCAL_PORT:
 		if (copy_from_user(&local_port, (const void __user *)arg,
@@ -501,6 +589,13 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 
 		if (!dit_hal_set_local_port(&local_port))
+			return -EPERM;
+		break;
+	case OFFLOAD_IOCTL_SET_CLAT_INFO:
+		if (copy_from_user(&clat, (const void __user *)arg, sizeof(struct clat_info)))
+			return -EFAULT;
+
+		if (!dit_hal_set_clat_info(&clat))
 			return -EPERM;
 		break;
 	case OFFLOAD_IOCTL_GET_HW_INFO:

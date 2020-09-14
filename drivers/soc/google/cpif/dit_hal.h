@@ -10,6 +10,8 @@
 #ifndef __DIT_HAL_H__
 #define __DIT_HAL_H__
 
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/inet.h>
 
 #include "dit.h"
@@ -58,6 +60,15 @@ struct nat_local_port {
 	};
 } __packed;
 
+struct clat_info {
+	unsigned int rmnet_index;
+	char ipv6_iface[IFNAMSIZ];
+	char ipv4_iface[IFNAMSIZ];
+	struct in6_addr ipv6_local_subnet;
+	struct in_addr ipv4_local_subnet;
+	struct in6_addr plat_subnet;
+} __packed;
+
 struct hw_info {
 	u32 version;
 	u32 capabilities;
@@ -76,6 +87,8 @@ struct hw_info {
 
 #define OFFLOAD_IOCTL_SET_NAT_LOCAL_ADDR	_IOW(OFFLOAD_IOC_MAGIC, 0x20, struct nat_local_addr)
 #define OFFLOAD_IOCTL_SET_NAT_LOCAL_PORT	_IOW(OFFLOAD_IOC_MAGIC, 0x21, struct nat_local_port)
+
+#define OFFLOAD_IOCTL_SET_CLAT_INFO		_IOW(OFFLOAD_IOC_MAGIC, 0x40, struct clat_info)
 
 /* mandatory */
 #define OFFLOAD_IOCTL_GET_HW_INFO		_IOR(OFFLOAD_IOC_MAGIC, 0xE0, struct hw_info)
@@ -130,6 +143,7 @@ struct dit_hal_ctrl_t {
 int dit_hal_create(struct dit_ctrl_t *dc_ptr);
 struct net_device *dit_hal_get_dst_netdev(enum dit_desc_ring ring_num);
 void dit_hal_add_data_bytes(u64 rx_bytes, u64 tx_bytes);
+bool dit_hal_set_clat_info(struct clat_info *clat);
 
 #endif /* __DIT_HAL_H__ */
 
