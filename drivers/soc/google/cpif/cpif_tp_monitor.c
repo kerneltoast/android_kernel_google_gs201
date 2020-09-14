@@ -370,6 +370,7 @@ static void tpmon_set_rps(struct tpmon_data *data)
 	struct io_device *iod;
 	struct mem_link_device *mld;
 	struct pktproc_adaptor *ppa;
+	unsigned long flags;
 	int ret = 0;
 	char mask[MAX_RPS_STRING];
 	u32 rps_value;
@@ -407,9 +408,29 @@ static void tpmon_set_rps(struct tpmon_data *data)
 		if (!iod->name)
 			continue;
 
+		if (!iod->ndev)
+			continue;
+
 		ret = (int)tpmon_store_rps_map(&(iod->ndev->_rx[0]), mask, strlen(mask));
 		if (ret < 0) {
 			mif_err("tpmon_store_rps_map() error:%d\n", ret);
+			break;
+		}
+
+		spin_lock_irqsave(&iod->clat_lock, flags);
+		if (!iod->clat_ndev) {
+			spin_unlock_irqrestore(&iod->clat_lock, flags);
+			continue;
+		}
+
+		dev_hold(iod->clat_ndev);
+		spin_unlock_irqrestore(&iod->clat_lock, flags);
+
+		ret = (int)tpmon_store_rps_map(&(iod->clat_ndev->_rx[0]), mask, strlen(mask));
+		dev_put(iod->clat_ndev);
+
+		if (ret < 0) {
+			mif_err("tpmon_store_rps_map() clat error:%d\n", ret);
 			break;
 		}
 	}
@@ -434,6 +455,9 @@ static void tpmon_set_gro(struct tpmon_data *data)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 	int i;
 #endif
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
+	struct net_device *netdev = NULL;
+#endif
 
 	if (!data->enable)
 		return;
@@ -441,13 +465,31 @@ static void tpmon_set_gro(struct tpmon_data *data)
 	gro_flush_time = data->tpmon->use_user_value ?
 			data->user_value : data->values[data->curr_value_pos];
 
+#if !IS_ENABLED(CONFIG_CP_PKTPROC) && !IS_ENABLED(CONFIG_EXYNOS_DIT)
 	mld->dummy_net.gro_flush_timeout = gro_flush_time;
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	for (i = 0; i > ppa->num_queue; i++) {
-		struct pktproc_queue *q = ppa->q[i];
+#endif
 
-		q->netdev.gro_flush_timeout = gro_flush_time;
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (ppa->use_napi && ppa->use_exclusive_irq) {
+		for (i = 0; i > ppa->num_queue; i++) {
+			struct pktproc_queue *q = ppa->q[i];
+
+			q->netdev.gro_flush_timeout = gro_flush_time;
+		}
+	} else {
+		mld->dummy_net.gro_flush_timeout = gro_flush_time;
 	}
+#endif
+
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
+	netdev = dit_get_netdev();
+	if (!netdev) {
+		mif_err_limited("dit netdev is null\n");
+		return;
+	}
+	netdev->gro_flush_timeout = gro_flush_time;
+
+	mld->dummy_net.gro_flush_timeout = 0;
 #endif
 
 	mif_info("%s (flush time:%u)\n", data->name, gro_flush_time);
@@ -748,6 +790,20 @@ void tpmon_add_net_node(struct list_head *node)
 #endif
 }
 EXPORT_SYMBOL(tpmon_add_net_node);
+
+void tpmon_reset_data(char *name)
+{
+	struct cpif_tpmon *tpmon = &_tpmon;
+	struct tpmon_data *data;
+
+	list_for_each_entry(data, &tpmon->data_list, data_node) {
+		if (strncmp(data->name, name, strlen(name)) == 0) {
+			data->set_data(data);
+			break;
+		}
+	}
+}
+EXPORT_SYMBOL(tpmon_reset_data);
 
 static int tpmon_init_params(struct cpif_tpmon *tpmon)
 {
@@ -1485,6 +1541,7 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 	tpmon->stop = tpmon_stop;
 	tpmon->add_rx_bytes = tpmon_add_rx_bytes;
 	tpmon->check_active = tpmon_check_active;
+	tpmon->reset_data = tpmon_reset_data;
 
 	if (sysfs_create_group(&pdev->dev.kobj, &tpmon_group))
 		mif_err("failed to create cpif tpmon groups node\n");

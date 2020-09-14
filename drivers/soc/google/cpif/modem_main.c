@@ -164,6 +164,7 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	iod->ipc_version = pdata->ipc_version;
 	atomic_set(&iod->opened, 0);
 	spin_lock_init(&iod->info_id_lock);
+	spin_lock_init(&iod->clat_lock);
 
 	/* link between io device and modem control */
 	iod->mc = modemctl;
@@ -193,9 +194,6 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	/* add iod to rb_tree */
 	if (iod->format != IPC_RAW)
 		insert_iod_with_format(msd, iod->format, iod);
-
-	if (sipc5_is_not_reserved_channel(iod->ch))
-		insert_iod_with_channel(msd, iod->ch, iod);
 
 	switch (pdata->protocol) {
 	case PROTOCOL_SIPC:

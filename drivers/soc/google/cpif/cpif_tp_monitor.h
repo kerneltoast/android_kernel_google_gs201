@@ -118,6 +118,7 @@ struct cpif_tpmon {
 	int (*stop)(void);
 	void (*add_rx_bytes)(unsigned long bytes);
 	int (*check_active)(void);
+	void (*reset_data)(char *name);
 };
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)

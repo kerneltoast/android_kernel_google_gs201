@@ -332,11 +332,15 @@ struct io_device {
 	struct cdev cdev;
 	struct device *cdevice;
 	struct net_device *ndev;
-	struct net_device *clat_ndev;
 	struct list_head node_ndev;
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 	struct list_head node_all_ndev;
 #endif
+
+	/* clat net device */
+	struct net_device *clat_ndev;
+	/* spinlock to hold clat net device */
+	spinlock_t clat_lock;
 
 	/* CH and Format for channel on the link */
 	unsigned int ch;
