@@ -766,6 +766,8 @@ static int suspend_cp(struct modem_ctl *mc)
 	struct modem_data *modem = mc->mdm_data;
 	struct mem_link_device *mld = modem->mld;
 
+	mld->link_dev.stop_timers(mld);
+
 	modem_ctrl_set_kerneltime(mc);
 
 	mif_info("%s: pda_active:0\n", mc->name);
@@ -791,6 +793,8 @@ static int resume_cp(struct modem_ctl *mc)
 			mc->sbi_pda_active_pos);
 
 	cp_mbox_set_interrupt(CP_MBOX_IRQ_IDX_0, mc->int_pda_active);
+
+	mld->link_dev.start_timers(mld);
 
 	return 0;
 }
