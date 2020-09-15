@@ -715,23 +715,17 @@ int gvotable_set_default(struct gvotable_election *el, void *default_val)
 }
 EXPORT_SYMBOL_GPL(gvotable_set_default);
 
+/* no need for locks */
 int gvotable_get_default(struct gvotable_election *el, void **result)
 {
-	int ret;
-
-	if (!el)
+	if (!el || !el->has_default_vote)
 		return -EINVAL;
 
 	gvotable_lock_election(el);
-	if (el->has_default_vote) {
-		gvotable_internal_copy_result(el, result, el->default_vote);
-		ret = 0;
-	} else {
-		ret = -EINVAL;
-	}
-
+	gvotable_internal_copy_result(el, result, el->default_vote);
 	gvotable_unlock_election(el);
-	return ret;
+
+	return 0;
 }
 
 /* Enable or disable usage of a default value for a given election */
@@ -1008,7 +1002,11 @@ void gvotable_run_election(struct gvotable_election *el)
 	gvotable_unlock_callback(el);
 }
 
-/* This can only be called while in the callback: the API here is not great */
+/*
+ * overrides result and reason for "none" type votables.
+ * This can only be called while in the callback for "none" votables.
+ * NOTE: the API is not great
+ */
 int gvotable_election_set_result(struct gvotable_election *el,
 				 const char *reason, void *result)
 {
