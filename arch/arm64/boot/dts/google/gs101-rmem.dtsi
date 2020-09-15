@@ -27,6 +27,13 @@
 
 		};
 
+		ramoops@fd3ff000 {
+			compatible = "ramoops";
+			reg = <0 0xfd3ff000 0x200000>;
+			record-size = <0x4000>;
+			console-size = <0x4000>;
+		};
+
 		cp_rmem: cp_rmem {
 			compatible = "exynos,modem_if";
 			reg = <0x0 0xF0000000 0x00800000>;
