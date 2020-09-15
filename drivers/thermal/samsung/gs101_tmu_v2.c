@@ -802,7 +802,7 @@ hotplug_out_temp_show(struct device *dev, struct device_attribute *devattr,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", data->hotplug_out_threshold);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", data->hotplug_out_threshold);
 }
 
 static ssize_t
@@ -834,7 +834,7 @@ hotplug_in_temp_show(struct device *dev, struct device_attribute *devattr,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", data->hotplug_in_threshold);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", data->hotplug_in_threshold);
 }
 
 static ssize_t
@@ -1009,9 +1009,9 @@ static ssize_t ipc_dump1_read(struct file *file, char __user *user_buf,
 
 	exynos_acpm_tmu_ipc_dump(0, data.dump);
 
-	ret = snprintf(buf, sizeof(buf), "%3d %3d %3d %3d %3d %3d %3d\n",
-		       data.val[1], data.val[2], data.val[3],
-		       data.val[4], data.val[5], data.val[6], data.val[7]);
+	ret = scnprintf(buf, sizeof(buf), "%3u %3u %3u %3u %3u %3u %3u\n",
+		        data.val[1], data.val[2], data.val[3],
+		        data.val[4], data.val[5], data.val[6], data.val[7]);
 	if (ret < 0)
 		return ret;
 
@@ -1030,9 +1030,9 @@ static ssize_t ipc_dump2_read(struct file *file, char __user *user_buf,
 
 	exynos_acpm_tmu_ipc_dump(EXYNOS_GPU_TMU_GRP_ID, data.dump);
 
-	ret = snprintf(buf, sizeof(buf), "%3d %3d %3d %3d %3d %3d %3d\n",
-		       data.val[1], data.val[2], data.val[3],
-		       data.val[4], data.val[5], data.val[6], data.val[7]);
+	ret = scnprintf(buf, sizeof(buf), "%3u %3u %3u %3u %3u %3u %3u\n",
+		        data.val[1], data.val[2], data.val[3],
+		        data.val[4], data.val[5], data.val[6], data.val[7]);
 	if (ret < 0)
 		return ret;
 
@@ -1112,7 +1112,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			return -EINVAL;
 		}
 
-		pr_info("%s %d thermal zone_name = %s\n", __func__, __LINE__, tz->type);
+		pr_info("%s thermal zone_name = %s\n", __func__, tz->type);
 
 		function = ect_ap_thermal_get_function(thermal_block, tz->type);
 		if (!function) {
@@ -1305,8 +1305,7 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	struct gs101_tmu_data *data;
 	int ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct gs101_tmu_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct gs101_tmu_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1324,8 +1323,7 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 #endif
 	}
 
-	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
-						    &gs101_sensor_ops);
+	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data, &gs101_sensor_ops);
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
 		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
