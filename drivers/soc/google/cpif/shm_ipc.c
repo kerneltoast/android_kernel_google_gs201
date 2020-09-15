@@ -14,9 +14,6 @@
 #include <linux/shm_ipc.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/of_fdt.h>
-#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
-#include <soc/google/debug-snapshot.h>
-#endif
 
 #include "modem_utils.h"
 
@@ -454,9 +451,6 @@ static int cp_shmem_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 use_map_on_cp = 0;
 	int i, j;
-#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
-	bool log_cpmem = true;
-#endif
 
 	mif_info("+++\n");
 
@@ -499,27 +493,6 @@ static int cp_shmem_probe(struct platform_device *pdev)
 					_cp_shmem[i][j].cached);
 		}
 	}
-
-#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
-	/* Set ramdump for rmem index 0 */
-#if IS_ENABLED(CONFIG_CPIF_CHECK_SJTAG_STATUS)
-	if (dbg_snapshot_get_sjtag_status() && !dbg_snapshot_get_dpm_status())
-		log_cpmem = false;
-#endif
-	mif_info("cpmem dump on fastboot is %s\n", log_cpmem ? "enabled" : "disabled");
-	if (log_cpmem) {
-		for (i = 0; i < MAX_CP_NUM; i++) {
-			char log_name[40];
-
-			if (!_cp_rmem[i].p_base)
-				continue;
-			snprintf(log_name, sizeof(log_name), "log_cpmem_%d", i);
-			mif_info("%s will be generated after ramdump\n", log_name);
-			dbg_snapshot_add_bl_item_info(log_name,
-					_cp_rmem[i].p_base, _cp_rmem[i].size);
-		}
-	}
-#endif
 
 	mif_info("---\n");
 
