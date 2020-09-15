@@ -34,6 +34,10 @@
 		compatible = "samsung,sysmmu-group";
 	};
 
+	iommu_group_tpu: iommu_group_tpu {
+		compatible = "samsung,sysmmu-group";
+	};
+
 	sysmmu_asoc: sysmmu@1A090000 {
 		compatible = "samsung,sysmmu-v8";
 		reg = <0x0 0x1A090000 0x10000>;

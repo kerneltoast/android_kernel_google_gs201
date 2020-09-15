@@ -20,6 +20,7 @@
 		interrupts = <GIC_SPI IRQ_NS_TPU_TPU IRQ_TYPE_LEVEL_HIGH>;
 		hardware-id = <0x0 0xb>;
 		iommus = <&sysmmu_tpu>;
+		samsung,iommu-group = <&iommu_group_tpu>;
 		status = "okay";
 		memory-region = <&tpu_fw_reserved>;
 		/* CSR Region for APM <-> TPU Mailbox */
