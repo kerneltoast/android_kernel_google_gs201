@@ -2375,25 +2375,25 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 	spin_lock_init(&phy_drd->lock);
 
 	dev_info(dev, "Get USB LDO!\n");
-	phy_drd->ldo_1 = regulator_get(dev, "S2MPG10_LDO8");
-	if (IS_ERR(phy_drd->ldo_1) || !phy_drd->ldo_1) {
-		dev_err(dev, "%s - LDO8 regulator_get fail %p %d\n",
-			__func__, phy_drd->ldo_1, IS_ERR(phy_drd->ldo_1));
-		return -ENODEV;
+	phy_drd->vdd085 = devm_regulator_get(dev, "vdd085");
+	if (IS_ERR(phy_drd->vdd085)) {
+		dev_err(dev, "%s - vdd085 regulator_get fail: %d\n",
+			__func__, PTR_ERR(phy_drd->vdd085));
+		return PTR_ERR(phy_drd->vdd085);
 	}
 
-	phy_drd->ldo_2 = regulator_get(dev, "S2MPG10_LDO9");
-	if (IS_ERR(phy_drd->ldo_2) || !phy_drd->ldo_2) {
-		dev_err(dev, "%s - LDO9 regulator_get fail %p %d\n",
-			__func__, phy_drd->ldo_2, IS_ERR(phy_drd->ldo_2));
-		return -ENODEV;
+	phy_drd->vdd18 = devm_regulator_get(dev, "vdd18");
+	if (IS_ERR(phy_drd->vdd18)) {
+		dev_err(dev, "%s - vdd18 regulator_get fail: %d\n",
+			__func__, PTR_ERR(phy_drd->vdd18));
+		return PTR_ERR(phy_drd->vdd18);
 	}
 
-	phy_drd->ldo_3 = regulator_get(dev, "S2MPG10_LDO10");
-	if (IS_ERR(phy_drd->ldo_3) || !phy_drd->ldo_3) {
-		dev_err(dev, "%s - LDO10 regulator_get fail %p %d\n",
-			__func__, phy_drd->ldo_3, IS_ERR(phy_drd->ldo_3));
-		return -ENODEV;
+	phy_drd->vdd30 = devm_regulator_get(dev, "vdd30");
+	if (IS_ERR(phy_drd->vdd30)) {
+		dev_err(dev, "%s - vdd30 regulator_get fail: %d\n",
+			__func__, PTR_ERR(phy_drd->vdd30));
+		return PTR_ERR(phy_drd->vdd30);
 	}
 
 	phy_drd->is_irq_enabled = 0;

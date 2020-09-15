@@ -171,9 +171,9 @@ struct exynos_usbdrd_phy {
 	bool use_phy_umux;
 	struct clk *ref_clk;
 	struct regulator *vbus;
-	struct regulator	*ldo_1;
-	struct regulator	*ldo_2;
-	struct regulator	*ldo_3;
+	struct regulator *vdd085;
+	struct regulator *vdd18;
+	struct regulator *vdd30;
 	struct exynos_usbphy_info usbphy_info;
 	struct exynos_usbphy_info usbphy_sub_info;
 	struct exynos_usbphy_ss_tune ss_value[2];
