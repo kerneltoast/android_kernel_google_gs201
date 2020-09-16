@@ -323,6 +323,10 @@
 	hs_tune_param = <&usb_hs_tune>;
 	ss_tune_param = <&usb_ss_tune>;
 	extcon = <&fusb307b>;
+
+	vdd085-supply = <&m_ldo8_reg>;
+	vdd18-supply = <&m_ldo9_reg>;
+	vdd30-supply = <&m_ldo10_reg>;
 };
 
 &pcie_0 {	/* pcie ch0 used for the connection with CP on Slider */
