@@ -1608,7 +1608,7 @@ static void sec_ts_handle_coord_event(struct sec_ts_data *ts,
 			if (ts->coord[t_id].action ==
 				SEC_TS_COORDINATE_ACTION_RELEASE) {
 
-				do_gettimeofday(&ts->time_released[t_id]);
+				ktime_get_real_ts64(&ts->time_released[t_id]);
 
 				if (ts->time_longest <
 					(ts->time_released[t_id].tv_sec -
@@ -1640,7 +1640,7 @@ static void sec_ts_handle_coord_event(struct sec_ts_data *ts,
 
 			} else if (ts->coord[t_id].action ==
 					SEC_TS_COORDINATE_ACTION_PRESS) {
-				do_gettimeofday(&ts->time_pressed[t_id]);
+				ktime_get_real_ts64(&ts->time_pressed[t_id]);
 
 				ts->touch_count++;
 				ts->all_finger_count++;
@@ -3638,7 +3638,7 @@ void sec_ts_unlocked_release_all_finger(struct sec_ts_data *ts)
 				ts->cal_status, ts->nv, ts->tspid_val,
 				ts->tspicid_val, ts->coord[i].palm_count);
 
-			do_gettimeofday(&ts->time_released[i]);
+			ktime_get_real_ts64(&ts->time_released[i]);
 
 			if (ts->time_longest <
 				(ts->time_released[i].tv_sec -
@@ -3707,7 +3707,7 @@ void sec_ts_locked_release_all_finger(struct sec_ts_data *ts)
 				ts->tspid_val, ts->tspicid_val,
 				ts->coord[i].palm_count);
 
-			do_gettimeofday(&ts->time_released[i]);
+			ktime_get_real_ts64(&ts->time_released[i]);
 
 			if (ts->time_longest <
 				(ts->time_released[i].tv_sec -

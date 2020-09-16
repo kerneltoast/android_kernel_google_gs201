@@ -824,9 +824,9 @@ struct sec_ts_data {
 			    * in CLOCK_MONOTONIC
 			    **/
 
-	struct timeval time_pressed[MAX_SUPPORT_TOUCH_COUNT +
+	struct timespec64 time_pressed[MAX_SUPPORT_TOUCH_COUNT +
 					MAX_SUPPORT_HOVER_COUNT];
-	struct timeval time_released[MAX_SUPPORT_TOUCH_COUNT +
+	struct timespec64 time_released[MAX_SUPPORT_TOUCH_COUNT +
 					MAX_SUPPORT_HOVER_COUNT];
 	long time_longest;
 
