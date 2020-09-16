@@ -48,8 +48,10 @@ int sec_ts_spi_delay(u8 reg)
 	switch (reg) {
 	case SEC_TS_READ_TOUCH_RAWDATA:
 		return 400;
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	case SEC_TS_CMD_HEATMAP_READ:
 		return 500;
+#endif
 	case SEC_TS_READ_ALL_EVENT:
 		return 500;
 	case SEC_TS_READ_CSRAM_RTDP_DATA:
