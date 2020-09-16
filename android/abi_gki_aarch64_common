@@ -1,4 +1,4 @@
-[abi_whitelist]
+[abi_symbol_list]
   abort
   abort_creds
   acc_ctrlrequest
@@ -3023,6 +3023,7 @@
   dump_stack
   dump_truncate
   dup_iter
+  dw_handle_msi_irq
   dw_pcie_find_capability
   dw_pcie_find_ext_capability
   dw_pcie_host_deinit
@@ -3187,6 +3188,8 @@
   extcon_sync
   extcon_unregister_notifier
   extcon_unregister_notifier_all
+  exynos_pcie_rc_pcie_phy_config
+  exynos_pcie_rc_phy_init
   fanout_mutex
   fasync_helper
   fat_add_entries
