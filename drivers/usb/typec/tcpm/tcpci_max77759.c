@@ -567,6 +567,9 @@ static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 	int ret;
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
 
+	if (!chip || !chip->tcpci || !chip->tcpci->regmap)
+		return -EAGAIN;
+
 	/* TCPC_POWER_CTRL_VBUS_VOLT_MON enabled in init_regs */
 	ret = max77759_read16(chip->tcpci->regmap, TCPC_VBUS_VOLTAGE,
 			      &raw);
@@ -756,6 +759,9 @@ static int max77759_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
 	u16 raw;
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
 	int ret;
+
+	if (!chip || !chip->tcpci || !chip->tcpci->regmap )
+		return chip->vbus_mv;
 
 	ret = max77759_read16(chip->tcpci->regmap,
 			      TCPC_VBUS_VOLTAGE_ALARM_HI_CFG, &raw);
