@@ -26,6 +26,7 @@
 #include <soc/google/ect_parser.h>
 #include <soc/google/exynos-cpupm.h>
 #include <soc/google/exynos_cpu_cooling.h>
+#include <soc/google/debug-snapshot.h>
 
 #include "exynos-acme.h"
 
@@ -158,7 +159,7 @@ static int scale(struct exynos_cpufreq_domain *domain,
 	};
 
 	cpufreq_freq_transition_begin(policy, &freqs);
-//	dbg_snapshot_freq(domain->id, domain->old, target_freq, DSS_FLAG_IN);
+	dbg_snapshot_freq(domain->id, domain->old, target_freq, DSS_FLAG_IN);
 
 	ret = pre_scale(&freqs);
 	if (ret)
@@ -175,8 +176,8 @@ static int scale(struct exynos_cpufreq_domain *domain,
 
 fail_scale:
 	/* In scaling failure case, logs -1 to exynos snapshot */
-//	dbg_snapshot_freq(domain->id, domain->old, target_freq,
-//			  ret < 0 ? ret : DSS_FLAG_OUT);
+	dbg_snapshot_freq(domain->id, domain->old, target_freq,
+			  ret < 0 ? ret : DSS_FLAG_OUT);
 	cpufreq_freq_transition_end(policy, &freqs, ret);
 
 	return ret;
