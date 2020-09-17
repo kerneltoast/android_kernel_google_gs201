@@ -26,6 +26,7 @@ struct gs_chipid_variant {
 
 #define RAW_HEX_STR_SIZE 116
 #define AP_HW_TUNE_HEX_STR_SIZE 64
+#define AP_HW_TUNE_HEX_ARRAY_SIZE 32
 
 /**
  * Struct gs_chipid_info
@@ -42,6 +43,7 @@ struct gs_chipid_info {
 	char *lot_id2;
 	u64 unique_id;
 	char ap_hw_tune_str[AP_HW_TUNE_HEX_STR_SIZE];
+	u8 ap_hw_tune_arr[AP_HW_TUNE_HEX_ARRAY_SIZE];
 	char raw_str[RAW_HEX_STR_SIZE];
 	struct gs_chipid_variant *drv_data;
 	struct platform_device *pdev;
@@ -286,14 +288,27 @@ static void gs_chipid_get_ap_hw_tune_str(void __iomem *reg)
 	u32 addr;
 	u8 val;
 	int str_pos = 0;
+	int arr_pos = 0;
 
 	for (addr = 0xC300; addr < 0xC320; addr++) {
 		val = readb_relaxed(reg + addr);
 		str_pos += scnprintf(gs_soc_info.ap_hw_tune_str + str_pos,
 				     AP_HW_TUNE_HEX_STR_SIZE - str_pos, "%02x",
 				     val);
+		if (arr_pos < ARRAY_SIZE(gs_soc_info.ap_hw_tune_arr))
+			gs_soc_info.ap_hw_tune_arr[arr_pos++] = val;
 	}
 }
+
+int gs_chipid_get_ap_hw_tune_array(const u8 **array)
+{
+	if (!gs_soc_info.initialized)
+		return -EPROBE_DEFER;
+
+	*array = gs_soc_info.ap_hw_tune_arr;
+	return sizeof(gs_soc_info.ap_hw_tune_arr);
+}
+EXPORT_SYMBOL_GPL(gs_chipid_get_ap_hw_tune_array);
 
 static const struct of_device_id of_gs_chipid_ids[] = {
 	{
