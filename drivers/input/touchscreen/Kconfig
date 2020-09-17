@@ -1322,6 +1322,13 @@ config TOUCHSCREEN_IQS5XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called iqs5xx.
 
+config TOUCHSCREEN_HEATMAP
+	tristate "Heatmap support for touchscreen"
+	select VIDEOBUF2_VMALLOC
+	help
+	  Do not explicitly select this option. The drivers that utilize
+	  this module must select this in their Kconfig.
+
 source "drivers/input/touchscreen/sec_ts/Kconfig"
 source "drivers/input/touchscreen/stm/Kconfig"
 endif
