@@ -122,12 +122,12 @@
 
 	cs35l41_mosi: cs35l41-mosi {
 		samsung,pins = "gpp25-1";
-		samsung,pin-drv = <1>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
 	};
 
 	cs35l41_clk: cs35l41-clk {
 		samsung,pins = "gpp25-0";
-		samsung,pin-drv = <1>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
 	};
 };
 

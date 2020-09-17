@@ -24,7 +24,7 @@
 	fts_irq: fts-irq {
 		samsung,pins = "gpa9-0";
 		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
 

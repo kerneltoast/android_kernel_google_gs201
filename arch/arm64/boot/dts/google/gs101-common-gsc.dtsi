@@ -13,7 +13,7 @@
 		samsung,pins = "gpa4-1";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <0>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
 

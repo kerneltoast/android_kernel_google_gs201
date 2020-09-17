@@ -67,7 +67,7 @@
 		samsung,pins = "gpa9-3"; /* XEINT_23 */
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-		samsung,pin-drv = <0>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 
 };
@@ -78,7 +78,7 @@
 		samsung,pins = "gpa8-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <0>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
 

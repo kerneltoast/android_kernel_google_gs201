@@ -21,7 +21,7 @@
 		samsung,pins = "gpa5-0";
 		samsung,pin-function = <15>;
 		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
 
