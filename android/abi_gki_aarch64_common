@@ -5033,8 +5033,8 @@
   ip_tunnel_setup
   ip_tunnel_uninit
   ip_tunnel_unneed_metadata
-  iptunnel_xmit
   ip_tunnel_xmit
+  iptunnel_xmit
   ipt_unregister_table
   ipt_unregister_table_exit
   ipt_unregister_table_pre_exit
@@ -5226,13 +5226,13 @@
   jbd2_journal_load
   jbd2_journal_lock_updates
   jbd2_journal_release_jbd_inode
-  jbd2_journal_restart
   jbd2__journal_restart
+  jbd2_journal_restart
   jbd2_journal_revoke
   jbd2_journal_set_features
   jbd2_journal_set_triggers
-  jbd2_journal_start
   jbd2__journal_start
+  jbd2_journal_start
   jbd2_journal_start_commit
   jbd2_journal_start_reserved
   jbd2_journal_stop
