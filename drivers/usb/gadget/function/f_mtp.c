@@ -872,8 +872,8 @@ static void send_file_work(struct work_struct *data)
 					__cpu_to_le32(dev->xfer_transaction_id);
 		}
 
-		ret = vfs_read(filp, req->buf + hdr_size, xfer - hdr_size,
-			       &offset);
+		ret = kernel_read(filp, req->buf + hdr_size, xfer - hdr_size,
+				  &offset);
 		if (ret < 0) {
 			r = ret;
 			break;
@@ -947,9 +947,9 @@ static void receive_file_work(struct work_struct *data)
 
 		if (write_req) {
 			DBG(cdev, "rx %p %d\n", write_req, write_req->actual);
-			ret = vfs_write(filp, write_req->buf, write_req->actual,
-					&offset);
-			DBG(cdev, "vfs_write %d\n", ret);
+			ret = kernel_write(filp, write_req->buf, write_req->actual,
+					   &offset);
+			DBG(cdev, "kernel_write %d\n", ret);
 			if (ret != write_req->actual) {
 				r = -EIO;
 				dev->state = STATE_ERROR;
@@ -1092,8 +1092,8 @@ static long mtp_ioctl(struct file *fp, unsigned int code, unsigned long value)
 		}
 
 		/* We do the file transfer on a work queue so it will run
-		 * in kernel context, which is necessary for vfs_read and
-		 * vfs_write to use our buffers in the kernel address space.
+		 * in kernel context, which is necessary for kernel_read and
+		 * kernel_write to use our buffers in the kernel address space.
 		 */
 		queue_work(dev->wq, work);
 		/* wait for operation to complete */
