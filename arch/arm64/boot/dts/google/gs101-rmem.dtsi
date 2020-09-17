@@ -51,6 +51,11 @@
 
 		};
 
+		abl_reserved: abl@f8800000 {
+			reg = <0x0 0xf8800000 0x01000000>;
+			no-map;
+		};
+
 		ramoops_mem: ramoops_region@fd3ff000 {
 			reg = <0 0xfd3ff000 0x200000>;
 			no-map;
