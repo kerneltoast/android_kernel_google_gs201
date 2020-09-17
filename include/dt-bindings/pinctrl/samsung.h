@@ -24,6 +24,12 @@
 #define EXYNOS_PIN_PDN_INPUT		2
 #define EXYNOS_PIN_PDN_PREV		3
 
+/* GS101 drive strengths */
+#define GS101_PIN_DRV_2_5_MA		0
+#define GS101_PIN_DRV_5_MA		1
+#define GS101_PIN_DRV_7_5_MA		2
+#define GS101_PIN_DRV_10_MA		3
+
 /* Drive strengths for Exynos3250, Exynos4 (all) and Exynos5250 */
 #define EXYNOS4_PIN_DRV_LV1		0
 #define EXYNOS4_PIN_DRV_LV2		2
