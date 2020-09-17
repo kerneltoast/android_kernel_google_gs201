@@ -982,7 +982,7 @@ static int samsung_sysmmu_aux_attach_dev(struct iommu_domain *dom, struct device
 		dev_err(dev, "IOMMU domain is already in use as vid 0 domain\n");
 		return -EBUSY;
 	}
-	client = fwspec->iommu_priv;
+	client = (struct sysmmu_clientdata *) dev_iommu_priv_get(dev);
 	if (client->sysmmu_count != 1) {
 		dev_err(dev, "IOMMU AUX domains not supported for devices served by more than one IOMMU\n");
 		return -ENXIO;
@@ -1060,10 +1060,10 @@ static bool samsung_sysmmu_dev_has_feat(struct device *dev, enum iommu_dev_featu
 	if (f != IOMMU_DEV_FEAT_AUX)
 		return false;
 
-	if (!fwspec || !fwspec->iommu_priv || fwspec->ops != &samsung_sysmmu_ops)
+	client = (struct sysmmu_clientdata *) dev_iommu_priv_get(dev);
+	if (!fwspec || !client || fwspec->ops != &samsung_sysmmu_ops)
 		return false;
 
-	client = fwspec->iommu_priv;
 	if (client->sysmmu_count != 1)
 		return false;
 	drvdata = client->sysmmus[0];
