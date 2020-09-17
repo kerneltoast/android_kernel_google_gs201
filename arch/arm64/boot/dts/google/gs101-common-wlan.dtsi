@@ -31,13 +31,25 @@
 	};
 };
 
+&pinctrl_7 {
+	wlan_dev_wake: wlan_dev_wake {
+		samsung,pins = "gph2-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <0>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
 &pcie_1 {
-	pinctrl-0 = <&pcie1_clkreq &pcie1_perst &cfg_wlanen &wlan_host_wake>;
+	pinctrl-0 = <&pcie1_clkreq &pcie1_perst &cfg_wlanen &wlan_host_wake &wlan_dev_wake>;
 
 	wlan {
 		compatible = "android,bcmdhd_wlan";
 		wl_reg_on = <&gpp14 2 0x1>; /* wlan reg_on pin */
 		wl_host_wake = <&gpa7 0 0x1>; /* wlan oob pin */
+		wl_dev_wake = <&gph2 5 0x1>; /* wlan dev pin */
 		ch-num = <1>;
 		status = "okay";
 	};
