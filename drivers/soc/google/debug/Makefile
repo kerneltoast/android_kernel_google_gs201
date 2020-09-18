@@ -10,3 +10,5 @@ dss-y 					+= debug-snapshot.o \
 obj-$(CONFIG_DEBUG_SNAPSHOT_BUILT_IN)	+= debug-snapshot-built.o
 obj-$(CONFIG_DEBUG_SNAPSHOT_SFRDUMP)	+= debug-snapshot-sfrdump.o
 obj-$(CONFIG_DEBUG_SNAPSHOT_QUICKDUMP)	+= debug-snapshot-qd.o
+
+obj-$(CONFIG_EXYNOS_DEBUG_TEST)         += exynos-debug-test.o

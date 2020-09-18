@@ -55,3 +55,11 @@ config DEBUG_SNAPSHOT_QUICKDUMP
 	  So we get important data such as dss logging and H/W raw data.
 	  If you access text symbol and stack data, you could get them.
 	  But in GKI, we can't access section symbol and stack symbol.
+
+config EXYNOS_DEBUG_TEST
+	tristate "Exynos debug feature test"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  This can be tested for various errors. If you say y you can confirm
+	  that the debug feature works properly for the error.
