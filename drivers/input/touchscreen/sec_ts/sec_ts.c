@@ -3769,40 +3769,6 @@ static void sec_ts_reset_work(struct work_struct *work)
 
 	sec_ts_start_device(ts);
 
-	if (ts->input_dev_touch->disabled) {
-		input_err(true, &ts->client->dev,
-			  "%s: call input_close\n", __func__);
-
-		sec_ts_input_close(ts->input_dev);
-
-		if ((ts->lowpower_mode & SEC_TS_MODE_CUSTOMLIB_AOD) &&
-		    ts->use_customlib) {
-			int i, ret;
-			u8 data[10] = {0x02, 0};
-
-			for (i = 0; i < 4; i++) {
-				data[i * 2 + 2] = ts->rect_data[i] & 0xFF;
-				data[i * 2 + 3] =
-						(ts->rect_data[i] >> 8) & 0xFF;
-			}
-
-			disable_irq(ts->client->irq);
-			ret = ts->sec_ts_write(ts,
-				SEC_TS_CMD_CUSTOMLIB_WRITE_PARAM, &data[0], 10);
-			if (ret < 0)
-				input_err(true, &ts->client->dev,
-					"%s: Failed to write offset\n",
-					__func__);
-
-			ret = ts->sec_ts_write(ts,
-				SEC_TS_CMD_CUSTOMLIB_NOTIFY_PACKET, NULL, 0);
-			if (ret < 0)
-				input_err(true, &ts->client->dev,
-					"%s: Failed to send notify\n",
-					__func__);
-			enable_irq(ts->client->irq);
-		}
-	}
 	ts->reset_is_on_going = false;
 
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_RESET, false);
