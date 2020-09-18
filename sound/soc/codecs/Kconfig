@@ -1160,7 +1160,7 @@ config SND_SOC_RT5677_SPI
 	default SND_SOC_RT5677 && SPI
 
 config SND_SOC_RT5682
-	tristate
+	tristate "Realtek 5682 CODEC"
 
 config SND_SOC_RT5682_I2C
 	tristate
