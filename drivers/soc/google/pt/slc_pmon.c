@@ -307,6 +307,8 @@ int slc_pmon_init(struct slc_acpm_driver_data *driver_data,
 	if (res)
 		goto event_cleanup;
 
+	sysfs_attr_init(slc_pmon_pmu_format_attrs[0]);
+
 	res = perf_pmu_register(&slc_pmon_pmu, slc_pmon_pmu.name, -1);
 	if (res < 0) {
 		pr_err("Failed to register PMU driver!");
@@ -435,6 +437,7 @@ static int slc_pmon_event_init(void)
 		slc_pmon_state.events.platform_pmu_event_attrs[i] =
 			&slc_pmon_state.events.platform_pmu_event_ext_attrs[i]
 				 .attr.attr;
+		sysfs_attr_init(slc_pmon_state.events.platform_pmu_event_attrs[i]);
 	}
 
 	return 0;
