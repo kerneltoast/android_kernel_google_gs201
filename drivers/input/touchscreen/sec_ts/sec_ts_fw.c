@@ -1441,7 +1441,7 @@ static int sec_ts_load_fw_from_ums(struct sec_ts_data *ts)
 		unsigned char *fw_data;
 
 		fw_data = kzalloc(fw_size, GFP_KERNEL);
-		nread = vfs_read(fp, (char __user *)fw_data,
+		nread = kernel_read(fp, (char __user *)fw_data,
 				fw_size, &fp->f_pos);
 
 		input_info(true, ts->dev,
