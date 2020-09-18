@@ -22,6 +22,8 @@
 #include "gs101-dit.dtsi"
 #include "gs101-drm-dpu.dtsi"
 #include "gs101-gpu.dtsi"
+#include "gs101-aoc.dtsi"
+#include "gs101-audio.dtsi"
 #include "gs101-gsa.dtsi"
 #include "gs101-ion.dtsi"
 #include "gs101-mfc.dtsi"
