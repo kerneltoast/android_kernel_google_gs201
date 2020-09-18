@@ -137,6 +137,7 @@
 #define LTR_L12_THRESHOLD_SCALE_1024NS	(0x2 << 29)
 #define LTR_L12_THRESHOLD_SCALE_32768NS	(0x3 << 29)
 #define LTR_L12_THRESHOLD_VALUE_160	(0xa0 << 16)
+#define PORT_LINK_L12_LTR_THRESHOLD     (0x40a0 << 16)
 #define PCIE_LINK_L1SS_CONTROL2		0x1A0
 #define PORT_LINK_L1SS_ENABLE		(0xf << 0)
 #define PORT_LINK_TPOWERON_90US		(0x49 << 0)
@@ -230,8 +231,10 @@
 #define WIFI_L1SS_CAP			0x244
 #define WIFI_L1SS_CONTROL		0x248
 #define WIFI_L1SS_CONTROL2		0x24C
+#define WIFI_L1SS_LTR_LATENCY		0x1B4
 #define WIFI_L1SS_LINKCTRL		0xBC
 #define WIFI_LINK_STATUS		0xBE
+#define WIFI_PCI_EXP_DEVCTL2		0xD4
 #define WIFI_PM_MNG_STATUS_CON		0x4C
 
 /* LINK Control Register */
@@ -240,13 +243,19 @@
 #define WIFI_USE_SAME_REF_CLK		(0x1 << 6)
 #define WIFI_CLK_REQ_EN			(0x1 << 8)
 
-/* L1SSS Control Register */
+/* L1SS Control Register */
 #define WIFI_ALL_PM_ENABEL		(0xf << 0)
 #define WIFI_PCIPM_L12_EN		(0x1 << 0)
 #define WIFI_PCIPM_L11_EN		(0x1 << 1)
 #define WIFI_ASPM_L12_EN		(0x1 << 2)
 #define WIFI_ASPM_L11_EN		(0x1 << 3)
 #define WIFI_COMMON_RESTORE_TIME	(0xa << 8)	/* Default Value */
+
+/* L1SS LTR Latency Register */
+#define MAX_NO_SNOOP_LAT_VALUE_3	(3 << 16)
+#define MAX_SNOOP_LAT_VALUE_3		(3 << 0)
+#define MAX_NO_SNOOP_LAT_SCALE_MS	(0x4 << 26)	/* 0x4(b'100) value = 1,047,576 ns */
+#define MAX_SNOOP_LAT_SCALE_MS		(0x4 << 10)	/* 0x4(b'100) value = 1,047,576 ns */
 
 /* ETC definitions */
 #define IGNORE_ELECIDLE			1

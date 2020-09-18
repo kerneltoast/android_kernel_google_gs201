@@ -2892,50 +2892,88 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 			} else if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
 				dev_dbg(dev, "%s: #2 enable WIFI L1.2\n", __func__);
 
-				/* 1) [RC] enable L1SS */
-				exynos_pcie_rc_rd_own_conf(pp, PCIE_LINK_L1SS_CONTROL, 4, &val);
-				/* Actual TCOMMON is 42usec (val = 0x2a << 8) */
-				val |= PORT_LINK_TCOMMON_32US | PORT_LINK_L1SS_ENABLE;
-				dev_dbg(dev, "WIFIen:1RC:L1SS_CTRL(0x19C)=0x%x\n", val);
-				exynos_pcie_rc_wr_own_conf(pp, PCIE_LINK_L1SS_CONTROL, 4, val);
+				/* enable sequence:
+				 * 1. PCIPM RC
+				 * 2. PCIPM EP
+				 * 3. ASPM RC
+				 * 4. ASPM EP
+				 */
 
-				/* [RC] set TPOWERON */
-				/* Set TPOWERON value for RC: 90->130 usec */
+				/* 1. to enable PCIPM RC */
+				/* [RC:set value] TPowerOn(130 usec) */
 				exynos_pcie_rc_wr_own_conf(pp, PCIE_LINK_L1SS_CONTROL2, 4,
 							   PORT_LINK_TPOWERON_130US);
 
-				/* exynos_pcie_rc_wr_own_conf(pp, PCIE_L1_SUBSTATES_OFF, 4,
-				 *			      PCIE_L1_SUB_VAL);
-				 */
+				/* [RC:set value] TPowerOff(3 us), T_L1.2(10 us), T_PCLKACK(2 us) */
+				exynos_pcie_rc_wr_own_conf(pp, PCIE_L1_SUBSTATES_OFF, 4,
+							   PCIE_L1_SUB_VAL);
 
-				/* [RC] set LTR_EN */
+				/* [RC:set enable bit] LTR Mechanism Enable */
+				exynos_pcie_rc_rd_own_conf(pp, exp_cap_off + PCI_EXP_DEVCTL2,
+							   4, &val);
+				val |= PCI_EXP_DEVCTL2_LTR_EN;
 				exynos_pcie_rc_wr_own_conf(pp, exp_cap_off + PCI_EXP_DEVCTL2,
-							   4, PCI_EXP_DEVCTL2_LTR_EN);
+							   4, val);
 
-				/* 2) [EP] enable L1SS */
-				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0,
-							     WIFI_L1SS_CONTROL, 4, &val);
-				val |= WIFI_ALL_PM_ENABEL;
+				/* [RC:set value] LTR_L1.2_Threshold(160 us) and TCommon(42 us)
+				 *	Actual TCommon is 42usec (val = (0xa | 0x20) << 8)
+				 * [RC:enable] L1SS_ENABLE(0xf)
+				 */
+				exynos_pcie_rc_rd_own_conf(pp, PCIE_LINK_L1SS_CONTROL, 4, &val);
+				val |= PORT_LINK_L12_LTR_THRESHOLD | PORT_LINK_TCOMMON_32US |
+				       PORT_LINK_L1SS_ENABLE;
+				exynos_pcie_rc_wr_own_conf(pp, PCIE_LINK_L1SS_CONTROL, 4, val);
+				dev_dbg(dev, "WIFIen:1RC:L1SS_CTRL(0x19C)=0x%x\n", val);
+
+				/* 2. to enable PCIPM EP */
+				/* [EP:set value] TPowerOn(130 usec) */
+				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_CONTROL2,
+							     4, PORT_LINK_TPOWERON_130US);
+
+				/* [EP:set value] LTR Latency(max snoop(3 ms)/no-snoop(3 ms))
+				 * Reported_LTR value in LTR message
+				 */
+				val = MAX_NO_SNOOP_LAT_SCALE_MS | MAX_NO_SNOOP_LAT_VALUE_3 |
+					      MAX_SNOOP_LAT_SCALE_MS | MAX_SNOOP_LAT_VALUE_3;
 				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0,
-							     WIFI_L1SS_CONTROL, 4, val);
+							     WIFI_L1SS_LTR_LATENCY, 4, val);
+
+				/* [EP:set enable bit] LTR Mechanism Enable */
+				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0,
+							     WIFI_PCI_EXP_DEVCTL2, 4, &val);
+				val |= PCI_EXP_DEVCTL2_LTR_EN;
+				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0,
+							     WIFI_PCI_EXP_DEVCTL2, 4, val);
+
+				/* [EP:set values] LTR_L1.2_Threshold(160 us) and TCommon(10 us)
+				 * [EP:enable] WIFI_PM_ENALKBE(0xf)
+				 */
+				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_CONTROL,
+							     4, &val);
+				val |= PORT_LINK_L12_LTR_THRESHOLD | WIFI_COMMON_RESTORE_TIME |
+				       WIFI_ALL_PM_ENABEL;
+				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_CONTROL,
+							     4, val);
 				dev_dbg(dev, "WIFIen:2EP:L1SS_CTRL(0x248)=0x%x\n", val);
 
-				/* 3) [RC] enable ASPM */
-				exynos_pcie_rc_rd_own_conf(pp, exp_cap_off +
-							   PCI_EXP_LNKCTL, 4, &val);
+				/* 3. to enable ASPM RC */
+				exynos_pcie_rc_rd_own_conf(pp, exp_cap_off + PCI_EXP_LNKCTL,
+							   4, &val);
 				val &= ~PCI_EXP_LNKCTL_ASPMC;
-				val |= PCI_EXP_LNKCTL_CCC |
-					PCI_EXP_LNKCTL_ASPM_L1;
-				exynos_pcie_rc_wr_own_conf(pp, exp_cap_off +
-							   PCI_EXP_LNKCTL, 4, val);
+				/* PCI_EXP_LNKCTL_CCC: Common Clock Configuration */
+				val |= PCI_EXP_LNKCTL_CCC | PCI_EXP_LNKCTL_ASPM_L1;
+				exynos_pcie_rc_wr_own_conf(pp, exp_cap_off + PCI_EXP_LNKCTL,
+							   4, val);
 				dev_dbg(dev, "WIFIen:3RC:ASPM(0x70+16)=0x%x\n", val);
 
-				/* 4) [EP] enable ASPM */
-				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0,
-							     WIFI_L1SS_LINKCTRL, 4, &val);
-				val |= WIFI_ASPM_L1_ENTRY_EN;
-				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0,
-							     WIFI_L1SS_LINKCTRL, 4, val);
+				/* 4. to enable ASPM EP */
+				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_LINKCTRL,
+							     4, &val);
+				val &= ~(WIFI_ASPM_CONTROL_MASK);
+				val |= WIFI_CLK_REQ_EN | WIFI_USE_SAME_REF_CLK |
+				       WIFI_ASPM_L1_ENTRY_EN;
+				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_LINKCTRL,
+							     4, val);
 				dev_dbg(dev, "WIFIen:4EP:ASPM(0xBC)=0x%x\n", val);
 			} else {
 				dev_err(dev, "[ERR] EP: L1SS not supported\n");
@@ -2988,31 +3026,38 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 			} else if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
 				dev_dbg(dev, "%s: #4 disable WIFI L1.2\n", __func__);
 
+				/* disable sequence:
+				 * 1. ASPM EP
+				 * 2. ASPM RC
+				 * 3. PCIPM EP
+				 * 4. PCIPM RC
+				 */
 				/* 1) [EP] disable ASPM */
-				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0,
-							     WIFI_L1SS_LINKCTRL, 4, &val);
+				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_LINKCTRL,
+							     4, &val);
 				val &= ~(WIFI_ASPM_CONTROL_MASK);
-				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0,
-							     WIFI_L1SS_LINKCTRL, 4, val);
+				/* val |= WIFI_CLK_REQ_EN | WIFI_USE_SAME_REF_CLK; */
+				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_LINKCTRL,
+							     4, val);
 				dev_dbg(pci->dev, "WIFIdis:1EP:ASPM(0xBC)=0x%x\n", val);
 
 				/* 2) [RC] disable ASPM */
-				exynos_pcie_rc_rd_own_conf(pp, exp_cap_off +
-							   PCI_EXP_LNKCTL, 4, &val);
+				exynos_pcie_rc_rd_own_conf(pp, exp_cap_off + PCI_EXP_LNKCTL,
+							   4, &val);
 				val &= ~PCI_EXP_LNKCTL_ASPMC;
-				exynos_pcie_rc_wr_own_conf(pp, exp_cap_off +
-							   PCI_EXP_LNKCTL, 4, val);
+				exynos_pcie_rc_wr_own_conf(pp, exp_cap_off + PCI_EXP_LNKCTL,
+							   4, val);
 				dev_dbg(pci->dev, "WIFIdis:2RC:ASPM(0x70+16)=0x%x\n", val);
 
 				/* 3) [EP] disable L1SS */
-				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0,
-							     WIFI_L1SS_CONTROL, 4, &val);
+				exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_CONTROL,
+							     4, &val);
 				val &= ~(WIFI_ALL_PM_ENABEL);
-				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0,
-							     WIFI_L1SS_CONTROL, 4, val);
+				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0, WIFI_L1SS_CONTROL,
+							     4, val);
 				dev_dbg(pci->dev, "WIFIdis:3EP:L1SS_CTRL(0x248)=0x%x\n", val);
 
-				/* [RC] disable L1SS */
+				/* 4) [RC] disable L1SS */
 				exynos_pcie_rc_rd_own_conf(pp, PCIE_LINK_L1SS_CONTROL, 4, &val);
 				val &= ~(PORT_LINK_L1SS_ENABLE);
 				exynos_pcie_rc_wr_own_conf(pp, PCIE_LINK_L1SS_CONTROL, 4, val);
@@ -3030,6 +3075,7 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 
 	spin_unlock_irqrestore(&exynos_pcie->conf_lock, flags);
 
+#if L1SS_DBG_ONLY
 	/* need delay before checking LTSSM & PM_STATE after L1.2 en/disable */
 	mdelay(3);
 
@@ -3040,6 +3086,7 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 		dev_dbg(dev, "\tPM_STATE(PHY_PCS L1.2: 0x6) = 0x%08x\n",
 			exynos_phy_pcs_read(exynos_pcie, 0x188));
 	}
+#endif	/* L1SS_DBG_ONLY */
 
 	dev_dbg(dev, "%s:L1SS_END(l1ss_ctrl_id_state=0x%x, id=0x%x, enable=%d)\n",
 		__func__, exynos_pcie->l1ss_ctrl_id_state, id, enable);
