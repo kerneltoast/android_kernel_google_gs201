@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * SLG51000 High PSRR, Multi-Output Regulators
- * Copyright (C) 2019  Dialog Semiconductor
+ *
+ * Copyright (C) 2020 Google, LLC.
+ * Copyright (C) 2019 Dialog Semiconductor
  *
  * Author: Eric Jeong <eric.jeong.opensource@diasemi.com>
  */
@@ -24,6 +26,11 @@
 #define SLG51000_SYSCTL_EVENT                   0x1116
 #define SLG51000_SYSCTL_STATUS                  0x1117
 #define SLG51000_SYSCTL_IRQ_MASK                0x1118
+#define SLG51000_SW_TEST_MODE_1                 0x111a
+#define SLG51000_SW_TEST_MODE_2                 0x111b
+#define SLG51000_SW_TEST_MODE_3                 0x111c
+#define SLG51000_SW_TEST_MODE_4                 0x111d
+#define SLG51000_LDO_HP_STARTUP_ILIM            0x1133
 #define SLG51000_IO_GPIO1_CONF                  0x1500
 #define SLG51000_IO_GPIO2_CONF                  0x1501
 #define SLG51000_IO_GPIO3_CONF                  0x1502
@@ -133,6 +140,7 @@
 #define SLG51000_LDO1_VSEL                      0x2000
 #define SLG51000_LDO1_MINV                      0x2060
 #define SLG51000_LDO1_MAXV                      0x2061
+#define SLG51000_LDO1_TRIM2                     0x2063
 #define SLG51000_LDO1_MISC1                     0x2064
 #define SLG51000_LDO1_VSEL_ACTUAL               0x2065
 #define SLG51000_LDO1_EVENT                     0x20c0
@@ -141,6 +149,7 @@
 #define SLG51000_LDO2_VSEL                      0x2200
 #define SLG51000_LDO2_MINV                      0x2260
 #define SLG51000_LDO2_MAXV                      0x2261
+#define SLG51000_LDO2_TRIM2                     0x2263
 #define SLG51000_LDO2_MISC1                     0x2264
 #define SLG51000_LDO2_VSEL_ACTUAL               0x2265
 #define SLG51000_LDO2_EVENT                     0x22c0
@@ -149,6 +158,7 @@
 #define SLG51000_LDO3_VSEL                      0x2300
 #define SLG51000_LDO3_MINV                      0x2360
 #define SLG51000_LDO3_MAXV                      0x2361
+#define SLG51000_LDO3_TRIM2                     0x2363
 #define SLG51000_LDO3_CONF1                     0x2364
 #define SLG51000_LDO3_CONF2                     0x2365
 #define SLG51000_LDO3_VSEL_ACTUAL               0x2366
@@ -158,6 +168,7 @@
 #define SLG51000_LDO4_VSEL                      0x2500
 #define SLG51000_LDO4_MINV                      0x2560
 #define SLG51000_LDO4_MAXV                      0x2561
+#define SLG51000_LDO4_TRIM2                     0x2563
 #define SLG51000_LDO4_CONF1                     0x2564
 #define SLG51000_LDO4_CONF2                     0x2565
 #define SLG51000_LDO4_VSEL_ACTUAL               0x2566
@@ -168,6 +179,7 @@
 #define SLG51000_LDO5_MINV                      0x2760
 #define SLG51000_LDO5_MAXV                      0x2761
 #define SLG51000_LDO5_TRIM2                     0x2763
+#define SLG51000_LDO5_TRIM3                     0x2764
 #define SLG51000_LDO5_CONF1                     0x2765
 #define SLG51000_LDO5_CONF2                     0x2766
 #define SLG51000_LDO5_VSEL_ACTUAL               0x2767
@@ -178,6 +190,7 @@
 #define SLG51000_LDO6_MINV                      0x2960
 #define SLG51000_LDO6_MAXV                      0x2961
 #define SLG51000_LDO6_TRIM2                     0x2963
+#define SLG51000_LDO6_TRIM3                     0x2964
 #define SLG51000_LDO6_CONF1                     0x2965
 #define SLG51000_LDO6_CONF2                     0x2966
 #define SLG51000_LDO6_VSEL_ACTUAL               0x2967
@@ -187,6 +200,7 @@
 #define SLG51000_LDO7_VSEL                      0x3100
 #define SLG51000_LDO7_MINV                      0x3160
 #define SLG51000_LDO7_MAXV                      0x3161
+#define SLG51000_LDO7_TRIM2                     0x3163
 #define SLG51000_LDO7_CONF1                     0x3164
 #define SLG51000_LDO7_CONF2                     0x3165
 #define SLG51000_LDO7_VSEL_ACTUAL               0x3166
@@ -270,6 +284,36 @@
 #define SLG51000_IRQ_MATRIX_MASK                (0x01 << 1)
 #define SLG51000_IRQ_HIGH_TEMP_WARN_SHIFT       0
 #define SLG51000_IRQ_HIGH_TEMP_WARN_MASK        (0x01 << 0)
+
+/* SLG51000_SW_TEST_MODE = 0x111a */
+#define SLG51000_SW_TEST_MODE_1_ON              0x45
+#define SLG51000_SW_TEST_MODE_1_OFF             0x00
+#define SLG51000_SW_TEST_MODE_2_ON              0x53
+#define SLG51000_SW_TEST_MODE_2_OFF             0x00
+#define SLG51000_SW_TEST_MODE_3_ON              0x54
+#define SLG51000_SW_TEST_MODE_3_OFF             0x00
+#define SLG51000_SW_TEST_MODE_4_ON              0x4d
+#define SLG51000_SW_TEST_MODE_4_OFF             0x00
+
+/* SLG51000_LDO_HP_STARTUP_ILIM = 0x1133 */
+/* unset [7:5] and keep [4:0] for original value */
+#define SLG51000_LDO_HP_STARTUP_ILIM_ORI_MASK   (0xFF >> 3)
+/* set [7:5] for 240mA */
+#define SLG51000_LDO_HP_STARTUP_ILIM_0_MASK     (0x00 << 5)
+/* set [7:5] for 11mA */
+#define SLG51000_LDO_HP_STARTUP_ILIM_1_MASK     (0x01 << 5)
+/* set [7:5] for 31mA */
+#define SLG51000_LDO_HP_STARTUP_ILIM_2_MASK     (0x02 << 5)
+/* set [7:5] for 48mA */
+#define SLG51000_LDO_HP_STARTUP_ILIM_3_MASK     (0x03 << 5)
+/* set [7:5] for 72mA */
+#define SLG51000_LDO_HP_STARTUP_ILIM_4_MASK     (0x04 << 5)
+/* set [7:5] for 91mA */
+#define SLG51000_LDO_HP_STARTUP_ILIM_5_MASK     (0x05 << 5)
+/* set [7:5] for 116mA */
+#define SLG51000_LDO_HP_STARTUP_ILIM_6_MASK     (0x06 << 5)
+/* set [7:5] for 136mA */
+#define SLG51000_LDO_HP_STARTUP_ILIM_7_MASK     (0x07 << 5)
 
 /* SLG51000_IO_GPIO1_CONF ~ SLG51000_IO_GPIO5_CONF =
  * 0x1500, 0x1501, 0x1502, 0x1503, 0x1504
@@ -466,6 +510,17 @@
 #define SLG51000_SEL_BYP_VGATE_MASK             (0x01 << 1)
 #define SLG51000_SEL_BYP_MODE_SHIFT             0
 #define SLG51000_SEL_BYP_MODE_MASK              (0x01 << 0)
+
+/*
+ * SLG51000_LDO1_TRIM2 = 0x2063, SLG51000_LDO2_TRIM2 = 0x2263,
+ * SLG51000_LDO3_TRIM2 = 0x2363, SLG51000_LDO4_TRIM2 = 0x2563,
+ * SLG51000_LDO5_TRIM3 = 0x2764, SLG51000_LDO6_TRIM3 = 0x2964,
+ * SLG51000_LDO7_TRIM2 = 0x3163
+ */
+#define SLG51000_ILIM_FLAG_DEB_SHIFT            3
+#define SLG51000_ILIM_FLAG_DEB_MASK             (0x03 << 3)
+#define SLG51000_VOUT_OK_DEB_SHIFT              1
+#define SLG51000_VOUT_OK_DEB_MASK               (0x03 << 1)
 
 /* SLG51000_OTP_EVENT = 0x782b */
 #define SLG51000_EVT_CRC_SHIFT                  0
