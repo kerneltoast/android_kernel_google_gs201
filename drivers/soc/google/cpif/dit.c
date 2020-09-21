@@ -752,9 +752,6 @@ next:
 		dst_rp_pos = circ_new_ptr(desc_info->dst_desc_ring_len, dst_rp_pos, 1);
 	}
 
-	/* should update dst rp after all of requested buffers filled */
-	desc_info->dst_rp[ring_num] = dst_rp_pos;
-
 	return 0;
 }
 
@@ -851,8 +848,7 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 	struct dit_dst_desc *dst_desc;
 	struct sk_buff *skb;
 	unsigned int rcvd_total = 0;
-	unsigned int rcvd_per_ring;
-	unsigned int usage, dst_rp_pos;
+	unsigned int usage;
 	unsigned int ring_num;
 	int i, ret;
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
@@ -860,20 +856,26 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 #endif
 
 	for (ring_num = DIT_DST_DESC_RING_0; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
-		rcvd_per_ring = 0;
 		/* read from rp to wp */
-		dst_rp_pos = desc_info->dst_rp[ring_num];
 		usage = circ_get_usage(desc_info->dst_desc_ring_len,
-			desc_info->dst_wp[ring_num], dst_rp_pos);
+			desc_info->dst_wp[ring_num], desc_info->dst_rp[ring_num]);
 		for (i = 0; i < usage; i++) {
 			if (rcvd_total >= budget)
 				break;
 
-			/* get dst desc */
-			dst_desc = &desc_info->dst_desc_ring[ring_num][dst_rp_pos];
+			/* get dst desc and skb */
+			dst_desc = &desc_info->dst_desc_ring[ring_num][desc_info->dst_rp[ring_num]];
+			skb = desc_info->dst_skb_buf[ring_num][desc_info->dst_rp[ring_num]];
+
+			/* try to fill dst data buffers */
+			desc_info->dst_skb_buf[ring_num][desc_info->dst_rp[ring_num]] = NULL;
+			ret = dit_fill_rx_dst_data_buffer(ring_num, 1);
+			if (ret) {
+				desc_info->dst_skb_buf[ring_num][desc_info->dst_rp[ring_num]] = skb;
+				break;
+			}
 
 			/* set skb */
-			skb = desc_info->dst_skb_buf[ring_num][dst_rp_pos];
 			skb_put(skb, dst_desc->length);
 			skbpriv(skb)->lnk_hdr = 0;
 			skbpriv(skb)->sipc_ch = dst_desc->ch_id;
@@ -895,12 +897,11 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			dst_desc->packet_info = 0;
 			dst_desc->status = 0;
 
-			/* update dst rp after fill data buffers */
-			desc_info->dst_skb_buf[ring_num][dst_rp_pos] = NULL;
-			dst_rp_pos = circ_new_ptr(desc_info->dst_desc_ring_len, dst_rp_pos, 1);
-
 			rcvd_total++;
-			rcvd_per_ring++;
+
+			/* update dst rp */
+			desc_info->dst_rp[ring_num] = circ_new_ptr(desc_info->dst_desc_ring_len,
+				desc_info->dst_rp[ring_num], 1);
 
 #if defined(DIT_DEBUG_LOW)
 			snapshot[DIT_DIR_RX][ring_num].alloc_skbs--;
@@ -909,9 +910,6 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			if (ret < 0)
 				break;
 		}
-
-		if (rcvd_per_ring > 0)
-			dit_fill_rx_dst_data_buffer(ring_num, rcvd_per_ring);
 	}
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
@@ -1210,6 +1208,9 @@ static void dit_check_clat_enabled_internal(struct io_device *iod, void *args)
 static bool dit_check_clat_enabled(void)
 {
 	bool enabled = false;
+
+	if (unlikely(!dc->ld))
+		return false;
 
 	iodevs_for_each(dc->ld->msd, dit_check_clat_enabled_internal, &enabled);
 
@@ -1915,6 +1916,7 @@ static ssize_t debug_use_clat_store(struct device *dev, struct device_attribute 
 		memset(&clat, 0, sizeof(clat));
 		for (i = 0; i < DIT_REG_CLAT_ADDR_MAX; i++) {
 			clat.rmnet_index = i;
+			scnprintf(clat.ipv6_iface, IFNAMSIZ, "rmnet%d", i);
 			dit_hal_set_clat_info(&clat);
 		}
 	}
@@ -2172,14 +2174,6 @@ int dit_create(struct platform_device *pdev)
 
 	mif_dt_read_u32(np, "dit_hw_version", dc->hw_version);
 	mif_dt_read_u32(np, "dit_hw_capabilities", dc->hw_capabilities);
-#if defined(EXYNOS2100_SOC_ID)
-	if (exynos_soc_info.product_id == EXYNOS2100_SOC_ID) {
-		if (exynos_soc_info.revision >= 0x11)
-			dc->hw_capabilities &= ~DIT_CAP_MASK_PORT_BIG_ENDIAN;
-		else
-			dc->hw_capabilities |= DIT_CAP_MASK_PORT_BIG_ENDIAN;
-	}
-#endif
 
 	mif_dt_read_bool(np, "dit_use_tx", dc->use_tx);
 	mif_dt_read_bool(np, "dit_use_rx", dc->use_rx);
