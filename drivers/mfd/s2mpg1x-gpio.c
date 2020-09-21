@@ -20,8 +20,24 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
 #include <linux/mfd/samsung/s2mpg10.h>
 #include <linux/mfd/samsung/s2mpg11.h>
+
+const struct pinctrl_pin_desc s2mpg10_pins[] = {
+	PINCTRL_PIN(0, "gpio0"), PINCTRL_PIN(1, "gpio1"),
+	PINCTRL_PIN(2, "gpio2"), PINCTRL_PIN(3, "gpio3"),
+	PINCTRL_PIN(4, "gpio4"), PINCTRL_PIN(5, "gpio5"),
+};
+
+const struct pinctrl_pin_desc s2mpg11_pins[] = {
+	PINCTRL_PIN(0, "gpio6"),  PINCTRL_PIN(1, "gpio7"),
+	PINCTRL_PIN(2, "gpio8"),  PINCTRL_PIN(3, "gpio9"),
+	PINCTRL_PIN(4, "gpio10"), PINCTRL_PIN(5, "gpio11"),
+};
 
 typedef enum { GPIO_CHIP_S2MPG10, GPIO_CHIP_S2MPG11 } gpio_chip_id_t;
 
@@ -29,9 +45,13 @@ struct s2mpg1x_gpio_chip {
 	struct gpio_chip gc;
 	gpio_chip_id_t id;
 	struct device *parent_dev;
+	struct pinctrl_ops pctrl_ops;
+	struct pinmux_ops pmux_ops;
+	struct pinconf_ops pconf_ops;
+	struct pinctrl_desc pctrl;
 };
 
-int GPIO_CTRL_BASE[] = { 0x1c7, 0x198 };
+int GPIO_CTRL_BASE[] = { S2MPG10_PM_GPIO_CTRL1, S2MPG11_PM_GPIO_CTRL1 };
 
 #define GPIO_CTRL1_OFFSET 0 /* input data */
 #define GPIO_CTRL2_OFFSET 1 /* output data */
@@ -157,8 +177,231 @@ static int s2mpg1x_gpio_direction_output(struct gpio_chip *chip,
 					 unsigned int offset, int value)
 {
 	struct s2mpg1x_gpio_chip *data = gpiochip_get_data(chip);
+	int ret;
 
-	return s2mpg1x_write_gpio_ctrl_bit(data, offset, GPIO_CTRL3_OFFSET, 1);
+	ret = s2mpg1x_write_gpio_ctrl_bit(data, offset,
+					  GPIO_CTRL2_OFFSET, value);
+	if (ret == 0)
+		ret = s2mpg1x_write_gpio_ctrl_bit(data, offset,
+						  GPIO_CTRL3_OFFSET, 1);
+
+	return ret;
+}
+
+static int s2mpg1x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
+			       unsigned long *config)
+{
+	struct s2mpg1x_gpio_chip *gc = pinctrl_dev_get_drvdata(pctldev);
+	enum pin_config_param param = pinconf_to_config_param(*config);
+	u8 mask = BIT(pin);
+	u8 data;
+	u32 argument = 0;
+	int ret;
+
+	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+		ret = s2mpg1x_read_gpio_ctrl_reg(gc, 0, GPIO_CTRL4_OFFSET);
+		if (ret < 0)
+			return ret;
+		data = ret;
+		if (data & mask)
+			return -EINVAL;
+		ret = s2mpg1x_read_gpio_ctrl_reg(gc, 0, GPIO_CTRL5_OFFSET);
+		if (ret < 0)
+			return ret;
+		data = ret;
+		if (data & mask)
+			return -EINVAL;
+		break;
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		ret = s2mpg1x_read_gpio_ctrl_reg(gc, 0, GPIO_CTRL4_OFFSET);
+		if (ret < 0)
+			return ret;
+		data = ret;
+		if (!(data & mask))
+			return -EINVAL;
+		break;
+	case PIN_CONFIG_BIAS_PULL_UP:
+		ret = s2mpg1x_read_gpio_ctrl_reg(gc, 0, GPIO_CTRL5_OFFSET);
+		if (ret < 0)
+			return ret;
+		data = ret;
+		if (!(data & mask))
+			return -EINVAL;
+		break;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		/* do nothing */
+		break;
+	case PIN_CONFIG_DRIVE_STRENGTH:
+		ret = s2mpg1x_read_gpio_ctrl_reg(gc, 0, GPIO_CTRL6_OFFSET);
+		if (ret < 0)
+			return ret;
+		data = ret;
+		argument = (data & mask) ? 4 : 2;
+		break;
+	case PIN_CONFIG_INPUT_ENABLE:
+		/* do nothing */
+		break;
+	case PIN_CONFIG_OUTPUT:
+		ret = s2mpg1x_read_gpio_ctrl_reg(gc, 0, GPIO_CTRL2_OFFSET);
+		if (ret < 0)
+			return ret;
+		data = ret;
+		argument = !!(data & mask);
+		break;
+	case PIN_CONFIG_OUTPUT_ENABLE:
+		ret = s2mpg1x_read_gpio_ctrl_reg(gc, 0, GPIO_CTRL3_OFFSET);
+		if (ret < 0)
+			return ret;
+		data = ret;
+		if (!(data & mask))
+			return -EINVAL;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	*config = pinconf_to_config_packed(param, argument);
+
+	return 0;
+}
+
+static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
+			       unsigned long *configs, unsigned int num_configs)
+{
+	struct s2mpg1x_gpio_chip *gc = pinctrl_dev_get_drvdata(pctldev);
+	u8 mask = BIT(pin);
+	u8 data;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < num_configs; i++) {
+		enum pin_config_param param =
+			pinconf_to_config_param(configs[i]);
+
+		u32 argument = pinconf_to_config_argument(configs[i]);
+
+		switch (param) {
+		case PIN_CONFIG_BIAS_DISABLE:
+			ret = s2mpg1x_update_gpio_ctrl_reg(gc, 0,
+					GPIO_CTRL4_OFFSET,
+					0, mask);
+			if (ret < 0)
+				return ret;
+			ret = s2mpg1x_update_gpio_ctrl_reg(gc, 0,
+					GPIO_CTRL5_OFFSET,
+					0, mask);
+			if (ret < 0)
+				return ret;
+			break;
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			ret = s2mpg1x_update_gpio_ctrl_reg(gc, 0,
+					GPIO_CTRL4_OFFSET,
+					mask, mask);
+			if (ret < 0)
+				return ret;
+			break;
+		case PIN_CONFIG_BIAS_PULL_UP:
+			ret = s2mpg1x_update_gpio_ctrl_reg(gc, 0,
+					GPIO_CTRL5_OFFSET,
+					mask, mask);
+			if (ret < 0)
+				return ret;
+			break;
+		case PIN_CONFIG_DRIVE_PUSH_PULL:
+			/* do nothing */
+			break;
+		case PIN_CONFIG_DRIVE_STRENGTH:
+			switch (argument) {
+			case 2:
+				data = 0;
+				break;
+			case 4:
+				data = BIT(pin);
+				break;
+			default:
+				pr_err("Drive-strength %umA not supported\n",
+				       argument);
+				return -EOPNOTSUPP;
+			}
+			ret = s2mpg1x_update_gpio_ctrl_reg(gc, 0,
+					GPIO_CTRL6_OFFSET,
+					data, mask);
+			if (ret < 0)
+				return ret;
+			break;
+		case PIN_CONFIG_INPUT_ENABLE:
+			if (!argument)
+				return -EINVAL;
+			break;
+		case PIN_CONFIG_OUTPUT:
+			data = argument ? BIT(pin) : 0;
+			ret = s2mpg1x_update_gpio_ctrl_reg(gc, 0,
+					GPIO_CTRL2_OFFSET,
+					data, mask);
+			if (ret < 0)
+				return ret;
+			argument = 1;
+			fallthrough;
+		case PIN_CONFIG_OUTPUT_ENABLE:
+			data = argument ? BIT(pin) : 0;
+			ret = s2mpg1x_update_gpio_ctrl_reg(gc, 0,
+					GPIO_CTRL3_OFFSET,
+					data, mask);
+			if (ret < 0)
+				return ret;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return 0;
+}
+
+static int pinmux_get_funcs_count(struct pinctrl_dev *pctldev)
+{
+	return 0;
+}
+
+static const char *pinmux_get_func_name(struct pinctrl_dev *pctldev,
+					unsigned int function)
+{
+	return NULL;
+}
+
+static int pinmux_get_func_groups(struct pinctrl_dev *pctldev,
+				  unsigned int function,
+				  const char *const **groups,
+				  unsigned int *const num_groups)
+{
+	return -EOPNOTSUPP;
+}
+
+static int pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
+			  unsigned int group)
+{
+	return -EOPNOTSUPP;
+}
+
+static int pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
+				     struct pinctrl_gpio_range *range,
+				     unsigned int offset, bool input)
+{
+	unsigned long config =
+		pinconf_to_config_packed(PIN_CONFIG_OUTPUT_ENABLE, !input);
+	return s2mpg1x_pinconf_set(pctldev, offset, &config, 1);
+}
+
+static int pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
+{
+	return 0;
+}
+
+static const char *pinctrl_get_group_name(struct pinctrl_dev *pctldev,
+					  unsigned int group)
+{
+	return NULL;
 }
 
 static int s2mpg1x_gpio_probe(struct platform_device *pdev)
@@ -166,12 +409,30 @@ static int s2mpg1x_gpio_probe(struct platform_device *pdev)
 	int ret;
 	struct s2mpg1x_gpio_chip *s2mpg1x_gpio_chip = devm_kzalloc(&pdev->dev,
 		sizeof(struct s2mpg1x_gpio_chip), GFP_KERNEL);
+	struct pinctrl_dev *pctl;
+	u32 ngpios;
+	const char *pinctrl_of_name = NULL;
 
 	if (!s2mpg1x_gpio_chip)
 		return -ENOMEM;
 
 	s2mpg1x_gpio_chip->parent_dev = pdev->dev.parent;
 	s2mpg1x_gpio_chip->id = pdev->id_entry->driver_data;
+	switch (s2mpg1x_gpio_chip->id) {
+	case GPIO_CHIP_S2MPG10:
+		pinctrl_of_name = "s2mpg10_pinctrl";
+		s2mpg1x_gpio_chip->pctrl.pins = s2mpg10_pins;
+		s2mpg1x_gpio_chip->pctrl.npins = ARRAY_SIZE(s2mpg10_pins);
+		break;
+	case GPIO_CHIP_S2MPG11:
+		pinctrl_of_name = "s2mpg11_pinctrl";
+		s2mpg1x_gpio_chip->pctrl.pins = s2mpg11_pins;
+		s2mpg1x_gpio_chip->pctrl.npins = ARRAY_SIZE(s2mpg11_pins);
+		break;
+	default:
+		return -EINVAL;
+	}
+
 
 	s2mpg1x_gpio_chip->gc.label = pdev->name;
 	s2mpg1x_gpio_chip->gc.parent = &pdev->dev;
@@ -181,14 +442,67 @@ static int s2mpg1x_gpio_probe(struct platform_device *pdev)
 	s2mpg1x_gpio_chip->gc.direction_input = s2mpg1x_gpio_direction_input;
 	s2mpg1x_gpio_chip->gc.direction_output = s2mpg1x_gpio_direction_output;
 	s2mpg1x_gpio_chip->gc.base = -1;
-	s2mpg1x_gpio_chip->gc.ngpio = 6;
 	s2mpg1x_gpio_chip->gc.can_sleep = true;
 	s2mpg1x_gpio_chip->gc.of_node =
 		of_find_node_by_name(pdev->dev.parent->of_node, pdev->name);
+	s2mpg1x_gpio_chip->gc.set_config = gpiochip_generic_config;
+	s2mpg1x_gpio_chip->gc.request = gpiochip_generic_request;
+	s2mpg1x_gpio_chip->gc.free = gpiochip_generic_free;
 
 	if (!s2mpg1x_gpio_chip->gc.of_node) {
 		dev_err(&pdev->dev, "Failed to find %s DT node\n", pdev->name);
 		return -EINVAL;
+	}
+	if (of_property_read_u32(s2mpg1x_gpio_chip->gc.of_node, "ngpios", &ngpios)) {
+		dev_err(&pdev->dev, "Failed to get ngpios from %s DT node\n",
+			pdev->name);
+		return -EINVAL;
+	}
+	s2mpg1x_gpio_chip->gc.ngpio = ngpios;
+
+	/* pinctrl config */
+	s2mpg1x_gpio_chip->pctrl_ops.get_groups_count = pinctrl_get_groups_count;
+	s2mpg1x_gpio_chip->pctrl_ops.get_group_name = pinctrl_get_group_name;
+	s2mpg1x_gpio_chip->pctrl_ops.dt_node_to_map =
+		pinconf_generic_dt_node_to_map_pin;
+	s2mpg1x_gpio_chip->pctrl_ops.dt_free_map = pinconf_generic_dt_free_map;
+
+	s2mpg1x_gpio_chip->pmux_ops.get_functions_count = pinmux_get_funcs_count;
+	s2mpg1x_gpio_chip->pmux_ops.get_function_name = pinmux_get_func_name;
+	s2mpg1x_gpio_chip->pmux_ops.get_function_groups = pinmux_get_func_groups;
+	s2mpg1x_gpio_chip->pmux_ops.set_mux = pinmux_set_mux;
+	s2mpg1x_gpio_chip->pmux_ops.gpio_set_direction = pinmux_gpio_set_direction;
+
+	s2mpg1x_gpio_chip->pconf_ops.is_generic = true;
+	s2mpg1x_gpio_chip->pconf_ops.pin_config_get = s2mpg1x_pinconf_get;
+	s2mpg1x_gpio_chip->pconf_ops.pin_config_set = s2mpg1x_pinconf_set;
+
+	/* pins defined in chip id switch statement */
+	s2mpg1x_gpio_chip->pctrl.pctlops = &s2mpg1x_gpio_chip->pctrl_ops;
+	s2mpg1x_gpio_chip->pctrl.pmxops = &s2mpg1x_gpio_chip->pmux_ops;
+	s2mpg1x_gpio_chip->pctrl.confops = &s2mpg1x_gpio_chip->pconf_ops;
+	s2mpg1x_gpio_chip->pctrl.owner = THIS_MODULE;
+	s2mpg1x_gpio_chip->pctrl.name = dev_name(&pdev->dev);
+
+	pdev->dev.of_node = of_find_node_by_name(pdev->dev.parent->of_node,
+						 pinctrl_of_name);
+	if (!pdev->dev.of_node) {
+		dev_err(&pdev->dev, "Failed to find %s DT node\n",
+			pinctrl_of_name);
+		return -EINVAL;
+	}
+
+	ret = devm_pinctrl_register_and_init(&pdev->dev, &s2mpg1x_gpio_chip->pctrl,
+					     s2mpg1x_gpio_chip, &pctl);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register pin_ctrl: %d\n", ret);
+		return ret;
+	}
+
+	ret = pinctrl_enable(pctl);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to enable pin_ctrl: %d\n", ret);
+		return ret;
 	}
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &s2mpg1x_gpio_chip->gc,
