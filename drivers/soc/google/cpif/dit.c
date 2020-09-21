@@ -1290,7 +1290,7 @@ static int dit_reg_backup_restore(bool backup)
 
 	int ret = 0;
 
-	if (unlikely(!dc))
+	if (unlikely(!dc) || unlikely(!dc->ld))
 		return -EPERM;
 
 	/* NAT */
