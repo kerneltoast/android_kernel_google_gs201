@@ -29,6 +29,13 @@
 		memory-region = <&alt_ramoops_mem>;
 	};
 
+	bootloader_log {
+		compatible = "google,bldr_log";
+		reg = <0x0 0xfd800000 0x80000>, <0x0 0xfd880000 0x80000>;
+		reg-names = "bl_log", "bl_old_log";
+		memory-region = <&bldr_log_reserved>;
+	};
+
 	reserved_memory: reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <1>;
@@ -76,6 +83,11 @@
 
 		ramoops_meta_mem: ramoops_meta_region@fd7ff000 {
 			reg = <0 0xfd7ff000 0x1000>;
+			no-map;
+		};
+
+		bldr_log_reserved: bldr_log_reserved@fd800000 {
+			reg = <0 0xfd800000 0x00100000>;
 			no-map;
 		};
 
