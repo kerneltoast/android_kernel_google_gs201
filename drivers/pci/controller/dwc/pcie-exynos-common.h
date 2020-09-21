@@ -251,6 +251,7 @@ struct exynos_pcie {
 	spinlock_t		conf_lock;		/* pcie config - link status change */
 	spinlock_t		reg_lock;		/* pcie config - reg_lock(reserved) */
 	spinlock_t		pcie_l1_exit_lock;	/* pcie l1.2 exit - ctrl_id_state */
+	spinlock_t		power_stats_lock;	/* pcie config - power state change */
 	struct workqueue_struct	*pcie_wq;
 	struct exynos_pcie_clks	clks;
 	struct pci_dev		*pci_dev;
@@ -275,7 +276,6 @@ struct exynos_pcie {
 	int			max_link_speed;
 	struct power_stats	link_up;
 	struct power_stats	link_down;
-	struct mutex		power_stats_lock;	/* pcie config - power state change */
 
 	struct pinctrl		*pcie_pinctrl;
 	struct pinctrl_state	*pin_state[MAX_PCIE_PIN_STATE];

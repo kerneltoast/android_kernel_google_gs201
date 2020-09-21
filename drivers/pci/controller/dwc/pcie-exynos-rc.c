@@ -489,8 +489,10 @@ static void power_stats_init(struct exynos_pcie *pcie)
 static void power_stats_update_up(struct exynos_pcie *pcie)
 {
 	u64 current_ts;
+	unsigned long flags;
 
-	mutex_lock(&pcie->power_stats_lock);
+	spin_lock_irqsave(&pcie->power_stats_lock, flags);
+
 	current_ts = power_stats_get_ts();
 
 	pcie->link_up.count++;
@@ -498,14 +500,16 @@ static void power_stats_update_up(struct exynos_pcie *pcie)
 
 	pcie->link_down.duration += current_ts -
 				    pcie->link_down.last_entry_ts;
-	mutex_unlock(&pcie->power_stats_lock);
+
+	spin_unlock_irqrestore(&pcie->power_stats_lock, flags);
 }
 
 static void power_stats_update_down(struct exynos_pcie *pcie)
 {
 	u64 current_ts;
+	unsigned long flags;
 
-	mutex_lock(&pcie->power_stats_lock);
+	spin_lock_irqsave(&pcie->power_stats_lock, flags);
 	current_ts = power_stats_get_ts();
 
 	pcie->link_down.count++;
@@ -513,7 +517,7 @@ static void power_stats_update_down(struct exynos_pcie *pcie)
 
 	pcie->link_up.duration += current_ts -
 				  pcie->link_up.last_entry_ts;
-	mutex_unlock(&pcie->power_stats_lock);
+	spin_unlock_irqrestore(&pcie->power_stats_lock, flags);
 }
 
 static ssize_t power_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -526,13 +530,14 @@ static ssize_t power_stats_show(struct device *dev, struct device_attribute *att
 	struct power_stats link_up_copy;
 	struct power_stats link_down_copy;
 	enum exynos_pcie_state state_copy;
+	unsigned long flags;
 
-	mutex_lock(&pcie->power_stats_lock);
+	spin_lock_irqsave(&pcie->power_stats_lock, flags);
 	memcpy(&link_up_copy, &pcie->link_up, sizeof(struct power_stats));
 	memcpy(&link_down_copy, &pcie->link_down, sizeof(struct power_stats));
 	state_copy = pcie->state;
 	current_ts = power_stats_get_ts();
-	mutex_unlock(&pcie->power_stats_lock);
+	spin_unlock_irqrestore(&pcie->power_stats_lock, flags);
 
 	if (state_copy == STATE_LINK_UP || state_copy == STATE_LINK_DOWN_TRY)
 		link_up_delta = current_ts - link_up_copy.last_entry_ts;
@@ -3490,6 +3495,7 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 
 	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
 	spin_lock_init(&exynos_pcie->conf_lock);
+	spin_lock_init(&exynos_pcie->power_stats_lock);
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to dw pcie host init\n");
