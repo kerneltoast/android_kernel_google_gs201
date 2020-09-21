@@ -160,6 +160,9 @@ struct cpif_version {
 } __packed;
 #define IOCTL_GET_CPIF_VERSION		_IOR('o', 0x56, struct cpif_version)
 
+#define CPID_LEN		15
+#define CPSIG_LEN		64
+
 struct t_handover_block_info {
 	u32 version; /* version */
 	u32 project_id; /* project id */
@@ -168,12 +171,14 @@ struct t_handover_block_info {
 	u32 minor_id; /* minor_id */
 	u32 modem_sku; /* modem sku */
 	u32 modem_hw; /* modem hw */
-	u32 host_ftm_magic;
-	u32 efs_magic;
-	u32 modem_flag;
+	u32 cpinfo0;
+	u32 cpinfo1;
+	u32 cpinfo2;
 	u32 rf_sub;
 	u32 rf_config; /* rf config */
 	u32 reserved[4];
+	char cpid[2][CPID_LEN + 1];
+	char cpsig[CPSIG_LEN + 1];
 } __packed;
 #define IOCTL_HANDOVER_BLOCK_INFO	_IO('o', 0x57)
 

@@ -2079,43 +2079,6 @@ static int shmem_disable_rx_int(struct link_device *ld)
 	return 0;
 }
 
-static void fetch_hw_info_from_dt(struct t_handover_block_info *info)
-{
-	struct device_node *dtnp = NULL;
-	const char *prop;
-
-	mif_info("Fetch modem_hw_info from dt node\n");
-
-	dtnp = of_find_node_by_path("/chosen/config");
-	if (!dtnp)
-		mif_err("Failed to access config node\n");
-	else {
-		prop = of_get_property(dtnp, "bootmode", NULL);
-		if (prop && !strncmp(prop, "factory", sizeof("factory"))) {
-			info->host_ftm_magic = 0x6846544D;
-			mif_info("Set bootmode to factory\n");
-		}
-
-		prop = of_get_property(dtnp, "modem_flag", NULL);
-		if (prop && !kstrtou32(prop, 16, &info->modem_flag))
-			mif_info("Set modem flag to %x\n", info->modem_flag);
-	}
-
-	dtnp = of_find_node_by_path("/chosen/plat");
-	if (!dtnp)
-		mif_err("Failed to access platform node\n");
-	else {
-		of_property_read_u32(dtnp, "id", &info->project_id);
-		of_property_read_u32(dtnp, "revision", &info->revision);
-		of_property_read_u32(dtnp, "major", &info->major_id);
-		of_property_read_u32(dtnp, "minor", &info->minor_id);
-		of_property_read_u32(dtnp, "modem_sku", &info->modem_sku);
-		of_property_read_u32(dtnp, "modem_hw", &info->modem_hw);
-		of_property_read_u32(dtnp, "rf_sub", &info->rf_sub);
-		of_property_read_u32(dtnp, "rfid", &info->rf_config);
-	}
-}
-
 static int update_handover_block_info(struct link_device *ld, unsigned long arg)
 {
 	struct mem_link_device *mld = ld_to_mem_link_device(ld);
@@ -2129,8 +2092,6 @@ static int update_handover_block_info(struct link_device *ld, unsigned long arg)
 				ld->name);
 		return -EFAULT;
 	}
-
-	fetch_hw_info_from_dt(&info);
 
 	mif_info("%s: call send_handover_block_info (sku: %d, rev: %d)\n",
 		ld->name, info.modem_sku, info.minor_id);
