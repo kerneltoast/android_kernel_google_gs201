@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to Whitefin
+ *
+ * Copyright 2020 Google,LLC
+ *
+ */
+
+&pinctrl_0 {
+/* [MAX77759: FG_INTB] > FG_INT_L > [XEINT_23 : SC59845XWE] */
+	if_pmic_fg_irq: if-pmic-fg-irq {
+		samsung,pins = "gpa9-3"; /* XEINT_23 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+};
+
+&pinctrl_1 {
+/* [MAX77729FEWN : INTB] > IF_PMIC_IRQ_L > [XEINT_15 : SC59845XWE] */
+	if_pmic_irq: if-pmic-irq {
+		samsung,pins = "gpa8-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&hsi2c_12{
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	/* also as max77759 pmic  */
+	max77729_pmic:max77729pmic@0x66 {
+		status = "okay";
+		compatible = "maxim,max77729pmic";
+		reg = <0x66>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_irq>;
+		max777x9,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+
+		max77759,max_m5 = <&max77759_fg>;
+
+		max777x9_gpio: max777x9_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <6>;
+		};
+	};
+
+	max77759_fg:max77759fg@0x36 {
+		status = "okay";
+		compatible = "maxim,max77759";
+		reg = <0x36>;
+
+		/* FG_INT_L -> XEINT_23 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_fg_irq>;
+		maxim,irq-gpio = <&gpa9 3 GPIO_ACTIVE_LOW>;
+
+		maxim,rsense-default = <500>;
+
+		/* no needed for EEPROM */
+		maxim,batt-id-range-pct = <0>;
+
+		maxim,psy-type-unknown;
+
+		maxim,fg-data {
+			#include "gs101-slider-battery-data.dtsi"
+		};
+	};
+
+	max77759chrg@0x69 {
+		status = "okay";
+		compatible = "maxim,max77759chrg";
+		reg = <0x69>;
+
+		interrupt-parent = <&gpa8>;
+		max77759,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+		max77759,psy-name = "main-charger";
+
+		max77759,max_m5 = <&max77759_fg>;
+		max77759,pmic = <&max77729_pmic>;
+	};
+
+};
