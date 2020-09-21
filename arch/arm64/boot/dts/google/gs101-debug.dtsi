@@ -71,4 +71,31 @@
 		keys_down = <116>;
 		dbg_fn_delay = <2000>;
 	};
+
+	gs101-itmon {
+		compatible = "google,gs101-itmon";
+		interrupts =
+			<GIC_SPI IRQ_TREX_D_BUS0_debugInterrupt_BUS0
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D0_BUS1_debugInterrupt_BUS1
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D_BUS2_debugInterrupt_BUS2
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D_CORE_debugInterrupt_CORE
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_CORE_debugInterrupt_CORE
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_BUS0_debugInterrupt_BUS0
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_BUS1_debugInterrupt_BUS1
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_BUS2_debugInterrupt_BUS2
+							IRQ_TYPE_LEVEL_HIGH>;
+		panic_count = <5>;
+		err_fatal = <GO_S2D_ID>;
+		err_drex_tmout = <GO_S2D_ID>;
+		err_ip = <GO_PANIC_ID>;
+		err_cpu = <GO_DEFAULT_ID>;
+		err_unhandled = <GO_PANIC_ID>;
+	};
 };
