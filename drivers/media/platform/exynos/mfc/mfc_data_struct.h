@@ -32,7 +32,7 @@
 #endif
 #include <linux/videodev2.h>
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
-#include <soc/samsung/exynos-itmon.h>
+#include <soc/google/exynos-itmon.h>
 #endif
 
 #include <media/v4l2-device.h>

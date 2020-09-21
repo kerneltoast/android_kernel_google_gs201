@@ -14,3 +14,5 @@ obj-$(CONFIG_DEBUG_SNAPSHOT_QUICKDUMP)	+= debug-snapshot-qd.o
 obj-$(CONFIG_EXYNOS_DEBUG_TEST)		+= exynos-debug-test.o
 
 obj-$(CONFIG_PIXEL_DEBUG_TEST)		+= pixel-debug-test.o
+
+obj-$(CONFIG_EXYNOS_ITMON) 		+= gs101-itmon.o

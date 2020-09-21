@@ -28,7 +28,7 @@
 #include <linux/exynos-pci-noti.h>
 #include <linux/exynos-pci-ctrl.h>
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
-#include <soc/samsung/exynos-itmon.h>
+#include <soc/google/exynos-itmon.h>
 #endif
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
