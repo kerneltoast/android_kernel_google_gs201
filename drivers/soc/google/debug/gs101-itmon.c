@@ -128,10 +128,10 @@ struct itmon_rpathinfo {
 	unsigned int shift_bits;
 };
 
-struct itmon_masterinfo {
+struct itmon_clientinfo {
 	char *port_name;
 	unsigned int user;
-	char *master_name;
+	char *client_name;
 	unsigned int bits;
 };
 
@@ -139,7 +139,7 @@ struct itmon_nodegroup;
 
 struct itmon_traceinfo {
 	char *port;
-	char *master;
+	char *client;
 	unsigned int user;
 	char *dest;
 	unsigned long target_addr;
@@ -205,7 +205,7 @@ struct itmon_nodegroup {
 
 struct itmon_platdata {
 	const struct itmon_rpathinfo *rpathinfo;
-	const struct itmon_masterinfo *masterinfo;
+	const struct itmon_clientinfo *clientinfo;
 	struct itmon_nodegroup *nodegroup;
 	struct list_head infolist[TRANS_TYPE_NUM];
 	struct list_head datalist[TRANS_TYPE_NUM];
@@ -469,7 +469,7 @@ const static struct itmon_rpathinfo rpathinfo[] = {
 	{137,	"CORESIGHT",	"CORE_CCI",	0x7F, 0},
 };
 
-const static struct itmon_masterinfo masterinfo[] = {
+const static struct itmon_clientinfo clientinfo[] = {
 	{"GSA",		0x1, /*XXXX01*/	"SYSMMU_S2_GSA",	0x3},
 	{"GSA",		0x2, /*XXXX10*/	"SYSMMU_S1_GSA",	0x3},
 	{"GSA",		0x4, /*XXX100*/	"GME",			0x7},
@@ -884,28 +884,28 @@ static const struct itmon_rpathinfo *itmon_get_rpathinfo(struct itmon_dev *itmon
 	return rpath;
 }
 
-static const struct itmon_masterinfo *itmon_get_masterinfo(struct itmon_dev *itmon,
+static const struct itmon_clientinfo *itmon_get_clientinfo(struct itmon_dev *itmon,
 							  char *port_name,
 							  unsigned int user)
 {
 	struct itmon_platdata *pdata = itmon->pdata;
-	const struct itmon_masterinfo *master = NULL;
+	const struct itmon_clientinfo *client = NULL;
 	unsigned int val;
 	int i;
 
 	if (!port_name)
 		return NULL;
 
-	for (i = 0; i < (int)ARRAY_SIZE(masterinfo); i++) {
-		if (!strcmp(pdata->masterinfo[i].port_name, port_name)) {
-			val = user & pdata->masterinfo[i].bits;
-			if (val == pdata->masterinfo[i].user) {
-				master = &pdata->masterinfo[i];
+	for (i = 0; i < (int)ARRAY_SIZE(clientinfo); i++) {
+		if (!strcmp(pdata->clientinfo[i].port_name, port_name)) {
+			val = user & pdata->clientinfo[i].bits;
+			if (val == pdata->clientinfo[i].user) {
+				client = &pdata->clientinfo[i];
 				break;
 			}
 		}
 	}
-	return master;
+	return client;
 }
 
 static void itmon_enable_addr_detect(struct itmon_dev *itmon,
@@ -1081,7 +1081,7 @@ static void itmon_post_handler_to_notifier(struct itmon_dev *itmon,
 		return;
 
 	itmon->notifier_info.port = info->port;
-	itmon->notifier_info.master = info->master;
+	itmon->notifier_info.client = info->client;
 	itmon->notifier_info.dest = info->dest;
 	itmon->notifier_info.read = info->read;
 	itmon->notifier_info.target_addr = info->target_addr;
@@ -1121,7 +1121,7 @@ static void itmon_post_handler_by_dest(struct itmon_dev *itmon,
 	}
 }
 
-static void itmon_post_handler_by_master(struct itmon_dev *itmon,
+static void itmon_post_handler_by_client(struct itmon_dev *itmon,
 					 struct itmon_traceinfo *info,
 					 unsigned int trans_type)
 {
@@ -1160,9 +1160,9 @@ static void itmon_report_timeout(struct itmon_dev *itmon,
 	unsigned int id, payload0, payload1 = 0, payload2, payload3, payload4;
 	unsigned int axid, user, valid, timeout, info;
 	unsigned long addr;
-	char *master_name, *port_name;
+	char *client_name, *port_name;
 	const struct itmon_rpathinfo *port;
-	const struct itmon_masterinfo *master;
+	const struct itmon_clientinfo *client;
 	struct itmon_nodegroup *group = NULL;
 	int i, num = (trans_type == TRANS_TYPE_READ ? SZ_128 : SZ_64);
 	int rw_offset = (trans_type == TRANS_TYPE_READ ? 0 : REG_TMOUT_BUF_WR_OFFSET);
@@ -1179,11 +1179,11 @@ static void itmon_report_timeout(struct itmon_dev *itmon,
 			"\n-----------------------------------------------------------\n"
 			"      ITMON Report (%s)\n"
 			"-----------------------------------------------------------\n"
-			"      Timeout Error Occurred : Master --> %s\n\n",
+			"      Timeout Error Occurred : Client --> %s\n\n",
 			trans_type == TRANS_TYPE_READ ? "READ" : "WRITE", node->name);
 	dev_err(itmon->dev,
 			"      TIMEOUT_BUFFER Information(NODE: %s)\n"
-			"	> NUM|   BLOCK|  MASTER|VALID|TIMEOUT|      ID| PAYLOAD0|         ADDRESS| PAYLOAD4|\n",
+			"	> NUM|   BLOCK|  CLIENT|VALID|TIMEOUT|      ID| PAYLOAD0|         ADDRESS| PAYLOAD4|\n",
 			node->name);
 
 	for (i = 0; i < num; i++) {
@@ -1221,19 +1221,19 @@ static void itmon_report_timeout(struct itmon_dev *itmon,
 		port = itmon_get_rpathinfo(itmon, axid, node->name);
 
 		port_name = NOT_AVAILABLE_STR;
-		master_name = NOT_AVAILABLE_STR;
+		client_name = NOT_AVAILABLE_STR;
 		if (port) {
 			port_name = port->port_name;
 			if (user) {
-				master = itmon_get_masterinfo(itmon, port_name, user);
-				if (master)
-					master_name = master->master_name;
+				client = itmon_get_clientinfo(itmon, port_name, user);
+				if (client)
+					client_name = client->client_name;
 			}
 		}
 
 		dev_err(itmon->dev,
 			"      > %03d|%8s|%8s|%5u|%7x|%08x|%08X|%016zx|%08x\n",
-				i, port_name, master_name, valid, timeout,
+				i, port_name, client_name, valid, timeout,
 				id, payload0, addr, payload4);
 	}
 	dev_err(itmon->dev,
@@ -1309,12 +1309,12 @@ static void itmon_report_traceinfo(struct itmon_dev *itmon,
 	dev_err(itmon->dev,
 			"\n-----------------------------------------------------------\n"
 			"      Transaction Information\n\n"
-			"      > Master (User)  : %s %s (0x%X)\n"
+			"      > Client (User)  : %s %s (0x%X)\n"
 			"      > Target         : %s\n"
 			"      > Target Address : 0x%lX %s\n"
 			"      > Type           : %s\n"
 			"      > Error code     : %s\n\n",
-			info->port, info->master ? info->master : "", info->user,
+			info->port, info->client ? info->client : "", info->user,
 			info->dest ? info->dest : NOT_AVAILABLE_STR,
 			info->target_addr,
 			info->baaw_prot == true ? "(BAAW Remapped address)" : "",
@@ -1407,7 +1407,7 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 	struct itmon_platdata *pdata = itmon->pdata;
 	struct itmon_tracedata *data = &node->tracedata;
 	struct itmon_traceinfo *new_info = NULL;
-	const struct itmon_masterinfo *master = NULL;
+	const struct itmon_clientinfo *client = NULL;
 	const struct itmon_rpathinfo *port = NULL;
 	struct itmon_nodeinfo *find_node = NULL;
 	struct itmon_tracedata *find_data = NULL;
@@ -1434,7 +1434,7 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 		userbit = BIT_AXUSER_PERI(data->ext_info_2);
 
 	new_info->port = NULL;
-	new_info->master = NULL;
+	new_info->client = NULL;
 	new_info->user = userbit;
 
 	switch (node->type) {
@@ -1450,9 +1450,9 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 				break;
 			} else if (port && !strcmp(find_node->name, port->port_name)) {
 				new_info->port = port->port_name;
-				master = itmon_get_masterinfo(itmon, new_info->port, userbit);
-				if (master)
-					new_info->master = master->master_name;
+				client = itmon_get_clientinfo(itmon, new_info->port, userbit);
+				if (client)
+					new_info->client = client->client_name;
 
 				find_data = &find_node->tracedata;
 				find_data->ref_info = new_info;
@@ -1464,7 +1464,7 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 			for (i = 0; i < (int)ARRAY_SIZE(rpathinfo); i++) {
 				if (strcmp(find_node->name, pdata->rpathinfo[i].port_name)) {
 					new_info->port = find_node->name;
-					new_info->master = " ";
+					new_info->client = " ";
 					find_data = &find_node->tracedata;
 					find_data->ref_info = new_info;
 					break;
@@ -1473,7 +1473,7 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 		}
 		if (!new_info->port) {
 			new_info->port = "Failed to parsing";
-			new_info->master = "Refer to Raw Node information";
+			new_info->client = "Refer to Raw Node information";
 		}
 		break;
 	case M_NODE:
@@ -1483,8 +1483,8 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 			break;
 
 		new_info->port = node->name;
-		master = itmon_get_masterinfo(itmon, node->name, userbit);
-		new_info->master = master ? master->master_name : " ";
+		client = itmon_get_clientinfo(itmon, node->name, userbit);
+		new_info->client = client ? client->client_name : " ";
 		break;
 	default:
 		dev_err(itmon->dev,
@@ -1568,7 +1568,7 @@ static void itmon_analyze_errnode(struct itmon_dev *itmon)
 		list_for_each_entry_safe(info, next_info, &pdata->infolist[trans_type], list) {
 			itmon_post_handler_to_notifier(itmon, info, trans_type);
 			itmon_post_handler_by_dest(itmon, info, trans_type);
-			itmon_post_handler_by_master(itmon, info, trans_type);
+			itmon_post_handler_by_client(itmon, info, trans_type);
 			list_del(&info->list);
 			kfree(info);
 		}
@@ -2067,7 +2067,7 @@ static int itmon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	itmon->pdata = pdata;
-	itmon->pdata->masterinfo = masterinfo;
+	itmon->pdata->clientinfo = clientinfo;
 	itmon->pdata->rpathinfo = rpathinfo;
 	itmon->pdata->nodegroup = nodegroup;
 	itmon->pdata->policy = err_policy;

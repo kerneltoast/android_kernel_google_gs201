@@ -8,9 +8,9 @@
 #define EXYNOS_ITMON__H
 
 struct itmon_notifier {
-	char *port;			/* The block to which the master IP belongs */
-	char *master;			/* The master's name which problem occurred */
-	char *dest;			/* The destination which the master tried to access */
+	char *port;			/* The block to which the client IP belongs */
+	char *client;			/* The client's name which problem occurred */
+	char *dest;			/* The destination which the client tried to access */
 	bool read;			/* Transaction Type */
 	unsigned long target_addr;	/* The physical address which the master tried to access */
 	unsigned int errcode;		/* The error code which the problem occurred */

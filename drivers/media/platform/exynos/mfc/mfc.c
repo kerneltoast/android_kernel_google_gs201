@@ -1448,7 +1448,7 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 {
 	struct mfc_dev *dev;
 	struct itmon_notifier *itmon_info = nb_data;
-	int is_mfc_itmon = 0, is_master = 0;
+	int is_mfc_itmon = 0, is_client = 0;
 	int is_mmcache_itmon = 0;
 	int ret = NOTIFY_OK;
 
@@ -1461,20 +1461,20 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 	if (itmon_info->port &&
 			strncmp("MFC", itmon_info->port, sizeof("MFC") - 1) == 0) {
 		is_mfc_itmon = 1;
-		is_master = 1;
-	} else if (itmon_info->master &&
-			strncmp("MFC", itmon_info->master, sizeof("MFC") - 1) == 0) {
+		is_client = 1;
+	} else if (itmon_info->client &&
+			strncmp("MFC", itmon_info->client, sizeof("MFC") - 1) == 0) {
 		is_mfc_itmon = 1;
-		is_master = 1;
+		is_client = 1;
 	} else if (itmon_info->dest &&
 			strncmp("MFC", itmon_info->dest, sizeof("MFC") - 1) == 0) {
 		is_mfc_itmon = 1;
-		is_master = 0;
+		is_client = 0;
 	} else if (itmon_info->port && dev->has_mmcache &&
 			strncmp("M-CACHE", itmon_info->port,
 				sizeof("M-CACHE") - 1) == 0) {
 		is_mmcache_itmon = 1;
-		is_master = 1;
+		is_client = 1;
 	}
 
 	if (is_mfc_itmon || is_mmcache_itmon) {
@@ -1482,13 +1482,13 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 				is_mfc_itmon ? "MFC" : "MMCACHE");
 		dev_err(dev->device, "%s is %s\n",
 				is_mfc_itmon ? "MFC" : "MMCACHE",
-				is_master ? "master" : "dest");
+				is_client ? "client" : "dest");
 		if (!dev->itmon_notified) {
 			dev_err(dev->device, "dump MFC %s information\n",
 					is_mmcache_itmon ? "MMCACHE" : "");
 			if (is_mmcache_itmon)
 				mfc_mmcache_dump_info(dev);
-			if (is_master || (!is_master && itmon_info->onoff))
+			if (is_client || (!is_client && itmon_info->onoff))
 				call_dop(dev, dump_info, dev);
 			else
 				call_dop(dev, dump_info_without_regs, dev);
