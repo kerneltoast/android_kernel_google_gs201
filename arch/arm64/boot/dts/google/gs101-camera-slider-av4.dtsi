@@ -37,6 +37,20 @@
 	pinctrl-2 = <&hsi2c1_bus_in>;
 };
 
+&hsi2c_2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp4 0 0 &gpp4 1 0>;
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c2_bus_in>;
+	pinctrl-1 = <&hsi2c2_bus>;
+	pinctrl-2 = <&hsi2c2_bus_in>;
+};
+
 / {
 	fragment@lwiscamera {
 		target-path = "/";
@@ -60,13 +74,16 @@
 				/* RCAM_RST_L GPP6[2] */
 				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
 				/* RCAM_EN2 GRA_GPIO6 */
-				enable-gpios = <&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
+				enable-gpios =
+					<&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
-					<&slg51000_ldo1 &slg51000_ldo3 &slg51000_ldo7>;
+					<&slg51000_ldo1 &slg51000_ldo3
+					 &slg51000_ldo7>;
 				regulator-voltages =
-					<2850000 3200000 1850000>;
+					<2850000 3200000
+					 1850000>;
 
 				clocks =
 					<&clock CIS_CLK0>,
@@ -126,6 +143,135 @@
 				pinctrl-1 = <&sensor_mclk5_out>;
 			};
 
+			/* FRONT CAMERA IMX355 */
+			sensor5: sensor@5 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor-imx355";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x1A>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				enable-gpios = <&gpp13 1 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo3 &slg51000_ldo6
+					 &slg51000_ldo7>;
+				regulator-voltages =
+					<3200000 1150000
+					 1850000>;
+
+				clocks =
+					<&clock CIS_CLK2>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK2>;
+				clock-names =
+					"CIS_CLK2",
+					"GATE_DFTMUX_CMU_CIS_CLK2";
+				clock-rates =
+					<24000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk3_fn>;
+				pinctrl-1 = <&sensor_mclk3_out>;
+			};
+
+			/* FRONT CAMERA IMX663 */
+			sensor6: sensor@6 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor-imx663";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x1A>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				/* FCAM_RST_L GPP4[2] */
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				/* FCAM_EN GPP13[1] */
+				enable-gpios = <&gpp13 1 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo7>;
+				regulator-voltages =
+					<1850000>;
+
+				clocks =
+					<&clock CIS_CLK2>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK2>;
+				clock-names =
+					"CIS_CLK2",
+					"GATE_DFTMUX_CMU_CIS_CLK2";
+				clock-rates =
+					<24000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk3_fn>;
+				pinctrl-1 = <&sensor_mclk3_out>;
+			};
+
+			/* REAR ULTRA WIDE CAMERA IMX386 */
+			sensor7: sensor@7 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor-imx386";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x1A>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+				enable-gpios = <&gpp11 1 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo2 &slg51000_ldo5
+					 &slg51000_ldo7>;
+				regulator-voltages =
+					<2850000 1150000
+					 1850000>;
+
+				clocks =
+					<&clock CIS_CLK1>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK1>;
+				clock-names =
+					"CIS_CLK1",
+					"GATE_DFTMUX_CMU_CIS_CLK1";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk2_fn>;
+				pinctrl-1 = <&sensor_mclk2_out>;
+			};
+
 			/* Actuator ak7377 for gn1*/
 			actuator2: actuator@2 {
 				compatible = "google,lwis-i2c-device";
@@ -163,11 +309,74 @@
 
 				/* GPIOs */
 				/* RCAM_EN2 GRA_GPIO6 */
-				enable-gpios = <&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
+				enable-gpios =
+					<&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators = <&slg51000_ldo3 &slg51000_ldo7>;
 				regulator-voltages = <3200000 1850000>;
+			};
+
+			/* Eeprom m24c64s for imx355 */
+			eeprom5: eeprom@5 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom-m24c64s";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x51>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo7>;
+				regulator-voltages = <1850000>;
+			};
+
+			/* Eeprom m24c64x for imx663 */
+			eeprom6: eeprom@6 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom-m24c64x-imx663";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x51>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo7>;
+				regulator-voltages = <1850000>;
+			};
+
+			/* Eeprom m24c64x for imx386 */
+			eeprom7: eeprom@7 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom-m24c64x-imx386";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x50>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo7>;
+				regulator-voltages =
+					<1850000>;
 			};
 		};
 	};
