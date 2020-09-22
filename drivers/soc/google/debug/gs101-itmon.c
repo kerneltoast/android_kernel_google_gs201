@@ -1286,6 +1286,7 @@ static void itmon_report_rawdata(struct itmon_dev *itmon,
 			"Raw Register Information ----------------------------------\n"
 			"      > %s(%s, 0x%08X)\n"
 			"      > REG(0x08~0x18)        : 0x%08X, 0x%08X, 0x%08X, 0x%08X\n"
+			"      > REG(0x80)             : 0x%08X\n"
 			"      > REG(0x100~0x10C)      : 0x%08X, 0x%08X, 0x%08X, 0x%08X\n",
 			node->name, itmon_node_string[node->type],
 			node->phy_regs + data->offset,
@@ -1293,6 +1294,7 @@ static void itmon_report_rawdata(struct itmon_dev *itmon,
 			data->ext_info_0,
 			data->ext_info_1,
 			data->ext_info_2,
+			data->ext_user,
 			data->dbg_mo_cnt,
 			data->prot_chk_ctl,
 			data->prot_chk_info,
