@@ -32,6 +32,17 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
+
+	hsi2c4_bus: hsi2c4-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c4_bus_in: hsi2c4-bus-in {
+		samsung,pins = "gpp8-0", "gpp8-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
 };
 
 &pinctrl_5 {
@@ -74,6 +85,20 @@
 	pinctrl-0 = <&hsi2c3_bus_in>;
 	pinctrl-1 = <&hsi2c3_bus>;
 	pinctrl-2 = <&hsi2c3_bus_in>;
+};
+
+&hsi2c_4 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp8 0 0 &gpp8 1 0>;
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c4_bus_in>;
+	pinctrl-1 = <&hsi2c4_bus>;
+	pinctrl-2 = <&hsi2c4_bus_in>;
 };
 
 &hsi2c_8 {
@@ -176,6 +201,48 @@
 				pinctrl-1 = <&sensor_mclk2_out>;
 			};
 
+			/* REAR CAMERA IMX481 */
+			sensor1: sensor@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor1";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x1A>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				enable-gpios = <&s2mpg11_gpio 2 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo2 &slg51000_ldo3
+					 &slg51000_ldo5 &slg51000_ldo7>;
+				regulator-voltages =
+					<2850000 2850000 1100000 1800000>;
+
+				clocks =
+					<&clock CIS_CLK2>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK2>;
+				clock-names =
+					"CIS_CLK2",
+					"GATE_DFTMUX_CMU_CIS_CLK2";
+				clock-rates =
+					<24000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk3_fn>;
+				pinctrl-1 = <&sensor_mclk3_out>;
+			};
+
 			actuator0: actuator@0 {
 				compatible = "google,lwis-i2c-device";
 
@@ -240,6 +307,42 @@
 				clock-names =
 					"CIS_CLK0",
 					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<24000000>,
+					<0>;
+			};
+
+			eeprom1: eeprom@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom1";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x50>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				enable-gpios = <&s2mpg11_gpio 2 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo2 &slg51000_ldo3
+					 &slg51000_ldo5 &slg51000_ldo7>;
+				regulator-voltages =
+					<2850000 2850000 1100000 1800000>;
+
+				clocks =
+					<&clock CIS_CLK2>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK2>;
+				clock-names =
+					"CIS_CLK2",
+					"GATE_DFTMUX_CMU_CIS_CLK2";
 				clock-rates =
 					<24000000>,
 					<0>;
