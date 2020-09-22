@@ -177,7 +177,7 @@ int dbg_snapshot_start_watchdog(int sec)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_start_watchdog);
 
-int dbg_snapshot_emergency_reboot(char *str)
+int dbg_snapshot_emergency_reboot(const char *str)
 {
 	void *addr;
 	char reboot_msg[DSS_PANIC_LOG_SIZE] = "Emergency Reboot";
@@ -197,7 +197,9 @@ int dbg_snapshot_emergency_reboot(char *str)
 	dbg_snapshot_dump_panic(reboot_msg, strlen(reboot_msg));
 	dump_stack();
 
-	return dss_soc_ops.expire_watchdog(3, 0);
+	dss_soc_ops.expire_watchdog(3, 0);
+	dbg_snapshot_spin_func();
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_emergency_reboot);
 
@@ -560,29 +562,35 @@ static struct notifier_block nb_die_block = {
 	.priority = INT_MAX,
 };
 
-void dbg_snapshot_do_dpm_policy(unsigned int policy)
+void dbg_snapshot_do_dpm_policy(unsigned int policy, const char *str)
 {
 	switch (policy) {
 	case GO_DEFAULT_ID:
+		pr_emerg("%s: %s\n", __func__, str);
+		pr_emerg("no-op\n");
 		break;
 	case GO_PANIC_ID:
-		panic("%pS", return_address(0));
+		panic("%s: %s", __func__, str);
 		break;
 	case GO_WATCHDOG_ID:
 	case GO_S2D_ID:
-		if (dbg_snapshot_emergency_reboot("For S2D"))
-			panic("WDT rst fail for s2d, wdt device not probed");
-		dbg_snapshot_spin_func();
+		dbg_snapshot_emergency_reboot(str);
 		break;
 	case GO_ARRAYDUMP_ID:
+		pr_emerg("%s: %s\n", __func__, str);
+		pr_emerg("Entering Arraydump Mode!\n");
 		if (dss_soc_ops.run_arraydump)
 			dss_soc_ops.run_arraydump();
 		break;
 	case GO_SCANDUMP_ID:
+		pr_emerg("%s: %s\n", __func__, str);
+		pr_emerg("Entering Scandump Mode!\n");
 		if (dss_soc_ops.run_scandump_mode)
 			dss_soc_ops.run_scandump_mode();
 		break;
 	case GO_HALT_ID:
+		pr_emerg("%s: %s\n", __func__, str);
+		pr_emerg("Entering Halt Mode!\n");
 		if (dss_soc_ops.stop_all_cpus)
 			dss_soc_ops.stop_all_cpus();
 		break;

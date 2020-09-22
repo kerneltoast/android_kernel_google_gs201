@@ -92,8 +92,7 @@ void dbg_snapshot_do_dpm(struct pt_regs *regs)
 			pr_emerg("pc : %pS\n", (void *)regs->pc);
 			pr_emerg("lr : %pS\n", (void *)regs->regs[30]);
 		}
-		pr_emerg("%s: go %s\n", __func__, dpm_policy[policy]);
-		dbg_snapshot_do_dpm_policy(policy);
+		dbg_snapshot_do_dpm_policy(policy, dpm_policy[policy]);
 	}
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_do_dpm);

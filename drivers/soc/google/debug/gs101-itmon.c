@@ -1755,11 +1755,13 @@ static void itmon_do_dpm_policy(struct itmon_dev *itmon)
 	int i;
 
 	for (i = 0; i < TYPE_MAX; i++) {
+		char buf[SZ_64];
+
 		if (!pdata->policy[i].error)
 			continue;
 
-		dev_err(itmon->dev, "%s: %s\n", __func__, pdata->policy[i].name);
-		dbg_snapshot_do_dpm_policy(pdata->policy[i].policy);
+		scnprintf(buf, sizeof(buf), "itmon triggering %s", pdata->policy[i].name);
+		dbg_snapshot_do_dpm_policy(pdata->policy[i].policy, buf);
 		pdata->policy[i].error = false;
 	}
 }

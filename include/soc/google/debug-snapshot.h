@@ -38,7 +38,7 @@ extern unsigned long dbg_snapshot_get_last_pc(unsigned int cpu);
 extern unsigned long dbg_snapshot_get_last_pc_paddr(void);
 /* debug-snapshot-dpm functions */
 extern bool dbg_snapshot_get_dpm_status(void);
-extern void dbg_snapshot_do_dpm_policy(unsigned int policy);
+extern void dbg_snapshot_do_dpm_policy(unsigned int policy, const char *str);
 /* debug-snapshot-qd functions */
 extern int dbg_snapshot_qd_add_region(void *v_entry, u32 attr);
 extern bool dbg_snapshot_qd_enabled(void);
@@ -47,7 +47,7 @@ extern void dbg_snapshot_qd_dump_stack(u64 sp);
 extern int dbg_snapshot_get_sjtag_status(void);
 extern void dbg_snapshot_ecc_dump(void);
 extern int dbg_snapshot_start_watchdog(int sec);
-extern int dbg_snapshot_emergency_reboot(char *str);
+extern int dbg_snapshot_emergency_reboot(const char *str);
 extern int dbg_snapshot_kick_watchdog(void);
 extern unsigned int dbg_snapshot_get_val_offset(unsigned int offset);
 extern void dbg_snapshot_set_val_offset(unsigned int val, unsigned int offset);
@@ -131,7 +131,7 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_log_output()		do { } while (0)
 #define dbg_snapshot_scratch_clear()		do { } while (0)
 
-#define dbg_snapshot_do_dpm_policy(a)		do { } while (0)
+#define dbg_snapshot_do_dpm_policy(a, b)	do { } while (0)
 #define dbg_snapshot_qd_dump_stack(a)		do { } while (0)
 
 #define dbg_snapshot_get_sjtag_status()		do { } while (0)
