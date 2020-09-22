@@ -923,6 +923,13 @@ static int max77759_probe(struct i2c_client *client,
 		return PTR_ERR(chip->data.regmap);
 	}
 
+	chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
+	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
+		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed",
+			PTR_ERR(chip->charger_mode_votable));
+		return -EPROBE_DEFER;
+	}
+
 	chip->dev = &client->dev;
 	i2c_set_clientdata(client, chip);
 	mutex_init(&chip->icl_proto_el_lock);
@@ -1043,12 +1050,6 @@ static int max77759_probe(struct i2c_client *client,
 			PTR_ERR(chip->usb_icl_proto_el));
 		ret = -ENODEV;
 		goto unreg_port;
-	}
-
-	chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
-	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
-		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed",
-			PTR_ERR(chip->charger_mode_votable));
 	}
 
 	device_init_wakeup(chip->dev, true);
