@@ -14,5 +14,10 @@ struct debug_trigger {
 	void (*watchdog_emergency_reset)(char *arg);
 };
 
-void debug_trigger_register(struct debug_trigger *soc_trigger, char *arch_name);
+#if IS_ENABLED(CONFIG_PIXEL_DEBUG_TEST)
+extern void debug_trigger_register(struct debug_trigger *soc_trigger, char *arch_name);
+#else
+#define debug_trigger_register(a, b)	do { } while (0)
+#endif
+
 #endif /* DEBUG_TEST_H */

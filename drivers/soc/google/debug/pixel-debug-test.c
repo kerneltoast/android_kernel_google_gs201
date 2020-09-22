@@ -50,7 +50,8 @@
 #include <linux/sysfs.h>
 #include <linux/string.h>
 #include <linux/fs.h>
-#include <linux/debug-test.h>
+
+#include <soc/google/debug-test.h>
 
 /*
  * Utility functions
@@ -436,7 +437,18 @@ static void simulate_jump_zero(char *arg)
 /*
  * SOC dependent triggers
  */
-extern struct debug_trigger soc_test_trigger;
+static struct debug_trigger soc_test_trigger;
+
+void debug_trigger_register(struct debug_trigger *soc_trigger, char *arch_name)
+{
+	pr_crit("DEBUG TEST: [%s] test triggers are registered!", arch_name);
+	soc_test_trigger.hard_lockup = soc_trigger->hard_lockup;
+	soc_test_trigger.cold_reset = soc_trigger->cold_reset;
+	soc_test_trigger.watchdog_emergency_reset =
+		soc_trigger->watchdog_emergency_reset;
+}
+EXPORT_SYMBOL_GPL(debug_trigger_register);
+
 static void simulate_hardlockup(char *arg)
 {
 	pr_crit("called!\n");

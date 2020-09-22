@@ -21,10 +21,10 @@
 #include <linux/nmi.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
-#include <linux/debug-test.h>
 
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-pmu-if.h>
+#include <soc/google/debug-test.h>
 
 #include "debug-snapshot-local.h"
 
