@@ -57,6 +57,12 @@ config DEBUG_SNAPSHOT_QUICKDUMP
 	  If you access text symbol and stack data, you could get them.
 	  But in GKI, we can't access section symbol and stack symbol.
 
+config DEBUG_SNAPSHOT_DEBUG_KINFO
+	tristate "Debug Kernel Information Support"
+	depends on DEBUG_SNAPSHOT
+	help
+	  Use DPM to enable/disable kernel information backup.
+
 config EXYNOS_DEBUG_TEST
 	tristate "Exynos debug feature test"
 	depends on DEBUG_SNAPSHOT
