@@ -54,7 +54,6 @@
 		pinctrl6 = &pinctrl_6;
 		pinctrl7 = &pinctrl_7;
 		uart0 = &serial_0;
-		mfc0 = &mfc_0;
 
 	};
 

@@ -10,33 +10,21 @@
 #include <dt-bindings/interrupt-controller/gs101.h>
 
 / {
-	mfc_0: mfc@1C8D0000 {
+	mfc: mfc {
 		/* Basic setting */
 		compatible = "samsung,exynos-mfc";
-		reg = <0x0 0x1C8D0000 0x10000>;
 
-		interrupts = <0 IRQ_MFC_MFC IRQ_TYPE_LEVEL_HIGH>;
-		clock-names = "aclk_mfc";
-		clocks = <&clock GATE_MFC>;
+		/* for vb2 device */
 		iommus = <&sysmmu_mfc0>, <&sysmmu_mfc1>;
 		samsung,iommu-group = <&iommu_group_mfc>;
+
+		samsung,tzmp;
 
 		/* MFC version */
 		ip_ver = <0x14020000>;
 
 		/* Debug mode */
 		debug_mode = <1>;
-
-		/* Sysmmu check */
-		share_sysmmu = <0>;
-		axid_mask = <0xFFFF>;
-		mfc_fault_num = <0x0>;
-		trans_info_offset = <0x1004>;
-
-		/* LLC (Last Level Cache) */
-		llc = <0>;
-		/* SLC (System Level Cache) */
-		pt_id = "MFC";
 
 		/* NAL-Q size */
 		nal_q_entry_size = <512>;
@@ -52,29 +40,46 @@
 		static_info_enc = <1 0x180314>;
 		hdr10_plus = <1 0x180709>;
 		vp9_stride_align = <1 0x0>;
+		sbwc_uncomp = <1 0x190702>;
+		mem_clear = <1 0x0>;
 		/* Support from v11.0 (except 11.2) */
-		wait_fw_status = <1 0x191107>;
+		wait_fw_status = <1 0x190122>;
 		wait_nalq_status = <1 0x191107>;
 		/* DRM switch predict for cache flush */
 		drm_switch_predict = <1 0x0>;
 		/* Support SBWC per-frame control for encoder src */
-		sbwc_enc_src_ctrl = <1 0x0>;
+		sbwc_enc_src_ctrl = <1 0x200110>;
+
+		/* AV1 Decoder */
+		support_av1_dec = <0>;
+		/* Support AV1 Film Grain Feature */
+		av1_film_grain = <0 0>;
 
 		/* Default 10bit format for decoding (1: P010, 0: 8+2) */
 		P010_decoding = <1>;
+		/* Dithering option for 8bit display device */
+		dithering_enable = <0>;
 
 		/* Formats */
 		support_10bit = <1>;
 		support_422 = <1>;
 		support_rgb = <1>;
 
-		/* Compress format */
+		/* SBWC */
 		support_sbwc = <1>;
 		support_sbwcl = <0>;
 		support_afbc = <1>;
 
+		/* SBWC decoder max resolution */
+		sbwc_dec_max_width = <1920>;
+		sbwc_dec_max_height = <1088>;
+
 		/* HDR10+ num max window */
 		max_hdr_win = <1>;
+
+		/* error type for sync_point display */
+		/* (1: concealment display, 2: error display, 3: error no display) */
+		display_err_type = <2>;
 
 		/* Encoder default parameter: max number is 100 */
 		enc_param_num = <25>;
@@ -105,13 +110,24 @@
 		bw_dec_vp9_10bit = <31591 26771 24160>;
 		bw_dec_mpeg4 = <31567 25191 15961>;
 
-		/* QoS */
-		num_default_qos_steps = <8>;
-		num_encoder_qos_steps = <8>;
-		max_mb = <5480873>;
-		mfc_freq_control = <1>;
-		mo_control = <1>;
-		bw_control = <1>;
+		/* BW <peak, read, write> : KB/UHD frame. For SBWC format */
+		/* It is valid when only support_sbwc = <1> */
+		sbwc_bw_enc_h264	= <31622 32183 7065>;
+		sbwc_bw_enc_hevc	= <24044 27526 5888>;
+		sbwc_bw_enc_hevc_10bit	= <32666 37594 8841>;
+		sbwc_bw_enc_vp8		= <32666 37594 8841>;
+		sbwc_bw_enc_vp9		= <23276 26884 8702>;
+		sbwc_bw_enc_vp9_10bit	= <42302 41116 14052>;
+		sbwc_bw_enc_mpeg4	= <32666 37594 8841>;
+		sbwc_bw_dec_h264	= <23757 18603 13620>;
+		sbwc_bw_dec_hevc	= <15309 15387 10279>;
+		sbwc_bw_dec_hevc_10bit	= <20808 20602 14868>;
+		sbwc_bw_dec_vp8		= <17203 18281 13394>;
+		sbwc_bw_dec_vp9		= <11121 9691 8999>;
+		sbwc_bw_dec_vp9_10bit	= <17787 15582 14413>;
+		sbwc_bw_dec_mpeg4	= <18924 15221 9462>;
+
+		/* QoS bitrate */
 		num_mfc_freq = <5>;
 		mfc_freqs = <134000 267000 400000 534000 666000>;
 		/* spec: H264(240M) VP8(80M) */
@@ -130,218 +146,280 @@
 		qos_weight_num_of_tile = <75>;
 		qos_weight_super64_bframe = <60>;
 
-		/* Device virtual address */
-		#dma-address-cells = <1>;
-		#dma-size-cells = <1>;
-		dma-window = <0x0 0xD0000000>;
+		/* core balance(%) for resource managing */
+		core_balance = <100>;
 
-		/* Sub nodes for sysmmu, hwfc and mmcache */
+		/* MFC IOVA threshold (MB) */
+		iova_threshold = <0>;
+
+		/* need control for mfc idle clock */
+		idle_clk_ctrl = <0>;
+
+		/* Sub nodes for MFC core */
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges;
-		iommu {
-			reg = <0x0 0x1C870000 0x9000>,
-			    <0x0 0x1C8A0000 0x9000>;
-		};
-		ssmt {
-			reg = <0x0 0x1C8E4000 0x100>,
-			    <0x0 0x1C8F4000 0x100>;
-		};
-		sysreg {
-			reg = <0x0 0x1C820000 0x500>;
-		};
 
-		/* Default QoS table */
-		mfc_default_qos_table {
-			mfc_d_qos_variant_0 {
-				thrd_mb = <0>;
-				freq_mfc = <134000>;
-				freq_int = <100000>;
-				freq_mif = <421000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <2058>;
+		/* MFC core device */
+		mfc_core0: MFC-0 {
+			/* Basic setting */
+			compatible = "samsung,exynos-mfc-core";
+			id = <0>;
+			reg = <0x0 0x1C8D0000 0x10000>;
+			interrupts = <0 IRQ_MFC_MFC IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "aclk_mfc";
+			clocks = <&clock GATE_MFC>;
+			iommus = <&sysmmu_mfc0>, <&sysmmu_mfc1>;
+			samsung,iommu-group = <&iommu_group_mfc>;
+
+			samsung,tzmp;
+			samsung,imgloader-s2mpu-support;
+
+			/* MFC version */
+			ip_ver = <0x14020000>;
+
+			/* Sysmmu check */
+			share_sysmmu = <0>;
+			axid_mask = <0xFFFF>;
+			mfc_fault_num = <0x0>;
+			trans_info_offset = <0x1004>;
+
+			/* LLC (Last Level Cache) */
+			llc = <0>;
+			need_llc_flush = <0>;
+
+			/* SLC (System Level Cache) */
+			pt_id = "MFC";
+
+			/* vOTF */
+			//mfc_votf_base = <0x16650000>;
+			//gdc_votf_base = <0x15E10000>;
+			//dpu_votf_base = <0x160A0000>;
+			//votf_start_offset = <0xF000>;
+			//votf_end_offset = <0x10000>;
+
+			/* QoS */
+			num_default_qos_steps = <8>;
+			num_encoder_qos_steps = <8>;
+			max_mb = <5480873>;
+			mfc_freq_control = <1>;
+			mo_control = <1>;
+			bw_control = <1>;
+
+			/* Device virtual address */
+			#dma-address-cells = <1>;
+			#dma-size-cells = <1>;
+			dma-window = <0x0 0xD0000000>;
+
+			/* Sub nodes for sysmmu, hwfc and mmcache */
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges;
+
+			iommu {
+				reg = <0x0 0x1C870000 0x9000>,
+				    <0x0 0x1C8A0000 0x9000>;
 			};
-			mfc_d_qos_variant_1 {
-				thrd_mb = <265147>;
-				freq_mfc = <267000>;
-				freq_int = <200000>;
-				freq_mif = <421000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <1379>;
+			ssmt {
+				reg = <0x0 0x1C8E4000 0x100>,
+				    <0x0 0x1C8F4000 0x100>;
 			};
-			mfc_d_qos_variant_2 {
-				thrd_mb = <551811>;
-				freq_mfc = <267000>;
-				freq_int = <200000>;
-				freq_mif = <676000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <1046>;
+			sysreg {
+				reg = <0x0 0x1C820000 0x500>;
 			};
-			mfc_d_qos_variant_3 {
-				thrd_mb = <1202239>;
-				freq_mfc = <356000>;
-				freq_int = <332000>;
-				freq_mif = <1014000>;
-				mo_value = <1>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <732>;
+
+			/* Default QoS table */
+			mfc_default_qos_table {
+				mfc_d_qos_variant_0 {
+					thrd_mb = <0>;
+					freq_mfc = <134000>;
+					freq_int = <100000>;
+					freq_mif = <421000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <2058>;
+				};
+				mfc_d_qos_variant_1 {
+					thrd_mb = <265147>;
+					freq_mfc = <267000>;
+					freq_int = <200000>;
+					freq_mif = <421000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <1379>;
+				};
+				mfc_d_qos_variant_2 {
+					thrd_mb = <551811>;
+					freq_mfc = <267000>;
+					freq_int = <200000>;
+					freq_mif = <676000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <1046>;
+				};
+				mfc_d_qos_variant_3 {
+					thrd_mb = <1202239>;
+					freq_mfc = <356000>;
+					freq_int = <332000>;
+					freq_mif = <1014000>;
+					mo_value = <1>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <732>;
+				};
+				mfc_d_qos_variant_4 {
+					thrd_mb = <1887335>;
+					freq_mfc = <465000>;
+					freq_int = <332000>;
+					freq_mif = <1014000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <655>;
+				};
+				mfc_d_qos_variant_5 {
+					thrd_mb = <2088750>;
+					freq_mfc = <664000>;
+					freq_int = <332000>;
+					freq_mif = <1539000>;
+					mo_value = <1>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "mfc_uhd";
+					time_fw = <479>;
+				};
+				mfc_d_qos_variant_6 {
+					thrd_mb = <3197754>;
+					freq_mfc = <664000>;
+					freq_int = <533000>;
+					freq_mif = <1539000>;
+					mo_value = <0>;
+					mo_10bit_value = <1>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "mfc_uhd_10bit";
+					time_fw = <445>;
+				};
+				mfc_d_qos_variant_7 {
+					thrd_mb = <4385292>;
+					freq_mfc = <711000>;
+					freq_int = <533000>;
+					freq_mif = <1539000>;
+					mo_value = <0>;
+					mo_10bit_value = <1>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "mfc_8k_dec30";
+					time_fw = <445>;
+				};
 			};
-			mfc_d_qos_variant_4 {
-				thrd_mb = <1887335>;
-				freq_mfc = <465000>;
-				freq_int = <332000>;
-				freq_mif = <1014000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <655>;
+
+			/* Encoder QoS table */
+			mfc_encoder_qos_table {
+				mfc_e_qos_variant_0 {
+					thrd_mb = <0>;
+					freq_mfc = <134000>;
+					freq_int = <100000>;
+					freq_mif = <421000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <2058>;
+				};
+				mfc_e_qos_variant_1 {
+					thrd_mb = <265147>;
+					freq_mfc = <267000>;
+					freq_int = <200000>;
+					freq_mif = <421000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <1379>;
+				};
+				mfc_e_qos_variant_2 {
+					thrd_mb = <551811>;
+					freq_mfc = <267000>;
+					freq_int = <200000>;
+					freq_mif = <676000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <1046>;
+				};
+				mfc_e_qos_variant_3 {
+					thrd_mb = <1202239>;
+					freq_mfc = <356000>;
+					freq_int = <332000>;
+					freq_mif = <1014000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <732>;
+				};
+				mfc_e_qos_variant_4 {
+					thrd_mb = <1887335>;
+					freq_mfc = <465000>;
+					freq_int = <332000>;
+					freq_mif = <1014000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <655>;
+				};
+				mfc_e_qos_variant_5 {
+					thrd_mb = <2088750>;
+					freq_mfc = <533000>;
+					freq_int = <200000>;
+					freq_mif = <1539000>;
+					mo_value = <1>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <0>;
+					bts_scen = "default";
+					time_fw = <559>;
+				};
+				mfc_e_qos_variant_6 {
+					thrd_mb = <2625764>;
+					freq_mfc = <664000>;
+					freq_int = <332000>;
+					freq_mif = <1539000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <1>;
+					bts_scen = "mfc_uhd";
+					time_fw = <479>;
+				};
+				mfc_e_qos_variant_7 {
+					thrd_mb = <3197754>;
+					freq_mfc = <664000>;
+					freq_int = <533000>;
+					freq_mif = <1539000>;
+					mo_value = <0>;
+					mo_10bit_value = <0>;
+					mo_uhd_enc60_value = <1>;
+					bts_scen = "mfc_uhd_10bit";
+					time_fw = <445>;
+				};
 			};
-			mfc_d_qos_variant_5 {
-				thrd_mb = <2088750>;
-				freq_mfc = <664000>;
-				freq_int = <332000>;
-				freq_mif = <1539000>;
-				mo_value = <1>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "mfc_uhd";
-				time_fw = <479>;
-			};
-			mfc_d_qos_variant_6 {
-				thrd_mb = <3197754>;
-				freq_mfc = <664000>;
-				freq_int = <533000>;
-				freq_mif = <1539000>;
-				mo_value = <0>;
-				mo_10bit_value = <1>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "mfc_uhd_10bit";
-				time_fw = <445>;
-			};
-			mfc_d_qos_variant_7 {
-				thrd_mb = <4385292>;
+			/* QoS table for performance boost mode */
+			mfc_perf_boost_table {
+				num_cluster = <3>;
+				freq_cluster = <1742000 1898000 1456000>;
 				freq_mfc = <711000>;
 				freq_int = <533000>;
-				freq_mif = <1539000>;
-				mo_value = <0>;
-				mo_10bit_value = <1>;
-				mo_uhd_enc60_value = <0>;
+				freq_mif = <2730000>;
 				bts_scen = "mfc_8k_dec30";
-				time_fw = <445>;
 			};
-		};
-
-		/* Encoder QoS table */
-		mfc_encoder_qos_table {
-			mfc_e_qos_variant_0 {
-				thrd_mb = <0>;
-				freq_mfc = <134000>;
-				freq_int = <100000>;
-				freq_mif = <421000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <2058>;
-			};
-			mfc_e_qos_variant_1 {
-				thrd_mb = <265147>;
-				freq_mfc = <267000>;
-				freq_int = <200000>;
-				freq_mif = <421000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <1379>;
-			};
-			mfc_e_qos_variant_2 {
-				thrd_mb = <551811>;
-				freq_mfc = <267000>;
-				freq_int = <200000>;
-				freq_mif = <676000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <1046>;
-			};
-			mfc_e_qos_variant_3 {
-				thrd_mb = <1202239>;
-				freq_mfc = <356000>;
-				freq_int = <332000>;
-				freq_mif = <1014000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <732>;
-			};
-			mfc_e_qos_variant_4 {
-				thrd_mb = <1887335>;
-				freq_mfc = <465000>;
-				freq_int = <332000>;
-				freq_mif = <1014000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <655>;
-			};
-			mfc_e_qos_variant_5 {
-				thrd_mb = <2088750>;
-				freq_mfc = <533000>;
-				freq_int = <200000>;
-				freq_mif = <1539000>;
-				mo_value = <1>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <0>;
-				bts_scen = "default";
-				time_fw = <559>;
-			};
-			mfc_e_qos_variant_6 {
-				thrd_mb = <2625764>;
-				freq_mfc = <664000>;
-				freq_int = <332000>;
-				freq_mif = <1539000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <1>;
-				bts_scen = "mfc_uhd";
-				time_fw = <479>;
-			};
-			mfc_e_qos_variant_7 {
-				thrd_mb = <3197754>;
-				freq_mfc = <664000>;
-				freq_int = <533000>;
-				freq_mif = <1539000>;
-				mo_value = <0>;
-				mo_10bit_value = <0>;
-				mo_uhd_enc60_value = <1>;
-				bts_scen = "mfc_uhd_10bit";
-				time_fw = <445>;
-			};
-		};
-		/* QoS table for performance boost mode */
-		mfc_perf_boost_table {
-			num_cluster = <3>;
-			freq_cluster = <1742000 1898000 1456000>;
-			freq_mfc = <711000>;
-			freq_int = <533000>;
-			freq_mif = <2730000>;
-			bts_scen = "mfc_8k_dec30";
 		};
 	};
 };
