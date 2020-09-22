@@ -444,7 +444,7 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 {
 	struct mfc_core *core;
 	struct itmon_notifier *itmon_info = nb_data;
-	int is_mfc_itmon = 0, is_master = 0;
+	int is_mfc_itmon = 0, is_client = 0;
 	int ret = NOTIFY_OK;
 
 	core = container_of(nb, struct mfc_core, itmon_nb);
@@ -456,25 +456,25 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 	if (itmon_info->port &&
 		strncmp("MFC", itmon_info->port, sizeof("MFC") - 1) == 0) {
 		is_mfc_itmon = 1;
-		is_master = 1;
-	} else if (itmon_info->master &&
-		strncmp("MFC", itmon_info->master, sizeof("MFC") - 1) == 0) {
+		is_client = 1;
+	} else if (itmon_info->client &&
+		strncmp("MFC", itmon_info->client, sizeof("MFC") - 1) == 0) {
 		is_mfc_itmon = 1;
-		is_master = 1;
+		is_client = 1;
 	} else if (itmon_info->dest &&
 		strncmp("MFC", itmon_info->dest, sizeof("MFC") - 1) == 0) {
 		is_mfc_itmon = 1;
-		is_master = 0;
+		is_client = 0;
 	}
 
 	if (!is_mfc_itmon)
 		return ret;
 
 	dev_err(core->device, "mfc_itmon_notifier: +\n");
-	dev_err(core->device, "MFC is %s\n", is_master ? "master" : "dest");
+	dev_err(core->device, "MFC is %s\n", is_client ? "client" : "dest");
 	if (!core->itmon_notified) {
 		dev_err(core->device, "dump MFC information\n");
-		if (is_master || (!is_master && itmon_info->onoff))
+		if (is_client || (!is_client && itmon_info->onoff))
 			call_dop(core, dump_and_stop_always, core);
 		else
 			call_dop(core, dump_info_without_regs, core);
