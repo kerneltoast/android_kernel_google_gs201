@@ -27,6 +27,7 @@
 #include "mfc_perf_measure.h"
 #include "mfc_core_reg_api.h"
 #include "mfc_llc.h"
+#include "mfc_slc.h"
 #include "mfc_qos.h"
 
 #include "mfc_queue.h"
@@ -1572,6 +1573,9 @@ static int __mfc_handle_seq_enc(struct mfc_core *core, struct mfc_ctx *ctx)
 
 		if (core->has_llc && core->llc_on_status)
 			mfc_llc_flush(core);
+
+		if (core->has_slc && core->slc_on_status)
+			mfc_slc_flush(core);
 
 		mfc_release_codec_buffers(core_ctx);
 	}

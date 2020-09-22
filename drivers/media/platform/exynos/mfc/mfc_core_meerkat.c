@@ -369,8 +369,8 @@ void __mfc_core_dump_state(struct mfc_core *core, int curr_ctx)
 	int i;
 
 	dev_err(core->device, "-----------dumping MFC core info-----------\n");
-	dev_err(core->device, "has llc:%d, itmon_notified:%d\n",
-			core->has_llc, core->itmon_notified);
+	dev_err(core->device, "has llc:%d, slc: %d, itmon_notified:%d\n",
+			core->has_llc, core->has_slc, core->itmon_notified);
 	dev_err(core->device, "power:%d, clock:%d, continue_clock_on:%d, num_inst:%d, num_drm_inst:%d, fw_status:%d\n",
 			mfc_core_pm_get_pwr_ref_cnt(core),
 			mfc_core_pm_get_clk_ref_cnt(core),

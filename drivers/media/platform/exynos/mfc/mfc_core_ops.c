@@ -25,6 +25,7 @@
 #include "mfc_meminfo.h"
 #include "mfc_core_hw_reg_api.h"
 #include "mfc_llc.h"
+#include "mfc_slc.h"
 
 #include "mfc_sync.h"
 #include "mfc_buf.h"
@@ -95,6 +96,9 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	if (core->has_llc && (core->llc_on_status == 0))
 		mfc_llc_enable(core);
+
+	if (core->has_slc && (core->slc_on_status == 0))
+		mfc_slc_enable(core);
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->nal_q)) {
 		core->nal_q_handle = mfc_core_nal_q_create(core);
@@ -247,6 +251,9 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 			if (ctx->is_8k)
 				mfc_llc_update_size(core, false);
 	}
+
+	if (core->has_slc && core->slc_on_status)
+		mfc_slc_disable(core);
 
 	return 0;
 }

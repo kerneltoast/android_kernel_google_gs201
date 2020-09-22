@@ -46,6 +46,7 @@
 #include "mfc_core_reg_api.h"
 #include "mfc_core_hw_reg_api.h"
 #include "mfc_llc.h"
+#include "mfc_slc.h"
 
 #include "mfc_qos.h"
 #include "mfc_queue.h"
@@ -264,6 +265,10 @@ static int __mfc_core_register_resource(struct platform_device *pdev,
 	struct device_node *iommu;
 	struct device_node *hwfc;
 	struct device_node *votf;
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
+	struct device_node *ssmt = NULL;
+	struct device_node *sysreg = NULL;
+#endif
 	struct resource *res;
 	int ret;
 
@@ -328,6 +333,38 @@ static int __mfc_core_register_resource(struct platform_device *pdev,
 		}
 	}
 
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
+	ssmt = of_get_child_by_name(np, "ssmt");
+	if (!ssmt) {
+		dev_err(&pdev->dev, "failed to get ssmt node\n");
+		goto err_ioremap_ssmt0;
+	}
+
+	core->ssmt0_base = of_iomap(ssmt, 0);
+	if (core->ssmt0_base == NULL) {
+		dev_err(&pdev->dev, "failed to ioremap ssmt0 address region\n");
+		goto err_ioremap_ssmt0;
+	}
+
+	core->ssmt1_base = of_iomap(ssmt, 1);
+	if (core->ssmt1_base == NULL) {
+		dev_err(&pdev->dev, "failed to ioremap ssmt1 address region\n");
+		goto err_ioremap_ssmt1;
+	}
+
+	sysreg = of_get_child_by_name(np, "sysreg");
+	if (!sysreg) {
+		dev_err(&pdev->dev, "failed to get sysreg node\n");
+		goto err_ioremap_sysreg;
+	}
+
+	core->sysreg_base = of_iomap(sysreg, 0);
+	if (core->sysreg_base == NULL) {
+		dev_err(&pdev->dev, "failed to ioremap sysreg address region\n");
+		goto err_ioremap_sysreg;
+	}
+#endif
+
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to get irq resource\n");
@@ -344,6 +381,14 @@ static int __mfc_core_register_resource(struct platform_device *pdev,
 	return 0;
 
 err_res_irq:
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
+	iounmap(core->sysreg_base);
+err_ioremap_sysreg:
+	iounmap(core->ssmt1_base);
+err_ioremap_ssmt1:
+	iounmap(core->ssmt0_base);
+err_ioremap_ssmt0:
+#endif
 	if (core->has_mfc_votf)
 		iounmap(core->votf_base);
 err_ioremap_votf:
@@ -637,6 +682,8 @@ static int mfc_core_probe(struct platform_device *pdev)
 		goto err_alloc_debug;
 	}
 
+	mfc_client_pt_register(core);
+
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	core->itmon_nb.notifier_call = __mfc_itmon_notifier;
 	itmon_notifier_chain_register(&core->itmon_nb);
@@ -678,6 +725,12 @@ err_wq_meerkat:
 	imgloader_desc_release(&core->mfc_imgloader_desc);
 #endif
 	free_irq(core->irq, core);
+	if (core->sysreg_base)
+		iounmap(core->sysreg_base);
+	if (core->ssmt0_base)
+		iounmap(core->ssmt0_base);
+	if (core->ssmt1_base)
+		iounmap(core->ssmt1_base);
 	if (core->has_mfc_votf)
 		iounmap(core->votf_base);
 	if (core->has_hwfc)
@@ -714,10 +767,17 @@ static int mfc_core_remove(struct platform_device *pdev)
 	mfc_core_destroy_listable_wq_core(core);
 	mfc_core_run_deinit_hw(core);
 	free_irq(core->irq, core);
+	if (core->sysreg_base)
+		iounmap(core->sysreg_base);
+	if (core->ssmt0_base)
+		iounmap(core->ssmt0_base);
+	if (core->ssmt1_base)
+		iounmap(core->ssmt1_base);
 	if (core->has_2sysmmu)
 		iounmap(core->sysmmu1_base);
 	iounmap(core->sysmmu0_base);
 	iounmap(core->regs_base);
+	mfc_client_pt_unregister(core);
 	release_mem_region(core->mfc_mem->start, resource_size(core->mfc_mem));
 	mfc_core_pm_final(core);
 	mfc_core_deinit_memlog(core);
@@ -801,6 +861,9 @@ static int mfc_core_suspend(struct device *device)
 		mfc_llc_disable(core);
 	}
 
+	if (core->has_slc && core->slc_on_status)
+		mfc_slc_disable(core);
+
 	mfc_core_release_hwlock_dev(core);
 
 	mfc_core_info("MFC suspend is completed\n");
@@ -839,6 +902,9 @@ static int mfc_core_resume(struct device *device)
 
 	if (core->has_llc && (core->llc_on_status == 0))
 		mfc_llc_enable(core);
+
+	if (core->has_slc && (core->slc_on_status == 0))
+		mfc_slc_enable(core);
 
 	core_ctx = core->core_ctx[core->curr_core_ctx];
 	if (core_ctx)

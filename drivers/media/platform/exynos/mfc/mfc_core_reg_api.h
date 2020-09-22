@@ -33,6 +33,13 @@
 #define VOTF_WRITEL(data, offset)	writel((data), core->votf_base + (offset))
 #define HWFC_WRITEL(data)	writel((data), core->hwfc_base)
 
+#define MFC_SSMT0_WRITEL(data, offset)			\
+	writel((data), core->ssmt0_base + (offset))
+#define MFC_SSMT1_WRITEL(data, offset)			\
+	writel((data), core->ssmt1_base + (offset))
+#define MFC_SYSREG_WRITEL(data, offset)			\
+	writel((data), core->sysreg_base + (offset))
+
 /* version */
 #define mfc_core_get_fimv_info()		((MFC_CORE_READL(MFC_REG_FW_VERSION)		\
 						>> MFC_REG_FW_VER_INFO_SHFT)		\

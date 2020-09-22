@@ -616,6 +616,7 @@ struct mfc_debugfs {
 	struct dentry *perf_measure_option;
 	struct dentry *sfr_dump;
 	struct dentry *llc_disable;
+	struct dentry *slc_disable;
 	struct dentry *perf_boost_mode;
 	struct dentry *drm_predict_disable;
 	struct dentry *meminfo_enable;
@@ -1232,11 +1233,19 @@ struct mfc_core {
 	void __iomem		*cmu_mif1_base;
 	void __iomem		*cmu_mif2_base;
 	void __iomem		*cmu_mif3_base;
+	/* for SLC */
+	void __iomem		*ssmt0_base;
+	void __iomem		*ssmt1_base;
+	void __iomem		*sysreg_base;
 
 	unsigned int		id;
 	char			name[10];
 	int			irq;
 	struct resource		*mfc_mem;
+#if IS_ENABLED(CONFIG_SLC_PARTITION_MANAGER)
+	struct pt_handle	*pt_handle;
+	int			ptid;
+#endif
 
 	struct mfc_variant	*variant;
 	struct mfc_core_platdata *core_pdata;
@@ -1248,8 +1257,10 @@ struct mfc_core {
 	bool has_dpu_votf;
 	bool has_cmu;
 	int has_llc;
+	int has_slc;
 	int need_llc_flush;
 	int llc_on_status;
+	int slc_on_status;
 
 	/* Power and Clock */
 	atomic_t clk_ref;

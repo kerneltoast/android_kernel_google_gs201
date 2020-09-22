@@ -19,6 +19,7 @@
 #include "mfc_core_hw_reg_api.h"
 #include "mfc_core_enc_param.h"
 #include "mfc_llc.h"
+#include "mfc_slc.h"
 #include "mfc_memlog.h"
 
 #include "mfc_utils.h"
@@ -355,6 +356,9 @@ int mfc_core_cmd_dec_init_buffers(struct mfc_core *core, struct mfc_ctx *ctx)
 		if (core->has_llc && core->llc_on_status)
 			mfc_llc_flush(core);
 
+		if (core->has_slc && core->slc_on_status)
+			mfc_slc_flush(core);
+
 		mfc_release_codec_buffers(core_ctx);
 		ret = mfc_alloc_codec_buffers(core_ctx);
 		if (ret) {
@@ -366,6 +370,11 @@ int mfc_core_cmd_dec_init_buffers(struct mfc_core *core, struct mfc_ctx *ctx)
 			mfc_err("Failed to alloc frame mem\n");
 			return ret;
 		}
+	}
+
+	if (core->has_slc && core->slc_on_status) {
+		MFC_CORE_WRITEL(MFC_SLC_CMD_ATTR, MFC_REG_D_AXI_RD_ATTR0_SLC);
+		MFC_CORE_WRITEL(MFC_SLC_CMD_ATTR, MFC_REG_D_AXI_WR_ATTR0_SLC);
 	}
 
 	if (IS_TWO_MODE2(ctx)) {
@@ -412,6 +421,9 @@ int mfc_core_cmd_enc_init_buffers(struct mfc_core *core, struct mfc_ctx *ctx)
 		if (core->has_llc && core->llc_on_status)
 			mfc_llc_flush(core);
 
+		if (core->has_slc && core->slc_on_status)
+			mfc_slc_flush(core);
+
 		mfc_release_codec_buffers(core_ctx);
 		ret = mfc_alloc_codec_buffers(core_ctx);
 		if (ret) {
@@ -423,6 +435,11 @@ int mfc_core_cmd_enc_init_buffers(struct mfc_core *core, struct mfc_ctx *ctx)
 			mfc_err("Failed to set enc codec buffers\n");
 			return ret;
 		}
+	}
+
+	if (core->has_slc && core->slc_on_status) {
+		MFC_CORE_WRITEL(MFC_SLC_CMD_ATTR, MFC_REG_E_AXI_RD_ATTR0_SLC);
+		MFC_CORE_WRITEL(MFC_SLC_CMD_ATTR, MFC_REG_E_AXI_WR_ATTR0_SLC);
 	}
 
 	MFC_CORE_WRITEL(core_ctx->inst_no, MFC_REG_INSTANCE_ID);
@@ -444,6 +461,9 @@ static int __mfc_set_scratch_dpb_buffer(struct mfc_core *core, struct mfc_ctx *c
 
 	if (core->has_llc && core->llc_on_status)
 		mfc_llc_flush(core);
+
+	if (core->has_slc && core->slc_on_status)
+		mfc_slc_flush(core);
 
 	ret = mfc_alloc_scratch_buffer(core_ctx);
 	if (ret) {

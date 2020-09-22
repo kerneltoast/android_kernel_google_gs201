@@ -29,6 +29,7 @@ extern unsigned int nal_q_parallel_disable;
 extern unsigned int otf_dump;
 extern unsigned int sfr_dump;
 extern unsigned int llc_disable;
+extern unsigned int slc_disable;
 extern unsigned int perf_boost_mode;
 extern unsigned int drm_predict_disable;
 extern unsigned int reg_test;

@@ -32,6 +32,7 @@ unsigned int otf_dump;
 unsigned int perf_measure_option;
 unsigned int sfr_dump;
 unsigned int llc_disable;
+unsigned int slc_disable;
 unsigned int perf_boost_mode;
 unsigned int drm_predict_disable;
 unsigned int reg_test;
@@ -504,6 +505,8 @@ void mfc_init_debugfs(struct mfc_dev *dev)
 			0644, debugfs->root, &sfr_dump);
 	debugfs->llc_disable = debugfs_create_u32("llc_disable",
 			0644, debugfs->root, &llc_disable);
+	debugfs->slc_disable = debugfs_create_u32("slc_disable",
+			0644, debugfs->root, &slc_disable);
 	debugfs->perf_boost_mode = debugfs_create_u32("perf_boost_mode",
 			0644, debugfs->root, &perf_boost_mode);
 	debugfs->drm_predict_disable = debugfs_create_u32("drm_predict_disable",

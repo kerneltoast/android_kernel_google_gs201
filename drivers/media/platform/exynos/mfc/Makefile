@@ -2,7 +2,7 @@ obj-$(CONFIG_VIDEO_EXYNOS_MFC) := exynos_mfc.o
 exynos_mfc-y += mfc_perf_measure.o
 exynos_mfc-y += mfc_dec_ctrl.o mfc_enc_ctrl.o
 exynos_mfc-y += mfc_debugfs.o mfc_core_otf.o
-exynos_mfc-y += mfc_llc.o
+exynos_mfc-y += mfc_llc.o mfc_slc.o
 exynos_mfc-y += mfc_meminfo.o
 exynos_mfc-y += mfc_memlog.o mfc_sysevent.o
 #Dev interface layer
