@@ -110,6 +110,7 @@ enum err_type {
 	DREX_TMOUT,
 	CPU,
 	IP,
+	UNHANDLED,
 	TYPE_MAX,
 };
 
@@ -237,6 +238,7 @@ static struct itmon_policy err_policy[] = {
 	[DREX_TMOUT]	= {"err_drex_tmout",	0, false},
 	[CPU]		= {"err_cpu",		0, false},
 	[IP]		= {"err_ip",		0, false},
+	[UNHANDLED]	= {"err_unhandled",	0, false},
 };
 
 const static struct itmon_rpathinfo rpathinfo[] = {
@@ -1048,7 +1050,7 @@ static void itmon_post_handler_apply_policy(struct itmon_dev *itmon,
 
 	switch (ret_value) {
 	case NOTIFY_OK:
-		dev_err(itmon->dev, "all notify calls response NOTIFY_OK\n");
+		dev_err(itmon->dev, "notify calls response NOTIFY_OK\n");
 		break;
 	case NOTIFY_STOP:
 		dev_err(itmon->dev, "notify calls response NOTIFY_STOP, refer to notifier log\n");
@@ -1057,6 +1059,11 @@ static void itmon_post_handler_apply_policy(struct itmon_dev *itmon,
 	case NOTIFY_BAD:
 		dev_err(itmon->dev, "notify calls response NOTIFY_BAD\n");
 		pdata->policy[FATAL].error = true;
+		break;
+	case NOTIFY_DONE:
+	default:
+		dev_err(itmon->dev, "notify calls response NOTIFY_DONE\n");
+		pdata->policy[UNHANDLED].error = true;
 		break;
 	}
 }
