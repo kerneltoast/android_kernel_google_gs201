@@ -140,6 +140,7 @@ struct itmon_nodegroup;
 struct itmon_traceinfo {
 	char *port;
 	char *master;
+	unsigned int user;
 	char *dest;
 	unsigned long target_addr;
 	unsigned int errcode;
@@ -1308,12 +1309,12 @@ static void itmon_report_traceinfo(struct itmon_dev *itmon,
 	dev_err(itmon->dev,
 			"\n-----------------------------------------------------------\n"
 			"      Transaction Information\n\n"
-			"      > Master         : %s %s\n"
+			"      > Master (User)  : %s %s (0x%X)\n"
 			"      > Target         : %s\n"
 			"      > Target Address : 0x%lX %s\n"
 			"      > Type           : %s\n"
 			"      > Error code     : %s\n\n",
-			info->port, info->master ? info->master : "",
+			info->port, info->master ? info->master : "", info->user,
 			info->dest ? info->dest : NOT_AVAILABLE_STR,
 			info->target_addr,
 			info->baaw_prot == true ? "(BAAW Remapped address)" : "",
@@ -1434,6 +1435,7 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 
 	new_info->port = NULL;
 	new_info->master = NULL;
+	new_info->user = userbit;
 
 	switch (node->type) {
 	case S_NODE:
