@@ -152,3 +152,6 @@ x509.genkey
 
 # Clang's compilation database file
 /compile_commands.json
+
+# To create symlink file under this directory for google devices
+/arch/arm64/boot/dts/google/devices/
