@@ -48,7 +48,11 @@
 		gsa_reserved_protected: gsa@0x90200000 {
 			reg = <0x0 0x90200000 0x400000>;
 			no-map;
+		};
 
+		aoc_reserve: aoc@0x90700000 {
+			reg = <0x0 0x90700000 0x02000000>;
+			no-map;
 		};
 
 		abl_reserved: abl@f8800000 {

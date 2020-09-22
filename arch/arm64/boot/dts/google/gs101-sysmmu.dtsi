@@ -26,6 +26,10 @@
 		compatible = "samsung,sysmmu-group";
 	};
 
+	iommu_group_aoc: iommu_group_aoc {
+		compatible = "samsung,sysmmu-group";
+	};
+
 	iommu_group_g2d: iommu_group_g2d {
 		compatible = "samsung,sysmmu-group";
 	};

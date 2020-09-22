@@ -11,7 +11,7 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		reg = <0x0 0x176a0000 0x1000>;
-		interrupts = <GIC_SPI INTREQ__MAILBOX_AOC2AP_ALIVE
+		interrupts = <GIC_SPI IRQ_MAILBOX_AOC2AP_ALIVE
 			IRQ_TYPE_LEVEL_HIGH>;
 		mbox-name = "aoc2ap";
 		#mbox-cells = <1>;
@@ -32,7 +32,7 @@
 
 		reg-names = "blk_aoc", "aoc_req";
 
-		interrupts = <GIC_SPI INTREQ__AOC_Watchdog_CPU_AOC
+		interrupts = <GIC_SPI IRQ_AOC_Watchdog_CPU_AOC
 			IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "watchdog";
 
@@ -41,6 +41,7 @@
 
 		iommus = <&sysmmu_asoc>;
 		memory-region = <&aoc_reserve>;
+		samsung,iommu-group = <&iommu_group_aoc>;
 
 		mbox-names = "aoc2ap";
 		mboxes = <&mbox_aoc 0>;
