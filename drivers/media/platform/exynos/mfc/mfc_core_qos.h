@@ -25,7 +25,7 @@
 #define MFC_QOS_TABLE_TYPE_ENCODER	1
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
-#define MFC_THROUGHPUT_OFFSET	(PM_QOS_MFC1_THROUGHPUT - PM_QOS_MFC_THROUGHPUT)
+#define MFC_THROUGHPUT_OFFSET	(PM_QOS_MFC_THROUGHPUT)
 void mfc_core_perf_boost_enable(struct mfc_core *core);
 void mfc_core_perf_boost_disable(struct mfc_core *core);
 void mfc_core_qos_on(struct mfc_core *core, struct mfc_ctx *ctx);

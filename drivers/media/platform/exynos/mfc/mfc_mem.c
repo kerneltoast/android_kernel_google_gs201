@@ -297,10 +297,12 @@ void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, i
 			index, dpb[index].fd[0], dpb[index].addr[0], dpb[index].mapcnt);
 
 	for (i = 0; i < num_planes; i++) {
+#if IS_ENABLED(CONFIG_MFC_USE_DMA_SKIP_LAZY_UNMAP)
 		if (dev->skip_lazy_unmap || ctx->skip_lazy_unmap) {
 			dpb[index].attach[i]->dma_map_attrs |= DMA_ATTR_SKIP_LAZY_UNMAP;
 			mfc_debug(4, "[LAZY_UNMAP] skip for dst plane[%d]\n", i);
 		}
+#endif
 
 		if (dpb[index].addr[i])
 			mfc_debug(2, "[IOVMM] index %d buf[%d] fd: %d addr: %#llx\n",

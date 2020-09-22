@@ -28,10 +28,10 @@
 //#define CONFIG_MFC_REG_TEST
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
-#include <soc/samsung/exynos_pm_qos.h>
+#include <soc/google/exynos_pm_qos.h>
 #endif
 #ifdef CONFIG_MFC_USE_BTS
-#include <soc/samsung/bts.h>
+#include <soc/google/bts.h>
 #endif
 #include <linux/videodev2.h>
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)

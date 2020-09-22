@@ -16,7 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/proc_fs.h>
 #include <linux/of.h>
-#include <soc/samsung/exynos-smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
@@ -440,7 +440,6 @@ static int __mfc_itmon_notifier(struct notifier_block *nb, unsigned long action,
 	core->itmon_notified = 1;
 	ret = NOTIFY_BAD;
 
-	dbg_snapshot_expire_watchdog();
 	BUG();
 
 	return ret;

@@ -702,7 +702,6 @@ static void __mfc_dump_info_and_stop_hw(struct mfc_core *core)
 	}
 
 panic:
-	dbg_snapshot_expire_watchdog();
 	BUG();
 }
 

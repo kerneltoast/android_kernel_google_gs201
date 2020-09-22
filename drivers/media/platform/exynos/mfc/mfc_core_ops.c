@@ -10,7 +10,7 @@
  * (at your option) any later version.
  */
 
-#include <soc/samsung/exynos-smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 
 #include "mfc_common.h"
 
@@ -36,9 +36,6 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = core->dev;
 	int ret = 0;
-#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-	uint64_t ret64 = 0;
-#endif
 
 	/* set meerkat timer */
 	mod_timer(&core->meerkat_timer, jiffies + msecs_to_jiffies(MEERKAT_TICK_INTERVAL));

@@ -10,7 +10,7 @@
  * (at your option) any later version.
  */
 
-#include <soc/samsung/exynos-smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 #if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
 #include <soc/samsung/imgloader.h>
 #endif
