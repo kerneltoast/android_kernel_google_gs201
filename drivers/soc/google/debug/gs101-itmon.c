@@ -215,6 +215,7 @@ struct itmon_platdata {
 	struct itmon_policy *policy;
 	unsigned int err_cnt_by_cpu;
 	unsigned int panic_threshold;
+	bool in_do_policy;
 	bool probed;
 };
 
@@ -1745,14 +1746,14 @@ static int itmon_search_node(struct itmon_dev *itmon,
 	return ret;
 }
 
-/*
- * This function is temporary before merging DPM and S2D
- * All sequence that wants to do S2D is replaced to Panic Function
- */
 static void itmon_do_dpm_policy(struct itmon_dev *itmon)
 {
 	struct itmon_platdata *pdata = itmon->pdata;
 	int i;
+
+	/* This will stop recursive panic when dpm action is panic */
+	pdata->in_do_policy = true;
+
 
 	for (i = 0; i < TYPE_MAX; i++) {
 		char buf[SZ_64];
@@ -1764,6 +1765,8 @@ static void itmon_do_dpm_policy(struct itmon_dev *itmon)
 		dbg_snapshot_do_dpm_policy(pdata->policy[i].policy, buf);
 		pdata->policy[i].error = false;
 	}
+
+	pdata->in_do_policy = false;
 }
 
 static irqreturn_t itmon_irq_handler(int irq, void *data)
@@ -1790,7 +1793,9 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 		dev_err(itmon->dev, "\nError detected: err_cnt_by_cpu:%u\n",
 				pdata->err_cnt_by_cpu);
 
-		itmon_do_dpm_policy(itmon);
+		/* This will stop recursive panic when dpm action is panic */
+		if (!pdata->in_do_policy)
+			itmon_do_dpm_policy(itmon);
 	}
 
 	return IRQ_HANDLED;
