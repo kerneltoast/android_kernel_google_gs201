@@ -831,6 +831,19 @@ int gpufreq_cooling_add_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(gpufreq_cooling_add_notifier);
 
+/**
+ * gpufreq_cooling_remove_notifier() - Register a notifier for GPU cooling events
+ *
+ * @nb: The &notifier_block storing the callback to be notified
+ *
+ * Return: Returns zero on success or %-ENOENT on failure.
+ */
+int gpufreq_cooling_remove_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&gpu_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(gpufreq_cooling_remove_notifier);
+
 static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
 				   char *cooling_name)
 {
