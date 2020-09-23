@@ -1,5 +1,6 @@
 menuconfig DEBUG_SNAPSHOT
 	tristate "Debug SnapShot Support"
+	depends on ARM64
 	default n
 	help
 	  Debug snapshot supports SoC debugging easily. This feature supports

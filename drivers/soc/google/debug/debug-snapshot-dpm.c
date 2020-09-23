@@ -98,7 +98,7 @@ void dbg_snapshot_do_dpm(struct pt_regs *regs)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_do_dpm);
 
-static void __init dbg_snapshot_dt_scan_dpm_feature(struct device_node *node)
+static void dbg_snapshot_dt_scan_dpm_feature(struct device_node *node)
 {
 	struct device_node *item;
 	unsigned int val;
@@ -154,7 +154,7 @@ exit_dss:
 	return;
 }
 
-static void __init dbg_snapshot_dt_scan_dpm_policy(struct device_node *node)
+static void dbg_snapshot_dt_scan_dpm_policy(struct device_node *node)
 {
 	struct device_node *item;
 	unsigned int val;
@@ -219,7 +219,7 @@ static void __init dbg_snapshot_dt_scan_dpm_policy(struct device_node *node)
 	}
 }
 
-int __init dbg_snapshot_dt_scan_dpm(void)
+int dbg_snapshot_dt_scan_dpm(void)
 {
 	struct device_node *root, *next;
 	unsigned int val;

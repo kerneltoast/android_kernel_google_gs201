@@ -226,7 +226,7 @@ void dbg_snapshot_log_output(void)
 	}
 }
 
-void __init dbg_snapshot_set_enable_log_item(const char *name, int en)
+void dbg_snapshot_set_enable_log_item(const char *name, int en)
 {
 	struct dbg_snapshot_log_item *log_item;
 	int i;
