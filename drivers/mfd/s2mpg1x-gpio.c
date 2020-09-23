@@ -351,6 +351,9 @@ static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			if (ret < 0)
 				return ret;
 			break;
+		case PIN_CONFIG_PERSIST_STATE:
+			/* do nothing */
+			break;
 		default:
 			return -EOPNOTSUPP;
 		}
