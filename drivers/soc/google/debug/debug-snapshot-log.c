@@ -247,13 +247,8 @@ void dbg_snapshot_set_enable_log_item(const char *name, int en)
 static void dbg_snapshot_suspend(const char *log, struct device *dev,
 				int event, int en)
 {
-	unsigned long i;
-
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_SUSPEND_ID)))
-		return;
-
-	i = atomic_fetch_inc(&dss_log_misc.suspend_log_idx) &
-			(ARRAY_SIZE(dss_log->suspend) - 1);
+	unsigned long i = atomic_fetch_inc(&dss_log_misc.suspend_log_idx) &
+		(ARRAY_SIZE(dss_log->suspend) - 1);
 
 	dss_log->suspend[i].time = local_clock();
 	dss_log->suspend[i].log = log ? log : NULL;
@@ -286,7 +281,7 @@ void dbg_snapshot_cpuidle_mod(char *modes, unsigned int state, s64 diff, int en)
 	int cpu = raw_smp_processor_id();
 	unsigned int i;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_CPUIDLE_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_CPUIDLE_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.cpuidle_log_idx[cpu]) &
@@ -306,7 +301,7 @@ void dbg_snapshot_regulator(unsigned long long timestamp, char *f_name,
 {
 	unsigned long i;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_REGULATOR_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_REGULATOR_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.regulator_log_idx) &
@@ -329,7 +324,7 @@ void dbg_snapshot_thermal(struct exynos_tmu_data *data, unsigned int temp,
 {
 	unsigned long i;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_THERMAL_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_THERMAL_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.thermal_log_idx) &
@@ -350,7 +345,7 @@ void dbg_snapshot_clk(struct clk_hw *clock, const char *func_name,
 {
 	unsigned long i;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_CLK_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_CLK_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.clk_log_idx) &
@@ -368,7 +363,7 @@ void dbg_snapshot_pmu(int id, const char *func_name, int mode)
 {
 	unsigned long i;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_PMU_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_PMU_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.pmu_log_idx) &
@@ -389,7 +384,7 @@ void dbg_snapshot_freq(int type, unsigned long old_freq,
 	if (unlikely(type < 0 || type > dss_freq_size))
 		return;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_FREQ_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_FREQ_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.freq_log_idx[type]) &
@@ -409,7 +404,7 @@ void dbg_snapshot_dm(int type, unsigned long min, unsigned long max,
 {
 	unsigned long i;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_DM_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_DM_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.dm_log_idx) &
@@ -431,7 +426,7 @@ void dbg_snapshot_acpm(unsigned long long timestamp, const char *log,
 	unsigned long i;
 	int len;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_ACPM_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_ACPM_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.acpm_log_idx) &
@@ -451,7 +446,7 @@ void dbg_snapshot_printk(const char *fmt, ...)
 	unsigned long i;
 	va_list args;
 
-	if (unlikely(!dbg_snapshot_is_log_item_enabled(DSS_LOG_PRINTK_ID)))
+	if (!dbg_snapshot_is_log_item_enabled(DSS_LOG_PRINTK_ID))
 		return;
 
 	i = atomic_fetch_inc(&dss_log_misc.print_log_idx) &
@@ -674,10 +669,11 @@ void dbg_snapshot_init_log(void)
 	log_item_set_filed(ACPM, acpm);
 	log_item_set_filed(PRINTK, print);
 
-	register_trace_suspend_resume(dbg_snapshot_suspend_resume, NULL);
-	register_trace_device_pm_callback_start(dbg_snapshot_dev_pm_cb_start, NULL);
-	register_trace_device_pm_callback_end(dbg_snapshot_dev_pm_cb_end, NULL);
-
+	if (dbg_snapshot_is_log_item_enabled(DSS_LOG_SUSPEND_ID)) {
+		register_trace_suspend_resume(dbg_snapshot_suspend_resume, NULL);
+		register_trace_device_pm_callback_start(dbg_snapshot_dev_pm_cb_start, NULL);
+		register_trace_device_pm_callback_end(dbg_snapshot_dev_pm_cb_end, NULL);
+	}
 	dss_freq_size = of_property_count_strings(np, "freq_names");
 	of_property_for_each_string(np, "freq_names", prop, str) {
 		strlcpy(dss_freq_name[i++], str, sizeof(dss_freq_name) - 1);
