@@ -149,8 +149,9 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 			" locked CPUs mask (0x%lx)\n",
 			allcorelockup_detected ? "WDT expired" : "Core", cpu,
 			hardlockup_core_mask);
+
 		dump_backtrace(regs, NULL, KERN_DEFAULT);
-		dbg_snapshot_save_context(regs);
+		dbg_snapshot_save_context(regs, false);
 
 		if (ret)
 			raw_spin_unlock(&hardlockup_log_lock);

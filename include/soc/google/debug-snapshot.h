@@ -54,7 +54,7 @@ extern unsigned int dbg_snapshot_get_val_offset(unsigned int offset);
 extern void dbg_snapshot_set_val_offset(unsigned int val, unsigned int offset);
 extern void dbg_snapshot_register_wdt_ops(void *start, void *expire, void *stop);
 extern void dbg_snapshot_register_debug_ops(void *halt, void *arraydump, void *scandump);
-extern void dbg_snapshot_save_context(struct pt_regs *regs);
+extern void dbg_snapshot_save_context(struct pt_regs *regs, bool stack_dump);
 extern void cache_flush_all(void);
 
 /* debug-snapshot-log functions */
@@ -140,7 +140,7 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_ecc_dump()			do { } while (0)
 #define dbg_snapshot_register_wdt_ops(a, b, c)	do { } while (0)
 #define dbg_snapshot_register_debug_ops(a, b, c)	do { } while (0)
-#define dbg_snapshot_save_context(a)		do { } while (0)
+#define dbg_snapshot_save_context(a, b)		do { } while (0)
 #define cache_flush_all()			do { } while (0)
 
 #define dbg_snapshot_set_val_offset(a)		do { } while (0)

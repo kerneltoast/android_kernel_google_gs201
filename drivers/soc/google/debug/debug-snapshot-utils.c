@@ -28,6 +28,8 @@
 #include <soc/google/exynos-pmu-if.h>
 #include "debug-snapshot-local.h"
 
+#include <trace/hooks/debug.h>
+
 struct dbg_snapshot_mmu_reg {
 	long SCTLR_EL1;
 	long TTBR0_EL1;
@@ -424,7 +426,7 @@ static inline void dbg_snapshot_save_core(struct pt_regs *regs)
 	dev_emerg(dss_desc.dev, "core register saved(CPU:%d)\n", cpu);
 }
 
-void dbg_snapshot_save_context(struct pt_regs *regs)
+void dbg_snapshot_save_context(struct pt_regs *regs, bool stack_dump)
 {
 	int cpu;
 	unsigned long flags;
@@ -445,6 +447,8 @@ void dbg_snapshot_save_context(struct pt_regs *regs)
 	} else
 		dev_emerg(dss_desc.dev, "skip context saved(CPU:%d)\n", cpu);
 
+	if (stack_dump)
+		dump_stack();
 	raw_spin_unlock_irqrestore(&dss_desc.ctrl_lock, flags);
 
 	cache_flush_all();
@@ -496,7 +500,7 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	dbg_snapshot_output();
 	dbg_snapshot_log_output();
 	dbg_snapshot_print_log_report();
-	dbg_snapshot_save_context(NULL);
+	dbg_snapshot_save_context(NULL, false);
 
 	if (dss_desc.panic_to_wdt || (num_online_cpus() > 1))
 		dbg_snapshot_emergency_reboot(kernel_panic_msg);
@@ -515,9 +519,16 @@ static int dbg_snapshot_die_handler(struct notifier_block *nb,
 	if (user_mode(tombstone->regs))
 		return NOTIFY_DONE;
 
-	dbg_snapshot_save_context(tombstone->regs);
+	dbg_snapshot_save_context(tombstone->regs, false);
 	dbg_snapshot_set_item_enable("log_kevents", false);
 
+	return NOTIFY_DONE;
+}
+
+static int dbg_snapshot_reboot_handler(struct notifier_block *nb,
+				    unsigned long mode, void *cmd)
+{
+	dss_desc.in_reboot = true;
 	return NOTIFY_DONE;
 }
 
@@ -546,6 +557,11 @@ static int dbg_snapshot_restart_handler(struct notifier_block *nb,
 
 	return NOTIFY_DONE;
 }
+
+static struct notifier_block nb_reboot_block = {
+	.notifier_call = dbg_snapshot_reboot_handler,
+	.priority = INT_MAX,
+};
 
 static struct notifier_block nb_restart_block = {
 	.notifier_call = dbg_snapshot_restart_handler,
@@ -633,6 +649,12 @@ void dbg_snapshot_register_debug_ops(void *halt, void *arraydump,
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_register_debug_ops);
 
+static void dbg_snapshot_ipi_stop(void *ignore, struct pt_regs *regs)
+{
+	if (!dss_desc.in_reboot)
+		dbg_snapshot_save_context(regs, true);
+}
+
 void dbg_snapshot_init_utils(void)
 {
 	size_t vaddr;
@@ -655,7 +677,9 @@ void dbg_snapshot_init_utils(void)
 
 	register_die_notifier(&nb_die_block);
 	register_restart_handler(&nb_restart_block);
+	register_reboot_notifier(&nb_reboot_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &nb_panic_block);
+	register_trace_android_vh_ipi_stop(dbg_snapshot_ipi_stop, NULL);
 
 	smp_call_function(dbg_snapshot_save_system, NULL, 1);
 	dbg_snapshot_save_system(NULL);

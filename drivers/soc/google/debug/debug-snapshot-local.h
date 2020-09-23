@@ -50,6 +50,7 @@ struct dbg_snapshot_desc {
 	raw_spinlock_t ctrl_lock;
 	int sjtag_status;
 	bool panic_to_wdt;
+	bool in_reboot;
 };
 
 struct dbg_snapshot_dpm {
