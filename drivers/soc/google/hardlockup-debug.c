@@ -88,7 +88,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 	if (ret && !hardlockup_core_mask) {
 		if (watchdog_fiq && !allcorelockup_detected) {
 			/* 1st WDT FIQ trigger */
-			val = dbg_snapshot_get_hardlockup_magic();
+			val = dbg_snapshot_get_hardlockup_magic(cpu);
 			if (val == HARDLOCKUP_DEBUG_MAGIC ||
 				val == (HARDLOCKUP_DEBUG_MAGIC + 1)) {
 				int _cpu;

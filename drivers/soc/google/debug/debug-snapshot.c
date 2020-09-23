@@ -146,13 +146,14 @@ unsigned long dbg_snapshot_get_last_pc(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_last_pc);
 
-unsigned int dbg_snapshot_get_hardlockup_magic(void)
+unsigned int dbg_snapshot_get_hardlockup_magic(int cpu)
 {
 	void __iomem *header = dbg_snapshot_get_header_vaddr();
 
 	if (header)
 		return __raw_readl(header + DSS_OFFSET_CORE_LAST_PC +
-			(DSS_NR_CPUS * sizeof(unsigned long)));
+			(DSS_NR_CPUS * sizeof(unsigned long)) +
+			(cpu * sizeof(unsigned long)));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_hardlockup_magic);

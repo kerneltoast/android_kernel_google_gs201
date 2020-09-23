@@ -33,7 +33,7 @@ extern void dbg_snapshot_output(void);
 extern void dbg_snapshot_log_output(void);
 extern void dbg_snapshot_scratch_clear(void);
 extern bool dbg_snapshot_is_scratch(void);
-extern unsigned int dbg_snapshot_get_hardlockup_magic(void);
+extern unsigned int dbg_snapshot_get_hardlockup_magic(int cpu);
 extern unsigned long dbg_snapshot_get_last_pc(unsigned int cpu);
 extern unsigned long dbg_snapshot_get_last_pc_paddr(void);
 /* debug-snapshot-dpm functions */
@@ -150,7 +150,7 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_get_item_paddr(a) 		(0)
 #define dbg_snapshot_get_item_vaddr(a) 		(0)
 #define dbg_snapshot_is_scratch() 		(0)
-#define dbg_snapshot_get_hardlockup_magic	(0)
+#define dbg_snapshot_get_hardlockup_magic(a)	(0)
 #define dbg_snapshot_get_last_pc(a)		(0)
 #define dbg_snapshot_get_last_pc_paddr		(0)
 
