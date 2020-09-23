@@ -373,9 +373,6 @@ static int rx_multi_pdp(struct sk_buff *skb)
 
 	iod->ndev->stats.rx_packets++;
 	iod->ndev->stats.rx_bytes += skb->len;
-#if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
-	tpmon_add_rx_bytes(skb->len);
-#endif
 
 	/* check the version of IP */
 	iphdr = (struct iphdr *)skb->data;
@@ -394,6 +391,9 @@ static int rx_multi_pdp(struct sk_buff *skb)
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
 	skb_reset_mac_header(skb);
+#if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
+	tpmon_add_rx_bytes(skb);
+#endif
 
 	napi = skbpriv(skb)->napi;
 	if (!napi || !check_gro_support(skb)) {

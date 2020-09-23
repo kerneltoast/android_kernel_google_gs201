@@ -4,6 +4,8 @@
  *
  */
 
+#include <linux/ip.h>
+#include <linux/ipv6.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "link_device_memory.h"
@@ -40,7 +42,6 @@ static u32 tpmon_get_netdev_backlog_queue_status(struct tpmon_data *data)
 	return data->tpmon->netdev_backlog_queue_status;
 }
 
-#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 static u32 tpmon_get_dit_src_queue_status(struct tpmon_data *data)
 {
 	if (!data->enable)
@@ -48,14 +49,37 @@ static u32 tpmon_get_dit_src_queue_status(struct tpmon_data *data)
 
 	return data->tpmon->dit_src_queue_status;
 }
-#endif
 
-static u32 tpmon_get_rx_speed_mbps(struct tpmon_data *data)
+static u32 tpmon_get_rx_total_speed_mbps(struct tpmon_data *data)
 {
 	if (!data->enable)
 		return 0;
 
-	return (u32)data->tpmon->rx_mbps;
+	return (u32)data->tpmon->rx_total.rx_mbps;
+}
+
+static u32 tpmon_get_rx_tcp_speed_mbps(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	return (u32)data->tpmon->rx_tcp.rx_mbps;
+}
+
+static u32 tpmon_get_rx_udp_speed_mbps(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	return (u32)data->tpmon->rx_udp.rx_mbps;
+}
+
+static u32 tpmon_get_rx_others_speed_mbps(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	return (u32)data->tpmon->rx_others.rx_mbps;
 }
 
 /* Queue status */
@@ -105,31 +129,27 @@ static int tpmon_calc_netdev_backlog_queue_status(struct cpif_tpmon *tpmon)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 static int tpmon_calc_dit_src_queue_status(struct cpif_tpmon *tpmon)
 {
 	u32 usage = 0;
 	int ret = 0;
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	ret = dit_get_src_usage(DIT_DIR_RX, &usage);
 	if (ret) {
 		mif_err_limited("dit_get_src_usage() error:%d\n", ret);
 		return ret;
 	}
+#endif
 
 	tpmon->dit_src_queue_status = usage;
 
 	return 0;
 }
-#else
-static int tpmon_calc_dit_src_queue_status(struct cpif_tpmon *tpmon)
-{
-	return 0;
-}
-#endif
 
 /* RX speed */
-static void tpmon_calc_rx_speed(struct cpif_tpmon *tpmon)
+static void calc_rx_speed_internal(struct cpif_tpmon *tpmon,
+		struct cpif_rx_data *rx_data)
 {
 	unsigned long divider_mbps, divider_kbps;
 	unsigned long rx_bytes;
@@ -144,45 +164,59 @@ static void tpmon_calc_rx_speed(struct cpif_tpmon *tpmon)
 		divider_kbps = 128;
 	}
 
-	rx_bytes = tpmon->rx_bytes;
-	tpmon->rx_bytes = 0;
+	rx_bytes = rx_data->rx_bytes;
+	rx_data->rx_bytes = 0;
 
-	tpmon->rx_sum -= tpmon->rx_bytes_data[tpmon->rx_bytes_idx];
-	tpmon->rx_sum += rx_bytes;
-	tpmon->rx_bytes_data[tpmon->rx_bytes_idx] = rx_bytes;
+	rx_data->rx_sum -= rx_data->rx_bytes_data[rx_data->rx_bytes_idx];
+	rx_data->rx_sum += rx_bytes;
+	rx_data->rx_bytes_data[rx_data->rx_bytes_idx] = rx_bytes;
 
-	tpmon->rx_bytes_idx++;
+	rx_data->rx_bytes_idx++;
 	if (tpmon->monitor_interval_msec >= 1000)
-		tpmon->rx_bytes_idx = 0;
+		rx_data->rx_bytes_idx = 0;
 	else
-		tpmon->rx_bytes_idx %= (1000 / tpmon->monitor_interval_msec);
+		rx_data->rx_bytes_idx %= (1000 / tpmon->monitor_interval_msec);
 
-	if (tpmon->rx_sum < divider_mbps)
-		tpmon->rx_mbps = 0;
+	if (rx_data->rx_sum < divider_mbps)
+		rx_data->rx_mbps = 0;
 	else
-		tpmon->rx_mbps = tpmon->rx_sum / divider_mbps;
+		rx_data->rx_mbps = rx_data->rx_sum / divider_mbps;
 
-	if (tpmon->rx_sum < divider_kbps)
-		tpmon->rx_kbps = 0;
+	if (rx_data->rx_sum < divider_kbps)
+		rx_data->rx_kbps = 0;
 	else
-		tpmon->rx_kbps = tpmon->rx_sum / divider_kbps;
+		rx_data->rx_kbps = rx_data->rx_sum / divider_kbps;
+}
+
+static void tpmon_calc_rx_speed(struct cpif_tpmon *tpmon)
+{
+	calc_rx_speed_internal(tpmon, &tpmon->rx_total);
+	calc_rx_speed_internal(tpmon, &tpmon->rx_tcp);
+	calc_rx_speed_internal(tpmon, &tpmon->rx_udp);
+	calc_rx_speed_internal(tpmon, &tpmon->rx_others);
 }
 
 /* Inforamtion */
 static void tpmon_print_info(struct cpif_tpmon *tpmon)
 {
-	if (tpmon->rx_bytes_idx == 0) {
-		mif_info("DL:%ldMbps pktproc:%d dit:%d netdev:%d\n",
-			tpmon->rx_mbps,
-			tpmon->pktproc_queue_status,
-			tpmon->dit_src_queue_status,
-			tpmon->netdev_backlog_queue_status);
+	if (tpmon->rx_total.rx_bytes_idx != 0)
+		return;
 
-		if (tpmon->legacy_packet_count) {
-			mif_info("legacy:%d\n", tpmon->legacy_packet_count);
-			tpmon->legacy_packet_count = 0;
-		}
-	}
+	mif_info("DL:%ld%s(%ld%s/%ld%s/%ld%s) pktproc:%d/dit:%d/netdev:%d legacy:%d\n",
+		tpmon->rx_total.rx_mbps ? tpmon->rx_total.rx_mbps : tpmon->rx_total.rx_kbps,
+		tpmon->rx_total.rx_mbps ? "Mbps" : "Kbps",
+		tpmon->rx_tcp.rx_mbps ? tpmon->rx_tcp.rx_mbps : tpmon->rx_tcp.rx_kbps,
+		tpmon->rx_tcp.rx_mbps ? "Mbps" : "Kbps",
+		tpmon->rx_udp.rx_mbps ? tpmon->rx_udp.rx_mbps : tpmon->rx_udp.rx_kbps,
+		tpmon->rx_udp.rx_mbps ? "Mbps" : "Kbps",
+		tpmon->rx_others.rx_mbps ? tpmon->rx_others.rx_mbps : tpmon->rx_others.rx_kbps,
+		tpmon->rx_others.rx_mbps ? "Mbps" : "Kbps",
+		tpmon->pktproc_queue_status,
+		tpmon->dit_src_queue_status,
+		tpmon->netdev_backlog_queue_status,
+		tpmon->legacy_packet_count);
+
+	tpmon->legacy_packet_count = 0;
 }
 
 /* Check speed changing */
@@ -199,16 +233,24 @@ static bool tpmon_check_to_boost(struct tpmon_data *data)
 		return false;
 	}
 
-	for (i = 0; i < data->num_threshold; i++) {
-		usage = data->get_data(data);
-		if (usage < 0) {
-			mif_err_limited("get_data(%s) error:%d\n", data->name, usage);
-			return false;
-		}
+	if (data->check_udp &&
+		(data->tpmon->rx_udp.rx_mbps > data->tpmon->trigger_mbps) &&
+		(data->tpmon->rx_udp.rx_mbps >
+		(data->tpmon->rx_tcp.rx_mbps + data->tpmon->rx_others.rx_mbps))) {
+		data->forced_unboost = true;
+		return false;
+	}
+	data->forced_unboost = false;
 
+	usage = data->get_data(data);
+	if (usage < 0) {
+		mif_err_limited("get_data(%s) error:%d\n", data->name, usage);
+		return false;
+	}
+
+	for (i = 0; i < data->num_threshold; i++)
 		if (usage < data->threshold[i])
 			break;
-	}
 
 	if (i <= data->curr_value_pos)
 		return false;
@@ -237,7 +279,7 @@ static bool tpmon_check_to_boost(struct tpmon_data *data)
 				data->tpmon->unboost_tp_percent / 100;
 			break;
 		default:
-			data->unboost_tp_mbps[i] = data->tpmon->rx_mbps *
+			data->unboost_tp_mbps[i] = data->tpmon->rx_total.rx_mbps *
 				data->tpmon->unboost_tp_percent / 100;
 			break;
 		}
@@ -267,9 +309,12 @@ static bool tpmon_check_to_unboost(struct tpmon_data *data)
 		return false;
 	}
 
-	if (data->tpmon->rx_mbps >= data->unboost_tp_mbps[data->curr_threshold_pos]) {
-		data->jiffies_to_unboost = jiffies_curr;
-		return false;
+	if ((data->tpmon->rx_total.rx_mbps >=
+		data->unboost_tp_mbps[data->curr_threshold_pos])) {
+		if (!data->forced_unboost) {
+			data->jiffies_to_unboost = jiffies_curr;
+			return false;
+		}
 	}
 
 	if (jiffies_curr > data->jiffies_to_unboost)
@@ -288,9 +333,11 @@ static bool tpmon_check_to_unboost(struct tpmon_data *data)
 	if (data->curr_threshold_pos > 0)
 		data->curr_threshold_pos--;
 
-	mif_info("%s %d->%d (%ldMbps < %dMbps)\n",
+	mif_info("%s %d->%d (%ldMbps < %dMbps) forced_unboost:%d\n",
 		data->name, data->prev_value_pos, data->curr_value_pos,
-		data->tpmon->rx_mbps, data->unboost_tp_mbps[data->prev_threshold_pos]);
+		data->tpmon->rx_total.rx_mbps,
+		data->unboost_tp_mbps[data->prev_threshold_pos],
+		data->forced_unboost);
 
 	data->jiffies_to_unboost = 0;
 	data->unboost_tp_mbps[data->prev_threshold_pos] = 0;
@@ -512,10 +559,14 @@ static int tpmon_stop_napi_poll(struct tpmon_data *data)
 		pktproc_stop_napi_poll(ppa, i);
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
+	dit_stop_napi_poll();
+#endif
+
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM) && IS_ENABLED(CONFIG_MCU_IPC)
+#if IS_ENABLED(CONFIG_MCU_IPC)
 static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 {
 	u32 cpu_num;
@@ -628,13 +679,27 @@ static int tpmon_cpufreq_nb(struct notifier_block *nb,
 		case TPMON_TARGET_CPU_CL1:
 		case TPMON_TARGET_CPU_CL2:
 			if (policy->cpu == data->extra_idx) {
-				mif_info("freq_qos_add_request for cpu%d\n", policy->cpu);
+				mif_info("freq_qos_add_request for cpu%d min\n", policy->cpu);
 #if IS_ENABLED(CONFIG_ARM_FREQ_QOS_TRACER)
 				freq_qos_tracer_add_request(&policy->constraints,
 					data->extra_data, FREQ_QOS_MIN, PM_QOS_DEFAULT_VALUE);
 #else
 				freq_qos_add_request(&policy->constraints,
 					data->extra_data, FREQ_QOS_MIN, PM_QOS_DEFAULT_VALUE);
+#endif
+			}
+			break;
+		case TPMON_TARGET_CPU_CL0_MAX:
+		case TPMON_TARGET_CPU_CL1_MAX:
+		case TPMON_TARGET_CPU_CL2_MAX:
+			if (policy->cpu == data->extra_idx) {
+				mif_info("freq_qos_add_request for cpu%d max\n", policy->cpu);
+#if IS_ENABLED(CONFIG_ARM_FREQ_QOS_TRACER)
+				freq_qos_tracer_add_request(&policy->constraints,
+					data->extra_data, FREQ_QOS_MAX, PM_QOS_DEFAULT_VALUE);
+#else
+				freq_qos_add_request(&policy->constraints,
+					data->extra_data, FREQ_QOS_MAX, PM_QOS_DEFAULT_VALUE);
 #endif
 			}
 			break;
@@ -733,8 +798,7 @@ static void tpmon_monitor_work(struct work_struct *ws)
 	if (!tpmon->jiffies_to_trigger)
 		tpmon->jiffies_to_trigger = jiffies_curr;
 
-	if (tpmon->rx_mbps >=
-		(tpmon->trigger_mbps * tpmon->unboost_tp_percent / 100)) {
+	if (tpmon->rx_total.rx_mbps >= tpmon->monitor_stop_mbps) {
 		tpmon->jiffies_to_trigger = 0;
 		goto run_again;
 	}
@@ -760,11 +824,37 @@ run_again:
 /*
  * Control
  */
-void tpmon_add_rx_bytes(unsigned long bytes)
+void tpmon_add_rx_bytes(struct sk_buff *skb)
 {
 	struct cpif_tpmon *tpmon = &_tpmon;
+	u16 proto = 0;
 
-	tpmon->rx_bytes += bytes;
+	switch (skb->data[0] & 0xF0) {
+	case 0x40:
+		proto = ip_hdr(skb)->protocol;
+		break;
+	case 0x60:
+		proto = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		mif_err_limited("Non IPv4/IPv6 packet:0x%x\n",
+			skb->data[0] & 0xF0);
+		return;
+	}
+
+	tpmon->rx_total.rx_bytes += skb->len;
+
+	switch (proto) {
+	case IPPROTO_TCP:
+		tpmon->rx_tcp.rx_bytes += skb->len;
+		break;
+	case IPPROTO_UDP:
+		tpmon->rx_udp.rx_bytes += skb->len;
+		break;
+	default:
+		tpmon->rx_others.rx_bytes += skb->len;
+		break;
+	}
 }
 EXPORT_SYMBOL(tpmon_add_rx_bytes);
 
@@ -778,7 +868,6 @@ EXPORT_SYMBOL(tpmon_add_legacy_packet_count);
 
 void tpmon_add_net_node(struct list_head *node)
 {
-#if IS_ENABLED(CONFIG_RPS)
 	struct cpif_tpmon *tpmon = &_tpmon;
 	unsigned long flags;
 
@@ -787,7 +876,6 @@ void tpmon_add_net_node(struct list_head *node)
 	list_add_tail(node, &tpmon->net_node_list);
 
 	spin_unlock_irqrestore(&tpmon->lock, flags);
-#endif
 }
 EXPORT_SYMBOL(tpmon_add_net_node);
 
@@ -809,12 +897,10 @@ static int tpmon_init_params(struct cpif_tpmon *tpmon)
 {
 	struct tpmon_data *data;
 
-	tpmon->rx_bytes = 0;
-	tpmon->rx_mbps = 0;
-	tpmon->rx_kbps = 0;
-	tpmon->rx_sum = 0;
-	memset(tpmon->rx_bytes_data, 0, sizeof(tpmon->rx_bytes_data));
-	tpmon->rx_bytes_idx = 0;
+	memset(&tpmon->rx_total, 0, sizeof(struct cpif_rx_data));
+	memset(&tpmon->rx_tcp, 0, sizeof(struct cpif_rx_data));
+	memset(&tpmon->rx_udp, 0, sizeof(struct cpif_rx_data));
+	memset(&tpmon->rx_others, 0, sizeof(struct cpif_rx_data));
 
 	tpmon->pktproc_queue_status = 0;
 	tpmon->netdev_backlog_queue_status = 0;
@@ -830,6 +916,7 @@ static int tpmon_init_params(struct cpif_tpmon *tpmon)
 		data->prev_value_pos = 0;
 		data->jiffies_to_unboost = 0;
 		memset(data->unboost_tp_mbps, 0, sizeof(data->unboost_tp_mbps));
+		data->forced_unboost = false;
 	}
 
 	return 0;
@@ -854,7 +941,11 @@ static bool tpmon_check_to_start(struct cpif_tpmon *tpmon)
 
 	if (delta_msec > tpmon->trigger_msec_max) {
 		tpmon->jiffies_to_trigger = jiffies_curr;
-		tpmon->rx_bytes = 0;
+		tpmon->rx_total.rx_bytes = 0;
+		tpmon->rx_tcp.rx_bytes = 0;
+		tpmon->rx_udp.rx_bytes = 0;
+		tpmon->rx_others.rx_bytes = 0;
+		tpmon->legacy_packet_count = 0;
 		return false;
 	}
 
@@ -862,21 +953,27 @@ static bool tpmon_check_to_start(struct cpif_tpmon *tpmon)
 		return false;
 
 	if (delta_msec >= 1000) {
-		mbps = tpmon->rx_bytes / (131072 * delta_msec / 1000);
-		kbps = tpmon->rx_bytes / (128 * delta_msec / 1000);
+		mbps = tpmon->rx_total.rx_bytes / (131072 * delta_msec / 1000);
+		kbps = tpmon->rx_total.rx_bytes / (128 * delta_msec / 1000);
 	} else {
-		mbps = (tpmon->rx_bytes * 1000 / delta_msec) / 131072;
-		kbps = (tpmon->rx_bytes * 1000 / delta_msec) / 128;
+		mbps = (tpmon->rx_total.rx_bytes * 1000 / delta_msec) / 131072;
+		kbps = (tpmon->rx_total.rx_bytes * 1000 / delta_msec) / 128;
 	}
 
 	if (tpmon->debug_print)
-		mif_info_limited("%ldMbps %ldKbps delta:%ldmsec rx_bytes:%ld\n",
-			mbps, kbps, delta_msec, tpmon->rx_bytes);
+		mif_info_limited("%ldMbps(%ldKbps) %ldmsec rx_bytes:%ld(%ld/%ld/%ld) legacy:%d\n",
+			mbps, kbps, delta_msec,
+			tpmon->rx_total.rx_bytes, tpmon->rx_tcp.rx_bytes,
+			tpmon->rx_udp.rx_bytes, tpmon->rx_others.rx_bytes,
+			tpmon->legacy_packet_count);
 
 	tpmon->jiffies_to_trigger = jiffies_curr;
 
 	if ((mbps < tpmon->trigger_mbps) || tpmon->use_user_value) {
-		tpmon->rx_bytes = 0;
+		tpmon->rx_total.rx_bytes = 0;
+		tpmon->rx_tcp.rx_bytes = 0;
+		tpmon->rx_udp.rx_bytes = 0;
+		tpmon->rx_others.rx_bytes = 0;
 		tpmon->legacy_packet_count = 0;
 		return false;
 	}
@@ -1014,9 +1111,11 @@ static ssize_t curr_value_show(struct device *dev, struct device_attribute *attr
 		if (tpmon->use_user_value)
 			len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 		else
-			len += scnprintf(buf + len, PAGE_SIZE - len, " pos:%d unboost@%dMbps\n",
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+				" pos:%d unboost@%dMbps forced_unboost:%d\n",
 				data->curr_value_pos,
-				data->unboost_tp_mbps[data->curr_threshold_pos]);
+				data->unboost_tp_mbps[data->curr_threshold_pos],
+				data->forced_unboost);
 	}
 
 	return len;
@@ -1035,16 +1134,30 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			tpmon->trigger_mbps, tpmon->trigger_msec_min,
 			tpmon->trigger_msec_max);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
-			"monitor interval:%dmsec hold:%dmsec\n",
+			"monitor interval:%dmsec hold:%dmsec stop:%dMbps\n",
 			tpmon->monitor_interval_msec,
-			tpmon->monitor_hold_msec);
+			tpmon->monitor_hold_msec,
+			tpmon->monitor_stop_mbps);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"boost hold:%dmsec unboost_percent:%d\n",
 			tpmon->boost_hold_msec,
 			tpmon->unboost_tp_percent);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
-			"rx %ldbytes %ldMbps %ldKbps sum:%d\n",
-			tpmon->rx_bytes, tpmon->rx_mbps, tpmon->rx_kbps, tpmon->rx_sum);
+			"rx_total %ldbytes %ldMbps %ldKbps sum:%d\n",
+			tpmon->rx_total.rx_bytes, tpmon->rx_total.rx_mbps,
+			tpmon->rx_total.rx_kbps, tpmon->rx_total.rx_sum);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			"rx_tcp %ldbytes %ldMbps %ldKbps sum:%d\n",
+			tpmon->rx_tcp.rx_bytes, tpmon->rx_tcp.rx_mbps,
+			tpmon->rx_tcp.rx_kbps, tpmon->rx_tcp.rx_sum);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			"rx_udp %ldbytes %ldMbps %ldKbps sum:%d\n",
+			tpmon->rx_udp.rx_bytes, tpmon->rx_udp.rx_mbps,
+			tpmon->rx_udp.rx_kbps, tpmon->rx_udp.rx_sum);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			"rx_others %ldbytes %ldMbps %ldKbps sum:%d\n",
+			tpmon->rx_others.rx_bytes, tpmon->rx_others.rx_mbps,
+			tpmon->rx_others.rx_kbps, tpmon->rx_others.rx_sum);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"queue status pktproc:%d dit:%d netdev:%d legacy:%d\n",
 			tpmon->pktproc_queue_status,
@@ -1059,9 +1172,9 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
 		len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-			"name:%s measure:%d target:%d enable:%d extra_idx:%d\n",
+			"name:%s measure:%d target:%d enable:%d extra_idx:%d proto:%d\n",
 			data->name, data->measure,
-			data->target, data->enable, data->extra_idx);
+			data->target, data->enable, data->extra_idx, data->proto);
 
 		len += scnprintf(buf + len, PAGE_SIZE - len,
 			"num_threshold:%d\n", data->num_threshold);
@@ -1081,6 +1194,10 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 		len += scnprintf(buf + len, PAGE_SIZE - len,
 			"curr_value_pos:%d user_value:%d\n",
 			data->curr_value_pos, data->user_value);
+
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+			"check_udp:%d forced_unboost:%d\n",
+			data->check_udp, data->forced_unboost);
 	}
 
 	return len;
@@ -1200,6 +1317,25 @@ static const struct attribute_group tpmon_group = {
 /*
  * Init
  */
+static void tpmon_parse_protocol(struct tpmon_data *data)
+{
+	switch (data->proto) {
+	case TPMON_PROTO_TCP:
+		data->get_data = tpmon_get_rx_tcp_speed_mbps;
+		break;
+	case TPMON_PROTO_UDP:
+		data->get_data = tpmon_get_rx_udp_speed_mbps;
+		break;
+	case TPMON_PROTO_OTHERS:
+		data->get_data = tpmon_get_rx_others_speed_mbps;
+		break;
+	case TPMON_PROTO_ALL:
+	default:
+		data->get_data = tpmon_get_rx_total_speed_mbps;
+		break;
+	}
+}
+
 static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 {
 	struct device_node *tpmon_np = NULL;
@@ -1229,8 +1365,11 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			tpmon->monitor_interval_msec);
 	mif_dt_read_u32(tpmon_np, "tpmon_monitor_hold_msec",
 			tpmon->monitor_hold_msec);
-	mif_info("monitor interval:%dmsec hold:%dmsec\n",
-			tpmon->monitor_interval_msec, tpmon->monitor_hold_msec);
+	mif_dt_read_u32(tpmon_np, "tpmon_monitor_stop_mbps",
+			tpmon->monitor_stop_mbps);
+	mif_info("monitor interval:%dmsec hold:%dmsec stop:%dmbps\n",
+			tpmon->monitor_interval_msec, tpmon->monitor_hold_msec,
+			tpmon->monitor_stop_mbps);
 
 	mif_dt_read_u32(tpmon_np, "tpmon_boost_hold_msec",
 			tpmon->boost_hold_msec);
@@ -1275,7 +1414,13 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 
 		switch (data->measure) {
 		case TPMON_MEASURE_TP:
-			data->get_data = tpmon_get_rx_speed_mbps;
+			/* protocol */
+			ret = of_property_read_u32(child_np, "tpmon,proto", &data->proto);
+			if (ret) {
+				mif_info("can not get tpmon,proto. set to all\n");
+				data->proto = TPMON_PROTO_ALL;
+			}
+			tpmon_parse_protocol(data);
 			break;
 		case TPMON_MEASURE_NETDEV_Q:
 			data->get_data = tpmon_get_netdev_backlog_queue_status;
@@ -1284,9 +1429,7 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			data->get_data = tpmon_get_pktproc_queue_status;
 			break;
 		case TPMON_MEASURE_DIT_SRC_Q:
-#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 			data->get_data = tpmon_get_dit_src_queue_status;
-#endif
 			break;
 		default:
 			mif_err("%s measure error:%d %d\n", data->name, count, data->measure);
@@ -1302,107 +1445,91 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 		}
 
 		switch (data->target) {
-		case TPMON_TARGET_RPS:
 #if IS_ENABLED(CONFIG_RPS)
+		case TPMON_TARGET_RPS:
 			data->set_data = tpmon_set_rps;
-#else
-			mif_info("rps config is disabled\n");
-			continue;
-#endif
 			break;
-		case TPMON_TARGET_GRO:
+#endif
+
 #if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
+		case TPMON_TARGET_GRO:
 			data->set_data = tpmon_set_gro;
-#else
-			mif_info("gro config is disabled\n");
-			continue;
-#endif
 			break;
-		case TPMON_TARGET_MIF:
+#endif
+
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+		case TPMON_TARGET_MIF:
 			data->extra_data = (void *)&tpmon->qos_req_mif;
 			data->set_data = tpmon_set_exynos_pm_qos;
-#else
-			mif_info("pm qos config is disabled\n");
-			continue;
-#endif
 			break;
-		case TPMON_TARGET_PCIE_LOW_POWER:
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-			data->set_data = tpmon_set_pci_low_power;
-#else
-			mif_info("pcie config is disabled\n");
-			continue;
-#endif
-			break;
-		case TPMON_TARGET_IRQ_MBOX:
-#if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM) && IS_ENABLED(CONFIG_MCU_IPC)
-			data->set_data = tpmon_set_irq_affinity_mbox;
-#else
-			mif_info("mailbox config is disabled\n");
-			continue;
-#endif
-			break;
-		case TPMON_TARGET_IRQ_PCIE:
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-			data->set_data = tpmon_set_irq_affinity_pcie;
-#else
-			mif_info("pcie config is disabled\n");
-			continue;
-#endif
-			break;
-		case TPMON_TARGET_IRQ_DIT:
-#if IS_ENABLED(CONFIG_EXYNOS_DIT)
-			data->set_data = tpmon_set_irq_affinity_dit;
-#else
-			mif_info("dit config is disabled\n");
-			continue;
-#endif
+		case TPMON_TARGET_MIF_MAX:
+			data->extra_data = (void *)&tpmon->qos_req_mif_max;
+			data->set_data = tpmon_set_exynos_pm_qos;
 			break;
 		case TPMON_TARGET_INT_FREQ:
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 			data->extra_data = (void *)&tpmon->qos_req_int;
 			data->set_data = tpmon_set_exynos_pm_qos;
-#else
-			mif_info("pm qos config is disabled\n");
-			continue;
-#endif
 			break;
-		case TPMON_TARGET_BTS:
+		case TPMON_TARGET_INT_FREQ_MAX:
+			data->extra_data = (void *)&tpmon->qos_req_int_max;
+			data->set_data = tpmon_set_exynos_pm_qos;
+			break;
+#endif
+
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+		case TPMON_TARGET_PCIE_LOW_POWER:
+			data->set_data = tpmon_set_pci_low_power;
+			break;
+		case TPMON_TARGET_IRQ_PCIE:
+			data->set_data = tpmon_set_irq_affinity_pcie;
+			break;
+#endif
+
+#if IS_ENABLED(CONFIG_MCU_IPC)
+		case TPMON_TARGET_IRQ_MBOX:
+			data->set_data = tpmon_set_irq_affinity_mbox;
+			break;
+#endif
+
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
+		case TPMON_TARGET_IRQ_DIT:
+			data->set_data = tpmon_set_irq_affinity_dit;
+			break;
+#endif
+
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)
+		case TPMON_TARGET_BTS:
 			data->set_data = tpmon_set_bts;
-#else
-			mif_info("bts config is disabled\n");
-			continue;
-#endif
 			break;
+#endif
+
+#if IS_ENABLED(CONFIG_CPU_FREQ)
 		case TPMON_TARGET_CPU_CL0:
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 			data->extra_data = (void *)&tpmon->qos_req_cpu_cl0;
 			data->set_data = tpmon_set_cpu_freq;
-#else
-			mif_info("pm qos config is disabled\n");
-			continue;
-#endif
+			break;
+		case TPMON_TARGET_CPU_CL0_MAX:
+			data->extra_data = (void *)&tpmon->qos_req_cpu_cl0_max;
+			data->set_data = tpmon_set_cpu_freq;
 			break;
 		case TPMON_TARGET_CPU_CL1:
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 			data->extra_data = (void *)&tpmon->qos_req_cpu_cl1;
 			data->set_data = tpmon_set_cpu_freq;
-#else
-			mif_info("pm qos config is disabled\n");
-			continue;
-#endif
+			break;
+		case TPMON_TARGET_CPU_CL1_MAX:
+			data->extra_data = (void *)&tpmon->qos_req_cpu_cl1_max;
+			data->set_data = tpmon_set_cpu_freq;
 			break;
 		case TPMON_TARGET_CPU_CL2:
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 			data->extra_data = (void *)&tpmon->qos_req_cpu_cl2;
 			data->set_data = tpmon_set_cpu_freq;
-#else
-			mif_info("pm qos config is disabled\n");
-			continue;
-#endif
 			break;
+		case TPMON_TARGET_CPU_CL2_MAX:
+			data->extra_data = (void *)&tpmon->qos_req_cpu_cl2_max;
+			data->set_data = tpmon_set_cpu_freq;
+			break;
+#endif
+
 		default:
 			mif_err("%s target error:%d %d\n", data->name, count, data->target);
 			return -EINVAL;
@@ -1461,15 +1588,19 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			return ret;
 		}
 
+		/* check_udp */
+		of_property_read_u32(child_np, "tpmon,check_udp", &data->check_udp);
+
 		data->tpmon = tpmon;
 
 		spin_lock_irqsave(&tpmon->lock, flags);
 		list_add_tail(&data->data_node, &tpmon->data_list);
 		spin_unlock_irqrestore(&tpmon->lock, flags);
 
-		mif_info("name:%s measure:%d target:%d enable:%d idx:%d num:%d/%d\n",
+		mif_info("name:%s measure:%d target:%d enable:%d idx:%d num:%d/%d proto:%d check_udp:%d\n",
 				data->name, data->measure, data->target, data->enable,
-				data->extra_idx, data->num_threshold, data->num_values);
+				data->extra_idx, data->num_threshold, data->num_values,
+				data->proto, data->check_udp);
 
 		count++;
 	}
@@ -1511,13 +1642,15 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 		goto create_error;
 	}
 
-#if IS_ENABLED(CONFIG_RPS)
 	INIT_LIST_HEAD(&tpmon->net_node_list);
-#endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 	exynos_pm_qos_add_request(&tpmon->qos_req_mif, PM_QOS_BUS_THROUGHPUT, 0);
+	exynos_pm_qos_add_request(&tpmon->qos_req_mif_max, PM_QOS_BUS_THROUGHPUT_MAX,
+			PM_QOS_BUS_THROUGHPUT_MAX_DEFAULT_VALUE);
 	exynos_pm_qos_add_request(&tpmon->qos_req_int, PM_QOS_DEVICE_THROUGHPUT, 0);
+	exynos_pm_qos_add_request(&tpmon->qos_req_int_max, PM_QOS_DEVICE_THROUGHPUT_MAX,
+			PM_QOS_DEVICE_THROUGHPUT_MAX_DEFAULT_VALUE);
 #endif
 
 #if IS_ENABLED(CONFIG_CPU_FREQ)

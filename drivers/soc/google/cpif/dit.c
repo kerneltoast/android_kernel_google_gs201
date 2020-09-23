@@ -344,7 +344,7 @@ static void dit_update_stat(struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 		struct mem_link_device *mld = to_mem_link_device(dc->ld);
 
-		mld->tpmon->add_rx_bytes(len);
+		mld->tpmon->add_rx_bytes(skb);
 #endif
 		netdev->stats.rx_packets++;
 		netdev->stats.rx_bytes += len;
@@ -916,6 +916,14 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 	if (rcvd_total && !mld->tpmon->check_active())
 		mld->tpmon->start();
 #endif
+
+	if (atomic_read(&dc->stop_napi_poll)) {
+		atomic_set(&dc->stop_napi_poll, 0);
+		napi_complete(napi);
+		/* kick can be reserved if dst buffer was not enough */
+		dit_kick(DIT_DIR_RX, true);
+		return 0;
+	}
 
 	if (rcvd_total < budget) {
 		napi_complete_done(napi, rcvd_total);
@@ -2107,6 +2115,17 @@ struct net_device *dit_get_netdev(void)
 }
 EXPORT_SYMBOL(dit_get_netdev);
 
+int dit_stop_napi_poll(void)
+{
+	if (!dc)
+		return -EPERM;
+
+	atomic_set(&dc->stop_napi_poll, 1);
+
+	return 0;
+}
+EXPORT_SYMBOL(dit_stop_napi_poll);
+
 #if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
 static int s2mpufd_notifier_callback(struct s2mpufd_notifier_block *nb,
 		struct s2mpufd_notifier_info *ni)
@@ -2168,6 +2187,7 @@ int dit_create(struct platform_device *pdev)
 	spin_lock_init(&dc->src_lock);
 	INIT_LIST_HEAD(&dc->reg_value_q);
 	atomic_set(&dc->init_running, 0);
+	atomic_set(&dc->stop_napi_poll, 0);
 
 	mif_dt_read_u32(np, "dit_sharability_offset", dc->sharability_offset);
 	mif_dt_read_u32(np, "dit_sharability_value", dc->sharability_value);

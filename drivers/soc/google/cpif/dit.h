@@ -338,6 +338,7 @@ struct dit_ctrl_t {
 	bool init_reserved;
 
 	atomic_t init_running;
+	atomic_t stop_napi_poll;
 
 #if defined(DIT_DEBUG)
 	int pktgen_mode;
@@ -408,6 +409,7 @@ int dit_enqueue_src_desc_ring_skb(enum dit_direction dir, struct sk_buff *skb);
 int dit_kick(enum dit_direction dir, bool retry);
 bool dit_check_dir_use_queue(enum dit_direction dir, unsigned int queue_num);
 int dit_reset_dst_wp_rp(enum dit_direction dir);
+int dit_stop_napi_poll(void);
 #else
 static inline int dit_enqueue_src_desc_ring(
 	enum dit_direction dir, u8 *src, u16 len, u16 ch_id, bool csum) { return -1; }
@@ -417,6 +419,7 @@ static inline int dit_kick(enum dit_direction dir, bool retry) { return -1; }
 static inline bool dit_check_dir_use_queue(
 	enum dit_direction dir, unsigned int queue_num) { return false; }
 static inline int dit_reset_dst_wp_rp(enum dit_direction dir) { return -1; }
+static inline int dit_stop_napi_poll(void) { return 0; }
 #endif
 
 #endif /* __DIT_H__ */
