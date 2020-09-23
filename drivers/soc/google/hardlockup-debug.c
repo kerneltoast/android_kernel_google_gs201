@@ -11,6 +11,7 @@
 #include <linux/smc.h>
 #include <linux/smp.h>
 #include <linux/soc/samsung/exynos-smc.h>
+#include <linux/slab.h>
 
 #include <asm/debug-monitors.h>
 #include <asm/ptrace.h>
@@ -27,10 +28,12 @@
 #define HARDLOCKUP_DEBUG_MAGIC		(0xDEADBEEF)
 #define BUG_BRK_IMM_HARDLOCKUP		(0x801)
 
-struct hardlockup_debug_param {
+struct hardlockup_param_type {
 	unsigned long last_pc_addr;
 	unsigned long spin_pc_addr;
-} hardlockup_debug_param;
+};
+
+struct hardlockup_param_type *hardlockup_param;
 
 static raw_spinlock_t hardlockup_seq_lock;
 static raw_spinlock_t hardlockup_log_lock;
@@ -224,44 +227,50 @@ static struct notifier_block hardlockup_debug_panic_nb = {
 
 static int __init hardlockup_debugger_init(void)
 {
-	int ret = -1;
+	int ret = 0;
 	struct device_node *node;
 
 	node = of_find_node_by_name(NULL, "dss");
 	if (!node) {
-		pr_info("Failed to find debug device tree node\n");
+		pr_err("Failed to find dss device tree node\n");
+		return -ENODEV;
 	} else {
 		ret = of_property_read_u32(node, "use_multistage_wdt_irq",
 						&watchdog_fiq);
-		if (ret)
-			pr_info("Multistage watchdog is not supported\n");
-	}
-
-	if (!ret) {
-		hardlockup_debug_param.last_pc_addr =
-					dbg_snapshot_get_last_pc_paddr();
-		if (hardlockup_debug_param.last_pc_addr) {
-			hardlockup_debug_param.spin_pc_addr =
-					(unsigned long)virt_to_phys(
-					&hardlockup_debug_spin_func);
-			__flush_dcache_area((void *)&hardlockup_debug_param,
-					sizeof(struct hardlockup_debug_param));
-#ifdef SMC_CMD_LOCKUP_NOTICE
-			ret = exynos_smc(SMC_CMD_LOCKUP_NOTICE,
-				(unsigned long)hardlockup_debug_bug_func,
-				watchdog_fiq,
-				(unsigned long)(virt_to_phys)(
-				&hardlockup_debug_param));
-#else
-			ret = -EINVAL;
-#endif
-		} else {
-			ret = -ENOMEM;
+		if (ret) {
+			pr_err("Multistage watchdog is not supported\n");
+			return ret;
 		}
 	}
-	pr_info("%s to register all-core lockup detector - ret: %d\n",
-				(ret == 0) ? "success" : "failed", ret);
 
+	hardlockup_param = kmalloc(sizeof(struct hardlockup_param_type),
+					GFP_KERNEL);
+	if (!hardlockup_param) {
+		pr_err("Fail to allocate memory for hardlockup_param\n");
+		return -ENOMEM;
+	}
+
+	hardlockup_param->last_pc_addr = dbg_snapshot_get_last_pc_paddr();
+	if (hardlockup_param->last_pc_addr) {
+		hardlockup_param->spin_pc_addr =
+			(unsigned long)virt_to_phys(
+			&hardlockup_debug_spin_func);
+#ifdef SMC_CMD_LOCKUP_NOTICE
+		cache_flush_all();
+		ret = exynos_smc(SMC_CMD_LOCKUP_NOTICE,
+			(unsigned long)hardlockup_debug_bug_func,
+			watchdog_fiq,
+			(unsigned long)(virt_to_phys)(hardlockup_param));
+		pr_info("%s to register all-core lockup detector - ret: %d\n",
+				(ret == 0) ? "success" : "failed", ret);
+#else
+		ret = -EINVAL;
+		goto error;
+#endif
+	} else {
+		ret = -ENOMEM;
+		goto error;
+	}
 
 	raw_spin_lock_init(&hardlockup_seq_lock);
 	raw_spin_lock_init(&hardlockup_log_lock);
@@ -272,8 +281,10 @@ static int __init hardlockup_debugger_init(void)
 	register_kernel_break_hook(&hardlockup_debug_break_hook);
 
 	pr_info("Initialized hardlockup debug dump successfully.\n");
-
 	return 0;
+error:
+	kfree(hardlockup_param);
+	return ret;
 }
 
 module_init(hardlockup_debugger_init);
