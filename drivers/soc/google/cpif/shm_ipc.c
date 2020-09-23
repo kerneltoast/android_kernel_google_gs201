@@ -258,6 +258,10 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 			shmem_index = SHMEM_BTL;
 		else if (!strncmp((const char *)&name, "B2L\0", sizeof(name)))
 			shmem_index = SHMEM_L2B;
+		else if (!strncmp((const char *)&name, "PKP\0", sizeof(name)))
+			shmem_index = SHMEM_PKTPROC;
+		else if (!strncmp((const char *)&name, "UKP\0", sizeof(name)))
+			shmem_index = SHMEM_PKTPROC_UL;
 		else
 			continue;
 
@@ -274,7 +278,7 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 
 		if ((_cp_shmem[cp_num][shmem_index].p_base + _cp_shmem[cp_num][shmem_index].size) >
 			(_cp_rmem[rmem_index].p_base + _cp_rmem[rmem_index].size)) {
-			mif_err("%d %d size error 0x%08lx 0x%08x 0x%08lx 0x%08x\n",
+			mif_err("rmem:%d shmem_index:%d size error 0x%08lx 0x%08x 0x%08lx 0x%08x\n",
 				rmem_index, shmem_index,
 				_cp_shmem[cp_num][shmem_index].p_base,
 				_cp_shmem[cp_num][shmem_index].size,
@@ -282,8 +286,8 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 			return -ENOMEM;
 		}
 
-		mif_info("index:%d/%d base:0x%08lx offset:0x%08x size:0x%08x\n",
-				shmem_index, rmem_index, _cp_rmem[rmem_index].p_base,
+		mif_info("rmem:%d shmem_index:%d base:0x%08lx offset:0x%08x size:0x%08x\n",
+				rmem_index, shmem_index, _cp_rmem[rmem_index].p_base,
 				map.ns_map[i].offset, map.ns_map[i].size);
 	}
 
@@ -489,7 +493,7 @@ static int cp_shmem_probe(struct platform_device *pdev)
 			if (!_cp_shmem[i][j].name)
 				continue;
 
-			mif_info("%d %d %d %s 0x%08lx 0x%08x %d\n",
+			mif_info("cp_num:%d rmem:%d index:%d %s 0x%08lx 0x%08x %d\n",
 					_cp_shmem[i][j].cp_num, _cp_shmem[i][j].rmem,
 					_cp_shmem[i][j].index, _cp_shmem[i][j].name,
 					_cp_shmem[i][j].p_base, _cp_shmem[i][j].size,
