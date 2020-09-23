@@ -180,8 +180,11 @@
 					tpmon_trigger_mbps = <30>;
 					tpmon_trigger_msec_min = <100>;
 					tpmon_trigger_msec_max = <500>;
+
 					tpmon_monitor_interval_msec = <100>;
 					tpmon_monitor_hold_msec = <3000>;
+					tpmon_monitor_stop_mbps = <15>;
+
 					tpmon_boost_hold_msec = <2000>;
 					tpmon_unboost_tp_percent = <80>;
 
