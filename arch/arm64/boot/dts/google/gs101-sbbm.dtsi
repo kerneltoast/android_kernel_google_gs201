@@ -14,9 +14,9 @@
 / {
 	sbb_mux: sbb-mux {
 		compatible = "google,sbb-mux";
-		gpios = <&gpp0 4 0>;
-		gpio_names = "C1_T3__XAPC_DISP_TE_SEC";
-		default_signals = "gp_region_0";
+		gpios = <&gpp0 4 0>, <&gpa4 0 0>;
+		gpio_names = "C1_T3__XAPC_DISP_TE_SEC", "C2_T1__BATT_ID_SWI";
+		default_signals = "gp_region_0", "0";
 	};
 
 };
