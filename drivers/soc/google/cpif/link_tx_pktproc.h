@@ -38,7 +38,7 @@ struct pktproc_desc_ul {
 	u32 data_size:20, reserve1:12;
 	u32 total_pkt_size:20, reserve2:12;
 	u64 sktbuf_point:36, reserve3:12, ap2cp_pbp_info:16;
-	u32 last_desc:1, reserve4:31;
+	u32 last_desc;
 	u32 hw_set:1, seg_on:1, reserve5:2, segment:2, reserve6:2,
 	    lcid:8, ap2cp_info_pp:16;
 	u32 reserve7;

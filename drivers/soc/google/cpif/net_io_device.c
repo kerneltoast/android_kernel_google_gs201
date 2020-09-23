@@ -162,17 +162,17 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 		headroom = 0;
 		tailroom = 0;
 	}
-#endif
 
-	tx_bytes = headroom + count + tailroom;
-
-	if (skb_headroom(skb) < headroom || skb_tailroom(skb) < tailroom) {
+	if ((skb_headroom(skb) < headroom) || (skb_tailroom(skb) < tailroom)) {
 		skb_new = skb_copy_expand(skb, headroom, tailroom, GFP_ATOMIC);
 		if (!skb_new) {
 			mif_info("%s: ERR! skb_copy_expand fail\n", iod->name);
 			goto retry;
 		}
 	}
+#endif
+
+	tx_bytes = headroom + count + tailroom;
 
 	/* Store the IO device, the link device, etc. */
 	skbpriv(skb_new)->iod = iod;
@@ -249,6 +249,16 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 
 retry:
+#if !IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+	if (iod->link_header && skb_new && (skb_new == skb)) {
+		if (headroom)
+			skb_pull(skb_new, headroom);
+
+		if (tailroom)
+			skb_trim(skb_new, count);
+	}
+#endif
+
 	/*
 	 * If @skb has been expanded to $skb_new, only $skb_new must be freed here
 	 * because @skb will be reused by NET_TX.

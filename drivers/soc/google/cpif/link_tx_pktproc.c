@@ -61,7 +61,7 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 
 	desc->data_size = len;
 	desc->total_pkt_size = len;
-	desc->last_desc = 0;
+	WRITE_ONCE(desc->last_desc, 0);
 	desc->seg_on = 0;
 	desc->hw_set = 0;
 	desc->lcid = skbpriv(skb)->sipc_ch;
@@ -100,7 +100,7 @@ static int pktproc_set_end(struct pktproc_queue_ul *q, unsigned int desc_index,
 
 	barrier();
 
-	prev_desc->last_desc = 1;
+	WRITE_ONCE(prev_desc->last_desc, 1);
 
 	q->quota_usage = 0;
 	q->stat.pass_cnt++;

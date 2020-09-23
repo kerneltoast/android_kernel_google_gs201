@@ -534,7 +534,6 @@ void resume_net_ifaces(struct link_device *ld)
 		if (ld->msd)
 			netif_tx_flowctl(ld->msd, false);
 
-		complete_all(&ld->raw_tx_resumed);
 		atomic_set(&ld->netif_stopped, 0);
 	}
 

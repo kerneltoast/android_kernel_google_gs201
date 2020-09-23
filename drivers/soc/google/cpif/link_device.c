@@ -4064,7 +4064,6 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	spin_lock_init(&ld->netif_lock);
 	atomic_set(&ld->netif_stopped, 0);
 	ld->tx_flowctrl_mask = 0;
-	init_completion(&ld->raw_tx_resumed);
 
 	if (shmem_rx_setup(ld) < 0)
 		goto error;

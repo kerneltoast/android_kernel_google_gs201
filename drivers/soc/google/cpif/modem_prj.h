@@ -485,8 +485,6 @@ struct link_device {
 	unsigned long netif_stop_mask;
 	unsigned long tx_flowctrl_mask;
 
-	struct completion raw_tx_resumed;
-
 	/* flag of stopped state for all channels */
 	atomic_t netif_stopped;
 
