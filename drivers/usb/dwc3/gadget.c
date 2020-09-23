@@ -2057,7 +2057,7 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 	if (!timeout) {
 		dev_err(dwc->dev, "gadget %s timeout, DSTS : 0x%x\n",
 			is_on ? "run" : "stop", reg);
-		return -ETIMEDOUT;
+		return 0;
 	}
 
 	return 0;
