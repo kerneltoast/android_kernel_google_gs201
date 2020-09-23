@@ -687,6 +687,10 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			ngpios = <6>;
+			gpio-ranges = <&s2mpg10_pinctrl 0 0 6>;
+		};
+
+		s2mpg10_pinctrl: s2mpg10_pinctrl {
 		};
 	};
 };
