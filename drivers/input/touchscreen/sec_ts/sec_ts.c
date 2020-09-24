@@ -2468,46 +2468,46 @@ static int sec_ts_pinctrl_configure(struct sec_ts_data *ts, bool enable)
 static int sec_ts_power(void *data, bool on)
 {
 	struct sec_ts_data *ts = (struct sec_ts_data *)data;
-	const struct sec_ts_plat_data *pdata = ts->plat_data;
-	struct regulator *regulator_dvdd = NULL;
-	struct regulator *regulator_avdd = NULL;
-	static bool dvdd_enabled, avdd_enabled;
+	struct sec_ts_plat_data *pdata = ts->plat_data;
+	static bool vdd_enabled, avdd_enabled;
 	int ret = 0;
 
-	if (pdata->regulator_dvdd) {
-		regulator_dvdd = regulator_get(&ts->client->dev,
-			pdata->regulator_dvdd);
-		if (IS_ERR_OR_NULL(regulator_dvdd))
+	if (!pdata->regulator_vdd) {
+		pdata->regulator_vdd = regulator_get(&ts->client->dev, "vdd");
+		if (IS_ERR_OR_NULL(pdata->regulator_vdd)) {
+			pdata->regulator_vdd = NULL;
 			input_err(true, &ts->client->dev,
-				"%s: Failed to get %s regulator.\n",
-				__func__, pdata->regulator_dvdd);
-	}
-
-	if (pdata->regulator_avdd) {
-		regulator_avdd = regulator_get(&ts->client->dev,
-			pdata->regulator_avdd);
-		if (IS_ERR_OR_NULL(regulator_avdd))
-			input_err(true, &ts->client->dev,
-				"%s: Failed to get %s regulator.\n",
-				 __func__, pdata->regulator_avdd);
-	}
-
-	if (regulator_dvdd && (dvdd_enabled != on)) {
-		ret = (on) ? regulator_enable(regulator_dvdd) :
-			regulator_disable(regulator_dvdd);
-		if (ret)
-			input_err(true, &ts->client->dev,
-				"%s: Failed to control dvdd: %d\n",
-				__func__, ret);
-		else {
-			sec_ts_delay(1);
-			dvdd_enabled = on;
+				"%s: Failed to get vdd regulator.\n",
+				__func__);
 		}
 	}
 
-	if (regulator_avdd && (avdd_enabled != on)) {
-		ret = (on) ? regulator_enable(regulator_avdd) :
-			regulator_disable(regulator_avdd);
+	if (!pdata->regulator_avdd) {
+		pdata->regulator_avdd = regulator_get(&ts->client->dev, "avdd");
+		if (IS_ERR_OR_NULL(pdata->regulator_avdd)) {
+			pdata->regulator_avdd = NULL;
+			input_err(true, &ts->client->dev,
+				"%s: Failed to get avdd regulator.\n",
+				__func__);
+		}
+	}
+
+	if (pdata->regulator_vdd && (vdd_enabled != on)) {
+		ret = (on) ? regulator_enable(pdata->regulator_vdd) :
+			regulator_disable(pdata->regulator_vdd);
+		if (ret)
+			input_err(true, &ts->client->dev,
+				"%s: Failed to control vdd: %d\n",
+				__func__, ret);
+		else {
+			sec_ts_delay(1);
+			vdd_enabled = on;
+		}
+	}
+
+	if (pdata->regulator_avdd && (avdd_enabled != on)) {
+		ret = (on) ? regulator_enable(pdata->regulator_avdd) :
+			regulator_disable(pdata->regulator_avdd);
 		if (ret)
 			input_err(true, &ts->client->dev,
 				"%s: Failed to control avdd: %d\n",
@@ -2516,18 +2516,26 @@ static int sec_ts_power(void *data, bool on)
 			avdd_enabled = on;
 	}
 
-	if (regulator_dvdd) {
-		input_info(true, &ts->client->dev, "%s: %s: dvdd:%s\n",
+	if (pdata->regulator_vdd) {
+		input_info(true, &ts->client->dev, "%s: %s: vdd:%s\n",
 			__func__, on ? "on" : "off",
-			regulator_is_enabled(regulator_dvdd) ? "on" : "off");
-		regulator_put(regulator_dvdd);
+			regulator_is_enabled(pdata->regulator_vdd) ?
+			"on" : "off");
+		if (!vdd_enabled) {
+			regulator_put(pdata->regulator_vdd);
+			pdata->regulator_vdd = NULL;
+		}
 	}
 
-	if (regulator_avdd) {
+	if (pdata->regulator_avdd) {
 		input_info(true, &ts->client->dev, "%s: %s: avdd:%s\n",
 			__func__, on ? "on" : "off",
-			regulator_is_enabled(regulator_avdd) ? "on" : "off");
-		regulator_put(regulator_avdd);
+			regulator_is_enabled(pdata->regulator_avdd) ?
+			"on" : "off");
+		if (!avdd_enabled) {
+			regulator_put(pdata->regulator_avdd);
+			pdata->regulator_avdd = NULL;
+		}
 	}
 
 	return ret;
@@ -2773,18 +2781,6 @@ static int sec_ts_parse_dt(struct spi_device *client)
 		pdata->panel_revision = 0;
 	else
 		pdata->panel_revision = ((lcdtype >> 8) & 0xFF) >> 4;
-
-	if (of_property_read_string(np,
-		"sec,regulator_dvdd", &pdata->regulator_dvdd))
-		input_err(true, dev,
-			"%s: Failed to get regulator_dvdd name property\n",
-			__func__);
-
-	if (of_property_read_string(np,
-		"sec,regulator_avdd", &pdata->regulator_avdd))
-		input_err(true, dev,
-			"%s: Failed to get regulator_avdd name property\n",
-			__func__);
 
 	pdata->power = sec_ts_power;
 
