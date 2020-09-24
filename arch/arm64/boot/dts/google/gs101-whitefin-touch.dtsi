@@ -87,8 +87,8 @@
 
 		sec,max_coords = <1080 2340>;
 
-		sec,regulator_dvdd = "S2MPG10_LDO25"; /* VIO 1.8V */
-		sec,regulator_avdd = "S2MPG10_LDO26"; /* AVDD 3.3V */
+		vdd-supply = <&m_ldo25_reg>; /* VIO 1.8V */
+		avdd-supply = <&m_ldo26_reg>; /* AVDD 3.3V */
 
 		controller-data {
 			samsung,spi-feedback-delay = <0>;
