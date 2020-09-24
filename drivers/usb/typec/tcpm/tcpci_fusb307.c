@@ -19,20 +19,18 @@
 #include <linux/regulator/consumer.h>
 #include <linux/usb/tcpm.h>
 
-#include <../../../power/supply/google/logbuffer.h>
+#include <misc/logbuffer.h>
+#include <misc/gvotable.h>
 
 #include "tcpci_otg_helper.h"
 #include "tcpci.h"
 #include "usb_icl_voter.h"
 #include "usb_psy.h"
-#include "../../../../drivers/power/supply/google/gvotable.h"
 
 #define VBUS_VOLTAGE_MASK		0x3ff
 #define VBUS_VOLTAGE_LSB_MV		25
 #define VBUS_HI_HEADROOM_MV		500
 #define VBUS_LO_MV			4500
-
-#include <../../../power/supply/google/logbuffer.h>
 
 struct fusb307b_plat {
 	struct tcpci_data data;
@@ -540,7 +538,7 @@ static int fusb307b_probe(struct i2c_client *client,
 			chip->vbus));
 	}
 
-	chip->log = debugfs_logbuffer_register("usbpd");
+	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
 		dev_err(&client->dev, "logbuffer get failed");
 		return PTR_ERR(chip->log);
@@ -652,7 +650,7 @@ unreg_psy:
 unreg_port:
 	tcpci_unregister_port(chip->tcpci);
 unreg_log:
-	debugfs_logbuffer_unregister(chip->log);
+	logbuffer_unregister(chip->log);
 
 	return ret;
 }
@@ -661,7 +659,7 @@ static int fusb307b_remove(struct i2c_client *client)
 {
 	struct fusb307b_plat *chip = i2c_get_clientdata(client);
 
-	debugfs_logbuffer_unregister(chip->log);
+	logbuffer_unregister(chip->log);
 	tcpci_unregister_port(chip->tcpci);
 	power_supply_put(chip->usb_psy);
 	usb_psy_teardown(chip->usb_psy_data);
