@@ -60,6 +60,11 @@
 			no-map;
 		};
 
+		dss_log_reserved: dss_log_reserved@fd3f0000 {
+			reg = <0 0xfd3f0000 0x0000e000>;
+			no-map;
+		};
+
 		ramoops_mem: ramoops_region@fd3ff000 {
 			reg = <0 0xfd3ff000 0x200000>;
 			no-map;
