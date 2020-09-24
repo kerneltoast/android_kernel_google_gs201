@@ -531,7 +531,7 @@ config VIDEO_EXYNOS_SMFC
 	select V4L2_MEM2MEM_DEV
 	select VIDEOBUF2_DMA_SG
 	default n
-	---help---
+	help
 	  Still MFC(Multi Format Codec) V4L2 Driver for Exynos SoCs.
 	  The driver supports for mem2mem V4L2 device.
 
