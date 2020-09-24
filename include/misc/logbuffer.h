@@ -18,7 +18,7 @@ void logbuffer_vlog(struct logbuffer *instance, const char *fmt,
  * param name: name of the file in the /d/logbuffer/ directory.
  * returns the pointer to the logbuffer metadata.
  */
-struct logbuffer *logbuffer_register(char *name);
+struct logbuffer *logbuffer_register(const char *name);
 
 void logbuffer_unregister(struct logbuffer *instance);
 #else
@@ -30,7 +30,7 @@ static inline void logbuffer_vlog(struct logbuffer *instance, const char *fmt, v
 {
 }
 
-static inline struct logbuffer *logbuffer_register(char *name)
+static inline struct logbuffer *logbuffer_register(const char *name)
 {
 	return NULL;
 }

@@ -159,7 +159,7 @@ static const struct file_operations logbuffer_dev_operations = {
 	.release = single_release,
 };
 
-struct logbuffer *logbuffer_register(char *name)
+struct logbuffer *logbuffer_register(const char *name)
 {
 	struct logbuffer *instance;
 	int ret;
