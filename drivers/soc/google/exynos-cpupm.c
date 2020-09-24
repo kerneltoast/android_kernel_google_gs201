@@ -836,11 +836,15 @@ static void exynos_cpupm_exit(int cpu, int cancel)
 	spin_unlock(&cpupm_lock);
 }
 
+static bool allow_cpu_off;
 static int exynos_cpu_pm_notify_callback(struct notifier_block *self,
 					 unsigned long action, void *v)
 {
 	int cpu = smp_processor_id();
 	int cpu_state;
+
+	if (!allow_cpu_off)
+		return NOTIFY_BAD;
 
 	/* ignore CPU_PM event in suspend sequence */
 	if (system_suspended)
@@ -1218,6 +1222,12 @@ static const struct dev_pm_ops cpupm_pm_ops = {
 	.resume_noirq = exynos_cpupm_resume_noirq,
 };
 
+static void allow_cpu_off_func(struct work_struct *__work)
+{
+	allow_cpu_off = true;
+}
+
+struct delayed_work booting_work;
 static int exynos_cpupm_probe(struct platform_device *pdev)
 {
 	int ret, cpu;
@@ -1260,15 +1270,8 @@ static int exynos_cpupm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/*
-	 * The power off sequence is executed after CPU_STATE_SPARE is filled.
-	 * Before writing to value to CPU_STATE_SPARE, interrupt is asserted to
-	 * all CPUs to cancel power off sequence in progress. Because there may
-	 * be a CPU that tries to power off without setting PMUCAL handled in
-	 * CPU_PM_ENTER event.
-	 */
-	smp_call_function_many(cpu_online_mask, do_nothing, NULL, 1);
-	writel_relaxed(0xBABECAFE, nscode_base + CPU_STATE_SPARE_OFFSET);
+	INIT_DELAYED_WORK(&booting_work, allow_cpu_off_func);
+	schedule_delayed_work(&booting_work, msecs_to_jiffies(40000));
 
 	cpupm_init_time = ktime_get();
 
