@@ -624,6 +624,8 @@ static int exynos_ufs_link_startup_notify(struct ufs_hba *hba,
 
 	switch (notify) {
 	case PRE_CHANGE:
+		exynos_ufs_override_hba_params(hba);
+
 		if (!IS_C_STATE_ON(ufs) || ufs->h_state != H_RESET)
 			PRINT_STATES(ufs);
 
