@@ -10179,6 +10179,7 @@
   thermal_zone_bind_cooling_device
   thermal_zone_device_disable
   thermal_zone_device_enable
+  thermal_zone_device_is_enabled
   thermal_zone_device_register
   thermal_zone_device_unregister
   thermal_zone_device_update
