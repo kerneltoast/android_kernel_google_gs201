@@ -5114,7 +5114,7 @@ static int register_panel_bridge(struct fts_ts_info *info)
 
 static void unregister_panel_bridge(struct drm_bridge *bridge)
 {
-	struct drm_bridge **node;
+	struct drm_bridge *node;
 
 	drm_bridge_remove(bridge);
 
@@ -5122,18 +5122,13 @@ static void unregister_panel_bridge(struct drm_bridge *bridge)
 		return;
 
 	drm_modeset_lock(&bridge->dev->mode_config.connection_mutex, NULL);
-	if (bridge->encoder) {
-		node = &bridge->encoder->bridge;
-		while (*node) {
-			if (*node == bridge) {
-				if (bridge->funcs->detach)
-					bridge->funcs->detach(bridge);
-				*node = bridge->next;
-				break;
-			}
-			node = &(*node)->next;
+	list_for_each_entry(node, &bridge->encoder->bridge_chain, chain_node)
+		if (node == bridge) {
+			if (bridge->funcs->detach)
+				bridge->funcs->detach(bridge);
+			list_del(&bridge->chain_node);
+			break;
 		}
-	}
 	drm_modeset_unlock(&bridge->dev->mode_config.connection_mutex);
 	bridge->dev = NULL;
 }
