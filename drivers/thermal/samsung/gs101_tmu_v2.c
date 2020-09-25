@@ -450,14 +450,12 @@ static void gs101_pi_thermal(struct gs101_tmu_data *data)
 	struct gs101_pi_param *params = data->pi_param;
 	int ret = 0;
 	int switch_on_temp, control_temp, delay;
-	enum thermal_device_mode mode;
 
 	if (atomic_read(&gs101_tmu_in_suspend))
 		return;
 
-	if (data->tzd) {
-		data->tzd->ops->get_mode(data->tzd, &mode);
-		if (mode == THERMAL_DEVICE_DISABLED) {
+	if (tz) {
+		if (!thermal_zone_device_is_enabled(tz)) {
 			params->switched_on = false;
 			goto polling;
 		}
@@ -1334,7 +1332,7 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 		goto err_sensor;
 	}
 
-	data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_DISABLED);
+	thermal_zone_device_disable(data->tzd);
 
 #if IS_ENABLED(CONFIG_ECT)
 	if (!of_property_read_bool(pdev->dev.of_node, "ect_nouse"))
@@ -1386,8 +1384,7 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 		start_pi_polling(data, 0);
 	}
 
-	if (!IS_ERR(data->tzd))
-		data->tzd->ops->set_mode(data->tzd, THERMAL_DEVICE_ENABLED);
+	thermal_zone_device_enable(data->tzd);
 
 	if (list_is_singular(&dtm_dev_list)) {
 		gs101_thermal_create_debugfs();
