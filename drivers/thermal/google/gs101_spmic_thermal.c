@@ -273,7 +273,7 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 		}
 		gs101_spmic_thermal->sensor[i].tzd = tzd;
 		if (gs101_spmic_thermal->adc_chan_en & mask)
-			tzd->ops->set_mode(tzd, THERMAL_DEVICE_ENABLED);
+			thermal_zone_device_enable(tzd);
 	}
 	return 0;
 }
