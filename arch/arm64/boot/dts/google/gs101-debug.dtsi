@@ -18,6 +18,11 @@
 				<&log_arrdumpreset>, <&log_arrdumppanic>;
 	};
 
+	hardlockup-debugger {
+		compatible = "google,hardlockup-debug";
+		use_multistage_wdt_irq = <798>;
+	};
+
 	dss-built {
 		compatible = "google,debug-snapshot-built";
 		memory-region = <&header>;
