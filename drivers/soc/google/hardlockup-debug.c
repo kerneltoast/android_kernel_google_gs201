@@ -10,6 +10,9 @@
 #include <linux/spinlock.h>
 #include <linux/smc.h>
 #include <linux/smp.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
+#include <linux/platform_device.h>
 #include <linux/soc/samsung/exynos-smc.h>
 #include <linux/slab.h>
 
@@ -27,13 +30,16 @@
 
 #define HARDLOCKUP_DEBUG_MAGIC		(0xDEADBEEF)
 #define BUG_BRK_IMM_HARDLOCKUP		(0x801)
+#define HARDLOCKUP_DEBUG_SPIN_INSTS	(0x17FFFFFFD503207F)
 
 struct hardlockup_param_type {
 	unsigned long last_pc_addr;
 	unsigned long spin_pc_addr;
+	unsigned long spin_func;
 };
 
-struct hardlockup_param_type *hardlockup_param;
+static struct hardlockup_param_type *hardlockup_param;
+static dma_addr_t hardlockup_param_paddr;
 
 static raw_spinlock_t hardlockup_seq_lock;
 static raw_spinlock_t hardlockup_log_lock;
@@ -143,7 +149,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 			" locked CPUs mask (0x%lx)\n",
 			allcorelockup_detected ? "WDT expired" : "Core", cpu,
 			hardlockup_core_mask);
-		dump_backtrace(regs, NULL);
+		dump_backtrace(regs, NULL, KERN_DEFAULT);
 		dbg_snapshot_save_context(regs);
 
 		if (ret)
@@ -225,44 +231,50 @@ static struct notifier_block hardlockup_debug_panic_nb = {
 	.notifier_call = hardlockup_debug_panic_handler,
 };
 
-static int __init hardlockup_debugger_init(void)
+static int hardlockup_debugger_probe(struct platform_device *pdev)
 {
-	int ret = 0;
-	struct device_node *node;
+	int ret;
+	struct device_node *node = pdev->dev.of_node;
 
-	node = of_find_node_by_name(NULL, "dss");
 	if (!node) {
-		pr_err("Failed to find dss device tree node\n");
+		dev_info(&pdev->dev,
+			"Failed to find debug device tree node\n");
 		return -ENODEV;
 	} else {
 		ret = of_property_read_u32(node, "use_multistage_wdt_irq",
-						&watchdog_fiq);
+							&watchdog_fiq);
 		if (ret) {
-			pr_err("Multistage watchdog is not supported\n");
+			dev_info(&pdev->dev,
+				"Multistage watchdog is not supported\n");
 			return ret;
 		}
 	}
 
-	hardlockup_param = kmalloc(sizeof(struct hardlockup_param_type),
-					GFP_KERNEL);
+	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
+	hardlockup_param = dma_alloc_coherent(&pdev->dev,
+					sizeof(struct hardlockup_param_type),
+					&hardlockup_param_paddr, GFP_KERNEL);
 	if (!hardlockup_param) {
-		pr_err("Fail to allocate memory for hardlockup_param\n");
+		dev_err(&pdev->dev,
+			"Fail to allocate memory for hardlockup_param\n");
 		return -ENOMEM;
 	}
 
 	hardlockup_param->last_pc_addr = dbg_snapshot_get_last_pc_paddr();
+	hardlockup_param->spin_func = HARDLOCKUP_DEBUG_SPIN_INSTS;
+	hardlockup_param->spin_pc_addr =
+				(unsigned long)hardlockup_param_paddr +
+				(unsigned long)offsetof(
+				struct hardlockup_param_type, spin_func);
+
 	if (hardlockup_param->last_pc_addr) {
-		hardlockup_param->spin_pc_addr =
-			(unsigned long)virt_to_phys(
-			&hardlockup_debug_spin_func);
 #ifdef SMC_CMD_LOCKUP_NOTICE
-		cache_flush_all();
 		ret = exynos_smc(SMC_CMD_LOCKUP_NOTICE,
 			(unsigned long)hardlockup_debug_bug_func,
 			watchdog_fiq,
-			(unsigned long)(virt_to_phys)(hardlockup_param));
-		pr_info("%s to register all-core lockup detector - ret: %d\n",
-				(ret == 0) ? "success" : "failed", ret);
+			(unsigned long)hardlockup_param_paddr);
+		dev_info(&pdev->dev, "%s to register all-core lockup detector - ret: %d\n"
+				, (ret == 0) ? "success" : "failed", ret);
 #else
 		ret = -EINVAL;
 		goto error;
@@ -280,14 +292,30 @@ static int __init hardlockup_debugger_init(void)
 
 	register_kernel_break_hook(&hardlockup_debug_break_hook);
 
-	pr_info("Initialized hardlockup debug dump successfully.\n");
+	dev_info(&pdev->dev,
+			"Initialized hardlockup debug dump successfully.\n");
 	return 0;
 error:
-	kfree(hardlockup_param);
+	dma_free_coherent(&pdev->dev, sizeof(struct hardlockup_param_type),
+			(void *)hardlockup_param, hardlockup_param_paddr);
 	return ret;
 }
 
-module_init(hardlockup_debugger_init);
+static const struct of_device_id hardlockup_debug_dt_match[] = {
+	{.compatible = "google,hardlockup-debug",
+	 .data = NULL,},
+	{},
+};
+MODULE_DEVICE_TABLE(of, hardlockup_debug_dt_match);
+
+static struct platform_driver hardlockup_debug_driver = {
+	.probe = hardlockup_debugger_probe,
+	.driver = {
+			.name = "hardlockup-debug-driver",
+			.of_match_table = hardlockup_debug_dt_match,
+		},
+};
+module_platform_driver(hardlockup_debug_driver);
 
 MODULE_DESCRIPTION("Module for Debugging Hardlockups via FIQ");
 MODULE_LICENSE("GPL v2");
