@@ -5752,6 +5752,9 @@
   LZ4_loadDict
   LZ4_saveDict
   LZ4_setStreamDecode
+  lzo1x_1_compress
+  lzo1x_decompress_safe
+  lzorle1x_1_compress
   mac_pton
   make_bad_inode
   make_flow_keys_digest
