@@ -761,7 +761,7 @@ static int smfc_init_v4l2(struct device *dev, struct smfc_dev *smfc)
 	}
 
 	/* TODO: promote the magic number 12 in public */
-	ret = video_register_device(smfc->videodev, VFL_TYPE_GRABBER, 12);
+	ret = video_register_device(smfc->videodev, VFL_TYPE_VIDEO, 12);
 	if (ret < 0) {
 		dev_err(dev, "Failed(%d) to register video_device[%d]\n",
 			ret, 12);
