@@ -36,7 +36,7 @@
 #define CPUCL12_CLKDIVSTEP_STAT (0x848)
 #define CLUSTER0_MPMM (0x1408)
 #define CLUSTER0_PPM (0x140c)
-#define MPMMEN_MASK (0xF << 20)
+#define MPMMEN_MASK (0xF << 21)
 #define PPMEN_MASK (0x3 << 8)
 #define PPMCTL_MASK (0xFF)
 
