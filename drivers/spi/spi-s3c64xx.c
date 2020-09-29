@@ -26,7 +26,7 @@
 #include <linux/dma/dma-pl330.h>
 
 #ifdef CONFIG_CPU_IDLE
-#include <soc/samsung/exynos-cpupm.h>
+#include <soc/google/exynos-cpupm.h>
 #endif
 
 static LIST_HEAD(drvdata_list);

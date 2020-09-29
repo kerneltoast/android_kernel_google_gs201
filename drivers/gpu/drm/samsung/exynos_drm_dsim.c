@@ -42,7 +42,7 @@
 #include <video/mipi_display.h>
 
 #if defined(CONFIG_CPU_IDLE)
-#include <soc/samsung/exynos-cpupm.h>
+#include <soc/google/exynos-cpupm.h>
 #endif
 
 #include <dt-bindings/soc/google/gs101-devfreq.h>

@@ -39,9 +39,9 @@
 #include <linux/random.h>
 
 #if IS_ENABLED(CONFIG_CPU_IDLE)
-#include <soc/samsung/exynos-powermode.h>
-#include <soc/samsung/exynos-pm.h>
-#include <soc/samsung/exynos-cpupm.h>
+#include <soc/google/exynos-powermode.h>
+#include <soc/google/exynos-pm.h>
+#include <soc/google/exynos-cpupm.h>
 #endif
 #if IS_ENABLED(CONFIG_PM_DEVFREQ)
 #include <soc/google/exynos_pm_qos.h>

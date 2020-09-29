@@ -2204,7 +2204,7 @@ int dit_create(struct platform_device *pdev)
 	dev_set_drvdata(dev, dc);
 
 #if IS_ENABLED(CONFIG_CPU_IDLE)
-	dc->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev), 1);
+	dc->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 	if (dc->idle_ip_index < 0) {
 		mif_err("%s idle ip registration failed, ret: %d\n",
 			dev_name(&pdev->dev), dc->idle_ip_index);
