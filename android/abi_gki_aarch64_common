@@ -1073,7 +1073,23 @@
   cpuhp_tasks_frozen
   cpu_hwcap_keys
   cpu_hwcaps
+  cpuidle_disable_device
+  cpuidle_enable_device
+  cpuidle_get_cpu_driver
+  cpuidle_get_driver
+  cpuidle_pause_and_lock
+  cpuidle_register
+  cpuidle_register_device
+  cpuidle_register_driver
+  cpuidle_resume_and_unlock
+  cpuidle_unregister
+  cpuidle_unregister_device
+  cpuidle_unregister_driver
   cpu_is_hotpluggable
+  cpu_latency_qos_add_request
+  cpu_latency_qos_remove_request
+  cpu_latency_qos_request_active
+  cpu_latency_qos_update_request
   cpu_logical_map
   cpumask_any_and_distribute
   cpumask_any_but
@@ -3014,6 +3030,7 @@
   dst_init
   dst_release
   dst_release_immediate
+  dt_init_idle_driver
   d_tmpfile
   dummy_irq_chip
   dump_align
