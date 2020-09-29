@@ -20,7 +20,7 @@
  *	unification in a single instruction.
  */
 
-ENTRY(flush_cache_all)
+SYM_FUNC_START(flush_cache_all)
 flush_cache_all:
 	mov	x12, lr
 	dmb	sy			// ensure ordering with previous memory accesses
