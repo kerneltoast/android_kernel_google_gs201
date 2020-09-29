@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * max77826.h - Regulator driver for the Maxim 77826
+ * max77826-gs-regulator.h - Regulator driver for the Maxim 77826
  *
  * Copyright (C) 2018 Google, Inc.
  * Copyright (C) 2013 Samsung Electronics

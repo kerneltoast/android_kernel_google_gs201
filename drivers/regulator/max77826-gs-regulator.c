@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * max77826.c - Regulator driver for the Maxim 77826
+ * max77826-gs-regulator.c - Regulator driver for the Maxim 77826
  *
  * Copyright (C) 2018 Google, Inc.
  * Copyright (C) 2013 Samsung Electronics
@@ -18,7 +18,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/slab.h>
 #include <linux/of_gpio.h>
-#include "max77826.h"
+#include "max77826-gs-regulator.h"
 
 #define MAX_RETRY 3
 
