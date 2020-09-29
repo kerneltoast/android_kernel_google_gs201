@@ -92,6 +92,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
+	clock-frequency = <400000>;
 
 	/* also as max77759 pmic  */
 	max77729_pmic:max77729pmic@0x66 {
