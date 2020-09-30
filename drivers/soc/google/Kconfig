@@ -133,9 +133,12 @@ config GS_SLC_ACPM
 	Support PT ACPM drvier
 
 config SLC_PMON
-	tristate "SLC perf counter"
-	depends on SLC_PARTITION_MANAGER
+	bool "Enable SLC perf counter support"
+	depends on GS_SLC_ACPM
 	default n
+	help
+	Enable SLC perf counter support in PT ACPM driver.
+
 
 source "drivers/soc/google/gsa/Kconfig"
 

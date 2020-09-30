@@ -29,6 +29,8 @@
 #include <linux/timekeeping.h>
 #include <soc/google/acpm_ipc_ctrl.h>
 
+#if IS_ENABLED(CONFIG_SLC_PMON)
+
 #include "slc_pmon.h"
 #include "slc_pmon_internal.h"
 
@@ -472,6 +474,8 @@ void slc_pmon_exit(void)
 	}
 }
 EXPORT_SYMBOL_GPL(slc_pmon_exit);
+
+#endif // IS_ENABLED(CONFIG_SLC_PMON)
 
 MODULE_DESCRIPTION("Perf driver for SLC PMON");
 MODULE_AUTHOR("Vincent Palomares <paillon@google.com>");
