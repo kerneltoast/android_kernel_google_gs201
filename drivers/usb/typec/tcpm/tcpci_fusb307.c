@@ -63,7 +63,6 @@ struct fusb307b_plat {
 	unsigned int vbus_mv;
 	/* USB Data notification */
 	struct extcon_dev *extcon;
-	bool no_bc_12;
 
 	struct logbuffer *log;
 };
@@ -374,8 +373,7 @@ static void enable_data_path(struct fusb307b_plat *chip)
 	int ret;
 
 	mutex_lock(&chip->data_path_lock);
-	if (chip->attached && (chip->no_bc_12 || chip->data_capable) &&
-	    !chip->data_active) {
+	if (chip->attached && chip->data_capable && !chip->data_active) {
 		ret = extcon_set_state_sync(chip->extcon,
 			chip->data_role == TYPEC_HOST ?
 			EXTCON_USB_HOST : EXTCON_USB, 1);
@@ -527,8 +525,6 @@ static int fusb307b_probe(struct i2c_client *client,
 		ret = -EINVAL;
 		goto unreg_psy;
 	}
-
-	chip->no_bc_12 = of_property_read_bool(dn, "no-bc-12");
 
 	chip->usb_psy = power_supply_get_by_name(usb_psy_name);
 	if (IS_ERR_OR_NULL(chip->usb_psy)) {
