@@ -14,6 +14,14 @@ config ZRAM
 
 	  See Documentation/admin-guide/blockdev/zram.rst for more information.
 
+config ZCOMP_CPU
+	tristate "CPU compression"
+	depends on ZRAM
+	default y
+	help
+	  Support CPU compressor. User should configuire it via echo
+	  "lzo" > /sys/block/zramX/comp_algorithm
+
 config ZRAM_WRITEBACK
        bool "Write back incompressible or idle page to backing device"
        depends on ZRAM

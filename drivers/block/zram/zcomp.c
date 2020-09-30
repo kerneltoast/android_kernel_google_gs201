@@ -7,74 +7,136 @@
 #include <linux/string.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/wait.h>
-#include <linux/sched.h>
-#include <linux/cpu.h>
-#include <linux/crypto.h>
+#include <linux/highmem.h>
+#include <linux/bio.h>
 
+#include "zram_drv.h"
 #include "zcomp.h"
 
-static const char * const backends[] = {
-	"lzo",
-	"lzo-rle",
-#if IS_ENABLED(CONFIG_CRYPTO_LZ4)
-	"lz4",
-#endif
-#if IS_ENABLED(CONFIG_CRYPTO_LZ4HC)
-	"lz4hc",
-#endif
-#if IS_ENABLED(CONFIG_CRYPTO_842)
-	"842",
-#endif
-#if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
-	"zstd",
-#endif
+#define ZCOMP_ALGO_NAME_MAX 64
+
+struct zcomp_backend {
+	const char algo_name[ZCOMP_ALGO_NAME_MAX];
+	struct zcomp_operation *op;
 };
 
-static void zcomp_strm_free(struct zcomp_strm *zstrm)
-{
-	if (!IS_ERR_OR_NULL(zstrm->tfm))
-		crypto_free_comp(zstrm->tfm);
-	free_pages((unsigned long)zstrm->buffer, 1);
-	zstrm->tfm = NULL;
-	zstrm->buffer = NULL;
-}
+/* zcomp_backend list registered by zcomp instances */
+static LIST_HEAD(zcomp_list);
+static DECLARE_RWSEM(zcomp_rwsem);
 
-/*
- * Initialize zcomp_strm structure with ->tfm initialized by backend, and
- * ->buffer. Return a negative value on error.
- */
-static int zcomp_strm_init(struct zcomp_strm *zstrm, struct zcomp *comp)
+/* caller should hold a zcomp_rwsem under semaphore */
+struct zcomp *find_zcomp(const char *algo_name)
 {
-	zstrm->tfm = crypto_alloc_comp(comp->name, 0, 0);
-	/*
-	 * allocate 2 pages. 1 for compressed data, plus 1 extra for the
-	 * case when compressed size is larger than the original one
-	 */
-	zstrm->buffer = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
-	if (IS_ERR_OR_NULL(zstrm->tfm) || !zstrm->buffer) {
-		zcomp_strm_free(zstrm);
-		return -ENOMEM;
+	struct zcomp *cursor, *ret = NULL;
+
+	list_for_each_entry(cursor, &zcomp_list, list) {
+		if (!strcmp(cursor->algo_name, algo_name)) {
+			ret = cursor;
+			break;
+		}
 	}
-	return 0;
+
+	return ret;
 }
 
-bool zcomp_available_algorithm(const char *comp)
+int zcomp_register(const char *algo_name, const struct zcomp_operation *op)
 {
-	int i;
+	struct zcomp *zcomp;
+	size_t len;
+	int ret = 0;
 
-	i = sysfs_match_string(backends, comp);
-	if (i >= 0)
-		return true;
+	if (!algo_name || !op)
+		return -EINVAL;
 
-	/*
-	 * Crypto does not ignore a trailing new line symbol,
-	 * so make sure you don't supply a string containing
-	 * one.
-	 * This also means that we permit zcomp initialisation
-	 * with any compressing algorithm known to crypto api.
-	 */
-	return crypto_has_comp(comp, 0, 0) == 1;
+	len = strlen(algo_name);
+	if (len >= ZCOMP_ALGO_NAME_MAX)
+		return -EINVAL;
+
+	zcomp = kzalloc(sizeof(*zcomp), GFP_KERNEL);
+	if (!zcomp) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	strncpy(zcomp->algo_name, algo_name, len);
+	zcomp->algo_name[len] = '\0';
+	zcomp->op = op;
+
+	down_write(&zcomp_rwsem);
+	if (find_zcomp(algo_name)) {
+		up_write(&zcomp_rwsem);
+		kfree(zcomp);
+		ret = -EEXIST;
+		goto out;
+	}
+
+	list_add(&zcomp->list, &zcomp_list);
+	up_write(&zcomp_rwsem);
+out:
+	return ret;
+}
+EXPORT_SYMBOL(zcomp_register);
+
+int zcomp_unregister(const char *algo_name)
+{
+	int ret = -EINVAL;
+	struct zcomp *cursor;
+
+	down_write(&zcomp_rwsem);
+	list_for_each_entry(cursor, &zcomp_list, list) {
+		if (strcmp(cursor->algo_name, algo_name))
+			continue;
+
+		list_del(&cursor->list);
+		kfree(cursor);
+		ret = 0;
+		break;
+	}
+	up_write(&zcomp_rwsem);
+
+	return ret;
+
+}
+EXPORT_SYMBOL(zcomp_unregister);
+
+static void zcomp_fill_page(void *ptr, unsigned long len,
+					unsigned long value)
+{
+	WARN_ON_ONCE(!IS_ALIGNED(len, sizeof(unsigned long)));
+	memset_l(ptr, value, len / sizeof(unsigned long));
+}
+
+static bool zcomp_page_same_pattern(struct page *page, unsigned long *element)
+{
+	unsigned int pos;
+	unsigned long *mem;
+	unsigned long val;
+	bool ret = true;
+
+	mem = kmap_atomic(page);
+	val = mem[0];
+	for (pos = 1; pos < PAGE_SIZE / sizeof(*mem); pos++) {
+		if (val != mem[pos]) {
+			ret = false;
+			goto out;
+		}
+	}
+
+	*element = val;
+out:
+	kunmap_atomic(mem);
+	return ret;
+}
+
+bool zcomp_available_algorithm(const char *algo_name)
+{
+	bool found;
+
+	down_read(&zcomp_rwsem);
+	found = find_zcomp(algo_name);
+	up_read(&zcomp_rwsem);
+
+	return found;
 }
 
 /* show available compressors */
@@ -82,124 +144,87 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 {
 	bool known_algorithm = false;
 	ssize_t sz = 0;
-	int i;
+	struct zcomp *zcomp;
 
-	for (i = 0; i < ARRAY_SIZE(backends); i++) {
-		if (!strcmp(comp, backends[i])) {
+	down_read(&zcomp_rwsem);
+	list_for_each_entry(zcomp, &zcomp_list, list) {
+		if (!strcmp(comp, zcomp->algo_name)) {
 			known_algorithm = true;
 			sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
-					"[%s] ", backends[i]);
+					"[%s] ", zcomp->algo_name);
 		} else {
 			sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
-					"%s ", backends[i]);
+					"%s ", zcomp->algo_name);
 		}
 	}
+	sz += scnprintf(buf + sz, PAGE_SIZE - sz - 1, "%c", '\n');
+	up_read(&zcomp_rwsem);
 
 	/*
-	 * Out-of-tree module known to crypto api or a missing
-	 * entry in `backends'.
+	 * XXX: handle Out-of-tree module known to crypto api or a
+	 * mssing entry in backends'.
 	 */
-	if (!known_algorithm && crypto_has_comp(comp, 0, 0) == 1)
-		sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
-				"[%s] ", comp);
-
-	sz += scnprintf(buf + sz, PAGE_SIZE - sz, "\n");
 	return sz;
 }
 
-struct zcomp_strm *zcomp_stream_get(struct zcomp *comp)
+int zcomp_compress(struct zcomp *comp, u32 index, struct page *page,
+			struct bio *bio)
 {
-	local_lock(&comp->stream->lock);
-	return this_cpu_ptr(comp->stream);
+	unsigned long element;
+
+	struct zcomp_cookie cookie;
+
+	cookie.zram = comp->zram;
+	cookie.index = index;
+	cookie.page = page;
+	cookie.bio = bio;
+
+	if (zcomp_page_same_pattern(page, &element)) {
+		zram_slot_update(comp->zram, index, element, 0);
+		return 0;
+	}
+
+	return comp->op->compress(comp, page, &cookie);
 }
 
-void zcomp_stream_put(struct zcomp *comp)
+int zcomp_decompress(struct zcomp *comp, u32 index, struct page *page)
 {
-	local_unlock(&comp->stream->lock);
-}
+	int ret = 0;
+	void *dst, *src;
+	unsigned int src_len;
+	unsigned long handle;
+	struct zram *zram = comp->zram;
 
-int zcomp_compress(struct zcomp_strm *zstrm,
-		const void *src, unsigned int *dst_len)
-{
-	/*
-	 * Our dst memory (zstrm->buffer) is always `2 * PAGE_SIZE' sized
-	 * because sometimes we can endup having a bigger compressed data
-	 * due to various reasons: for example compression algorithms tend
-	 * to add some padding to the compressed buffer. Speaking of padding,
-	 * comp algorithm `842' pads the compressed length to multiple of 8
-	 * and returns -ENOSP when the dst memory is not big enough, which
-	 * is not something that ZRAM wants to see. We can handle the
-	 * `compressed_size > PAGE_SIZE' case easily in ZRAM, but when we
-	 * receive -ERRNO from the compressing backend we can't help it
-	 * anymore. To make `842' happy we need to tell the exact size of
-	 * the dst buffer, zram_drv will take care of the fact that
-	 * compressed buffer is too big.
-	 */
-	*dst_len = PAGE_SIZE * 2;
+	handle = zram_get_handle(zram, index);
+	if (!handle || zram_test_flag(zram, index, ZRAM_SAME)) {
+		unsigned long val = handle ? zram_get_element(zram, index) : 0;
 
-	return crypto_comp_compress(zstrm->tfm,
-			src, PAGE_SIZE,
-			zstrm->buffer, dst_len);
-}
+		dst = kmap_atomic(page);
+		zcomp_fill_page(dst, PAGE_SIZE, val);
+		kunmap_atomic(dst);
+		goto out;
+	}
 
-int zcomp_decompress(struct zcomp_strm *zstrm,
-		const void *src, unsigned int src_len, void *dst)
-{
-	unsigned int dst_len = PAGE_SIZE;
+	src_len = zram_get_obj_size(zram, index);
+	if (src_len == PAGE_SIZE) {
+		src = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
+		dst = kmap_atomic(page);
+		memcpy(dst, src, PAGE_SIZE);
+		kunmap_atomic(dst);
+		zs_unmap_object(zram->mem_pool, handle);
+		goto out;
+	}
 
-	return crypto_comp_decompress(zstrm->tfm,
-			src, src_len,
-			dst, &dst_len);
-}
-
-int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
-{
-	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
-	struct zcomp_strm *zstrm;
-	int ret;
-
-	zstrm = per_cpu_ptr(comp->stream, cpu);
-	local_lock_init(&zstrm->lock);
-
-	ret = zcomp_strm_init(zstrm, comp);
-	if (ret)
-		pr_err("Can't allocate a compression stream\n");
-	return ret;
-}
-
-int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node)
-{
-	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
-	struct zcomp_strm *zstrm;
-
-	zstrm = per_cpu_ptr(comp->stream, cpu);
-	zcomp_strm_free(zstrm);
-	return 0;
-}
-
-static int zcomp_init(struct zcomp *comp)
-{
-	int ret;
-
-	comp->stream = alloc_percpu(struct zcomp_strm);
-	if (!comp->stream)
-		return -ENOMEM;
-
-	ret = cpuhp_state_add_instance(CPUHP_ZCOMP_PREPARE, &comp->node);
-	if (ret < 0)
-		goto cleanup;
-	return 0;
-
-cleanup:
-	free_percpu(comp->stream);
+	src = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
+	ret = comp->op->decompress(comp, src, src_len, page);
+	zs_unmap_object(zram->mem_pool, handle);
+out:
 	return ret;
 }
 
 void zcomp_destroy(struct zcomp *comp)
 {
-	cpuhp_state_remove_instance(CPUHP_ZCOMP_PREPARE, &comp->node);
-	free_percpu(comp->stream);
-	kfree(comp);
+	comp->op->destroy(comp);
 }
 
 /*
@@ -208,25 +233,80 @@ void zcomp_destroy(struct zcomp *comp)
  * backend pointer or ERR_PTR if things went bad. ERR_PTR(-EINVAL)
  * if requested algorithm is not supported, ERR_PTR(-ENOMEM) in
  * case of allocation error, or any other error potentially
- * returned by zcomp_init().
+ * returned by zcomp_create().
  */
-struct zcomp *zcomp_create(const char *compress)
+struct zcomp *zcomp_create(const char *algo_name, struct zram *zram)
 {
 	struct zcomp *comp;
 	int error;
 
-	if (!zcomp_available_algorithm(compress))
+	down_read(&zcomp_rwsem);
+	comp = find_zcomp(algo_name);
+	if (!comp) {
+		up_read(&zcomp_rwsem);
 		return ERR_PTR(-EINVAL);
+	}
 
-	comp = kzalloc(sizeof(struct zcomp), GFP_KERNEL);
-	if (!comp)
-		return ERR_PTR(-ENOMEM);
-
-	comp->name = compress;
-	error = zcomp_init(comp);
+	error = comp->op->create(comp, algo_name);
 	if (error) {
-		kfree(comp);
+		up_read(&zcomp_rwsem);
 		return ERR_PTR(error);
 	}
+
+	comp->zram = zram;
+	up_read(&zcomp_rwsem);
+
 	return comp;
 }
+
+/*
+ * Once zcomp instance finishes the compression, it need to copy the compressed
+ * buffer to zram's memory space.
+ *
+ * @err: the error from zcomp instance
+ * @buffer: memory address compressed objecd is stored
+ * @comp_len: compressed object size
+ * @cookie: the one we got when comopress function is called
+ */
+int zcomp_copy_buffer(int err, void *buffer, int comp_len, struct zcomp_cookie *cookie)
+{
+	void *dst_addr;
+	unsigned long handle;
+	struct zram *zram = cookie->zram;
+	struct page *page = cookie->page;
+	u32 index = cookie->index;
+
+	if (err)
+		goto out;
+	/*
+	 * Pages that compress to sizes equals or greater than this are stored
+	 * uncompressed in memory to make decompress fast.
+	 */
+	if (comp_len >= zs_huge_class_size(zram->mem_pool))
+		comp_len = PAGE_SIZE;
+
+	handle = zs_malloc(zram->mem_pool, comp_len,
+			__GFP_KSWAPD_RECLAIM |
+			__GFP_NOWARN |
+			__GFP_HIGHMEM |
+			__GFP_MOVABLE);
+	if (!handle) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	dst_addr = zs_map_object(zram->mem_pool, handle, ZS_MM_WO);
+	if (comp_len == PAGE_SIZE) {
+		void *src = kmap_atomic(page);
+
+		memcpy(dst_addr, src, comp_len);
+		kunmap_atomic(src);
+	} else {
+		memcpy(dst_addr, buffer, comp_len);
+	}
+	zs_unmap_object(zram->mem_pool, handle);
+	zram_slot_update(zram, index, handle, comp_len);
+out:
+	return err;
+}
+EXPORT_SYMBOL(zcomp_copy_buffer);
