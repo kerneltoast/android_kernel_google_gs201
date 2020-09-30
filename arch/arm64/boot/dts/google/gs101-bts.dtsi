@@ -526,6 +526,16 @@
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
+			camera_default {
+				stat_on = <1>;
+				bypass = <0>;
+				arqos = <0x4>;
+				awqos = <0x4>;
+				rmo = <0x32>;
+				wmo = <0x9>;
+				qurgent_on = <0>;
+				blocking_on = <0>;
+			};
 		};
 		bts_tnr1 {
 			reg = <0x0 0x1F4C0000 0x100>;
@@ -538,6 +548,16 @@
 				awqos = <0x4>;
 				rmo = <0x6>;
 				wmo = <0x6>;
+				qurgent_on = <0>;
+				blocking_on = <0>;
+			};
+			camera_default {
+				stat_on = <1>;
+				bypass = <0>;
+				arqos = <0x4>;
+				awqos = <0x4>;
+				rmo = <0x32>;
+				wmo = <0x9>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -556,6 +576,16 @@
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
+			camera_default {
+				stat_on = <1>;
+				bypass = <0>;
+				arqos = <0x4>;
+				awqos = <0x4>;
+				rmo = <0x10>;
+				wmo = <0x1>;
+				qurgent_on = <0>;
+				blocking_on = <0>;
+			};
 		};
 		bts_tnr3 {
 			reg = <0x0 0x1F4E0000 0x100>;
@@ -571,6 +601,16 @@
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
+			camera_default {
+				stat_on = <1>;
+				bypass = <0>;
+				arqos = <0x4>;
+				awqos = <0x4>;
+				rmo = <0x10>;
+				wmo = <0x1>;
+				qurgent_on = <0>;
+				blocking_on = <0>;
+			};
 		};
 		bts_tnr4 {
 			reg = <0x0 0x1F4F0000 0x100>;
@@ -583,6 +623,16 @@
 				awqos = <0x4>;
 				rmo = <0x6>;
 				wmo = <0x6>;
+				qurgent_on = <0>;
+				blocking_on = <0>;
+			};
+			camera_default {
+				stat_on = <1>;
+				bypass = <0>;
+				arqos = <0x4>;
+				awqos = <0x4>;
+				rmo = <0x18>;
+				wmo = <0x7>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
