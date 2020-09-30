@@ -14,23 +14,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
-#include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/usb/tcpm.h>
-
-#include <../../../power/supply/google/logbuffer.h>
-
-#include "tcpci_chip.h"
 #include "tcpci.h"
-#include "usb_icl_voter.h"
-#include "usb_psy.h"
-#include "../../../../drivers/power/supply/google/gvotable.h"
-
-#define VBUS_VOLTAGE_MASK		0x3ff
-#define VBUS_VOLTAGE_LSB_MV		25
-#define VBUS_HI_HEADROOM_MV		500
-#define VBUS_LO_MV			4500
 
 struct fusb307b_plat {
 	struct tcpci_data data;
@@ -38,30 +25,18 @@ struct fusb307b_plat {
 	struct device *dev;
 	struct  regulator *vbus;
 	bool vbus_enabled;
-	/** Data role notified to the data stack **/
-	enum typec_data_role active_data_role;
-	/** Data role from the TCPM stack **/
-	enum typec_data_role data_role;
-	/** protects tcpc_enable_data_path **/
-	struct mutex data_path_lock;
-	/** Vote for data from BC1.2 **/
-	bool data_capable;
-	/** Vote from TCPC for attached **/
-	bool attached;
-	/** Reflects the signal sent out to the data stack **/
 	bool data_active;
-	/** Reflects whether the current partner can do PD **/
-	bool pd_capable;
-	void *usb_psy_data;
-	struct power_supply *usb_psy;
-	struct gvotable_election *usb_icl_proto_el;
-	struct mutex icl_proto_el_lock;
-	/** Set vbus voltage alarms **/
-	bool set_voltage_alarm;
-	unsigned int vbus_mv;
-
-	struct logbuffer *log;
+	enum typec_data_role active_data_role;
 };
+
+static int fusb307b_read16(struct fusb307b_plat *chip, unsigned int reg,
+			   u16 *val) __attribute__((used));
+static int fusb307b_write16(struct fusb307b_plat *chip, unsigned int reg,
+			    u16 val) __attribute__((used));
+static int fusb307b_read8(struct fusb307b_plat *chip, unsigned int reg,
+			  u8 *val) __attribute__((used));
+static int fusb307b_write8(struct fusb307b_plat *chip, unsigned int reg,
+			   u8 val) __attribute__((used));
 
 static int fusb307b_read16(struct fusb307b_plat *chip, unsigned int reg,
 			   u16 *val)
@@ -85,38 +60,6 @@ static int fusb307b_write8(struct fusb307b_plat *chip, unsigned int reg,
 			   u8 val)
 {
 	return regmap_raw_write(chip->data.regmap, reg, &val, sizeof(u8));
-}
-
-#define FUSB307B_UPDATE_BITS(width, chip, reg, mask, val)		\
-{									\
-	u##width status;						\
-	int ret;							\
-									\
-	ret = fusb307b_read##width(chip, reg, &status);			\
-	if (ret < 0)							\
-		return ret;						\
-									\
-	return fusb307b_write##width(chip, reg, (status & ~mask) |	\
-				      val);				\
-}
-
-int fusb307b_update_bits16(struct fusb307b_plat *chip, unsigned int reg,
-			   u16 mask, u16 val)
-{
-	FUSB307B_UPDATE_BITS(16, chip, reg, mask, val);
-}
-EXPORT_SYMBOL_GPL(fusb307b_update_bits16);
-
-int fusb307b_update_bits8(struct fusb307b_plat *chip, unsigned int reg,
-			  u8 mask, u8 val)
-{
-	FUSB307B_UPDATE_BITS(8, chip, reg, mask, val);
-}
-EXPORT_SYMBOL_GPL(fusb307b_update_bits8);
-
-static struct fusb307b_plat *tdata_to_fusb307b(struct tcpci_data *tdata)
-{
-	return container_of(tdata, struct fusb307b_plat, data);
 }
 
 static const struct regmap_config fusb307b_regmap_config = {
@@ -215,180 +158,16 @@ static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 	return 0;
 }
 
-int tcpc_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
-{
-	u16 raw;
-	struct fusb307b_plat *chip = i2c_get_clientdata(tcpc_client);
-	int ret;
-
-	if (!chip->set_voltage_alarm)
-		return chip->vbus_mv;
-
-	ret = fusb307b_read16(chip, TCPC_VBUS_VOLTAGE_ALARM_HI_CFG, &raw);
-	if (ret < 0)
-		return chip->vbus_mv;
-
-	return raw * TCPC_VBUS_VOLTAGE_ALARM_HI_CFG - VBUS_HI_HEADROOM_MV;
-}
-EXPORT_SYMBOL_GPL(tcpc_get_vbus_voltage_max_mv);
-
-int tcpc_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
-				     unsigned int mv)
-{
-	struct fusb307b_plat *chip = i2c_get_clientdata(tcpc_client);
-
-	chip->vbus_mv = mv;
-
-	if (!chip->set_voltage_alarm)
-		return 0;
-
-	/* Set voltage alarm */
-	fusb307b_update_bits16(chip, TCPC_VBUS_VOLTAGE_ALARM_HI_CFG,
-			       TCPC_VBUS_VOLTAGE_MASK,
-			       (mv + VBUS_HI_HEADROOM_MV) /
-			       TCPC_VBUS_VOLTAGE_LSB_MV);
-	fusb307b_update_bits16(chip, TCPC_VBUS_VOLTAGE_ALARM_LO_CFG,
-			       TCPC_VBUS_VOLTAGE_MASK,
-			       VBUS_LO_MV / TCPC_VBUS_VOLTAGE_LSB_MV);
-	fusb307b_update_bits8(chip, TCPC_POWER_CTRL, TCPC_DIS_VOLT_ALRM,
-			      (u8)~TCPC_DIS_VOLT_ALRM);
-	fusb307b_update_bits16(chip, TCPC_ALERT_MASK, TCPC_ALERT_V_ALARM_LO |
-			       TCPC_ALERT_V_ALARM_HI, TCPC_ALERT_V_ALARM_LO |
-			       TCPC_ALERT_V_ALARM_HI);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tcpc_set_vbus_voltage_max_mv);
-
-int tcpc_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
-{
-	u16 raw;
-	struct fusb307b_plat *chip = i2c_get_clientdata(tcpc_client);
-	int ret;
-
-	/* TCPC_POWER_CTRL_VBUS_VOLT_MON enabled in init_regs */
-	ret = fusb307b_read16(chip, TCPC_VBUS_VOLTAGE, &raw);
-	if (ret < 0)
-		return ret;
-
-	return (raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV;
-}
-EXPORT_SYMBOL_GPL(tcpc_get_vbus_voltage_mv);
-
-static int fusb307b_get_current_limit(struct tcpci *tcpci,
-				      struct tcpci_data *tdata)
-{
-	struct fusb307b_plat *chip = tdata_to_fusb307b(tdata);
-	void *vote;
-	int ret;
-
-	ret = gvotable_get_vote(chip->usb_icl_proto_el,
-				proto_voter_reason[USB_ICL_PD], &vote);
-	if (ret < 0)
-		logbuffer_log(chip->log, "icl_proto_el get vote failed:%d", ret)
-			;
-	else
-		ret = ((struct usb_vote *)(vote))->val;
-
-	return ret;
-}
-
-static void fusb307b_set_pd_capable(struct tcpci *tcpci, struct tcpci_data
-				    *data, bool capable)
-{
-	struct fusb307b_plat *chip = tdata_to_fusb307b(data);
-
-	chip->pd_capable = capable;
-}
-
-static int fusb307b_vote_icl(struct tcpci *tcpci, struct tcpci_data *tdata,
-			     u32 max_ma)
-{
-	struct fusb307b_plat *chip = tdata_to_fusb307b(tdata);
-	int ret = 0;
-	struct usb_vote vote;
-
-	/*
-	 * TCPM sets max_ma to zero for Rp-default which needs to be
-	 * ignored.
-	 */
-	mutex_lock(&chip->icl_proto_el_lock);
-	if (!chip->pd_capable && max_ma == 0 && chip->attached)
-		goto exit;
-
-	init_vote(&vote, proto_voter_reason[USB_ICL_PD], USB_ICL_PD, max_ma
-		  * 1000);
-	ret = gvotable_cast_vote(chip->usb_icl_proto_el,
-				 proto_voter_reason[USB_ICL_PD], &vote,
-				 chip->attached);
-
-	logbuffer_log(chip->log,
-		      "%s: %s:%d voting enabled:%s usb proto_el: %d by %s",
-		      __func__, ret < 0 ? "error" : "success", ret,
-		      chip->attached ? "enabled" : "disabled", vote.val,
-		      proto_voter_reason[USB_ICL_PD]);
-
-exit:
-	mutex_unlock(&chip->icl_proto_el_lock);
-	return ret;
-}
-
-static int fusb307b_set_current_limit(struct tcpci *tcpci,
-				      struct tcpci_data *tdata,
-				      u32 max_ma, u32 mv)
-{
-	struct fusb307b_plat *chip = tdata_to_fusb307b(tdata);
-	union power_supply_propval val = {0};
-	int ret;
-
-	/** Setprop in uv **/
-	val.intval = mv * 1000;
-	ret = power_supply_set_property(chip->usb_psy,
-					POWER_SUPPLY_PROP_VOLTAGE_MAX,
-					&val);
-	if (ret < 0) {
-		logbuffer_log(chip->log,
-			      "unable to set max voltage to %d, ret=%d",
-				mv, ret);
-		return ret;
-	}
-
-	logbuffer_log(chip->log, "mv=%d", mv);
-	fusb307b_vote_icl(tcpci, tdata, max_ma);
-
-	return ret;
-}
-
-static void enable_data_path(struct fusb307b_plat *chip)
-{
-	mutex_lock(&chip->data_path_lock);
-	if (chip->attached && chip->data_capable) {
-		USBPD_SEND_DNOTI(IFCONN_NOTIFY_MUIC, ATTACH,
-				 IFCONN_NOTIFY_EVENT_ATTACH, NULL);
-
-		if (chip->data_role == TYPEC_DEVICE) {
-			USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
-					 IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP,
-					 NULL);
-		} else if (chip->data_role == TYPEC_HOST) {
-			USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
-					 IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP,
-					 NULL);
-		}
-		chip->data_active = true;
-		chip->active_data_role = chip->data_role;
-	}
-	mutex_unlock(&chip->data_path_lock);
-}
-
-/* Notifier structure inferred from usbpd-manager.c */
+// Notifier structure inferred from usbpd-manager.c
 static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 			     bool attached, enum typec_role role,
 			     enum typec_data_role data_role)
 {
 	struct fusb307b_plat *chip = tdata_to_fusb307(data);
+	int ret = 0;
 
-	if (chip->data_active && ((chip->active_data_role != data_role) ||
-				  !attached)) {
+	if ((chip->data_active && chip->active_data_role != data_role) ||
+		!attached) {
 		USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
 				 IFCONN_NOTIFY_EVENT_DETACH, NULL);
 		USBPD_SEND_DNOTI(IFCONN_NOTIFY_MUIC, ATTACH,
@@ -396,46 +175,34 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		chip->data_active = false;
 	}
 
-	/* Data stack needs a clean up to fix this. */
+	// Data stack needs a clean up to fix this.
 	msleep(300);
 
-	chip->attached = attached;
-	chip->data_role = data_role;
-	enable_data_path(chip);
-	if (!chip->attached)
-		fusb307b_vote_icl(tcpci, data, 0);
+	if (attached) {
+		USBPD_SEND_DNOTI(IFCONN_NOTIFY_MUIC, ATTACH,
+				 IFCONN_NOTIFY_EVENT_ATTACH, NULL);
 
-	return 0;
-}
-
-void tcpc_set_port_data_capable(struct i2c_client *tcpc_client,
-				enum power_supply_usb_type usb_type)
-{
-	struct fusb307b_plat *chip = i2c_get_clientdata(tcpc_client);
-
-	switch (usb_type) {
-	case POWER_SUPPLY_USB_TYPE_SDP:
-	case POWER_SUPPLY_USB_TYPE_CDP:
-	/* Being conservative, enable data path for UNKNOWN as well */
-	case POWER_SUPPLY_USB_TYPE_UNKNOWN:
-		chip->data_capable = true;
-		enable_data_path(chip);
-		break;
-	default:
-		chip->data_capable = false;
-		break;
+		if (data_role == TYPEC_DEVICE) {
+			USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
+					 IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP,
+					 NULL);
+		} else if (data_role == TYPEC_HOST) {
+			USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
+					 IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP,
+					 NULL);
+		}
+		chip->data_active = true;
+		chip->active_data_role = data_role;
 	}
+
+	return ret;
 }
-EXPORT_SYMBOL_GPL(tcpc_set_port_data_capable);
 
 static int fusb307b_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
 	int ret;
 	struct fusb307b_plat *chip;
-	struct device_node *dn;
-	char *usb_psy_name;
-
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -465,88 +232,24 @@ static int fusb307b_probe(struct i2c_client *client,
 		return PTR_ERR(chip->vbus);
 	}
 
-	chip->log = debugfs_logbuffer_register("usbpd");
-	if (IS_ERR_OR_NULL(chip->log)) {
-		dev_err(&client->dev, "logbuffer get failed");
-		return PTR_ERR(chip->log);
-	}
-
-	mutex_init(&chip->data_path_lock);
-	mutex_init(&chip->icl_proto_el_lock);
-
-	chip->usb_psy_data = usb_psy_setup(client, chip->log);
-	if (IS_ERR_OR_NULL(chip->usb_psy_data)) {
-		dev_err(&client->dev, "USB psy failed to initialize");
-		ret = PTR_ERR(chip->usb_psy_data);
-		goto unreg_log;
-	}
-
 	chip->data.set_vbus = fusb307_set_vbus;
 	chip->data.set_roles = fusb307_set_roles;
-	chip->data.get_current_limit = fusb307b_get_current_limit;
-	chip->data.set_current_limit = fusb307b_set_current_limit;
-	chip->data.set_pd_capable = fusb307b_set_pd_capable;
-
-	chip->usb_icl_proto_el = gvotable_election_get_handle(USB_ICL_PROTO_EL);
-	if (IS_ERR_OR_NULL(chip->usb_icl_proto_el)) {
-		dev_err(&client->dev, "TCPCI: USB ICL PROTO EL get failed:%d",
-			PTR_ERR(chip->usb_icl_proto_el));
-		ret = -ENODEV;
-		goto unreg_port;
-	}
-
-	dn = dev_of_node(&client->dev);
-	if (!dn) {
-		dev_err(&client->dev, "of node not found\n");
-		ret = -EINVAL;
-		goto unreg_psy;
-	}
-
-	usb_psy_name = (char *)of_get_property(dn, "usb-psy-name", NULL);
-	if (!usb_psy_name) {
-		dev_err(&client->dev, "usb-psy-name not set\n");
-		ret = -EINVAL;
-		goto unreg_psy;
-	}
-
-	chip->usb_psy = power_supply_get_by_name(usb_psy_name);
-	if (IS_ERR_OR_NULL(chip->usb_psy)) {
-		dev_err(&client->dev, "usb psy not up\n");
-		ret = -EPROBE_DEFER;
-		goto unreg_psy;
-	}
 
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
 	if (IS_ERR_OR_NULL(chip->tcpci)) {
 		dev_err(&client->dev, "TCPCI register failed: %d\n",
 			PTR_ERR(chip->tcpci));
-		ret = PTR_ERR(chip->tcpci);
-		goto psy_put;
+		return PTR_ERR(chip->tcpci);
 	}
 
 	return 0;
-
-psy_put:
-	power_supply_put(chip->usb_psy);
-unreg_psy:
-	usb_psy_teardown(chip->usb_psy_data);
-unreg_port:
-	tcpci_unregister_port(chip->tcpci);
-unreg_log:
-	debugfs_logbuffer_unregister(chip->log);
-
-	return ret;
 }
 
 static int fusb307b_remove(struct i2c_client *client)
 {
 	struct fusb307b_plat *chip = i2c_get_clientdata(client);
 
-	debugfs_logbuffer_unregister(chip->log);
 	tcpci_unregister_port(chip->tcpci);
-	power_supply_put(chip->usb_psy);
-	usb_psy_teardown(chip->usb_psy_data);
-
 	return 0;
 }
 
