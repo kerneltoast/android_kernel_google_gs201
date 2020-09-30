@@ -27,24 +27,30 @@
 #define mfc_get_upper(x)	(((unsigned long)(x) >> 32) & 0xffffffff)
 #define mfc_get_lower(x)	((x) & 0xffffffff)
 
-static inline void mfc_clean_dev_int_flags(struct mfc_dev *dev)
+static inline void mfc_core_clean_dev_int_flags(struct mfc_core *core)
 {
-	dev->int_condition = 0;
-	dev->int_reason = 0;
-	dev->int_err = 0;
+	core->int_condition = 0;
+	core->int_reason = 0;
+	core->int_err = 0;
 }
 
-static inline void mfc_clean_ctx_int_flags(struct mfc_ctx *ctx)
+static inline void mfc_clean_core_ctx_int_flags(struct mfc_core_ctx *core_ctx)
 {
-	ctx->int_condition = 0;
-	ctx->int_reason = 0;
-	ctx->int_err = 0;
+	core_ctx->int_condition = 0;
+	core_ctx->int_reason = 0;
+	core_ctx->int_err = 0;
 }
 
-static inline void mfc_change_state(struct mfc_ctx *ctx, enum mfc_inst_state state)
+static inline void mfc_change_state(struct mfc_core_ctx *core_ctx, enum mfc_inst_state state)
 {
-	MFC_TRACE_CTX("** state : %d\n", state);
-	ctx->state = state;
+	MFC_TRACE_CORE_CTX("** state : %d\n", state);
+	core_ctx->state = state;
+}
+
+static inline void mfc_change_op_mode(struct mfc_ctx *ctx, enum mfc_op_mode op_mode)
+{
+	MFC_TRACE_CTX("** op_mode : %d\n", op_mode);
+	ctx->op_mode = op_mode;
 }
 
 static inline enum mfc_node_type mfc_get_node_type(struct file *file)
@@ -54,7 +60,7 @@ static inline enum mfc_node_type mfc_get_node_type(struct file *file)
 	enum mfc_node_type node_type;
 
 	if (!vdev) {
-		mfc_err("failed to get video_device\n");
+		mfc_pr_err("mfc failed to get video_device\n");
 		return MFCNODE_INVALID;
 	}
 	dev = video_drvdata(file);
@@ -135,8 +141,7 @@ int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb);
 void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt);
 void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx);
 void mfc_enc_calc_src_size(struct mfc_ctx *ctx);
-void mfc_calc_base_addr(struct mfc_ctx *ctx, struct vb2_buffer *vb,
-					struct mfc_fmt *fmt);
+void mfc_calc_base_addr(struct mfc_ctx *ctx, struct vb2_buffer *vb, struct mfc_fmt *fmt);
 
 static inline int mfc_dec_status_decoding(unsigned int dst_frame_status)
 {
@@ -155,36 +160,45 @@ static inline int mfc_dec_status_display(unsigned int dst_frame_status)
 	return 0;
 }
 
-/* Watchdog interval */
-#define WATCHDOG_TICK_INTERVAL   1000
-/* After how many executions watchdog should assume lock up */
-#define WATCHDOG_TICK_CNT_TO_START_WATCHDOG        5
+/* AV1 bit shift */
+static const unsigned char av1_bitmask_shift[16] = {
+	0, 8, 16, 24,
+	0, 8, 16, 24,
+	0, 8, 16, 24,
+	0, 8, 16, 24,
+};
 
-void mfc_watchdog_tick(struct timer_list *t);
-void mfc_watchdog_start_tick(struct mfc_dev *dev);
-void mfc_watchdog_stop_tick(struct mfc_dev *dev);
-void mfc_watchdog_reset_tick(struct mfc_dev *dev);
+/* Meerkat interval */
+#define MEERKAT_TICK_INTERVAL   1000
+/* After how many executions meerkat should assume lock up */
+#define MEERKAT_TICK_CNT_TO_START_MEERKAT        5
+
+void mfc_core_meerkat_tick(struct timer_list *t);
+void mfc_core_meerkat_start_tick(struct mfc_core *core);
+void mfc_core_meerkat_stop_tick(struct mfc_core *core);
+void mfc_core_meerkat_reset_tick(struct mfc_core *core);
 
 /* MFC idle checker interval */
 #define MFCIDLE_TICK_INTERVAL	1500
 
-void mfc_idle_checker(struct timer_list *t);
-static inline void mfc_idle_checker_start_tick(struct mfc_dev *dev)
+void mfc_core_idle_checker(struct timer_list *t);
+
+static inline void mfc_core_idle_checker_start_tick(struct mfc_core *core)
 {
-	mod_timer(&dev->mfc_idle_timer, jiffies +
-			msecs_to_jiffies(MFCIDLE_TICK_INTERVAL));
-	atomic_set(&dev->hw_run_cnt, 0);
-	atomic_set(&dev->queued_cnt, 0);
+	mod_timer(&core->mfc_idle_timer, jiffies +
+		msecs_to_jiffies(MFCIDLE_TICK_INTERVAL));
+	atomic_set(&core->hw_run_cnt, 0);
+	atomic_set(&core->dev->queued_cnt, 0);
 }
 
-static inline void mfc_change_idle_mode(struct mfc_dev *dev,
+static inline void mfc_core_change_idle_mode(struct mfc_core *core,
 			enum mfc_idle_mode idle_mode)
 {
-	MFC_TRACE_DEV("** idle mode : %d\n", idle_mode);
-	dev->idle_mode = idle_mode;
+	MFC_TRACE_CORE("** idle mode : %d\n", idle_mode);
+	core->idle_mode = idle_mode;
 
-	if (dev->idle_mode == MFC_IDLE_MODE_NONE)
-		mfc_idle_checker_start_tick(dev);
+	if (core->idle_mode == MFC_IDLE_MODE_NONE)
+		mfc_core_idle_checker_start_tick(core);
 }
 
 #endif /* __MFC_UTILS_H */

@@ -34,6 +34,36 @@ void mfc_add_tail_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
+struct mfc_buf *mfc_get_buf_no_used(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
+		enum mfc_queue_used_type used)
+{
+	unsigned long flags;
+	struct mfc_buf *mfc_buf = NULL;
+
+	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
+
+	if (list_empty(&queue->head)) {
+		mfc_debug(2, "queue is empty\n");
+		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+		return NULL;
+	}
+
+	list_for_each_entry(mfc_buf, &queue->head, list) {
+		if (mfc_buf->used)
+			continue;
+
+		if ((used == MFC_BUF_RESET_USED) || (used == MFC_BUF_SET_USED))
+			mfc_buf->used = used;
+
+		mfc_debug(2, "addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
+		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+		return mfc_buf;
+	}
+
+	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+	return NULL;
+}
+
 struct mfc_buf *mfc_get_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
 		enum mfc_queue_used_type used)
 {
@@ -59,8 +89,8 @@ struct mfc_buf *mfc_get_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
 	return mfc_buf;
 }
 
-struct mfc_buf *mfc_get_del_buf(struct mfc_ctx *ctx,
-		struct mfc_buf_queue *queue, enum mfc_queue_used_type used)
+struct mfc_buf *mfc_get_del_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
+		enum mfc_queue_used_type used)
 {
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
@@ -139,10 +169,8 @@ struct mfc_buf *mfc_get_del_if_consumed(struct mfc_ctx *ctx, struct mfc_buf_queu
 	return mfc_buf;
 }
 
-struct mfc_buf *mfc_get_move_buf(struct mfc_ctx *ctx,
-		struct mfc_buf_queue *to_queue,
-		struct mfc_buf_queue *from_queue,
-		enum mfc_queue_used_type used,
+struct mfc_buf *mfc_get_move_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *to_queue,
+		struct mfc_buf_queue *from_queue, enum mfc_queue_used_type used,
 		enum mfc_queue_top_type top)
 {
 	unsigned long flags;
@@ -234,8 +262,7 @@ struct mfc_buf *mfc_get_move_buf_addr(struct mfc_ctx *ctx,
 				return NULL;
 			}
 
-			mfc_debug(2, "[DPB] addr[0]: 0x%08llx\n",
-					mfc_buf->addr[0][0]);
+			mfc_debug(2, "[DPB] addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 			list_del(&mfc_buf->list);
 			from_queue->count--;
@@ -253,9 +280,8 @@ struct mfc_buf *mfc_get_move_buf_addr(struct mfc_ctx *ctx,
 }
 
 struct mfc_buf *mfc_get_move_buf_index(struct mfc_ctx *ctx,
-				struct mfc_buf_queue *to_queue,
-				struct mfc_buf_queue *from_queue,
-				int index)
+		struct mfc_buf_queue *to_queue, struct mfc_buf_queue *from_queue,
+		int index)
 {
 	struct mfc_buf *mfc_buf = NULL;
 	unsigned long flags;
@@ -266,9 +292,7 @@ struct mfc_buf *mfc_get_move_buf_index(struct mfc_ctx *ctx,
 	list_for_each_entry(mfc_buf, &from_queue->head, list) {
 		if (mfc_buf->dpb_index == index) {
 			mfc_debug(2, "[DPB] buf[%d][%d] addr[0]: 0x%08llx\n",
-					mfc_buf->vb.vb2_buf.index,
-					mfc_buf->dpb_index,
-					mfc_buf->addr[0][0]);
+					mfc_buf->vb.vb2_buf.index, mfc_buf->dpb_index, mfc_buf->addr[0][0]);
 
 			list_del(&mfc_buf->list);
 			from_queue->count--;
@@ -285,8 +309,7 @@ struct mfc_buf *mfc_get_move_buf_index(struct mfc_ctx *ctx,
 	return NULL;
 }
 
-struct mfc_buf *mfc_find_first_buf(struct mfc_ctx *ctx,
-		struct mfc_buf_queue *queue, dma_addr_t addr)
+struct mfc_buf *mfc_find_first_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue, dma_addr_t addr)
 {
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
@@ -308,8 +331,7 @@ struct mfc_buf *mfc_find_first_buf(struct mfc_ctx *ctx,
 			mb_addr = mfc_buf->addr[i][0];
 			mfc_debug(4, "[BUFCON] batch[%d] addr[0]: 0x%08llx\n", i, mb_addr);
 			if (addr == mb_addr) {
-				spin_unlock_irqrestore(&ctx->buf_queue_lock,
-						flags);
+				spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 				return mfc_buf;
 			}
 		}
@@ -327,16 +349,14 @@ struct mfc_buf *mfc_find_first_buf(struct mfc_ctx *ctx,
 	return NULL;
 }
 
-struct mfc_buf *mfc_find_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
-		dma_addr_t addr)
+struct mfc_buf *mfc_find_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue, dma_addr_t addr)
 {
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
-	spinlock_t *plock = &ctx->buf_queue_lock;
 	dma_addr_t mb_addr;
 	int i;
 
-	spin_lock_irqsave(plock, flags);
+	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
 	mfc_debug(4, "Looking for this address: 0x%08llx\n", addr);
 	list_for_each_entry(mfc_buf, &queue->head, list) {
@@ -345,7 +365,7 @@ struct mfc_buf *mfc_find_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
 				mb_addr = mfc_buf->addr[i][0];
 				mfc_debug(4, "[BUFCON] batch[%d] addr[0]: 0x%08llx\n", i, mb_addr);
 				if (addr == mb_addr) {
-					spin_unlock_irqrestore(plock, flags);
+					spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 					return mfc_buf;
 				}
 			}
@@ -354,18 +374,17 @@ struct mfc_buf *mfc_find_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue,
 			mfc_debug(4, "addr[0]: 0x%08llx\n", mb_addr);
 
 			if (addr == mb_addr) {
-				spin_unlock_irqrestore(plock, flags);
+				spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 				return mfc_buf;
 			}
 		}
 	}
 
-	spin_unlock_irqrestore(plock, flags);
+	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 	return NULL;
 }
 
-struct mfc_buf *mfc_find_del_buf(struct mfc_ctx *ctx,
-		struct mfc_buf_queue *queue, dma_addr_t addr)
+struct mfc_buf *mfc_find_del_buf(struct mfc_ctx *ctx, struct mfc_buf_queue *queue, dma_addr_t addr)
 {
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
@@ -412,7 +431,7 @@ struct mfc_buf *mfc_find_del_buf(struct mfc_ctx *ctx,
 	}
 }
 
-void mfc_move_all_bufs(struct mfc_ctx *ctx, struct mfc_buf_queue *to_queue,
+void mfc_move_buf_all(struct mfc_ctx *ctx, struct mfc_buf_queue *to_queue,
 		struct mfc_buf_queue *from_queue, enum mfc_queue_top_type top)
 {
 	unsigned long flags;
@@ -473,11 +492,12 @@ void mfc_cleanup_queue(spinlock_t *plock, struct mfc_buf_queue *queue)
 	spin_unlock_irqrestore(plock, flags);
 }
 
-void mfc_cleanup_enc_src_queue(struct mfc_ctx *ctx)
+void mfc_cleanup_enc_src_queue(struct mfc_core_ctx *core_ctx)
 {
+	struct mfc_ctx *ctx = core_ctx->ctx;
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
-	struct mfc_buf_queue *queue = &ctx->src_buf_queue;
+	struct mfc_buf_queue *queue = &core_ctx->src_buf_queue;
 	int i;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
@@ -529,16 +549,18 @@ void mfc_cleanup_enc_dst_queue(struct mfc_ctx *ctx)
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
-void __mfc_print_dpb_queue(struct mfc_ctx *ctx, struct mfc_dec *dec)
+void __mfc_print_dpb_queue(struct mfc_core_ctx *core_ctx, struct mfc_dec *dec)
 {
+	struct mfc_ctx *ctx = core_ctx->ctx;
 	struct mfc_buf *mfc_buf = NULL;
 
-	mfc_debug(2, "[DPB] src %d, dst %d, src_nal %d, dst_nal %d, used %#lx, queued %#lx, set %#lx, avail %#lx\n",
-			ctx->src_buf_queue.count, ctx->dst_buf_queue.count,
-			ctx->src_buf_nal_queue.count,
-			ctx->dst_buf_nal_queue.count,
+	mfc_debug(2, "[DPB] src: %d(ready: %d), dst %d, src_nal %d, dst_nal %d, used %#lx, queued %#lx, set %#lx(dec: %#lx)\n",
+			core_ctx->src_buf_queue.count,
+			ctx->src_buf_ready_queue.count,
+			ctx->dst_buf_queue.count,
+			ctx->src_buf_nal_queue.count, ctx->dst_buf_nal_queue.count,
 			dec->dynamic_used, dec->queued_dpb,
-			dec->dynamic_set, dec->available_dpb);
+			core_ctx->dynamic_set, dec->dynamic_set);
 
 	if (!list_empty(&ctx->dst_buf_queue.head))
 		list_for_each_entry(mfc_buf, &ctx->dst_buf_queue.head, list)
@@ -554,56 +576,65 @@ void __mfc_print_dpb_queue(struct mfc_ctx *ctx, struct mfc_dec *dec)
 					mfc_buf->addr[0][0], mfc_buf->used);
 }
 
-int mfc_check_for_dpb(struct mfc_ctx *ctx)
+int mfc_check_for_dpb(struct mfc_core_ctx *core_ctx)
 {
+	struct mfc_ctx *ctx = core_ctx->ctx;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *mfc_buf = NULL;
 	unsigned long flags;
-	int ret = 0;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 
 	if (ctx->dst_buf_queue.count == 0) {
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
-		ret = 0;
-		goto check_for_dpb_ret;
+		return 0;
 	}
 
 	list_for_each_entry(mfc_buf, &ctx->dst_buf_queue.head, list) {
+		if (IS_TWO_MODE2(ctx) && (dec->dynamic_set & (1UL << mfc_buf->dpb_index))) {
+			mfc_debug(2, "[DPB] dst index %d already set\n",
+					mfc_buf->dpb_index);
+			continue;
+		}
 		if ((dec->dynamic_used & (1UL << mfc_buf->dpb_index)) == 0) {
-			spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 			mfc_debug(2, "[DPB] There is available dpb(index:%d, used:%#lx)\n",
 					mfc_buf->dpb_index, dec->dynamic_used);
-			ret = 1;
-			goto check_for_dpb_ret;
+			spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+			return 1;
 		}
 	}
 
-	if (hweight64(dec->dynamic_used) == ctx->dpb_count + 5) {
-		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+	if (hweight64(dec->dynamic_used) == ctx->dpb_count + MFC_EXTRA_DPB) {
 		mfc_debug(2, "[DPB] All queued buf referencing\n");
-		ret = 1;
-		goto check_for_dpb_ret;
+		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+		return 1;
 	}
 
-	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 	mfc_debug(2, "[DPB] There is no available DPB\n");
+	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 
-check_for_dpb_ret:
-	return ret;
+	return 0;
 }
 
 /* Try to search non-referenced DPB on dst-queue */
-struct mfc_buf *mfc_search_for_dpb(struct mfc_ctx *ctx)
+struct mfc_buf *mfc_search_for_dpb(struct mfc_core_ctx *core_ctx)
 {
+	struct mfc_ctx *ctx = core_ctx->ctx;
 	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
 
 	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
 	list_for_each_entry(mfc_buf, &ctx->dst_buf_queue.head, list) {
+		if (IS_TWO_MODE2(ctx) && (dec->dynamic_set & (1UL << mfc_buf->dpb_index))) {
+			mfc_debug(2, "[DPB] dst index %d already set\n",
+					mfc_buf->dpb_index);
+			continue;
+		}
 		if ((dec->dynamic_used & (1UL << mfc_buf->dpb_index)) == 0) {
 			mfc_buf->used = 1;
+			dec->dynamic_set = 1UL << mfc_buf->dpb_index;
+			core_ctx->dynamic_set = 1UL << mfc_buf->dpb_index;
 			spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 			return mfc_buf;
 		}
@@ -616,29 +647,28 @@ struct mfc_buf *mfc_search_for_dpb(struct mfc_ctx *ctx)
 	 * F/W will returns display only buffer whether if reference or not.
 	 * In this way the reference can be released by circulating.
 	 */
-	if (hweight64(dec->dynamic_used) == ctx->dpb_count + 5) {
-		mfc_buf = list_entry(ctx->dst_buf_queue.head.next,
-				struct mfc_buf, list);
+	if (hweight64(dec->dynamic_used) == ctx->dpb_count + MFC_EXTRA_DPB) {
+		mfc_buf = list_entry(ctx->dst_buf_queue.head.next, struct mfc_buf, list);
 		mfc_buf->used = 1;
 		mfc_debug(2, "[DPB] All queued buf referencing. select buf[%d][%d]\n",
 				mfc_buf->vb.vb2_buf.index, mfc_buf->dpb_index);
+		dec->dynamic_set = 1UL << mfc_buf->dpb_index;
+		core_ctx->dynamic_set = 1UL << mfc_buf->dpb_index;
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 		return mfc_buf;
 	}
 
 	/*
-	 * 1) ctx->dst_buf_queue.count >= (ctx->dpb_count + 5)
-	 *    : All DPBs queued in DRV
-	 * 2) ctx->dst_buf_queue.count == 0
-	 *    : All DPBs dequeued to user
+	 * 1) ctx->dst_buf_queue.count >= (ctx->dpb_count + MFC_EXTRA_DPB): All DPBs queued in DRV
+	 * 2) ctx->dst_buf_queue.count == 0: All DPBs dequeued to user
 	 * we will wait
 	 */
 	mfc_debug(2, "[DPB] All enqueued DPBs are referencing or there's no DPB in DRV (in %d/total %d)\n",
-			ctx->dst_buf_queue.count, ctx->dpb_count + 5);
+			ctx->dst_buf_queue.count, ctx->dpb_count + MFC_EXTRA_DPB);
 	if (!(dec->queued_dpb & ~dec->dynamic_used))
 		mfc_debug(2, "[DPB] All enqueued DPBs are referencing\n");
 
-	__mfc_print_dpb_queue(ctx, dec);
+	__mfc_print_dpb_queue(core_ctx, dec);
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 
 	mutex_lock(&dec->dpb_mutex);
@@ -648,8 +678,9 @@ struct mfc_buf *mfc_search_for_dpb(struct mfc_ctx *ctx)
 	return NULL;
 }
 
-struct mfc_buf *mfc_search_move_dpb_nal_q(struct mfc_ctx *ctx)
+struct mfc_buf *mfc_search_move_dpb_nal_q(struct mfc_core_ctx *core_ctx)
 {
+	struct mfc_ctx *ctx = core_ctx->ctx;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *mfc_buf = NULL;
 	unsigned long flags;
@@ -677,7 +708,7 @@ struct mfc_buf *mfc_search_move_dpb_nal_q(struct mfc_ctx *ctx)
 	 * that returned to the display index was displayed.
 	 * Therefore, NAL_Q mode can't be continued.
 	 */
-	if (hweight64(dec->dynamic_used) == ctx->dpb_count + 5) {
+	if (hweight64(dec->dynamic_used) == ctx->dpb_count + MFC_EXTRA_DPB) {
 		dec->is_dpb_full = 1;
 		mfc_debug(2, "[NALQ][DPB] full reference\n");
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
@@ -685,19 +716,17 @@ struct mfc_buf *mfc_search_move_dpb_nal_q(struct mfc_ctx *ctx)
 	}
 
 	/*
-	 * 1) ctx->dst_buf_queue.count >= (ctx->dpb_count + 5)
-	 *   : All DPBs queued in DRV
-	 * 2) ctx->dst_buf_queue.count == 0
-	 *   : All DPBs dequeued to user
+	 * 1) ctx->dst_buf_queue.count >= (ctx->dpb_count + MFC_EXTRA_DPB): All DPBs queued in DRV
+	 * 2) ctx->dst_buf_queue.count == 0: All DPBs dequeued to user
 	 * we will wait
 	 */
 	mfc_debug(2, "[NALQ][DPB] All enqueued DPBs are referencing or there's no DPB in DRV (in %d/total %d)\n",
 			ctx->dst_buf_queue.count + ctx->dst_buf_nal_queue.count,
-			ctx->dpb_count + 5);
+			ctx->dpb_count + MFC_EXTRA_DPB);
 	if (!(dec->queued_dpb & ~dec->dynamic_used))
 		mfc_debug(2, "[NALQ][DPB] All enqueued DPBs are referencing\n");
 
-	__mfc_print_dpb_queue(ctx, dec);
+	__mfc_print_dpb_queue(core_ctx, dec);
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 
 	mfc_print_dpb_table(ctx);
@@ -714,8 +743,7 @@ int __mfc_assign_dpb_index(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 	int i;
 
 	/* case 1: dpb has same address with vb index */
-	if (mfc_buf->paddr ==
-			dec->dpb[mfc_buf->vb.vb2_buf.index].paddr) {
+	if (mfc_buf->paddr == dec->dpb[mfc_buf->vb.vb2_buf.index].paddr) {
 		mfc_debug(2, "[DPB] vb index [%d] %#llx has same address\n",
 				mfc_buf->vb.vb2_buf.index, mfc_buf->paddr);
 		index = mfc_buf->vb.vb2_buf.index;
@@ -728,8 +756,7 @@ int __mfc_assign_dpb_index(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 		for (i = __ffs(used); i < MFC_MAX_DPBS;) {
 			if (mfc_buf->paddr == dec->dpb[i].paddr) {
 				mfc_debug(2, "[DPB] index [%d][%d] %#llx is referenced\n",
-						mfc_buf->vb.vb2_buf.index, i,
-						mfc_buf->paddr);
+						mfc_buf->vb.vb2_buf.index, i, mfc_buf->paddr);
 				index = i;
 				return index;
 			}
@@ -776,6 +803,22 @@ void __mfc_update_base_addr_dpb(struct mfc_ctx *ctx, struct mfc_buf *buf,
 			index, buf->addr[0][0], buf->addr[0][1], buf->addr[0][2]);
 }
 
+void __mfc_update_dpb_fd(struct mfc_ctx *ctx, struct vb2_buffer *vb, int index)
+{
+	struct mfc_dec *dec = ctx->dec_priv;
+
+	if ((dec->dynamic_used & (1UL << index)) == 0)
+		mfc_ctx_err("[REFINFO] non-reference DPB is remained in table\n");
+
+	if (dec->dpb[index].fd[0] == vb->planes[0].m.fd)
+		mfc_debug(3, "[REFINFO] same dma_buf has same fd\n");
+
+	dec->dpb[index].new_fd = vb->planes[0].m.fd;
+	mfc_debug(3, "[REFINFO] index %d update fd: %d -> %d after release\n",
+			vb->index, dec->dpb[index].fd[0],
+			dec->dpb[index].new_fd);
+}
+
 /* Add dst buffer in dst_buf_queue */
 void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 {
@@ -783,7 +826,7 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 	struct mfc_dec *dec;
 	struct mfc_buf *mfc_buf;
 	unsigned long flags;
-	int index;
+	int index, plane;
 
 	dec = ctx->dec_priv;
 	if (!dec) {
@@ -797,8 +840,7 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 	mutex_lock(&dec->dpb_mutex);
 	mfc_buf->dpb_index = __mfc_assign_dpb_index(ctx, mfc_buf);
 	mfc_debug(2, "[DPB] DPB vb_index %d -> dpb_index %d addr %#llx (used: %#lx)\n",
-			vb->index, mfc_buf->dpb_index, mfc_buf->addr[0][0],
-			dec->dynamic_used);
+			vb->index, mfc_buf->dpb_index, mfc_buf->addr[0][0], dec->dynamic_used);
 
 	index = mfc_buf->dpb_index;
 
@@ -807,14 +849,18 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 	} else {
 		if (dec->dpb[index].paddr == mfc_buf->paddr) {
 			mfc_debug(2, "[DPB] DPB[%d] is same %#llx(used: %#lx)\n",
-					index, dec->dpb[index].paddr,
-					dec->dynamic_used);
+					index, dec->dpb[index].paddr, dec->dynamic_used);
+			__mfc_update_dpb_fd(ctx, vb, index);
 		} else {
 			mfc_ctx_err("[DPB] wrong assign dpb index\n");
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 		}
 	}
 	__mfc_update_base_addr_dpb(ctx, mfc_buf, index);
+
+	dec->dpb[index].size = 0;
+	for (plane = 0; plane < vb->num_planes; ++plane)
+		dec->dpb[index].size += vb->planes[plane].length;
 
 	dec->dpb[index].queued = 1;
 	dec->dpb_table_used |= (1UL << index);
@@ -829,9 +875,9 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
-void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
+void mfc_cleanup_nal_queue(struct mfc_core_ctx *core_ctx)
 {
-	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_ctx *ctx = core_ctx->ctx;
 	struct mfc_buf *src_mb, *dst_mb;
 	unsigned long flags;
 	unsigned int index;
@@ -856,8 +902,8 @@ void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
 		list_del(&src_mb->list);
 		ctx->src_buf_nal_queue.count--;
 
-		list_add(&src_mb->list, &ctx->src_buf_queue.head);
-		ctx->src_buf_queue.count++;
+		list_add(&src_mb->list, &core_ctx->src_buf_queue.head);
+		core_ctx->src_buf_queue.count++;
 
 		mfc_debug(2, "[NALQ] cleanup, src_buf_nal_queue -> src_buf_queue, index:%d\n",
 				src_mb->vb.vb2_buf.index);
@@ -867,8 +913,6 @@ void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
 		dst_mb = list_entry(ctx->dst_buf_nal_queue.head.prev, struct mfc_buf, list);
 
 		dst_mb->used = 0;
-		if (ctx->type == MFCINST_DECODER)
-			clear_bit(dst_mb->dpb_index, &dec->available_dpb);
 		list_del(&dst_mb->list);
 		ctx->dst_buf_nal_queue.count--;
 
@@ -882,31 +926,32 @@ void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 }
 
-int mfc_check_buf_mb_flag(struct mfc_ctx *ctx, enum mfc_mb_flag f)
+int mfc_check_buf_mb_flag(struct mfc_core_ctx *core_ctx, enum mfc_mb_flag f)
 {
+	struct mfc_ctx *ctx = core_ctx->ctx;
 	unsigned long flags;
 	struct mfc_buf *mfc_buf = NULL;
 
-	spin_lock_irqsave(&ctx->buf_queue_lock, flags);
+	spin_lock_irqsave(&core_ctx->buf_queue_lock, flags);
 
-	if (list_empty(&ctx->src_buf_queue.head)) {
+	if (list_empty(&core_ctx->src_buf_queue.head)) {
 		mfc_debug(2, "src_buf_queue is empty\n");
-		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+		spin_unlock_irqrestore(&core_ctx->buf_queue_lock, flags);
 		return -EINVAL;
 	}
 
-	mfc_buf = list_entry(ctx->src_buf_queue.head.next, struct mfc_buf, list);
+	mfc_buf = list_entry(core_ctx->src_buf_queue.head.next, struct mfc_buf, list);
 
 	mfc_debug(2, "[BUFINFO] addr[0]: 0x%08llx\n", mfc_buf->addr[0][0]);
 
 	if (mfc_check_mb_flag(mfc_buf, f)) {
 		mfc_debug(2, "find flag %d\n", f);
-		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+		spin_unlock_irqrestore(&core_ctx->buf_queue_lock, flags);
 		return 1;
 	}
 
 	mfc_debug(4, "no flag %d\n", f);
-	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+	spin_unlock_irqrestore(&core_ctx->buf_queue_lock, flags);
 
 	return 0;
 }

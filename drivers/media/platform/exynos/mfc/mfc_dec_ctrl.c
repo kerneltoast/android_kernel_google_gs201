@@ -12,7 +12,7 @@
 
 #include  "mfc_common.h"
 
-#include "mfc_reg_api.h"
+#include "mfc_core_reg_api.h"
 
 #define NUM_CTRL_CFGS ARRAY_SIZE(mfc_ctrl_list)
 
@@ -408,7 +408,13 @@ static int mfc_dec_init_ctx_ctrls(struct mfc_ctx *ctx)
 	for (i = 0; i < NUM_CTRL_CFGS; i++) {
 		ctx_ctrl = kzalloc(sizeof(struct mfc_ctx_ctrl), GFP_KERNEL);
 		if (ctx_ctrl == NULL) {
+			mfc_ctx_err("Failed to allocate context control "
+					"id: 0x%08x, type: %d\n",
+					mfc_ctrl_list[i].id,
+					mfc_ctrl_list[i].type);
+
 			mfc_dec_cleanup_ctx_ctrls(ctx);
+
 			return -ENOMEM;
 		}
 
@@ -507,7 +513,13 @@ static int mfc_dec_init_buf_ctrls(struct mfc_ctx *ctx,
 
 		buf_ctrl = kzalloc(sizeof(struct mfc_buf_ctrl), GFP_KERNEL);
 		if (buf_ctrl == NULL) {
+			mfc_ctx_err("Failed to allocate buffer control "
+					"id: 0x%08x, type: %d\n",
+					mfc_ctrl_list[i].id,
+					mfc_ctrl_list[i].type);
+
 			__mfc_dec_cleanup_buf_ctrls(head);
+
 			return -ENOMEM;
 		}
 
@@ -623,9 +635,44 @@ static int mfc_dec_to_ctx_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 	return 0;
 }
 
-static int mfc_dec_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
+static int mfc_dec_get_buf_ctrl_val(struct mfc_ctx *ctx,
+			struct list_head *head, unsigned int id)
 {
-	struct mfc_dev *dev = ctx->dev;
+	struct mfc_buf_ctrl *buf_ctrl;
+	int value = 0;
+
+	list_for_each_entry(buf_ctrl, head, list) {
+		if (buf_ctrl->id == id) {
+			value = buf_ctrl->val;
+			mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d (%#x)\n",
+					buf_ctrl->id, value, value);
+			break;
+		}
+	}
+
+	return value;
+}
+
+static int mfc_dec_get_buf_update_val(struct mfc_ctx *ctx,
+			struct list_head *head, unsigned int id, int value)
+{
+	struct mfc_buf_ctrl *buf_ctrl;
+
+	list_for_each_entry(buf_ctrl, head, list) {
+		if (buf_ctrl->id == id) {
+			buf_ctrl->val = value;
+			mfc_debug(6, "[CTRLS] Update buffer control id: 0x%08x, val: %d (%#x)\n",
+					buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int mfc_core_dec_set_buf_ctrls_val(struct mfc_core *core,
+		struct mfc_ctx *ctx, struct list_head *head)
+{
 	struct mfc_buf_ctrl *buf_ctrl;
 	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned int value = 0;
@@ -636,7 +683,7 @@ static int mfc_dec_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 
 		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR) {
 			/* read old vlaue */
-			value = MFC_READL(buf_ctrl->addr);
+			value = MFC_CORE_READL(buf_ctrl->addr);
 
 			/* save old vlaue for recovery */
 			if (buf_ctrl->is_volatile)
@@ -645,14 +692,14 @@ static int mfc_dec_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 			/* write new value */
 			value &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			value |= ((buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft);
-			MFC_WRITEL(value, buf_ctrl->addr);
+			MFC_CORE_WRITEL(value, buf_ctrl->addr);
 		}
 
 		/* set change flag bit */
 		if (buf_ctrl->flag_mode == MFC_CTRL_MODE_SFR) {
-			value = MFC_READL(buf_ctrl->flag_addr);
+			value = MFC_CORE_READL(buf_ctrl->flag_addr);
 			value |= (1 << buf_ctrl->flag_shft);
-			MFC_WRITEL(value, buf_ctrl->flag_addr);
+			MFC_CORE_WRITEL(value, buf_ctrl->flag_addr);
 		}
 
 		buf_ctrl->has_new = 0;
@@ -668,10 +715,10 @@ static int mfc_dec_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 	return 0;
 }
 
-static int mfc_dec_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
+static int mfc_core_dec_get_buf_ctrls_val(struct mfc_core *core,
+		struct mfc_ctx *ctx, struct list_head *head)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned int value = 0;
 
@@ -680,7 +727,7 @@ static int mfc_dec_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 			continue;
 
 		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR) {
-			value = MFC_READL(buf_ctrl->addr);
+			value = MFC_CORE_READL(buf_ctrl->addr);
 			value = (value >> buf_ctrl->shft) & buf_ctrl->mask;
 		}
 
@@ -704,22 +751,38 @@ static int mfc_dec_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 	return 0;
 }
 
-static int mfc_dec_get_buf_ctrl_val_by_id(struct mfc_ctx *ctx,
-			struct list_head *head, unsigned int id)
+static int mfc_core_dec_recover_buf_ctrls_val(struct mfc_core *core,
+		struct mfc_ctx *ctx, struct list_head *head)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
-	int value = 0;
+	unsigned int value = 0;
 
 	list_for_each_entry(buf_ctrl, head, list) {
-		if (buf_ctrl->id == id) {
-			value = buf_ctrl->val;
-			mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d (%#x)\n",
-					buf_ctrl->id, value, value);
-			break;
+		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET)
+			|| !buf_ctrl->is_volatile
+			|| !buf_ctrl->updated)
+			continue;
+
+		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR) {
+			value = MFC_CORE_READL(buf_ctrl->addr);
+			value &= ~(buf_ctrl->mask << buf_ctrl->shft);
+			value |= ((buf_ctrl->old_val & buf_ctrl->mask) << buf_ctrl->shft);
+			MFC_CORE_WRITEL(value, buf_ctrl->addr);
 		}
+
+		/* clear change flag bit */
+		if (buf_ctrl->flag_mode == MFC_CTRL_MODE_SFR) {
+			value = MFC_CORE_READL(buf_ctrl->flag_addr);
+			value &= ~(1 << buf_ctrl->flag_shft);
+			MFC_CORE_WRITEL(value, buf_ctrl->flag_addr);
+		}
+
+		buf_ctrl->updated = 0;
+		mfc_debug(6, "[CTRLS] Recover buffer control id: 0x%08x, old val: %d\n",
+				buf_ctrl->id, buf_ctrl->old_val);
 	}
 
-	return value;
+	return 0;
 }
 
 static int mfc_dec_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
@@ -727,8 +790,6 @@ static int mfc_dec_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 {
 	struct mfc_buf_ctrl *buf_ctrl;
 	struct mfc_dec *dec = ctx->dec_priv;
-
-	mfc_debug_enter();
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET) || !buf_ctrl->has_new)
@@ -753,8 +814,6 @@ static int mfc_dec_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
 
-	mfc_debug_leave();
-
 	return 0;
 }
 
@@ -764,8 +823,6 @@ static int mfc_dec_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf_ctrl *buf_ctrl;
 	unsigned int value = 0;
-
-	mfc_debug_enter();
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (!(buf_ctrl->type & MFC_CTRL_TYPE_GET))
@@ -873,59 +930,7 @@ static int mfc_dec_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 	return 0;
 }
 
-static int mfc_dec_recover_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
-{
-	struct mfc_buf_ctrl *buf_ctrl;
-	struct mfc_dev *dev = ctx->dev;
-	unsigned int value = 0;
-
-	list_for_each_entry(buf_ctrl, head, list) {
-		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET)
-			|| !buf_ctrl->is_volatile
-			|| !buf_ctrl->updated)
-			continue;
-
-		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR) {
-			value = MFC_READL(buf_ctrl->addr);
-			value &= ~(buf_ctrl->mask << buf_ctrl->shft);
-			value |= ((buf_ctrl->old_val & buf_ctrl->mask) << buf_ctrl->shft);
-			MFC_WRITEL(value, buf_ctrl->addr);
-		}
-
-		/* clear change flag bit */
-		if (buf_ctrl->flag_mode == MFC_CTRL_MODE_SFR) {
-			value = MFC_READL(buf_ctrl->flag_addr);
-			value &= ~(1 << buf_ctrl->flag_shft);
-			MFC_WRITEL(value, buf_ctrl->flag_addr);
-		}
-
-		buf_ctrl->updated = 0;
-		mfc_debug(6, "[CTRLS] Recover buffer control id: 0x%08x, old val: %d (%#x)\n",
-				buf_ctrl->id, buf_ctrl->old_val, buf_ctrl->old_val);
-	}
-
-	return 0;
-}
-
-static int mfc_dec_get_buf_update_val(struct mfc_ctx *ctx,
-			struct list_head *head, unsigned int id, int value)
-{
-	struct mfc_buf_ctrl *buf_ctrl;
-
-	list_for_each_entry(buf_ctrl, head, list) {
-		if (buf_ctrl->id == id) {
-			buf_ctrl->val = value;
-			mfc_debug(6, "[CTRLS] Update buffer control id: 0x%08x, val: %d (%#x)\n",
-					buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
-			break;
-		}
-	}
-
-	return 0;
-}
-
-static int mfc_dec_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx,
-		struct list_head *head)
+static int mfc_dec_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx, struct list_head *head)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
 
@@ -936,8 +941,8 @@ static int mfc_dec_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx,
 
 		buf_ctrl->has_new = 1;
 		buf_ctrl->updated = 0;
-		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d (%#x)\n",
-				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
+		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
+				buf_ctrl->id, buf_ctrl->val);
 	}
 
 	return 0;
@@ -951,12 +956,13 @@ struct mfc_ctrls_ops decoder_ctrls_ops = {
 	.cleanup_buf_ctrls		= mfc_dec_cleanup_buf_ctrls,
 	.to_buf_ctrls			= mfc_dec_to_buf_ctrls,
 	.to_ctx_ctrls			= mfc_dec_to_ctx_ctrls,
-	.set_buf_ctrls_val		= mfc_dec_set_buf_ctrls_val,
-	.get_buf_ctrls_val		= mfc_dec_get_buf_ctrls_val,
-	.get_buf_ctrl_val_by_id	= mfc_dec_get_buf_ctrl_val_by_id,
+	.get_buf_ctrl_val		= mfc_dec_get_buf_ctrl_val,
+	.get_buf_update_val		= mfc_dec_get_buf_update_val,
+	/* new core per buffer ctrls */
+	.core_set_buf_ctrls_val		= mfc_core_dec_set_buf_ctrls_val,
+	.core_get_buf_ctrls_val		= mfc_core_dec_get_buf_ctrls_val,
+	.core_recover_buf_ctrls_val	= mfc_core_dec_recover_buf_ctrls_val,
 	.set_buf_ctrls_val_nal_q_dec	= mfc_dec_set_buf_ctrls_val_nal_q,
 	.get_buf_ctrls_val_nal_q_dec	= mfc_dec_get_buf_ctrls_val_nal_q,
-	.recover_buf_ctrls_val		= mfc_dec_recover_buf_ctrls_val,
-	.get_buf_update_val		= mfc_dec_get_buf_update_val,
 	.recover_buf_ctrls_nal_q	= mfc_dec_recover_buf_ctrls_nal_q,
 };

@@ -21,6 +21,8 @@
 
 #include "mfc_common.h"
 
+extern void vb2_dma_sg_set_map_attr(void *mem_priv, unsigned long attr);
+
 /* Offset base used to differentiate between CAPTURE and OUTPUT
 *  while mmaping */
 #define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
@@ -47,26 +49,43 @@ static inline phys_addr_t mfc_mem_get_paddr_vb(struct vb2_buffer *vb)
 	return page_to_phys(sg_page(sgt->sgl));
 }
 
-static inline void mfc_mem_buf_prepare(struct vb2_buffer *vb)
+static inline void mfc_mem_buf_prepare(struct vb2_buffer *vb, int stream)
 {
-	int i;
+	int i, ret;
+	enum dma_data_direction dir;
 
-	if (!V4L2_TYPE_IS_OUTPUT(vb->type))
-		return;
+	dir = V4L2_TYPE_IS_OUTPUT(vb->type) ?
+					DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
-	for (i = 0; i < vb->num_planes; i++)
-		dma_buf_end_cpu_access(vb->planes[i].dbuf, DMA_TO_DEVICE);
+	for (i = 0; i < vb->num_planes; i++) {
+		if (stream) {
+			ret = dma_buf_end_cpu_access_partial(vb->planes[i].dbuf, dir,
+					0, vb2_get_plane_payload(vb, i));
+			if (ret < 0)
+				dma_buf_end_cpu_access(vb->planes[i].dbuf, dir);
+		} else {
+			dma_buf_end_cpu_access(vb->planes[i].dbuf, dir);
+		}
+	}
 }
 
-static inline void mfc_mem_buf_finish(struct vb2_buffer *vb)
+static inline void mfc_mem_buf_finish(struct vb2_buffer *vb, int stream)
 {
-	int i;
+	int i, ret;
 
 	if (V4L2_TYPE_IS_OUTPUT(vb->type))
 		return;
 
-	for (i = 0; i < vb->num_planes; i++)
-		dma_buf_begin_cpu_access(vb->planes[i].dbuf, DMA_FROM_DEVICE);
+	for (i = 0; i < vb->num_planes; i++) {
+		if (stream) {
+			ret = dma_buf_begin_cpu_access_partial(vb->planes[i].dbuf, DMA_FROM_DEVICE,
+					0, vb2_get_plane_payload(vb, i));
+			if (ret < 0)
+				dma_buf_begin_cpu_access(vb->planes[i].dbuf, DMA_FROM_DEVICE);
+		} else {
+			dma_buf_begin_cpu_access(vb->planes[i].dbuf, DMA_FROM_DEVICE);
+		}
+	}
 }
 
 #if IS_ENABLED(CONFIG_MFC_USE_DMABUF_CONTAINER)
@@ -89,7 +108,7 @@ static inline void mfc_print_dpb_table(struct mfc_ctx *ctx)
 	int i, found = 0, in_nal_q = 0;
 
 	mfc_debug(3, "[DPB] dynamic_used: %#lx, queued: %#lx, table_used: %#lx\n",
-		dec->dynamic_used, dec->queued_dpb, dec->dpb_table_used);
+			dec->dynamic_used, dec->queued_dpb, dec->dpb_table_used);
 	for (i = 0; i < MFC_MAX_DPBS; i++) {
 		found = 0;
 		in_nal_q = 0;
@@ -101,8 +120,7 @@ static inline void mfc_print_dpb_table(struct mfc_ctx *ctx)
 			}
 		}
 		if (!found) {
-			list_for_each_entry(mfc_buf,
-					&ctx->dst_buf_nal_queue.head, list) {
+			list_for_each_entry(mfc_buf, &ctx->dst_buf_nal_queue.head, list) {
 				if (i == mfc_buf->dpb_index) {
 					found = 1;
 					in_nal_q = 1;
@@ -111,10 +129,10 @@ static inline void mfc_print_dpb_table(struct mfc_ctx *ctx)
 			}
 		}
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
-		mfc_debug(3, "[%d] dpb [%d] %#010llx %#010llx %#010llx (%s, %s, %s%s)\n",
+		mfc_debug(3, "[%d] dpb [%d] %#010llx %#010llx %#010llx fd %d(%d) (%s, %s, %s%s)\n",
 				i, found ? mfc_buf->vb.vb2_buf.index : -1,
 				dec->dpb[i].addr[0], dec->dpb[i].addr[1],
-				dec->dpb[i].paddr,
+				dec->dpb[i].paddr, dec->dpb[i].fd[0], dec->dpb[i].new_fd,
 				dec->dpb[i].mapcnt ? "map" : "unmap",
 				dec->dpb[i].ref ? "ref" : "free",
 				dec->dpb[i].queued ? "Q" : "DQ",
@@ -145,12 +163,16 @@ static inline int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_
 	return 0;
 }
 #endif
-void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb,
-			int num_planes, int index);
-void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb,
-			struct dpb_table *dpb);
-void mfc_clear_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb,
-			int num_planes, int index);
+
+void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, int index);
+void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb, struct dpb_table *dpb);
+void mfc_init_dpb_table(struct mfc_ctx *ctx);
 void mfc_cleanup_iovmm(struct mfc_ctx *ctx);
 void mfc_cleanup_iovmm_except_used(struct mfc_ctx *ctx);
+
+int mfc_remap_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf);
+int mfc_map_votf_sfr(struct mfc_core *core, unsigned int addr);
+void mfc_unmap_votf_sfr(struct mfc_core *core, unsigned int addr);
+
+void mfc_check_iova(struct mfc_dev *dev);
 #endif /* __MFC_MEM_H */

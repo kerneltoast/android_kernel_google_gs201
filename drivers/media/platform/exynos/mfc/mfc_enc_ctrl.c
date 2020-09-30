@@ -12,7 +12,7 @@
 
 #include "mfc_common.h"
 
-#include "mfc_reg_api.h"
+#include "mfc_core_reg_api.h"
 
 static int __mfc_enc_ctrl_read_cst(struct mfc_ctx *ctx,
 		struct mfc_buf_ctrl *buf_ctrl)
@@ -706,6 +706,24 @@ static int mfc_enc_cleanup_ctx_ctrls(struct mfc_ctx *ctx)
 	return 0;
 }
 
+static int mfc_enc_get_buf_ctrl_val(struct mfc_ctx *ctx,
+			struct list_head *head, unsigned int id)
+{
+	struct mfc_buf_ctrl *buf_ctrl;
+	int value = 0;
+
+	list_for_each_entry(buf_ctrl, head, list) {
+		if (buf_ctrl->id == id) {
+			value = buf_ctrl->val;
+			mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d (%#x)\n",
+					buf_ctrl->id, value, value);
+			break;
+		}
+	}
+
+	return value;
+}
+
 static int mfc_enc_get_buf_update_val(struct mfc_ctx *ctx,
 			struct list_head *head, unsigned int id, int value)
 {
@@ -733,7 +751,13 @@ static int mfc_enc_init_ctx_ctrls(struct mfc_ctx *ctx)
 	for (i = 0; i < NUM_CTRL_CFGS; i++) {
 		ctx_ctrl = kzalloc(sizeof(struct mfc_ctx_ctrl), GFP_KERNEL);
 		if (ctx_ctrl == NULL) {
+			mfc_ctx_err("Failed to allocate context control "
+					"id: 0x%08x, type: %d\n",
+					mfc_ctrl_list[i].id,
+					mfc_ctrl_list[i].type);
+
 			mfc_enc_cleanup_ctx_ctrls(ctx);
+
 			return -ENOMEM;
 		}
 
@@ -817,7 +841,13 @@ static int mfc_enc_init_buf_ctrls(struct mfc_ctx *ctx,
 
 		buf_ctrl = kzalloc(sizeof(struct mfc_buf_ctrl), GFP_KERNEL);
 		if (buf_ctrl == NULL) {
+			mfc_ctx_err("Failed to allocate buffer control "
+					"id: 0x%08x, type: %d\n",
+					mfc_ctrl_list[i].id,
+					mfc_ctrl_list[i].type);
+
 			__mfc_enc_remove_buf_ctrls(head);
+
 			return -ENOMEM;
 		}
 
@@ -881,8 +911,7 @@ static int mfc_enc_cleanup_buf_ctrls(struct mfc_ctx *ctx,
 	return 0;
 }
 
-static void __mfc_enc_set_roi(struct mfc_ctx *ctx,
-		struct mfc_buf_ctrl *buf_ctrl)
+static void __mfc_enc_set_roi(struct mfc_ctx *ctx, struct mfc_buf_ctrl *buf_ctrl)
 {
 	struct mfc_enc *enc = ctx->enc_priv;
 	int index = 0;
@@ -937,8 +966,7 @@ static int mfc_enc_to_buf_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 					buf_ctrl->updated = 0;
 
 				ctx_ctrl->set.has_new = 0;
-				if (buf_ctrl->id ==
-						V4L2_CID_MPEG_VIDEO_ROI_CONTROL)
+				if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL)
 					__mfc_enc_set_roi(ctx, buf_ctrl);
 				break;
 			}
@@ -980,8 +1008,8 @@ static int mfc_enc_to_ctx_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 }
 
 static void __mfc_enc_store_buf_ctrls_temporal_svc(int id,
-			struct mfc_enc_params *p,
-			struct temporal_layer_info *temporal_LC)
+		struct mfc_enc_params *p,
+		struct temporal_layer_info *temporal_LC)
 {
 	unsigned int num_layer = temporal_LC->temporal_layer_count;
 	int i;
@@ -1016,10 +1044,9 @@ static void __mfc_enc_store_buf_ctrls_temporal_svc(int id,
 	}
 }
 
-static void __mfc_enc_set_buf_ctrls_temporal_svc(struct mfc_ctx *ctx,
-			struct mfc_buf_ctrl *buf_ctrl)
+static void __mfc_core_enc_set_buf_ctrls_temporal_svc(struct mfc_core *core,
+		struct mfc_ctx *ctx, struct mfc_buf_ctrl *buf_ctrl)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	unsigned int value = 0, value2 = 0;
 	struct temporal_layer_info temporal_LC;
@@ -1041,43 +1068,43 @@ static void __mfc_enc_set_buf_ctrls_temporal_svc(struct mfc_ctx *ctx,
 		__mfc_enc_store_buf_ctrls_temporal_svc(buf_ctrl->id, p,
 				&temporal_LC);
 
-		if (((temporal_LC.temporal_layer_count & 0x7) < 1) ||
+		if(((temporal_LC.temporal_layer_count & 0x7) < 1) ||
 			((temporal_LC.temporal_layer_count > 3) && IS_VP8_ENC(ctx)) ||
 			((temporal_LC.temporal_layer_count > 3) && IS_VP9_ENC(ctx))) {
 			/* clear NUM_T_LAYER_CHANGE */
-			value = MFC_READL(buf_ctrl->flag_addr);
+			value = MFC_CORE_READL(buf_ctrl->flag_addr);
 			value &= ~(1 << 10);
-			MFC_WRITEL(value, buf_ctrl->flag_addr);
+			MFC_CORE_WRITEL(value, buf_ctrl->flag_addr);
 			mfc_ctx_err("[HIERARCHICAL] layer count is invalid : %d\n",
 					temporal_LC.temporal_layer_count);
 			return;
 		}
 
 		/* enable RC_BIT_RATE_CHANGE */
-		value = MFC_READL(buf_ctrl->flag_addr);
+		value = MFC_CORE_READL(buf_ctrl->flag_addr);
 		if (temporal_LC.temporal_layer_bitrate[0] > 0 || p->hier_bitrate_ctrl)
 			/* set RC_BIT_RATE_CHANGE */
 			value |= (1 << 2);
 		else
 			/* clear RC_BIT_RATE_CHANGE */
 			value &= ~(1 << 2);
-		MFC_WRITEL(value, buf_ctrl->flag_addr);
+		MFC_CORE_WRITEL(value, buf_ctrl->flag_addr);
 
 		mfc_debug(3, "[HIERARCHICAL] layer count %d, E_PARAM_CHANGE %#x\n",
 				temporal_LC.temporal_layer_count & 0x7, value);
 
-		value = MFC_READL(MFC_REG_E_NUM_T_LAYER);
+		value = MFC_CORE_READL(MFC_REG_E_NUM_T_LAYER);
 		buf_ctrl->old_val2 = value;
 		value &= ~(0x7);
 		value |= (temporal_LC.temporal_layer_count & 0x7);
 		value &= ~(0x1 << 8);
 		value |= (p->hier_bitrate_ctrl & 0x1) << 8;
-		MFC_WRITEL(value, MFC_REG_E_NUM_T_LAYER);
+		MFC_CORE_WRITEL(value, MFC_REG_E_NUM_T_LAYER);
 		mfc_debug(3, "[HIERARCHICAL] E_NUM_T_LAYER %#x\n", value);
 		for (i = 0; i < (temporal_LC.temporal_layer_count & 0x7); i++) {
 			mfc_debug(3, "[HIERARCHICAL] layer bitrate[%d] %d (FW ctrl: %d)\n",
 					i, temporal_LC.temporal_layer_bitrate[i], p->hier_bitrate_ctrl);
-			MFC_WRITEL(temporal_LC.temporal_layer_bitrate[i],
+			MFC_CORE_WRITEL(temporal_LC.temporal_layer_bitrate[i],
 					buf_ctrl->addr + i * 4);
 		}
 		/* priority change */
@@ -1092,14 +1119,14 @@ static void __mfc_enc_set_buf_ctrls_temporal_svc(struct mfc_ctx *ctx,
 					value2 |= ((p->codec.h264.base_priority & 0x3F) + i)
 						<< (6 * (i - 5));
 			}
-			MFC_WRITEL(value, MFC_REG_E_H264_HD_SVC_EXTENSION_0);
-			MFC_WRITEL(value2, MFC_REG_E_H264_HD_SVC_EXTENSION_1);
+			MFC_CORE_WRITEL(value, MFC_REG_E_H264_HD_SVC_EXTENSION_0);
+			MFC_CORE_WRITEL(value2, MFC_REG_E_H264_HD_SVC_EXTENSION_1);
 			mfc_debug(3, "[HIERARCHICAL] EXTENSION0 %#x, EXTENSION1 %#x\n",
 					value, value2);
 
-			value = MFC_READL(buf_ctrl->flag_addr);
+			value = MFC_CORE_READL(buf_ctrl->flag_addr);
 			value |= (1 << 12);
-			MFC_WRITEL(value, buf_ctrl->flag_addr);
+			MFC_CORE_WRITEL(value, buf_ctrl->flag_addr);
 			mfc_debug(3, "[HIERARCHICAL] E_PARAM_CHANGE %#x\n", value);
 		}
 
@@ -1107,10 +1134,10 @@ static void __mfc_enc_set_buf_ctrls_temporal_svc(struct mfc_ctx *ctx,
 
 	/* temproral layer priority */
 	if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_BASE_PRIORITY) {
-		value = MFC_READL(MFC_REG_E_H264_HD_SVC_EXTENSION_0);
+		value = MFC_CORE_READL(MFC_REG_E_H264_HD_SVC_EXTENSION_0);
 		buf_ctrl->old_val |= value & 0x3FFFFFC0;
 		value &= ~(0x3FFFFFC0);
-		value2 = MFC_READL(MFC_REG_E_H264_HD_SVC_EXTENSION_1);
+		value2 = MFC_CORE_READL(MFC_REG_E_H264_HD_SVC_EXTENSION_1);
 		buf_ctrl->old_val2 = value2 & 0x0FFF;
 		value2 &= ~(0x0FFF);
 		for (i = 0; i < (p->codec.h264.num_hier_layer & 0x07); i++) {
@@ -1119,17 +1146,16 @@ static void __mfc_enc_set_buf_ctrls_temporal_svc(struct mfc_ctx *ctx,
 			else
 				value2 |= ((buf_ctrl->val & 0x3F) + i) << (6 * (i - 5));
 		}
-		MFC_WRITEL(value, MFC_REG_E_H264_HD_SVC_EXTENSION_0);
-		MFC_WRITEL(value2, MFC_REG_E_H264_HD_SVC_EXTENSION_1);
+		MFC_CORE_WRITEL(value, MFC_REG_E_H264_HD_SVC_EXTENSION_0);
+		MFC_CORE_WRITEL(value2, MFC_REG_E_H264_HD_SVC_EXTENSION_1);
 		mfc_debug(3, "[HIERARCHICAL] EXTENSION0 %#x, EXTENSION1 %#x\n",
 				value, value2);
 	}
 }
 
-static void __mfc_enc_set_buf_ctrls_exception(struct mfc_ctx *ctx,
-			struct mfc_buf_ctrl *buf_ctrl)
+static void __mfc_core_enc_set_buf_ctrls_exception(struct mfc_core *core,
+		struct mfc_ctx *ctx, struct mfc_buf_ctrl *buf_ctrl)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	unsigned int value = 0;
@@ -1138,57 +1164,53 @@ static void __mfc_enc_set_buf_ctrls_exception(struct mfc_ctx *ctx,
 		enc->stored_tag = buf_ctrl->val;
 
 	/* temporal layer setting */
-	__mfc_enc_set_buf_ctrls_temporal_svc(ctx, buf_ctrl);
+	__mfc_core_enc_set_buf_ctrls_temporal_svc(core, ctx, buf_ctrl);
 
 	if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_MARK_LTR) {
-		value = MFC_READL(MFC_REG_E_H264_NAL_CONTROL);
+		value = MFC_CORE_READL(MFC_REG_E_H264_NAL_CONTROL);
 		buf_ctrl->old_val2 = (value >> 8) & 0x7;
 		value &= ~(0x7 << 8);
 		value |= (buf_ctrl->val & 0x7) << 8;
-		MFC_WRITEL(value, MFC_REG_E_H264_NAL_CONTROL);
+		MFC_CORE_WRITEL(value, MFC_REG_E_H264_NAL_CONTROL);
 	}
 	if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_USE_LTR) {
-		value = MFC_READL(MFC_REG_E_H264_NAL_CONTROL);
+		value = MFC_CORE_READL(MFC_REG_E_H264_NAL_CONTROL);
 		buf_ctrl->old_val2 = (value >> 11) & 0xF;
 		value &= ~(0xF << 11);
 		value |= (buf_ctrl->val & 0xF) << 11;
-		MFC_WRITEL(value, MFC_REG_E_H264_NAL_CONTROL);
+		MFC_CORE_WRITEL(value, MFC_REG_E_H264_NAL_CONTROL);
 	}
 
 	if (buf_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH) {
-		value = MFC_READL(MFC_REG_E_GOP_CONFIG2);
+		value = MFC_CORE_READL(MFC_REG_E_GOP_CONFIG2);
 		buf_ctrl->old_val |= (value << 16) & 0x3FFF0000;
 		value &= ~(0x3FFF);
 		value |= (buf_ctrl->val >> 16) & 0x3FFF;
-		MFC_WRITEL(value, MFC_REG_E_GOP_CONFIG2);
+		MFC_CORE_WRITEL(value, MFC_REG_E_GOP_CONFIG2);
 	}
 
 	/* PROFILE & LEVEL have to be set up together */
 	if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_LEVEL) {
-		value = MFC_READL(MFC_REG_E_PICTURE_PROFILE);
+		value = MFC_CORE_READL(MFC_REG_E_PICTURE_PROFILE);
 		buf_ctrl->old_val |= (value & 0x000F) << 8;
 		value &= ~(0x000F);
 		value |= p->codec.h264.profile & 0x000F;
-		MFC_WRITEL(value, MFC_REG_E_PICTURE_PROFILE);
+		MFC_CORE_WRITEL(value, MFC_REG_E_PICTURE_PROFILE);
 		p->codec.h264.level = buf_ctrl->val;
 	}
 
 	if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_PROFILE) {
-		value = MFC_READL(MFC_REG_E_PICTURE_PROFILE);
+		value = MFC_CORE_READL(MFC_REG_E_PICTURE_PROFILE);
 		buf_ctrl->old_val |= value & 0xFF00;
 		value &= ~(0x00FF << 8);
 		value |= (p->codec.h264.level << 8) & 0xFF00;
-		MFC_WRITEL(value, MFC_REG_E_PICTURE_PROFILE);
+		MFC_CORE_WRITEL(value, MFC_REG_E_PICTURE_PROFILE);
 		p->codec.h264.profile = buf_ctrl->val;
 	}
 
-	/* per buffer QP setting change */
-	if (buf_ctrl->id == V4L2_CID_MPEG_MFC_CONFIG_QP)
-		p->config_qp = buf_ctrl->val;
-
 	/* set the ROI buffer DVA */
 	if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
-		MFC_WRITEL(enc->roi_buf[buf_ctrl->old_val2].daddr,
+		MFC_CORE_WRITEL(enc->roi_buf[buf_ctrl->old_val2].daddr,
 				MFC_REG_E_ROI_BUFFER_ADDR);
 		mfc_debug(3, "[ROI] buffer[%d] addr %#llx, QP val: %#x\n",
 				buf_ctrl->old_val2,
@@ -1199,37 +1221,29 @@ static void __mfc_enc_set_buf_ctrls_exception(struct mfc_ctx *ctx,
 	/* set frame rate change with delta */
 	if (buf_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE_CH) {
 		p->rc_frame_delta = p->rc_framerate_res / buf_ctrl->val;
-		value = MFC_READL(buf_ctrl->addr);
+		value = MFC_CORE_READL(buf_ctrl->addr);
 		value &= ~(buf_ctrl->mask << buf_ctrl->shft);
-		value |= ((p->rc_frame_delta & buf_ctrl->mask) <<
-				buf_ctrl->shft);
-		MFC_WRITEL(value, buf_ctrl->addr);
+		value |= ((p->rc_frame_delta & buf_ctrl->mask) << buf_ctrl->shft);
+		MFC_CORE_WRITEL(value, buf_ctrl->addr);
 	}
 
 	/* set drop control */
 	if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_DROP_CONTROL) {
 		if (!ctx->ts_last_interval) {
-			p->rc_frame_delta =
-				p->rc_framerate_res / p->rc_framerate;
-			mfc_debug(3, "[DROPCTRL] default delta: %d\n",
-					p->rc_frame_delta);
+			p->rc_frame_delta = p->rc_framerate_res / p->rc_framerate;
+			mfc_debug(3, "[DROPCTRL] default delta: %d\n", p->rc_frame_delta);
 		} else {
 			if (IS_H263_ENC(ctx))
-				p->rc_frame_delta =
-					(ctx->ts_last_interval / 100) /
-					p->rc_framerate_res;
+				p->rc_frame_delta = (ctx->ts_last_interval / 100) / p->rc_framerate_res;
 			else
-				p->rc_frame_delta =
-					ctx->ts_last_interval /
-					p->rc_framerate_res;
+				p->rc_frame_delta = ctx->ts_last_interval / p->rc_framerate_res;
 		}
-		value = MFC_READL(MFC_REG_E_RC_FRAME_RATE);
+		value = MFC_CORE_READL(MFC_REG_E_RC_FRAME_RATE);
 		value &= ~(0xFFFF);
 		value |= (p->rc_frame_delta & 0xFFFF);
-		MFC_WRITEL(value, MFC_REG_E_RC_FRAME_RATE);
+		MFC_CORE_WRITEL(value, MFC_REG_E_RC_FRAME_RATE);
 		mfc_debug(3, "[DROPCTRL] fps %d -> %ld, delta: %d, reg: %#x\n",
-				p->rc_framerate,
-				USEC_PER_SEC / ctx->ts_last_interval,
+				p->rc_framerate, USEC_PER_SEC / ctx->ts_last_interval,
 				p->rc_frame_delta, value);
 	}
 
@@ -1238,9 +1252,9 @@ static void __mfc_enc_set_buf_ctrls_exception(struct mfc_ctx *ctx,
 		enc->config_qp = p->config_qp;
 }
 
-static int mfc_enc_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
+static int mfc_core_enc_set_buf_ctrls_val(struct mfc_core *core,
+		struct mfc_ctx *ctx, struct list_head *head)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf_ctrl *buf_ctrl;
 	unsigned int value = 0;
 
@@ -1250,7 +1264,7 @@ static int mfc_enc_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 
 		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR) {
 			/* read old vlaue */
-			value = MFC_READL(buf_ctrl->addr);
+			value = MFC_CORE_READL(buf_ctrl->addr);
 
 			/* save old value for recovery */
 			if (buf_ctrl->is_volatile)
@@ -1259,20 +1273,20 @@ static int mfc_enc_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 			/* write new value */
 			value &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			value |= ((buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft);
-			MFC_WRITEL(value, buf_ctrl->addr);
+			MFC_CORE_WRITEL(value, buf_ctrl->addr);
 		}
 
 		/* set change flag bit */
 		if (buf_ctrl->flag_mode == MFC_CTRL_MODE_SFR) {
-			value = MFC_READL(buf_ctrl->flag_addr);
+			value = MFC_CORE_READL(buf_ctrl->flag_addr);
 			value |= (1 << buf_ctrl->flag_shft);
-			MFC_WRITEL(value, buf_ctrl->flag_addr);
+			MFC_CORE_WRITEL(value, buf_ctrl->flag_addr);
 		}
 
 		buf_ctrl->has_new = 0;
 		buf_ctrl->updated = 1;
 
-		__mfc_enc_set_buf_ctrls_exception(ctx, buf_ctrl);
+		__mfc_core_enc_set_buf_ctrls_exception(core, ctx, buf_ctrl);
 
 		mfc_debug(6, "[CTRLS] Set buffer control id: 0x%08x, val: %d (%#x)\n",
 				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
@@ -1281,9 +1295,9 @@ static int mfc_enc_set_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 	return 0;
 }
 
-static int mfc_enc_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head)
+static int mfc_core_enc_get_buf_ctrls_val(struct mfc_core *core,
+		struct mfc_ctx *ctx, struct list_head *head)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf_ctrl *buf_ctrl;
 	unsigned int value = 0;
 
@@ -1292,7 +1306,7 @@ static int mfc_enc_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 			continue;
 
 		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR)
-			value = MFC_READL(buf_ctrl->addr);
+			value = MFC_CORE_READL(buf_ctrl->addr);
 		else if (buf_ctrl->mode == MFC_CTRL_MODE_CST)
 			value = call_bop(buf_ctrl, read_cst, ctx, buf_ctrl);
 
@@ -1308,22 +1322,88 @@ static int mfc_enc_get_buf_ctrls_val(struct mfc_ctx *ctx, struct list_head *head
 	return 0;
 }
 
-static int mfc_enc_get_buf_ctrl_val_by_id(struct mfc_ctx *ctx,
-			struct list_head *head, unsigned int id)
+static int mfc_core_enc_recover_buf_ctrls_val(struct mfc_core *core,
+		struct mfc_ctx *ctx, struct list_head *head)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
-	int value = 0;
+	unsigned int value = 0;
 
 	list_for_each_entry(buf_ctrl, head, list) {
-		if (buf_ctrl->id == id) {
-			value = buf_ctrl->val;
-			mfc_debug(6, "[CTRLS] Get buffer control id: 0x%08x, val: %d (%#x)\n",
-					buf_ctrl->id, value, value);
-			break;
+		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET)
+			|| !buf_ctrl->is_volatile
+			|| !buf_ctrl->updated)
+			continue;
+
+		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR)
+			value = MFC_CORE_READL(buf_ctrl->addr);
+
+		value &= ~(buf_ctrl->mask << buf_ctrl->shft);
+		value |= ((buf_ctrl->old_val & buf_ctrl->mask)
+							<< buf_ctrl->shft);
+
+		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR)
+			MFC_CORE_WRITEL(value, buf_ctrl->addr);
+
+		/* clear change flag bit */
+		if (buf_ctrl->flag_mode == MFC_CTRL_MODE_SFR) {
+			value = MFC_CORE_READL(buf_ctrl->flag_addr);
+			value &= ~(1 << buf_ctrl->flag_shft);
+			MFC_CORE_WRITEL(value, buf_ctrl->flag_addr);
 		}
+
+		mfc_debug(6, "[CTRLS] Recover buffer control id: 0x%08x, old val: %d\n",
+				buf_ctrl->id, buf_ctrl->old_val);
+
+		if (buf_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH) {
+			value = MFC_CORE_READL(MFC_REG_E_GOP_CONFIG2);
+			value &= ~(0x3FFF);
+			value |= (buf_ctrl->old_val >> 16) & 0x3FFF;
+			MFC_CORE_WRITEL(value, MFC_REG_E_GOP_CONFIG2);
+		}
+		if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_LEVEL) {
+			value = MFC_CORE_READL(MFC_REG_E_PICTURE_PROFILE);
+			value &= ~(0x000F);
+			value |= (buf_ctrl->old_val >> 8) & 0x000F;
+			MFC_CORE_WRITEL(value, MFC_REG_E_PICTURE_PROFILE);
+		}
+		if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_PROFILE) {
+			value = MFC_CORE_READL(MFC_REG_E_PICTURE_PROFILE);
+			value &= ~(0xFF00);
+			value |= buf_ctrl->old_val & 0xFF00;
+			MFC_CORE_WRITEL(value, MFC_REG_E_PICTURE_PROFILE);
+		}
+		if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_BASE_PRIORITY) {
+			MFC_CORE_WRITEL(buf_ctrl->old_val, MFC_REG_E_H264_HD_SVC_EXTENSION_0);
+			MFC_CORE_WRITEL(buf_ctrl->old_val2, MFC_REG_E_H264_HD_SVC_EXTENSION_1);
+		}
+		if (buf_ctrl->id
+			== V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER_CH ||
+			buf_ctrl->id
+			== V4L2_CID_MPEG_VIDEO_VP8_HIERARCHICAL_CODING_LAYER_CH ||
+			buf_ctrl->id
+			== V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH) {
+			MFC_CORE_WRITEL(buf_ctrl->old_val2, MFC_REG_E_NUM_T_LAYER);
+			/* clear RC_BIT_RATE_CHANGE */
+			value = MFC_CORE_READL(buf_ctrl->flag_addr);
+			value &= ~(1 << 2);
+			MFC_CORE_WRITEL(value, buf_ctrl->flag_addr);
+		}
+		if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_MARK_LTR) {
+			value = MFC_CORE_READL(MFC_REG_E_H264_NAL_CONTROL);
+			value &= ~(0x7 << 8);
+			value |= (buf_ctrl->old_val2 & 0x7) << 8;
+			MFC_CORE_WRITEL(value, MFC_REG_E_H264_NAL_CONTROL);
+		}
+		if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_USE_LTR) {
+			value = MFC_CORE_READL(MFC_REG_E_H264_NAL_CONTROL);
+			value &= ~(0xF << 11);
+			value |= (buf_ctrl->old_val2 & 0xF) << 11;
+			MFC_CORE_WRITEL(value, MFC_REG_E_H264_NAL_CONTROL);
+		}
+		buf_ctrl->updated = 0;
 	}
 
-	return value;
+	return 0;
 }
 
 static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
@@ -1334,8 +1414,6 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 	struct temporal_layer_info temporal_LC;
 	unsigned int i, param_change;
 	struct mfc_enc_params *p = &enc->params;
-
-	mfc_debug_enter();
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET) || !buf_ctrl->has_new)
@@ -1364,13 +1442,10 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 		case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE_CH:
 			p->rc_frame_delta = p->rc_framerate_res / buf_ctrl->val;
 			pInStr->RcFrameRate &= ~(0xFFFF << 16);
+			pInStr->RcFrameRate |= (p->rc_framerate_res & 0xFFFF) << 16;
+			pInStr->RcFrameRate &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			pInStr->RcFrameRate |=
-				(p->rc_framerate_res & 0xFFFF) << 16;
-			pInStr->RcFrameRate &=
-				~(buf_ctrl->mask << buf_ctrl->shft);
-			pInStr->RcFrameRate |=
-				(p->rc_frame_delta & buf_ctrl->mask) <<
-				buf_ctrl->shft;
+				(p->rc_frame_delta & buf_ctrl->mask) << buf_ctrl->shft;
 			param_change = 1;
 			break;
 		case V4L2_CID_MPEG_MFC51_VIDEO_BIT_RATE_CH:
@@ -1526,7 +1601,7 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			pInStr->FixedPictureQp &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			pInStr->FixedPictureQp |=
 				(buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft;
-			p->config_qp = buf_ctrl->val;
+			enc->config_qp = p->config_qp;
 			break;
 		case V4L2_CID_MPEG_VIDEO_ROI_CONTROL:
 			pInStr->RcRoiCtrl &= ~(buf_ctrl->mask << buf_ctrl->shft);
@@ -1542,7 +1617,6 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			pInStr->Weight &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			pInStr->Weight |=
 				(buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft;
-			enc->config_qp = p->config_qp;
 			break;
 		case V4L2_CID_MPEG_VIDEO_RATIO_OF_INTRA:
 			pInStr->RcMode &= ~(buf_ctrl->mask << buf_ctrl->shft);
@@ -1552,31 +1626,21 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			break;
 		case V4L2_CID_MPEG_VIDEO_DROP_CONTROL:
 			if (!ctx->ts_last_interval) {
-				p->rc_frame_delta =
-					p->rc_framerate_res / p->rc_framerate;
-				mfc_debug(3, "[NALQ][DROPCTRL] default delta: %d\n",
-						p->rc_frame_delta);
+				p->rc_frame_delta = p->rc_framerate_res / p->rc_framerate;
+				mfc_debug(3, "[NALQ][DROPCTRL] default delta: %d\n", p->rc_frame_delta);
 			} else {
 				if (IS_H263_ENC(ctx))
-					p->rc_frame_delta =
-						(ctx->ts_last_interval / 100) /
-						p->rc_framerate_res;
+					p->rc_frame_delta = (ctx->ts_last_interval / 100) / p->rc_framerate_res;
 				else
-					p->rc_frame_delta =
-						ctx->ts_last_interval /
-						p->rc_framerate_res;
+					p->rc_frame_delta = ctx->ts_last_interval / p->rc_framerate_res;
 			}
 			pInStr->RcFrameRate &= ~(0xFFFF << 16);
+			pInStr->RcFrameRate |= (p->rc_framerate_res & 0xFFFF) << 16;
+			pInStr->RcFrameRate &= ~(buf_ctrl->mask << buf_ctrl->shft);
 			pInStr->RcFrameRate |=
-				(p->rc_framerate_res & 0xFFFF) << 16;
-			pInStr->RcFrameRate &=
-				~(buf_ctrl->mask << buf_ctrl->shft);
-			pInStr->RcFrameRate |=
-				(p->rc_frame_delta & buf_ctrl->mask) <<
-				buf_ctrl->shft;
+				(p->rc_frame_delta & buf_ctrl->mask) << buf_ctrl->shft;
 			mfc_debug(3, "[NALQ][DROPCTRL] fps %d -> %ld, delta: %d, reg: %#x\n",
-					p->rc_framerate,
-					USEC_PER_SEC / ctx->ts_last_interval,
+					p->rc_framerate, USEC_PER_SEC / ctx->ts_last_interval,
 					p->rc_frame_delta, pInStr->RcFrameRate);
 			break;
 		/* If new dynamic controls are added, insert here */
@@ -1596,8 +1660,6 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
 
-	mfc_debug_leave();
-
 	return 0;
 }
 
@@ -1607,8 +1669,6 @@ static int mfc_enc_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 	struct mfc_buf_ctrl *buf_ctrl;
 	struct mfc_enc *enc = ctx->enc_priv;
 	unsigned int value = 0;
-
-	mfc_debug_enter();
 
 	list_for_each_entry(buf_ctrl, head, list) {
 		if (!(buf_ctrl->type & MFC_CTRL_TYPE_GET))
@@ -1641,98 +1701,10 @@ static int mfc_enc_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
 	}
 
-	mfc_debug_leave();
-
 	return 0;
 }
 
-static int mfc_enc_recover_buf_ctrls_val(struct mfc_ctx *ctx,
-						struct list_head *head)
-{
-	struct mfc_dev *dev = ctx->dev;
-	struct mfc_buf_ctrl *buf_ctrl;
-	unsigned int value = 0;
-
-	list_for_each_entry(buf_ctrl, head, list) {
-		if (!(buf_ctrl->type & MFC_CTRL_TYPE_SET)
-			|| !buf_ctrl->is_volatile
-			|| !buf_ctrl->updated)
-			continue;
-
-		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR)
-			value = MFC_READL(buf_ctrl->addr);
-
-		value &= ~(buf_ctrl->mask << buf_ctrl->shft);
-		value |= ((buf_ctrl->old_val & buf_ctrl->mask)
-							<< buf_ctrl->shft);
-
-		if (buf_ctrl->mode == MFC_CTRL_MODE_SFR)
-			MFC_WRITEL(value, buf_ctrl->addr);
-
-		/* clear change flag bit */
-		if (buf_ctrl->flag_mode == MFC_CTRL_MODE_SFR) {
-			value = MFC_READL(buf_ctrl->flag_addr);
-			value &= ~(1 << buf_ctrl->flag_shft);
-			MFC_WRITEL(value, buf_ctrl->flag_addr);
-		}
-
-		mfc_debug(6, "[CTRLS] Recover buffer control id: 0x%08x, old val: %d (%#x)\n",
-				buf_ctrl->id, buf_ctrl->old_val, buf_ctrl->old_val);
-
-		if (buf_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH) {
-			value = MFC_READL(MFC_REG_E_GOP_CONFIG2);
-			value &= ~(0x3FFF);
-			value |= (buf_ctrl->old_val >> 16) & 0x3FFF;
-			MFC_WRITEL(value, MFC_REG_E_GOP_CONFIG2);
-		}
-		if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_LEVEL) {
-			value = MFC_READL(MFC_REG_E_PICTURE_PROFILE);
-			value &= ~(0x000F);
-			value |= (buf_ctrl->old_val >> 8) & 0x000F;
-			MFC_WRITEL(value, MFC_REG_E_PICTURE_PROFILE);
-		}
-		if (buf_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_PROFILE) {
-			value = MFC_READL(MFC_REG_E_PICTURE_PROFILE);
-			value &= ~(0xFF00);
-			value |= buf_ctrl->old_val & 0xFF00;
-			MFC_WRITEL(value, MFC_REG_E_PICTURE_PROFILE);
-		}
-		if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_BASE_PRIORITY) {
-			MFC_WRITEL(buf_ctrl->old_val, MFC_REG_E_H264_HD_SVC_EXTENSION_0);
-			MFC_WRITEL(buf_ctrl->old_val2, MFC_REG_E_H264_HD_SVC_EXTENSION_1);
-		}
-		if (buf_ctrl->id
-			== V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_LAYER_CH ||
-			buf_ctrl->id
-			== V4L2_CID_MPEG_VIDEO_VP8_HIERARCHICAL_CODING_LAYER_CH ||
-			buf_ctrl->id
-			== V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH) {
-			MFC_WRITEL(buf_ctrl->old_val2, MFC_REG_E_NUM_T_LAYER);
-			/* clear RC_BIT_RATE_CHANGE */
-			value = MFC_READL(buf_ctrl->flag_addr);
-			value &= ~(1 << 2);
-			MFC_WRITEL(value, buf_ctrl->flag_addr);
-		}
-		if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_MARK_LTR) {
-			value = MFC_READL(MFC_REG_E_H264_NAL_CONTROL);
-			value &= ~(0x7 << 8);
-			value |= (buf_ctrl->old_val2 & 0x7) << 8;
-			MFC_WRITEL(value, MFC_REG_E_H264_NAL_CONTROL);
-		}
-		if (buf_ctrl->id == V4L2_CID_MPEG_MFC_H264_USE_LTR) {
-			value = MFC_READL(MFC_REG_E_H264_NAL_CONTROL);
-			value &= ~(0xF << 11);
-			value |= (buf_ctrl->old_val2 & 0xF) << 11;
-			MFC_WRITEL(value, MFC_REG_E_H264_NAL_CONTROL);
-		}
-		buf_ctrl->updated = 0;
-	}
-
-	return 0;
-}
-
-static int mfc_enc_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx,
-		struct list_head *head)
+static int mfc_enc_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx, struct list_head *head)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
 
@@ -1744,8 +1716,8 @@ static int mfc_enc_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx,
 		buf_ctrl->has_new = 1;
 		buf_ctrl->updated = 0;
 
-		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d (%#x)\n",
-				buf_ctrl->id, buf_ctrl->val, buf_ctrl->val);
+		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
+				buf_ctrl->id, buf_ctrl->val);
 	}
 
 	return 0;
@@ -1759,11 +1731,12 @@ struct mfc_ctrls_ops encoder_ctrls_ops = {
 	.cleanup_buf_ctrls		= mfc_enc_cleanup_buf_ctrls,
 	.to_buf_ctrls			= mfc_enc_to_buf_ctrls,
 	.to_ctx_ctrls			= mfc_enc_to_ctx_ctrls,
-	.set_buf_ctrls_val		= mfc_enc_set_buf_ctrls_val,
-	.get_buf_ctrls_val		= mfc_enc_get_buf_ctrls_val,
-	.get_buf_ctrl_val_by_id	= mfc_enc_get_buf_ctrl_val_by_id,
-	.recover_buf_ctrls_val		= mfc_enc_recover_buf_ctrls_val,
+	.get_buf_ctrl_val		= mfc_enc_get_buf_ctrl_val,
 	.get_buf_update_val		= mfc_enc_get_buf_update_val,
+	/* new core per buffer ctrls */
+	.core_set_buf_ctrls_val		= mfc_core_enc_set_buf_ctrls_val,
+	.core_get_buf_ctrls_val		= mfc_core_enc_get_buf_ctrls_val,
+	.core_recover_buf_ctrls_val	= mfc_core_enc_recover_buf_ctrls_val,
 	.set_buf_ctrls_val_nal_q_enc	= mfc_enc_set_buf_ctrls_val_nal_q,
 	.get_buf_ctrls_val_nal_q_enc	= mfc_enc_get_buf_ctrls_val_nal_q,
 	.recover_buf_ctrls_nal_q	= mfc_enc_recover_buf_ctrls_nal_q,

@@ -15,41 +15,43 @@
 
 #include "mfc_common.h"
 
-#define need_to_dpb_flush(ctx)		\
-	((ctx->state == MFCINST_FINISHING) ||	\
-	  (ctx->state == MFCINST_RUNNING))
-#define need_to_wait_nal_abort(ctx)		 \
-	(ctx->state == MFCINST_ABORT_INST)
-#define need_to_continue(ctx)			\
-	((ctx->state == MFCINST_DPB_FLUSHING) ||\
-	(ctx->state == MFCINST_ABORT_INST) ||	\
-	(ctx->state == MFCINST_RETURN_INST) ||	\
-	(ctx->state == MFCINST_SPECIAL_PARSING) ||	\
-	(ctx->state == MFCINST_SPECIAL_PARSING_NAL))
-#define need_to_special_parsing(ctx)		\
-	((ctx->state == MFCINST_GOT_INST) ||	\
-	 (ctx->state == MFCINST_HEAD_PARSED))
-#define need_to_special_parsing_nal(ctx)	\
-	(ctx->state == MFCINST_RUNNING)
-#define ready_to_get_crop(ctx)			\
-	((ctx->state == MFCINST_HEAD_PARSED) ||		\
-	(ctx->state == MFCINST_RUNNING) ||		\
-	(ctx->state == MFCINST_SPECIAL_PARSING) ||	\
-	(ctx->state == MFCINST_SPECIAL_PARSING_NAL) ||	\
-	(ctx->state == MFCINST_FINISHING))
+#define need_to_dpb_flush(core_ctx)		\
+	((core_ctx->state == MFCINST_FINISHING) ||	\
+	  (core_ctx->state == MFCINST_RUNNING))
+#define need_to_wait_nal_abort(core_ctx)		 \
+	(core_ctx->state == MFCINST_ABORT_INST)
+#define need_to_special_parsing(core_ctx)		\
+	((core_ctx->state == MFCINST_GOT_INST) ||	\
+	 (core_ctx->state == MFCINST_HEAD_PARSED))
+#define need_to_special_parsing_nal(core_ctx)	\
+	(core_ctx->state == MFCINST_RUNNING)
+#define ready_to_get_crop(core_ctx)			\
+	((core_ctx->state == MFCINST_HEAD_PARSED) ||		\
+	(core_ctx->state == MFCINST_RUNNING) ||		\
+	(core_ctx->state == MFCINST_SPECIAL_PARSING) ||	\
+	(core_ctx->state == MFCINST_SPECIAL_PARSING_NAL) ||	\
+	(core_ctx->state == MFCINST_FINISHING))
 
-int mfc_wait_for_done_dev(struct mfc_dev *dev, int command);
-int mfc_wait_for_done_ctx(struct mfc_ctx *ctx, int command);
-void mfc_wake_up_dev(struct mfc_dev *dev, unsigned int reason,
+void mfc_get_corelock_ctx(struct mfc_ctx *ctx);
+void mfc_release_corelock_ctx(struct mfc_ctx *ctx);
+void mfc_get_corelock_migrate(struct mfc_ctx *ctx);
+void mfc_release_corelock_migrate(struct mfc_ctx *ctx);
+
+int mfc_wait_for_done_ctx_migrate(struct mfc_dev *dev, struct mfc_ctx *ctx);
+void mfc_wake_up_ctx_migrate(struct mfc_ctx *ctx);
+
+int mfc_wait_for_done_core(struct mfc_core *core, int command);
+int mfc_wait_for_done_core_ctx(struct mfc_core_ctx *core_ctx, int command);
+void mfc_wake_up_core(struct mfc_core *core, unsigned int reason,
 		unsigned int err);
-void mfc_wake_up_ctx(struct mfc_ctx *ctx, unsigned int reason,
+void mfc_wake_up_core_ctx(struct mfc_core_ctx *core_ctx, unsigned int reason,
 		unsigned int err);
 
-int mfc_get_new_ctx(struct mfc_dev *dev);
-int mfc_get_next_ctx(struct mfc_dev *dev);
+int mfc_core_get_new_ctx(struct mfc_core *core);
+int mfc_core_get_next_ctx(struct mfc_core *core);
 
-int mfc_ctx_ready_set_bit(struct mfc_ctx *ctx, struct mfc_bits *data);
-int mfc_ctx_ready_clear_bit(struct mfc_ctx *ctx, struct mfc_bits *data);
+int mfc_ctx_ready_set_bit(struct mfc_core_ctx *core_ctx, struct mfc_bits *data);
+int mfc_ctx_ready_clear_bit(struct mfc_core_ctx *core_ctx, struct mfc_bits *data);
 
 static inline void mfc_set_bit(int num, struct mfc_bits *data)
 {
@@ -116,9 +118,9 @@ static inline void mfc_delete_bits(struct mfc_bits *data)
 	mfc_clear_all_bits(data);
 }
 
-static inline int mfc_is_work_to_do(struct mfc_dev *dev)
+static inline int mfc_core_is_work_to_do(struct mfc_core *core)
 {
-	return (!mfc_is_all_bits_cleared(&dev->work_bits));
+	return (!mfc_is_all_bits_cleared(&core->work_bits));
 }
 
 #endif /* __MFC_INTR_H */

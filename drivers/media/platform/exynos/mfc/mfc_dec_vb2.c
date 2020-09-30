@@ -10,12 +10,12 @@
  * (at your option) any later version.
  */
 
-#include  "mfc_common.h"
+#include "mfc_common.h"
 
-#include "mfc_hwlock.h"
-#include "mfc_nal_q.h"
-#include "mfc_run.h"
+#include "mfc_rm.h"
+
 #include "mfc_sync.h"
+#include "mfc_meminfo.h"
 
 #include "mfc_queue.h"
 #include "mfc_utils.h"
@@ -28,6 +28,8 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 {
 	struct mfc_ctx *ctx = vq->drv_priv;
 	struct mfc_dev *dev = ctx->dev;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
 	struct mfc_raw_info *raw;
 	int i;
 
@@ -35,10 +37,17 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 
 	raw = &ctx->raw_buf;
 
+	/*
+	 * During queue_setup,
+	 * context information is need to for only Master core
+	 */
+	core = mfc_get_master_core_wait(dev, ctx);
+	core_ctx = core->core_ctx[ctx->num];
+
 	/* Video output for decoding (source)
 	 * this can be set after getting an instance */
-	if (ctx->state == MFCINST_GOT_INST &&
-	    vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+	if (core_ctx->state == MFCINST_GOT_INST &&
+		vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(4, "dec src\n");
 		/* A single plane is required for input */
 		*plane_count = 1;
@@ -52,7 +61,7 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 		alloc_devs[0] = dev->device;
 	/* Video capture for decoding (destination)
 	 * this can be set after the header was parsed */
-	} else if (ctx->state >= MFCINST_HEAD_PARSED &&
+	} else if (core_ctx->state >= MFCINST_HEAD_PARSED &&
 		vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		mfc_debug(4, "dec dst\n");
 		/* Output plane count is different by the pixel format */
@@ -74,7 +83,7 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 		}
 	} else {
 		mfc_ctx_err("State seems invalid. State = %d, vq->type = %d\n",
-							ctx->state, vq->type);
+							core_ctx->state, vq->type);
 		return -EINVAL;
 	}
 
@@ -117,7 +126,6 @@ static int mfc_dec_buf_init(struct vb2_buffer *vb)
 		ret = mfc_check_vb_with_fmt(ctx->dst_fmt, vb);
 		if (ret < 0)
 			return ret;
-
 		mfc_calc_base_addr(ctx, vb, ctx->dst_fmt);
 
 		buf->paddr = mfc_mem_get_paddr_vb(vb);
@@ -138,7 +146,7 @@ static int mfc_dec_buf_init(struct vb2_buffer *vb)
 					vb->index) < 0)
 			mfc_ctx_err("failed in init_buf_ctrls\n");
 	} else {
-		mfc_ctx_err("unknown queue type\n");
+		mfc_ctx_err("mfc_dec_buf_init: unknown queue type\n");
 		return -EINVAL;
 	}
 
@@ -183,9 +191,11 @@ static int mfc_dec_buf_prepare(struct vb2_buffer *vb)
 			}
 		}
 		/* Copy dst buffer flag to buf_ctrl */
-		buf->flag = call_cop(ctx, get_buf_ctrl_val_by_id, ctx,
+		buf->flag = call_cop(ctx, get_buf_ctrl_val, ctx,
 				&ctx->dst_ctrls[index],
 				V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG);
+
+		mfc_mem_buf_prepare(vb, 0);
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		buf_size = vb2_plane_size(vb, 0);
 		mfc_debug(2, "[STREAM] vb size: %lu, s_fmt sizeimage: %d\n",
@@ -195,12 +205,13 @@ static int mfc_dec_buf_prepare(struct vb2_buffer *vb)
 			mfc_ctx_err("failed in to_buf_ctrls\n");
 
 		/* Copy src buffer flag to buf_ctrl */
-		buf->flag = call_cop(ctx, get_buf_ctrl_val_by_id, ctx,
+		buf->flag = call_cop(ctx, get_buf_ctrl_val, ctx,
 				&ctx->src_ctrls[index],
 				V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG);
+
+		mfc_mem_buf_prepare(vb, 1);
 	}
 
-	mfc_mem_buf_prepare(vb);
 
 	return 0;
 }
@@ -209,8 +220,10 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct mfc_ctx *ctx = vq->drv_priv;
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_buf *buf = vb_to_mfc_buf(vb);
 	unsigned int index = vb->index;
+	int i;
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		/* Copy to dst buffer flag */
@@ -221,6 +234,16 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->dst_ctrls[index]) < 0)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
+
+		mfc_mem_buf_finish(vb, 0);
+
+		if (dev->skip_lazy_unmap || ctx->skip_lazy_unmap) {
+			for (i = 0; i < ctx->dst_fmt->mem_planes; i++) {
+				vb2_dma_sg_set_map_attr(vb->planes[i].mem_priv,
+							DMA_ATTR_SKIP_LAZY_UNMAP);
+				mfc_debug(4, "[LAZY_UNMAP] skip for dst plane[%d]\n", i);
+			}
+		}
 	} else if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		/* Copy to src buffer flag */
 		call_cop(ctx, get_buf_update_val, ctx, &ctx->src_ctrls[index],
@@ -230,9 +253,10 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->src_ctrls[index]) < 0)
 			mfc_ctx_err("failed in to_ctx_ctrls\n");
-	}
 
-	mfc_mem_buf_finish(vb);
+		vb2_dma_sg_set_map_attr(vb->planes[0].mem_priv, DMA_ATTR_SKIP_LAZY_UNMAP);
+		mfc_debug(4, "[LAZY_UNMAP] skip for src\n");
+	}
 }
 
 static void mfc_dec_buf_cleanup(struct vb2_buffer *vb)
@@ -252,7 +276,7 @@ static void mfc_dec_buf_cleanup(struct vb2_buffer *vb)
 					MFC_CTRL_TYPE_SRC, index) < 0)
 			mfc_ctx_err("failed in cleanup_buf_ctrls\n");
 	} else {
-		mfc_ctx_err("unknown queue type\n");
+		mfc_ctx_err("mfc_dec_buf_cleanup: unknown queue type\n");
 	}
 
 	mfc_debug_leave();
@@ -263,176 +287,20 @@ static int mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct mfc_ctx *ctx = q->drv_priv;
 	struct mfc_dev *dev = ctx->dev;
 
-	/* If context is ready then dev = work->data;schedule it to run */
-	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
-	mfc_try_run(dev);
+	mfc_rm_request_work(dev, MFC_WORK_TRY, ctx);
 
 	return 0;
-}
-
-static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
-{
-	struct mfc_dev *dev = ctx->dev;
-	struct mfc_dec *dec = ctx->dec_priv;
-	struct mfc_buf *src_mb;
-	int index = 0, csd, condition = 0, prev_state = 0;
-	int ret = 0;
-
-	while (1) {
-		csd = mfc_check_buf_mb_flag(ctx, MFC_FLAG_CSD);
-
-		if (csd == 1) {
-			mfc_clean_ctx_int_flags(ctx);
-			if (need_to_special_parsing(ctx)) {
-				prev_state = ctx->state;
-				mfc_change_state(ctx, MFCINST_SPECIAL_PARSING);
-				condition = MFC_REG_R2H_CMD_SEQ_DONE_RET;
-				mfc_ctx_info("try to special parsing! (before NAL_START)\n");
-			} else if (need_to_special_parsing_nal(ctx)) {
-				prev_state = ctx->state;
-				mfc_change_state(ctx, MFCINST_SPECIAL_PARSING_NAL);
-				condition = MFC_REG_R2H_CMD_FRAME_DONE_RET;
-				mfc_ctx_info("try to special parsing! (after NAL_START)\n");
-			} else {
-				mfc_ctx_info("can't parsing CSD!, state = %d\n",
-						ctx->state);
-			}
-
-			if (condition) {
-				mfc_set_bit(ctx->num, &dev->work_bits);
-
-				ret = mfc_just_run(dev, ctx->num);
-				if (ret) {
-					mfc_ctx_err("Failed to run MFC\n");
-					mfc_change_state(ctx, prev_state);
-				} else {
-					if (mfc_wait_for_done_ctx(ctx, condition))
-						mfc_ctx_err("special parsing time out\n");
-				}
-			}
-		}
-
-		src_mb = mfc_get_del_buf(ctx, &ctx->src_buf_queue,
-				MFC_BUF_NO_TOUCH_USED);
-		if (!src_mb)
-			break;
-
-		vb2_set_plane_payload(&src_mb->vb.vb2_buf, 0, 0);
-		vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_ERROR);
-	}
-
-	dec->consumed = 0;
-	dec->remained_size = 0;
-	ctx->check_dump = 0;
-
-	mfc_init_queue(&ctx->src_buf_queue);
-
-	while (index < MFC_MAX_BUFFERS) {
-		index = find_next_bit(&ctx->src_ctrls_avail,
-				MFC_MAX_BUFFERS, index);
-		if (index < MFC_MAX_BUFFERS)
-			call_cop(ctx, reset_buf_ctrls, &ctx->src_ctrls[index]);
-		index++;
-	}
-}
-
-static void __mfc_dec_dst_stop_streaming(struct mfc_ctx *ctx)
-{
-	struct mfc_dec *dec = ctx->dec_priv;
-	int index = 0, i;
-
-	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
-	for (i = 0; i < MFC_MAX_DPBS; i++)
-		dec->dpb[i].queued = 0;
-	dec->queued_dpb = 0;
-	ctx->is_dpb_realloc = 0;
-	dec->y_addr_for_pb = 0;
-
-	if (!dec->inter_res_change) {
-		mfc_cleanup_iovmm(ctx);
-
-		dec->dpb_table_used = 0;
-		dec->dynamic_used = 0;
-		dec->available_dpb = 0;
-	} else {
-		mfc_cleanup_iovmm_except_used(ctx);
-		mfc_print_dpb_table(ctx);
-	}
-
-	while (index < MFC_MAX_BUFFERS) {
-		index = find_next_bit(&ctx->dst_ctrls_avail,
-				MFC_MAX_BUFFERS, index);
-		if (index < MFC_MAX_BUFFERS)
-			call_cop(ctx, reset_buf_ctrls, &ctx->dst_ctrls[index]);
-		index++;
-	}
-
-	if (ctx->wait_state & WAIT_STOP) {
-		ctx->wait_state &= ~(WAIT_STOP);
-		mfc_debug(2, "clear WAIT_STOP %d\n", ctx->wait_state);
-		MFC_TRACE_CTX("** DEC clear WAIT_STOP %d\n", ctx->wait_state);
-	}
 }
 
 static void mfc_dec_stop_streaming(struct vb2_queue *q)
 {
 	struct mfc_ctx *ctx = q->drv_priv;
 	struct mfc_dev *dev = ctx->dev;
-	int ret = 0;
-	int prev_state;
 
-	mfc_ctx_info("dec stop_streaming is called, hwlock : %d, type : %d\n",
-				test_bit(ctx->num, &dev->hwlock.bits), q->type);
+	mfc_ctx_info("dec stop_streaming is called, type : %d\n", q->type);
 	MFC_TRACE_CTX("** DEC streamoff(type:%d)\n", q->type);
 
-	/* If a H/W operation is in progress, wait for it complete */
-	ret = mfc_get_hwlock_ctx(ctx);
-	if (ret < 0) {
-		mfc_ctx_err("Failed to get hwlock\n");
-		return;
-	}
-
-	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		__mfc_dec_dst_stop_streaming(ctx);
-	else if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-		__mfc_dec_src_stop_streaming(ctx);
-
-	if (ctx->state == MFCINST_FINISHING)
-		mfc_change_state(ctx, MFCINST_RUNNING);
-
-	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
-			need_to_dpb_flush(ctx) &&
-			!ctx->dec_priv->inter_res_change) {
-		prev_state = ctx->state;
-		mfc_change_state(ctx, MFCINST_DPB_FLUSHING);
-		mfc_set_bit(ctx->num, &dev->work_bits);
-		mfc_clean_ctx_int_flags(ctx);
-		mfc_ctx_info("try to DPB flush\n");
-		ret = mfc_just_run(dev, ctx->num);
-		if (ret) {
-			mfc_ctx_err("Failed to run MFC\n");
-			mfc_release_hwlock_ctx(ctx);
-			mfc_cleanup_work_bit_and_try_run(ctx);
-			return;
-		}
-
-		if (mfc_wait_for_done_ctx(ctx, MFC_REG_R2H_CMD_DPB_FLUSH_RET)) {
-			mfc_ctx_err("time out during DPB flush\n");
-			dev->logging_data->cause |= (1 << MFC_CAUSE_FAIL_DPB_FLUSH);
-			call_dop(dev, dump_and_stop_always, dev);
-		}
-
-		mfc_change_state(ctx, prev_state);
-	}
-
-	mfc_debug(2, "buffer cleanup & flush is done in stop_streaming, type : %d\n", q->type);
-
-	mfc_clear_bit(ctx->num, &dev->work_bits);
-	mfc_release_hwlock_ctx(ctx);
-
-	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
-	if (mfc_is_work_to_do(dev))
-		queue_work(dev->butler_wq, &dev->butler_work);
+	mfc_rm_instance_dec_stop(dev, ctx, q->type);
 }
 
 static void mfc_dec_buf_queue(struct vb2_buffer *vb)
@@ -448,19 +316,26 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 	mfc_debug_enter();
 
 	if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(2, "[BUFINFO] ctx[%d] add src index:%d, addr: 0x%08llx\n",
-				ctx->num, vb->index, buf->addr[0][0]);
-		if (vb->memory == V4L2_MEMORY_DMABUF &&
-				ctx->state < MFCINST_HEAD_PARSED && !ctx->is_drm)
+		mutex_lock(&ctx->cpb_mutex);
+		buf->src_index = ctx->serial_src_index++;
+		mfc_debug(2, "[BUFINFO] ctx[%d] add src index:%d(%d), addr: 0x%08llx\n",
+				ctx->num, vb->index, buf->src_index,
+				buf->addr[0][0]);
+		mutex_unlock(&ctx->cpb_mutex);
+
+		if (vb->memory == V4L2_MEMORY_DMABUF && !ctx->is_drm &&
+			mfc_rm_query_state(ctx, SMALLER, MFCINST_HEAD_PARSED))
 			stream_vir = vb2_plane_vaddr(vb, 0);
 
 		buf->vir_addr = stream_vir;
 
-		mfc_add_tail_buf(ctx, &ctx->src_buf_queue, buf);
+		mfc_add_tail_buf(ctx, &ctx->src_buf_ready_queue, buf);
 
 		if (debug_ts == 1)
 			mfc_ctx_info("[TS] framerate: %ld, timestamp: %lld\n",
 					ctx->framerate, buf->vb.vb2_buf.timestamp);
+		if (meminfo_enable == 1)
+			mfc_meminfo_add_inbuf(ctx, vb);
 
 		MFC_TRACE_CTX("Q src[%d] fd: %d, %#llx\n",
 				vb->index, vb->planes[0].m.fd, buf->addr[0][0]);
@@ -482,8 +357,7 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 		mfc_ctx_err("Unsupported buffer type (%d)\n", vq->type);
 	}
 
-	if (mfc_ctx_ready_set_bit(ctx, &dev->work_bits))
-		mfc_try_run(dev);
+	mfc_rm_request_work(dev, MFC_WORK_TRY, ctx);
 
 	mfc_debug_leave();
 }

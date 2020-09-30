@@ -12,10 +12,9 @@
 
 #include "mfc_enc_v4l2.h"
 #include "mfc_enc_internal.h"
+#include "mfc_rm.h"
 
-#include "mfc_hwlock.h"
-#include "mfc_otf.h"
-#include "mfc_run.h"
+#include "mfc_core_otf.h"
 #include "mfc_sync.h"
 
 #include "mfc_qos.h"
@@ -38,33 +37,24 @@ static struct mfc_fmt *__mfc_enc_find_format(struct mfc_ctx *ctx,
 		}
 	}
 
-	if (fmt && !dev->pdata->support_10bit &&
-			(fmt->type & MFC_FMT_10BIT)) {
+	if (fmt && !dev->pdata->support_10bit && (fmt->type & MFC_FMT_10BIT)) {
 		mfc_ctx_err("[FRAME] 10bit is not supported\n");
 		fmt = NULL;
 	}
-	if (fmt && !dev->pdata->support_422 &&
-			(fmt->type & MFC_FMT_422)) {
+	if (fmt && !dev->pdata->support_422 && (fmt->type & MFC_FMT_422)) {
 		mfc_ctx_err("[FRAME] 422 is not supported\n");
 		fmt = NULL;
 	}
-	if (fmt && !dev->pdata->support_rgb &&
-			(fmt->type & MFC_FMT_RGB)) {
+	if (fmt && !dev->pdata->support_rgb && (fmt->type & MFC_FMT_RGB)) {
 		mfc_ctx_err("[FRAME] RGB is not supported\n");
 		fmt = NULL;
 	}
-	if (fmt && !dev->pdata->support_sbwc &&
-			(fmt->type & MFC_FMT_SBWC)) {
+	if (fmt && !dev->pdata->support_sbwc && (fmt->type & MFC_FMT_SBWC)) {
 		mfc_ctx_err("[FRAME] SBWC is not supported\n");
 		fmt = NULL;
 	}
 	if (fmt && !dev->pdata->support_sbwcl && (fmt->type & MFC_FMT_SBWCL)) {
 		mfc_ctx_err("[FRAME] SBWC lossy is not supported\n");
-		fmt = NULL;
-	}
-	if (fmt && !dev->pdata->support_afbc &&
-			(fmt->type & MFC_FMT_AFBC)) {
-		mfc_ctx_err("[FRAME] AFBC is not supported\n");
 		fmt = NULL;
 	}
 
@@ -78,34 +68,33 @@ static void __mfc_enc_uncomp_format(struct mfc_ctx *ctx)
 	u32 uncomp_fmt = 0;
 
 	switch (org_fmt) {
-	case V4L2_PIX_FMT_NV12M_SBWC_8B:
-		uncomp_fmt = V4L2_PIX_FMT_NV12M;
-		break;
-	case V4L2_PIX_FMT_NV21M_SBWC_8B:
-		uncomp_fmt = V4L2_PIX_FMT_NV21M;
-		break;
-	case V4L2_PIX_FMT_NV12N_SBWC_8B:
-		uncomp_fmt = V4L2_PIX_FMT_NV12N;
-		break;
-	case V4L2_PIX_FMT_NV12M_SBWC_10B:
-		if (ctx->mem_type_10bit)
-			uncomp_fmt = V4L2_PIX_FMT_NV12M_P010;
-		else
-			uncomp_fmt = V4L2_PIX_FMT_NV12M_S10B;
-		break;
-	case V4L2_PIX_FMT_NV12N_SBWC_10B:
-		uncomp_fmt = V4L2_PIX_FMT_NV12N_10B;
-		break;
-	default:
-		mfc_ctx_err("[SBWC] Cannot find uncomp format: %d\n", org_fmt);
-		break;
+		case V4L2_PIX_FMT_NV12M_SBWC_8B:
+			uncomp_fmt = V4L2_PIX_FMT_NV12M;
+			break;
+		case V4L2_PIX_FMT_NV21M_SBWC_8B:
+			uncomp_fmt = V4L2_PIX_FMT_NV21M;
+			break;
+		case V4L2_PIX_FMT_NV12N_SBWC_8B:
+			uncomp_fmt = V4L2_PIX_FMT_NV12N;
+			break;
+		case V4L2_PIX_FMT_NV12M_SBWC_10B:
+			if (ctx->mem_type_10bit)
+				uncomp_fmt = V4L2_PIX_FMT_NV12M_P010;
+			else
+				uncomp_fmt = V4L2_PIX_FMT_NV12M_S10B;
+			break;
+		case V4L2_PIX_FMT_NV12N_SBWC_10B:
+			uncomp_fmt = V4L2_PIX_FMT_NV12N_10B;
+			break;
+		default:
+			mfc_ctx_err("[SBWC] Cannot find uncomp format: %d\n", org_fmt);
+			break;
 	}
 
 	if (uncomp_fmt) {
 		enc->uncomp_fmt = __mfc_enc_find_format(ctx, uncomp_fmt);
 		if (enc->uncomp_fmt)
-			mfc_debug(2, "[SBWC] Uncompressed format is %s\n",
-					enc->uncomp_fmt->name);
+			mfc_debug(2, "[SBWC] Uncompressed format is %s\n", enc->uncomp_fmt->name);
 	}
 }
 
@@ -125,15 +114,14 @@ static int __mfc_enc_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ct
 
 	c = __mfc_enc_get_ctrl(ctrl->id);
 	if (!c) {
-		mfc_ctx_err("[CTRLS] not supported control id (%#x)\n",
-				ctrl->id);
+		mfc_ctx_err("[CTRLS] not supported control id (%#x)\n", ctrl->id);
 		return -EINVAL;
 	}
 
 	if (ctrl->id == V4L2_CID_MPEG_VIDEO_GOP_SIZE
 	    && ctrl->value > c->maximum) {
 		mfc_ctx_info("GOP_SIZE is changed to max(%d -> %d)\n",
-				ctrl->value, c->maximum);
+                                ctrl->value, c->maximum);
 		ctrl->value = c->maximum;
 	}
 
@@ -204,20 +192,13 @@ static int __mfc_enc_enum_fmt(struct mfc_dev *dev, struct v4l2_fmtdesc *f,
 	for (i = 0; i < NUM_FORMATS; ++i) {
 		if (!(enc_formats[i].type & type))
 			continue;
-		if (!dev->pdata->support_10bit &&
-				(enc_formats[i].type & MFC_FMT_10BIT))
+		if (!dev->pdata->support_10bit && (enc_formats[i].type & MFC_FMT_10BIT))
 			continue;
-		if (!dev->pdata->support_422 &&
-				(enc_formats[i].type & MFC_FMT_422))
+		if (!dev->pdata->support_422 && (enc_formats[i].type & MFC_FMT_422))
 			continue;
-		if (!dev->pdata->support_rgb &&
-				(enc_formats[i].type & MFC_FMT_RGB))
+		if (!dev->pdata->support_rgb && (enc_formats[i].type & MFC_FMT_RGB))
 			continue;
-		if (!dev->pdata->support_sbwc &&
-				(enc_formats[i].type & MFC_FMT_SBWC))
-			continue;
-		if (!dev->pdata->support_afbc &&
-				(enc_formats[i].type & MFC_FMT_AFBC))
+		if (!dev->pdata->support_sbwc && (enc_formats[i].type & MFC_FMT_SBWC))
 			continue;
 
 		if (j == f->index) {
@@ -317,7 +298,6 @@ static void __mfc_enc_check_format(struct mfc_ctx *ctx)
 	ctx->is_422 = 0;
 	ctx->is_10bit = 0;
 	ctx->is_sbwc = 0;
-	ctx->is_afbc = 0;
 
 	switch (ctx->src_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV16M_S10B:
@@ -364,22 +344,11 @@ static void __mfc_enc_check_format(struct mfc_ctx *ctx)
 		ctx->is_10bit = 1;
 		ctx->is_sbwc_lossy = 1;
 		break;
-	case V4L2_PIX_FMT_NV12M_AFBC_8B:
-		mfc_debug(2, "[FRAME][AFBC] is AFBC 8bit format\n");
-		ctx->is_afbc = 1;
-		break;
-	case V4L2_PIX_FMT_NV12M_AFBC_10B:
-		mfc_debug(2, "[FRAME][AFBC] is AFBC 10bit format\n");
-		ctx->is_10bit = 1;
-		ctx->is_afbc = 1;
-		break;
 	default:
 		break;
 	}
-	mfc_debug(2, "[FRAME] 10bit: %d, 422: %d, sbwc: %d, sbwc lossy: %d, afbc: %d\n",
-			ctx->is_10bit, ctx->is_422,
-			ctx->is_sbwc, ctx->is_sbwc_lossy,
-			ctx->is_afbc);
+	mfc_debug(2, "[FRAME] 10bit: %d, 422: %d, sbwc: %d lossy: %d\n",
+			ctx->is_10bit, ctx->is_422, ctx->is_sbwc, ctx->is_sbwc_lossy);
 }
 
 static int __mfc_enc_check_resolution(struct mfc_ctx *ctx)
@@ -476,6 +445,7 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	struct mfc_dev *dev = video_drvdata(file);
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_core *core;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	struct mfc_fmt *fmt = NULL;
 	int ret = 0;
@@ -504,13 +474,31 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 			mfc_ctx_err("[OTF] only H.264 and HEVC is supported\n");
 			return -EINVAL;
 		}
-		ret = mfc_otf_init(ctx);
+		ret = mfc_core_otf_init(ctx);
 		if (ret) {
 			mfc_ctx_err("[OTF] otf_init failed\n");
-			mfc_otf_destroy(ctx);
+			mfc_core_otf_destroy(ctx);
 			/* This should be no error return when VTS test case */
 			if (ret == -EFAULT)
 				return 0;
+			return -EINVAL;
+		}
+
+		/*
+		 * It takes a long time to allocate secure buffer,
+		 * so it is allocated here and use default size.
+		 */
+		ctx->dpb_count = MFC_OTF_DEFAULT_DPB_COUNT;
+		ctx->scratch_buf_size = MFC_OTF_DEFAULT_SCRATCH_SIZE;
+		enc->sbwc_option = 2;
+		core = mfc_get_master_core_wait(dev, ctx);
+		if (!core) {
+			mfc_ctx_err("There is no master core\n");
+			return -EINVAL;
+		}
+
+		if (mfc_alloc_codec_buffers(core->core_ctx[ctx->num])) {
+			mfc_ctx_err("[OTF] Failed to allocate encoding buffers\n");
 			return -EINVAL;
 		}
 	}
@@ -523,60 +511,9 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	enc->dst_buf_size = pix_fmt_mp->plane_fmt[0].sizeimage;
 	pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 
-	ret = mfc_alloc_instance_context(ctx);
-	if (ret) {
-		mfc_ctx_err("Failed to allocate enc instance[%d] buffers\n",
-				ctx->num);
-		return -ENOMEM;
-	}
-
-	ctx->capture_state = QUEUE_FREE;
-
-	ret = mfc_alloc_enc_roi_buffer(ctx);
-	if (ret) {
-		mfc_ctx_err("[ROI] Failed to allocate ROI buffers\n");
-		mfc_release_instance_context(ctx);
-		return -ENOMEM;
-	}
-
-	ret = mfc_get_hwlock_ctx(ctx);
-	if (ret < 0) {
-		mfc_ctx_err("Failed to get hwlock\n");
-		mfc_release_instance_context(ctx);
-		mfc_release_enc_roi_buffer(ctx);
-		return -EBUSY;
-	}
-
-	mfc_change_state(ctx, MFCINST_INIT);
-	mfc_set_bit(ctx->num, &dev->work_bits);
-	ret = mfc_just_run(dev, ctx->num);
-	if (ret) {
-		mfc_ctx_err("Failed to run MFC\n");
-		mfc_release_hwlock_ctx(ctx);
-		mfc_cleanup_work_bit_and_try_run(ctx);
-		mfc_release_instance_context(ctx);
-		mfc_release_enc_roi_buffer(ctx);
-		return -EIO;
-	}
-
-	if (mfc_wait_for_done_ctx(ctx,
-				MFC_REG_R2H_CMD_OPEN_INSTANCE_RET)) {
-		mfc_ctx_err("time out during open instance\n");
-		mfc_release_hwlock_ctx(ctx);
-		mfc_cleanup_work_bit_and_try_run(ctx);
-		mfc_release_instance_context(ctx);
-		mfc_release_enc_roi_buffer(ctx);
-		return -EIO;
-	}
-	mfc_release_hwlock_ctx(ctx);
-
-	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
-
-	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
-	if (ctx->otf_handle)
-		mfc_otf_ctx_ready_set_bit(ctx, &dev->work_bits);
-	if (mfc_is_work_to_do(dev))
-		queue_work(dev->butler_wq, &dev->butler_work);
+	ret = mfc_rm_instance_open(dev, ctx);
+	if (ret)
+		mfc_ctx_err("Failed to instance open\n");
 
 	mfc_debug_leave();
 	return 0;
@@ -607,8 +544,7 @@ static int __mfc_enc_check_sbwcl(struct mfc_ctx *ctx, u8 pix_flag)
 		}
 	} else {
 		ret = -EINVAL;
-		mfc_ctx_err("This is not SBWC lossy format %s\n",
-				ctx->src_fmt->name);
+		mfc_ctx_err("This is not SBWC lossy format %s\n", ctx->src_fmt->name);
 	}
 	mfc_debug(2, "SBWC Lossy ratio is %d\n", ctx->sbwcl_ratio);
 	return ret;
@@ -618,7 +554,10 @@ static int mfc_enc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dev *dev = ctx->dev;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
 	struct mfc_fmt *prev_src_fmt = NULL;
 	struct mfc_fmt *fmt = NULL;
 
@@ -633,7 +572,6 @@ static int mfc_enc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		mfc_ctx_info("[OTF] skip source s_fmt\n");
 		return 0;
 	}
-
 
 	/* Backup previous format */
 	prev_src_fmt = ctx->src_fmt;
@@ -660,9 +598,13 @@ static int mfc_enc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	if (ctx->is_sbwc_lossy && __mfc_enc_check_sbwcl(ctx, pix_fmt_mp->flags))
 		return -EINVAL;
 
+	/* Encoder works only single core */
+	core = mfc_get_master_core_wait(dev, ctx);
+	core_ctx = core->core_ctx[ctx->num];
+
 	/* Dynamic Resolution & Format Changes */
-	if (ctx->state == MFCINST_FINISHED) {
-		mfc_change_state(ctx, MFCINST_GOT_INST);
+	if (core_ctx->state == MFCINST_FINISHED) {
+		mfc_change_state(core_ctx, MFCINST_GOT_INST);
 		if (ctx->src_fmt->fourcc != prev_src_fmt->fourcc)
 			mfc_ctx_info("[DFC] Enc Dynamic Format Changed %s -> %s\n",
 					prev_src_fmt->name, ctx->src_fmt->name);
@@ -760,8 +702,7 @@ static int mfc_enc_reqbufs(struct file *file, void *priv,
 	mfc_debug_enter();
 
 	if (reqbufs->memory == V4L2_MEMORY_MMAP) {
-		mfc_ctx_err("Not supported memory type (%d)\n",
-				reqbufs->memory);
+		mfc_ctx_err("Not supported memory type (%d)\n", reqbufs->memory);
 		return -EINVAL;
 	}
 
@@ -779,8 +720,7 @@ static int mfc_enc_reqbufs(struct file *file, void *priv,
 		}
 
 		if (ctx->capture_state != QUEUE_FREE) {
-			mfc_ctx_err("invalid capture state: %d\n",
-					ctx->capture_state);
+			mfc_ctx_err("invalid capture state: %d\n", ctx->capture_state);
 			return -EINVAL;
 		}
 
@@ -800,8 +740,7 @@ static int mfc_enc_reqbufs(struct file *file, void *priv,
 		}
 
 		if (ctx->output_state != QUEUE_FREE) {
-			mfc_ctx_err("invalid output state: %d\n",
-					ctx->output_state);
+			mfc_ctx_err("invalid output state: %d\n", ctx->output_state);
 			return -EINVAL;
 		}
 
@@ -826,6 +765,9 @@ static int mfc_enc_querybuf(struct file *file, void *priv,
 						   struct v4l2_buffer *buf)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
 	int ret = 0;
 
 	mfc_debug_enter();
@@ -835,15 +777,19 @@ static int mfc_enc_querybuf(struct file *file, void *priv,
 		return 0;
 	}
 
+	/* Encoder works only single core */
+	core = mfc_get_master_core_wait(dev, ctx);
+	core_ctx = core->core_ctx[ctx->num];
+
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		mfc_debug(4, "enc dst querybuf, state: %d\n", ctx->state);
+		mfc_debug(4, "enc dst querybuf, state: %d\n", core_ctx->state);
 		ret = vb2_querybuf(&ctx->vq_dst, buf);
 		if (ret != 0) {
 			mfc_ctx_err("enc dst: error in vb2_querybuf()\n");
 			return ret;
 		}
 	} else if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(4, "enc src querybuf, state: %d\n", ctx->state);
+		mfc_debug(4, "enc src querybuf, state: %d\n", core_ctx->state);
 		ret = vb2_querybuf(&ctx->vq_src, buf);
 		if (ret != 0) {
 			mfc_ctx_err("enc src: error in vb2_querybuf()\n");
@@ -864,6 +810,8 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_dev *dev = ctx->dev;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
 	int i, ret = -EINVAL;
 
 	mfc_debug_enter();
@@ -873,7 +821,11 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return 0;
 	}
 
-	if (ctx->state == MFCINST_ERROR) {
+	/* Encoder works only single core */
+	core = mfc_get_master_core_wait(dev, ctx);
+	core_ctx = core->core_ctx[ctx->num];
+
+	if (core_ctx->state == MFCINST_ERROR) {
 		mfc_ctx_err("Call on QBUF after unrecoverable error\n");
 		return -EIO;
 	}
@@ -924,6 +876,9 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 static int mfc_enc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
 	int ret;
 
 	mfc_debug_enter();
@@ -933,7 +888,11 @@ static int mfc_enc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return 0;
 	}
 
-	if (ctx->state == MFCINST_ERROR) {
+	/* Encoder works only single core */
+	core = mfc_get_master_core_wait(dev, ctx);
+	core_ctx = core->core_ctx[ctx->num];
+
+	if (core_ctx->state == MFCINST_ERROR) {
 		mfc_ctx_err("Call on DQBUF after unrecoverable error\n");
 		return -EIO;
 	}
@@ -944,11 +903,11 @@ static int mfc_enc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	}
 
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(4, "enc src buf[%d] DQ\n", buf->index);
 		ret = vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_NONBLOCK);
+		mfc_debug(4, "enc src buf[%d] DQ\n", buf->index);
 	} else {
-		mfc_debug(4, "enc dst buf[%d] DQ\n", buf->index);
 		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_NONBLOCK);
+		mfc_debug(4, "enc dst buf[%d] DQ\n", buf->index);
 	}
 	mfc_debug_leave();
 	return ret;
@@ -976,19 +935,17 @@ static int mfc_enc_streamon(struct file *file, void *priv,
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		mfc_debug(4, "enc src streamon\n");
 		ret = vb2_streamon(&ctx->vq_src, type);
-
-		if (!ret) {
-			mfc_qos_on(ctx);
-		}
+		if (!ret)
+			mfc_rm_qos_control(ctx, MFC_QOS_ON);
 	} else {
 		mfc_debug(4, "enc dst streamon\n");
 		ret = vb2_streamon(&ctx->vq_dst, type);
 	}
 
-	mfc_debug(2, "src: %d, dst: %d, state = %d, dpb_count = %d\n",
-		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
+	mfc_debug(2, "src: %d, dst: %d, dpb_count = %d\n",
+		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_ready_queue),
 		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
-		  ctx->state, ctx->dpb_count);
+		  ctx->dpb_count);
 	mfc_debug_leave();
 	return ret;
 }
@@ -998,7 +955,7 @@ static int mfc_enc_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	int ret = 0;
+	int ret = -EINVAL;;
 
 	mfc_debug_enter();
 
@@ -1018,7 +975,7 @@ static int mfc_enc_streamoff(struct file *file, void *priv,
 
 		ret = vb2_streamoff(&ctx->vq_src, type);
 		if (!ret)
-			mfc_qos_off(ctx);
+			mfc_rm_qos_control(ctx, MFC_QOS_OFF);
 	} else {
 		mfc_debug(4, "enc dst streamoff\n");
 		ret = vb2_streamoff(&ctx->vq_dst, type);
@@ -1049,6 +1006,7 @@ static int mfc_enc_queryctrl(struct file *file, void *priv,
 static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
+	struct mfc_core *core = mfc_get_master_core_wait(dev, ctx);
 	int val = 0;
 
 	val |= ENC_SET_SPARE_SIZE;
@@ -1063,6 +1021,7 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	val |= ENC_SET_PVC_MODE;
 	val |= ENC_SET_RATIO_OF_INTRA;
 	val |= ENC_SET_DROP_CONTROL;
+	val |= ENC_SET_CHROMA_QP_CONTROL;
 	val |= ENC_SET_BUF_FLAG_CTRL;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc))
@@ -1078,6 +1037,9 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 
 	if (dev->pdata->support_422)
 		val |= ENC_SET_VP9_PROFILE_LEVEL;
+
+	if (core->core_pdata->gdc_votf_base)
+		val |= ENC_SET_GDC_VOTF;
 
 	mfc_debug(5, "[CTRLS] ext info val: %#x\n", val);
 
@@ -1119,20 +1081,24 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 				if (ctx_ctrl->get.has_new) {
 					ctx_ctrl->get.has_new = 0;
 					ctrl->value = ctx_ctrl->get.val;
-					found = 1;
-					break;
+				} else {
+					mfc_debug(5, "[CTRLS] Control value "
+							"is not up to date: "
+							"0x%08x\n", ctrl->id);
+					if (ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG)
+						ctrl->value = IGNORE_TAG;
+					else
+						return -EINVAL;
 				}
+
+				found = 1;
+				break;
 			}
 		}
 
 		if (!found) {
-			if (ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG) {
-				ctrl->value = IGNORE_TAG;
-			} else {
-				mfc_ctx_err("Invalid control: 0x%08x\n",
-							ctrl->id);
-				return -EINVAL;
-			}
+			mfc_ctx_err("Invalid control: 0x%08x\n", ctrl->id);
+			return -EINVAL;
 		}
 		break;
 	case V4L2_CID_MPEG_MFC_GET_VERSION_INFO:
@@ -1987,6 +1953,12 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 	case V4L2_CID_MPEG_VIDEO_DROP_CONTROL:
 		p->drop_control = ctrl->value;
 		break;
+	case V4L2_CID_MPEG_VIDEO_CHROMA_QP_OFFSET_CB:
+		p->chroma_qp_offset_cb = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_CHROMA_QP_OFFSET_CR:
+		p->chroma_qp_offset_cr = ctrl->value;
+		break;
 	case V4L2_CID_MPEG_MFC_HDR_USER_SHARED_HANDLE:
 		if (enc->sh_handle_hdr.fd == -1) {
 			enc->sh_handle_hdr.fd = ctrl->value;
@@ -2012,6 +1984,14 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG:
 	case V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG:
 	case V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG:
+		break;
+	case V4L2_CID_MPEG_VIDEO_GDC_VOTF:
+		ctx->gdc_votf = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SKIP_LAZY_UNMAP:
+		ctx->skip_lazy_unmap = ctrl->value;
+		mfc_debug(2, "[LAZY_UNMAP] lazy unmap %s\n",
+				ctx->skip_lazy_unmap ? "disable" : "enable");
 		break;
 	default:
 		mfc_ctx_err("Invalid control: 0x%08x\n", ctrl->id);
@@ -2119,8 +2099,7 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH &&
 						p->i_frm_ctrl_mode) {
-					ctx_ctrl->set.val = ctx_ctrl->set.val *
-						(p->num_b_frame + 1);
+					ctx_ctrl->set.val = ctx_ctrl->set.val * (p->num_b_frame + 1);
 					if (ctx_ctrl->set.val >= 0x3FFFFFFF) {
 						mfc_ctx_info("I frame interval is bigger than max: %d\n",
 								ctx_ctrl->set.val);
@@ -2128,15 +2107,11 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 					}
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_LEVEL)
-					ctx_ctrl->set.val = __mfc_enc_h264_level(
-						(enum v4l2_mpeg_video_h264_level)(ctrl->value));
+					ctx_ctrl->set.val = __mfc_enc_h264_level((enum v4l2_mpeg_video_h264_level)(ctrl->value));
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_H264_PROFILE)
-					ctx_ctrl->set.val = __mfc_enc_h264_profile(
-						ctx,
-						(enum v4l2_mpeg_video_h264_profile)(ctrl->value));
+					ctx_ctrl->set.val = __mfc_enc_h264_profile(ctx, (enum v4l2_mpeg_video_h264_profile)(ctrl->value));
 				if (ctx_ctrl->id == V4L2_CID_MPEG_VIDEO_ROI_CONTROL) {
-					ret = __mfc_enc_get_roi(ctx,
-							ctrl->value);
+					ret = __mfc_enc_get_roi(ctx, ctrl->value);
 					if (ret)
 						return ret;
 				}

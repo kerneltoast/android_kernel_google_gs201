@@ -14,13 +14,12 @@
 
 #include "mfc_dec_v4l2.h"
 #include "mfc_dec_internal.h"
+#include "mfc_rm.h"
 
-#include "mfc_hwlock.h"
-#include "mfc_run.h"
+#include "mfc_core_hwlock.h"
+
 #include "mfc_sync.h"
-#include "mfc_mmcache.h"
 #include "mfc_llc.h"
-#include "mfc_slc.h"
 
 #include "mfc_qos.h"
 #include "mfc_queue.h"
@@ -57,6 +56,10 @@ static struct mfc_fmt *__mfc_dec_find_format(struct mfc_ctx *ctx,
 		mfc_ctx_err("[FRAME] SBWC is not supported\n");
 		fmt = NULL;
 	}
+	if (fmt && !dev->pdata->support_av1_dec && (fmt->codec_mode == MFC_REG_CODEC_AV1_DEC)) {
+		mfc_ctx_err("[STREAM] AV1 Decoder is not supported\n");
+		fmt = NULL;
+	}
 
 	return fmt;
 }
@@ -79,15 +82,13 @@ static int __mfc_dec_check_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ct
 
 	c = __mfc_dec_get_ctrl(ctrl->id);
 	if (!c) {
-		mfc_ctx_err("[CTRLS] not supported control id (%#x)\n",
-				ctrl->id);
+		mfc_ctx_err("[CTRLS] not supported control id (%#x)\n", ctrl->id);
 		return -EINVAL;
 	}
 
 	if (ctrl->value < c->minimum || ctrl->value > c->maximum
 		|| (c->step != 0 && ctrl->value % c->step != 0)) {
-		mfc_ctx_err("[CTRLS] Invalid control id (%#x) value (%d)\n",
-				ctrl->id, ctrl->value);
+		mfc_ctx_err("[CTRLS] Invalid control id (%#x) value (%d)\n", ctrl->id, ctrl->value);
 		return -ERANGE;
 	}
 
@@ -117,8 +118,7 @@ static int __mfc_dec_enum_fmt(struct mfc_dev *dev, struct v4l2_fmtdesc *f,
 			continue;
 		if (!dev->pdata->support_422 && (dec_formats[i].type & MFC_FMT_422))
 			continue;
-		if (!dev->pdata->support_sbwc
-				&& (dec_formats[i].type & MFC_FMT_SBWC))
+		if (!dev->pdata->support_sbwc && (dec_formats[i].type & MFC_FMT_SBWC))
 			continue;
 
 		if (j == f->index) {
@@ -152,8 +152,7 @@ static int mfc_dec_enum_fmt_vid_out_mplane(struct file *file, void *prov,
 	return __mfc_dec_enum_fmt(dev, f, MFC_FMT_STREAM);
 }
 
-static void __mfc_dec_fix_10bit_memtype(struct mfc_ctx *ctx,
-				unsigned int format)
+static void __mfc_dec_fix_10bit_memtype(struct mfc_ctx *ctx, unsigned int format)
 {
 	struct mfc_dev *dev = ctx->dev;
 
@@ -181,210 +180,194 @@ static void __mfc_dec_fix_10bit_memtype(struct mfc_ctx *ctx,
 	}
 }
 
-static void __mfc_dec_change_format_10bit_422(struct mfc_ctx *ctx,
-				unsigned int org_fmt)
-{
-	struct mfc_dev *dev = ctx->dev;
-
-	switch (org_fmt) {
-	case V4L2_PIX_FMT_NV16M_P210:
-	case V4L2_PIX_FMT_NV61M_P210:
-		/* It is right format */
-		break;
-	case V4L2_PIX_FMT_NV12M:
-	case V4L2_PIX_FMT_NV16M:
-	case V4L2_PIX_FMT_NV12M_S10B:
-	case V4L2_PIX_FMT_NV12M_P010:
-	case V4L2_PIX_FMT_NV16M_S10B:
-	case V4L2_PIX_FMT_NV12M_SBWC_8B:
-	case V4L2_PIX_FMT_NV12M_SBWC_10B:
-		if (dev->pdata->P010_decoding)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV16M_P210);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV16M_S10B);
-		break;
-	case V4L2_PIX_FMT_NV21M:
-	case V4L2_PIX_FMT_NV61M:
-	case V4L2_PIX_FMT_NV21M_S10B:
-	case V4L2_PIX_FMT_NV21M_P010:
-	case V4L2_PIX_FMT_NV61M_S10B:
-		if (dev->pdata->P010_decoding)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV61M_P210);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV61M_S10B);
-		break;
-	default:
-		if (dev->pdata->P010_decoding)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV16M_P210);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV16M_S10B);
-		break;
-	}
-
-	ctx->raw_buf.num_planes = 2;
-}
-
-static void __mfc_dec_change_format_10bit(struct mfc_ctx *ctx,
-				unsigned int org_fmt)
-{
-	struct mfc_dev *dev = ctx->dev;
-
-	switch (org_fmt) {
-	case V4L2_PIX_FMT_NV12M_P010:
-	case V4L2_PIX_FMT_NV21M_P010:
-		/* It is right format */
-		break;
-	case V4L2_PIX_FMT_NV12M:
-	case V4L2_PIX_FMT_NV12M_S10B:
-	case V4L2_PIX_FMT_NV16M:
-	case V4L2_PIX_FMT_NV16M_S10B:
-	case V4L2_PIX_FMT_NV16M_P210:
-		if (dev->pdata->P010_decoding)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12M_P010);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12M_S10B);
-		break;
-	case V4L2_PIX_FMT_NV21M:
-	case V4L2_PIX_FMT_NV21M_S10B:
-	case V4L2_PIX_FMT_NV61M:
-	case V4L2_PIX_FMT_NV61M_S10B:
-	case V4L2_PIX_FMT_NV61M_P210:
-		if (dev->pdata->P010_decoding)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV21M_P010);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV21M_S10B);
-		break;
-	case V4L2_PIX_FMT_NV12M_SBWC_8B:
-	case V4L2_PIX_FMT_NV12M_SBWC_10B:
-		if (ctx->is_sbwc) {
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12M_SBWC_10B);
-		} else {
-			if (dev->pdata->P010_decoding)
-				ctx->dst_fmt = __mfc_dec_find_format(ctx,
-						V4L2_PIX_FMT_NV12M_P010);
-			else
-				ctx->dst_fmt = __mfc_dec_find_format(ctx,
-						V4L2_PIX_FMT_NV12M_S10B);
-		}
-		break;
-	default:
-		if (dev->pdata->P010_decoding)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12M_P010);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12M_S10B);
-		break;
-	}
-
-	ctx->raw_buf.num_planes = 2;
-}
-
-static void __mfc_dec_change_format_422(struct mfc_ctx *ctx,
-				unsigned int org_fmt)
-{
-	switch (org_fmt) {
-	case V4L2_PIX_FMT_NV16M:
-	case V4L2_PIX_FMT_NV61M:
-		/* It is right format */
-		break;
-	case V4L2_PIX_FMT_NV12M:
-	case V4L2_PIX_FMT_NV12M_S10B:
-	case V4L2_PIX_FMT_NV16M_S10B:
-	case V4L2_PIX_FMT_NV12M_P010:
-	case V4L2_PIX_FMT_NV16M_P210:
-	case V4L2_PIX_FMT_NV12M_SBWC_8B:
-	case V4L2_PIX_FMT_NV12M_SBWC_10B:
-		ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
-		break;
-	case V4L2_PIX_FMT_NV21M:
-	case V4L2_PIX_FMT_NV21M_S10B:
-	case V4L2_PIX_FMT_NV61M_S10B:
-	case V4L2_PIX_FMT_NV21M_P010:
-	case V4L2_PIX_FMT_NV61M_P210:
-		ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M);
-		break;
-	default:
-		ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
-		break;
-	}
-
-	ctx->raw_buf.num_planes = 2;
-}
-
-static void __mfc_dec_change_format_normal(struct mfc_ctx *ctx,
-					unsigned int org_fmt)
-{
-	/* YUV420 8bit */
-	switch (org_fmt) {
-	case V4L2_PIX_FMT_NV16M:
-	case V4L2_PIX_FMT_NV12M_S10B:
-	case V4L2_PIX_FMT_NV16M_S10B:
-	case V4L2_PIX_FMT_NV12M_P010:
-	case V4L2_PIX_FMT_NV16M_P210:
-		ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M);
-		break;
-	case V4L2_PIX_FMT_NV61M:
-	case V4L2_PIX_FMT_NV21M_S10B:
-	case V4L2_PIX_FMT_NV61M_S10B:
-	case V4L2_PIX_FMT_NV21M_P010:
-	case V4L2_PIX_FMT_NV61M_P210:
-		ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M);
-		break;
-	case V4L2_PIX_FMT_NV12M_SBWC_8B:
-	case V4L2_PIX_FMT_NV12M_SBWC_10B:
-		if (ctx->is_sbwc)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12M_SBWC_8B);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12M);
-		break;
-	case V4L2_PIX_FMT_NV12N_SBWC_8B:
-	case V4L2_PIX_FMT_NV12N_SBWC_10B:
-		if (ctx->is_sbwc)
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12N_SBWC_8B);
-		else
-			ctx->dst_fmt = __mfc_dec_find_format(ctx,
-					V4L2_PIX_FMT_NV12N);
-		break;
-	default:
-		/* It is right format */
-		break;
-	}
-}
-
 static void __mfc_dec_change_format(struct mfc_ctx *ctx)
 {
+	struct mfc_dev *dev = ctx->dev;
 	u32 org_fmt = ctx->dst_fmt->fourcc;
 
-	if (ctx->is_10bit && ctx->is_422)
-		__mfc_dec_change_format_10bit_422(ctx, org_fmt);
-	else if (ctx->is_10bit && !ctx->is_422)
-		__mfc_dec_change_format_10bit(ctx, org_fmt);
-	else if (!ctx->is_10bit && ctx->is_422)
-		__mfc_dec_change_format_422(ctx, org_fmt);
-	else
-		__mfc_dec_change_format_normal(ctx, org_fmt);
+	if (ctx->is_10bit && ctx->is_422) {
+		switch (org_fmt) {
+		case V4L2_PIX_FMT_NV16M_P210:
+		case V4L2_PIX_FMT_NV61M_P210:
+			/* It is right format */
+			break;
+		case V4L2_PIX_FMT_NV12M:
+		case V4L2_PIX_FMT_NV16M:
+		case V4L2_PIX_FMT_NV12M_S10B:
+		case V4L2_PIX_FMT_NV12M_P010:
+		case V4L2_PIX_FMT_NV16M_S10B:
+		case V4L2_PIX_FMT_NV12M_SBWC_8B:
+		case V4L2_PIX_FMT_NV12M_SBWC_10B:
+			if (dev->pdata->P010_decoding)
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_P210);
+			else
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_S10B);
+			break;
+		case V4L2_PIX_FMT_NV21M:
+		case V4L2_PIX_FMT_NV61M:
+		case V4L2_PIX_FMT_NV21M_S10B:
+		case V4L2_PIX_FMT_NV21M_P010:
+		case V4L2_PIX_FMT_NV61M_S10B:
+			if (dev->pdata->P010_decoding)
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M_P210);
+			else
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M_S10B);
+			break;
+		default:
+			if (dev->pdata->P010_decoding)
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_P210);
+			else
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M_S10B);
+			break;
+		}
+		ctx->raw_buf.num_planes = 2;
+	} else if (ctx->is_10bit && !ctx->is_422) {
+		switch (org_fmt) {
+		case V4L2_PIX_FMT_NV12M_P010:
+		case V4L2_PIX_FMT_NV21M_P010:
+			/* It is right format */
+			break;
+		case V4L2_PIX_FMT_NV12N:
+		case V4L2_PIX_FMT_NV12M:
+		case V4L2_PIX_FMT_NV12N_10B:
+		case V4L2_PIX_FMT_NV12M_S10B:
+		case V4L2_PIX_FMT_NV16M:
+		case V4L2_PIX_FMT_NV16M_S10B:
+		case V4L2_PIX_FMT_NV16M_P210:
+			if (dev->pdata->P010_decoding)
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
+			else
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
+			break;
+		case V4L2_PIX_FMT_NV21M:
+		case V4L2_PIX_FMT_NV21M_S10B:
+		case V4L2_PIX_FMT_NV61M:
+		case V4L2_PIX_FMT_NV61M_S10B:
+		case V4L2_PIX_FMT_NV61M_P210:
+			if (dev->pdata->P010_decoding)
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M_P010);
+			else
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M_S10B);
+			break;
+		case V4L2_PIX_FMT_NV12M_SBWC_8B:
+		case V4L2_PIX_FMT_NV12M_SBWC_10B:
+			if (ctx->is_sbwc) {
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_SBWC_10B);
+			} else {
+				if (dev->pdata->P010_decoding)
+					ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
+				else
+					ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
+			}
+			break;
+		default:
+			if (dev->pdata->P010_decoding)
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_P010);
+			else
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_S10B);
+			break;
+		}
+		ctx->raw_buf.num_planes = 2;
+	} else if (!ctx->is_10bit && ctx->is_422) {
+		switch (org_fmt) {
+		case V4L2_PIX_FMT_NV16M:
+		case V4L2_PIX_FMT_NV61M:
+			/* It is right format */
+			break;
+		case V4L2_PIX_FMT_NV12M:
+		case V4L2_PIX_FMT_NV12M_S10B:
+		case V4L2_PIX_FMT_NV16M_S10B:
+		case V4L2_PIX_FMT_NV12M_P010:
+		case V4L2_PIX_FMT_NV16M_P210:
+		case V4L2_PIX_FMT_NV12M_SBWC_8B:
+		case V4L2_PIX_FMT_NV12M_SBWC_10B:
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
+			break;
+		case V4L2_PIX_FMT_NV21M:
+		case V4L2_PIX_FMT_NV21M_S10B:
+		case V4L2_PIX_FMT_NV61M_S10B:
+		case V4L2_PIX_FMT_NV21M_P010:
+		case V4L2_PIX_FMT_NV61M_P210:
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV61M);
+			break;
+		default:
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV16M);
+			break;
+		}
+		ctx->raw_buf.num_planes = 2;
+	} else {
+		/* YUV420 8bit */
+		switch (org_fmt) {
+		case V4L2_PIX_FMT_NV16M:
+		case V4L2_PIX_FMT_NV12M_S10B:
+		case V4L2_PIX_FMT_NV16M_S10B:
+		case V4L2_PIX_FMT_NV12M_P010:
+		case V4L2_PIX_FMT_NV16M_P210:
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M);
+			break;
+		case V4L2_PIX_FMT_NV61M:
+		case V4L2_PIX_FMT_NV21M_S10B:
+		case V4L2_PIX_FMT_NV61M_S10B:
+		case V4L2_PIX_FMT_NV21M_P010:
+		case V4L2_PIX_FMT_NV61M_P210:
+			ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV21M);
+			break;
+		case V4L2_PIX_FMT_NV12M_SBWC_8B:
+		case V4L2_PIX_FMT_NV12M_SBWC_10B:
+			if (ctx->is_sbwc)
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M_SBWC_8B);
+			else
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12M);
+			break;
+		case V4L2_PIX_FMT_NV12N_SBWC_8B:
+		case V4L2_PIX_FMT_NV12N_SBWC_10B:
+			if (ctx->is_sbwc)
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12N_SBWC_8B);
+			else
+				ctx->dst_fmt = __mfc_dec_find_format(ctx, V4L2_PIX_FMT_NV12N);
+			break;
+		default:
+			/* It is right format */
+			break;
+		}
+	}
 
 	if (org_fmt != ctx->dst_fmt->fourcc)
-		mfc_ctx_info("[FRAME] format is changed to %s\n",
-				ctx->dst_fmt->name);
+		mfc_ctx_info("[FRAME] format is changed to %s\n", ctx->dst_fmt->name);
 
 	if (ctx->is_10bit)
 		__mfc_dec_fix_10bit_memtype(ctx, ctx->dst_fmt->fourcc);
+}
+
+static void __mfc_dec_uncomp_format(struct mfc_ctx *ctx)
+{
+	struct mfc_dec *dec = ctx->dec_priv;
+	u32 org_fmt = ctx->dst_fmt->fourcc;
+
+	switch (org_fmt) {
+		case V4L2_PIX_FMT_NV12M_SBWC_8B:
+			dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12M;
+			break;
+		case V4L2_PIX_FMT_NV21M_SBWC_8B:
+			dec->uncomp_pixfmt = V4L2_PIX_FMT_NV21M;
+			break;
+		case V4L2_PIX_FMT_NV12N_SBWC_8B:
+			dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12N;
+			break;
+		case V4L2_PIX_FMT_NV12M_SBWC_10B:
+			if (ctx->mem_type_10bit)
+				dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12M_P010;
+			else
+				dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12M_S10B;
+			break;
+		case V4L2_PIX_FMT_NV12N_SBWC_10B:
+			dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12N_10B;
+			break;
+		default:
+			mfc_ctx_err("[SBWC] Cannot find uncomp format: %d\n", org_fmt);
+			break;
+	}
+	mfc_debug(2, "[SBWC] Uncompressed format is %d\n", dec->uncomp_pixfmt);
 }
 
 static int __mfc_dec_update_disp_res(struct mfc_ctx *ctx, struct v4l2_format *f)
@@ -396,9 +379,9 @@ static int __mfc_dec_update_disp_res(struct mfc_ctx *ctx, struct v4l2_format *f)
 
 	dec->disp_res_change = 0;
 
-	if (ctx->state >= MFCINST_RUNNING) {
-		mfc_debug(2, "dec update disp_res state: %d\n", ctx->state);
-		MFC_TRACE_CTX("** DEC update disp_res state: %d\n", ctx->state);
+	if (mfc_rm_query_state(ctx, EQUAL_BIGGER, MFCINST_RUNNING)) {
+		mfc_debug(2, "dec update disp_res\n");
+		MFC_TRACE_CTX("** DEC update disp_res\n");
 		raw = &ctx->raw_buf;
 
 		pix_fmt_mp->width = ctx->img_width;
@@ -414,16 +397,13 @@ static int __mfc_dec_update_disp_res(struct mfc_ctx *ctx, struct v4l2_format *f)
 		for (i = 0; i < ctx->dst_fmt->mem_planes; i++) {
 			pix_fmt_mp->plane_fmt[i].bytesperline = raw->stride[i];
 			if (ctx->dst_fmt->mem_planes == 1) {
-				pix_fmt_mp->plane_fmt[i].sizeimage =
-					raw->total_plane_size;
+				pix_fmt_mp->plane_fmt[i].sizeimage = raw->total_plane_size;
 			} else {
 				if (IS_2BIT_NEED(ctx))
-					pix_fmt_mp->plane_fmt[i].sizeimage =
-						raw->plane_size[i] +
-						raw->plane_size_2bits[i];
+					pix_fmt_mp->plane_fmt[i].sizeimage = raw->plane_size[i]
+						+ raw->plane_size_2bits[i];
 				else
-					pix_fmt_mp->plane_fmt[i].sizeimage =
-						raw->plane_size[i];
+					pix_fmt_mp->plane_fmt[i].sizeimage = raw->plane_size[i];
 			}
 		}
 
@@ -431,21 +411,19 @@ static int __mfc_dec_update_disp_res(struct mfc_ctx *ctx, struct v4l2_format *f)
 		 * Do not clear WAIT_G_FMT except RUNNING state
 		 * because the resolution change (DRC) case uses WAIT_G_FMT
 		 */
-		if (ctx->state == MFCINST_RUNNING &&
-				(ctx->wait_state & WAIT_G_FMT) != 0) {
+		if (mfc_rm_query_state(ctx, EQUAL, MFCINST_RUNNING)
+				&& (ctx->wait_state & WAIT_G_FMT) != 0) {
 			ctx->wait_state &= ~(WAIT_G_FMT);
 			mfc_debug(2, "clear WAIT_G_FMT %d\n", ctx->wait_state);
-			MFC_TRACE_CTX("** DEC clear WAIT_G_FMT %d\n",
-					ctx->wait_state);
+			MFC_TRACE_CTX("** DEC clear WAIT_G_FMT(wait_state %d)\n", ctx->wait_state);
 		}
 	} else {
 		/*
-		 * In case of HEAD_PARSED state, the resolution would be changed
-		 * and it is not display resolution
+		 * In case of HEAD_PARSED state,
+		 * the resolution would be changed and it is not display resolution
 		 * so cannot update display resolution
 		 */
-		mfc_ctx_err("dec update disp_res, wrong state: %d\n",
-				ctx->state);
+		mfc_ctx_err("dec update disp_res, wrong state\n");
 		return -EINVAL;
 	}
 
@@ -457,6 +435,9 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	struct mfc_raw_info *raw;
@@ -464,40 +445,62 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	mfc_debug_enter();
 
+	/* During g_fmt, context information is need to for only Master core */
+	core = mfc_get_master_core_wait(dev, ctx);
+	core_ctx = core->core_ctx[ctx->num];
+
 	mfc_debug(2, "dec dst g_fmt, state: %d wait_state: %d\n",
-			ctx->state, ctx->wait_state);
+			core_ctx->state, ctx->wait_state);
 	MFC_TRACE_CTX("** DEC g_fmt(state:%d wait_state:%d)\n",
-			ctx->state, ctx->wait_state);
+			core_ctx->state, ctx->wait_state);
 
 	if (dec->disp_res_change) {
 		if (__mfc_dec_update_disp_res(ctx, f) == 0)
 			return 0;
 	}
 
-	if (ctx->state == MFCINST_GOT_INST ||
-	    ctx->state == MFCINST_RES_CHANGE_INIT ||
-	    ctx->state == MFCINST_RES_CHANGE_FLUSH ||
-	    ctx->state == MFCINST_RES_CHANGE_END) {
+	if (core_ctx->state == MFCINST_GOT_INST ||
+	    core_ctx->state == MFCINST_RES_CHANGE_INIT ||
+	    core_ctx->state == MFCINST_RES_CHANGE_FLUSH ||
+	    core_ctx->state == MFCINST_RES_CHANGE_END) {
 		/* If there is no source buffer to parsing, we can't SEQ_START */
 		if (((ctx->wait_state & WAIT_G_FMT) != 0) &&
-			mfc_is_queue_count_same(&ctx->buf_queue_lock, &ctx->src_buf_queue, 0)) {
+			mfc_is_queue_count_same(&ctx->buf_queue_lock,
+				&ctx->src_buf_ready_queue, 0) &&
+			mfc_is_queue_count_same(&ctx->buf_queue_lock,
+				&core_ctx->src_buf_queue, 0)) {
 			mfc_ctx_err("There is no source buffer to parsing, keep previous resolution\n");
 			return -EAGAIN;
 		}
-		/* If the MFC is parsing the header, so wait until it is finished */
-		if (mfc_wait_for_done_ctx(ctx, MFC_REG_R2H_CMD_SEQ_DONE_RET)) {
+
+		/*
+		 * If the MFC is parsing the header,
+		 * so wait until it is finished.
+		 */
+		if (mfc_wait_for_done_core_ctx(core_ctx,
+					MFC_REG_R2H_CMD_SEQ_DONE_RET)) {
 			mfc_ctx_err("header parsing failed\n");
 			return -EAGAIN;
 		}
 	}
 
-	if (ctx->state >= MFCINST_HEAD_PARSED &&
-	    ctx->state < MFCINST_ABORT) {
+	if (core_ctx->state >= MFCINST_HEAD_PARSED &&
+	    core_ctx->state < MFCINST_ABORT) {
 		/* This is run on CAPTURE (decode output) */
+		if (IS_MULTI_MODE(ctx)) {
+			mfc_ctx_info("[2CORE] start the slave core\n");
+			if (mfc_rm_instance_setup(dev, ctx)) {
+				mfc_ctx_err("[2CORE] failed to setup slave core\n");
+				return -EAGAIN;
+			}
+		}
 
 		/* only NV16(61) format is supported for 422 format */
 		/* only 2 plane is supported for 10bit */
 		__mfc_dec_change_format(ctx);
+
+		if (ctx->is_sbwc)
+			__mfc_dec_uncomp_format(ctx);
 
 		raw = &ctx->raw_buf;
 		/* Width and height are set to the dimensions
@@ -517,7 +520,8 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 			 * 600MB: being used to return an error,
 			 * when 8K resolution video clip is being tried to be decoded
 			 */
-			dpb_size = (ctx->raw_buf.total_plane_size * (ctx->dpb_count + 5 + 3));
+			dpb_size = (ctx->raw_buf.total_plane_size *
+					(ctx->dpb_count + MFC_EXTRA_DPB + 3));
 			if (dpb_size > SZ_600M) {
 				mfc_ctx_info("required memory size is too big (%dx%d, dpb: %d)\n",
 						ctx->img_width, ctx->img_height, ctx->dpb_count);
@@ -554,7 +558,7 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 	if ((ctx->wait_state & WAIT_G_FMT) != 0) {
 		ctx->wait_state &= ~(WAIT_G_FMT);
 		mfc_debug(2, "clear WAIT_G_FMT %d\n", ctx->wait_state);
-		MFC_TRACE_CTX("** DEC clear WAIT_G_FMT %d\n", ctx->wait_state);
+		MFC_TRACE_CTX("** DEC clear WAIT_G_FMT(wait_state %d)\n", ctx->wait_state);
 	}
 
 	mfc_debug_leave();
@@ -571,7 +575,7 @@ static int mfc_dec_g_fmt_vid_out_mplane(struct file *file, void *priv,
 
 	mfc_debug_enter();
 
-	mfc_debug(4, "dec src g_fmt, state: %d\n", ctx->state);
+	mfc_debug(4, "dec src g_fmt\n");
 
 	/* This is run on OUTPUT
 	   The buffer contains compressed image
@@ -636,37 +640,6 @@ static int mfc_dec_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	return 0;
 }
 
-static int __mfc_force_close_inst(struct mfc_dev *dev, struct mfc_ctx *ctx)
-{
-	if (ctx->inst_no == MFC_NO_INSTANCE_SET)
-		return 0;
-
-	mfc_change_state(ctx, MFCINST_RETURN_INST);
-	mfc_set_bit(ctx->num, &dev->work_bits);
-	mfc_clean_ctx_int_flags(ctx);
-	if (mfc_just_run(dev, ctx->num)) {
-		mfc_ctx_err("Failed to run MFC\n");
-		mfc_release_hwlock_ctx(ctx);
-		mfc_cleanup_work_bit_and_try_run(ctx);
-		return -EIO;
-	}
-
-	/* Wait until instance is returned or timeout occured */
-	if (mfc_wait_for_done_ctx(ctx,
-				MFC_REG_R2H_CMD_CLOSE_INSTANCE_RET)) {
-		mfc_ctx_err("Waiting for CLOSE_INSTANCE timed out\n");
-		mfc_release_hwlock_ctx(ctx);
-		mfc_cleanup_work_bit_and_try_run(ctx);
-		return -EIO;
-	}
-
-	/* Free resources */
-	mfc_release_instance_context(ctx);
-	mfc_change_state(ctx, MFCINST_INIT);
-
-	return 0;
-}
-
 static int mfc_dec_s_fmt_vid_out_mplane(struct file *file, void *priv,
 							struct v4l2_format *f)
 {
@@ -710,63 +683,13 @@ static int mfc_dec_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	mfc_debug(2, "[STREAM] sizeimage: %d\n", pix_fmt_mp->plane_fmt[0].sizeimage);
 	pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 
-	ret = mfc_get_hwlock_ctx(ctx);
-	if (ret < 0) {
-		mfc_ctx_err("Failed to get hwlock\n");
-		return -EBUSY;
-	}
-
-	/* In case of calling s_fmt twice or more */
-	ret = __mfc_force_close_inst(dev, ctx);
-	if (ret) {
-		mfc_ctx_err("Failed to close already opening instance\n");
-		return -EIO;
-	}
-
-	ret = mfc_alloc_instance_context(ctx);
-	if (ret) {
-		mfc_ctx_err("Failed to allocate dec instance[%d] buffers\n",
-				ctx->num);
-		mfc_release_hwlock_ctx(ctx);
-		return -ENOMEM;
-	}
-
-	/* sh_handle: HDR10+ HEVC SEI meta */
-	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus) &&
-			IS_HEVC_DEC(ctx))
-		dec->hdr10_plus_info = vmalloc(
-			(sizeof(struct hdr10_plus_meta) * MFC_MAX_DPBS));
-
-	mfc_change_state(ctx, MFCINST_INIT);
-	mfc_set_bit(ctx->num, &dev->work_bits);
-	ret = mfc_just_run(dev, ctx->num);
-	if (ret) {
-		mfc_ctx_err("Failed to run MFC\n");
-		mfc_release_hwlock_ctx(ctx);
-		mfc_cleanup_work_bit_and_try_run(ctx);
-		mfc_release_instance_context(ctx);
-		return -EIO;
-	}
-
-	if (mfc_wait_for_done_ctx(ctx,
-			MFC_REG_R2H_CMD_OPEN_INSTANCE_RET)) {
-		mfc_release_hwlock_ctx(ctx);
-		mfc_cleanup_work_bit_and_try_run(ctx);
-		mfc_release_instance_context(ctx);
-		return -EIO;
-	}
-
-	mfc_release_hwlock_ctx(ctx);
-
-	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
-
-	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
-	if (mfc_is_work_to_do(dev))
-		queue_work(dev->butler_wq, &dev->butler_work);
+	ret = mfc_rm_instance_open(dev, ctx);
+	if (ret)
+		mfc_ctx_err("Failed to instance open\n");
 
 	mfc_debug_leave();
 
-	return 0;
+	return ret;
 }
 
 /* Reqeust buffers */
@@ -776,14 +699,14 @@ static int mfc_dec_reqbufs(struct file *file, void *priv,
 	struct mfc_dev *dev = video_drvdata(file);
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_dec *dec = ctx->dec_priv;
-
-	int ret = 0;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
+	int i, ret = 0;
 
 	mfc_debug_enter();
 
 	if (reqbufs->memory == V4L2_MEMORY_MMAP) {
-		mfc_ctx_err("Not supported memory type (%d)\n",
-				reqbufs->memory);
+		mfc_ctx_err("Not supported memory type (%d)\n", reqbufs->memory);
 		return -EINVAL;
 	}
 
@@ -791,7 +714,7 @@ static int mfc_dec_reqbufs(struct file *file, void *priv,
 		mfc_debug(4, "dec src reqbuf(%d)\n", reqbufs->count);
 		/* Can only request buffers after
 		   an instance has been opened.*/
-		if (ctx->state == MFCINST_GOT_INST) {
+		if (mfc_rm_query_state(ctx, EQUAL, MFCINST_GOT_INST)) {
 			if (reqbufs->count == 0) {
 				ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
 				ctx->output_state = QUEUE_FREE;
@@ -818,15 +741,17 @@ static int mfc_dec_reqbufs(struct file *file, void *priv,
 			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
 
 			if (!dec->inter_res_change) {
-				if (dev->has_mmcache &&
-						dev->mmcache.is_on_status)
-					mfc_invalidate_mmcache(dev);
-				if (dev->has_llc && dev->llc_on_status)
-					mfc_llc_flush(dev);
-				if (dev->has_slc && dev->slc_on_status)
-					mfc_slc_flush(dev);
+				for (i = 0; i < MFC_CORE_TYPE_NUM; i++) {
+					if (ctx->op_core_num[i] == MFC_CORE_INVALID)
+						break;
+					core = dev->core[ctx->op_core_num[i]];
 
-				mfc_release_codec_buffers(ctx);
+					if (core->has_llc && core->llc_on_status)
+						mfc_llc_flush(core);
+
+					core_ctx = core->core_ctx[ctx->num];
+					mfc_release_codec_buffers(core_ctx);
+				}
 			}
 			ctx->capture_state = QUEUE_FREE;
 			return ret;
@@ -853,19 +778,25 @@ static int mfc_dec_reqbufs(struct file *file, void *priv,
 		dec->total_dpb_count = reqbufs->count;
 
 		if (!dec->inter_res_change) {
-			ret = mfc_alloc_codec_buffers(ctx);
-			if (ret) {
-				mfc_ctx_err("Failed to allocate decoding buffers\n");
-				reqbufs->count = 0;
-				vb2_reqbufs(&ctx->vq_dst, reqbufs);
-				return -ENOMEM;
+			for (i = 0; i < MFC_CORE_TYPE_NUM; i++) {
+				if (ctx->op_core_num[i] == MFC_CORE_INVALID)
+					break;
+
+				core = dev->core[ctx->op_core_num[i]];
+				core_ctx = core->core_ctx[ctx->num];
+				ret = mfc_alloc_codec_buffers(core_ctx);
+				if (ret) {
+					mfc_ctx_err("Failed to allocate decoding buffers\n");
+					reqbufs->count = 0;
+					vb2_reqbufs(&ctx->vq_dst, reqbufs);
+					return -ENOMEM;
+				}
 			}
 		}
 
 		ctx->capture_state = QUEUE_BUFS_REQUESTED;
 
-		mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
-		mfc_try_run(dev);
+		mfc_rm_request_work(dev, MFC_WORK_TRY, ctx);
 	}
 
 	mfc_debug_leave();
@@ -883,14 +814,14 @@ static int mfc_dec_querybuf(struct file *file, void *priv,
 	mfc_debug_enter();
 
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		mfc_debug(4, "dec dst querybuf, state: %d\n", ctx->state);
+		mfc_debug(4, "dec dst querybuf\n");
 		ret = vb2_querybuf(&ctx->vq_dst, buf);
 		if (ret != 0) {
 			mfc_ctx_err("dec dst: error in vb2_querybuf()\n");
 			return ret;
 		}
 	} else if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(4, "dec src querybuf, state: %d\n", ctx->state);
+		mfc_debug(4, "dec src querybuf\n");
 		ret = vb2_querybuf(&ctx->vq_src, buf);
 		if (ret != 0) {
 			mfc_ctx_err("dec src: error in vb2_querybuf()\n");
@@ -915,7 +846,7 @@ static int mfc_dec_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 
 	mfc_debug_enter();
 
-	if (ctx->state == MFCINST_ERROR) {
+	if (mfc_rm_query_state(ctx, EQUAL_OR, MFCINST_ERROR)) {
 		mfc_ctx_err("Call on QBUF after unrecoverable error\n");
 		return -EIO;
 	}
@@ -940,7 +871,8 @@ static int mfc_dec_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 			return -EIO;
 		}
 
-		mfc_qos_update_framerate(ctx, buf->m.planes[0].bytesused, 0);
+		mfc_qos_update_framerate(ctx, buf->m.planes[0].bytesused);
+		mfc_rm_qos_control(ctx, MFC_QOS_TRIGGER);
 
 		if (!buf->m.planes[0].bytesused) {
 			buf->m.planes[0].bytesused = buf->m.planes[0].length;
@@ -953,7 +885,7 @@ static int mfc_dec_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		ret = vb2_qbuf(&ctx->vq_src, NULL, buf);
 	} else {
 		mfc_debug(4, "dec dst buf[%d] Q\n", buf->index);
-		mfc_qos_update_framerate(ctx, buf->m.planes[0].bytesused, 1);
+		mfc_rm_qos_control(ctx, MFC_QOS_TRIGGER);
 		ret = vb2_qbuf(&ctx->vq_dst, NULL, buf);
 	}
 
@@ -968,12 +900,15 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct mfc_dec *dec = ctx->dec_priv;
+	struct dec_dpb_ref_info *dstBuf, *srcBuf;
 	struct hdr10_plus_meta *dst_sei_meta, *src_sei_meta;
+	struct av1_film_grain_meta *dst_av1_sei_meta, *src_av1_sei_meta;
 	int ret;
+	int ncount = 0;
 
 	mfc_debug_enter();
 
-	if (ctx->state == MFCINST_ERROR) {
+	if (mfc_rm_query_state(ctx, EQUAL, MFCINST_ERROR)) {
 		mfc_ctx_err("Call on DQBUF after unrecoverable error\n");
 		return -EIO;
 	}
@@ -984,16 +919,33 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	}
 
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-		mfc_debug(4, "dec src buf[%d] DQ\n", buf->index);
 		ret = vb2_dqbuf(&ctx->vq_src, buf, file->f_flags & O_NONBLOCK);
+		mfc_debug(4, "dec src buf[%d] DQ\n", buf->index);
 	} else {
-		mfc_debug(4, "dec dst buf[%d] DQ\n", buf->index);
 		ret = vb2_dqbuf(&ctx->vq_dst, buf, file->f_flags & O_NONBLOCK);
+		mfc_debug(4, "dec dst buf[%d] DQ\n", buf->index);
 
 		if (buf->index >= MFC_MAX_DPBS) {
-			mfc_ctx_err("buffer index[%d] range over\n",
-					buf->index);
+			mfc_ctx_err("buffer index[%d] range over\n", buf->index);
 			return -EINVAL;
+		}
+
+		/* Memcpy from dec->ref_info to shared memory */
+		if (dec->ref_info) {
+			srcBuf = &dec->ref_info[buf->index];
+			for (ncount = 0; ncount < MFC_MAX_BUFFERS; ncount++) {
+				if (srcBuf->dpb[ncount].fd[0] == MFC_INFO_INIT_FD)
+					break;
+				mfc_debug(2, "[REFINFO] DQ index[%d] Released FD = %d\n",
+						buf->index, srcBuf->dpb[ncount].fd[0]);
+			}
+
+			if (dec->sh_handle_dpb.vaddr != NULL) {
+				dstBuf = (struct dec_dpb_ref_info *)
+					dec->sh_handle_dpb.vaddr + buf->index;
+				memcpy(dstBuf, srcBuf, sizeof(struct dec_dpb_ref_info));
+				dstBuf->index = buf->index;
+			}
 		}
 
 		/* Memcpy from dec->hdr10_plus_info to shared memory */
@@ -1002,8 +954,17 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 			if (dec->sh_handle_hdr.vaddr != NULL) {
 				dst_sei_meta = (struct hdr10_plus_meta *)
 					dec->sh_handle_hdr.vaddr + buf->index;
-				memcpy(dst_sei_meta, src_sei_meta,
-						sizeof(struct hdr10_plus_meta));
+				memcpy(dst_sei_meta, src_sei_meta, sizeof(struct hdr10_plus_meta));
+			}
+		}
+
+		/* Memcpy from dec->av1_film_grain_meta to shared memory */
+		if (dec->av1_film_grain_info) {
+			src_av1_sei_meta = &dec->av1_film_grain_info[buf->index];
+			if (dec->sh_handle_av1_film_grain.vaddr != NULL) {
+				dst_av1_sei_meta = (struct av1_film_grain_meta *)
+					dec->sh_handle_av1_film_grain.vaddr + buf->index;
+				memcpy(dst_av1_sei_meta, src_av1_sei_meta, sizeof(struct av1_film_grain_meta));
 			}
 		}
 	}
@@ -1026,17 +987,16 @@ static int mfc_dec_streamon(struct file *file, void *priv,
 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		mfc_debug(4, "dec dst streamon\n");
 		ret = vb2_streamon(&ctx->vq_dst, type);
-
 		if (!ret)
-			mfc_qos_on(ctx);
+			mfc_rm_qos_control(ctx, MFC_QOS_ON);
 	} else {
 		mfc_ctx_err("unknown v4l2 buffer type\n");
 	}
 
-	mfc_debug(2, "src: %d, dst: %d,  state = %d, dpb_count = %d\n",
-		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
+	mfc_debug(2, "src: %d, dst: %d, dpb_count = %d\n",
+		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_ready_queue),
 		  mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
-		  ctx->state, ctx->dpb_count);
+		  ctx->dpb_count);
 
 	mfc_debug_leave();
 
@@ -1061,7 +1021,7 @@ static int mfc_dec_streamoff(struct file *file, void *priv,
 		mfc_debug(4, "dec dst streamoff\n");
 		ret = vb2_streamoff(&ctx->vq_dst, type);
 		if (!ret)
-			mfc_qos_off(ctx);
+			mfc_rm_qos_control(ctx, MFC_QOS_OFF);
 	} else {
 		mfc_ctx_err("unknown v4l2 buffer type\n");
 	}
@@ -1094,7 +1054,6 @@ static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 	int val = 0;
 
 	val |= DEC_SET_DYNAMIC_DPB;
-	val |= DEC_SET_DRV_DPB_MANAGER;
 	val |= DEC_SET_C2_INTERFACE;
 	val |= DEC_SET_BUF_FLAG_CTRL;
 	val |= DEC_SET_FRAME_ERR_TYPE;
@@ -1114,6 +1073,8 @@ static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 {
 	struct mfc_dev *dev = ctx->dev;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_ctx_ctrl *ctx_ctrl;
 	int found = 0;
@@ -1129,24 +1090,28 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 		mfc_debug(5, "it is supported only V4L2_MEMORY_MMAP\n");
 		break;
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
-		if (ctx->state >= MFCINST_HEAD_PARSED &&
-		    ctx->state < MFCINST_ABORT) {
+		/* These context information is need to for only Master core */
+		core = mfc_get_master_core_wait(dev, ctx);
+		core_ctx = core->core_ctx[ctx->num];
+
+		if (core_ctx->state >= MFCINST_HEAD_PARSED &&
+				core_ctx->state < MFCINST_ABORT) {
 			ctrl->value = ctx->dpb_count;
 			break;
-		} else if (ctx->state != MFCINST_INIT) {
+		} else if (core_ctx->state != MFCINST_INIT) {
 			mfc_ctx_err("Decoding not initialised\n");
 			return -EINVAL;
 		}
 
 		/* Should wait for the header to be parsed */
-		if (mfc_wait_for_done_ctx(ctx,
-				MFC_REG_R2H_CMD_SEQ_DONE_RET)) {
-			mfc_cleanup_work_bit_and_try_run(ctx);
+		if (mfc_wait_for_done_core_ctx(core_ctx,
+					MFC_REG_R2H_CMD_SEQ_DONE_RET)) {
+			mfc_core_cleanup_work_bit_and_try_run(core_ctx);
 			return -EIO;
 		}
 
-		if (ctx->state >= MFCINST_HEAD_PARSED &&
-		    ctx->state < MFCINST_ABORT) {
+		if (core_ctx->state >= MFCINST_HEAD_PARSED &&
+		    core_ctx->state < MFCINST_ABORT) {
 			ctrl->value = ctx->dpb_count;
 		} else {
 			mfc_ctx_err("Decoding not initialised\n");
@@ -1163,14 +1128,18 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 		ctrl->value = dec->crc_enable;
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_CHECK_STATE:
-		if (ctx->is_dpb_realloc && ctx->state == MFCINST_HEAD_PARSED)
+		core = mfc_get_master_core_wait(dev, ctx);
+		core_ctx = core->core_ctx[ctx->num];
+		if (ctx->is_dpb_realloc &&
+			mfc_rm_query_state(ctx, EQUAL, MFCINST_HEAD_PARSED))
 			ctrl->value = MFCSTATE_DEC_S3D_REALLOC;
-		else if (ctx->state == MFCINST_RES_CHANGE_FLUSH
-				|| ctx->state == MFCINST_RES_CHANGE_END
-				|| ctx->state == MFCINST_HEAD_PARSED
+		/* TODO SAY: DRC is not supported yet in multi core mode */
+		else if (core_ctx->state == MFCINST_RES_CHANGE_FLUSH
+				|| core_ctx->state == MFCINST_RES_CHANGE_END
+				|| core_ctx->state == MFCINST_HEAD_PARSED
 				|| dec->inter_res_change)
 			ctrl->value = MFCSTATE_DEC_RES_DETECT;
-		else if (ctx->state == MFCINST_FINISHING)
+		else if (mfc_rm_query_state(ctx, EQUAL, MFCINST_FINISHING))
 			ctrl->value = MFCSTATE_DEC_TERMINATING;
 		else
 			ctrl->value = MFCSTATE_PROCESSING;
@@ -1202,13 +1171,22 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	case V4L2_CID_MPEG_MFC_GET_DRIVER_INFO:
 		ctrl->value = MFC_DRIVER_INFO;
 		break;
+	case V4L2_CID_MPEG_VIDEO_UNCOMP_FMT:
+		ctrl->value = dec->uncomp_pixfmt;
+		break;
 	case V4L2_CID_MPEG_VIDEO_GET_DISPLAY_DELAY:
-		if (ctx->state >= MFCINST_HEAD_PARSED) {
+		/* These context information is need to for only Master core */
+		core = mfc_get_master_core_wait(dev, ctx);
+		core_ctx = core->core_ctx[ctx->num];
+		if (core_ctx->state >= MFCINST_HEAD_PARSED) {
 			ctrl->value = dec->frame_display_delay;
 		} else {
 			mfc_ctx_err("display delay information not parsed yet\n");
 			return -EINVAL;
 		}
+		break;
+	case V4L2_CID_MPEG_MFC_AV1_FILM_GRAIN_PRESENT:
+		ctrl->value = dec->av1_film_grain_present;
 		break;
 	default:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
@@ -1323,13 +1301,23 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 			mfc_ctx_err("[DPB] is_dynamic_dpb is 0. it has to be enabled\n");
 		break;
 	case V4L2_CID_MPEG_MFC_SET_USER_SHARED_HANDLE:
-		mfc_ctx_info("[DPB] dynamic dpb is handled in only driver\n");
+		if (dec->sh_handle_dpb.fd == -1) {
+			dec->sh_handle_dpb.fd = ctrl->value;
+			if (mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle_dpb))
+				return -EINVAL;
+			mfc_debug(2, "[MEMINFO][DPB] shared handle fd: %d, vaddr: 0x%p\n",
+					dec->sh_handle_dpb.fd, dec->sh_handle_dpb.vaddr);
+		}
 		break;
 	case V4L2_CID_MPEG_MFC_SET_BUF_PROCESS_TYPE:
 		ctx->buf_process_type = ctrl->value;
 		break;
 	case V4L2_CID_MPEG_VIDEO_BLACK_BAR_DETECT:
 		dec->detect_black_bar = ctrl->value;
+		if (IS_BLACKBAR_OFF(ctx)) {
+			mfc_ctx_info("[BLACKBAR] black bar detection doesn't work\n");
+			dec->detect_black_bar = 0;
+		}
 		break;
 	case V4L2_CID_MPEG_MFC_HDR_USER_SHARED_HANDLE:
 		dec->sh_handle_hdr.fd = ctrl->value;
@@ -1340,8 +1328,23 @@ static int mfc_dec_s_ctrl(struct file *file, void *priv,
 		mfc_debug(2, "[MEMINFO][HDR+] shared handle fd: %d, vaddr: 0x%p\n",
 				dec->sh_handle_hdr.fd, dec->sh_handle_hdr.vaddr);
 		break;
+	case V4L2_CID_MPEG_MFC_AV1_FILM_GRAIN_USER_SHARED_HANDLE:
+		dec->sh_handle_av1_film_grain.fd = ctrl->value;
+		if (mfc_mem_get_user_shared_handle(ctx, &dec->sh_handle_av1_film_grain)) {
+			dec->sh_handle_av1_film_grain.fd = -1;
+			return -EINVAL;
+		}
+		mfc_debug(2, "[MEMINFO][FILMGR] shared handle fd: %d, vaddr: 0x%p\n",
+				dec->sh_handle_av1_film_grain.fd,
+				dec->sh_handle_av1_film_grain.vaddr);
+		break;
 	case V4L2_CID_MPEG_VIDEO_DECODING_ORDER:
 		dec->decoding_order = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SKIP_LAZY_UNMAP:
+		ctx->skip_lazy_unmap = ctrl->value;
+		mfc_debug(2, "[LAZY_UNMAP] lazy unmap %s\n",
+				ctx->skip_lazy_unmap ? "disable" : "enable");
 		break;
 	default:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {
@@ -1374,6 +1377,9 @@ static int mfc_dec_g_selection(struct file *file, void *priv,
 		struct v4l2_selection *s)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_core *core;
+	struct mfc_core_ctx *core_ctx;
 	struct mfc_dec *dec = ctx->dec_priv;
 
 	mfc_debug_enter();
@@ -1381,13 +1387,16 @@ static int mfc_dec_g_selection(struct file *file, void *priv,
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	if (!ready_to_get_crop(ctx)) {
+	core = mfc_get_master_core_wait(dev, ctx);
+	core_ctx = core->core_ctx[ctx->num];
+
+	if (!ready_to_get_crop(core_ctx)) {
 		mfc_ctx_err("ready to get compose failed\n");
 		return -EINVAL;
 	}
 
-	if (ctx->state == MFCINST_RUNNING && dec->detect_black_bar
-			&& dec->black_bar_updated) {
+	if (mfc_rm_query_state(ctx, EQUAL, MFCINST_RUNNING)
+			&& dec->detect_black_bar && dec->black_bar_updated) {
 		s->r.left = dec->black_bar.left;
 		s->r.top = dec->black_bar.top;
 		s->r.width = dec->black_bar.width;

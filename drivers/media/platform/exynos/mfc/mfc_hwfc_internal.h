@@ -26,6 +26,14 @@
  */
 struct mfc_fmt enc_hwfc_formats[] = {
 	{
+		.name = "4:2:0 2 Planes",
+		.fourcc = V4L2_PIX_FMT_NV12M,
+		.codec_mode = MFC_FORMATS_NO_CODEC,
+		.type = MFC_FMT_FRAME,
+		.num_planes = 2,
+		.mem_planes = 2,
+	},
+	{
 		.name = "4:2:0 2 Planes Y/CbCr single",
 		.fourcc = V4L2_PIX_FMT_NV12N,
 		.codec_mode = MFC_FORMATS_NO_CODEC,
