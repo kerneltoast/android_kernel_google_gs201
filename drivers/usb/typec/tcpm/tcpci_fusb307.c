@@ -5,11 +5,9 @@
  * FUSB307B TCPCI driver
  */
 
-#include <linux/ccic/core.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
-#include <linux/ifconn/ifconn_notifier.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -25,8 +23,6 @@ struct fusb307b_plat {
 	struct device *dev;
 	struct  regulator *vbus;
 	bool vbus_enabled;
-	bool data_active;
-	enum typec_data_role active_data_role;
 };
 
 static int fusb307b_read16(struct fusb307b_plat *chip, unsigned int reg,
@@ -158,46 +154,6 @@ static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 	return 0;
 }
 
-// Notifier structure inferred from usbpd-manager.c
-static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
-			     bool attached, enum typec_role role,
-			     enum typec_data_role data_role)
-{
-	struct fusb307b_plat *chip = tdata_to_fusb307(data);
-	int ret = 0;
-
-	if ((chip->data_active && chip->active_data_role != data_role) ||
-		!attached) {
-		USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
-				 IFCONN_NOTIFY_EVENT_DETACH, NULL);
-		USBPD_SEND_DNOTI(IFCONN_NOTIFY_MUIC, ATTACH,
-				 IFCONN_NOTIFY_EVENT_DETACH, NULL);
-		chip->data_active = false;
-	}
-
-	// Data stack needs a clean up to fix this.
-	msleep(300);
-
-	if (attached) {
-		USBPD_SEND_DNOTI(IFCONN_NOTIFY_MUIC, ATTACH,
-				 IFCONN_NOTIFY_EVENT_ATTACH, NULL);
-
-		if (data_role == TYPEC_DEVICE) {
-			USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
-					 IFCONN_NOTIFY_EVENT_USB_ATTACH_UFP,
-					 NULL);
-		} else if (data_role == TYPEC_HOST) {
-			USBPD_SEND_DNOTI(IFCONN_NOTIFY_USB, USB,
-					 IFCONN_NOTIFY_EVENT_USB_ATTACH_DFP,
-					 NULL);
-		}
-		chip->data_active = true;
-		chip->active_data_role = data_role;
-	}
-
-	return ret;
-}
-
 static int fusb307b_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
@@ -233,7 +189,6 @@ static int fusb307b_probe(struct i2c_client *client,
 	}
 
 	chip->data.set_vbus = fusb307_set_vbus;
-	chip->data.set_roles = fusb307_set_roles;
 
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
 	if (IS_ERR_OR_NULL(chip->tcpci)) {
