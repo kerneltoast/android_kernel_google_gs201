@@ -206,9 +206,8 @@ static enable_load_switch(struct fusb307b_plat *chip)
 
 static int enable_external_boost(struct fusb307b_plat *chip, bool enable)
 {
-	int ret = 0;
+	int ret;
 
-#if IS_ENABLED(CONFIG_OTG_ENABLE)
 	if (!chip->uic_i2c_client) {
 		chip->uic_i2c_client =
 			of_find_i2c_device_by_node(chip->uic_device_node);
@@ -221,7 +220,6 @@ static int enable_external_boost(struct fusb307b_plat *chip, bool enable)
 				chip->uic_gpio, true, enable);
 	logbuffer_log(chip->log, "Max gpio:%d set %s\n", chip->uic_gpio,
 		      ret < 0 ? "fail" : "success");
-#endif
 
 	return ret;
 }
