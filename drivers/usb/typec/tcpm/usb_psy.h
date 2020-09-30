@@ -7,7 +7,7 @@
  */
 #ifndef __USB_PSY__
 #define __USB_PSY__
-#include <misc/logbuffer.h>
+#include <../../../power/supply/google/logbuffer.h>
 #include <linux/power_supply.h>
 
 struct usb_psy_ops {

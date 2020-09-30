@@ -7,7 +7,7 @@
 #ifndef __USB_ICL_VOTER_H
 #define __USB_ICL_VOTER_H
 
-#include <misc/gvotable.h>
+#include "../../../power/supply/google/gvotable.h"
 
 #define USB_ICL_THERMAL_VOTER "THERMAL_VOTER"
 #define USB_ICL_PROTO_VOTER "PROTO_VOTER"

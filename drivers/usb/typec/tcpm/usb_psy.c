@@ -10,8 +10,8 @@
 #include <linux/module.h>
 #include <linux/power_supply.h>
 
-#include <misc/logbuffer.h>
-#include <misc/gvotable.h>
+#include "../../../power/supply/google/gvotable.h"
+#include "../../../power/supply/google/logbuffer.h"
 
 #include "usb_psy.h"
 #include "usb_icl_voter.h"
@@ -475,7 +475,3 @@ void usb_psy_teardown(void *usb_data)
 		power_supply_put(usb->usb_psy);
 }
 EXPORT_SYMBOL_GPL(usb_psy_teardown);
-
-MODULE_DESCRIPTION("USB_PSY Module");
-MODULE_AUTHOR("Badhri Jagan Sridharan <badhri@google.com>");
-MODULE_LICENSE("GPL");
