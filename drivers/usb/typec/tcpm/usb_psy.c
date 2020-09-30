@@ -279,16 +279,16 @@ static void usb_icl_combined_callback(struct gvotable_election *el,
 				      const char *reason, void *result)
 {
 	struct usb_psy_data *usb = gvotable_get_data(el);
-	struct usb_vote *vote_result = result, vote;
+	struct usb_vote *vote_result = result;
 	int ret;
 
-	init_vote(&vote, icl_voter_reason[USB_ICL_COMB],
-		  USB_ICL_COMB, vote_result->val);
-	ret = gvotable_cast_vote(usb->usb_icl_el, vote.reason,
-				 &vote, true);
+	init_vote(vote_result, icl_voter_reason[USB_ICL_COMBINED_VOTER],
+		  USB_ICL_COMBINED_VOTER, vote_result->val);
+	ret = gvotable_cast_vote(usb->usb_icl_el, vote_result->reason,
+				 vote_result, true);
 	logbuffer_log(usb->log, "%s: %s:%d voting usb_icl_el: %d by %s",
 		      __func__, ret < 0 ? "error" : "success", ret,
-		      vote.val, vote.reason);
+		      vote_result->val, vote_result->reason);
 }
 
 /*

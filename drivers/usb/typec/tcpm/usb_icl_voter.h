@@ -28,8 +28,8 @@
 #define GENERATE_STRING(s)	#s
 
 #define ICL_VOTER(S) {			\
-	S(USB_ICL_COMB),	\
-	S(USB_ICL_USER) }
+	S(USB_ICL_COMBINED_VOTER),	\
+	S(USB_ICL_USER_VOTER) }
 
 enum proto_voter_priority PROTO_VOTER(GENERATE_ENUM);
 
