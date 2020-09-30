@@ -27,13 +27,6 @@ config TYPEC_RT1711H
 	  Type-C Port Controller Manager to provide USB PD and USB
 	  Type-C functionalities.
 
-config TYPEC_FUSB307
-	tristate "Fairchild FUSB307B Type-C chip driver"
-	help
-	  The Fairchild FUSB307 Type-C chip driver that works with
-	  Type-C Port Controller Manager to provide USB PD and USB
-	  Type-C functionalities.
-
 endif # TYPEC_TCPCI
 
 config TYPEC_FUSB302
