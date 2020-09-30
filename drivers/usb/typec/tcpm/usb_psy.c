@@ -39,9 +39,6 @@ struct usb_psy_data {
 	 * such as PD, BC1.2, TYPE, DATA stack.
 	 */
 	struct gvotable_election *usb_icl_proto_el;
-
-	/* Cache and return values when chg power supply is not up. */
-	int current_max_cache;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -58,9 +55,6 @@ static int usb_get_current_max_ma(struct usb_psy_data *usb)
 	union power_supply_propval val = {0};
 	int ret;
 
-	if (!usb->chg_psy)
-		return usb->current_max_cache;
-
 	ret = power_supply_get_property(usb->chg_psy,
 					POWER_SUPPLY_PROP_CURRENT_MAX, &val);
 	if (ret < 0)
@@ -74,11 +68,6 @@ static int usb_set_current_max_ma(struct usb_psy_data *usb, int current_max
 {
 	union power_supply_propval val = {0};
 	int ret;
-
-	if (!usb->chg_psy) {
-		usb->current_max_cache = current_max;
-		return 0;
-	}
 
 	val.intval = current_max;
 	ret = power_supply_set_property(usb->chg_psy,
@@ -377,13 +366,14 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log)
 
 	chg_psy_name = (char *)of_get_property(dn, "chg-psy-name", NULL);
 	if (!chg_psy_name) {
-		dev_err(&client->dev, "chg-psy-name not set\n");
-	} else {
-		usb->chg_psy = power_supply_get_by_name(chg_psy_name);
-		if (IS_ERR_OR_NULL(usb->chg_psy)) {
-			dev_err(&client->dev, "usb psy not up\n");
-			return ERR_PTR(-EPROBE_DEFER);
-		}
+		dev_err(&client->dev, "usb-psy-name not set\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	usb->chg_psy = power_supply_get_by_name(chg_psy_name);
+	if (IS_ERR_OR_NULL(usb->chg_psy)) {
+		dev_err(&client->dev, "usb psy not up\n");
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	usb_cfg.drv_data = usb;
@@ -451,8 +441,7 @@ unreg_icl_combined_el:
 unreg_icl_el:
 	gvotable_destroy_election(usb->usb_icl_el);
 psy_put:
-	if (usb->chg_psy)
-		power_supply_put(usb->chg_psy);
+	power_supply_put(usb->chg_psy);
 
 	return ret;
 }
@@ -465,7 +454,6 @@ void usb_psy_teardown(void *usb_data)
 	gvotable_destroy_election(usb->usb_icl_proto_el);
 	gvotable_destroy_election(usb->usb_icl_combined_el);
 	gvotable_destroy_election(usb->usb_icl_el);
-	if (usb->chg_psy)
-		power_supply_put(usb->usb_psy);
+	power_supply_put(usb->usb_psy);
 }
 EXPORT_SYMBOL_GPL(usb_psy_teardown);
