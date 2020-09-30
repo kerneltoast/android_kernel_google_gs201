@@ -7,19 +7,7 @@
  */
 #ifndef __USB_PSY__
 #define __USB_PSY__
-#include <../../../power/supply/google/logbuffer.h>
-#include <linux/power_supply.h>
-
-struct usb_psy_ops {
-	int (*tcpc_get_vbus_voltage_max_mv)(struct i2c_client *tcpc_client);
-	int (*tcpc_set_vbus_voltage_max_mv)(struct i2c_client *tcpc_client,
-					    unsigned int mv);
-	int (*tcpc_get_vbus_voltage_mv)(struct i2c_client *tcpc_client);
-	void (*tcpc_set_port_data_capable)(struct i2c_client *tcpc_client,
-					   enum power_supply_usb_type
-					   usb_type);
-};
-void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
-		    struct usb_psy_ops *ops);
+void *usb_psy_setup(struct i2c_client *client,
+		    struct logbuffer *log);
 void usb_psy_teardown(void *usb_data);
 #endif

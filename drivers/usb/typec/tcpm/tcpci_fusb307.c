@@ -22,6 +22,7 @@
 #include <../../../power/supply/google/logbuffer.h>
 
 #include "tcpci_otg_helper.h"
+#include "tcpci_chip.h"
 #include "tcpci.h"
 #include "usb_icl_voter.h"
 #include "usb_psy.h"
@@ -71,7 +72,6 @@ struct fusb307b_plat {
 	/* USB Data notification */
 	struct extcon_dev *extcon;
 	bool no_bc_12;
-	struct usb_psy_ops psy_ops;
 
 	struct logbuffer *log;
 
@@ -283,7 +283,7 @@ static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 	return 0;
 }
 
-static int fusb307b_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
+int tcpc_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
 {
 	u16 raw;
 	struct fusb307b_plat *chip = i2c_get_clientdata(tcpc_client);
@@ -298,9 +298,10 @@ static int fusb307b_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
 
 	return raw * TCPC_VBUS_VOLTAGE_ALARM_HI_CFG - VBUS_HI_HEADROOM_MV;
 }
+EXPORT_SYMBOL_GPL(tcpc_get_vbus_voltage_max_mv);
 
-static int fusb307b_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
-					    unsigned int mv)
+int tcpc_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
+				     unsigned int mv)
 {
 	struct fusb307b_plat *chip = i2c_get_clientdata(tcpc_client);
 
@@ -324,8 +325,9 @@ static int fusb307b_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
 			       TCPC_ALERT_V_ALARM_HI);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tcpc_set_vbus_voltage_max_mv);
 
-static int fusb307b_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
+int tcpc_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 {
 	u16 raw;
 	struct fusb307b_plat *chip = i2c_get_clientdata(tcpc_client);
@@ -338,6 +340,7 @@ static int fusb307b_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 
 	return (raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV;
 }
+EXPORT_SYMBOL_GPL(tcpc_get_vbus_voltage_mv);
 
 static int fusb307b_get_current_limit(struct tcpci *tcpci,
 				      struct tcpci_data *tdata)
@@ -477,9 +480,8 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 	return 0;
 }
 
-static void fusb307b_set_port_data_capable(struct i2c_client *tcpc_client,
-					   enum power_supply_usb_type
-					   usb_type)
+void tcpc_set_port_data_capable(struct i2c_client *tcpc_client,
+				enum power_supply_usb_type usb_type)
 {
 	struct fusb307b_plat *chip = i2c_get_clientdata(tcpc_client);
 
@@ -496,6 +498,7 @@ static void fusb307b_set_port_data_capable(struct i2c_client *tcpc_client,
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(tcpc_set_port_data_capable);
 
 static const unsigned int usbpd_extcon_cable[] = {
 	EXTCON_USB,
@@ -574,17 +577,7 @@ static int fusb307b_probe(struct i2c_client *client,
 		goto unreg_log;
 	}
 
-	chip->psy_ops.tcpc_get_vbus_voltage_mv =
-		fusb307b_get_vbus_voltage_mv;
-	chip->psy_ops.tcpc_get_vbus_voltage_max_mv =
-		fusb307b_get_vbus_voltage_max_mv;
-	chip->psy_ops.tcpc_set_vbus_voltage_max_mv =
-		fusb307b_set_vbus_voltage_max_mv;
-	chip->psy_ops.tcpc_set_port_data_capable =
-		fusb307b_set_port_data_capable;
-
-	chip->usb_psy_data = usb_psy_setup(client, chip->log,
-					   &chip->psy_ops);
+	chip->usb_psy_data = usb_psy_setup(client, chip->log);
 	if (IS_ERR_OR_NULL(chip->usb_psy_data)) {
 		dev_err(&client->dev, "USB psy failed to initialize");
 		ret = PTR_ERR(chip->usb_psy_data);
