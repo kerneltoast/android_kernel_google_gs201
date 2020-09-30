@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device tree common source between Oriole and Raven.
+ *
+ * Copyright 2020 Google,LLC
+ */
+
+#include "gs101-whitefin2-common.dtsi"
