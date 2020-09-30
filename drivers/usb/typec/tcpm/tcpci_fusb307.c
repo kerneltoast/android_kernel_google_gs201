@@ -21,7 +21,6 @@
 
 #include <../../../power/supply/google/logbuffer.h>
 
-#include "tcpci_otg_helper.h"
 #include "tcpci_chip.h"
 #include "tcpci.h"
 #include "usb_icl_voter.h"
@@ -39,34 +38,27 @@ struct fusb307b_plat {
 	struct tcpci_data data;
 	struct tcpci *tcpci;
 	struct device *dev;
-
-	/* Optional: vbus regulator to turn on if set in device tree */
 	struct  regulator *vbus;
-	bool turn_on_vbus;
-
-	/* Optional: Gpio to set through the MAX PMIC */
-	u32 uic_gpio;
 	bool vbus_enabled;
-
-	/* Data role notified to the data stack */
+	/** Data role notified to the data stack **/
 	enum typec_data_role active_data_role;
-	/* Data role from the TCPM stack */
+	/** Data role from the TCPM stack **/
 	enum typec_data_role data_role;
-	/* protects tcpc_enable_data_path */
+	/** protects tcpc_enable_data_path **/
 	struct mutex data_path_lock;
-	/* Vote for data from BC1.2 */
+	/** Vote for data from BC1.2 **/
 	bool data_capable;
-	/* Vote from TCPC for attached */
+	/** Vote from TCPC for attached **/
 	bool attached;
-	/* Reflects the signal sent out to the data stack */
+	/** Reflects the signal sent out to the data stack **/
 	bool data_active;
-	/* Reflects whether the current partner can do PD */
+	/** Reflects whether the current partner can do PD **/
 	bool pd_capable;
 	void *usb_psy_data;
 	struct power_supply *usb_psy;
 	struct gvotable_election *usb_icl_proto_el;
 	struct mutex icl_proto_el_lock;
-	/* Set vbus voltage alarms */
+	/** Set vbus voltage alarms **/
 	bool set_voltage_alarm;
 	unsigned int vbus_mv;
 	/* USB Data notification */
@@ -74,11 +66,6 @@ struct fusb307b_plat {
 	bool no_bc_12;
 
 	struct logbuffer *log;
-
-	struct i2c_client *uic_i2c_client;
-	struct device_node *uic_device_node;
-	struct i2c_client *ls_i2c_client;
-	struct device_node *ls_device_node;
 };
 
 static int fusb307b_read16(struct fusb307b_plat *chip, unsigned int reg,
@@ -187,56 +174,18 @@ static int fusb307b_init_alert(struct fusb307b_plat *chip,
 	return 0;
 }
 
-static enable_load_switch(struct fusb307b_plat *chip)
-{
-	int ret;
-
-	if (!chip->ls_i2c_client) {
-		chip->ls_i2c_client =
-			of_find_i2c_device_by_node(chip->ls_device_node);
-		if (!chip->ls_i2c_client)
-			return -EAGAIN;
-	}
-
-	ret = enable_ls(chip->ls_i2c_client);
-	logbuffer_log(chip->log, "Load switch enable:%s\n", ret < 0 ?
-		      "fail" : "success");
-	return ret;
-}
-
-static int enable_external_boost(struct fusb307b_plat *chip, bool enable)
-{
-	int ret;
-
-	if (!chip->uic_i2c_client) {
-		chip->uic_i2c_client =
-			of_find_i2c_device_by_node(chip->uic_device_node);
-		if (!chip->uic_i2c_client)
-			return -EAGAIN;
-		max77729_disable_water_detection(chip->uic_i2c_client);
-	}
-
-	ret = max77729_gpio_set(chip->uic_i2c_client,
-				chip->uic_gpio, true, enable);
-	logbuffer_log(chip->log, "Max gpio:%d set %s\n", chip->uic_gpio,
-		      ret < 0 ? "fail" : "success");
-
-	return ret;
-}
-
 static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 			    bool source, bool sink)
 {
 	struct fusb307b_plat *chip = tdata_to_fusb307(tdata);
 	int ret;
 
-	/* Ordering is needed here. DO NOT REFACTOR if..else.. */
+	/** Ordering is needed here. DO NOT REFACTOR if..else.. **/
 	if (!source) {
-		if (chip->vbus_enabled) {
-			if (chip->turn_on_vbus)
-				regulator_disable(chip->vbus);
-			else if (chip->uic_gpio)
-				enable_external_boost(chip, false);
+		if (!IS_ERR_OR_NULL(chip->vbus) && chip->vbus_enabled) {
+			ret = regulator_disable(chip->vbus);
+			if (ret < 0)
+				return ret;
 			chip->vbus_enabled = false;
 		}
 
@@ -254,16 +203,10 @@ static int fusb307_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata,
 	}
 
 	if (source) {
-		if (!chip->vbus_enabled) {
-			if (chip->turn_on_vbus) {
-				regulator_enable(chip->vbus);
-			} else if (chip->uic_gpio) {
-				ret = enable_load_switch(chip);
-				if (ret < 0)
-					return ret;
-
-				enable_external_boost(chip, true);
-			}
+		if (!IS_ERR_OR_NULL(chip->vbus) && !chip->vbus_enabled) {
+			ret = regulator_enable(chip->vbus);
+			if (ret < 0)
+				return ret;
 			chip->vbus_enabled = true;
 		}
 
@@ -408,7 +351,7 @@ static int fusb307b_set_current_limit(struct tcpci *tcpci,
 	union power_supply_propval val = {0};
 	int ret;
 
-	/* Setprop in uv */
+	/** Setprop in uv **/
 	val.intval = mv * 1000;
 	ret = power_supply_set_property(chip->usb_psy,
 					POWER_SUPPLY_PROP_VOLTAGE_MAX,
@@ -514,7 +457,6 @@ static int fusb307b_probe(struct i2c_client *client,
 	struct fusb307b_plat *chip;
 	struct device_node *dn;
 	char *usb_psy_name;
-	u32 handle;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -532,8 +474,9 @@ static int fusb307b_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 
 	ret = fusb307b_init_alert(chip, client);
-	if (ret < 0)
+	if (ret < 0) {
 		return ret;
+	}
 
 	chip->vbus = devm_regulator_get(&client->dev, "vbus");
 	if (IS_ERR(chip->vbus)) {
@@ -549,33 +492,6 @@ static int fusb307b_probe(struct i2c_client *client,
 
 	mutex_init(&chip->data_path_lock);
 	mutex_init(&chip->icl_proto_el_lock);
-
-	dn = dev_of_node(&client->dev);
-	if (!dn) {
-		dev_err(&client->dev, "of node not found\n");
-		ret = -EINVAL;
-		goto unreg_log;
-	}
-
-	chip->turn_on_vbus = of_property_read_bool(dn, "turn-on-vbus-reg");
-
-	if (!of_property_read_u32(dn, "uic", &handle)) {
-		chip->uic_device_node = of_find_node_by_phandle(handle);
-		of_property_read_u32(dn, "uic-io", &chip->uic_gpio);
-		logbuffer_log(chip->log, "uic gpio: %d", chip->uic_gpio);
-	} else {
-		dev_err(&client->dev, "UIC device node not found\n");
-		ret = -EINVAL;
-		goto unreg_log;
-	}
-
-	if (!of_property_read_u32(dn, "ls", &handle)) {
-		chip->ls_device_node = of_find_node_by_phandle(handle);
-	} else {
-		dev_err(&client->dev, "ls device node not found\n");
-		ret = -EINVAL;
-		goto unreg_log;
-	}
 
 	chip->usb_psy_data = usb_psy_setup(client, chip->log);
 	if (IS_ERR_OR_NULL(chip->usb_psy_data)) {
@@ -596,6 +512,13 @@ static int fusb307b_probe(struct i2c_client *client,
 			PTR_ERR(chip->usb_icl_proto_el));
 		ret = -ENODEV;
 		goto unreg_port;
+	}
+
+	dn = dev_of_node(&client->dev);
+	if (!dn) {
+		dev_err(&client->dev, "of node not found\n");
+		ret = -EINVAL;
+		goto unreg_psy;
 	}
 
 	usb_psy_name = (char *)of_get_property(dn, "usb-psy-name", NULL);
