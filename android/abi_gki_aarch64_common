@@ -10311,6 +10311,8 @@
   __tracepoint_cpu_frequency
   __tracepoint_cpu_idle
   __tracepoint_detach_device_from_domain
+  __tracepoint_device_pm_callback_end
+  __tracepoint_device_pm_callback_start
   __tracepoint_dma_fence_emit
   __tracepoint_dma_fence_enable_signal
   __tracepoint_dma_fence_signaled
