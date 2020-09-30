@@ -403,8 +403,7 @@ static void s2m_thermal_work(struct work_struct *work)
 		pr_err("smpl_warn TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_smpl_warn));
 	} else {
-		tz_smpl_warn->ops->set_mode(tz_smpl_warn,
-					    THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_smpl_warn);
 		thermal_zone_device_update(tz_smpl_warn, THERMAL_DEVICE_UP);
 	}
 	tz_ocp_cpucl1 =
@@ -415,8 +414,7 @@ static void s2m_thermal_work(struct work_struct *work)
 		pr_err("cpu1 TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_ocp_cpucl1));
 	} else {
-		tz_ocp_cpucl1->ops->set_mode(tz_ocp_cpucl1,
-					     THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_ocp_cpucl1);
 		thermal_zone_device_update(tz_ocp_cpucl1, THERMAL_DEVICE_UP);
 	}
 	tz_ocp_cpucl2 =
@@ -427,8 +425,7 @@ static void s2m_thermal_work(struct work_struct *work)
 		pr_err("cpu2 TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_ocp_cpucl2));
 	} else {
-		tz_ocp_cpucl2->ops->set_mode(tz_ocp_cpucl2,
-					     THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_ocp_cpucl2);
 		thermal_zone_device_update(tz_ocp_cpucl2, THERMAL_DEVICE_UP);
 	}
 	tz_ocp_tpu = thermal_zone_of_sensor_register(s2mpg10->iodev->dev,
@@ -438,7 +435,7 @@ static void s2m_thermal_work(struct work_struct *work)
 		pr_err("tpu TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_ocp_tpu));
 	} else {
-		tz_ocp_tpu->ops->set_mode(tz_ocp_tpu, THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_ocp_tpu);
 		thermal_zone_device_update(tz_ocp_tpu, THERMAL_DEVICE_UP);
 	}
 	tz_soft_ocp_cpucl1 = thermal_zone_of_sensor_register(
@@ -448,8 +445,7 @@ static void s2m_thermal_work(struct work_struct *work)
 		pr_err("soft cpu1 TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_soft_ocp_cpucl1));
 	} else {
-		tz_soft_ocp_cpucl1->ops->set_mode(tz_soft_ocp_cpucl1,
-						  THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_soft_ocp_cpucl1);
 		thermal_zone_device_update(tz_soft_ocp_cpucl1,
 					   THERMAL_DEVICE_UP);
 	}
@@ -460,8 +456,7 @@ static void s2m_thermal_work(struct work_struct *work)
 		pr_err("soft cpu2 TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_soft_ocp_cpucl2));
 	} else {
-		tz_soft_ocp_cpucl2->ops->set_mode(tz_soft_ocp_cpucl2,
-						  THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_soft_ocp_cpucl2);
 		thermal_zone_device_update(tz_soft_ocp_cpucl2,
 					   THERMAL_DEVICE_UP);
 	}
@@ -473,8 +468,7 @@ static void s2m_thermal_work(struct work_struct *work)
 		pr_err("soft tpu TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_soft_ocp_tpu));
 	} else {
-		tz_soft_ocp_tpu->ops->set_mode(tz_soft_ocp_tpu,
-					       THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_soft_ocp_tpu);
 		thermal_zone_device_update(tz_soft_ocp_tpu, THERMAL_DEVICE_UP);
 	}
 }

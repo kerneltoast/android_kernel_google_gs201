@@ -70,7 +70,7 @@ static void async_thermal_probe(void *data, async_cookie_t cookie)
 		pr_err("gpu TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_ocp_gpu));
 	} else {
-		tz_ocp_gpu->ops->set_mode(tz_ocp_gpu, THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_ocp_gpu);
 		thermal_zone_device_update(tz_ocp_gpu, THERMAL_DEVICE_UP);
 	}
 	tz_soft_ocp_gpu =
@@ -81,8 +81,7 @@ static void async_thermal_probe(void *data, async_cookie_t cookie)
 		pr_err("soft gpu TZ register failed. err:%ld\n",
 		       PTR_ERR(tz_soft_ocp_gpu));
 	} else {
-		tz_soft_ocp_gpu->ops->set_mode(tz_soft_ocp_gpu,
-					       THERMAL_DEVICE_ENABLED);
+		thermal_zone_device_enable(tz_soft_ocp_gpu);
 		thermal_zone_device_update(tz_soft_ocp_gpu, THERMAL_DEVICE_UP);
 	}
 }
