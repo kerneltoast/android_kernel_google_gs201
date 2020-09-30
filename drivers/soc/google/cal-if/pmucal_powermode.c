@@ -6,6 +6,8 @@
  */
 
 #include <soc/google/cal-if.h>
+/* TODO: remove linux/soc/samsung/exynos-smc.h include. see b/169128860 */
+#include <linux/soc/samsung/exynos-smc.h>
 #include "pwrcal-env.h"
 #include "pmucal_system.h"
 #include "pmucal_powermode.h"
@@ -14,10 +16,18 @@
 
 void pmucal_powermode_hint(unsigned int mode)
 {
+	int ret;
 	unsigned int cpu = smp_processor_id();
 
-	__raw_writel(mode, pmucal_cpuinform_list[cpu].base_va
-			+ pmucal_cpuinform_list[cpu].offset);
+	ret = set_priv_reg(pmucal_cpuinform_list[cpu].base_pa + pmucal_cpuinform_list[cpu].offset,
+			   mode);
+	/*
+	 * TODO: this is a temporary hack to prevent widespread breakage when
+	 * kernel and el3_mon binaries don't match. must remove it. see b/169128860
+	 */
+	if (ret == SMC_CMD_PRIV_REG)
+		__raw_writel(mode, pmucal_cpuinform_list[cpu].base_va +
+			     pmucal_cpuinform_list[cpu].offset);
 }
 
 u32 pmucal_get_powermode_hint(unsigned int cpu)
@@ -46,10 +56,18 @@ u32 pmucal_is_lastcore_detecting(unsigned int cpu)
 
 void pmucal_powermode_hint_clear(void)
 {
+	int ret;
 	unsigned int cpu = smp_processor_id();
 
-	__raw_writel(0, pmucal_cpuinform_list[cpu].base_va
-			+ pmucal_cpuinform_list[cpu].offset);
+	ret = set_priv_reg(pmucal_cpuinform_list[cpu].base_pa + pmucal_cpuinform_list[cpu].offset,
+			   0);
+	/*
+	 * TODO: this is a temporary hack to prevent widespread breakage when
+	 * kernel and el3_mon binaries don't match. must remove it. see b/169128860
+	 */
+	if (ret == SMC_CMD_PRIV_REG)
+		__raw_writel(0, pmucal_cpuinform_list[cpu].base_va +
+			     pmucal_cpuinform_list[cpu].offset);
 }
 
 int pmucal_cpuinform_init(void)
