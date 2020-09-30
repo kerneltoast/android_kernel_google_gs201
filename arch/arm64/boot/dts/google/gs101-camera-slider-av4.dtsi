@@ -74,7 +74,7 @@
 				/* RCAM_RST_L GPP6[2] */
 				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
 				/* RCAM_EN2 GRA_GPIO6 */
-				enable-gpios =
+				shared-enable-gpios =
 					<&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
@@ -309,7 +309,7 @@
 
 				/* GPIOs */
 				/* RCAM_EN2 GRA_GPIO6 */
-				enable-gpios =
+				shared-enable-gpios =
 					<&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
