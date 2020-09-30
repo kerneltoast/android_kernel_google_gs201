@@ -44,8 +44,6 @@ struct usb_psy_data {
 	int current_max_cache;
 
 	struct usb_psy_ops *psy_ops;
-
-	char *chg_psy_name;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -61,18 +59,9 @@ static int usb_get_current_max_ma(struct usb_psy_data *usb)
 {
 	union power_supply_propval val = {0};
 	int ret;
-	struct i2c_client *client = usb->tcpc_client;
 
-	if (!usb->chg_psy_name)
+	if (!usb->chg_psy)
 		return usb->current_max_cache;
-
-	if (!usb->chg_psy) {
-		usb->chg_psy = power_supply_get_by_name(usb->chg_psy_name);
-		if (IS_ERR_OR_NULL(usb->chg_psy)) {
-			dev_err(&client->dev, "chg psy not up\n");
-			return usb->current_max_cache;
-		}
-	}
 
 	ret = power_supply_get_property(usb->chg_psy,
 					POWER_SUPPLY_PROP_CURRENT_MAX, &val);
@@ -87,19 +76,10 @@ static int usb_set_current_max_ma(struct usb_psy_data *usb, int current_max
 {
 	union power_supply_propval val = {0};
 	int ret;
-	struct i2c_client *client = usb->tcpc_client;
-
-	if (!usb->chg_psy_name) {
-		usb->current_max_cache = current_max;
-		return 0;
-	}
 
 	if (!usb->chg_psy) {
-		usb->chg_psy = power_supply_get_by_name(usb->chg_psy_name);
-		if (IS_ERR_OR_NULL(usb->chg_psy)) {
-			dev_err(&client->dev, "chg psy not up\n");
-			return 0;
-		}
+		usb->current_max_cache = current_max;
+		return 0;
 	}
 
 	val.intval = current_max;
@@ -376,6 +356,7 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	struct power_supply_config usb_cfg = {};
 	struct device *dev = &client->dev;
 	struct device_node *dn;
+	char *chg_psy_name;
 	void *ret;
 
 	if (!ops)
@@ -401,13 +382,15 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 		return ERR_PTR(-EINVAL);
 	}
 
-	usb->chg_psy_name = (char *)of_get_property(dn, "chg-psy-name", NULL);
-	if (!usb->chg_psy_name) {
+	chg_psy_name = (char *)of_get_property(dn, "chg-psy-name", NULL);
+	if (!chg_psy_name) {
 		dev_err(&client->dev, "chg-psy-name not set\n");
 	} else {
-		usb->chg_psy = power_supply_get_by_name(usb->chg_psy_name);
-		if (IS_ERR_OR_NULL(usb->chg_psy))
-			dev_err(&client->dev, "chg psy not up\n");
+		usb->chg_psy = power_supply_get_by_name(chg_psy_name);
+		if (IS_ERR_OR_NULL(usb->chg_psy)) {
+			dev_err(&client->dev, "usb psy not up\n");
+			return ERR_PTR(-EPROBE_DEFER);
+		}
 	}
 
 	usb_cfg.drv_data = usb;
