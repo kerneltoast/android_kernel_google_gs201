@@ -29,7 +29,7 @@
 
 #define ICL_VOTER(S) {			\
 	S(USB_ICL_COMB),	\
-	S(USB_ICL_CHARGER) }
+	S(USB_ICL_USER) }
 
 enum proto_voter_priority PROTO_VOTER(GENERATE_ENUM);
 
