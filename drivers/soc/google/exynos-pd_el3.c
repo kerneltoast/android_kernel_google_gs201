@@ -37,5 +37,18 @@ int exynos_pd_tz_restore(unsigned int addr)
 }
 EXPORT_SYMBOL(exynos_pd_tz_restore);
 
+int set_priv_reg(phys_addr_t reg, u32 val)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SMC_CMD_PRIV_REG,
+		      reg,
+		      PRIV_REG_OPTION_WRITE,
+		      val, 0, 0, 0, 0, &res);
+
+	return (int)res.a0;
+}
+EXPORT_SYMBOL(set_priv_reg);
+
 MODULE_SOFTDEP("pre: exynos-el2");
 MODULE_LICENSE("GPL");

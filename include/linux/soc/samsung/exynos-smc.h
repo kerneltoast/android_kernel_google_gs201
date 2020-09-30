@@ -41,6 +41,9 @@
 /* For D-GPIO/D-TZPC */
 #define SMC_CMD_PREPARE_PD_ONOFF	(0x82000410)
 
+/* For accessing privileged registers */
+#define SMC_CMD_PRIV_REG		(0x82000504)
+
 /* For FMP/SMU Ctrl */
 #define SMC_CMD_FMP_SECURITY		(0xC2001810)
 #define SMC_CMD_FMP_DISK_KEY_STORED	(0xC2001820)
