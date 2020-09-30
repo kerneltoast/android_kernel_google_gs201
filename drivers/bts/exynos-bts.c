@@ -212,6 +212,10 @@ int bts_update_bw(unsigned int index, struct bts_bw bw)
 	btsdev->bts_bw[index].write = bw.write;
 	spin_unlock(&btsdev->lock);
 
+	BTSDBG_LOG(btsdev->dev,
+		   "%s R: %.8u W: %.8u P: %.8u\n",
+		   btsdev->bts_bw[index].name, bw.read, bw.write, bw.peak);
+
 	bts_calc_bw();
 
 	return 0;
@@ -353,6 +357,29 @@ static int exynos_bts_hwstatus_open_show(struct seq_file *buf, void *d)
 static int exynos_bts_hwstatus_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, exynos_bts_hwstatus_open_show,
+			   inode->i_private);
+}
+
+static int exynos_bts_bw_open_show(struct seq_file *buf, void *d)
+{
+	int i;
+
+	mutex_lock(&btsdev->mutex_lock);
+	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
+		(i < btsdev->num_bts); i++) {
+		seq_printf(
+			buf,
+			"%s:\tRead: %.8u Write: %.8u Peak %.8u\n",
+			btsdev->bts_bw[i].name, btsdev->bts_bw[i].read,
+			btsdev->bts_bw[i].write, btsdev->bts_bw[i].peak);
+	}
+	mutex_unlock(&btsdev->mutex_lock);
+	return 0;
+}
+
+static int exynos_bts_bw_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, exynos_bts_bw_open_show,
 			   inode->i_private);
 }
 
@@ -837,6 +864,13 @@ static const struct file_operations debug_bts_hwstatus_fops = {
 	.release = single_release,
 };
 
+static const struct file_operations debug_bts_bw_fops = {
+	.open = exynos_bts_bw_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static const struct file_operations debug_bts_scenario_fops = {
 	.open = exynos_bts_scenario_open,
 	.read = seq_read,
@@ -903,6 +937,7 @@ int exynos_bts_debugfs_init(void)
 	debugfs_create_file("blocking", 0440, den, NULL,
 			    &debug_bts_blocking_fops);
 	debugfs_create_file("log", 0440, den, NULL, &debug_bts_log_fops);
+	debugfs_create_file("bw", 0440, den, NULL, &debug_bts_bw_fops);
 
 	return 0;
 }
