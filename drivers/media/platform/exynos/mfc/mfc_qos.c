@@ -40,11 +40,11 @@ static unsigned long framerate_table[][2] = {
 	{ 480000,     0 },
 };
 
-static inline unsigned long __mfc_qos_timeval_diff(struct timeval *to,
-					struct timeval *from)
+static inline unsigned long __mfc_qos_timespec64_diff(struct timespec64 *to,
+					struct timespec64 *from)
 {
-	return (to->tv_sec * USEC_PER_SEC + to->tv_usec)
-		- (from->tv_sec * USEC_PER_SEC + from->tv_usec);
+	return (to->tv_sec * NSEC_PER_SEC + to->tv_nsec)
+		- (from->tv_sec * NSEC_PER_SEC + from->tv_nsec);
 }
 
 static int __mfc_qos_ts_sort(const void *p0, const void *p1)
@@ -88,7 +88,7 @@ static unsigned long __mfc_qos_get_framerate_by_interval(int interval)
 	unsigned long i;
 
 	/* if the interval is too big (2sec), framerate set to 0 */
-	if (interval > MFC_MAX_INTERVAL)
+	if (interval > MFC_MAX_INTERVAL || interval < 0)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(framerate_table); i++) {
@@ -130,19 +130,21 @@ static int __mfc_qos_get_interval(struct list_head *head, struct list_head *entr
 
 	if (entry->prev != head) {
 		prev_ts = list_entry(entry->prev, struct mfc_timestamp, list);
-		prev_interval = __mfc_qos_timeval_diff(&curr_ts->timestamp, &prev_ts->timestamp);
+		prev_interval = __mfc_qos_timespec64_diff(&curr_ts->timestamp,
+							&prev_ts->timestamp);
 	}
 
 	if (entry->next != head) {
 		next_ts = list_entry(entry->next, struct mfc_timestamp, list);
-		next_interval = __mfc_qos_timeval_diff(&next_ts->timestamp, &curr_ts->timestamp);
+		next_interval = __mfc_qos_timespec64_diff(&next_ts->timestamp,
+							&curr_ts->timestamp);
 	}
 
 	return (prev_interval < next_interval ? prev_interval : next_interval);
 }
 
 static int __mfc_qos_add_timestamp(struct mfc_ctx *ctx,
-			struct timeval *time, struct list_head *head)
+			struct timespec64 *time, struct list_head *head)
 {
 	int replace_entry = 0;
 	struct mfc_timestamp *curr_ts = &ctx->ts_array[ctx->ts_count];
@@ -155,7 +157,7 @@ static int __mfc_qos_add_timestamp(struct mfc_ctx *ctx,
 			list_del(&curr_ts->list);
 	}
 
-	memcpy(&curr_ts->timestamp, time, sizeof(struct timeval));
+	memcpy(&curr_ts->timestamp, time, sizeof(*time));
 	if (!replace_entry)
 		list_add(&curr_ts->list, head);
 	curr_ts->interval =
@@ -173,7 +175,7 @@ static int __mfc_qos_add_timestamp(struct mfc_ctx *ctx,
 	return 0;
 }
 
-static unsigned long __mfc_qos_get_fps_by_timestamp(struct mfc_ctx *ctx, struct timeval *time)
+static unsigned long __mfc_qos_get_fps_by_timestamp(struct mfc_ctx *ctx, struct timespec64 *time)
 {
 	struct list_head *head = &ctx->ts_list;
 	struct mfc_timestamp *temp_ts;
@@ -196,7 +198,7 @@ static unsigned long __mfc_qos_get_fps_by_timestamp(struct mfc_ctx *ctx, struct 
 	} else {
 		found = 0;
 		list_for_each_entry_reverse(temp_ts, &ctx->ts_list, list) {
-			time_diff = __mfc_timeval_compare(time, &temp_ts->timestamp);
+			time_diff = __mfc_timespec64_compare(time, &temp_ts->timestamp);
 			if (time_diff == 0) {
 				/* Do not add if same timestamp already exists */
 				found = 1;
@@ -219,15 +221,15 @@ static unsigned long __mfc_qos_get_fps_by_timestamp(struct mfc_ctx *ctx, struct 
 	if (debug_ts == 1) {
 		/* Debug info */
 		mfc_ctx_info("===================[TS]===================\n");
-		mfc_ctx_info("[TS] New timestamp = %ld.%06ld, count = %d\n",
-			time->tv_sec, time->tv_usec, ctx->ts_count);
+		mfc_ctx_info("[TS] New timestamp = %ld.%09ld, count = %d\n",
+			time->tv_sec, time->tv_nsec, ctx->ts_count);
 
 		index = 0;
 		list_for_each_entry(temp_ts, &ctx->ts_list, list) {
-			mfc_ctx_info("[TS] [%d] timestamp [i:%d]: %ld.%06ld\n",
+			mfc_ctx_info("[TS] [%d] timestamp [i:%d]: %ld.%09ld\n",
 					index, temp_ts->index,
 					temp_ts->timestamp.tv_sec,
-					temp_ts->timestamp.tv_usec);
+					temp_ts->timestamp.tv_nsec);
 			index++;
 		}
 		mfc_ctx_info("[TS] Min interval = %d, It is %ld fps\n",
@@ -322,10 +324,10 @@ void mfc_qos_update_framerate(struct mfc_ctx *ctx, u32 bytesused)
 
 void mfc_qos_update_last_framerate(struct mfc_ctx *ctx, u64 timestamp)
 {
-	struct timeval time;
+	struct timespec64 time;
 
 	time.tv_sec = timestamp / NSEC_PER_SEC;
-	time.tv_usec = (timestamp - (time.tv_sec * NSEC_PER_SEC)) / NSEC_PER_USEC;
+	time.tv_nsec = (timestamp - (time.tv_sec * NSEC_PER_SEC));
 
 	ctx->last_framerate = __mfc_qos_get_fps_by_timestamp(ctx, &time);
 	if (ctx->last_framerate > MFC_MAX_FPS)

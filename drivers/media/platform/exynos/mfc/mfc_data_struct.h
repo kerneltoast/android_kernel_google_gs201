@@ -392,10 +392,10 @@ struct mfc_debug {
 	u8	state;
 	u8	last_cmd;
 	u32	last_cmd_sec;
-	u32	last_cmd_usec;
+	u32	last_cmd_nsec;
 	u8	last_int;
 	u32	last_int_sec;
-	u32	last_int_usec;
+	u32	last_int_nsec;
 	u32	frame_cnt;
 	u8	hwlock_dev;
 	u32	hwlock_ctx;
@@ -1067,8 +1067,8 @@ struct mfc_perf {
 	void __iomem *regs_base0;
 	void __iomem *regs_base1;
 
-	struct timeval begin;
-	struct timeval end;
+	struct timespec64 begin;
+	struct timespec64 end;
 
 	int new_start;
 	int count;
@@ -1354,8 +1354,8 @@ struct mfc_core {
 	struct mfc_debug *logging_data;
 	int last_cmd;
 	int last_int;
-	struct timeval last_cmd_time;
-	struct timeval last_int_time;
+	struct timespec64 last_cmd_time;
+	struct timespec64 last_int_time;
 
 	/* ITMON */
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
@@ -1879,7 +1879,7 @@ struct av1_film_grain_meta {
 
 struct mfc_timestamp {
 	struct list_head list;
-	struct timeval timestamp;
+	struct timespec64 timestamp;
 	int index;
 	int interval;
 };

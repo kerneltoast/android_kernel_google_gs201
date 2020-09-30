@@ -1624,7 +1624,7 @@ irqreturn_t mfc_core_top_half_irq(int irq, void *priv)
 	err = mfc_core_get_int_err();
 
 	core->last_int = reason;
-	core->last_int_time = ktime_to_timeval(ktime_get());
+	core->last_int_time = ktime_to_timespec64(ktime_get());
 
 	if ((reason == MFC_REG_R2H_CMD_SEQ_DONE_RET) ||
 			(reason == MFC_REG_R2H_CMD_INIT_BUFFERS_RET) ||

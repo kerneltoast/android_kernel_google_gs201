@@ -171,10 +171,12 @@ static void __mfc_merge_errorinfo_data(struct mfc_core *core, bool px_fault)
 	idx = __mfc_change_hex_to_ascii(core, core->logging_data->state, 2, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(core, core->logging_data->last_cmd, 2, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(core, core->logging_data->last_cmd_sec, 8, errorinfo, idx);
-	idx = __mfc_change_hex_to_ascii(core, core->logging_data->last_cmd_usec, 8, errorinfo, idx);
+	idx = __mfc_change_hex_to_ascii(core,
+				core->logging_data->last_cmd_nsec / NSEC_PER_USEC, 8, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(core, core->logging_data->last_int, 2, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(core, core->logging_data->last_int_sec, 8, errorinfo, idx);
-	idx = __mfc_change_hex_to_ascii(core, core->logging_data->last_int_usec, 8, errorinfo, idx);
+	idx = __mfc_change_hex_to_ascii(core,
+				core->logging_data->last_int_nsec / NSEC_PER_USEC, 8, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(core, core->logging_data->frame_cnt, 8, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(core, core->logging_data->hwlock_dev, 2, errorinfo, idx);
 	idx = __mfc_change_hex_to_ascii(core, core->logging_data->hwlock_ctx, 8, errorinfo, idx);
@@ -301,10 +303,10 @@ static void __mfc_save_logging_sfr(struct mfc_core *core)
 	core->logging_data->curr_ctx = curr_ctx;
 	core->logging_data->last_cmd = core->last_cmd;
 	core->logging_data->last_cmd_sec = (u32)(core->last_cmd_time.tv_sec);
-	core->logging_data->last_cmd_usec = (u32)(core->last_cmd_time.tv_usec);
+	core->logging_data->last_cmd_nsec = (u32)(core->last_cmd_time.tv_nsec);
 	core->logging_data->last_int = core->last_int;
 	core->logging_data->last_int_sec = (u32)(core->last_int_time.tv_sec);
-	core->logging_data->last_int_usec = (u32)(core->last_int_time.tv_usec);
+	core->logging_data->last_int_nsec = (u32)(core->last_int_time.tv_nsec);
 	core->logging_data->hwlock_dev = core->hwlock.dev;
 	core->logging_data->hwlock_ctx = (u32)(core->hwlock.bits);
 	core->logging_data->num_inst = core->num_inst;
