@@ -95,6 +95,7 @@
 			try-power-role = "sink";
 			self-powered;
 			op-sink-microwatt = <2600000>;
+			frs-typec-current = <FRS_5V_1P5A>;
 			source-pdos = <PDO_FIXED(5000, 900,
 						 PDO_FIXED_SUSPEND |
 						 PDO_FIXED_USB_COMM |
