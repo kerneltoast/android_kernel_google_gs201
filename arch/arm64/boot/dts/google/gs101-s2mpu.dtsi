@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/ {
+	s2mpu_hsi1: s2mpu@0x11880000 {
+		compatible = "google,gs101-s2mpu-v1";
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		reg = <0 0x11880000 0x10000>,
+		      <0 0x118F0000 0x10000>;
+
+		reg-names = "s2mpu", "ssmt";
+
+		sids = <0x0 0x1>;
+		vid = <0>;
+	};
+
+	s2mpu_hsi2: s2mpu@0x14480000 {
+		compatible = "google,gs101-s2mpu-v1";
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		reg = <0 0x14480000 0x10000>,
+		      <0 0x144F0000 0x10000>;
+
+		reg-names = "s2mpu", "ssmt";
+		/*
+		 * TODO: double check that 4 and 5 are correct stream ids.
+		 *   we know from that sid 6 is definitely UFS. the only
+		 *   options are 4, 5, 6, 7. so if we can be sure that 7 is
+		 *   MMC then we can be sure that 4 and 5 are pci-e.
+		 * two non-secure stream id's. bit 3 is set because these are
+		 * non-secure streams. bits 0 and 1 together identify one of
+		 * the 4 source ports. ports 0 and 1 are pci-e
+		 */
+		sids = <0x4 0x5>;
+		vid = <1>;
+	};
+};
