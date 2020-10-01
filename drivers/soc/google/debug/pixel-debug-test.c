@@ -76,7 +76,7 @@ static void pull_down_other_cpus(void)
 	for_each_possible_cpu(cpu) {
 		if (cpu == curr_cpu)
 			continue;
-		ret = cpu_down(cpu);
+		ret = remove_cpu(cpu);
 		if (ret)
 			pr_crit("CORE%d ret: %x\n", cpu, ret);
 	}

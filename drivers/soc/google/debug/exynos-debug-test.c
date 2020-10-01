@@ -92,7 +92,7 @@ static void pull_down_other_cpus(void)
 	int cpu, ret;
 
 	for (cpu = exynos_debug_desc.nr_cpu - 1; cpu > 0 ; cpu--) {
-		ret = cpu_down(cpu);
+		ret = remove_cpu(cpu);
 		if (ret)
 			dev_crit(exynos_debug_desc.dev, "%s() CORE%d ret: %x\n",
 							__func__, cpu, ret);
