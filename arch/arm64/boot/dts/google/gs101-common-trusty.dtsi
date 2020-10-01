@@ -8,23 +8,12 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 &odm {
-	IPI: interrupt-controller {
-		compatible = "android,CustomIPI";
-		#interrupt-cells = <1>;
-		interrupt-controller;
-	};
-
 	trusty {
 		compatible = "android,trusty-smc-v1";
 
 		irq {
 			compatible = "android,trusty-irq-v1";
-			interrupt-templates = <&IPI 0>;
-			interrupt-ranges = <0 15 0>;
-		};
-
-		fiq {
-			compatible = "android,trusty-fiq-v1";
+			ipi-range = <8 15 8>;
 		};
 
 		log {
