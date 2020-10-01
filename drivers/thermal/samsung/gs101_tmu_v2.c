@@ -646,7 +646,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	wake_up_process(thread);
 
 	if (data->hotplug_enable) {
-		exynos_cpuhp_register("DTM", *cpu_possible_mask);
+		exynos_cpuhp_register("DTM", *cpu_online_mask);
 		kthread_init_work(&data->hotplug_work, gs101_throttle_cpu_hotplug);
 
 		if (!hotplug_worker) {
