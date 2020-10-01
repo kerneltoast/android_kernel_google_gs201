@@ -2081,9 +2081,7 @@ static int itmon_probe(struct platform_device *pdev)
 		node = nodegroup[i].nodeinfo;
 
 		if (nodegroup[i].phy_regs) {
-			nodegroup[i].regs =
-				devm_ioremap_nocache(&pdev->dev,
-						 nodegroup[i].phy_regs, SZ_16K);
+			nodegroup[i].regs = devm_ioremap(&pdev->dev, nodegroup[i].phy_regs, SZ_16K);
 			if (nodegroup[i].regs == NULL) {
 				dev_err(&pdev->dev,
 					"failed to claim register region - %s\n",
@@ -2107,8 +2105,7 @@ static int itmon_probe(struct platform_device *pdev)
 		}
 
 		for (j = 0; j < nodegroup[i].nodesize; j++) {
-			node[j].regs = devm_ioremap_nocache(&pdev->dev,
-						node[j].phy_regs, SZ_16K);
+			node[j].regs = devm_ioremap(&pdev->dev, node[j].phy_regs, SZ_16K);
 			if (node[j].regs == NULL) {
 				dev_err(&pdev->dev,
 					"failed to claim register region - %s\n",
