@@ -148,4 +148,6 @@ source "drivers/soc/google/debug/Kconfig"
 
 source "drivers/soc/google/eh/Kconfig"
 
+source "drivers/soc/google/s2mpu/Kconfig"
+
 endmenu

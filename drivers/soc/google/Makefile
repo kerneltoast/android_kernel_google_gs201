@@ -31,3 +31,6 @@ obj-y				    	+= debug/
 
 # Emerald Hill
 obj-$(CONFIG_GOOGLE_EH) += eh/
+
+# S2MPU
+obj-$(CONFIG_GS_S2MPU)			+= s2mpu/
