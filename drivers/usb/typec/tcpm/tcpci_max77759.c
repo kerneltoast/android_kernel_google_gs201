@@ -107,13 +107,19 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 
 	logbuffer_log(log, "[%s] Init EXTENDED_STATUS_MASK: VSAFE0V", __func__);
 
+	ret = max77759_write8(regmap, TCPC_ALERT_EXTENDED, 0xff);
+	if (ret < 0) {
+		logbuffer_log(log, "Unable to clear TCPC_ALERT_EXTENDED ret:%d\n", ret);
+		return;
+	}
+
 	alert_mask = TCPC_ALERT_TX_SUCCESS | TCPC_ALERT_TX_DISCARDED |
 		TCPC_ALERT_TX_FAILED | TCPC_ALERT_RX_HARD_RST |
 		TCPC_ALERT_RX_STATUS | TCPC_ALERT_VENDOR | TCPC_ALERT_CC_STATUS |
 		TCPC_ALERT_VBUS_DISCNCT | TCPC_ALERT_RX_BUF_OVF |
-		TCPC_ALERT_EXTENDED_STATUS;
-
-	alert_mask |= TCPC_ALERT_POWER_STATUS;
+		TCPC_ALERT_EXTENDED_STATUS | TCPC_ALERT_POWER_STATUS |
+		/* Enable Extended alert for detecting Fast Role Swap Signal */
+		TCPC_ALERT_EXTND;
 
 	ret = max77759_write16(regmap, TCPC_ALERT_MASK, alert_mask);
 	if (ret < 0)
@@ -132,6 +138,12 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 	logbuffer_log(log,
 		      "TCPC_POWER_CTRL: Enable voltage monitoring and alarm"
 		      );
+
+	ret = max77759_write8(regmap, TCPC_ALERT_EXTENDED_MASK, TCPC_SINK_FAST_ROLE_SWAP);
+	if (ret < 0) {
+		logbuffer_log(log, "Unable to unmask FAST_ROLE_SWAP interrupt");
+		return;
+	}
 }
 
 static void process_rx(struct max77759_plat *chip, u16 status)
@@ -269,6 +281,65 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 	}
 }
 
+static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool source, bool sink)
+{
+	struct max77759_plat *chip = tdata_to_max77759(tdata);
+	int ret;
+	enum gbms_charger_modes vote = 0xff;
+
+	if (source && sink) {
+		logbuffer_log(chip->log, "ERR: both source and sink set. Not voting");
+		return -EINVAL;
+	}
+
+	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
+		chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
+		if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
+			logbuffer_log(chip->log, "ERR: GBMS_MODE_VOTABLE lazy get failed",
+				      PTR_ERR(chip->charger_mode_votable));
+			return 0;
+		}
+	}
+
+	if (!source && !sink) {
+		vote = 0;
+		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+					 (void *)GBMS_CHGR_MODE_CHGR_BUCK_ON, false);
+		if (ret < 0)
+			return ret;
+		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+					 (void *)GBMS_CHGR_MODE_OTG_BOOST_ON, false);
+	}
+
+	if (source || sink) {
+		vote = source ? GBMS_CHGR_MODE_OTG_BOOST_ON : GBMS_CHGR_MODE_CHGR_BUCK_ON;
+		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER, (void *)vote,
+					 true);
+	}
+
+	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE voting source:%c sink:%c vote:%u ret:%d",
+		      ret < 0 ? "Error" : "Success", source ? 'y' : 'n', sink ? 'y' : 'n',
+		      (unsigned int)vote, ret);
+
+	return 0;
+}
+
+static int max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *tdata)
+{
+	struct max77759_plat *chip = tdata_to_max77759(tdata);
+
+	/*
+	 * Alawys re-enable boost here.
+	 * In normal case, when say an headset is attached, TCPM would
+	 * have instructed to TCPC to enable boost, so the call is a
+	 * no-op.
+	 * But for Fast Role Swap case, Boost turns on autonomously without
+	 * AP intervention, but, needs AP to enable source mode explicitly
+	 * for AP to regain control.
+	 */
+	return max77759_set_vbus(tcpci, &chip->data, true, false);
+}
+
 static void process_power_status(struct max77759_plat *chip)
 {
 	struct tcpci *tcpci = chip->tcpci;
@@ -284,6 +355,10 @@ static void process_power_status(struct max77759_plat *chip)
 	if (pwr_status == 0xff) {
 		max77759_init_regs(tcpci->regmap, log);
 		return;
+	}
+
+	if (pwr_status & TCPC_POWER_STATUS_SOURCING_VBUS) {
+		tcpm_sourcing_vbus(tcpci->port);
 	}
 
 	tcpm_vbus_change(tcpci->port);
@@ -338,6 +413,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	const u16 mask = status & TCPC_ALERT_RX_BUF_OVF ? status &
 		~(TCPC_ALERT_RX_STATUS | TCPC_ALERT_RX_BUF_OVF) :
 		status & ~TCPC_ALERT_RX_STATUS;
+	u8 reg_status;
 
 	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
 	logbuffer_log(log, "TCPC_ALERT status: %#x", status);
@@ -359,6 +435,21 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 					TCPC_ALERT_RX_BUF_OVF));
 		if (ret < 0)
 			return ret;
+	}
+
+	if (status & TCPC_ALERT_EXTND) {
+		ret = max77759_read8(tcpci->regmap, TCPC_ALERT_EXTENDED, &reg_status);
+		if (ret < 0)
+			return ret;
+
+		ret = max77759_write8(tcpci->regmap, TCPC_ALERT_EXTENDED, reg_status);
+		if (ret < 0)
+			return ret;
+
+		if (reg_status & TCPC_SINK_FAST_ROLE_SWAP) {
+			logbuffer_log(log, "FRS Signal");
+			tcpm_sink_frs(tcpci->port);
+		}
 	}
 
 	if (status & TCPC_ALERT_RX_STATUS) {
@@ -540,49 +631,6 @@ static int max77759_init_alert(struct max77759_plat *chip,
 		return ret;
 
 	enable_irq_wake(client->irq);
-	return 0;
-}
-
-static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool source, bool sink)
-{
-	struct max77759_plat *chip = tdata_to_max77759(tdata);
-	int ret;
-	enum gbms_charger_modes vote = 0xff;
-
-	if (source && sink) {
-		logbuffer_log(chip->log, "ERR: both source and sink set. Not voting");
-		return -EINVAL;
-	}
-
-	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
-		chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
-		if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
-			logbuffer_log(chip->log, "ERR: GBMS_MODE_VOTABLE lazy get failed",
-				      PTR_ERR(chip->charger_mode_votable));
-			return 0;
-		}
-	}
-
-	if (!source && !sink) {
-		vote = 0;
-		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
-					 (void *)GBMS_CHGR_MODE_CHGR_BUCK_ON, false);
-		if (ret < 0)
-			return ret;
-		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
-					 (void *)GBMS_CHGR_MODE_OTG_BOOST_ON, false);
-	}
-
-	if (source || sink) {
-		vote = source ? GBMS_CHGR_MODE_OTG_BOOST_ON : GBMS_CHGR_MODE_CHGR_BUCK_ON;
-		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER, (void *)vote,
-					 true);
-	}
-
-	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE voting source:%c sink:%c vote:%u ret:%d",
-		      ret < 0 ? "Error" : "Success", source ? 'y' : 'n', sink ? 'y' : 'n',
-		      (unsigned int)vote, ret);
-
 	return 0;
 }
 
@@ -956,6 +1004,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.set_roles = max77759_set_roles;
 	chip->data.init = tcpci_init;
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
+	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
 
 	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
