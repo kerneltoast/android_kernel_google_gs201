@@ -365,6 +365,27 @@ static void fusb307b_set_pd_capable(struct tcpci *tcpci, struct tcpci_data
 	chip->pd_capable = capable;
 }
 
+static void fusb307b_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data
+				     *data, enum typec_cc_polarity polarity)
+{
+	struct fusb307b_plat *chip = tdata_to_fusb307b(data);
+	int ret;
+
+	ret = extcon_set_property(chip->extcon, EXTCON_USB,
+				  EXTCON_PROP_USB_TYPEC_POLARITY,
+				  (union extcon_property_value)
+				  (int)polarity);
+	logbuffer_log(chip->log, "%s setting polarity USB %d", ret < 0 ?
+		      "Failed" : "Succeeded", polarity);
+
+	ret = extcon_set_property(chip->extcon, EXTCON_USB_HOST,
+				  EXTCON_PROP_USB_TYPEC_POLARITY,
+				  (union extcon_property_value)
+				  (int)polarity);
+	logbuffer_log(chip->log, "%s setting polarity USB_HOST %d", ret < 0 ?
+		      "Failed" : "Succeeded", polarity);
+}
+
 static int fusb307b_vote_icl(struct tcpci *tcpci, struct tcpci_data *tdata,
 			     u32 max_ma)
 {
@@ -596,6 +617,7 @@ static int fusb307b_probe(struct i2c_client *client,
 	chip->data.get_current_limit = fusb307b_get_current_limit;
 	chip->data.set_current_limit = fusb307b_set_current_limit;
 	chip->data.set_pd_capable = fusb307b_set_pd_capable;
+	chip->data.set_cc_polarity = fusb307b_set_cc_polarity;
 
 	chip->usb_icl_proto_el = gvotable_election_get_handle(USB_ICL_PROTO_EL);
 	if (IS_ERR_OR_NULL(chip->usb_icl_proto_el)) {
@@ -634,6 +656,11 @@ static int fusb307b_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to register extcon device");
 		return ret;
 	}
+
+	extcon_set_property_capability(chip->extcon, EXTCON_USB,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+	extcon_set_property_capability(chip->extcon, EXTCON_USB_HOST,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
 
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
 	if (IS_ERR_OR_NULL(chip->tcpci)) {
