@@ -9,8 +9,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "gs101-pinctrl.dtsi"
-
 / {
 	sbb_mux: sbb-mux {
 		compatible = "google,sbb-mux";
