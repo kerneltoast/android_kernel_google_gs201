@@ -338,15 +338,19 @@ static void allow_maximum_power(struct gs101_tmu_data *data)
 	struct thermal_zone_device *tz = data->tzd;
 	struct gs101_pi_param *params = data->pi_param;
 
+	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if (instance->trip != params->trip_control_temp ||
 		    (!cdev_is_power_actor(instance->cdev)))
 			continue;
 
+		instance->target = 0;
 		mutex_lock(&instance->cdev->lock);
-		instance->cdev->ops->set_cur_state(instance->cdev, 0);
+		instance->cdev->updated = false;
 		mutex_unlock(&instance->cdev->lock);
+		thermal_cdev_update(instance->cdev);
 	}
+	mutex_unlock(&tz->lock);
 }
 
 static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
@@ -419,6 +423,7 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 		    cdev_is_power_actor(instance->cdev)) {
 			found_actor = true;
 			cdev = instance->cdev;
+			break;
 		}
 	}
 
@@ -433,9 +438,11 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	if (ret)
 		return ret;
 
+	instance->target = state;
 	mutex_lock(&cdev->lock);
-	ret = cdev->ops->set_cur_state(cdev, state);
+	cdev->updated = false;
 	mutex_unlock(&cdev->lock);
+	thermal_cdev_update(cdev);
 
 	trace_thermal_exynos_power_allocator(tz, power_range,
 					     max_power, tz->temperature,
