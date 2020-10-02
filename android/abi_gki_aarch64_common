@@ -3034,6 +3034,7 @@
   d_tmpfile
   dummy_irq_chip
   dump_align
+  dump_backtrace
   dump_emit
   dump_page
   dump_skip
@@ -7710,6 +7711,7 @@
   power_supply_get_battery_info
   power_supply_get_by_name
   power_supply_get_by_phandle
+  power_supply_get_by_phandle_array
   power_supply_get_drvdata
   power_supply_get_property
   power_supply_is_system_supplied
@@ -8069,6 +8071,7 @@
   register_inet6addr_validator_notifier
   register_inetaddr_notifier
   register_inetaddr_validator_notifier
+  register_kernel_break_hook
   register_key_type
   register_kprobe
   register_kprobes
@@ -8105,6 +8108,7 @@
   register_tcf_proto_ops
   register_trace_event
   register_tracepoint_module_notifier
+  register_user_break_hook
   register_user_hw_breakpoint
   register_virtio_device
   register_virtio_driver
@@ -10325,6 +10329,7 @@
   __tracepoint_br_fdb_add
   __tracepoint_br_fdb_external_learn_add
   __tracepoint_br_fdb_update
+  __tracepoint_clock_set_rate
   __tracepoint_cpu_frequency
   __tracepoint_cpu_idle
   __tracepoint_detach_device_from_domain
@@ -10848,6 +10853,7 @@
   unregister_inet6addr_validator_notifier
   unregister_inetaddr_notifier
   unregister_inetaddr_validator_notifier
+  unregister_kernel_break_hook
   unregister_key_type
   unregister_kprobe
   unregister_kprobes
@@ -10883,6 +10889,7 @@
   unregister_tcf_proto_ops
   unregister_trace_event
   unregister_tracepoint_module_notifier
+  unregister_user_break_hook
   unregister_virtio_device
   unregister_virtio_driver
   unregister_vmap_purge_notifier
