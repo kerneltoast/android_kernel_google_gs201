@@ -216,8 +216,63 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	tcpm_pd_receive(chip->port, &msg);
 }
 
-static void process_power_status(struct tcpci *tcpci, struct logbuffer *log)
+static void enable_data_path_locked(struct max77759_plat *chip)
 {
+	int ret;
+	bool enable_data = false;
+	struct regmap *regmap = chip->data.regmap;
+
+	logbuffer_log(chip->log,
+		      "%s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
+		      __func__, chip->pd_capable ? 1 : 0, chip->pd_data_capable ? 1 : 0,
+		      chip->no_bc_12 ? 1 : 0, chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 :
+		      0, chip->debug_acc_connected);
+	dev_info(chip->dev,
+		 "TCPM_DEBUG %s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
+		 __func__, chip->pd_capable ? 1 : 0, chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ?
+		 1 : 0, chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
+		 chip->debug_acc_connected);
+
+	if (chip->pd_capable)
+		enable_data = chip->pd_data_capable;
+	else
+		enable_data = chip->no_bc_12 || chip->bc12_data_capable || chip->data_role ==
+			TYPEC_HOST || chip->debug_acc_connected;
+
+	if (chip->attached && enable_data && !chip->data_active) {
+		if (chip->data_role == TYPEC_HOST) {
+			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
+			logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
+				      "success");
+		}
+		ret = extcon_set_state_sync(chip->extcon, chip->data_role == TYPEC_HOST ?
+					    EXTCON_USB_HOST : EXTCON_USB, 1);
+		logbuffer_log(chip->log, "%s turning on %s", ret < 0 ? "Failed" : "Succeeded",
+			      chip->data_role == TYPEC_HOST ? "Host" : "Device");
+		dev_info(chip->dev, "TCPM_DEBUG %s turning on %s", ret < 0 ? "Failed" : "Succeeded",
+			 chip->data_role == TYPEC_HOST ? "Host" : "Device");
+		chip->data_active = true;
+		chip->active_data_role = chip->data_role;
+	} else if (chip->data_active && (!chip->attached || !enable_data)) {
+		ret = extcon_set_state_sync(chip->extcon, chip->active_data_role == TYPEC_HOST ?
+					    EXTCON_USB_HOST : EXTCON_USB, 0);
+		logbuffer_log(chip->log, "%s turning off %s", ret < 0 ? "Failed" : "Succeeded",
+			      chip->active_data_role == TYPEC_HOST ? "Host" : "Device");
+		dev_info(chip->dev, "TCPM_DEBUG %s turning off %s", ret < 0 ? "Failed" :
+			 "Succeeded", chip->active_data_role == TYPEC_HOST ? "Host" : "Device");
+		chip->data_active = false;
+		if  (chip->active_data_role == TYPEC_HOST) {
+			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_DISCONNECT);
+			logbuffer_log(chip->log, "Turning off dp switches %s", ret < 0 ? "fail" :
+				      "success");
+		}
+	}
+}
+
+static void process_power_status(struct max77759_plat *chip)
+{
+	struct tcpci *tcpci = chip->tcpci;
+	struct logbuffer *log = chip->log;
 	unsigned int pwr_status;
 	int ret;
 
@@ -226,10 +281,33 @@ static void process_power_status(struct tcpci *tcpci, struct logbuffer *log)
 	if (ret < 0)
 		return;
 
-	if (pwr_status == 0xff)
+	if (pwr_status == 0xff) {
 		max77759_init_regs(tcpci->regmap, log);
-	else
-		tcpm_vbus_change(tcpci->port);
+		return;
+	}
+
+	tcpm_vbus_change(tcpci->port);
+
+	/*
+	 * Enable data path when TCPC signals sink debug accesssory connected
+	 * and disable when disconnected.
+	 */
+	if ((!chip->debug_acc_connected && (pwr_status & TCPC_POWER_STATUS_DBG_ACC_CON)) ||
+	    (chip->debug_acc_connected && !(pwr_status & TCPC_POWER_STATUS_DBG_ACC_CON))) {
+		mutex_lock(&chip->data_path_lock);
+		chip->debug_acc_connected = pwr_status & TCPC_POWER_STATUS_DBG_ACC_CON ? 1 : 0;
+		chip->data_role = TYPEC_DEVICE;
+		chip->attached = chip->debug_acc_connected;
+		enable_data_path_locked(chip);
+		mutex_unlock(&chip->data_path_lock);
+		logbuffer_log(log, "Debug accessory %s", chip->debug_acc_connected ? "connected" :
+			      "disconnected");
+		if (!chip->debug_acc_connected) {
+			ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_SBUSW_CTRL,
+					      SBUSW_SERIAL_UART);
+			logbuffer_log(log, "SBU switch enable %s", ret < 0 ? "fail" : "success");
+		}
+	}
 }
 
 static void process_tx(struct tcpci *tcpci, u16 status, struct logbuffer *log)
@@ -333,7 +411,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	}
 
 	if (status & TCPC_ALERT_POWER_STATUS)
-		process_power_status(tcpci, log);
+		process_power_status(chip);
 
 	if (status & TCPC_ALERT_V_ALARM_LO) {
 		ret = max77759_read16(tcpci->regmap,
@@ -593,70 +671,6 @@ static int max77759_get_current_limit(struct tcpci *tcpci,
 	return ret;
 }
 
-static void enable_data_path_locked(struct max77759_plat *chip)
-{
-	int ret;
-	bool enable_data = false;
-	struct regmap *regmap = chip->data.regmap;
-
-	logbuffer_log(chip->log,
-		      "%s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u",
-		      __func__, chip->pd_capable ? 1 : 0,
-		      chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
-		      chip->bc12_data_capable ? 1 : 0, chip->attached ? 1
-		      : 0);
-	dev_info(chip->dev,
-		 "TCPM_DEBUG %s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u",
-		 __func__, chip->pd_capable ? 1 : 0, chip->pd_data_capable
-		 ? 1 : 0, chip->no_bc_12 ? 1 : 0, chip->bc12_data_capable
-		 ? 1 : 0, chip->attached ? 1 : 0);
-
-	if (chip->pd_capable)
-		enable_data = chip->pd_data_capable;
-	else
-		enable_data = chip->no_bc_12 || chip->bc12_data_capable || chip->data_role ==
-			TYPEC_HOST;
-
-	if (chip->attached && enable_data && !chip->data_active) {
-		if (chip->data_role == TYPEC_HOST) {
-			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
-			logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
-				      "success");
-		}
-		ret = extcon_set_state_sync(chip->extcon,
-					    chip->data_role == TYPEC_HOST ?
-					    EXTCON_USB_HOST : EXTCON_USB,
-					    1);
-		logbuffer_log(chip->log, "%s turning on %s", ret < 0 ?
-			      "Failed" : "Succeeded", chip->data_role ==
-			      TYPEC_HOST ? "Host" : "Device");
-		dev_info(chip->dev, "TCPM_DEBUG %s turning on %s", ret < 0 ?
-			 "Failed" : "Succeeded", chip->data_role ==
-			 TYPEC_HOST ? "Host" : "Device");
-		chip->data_active = true;
-		chip->active_data_role = chip->data_role;
-	} else if (chip->data_active && (!chip->attached || !enable_data)) {
-		ret = extcon_set_state_sync(chip->extcon,
-					    chip->active_data_role ==
-					    TYPEC_HOST ? EXTCON_USB_HOST :
-					    EXTCON_USB, 0);
-		logbuffer_log(chip->log, "%s turning off %s", ret < 0 ?
-			      "Failed" : "Succeeded",
-			      chip->active_data_role == TYPEC_HOST ? "Host"
-			      : "Device");
-		dev_info(chip->dev, "TCPM_DEBUG %s turning off %s",
-			 ret < 0 ? "Failed" : "Succeeded",
-			 chip->active_data_role == TYPEC_HOST ? "Host"
-			 : "Device");
-		chip->data_active = false;
-		if  (chip->active_data_role == TYPEC_HOST) {
-			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_DISCONNECT);
-			logbuffer_log(chip->log, "Turning off dp switches %s", ret < 0 ? "fail" :
-				      "success");
-		}
-	}
-}
-
 static void max77759_set_pd_capable(struct tcpci *tcpci, struct tcpci_data
 				     *data, bool capable)
 {
@@ -809,7 +823,7 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		enable_data = chip->pd_data_capable;
 	else
 		enable_data = chip->no_bc_12 || chip->bc12_data_capable || chip->data_role ==
-			TYPEC_HOST;
+			TYPEC_HOST || chip->debug_acc_connected;
 
 	if (chip->data_active && ((chip->active_data_role != data_role) ||
 				  !attached || !enable_data)) {

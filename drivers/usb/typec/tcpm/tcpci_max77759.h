@@ -52,6 +52,8 @@ struct max77759_plat {
 	bool no_bc_12;
 	struct tcpm_port *port;
 	struct usb_psy_ops psy_ops;
+	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
+	u8 debug_acc_connected:1;
 
 	struct logbuffer *log;
 };
