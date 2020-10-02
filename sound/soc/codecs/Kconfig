@@ -1163,7 +1163,7 @@ config SND_SOC_RT5682
 	tristate "Realtek 5682 CODEC"
 
 config SND_SOC_RT5682_I2C
-	tristate
+	tristate "Realtek RT5682 Codec - I2C"
 	depends on I2C
 	select SND_SOC_RT5682
 
