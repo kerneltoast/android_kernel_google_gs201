@@ -38,6 +38,12 @@ config TYPEC_FUSB307
 	  Type-C Port Controller Manager to provide USB PD and USB
 	  Type-C functionalities.
 
+config TYPEC_MAX77759
+	tristate "Maxim MAX77759 Type-C driver"
+	select USB_PSY
+	help
+	  MAX77759 TCPCI driver to interface with TCPM.
+
 endif # TYPEC_TCPCI
 
 config TYPEC_FUSB302
