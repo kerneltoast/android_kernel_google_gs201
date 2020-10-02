@@ -962,6 +962,28 @@
 		acpm-ipc-channel = <9>;
 	};
 
+	tmuctrl_0: BIG@100A0000 {
+		compatible = "samsung,gs101-tmu-v2";
+		reg = <0x0 0x100A0000 0x800>;
+		interrupts = <GIC_SPI IRQ_TMU_TMU_TOP_MISC IRQ_TYPE_LEVEL_HIGH>;
+		tmu_name = "BIG";
+		id = <0>;
+		hotplug_enable = <1>;
+		hotplug_in_threshold = <91>;
+		hotplug_out_threshold = <96>;
+		#thermal-sensor-cells = <0>;
+
+		use-pi-thermal;
+		polling_delay_on = <50>;
+		polling_delay_off = <1000>;
+		k_po = <60>;
+		k_pu = <60>;
+		k_i = <20>;
+		i_max = <1500>;
+		integral_cutoff = <0>;
+		sustainable_power = <2000>;
+	};
+
 	tmuctrl_1: MID@100A0000 {
 		compatible = "samsung,gs101-tmu-v2";
 		reg = <0x0 0x100A0000 0x800>;
@@ -973,12 +995,12 @@
 		use-pi-thermal;
 		polling_delay_on = <50>;
 		polling_delay_off = <1000>;
-		k_po = <0>;
-		k_pu = <0>;
-		k_i = <0>;
-		i_max = <0>;
-		integral_cutoff = <0>;
-		sustainable_power = <0>;
+		k_po = <60>;
+		k_pu = <60>;
+		k_i = <20>;
+		i_max = <500>;
+		integral_cutoff = <20>;
+		sustainable_power = <1000>;
 	};
 
 	tmuctrl_2: LITTLE@100A0000 {
@@ -1051,6 +1073,61 @@
 					hysteresis = <0>;
 					type = "passive";
 				};
+			};
+		};
+		big_thermal: BIG {
+			zone_name  = "BIG_THERMAL";
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+			thermal-sensors = <&tmuctrl_0>;
+
+			trips {
+				big_cold: big-cold {
+					temperature = <20000>;
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				big_switch_on: big-switch-on {
+					temperature = <55000>; /* millicelsius */
+					hysteresis = <2000>; /* millicelsius */
+					type = "active";
+				};
+				big_control_temp: big-control-temp {
+					temperature = <83000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "passive";
+				};
+				big_alert0: big-alert0 {
+					temperature = <95000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				big_alert1: big-alert1 {
+					temperature = <100000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				big_alert2: big-alert2 {
+					temperature = <105000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				big_alert3: big-alert3 {
+					temperature = <110000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				big_hot: big-hot {
+					temperature = <115000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "hot";
+				};
+			};
+			cooling-maps {
+				map0 {
+				     trip = <&big_control_temp>;
+				     cooling-device = <&cpufreq_domain2 0 0>;
+			       };
 			};
 		};
 		mid_thermal: MID {
