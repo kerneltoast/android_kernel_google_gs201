@@ -21,7 +21,16 @@ enum {
 void pixel_ufs_prepare_command(struct ufs_hba *hba,
 			struct request *rq, struct ufshcd_lrb *lrbp)
 {
-	u8 opcode;
+	u8 opcode = (u8)(*lrbp->cmd->cmnd);
+
+	/* Assign correct RPMB lun */
+	if (opcode == SECURITY_PROTOCOL_IN || opcode == SECURITY_PROTOCOL_OUT) {
+		unsigned int lun = (SCSI_W_LUN_BASE |
+			(UFS_UPIU_RPMB_WLUN & UFS_UPIU_MAX_UNIT_NUM_ID));
+
+		lrbp->lun = ufshcd_scsi_to_upiu_lun(lun);
+		return;
+	}
 
 	if (!(rq->cmd_flags & REQ_META))
 		return;
@@ -29,7 +38,6 @@ void pixel_ufs_prepare_command(struct ufs_hba *hba,
 	if (hba->dev_info.wspecversion <= 0x300)
 		return;
 
-	opcode = (u8)(*lrbp->cmd->cmnd);
 	if (opcode == WRITE_10)
 		lrbp->cmd->cmnd[6] = 0x11;
 	else if (opcode == WRITE_16)
