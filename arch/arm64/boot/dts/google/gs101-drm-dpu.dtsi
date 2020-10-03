@@ -187,6 +187,7 @@
 		phy-names = "dsim_dphy";
 
 		dsim_mode = <&dsim_modes>;
+		dphy_diag = <&dphy_diags>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -208,6 +209,7 @@
 		phy-names = "dsim_dphy";
 
 		dsim_mode = <&dsim_modes>;
+		dphy_diag = <&dphy_diags>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
