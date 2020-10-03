@@ -44,8 +44,15 @@ VENDOR_FSTAB=${ROOT_DIR}/prebuilts/boot-artifacts/fstabs/fstab.gs101
 
 EXT_MODULES="
 private/google-modules/display/samsung
+private/google-modules/wlan/bcmdhd43752
+private/google-modules/wlan/bcmdhd4389
 private/google-modules/gpu/mali_mgm
 private/google-modules/gpu/mali_kbase
 private/google-modules/lwis
 private/google-modules/edgetpu/drivers/edgetpu
+"
+
+UNSTRIPPED_MODULES="
+bcmdhd43752.ko
+bcmdhd4389.ko
 "
