@@ -51,6 +51,11 @@
 			no-map;
 		};
 
+		debug_kinfo_reserved: debug_kinfo_reserved@fd3fe000 {
+			reg = <0 0xfd3fe000 0x00001000>;
+			no-map;
+		};
+
 		ramoops_mem@fd3ff000 {
 			compatible = "ramoops";
 			reg = <0 0xfd3ff000 0x200000>;

@@ -60,6 +60,11 @@
 		 */
 	};
 
+	dss-debug-kinfo {
+		compatible = "google,debug-snapshot-debug-kinfo";
+		memory-region = <&debug_kinfo_reserved>;
+	};
+
 	exynos-debug-test {
 		compatible = "google,exynos-debug-test";
 		ps_hold_control_offset = <0x3e9c>;
@@ -77,6 +82,11 @@
 		key_down_delay = <6000>;
 		keys_down = <116>;
 		dbg_fn_delay = <2000>;
+	};
+
+	debug-kinfo {
+		compatible = "google,debug-kinfo";
+		memory-region = <&debug_kinfo_reserved>;
 	};
 
 	gs101-itmon {
