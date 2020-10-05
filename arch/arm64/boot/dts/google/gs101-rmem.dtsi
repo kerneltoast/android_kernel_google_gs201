@@ -11,8 +11,7 @@
 
 	ramoops {
 		compatible = "ramoops";
-		memory-region = <&ramoops_mem>;
-		alt-memory-region = <&alt_ramoops_mem>;
+		reg = <0 0xfd3ff000 0x200000>;
 		record-size = <0x20000>;
 		console-size = <0x100000>;
 		pmsg-size = <0x80000>;
