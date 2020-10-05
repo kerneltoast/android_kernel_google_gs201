@@ -86,11 +86,6 @@ static int add_to_mapped_list(struct bigo_core *core, struct bigo_inst *inst,
 		pr_err("failed to dma_buf_map_attachment: %d\n", rc);
 		goto fail_map_attachment;
 	}
-	if (binfo->sgt->nents != 1) {
-		pr_err("Cannot handle virtually discontiguous buffer. Number of entries: %d\n",
-		       binfo->sgt->nents);
-		goto fail_discontiguous_buffer;
-	}
 	binfo->iova = sg_dma_address(binfo->sgt->sgl);
 	binfo->fd = mapping->fd;
 	binfo->size = mapping->size;
@@ -101,8 +96,6 @@ static int add_to_mapped_list(struct bigo_core *core, struct bigo_inst *inst,
 	mapping->iova = binfo->iova;
 	return rc;
 
-fail_discontiguous_buffer:
-	dma_buf_unmap_attachment(binfo->attachment, binfo->sgt, DMA_BIDIRECTIONAL);
 fail_map_attachment:
 	dma_buf_detach(binfo->dmabuf, binfo->attachment);
 fail_attach:
