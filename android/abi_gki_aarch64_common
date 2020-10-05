@@ -10090,15 +10090,21 @@
   tcpm_cc_change
   tcp_memory_allocated
   tcp_memory_pressure
+  tcpm_get_partner_src_caps
+  tcpm_is_debouncing
   tcp_mmap
   tcpm_pd_hard_reset
   tcpm_pd_receive
   tcpm_pd_transmit_complete
+  tcpm_put_partner_src_caps
   tcpm_register_port
+  tcpm_sink_frs
+  tcpm_sourcing_vbus
   tcp_mss_to_mtu
   tcpm_tcpc_reset
   tcp_mtup_init
   tcpm_unregister_port
+  tcpm_update_sink_capabilities
   tcpm_vbus_change
   tcp_openreq_init_rwin
   tcp_orphan_count
