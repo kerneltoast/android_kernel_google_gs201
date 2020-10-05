@@ -972,15 +972,6 @@ config POWERMETER_S2MPG11
 	 The sysfs files in the sysfs directory created by the config
 	 DRV_SAMSUNG_PMIC is are made by this driver for debugging.
 
-config POWERMETER_S2MPG1X
-        tristate "Samsung S2MPG1X Powermeter"
-        depends on POWERMETER_S2MPG10 || POWRMETER_S2MPG11
-        help
-         This driver provides common functions for s2mpg10/s2mpg11 powermeter
-	 including speedy read/write, waiting for ASYNC_RD bit to be cleared
-	 for async mode and providing common and easy-to-read format for
-	 printing S2MPG1X powermeter data.
-
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
 	depends on MFD_SEC_CORE

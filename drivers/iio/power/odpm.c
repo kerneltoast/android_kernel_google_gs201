@@ -101,7 +101,7 @@ struct odpm_chip {
 	/* Config */
 	const char *name;
 	enum odpm_chip_id id;
-	s2mpg1x_id_t hw_id;
+	enum s2mpg1x_id hw_id;
 	u32 max_refresh_time_ms;
 
 	int num_rails;
