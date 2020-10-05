@@ -943,7 +943,7 @@ static struct video_device *__mfc_video_device_register(struct mfc_dev *dev,
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s", vfd->name);
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, node_num);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, node_num);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device /dev/video%d\n", node_num);
 		video_device_release(vfd);
