@@ -2465,6 +2465,26 @@ static int sec_ts_pinctrl_configure(struct sec_ts_data *ts, bool enable)
 
 }
 
+/* Return true if you should defer sec_ts probe waiting for
+ * avdd or vdd regulators.
+ */
+static int sec_ts_check_for_deferred_regulators(struct device *dev)
+{
+	struct regulator *reg = regulator_get(dev, "vdd");
+
+	if (reg == ERR_PTR(-EPROBE_DEFER))
+		return true;
+	if (!IS_ERR_OR_NULL(reg))
+		regulator_put(reg);
+
+	reg = regulator_get(dev, "avdd");
+	if (reg == ERR_PTR(-EPROBE_DEFER))
+		return true;
+	if (!IS_ERR_OR_NULL(reg))
+		regulator_put(reg);
+	return false;
+}
+
 static int sec_ts_power(void *data, bool on)
 {
 	struct sec_ts_data *ts = (struct sec_ts_data *)data;
@@ -3233,6 +3253,13 @@ static int sec_ts_probe(struct spi_device *client)
 				  "%s: No platform data found\n", __func__);
 			goto error_allocate_pdata;
 		}
+	}
+
+	if (sec_ts_check_for_deferred_regulators(&client->dev)) {
+		input_err(true, &client->dev,
+				"sec_ts deferring for power regulators\n");
+		ret = -EPROBE_DEFER;
+		goto error_allocate_mem;
 	}
 
 	if (!pdata->power) {
