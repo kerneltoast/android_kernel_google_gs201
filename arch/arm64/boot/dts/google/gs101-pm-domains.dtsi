@@ -104,6 +104,7 @@
 		status = "okay";
 		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
+		pd-boot-on;
 	};
 
 	pd_dpu: pd-dpu@17462200 {
@@ -115,6 +116,7 @@
 		status = "okay";
 		parent = <&pd_disp>;
 		#power-domain-cells = <0>;
+		pd-boot-on;
 	};
 
 	pd_g2d: pd-g2d@17462300 {
