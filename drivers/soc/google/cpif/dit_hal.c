@@ -406,6 +406,10 @@ static void dit_hal_set_iod_clat_netdev(struct io_device *iod, void *args)
 		if (iod->clat_ndev)
 			dev_put(iod->clat_ndev);
 
+#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
+		if (ndev)
+			ndev->features |= NETIF_F_GRO_FRAGLIST;
+#endif
 		iod->clat_ndev = ndev;
 		spin_unlock_irqrestore(&iod->clat_lock, flags);
 

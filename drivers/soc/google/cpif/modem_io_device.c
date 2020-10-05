@@ -337,10 +337,12 @@ static int check_gro_support(struct sk_buff *skb)
 {
 	switch (skb->data[0] & 0xF0) {
 	case 0x40:
-		return (ip_hdr(skb)->protocol == IPPROTO_TCP);
+		return ((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
+				(ip_hdr(skb)->protocol == IPPROTO_UDP));
 
 	case 0x60:
-		return (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP);
+		return ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) ||
+				(ipv6_hdr(skb)->nexthdr == IPPROTO_UDP));
 	}
 	return 0;
 }

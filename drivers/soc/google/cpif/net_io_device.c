@@ -327,6 +327,6 @@ void vnet_setup(struct net_device *ndev)
 	ndev->mtu = ETH_DATA_LEN;
 	ndev->watchdog_timeo = 5 * HZ;
 #if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
-	ndev->features |= NETIF_F_GRO;
+	ndev->features |= (NETIF_F_GRO | NETIF_F_GRO_FRAGLIST);
 #endif
 }
