@@ -1119,6 +1119,7 @@ static int mfc_remove(struct platform_device *pdev)
 	destroy_workqueue(dev->butler_wq);
 	flush_workqueue(dev->migration_wq);
 	destroy_workqueue(dev->migration_wq);
+	mfc_deinit_debugfs(dev);
 	video_unregister_device(dev->vfd_enc);
 	video_unregister_device(dev->vfd_dec);
 	video_unregister_device(dev->vfd_enc_otf);

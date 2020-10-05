@@ -469,60 +469,68 @@ void mfc_init_debugfs(struct mfc_dev *dev)
 		return;
 	}
 
-	debugfs->mfc_info = debugfs_create_file("mfc_info",
+	debugfs_create_file("mfc_info",
 			0444, debugfs->root, dev, &mfc_info_fops);
-	debugfs->debug_info = debugfs_create_file("debug_info",
+	debugfs_create_file("debug_info",
 			0444, debugfs->root, dev, &debug_info_fops);
 #ifdef CONFIG_MFC_REG_TEST
-	debugfs->reg_info = debugfs_create_file("reg_info",
+	debugfs_create_file("reg_info",
 			0644, debugfs->root, dev, &reg_info_fops);
-	debugfs->reg_test = debugfs_create_u32("reg_test",
+	debugfs_create_u32("reg_test",
 			0644, debugfs->root, &reg_test);
 #endif
-	debugfs->regression_option = debugfs_create_u32("regression_option",
+	debugfs_create_u32("regression_option",
 			0644, debugfs->root, &regression_option);
-	debugfs->regression_result = debugfs_create_file("regression_result",
+	debugfs_create_file("regression_result",
 			0444, debugfs->root, dev, &regression_result_fops);
-	debugfs->debug_level = debugfs_create_u32("debug",
+	debugfs_create_u32("debug",
 			0644, debugfs->root, &debug_level);
-	debugfs->debug_ts = debugfs_create_u32("debug_ts",
+	debugfs_create_u32("debug_ts",
 			0644, debugfs->root, &debug_ts);
-	debugfs->debug_mode_en = debugfs_create_u32("debug_mode_en",
+	debugfs_create_u32("debug_mode_en",
 			0644, debugfs->root, &debug_mode_en);
-	debugfs->dbg_enable = debugfs_create_u32("dbg_enable",
+	debugfs_create_u32("dbg_enable",
 			0644, debugfs->root, &dbg_enable);
-	debugfs->nal_q_dump = debugfs_create_u32("nal_q_dump",
+	debugfs_create_u32("nal_q_dump",
 			0644, debugfs->root, &nal_q_dump);
-	debugfs->nal_q_disable = debugfs_create_u32("nal_q_disable",
+	debugfs_create_u32("nal_q_disable",
 			0644, debugfs->root, &nal_q_disable);
-	debugfs->nal_q_parallel_disable = debugfs_create_u32("nal_q_parallel_disable",
+	debugfs_create_u32("nal_q_parallel_disable",
 			0644, debugfs->root, &nal_q_parallel_disable);
-	debugfs->otf_dump = debugfs_create_u32("otf_dump",
+	debugfs_create_u32("otf_dump",
 			0644, debugfs->root, &otf_dump);
-	debugfs->perf_measure_option = debugfs_create_u32("perf_measure_option",
+	debugfs_create_u32("perf_measure_option",
 			0644, debugfs->root, &perf_measure_option);
-	debugfs->sfr_dump = debugfs_create_u32("sfr_dump",
+	debugfs_create_u32("sfr_dump",
 			0644, debugfs->root, &sfr_dump);
-	debugfs->llc_disable = debugfs_create_u32("llc_disable",
+	debugfs_create_u32("llc_disable",
 			0644, debugfs->root, &llc_disable);
-	debugfs->slc_disable = debugfs_create_u32("slc_disable",
+	debugfs_create_u32("slc_disable",
 			0644, debugfs->root, &slc_disable);
-	debugfs->perf_boost_mode = debugfs_create_u32("perf_boost_mode",
+	debugfs_create_u32("perf_boost_mode",
 			0644, debugfs->root, &perf_boost_mode);
-	debugfs->drm_predict_disable = debugfs_create_u32("drm_predict_disable",
+	debugfs_create_u32("drm_predict_disable",
 			0644, debugfs->root, &drm_predict_disable);
-	debugfs->meminfo = debugfs_create_file("meminfo",
+	debugfs_create_file("meminfo",
 			0444, debugfs->root, dev, &mfc_meminfo_fops);
-	debugfs->meminfo_enable = debugfs_create_u32("meminfo_enable",
+	debugfs_create_u32("meminfo_enable",
 			0644, debugfs->root, &meminfo_enable);
-	debugfs->feature_option = debugfs_create_u32("feature_option",
+	debugfs_create_u32("feature_option",
 			0644, debugfs->root, &feature_option);
-	debugfs->core_balance = debugfs_create_u32("core_balance",
+	debugfs_create_u32("core_balance",
 			0644, debugfs->root, &core_balance);
-	debugfs->memlog_level = debugfs_create_u32("memlog_level",
+	debugfs_create_u32("memlog_level",
 			0644, debugfs->root, &memlog_level);
-	debugfs->logging_option = debugfs_create_u32("logging_option",
+	debugfs_create_u32("logging_option",
 			0644, debugfs->root, &logging_option);
-	debugfs->sbwc_disable = debugfs_create_u32("sbwc_disable",
+	debugfs_create_u32("sbwc_disable",
 			0644, debugfs->root, &sbwc_disable);
+}
+
+void mfc_deinit_debugfs(struct mfc_dev *dev)
+{
+	struct mfc_debugfs *debugfs = &dev->debugfs;
+
+	if (debugfs->root)
+		debugfs_remove_recursive(debugfs->root);
 }
