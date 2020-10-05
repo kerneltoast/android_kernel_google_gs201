@@ -39,11 +39,13 @@ int exynos_acpm_set_rate(unsigned int id, unsigned long rate)
 	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
 	after = sched_clock();
 	latency = after - before;
-	if (ret)
+	if (ret) {
 		pr_err("%s:[%d] latency = %llu ret = %d",
 			__func__, id, latency, ret);
+		return ret;
+	}
 
-	return ret;
+	return config.cmd[3];
 }
 EXPORT_SYMBOL_GPL(exynos_acpm_set_rate);
 
@@ -68,15 +70,17 @@ int exynos_acpm_set_init_freq(unsigned int dfs_id, unsigned long freq)
 	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
 	after = sched_clock();
 	latency = after - before;
-	if (ret)
+	if (ret) {
 		pr_err("%s:[%d] latency = %llu ret = %d",
 			__func__, id, latency, ret);
+		return ret;
+	}
 
-	return ret;
+	return config.cmd[3];
 }
 EXPORT_SYMBOL_GPL(exynos_acpm_set_init_freq);
 
-unsigned long exynos_acpm_get_rate(unsigned int id, unsigned long dbg_val)
+int exynos_acpm_get_rate(unsigned int id, unsigned long dbg_val)
 {
 	struct ipc_config config;
 	unsigned int cmd[4];
@@ -98,6 +102,8 @@ unsigned long exynos_acpm_get_rate(unsigned int id, unsigned long dbg_val)
 	if (ret)
 		pr_err("%s:[%d] latency = %llu ret = %d", __func__,
 			id, latency, ret);
+	if (config.cmd[3])
+		return config.cmd[3];
 
 	return config.cmd[1];
 }
@@ -122,11 +128,13 @@ int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
 	after = sched_clock();
 	latency = after - before;
-	if (ret)
+	if (ret) {
 		pr_err("%s:[%d] latency = %llu ret = %d",
 			__func__, id, latency, ret);
+		return ret;
+	}
 
-	return ret;
+	return config.cmd[3];
 }
 
 //#ifndef CONFIG_EXYNOS_ACPM_THERMAL
@@ -149,11 +157,13 @@ int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 //	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
 //	after = sched_clock();
 //	latency = after - before;
-//	if (ret)
+//	if (ret) {
 //		pr_err("%s:[%d] latency = %llu ret = %d",
 //			__func__, id, latency, ret);
+//		return ret;
+//	}
 //
-//	return ret;
+//	return config.cmd[3];
 //}
 //EXPORT_SYMBOL_GPL(exynos_acpm_set_volt_margin);
 //#endif
@@ -177,11 +187,13 @@ int exynos_acpm_set_policy(unsigned int id, unsigned long policy)
 	ret = acpm_ipc_send_data(acpm_dvfs.ch_num, &config);
 	after = sched_clock();
 	latency = after - before;
-	if (ret)
+	if (ret) {
 		pr_err("%s:[%d] latency = %llu ret = %d",
 			__func__, id, latency, ret);
+		return ret;
+	}
 
-	return ret;
+	return config.cmd[3];
 }
 EXPORT_SYMBOL_GPL(exynos_acpm_set_policy);
 

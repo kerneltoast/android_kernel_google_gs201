@@ -11,7 +11,7 @@
 typedef void (*ipc_callback)(unsigned int *cmd, unsigned int size);
 
 struct ipc_config {
-	unsigned int *cmd;
+	int *cmd;
 	unsigned int *indirection_base;
 	unsigned int indirection_size;
 	bool response;

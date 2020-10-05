@@ -29,8 +29,7 @@ int exynos_acpm_dvfs_init(void);
 
 extern int exynos_acpm_set_rate(unsigned int id, unsigned long rate);
 extern int exynos_acpm_set_init_freq(unsigned int dfs_id, unsigned long freq);
-extern unsigned long exynos_acpm_get_rate(unsigned int id,
-		unsigned long dbg_val);
+extern int exynos_acpm_get_rate(unsigned int id, unsigned long dbg_val);
 extern void exynos_acpm_set_device(void *dev);
 extern int exynos_acpm_set_volt_margin(unsigned int id, int volt);
 extern int exynos_acpm_set_cold_temp(unsigned int id, bool is_cold_temp);
@@ -50,8 +49,7 @@ static inline int exynos_acpm_set_init_freq(unsigned int dfs_id, unsigned long f
 	return 0;
 }
 
-static inline unsigned long exynos_acpm_get_rate(unsigned int id,
-		unsigned long dbg_val)
+static inline int exynos_acpm_get_rate(unsigned int id, unsigned long dbg_val)
 {
 	return 0UL;
 }
