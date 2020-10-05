@@ -18,6 +18,75 @@ enum {
 #define ufshcd_eh_in_progress(h) \
 	((h)->eh_flags & UFSHCD_EH_IN_PROGRESS)
 
+/* classify request type on statistics by scsi command opcode*/
+static int pixel_ufs_get_cmd_type(struct ufshcd_lrb *lrbp, u8 *cmd_type)
+{
+	u8 scsi_op_code;
+
+	if (!lrbp->cmd)
+		return -EINVAL;
+
+	scsi_op_code = (u8)(*lrbp->cmd->cmnd);
+	switch (scsi_op_code) {
+	case READ_10:
+	case READ_16:
+		*cmd_type = REQ_TYPE_READ;
+		break;
+	case WRITE_10:
+	case WRITE_16:
+		*cmd_type = REQ_TYPE_WRITE;
+		break;
+	case UNMAP:
+		*cmd_type = REQ_TYPE_DISCARD;
+		break;
+	case SYNCHRONIZE_CACHE:
+		*cmd_type = REQ_TYPE_FLUSH;
+		break;
+	case SECURITY_PROTOCOL_IN:
+	case SECURITY_PROTOCOL_OUT:
+		*cmd_type = REQ_TYPE_SECURITY;
+		break;
+	default:
+		*cmd_type = REQ_TYPE_OTHER;
+		break;
+	}
+	return 0;
+}
+
+void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct pixel_req_stats *rst;
+	u8 cmd_type;
+	u64 delta = (u64)ktime_us_delta(lrbp->compl_time_stamp,
+		lrbp->issue_time_stamp);
+
+	if (pixel_ufs_get_cmd_type(lrbp, &cmd_type))
+		return;
+
+	/* Update request statistic if need */
+	rst = &(ufs->req_stats[REQ_TYPE_VALID]);
+	rst->req_count++;
+	rst->req_sum += delta;
+	if (rst->req_min == 0 || rst->req_min > delta)
+		rst->req_min = delta;
+	if (rst->req_max < delta)
+		rst->req_max = delta;
+
+	rst = &(ufs->req_stats[cmd_type]);
+	rst->req_count++;
+	rst->req_sum += delta;
+	if (rst->req_min == 0 || rst->req_min > delta)
+		rst->req_min = delta;
+	if (rst->req_max < delta)
+		rst->req_max = delta;
+}
+
+void pixel_ufs_compl_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+{
+	pixel_ufs_update_req_stats(hba, lrbp);
+}
+
 void pixel_ufs_prepare_command(struct ufs_hba *hba,
 			struct request *rq, struct ufshcd_lrb *lrbp)
 {
@@ -380,18 +449,147 @@ static const struct attribute_group pixel_sysfs_group = {
 	.attrs = pixel_sysfs_pixel_attrs,
 };
 
+#define PIXEL_REQ_STATS_ATTR(_name, _type_name, _type_show)		\
+static ssize_t _name##_show(struct device *dev,				\
+	struct device_attribute *attr, char *buf)			\
+{									\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);			\
+	unsigned long flags;						\
+	u64 val;							\
+	spin_lock_irqsave(hba->host->host_lock, flags);			\
+	switch (_type_show) {						\
+	case REQ_SYSFS_MIN:						\
+		val = ufs->req_stats[_type_name].req_min;		\
+		break;							\
+	case REQ_SYSFS_MAX:						\
+		val = ufs->req_stats[_type_name].req_max;		\
+		break;							\
+	case REQ_SYSFS_AVG:						\
+		val = div64_u64(ufs->req_stats[_type_name].req_sum,	\
+				ufs->req_stats[_type_name].req_count);	\
+		break;							\
+	case REQ_SYSFS_SUM:						\
+		val = ufs->req_stats[_type_name].req_sum;		\
+		break;							\
+	default:							\
+		val = 0;						\
+		break;							\
+	}								\
+	spin_unlock_irqrestore(hba->host->host_lock, flags);		\
+	return sprintf(buf, "%llu\n", val);				\
+}									\
+static DEVICE_ATTR_RO(_name)
+
+static inline void pixel_init_req_stats(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	memset(ufs->req_stats, 0, sizeof(ufs->req_stats));
+}
+
+static ssize_t reset_req_status_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t reset_req_status_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	unsigned long flags;
+	unsigned long value;
+
+	if (kstrtoul(buf, 0, &value)) {
+		dev_err(hba->dev, "%s: Invalid argument\n", __func__);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	pixel_init_req_stats(hba);
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	return count;
+}
+
+PIXEL_REQ_STATS_ATTR(all_min, REQ_TYPE_VALID, REQ_SYSFS_MIN);
+PIXEL_REQ_STATS_ATTR(all_max, REQ_TYPE_VALID, REQ_SYSFS_MAX);
+PIXEL_REQ_STATS_ATTR(all_avg, REQ_TYPE_VALID, REQ_SYSFS_AVG);
+PIXEL_REQ_STATS_ATTR(all_sum, REQ_TYPE_VALID, REQ_SYSFS_SUM);
+PIXEL_REQ_STATS_ATTR(read_min, REQ_TYPE_READ, REQ_SYSFS_MIN);
+PIXEL_REQ_STATS_ATTR(read_max, REQ_TYPE_READ, REQ_SYSFS_MAX);
+PIXEL_REQ_STATS_ATTR(read_avg, REQ_TYPE_READ, REQ_SYSFS_AVG);
+PIXEL_REQ_STATS_ATTR(read_sum, REQ_TYPE_READ, REQ_SYSFS_SUM);
+PIXEL_REQ_STATS_ATTR(write_min, REQ_TYPE_WRITE, REQ_SYSFS_MIN);
+PIXEL_REQ_STATS_ATTR(write_max, REQ_TYPE_WRITE, REQ_SYSFS_MAX);
+PIXEL_REQ_STATS_ATTR(write_avg, REQ_TYPE_WRITE, REQ_SYSFS_AVG);
+PIXEL_REQ_STATS_ATTR(write_sum, REQ_TYPE_WRITE, REQ_SYSFS_SUM);
+PIXEL_REQ_STATS_ATTR(flush_min, REQ_TYPE_FLUSH, REQ_SYSFS_MIN);
+PIXEL_REQ_STATS_ATTR(flush_max, REQ_TYPE_FLUSH, REQ_SYSFS_MAX);
+PIXEL_REQ_STATS_ATTR(flush_avg, REQ_TYPE_FLUSH, REQ_SYSFS_AVG);
+PIXEL_REQ_STATS_ATTR(flush_sum, REQ_TYPE_FLUSH, REQ_SYSFS_SUM);
+PIXEL_REQ_STATS_ATTR(discard_min, REQ_TYPE_DISCARD, REQ_SYSFS_MIN);
+PIXEL_REQ_STATS_ATTR(discard_max, REQ_TYPE_DISCARD, REQ_SYSFS_MAX);
+PIXEL_REQ_STATS_ATTR(discard_avg, REQ_TYPE_DISCARD, REQ_SYSFS_AVG);
+PIXEL_REQ_STATS_ATTR(discard_sum, REQ_TYPE_DISCARD, REQ_SYSFS_SUM);
+PIXEL_REQ_STATS_ATTR(security_min, REQ_TYPE_SECURITY, REQ_SYSFS_MIN);
+PIXEL_REQ_STATS_ATTR(security_max, REQ_TYPE_SECURITY, REQ_SYSFS_MAX);
+PIXEL_REQ_STATS_ATTR(security_avg, REQ_TYPE_SECURITY, REQ_SYSFS_AVG);
+PIXEL_REQ_STATS_ATTR(security_sum, REQ_TYPE_SECURITY, REQ_SYSFS_SUM);
+DEVICE_ATTR_RW(reset_req_status);
+
+static struct attribute *ufs_sysfs_req_stats[] = {
+	&dev_attr_all_min.attr,
+	&dev_attr_all_max.attr,
+	&dev_attr_all_avg.attr,
+	&dev_attr_all_sum.attr,
+	&dev_attr_read_min.attr,
+	&dev_attr_read_max.attr,
+	&dev_attr_read_avg.attr,
+	&dev_attr_read_sum.attr,
+	&dev_attr_write_min.attr,
+	&dev_attr_write_max.attr,
+	&dev_attr_write_avg.attr,
+	&dev_attr_write_sum.attr,
+	&dev_attr_flush_min.attr,
+	&dev_attr_flush_max.attr,
+	&dev_attr_flush_avg.attr,
+	&dev_attr_flush_sum.attr,
+	&dev_attr_discard_min.attr,
+	&dev_attr_discard_max.attr,
+	&dev_attr_discard_avg.attr,
+	&dev_attr_discard_sum.attr,
+	&dev_attr_security_min.attr,
+	&dev_attr_security_max.attr,
+	&dev_attr_security_avg.attr,
+	&dev_attr_security_sum.attr,
+	&dev_attr_reset_req_status.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_req_stats_group = {
+	.name = "req_stats",
+	.attrs = ufs_sysfs_req_stats,
+};
+
+static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
+	&pixel_sysfs_group,
+	&pixel_sysfs_req_stats_group,
+	NULL,
+};
+
 int pixel_ufs_update_sysfs(struct ufs_hba *hba)
 {
 	int err;
 
-	err = sysfs_create_group(&hba->dev->kobj, &pixel_sysfs_group);
+	err = sysfs_create_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
 	if (err) {
 		dev_err(hba->dev,
-			"%s: Failed to create a new pixel group (err = %d)\n",
+			"%s: sysfs groups creation failed (err = %d)\n",
 			__func__, err);
 		return err;
 	}
-
 
 	err = sysfs_update_group(&hba->dev->kobj,
 				&pixel_sysfs_health_descriptor_group);

@@ -42,4 +42,38 @@ enum {
 };
 
 extern void pixel_init_manual_gc(struct ufs_hba *hba);
+
+/* defined request category on statistics */
+enum req_type_stats {
+	REQ_TYPE_VALID = 0,
+	REQ_TYPE_READ = 1,
+	REQ_TYPE_WRITE = 2,
+	REQ_TYPE_FLUSH = 3,
+	REQ_TYPE_DISCARD = 4,
+	REQ_TYPE_SECURITY = 5,
+	REQ_TYPE_OTHER = 6,
+	REQ_TYPE_MAX = 7,
+};
+
+/* request statistic type on sysfs */
+enum req_sysfs_stats {
+	REQ_SYSFS_MIN = 0,
+	REQ_SYSFS_MAX = 1,
+	REQ_SYSFS_AVG = 2,
+	REQ_SYSFS_SUM = 3,
+};
+
+/**
+ * struct pixel_req_stats - statistics for request time measurement (usec)
+ * @req_min: minimum time of request
+ * @req_max: maximum time of request
+ * @req_sum: sum of the total request time
+ * @req_count: total request count
+ */
+struct pixel_req_stats {
+	u64 req_min;
+	u64 req_max;
+	u64 req_sum;
+	u64 req_count;
+};
 #endif
