@@ -402,7 +402,7 @@ static ssize_t test_compr_bw_2k(unsigned long num_iter)
 	int ret;
 
 	eh_dev = eh_create(eh_compress_bandwidth_test_cb, NULL);
-	if (!eh_dev)
+	if (IS_ERR(eh_dev))
 		return -ENODEV;
 
 	ret = eh_test_compr_bw_2k(eh_dev, num_iter);
@@ -434,7 +434,7 @@ static ssize_t test_compr_bw_3k(unsigned long num_iter)
 	int ret;
 
 	eh_dev = eh_create(eh_compress_bandwidth_test_cb, NULL);
-	if (!eh_dev)
+	if (IS_ERR(eh_dev))
 		return -ENODEV;
 
 	ret = eh_test_compr_bw_3k(eh_dev, num_iter);
@@ -466,7 +466,7 @@ static ssize_t test_compr_decompr(unsigned long num_iter)
 	int ret;
 
 	eh_dev = eh_create(eh_single_compress_test_cb, NULL);
-	if (!eh_dev)
+	if (IS_ERR(eh_dev))
 		return -ENODEV;
 	ret = eh_test_compr_decompr(eh_dev, num_iter);
 	eh_destroy(eh_dev);
