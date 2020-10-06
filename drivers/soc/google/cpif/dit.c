@@ -17,9 +17,6 @@
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 #include <soc/google/exynos-cpupm.h>
 #endif
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
-#include <soc/google/exynos-s2mpu.h>
-#endif
 
 #include "modem_utils.h"
 #include "dit.h"
@@ -2126,25 +2123,11 @@ int dit_stop_napi_poll(void)
 }
 EXPORT_SYMBOL(dit_stop_napi_poll);
 
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
-static int s2mpufd_notifier_callback(struct s2mpufd_notifier_block *nb,
-		struct s2mpufd_notifier_info *ni)
-{
-	dit_print_dump(DIT_DIR_TX, DIT_DUMP_ALL);
-	dit_print_dump(DIT_DIR_RX, DIT_DUMP_ALL);
-
-	return S2MPUFD_NOTIFY_BAD;
-}
-#endif
-
 int dit_create(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct resource *res;
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
-	struct s2mpufd_notifier_block *s2mpu_nb = NULL;
-#endif
 	int ret;
 
 	if (!np) {
@@ -2234,19 +2217,6 @@ int dit_create(struct platform_device *pdev)
 	exynos_update_ip_idle_status(dc->idle_ip_index, DIT_IDLE_IP_IDLE);
 #endif
 
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
-	s2mpu_nb = devm_kzalloc(dev, sizeof(struct s2mpufd_notifier_block), GFP_KERNEL);
-	if (!s2mpu_nb) {
-		mif_err("s2mpu notifier block alloc failed\n");
-		goto error;
-	}
-
-	s2mpu_nb->subsystem = "DIT";
-	s2mpu_nb->notifier_call = s2mpufd_notifier_callback;
-
-	s2mpufd_notifier_call_register(s2mpu_nb);
-#endif
-
 	ret = sysfs_create_groups(&dev->kobj, dit_groups);
 	if (ret != 0) {
 		mif_err("sysfs_create_group() error %d\n", ret);
@@ -2259,11 +2229,6 @@ int dit_create(struct platform_device *pdev)
 	return 0;
 
 error:
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
-	if (s2mpu_nb)
-		devm_kfree(dev, s2mpu_nb);
-#endif
-
 	if (dc->sharability_base)
 		devm_iounmap(dev, dc->sharability_base);
 
