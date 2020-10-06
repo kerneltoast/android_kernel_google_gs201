@@ -9,6 +9,7 @@
 /plugin/;
 
 #include "gs101-raviole.dtsi"
+#include "gs101-raven-audio.dtsi"
 / {
 	board_id = <0x202>;
 	board_rev = <0x100>;
