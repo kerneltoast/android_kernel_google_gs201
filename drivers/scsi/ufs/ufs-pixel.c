@@ -335,9 +335,63 @@ static const struct attribute_group pixel_sysfs_default_group = {
 	.attrs = pixel_sysfs_ufshcd_attrs,
 };
 
+#define PIXEL_ATTRIBUTE_RW(_name, _uname)				\
+static ssize_t _name##_show(struct device *dev,				\
+	struct device_attribute *attr, char *buf)			\
+{									\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	u32 value;							\
+	int err;							\
+	pm_runtime_get_sync(hba->dev);					\
+	err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,	\
+		QUERY_ATTR_IDN##_uname, 0, 0, &value);			\
+	pm_runtime_put_sync(hba->dev);					\
+	if (err)							\
+		return err;						\
+	return snprintf(buf, PAGE_SIZE, "0x%08X\n", value);		\
+}									\
+static ssize_t _name##_store(struct device *dev,			\
+	struct device_attribute *attr, const char *buf, size_t count)	\
+{									\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	u32 value;							\
+	int err;							\
+	if (kstrtouint(buf, 0, &value))					\
+		return -EINVAL;						\
+	pm_runtime_get_sync(hba->dev);					\
+	err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,\
+		QUERY_ATTR_IDN##_uname, 0, 0, &value);			\
+	pm_runtime_put_sync(hba->dev);					\
+	if (err)							\
+		return err;						\
+	return count;							\
+}									\
+static DEVICE_ATTR_RW(_name)
+
+PIXEL_ATTRIBUTE_RW(boot_lun_enabled, _BOOT_LU_EN);
+
+static struct attribute *pixel_sysfs_pixel_attrs[] = {
+	&dev_attr_boot_lun_enabled.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_group = {
+	.name = "pixel",
+	.attrs = pixel_sysfs_pixel_attrs,
+};
+
 int pixel_ufs_update_sysfs(struct ufs_hba *hba)
 {
 	int err;
+
+	err = sysfs_create_group(&hba->dev->kobj, &pixel_sysfs_group);
+	if (err) {
+		dev_err(hba->dev,
+			"%s: Failed to create a new pixel group (err = %d)\n",
+			__func__, err);
+		return err;
+	}
+
 
 	err = sysfs_update_group(&hba->dev->kobj,
 				&pixel_sysfs_health_descriptor_group);
