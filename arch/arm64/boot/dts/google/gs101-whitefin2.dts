@@ -8,6 +8,7 @@
 /dts-v1/;
 /plugin/;
 
+#include "gs101-whitefin2-audio.dtsi"
 #include "gs101-whitefin2-common.dtsi"
 #include "gs101-whitefin2-thermal.dtsi"
 / {

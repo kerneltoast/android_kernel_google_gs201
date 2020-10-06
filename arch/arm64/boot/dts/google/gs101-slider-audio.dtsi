@@ -35,6 +35,10 @@
 	};
 };
 
+&aoc_audio_cfg{
+	aoc-audio-config = "sl1";
+};
+
 /* GPIO_ALIVE */
 &pinctrl_0 {
 	hapt_amp_irq: hapt-amp-irq {

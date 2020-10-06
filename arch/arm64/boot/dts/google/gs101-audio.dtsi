@@ -508,6 +508,10 @@
 
 		dai_codec_cfg: codec_cfg {
 		};
+
+		aoc_audio_cfg: aoc-audio-cfg{
+			aoc-audio-config = "generic";
+		};
 	};
 
 	max98357a_hac: max98357a {
