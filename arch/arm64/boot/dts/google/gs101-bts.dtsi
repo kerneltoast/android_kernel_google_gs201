@@ -1543,7 +1543,7 @@
 			status = "okay";
 			bts-type = <IP_BTS>;
 			default {
-				stat_on = <0>;
+				stat_on = <1>;
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
@@ -1556,7 +1556,7 @@
 			status = "okay";
 			bts-type = <IP_BTS>;
 			default {
-				stat_on = <0>;
+				stat_on = <1>;
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
@@ -1569,7 +1569,7 @@
 			status = "okay";
 			bts-type = <IP_BTS>;
 			default {
-				stat_on = <0>;
+				stat_on = <1>;
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
@@ -1582,7 +1582,7 @@
 			status = "okay";
 			bts-type = <IP_BTS>;
 			default {
-				stat_on = <0>;
+				stat_on = <1>;
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
