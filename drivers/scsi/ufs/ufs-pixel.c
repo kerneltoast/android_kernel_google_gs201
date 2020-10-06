@@ -509,26 +509,25 @@ static ssize_t manual_gc_store(struct device *dev,
 	pm_runtime_get_sync(hba->dev);
 
 	if (!ufs->manual_gc.hagc_support) {
-		enum query_opcode opcode = (value == MANUAL_GC_ON) ?
-						UPIU_QUERY_OPCODE_SET_FLAG:
-						UPIU_QUERY_OPCODE_CLEAR_FLAG;
-
 		err = ufshcd_bkops_ctrl(hba, (value == MANUAL_GC_ON) ?
 					BKOPS_STATUS_NON_CRITICAL:
 					BKOPS_STATUS_CRITICAL);
 		if (!hba->auto_bkops_enabled)
 			err = -EAGAIN;
+	}
 
-		/* flush wb buffer */
-		if (hba->dev_info.wspecversion >= 0x0310) {
-			u8 index = ufshcd_wb_get_query_index(hba);
+	/* flush wb buffer */
+	if (hba->dev_info.wspecversion >= 0x0310) {
+		enum query_opcode opcode = (value == MANUAL_GC_ON) ?
+						UPIU_QUERY_OPCODE_SET_FLAG:
+						UPIU_QUERY_OPCODE_CLEAR_FLAG;
+		u8 index = ufshcd_wb_get_query_index(hba);
 
-			ufshcd_query_flag_retry(hba, opcode,
+		ufshcd_query_flag_retry(hba, opcode,
 				QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8,
 				index, NULL);
-			ufshcd_query_flag_retry(hba, opcode,
+		ufshcd_query_flag_retry(hba, opcode,
 				QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN, index, NULL);
-		}
 	}
 
 	if (err || hrtimer_active(&ufs->manual_gc.hrtimer)) {
