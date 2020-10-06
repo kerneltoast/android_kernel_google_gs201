@@ -2774,18 +2774,47 @@ static int exynos_serial_suspend(struct device *dev)
 		exynos_serial_rx_fifo_wait(ourport);
 
 		uart_suspend_port(&exynos_uart_drv, port);
+		if (!ourport->dbg_uart_ch || console_suspend_enabled) {
+			uart_clock_enable(ourport);
+			/* disable Tx, Rx mode bit for suspend in case of HWACG */
+			ucon = rd_regl(port, S3C2410_UCON);
+			ucon &= ~(S3C2410_UCON_RXIRQMODE | S3C2410_UCON_TXIRQMODE);
+			wr_regl(port, S3C2410_UCON, ucon);
+			exynos_usi_stop(port);
+			uart_clock_disable(ourport);
+
+			ourport->rx_enabled = 0;
+			ourport->tx_enabled = 0;
+		} else {
+			ucon = rd_regl(port, S3C2410_UCON);
+			ucon &= ~S3C2410_UCON_RXIRQMODE;
+			wr_regl(port, S3C2410_UCON, ucon);
+
+			ourport->rx_enabled = 0;
+		}
+		if (ourport->dbg_mode & UART_DBG_MODE)
+			dev_err(dev, "UART suspend notification for tty framework.\n");
+	}
+
+	return 0;
+}
+
+static int exynos_serial_suspend_noirq(struct device *dev)
+{
+	struct uart_port *port = exynos_dev_to_port(dev);
+	struct exynos_uart_port *ourport = to_ourport(port);
+	unsigned int ucon;
+
+	if (ourport->dbg_uart_ch && !console_suspend_enabled) {
 		uart_clock_enable(ourport);
 		/* disable Tx, Rx mode bit for suspend in case of HWACG */
 		ucon = rd_regl(port, S3C2410_UCON);
-		ucon &= ~(S3C2410_UCON_RXIRQMODE | S3C2410_UCON_TXIRQMODE);
+		ucon &= ~S3C2410_UCON_TXIRQMODE;
 		wr_regl(port, S3C2410_UCON, ucon);
 		exynos_usi_stop(port);
 		uart_clock_disable(ourport);
 
-		ourport->rx_enabled = 0;
 		ourport->tx_enabled = 0;
-		if (ourport->dbg_mode & UART_DBG_MODE)
-			dev_err(dev, "UART suspend notification for tty framework.\n");
 	}
 
 	return 0;
@@ -2851,6 +2880,7 @@ static int exynos_serial_resume_noirq(struct device *dev)
 
 static const struct dev_pm_ops exynos_serial_pm_ops = {
 	.suspend = exynos_serial_suspend,
+	.suspend_noirq = exynos_serial_suspend_noirq,
 	.resume = exynos_serial_resume,
 	.resume_noirq = exynos_serial_resume_noirq,
 };
@@ -2931,9 +2961,19 @@ static void
 exynos_serial_console_putchar(struct uart_port *port, int ch)
 {
 	unsigned int ufcon = rd_regl(port, S3C2410_UFCON);
+	unsigned int ucon;
 
-	while (!exynos_serial_console_txrdy(port, ufcon))
+	while (1) {
+		ucon = rd_regl(port, S3C2410_UCON);
+		/* not possible to xmit on unconfigured port */
+		if (!exynos_port_configured(ucon))
+			return;
+
+		if (exynos_serial_console_txrdy(port, ufcon))
+			break;
+
 		cpu_relax();
+	}
 	wr_reg(port, S3C2410_UTXH, ch);
 }
 
