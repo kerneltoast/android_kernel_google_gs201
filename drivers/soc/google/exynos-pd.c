@@ -184,6 +184,11 @@ static int exynos_pd_power_off(struct generic_pm_domain *genpd)
 
 	DEBUG_PRINT_INFO("pd_power_off:(%s)+\n", pd->name);
 
+	if (pd->need_sync) {
+		ret = -EBUSY;
+		goto acc_unlock;
+	}
+
 	if (unlikely(!pd->pd_control)) {
 		pr_debug(EXYNOS_PD_PREFIX "%s is logical sub power domain, does not have power off control\n",
 			 genpd->name);
@@ -372,6 +377,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	if (initial_state > 0) {
 		pd->pd_stat.last_on_time = now;
 		pd->pd_stat.on_count = 1;
+		pd->need_sync = true;
 	} else {
 		pd->pd_stat.last_off_time = now;
 	}
@@ -435,6 +441,16 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static void exynos_pd_sync_state(struct device *dev)
+{
+	struct exynos_pm_domain *pd;
+	pd = platform_get_drvdata(to_platform_device(dev));
+
+	mutex_lock(&pd->access_lock);
+	pd->need_sync = false;
+	mutex_unlock(&pd->access_lock);
+}
+
 static const struct of_device_id of_exynos_pd_match[] = {
 	{ .compatible = "samsung,exynos-pd", },
 	{ },
@@ -450,6 +466,7 @@ static struct platform_driver exynos_pd_driver = {
 	.driver = {
 		.name = "exynos-pd",
 		.of_match_table = of_exynos_pd_match,
+		.sync_state = exynos_pd_sync_state,
 	},
 	.probe		= exynos_pd_probe,
 	.id_table	= exynos_pd_ids,
