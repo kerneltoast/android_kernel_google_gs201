@@ -23,6 +23,13 @@
 		use_multistage_wdt_irq = <798>;
 	};
 
+	hardlockup-watchdog {
+		compatible = "google,hardlockup-watchdog";
+		sampling_time = <4>;
+		opportunity_count = <3>;
+		panic = <1>;
+	};
+
 	dss-built {
 		compatible = "google,debug-snapshot-built";
 		memory-region = <&header>;
