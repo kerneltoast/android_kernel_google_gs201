@@ -64,3 +64,4 @@ obj-$(CONFIG_GOOGLE_VOTABLE)	+= gvotable.o
 obj-$(CONFIG_SBB_MUX)		+= sbb-mux/
 obj-$(CONFIG_SUBSYSTEM_COREDUMP)	+= sscoredump/
 obj-$(CONFIG_ACCESS_RAMOOPS)	+= access_ramoops.o
+obj-$(CONFIG_SENSORS_SSP_BBD)   += bbdpl/

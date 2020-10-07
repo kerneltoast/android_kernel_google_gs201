@@ -532,4 +532,5 @@ source "drivers/misc/habanalabs/Kconfig"
 source "drivers/misc/uacce/Kconfig"
 source "drivers/misc/sscoredump/Kconfig"
 source "drivers/misc/sbb-mux/Kconfig"
+source "drivers/misc/bbdpl/Kconfig"
 endmenu

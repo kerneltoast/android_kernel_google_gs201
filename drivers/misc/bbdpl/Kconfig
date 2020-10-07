@@ -1,0 +1,16 @@
+config SENSORS_SSP_BBD
+    tristate "SSP Driver for sensor hub"
+    depends on SPI
+    help
+        ssp driver for sensor hub.
+        If you say yes here you get ssp support for
+        sensor hub.
+        To compile this driver as a module, choose M here: the
+        module will be called bbd.
+
+config BCM_GPS_SPI_DRIVER
+    tristate "BRCM GPS SPI driver"
+    depends on SPI && SENSORS_SSP_BBD
+    help
+        Support for BRCM GPS SPI driver.
+
