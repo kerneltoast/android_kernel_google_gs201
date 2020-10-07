@@ -12,6 +12,7 @@
 #include "gs101-whitefin-common.dtsi"
 
 #include "gs101-common-gsc.dtsi"
+#include "gs101-slider1-gps.dtsi"
 #include "gs101-whitefin1-audio.dtsi"
 #include "gs101-whitefin1-battery.dtsi"
 #include "gs101-whitefin1-cp-s5200-sit.dtsi"

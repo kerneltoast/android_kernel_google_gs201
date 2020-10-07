@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Common GPS device tree for for Google slider/whitefin
+ *
+ * Copyright (c) 2020 Google, LLC
+ *    https://www.google.com
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+
+&spi_5 {
+  #address-cells = <1>;
+  #size-cells = <0>;
+  status = "okay";
+  pinctrl-names = "default";
+  pinctrl-0 = <&spi5_bus &spi5_cs_func>;
+
+  bcm4775@0 {
+    compatible = "ssp,bcm4775";
+    reg = <0>;
+    spi-max-frequency = <26000000>;
+    spi-cpol;
+    spi-cpha;
+
+    pinctrl-names = "default";
+    pinctrl-0 =
+    <&gps_host_req &gps_mcu_req &gps_mcu_resp &gps_nstandby>;
+
+    mcu-req-gpios = <&gpp1 1 GPIO_ACTIVE_HIGH>;
+    nstandby-gpios= <&gpp0 2 GPIO_ACTIVE_LOW>;
+
+    controller-data {
+    samsung,spi-feedback-delay = <1>;
+    samsung,spi-chip-select-mode = <0>;
+    };
+  };
+};
+
+&pinctrl_4 {
+  gps_mcu_req: gps-mcu-req {
+    samsung,pins = "gpp1-1";
+    samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+    samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+    samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+    samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+  };
+  gps_nstandby: gps-nstandby {
+    samsung,pins ="gpp0-2";
+    samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+    samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+    samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+    samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+  };
+};

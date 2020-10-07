@@ -11,8 +11,9 @@
 
 #include "gs101-camera-slider2.dtsi"
 #include "gs101-slider-common.dtsi"
-#include "gs101-slider2-cp-s5200-sit.dtsi"
 #include "gs101-slider2-battery.dtsi"
+#include "gs101-slider2-cp-s5200-sit.dtsi"
+#include "gs101-slider2-gps.dtsi"
 
 #define WC_BUS &hsi2c_8
 #include "gs101-slider-wcharger.dtsi"

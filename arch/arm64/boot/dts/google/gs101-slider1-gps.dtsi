@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * GPS device tree for for Google sliderV1/whitefinV1
+ *
+ * Copyright (c) 2020 Google, LLC
+ *		https://www.google.com
+ */
+
+&spi_5 {
+  bcm4775@0 {
+    host-req-gpios = <&gpp0 0 GPIO_ACTIVE_HIGH>;
+    mcu-resp-gpios = <&gpa6 4 GPIO_ACTIVE_HIGH>;
+  };
+};
+
+&pinctrl_1 {
+  gps_mcu_resp: gps-mcu-resp {
+    samsung,pins = "gpa6-4";
+    samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+    samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+    samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+    samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+  };
+};
+
+&pinctrl_4 {
+  gps_host_req: gps-host-req {
+    samsung,pins = "gpp0-0";
+    samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+    samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+    samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+    samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+  };
+};
