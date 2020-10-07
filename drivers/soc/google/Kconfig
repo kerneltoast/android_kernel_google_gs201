@@ -155,4 +155,10 @@ config HARDLOCKUP_DEBUG
 	tristate "Hardlockup Debugging"
 	depends on ARM64
 
+config HARDLOCKUP_WATCHDOG
+	tristate "Hardlockup Watchdog"
+	default n
+	help
+	The module is a driver for detecting individual core lockup.
+
 endmenu

@@ -36,3 +36,5 @@ obj-$(CONFIG_GOOGLE_EH) += eh/
 obj-$(CONFIG_GS_S2MPU)			+= s2mpu/
 
 obj-$(CONFIG_HARDLOCKUP_DEBUG)		+= hardlockup-debug.o
+
+obj-$(CONFIG_HARDLOCKUP_WATCHDOG)	+= hardlockup-watchdog.o
