@@ -4866,6 +4866,13 @@
   ion_heap_map_kernel
   ion_heap_map_user
   ion_heap_unmap_kernel
+  ion_page_pool_alloc
+  ion_page_pool_create
+  ion_page_pool_destroy
+  ion_page_pool_free
+  ion_page_pool_nr_pages
+  ion_page_pool_shrink
+  ion_query_heaps_kernel
   ioport_resource
   __ioread32_copy
   __ioremap
