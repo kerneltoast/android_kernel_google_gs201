@@ -4981,6 +4981,9 @@
   ip_getsockopt
   ip_icmp_error_rfc4884
   ip_idents_reserve
+  ipi_get_hwirq
+  ipi_send_mask
+  ipi_send_single
   ip_local_out
   ip_mc_check_igmp
   __ip_mc_dec_group
@@ -9040,6 +9043,8 @@
   shash_register_instance
   shmem_file_setup
   shmem_file_setup_with_mnt
+  shmem_getpage
+  shmem_mapping
   shmem_read_mapping_page_gfp
   shmem_truncate_range
   should_remove_suid
@@ -10226,15 +10231,6 @@
   timer_unstable_counter_workaround
   timespec64_to_jiffies
   timestamp_truncate
-  tipc_chan_connect
-  tipc_chan_destroy
-  tipc_chan_get_rxbuf
-  tipc_chan_get_txbuf_timeout
-  tipc_chan_put_rxbuf
-  tipc_chan_put_txbuf
-  tipc_chan_queue_msg
-  tipc_chan_shutdown
-  tipc_create_channel
   tipc_dump_done
   tipc_dump_start
   tipc_nl_sk_walk
@@ -10438,17 +10434,6 @@
   truncate_pagecache
   truncate_pagecache_range
   truncate_setsize
-  trusty_call_notifier_register
-  trusty_call_notifier_unregister
-  trusty_dequeue_nop
-  trusty_enqueue_nop
-  trusty_fast_call32
-  trusty_get_api_version
-  trusty_reclaim_memory
-  trusty_share_memory
-  trusty_share_memory_compat
-  trusty_std_call32
-  trusty_version_str_get
   try_lookup_one_len
   try_module_get
   try_to_del_timer_sync
