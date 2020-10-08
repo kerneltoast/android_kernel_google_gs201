@@ -1,0 +1,6 @@
+set noparent
+per-file db845c_gki.fragment = file:/OWNERS_core
+per-file defconfig = file:/OWNERS_core
+per-file gki_defconfig = file:/OWNERS_core
+per-file rockpi4_defconfig = file:/OWNERS_core
+per-file OWNERS = file:/OWNERS_core

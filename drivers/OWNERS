@@ -1,0 +1,4 @@
+set noparent
+*
+per-file base/**=gregkh@google.com,saravanak@google.com
+per-file of/**=saravanak@google.com
