@@ -251,7 +251,7 @@ static int s2mpg1x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			return -EINVAL;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, argument);
@@ -319,7 +319,7 @@ static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			default:
 				pr_err("Drive-strength %umA not supported\n",
 				       argument);
-				return -EOPNOTSUPP;
+				return -ENOTSUPP;
 			}
 			ret = s2mpg1x_update_reg(gc->id, gc->i2c,
 						 GPIO_CTRL_BASE[gc->id] +
@@ -352,7 +352,7 @@ static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return ret;
 			break;
 		default:
-			return -EOPNOTSUPP;
+			return -ENOTSUPP;
 		}
 	}
 
@@ -375,13 +375,13 @@ static int pinmux_get_func_groups(struct pinctrl_dev *pctldev,
 				  const char *const **groups,
 				  unsigned int *const num_groups)
 {
-	return -EOPNOTSUPP;
+	return -ENOTSUPP;
 }
 
 static int pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 			  unsigned int group)
 {
-	return -EOPNOTSUPP;
+	return -ENOTSUPP;
 }
 
 static int pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
