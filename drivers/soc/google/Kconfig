@@ -115,6 +115,7 @@ config EXYNOS_PM_QOS
 
 config EXYNOS_CPUHP
 	tristate "CPU Hotplug driver support"
+	depends on HOTPLUG_CPU
 	default n
 	help
 	Support CPU Hotplug for Exynos SoC.

@@ -32,7 +32,6 @@ enum IRQ_SOURCE {
 	IRQ_SOFT_OCP_WARN_TPU,
 };
 
-static struct wakeup_source *rtc_ws;
 static struct thermal_zone_device *tz_smpl_warn;
 static struct thermal_zone_device *tz_soft_ocp_cpucl1;
 static struct thermal_zone_device *tz_soft_ocp_cpucl2;
@@ -621,6 +620,7 @@ static int s2m_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int s2m_rtc_wake_lock_timeout(struct device *dev, unsigned int msec)
 {
 	struct wakeup_source *ws = NULL;
@@ -637,6 +637,7 @@ static int s2m_rtc_wake_lock_timeout(struct device *dev, unsigned int msec)
 err:
 	return -1;
 }
+#endif
 
 static irqreturn_t s2m_rtc_alarm_irq(int irq, void *data)
 {
@@ -649,8 +650,10 @@ static irqreturn_t s2m_rtc_alarm_irq(int irq, void *data)
 
 	rtc_update_irq(info->rtc_dev, 1, RTC_IRQF | RTC_AF);
 
+#ifdef CONFIG_PM_SLEEP
 	if (s2m_rtc_wake_lock_timeout(info->dev, 500) < 0)
 		return IRQ_NONE;
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -1143,8 +1146,10 @@ static int s2m_rtc_remove(struct platform_device *pdev)
 	if (!info->alarm_enabled)
 		enable_irq(info->alarm0_irq);
 
+#ifdef CONFIG_PM_SLEEP
 	if (info->dev->power.wakeup)
 		device_init_wakeup(&pdev->dev, false);
+#endif
 	mutex_destroy(&info->lock);
 
 	return 0;
