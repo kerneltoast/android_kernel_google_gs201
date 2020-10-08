@@ -10,13 +10,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/sound/google-aoc.h>
 
-&dai_be_i2s0_rx {
-	codec {
-		codec-name = "snd-soc-dummy";
-		codec-dai-name = "snd-soc-dummy-dai";
-	};
-};
-
 &dai_be_tdm0_rx {
 	codec {
 		sound-dai = <&cs35l41_l 0>,
@@ -24,10 +17,42 @@
 	};
 };
 
-&dai_codec_cfg {
-	cfg1 {
-		of_node = <&cs35l41_r>;
-		prefix = "R";
+&dai_be_tdm0_tx {
+	codec {
+		sound-dai = <&cs35l41_l 0>,
+			<&cs35l41_r 0>;
+	};
+};
+
+&aoc_snd_card {
+	clks {
+		sys {
+			sys@cs35l41_l {
+				comp = <&cs35l41_l>;
+				src = "BCLK";
+				/* clk id */
+				id = <0>;
+				/* clk source */
+				srcid = <0>;
+				/* in clk multiple */
+				in_mul = <1>;
+				/* out clk multiple */
+				out_mul = <1>;
+			};
+
+			sys@cs35l41_r {
+				comp = <&cs35l41_r>;
+				src = "BCLK";
+				/* clk id */
+				id = <0>;
+				/* clk source */
+				srcid = <0>;
+				/* in clk multiple */
+				in_mul = <1>;
+				/* out clk multiple */
+				out_mul = <1>;
+			};
+		};
 	};
 };
 
@@ -219,6 +244,7 @@
 
 	cs35l41_r: cs35l41@1 {
 		#sound-dai-cells = <1>;
+		sound-name-prefix = "R";
 		compatible = "cirrus,cs35l41";
 		spi-max-frequency = <25000000>;
 		reg = <1>;
