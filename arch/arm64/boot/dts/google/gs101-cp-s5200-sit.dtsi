@@ -42,7 +42,7 @@
 					LINK_ATTR_MEM_BOOT |
 					LINK_ATTR_DPRAM_MAGIC)>;
 				mif,interrupt_types = <INTERRUPT_GPIO>;
-				mif,capability_check = <0>;
+				mif,capability_check = <1>;
 
 				/* Mailbox interrupt number from AP to CP */
 				mif,int_ap2cp_msg = <0>;
