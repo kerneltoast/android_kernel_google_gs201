@@ -105,4 +105,18 @@
 		err_cpu = <GO_DEFAULT_ID>;
 		err_unhandled = <GO_PANIC_ID>;
 	};
+
+	coresight@25000000 {
+		compatible = "google,exynos-coresight";
+		dbg_base = <0x25810000>, <0x25910000>, <0x25a10000>, <0x25b10000>,
+			   <0x25c10000>, <0x25d10000>, <0x25e10000>, <0x25f10000>;
+		cti_base = <0x25820000>, <0x25920000>, <0x25a20000>, <0x25b20000>,
+			   <0x25c20000>, <0x25d20000>, <0x25e20000>, <0x25f20000>;
+		pmu_base = <0x25830000>, <0x25930000>, <0x25a30000>, <0x25b30000>,
+			   <0x25c30000>, <0x25d30000>, <0x25e30000>, <0x25f30000>;
+		gpr_base = <0x25001000>;
+		dbgack-mask = <0xff00000>;
+		halt = <1>;
+		retention = <1>;
+	};
 };
