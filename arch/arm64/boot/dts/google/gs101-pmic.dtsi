@@ -1317,7 +1317,7 @@
 					external_rail;
 					channel-en-index = <1>;
 					channel-mux-selection = <0x1C>;
-					shunt-res-uohms = <5000>;
+					shunt-res-uohms = <10000>;
 					schematic-name = "VSYS_PWR_WLAN_BT";
 					subsys-name = "wlan-bt";
 				};
@@ -1344,7 +1344,7 @@
 					external_rail;
 					channel-en-index = <1>;
 					channel-mux-selection = <0x5C>;
-					shunt-res-uohms = <5000>;
+					shunt-res-uohms = <10000>;
 					schematic-name = "VSYS_PWR_WLAN_BT";
 					subsys-name = "wlan-bt";
 				};
