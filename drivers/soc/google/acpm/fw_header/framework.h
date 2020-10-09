@@ -62,7 +62,6 @@ struct acpm_framework {
 	u32 log_entry_len;
 	u32 ipc_base;
 	u32 ipc_buf_tx_size;
-	u32 total_size;
 	u32 fw_size;
 	u32 intr_to_skip;
 	u32 intr_flag_offset;
@@ -77,7 +76,8 @@ struct acpm_framework {
 	u32 preempt_log_buf_front;
 	u32 preempt_log_data;
 	u32 preempt_log_entry_len;
-	unsigned long long reserved[32];
+	u32 reserved[63];
+	u32 err_log_async_channel;
 };
 
 /**
@@ -115,6 +115,7 @@ struct channel_info {
  *
  * @id:			The ipc channel's id.
  * @field:		The ipc channel's field in mailbox status register.
+ * @late_init_source: Use of this channel broadcast late_init_ipc
  * @owner:		This interrupt's Belonged plugin.
  * @type:		The ipc channel's memory type; QUEUE or Register.
  * @ch:			IPC information for this plugin's channel.
@@ -122,7 +123,8 @@ struct channel_info {
  */
 struct ipc_channel {
 	u32 id;
-	u32 field;
+	u32 field:31; // Only 16 are manage by HW
+	u32 late_init_source:1;
 	s32 owner;
 	u32 type;
 	struct channel_info ch;
