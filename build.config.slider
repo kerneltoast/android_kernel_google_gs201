@@ -18,13 +18,18 @@ google/dtbo.img
 "
 
 FILES="
-.config
-vmlinux
-System.map
-arch/arm64/boot/Image.lz4
 arch/arm64/boot/dts/google/gs101.dtb
 arch/arm64/boot/dts/google/dtbo.img
 "
+
+if [ -z "$MIXED_BUILD" ]; then
+FILES="$FILES
+.config
+vmlinux
+System.map
+arch/arm64/boot/${KERNEL_BINARY}
+"
+fi
 
 ABI_DEFINITION=android/abi_gki_aarch64_common.xml
 FULL_GKI_ABI=1

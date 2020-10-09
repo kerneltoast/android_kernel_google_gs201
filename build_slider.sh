@@ -1,9 +1,14 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 
-export OUT_DIR
+export MIXED_BUILD=1
+
+export OUT_DIR DIST_DIR
 
 BASE_OUT=out/mixed/
+
+# share a common DIST_DIR
+DIST_DIR=${BASE_OUT}/dist/
 
 OUT_DIR=${BASE_OUT}/android12-5.10-staging/
 # Now build the GKI kernel
