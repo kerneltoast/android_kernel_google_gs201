@@ -718,12 +718,8 @@
 			/* Delay time */
 			use_delay_time = "false";
 
-			freq_info = <1716000 421000 421000 421000 1716000 1014000>;
+			freq_info = <421000 421000 421000 421000 1716000 1014000>;
 			/* initial_freq, default_qos, suspend_freq, min_freq, max_freq reboot_freq */
-
-			/* Booting value */
-			boot_info = <40 1716000>;
-			/* boot_qos_timeout, boot_freq */
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
@@ -746,12 +742,8 @@
 			/* Delay time */
 			use_delay_time = "false";
 
-			freq_info = <465000 100000 100000 100000 465000 400000>;
+			freq_info = <100000 100000 100000 100000 465000 465000>;
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
-
-			/* Booting value */
-			boot_info = <40 400000>;
-			/* boot_qos_timeout, boot_freq */
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
@@ -775,12 +767,8 @@
 			/* Delay time */
 			use_delay_time = "false";
 
-			freq_info = <664000 67000 67000 67000 664000 664000>;
+			freq_info = <67000 67000 67000 67000 664000 664000>;
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
-
-			/* Booting value */
-			boot_info = <40 664000>;
-			/* boot_qos_timeout, boot_freq */
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
@@ -802,12 +790,8 @@
 			/* Delay time */
 			use_delay_time = "false";
 
-			freq_info = <664000 134000 134000 134000 664000 664000>;
+			freq_info = <134000 134000 134000 134000 664000 664000>;
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
-
-			/* Booting value */
-			boot_info = <40 664000>;
-			/* boot_qos_timeout, boot_freq */
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
@@ -829,12 +813,8 @@
 			/* Delay time */
 			use_delay_time = "false";
 
-			freq_info = <664000 67000 67000 67000 664000 664000>;
+			freq_info = <67000 67000 67000 67000 664000 664000>;
 			/* <initial, default_qos, suspend_freq, min, max, reboot_freq> */
-
-			/* Booting value */
-			boot_info = <40 664000>;
-			/* boot_qos_timeout, boot_freq */
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
@@ -860,10 +840,6 @@
 			freq_info = <67000 67000 67000 67000 664000 664000>;
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
 
-			/* Booting value */
-			boot_info = <40 67000>;
-			/* boot_qos_timeout, boot_freq */
-
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
 
@@ -887,10 +863,6 @@
 			freq_info = <134000 134000 134000 134000 711000 711000>;
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
 
-			/* Booting value */
-			boot_info = <40 134000>;
-			/* boot_qos_timeout, boot_freq */
-
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
 
@@ -913,10 +885,6 @@
 
 			freq_info = <100000 100000 100000 100000 620000 620000>;
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
-
-			/* Booting value */
-			boot_info = <40 100000>;
-			/* boot_qos_timeout, boot_freq */
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
