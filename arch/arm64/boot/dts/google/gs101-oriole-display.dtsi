@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS101 Oriole-specific display device tree source
+ *
+ * Copyright (c) 2020 Google, LLC
+ *
+ */
+
+&drmdsim0 {
+	panel@0 {
+		/* vddi is from PP1850_SA which is always on */
+		/delete-node/ vddi-supply;
+	};
+};
+
+/* vci-supply voltage */
+&m_ldo22_reg {
+	regulator-min-microvolt = <3025000>;
+	regulator-max-microvolt = <3025000>;
+};
+
+&m_ldo31_reg {
+	/delete-property/ regulator-always-on;
+};
