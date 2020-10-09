@@ -378,6 +378,33 @@
 				regulator-voltages =
 					<1850000>;
 			};
+
+			/* OIS LC898128 for GN1*/
+			ois0: ois@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "ois-lc898128";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x24>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				/* GPIOs */
+				/* RCAM_EN2 GRA_GPIO6 */
+				shared-enable-gpios =
+					<&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
+				/* RCAM_OIS_LS_EN */
+				enable-gpios = <&gph2 4 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo3 &slg51000_ldo7>;
+				regulator-voltages = <3200000 1850000>;
+			};
 		};
 	};
 };
