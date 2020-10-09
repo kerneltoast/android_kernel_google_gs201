@@ -50,8 +50,10 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sched.h>
+#include <linux/kthread.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
+#include <linux/wait.h>
 
 #define EH_ERR_IRQ	"eh_error"
 #define EH_COMP_IRQ	"eh_comp"
@@ -191,6 +193,37 @@ static inline unsigned long eh_read_dcmd_status(struct eh_device *eh_dev,
 	return EH_DCMD_DEST_STATUS(status);
 }
 
+static int eh_comp_thread(void *data)
+{
+	struct eh_device *eh_dev = data;
+
+	current->flags |= PF_MEMALLOC;
+
+	while (!kthread_should_stop()) {
+		wait_event(eh_dev->comp_wq, atomic_read(&eh_dev->nr_request) > 0);
+		if (unlikely(eh_update_complete_index(eh_dev, false))) {
+			u64 error;
+
+			error = eh_read_register(eh_dev, EH_REG_ERR_COND);
+			if (error) {
+				pr_err("%s: error condition interrupt non-zero 0x%llx\n",
+						eh_dev->name, error);
+				eh_dump_regs(eh_dev);
+				eh_abort_incomplete_descriptors(eh_dev);
+				break;
+			}
+
+			/*
+			 * The error from fifo descriptor also should be also
+			 * propagated by error register.
+			 */
+			WARN_ON(1);
+		}
+	}
+
+	return 0;
+}
+
 static void eh_complete_decompression(struct eh_device *eh_dev, int index)
 {
 	struct eh_completion *cmpl;
@@ -230,39 +263,6 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 		eh_dump_regs(eh_dev);
 		eh_write_register(eh_dev, EH_REG_INTRP_STS_ERROR, error);
 	}
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t eh_compress_irq(int irq, void *data)
-{
-	struct eh_device *eh_dev = data;
-
-	pr_devel("[%s] %s: irq %d\n", current->comm, __func__, irq);
-
-	/* need a loop since we can race with interrupt clearing */
-	do {
-		/* clear interrupt first, then process */
-		eh_write_register(eh_dev, EH_REG_INTRP_STS_CMP, 1);
-		if (unlikely(eh_update_complete_index(eh_dev, false))) {
-			u64 error;
-
-			error = eh_read_register(eh_dev, EH_REG_ERR_COND);
-			if (error) {
-				pr_err("%s: error condition interrupt non-zero 0x%llx\n",
-					       eh_dev->name, error);
-				eh_dump_regs(eh_dev);
-				eh_abort_incomplete_descriptors(eh_dev);
-				break;
-			}
-
-			/*
-			 * The error from fifo descriptor also should be also
-			 * propagated by error register.
-			 */
-			WARN_ON(1);
-		}
-	} while ((eh_read_register(eh_dev, EH_REG_INTRP_STS_CMP)));
 
 	return IRQ_HANDLED;
 }
@@ -781,6 +781,8 @@ static struct eh_device *__eh_init(struct eh_device *eh_dev, uint16_t fifo_size,
 	int expected_irq_count = 1;
 	int irq_index = 0;
 
+	atomic_set(&eh_dev->nr_request, 0);
+	init_waitqueue_head(&eh_dev->comp_wq);
 	hwid = eh_read_register(eh_dev, EH_REG_HWID);
 	hwfeatures = eh_read_register(eh_dev, EH_REG_HWFEATURES);
 	hwfeatures2 = eh_read_register(eh_dev, EH_REG_HWFEATURES2);
@@ -831,21 +833,9 @@ static struct eh_device *__eh_init(struct eh_device *eh_dev, uint16_t fifo_size,
 		eh_dev->error_irq = irqs[irq_index];
 		irq_index++;
 
-		/* then one for each compression fifo */
-		ret = devm_request_threaded_irq(eh_dev->dev, irqs[irq_index],
-						NULL, eh_compress_irq,
-						IRQF_ONESHOT, EH_COMP_IRQ,
-						eh_dev);
-		if (ret) {
-			pr_err("%s: unable to request irq %u "
-			       "ret %d\n",
-			       eh_dev->name, irqs[irq_index], ret);
-			ret = -EINVAL;
+		eh_dev->comp_thread = kthread_run(eh_comp_thread, eh_dev, "eh_comp_thread");
+		if (IS_ERR(eh_dev->comp_thread))
 			goto out_cleanup;
-		}
-		/* TODO(sonnyrao) fix this if we need multi fifo support */
-		eh_dev->compr_irq = irqs[irq_index];
-		irq_index++;
 
 		/* then one for each decompression engine */
 		for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
@@ -888,8 +878,8 @@ out_cleanup:
 	if (eh_dev->error_irq)
 		devm_free_irq(eh_dev->dev, eh_dev->error_irq, eh_dev);
 
-	if (eh_dev->compr_irq)
-		devm_free_irq(eh_dev->dev, eh_dev->compr_irq, eh_dev);
+	if (eh_dev->comp_thread)
+		kthread_stop(eh_dev->comp_thread);
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
 		if (eh_dev->decompr_irqs[i])
@@ -994,8 +984,8 @@ static void __eh_destroy(struct eh_device *eh_dev)
 	if (eh_dev->error_irq)
 		devm_free_irq(eh_dev->dev, eh_dev->error_irq, eh_dev);
 
-	if (eh_dev->compr_irq)
-		devm_free_irq(eh_dev->dev, eh_dev->compr_irq, eh_dev);
+	if (eh_dev->comp_thread)
+		kthread_stop(eh_dev->comp_thread);
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
 		if (eh_dev->decompr_irqs[i])
@@ -1128,6 +1118,8 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 
 	/* set the descriptor back to IDLE */
 	desc->u1.s1.status = EH_CDESC_IDLE;
+	atomic_dec(&eh_dev->nr_request);
+
 	return ret;
 }
 
@@ -1224,12 +1216,15 @@ try_again:
 		masked_w_index =
 			(eh_dev->write_index + i) & eh_dev->fifo_index_mask;
 		/* set up the descriptor (use IRQ) */
-		eh_setup_desc_0(eh_dev, pages[i], masked_w_index, true);
+		eh_setup_desc_0(eh_dev, pages[i], masked_w_index, false);
 
 		cmpl = &eh_dev->completions[masked_w_index];
 		cmpl->priv = priv;
 		set_submit_ts(cmpl, ktime_get_ns());
 	}
+
+	atomic_inc(&eh_dev->nr_request);
+	wake_up(&eh_dev->comp_wq);
 
 	/* write barrier to force writes to be visible everywhere */
 	wmb();

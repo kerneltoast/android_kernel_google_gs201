@@ -132,7 +132,6 @@ struct eh_device {
 	 * one for each decompression command set
 	 */
 	int error_irq;
-	int compr_irq;
 	int decompr_irqs[EH_MAX_DCMD];
 
 	/*
@@ -151,6 +150,10 @@ struct eh_device {
 	uint16_t quirks;
 	/* indicate whether compression mode is poll or irq */
 	bool comp_poll;
+
+	struct task_struct *comp_thread;
+	wait_queue_head_t comp_wq;
+	atomic_t nr_request;
 
 	eh_cb_fn comp_callback;
 	eh_cb_fn decomp_callback;
