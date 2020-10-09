@@ -721,29 +721,20 @@ int acpm_ipc_send_data_lazy(unsigned int channel_id, struct ipc_config *cfg)
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_send_data_lazy);
 
-static void log_buffer_init(struct device *dev, struct device_node *node)
+static int log_buffer_init(struct device *dev, struct device_node *node)
 {
 	const __be32 *prop;
-	unsigned int num_timestamps = 0;
 	unsigned int len = 0;
 	unsigned int dump_base = 0;
 	unsigned int dump_size = 0;
 	void __iomem *base;
 
-	prop = of_get_property(node, "num-timestamps", &len);
-	if (prop)
-		num_timestamps = be32_to_cpup(prop);
-
 	acpm_debug = devm_kzalloc(dev, sizeof(struct acpm_debug_info), GFP_KERNEL);
 	if (IS_ERR(acpm_debug))
-		return;
+		return PTR_ERR(acpm_debug);
 
 	base = acpm_ipc->sram_base;
 	acpm_debug->time_index = base + acpm_ipc->initdata->ktime_index;
-	acpm_debug->num_timestamps = num_timestamps;
-	acpm_debug->timestamps = devm_kzalloc(dev,
-					      sizeof(unsigned long long) * num_timestamps,
-					      GFP_KERNEL);
 	acpm_debug->normal.log_buff_rear = acpm_ipc->sram_base +
 	    acpm_ipc->initdata->log_buf_rear;
 	acpm_debug->normal.log_buff_front = acpm_ipc->sram_base +
@@ -793,6 +784,8 @@ static void log_buffer_init(struct device *dev, struct device_node *node)
 	__raw_writel(0xffffffff, acpm_debug->time_index);
 
 	spin_lock_init(&acpm_debug->lock);
+
+	return 0;
 }
 
 static int channel_init(void)
@@ -925,7 +918,7 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	if (acpm_ipc_request_channel(node, acpm_error_log_ipc_callback,
 				     &acpm_debug->async_id,
 				     &acpm_debug->async_size)) {
-		dev_err(&pdev->dev, "No asynchronous channeln");
+		dev_err(&pdev->dev, "No asynchronous channel\n");
 	}
 
 	ret = plugins_init(node);
