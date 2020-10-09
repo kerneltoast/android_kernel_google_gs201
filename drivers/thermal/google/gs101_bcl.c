@@ -53,11 +53,106 @@ struct gs101_bcl_dev {
 	void __iomem *cpu1_mem;
 	void __iomem *cpu2_mem;
 	void __iomem *sysreg_cpucl0;
+
+	struct notifier_block psy_nb;
+	struct delayed_work soc_eval_work;
+	int trip_high_temp;
+	int trip_low_temp;
+	int trip_val;
+	struct mutex state_trans_lock;
+	struct thermal_zone_device *tz_dev;
+	struct thermal_zone_of_device_ops ops;
 };
 
 DEFINE_MUTEX(sysreg_lock);
 
-static struct gs101_bcl_dev *gs101_bcl_device;
+static int gs101_bcl_set_soc(void *data, int low, int high)
+{
+	struct gs101_bcl_dev *gs101_bcl_device = (struct gs101_bcl_dev *)data;
+
+	if (high == gs101_bcl_device->trip_high_temp)
+		return 0;
+
+	mutex_lock(&gs101_bcl_device->state_trans_lock);
+	gs101_bcl_device->trip_low_temp = low;
+	gs101_bcl_device->trip_high_temp = high;
+	schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
+
+	mutex_unlock(&gs101_bcl_device->state_trans_lock);
+	return 0;
+}
+
+static int gs101_bcl_read_soc(void *data, int *val)
+{
+	static struct power_supply *batt_psy;
+	union power_supply_propval ret = {
+		0,
+	};
+	int err = 0;
+
+	*val = 100;
+	if (!batt_psy)
+		batt_psy = power_supply_get_by_name("battery");
+	if (batt_psy) {
+		err = power_supply_get_property(
+			batt_psy, POWER_SUPPLY_PROP_CAPACITY, &ret);
+		if (err) {
+			pr_err("battery percentage read error:%d\n", err);
+			return err;
+		}
+		*val = 100 - ret.intval;
+	}
+	pr_debug("soc:%d\n", *val);
+
+	return err;
+}
+
+static void gs101_bcl_evaluate_soc(struct work_struct *work)
+{
+	int battery_percentage_reverse;
+	struct gs101_bcl_dev *gs101_bcl_device =
+	    container_of(work, struct gs101_bcl_dev, soc_eval_work.work);
+
+	if (gs101_bcl_read_soc(NULL, &battery_percentage_reverse))
+		return;
+
+	mutex_lock(&gs101_bcl_device->state_trans_lock);
+	if ((battery_percentage_reverse < gs101_bcl_device->trip_high_temp) &&
+		(battery_percentage_reverse > gs101_bcl_device->trip_low_temp))
+		goto eval_exit;
+
+	gs101_bcl_device->trip_val = battery_percentage_reverse;
+	mutex_unlock(&gs101_bcl_device->state_trans_lock);
+	thermal_zone_device_update(gs101_bcl_device->tz_dev,
+				   THERMAL_EVENT_UNSPECIFIED);
+
+	return;
+eval_exit:
+	mutex_unlock(&gs101_bcl_device->state_trans_lock);
+}
+
+static int battery_supply_callback(struct notifier_block *nb,
+				   unsigned long event, void *data)
+{
+	struct power_supply *psy = data;
+	struct gs101_bcl_dev *gs101_bcl_device =
+			container_of(nb, struct gs101_bcl_dev, psy_nb);
+
+	if (strcmp(psy->desc->name, "battery") == 0)
+		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
+
+	return NOTIFY_OK;
+}
+
+static int gs101_bcl_soc_remove(struct gs101_bcl_dev *gs101_bcl_device)
+{
+	power_supply_unreg_notifier(&gs101_bcl_device->psy_nb);
+	if (gs101_bcl_device->tz_dev)
+		thermal_zone_of_sensor_unregister(gs101_bcl_device->device,
+						  gs101_bcl_device->tz_dev);
+
+	return 0;
+}
 
 static int get_cpucl0_stat(void *data, u64 *val)
 {
@@ -131,7 +226,8 @@ static int reset_cpucl1_stat(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(cpucl1_clkdivstep_stat_fops, get_cpucl1_stat,
 			reset_cpucl1_stat, "%d\n");
 
-static void gs101_set_ppm_throttling(enum sys_throttling_core core,
+static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
+				     enum sys_throttling_core core,
 				     enum sys_throttling_switch throttle_switch)
 {
 	unsigned int reg, mask;
@@ -158,7 +254,8 @@ static void gs101_set_ppm_throttling(enum sys_throttling_core core,
 }
 
 static void
-gs101_set_mpmm_throttling(enum sys_throttling_core core,
+gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
+			  enum sys_throttling_core core,
 			  enum sys_throttling_switch throttle_switch)
 {
 	unsigned int reg, mask;
@@ -187,8 +284,8 @@ static int gs101_enable_ppm_throttling(void *data, u64 val)
 	pr_info("gs101: enable PPM throttling");
 
 	mode = (val == 0) ? SYS_THROTTLING_DISABLED : SYS_THROTTLING_ENABLED;
-	gs101_set_ppm_throttling(SYS_THROTTLING_MID_CORE, mode);
-	gs101_set_ppm_throttling(SYS_THROTTLING_BIG_CORE, mode);
+	gs101_set_ppm_throttling(data, SYS_THROTTLING_MID_CORE, mode);
+	gs101_set_ppm_throttling(data, SYS_THROTTLING_BIG_CORE, mode);
 	return 0;
 }
 
@@ -201,8 +298,8 @@ static int gs101_enable_mpmm_throttling(void *data, u64 val)
 	pr_info("gs101: enable MPMM throttling");
 
 	mode = (val == 0) ? SYS_THROTTLING_DISABLED : SYS_THROTTLING_ENABLED;
-	gs101_set_mpmm_throttling(SYS_THROTTLING_MID_CORE, mode);
-	gs101_set_mpmm_throttling(SYS_THROTTLING_BIG_CORE, mode);
+	gs101_set_mpmm_throttling(data, SYS_THROTTLING_MID_CORE, mode);
+	gs101_set_mpmm_throttling(data, SYS_THROTTLING_BIG_CORE, mode);
 	return 0;
 }
 
@@ -211,13 +308,14 @@ DEFINE_SIMPLE_ATTRIBUTE(mpmm_fops, NULL, gs101_enable_mpmm_throttling, "%d\n");
 static int google_gs101_bcl_probe(struct platform_device *pdev)
 {
 	unsigned int reg;
+	int ret = 0;
+	struct gs101_bcl_dev *gs101_bcl_device;
 
 	gs101_bcl_device =
 		devm_kzalloc(&pdev->dev, sizeof(*gs101_bcl_device), GFP_KERNEL);
 	if (!gs101_bcl_device)
 		return -ENOMEM;
 	gs101_bcl_device->device = &pdev->dev;
-
 	platform_set_drvdata(pdev, gs101_bcl_device);
 	gs101_bcl_device->debug_entry = debugfs_create_dir("gs101-bcl", 0);
 	if (IS_ERR_OR_NULL(gs101_bcl_device->debug_entry)) {
@@ -270,20 +368,55 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	reg |= PPMEN_MASK;
 	__raw_writel(reg, gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM);
 	mutex_unlock(&sysreg_lock);
-	gs101_set_ppm_throttling(SYS_THROTTLING_MID_CORE,
+	gs101_set_ppm_throttling(gs101_bcl_device,
+				 SYS_THROTTLING_MID_CORE,
 				 SYS_THROTTLING_DISABLED);
-	gs101_set_ppm_throttling(SYS_THROTTLING_BIG_CORE,
+	gs101_set_ppm_throttling(gs101_bcl_device,
+				 SYS_THROTTLING_BIG_CORE,
 				 SYS_THROTTLING_DISABLED);
-	gs101_set_mpmm_throttling(SYS_THROTTLING_MID_CORE,
+	gs101_set_mpmm_throttling(gs101_bcl_device,
+				  SYS_THROTTLING_MID_CORE,
 				  SYS_THROTTLING_DISABLED);
-	gs101_set_mpmm_throttling(SYS_THROTTLING_BIG_CORE,
+	gs101_set_mpmm_throttling(gs101_bcl_device,
+				  SYS_THROTTLING_BIG_CORE,
 				  SYS_THROTTLING_DISABLED);
 
+	mutex_init(&gs101_bcl_device->state_trans_lock);
+	gs101_bcl_device->ops.get_temp = gs101_bcl_read_soc;
+	gs101_bcl_device->ops.set_trips = gs101_bcl_set_soc;
+	INIT_DELAYED_WORK(&gs101_bcl_device->soc_eval_work, gs101_bcl_evaluate_soc);
+	gs101_bcl_device->psy_nb.notifier_call = battery_supply_callback;
+	ret = power_supply_reg_notifier(&gs101_bcl_device->psy_nb);
+	if (ret < 0) {
+		pr_err("soc notifier registration error. defer. err:%d\n", ret);
+		ret = -EPROBE_DEFER;
+		goto bcl_soc_probe_exit;
+	}
+	gs101_bcl_device->tz_dev = thermal_zone_of_sensor_register(
+		gs101_bcl_device->device, 0, gs101_bcl_device, &gs101_bcl_device->ops);
+	if (IS_ERR(gs101_bcl_device->tz_dev)) {
+		pr_err("soc TZ register failed. err:%ld\n",
+		       PTR_ERR(gs101_bcl_device->tz_dev));
+		ret = PTR_ERR(gs101_bcl_device->tz_dev);
+		gs101_bcl_device->tz_dev = NULL;
+		ret = -EPROBE_DEFER;
+		goto bcl_soc_probe_exit;
+	}
+	thermal_zone_device_update(gs101_bcl_device->tz_dev, THERMAL_DEVICE_UP);
+	schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
+
 	return 0;
+
+bcl_soc_probe_exit:
+	gs101_bcl_soc_remove(gs101_bcl_device);
+	return ret;
 }
 
 static int google_gs101_bcl_remove(struct platform_device *pdev)
 {
+	struct gs101_bcl_dev *gs101_bcl_device = platform_get_drvdata(pdev);
+
+	gs101_bcl_soc_remove(gs101_bcl_device);
 	debugfs_remove(gs101_bcl_device->debug_entry);
 	return 0;
 }
