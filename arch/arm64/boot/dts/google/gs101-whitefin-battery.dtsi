@@ -71,7 +71,7 @@
 
 	pack_bee: m24c08@50 {
 		status = "okay";
-		compatible = "stchip,m24c08";
+		compatible = "at,24c08";
 
 		reg = <0x50>;
 	};
