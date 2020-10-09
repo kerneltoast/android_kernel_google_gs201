@@ -21,9 +21,7 @@ struct s2mpg10_meter {
 	u8 ext_meter_en;
 	u8 chg_mux_sel[S2MPG1X_METER_CHANNEL_MAX];
 	u32 lpf_data[S2MPG1X_METER_CHANNEL_MAX]; /* 21-bit data */
-#if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 	struct device *dev;
-#endif
 };
 
 /* Public s2mpg10 Meter functions */
