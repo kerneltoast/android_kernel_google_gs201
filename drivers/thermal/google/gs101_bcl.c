@@ -38,6 +38,7 @@
 #define CLUSTER0_PPM (0x140c)
 #define MPMMEN_MASK (0xF << 20)
 #define PPMEN_MASK (0x3 << 8)
+#define PPMCTL_MASK (0xFF)
 
 enum sys_throttling_core { SYS_THROTTLING_MID_CORE, SYS_THROTTLING_BIG_CORE };
 
@@ -130,9 +131,8 @@ static int reset_cpucl1_stat(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(cpucl1_clkdivstep_stat_fops, get_cpucl1_stat,
 			reset_cpucl1_stat, "%d\n");
 
-static void gs101_set_sys_throttling(enum sys_throttling_core core,
-				     enum sys_throttling_switch throttle_switch,
-				     enum sys_throttling_mode mode)
+static void gs101_set_ppm_throttling(enum sys_throttling_core core,
+				     enum sys_throttling_switch throttle_switch)
 {
 	unsigned int reg, mask;
 	void __iomem *addr;
@@ -142,15 +142,40 @@ static void gs101_set_sys_throttling(enum sys_throttling_core core,
 		return;
 	}
 	mutex_lock(&sysreg_lock);
-	addr = gs101_bcl_device->sysreg_cpucl0 +
-	       ((mode == SYS_THROTTLING_PPM_MODE) ? CLUSTER0_PPM :
-							  CLUSTER0_MPMM);
+	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM;
+	reg = __raw_readl(addr);
+	mask = (core == SYS_THROTTLING_BIG_CORE) ? (0x01 << 8) : (0x01 << 9);
+	/* 75% dispatch reduction */
+	if (throttle_switch == SYS_THROTTLING_ENABLED) {
+		reg |= mask;
+		reg |= PPMCTL_MASK;
+	} else {
+		reg &= ~mask;
+		reg &= ~(PPMCTL_MASK);
+	}
+	__raw_writel(reg, addr);
+	mutex_unlock(&sysreg_lock);
+}
+
+static void
+gs101_set_mpmm_throttling(enum sys_throttling_core core,
+			  enum sys_throttling_switch throttle_switch)
+{
+	unsigned int reg, mask;
+	void __iomem *addr;
+
+	if (!gs101_bcl_device->sysreg_cpucl0) {
+		pr_err("sysreg_cpucl0 ioremap not mapped\n");
+		return;
+	}
+	mutex_lock(&sysreg_lock);
+	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_MPMM;
 	reg = __raw_readl(addr);
 	mask = (core == SYS_THROTTLING_BIG_CORE) ? (0x0F << 4) : 0x0F;
 	if (throttle_switch == SYS_THROTTLING_ENABLED)
-		reg |= mask;
-	else
 		reg &= ~mask;
+	else
+		reg |= mask;
 	__raw_writel(reg, addr);
 	mutex_unlock(&sysreg_lock);
 }
@@ -162,10 +187,8 @@ static int gs101_enable_ppm_throttling(void *data, u64 val)
 	pr_info("gs101: enable PPM throttling");
 
 	mode = (val == 0) ? SYS_THROTTLING_DISABLED : SYS_THROTTLING_ENABLED;
-	gs101_set_sys_throttling(SYS_THROTTLING_MID_CORE, mode,
-				 SYS_THROTTLING_PPM_MODE);
-	gs101_set_sys_throttling(SYS_THROTTLING_BIG_CORE, mode,
-				 SYS_THROTTLING_PPM_MODE);
+	gs101_set_ppm_throttling(SYS_THROTTLING_MID_CORE, mode);
+	gs101_set_ppm_throttling(SYS_THROTTLING_BIG_CORE, mode);
 	return 0;
 }
 
@@ -178,10 +201,8 @@ static int gs101_enable_mpmm_throttling(void *data, u64 val)
 	pr_info("gs101: enable MPMM throttling");
 
 	mode = (val == 0) ? SYS_THROTTLING_DISABLED : SYS_THROTTLING_ENABLED;
-	gs101_set_sys_throttling(SYS_THROTTLING_MID_CORE, mode,
-				 SYS_THROTTLING_MPMM_MODE);
-	gs101_set_sys_throttling(SYS_THROTTLING_BIG_CORE, mode,
-				 SYS_THROTTLING_MPMM_MODE);
+	gs101_set_mpmm_throttling(SYS_THROTTLING_MID_CORE, mode);
+	gs101_set_mpmm_throttling(SYS_THROTTLING_BIG_CORE, mode);
 	return 0;
 }
 
@@ -249,6 +270,14 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	reg |= PPMEN_MASK;
 	__raw_writel(reg, gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM);
 	mutex_unlock(&sysreg_lock);
+	gs101_set_ppm_throttling(SYS_THROTTLING_MID_CORE,
+				 SYS_THROTTLING_DISABLED);
+	gs101_set_ppm_throttling(SYS_THROTTLING_BIG_CORE,
+				 SYS_THROTTLING_DISABLED);
+	gs101_set_mpmm_throttling(SYS_THROTTLING_MID_CORE,
+				  SYS_THROTTLING_DISABLED);
+	gs101_set_mpmm_throttling(SYS_THROTTLING_BIG_CORE,
+				  SYS_THROTTLING_DISABLED);
 
 	return 0;
 }
