@@ -29,6 +29,7 @@
 #include <soc/google/cal-if.h>
 #include <soc/google/bts.h>
 #include <linux/of_platform.h>
+#include <trace/events/power.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #include "../../soc/google/cal-if/acpm_dvfs.h"
 #include <soc/google/exynos-pd.h>
@@ -526,7 +527,7 @@ static int exynos_devfreq_set_freq(struct device *dev, u32 new_freq,
 		dev_err(dev, "failed set frequency to CAL (%uKhz)\n", new_freq);
 		return -EINVAL;
 	}
-
+	trace_clock_set_rate(dev_name(data->dev), new_freq, raw_smp_processor_id());
 	if (data->bts_update) {
 		if (data->new_freq > data->old_freq)
 			bts_update_scen(BS_MIF_CHANGE, data->new_freq);

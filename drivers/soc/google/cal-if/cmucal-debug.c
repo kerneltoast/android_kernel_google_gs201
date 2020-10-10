@@ -498,8 +498,8 @@ vclk_write_set_freq(struct file *filp, const char __user *ubuf,
 	if (dvfs_domain && !kstrtoint(buf, 0, &freq)) {
 		debug_freq = freq;
 		cal_dfs_set_rate(dvfs_domain->id, freq);
-		//trace_clock_set_rate(dvfs_domain->name, freq,
-		//		     raw_smp_processor_id());
+		trace_clock_set_rate(dvfs_domain->name, freq,
+				     raw_smp_processor_id());
 	}
 
 	return len;

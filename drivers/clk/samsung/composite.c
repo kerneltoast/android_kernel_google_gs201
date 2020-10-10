@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <soc/google/cal-if.h>
-//#include <trace/events/power.h>
+#include <trace/events/power.h>
 
 #include "composite.h"
 
@@ -1451,8 +1451,8 @@ int cal_vclk_dfs_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EAGAIN;
 	}
 
-//	trace_clock_set_rate(__clk_get_name(hw->clk), rate,
-//			     raw_smp_processor_id());
+	trace_clock_set_rate(__clk_get_name(hw->clk), rate,
+			     raw_smp_processor_id());
 #if 0
 	dbg_snapshot_clk(hw, __func__, rate, DSS_FLAG_OUT);
 #endif
@@ -1482,8 +1482,8 @@ int cal_vclk_dfs_set_rate_switch(struct clk_hw *hw, unsigned long rate,
 		return -EAGAIN;
 	}
 
-//	trace_clock_set_rate(__clk_get_name(hw->clk), rate,
-//			     raw_smp_processor_id());
+	trace_clock_set_rate(__clk_get_name(hw->clk), rate,
+			     raw_smp_processor_id());
 
 	if (vclk->lock)
 		spin_unlock_irqrestore(vclk->lock, flags);
