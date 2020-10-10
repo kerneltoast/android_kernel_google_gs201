@@ -2108,7 +2108,7 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 	}
 	if (data->max_freq) {
 		err = dev_pm_qos_update_request(
-			&data->devfreq->user_min_freq_req, data->max_freq);
+			&data->devfreq->user_max_freq_req, data->max_freq);
 		if (err < 0)
 			goto err_dm_scaler;
 	}
