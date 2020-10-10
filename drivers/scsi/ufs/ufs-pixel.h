@@ -76,4 +76,30 @@ struct pixel_req_stats {
 	u64 req_sum;
 	u64 req_count;
 };
+
+/* defined I/O amount on statistics */
+enum io_type_stats {
+	IO_TYPE_READ = 0,
+	IO_TYPE_WRITE = 1,
+	IO_TYPE_READ_WRITE = 2,
+	IO_TYPE_MAX = 3,
+};
+
+/**
+ * struct pixel_io_stats - statistics for I/O amount.
+ * @req_count_started: total number of I/O requests, which were started.
+ * @total_bytes_started: total I/O amount in bytes, which were started.
+ * @req_count_completed: total number of I/O request, which were completed.
+ * @total_bytes_completed: total I/O amount in bytes, which were completed.
+ * @max_diff_req_count: MAX of 'req_count_started - req_count_completed'.
+ * @max_diff_total_bytes: MAX of 'total_bytes_started - total_bytes_completed'.
+ */
+struct pixel_io_stats {
+	u64 req_count_started;
+	u64 total_bytes_started;
+	u64 req_count_completed;
+	u64 total_bytes_completed;
+	u64 max_diff_req_count;
+	u64 max_diff_total_bytes;
+};
 #endif

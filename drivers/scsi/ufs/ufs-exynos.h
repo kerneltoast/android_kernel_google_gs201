@@ -158,6 +158,8 @@ struct exynos_ufs {
 
 	/* pixel ufs request statistics */
 	struct pixel_req_stats req_stats[REQ_TYPE_MAX];
+	/* pixel ufs I/O quatity statistics */
+	struct pixel_io_stats io_stats[IO_TYPE_MAX];
 };
 
 static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)
@@ -192,6 +194,7 @@ static inline void exynos_ufs_fmp_resume(struct ufs_hba *hba)
 void pixel_ufs_prepare_command(struct ufs_hba *hba,
 			struct request *rq, struct ufshcd_lrb *lrbp);
 int pixel_ufs_update_sysfs(struct ufs_hba *hba);
+void pixel_ufs_send_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
 void pixel_ufs_compl_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
 
 #endif /* _UFS_EXYNOS_H_ */

@@ -82,8 +82,61 @@ void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		rst->req_max = delta;
 }
 
+static void __update_io_stats(struct ufs_hba *hba,
+		struct pixel_io_stats *io_stats, u32 transfer_len,
+		bool is_start)
+{
+	if (is_start) {
+		u64 diff;
+
+		io_stats->req_count_started++;
+		io_stats->total_bytes_started += transfer_len;
+		diff = io_stats->req_count_started -
+			io_stats->req_count_completed;
+		if (diff > io_stats->max_diff_req_count)
+			io_stats->max_diff_req_count = diff;
+		diff = io_stats->total_bytes_started -
+			io_stats->total_bytes_completed;
+		if (diff > io_stats->max_diff_total_bytes)
+			io_stats->max_diff_total_bytes = diff;
+	} else {
+		io_stats->req_count_completed++;
+		io_stats->total_bytes_completed += transfer_len;
+	}
+}
+
+static void pixel_ufs_update_io_stats(struct ufs_hba *hba,
+		struct ufshcd_lrb *lrbp, int is_start)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct pixel_io_stats *ist;
+	u32 transfer_len;
+	u8 cmd_type;
+
+	if (pixel_ufs_get_cmd_type(lrbp, &cmd_type))
+		return;
+
+	if (cmd_type != REQ_TYPE_READ && cmd_type != REQ_TYPE_WRITE)
+		return;
+
+	transfer_len = blk_rq_bytes(lrbp->cmd->request);
+
+	/* Upload I/O amount on statistic */
+	ist = &(ufs->io_stats[IO_TYPE_READ_WRITE]);
+	__update_io_stats(hba, ist, transfer_len, is_start);
+	ist = &(ufs->io_stats[(cmd_type == REQ_TYPE_READ) ?
+			IO_TYPE_READ : IO_TYPE_WRITE]);
+	__update_io_stats(hba, ist, transfer_len, is_start);
+}
+
+void pixel_ufs_send_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+{
+	pixel_ufs_update_io_stats(hba, lrbp, true);
+}
+
 void pixel_ufs_compl_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
+	pixel_ufs_update_io_stats(hba, lrbp, false);
 	pixel_ufs_update_req_stats(hba, lrbp);
 }
 
@@ -573,9 +626,99 @@ static const struct attribute_group pixel_sysfs_req_stats_group = {
 	.attrs = ufs_sysfs_req_stats,
 };
 
+#define PIXEL_IO_STATS_ATTR(_name, _io_name, _type_show)		\
+static ssize_t _name##_show(struct device *dev,			\
+	struct device_attribute *attr, char *buf)		\
+{								\
+	struct ufs_hba *hba = dev_get_drvdata(dev);		\
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);		\
+	unsigned long flags;					\
+	u64 val;						\
+	spin_lock_irqsave(hba->host->host_lock, flags);		\
+	val = ufs->io_stats[_io_name]._type_show;		\
+	spin_unlock_irqrestore(hba->host->host_lock, flags);	\
+	return sprintf(buf, "%llu\n", val);			\
+}								\
+static DEVICE_ATTR_RO(_name)
+
+static ssize_t reset_io_status_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t reset_io_status_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	unsigned long flags;
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	ufs->io_stats[IO_TYPE_READ].max_diff_req_count = 0;
+	ufs->io_stats[IO_TYPE_READ].max_diff_total_bytes = 0;
+	ufs->io_stats[IO_TYPE_WRITE].max_diff_req_count = 0;
+	ufs->io_stats[IO_TYPE_WRITE].max_diff_total_bytes = 0;
+	ufs->io_stats[IO_TYPE_READ_WRITE].max_diff_req_count = 0;
+	ufs->io_stats[IO_TYPE_READ_WRITE].max_diff_total_bytes = 0;
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	return count;
+}
+
+PIXEL_IO_STATS_ATTR(rcnt_start, IO_TYPE_READ, req_count_started);
+PIXEL_IO_STATS_ATTR(rcnt_complete, IO_TYPE_READ, req_count_completed);
+PIXEL_IO_STATS_ATTR(rcnt_maxdiff, IO_TYPE_READ, max_diff_req_count);
+PIXEL_IO_STATS_ATTR(rbyte_start, IO_TYPE_READ, total_bytes_started);
+PIXEL_IO_STATS_ATTR(rbyte_complete, IO_TYPE_READ, total_bytes_completed);
+PIXEL_IO_STATS_ATTR(rbyte_maxdiff, IO_TYPE_READ, max_diff_total_bytes);
+PIXEL_IO_STATS_ATTR(wcnt_start, IO_TYPE_WRITE, req_count_started);
+PIXEL_IO_STATS_ATTR(wcnt_complete, IO_TYPE_WRITE, req_count_completed);
+PIXEL_IO_STATS_ATTR(wcnt_maxdiff, IO_TYPE_WRITE, max_diff_req_count);
+PIXEL_IO_STATS_ATTR(wbyte_start, IO_TYPE_WRITE, total_bytes_started);
+PIXEL_IO_STATS_ATTR(wbyte_complete, IO_TYPE_WRITE, total_bytes_completed);
+PIXEL_IO_STATS_ATTR(wbyte_maxdiff, IO_TYPE_WRITE, max_diff_total_bytes);
+PIXEL_IO_STATS_ATTR(rwcnt_start, IO_TYPE_READ_WRITE, req_count_started);
+PIXEL_IO_STATS_ATTR(rwcnt_complete, IO_TYPE_READ_WRITE, req_count_completed);
+PIXEL_IO_STATS_ATTR(rwcnt_maxdiff, IO_TYPE_READ_WRITE, max_diff_req_count);
+PIXEL_IO_STATS_ATTR(rwbyte_start, IO_TYPE_READ_WRITE, total_bytes_started);
+PIXEL_IO_STATS_ATTR(rwbyte_complete, IO_TYPE_READ_WRITE,
+		total_bytes_completed);
+PIXEL_IO_STATS_ATTR(rwbyte_maxdiff, IO_TYPE_READ_WRITE, max_diff_total_bytes);
+DEVICE_ATTR_RW(reset_io_status);
+
+static struct attribute *ufs_sysfs_io_stats[] = {
+	&dev_attr_rcnt_start.attr,
+	&dev_attr_rcnt_complete.attr,
+	&dev_attr_rcnt_maxdiff.attr,
+	&dev_attr_rbyte_start.attr,
+	&dev_attr_rbyte_complete.attr,
+	&dev_attr_rbyte_maxdiff.attr,
+	&dev_attr_wcnt_start.attr,
+	&dev_attr_wcnt_complete.attr,
+	&dev_attr_wcnt_maxdiff.attr,
+	&dev_attr_wbyte_start.attr,
+	&dev_attr_wbyte_complete.attr,
+	&dev_attr_wbyte_maxdiff.attr,
+	&dev_attr_rwcnt_start.attr,
+	&dev_attr_rwcnt_complete.attr,
+	&dev_attr_rwcnt_maxdiff.attr,
+	&dev_attr_rwbyte_start.attr,
+	&dev_attr_rwbyte_complete.attr,
+	&dev_attr_rwbyte_maxdiff.attr,
+	&dev_attr_reset_io_status.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_io_stats_group = {
+	.name = "io_stats",
+	.attrs = ufs_sysfs_io_stats,
+};
+
 static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_group,
 	&pixel_sysfs_req_stats_group,
+	&pixel_sysfs_io_stats_group,
 	NULL,
 };
 
