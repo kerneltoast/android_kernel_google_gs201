@@ -13,7 +13,7 @@
 		gs101_tm1: gs101_spmic_tm1 {
 			compatible = "google,gs101-spmic-thermal";
 			#thermal-sensor-cells = <1>;
-			adc_chan_en = /bits/ 8 <0x0>;
+			adc_chan_en = /bits/ 8 <0x20>;
 		};
 	};
 };
@@ -86,16 +86,47 @@
 		};
 	};
 	disp_therm {
-		polling-delay-passive = <0>;
-		polling-delay = <0>;
-		thermal-governor = "user_space";
+		polling-delay-passive = <5000>;
+		polling-delay = <30000>;
+		thermal-governor = "step_wise";
 		thermal-sensors = <&gs101_tm1 5>;
 		trips {
-			trip_config5: trip-config5 {
-				temperature = <125000>;
+			skin_critical: skin-critical {
+				temperature = <40000>;
 				hysteresis = <1000>;
 				type = "passive";
 			};
+			skin_backup_shutdown: skin-backup-shutdown {
+				temperature = <50000>;
+				hysteresis = <1000>;
+				type = "critical";
+			};
+		};
+		cooling-maps {
+				cpu0-map {
+					trip = <&skin_critical>;
+					cooling-device = <&cpufreq_domain0
+						THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+				cpu1-map {
+					trip = <&skin_critical>;
+					cooling-device = <&cpufreq_domain1
+						THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+				cpu2-map {
+					trip = <&skin_critical>;
+					cooling-device = <&cpufreq_domain2
+						THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+				gpu-map {
+					trip = <&skin_critical>;
+					cooling-device = <&mali
+						THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
 		};
 	};
 	ufs_stb_therm {
