@@ -38,6 +38,7 @@ extern unsigned long dbg_snapshot_get_last_pc(unsigned int cpu);
 extern unsigned long dbg_snapshot_get_last_pc_paddr(void);
 /* debug-snapshot-dpm functions */
 extern bool dbg_snapshot_get_dpm_status(void);
+extern bool dbg_snapshot_get_enabled_debug_kinfo(void);
 extern void dbg_snapshot_do_dpm_policy(unsigned int policy, const char *str);
 /* debug-snapshot-qd functions */
 extern int dbg_snapshot_qd_add_region(void *v_entry, u32 attr);

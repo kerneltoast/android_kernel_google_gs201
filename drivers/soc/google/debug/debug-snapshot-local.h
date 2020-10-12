@@ -59,6 +59,7 @@ struct dbg_snapshot_dpm {
 	unsigned int dump_mode;
 	int dump_mode_none;
 	bool dump_mode_file;
+	bool enabled_debug_kinfo;
 
 	unsigned int pre_log;
 	unsigned int p_el1_da;

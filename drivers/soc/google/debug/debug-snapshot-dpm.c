@@ -38,6 +38,12 @@ bool dbg_snapshot_get_dpm_status(void)
 }
 EXPORT_SYMBOL(dbg_snapshot_get_dpm_status);
 
+bool dbg_snapshot_get_enabled_debug_kinfo(void)
+{
+	return dss_dpm.enabled_debug_kinfo;
+}
+EXPORT_SYMBOL(dbg_snapshot_get_enabled_debug_kinfo);
+
 void dbg_snapshot_do_dpm(struct pt_regs *regs)
 {
 	unsigned int esr = read_sysreg(esr_el1);
@@ -147,6 +153,19 @@ static void dbg_snapshot_dt_scan_dpm_feature(struct device_node *node)
 		}
 
 		dbg_snapshot_set_enable_log_item(method, true);
+	}
+
+	item = of_find_node_by_name(node, "debug-kinfo");
+	if (!item) {
+		pr_info("dpm: No such debug-kinfo node, [debug-kinfo] disabled\n");
+		goto exit_dss;
+	}
+
+	if (of_property_read_u32(item, "enabled", &val)) {
+		pr_info("dpm: No such enabled of debug-kinfo, [debug-kinfo] disabled\n");
+	} else {
+		dss_dpm.enabled_debug_kinfo = val;
+		pr_info("dpm: debug-kinfo is %sabled\n", val ? "en" : "dis");
 	}
 
 exit_dss:
