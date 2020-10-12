@@ -29,4 +29,7 @@
 		csr-size = <0x10000>;
 		gsa-device = <&gsa>;
 	};
+	tpu_cooling: tpu-cooling {
+		#cooling-cells = <2>;
+	};
 };
