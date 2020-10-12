@@ -370,6 +370,32 @@
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
+	exynos-pm {
+		compatible = "samsung,exynos-pm";
+		reg = <0x0 0x174D0000 0x1000>,
+			<0x0 0x174E0000 0x1000>,
+			<0x0 0x10540204 0x100>;
+		reg-names = "gpio_alive_base",
+			"gpio_far_alive_base",
+			"gicd_ispendrn_base";
+		num-eint = <64>;	/* EINT_0 ~ 44 */
+		num-eint-far = <32>;	/* EINT_45 ~ 66 */
+		gpa-use = <8>, <7>, <5>, <4>, <4>, <7>, <8>, <2>, <8>, <4>, <8>, <2>;
+		num-gic = <30>;
+		suspend_mode_idx = <8>;
+
+					/* WAKEUP_STAT,		WAKEUP2_STAT */
+		wakeup_stat_offset =	<0x3950>,		<0x3954>;
+		wakeup_int_en_offset =	<0x3944>,		<0x3964>;
+		wakeup_int_en =		<0x1f0bf>,		<0x0>;
+
+		eint_wakeup_mask_offset = <0x3a80>, <0x3a84>, <0x3a88>;
+		wakeup-stat-eint = <4>, <5>;
+		wakeup-stat-rtc = <0>;
+
+		wake_lock = <0>;		/* 1: held wake_lock */
+	};
+
 	exynos-pmu {
 		compatible = "samsung,exynos-pmu";
 		samsung,syscon-phandle = <&pmu_system_controller>;
