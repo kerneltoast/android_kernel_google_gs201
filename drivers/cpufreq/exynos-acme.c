@@ -1015,6 +1015,12 @@ init_freq_qos(struct exynos_cpufreq_domain *domain, struct cpufreq_policy *polic
 	if (ret < 0)
 		return ret;
 
+	/* Skip pm_qos if setting exists in device tree */
+	if (of_property_read_bool(dn, "skip-boot-pmqos")) {
+		pr_info("Skipping boot pm_qos domain%d\n", domain->id);
+		return 0;
+	}
+
 	/*
 	 * Basically booting pm_qos is set to max frequency of domain.
 	 * But if pm_qos-booting exists in device tree,
@@ -1031,7 +1037,7 @@ init_freq_qos(struct exynos_cpufreq_domain *domain, struct cpufreq_policy *polic
 	/* booting boost, it is expired after 40s */
 	INIT_DELAYED_WORK(&domain->work, freq_qos_release);
 	schedule_delayed_work(&domain->work, msecs_to_jiffies(40000));
-
+	pr_info("Set boot pm_qos domain%d to %d for %d\n", domain->id, boot_qos, 40 * USEC_PER_SEC);
 	return 0;
 }
 
