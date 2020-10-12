@@ -6,6 +6,7 @@ obj-$(CONFIG_EXYNOS_CPUHP)		+= exynos-cpuhp.o
 obj-$(CONFIG_EXYNOS_PD)			+= exynos-pd.o
 obj-$(CONFIG_EXYNOS_PD_DBG)		+= exynos-pd-dbg.o
 obj-$(CONFIG_EXYNOS_PD_EL3)		+= exynos-pd_el3.o
+obj-$(CONFIG_EXYNOS_PM)			+= exynos-pm.o
 
 # CPU Power Management
 obj-$(CONFIG_EXYNOS_CPUPM)		+= exynos-cpupm.o

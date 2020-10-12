@@ -1409,6 +1409,7 @@ u32 exynos_eint_to_pin_num(int eint)
 
 	return drvdata->pin_base + eint + offset;
 }
+EXPORT_SYMBOL(exynos_eint_to_pin_num);
 
 #else
 #define samsung_pinctrl_suspend		NULL

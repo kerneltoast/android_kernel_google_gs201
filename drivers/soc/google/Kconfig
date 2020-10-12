@@ -82,6 +82,11 @@ config EXYNOS_PD_EL3
 	help
 	Support Exynos Power Domain Save/Restore
 
+config EXYNOS_PM
+	tristate "Enable Exynos PM Support"
+	help
+	Support EXYNOS_PM for Exynos SoC.
+
 config EXYNOS_CPUPM
 	tristate "CPU Power Management driver"
 	depends on SOC_GS101 && PMUCAL
