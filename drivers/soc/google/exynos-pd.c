@@ -332,6 +332,41 @@ static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 	return 0;
 }
 
+static int exynos_pd_suspend_late(struct device *dev)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct exynos_pm_domain *data = platform_get_drvdata(pdev);
+
+	if (IS_ERR(&data->genpd))
+		return 0;
+
+	/* Suspend callback function might be registered if necessary */
+	if (of_property_read_bool(dev->of_node, "pd-always-on")) {
+		data->genpd.flags = 0;
+		dev_info(dev, EXYNOS_PD_PREFIX "    %-9s flag set to 0\n", data->genpd.name);
+	}
+
+	return 0;
+}
+
+static int exynos_pd_resume_early(struct device *dev)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct exynos_pm_domain *data = (struct exynos_pm_domain *)platform_get_drvdata(pdev);
+
+	if (IS_ERR(&data->genpd))
+		return 0;
+
+	/* Resume callback function might be registered if necessary */
+	if (of_property_read_bool(dev->of_node, "pd-always-on")) {
+		data->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
+		dev_info(dev, EXYNOS_PD_PREFIX "    %-9s - %s\n", data->genpd.name,
+			 "on,  always");
+	}
+
+	return 0;
+}
+
 static int exynos_pd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -478,6 +513,11 @@ static const struct of_device_id of_exynos_pd_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_exynos_pd_match);
 
+static const struct dev_pm_ops exynos_pd_pm_ops = {
+	.suspend_late	= exynos_pd_suspend_late,
+	.resume_early	= exynos_pd_resume_early,
+};
+
 static const struct platform_device_id exynos_pd_ids[] = {
 	{ "exynos-pd", },
 	{ }
@@ -488,6 +528,7 @@ static struct platform_driver exynos_pd_driver = {
 		.name = "exynos-pd",
 		.of_match_table = of_exynos_pd_match,
 		.sync_state = exynos_pd_sync_state,
+		.pm = &exynos_pd_pm_ops
 	},
 	.probe		= exynos_pd_probe,
 	.id_table	= exynos_pd_ids,
