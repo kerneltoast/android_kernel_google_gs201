@@ -438,12 +438,6 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 		dev_err(dev, "gs101_spmic_thermal init failed\n");
 		goto fail;
 	}
-	ret = gs101_spmic_thermal_register_tzd(chip);
-	if (ret) {
-		dev_err(dev, "Failed to register with of thermal\n");
-		goto fail;
-	}
-	platform_set_drvdata(pdev, chip);
 
 	/* w/a for reversed NTC_LPF_DATA */
 	/* 0x00 is the highest threshold for NTC values, not 0xff  */
@@ -473,9 +467,18 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 		}
 	}
 	ret = gs101_spmic_set_enable(chip, true);
-	if (ret)
+	if (ret) {
 		dev_err(dev, "Failed to enable NTC engine\n");
+		goto fail;
+	}
 
+	ret = gs101_spmic_thermal_register_tzd(chip);
+	if (ret) {
+		dev_err(dev, "Failed to register with of thermal\n");
+		goto fail;
+	}
+
+	platform_set_drvdata(pdev, chip);
 fail:
 	return ret;
 }
