@@ -1221,7 +1221,7 @@ static bool _start(struct pl330_thread *thrd)
 		UNTIL(thrd, PL330_STATE_FAULTING | PL330_STATE_KILLING);
 
 		if (_state(thrd) == PL330_STATE_KILLING)
-			UNTIL(thrd, PL330_STATE_STOPPED)
+			UNTIL(thrd, PL330_STATE_STOPPED);
 		fallthrough;
 
 	case PL330_STATE_FAULTING:
@@ -1230,7 +1230,7 @@ static bool _start(struct pl330_thread *thrd)
 
 	case PL330_STATE_KILLING:
 	case PL330_STATE_COMPLETING:
-		UNTIL(thrd, PL330_STATE_STOPPED)
+		UNTIL(thrd, PL330_STATE_STOPPED);
 		fallthrough;
 
 	case PL330_STATE_STOPPED:
