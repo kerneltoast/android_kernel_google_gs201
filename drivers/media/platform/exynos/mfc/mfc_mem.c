@@ -537,14 +537,16 @@ void mfc_cleanup_iovmm(struct mfc_ctx *ctx)
 	mutex_lock(&dec->dpb_mutex);
 
 	for (i = 0; i < MFC_MAX_DPBS; i++) {
+		dec->dpb[i].paddr = 0;
+		dec->dpb[i].ref = 0;
 		if (dec->dpb[i].mapcnt == 0) {
 			continue;
 		} else if (dec->dpb[i].mapcnt == 1) {
 			mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
 		} else {
 			snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
-					"[IOVMM] DPB[%d] %#llx invalid mapcnt %d\n",
-					i, dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
+					"[IOVMM] DPB[%d] %pad invalid mapcnt %d\n",
+					i, &dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
 			mfc_ctx_err("%s", dev->dev_crash_info);
 			MFC_TRACE_CTX("%s", dev->dev_crash_info);
 			call_dop(dev, dump_and_stop_debug_mode, dev);
@@ -562,16 +564,22 @@ void mfc_cleanup_iovmm_except_used(struct mfc_ctx *ctx)
 	mutex_lock(&dec->dpb_mutex);
 
 	for (i = 0; i < MFC_MAX_DPBS; i++) {
-		if (dec->dpb[i].mapcnt == 0 || dec->dynamic_used & (1UL << i)) {
+		if (dec->dynamic_used & (1UL << i)) {
 			continue;
-		} else if (dec->dpb[i].mapcnt == 1) {
-			dec->dpb_table_used &= ~(1UL << i);
-			mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
 		} else {
-			mfc_ctx_err("[IOVMM] DPB[%d] %#llx invalid mapcnt %d\n",
-					i, dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
-			MFC_TRACE_CTX("DPB[%d] %#llx invalid mapcnt %d\n",
-					i, dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
+			dec->dpb[i].paddr = 0;
+			dec->dpb[i].ref = 0;
+			if (dec->dpb[i].mapcnt == 0) {
+				continue;
+			} else if (dec->dpb[i].mapcnt == 1) {
+				dec->dpb_table_used &= ~(1UL << i);
+				mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
+			} else {
+				mfc_ctx_err("[IOVMM] DPB[%d] %pad invalid mapcnt %d\n",
+						i, &dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
+				MFC_TRACE_CTX("DPB[%d] %pad invalid mapcnt %d\n",
+						i, &dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
+			}
 		}
 	}
 

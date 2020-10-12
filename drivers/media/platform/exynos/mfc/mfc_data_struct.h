@@ -2026,6 +2026,7 @@ struct mfc_dec {
 	struct dec_dpb_ref_info *ref_info;
 	struct stored_dpb_info ref_buf[MFC_MAX_BUFFERS];
 	int refcnt;
+	int last_dpb_max_index;
 	struct mfc_user_shared_handle sh_handle_dpb;
 
 	/* for HDR10+ */

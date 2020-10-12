@@ -812,6 +812,7 @@ void mfc_core_instance_dpb_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 	dec->queued_dpb = 0;
 	ctx->is_dpb_realloc = 0;
 	dec->y_addr_for_pb = 0;
+	dec->last_dpb_max_index = 0;
 
 	if (!dec->inter_res_change) {
 		mfc_cleanup_iovmm(ctx);

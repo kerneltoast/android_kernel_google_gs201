@@ -844,6 +844,17 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 			vb->index, mfc_buf->dpb_index, mfc_buf->addr[0][0], dec->dynamic_used);
 
 	index = mfc_buf->dpb_index;
+	if (index > dec->last_dpb_max_index) {
+		mfc_debug(3, "[DPB] last dpb max index update %d -> %d\n",
+				dec->last_dpb_max_index, index);
+		if (index > (dec->last_dpb_max_index + 1)) {
+			mfc_ctx_err("[DPB] wrong dpb max index: %d max: %d\n",
+					index, dec->last_dpb_max_index);
+			MFC_TRACE_CTX("wrong dpb max index: %d max: %d\n",
+					index, dec->last_dpb_max_index);
+		}
+		dec->last_dpb_max_index = index;
+	}
 
 	if (!dec->dpb[index].mapcnt) {
 		mfc_get_iovmm(ctx, vb, dec->dpb);

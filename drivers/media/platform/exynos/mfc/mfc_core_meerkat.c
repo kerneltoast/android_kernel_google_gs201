@@ -611,7 +611,7 @@ static void __mfc_dump_dpb(struct mfc_core *core, int curr_ctx)
 	struct mfc_ctx *ctx = core_ctx->ctx;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *mfc_buf = NULL;
-	int i;
+	int i, found, in_nal_q;
 
 	if (ctx->type != MFCINST_DECODER || dec == NULL)
 		return;
@@ -619,25 +619,46 @@ static void __mfc_dump_dpb(struct mfc_core *core, int curr_ctx)
 	dev_err(core->device, "-----------dumping MFC DPB queue-----------\n");
 	if (!list_empty(&ctx->dst_buf_queue.head))
 		list_for_each_entry(mfc_buf, &ctx->dst_buf_queue.head, list)
-			dev_err(core->device, "dst[%d][%d] %#llx used: %d\n",
+			dev_err(core->device, "dst[%d][%d] %pad used: %d\n",
 					mfc_buf->vb.vb2_buf.index, mfc_buf->dpb_index,
-					mfc_buf->addr[0][0], mfc_buf->used);
+					&mfc_buf->addr[0][0], mfc_buf->used);
 	if (!list_empty(&ctx->dst_buf_nal_queue.head))
 		list_for_each_entry(mfc_buf, &ctx->dst_buf_nal_queue.head, list)
-			dev_err(core->device, "dst_nal[%d][%d] %#llx used: %d\n",
+			dev_err(core->device, "dst_nal[%d][%d] %pad used: %d\n",
 					mfc_buf->vb.vb2_buf.index, mfc_buf->dpb_index,
-					mfc_buf->addr[0][0], mfc_buf->used);
+					&mfc_buf->addr[0][0], mfc_buf->used);
 
 	dev_err(core->device, "-----------dumping MFC DPB table-----------\n");
 	dev_err(core->device, "dynamic_used: %#lx, queued: %#lx, table_used: %#lx, dynamic_set: %#lx(dec: %#lx)\n",
 			dec->dynamic_used, dec->queued_dpb, dec->dpb_table_used,
 			core_ctx->dynamic_set, dec->dynamic_set);
-	for (i = 0; i < MFC_MAX_DPBS; i++)
-		dev_err(core->device, "[%d] dpb %#llx %#llx (%s, %s, %s)\n",
-				i, dec->dpb[i].addr[0], dec->dpb[i].addr[1],
+	for (i = 0; i < MFC_MAX_DPBS; i++) {
+		found = 0;
+		in_nal_q = 0;
+		list_for_each_entry(mfc_buf, &ctx->dst_buf_queue.head, list) {
+			if (i == mfc_buf->dpb_index) {
+				found = 1;
+				break;
+			}
+		}
+		if (!found) {
+			list_for_each_entry(mfc_buf, &ctx->dst_buf_nal_queue.head, list) {
+				if (i == mfc_buf->dpb_index) {
+					found = 1;
+					in_nal_q = 1;
+					break;
+				}
+			}
+		}
+		mfc_debug(3, "[%d] dpb [%d] %pad %pad %pap fd %d(%d) (%s, %s, %s%s)\n",
+				i, found ? mfc_buf->vb.vb2_buf.index : -1,
+				&dec->dpb[i].addr[0], &dec->dpb[i].addr[1],
+				&dec->dpb[i].paddr, dec->dpb[i].fd[0], dec->dpb[i].new_fd,
 				dec->dpb[i].mapcnt ? "map" : "unmap",
 				dec->dpb[i].ref ? "ref" : "free",
-				dec->dpb[i].queued ? "Q" : "DQ");
+				dec->dpb[i].queued ? "Q" : "DQ",
+				in_nal_q ? " in NALQ" : "");
+	}
 }
 
 static void __mfc_dump_info_without_regs(struct mfc_core *core)
