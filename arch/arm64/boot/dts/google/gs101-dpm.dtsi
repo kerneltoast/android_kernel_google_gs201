@@ -50,6 +50,11 @@
 				       DSS_LOG_ACPM,
 				       DSS_LOG_PRINTK;
 			};
+
+			/* debug-kinfo support */
+			debug-kinfo {
+				enabled = <1>;
+			};
 		};
 
 		policy {
