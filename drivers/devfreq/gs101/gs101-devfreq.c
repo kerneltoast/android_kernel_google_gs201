@@ -50,6 +50,8 @@
 
 #include "gs101-ppc.h"
 
+#define HZ_PER_KHZ	1000
+
 static struct exynos_devfreq_data **devfreq_data;
 
 static u32 freq_array[6];
@@ -115,7 +117,7 @@ static int exynos_devfreq_dm_call(struct device *parent,
 	if (err)
 		return -EINVAL;
 
-	exynos_pm_qos_max = dev_pm_qos_read_value(devfreq->dev.parent,
+	exynos_pm_qos_max = (unsigned long)HZ_PER_KHZ * dev_pm_qos_read_value(devfreq->dev.parent,
 						  DEV_PM_QOS_MAX_FREQUENCY);
 
 	if (!strcmp(devfreq->governor->name, "interactive") && gov_data->pm_qos_class_max)
@@ -216,13 +218,13 @@ static int devfreq_frequency_scaler(int dm_type, void *devdata,
 	 * min_freq
 	 */
 
-	min_freq = dev_pm_qos_read_value(devfreq->dev.parent,
+	min_freq = (unsigned long)HZ_PER_KHZ * dev_pm_qos_read_value(devfreq->dev.parent,
 					 DEV_PM_QOS_MIN_FREQUENCY);
 	if (min_freq && freq < min_freq) {
 		freq = min_freq;
 		flags &= ~DEVFREQ_FLAG_LEAST_UPPER_BOUND; /* Use GLB */
 	}
-	max_freq = dev_pm_qos_read_value(devfreq->dev.parent,
+	max_freq = (unsigned long)HZ_PER_KHZ * dev_pm_qos_read_value(devfreq->dev.parent,
 					 DEV_PM_QOS_MAX_FREQUENCY);
 	if (max_freq && freq > max_freq) {
 		freq = max_freq;
@@ -2103,13 +2105,13 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 
 	if (data->min_freq) {
 		err = dev_pm_qos_update_request(
-			&data->devfreq->user_min_freq_req, data->min_freq);
+			&data->devfreq->user_min_freq_req, data->min_freq / HZ_PER_KHZ);
 		if (err < 0)
 			goto err_dm_scaler;
 	}
 	if (data->max_freq) {
 		err = dev_pm_qos_update_request(
-			&data->devfreq->user_max_freq_req, data->max_freq);
+			&data->devfreq->user_max_freq_req, data->max_freq / HZ_PER_KHZ);
 		if (err < 0)
 			goto err_dm_scaler;
 	}
