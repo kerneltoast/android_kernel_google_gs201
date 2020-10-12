@@ -104,3 +104,28 @@ config EXYNOS_ECC_HANDLER
 	default n
 	help
 	  If ECC happened in cache of CPU, interrupt occurs to cpu.
+
+menuconfig EXYNOS_CORESIGHT_ETM
+        tristate "Enable ETM driver of exynos"
+        depends on ARM || ARM64
+        default n
+        help
+          ETM is the source of coresight component. ETM generates trace data
+	  for output through the ATB.
+
+config EXYNOS_CORESIGHT_ETF
+        bool "Enable ETF (FIFO or Buffer)"
+        depends on EXYNOS_CORESIGHT_ETM
+        default n
+        help
+          ETF is the sink or link part of coresight component.
+	  If you say Y only here, This is set sink(Circular buffer mode).
+	  If you also say Y ETR, This is set link(FIFO mode).
+
+config EXYNOS_CORESIGHT_ETR
+        bool "Enable ETR (Route DRAM)"
+        depends on EXYNOS_CORESIGHT_ETF
+        default n
+        help
+          ETR is the sink part of coresight component. Trace data is stored
+	  into DRAM. If say Y here, ETF is set link and this is set sink.
