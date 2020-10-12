@@ -19,7 +19,8 @@
 
 	panel@0 {
 		compatible = "samsung,s6e3hc2-fhd";
-		reg = <0>;
+		label = "samsung-s6e3hc2-fhd";
+		channel = <0>;
 		/* touch = <&spitouch>; */
 
 		/* reset, power */
