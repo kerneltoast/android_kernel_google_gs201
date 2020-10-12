@@ -11,6 +11,8 @@
  *
  */
 
+#include <dt-bindings/power/exynos-power.h>
+
 / {
 	pd_aoc: pd-aoc@17461880 {
 		compatible = "samsung,exynos-pd";
@@ -82,6 +84,7 @@
 		cmu_id = <0x11000000>;
 		status = "okay";
 		#power-domain-cells = <0>;
+		power-down-ok = <PD_OK_USB>;
 	};
 
 	pd_hsi2: pd-hsi2@17462080 {
