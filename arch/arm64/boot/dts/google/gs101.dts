@@ -718,7 +718,7 @@
 			/* Delay time */
 			use_delay_time = "false";
 
-			freq_info = <421000 421000 421000 421000 1716000 1014000>;
+			freq_info = <421000 421000 421000 421000 2730000 1014000>;
 			/* initial_freq, default_qos, suspend_freq, min_freq, max_freq reboot_freq */
 
 			/* governor data */
