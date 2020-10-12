@@ -258,6 +258,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <2>;
 			tz-cooling-name = "LITTLE";
+			skip-boot-pmqos;
 
 			dm-constraints {
 				list = <&lit_mif_perf>;
@@ -275,6 +276,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <1>;
 			tz-cooling-name = "MID";
+			skip-boot-pmqos;
 
 			dm-constraints {
 				list = <&med_mif_perf>,
@@ -293,6 +295,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <0>;
 			tz-cooling-name = "BIG";
+			skip-boot-pmqos;
 
 			dm-constraints {
 				list = <&big_mif_perf>;
