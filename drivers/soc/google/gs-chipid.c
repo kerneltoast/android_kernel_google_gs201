@@ -36,6 +36,7 @@ struct gs_chipid_variant {
 struct gs_chipid_info {
 	bool initialized;
 	u32 product_id;
+	u32 type;
 	u32 revision;
 	u32 main_rev;
 	u32 sub_rev;
@@ -52,6 +53,7 @@ struct gs_chipid_info {
 #define GS101_SOC_ID		0x09845000
 #define SOC_MASK		0xFFFFF000
 #define SOC_MASK_V2		0x00FFFFFF
+#define SOC_TYPE_MASK		0x0000000F
 #define LOTID_MASK		0x001FFFFF
 #define REV_MASK		0xF
 
@@ -220,6 +222,15 @@ static int chipid_sysfs_init(void)
 	return ret;
 }
 
+u32 gs_chipid_get_type(void)
+{
+	if (!gs_soc_info.initialized)
+		return -EPROBE_DEFER;
+
+	return gs_soc_info.type;
+}
+EXPORT_SYMBOL_GPL(gs_chipid_get_type);
+
 static void gs_chipid_get_chipid_info(void __iomem *reg)
 {
 	const struct gs_chipid_variant *data = gs_soc_info.drv_data;
@@ -236,6 +247,7 @@ static void gs_chipid_get_chipid_info(void __iomem *reg)
 	case 1:
 	default:
 		gs_soc_info.product_id = val & SOC_MASK;
+		gs_soc_info.type = val & SOC_TYPE_MASK;
 		break;
 	}
 
@@ -375,9 +387,9 @@ static int gs_chipid_probe(struct platform_device *pdev)
 	if (IS_ERR(soc_dev))
 		goto free_rev;
 
-	dev_info(&pdev->dev, "CPU[%s] CPU_REV[0x%x] Detected\n",
+	dev_info(&pdev->dev, "CPU[%s]%s CPU_REV[0x%x] Detected\n",
 		 product_id_to_name(gs_soc_info.product_id),
-		 gs_soc_info.revision);
+		 gs_soc_info.type ? "B0" : "", gs_soc_info.revision);
 	gs_soc_info.pdev = pdev;
 
 	chipid_sysfs_init();
