@@ -406,6 +406,9 @@ struct tcpm_port {
 	/* port belongs to a self powered device */
 	bool self_powered;
 
+	/* Port is still in tCCDebounce */
+	bool debouncing;
+
 	/* Collision Avoidance and Atomic Message Sequence */
 	enum tcpm_state upcoming_state;
 	enum tcpm_ams ams;
@@ -432,8 +435,6 @@ struct tcpm_port {
 
 	/* Sink caps have been queried */
 	bool sink_cap_done;
-
-	bool debouncing;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;

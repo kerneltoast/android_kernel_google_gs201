@@ -20,13 +20,14 @@
 
 #define INCFS_PENDING_READS_INODE 2
 #define INCFS_LOG_INODE 3
+#define INCFS_BLOCKS_WRITTEN_INODE 4
 #define READ_WRITE_FILE_MODE 0666
 
 /*******************************************************************************
  * .log pseudo file definition
  ******************************************************************************/
 static const char log_file_name[] = INCFS_LOG_FILENAME;
-static struct mem_range log_file_name_range = {
+static const struct mem_range log_file_name_range = {
 	.data = (u8 *)log_file_name,
 	.len = ARRAY_SIZE(log_file_name) - 1
 };
@@ -156,7 +157,7 @@ static const struct file_operations incfs_log_file_ops = {
  * .pending_reads pseudo file definition
  ******************************************************************************/
 static const char pending_reads_file_name[] = INCFS_PENDING_READS_FILENAME;
-static struct mem_range pending_reads_file_name_range = {
+static const struct mem_range pending_reads_file_name_range = {
 	.data = (u8 *)pending_reads_file_name,
 	.len = ARRAY_SIZE(pending_reads_file_name) - 1
 };
@@ -273,6 +274,7 @@ static long ioctl_permit_fill(struct file *f, void __user *arg)
 	struct incfs_permit_fill permit_fill;
 	long error = 0;
 	struct file *file = NULL;
+	struct incfs_file_data *fd;
 
 	if (copy_from_user(&permit_fill, usr_permit_fill, sizeof(permit_fill)))
 		return -EFAULT;
@@ -291,9 +293,11 @@ static long ioctl_permit_fill(struct file *f, void __user *arg)
 		goto out;
 	}
 
-	switch ((uintptr_t)file->private_data) {
+	fd = file->private_data;
+
+	switch (fd->fd_fill_permission) {
 	case CANT_FILL:
-		file->private_data = (void *)CAN_FILL;
+		fd->fd_fill_permission = CAN_FILL;
 		break;
 
 	case CAN_FILL:
@@ -462,13 +466,6 @@ static int init_new_file(struct mount_info *mi, struct dentry *dentry,
 	if (error)
 		goto out;
 
-	if (attr.data && attr.len) {
-		error = incfs_write_file_attr_to_backing_file(bfc,
-							attr, NULL);
-		if (error)
-			goto out;
-	}
-
 	block_count = (u32)get_blocks_count_for_size(size);
 
 	if (user_signature_info) {
@@ -522,6 +519,7 @@ static long ioctl_create_file(struct mount_info *mi,
 	char *file_id_str = NULL;
 	struct dentry *index_file_dentry = NULL;
 	struct dentry *named_file_dentry = NULL;
+	struct dentry *incomplete_file_dentry = NULL;
 	struct path parent_dir_path = {};
 	struct inode *index_dir_inode = NULL;
 	__le64 size_attr_value = 0;
@@ -529,8 +527,11 @@ static long ioctl_create_file(struct mount_info *mi,
 	char *attr_value = NULL;
 	int error = 0;
 	bool locked = false;
+	bool index_linked = false;
+	bool name_linked = false;
+	bool incomplete_linked = false;
 
-	if (!mi || !mi->mi_index_dir) {
+	if (!mi || !mi->mi_index_dir || !mi->mi_incomplete_dir) {
 		error = -EFAULT;
 		goto out;
 	}
@@ -575,6 +576,12 @@ static long ioctl_create_file(struct mount_info *mi,
 		goto out;
 	}
 
+	if (parent_dir_path.dentry == mi->mi_incomplete_dir) {
+		/* Can't create a file directly inside .incomplete */
+		error = -EBUSY;
+		goto out;
+	}
+
 	/* Look up a dentry in the parent dir. It should be negative. */
 	named_file_dentry = incfs_lookup_dentry(parent_dir_path.dentry,
 					file_name);
@@ -592,6 +599,25 @@ static long ioctl_create_file(struct mount_info *mi,
 		error = -EEXIST;
 		goto out;
 	}
+
+	/* Look up a dentry in the incomplete dir. It should be negative. */
+	incomplete_file_dentry = incfs_lookup_dentry(mi->mi_incomplete_dir,
+					file_id_str);
+	if (!incomplete_file_dentry) {
+		error = -EFAULT;
+		goto out;
+	}
+	if (IS_ERR(incomplete_file_dentry)) {
+		error = PTR_ERR(incomplete_file_dentry);
+		incomplete_file_dentry = NULL;
+		goto out;
+	}
+	if (d_really_is_positive(incomplete_file_dentry)) {
+		/* File with this path already exists. */
+		error = -EEXIST;
+		goto out;
+	}
+
 	/* Look up a dentry in the .index dir. It should be negative. */
 	index_file_dentry = incfs_lookup_dentry(mi->mi_index_dir, file_id_str);
 	if (!index_file_dentry) {
@@ -626,7 +652,7 @@ static long ioctl_create_file(struct mount_info *mi,
 	error = chmod(index_file_dentry, args.mode | 0222);
 	if (error) {
 		pr_debug("incfs: chmod err: %d\n", error);
-		goto delete_index_file;
+		goto out;
 	}
 
 	/* Save the file's ID as an xattr for easy fetching in future. */
@@ -634,7 +660,7 @@ static long ioctl_create_file(struct mount_info *mi,
 		file_id_str, strlen(file_id_str), XATTR_CREATE);
 	if (error) {
 		pr_debug("incfs: vfs_setxattr err:%d\n", error);
-		goto delete_index_file;
+		goto out;
 	}
 
 	/* Save the file's size as an xattr for easy fetching in future. */
@@ -644,27 +670,27 @@ static long ioctl_create_file(struct mount_info *mi,
 		XATTR_CREATE);
 	if (error) {
 		pr_debug("incfs: vfs_setxattr err:%d\n", error);
-		goto delete_index_file;
+		goto out;
 	}
 
 	/* Save the file's attribute as an xattr */
 	if (args.file_attr_len && args.file_attr) {
 		if (args.file_attr_len > INCFS_MAX_FILE_ATTR_SIZE) {
 			error = -E2BIG;
-			goto delete_index_file;
+			goto out;
 		}
 
 		attr_value = kmalloc(args.file_attr_len, GFP_NOFS);
 		if (!attr_value) {
 			error = -ENOMEM;
-			goto delete_index_file;
+			goto out;
 		}
 
 		if (copy_from_user(attr_value,
 				u64_to_user_ptr(args.file_attr),
 				args.file_attr_len) > 0) {
 			error = -EFAULT;
-			goto delete_index_file;
+			goto out;
 		}
 
 		error = vfs_setxattr(index_file_dentry,
@@ -673,7 +699,7 @@ static long ioctl_create_file(struct mount_info *mi,
 				XATTR_CREATE);
 
 		if (error)
-			goto delete_index_file;
+			goto out;
 	}
 
 	/* Initializing a newly created file. */
@@ -682,26 +708,40 @@ static long ioctl_create_file(struct mount_info *mi,
 			      (u8 __user *)args.signature_info,
 			      args.signature_size);
 	if (error)
-		goto delete_index_file;
+		goto out;
+	index_linked = true;
 
 	/* Linking a file with its real name from the requested dir. */
 	error = incfs_link(index_file_dentry, named_file_dentry);
-
-	if (!error)
+	if (error)
 		goto out;
+	name_linked = true;
 
-delete_index_file:
-	incfs_unlink(index_file_dentry);
+	if (args.size) {
+		/* Linking a file with its incomplete entry */
+		error = incfs_link(index_file_dentry, incomplete_file_dentry);
+		if (error)
+			goto out;
+		incomplete_linked = true;
+	}
 
 out:
-	if (error)
+	if (error) {
 		pr_debug("incfs: %s err:%d\n", __func__, error);
+		if (index_linked)
+			incfs_unlink(index_file_dentry);
+		if (name_linked)
+			incfs_unlink(named_file_dentry);
+		if (incomplete_linked)
+			incfs_unlink(incomplete_file_dentry);
+	}
 
 	kfree(file_id_str);
 	kfree(file_name);
 	kfree(attr_value);
 	dput(named_file_dentry);
 	dput(index_file_dentry);
+	dput(incomplete_file_dentry);
 	path_put(&parent_dir_path);
 	if (locked)
 		mutex_unlock(&mi->mi_dir_struct_mutex);
@@ -882,7 +922,7 @@ static long ioctl_create_mapped_file(struct mount_info *mi, void __user *arg)
 	}
 
 	error = init_new_mapped_file(mi, file_dentry, &args.source_file_id,
-			size_attr_value, cpu_to_le64(args.source_offset));
+			args.size, args.source_offset);
 	if (error)
 		goto delete_file;
 
@@ -900,6 +940,96 @@ out:
 	return error;
 }
 
+static long ioctl_get_read_timeouts(struct mount_info *mi, void __user *arg)
+{
+	struct incfs_get_read_timeouts_args __user *args_usr_ptr = arg;
+	struct incfs_get_read_timeouts_args args = {};
+	int error = 0;
+	struct incfs_per_uid_read_timeouts *buffer;
+	int size;
+
+	if (copy_from_user(&args, args_usr_ptr, sizeof(args)))
+		return -EINVAL;
+
+	if (args.timeouts_array_size_out > INCFS_DATA_FILE_BLOCK_SIZE)
+		return -EINVAL;
+
+	buffer = kzalloc(args.timeouts_array_size_out, GFP_NOFS);
+	if (!buffer)
+		return -ENOMEM;
+
+	spin_lock(&mi->mi_per_uid_read_timeouts_lock);
+	size = mi->mi_per_uid_read_timeouts_size;
+	if (args.timeouts_array_size < size)
+		error = -E2BIG;
+	else if (size)
+		memcpy(buffer, mi->mi_per_uid_read_timeouts, size);
+	spin_unlock(&mi->mi_per_uid_read_timeouts_lock);
+
+	args.timeouts_array_size_out = size;
+	if (!error && size)
+		if (copy_to_user(u64_to_user_ptr(args.timeouts_array), buffer,
+				 size))
+			error = -EFAULT;
+
+	if (!error || error == -E2BIG)
+		if (copy_to_user(args_usr_ptr, &args, sizeof(args)) > 0)
+			error = -EFAULT;
+
+	kfree(buffer);
+	return error;
+}
+
+static long ioctl_set_read_timeouts(struct mount_info *mi, void __user *arg)
+{
+	struct incfs_set_read_timeouts_args __user *args_usr_ptr = arg;
+	struct incfs_set_read_timeouts_args args = {};
+	int error = 0;
+	int size;
+	struct incfs_per_uid_read_timeouts *buffer = NULL, *tmp;
+	int i;
+
+	if (copy_from_user(&args, args_usr_ptr, sizeof(args)))
+		return -EINVAL;
+
+	size = args.timeouts_array_size;
+	if (size) {
+		if (size > INCFS_DATA_FILE_BLOCK_SIZE ||
+		    size % sizeof(*buffer) != 0)
+			return -EINVAL;
+
+		buffer = kzalloc(size, GFP_NOFS);
+		if (!buffer)
+			return -ENOMEM;
+
+		if (copy_from_user(buffer, u64_to_user_ptr(args.timeouts_array),
+				   size)) {
+			error = -EINVAL;
+			goto out;
+		}
+
+		for (i = 0; i < size / sizeof(*buffer); ++i) {
+			struct incfs_per_uid_read_timeouts *t = &buffer[i];
+
+			if (t->min_pending_time_ms > t->max_pending_time_ms) {
+				error = -EINVAL;
+				goto out;
+			}
+		}
+	}
+
+	spin_lock(&mi->mi_per_uid_read_timeouts_lock);
+	mi->mi_per_uid_read_timeouts_size = size;
+	tmp = mi->mi_per_uid_read_timeouts;
+	mi->mi_per_uid_read_timeouts = buffer;
+	buffer = tmp;
+	spin_unlock(&mi->mi_per_uid_read_timeouts_lock);
+
+out:
+	kfree(buffer);
+	return error;
+}
+
 static long pending_reads_dispatch_ioctl(struct file *f, unsigned int req,
 					unsigned long arg)
 {
@@ -912,6 +1042,10 @@ static long pending_reads_dispatch_ioctl(struct file *f, unsigned int req,
 		return ioctl_permit_fill(f, (void __user *)arg);
 	case INCFS_IOC_CREATE_MAPPED_FILE:
 		return ioctl_create_mapped_file(mi, (void __user *)arg);
+	case INCFS_IOC_GET_READ_TIMEOUTS:
+		return ioctl_get_read_timeouts(mi, (void __user *)arg);
+	case INCFS_IOC_SET_READ_TIMEOUTS:
+		return ioctl_set_read_timeouts(mi, (void __user *)arg);
 	default:
 		return -EINVAL;
 	}
@@ -925,6 +1059,90 @@ static const struct file_operations incfs_pending_read_file_ops = {
 	.llseek = noop_llseek,
 	.unlocked_ioctl = pending_reads_dispatch_ioctl,
 	.compat_ioctl = pending_reads_dispatch_ioctl
+};
+
+/*******************************************************************************
+ * .blocks_written pseudo file definition
+ ******************************************************************************/
+static const char blocks_written_file_name[] = INCFS_BLOCKS_WRITTEN_FILENAME;
+static const struct mem_range blocks_written_file_name_range = {
+	.data = (u8 *)blocks_written_file_name,
+	.len = ARRAY_SIZE(blocks_written_file_name) - 1
+};
+
+/* State of an open .blocks_written file, unique for each file descriptor. */
+struct blocks_written_file_state {
+	unsigned long blocks_written;
+};
+
+static ssize_t blocks_written_read(struct file *f, char __user *buf, size_t len,
+			loff_t *ppos)
+{
+	struct mount_info *mi = get_mount_info(file_superblock(f));
+	struct blocks_written_file_state *state = f->private_data;
+	unsigned long blocks_written;
+	char string[21];
+	int result = 0;
+
+	if (!mi)
+		return -EFAULT;
+
+	blocks_written = atomic_read(&mi->mi_blocks_written);
+	if (state->blocks_written == blocks_written)
+		return 0;
+
+	result = snprintf(string, sizeof(string), "%lu", blocks_written);
+	if (result > len)
+		result = len;
+	if (copy_to_user(buf, string, result))
+		return -EFAULT;
+
+	state->blocks_written = blocks_written;
+	return result;
+}
+
+static __poll_t blocks_written_poll(struct file *f, poll_table *wait)
+{
+	struct mount_info *mi = get_mount_info(file_superblock(f));
+	struct blocks_written_file_state *state = f->private_data;
+	unsigned long blocks_written;
+
+	if (!mi)
+		return 0;
+
+	poll_wait(f, &mi->mi_blocks_written_notif_wq, wait);
+	blocks_written = atomic_read(&mi->mi_blocks_written);
+	if (state->blocks_written == blocks_written)
+		return 0;
+
+	return EPOLLIN | EPOLLRDNORM;
+}
+
+static int blocks_written_open(struct inode *inode, struct file *file)
+{
+	struct blocks_written_file_state *state =
+		kzalloc(sizeof(*state), GFP_NOFS);
+
+	if (!state)
+		return -ENOMEM;
+
+	state->blocks_written = -1;
+	file->private_data = state;
+	return 0;
+}
+
+static int blocks_written_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static const struct file_operations incfs_blocks_written_file_ops = {
+	.read = blocks_written_read,
+	.poll = blocks_written_poll,
+	.open = blocks_written_open,
+	.release = blocks_written_release,
+	.llseek = noop_llseek,
 };
 
 /*******************************************************************************
@@ -948,6 +1166,10 @@ static bool get_pseudo_inode(int ino, struct inode *inode)
 
 	case INCFS_LOG_INODE:
 		inode->i_fop = &incfs_log_file_ops;
+		return true;
+
+	case INCFS_BLOCKS_WRITTEN_INODE:
+		inode->i_fop = &incfs_blocks_written_file_ops;
 		return true;
 
 	default:
@@ -977,27 +1199,10 @@ static int inode_set(struct inode *inode, void *opaque)
 	return -EINVAL;
 }
 
-static struct inode *fetch_pending_reads_inode(struct super_block *sb)
+static struct inode *fetch_inode(struct super_block *sb, unsigned long ino)
 {
 	struct inode_search search = {
-		.ino = INCFS_PENDING_READS_INODE
-	};
-	struct inode *inode = iget5_locked(sb, search.ino, inode_test,
-				inode_set, &search);
-
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-
-	if (inode->i_state & I_NEW)
-		unlock_new_inode(inode);
-
-	return inode;
-}
-
-static struct inode *fetch_log_inode(struct super_block *sb)
-{
-	struct inode_search search = {
-		.ino = INCFS_LOG_INODE
+		.ino = ino
 	};
 	struct inode *inode = iget5_locked(sb, search.ino, inode_test,
 				inode_set, &search);
@@ -1015,28 +1220,24 @@ int dir_lookup_pseudo_files(struct super_block *sb, struct dentry *dentry)
 {
 	struct mem_range name_range =
 			range((u8 *)dentry->d_name.name, dentry->d_name.len);
+	unsigned long ino;
+	struct inode *inode;
 
-	if (incfs_equal_ranges(pending_reads_file_name_range, name_range)) {
-		struct inode *inode = fetch_pending_reads_inode(sb);
+	if (incfs_equal_ranges(pending_reads_file_name_range, name_range))
+		ino = INCFS_PENDING_READS_INODE;
+	else if (incfs_equal_ranges(log_file_name_range, name_range))
+		ino = INCFS_LOG_INODE;
+	else if (incfs_equal_ranges(blocks_written_file_name_range, name_range))
+		ino = INCFS_BLOCKS_WRITTEN_INODE;
+	else
+		return -ENOENT;
 
-		if (IS_ERR(inode))
-			return PTR_ERR(inode);
+	inode = fetch_inode(sb, ino);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
-		d_add(dentry, inode);
-		return 0;
-	}
-
-	if (incfs_equal_ranges(log_file_name_range, name_range)) {
-		struct inode *inode = fetch_log_inode(sb);
-
-		if (IS_ERR(inode))
-			return PTR_ERR(inode);
-
-		d_add(dentry, inode);
-		return 0;
-	}
-
-	return -ENOENT;
+	d_add(dentry, inode);
+	return 0;
 }
 
 int emit_pseudo_files(struct dir_context *ctx)
@@ -1054,6 +1255,15 @@ int emit_pseudo_files(struct dir_context *ctx)
 		if (!dir_emit(ctx, log_file_name,
 			      ARRAY_SIZE(log_file_name) - 1,
 			      INCFS_LOG_INODE, DT_REG))
+			return -EINVAL;
+
+		ctx->pos++;
+	}
+
+	if (ctx->pos == 2) {
+		if (!dir_emit(ctx, blocks_written_file_name,
+			      ARRAY_SIZE(blocks_written_file_name) - 1,
+			      INCFS_BLOCKS_WRITTEN_INODE, DT_REG))
 			return -EINVAL;
 
 		ctx->pos++;

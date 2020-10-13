@@ -87,6 +87,14 @@ enum tcpm_transmit_type {
  *		detected.
  * @mux:	Pointer to multiplexer data
  * @set_bist_data: Turn on/off bist data mode for compliance testing
+ * @check_contaminant:
+ *		Optional; The callback is called when CC pins report open status
+ *		at the end of the toggling period. Chip level drivers are
+ *		expected to check for contaminant and re-enable toggling if
+ *		needed. When 0 is not returned, check_contaminant is expected to
+ *		restart toggling after checking the connector for contaminant.
+ *		This forces the TCPM state machine to tranistion to TOGGLING state
+ *		without calling start_toggling callback.
  * @enable_frs:
  *		Optional; Called to enable/disable PD 3.0 fast role swap.
  *		Enabling frs is accessory dependent as not all PD3.0
@@ -107,14 +115,6 @@ enum tcpm_transmit_type {
  *		will be turned on. requested_vbus_voltage is set to 0 when vbus
  *		is going to disappear knowingly i.e. during PR_SWAP and
  *		HARD_RESET etc.
- * @check_contaminant:
- *		Optional; The callback is called when CC pins report open status
- *		at the end of the toggling period. Chip level drivers are
- *		expected to check for contaminant and re-enable toggling if
- *		needed. Return > 0 when contaminant will restart toggling
- *		when the connector is free of contaminant; this forces the TCPM
- *		state machine to tranistion to TOGGLING state without calling
- *		start_toggling.
  */
 struct tcpc_dev {
 	struct fwnode_handle *fwnode;
@@ -141,13 +141,13 @@ struct tcpc_dev {
 	int (*pd_transmit)(struct tcpc_dev *dev, enum tcpm_transmit_type type,
 			   const struct pd_message *msg);
 	int (*set_bist_data)(struct tcpc_dev *dev, bool on);
+	int (*check_contaminant)(struct tcpc_dev *dev);
 	void (*set_pd_capable)(struct tcpc_dev *dev, bool capable);
 	int (*enable_frs)(struct tcpc_dev *dev, bool enable);
 	int (*frs_sourcing_vbus)(struct tcpc_dev *dev);
 	int (*enable_auto_vbus_discharge)(struct tcpc_dev *dev, bool enable);
 	int (*set_auto_vbus_discharge_threshold)(struct tcpc_dev *dev, enum typec_pwr_opmode mode,
 						 bool pps_active, u32 requested_vbus_voltage);
-	int (*check_contaminant)(struct tcpc_dev *dev);
 };
 
 struct tcpm_port;
@@ -169,8 +169,8 @@ void tcpm_pd_transmit_complete(struct tcpm_port *port,
 			       enum tcpm_transmit_status status);
 void tcpm_pd_hard_reset(struct tcpm_port *port);
 void tcpm_tcpc_reset(struct tcpm_port *port);
+bool tcpm_is_debouncing(struct tcpm_port *tcpm);
 int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **pdo);
 void tcpm_put_partner_src_caps(u32 **pdo);
-bool tcpm_is_debouncing(struct tcpm_port *tcpm);
 
 #endif /* __LINUX_USB_TCPM_H */

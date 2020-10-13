@@ -18,6 +18,7 @@
 #include <linux/percpu.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
+#include <linux/syscore_ops.h>
 #include <linux/wakeup_reason.h>
 
 
@@ -30,6 +31,8 @@
 #include <asm/exception.h>
 #include <asm/smp_plat.h>
 #include <asm/virt.h>
+
+#include <trace/hooks/gic.h>
 
 #include "irq-gic-common.h"
 
@@ -960,10 +963,10 @@ static void gic_cpu_sys_reg_init(void)
 		case 7:
 			write_gicreg(0, ICC_AP0R3_EL1);
 			write_gicreg(0, ICC_AP0R2_EL1);
-		/* Fall through */
+			fallthrough;
 		case 6:
 			write_gicreg(0, ICC_AP0R1_EL1);
-		/* Fall through */
+			fallthrough;
 		case 5:
 		case 4:
 			write_gicreg(0, ICC_AP0R0_EL1);
@@ -977,10 +980,10 @@ static void gic_cpu_sys_reg_init(void)
 	case 7:
 		write_gicreg(0, ICC_AP1R3_EL1);
 		write_gicreg(0, ICC_AP1R2_EL1);
-		/* Fall through */
+		fallthrough;
 	case 6:
 		write_gicreg(0, ICC_AP1R1_EL1);
-		/* Fall through */
+		fallthrough;
 	case 5:
 	case 4:
 		write_gicreg(0, ICC_AP1R0_EL1);
@@ -1249,6 +1252,26 @@ static void gic_cpu_pm_init(void)
 #else
 static inline void gic_cpu_pm_init(void) { }
 #endif /* CONFIG_CPU_PM */
+
+#ifdef CONFIG_PM
+static void gic_resume(void)
+{
+	trace_android_vh_gic_resume(gic_data.domain, gic_data.dist_base);
+}
+
+static struct syscore_ops gic_syscore_ops = {
+	.resume = gic_resume,
+};
+
+static void gic_syscore_init(void)
+{
+	register_syscore_ops(&gic_syscore_ops);
+}
+
+#else
+static inline void gic_syscore_init(void) { }
+#endif
+
 
 static struct irq_chip gic_chip = {
 	.name			= "GICv3",
@@ -1681,6 +1704,7 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	gic_cpu_init();
 	gic_smp_init();
 	gic_cpu_pm_init();
+	gic_syscore_init();
 
 	if (gic_dist_supports_lpis()) {
 		its_init(handle, &gic_data.rdists, gic_data.domain);

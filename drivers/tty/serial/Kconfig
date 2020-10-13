@@ -534,6 +534,7 @@ config SERIAL_IMX_CONSOLE
 
 config SERIAL_IMX_EARLYCON
 	bool "Earlycon on IMX serial port"
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
 	select SERIAL_EARLYCON
 	help
@@ -979,6 +980,14 @@ config SERIAL_MSM_CONSOLE
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
+
+config SERIAL_MSM_GENI_EARLY_CONSOLE
+	bool "MSM on-chip GENI HW based early console support"
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Serial early console driver for Qualcomm Technologies Inc's GENI
+	  based QUP hardware.
 
 config SERIAL_QCOM_GENI
 	tristate "QCOM on-chip GENI based serial port support"

@@ -234,14 +234,28 @@ int open_commands_file(const char *mount_dir)
 
 int open_log_file(const char *mount_dir)
 {
-	char cmd_file[255];
-	int cmd_fd;
+	char file[255];
+	int fd;
 
-	snprintf(cmd_file, ARRAY_SIZE(cmd_file), "%s/.log", mount_dir);
-	cmd_fd = open(cmd_file, O_RDWR | O_CLOEXEC);
-	if (cmd_fd < 0)
+	snprintf(file, ARRAY_SIZE(file), "%s/.log", mount_dir);
+	fd = open(file, O_RDWR | O_CLOEXEC);
+	if (fd < 0)
 		perror("Can't open log file");
-	return cmd_fd;
+	return fd;
+}
+
+int open_blocks_written_file(const char *mount_dir)
+{
+	char file[255];
+	int fd;
+
+	snprintf(file, ARRAY_SIZE(file),
+			"%s/%s", mount_dir, INCFS_BLOCKS_WRITTEN_FILENAME);
+	fd = open(file, O_RDONLY | O_CLOEXEC);
+
+	if (fd < 0)
+		perror("Can't open blocks_written file");
+	return fd;
 }
 
 int wait_for_pending_reads(int fd, int timeout_ms,
@@ -300,7 +314,7 @@ int wait_for_pending_reads2(int fd, int timeout_ms,
 	return read_res / sizeof(*prs);
 }
 
-char *concat_file_name(const char *dir, char *file)
+char *concat_file_name(const char *dir, const char *file)
 {
 	char full_name[FILENAME_MAX] = "";
 
