@@ -42,7 +42,8 @@ static inline void soft_unlock(void __iomem *base)
 
 struct etm_info {
 	void __iomem	*base;
-	u32		enabled;
+	bool		enabled;
+	bool		status;
 	u32		f_port[ARR_SZ];
 };
 
@@ -53,7 +54,6 @@ struct funnel_info {
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETF
 struct etf_info {
 	void __iomem	*base;
-	u32		enabled;
 	u32		f_port[ARR_SZ];
 };
 #endif
@@ -61,7 +61,7 @@ struct etf_info {
 struct etr_info {
 	void __iomem	*base;
 	void __iomem	*sfr_base;
-	u32		enabled;
+	u32		status;
 	dma_addr_t	buf_addr;
 	void		*buf_vaddr;
 	u64		buf_pointer;
@@ -73,7 +73,8 @@ struct exynos_etm_info {
 	struct etm_info		*cpu;
 	spinlock_t		trace_lock;
 	struct device		*dev;
-	u32			on;
+	bool			enabled;
+	bool			status;
 	u32			boot_start;
 	u32			etr_buf_size;
 
@@ -102,17 +103,21 @@ static void exynos_etm_set_funnel_port(struct funnel_info *funnel,
 	etm_writel(funnel->base, funnel->port_status, FUNCTRL);
 	soft_lock(funnel->base);
 }
+
 static void exynos_etm_funnel_init(void)
 {
 	unsigned int i;
 	struct funnel_info *funnel;
+	unsigned int port;
 
 	for (i = 0; i < ee_info->funnel_num; i++) {
 		funnel = &ee_info->funnel[i];
 		spin_lock(&ee_info->trace_lock);
 		soft_unlock(funnel->base);
-		funnel->port_status = etm_readl(funnel->base, FUNCTRL);
-		funnel->port_status = (funnel->port_status & 0x3ff) | 0x300;
+		port = etm_readl(funnel->base, FUNCTRL);
+		port &= ~0x3ff;
+		port |= 0x300;
+		funnel->port_status |= port;
 		etm_writel(funnel->base, funnel->port_status, FUNCTRL);
 		etm_writel(funnel->base, 0x0, FUNPRIORCTRL);
 		soft_lock(funnel->base);
@@ -239,7 +244,7 @@ static int exynos_etm_enable(unsigned int cpu)
 	struct funnel_info *funnel;
 	unsigned int channel, port, val;
 
-	if (!ee_info->on || info->enabled)
+	if (!info->enabled || info->status)
 		return 0;
 
 	soft_unlock(info->base);
@@ -266,7 +271,7 @@ static int exynos_etm_enable(unsigned int cpu)
 	funnel = &ee_info->funnel[channel];
 
 	spin_lock(&ee_info->trace_lock);
-	info->enabled = 1;
+	info->status = true;
 	exynos_etm_set_funnel_port(funnel, port, true);
 	spin_unlock(&ee_info->trace_lock);
 
@@ -279,7 +284,7 @@ static int exynos_etm_disable(unsigned int cpu)
 	struct funnel_info *funnel;
 	unsigned int channel, port;
 
-	if (!ee_info->on || !info->enabled)
+	if (!info->status)
 		return 0;
 
 	channel = info->f_port[CHANNEL];
@@ -287,7 +292,7 @@ static int exynos_etm_disable(unsigned int cpu)
 	funnel = &ee_info->funnel[channel];
 
 	spin_lock(&ee_info->trace_lock);
-	info->enabled = 0;
+	info->status = false;
 	exynos_etm_set_funnel_port(funnel, port, false);
 	spin_unlock(&ee_info->trace_lock);
 
@@ -298,15 +303,18 @@ static int exynos_etm_disable(unsigned int cpu)
 	return 0;
 }
 
-static void exynos_etm_smp_enable(void *onoff)
+static void exynos_etm_smp_enable(void *ununsed)
 {
-	bool on = *(bool *)onoff;
 	unsigned int cpu = raw_smp_processor_id();
+	struct etm_info *info = &ee_info->cpu[cpu];
 
-	if (on)
+	if (info->enabled)
 		exynos_etm_enable(cpu);
 	else
 		exynos_etm_disable(cpu);
+
+	dev_info(ee_info->dev, "CPU%d ETM %sabled\n",
+			cpu, info->enabled ? "en" : "dis");
 }
 
 static ssize_t exynos_etm_print_info(char *buf)
@@ -333,7 +341,7 @@ static ssize_t exynos_etm_print_info(char *buf)
 		spin_unlock(&ee_info->trace_lock);
 		size += scnprintf(buf + size, PAGE_SIZE - size,
 				" %-4d | %5sabled | %-6u | %-4d | %-6s\n",
-				i, info->enabled ? "en" : "dis",
+				i, info->status ? "en" : "dis",
 				channel, port, port_status ? "on" : "off");
 	}
 	size += scnprintf(buf + size, PAGE_SIZE - size,
@@ -379,6 +387,11 @@ void exynos_etm_trace_start(void)
 	if (!buf)
 		return;
 
+	if (!ee_info->enabled || ee_info->status)
+		return;
+
+	ee_info->status = true;
+
 	exynos_etm_funnel_init();
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETF
 	exynos_etm_etf_enable();
@@ -386,7 +399,6 @@ void exynos_etm_trace_start(void)
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 	exynos_etm_etr_enable();
 #endif
-	on_each_cpu(exynos_etm_smp_enable, &ee_info->on, 1);
 	exynos_etm_print_info(buf);
 	dev_info(ee_info->dev, "%s\n", buf);
 	devm_kfree(ee_info->dev, buf);
@@ -400,7 +412,9 @@ void exynos_etm_trace_stop(void)
 	if (!buf)
 		return;
 
-	on_each_cpu(exynos_etm_smp_enable, &ee_info->on, 1);
+	if (!ee_info->status)
+		return;
+
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 	exynos_etm_etr_disable();
 #endif
@@ -408,6 +422,8 @@ void exynos_etm_trace_stop(void)
 	exynos_etm_etf_disable();
 #endif
 	exynos_etm_funnel_close();
+
+	ee_info->status = false;
 	exynos_etm_print_info(buf);
 	dev_info(ee_info->dev, "%s\n", buf);
 	devm_kfree(ee_info->dev, buf);
@@ -417,9 +433,6 @@ static int exynos_etm_c2_pm_notifier(struct notifier_block *self,
 				     unsigned long action, void *v)
 {
 	int cpu = raw_smp_processor_id();
-
-	if (!ee_info->on)
-		return NOTIFY_OK;
 
 	switch (action) {
 	case CPU_PM_ENTER:
@@ -445,9 +458,6 @@ static struct notifier_block exynos_etm_c2_pm_nb = {
 static int exynos_etm_pm_notifier(struct notifier_block *notifier,
 				  unsigned long pm_event, void *v)
 {
-	if (!ee_info->on)
-		return NOTIFY_OK;
-
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
 		exynos_etm_trace_stop();
@@ -463,16 +473,41 @@ static struct notifier_block exynos_etm_pm_nb = {
 	.notifier_call = exynos_etm_pm_notifier,
 };
 
-static ssize_t trace_on_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t etm_on_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
-	int on;
+	unsigned int i;
+	bool on;
+	int ret;
 
-	if (kstrtoint(buf, 10, &on))
-		return count;
+	ret = kstrtobool(buf, &on);
+	if (ret)
+		return ret;
 
-	ee_info->on = on;
+	for_each_possible_cpu(i) {
+		ee_info->cpu[i].enabled = on;
+	}
+
+	for_each_online_cpu(i) {
+		smp_call_function_single(i, exynos_etm_smp_enable, NULL, 1);
+	}
+
+	return count;
+}
+
+static ssize_t trace_on_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	bool on;
+	int ret;
+
+	ret = kstrtobool(buf, &on);
+	if (ret)
+		return ret;
+
+	ee_info->enabled = on;
 	if (on)
 		exynos_etm_trace_start();
 	else
@@ -481,23 +516,18 @@ static ssize_t trace_on_store(struct device *dev,
 	return count;
 }
 
-static ssize_t trace_on_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%s\n",
-			ee_info->on ? "on" : "off");
-}
-
 static ssize_t etm_info_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	return exynos_etm_print_info(buf);
 }
 
-DEVICE_ATTR_RO(trace_on);
+DEVICE_ATTR_WO(etm_on);
+DEVICE_ATTR_WO(trace_on);
 DEVICE_ATTR_RO(etm_info);
 
 static struct attribute *exynos_etm_sysfs_attrs[] = {
+	&dev_attr_etm_on.attr,
 	&dev_attr_trace_on.attr,
 	&dev_attr_etm_info.attr,
 	NULL,
@@ -638,6 +668,7 @@ static int exynos_etm_cs_etm_init_dt(struct device *dev)
 
 static int exynos_etm_probe(struct platform_device *pdev)
 {
+	unsigned int i;
 	int ret;
 
 	ret = exynos_etm_cs_etm_init_dt(&pdev->dev);
@@ -653,7 +684,15 @@ static int exynos_etm_probe(struct platform_device *pdev)
 	cpu_pm_register_notifier(&exynos_etm_c2_pm_nb);
 
 	if (ee_info->boot_start) {
-		ee_info->on = true;
+		ee_info->enabled = true;
+		for_each_possible_cpu(i) {
+			ee_info->cpu[i].enabled = true;
+		}
+
+		for_each_online_cpu(i) {
+			smp_call_function_single(i, exynos_etm_smp_enable, NULL, 1);
+		}
+
 		exynos_etm_trace_start();
 	}
 
