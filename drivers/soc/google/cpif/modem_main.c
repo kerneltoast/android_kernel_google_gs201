@@ -855,7 +855,6 @@ static int modem_suspend(struct device *pdev)
 	if (mc->ops.suspend)
 		mc->ops.suspend(mc);
 
-	mif_err("%s\n", mc->name);
 	set_wakeup_packet_log(true);
 
 	return 0;
@@ -869,8 +868,6 @@ static int modem_resume(struct device *pdev)
 
 	if (mc->ops.resume)
 		mc->ops.resume(mc);
-
-	mif_err("%s\n", mc->name);
 
 	return 0;
 }
