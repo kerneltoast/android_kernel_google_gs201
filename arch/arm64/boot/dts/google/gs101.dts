@@ -1037,10 +1037,6 @@
 
 	google_bcl: google,bcl{
 		compatible = "google,gs101-bcl";
-	};
-
-	bcl_soc: bcl-soc {
-		compatible = "google,bcl";
 		#thermal-sensor-cells = <0>;
 	};
 
@@ -1049,7 +1045,7 @@
 			zone_name  = "BATT_SOC_MOD";
 			polling-delay-passive = <1000>;
 			polling-delay = <0>;
-			thermal-sensors = <&bcl_soc>;
+			thermal-sensors = <&google_bcl>;
 
 			trips {
 				soc_trip:soc-trip {
