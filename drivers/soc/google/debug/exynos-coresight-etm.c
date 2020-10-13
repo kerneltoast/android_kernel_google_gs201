@@ -214,10 +214,10 @@ static void exynos_etm_etr_enable(void)
 	etm_writel(etr->base, ee_info->etr_buf_size / 4, TMCRSZ);
 	etm_writel(etr->base, 0x4, TMCTGR);
 	etm_writel(etr->base, 0x0, TMCAXICTL);
-	etm_writel(etr->base, etr->buf_addr & 0xffffffff, TMCDBALO);
-	etm_writel(etr->base, etr->buf_addr >> 32, TMCDBALO);
-	etm_writel(etr->base, 0x0, TMCDBAHI);
-	etm_writel(etr->base, etr->buf_pointer, TMCRWP);
+	etm_writel(etr->base, lower_32_bits(etr->buf_addr), TMCDBALO);
+	etm_writel(etr->base, upper_32_bits(etr->buf_addr), TMCDBAHI);
+	etm_writel(etr->base, lower_32_bits(etr->buf_pointer), TMCRWP);
+	etm_writel(etr->base, upper_32_bits(etr->buf_pointer), TMCRWPHI);
 	etm_writel(etr->base, 0x0, TMCMODE);
 	etm_writel(etr->base, 0x2001, TMCFFCR);
 	etm_writel(etr->base, 0x1, TMCCTL);
@@ -230,7 +230,9 @@ static void exynos_etm_etr_disable(void)
 
 	soft_unlock(etr->base);
 	etm_writel(etr->base, 0x0, TMCCTL);
-	etr->buf_pointer = etm_readl(etr->base, TMCRWP);
+	etr->buf_pointer = etm_readl(etr->base, TMCRWPHI);
+	etr->buf_pointer <<= 32;
+	etr->buf_pointer |= etm_readl(etr->base, TMCRWP);
 	soft_lock(etr->base);
 
 	if (etr->hwacg)
@@ -322,7 +324,7 @@ static ssize_t exynos_etm_print_info(char *buf)
 	struct etm_info *info;
 	struct funnel_info *funnel;
 	struct etf_info *etf;
-	unsigned long tmp, port_status, read_p;
+	unsigned long ctrl, sts, port_status, read_p;
 	int i, channel, port, size = 0;
 
 	size += scnprintf(buf + size, PAGE_SIZE - size,
@@ -350,31 +352,35 @@ static ssize_t exynos_etm_print_info(char *buf)
 	for (i = 0; i < ee_info->funnel_num; i++) {
 		funnel = &ee_info->funnel[i];
 		soft_unlock(funnel->base);
-		tmp = etm_readl(funnel->base, FUNCTRL);
+		ctrl = etm_readl(funnel->base, FUNCTRL);
 		soft_lock(funnel->base);
 		size += scnprintf(buf + size, PAGE_SIZE - size,
-				"FUNNEL%d Status : 0x%lx\n", i, tmp);
+				"FUNNEL%d Status: 0x%lx\n", i, ctrl);
 	}
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETF
 	for (i = 0; i < ee_info->etf_num; i++) {
 		etf = &ee_info->etf[i];
 		soft_unlock(etf->base);
-		tmp = etm_readl(etf->base, TMCCTL);
+		ctrl = etm_readl(etf->base, TMCCTL);
+		sts = etm_readl(etf->base, TMCSTS);
 		read_p = etm_readl(etf->base, TMCRWP);
 		soft_lock(etf->base);
 		size += scnprintf(buf + size, PAGE_SIZE - size,
-				"ETF%d Status: %sabled, RWP Reg: 0x%px\n",
-				i, tmp & 0x1 ? "en" : "dis", read_p);
+				"ETF%d Control: %sabled, Status: 0x%lx, RWP Reg: 0x%px\n",
+				i, ctrl & 0x1 ? "en" : "dis", sts, read_p);
 	}
 #endif
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 	soft_unlock(ee_info->etr.base);
-	tmp = etm_readl(ee_info->etr.base, TMCCTL);
-	read_p = etm_readl(ee_info->etr.base, TMCRWP);
+	ctrl = etm_readl(ee_info->etr.base, TMCCTL);
+	sts = etm_readl(ee_info->etr.base, TMCSTS);
+	read_p = etm_readl(ee_info->etr.base, TMCRWPHI);
+	read_p <<= 32;
+	read_p |= etm_readl(ee_info->etr.base, TMCRWP);
 	soft_lock(ee_info->etr.base);
 	size += scnprintf(buf + size, PAGE_SIZE - size,
-			"ETR Status: %sabled, RWP Reg: 0x%px, Save RWP: 0x%px\n",
-			tmp & 0x1 ? "en" : "dis", read_p, ee_info->etr.buf_pointer);
+			"ETR Control: %sabled, Status: 0x%lx, RWP Reg: 0x%px, Save RWP: 0x%px\n",
+			ctrl & 0x1 ? "en" : "dis", sts, read_p,	ee_info->etr.buf_pointer);
 #endif
 	return size;
 }
