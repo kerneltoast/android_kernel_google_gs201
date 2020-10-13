@@ -163,6 +163,24 @@ config VH_KERNEL
 	help
 	Modules for vendor kernel hooks.
 
+config BOARD_EMULATOR
+	bool "EMULATOR platform"
+	select OF_GENERATE_SYMBOLS
+
+config BOARD_GS201_EMULATOR
+	bool "EMULATOR Platform for GS201"
+	depends on SOC_GS201 && BOARD_EMULATOR
+	select OF_GENERATE_SYMBOLS
+	help
+	GS201 Zebu Emulator System
+
+config BOARD_GS201_HYBRID
+	bool "HYBRID EMULATOR Platform for GS201"
+	depends on SOC_GS201 && BOARD_EMULATOR
+	select OF_GENERATE_SYMBOLS
+	help
+	GS201 Hybrid Zebu Emulator System, it is support for Android Platform
+
 source "drivers/soc/google/gsa/Kconfig"
 
 source "drivers/soc/google/cpif/Kconfig"
