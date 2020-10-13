@@ -868,17 +868,6 @@ int acpm_ipc_probe(struct platform_device *pdev)
 
 	acpm_ipc->irq = irq_of_parse_and_map(node, 0);
 
-	ret = devm_request_threaded_irq(&pdev->dev, acpm_ipc->irq,
-					acpm_ipc_irq_handler,
-					acpm_ipc_irq_handler_thread,
-					IRQF_ONESHOT,
-					dev_name(&pdev->dev), acpm_ipc);
-
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register intr%d\n", ret);
-		return ret;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	acpm_ipc->intr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(acpm_ipc->intr))
@@ -902,6 +891,17 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	acpm_srambase = acpm_ipc->sram_base;
 
 	acpm_ipc->dev = &pdev->dev;
+
+	ret = devm_request_threaded_irq(&pdev->dev, acpm_ipc->irq,
+					acpm_ipc_irq_handler,
+					acpm_ipc_irq_handler_thread,
+					IRQF_ONESHOT,
+					dev_name(&pdev->dev), acpm_ipc);
+
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register intr%d\n", ret);
+		return ret;
+	}
 
 	log_buffer_init(&pdev->dev, node);
 
