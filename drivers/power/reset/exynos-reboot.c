@@ -20,8 +20,8 @@
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
-#ifdef CONFIG_EXYNOS_ACPM
-#include <soc/samsung/acpm_ipc_ctrl.h>
+#if IS_ENABLED(CONFIG_GS_ACPM)
+#include <soc/google/acpm_ipc_ctrl.h>
 #endif
 
 static struct regmap *pmureg;
@@ -61,7 +61,7 @@ static void exynos_power_off(void)
 	while (1) {
 		/* wait for power button release */
 		if (gpio_get_value(power_gpio)) {
-#ifdef CONFIG_EXYNOS_ACPM
+#if IS_ENABLED(CONFIG_GS_ACPM)
 			exynos_acpm_reboot();
 #endif
 			pr_emerg("Set PS_HOLD Low.\n");
@@ -115,7 +115,7 @@ static void exynos_reboot_parse(const char *cmd)
 static int exynos_restart_handler(struct notifier_block *this,
 				  unsigned long mode, void *cmd)
 {
-#ifdef CONFIG_EXYNOS_ACPM
+#if IS_ENABLED(CONFIG_GS_ACPM)
 	exynos_acpm_reboot();
 #endif
 	exynos_reboot_parse(cmd);
