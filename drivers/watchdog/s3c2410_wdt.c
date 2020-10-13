@@ -1052,7 +1052,7 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 
 	/* We assumed that num_online_cpus() > 1 status is abnormal */
 	if (num_online_cpus() > 1)
-		timeout = 5;
+		timeout = 10;
 
 	s3c2410wdt_keepalive_emergency(true, 0, timeout);
 
