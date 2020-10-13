@@ -1313,6 +1313,10 @@ static int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
 		return -ENODEV;
 
 	data->max_state = dvfs_domain->num_of_level;
+
+	if (data->l123_restrict)
+		data->max_state -= 3;
+
 	data->opp_list = kcalloc(data->max_state,
 				 sizeof(struct exynos_devfreq_opp_table),
 				 GFP_KERNEL);
@@ -1321,10 +1325,24 @@ static int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < dvfs_domain->num_of_level; ++i) {
-		data->opp_list[i].idx = i;
-		data->opp_list[i].freq = dvfs_domain->list_level[i].level;
-		data->opp_list[i].volt = 0;
+	if (data->l123_restrict) {
+		/*
+		 * Remove L1/L2/L3
+		 */
+		data->opp_list[0].idx = 0;
+		data->opp_list[0].freq = dvfs_domain->list_level[0].level;
+		data->opp_list[0].volt = 0;
+		for (i = 1; i < dvfs_domain->num_of_level; ++i) {
+			data->opp_list[i].idx = i;
+			data->opp_list[i].freq = dvfs_domain->list_level[i + 3].level;
+			data->opp_list[i].volt = 0;
+		}
+	} else {
+		for (i = 0; i < dvfs_domain->num_of_level; ++i) {
+			data->opp_list[i].idx = i;
+			data->opp_list[i].freq = dvfs_domain->list_level[i].level;
+			data->opp_list[i].volt = 0;
+		}
 	}
 
 	return 0;
@@ -1366,6 +1384,13 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 	if (of_property_read_string(np, "devfreq_domain_name",
 				    &devfreq_domain_name))
 		return -ENODEV;
+
+	if (!of_property_read_string(np, "l123_restrict", &buf)) {
+		dev_info(data->dev, "l123_restrict %s\n", buf);
+		data->l123_restrict = (buf[0] != '0');
+	} else
+		data->l123_restrict = 0;
+
 	not_using_ect = exynos_devfreq_parse_ect(data, devfreq_domain_name);
 #endif
 	if (not_using_ect) {

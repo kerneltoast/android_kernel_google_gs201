@@ -203,6 +203,8 @@ struct exynos_devfreq_data {
 	unsigned long previous_freq;
 	unsigned long *time_in_state;
 	unsigned long last_stat_updated;
+
+	u32 l123_restrict;
 };
 
 struct exynos_profile_data {
