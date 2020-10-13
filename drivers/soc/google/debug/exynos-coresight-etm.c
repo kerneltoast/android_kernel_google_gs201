@@ -22,6 +22,7 @@
 #define PORT		(1)
 #define NONE		(-1)
 #define ARR_SZ		(2)
+#define FUNNEL_PORT_MAX	(8)
 
 #define etm_writel(base, val, off)	__raw_writel((val), (base) + (off))
 #define etm_readl(base, off)		__raw_readl((base) + (off))
@@ -50,6 +51,8 @@ struct etm_info {
 struct funnel_info {
 	void __iomem	*base;
 	u32		port_status;
+	u32 		manual_port_status;
+	struct device	device_funnel;
 };
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETF
 struct etf_info {
@@ -96,10 +99,12 @@ static void exynos_etm_set_funnel_port(struct funnel_info *funnel,
 {
 	soft_unlock(funnel->base);
 	funnel->port_status = etm_readl(funnel->base, FUNCTRL);
-	if (enabled)
+	if (enabled) {
 		funnel->port_status |= BIT(port);
-	else
+	} else {
 		funnel->port_status &= ~BIT(port);
+		funnel->port_status |= funnel->manual_port_status;
+	}
 	etm_writel(funnel->base, funnel->port_status, FUNCTRL);
 	soft_lock(funnel->base);
 }
@@ -118,6 +123,7 @@ static void exynos_etm_funnel_init(void)
 		port &= ~0x3ff;
 		port |= 0x300;
 		funnel->port_status |= port;
+		funnel->port_status |= funnel->manual_port_status;
 		etm_writel(funnel->base, funnel->port_status, FUNCTRL);
 		etm_writel(funnel->base, 0x0, FUNPRIORCTRL);
 		soft_lock(funnel->base);
@@ -502,6 +508,8 @@ static ssize_t etm_on_store(struct device *dev,
 	return count;
 }
 
+static DEVICE_ATTR_WO(etm_on);
+
 static ssize_t trace_on_store(struct device *dev,
 			     struct device_attribute *attr,
 			     const char *buf, size_t count)
@@ -522,15 +530,115 @@ static ssize_t trace_on_store(struct device *dev,
 	return count;
 }
 
+static DEVICE_ATTR_WO(trace_on);
+
 static ssize_t etm_info_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	return exynos_etm_print_info(buf);
 }
 
-DEVICE_ATTR_WO(etm_on);
-DEVICE_ATTR_WO(trace_on);
-DEVICE_ATTR_RO(etm_info);
+static DEVICE_ATTR_RO(etm_info);
+
+static ssize_t manual_port_on_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct funnel_info *funnel;
+	unsigned int port;
+
+	if (kstrtouint(buf, 0, &port))
+		return -EINVAL;
+
+	if (port >= FUNNEL_PORT_MAX)
+		return -EINVAL;
+
+	funnel = dev_get_drvdata(dev);
+
+	spin_lock(&ee_info->trace_lock);
+	soft_unlock(funnel->base);
+	funnel->manual_port_status |= BIT(port);
+	funnel->port_status = etm_readl(funnel->base, FUNCTRL);
+	funnel->port_status |= funnel->manual_port_status;
+	etm_writel(funnel->base, funnel->port_status, FUNCTRL);
+	soft_lock(funnel->base);
+	spin_unlock(&ee_info->trace_lock);
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(manual_port_on);
+
+static ssize_t manual_port_off_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct funnel_info *funnel;
+	unsigned int port;
+
+	if (kstrtouint(buf, 0, &port))
+		return -EINVAL;
+
+	if (port >= FUNNEL_PORT_MAX)
+		return -EINVAL;
+
+	funnel = dev_get_drvdata(dev);
+
+	spin_lock(&ee_info->trace_lock);
+	soft_unlock(funnel->base);
+	funnel->manual_port_status &= ~BIT(port);
+	funnel->port_status = etm_readl(funnel->base, FUNCTRL);
+	funnel->port_status &= ~BIT(port);
+	etm_writel(funnel->base, funnel->port_status, FUNCTRL);
+	soft_lock(funnel->base);
+	spin_unlock(&ee_info->trace_lock);
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(manual_port_off);
+
+static ssize_t manual_port_status_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	ssize_t count = 0;
+	struct funnel_info *funnel;
+
+	funnel = dev_get_drvdata(dev);
+
+	count = scnprintf(buf, PAGE_SIZE, "0x%x\n", funnel->manual_port_status);
+
+	return count;
+}
+
+static DEVICE_ATTR_RO(manual_port_status);
+
+static ssize_t port_status_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	ssize_t count = 0;
+	struct funnel_info *funnel;
+
+	funnel = dev_get_drvdata(dev);
+
+	count = scnprintf(buf, PAGE_SIZE, "0x%x\n", funnel->port_status);
+
+	return count;
+}
+
+static DEVICE_ATTR_RO(port_status);
+
+static struct attribute *funnel_attrs[] = {
+	&dev_attr_port_status.attr,
+	&dev_attr_manual_port_on.attr,
+	&dev_attr_manual_port_off.attr,
+	&dev_attr_manual_port_status.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(funnel);
 
 static struct attribute *exynos_etm_sysfs_attrs[] = {
 	&dev_attr_etm_on.attr,
@@ -672,6 +780,37 @@ static int exynos_etm_cs_etm_init_dt(struct device *dev)
 	return 0;
 }
 
+static int exynos_etm_manual_funnel_setup(struct device *dev)
+{
+	int ret = 0;
+	int i;
+	struct funnel_info *funnel;
+
+	for (i = 0; i < ee_info->funnel_num; i++) {
+		funnel = &ee_info->funnel[i];
+		dev_info(dev, "register funnel device %d\n", i);
+		funnel->device_funnel.id = i;
+		funnel->device_funnel.bus = dev->bus;
+		funnel->device_funnel.groups = funnel_groups;
+		dev_set_name(&funnel->device_funnel, "cs_funnel%d", i);
+		dev_set_drvdata(&funnel->device_funnel, funnel);
+		ret = device_register(&funnel->device_funnel);
+		if (ret) {
+			dev_err(dev, "fail to register funnel device %d\n", i);
+			i--;
+			goto err;
+		}
+	}
+
+	return ret;
+err:
+	for (; i >= 0; i--) {
+		funnel = &ee_info->funnel[i];
+		device_unregister(&funnel->device_funnel);
+	}
+	return ret;
+}
+
 static int exynos_etm_probe(struct platform_device *pdev)
 {
 	unsigned int i;
@@ -706,6 +845,8 @@ static int exynos_etm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "fail to register exynos-etm sysfs\n");
 		return -EFAULT;
 	}
+
+	exynos_etm_manual_funnel_setup(&pdev->dev);
 
 	dev_info(&pdev->dev, "%s successful\n", __func__);
 	return 0;
