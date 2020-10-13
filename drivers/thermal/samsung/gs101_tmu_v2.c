@@ -463,7 +463,7 @@ static void gs101_pi_thermal(struct gs101_tmu_data *data)
 
 	if (tz) {
 		if (!thermal_zone_device_is_enabled(tz)) {
-			params->switched_on = false;
+			atomic_set(&params->switched_on, 0);
 			goto polling;
 		}
 	}
@@ -477,11 +477,11 @@ static void gs101_pi_thermal(struct gs101_tmu_data *data)
 	if (!ret && tz->temperature < switch_on_temp) {
 		reset_pi_params(data);
 		allow_maximum_power(data);
-		params->switched_on = false;
+		atomic_set(&params->switched_on, 0);
 		goto polling;
 	}
 
-	params->switched_on = true;
+	atomic_set(&params->switched_on, 1);
 
 	ret = tz->ops->get_trip_temp(tz, params->trip_control_temp,
 				     &control_temp);
@@ -500,7 +500,7 @@ static void gs101_pi_thermal(struct gs101_tmu_data *data)
 	}
 
 polling:
-	if (params->switched_on)
+	if (atomic_read(&params->switched_on))
 		delay = params->polling_delay_on;
 	else
 		delay = params->polling_delay_off;
@@ -542,10 +542,16 @@ static void gs101_tmu_work(struct kthread_work *work)
 static irqreturn_t gs101_tmu_irq(int irq, void *id)
 {
 	struct gs101_tmu_data *data = id;
+	struct gs101_pi_param *params = data->pi_param;
+
+	// Skip IRQ if polling already started
+	if (data->use_pi_thermal && atomic_read(&params->switched_on))
+		goto irq_exit;
 
 	disable_irq_nosync(irq);
 	kthread_queue_work(&data->thermal_worker, &data->irq_work);
 
+irq_exit:
 	return IRQ_HANDLED;
 }
 
