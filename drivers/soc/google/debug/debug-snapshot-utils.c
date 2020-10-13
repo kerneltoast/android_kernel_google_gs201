@@ -498,7 +498,7 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	dbg_snapshot_print_log_report();
 	dbg_snapshot_save_context(NULL);
 
-	if (dss_desc.panic_to_wdt)
+	if (dss_desc.panic_to_wdt || (num_online_cpus() > 1))
 		dbg_snapshot_emergency_reboot(kernel_panic_msg);
 
 	return 0;
