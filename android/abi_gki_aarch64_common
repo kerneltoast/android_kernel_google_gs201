@@ -428,6 +428,7 @@
   blk_queue_required_elevator_features
   blk_queue_rq_timeout
   blk_queue_segment_boundary
+  blk_queue_set_zoned
   blk_queue_split
   blk_queue_update_dma_alignment
   blk_queue_update_dma_pad
@@ -880,6 +881,7 @@
   clk_rate_exclusive_put
   clk_register
   clk_register_clkdev
+  clk_register_composite
   clk_register_divider_table
   clk_register_fixed_factor
   clk_register_fixed_rate
@@ -1074,7 +1076,6 @@
   cpu_hwcap_keys
   cpu_hwcaps
   cpu_is_hotpluggable
-  cpu_logical_map
   cpumask_any_and_distribute
   cpumask_any_but
   cpumask_local_spread
@@ -1350,6 +1351,7 @@
   dax_read_lock
   dax_read_unlock
   dax_region_put
+  dax_supported
   __dax_synchronous
   dax_write_cache
   dax_write_cache_enabled
@@ -1446,6 +1448,9 @@
   dev_change_proto_down_reason
   dev_close
   dev_close_many
+  dev_coredumpm
+  dev_coredumpsg
+  dev_coredumpv
   _dev_crit
   dev_deactivate
   dev_direct_xmit
@@ -1752,6 +1757,8 @@
   devm_power_supply_register_no_ws
   devm_pwm_get
   devm_pwm_put
+  devm_rc_allocate_device
+  devm_rc_register_device
   devm_register_netdev
   devm_register_reboot_notifier
   devm_regmap_add_irq_chip
@@ -3039,6 +3046,10 @@
   dw_pcie_wait_for_link
   dw_pcie_write
   dw_pcie_write_dbi
+  dynamic_debug_exec_queries
+  __dynamic_dev_dbg
+  __dynamic_netdev_dbg
+  __dynamic_pr_debug
   dynevent_create
   ecc_gen_privkey
   ecc_is_key_valid
@@ -3046,6 +3057,39 @@
   ecc_is_pubkey_valid_partial
   ecc_make_pub_key
   ecc_point_mult_shamir
+  edac_device_add_device
+  edac_device_alloc_ctl_info
+  edac_device_alloc_index
+  edac_device_del_device
+  edac_device_free_ctl_info
+  edac_device_handle_ce_count
+  edac_device_handle_ue_count
+  edac_get_owner
+  edac_get_sysfs_subsys
+  edac_has_mcs
+  edac_layer_name
+  edac_mc_add_mc_with_groups
+  edac_mc_alloc
+  edac_mc_del_mc
+  edac_mc_find
+  edac_mc_find_csrow_by_page
+  edac_mc_free
+  edac_mc_handle_error
+  edac_mem_types
+  edac_mod_work
+  edac_op_state
+  edac_pci_add_device
+  edac_pci_alloc_ctl_info
+  edac_pci_alloc_index
+  edac_pci_create_generic_ctl
+  edac_pci_del_device
+  edac_pci_free_ctl_info
+  edac_pci_handle_npe
+  edac_pci_handle_pe
+  edac_pci_release_generic_ctl
+  edac_queue_work
+  edac_raw_mc_handle_error
+  edac_stop_work
   efi
   efi_capsule_supported
   efi_capsule_update
@@ -3293,6 +3337,7 @@
   find_iova
   find_last_bit
   find_lock_entry
+  find_mci_by_dev
   find_module
   find_next_and_bit
   find_next_bit
@@ -3995,9 +4040,19 @@
   gserial_resume
   gserial_suspend
   gs_free_req
+  gspca_coarse_grained_expo_autogain
+  gspca_debug
+  gspca_dev_probe2
+  gspca_dev_probe
+  gspca_disconnect
+  gspca_expo_autogain
+  gspca_frame_add
+  gspca_resume
+  gspca_suspend
   guid_gen
   guid_null
   guid_parse
+  h4_recv_buf
   halt_poll_ns
   halt_poll_ns_grow
   halt_poll_ns_grow_start
@@ -4043,6 +4098,9 @@
   hci_set_fw_info
   hci_set_hw_info
   hci_suspend_dev
+  hci_uart_register_device
+  hci_uart_tx_wakeup
+  hci_uart_unregister_device
   hci_unregister_cb
   hci_unregister_dev
   hdmi_audio_infoframe_check
@@ -4111,6 +4169,7 @@
   hid_open_report
   hid_output_report
   hid_parse_report
+  hidp_hid_driver
   hid_quirks_exit
   hid_quirks_init
   hidraw_connect
@@ -4206,9 +4265,6 @@
   i2c_get_dma_safe_msg_buf
   i2c_handle_smbus_host_notify
   i2c_match_id
-  i2c_mux_add_adapter
-  i2c_mux_alloc
-  i2c_mux_del_adapters
   i2c_new_ancillary_device
   i2c_new_client_device
   i2c_new_dummy_device
@@ -4221,7 +4277,6 @@
   i2c_put_dma_safe_msg_buf
   i2c_recover_bus
   i2c_register_driver
-  i2c_root_adapter
   i2c_smbus_read_block_data
   i2c_smbus_read_byte
   i2c_smbus_read_byte_data
@@ -4809,6 +4864,7 @@
   iommu_device_sysfs_remove
   iommu_device_unlink
   iommu_device_unregister
+  iommu_dma_enable_best_fit_algo
   iommu_dma_get_resv_regions
   iommu_dma_reserve_iova
   iommu_domain_alloc
@@ -5085,6 +5141,7 @@
   ipv6_sock_mc_join
   ipv6_stub
   ip_valid_fib_dump_req
+  ir_lirc_scancode_event
   __irq_alloc_descs
   __irq_alloc_domain_generic_chips
   irq_alloc_generic_chip
@@ -5181,6 +5238,19 @@
   irq_work_queue
   irq_work_run
   irq_work_sync
+  ir_raw_encode_carrier
+  ir_raw_encode_scancode
+  ir_raw_event_handle
+  ir_raw_event_set_idle
+  ir_raw_event_store
+  ir_raw_event_store_edge
+  ir_raw_event_store_with_filter
+  ir_raw_event_store_with_timeout
+  ir_raw_gen_manchester
+  ir_raw_gen_pd
+  ir_raw_gen_pl
+  ir_raw_handler_register
+  ir_raw_handler_unregister
   isa_dma_bridge_buggy
   is_bad_inode
   is_console_locked
@@ -5263,6 +5333,8 @@
   jiffies_to_msecs
   jiffies_to_timespec64
   jiffies_to_usecs
+  jump_label_rate_limit
+  jump_label_update_timeout
   kasprintf
   kblockd_mod_delayed_work_on
   kblockd_schedule_work
@@ -5294,6 +5366,7 @@
   kernel_sigaction
   kernel_sock_ip_overhead
   kernel_sock_shutdown
+  __kernel_write
   kernel_write
   kernfs_find_and_get_ns
   kernfs_get
@@ -6214,7 +6287,6 @@
   nd_sb_checksum
   nd_synchronize
   nd_tbl
-  needs_casefold
   neigh_app_ns
   neigh_carrier_down
   neigh_changeaddr
@@ -6481,6 +6553,7 @@
   nf_hook_entries_insert_raw
   nf_hook_slow
   nf_hook_slow_list
+  nf_hooks_needed
   nf_ip6_checksum
   __nf_ip6_route
   nf_ip_checksum
@@ -7297,6 +7370,7 @@
   perf_event_enable
   perf_event_pause
   perf_event_period
+  perf_event_read_local
   perf_event_read_value
   perf_event_refresh
   perf_event_release_kernel
@@ -7868,6 +7942,11 @@
   pwm_request
   pwm_request_from_chip
   pwm_set_chip_data
+  qca_read_soc_version
+  qca_send_pre_shutdown_cmd
+  qca_set_bdaddr
+  qca_set_bdaddr_rome
+  qca_uart_setup
   qcom_smem_state_get
   qcom_smem_state_put
   qcom_smem_state_register
@@ -7934,6 +8013,7 @@
   radix_tree_tagged
   radix_tree_tag_get
   radix_tree_tag_set
+  ras_userspace_consumers
   rate_control_set_rates
   ___ratelimit
   rational_best_approximation
@@ -7993,6 +8073,17 @@
   rb_prev
   rb_replace_node
   rb_replace_node_rcu
+  rc_allocate_device
+  rc_free_device
+  rc_g_keycode_from_table
+  rc_keydown
+  rc_keydown_notimeout
+  rc_keyup
+  rc_map_get
+  rc_map_register
+  rc_map_unregister
+  rc_register_device
+  rc_repeat
   rcu_barrier
   rcu_barrier_tasks
   rcu_bind_current_to_nocb
@@ -8007,11 +8098,14 @@
   rcu_gp_is_expedited
   rcu_gp_is_normal
   rcu_gp_set_torture_wait
+  rcu_idle_enter
+  rcu_idle_exit
   rcu_inkernel_boot_has_ended
   rcu_is_watching
   rcu_jiffies_till_stall_check
   rcu_momentary_dyntick_idle
   rcu_note_context_switch
+  rc_unregister_device
   __rcu_read_lock
   __rcu_read_unlock
   rcu_scheduler_active
@@ -8409,11 +8503,13 @@
   rpmsg_create_ept
   rpmsg_destroy_ept
   rpmsg_find_device
+  rpmsg_get_signals
   rpmsg_poll
   rpmsg_register_device
   rpmsg_send
   rpmsg_send_offchannel
   rpmsg_sendto
+  rpmsg_set_signals
   rpmsg_trysend
   rpmsg_trysend_offchannel
   rpmsg_trysendto
@@ -9570,6 +9666,7 @@
   snd_soc_dpcm_get_substream
   snd_soc_dpcm_runtime_update
   snd_soc_find_dai
+  snd_soc_find_dai_with_mutex
   snd_soc_get_dai_id
   snd_soc_get_dai_name
   snd_soc_get_enum_double
@@ -9848,12 +9945,22 @@
   __starget_for_each_device
   starget_for_each_device
   start_tty
+  static_key_count
+  __static_key_deferred_flush
+  static_key_disable
+  static_key_disable_cpuslocked
+  static_key_enable
+  static_key_enable_cpuslocked
   static_key_initialized
+  static_key_slow_dec
+  __static_key_slow_dec_deferred
+  static_key_slow_inc
   stop_machine
   stop_one_cpu_nowait
   stop_tty
   store_cdrom_address
   store_sampling_rate
+  stpcpy
   stp_proto_register
   stp_proto_unregister
   strcasecmp
@@ -10058,7 +10165,6 @@
   tcf_idr_create
   tcf_idr_create_from_flags
   tcf_idrinfo_destroy
-  tcf_idr_insert
   __tcf_idr_release
   tcf_idr_search
   tcf_qevent_destroy
@@ -10283,6 +10389,7 @@
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_enqueue_task
+  __tracepoint_android_rvh_find_busiest_group
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_finish_prio_fork
   __tracepoint_android_rvh_prepare_prio_fork
@@ -10299,6 +10406,8 @@
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_transaction_init
   __tracepoint_android_vh_cpu_idle
+  __tracepoint_android_vh_gic_resume
+  __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_mpam_set
   __tracepoint_android_vh_mutex_wait_finish
@@ -10312,6 +10421,8 @@
   __tracepoint_android_vh_rwsem_write_wait_start
   __tracepoint_android_vh_sched_show_task
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_wq_lockup_pool
+  __tracepoint_arm_event
   __tracepoint_attach_device_to_domain
   __tracepoint_block_bio_complete
   __tracepoint_block_bio_remap
@@ -10342,6 +10453,7 @@
   __tracepoint_kmem_cache_alloc_node
   __tracepoint_kmem_cache_free
   __tracepoint_map
+  __tracepoint_mc_event
   __tracepoint_module_get
   __tracepoint_napi_poll
   __tracepoint_neigh_cleanup_and_release
@@ -10350,6 +10462,7 @@
   __tracepoint_neigh_timer_handler
   __tracepoint_neigh_update
   __tracepoint_neigh_update_done
+  __tracepoint_non_standard_event
   __tracepoint_pelt_cfs_tp
   __tracepoint_pelt_dl_tp
   __tracepoint_pelt_irq_tp
@@ -11409,6 +11522,7 @@
   __var_waitqueue
   vb2_buffer_done
   vb2_buffer_in_use
+  vb2_common_vm_ops
   vb2_core_create_bufs
   vb2_core_dqbuf
   vb2_core_expbuf
@@ -11422,6 +11536,8 @@
   vb2_core_streamoff
   vb2_core_streamon
   vb2_create_bufs
+  vb2_create_framevec
+  vb2_destroy_framevec
   vb2_discard_done
   vb2_dqbuf
   vb2_expbuf
@@ -11465,6 +11581,7 @@
   vb2_thread_start
   vb2_thread_stop
   vb2_verify_memory_type
+  vb2_vmalloc_memops
   vb2_wait_for_all_buffers
   vb2_write
   vbin_printf
