@@ -248,10 +248,12 @@ static int set_ipbts_urgent(void __iomem *base, struct bts_stat *stat)
 	__raw_writel(tmp_reg, base + TIMEOUT);
 
 	tmp_reg = __raw_readl(base + CON);
-	tmp_reg &= ~(1 << QURGENT_EN);
+	tmp_reg &= ~((1 << QURGENT_EN) | (1 << EX_QURGENT_EN));
 
 	if (stat->qurgent_on)
 		tmp_reg |= (1 << QURGENT_EN);
+	if (stat->ex_qurgent_on)
+		tmp_reg |= (1 << EX_QURGENT_EN);
 
 	__raw_writel(tmp_reg, base + CON);
 
@@ -273,6 +275,7 @@ static int get_ipbts_urgent(void __iomem *base, struct bts_stat *stat)
 
 	tmp_reg = __raw_readl(base + CON);
 	stat->qurgent_on = (tmp_reg & (1 << QURGENT_EN)) >> QURGENT_EN;
+	stat->ex_qurgent_on = (tmp_reg & (1 << EX_QURGENT_EN)) >> EX_QURGENT_EN;
 
 	return 0;
 }

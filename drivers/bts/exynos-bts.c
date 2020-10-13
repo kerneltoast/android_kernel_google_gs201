@@ -327,11 +327,12 @@ static int exynos_bts_hwstatus_open_show(struct seq_file *buf, void *d)
 		if (ret)
 			continue;
 
-		seq_printf(buf, "%s:\tARQOS 0x%X, AWQOS 0x%X, RMO 0x%.4X, WMO 0x%.4X, QUR(%u) TH_R 0x%.2X, TH_W 0x%.2X, ",
+		seq_printf(buf, "%s:\tARQOS 0x%X, AWQOS 0x%X, RMO 0x%.4X, WMO 0x%.4X, QUR(%u) TH_R 0x%.2X, TH_W 0x%.2X, EX_QUR(%u), ",
 			info.name, stat.arqos, stat.awqos,
 			stat.rmo, stat.wmo,
 			(stat.qurgent_on ? 1 : 0),
-			stat.qurgent_th_r, stat.qurgent_th_w);
+			stat.qurgent_th_r, stat.qurgent_th_w,
+			(stat.ex_qurgent_on ? 1 : 0));
 		if (stat.blocking_on)
 			seq_printf(buf,	"BLK(1) FR 0x%.4X, FW 0x%.4X, BR 0x%.4X, BW 0x%.4X, MAX0_R 0x%.4X, MAX0_W 0x%.4X, MAX1_R 0x%.4X, MAX1_W 0x%.4X\n",
 				stat.qfull_limit_r,
@@ -611,9 +612,10 @@ static int exynos_bts_urgent_open_show(struct seq_file *buf, void *d)
 		if (info[i].pd_on) {
 			ret = info[i].ops->get_urgent(info[i].va_base, &stat);
 			seq_printf(buf,
-				   "[%d] %s:   \tQUR(%u) TH_R 0x%.2X TH_W 0x%.2X\n",
+				   "[%d] %s:   \tQUR(%u) TH_R 0x%.2X TH_W 0x%.2X EX_QUR(%u)\n",
 				   i, info[i].name, (stat.qurgent_on ? 1 : 0),
-				   stat.qurgent_th_r, stat.qurgent_th_w);
+				   stat.qurgent_th_r, stat.qurgent_th_w,
+				   (stat.ex_qurgent_on ? 1 : 0));
 		} else {
 			seq_printf(buf, "[%d] %s:   \tLocal power off!\n", i,
 				   info[i].name);
@@ -639,7 +641,7 @@ static ssize_t exynos_bts_urgent_write(struct file *file,
 
 	struct bts_info *info = btsdev->bts_list;
 	struct bts_stat stat;
-	int ret, index, on, th_r, th_w;
+	int ret, index, on, th_r, th_w, ex_on;
 
 	buf_size = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf,
 					  count);
@@ -648,9 +650,9 @@ static ssize_t exynos_bts_urgent_write(struct file *file,
 
 	buf[buf_size] = '\0';
 
-	ret = sscanf(buf, "%d %d %d %d\n", &index, &on, &th_r, &th_w);
-	if (ret != 4) {
-		pr_err("%s: sscanf failed. We need 4 inputs. <IP ON/OFF TH_R TH_W> count=(%d)\n",
+	ret = sscanf(buf, "%d %d %d %d %d\n", &index, &on, &th_r, &th_w, &ex_on);
+	if (ret != 5) {
+		pr_err("%s: sscanf failed. We need 5 inputs. <IP ON/OFF TH_R TH_W EX_ON> count=(%d)\n",
 		       __func__, ret);
 		return -EINVAL;
 	}
@@ -664,6 +666,7 @@ static ssize_t exynos_bts_urgent_write(struct file *file,
 	stat.qurgent_on = on;
 	stat.qurgent_th_r = th_r;
 	stat.qurgent_th_w = th_w;
+	stat.ex_qurgent_on = ex_on;
 
 	spin_lock(&btsdev->lock);
 
@@ -979,6 +982,10 @@ static int bts_parse_setting(struct device_node *np, struct bts_stat *stat)
 
 	of_property_read_u32(np, "qurgent_on", &tmp);
 	stat->qurgent_on = tmp ? true : false;
+	if (of_property_read_u32(np, "ex_qurgent_on", &tmp))
+		stat->ex_qurgent_on = false;
+	else
+		stat->ex_qurgent_on = tmp ? true : false;
 
 	if (of_property_read_u32(np, "qurgent_th_r",
 				 &stat->qurgent_th_r))

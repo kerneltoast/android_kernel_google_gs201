@@ -43,7 +43,8 @@
 #define BLOCK_UPPER1 16
 #define TIMEOUT_CNT_R 0
 #define TIMEOUT_CNT_W 16
-#define QURGENT_EN 20
+#define QURGENT_EN 23
+#define EX_QURGENT_EN 7
 #define BLOCKING_EN 0
 
 #define RMO_PORT_0 0
