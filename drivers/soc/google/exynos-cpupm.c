@@ -872,6 +872,7 @@ static int exynos_cpu_pm_notify_callback(struct notifier_block *self,
 
 static struct notifier_block exynos_cpu_pm_notifier = {
 	.notifier_call = exynos_cpu_pm_notify_callback,
+	.priority = INT_MAX	/* we want to be called first */
 };
 
 /******************************************************************************
