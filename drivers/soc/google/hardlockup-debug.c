@@ -24,7 +24,7 @@
 #include <asm/stacktrace.h>
 
 #include <soc/google/debug-snapshot.h>
-#ifdef CONFIG_GS_ACPM
+#if IS_ENABLED(CONFIG_GS_ACPM)
 #include <soc/google/acpm_ipc_ctrl.h>
 #endif
 
@@ -158,7 +158,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 		hardlockup_core_handled_mask |= (1 << cpu);
 
 		if (hardlockup_core_mask == hardlockup_core_handled_mask) {
-#ifdef CONFIG_GS_ACPM
+#if IS_ENABLED(CONFIG_GS_ACPM)
 			exynos_acpm_reboot();
 #endif
 		}
