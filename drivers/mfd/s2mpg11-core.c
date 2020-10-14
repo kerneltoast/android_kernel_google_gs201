@@ -256,9 +256,6 @@ static int of_s2mpg11_dt(struct device *dev,
 
 	pr_info("%s: irq-gpio: %u\n", __func__, pdata->irq_gpio);
 
-	if (of_get_property(np, "i2c-speedy-address", NULL))
-		pdata->use_i2c_speedy = true;
-
 	return 0;
 }
 #else

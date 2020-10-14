@@ -260,9 +260,6 @@ static int of_s2mpg10_dt(struct device *dev,
 
 	pr_info("%s: irq-gpio: %u\n", __func__, pdata->irq_gpio);
 
-	if (of_get_property(np, "i2c-speedy-address", NULL))
-		pdata->use_i2c_speedy = true;
-
 	/* WTSR, SMPL */
 	pdata->wtsr_smpl =
 		devm_kzalloc(dev, sizeof(*pdata->wtsr_smpl), GFP_KERNEL);

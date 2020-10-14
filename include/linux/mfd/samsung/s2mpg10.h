@@ -177,8 +177,6 @@ struct s2mpg10_platform_data {
 	int cap_sel;
 	int osc_xin;
 	int osc_xout;
-
-	bool use_i2c_speedy;
 };
 
 struct s2mpg10_dev {
