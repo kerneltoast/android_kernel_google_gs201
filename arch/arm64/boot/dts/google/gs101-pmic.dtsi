@@ -35,7 +35,6 @@
 		compatible = "samsung,s2mpg10mfd";
 		acpm-ipc-channel = <2>;
 		acpm-speedy-channel = <0>;
-		i2c-speedy-address;
 		s2mpg10,wakeup = "enabled";
 		s2mpg10,irq-gpio = <&gpa0 6 0>;
 		reg = <0x1f>;
@@ -705,7 +704,6 @@
 		compatible = "samsung,s2mpg11mfd";
 		acpm-ipc-channel = <2>;
 		acpm-speedy-channel = <1>;
-		i2c-speedy-address;
 		s2mpg11,wakeup = "enabled";
 		s2mpg11,irq-gpio = <&gpa0 7 0>;
 		reg = <0x2f>;
