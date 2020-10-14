@@ -225,12 +225,12 @@ static int gs101_spmic_thermal_set_trip_temp(void *data, int trip, int temp)
 static int gs101_spmic_thermal_set_emul_temp(void *data, int temp)
 {
 	struct gs101_spmic_thermal_sensor *sensor = data;
-
+	/* TODO: disable given NTC channel for HW emergency reset */
 	sensor->emul_temperature = temp;
 	return 0;
 }
 
-static int
+static void
 gs101_spmic_thermal_init(struct gs101_spmic_thermal_chip *gs101_spmic_thermal)
 {
 	int i;
@@ -239,7 +239,6 @@ gs101_spmic_thermal_init(struct gs101_spmic_thermal_chip *gs101_spmic_thermal)
 		gs101_spmic_thermal->sensor[i].chip = gs101_spmic_thermal;
 		gs101_spmic_thermal->sensor[i].adc_chan = i;
 	}
-	return 0;
 }
 
 static struct thermal_zone_of_device_ops gs101_spmic_thermal_ops = {
@@ -274,6 +273,8 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 		gs101_spmic_thermal->sensor[i].tzd = tzd;
 		if (gs101_spmic_thermal->adc_chan_en & mask)
 			thermal_zone_device_enable(tzd);
+		else
+			thermal_zone_device_disable(tzd);
 	}
 	return 0;
 }
@@ -433,11 +434,7 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ret = gs101_spmic_thermal_init(chip);
-	if (ret) {
-		dev_err(dev, "gs101_spmic_thermal init failed\n");
-		goto fail;
-	}
+	gs101_spmic_thermal_init(chip);
 
 	/* w/a for reversed NTC_LPF_DATA */
 	/* 0x00 is the highest threshold for NTC values, not 0xff  */
@@ -460,7 +457,7 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 	ret = gs101_spmic_thermal_register_tzd(chip);
 	if (ret) {
 		dev_err(dev, "Failed to register with of thermal\n");
-		goto fail;
+		goto disable_ntc;
 	}
 
 	/* Setup IRQ */
@@ -475,20 +472,35 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"Failed to request NTC[%d] IRQ: %d: %d\n", i,
 				chip->sensor[i].irq, ret);
-			goto fail;
+			goto free_irq_tz;
 		}
 	}
 
 	platform_set_drvdata(pdev, chip);
+	return ret;
+
+free_irq_tz:
+	while (--i >= 0) {
+		devm_free_irq(&pdev->dev, chip->sensor[i].irq, chip);
+	}
+	gs101_spmic_thermal_unregister_tzd(chip);
+disable_ntc:
+	gs101_spmic_set_enable(chip, false);
 fail:
 	return ret;
 }
 
 static int gs101_spmic_thermal_remove(struct platform_device *pdev)
 {
+	int i;
 	struct gs101_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
 
+	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
+		devm_free_irq(&pdev->dev, chip->sensor[i].irq, chip);
+	}
 	gs101_spmic_thermal_unregister_tzd(chip);
+	gs101_spmic_set_enable(chip, false);
+
 	return 0;
 }
 
