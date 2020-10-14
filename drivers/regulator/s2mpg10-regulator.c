@@ -570,28 +570,53 @@ static int s2mpg10_pmic_dt_parse_pdata(struct s2mpg10_dev *iodev,
 #endif /* CONFIG_OF */
 
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
+
+#define I2C_ADDR_TOP 0x00
+#define I2C_ADDR_PMIC 0x01
+#define I2C_ADDR_RTC 0x02
+#define I2C_ADDR_METER 0x0A
+#define I2C_ADDR_WLWP 0x0B
+
 static ssize_t s2mpg10_pmic_read_store(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t size)
 {
 	struct s2mpg10_pmic *s2mpg10 = dev_get_drvdata(dev);
+	struct i2c_client *client = NULL;
 	int ret;
-	u8 val, reg_addr;
+	u8 val;
+	u16 reg_addr;
 
-	if (!buf) {
-		pr_info("%s: empty buffer\n", __func__);
+	if (!buf)
 		return -1;
+
+	ret = kstrtou16(buf, 0, &reg_addr);
+	if (ret < 0)
+		pr_err("%s: fail to transform i2c address\n", __func__);
+
+	switch (reg_addr >> 8){
+	case I2C_ADDR_TOP:
+		client = s2mpg10->iodev->i2c;
+		break;
+	case I2C_ADDR_PMIC:
+		client = s2mpg10->iodev->pmic;
+		break;
+	case I2C_ADDR_RTC:
+		client = s2mpg10->iodev->rtc;
+		break;
+	case I2C_ADDR_METER:
+		client = s2mpg10->iodev->meter;
+		break;
+	case I2C_ADDR_WLWP:
+	default:
+		return size;
 	}
 
-	ret = kstrtou8(buf, 0, &reg_addr);
+	ret = s2mpg10_read_reg(client, reg_addr, &val);
 	if (ret < 0)
-		pr_info("%s: fail to transform i2c address\n", __func__);
+		pr_err("%s: fail to read i2c address\n", __func__);
 
-	ret = s2mpg10_read_reg(s2mpg10->i2c, reg_addr, &val);
-	if (ret < 0)
-		pr_info("%s: fail to read i2c address\n", __func__);
-
-	pr_info("%s: reg(0x%02x) data(0x%02x)\n", __func__, reg_addr, val);
+	pr_debug("%s: reg(0x%04X) data(0x%02X)\n", __func__, reg_addr, val);
 	s2mpg10->read_addr = reg_addr;
 	s2mpg10->read_val = val;
 
@@ -603,8 +628,8 @@ static ssize_t s2mpg10_pmic_read_show(struct device *dev,
 {
 	struct s2mpg10_pmic *s2mpg10 = dev_get_drvdata(dev);
 
-	return sprintf(buf, "0x%02x: 0x%02x\n", s2mpg10->read_addr,
-		       s2mpg10->read_val);
+	return scnprintf(buf, PAGE_SIZE, "0x%04X: 0x%02X\n", s2mpg10->read_addr,
+			 s2mpg10->read_val);
 }
 
 static ssize_t s2mpg10_pmic_write_store(struct device *dev,
@@ -612,25 +637,43 @@ static ssize_t s2mpg10_pmic_write_store(struct device *dev,
 					const char *buf, size_t size)
 {
 	struct s2mpg10_pmic *s2mpg10 = dev_get_drvdata(dev);
+	struct i2c_client *client = NULL;
 	int ret;
-	u8 reg, data;
+	u16 reg;
+	u8 data;
 
-	if (!buf) {
-		pr_info("%s: empty buffer\n", __func__);
+	if (!buf)
 		return size;
-	}
 
 	ret = sscanf(buf, "%x %x", &reg, &data);
 	if (ret != 2) {
-		pr_info("%s: input error\n", __func__);
+		pr_err("%s: input error\n", __func__);
 		return size;
 	}
 
-	pr_info("%s: reg(0x%02x) data(0x%02x)\n", __func__, reg, data);
+	pr_debug("%s: reg(0x%04X) data(0x%02X)\n", __func__, reg, data);
+
+	switch (reg >> 8){
+	case I2C_ADDR_TOP:
+		client = s2mpg10->iodev->i2c;
+		break;
+	case I2C_ADDR_PMIC:
+		client = s2mpg10->iodev->pmic;
+		break;
+	case I2C_ADDR_RTC:
+		client = s2mpg10->iodev->rtc;
+		break;
+	case I2C_ADDR_METER:
+		client = s2mpg10->iodev->meter;
+		break;
+	case I2C_ADDR_WLWP:
+	default:
+		return size;
+	}
 
 	ret = s2mpg10_write_reg(s2mpg10->i2c, reg, data);
 	if (ret < 0)
-		pr_info("%s: fail to write i2c addr/data\n", __func__);
+		pr_err("%s: fail to write i2c addr/data\n", __func__);
 
 	return size;
 }

@@ -155,7 +155,7 @@ struct s2mpg11_pmic {
 	unsigned int soft_ocp_gpu_lvl;
 	struct device *dev;
 	u8 read_val;
-	u8 read_addr;
+	u16 read_addr;
 #endif
 };
 

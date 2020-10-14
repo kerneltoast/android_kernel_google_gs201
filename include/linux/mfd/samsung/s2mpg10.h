@@ -228,7 +228,7 @@ struct s2mpg10_pmic {
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 	struct device *dev;
 	u8 read_val;
-	u8 read_addr;
+	u16 read_addr;
 #endif
 };
 
