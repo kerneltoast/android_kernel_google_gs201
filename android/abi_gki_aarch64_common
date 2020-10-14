@@ -554,6 +554,15 @@
   bt_accept_dequeue
   bt_accept_enqueue
   bt_accept_unlink
+  btbcm_check_bdaddr
+  btbcm_finalize
+  btbcm_initialize
+  btbcm_patchram
+  btbcm_read_pcm_int_params
+  btbcm_set_bdaddr
+  btbcm_setup_apple
+  btbcm_setup_patchram
+  btbcm_write_pcm_int_params
   bt_debugfs
   bt_err
   bt_err_ratelimited
