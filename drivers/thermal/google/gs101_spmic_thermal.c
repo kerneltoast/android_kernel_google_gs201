@@ -451,6 +451,18 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 			   NTC_0P15625HZ << NTC_SAMP_RATE_SHIFT,
 			   NTC_SAMP_RATE_MASK);
 
+	ret = gs101_spmic_set_enable(chip, true);
+	if (ret) {
+		dev_err(dev, "Failed to enable NTC engine\n");
+		goto fail;
+	}
+
+	ret = gs101_spmic_thermal_register_tzd(chip);
+	if (ret) {
+		dev_err(dev, "Failed to register with of thermal\n");
+		goto fail;
+	}
+
 	/* Setup IRQ */
 	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
 		chip->sensor[i].irq =
@@ -465,17 +477,6 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 				chip->sensor[i].irq, ret);
 			goto fail;
 		}
-	}
-	ret = gs101_spmic_set_enable(chip, true);
-	if (ret) {
-		dev_err(dev, "Failed to enable NTC engine\n");
-		goto fail;
-	}
-
-	ret = gs101_spmic_thermal_register_tzd(chip);
-	if (ret) {
-		dev_err(dev, "Failed to register with of thermal\n");
-		goto fail;
 	}
 
 	platform_set_drvdata(pdev, chip);
