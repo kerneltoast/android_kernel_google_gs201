@@ -18,6 +18,7 @@
 #include "g2d_debug.h"
 #include "g2d_regs.h"
 #include "g2d_perf.h"
+#include "g2d_trace.h"
 
 unsigned int g2d_debug;
 
@@ -494,32 +495,32 @@ void g2d_dump_info(struct g2d_device *g2d_dev, struct g2d_task *task)
 	g2d_dump_afbcdata(g2d_dev);
 }
 
-#ifdef CONFIG_G2D_SYSTRACE
-static bool g2d_systrace_on;
-module_param(g2d_systrace_on, bool, 0644);
-
-#define G2D_TRACE_BUFSIZE 32
-static void tracing_mark_write(struct g2d_task *task, u32 stampid, s32 val)
+static void g2d_frame_state(struct g2d_task *task, u32 stampid, s32 val)
 {
-	if (!g2d_systrace_on)
-		return;
+	char trace_name[32];
 
 	switch (stampid) {
 	case G2D_STAMP_STATE_TASK_RESOURCE:
-		trace_printk((val) ?
-			     "C|0|g2d_frame_run#%d|0\n" :
-			     "C|0|g2d_frame_wait#%d|1\n",
-			     g2d_task_id(task));
+		if (val) {
+			scnprintf(trace_name, sizeof(trace_name), "g2d_frame_sw#%d",
+				g2d_task_id(task));
+			G2D_ATRACE_INT_PID(trace_name, 0, 0);
+		} else {
+			scnprintf(trace_name, sizeof(trace_name), "g2d_frame_sw#%d",
+				g2d_task_id(task));
+			G2D_ATRACE_INT_PID(trace_name, 1, 0);
+		}
 	break;
 	case G2D_STAMP_STATE_PUSH:
-		trace_printk("C|0|g2d_frame_wait#%d|0\n", g2d_task_id(task));
-		trace_printk("C|0|g2d_frame_run#%d|1\n", g2d_task_id(task));
+		scnprintf(trace_name, sizeof(trace_name), "g2d_frame_hw#%d", g2d_task_id(task));
+		G2D_ATRACE_INT_PID(trace_name, 1, 0);
+	break;
+	case G2D_STAMP_STATE_DONE:
+		scnprintf(trace_name, sizeof(trace_name), "g2d_frame_hw#%d", g2d_task_id(task));
+		G2D_ATRACE_INT_PID(trace_name, 0, 0);
 	break;
 	}
 }
-#else
-#define tracing_mark_write(task, stampid, val)	do { } while (0)
-#endif
 
 #if !IS_ENABLED(CONFIG_VIDEO_EXYNOS_TSMUX)
 static inline int g2d_blending_start(int32_t index)
@@ -538,7 +539,7 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 	int idx = G2D_STAMP_CLAMP_ID(atomic_inc_return(&g2d_stamp_id));
 	struct g2d_stamp *stamp = &g2d_stamp_list[idx];
 
-	tracing_mark_write(task, stampid, val);
+	g2d_frame_state(task, stampid, val);
 
 	if (task) {
 		stamp->state = task->state;

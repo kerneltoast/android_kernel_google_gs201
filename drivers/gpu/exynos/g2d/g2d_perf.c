@@ -12,6 +12,7 @@
 #include "g2d_task.h"
 #include "g2d_uapi.h"
 #include "g2d_debug.h"
+#include "g2d_trace.h"
 
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
 static void g2d_pm_qos_update_devfreq(struct g2d_device *g2d_dev, u32 freq)
@@ -158,6 +159,8 @@ void g2d_update_performance(struct g2d_device *g2d_dev)
 		qos.wbw = max_t(u64, task->taskqos.wbw, qos.wbw);
 		qos.devfreq = max_t(u32, task->taskqos.devfreq, qos.devfreq);
 	}
+
+	trace_g2d_perf_update_qos(qos.rbw, qos.wbw, qos.devfreq);
 
 	if (!qos.devfreq)
 		g2d_pm_qos_remove_devfreq(g2d_dev);

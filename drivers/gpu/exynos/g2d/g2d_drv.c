@@ -25,6 +25,9 @@
 #include "g2d_debug.h"
 #include "g2d_perf.h"
 
+#define CREATE_TRACE_POINTS
+#include "g2d_trace.h"
+
 #define MODULE_NAME "exynos-g2d"
 
 static int g2d_update_priority(struct g2d_context *ctx, enum g2d_priority priority)
@@ -130,6 +133,7 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 	struct g2d_device *g2d_dev = priv;
 	u32 intflags, errstatus;
 
+	G2D_ATRACE_BEGIN("g2d_irq");
 	spin_lock(&g2d_dev->lock_task);
 
 	intflags = g2d_hw_finished_job_ids(g2d_dev);
@@ -163,6 +167,7 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 	g2d_finish_tasks(g2d_dev, intflags, !errstatus);
 
 	spin_unlock(&g2d_dev->lock_task);
+	G2D_ATRACE_END();
 
 	wake_up(&g2d_dev->freeze_wait);
 
@@ -416,7 +421,9 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		kref_init(&task->starter);
 
+		G2D_ATRACE_BEGIN("g2d_get_userdata");
 		ret = g2d_get_userdata(g2d_dev, ctx, task, &data);
+		G2D_ATRACE_END();
 		if (ret < 0) {
 			/* release hwfc buffer */
 			if (IS_HWFC(task->flags) && task->bufidx >= 0)
@@ -428,7 +435,9 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		g2d_stamp_task(task, G2D_STAMP_STATE_BEGIN,
 			       atomic_read(&task->starter.refcount.refs));
 
+		G2D_ATRACE_BEGIN("g2d_start_task");
 		g2d_start_task(task);
+		G2D_ATRACE_END();
 
 		if (!(task->flags & G2D_FLAG_NONBLOCK))
 			ret = g2d_wait_put_user(g2d_dev, task,

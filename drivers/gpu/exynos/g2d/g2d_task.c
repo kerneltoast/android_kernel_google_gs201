@@ -19,6 +19,7 @@
 #include "g2d_fence.h"
 #include "g2d_debug.h"
 #include "g2d_secure.h"
+#include "g2d_trace.h"
 
 static void g2d_secure_enable(void)
 {
@@ -70,9 +71,11 @@ static void g2d_task_completion_work(struct work_struct *work)
 	struct g2d_task *task = container_of(work, struct g2d_task,
 					     completion_work);
 
+	G2D_ATRACE_BEGIN("g2d_task_completion_work");
 	g2d_put_images(task->g2d_dev, task);
 
 	g2d_put_free_task(task->g2d_dev, task);
+	G2D_ATRACE_END();
 }
 
 static void __g2d_finish_task(struct g2d_task *task, bool success)
