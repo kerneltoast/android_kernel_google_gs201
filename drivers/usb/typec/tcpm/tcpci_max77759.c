@@ -168,6 +168,62 @@ static struct device_attribute *max77759_device_attrs[] = {
 	NULL
 };
 
+#ifdef CONFIG_GPIOLIB
+static int ext_bst_en_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
+{
+	return GPIOF_DIR_OUT;
+}
+
+static int ext_bst_en_gpio_get(struct gpio_chip *gpio, unsigned int offset)
+{
+	int ret;
+	u8 val;
+	struct max77759_plat *chip = gpiochip_get_data(gpio);
+	struct regmap *regmap = chip->data.regmap;
+
+	ret = max77759_read8(regmap, TCPC_VENDOR_EXTBST_CTRL, &val);
+	logbuffer_log(chip->log, "%s: ret:%d", __func__, ret);
+
+	return val & EXT_BST_EN;
+}
+
+static void ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int value)
+{
+	int ret;
+	struct max77759_plat *chip = gpiochip_get_data(gpio);
+	struct regmap *regmap = chip->data.regmap;
+
+	ret = max77759_write8(regmap, TCPC_VENDOR_EXTBST_CTRL, value ? EXT_BST_EN : 0);
+	logbuffer_log(chip->log, "%s: ret:%d", __func__, ret);
+}
+
+static int ext_bst_en_gpio_init(struct max77759_plat *chip)
+{
+	int ret;
+
+	/* Setup GPIO controller */
+	chip->gpio.owner = THIS_MODULE;
+	chip->gpio.parent = chip->dev;
+	chip->gpio.label = "max77759_tcpc_gpio";
+	chip->gpio.get_direction = ext_bst_en_gpio_get_direction;
+	chip->gpio.get = ext_bst_en_gpio_get;
+	chip->gpio.set = ext_bst_en_gpio_set;
+	chip->gpio.base = -1;
+	chip->gpio.ngpio = 1;
+	chip->gpio.can_sleep = true;
+	chip->gpio.of_node = of_find_node_by_name(chip->dev->of_node, chip->gpio.label);
+
+	if (!chip->gpio.of_node)
+		dev_err(chip->dev, "Failed to find %s DT node\n", chip->gpio.label);
+
+	ret = devm_gpiochip_add_data(chip->dev, &chip->gpio, chip);
+	if (ret)
+		dev_err(chip->dev, "Failed to initialize gpio chip\n");
+
+	return ret;
+}
+#endif
+
 static struct max77759_plat *tdata_to_max77759(struct tcpci_data *tdata)
 {
 	return container_of(tdata, struct max77759_plat, data);
@@ -1281,8 +1337,16 @@ static int max77759_probe(struct i2c_client *client,
 				ret);
 	}
 
+#ifdef CONFIG_GPIOLIB
+	ret = ext_bst_en_gpio_init(chip);
+	if (ret)
+		goto remove_dev_attr;
+#endif
 	return 0;
 
+remove_dev_attr:
+	for (i = 0; max77759_device_attrs[i]; i++)
+		device_remove_file(&client->dev, max77759_device_attrs[i]);
 unreg_port:
 	tcpci_unregister_port(chip->tcpci);
 psy_put:

@@ -9,6 +9,8 @@
 
 #include <linux/interrupt.h>
 #include <linux/usb/tcpm.h>
+#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 #include "usb_psy.h"
 
@@ -66,6 +68,11 @@ struct max77759_plat {
 	int contaminant_detection;
 	/* Protects contaminant_detection variable */
 	struct mutex contaminant_detection_lock;
+
+	/* EXT_BST_EN exposed as GPIO */
+#ifdef CONFIG_GPIOLIB
+	struct gpio_chip gpio;
+#endif
 
 	struct logbuffer *log;
 };
