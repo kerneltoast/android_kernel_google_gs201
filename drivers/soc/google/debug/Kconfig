@@ -29,7 +29,7 @@ config DEBUG_SNAPSHOT_LOG_ITEM_SIZE
 config DEBUG_SNAPSHOT_BUILT_IN
 	bool "Debug SnapShot Built-In Support"
 	depends on DEBUG_SNAPSHOT
-	default y
+	default n
 	help
 	  There are some kernel events in only core-kernel.
 	  If we get the events, we should need built-in driver.
