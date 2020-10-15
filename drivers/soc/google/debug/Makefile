@@ -12,6 +12,10 @@ obj-$(CONFIG_DEBUG_SNAPSHOT_SFRDUMP)		+= debug-snapshot-sfrdump.o
 obj-$(CONFIG_DEBUG_SNAPSHOT_QUICKDUMP)		+= debug-snapshot-qd.o
 obj-$(CONFIG_DEBUG_SNAPSHOT_DEBUG_KINFO)	+= debug-snapshot-debug-kinfo.o
 
+obj-$(CONFIG_EXYNOS_EHLD)		+= ehld.o
+ehld-y					:= exynos-ehld.o \
+						exynos-ehld-ipc.o
+
 obj-$(CONFIG_EXYNOS_DEBUG_TEST)		+= exynos-debug-test.o
 
 obj-$(CONFIG_PIXEL_DEBUG_TEST)		+= pixel-debug-test.o

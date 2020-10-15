@@ -63,6 +63,13 @@ config DEBUG_SNAPSHOT_DEBUG_KINFO
 	help
 	  Use DPM to enable/disable kernel information backup.
 
+config EXYNOS_EHLD
+	tristate "Exynos support Early Hardlockup Detector"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  This module is a driver for detecting HW lockup at early time.
+
 config EXYNOS_DEBUG_TEST
 	tristate "Exynos debug feature test"
 	depends on DEBUG_SNAPSHOT
