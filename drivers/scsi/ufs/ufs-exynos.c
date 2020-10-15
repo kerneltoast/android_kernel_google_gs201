@@ -422,8 +422,6 @@ static void exynos_ufs_set_features(struct ufs_hba *hba)
 			UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
 			UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
 			UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR;
-
-	hba->dev_quirks &= ~(UFS_DEVICE_QUIRK_RECOVERY_FROM_DL_NAC_ERRORS);
 }
 
 /*
@@ -872,6 +870,38 @@ static int __exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	return 0;
 }
 
+static int __apply_dev_quirks(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct ufs_vs_handle *handle = &ufs->handle;
+	const u32 pa_h8_time_offset = 0x329C;
+	u32 peer_hibern8time;
+
+	/*
+	 * As for tActivate, device value is bigger than host value,
+	 * while, as for tHibern8time, vice versa.
+	 * For tActiavate, it's enabled by setting
+	 * UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE to one.
+	 * In here, it's handled only for tHibern8.
+	 */
+	if (hba->dev_quirks & UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE) {
+		peer_hibern8time = unipro_readl(handle, pa_h8_time_offset);
+		unipro_writel(handle, peer_hibern8time + 1, pa_h8_time_offset);
+	}
+
+	return 0;
+}
+
+static void __fixup_dev_quirks(struct ufs_hba *hba)
+{
+	hba->dev_quirks &= ~(UFS_DEVICE_QUIRK_RECOVERY_FROM_DL_NAC_ERRORS);
+}
+
+/* to make device state active */
+static void __device_reset(struct ufs_hba *hba)
+{
+}
+
 static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.init = exynos_ufs_init,
 	.setup_clocks = exynos_ufs_setup_clocks,
@@ -889,6 +919,9 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.update_sysfs = pixel_ufs_update_sysfs,
 	.send_command = pixel_ufs_send_command,
 	.compl_command = pixel_ufs_compl_command,
+	.apply_dev_quirks = __apply_dev_quirks,
+	.fixup_dev_quirks = __fixup_dev_quirks,
+	.device_reset = __device_reset,
 };
 
 /*
