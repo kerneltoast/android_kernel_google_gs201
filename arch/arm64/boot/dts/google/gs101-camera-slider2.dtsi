@@ -10,20 +10,6 @@
 #include <dt-bindings/pinctrl/samsung.h>
 #include "gs101-camera-slider-common.dtsi"
 
-&pinctrl_5 {
-	flash_active: flash_active {
-		samsung,pins = "gpp27-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-	};
-
-	flash_suspend: flash_suspend {
-		samsung,pins = "gpp27-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-	};
-};
-
 &hsi2c_8 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -54,6 +40,9 @@
 				/* Registers */
 				reg-addr-bitwidth = <8>;
 				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo7>;
 
 				/* GPIOs */
 				/* HW_ENABLE GPP27[1] */
