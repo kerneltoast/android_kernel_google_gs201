@@ -7,7 +7,7 @@ BASE_OUT=${OUT_DIR:-out}/mixed/
 export OUT_DIR
 
 # share a common DIST_DIR
-DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
+export DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
 
 OUT_DIR=${BASE_OUT}/android12-5.10-staging/
 # Now build the GKI kernel
