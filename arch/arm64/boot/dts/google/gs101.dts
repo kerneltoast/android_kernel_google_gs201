@@ -764,6 +764,9 @@
 			dfs_id = <ACPM_DVFS_MIF>;
 			acpm-ipc-channel = <1>;
 			use_acpm = "true";
+
+			/* Default remove MIF L1/L2/L3 */
+			l123_restrict = "1";
 		};
 
 		devfreq_1: devfreq_int@17000020 {
