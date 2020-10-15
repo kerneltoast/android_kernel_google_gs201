@@ -671,42 +671,6 @@ int create_s2mpg10_pmic_sysfs(struct s2mpg10_pmic *s2mpg10)
 }
 #endif
 
-static irqreturn_t s2mpg10_cpu1_ocp_warn_irq_handler(int irq, void *data)
-{
-	pr_info_ratelimited("OCP : CPU1 IRQ : %d triggered\n", irq);
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t s2mpg10_soft_cpu1_ocp_warn_irq_handler(int irq, void *data)
-{
-	pr_info_ratelimited("OCP : SOFT CPU1 IRQ : %d triggered\n", irq);
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t s2mpg10_cpu2_ocp_warn_irq_handler(int irq, void *data)
-{
-	pr_info_ratelimited("OCP : CPU2 IRQ : %d triggered\n", irq);
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t s2mpg10_soft_cpu2_ocp_warn_irq_handler(int irq, void *data)
-{
-	pr_info_ratelimited("OCP : SOFT CPU2 IRQ : %d triggered\n", irq);
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t s2mpg10_tpu_ocp_warn_irq_handler(int irq, void *data)
-{
-	pr_info_ratelimited("OCP : TPU IRQ : %d triggered\n", irq);
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t s2mpg10_soft_tpu_ocp_warn_irq_handler(int irq, void *data)
-{
-	pr_info_ratelimited("OCP : SOFT TPU IRQ : %d triggered\n", irq);
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t s2mpg10_buck_ocp_irq(int irq, void *data)
 {
 	struct s2mpg10_pmic *s2mpg10 = data;
@@ -880,7 +844,6 @@ static int s2mpg10_pmic_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pdata->num_regulators; i++) {
 		int id = pdata->regulators[i].id;
-
 		config.dev = &pdev->dev;
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = s2mpg10;
@@ -915,103 +878,6 @@ static int s2mpg10_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (s2mpg10->cpu1_ocp_warn_irq >= 0) {
-		s2mpg10->cpu1_ocp_warn_irq =
-				gpio_to_irq(pdata->b3_ocp_warn_pin);
-		irq_set_status_flags(s2mpg10->cpu1_ocp_warn_irq,
-				     IRQ_DISABLE_UNLAZY);
-		ret = devm_request_threaded_irq(&pdev->dev,
-						s2mpg10->cpu1_ocp_warn_irq,
-						NULL,
-						s2mpg10_cpu1_ocp_warn_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"CPU1_OCP_IRQ", s2mpg10);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"Failed to request CPU1 OCP IRQ: %d: %d\n",
-				s2mpg10->cpu1_ocp_warn_irq, ret);
-		}
-	}
-
-	if (s2mpg10->soft_cpu1_ocp_warn_irq >= 0) {
-		s2mpg10->soft_cpu1_ocp_warn_irq =
-				gpio_to_irq(pdata->b3_soft_ocp_warn_pin);
-		ret = devm_request_threaded_irq(&pdev->dev,
-						s2mpg10->soft_cpu1_ocp_warn_irq,
-						NULL,
-						s2mpg10_soft_cpu1_ocp_warn_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"SOFT_CPU1_OCP_IRQ", s2mpg10);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"Failed to request SOFT CPU1 OCP IRQ: %d: %d\n",
-				s2mpg10->soft_cpu1_ocp_warn_irq, ret);
-		}
-	}
-
-	if (s2mpg10->cpu2_ocp_warn_irq >= 0) {
-		s2mpg10->cpu2_ocp_warn_irq =
-				gpio_to_irq(pdata->b2_ocp_warn_pin);
-		ret = devm_request_threaded_irq(&pdev->dev,
-						s2mpg10->cpu2_ocp_warn_irq,
-						NULL,
-						s2mpg10_cpu2_ocp_warn_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"CPU2_OCP_IRQ", s2mpg10);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"Failed to request CPU2 OCP IRQ: %d: %d\n",
-				s2mpg10->cpu2_ocp_warn_irq, ret);
-		}
-	}
-
-	if (s2mpg10->soft_cpu2_ocp_warn_irq >= 0) {
-		s2mpg10->soft_cpu2_ocp_warn_irq =
-				gpio_to_irq(pdata->b2_soft_ocp_warn_pin);
-		ret = devm_request_threaded_irq(&pdev->dev,
-						s2mpg10->soft_cpu2_ocp_warn_irq,
-						NULL,
-						s2mpg10_soft_cpu2_ocp_warn_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"SOFT_CPU2_OCP_IRQ", s2mpg10);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"Failed to request SOFT CPU2 OCP IRQ: %d: %d\n",
-				s2mpg10->soft_cpu2_ocp_warn_irq, ret);
-		}
-	}
-
-	if (s2mpg10->tpu_ocp_warn_irq >= 0) {
-		s2mpg10->tpu_ocp_warn_irq =
-				gpio_to_irq(pdata->b10_ocp_warn_pin);
-		ret = devm_request_threaded_irq(&pdev->dev,
-						s2mpg10->tpu_ocp_warn_irq,
-						NULL,
-						s2mpg10_tpu_ocp_warn_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"TPU_OCP_IRQ", s2mpg10);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"Failed to request TPU OCP IRQ: %d: %d\n",
-				s2mpg10->tpu_ocp_warn_irq, ret);
-		}
-	}
-
-	if (s2mpg10->soft_tpu_ocp_warn_irq >= 0) {
-		s2mpg10->soft_tpu_ocp_warn_irq =
-				gpio_to_irq(pdata->b10_soft_ocp_warn_pin);
-		ret = devm_request_threaded_irq(&pdev->dev,
-						s2mpg10->soft_tpu_ocp_warn_irq,
-						NULL,
-						s2mpg10_soft_tpu_ocp_warn_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"SOFT_TPU_OCP_IRQ", s2mpg10);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"Failed to request SOFT TPU OCP IRQ: %d: %d\n",
-				s2mpg10->soft_tpu_ocp_warn_irq, ret);
-		}
-	}
 	s2mpg10_smpl_warn(s2mpg10, pdata);
 	s2mpg10_ocp_warn(s2mpg10, pdata);
 	s2mpg10_oi_function(s2mpg10);
