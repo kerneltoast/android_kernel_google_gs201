@@ -102,4 +102,54 @@ struct pixel_io_stats {
 	u64 max_diff_req_count;
 	u64 max_diff_total_bytes;
 };
+
+static inline char *parse_opcode(u8 opcode)
+{
+	/* string should be less than 12 byte-long */
+	switch (opcode) {
+	case READ_10:
+		return "READ_10";
+	case READ_16:
+		return "READ_16";
+	case WRITE_10:
+		return "WRITE_10";
+	case WRITE_16:
+		return "WRITE_16";
+	case UNMAP:
+		return "UNMAP";
+	case SYNCHRONIZE_CACHE:
+		return "SYNC_CACHE";
+	}
+	return NULL;
+}
+
+#define PIXEL_MIN_SLOWIO_US            (1000)     /*  1 ms      */
+#define PIXEL_DEFAULT_SLOWIO_READ_US   (5000000)  /*  5 seconds */
+#define PIXEL_DEFAULT_SLOWIO_WRITE_US  (10000000) /* 10 seconds */
+#define PIXEL_DEFAULT_SLOWIO_UNMAP_US  (30000000) /* 30 seconds */
+#define PIXEL_DEFAULT_SLOWIO_SYNC_US   (10000000) /* 10 seconds */
+
+/* UFS Slow I/O operation types */
+enum pixel_slowio_optype {
+	PIXEL_SLOWIO_READ = 0,
+	PIXEL_SLOWIO_WRITE = 1,
+	PIXEL_SLOWIO_UNMAP = 2,
+	PIXEL_SLOWIO_SYNC = 3,
+	PIXEL_SLOWIO_OP_MAX = 4,
+};
+
+/* UFS Slow I/O sysfs entry types */
+enum pixel_slowio_systype {
+	PIXEL_SLOWIO_US = 0,
+	PIXEL_SLOWIO_CNT = 1,
+	PIXEL_SLOWIO_SYS_MAX = 2,
+};
+
+struct slowio_attr {
+	struct device_attribute attr;
+	enum pixel_slowio_optype optype;
+	enum pixel_slowio_systype systype;
+};
+
+extern void pixel_init_slowio(struct ufs_hba *hba);
 #endif

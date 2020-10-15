@@ -160,6 +160,10 @@ struct exynos_ufs {
 	struct pixel_req_stats req_stats[REQ_TYPE_MAX];
 	/* pixel ufs I/O quatity statistics */
 	struct pixel_io_stats io_stats[IO_TYPE_MAX];
+
+	/* To monitor slow UFS I/O requests. */
+	u64 slowio_min_us;
+	u64 slowio[PIXEL_SLOWIO_OP_MAX][PIXEL_SLOWIO_SYS_MAX];
 };
 
 static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)

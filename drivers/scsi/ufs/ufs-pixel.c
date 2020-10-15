@@ -18,6 +18,88 @@ enum {
 #define ufshcd_eh_in_progress(h) \
 	((h)->eh_flags & UFSHCD_EH_IN_PROGRESS)
 
+static void pixel_ufs_update_slowio_min_us(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	enum pixel_slowio_optype i;
+	u64 us;
+
+	ufs->slowio_min_us = ufs->slowio[PIXEL_SLOWIO_READ][PIXEL_SLOWIO_US];
+	for (i = PIXEL_SLOWIO_WRITE; i < PIXEL_SLOWIO_OP_MAX; i++) {
+		us = ufs->slowio[i][PIXEL_SLOWIO_US];
+		if (us < ufs->slowio_min_us)
+			ufs->slowio_min_us = us;
+	}
+}
+
+void pixel_init_slowio(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	/* Set default slow io value. */
+	ufs->slowio[PIXEL_SLOWIO_READ][PIXEL_SLOWIO_US] =
+		PIXEL_DEFAULT_SLOWIO_READ_US;
+	ufs->slowio[PIXEL_SLOWIO_WRITE][PIXEL_SLOWIO_US] =
+		PIXEL_DEFAULT_SLOWIO_WRITE_US;
+	ufs->slowio[PIXEL_SLOWIO_UNMAP][PIXEL_SLOWIO_US] =
+		PIXEL_DEFAULT_SLOWIO_UNMAP_US;
+	ufs->slowio[PIXEL_SLOWIO_SYNC][PIXEL_SLOWIO_US] =
+		PIXEL_DEFAULT_SLOWIO_SYNC_US;
+	pixel_ufs_update_slowio_min_us(hba);
+}
+
+static enum pixel_slowio_optype pixel_ufs_get_slowio_optype(u8 opcode)
+{
+	if (opcode == READ_10 || opcode == READ_16)
+		return PIXEL_SLOWIO_READ;
+	else if (opcode == WRITE_10 || opcode == WRITE_16)
+		return PIXEL_SLOWIO_WRITE;
+	else if (opcode == UNMAP)
+		return PIXEL_SLOWIO_UNMAP;
+	else if (opcode == SYNCHRONIZE_CACHE)
+		return PIXEL_SLOWIO_SYNC;
+	return PIXEL_SLOWIO_OP_MAX;
+}
+
+static void pixel_ufs_log_slowio(struct ufs_hba *hba,
+		struct ufshcd_lrb *lrbp, s64 iotime_us)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	sector_t lba = ULONG_MAX;
+	u32 transfer_len = UINT_MAX;
+	u8 opcode = 0xff;
+	char opcode_str[16];
+	u64 slowio_cnt = 0;
+	enum pixel_slowio_optype optype;
+
+	/* For common case */
+	if (likely(iotime_us < ufs->slowio_min_us))
+		return;
+
+	if (lrbp->cmd) {
+		opcode = (u8)(*lrbp->cmd->cmnd);
+		optype = pixel_ufs_get_slowio_optype(opcode);
+		if (optype < PIXEL_SLOWIO_OP_MAX) {
+			if (iotime_us < ufs->slowio[optype][PIXEL_SLOWIO_US])
+				return;
+			slowio_cnt = ++ufs->slowio[optype][PIXEL_SLOWIO_CNT];
+		}
+		if (optype == PIXEL_SLOWIO_READ ||
+			optype == PIXEL_SLOWIO_WRITE ||
+			optype == PIXEL_SLOWIO_UNMAP) {
+			if (lrbp->cmd->request && lrbp->cmd->request->bio) {
+				lba = scsi_get_lba(lrbp->cmd);
+				transfer_len = blk_rq_bytes(lrbp->cmd->request);
+			}
+		}
+	}
+	snprintf(opcode_str, 16, "%02x: %s", opcode, parse_opcode(opcode));
+	dev_err_ratelimited(hba->dev,
+		"Slow UFS (%lld): time = %lld us, opcode = %16s, lba = %ld, "
+		"len = %u\n",
+		slowio_cnt, iotime_us, opcode_str, lba, transfer_len);
+}
+
 /* classify request type on statistics by scsi command opcode*/
 static int pixel_ufs_get_cmd_type(struct ufshcd_lrb *lrbp, u8 *cmd_type)
 {
@@ -60,6 +142,9 @@ void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	u8 cmd_type;
 	u64 delta = (u64)ktime_us_delta(lrbp->compl_time_stamp,
 		lrbp->issue_time_stamp);
+
+	/* Log for slow I/O */
+	pixel_ufs_log_slowio(hba, lrbp, delta);
 
 	if (pixel_ufs_get_cmd_type(lrbp, &cmd_type))
 		return;
@@ -434,6 +519,57 @@ static ssize_t host_capabilities_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "0x%lx\n", hba->caps);
 }
 
+static ssize_t slowio_store(struct device *dev, struct device_attribute *_attr,
+		const char *buf, size_t count)
+{
+	struct slowio_attr *attr = (struct slowio_attr *)_attr;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	unsigned long flags, value;
+
+	if (kstrtol(buf, 0, &value))
+		return -EINVAL;
+
+	if (attr->systype == PIXEL_SLOWIO_CNT)
+		value = 0;
+	else if (value < PIXEL_MIN_SLOWIO_US)
+		return -EINVAL;
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	ufs->slowio[attr->optype][attr->systype] = value;
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	if (attr->systype == PIXEL_SLOWIO_US)
+		pixel_ufs_update_slowio_min_us(hba);
+	return count;
+}
+
+static ssize_t slowio_show(struct device *dev, struct device_attribute *_attr,
+		char *buf)
+{
+	struct slowio_attr *attr = (struct slowio_attr *)_attr;
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	return snprintf(buf, PAGE_SIZE, "%lld\n",
+			ufs->slowio[attr->optype][attr->systype]);
+}
+
+#define __SLOWIO_ATTR(_name)					\
+	__ATTR(slowio_##_name, 0644, slowio_show, slowio_store)
+
+#define SLOWIO_ATTR_RW(_name, _optype)				\
+static struct slowio_attr ufs_slowio_##_name##_us = {		\
+	.attr = __SLOWIO_ATTR(_name##_us),			\
+	.optype = _optype,					\
+	.systype = PIXEL_SLOWIO_US,				\
+};								\
+								\
+static struct slowio_attr ufs_slowio_##_name##_cnt = {		\
+	.attr = __SLOWIO_ATTR(_name##_cnt),			\
+	.optype = _optype,					\
+	.systype = PIXEL_SLOWIO_CNT,				\
+}
+
 static DEVICE_ATTR_RO(vendor);
 static DEVICE_ATTR_RO(model);
 static DEVICE_ATTR_RO(rev);
@@ -441,6 +577,10 @@ static DEVICE_ATTR_RO(platform_version);
 static DEVICE_ATTR_RW(manual_gc);
 static DEVICE_ATTR_RW(manual_gc_hold);
 static DEVICE_ATTR_RO(host_capabilities);
+SLOWIO_ATTR_RW(read, PIXEL_SLOWIO_READ);
+SLOWIO_ATTR_RW(write, PIXEL_SLOWIO_WRITE);
+SLOWIO_ATTR_RW(unmap, PIXEL_SLOWIO_UNMAP);
+SLOWIO_ATTR_RW(sync, PIXEL_SLOWIO_SYNC);
 
 static struct attribute *pixel_sysfs_ufshcd_attrs[] = {
 	&dev_attr_vendor.attr,
@@ -450,6 +590,14 @@ static struct attribute *pixel_sysfs_ufshcd_attrs[] = {
 	&dev_attr_manual_gc.attr,
 	&dev_attr_manual_gc_hold.attr,
 	&dev_attr_host_capabilities.attr,
+	&ufs_slowio_read_us.attr.attr,
+	&ufs_slowio_read_cnt.attr.attr,
+	&ufs_slowio_write_us.attr.attr,
+	&ufs_slowio_write_cnt.attr.attr,
+	&ufs_slowio_unmap_us.attr.attr,
+	&ufs_slowio_unmap_cnt.attr.attr,
+	&ufs_slowio_sync_us.attr.attr,
+	&ufs_slowio_sync_cnt.attr.attr,
 	NULL
 };
 
