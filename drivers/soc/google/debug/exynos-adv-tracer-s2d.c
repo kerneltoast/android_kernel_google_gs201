@@ -65,8 +65,9 @@ int adv_tracer_s2d_arraydump(void)
 {
 	struct adv_tracer_ipc_cmd cmd;
 	int ret = 0;
-	u32 cpu_mask = (1U << num_possible_cpus()) - 1U;
+	u32 cpu_mask;
 
+	bitmap_to_arr32(&cpu_mask, cpumask_bits(cpu_possible_mask), 32);
 	if (!plugin_s2d.s2d_dev)
 		return -ENODEV;
 
