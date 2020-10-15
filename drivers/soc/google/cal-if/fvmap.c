@@ -351,16 +351,13 @@ int fvmap_init(void __iomem *sram_base)
 	int ret = 0;
 	const char *str = NULL;
 
-	np = of_find_node_by_path("exynos_devfreq/devfreq_mif@17000010");
+	np = of_find_node_by_path("/exynos_devfreq/devfreq_mif@17000010");
 	if (!IS_ERR(np))
 		ret = of_property_read_string(np, "l123_restrict", &str);
 
 	if ((str) && (!ret)) {
 		pr_info("%s:fvmap l123_restrict=%s\n", __func__, str);
 		l123_restrict = (str[0] != '0');
-	} else {
-		pr_info("%s:fvmap l123_restrict not found, assuming 1\n", __func__, str);
-		l123_restrict = 1;
 	}
 
 	map_base = kzalloc(FVMAP_SIZE, GFP_KERNEL);

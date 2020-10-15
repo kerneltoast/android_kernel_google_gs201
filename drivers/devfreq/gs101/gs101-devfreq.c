@@ -61,6 +61,9 @@ static struct devfreq *find_exynos_devfreq_device(void *devdata);
 static int find_exynos_devfreq_dm_type(struct device *dev, int *dm_type);
 static int exynos_devfreq_target(struct device *dev,
 				 unsigned long *target_freq, u32 flags);
+static u32 exynos_devfreq_opp_round_freq(
+				struct exynos_devfreq_opp_table *table,
+				unsigned int size, u32 freq);
 
 #ifdef CONFIG_EXYNOS_ALT_DVFS
 static struct srcu_notifier_head exynos_alt_notifier;
@@ -624,6 +627,19 @@ static int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
 	data->suspend_freq =
 		max(data->suspend_freq,
 		    (unsigned long)data->min_freq);
+
+	data->devfreq_profile.initial_freq =
+		exynos_devfreq_opp_round_freq(data->opp_list, data->max_state,
+			data->devfreq_profile.initial_freq);
+	data->max_freq =
+		exynos_devfreq_opp_round_freq(data->opp_list, data->max_state,
+			data->max_freq);
+	data->min_freq =
+		exynos_devfreq_opp_round_freq(data->opp_list, data->max_state,
+			data->min_freq);
+	data->suspend_freq =
+		exynos_devfreq_opp_round_freq(data->opp_list, data->max_state,
+			data->suspend_freq);
 
 	dev_info(data->dev, "initial_freq: %uKhz, suspend_freq: %uKhz\n",
 		 data->devfreq_profile.initial_freq,
@@ -1679,6 +1695,24 @@ s32 exynos_devfreq_get_opp_idx(struct exynos_devfreq_opp_table *table,
 	}
 
 	return -ENODEV;
+}
+
+/*
+ * Round freq to the opp with closest but lower or equal frequency
+ * If none are found, the lowest opp freq is given
+ */
+static u32 exynos_devfreq_opp_round_freq(
+				struct exynos_devfreq_opp_table *table,
+				unsigned int size, u32 freq)
+{
+	int i;
+
+	for (i = 0; i < size; ++i) {
+		if (table[i].freq > freq)
+			continue;
+		return table[i].freq;
+	}
+	return table[size - 1].freq;
 }
 
 static int exynos_init_freq_table(struct exynos_devfreq_data *data)
