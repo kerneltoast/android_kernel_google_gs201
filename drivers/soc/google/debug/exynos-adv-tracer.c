@@ -27,6 +27,31 @@
 static struct adv_tracer_info *eat_info;
 static struct adv_tracer_ipc_main *eat_ipc;
 
+#define ADV_TRACER_SSCOREDUMP
+
+#ifdef ADV_TRACER_SSCOREDUMP
+#include <linux/platform_data/sscoredump.h>
+
+#define DEVICE_NAME "debugcore"
+
+static void adv_tracer_ipc_sscd_release(struct device *dev)
+{
+
+}
+
+static struct sscd_platform_data sscd_pdata;
+static struct platform_device sscd_dev = {
+	.name            = DEVICE_NAME,
+	.driver_override = SSCD_NAME,
+	.id              = -1,
+	.dev             = {
+		.platform_data = &sscd_pdata,
+		.release       = adv_tracer_ipc_sscd_release,
+	},
+};
+#endif
+
+
 static void adv_tracer_ipc_read_buffer(void *dest, const void *src,
 				      unsigned int len)
 {
@@ -412,6 +437,10 @@ static void eat_ipc_dbgc_panic(void)
 
 static void eat_ipc_callback(struct adv_tracer_ipc_cmd *cmd, unsigned int len)
 {
+#ifdef ADV_TRACER_SSCOREDUMP
+	struct sscd_platform_data *pdata = dev_get_platdata(&sscd_dev.dev);
+#endif
+
 	switch (cmd->cmd_raw.cmd) {
 	case EAT_IPC_CMD_BOOT_DBGC:
 		dev_info(eat_ipc->dev, "DBGC Boot!(cnt:%d)\n", cmd->buffer[1]);
@@ -420,6 +449,20 @@ static void eat_ipc_callback(struct adv_tracer_ipc_cmd *cmd, unsigned int len)
 		dev_err(eat_ipc->dev,
 				"DBGC occurred exception! (SP:0x%x, LR:0x%x, PC:0x%x)\n",
 				cmd->buffer[1], cmd->buffer[2], cmd->buffer[3]);
+#ifdef ADV_TRACER_SSCOREDUMP
+		if (pdata->sscd_report) {
+			char msg[80];
+			struct sscd_segment seg;
+
+			memset(&seg, 0, sizeof(seg));
+			seg.addr = (void *)cmd;
+			seg.size = sizeof(*cmd);
+			scnprintf(msg, sizeof(msg),
+				"DBGC occurred exception! (SP: 0x%x, LR:0x%x, PC:0x%x)\n",
+				cmd->buffer[1], cmd->buffer[2], cmd->buffer[3]);
+			pdata->sscd_report(&sscd_dev, &seg, 1, 0, msg);
+		}
+#endif
 		if (eat_ipc->recovery)
 			panic("DBGC failed recovery!");
 		eat_ipc_dbgc_panic();
@@ -510,6 +553,9 @@ static int adv_tracer_ipc_init(struct platform_device *pdev)
 				&eat_ipc->intr_bitoffset))
 		eat_ipc->intr_bitoffset = INTR_FLAG_OFFSET;
 
+#ifdef ADV_TRACER_SSCOREDUMP
+	platform_device_register(&sscd_dev);
+#endif
 
 	dev_info(&pdev->dev, "%s successful.\n", __func__);
 	return ret;
