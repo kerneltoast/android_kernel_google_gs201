@@ -566,7 +566,6 @@ out:
 
 static void exynos_ufs_override_hba_params(struct ufs_hba *hba)
 {
-	hba->clk_gating.delay_ms = 12;
 	hba->spm_lvl = UFS_PM_LVL_5;
 }
 
@@ -1149,7 +1148,6 @@ static ssize_t exynos_ufs_sysfs_default_show(struct exynos_ufs *ufs, char *buf,
 
 UFS_S_RO(eom_version, UFS_S_PARAM_EOM_VER);
 UFS_S_RO(eom_size, UFS_S_PARAM_EOM_SZ);
-UFS_S_RW(h8_delay_ms, UFS_S_PARAM_H8_D_MS);
 
 static int exynos_ufs_sysfs_lane_store(struct exynos_ufs *ufs, u32 value,
 				       enum exynos_ufs_param_id id)
@@ -1225,6 +1223,19 @@ static struct exynos_ufs_sysfs_attr ufs_s_eom_offset = {
 	.id = UFS_S_PARAM_EOM_OFS,
 	.show = exynos_ufs_sysfs_default_show,
 	.store = exynos_ufs_sysfs_eom_offset_store,
+};
+
+static ssize_t exynos_ufs_sysfs_show_h8_delay(struct exynos_ufs *ufs,
+					      char *buf,
+					      enum exynos_ufs_param_id id)
+{
+	return snprintf(buf, PAGE_SIZE, "%u\n", ufs->hba->clk_gating.delay_ms);
+}
+
+static struct exynos_ufs_sysfs_attr ufs_s_h8_delay_ms = {
+	.attr = { .name = "h8_delay_ms", .mode = 0666 },
+	.id = UFS_S_PARAM_H8_D_MS,
+	.show = exynos_ufs_sysfs_show_h8_delay,
 };
 
 static int exynos_ufs_sysfs_eom_store(struct exynos_ufs *ufs, u32 value,
@@ -1374,12 +1385,10 @@ static int exynos_ufs_sysfs_init(struct exynos_ufs *ufs)
 	 * As for eom_version, you have to move it to store a value
 	 * from device tree when eom code is revised, even though I expect
 	 * it's not gonna to happen.
-	 *
-	 * h8_delay_ms is set to 12ms recently required from customers
 	 */
 	ufs->params[UFS_S_PARAM_EOM_VER] = 0;
 	ufs->params[UFS_S_PARAM_MON] = 0;
-	ufs->params[UFS_S_PARAM_H8_D_MS] = 12;
+	ufs->params[UFS_S_PARAM_H8_D_MS] = 4;
 
 	return 0;
 
