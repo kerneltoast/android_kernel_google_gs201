@@ -1296,9 +1296,6 @@ static int dit_reg_backup_restore(bool backup)
 
 	int ret = 0;
 
-	if (unlikely(!dc) || unlikely(!dc->ld))
-		return -EPERM;
-
 	/* NAT */
 	if (dit_check_nat_enabled()) {
 		ret = dit_reg_backup_restore_internal(backup, nat_offset, nat_size, nat_buf,
@@ -2255,7 +2252,11 @@ static int dit_remove(struct platform_device *pdev)
 
 static int dit_suspend(struct device *dev)
 {
+	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
 	int ret = 0;
+
+	if (unlikely(!dc) || unlikely(!dc->ld))
+		return 0;
 
 	ret = dit_reg_backup_restore(true);
 	if (ret)
@@ -2269,10 +2270,8 @@ static int dit_resume(struct device *dev)
 	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (unlikely(!dc)) {
-		mif_err_limited("dc is null\n");
-		return -EINVAL;
-	}
+	if (unlikely(!dc) || unlikely(!dc->ld))
+		return 0;
 
 	dit_set_irq_affinity(dc->irq_affinity);
 
