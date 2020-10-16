@@ -59,6 +59,7 @@ extern void dbg_snapshot_register_wdt_ops(void *start, void *expire, void *stop)
 extern void dbg_snapshot_register_debug_ops(void *halt, void *arraydump, void *scandump);
 extern void dbg_snapshot_save_context(struct pt_regs *regs, bool stack_dump);
 extern void cache_flush_all(void);
+extern int dbg_snapshot_stop_all_cpus(void);
 
 /* debug-snapshot-log functions */
 extern int dbg_snapshot_get_freq_idx(const char *name);
@@ -168,6 +169,7 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_emergency_reboot(a)	(-1)
 #define dbg_snapshot_kick_watchdog()		(-1)
 #define dbg_snapshot_get_val_offset(a)		(0)
+#define dbg_snapshot_stop_all_cpus()		(-1)
 
 #define dbg_snapshot_get_freq_idx(a)		(-1)
 

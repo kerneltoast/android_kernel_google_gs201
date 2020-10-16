@@ -447,6 +447,9 @@ void debug_trigger_register(struct debug_trigger *soc_trigger, char *arch_name)
 	soc_test_trigger.cold_reset = soc_trigger->cold_reset;
 	soc_test_trigger.watchdog_emergency_reset =
 		soc_trigger->watchdog_emergency_reset;
+	soc_test_trigger.halt = soc_trigger->halt;
+	soc_test_trigger.arraydump = soc_trigger->arraydump;
+	soc_test_trigger.scandump = soc_trigger->scandump;
 }
 EXPORT_SYMBOL_GPL(debug_trigger_register);
 
@@ -496,45 +499,52 @@ static void simulate_watchdog_emergency_reset(char *arg)
 	pr_crit("failed!\n");
 }
 
+static void simulate_halt(char *arg)
+{
+	pr_crit("called!\n");
+	if (!soc_test_trigger.halt) {
+		pr_crit("SOC specific trigger is not registered! Exit the test.\n");
+		return;
+	}
+
+	(*soc_test_trigger.halt)(arg);
+
+	/* Should not reach here */
+	pr_crit("failed!\n");
+}
+
+static void simulate_arraydump(char *arg)
+{
+	pr_crit("called!\n");
+	if (!soc_test_trigger.arraydump) {
+		pr_crit("SOC specific trigger is not registered! Exit the test.\n");
+		return;
+	}
+
+	(*soc_test_trigger.arraydump)(arg);
+}
+
+static void simulate_scandump(char *arg)
+{
+	pr_crit("called!\n");
+	if (!soc_test_trigger.scandump) {
+		pr_crit("SOC specific trigger is not registered! Exit the test.\n");
+		return;
+	}
+
+	(*soc_test_trigger.scandump)(arg);
+}
 /*
  * Error trigger definitions
  */
 typedef void (*force_error_func)(char *arg);
-
-enum {
-	FORCE_PANIC = 0,
-	FORCE_BUG,
-	FORCE_WARN,
-	FORCE_NULL,
-	FORCE_UNDEFINED_FUNCTION,
-	FORCE_DOUBLE_FREE,
-	FORCE_USE_AFTER_FREE,
-	FORCE_MEMORY_CORRUPTION,
-	FORCE_LOW_MEMORY,
-	FORCE_SOFT_LOCKUP,
-	FORCE_HARD_LOCKUP,
-	FORCE_SPIN_LOCKUP,
-	FORCE_WATCHDOG,
-	FORCE_WRITE_RO,
-	FORCE_OVERFLOW,
-	FORCE_SCHED_ATOMIC,
-	FORCE_REGISTER_ACCESS,
-	FORCE_SVC,
-	FORCE_UNDEF,
-	FORCE_PC_ABORT,
-	FORCE_SP_ABORT,
-	FORCE_JUMP_ZERO,
-	FORCE_COLD_RESET,
-	FORCE_WDG_EMERGENCY_RESET,
-	NR_FORCE_ERROR,
-};
 
 struct force_error_item {
 	char errcmd[SZ_32];
 	force_error_func errfunc;
 };
 
-static const struct force_error_item force_error_vector[NR_FORCE_ERROR] = {
+static const struct force_error_item force_error_vector[] = {
 	{ "panic",		&simulate_panic },
 	{ "bug",		&simulate_bug },
 	{ "warn",		&simulate_warn },
@@ -559,6 +569,9 @@ static const struct force_error_item force_error_vector[NR_FORCE_ERROR] = {
 	{ "jumpzero",		&simulate_jump_zero },
 	{ "cold_reset",		&simulate_cold_reset },
 	{ "emerg_reset",	&simulate_watchdog_emergency_reset },
+	{ "halt",		&simulate_halt },
+	{ "arraydump",		&simulate_arraydump },
+	{ "scandump",		&simulate_scandump },
 };
 
 static void parse_and_trigger(const char *buf)
@@ -567,6 +580,7 @@ static void parse_and_trigger(const char *buf)
 	char *cmd;
 	char *space = NULL, *param = NULL;
 	int cmd_size = strlen(buf);
+	int cmd_count = ARRAY_SIZE(force_error_vector);
 
 	pr_debug("cmd_size=%d, PAGE_SIZE=%d\n", cmd_size, PAGE_SIZE);
 	/*
@@ -582,7 +596,7 @@ static void parse_and_trigger(const char *buf)
 	if (!cmd)
 		return;
 
-	for (i = 0; i < NR_FORCE_ERROR; i++) {
+	for (i = 0; i < ARRAY_SIZE(force_error_vector); i++) {
 		if (strcmp(cmd, force_error_vector[i].errcmd) != 0)
 			continue;
 		pr_debug("func param=%s\n", param);
@@ -590,7 +604,7 @@ static void parse_and_trigger(const char *buf)
 		break;
 	}
 
-	if (i == NR_FORCE_ERROR)
+	if (i == ARRAY_SIZE(force_error_vector))
 		pr_crit("no trigger exists for command [%s]!\n", cmd);
 
 	kfree(cmd);

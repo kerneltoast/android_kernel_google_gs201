@@ -761,6 +761,9 @@ static struct debug_trigger exynos_debug_test_trigger = {
 	.hard_lockup = simulate_HARD_LOCKUP,
 	.cold_reset = simulate_WP,
 	.watchdog_emergency_reset = simulate_QDP,
+	.halt = simulate_HALT,
+	.arraydump = simulate_ARRAYDUMP,
+	.scandump = simulate_SCANDUMP,
 };
 
 static int exynos_debug_test_probe(struct platform_device *pdev)
