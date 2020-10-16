@@ -102,7 +102,14 @@ enum IRQ_SOURCE_S2MPG11 {
 
 enum sys_throttling_core { SYS_THROTTLING_MID_CORE, SYS_THROTTLING_BIG_CORE };
 
-enum sys_throttling_switch { SYS_THROTTLING_DISABLED, SYS_THROTTLING_ENABLED };
+enum sys_throttling_switch {
+	SYS_THROTTLING_DISABLED,
+	SYS_THROTTLING_ENABLED,
+	SYS_THROTTLING_GEAR0,
+	SYS_THROTTLING_GEAR1,
+	SYS_THROTTLING_GEAR2,
+	SYS_THROTTLING_MAX,
+};
 
 enum sys_throttling_mode { SYS_THROTTLING_MPMM_MODE, SYS_THROTTLING_PPM_MODE };
 
@@ -1051,6 +1058,8 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 {
 	unsigned int reg, mask;
 	void __iomem *addr;
+	unsigned int settings;
+	unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {0xF, 0x0, 0x0, 0x5, 0xA};
 
 	if (!gs101_bcl_device->sysreg_cpucl0) {
 		pr_err("sysreg_cpucl0 ioremap not mapped\n");
@@ -1059,16 +1068,21 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	mutex_lock(&sysreg_lock);
 	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_MPMM;
 	reg = __raw_readl(addr);
-	mask = (core == SYS_THROTTLING_BIG_CORE) ? (0x0F << 4) : 0x0F;
-	if (throttle_switch == SYS_THROTTLING_ENABLED)
-		reg &= ~mask;
+
+	if ((throttle_switch < 0) || (throttle_switch > SYS_THROTTLING_GEAR2))
+		settings = 0xF;
 	else
-		reg |= mask;
+		settings = sys_throttling_settings[throttle_switch];
+
+	mask = (core == SYS_THROTTLING_BIG_CORE) ? (0xF << 4) : 0xF;
+	reg &= ~mask;
+	mask = (core == SYS_THROTTLING_BIG_CORE) ? (settings << 4) : settings;
+	reg |= mask;
 	__raw_writel(reg, addr);
 	mutex_unlock(&sysreg_lock);
 }
 
-static int gs101_enable_ppm_throttling(void *data, u64 val)
+static int gs101_toggle_ppm_throttling(void *data, u64 val)
 {
 	unsigned int mode;
 
@@ -1080,21 +1094,20 @@ static int gs101_enable_ppm_throttling(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ppm_fops, NULL, gs101_enable_ppm_throttling, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(ppm_fops, NULL, gs101_toggle_ppm_throttling, "%d\n");
 
-static int gs101_enable_mpmm_throttling(void *data, u64 val)
+static int gs101_toggle_mpmm_throttling(void *data, u64 val)
 {
-	unsigned int mode;
+	unsigned int mode = val;
 
-	pr_info("gs101: enable MPMM throttling");
+	pr_info("gs101: MPMM throttling:%d", val);
 
-	mode = (val == 0) ? SYS_THROTTLING_DISABLED : SYS_THROTTLING_ENABLED;
 	gs101_set_mpmm_throttling(data, SYS_THROTTLING_MID_CORE, mode);
 	gs101_set_mpmm_throttling(data, SYS_THROTTLING_BIG_CORE, mode);
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(mpmm_fops, NULL, gs101_enable_mpmm_throttling, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(mpmm_fops, NULL, gs101_toggle_mpmm_throttling, "%d\n");
 
 static int gs101_bcl_register_pmic_irq(struct gs101_bcl_dev *gs101_bcl_device,
 				  int id, int sensor_id, irq_handler_t thread_fn,
