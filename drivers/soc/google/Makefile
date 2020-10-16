@@ -39,3 +39,6 @@ obj-$(CONFIG_GS_S2MPU)			+= s2mpu/
 obj-$(CONFIG_HARDLOCKUP_DEBUG)		+= hardlockup-debug.o
 
 obj-$(CONFIG_HARDLOCKUP_WATCHDOG)	+= hardlockup-watchdog.o
+
+# vh/kernel/sched
+obj-$(CONFIG_VH_KERNEL)			+= vh/kernel/

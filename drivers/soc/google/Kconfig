@@ -145,6 +145,11 @@ config SLC_PMON
 	help
 	Enable SLC perf counter support in PT ACPM driver.
 
+config VH_KERNEL
+	bool "Vendor kernel modules"
+	default y
+	help
+	Modules for vendor kernel hooks.
 
 source "drivers/soc/google/gsa/Kconfig"
 
@@ -155,6 +160,8 @@ source "drivers/soc/google/debug/Kconfig"
 source "drivers/soc/google/eh/Kconfig"
 
 source "drivers/soc/google/s2mpu/Kconfig"
+
+source "drivers/soc/google/vh/kernel/Kconfig"
 
 config HARDLOCKUP_DEBUG
 	tristate "Hardlockup Debugging"

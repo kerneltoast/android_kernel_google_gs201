@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# kernel vendor hook modules
+
+config VH_SCHED
+        tristate "Vendor hooks for kernel scheduler"
+        depends on VH_KERNEL
+        default m
