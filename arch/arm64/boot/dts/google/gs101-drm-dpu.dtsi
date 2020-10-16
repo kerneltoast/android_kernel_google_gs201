@@ -54,7 +54,7 @@
 
 		attr = <0x50C7F>;
 		port = <0>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <1>;
@@ -93,7 +93,7 @@
 
 		attr = <0x50C7F>;
 		port = <1>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <3>;
@@ -132,7 +132,7 @@
 
 		attr = <0x50C7F>;
 		port = <2>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <5>;
