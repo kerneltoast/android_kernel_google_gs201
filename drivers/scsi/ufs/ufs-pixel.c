@@ -863,10 +863,142 @@ static const struct attribute_group pixel_sysfs_io_stats_group = {
 	.attrs = ufs_sysfs_io_stats,
 };
 
+#define PIXEL_ERR_STATS_ATTR(_name, _err_name, _type)			\
+static ssize_t _name##_show(struct device *dev,				\
+		struct device_attribute *attr, char *buf)		\
+{									\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	struct ufs_err_reg_hist *err_hist = &hba->ufs_stats._err_name;	\
+	unsigned long flags;						\
+	u64 val = 0;							\
+	int i, p;							\
+	spin_lock_irqsave(hba->host->host_lock, flags);			\
+	switch (_type) {						\
+	case PIXEL_ERR_COUNT:						\
+		for (i = 0; i < UFS_ERR_REG_HIST_LENGTH; i++) {		\
+			p = (i + err_hist->pos) %			\
+				UFS_ERR_REG_HIST_LENGTH;		\
+			if (err_hist->tstamp[p] != 0)			\
+				val++;					\
+		}							\
+		break;							\
+	case PIXEL_ERR_TIME:						\
+		p = (err_hist->pos + UFS_ERR_REG_HIST_LENGTH - 1) %	\
+			UFS_ERR_REG_HIST_LENGTH;			\
+		val = ktime_to_us(err_hist->tstamp[p]);			\
+		break;							\
+	}								\
+	spin_unlock_irqrestore(hba->host->host_lock, flags);		\
+	return snprintf(buf, PAGE_SIZE, "%llu\n", val);			\
+}									\
+static DEVICE_ATTR_RO(_name)
+
+static ssize_t reset_err_status_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t reset_err_status_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_stats *stats = &hba->ufs_stats;
+	unsigned long flags;
+
+	spin_lock_irqsave(hba->host->host_lock, flags);
+	memset(&stats->pa_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->dl_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->nl_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->tl_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->dme_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->auto_hibern8_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->fatal_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->link_startup_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->resume_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->suspend_err, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->dev_reset, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->host_reset, 0, sizeof(struct ufs_err_reg_hist));
+	memset(&stats->task_abort, 0, sizeof(struct ufs_err_reg_hist));
+	spin_unlock_irqrestore(hba->host->host_lock, flags);
+
+	return count;
+}
+
+PIXEL_ERR_STATS_ATTR(pa_err_count, pa_err, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(pa_err_lasttime, pa_err, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(dl_err_count, dl_err, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(dl_err_lasttime, dl_err, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(nl_err_count, nl_err, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(nl_err_lasttime, nl_err, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(tl_err_count, tl_err, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(tl_err_lasttime, tl_err, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(dme_err_count, dme_err, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(dme_err_lasttime, dme_err, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(auto_hibern8_err_count, auto_hibern8_err,
+		PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(auto_hibern8_err_lasttime, auto_hibern8_err,
+		PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(fatal_err_count, fatal_err, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(fatal_err_lasttime, fatal_err, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(link_startup_err_count, link_startup_err,
+		PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(link_startup_err_lasttime, link_startup_err,
+		PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(resume_err_count, resume_err, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(resume_err_lasttime, resume_err, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(suspend_err_count, suspend_err, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(suspend_err_lasttime, suspend_err, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(dev_reset_count, dev_reset, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(dev_reset_lasttime, dev_reset, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(host_reset_count, host_reset, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(host_reset_lasttime, host_reset, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(task_abort_count, task_abort, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(task_abort_lasttime, task_abort, PIXEL_ERR_TIME);
+DEVICE_ATTR_RW(reset_err_status);
+
+static struct attribute *ufs_sysfs_err_stats[] = {
+	&dev_attr_pa_err_count.attr,
+	&dev_attr_pa_err_lasttime.attr,
+	&dev_attr_dl_err_count.attr,
+	&dev_attr_dl_err_lasttime.attr,
+	&dev_attr_nl_err_count.attr,
+	&dev_attr_nl_err_lasttime.attr,
+	&dev_attr_tl_err_count.attr,
+	&dev_attr_tl_err_lasttime.attr,
+	&dev_attr_dme_err_count.attr,
+	&dev_attr_dme_err_lasttime.attr,
+	&dev_attr_auto_hibern8_err_count.attr,
+	&dev_attr_auto_hibern8_err_lasttime.attr,
+	&dev_attr_fatal_err_count.attr,
+	&dev_attr_fatal_err_lasttime.attr,
+	&dev_attr_link_startup_err_count.attr,
+	&dev_attr_link_startup_err_lasttime.attr,
+	&dev_attr_resume_err_count.attr,
+	&dev_attr_resume_err_lasttime.attr,
+	&dev_attr_suspend_err_count.attr,
+	&dev_attr_suspend_err_lasttime.attr,
+	&dev_attr_dev_reset_count.attr,
+	&dev_attr_dev_reset_lasttime.attr,
+	&dev_attr_host_reset_count.attr,
+	&dev_attr_host_reset_lasttime.attr,
+	&dev_attr_task_abort_count.attr,
+	&dev_attr_task_abort_lasttime.attr,
+	&dev_attr_reset_err_status.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_err_stats_group = {
+	.name = "err_stats",
+	.attrs = ufs_sysfs_err_stats,
+};
+
 static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_group,
 	&pixel_sysfs_req_stats_group,
 	&pixel_sysfs_io_stats_group,
+	&pixel_sysfs_err_stats_group,
 	NULL,
 };
 

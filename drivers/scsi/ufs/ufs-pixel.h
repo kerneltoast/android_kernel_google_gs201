@@ -152,4 +152,10 @@ struct slowio_attr {
 };
 
 extern void pixel_init_slowio(struct ufs_hba *hba);
+
+/* UFS err_stats type */
+enum pixel_err_systype {
+	PIXEL_ERR_COUNT = 0,
+	PIXEL_ERR_TIME,
+};
 #endif
