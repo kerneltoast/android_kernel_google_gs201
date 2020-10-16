@@ -7,7 +7,7 @@
  */
 
 #include "gs101-common.dtsi"
-#include "gs101-common-gsc.dtsi"
+#include "gs101-slider-gsa-gsc.dtsi"
 #include "gs101-slider-display.dtsi"
 #include "gs101-slider-touch.dtsi"
 #include "gs101-slider-nfc.dtsi"
