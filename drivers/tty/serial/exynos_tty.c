@@ -21,10 +21,6 @@
  * BJD, 04-Nov-2004
  */
 
-#if defined(CONFIG_SERIAL_SAMSUNG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
-
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -2537,6 +2533,7 @@ static int exynos_serial_probe(struct platform_device *pdev)
 	ourport->port.fifosize = (ourport->info->fifosize) ?
 		ourport->info->fifosize :
 		ourport->drv_data->fifosize[port_index];
+	ourport->port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_SAMSUNG_CONSOLE);
 
 	if (of_get_property(pdev->dev.of_node, "samsung,uart-panic-log", NULL))
 		ourport->uart_panic_log = 1;
