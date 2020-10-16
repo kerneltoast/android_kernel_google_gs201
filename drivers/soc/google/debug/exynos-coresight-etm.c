@@ -16,6 +16,7 @@
 #include <asm/barrier.h>
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/sjtag-driver.h>
+#include <soc/google/exynos-coresight.h>
 
 #include "core_regs.h"
 
@@ -686,6 +687,7 @@ static int exynos_etm_c2_pm_notifier(struct notifier_block *self,
 
 static struct notifier_block exynos_etm_c2_pm_nb = {
 	.notifier_call = exynos_etm_c2_pm_notifier,
+	.priority = CORESIGHT_CPUPM_PRIORITY,
 };
 
 static int exynos_etm_pm_notifier(struct notifier_block *notifier,
