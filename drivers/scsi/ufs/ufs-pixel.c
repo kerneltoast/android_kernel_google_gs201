@@ -334,29 +334,6 @@ void pixel_ufs_prepare_command(struct ufs_hba *hba,
 		lrbp->cmd->cmnd[14] = 0x11;
 }
 
-static int ufs_sysfs_emulate_health_est_c(struct ufs_hba *hba, u8 *value)
-{
-	u8 desc_buf[2] = {0};
-	u32 avg_pe_cycle;
-	int ret;
-
-	if (ufshcd_eh_in_progress(hba))
-		return -EBUSY;
-
-	pm_runtime_get_sync(hba->dev);
-	ret = ufshcd_read_desc_param(hba, QUERY_DESC_IDN_HEALTH, 0,
-			HEALTH_DESC_PARAM_AVG_PE_CYCLE, desc_buf,
-			sizeof(desc_buf));
-	pm_runtime_put_sync(hba->dev);
-	if (ret)
-		return -EINVAL;
-
-	avg_pe_cycle = get_unaligned_be16(desc_buf);
-	*value = (u8)(avg_pe_cycle * 100 / HEALTH_DESC_DEFAULT_PE_CYCLE);
-
-	return ret;
-}
-
 static ssize_t life_time_estimation_c_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -374,8 +351,6 @@ static ssize_t life_time_estimation_c_show(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	if (value == 0 && ufs_sysfs_emulate_health_est_c(hba, &value))
-		return  -EINVAL;
 	return sprintf(buf, "0x%02X\n", value);
 }
 
