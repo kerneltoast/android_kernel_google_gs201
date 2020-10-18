@@ -263,6 +263,23 @@ static void xhci_pm_runtime_init(struct device *dev)
 	init_waitqueue_head(&dev->power.wait_queue);
 }
 
+static int xhci_vendor_init(struct xhci_hcd *xhci)
+{
+	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
+
+	if (ops && ops->vendor_init)
+		return ops->vendor_init(xhci);
+	return 0;
+}
+
+static void xhci_vendor_cleanup(struct xhci_hcd *xhci)
+{
+	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
+
+	if (ops && ops->vendor_cleanup)
+		ops->vendor_cleanup(xhci);
+}
+
 static int xhci_plat_probe(struct platform_device *pdev)
 {
 	struct device		*parent = pdev->dev.parent;
@@ -466,6 +483,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = xhci_vendor_init(xhci);
+	if (ret)
+		goto disable_usb_phy;
+
 	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_node);
 	xhci->shared_hcd->tpl_support = hcd->tpl_support;
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
@@ -563,6 +584,9 @@ static int xhci_plat_remove(struct platform_device *dev)
 		xhci->phy_usb3 = NULL;
 
 	usb_remove_hcd(hcd);
+
+	xhci_vendor_cleanup(xhci);
+
 	devm_iounmap(&dev->dev, hcd->regs);
 	usb_put_hcd(shared_hcd);
 
