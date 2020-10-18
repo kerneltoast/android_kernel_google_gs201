@@ -69,7 +69,7 @@ static void exynos_show_wakeup_reason_eint(void)
 			gpio = exynos_eint_to_pin_num(i * 32 + bit);
 			irq = gpio_to_irq(gpio);
 
-			log_irq_wakeup_reason(irq);
+			pr_info("%s Resume caused by EINT num: %d\n", EXYNOS_PM_PREFIX, irq);
 
 			found = 1;
 		}
@@ -101,12 +101,7 @@ static void exynos_show_wakeup_registers(unsigned int wakeup_stat)
 static void exynos_show_wakeup_reason(bool sleep_abort)
 {
 	unsigned int wakeup_stat;
-	unsigned int eint_mask = 0;
-	u32 eint_wakeup_mask[3];
 	int i, size;
-
-	for (i = 0; i < pm_info->num_wakeup_stat_eint; i++)
-		eint_mask &= (1 << pm_info->wakeup_stat_eint[i]);
 
 	if (sleep_abort) {
 		pr_info("%s early wakeup! Dumping pending registers...\n", EXYNOS_PM_PREFIX);
@@ -136,7 +131,7 @@ static void exynos_show_wakeup_reason(bool sleep_abort)
 
 	if (wakeup_stat & (1 << pm_info->wakeup_stat_rtc)) {
 		pr_info("%s Resume caused by RTC alarm\n", EXYNOS_PM_PREFIX);
-	} else if (wakeup_stat & eint_mask) {
+	} else if (wakeup_stat & pm_info->wakeup_stat_eint) {
 		exynos_show_wakeup_reason_eint();
 	} else {
 		for (i = 0; i < pm_info->num_wakeup_stat; i++) {
@@ -366,17 +361,11 @@ static int exynos_pm_drvinit(void)
 			WARN_ON(1);
 		}
 
-		ret = of_property_count_u32_elems(np, "wakeup-stat-eint");
-		if (!ret) {
-			pr_err("%s drvinit: unabled to get wakeup-stat-eint from DT\n",
+		ret = of_property_read_u32(np, "wakeup-stat-eint", &pm_info->wakeup_stat_eint);
+		if (ret) {
+			pr_err("%s drvinit: unabled to get the eint bit of WAKEUP_STAT from DT\n",
 			       EXYNOS_PM_PREFIX);
 			WARN_ON(1);
-		} else if (ret > 0) {
-			pm_info->num_wakeup_stat_eint = ret;
-			pm_info->wakeup_stat_eint = kcalloc(ret, sizeof(unsigned int),
-							    GFP_KERNEL);
-			of_property_read_u32_array(np, "wakeup-stat-eint",
-						   pm_info->wakeup_stat_eint, ret);
 		}
 
 		ret = of_property_read_u32(np, "wakeup-stat-rtc", &pm_info->wakeup_stat_rtc);
