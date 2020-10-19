@@ -28,9 +28,10 @@
 		compatible = "google,aoc";
 
 		reg = <0x0 0x19000000 0x01000000>,
-		      <0x0 0x175D0000 0x00001000>;
+		      <0x0 0x175D0000 0x00001000>,
+		      <0x0 0x1A0B0000 0x00001000>;
 
-		reg-names = "blk_aoc", "aoc_req";
+		reg-names = "blk_aoc", "aoc_req", "aoc_s2mpu";
 
 		interrupts = <GIC_SPI IRQ_AOC_Watchdog_CPU_AOC
 			IRQ_TYPE_LEVEL_HIGH>;
@@ -45,6 +46,8 @@
 
 		mbox-names = "aoc2ap";
 		mboxes = <&mbox_aoc 0>;
+
+		acpm-ipc-channel = <13>;
 	};
 
 };
