@@ -22,6 +22,7 @@
 #include <soc/google/exynos-cpupm.h>
 #include <soc/google/cal-if.h>
 #include <soc/google/exynos-pmu-if.h>
+#include <soc/google/debug-snapshot.h>
 
 /* Length of power mode name */
 #define NAME_LEN	32
@@ -679,7 +680,7 @@ static bool system_busy(struct power_mode *mode)
  * 3. all cpus in the power domain must be in POWERDOWN state and the sleep
  *    length of the cpus must be less than target_residency.
  */
-static bool can_enter_power_mode(int cpu, struct power_mode *mode)
+static bool entry_allow(int cpu, struct power_mode *mode)
 {
 	if (atomic_read(&mode->disable))
 		return false;
@@ -720,12 +721,9 @@ static void set_wakeup_mask(struct wakeup_mask_config *wm_config)
 				 exynos_eint_wake_mask_array[i]);
 }
 
-static int enter_power_mode(int cpu, struct power_mode *mode)
+static bool system_disabled;
+static void enter_power_mode(int cpu, struct power_mode *mode)
 {
-	/* Check whether mode can be entered */
-	if (!can_enter_power_mode(cpu, mode))
-		return 0;
-
 	/*
 	 * From this point on, it has succeeded in entering the power mode.
 	 * It prepares to enter power mode, and makes the corresponding
@@ -736,20 +734,22 @@ static int enter_power_mode(int cpu, struct power_mode *mode)
 		cal_cluster_disable(mode->cal_id);
 		break;
 	case POWERMODE_TYPE_SYSTEM:
+		if (system_disabled)
+			return;
 		if (unlikely(exynos_cpupm_notify(SICD_ENTER, 0)))
-			return 0;
+			return;
 
 		cal_pm_enter(SYS_SICD);
 		set_wakeup_mask(mode->wm_config);
+		system_disabled = 1;
+
 		break;
 	}
 
-//	dbg_snapshot_cpuidle_mod(mode->name, 0, 0, DSS_FLAG_IN);
+	dbg_snapshot_cpuidle_mod(mode->name, 0, 0, DSS_FLAG_IN);
 	set_state_powerdown(mode);
 
 	cpupm_profile_begin(&mode->stat);
-
-	return 1;
 }
 
 static void exit_power_mode(int cpu, struct power_mode *mode, int cancel)
@@ -761,18 +761,23 @@ static void exit_power_mode(int cpu, struct power_mode *mode, int cancel)
 	 * first cpu exiting from power mode.
 	 */
 	set_state_run(mode);
-//	dbg_snapshot_cpuidle_mod(mode->name, 0, 0, DSS_FLAG_OUT);
+	dbg_snapshot_cpuidle_mod(mode->name, 0, 0, DSS_FLAG_OUT);
 
 	switch (mode->type) {
 	case POWERMODE_TYPE_CLUSTER:
 		cal_cluster_enable(mode->cal_id);
 		break;
 	case POWERMODE_TYPE_SYSTEM:
+		if (!system_disabled)
+			return;
+
 		if (cancel)
 			cal_pm_earlywakeup(SYS_SICD);
 		else
 			cal_pm_exit(SYS_SICD);
 		exynos_cpupm_notify(SICD_EXIT, cancel);
+		system_disabled = 0;
+
 		break;
 	}
 }
@@ -800,9 +805,10 @@ static void exynos_cpupm_enter(int cpu)
 		struct power_mode *mode = pm->modes[i];
 
 		if (!mode)
-			break;
+			continue;
 
-		enter_power_mode(cpu, mode);
+		if (entry_allow(cpu, mode))
+			enter_power_mode(cpu, mode);
 	}
 
 	spin_unlock(&cpupm_lock);
@@ -821,7 +827,7 @@ static void exynos_cpupm_exit(int cpu, int cancel)
 		struct power_mode *mode = pm->modes[i];
 
 		if (!mode)
-			break;
+			continue;
 
 		if (check_state_powerdown(mode))
 			exit_power_mode(cpu, mode, cancel);
@@ -836,15 +842,11 @@ static void exynos_cpupm_exit(int cpu, int cancel)
 	spin_unlock(&cpupm_lock);
 }
 
-static bool allow_cpu_off;
 static int exynos_cpu_pm_notify_callback(struct notifier_block *self,
 					 unsigned long action, void *v)
 {
 	int cpu = smp_processor_id();
 	int cpu_state;
-
-	if (!allow_cpu_off)
-		return NOTIFY_BAD;
 
 	/* ignore CPU_PM event in suspend sequence */
 	if (system_suspended)
@@ -1222,12 +1224,6 @@ static const struct dev_pm_ops cpupm_pm_ops = {
 	.resume_noirq = exynos_cpupm_resume_noirq,
 };
 
-static void allow_cpu_off_func(struct work_struct *__work)
-{
-	allow_cpu_off = true;
-}
-
-struct delayed_work booting_work;
 static int exynos_cpupm_probe(struct platform_device *pdev)
 {
 	int ret, cpu;
@@ -1270,9 +1266,6 @@ static int exynos_cpupm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	INIT_DELAYED_WORK(&booting_work, allow_cpu_off_func);
-	schedule_delayed_work(&booting_work, msecs_to_jiffies(40000));
-
 	cpupm_init_time = ktime_get();
 
 	return 0;
@@ -1296,6 +1289,7 @@ static struct platform_driver exynos_cpupm_driver = {
 	.probe		= exynos_cpupm_probe,
 };
 
+MODULE_SOFTDEP("pre: exynos_mct");
 MODULE_DESCRIPTION("Exynos CPUPM driver");
 MODULE_LICENSE("GPL");
 module_platform_driver(exynos_cpupm_driver);
