@@ -256,6 +256,11 @@ static const struct g2d_fmt g2d_formats_common[] = {
 		.bpp		= { 32 },
 		.num_planes	= 1,
 	}, {
+		.name		= "XBGR2101010",
+		.fmtvalue	= G2D_FMT_XBGR2101010,
+		.bpp		= { 32 },
+		.num_planes	= 1,
+	}, {
 		.name		= "YUV420P",
 		.fmtvalue	= G2D_FMT_YUV420P,
 		.bpp		= { 8, 2, 2},
