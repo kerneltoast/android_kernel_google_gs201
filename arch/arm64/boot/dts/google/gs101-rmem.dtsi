@@ -9,27 +9,6 @@
 
 / {
 
-	ramoops {
-		compatible = "ramoops";
-		memory-region = <&ramoops_mem>;
-		alt-memory-region = <&alt_ramoops_mem>;
-		record-size = <0x20000>;
-		console-size = <0x100000>;
-		pmsg-size = <0x80000>;
-	};
-
-	access_ramoops@0 {
-		compatible = "access_ramoops";
-		label = "metadata";
-		memory-region = <&ramoops_meta_mem>;
-	};
-
-	access_ramoops@1 {
-		compatible = "access_ramoops";
-		label = "ramoops";
-		memory-region = <&alt_ramoops_mem>;
-	};
-
 	bootloader_log {
 		compatible = "google,bldr_log";
 		reg = <0x0 0xfd800000 0x80000>, <0x0 0xfd880000 0x80000>;
@@ -72,19 +51,12 @@
 			no-map;
 		};
 
-		ramoops_mem: ramoops_region@fd3ff000 {
+		ramoops_mem@fd3ff000 {
+			compatible = "ramoops";
 			reg = <0 0xfd3ff000 0x200000>;
-			no-map;
-		};
-
-		alt_ramoops_mem: alt_ramoops_region@fd5ff000 {
-			reg = <0 0xfd5ff000 0x200000>;
-			no-map;
-		};
-
-		ramoops_meta_mem: ramoops_meta_region@fd7ff000 {
-			reg = <0 0xfd7ff000 0x1000>;
-			no-map;
+			record-size = <0x20000>;
+			console-size = <0x100000>;
+			pmsg-size = <0x80000>;
 		};
 
 		bldr_log_reserved: bldr_log_reserved@fd800000 {
