@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include <soc/google/cal-if.h>
 
 #define EXYNOS_PM_PREFIX	"EXYNOS-PM:"

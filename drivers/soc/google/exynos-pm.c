@@ -300,167 +300,150 @@ static void exynos_pm_debugfs_init(void)
 }
 #endif
 
-static int exynos_pm_drvinit(void)
+static int exynos_pm_drvinit(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct resource *res;
+	unsigned int wake_lock = 0;
 	int ret;
 
-	pm_info = kzalloc(sizeof(*pm_info), GFP_KERNEL);
-	WARN_ON(!pm_info);
+	pm_info = devm_kzalloc(dev, sizeof(*pm_info), GFP_KERNEL);
+	if (IS_ERR(pm_info))
+		return PTR_ERR(pm_info);
 
-	pm_dbg = kzalloc(sizeof(*pm_dbg), GFP_KERNEL);
-	WARN_ON(!pm_dbg);
+	pm_dbg = devm_kzalloc(dev, sizeof(*pm_dbg), GFP_KERNEL);
+	if (IS_ERR(pm_dbg))
+		return PTR_ERR(pm_dbg);
 
-	if (of_have_populated_dt()) {
-		struct device_node *np;
-		unsigned int wake_lock = 0;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pm_info->eint_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pm_info->eint_base))
+		return PTR_ERR(pm_info->eint_base);
 
-		np = of_find_compatible_node(NULL, NULL, "samsung,exynos-pm");
-		if (!np) {
-			pr_err("%s drvinit: unabled to find compatible node (%s)\n",
-			       EXYNOS_PM_PREFIX, "samsung,exynos-pm");
-			WARN_ON(1);
-		}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	pm_info->eint_far_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pm_info->eint_far_base))
+		return PTR_ERR(pm_info->eint_far_base);
 
-		pm_info->eint_base = of_iomap(np, 0);
-		WARN_ON(!pm_info->eint_base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	pm_info->gic_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pm_info->gic_base))
+		return PTR_ERR(pm_info->gic_base);
 
-		pm_info->eint_far_base = of_iomap(np, 1);
-		WARN_ON(!pm_info->eint_far_base);
-
-		pm_info->gic_base = of_iomap(np, 2);
-		WARN_ON(!pm_info->gic_base);
-
-		ret = of_property_read_u32(np, "num-eint", &pm_info->num_eint);
-		if (ret) {
-			pr_err("%s drvinit: unabled to get the number of eint from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		}
-
-		ret = of_property_read_u32(np, "num-eint-far", &pm_info->num_eint_far);
-		if (ret) {
-			pr_err("%s drvinit: unabled to get the number of eint-far from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		}
-
-		ret = of_property_count_u32_elems(np, "gpa-use");
-		if (!ret) {
-			pr_err("%s drvinit: unabled to get num-gpa-use from DT\n",
-			       EXYNOS_PM_PREFIX);
-		} else if (ret > 0) {
-			pm_info->num_gpa = ret;
-			pm_info->gpa_use = kcalloc(ret, sizeof(unsigned int), GFP_KERNEL);
-			of_property_read_u32_array(np, "gpa-use", pm_info->gpa_use, ret);
-		}
-
-		ret = of_property_read_u32(np, "num-gic", &pm_info->num_gic);
-		if (ret) {
-			pr_err("%s drvinit: unabled to get the number of gic from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		}
-
-		ret = of_property_read_u32(np, "wakeup-stat-eint", &pm_info->wakeup_stat_eint);
-		if (ret) {
-			pr_err("%s drvinit: unabled to get the eint bit of WAKEUP_STAT from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		}
-
-		ret = of_property_read_u32(np, "wakeup-stat-rtc", &pm_info->wakeup_stat_rtc);
-		if (ret) {
-			pr_err("%s drvinit: unabled to get the rtc bit of WAKEUP_STAT from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		}
-
-		ret = of_property_read_u32(np, "suspend_mode_idx", &pm_info->suspend_mode_idx);
-		if (ret) {
-			pr_err("%s drvinit: unabled to get suspend_mode_idx from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		}
-
-		ret = of_property_count_u32_elems(np, "wakeup_stat_offset");
-		if (!ret) {
-			pr_err("%s drvinit: unabled to get wakeup_stat value from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		} else if (ret > 0) {
-			pm_info->num_wakeup_stat = ret;
-			pm_info->wakeup_stat_offset = kcalloc(ret, sizeof(unsigned int),
-							      GFP_KERNEL);
-			of_property_read_u32_array(np, "wakeup_stat_offset",
-						   pm_info->wakeup_stat_offset, ret);
-		}
-
-		ret = of_property_count_u32_elems(np, "wakeup_int_en_offset");
-		if (!ret) {
-			pr_err("%s drvinit: unabled to get wakeup_int_en_offset value from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		} else if (ret > 0) {
-			pm_info->num_wakeup_int_en = ret;
-			pm_info->wakeup_int_en_offset = kcalloc(ret, sizeof(unsigned int),
-								GFP_KERNEL);
-			of_property_read_u32_array(np, "wakeup_int_en_offset",
-						   pm_info->wakeup_int_en_offset, ret);
-		}
-
-		ret = of_property_count_u32_elems(np, "wakeup_int_en");
-		if (!ret) {
-			pr_err("%s drvinit: unabled to get wakeup_int_en value from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		} else if (ret > 0) {
-			pm_info->wakeup_int_en = kcalloc(ret, sizeof(unsigned int), GFP_KERNEL);
-			of_property_read_u32_array(np, "wakeup_int_en",
-						   pm_info->wakeup_int_en, ret);
-		}
-
-		ret = of_property_count_u32_elems(np, "usbl2_wakeup_int_en");
-		if (!ret) {
-			pr_err("%s drvinit: dose not support usbl2 sleep\n", EXYNOS_PM_PREFIX);
-		} else if (ret > 0) {
-			pm_info->usbl2_wakeup_int_en = kcalloc(ret, sizeof(unsigned int),
-							       GFP_KERNEL);
-			of_property_read_u32_array(np, "usbl2_wakeup_int_en",
-						   pm_info->usbl2_wakeup_int_en, ret);
-		}
-
-		ret = of_property_count_u32_elems(np, "eint_wakeup_mask_offset");
-		if (!ret) {
-			pr_err("%s drvinit: unabled to get eint_wakeup_mask_offset from DT\n",
-			       EXYNOS_PM_PREFIX);
-			WARN_ON(1);
-		} else if (ret > 0) {
-			pm_info->num_eint_wakeup_mask = ret;
-			pm_info->eint_wakeup_mask_offset = kcalloc(ret, sizeof(unsigned int),
-								   GFP_KERNEL);
-			of_property_read_u32_array(np, "eint_wakeup_mask_offset",
-						   pm_info->eint_wakeup_mask_offset, ret);
-		}
-
-		ret = of_property_read_u32(np, "wake_lock", &wake_lock);
-		if (ret) {
-			pr_info("%s drvinit: unabled to get wake_lock from DT\n",
-				EXYNOS_PM_PREFIX);
-		} else {
-			pm_info->ws = wakeup_source_register(NULL, "exynos-pm");
-			if (!pm_info->ws)
-				WARN_ON(1);
-
-			pm_info->is_stay_awake = (bool)wake_lock;
-
-			if (pm_info->is_stay_awake)
-				__pm_stay_awake(pm_info->ws);
-		}
-
-	} else {
-		pr_err("%s drvinit: failed to have populated device tree\n",
-		       EXYNOS_PM_PREFIX);
+	ret = of_property_read_u32(np, "num-eint", &pm_info->num_eint);
+	if (ret) {
+		dev_err(dev, "drvinit: unabled to get the number of eint from DT\n");
 		WARN_ON(1);
+	}
+
+	ret = of_property_read_u32(np, "num-eint-far", &pm_info->num_eint_far);
+	if (ret) {
+		dev_err(dev, "drvinit: unabled to get the number of eint-far from DT\n");
+		WARN_ON(1);
+	}
+
+	ret = of_property_count_u32_elems(np, "gpa-use");
+	if (!ret) {
+		dev_err(dev, "drvinit: unabled to get num-gpa-use from DT\n");
+	} else if (ret > 0) {
+		pm_info->num_gpa = ret;
+		pm_info->gpa_use = devm_kcalloc(dev, ret, sizeof(unsigned int), GFP_KERNEL);
+		of_property_read_u32_array(np, "gpa-use", pm_info->gpa_use, ret);
+	}
+
+	ret = of_property_read_u32(np, "num-gic", &pm_info->num_gic);
+	if (ret) {
+		dev_err(dev, "drvinit: unabled to get the number of gic from DT\n");
+		WARN_ON(1);
+	}
+
+	ret = of_property_read_u32(np, "wakeup-stat-eint", &pm_info->wakeup_stat_eint);
+	if (ret) {
+		dev_err(dev, "drvinit: unabled to get the eint bit of WAKEUP_STAT from DT\n");
+		WARN_ON(1);
+	}
+
+	ret = of_property_read_u32(np, "wakeup-stat-rtc", &pm_info->wakeup_stat_rtc);
+	if (ret) {
+		dev_err(dev, "drvinit: unabled to get the rtc bit of WAKEUP_STAT from DT\n");
+		WARN_ON(1);
+	}
+
+	ret = of_property_read_u32(np, "suspend_mode_idx", &pm_info->suspend_mode_idx);
+	if (ret) {
+		dev_err(dev, "drvinit: unabled to get suspend_mode_idx from DT\n");
+		WARN_ON(1);
+	}
+
+	ret = of_property_count_u32_elems(np, "wakeup_stat_offset");
+	if (!ret) {
+		dev_err(dev, "drvinit: unabled to get wakeup_stat value from DT\n");
+		WARN_ON(1);
+	} else if (ret > 0) {
+		pm_info->num_wakeup_stat = ret;
+		pm_info->wakeup_stat_offset = devm_kcalloc(dev, ret, sizeof(unsigned int),
+							   GFP_KERNEL);
+		of_property_read_u32_array(np, "wakeup_stat_offset",
+					   pm_info->wakeup_stat_offset, ret);
+	}
+
+	ret = of_property_count_u32_elems(np, "wakeup_int_en_offset");
+	if (!ret) {
+		dev_err(dev, "drvinit: unabled to get wakeup_int_en_offset value from DT\n");
+		WARN_ON(1);
+	} else if (ret > 0) {
+		pm_info->num_wakeup_int_en = ret;
+		pm_info->wakeup_int_en_offset = devm_kcalloc(dev, ret, sizeof(unsigned int),
+							     GFP_KERNEL);
+		of_property_read_u32_array(np, "wakeup_int_en_offset",
+					   pm_info->wakeup_int_en_offset, ret);
+	}
+
+	ret = of_property_count_u32_elems(np, "wakeup_int_en");
+	if (!ret) {
+		dev_err(dev, "drvinit: unabled to get wakeup_int_en value from DT\n");
+		WARN_ON(1);
+	} else if (ret > 0) {
+		pm_info->wakeup_int_en = devm_kcalloc(dev, ret, sizeof(unsigned int), GFP_KERNEL);
+		of_property_read_u32_array(np, "wakeup_int_en",
+					   pm_info->wakeup_int_en, ret);
+	}
+
+	ret = of_property_count_u32_elems(np, "usbl2_wakeup_int_en");
+	if (!ret) {
+		dev_err(dev, "drvinit: dose not support usbl2 sleep\n");
+	} else if (ret > 0) {
+		pm_info->usbl2_wakeup_int_en = devm_kcalloc(dev, ret, sizeof(unsigned int),
+							    GFP_KERNEL);
+		of_property_read_u32_array(np, "usbl2_wakeup_int_en",
+					   pm_info->usbl2_wakeup_int_en, ret);
+	}
+
+	ret = of_property_count_u32_elems(np, "eint_wakeup_mask_offset");
+	if (!ret) {
+		dev_err(dev, "drvinit: unabled to get eint_wakeup_mask_offset from DT\n");
+		WARN_ON(1);
+	} else if (ret > 0) {
+		pm_info->num_eint_wakeup_mask = ret;
+		pm_info->eint_wakeup_mask_offset = devm_kcalloc(dev, ret, sizeof(unsigned int),
+								GFP_KERNEL);
+		of_property_read_u32_array(np, "eint_wakeup_mask_offset",
+					   pm_info->eint_wakeup_mask_offset, ret);
+	}
+
+	ret = of_property_read_u32(np, "wake_lock", &wake_lock);
+	if (ret) {
+		dev_info(dev, "drvinit: unabled to get wake_lock from DT\n");
+	} else {
+		pm_info->ws = wakeup_source_register(NULL, "exynos-pm");
+		if (!pm_info->ws)
+			WARN_ON(1);
+
+		pm_info->is_stay_awake = (bool)wake_lock;
+
+		if (pm_info->is_stay_awake)
+			__pm_stay_awake(pm_info->ws);
 	}
 
 	register_syscore_ops(&exynos_pm_syscore_ops);
@@ -468,8 +451,40 @@ static int exynos_pm_drvinit(void)
 	exynos_pm_debugfs_init();
 #endif
 
+	dev_info(dev, "initialized\n");
 	return 0;
 }
-arch_initcall(exynos_pm_drvinit);
+
+static const struct of_device_id of_exynos_pm_match[] = {
+	{ .compatible = "samsung,exynos-pm", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_exynos_pm_match);
+
+static const struct platform_device_id exynos_pm_ids[] = {
+	{ "exynos-pm", },
+	{ }
+};
+
+static struct platform_driver exynos_pm_driver = {
+	.driver = {
+		.name = "exynos-pm",
+		.of_match_table = of_exynos_pm_match,
+	},
+	.probe		= exynos_pm_drvinit,
+	.id_table	= exynos_pm_ids,
+};
+
+static int exynos_pm_init(void)
+{
+	return platform_driver_register(&exynos_pm_driver);
+}
+arch_initcall(exynos_pm_init);
+
+static void exynos_pm_exit(void)
+{
+	return platform_driver_unregister(&exynos_pm_driver);
+}
+module_exit(exynos_pm_exit);
 
 MODULE_LICENSE("GPL");
