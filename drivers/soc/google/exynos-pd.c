@@ -85,26 +85,6 @@ int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd, struct exynos_pd_stat *s)
 }
 EXPORT_SYMBOL(exynos_pd_get_pd_stat);
 
-int exynos_pd_booton_rel(const char *pd_name)
-{
-	struct exynos_pm_domain *pd = NULL;
-
-	pd = exynos_pd_lookup_name(pd_name);
-
-	if (unlikely(!pd)) {
-		pr_info(EXYNOS_PD_PREFIX "booton_rel :%s not found\n", pd_name);
-		return -EINVAL;
-	}
-
-	if (of_property_read_bool(pd->of_node, "pd-boot-on")) {
-		pd->genpd.flags &= ~GENPD_FLAG_ALWAYS_ON;
-		pr_info(EXYNOS_PD_PREFIX "	%-9s flag set to %d\n",
-			pd->genpd.name, pd->genpd.flags);
-	}
-	return 0;
-}
-EXPORT_SYMBOL(exynos_pd_booton_rel);
-
 /* Power domain on sequence.
  * on_pre, on_post functions are registered as notification handler at CAL code.
  */
@@ -455,8 +435,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 
 	of_genpd_add_provider_simple(np, &pd->genpd);
 
-	if (of_property_read_bool(np, "pd-always-on") ||
-	    (of_property_read_bool(np, "pd-boot-on"))) {
+	if (of_property_read_bool(np, "pd-always-on")) {
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		dev_info(dev,
 			 EXYNOS_PD_PREFIX "    %-9s - %s\n", pd->genpd.name,
