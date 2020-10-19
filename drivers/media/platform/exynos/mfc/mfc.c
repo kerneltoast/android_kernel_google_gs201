@@ -146,7 +146,7 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 	}
 	ctx->dec_priv = dec;
 
-	ctx->slave_inst_no = MFC_NO_INSTANCE_SET;
+	ctx->subcore_inst_no = MFC_NO_INSTANCE_SET;
 	ctx->curr_src_index = -1;
 
 	mfc_create_queue(&ctx->src_buf_ready_queue);

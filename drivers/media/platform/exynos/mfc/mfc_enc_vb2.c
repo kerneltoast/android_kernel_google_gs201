@@ -38,7 +38,7 @@ static int mfc_enc_queue_setup(struct vb2_queue *vq,
 	mfc_debug_enter();
 
 	/* Encoder works only single core */
-	core = mfc_get_master_core_wait(dev, ctx);
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	if (core_ctx->state != MFCINST_GOT_INST &&
@@ -354,7 +354,7 @@ static int mfc_enc_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct mfc_core_ctx *core_ctx;
 
 	/* Encoder works only single core */
-	core = mfc_get_master_core_wait(dev, ctx);
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&

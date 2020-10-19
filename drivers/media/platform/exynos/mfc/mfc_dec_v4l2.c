@@ -446,8 +446,8 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	mfc_debug_enter();
 
-	/* During g_fmt, context information is need to for only Master core */
-	core = mfc_get_master_core_wait(dev, ctx);
+	/* During g_fmt, context information is need to for only maincore */
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	mfc_debug(2, "dec dst g_fmt, state: %d wait_state: %d\n",
@@ -489,9 +489,9 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 	    core_ctx->state < MFCINST_ABORT) {
 		/* This is run on CAPTURE (decode output) */
 		if (IS_MULTI_MODE(ctx)) {
-			mfc_ctx_info("[2CORE] start the slave core\n");
+			mfc_ctx_info("[2CORE] start the subcore\n");
 			if (mfc_rm_instance_setup(dev, ctx)) {
-				mfc_ctx_err("[2CORE] failed to setup slave core\n");
+				mfc_ctx_err("[2CORE] failed to setup subcore\n");
 				return -EAGAIN;
 			}
 		}
@@ -1093,8 +1093,8 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 		mfc_debug(5, "it is supported only V4L2_MEMORY_MMAP\n");
 		break;
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
-		/* These context information is need to for only Master core */
-		core = mfc_get_master_core_wait(dev, ctx);
+		/* These context information is need to for only maincore */
+		core = mfc_get_main_core_wait(dev, ctx);
 		core_ctx = core->core_ctx[ctx->num];
 
 		if (core_ctx->state >= MFCINST_HEAD_PARSED &&
@@ -1131,7 +1131,7 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 		ctrl->value = dec->crc_enable;
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_CHECK_STATE:
-		core = mfc_get_master_core_wait(dev, ctx);
+		core = mfc_get_main_core_wait(dev, ctx);
 		core_ctx = core->core_ctx[ctx->num];
 		if (ctx->is_dpb_realloc &&
 			mfc_rm_query_state(ctx, EQUAL, MFCINST_HEAD_PARSED))
@@ -1178,8 +1178,8 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 		ctrl->value = dec->uncomp_pixfmt;
 		break;
 	case V4L2_CID_MPEG_VIDEO_GET_DISPLAY_DELAY:
-		/* These context information is need to for only Master core */
-		core = mfc_get_master_core_wait(dev, ctx);
+		/* These context information is need to for only maincore */
+		core = mfc_get_main_core_wait(dev, ctx);
 		core_ctx = core->core_ctx[ctx->num];
 		if (core_ctx->state >= MFCINST_HEAD_PARSED) {
 			ctrl->value = dec->frame_display_delay;
@@ -1390,7 +1390,7 @@ static int mfc_dec_g_selection(struct file *file, void *priv,
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	core = mfc_get_master_core_wait(dev, ctx);
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	if (!ready_to_get_crop(core_ctx)) {

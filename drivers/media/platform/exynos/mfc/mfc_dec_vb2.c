@@ -39,9 +39,9 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 
 	/*
 	 * During queue_setup,
-	 * context information is need to for only Master core
+	 * context information is need to for only maincore
 	 */
-	core = mfc_get_master_core_wait(dev, ctx);
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	/* Video output for decoding (source)

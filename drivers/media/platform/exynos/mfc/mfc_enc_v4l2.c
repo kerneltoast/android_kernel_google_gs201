@@ -491,9 +491,9 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 		ctx->dpb_count = MFC_OTF_DEFAULT_DPB_COUNT;
 		ctx->scratch_buf_size = MFC_OTF_DEFAULT_SCRATCH_SIZE;
 		enc->sbwc_option = 2;
-		core = mfc_get_master_core_wait(dev, ctx);
+		core = mfc_get_main_core_wait(dev, ctx);
 		if (!core) {
-			mfc_ctx_err("There is no master core\n");
+			mfc_ctx_err("There is no maincore\n");
 			return -EINVAL;
 		}
 
@@ -599,7 +599,7 @@ static int mfc_enc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 		return -EINVAL;
 
 	/* Encoder works only single core */
-	core = mfc_get_master_core_wait(dev, ctx);
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	/* Dynamic Resolution & Format Changes */
@@ -778,7 +778,7 @@ static int mfc_enc_querybuf(struct file *file, void *priv,
 	}
 
 	/* Encoder works only single core */
-	core = mfc_get_master_core_wait(dev, ctx);
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
@@ -822,7 +822,7 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	}
 
 	/* Encoder works only single core */
-	core = mfc_get_master_core_wait(dev, ctx);
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	if (core_ctx->state == MFCINST_ERROR) {
@@ -889,7 +889,7 @@ static int mfc_enc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	}
 
 	/* Encoder works only single core */
-	core = mfc_get_master_core_wait(dev, ctx);
+	core = mfc_get_main_core_wait(dev, ctx);
 	core_ctx = core->core_ctx[ctx->num];
 
 	if (core_ctx->state == MFCINST_ERROR) {
@@ -1006,7 +1006,7 @@ static int mfc_enc_queryctrl(struct file *file, void *priv,
 static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
-	struct mfc_core *core = mfc_get_master_core_wait(dev, ctx);
+	struct mfc_core *core = mfc_get_main_core_wait(dev, ctx);
 	int val = 0;
 
 	val |= ENC_SET_SPARE_SIZE;

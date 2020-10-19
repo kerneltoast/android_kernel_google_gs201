@@ -353,8 +353,8 @@ void mfc_dump_state(struct mfc_dev *dev)
 				dev->ctx[i]->img_width, dev->ctx[i]->img_height,
 				dev->ctx[i]->crop_width, dev->ctx[i]->crop_height,
 				dev->ctx[i]->crop_left, dev->ctx[i]->crop_top);
-			dev_err(dev->device, "	master core-%d, op_mode: %d, queue_cnt(src:%d, dst:%d, ref:%d, qsrc:%d, qdst:%d)\n",
-				dev->ctx[i]->op_core_num[MFC_CORE_MASTER],
+			dev_err(dev->device, "\tmain core-%d, op_mode: %d, queue_cnt(src:%d, dst:%d, ref:%d, qsrc:%d, qdst:%d)\n",
+				dev->ctx[i]->op_core_num[MFC_CORE_MAIN],
 				dev->ctx[i]->op_mode,
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->src_buf_ready_queue),
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->dst_buf_queue),
@@ -669,7 +669,7 @@ static void __mfc_dump_info(struct mfc_core *core)
 static void __mfc_dump_info_and_stop_hw(struct mfc_core *core)
 {
 	struct mfc_dev *dev = core->dev;
-	struct mfc_core *master_core;
+	struct mfc_core *main_core;
 	struct mfc_ctx *ctx;
 	int curr_ctx = __mfc_get_curr_ctx(core);
 
@@ -686,13 +686,13 @@ static void __mfc_dump_info_and_stop_hw(struct mfc_core *core)
 	if (!IS_SINGLE_MODE(ctx)) {
 		dev_err(dev->device, "[2CORE] there is multi core mode (op mode: %d)\n",
 				ctx->op_mode);
-		master_core = mfc_get_master_core(dev, ctx);
-		if (core == master_core)
-			/* issued core master, dump slave core also */
-			core = mfc_get_slave_core(dev, ctx);
+		main_core = mfc_get_main_core(dev, ctx);
+		if (core == main_core)
+			/* issued maincore, dump subcore also */
+			core = mfc_get_sub_core(dev, ctx);
 		else
-			/* issued core slave, dump master core also */
-			core = master_core;
+			/* issued subcore, dump maincore also */
+			core = main_core;
 		__mfc_dump_info(core);
 	}
 

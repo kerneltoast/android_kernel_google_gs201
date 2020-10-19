@@ -378,8 +378,8 @@ int mfc_core_cmd_dec_init_buffers(struct mfc_core *core, struct mfc_ctx *ctx)
 	}
 
 	if (IS_TWO_MODE2(ctx)) {
-		reg |= ((ctx->slave_inst_no & MFC_REG_RET_INSTANCE_ID_OF_SLAVE_MASK)
-				<< MFC_REG_RET_INSTANCE_ID_OF_SLAVE_SHIFT);
+		reg |= ((ctx->subcore_inst_no & MFC_REG_RET_INSTANCE_ID_OF_MFC1_MASK) <<
+			MFC_REG_RET_INSTANCE_ID_OF_MFC1_SHIFT);
 		reg |= (core_ctx->inst_no & MFC_REG_RET_INSTANCE_ID_MASK);
 		MFC_CORE_WRITEL(reg, MFC_REG_INSTANCE_ID);
 	} else {

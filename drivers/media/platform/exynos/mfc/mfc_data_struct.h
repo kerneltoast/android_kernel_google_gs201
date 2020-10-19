@@ -352,8 +352,8 @@ enum mfc_qos_control {
 
 enum mfc_core_type {
 	MFC_CORE_INVALID		= -1,
-	MFC_CORE_MASTER			= 0,
-	MFC_CORE_SLAVE			= 1,
+	MFC_CORE_MAIN			= 0,
+	MFC_CORE_SUB			= 1,
 	MFC_CORE_TYPE_NUM		= 2,
 };
 
@@ -2028,7 +2028,7 @@ struct mfc_ctx {
 	spinlock_t buf_queue_lock;
 
 	enum mfc_inst_type type;
-	int slave_inst_no;
+	int subcore_inst_no;
 
 	int img_width;
 	int img_height;

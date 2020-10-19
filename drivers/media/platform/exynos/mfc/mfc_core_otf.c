@@ -831,9 +831,9 @@ int mfc_hwfc_encode(int buf_index, int job_id,
 		return -HWFC_ERR_MFC_NOT_PREPARED;
 	}
 
-	core = mfc_get_master_core(dev, ctx);
+	core = mfc_get_main_core(dev, ctx);
 	if (!core) {
-		mfc_ctx_err("[OTF] Tehre is no mater core\n");
+		mfc_ctx_err("[OTF] There is no main core\n");
 		return -HWFC_ERR_MFC_NOT_PREPARED;
 	}
 

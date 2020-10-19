@@ -20,46 +20,46 @@
 #define MFC_RM_LOAD_ADD			1
 #define MFC_RM_LOAD_DELETE_UPDATE	2
 
-static inline struct mfc_core *mfc_get_master_core_wait(struct mfc_dev *dev,
+static inline struct mfc_core *mfc_get_main_core_wait(struct mfc_dev *dev,
 			struct mfc_ctx *ctx)
 {
 	if (ctx->is_migration)
 		mfc_wait_for_done_ctx_migrate(dev, ctx);
 
-	if (ctx->op_core_num[MFC_CORE_MASTER] == MFC_CORE_INVALID)
+	if (ctx->op_core_num[MFC_CORE_MAIN] == MFC_CORE_INVALID)
 		return NULL;
 
-	return dev->core[ctx->op_core_num[MFC_CORE_MASTER]];
+	return dev->core[ctx->op_core_num[MFC_CORE_MAIN]];
 }
 
-static inline struct mfc_core *mfc_get_slave_core_wait(struct mfc_dev *dev,
+static inline struct mfc_core *mfc_get_sub_core_wait(struct mfc_dev *dev,
 			struct mfc_ctx *ctx)
 {
 	if (ctx->is_migration)
 		mfc_wait_for_done_ctx_migrate(dev, ctx);
 
-	if (ctx->op_core_num[MFC_CORE_SLAVE] == MFC_CORE_INVALID)
+	if (ctx->op_core_num[MFC_CORE_SUB] == MFC_CORE_INVALID)
 		return NULL;
 
-	return dev->core[ctx->op_core_num[MFC_CORE_SLAVE]];
+	return dev->core[ctx->op_core_num[MFC_CORE_SUB]];
 }
 
-static inline struct mfc_core *mfc_get_master_core(struct mfc_dev *dev,
+static inline struct mfc_core *mfc_get_main_core(struct mfc_dev *dev,
 			struct mfc_ctx *ctx)
 {
-	if (ctx->op_core_num[MFC_CORE_MASTER] == MFC_CORE_INVALID)
+	if (ctx->op_core_num[MFC_CORE_MAIN] == MFC_CORE_INVALID)
 		return NULL;
 
-	return dev->core[ctx->op_core_num[MFC_CORE_MASTER]];
+	return dev->core[ctx->op_core_num[MFC_CORE_MAIN]];
 }
 
-static inline struct mfc_core *mfc_get_slave_core(struct mfc_dev *dev,
+static inline struct mfc_core *mfc_get_sub_core(struct mfc_dev *dev,
 			struct mfc_ctx *ctx)
 {
-	if (ctx->op_core_num[MFC_CORE_SLAVE] == MFC_CORE_INVALID)
+	if (ctx->op_core_num[MFC_CORE_SUB] == MFC_CORE_INVALID)
 		return NULL;
 
-	return dev->core[ctx->op_core_num[MFC_CORE_SLAVE]];
+	return dev->core[ctx->op_core_num[MFC_CORE_SUB]];
 }
 
 /* load balancing */
