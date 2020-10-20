@@ -46,6 +46,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/export.h>
+#include <trace/events/power.h>
 
 #include <soc/google/exynos_pm_qos.h>
 
@@ -811,6 +812,8 @@ static void __exynos_pm_qos_update_request(struct exynos_pm_qos_request *req,
 	if (new_value != req->node.prio)
 		exynos_pm_qos_update_target(exynos_pm_qos_array[class]->constraints,
 					    &req->node, EXYNOS_PM_QOS_UPDATE_REQ, new_value);
+	trace_clock_set_rate(exynos_pm_qos_array[class]->name,
+			exynos_pm_qos_request(class), raw_smp_processor_id());
 }
 
 /**
@@ -858,6 +861,8 @@ void exynos_pm_qos_add_request_trace(const char *func, unsigned int line,
 	INIT_DELAYED_WORK(&req->work, exynos_pm_qos_work_fn);
 	exynos_pm_qos_update_target(exynos_pm_qos_array[exynos_pm_qos_class]->constraints,
 				    &req->node, EXYNOS_PM_QOS_ADD_REQ, value);
+	trace_clock_set_rate(exynos_pm_qos_array[exynos_pm_qos_class]->name,
+			exynos_pm_qos_request(exynos_pm_qos_class), raw_smp_processor_id());
 }
 EXPORT_SYMBOL_GPL(exynos_pm_qos_add_request_trace);
 
@@ -914,6 +919,8 @@ void exynos_pm_qos_update_request_timeout(struct exynos_pm_qos_request *req, s32
 					    &req->node, EXYNOS_PM_QOS_UPDATE_REQ, new_value);
 
 	schedule_delayed_work(&req->work, usecs_to_jiffies(timeout_us));
+	trace_clock_set_rate(exynos_pm_qos_array[class]->name,
+			exynos_pm_qos_request(class), raw_smp_processor_id());
 }
 EXPORT_SYMBOL_GPL(exynos_pm_qos_update_request_timeout);
 
@@ -945,6 +952,8 @@ void exynos_pm_qos_remove_request(struct exynos_pm_qos_request *req)
 				    &req->node, EXYNOS_PM_QOS_REMOVE_REQ,
 				    EXYNOS_PM_QOS_DEFAULT_VALUE);
 	memset(req, 0, sizeof(*req));
+	trace_clock_set_rate(exynos_pm_qos_array[class]->name,
+			exynos_pm_qos_request(class), raw_smp_processor_id());
 }
 EXPORT_SYMBOL_GPL(exynos_pm_qos_remove_request);
 
