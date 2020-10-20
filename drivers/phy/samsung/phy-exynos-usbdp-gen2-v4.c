@@ -17,6 +17,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include "phy-samsung-usb-cal.h"
@@ -1916,6 +1917,1299 @@ phy_exynos_usbdp_g2_v4_pma_check_cdr_lock(struct exynos_usbphy_info
 		return -2;
 
 	return 0;
+}
+
+static void phy_exynos_usbdp_g2_v4_pma_ovrd_enable(struct exynos_usbphy_info *info, u32 cmn_rate)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+
+	/*
+	 * pcs_pll_en = 0
+	 * 0x0390 0x40
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E4);
+	reg &= USBDP_CMN_REG00E4_OVRD_PCS_PLL_EN_CLR;
+	reg |= USBDP_CMN_REG00E4_OVRD_PCS_PLL_EN_SET(1);
+	reg &= USBDP_CMN_REG00E4_PCS_PLL_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E4);
+
+	/*
+	 * pcs_bgr_en = 0
+	 * pcs_bias_en = 0
+	 * 0x0388 0xA0
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E2);
+	reg &= USBDP_CMN_REG00E2_OVRD_PCS_BGR_EN_CLR;
+	reg |= USBDP_CMN_REG00E2_OVRD_PCS_BGR_EN_SET(1);
+	reg &= USBDP_CMN_REG00E2_PCS_BGR_EN_CLR;
+	reg &= USBDP_CMN_REG00E2_OVRD_PCS_BIAS_EN_CLR;
+	reg |= USBDP_CMN_REG00E2_OVRD_PCS_BIAS_EN_SET(1);
+	reg &= USBDP_CMN_REG00E2_PCS_BIAS_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E2);
+
+	/*
+	 * cmn_rate
+	 * 0x0384 0x04 // Gen1
+	 *        0x05 // Gen2
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E1);
+	reg &= USBDP_CMN_REG00E1_OVRD_PCS_RATE_CLR;
+	reg |= USBDP_CMN_REG00E1_OVRD_PCS_RATE_SET(1);
+	reg &= USBDP_CMN_REG00E1_PCS_RATE_CLR;
+	reg |= USBDP_CMN_REG00E1_PCS_RATE_SET(cmn_rate);    /* 0: Gen1, 1: Gen2 */
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E1);
+
+	/*
+	 * lane_mux_sel_dp
+	 * ln1_tx_rxd_en
+	 * ln3_tx_rxd_en
+	 * 0x02E0 0x30
+	 * 0x104C 0x01
+	 * 0x204C 0x01
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00B8);
+	reg &= USBDP_CMN_REG00B8_LANE_MUX_SEL_DP_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00B8);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0413);
+	reg &= USBDP_TRSV_REG0413_OVRD_LN1_TX_RXD_COMP_EN_CLR;
+	reg &= USBDP_TRSV_REG0413_OVRD_LN1_TX_RXD_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0413);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0813);
+	reg &= USBDP_TRSV_REG0813_OVRD_LN3_TX_RXD_COMP_EN_CLR;
+	reg &= USBDP_TRSV_REG0813_OVRD_LN3_TX_RXD_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0813);
+
+	/*
+	 * pcs_bgr_en = 1
+	 * pcs_bias_en = 1
+	 * pcs_powerdown = 0
+	 * pcs_des_en = 0
+	 * pcs_cdr_en = 1
+	 * pcs_pll_en = 1
+	 * pcs_rx_ctle_en = 1
+	 * pcs_rx_sqhs_en = 1
+	 * pcs_rx_term_en = 1
+	 * pcs_tx_drv_en =1
+	 * pcs_tx_elecidle = 1
+	 * pcs_tx_lfps_en = 0
+	 * pcs_tx_rcv_det_en =1
+	 * pcs_tx_ser_en =0
+	 * 0x0388 0xFB
+	 * 0x038C 0x20
+	 * 0x0390 0x63
+	 * 0x0394 0x03
+	 * 0x0398 0xC3
+	 * 0x03A4 0x03
+	 * 0x03A8 0x8E
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E2);
+	reg &= USBDP_CMN_REG00E2_OVRD_PCS_BGR_EN_CLR;
+	reg |= USBDP_CMN_REG00E2_OVRD_PCS_BGR_EN_SET(1);
+	reg &= USBDP_CMN_REG00E2_PCS_BGR_EN_CLR;
+	reg |= USBDP_CMN_REG00E2_PCS_BGR_EN_SET(1);
+	reg &= USBDP_CMN_REG00E2_OVRD_PCS_BIAS_EN_CLR;
+	reg |= USBDP_CMN_REG00E2_OVRD_PCS_BIAS_EN_SET(1);
+	reg &= USBDP_CMN_REG00E2_PCS_BIAS_EN_CLR;
+	reg |= USBDP_CMN_REG00E2_PCS_BIAS_EN_SET(1);
+	reg &= USBDP_CMN_REG00E2_OVRD_PCS_POWERDOWN_CLR;
+	reg |= USBDP_CMN_REG00E2_OVRD_PCS_POWERDOWN_SET(1);
+	reg &= USBDP_CMN_REG00E2_PCS_POWERDOWN_CLR;
+	reg &= USBDP_CMN_REG00E2_OVRD_PCS_CDR_EN_CLR;
+	reg |= USBDP_CMN_REG00E2_OVRD_PCS_CDR_EN_SET(1);
+	reg &= USBDP_CMN_REG00E2_PCS_CDR_EN_CLR;
+	reg |= USBDP_CMN_REG00E2_PCS_CDR_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E2);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E3);
+	reg &= USBDP_CMN_REG00E3_OVRD_PCS_DES_EN_CLR;
+	reg |= USBDP_CMN_REG00E3_OVRD_PCS_DES_EN_SET(1);
+	reg &= USBDP_CMN_REG00E3_PCS_DES_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E3);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E4);
+	reg &= USBDP_CMN_REG00E4_OVRD_PCS_PLL_EN_CLR;
+	reg |= USBDP_CMN_REG00E4_OVRD_PCS_PLL_EN_SET(1);
+	reg &= USBDP_CMN_REG00E4_PCS_PLL_EN_CLR;
+	reg |= USBDP_CMN_REG00E4_PCS_PLL_EN_SET(1);
+	reg &= USBDP_CMN_REG00E4_OVRD_PCS_RX_CTLE_EN_CLR;
+	reg |= USBDP_CMN_REG00E4_OVRD_PCS_RX_CTLE_EN_SET(1);
+	reg &= USBDP_CMN_REG00E4_PCS_RX_CTLE_EN_CLR;
+	reg |= USBDP_CMN_REG00E4_PCS_RX_CTLE_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E4);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E5);
+	reg &= USBDP_CMN_REG00E5_OVRD_PCS_RX_SQHS_EN_CLR;
+	reg |= USBDP_CMN_REG00E5_OVRD_PCS_RX_SQHS_EN_SET(1);
+	reg &= USBDP_CMN_REG00E5_PCS_RX_SQHS_EN_CLR;
+	reg |= USBDP_CMN_REG00E5_PCS_RX_SQHS_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E5);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E6);
+	reg &= USBDP_CMN_REG00E6_OVRD_PCS_RX_TERM_EN_CLR;
+	reg |= USBDP_CMN_REG00E6_OVRD_PCS_RX_TERM_EN_SET(1);
+	reg &= USBDP_CMN_REG00E6_PCS_RX_TERM_EN_CLR;
+	reg |= USBDP_CMN_REG00E6_PCS_RX_TERM_EN_SET(1);
+	reg &= USBDP_CMN_REG00E6_OVRD_PCS_TX_DRV_EN_CLR;
+	reg |= USBDP_CMN_REG00E6_OVRD_PCS_TX_DRV_EN_SET(1);
+	reg &= USBDP_CMN_REG00E6_PCS_TX_DRV_EN_CLR;
+	reg |= USBDP_CMN_REG00E6_PCS_TX_DRV_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E6);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E9);
+	reg &= USBDP_CMN_REG00E9_OVRD_PCS_TX_ELECIDLE_CLR;
+	reg |= USBDP_CMN_REG00E9_OVRD_PCS_TX_ELECIDLE_SET(1);
+	reg &= USBDP_CMN_REG00E9_PCS_TX_ELECIDLE_CLR;
+	reg |= USBDP_CMN_REG00E9_PCS_TX_ELECIDLE_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E9);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00EA);
+	reg &= USBDP_CMN_REG00EA_OVRD_PCS_TX_LFPS_EN_CLR;
+	reg |= USBDP_CMN_REG00EA_OVRD_PCS_TX_LFPS_EN_SET(1);
+	reg &= USBDP_CMN_REG00EA_PCS_TX_LFPS_EN_CLR;
+	reg &= USBDP_CMN_REG00EA_OVRD_PCS_TX_RCV_DET_EN_CLR;
+	reg |= USBDP_CMN_REG00EA_OVRD_PCS_TX_RCV_DET_EN_SET(1);
+	reg &= USBDP_CMN_REG00EA_PCS_TX_RCV_DET_EN_CLR;
+	reg |= USBDP_CMN_REG00EA_PCS_TX_RCV_DET_EN_SET(1);
+	reg &= USBDP_CMN_REG00EA_OVRD_PCS_TX_SER_EN_CLR;
+	reg |= USBDP_CMN_REG00EA_OVRD_PCS_TX_SER_EN_SET(1);
+	reg &= USBDP_CMN_REG00EA_PCS_TX_SER_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00EA);
+}
+
+static void phy_exynos_usbdp_g2_v4_pma_ovrd_pcs_rst_release(struct exynos_usbphy_info *info)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+
+	/*
+	 * dp_init/cmn_rstn = 1
+	 * 0x038C 0xEF
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E3);
+	reg &= USBDP_CMN_REG00E3_OVRD_PCS_CMN_RSTN_CLR;
+	reg |= USBDP_CMN_REG00E3_OVRD_PCS_CMN_RSTN_SET(1);
+	reg &= USBDP_CMN_REG00E3_PCS_CMN_RSTN_CLR;
+	reg |= USBDP_CMN_REG00E3_PCS_CMN_RSTN_SET(1);
+	reg &= USBDP_CMN_REG00E3_OVRD_PCS_INIT_RSTN_CLR;
+	reg |= USBDP_CMN_REG00E3_OVRD_PCS_INIT_RSTN_SET(1);
+	reg &= USBDP_CMN_REG00E3_PCS_INIT_RSTN_CLR;
+	reg |= USBDP_CMN_REG00E3_PCS_INIT_RSTN_SET(1);
+	reg &= USBDP_CMN_REG00E3_OVRD_PCS_LANE_RSTN_CLR;
+	reg |= USBDP_CMN_REG00E3_OVRD_PCS_LANE_RSTN_SET(1);
+	reg &= USBDP_CMN_REG00E3_PCS_LANE_RSTN_CLR;
+	reg |= USBDP_CMN_REG00E3_PCS_LANE_RSTN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E3);
+
+}
+
+static void phy_exynos_usbdp_g2_v4_pma_ovrd_power_on(struct exynos_usbphy_info *info)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+
+	/*
+	 * pcs_des_en = 1
+	 * pcs_tx_ser_en =1
+	 * pcs_tx_elecidle = 0
+	 * 0x038C 0xFF
+	 * 0x03A4 0x02
+	 * 0x03A8 0x83
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E3);
+	reg &= USBDP_CMN_REG00E3_OVRD_PCS_DES_EN_CLR;
+	reg |= USBDP_CMN_REG00E3_OVRD_PCS_DES_EN_SET(1);
+	reg &= USBDP_CMN_REG00E3_PCS_DES_EN_CLR;
+	reg |= USBDP_CMN_REG00E3_PCS_DES_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E3);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E9);
+	reg &= USBDP_CMN_REG00E9_OVRD_PCS_TX_ELECIDLE_CLR;
+	reg |= USBDP_CMN_REG00E9_OVRD_PCS_TX_ELECIDLE_SET(1);
+	reg &= USBDP_CMN_REG00E9_PCS_TX_ELECIDLE_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E9);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00EA);
+	reg &= USBDP_CMN_REG00EA_OVRD_PCS_TX_RCV_DET_EN_CLR;
+	reg &= USBDP_CMN_REG00EA_PCS_TX_RCV_DET_EN_CLR;
+	reg &= USBDP_CMN_REG00EA_OVRD_PCS_TX_SER_EN_CLR;
+	reg |= USBDP_CMN_REG00EA_OVRD_PCS_TX_SER_EN_SET(1);
+	reg &= USBDP_CMN_REG00EA_PCS_TX_SER_EN_CLR;
+	reg |= USBDP_CMN_REG00EA_PCS_TX_SER_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00EA);
+}
+
+static int phy_exynos_usbdp_g2_v4_pma_bist_en(struct exynos_usbphy_info *info)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+	int ret = 0;
+	int temp;
+
+	/* dp_lane_en = 0  */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00B9);
+	reg &= USBDP_CMN_REG00B9_DP_LANE_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00B9);
+
+	/* dp_bist_en = 0  */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00D6);
+	reg &= USBDP_CMN_REG00D6_DP_BIST_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00D6);
+
+	/*
+	 * pcs_bgr_en, pcs_bias_en
+	 * pcs_des_en, pcs_cdr_en
+	 * pcs_pll_en pcs_rx_ctle_en
+	 * pcs_rx_sqhs_en
+	 * pcs_rx_term_en, pcs_tx_drv_en
+	 * pcs_tx_elecidle
+	 * pcs_tx_ser_en, pcs_tx_lfps_en
+	 * ln0_ana_cdr_en
+	 * ln2_ana_cdr_en
+	 * 0x0388 0xFB
+	 * 0x038C 0xFF
+	 * 0x0390 0x60
+	 * 0x0394 0x00
+	 * 0x0398 0x00
+	 * 0x03A4 0x03
+	 * 0x03A8 0x83
+	 * 0x08B0 0x00
+	 * 0x18B0 0x00
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E4);
+	reg &= USBDP_CMN_REG00E4_OVRD_PCS_RX_CTLE_EN_CLR;
+	reg &= USBDP_CMN_REG00E4_PCS_RX_CTLE_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E4);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E5);
+	reg &= USBDP_CMN_REG00E5_OVRD_PCS_RX_SQHS_EN_CLR;
+	reg &= USBDP_CMN_REG00E5_PCS_RX_SQHS_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E5);
+
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E6);
+	reg &= USBDP_CMN_REG00E6_OVRD_PCS_RX_TERM_EN_CLR;
+	reg &= USBDP_CMN_REG00E6_PCS_RX_TERM_EN_CLR;
+	reg &= USBDP_CMN_REG00E6_OVRD_PCS_TX_DRV_EN_CLR;
+	reg &= USBDP_CMN_REG00E6_PCS_TX_DRV_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E6);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG022C);
+	reg &= USBDP_TRSV_REG022C_OVRD_LN0_RX_CDR_EN_CLR;
+	reg &= USBDP_TRSV_REG022C_LN0_RX_CDR_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG022C);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG062C);
+	reg &= USBDP_TRSV_REG062C_OVRD_LN2_RX_CDR_EN_CLR;
+	reg &= USBDP_TRSV_REG062C_LN2_RX_CDR_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG062C);
+
+	/*
+	 * ln0/2_bist_en, ln0/2_bist_tx_en
+	 * ln0/2_bist_data_en
+	 * 0x0C00 0xC4
+	 * 0x1C00 0xC4
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0300);
+	reg &= USBDP_TRSV_REG0300_LN0_BIST_EN_CLR;
+	reg |= USBDP_TRSV_REG0300_LN0_BIST_EN_SET(1);
+	reg &= USBDP_TRSV_REG0300_LN0_BIST_DATA_EN_CLR;
+	reg |= USBDP_TRSV_REG0300_LN0_BIST_DATA_EN_SET(1);
+	reg &= USBDP_TRSV_REG0300_LN0_BIST_TX_EN_CLR;
+	reg |= USBDP_TRSV_REG0300_LN0_BIST_TX_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0300);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0700);
+	reg &= USBDP_TRSV_REG0700_LN2_BIST_EN_CLR;
+	reg |= USBDP_TRSV_REG0700_LN2_BIST_EN_SET(1);
+	reg &= USBDP_TRSV_REG0700_LN2_BIST_DATA_EN_CLR;
+	reg |= USBDP_TRSV_REG0700_LN2_BIST_DATA_EN_SET(1);
+	reg &= USBDP_TRSV_REG0700_LN2_BIST_TX_EN_CLR;
+	reg |= USBDP_TRSV_REG0700_LN2_BIST_TX_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0700);
+
+	/*
+	 * ln0/2_retimedlb_en
+	 * 0x0BF8 0x0A
+	 * 0x1BF8 0x0A
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02FE);
+	reg &= USBDP_TRSV_REG02FE_LN0_RETIMEDLB_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02FE);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06FE);
+	reg &= USBDP_TRSV_REG06FE_LN2_RETIMEDLB_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06FE);
+
+	/*
+	 * ln#_ana_tx_drv_accdrv_en
+	 * ln#_ana_tx_slb_en = 1
+	 * 0x081C 0x02
+	 * 0x101C 0x02
+	 * 0x181C 0x02
+	 * 0x201C 0x02
+	 * 0x0880 0x00
+	 * 0x1080 0x02
+	 * 0x1880 0x00
+	 * 0x2080 0x02
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0207);
+	reg &= USBDP_TRSV_REG0207_LN0_ANA_TX_DRV_ACCDRV_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0207);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0407);
+	reg &= USBDP_TRSV_REG0407_LN1_ANA_TX_DRV_ACCDRV_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0407);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0607);
+	reg &= USBDP_TRSV_REG0607_LN2_ANA_TX_DRV_ACCDRV_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0607);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0807);
+	reg &= USBDP_TRSV_REG0807_LN3_ANA_TX_DRV_ACCDRV_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0807);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0220);
+	reg &= USBDP_TRSV_REG0220_LN0_ANA_TX_SLB_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0220);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0420);
+	reg &= USBDP_TRSV_REG0420_LN1_ANA_TX_SLB_EN_CLR;
+	reg |= USBDP_TRSV_REG0420_LN1_ANA_TX_SLB_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0420);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0620);
+	reg &= USBDP_TRSV_REG0620_LN2_ANA_TX_SLB_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0620);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0820);
+	reg &= USBDP_TRSV_REG0820_LN3_ANA_TX_SLB_EN_CLR;
+	reg |= USBDP_TRSV_REG0820_LN3_ANA_TX_SLB_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0820);
+
+	/*
+	 * ln0/2_bist_auto_run
+	 * 0x0BFC 0x80
+	 * 0x1BFC 0x80
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02FF);
+	reg &= USBDP_TRSV_REG02FF_LN0_BIST_AUTO_RUN_CLR;
+	reg |= USBDP_TRSV_REG02FF_LN0_BIST_AUTO_RUN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02FF);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06FF);
+	reg &= USBDP_TRSV_REG06FF_LN2_BIST_AUTO_RUN_CLR;
+	reg |= USBDP_TRSV_REG06FF_LN2_BIST_AUTO_RUN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06FF);
+
+//	mdelay(5);   // TODO: it is necessary experimentally
+
+	/*
+	 * ln0/2_ana_rx_slb_d_lane_sel
+	 * ln0/2_ana_rx_slb_en
+	 * 0x0A10 0x38
+	 * 0x1A10 0x38
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0284);
+	reg &= USBDP_TRSV_REG0284_LN0_ANA_RX_SLB_D_LANE_SEL_CLR;
+	reg |= USBDP_TRSV_REG0284_LN0_ANA_RX_SLB_D_LANE_SEL_SET(1);
+	reg &= USBDP_TRSV_REG0284_LN0_ANA_RX_SLB_EN_CLR;
+	reg |= USBDP_TRSV_REG0284_LN0_ANA_RX_SLB_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0284);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0684);
+	reg &= USBDP_TRSV_REG0684_LN2_ANA_RX_SLB_D_LANE_SEL_CLR;
+	reg |= USBDP_TRSV_REG0684_LN2_ANA_RX_SLB_D_LANE_SEL_SET(1);
+	reg &= USBDP_TRSV_REG0684_LN2_ANA_RX_SLB_EN_CLR;
+	reg |= USBDP_TRSV_REG0684_LN2_ANA_RX_SLB_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0684);
+
+	udelay(10);
+
+	temp = info->used_phy_port;
+	info->used_phy_port = 0;
+	ret |= phy_exynos_usbdp_g2_v4_pma_check_cdr_lock(info);
+	info->used_phy_port = 1;
+	ret |= phy_exynos_usbdp_g2_v4_pma_check_cdr_lock(info);
+	info->used_phy_port = temp;
+
+	/*
+	 * ln0/2_bist_rx_en
+	 * 0x0C00 0xE4
+	 * 0x1C00 0xE4
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0300);
+	reg &= USBDP_TRSV_REG0300_LN0_BIST_RX_EN_CLR;
+	reg |= USBDP_TRSV_REG0300_LN0_BIST_RX_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0300);
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0700);
+	reg &= USBDP_TRSV_REG0700_LN2_BIST_RX_EN_CLR;
+	reg |= USBDP_TRSV_REG0700_LN2_BIST_RX_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0700);
+
+	if (ret)
+		return -3;
+
+	return 0;
+}
+
+static int phy_exynos_usbdp_g2_v4_pma_bist_result(struct exynos_usbphy_info *info)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+	u32 pass_flag = 0, start_flag = 0;
+
+	/*
+	 * LN0 BIST pass/start flag
+	 * LN2 BIST pass/start flag
+	 * 0x0F20 (Read)
+	 * 0x1F20 (Read)
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03C8);
+	pass_flag = USBDP_TRSV_REG03C8_LN0_MON_BIST_COMP_TEST_GET(reg);
+	start_flag = USBDP_TRSV_REG03C8_LN0_MON_BIST_COMP_START_GET(reg);
+
+	if (!(pass_flag & start_flag))
+		return -4;
+
+	reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07C8);
+	pass_flag = USBDP_TRSV_REG07C8_LN2_MON_BIST_COMP_TEST_GET(reg);
+	start_flag = USBDP_TRSV_REG07C8_LN2_MON_BIST_COMP_START_GET(reg);
+
+	if (!(pass_flag & start_flag))
+		return -5;
+
+	return 0;
+}
+
+int phy_exynos_usbdp_g2_v4_internal_loopback(struct exynos_usbphy_info *info, u32 cmn_rate)
+{
+	int ret;
+	int temp;
+
+	phy_exynos_usbdp_g2_v4_ctrl_pma_ready(info);
+	phy_exynos_usbdp_g2_v4_aux_force_off(info);
+	phy_exynos_usbdp_g2_v4_pma_default_sfr_update(info);
+	phy_exynos_usbdp_g2_v4_tune(info);
+
+	phy_exynos_usbdp_g2_v4_pma_ovrd_enable(info, cmn_rate);
+	phy_exynos_usbdp_g2_v4_ctrl_pma_rst_release(info);
+	phy_exynos_usbdp_g2_v4_pma_ovrd_pcs_rst_release(info);
+
+	do {
+		ret = phy_exynos_usbdp_g2_v4_pma_check_pll_lock(info);
+		if (ret)
+			break;
+
+		phy_exynos_usbdp_g2_v4_pma_ovrd_power_on(info);
+
+		temp = info->used_phy_port;
+		info->used_phy_port = 0;
+		ret = phy_exynos_usbdp_g2_v4_pma_check_cdr_lock(info);
+		info->used_phy_port = temp;
+		if (ret)
+			break;
+
+		info->used_phy_port = 1;
+		ret = phy_exynos_usbdp_g2_v4_pma_check_cdr_lock(info);
+		info->used_phy_port = temp;
+		if (ret)
+			break;
+
+		mdelay(10); /* it is necessary experimentally */
+
+		ret = phy_exynos_usbdp_g2_v4_pma_bist_en(info);
+		if (ret)
+			break;
+
+		udelay(100);
+
+		ret = phy_exynos_usbdp_g2_v4_pma_bist_result(info);
+		if (ret)
+			break;
+	} while (0);
+
+	return ret;
+}
+
+void phy_exynos_usbdp_g2_v4_eom_init(struct exynos_usbphy_info *info, u32 cmn_rate)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+
+	/* EOM Sample Number ( 2^10 )  ----> applied 2^(sample_number) */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B7C 0x00 ln0_rx_efom_num_of_sample__13_8 = 0
+		 * 0x0B80 0x0A ln0_rx_efom_num_of_sample__7_0 = 0xa
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DF);
+		reg &= USBDP_TRSV_REG02DF_LN0_RX_EFOM_NUM_OF_SAMPLE__13_8_CLR;
+		reg |= USBDP_TRSV_REG02DF_LN0_RX_EFOM_NUM_OF_SAMPLE__13_8_SET(0);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DF);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02E0);
+		reg &= USBDP_TRSV_REG02E0_LN0_RX_EFOM_NUM_OF_SAMPLE__7_0_CLR;
+		if (!cmn_rate)
+			reg |= USBDP_TRSV_REG02E0_LN0_RX_EFOM_NUM_OF_SAMPLE__7_0_SET(0xa);
+		else
+			reg |= USBDP_TRSV_REG02E0_LN0_RX_EFOM_NUM_OF_SAMPLE__7_0_SET(0xE);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02E0);
+	} else {
+		/*
+		 * 0x1B7C 0x00 ln2_rx_efom_num_of_sample__13_8 = 0
+		 * 0x1B80 0x0A ln2_rx_efom_num_of_sample__7_0 = 0xa
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DF);
+		reg &= USBDP_TRSV_REG06DF_LN2_RX_EFOM_NUM_OF_SAMPLE__13_8_CLR;
+		reg |= USBDP_TRSV_REG06DF_LN2_RX_EFOM_NUM_OF_SAMPLE__13_8_SET(0);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DF);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06E0);
+		reg &= USBDP_TRSV_REG06E0_LN2_RX_EFOM_NUM_OF_SAMPLE__7_0_CLR;
+		if (!cmn_rate)
+			reg |= USBDP_TRSV_REG06E0_LN2_RX_EFOM_NUM_OF_SAMPLE__7_0_SET(0xa);
+		else
+			reg |= USBDP_TRSV_REG06E0_LN2_RX_EFOM_NUM_OF_SAMPLE__7_0_SET(0xE);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06E0);
+	}
+
+	/* ovrd adap en, eom_en */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x09D0 0x01 ovrd_ln0_rx_dfe_vref_odd_ctrl = 1
+		 * 0x09D8 0x01 ovrd_ln0_rx_dfe_vref_even_ctrl = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0274);
+		reg |= USBDP_TRSV_REG0274_OVRD_LN0_RX_DFE_VREF_ODD_CTRL_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0274);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0276);
+		reg |= USBDP_TRSV_REG0276_OVRD_LN0_RX_DFE_VREF_EVEN_CTRL_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0276);
+		/*
+		 * 0x099C 0x2F ovrd_ln0_rx_dfe_adap_en = 1
+		 * ln0_rx_dfe_adap_en = 0
+		 * ovrd_ln0_rx_dfe_eom_en = 1
+		 * ln0_rx_dfe_eom_en = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0267);
+		reg |= USBDP_TRSV_REG0267_OVRD_LN0_RX_DFE_ADAP_EN_SET(1);
+		reg &= USBDP_TRSV_REG0267_LN0_RX_DFE_ADAP_EN_CLR;
+		reg |= USBDP_TRSV_REG0267_OVRD_LN0_RX_DFE_EOM_EN_SET(1);
+		reg |= USBDP_TRSV_REG0267_LN0_RX_DFE_EOM_EN_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0267);
+	} else {
+		/*
+		 * 0x19D0 0x01 ovrd_ln2_rx_dfe_vref_odd_ctrl = 1
+		 * 0x19D8 0x01 ovrd_ln2_rx_dfe_vref_even_ctrl = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0674);
+		reg |= USBDP_TRSV_REG0674_OVRD_LN2_RX_DFE_VREF_ODD_CTRL_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0674);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0676);
+		reg |= USBDP_TRSV_REG0676_OVRD_LN2_RX_DFE_VREF_EVEN_CTRL_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0676);
+
+		/*
+		 * 0x199C 0x2F ovrd_ln2_rx_dfe_adap_en = 1
+		 * ln2_rx_dfe_adap_en = 0
+		 * ovrd_ln2_rx_dfe_eom_en = 1
+		 * ln2_rx_dfe_eom_en = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0667);
+		reg |= USBDP_TRSV_REG0667_OVRD_LN2_RX_DFE_ADAP_EN_SET(1);
+		reg &= USBDP_TRSV_REG0667_LN2_RX_DFE_ADAP_EN_CLR;
+		reg |= USBDP_TRSV_REG0667_OVRD_LN2_RX_DFE_EOM_EN_SET(1);
+		reg |= USBDP_TRSV_REG0667_LN2_RX_DFE_EOM_EN_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0667);
+	}
+
+	/* PI STR ( 0 min, f:max ) */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x09AC 0x03 ln0_ana_rx_dfe_eom_pi_str_ctrl = 3
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG026B);
+		reg &= USBDP_TRSV_REG026B_LN0_ANA_RX_DFE_EOM_PI_STR_CTRL_CLR;
+		if (!cmn_rate)
+			reg |= USBDP_TRSV_REG026B_LN0_ANA_RX_DFE_EOM_PI_STR_CTRL_SET(0x3);
+		else
+			reg |= USBDP_TRSV_REG026B_LN0_ANA_RX_DFE_EOM_PI_STR_CTRL_SET(0xF);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG026B);
+	} else {
+		/*
+		 * 0x19AC 0x03 ln2_ana_rx_dfe_eom_pi_str_ctrl = 3
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG066B);
+		reg &= USBDP_TRSV_REG066B_LN2_ANA_RX_DFE_EOM_PI_STR_CTRL_CLR;
+		if (!cmn_rate)
+			reg |= USBDP_TRSV_REG066B_LN2_ANA_RX_DFE_EOM_PI_STR_CTRL_SET(0x3);
+		else
+			reg |= USBDP_TRSV_REG066B_LN2_ANA_RX_DFE_EOM_PI_STR_CTRL_SET(0xF);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG066B);
+	}
+
+
+	/* EOM MODE */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B70 0x10 ln0_rx_efom_mode = 4
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+		reg &= USBDP_TRSV_REG02DC_LN0_RX_EFOM_MODE_CLR;
+		reg |= USBDP_TRSV_REG02DC_LN0_RX_EFOM_MODE_SET(0x4);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+	} else {
+		/*
+		 * 0x1B70 0x10 ln2_rx_efom_mode = 4
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+		reg &= USBDP_TRSV_REG06DC_LN2_RX_EFOM_MODE_CLR;
+		reg |= USBDP_TRSV_REG06DC_LN2_RX_EFOM_MODE_SET(0x4);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+	}
+
+	/* EOM START SSM DISABLE */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B74 0x10 ln0_rx_efom_start_ssm_disable = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DD);
+		reg &= USBDP_TRSV_REG02DD_LN0_RX_EFOM_START_SSM_DISABLE_CLR;
+		reg |= USBDP_TRSV_REG02DD_LN0_RX_EFOM_START_SSM_DISABLE_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DD);
+	} else {
+		/*
+		 * 0x1B74 0x10 ln2_rx_efom_start_ssm_disable = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DD);
+		reg &= USBDP_TRSV_REG06DD_LN2_RX_EFOM_START_SSM_DISABLE_CLR;
+		reg |= USBDP_TRSV_REG06DD_LN2_RX_EFOM_START_SSM_DISABLE_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DD);
+	}
+
+	/*
+	 * PCS EOM INPUT
+	 * 0x0394 0x0C ovrd_pcs_rx_fom_en = 1
+	 * pcs_rx_fom_en = 1
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E5);
+	reg |= USBDP_CMN_REG00E5_OVRD_PCS_RX_FOM_EN_SET(1);
+	reg |= USBDP_CMN_REG00E5_PCS_RX_FOM_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E5);
+
+	/* NON DATA, DE-SER EN */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0978 0x2C ovrd_ln0_rx_des_non_data_sel = 1
+		 * ln0_rx_des_non_data_sel = 0
+		 * ovrd_ln0_rx_des_rstn = 1
+		 * ln0_rx_des_rstn = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG025E);
+		reg |= USBDP_TRSV_REG025E_OVRD_LN0_RX_DES_NON_DATA_SEL_SET(1);
+		reg |= USBDP_TRSV_REG025E_OVRD_LN0_RX_DES_RSTN_SET(1);
+		reg |= USBDP_TRSV_REG025E_LN0_RX_DES_RSTN_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG025E);
+	} else {
+		/*
+		 * 0x1978 0x2C ovrd_ln2_rx_des_non_data_sel = 1
+		 * ln2_rx_des_non_data_sel = 0
+		 * ovrd_ln2_rx_des_rstn = 1
+		 * ln2_rx_des_rstn = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG065E);
+		reg |= USBDP_TRSV_REG065E_OVRD_LN2_RX_DES_NON_DATA_SEL_SET(1);
+		reg |= USBDP_TRSV_REG065E_OVRD_LN2_RX_DES_RSTN_SET(1);
+		reg |= USBDP_TRSV_REG065E_LN2_RX_DES_RSTN_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG065E);
+	}
+
+	/*
+	 * EOM CLOCK DIV  <------ Need to Confirm about value, it just predicted value
+	 * it was set at phy_exynos_usbdp_g2_v2_pma_default_sfr_update
+	 * 0x09A0 0x24
+	 * 0x19A0 0x24
+	 */
+	if (info->used_phy_port == 0) {
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0268);
+		reg |= USBDP_TRSV_REG0268_LN0_RX_DFE_EOM_PI_DIV_SEL_SP_SET(4);
+		if (!cmn_rate) {
+			reg &= USBDP_TRSV_REG0268_LN0_RX_DFE_EOM_PI_DIV_SEL_SSP_CLR;
+			reg |= USBDP_TRSV_REG0268_LN0_RX_DFE_EOM_PI_DIV_SEL_SSP_SET(4);
+		} else {
+			reg &= USBDP_TRSV_REG0268_LN0_RX_DFE_EOM_PI_DIV_SEL_SSP_CLR;
+			reg |= USBDP_TRSV_REG0268_LN0_RX_DFE_EOM_PI_DIV_SEL_SSP_SET(2);
+		}
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0268);
+	} else {
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0668);
+		reg |= USBDP_TRSV_REG0668_LN2_RX_DFE_EOM_PI_DIV_SEL_SP_SET(4);
+		if (!cmn_rate) {
+			reg &= USBDP_TRSV_REG0668_LN2_RX_DFE_EOM_PI_DIV_SEL_SSP_CLR;
+			reg |= USBDP_TRSV_REG0668_LN2_RX_DFE_EOM_PI_DIV_SEL_SSP_SET(4);
+		} else {
+			reg &= USBDP_TRSV_REG0668_LN2_RX_DFE_EOM_PI_DIV_SEL_SSP_CLR;
+			reg |= USBDP_TRSV_REG0668_LN2_RX_DFE_EOM_PI_DIV_SEL_SSP_SET(2);
+		}
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0668);
+	}
+
+	/* EOM BIT WIDTH  <--- Need to Confirm about value, it just predicted value */
+	if (info->used_phy_port == 0) {
+		/*
+		 * Gen2
+		 * 0x0B78 0x47 ln0_rx_efom_settle_time = 4
+		 * ln0_rx_efom_bit_width_sel = 1
+		 *
+		 * Gen1
+		 * 0x0B78 0x4F ln0_rx_efom_settle_time = 4
+		 * ln0_rx_efom_bit_width_sel = 3
+		 */
+		if (cmn_rate) {
+			reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DE);
+			reg &= USBDP_TRSV_REG02DE_LN0_RX_EFOM_SETTLE_TIME_CLR;
+			reg |= USBDP_TRSV_REG02DE_LN0_RX_EFOM_SETTLE_TIME_SET(0x4);
+			reg &= USBDP_TRSV_REG02DE_LN0_RX_EFOM_BIT_WIDTH_SEL_CLR;
+			reg |= USBDP_TRSV_REG02DE_LN0_RX_EFOM_BIT_WIDTH_SEL_SET(0x1);
+			writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DE);
+		} else {
+			reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DE);
+			reg &= USBDP_TRSV_REG02DE_LN0_RX_EFOM_SETTLE_TIME_CLR;
+			reg |= USBDP_TRSV_REG02DE_LN0_RX_EFOM_SETTLE_TIME_SET(0x4);
+			reg &= USBDP_TRSV_REG02DE_LN0_RX_EFOM_BIT_WIDTH_SEL_CLR;
+			reg |= USBDP_TRSV_REG02DE_LN0_RX_EFOM_BIT_WIDTH_SEL_SET(0x3);
+			writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DE);
+		}
+	} else {
+		/*
+		 * Gen2
+		 * 0x1B78 0x47 ln2_rx_efom_settle_time = 4
+		 * ln2_rx_efom_bit_width_sel = 1
+		 *
+		 * Gen1
+		 * 0x1B78 0x4F ln2_rx_efom_settle_time = 4
+		 * ln2_rx_efom_bit_width_sel = 3
+		 */
+		if (cmn_rate) {
+			reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DE);
+			reg &= USBDP_TRSV_REG06DE_LN2_RX_EFOM_SETTLE_TIME_CLR;
+			reg |= USBDP_TRSV_REG06DE_LN2_RX_EFOM_SETTLE_TIME_SET(0x4);
+			reg &= USBDP_TRSV_REG06DE_LN2_RX_EFOM_BIT_WIDTH_SEL_CLR;
+			reg |= USBDP_TRSV_REG06DE_LN2_RX_EFOM_BIT_WIDTH_SEL_SET(0x1);
+			writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DE);
+		} else {
+			reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DE);
+			reg &= USBDP_TRSV_REG06DE_LN2_RX_EFOM_SETTLE_TIME_CLR;
+			reg |= USBDP_TRSV_REG06DE_LN2_RX_EFOM_SETTLE_TIME_SET(0x4);
+			reg &= USBDP_TRSV_REG06DE_LN2_RX_EFOM_BIT_WIDTH_SEL_CLR;
+			reg |= USBDP_TRSV_REG06DE_LN2_RX_EFOM_BIT_WIDTH_SEL_SET(0x3);
+			writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DE);
+		}
+	}
+
+	/*
+	 * Switch to 6:New EOM, E:legacy EFOM mode
+	 * 0x0450 0x06 efom_legacy_mode_en = 0
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG0114);
+	if (!cmn_rate)
+		/* Gen1 : New EOM Mode */
+		reg &= USBDP_CMN_REG0114_EFOM_LEGACY_MODE_EN_CLR;
+	else
+		/* Gen2 10Ghz_CCO : Legacy EOM Mode */
+		reg |= USBDP_CMN_REG0114_EFOM_LEGACY_MODE_EN_SET(1);
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG0114);
+}
+
+static void phy_exynos_usbdp_g2_v4_eom_deinit(struct exynos_usbphy_info *info)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+
+	/* EOM START ovrd clear */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B70 0x10 ln0_ovrd_rx_efom_start = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+		reg &= USBDP_TRSV_REG02DC_LN0_OVRD_RX_EFOM_START_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+	} else {
+		/*
+		 * 0x1B70 0x10 ln2_ovrd_rx_efom_start = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+		reg &= USBDP_TRSV_REG06DC_LN2_OVRD_RX_EFOM_START_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+	}
+
+
+	/* EOM Sample Number clear */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B7C 0x00 ln0_rx_efom_num_of_sample__13_8 = 0
+		 * 0x0B80 0x00 ln0_rx_efom_num_of_sample__7_0 = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DF);
+		reg &= USBDP_TRSV_REG02DF_LN0_RX_EFOM_NUM_OF_SAMPLE__13_8_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DF);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02E0);
+		reg &= USBDP_TRSV_REG02E0_LN0_RX_EFOM_NUM_OF_SAMPLE__7_0_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02E0);
+	} else {
+		/*
+		 * 0x1B7C 0x00 ln2_rx_efom_num_of_sample__13_8 = 0
+		 * 0x1B80 0x00 ln2_rx_efom_num_of_sample__7_0 = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DF);
+		reg &= USBDP_TRSV_REG06DF_LN2_RX_EFOM_NUM_OF_SAMPLE__13_8_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DF);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06E0);
+		reg &= USBDP_TRSV_REG06E0_LN2_RX_EFOM_NUM_OF_SAMPLE__7_0_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06E0);
+	}
+
+	/* ovrd adap en, eom_en */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x09D0 0x00 ovrd_ln0_rx_dfe_vref_odd_ctrl = 0
+		 * 0x09D8 0x00 ovrd_ln0_rx_dfe_vref_even_ctrl = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0274);
+		reg &= USBDP_TRSV_REG0274_OVRD_LN0_RX_DFE_VREF_ODD_CTRL_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0274);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0276);
+		reg &= USBDP_TRSV_REG0276_OVRD_LN0_RX_DFE_VREF_EVEN_CTRL_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0276);
+
+		/*
+		 * 0x099C 0x1C ovrd_ln0_rx_dfe_adap_en = 0
+		 * ln0_rx_dfe_adap_en = 1
+		 * ovrd_ln0_rx_dfe_eom_en = 0
+		 * ln0_rx_dfe_eom_en = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0267);
+		reg &= USBDP_TRSV_REG0267_OVRD_LN0_RX_DFE_ADAP_EN_CLR;
+		reg |= USBDP_TRSV_REG0267_LN0_RX_DFE_ADAP_EN_SET(1);
+		reg &= USBDP_TRSV_REG0267_OVRD_LN0_RX_DFE_EOM_EN_CLR;
+		reg &= USBDP_TRSV_REG0267_LN0_RX_DFE_EOM_EN_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0267);
+	} else {
+		/*
+		 * 0x19D0 0x00 ovrd_ln2_rx_dfe_vref_odd_ctrl = 0
+		 * 0x19D8 0x00 ovrd_ln2_rx_dfe_vref_even_ctrl = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0674);
+		reg &= USBDP_TRSV_REG0674_OVRD_LN2_RX_DFE_VREF_ODD_CTRL_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0674);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0676);
+		reg &= USBDP_TRSV_REG0676_OVRD_LN2_RX_DFE_VREF_EVEN_CTRL_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0676);
+
+		/*
+		 * 0x099C 0x1C ovrd_ln0_rx_dfe_adap_en = 0
+		 * ln0_rx_dfe_adap_en = 1
+		 * ovrd_ln0_rx_dfe_eom_en = 0
+		 * ln0_rx_dfe_eom_en = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0667);
+		reg &= USBDP_TRSV_REG0667_OVRD_LN2_RX_DFE_ADAP_EN_CLR;
+		reg |= USBDP_TRSV_REG0667_LN2_RX_DFE_ADAP_EN_SET(1);
+		reg &= USBDP_TRSV_REG0667_OVRD_LN2_RX_DFE_EOM_EN_CLR;
+		reg &= USBDP_TRSV_REG0667_LN2_RX_DFE_EOM_EN_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0667);
+	}
+
+	/* PI STR ( 0 min, f:max ) */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x09AC 0x00 ln0_ana_rx_dfe_eom_pi_str_ctrl = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG026B);
+		reg &= USBDP_TRSV_REG026B_LN0_ANA_RX_DFE_EOM_PI_STR_CTRL_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG026B);
+	} else {
+		/*
+		 * 0x19AC 0x00 ln2_ana_rx_dfe_eom_pi_str_ctrl = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG066B);
+		reg &= USBDP_TRSV_REG066B_LN2_ANA_RX_DFE_EOM_PI_STR_CTRL_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG066B);
+	}
+
+	/* EOM MODE */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B70 0x00 ln0_rx_efom_mode = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+		reg &= USBDP_TRSV_REG02DC_LN0_RX_EFOM_MODE_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+	} else {
+		/*
+		 * 0x1B70 0x00 ln2_rx_efom_mode = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+		reg &= USBDP_TRSV_REG06DC_LN2_RX_EFOM_MODE_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+	}
+
+	/* EOM START SSM DISABLE */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B74 0x00 ln0_rx_efom_start_ssm_disable = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DD);
+		reg &= USBDP_TRSV_REG02DD_LN0_RX_EFOM_START_SSM_DISABLE_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DD);
+	} else {
+		/*
+		 * 0x1B74 0x00 ln2_rx_efom_start_ssm_disable = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DD);
+		reg &= USBDP_TRSV_REG06DD_LN2_RX_EFOM_START_SSM_DISABLE_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DD);
+	}
+
+	/*
+	 * PCS EOM INPUT
+	 * 0x0394 0x00 ovrd_pcs_rx_fom_en = 0
+	 * pcs_rx_fom_en = 0
+	 */
+	reg = readl(regs_base + EXYNOS_USBDP_CMN_REG00E5);
+	reg &= USBDP_CMN_REG00E5_OVRD_PCS_RX_FOM_EN_CLR;
+	reg &= USBDP_CMN_REG00E5_PCS_RX_FOM_EN_CLR;
+	writel(reg, regs_base + EXYNOS_USBDP_CMN_REG00E5);
+
+	/* NON DATA, DE-SER EN */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0978 0x00 ovrd_ln0_rx_des_non_data_sel = 0
+		 * ovrd_ln0_rx_des_rstn = 0
+		 * ln0_rx_des_rstn = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG025E);
+		reg &= USBDP_TRSV_REG025E_OVRD_LN0_RX_DES_NON_DATA_SEL_CLR;
+		reg &= USBDP_TRSV_REG025E_OVRD_LN0_RX_DES_RSTN_CLR;
+		reg &= USBDP_TRSV_REG025E_LN0_RX_DES_RSTN_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG025E);
+	} else {
+		/*
+		 * 0x1978 0x00 ovrd_ln2_rx_des_non_data_sel = 0
+		 * ovrd_ln2_rx_des_rstn = 0
+		 * ln2_rx_des_rstn = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG065E);
+		reg &= USBDP_TRSV_REG065E_OVRD_LN2_RX_DES_NON_DATA_SEL_CLR;
+		reg &= USBDP_TRSV_REG065E_OVRD_LN2_RX_DES_RSTN_CLR;
+		reg &= USBDP_TRSV_REG065E_LN2_RX_DES_RSTN_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG065E);
+	}
+
+	/* EOM BIT WIDTH */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B78 0x07 ln0_rx_efom_settle_time = 0
+		 * ln0_rx_efom_bit_width_sel = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DE);
+		reg &= USBDP_TRSV_REG02DE_LN0_RX_EFOM_SETTLE_TIME_CLR;
+		reg &= USBDP_TRSV_REG02DE_LN0_RX_EFOM_BIT_WIDTH_SEL_CLR;
+		reg |= USBDP_TRSV_REG02DE_LN0_RX_EFOM_BIT_WIDTH_SEL_SET(0x1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DE);
+	} else {
+		/*
+		 * 0x1B78 0x07 ln2_rx_efom_settle_time = 0
+		 * ln2_rx_efom_bit_width_sel = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DE);
+		reg &= USBDP_TRSV_REG06DE_LN2_RX_EFOM_SETTLE_TIME_CLR;
+		reg &= USBDP_TRSV_REG06DE_LN2_RX_EFOM_BIT_WIDTH_SEL_CLR;
+		reg |= USBDP_TRSV_REG06DE_LN2_RX_EFOM_BIT_WIDTH_SEL_SET(0x1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DE);
+	}
+}
+
+
+void phy_exynos_usbdp_g2_v4_eom_start(struct exynos_usbphy_info *info, u32 ph_sel, u32 def_vref)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+
+	/* EOM PHASE SETTING */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B94  ln0_rx_efom_eom_ph_sel
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02E5);
+		reg &= USBDP_TRSV_REG02E5_LN0_RX_EFOM_EOM_PH_SEL_CLR;
+		reg |= USBDP_TRSV_REG02E5_LN0_RX_EFOM_EOM_PH_SEL_SET(ph_sel);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02E5);
+	} else {
+		/*
+		 * 0x1B94  ln2_rx_efom_eom_ph_sel
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06E5);
+		reg &= USBDP_TRSV_REG06E5_LN2_RX_EFOM_EOM_PH_SEL_CLR;
+		reg |= USBDP_TRSV_REG06E5_LN2_RX_EFOM_EOM_PH_SEL_SET(ph_sel);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06E5);
+	}
+
+	/* EOM VREF SETTING */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x09D4  ln0_rx_dfe_vref_odd_ctrl__7_0
+		 * 0x09DC  ln0_rx_dfe_vref_even_ctrl__7_0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0275);
+		reg &= USBDP_TRSV_REG0275_LN0_RX_DFE_VREF_ODD_CTRL__7_0_CLR;
+		reg |= USBDP_TRSV_REG0275_LN0_RX_DFE_VREF_ODD_CTRL__7_0_SET(def_vref);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0275);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0277);
+		reg &= USBDP_TRSV_REG0277_LN0_RX_DFE_VREF_EVEN_CTRL__7_0_CLR;
+		reg |= USBDP_TRSV_REG0277_LN0_RX_DFE_VREF_EVEN_CTRL__7_0_SET(def_vref);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0277);
+	} else {
+		/*
+		 * 0x19D4  ln2_rx_dfe_vref_odd_ctrl__7_0
+		 * 0x19DC  ln2_rx_dfe_vref_even_ctrl__7_0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0675);
+		reg &= USBDP_TRSV_REG0675_LN2_RX_DFE_VREF_ODD_CTRL__7_0_CLR;
+		reg |= USBDP_TRSV_REG0675_LN2_RX_DFE_VREF_ODD_CTRL__7_0_SET(def_vref);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0675);
+
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG0677);
+		reg &= USBDP_TRSV_REG0677_LN2_RX_DFE_VREF_EVEN_CTRL__7_0_CLR;
+		reg |= USBDP_TRSV_REG0677_LN2_RX_DFE_VREF_EVEN_CTRL__7_0_SET(def_vref);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG0677);
+	}
+
+	/* EOM START */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B70 0x13 ln0_ovrd_rx_efom_start = 1
+		 * ln0_rx_efom_start = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+		reg |= USBDP_TRSV_REG02DC_LN0_OVRD_RX_EFOM_START_SET(1);
+		reg |= USBDP_TRSV_REG02DC_LN0_RX_EFOM_START_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+	} else {
+		/*
+		 * 0x1B70 0x13 ln2_ovrd_rx_efom_start = 1
+		 * ln2_rx_efom_start = 1
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+		reg |= USBDP_TRSV_REG06DC_LN2_OVRD_RX_EFOM_START_SET(1);
+		reg |= USBDP_TRSV_REG06DC_LN2_RX_EFOM_START_SET(1);
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+	}
+}
+
+
+int phy_exynos_usbdp_g2_v4_eom_get_done_status(struct exynos_usbphy_info *info)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+	u32 eom_done;
+
+	/* Check efom_done */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0F98  ln0_mon_rx_efom_done
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03E6);
+		eom_done = USBDP_TRSV_REG03E6_LN0_MON_RX_EFOM_DONE_GET(reg);
+	} else {
+		/*
+		 * 0x1F98  ln2_mon_rx_efom_done
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07E6);
+		eom_done = USBDP_TRSV_REG07E6_LN2_MON_RX_EFOM_DONE_GET(reg);
+	}
+
+	if (eom_done)
+		return 0;
+
+	return -1;
+}
+
+
+u64 phy_exynos_usbdp_g2_v4_eom_get_err_cnt(struct exynos_usbphy_info *info, u32 cmn_rate)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+	u64 err_cnt_lo = 0;
+	u64 err_cnt_hi = 0;
+
+	/* Get error count */
+	if (!cmn_rate) {
+		if (info->used_phy_port == 0) {
+			/*
+			 * 0x077C  ln0_mon_rx_efom_err_cnt__7_0
+			 * 0x0778  ln0_mon_rx_efom_err_cnt__15_8
+			 * 0x0774  ln0_mon_rx_efom_err_cnt__23_16
+			 * 0x0770  ln0_mon_rx_efom_err_cnt__31_24
+			 * 0x076C  ln0_mon_rx_efom_err_cnt__39_32
+			 * 0x0768  ln0_mon_rx_efom_err_cnt__47_40
+			 * 0x0764  ln0_mon_rx_efom_err_cnt__52_48
+			 */
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01DF);
+			err_cnt_lo |=
+			USBDP_CMN_REG01DF_LN0_MON_RX_EFOM_ERR_CNT__7_0_GET(reg) << 0;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01DE);
+			err_cnt_lo |=
+			USBDP_CMN_REG01DE_LN0_MON_RX_EFOM_ERR_CNT__15_8_GET(reg) << 8;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01DD);
+			err_cnt_lo |=
+			USBDP_CMN_REG01DD_LN0_MON_RX_EFOM_ERR_CNT__23_16_GET(reg) << 16;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01DC);
+			err_cnt_lo |=
+			USBDP_CMN_REG01DC_LN0_MON_RX_EFOM_ERR_CNT__31_24_GET(reg) << 24;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01DB);
+			err_cnt_hi |=
+			USBDP_CMN_REG01DB_LN0_MON_RX_EFOM_ERR_CNT__39_32_GET(reg) << 0;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01DA);
+			err_cnt_hi |=
+			USBDP_CMN_REG01DA_LN0_MON_RX_EFOM_ERR_CNT__47_40_GET(reg) << 4;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01D9);
+			err_cnt_hi |=
+			USBDP_CMN_REG01D9_LN0_MON_RX_EFOM_ERR_CNT__52_48_GET(reg) << 8;
+		} else {
+			/*
+			 * 0x0798  ln2_mon_rx_efom_err_cnt__7_0
+			 * 0x0794  ln2_mon_rx_efom_err_cnt__15_8
+			 * 0x0790  ln2_mon_rx_efom_err_cnt__23_16
+			 * 0x078c  ln2_mon_rx_efom_err_cnt__31_24
+			 * 0x0788  ln2_mon_rx_efom_err_cnt__39_32
+			 * 0x0784  ln2_mon_rx_efom_err_cnt__47_40
+			 * 0x0780  ln2_mon_rx_efom_err_cnt__52_48
+			 */
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01E6);
+			err_cnt_lo |=
+			USBDP_CMN_REG01E6_LN2_MON_RX_EFOM_ERR_CNT__7_0_GET(reg) << 0;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01E5);
+			err_cnt_lo |=
+			USBDP_CMN_REG01E5_LN2_MON_RX_EFOM_ERR_CNT__15_8_GET(reg) << 8;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01E4);
+			err_cnt_lo |=
+			USBDP_CMN_REG01E4_LN2_MON_RX_EFOM_ERR_CNT__23_16_GET(reg) << 16;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01E3);
+			err_cnt_lo |=
+			USBDP_CMN_REG01E3_LN2_MON_RX_EFOM_ERR_CNT__31_24_GET(reg) << 24;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01E2);
+			err_cnt_hi |=
+			USBDP_CMN_REG01E2_LN2_MON_RX_EFOM_ERR_CNT__39_32_SET(reg) << 0;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01E1);
+			err_cnt_hi |=
+			USBDP_CMN_REG01E1_LN2_MON_RX_EFOM_ERR_CNT__47_40_GET(reg) << 4;
+			reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01E0);
+			err_cnt_hi |=
+			USBDP_CMN_REG01E0_LN2_MON_RX_EFOM_ERR_CNT__52_48_SET(reg) << 8;
+		}
+		return err_cnt_hi << 32 | err_cnt_lo;
+	}
+
+	if (info->used_phy_port == 0) {
+		err_cnt_lo = readl(regs_base + EXYNOS_USBDP_TRSV_REG03E8);
+		err_cnt_hi = readl(regs_base + EXYNOS_USBDP_TRSV_REG03E7);
+	} else {
+		err_cnt_lo = readl(regs_base + EXYNOS_USBDP_TRSV_REG07E8);
+		err_cnt_hi = readl(regs_base + EXYNOS_USBDP_TRSV_REG07E7);
+	}
+
+	return err_cnt_hi << 8 | err_cnt_lo;
+
+}
+
+void phy_exynos_usbdp_g2_v4_eom_stop(struct exynos_usbphy_info *info)
+{
+	void __iomem *regs_base = info->pma_base;
+	u32 reg;
+
+	/* EOM STOP */
+	if (info->used_phy_port == 0) {
+		/*
+		 * 0x0B70 0x12 ln0_rx_efom_start = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+		reg &= USBDP_TRSV_REG02DC_LN0_RX_EFOM_START_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG02DC);
+	} else {
+		/*
+		 * 0x1B70 0x12 ln2_rx_efom_start = 0
+		 */
+		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+		reg &= USBDP_TRSV_REG06DC_LN2_RX_EFOM_START_CLR;
+		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DC);
+	}
+}
+
+void phy_exynos_usbdp_g2_v4_eom(struct exynos_usbphy_info *info,
+					struct usb_eom_result_s *eom_result, u32 cmn_rate)
+{
+	u32 ph_sel, def_vref = 0;
+	u64 err_cnt = 0;
+	u32 test_cnt = 0;
+	u32 ui_cnt, ui_no;
+	int timeout;
+
+	pr_info("cmn_rate = %d\n", cmn_rate);
+
+	phy_exynos_usbdp_g2_v4_eom_init(info, cmn_rate);    /* 0: Gen1, 1: Gen2 */
+
+	if (!cmn_rate)
+		ui_cnt = 1; /* Gen1 */
+	else
+		ui_cnt = 2; /* Gen2 */
+
+
+	for (ui_no = 0; ui_no < ui_cnt; ui_no++) {
+		for (ph_sel = 0; ph_sel < EOM_PH_SEL_MAX; ph_sel++) {
+			for (def_vref = 0; def_vref < EOM_DEF_VREF_MAX; def_vref++) {
+				phy_exynos_usbdp_g2_v4_eom_start(info, ph_sel, def_vref);
+				timeout = 500;
+				while (phy_exynos_usbdp_g2_v4_eom_get_done_status(info)) {
+					usleep_range(10, 20);
+					timeout--;
+					if (!timeout) {
+						dev_err(info->dev, "eom timeout error\n");
+						break;
+					}
+				}
+
+				if (!timeout) {
+					dev_err(info->dev, "eom test fail - timeout\n");
+					break;
+				}
+				err_cnt = phy_exynos_usbdp_g2_v4_eom_get_err_cnt(info, cmn_rate);
+				phy_exynos_usbdp_g2_v4_eom_stop(info);
+
+				/* Save result */
+				eom_result[test_cnt].phase = ph_sel;
+				eom_result[test_cnt].vref = def_vref;
+				eom_result[test_cnt].err = err_cnt;
+				test_cnt++;
+			}
+			if (!timeout) {
+				dev_err(info->dev, "eom test fail - exit\n");
+				break;
+			}
+		}
+	}
+
+	phy_exynos_usbdp_g2_v4_eom_deinit(info);
 }
 
 int phy_exynos_usbdp_g2_v4_enable(struct exynos_usbphy_info *info)
