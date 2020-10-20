@@ -25,6 +25,8 @@
 				pci_db_addr = <0x40060000>;
 				cpboot_spi_bus_num = <9>;
 
+				s2mpu = <&s2mpu_hsi1>;
+
 				/* */
 				mif,name = "s5123";
 				mif,cp_num = <0>;
