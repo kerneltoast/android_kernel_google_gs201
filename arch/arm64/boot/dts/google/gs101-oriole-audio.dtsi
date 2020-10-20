@@ -12,3 +12,8 @@
 &aoc_audio_cfg{
 	aoc-audio-config = "o6";
 };
+
+&aoc {
+	board_id = <0x20302>;
+	board_rev = <0x10000>;
+};

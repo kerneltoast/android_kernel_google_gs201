@@ -12,3 +12,8 @@
 &aoc_audio_cfg{
 	aoc-audio-config = "r4";
 };
+
+&aoc {
+	board_id = <0x20202>;
+	board_rev = <0x010000>;
+};

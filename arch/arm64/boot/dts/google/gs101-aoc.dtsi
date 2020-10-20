@@ -24,7 +24,7 @@
 		};
 	};
 
-	aoc {
+	aoc: aoc@19000000 {
 		compatible = "google,aoc";
 
 		reg = <0x0 0x19000000 0x01000000>,
