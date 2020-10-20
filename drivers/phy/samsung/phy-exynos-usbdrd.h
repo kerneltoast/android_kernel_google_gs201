@@ -205,6 +205,12 @@ struct exynos_usbdrd_phy {
 	struct extcon_dev *edev;
 	struct notifier_block usb_nb;
 	struct notifier_block usb_host_nb;
+
+	/* eom related parameters */
+	struct usb_eom_result_s *eom_result;
+	int pass_cnt;
+	int fail_cnt;
+
 	u32 use_default_tune_val;
 };
 

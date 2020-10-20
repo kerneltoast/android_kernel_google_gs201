@@ -15,6 +15,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -47,19 +48,18 @@ static void __iomem *usbdp_combo_phy_reg;
 void __iomem *phycon_base_addr;
 EXPORT_SYMBOL_GPL(phycon_base_addr);
 
-struct usb_eom_result_s *eom_result;
-
 /*u32 get_speed_and_disu1u2(void);*/
 
 static ssize_t
 eom_show(struct device *dev,
 	 struct device_attribute *attr, char *buf)
 {
+	struct exynos_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 	int len = 0;
 	u32 test_cnt = 0;
 	static int current_cnt;
 
-	if (!eom_result) {
+	if (!phy_drd->eom_result) {
 		len += snprintf(buf + len, PAGE_SIZE,
 				"eom_result structure is NULL!!!\n");
 		goto exit;
@@ -68,9 +68,9 @@ eom_show(struct device *dev,
 	while (current_cnt != EOM_PH_SEL_MAX * EOM_DEF_VREF_MAX) {
 		len += snprintf(buf + len, PAGE_SIZE,
 				"phase %d vref %d err %lu\n",
-				eom_result[current_cnt].phase,
-				eom_result[current_cnt].vref,
-				(unsigned long)eom_result[current_cnt].err);
+				phy_drd->eom_result[current_cnt].phase,
+				phy_drd->eom_result[current_cnt].vref,
+				(unsigned long) phy_drd->eom_result[current_cnt].err);
 
 		current_cnt++;
 		test_cnt++;
@@ -89,33 +89,85 @@ static ssize_t
 eom_store(struct device *dev,
 	  struct device_attribute *attr, const char *buf, size_t n)
 {
-	/*struct exynos_usbdrd_phy *phy_drd = dev_get_drvdata(dev);*/
+	struct exynos_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 	int speed_val;
 
-	kfree(eom_result);
-
-	eom_result = kzalloc(sizeof(*eom_result) *
+	if (!phy_drd->eom_result) {
+		phy_drd->eom_result = kzalloc(sizeof(struct usb_eom_result_s) *
 			EOM_PH_SEL_MAX * EOM_DEF_VREF_MAX, GFP_KERNEL);
-	if (!eom_result)
+	} else {
+		memset(phy_drd->eom_result, 0, sizeof(struct usb_eom_result_s) *
+		       EOM_PH_SEL_MAX * EOM_DEF_VREF_MAX);
+	}
+
+	if (!phy_drd->eom_result)
 		return -ENOMEM;
 
-	/* Disable U1/U2 & get speed */
-	/* Remove Cycle dependency */
-	/* speed_val = get_speed_and_disu1u2(); */
+	/*
+	 * USB3 LPM must be disabled (U1, U2)
+	 * speed_val(1) = Gen2, speed_val(0) = Gen1
+	 * currently, it would be set to Gen1 first.
+	 */
 	speed_val = 0;
 
-	if (speed_val == 0)
-		speed_val = 1; /* Gen2 */
-	else
-		speed_val = 0; /* Gen1 */
-
 	/* Start eom test */
-	//phy_exynos_usbdp_g2_v4_eom(&phy_drd->usbphy_sub_info, speed_val, eom_result);
+	phy_exynos_usbdp_g2_v4_eom(&phy_drd->usbphy_sub_info, phy_drd->eom_result, speed_val);
 
 	return n;
 }
 
 static DEVICE_ATTR_RW(eom);
+
+static ssize_t
+loopback_show(struct device *dev,
+	 struct device_attribute *attr, char *buf)
+{
+	struct exynos_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "loopback test result\n"
+			 "pass_cnt = %d, fail_cnt = %d\n", phy_drd->pass_cnt, phy_drd->fail_cnt);
+}
+
+static ssize_t
+loopback_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t n)
+{
+	struct exynos_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
+	int speed_val, pass, count, i;
+
+	if (kstrtoint(buf, 10, &count) != 0)
+		return -EINVAL;
+
+	/*
+	 * USB3 LPM must be disabled (U1, U2)
+	 * speed_val(1) = Gen2, speed_val(0) = Gen1
+	 * currently, it would be set to Gen1 first.
+	 */
+
+	speed_val = 0;
+
+	phy_drd->pass_cnt = 0;
+	phy_drd->fail_cnt = 0;
+
+	/* Start loopback test */
+	for (i = 0; i < count; i++) {
+		pass = phy_exynos_usbdp_g2_v4_internal_loopback(&phy_drd->usbphy_sub_info,
+								speed_val);
+		if (pass == 0)
+			phy_drd->pass_cnt++;
+		else
+			phy_drd->fail_cnt++;
+	}
+
+	if (phy_drd->pass_cnt == count)
+		dev_info(phy_drd->dev, "loopback test pass, pass cnt = %d\n", phy_drd->pass_cnt);
+	else
+		dev_info(phy_drd->dev, "loopback test fail, fail cnt = %d\n", phy_drd->fail_cnt);
+
+	return n;
+}
+
+static DEVICE_ATTR_RW(loopback);
 
 static ssize_t
 hs_phy_tune_show(struct device *dev,
@@ -2542,6 +2594,11 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 	ret = sysfs_create_file(&dev->kobj, &dev_attr_eom.attr);
 	if (ret)
 		dev_err(dev, "%s - Couldn't create sysfs for PHY EOM\n",
+			__func__);
+
+	ret = sysfs_create_file(&dev->kobj, &dev_attr_loopback.attr);
+	if (ret)
+		dev_err(dev, "%s - Couldn't create sysfs for loopback test\n",
 			__func__);
 
 	pr_info("%s: ---\n", __func__);

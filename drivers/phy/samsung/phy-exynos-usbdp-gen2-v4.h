@@ -16,9 +16,14 @@
  * GNU General Public License for more details.
  */
 
-#pragma once
+#ifndef __PHY_EXYNOS_USBDP_GEN2_V4_H__
+#define __PHY_EXYNOS_USBDP_GEN2_V4_H__
 
 int phy_exynos_usbdp_g2_v4_enable(struct exynos_usbphy_info *info);
 void phy_exynos_usbdp_g2_v4_disable(struct exynos_usbphy_info *info);
 void phy_exynos_usbdp_g2_v4_tune(struct exynos_usbphy_info *info);
+void phy_exynos_usbdp_g2_v4_eom(struct exynos_usbphy_info *info,
+					struct usb_eom_result_s *eom_result, u32 cmn_rate);
+int phy_exynos_usbdp_g2_v4_internal_loopback(struct exynos_usbphy_info *info, u32 cmn_rate);
 
+#endif /* __PHY_EXYNOS_USBDP_GEN2_V4_H__ */
