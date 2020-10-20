@@ -10,6 +10,9 @@
 #include "ufs-pixel.h"
 #include "ufs-exynos.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ufs_pixel.h>
+
 /* UFSHCD error handling flags */
 enum {
 	UFSHCD_EH_IN_PROGRESS = (1 << 0),
@@ -135,6 +138,51 @@ static int pixel_ufs_get_cmd_type(struct ufshcd_lrb *lrbp, u8 *cmd_type)
 	return 0;
 }
 
+/* record_ufs_stats() is following mm/mm_event.c style */
+static const unsigned long period_ms = 3000;
+static unsigned long next_period_ufs_stats;
+
+u64 pixel_ufs_prev_sum[REQ_TYPE_MAX] = { 0, };
+u64 pixel_ufs_prev_count[REQ_TYPE_MAX] = { 0, };
+static struct pixel_io_stats prev_io_read = { 0, };
+static struct pixel_io_stats prev_io_write = { 0, };
+
+static inline void record_ufs_stats(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	int i;
+	u64 avg_time[REQ_TYPE_MAX] = { 0, };
+
+	if (time_is_after_jiffies(next_period_ufs_stats))
+		return;
+	next_period_ufs_stats = jiffies + msecs_to_jiffies(period_ms);
+
+	for (i = 0; i < REQ_TYPE_MAX; i++) {
+		u64 count_diff = ufs->req_stats[i].req_count
+					- pixel_ufs_prev_count[i];
+
+		if (count_diff) {
+			u64 sum_diff = ufs->req_stats[i].req_sum
+					- pixel_ufs_prev_sum[i];
+			avg_time[i] = div64_u64(sum_diff, count_diff);
+		}
+	}
+
+	trace_ufs_stats(ufs, &prev_io_read, &prev_io_write, avg_time);
+
+	for (i = 0; i < REQ_TYPE_MAX; i++) {
+		ufs->peak_reqs[i] = 0;
+		pixel_ufs_prev_sum[i] = ufs->req_stats[i].req_sum;
+		pixel_ufs_prev_count[i] = ufs->req_stats[i].req_count;
+	}
+	ufs->peak_queue_depth = 0;
+
+	memcpy(&prev_io_read, &ufs->io_stats[IO_TYPE_READ],
+			sizeof(struct pixel_io_stats));
+	memcpy(&prev_io_write, &ufs->io_stats[IO_TYPE_WRITE],
+			sizeof(struct pixel_io_stats));
+}
+
 void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
@@ -157,6 +205,8 @@ void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		rst->req_min = delta;
 	if (rst->req_max < delta)
 		rst->req_max = delta;
+	if (delta > ufs->peak_reqs[REQ_TYPE_VALID])
+		ufs->peak_reqs[REQ_TYPE_VALID] = delta;
 
 	rst = &(ufs->req_stats[cmd_type]);
 	rst->req_count++;
@@ -165,6 +215,10 @@ void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		rst->req_min = delta;
 	if (rst->req_max < delta)
 		rst->req_max = delta;
+	if (delta > ufs->peak_reqs[cmd_type])
+		ufs->peak_reqs[cmd_type] = delta;
+
+	record_ufs_stats(hba);
 }
 
 static void __update_io_stats(struct ufs_hba *hba,
@@ -197,6 +251,7 @@ static void pixel_ufs_update_io_stats(struct ufs_hba *hba,
 	struct pixel_io_stats *ist;
 	u32 transfer_len;
 	u8 cmd_type;
+	u64 inflight_req;
 
 	if (pixel_ufs_get_cmd_type(lrbp, &cmd_type))
 		return;
@@ -212,6 +267,13 @@ static void pixel_ufs_update_io_stats(struct ufs_hba *hba,
 	ist = &(ufs->io_stats[(cmd_type == REQ_TYPE_READ) ?
 			IO_TYPE_READ : IO_TYPE_WRITE]);
 	__update_io_stats(hba, ist, transfer_len, is_start);
+
+	inflight_req = ufs->io_stats[IO_TYPE_READ_WRITE].req_count_started
+			- ufs->io_stats[IO_TYPE_READ_WRITE].req_count_completed;
+	if (inflight_req > ufs->peak_queue_depth)
+		ufs->peak_queue_depth = inflight_req;
+
+	record_ufs_stats(hba);
 }
 
 void pixel_ufs_send_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
@@ -687,6 +749,8 @@ static inline void pixel_init_req_stats(struct ufs_hba *hba)
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 
 	memset(ufs->req_stats, 0, sizeof(ufs->req_stats));
+	memset(pixel_ufs_prev_sum, 0, sizeof(pixel_ufs_prev_sum));
+	memset(pixel_ufs_prev_count, 0, sizeof(pixel_ufs_prev_count));
 }
 
 static ssize_t reset_req_status_show(struct device *dev,

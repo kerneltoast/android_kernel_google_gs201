@@ -158,6 +158,8 @@ struct exynos_ufs {
 
 	/* pixel ufs request statistics */
 	struct pixel_req_stats req_stats[REQ_TYPE_MAX];
+	u64 peak_reqs[REQ_TYPE_MAX];
+	u64 peak_queue_depth;
 	/* pixel ufs I/O quatity statistics */
 	struct pixel_io_stats io_stats[IO_TYPE_MAX];
 
