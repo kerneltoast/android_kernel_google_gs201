@@ -675,9 +675,8 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 	}
 
 	if (!i2c->msg || readl(i2c->regs + HSI2C_INT_ENABLE) == 0x0) {
-		dev_err(i2c->dev, "invalid irq (irqno:%d)\n", irqno);
-		reg_val = readl(i2c->regs + HSI2C_INT_STATUS);
-		goto out;
+		exynos5_i2c_clr_pend_irq(i2c);
+		return IRQ_NONE;
 	}
 
 	if (i2c->msg->flags & I2C_M_RD) {
