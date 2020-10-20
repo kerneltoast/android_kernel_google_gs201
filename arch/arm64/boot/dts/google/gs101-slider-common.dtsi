@@ -15,3 +15,4 @@
 #include "gs101-slider-ese.dtsi"
 #include "gs101-slider-battery.dtsi"
 #include "gs101-slider-sbbm.dtsi"
+#include "gs101-slider-fingerprint.dtsi"
