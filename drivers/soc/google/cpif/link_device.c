@@ -38,6 +38,9 @@
 #include "modem_ctrl.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+#include <soc/google/s2mpu.h>
+#endif
 #endif
 #include "dit.h"
 
@@ -3446,7 +3449,55 @@ static int shmem_register_pcie(struct link_device *ld)
 	static int is_registered;
 	struct mem_link_device *mld = to_mem_link_device(ld);
 
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	u32 cp_num;
+	u32 shmem_idx;
+	int ret;
+	struct device_node *s2mpu_dn;
+#endif
 	mif_err("CP EP driver initialization start.\n");
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+
+	s2mpu_dn = of_parse_phandle(mc->dev->of_node, "s2mpu", 0);
+	if (!s2mpu_dn) {
+		mif_err("Failed to find s2mpu from device tree\n");
+		return -EINVAL;
+	}
+
+	mc->s2mpu = s2mpu_fwnode_to_info(&s2mpu_dn->fwnode);
+	if (!mc->s2mpu) {
+		mif_err("Failed to get S2MPU\n");
+		return -EPROBE_DEFER;
+	}
+
+	cp_num = ld->mdm_data->cp_num;
+
+	for (shmem_idx = 0 ; shmem_idx < MAX_CP_SHMEM ; shmem_idx++) {
+		if (shmem_idx == SHMEM_MSI)
+			continue;
+
+		if (cp_shmem_get_base(cp_num, shmem_idx)) {
+			ret =  s2mpu_open(mc->s2mpu,
+					  cp_shmem_get_base(cp_num, shmem_idx),
+					  cp_shmem_get_size(cp_num, shmem_idx));
+			if (ret) {
+				mif_err("S2MPU open failed error=%d\n", ret);
+				return -EINVAL;
+			}
+		}
+	}
+
+	/* Also setup AoC window for voice calls */
+	ret =  s2mpu_open(mc->s2mpu,
+			  AOC_PCIE_WINDOW_START, AOC_PCIE_WINDOW_SIZE);
+
+	if (ret) {
+		mif_err("S2MPU AoC open failed error=%d\n", ret);
+		return -EINVAL;
+	}
+
+#endif
 
 	msleep(200);
 

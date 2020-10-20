@@ -56,6 +56,15 @@ extern int exynos_pcie_rc_set_affinity(int ch_num, int affinity);
 
 #define AUTOSUSPEND_TIMEOUT	200
 
+/* AoC PCIe window used for voice calls, to be provided to S2MPU
+ * S2MPU memory windows need to be aligned to a 4K boundary
+ * 0x195FDF80 -> 0x195FD000
+ * 0x2080     -> F80 + 80 = 0x3000
+ */
+
+#define AOC_PCIE_WINDOW_START	0x195FD000
+#define AOC_PCIE_WINDOW_SIZE	0x3000
+
 int s51xx_pcie_request_msi_int(struct pci_dev *pdev, int int_num);
 void __iomem *s51xx_pcie_get_doorbell_address(void);
 int s51xx_pcie_send_doorbell_int(struct pci_dev *pdev, int int_num);

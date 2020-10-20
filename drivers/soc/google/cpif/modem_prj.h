@@ -28,6 +28,9 @@
 #endif
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include <linux/pci.h>
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+#include <soc/google/s2mpu.h>
+#endif
 #endif
 #include "modem_debug.h"
 #include "modem_v1.h"
@@ -775,6 +778,10 @@ struct modem_ctl {
 	bool s5100_iommu_map_enabled;
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
 	bool s5100_s2mpu_enabled;
+#endif
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	struct s2mpu_info *s2mpu;
 #endif
 
 	struct notifier_block reboot_nb;
