@@ -1348,13 +1348,13 @@ static int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
 		data->opp_list[0].idx = 0;
 		data->opp_list[0].freq = dvfs_domain->list_level[0].level;
 		data->opp_list[0].volt = 0;
-		for (i = 1; i < dvfs_domain->num_of_level; ++i) {
+		for (i = 1; i < data->max_state; ++i) {
 			data->opp_list[i].idx = i;
 			data->opp_list[i].freq = dvfs_domain->list_level[i + 3].level;
 			data->opp_list[i].volt = 0;
 		}
 	} else {
-		for (i = 0; i < dvfs_domain->num_of_level; ++i) {
+		for (i = 0; i < data->max_state; ++i) {
 			data->opp_list[i].idx = i;
 			data->opp_list[i].freq = dvfs_domain->list_level[i].level;
 			data->opp_list[i].volt = 0;
