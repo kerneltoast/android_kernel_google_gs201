@@ -80,8 +80,8 @@ inline int bigo_wait_disabled(struct bigo_core *core, int timeout_ms)
 			break;
 		usleep_range(900, 1100);
 	}
-	if (i > 0) {
-		pr_err("wait disabled for at least %d ms\n", i);
+	if (i >= timeout_ms) {
+		pr_err("Failed to disable the core in %d ms\n", i);
 		return -ETIMEDOUT;
 	}
 
