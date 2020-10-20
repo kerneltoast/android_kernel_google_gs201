@@ -2,16 +2,6 @@
 /*
  * TEE driver for goodix fingerprint sensor
  * Copyright (C) 2016 Goodix
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -40,8 +30,8 @@
 #include <linux/notifier.h>
 #include <linux/fb.h>
 #include <linux/pm_qos.h>
+#include <linux/pm_wakeup.h>
 #include <linux/cpufreq.h>
-#include <linux/wakelock.h>
 #include "gf_spi.h"
 
 #if defined(USE_SPI_BUS)
@@ -58,9 +48,9 @@
 #define WAKELOCK_HOLD_TIME 500 /* in ms */
 
 #define GF_SPIDEV_NAME "goodix,fingerprint"
-/*device name after register in charater*/
+/* device name after register in character */
 #define GF_DEV_NAME "goodix_fp"
-#define GF_INPUT_NAME "qwerty" /*"goodix_fp" */
+#define GF_INPUT_NAME "qwerty" /* "goodix_fp" */
 
 #define CHRD_DRIVER_NAME "goodix_fp_spi"
 #define CLASS_NAME "goodix_fp"
@@ -71,7 +61,7 @@ static int SPIDEV_MAJOR;
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 static LIST_HEAD(device_list);
 static DEFINE_MUTEX(device_list_lock);
-static struct wake_lock fp_wakelock;
+static struct wakeup_source *fp_wakeup_source;
 static struct gf_dev gf;
 
 static struct gf_key_map maps[] = {
@@ -96,20 +86,22 @@ static void gf_enable_irq(struct gf_dev *gf_dev)
 {
 	if (gf_dev->irq_enabled) {
 		pr_warn("IRQ has been enabled.\n");
-	} else {
-		enable_irq(gf_dev->irq);
-		gf_dev->irq_enabled = 1;
+		return;
 	}
+
+	enable_irq(gf_dev->irq);
+	gf_dev->irq_enabled = 1;
 }
 
 static void gf_disable_irq(struct gf_dev *gf_dev)
 {
-	if (gf_dev->irq_enabled) {
-		gf_dev->irq_enabled = 0;
-		disable_irq(gf_dev->irq);
-	} else {
+	if (!gf_dev->irq_enabled) {
 		pr_warn("IRQ has been disabled.\n");
+		return;
 	}
+
+	gf_dev->irq_enabled = 0;
+	disable_irq(gf_dev->irq);
 }
 
 #ifdef AP_CONTROL_CLK
@@ -320,7 +312,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
 #if defined(GF_NETLINK_ENABLE)
 	char msg = GF_NET_EVENT_IRQ;
 
-	wake_lock_timeout(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
+	__pm_wakeup_event(fp_wakeup_source, WAKELOCK_HOLD_TIME);
 	sendnlmsg(&msg);
 #elif defined(GF_FASYNC)
 	struct gf_dev *gf_dev = &gf;
@@ -405,11 +397,9 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return -ENODEV;
 
 	if (_IOC_DIR(cmd) & _IOC_READ)
-		retval = !access_ok(VERIFY_WRITE, (void __user *)arg,
-				    _IOC_SIZE(cmd));
+		retval = !access_ok((void __user *)arg, _IOC_SIZE(cmd));
 	else if (_IOC_DIR(cmd) & _IOC_WRITE)
-		retval = !access_ok(VERIFY_READ, (void __user *)arg,
-				    _IOC_SIZE(cmd));
+		retval = !access_ok((void __user *)arg, _IOC_SIZE(cmd));
 	if (retval)
 		return -EFAULT;
 
@@ -551,34 +541,35 @@ static int gf_open(struct inode *inode, struct file *filp)
 		}
 	}
 
-	if (status == 0) {
-		if (status == 0) {
-			gf_dev->users++;
-			filp->private_data = gf_dev;
-			nonseekable_open(inode, filp);
-			pr_info("Succeed to open device. irq = %d\n",
-				gf_dev->irq);
-			if (gf_dev->users == 1) {
-				status = gf_parse_dts(gf_dev);
-				if (status)
-					goto err_parse_dt;
-
-				status = irq_setup(gf_dev);
-				if (status)
-					goto err_irq;
-			}
-			gf_hw_reset(gf_dev, 3);
-			gf_dev->device_available = 1;
-		}
-	} else {
+	if (status) {
 		pr_info("No device for minor %d\n", iminor(inode));
+		goto err_parse_dt;
 	}
+
+	gf_dev->users++;
+	filp->private_data = gf_dev;
+	nonseekable_open(inode, filp);
+	pr_info("Succeed to open device. irq = %d\n",
+		gf_dev->irq);
+	if (gf_dev->users == 1) {
+		status = gf_parse_dts(gf_dev);
+		if (status)
+			goto err_parse_dt;
+
+		status = irq_setup(gf_dev);
+		if (status)
+			goto err_irq;
+	}
+	gf_hw_reset(gf_dev, 10);
+	gf_dev->device_available = 1;
+
 	mutex_unlock(&device_list_lock);
 
 	return status;
 err_irq:
 	gf_cleanup(gf_dev);
 err_parse_dt:
+	mutex_unlock(&device_list_lock);
 	return status;
 }
 
@@ -589,7 +580,6 @@ static int gf_fasync(int fd, struct file *filp, int mode)
 	int ret;
 
 	ret = fasync_helper(fd, filp, mode, &gf_dev->async);
-	pr_info("ret = %d\n", ret);
 	return ret;
 }
 #endif
@@ -603,13 +593,13 @@ static int gf_release(struct inode *inode, struct file *filp)
 	gf_dev = filp->private_data;
 	filp->private_data = NULL;
 
-	/*last close?? */
+	/* last close?? */
 	gf_dev->users--;
 	if (!gf_dev->users) {
 		irq_cleanup(gf_dev);
 		gf_cleanup(gf_dev);
 
-		/*power off the sensor*/
+		/* power off the sensor */
 		gf_dev->device_available = 0;
 		gf_power_off(gf_dev);
 	}
@@ -634,59 +624,6 @@ static const struct file_operations gf_fops = {
 #endif
 };
 
-static int goodix_fb_state_chg_callback(struct notifier_block *nb,
-					unsigned long val, void *data)
-{
-	struct gf_dev *gf_dev;
-	struct fb_event *evdata = data;
-	unsigned int blank;
-	char msg = 0;
-
-	if (val != FB_EARLY_EVENT_BLANK)
-		return 0;
-	pr_info("[info] %s go to the value = %d\n", __func__, (int)val);
-	gf_dev = container_of(nb, struct gf_dev, notifier);
-	if (evdata && evdata->data && val == FB_EARLY_EVENT_BLANK && gf_dev) {
-		blank = *(int *)(evdata->data);
-		switch (blank) {
-		case FB_BLANK_POWERDOWN:
-			if (gf_dev->device_available == 1) {
-				gf_dev->fb_black = 1;
-#if defined(GF_NETLINK_ENABLE)
-				msg = GF_NET_EVENT_FB_BLACK;
-				sendnlmsg(&msg);
-#elif defined(GF_FASYNC)
-				if (gf_dev->async)
-					kill_fasync(&gf_dev->async, SIGIO,
-						    POLL_IN);
-#endif
-			}
-			break;
-		case FB_BLANK_UNBLANK:
-			if (gf_dev->device_available == 1) {
-				gf_dev->fb_black = 0;
-#if defined(GF_NETLINK_ENABLE)
-				msg = GF_NET_EVENT_FB_UNBLACK;
-				sendnlmsg(&msg);
-#elif defined(GF_FASYNC)
-				if (gf_dev->async)
-					kill_fasync(&gf_dev->async, SIGIO,
-						    POLL_IN);
-#endif
-			}
-			break;
-		default:
-			pr_info("%s defalut\n", __func__);
-			break;
-		}
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block goodix_noti_block = {
-	.notifier_call = goodix_fb_state_chg_callback,
-};
-
 static struct class *gf_class;
 #if defined(USE_SPI_BUS)
 static int gf_probe(struct spi_device *spi)
@@ -698,6 +635,7 @@ static int gf_probe(struct platform_device *pdev)
 	int status = -EINVAL;
 	unsigned long minor;
 	int i;
+	struct device *dev;
 
 	/* Initialize the driver data */
 	INIT_LIST_HEAD(&gf_dev->device_entry);
@@ -712,32 +650,33 @@ static int gf_probe(struct platform_device *pdev)
 	gf_dev->device_available = 0;
 	gf_dev->fb_black = 0;
 
-	/* If we can allocate a minor number, hook up this device.
+	/*
+         * If we can allocate a minor number, hook up this device.
 	 * Reusing minors is fine so long as udev or mdev is working.
 	 */
 	mutex_lock(&device_list_lock);
 	minor = find_first_zero_bit(minors, N_SPI_MINORS);
-	if (minor < N_SPI_MINORS) {
-		struct device *dev;
 
-		gf_dev->devt = MKDEV(SPIDEV_MAJOR, minor);
-		dev = device_create(gf_class, &gf_dev->spi->dev, gf_dev->devt,
-				    gf_dev, GF_DEV_NAME);
-		status = IS_ERR(dev) ? PTR_ERR(dev) : 0;
-	} else {
+	if (minor >= N_SPI_MINORS) {
 		dev_dbg(&gf_dev->spi->dev, "no minor number available!\n");
 		status = -ENODEV;
 		mutex_unlock(&device_list_lock);
 		goto error_hw;
 	}
 
-	if (status == 0) {
-		set_bit(minor, minors);
-		list_add(&gf_dev->device_entry, &device_list);
-	} else {
+
+	gf_dev->devt = MKDEV(SPIDEV_MAJOR, minor);
+	dev = device_create(gf_class, &gf_dev->spi->dev, gf_dev->devt,
+			    gf_dev, GF_DEV_NAME);
+	status = IS_ERR(dev) ? PTR_ERR(dev) : 0;
+
+	if (status) {
 		gf_dev->devt = 0;
 		goto error_hw;
 	}
+
+	set_bit(minor, minors);
+	list_add(&gf_dev->device_entry, &device_list);
 	mutex_unlock(&device_list_lock);
 
 	gf_dev->input = input_allocate_device();
@@ -757,7 +696,7 @@ static int gf_probe(struct platform_device *pdev)
 	}
 
 #ifdef AP_CONTROL_CLK
-	pr_info("Get the clk resource.\n");
+	pr_debug("Get the clk resource.\n");
 	/* Enable spi clock */
 	if (gfspi_ioctl_clk_init(gf_dev))
 		goto gfspi_probe_clk_init_failed;
@@ -768,10 +707,7 @@ static int gf_probe(struct platform_device *pdev)
 	spi_clock_set(gf_dev, 1000000);
 #endif
 
-	gf_dev->notifier = goodix_noti_block;
-	fb_register_client(&gf_dev->notifier);
-
-	wake_lock_init(&fp_wakelock, WAKE_LOCK_SUSPEND, "fp_wakelock");
+	fp_wakeup_source = wakeup_source_register(NULL, "fp_wakeup");
 
 	pr_info("version V%d.%d.%02d\n", VER_MAJOR, VER_MINOR, PATCH_LEVEL);
 
@@ -809,8 +745,7 @@ static int gf_remove(struct platform_device *pdev)
 {
 	struct gf_dev *gf_dev = &gf;
 
-	wake_lock_destroy(&fp_wakelock);
-	fb_unregister_client(&gf_dev->notifier);
+	wakeup_source_unregister(fp_wakeup_source);
 	if (gf_dev->input)
 		input_unregister_device(gf_dev->input);
 	input_free_device(gf_dev->input);
@@ -848,8 +783,9 @@ static int __init gf_init(void)
 {
 	int status;
 
-	/* Claim our 256 reserved device numbers.  Then register a class
-	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
+	/*
+	 * Claim our N_SPI_MINORS reserved device numbers. Then register a class
+	 * that will key udev/mdev to add/remove /dev nodes. Last, register
 	 * the driver which manages those device numbers.
 	 */
 
@@ -881,7 +817,7 @@ static int __init gf_init(void)
 	netlink_init();
 #endif
 	pr_info("status = 0x%x\n", status);
-	return 0;
+	return status;
 }
 module_init(gf_init);
 

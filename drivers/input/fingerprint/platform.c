@@ -29,7 +29,7 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 
 	gf_dev->reset_gpio = of_get_named_gpio(np, "fp-gpio-reset", 0);
 	if (gf_dev->reset_gpio < 0) {
-		pr_err("falied to get reset gpio!\n");
+		pr_err("failed to get reset gpio!\n");
 		return gf_dev->reset_gpio;
 	}
 
@@ -61,8 +61,6 @@ err_reset:
 
 void gf_cleanup(struct gf_dev *gf_dev)
 {
-	pr_info("[info] %s\n", __func__);
-
 	if (gpio_is_valid(gf_dev->irq_gpio)) {
 		gpio_free(gf_dev->irq_gpio);
 		pr_info("remove irq_gpio success\n");
@@ -98,7 +96,7 @@ int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 	}
 	gpio_direction_output(gf_dev->reset_gpio, 1);
 	gpio_set_value(gf_dev->reset_gpio, 0);
-	mdelay(3);
+	mdelay(delay_ms);
 	gpio_set_value(gf_dev->reset_gpio, 1);
 	mdelay(delay_ms);
 	return 0;
@@ -109,7 +107,9 @@ int gf_irq_num(struct gf_dev *gf_dev)
 	if (gf_dev == NULL) {
 		pr_info("Input buff is NULL.\n");
 		return -EINVAL;
-	} else {
-		return gpio_to_irq(gf_dev->irq_gpio);
 	}
+
+	return gpio_to_irq(gf_dev->irq_gpio);
 }
+
+MODULE_LICENSE("GPL");

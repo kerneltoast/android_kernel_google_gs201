@@ -59,14 +59,15 @@ static void nl_data_ready(struct sk_buff *__skb)
 	char str[100];
 
 	skb = skb_get(__skb);
-	if (skb->len >= NLMSG_SPACE(0)) {
-		nlh = nlmsg_hdr(skb);
+	if (skb->len < NLMSG_SPACE(0))
+		return;
 
-		memcpy(str, NLMSG_DATA(nlh), sizeof(str));
-		pid = nlh->nlmsg_pid;
+	nlh = nlmsg_hdr(skb);
 
-		kfree_skb(skb);
-	}
+	memcpy(str, NLMSG_DATA(nlh), sizeof(str));
+	pid = nlh->nlmsg_pid;
+
+	kfree_skb(skb);
 }
 
 int netlink_init(void)
@@ -96,6 +97,6 @@ void netlink_exit(void)
 		netlink_kernel_release(nl_sk);
 		nl_sk = NULL;
 	}
-
-	pr_info("self module exited\n");
 }
+
+MODULE_LICENSE("GPL");
