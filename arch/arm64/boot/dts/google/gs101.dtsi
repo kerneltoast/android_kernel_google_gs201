@@ -1030,6 +1030,131 @@
 			bts_update = "false";
 			dfs_id = <ACPM_DVFS_BO>;
 		};
+
+	};
+
+	gs_memlat_devfreq {
+		compatible = "memlat-devfreq-root";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		mif_cl0_mem_lat: devfreq_mif_cl0_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
+
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+
+		 };
+
+		mif_cl1_mem_lat: devfreq_mif_cl1_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
+
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+		 };
+
+
+		mif_cl2_mem_lat: devfreq_mif_cl2_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
+
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+		 };
+	 };
+
+	cl0_memlat_cpugrp: cl0-cpugrp {
+		compatible = "arm-memlat-cpugrp";
+		cpulist = <&cpu0 &cpu1 &cpu2 &cpu3>;
+
+		cl0_cpu_mif_latmon: cpu0-cpu-mif-latmon {
+			compatible = "arm-memlat-mon";
+			cpulist = <&cpu0 &cpu1 &cpu2 &cpu3>;
+			target-dev = <&mif_cl0_mem_lat>;
+			cachemiss-ev = <0x2A>;
+			core-dev-table =
+				<   10000  421000 >,
+				<  100000  676000 >,
+				<  300000  845000 >,
+				<  930000 1014000 >,
+				< 1197000 1352000 >,
+				< 1328000 1539000 >,
+				< 1598000 1716000 >,
+				< 1803000 2028000 >,
+				< 2024000 2535000 >;
+		};
+	};
+
+	cl1_memlat_cpugrp: cl1-cpugrp {
+		compatible = "arm-memlat-cpugrp";
+		cpulist = <&cpu4 &cpu5>;
+
+		cl1_cpu_mif_latmon: cpu1-cpu-mif-latmon {
+			compatible = "arm-memlat-mon";
+			cpulist = <&cpu4 &cpu5>;
+			target-dev = <&mif_cl1_mem_lat>;
+			cachemiss-ev = <0x2A>;
+			core-dev-table =
+				<   10000  421000 >,
+				<  100000  676000 >,
+				<  400000  845000 >,
+				<  799000 1352000 >,
+				< 1024000 1539000 >,
+				< 1491000 1716000 >,
+				< 1836000 2028000 >,
+				< 2130000 2288000 >,
+				< 2253000 2730000 >;
+		};
+	};
+
+	cl2_memlat_cpugrp: cl2-cpugrp {
+		compatible = "arm-memlat-cpugrp";
+		cpulist = <&cpu6 &cpu7>;
+
+		cl2_cpu_mif_latmon: cpu2-cpu-mif-latmon {
+			compatible = "arm-memlat-mon";
+			cpulist = <&cpu6 &cpu7>;
+			target-dev = <&mif_cl2_mem_lat>;
+			cachemiss-ev = <0x2A>;
+			core-dev-table =
+				<   10000  421000 >,
+				<  100000  845000 >,
+				<  851000 1014000 >,
+				< 1106000 1352000 >,
+				< 1237000 1539000 >,
+				< 1582000 1716000 >,
+				< 1901000 2028000 >,
+				< 2048000 2288000 >,
+				< 2225200 2730000 >,
+				< 2507000 3172000 >;
+		};
 	};
 
 	g2d: g2d@1C640000 {
