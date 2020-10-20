@@ -110,90 +110,6 @@ static int s2m_is_enabled(struct regulator_dev *rdev)
 		return (val & rdev->desc->enable_mask) != 0;
 }
 
-static int get_ramp_delay(int ramp_delay)
-{
-	unsigned char cnt = 0;
-
-	ramp_delay /= 6;
-
-	while (true) {
-		ramp_delay = ramp_delay >> 1;
-		if (ramp_delay == 0)
-			break;
-		cnt++;
-	}
-	return cnt;
-}
-
-/* function for ramp_up delay only */
-static int s2m_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	struct s2mpg10_pmic *s2mpg10 = rdev_get_drvdata(rdev);
-	int ramp_shift, reg_id = rdev_get_id(rdev);
-	int ramp_mask = 0x03;
-	int ramp_addr;
-	unsigned int ramp_value = 0;
-
-	if (reg_id >= S2MPG10_LDO1 && reg_id <= S2MPG10_LDO31) {
-		pr_info("%s: LDOs don't need ramp delay, id : %d\n", __func__,
-			reg_id);
-		return 0;
-	}
-	ramp_value = get_ramp_delay(ramp_delay / 1000);
-	if (ramp_value > 4) {
-		pr_warn("%s: ramp_delay: %d not supported\n", rdev->desc->name,
-			ramp_delay);
-	}
-
-	switch (reg_id) {
-	case S2MPG10_BUCK4:
-	case S2MPG10_BUCK8:
-		ramp_shift = 6;
-		break;
-	case S2MPG10_BUCK3:
-	case S2MPG10_BUCK7:
-		ramp_shift = 4;
-		break;
-	case S2MPG10_BUCK2:
-	case S2MPG10_BUCK6:
-	case S2MPG10_BUCK10:
-		ramp_shift = 2;
-		break;
-	case S2MPG10_BUCK1:
-	case S2MPG10_BUCK5:
-	case S2MPG10_BUCK9:
-		ramp_shift = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	switch (reg_id) {
-	case S2MPG10_BUCK1:
-	case S2MPG10_BUCK2:
-	case S2MPG10_BUCK3:
-	case S2MPG10_BUCK4:
-		ramp_addr = S2MPG10_PM_DVS_RAMP1;
-		break;
-	case S2MPG10_BUCK5:
-	case S2MPG10_BUCK6:
-	case S2MPG10_BUCK7:
-	case S2MPG10_BUCK8:
-		ramp_addr = S2MPG10_PM_DVS_RAMP2;
-		break;
-	case S2MPG10_BUCK9:
-	case S2MPG10_BUCK10:
-		ramp_addr = S2MPG10_PM_DVS_RAMP3;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return s2mpg10_update_reg(s2mpg10->i2c, ramp_addr,
-				  ramp_value << ramp_shift,
-				  ramp_mask << ramp_shift);
-}
-
 static int s2m_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct s2mpg10_pmic *s2mpg10 = rdev_get_drvdata(rdev);
@@ -273,7 +189,6 @@ static struct regulator_ops s2mpg10_regulator_ops = {
 	.set_voltage_sel = s2m_set_voltage_sel,
 	.set_voltage_time_sel = s2m_set_voltage_time_sel,
 	.set_mode = s2m_set_mode,
-	.set_ramp_delay = s2m_set_ramp_delay,
 };
 
 #define _BUCK(macro) S2MPG10_BUCK##macro
