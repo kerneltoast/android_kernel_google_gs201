@@ -1079,9 +1079,9 @@ static int __mfc_core_nal_q_run_in_buf_enc(struct mfc_core *core, struct mfc_cor
 		}
 	}
 
-	if (mfc_check_mb_flag(src_mb, MFC_FLAG_ENC_SRC_DUMMY)) {
-		enc->dummy_src = 1;
-		mfc_debug(2, "[NALQ] src is dummy\n");
+	if (mfc_check_mb_flag(src_mb, MFC_FLAG_ENC_SRC_FAKE)) {
+		enc->fake_src = 1;
+		mfc_debug(2, "[NALQ] src is fake\n");
 	}
 
 	/* HDR10+ sei meta */
@@ -1308,10 +1308,10 @@ static void __mfc_core_nal_q_handle_stream_input(struct mfc_core_ctx *core_ctx,
 	if (enc_addr[0] == 0) {
 		mfc_debug(3, "[NALQ] no encoded src\n");
 
-		if (enc->dummy_src && enc->params.num_b_frame) {
+		if (enc->fake_src && enc->params.num_b_frame) {
 			mfc_change_state(core_ctx, MFCINST_FINISHING);
-			enc->dummy_src = 0;
-			mfc_debug(2, "[NALQ] clear dummy_src and change to FINISHING\n");
+			enc->fake_src = 0;
+			mfc_debug(2, "[NALQ] clear fake_src and change to FINISHING\n");
 		}
 
 		goto move_buf;

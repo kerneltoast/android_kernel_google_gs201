@@ -1048,10 +1048,10 @@ static void __mfc_handle_stream_input(struct mfc_core *core, struct mfc_ctx *ctx
 	if (enc_addr[0] == 0) {
 		mfc_debug(3, "no encoded src\n");
 
-		if (enc->dummy_src && enc->params.num_b_frame) {
+		if (enc->fake_src && enc->params.num_b_frame) {
 			mfc_change_state(core_ctx, MFCINST_FINISHING);
-			enc->dummy_src = 0;
-			mfc_debug(2, "clear dummy_src and change to FINISHING\n");
+			enc->fake_src = 0;
+			mfc_debug(2, "clear fake_src and change to FINISHING\n");
 		}
 
 		goto move_buf;

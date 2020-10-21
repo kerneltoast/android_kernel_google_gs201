@@ -249,7 +249,7 @@ enum mfc_mb_flag {
 	/* Driver set to user when SRC DQbuf */
 	MFC_FLAG_CONSUMED_ONLY		= 15,
 	/* User set to driver when SRC Qbuf */
-	MFC_FLAG_ENC_SRC_DUMMY		= 27,
+	MFC_FLAG_ENC_SRC_FAKE		= 27,
 	MFC_FLAG_ENC_SRC_UNCOMP		= 28,
 	MFC_FLAG_CSD			= 29,
 	MFC_FLAG_EMPTY_DATA		= 30,
@@ -1982,7 +1982,7 @@ struct mfc_enc {
 	int sbwc_option;
 	struct mfc_fmt *uncomp_fmt;
 
-	int dummy_src;
+	int fake_src;
 	int empty_data;
 
 	int stored_tag;

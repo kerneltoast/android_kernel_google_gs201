@@ -532,9 +532,9 @@ int mfc_core_run_enc_frame(struct mfc_core *core, struct mfc_ctx *ctx)
 		mfc_core_set_enc_stride(core, ctx);
 	}
 
-	if (mfc_check_mb_flag(src_mb, MFC_FLAG_ENC_SRC_DUMMY)) {
-		enc->dummy_src = 1;
-		mfc_debug(2, "src is dummy\n");
+	if (mfc_check_mb_flag(src_mb, MFC_FLAG_ENC_SRC_FAKE)) {
+		enc->fake_src = 1;
+		mfc_debug(2, "src is fake\n");
 	}
 
 	index = src_mb->vb.vb2_buf.index;
