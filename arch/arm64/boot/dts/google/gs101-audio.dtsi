@@ -38,6 +38,10 @@
 		compatible = "google-aoc-path";
 	};
 
+	aoc_nohost_drv: aoc_nohost {
+		compatible = "google-aoc-snd-nohost";
+	};
+
 	aoc_snd_card: sound-aoc {
 		compatible = "google-aoc-snd-card";
 		aoc-card-name = "google,aoc-snd-card";
@@ -235,6 +239,70 @@
 				};
 			};
 
+			dai_fe_ep5_tx: fe_ep5_tx {
+				dai-name = "audio_capture4";
+				stream-name = "EP5 capture";
+				id = <IDX_EP5_TX>;
+				dynamic;
+				capture;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP5_TX>;
+				};
+				platform {
+					tx1 {
+						of_drv = <&aoc_pcm_ep>;
+					};
+				};
+			};
+
+			dai_fe_ep6_tx: fe_ep6_tx {
+				dai-name = "audio_capture5";
+				stream-name = "EP6 capture";
+				id = <IDX_EP6_TX>;
+				dynamic;
+				capture;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_EP6_TX>;
+				};
+				platform {
+					tx1 {
+						of_drv = <&aoc_pcm_ep>;
+					};
+				};
+			};
+
+			dai_fe_nohost1_rx: fe_nohost1_rx {
+				dai-name = "nohost1 playback";
+				stream-name = "nohost1 playback";
+				id = <IDX_NOHOST1_RX>;
+				dynamic;
+				playback;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_NOHOST1_RX>;
+				};
+				platform {
+					rx1 {
+						of_drv = <&aoc_nohost_drv>;
+					};
+				};
+			};
+
+			dai_fe_nohost1_tx: fe_nohost1_tx {
+				dai-name = "nohost1 capture";
+				stream-name = "nohost1 capture";
+				id = <IDX_NOHOST1_TX>;
+				dynamic;
+				capture;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_NOHOST1_TX>;
+				};
+				platform {
+					tx1 {
+						of_drv = <&aoc_nohost_drv>;
+					};
+				};
+			};
+
 			dai_be_i2s0_rx: be_i2s0_rx {
 				dai-name = "I2S_0_RX Playback";
 				stream-name = "I2S_0_RX Playback";
@@ -393,6 +461,71 @@
 				};
 				daifmt {
 					dai-format = "i2s";
+				};
+			};
+
+			dai_be_internal_mic_tx: be_internal_mic_tx {
+				dai-name = "INTERNAL_MIC_TX Capture";
+				stream-name = "INTERNAL_MIC_TX Capture";
+				id = <INTERNAL_MIC_TX>;
+				capture;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path INTERNAL_MIC_TX>;
+				};
+			};
+
+			dai_be_bt_rx: be_bt_rx  {
+				dai-name = "BT_RX Playback";
+				stream-name = "BT_RX Playback";
+				id = <BT_RX>;
+				playback;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path BT_RX>;
+				};
+			};
+
+			dai_be_bt_tx: be_bt_tx {
+				dai-name = "BT_TX Capture";
+				stream-name = "BT_TX Capture";
+				id = <BT_TX>;
+				capture;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path BT_TX>;
+				};
+			};
+
+			dai_be_usb_rx: be_usb_rx  {
+				dai-name = "USB_RX Playback";
+				stream-name = "USB_RX Playback";
+				id = <USB_RX>;
+				playback;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path USB_RX>;
+				};
+			};
+
+			dai_be_usb_tx: be_usb_tx {
+				dai-name = "USB_TX Capture";
+				stream-name = "USB_TX Capture";
+				id = <USB_TX>;
+				capture;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path USB_TX>;
 				};
 			};
 		};
