@@ -276,6 +276,7 @@
 		reset-gpios = <&gpp24 0 0>;
 
 		async-suspend;
+		cirrus,fw-id-remap = <0x1400CB>;
 		cirrus,boost-ind-nanohenry = <1000>;
 		cirrus,boost-cap-microfarad = <4>;
 		cirrus,boost-ipk-milliamp = <4500>;
