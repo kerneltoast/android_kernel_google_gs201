@@ -390,7 +390,7 @@
 		wakeup_int_en =		<0x1f0bf>,		<0x0>;
 
 		eint_wakeup_mask_offset = <0x3a80>, <0x3a84>, <0x3a88>;
-		wakeup-stat-eint = <4>, <5>;
+		wakeup-stat-eint = <0x30>;
 		wakeup-stat-rtc = <0>;
 
 		wake_lock = <0>;		/* 1: held wake_lock */
