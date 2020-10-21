@@ -37,7 +37,7 @@
 
 		/* DVFS */
 		gpu_dvfs_governor = "basic";
-		gpu_dvfs_clock_down_hysteresis = <7>;
+		gpu_dvfs_clockdown_hysteresis = <50>;
 		gpu_dvfs_table_size = <6 10>; /*<row col>*/
 		gpu_dvfs_table = <
 			/*
