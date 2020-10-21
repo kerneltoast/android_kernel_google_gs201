@@ -245,7 +245,7 @@ static void __update_io_stats(struct ufs_hba *hba,
 }
 
 static void pixel_ufs_update_io_stats(struct ufs_hba *hba,
-		struct ufshcd_lrb *lrbp, int is_start)
+		struct ufshcd_lrb *lrbp, bool is_start)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct pixel_io_stats *ist;
