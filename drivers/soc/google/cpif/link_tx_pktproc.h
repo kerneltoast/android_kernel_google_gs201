@@ -71,6 +71,11 @@ struct pktproc_queue_ul {
 	u32 done_ptr; /* indicates the last packet written by AP */
 	u32 *rear_ptr; /* indicates the last desc read by CP */
 
+	/* Store */
+	u32 cp_desc_pbase;
+	u32 num_desc;
+	u32 cp_buff_pbase;
+
 	struct pktproc_info_ul *ul_info;
 	struct pktproc_q_info_ul *q_info;	/* Pointer to q_info of info_v */
 	struct pktproc_desc_ul *desc_ul;

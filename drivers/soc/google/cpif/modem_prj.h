@@ -541,14 +541,12 @@ struct link_device {
 	int (*enable_rx_int)(struct link_device *ld);
 	int (*disable_rx_int)(struct link_device *ld);
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 	void (*gro_flush)(struct link_device *ld, struct napi_struct *napi);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	struct timespec64 (*update_flush_time)(struct timespec64 org_flush_time);
 #else
 	struct timespec (*update_flush_time)(struct timespec org_flush_time);
 #endif
-#endif /* end of CONFIG_MODEM_IF_NET_GRO */
 
 	int (*handover_block_info)(struct link_device *ld, unsigned long arg);
 
@@ -562,9 +560,7 @@ struct link_device {
 #endif
 };
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 extern long gro_flush_time;
-#endif
 
 #define pm_to_link_device(pm)	container_of(pm, struct link_device, pm)
 

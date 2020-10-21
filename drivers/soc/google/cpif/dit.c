@@ -217,6 +217,37 @@ static inline int dit_check_ring_space(
 	return space;
 }
 
+#if defined(DIT_DEBUG_LOW)
+static void dit_debug_out_of_order(enum dit_direction dir, enum dit_desc_ring ring,
+		u8 *data)
+{
+	struct modem_ctl *mc;
+	unsigned int *seq_p;
+	unsigned int seq;
+
+	static unsigned int last_seq[DIT_DIR_MAX][DIT_DESC_RING_MAX];
+	static unsigned int out_count[DIT_DIR_MAX][DIT_DESC_RING_MAX];
+
+	if (!dc->pktgen_mode)
+		return;
+
+	seq_p = (unsigned int *)&data[28];
+	seq = ntohl(*seq_p);
+	if (seq < last_seq[dir][ring]) {
+		mif_err("dir[%d] out of order at ring[%d] seq:0x%08x, last:0x%08x", dir, ring,
+			seq, last_seq[dir][ring]);
+		if (++out_count[dir][ring] > 5) {
+			dit_print_dump(dir, DIT_DUMP_ALL);
+			if ((dc->ld) && (dc->ld->mc)) {
+				mc = dc->ld->mc;
+				mc->ops.trigger_cp_crash(mc);
+			}
+		}
+	}
+	last_seq[dir][ring] = seq;
+}
+#endif
+
 static int dit_check_dst_ready(enum dit_direction dir, enum dit_desc_ring ring_num)
 {
 	struct dit_desc_info *desc_info;
@@ -372,25 +403,8 @@ static int dit_pass_to_net(enum dit_desc_ring ring_num,
 	struct mem_link_device *mld;
 	int ret = 0;
 
-#if defined(DIT_DEBUG)
-	if (unlikely(dc->pktgen_mode)) {
-		unsigned int *seq_p;
-		unsigned int seq;
-		static unsigned int last_seq;
-		static unsigned int out_count;
-
-		seq_p = (unsigned int *)&skb->data[28];
-		seq = ntohl(*seq_p);
-		if (seq < last_seq) {
-			mif_err("out of order at 0x%08x, last 0x%08x", seq, last_seq);
-			if (++out_count > 5) {
-				dit_print_dump(DIT_DIR_TX, DIT_DUMP_ALL);
-				dit_print_dump(DIT_DIR_RX, DIT_DUMP_ALL);
-				panic("out of order %d times", out_count);
-			}
-		}
-		last_seq = seq;
-	}
+#if defined(DIT_DEBUG_LOW)
+	dit_debug_out_of_order(DIT_DIR_RX, ring_num, skb->data);
 #endif
 
 	switch (ring_num) {
@@ -443,7 +457,7 @@ static inline void dit_set_src_desc_filter_bypass(
 	 */
 	u8 mask = (BIT(DIT_DESC_C_END) | BIT(DIT_DESC_C_START));
 
-#if defined(DIT_DEBUG)
+#if defined(DIT_DEBUG_LOW)
 	if (dc->force_bypass == 1)
 		bypass = true;
 	else if (dc->force_bypass == 2)
@@ -559,7 +573,8 @@ static void dit_set_dst_desc_int_range(enum dit_direction dir,
 	}
 }
 
-static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir, u8 *src,
+static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
+		u8 *src, unsigned long src_paddr,
 		u16 len, u16 ch_id, bool csum)
 {
 	struct dit_desc_info *desc_info;
@@ -599,10 +614,16 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir, u8 *src,
 #if defined(DIT_DEBUG)
 	overflow = 0;
 #endif
+#if defined(DIT_DEBUG_LOW)
+	dit_debug_out_of_order(dir, DIT_SRC_DESC_RING, src);
+#endif
 
 	src_wp = (int) desc_info->src_wp;
 	src_desc = &desc_info->src_desc_ring[src_wp];
-	src_desc->src_addr = virt_to_phys(src);
+	if (src_paddr)
+		src_desc->src_addr = src_paddr;
+	else
+		src_desc->src_addr = virt_to_phys(src);
 	src_desc->length = len;
 	src_desc->ch_id = (ch_id & 0x1F);
 	src_desc->pre_csum = csum;
@@ -646,10 +667,12 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir, u8 *src,
 	return src_wp;
 }
 
-int dit_enqueue_src_desc_ring(enum dit_direction dir, u8 *src, u16 len, u16 ch_id,
-		bool csum)
+int dit_enqueue_src_desc_ring(enum dit_direction dir,
+		u8 *src, unsigned long src_paddr,
+		u16 len, u16 ch_id, bool csum)
 {
-	return dit_enqueue_src_desc_ring_internal(dir, src, len, ch_id, csum);
+	return dit_enqueue_src_desc_ring_internal(
+		dir, src, src_paddr, len, ch_id, csum);
 }
 EXPORT_SYMBOL(dit_enqueue_src_desc_ring);
 
@@ -657,7 +680,8 @@ int dit_enqueue_src_desc_ring_skb(enum dit_direction dir, struct sk_buff *skb)
 {
 	int src_wp;
 
-	src_wp = dit_enqueue_src_desc_ring_internal(dir, skb->data, skb->len,
+	src_wp = dit_enqueue_src_desc_ring_internal(dir, skb->data,
+		virt_to_phys(skb->data), skb->len,
 		skbpriv(skb)->sipc_ch, (skb->ip_summed == CHECKSUM_UNNECESSARY));
 	if (src_wp >= 0)
 		dc->desc_info[dir].src_skb_buf[src_wp] = skb;
@@ -1799,28 +1823,6 @@ static ssize_t debug_set_local_addr_store(struct device *dev,
 	return count;
 }
 
-static ssize_t debug_pktgen_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "skip checksum: %d\n", dc->pktgen_mode);
-}
-
-static ssize_t debug_pktgen_mode_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	int mode;
-	int ret;
-
-	ret = kstrtoint(buf, 0, &mode);
-	if (ret)
-		return -EINVAL;
-
-	dc->pktgen_mode = mode;
-	/* 0x0: skip IP and TCP/UDP checksum if it is 0x0000 */
-	dit_enqueue_reg_value((mode ? 0x0 : 0xF), DIT_REG_NAT_ZERO_CHK_OFF);
-	return count;
-}
-
 static ssize_t debug_reset_usage_store(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t count)
@@ -1844,21 +1846,6 @@ static ssize_t debug_reset_usage_store(struct device *dev,
 			snapshot[dir][ring_num].max_usage = 0;
 	}
 
-	return count;
-}
-
-static ssize_t debug_set_force_bypass_store(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	int bypass;
-	int ret;
-
-	ret = kstrtoint(buf, 0, &bypass);
-	if (ret)
-		return -EINVAL;
-
-	dc->force_bypass = bypass;
 	return count;
 }
 
@@ -1935,17 +1922,58 @@ static ssize_t debug_use_clat_show(struct device *dev, struct device_attribute *
 }
 #endif
 
+#if defined(DIT_DEBUG_LOW)
+static ssize_t debug_pktgen_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "mode: %d\n", dc->pktgen_mode);
+}
+
+static ssize_t debug_pktgen_mode_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int mode;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &mode);
+	if (ret)
+		return -EINVAL;
+
+	dc->pktgen_mode = mode;
+	/* 0x0: skip IP and TCP/UDP checksum if it is 0x0000 */
+	dit_enqueue_reg_value((mode ? 0x0 : 0xF), DIT_REG_NAT_ZERO_CHK_OFF);
+	return count;
+}
+
+static ssize_t debug_set_force_bypass_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int bypass;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &bypass);
+	if (ret)
+		return -EINVAL;
+
+	dc->force_bypass = bypass;
+	return count;
+}
+#endif
+
 static DEVICE_ATTR_RO(status);
 static DEVICE_ATTR_RO(register);
 #if defined(DIT_DEBUG)
 static DEVICE_ATTR_WO(debug_set_rx_port);
 static DEVICE_ATTR_WO(debug_set_local_addr);
-static DEVICE_ATTR_RW(debug_pktgen_mode);
 static DEVICE_ATTR_WO(debug_reset_usage);
-static DEVICE_ATTR_WO(debug_set_force_bypass);
 static DEVICE_ATTR_RW(debug_use_tx);
 static DEVICE_ATTR_RW(debug_use_rx);
 static DEVICE_ATTR_RW(debug_use_clat);
+#endif
+#if defined(DIT_DEBUG_LOW)
+static DEVICE_ATTR_RW(debug_pktgen_mode);
+static DEVICE_ATTR_WO(debug_set_force_bypass);
 #endif
 
 static struct attribute *dit_attrs[] = {
@@ -1954,12 +1982,14 @@ static struct attribute *dit_attrs[] = {
 #if defined(DIT_DEBUG)
 	&dev_attr_debug_set_rx_port.attr,
 	&dev_attr_debug_set_local_addr.attr,
-	&dev_attr_debug_pktgen_mode.attr,
 	&dev_attr_debug_reset_usage.attr,
-	&dev_attr_debug_set_force_bypass.attr,
 	&dev_attr_debug_use_tx.attr,
 	&dev_attr_debug_use_rx.attr,
 	&dev_attr_debug_use_clat.attr,
+#endif
+#if defined(DIT_DEBUG_LOW)
+	&dev_attr_debug_pktgen_mode.attr,
+	&dev_attr_debug_set_force_bypass.attr,
 #endif
 	NULL,
 };

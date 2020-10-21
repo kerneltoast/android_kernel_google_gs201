@@ -339,12 +339,10 @@ struct mem_link_device {
 	unsigned int rx_int_count;
 	unsigned int rx_poll_count;
 	unsigned long long rx_int_disabled_time;
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	struct timespec64 flush_time;
 #else
 	struct timespec flush_time;
-#endif
 #endif
 
 	/* Doorbell interrupt value to separate interrupt */

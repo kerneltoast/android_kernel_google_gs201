@@ -146,6 +146,40 @@ static ssize_t txlink_store(struct device *dev,
 static struct device_attribute attr_txlink =
 	__ATTR_RW(txlink);
 
+enum gro_opt {
+	GRO_FULL_SUPPORT,
+	GRO_TCP_ONLY,
+	GRO_NONE,
+	MAX_GRO_OPTION
+};
+static enum gro_opt gro_support = GRO_FULL_SUPPORT;
+
+static ssize_t gro_option_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%u\n", gro_support);
+}
+
+static ssize_t gro_option_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	int input;
+
+	ret = kstrtouint(buf, 0, &input);
+	if (ret || input > MAX_GRO_OPTION) {
+		mif_err("Error(%u) invalid value: gro support: %u\n",
+				input, gro_support);
+		return -EINVAL;
+	}
+	gro_support = input;
+	ret = count;
+	return ret;
+}
+
+static struct device_attribute attr_gro_option =
+	__ATTR_RW(gro_option);
+
 static int queue_skb_to_iod(struct sk_buff *skb, struct io_device *iod)
 {
 	struct sk_buff_head *rxq = &iod->sk_rx_q;
@@ -332,26 +366,28 @@ static int rx_raw_misc(struct sk_buff *skb)
 	return queue_skb_to_iod(skb, iod);
 }
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 static int check_gro_support(struct sk_buff *skb)
 {
+
+	if (gro_support == GRO_NONE)
+		return 0;
+
 	switch (skb->data[0] & 0xF0) {
 	case 0x40:
-		return ((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
-				(ip_hdr(skb)->protocol == IPPROTO_UDP));
+		return (gro_support == GRO_FULL_SUPPORT) ?
+			((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
+				(ip_hdr(skb)->protocol == IPPROTO_UDP)) :
+			(ip_hdr(skb)->protocol == IPPROTO_TCP);
 
 	case 0x60:
-		return ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) ||
-				(ipv6_hdr(skb)->nexthdr == IPPROTO_UDP));
+		return (gro_support == GRO_FULL_SUPPORT) ?
+			((ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP) ||
+				(ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP)) :
+			(ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP);
 	}
+
 	return 0;
 }
-#else
-static int check_gro_support(struct sk_buff *skb)
-{
-	return 0;
-}
-#endif
 
 static int rx_multi_pdp(struct sk_buff *skb)
 {
@@ -414,10 +450,7 @@ static int rx_multi_pdp(struct sk_buff *skb)
 			mif_err_limited("%s: %s<-%s: ERR! napi_gro_receive\n",
 					ld->name, iod->name, iod->mc->name);
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
-		if (ld->gro_flush)
-			ld->gro_flush(ld, napi);
-#endif
+		ld->gro_flush(ld, napi);
 	}
 	return len;
 }
@@ -790,6 +823,11 @@ int sipc5_init_io_device(struct io_device *iod)
 		if (ret)
 			mif_err("failed to create `txlink file' : %s\n",
 					iod->name);
+
+		ret = device_create_file(iod->cdevice, &attr_gro_option);
+		if (ret)
+			mif_err("failed to create `gro_option file' : %s\n",
+					iod->name);
 		break;
 
 	default:
@@ -835,6 +873,7 @@ void sipc5_deinit_io_device(struct io_device *iod)
 		device_remove_file(iod->cdevice, &attr_waketime);
 		device_remove_file(iod->cdevice, &attr_loopback);
 		device_remove_file(iod->cdevice, &attr_txlink);
+		device_remove_file(iod->cdevice, &attr_gro_option);
 
 		device_destroy(iod->msd->cdev_class, iod->cdev.dev);
 		cdev_del(&iod->cdev);

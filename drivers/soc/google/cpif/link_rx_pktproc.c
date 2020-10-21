@@ -61,6 +61,47 @@ static bool pktproc_check_hw_checksum(u8 status)
 	return true;
 }
 
+static void pktproc_set_pktgen_checksum(struct pktproc_queue *q, u8 *data)
+{
+	u16 *csum_ptr;
+
+	csum_ptr = (u16 *)&data[26];
+	*csum_ptr = htons(0x1234);
+}
+
+static ssize_t pktgen_gro_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct mem_link_device *mld = to_mem_link_device(ld);
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+	unsigned int gro;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &gro);
+	if (ret)
+		return -EINVAL;
+
+	ppa->pktgen_gro = (gro > 0 ? true : false);
+
+	return count;
+}
+
+static ssize_t pktgen_gro_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	struct link_device *ld = get_current_link(mc->iod);
+	struct mem_link_device *mld = to_mem_link_device(ld);
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+	ssize_t count = 0;
+
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "pktgen gro:%d\n", ppa->pktgen_gro);
+
+	return count;
+}
+
 /*
  * Get a packet: ringbuf mode
  */
@@ -99,9 +140,9 @@ static int pktproc_get_pkt_from_ringbuf_mode(struct pktproc_queue *q, struct sk_
 		goto rx_error_on_desc;
 	}
 	if (q->ppa->use_36bit_data_addr)
-		src = phys_to_virt(desc[*q->rear_ptr].cp_data_paddr);
+		src = desc[*q->rear_ptr].cp_data_paddr - q->q_buff_pbase + q->q_buff_vbase;
 	else
-		src = desc[*q->rear_ptr].cp_data_paddr - q->q_info->cp_buff_pbase + q->q_buff_vbase;
+		src = desc[*q->rear_ptr].cp_data_paddr - q->cp_buff_pbase + q->q_buff_vbase;
 	if ((src < q->q_buff_vbase) || (src > q->q_buff_vbase + q->q_buff_size)) {
 		mif_err_limited("Data address is invalid:%pK q_buff_vbase:%pK size:0x%08x\n",
 						src, q->q_buff_vbase, q->q_buff_size);
@@ -109,7 +150,7 @@ static int pktproc_get_pkt_from_ringbuf_mode(struct pktproc_queue *q, struct sk_
 		ret = -EINVAL;
 		goto rx_error_on_desc;
 	}
-	if (!q->ppa->use_hw_iocc)
+	if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc)
 		dma_sync_single_for_cpu(q->ppa->dev, virt_to_phys(src), len, DMA_FROM_DEVICE);
 	pp_debug("len:%d ch_id:%d src:%pK\n", len, ch_id, src);
 
@@ -151,15 +192,20 @@ static int pktproc_get_pkt_from_ringbuf_mode(struct pktproc_queue *q, struct sk_
 		break;
 	}
 
+	if (unlikely(q->ppa->pktgen_gro)) {
+		pktproc_set_pktgen_checksum(q, skb->data);
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+
 	*new_skb = skb;
 	q->stat.pass_cnt++;
-	*q->rear_ptr = circ_new_ptr(q->q_info->num_desc, *q->rear_ptr, 1);
+	*q->rear_ptr = circ_new_ptr(q->num_desc, *q->rear_ptr, 1);
 
 	return 0;
 
 rx_error_on_desc:
 	mif_err_limited("Skip invalid descriptor at %d\n", *q->rear_ptr);
-	*q->rear_ptr = circ_new_ptr(q->q_info->num_desc, *q->rear_ptr, 1);
+	*q->rear_ptr = circ_new_ptr(q->num_desc, *q->rear_ptr, 1);
 
 rx_error:
 	if (skb)
@@ -175,7 +221,6 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 {
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
 	u8 *src;
-	unsigned long attrs = 0;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
 		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
@@ -187,26 +232,23 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 		return -EPERM;
 	}
 
-	if (q->ppa->use_hw_iocc)
-		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
-
 	mif_info("Unmap buffer from %d to %d\n", q->done_ptr, *q->fore_ptr);
 	while (*q->fore_ptr != q->done_ptr) {
-		if (q->dma_addr[q->done_ptr])
+		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc &&
+			q->dma_addr[q->done_ptr])
 			dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[q->done_ptr],
-							q->manager->cell_size, DMA_FROM_DEVICE,
-							attrs);
+							q->manager->cell_size, DMA_FROM_DEVICE, 0);
 
 		if (q->ppa->use_36bit_data_addr)
-			src = phys_to_virt(desc[q->done_ptr].cp_data_paddr) -
-						q->ppa->skb_padding_size;
+			src = desc[q->done_ptr].cp_data_paddr - q->q_buff_pbase +
+					q->q_buff_vbase - q->ppa->skb_padding_size;
 		else
-			src = desc[q->done_ptr].cp_data_paddr - q->q_info->cp_buff_pbase
-						+ q->q_buff_vbase - q->ppa->skb_padding_size;
+			src = desc[q->done_ptr].cp_data_paddr - q->cp_buff_pbase +
+					q->q_buff_vbase - q->ppa->skb_padding_size;
 		if (src)
 			free_mif_buff(q->manager, src);
 
-		q->done_ptr = circ_new_ptr(q->q_info->num_desc, q->done_ptr, 1);
+		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 	}
 	memset(desc, 0, q->desc_size);
 
@@ -217,7 +259,6 @@ static int pktproc_clear_data_addr_without_bm(struct pktproc_queue *q)
 {
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
 	int i;
-	unsigned long attrs = 0;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
 		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
@@ -229,14 +270,12 @@ static int pktproc_clear_data_addr_without_bm(struct pktproc_queue *q)
 		return -EPERM;
 	}
 
-	if (q->ppa->use_hw_iocc)
-		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
-
 	mif_info("Unmap buffer from %d to %d\n", q->done_ptr, *q->fore_ptr);
-	for (i = 0; i < q->q_info->num_desc; i++) {
-		if (q->dma_addr[i])
+	for (i = 0; i < q->num_desc; i++) {
+		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc &&
+			q->dma_addr[i])
 			dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[i],
-					q->ppa->max_packet_size, DMA_FROM_DEVICE, attrs);
+					q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 	}
 	memset(desc, 0, q->desc_size);
 
@@ -248,9 +287,9 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
 	u8 *dst_vaddr = NULL;
 	u32 space;
+	u32 fore;
 	int i;
 	unsigned long flags;
-	unsigned long attrs = 0;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
 		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
@@ -264,14 +303,12 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 
 	spin_lock_irqsave(&q->lock, flags);
 
-	space = circ_get_space(q->q_info->num_desc, *q->fore_ptr, q->done_ptr);
+	space = circ_get_space(q->num_desc, *q->fore_ptr, q->done_ptr);
 	pp_debug("Q%d:%d/%d/%d Space:%d BM:%d/%d/%d\n",
 		q->q_idx, *q->fore_ptr, *q->rear_ptr, q->done_ptr, space,
 		q->manager->cell_count, q->manager->used_cell_count, q->manager->free_cell_count);
 
-	if (q->ppa->use_hw_iocc)
-		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
-
+	fore = *q->fore_ptr;
 	for (i = 0; i < space; i++) {
 		dst_vaddr = alloc_mif_buff(q->manager);
 		if (!dst_vaddr) {
@@ -287,29 +324,31 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 
 		pp_debug("Q:%d fore_ptr:%d dst_vaddr:%pK\n", q->q_idx, *q->fore_ptr, dst_vaddr);
 
-		q->dma_addr[*q->fore_ptr] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
-				q->manager->cell_size, DMA_FROM_DEVICE, attrs);
-		if (dma_mapping_error(q->ppa->dev, q->dma_addr[*q->fore_ptr])) {
-			mif_err_limited("dma_map_single_attrs() failed\n");
-			spin_unlock_irqrestore(&q->lock, flags);
-			return -ENOMEM;
+		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
+			q->dma_addr[fore] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
+					q->manager->cell_size, DMA_FROM_DEVICE, 0);
+			if (dma_mapping_error(q->ppa->dev, q->dma_addr[fore])) {
+				mif_err_limited("dma_map_single_attrs() failed\n");
+				spin_unlock_irqrestore(&q->lock, flags);
+				return -ENOMEM;
+			}
 		}
 
 		if (q->ppa->use_36bit_data_addr)
-			desc[*q->fore_ptr].cp_data_paddr = virt_to_phys(dst_vaddr) +
-							q->ppa->skb_padding_size;
+			desc[fore].cp_data_paddr = (dst_vaddr - q->q_buff_vbase) +
+					q->q_buff_pbase + q->ppa->skb_padding_size;
 		else
-			desc[*q->fore_ptr].cp_data_paddr = (dst_vaddr - q->q_buff_vbase) +
-							q->q_info->cp_buff_pbase +
-							q->ppa->skb_padding_size;
+			desc[fore].cp_data_paddr = (dst_vaddr - q->q_buff_vbase) +
+					q->cp_buff_pbase + q->ppa->skb_padding_size;
 
-		if (*q->fore_ptr == 0)
-			desc[*q->fore_ptr].control |= (1 << 7);	/* HEAD */
+		if (fore == 0)
+			desc[fore].control |= (1 << 7);	/* HEAD */
 
-		if (*q->fore_ptr == (q->q_info->num_desc - 1))
-			desc[*q->fore_ptr].control |= (1 << 3);	/* RINGEND */
+		if (fore == (q->num_desc - 1))
+			desc[fore].control |= (1 << 3);	/* RINGEND */
 
-		*q->fore_ptr = circ_new_ptr(q->q_info->num_desc, *q->fore_ptr, 1);
+		*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, 1);
+		fore = circ_new_ptr(q->num_desc, fore, 1);
 	}
 
 	pp_debug("Q:%d fore/rear/done:%d/%d/%d\n",
@@ -324,9 +363,10 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 {
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
 	u8 *dst_vaddr = NULL;
+	unsigned long dst_paddr;
+	u32 fore;
 	int i;
 	unsigned long flags;
-	unsigned long attrs = 0;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
 		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
@@ -343,42 +383,49 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 	spin_lock_irqsave(&q->lock, flags);
 
-	if (q->ppa->use_hw_iocc)
-		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+	fore = *q->fore_ptr;
+	for (i = 0; i < q->num_desc; i++) {
+		dst_paddr = q->q_buff_pbase + (q->ppa->max_packet_size * fore);
+		if (dst_paddr > (q->q_buff_pbase + q->q_buff_size))
+			mif_err_limited("dst_paddr:0x%lx is over 0x%lx\n",
+					dst_paddr, q->q_buff_pbase + q->q_buff_size);
 
-	for (i = 0; i < q->q_info->num_desc; i++) {
-		dst_vaddr = q->q_buff_vbase + (q->ppa->max_packet_size * i);
-		if (dst_vaddr > (q->q_buff_vbase + q->q_buff_size))
-			mif_err_limited("dst_vaddr:0x%lx is over 0x%lx\n",
-					dst_vaddr, q->q_buff_vbase + q->q_buff_size);
+		pp_debug("Q:%d fore_ptr:%d dst_paddr:0x%lx\n",
+			q->q_idx, *q->fore_ptr, dst_paddr);
 
-		pp_debug("Q:%d fore_ptr:%d dst_vaddr:%pK\n", q->q_idx, *q->fore_ptr, dst_vaddr);
+		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
+			dst_vaddr = q->q_buff_vbase + (q->ppa->max_packet_size * i);
+			if (dst_vaddr > (q->q_buff_vbase + q->q_buff_size))
+				mif_err_limited("dst_vaddr:0x%lx is over 0x%lx\n",
+						dst_vaddr, q->q_buff_vbase + q->q_buff_size);
 
-		q->dma_addr[*q->fore_ptr] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
-				q->ppa->max_packet_size, DMA_FROM_DEVICE, attrs);
-		if (dma_mapping_error(q->ppa->dev, q->dma_addr[*q->fore_ptr])) {
-			mif_err_limited("dma_map_single_attrs() failed\n");
-			spin_unlock_irqrestore(&q->lock, flags);
-			return -ENOMEM;
+			q->dma_addr[fore] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
+					q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
+			if (dma_mapping_error(q->ppa->dev, q->dma_addr[fore])) {
+				mif_err_limited("dma_map_single_attrs() failed\n");
+				spin_unlock_irqrestore(&q->lock, flags);
+				return -ENOMEM;
+			}
 		}
 
 		if (q->ppa->use_36bit_data_addr)
-			desc[*q->fore_ptr].cp_data_paddr = virt_to_phys(dst_vaddr) +
+			desc[fore].cp_data_paddr = dst_paddr +
 							q->ppa->skb_padding_size;
 		else
-			desc[*q->fore_ptr].cp_data_paddr = (dst_vaddr - q->q_buff_vbase) +
-							q->q_info->cp_buff_pbase +
+			desc[fore].cp_data_paddr = (dst_paddr - q->q_buff_pbase) +
+							q->cp_buff_pbase +
 							q->ppa->skb_padding_size;
 
-		if (*q->fore_ptr == 0)
-			desc[*q->fore_ptr].control |= (1 << 7);	/* HEAD */
+		if (fore == 0)
+			desc[fore].control |= (1 << 7);	/* HEAD */
 
-		if (*q->fore_ptr == (q->q_info->num_desc - 1)) {
-			desc[*q->fore_ptr].control |= (1 << 3);	/* RINGEND */
+		if (fore == (q->num_desc - 1)) {
+			desc[fore].control |= (1 << 3);	/* RINGEND */
 			continue;
 		}
 
-		*q->fore_ptr = circ_new_ptr(q->q_info->num_desc, *q->fore_ptr, 1);
+		*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, 1);
+		fore = circ_new_ptr(q->num_desc, fore, 1);
 	}
 
 	mif_info("Q:%d fore/rear/done:%d/%d/%d\n",
@@ -391,7 +438,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 static int pktproc_update_fore_ptr(struct pktproc_queue *q, u32 count)
 {
-	*q->fore_ptr = circ_new_ptr(q->q_info->num_desc, *q->fore_ptr, count);
+	*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, count);
 
 	return 0;
 }
@@ -402,10 +449,10 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	u16 len, tmp_len;
 	u16 ch_id;
 	u8 *src;
+	unsigned long src_paddr;
 	struct sk_buff *skb = NULL;
-	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
+	struct pktproc_desc_sktbuf desc_done_ptr = q->desc_sktbuf[q->done_ptr];
 	struct link_device *ld = &q->mld->link_dev;
-	unsigned long attrs = 0;
 	u32 packet_size = 0;
 	bool csum = false;
 
@@ -413,13 +460,14 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		mif_err_limited("Queue %d not activated\n", q->q_idx);
 		return -EACCES;
 	}
+
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
 		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
 		return -EINVAL;
 	}
 
 	/* Get data */
-	len = desc[q->done_ptr].length;
+	len = desc_done_ptr.length;
 	if (len > q->ppa->max_packet_size) {
 		mif_err_limited("Length is invalid:%d\n", len);
 		q->stat.err_len++;
@@ -427,7 +475,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		goto rx_error_on_desc;
 	}
 
-	ch_id = desc[q->done_ptr].channel_id;
+	ch_id = desc_done_ptr.channel_id;
 	if (ch_id == SIPC5_CH_ID_MAX) {
 		mif_err_limited("Channel ID is invalid:%d\n", ch_id);
 		q->stat.err_chid++;
@@ -435,12 +483,16 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		goto rx_error_on_desc;
 	}
 
-	if (q->ppa->use_36bit_data_addr)
-		src = phys_to_virt(desc[q->done_ptr].cp_data_paddr) -
-					q->ppa->skb_padding_size;
-	else
-		src = desc[q->done_ptr].cp_data_paddr - q->q_info->cp_buff_pbase +
-					q->q_buff_vbase - q->ppa->skb_padding_size;
+	if (q->ppa->use_36bit_data_addr) {
+		src_paddr = desc_done_ptr.cp_data_paddr - q->ppa->skb_padding_size;
+		src = desc_done_ptr.cp_data_paddr - q->q_buff_pbase +
+				q->q_buff_vbase - q->ppa->skb_padding_size;
+	} else {
+		src_paddr = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
+				q->q_buff_pbase - q->ppa->skb_padding_size;
+		src = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
+				q->q_buff_vbase - q->ppa->skb_padding_size;
+	}
 	if ((src < q->q_buff_vbase) || (src > q->q_buff_vbase + q->q_buff_size)) {
 		mif_err_limited("Data address is invalid:%pK data:%pK size:0x%08x\n",
 					src, q->q_buff_vbase, q->q_buff_size);
@@ -449,25 +501,35 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		goto rx_error_on_desc;
 	}
 
-	if (q->ppa->use_hw_iocc || dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx))
-		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
+	if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
+		if (q->manager)
+			packet_size = q->manager->cell_size;
+		else
+			packet_size = q->ppa->max_packet_size;
 
-	if (q->manager)
-		packet_size = q->manager->cell_size;
-	else
-		packet_size = q->ppa->max_packet_size;
-	dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[q->done_ptr],
-				packet_size, DMA_FROM_DEVICE, attrs);
+		dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[q->done_ptr],
+					packet_size, DMA_FROM_DEVICE, 0);
+	}
 
-	csum = pktproc_check_hw_checksum(desc[q->done_ptr].status);
+	csum = pktproc_check_hw_checksum(desc_done_ptr.status);
 	if (!csum)
 		q->stat.err_csum++;
+
+	if (unlikely(q->ppa->pktgen_gro)) {
+		pktproc_set_pktgen_checksum(q, src);
+		csum = true;
+	}
 
 	pp_debug("Q:%d done_ptr:%d len:%d ch_id:%d src:%pK csum:%d\n",
 			q->q_idx, q->done_ptr, len, ch_id, src, csum);
 
+#ifdef PKTPROC_DEBUG_PKT
+	pr_buffer("pktproc", (char *)src, (size_t)len, (size_t)40);
+#endif
+
 	if (dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx)) {
-		ret = dit_enqueue_src_desc_ring(DIT_DIR_RX, src, len, ch_id, csum);
+		ret = dit_enqueue_src_desc_ring(DIT_DIR_RX,
+			src, src_paddr, len, ch_id, csum);
 		if (ret < 0) {
 			mif_err_limited("Enqueue failed at %d, ret: %d\n", q->done_ptr, ret);
 			q->stat.err_enqueue_dit++;
@@ -475,7 +537,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		}
 
 		q->stat.pass_cnt++;
-		q->done_ptr = circ_new_ptr(q->q_info->num_desc, q->done_ptr, 1);
+		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
 		return 0;
 	}
@@ -515,10 +577,6 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	if (csum)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-#ifdef PKTPROC_DEBUG_PKT
-	pr_buffer("pktproc", (char *)skb->data, (size_t)len, (size_t)40);
-#endif
-
 	/* Set priv */
 	skbpriv(skb)->lnk_hdr = 0;
 	skbpriv(skb)->sipc_ch = ch_id;
@@ -532,13 +590,13 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	*new_skb = skb;
 
 	q->stat.pass_cnt++;
-	q->done_ptr = circ_new_ptr(q->q_info->num_desc, q->done_ptr, 1);
+	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
 	return 0;
 
 rx_error_on_desc:
 	mif_err_limited("Skip invalid descriptor at %d\n", q->done_ptr);
-	q->done_ptr = circ_new_ptr(q->q_info->num_desc, q->done_ptr, 1);
+	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
 rx_error:
 	if (skb)
@@ -556,10 +614,10 @@ int pktproc_get_usage(struct pktproc_queue *q)
 
 	switch (q->ppa->desc_mode) {
 	case DESC_MODE_RINGBUF:
-		usage = circ_get_usage(q->q_info->num_desc, *q->fore_ptr, *q->rear_ptr);
+		usage = circ_get_usage(q->num_desc, *q->fore_ptr, *q->rear_ptr);
 		break;
 	case DESC_MODE_SKTBUF:
-		usage = circ_get_usage(q->q_info->num_desc, *q->rear_ptr, q->done_ptr);
+		usage = circ_get_usage(q->num_desc, *q->rear_ptr, q->done_ptr);
 		break;
 	default:
 		usage = 0;
@@ -583,7 +641,7 @@ static bool pktproc_check_memcpy_mode(struct pktproc_queue *q, u32 budget)
 	if (q->manager->free_cell_count < budget)
 		return true;
 
-	if (circ_get_space(q->q_info->num_desc, *q->rear_ptr, *q->fore_ptr) < budget)
+	if (circ_get_space(q->num_desc, *q->rear_ptr, *q->fore_ptr) < budget)
 		return true;
 
 	return false;
@@ -710,10 +768,11 @@ static void pktproc_perftest_gen_rx_packet_sktbuf_mode(
 
 		/* set data */
 		if (q->ppa->use_36bit_data_addr)
-			src = phys_to_virt(desc[rear_ptr].cp_data_paddr);
+			src = desc[rear_ptr].cp_data_paddr -
+					q->q_buff_pbase + q->q_buff_vbase;
 		else
 			src = desc[rear_ptr].cp_data_paddr -
-					q->q_info->cp_buff_pbase + q->q_buff_vbase;
+					q->cp_buff_pbase + q->q_buff_vbase;
 		memset(src, 0x0, desc[rear_ptr].length);
 		memcpy(src, perftest_data[perf->mode].header, header_len);
 		seq = (u32 *)(src + header_len);
@@ -727,7 +786,7 @@ static void pktproc_perftest_gen_rx_packet_sktbuf_mode(
 			}
 		}
 
-		rear_ptr = circ_new_ptr(q->q_info->num_desc, rear_ptr, 1);
+		rear_ptr = circ_new_ptr(q->num_desc, rear_ptr, 1);
 	}
 
 	*q->rear_ptr = rear_ptr;
@@ -946,9 +1005,7 @@ static irqreturn_t pktproc_irq_handler(int irq, void *arg)
 	if (q->ppa->use_napi) {
 		if (napi_schedule_prep(q->napi_ptr)) {
 			q->disable_irq(q);
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 			q->flush_time = q->mld->link_dev.update_flush_time(q->flush_time);
-#endif
 			__napi_schedule(q->napi_ptr);
 		}
 	} else {
@@ -969,7 +1026,6 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 	struct link_device *ld = get_current_link(mc->iod);
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	struct pktproc_adaptor *ppa = &mld->pktproc;
-	struct pktproc_q_info *q_info;
 	ssize_t count = 0;
 	int i;
 
@@ -992,6 +1048,9 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 		ppa->use_dedicated_baaw);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "36bit data addr:%d\n",
 		ppa->use_36bit_data_addr);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "info_desc:%s/buff:%s\n",
+		ppa->info_desc_rgn_cached ? "C" : "NC",
+		ppa->buff_rgn_cached ? "C" : "NC");
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
 
 	if (ppa->manager) {
@@ -1016,16 +1075,15 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 			continue;
 		}
 
-		q_info = q->q_info;
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "Queue%d\n", i);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  num_desc:%d(0x%08x)\n",
-			q_info->num_desc, q_info->num_desc);
+			q->q_info_ptr->num_desc, q->q_info_ptr->num_desc);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  cp_desc_pbase:0x%08x\n",
-			q_info->cp_desc_pbase);
+			q->q_info_ptr->cp_desc_pbase);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  desc_size:0x%08x\n",
 			q->desc_size);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  cp_buff_pbase:0x%08x\n",
-			q_info->cp_buff_pbase);
+			q->q_info_ptr->cp_buff_pbase);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  q_buff_size:0x%08x\n",
 			q->q_buff_size);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  DIT:%d\n",
@@ -1041,7 +1099,6 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 	struct link_device *ld = get_current_link(mc->iod);
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	struct pktproc_adaptor *ppa = &mld->pktproc;
-	struct pktproc_q_info *q_info;
 	ssize_t count = 0;
 	int i;
 
@@ -1062,16 +1119,15 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			continue;
 		}
 
-		q_info = q->q_info;
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "Queue%d\n", i);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  num_desc:%d\n",
-			q_info->num_desc);
+			q->num_desc);
 		switch (ppa->desc_mode) {
 		case DESC_MODE_RINGBUF:
 			count += scnprintf(&buf[count], PAGE_SIZE - count, "  fore/rear:%d/%d\n",
 				*q->fore_ptr, *q->rear_ptr);
 			count += scnprintf(&buf[count], PAGE_SIZE - count, "  fore~rear:%d\n",
-				circ_get_usage(q_info->num_desc, *q->fore_ptr, *q->rear_ptr));
+				circ_get_usage(q->num_desc, *q->fore_ptr, *q->rear_ptr));
 			break;
 		case DESC_MODE_SKTBUF:
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
@@ -1079,8 +1135,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 				*q->fore_ptr, *q->rear_ptr, q->done_ptr);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
 				"  fore~rear:%d rear~done:%d\n",
-				circ_get_usage(q_info->num_desc, *q->fore_ptr, *q->rear_ptr),
-				circ_get_usage(q_info->num_desc, *q->rear_ptr, q->done_ptr));
+				circ_get_usage(q->num_desc, *q->fore_ptr, *q->rear_ptr),
+				circ_get_usage(q->num_desc, *q->rear_ptr, q->done_ptr));
 			if (!dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx))
 				count += scnprintf(&buf[count], PAGE_SIZE - count,
 					"  use memcpy:%d count:%lld\n",
@@ -1108,11 +1164,13 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 static DEVICE_ATTR_RO(region);
 static DEVICE_ATTR_RO(status);
 static DEVICE_ATTR_RW(perftest);
+static DEVICE_ATTR_RW(pktgen_gro);
 
 static struct attribute *pktproc_attrs[] = {
 	&dev_attr_region.attr,
 	&dev_attr_status.attr,
 	&dev_attr_perftest.attr,
+	&dev_attr_pktgen_gro.attr,
 	NULL,
 };
 
@@ -1150,13 +1208,8 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 
 	for (i = 0; i < ppa->num_queue; i++) {
 		struct pktproc_queue *q = ppa->q[i];
-		struct pktproc_q_info *q_info = q->q_info;
 
 		mif_info("Q%d\n", i);
-		mif_info("num_desc:0x%08x cp_desc_pbase:0x%08x desc_size:0x%08x\n",
-				q_info->num_desc, q_info->cp_desc_pbase, q->desc_size);
-		mif_info("cp_buff_pbase:0x%08x q_buff_size:0x%08x\n",
-				q_info->cp_buff_pbase, q->q_buff_size);
 
 		if (ppa->use_napi)
 			napi_synchronize(&q->napi);
@@ -1174,6 +1227,10 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 		*q->rear_ptr = 0;
 		q->done_ptr = 0;
 
+		q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
+		q->q_info_ptr->num_desc = q->num_desc;
+		q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
+
 		memset(&q->stat, 0, sizeof(struct pktproc_statistics));
 
 		switch (ppa->desc_mode) {
@@ -1188,8 +1245,12 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 			break;
 		}
 
+		mif_info("num_desc:0x%08x cp_desc_pbase:0x%08x desc_size:0x%08x\n",
+				q->num_desc, q->cp_desc_pbase, q->desc_size);
+		mif_info("cp_buff_pbase:0x%08x q_buff_size:0x%08x\n",
+				q->cp_buff_pbase, q->q_buff_size);
 		mif_info("fore:%d rear:%d done:%d\n",
-			q_info->fore_ptr, q_info->rear_ptr, q->done_ptr);
+				*q->fore_ptr, *q->rear_ptr, q->done_ptr);
 
 		atomic_set(&q->active, 1);
 	}
@@ -1343,10 +1404,11 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 	buff_size = memsize - (ppa->info_rgn_size + ppa->desc_rgn_size);
 	buff_size_by_q = buff_size / ppa->num_queue;
+	ppa->buff_pbase = memaddr + ppa->buff_rgn_offset;
 	if (ppa->buff_rgn_cached)
-		ppa->buff_vbase = phys_to_virt(memaddr + ppa->buff_rgn_offset);
+		ppa->buff_vbase = phys_to_virt(ppa->buff_pbase);
 	else
-		ppa->buff_vbase = cp_shmem_get_nc_region(memaddr + ppa->buff_rgn_offset, buff_size);
+		ppa->buff_vbase = cp_shmem_get_nc_region(ppa->buff_pbase, buff_size);
 	mif_info("Total buff buffer size:0x%08x Queue:%d Size by queue:0x%08x\n",
 					buff_size, ppa->num_queue, buff_size_by_q);
 
@@ -1385,7 +1447,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		switch (ppa->version) {
 		case PKTPROC_V1:
 			q->info_v1 = (struct pktproc_info_v1 *)ppa->info_vbase;
-			q->q_info = &q->info_v1->q_info;
+			q->q_info_ptr = &q->info_v1->q_info;
 			break;
 		case PKTPROC_V2:
 			q->info_v2 = (struct pktproc_info_v2 *)ppa->info_vbase;
@@ -1394,7 +1456,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			q->info_v2->irq_mode = ppa->use_exclusive_irq;
 			q->info_v2->max_packet_size = ppa->max_packet_size;
 
-			q->q_info = &q->info_v2->q_info[i];
+			q->q_info_ptr = &q->info_v2->q_info[i];
 			break;
 		default:
 			mif_err("Unsupported version:%d\n", ppa->version);
@@ -1405,24 +1467,27 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		/* Descriptor, data buffer region */
 		switch (ppa->desc_mode) {
 		case DESC_MODE_RINGBUF:
+			q->q_buff_pbase = ppa->buff_pbase + (i * buff_size_by_q);
 			q->q_buff_vbase = ppa->buff_vbase + (i * buff_size_by_q);
-			q->q_info->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset +
+			q->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset +
 				(i * buff_size_by_q);
+			q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
 			q->q_buff_size = buff_size_by_q;
-			if (!ppa->use_hw_iocc)
+			if (q->ppa->buff_rgn_cached && !ppa->use_hw_iocc)
 				dma_sync_single_for_device(q->ppa->dev,
-						virt_to_phys(q->q_buff_vbase), q->q_buff_size,
-						DMA_FROM_DEVICE);
+						q->q_buff_pbase, q->q_buff_size, DMA_FROM_DEVICE);
 
-			q->q_info->num_desc = buff_size_by_q / ppa->max_packet_size;
+			q->num_desc = buff_size_by_q / ppa->max_packet_size;
+			q->q_info_ptr->num_desc = q->num_desc;
 
 			q->desc_ringbuf = ppa->desc_vbase +
 					(i * sizeof(struct pktproc_desc_ringbuf) *
-					 q->q_info->num_desc);
-			q->q_info->cp_desc_pbase = ppa->cp_base + ppa->desc_rgn_offset +
+					 q->num_desc);
+			q->cp_desc_pbase = ppa->cp_base + ppa->desc_rgn_offset +
 					(i * sizeof(struct pktproc_desc_ringbuf) *
-					 q->q_info->num_desc);
-			q->desc_size = sizeof(struct pktproc_desc_ringbuf) * q->q_info->num_desc;
+					 q->num_desc);
+			q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase;
+			q->desc_size = sizeof(struct pktproc_desc_ringbuf) * q->num_desc;
 
 			q->get_packet = pktproc_get_pkt_from_ringbuf_mode;
 			q->irq_handler = pktproc_irq_handler;
@@ -1430,30 +1495,35 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		case DESC_MODE_SKTBUF:
 			q->manager = ppa->manager;
 			if (q->manager) {
+				q->q_buff_pbase = ppa->buff_pbase;
 				q->q_buff_vbase = ppa->buff_vbase;
-				q->q_info->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset;
+				q->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset;
 				q->q_buff_size = buff_size;
-				q->q_info->num_desc = (buff_size_by_q / q->manager->cell_size) *
+				q->num_desc = (buff_size_by_q / q->manager->cell_size) *
 						ppa->desc_num_ratio_percent / 100;
 				q->alloc_rx_buf = pktproc_fill_data_addr;
 				q->clear_data_addr = pktproc_clear_data_addr;
 			} else {
+				q->q_buff_pbase = ppa->buff_pbase + (i * buff_size_by_q);
 				q->q_buff_vbase = ppa->buff_vbase + (i * buff_size_by_q);
-				q->q_info->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset +
+				q->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset +
 					(i * buff_size_by_q);
 				q->q_buff_size = buff_size_by_q;
-				q->q_info->num_desc = buff_size_by_q / ppa->max_packet_size;
+				q->num_desc = buff_size_by_q / ppa->max_packet_size;
 				q->alloc_rx_buf = pktproc_fill_data_addr_without_bm;
 				q->clear_data_addr = pktproc_clear_data_addr_without_bm;
 			}
+			q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
+			q->q_info_ptr->num_desc = q->num_desc;
 
 			q->desc_sktbuf = ppa->desc_vbase +
 					(i * sizeof(struct pktproc_desc_sktbuf) *
-					 q->q_info->num_desc);
-			q->q_info->cp_desc_pbase = ppa->cp_base + ppa->desc_rgn_offset +
+					 q->num_desc);
+			q->cp_desc_pbase = ppa->cp_base + ppa->desc_rgn_offset +
 					(i * sizeof(struct pktproc_desc_sktbuf) *
-					 q->q_info->num_desc);
-			q->desc_size = sizeof(struct pktproc_desc_sktbuf) * q->q_info->num_desc;
+					 q->num_desc);
+			q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase;
+			q->desc_size = sizeof(struct pktproc_desc_sktbuf) * q->num_desc;
 
 			q->dma_addr = kzalloc(q->desc_size, GFP_KERNEL);
 			if (!q->dma_addr) {
@@ -1472,9 +1542,9 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			goto create_error;
 		}
 
-		if ((q->q_info->cp_desc_pbase + q->desc_size) > q->q_info->cp_buff_pbase) {
+		if ((q->cp_desc_pbase + q->desc_size) > q->cp_buff_pbase) {
 			mif_err("Descriptor overflow:0x%08x 0x%08x 0x%08x\n",
-				q->q_info->cp_desc_pbase, q->desc_size, q->q_info->cp_buff_pbase);
+				q->cp_desc_pbase, q->desc_size, q->cp_buff_pbase);
 			ret = -EINVAL;
 			goto create_error;
 		}
@@ -1518,17 +1588,17 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 #endif
 		}
 
-		q->q_info->fore_ptr = 0;
-		q->q_info->rear_ptr = 0;
+		q->q_info_ptr->fore_ptr = 0;
+		q->q_info_ptr->rear_ptr = 0;
 
-		q->fore_ptr = &q->q_info->fore_ptr;
-		q->rear_ptr = &q->q_info->rear_ptr;
+		q->fore_ptr = &q->q_info_ptr->fore_ptr;
+		q->rear_ptr = &q->q_info_ptr->rear_ptr;
 		q->done_ptr = *q->rear_ptr;
 
 		mif_info("num_desc:%d cp_desc_pbase:0x%08x desc_size:0x%08x\n",
-			q->q_info->num_desc, q->q_info->cp_desc_pbase, q->desc_size);
+			q->num_desc, q->cp_desc_pbase, q->desc_size);
 		mif_info("cp_buff_pbase:0x%08x buff_size:0x%08x\n",
-			q->q_info->cp_buff_pbase, q->q_buff_size);
+			q->cp_buff_pbase, q->q_buff_size);
 	}
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
@@ -1539,7 +1609,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 	}
 
 	ret = dit_set_desc_ring_len(DIT_DIR_RX,
-		ppa->q[DIT_PKTPROC_RX_QUEUE_NUM]->q_info->num_desc - 1);
+		ppa->q[DIT_PKTPROC_RX_QUEUE_NUM]->num_desc - 1);
 	if (ret) {
 		mif_err("dit_set_desc_ring_len() error:%d\n", ret);
 		goto create_error;

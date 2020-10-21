@@ -166,7 +166,6 @@ static void mif_update_ndevs_rps(const char *ndev_prefix, unsigned int rps_value
 	}
 }
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 static void mif_argos_notifier_gro_flushtime(unsigned long speed)
 {
 	int loop;
@@ -178,9 +177,6 @@ static void mif_argos_notifier_gro_flushtime(unsigned long speed)
 
 	mif_info("Speed: %luMbps, GRO flush time: %ld\n", speed, gro_flush_time);
 }
-#else
-static inline void mif_argos_notifier_gro_flushtime(unsigned long speed) {}
-#endif
 
 static int mif_argos_notifier_ipc(struct notifier_block *nb, unsigned long speed, void *data)
 {

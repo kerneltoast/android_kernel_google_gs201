@@ -340,7 +340,7 @@ struct dit_ctrl_t {
 	atomic_t init_running;
 	atomic_t stop_napi_poll;
 
-#if defined(DIT_DEBUG)
+#if defined(DIT_DEBUG_LOW)
 	int pktgen_mode;
 	int force_bypass;
 #endif
@@ -404,7 +404,9 @@ int dit_get_src_usage(enum dit_direction dir, u32 *usage);
 struct net_device *dit_get_netdev(void);
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
-int dit_enqueue_src_desc_ring(enum dit_direction dir, u8 *src, u16 len, u16 ch_id, bool csum);
+int dit_enqueue_src_desc_ring(
+	enum dit_direction dir, u8 *src, unsigned long src_paddr,
+	u16 len, u16 ch_id, bool csum);
 int dit_enqueue_src_desc_ring_skb(enum dit_direction dir, struct sk_buff *skb);
 int dit_kick(enum dit_direction dir, bool retry);
 bool dit_check_dir_use_queue(enum dit_direction dir, unsigned int queue_num);
@@ -412,7 +414,8 @@ int dit_reset_dst_wp_rp(enum dit_direction dir);
 int dit_stop_napi_poll(void);
 #else
 static inline int dit_enqueue_src_desc_ring(
-	enum dit_direction dir, u8 *src, u16 len, u16 ch_id, bool csum) { return -1; }
+	enum dit_direction dir, u8 *src, unsigned long src_paddr,
+	u16 len, u16 ch_id, bool csum) { return -1; }
 static inline int dit_enqueue_src_desc_ring_skb(
 	enum dit_direction dir, struct sk_buff *skb) { return -1; }
 static inline int dit_kick(enum dit_direction dir, bool retry) { return -1; }

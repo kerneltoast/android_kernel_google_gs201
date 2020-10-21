@@ -153,6 +153,7 @@ static void calc_rx_speed_internal(struct cpif_tpmon *tpmon,
 {
 	unsigned long divider_mbps, divider_kbps;
 	unsigned long rx_bytes;
+	unsigned long flags;
 
 	/* mbps 131072 = 1024 * 1024 / 8 */
 	/* kbps 128 = 1024 / 8 */
@@ -164,8 +165,10 @@ static void calc_rx_speed_internal(struct cpif_tpmon *tpmon,
 		divider_kbps = 128;
 	}
 
+	spin_lock_irqsave(&tpmon->lock, flags);
 	rx_bytes = rx_data->rx_bytes;
 	rx_data->rx_bytes = 0;
+	spin_unlock_irqrestore(&tpmon->lock, flags);
 
 	rx_data->rx_sum -= rx_data->rx_bytes_data[rx_data->rx_bytes_idx];
 	rx_data->rx_sum += rx_bytes;
@@ -434,10 +437,10 @@ static void tpmon_set_rps(struct tpmon_data *data)
 	mld = to_mem_link_device(data->tpmon->ld);
 	ppa = &mld->pktproc;
 	for (i = 0; i < ppa->num_queue; i++) {
-		if (ppa->use_napi)
-			napi_disable(&ppa->q[i]->napi);
 		if (ppa->use_exclusive_irq)
 			ppa->q[i]->disable_irq(ppa->q[i]);
+		if (ppa->use_napi)
+			napi_disable(&ppa->q[i]->napi);
 	}
 
 	for (i = 0; i < 1000; i++) {
@@ -493,7 +496,6 @@ static void tpmon_set_rps(struct tpmon_data *data)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 static void tpmon_set_gro(struct tpmon_data *data)
 {
 	struct mem_link_device *mld = container_of(data->tpmon->ld,
@@ -541,35 +543,17 @@ static void tpmon_set_gro(struct tpmon_data *data)
 
 	mif_info("%s (flush time:%u)\n", data->name, gro_flush_time);
 }
-#endif
 
 /* IRQ affinity */
-static int tpmon_stop_napi_poll(struct tpmon_data *data)
+#if IS_ENABLED(CONFIG_MCU_IPC)
+static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 {
 	struct mem_link_device *mld = ld_to_mem_link_device(data->tpmon->ld);
+	u32 cpu_num;
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 	int i;
 #endif
-
-	atomic_set(&mld->stop_napi_poll, 1);
-
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	for (i = 0; i < ppa->num_queue; i++)
-		pktproc_stop_napi_poll(ppa, i);
-#endif
-
-#if IS_ENABLED(CONFIG_EXYNOS_DIT)
-	dit_stop_napi_poll();
-#endif
-
-	return 0;
-}
-
-#if IS_ENABLED(CONFIG_MCU_IPC)
-static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
-{
-	u32 cpu_num;
 
 	if (!data->enable)
 		return;
@@ -579,7 +563,18 @@ static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 
 	mif_info("%s (CPU:%d)\n", data->name, cpu_num);
 
-	tpmon_stop_napi_poll(data);
+	if (data->extra_idx == 0)
+		atomic_set(&mld->stop_napi_poll, 1);
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (ppa->use_exclusive_irq) {
+		for (i = 0; i < ppa->num_queue; i++) {
+			if (ppa->use_napi)
+				pktproc_stop_napi_poll(ppa, i);
+		}
+	}
+#endif
+
 	cp_mbox_set_affinity(data->extra_idx, cpu_num);
 }
 #endif
@@ -601,7 +596,6 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 
 	mif_info("%s (CPU:%d)\n", data->name, cpu_num);
 
-	tpmon_stop_napi_poll(data);
 	exynos_pcie_rc_set_affinity(mc->pcie_ch_num, cpu_num);
 }
 #endif
@@ -619,6 +613,7 @@ static void tpmon_set_irq_affinity_dit(struct tpmon_data *data)
 
 	mif_info("%s (CPU:%d)\n", data->name, cpu_num);
 
+	dit_stop_napi_poll();
 	dit_set_irq_affinity(cpu_num);
 }
 #endif
@@ -770,6 +765,18 @@ static void tpmon_monitor_work(struct work_struct *ws)
 	}
 
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
+#if IS_ENABLED(CONFIG_MCPS)
+		if (mcps_enable) {
+			switch (data->target) {
+			case TPMON_TARGET_RPS:
+			case TPMON_TARGET_GRO:
+				continue;
+			default:
+				break;
+			}
+		}
+#endif
+
 		if (!data->set_data) {
 			mif_err_limited("set_data is null:%s\n", data->name);
 			continue;
@@ -828,6 +835,7 @@ void tpmon_add_rx_bytes(struct sk_buff *skb)
 {
 	struct cpif_tpmon *tpmon = &_tpmon;
 	u16 proto = 0;
+	unsigned long flags;
 
 	switch (skb->data[0] & 0xF0) {
 	case 0x40:
@@ -842,6 +850,8 @@ void tpmon_add_rx_bytes(struct sk_buff *skb)
 		return;
 	}
 
+	spin_lock_irqsave(&tpmon->lock, flags);
+
 	tpmon->rx_total.rx_bytes += skb->len;
 
 	switch (proto) {
@@ -855,6 +865,8 @@ void tpmon_add_rx_bytes(struct sk_buff *skb)
 		tpmon->rx_others.rx_bytes += skb->len;
 		break;
 	}
+
+	spin_unlock_irqrestore(&tpmon->lock, flags);
 }
 EXPORT_SYMBOL(tpmon_add_rx_bytes);
 
@@ -1451,11 +1463,9 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			break;
 #endif
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 		case TPMON_TARGET_GRO:
 			data->set_data = tpmon_set_gro;
 			break;
-#endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 		case TPMON_TARGET_MIF:
@@ -1529,7 +1539,6 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			data->set_data = tpmon_set_cpu_freq;
 			break;
 #endif
-
 		default:
 			mif_err("%s target error:%d %d\n", data->name, count, data->target);
 			return -EINVAL;

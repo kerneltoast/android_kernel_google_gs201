@@ -221,7 +221,7 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	ret = ld->send(ld, iod, skb_new);
 	if (unlikely(ret < 0)) {
-		if (ret != -EBUSY) {
+		if ((ret != -EBUSY) && (ret != -ENOSPC)) {
 			mif_err_limited("%s->%s: ERR! %s->send fail:%d (tx_bytes:%d len:%d)\n",
 				iod->name, mc->name, ld->name, ret,
 				tx_bytes, count);
@@ -295,8 +295,7 @@ static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 #endif
 {
 #if IS_ENABLED(CONFIG_MODEM_IF_QOS)
-	return 0; /* GKI TODO */
-	/* return (skb && skb->priomark == RAW_HPRIO) ? 1 : 0; */
+	return (skb && skb_is_tcp_pure_ack(skb)) ? 1 : 0;
 #elif IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
 	return ((skb && skb->truesize == 2) ||
 			(skb && skb->sk && cpif_qos_get_node(skb->sk->sk_uid.val))) ? 1 : 0;
@@ -326,7 +325,5 @@ void vnet_setup(struct net_device *ndev)
 	ndev->tx_queue_len = 1000;
 	ndev->mtu = ETH_DATA_LEN;
 	ndev->watchdog_timeo = 5 * HZ;
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 	ndev->features |= (NETIF_F_GRO | NETIF_F_GRO_FRAGLIST);
-#endif
 }

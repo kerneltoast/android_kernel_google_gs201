@@ -2523,7 +2523,6 @@ exit:
 	return err;
 }
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 long gro_flush_time = 10000;
 module_param(gro_flush_time, long, 0644);
 
@@ -2616,7 +2615,6 @@ static struct timespec update_flush_time(struct timespec org_flush_time)
 
 	return ret;
 }
-#endif
 #endif
 
 static int sbd_link_rx_func_napi(struct sbd_link_device *sl, struct link_device *ld, int budget,
@@ -3182,9 +3180,7 @@ static irqreturn_t shmem_irq_handler(int irq, void *data)
 		struct link_device *ld = &mld->link_dev;
 
 		ld->disable_rx_int(ld);
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 		mld->flush_time = ld->update_flush_time(mld->flush_time);
-#endif
 		__napi_schedule(&mld->mld_napi);
 	}
 
@@ -3928,10 +3924,8 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	ld->close_tx = shmem_close_tx;
 	ld->get_cp_crash_reason = get_cp_crash_reason;
 
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 	ld->gro_flush = gro_flush_timer;
 	ld->update_flush_time = update_flush_time;
-#endif
 
 	ld->protocol = modem->protocol;
 	ld->capability_check = modem->capability_check;

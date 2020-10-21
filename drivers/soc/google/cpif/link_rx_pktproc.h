@@ -119,6 +119,11 @@ struct pktproc_queue {
 	/* Follow rear_ptr when desc_mode is sktbuf mode */
 	u32 done_ptr;
 
+	/* Store */
+	u32 cp_desc_pbase;
+	u32 num_desc;
+	u32 cp_buff_pbase;
+
 	/* Pointer to info region by version */
 	union {
 		struct {
@@ -128,7 +133,7 @@ struct pktproc_queue {
 			struct pktproc_info_v2 *info_v2;
 		};
 	};
-	struct pktproc_q_info *q_info;	/* Pointer to q_info of info_v */
+	struct pktproc_q_info *q_info_ptr;	/* Pointer to q_info of info_v */
 
 	/* Pointer to desc region by addr mode */
 	union {
@@ -143,6 +148,7 @@ struct pktproc_queue {
 
 	/* Pointer to data buffer for a queue */
 	u8 __iomem *q_buff_vbase;
+	unsigned long q_buff_pbase;
 	u32 q_buff_size;
 
 	/* Buffer manager */
@@ -159,12 +165,10 @@ struct pktproc_queue {
 	struct napi_struct napi;
 	struct napi_struct *napi_ptr;
 	atomic_t stop_napi_poll;
-#if IS_ENABLED(CONFIG_MODEM_IF_NET_GRO)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	struct timespec64 flush_time;
 #else
 	struct timespec flush_time;
-#endif
 #endif
 
 	/* Statistics */
@@ -264,9 +268,12 @@ struct pktproc_adaptor {
 	void __iomem *info_vbase;	/* I/O region for information */
 	void __iomem *desc_vbase;	/* I/O region for descriptor */
 	void __iomem *buff_vbase;	/* I/O region for data buffer */
+	unsigned long buff_pbase;
 	struct pktproc_queue *q[PKTPROC_MAX_QUEUE];	/* Logical queue */
 
+	/* Debug */
 	struct pktproc_perftest perftest;
+	bool pktgen_gro;
 };
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)

@@ -27,10 +27,10 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 		return -EACCES;
 	}
 
-	space = circ_get_space(q_info->num_desc, q->done_ptr, q_info->rear_ptr);
+	space = circ_get_space(q->num_desc, q->done_ptr, q_info->rear_ptr);
 	if (space < 1) {
 		mif_err_limited("NOSPC num_desc:%d fore:%d done:%d rear:%d\n",
-			q_info->num_desc, q_info->fore_ptr, q->done_ptr, q_info->rear_ptr);
+			q->num_desc, q_info->fore_ptr, q->done_ptr, q_info->rear_ptr);
 		q->stat.buff_full_cnt++;
 		return -ENOSPC;
 	}
@@ -66,7 +66,7 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 	desc->hw_set = 0;
 	desc->lcid = skbpriv(skb)->sipc_ch;
 
-	q->done_ptr = circ_new_ptr(q_info->num_desc, q->done_ptr, 1);
+	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
 	return skb->len;
 }
@@ -78,7 +78,7 @@ static int pktproc_set_end(struct pktproc_queue_ul *q, unsigned int desc_index,
 	struct pktproc_desc_ul *prev_desc;
 	unsigned int prev_index;
 
-	if (unlikely(desc_index >= q_info->num_desc))
+	if (unlikely(desc_index >= q->num_desc))
 		return -EINVAL;
 
 	if (unlikely(circ_empty(q->done_ptr, q_info->rear_ptr)))
@@ -92,7 +92,7 @@ static int pktproc_set_end(struct pktproc_queue_ul *q, unsigned int desc_index,
 		return -EACCES;
 	}
 
-	prev_index = circ_prev_ptr(q_info->num_desc, desc_index, prev_offset);
+	prev_index = circ_prev_ptr(q->num_desc, desc_index, prev_offset);
 
 	barrier();
 
@@ -117,13 +117,13 @@ static int pktproc_ul_update_fore_ptr(struct pktproc_queue_ul *q, u32 count)
 	int ret;
 
 	last_ptr = q->q_info->fore_ptr;
-	fore_ptr = circ_new_ptr(q->q_info->num_desc, last_ptr, count);
+	fore_ptr = circ_new_ptr(q->num_desc, last_ptr, count);
 
 	if (count < offset)
 		goto set_fore;
 
 	for (i = 0; i < count - offset; i += offset) {
-		last_ptr = circ_new_ptr(q->q_info->num_desc, last_ptr, offset);
+		last_ptr = circ_new_ptr(q->num_desc, last_ptr, offset);
 		ret = pktproc_set_end(q, last_ptr, 1);
 		if (ret) {
 			mif_err_limited("set end failed. q_idx:%d, ret:%d\n", q->q_idx, ret);
@@ -158,7 +158,6 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr,
 	struct pktproc_adaptor_ul *ppa_ul = &mld->pktproc_ul;
 	struct pktproc_info_ul *info_ul =
 		(struct pktproc_info_ul *)ppa_ul->info_vbase;
-	struct pktproc_q_info_ul *q_info;
 
 	ssize_t count = 0;
 	int i;
@@ -180,16 +179,15 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr,
 			continue;
 		}
 
-		q_info = q->q_info;
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "Queue%d\n", i);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  num_desc:%d(0x%08x)\n",
-				q_info->num_desc, q_info->num_desc);
+				q->q_info->num_desc, q->q_info->num_desc);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  cp_desc_pbase:0x%08x\n",
-				q_info->cp_desc_pbase);
+				q->q_info->cp_desc_pbase);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  desc_size:0x%08x\n",
 				q->desc_size);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  cp_buff_pbase:0x%08x\n",
-				q_info->cp_buff_pbase);
+				q->q_info->cp_buff_pbase);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  q_buff_size:0x%08x\n",
 				q->q_buff_size);
 	}
@@ -204,7 +202,6 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	struct link_device *ld = get_current_link(mc->iod);
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	struct pktproc_adaptor_ul *ppa_ul = &mld->pktproc_ul;
-	struct pktproc_q_info_ul *q_info;
 	ssize_t count = 0;
 	int i;
 
@@ -217,12 +214,11 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 			continue;
 		}
 
-		q_info = q->q_info;
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "Queue%d\n", i);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  num_desc:%d\n",
-				q_info->num_desc);
+				q->num_desc);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  fore/rear:%d/%d\n",
-				q_info->fore_ptr, q_info->rear_ptr);
+				q->q_info->fore_ptr, q->q_info->rear_ptr);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  pass:%lld\n",
 				q->stat.pass_cnt);
 		count += scnprintf(&buf[count], PAGE_SIZE - count,
@@ -278,13 +274,16 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 
 	for (i = 0; i < ppa_ul->num_queue; i++) {
 		struct pktproc_queue_ul *q = ppa_ul->q[i];
-		struct pktproc_q_info_ul *q_info = q->q_info;
 
 		mif_info("PKTPROC UL Q%d\n", i);
 
 		*q->fore_ptr = 0; /* sets q_info->fore_ptr to 0 */
 		q->done_ptr = 0;
 		*q->rear_ptr = 0; /* sets q_info->rear_ptr to 0 */
+
+		q->q_info->cp_desc_pbase = q->cp_desc_pbase;
+		q->q_info->num_desc = q->num_desc;
+		q->q_info->cp_buff_pbase = q->cp_buff_pbase;
 
 		if (dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx))
 			dit_reset_dst_wp_rp(DIT_DIR_TX);
@@ -294,9 +293,9 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 		atomic_set(&q->active, 1);
 		atomic_set(&q->busy, 0);
 		mif_info("num_desc:0x%08x cp_desc_pbase:0x%08x cp_buff_pbase:0x%08x\n",
-			q_info->num_desc, q_info->cp_desc_pbase, q_info->cp_buff_pbase);
+			q->num_desc, q->cp_desc_pbase, q->cp_buff_pbase);
 		mif_info("fore:%d rear:%d\n",
-			q_info->fore_ptr, q_info->rear_ptr);
+			q->q_info->fore_ptr, q->q_info->rear_ptr);
 	}
 
 	return 0;
@@ -426,29 +425,27 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->q_info = &q->ul_info->q_info[i];
 
 		q->q_buff_vbase = ppa_ul->buff_vbase + (i * buff_size_by_q);
-		q->q_info->cp_buff_pbase = ppa_ul->cp_base +
+		q->cp_buff_pbase = ppa_ul->cp_base +
 			ppa_ul->buff_rgn_offset + (i * buff_size_by_q);
+		q->q_info->cp_buff_pbase = q->cp_buff_pbase;
 		q->q_buff_size = buff_size_by_q;
-		q->q_info->num_desc = buff_size_by_q / ppa_ul->max_packet_size;
+		q->num_desc = buff_size_by_q / ppa_ul->max_packet_size;
+		q->q_info->num_desc = q->num_desc;
 		q->desc_ul = ppa_ul->desc_vbase +
-			(i * sizeof(struct pktproc_desc_ul) *
-			q->q_info->num_desc);
-		q->q_info->cp_desc_pbase = ppa_ul->cp_base +
+			(i * sizeof(struct pktproc_desc_ul) * q->num_desc);
+		q->cp_desc_pbase = ppa_ul->cp_base +
 			ppa_ul->desc_rgn_offset +
-			(i * sizeof(struct pktproc_desc_ul) *
-			q->q_info->num_desc);
-		q->desc_size = sizeof(struct pktproc_desc_ul) *
-			q->q_info->num_desc;
+			(i * sizeof(struct pktproc_desc_ul) * q->num_desc);
+		q->q_info->cp_desc_pbase = q->cp_desc_pbase;
+		q->desc_size = sizeof(struct pktproc_desc_ul) * q->num_desc;
 		q->buff_addr_cp = ppa_ul->cp_base + ppa_ul->buff_rgn_offset +
 			(i * buff_size_by_q);
 		q->send_packet = pktproc_send_pkt_to_cp;
 		q->update_fore_ptr = pktproc_ul_update_fore_ptr;
 
-		if ((q->q_info->cp_desc_pbase + q->desc_size) >
-				q->q_info->cp_buff_pbase) {
+		if ((q->cp_desc_pbase + q->desc_size) > q->cp_buff_pbase) {
 			mif_err("Descriptor overflow:0x%08x 0x%08x 0x%08x\n",
-				q->q_info->cp_desc_pbase, q->desc_size,
-				q->q_info->cp_buff_pbase);
+				q->cp_desc_pbase, q->desc_size, q->cp_buff_pbase);
 			goto create_error;
 		}
 
@@ -466,9 +463,9 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->done_ptr = *q->fore_ptr;
 
 		mif_info("num_desc:%d desc_offset:0x%08x desc_size:0x%08x\n",
-			q->q_info->num_desc, q->q_info->cp_desc_pbase, q->desc_size);
+			q->num_desc, q->cp_desc_pbase, q->desc_size);
 		mif_info("buff_offset:0x%08x buff_size:0x%08x\n",
-			q->q_info->cp_buff_pbase, q->q_buff_size);
+			q->cp_buff_pbase, q->q_buff_size);
 	}
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
@@ -486,7 +483,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 	}
 
 	ret = dit_set_desc_ring_len(DIT_DIR_TX,
-		ppa_ul->q[DIT_PKTPROC_TX_QUEUE_NUM]->q_info->num_desc);
+		ppa_ul->q[DIT_PKTPROC_TX_QUEUE_NUM]->num_desc);
 	if (ret) {
 		mif_err("dit_set_desc_ring_len() error:%d\n", ret);
 		goto create_error;

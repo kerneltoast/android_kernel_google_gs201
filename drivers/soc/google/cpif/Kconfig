@@ -112,12 +112,6 @@ config MODEM_IF_LEGACY_QOS
 	help
 	  This enables QoS for legacy buffer model
 
-config MODEM_IF_NET_GRO
-	tristate "enable GRO feature"
-	default n
-	help
-	 This enables GRO(Generic Receive Offload) feature
-
 config SUSPEND_DURING_VOICE_CALL
 	tristate "control wake_lock by voice call start/end notification"
 	depends on LINK_DEVICE_PCIE

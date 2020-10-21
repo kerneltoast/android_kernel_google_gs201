@@ -274,8 +274,17 @@ static ssize_t ipc_write(struct file *filp, const char __user *data,
 		headroom = 0;
 	}
 
-	if (unlikely(!mc->receive_first_ipc) && ld->is_log_ch(iod->ch))
-		return -EBUSY;
+	switch (ld->protocol) {
+	case PROTOCOL_SIPC:
+		if (unlikely(!mc->receive_first_ipc) && ld->is_log_ch(iod->ch))
+			return -EBUSY;
+	break;
+	case PROTOCOL_SIT:
+	break;
+	default:
+		mif_err("protocol error %d\n", ld->protocol);
+		return -EINVAL;
+	}
 
 	while (copied < cnt) {
 		remains = cnt - copied;
