@@ -276,6 +276,35 @@ static void pixel_ufs_update_io_stats(struct ufs_hba *hba,
 	record_ufs_stats(hba);
 }
 
+void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct pixel_ufs_stats *ufs_stats = &ufs->ufs_stats;
+	ktime_t curr_t = ktime_get();
+
+	if (is_enter_h8) {
+		ufs_stats->last_hibern8_enter_time = curr_t;
+		ufs_stats->hibern8_flag = true;
+	} else {
+		ufs_stats->last_hibern8_exit_time = curr_t;
+		if (ufs_stats->hibern8_flag) {
+			/* calculate time & count when pair cases */
+			ufs_stats->hibern8_total_us += ktime_us_delta(curr_t,
+						ufs_stats->last_hibern8_enter_time);
+			ufs_stats->hibern8_exit_cnt++;
+		}
+		ufs_stats->hibern8_flag = false;
+	}
+}
+
+void pixel_init_parameter(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	memset(&ufs->ufs_stats, 0, sizeof(struct pixel_ufs_stats));
+	ufs->ufs_stats.hibern8_flag = false;
+}
+
 void pixel_ufs_send_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
 	pixel_ufs_update_io_stats(hba, lrbp, true);
@@ -1058,11 +1087,46 @@ static const struct attribute_group pixel_sysfs_err_stats_group = {
 	.attrs = ufs_sysfs_err_stats,
 };
 
+#define PIXEL_UFS_STATS_ATTR(_name)				\
+static ssize_t _name##_show(struct device *dev,			\
+	struct device_attribute *attr, char *buf)		\
+{								\
+	struct ufs_hba *hba = dev_get_drvdata(dev);		\
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);		\
+	unsigned long flags;					\
+	u64 val;						\
+	spin_lock_irqsave(hba->host->host_lock, flags);		\
+	val = ufs->ufs_stats._name;				\
+	spin_unlock_irqrestore(hba->host->host_lock, flags);	\
+	return sprintf(buf, "%llu\n", val);			\
+}								\
+static DEVICE_ATTR_RO(_name)
+
+PIXEL_UFS_STATS_ATTR(hibern8_total_us);
+PIXEL_UFS_STATS_ATTR(hibern8_exit_cnt);
+PIXEL_UFS_STATS_ATTR(last_hibern8_enter_time);
+PIXEL_UFS_STATS_ATTR(last_hibern8_exit_time);
+
+static struct attribute *ufs_sysfs_ufs_stats[] = {
+	&dev_attr_hibern8_total_us.attr,
+	&dev_attr_hibern8_exit_cnt.attr,
+	&dev_attr_last_hibern8_enter_time.attr,
+	&dev_attr_last_hibern8_exit_time.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_ufs_stats_group = {
+	.name = "ufs_stats",
+	.attrs = ufs_sysfs_ufs_stats,
+};
+
+
 static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_group,
 	&pixel_sysfs_req_stats_group,
 	&pixel_sysfs_io_stats_group,
 	&pixel_sysfs_err_stats_group,
+	&pixel_sysfs_ufs_stats_group,
 	NULL,
 };
 

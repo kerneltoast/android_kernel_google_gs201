@@ -166,6 +166,9 @@ struct exynos_ufs {
 	/* To monitor slow UFS I/O requests. */
 	u64 slowio_min_us;
 	u64 slowio[PIXEL_SLOWIO_OP_MAX][PIXEL_SLOWIO_SYS_MAX];
+
+	/* Hibern8 recording */
+	struct pixel_ufs_stats ufs_stats;
 };
 
 static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)

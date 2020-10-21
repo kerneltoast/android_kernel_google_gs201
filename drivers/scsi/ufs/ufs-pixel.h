@@ -158,4 +158,22 @@ enum pixel_err_systype {
 	PIXEL_ERR_COUNT = 0,
 	PIXEL_ERR_TIME,
 };
+
+/**
+ * struct pixel_ufs_stats - statistics for ufs host parameters
+ * @hibern8_total_us: the total time of staying hibern8 mode (us)
+ * @hibern8_exit_cnt: the count of exiting hibern8 mode
+ * @last_hibern8_enter_time: the last timing which entered hibern8 mode (us)
+ * @last_hibern8_exit_time: the last timing which exited hibern8 mode (us)
+ */
+struct pixel_ufs_stats {
+	bool hibern8_flag;
+	u64 hibern8_total_us;
+	u32 hibern8_exit_cnt;
+	u64 last_hibern8_enter_time;
+	u64 last_hibern8_exit_time;
+};
+
+extern void pixel_init_parameter(struct ufs_hba *hba);
+extern void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8);
 #endif

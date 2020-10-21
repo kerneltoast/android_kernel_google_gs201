@@ -460,6 +460,8 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 
 	exynos_ufs_fmp_init(hba);
 
+	pixel_init_parameter(hba);
+
 	pixel_init_manual_gc(hba);
 
 	pixel_init_slowio(hba);
@@ -810,6 +812,8 @@ static void exynos_ufs_hibern8_notify(struct ufs_hba *hba,
 
 			ufs->h_state_prev = ufs->h_state;
 			ufs->h_state = H_HIBERN8;
+
+			pixel_ufs_record_hibern8(hba, 1);
 		}
 	} else {
 		if (notify == PRE_CHANGE) {
@@ -828,6 +832,8 @@ static void exynos_ufs_hibern8_notify(struct ufs_hba *hba,
 			if (h8_delay_ms_ovly)
 				hba->clk_gating.delay_ms =
 					(unsigned long)h8_delay_ms_ovly;
+
+			pixel_ufs_record_hibern8(hba, 0);
 		}
 	}
 }
