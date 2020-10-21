@@ -68,3 +68,7 @@ UNSTRIPPED_MODULES="
 bcmdhd43752.ko
 bcmdhd4389.ko
 "
+
+if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
+source ${GKI_DEFCONFIG_FRAGMENT}
+fi
