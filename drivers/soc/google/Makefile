@@ -48,3 +48,5 @@ obj-$(CONFIG_HARDLOCKUP_WATCHDOG)	+= hardlockup-watchdog.o
 obj-$(CONFIG_VH_KERNEL)			+= vh/kernel/
 
 obj-$(CONFIG_DBGCORE_DUMP)		+= dbgcore-dump.o
+
+obj-$(CONFIG_EXYNOS_SECURE_LOG) 	+= exynos-seclog.o
