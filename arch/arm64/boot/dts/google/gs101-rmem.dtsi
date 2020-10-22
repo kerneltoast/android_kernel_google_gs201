@@ -6,6 +6,7 @@
  */
 
 #include <dt-bindings/soc/google/debug-snapshot-def.h>
+#include <dt-bindings/soc/google/exynos-seclog.h>
 
 / {
 
@@ -120,6 +121,11 @@
 				reg = <0 DSS_LOG_PRE_SLCDUMP_ADDR
 						DSS_LOG_SLCDUMP_SIZE>;
 			};
+		};
+
+		seclog_mem: seclog_mem {
+			compatible = "exynos,seclog";
+			reg = <0 SECLOG_LOG_BUF_BASE SECLOG_LOG_BUF_TOTAL_SIZE>;
 		};
 	};
 };
