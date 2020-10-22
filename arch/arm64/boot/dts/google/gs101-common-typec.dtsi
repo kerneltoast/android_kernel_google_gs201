@@ -108,6 +108,13 @@
 				     PDO_FIXED(9000, 2000, 0)
 				     PDO_PPS_APDO(5000, 11000, 3000)>;
 		};
+
+		/* EXT_BST_EN exposed as GPIO */
+		max77759_tcpc_gpio: max77759_tcpc_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <1>;
+		};
 	};
 };
 
