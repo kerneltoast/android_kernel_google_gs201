@@ -1,6 +1,14 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 
+if [ -n "${BUILD_CONFIG}" ]; then
+  echo "ERROR: setting BUILD_CONFIG is not supported for $0" >&2
+  echo "usage: $0"
+  echo
+  echo "See build.sh for supported configs."
+  exit 1
+fi
+
 export MIXED_BUILD=1
 
 BASE_OUT=${OUT_DIR:-out}/mixed/
