@@ -276,6 +276,7 @@
 #define ENC_SET_BUF_FLAG_CTRL		(1 << 16)
 #define ENC_SET_GDC_VOTF		(1 << 17)
 #define ENC_SET_OPERATING_FPS		(1 << 18)
+#define ENC_SET_AVERAGE_QP		(1 << 19)
 
 #define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw_date >= (f).version))
 

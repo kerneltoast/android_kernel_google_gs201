@@ -757,6 +757,8 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 			&pdata->drm_switch_predict.support, 2);
 	of_property_read_u32_array(np, "sbwc_enc_src_ctrl",
 			&pdata->sbwc_enc_src_ctrl.support, 2);
+	of_property_read_u32_array(np, "average_qp",
+			&pdata->average_qp.support, 2);
 
 	/* Determine whether to enable AV1 decoder */
 	of_property_read_u32(np, "support_av1_dec", &pdata->support_av1_dec);

@@ -2534,6 +2534,15 @@ static struct v4l2_queryctrl controls[] = {
 		.step = 1,
 		.default_value = 60000,
 	},
+	{
+		.id = V4L2_CID_MPEG_VIDEO_AVERAGE_QP,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Frames average QP",
+		.minimum = 0,
+		.maximum = 255,
+		.step = 1,
+		.default_value = 0,
+	},
 };
 
 #define NUM_CTRLS ARRAY_SIZE(controls)

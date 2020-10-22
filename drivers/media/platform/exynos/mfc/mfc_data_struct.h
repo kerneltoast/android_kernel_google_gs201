@@ -753,6 +753,7 @@ struct mfc_platdata {
 	struct mfc_feature wait_nalq_status;
 	struct mfc_feature drm_switch_predict;
 	struct mfc_feature sbwc_enc_src_ctrl;
+	struct mfc_feature average_qp;
 
 	/* AV1 Decoder */
 	unsigned int support_av1_dec;
