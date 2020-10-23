@@ -495,6 +495,9 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 	struct hw_info hw;
 	int ret;
 
+	if (unlikely(!dc) || unlikely(!dc->ld))
+		return -EPERM;
+
 	if (!dhc)
 		return -EPERM;
 
