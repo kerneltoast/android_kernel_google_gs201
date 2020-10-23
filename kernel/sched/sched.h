@@ -997,6 +997,7 @@ struct rq {
 	unsigned long		cpu_capacity_inverted;
 
 	struct callback_head	*balance_callback;
+	unsigned char		balance_flags;
 
 	unsigned char		nohz_idle_balance;
 	unsigned char		idle_balance;
@@ -1353,6 +1354,9 @@ rq_unlock_irq(struct rq *rq, struct rq_flags *rf)
 	raw_spin_unlock_irq(&rq->lock);
 }
 
+#define BALANCE_WORK	0x01
+#define BALANCE_PUSH	0x02
+
 static inline void
 rq_unlock(struct rq *rq, struct rq_flags *rf)
 	__releases(rq->lock)
@@ -1425,12 +1429,13 @@ queue_balance_callback(struct rq *rq,
 {
 	lockdep_assert_held(&rq->lock);
 
-	if (unlikely(head->next))
+	if (unlikely(head->next || (rq->balance_flags & BALANCE_PUSH)))
 		return;
 
 	head->func = (void (*)(struct callback_head *))func;
 	head->next = rq->balance_callback;
 	rq->balance_callback = head;
+	rq->balance_flags |= BALANCE_WORK;
 }
 
 #define rcu_dereference_check_sched_domain(p) \
