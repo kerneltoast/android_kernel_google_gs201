@@ -6,6 +6,8 @@
  *
  */
 
+#include <dt-bindings/power/google-power.h>
+
 &pinctrl_0 {
 	m_pmic_irq: m-pmic-irq {
 		samsung,pins = "gpa0-6";
@@ -57,14 +59,10 @@
 
 		#thermal-sensor-cells = <1>;
 		smpl_warn_en = <1>; /* 1 : enable , 0 : disable */
-		/* range of smpl_warn_vth */
-		/* 0x00 : 2.6V,		  0x20 : 2.7V,	0x40 : 2.8V */
-		/* 0x60 : 2.9V(default),  0x80 : 3.0V,	0xA0 : 3.1V */
-		/* 0xC0 : 3.2V,		  0xE0 : 3.3V	*/
-		smpl_warn_vth = <0x60>;
+		smpl_warn_vth = <SMPL_2_9V>;
 		/* SMPL_Hys[4:3] 00(Reserved), 01(200mV) */
 		/*		 10(300mV), 11(Reserved) */
-		smpl_warn_hys = <0x01>;
+		smpl_warn_hys = <SMPL_HYST_200MV>;
 
 		b2_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b2_ocp_warn_cnt = <0>; /* ocp warn reset timing control */
@@ -722,151 +720,6 @@
 		};
 
 		s2mpg10_pinctrl: s2mpg10_pinctrl {
-		};
-	};
-};
-
-&thermal_zones {
-	smpl_gm {
-		zone_name  = "SMPL_GM";
-		polling-delay-passive = <100>;
-		polling-delay = <0>;
-		thermal-governor = "low_limits_cap";
-		thermal-sensors = <&s2mpg10mfd 0>;
-		tracks-low;
-
-		trips {
-			smpl:smpl_0 {
-				temperature = <2900>;
-				hysteresis = <100>;
-				type = "passive";
-			};
-		};
-	};
-	ocp_cpu1 {
-		zone_name  = "OCP_CPU1";
-		polling-delay-passive = <100>;
-		polling-delay = <0>;
-		thermal-governor = "low_limits_cap";
-		thermal-sensors = <&s2mpg10mfd 1>;
-
-		trips {
-			ocp_cpu1:ocp-cpu1 {
-				temperature = <7000>;
-				hysteresis = <100>;
-				type = "passive";
-			};
-		};
-		cooling-maps {
-			map0 {
-			     trip = <&ocp_cpu1>;
-			     cooling-device = <&cpufreq_domain0 0 0>;
-		};
-		};
-	};
-	ocp_cpu2 {
-		zone_name  = "OCP_CPU2";
-		polling-delay-passive = <100>;
-		polling-delay = <0>;
-		thermal-governor = "low_limits_cap";
-		thermal-sensors = <&s2mpg10mfd 2>;
-
-		trips {
-			ocp_cpu2:ocp-cpu2 {
-				temperature = <12000>;
-				hysteresis = <100>;
-				type = "passive";
-			};
-		};
-		cooling-maps {
-			map0 {
-			     trip = <&ocp_cpu2>;
-			     cooling-device = <&cpufreq_domain0 0 0>;
-		};
-		};
-	};
-	soft_ocp_cpu1 {
-		zone_name  = "SOFT_OCP_CPU1";
-		polling-delay-passive = <100>;
-		polling-delay = <0>;
-		thermal-governor = "low_limits_cap";
-		thermal-sensors = <&s2mpg10mfd 3>;
-
-		trips {
-			soft_ocp_cpu1:soft-ocp-cpu1 {
-				temperature = <7000>;
-				hysteresis = <100>;
-				type = "passive";
-			};
-		};
-		cooling-maps {
-			map0 {
-			     trip = <&soft_ocp_cpu1>;
-			     cooling-device = <&cpufreq_domain0 0 0>;
-		};
-		};
-	};
-	soft_ocp_cpu2 {
-		zone_name  = "SOFT_OCP_CPU2";
-		polling-delay-passive = <100>;
-		polling-delay = <0>;
-		thermal-governor = "low_limits_cap";
-		thermal-sensors = <&s2mpg10mfd 4>;
-
-		trips {
-			soft_ocp_cpu2:soft-ocp-cpu2 {
-				temperature = <12000>;
-				hysteresis = <100>;
-				type = "passive";
-			};
-		};
-		cooling-maps {
-			map0 {
-			     trip = <&soft_ocp_cpu2>;
-			     cooling-device = <&cpufreq_domain0 0 0>;
-		};
-		};
-	};
-	ocp_tpu {
-		zone_name  = "OCP_TPU";
-		polling-delay-passive = <100>;
-		polling-delay = <0>;
-		thermal-governor = "low_limits_cap";
-		thermal-sensors = <&s2mpg10mfd 5>;
-
-		trips {
-			ocp_tpu:ocp-tpu{
-				temperature = <10500>;
-				hysteresis = <100>;
-				type = "passive";
-			};
-		};
-		cooling-maps {
-			map0 {
-			     trip = <&ocp_tpu>;
-			     cooling-device = <&cpufreq_domain0 0 0>;
-		};
-		};
-	};
-	soft_ocp_tpu {
-		zone_name  = "SOFT_OCP_TPU";
-		polling-delay-passive = <100>;
-		polling-delay = <0>;
-		thermal-governor = "low_limits_cap";
-		thermal-sensors = <&s2mpg10mfd 6>;
-
-		trips {
-			soft_ocp_tpu:soft-ocp-tpu {
-				temperature = <10500>;
-				hysteresis = <100>;
-				type = "passive";
-			};
-		};
-		cooling-maps {
-			map0 {
-			     trip = <&soft_ocp_tpu>;
-			     cooling-device = <&cpufreq_domain0 0 0>;
-		};
 		};
 	};
 };

@@ -18,6 +18,7 @@
 #define WC_BUS &hsi2c_8
 #include "gs101-slider-wcharger.dtsi"
 #include "gs101-slider-thermal.dtsi"
+#include "gs101-slider-bcl.dtsi"
 #include "gs101-slider2-audio.dtsi"
 
 / {

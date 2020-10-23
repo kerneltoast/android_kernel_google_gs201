@@ -1068,26 +1068,7 @@
 		#thermal-sensor-cells = <0>;
 	};
 
-	google_bcl: google,bcl{
-		compatible = "google,gs101-bcl";
-		#thermal-sensor-cells = <0>;
-	};
-
 	thermal_zones: thermal-zones {
-		soc {
-			zone_name  = "BATT_SOC_MOD";
-			polling-delay-passive = <1000>;
-			polling-delay = <0>;
-			thermal-sensors = <&google_bcl>;
-
-			trips {
-				soc_trip:soc-trip {
-					temperature = <90>;
-					hysteresis = <0>;
-					type = "passive";
-				};
-			};
-		};
 		big_thermal: BIG {
 			zone_name  = "BIG_THERMAL";
 			polling-delay-passive = <0>;

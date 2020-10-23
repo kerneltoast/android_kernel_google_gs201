@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google GS101 Whitefin2-specific bcl device tree source
+ *
+ * Copyright (c) 2020 Google, LLC
+ *		https://www.google.com
+ */
+
+#include <dt-bindings/thermal/thermal.h>
+
+&acpm_mfd_bus0 {
+	s2mpg10mfd@00 {
+		google_bcl_m: google,bcl_m {
+			compatible = "google,gs101-bcl-m";
+			#thermal-sensor-cells = <0>;
+		};
+	};
+};
+
+&acpm_mfd_bus1 {
+	s2mpg11mfd@00 {
+		google_bcl_s: google,bcl_s {
+			compatible = "google,gs101-bcl-s";
+			#thermal-sensor-cells = <0>;
+		};
+	};
+};
+
+/* Thermal Zones */
+&thermal_zones {
+	soc {
+		zone_name  = "BATT_SOC_MOD";
+		polling-delay-passive = <1000>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&google_bcl_m>;
+
+		trips {
+			soc_trip:soc-trip {
+				temperature = <90>;
+				hysteresis = <0>;
+				type = "passive";
+			};
+		};
+	};
+
+	smpl_gm {
+		zone_name  = "SMPL_GM";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg10mfd 0>;
+
+		trips {
+			smpl:smpl_0 {
+				temperature = <1400>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	ocp_cpu1 {
+		zone_name  = "OCP_CPU1";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg10mfd 1>;
+
+		trips {
+			ocp_cpu1:ocp-cpu1 {
+				temperature = <7000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	ocp_cpu2 {
+		zone_name  = "OCP_CPU2";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg10mfd 2>;
+
+		trips {
+			ocp_cpu2:ocp-cpu2 {
+				temperature = <12000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	soft_ocp_cpu1 {
+		zone_name  = "SOFT_OCP_CPU1";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg10mfd 3>;
+
+		trips {
+			soft_ocp_cpu1:soft-ocp-cpu1 {
+				temperature = <7000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	soft_ocp_cpu2 {
+		zone_name  = "SOFT_OCP_CPU2";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg10mfd 4>;
+
+		trips {
+			soft_ocp_cpu2:soft-ocp-cpu2 {
+				temperature = <12000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	ocp_tpu {
+		zone_name  = "OCP_TPU";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg10mfd 5>;
+
+		trips {
+			ocp_tpu:ocp-tpu{
+				temperature = <10500>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	soft_ocp_tpu {
+		zone_name  = "SOFT_OCP_TPU";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg10mfd 6>;
+
+		trips {
+			soft_ocp_tpu:soft-ocp-tpu {
+				temperature = <10500>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+};
