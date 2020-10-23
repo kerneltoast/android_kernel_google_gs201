@@ -406,8 +406,6 @@ static void dit_hal_set_iod_clat_netdev(struct io_device *iod, void *args)
 		if (iod->clat_ndev)
 			dev_put(iod->clat_ndev);
 
-		if (ndev)
-			ndev->features |= NETIF_F_GRO_FRAGLIST;
 		iod->clat_ndev = ndev;
 		spin_unlock_irqrestore(&iod->clat_lock, flags);
 
