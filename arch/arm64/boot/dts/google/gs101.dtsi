@@ -17,6 +17,7 @@
 #include "gs101-rmem.dtsi"
 #include "gs101-bigo.dtsi"
 #include "gs101-bts.dtsi"
+#include "gs101-cp-tm.dtsi"
 #include "gs101-cpu.dtsi"
 #include "gs101-dit.dtsi"
 #include "gs101-drm-dpu.dtsi"

@@ -7,6 +7,7 @@
  */
 
 #include "gs101-cp-s5200-sit.dtsi"
+#include "gs101-cp-s5200-thermal-zone.dtsi"
 
 / {
 	fragment@modemif {
