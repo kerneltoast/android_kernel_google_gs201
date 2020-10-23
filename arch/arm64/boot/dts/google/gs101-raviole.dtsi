@@ -6,3 +6,4 @@
  */
 
 #include "gs101-whitefin2-common.dtsi"
+#include "gs101-whitefin2v2-wcharger.dtsi"
