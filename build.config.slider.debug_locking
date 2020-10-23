@@ -1,5 +1,3 @@
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.slider
-
 POST_DEFCONFIG_CMDS="${POST_DEFCONFIG_CMDS} && update_debug_config"
 
 function update_debug_config() {
