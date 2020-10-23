@@ -168,5 +168,12 @@ config CP_WRESET_WA
     help
       CP warm reset WA
 
+config CP_THERMAL
+    tristate "Enable CP thermal zones"
+    depends on THERMAL
+    help
+      Enables support for reporting CP temperature sensor data to kernel thermal
+      framework.
+
 endmenu
 endif
