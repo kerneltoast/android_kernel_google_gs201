@@ -47,6 +47,10 @@ static struct mfd_cell s2mpg11_devs[] = {
 		.name = "gs101-spmic-thermal",
 		.of_compatible = "google,gs101-spmic-thermal",
 	},
+	{
+		.name = "gs101-bcl-s",
+		.of_compatible = "google,gs101-bcl-s",
+	},
 };
 
 int s2mpg11_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
