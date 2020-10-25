@@ -8,6 +8,23 @@
 #include <kernel/sched/sched.h>
 #include <kernel/sched/pelt.h>
 
+#define MIN_CAPACITY_CPU	CONFIG_MIN_CAPACITY_CPU
+#define MID_CAPACITY_CPU	CONFIG_MID_CAPACITY_CPU
+#define MAX_CAPACITY_CPU	CONFIG_MAX_CAPACITY_CPU
+#define HIGH_CAPACITY_CPU	CONFIG_HIGH_CAPACITY_CPU
+
+unsigned int capacity_margin = 1280;
+unsigned long scale_freq[NR_CPUS] = {
+			[0 ... NR_CPUS-1] = SCHED_CAPACITY_SCALE };
+
+/*****************************************************************************/
+/*                       Upstream Code Section                               */
+/*****************************************************************************/
+/*
+ * This part of code is copied from Android common GKI kernel and unmodified.
+ * Any change for these functions in upstream GKI would require extensive review
+ * to make proper adjustment in vendor hook.
+ */
 #define lsub_positive(_ptr, _val) do {				\
 	typeof(_ptr) ptr = (_ptr);				\
 	*ptr -= min_t(typeof(*ptr), *ptr, _val);		\
@@ -23,17 +40,6 @@
 	WRITE_ONCE(*ptr, res);					\
 } while (0)
 
-unsigned int capacity_margin = 1280;
-unsigned long scale_freq[NR_CPUS] = { SCHED_CAPACITY_SCALE };
-
-/*****************************************************************************/
-/*                       Upstream Code Section                               */
-/*****************************************************************************/
-/*
- * This part of code is copied from Android common GKI kernel and unmodified.
- * Any change for these functions in upstream GKI would require extensive review
- * to make proper adjustment in vendor hook.
- */
 #if IS_ENABLED(CONFIG_FAIR_GROUP_SCHED)
 static inline struct task_struct *task_of(struct sched_entity *se)
 {
@@ -302,22 +308,41 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 	return em_cpu_energy(pd->em_pd, max_util, sum_util);
 }
 
-
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
+static inline bool task_fits_capacity(struct task_struct *p, int cpu)
+{
+	unsigned int margin = capacity_margin;
+	unsigned long capacity = capacity_of(cpu);
+
+	return capacity * 1024 > uclamp_task_util(p) * margin;
+}
+
+static struct sched_group *find_start_sg(struct task_struct *p, bool boosted)
+{
+	if (boosted)
+		return cpu_rq(HIGH_CAPACITY_CPU)->sd->parent->groups;
+
+	if (task_fits_capacity(p, MIN_CAPACITY_CPU))
+		return cpu_rq(MIN_CAPACITY_CPU)->sd->parent->groups;
+	else
+		return cpu_rq(HIGH_CAPACITY_CPU)->sd->parent->groups;
+}
+
 // TODO: add logic for start_cpu, cpu capacity (max, mid, min), sync_boost
 // cpu_is_in_target_set, prefer_high_cap, prefer prev_cpu, fast exit, traces
-static void find_best_target(struct perf_domain *pd, cpumask_t *cpus, struct task_struct *p)
+static void find_best_target(cpumask_t *cpus, struct task_struct *p)
 {
 	unsigned long min_util = uclamp_task_util(p);
 	unsigned long target_capacity = ULONG_MAX;
 	unsigned long min_wake_util = ULONG_MAX;
 	unsigned long target_max_spare_cap = 0;
 	unsigned long target_util = ULONG_MAX;
+	struct sched_group *sg, *start_sg;
 	int best_active_cpu = -1;
 	int best_idle_cpu = -1;
 	int target_cpu = -1;
@@ -340,8 +365,9 @@ static void find_best_target(struct perf_domain *pd, cpumask_t *cpus, struct tas
 	if (prefer_idle && boosted)
 		target_capacity = 0;
 
+	sg = start_sg = find_start_sg(p, boosted);
 	do {
-		for_each_cpu_and(i, p->cpus_ptr, perf_domain_span(pd)) {
+		for_each_cpu_and(i, p->cpus_ptr, sched_group_span(sg)) {
 			unsigned long capacity_curr = capacity_curr_of(i);
 			unsigned long capacity = capacity_of(i);
 			unsigned long wake_util, new_util;
@@ -563,7 +589,7 @@ static void find_best_target(struct perf_domain *pd, cpumask_t *cpus, struct tas
 			target_cpu = i;
 		}
 
-	} while (pd = pd->next);
+	} while (sg = sg->next, sg != start_sg);
 
 	/*
 	 * For non latency sensitive tasks, cases B and C in the previous loop,
@@ -645,7 +671,7 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 	candidates = this_cpu_ptr(&energy_cpus);
 	cpumask_clear(candidates);
 
-	find_best_target(pd, candidates, p);
+	find_best_target(candidates, p);
 
 	/* Bail out if no candidate was found. */
 	weight = cpumask_weight(candidates);

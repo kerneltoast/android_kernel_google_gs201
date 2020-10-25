@@ -5,3 +5,23 @@ config VH_SCHED
         tristate "Vendor hooks for kernel scheduler"
         depends on VH_KERNEL
         default m
+
+config MIN_CAPACITY_CPU
+        int "Starting cpu of min capacity cluster"
+        depends on VH_KERNEL
+        default 0
+
+config MID_CAPACITY_CPU
+        int "Starting cpu of mid capacity cluster"
+        depends on VH_KERNEL
+        default 4
+
+config MAX_CAPACITY_CPU
+        int "Starting cpu of max capacity cluster"
+        depends on VH_KERNEL
+        default 6
+
+config HIGH_CAPACITY_CPU
+        int "Starting cpu of high capacity cluster"
+        depends on VH_KERNEL
+        default 4
