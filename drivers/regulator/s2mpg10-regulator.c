@@ -523,6 +523,8 @@ static ssize_t s2mpg10_pmic_read_store(struct device *dev,
 		client = s2mpg10->iodev->meter;
 		break;
 	case I2C_ADDR_WLWP:
+		client = s2mpg10->iodev->wlwp;
+		break;
 	default:
 		return size;
 	}
@@ -582,6 +584,8 @@ static ssize_t s2mpg10_pmic_write_store(struct device *dev,
 		client = s2mpg10->iodev->meter;
 		break;
 	case I2C_ADDR_WLWP:
+		client = s2mpg10->iodev->wlwp;
+		break;
 	default:
 		return size;
 	}

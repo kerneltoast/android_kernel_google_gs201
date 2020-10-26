@@ -354,10 +354,12 @@ static int s2mpg11_i2c_probe(struct i2c_client *i2c,
 	s2mpg11->pmic = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_PMIC);
 	s2mpg11->meter = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_METER);
 	s2mpg11->trim = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_TRIM);
+	s2mpg11->wlwp = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_WLWP);
 
 	i2c_set_clientdata(s2mpg11->pmic, s2mpg11);
 	i2c_set_clientdata(s2mpg11->meter, s2mpg11);
 	i2c_set_clientdata(s2mpg11->trim, s2mpg11);
+	i2c_set_clientdata(s2mpg11->wlwp, s2mpg11);
 
 	pr_info("%s device found: rev.0x%2x\n", __func__, s2mpg11->pmic_rev);
 
