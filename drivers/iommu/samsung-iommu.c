@@ -1085,6 +1085,59 @@ static int samsung_sysmmu_dev_disable_feat(struct device *dev, enum iommu_dev_fe
 	return -EINVAL;
 }
 
+static void samsung_sysmmu_get_resv_regions(struct device *dev, struct list_head *head)
+{
+	enum iommu_resv_type resvtype[] = {
+		IOMMU_RESV_DIRECT, IOMMU_RESV_RESERVED
+	};
+	const char *propname[ARRAY_SIZE(resvtype)] = {
+		"samsung,iommu-identity-map",
+		"samsung,iommu-reserved-map"
+	};
+	int n_addr_cells = of_n_addr_cells(dev->of_node);
+	int n_size_cells = of_n_size_cells(dev->of_node);
+	int n_all_cells = n_addr_cells + n_size_cells;
+	unsigned int type;
+
+	for (type = 0; type < ARRAY_SIZE(propname); type++) {
+		const __be32 *prop;
+		u64 base, size;
+		int i, cnt;
+
+		prop = of_get_property(dev->of_node, propname[type], &cnt);
+		if (!prop)
+			continue;
+
+		cnt /=  sizeof(u32);
+		if (cnt % n_all_cells != 0) {
+			dev_err(dev, "Invalid number(%d) of values in %s\n", cnt, propname[type]);
+			break;
+		}
+
+		for (i = 0; i < cnt; i += n_all_cells) {
+			struct iommu_resv_region *region;
+
+			base = of_read_number(prop + i, n_addr_cells);
+			size = of_read_number(prop + i + n_addr_cells, n_size_cells);
+			if (base & ~dma_get_mask(dev) || (base + size) & ~dma_get_mask(dev)) {
+				dev_err(dev, "Unreachable DMA region in %s, [%#lx..%#lx)\n",
+					propname[type], (unsigned long)base,
+					(unsigned long)(base + size));
+				continue;
+			}
+
+			region = iommu_alloc_resv_region(base, size, 0, resvtype[type]);
+			if (!region)
+				continue;
+
+			list_add_tail(&region->list, head);
+			dev_info(dev, "Reserved IOMMU mapping [%#lx..%#lx)\n",
+				 (unsigned long)base,
+				 (unsigned long)(base + size));
+		}
+	}
+}
+
 static struct iommu_ops samsung_sysmmu_ops = {
 	.capable		= samsung_sysmmu_capable,
 	.domain_alloc		= samsung_sysmmu_domain_alloc,
@@ -1100,6 +1153,8 @@ static struct iommu_ops samsung_sysmmu_ops = {
 	.release_device		= samsung_sysmmu_release_device,
 	.device_group		= samsung_sysmmu_device_group,
 	.of_xlate		= samsung_sysmmu_of_xlate,
+	.get_resv_regions	= samsung_sysmmu_get_resv_regions,
+	.put_resv_regions	= generic_iommu_put_resv_regions,
 	.dev_has_feat		= samsung_sysmmu_dev_has_feat,
 	.dev_feat_enabled	= samsung_sysmmu_dev_feat_enabled,
 	.dev_enable_feat	= samsung_sysmmu_dev_enable_feat,
