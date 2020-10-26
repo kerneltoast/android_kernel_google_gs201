@@ -586,7 +586,7 @@ static ssize_t s2mpg10_pmic_write_store(struct device *dev,
 		return size;
 	}
 
-	ret = s2mpg10_write_reg(s2mpg10->i2c, reg, data);
+	ret = s2mpg10_write_reg(client, reg, data);
 	if (ret < 0)
 		pr_err("%s: fail to write i2c addr/data\n", __func__);
 
