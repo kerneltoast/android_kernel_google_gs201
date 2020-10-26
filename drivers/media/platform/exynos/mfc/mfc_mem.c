@@ -475,7 +475,10 @@ int mfc_remap_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
 {
 	struct mfc_dev *dev = core->dev;
 	dma_addr_t fw_base_addr;
-	int ret;
+	struct device_node *node = core->device->of_node;
+	const __be32 *prop;
+	dma_addr_t reserved_base, reserved_end;
+	size_t reserved_size;
 
 	fw_base_addr = MFC_BASE_ADDR + dev->fw_base_offset;
 
@@ -492,19 +495,20 @@ int mfc_remap_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
 	fw_buf->daddr = fw_base_addr;
 	dev->fw_base_offset += fw_buf->map_size;
 
-	if (fw_base_addr == MFC_BASE_ADDR) {
-		ret = iommu_dma_reserve_iova(core->device, 0x0, MFC_BASE_ADDR);
-		if (ret) {
-			mfc_core_err("failed to reserve dva for firmware %d\n", ret);
-			return -ENOMEM;
-		}
+	prop = of_get_property(node, "samsung,iommu-reserved-map", NULL);
+	if (!prop) {
+		mfc_dev_err("No reserved F/W dma area\n");
+		return -ENOENT;
 	}
 
-	ret = iommu_dma_reserve_iova(core->device, fw_buf->daddr,
-					fw_buf->map_size);
-	if (ret) {
-		mfc_core_err("failed to reserve dva for firmware %d\n", ret);
-		return -ENOMEM;
+	reserved_base = of_read_number(prop, of_n_addr_cells(node));
+	reserved_size = of_read_number(prop + of_n_addr_cells(node), of_n_size_cells(node));
+	reserved_end = reserved_base + reserved_size;
+
+	if (fw_base_addr + fw_buf->map_size > reserved_end) {
+		mfc_core_err("F/W area flood the reserved region\n");
+		iommu_unmap(core->domain, fw_base_addr, fw_buf->map_size);
+		return -EINVAL;
 	}
 
 	return 0;
