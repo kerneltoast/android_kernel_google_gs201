@@ -17,6 +17,7 @@
 		/* for vb2 device */
 		iommus = <&sysmmu_mfc0>, <&sysmmu_mfc1>;
 		samsung,iommu-group = <&iommu_group_mfc>;
+		samsung,iommu-reserved-map = <0x0 0x0 0x10000000>;
 
 		samsung,tzmp;
 
@@ -171,6 +172,7 @@
 			clocks = <&clock GATE_MFC>;
 			iommus = <&sysmmu_mfc0>, <&sysmmu_mfc1>;
 			samsung,iommu-group = <&iommu_group_mfc>;
+			samsung,iommu-reserved-map = <0x0 0x10000000 0x100000>;
 
 			samsung,tzmp;
 			samsung,imgloader-s2mpu-support;
