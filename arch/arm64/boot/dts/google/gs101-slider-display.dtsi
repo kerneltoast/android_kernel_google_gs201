@@ -30,3 +30,6 @@
 	};
 };
 
+&m_ldo30_reg {
+	regulator-always-on;
+};
