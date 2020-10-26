@@ -37,6 +37,7 @@ struct acpm_ipc_ch {
 	struct mutex rx_lock;
 	struct mutex tx_lock;
 	struct mutex ch_lock;
+	struct semaphore send_sem;
 
 	struct completion wait;
 	bool polling;

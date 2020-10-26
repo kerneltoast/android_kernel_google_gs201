@@ -585,6 +585,9 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 
 	channel = &acpm_ipc->channel[channel_id];
 
+	if (down_timeout(&channel->send_sem, msecs_to_jiffies(1000)))
+		panic("[ACPM] channel %u send_sem timeout\n", channel_id);
+
 	mutex_lock(&channel->tx_lock);
 
 	front = __raw_readl(channel->tx_ch.front);
@@ -596,17 +599,18 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 		tmp_index = 0;
 
 	/* buffer full check */
-	UNTIL_EQUAL(true, tmp_index != __raw_readl(channel->tx_ch.rear), timeout_flag);
-	if (timeout_flag) {
+	if (tmp_index == rear) {
 		acpm_log_print();
-		acpm_debug->debug_log_level = 2;
-		mutex_unlock(&channel->tx_lock);
-		pr_err("[%s] tx buffer full! timeout!!!\n", __func__);
-		return -ETIMEDOUT;
+		panic("[ACPM] channel %u tx buffer full!\n", channel_id);
 	}
 
 	if (!cfg->cmd) {
+		/*
+		 * We can't move it before taking the mutex,
+		 * because cfg->cmd could be used as a barrier.
+		 */
 		mutex_unlock(&channel->tx_lock);
+		up(&channel->send_sem);
 		return -EIO;
 	}
 
@@ -627,6 +631,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	if (ret) {
 		pr_err("[ACPM] indirection command fail %d\n", ret);
 		mutex_unlock(&channel->tx_lock);
+		up(&channel->send_sem);
 		return ret;
 	}
 
@@ -664,12 +669,9 @@ retry:
 			}
 		}
 
-		if (timeout_flag) {
+		if ((timeout_flag) && (check_response(channel, cfg))) {
 			unsigned int saved_debug_log_level =
 			    acpm_debug->debug_log_level;
-
-			if (!check_response(channel, cfg))
-				return 0;
 			pr_err("%s Timeout error! now = %llu, timeout = %llu\n",
 			       __func__, now, timeout);
 			pr_err("[ACPM] int_status:0x%x, ch_id: 0x%x\n",
@@ -695,6 +697,7 @@ retry:
 			queue_work_on(0, update_log_wq, &acpm_debug->update_log_work);
 	}
 
+	up(&channel->send_sem);
 	return 0;
 }
 
@@ -833,6 +836,7 @@ static int channel_init(void)
 		mutex_init(&acpm_ipc->channel[i].rx_lock);
 		mutex_init(&acpm_ipc->channel[i].tx_lock);
 		mutex_init(&acpm_ipc->channel[i].ch_lock);
+		sema_init(&acpm_ipc->channel[i].send_sem, acpm_ipc->channel[i].tx_ch.len - 1);
 		INIT_LIST_HEAD(&acpm_ipc->channel[i].list);
 	}
 
