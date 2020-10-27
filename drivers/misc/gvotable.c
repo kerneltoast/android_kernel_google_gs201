@@ -863,7 +863,10 @@ int gvotable_get_vote(struct gvotable_election *el, const char *reason,
 		return -ENODEV;
 	}
 
-	*vote = ballot->vote[ballot->idx];
+	if (el->is_bool_type)
+		*vote = ballot->enabled;
+	else
+		*vote = ballot->vote[ballot->idx];
 	gvotable_unlock_result(el);
 	return 0;
 }
