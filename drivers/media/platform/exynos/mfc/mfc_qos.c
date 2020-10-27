@@ -313,7 +313,18 @@ void mfc_qos_update_framerate(struct mfc_ctx *ctx, u32 bytesused)
 		ctx->update_bitrate = true;
 	}
 
-	/* 2) framerate is updated */
+	/* 2) There is operating framearate */
+	if (ctx->operating_framerate) {
+		if (ctx->framerate != ctx->operating_framerate) {
+			mfc_debug(2, "[QoS] operating fps changed: %ld -> %ld\n",
+					ctx->framerate, ctx->operating_framerate);
+			ctx->framerate = ctx->operating_framerate;
+			ctx->update_framerate = true;
+		}
+		return;
+	}
+
+	/* 3) framerate is updated */
 	if (ctx->last_framerate != 0 && ctx->last_framerate != ctx->framerate) {
 		mfc_debug(2, "[QoS] fps changed: %ld -> %ld, qos ratio: %d\n",
 				ctx->framerate, ctx->last_framerate, ctx->qos_ratio);

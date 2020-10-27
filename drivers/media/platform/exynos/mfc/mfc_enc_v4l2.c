@@ -1023,6 +1023,7 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	val |= ENC_SET_DROP_CONTROL;
 	val |= ENC_SET_CHROMA_QP_CONTROL;
 	val |= ENC_SET_BUF_FLAG_CTRL;
+	val |= ENC_SET_OPERATING_FPS;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc))
 		val |= ENC_SET_COLOR_ASPECT;
@@ -1118,6 +1119,9 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 		break;
 	case V4L2_CID_MPEG_VIDEO_BPG_HEADER_SIZE:
 		ctrl->value = enc->header_size;
+		break;
+	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE:
+		ctrl->value = mfc_qos_get_framerate(ctx);
 		break;
 	default:
 		mfc_ctx_err("Invalid control: 0x%08x\n", ctrl->id);
@@ -1971,6 +1975,18 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 					enc->sh_handle_hdr.vaddr);
 		}
 		break;
+	case V4L2_CID_MPEG_VIDEO_GDC_VOTF:
+		ctx->gdc_votf = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_SKIP_LAZY_UNMAP:
+		ctx->skip_lazy_unmap = ctrl->value;
+		mfc_debug(2, "[LAZY_UNMAP] lazy unmap %s\n",
+				ctx->skip_lazy_unmap ? "disable" : "enable");
+		break;
+	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE:
+		ctx->operating_framerate = ctrl->value;
+		mfc_debug(2, "[QoS] user set the operating frame rate: %d\n", ctrl->value);
+		break;
 	/* These are stored in specific variables */
 	case V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH:
 	case V4L2_CID_MPEG_VIDEO_VP9_HIERARCHICAL_CODING_LAYER_CH:
@@ -1984,14 +2000,6 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG:
 	case V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG:
 	case V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG:
-		break;
-	case V4L2_CID_MPEG_VIDEO_GDC_VOTF:
-		ctx->gdc_votf = ctrl->value;
-		break;
-	case V4L2_CID_MPEG_VIDEO_SKIP_LAZY_UNMAP:
-		ctx->skip_lazy_unmap = ctrl->value;
-		mfc_debug(2, "[LAZY_UNMAP] lazy unmap %s\n",
-				ctx->skip_lazy_unmap ? "disable" : "enable");
 		break;
 	default:
 		mfc_ctx_err("Invalid control: 0x%08x\n", ctrl->id);

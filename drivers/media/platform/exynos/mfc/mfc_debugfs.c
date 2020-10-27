@@ -91,10 +91,11 @@ static int __mfc_info_show(struct seq_file *s, void *unused)
 		seq_printf(s, " [VERSION] H/W: v%x, F/W: %06x(%c), DRV: %d\n",
 				core->core_pdata->ip_ver, core->fw.date,
 				core->fw.fimv_info, MFC_DRIVER_INFO);
-		seq_printf(s, " [PM] power: %d, clock: %d, clk_get %s\n",
+		seq_printf(s, " [PM] power: %d, clock: %d, clk_get %s, QoS level: %d\n",
 				mfc_core_pm_get_pwr_ref_cnt(core),
 				mfc_core_pm_get_clk_ref_cnt(core),
-				IS_ERR(core->pm.clock) ? "failed" : "succeeded");
+				IS_ERR(core->pm.clock) ? "failed" : "succeeded",
+				atomic_read(&core->qos_req_cur) - 1);
 		seq_printf(s, " [CTX] num_inst: %d, num_drm_inst: %d, curr_ctx: %d(is_drm: %d)\n",
 				core->num_inst, core->num_drm_inst,
 				core->curr_core_ctx,
@@ -128,12 +129,14 @@ static int __mfc_info_show(struct seq_file *s, void *unused)
 			else
 				codec_name = ctx->dst_fmt->name;
 
-			seq_printf(s, "  [CTX:%d] %s %s, %s, %s, size: %dx%d, crop: %d %d %d %d\n",
+			seq_printf(s, "  [CTX:%d] %s %s, %s, %s, size: %dx%d@%ldfps(op: %ldfps), crop: %d %d %d %d\n",
 				ctx->num,
 				ctx->type == MFCINST_DECODER ? "DEC" : "ENC",
 				ctx->is_drm ? "Secure" : "Normal",
 				ctx->src_fmt->name, ctx->dst_fmt->name,
 				ctx->img_width, ctx->img_height,
+				ctx->last_framerate / 1000,
+				ctx->operating_framerate,
 				ctx->crop_width, ctx->crop_height,
 				ctx->crop_left, ctx->crop_top);
 			seq_printf(s, "        main core-%d, op_mode: %d, queue(src: %d, dst: %d, src_nal: %d, dst_nal: %d, ref: %d)\n",

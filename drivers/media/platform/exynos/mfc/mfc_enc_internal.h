@@ -1018,8 +1018,8 @@ static struct v4l2_queryctrl controls[] = {
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "QoS ratio value",
 		.minimum = 20,
-		.maximum = 1000,
-		.step = 10,
+		.maximum = INT_MAX,
+		.step = 1,
 		.default_value = 100,
 	},
 	{
@@ -2524,6 +2524,15 @@ static struct v4l2_queryctrl controls[] = {
 		.maximum = 1,
 		.step = 1,
 		.default_value = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Frames per second in 1000x scale",
+		.minimum = 0,
+		.maximum = INT_MAX,
+		.step = 1,
+		.default_value = 60000,
 	},
 };
 

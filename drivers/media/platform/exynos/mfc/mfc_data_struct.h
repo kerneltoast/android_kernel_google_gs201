@@ -2100,6 +2100,7 @@ struct mfc_ctx {
 
 	unsigned long framerate;
 	unsigned long last_framerate;
+	unsigned long operating_framerate;
 	unsigned int qos_ratio;
 	bool update_framerate;
 	bool update_bitrate;

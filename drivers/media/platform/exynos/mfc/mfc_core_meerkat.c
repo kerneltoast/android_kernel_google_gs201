@@ -344,13 +344,15 @@ void mfc_dump_state(struct mfc_dev *dev)
 
 	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
 		if (dev->ctx[i]) {
-			dev_err(dev->device, "- ctx[%d] %s %s, %s, %s, size: %dx%d, crop: %d %d %d %d\n",
+			dev_err(dev->device, "- ctx[%d] %s %s, %s, %s, size: %dx%d@%ldfps(op: %ldfps), crop: %d %d %d %d\n",
 				dev->ctx[i]->num,
 				dev->ctx[i]->type == MFCINST_DECODER ? "DEC" : "ENC",
 				dev->ctx[i]->is_drm ? "Secure" : "Normal",
 				dev->ctx[i]->src_fmt->name,
 				dev->ctx[i]->dst_fmt->name,
 				dev->ctx[i]->img_width, dev->ctx[i]->img_height,
+				dev->ctx[i]->last_framerate / 1000,
+				dev->ctx[i]->operating_framerate,
 				dev->ctx[i]->crop_width, dev->ctx[i]->crop_height,
 				dev->ctx[i]->crop_left, dev->ctx[i]->crop_top);
 			dev_err(dev->device, "\tmain core-%d, op_mode: %d, queue_cnt(src:%d, dst:%d, ref:%d, qsrc:%d, qdst:%d)\n",
@@ -386,8 +388,8 @@ void __mfc_core_dump_state(struct mfc_core *core, int curr_ctx)
 	dev_err(core->device, "has 2sysmmu:%d, has hwfc:%d, has_mfc_votf:%d, has_gdc_votf:%d, has_dpu_votf:%d\n",
 			core->has_2sysmmu, core->has_hwfc, core->has_mfc_votf,
 			core->has_gdc_votf, core->has_dpu_votf);
-	dev_err(core->device, "shutdown:%d, sleep:%d\n",
-			core->shutdown, core->sleep);
+	dev_err(core->device, "shutdown:%d, sleep:%d, QoS level:%d\n",
+			core->shutdown, core->sleep, atomic_read(&core->qos_req_cur) - 1);
 	dev_err(core->device, "fw addr %#llx size %08zu drm_fw addr %#llx\n",
 			core->fw_buf.daddr, core->fw_buf.size,
 			core->drm_fw_buf.daddr);
