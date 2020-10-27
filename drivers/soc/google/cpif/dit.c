@@ -1519,7 +1519,7 @@ static int dit_init_desc(enum dit_direction dir)
 		dit_set_dst_desc_int_range(dir, ring_num);
 	}
 
-	mif_info("dir: %d, src desc len: %d, dst desc len: %d\n",
+	mif_info("dir:%d src_len:%d dst_len:%d\n",
 		dir, desc_info->src_desc_ring_len, desc_info->dst_desc_ring_len);
 
 	return 0;
@@ -1591,7 +1591,7 @@ int dit_init(struct link_device *ld, bool retry)
 	dit_clean_reg_value_with_ext_lock();
 	spin_unlock_irqrestore(&dc->src_lock, flags);
 
-	mif_info("dit init done. hw_version: 0x%08X\n", dc->hw_version);
+	mif_info("dit init done. hw_ver:0x%08X\n", dc->hw_version);
 
 exit:
 	atomic_dec(&dc->init_running);
@@ -1765,11 +1765,14 @@ static ssize_t debug_set_rx_port_store(struct device *dev,
 		const char *buf, size_t count)
 {
 	struct nat_local_port local_port;
-	int index;
+	unsigned int index;
 	int ret;
 
-	ret = sscanf(buf, "%d %x", &index, &local_port.hw_val);
+	ret = sscanf(buf, "%u %x", &index, &local_port.hw_val);
 	if (ret < 1)
+		return -EINVAL;
+
+	if (index >= DIT_REG_NAT_LOCAL_PORT_MAX)
 		return -EINVAL;
 
 	dit_enqueue_reg_value(local_port.hw_val,
@@ -1787,14 +1790,14 @@ static ssize_t debug_set_local_addr_store(struct device *dev,
 	u64 eth_src_addr;
 	u64 eth_dst_addr;
 	u32 ip_addr;
-	int index;
+	unsigned int index;
 	unsigned long flags;
 	int ret;
 
 	/* for example, "0 D6CFEB352CF4 C0A82A5D 2AAD159CDE96" is for packets
 	 * from D6CFEB352CF4(rndis0) to 192.168.42.93/2AAD159CDE96(neigh)
 	 */
-	ret = sscanf(buf, "%d %s %lx %s", &index, eth_src_str, &ip_addr, eth_dst_str);
+	ret = sscanf(buf, "%u %12s %lx %12s", &index, eth_src_str, &ip_addr, eth_dst_str);
 	if (ret < 1)
 		return -EINVAL;
 
@@ -1804,6 +1807,9 @@ static ssize_t debug_set_local_addr_store(struct device *dev,
 	ret = kstrtou64(eth_dst_str, 16, &eth_dst_addr);
 	if (ret)
 		return ret;
+
+	if (index >= DIT_REG_NAT_LOCAL_ADDR_MAX)
+		return -EINVAL;
 
 	spin_lock_irqsave(&dc->src_lock, flags);
 	dit_enqueue_reg_value_with_ext_lock(htonl(eth_src_addr >> 16),
@@ -1828,17 +1834,17 @@ static ssize_t debug_reset_usage_store(struct device *dev,
 		const char *buf, size_t count)
 {
 	unsigned int dir, ring_num;
-	int reset_ring;
+	unsigned int reset_ring;
 	int ret;
 
-	ret = sscanf(buf, "%d %d", &dir, &reset_ring);
+	ret = sscanf(buf, "%u %u", &dir, &reset_ring);
 	if (ret < 1)
 		return -EINVAL;
 
-	if ((dir < DIT_DIR_TX) || (dir >= DIT_DIR_MAX))
+	if (dir >= DIT_DIR_MAX)
 		return -EINVAL;
 
-	if ((reset_ring < DIT_DST_DESC_RING_0) || (reset_ring > DIT_DESC_RING_MAX))
+	if (reset_ring > DIT_DESC_RING_MAX)
 		return -EINVAL;
 
 	for (ring_num = DIT_DST_DESC_RING_0; ring_num < DIT_DESC_RING_MAX; ring_num++) {
@@ -2085,11 +2091,16 @@ int dit_set_desc_ring_len(enum dit_direction dir, u32 len)
 		return -EPERM;
 
 	desc_info = &dc->desc_info[dir];
-	if (!dc->static_desc_ring_len) {
-		desc_info->src_desc_ring_len = len;
-		desc_info->dst_desc_ring_len = len;
+	desc_info->src_desc_ring_len = len;
+	desc_info->dst_desc_ring_len = len;
+
+	if (dir == DIT_DIR_RX) {
+		desc_info->src_desc_ring_len += dc->rx_extra_desc_ring_len;
+		desc_info->dst_desc_ring_len += dc->rx_extra_desc_ring_len;
 	}
-	mif_info("dir:%d len:%d\n", dir, len);
+
+	mif_info("dir:%d len:%d src_len:%d dst_len:%d\n", dir, len,
+		desc_info->src_desc_ring_len, desc_info->dst_desc_ring_len);
 
 	return 0;
 }
@@ -2209,20 +2220,8 @@ int dit_create(struct platform_device *pdev)
 	mif_dt_read_bool(np, "dit_use_rx", dc->use_rx);
 	mif_dt_read_bool(np, "dit_use_clat", dc->use_clat);
 	mif_dt_read_bool(np, "dit_hal_linked", dc->hal_linked);
-	mif_dt_read_bool(np, "dit_static_desc_ring_len", dc->static_desc_ring_len);
-	if (dc->static_desc_ring_len) {
-		mif_dt_read_u32(np, "dit_tx_src_desc_ring_len",
-			dc->desc_info[DIT_DIR_TX].src_desc_ring_len);
-		mif_dt_read_u32(np, "dit_tx_dst_desc_ring_len",
-			dc->desc_info[DIT_DIR_TX].dst_desc_ring_len);
-		mif_dt_read_u32(np, "dit_rx_src_desc_ring_len",
-			dc->desc_info[DIT_DIR_RX].src_desc_ring_len);
-		mif_dt_read_u32(np, "dit_rx_dst_desc_ring_len",
-			dc->desc_info[DIT_DIR_RX].dst_desc_ring_len);
-	}
-
+	mif_dt_read_u32(np, "dit_rx_extra_desc_ring_len", dc->rx_extra_desc_ring_len);
 	mif_dt_read_u32(np, "dit_irq_affinity", dc->irq_affinity);
-	mif_info("irq_affinity:%d\n", dc->irq_affinity);
 
 	dit_hal_create(dc);
 	if (ret != 0) {
@@ -2250,8 +2249,9 @@ int dit_create(struct platform_device *pdev)
 		goto error;
 	}
 
-	mif_err("dit created. hw_version: 0x%08X, static_desc_len: %d\n",
-		dc->hw_version, dc->static_desc_ring_len);
+	mif_info("dit created. hw_ver:0x%08X, tx:%d, rx:%d, clat:%d, hal:%d, ext_len:%d, irq:%d\n",
+		dc->hw_version, dc->use_tx, dc->use_rx, dc->use_clat, dc->hal_linked,
+		dc->rx_extra_desc_ring_len, dc->irq_affinity);
 
 	return 0;
 

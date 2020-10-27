@@ -325,7 +325,7 @@ struct dit_ctrl_t {
 	bool use_rx;
 	bool use_clat;
 	bool hal_linked;
-	bool static_desc_ring_len;
+	u32 rx_extra_desc_ring_len;
 
 	struct dit_desc_info desc_info[DIT_DIR_MAX];
 

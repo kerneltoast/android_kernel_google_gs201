@@ -392,7 +392,7 @@ static void dit_hal_set_iod_clat_netdev(struct io_device *iod, void *args)
 	struct net_device *ndev = NULL;
 	unsigned long flags;
 
-	if (!dc->ld->is_ps_ch(iod->ch))
+	if (!dc->ld || !dc->ld->is_ps_ch(iod->ch))
 		return;
 
 	if (strncmp(iod->name, clat->ipv6_iface, IFNAMSIZ) != 0)
@@ -430,7 +430,7 @@ bool dit_hal_set_clat_info(struct clat_info *clat)
 	unsigned long flags;
 	bool ret = false;
 
-	if (!dc->use_clat)
+	if (!dc->use_clat || !dc->ld)
 		return false;
 
 	spin_lock_irqsave(&dc->src_lock, flags);
