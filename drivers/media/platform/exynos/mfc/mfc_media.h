@@ -462,8 +462,6 @@ enum v4l2_mpeg_mfc51_video_frame_type {
 #define V4L2_CID_MPEG_VIDEO_DISABLE_IVF_HEADER			\
 					(V4L2_CID_MPEG_MFC_BASE + 181)
 /* empty number */
-#define V4L2_CID_MPEG_VIDEO_VP9_LEVEL				\
-					(V4L2_CID_MPEG_MFC_BASE + 183)
 #define V4L2_CID_MPEG_VIDEO_UNCOMP_FMT				\
 					(V4L2_CID_MPEG_MFC_BASE + 184)
 #define V4L2_CID_MPEG_VIDEO_SKIP_LAZY_UNMAP				\
