@@ -321,4 +321,12 @@
 		 */
 		connector = <0x8>;
 	};
+
+	disp_vddi: disp-vddi {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddi";
+		regulator-boot-on;
+		enable-active-high;
+	};
 };
