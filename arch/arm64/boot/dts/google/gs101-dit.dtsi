@@ -37,7 +37,7 @@
 		dit_use_rx = <1>;
 		dit_use_clat = <0>;
 		dit_hal_linked = <1>;
-		dit_static_desc_ring_len = <0>;
+		dit_rx_extra_desc_ring_len = <2048>;
 
 		dit_irq_affinity = <2>;
 	};
