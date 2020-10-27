@@ -38,15 +38,14 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 	if (!core->fw_buf.dma_buf)
 		return -EINVAL;
 
-	/* 0. MFC reset */
-	mfc_core_debug(2, "MFC reset...\n");
-
 	/* At init time, do not call secure API */
 	if (buf_type == MFCBUF_NORMAL)
 		core->curr_core_ctx_is_drm = 0;
 	else if (buf_type == MFCBUF_DRM)
 		core->curr_core_ctx_is_drm = 1;
 
+	/* 0. MFC reset */
+	mfc_core_debug(2, "MFC reset...\n");
 	ret = mfc_core_pm_clock_on(core);
 	if (ret) {
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
@@ -54,8 +53,8 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 		return ret;
 	}
 
-	mfc_core_reset_mfc(core);
-	mfc_core_debug(2, "Done MFC reset...\n");
+	mfc_core_reset_mfc(core, buf_type);
+	mfc_core_debug(2, "Done MFC reset\n");
 
 	/* 1. Set DRAM base Addr */
 	mfc_core_set_risc_base_addr(core, buf_type);
@@ -246,7 +245,12 @@ int mfc_core_run_wakeup(struct mfc_core *core)
 	int ret = 0;
 
 	mfc_core_debug_enter();
+
 	mfc_core_info("curr_core_ctx_is_drm:%d\n", core->curr_core_ctx_is_drm);
+	if (core->curr_core_ctx_is_drm)
+		buf_type = MFCBUF_DRM;
+	else
+		buf_type = MFCBUF_NORMAL;
 
 	/* 0. MFC reset */
 	mfc_core_debug(2, "MFC reset...\n");
@@ -257,13 +261,8 @@ int mfc_core_run_wakeup(struct mfc_core *core)
 		return ret;
 	}
 
-	mfc_core_reset_mfc(core);
+	mfc_core_reset_mfc(core, buf_type);
 	mfc_core_debug(2, "Done MFC reset...\n");
-
-	if (core->curr_core_ctx_is_drm)
-		buf_type = MFCBUF_DRM;
-	else
-		buf_type = MFCBUF_NORMAL;
 
 	/* 1. Set DRAM base Addr */
 	mfc_core_set_risc_base_addr(core, buf_type);

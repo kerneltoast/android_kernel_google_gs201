@@ -734,6 +734,7 @@ struct mfc_platdata {
 	unsigned int max_hdr_win;
 	/* error type for sync_point display */
 	unsigned int display_err_type;
+	unsigned int security_ctrl;
 	/* NAL-Q size */
 	unsigned int nal_q_entry_size;
 	unsigned int nal_q_dump_size;
