@@ -13,6 +13,8 @@
 
 #include "sched.h"
 
+bool __read_mostly vendor_sched_enable_perfer_high_cap;
+
 static int update_prefer_high_cap(const char *buf, bool val)
 {
 	struct vendor_task_struct *vp;
@@ -62,10 +64,34 @@ static ssize_t clear_prefer_high_cap_store(struct kobject *kobj,
 
 static struct kobj_attribute clear_prefer_high_cap_attribute = __ATTR_WO(clear_prefer_high_cap);
 
+static ssize_t prefer_high_cap_enable_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_enable_perfer_high_cap);
+}
+
+static ssize_t prefer_high_cap_enable_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	bool enable;
+
+	if (kstrtobool(buf, &enable))
+		return -EINVAL;
+
+	vendor_sched_enable_perfer_high_cap = enable;
+
+	return count;
+}
+
+static struct kobj_attribute prefer_high_cap_enable_attribute = __ATTR_RW(prefer_high_cap_enable);
+
 static struct kobject *vendor_sched_kobj;
 static struct attribute *attrs[] = {
 	&set_prefer_high_cap_attribute.attr,
 	&clear_prefer_high_cap_attribute.attr,
+	&prefer_high_cap_enable_attribute.attr,
 	NULL,
 };
 static struct attribute_group attr_group = {
