@@ -296,12 +296,14 @@ static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
 }
 
 static void sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,
-						 int intr_type, unsigned long fault_addr)
+						 int intr_type, unsigned long fault_addr,
+						 char *fault_msg, size_t fault_msg_sz)
 {
 	const char *port_name = NULL;
 	unsigned int info;
 	phys_addr_t pgtable;
 	unsigned int sfrbase = drvdata->secure_base;
+	char err_msg[128];
 
 	pgtable = read_sec_info(MMU_SEC_REG(drvdata, IDX_SEC_FLPT_BASE));
 	pgtable <<= PAGE_SHIFT;
@@ -311,10 +313,17 @@ static void sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
 
 	pr_crit("----------------------------------------------------------\n");
-	pr_crit("From [%s], SysMMU %s %s at %#010lx (page table @ %pa)\n",
-		port_name ? port_name : dev_name(drvdata->dev),
-		IS_READ_FAULT(info) ? "READ" : "WRITE",
-		sysmmu_fault_name[intr_type], fault_addr, &pgtable);
+
+	scnprintf(err_msg, sizeof(err_msg),
+		  "From [%s], SysMMU %s %s at %#010lx",
+		  port_name ? port_name : dev_name(drvdata->dev),
+		  IS_READ_FAULT(info) ? "READ" : "WRITE",
+		  sysmmu_fault_name[intr_type], fault_addr);
+
+	if (fault_msg)
+		strscpy(fault_msg, err_msg, fault_msg_sz);
+
+	pr_crit("%s (pgtable @ %pa)\n", err_msg, &pgtable);
 
 	if (intr_type == SYSMMU_FAULT_UNKNOWN) {
 		pr_crit("The fault is not caused by this System MMU.\n");
@@ -351,23 +360,32 @@ finish:
 
 static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
 					  int intr_type, unsigned int vid, sysmmu_iova_t fault_addr,
-					  phys_addr_t *pt)
+					  phys_addr_t *pt, char *fault_msg, size_t fault_msg_sz)
 {
 	const char *port_name = NULL;
 	u32 info;
+	char err_msg[128];
 
 	info = readl_relaxed(MMU_VM_REG(drvdata, IDX_FAULT_TRANS_INFO, vid));
 
 	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
 
-	pr_crit("From [%s] VID %u, SysMMU %s %s at %#010x (pgtable @ %pa, AxID: %#x)\n",
-		port_name ? port_name : dev_name(drvdata->dev), vid,
-		IS_READ_FAULT(info) ? "READ" : "WRITE",
-		sysmmu_fault_name[intr_type], fault_addr, pt, info & 0xFFFF);
+	scnprintf(err_msg, sizeof(err_msg),
+		  "From [%s] VID %u, SysMMU %s %s at %#010x",
+		  port_name ? port_name : dev_name(drvdata->dev), vid,
+		  IS_READ_FAULT(info) ? "READ" : "WRITE",
+		  sysmmu_fault_name[intr_type], fault_addr);
+
+	if (fault_msg)
+		strscpy(fault_msg, err_msg, fault_msg_sz);
+
+	pr_crit("%s (pgtable @ %pa, AxID: %#x)\n", err_msg, pt, info & 0xFFFF);
 }
 
 static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
-					  int intr_type, unsigned int vid, unsigned long fault_addr)
+					  int intr_type, unsigned int vid,
+					  unsigned long fault_addr,
+					  char *fault_msg, size_t fault_msg_sz)
 {
 	unsigned int i;
 	phys_addr_t pgtable[MAX_VIDS];
@@ -378,7 +396,8 @@ static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 	}
 
 	pr_crit("----------------------------------------------------------\n");
-	sysmmu_show_fault_info_simple(drvdata, intr_type, vid, fault_addr, &pgtable[vid]);
+	sysmmu_show_fault_info_simple(drvdata, intr_type, vid, fault_addr,
+				      &pgtable[vid], fault_msg, fault_msg_sz);
 
 	if (intr_type == SYSMMU_FAULT_UNKNOWN) {
 		pr_crit("The fault is not caused by this System MMU.\n");
@@ -452,9 +471,9 @@ irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 
 	sysmmu_get_interrupt_info(drvdata, &itype, &vid, &addr, is_secure);
 	if (is_secure)
-		sysmmu_show_secure_fault_information(drvdata, itype, addr);
+		sysmmu_show_secure_fault_information(drvdata, itype, addr, NULL, 0);
 	else
-		sysmmu_show_fault_information(drvdata, itype, vid, addr);
+		sysmmu_show_fault_information(drvdata, itype, vid, addr, NULL, 0);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -497,6 +516,7 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 		.drvdata = drvdata,
 		.event.fault.type = IOMMU_FAULT_DMA_UNRECOV,
 	};
+	char fault_msg[128] = "Unspecified SysMMU fault";
 
 	sysmmu_get_interrupt_info(drvdata, &itype, &vid, &addr, is_secure);
 	reason = sysmmu_fault_type[itype];
@@ -517,18 +537,22 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 
 		pgtable = readl_relaxed(MMU_VM_REG(drvdata, IDX_FLPT_BASE, vid));
 		pgtable <<= PAGE_SHIFT;
-		sysmmu_show_fault_info_simple(drvdata, itype, vid, addr, &pgtable);
+		sysmmu_show_fault_info_simple(drvdata, itype, vid, addr, &pgtable,
+					      fault_msg, sizeof(fault_msg));
 		sysmmu_clear_interrupt(drvdata);
 		return IRQ_HANDLED;
 	}
 
 	if (drvdata->async_fault_mode) {
 		if (is_secure)
-			sysmmu_show_secure_fault_information(drvdata, itype, addr);
+			sysmmu_show_secure_fault_information(drvdata, itype, addr,
+							     fault_msg, sizeof(fault_msg));
 		else
-			sysmmu_show_fault_information(drvdata, itype, vid, addr);
+			sysmmu_show_fault_information(drvdata, itype, vid, addr,
+						      fault_msg, sizeof(fault_msg));
 	}
-	panic("Unrecoverable System MMU Fault!!");
+
+	panic(fault_msg);
 
 	return IRQ_HANDLED;
 }
