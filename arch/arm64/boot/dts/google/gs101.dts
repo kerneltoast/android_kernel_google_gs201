@@ -1057,16 +1057,6 @@
 		#thermal-sensor-cells = <0>;
 	};
 
-	tmuctrl_6: AOC@100A0000 {
-		compatible = "samsung,gs101-tmu-v2";
-		reg = <0x0 0x100A0000 0x800>;
-		interrupts = <GIC_SPI IRQ_TMU_TMU_TOP_MISC IRQ_TYPE_LEVEL_HIGH>;
-		tmu_name = "AOC";
-		id = <6>;
-		ect_nouse = <1>;
-		#thermal-sensor-cells = <0>;
-	};
-
 	thermal_zones: thermal-zones {
 		big_thermal: BIG {
 			zone_name  = "BIG_THERMAL";
@@ -1407,55 +1397,6 @@
 				map2 {
 					trip = <&tpu_alert2>;
 					cooling-device = <&tpu_cooling 3 3>;
-				};
-			};
-		};
-		aoc_thermal: AOC {
-			zone_name  = "AOC_THERMAL";
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
-			thermal-sensors = <&tmuctrl_6>;
-
-			trips {
-				aoc_alert0: aoc-alert0 {
-					temperature = <20000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "active";
-				};
-				aoc_alert1: aoc-alert1 {
-					temperature = <76000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "active";
-				};
-				aoc_alert2: aoc-alert2 {
-					temperature = <81000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "active";
-				};
-				aoc_alert3: aoc-alert3 {
-					temperature = <86000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "active";
-				};
-				aoc_alert4: aoc-alert4 {
-					temperature = <91000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "active";
-				};
-				aoc_alert5: aoc-alert5 {
-					temperature = <96000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "active";
-				};
-				aoc_alert6: aoc-alert6 {
-					temperature = <101000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "active";
-				};
-				aoc_hot: aoc-hot {
-					temperature = <115000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
-					type = "hot";
 				};
 			};
 		};
