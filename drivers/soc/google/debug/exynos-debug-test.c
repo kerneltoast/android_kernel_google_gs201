@@ -322,6 +322,8 @@ static void simulate_SOFT_LOCKUP(char *arg)
 
 static void simulate_HARD_LOCKUP_handler(void *info)
 {
+	dev_crit(exynos_debug_desc.dev, "Lockup CPU%d\n",
+			raw_smp_processor_id());
 	asm("b .");
 }
 
