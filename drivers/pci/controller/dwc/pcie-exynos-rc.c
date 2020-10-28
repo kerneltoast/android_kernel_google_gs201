@@ -3445,11 +3445,6 @@ static int exynos_pcie_rc_power_mode_event(struct notifier_block *nb, unsigned l
 
 	dev_info(pci->dev, "[%s] event: %lx\n", __func__, event);
 	switch (event) {
-	case LPA_EXIT:
-		if (exynos_pcie->state == STATE_LINK_DOWN)
-			exynos_pcie_rc_resumed_phydown(&pci->pp);
-
-		break;
 	case SICD_ENTER:
 		if (exynos_pcie->use_sicd) {
 			if (exynos_pcie->ip_ver >= 0x889500) {
@@ -3772,7 +3767,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	exynos_pcie->power_mode_nb.next = NULL;
 	exynos_pcie->power_mode_nb.priority = 0;
 
-	ret = exynos_pm_register_notifier(&exynos_pcie->power_mode_nb);
+	ret = exynos_cpupm_notifier_register(&exynos_pcie->power_mode_nb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register lpa notifier\n");
 
