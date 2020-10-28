@@ -67,14 +67,6 @@ private/google-modules/touch/sec
 private/google-modules/power/reset
 "
 
-COMPRESS_UNSTRIPPED_MODULES=1
-
-UNSTRIPPED_MODULES="
-bcmdhd43752.ko
-bcmdhd4389.ko
-dss.ko
-"
-
 if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
 source ${GKI_DEFCONFIG_FRAGMENT}
 fi
