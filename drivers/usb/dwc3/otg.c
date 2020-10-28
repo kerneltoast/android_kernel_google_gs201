@@ -323,15 +323,19 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 	int ret = 0;
 	int ret1 = -1;
 
-	if (!dotg->dwc->xhci) {
-		dev_err(dev, "%s: does not have any xhci\n", __func__);
-		return -EINVAL;
-	}
-
 	dev_info(dev, "Turn %s host\n", on ? "on" : "off");
 
 	if (on) {
 		otg_connection = 1;
+
+		if (!dwc->xhci) {
+			ret = dwc3_host_init(dwc);
+			if (ret) {
+				dev_err(dev, "%s: failed to init dwc3 host\n", __func__);
+				goto err1;
+			}
+		}
+
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
 		if (ret) {
 			dev_err(dwc->dev, "%s: failed to reinitialize core\n",
@@ -358,13 +362,19 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 		xhci_port_power_set(1, 3);
 		unregister_usb_power_notify();
 #endif
+		if (!dwc->xhci) {
+			dev_err(dev, "%s: stop USB host without xhci device\n", __func__);
+			return -EINVAL;
+		}
+
 		if (dotg->dwc3_suspended) {
 			pr_info("%s: wait resume completion\n", __func__);
 			ret1 = wait_for_completion_timeout(&dotg->resume_cmpl,
 							   msecs_to_jiffies(5000));
 		}
 
-		platform_device_del(dwc->xhci);
+		dwc3_host_exit(dwc);
+		dwc->xhci = NULL;
 		list_clear = 1;
 
 err2:
