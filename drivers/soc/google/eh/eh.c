@@ -54,6 +54,7 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
+#include <linux/freezer.h>
 
 #define EH_ERR_IRQ	"eh_error"
 #define EH_COMP_IRQ	"eh_comp"
@@ -200,7 +201,8 @@ static int eh_comp_thread(void *data)
 	current->flags |= PF_MEMALLOC;
 
 	while (!kthread_should_stop()) {
-		wait_event(eh_dev->comp_wq, atomic_read(&eh_dev->nr_request) > 0);
+		wait_event_freezable(eh_dev->comp_wq,
+				atomic_read(&eh_dev->nr_request) > 0);
 		if (unlikely(eh_update_complete_index(eh_dev, false))) {
 			u64 error;
 
