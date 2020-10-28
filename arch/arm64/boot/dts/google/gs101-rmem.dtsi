@@ -59,9 +59,8 @@
 		ramoops_mem@fd3ff000 {
 			compatible = "ramoops";
 			reg = <0 0xfd3ff000 0x200000>;
-			record-size = <0x20000>;
 			console-size = <0x100000>;
-			pmsg-size = <0x80000>;
+			pmsg-size = <0x100000>;
 		};
 
 		bldr_log_reserved: bldr_log_reserved@fd800000 {
