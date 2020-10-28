@@ -80,10 +80,10 @@
 				/* Power supplies */
 				regulators =
 					<&slg51000_ldo1 &slg51000_ldo3
-					 &slg51000_ldo7>;
+					 &slg51000_ldo4 &slg51000_ldo7>;
 				regulator-voltages =
 					<2850000 3200000
-					 1850000>;
+					 2900000 1850000>;
 
 				clocks =
 					<&clock CIS_CLK0>,
@@ -99,6 +99,58 @@
 				pinctrl-names = "mclk_on", "mclk_off";
 				pinctrl-0 = <&sensor_mclk1_fn>;
 				pinctrl-1 = <&sensor_mclk1_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"ldo7",
+					"shared-enable",
+					"ldo1",
+					"ldo4",
+					"ldo3",
+					"reset",
+					"mclk_on";
+				power-up-seq-types =
+					"regulator",
+					"gpio",
+					"regulator",
+					"regulator",
+					"regulator",
+					"gpio",
+					"pinctrl";
+				power-up-seq-delays =
+					<1000
+					 1000
+					 0
+					 1000
+					 0
+					 1000
+					 9000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"mclk_off",
+					"reset",
+					"ldo3",
+					"ldo4",
+					"ldo1",
+					"shared-enable",
+					"ldo7";
+				power-down-seq-types =
+					"pinctrl",
+					"gpio",
+					"regulator",
+					"regulator",
+					"regulator",
+					"gpio",
+					"regulator";
+				power-down-seq-delays =
+					<1000
+					 0
+					 1000
+					 0
+					 0
+					 1000
+					 0>;
 			};
 
 			/* REAR TELE CAMERA IMX586 */
@@ -141,6 +193,46 @@
 				pinctrl-names = "mclk_on", "mclk_off";
 				pinctrl-0 = <&sensor_mclk5_fn>;
 				pinctrl-1 = <&sensor_mclk5_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"ldo6",
+					"enable",
+					"ldo7",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"gpio",
+					"regulator",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays =
+					<0
+					 0
+					 1000
+					 1000
+					 10000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"ldo7",
+					"enable",
+					"ldo6";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"regulator",
+					"gpio",
+					"regulator";
+				power-down-seq-delays =
+					<0
+					 1000
+					 0
+					 0
+					 0>;
 			};
 
 			/* FRONT CAMERA IMX355 */
@@ -184,6 +276,46 @@
 				pinctrl-names = "mclk_on", "mclk_off";
 				pinctrl-0 = <&sensor_mclk3_fn>;
 				pinctrl-1 = <&sensor_mclk3_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"ldo3",
+					"ldo6",
+					"ldo7",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays =
+					<0
+					 0
+					 1000
+					 1000
+					 11000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"ldo7",
+					"ldo6",
+					"ldo3";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays =
+					<0
+					 1000
+					 0
+					 0
+					 0>;
 			};
 
 			/* FRONT CAMERA IMX663 */
@@ -227,6 +359,40 @@
 				pinctrl-names = "mclk_on", "mclk_off";
 				pinctrl-0 = <&sensor_mclk3_fn>;
 				pinctrl-1 = <&sensor_mclk3_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"ldo7",
+					"enable",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"gpio",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays =
+					<0
+					 1000
+					 1000
+					 11000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"enable",
+					"ldo7";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"gpio",
+					"regulator";
+				power-down-seq-delays =
+					<0
+					 1000
+					 0
+					 0>;
 			};
 
 			/* REAR ULTRA WIDE CAMERA IMX386 */
@@ -270,6 +436,46 @@
 				pinctrl-names = "mclk_on", "mclk_off";
 				pinctrl-0 = <&sensor_mclk2_fn>;
 				pinctrl-1 = <&sensor_mclk2_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"ldo2",
+					"ldo5",
+					"ldo7",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays =
+					<0
+					 0
+					 1000
+					 1000
+					 10000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"ldo7",
+					"ldo5",
+					"ldo2";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays =
+					<0
+					 1000
+					 0
+					 0
+					 0>;
 			};
 
 			/* Actuator ak7377 for gn1*/
