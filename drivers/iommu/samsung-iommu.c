@@ -405,7 +405,6 @@ static struct samsung_sysmmu_domain *attach_helper(struct iommu_domain *dom, str
 static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 				     struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct sysmmu_clientdata *client;
 	struct samsung_sysmmu_domain *domain;
 	struct list_head *group_list;
@@ -967,7 +966,6 @@ static int samsung_sysmmu_of_xlate(struct device *dev,
 
 static int samsung_sysmmu_aux_attach_dev(struct iommu_domain *dom, struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct sysmmu_clientdata *client;
 	struct samsung_sysmmu_domain *domain;
 	struct sysmmu_drvdata *drvdata;
