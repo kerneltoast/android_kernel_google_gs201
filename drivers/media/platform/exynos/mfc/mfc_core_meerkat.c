@@ -650,7 +650,7 @@ static void __mfc_dump_dpb(struct mfc_core *core, int curr_ctx)
 				}
 			}
 		}
-		mfc_debug(3, "[%d] dpb [%d] %pad %pad %pap fd %d(%d) (%s, %s, %s%s)\n",
+		dev_err(core->device, "[%d] dpb [%d] %pad %pad %pap fd %d(%d) (%s, %s, %s%s)\n",
 				i, found ? mfc_buf->vb.vb2_buf.index : -1,
 				&dec->dpb[i].addr[0], &dec->dpb[i].addr[1],
 				&dec->dpb[i].paddr, dec->dpb[i].fd[0], dec->dpb[i].new_fd,
