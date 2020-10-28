@@ -608,7 +608,7 @@ static int gs101_tmu_pm_notify(struct notifier_block *nb,
 		atomic_set(&gs101_tmu_in_suspend, 0);
 		list_for_each_entry(data, &dtm_dev_list, node) {
 			if (data->use_pi_thermal)
-				gs101_pi_thermal(data);
+				start_pi_polling(data, 0);
 		}
 		break;
 	default:
