@@ -149,4 +149,34 @@
 			};
 		};
 	};
+	ocp_gpu {
+		zone_name  = "OCP_GPU";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg11mfd 0>;
+
+		trips {
+			ocp_gpu:ocp-gpu{
+				temperature = <13200>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	soft_ocp_gpu {
+		zone_name  = "SOFT_OCP_GPU";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&s2mpg11mfd 1>;
+
+		trips {
+			soft_ocp_gpu:soft-ocp-gpu {
+				temperature = <13200>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
 };
