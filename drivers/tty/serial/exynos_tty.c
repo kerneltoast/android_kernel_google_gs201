@@ -831,6 +831,31 @@ static void exynos_serial_start_tx(struct uart_port *port)
 	}
 }
 
+/* Throttle is called in n_tty_receive_buf_common */
+static void exynos_serial_throttle(struct uart_port *port)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	__set_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
+	wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+/* Unthrottle is called in n_tty_read */
+static void exynos_serial_unthrottle(struct uart_port *port)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	__clear_bit(S3C64XX_UINTM_RXD, portaddrl(port, S3C64XX_UINTM));
+
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
 static void exynos_uart_copy_rx_to_tty(struct exynos_uart_port *ourport, struct
 				       tty_port * tty, int count)
 {
@@ -2027,6 +2052,8 @@ static const struct uart_ops exynos_serial_ops = {
 	.set_mctrl	= exynos_serial_set_mctrl,
 	.stop_tx	= exynos_serial_stop_tx,
 	.start_tx	= exynos_serial_start_tx,
+	.throttle       = exynos_serial_throttle,
+	.unthrottle     = exynos_serial_unthrottle,
 	.stop_rx	= exynos_serial_stop_rx,
 	.break_ctl	= exynos_serial_break_ctl,
 	.startup	= exynos_serial_startup,
