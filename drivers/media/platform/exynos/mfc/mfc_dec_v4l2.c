@@ -1001,6 +1001,7 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	struct dec_dpb_ref_info *dstBuf, *srcBuf;
 	struct hdr10_plus_meta *dst_sei_meta, *src_sei_meta;
 	struct av1_film_grain_meta *dst_av1_sei_meta, *src_av1_sei_meta;
+	unsigned int *dst_sei_full, *src_sei_full;
 	int ret;
 	int ncount = 0;
 
@@ -1047,7 +1048,20 @@ static int mfc_dec_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		}
 
 		/* Memcpy from dec->hdr10_plus_info to shared memory */
-		if (dec->hdr10_plus_info) {
+		if (dec->hdr10_plus_full) {
+			src_sei_full = HDR10_PLUS_ADDR(dec->hdr10_plus_full, buf->index);
+			if (dec->sh_handle_hdr.vaddr != NULL) {
+				dst_sei_full = HDR10_PLUS_ADDR(dec->sh_handle_hdr.vaddr,
+								buf->index);
+				memcpy(dst_sei_full, src_sei_full, HDR10_PLUS_DATA_SIZE);
+				if (hdr_dump == 1) {
+					mfc_ctx_err("[HDR+][DUMP] SH_HANDLE data (idx %d)....\n",
+							buf->index);
+					print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 32, 4,
+							dst_sei_full, 68, false);
+				}
+			}
+		} else if (dec->hdr10_plus_info) {
 			src_sei_meta = &dec->hdr10_plus_info[buf->index];
 			if (dec->sh_handle_hdr.vaddr != NULL) {
 				dst_sei_meta = (struct hdr10_plus_meta *)
@@ -1163,6 +1177,9 @@ static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus))
 		val |= DEC_SET_HDR10_PLUS;
+
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus_full))
+		val |= DEC_SET_HDR10_PLUS_FULL;
 
 	mfc_debug(5, "[CTRLS] ext info val: %#x\n", val);
 

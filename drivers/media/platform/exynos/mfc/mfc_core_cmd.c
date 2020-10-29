@@ -104,6 +104,13 @@ void mfc_core_cmd_open_inst(struct mfc_core *core, struct mfc_ctx *ctx)
 			mfc_ctx_info("[OTF] Debugging mode enabled\n");
 		}
 	}
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->metadata_interface)) {
+		/* Set SECURE_CODEC[4], 0: Normal, 1: Secure */
+		if (ctx->is_drm)
+			reg |= (0x1 << 4);
+		else
+			reg &= ~(0x1 << 4);
+	}
 	MFC_CORE_WRITEL(reg, MFC_REG_CODEC_CONTROL);
 
 	mfc_debug(2, "Requested codec mode: %d\n", ctx->codec_mode);
@@ -290,6 +297,12 @@ void mfc_core_cmd_dec_seq_header(struct mfc_core *core, struct mfc_ctx *ctx)
 	MFC_CORE_WRITEL(reg, MFC_REG_D_SEI_ENABLE);
 	mfc_debug(2, "SEI enable was set, 0x%x\n", MFC_CORE_READL(MFC_REG_D_SEI_ENABLE));
 
+	/* Enable metadata */
+	reg = 0;
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus_full))
+		reg |= (0x1 << MFC_REG_SEI_NAL_ENABLE_SHIFT);
+	MFC_CORE_WRITEL(reg, MFC_REG_METADATA_ENABLE);
+
 	MFC_CORE_WRITEL(core_ctx->inst_no, MFC_REG_INSTANCE_ID);
 
 	if (sfr_dump & MFC_DUMP_DEC_SEQ_START)
@@ -342,6 +355,7 @@ int mfc_core_cmd_enc_seq_header(struct mfc_core *core, struct mfc_ctx *ctx)
 
 int mfc_core_cmd_dec_init_buffers(struct mfc_core *core, struct mfc_ctx *ctx)
 {
+	struct mfc_dev *dev = core->dev;
 	struct mfc_core_ctx *core_ctx = core->core_ctx[ctx->num];
 	unsigned int reg = 0;
 	int ret;
@@ -376,6 +390,11 @@ int mfc_core_cmd_dec_init_buffers(struct mfc_core *core, struct mfc_ctx *ctx)
 		MFC_CORE_WRITEL(MFC_SLC_CMD_ATTR, MFC_REG_D_AXI_RD_ATTR0_SLC);
 		MFC_CORE_WRITEL(MFC_SLC_CMD_ATTR, MFC_REG_D_AXI_WR_ATTR0_SLC);
 	}
+
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->metadata_interface) &&
+			ctx->metadata_buffer_allocated)
+		mfc_core_set_dec_metadata_buffer(core, ctx);
+
 
 	if (IS_TWO_MODE2(ctx)) {
 		reg |= ((ctx->subcore_inst_no & MFC_REG_RET_INSTANCE_ID_OF_MFC1_MASK) <<

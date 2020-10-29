@@ -35,6 +35,9 @@ void mfc_release_enc_roi_buffer(struct mfc_core_ctx *core_ctx);
 int mfc_otf_alloc_stream_buf(struct mfc_ctx *ctx);
 void mfc_otf_release_stream_buf(struct mfc_ctx *ctx);
 
+int mfc_alloc_metadata_buffer(struct mfc_ctx *ctx);
+void mfc_release_metadata_buffer(struct mfc_ctx *ctx);
+
 int mfc_alloc_firmware(struct mfc_core *core);
 int mfc_load_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf,
 		const u8 *fw_data, size_t fw_size);

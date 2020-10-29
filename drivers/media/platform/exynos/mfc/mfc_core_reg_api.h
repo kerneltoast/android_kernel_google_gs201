@@ -162,6 +162,10 @@
 #define mfc_core_get_sei_avail_st_2094_40()		((MFC_CORE_READL(MFC_REG_D_SEI_AVAIL)	\
 						>> MFC_REG_D_SEI_AVAIL_ST_2094_40_SHIFT)	\
 						& MFC_REG_D_SEI_AVAIL_ST_2094_40_MASK)
+#define mfc_core_get_sei_nal_meta_status()		((MFC_CORE_READL(MFC_REG_METADATA_STATUS) \
+						>> MFC_REG_SEI_NAL_STATUS_SHIFT)		\
+						& MFC_REG_SEI_NAL_STATUS_MASK)
+
 /* for AV1 Film Grain */
 #define mfc_core_get_sei_avail_film_grain()		((MFC_CORE_READL(MFC_REG_D_SEI_AVAIL)	\
 						>> MFC_REG_D_SEI_AVAIL_FILM_GRAIN_SHIFT)	\
@@ -426,6 +430,9 @@ void mfc_core_get_hdr_plus_info(struct mfc_core *core, struct mfc_ctx *ctx,
 		struct hdr10_plus_meta *sei_meta);
 void mfc_core_set_hdr_plus_info(struct mfc_core *core, struct mfc_ctx *ctx,
 		struct hdr10_plus_meta *sei_meta);
+
+void mfc_core_set_dec_metadata_buffer(struct mfc_core *core, struct mfc_ctx *ctx);
+void mfc_core_get_dec_metadata_sei_nal(struct mfc_core *core, struct mfc_ctx *ctx, int index);
 
 void mfc_core_print_av1_film_grain_info(struct mfc_core *core, struct mfc_ctx *ctx,
 		struct av1_film_grain_meta *sei_meta);

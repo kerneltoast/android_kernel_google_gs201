@@ -611,6 +611,58 @@ static void __mfc_core_nal_q_set_enc_config_qp(struct mfc_ctx *ctx,
 	}
 }
 
+static void __mfc_core_nal_q_get_dec_metadata_sei_nal(struct mfc_core *core, struct mfc_ctx *ctx,
+					DecoderOutputStr *pOutStr, unsigned int index)
+{
+	struct mfc_dec *dec = ctx->dec_priv;
+	dma_addr_t buf_addr;
+	dma_addr_t offset;
+	unsigned int *sei_addr = NULL;
+	unsigned int *addr;
+	int buf_size, sei_size;
+
+	addr = HDR10_PLUS_ADDR(dec->hdr10_plus_full, index);
+
+	buf_addr = pOutStr->MetadataAddrSeiMb;
+	buf_size = pOutStr->MetadataSizeSeiMb;
+	if (!buf_addr) {
+		mfc_ctx_err("[NALQ][META] The metadata address is NULL\n");
+		return;
+	}
+
+	offset = buf_addr - ctx->metadata_buf.daddr;
+	if (offset < 0) {
+		mfc_ctx_err("[NALQ][HDR+][META] The metadata offset %#llx is wrong\n", offset);
+		return;
+	}
+
+	/* SEI data - 0x0: payload type, 0x4: payload size, 0x8: payload data */
+	sei_addr = ctx->metadata_buf.vaddr + offset + MFC_META_SEI_NAL_SIZE_OFFSET;
+	sei_size = *sei_addr;
+
+	/* If there is other SEI data, need to use it for purpose */
+	if (sei_size != (buf_size - MFC_META_SEI_NAL_PAYLOAD_OFFSET))
+		mfc_ctx_err("[NALQ][HDR+][META] There is another SEI data (%d / %d)\n",
+				sei_size, buf_size);
+
+	/* HAL needs SEI data size info "size(4 bytes) + SEI data" */
+	sei_size += MFC_META_SEI_NAL_SIZE_OFFSET;
+	mfc_debug(2, "[NALQ][HDR+][META] copy metadata offset %pad size: %d / %d\n",
+			&offset, sei_size, buf_size);
+
+	memcpy(addr, sei_addr, sei_size);
+
+	if (hdr_dump == 1) {
+		mfc_ctx_err("[NALQ][HDR+][DUMP] F/W data (offset %pad)....\n", &offset);
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 32, 4,
+				&ctx->metadata_buf.vaddr + offset,
+				buf_size, false);
+		mfc_ctx_err("[NALQ][HDR+][DUMP] DRV data (idx %d)....\n", index);
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 32, 4, addr,
+				sei_size, false);
+	}
+}
+
 static void __mfc_core_nal_q_get_hdr_plus_info(struct mfc_core *core, struct mfc_ctx *ctx,
 			DecoderOutputStr *pOutStr, struct hdr10_plus_meta *sei_meta)
 {
@@ -1755,6 +1807,7 @@ static struct mfc_buf *__mfc_core_nal_q_handle_frame_output_del(struct mfc_core 
 	unsigned int is_hdr10_plus_sei = 0, is_av1_film_grain_sei = 0;
 	unsigned int is_disp_res_change = 0;
 	unsigned int disp_err;
+	unsigned int is_hdr10_plus_full = 0;
 	unsigned int is_uncomp = 0;
 	int i, index, idr_flag;
 
@@ -1777,6 +1830,10 @@ static struct mfc_buf *__mfc_core_nal_q_handle_frame_output_del(struct mfc_core 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus))
 		is_hdr10_plus_sei = ((pOutStr->SeiAvail >> MFC_REG_D_SEI_AVAIL_ST_2094_40_SHIFT)
 					& MFC_REG_D_SEI_AVAIL_ST_2094_40_MASK);
+
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus_full))
+		is_hdr10_plus_full = ((pOutStr->MetadataStatus >> MFC_REG_SEI_NAL_STATUS_SHIFT)
+					& MFC_REG_SEI_NAL_STATUS_MASK);
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->av1_film_grain))
 		is_av1_film_grain_sei = ((pOutStr->SeiAvail >> MFC_REG_D_SEI_AVAIL_FILM_GRAIN_SHIFT)
@@ -1882,6 +1939,17 @@ static struct mfc_buf *__mfc_core_nal_q_handle_frame_output_del(struct mfc_core 
 		} else {
 			if (dec->hdr10_plus_info)
 				dec->hdr10_plus_info[index].valid = 0;
+		}
+
+		if (is_hdr10_plus_full) {
+			if (dec->hdr10_plus_full) {
+				__mfc_core_nal_q_get_dec_metadata_sei_nal(core, ctx, pOutStr,
+						index);
+				mfc_set_mb_flag(dst_mb, MFC_FLAG_HDR_PLUS);
+				mfc_debug(2, "[NALQ][HDR+] HDR10 plus full SEI metadata parsed\n");
+			} else {
+				mfc_ctx_err("[NALQ][HDR+] HDR10 plus full cannot be copied\n");
+			}
 		}
 
 		if (is_av1_film_grain_sei) {

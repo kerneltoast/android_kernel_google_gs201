@@ -1021,6 +1021,83 @@ void mfc_core_set_hdr_plus_info(struct mfc_core *core, struct mfc_ctx *ctx,
 		mfc_core_print_hdr_plus_info(core, ctx, sei_meta);
 }
 
+void mfc_core_set_dec_metadata_buffer(struct mfc_core *core, struct mfc_ctx *ctx)
+{
+	MFC_CORE_WRITEL(ctx->metadata_buf.daddr, MFC_REG_D_METADATA_BUFFER_ADDR);
+	MFC_CORE_WRITEL(ctx->metadata_buf.size, MFC_REG_D_METADATA_BUFFER_SIZE);
+
+	mfc_debug(2, "[MEMINFO] metadata buf %pad size: %zu\n",
+			&ctx->metadata_buf.daddr, ctx->metadata_buf.size);
+}
+
+void mfc_core_get_dec_metadata_sei_nal(struct mfc_core *core, struct mfc_ctx *ctx, int index)
+{
+	struct mfc_dec *dec = ctx->dec_priv;
+	dma_addr_t buf_addr;
+	dma_addr_t offset;
+	unsigned int *sei_addr = NULL;
+	unsigned int *addr;
+	int buf_size, sei_size;
+	int i;
+
+	addr = HDR10_PLUS_ADDR(dec->hdr10_plus_full, index);
+
+	if (ctx->is_drm) {
+		/* When DRM, read metadata from register */
+		sei_size = MFC_CORE_READL(MFC_REG_D_PAYLOAD_SIZE);
+		sei_size += MFC_META_SEI_NAL_SIZE_OFFSET;
+		if (sei_size == 0)
+			mfc_ctx_err("[HDR+][DRM] sei size is zero\n");
+
+		for (i = 0; i < (__ALIGN_UP(sei_size, 4) / 4); i++)
+			addr[i] = MFC_CORE_READL(MFC_REG_D_PAYLOAD_SIZE + (i * 4));
+		if (hdr_dump == 1) {
+			mfc_ctx_err("[HDR+][DUMP][DRM] DRV data (idx %d)....\n", index);
+			print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 32, 4, addr,
+					sei_size, false);
+		}
+		return;
+	}
+
+	buf_addr = MFC_CORE_READL(MFC_REG_D_METADATA_ADDR_SEI_NAL);
+	buf_size = MFC_CORE_READL(MFC_REG_D_METADATA_SIZE_SEI_NAL);
+	if (!buf_addr) {
+		mfc_ctx_err("[META] The metadata address is NULL\n");
+		return;
+	}
+
+	offset = buf_addr - ctx->metadata_buf.daddr;
+	if (offset < 0) {
+		mfc_ctx_err("[HDR+][META] The metadata offset %pad is wrong\n", &offset);
+		return;
+	}
+
+	/* SEI data - 0x0: payload type, 0x4: payload size, 0x8: payload data */
+	sei_addr = ctx->metadata_buf.vaddr + offset + MFC_META_SEI_NAL_SIZE_OFFSET;
+	sei_size = *sei_addr;
+
+	/* If there is other SEI data, need to use it for purpose */
+	if (sei_size != (buf_size - MFC_META_SEI_NAL_PAYLOAD_OFFSET))
+		mfc_ctx_err("[HDR+][META] There is another SEI data (%d / %d)\n",
+				sei_size, buf_size);
+
+	/* HAL needs SEI data size info "size(4 bytes) + SEI data" */
+	sei_size += MFC_META_SEI_NAL_SIZE_OFFSET;
+	mfc_debug(2, "[HDR+][META] copy metadata offset %pad size: %d / %d\n",
+			&offset, sei_size, buf_size);
+
+	memcpy(addr, sei_addr, sei_size);
+	if (hdr_dump == 1) {
+		mfc_ctx_err("[HDR+][DUMP] F/W data (offset %pad)....\n", &offset);
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 32, 4,
+				&ctx->metadata_buf.vaddr + offset,
+				buf_size, false);
+		mfc_ctx_err("[HDR+][DUMP] DRV data (idx %d)....\n", index);
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 32, 4, addr,
+				sei_size, false);
+	}
+}
+
 static void __mfc_core_print_av1_array(struct mfc_ctx *ctx, void *buf, int num)
 {
 	struct mfc_dec *dec = ctx->dec_priv;

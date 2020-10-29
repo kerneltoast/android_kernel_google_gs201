@@ -44,6 +44,7 @@ unsigned int regression_option;
 unsigned int core_balance;
 unsigned int sbwc_disable;
 unsigned int sscd_report;
+unsigned int hdr_dump;
 
 static int __mfc_info_show(struct seq_file *s, void *unused)
 {
@@ -538,6 +539,8 @@ void mfc_init_debugfs(struct mfc_dev *dev)
 	debugfs_create_u32("sscd_report",
 			0644, debugfs->root, &sscd_report);
 #endif
+	debugfs_create_u32("hdr_dump",
+			0644, debugfs->root, &hdr_dump);
 }
 
 void mfc_deinit_debugfs(struct mfc_dev *dev)

@@ -549,6 +549,7 @@ int mfc_core_instance_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 	if (ret)
 		goto err_release_try;
 
+	mfc_release_metadata_buffer(ctx);
 	mfc_release_codec_buffers(core_ctx);
 	mfc_release_instance_context(core_ctx);
 
@@ -598,14 +599,29 @@ static int __mfc_core_instance_open_dec(struct mfc_ctx *ctx,
 		return -ENOMEM;
 	}
 
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->metadata_interface)) {
+		ret = mfc_alloc_metadata_buffer(ctx);
+		if (ret) {
+			mfc_ctx_err("Failed to allocate metadata buffer\n");
+			ret = 0;
+		}
+	}
+
 	/* sh_handle: HDR10+ (HEVC or AV1) SEI meta */
-	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus) &&
-			(IS_HEVC_DEC(ctx) || IS_AV1_DEC(ctx))) {
-		dec->sh_handle_hdr.data_size =
-			sizeof(struct hdr10_plus_meta) * MFC_MAX_BUFFERS;
-		dec->hdr10_plus_info = vmalloc(dec->sh_handle_hdr.data_size);
-		if (!dec->hdr10_plus_info)
-			mfc_ctx_err("failed to allocate hdr10 plus information data");
+	if ((IS_HEVC_DEC(ctx) || IS_AV1_DEC(ctx))) {
+		if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus_full)) {
+			dec->sh_handle_hdr.data_size =
+				HDR10_PLUS_DATA_SIZE * MFC_MAX_BUFFERS;
+			dec->hdr10_plus_full = vmalloc(dec->sh_handle_hdr.data_size);
+			if (!dec->hdr10_plus_full)
+				mfc_ctx_err("failed to allocate hdr10 plus full information data");
+		} else if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus)) {
+			dec->sh_handle_hdr.data_size =
+				sizeof(struct hdr10_plus_meta) * MFC_MAX_BUFFERS;
+			dec->hdr10_plus_info = vmalloc(dec->sh_handle_hdr.data_size);
+			if (!dec->hdr10_plus_info)
+				mfc_ctx_err("failed to allocate hdr10 plus information data");
+		}
 	}
 
 	/* sh_handle: AV1 Film Grain SEI meta */

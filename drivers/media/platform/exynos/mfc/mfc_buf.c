@@ -701,6 +701,48 @@ void mfc_otf_release_stream_buf(struct mfc_ctx *ctx)
 	mfc_debug_leave();
 }
 
+int mfc_alloc_metadata_buffer(struct mfc_ctx *ctx)
+{
+	struct mfc_dev *dev = ctx->dev;
+
+	mfc_debug_enter();
+
+	if (ctx->metadata_buffer_allocated)
+		return 0;
+
+	ctx->metadata_buf.size = HDR10_PLUS_DATA_SIZE * MFC_MAX_DPBS;
+	if (ctx->is_drm)
+		ctx->metadata_buf.buftype = MFCBUF_DRM;
+	else
+		ctx->metadata_buf.buftype = MFCBUF_NORMAL;
+
+	if (mfc_mem_special_buf_alloc(dev, &ctx->metadata_buf)) {
+		mfc_ctx_err("Allocating metadata_buf buffer failed\n");
+		return -ENOMEM;
+	}
+	ctx->metadata_buffer_allocated = 1;
+
+	mfc_debug(2, "[MEMINFO] metadata buf ctx[%d] size: %zu, addr: %pad\n",
+			ctx->num, ctx->metadata_buf.size, &ctx->metadata_buf.daddr);
+
+	mfc_debug_leave();
+
+	return 0;
+}
+
+void mfc_release_metadata_buffer(struct mfc_ctx *ctx)
+{
+	mfc_debug_enter();
+
+	if (ctx->metadata_buffer_allocated) {
+		mfc_mem_special_buf_free(ctx->dev, &ctx->metadata_buf);
+		ctx->metadata_buffer_allocated = 0;
+		mfc_debug(2, "[MEMINFO] Release the metadata buffer ctx[%d]\n", ctx->num);
+	}
+
+	mfc_debug_leave();
+}
+
 /* Allocate firmware */
 int mfc_alloc_firmware(struct mfc_core *core)
 {
