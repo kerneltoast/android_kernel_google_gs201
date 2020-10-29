@@ -60,20 +60,20 @@ struct wakeup_mask_config {
  * Power modes
  * In CPUPM, power mode controls the power domain consisting of cpu and enters
  * the power mode by cpuidle. Basically, to enter power mode, all cpus in power
- * domain must be in POWERDOWN state, and sleep length of cpus must be smaller
- * than target_residency.
+ * domain must be in IDLE state, and sleep length of cpus must be smaller than
+ * target_residency.
  */
 struct power_mode {
 	/* name of power mode, it is declared in device tree */
 	char		name[NAME_LEN];
 
-	/* power mode state, RUN or POWERDOWN */
+	/* power mode state, BUSY or IDLE */
 	int		state;
 
 	/* sleep length criterion of cpus to enter power mode */
 	int		target_residency;
 
-	/* type according to h/w configuration of power domain */
+	/* type according to range of power domain */
 	int		type;
 
 	/* index of cal, for POWERMODE_TYPE_CLUSTER */
@@ -119,7 +119,7 @@ static LIST_HEAD(mode_list);
  * manage the state of the cpu and the power modes containing the cpu.
  */
 struct exynos_cpupm {
-	/* cpu state, RUN or POWERDOWN */
+	/* cpu state, BUSY or IDLE */
 	int			state;
 
 	/* array to manage the power mode that contains the cpu */
@@ -324,7 +324,7 @@ static void cpupm_profile_end(struct cpupm_stats *stat, int cancel)
 	}
 
 	stat->residency_time +=
-		ktime_to_ms(ktime_sub(ktime_get(), stat->entry_time));
+		ktime_to_us(ktime_sub(ktime_get(), stat->entry_time));
 	stat->entry_time = 0;
 }
 
@@ -363,7 +363,7 @@ static ssize_t profile_show(struct device *dev,
 	ret += snprintf(buf + ret, PAGE_SIZE - ret,
 			"format : [mode] [entry_count] [cancel_count] [time] [(ratio)]\n\n");
 
-	total = ktime_to_ms(profile_time);
+	total = ktime_to_us(profile_time);
 	list_for_each_entry(mode, &mode_list, list) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"%s %d %d %lld (%d%%)\n",
@@ -381,7 +381,7 @@ static ssize_t profile_show(struct device *dev,
 				ip->name, ip->count_profile, idle_ip_check_count_profile);
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
 
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(total %lldms)\n", total);
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(total %lldus)\n", total);
 
 	return ret;
 }
@@ -451,7 +451,7 @@ static ssize_t time_in_state_show(struct device *dev,
 {
 	struct power_mode *mode;
 	struct idle_ip *ip;
-	s64 total = ktime_to_ms(ktime_sub(ktime_get(), cpupm_init_time));
+	s64 total = ktime_to_us(ktime_sub(ktime_get(), cpupm_init_time));
 	int ret = 0;
 
 	ret += snprintf(buf + ret, PAGE_SIZE - ret,
@@ -476,7 +476,7 @@ static ssize_t time_in_state_show(struct device *dev,
 				ip->name, ip->count, idle_ip_check_count);
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
 
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(total %lldms)\n", total);
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(total %lldus)\n", total);
 
 	return ret;
 }
@@ -489,27 +489,27 @@ static DEVICE_ATTR_RW(profile);
  ******************************************************************************/
 /*
  * State of CPUPM objects
- * All CPUPM objects have 2 states, RUN and POWERDOWN.
+ * All CPUPM objects have 2 states, BUSY and IDLE.
  *
- * @RUN
+ * @BUSY
  * a state in which the power domain referred to by the object is turned on.
  *
- * @POWERDOWN
+ * @IDLE
  * a state in which the power domain referred to by the object is turned off.
  * However, the power domain is not necessarily turned off even if the object
- * is in POEWRDOWN state because the cpu may be booting or executing power off
+ * is in IDLE state because the cpu may be booting or executing power off
  * sequence.
  */
 enum {
-	CPUPM_STATE_RUN = 0,
-	CPUPM_STATE_POWERDOWN,
+	CPUPM_STATE_BUSY = 0,
+	CPUPM_STATE_IDLE,
 };
 
 /* Macros for CPUPM state */
-#define set_state_run(object)		((object)->state = CPUPM_STATE_RUN)
-#define set_state_powerdown(object)	((object)->state = CPUPM_STATE_POWERDOWN)
-#define check_state_run(object)		((object)->state == CPUPM_STATE_RUN)
-#define check_state_powerdown(object)	((object)->state == CPUPM_STATE_POWERDOWN)
+#define set_state_busy(object)		((object)->state = CPUPM_STATE_BUSY)
+#define set_state_idle(object)		((object)->state = CPUPM_STATE_IDLE)
+#define check_state_busy(object)	((object)->state == CPUPM_STATE_BUSY)
+#define check_state_idle(object)	((object)->state == CPUPM_STATE_IDLE)
 #define is_valid_powermode(type)	((type >= 0) && (type < POWERMODE_TYPE_END))
 /*
  * State of each cpu is managed by a structure declared by percpu, so there
@@ -602,14 +602,14 @@ static int cpus_busy(int target_residency, const struct cpumask *cpus)
 	int cpu;
 
 	/*
-	 * If there is even one cpu which is not in POWERDOWN state or has
+	 * If there is even one cpu which is not in IDLE state or has
 	 * the smaller sleep length than target_residency, CPUPM regards
 	 * it as BUSY.
 	 */
 	for_each_cpu_and(cpu, cpu_online_mask, cpus) {
 		struct exynos_cpupm *pm = per_cpu_ptr(cpupm, cpu);
 
-		if (check_state_run(pm))
+		if (check_state_busy(pm))
 			return -EBUSY;
 	}
 
@@ -632,7 +632,7 @@ static int cpus_last_core_detecting(int request_cpu, const struct cpumask *cpus)
 }
 
 #define BOOT_CPU	0
-static int check_cluster_run(void)
+static int check_cluster_busy(void)
 {
 	int cpu;
 	struct power_mode *mode = NULL;
@@ -648,7 +648,7 @@ static int check_cluster_run(void)
 		if (cpumask_test_cpu(BOOT_CPU, &mode->siblings))
 			continue;
 
-		if (check_state_run(mode))
+		if (check_state_busy(mode))
 			return 1;
 	}
 
@@ -660,7 +660,7 @@ static bool system_busy(struct power_mode *mode)
 	if (mode->type != POWERMODE_TYPE_SYSTEM)
 		return false;
 
-	if (check_cluster_run())
+	if (check_cluster_busy())
 		return true;
 
 	if (check_idle_ip())
@@ -677,7 +677,7 @@ static bool system_busy(struct power_mode *mode)
  * 1. power mode should not be disabled
  * 2. the cpu attempting to enter must be a cpu that is allowed to enter the
  *    power mode.
- * 3. all cpus in the power domain must be in POWERDOWN state and the sleep
+ * 3. all cpus in the power domain must be in IDLE state and the sleep
  *    length of the cpus must be less than target_residency.
  */
 static bool entry_allow(int cpu, struct power_mode *mode)
@@ -747,7 +747,7 @@ static void enter_power_mode(int cpu, struct power_mode *mode)
 	}
 
 	dbg_snapshot_cpuidle_mod(mode->name, 0, 0, DSS_FLAG_IN);
-	set_state_powerdown(mode);
+	set_state_idle(mode);
 
 	cpupm_profile_begin(&mode->stat);
 }
@@ -760,7 +760,7 @@ static void exit_power_mode(int cpu, struct power_mode *mode, int cancel)
 	 * Configure settings to exit power mode. This is executed by the
 	 * first cpu exiting from power mode.
 	 */
-	set_state_run(mode);
+	set_state_busy(mode);
 	dbg_snapshot_cpuidle_mod(mode->name, 0, 0, DSS_FLAG_OUT);
 
 	switch (mode->type) {
@@ -797,8 +797,8 @@ static void exynos_cpupm_enter(int cpu)
 	/* Configure PMUCAL to power down core */
 	cal_cpu_disable(cpu);
 
-	/* Set cpu state to POWERDOWN */
-	set_state_powerdown(pm);
+	/* Set cpu state to IDLE */
+	set_state_idle(pm);
 
 	/* Try to enter power mode */
 	for (i = 0; i < POWERMODE_TYPE_END; i++) {
@@ -829,12 +829,12 @@ static void exynos_cpupm_exit(int cpu, int cancel)
 		if (!mode)
 			continue;
 
-		if (check_state_powerdown(mode))
+		if (check_state_idle(mode))
 			exit_power_mode(cpu, mode, cancel);
 	}
 
-	/* Set cpu state to RUN */
-	set_state_run(pm);
+	/* Set cpu state to BUSY */
+	set_state_busy(pm);
 
 	/* Configure PMUCAL to power up core */
 	cal_cpu_enable(cpu);
