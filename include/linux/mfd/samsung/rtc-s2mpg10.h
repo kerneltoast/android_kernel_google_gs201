@@ -98,23 +98,6 @@ struct s2m_rtc_info {
 	struct mutex lock;
 	struct delayed_work irq_work;
 	int alarm0_irq;
-	int smpl_warn_irq;
-	int smpl_warn_pin;
-	unsigned int smpl_warn_lvl;
-	struct delayed_work thermal_work;
-
-	int cpu1_ocp_warn_irq;
-	unsigned int ocp_cpucl1_lvl;
-	int soft_cpu1_ocp_warn_irq;
-	unsigned int soft_ocp_cpucl1_lvl;
-	int cpu2_ocp_warn_irq;
-	unsigned int ocp_cpucl2_lvl;
-	int soft_cpu2_ocp_warn_irq;
-	unsigned int soft_ocp_cpucl2_lvl;
-	int tpu_ocp_warn_irq;
-	unsigned int ocp_tpu_lvl;
-	int soft_tpu_ocp_warn_irq;
-	unsigned int soft_ocp_tpu_lvl;
 
 	bool use_irq;
 	bool wtsr_en;

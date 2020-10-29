@@ -28,63 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/regulator/pmic_class.h>
 
-enum IRQ_SOURCE {
-	IRQ_OCP_WARN_GPU,
-	IRQ_SOFT_OCP_WARN_GPU,
-};
-
 static struct regulator_desc regulators[S2MPG11_REGULATOR_MAX];
-static struct thermal_zone_device *tz_soft_ocp_gpu;
-static struct thermal_zone_device *tz_ocp_gpu;
-
-static int ocp_gpu_read_current(void *data, int *val)
-{
-	struct s2mpg11_pmic *s2mpg11 = data;
-	*val = s2mpg11->ocp_gpu_lvl;
-	return 0;
-}
-
-static const struct thermal_zone_of_device_ops s2mpg11_ocp_gpu_ops = {
-	.get_temp = ocp_gpu_read_current,
-};
-
-static int soft_ocp_gpu_read_current(void *data, int *val)
-{
-	struct s2mpg11_pmic *s2mpg11 = data;
-	*val = s2mpg11->soft_ocp_gpu_lvl;
-	return 0;
-}
-
-static const struct thermal_zone_of_device_ops s2mpg11_soft_ocp_gpu_ops = {
-	.get_temp = soft_ocp_gpu_read_current,
-};
-
-static void async_thermal_probe(void *data, async_cookie_t cookie)
-{
-	struct s2mpg11_pmic *s2mpg11 = data;
-
-	tz_ocp_gpu = thermal_zone_of_sensor_register(s2mpg11->iodev->dev,
-						     IRQ_OCP_WARN_GPU, s2mpg11,
-						     &s2mpg11_ocp_gpu_ops);
-	if (IS_ERR(tz_ocp_gpu)) {
-		pr_err("gpu TZ register failed. err:%ld\n",
-		       PTR_ERR(tz_ocp_gpu));
-	} else {
-		thermal_zone_device_enable(tz_ocp_gpu);
-		thermal_zone_device_update(tz_ocp_gpu, THERMAL_DEVICE_UP);
-	}
-	tz_soft_ocp_gpu =
-		thermal_zone_of_sensor_register(s2mpg11->iodev->dev,
-						IRQ_SOFT_OCP_WARN_GPU, s2mpg11,
-						&s2mpg11_soft_ocp_gpu_ops);
-	if (IS_ERR(tz_soft_ocp_gpu)) {
-		pr_err("soft gpu TZ register failed. err:%ld\n",
-		       PTR_ERR(tz_soft_ocp_gpu));
-	} else {
-		thermal_zone_device_enable(tz_soft_ocp_gpu);
-		thermal_zone_device_update(tz_soft_ocp_gpu, THERMAL_DEVICE_UP);
-	}
-}
 
 static unsigned int s2mpg11_of_map_mode(unsigned int val)
 {
@@ -636,26 +580,6 @@ void s2mpg11_oi_function(struct s2mpg11_pmic *s2mpg11)
 	/* OI detection time window : 500us, OI comp. output count : 50 times */
 }
 
-static irqreturn_t s2mpg11_gpu_ocp_warn_irq_handler(int irq, void *data)
-{
-	pr_info_ratelimited("OCP : GPU IRQ : %d triggered\n", irq);
-	if (tz_ocp_gpu)
-		thermal_zone_device_update(tz_ocp_gpu,
-					   THERMAL_EVENT_UNSPECIFIED);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t s2mpg11_soft_gpu_ocp_warn_irq_handler(int irq, void *data)
-{
-	pr_info_ratelimited("OCP : SOFT GPU IRQ : %d triggered\n", irq);
-	if (tz_soft_ocp_gpu)
-		thermal_zone_device_update(tz_soft_ocp_gpu,
-					   THERMAL_EVENT_UNSPECIFIED);
-
-	return IRQ_HANDLED;
-}
-
 static int s2mpg11_pmic_probe(struct platform_device *pdev)
 {
 	struct s2mpg11_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -726,8 +650,6 @@ static int s2mpg11_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
-	s2mpg11->ocp_gpu_lvl = 13100 - (pdata->b2_ocp_warn_lvl * 250);
-	s2mpg11->soft_ocp_gpu_lvl = 13100 - (pdata->b2_soft_ocp_warn_lvl * 250);
 	s2mpg11->num_regulators = pdata->num_regulators;
 
 	/* request IRQ */
@@ -745,40 +667,9 @@ static int s2mpg11_pmic_probe(struct platform_device *pdev)
 				i + 1, s2mpg11->buck_ocp_irq[i], ret);
 		}
 	}
-	if (pdata->b2_ocp_warn_pin >= 0) {
-		s2mpg11->gpu_ocp_warn_irq =
-				gpio_to_irq(pdata->b2_ocp_warn_pin);
-		ret = devm_request_threaded_irq(&pdev->dev,
-						s2mpg11->gpu_ocp_warn_irq, NULL,
-						s2mpg11_gpu_ocp_warn_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"GPU_OCP_IRQ", s2mpg11);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"Failed to request GPU OCP IRQ: %d: %d\n",
-				s2mpg11->gpu_ocp_warn_irq, ret);
-		}
-	}
-
-	if (pdata->b2_soft_ocp_warn_pin >= 0) {
-		s2mpg11->soft_gpu_ocp_warn_irq =
-				gpio_to_irq(pdata->b2_soft_ocp_warn_pin);
-		ret = devm_request_threaded_irq(&pdev->dev,
-						s2mpg11->soft_gpu_ocp_warn_irq,
-						NULL,
-						s2mpg11_soft_gpu_ocp_warn_irq_handler,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-						"SOFT_GPU_OCP_IRQ", s2mpg11);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"Failed to request SOFT GPU OCP IRQ: %d: %d\n",
-				s2mpg11->soft_gpu_ocp_warn_irq, ret);
-		}
-	}
 
 	s2mpg11_ocp_warn(s2mpg11, pdata);
 	s2mpg11_oi_function(s2mpg11);
-	async_schedule(async_thermal_probe, s2mpg11);
 
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 	/* create sysfs */
