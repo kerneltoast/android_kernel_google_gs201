@@ -654,32 +654,7 @@
 				use-regulators-as-rails;
 
 				/* Additional rails */
-				m_ext1_rail: VSEN_V1 {
-					external_rail;
-					channel-en-index = <1>;
-					channel-mux-selection = <0x1C>;
-					shunt-res-uohms = <10000>;
-					schematic-name = "PPVAR_VSYS_PWR_DISP";
-					subsys-name = "display";
-				};
-
-				m_ext2_rail: VSEN_V2 {
-					external_rail;
-					channel-en-index = <2>;
-					channel-mux-selection = <0x1D>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "VSYS_PWR_MODEM";
-					subsys-name = "modem";
-				};
-
-				m_ext3_rail: VSEN_V3 {
-					external_rail;
-					channel-en-index = <4>;
-					channel-mux-selection = <0x1E>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "VSYS_PWR_RFFE";
-					subsys-name = "rffe";
-				};
+				/* Note; VSEN_P is not supported */
 
 				m_ext4_rail: VSEN_C1 {
 					external_rail;
@@ -1164,32 +1139,7 @@
 				use-regulators-as-rails;
 
 				/* Additional rails */
-				s_ext1_rail: VSEN_P4 {
-					external_rail;
-					channel-en-index = <1>;
-					channel-mux-selection = <0x1C>;
-					shunt-res-uohms = <10000>;
-					schematic-name = "VSYS_PWR_WLAN_BT";
-					subsys-name = "wlan-bt";
-				};
-
-				s_ext2_rail: VSEN_P5 {
-					external_rail;
-					channel-en-index = <2>;
-					channel-mux-selection = <0x1D>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "P5_GRAS";
-					subsys-name = "spare";
-				};
-
-				s_ext3_rail: VSEN_P6 {
-					external_rail;
-					channel-en-index = <4>;
-					channel-mux-selection = <0x1E>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "P6_GRAS";
-					subsys-name = "spare";
-				};
+				/* Note; VSEN_P is not supported */
 
 				s_ext4_rail: VSEN_C4 {
 					external_rail;
