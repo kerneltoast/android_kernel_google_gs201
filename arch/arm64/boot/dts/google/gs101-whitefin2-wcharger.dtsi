@@ -39,6 +39,15 @@
 	};
 };
 
+&pinctrl_4 {
+	wc_ref: wc_ref {
+		samsung,pins = "gpp1-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
 &hsi2c_8 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -50,7 +59,7 @@
 		reg = <0x3c>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&wc_irq>;
+		pinctrl-0 = <&wc_irq &wc_ref>;
 
 		interrupt-names = "p9382_int";
 		idt,irq_gpio = <&gpa9 7 GPIO_ACTIVE_LOW>;
