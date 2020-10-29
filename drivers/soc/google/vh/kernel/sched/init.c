@@ -14,6 +14,8 @@ extern void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_stru
 						    int sync, int *new_cpu);
 extern void vh_arch_set_freq_scale_pixel_mod(void *data, struct cpumask *cpus, unsigned long freq,
 					     unsigned long max, unsigned long *scale);
+extern void vh_set_sugov_sched_attr_pixel_mod(void *data, struct sched_attr *attr);
+extern void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost);
 
 static int vh_sched_init(void)
 {
@@ -25,6 +27,15 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_vh_arch_set_freq_scale(vh_arch_set_freq_scale_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_set_sugov_sched_attr(
+		vh_set_sugov_sched_attr_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_set_iowait(rvh_set_iowait_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
