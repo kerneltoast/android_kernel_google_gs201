@@ -807,6 +807,7 @@ void mfc_core_instance_dpb_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 	}
 
 	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_err_queue);
 	for (i = 0; i < MFC_MAX_DPBS; i++)
 		dec->dpb[i].queued = 0;
 	dec->queued_dpb = 0;

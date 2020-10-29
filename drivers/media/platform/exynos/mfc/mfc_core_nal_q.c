@@ -1545,6 +1545,50 @@ static void __mfc_core_nal_q_handle_reuse_buffer(struct mfc_ctx *ctx, DecoderOut
 	}
 }
 
+static void __mfc_core_nal_q_handle_frame_unused_output(struct mfc_ctx *ctx,
+			DecoderOutputStr *pOutStr)
+{
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf *mfc_buf = NULL;
+	unsigned int index;
+
+	while (1) {
+		mfc_buf = mfc_get_del_buf(ctx, &ctx->dst_buf_err_queue, MFC_BUF_NO_TOUCH_USED);
+		if (!mfc_buf)
+			break;
+
+		index = mfc_buf->vb.vb2_buf.index;
+
+		mfc_clear_mb_flag(mfc_buf);
+		mfc_buf->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
+					V4L2_BUF_FLAG_PFRAME |
+					V4L2_BUF_FLAG_BFRAME |
+					V4L2_BUF_FLAG_ERROR);
+
+		if (call_cop(ctx, get_buf_ctrls_val_nal_q_dec, ctx,
+					&ctx->dst_ctrls[index], pOutStr) < 0)
+			mfc_ctx_err("[NALQ] failed in get_buf_ctrls_val\n");
+
+		call_cop(ctx, get_buf_update_val, ctx,
+				&ctx->dst_ctrls[index],
+				V4L2_CID_MPEG_MFC51_VIDEO_DISPLAY_STATUS,
+				MFC_REG_DEC_STATUS_DECODING_ONLY);
+
+		call_cop(ctx, get_buf_update_val, ctx,
+				&ctx->dst_ctrls[index],
+				V4L2_CID_MPEG_MFC51_VIDEO_FRAME_TAG,
+				UNUSED_TAG);
+
+		dec->ref_buf[dec->refcnt].fd[0] = mfc_buf->vb.vb2_buf.planes[0].m.fd;
+		dec->refcnt++;
+
+		vb2_buffer_done(&mfc_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		mfc_debug(2, "[NALQ][DPB] dst index [%d][%d] fd: %d is buffer done (not used)\n",
+				mfc_buf->vb.vb2_buf.index, mfc_buf->dpb_index,
+				mfc_buf->vb.vb2_buf.planes[0].m.fd);
+	}
+}
+
 static void __mfc_core_nal_q_handle_frame_all_extracted(struct mfc_ctx *ctx, DecoderOutputStr *pOutStr)
 {
 	struct mfc_dec *dec = ctx->dec_priv;
@@ -1603,6 +1647,9 @@ static void __mfc_core_nal_q_handle_frame_all_extracted(struct mfc_ctx *ctx, Dec
 		mfc_debug(2, "[NALQ][DPB] Cleand up index = %d, used_flag = %#lx, queued = %#lx\n",
 				index, dec->dynamic_used, dec->queued_dpb);
 	}
+
+	/* dequeue unused DPB */
+	__mfc_core_nal_q_handle_frame_unused_output(ctx, pOutStr);
 
 	mfc_debug(2, "[NALQ] After cleanup\n");
 }
@@ -2294,6 +2341,9 @@ void __mfc_core_nal_q_handle_frame(struct mfc_core *core, struct mfc_core_ctx *c
 
 	/* arrangement of assigned dpb table */
 	__mfc_core_nal_q_handle_released_buf(core, ctx, pOutStr);
+
+	/* dequeue unused DPB */
+	__mfc_core_nal_q_handle_frame_unused_output(ctx, pOutStr);
 
 	/* There is display buffer for user, update reference information */
 	if (mfc_buf) {

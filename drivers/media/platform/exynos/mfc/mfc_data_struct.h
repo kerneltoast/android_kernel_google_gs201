@@ -2112,6 +2112,7 @@ struct mfc_ctx {
 
 	struct mfc_buf_queue src_buf_ready_queue;
 	struct mfc_buf_queue dst_buf_queue;
+	struct mfc_buf_queue dst_buf_err_queue;
 	struct mfc_buf_queue src_buf_nal_queue;
 	struct mfc_buf_queue dst_buf_nal_queue;
 	struct mfc_buf_queue ref_buf_queue;

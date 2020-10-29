@@ -804,12 +804,14 @@ void __mfc_update_base_addr_dpb(struct mfc_ctx *ctx, struct mfc_buf *buf,
 			index, buf->addr[0][0], buf->addr[0][1], buf->addr[0][2]);
 }
 
-void __mfc_update_dpb_fd(struct mfc_ctx *ctx, struct vb2_buffer *vb, int index)
+int __mfc_update_dpb_fd(struct mfc_ctx *ctx, struct vb2_buffer *vb, int index)
 {
 	struct mfc_dec *dec = ctx->dec_priv;
 
-	if ((dec->dynamic_used & (1UL << index)) == 0)
-		mfc_ctx_err("[REFINFO] non-reference DPB is remained in table\n");
+	if ((dec->dynamic_used & (1UL << index)) == 0) {
+		mfc_ctx_err("[REFINFO] non-reference DPB[%d] is remained in table\n", index);
+		return -EINVAL;
+	}
 
 	if (dec->dpb[index].fd[0] == vb->planes[0].m.fd)
 		mfc_debug(3, "[REFINFO] same dma_buf has same fd\n");
@@ -818,6 +820,8 @@ void __mfc_update_dpb_fd(struct mfc_ctx *ctx, struct vb2_buffer *vb, int index)
 	mfc_debug(3, "[REFINFO] index %d update fd: %d -> %d after release\n",
 			vb->index, dec->dpb[index].fd[0],
 			dec->dpb[index].new_fd);
+
+	return 0;
 }
 
 /* Add dst buffer in dst_buf_queue */
@@ -827,7 +831,7 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 	struct mfc_dec *dec;
 	struct mfc_buf *mfc_buf;
 	unsigned long flags;
-	int index, plane;
+	int index, plane, ret = 0;
 
 	dec = ctx->dec_priv;
 	if (!dec) {
@@ -860,9 +864,9 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 		mfc_get_iovmm(ctx, vb, dec->dpb);
 	} else {
 		if (dec->dpb[index].paddr == mfc_buf->paddr) {
-			mfc_debug(2, "[DPB] DPB[%d] is same %#llx(used: %#lx)\n",
-					index, dec->dpb[index].paddr, dec->dynamic_used);
-			__mfc_update_dpb_fd(ctx, vb, index);
+			mfc_debug(2, "[DPB] DPB[%d] is same %pap(used: %#lx)\n",
+					index, &dec->dpb[index].paddr, dec->dynamic_used);
+			ret = __mfc_update_dpb_fd(ctx, vb, index);
 		} else {
 			snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
 					"[DPB] wrong assign dpb index\n");
@@ -870,6 +874,33 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 		}
 	}
+
+	if (ret) {
+		/*
+		 * Handling exception case that
+		 * the queued buffer is same with already queued buffer's paddr.
+		 * Driver cannot use that buffer so moves it to dst_buf_err_queue
+		 * and will dequeue in ISR.
+		 */
+		mutex_unlock(&dec->dpb_mutex);
+
+		spin_lock_irqsave(&ctx->buf_queue_lock, flags);
+
+		list_add_tail(&mfc_buf->list, &ctx->dst_buf_err_queue.head);
+		ctx->dst_buf_err_queue.count++;
+		mfc_debug(2, "[DPB] DPB[%d][%d] fd: %d will be not used %pad (%d)\n",
+				mfc_buf->vb.vb2_buf.index, index,
+				mfc_buf->vb.planes[0].m.fd, &mfc_buf->addr[0][0],
+				ctx->dst_buf_err_queue.count);
+		MFC_TRACE_CTX("unused DPB[%d][%d] fd: %d %pad (%d)\n",
+				mfc_buf->vb.vb2_buf.index, index,
+				mfc_buf->vb.planes[0].m.fd, &mfc_buf->addr[0][0],
+				ctx->dst_buf_err_queue.count);
+
+		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
+		return;
+	}
+
 	__mfc_update_base_addr_dpb(ctx, mfc_buf, index);
 
 	dec->dpb[index].size = 0;

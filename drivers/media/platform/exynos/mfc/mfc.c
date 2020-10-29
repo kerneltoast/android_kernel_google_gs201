@@ -114,6 +114,7 @@ static void __mfc_deinit_dec_ctx(struct mfc_ctx *ctx)
 
 	mfc_delete_queue(&ctx->src_buf_ready_queue);
 	mfc_delete_queue(&ctx->dst_buf_queue);
+	mfc_delete_queue(&ctx->dst_buf_err_queue);
 	mfc_delete_queue(&ctx->src_buf_nal_queue);
 	mfc_delete_queue(&ctx->dst_buf_nal_queue);
 	mfc_delete_queue(&ctx->meminfo_inbuf_q);
@@ -151,6 +152,7 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 
 	mfc_create_queue(&ctx->src_buf_ready_queue);
 	mfc_create_queue(&ctx->dst_buf_queue);
+	mfc_create_queue(&ctx->dst_buf_err_queue);
 	mfc_create_queue(&ctx->src_buf_nal_queue);
 	mfc_create_queue(&ctx->dst_buf_nal_queue);
 	mfc_create_queue(&ctx->meminfo_inbuf_q);
