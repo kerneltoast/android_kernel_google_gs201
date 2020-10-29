@@ -277,7 +277,8 @@
 
 			dm-constraints {
 				list = <&med_mif_perf>,
-					<&med_ank_perf>;
+					<&med_ank_perf>,
+					<&med_dsu_skew>;
 			};
 		};
 
@@ -295,7 +296,8 @@
 			skip-boot-pmqos;
 
 			dm-constraints {
-				list = <&big_mif_perf>;
+				list = <&big_mif_perf>,
+					<&big_dsu_skew>;
 			};
 		};
 	};
@@ -392,6 +394,22 @@
 				  696000	0
 				  553000	0
 				  400000	0 >;
+		};
+		med_dsu_skew: dm-table@0004 {
+			guidance;
+			const-type = <CONSTRAINT_MIN>;
+			dm-slave = <DM_CPU_CL0>;
+			master-cal-id = <ACPM_DVFS_CPUCL1>;
+			slave-cal-id = <ACPM_DVFS_CPUCL0>;
+			ect-name = "CPUCL1";
+		};
+		big_dsu_skew: dm-table@0005 {
+			guidance;
+			const-type = <CONSTRAINT_MIN>;
+			dm-slave = <DM_CPU_CL0>;
+			master-cal-id = <ACPM_DVFS_CPUCL2>;
+			slave-cal-id = <ACPM_DVFS_CPUCL0>;
+			ect-name = "CPUCL2";
 		};
 	};
 };
