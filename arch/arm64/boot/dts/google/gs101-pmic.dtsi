@@ -641,8 +641,7 @@
 
 				ch7: channel@6 {
 					rail-name = "BUCK5M";
-					/* Disabled due to bug: 159965947 */
-					/* channel_enabled; */
+					channel_enabled;
 				};
 
 				ch8: channel@7 {
