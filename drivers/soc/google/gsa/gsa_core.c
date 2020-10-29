@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <linux/gsa/gsa_kdn.h>
 #include <linux/gsa/gsa_tpu.h>
 #include "gsa_mbox.h"
 #include "gsa_priv.h"
@@ -20,6 +21,10 @@
 struct gsa_dev_state {
 	struct device *dev;
 	struct gsa_mbox *mb;
+	dma_addr_t bb_da;
+	void *bb_va;
+	size_t bb_sz;
+	struct mutex bb_lock; /* protects access to bounce buffer */
 };
 
 /*
@@ -99,6 +104,145 @@ int gsa_send_tpu_cmd(struct device *dev, enum gsa_tpu_cmd arg)
 }
 EXPORT_SYMBOL_GPL(gsa_send_tpu_cmd);
 
+
+/*
+ *  External KDN interface
+ */
+static int send_kdn_cmd(struct gsa_dev_state *s, u32 cmd,
+			void *dst_buf, size_t dst_buf_sz, u32 opts,
+			const void *src_data, size_t src_data_len)
+{
+	int ret;
+	size_t cb;
+	u32 req[KDN_REQ_ARGC];
+	u32 rsp[KDN_RSP_ARGC];
+
+	if (dst_buf_sz) {
+		if (!dst_buf) {
+			/* invalid args */
+			return -EINVAL;
+		}
+		if (dst_buf_sz > s->bb_sz) {
+			/* too much data */
+			return -EINVAL;
+		}
+	}
+
+	/* copy in data */
+	if (src_data_len) {
+		if (!src_data) {
+			/* invalid args */
+			return -EINVAL;
+		}
+
+		if (src_data_len > s->bb_sz) {
+			/* too much data */
+			return -EINVAL;
+		}
+
+		memcpy(s->bb_va, src_data, src_data_len);
+	}
+
+	/* Invoke KDN command */
+	req[KDN_DATA_BUF_ADDR_LO_IDX] = (u32)s->bb_da;
+	req[KDN_DATA_BUF_ADDR_HI_IDX] = (u32)(s->bb_da >> 32);
+	req[KDN_DATA_BUF_SIZE_IDX] = max_t(u32, dst_buf_sz, src_data_len);
+	req[KDN_DATA_LEN_IDX] = (u32)src_data_len;
+	req[KDN_OPTION_IDX] = opts;
+
+	ret = gsa_send_mbox_cmd(s->mb, cmd, req, ARRAY_SIZE(req),
+				rsp, ARRAY_SIZE(rsp));
+	if (ret < 0) {
+		/* mailbox command failed */
+		return ret;
+	}
+
+	if (ret != KDN_RSP_ARGC) {
+		/* unexpected reply */
+		return -EINVAL;
+	}
+
+	/* copy data out */
+	cb = rsp[KDN_RSP_DATA_LEN_IDX];
+
+	if (cb > dst_buf_sz) {
+		/* buffer too short */
+		return -EINVAL;
+	}
+
+	if (cb) {
+		/* copy data to destination buffer */
+		memcpy(dst_buf, s->bb_va, cb);
+	}
+
+	return cb;
+}
+
+int gsa_kdn_derive_raw_secret(struct device *gsa, void *buf, size_t buf_sz,
+			      const void *key_blob, size_t key_blob_len)
+{
+	int ret;
+	struct platform_device *pdev = to_platform_device(gsa);
+	struct gsa_dev_state *s = platform_get_drvdata(pdev);
+
+	mutex_lock(&s->bb_lock);
+	ret = send_kdn_cmd(s, GSA_MB_CMD_KDN_DERIVE_RAW_SECRET,
+			   buf, buf_sz, 0, key_blob, key_blob_len);
+	mutex_unlock(&s->bb_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gsa_kdn_derive_raw_secret);
+
+int gsa_kdn_program_key(struct device *gsa, u32 slot, const void *key_blob,
+			size_t key_blob_len)
+{
+	int ret;
+	struct platform_device *pdev = to_platform_device(gsa);
+	struct gsa_dev_state *s = platform_get_drvdata(pdev);
+
+	mutex_lock(&s->bb_lock);
+	ret = send_kdn_cmd(s, GSA_MB_CMD_KDN_PROGRAM_KEY,
+			   NULL, 0, slot, key_blob, key_blob_len);
+	mutex_unlock(&s->bb_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gsa_kdn_program_key);
+
+int gsa_kdn_restore_keys(struct device *gsa)
+{
+	int ret;
+
+	/* Restore keys is a special no argument command */
+	ret = gsa_send_cmd(gsa, GSA_MB_CMD_KDN_RESTORE_KEYS, NULL, 0, NULL, 0);
+	if (ret < 0)
+		return ret;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(gsa_kdn_restore_keys);
+
+
+int gsa_kdn_set_operating_mode(struct device *gsa,
+			       enum kdn_op_mode mode,
+			       enum kdn_ufs_descr_type descr)
+{
+	int ret;
+	u32 req[KDN_SET_OP_MODE_ARGC];
+
+	req[KDN_SET_OP_MODE_MODE_IDX] = mode;
+	req[KDN_SET_OP_MODE_UFS_DESCR_IDX] = descr;
+
+	ret = gsa_send_cmd(gsa, GSA_MB_CMD_KDN_SET_OP_MODE,
+			   req, ARRAY_SIZE(req), NULL, 0);
+	if (ret < 0)
+		return ret;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(gsa_kdn_set_operating_mode);
+
 /********************************************************************/
 
 static int gsa_probe(struct platform_device *pdev)
@@ -112,6 +256,7 @@ static int gsa_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	s->dev = dev;
+	mutex_init(&s->bb_lock);
 	platform_set_drvdata(pdev, s);
 
 	/*
@@ -136,6 +281,12 @@ static int gsa_probe(struct platform_device *pdev)
 		dev_err(dev, "populate children failed (%d)\n", err);
 		return err;
 	}
+
+	/* alloc bounce buffer */
+	s->bb_va = dmam_alloc_coherent(dev, PAGE_SIZE, &s->bb_da, GFP_KERNEL);
+	if (!s->bb_va)
+		return -ENOMEM;
+	s->bb_sz = PAGE_SIZE;
 
 	dev_info(dev, "Initialized\n");
 
