@@ -315,10 +315,11 @@ static void sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,
 	pr_crit("----------------------------------------------------------\n");
 
 	scnprintf(err_msg, sizeof(err_msg),
-		  "From [%s], SysMMU %s %s at %#010lx",
-		  port_name ? port_name : dev_name(drvdata->dev),
+		  "SysMMU %s %s from %s at %#010lx",
 		  IS_READ_FAULT(info) ? "READ" : "WRITE",
-		  sysmmu_fault_name[intr_type], fault_addr);
+		  sysmmu_fault_name[intr_type],
+		  port_name ? port_name : dev_name(drvdata->dev),
+		  fault_addr);
 
 	if (fault_msg)
 		strscpy(fault_msg, err_msg, fault_msg_sz);
@@ -371,10 +372,11 @@ static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
 	of_property_read_string(drvdata->dev->of_node, "port-name", &port_name);
 
 	scnprintf(err_msg, sizeof(err_msg),
-		  "From [%s] VID %u, SysMMU %s %s at %#010x",
-		  port_name ? port_name : dev_name(drvdata->dev), vid,
+		  "SysMMU %s %s from %s VID %u at %#010x",
 		  IS_READ_FAULT(info) ? "READ" : "WRITE",
-		  sysmmu_fault_name[intr_type], fault_addr);
+		  sysmmu_fault_name[intr_type],
+		  port_name ? port_name : dev_name(drvdata->dev), vid,
+		  fault_addr);
 
 	if (fault_msg)
 		strscpy(fault_msg, err_msg, fault_msg_sz);
