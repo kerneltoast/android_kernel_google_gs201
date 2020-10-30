@@ -346,6 +346,18 @@ static int enable_dry_detection(struct max77759_contaminant *contaminant)
 	u8 temp;
 	int ret;
 
+	/*
+	 * tunable: 1ms water detection debounce
+	 * tunable: 1000mV/1000K thershold for water detection
+	 * tunable: 4.8s water cycle
+	 */
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRDEB_MASK | CCWTRSEL_MASK
+				    | WTRCYCLE_MASK, CCWTRDEB_1MS << CCWTRDEB_SHIFT |
+				    CCWTRSEL_1V << CCWTRSEL_SHIFT | WTRCYCLE_4_8_S <<
+				    WTRCYCLE_SHIFT);
+	if (ret < 0)
+		return ret;
+
 	ret = max77759_update_bits8(regmap, TCPC_ROLE_CTRL, TCPC_ROLE_CTRL_DRP,
 				    TCPC_ROLE_CTRL_DRP);
 	if (ret < 0)
@@ -597,16 +609,15 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 	int ret;
 
 	contaminant_detect_maxq = maxq;
-
-	/* tunable: 1ms water detection debounce */
-	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRDEB_MASK,
-				    CCWTRDEB_1MS << CCWTRDEB_SHIFT);
-	if (ret < 0)
-		return ret;
-
-	/* tunable: 1000mV/1000K thershold for water detection */
-	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRSEL_MASK,
-				    CCWTRSEL_1V << CCWTRSEL_SHIFT);
+	/*
+	 * tunable: 1ms water detection debounce
+	 * tunable: 1000mV/1000K thershold for water detection
+	 * tunable: 4.8s water cycle
+	 */
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRDEB_MASK | CCWTRSEL_MASK
+				    | WTRCYCLE_MASK, CCWTRDEB_1MS << CCWTRDEB_SHIFT |
+				    CCWTRSEL_1V << CCWTRSEL_SHIFT | WTRCYCLE_4_8_S <<
+				    WTRCYCLE_SHIFT);
 	if (ret < 0)
 		return ret;
 
