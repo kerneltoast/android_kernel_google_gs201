@@ -1227,7 +1227,7 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 		*q->rear_ptr = 0;
 		q->done_ptr = 0;
 
-		q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
+		q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase;
 		q->q_info_ptr->num_desc = q->num_desc;
 		q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
 

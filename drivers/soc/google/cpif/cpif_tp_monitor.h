@@ -24,6 +24,7 @@
 #define MAX_TPMON_VALUES	(MAX_TPMON_THRESHOLD+1)
 #define MAX_RPS_STRING	8
 #define MAX_IRQ_AFFINITY_DATA	5
+#define MAX_IRQ_AFFINITY_STRING	8
 #define MAX_RX_BYTES_COUNT	1000
 
 struct tpmon_data {
@@ -161,6 +162,7 @@ static inline int tpmon_check_active(void) { return 0; }
 
 #if IS_ENABLED(CONFIG_MCPS)
 extern int mcps_enable;
+extern int set_mcps_cp_irq_mask(const char *buf);
 #endif
 
 #endif /* __CPIF_TP_MONITOR_H__ */

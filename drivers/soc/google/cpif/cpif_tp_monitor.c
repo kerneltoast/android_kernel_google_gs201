@@ -436,11 +436,12 @@ static void tpmon_set_rps(struct tpmon_data *data)
 
 	mld = to_mem_link_device(data->tpmon->ld);
 	ppa = &mld->pktproc;
-	for (i = 0; i < ppa->num_queue; i++) {
-		if (ppa->use_exclusive_irq)
+	if (ppa->use_exclusive_irq) {
+		for (i = 0; i < ppa->num_queue; i++) {
 			ppa->q[i]->disable_irq(ppa->q[i]);
-		if (ppa->use_napi)
-			napi_disable(&ppa->q[i]->napi);
+			if (ppa->use_napi)
+				napi_disable(&ppa->q[i]->napi);
+		}
 	}
 
 	for (i = 0; i < 1000; i++) {
@@ -485,11 +486,12 @@ static void tpmon_set_rps(struct tpmon_data *data)
 		}
 	}
 
-	for (i = 0; i < ppa->num_queue; i++) {
-		if (ppa->use_napi)
-			napi_enable(&ppa->q[i]->napi);
-		if (ppa->use_exclusive_irq)
+	if (ppa->use_exclusive_irq) {
+		for (i = 0; i < ppa->num_queue; i++) {
+			if (ppa->use_napi)
+				napi_enable(&ppa->q[i]->napi);
 			ppa->q[i]->enable_irq(ppa->q[i]);
+		}
 	}
 
 	mif_info("%s (mask:0x%s)\n", data->name, mask);
@@ -612,6 +614,16 @@ static void tpmon_set_irq_affinity_dit(struct tpmon_data *data)
 				data->values[data->curr_value_pos];
 
 	mif_info("%s (CPU:%d)\n", data->name, cpu_num);
+
+#if IS_ENABLED(CONFIG_MCPS)
+	if (mcps_enable) {
+		char mask[MAX_IRQ_AFFINITY_STRING];
+
+		snprintf(mask, MAX_IRQ_AFFINITY_STRING, "%x", 1 << cpu_num);
+		mif_info("set %s to mcps\n", mask);
+		set_mcps_cp_irq_mask(mask);
+	}
+#endif
 
 	dit_stop_napi_poll();
 	dit_set_irq_affinity(cpu_num);
@@ -837,16 +849,16 @@ void tpmon_add_rx_bytes(struct sk_buff *skb)
 	u16 proto = 0;
 	unsigned long flags;
 
-	switch (skb->data[0] & 0xF0) {
-	case 0x40:
+	switch (ip_hdr(skb)->version) {
+	case 4:
 		proto = ip_hdr(skb)->protocol;
 		break;
-	case 0x60:
+	case 6:
 		proto = ipv6_hdr(skb)->nexthdr;
 		break;
 	default:
 		mif_err_limited("Non IPv4/IPv6 packet:0x%x\n",
-			skb->data[0] & 0xF0);
+			ip_hdr(skb)->version);
 		return;
 	}
 

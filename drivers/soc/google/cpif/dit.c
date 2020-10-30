@@ -372,6 +372,7 @@ static void dit_update_stat(struct sk_buff *skb)
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 		struct mem_link_device *mld = to_mem_link_device(dc->ld);
 
+		skb_set_network_header(skb, sizeof(struct ethhdr));
 		mld->tpmon->add_rx_bytes(skb);
 #endif
 		netdev->stats.rx_packets++;
