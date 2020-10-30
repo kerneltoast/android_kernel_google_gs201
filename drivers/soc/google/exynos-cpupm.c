@@ -24,6 +24,24 @@
 #include <soc/google/exynos-pmu-if.h>
 #include <soc/google/debug-snapshot.h>
 
+/*
+ * State of CPUPM objects
+ * All CPUPM objects have 2 states, BUSY and IDLE.
+ *
+ * @BUSY
+ * a state in which the power domain referred to by the object is turned on.
+ *
+ * @IDLE
+ * a state in which the power domain referred to by the object is turned off.
+ * However, the power domain is not necessarily turned off even if the object
+ * is in IDLE state because the cpu may be booting or executing power off
+ * sequence.
+ */
+enum {
+	CPUPM_STATE_BUSY = 0,
+	CPUPM_STATE_IDLE,
+};
+
 /* Length of power mode name */
 #define NAME_LEN	32
 
@@ -173,77 +191,90 @@ static int exynos_cpupm_notify(int event, int v)
  *                                  IDLE_IP                                   *
  ******************************************************************************/
 struct idle_ip {
-	/* list of idle-ip */
+	/* list node of ip */
 	struct list_head	list;
 
-	/* name of idle-ip */
+	/* ip name */
 	const char		*name;
 
-	/* identity of idle-ip */
+	/* ip index, unique */
 	unsigned int		index;
 
-	/* non-idle count for cpuidle-profiler */
-	unsigned int		count;
-	unsigned int		count_profile;
+	/* ip type , 0:normal ip, 1:extern ip */
+	unsigned int		type;
 
-	/* pmu offset for fixed idle-ip */
+	/* ip idle state, 0:busy, 1:idle */
+	unsigned int		idle;
+
+	/* busy count for cpuidle-profiler */
+	unsigned int		busy_count;
+	unsigned int		busy_count_profile;
+
+	/* pmu offset for extern idle-ip */
 	unsigned int		pmu_offset;
 };
 
-#define PMU_IDLE_IP(x)			(0x03E0 + (0x4 * (x)))
-#define IDLE_IP_MAX			64
-#define FIX_IDLE_IP_MAX			4
+static DEFINE_SPINLOCK(idle_ip_lock);
 
-static DEFINE_SPINLOCK(idle_ip_list_lock);
-static DEFINE_SPINLOCK(idle_ip_bf_lock);
-static LIST_HEAD(idle_ip_list);
-static LIST_HEAD(fix_idle_ip_list);
-static u32 idle_ip_check_count;
-static u32 idle_ip_check_count_profile;
-static u64 idle_ip_bf;
-static u32 fix_idle_ip_bf;
-static u32 idle_ip_count;
-static u32 fix_idle_ip_count;
+static LIST_HEAD(ip_list);
 
-static bool check_fix_idle_ip(void)
+#define NORMAL_IP	0
+#define EXTERN_IP	1
+static bool __ip_busy(struct idle_ip *ip)
 {
-	struct idle_ip *ip;
+	unsigned int val;
 
-	fix_idle_ip_bf = 0;
-
-	list_for_each_entry(ip, &fix_idle_ip_list, list) {
-		unsigned int val;
-
-		/*
-		 * Each fix idle-ip use each IDLEIP register exclusivly.
-		 * And they mark their idle state at last bit.
-		 * ( 0 == non-idle, 1 == idle)
-		 */
-		exynos_pmu_read(ip->pmu_offset, &val);
-		if (~val & 0x1)
-			fix_idle_ip_bf |= BIT(ip->index);
+	if (ip->type == NORMAL_IP) {
+		if (ip->idle == CPUPM_STATE_BUSY)
+			return true;
+		else
+			return false;
 	}
 
-	if (fix_idle_ip_bf)
-		return true;
+	if (ip->type == EXTERN_IP) {
+		exynos_pmu_read(ip->pmu_offset, &val);
+		if (!!val == CPUPM_STATE_BUSY)
+			return true;
+		else
+			return false;
+	}
 
 	return false;
 }
 
-static void cpupm_profile_idle_ip(u64 idle_ip_bit_filed);
-static bool check_idle_ip(void)
+static void cpupm_profile_idle_ip(void);
+
+static bool ip_busy(void)
 {
+	struct idle_ip *ip;
 	unsigned long flags;
 
-	spin_lock_irqsave(&idle_ip_bf_lock, flags);
-	if (idle_ip_bf) {
-		cpupm_profile_idle_ip(idle_ip_bf);
-		spin_unlock_irqrestore(&idle_ip_bf_lock, flags);
-		return true;
-	}
-	spin_unlock_irqrestore(&idle_ip_bf_lock, flags);
+	spin_lock_irqsave(&idle_ip_lock, flags);
 
+	cpupm_profile_idle_ip();
+
+	list_for_each_entry(ip, &ip_list, list) {
+		if (__ip_busy(ip)) {
+			spin_unlock_irqrestore(&idle_ip_lock, flags);
+			/* IP is busy */
+			return true;
+		}
+	}
+	spin_unlock_irqrestore(&idle_ip_lock, flags);
+
+	/* IPs are idle */
 	return false;
+}
+
+static struct idle_ip *find_ip(int index)
+{
+	struct idle_ip *ip = NULL;
+
+	list_for_each_entry(ip, &ip_list, list)
+		if (ip->index == index)
+			break;
+
+	return ip;
 }
 
 /*
@@ -252,17 +283,19 @@ static bool check_idle_ip(void)
  */
 void exynos_update_ip_idle_status(int index, int idle)
 {
+	struct idle_ip *ip;
 	unsigned long flags;
 
-	if (index < 0 || index > idle_ip_count)
+	spin_lock_irqsave(&idle_ip_lock, flags);
+	ip = find_ip(index);
+	if (!ip) {
+		pr_err("unknown idle-ip index %d\n", index);
+		spin_unlock_irqrestore(&idle_ip_lock, flags);
 		return;
+	}
 
-	spin_lock_irqsave(&idle_ip_bf_lock, flags);
-	if (idle)
-		idle_ip_bf &= ~(BIT_ULL(index));
-	else
-		idle_ip_bf |= (BIT_ULL(index));
-	spin_unlock_irqrestore(&idle_ip_bf_lock, flags);
+	ip->idle = idle;
+	spin_unlock_irqrestore(&idle_ip_lock, flags);
 }
 EXPORT_SYMBOL_GPL(exynos_update_ip_idle_status);
 
@@ -273,31 +306,29 @@ int exynos_get_idle_ip_index(const char *name)
 {
 	struct idle_ip *ip;
 	unsigned long flags;
+	int new_index;
 
 	ip = kzalloc(sizeof(*ip), GFP_KERNEL);
 	if (!ip)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&idle_ip_list_lock, flags);
+	spin_lock_irqsave(&idle_ip_lock, flags);
 
-	if (idle_ip_count >= IDLE_IP_MAX) {
-		spin_unlock_irqrestore(&idle_ip_list_lock, flags);
-		pr_err("Up to 64 idle-ip can be supported. [failed %s].", name);
-		goto free;
-	}
+	if (list_empty(&ip_list))
+		new_index = 0;
+	else
+		new_index = list_last_entry(&ip_list, struct idle_ip, list)->index + 1;
 
 	ip->name = name;
-	ip->index = idle_ip_count++;
-	list_add_tail(&ip->list, &idle_ip_list);
+	ip->index = new_index;
+	ip->type = NORMAL_IP;
+	list_add_tail(&ip->list, &ip_list);
 
-	spin_unlock_irqrestore(&idle_ip_list_lock, flags);
+	spin_unlock_irqrestore(&idle_ip_lock, flags);
 
-	exynos_update_ip_idle_status(ip->index, 0);
+	exynos_update_ip_idle_status(ip->index, CPUPM_STATE_BUSY);
 
 	return ip->index;
-free:
-	kfree(ip);
-	return -ENOSPC;
 }
 EXPORT_SYMBOL_GPL(exynos_get_idle_ip_index);
 
@@ -326,21 +357,18 @@ static void cpupm_profile_end(struct cpupm_stats *stat, int cancel)
 	stat->entry_time = 0;
 }
 
-static void cpupm_profile_idle_ip(u64 idle_ip_bit_filed)
+static u32 idle_ip_check_count;
+static u32 idle_ip_check_count_profile;
+
+static void cpupm_profile_idle_ip(void)
 {
 	struct idle_ip *ip;
 
 	idle_ip_check_count++;
-	list_for_each_entry(ip, &idle_ip_list, list) {
-		/*
-		 * Profile non-idle IP using @idle_ip_bit_filed
-		 *
-		 * bit == 0, it means idle.
-		 * bit == 1, it means non-idle.
-		 */
-		if (idle_ip_bit_filed & (BIT_ULL(ip->index)))
-			ip->count++;
-	}
+
+	list_for_each_entry(ip, &ip_list, list)
+		if (__ip_busy(ip))
+			ip->busy_count++;
 }
 
 static int profiling;
@@ -364,7 +392,7 @@ static ssize_t profile_show(struct device *dev,
 	total = ktime_to_us(profile_time);
 	list_for_each_entry(mode, &mode_list, list) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
-				"%s %d %d %lld (%d%%)\n",
+				"%-7s %d %d %lld (%d%%)\n",
 				mode->name,
 				mode->stat_snapshot.entry_count,
 				mode->stat_snapshot.cancel_count,
@@ -372,14 +400,15 @@ static ssize_t profile_show(struct device *dev,
 				mode->stat_snapshot.residency_time * 100 / total);
 	}
 
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "IDLE-IP statstics\n");
-	list_for_each_entry(ip, &idle_ip_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "* %-20s: block %d/%d\n",
-				ip->name, ip->count_profile, idle_ip_check_count_profile);
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
-
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(total %lldus)\n", total);
+	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+			"\nIDLE-IP statistics (E:Extern IP)\n");
+	list_for_each_entry(ip, &ip_list, list)
+		ret += snprintf(buf + ret, PAGE_SIZE - ret,
+				"* %-20s: busy %d/%d %s\n",
+				ip->name, ip->busy_count_profile,
+				idle_ip_check_count_profile,
+				ip->type == EXTERN_IP ? "(E)" : "");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n(total %lldus)\n", total);
 
 	return ret;
 }
@@ -411,8 +440,8 @@ static ssize_t profile_store(struct device *dev,
 	list_for_each_entry(mode, &mode_list, list)
 		mode->stat_snapshot = mode->stat;
 
-	list_for_each_entry(ip, &idle_ip_list, list)
-		ip->count_profile = ip->count;
+	list_for_each_entry(ip, &ip_list, list)
+		ip->busy_count_profile = ip->busy_count;
 
 	profile_time = ktime_get();
 	idle_ip_check_count_profile = idle_ip_check_count;
@@ -434,8 +463,8 @@ stop_profile:
 		field_delta(residency_time);
 	}
 
-	list_for_each_entry(ip, &idle_ip_list, list)
-		ip->count_profile = ip->count - ip->count_profile;
+	list_for_each_entry(ip, &ip_list, list)
+		ip->busy_count_profile = ip->busy_count - ip->busy_count_profile;
 
 	profile_time = ktime_sub(ktime_get(), profile_time);
 	idle_ip_check_count_profile = idle_ip_check_count - idle_ip_check_count_profile;
@@ -457,7 +486,7 @@ static ssize_t time_in_state_show(struct device *dev,
 
 	list_for_each_entry(mode, &mode_list, list) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
-				"%s %d %d %lld (%d%%)\n",
+				"%-7s %d %d %lld (%d%%)\n",
 				mode->name,
 				mode->stat.entry_count,
 				mode->stat.cancel_count,
@@ -465,16 +494,15 @@ static ssize_t time_in_state_show(struct device *dev,
 				mode->stat.residency_time * 100 / total);
 	}
 
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
 	ret += snprintf(buf + ret, PAGE_SIZE - ret,
-			"IDLE-IP statstics\n");
-	list_for_each_entry(ip, &idle_ip_list, list)
+			"\nIDLE-IP statistics (E:Extern IP)\n");
+	list_for_each_entry(ip, &ip_list, list)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
-				"* %-20s: block %d/%d\n",
-				ip->name, ip->count, idle_ip_check_count);
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
-
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "(total %lldus)\n", total);
+				"* %-20s: busy %d/%d %s\n",
+				ip->name, ip->busy_count,
+				idle_ip_check_count,
+				ip->type == EXTERN_IP ? "(E)" : "");
+	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n(total %lldus)\n", total);
 
 	return ret;
 }
@@ -485,30 +513,12 @@ static DEVICE_ATTR_RW(profile);
 /******************************************************************************
  *                            CPU idle management                             *
  ******************************************************************************/
-/*
- * State of CPUPM objects
- * All CPUPM objects have 2 states, BUSY and IDLE.
- *
- * @BUSY
- * a state in which the power domain referred to by the object is turned on.
- *
- * @IDLE
- * a state in which the power domain referred to by the object is turned off.
- * However, the power domain is not necessarily turned off even if the object
- * is in IDLE state because the cpu may be booting or executing power off
- * sequence.
- */
-enum {
-	CPUPM_STATE_BUSY = 0,
-	CPUPM_STATE_IDLE,
-};
-
 /* Macros for CPUPM state */
 #define set_state_busy(object)		((object)->state = CPUPM_STATE_BUSY)
 #define set_state_idle(object)		((object)->state = CPUPM_STATE_IDLE)
 #define check_state_busy(object)	((object)->state == CPUPM_STATE_BUSY)
 #define check_state_idle(object)	((object)->state == CPUPM_STATE_IDLE)
-#define is_valid_powermode(type)	((type >= 0) && (type < POWERMODE_TYPE_END))
+#define valid_powermode(type)		((type >= 0) && (type < POWERMODE_TYPE_END))
 /*
  * State of each cpu is managed by a structure declared by percpu, so there
  * is no need for protection for synchronization. However, when entering
@@ -552,7 +562,7 @@ void disable_power_mode(int cpu, int type)
 	struct exynos_cpupm *pm;
 	struct power_mode *mode;
 
-	if (!is_valid_powermode(type))
+	if (!valid_powermode(type))
 		return;
 
 	pm = per_cpu_ptr(cpupm, cpu);
@@ -575,7 +585,7 @@ void enable_power_mode(int cpu, int type)
 	struct exynos_cpupm *pm;
 	struct power_mode *mode;
 
-	if (!is_valid_powermode(type))
+	if (!valid_powermode(type))
 		return;
 
 	pm = per_cpu_ptr(cpupm, cpu);
@@ -622,7 +632,7 @@ static int cpus_last_core_detecting(int request_cpu, const struct cpumask *cpus)
 }
 
 #define BOOT_CPU	0
-static int check_cluster_busy(void)
+static int cluster_busy(void)
 {
 	int cpu;
 	struct power_mode *mode = NULL;
@@ -650,13 +660,10 @@ static bool system_busy(struct power_mode *mode)
 	if (mode->type != POWERMODE_TYPE_SYSTEM)
 		return false;
 
-	if (check_cluster_busy())
+	if (cluster_busy())
 		return true;
 
-	if (check_idle_ip())
-		return true;
-
-	if (check_fix_idle_ip())
+	if (ip_busy())
 		return true;
 
 	return false;
@@ -877,17 +884,14 @@ static ssize_t idle_ip_show(struct device *dev,
 	unsigned long flags;
 	int ret = 0;
 
-	list_for_each_entry(ip, &fix_idle_ip_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "[fix%d] %s\n",
-				ip->index, ip->name);
+	spin_lock_irqsave(&idle_ip_lock, flags);
 
-	spin_lock_irqsave(&idle_ip_list_lock, flags);
+	list_for_each_entry(ip, &ip_list, list)
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "[%d] %s %s\n",
+				 ip->index, ip->name,
+				 ip->type == EXTERN_IP ? "(E)" : "");
 
-	list_for_each_entry(ip, &idle_ip_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "[%d] %s\n",
-				ip->index, ip->name);
-
-	spin_unlock_irqrestore(&idle_ip_list_lock, flags);
+	spin_unlock_irqrestore(&idle_ip_lock, flags);
 
 	return ret;
 }
@@ -1102,7 +1106,7 @@ static int exynos_cpupm_mode_init(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		if (!is_valid_powermode(mode->type))
+		if (!valid_powermode(mode->type))
 			return -EINVAL;
 
 		if (!of_property_read_string(dn, "siblings", &buf)) {
@@ -1167,33 +1171,46 @@ static int exynos_cpupm_mode_init(struct platform_device *pdev)
 	return 0;
 }
 
-static int fix_idle_ip_init(struct device_node *dn)
+#define PMU_IDLE_IP(x)			(0x03E0 + (0x4 * x))
+#define EXTERN_IDLE_IP_MAX		(4)
+static int extern_idle_ip_init(struct device_node *dn)
 {
 	struct device_node *child = of_get_child_by_name(dn, "idle-ip");
-	int i;
+	struct idle_ip *ip;
+	int i, count, new_index;
+	unsigned long flags;
 
 	if (!child)
 		return 0;
 
-	fix_idle_ip_count = of_property_count_strings(dn, "fix-idle-ip");
-	if (fix_idle_ip_count <= 0 || fix_idle_ip_count > FIX_IDLE_IP_MAX)
+	count = of_property_count_strings(child, "extern-idle-ip");
+	if (count <= 0 || count > EXTERN_IDLE_IP_MAX)
 		return 0;
 
-	for (i = 0; i < fix_idle_ip_count; i++) {
-		struct idle_ip *ip;
+	ip = kzalloc(sizeof(*ip), GFP_KERNEL);
+	if (!ip)
+		return -ENOMEM;
+
+	spin_lock_irqsave(&idle_ip_lock, flags);
+
+	for (i = 0; i < count; i++) {
 		const char *name;
 
-		ip = kzalloc(sizeof(*ip), GFP_KERNEL);
-		if (!ip)
-			return -ENOMEM;
+		of_property_read_string_index(child, "extern-idle-ip", i, &name);
 
-		of_property_read_string_index(dn, "fix-idle-ip", i, &name);
+		if (list_empty(&ip_list))
+			new_index = 0;
+		else
+			new_index = list_last_entry(&ip_list, struct idle_ip, list)->index + 1;
 
 		ip->name = name;
-		ip->index = i;
+		ip->index = new_index;
+		ip->type = EXTERN_IP;
 		ip->pmu_offset = PMU_IDLE_IP(i);
-		list_add_tail(&ip->list, &fix_idle_ip_list);
+		list_add_tail(&ip->list, &ip_list);
 	}
+
+	spin_unlock_irqrestore(&idle_ip_lock, flags);
 
 	return 0;
 }
@@ -1219,7 +1236,7 @@ static int exynos_cpupm_probe(struct platform_device *pdev)
 {
 	int ret, cpu;
 
-	ret = fix_idle_ip_init(pdev->dev.of_node);
+	ret = extern_idle_ip_init(pdev->dev.of_node);
 	if (ret)
 		return ret;
 
