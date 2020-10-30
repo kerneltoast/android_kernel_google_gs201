@@ -260,6 +260,7 @@
 			ect-coeff-index = <2>;
 			tz-cooling-name = "LITTLE";
 			skip-boot-pmqos;
+			use-em-coeff;
 
 			dm-constraints {
 				list = <&lit_mif_perf>;
