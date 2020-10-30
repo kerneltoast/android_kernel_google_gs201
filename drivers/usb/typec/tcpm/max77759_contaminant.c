@@ -327,7 +327,12 @@ static int detect_contaminant(struct max77759_contaminant *contaminant)
 			inferred_state = DETECTED;
 		} else {
 			logbuffer_log(chip->log, "Contaminant: AP floating cable detected");
-			inferred_state = FLOATING_CABLE;
+			/*
+			 * Consider floating cable as sink as well to allow
+			 * TotalPhase analyzer to work as it presents ~600k in
+			 * one of the CC pins.
+			 */
+			inferred_state = SINK;
 		}
 	}
 
