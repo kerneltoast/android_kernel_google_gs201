@@ -533,6 +533,22 @@ static void awake_cpus(const struct cpumask *cpus)
  * user or device driver. To handle multiple disable requests, it use the
  * atomic disable count, and disable the mode that contains the given cpu.
  */
+static void __disable_power_mode(struct power_mode *mode)
+{
+	/*
+	 * There are no entry allowed cpus, it means that mode is
+	 * disabled, skip awaking cpus.
+	 */
+	if (cpumask_empty(&mode->entry_allowed))
+		return;
+
+	/*
+	 * The first disable request wakes the cpus to exit power mode
+	 */
+	if (atomic_inc_return(&mode->disable) == 1)
+		awake_cpus(&mode->siblings);
+}
+
 void disable_power_mode(int cpu, int type)
 {
 	struct exynos_cpupm *pm;
@@ -541,37 +557,20 @@ void disable_power_mode(int cpu, int type)
 	if (!is_valid_powermode(type))
 		return;
 
-	spin_lock(&cpupm_lock);
-
 	pm = per_cpu_ptr(cpupm, cpu);
 	mode = pm->modes[type];
-	if (!mode) {
-		spin_unlock(&cpupm_lock);
+	if (!mode)
 		return;
-	}
 
-	/*
-	 * There are no entry allowed cpus, it means that mode is
-	 * disabled, skip awaking cpus.
-	 */
-	if (cpumask_empty(&mode->entry_allowed)) {
-		spin_unlock(&cpupm_lock);
-		return;
-	}
-
-	/*
-	 * The first mode disable request wakes the cpus to
-	 * exit power mode
-	 */
-	if (atomic_inc_return(&mode->disable) > 0) {
-		spin_unlock(&cpupm_lock);
-		awake_cpus(&mode->siblings);
-		return;
-	}
-
-	spin_unlock(&cpupm_lock);
+	__disable_power_mode(mode);
 }
 EXPORT_SYMBOL_GPL(disable_power_mode);
+
+static void __enable_power_mode(struct power_mode *mode)
+{
+	atomic_dec(&mode->disable);
+	awake_cpus(&mode->siblings);
+}
 
 void enable_power_mode(int cpu, int type)
 {
@@ -581,19 +580,12 @@ void enable_power_mode(int cpu, int type)
 	if (!is_valid_powermode(type))
 		return;
 
-	spin_lock(&cpupm_lock);
-
 	pm = per_cpu_ptr(cpupm, cpu);
 	mode = pm->modes[type];
-	if (!mode) {
-		spin_unlock(&cpupm_lock);
+	if (!mode)
 		return;
-	}
 
-	atomic_dec(&mode->disable);
-	spin_unlock(&cpupm_lock);
-
-	awake_cpus(&mode->siblings);
+	__enable_power_mode(mode);
 }
 EXPORT_SYMBOL_GPL(enable_power_mode);
 
@@ -932,9 +924,9 @@ static ssize_t power_mode_store(struct device *dev,
 
 	mode->user_request = val;
 	if (val)
-		enable_power_mode(cpu, type);
+		__enable_power_mode(mode);
 	else
-		disable_power_mode(cpu, type);
+		__disable_power_mode(mode);
 
 	return count;
 }
