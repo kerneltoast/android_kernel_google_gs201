@@ -280,7 +280,7 @@ void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct pixel_ufs_stats *ufs_stats = &ufs->ufs_stats;
-	ktime_t curr_t = ktime_get();
+	u64 curr_t = ktime_to_us(ktime_get());
 
 	if (is_enter_h8) {
 		ufs_stats->last_hibern8_enter_time = curr_t;
@@ -289,8 +289,8 @@ void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8)
 		ufs_stats->last_hibern8_exit_time = curr_t;
 		if (ufs_stats->hibern8_flag) {
 			/* calculate time & count when pair cases */
-			ufs_stats->hibern8_total_us += ktime_us_delta(curr_t,
-						ufs_stats->last_hibern8_enter_time);
+			ufs_stats->hibern8_total_us += curr_t -
+				ufs_stats->last_hibern8_enter_time;
 			ufs_stats->hibern8_exit_cnt++;
 		}
 		ufs_stats->hibern8_flag = false;
