@@ -93,6 +93,7 @@ struct exynos_cpu_cooling_device {
 	struct list_head node;
 	struct time_in_idle *idle_time;
 	struct freq_qos_request qos_req;
+	bool has_static;
 
 	int *var_table;
 	int *var_coeff;
@@ -197,6 +198,8 @@ static int update_freq_table(struct exynos_cpu_cooling_device *cpufreq_cdev,
 
 		/* power is stored in mW */
 		freq_table[i].power = power;
+		pr_info("cpu_cooling %d: freq:%u power: %u\n", cpu,
+			freq_table[i].frequency, freq_table[i].power);
 	}
 
 	return 0;
@@ -316,6 +319,9 @@ static int lookup_static_power(struct exynos_cpu_cooling_device *cpufreq_cdev,
 	int max_cpus;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
 	cpumask_t tempmask;
+
+	if (!cpufreq_cdev->has_static)
+		return -EINVAL;
 
 	cpumask_and(&tempmask, policy->related_cpus, cpu_online_mask);
 	max_cpus = cpumask_weight(policy->related_cpus);
@@ -445,7 +451,7 @@ static int get_static_power(struct exynos_cpu_cooling_device *cpufreq_cdev,
 
 	dev = get_cpu_device(policy->cpu);
 
-	if (!dev || !cpu_online(policy->cpu))
+	if (!dev || !cpu_online(policy->cpu) || !cpufreq_cdev->has_static)
 		return 0;
 
 	opp = dev_pm_opp_find_freq_exact(dev, freq_hz, true);
@@ -931,9 +937,9 @@ __exynos_cpu_cooling_register(struct device_node *np,
 				freq);
 	}
 
-	if (capacitance && !update_freq_table(cpufreq_cdev, capacitance) &&
-	    !build_static_power_table(np, cpufreq_cdev, cooling_name)) {
+	if (capacitance && !update_freq_table(cpufreq_cdev, capacitance)) {
 		cooling_ops = &exynos_cpu_power_cooling_ops;
+		cpufreq_cdev->has_static = !build_static_power_table(np, cpufreq_cdev, cooling_name);
 	}
 
 	ret = freq_qos_add_request(&policy->constraints,
@@ -957,9 +963,10 @@ __exynos_cpu_cooling_register(struct device_node *np,
 	list_add(&cpufreq_cdev->node, &cpufreq_cdev_list);
 	mutex_unlock(&cooling_list_lock);
 
-	pr_info("cpu cooling registered for cpu: %d, capacitance: %d, power_callback: %s\n",
+	pr_info("cpu cooling registered for cpu: %d, capacitance: %d, power_callback: %s, static_power: %s\n",
 		policy->cpu, capacitance,
-		cooling_ops == &exynos_cpu_power_cooling_ops ? "true" : "false");
+		cooling_ops == &exynos_cpu_power_cooling_ops ? "true" : "false",
+		cpufreq_cdev->has_static ? "true" : "false");
 	return cdev;
 
 remove_qos_req:
