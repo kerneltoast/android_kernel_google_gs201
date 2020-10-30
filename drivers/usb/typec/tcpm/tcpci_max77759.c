@@ -656,12 +656,14 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	}
 
 	if (status & TCPC_ALERT_CC_STATUS) {
+		bool is_debouncing = tcpci_is_debouncing(tcpci);
+
 		/**
 		 * Process generic CC updates if it doesn't belong to
 		 * contaminant detection.
 		 */
 		mutex_lock(&chip->contaminant_detection_lock);
-		if (!chip->contaminant_detection || tcpci_is_debouncing(tcpci) ||
+		if (!chip->contaminant_detection || is_debouncing ||
 		    !process_contaminant_alert(chip->contaminant, false))
 			tcpm_cc_change(tcpci->port);
 		else
@@ -849,17 +851,18 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 	} else {
 		ret = max77759_write8(tcpci->regmap, TCPC_ROLE_CTRL, reg);
 		if (ret < 0)
-			return ret;
+			goto error;
 
 		ret = max77759_update_bits8(tcpci->regmap, TCPC_TCPC_CTRL,
 					    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT,
 					    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT);
 
 		if (ret < 0)
-			return ret;
+			goto error;
 
 		ret = regmap_write(tcpci->regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
 	}
+error:
 	mutex_unlock(&chip->contaminant_detection_lock);
 
 	return ret;
