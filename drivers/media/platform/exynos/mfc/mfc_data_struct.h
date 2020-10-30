@@ -1309,6 +1309,7 @@ struct mfc_core {
 #endif
 	struct mutex qos_mutex;
 	int mfc_freq_by_bps;
+	int last_mfc_freq;
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)
 	struct bts_bw mfc_bw;
 	unsigned int prev_bts_scen_idx;
