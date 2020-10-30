@@ -48,13 +48,14 @@ struct wakeup_mask {
 	int mask;
 };
 
+/* wakeup mask configuration for system idle */
 struct wakeup_mask_config {
 	int num_wakeup_mask;
 	struct wakeup_mask *wakeup_masks;
 
 	int num_eint_wakeup_mask;
 	int *eint_wakeup_mask_reg_offset;
-};
+} *wm_config;
 
 /*
  * Power modes
@@ -106,9 +107,6 @@ struct power_mode {
 	/* CPUPM statistics */
 	struct cpupm_stats	stat;
 	struct cpupm_stats	stat_snapshot;
-
-	/* wakeup mask configuration for system idle */
-	struct wakeup_mask_config *wm_config;
 };
 
 static LIST_HEAD(mode_list);
@@ -693,7 +691,7 @@ static bool entry_allow(int cpu, struct power_mode *mode)
 }
 
 extern u32 exynos_eint_wake_mask_array[3];
-static void set_wakeup_mask(struct wakeup_mask_config *wm_config)
+static void set_wakeup_mask(void)
 {
 	int i;
 
@@ -732,7 +730,7 @@ static void enter_power_mode(int cpu, struct power_mode *mode)
 			return;
 
 		cal_pm_enter(SYS_SICD);
-		set_wakeup_mask(mode->wm_config);
+		set_wakeup_mask();
 		system_disabled = 1;
 
 		break;
@@ -1007,62 +1005,64 @@ static int cpuhp_cpupm_offline(unsigned int cpu)
 /******************************************************************************
  *                                Initialization                              *
  ******************************************************************************/
-static void
-wakeup_mask_init(struct device_node *mode_dn, struct power_mode *mode)
+static void wakeup_mask_init(struct device_node *cpupm_dn)
 {
-	struct device_node *dn, *child;
-	struct wakeup_mask_config *wm_config;
+	struct device_node *root_dn, *wm_dn, *dn;
 	int count, i;
+
+	root_dn = of_find_node_by_name(cpupm_dn, "wakeup-mask");
+	if (!root_dn) {
+		pr_warn("wakeup-mask is omitted in device tree\n");
+		return;
+	}
 
 	wm_config = kzalloc(sizeof(*wm_config), GFP_KERNEL);
 	if (!wm_config)
 		return;
 
 	/* initialize wakeup-mask */
-	dn = of_find_node_by_name(mode_dn, "wakeup-masks");
-	if (!dn) {
+	wm_dn = of_find_node_by_name(root_dn, "wakeup-masks");
+	if (!wm_dn) {
 		pr_warn("wakeup-masks is omitted in device tree\n");
 		goto fail;
 	}
 
-	count = of_get_child_count(dn);
+	count = of_get_child_count(wm_dn);
 	wm_config->num_wakeup_mask = count;
-	wm_config->wakeup_masks = kcalloc(count, sizeof(struct wakeup_mask), GFP_KERNEL);
+	wm_config->wakeup_masks = kcalloc(count, sizeof(*wm_config->wakeup_masks), GFP_KERNEL);
 	if (!wm_config->wakeup_masks)
 		goto fail;
 
 	i = 0;
-	for_each_child_of_node(dn, child) {
-		of_property_read_u32(child, "mask-reg-offset",
+	for_each_child_of_node(wm_dn, dn) {
+		of_property_read_u32(dn, "mask-reg-offset",
 				     &wm_config->wakeup_masks[i].mask_reg_offset);
-		of_property_read_u32(child, "stat-reg-offset",
+		of_property_read_u32(dn, "stat-reg-offset",
 				     &wm_config->wakeup_masks[i].stat_reg_offset);
-		of_property_read_u32(child, "mask",
+		of_property_read_u32(dn, "mask",
 				     &wm_config->wakeup_masks[i].mask);
 		i++;
 	}
 
 	/* initialize eint-wakeup-mask */
-	dn = of_find_node_by_name(mode_dn, "eint-wakeup-masks");
-	if (!dn) {
+	wm_dn = of_find_node_by_name(root_dn, "eint-wakeup-masks");
+	if (!wm_dn) {
 		pr_warn("eint-wakeup-masks is omitted in device tree\n");
 		goto fail;
 	}
 
-	count = of_get_child_count(dn);
+	count = of_get_child_count(wm_dn);
 	wm_config->num_eint_wakeup_mask = count;
 	wm_config->eint_wakeup_mask_reg_offset = kcalloc(count, sizeof(int), GFP_KERNEL);
 	if (!wm_config->eint_wakeup_mask_reg_offset)
-		kfree(wm_config);
+		goto fail;
 
 	i = 0;
-	for_each_child_of_node(dn, child) {
-		of_property_read_u32(child, "mask-reg-offset",
+	for_each_child_of_node(wm_dn, dn) {
+		of_property_read_u32(dn, "mask-reg-offset",
 				     &wm_config->eint_wakeup_mask_reg_offset[i]);
 		i++;
 	}
-
-	mode->wm_config = wm_config;
 
 	return;
 
@@ -1160,10 +1160,9 @@ static int exynos_cpupm_mode_init(struct platform_device *pdev)
 		 */
 		if (mode->type == POWERMODE_TYPE_CLUSTER)
 			cal_cluster_enable(mode->cal_id);
-
-		if (mode->type == POWERMODE_TYPE_SYSTEM)
-			wakeup_mask_init(dn, mode);
 	}
+
+	wakeup_mask_init(pdev->dev.of_node);
 
 	return 0;
 }
