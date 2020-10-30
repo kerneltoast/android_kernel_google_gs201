@@ -13,7 +13,7 @@
 
 #include "sched.h"
 
-bool __read_mostly vendor_sched_enable_perfer_high_cap;
+bool __read_mostly vendor_sched_enable_prefer_high_cap;
 
 static int update_prefer_high_cap(const char *buf, bool val)
 {
@@ -68,7 +68,7 @@ static ssize_t prefer_high_cap_enable_show(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_enable_perfer_high_cap);
+	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_enable_prefer_high_cap);
 }
 
 static ssize_t prefer_high_cap_enable_store(struct kobject *kobj,
@@ -80,7 +80,7 @@ static ssize_t prefer_high_cap_enable_store(struct kobject *kobj,
 	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
-	vendor_sched_enable_perfer_high_cap = enable;
+	vendor_sched_enable_prefer_high_cap = enable;
 
 	return count;
 }

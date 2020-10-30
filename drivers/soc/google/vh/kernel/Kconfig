@@ -25,3 +25,8 @@ config HIGH_CAPACITY_CPU
         int "Starting cpu of high capacity cluster"
         depends on VH_KERNEL
         default 4
+
+config SCHED_CPU_NR
+        int "CPU number on this platform"
+        depends on VH_KERNEL
+        default 8

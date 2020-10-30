@@ -8,14 +8,26 @@
 #include <kernel/sched/sched.h>
 #include <kernel/sched/pelt.h>
 
+#include "sched.h"
+
 #define MIN_CAPACITY_CPU	CONFIG_MIN_CAPACITY_CPU
 #define MID_CAPACITY_CPU	CONFIG_MID_CAPACITY_CPU
 #define MAX_CAPACITY_CPU	CONFIG_MAX_CAPACITY_CPU
 #define HIGH_CAPACITY_CPU	CONFIG_HIGH_CAPACITY_CPU
+#define CPU_NUM		CONFIG_SCHED_CPU_NR
 
-unsigned int capacity_margin = 1280;
-unsigned long scale_freq[NR_CPUS] = {
-			[0 ... NR_CPUS-1] = SCHED_CAPACITY_SCALE };
+extern bool vendor_sched_enable_prefer_high_cap;
+
+static unsigned int sched_capacity_margin_up[CPU_NUM] = {
+			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
+static unsigned int sched_capacity_margin_down[CPU_NUM] = {
+			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
+static unsigned int sched_capacity_margin_up_boosted[CPU_NUM] = {
+			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
+static unsigned int sched_capacity_margin_down_boosted[CPU_NUM] = {
+			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
+static unsigned long scale_freq[CPU_NUM] = {
+			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
 
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
@@ -314,17 +326,33 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
+static inline bool get_prefer_high_cap(struct task_struct *p)
+{
+	return vendor_sched_enable_prefer_high_cap && get_vendor_task_struct(p)->prefer_high_cap;
+}
+
 static inline bool task_fits_capacity(struct task_struct *p, int cpu)
 {
-	unsigned int margin = capacity_margin;
+	unsigned int margin;
 	unsigned long capacity = capacity_of(cpu);
+
+	if (capacity_orig_of(task_cpu(p)) > capacity_orig_of(cpu))
+		margin = uclamp_boosted(p) > 0 &&
+			     !get_prefer_high_cap(p) ?
+			sched_capacity_margin_down_boosted[task_cpu(p)] :
+			sched_capacity_margin_down[task_cpu(p)];
+	else
+		margin = uclamp_boosted(p) > 0 &&
+			     !get_prefer_high_cap(p) ?
+			sched_capacity_margin_up_boosted[task_cpu(p)] :
+			sched_capacity_margin_up[task_cpu(p)];
 
 	return capacity * 1024 > uclamp_task_util(p) * margin;
 }
 
-static struct sched_group *find_start_sg(struct task_struct *p, bool boosted)
+static struct sched_group *find_start_sg(struct task_struct *p, bool prefer_high_cap)
 {
-	if (boosted)
+	if (prefer_high_cap)
 		return cpu_rq(HIGH_CAPACITY_CPU)->sd->parent->groups;
 
 	if (task_fits_capacity(p, MIN_CAPACITY_CPU))
@@ -333,8 +361,12 @@ static struct sched_group *find_start_sg(struct task_struct *p, bool boosted)
 		return cpu_rq(HIGH_CAPACITY_CPU)->sd->parent->groups;
 }
 
-// TODO: add logic for start_cpu, cpu capacity (max, mid, min), sync_boost
-// cpu_is_in_target_set, prefer_high_cap, prefer prev_cpu, fast exit, traces
+static inline bool is_min_capacity_cpu(int cpu)
+{
+	return cpu < HIGH_CAPACITY_CPU;
+}
+
+// TODO: add logic for sync_boost, cpu_is_in_target_set, prefer prev_cpu, fast exit, traces
 static void find_best_target(cpumask_t *cpus, struct task_struct *p)
 {
 	unsigned long min_util = uclamp_task_util(p);
@@ -348,7 +380,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p)
 	int target_cpu = -1;
 	int backup_cpu = -1;
 	bool prefer_idle;
-	bool boosted;
+	bool prefer_high_cap;
 	int i;
 
 	/*
@@ -356,16 +388,16 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p)
 	 * energy efficient CPU candidate, thus requiring to minimise
 	 * target_capacity. For these cases target_capacity is already
 	 * initialized to ULONG_MAX.
-	 * However, for prefer_idle and boosted tasks we look for a high
+	 * However, for prefer_idle and prefer_high_cap tasks we look for a high
 	 * performance CPU, thus requiring to maximise target_capacity. In this
 	 * case we initialise target_capacity to 0.
 	 */
 	prefer_idle = uclamp_latency_sensitive(p);
-	boosted = uclamp_boosted(p);
-	if (prefer_idle && boosted)
+	prefer_high_cap = get_prefer_high_cap(p);
+	if (prefer_idle && prefer_high_cap)
 		target_capacity = 0;
 
-	sg = start_sg = find_start_sg(p, boosted);
+	sg = start_sg = find_start_sg(p, prefer_high_cap);
 	do {
 		for_each_cpu_and(i, p->cpus_ptr, sched_group_span(sg)) {
 			unsigned long capacity_curr = capacity_curr_of(i);
@@ -393,6 +425,10 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p)
 			 */
 			new_util = max(min_util, new_util);
 			if (new_util > capacity)
+				continue;
+
+			if (is_min_capacity_cpu(i) &&
+			    !task_fits_capacity(p, i))
 				continue;
 
 			/*
@@ -439,16 +475,16 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p)
 				/*
 				 * Case A.1: IDLE CPU
 				 * Return the best IDLE CPU we find:
-				 * - for boosted tasks: the CPU with the highest
+				 * - for prefer_high_cap tasks: the CPU with the highest
 				 * performance (i.e. biggest capacity)
-				 * - for !boosted tasks: the most energy
+				 * - for !prefer_high_cap tasks: the most energy
 				 * efficient CPU (i.e. smallest capacity)
 				 */
 				if (idle_cpu(i)) {
-					if (boosted &&
+					if (prefer_high_cap &&
 					    capacity < target_capacity)
 						continue;
-					if (!boosted &&
+					if (!prefer_high_cap &&
 					    capacity > target_capacity)
 						continue;
 					/*
@@ -495,19 +531,6 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p)
 				best_active_cpu = i;
 				continue;
 			}
-
-			/*
-			 * Enforce EAS mode
-			 *
-			 * For non latency sensitive tasks, skip CPUs that
-			 * will be overutilized by moving the task there.
-			 *
-			 * The goal here is to remain in EAS mode as long as
-			 * possible at least for !prefer_idle tasks.
-			 */
-			if ((new_util * capacity_margin) >
-			    (capacity * SCHED_CAPACITY_SCALE))
-				continue;
 
 			/*
 			 * Favor CPUs with smaller capacity for non latency
