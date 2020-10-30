@@ -11,6 +11,7 @@
 #include <linux/kmemleak.h>
 #include <linux/dma-mapping.h>
 #include <linux/arm-smccc.h>
+#include <linux/dma-direct.h>
 
 #include <linux/ion.h>
 
@@ -34,14 +35,14 @@ static int ion_secure_iova_alloc(unsigned long *addr, unsigned long size,
 {
 	unsigned long out_addr;
 	struct genpool_data_align alignment = {
-		.align = max_t(int, PFN_DOWN(align), MAX_SECURE_VA_ALIGN);
+		.align = max_t(int, PFN_DOWN(align), MAX_SECURE_VA_ALIGN),
 	};
 
 	if (WARN_ON_ONCE(!secure_iova_pool))
 		return -ENODEV;
 
-	outer_addr = gen_pool_alloc_algo(secure_iova_pool, size,
-					 gen_pool_first_fit_align, &alignment);
+	out_addr = gen_pool_alloc_algo(secure_iova_pool, size,
+				       gen_pool_first_fit_align, &alignment);
 
 	if (out_addr == 0) {
 		perrfn("failed alloc secure iova. %zu/%zu bytes used",
@@ -88,7 +89,7 @@ static int ion_secure_protect(struct device *dev,
 
 	protdesc->dma_addr = (unsigned int)dma_addr;
 
-	dma_sync_single_for_device(dev, phys_to_dma(protdesc_phys),
+	dma_sync_single_for_device(dev, phys_to_dma(dev, protdesc_phys),
 				   sizeof(*protdesc), DMA_TO_DEVICE);
 
 	drmret = ppmp_smc(SMC_DRM_PPMP_PROT, protdesc_phys, 0, 0);
