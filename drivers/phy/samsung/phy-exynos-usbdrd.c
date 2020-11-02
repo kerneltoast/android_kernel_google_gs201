@@ -1788,7 +1788,52 @@ EXPORT_SYMBOL_GPL(exynos_usbdrd_phy_tune);
 
 void exynos_usbdrd_ldo_control(struct exynos_usbdrd_phy *phy_drd, int on)
 {
-	/* Implement later */
+	int ret1, ret2, ret3;
+
+	if (phy_drd->vdd085 == NULL ||
+	    phy_drd->vdd18 == NULL ||
+	    phy_drd->vdd30 == NULL) {
+		dev_err(phy_drd->dev, "%s: not defined regulator\n",
+			__func__);
+		return;
+	}
+
+	dev_info(phy_drd->dev, "Turn %s LDOs\n", on ? "on" : "off");
+
+	if (on) {
+		ret1 = regulator_enable(phy_drd->vdd085);
+		if (ret1) {
+			dev_err(phy_drd->dev,
+				"Failed to enable vdd085: %d\n", ret1);
+			return;
+		}
+
+		ret1 = regulator_enable(phy_drd->vdd18);
+		if (ret1) {
+			dev_err(phy_drd->dev,
+				"Failed to enable vdd18: %d\n", ret1);
+			regulator_disable(phy_drd->vdd085);
+			return;
+		}
+
+		ret1 = regulator_enable(phy_drd->vdd30);
+		if (ret1) {
+			dev_err(phy_drd->dev,
+				"Failed to enable vdd30: %d\n", ret1);
+			regulator_disable(phy_drd->vdd085);
+			regulator_disable(phy_drd->vdd18);
+			return;
+		}
+	} else {
+		ret1 = regulator_disable(phy_drd->vdd085);
+		ret2 = regulator_disable(phy_drd->vdd18);
+		ret3 = regulator_disable(phy_drd->vdd30);
+		if (ret1 || ret2 || ret3) {
+			dev_err(phy_drd->dev,
+				"Failed to disable USB LDOs: %d %d %d\n",
+				ret1, ret2, ret3);
+		}
+	}
 }
 
 /*
