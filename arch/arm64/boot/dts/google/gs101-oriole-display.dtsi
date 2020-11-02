@@ -8,6 +8,9 @@
 
 &drmdsim0 {
 	panel@0 {
+		compatible = "samsung,s6e3fc3";
+		label = "samsung-s6e3fc3";
+		channel = <0>;
 		/* vddi is from PP1850_SA which is always on */
 		/delete-node/ vddi-supply;
 	};
