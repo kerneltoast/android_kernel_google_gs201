@@ -169,6 +169,12 @@ config EXYNOS_SECURE_LOG
 	help
 	Support Exynos Secure Log
 
+config EXYNOS_CONTENT_PATH_PROTECTION
+	tristate "Exynos Content Path Protection"
+	default n
+	help
+	  Enable content path protection of EXYNOS.
+
 source "drivers/soc/google/gsa/Kconfig"
 
 source "drivers/soc/google/cpif/Kconfig"
