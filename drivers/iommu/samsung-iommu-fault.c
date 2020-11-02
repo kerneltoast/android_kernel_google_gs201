@@ -21,10 +21,10 @@
 #define MMU_SBB_ENTRY_VALID(reg)	((reg) >> 28)
 #define MMU_VADDR_FROM_TLB(reg, idx)	(((reg) & 0xFFFFC | (idx) & 0x3) << 12)
 #define MMU_VID_FROM_TLB(reg)		(((reg) >> 20) & 0x7U)
-#define MMU_PADDR_FROM_TLB(reg)		(((reg) & 0xFFFFFF) << 12)
+#define MMU_PADDR_FROM_TLB(reg)		((phys_addr_t)((reg) & 0xFFFFFF) << 12)
 #define MMU_VADDR_FROM_SBB(reg)		(((reg) & 0xFFFFF) << 12)
 #define MMU_VID_FROM_SBB(reg)		(((reg) >> 20) & 0x7U)
-#define MMU_PADDR_FROM_SBB(reg)		(((reg) & 0x3FFFFFF) << 10)
+#define MMU_PADDR_FROM_SBB(reg)		((phys_addr_t)((reg) & 0x3FFFFFF) << 10)
 
 #define REG_MMU_INT_STATUS		0x060
 #define REG_MMU_INT_CLEAR		0x064
@@ -114,8 +114,8 @@ static inline void sysmmu_tlb_compare(phys_addr_t pgtable[MAX_VIDS],
 	sysmmu_pte_t *entry;
 	sysmmu_iova_t vaddr = MMU_VADDR_FROM_TLB(vpn, idx_sub);
 	unsigned int vid = MMU_VID_FROM_TLB(attr);
-	unsigned long paddr = MMU_PADDR_FROM_TLB(ppn);
-	unsigned long phys = 0;
+	phys_addr_t paddr = MMU_PADDR_FROM_TLB(ppn);
+	phys_addr_t phys = 0;
 
 	if (!pgtable[vid])
 		return;
@@ -139,7 +139,7 @@ static inline void sysmmu_tlb_compare(phys_addr_t pgtable[MAX_VIDS],
 
 	if (paddr != phys) {
 		pr_crit(">> TLB mismatch detected!\n");
-		pr_crit("   TLB: %#010lx, PT entry: %#010lx\n", paddr, phys);
+		pr_crit("   TLB: %pa, PT entry: %pa\n", &paddr, &phys);
 	}
 }
 
@@ -149,8 +149,8 @@ static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link, u32 sbbattr,
 	sysmmu_pte_t *entry;
 	sysmmu_iova_t vaddr = MMU_VADDR_FROM_SBB(sbb_vpn);
 	unsigned int vid = MMU_VID_FROM_SBB(sbbattr);
-	unsigned long paddr = MMU_PADDR_FROM_SBB((unsigned long)sbb_link);
-	unsigned long phys = 0;
+	phys_addr_t paddr = MMU_PADDR_FROM_SBB(sbb_link);
+	phys_addr_t phys = 0;
 
 	if (!pgtable[vid])
 		return;
@@ -162,8 +162,8 @@ static inline void sysmmu_sbb_compare(u32 sbb_vpn, u32 sbb_link, u32 sbbattr,
 
 		if (paddr != phys) {
 			pr_crit(">> SBB mismatch detected!\n");
-			pr_crit("   entry addr: %lx / SBB addr %lx\n",
-				paddr, phys);
+			pr_crit("   entry addr: %pa / SBB addr %pa\n",
+				&paddr, &phys);
 		}
 	} else {
 		pr_crit(">> Invalid address detected! entry: %#lx",
