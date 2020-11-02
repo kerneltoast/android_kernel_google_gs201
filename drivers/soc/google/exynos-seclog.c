@@ -24,7 +24,7 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 
-#include <soc/google/exynos-smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 #include <soc/google/exynos-seclog.h>
 
 /*
