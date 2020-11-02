@@ -311,9 +311,9 @@
 	dm-tables {
 		lit_mif_perf: dm-table@0000 {
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_MIF>;
-			master-cal-id = <ACPM_DVFS_CPUCL0>;
-			slave-cal-id = <ACPM_DVFS_MIF>;
+			dm-constraint = <DM_MIF>;
+			driver-cal-id = <ACPM_DVFS_CPUCL0>;
+			constraint-cal-id = <ACPM_DVFS_MIF>;
 
 				/* CL0    MIF */
 			table = < 1598000 1539000
@@ -328,9 +328,9 @@
 		};
 		med_mif_perf: dm-table@0001 {
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_MIF>;
-			master-cal-id = <ACPM_DVFS_CPUCL1>;
-			slave-cal-id = <ACPM_DVFS_MIF>;
+			dm-constraint = <DM_MIF>;
+			driver-cal-id = <ACPM_DVFS_CPUCL1>;
+			constraint-cal-id = <ACPM_DVFS_MIF>;
 
 				/* CL1    MIF */
 			table = < 2348000 1716000
@@ -351,9 +351,9 @@
 		};
 		big_mif_perf: dm-table@0002 {
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_MIF>;
-			master-cal-id = <ACPM_DVFS_CPUCL2>;
-			slave-cal-id = <ACPM_DVFS_MIF>;
+			dm-constraint = <DM_MIF>;
+			driver-cal-id = <ACPM_DVFS_CPUCL2>;
+			constraint-cal-id = <ACPM_DVFS_MIF>;
 
 				/* CL2    MIF */
 			table = < 3195000 2730000
@@ -380,9 +380,9 @@
 		};
 		med_ank_perf: dm-table@0003 {
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_CPU_CL0>;
-			master-cal-id = <ACPM_DVFS_CPUCL1>;
-			slave-cal-id = <ACPM_DVFS_CPUCL0>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL1>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
 
 				/* CL1    CL0 */
 			table = < 2348000 1197000
@@ -404,17 +404,17 @@
 		med_dsu_skew: dm-table@0004 {
 			guidance;
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_CPU_CL0>;
-			master-cal-id = <ACPM_DVFS_CPUCL1>;
-			slave-cal-id = <ACPM_DVFS_CPUCL0>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL1>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
 			ect-name = "CPUCL1";
 		};
 		big_dsu_skew: dm-table@0005 {
 			guidance;
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_CPU_CL0>;
-			master-cal-id = <ACPM_DVFS_CPUCL2>;
-			slave-cal-id = <ACPM_DVFS_CPUCL0>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL2>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
 			ect-name = "CPUCL2";
 		};
 	};
