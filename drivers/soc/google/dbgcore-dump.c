@@ -11,9 +11,13 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
+#include <linux/io.h>
 
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-adv-tracer.h>
+
+#include <asm/cacheflush.h>
 
 #define DBGCORE_LOG_OFFSET      0x3000
 #define DBGCORE_VERSION_LENGTH  48
@@ -251,6 +255,60 @@ static ssize_t dbgcore_apm_ping_read(struct file *file, char __user *ubuf,
 	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
 }
 
+static ssize_t dbgcore_slc_dump_read(struct file *file, char __user *ubuf,
+				     size_t count, loff_t *ppos)
+{
+	char buf[80];
+	int len;
+
+	if (*ppos != 0)
+		return 0;
+
+	len = scnprintf(buf, sizeof(buf),
+			"Debug boot SLC dump base: 0x%08X\n"
+			" Pre-reset SLC dump base: 0x%08X\n",
+			dbg_snapshot_get_slcdump_base(),
+			dbg_snapshot_get_pre_slcdump_base());
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+extern void pull_down_other_cpus(void);
+
+static ssize_t dbgcore_slc_dump_write(struct file *file, const char __user *ubuf,
+				     size_t count, loff_t *ppos)
+{
+	struct adv_tracer_ipc_cmd cmd = {
+		.cmd_raw = {
+			.cmd = EAT_IPC_CMD_SLC_DUMP,
+			.size = 1,
+		},
+	};
+
+	if (*ppos != 0)
+		return 0;
+
+	if (!dbg_snapshot_get_pre_slcdump_base()) {
+		pr_err("Pre-reset SLC dump not enabled\n");
+		return -EIO;
+	}
+	pr_info("Pre-reset SLC dump initiated\n");
+
+	flush_cache_all();
+	pull_down_other_cpus();
+	adv_tracer_ipc_send_data_async(EAT_FRM_CHANNEL, &cmd);
+
+	pr_info("Pre-reset SLC dump triggered - reboot in a few sec\n");
+	local_irq_disable();
+	mdelay(30000);	/* If ACPM fails to reboot, the WDT expiry will */
+	local_irq_enable();
+
+	/* Should not reach here */
+
+	*ppos = count;
+	return count;
+}
+
 static int attr_uart_mux_get(void *data, u64 *val)
 {
 	struct adv_tracer_ipc_cmd cmd = {
@@ -321,6 +379,13 @@ static const struct file_operations dbgcore_apm_ping_fops = {
 	.llseek	= default_llseek,
 };
 
+static const struct file_operations dbgcore_slc_dump_fops = {
+	.open	= simple_open,
+	.read	= dbgcore_slc_dump_read,
+	.write	= dbgcore_slc_dump_write,
+	.llseek	= default_llseek,
+};
+
 static __init int dbgcore_dump_init(void)
 {
 	struct dentry *version;
@@ -328,6 +393,7 @@ static __init int dbgcore_dump_init(void)
 	struct dentry *nmi_info;
 	struct dentry *irq_info;
 	struct dentry *apm_ping;
+	struct dentry *slc_dump;
 
 	dbgcore_dentry = debugfs_create_dir("dbgcore", NULL);
 	if (dbgcore_dentry == NULL) {
@@ -358,6 +424,11 @@ static __init int dbgcore_dump_init(void)
 	apm_ping = debugfs_create_file("apm_ping", 0644, dbgcore_dentry, NULL,
 				       &dbgcore_apm_ping_fops);
 	if (apm_ping == NULL)
+		goto out;
+
+	slc_dump = debugfs_create_file("slc_dump", 0644, dbgcore_dentry, NULL,
+				       &dbgcore_slc_dump_fops);
+	if (slc_dump == NULL)
 		goto out;
 
 	irq_info = debugfs_create_file("uart_mux", 0644, dbgcore_dentry, NULL,

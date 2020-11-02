@@ -66,7 +66,7 @@ static inline void infinite_loop(void)
 #endif
 }
 
-static void pull_down_other_cpus(void)
+void pull_down_other_cpus(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
 	int cpu, ret, curr_cpu;
@@ -82,6 +82,7 @@ static void pull_down_other_cpus(void)
 	}
 #endif
 }
+EXPORT_SYMBOL_GPL(pull_down_other_cpus);
 
 #define BUFFER_SIZE SZ_1K
 static int recursive_loop(int remaining)

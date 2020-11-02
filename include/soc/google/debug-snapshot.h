@@ -36,6 +36,9 @@ extern bool dbg_snapshot_is_scratch(void);
 extern unsigned int dbg_snapshot_get_hardlockup_magic(int cpu);
 extern unsigned long dbg_snapshot_get_last_pc(unsigned int cpu);
 extern unsigned long dbg_snapshot_get_last_pc_paddr(void);
+extern unsigned int dbg_snapshot_get_slcdump_base(void);
+extern unsigned int dbg_snapshot_get_pre_slcdump_base(void);
+
 /* debug-snapshot-dpm functions */
 extern bool dbg_snapshot_get_dpm_status(void);
 extern bool dbg_snapshot_get_enabled_debug_kinfo(void);
@@ -154,6 +157,8 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_get_hardlockup_magic(a)	(0)
 #define dbg_snapshot_get_last_pc(a)		(0)
 #define dbg_snapshot_get_last_pc_paddr		(0)
+#define dbg_snapshot_get_slcdump_base		(0)
+#define dbg_snapshot_get_pre_slcdump_base	(0)
 
 #define dbg_snapshot_get_dpm_status() 		(0)
 #define dbg_snapshot_qd_add_region(a, b)	(-1)
@@ -287,6 +292,8 @@ enum dss_item_index {
 	DSS_ITEM_S2D_ID,
 	DSS_ITEM_ARRDUMP_RESET_ID,
 	DSS_ITEM_ARRDUMP_PANIC_ID,
+	DSS_ITEM_SLCDUMP_ID,
+	DSS_ITEM_PRE_SLCDUMP_ID,
 };
 
 enum dss_log_item_indx {

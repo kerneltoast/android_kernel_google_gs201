@@ -125,6 +125,7 @@ extern struct dbg_snapshot_log_misc dss_log_misc;
 #define DSS_SIGN_LOCKUP			0xDEADBEEF
 #define DSS_SIGN_MAGIC			(0xDB9 << 16)
 #define DSS_BOOT_CNT_MAGIC		0xFACEDB90
+#define DSS_SLCDUMP_MAGIC		0x1337CACE
 
 /*  Specific Address Information */
 #define DSS_OFFSET_SCRATCH		(0x100)
@@ -136,6 +137,10 @@ extern struct dbg_snapshot_log_misc dss_log_misc;
 #define DSS_OFFSET_BL_BOOT_CNT		(0x214)
 #define DSS_OFFSET_KERNEL_BOOT_CNT_MAGIC (0x218)
 #define DSS_OFFSET_KERNEL_BOOT_CNT	(0x21C)
+#define DSS_OFFSET_SLCDUMP_MAGIC	(0x270)
+#define DSS_OFFSET_SLCDUMP_STATUS	(0x274)
+#define DSS_OFFSET_SLCDUMP_BASE_REG	(0x278)
+#define DSS_OFFSET_PRE_SLCDUMP_BASE_REG	(0x27C)
 #define DSS_OFFSET_EMERGENCY_REASON	(0x300)
 #define DSS_OFFSET_WDT_CALLER		(0x310)
 #define DSS_OFFSET_CORE_POWER_STAT	(0x400)

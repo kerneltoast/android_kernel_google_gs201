@@ -32,6 +32,8 @@ struct dbg_snapshot_item dss_items[] = {
 	[DSS_ITEM_S2D_ID]	= {DSS_ITEM_S2D,	{0, 0, 0, true}, false, NULL, NULL},
 	[DSS_ITEM_ARRDUMP_RESET_ID] = {DSS_ITEM_ARRDUMP_RESET, {0, 0, 0, false}, false, NULL, NULL},
 	[DSS_ITEM_ARRDUMP_PANIC_ID] = {DSS_ITEM_ARRDUMP_PANIC, {0, 0, 0, false}, false, NULL, NULL},
+	[DSS_ITEM_SLCDUMP_ID]	= {DSS_ITEM_SLCDUMP,	{0, 0, 0, false}, false, NULL ,NULL},
+	[DSS_ITEM_PRE_SLCDUMP_ID]   = {DSS_ITEM_PRE_SLCDUMP, {0, 0, 0, false}, false, NULL ,NULL},
 };
 
 /*  External interface variable for trace debugging */
@@ -309,6 +311,24 @@ void dbg_snapshot_output(void)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_output);
 
+unsigned int dbg_snapshot_get_slcdump_base(void)
+{
+	if (!dbg_snapshot_get_enable())
+		return 0;
+
+	return __raw_readl(dbg_snapshot_get_header_vaddr() + DSS_OFFSET_SLCDUMP_BASE_REG);
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_get_slcdump_base);
+
+unsigned int dbg_snapshot_get_pre_slcdump_base(void)
+{
+	if (!dbg_snapshot_get_enable())
+		return 0;
+
+	return __raw_readl(dbg_snapshot_get_header_vaddr() + DSS_OFFSET_PRE_SLCDUMP_BASE_REG);
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_get_pre_slcdump_base);
+
 static void dbg_snapshot_init_desc(struct device *dev)
 {
 	/* initialize dss_desc */
@@ -505,6 +525,38 @@ static ssize_t dss_dpm_none_dump_mode_store(struct device *dev,
 DEVICE_ATTR_RW(dss_panic_to_wdt);
 DEVICE_ATTR_RW(dss_dpm_none_dump_mode);
 
+static void dbg_snapshot_set_slcdump_status(void)
+{
+	int i;
+
+	__raw_writel(0, dbg_snapshot_get_header_vaddr() + DSS_OFFSET_SLCDUMP_MAGIC);
+	__raw_writel(0, dbg_snapshot_get_header_vaddr() + DSS_OFFSET_SLCDUMP_STATUS);
+	__raw_writel(0, dbg_snapshot_get_header_vaddr() + DSS_OFFSET_PRE_SLCDUMP_BASE_REG);
+
+	for (i = 0; i < ARRAY_SIZE(dss_items); i++) {
+		if (dss_items[i].entry.enabled &&
+				dss_items[i].entry.paddr &&
+				dss_items[i].entry.size) {
+			if (strnstr(dss_items[i].name, "log_slcdump",
+					strlen("log_slcdump"))) {
+				__raw_writel(DSS_SLCDUMP_MAGIC,
+						dbg_snapshot_get_header_vaddr() +
+						DSS_OFFSET_SLCDUMP_MAGIC);
+				__raw_writel(dss_items[i].entry.paddr,
+						dbg_snapshot_get_header_vaddr() +
+						DSS_OFFSET_SLCDUMP_BASE_REG);
+			}
+			if (strnstr(dss_items[i].name, "log_preslcdump",
+					strlen("log_preslcdump"))) {
+				__raw_writel(dss_items[i].entry.paddr,
+						dbg_snapshot_get_header_vaddr() +
+						DSS_OFFSET_PRE_SLCDUMP_BASE_REG);
+			}
+		}
+	}
+}
+
+
 static struct attribute *dss_sysfs_attrs[] = {
 	&dev_attr_dss_dpm_none_dump_mode.attr,
 	&dev_attr_dss_panic_to_wdt.attr,
@@ -538,6 +590,8 @@ static int dbg_snapshot_probe(struct platform_device *pdev)
 
 	dbg_snapshot_init_utils();
 	dbg_snapshot_init_dpm();
+
+	dbg_snapshot_set_slcdump_status();
 
 	dbg_snapshot_set_enable(true);
 
