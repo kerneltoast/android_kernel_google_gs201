@@ -6,27 +6,27 @@ config VH_SCHED
         depends on VH_KERNEL
         default m
 
-config MIN_CAPACITY_CPU
+config VH_MIN_CAPACITY_CPU
         int "Starting cpu of min capacity cluster"
         depends on VH_KERNEL
         default 0
 
-config MID_CAPACITY_CPU
+config VH_MID_CAPACITY_CPU
         int "Starting cpu of mid capacity cluster"
         depends on VH_KERNEL
         default 4
 
-config MAX_CAPACITY_CPU
+config VH_MAX_CAPACITY_CPU
         int "Starting cpu of max capacity cluster"
         depends on VH_KERNEL
         default 6
 
-config HIGH_CAPACITY_CPU
+config VH_HIGH_CAPACITY_CPU
         int "Starting cpu of high capacity cluster"
         depends on VH_KERNEL
         default 4
 
-config SCHED_CPU_NR
+config VH_SCHED_CPU_NR
         int "CPU number on this platform"
         depends on VH_KERNEL
         default 8
