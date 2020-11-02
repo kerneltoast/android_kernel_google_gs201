@@ -207,7 +207,9 @@
 			target-residency = <10000>;
 			type = <POWERMODE_TYPE_SYSTEM>;
 			siblings = CPU_ALL;
+		};
 
+		wakeup-mask {
 			wakeup-masks {
 				wakeup-mask {
 					mask-reg-offset = <0x3944>;
