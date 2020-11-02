@@ -292,6 +292,30 @@
 				regulator-voltages = <2900000 1850000>;
 			};
 
+			/* Actuator sem1215sa for imx586*/
+			actuator3: actuator@3 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "act-sem1215sa";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_1>;
+				i2c-addr = <0x34>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+				/* GPIOs */
+				/* RCAM_EN2 GRA_GPIO6 */
+				shared-enable-gpios =
+					<&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo3 &slg51000_ldo7>;
+				regulator-voltages = <3200000 1850000>;
+			};
+
 			/* Eeprom lc898128 for gn1*/
 			eeprom3: eeprom@3 {
 				compatible = "google,lwis-i2c-device";
