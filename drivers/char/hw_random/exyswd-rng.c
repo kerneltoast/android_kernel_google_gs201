@@ -15,7 +15,7 @@
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <soc/google/exynos-smc.h>
+#include <linux/soc/samsung/exynos-smc.h>
 
 #define HWRNG_RET_OK			0
 #define HWRNG_RET_INVALID_ERROR		1
