@@ -88,6 +88,28 @@ DEFINE_EVENT(sched_pelt_rq_template, sched_pelt_irq,
 	TP_PROTO(int cpu, const struct sched_avg *avg),
 	TP_ARGS(cpu, avg));
 
+TRACE_EVENT(sched_cpu_capacity,
+
+	TP_PROTO(struct rq *rq),
+
+	TP_ARGS(rq),
+
+	TP_STRUCT__entry(
+		__field(int, cpu)
+		__field(unsigned long, capacity)
+		__field(unsigned long, capacity_orig)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= rq->cpu;
+		__entry->capacity		= rq->cpu_capacity;
+		__entry->capacity_orig		= rq->cpu_capacity_orig;
+	),
+
+	TP_printk("cpu=%d capacity=%lu, capacity_orig=%lu",
+		__entry->cpu, __entry->capacity, __entry->capacity_orig)
+);
+
 TRACE_EVENT(sched_pelt_se,
 
 	TP_PROTO(int cpu, char *path, char *comm, int pid, const struct sched_avg *avg),

@@ -3,6 +3,7 @@
 
 #include <linux/sched.h>
 #include <trace/events/sched.h>
+#include <kernel/sched/sched.h>
 
 #define CREATE_TRACE_POINTS
 #include "sched_events.h"
@@ -114,6 +115,11 @@ static void sched_pelt_se(void *data, struct sched_entity *se)
 	}
 }
 
+static void sched_cpu_capacity(void *data, struct rq *rq)
+{
+	trace_sched_cpu_capacity(rq);
+}
+
 static void sched_overutilized(void *data, struct root_domain *rd, bool overutilized)
 {
 	if (trace_sched_overutilized_enabled()) {
@@ -144,6 +150,7 @@ static int sched_tp_init(void)
 	register_trace_pelt_dl_tp(sched_pelt_dl, NULL);
 	register_trace_pelt_irq_tp(sched_pelt_irq, NULL);
 	register_trace_pelt_se_tp(sched_pelt_se, NULL);
+	register_trace_sched_cpu_capacity_tp(sched_cpu_capacity, NULL);
 	register_trace_sched_overutilized_tp(sched_overutilized, NULL);
 	register_trace_sched_util_est_cfs_tp(sched_util_est_cfs, NULL);
 	register_trace_sched_util_est_se_tp(sched_util_est_se, NULL);
@@ -158,6 +165,7 @@ static void sched_tp_finish(void)
 	unregister_trace_pelt_dl_tp(sched_pelt_dl, NULL);
 	unregister_trace_pelt_irq_tp(sched_pelt_irq, NULL);
 	unregister_trace_pelt_se_tp(sched_pelt_se, NULL);
+	unregister_trace_sched_cpu_capacity_tp(sched_cpu_capacity, NULL);
 	unregister_trace_sched_overutilized_tp(sched_overutilized, NULL);
 	unregister_trace_sched_util_est_cfs_tp(sched_util_est_cfs, NULL);
 	unregister_trace_sched_util_est_se_tp(sched_util_est_se, NULL);
