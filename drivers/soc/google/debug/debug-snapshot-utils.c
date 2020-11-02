@@ -457,6 +457,42 @@ void dbg_snapshot_save_context(struct pt_regs *regs, bool stack_dump)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_save_context);
 
+void dbg_snapshot_do_dpm_policy(unsigned int policy, const char *str)
+{
+	switch (policy) {
+	case GO_DEFAULT_ID:
+		pr_emerg("%s: %s\n", __func__, str);
+		pr_emerg("no-op\n");
+		break;
+	case GO_PANIC_ID:
+		panic("%s: %s", __func__, str);
+		break;
+	case GO_WATCHDOG_ID:
+	case GO_S2D_ID:
+		dbg_snapshot_emergency_reboot(str);
+		break;
+	case GO_ARRAYDUMP_ID:
+		pr_emerg("%s: %s\n", __func__, str);
+		pr_emerg("Entering Arraydump Mode!\n");
+		if (dss_soc_ops.run_arraydump)
+			dss_soc_ops.run_arraydump();
+		break;
+	case GO_SCANDUMP_ID:
+		pr_emerg("%s: %s\n", __func__, str);
+		pr_emerg("Entering Scandump Mode!\n");
+		if (dss_soc_ops.run_scandump_mode)
+			dss_soc_ops.run_scandump_mode();
+		break;
+	case GO_HALT_ID:
+		pr_emerg("%s: %s\n", __func__, str);
+		pr_emerg("Entering Halt Mode!\n");
+		if (dss_soc_ops.stop_all_cpus)
+			dss_soc_ops.stop_all_cpus();
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_do_dpm_policy);
+
 static struct die_args *tombstone;
 
 static int dbg_snapshot_panic_handler(struct notifier_block *nb,
@@ -504,7 +540,9 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	dbg_snapshot_print_log_report();
 	dbg_snapshot_save_context(NULL, false);
 
-	if (dss_desc.panic_to_wdt || (num_online_cpus() > 1))
+	dbg_snapshot_do_dpm_policy(dss_desc.panic_action, "panic handler");
+
+	if (num_online_cpus() > 1)
 		dbg_snapshot_emergency_reboot(kernel_panic_msg);
 
 	return 0;
@@ -579,42 +617,6 @@ static struct notifier_block nb_die_block = {
 	.notifier_call = dbg_snapshot_die_handler,
 	.priority = INT_MAX,
 };
-
-void dbg_snapshot_do_dpm_policy(unsigned int policy, const char *str)
-{
-	switch (policy) {
-	case GO_DEFAULT_ID:
-		pr_emerg("%s: %s\n", __func__, str);
-		pr_emerg("no-op\n");
-		break;
-	case GO_PANIC_ID:
-		panic("%s: %s", __func__, str);
-		break;
-	case GO_WATCHDOG_ID:
-	case GO_S2D_ID:
-		dbg_snapshot_emergency_reboot(str);
-		break;
-	case GO_ARRAYDUMP_ID:
-		pr_emerg("%s: %s\n", __func__, str);
-		pr_emerg("Entering Arraydump Mode!\n");
-		if (dss_soc_ops.run_arraydump)
-			dss_soc_ops.run_arraydump();
-		break;
-	case GO_SCANDUMP_ID:
-		pr_emerg("%s: %s\n", __func__, str);
-		pr_emerg("Entering Scandump Mode!\n");
-		if (dss_soc_ops.run_scandump_mode)
-			dss_soc_ops.run_scandump_mode();
-		break;
-	case GO_HALT_ID:
-		pr_emerg("%s: %s\n", __func__, str);
-		pr_emerg("Entering Halt Mode!\n");
-		if (dss_soc_ops.stop_all_cpus)
-			dss_soc_ops.stop_all_cpus();
-		break;
-	}
-}
-EXPORT_SYMBOL_GPL(dbg_snapshot_do_dpm_policy);
 
 void dbg_snapshot_register_wdt_ops(void *start, void *expire, void *stop)
 {

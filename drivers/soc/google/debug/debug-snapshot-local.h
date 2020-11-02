@@ -49,8 +49,8 @@ struct dbg_snapshot_desc {
 	struct device *dev;
 	raw_spinlock_t ctrl_lock;
 	int sjtag_status;
-	bool panic_to_wdt;
 	bool in_reboot;
+	int panic_action;
 };
 
 struct dbg_snapshot_dpm {
