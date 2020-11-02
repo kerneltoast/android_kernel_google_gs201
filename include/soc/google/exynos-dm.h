@@ -33,8 +33,8 @@ enum dvfs_direction {
 };
 
 struct exynos_dm_freq {
-	u32				master_freq;
-	u32				slave_freq;
+	u32				driver_freq;
+	u32				constraint_freq;
 };
 
 struct exynos_dm_attrs {
@@ -43,11 +43,11 @@ struct exynos_dm_attrs {
 };
 
 struct exynos_dm_constraint {
-	int					dm_master;
-	int					dm_slave;
+	int					dm_driver;
+	int					dm_constraint;
 
-	struct list_head	master_domain;
-	struct list_head	slave_domain;
+	struct list_head	driver_domain;
+	struct list_head	constraint_domain;
 
 	/* check constraint table by hw guide */
 	bool				guidance;
@@ -89,10 +89,10 @@ struct exynos_dm_data {
 							u32 target_freq,
 							unsigned int relation);
 
-	struct list_head		min_slaves;
-	struct list_head		max_slaves;
-	struct list_head		min_masters;
-	struct list_head		max_masters;
+	struct list_head		min_constraints;
+	struct list_head		max_constraints;
+	struct list_head		min_drivers;
+	struct list_head		max_drivers;
 
 #if IS_ENABLED(CONFIG_GS_ACPM)
 	u32				cal_id;

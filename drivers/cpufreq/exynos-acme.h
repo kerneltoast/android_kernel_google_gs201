@@ -13,8 +13,8 @@
 struct exynos_cpufreq_dm {
 	struct list_head		list;
 	struct exynos_dm_constraint	c;
-	int				master_cal_id;
-	int				slave_cal_id;
+	int				driver_cal_id;
+	int				constraint_cal_id;
 };
 
 typedef int (*target_fn)(struct cpufreq_policy *policy,

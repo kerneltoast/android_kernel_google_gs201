@@ -325,7 +325,7 @@ static int exynos_constraint_parse(struct exynos_devfreq_data *data,
 
 			data->constraint[i]->guidance = true;
 			data->constraint[i]->constraint_type = constraint_type;
-			data->constraint[i]->dm_slave = constraint_dm_type;
+			data->constraint[i]->dm_constraint = constraint_dm_type;
 			data->constraint[i]->table_length =
 				ect_domain->num_of_level;
 			data->constraint[i]->freq_table = const_table;
@@ -338,9 +338,9 @@ static int exynos_constraint_parse(struct exynos_devfreq_data *data,
 
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 			if (const_flag) {
-				const_table[use_level].master_freq =
+				const_table[use_level].driver_freq =
 					data->opp_list[j].freq;
-				const_table[use_level].slave_freq =
+				const_table[use_level].constraint_freq =
 					ect_find_constraint_freq(ect_domain,
 								 data->opp_list[j].freq);
 			}
@@ -410,7 +410,7 @@ static int exynos_devfreq_update_fvp(struct exynos_devfreq_data *data,
 				config.cmd[2] = DATA_INIT;
 				config.cmd[3] =
 					constraint->freq_table[use_level]
-						.slave_freq;
+						.constraint_freq;
 				ret = acpm_ipc_send_data(ch_num, &config);
 				if (ret) {
 					dev_err(data->dev,
