@@ -652,7 +652,6 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 				 u64 acc_data, u32 int_sampling_frequency_uhz)
 {
-	u32 sampling_frequency_uhz;
 	u64 sampling_period_ms_iq30;
 	u32 sampling_period_ms_iq22;
 	u32 resolution_mW_iq30 = INVALID_RESOLUTION;
@@ -664,27 +663,12 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 	case ODPM_RAIL_TYPE_REGULATOR_BUCK:
 	case ODPM_RAIL_TYPE_REGULATOR_LDO:
 	default: {
-		sampling_frequency_uhz = int_sampling_frequency_uhz;
-
 		SWITCH_CHIP_FUNC(info, muxsel_to_power_resolution,
 				 info->chip.rails[rail_i].mux_select);
 
 	} break;
 	case ODPM_RAIL_TYPE_SHUNT: {
 		u64 resolution_W_iq60;
-
-		int int_sampling_rate_i = info->chip.int_sampling_rate_i;
-		int int_sampling_frequency_table_uhz =
-			info->chip.sample_rate_int_uhz[int_sampling_rate_i];
-		int ext_sampling_rate_i = info->chip.ext_sampling_rate_i;
-		int ext_sampling_frequency_table_uhz =
-			info->chip.sample_rate_ext_uhz[ext_sampling_rate_i];
-
-		/* b/156680376 - int/ext clocks are correlated */
-		sampling_frequency_uhz =
-			((u64)int_sampling_frequency_uhz *
-			 (u64)ext_sampling_frequency_table_uhz) /
-			int_sampling_frequency_table_uhz;
 
 		/* Losing a fraction of resolution performing u64 divisions,
 		 * as there is no support for 128 bit divisions
@@ -703,7 +687,7 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 
 	/* Maintain as much precision as possible computing period in ms */
 	sampling_period_ms_iq30 =
-		_IQ30(u64, (u64)(1000 * 1000000)) / sampling_frequency_uhz;
+		_IQ30(u64, (u64)(1000 * 1000000)) / int_sampling_frequency_uhz;
 
 	/* Allocate 10-bits in u32 for sample rate in ms (max: 1023 ms) */
 	sampling_period_ms_iq22 = _IQ30_to_IQ22(sampling_period_ms_iq30);
