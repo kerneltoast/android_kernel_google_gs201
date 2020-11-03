@@ -88,16 +88,11 @@ static inline void __kunmap_local(void *vaddr)
 	kunmap_local_indexed(vaddr);
 }
 
-static inline void *kmap_atomic_prot(struct page *page, pgprot_t prot)
+static inline void *kmap_atomic(struct page *page)
 {
 	preempt_disable();
 	pagefault_disable();
-	return __kmap_local_page_prot(page, prot);
-}
-
-static inline void *kmap_atomic(struct page *page)
-{
-	return kmap_atomic_prot(page, kmap_prot);
+	return __kmap_local_page_prot(page, kmap_prot);
 }
 
 static inline void __kunmap_atomic(void *addr)
@@ -180,11 +175,6 @@ static inline void *kmap_atomic(struct page *page)
 	preempt_disable();
 	pagefault_disable();
 	return page_address(page);
-}
-
-static inline void *kmap_atomic_prot(struct page *page, pgprot_t prot)
-{
-	return kmap_atomic(page);
 }
 
 static inline void __kunmap_atomic(void *addr)
