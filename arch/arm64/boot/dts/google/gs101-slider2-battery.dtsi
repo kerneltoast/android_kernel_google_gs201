@@ -19,7 +19,7 @@
 				/* DC enabled by default */
 				google,dc-en-value = <1>;
 
-				/* google,tcpm-power-supply = <&max77759tcpc>; */
+				google,tcpm-power-supply = <&max77759tcpc>;
 				google,pps-awake;
 			};
 		};
@@ -65,7 +65,7 @@
 		pca9468,ntc-threshold = <0>; /* disabled */
 
 		/* enable passthrough PPS */
-		/* google,tcpm-power-supply = <&max77759tcpc>; */
+		google,tcpm-power-supply = <&max77759tcpc>;
 
 		/* USBC thermal zone */
 		google,usb-port-tz-name = "usbc-therm-adc";
