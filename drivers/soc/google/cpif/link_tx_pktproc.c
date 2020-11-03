@@ -50,21 +50,19 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 		skb_copy_from_linear_data(skb, target_addr, skb->len);
 	}
 
-	desc = &q->desc_ul[q->done_ptr];
-
-	barrier();
-
-	desc->sktbuf_point = q->buff_addr_cp + (q->done_ptr * q->ppa_ul->max_packet_size);
-
 	if (q->ppa_ul->padding_required)
 		len += CP_PADDING;
 
+	desc = &q->desc_ul[q->done_ptr];
+	desc->sktbuf_point = q->buff_addr_cp + (q->done_ptr * q->ppa_ul->max_packet_size);
 	desc->data_size = len;
 	desc->total_pkt_size = len;
-	WRITE_ONCE(desc->last_desc, 0);
+	desc->last_desc = 0;
 	desc->seg_on = 0;
 	desc->hw_set = 0;
 	desc->lcid = skbpriv(skb)->sipc_ch;
+
+	barrier();
 
 	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
@@ -94,15 +92,9 @@ static int pktproc_set_end(struct pktproc_queue_ul *q, unsigned int desc_index,
 
 	prev_index = circ_prev_ptr(q->num_desc, desc_index, prev_offset);
 
-	barrier();
-
 	prev_desc = &q->desc_ul[prev_index];
+	prev_desc->last_desc = 1;
 
-	barrier();
-
-	WRITE_ONCE(prev_desc->last_desc, 1);
-
-	q->quota_usage = 0;
 	q->stat.pass_cnt++;
 
 	return 0;
@@ -470,24 +462,18 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	ret = dit_set_buf_size(DIT_DIR_TX, ppa_ul->max_packet_size);
-	if (ret) {
+	if (ret)
 		mif_err("dit_set_buf_size() error:%d\n", ret);
-		goto create_error;
-	}
 
 	ret = dit_set_pktproc_base(DIT_DIR_TX,
 		memaddr + ppa_ul->buff_rgn_offset + (DIT_PKTPROC_TX_QUEUE_NUM * buff_size_by_q));
-	if (ret) {
+	if (ret)
 		mif_err("dit_set_pktproc_base() error:%d\n", ret);
-		goto create_error;
-	}
 
 	ret = dit_set_desc_ring_len(DIT_DIR_TX,
 		ppa_ul->q[DIT_PKTPROC_TX_QUEUE_NUM]->num_desc);
-	if (ret) {
+	if (ret)
 		mif_err("dit_set_desc_ring_len() error:%d\n", ret);
-		goto create_error;
-	}
 #endif
 
 	/* Debug */

@@ -565,7 +565,7 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	err = dit_init(ld, false);
-	if (err < 0) {
+	if ((err < 0) && (err != -EPERM)) {
 		mif_err("dit_init() error %d\n", err);
 		return;
 	}
@@ -1086,6 +1086,16 @@ exit:
 	spin_unlock_irqrestore(&mc->lock, flags);
 }
 
+static inline void shmem_start_timers(struct mem_link_device *mld)
+{
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+	start_tx_timer(mld, &mld->pktproc_tx_timer);
+#endif
+	if (sbd_active(&mld->sbd_link_dev))
+		start_tx_timer(mld, &mld->sbd_tx_timer);
+	start_tx_timer(mld, &mld->tx_timer);
+}
+
 static inline void cancel_tx_timer(struct mem_link_device *mld,
 				   struct hrtimer *timer)
 {
@@ -1099,6 +1109,16 @@ static inline void cancel_tx_timer(struct mem_link_device *mld,
 		hrtimer_cancel(timer);
 
 	spin_unlock_irqrestore(&mc->lock, flags);
+}
+
+static inline void shmem_stop_timers(struct mem_link_device *mld)
+{
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+	cancel_tx_timer(mld, &mld->pktproc_tx_timer);
+#endif
+	if (sbd_active(&mld->sbd_link_dev))
+		cancel_tx_timer(mld, &mld->sbd_tx_timer);
+	cancel_tx_timer(mld, &mld->tx_timer);
 }
 
 static inline void start_datalloc_timer(struct mem_link_device *mld,
@@ -4006,6 +4026,9 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 
 	ld->enable_rx_int = shmem_enable_rx_int;
 	ld->disable_rx_int = shmem_disable_rx_int;
+
+	ld->start_timers = shmem_start_timers;
+	ld->stop_timers = shmem_stop_timers;
 
 	ld->handover_block_info = update_handover_block_info;
 

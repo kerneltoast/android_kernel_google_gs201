@@ -638,7 +638,7 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 
 		if (!dit_hal_set_local_addr(&local_addr))
-			return -EPERM;
+			return -EINVAL;
 		break;
 	case OFFLOAD_IOCTL_SET_NAT_LOCAL_PORT:
 		if (copy_from_user(&local_port, (const void __user *)arg,
@@ -646,14 +646,14 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 
 		if (!dit_hal_set_local_port(&local_port))
-			return -EPERM;
+			return -EINVAL;
 		break;
 	case OFFLOAD_IOCTL_SET_CLAT_INFO:
 		if (copy_from_user(&clat, (const void __user *)arg, sizeof(struct clat_info)))
 			return -EFAULT;
 
 		if (!dit_hal_set_clat_info(&clat))
-			return -EPERM;
+			return -EINVAL;
 		break;
 	case OFFLOAD_IOCTL_GET_HW_INFO:
 		hw.version = dc->hw_version;
@@ -664,7 +664,7 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 		break;
 	default:
 		mif_err("unknown command: 0x%X\n", cmd);
-		return -EPERM;
+		return -EINVAL;
 	}
 
 	return 0;

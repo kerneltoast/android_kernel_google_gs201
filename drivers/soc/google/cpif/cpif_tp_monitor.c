@@ -136,7 +136,7 @@ static int tpmon_calc_dit_src_queue_status(struct cpif_tpmon *tpmon)
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	ret = dit_get_src_usage(DIT_DIR_RX, &usage);
-	if (ret) {
+	if (ret && (ret != -EPERM)) {
 		mif_err_limited("dit_get_src_usage() error:%d\n", ret);
 		return ret;
 	}
@@ -534,13 +534,10 @@ static void tpmon_set_gro(struct tpmon_data *data)
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	netdev = dit_get_netdev();
-	if (!netdev) {
-		mif_err_limited("dit netdev is null\n");
-		return;
+	if (netdev) {
+		netdev->gro_flush_timeout = gro_flush_time;
+		mld->dummy_net.gro_flush_timeout = 0;
 	}
-	netdev->gro_flush_timeout = gro_flush_time;
-
-	mld->dummy_net.gro_flush_timeout = 0;
 #endif
 
 	mif_info("%s (flush time:%u)\n", data->name, gro_flush_time);

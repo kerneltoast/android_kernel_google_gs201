@@ -531,7 +531,9 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		ret = dit_enqueue_src_desc_ring(DIT_DIR_RX,
 			src, src_paddr, len, ch_id, csum);
 		if (ret < 0) {
-			mif_err_limited("Enqueue failed at %d, ret: %d\n", q->done_ptr, ret);
+			mif_err_limited("Enqueue failed at fore/rear/done:%d/%d/%d, ret: %d\n",
+				*q->fore_ptr, *q->rear_ptr, q->done_ptr, ret);
+
 			q->stat.err_enqueue_dit++;
 			goto rx_error;
 		}
@@ -742,23 +744,25 @@ static void pktproc_perftest_napi_schedule(void *arg)
 	}
 }
 
-static void pktproc_perftest_gen_rx_packet_sktbuf_mode(
+static unsigned int pktproc_perftest_gen_rx_packet_sktbuf_mode(
 		struct pktproc_queue *q, int packet_num, int session)
 {
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
 	struct pktproc_perftest *perf = &q->ppa->perftest;
-	u32 header_len;
+	u32 header_len = perftest_data[perf->mode].header_len;
 	u32 rear_ptr;
+	unsigned int space, loop_count;
 	u8 *src;
 	u32 *seq;
 	u16 *dst_port;
 	u16 *dst_addr;
 	int i, j;
 
-	header_len = perftest_data[perf->mode].header_len;
 	rear_ptr = *q->rear_ptr;
+	space = circ_get_space(q->num_desc, rear_ptr, *q->fore_ptr);
+	loop_count = min_t(unsigned int, space, packet_num);
 
-	for (i = 0 ; i < packet_num ; i++) {
+	for (i = 0 ; i < loop_count ; i++) {
 		/* set desc */
 		desc[rear_ptr].status =
 			PKTPROC_STATUS_DONE | PKTPROC_STATUS_TCPC | PKTPROC_STATUS_IPCS;
@@ -790,6 +794,8 @@ static void pktproc_perftest_gen_rx_packet_sktbuf_mode(
 	}
 
 	*q->rear_ptr = rear_ptr;
+
+	return loop_count;
 }
 
 static int pktproc_perftest_thread(void *arg)
@@ -810,7 +816,8 @@ static int pktproc_perftest_thread(void *arg)
 			if (ppa->use_exclusive_irq)
 				q = ppa->q[i];
 
-			pktproc_perftest_gen_rx_packet_sktbuf_mode(q, pkts, i);
+			if (!pktproc_perftest_gen_rx_packet_sktbuf_mode(q, pkts, i))
+				continue;
 
 			if (ppa->use_napi) {
 				if (ppa->use_exclusive_irq) {
@@ -827,8 +834,6 @@ static int pktproc_perftest_thread(void *arg)
 				q->irq_handler(q->irq, q);
 			}
 		}
-		if (!ppa->use_exclusive_irq)
-			pktproc_perftest_napi_schedule((void *)&q[0]);
 
 		udelay(perf->udelay);
 
@@ -1603,17 +1608,13 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	ret = dit_set_buf_size(DIT_DIR_RX, ppa->max_packet_size);
-	if (ret) {
+	if (ret)
 		mif_err("dit_set_buf_size() error:%d\n", ret);
-		goto create_error;
-	}
 
 	ret = dit_set_desc_ring_len(DIT_DIR_RX,
 		ppa->q[DIT_PKTPROC_RX_QUEUE_NUM]->num_desc - 1);
-	if (ret) {
+	if (ret)
 		mif_err("dit_set_desc_ring_len() error:%d\n", ret);
-		goto create_error;
-	}
 #endif
 
 	/* Debug */

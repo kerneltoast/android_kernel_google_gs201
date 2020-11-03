@@ -12,7 +12,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-
 #include <dt-bindings/soc/google/exynos-dit.h>
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 #include <soc/google/exynos-cpupm.h>
@@ -2162,6 +2161,29 @@ int dit_stop_napi_poll(void)
 }
 EXPORT_SYMBOL(dit_stop_napi_poll);
 
+static int dit_read_dt(struct device_node *np)
+{
+	mif_dt_read_u32(np, "dit_sharability_offset", dc->sharability_offset);
+	mif_dt_read_u32(np, "dit_sharability_value", dc->sharability_value);
+
+	mif_dt_read_u32(np, "dit_hw_version", dc->hw_version);
+	mif_dt_read_u32(np, "dit_hw_capabilities", dc->hw_capabilities);
+#if defined(CONFIG_SOC_GS101)
+	dc->hw_capabilities |= DIT_CAP_MASK_PORT_BIG_ENDIAN;
+	/* chipid: A0 = 0, B0 = 1 */
+	if (gs_chipid_get_type() >= 1)
+		dc->hw_capabilities &= ~DIT_CAP_MASK_PORT_BIG_ENDIAN;
+#endif
+	mif_dt_read_bool(np, "dit_use_tx", dc->use_tx);
+	mif_dt_read_bool(np, "dit_use_rx", dc->use_rx);
+	mif_dt_read_bool(np, "dit_use_clat", dc->use_clat);
+	mif_dt_read_bool(np, "dit_hal_linked", dc->hal_linked);
+	mif_dt_read_u32(np, "dit_rx_extra_desc_ring_len", dc->rx_extra_desc_ring_len);
+	mif_dt_read_u32(np, "dit_irq_affinity", dc->irq_affinity);
+
+	return 0;
+}
+
 int dit_create(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2198,10 +2220,16 @@ int dit_create(struct platform_device *pdev)
 		goto error;
 	}
 
+	ret = dit_read_dt(np);
+	if (ret) {
+		mif_err("read dt error\n");
+		goto error;
+	}
+
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
 
 	ret = dit_register_irq(pdev);
-	if (ret != 0) {
+	if (ret) {
 		mif_err("register irq error\n");
 		goto error;
 	}
@@ -2210,25 +2238,6 @@ int dit_create(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dc->reg_value_q);
 	atomic_set(&dc->init_running, 0);
 	atomic_set(&dc->stop_napi_poll, 0);
-
-	mif_dt_read_u32(np, "dit_sharability_offset", dc->sharability_offset);
-	mif_dt_read_u32(np, "dit_sharability_value", dc->sharability_value);
-
-	mif_dt_read_u32(np, "dit_hw_version", dc->hw_version);
-	mif_dt_read_u32(np, "dit_hw_capabilities", dc->hw_capabilities);
-
-	mif_dt_read_bool(np, "dit_use_tx", dc->use_tx);
-	mif_dt_read_bool(np, "dit_use_rx", dc->use_rx);
-	mif_dt_read_bool(np, "dit_use_clat", dc->use_clat);
-	mif_dt_read_bool(np, "dit_hal_linked", dc->hal_linked);
-	mif_dt_read_u32(np, "dit_rx_extra_desc_ring_len", dc->rx_extra_desc_ring_len);
-	mif_dt_read_u32(np, "dit_irq_affinity", dc->irq_affinity);
-
-	dit_hal_create(dc);
-	if (ret != 0) {
-		mif_err("dit hal create failed\n");
-		goto error;
-	}
 
 	dit_set_irq_affinity(dc->irq_affinity);
 	dev_set_drvdata(dev, dc);
@@ -2247,6 +2256,12 @@ int dit_create(struct platform_device *pdev)
 	ret = sysfs_create_groups(&dev->kobj, dit_groups);
 	if (ret != 0) {
 		mif_err("sysfs_create_group() error %d\n", ret);
+		goto error;
+	}
+
+	dit_hal_create(dc);
+	if (ret) {
+		mif_err("dit hal create failed\n");
 		goto error;
 	}
 
