@@ -85,6 +85,7 @@
 		status = "okay";
 		#power-domain-cells = <0>;
 		power-down-ok = <PD_OK_USB>;
+		skip-idle-ip;
 	};
 
 	pd_hsi2: pd-hsi2@17462080 {
@@ -107,6 +108,7 @@
 		status = "okay";
 		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
+		skip-idle-ip;
 	};
 
 	pd_dpu: pd-dpu@17462200 {
@@ -118,6 +120,7 @@
 		status = "okay";
 		parent = <&pd_disp>;
 		#power-domain-cells = <0>;
+		skip-idle-ip;
 	};
 
 	pd_g2d: pd-g2d@17462300 {
