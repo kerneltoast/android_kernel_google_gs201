@@ -1,6 +1,133 @@
-set noparent
-*
 per-file base/**=set noparent
 per-file base/**=gregkh@google.com,saravanak@google.com
+
+per-file block/zram/zram_cpu.c=*
+per-file block/zram/zram_eh.c=*
+
+per-file bts/**=*
+
+per-file clk/clk-bulk.c=saravanak@google.com
+per-file clk/clk.c=saravanak@google.com
+per-file clk/clk-conf.c=saravanak@google.com
+per-file clk/clkdev.c=saravanak@google.com
+per-file clk/clk-devres.c=saravanak@google.com
+per-file clk/clk-divider.c=saravanak@google.com
+per-file clk/clk-fixed-factor.c=saravanak@google.com
+per-file clk/clk-fixed-mmio.c=saravanak@google.com
+per-file clk/clk-fixed-rate.c=saravanak@google.com
+per-file clk/clk-fractional-divider.c=saravanak@google.com
+per-file clk/clk-gate.c=saravanak@google.com
+per-file clk/clk-gpio.c=saravanak@google.com
+per-file clk/clk.h=saravanak@google.com
+per-file clk/clk-multiplier.c=saravanak@google.com
+per-file clk/clk-mux.c=saravanak@google.com
+per-file clk/Kconfig=saravanak@google.com
+per-file clk/Makefile=saravanak@google.com
+per-file clk/samsung/clk-gs101.c=*
+per-file clk/samsung/composite.*=*
+
+per-file cpufreq/exynos-*=*
+
+per-file devfreq/gs101/**=*
+
+per-file dma/samsung-*=*
+
+per-file gpu/exynos/**=*
+
+per-file i2c/busses/i2c-acpm.c=*
+per-file i2c/busses/i2c-exynos5.h=*
+
+per-file iio/power/odpm.c=*
+
+per-file input/fingerprint/**=*
+per-file input/keycombo.c=*
+per-file input/keydebug-*=*
+per-file input/touchscreen/heatmap.c=*
+per-file input/touchscreen/sec_ts/**=*
+per-file input/touchscreen/stm/**=*
+
+per-file iommu/samsung-iommu*=*
+
+per-file media/platform/bigocean/**=*
+per-file media/platform/exynos/**=*
+
+per-file mfd/s2mpg*=*
+
+per-file misc/access_ramoops.c=*
+per-file misc/bbdpl/**=*
+per-file misc/gsc-spi.c=*
+per-file misc/gvotable.c=*
+per-file misc/logbuffer.c=*
+per-file misc/sbb-mux/**=*
+per-file misc/sscoredump/**=*
+
+per-file nfc/ese/**=*
+per-file nfc/st21nfc*=*
+
 per-file of/**=set noparent
 per-file of/**=saravanak@google.com
+
+per-file pci/controller/dwc/pcie-exynos*=*
+
+per-file phy/samsung/**=*
+
+per-file pinctrl/samsung/pinctrl-gs*=*
+
+per-file power/reset/debug-reboot.c=*
+per-file power/reset/exynos-reboot.c=*
+
+per-file regulator/core.c=saravanak@google.com
+per-file regulator/devres.c=saravanak@google.com
+per-file regulator/dummy.c=saravanak@google.com
+per-file regulator/dummy.h=saravanak@google.com
+per-file regulator/fixed.c=saravanak@google.com
+per-file regulator/fixed-helper.c=saravanak@google.com
+per-file regulator/gpio-regulator.c=saravanak@google.com
+per-file regulator/helpers.c=saravanak@google.com
+per-file regulator/internal.h=saravanak@google.com
+per-file regulator/Kconfig=saravanak@google.com
+per-file regulator/Makefile=saravanak@google.com
+per-file regulator/max77826-gs-regulator*=*
+per-file regulator/of_regulator.c=saravanak@google.com
+per-file regulator/pmic_class.c=*
+per-file regulator/s2mpg10-*=*
+per-file regulator/userspace-consumer.c=saravanak@google.com
+per-file regulator/virtual.c=saravanak@google.com
+
+per-file rtc/rtc-s2mpg*=*
+
+per-file scsi/ufs/ufs-cal-gs101*=*
+per-file scsi/ufs/ufs-cal-if*=*
+per-file scsi/ufs/ufs-exynos-*=*
+per-file scsi/ufs/ufs-pixel*=*
+per-file scsi/ufs/ufs-vs-mmio.h=*
+per-file scsi/ufs/ufs-vs-regs.h=*
+
+per-file soc/google/**=*
+
+per-file staging/android/ion/exynos/**=*
+
+per-file thermal/google/**=*
+per-file thermal/samsung/**=*
+
+per-file trusty/**=*
+
+per-file tty/serial/exynos_tty*=*
+
+per-file usb/dwc3/core_exynos.h=*
+per-file usb/dwc3/dwc3-exynos.h=*
+per-file usb/dwc3/otg.*=*
+per-file usb/dwc3/usb_power_notify.*=*
+per-file usb/gadget/function/f_dm.*=*
+per-file usb/gadget/function/f_dm1.*=*
+per-file usb/gadget/function/f_mtp.*=*
+per-file usb/gadget/function/f_ptp.*=*
+per-file usb/gadget/function/f_uts.*=*
+per-file usb/typec/tcpm/bc_max77759*=*
+per-file usb/typec/tcpm/max77759*=*
+per-file usb/typec/tcpm/slg46826*=*
+per-file usb/typec/tcpm/tcpci_fusb307*=*
+per-file usb/typec/tcpm/tcpci_max77759*=*
+per-file usb/typec/tcpm/tcpci_otg_helper.h=*
+per-file usb/typec/tcpm/usb_icl_voter.h=*
+per-file usb/typec/tcpm/usb_psy.*=*
