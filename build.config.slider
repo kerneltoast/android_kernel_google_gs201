@@ -13,12 +13,14 @@ KERNEL_BINARY=Image.lz4
 MAKE_GOALS="
 ${KERNEL_BINARY}
 modules
-google/gs101.dtb
+google/gs101-a0.dtb
+google/gs101-b0.dtb
 google/dtbo.img
 "
 
 FILES="
-arch/arm64/boot/dts/google/gs101.dtb
+arch/arm64/boot/dts/google/gs101-a0.dtb
+arch/arm64/boot/dts/google/gs101-b0.dtb
 arch/arm64/boot/dts/google/dtbo.img
 "
 
