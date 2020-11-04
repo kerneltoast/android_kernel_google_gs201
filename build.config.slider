@@ -62,6 +62,8 @@ private/google-modules/aoc/alsa
 private/google-modules/aoc/usb
 "
 
+COMPRESS_UNSTRIPPED_MODULES=1
+
 UNSTRIPPED_MODULES="
 bcmdhd43752.ko
 bcmdhd4389.ko
