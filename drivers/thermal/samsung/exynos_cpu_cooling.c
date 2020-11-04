@@ -554,8 +554,6 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 {
 	struct exynos_cpu_cooling_device *cpufreq_cdev = cdev->devdata;
 	int ret = 0;
-	struct cpumask *cpus;
-	unsigned long max_capacity, capacity;
 
 	/* Request state should be less than max_level */
 	if (WARN_ON(state > cpufreq_cdev->max_level))
@@ -570,16 +568,8 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 	ret = freq_qos_update_request(&cpufreq_cdev->qos_req,
 				      cpufreq_cdev->freq_table[state].frequency);
 
-	if (ret > 0) {
-		cpus = cpufreq_cdev->policy->cpus;
-		max_capacity = arch_scale_cpu_capacity(cpumask_first(cpus));
-		capacity = cpufreq_cdev->freq_table[state].frequency * max_capacity;
-		capacity /= cpufreq_cdev->freq_table[0].frequency;
-		arch_set_thermal_pressure(cpus, max_capacity - capacity);
-		trace_thermal_cpu_pressure(
-			max_capacity - capacity, cpufreq_cdev->policy->cpu);
+	if (ret == 1)
 		ret = 0;
-	}
 
 	return ret;
 }

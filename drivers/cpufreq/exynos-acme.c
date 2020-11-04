@@ -288,7 +288,8 @@ static int exynos_cpufreq_verify(struct cpufreq_policy_data *new_policy)
 	struct exynos_cpufreq_domain *domain = find_domain(new_policy->cpu);
 	struct cpufreq_policy policy;
 	unsigned int min_freq, max_freq;
-	int index;
+	int index, ret;
+	unsigned long max_capacity, capacity;
 
 	if (!domain)
 		return -EINVAL;
@@ -319,7 +320,16 @@ static int exynos_cpufreq_verify(struct cpufreq_policy_data *new_policy)
 				 domain->min_freq_qos,
 				 domain->max_freq_qos);
 
-	return cpufreq_frequency_table_verify(new_policy, domain->freq_table);
+	ret = cpufreq_frequency_table_verify(new_policy, domain->freq_table);
+	if (!ret) {
+		max_capacity = arch_scale_cpu_capacity(cpumask_first(&domain->cpus));
+		capacity = new_policy->max * max_capacity;
+		capacity /= new_policy->cpuinfo.max_freq;
+		arch_set_thermal_pressure(&domain->cpus, max_capacity - capacity);
+		pr_debug_ratelimited("thermal pressure: %lu, cpus: %*pbl\n",
+			max_capacity - capacity, cpumask_pr_args(&domain->cpus));
+	}
+	return ret;
 }
 
 static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
