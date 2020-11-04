@@ -1508,6 +1508,7 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 	ufs_host_index--;
 
 	exynos_ufs_sysfs_exit(ufs);
+	pixel_exit(hba);
 
 	disable_irq(hba->irq);
 	ufshcd_remove(hba);
