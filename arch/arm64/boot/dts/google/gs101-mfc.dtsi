@@ -58,6 +58,10 @@
 		enc_idr_flag = <1 0x210614>;
 		min_quality_mode = <1 0x210629>;
 		hevc_pic_output_flag = <1 0x221108>;
+		/* Use metadata interface */
+		metadata_interface = <1 0x200910>;
+		/* Support HDR10+ full data */
+		hdr10_plus_full = <1 0x200910>;
 
 		/* AV1 Decoder */
 		support_av1_dec = <0>;
