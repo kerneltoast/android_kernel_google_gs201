@@ -1120,6 +1120,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 			}
 			pr_cont("\n");
 		}
+		BUG_ON(1);
 		break;
 	};
 
