@@ -164,6 +164,24 @@ TRACE_EVENT(thermal_exynos_power_allocator_pid,
 		  __entry->tz_id, __entry->err, __entry->err_integral,
 		  __entry->p, __entry->i, __entry->output)
 );
+
+TRACE_EVENT(thermal_cpu_pressure,
+	TP_PROTO(unsigned long pressure, int cpu),
+
+	TP_ARGS(pressure, cpu),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, pressure)
+		__field(int, cpu)
+	),
+
+	TP_fast_assign(
+		__entry->pressure = pressure;
+		__entry->cpu = cpu;
+	),
+
+	TP_printk("pressure=%lu cpu=%d", __entry->pressure, __entry->cpu)
+);
 #endif /* _TRACE_THERMAL_EXYNOS_H */
 
 /* This part must be outside protection */
