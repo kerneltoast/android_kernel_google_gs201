@@ -3310,7 +3310,6 @@ static int __maybe_unused pl330_suspend(struct device *dev)
 	struct amba_device *pcdev = to_amba_device(dev);
 
 	pm_runtime_force_suspend(dev);
-	amba_pclk_unprepare(pcdev);
 
 	return 0;
 }
