@@ -1154,17 +1154,41 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	domain->min_freq_qos = domain->min_freq;
 
 	/*
-	 * Set frequency table size.
-	 * Allocate temporary table to get DVFS table from CAL.
-	 * Deliver this table to CAL API, then CAL fills the information.
+	 * Allocate temporary frequency and voltage tables
+	 * to get DVFS table from CAL.
 	 */
 	orig_table_size = cal_dfs_get_lv_num(domain->cal_id);
-	freq_table = kcalloc(orig_table_size, sizeof(unsigned long), GFP_KERNEL);
+
+	freq_table = kcalloc(orig_table_size, sizeof(unsigned long),
+			     GFP_KERNEL);
 	if (!freq_table)
 		return -ENOMEM;
-
 	cal_dfs_get_rate_table(domain->cal_id, freq_table);
 
+	volt_table = kzalloc(sizeof(unsigned int) * orig_table_size,
+			     GFP_KERNEL);
+	if (!volt_table) {
+		kfree(freq_table);
+		return -ENOMEM;
+	}
+	cal_dfs_get_asv_table(domain->cal_id, volt_table);
+
+	/*
+	 * A voltage-based cap can be used to find the max frequency
+	 * from the given ASV table.
+	 */
+	if (!of_property_read_u32(dn, "max-volt", &val)) {
+		for (index = 0; index < orig_table_size; index++) {
+			if (volt_table[index] <= val)
+				break;
+		}
+		domain->max_freq = min(domain->max_freq, freq_table[index]);
+		domain->max_freq_qos = domain->max_freq;
+	}
+
+	/*
+	 * Set frequency table size.
+	 */
 	domain->table_size = 0;
 	for (index = 0; index < orig_table_size; index++) {
 		if (freq_table[index] > domain->max_freq)
@@ -1229,14 +1253,6 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	 * Add OPP table for thermal.
 	 * Thermal CPU cooling is based on the OPP table.
 	 */
-	volt_table = kzalloc(sizeof(unsigned int) * orig_table_size, GFP_KERNEL);
-	if (!volt_table) {
-		kfree(freq_table);
-		return -ENOMEM;
-	}
-
-	cal_dfs_get_asv_table(domain->cal_id, volt_table);
-
 	for (index = 0; index < orig_table_size; index++) {
 		int cpu;
 
