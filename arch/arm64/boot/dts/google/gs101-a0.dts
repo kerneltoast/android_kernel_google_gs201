@@ -20,7 +20,7 @@
 };
 
 &cpufreq_domain0 {
-	max-freq = <1598000>;
+	max-volt = <1060000>;
 };
 &cpufreq_domain2 {
 	max-freq = <2048000>;
