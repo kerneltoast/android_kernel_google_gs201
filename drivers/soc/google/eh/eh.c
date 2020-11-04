@@ -133,29 +133,36 @@ static void eh_dump_regs(struct eh_device *eh_dev)
 {
 	unsigned int i, offset = 0;
 
-	pr_info("%s: dump_regs: global\n", eh_dev->name);
+	pr_err("eh_dev %px\n", eh_dev);
+	pr_err("%s: dump_regs: global\n", eh_dev->name);
 	for (offset = EH_REG_HWID; offset <= EH_REG_ERR_MSK; offset += 8)
-		pr_info("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
+		pr_err("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
 			eh_read_register(eh_dev, offset));
 
-	pr_info("%s: dump_regs: compression\n", eh_dev->name);
+	pr_err("%s: dump_regs: compression\n", eh_dev->name);
 	for (offset = EH_REG_CDESC_LOC; offset <= EH_REG_CINTERP_CTRL;
 	     offset += 8)
-		pr_info("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
+		pr_err("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
 			eh_read_register(eh_dev, offset));
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-		pr_info("%s: dump_regs: decompression %u\n", eh_dev->name, i);
+		pr_err("%s: dump_regs: decompression %u\n", eh_dev->name, i);
 		for (offset = EH_REG_DCMD_CSIZE(i);
 		     offset <= EH_REG_DCMD_BUF3(i); offset += 8)
-			pr_info("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
+			pr_err("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
 				eh_read_register(eh_dev, offset));
 	}
 
-	pr_info("%s: dump_regs: vendor\n", eh_dev->name);
+	pr_err("%s: dump_regs: vendor\n", eh_dev->name);
 	for (offset = EH_REG_BUSCFG; offset <= 0x118; offset += 8)
-		pr_info("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
+		pr_err("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
 			eh_read_register(eh_dev, offset));
+
+	pr_err("%s: driver\n", eh_dev->name);
+	pr_err("%s: write_index %u complete_index %u\n", eh_dev->name,
+				eh_dev->write_index, eh_dev->complete_index);
+	pr_err("%s: pending_compression %lu\n", eh_dev->name,
+				atomic_read(&eh_dev->nr_request));
 }
 
 static int eh_update_complete_index(struct eh_device *eh_dev,
@@ -1098,6 +1105,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	 */
 	case EH_CDESC_IDLE:
 	case EH_CDESC_PENDING:
+		eh_dump_regs(eh_dev);
 		pr_err("%s: descriptor 0x%x pend or idle 0x%x: ", eh_dev->name,
 		       fifo_index, compr_status);
 		{
