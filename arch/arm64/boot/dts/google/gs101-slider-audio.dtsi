@@ -329,8 +329,7 @@
 		ti,lra-wave-shape = <0>; /* Square wave */
 		ti,waveform-interval = <1>; /* 1 ms */
 
-		/* TODO: enable when module auto-loading is disabled */
-		status = "disabled";
+		status = "okay";
 	};
 };
 

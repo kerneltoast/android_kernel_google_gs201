@@ -418,7 +418,7 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	s51xx_pcie->pcie_event.user = pdev;
 	s51xx_pcie->pcie_event.mode = EXYNOS_PCIE_TRIGGER_CALLBACK;
 	s51xx_pcie->pcie_event.callback = s51xx_pcie_linkdown_cb;
-	exynos_pcie_host_v1_register_event(&s51xx_pcie->pcie_event);
+	exynos_pcie_register_event(&s51xx_pcie->pcie_event);
 
 	pr_err("Enable PCI device...\n");
 	ret = pci_enable_device(pdev);

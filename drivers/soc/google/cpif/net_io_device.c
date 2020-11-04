@@ -325,5 +325,5 @@ void vnet_setup(struct net_device *ndev)
 	ndev->tx_queue_len = 1000;
 	ndev->mtu = ETH_DATA_LEN;
 	ndev->watchdog_timeo = 5 * HZ;
-	ndev->features |= NETIF_F_GRO;
+	ndev->features |= (NETIF_F_GRO | NETIF_F_GRO_FRAGLIST);
 }

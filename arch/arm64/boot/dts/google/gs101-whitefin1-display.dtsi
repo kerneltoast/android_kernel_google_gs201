@@ -12,3 +12,11 @@
 		vddi-supply = <&m_ldo30_reg>;
 	};
 };
+
+&m_ldo30_reg {
+	regulator-always-on;
+};
+
+&m_ldo31_reg {
+	/delete-property/ regulator-always-on;
+};

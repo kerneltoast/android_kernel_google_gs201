@@ -161,17 +161,18 @@ static ssize_t exynos_pcie_rc_show(struct device *dev, struct device_attribute *
 {
 	int ret = 0;
 
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, ">>>> PCIe Test <<<<\n");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "0 : PCIe Unit Test\n");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "1 : Link Test\n");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret, "2 : DisLink Test\n");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, ">>>> PCIe Test <<<<\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "0 : PCIe Unit Test\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "1 : Link Test\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "2 : DisLink Test\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "14 : PCIe Hot Reset\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
 				"20 : Check Link Speed\n");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
 				"21 : Change Link Speed - target: GEN1\n");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
 				"22 : Change Link Speed - target: GEN2\n");
-	ret += snprintf(buf + ret, PAGE_SIZE - ret,
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
 				"23 : Change Link Speed - target: GEN3\n");
 
 	return ret;
@@ -259,6 +260,14 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 		dev_info(dev, "%s: force perst setting\n", __func__);
 		exynos_pcie_set_perst_gpio(1, 0);
 
+		break;
+
+	case 14:
+		dev_info(dev, "%s:[hot reset] by pulsing app_init_rst(ch %d)\n",
+				__func__, exynos_pcie->ch_num);
+		dev_info(dev, "PM_POWER_STATE  = 0x%08x\n",
+			 exynos_phy_pcs_read(exynos_pcie, 0x188));
+		exynos_elbi_write(exynos_pcie, 0x1, APP_INIT_RST);
 		break;
 
 	case 16:
@@ -1599,9 +1608,10 @@ void exynos_pcie_rc_dislink_work(struct work_struct *work)
 	if (exynos_pcie->state == STATE_LINK_DOWN)
 		return;
 
-	/* DBG: exynos_pcie_rc_print_link_history(pp); */
-	exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
-	exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
+	/* DBG: exynos_pcie_rc_print_link_history(pp);
+	 * exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
+	 * exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
+	 */
 
 	exynos_pcie->linkdown_cnt++;
 	dev_info(dev, "link down and recovery cnt: %d\n", exynos_pcie->linkdown_cnt);
@@ -3294,7 +3304,7 @@ int exynos_pcie_rc_change_link_speed(int ch_num, int target_speed)
 	return 0;
 }
 
-int exynos_pcie_host_v1_register_event(struct exynos_pcie_register_event *reg)
+int exynos_pcie_register_event(struct exynos_pcie_register_event *reg)
 {
 	int ret = 0;
 	struct pcie_port *pp;
@@ -3326,9 +3336,9 @@ int exynos_pcie_host_v1_register_event(struct exynos_pcie_register_event *reg)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(exynos_pcie_host_v1_register_event);
+EXPORT_SYMBOL_GPL(exynos_pcie_register_event);
 
-int exynos_pcie_host_v1_deregister_event(struct exynos_pcie_register_event *reg)
+int exynos_pcie_deregister_event(struct exynos_pcie_register_event *reg)
 {
 	int ret = 0;
 	struct pcie_port *pp;
@@ -3360,7 +3370,7 @@ int exynos_pcie_host_v1_deregister_event(struct exynos_pcie_register_event *reg)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(exynos_pcie_host_v1_deregister_event);
+EXPORT_SYMBOL_GPL(exynos_pcie_deregister_event);
 
 int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 {

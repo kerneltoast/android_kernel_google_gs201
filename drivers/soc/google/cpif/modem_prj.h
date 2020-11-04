@@ -541,6 +541,9 @@ struct link_device {
 	int (*enable_rx_int)(struct link_device *ld);
 	int (*disable_rx_int)(struct link_device *ld);
 
+	void (*start_timers)(struct mem_link_device *mld);
+	void (*stop_timers)(struct mem_link_device *mld);
+
 	void (*gro_flush)(struct link_device *ld, struct napi_struct *napi);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	struct timespec64 (*update_flush_time)(struct timespec64 org_flush_time);

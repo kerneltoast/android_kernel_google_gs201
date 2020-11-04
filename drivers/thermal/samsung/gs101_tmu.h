@@ -28,7 +28,7 @@ struct gs101_pi_param {
 	int polling_delay_on;
 	int polling_delay_off;
 
-	atomic_t switched_on;
+	bool switched_on;
 };
 
 /**

@@ -1,0 +1,40 @@
+per-file dt-bindings/**=*
+
+per-file linux/acpm_dvfs.h=*
+per-file linux/amba/pl330.h=*
+per-file linux/bldr_debug_tools.h=*
+per-file linux/dma/dma-pl330.h=*
+per-file linux/eh.h=*
+per-file linux/eh_regs.h=*
+per-file linux/exynos-pci-ctrl.h=*
+per-file linux/exynos-pci-noti.h=*
+per-file linux/gsa/gsa_tpu.h=*
+per-file linux/input/heatmap.h=*
+per-file linux/keycombo.h=*
+per-file linux/keydebug-func.h=*
+per-file linux/keydebug.h=*
+per-file linux/mcu_ipc.h=*
+per-file linux/mfd/samsung/rtc-s2mpg10.h=*
+per-file linux/mfd/samsung/s2mpg1*=*
+per-file linux/modem_notifier.h=*
+per-file linux/platform_data/sscoredump.h=*
+per-file linux/regulator/pmic_class.h=*
+per-file linux/shm_ipc.h=*
+per-file linux/soc/**=*
+per-file linux/trusty/*=*
+per-file linux/usb/f_mtp.h=*
+per-file linux/usb/samsung_usb.h=*
+
+per-file misc/gvotable.h=*
+per-file misc/logbuffer.h=*
+per-file misc/sbbm.h=*
+
+per-file soc/google/**=*
+
+per-file trace/events/edgetpu.h=*
+per-file trace/events/mfc.h=*
+per-file trace/events/thermal_exynos_gpu.h=*
+per-file trace/events/thermal_exynos.h=*
+per-file trace/events/ufs_exynos_perf.h=*
+per-file trace/events/ufs_pixel.h=*
+per-file trace/events/zram.h=*

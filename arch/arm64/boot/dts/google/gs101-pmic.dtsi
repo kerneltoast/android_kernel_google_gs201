@@ -585,7 +585,6 @@
 				regulator-name = "S2MPG10_LDO31";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
 				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3F>;
