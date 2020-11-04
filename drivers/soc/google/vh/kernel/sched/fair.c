@@ -726,7 +726,8 @@ fail:
 	*new_cpu = -1;
 }
 
-void vh_arch_set_freq_scale_pixel_mod(void *data, struct cpumask *cpus, unsigned long freq,
+void vh_arch_set_freq_scale_pixel_mod(void *data, const struct cpumask *cpus,
+				      unsigned long freq,
 				      unsigned long max, unsigned long *scale)
 {
 	int i;
