@@ -65,54 +65,45 @@ static inline void _trace_se(struct sched_entity *se,
 
 static void sched_pelt_cfs(void *data, struct cfs_rq *cfs_rq)
 {
-	if (trace_sched_pelt_cfs_enabled())
-		_trace_cfs(cfs_rq, trace_sched_pelt_cfs);
+	_trace_cfs(cfs_rq, trace_sched_pelt_cfs);
 }
 
 static void sched_pelt_rt(void *data, struct rq *rq)
 {
-	if (trace_sched_pelt_rt_enabled()) {
-		const struct sched_avg *avg = sched_trace_rq_avg_rt(rq);
-		int cpu = sched_trace_rq_cpu(rq);
+	const struct sched_avg *avg = sched_trace_rq_avg_rt(rq);
+	int cpu = sched_trace_rq_cpu(rq);
 
-		if (!avg)
-			return;
+	if (!avg)
+		return;
 
-		trace_sched_pelt_rt(cpu, avg);
-	}
+	trace_sched_pelt_rt(cpu, avg);
 }
 
 static void sched_pelt_dl(void *data, struct rq *rq)
 {
-	if (trace_sched_pelt_dl_enabled()) {
-		const struct sched_avg *avg = sched_trace_rq_avg_dl(rq);
-		int cpu = sched_trace_rq_cpu(rq);
+	const struct sched_avg *avg = sched_trace_rq_avg_dl(rq);
+	int cpu = sched_trace_rq_cpu(rq);
 
-		if (!avg)
-			return;
+	if (!avg)
+		return;
 
-		trace_sched_pelt_dl(cpu, avg);
-	}
+	trace_sched_pelt_dl(cpu, avg);
 }
 
 static void sched_pelt_irq(void *data, struct rq *rq)
 {
-	if (trace_sched_pelt_irq_enabled()){
-		const struct sched_avg *avg = sched_trace_rq_avg_irq(rq);
-		int cpu = sched_trace_rq_cpu(rq);
+	const struct sched_avg *avg = sched_trace_rq_avg_irq(rq);
+	int cpu = sched_trace_rq_cpu(rq);
 
-		if (!avg)
-			return;
+	if (!avg)
+		return;
 
-		trace_sched_pelt_irq(cpu, avg);
-	}
+	trace_sched_pelt_irq(cpu, avg);
 }
 
 static void sched_pelt_se(void *data, struct sched_entity *se)
 {
-	if (trace_sched_pelt_se_enabled()) {
-		_trace_se(se, trace_sched_pelt_se);
-	}
+	_trace_se(se, trace_sched_pelt_se);
 }
 
 static void sched_cpu_capacity(void *data, struct rq *rq)
@@ -122,25 +113,21 @@ static void sched_cpu_capacity(void *data, struct rq *rq)
 
 static void sched_overutilized(void *data, struct root_domain *rd, bool overutilized)
 {
-	if (trace_sched_overutilized_enabled()) {
-		char span[SPAN_SIZE];
+	char span[SPAN_SIZE];
 
-		cpumap_print_to_pagebuf(false, span, sched_trace_rd_span(rd));
+	cpumap_print_to_pagebuf(false, span, sched_trace_rd_span(rd));
 
-		trace_sched_overutilized(overutilized, span);
-	}
+	trace_sched_overutilized(overutilized, span);
 }
 
 static void sched_util_est_cfs(void *data, struct cfs_rq *cfs_rq)
 {
-	if (trace_sched_util_est_cfs_enabled())
-		_trace_cfs(cfs_rq, trace_sched_util_est_cfs);
+	_trace_cfs(cfs_rq, trace_sched_util_est_cfs);
 }
 
 static void sched_util_est_se(void *data, struct sched_entity *se)
 {
-	if (trace_sched_util_est_se_enabled())
-		_trace_se(se, trace_sched_util_est_se);
+	_trace_se(se, trace_sched_util_est_se);
 }
 
 static int sched_tp_init(void)
