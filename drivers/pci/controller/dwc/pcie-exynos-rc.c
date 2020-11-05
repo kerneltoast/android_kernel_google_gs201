@@ -785,17 +785,23 @@ static void exynos_pcie_rc_prog_viewport_cfg0(struct pcie_port *pp, u32 busdev)
 
 static void exynos_pcie_rc_prog_viewport_mem_outbound(struct pcie_port *pp)
 {
+	struct resource_entry *entry =
+		resource_list_first_type(&pp->bridge->windows, IORESOURCE_MEM);
+
 	/* Program viewport 0 : OUTBOUND : MEM */
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR1_OUTBOUND1, 4, EXYNOS_PCIE_ATU_TYPE_MEM);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_BASE_OUTBOUND1, 4, pp->mem_base);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_BASE_OUTBOUND1, 4, (pp->mem_base >> 32));
+	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_BASE_OUTBOUND1, 4, entry->res->start);
+	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_BASE_OUTBOUND1, 4, (entry->res->start >> 32));
 	/* exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LIMIT_OUTBOUND1, 4,
-	 *			      pp->mem_base + pp->mem_size - 1);
+	 *			      entry->res->start +
+         *			      resource_size(entry->res) - 1);
 	 */
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LIMIT_OUTBOUND1, 4, pp->mem_base + SZ_2M - 1);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_TARGET_OUTBOUND1, 4, pp->mem_bus_addr);
+	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LIMIT_OUTBOUND1, 4, entry->res->start + SZ_2M - 1);
+	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_TARGET_OUTBOUND1, 4,
+				   entry->res->start - entry->offset);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_TARGET_OUTBOUND1, 4,
-				   upper_32_bits(pp->mem_bus_addr));
+				   upper_32_bits(entry->res->start -
+						 entry->offset));
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR2_OUTBOUND1, 4, EXYNOS_PCIE_ATU_ENABLE);
 }
 
@@ -837,6 +843,8 @@ int exynos_pcie_rc_set_outbound_atu(int ch_num, u32 target_addr, u32 offset, u32
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 	struct dw_pcie *pci = exynos_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
+	struct resource_entry *entry =
+		resource_list_first_type(&pp->bridge->windows, IORESOURCE_MEM);
 	u32 val;
 	int ret;
 
@@ -854,11 +862,11 @@ int exynos_pcie_rc_set_outbound_atu(int ch_num, u32 target_addr, u32 offset, u32
 	/* Only for BTL */
 	/* 0x1420_0000 ~ (size -1) */
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR1_OUTBOUND2, 4, EXYNOS_PCIE_ATU_TYPE_MEM);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_BASE_OUTBOUND2, 4, pp->mem_base + SZ_2M);
+	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_BASE_OUTBOUND2, 4, entry->res->start + SZ_2M);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_BASE_OUTBOUND2, 4,
-				   ((pp->mem_base + SZ_2M) >> 32));
+				   ((entry->res->start + SZ_2M) >> 32));
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LIMIT_OUTBOUND2, 4,
-				   pp->mem_base + SZ_2M + exynos_pcie->btl_size - 1);
+				   entry->res->start + SZ_2M + exynos_pcie->btl_size - 1);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_TARGET_OUTBOUND2, 4,
 				   exynos_pcie->btl_target_addr + exynos_pcie->btl_offset);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_TARGET_OUTBOUND2, 4, 0);
