@@ -562,7 +562,7 @@ static int lv1set_section(struct samsung_sysmmu_domain *domain,
 			.end = iova + SECT_SIZE,
 		};
 
-		iommu_tlb_sync(&domain->domain, &gather);
+		iommu_iotlb_sync(&domain->domain, &gather);
 	}
 
 	return 0;
