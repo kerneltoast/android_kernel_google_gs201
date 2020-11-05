@@ -383,17 +383,31 @@ static ssize_t s2mpg11_pmic_read_store(struct device *dev,
 				       const char *buf, size_t size)
 {
 	struct s2mpg11_pmic *s2mpg11 = dev_get_drvdata(dev);
-	struct i2c_client *client = NULL;
 	int ret;
-	u8 val;
 	u16 reg_addr;
 
 	if (!buf)
 		return -1;
 
 	ret = kstrtou16(buf, 0, &reg_addr);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("%s: fail to transform i2c address\n", __func__);
+		return ret;
+	}
+
+	s2mpg11->read_addr = reg_addr;
+
+	return size;
+}
+
+static ssize_t s2mpg11_pmic_read_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct s2mpg11_pmic *s2mpg11 = dev_get_drvdata(dev);
+	struct i2c_client *client = NULL;
+	u16 reg_addr = s2mpg11->read_addr;
+	u8 val;
+	int ret;
 
 	switch (reg_addr >> 8){
 	case I2C_ADDR_TOP:
@@ -412,27 +426,18 @@ static ssize_t s2mpg11_pmic_read_store(struct device *dev,
 		client = s2mpg11->iodev->wlwp;
 		break;
 	default:
-		return size;
+		return -1;
 	}
 
 	ret = s2mpg11_read_reg(client, reg_addr, &val);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("%s: fail to read i2c address\n", __func__);
+		return ret;
+	}
 
 	pr_debug("%s: reg(0x%04X) data(0x%02X)\n", __func__, reg_addr, val);
-	s2mpg11->read_addr = reg_addr;
-	s2mpg11->read_val = val;
 
-	return size;
-}
-
-static ssize_t s2mpg11_pmic_read_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
-{
-	struct s2mpg11_pmic *s2mpg11 = dev_get_drvdata(dev);
-
-	return scnprintf(buf, PAGE_SIZE, "0x%04X: 0x%02X\n", s2mpg11->read_addr,
-			 s2mpg11->read_val);
+	return scnprintf(buf, PAGE_SIZE, "0x%04X: 0x%02X\n", reg_addr, val);
 }
 
 static ssize_t s2mpg11_pmic_write_store(struct device *dev,
@@ -501,7 +506,6 @@ int create_s2mpg11_pmic_sysfs(struct s2mpg11_pmic *s2mpg11)
 
 	pr_info("%s: master pmic sysfs start\n", __func__);
 	s2mpg11->read_addr = 0;
-	s2mpg11->read_val = 0;
 
 	s2mpg11_pmic = pmic_device_create(s2mpg11, "s2mpg11-pmic");
 
