@@ -22,7 +22,7 @@
 	if_pmic_irq: if-pmic-irq {
 		samsung,pins = "gpa8-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
