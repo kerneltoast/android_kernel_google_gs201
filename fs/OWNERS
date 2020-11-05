@@ -1,4 +1,3 @@
 per-file crypto/**=ebiggers@google.com
 per-file f2fs/**=jaegeuk@google.com
-per-file pstore/pstore_bldr_log.c=*
 per-file verity/**=ebiggers@google.com

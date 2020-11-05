@@ -58,6 +58,7 @@ per-file misc/bbdpl/**=*
 per-file misc/gsc-spi.c=*
 per-file misc/gvotable.c=*
 per-file misc/logbuffer.c=*
+per-file misc/pstore_bldr_log.c=*
 per-file misc/sbb-mux/**=*
 per-file misc/sscoredump/**=*
 
