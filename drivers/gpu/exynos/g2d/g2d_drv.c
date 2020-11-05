@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/compat.h>
 #include <linux/sched/task.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 
 #include "g2d.h"
 #include "g2d_regs.h"

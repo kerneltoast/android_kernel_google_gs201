@@ -7,7 +7,7 @@
 #include <linux/io.h>
 #include <linux/property.h>
 
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 
 #include "g2d.h"
 #include "g2d_regs.h"
