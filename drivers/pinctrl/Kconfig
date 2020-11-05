@@ -460,4 +460,12 @@ config PINCTRL_EQUILIBRIUM
 	  pin functions, configure GPIO attributes for LGM SoC pins. Pinmux and
 	  pinconf settings are retrieved from device tree.
 
+config PINCTRL_SLG51000
+	tristate "Dialog Semiconductor SLG51000 pinctrl driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor SLG51000.
+	  The SLG51000 is seven compact and customizable low dropout regulators.
+
 endif

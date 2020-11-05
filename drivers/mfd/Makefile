@@ -270,3 +270,5 @@ s2mpg11-mfd-$(CONFIG_MFD_S2MPG11) 	+= s2mpg11-core.o s2mpg11-irq.o
 obj-$(CONFIG_MFD_S2MPG1X_GPIO) 	+= s2mpg1x-gpio.o
 
 obj-$(CONFIG_SGI_MFD_IOC3)	+= ioc3.o
+
+obj-$(CONFIG_MFD_SLG51000)	+= slg51000-core.o

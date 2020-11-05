@@ -8,8 +8,11 @@
  * Author: Eric Jeong <eric.jeong.opensource@diasemi.com>
  */
 
-#ifndef __SLG51000_REGISTERS_H__
-#define __SLG51000_REGISTERS_H__
+#ifndef __LINUX_MFD_SLG51000_H
+#define __LINUX_MFD_SLG51000_H
+
+#include <linux/device.h>
+#include <linux/regmap.h>
 
 /* Registers */
 
@@ -556,5 +559,56 @@
 #define SLG51000_LDO1_LOCK_SHIFT                1
 #define SLG51000_LDO1_LOCK_MASK                 (0x01 << 1)
 
-#endif /* __SLG51000_REGISTERS_H__ */
+/* Customized control register masks */
+#define GPIO1_CTRL				SLG51000_MUXARRAY_INPUT_SEL_16
+#define GPIO2_CTRL				SLG51000_MUXARRAY_INPUT_SEL_17
+#define GPIO3_CTRL				SLG51000_MUXARRAY_INPUT_SEL_18
+#define GPIO4_CTRL				SLG51000_MUXARRAY_INPUT_SEL_19
 
+#define SLEEP_10000_USEC			10000
+#define SLEEP_RANGE_USEC			1000
+
+enum slg51000_regulators {
+	SLG51000_REGULATOR_LDO1 = 0,
+	SLG51000_REGULATOR_LDO2,
+	SLG51000_REGULATOR_LDO3,
+	SLG51000_REGULATOR_LDO4,
+	SLG51000_REGULATOR_LDO5,
+	SLG51000_REGULATOR_LDO6,
+	SLG51000_REGULATOR_LDO7,
+	SLG51000_MAX_REGULATORS,
+};
+
+struct slg51000_dev {
+	struct device *dev;
+	struct regmap *regmap;
+	struct regulator_desc *rdesc[SLG51000_MAX_REGULATORS];
+	struct regulator_dev *rdev[SLG51000_MAX_REGULATORS];
+	struct gpio_desc *cs_gpiod;
+	struct workqueue_struct *slg51000_wq;
+	struct work_struct slg51000_work;
+	int chip_irq;
+	int chip_cs_pin;
+	int chip_buck_pin;
+	int chip_bb_pin;
+	int chip_pu_pin;
+	int chip_id;
+};
+
+/* GPIOs */
+enum {
+	SLG51000_GPIO1,
+	SLG51000_GPIO2,
+	SLG51000_GPIO3,
+	SLG51000_GPIO4,
+	SLG51000_SEQUENCE1,
+	SLG51000_SEQUENCE2,
+	SLG51000_SEQUENCE3,
+};
+
+struct slg51000_register_setting {
+	unsigned int addr;
+	unsigned int val;
+};
+
+#endif /* __LINUX_MFD_SLG51000_H */
