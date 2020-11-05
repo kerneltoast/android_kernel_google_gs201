@@ -31,7 +31,7 @@
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <uapi/linux/in.h>
 #include <linux/inet.h>
 #include <net/ipv6.h>
