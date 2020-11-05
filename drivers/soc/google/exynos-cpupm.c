@@ -177,11 +177,10 @@ EXPORT_SYMBOL_GPL(exynos_cpupm_notifier_register);
 
 static int exynos_cpupm_notify(int event, int v)
 {
-	int nr_calls;
-	int ret = 0;
+	int ret;
 
 	read_lock(&notifier_lock);
-	ret = __raw_notifier_call_chain(&notifier_chain, event, &v, -1, &nr_calls);
+	ret = raw_notifier_call_chain(&notifier_chain, event, &v);
 	read_unlock(&notifier_lock);
 
 	return notifier_to_errno(ret);
