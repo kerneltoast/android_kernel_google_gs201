@@ -67,6 +67,7 @@ COMPRESS_UNSTRIPPED_MODULES=1
 UNSTRIPPED_MODULES="
 bcmdhd43752.ko
 bcmdhd4389.ko
+dss.ko
 "
 
 if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
