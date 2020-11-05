@@ -352,13 +352,20 @@ static inline bool task_fits_capacity(struct task_struct *p, int cpu)
 
 static struct sched_group *find_start_sg(struct task_struct *p, bool prefer_high_cap)
 {
+	int start_cpu;
+
 	if (prefer_high_cap)
-		return cpu_rq(HIGH_CAPACITY_CPU)->sd->parent->groups;
+		start_cpu = HIGH_CAPACITY_CPU;
 
 	if (task_fits_capacity(p, MIN_CAPACITY_CPU))
-		return cpu_rq(MIN_CAPACITY_CPU)->sd->parent->groups;
+		start_cpu = MIN_CAPACITY_CPU;
 	else
-		return cpu_rq(HIGH_CAPACITY_CPU)->sd->parent->groups;
+		start_cpu = HIGH_CAPACITY_CPU;
+
+	if(cpu_rq(start_cpu)->sd && cpu_rq(start_cpu)->sd->parent)
+		return cpu_rq(start_cpu)->sd->parent->groups;
+	else
+		return NULL;
 }
 
 static inline bool is_min_capacity_cpu(int cpu)
@@ -398,6 +405,9 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p)
 		target_capacity = 0;
 
 	sg = start_sg = find_start_sg(p, prefer_high_cap);
+	if (sg == NULL)
+		return;
+
 	do {
 		for_each_cpu_and(i, p->cpus_ptr, sched_group_span(sg)) {
 			unsigned long capacity_curr = capacity_curr_of(i);
