@@ -98,8 +98,8 @@ static void exynos_pd_dbg_genpd_unlock(struct generic_pm_domain *genpd)
 static void exynos_pd_dbg_summary_show(struct generic_pm_domain *genpd)
 {
 	static const char * const gpd_status_lookup[] = {
-		[GPD_STATE_ACTIVE] = "on",
-		[GPD_STATE_POWER_OFF] = "off"
+		[GENPD_STATE_ON] = "on",
+		[GENPD_STATE_OFF] = "off"
 	};
 	static const char * const rpm_status_lookup[] = {
 		[RPM_ACTIVE] = "active",
