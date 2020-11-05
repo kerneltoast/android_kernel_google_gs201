@@ -2,6 +2,9 @@
 #include "pmucal_common.h"
 #include "pmucal_rae.h"
 
+/* TODO: temporary workaround. must remove. see b/169128860  */
+#include <linux/smc.h>
+
 /**
  * A global index for pmucal_rae_handle_seq.
  * it should be helpful in ramdump.
@@ -135,16 +138,31 @@ static inline void pmucal_rae_read(struct pmucal_seq *seq)
 	seq->value = (reg & seq->mask);
 }
 
+static void pmucal_write_reg(phys_addr_t base_pa, void __iomem *base_va, u32 offset, u32 val)
+{
+	if ((base_pa >> 16) == 0x1746) {
+		/* TODO: temporary workaround. must remove. see b/169128860 */
+		int ret;
+
+		ret = set_priv_reg(base_pa + offset, val);
+		if (ret == SMC_CMD_PRIV_REG || ret == -EINVAL)
+			writel(val, base_va + offset);
+	} else {
+		writel(val, base_va + offset);
+	}
+}
+
 static inline void pmucal_rae_write(struct pmucal_seq *seq)
 {
 	if (seq->mask == U32_MAX)
-		writel(seq->value, seq->base_va + seq->offset);
+		pmucal_write_reg(seq->base_pa, seq->base_va, seq->offset, seq->value);
 	else {
 		u32 reg;
 
 		reg = readl(seq->base_va + seq->offset);
 		reg = (reg & ~seq->mask) | (seq->value & seq->mask);
-		writel(reg, seq->base_va + seq->offset);
+
+		pmucal_write_reg(seq->base_pa, seq->base_va, seq->offset, reg);
 	}
 }
 
@@ -156,7 +174,7 @@ static inline void pmucal_set_bit_atomic(struct pmucal_seq *seq)
 	if (seq->offset > 0x3fff)
 		return;
 
-	writel(seq->value, seq->base_va + (seq->offset | 0xc000));
+	pmucal_write_reg(seq->base_pa, seq->base_va, (seq->offset | 0xc000), seq->value);
 }
 
 static inline void pmucal_clr_bit_atomic(struct pmucal_seq *seq)
@@ -164,7 +182,7 @@ static inline void pmucal_clr_bit_atomic(struct pmucal_seq *seq)
 	if (seq->offset > 0x3fff)
 		return;
 
-	writel(seq->value, seq->base_va + (seq->offset | 0x8000));
+	pmucal_write_reg(seq->base_pa, seq->base_va, (seq->offset | 0x8000), seq->value);
 }
 
 static int pmucal_rae_write_retry(struct pmucal_seq *seq, bool inversion, unsigned int idx)
@@ -206,7 +224,7 @@ static inline void pmucal_clr_pend(struct pmucal_seq *seq)
 	u32 reg;
 
 	reg = readl(seq->cond_base_va + seq->cond_offset) & seq->cond_mask;
-	writel(reg & seq->mask, seq->base_va + seq->offset);
+	pmucal_write_reg(seq->base_pa, seq->base_va, seq->offset, reg & seq->mask);
 }
 
 void pmucal_rae_save_seq(struct pmucal_seq *seq, unsigned int seq_size)
