@@ -591,14 +591,34 @@ int mfc_core_run_enc_frame(struct mfc_core *core, struct mfc_ctx *ctx)
 
 int mfc_core_run_enc_last_frames(struct mfc_core *core, struct mfc_ctx *ctx)
 {
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
 	struct mfc_buf *dst_mb = NULL;
 	struct mfc_raw_info *raw;
+	int hier_qp_type = -EINVAL;
+	u8 num_hier_layer = 0;
 
 	raw = &ctx->raw_buf;
 
 	dst_mb = mfc_get_buf(ctx, &ctx->dst_buf_queue, MFC_BUF_SET_USED);
-	if (!dst_mb)
+	if (!dst_mb) {
 		mfc_debug(2, "no dst buffers set to zero\n");
+
+		if (IS_H264_ENC(ctx)) {
+			num_hier_layer = p->codec.h264.num_hier_layer;
+			hier_qp_type = (int)p->codec.h264.hier_qp_type;
+		} else if (IS_HEVC_ENC(ctx)) {
+			num_hier_layer = p->codec.hevc.num_hier_layer;
+			hier_qp_type = (int)p->codec.hevc.hier_qp_type;
+		}
+
+		if (p->num_b_frame ||
+			((num_hier_layer >= 2) &&
+			 (hier_qp_type == V4L2_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_B))) {
+			mfc_ctx_info("B frame encoding should be dst buffer\n");
+			return -EINVAL;
+		}
+	}
 
 	mfc_debug(2, "Set address zero for all planes\n");
 	mfc_core_set_enc_frame_buffer(core, ctx, 0, raw->num_planes);
