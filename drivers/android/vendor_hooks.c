@@ -20,6 +20,7 @@
 #include <trace/hooks/gic.h>
 #include <trace/hooks/wqlockup.h>
 #include <trace/hooks/debug.h>
+#include <trace/hooks/sysrqcrash.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -64,3 +65,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ipi_stop);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_energy_efficient_cpu);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_sugov_sched_attr);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_iowait);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sysrq_crash);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dump_throttled_rt_tasks);

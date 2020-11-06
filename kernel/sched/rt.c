@@ -973,6 +973,13 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 		if (likely(rt_b->rt_runtime)) {
 			rt_rq->rt_throttled = 1;
 			printk_deferred_once("sched: RT throttling activated\n");
+
+			trace_android_vh_dump_throttled_rt_tasks(
+				raw_smp_processor_id(),
+				rq_clock(rq_of_rt_rq(rt_rq)),
+				sched_rt_period(rt_rq),
+				runtime,
+				hrtimer_get_expires_ns(&rt_b->rt_period_timer));
 		} else {
 			/*
 			 * In case we did anyway, make it go away,
@@ -2443,7 +2450,7 @@ static unsigned int get_rr_interval_rt(struct rq *rq, struct task_struct *task)
 }
 
 const struct sched_class rt_sched_class
-	__attribute__((section("__rt_sched_class"))) = {
+	__section("__rt_sched_class") = {
 	.enqueue_task		= enqueue_task_rt,
 	.dequeue_task		= dequeue_task_rt,
 	.yield_task		= yield_task_rt,

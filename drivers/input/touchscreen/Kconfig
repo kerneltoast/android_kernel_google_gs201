@@ -1331,4 +1331,17 @@ config TOUCHSCREEN_HEATMAP
 
 source "drivers/input/touchscreen/sec_ts/Kconfig"
 source "drivers/input/touchscreen/stm/Kconfig"
+
+config TOUCHSCREEN_ZINITIX
+	tristate "Zinitix touchscreen support"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using Zinitix bt541,
+	  or something similar enough.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zinitix.
+
 endif

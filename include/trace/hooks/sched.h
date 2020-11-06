@@ -81,6 +81,12 @@ DECLARE_HOOK(android_vh_set_sugov_sched_attr,
 DECLARE_RESTRICTED_HOOK(android_rvh_set_iowait,
 	TP_PROTO(struct task_struct *p, int *should_iowait_boost),
 	TP_ARGS(p, should_iowait_boost), 1);
+
+DECLARE_HOOK(android_vh_dump_throttled_rt_tasks,
+	TP_PROTO(int cpu, u64 clock, ktime_t rt_period, u64 rt_runtime,
+			s64 rt_period_timer_expires),
+	TP_ARGS(cpu, clock, rt_period, rt_runtime, rt_period_timer_expires));
+
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -99,6 +105,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_iowait,
 #define trace_android_rvh_find_energy_efficient_cpu(p, prev_cpu, sync, new_cpu)
 #define trace_android_vh_set_sugov_sched_attr(attr)
 #define trace_android_rvh_set_iowait(p, should_iowait_boost)
+#define trace_android_vh_dump_throttled_rt_tasks(cpu, clock, rt_period, rt_runtime, rt_period_timer_expires)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */

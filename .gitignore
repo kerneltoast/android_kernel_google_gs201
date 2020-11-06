@@ -155,3 +155,6 @@ x509.genkey
 
 # To create symlink file under this directory for google devices
 /arch/arm64/boot/dts/google/devices/
+
+# Documentation toolchain
+sphinx_*/

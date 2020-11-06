@@ -230,6 +230,18 @@ enum adev_actions {
 	ADEV_ATTENTION,
 };
 
+/*
+ * Initial current capability of the new source when vSafe5V is applied during PD3.0 Fast Role Swap.
+ * Based on "Table 6-14 Fixed Supply PDO - Sink" of "USB Power Delivery Specification Revision 3.0,
+ * Version 1.2"
+ */
+enum frs_typec_current {
+	FRS_NOT_SUPPORTED,
+	FRS_DEFAULT_POWER,
+	FRS_5V_1P5A,
+	FRS_5V_3A,
+};
+
 /* Events from low level driver */
 
 #define TCPM_CC_EVENT		BIT(0)
@@ -406,6 +418,12 @@ struct tcpm_port {
 	/* port belongs to a self powered device */
 	bool self_powered;
 
+	/* FRS */
+	enum frs_typec_current frs_current;
+
+	/* Sink caps have been queried */
+	bool sink_cap_done;
+
 	/* Port is still in tCCDebounce */
 	bool debouncing;
 
@@ -429,12 +447,6 @@ struct tcpm_port {
 	 * PD based current limit gets set after RX of PD_CTRL_PSRDY.
 	 */
 	bool psnkstdby_after_accept;
-
-	/* FRS */
-	enum frs_typec_current frs_current;
-
-	/* Sink caps have been queried */
-	bool sink_cap_done;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -1859,6 +1871,7 @@ static void vdm_run_state_machine(struct tcpm_port *port)
 				break;
 			}
 
+			/* Bail out if AMS cannot be started */
 			if (res < 0) {
 				port->vdm_sm_running = false;
 				return;
@@ -1871,6 +1884,28 @@ static void vdm_run_state_machine(struct tcpm_port *port)
 			(PD_VDO_CMDT(port->vdo_data[0]) == CMDT_INIT) ?
 			PD_T_SINK_TX : 0;
 		mod_vdm_delayed_work(port, delay_ms);
+		break;
+	case VDM_STATE_SEND_MESSAGE:
+		/* Prepare and send VDM */
+		memset(&msg, 0, sizeof(msg));
+		msg.header = PD_HEADER_LE(PD_DATA_VENDOR_DEF,
+					  port->pwr_role,
+					  port->data_role,
+					  port->negotiated_rev,
+					  port->message_id, port->vdo_count);
+		for (i = 0; i < port->vdo_count; i++)
+			msg.payload[i] = cpu_to_le32(port->vdo_data[i]);
+		res = tcpm_pd_transmit(port, TCPC_TX_SOP, &msg);
+		if (res < 0) {
+			port->vdm_state = VDM_STATE_ERR_SEND;
+		} else {
+			unsigned long timeout;
+
+			port->vdm_retries = 0;
+			port->vdm_state = VDM_STATE_BUSY;
+			timeout = vdm_ready_timeout(port->vdo_data[0]);
+			mod_vdm_delayed_work(port, timeout);
+		}
 		break;
 	case VDM_STATE_WAIT_RSP_BUSY:
 		port->vdo_data[0] = port->vdo_retry;
@@ -1894,28 +1929,6 @@ static void vdm_run_state_machine(struct tcpm_port *port)
 			port->vdm_retries++;
 			port->vdm_state = VDM_STATE_READY;
 			tcpm_ams_finish(port);
-		}
-		break;
-	case VDM_STATE_SEND_MESSAGE:
-		/* Prepare and send VDM */
-		memset(&msg, 0, sizeof(msg));
-		msg.header = PD_HEADER_LE(PD_DATA_VENDOR_DEF,
-					  port->pwr_role,
-					  port->data_role,
-					  port->negotiated_rev,
-					  port->message_id, port->vdo_count);
-		for (i = 0; i < port->vdo_count; i++)
-			msg.payload[i] = cpu_to_le32(port->vdo_data[i]);
-		res = tcpm_pd_transmit(port, TCPC_TX_SOP, &msg);
-		if (res < 0) {
-			port->vdm_state = VDM_STATE_ERR_SEND;
-		} else {
-			unsigned long timeout;
-
-			port->vdm_retries = 0;
-			port->vdm_state = VDM_STATE_BUSY;
-			timeout = vdm_ready_timeout(port->vdo_data[0]);
-			mod_vdm_delayed_work(port, timeout);
 		}
 		break;
 	default:
@@ -2771,9 +2784,9 @@ void tcpm_pd_receive(struct tcpm_port *port, const struct pd_message *msg)
 	if (!event)
 		return;
 
+	kthread_init_work(&event->work, tcpm_pd_rx_handler);
 	event->port = port;
 	memcpy(&event->msg, msg, sizeof(*msg));
-	kthread_init_work(&event->work, tcpm_pd_rx_handler);
 	kthread_queue_work(port->wq, &event->work);
 }
 EXPORT_SYMBOL_GPL(tcpm_pd_receive);
@@ -4149,7 +4162,10 @@ static void run_state_machine(struct tcpm_port *port)
 
 		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
+		tcpm_check_send_discover(port);
+		mod_enable_frs_delayed_work(port, 0);
 		tcpm_pps_complete(port, port->pps_status);
+		power_supply_changed(port->psy);
 
 		if (port->ams != NONE_AMS)
 			tcpm_ams_finish(port);
@@ -4168,9 +4184,6 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_set_state(port, upcoming_state, 0);
 			break;
 		}
-		tcpm_check_send_discover(port);
-		mod_enable_frs_delayed_work(port, 0);
-		power_supply_changed(port->psy);
 		break;
 
 	/* Accessory states */
@@ -5196,7 +5209,7 @@ static void tcpm_enable_frs_work(struct kthread_work *work)
 	}
 
 	/* Send when the state machine is idle */
-	if (port->state != SNK_READY || port->send_discover) {
+	if (port->state != SNK_READY || port->vdm_state != VDM_STATE_DONE || port->send_discover) {
 		tcpm_log_force(port, "Resched sink cap query");
 		goto resched;
 	}
@@ -6093,8 +6106,6 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 {
 	struct tcpm_port *port;
 	int err;
-	/* Priority just lower than default irq thread priority */
-	struct sched_param param = {.sched_priority = (MAX_USER_RT_PRIO / 2) + 1,};
 
 	if (!dev || !tcpc ||
 	    !tcpc->get_vbus || !tcpc->set_cc || !tcpc->get_cc ||
@@ -6115,7 +6126,7 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	port->wq = kthread_create_worker(0, dev_name(dev));
 	if (IS_ERR(port->wq))
 		return ERR_CAST(port->wq);
-	sched_setscheduler(port->wq->task, SCHED_FIFO, &param);
+	sched_set_fifo(port->wq->task);
 
 	kthread_init_work(&port->state_machine, tcpm_state_machine_work);
 	kthread_init_work(&port->vdm_state_machine, vdm_state_machine_work);
