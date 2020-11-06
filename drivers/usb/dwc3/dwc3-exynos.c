@@ -436,19 +436,6 @@ int dwc3_exynos_core_init(struct dwc3 *dwc)
 
 	dwc3_core_config(dwc);
 
-	reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
-	if (dwc->adj_sof_accuracy) {
-		reg &= ~DWC3_GFLADJ_REFCLK_240MHZDECR_PLS1;
-		reg &= ~DWC3_GFLADJ_REFCLK_240MHZ_DECR_MASK;
-		reg |= DWC3_GFLADJ_REFCLK_240MHZ_DECR(0xA);
-		reg |= DWC3_GFLADJ_REFCLK_LPM_SEL;
-		reg &= ~DWC3_GFLADJ_REFCLK_FLADJ_MASK;
-		reg |= DWC3_GFLADJ_REFCLK_FLADJ(0x7F0);
-	} else if (dwc->dis_u2_freeclk_exists_quirk) {
-		reg &= ~DWC3_GFLADJ_REFCLK_LPM_SEL;
-	}
-	dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
-
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 
 	if (dwc->dis_u2_freeclk_exists_quirk)
