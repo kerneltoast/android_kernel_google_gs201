@@ -8,10 +8,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 
-&drmdecon0 {
-	out_type = <0x1>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
-};
-
 &drmdsim0 {
 	status = "ok";
 	#address-cells = <1>;
