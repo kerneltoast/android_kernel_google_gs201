@@ -16,7 +16,7 @@
 #include <dt-bindings/soc/google/gs101-pm-qos.h>
 #include "gs101-rmem.dtsi"
 #include "gs101-bigo.dtsi"
-#include "gs101-bts.dtsi"
+#include "gs101-bts-a0.dtsi"
 #include "gs101-cpu-a0.dtsi"
 #include "gs101-dit.dtsi"
 #include "gs101-drm-dpu.dtsi"
