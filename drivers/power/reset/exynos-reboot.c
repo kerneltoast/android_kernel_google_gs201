@@ -23,11 +23,15 @@
 #if IS_ENABLED(CONFIG_GS_ACPM)
 #include <soc/google/acpm_ipc_ctrl.h>
 #endif
+#include <soc/google/exynos-el3_mon.h>
+/* TODO: temporary workaround. must remove. see b/169128860  */
+#include <linux/soc/samsung/exynos-smc.h>
 
 static struct regmap *pmureg;
 static u32 reboot_offset, reboot_trigger;
 static u32 reboot_cmd_offset;
 static u32 shutdown_offset, shutdown_trigger;
+static phys_addr_t pmu_alive_base;
 
 static void exynos_power_off(void)
 {
@@ -115,6 +119,7 @@ static void exynos_reboot_parse(const char *cmd)
 static int exynos_restart_handler(struct notifier_block *this,
 				  unsigned long mode, void *cmd)
 {
+	int ret;
 #if IS_ENABLED(CONFIG_GS_ACPM)
 	exynos_acpm_reboot();
 #endif
@@ -122,7 +127,12 @@ static int exynos_restart_handler(struct notifier_block *this,
 
 	/* Do S/W Reset */
 	pr_emerg("%s: Exynos SoC reset right now\n", __func__);
-	regmap_write(pmureg, reboot_offset, reboot_trigger);
+
+	ret = set_priv_reg(pmu_alive_base + reboot_offset, reboot_trigger);
+
+	/* TODO: this is a temporary workaround. must remove. see b/169128860 */
+	if (ret == SMC_CMD_PRIV_REG || ret == -EINVAL)
+		regmap_write(pmureg, reboot_offset, reboot_trigger);
 
 	while (1)
 		wfi();
@@ -139,6 +149,8 @@ static int exynos_reboot_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
+	struct device_node *syscon_np;
+	struct resource res;
 	int err;
 
 	pmureg = syscon_regmap_lookup_by_phandle(np, "syscon");
@@ -146,6 +158,19 @@ static int exynos_reboot_probe(struct platform_device *pdev)
 		dev_err(dev, "Fail to get regmap of PMU\n");
 		return PTR_ERR(pmureg);
 	}
+
+	syscon_np = of_parse_phandle(np, "syscon", 0);
+	if (!syscon_np) {
+		dev_err(dev, "syscon device node not found\n");
+		return -EINVAL;
+	}
+
+	if (of_address_to_resource(syscon_np, 0, &res)) {
+		dev_err(dev, "failed to get syscon base address\n");
+		return -ENOMEM;
+	}
+
+	pmu_alive_base = res.start;
 
 	if (of_property_read_u32(np, "reboot-offset", &reboot_offset) < 0) {
 		pr_err("failed to find reboot-offset property\n");
