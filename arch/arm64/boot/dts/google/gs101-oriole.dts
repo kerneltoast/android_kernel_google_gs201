@@ -10,6 +10,7 @@
 
 #include "gs101-raviole.dtsi"
 #include "gs101-oriole-audio.dtsi"
+#include "gs101-oriole-camera.dtsi"
 / {
 	board_id = <0x20302>;
 	board_rev = <0x10000>;
