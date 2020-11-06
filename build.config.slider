@@ -68,6 +68,11 @@ private/google-modules/power/reset
 private/google-modules/bluetooth/broadcom
 "
 
+UWB_MODULE="private/google-modules/uwb/kernel"
+if [ -d "${ROOT_DIR}/${UWB_MODULE}" ]; then
+EXT_MODULES+=${UWB_MODULE}
+fi
+
 if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
 source ${GKI_DEFCONFIG_FRAGMENT}
 fi
