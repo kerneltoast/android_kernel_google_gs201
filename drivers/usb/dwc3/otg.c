@@ -313,7 +313,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(dwc3_otg_phy_enable);
 
-int list_clear;
 static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg	*otg = fsm->otg;
@@ -345,8 +344,6 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 
 		dwc3_otg_set_host_mode(dotg);
 
-		if (list_clear == 1)
-			INIT_LIST_HEAD(&dwc->xhci->dev.links.needs_suppliers);
 		ret = platform_device_add(dwc->xhci);
 		if (ret) {
 			dev_err(dev, "%s: cannot add xhci\n", __func__);
@@ -375,7 +372,6 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 
 		dwc3_host_exit(dwc);
 		dwc->xhci = NULL;
-		list_clear = 1;
 
 err2:
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
