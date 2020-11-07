@@ -12,4 +12,4 @@
 	soc_id = <0x09845001 0x00000000>;
 };
 
-#include "gs101.dtsi"
+#include "gs101-b0.dtsi"
