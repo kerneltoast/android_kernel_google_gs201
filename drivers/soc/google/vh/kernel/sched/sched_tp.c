@@ -8,6 +8,10 @@
 #define CREATE_TRACE_POINTS
 #include "sched_events.h"
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_find_best_target);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_find_energy_efficient_cpu);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_cpu_util);
+
 static inline struct cfs_rq *get_group_cfs_rq(struct sched_entity *se)
 {
 #ifdef CONFIG_FAIR_GROUP_SCHED

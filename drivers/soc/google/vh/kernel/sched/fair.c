@@ -9,6 +9,7 @@
 #include <kernel/sched/pelt.h>
 
 #include "sched.h"
+#include "sched_events.h"
 
 #define MIN_CAPACITY_CPU    CONFIG_VH_MIN_CAPACITY_CPU
 #define MID_CAPACITY_CPU    CONFIG_VH_MID_CAPACITY_CPU
@@ -130,12 +131,12 @@ static inline unsigned long uclamp_task_util(struct task_struct *p)
 }
 #endif
 
-static unsigned long capacity_of(int cpu)
+static inline unsigned long capacity_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity;
 }
 
-static inline unsigned long cpu_util(int cpu)
+static unsigned long cpu_util(int cpu)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
@@ -234,7 +235,7 @@ static void sync_entity_load_avg(struct sched_entity *se)
 	__update_load_avg_blocked_se(last_update_time, se);
 }
 
-unsigned long capacity_curr_of(int cpu)
+static unsigned long capacity_curr_of(int cpu)
 {
 	unsigned long max_cap = cpu_rq(cpu)->cpu_capacity_orig;
 
@@ -377,7 +378,6 @@ static inline bool cpu_is_in_target_set(struct task_struct *p, int cpu)
 	return cpu >= next_usable_cpu || next_usable_cpu >= nr_cpu_ids;
 }
 
-// TODO: add traces
 static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cpu, bool sync_boost)
 {
 	unsigned long min_util = uclamp_task_util(p);
@@ -391,6 +391,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	int backup_cpu = -1;
 	bool prefer_idle;
 	bool prefer_high_cap;
+	bool prefer_prev = false;
 	int i;
 	int start_cpu = -1;
 
@@ -409,9 +410,10 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		target_capacity = 0;
 
 	/* prefer prev cpu */
-	//todo: add idle index check later
+	// TODO: add idle index check later
 	if (cpu_online(prev_cpu) && idle_cpu(prev_cpu) && cpu_is_in_target_set(p, prev_cpu)) {
 		target_cpu = prev_cpu;
+		prefer_prev = true;
 		goto target;
 	}
 
@@ -425,6 +427,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		struct cpuidle_state *idle;
 		unsigned int min_exit_lat = UINT_MAX;
 		int next_cpu = cpumask_next_wrap(i, p->cpus_ptr, i, false);
+
+		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity);
 
 		if (!cpu_online(i))
 			goto check;
@@ -684,6 +688,10 @@ check:
 target:
 		cpumask_set_cpu(target_cpu, cpus);
 	}
+
+	trace_sched_find_best_target(p, prefer_idle, prefer_high_cap, prefer_prev, sync_boost,
+				     min_util, start_cpu, best_idle_cpu, best_active_cpu,
+				     target_cpu, backup_cpu);
 }
 
 static DEFINE_PER_CPU(cpumask_t, energy_cpus);
@@ -705,12 +713,14 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 	struct perf_domain *pd;
 	cpumask_t *candidates;
 	bool sync_boost;
+	bool sync_wakeup = false;
 
 	cpu = smp_processor_id();
 	if (sync && cpu_rq(cpu)->nr_running == 1 &&
 	    cpumask_test_cpu(cpu, p->cpus_ptr) && cpu_is_in_target_set(p, cpu)) {
 		*new_cpu = cpu;
-		return;
+		sync_wakeup = true;
+		goto out;
 	}
 
 	sync_boost = sync && cpu >= HIGH_CAPACITY_CPU;
@@ -765,20 +775,22 @@ unlock:
 	 */
 	if (prev_energy == ULONG_MAX) {
 		*new_cpu = best_energy_cpu;
-		return;
+		goto out;
 	}
 
 	if ((prev_energy - best_energy) > (prev_energy >> 4)) {
 		*new_cpu = best_energy_cpu;
-		return;
+		goto out;
 	}
 
 	*new_cpu = prev_cpu;
-	return;
+	goto out;
 
 fail:
 	rcu_read_unlock();
 	*new_cpu = -1;
+out:
+	trace_sched_find_energy_efficient_cpu(p, sync_wakeup, *new_cpu, best_energy_cpu, prev_cpu);
 }
 
 void vh_arch_set_freq_scale_pixel_mod(void *data, struct cpumask *cpus, unsigned long freq,
