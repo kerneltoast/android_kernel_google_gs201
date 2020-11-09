@@ -785,9 +785,17 @@ static void s2m_rtc_shutdown(struct platform_device *pdev)
 
 	/* w/a for WTSR_EN */
 	/* 0x204[3] == 1 -> shutdown, 0x204[3] == 0 -> not shutdown */
-	if (system_state == SYSTEM_POWER_OFF &&
-	    info->iodev->pmic_rev == S2MPG10_EVT0)
-		s2mpg10_update_reg(info->i2c, S2MPG10_RTC_CAPSEL, 0x08, 0x08);
+	if (system_state == SYSTEM_POWER_OFF) {
+		if (info->iodev->pmic_rev == S2MPG10_EVT0)
+			s2mpg10_update_reg(info->i2c, S2MPG10_RTC_CAPSEL, 0x08, 0x08);
+	} else if (system_state == SYSTEM_RESTART) {
+		if (info->iodev->pmic_rev != S2MPG10_EVT0) {
+			s2mpg10_update_reg(info->i2c, S2MPG10_RTC_WTSR,
+				COLDRST_TIMER_MASK | COLDRST_EN_MASK | WTSRT_MASK | WTSR_EN_MASK,
+				GENMASK(6, 0));
+			s2mpg10_update_reg(info->i2c, S2MPG10_RTC_CAPSEL, 0x00, 0x08);
+		}
+	}
 }
 
 static const struct platform_device_id s2m_rtc_id[] = {
