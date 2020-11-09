@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Whitefin device tree source
+ *
+ * Copyright 2020 Google Inc.
+ *
+ */
+
+/* Touch is connected to spi_11, pins:
+ *   CLK=GPP23[0], MOSI=GPP23[1], MISO=GPP23[2], CS=GPP23[3]
+ * TS_RESET_L = AE34 = XAPC_GPIO10 = GPP26[0] = <&gpp26 0 0>
+ * TS_SPI_SEL = AD34 = XAPC_GPIO11 = GPP26[1] = <&gpp26 1 0>
+ * TS_INT_L = D11 = XEINT_20 = GPA9[0] = <&gpa9 0 0>
+ *
+ * DVDD = PP1800_L25M_TSP_DVDD = F10 = VLDO25M = "PP1800_L25M_TSP"?
+ * AVDD = PP3300_L26M_TS_AVDD  = E13 = VLDO26M = "PP3300_L26M_TSP"?
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+
+&pinctrl_0 {
+	sec_ts_irq: sec_ts-irq {
+		samsung,pins = "gpa9-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_5 {
+	sec_ts_reset: sec_ts-reset {
+		samsung,pins = "gpp26-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	sec_ts_switch: sec_ts-switch {
+		samsung,pins = "gpp26-1";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	spi11_bus: spi11-bus {
+		samsung,pins = "gpp23-0", "gpp23-1", "gpp23-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+
+	spi11_cs: spi11-cs {
+		samsung,pins = "gpp23-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+
+	spi11_cs_func: spi11-cs-func {
+		samsung,pins = "gpp23-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+};
+
+&spi_11 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi11_bus &spi11_cs_func>;
+
+	spitouch: touchscreen@0 {
+		status = "ok";
+		compatible = "sec,sec_ts";
+
+		spi-max-frequency = <16000000>;
+		spi-cpol;
+		spi-cpha;
+
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sec_ts_irq &sec_ts_reset &sec_ts_switch>;
+
+		sec,irq_gpio = <&gpa9 0 0>;
+		sec,switch_gpio = <&gpp26 1 0>;	// Low: AP, High: AOC
+		sec,reset_gpio = <&gpp26 0 0>;
+		sec,firmware_name = "s6sy79x.bin";
+		sec,mis_cal_check = <1>;
+		sec,heatmap_mode = <1>;
+
+		sec,max_coords = <1080 2340>;
+
+		vdd-supply = <&m_ldo25_reg>; /* VIO 1.8V */
+		avdd-supply = <&m_ldo26_reg>; /* AVDD 3.3V */
+
+		controller-data {
+			samsung,spi-feedback-delay = <0>;
+			samsung,spi-chip-select-mode = <1>;
+		};
+	};
+};
+

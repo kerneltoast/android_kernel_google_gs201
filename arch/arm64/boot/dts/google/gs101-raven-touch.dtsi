@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Raven touch device tree source
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+#include "gs101-sec-touch.dtsi"
