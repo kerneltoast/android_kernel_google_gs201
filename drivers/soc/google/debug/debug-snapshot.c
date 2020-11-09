@@ -95,6 +95,12 @@ int dbg_snapshot_get_sjtag_status(void)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_sjtag_status);
 
+bool dbg_snapshot_get_panic_status(void)
+{
+	return dss_desc.in_panic;
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_get_panic_status);
+
 void dbg_snapshot_scratch_reg(unsigned int val)
 {
 	dbg_snapshot_set_val_offset(val, DSS_OFFSET_SCRATCH);
