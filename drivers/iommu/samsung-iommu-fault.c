@@ -324,7 +324,7 @@ static void sysmmu_get_fault_msg(struct sysmmu_drvdata *drvdata, int intr_type,
 }
 
 static void sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,
-						 int intr_type, unsigned long fault_addr)
+						 int intr_type, sysmmu_iova_t fault_addr)
 {
 	unsigned int info;
 	phys_addr_t pgtable;
@@ -393,7 +393,7 @@ static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
 
 static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
 					  int intr_type, unsigned int vid,
-					  unsigned long fault_addr)
+					  sysmmu_iova_t fault_addr)
 {
 	unsigned int i;
 	phys_addr_t pgtable[MAX_VIDS];
