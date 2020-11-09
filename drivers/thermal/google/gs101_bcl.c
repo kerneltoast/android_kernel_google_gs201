@@ -271,8 +271,6 @@ static void gs101_smpl_warn_work(struct work_struct *work)
 
 static int smpl_warn_read_voltage(void *data, int *val)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
 	return s2mpg10_read_level(data, val, IRQ_SMPL_WARN);
 }
 
@@ -301,8 +299,6 @@ static irqreturn_t gs101_cpu1_ocp_warn_irq_handler(int irq, void *data)
 
 static int ocp_cpu1_read_current(void *data, int *val)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
 	return s2mpg10_read_level(data, val, IRQ_OCP_WARN_CPUCL1);
 }
 
@@ -377,9 +373,7 @@ static void gs101_soft_cpu2_warn_work(struct work_struct *work)
 
 static irqreturn_t gs101_soft_cpu2_ocp_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG10, IRQ_SOFT_OCP_WARN_CPUCL2, ACTIVE_HIGH);
@@ -387,8 +381,6 @@ static irqreturn_t gs101_soft_cpu2_ocp_warn_irq_handler(int irq, void *data)
 
 static int soft_ocp_cpu2_read_current(void *data, int *val)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
 	return s2mpg10_read_level(data, val, IRQ_SOFT_OCP_WARN_CPUCL2);
 }
 
@@ -407,9 +399,7 @@ static void gs101_tpu_warn_work(struct work_struct *work)
 
 static irqreturn_t gs101_tpu_ocp_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG10, IRQ_OCP_WARN_TPU, ACTIVE_HIGH);
@@ -417,8 +407,6 @@ static irqreturn_t gs101_tpu_ocp_warn_irq_handler(int irq, void *data)
 
 static int ocp_tpu_read_current(void *data, int *val)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
 	return s2mpg10_read_level(data, val, IRQ_OCP_WARN_TPU);
 }
 
@@ -437,9 +425,7 @@ static void gs101_soft_tpu_warn_work(struct work_struct *work)
 
 static irqreturn_t gs101_soft_tpu_ocp_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG10, IRQ_SOFT_OCP_WARN_TPU, ACTIVE_HIGH);
@@ -447,8 +433,6 @@ static irqreturn_t gs101_soft_tpu_ocp_warn_irq_handler(int irq, void *data)
 
 static int soft_ocp_tpu_read_current(void *data, int *val)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
 	return s2mpg10_read_level(data, val, IRQ_SOFT_OCP_WARN_TPU);
 }
 
@@ -467,9 +451,7 @@ static void gs101_gpu_warn_work(struct work_struct *work)
 
 static irqreturn_t gs101_gpu_ocp_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG11, IRQ_OCP_WARN_GPU, ACTIVE_HIGH);
@@ -477,8 +459,6 @@ static irqreturn_t gs101_gpu_ocp_warn_irq_handler(int irq, void *data)
 
 static int ocp_gpu_read_current(void *data, int *val)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
 	return s2mpg11_read_level(data, val, IRQ_OCP_WARN_GPU);
 }
 
@@ -497,9 +477,7 @@ static void gs101_soft_gpu_warn_work(struct work_struct *work)
 
 static irqreturn_t gs101_soft_gpu_ocp_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG11, IRQ_SOFT_OCP_WARN_GPU, ACTIVE_HIGH);
@@ -507,8 +485,6 @@ static irqreturn_t gs101_soft_gpu_ocp_warn_irq_handler(int irq, void *data)
 
 static int soft_ocp_gpu_read_current(void *data, int *val)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
 	return s2mpg11_read_level(data, val, IRQ_SOFT_OCP_WARN_GPU);
 }
 
@@ -1082,6 +1058,7 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 						   THERMAL_DEVICE_UP);
 		}
 	}
+	return ret;
 }
 
 static void gs101_bcl_mfd_init(struct work_struct *work)
