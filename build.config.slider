@@ -62,6 +62,8 @@ private/google-modules/amplifiers/cs35l41
 private/google-modules/aoc
 private/google-modules/aoc/alsa
 private/google-modules/aoc/usb
+private/google-modules/touch/fts
+private/google-modules/touch/sec
 "
 
 COMPRESS_UNSTRIPPED_MODULES=1

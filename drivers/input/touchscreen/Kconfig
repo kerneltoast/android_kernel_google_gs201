@@ -1329,6 +1329,4 @@ config TOUCHSCREEN_HEATMAP
 	  Do not explicitly select this option. The drivers that utilize
 	  this module must select this in their Kconfig.
 
-source "drivers/input/touchscreen/sec_ts/Kconfig"
-source "drivers/input/touchscreen/stm/Kconfig"
 endif
