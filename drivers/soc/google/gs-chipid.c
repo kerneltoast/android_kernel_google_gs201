@@ -83,7 +83,7 @@ static const struct gs_chipid_variant drv_data_gs101 = {
 	.product_ver = 1,
 	.unique_id_reg = 0x04,
 	.rev_reg = 0x10,
-	.main_rev_bit = 20,
+	.main_rev_bit = 0,
 	.sub_rev_bit = 16,
 };
 
@@ -251,8 +251,9 @@ static void gs_chipid_get_chipid_info(void __iomem *reg)
 		break;
 	}
 
-	val = readl_relaxed(reg + data->rev_reg);
 	gs_soc_info.main_rev = (val >> data->main_rev_bit) & REV_MASK;
+
+	val = readl_relaxed(reg + data->rev_reg);
 	gs_soc_info.sub_rev = (val >> data->sub_rev_bit) & REV_MASK;
 	gs_soc_info.revision = (gs_soc_info.main_rev << 4)
 	    | gs_soc_info.sub_rev;
