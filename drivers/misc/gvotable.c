@@ -863,10 +863,11 @@ int gvotable_get_vote(struct gvotable_election *el, const char *reason,
 		return -ENODEV;
 	}
 
-	if (el->is_bool_type)
-		*vote = ballot->enabled;
-	else
-		*vote = ballot->vote[ballot->idx];
+	if (!el->is_bool_type && !ballot->enabled)
+		return -EINVAL;
+
+	*vote = ballot->vote[ballot->idx];
+
 	gvotable_unlock_result(el);
 	return 0;
 }
@@ -1061,6 +1062,9 @@ int gvotable_cast_vote(struct gvotable_election *el, const char *reason,
 	} else if (enabled) {
 		list_del(&ballot->list);
 	}
+
+	if (el->is_bool_type)
+		vote = (void *)(unsigned long)enabled;
 
 	ret = gvotable_update_ballot(ballot, vote, enabled);
 	if (ret < 0) {
