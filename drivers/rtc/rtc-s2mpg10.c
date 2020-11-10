@@ -668,7 +668,6 @@ static int s2m_rtc_probe(struct platform_device *pdev)
 	struct s2m_rtc_info *info;
 	int irq_base;
 	int ret = 0;
-	unsigned int intr_flag = IRQF_TRIGGER_LOW;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct s2m_rtc_info),
 			    GFP_KERNEL);
