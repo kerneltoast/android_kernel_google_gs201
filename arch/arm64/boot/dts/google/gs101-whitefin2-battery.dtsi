@@ -44,6 +44,7 @@
 		max777x9,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
 
 		max77759,max_m5 = <&max77759_fg>;
+		max20339,ovp = <&max20339_ovp>;
 
 		max777x9_gpio: max777x9_gpio {
 			gpio-controller;

@@ -58,7 +58,7 @@
 		reg = <0x8>;
 	};
 
-	max20339ovp@35 {
+	max20339_ovp: max20339ovp@35 {
 		/*
 		 * Enabling in bootloader instead of disabling so that
 		 * kernel changes can be merged independently.
