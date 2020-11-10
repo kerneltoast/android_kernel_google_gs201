@@ -25,8 +25,6 @@ static int debug_snapshot_debug_kinfo_probe(struct platform_device *pdev)
 	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
 	struct page **pages;
 	void *vaddr;
-	struct kernel_all_info *all_info;
-	struct kernel_info *info;
 
 	if (!dbg_snapshot_get_dpm_status())
 		return -EPROBE_DEFER;
