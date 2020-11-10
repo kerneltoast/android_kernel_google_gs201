@@ -366,7 +366,6 @@ static int hardlockup_set_property_by_dt_node(struct device *dev)
 					hardlockup_watchdog.sampling_time,
 					hardlockup_watchdog.opportunity_cnt,
 					hardlockup_watchdog.panic);
-out:
 	return ret;
 }
 
