@@ -817,7 +817,7 @@ exit:
 
 EXPORT_SYMBOL_GPL(bbd_init);
 
-static void __exit bbd_exit(void)
+void bbd_exit(void)
 {
 	int minor;
 
@@ -846,6 +846,7 @@ static void __exit bbd_exit(void)
 	/* Remove class */
 	class_destroy(bbd.class);
 }
+EXPORT_SYMBOL_GPL(bbd_exit);
 
 MODULE_AUTHOR("Broadcom");
 MODULE_LICENSE("GPL v2");
