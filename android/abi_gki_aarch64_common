@@ -1084,7 +1084,23 @@
   cpuhp_tasks_frozen
   cpu_hwcap_keys
   cpu_hwcaps
+  cpuidle_disable_device
+  cpuidle_enable_device
+  cpuidle_get_cpu_driver
+  cpuidle_get_driver
+  cpuidle_pause_and_lock
+  cpuidle_register
+  cpuidle_register_device
+  cpuidle_register_driver
+  cpuidle_resume_and_unlock
+  cpuidle_unregister
+  cpuidle_unregister_device
+  cpuidle_unregister_driver
   cpu_is_hotpluggable
+  cpu_latency_qos_add_request
+  cpu_latency_qos_remove_request
+  cpu_latency_qos_request_active
+  cpu_latency_qos_update_request
   cpumask_any_and_distribute
   cpumask_any_but
   cpumask_local_spread
@@ -1104,6 +1120,7 @@
   cpu_rmap_add
   cpu_rmap_put
   cpu_rmap_update
+  cpu_scale
   cpuset_cgrp_subsys_enabled_key
   cpuset_cgrp_subsys_on_dfl_key
   cpu_set_feature
@@ -2814,6 +2831,7 @@
   drm_mode_config_helper_resume
   drm_mode_config_helper_suspend
   drm_mode_config_reset
+  drm_mode_convert_to_umode
   drm_mode_convert_umode
   drm_mode_copy
   drm_mode_create
@@ -3030,6 +3048,7 @@
   dst_init
   dst_release
   dst_release_immediate
+  dt_init_idle_driver
   d_tmpfile
   dummy_irq_chip
   dump_align
@@ -4333,6 +4352,7 @@
   ida_alloc_range
   ida_destroy
   ida_free
+  idle_cpu
   idr_alloc
   idr_alloc_cyclic
   idr_alloc_u32
@@ -7634,6 +7654,7 @@
   pkcs7_parse_message
   pkcs7_validate_trust
   pkcs7_verify
+  pktgen_xfrm_outer_mode_output
   platform_add_devices
   platform_bus
   platform_bus_type
@@ -8651,6 +8672,7 @@
   scatterwalk_ffwd
   scatterwalk_map_and_copy
   sched_clock
+  sched_feat_keys
   sched_setattr
   sched_set_fifo
   sched_set_fifo_low
@@ -8666,6 +8688,7 @@
   sched_trace_rq_avg_irq
   sched_trace_rq_avg_rt
   sched_trace_rq_cpu
+  sched_trace_rq_cpu_capacity
   sched_trace_rq_nr_running
   schedule
   schedule_hrtimeout
@@ -8675,6 +8698,7 @@
   schedule_timeout_interruptible
   schedule_timeout_killable
   schedule_timeout_uninterruptible
+  schedutil_cpu_util
   __scm_destroy
   scm_detach_fds
   scmd_printk
@@ -10365,6 +10389,7 @@
   to_nvdimm
   to_nvdimm_bus
   to_nvdimm_bus_dev
+  topology_set_thermal_pressure
   to_software_node
   _totalram_pages
   touch_atime
@@ -10405,6 +10430,7 @@
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_find_busiest_group
+  __tracepoint_android_rvh_find_energy_efficient_cpu
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_finish_prio_fork
   __tracepoint_android_rvh_prepare_prio_fork
@@ -10412,7 +10438,9 @@
   __tracepoint_android_rvh_select_fallback_rq
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
+  __tracepoint_android_rvh_set_iowait
   __tracepoint_android_rvh_setscheduler
+  __tracepoint_android_rvh_set_sugov_update
   __tracepoint_android_rvh_set_user_nice
   __tracepoint_android_vh_alter_futex_plist_add
   __tracepoint_android_vh_alter_rwsem_list_add
@@ -10427,6 +10455,8 @@
   __tracepoint_android_vh_mpam_set
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
+  __tracepoint_android_vh_pstore_console_mkfile
+  __tracepoint_android_vh_pstore_console_read
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_read_wait_finish
   __tracepoint_android_vh_rwsem_read_wait_start
@@ -10436,6 +10466,7 @@
   __tracepoint_android_vh_rwsem_write_wait_start
   __tracepoint_android_vh_sched_show_task
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_set_sugov_sched_attr
   __tracepoint_android_vh_wq_lockup_pool
   __tracepoint_arm_event
   __tracepoint_attach_device_to_domain
@@ -10492,6 +10523,7 @@
   __tracepoint_rpm_resume
   __tracepoint_rpm_return_int
   __tracepoint_rpm_suspend
+  __tracepoint_sched_cpu_capacity_tp
   __tracepoint_sched_overutilized_tp
   __tracepoint_sched_update_nr_running_tp
   __tracepoint_sched_util_est_cfs_tp
@@ -10809,6 +10841,7 @@
   uart_unregister_driver
   uart_update_timeout
   uart_write_wakeup
+  uclamp_eff_value
   ucs2_as_utf8
   ucs2_strlen
   ucs2_strncmp
@@ -11006,6 +11039,7 @@
   unshare_fs_struct
   up
   update_devfreq
+  __update_load_avg_blocked_se
   up_read
   uprobe_register
   uprobe_register_refctr
