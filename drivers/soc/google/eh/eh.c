@@ -384,8 +384,6 @@ struct eh_device *eh_create(eh_cb_fn comp, eh_cb_fn decomp)
 		ret = ERR_PTR(-ENODEV);
 	}
 
-	ret->comp_callback = comp;
-	ret->decomp_callback = decomp;
 	return ret;
 }
 EXPORT_SYMBOL(eh_create);
