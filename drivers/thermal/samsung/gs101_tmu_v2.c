@@ -196,7 +196,11 @@ static int gs101_get_temp(void *p, int *temp)
 
 	data->temperature = *temp / 1000;
 
-	if (data->hotplug_enable)
+	if (data->hotplug_enable &&
+		((data->is_cpu_hotplugged_out &&
+		  data->temperature < data->hotplug_in_threshold) ||
+		 (!data->is_cpu_hotplugged_out &&
+		  data->temperature >= data->hotplug_out_threshold)))
 		kthread_queue_work(hotplug_worker, &data->hotplug_work);
 
 	mutex_unlock(&data->lock);
