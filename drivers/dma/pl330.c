@@ -3307,8 +3307,6 @@ EXPORT_SYMBOL_GPL(pl330_dma_getposition);
  */
 static int __maybe_unused pl330_suspend(struct device *dev)
 {
-	struct amba_device *pcdev = to_amba_device(dev);
-
 	pm_runtime_force_suspend(dev);
 
 	return 0;
