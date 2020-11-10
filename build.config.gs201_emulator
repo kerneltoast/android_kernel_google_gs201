@@ -1,0 +1,58 @@
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+
+DEFCONFIG=gs201_emulator_defconfig
+PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gs201_emulator.fragment"
+POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+
+LIBUFDT_PREBUILTS_BIN=prebuilts-master/misc/linux-x86/libufdt
+DTC_OVERLAY_TEST_EXT=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/bin/ufdt_apply_overlay
+
+DIST_DIR=${ROOT_DIR}/out/mixed/dist
+DIST_CMDS="${LIBUFDT_PREBUILTS_BIN}/ufdt_apply_overlay ${DIST_DIR}/gs201-a0.dtb ${DIST_DIR}/gs201-emulator.dtbo ${DIST_DIR}/gs201-out.dtb"
+
+KERNEL_BINARY=Image
+
+MAKE_GOALS="
+${KERNEL_BINARY}
+modules
+google/gs201-a0.dtb
+google/gs201-emulator.dtbo
+"
+
+FILES="
+arch/arm64/boot/dts/google/gs201-a0.dtb
+arch/arm64/boot/dts/google/gs201-emulator.dtbo
+"
+
+if [ -z "$MIXED_BUILD" ]; then
+FILES="$FILES
+.config
+vmlinux
+System.map
+arch/arm64/boot/${KERNEL_BINARY}
+"
+fi
+
+ABI_DEFINITION=android/abi_gki_aarch64_common.xml
+FULL_GKI_ABI=1
+GKI_MODULES_LIST=android/gki_aarch64_modules
+KMI_ENFORCED=1
+KMI_SYMBOL_LIST=android/abi_gki_aarch64_common
+KMI_SYMBOL_LIST_MODULE_GROUPING=0
+
+BUILD_INITRAMFS=1
+BUILD_BOOT_IMG=1
+GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-slider.img
+KERNEL_VENDOR_CMDLINE="androidboot.selinux=permissive androidboot.boot_devices=14700000.ufs buildvariant=userdebug"
+VENDOR_FSTAB=${ROOT_DIR}/prebuilts/boot-artifacts/fstabs/fstab.gs101
+
+EXT_MODULES=""
+
+COMPRESS_UNSTRIPPED_MODULES=1
+
+UNSTRIPPED_MODULES=""
+
+if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
+source ${GKI_DEFCONFIG_FRAGMENT}
+fi
