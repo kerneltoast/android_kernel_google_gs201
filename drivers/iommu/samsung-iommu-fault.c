@@ -295,7 +295,7 @@ static inline void dump_sysmmu_status(struct sysmmu_drvdata *drvdata,
 	dump_sysmmu_tlb_status(drvdata, pgtable);
 }
 
-static void sysmmu_get_fault_msg(struct sysmmu_drvdata *drvdata, int intr_type,
+static void sysmmu_get_fault_msg(struct sysmmu_drvdata *drvdata, unsigned int intr_type,
 				 unsigned int vid, sysmmu_iova_t fault_addr,
 				 bool is_secure, char *fault_msg, size_t fault_msg_sz)
 {
@@ -324,7 +324,7 @@ static void sysmmu_get_fault_msg(struct sysmmu_drvdata *drvdata, int intr_type,
 }
 
 static void sysmmu_show_secure_fault_information(struct sysmmu_drvdata *drvdata,
-						 int intr_type, sysmmu_iova_t fault_addr)
+						 unsigned int intr_type, sysmmu_iova_t fault_addr)
 {
 	unsigned int info;
 	phys_addr_t pgtable;
@@ -377,8 +377,8 @@ finish:
 }
 
 static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
-					  int intr_type, unsigned int vid, sysmmu_iova_t fault_addr,
-					  phys_addr_t *pt)
+					  unsigned int intr_type, unsigned int vid,
+					  sysmmu_iova_t fault_addr, phys_addr_t *pt)
 {
 	u32 info;
 	char err_msg[128];
@@ -392,7 +392,7 @@ static void sysmmu_show_fault_info_simple(struct sysmmu_drvdata *drvdata,
 }
 
 static void sysmmu_show_fault_information(struct sysmmu_drvdata *drvdata,
-					  int intr_type, unsigned int vid,
+					  unsigned int intr_type, unsigned int vid,
 					  sysmmu_iova_t fault_addr)
 {
 	unsigned int i;
@@ -464,7 +464,7 @@ static void sysmmu_clear_interrupt(struct sysmmu_drvdata *data)
 
 irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 {
-	int itype;
+	unsigned int itype;
 	unsigned int vid;
 	sysmmu_iova_t addr;
 	struct sysmmu_drvdata *drvdata = dev_id;
