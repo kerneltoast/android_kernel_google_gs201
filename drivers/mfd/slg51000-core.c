@@ -350,6 +350,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		}
 	}
 
+	/* optional property */
 	gpio = of_get_named_gpio(client->dev.of_node, "dlg,bb-gpios", 0);
 	if (gpio_is_valid(gpio)) {
 		ret = devm_gpio_request_one(&client->dev, gpio,
@@ -365,6 +366,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		slg51000->chip_bb_pin = gpio;
 	}
 
+	/* optional property */
 	gpio = of_get_named_gpio(client->dev.of_node, "dlg,buck-gpios", 0);
 	if (gpio_is_valid(gpio)) {
 		ret = devm_gpio_request_one(&client->dev, gpio,
@@ -380,13 +382,9 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		slg51000->chip_buck_pin = gpio;
 	}
 
+	/* mandatory property. It wakes the chip from low-power reset state */
 	gpio = of_get_named_gpio(client->dev.of_node, "dlg,cs-gpios", 0);
-	if (gpio > 0) {
-		if (!gpio_is_valid(gpio)) {
-			dev_err(&client->dev, "CS not specified\n");
-			return PTR_ERR(gpio);
-		}
-
+	if (gpio_is_valid(gpio)) {
 		ret = devm_gpio_request_one(&client->dev, gpio,
 				GPIOF_OUT_INIT_HIGH, "slg51000_cs_pin");
 		if (ret) {
@@ -403,6 +401,8 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		 */
 		usleep_range(SLEEP_10000_USEC,
 			     SLEEP_10000_USEC + SLEEP_RANGE_USEC);
+	} else {
+		return gpio;
 	}
 
 	i2c_set_clientdata(client, slg51000);
@@ -424,6 +424,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	/* optional property */
 	gpio = of_get_named_gpio(client->dev.of_node, "dlg,pu-gpios", 0);
 	if (gpio_is_valid(gpio)) {
 		ret = devm_gpio_request_one(&client->dev, gpio,
