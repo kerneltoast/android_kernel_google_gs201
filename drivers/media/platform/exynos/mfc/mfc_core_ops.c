@@ -600,15 +600,23 @@ static int __mfc_core_instance_open_dec(struct mfc_ctx *ctx,
 
 	/* sh_handle: HDR10+ (HEVC or AV1) SEI meta */
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->hdr10_plus) &&
-			(IS_HEVC_DEC(ctx) || IS_AV1_DEC(ctx)))
-		dec->hdr10_plus_info = vmalloc(
-				(sizeof(struct hdr10_plus_meta) * MFC_MAX_DPBS));
+			(IS_HEVC_DEC(ctx) || IS_AV1_DEC(ctx))) {
+		dec->sh_handle_hdr.data_size =
+			sizeof(struct hdr10_plus_meta) * MFC_MAX_BUFFERS;
+		dec->hdr10_plus_info = vmalloc(dec->sh_handle_hdr.data_size);
+		if (!dec->hdr10_plus_info)
+			mfc_ctx_err("failed to allocate hdr10 plus information data");
+	}
 
 	/* sh_handle: AV1 Film Grain SEI meta */
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->av1_film_grain) &&
-			IS_AV1_DEC(ctx))
-		dec->av1_film_grain_info = vmalloc(
-				(sizeof(struct av1_film_grain_meta) * MFC_MAX_DPBS));
+			IS_AV1_DEC(ctx)) {
+		dec->sh_handle_av1_film_grain.data_size =
+			sizeof(struct av1_film_grain_meta) * MFC_MAX_BUFFERS;
+		dec->av1_film_grain_info = vmalloc(dec->sh_handle_av1_film_grain.data_size);
+		if (!dec->av1_film_grain_info)
+			mfc_ctx_err("failed to allocate AV1 film grain information data");
+	}
 
 	return 0;
 }

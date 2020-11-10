@@ -198,7 +198,8 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 
 	mfc_init_dpb_table(ctx);
 
-	dec->ref_info = vmalloc(sizeof(struct dec_dpb_ref_info) * MFC_MAX_BUFFERS);
+	dec->sh_handle_dpb.data_size = sizeof(struct dec_dpb_ref_info) * MFC_MAX_BUFFERS;
+	dec->ref_info = vmalloc(dec->sh_handle_dpb.data_size);
 	if (!dec->ref_info) {
 		mfc_ctx_err("failed to allocate decoder information data\n");
 		ret = -ENOMEM;
@@ -313,6 +314,9 @@ static int __mfc_init_enc_ctx(struct mfc_ctx *ctx)
 	enc->sh_handle_svc.fd = -1;
 	enc->sh_handle_roi.fd = -1;
 	enc->sh_handle_hdr.fd = -1;
+	enc->sh_handle_svc.data_size = sizeof(struct temporal_layer_info);
+	enc->sh_handle_roi.data_size = sizeof(struct mfc_enc_roi_info);
+	enc->sh_handle_hdr.data_size = sizeof(struct hdr10_plus_meta) * MFC_MAX_BUFFERS;
 
 	/* Init videobuf2 queue for OUTPUT */
 	ctx->vq_src.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
