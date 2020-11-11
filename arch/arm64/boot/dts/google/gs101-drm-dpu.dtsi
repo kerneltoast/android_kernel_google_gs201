@@ -236,8 +236,8 @@
 
 		/* pinctrl */
 		pinctrl-names = "hw_te_on", "hw_te_off";
-		pinctrl-0 = <&decon_f_te_on>;
-		pinctrl-1 = <&decon_f_te_off>;
+		pinctrl-0 = <&disp_te_pri_on>;
+		pinctrl-1 = <&disp_te_pri_off>;
 
 		max_win = <6>;
 		op_mode = <1>;	  /* 0: video mode, 1: command mode */
