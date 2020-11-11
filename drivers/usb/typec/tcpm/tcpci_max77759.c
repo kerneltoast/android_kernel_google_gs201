@@ -664,15 +664,13 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	}
 
 	if (status & TCPC_ALERT_CC_STATUS) {
-		bool is_debouncing = tcpci_is_debouncing(tcpci);
-
 		/**
 		 * Process generic CC updates if it doesn't belong to
 		 * contaminant detection.
 		 */
 		mutex_lock(&chip->contaminant_detection_lock);
-		if (!chip->contaminant_detection || is_debouncing ||
-		    !process_contaminant_alert(chip->contaminant, false))
+		if (!chip->contaminant_detection || !tcpm_is_toggling(tcpci->port) ||
+		    !process_contaminant_alert(chip->contaminant, false, true))
 			tcpm_cc_change(tcpci->port);
 		else
 			logbuffer_log(log, "CC update: Contaminant algorithm responded");
@@ -900,7 +898,7 @@ static int max77759_check_contaminant(struct tcpci *tcpci, struct tcpci_data *td
 	logbuffer_log(chip->log, "%s: debounce path", __func__);
 	mutex_lock(&chip->contaminant_detection_lock);
 	if (chip->contaminant_detection) {
-		process_contaminant_alert(chip->contaminant, true);
+		process_contaminant_alert(chip->contaminant, true, false);
 		ret = CONTAMINANT_HANDLES_TOGGLING;
 	} else {
 		ret = TCPM_RESTART_TOGGLING;
