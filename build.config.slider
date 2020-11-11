@@ -45,10 +45,11 @@ GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdis
 KERNEL_VENDOR_CMDLINE="androidboot.selinux=permissive androidboot.boot_devices=14700000.ufs buildvariant=userdebug"
 VENDOR_FSTAB=${ROOT_DIR}/prebuilts/boot-artifacts/fstabs/fstab.gs101
 
+#private/google-modules/wlan/bcmdhd43752
+#private/google-modules/wlan/bcmdhd4389
+
 EXT_MODULES="
 private/google-modules/display/samsung
-private/google-modules/wlan/bcmdhd43752
-private/google-modules/wlan/bcmdhd4389
 private/google-modules/gpu/mali_mgm
 private/google-modules/gpu/mali_kbase
 private/google-modules/lwis
