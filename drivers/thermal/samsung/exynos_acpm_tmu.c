@@ -246,7 +246,7 @@ void exynos_acpm_tmu_set_threshold(int tz, unsigned char temp[])
 	message.req.req_rsvd7 = temp[7];
 
 	exynos_acpm_tmu_ipc_send_data(&message);
-	pr_info("[acpm_tmu] tz %d: 0:%d 1:%d 2:%d 3:%d 4:%d 5%d 6:%d 7:%d\n",
+	pr_info("[acpm_tmu] tz %d threshold: 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d\n",
 		tz, temp[0], temp[1], temp[2], temp[3], temp[4], temp[5],
 		temp[6], temp[7]);
 }
@@ -269,6 +269,9 @@ void exynos_acpm_tmu_set_hysteresis(int tz, unsigned char hyst[])
 	message.req.req_rsvd7 = hyst[7];
 
 	exynos_acpm_tmu_ipc_send_data(&message);
+	pr_info("[acpm_tmu] tz %d hysteresis: 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d\n",
+		tz, hyst[0], hyst[1], hyst[2], hyst[3], hyst[4], hyst[5],
+		hyst[6], hyst[7]);
 }
 
 void exynos_acpm_tmu_set_interrupt_enable(int tz, unsigned char inten)
