@@ -135,7 +135,7 @@
 
 				/* GPIOs */
 				/* RCAM_RST_L GPP2[2] */
-				reset-gpios = <&gpp2 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp2 2 GPIO_ACTIVE_HIGH>;
 
 				shared-enable-gpios =
 					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>,
@@ -183,7 +183,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
@@ -225,7 +225,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =

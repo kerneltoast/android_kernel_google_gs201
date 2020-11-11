@@ -72,7 +72,7 @@
 
 				/* GPIOs */
 				/* RCAM_RST_L GPP6[2] */
-				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_HIGH>;
 				/* RCAM_EN2 GRA_GPIO6 */
 				shared-enable-gpios =
 					<&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
@@ -169,7 +169,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp2 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp2 2 GPIO_ACTIVE_HIGH>;
 				/* RTCAM_EN GPP15[1] */
 				enable-gpios = <&gpp15 1 GPIO_ACTIVE_HIGH>;
 
@@ -251,7 +251,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
 				enable-gpios = <&gpp13 1 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
@@ -335,7 +335,7 @@
 
 				/* GPIOs */
 				/* FCAM_RST_L GPP4[2] */
-				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
 				/* FCAM_EN GPP13[1] */
 				enable-gpios = <&gpp13 1 GPIO_ACTIVE_HIGH>;
 
@@ -411,7 +411,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
 				enable-gpios = <&gpp11 1 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
