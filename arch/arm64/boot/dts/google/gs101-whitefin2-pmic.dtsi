@@ -8,6 +8,7 @@
  */
 
 &m_ldo30_reg {
+	regulator-always-on;
 	schematic-name = "L30M_DMICS";
 };
 
