@@ -489,6 +489,10 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 	/* Exit if still LookingForConnection. */
 	if (cc_status & TCPC_CC_STATUS_TOGGLING) {
 		logbuffer_log(chip->log, "Contaminant: Looking for connection");
+		/* Restart toggling before returning in debounce path */
+		if (debounce_path && (contaminant->state == NOT_DETECTED ||
+				      contaminant->state == SINK))
+			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
 		return false;
 	}
 
@@ -559,6 +563,10 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 				}
 			}
 		}
+
+		/* Restart toggling before returning in debounce path */
+		if (debounce_path)
+			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
 		return false;
 	} else if (contaminant->state == DETECTED || contaminant->state ==
 		   FLOATING_CABLE) {
