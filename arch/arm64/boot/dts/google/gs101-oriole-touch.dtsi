@@ -8,6 +8,8 @@
 #include "gs101-fts-touch.dtsi"
 
 &spitouch {
+	st,dchip_id = /bits/ 8 <0x36 0x48>;
+
 #if 0
 	/* Temporarily disable the panel_map. While the DTS compiles
 	 * successfully, its presence causes a kernel panic during
