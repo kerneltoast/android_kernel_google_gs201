@@ -68,6 +68,17 @@
 #define ACTIVE_HIGH (0x1)
 #define ACTIVE_LOW (0x0)
 #define THERMAL_DELAY_INIT_MS 5000
+#define PMIC_OVERHEAT_UPPER_LIMIT (2000)
+#define PMIC_120C_UPPER_LIMIT (1200)
+#define PMIC_140C_UPPER_LIMIT (1400)
+
+enum PMIC_THERMAL_SENSOR {
+	PMIC_SOC,
+	PMIC_120C,
+	PMIC_140C,
+	PMIC_OVERHEAT,
+	PMIC_THERMAL_SENSOR_MAX,
+};
 
 enum IRQ_SOURCE_S2MPG10 {
 	IRQ_SMPL_WARN,
@@ -77,6 +88,9 @@ enum IRQ_SOURCE_S2MPG10 {
 	IRQ_SOFT_OCP_WARN_CPUCL2,
 	IRQ_OCP_WARN_TPU,
 	IRQ_SOFT_OCP_WARN_TPU,
+	IRQ_PMIC_120C,
+	IRQ_PMIC_140C,
+	IRQ_PMIC_OVERHEAT,
 	IRQ_SOURCE_S2MPG10_MAX,
 };
 
@@ -105,14 +119,15 @@ struct gs101_bcl_dev {
 	struct notifier_block psy_nb;
 	struct delayed_work soc_eval_work;
 	struct delayed_work mfd_init;
+
+	void *iodev;
+
 	int trip_high_temp;
 	int trip_low_temp;
 	int trip_val;
 	struct mutex state_trans_lock;
-	struct thermal_zone_device *tz_dev;
-	struct thermal_zone_of_device_ops ops;
-	void *iodev;
-
+	struct thermal_zone_device *soc_tzd;
+	struct thermal_zone_of_device_ops soc_ops;
 	struct mutex s2mpg10_irq_lock[IRQ_SOURCE_S2MPG10_MAX];
 	struct mutex s2mpg11_irq_lock[IRQ_SOURCE_S2MPG11_MAX];
 	struct delayed_work s2mpg10_irq_work[IRQ_SOURCE_S2MPG10_MAX];
@@ -245,7 +260,7 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 
 		disable_irq_nosync(gs101_bcl_device->s2mpg11_irq[idx]);
 		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg11_irq_work[idx],
-			   msecs_to_jiffies(100));
+			   msecs_to_jiffies(300));
 		mutex_unlock(&gs101_bcl_device->s2mpg11_irq_lock[idx]);
 	}
 	return IRQ_HANDLED;
@@ -492,6 +507,84 @@ static const struct thermal_zone_of_device_ops gs101_soft_ocp_gpu_ops = {
 	.get_temp = soft_ocp_gpu_read_current,
 };
 
+static void gs101_pmic_120c_work(struct work_struct *work)
+{
+	struct gs101_bcl_dev *gs101_bcl_device =
+			container_of(work, struct gs101_bcl_dev,
+		   s2mpg10_irq_work[IRQ_PMIC_120C].work);
+
+	irq_work(gs101_bcl_device, ACTIVE_HIGH, IRQ_PMIC_120C, S2MPG10);
+}
+
+static irqreturn_t gs101_pmic_120c_irq_handler(int irq, void *data)
+{
+	if (!data)
+		return IRQ_HANDLED;
+
+	return irq_handler(irq, data, S2MPG10, IRQ_PMIC_120C, ACTIVE_HIGH);
+}
+
+static int pmic_120c_read_temp(void *data, int *val)
+{
+	return s2mpg10_read_level(data, val, IRQ_PMIC_120C);
+}
+
+static const struct thermal_zone_of_device_ops gs101_pmic_120c_ops = {
+	.get_temp = pmic_120c_read_temp,
+};
+
+static void gs101_pmic_140c_work(struct work_struct *work)
+{
+	struct gs101_bcl_dev *gs101_bcl_device =
+			container_of(work, struct gs101_bcl_dev,
+		   s2mpg10_irq_work[IRQ_PMIC_140C].work);
+
+	irq_work(gs101_bcl_device, ACTIVE_HIGH, IRQ_PMIC_140C, S2MPG10);
+}
+
+static irqreturn_t gs101_pmic_140c_irq_handler(int irq, void *data)
+{
+	if (!data)
+		return IRQ_HANDLED;
+
+	return irq_handler(irq, data, S2MPG10, IRQ_PMIC_140C, ACTIVE_HIGH);
+}
+
+static int pmic_140c_read_temp(void *data, int *val)
+{
+	return s2mpg10_read_level(data, val, IRQ_PMIC_140C);
+}
+
+static const struct thermal_zone_of_device_ops gs101_pmic_140c_ops = {
+	.get_temp = pmic_140c_read_temp,
+};
+
+static void gs101_pmic_overheat_work(struct work_struct *work)
+{
+	struct gs101_bcl_dev *gs101_bcl_device =
+			container_of(work, struct gs101_bcl_dev,
+		   s2mpg10_irq_work[IRQ_PMIC_OVERHEAT].work);
+
+	irq_work(gs101_bcl_device, ACTIVE_HIGH, IRQ_PMIC_OVERHEAT, S2MPG10);
+}
+
+static irqreturn_t gs101_tsd_overheat_irq_handler(int irq, void *data)
+{
+	if (!data)
+		return IRQ_HANDLED;
+
+	return irq_handler(irq, data, S2MPG10, IRQ_PMIC_OVERHEAT, ACTIVE_HIGH);
+}
+
+static int tsd_overheat_read_temp(void *data, int *val)
+{
+	return s2mpg10_read_level(data, val, IRQ_PMIC_OVERHEAT);
+}
+
+static const struct thermal_zone_of_device_ops gs101_pmic_overheat_ops = {
+	.get_temp = tsd_overheat_read_temp,
+};
+
 static int gs101_bcl_set_soc(void *data, int low, int high)
 {
 	struct gs101_bcl_dev *gs101_bcl_device = data;
@@ -549,7 +642,7 @@ static void gs101_bcl_evaluate_soc(struct work_struct *work)
 
 	gs101_bcl_device->trip_val = battery_percentage_reverse;
 	mutex_unlock(&gs101_bcl_device->state_trans_lock);
-	thermal_zone_device_update(gs101_bcl_device->tz_dev,
+	thermal_zone_device_update(gs101_bcl_device->soc_tzd,
 				   THERMAL_EVENT_UNSPECIFIED);
 
 	return;
@@ -573,9 +666,9 @@ static int battery_supply_callback(struct notifier_block *nb,
 static int gs101_bcl_soc_remove(struct gs101_bcl_dev *gs101_bcl_device)
 {
 	power_supply_unreg_notifier(&gs101_bcl_device->psy_nb);
-	if (gs101_bcl_device->tz_dev)
+	if (gs101_bcl_device->soc_tzd)
 		thermal_zone_of_sensor_unregister(gs101_bcl_device->device,
-						  gs101_bcl_device->tz_dev);
+						  gs101_bcl_device->soc_tzd);
 
 	return 0;
 }
@@ -1003,6 +1096,41 @@ static int gs101_enable_mpmm_throttling(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(mpmm_fops, NULL, gs101_enable_mpmm_throttling, "%d\n");
 
+static int gs101_bcl_register_pmic_irq(struct gs101_bcl_dev *gs101_bcl_device,
+				  int id, int sensor_id, irq_handler_t thread_fn,
+				  struct device *dev,
+				  const struct thermal_zone_of_device_ops *ops,
+				  const char *devname, u8 pmic, u32 intr_flag)
+{
+	int ret = 0;
+
+	ret = devm_request_threaded_irq(gs101_bcl_device->device,
+					gs101_bcl_device->s2mpg10_irq[id],
+					NULL, thread_fn,
+					intr_flag | IRQF_ONESHOT,
+					devname, gs101_bcl_device);
+	if (ret < 0) {
+		pr_err("Failed to request IRQ: %d: %d\n",
+			gs101_bcl_device->s2mpg10_irq[id], ret);
+		return ret;
+	}
+	if (ops) {
+		gs101_bcl_device->s2mpg10_tz_irq[id] =
+				thermal_zone_of_sensor_register(dev, sensor_id,
+					gs101_bcl_device,
+								ops);
+		if (IS_ERR(gs101_bcl_device->s2mpg10_tz_irq[id])) {
+			pr_err("PMIC TZ register failed. %d, err:%ld\n", id,
+					PTR_ERR(gs101_bcl_device->s2mpg10_tz_irq[id]));
+		} else {
+			thermal_zone_device_enable(gs101_bcl_device->s2mpg10_tz_irq[id]);
+			thermal_zone_device_update(gs101_bcl_device->s2mpg10_tz_irq[id],
+			   THERMAL_DEVICE_UP);
+		}
+	}
+	return ret;
+}
+
 static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 				  int id, irq_handler_t thread_fn,
 				  struct device *dev,
@@ -1022,17 +1150,19 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 				gs101_bcl_device->s2mpg10_irq[id], ret);
 			return ret;
 		}
-		gs101_bcl_device->s2mpg10_tz_irq[id] =
-				thermal_zone_of_sensor_register(dev, id,
-								gs101_bcl_device,
-								ops);
-		if (IS_ERR(gs101_bcl_device->s2mpg10_tz_irq[id])) {
-			pr_err("TZ register failed. %d, err:%ld\n", id,
-					PTR_ERR(gs101_bcl_device->s2mpg10_tz_irq[id]));
-		} else {
-			thermal_zone_device_enable(gs101_bcl_device->s2mpg10_tz_irq[id]);
-			thermal_zone_device_update(gs101_bcl_device->s2mpg10_tz_irq[id],
-						   THERMAL_DEVICE_UP);
+		if (ops) {
+			gs101_bcl_device->s2mpg10_tz_irq[id] =
+					thermal_zone_of_sensor_register(dev, id,
+									gs101_bcl_device,
+									ops);
+			if (IS_ERR(gs101_bcl_device->s2mpg10_tz_irq[id])) {
+				pr_err("TZ register failed. %d, err:%ld\n", id,
+						PTR_ERR(gs101_bcl_device->s2mpg10_tz_irq[id]));
+			} else {
+				thermal_zone_device_enable(gs101_bcl_device->s2mpg10_tz_irq[id]);
+				thermal_zone_device_update(gs101_bcl_device->s2mpg10_tz_irq[id],
+				   THERMAL_DEVICE_UP);
+			}
 		}
 	} else {
 		ret = devm_request_threaded_irq(gs101_bcl_device->device,
@@ -1045,17 +1175,19 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 				gs101_bcl_device->s2mpg11_irq[id], ret);
 			return ret;
 		}
-		gs101_bcl_device->s2mpg11_tz_irq[id] =
-				thermal_zone_of_sensor_register(dev, id,
-								gs101_bcl_device,
-								ops);
-		if (IS_ERR(gs101_bcl_device->s2mpg11_tz_irq[id])) {
-			pr_err("TZ register failed. %d, err:%ld\n", id,
-					PTR_ERR(gs101_bcl_device->s2mpg11_tz_irq[id]));
-		} else {
-			thermal_zone_device_enable(gs101_bcl_device->s2mpg11_tz_irq[id]);
-			thermal_zone_device_update(gs101_bcl_device->s2mpg11_tz_irq[id],
-						   THERMAL_DEVICE_UP);
+		if (ops) {
+			gs101_bcl_device->s2mpg11_tz_irq[id] =
+					thermal_zone_of_sensor_register(dev, id,
+									gs101_bcl_device,
+									ops);
+			if (IS_ERR(gs101_bcl_device->s2mpg11_tz_irq[id])) {
+				pr_err("TZ register failed. %d, err:%ld\n", id,
+						PTR_ERR(gs101_bcl_device->s2mpg11_tz_irq[id]));
+			} else {
+				thermal_zone_device_enable(gs101_bcl_device->s2mpg11_tz_irq[id]);
+				thermal_zone_device_update(gs101_bcl_device->s2mpg11_tz_irq[id],
+				   THERMAL_DEVICE_UP);
+			}
 		}
 	}
 	return ret;
@@ -1110,6 +1242,12 @@ static void gs101_bcl_mfd_init(struct work_struct *work)
 		gs101_bcl_device->s2mpg10_lvl[IRQ_SOFT_OCP_WARN_TPU] = B10M_UPPER_LIMIT -
 				THERMAL_HYST_LEVEL -
 				(pdata_s2mpg10->b10_soft_ocp_warn_lvl * B10M_STEP);
+		gs101_bcl_device->s2mpg10_lvl[IRQ_PMIC_120C] = PMIC_120C_UPPER_LIMIT -
+				THERMAL_HYST_LEVEL;
+		gs101_bcl_device->s2mpg10_lvl[IRQ_PMIC_140C] = PMIC_140C_UPPER_LIMIT -
+				THERMAL_HYST_LEVEL;
+		gs101_bcl_device->s2mpg10_lvl[IRQ_PMIC_OVERHEAT] = PMIC_OVERHEAT_UPPER_LIMIT -
+				THERMAL_HYST_LEVEL;
 		gs101_bcl_device->s2mpg10_pin[IRQ_OCP_WARN_CPUCL1] =
 				pdata_s2mpg10->b3_ocp_warn_pin;
 		gs101_bcl_device->s2mpg10_pin[IRQ_OCP_WARN_CPUCL2] =
@@ -1134,6 +1272,12 @@ static void gs101_bcl_mfd_init(struct work_struct *work)
 				gpio_to_irq(pdata_s2mpg10->b10_ocp_warn_pin);
 		gs101_bcl_device->s2mpg10_irq[IRQ_SOFT_OCP_WARN_TPU] =
 				gpio_to_irq(pdata_s2mpg10->b10_soft_ocp_warn_pin);
+		gs101_bcl_device->s2mpg10_irq[IRQ_PMIC_120C] =
+				pdata_s2mpg10->irq_base + S2MPG10_IRQ_120C_INT3;
+		gs101_bcl_device->s2mpg10_irq[IRQ_PMIC_140C] =
+				pdata_s2mpg10->irq_base + S2MPG10_IRQ_140C_INT3;
+		gs101_bcl_device->s2mpg10_irq[IRQ_PMIC_OVERHEAT] =
+				pdata_s2mpg10->irq_base + S2MPG10_IRQ_TSD_INT3;
 		if (s2mpg10_read_reg(gs101_bcl_device->s2mpg10_i2c,
 				     S2MPG10_COMMON_CHIPID, &val)) {
 			pr_err("S2MPG10 not loaded.\n");
@@ -1210,6 +1354,36 @@ static void gs101_bcl_mfd_init(struct work_struct *work)
 					     S2MPG10, IRQF_TRIGGER_HIGH);
 		if (ret < 0) {
 			pr_err("bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_TPU);
+			return;
+		}
+		ret = gs101_bcl_register_pmic_irq(gs101_bcl_device,
+					     IRQ_PMIC_120C, PMIC_120C,
+					     gs101_pmic_120c_irq_handler,
+					     gs101_bcl_device->device,
+					     &gs101_pmic_120c_ops, "PMIC_120C",
+					     S2MPG10, IRQF_TRIGGER_HIGH);
+		if (ret < 0) {
+			pr_err("bcl_pmic_register fail:%d\n", IRQ_PMIC_120C);
+			return;
+		}
+		ret = gs101_bcl_register_pmic_irq(gs101_bcl_device,
+					     IRQ_PMIC_140C, PMIC_140C,
+					     gs101_pmic_140c_irq_handler,
+					     gs101_bcl_device->device,
+					     &gs101_pmic_140c_ops, "PMIC_140C",
+					     S2MPG10, IRQF_TRIGGER_HIGH);
+		if (ret < 0) {
+			pr_err("bcl_pmic_register fail:%d\n", IRQ_PMIC_140C);
+			return;
+		}
+		ret = gs101_bcl_register_pmic_irq(gs101_bcl_device,
+					     IRQ_PMIC_OVERHEAT, PMIC_OVERHEAT,
+					     gs101_tsd_overheat_irq_handler,
+					     gs101_bcl_device->device,
+					     &gs101_pmic_overheat_ops, "THERMAL_OVERHEAT",
+					     S2MPG10, IRQF_TRIGGER_HIGH);
+		if (ret < 0) {
+			pr_err("bcl_pmic_register fail:%d\n", IRQ_PMIC_OVERHEAT);
 			return;
 		}
 		debugfs_create_file("smpl_lvl", 0644,
@@ -1383,8 +1557,8 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 				  SYS_THROTTLING_DISABLED);
 
 	mutex_init(&gs101_bcl_device->state_trans_lock);
-	gs101_bcl_device->ops.get_temp = gs101_bcl_read_soc;
-	gs101_bcl_device->ops.set_trips = gs101_bcl_set_soc;
+	gs101_bcl_device->soc_ops.get_temp = gs101_bcl_read_soc;
+	gs101_bcl_device->soc_ops.set_trips = gs101_bcl_set_soc;
 	for (i = 0; i < IRQ_SOURCE_S2MPG10_MAX; i++) {
 		gs101_bcl_device->s2mpg10_counter[i] = 0;
 		mutex_init(&gs101_bcl_device->s2mpg10_irq_lock[i]);
@@ -1404,13 +1578,14 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 			ret = -EPROBE_DEFER;
 			goto bcl_soc_probe_exit;
 		}
-		gs101_bcl_device->tz_dev = thermal_zone_of_sensor_register(
-			gs101_bcl_device->device, 0, gs101_bcl_device, &gs101_bcl_device->ops);
-		if (IS_ERR(gs101_bcl_device->tz_dev)) {
+		gs101_bcl_device->soc_tzd = thermal_zone_of_sensor_register(
+			gs101_bcl_device->device, PMIC_SOC, gs101_bcl_device,
+			&gs101_bcl_device->soc_ops);
+		if (IS_ERR(gs101_bcl_device->soc_tzd)) {
 			pr_err("soc TZ register failed. err:%ld\n",
-			       PTR_ERR(gs101_bcl_device->tz_dev));
-			ret = PTR_ERR(gs101_bcl_device->tz_dev);
-			gs101_bcl_device->tz_dev = NULL;
+			       PTR_ERR(gs101_bcl_device->soc_tzd));
+			ret = PTR_ERR(gs101_bcl_device->soc_tzd);
+			gs101_bcl_device->soc_tzd = NULL;
 			ret = -EPROBE_DEFER;
 			goto bcl_soc_probe_exit;
 		}
@@ -1428,7 +1603,13 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 				  gs101_tpu_warn_work);
 		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_SOFT_OCP_WARN_TPU],
 				  gs101_soft_tpu_warn_work);
-		thermal_zone_device_update(gs101_bcl_device->tz_dev, THERMAL_DEVICE_UP);
+		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_PMIC_120C],
+				  gs101_pmic_120c_work);
+		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_PMIC_140C],
+				  gs101_pmic_140c_work);
+		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_PMIC_OVERHEAT],
+				  gs101_pmic_overheat_work);
+		thermal_zone_device_update(gs101_bcl_device->soc_tzd, THERMAL_DEVICE_UP);
 		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
 	}
 	if (strcmp(dev_name(&pdev->dev), google_gs101_id_table[1].name) == 0) {
