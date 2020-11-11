@@ -117,7 +117,7 @@
 					"regulator",
 					"gpio",
 					"pinctrl";
-				power-up-seq-delays =
+				power-up-seq-delays-us =
 					<1000
 					 1000
 					 0
@@ -143,7 +143,7 @@
 					"regulator",
 					"gpio",
 					"regulator";
-				power-down-seq-delays =
+				power-down-seq-delays-us =
 					<1000
 					 0
 					 1000
@@ -207,7 +207,7 @@
 					"regulator",
 					"pinctrl",
 					"gpio";
-				power-up-seq-delays =
+				power-up-seq-delays-us =
 					<0
 					 0
 					 1000
@@ -227,7 +227,7 @@
 					"regulator",
 					"gpio",
 					"regulator";
-				power-down-seq-delays =
+				power-down-seq-delays-us =
 					<0
 					 1000
 					 0
@@ -290,7 +290,7 @@
 					"regulator",
 					"pinctrl",
 					"gpio";
-				power-up-seq-delays =
+				power-up-seq-delays-us =
 					<0
 					 0
 					 1000
@@ -310,7 +310,7 @@
 					"regulator",
 					"regulator",
 					"regulator";
-				power-down-seq-delays =
+				power-down-seq-delays-us =
 					<0
 					 1000
 					 0
@@ -371,7 +371,7 @@
 					"gpio",
 					"pinctrl",
 					"gpio";
-				power-up-seq-delays =
+				power-up-seq-delays-us =
 					<0
 					 1000
 					 1000
@@ -388,7 +388,7 @@
 					"pinctrl",
 					"gpio",
 					"regulator";
-				power-down-seq-delays =
+				power-down-seq-delays-us =
 					<0
 					 1000
 					 0
@@ -450,7 +450,7 @@
 					"regulator",
 					"pinctrl",
 					"gpio";
-				power-up-seq-delays =
+				power-up-seq-delays-us =
 					<0
 					 0
 					 1000
@@ -470,7 +470,7 @@
 					"regulator",
 					"regulator",
 					"regulator";
-				power-down-seq-delays =
+				power-down-seq-delays-us =
 					<0
 					 1000
 					 0
