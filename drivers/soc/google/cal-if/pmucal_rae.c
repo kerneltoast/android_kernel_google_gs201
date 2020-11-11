@@ -340,6 +340,10 @@ int pmucal_rae_handle_seq(struct pmucal_seq *seq, unsigned int seq_size)
 
 	for (i = 0; i < seq_size; i++) {
 		pmucal_rae_seq_idx = i;
+		if (seq[i].need_skip) {
+			seq[i].need_skip = false;
+			continue;
+		}
 
 		switch (seq[i].access_type) {
 		case PMUCAL_READ:
@@ -355,6 +359,29 @@ int pmucal_rae_handle_seq(struct pmucal_seq *seq, unsigned int seq_size)
 		case PMUCAL_COND_WRITE:
 			if (pmucal_rae_check_condition(&seq[i]))
 				pmucal_rae_write(&seq[i]);
+			break;
+		case PMUCAL_CHECK_SKIP:
+			if (pmucal_rae_check_value(&seq[i])) {
+				if ((i+1) < seq_size)
+					seq[i+1].need_skip = true;
+			} else {
+				if ((i+1) < seq_size)
+					seq[i+1].need_skip = false;
+			}
+			break;
+		case PMUCAL_COND_CHECK_SKIP:
+			if (pmucal_rae_check_condition(&seq[i])) {
+				if (pmucal_rae_check_value(&seq[i])) {
+					if ((i+1) < seq_size)
+						seq[i+1].need_skip = true;
+				} else {
+					if ((i+1) < seq_size)
+						seq[i+1].need_skip = false;
+				}
+			} else {
+				if ((i+1) < seq_size)
+					seq[i+1].need_skip = true;
+			}
 			break;
 		case PMUCAL_WAIT:
 		case PMUCAL_WAIT_TWO:
