@@ -1226,7 +1226,7 @@ static void gs101_bcl_mfd_init(struct work_struct *work)
 
 		debugfs_create_file("soft_ocp_tpu_lvl", 0644,
 				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_cpu2_lvl_fops);
+				    gs101_bcl_device, &soft_tpu_lvl_fops);
 
 		debugfs_create_file("ocp_cpu1_lvl", 0644,
 				    gs101_bcl_device->debug_entry,
@@ -1238,7 +1238,7 @@ static void gs101_bcl_mfd_init(struct work_struct *work)
 
 		debugfs_create_file("ocp_tpu_lvl", 0644,
 				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpu2_lvl_fops);
+				    gs101_bcl_device, &tpu_lvl_fops);
 
 	}
 	if (strcmp(dev_name(gs101_bcl_device->device), google_gs101_id_table[1].name) == 0) {
