@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS101 LDAF(Laser Detection Autofocus) device tree source
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+&pinctrl_1 {
+	ldaf_irq: ldaf-irq {
+		samsung,pins = "gpa7-1"; /* XEINT_9 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&hsi2c_7 {
+	/* VL53L1 */
+	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	stmvl53l1: stmvl53l1@29 {
+		compatible = "st,stmvl53l1";
+		reg = <0x29>;
+		/* XAPC_MCLK6 GPP13[0] GPIO137 */
+		xsdn-gpio = <&gpp13 0 GPIO_ACTIVE_LOW>;
+		/* LDAF enable pin GPP2[3] GPIO106 */
+		pwren-gpio = <&gpp2 3 GPIO_ACTIVE_HIGH>;
+		/* XEINT_9: GPA7[1] GPIO54 */
+		intr-gpio = <&gpa7 1 GPIO_ACTIVE_LOW>;
+
+		vio-supply = <&slg51000_ldo7>;
+		vio-voltage = <1850000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ldaf_irq>;
+
+		status = "ok";
+	};
+};
