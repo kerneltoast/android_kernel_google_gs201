@@ -26,6 +26,7 @@ struct slg51000_pinctrl {
 	struct pinctrl_desc pctrl;
 
 	struct regmap *regmap;
+	struct slg51000_dev *chip;
 };
 
 static const struct pinctrl_pin_desc slg51000_pins[] = {
@@ -122,6 +123,9 @@ static void slg51000_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	unsigned int addr;
 	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
 
+	if (data->chip->enter_sw_test_mode)
+		data->chip->enter_sw_test_mode(data->regmap);
+
 	switch (offset) {
 	case SLG51000_GPIO1:
 		addr = GPIO1_CTRL;
@@ -149,6 +153,9 @@ static void slg51000_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		pr_err("Error: %s Failed on GPIO offset %d\n",
 			__func__, offset);
 	}
+
+	if (data->chip->exit_sw_test_mode)
+		data->chip->exit_sw_test_mode(data->regmap);
 }
 
 static int slg51000_gpio_direction_input(struct gpio_chip *chip,
@@ -157,6 +164,9 @@ static int slg51000_gpio_direction_input(struct gpio_chip *chip,
 	int ret;
 	unsigned int addr;
 	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
+
+	if (data->chip->enter_sw_test_mode)
+		data->chip->enter_sw_test_mode(data->regmap);
 
 	switch (offset) {
 	case SLG51000_GPIO1:
@@ -185,6 +195,9 @@ static int slg51000_gpio_direction_input(struct gpio_chip *chip,
 		return ret;
 	}
 
+	if (data->chip->exit_sw_test_mode)
+		data->chip->exit_sw_test_mode(data->regmap);
+
 	return 0;
 }
 
@@ -194,6 +207,9 @@ static int slg51000_gpio_direction_output(struct gpio_chip *chip,
 	int ret;
 	unsigned int addr;
 	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
+
+	if (data->chip->enter_sw_test_mode)
+		data->chip->enter_sw_test_mode(data->regmap);
 
 	switch (offset) {
 	case SLG51000_GPIO1:
@@ -224,6 +240,9 @@ static int slg51000_gpio_direction_output(struct gpio_chip *chip,
 	}
 
 	slg51000_gpio_set(chip, offset, value);
+
+	if (data->chip->exit_sw_test_mode)
+		data->chip->exit_sw_test_mode(data->regmap);
 
 	return 0;
 }
@@ -300,10 +319,10 @@ static int slg51000_pinctrl_probe(struct platform_device *pdev)
 	if (!slg51000_pctl)
 		return -ENOMEM;
 
+	slg51000_pctl->chip = dev_get_drvdata(pdev->dev.parent);
+
 	/* Get regmap */
-	slg51000_pctl->regmap = ((struct slg51000_dev *)dev_get_drvdata(
-				pdev->dev.parent))
-				->regmap;
+	slg51000_pctl->regmap = slg51000_pctl->chip->regmap;
 
 	/* GPIO config */
 	slg51000_pctl->gc.label = pdev->name;

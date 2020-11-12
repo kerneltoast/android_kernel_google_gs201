@@ -115,6 +115,7 @@ static const struct regmap_range slg51000_readable_ranges[] = {
 	regmap_reg_range(SLG51000_OTP_IRQ_MASK, SLG51000_OTP_IRQ_MASK),
 	regmap_reg_range(SLG51000_LOCK_GLOBAL_LOCK_CTRL1,
 			SLG51000_LOCK_GLOBAL_LOCK_CTRL1),
+	regmap_reg_range(SLG51000_SYSCTL_TEST_EN, SLG51000_SYSCTL_TEST_EN),
 };
 
 static const struct regmap_range slg51000_volatile_ranges[] = {
@@ -262,8 +263,9 @@ out:
 	return ret;
 }
 
-static int slg51000_config_tuning(struct slg51000_dev *chip)
+static int slg51000_enter_sw_test_mode(struct regmap *map)
 {
+	unsigned int val = 0;
 	int ret;
 	const u8 sw_test_mode_on_vals[] = {
 		SLG51000_SW_TEST_MODE_1_ON,
@@ -272,21 +274,61 @@ static int slg51000_config_tuning(struct slg51000_dev *chip)
 		SLG51000_SW_TEST_MODE_4_ON,
 	};
 
+	if (!map)
+		return -EINVAL;
+
+	ret = regmap_bulk_write(map, SLG51000_SW_TEST_MODE_1,
+			sw_test_mode_on_vals, ARRAY_SIZE(sw_test_mode_on_vals));
+	if (ret < 0) {
+		dev_err(regmap_get_device(map),
+				"Failed to write regs for sw test mode\n");
+		return ret;
+	}
+
+	ret = regmap_read(map, SLG51000_SYSCTL_TEST_EN, &val);
+	if (ret < 0) {
+		dev_err(regmap_get_device(map),
+				"Failed to read SLG51000_SYSCTL_TEST_EN\n");
+		return ret;
+	}
+
+	/* Check if software test mode already enabled */
+	if (val & SLG51000_TEST_EN_ON_MASK)
+		return 0;
+
+	return ret;
+}
+
+static int slg51000_exit_sw_test_mode(struct regmap *map)
+{
+	if (!map)
+		return -EINVAL;
+
+	return regmap_write(map, SLG51000_SYSCTL_TEST_EN,
+			SLG51000_TEST_EN_OFF);
+}
+
+static int slg51000_config_tuning(struct slg51000_dev *chip)
+{
+	int ret;
+
 	if (chip == NULL) {
 		pr_err("[%s] Invalid arguments\n", __func__);
 		return -EINVAL;
 	}
 
-	/* enter software test mode */
-	ret = regmap_bulk_write(chip->regmap, SLG51000_SW_TEST_MODE_1,
-			sw_test_mode_on_vals, ARRAY_SIZE(sw_test_mode_on_vals));
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to enter software test mode\n");
+	ret = slg51000_enter_sw_test_mode(chip->regmap);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Initialize register settings */
-	slg51000_init_regs(chip);
+	ret = slg51000_init_regs(chip);
+	if (ret < 0)
+		return ret;
+
+	ret = slg51000_exit_sw_test_mode(chip->regmap);
+	if (ret < 0)
+		return ret;
 
 	return ret;
 }
@@ -417,11 +459,12 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 				ret);
 		return ret;
 	}
+	slg51000->enter_sw_test_mode = slg51000_enter_sw_test_mode;
+	slg51000->exit_sw_test_mode = slg51000_exit_sw_test_mode;
 
 	ret = slg51000_config_tuning(slg51000);
 	if (ret < 0) {
-		dev_err(slg51000->dev, "Failed to config tuning(%d)\n", ret);
-		return ret;
+		dev_info(slg51000->dev, "No config tuning(%d)\n", ret);
 	}
 
 	/* optional property */
