@@ -1028,15 +1028,15 @@
 		id = <3>;
 		#thermal-sensor-cells = <0>;
 
-		/*use-pi-thermal;*/
+		use-pi-thermal;
 		polling_delay_on = <50>;
-		polling_delay_off = <1000>;
-		k_po = <0>;
-		k_pu = <0>;
-		k_i = <0>;
-		i_max = <0>;
-		integral_cutoff = <0>;
-		sustainable_power = <0>;
+		polling_delay_off = <0>;
+		k_po = <60>;
+		k_pu = <60>;
+		k_i = <20>;
+		i_max = <5>;
+		integral_cutoff = <20>;
+		sustainable_power = <200>;
 	};
 
 	tmuctrl_4: ISP@100B0000 {
@@ -1266,38 +1266,38 @@
 					type = "active";
 				};
 				gpu_switch_on: gpu-switch-on {
-					temperature = <78000>; /* millicelsius */
+					temperature = <60000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "active";
 				};
 				gpu_control_temp: gpu-control-temp {
-					temperature = <83000>; /* millicelsius */
+					temperature = <80000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "passive";
 				};
 				gpu_alert0: gpu-alert0 {
-					temperature = <105000>; /* millicelsius */
+					temperature = <95000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
 				gpu_alert1: gpu-alert1 {
-					temperature = <110000>; /* millicelsius */
+					temperature = <100000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
 				gpu_alert2: gpu-alert2 {
-					temperature = <115000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
+					temperature = <104000>; /* millicelsius */
+					hysteresis = <4000>; /* millicelsius */
 					type = "active";
 				};
 				gpu_alert3: gpu-alert3 {
-					temperature = <115000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
+					temperature = <107000>; /* millicelsius */
+					hysteresis = <3000>; /* millicelsius */
 					type = "active";
 				};
 				gpu_hot: gpu-hot {
-					temperature = <115000>; /* millicelsius */
-					hysteresis = <5000>; /* millicelsius */
+					temperature = <110000>; /* millicelsius */
+					hysteresis = <3000>; /* millicelsius */
 					type = "hot";
 				};
 			};
