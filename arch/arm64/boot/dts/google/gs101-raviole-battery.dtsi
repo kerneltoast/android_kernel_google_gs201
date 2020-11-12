@@ -1,0 +1,207 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to raviole
+ *
+ * Copyright 2020 Google,LLC
+ *
+ */
+
+/ {
+	fragment@battery {
+		target-path = "/";
+		__overlay__ {
+
+			google_battery: google,battery {
+				status = "okay";
+				compatible = "google,battery";
+				#cooling-cells = <2>;
+				google,fg-psy-name = "maxfg";
+
+				google,chg-battery-capacity = <4000>;
+
+				/* charge table */
+				google,chg-temp-limits = <0 100 200 420 460 480 550>;
+				google,chg-cv-limits = <4200000 4300000 4400000>;
+				google,chg-cc-limits = <
+					 30  10   0
+					 50  30  30
+					100  70  50
+					 80  50  50
+					 50  50   0
+					 30   0   0
+				>;
+			};
+
+			google_cpm: google,cpm {
+				status = "okay";
+				compatible = "google,cpm";
+				google,chg-power-supplies = "main-charger",
+							    "pca9468-mains";
+
+				/* S2MPG11X01 -> GPIO_6 -> CHARGE_PUMP_EN */
+				google,dc-en = <&s2mpg11_gpio 0 0>;
+				/* DC enabled by default */
+				google,dc-en-value = <1>;
+
+				google,tcpm-power-supply = <&max77759tcpc>;
+				google,pps-awake;
+			};
+
+			google_charger: google,charger {
+				status = "okay";
+				compatible = "google,charger";
+				#cooling-cells = <2>;
+
+				google,chg-power-supply = "gcpm";
+				google,bat-power-supply = "battery";
+				google,usb-power-supply = "usb";
+
+				google,fv-max-uv = <4400000>;
+			};
+
+			google_bms {
+				nvmem = <&pack_bee>;
+				nvmem-names = "5-00500";
+				/* pack eeprom is available only with P20+ batteries */
+				google,bee-name = "5-00500";
+			};
+
+		};
+	};
+};
+
+&pinctrl_0 {
+/* [MAX77759: FG_INTB] > FG_INT_L > [XEINT_23 : SC59845XWE] */
+	if_pmic_fg_irq: if-pmic-fg-irq {
+		samsung,pins = "gpa9-3"; /* XEINT_23 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_1 {
+/* [MAX77729FEWN : INTB] > IF_PMIC_IRQ_L > [XEINT_15 : SC59845XWE] */
+	if_pmic_irq: if-pmic-irq {
+		samsung,pins = "gpa8-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&hsi2c12_bus {
+	samsung,pins = "gpp23-4", "gpp23-5";
+	samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsi2c8_bus>;
+
+	pack_bee: m24c08@50 {
+		status = "okay";
+		compatible = "at,24c08";
+
+		reg = <0x50>;
+	};
+};
+
+&hsi2c_12{
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* also as max77759 pmic  */
+	max77729_pmic:max77729pmic@0x66 {
+		status = "okay";
+		compatible = "maxim,max77729pmic";
+		reg = <0x66>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_irq>;
+		max777x9,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+
+		max77759,max_m5 = <&max77759_fg>;
+
+		max777x9_gpio: max777x9_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <6>;
+		};
+	};
+
+	max77759_fg:max77759fg@0x36 {
+		status = "okay";
+		compatible = "maxim,max77759";
+		reg = <0x36>;
+
+		/* FG_INT_L -> XEINT_23 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_fg_irq>;
+		maxim,irq-gpio = <&gpa9 3 GPIO_ACTIVE_LOW>;
+
+		maxim,rsense-default = <500>;
+
+		/* no needed for EEPROM */
+		maxim,batt-id-range-pct = <0>;
+
+		maxim,psy-type-unknown;
+
+		maxim,fg-data {
+			#include "gs101-slider-battery-data.dtsi"
+		};
+	};
+
+	max77759chrg@0x69 {
+		status = "okay";
+		compatible = "maxim,max77759chrg";
+		reg = <0x69>;
+
+		interrupt-parent = <&gpa8>;
+		max77759,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
+		max77759,psy-name = "main-charger";
+
+		max77759,max_m5 = <&max77759_fg>;
+		max77759,pmic = <&max77729_pmic>;
+
+		/* system use cases */
+		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
+		max77759,bst-sel = <&gpp27 3 GPIO_ACTIVE_HIGH>;
+		max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
+
+	};
+
+	pca9468@57 {
+		compatible = "nxp,pca9468";
+		reg = <0x57>;
+
+		/* TODO: add IRQ pca9468,irq-gpio = <xxx>; */
+
+		pca9468,input-current-limit = <2000000>; /* 2.0A */
+		pca9468,charging-current = <4000000>; /* 4A */
+		pca9468,float-voltage = <4300000>; /* 4.3V */
+
+		pca9468,input-itopoff = <500000>; /* 500mA */
+		pca9468,sense-resistance = <0>; /* 5mOhm */
+		pca9468,switching-frequency = <3>; /* 980KHz */
+
+		/* disable USBC NTC */
+		pca9468,ntc-threshold = <0>; /* disabled */
+
+		/* enable passthrough PPS */
+		google,tcpm-power-supply = <&max77759tcpc>;
+
+		/* USBC thermal zone */
+		google,usb-port-tz-name = "usbc-therm-adc";
+	};
+
+};
+
+

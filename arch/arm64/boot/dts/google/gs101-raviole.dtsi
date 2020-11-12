@@ -8,7 +8,7 @@
 #include "gs101-common.dtsi"
 #include "gs101-raviole-camera-pmic.dtsi"
 
-#include "gs101-whitefin-battery.dtsi"
+#include "gs101-raviole-battery.dtsi"
 #include "gs101-whitefin-cp-s5200-sit-common.dtsi"
 #include "gs101-whitefin-display.dtsi"
 #include "gs101-whitefin-nfc.dtsi"
@@ -16,7 +16,6 @@
 #include "gs101-slider-fingerprint.dtsi"
 #include "gs101-slider-gsa-gsc.dtsi"
 #include "gs101-slider2-gps.dtsi"
-#include "gs101-whitefin2-battery.dtsi"
 #include "gs101-whitefin2-cp-s5200-sit.dtsi"
 #include "gs101-whitefin2-pmic.dtsi"
 #include "gs101-raviole-thermal.dtsi"
