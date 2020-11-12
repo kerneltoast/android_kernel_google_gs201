@@ -18,6 +18,7 @@
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 
 #include <soc/google/exynos-cpupm.h>
 #include <soc/google/cal-if.h>
@@ -145,6 +146,7 @@ struct exynos_cpupm {
 static struct exynos_cpupm __percpu *cpupm;
 static bool __percpu *hotplug_ing;
 static int system_suspended;
+static int system_rebooting;
 
 #define NSCODE_BASE		(0xBFFFF000)
 #define CPU_STATE_BASE_OFFSET	0x2C
@@ -847,6 +849,10 @@ static int exynos_cpu_pm_notify_callback(struct notifier_block *self,
 
 	switch (action) {
 	case CPU_PM_ENTER:
+		/* disable CPU_PM_ENTER event in reboot sequence */
+		if (system_rebooting)
+			return NOTIFY_BAD;
+
 		/* ignore CPU_PM_ENTER event in suspend sequence */
 		if (system_suspended)
 			return NOTIFY_OK;
@@ -873,6 +879,24 @@ static int exynos_cpu_pm_notify_callback(struct notifier_block *self,
 static struct notifier_block exynos_cpu_pm_notifier = {
 	.notifier_call = exynos_cpu_pm_notify_callback,
 	.priority = INT_MAX	/* we want to be called first */
+};
+
+static int exynos_cpupm_reboot_notifier(struct notifier_block *nb,
+					unsigned long event, void *v)
+{
+	switch (event) {
+	case SYS_POWER_OFF:
+	case SYS_RESTART:
+		system_rebooting = true;
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block exynos_cpupm_reboot_nb = {
+	.priority = INT_MAX,
+	.notifier_call = exynos_cpupm_reboot_notifier,
 };
 
 /******************************************************************************
@@ -1270,6 +1294,9 @@ static int exynos_cpupm_probe(struct platform_device *pdev)
 	spin_lock_init(&cpupm_lock);
 
 	nscode_base = ioremap(NSCODE_BASE, SZ_4K);
+
+	system_rebooting = false;
+	register_reboot_notifier(&exynos_cpupm_reboot_nb);
 
 	ret = cpu_pm_register_notifier(&exynos_cpu_pm_notifier);
 	if (ret)
