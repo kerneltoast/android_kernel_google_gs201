@@ -845,12 +845,12 @@ static int exynos_cpu_pm_notify_callback(struct notifier_block *self,
 	int cpu = smp_processor_id();
 	int cpu_state;
 
-	/* ignore CPU_PM event in suspend sequence */
-	if (system_suspended)
-		return NOTIFY_OK;
-
 	switch (action) {
 	case CPU_PM_ENTER:
+		/* ignore CPU_PM_ENTER event in suspend sequence */
+		if (system_suspended)
+			return NOTIFY_OK;
+
 		/*
 		 * There are few block condition of C2.
 		 *  - while cpu is hotpluging.
