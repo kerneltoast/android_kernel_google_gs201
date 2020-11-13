@@ -198,6 +198,42 @@ struct dither_config {
 	__u32 reserved:24;
 };
 
+struct attribute_range {
+	__u32 min;
+	__u32 max;
+};
+
+/**
+ * struct brightness_attribute - brightness attribute data
+ *
+ * @nits: value represents brightness nits range
+ * @level: value represents panel brightness level range
+ * @percentage: value must be between 0 and 100 and be non-decreasing.
+ *		This percentage must comply with display configuration
+ *		file.
+ *
+ * A brightness_attribute represents brightness attribute data.
+ */
+struct brightness_attribute {
+	struct attribute_range nits;
+	struct attribute_range level;
+	struct attribute_range percentage;
+};
+
+/**
+ * struct brightness_capability - brightness capability query by user-space
+ *
+ * @normal: normal rerepresents the normal brightness attribute.
+ * @hbm: hbm represents the hbm brightness attribute
+ *
+ * A brightness_capability represents normal/hbm brightness attribute. It is
+ * used to query connector property.
+ */
+struct brightness_capability {
+	struct brightness_attribute normal;
+	struct brightness_attribute hbm;
+};
+
 #if defined(__cplusplus)
 }
 #endif
