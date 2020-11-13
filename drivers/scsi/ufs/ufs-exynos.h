@@ -19,8 +19,8 @@
 #include "ufs-pixel.h"
 
 /* Version check */
-#define UFS_EXYNOS_COMPAT_CAL_MMIO_VER 1
-#define UFS_EXYNOS_COMPAT_CAL_IF_VER 1
+#define UFS_EXYNOS_COMPAT_CAL_MMIO_VER 2
+#define UFS_EXYNOS_COMPAT_CAL_IF_VER 4
 #if (UFS_VS_MMIO_VER != UFS_EXYNOS_COMPAT_CAL_MMIO_VER)
 #error "UFS_VS_MMIO_VER and UFS_EXYNOS_COMPAT_CAL_MMIO_VER aren't matched"
 #endif

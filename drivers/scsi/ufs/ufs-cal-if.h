@@ -15,12 +15,15 @@
 #define _UFS_CAL_
 
 /* If not matched with ufs-cal-if, compling would fail */
-#define UFS_CAL_IF_VER 1
-#define UFS_CAL_IF_COMPAT_MMIO_VER 1
+#define UFS_CAL_IF_VER 4
+#define UFS_CAL_IF_COMPAT_MMIO_VER 2
 
 #undef NULL
 #define NULL    0
 
+#if defined(__UFS_CAL_FW__)
+#undef BIT
+#endif
 #ifndef BIT
 #define BIT(a)	(1UL << (a))
 #endif
@@ -45,12 +48,24 @@ enum {
 	EOM_RTY_MAX = 8,
 };
 
+enum {
+	GEAR_1 = 1,
+	GEAR_2,
+	GEAR_3,
+	GEAR_4,
+	GEAR_MAX = GEAR_4,
+};
+
 #define MAX_LANE		4
 
 #define EOM_PH_SEL_MAX		72
 #define EOM_DEF_VREF_MAX	256
 #define EOM_MAX_SIZE		(EOM_RTY_MAX * EOM_PH_SEL_MAX * \
 					EOM_DEF_VREF_MAX)
+
+static const u32 ufs_s_eom_repeat[GEAR_MAX + 1] = {
+		0, EOM_RTY_G1, EOM_RTY_G2, EOM_RTY_G3, EOM_RTY_G4
+};
 
 struct ufs_eom_result_s {
 	u32 v_phase;
@@ -120,8 +135,4 @@ enum ufs_cal_errno ufs_cal_post_link(struct ufs_cal_param *p);
 enum ufs_cal_errno ufs_cal_pre_link(struct ufs_cal_param *p);
 enum ufs_cal_errno ufs_cal_init(struct ufs_cal_param *p, int idx);
 enum ufs_cal_errno ufs_cal_eom(struct ufs_cal_param *p);
-
-enum ufs_cal_errno ufs_cal_loopback_init(struct ufs_cal_param *p);
-enum ufs_cal_errno ufs_cal_loopback_set_1(struct ufs_cal_param *p);
-enum ufs_cal_errno ufs_cal_loopback_set_2(struct ufs_cal_param *p);
 #endif /*_UFS_CAL_ */
