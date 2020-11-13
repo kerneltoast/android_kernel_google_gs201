@@ -27,8 +27,8 @@
 			reg = <0x0 0x90000000 0x0003A000>;
 		};
 
-		tpu_fw_reserved: tpu_fw@0x90000000 {
-			reg = <0x0 0x90000000 0x200000>;
+		tpu_fw_reserved: tpu_fw@0x93000000 {
+			reg = <0x0 0x93000000 0x200000>;
 			no-map;
 		};
 
