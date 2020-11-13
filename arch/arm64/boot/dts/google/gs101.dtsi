@@ -16,8 +16,8 @@
 #include <dt-bindings/soc/google/gs101-pm-qos.h>
 #include "gs101-rmem.dtsi"
 #include "gs101-bigo.dtsi"
-#include "gs101-bts-b0.dtsi"
-#include "gs101-cpu-b0.dtsi"
+#include "gs101-bts.dtsi"
+#include "gs101-cpu.dtsi"
 #include "gs101-dit.dtsi"
 #include "gs101-drm-dpu.dtsi"
 #include "gs101-gpu.dtsi"
@@ -782,8 +782,7 @@
 			/* Delay time */
 			use_delay_time = "false";
 
-			freq_info = <100000 100000 100000 100000 533000 465000>;
-			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
+			/* freq_info is set in gs101-a0.dts and gs101-b0.dts */
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;

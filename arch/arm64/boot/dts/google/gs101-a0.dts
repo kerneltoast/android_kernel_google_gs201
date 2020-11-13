@@ -12,4 +12,29 @@
 	soc_id = <0x09845000 0x00000000>;
 };
 
-#include "gs101-a0.dtsi"
+#include "gs101.dtsi"
+
+&devfreq_1 {
+	freq_info = <100000 100000 100000 100000 465000 465000>;
+	/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
+};
+
+&cpufreq_domain0 {
+	max-freq = <1598000>;
+};
+&cpufreq_domain2 {
+	max-freq = <2048000>;
+};
+
+&bts_smc0 {
+	reg = <0x0 0x20846258 0x4>;
+};
+&bts_smc1 {
+	reg = <0x0 0x20946258 0x4>;
+};
+&bts_smc2 {
+	reg = <0x0 0x20A46258 0x4>;
+};
+&bts_smc3 {
+	reg = <0x0 0x20B46258 0x4>;
+};

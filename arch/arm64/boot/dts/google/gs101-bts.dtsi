@@ -53,23 +53,23 @@
 			bts-type = <TREX_BTS>;
 		};
 		/* SMC */
-		bts_smc0 {
-			reg = <0x0 0x20846258 0x4>;
+		bts_smc0: bts_smc0 {
+			/* reg is set in gs101-a0.dts and gs101-b0.dts */
 			status = "okay";
 			bts-type = <SMC_BTS>;
 		};
-		bts_smc1 {
-			reg = <0x0 0x20946258 0x4>;
+		bts_smc1: bts_smc1 {
+			/* reg is set in gs101-a0.dts and gs101-b0.dts */
 			status = "okay";
 			bts-type = <SMC_BTS>;
 		};
-		bts_smc2 {
-			reg = <0x0 0x20A46258 0x4>;
+		bts_smc2: bts_smc2 {
+			/* reg is set in gs101-a0.dts and gs101-b0.dts */
 			status = "okay";
 			bts-type = <SMC_BTS>;
 		};
-		bts_smc3 {
-			reg = <0x0 0x20B46258 0x4>;
+		bts_smc3: bts_smc3 {
+			/* reg is set in gs101-a0.dts and gs101-b0.dts */
 			status = "okay";
 			bts-type = <SMC_BTS>;
 		};

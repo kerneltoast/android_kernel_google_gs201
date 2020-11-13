@@ -250,7 +250,7 @@
 			cal-id = <ACPM_DVFS_CPUCL0>;
 			dm-type = <DM_CPU_CL0>;
 
-			max-freq = <1598000>;
+			/* max-freq is set in gs101-a0.dts and gs101-b0.dts */
 			min-freq = <300000>;
 
 			#cooling-cells = <2>; /* min followed by max */
@@ -289,7 +289,7 @@
 			cal-id = <ACPM_DVFS_CPUCL2>;
 			dm-type = <DM_CPU_CL2>;
 
-			max-freq = <2048000>;
+			/* max-freq is set in gs101-a0.dts and gs101-b0.dts */
 			min-freq = <500000>;
 
 			#cooling-cells = <2>; /* min followed by max */
