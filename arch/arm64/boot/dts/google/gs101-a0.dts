@@ -38,3 +38,12 @@
 &bts_smc3 {
 	reg = <0x0 0x20B46258 0x4>;
 };
+
+&mfc {
+	ip_ver = <0x14020000>;
+	/* FW base security ctrl */
+	security_ctrl = <0>;
+};
+&mfc_core0 {
+	ip_ver = <0x14020000>;
+};
