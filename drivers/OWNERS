@@ -91,7 +91,7 @@ per-file regulator/Makefile=saravanak@google.com
 per-file regulator/max77826-gs-regulator*=*
 per-file regulator/of_regulator.c=saravanak@google.com
 per-file regulator/pmic_class.c=*
-per-file regulator/s2mpg10-*=*
+per-file regulator/s2mpg*=*
 per-file regulator/userspace-consumer.c=saravanak@google.com
 per-file regulator/virtual.c=saravanak@google.com
 
