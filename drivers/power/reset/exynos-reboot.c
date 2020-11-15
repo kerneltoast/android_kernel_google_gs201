@@ -39,6 +39,7 @@ static void exynos_power_off(void)
 	int power_gpio = -1;
 	unsigned int keycode = 0;
 	struct device_node *np, *pp;
+	int ret;
 
 	np = of_find_node_by_path("/gpio_keys");
 	if (!np)
@@ -69,8 +70,12 @@ static void exynos_power_off(void)
 			exynos_acpm_reboot();
 #endif
 			pr_emerg("Set PS_HOLD Low.\n");
-			regmap_update_bits(pmureg, shutdown_offset,
+			ret = rmw_priv_reg(pmu_alive_base + shutdown_offset,
 					   shutdown_trigger, 0);
+			/* TODO: remove following fallback. see b/169128860 */
+			if (ret)
+				regmap_update_bits(pmureg, shutdown_offset,
+						   shutdown_trigger, 0);
 
 			++poweroff_try;
 			pr_emerg("Should not reach here! (poweroff_try:%d)\n",
@@ -95,21 +100,37 @@ static void exynos_power_off(void)
 
 static void exynos_reboot_parse(const char *cmd)
 {
+	int ret;
+
 	if (cmd) {
 		pr_info("Reboot command: '%s'\n", cmd);
 
 		if (!strcmp(cmd, "charge")) {
-			regmap_write(pmureg, reboot_cmd_offset,
-				     REBOOT_MODE_CHARGE);
+			ret = set_priv_reg(pmu_alive_base + reboot_cmd_offset,
+					   REBOOT_MODE_CHARGE);
+			/* TODO: remove following fallback. see b/169128860 */
+			if (ret)
+				regmap_write(pmureg, reboot_cmd_offset,
+					     REBOOT_MODE_CHARGE);
 		} else if (!strcmp(cmd, "bootloader") ||
 			   !strcmp(cmd, "fastboot") ||
 			   !strcmp(cmd, "bl") ||
 			   !strcmp(cmd, "fb")) {
-			regmap_write(pmureg, reboot_cmd_offset,
-				     REBOOT_MODE_FASTBOOT);
+			ret = set_priv_reg(pmu_alive_base + reboot_cmd_offset,
+					   REBOOT_MODE_FASTBOOT);
+			if (ret) {
+				pr_warn("%s(): priv_reg: failed to set addr: 0x%lx\n",
+					__func__, pmu_alive_base + reboot_cmd_offset);
+				regmap_write(pmureg, reboot_cmd_offset,
+					     REBOOT_MODE_FASTBOOT);
+			}
 		} else if (!strcmp(cmd, "recovery")) {
-			regmap_write(pmureg, reboot_cmd_offset,
-				     REBOOT_MODE_RECOVERY);
+			ret = set_priv_reg(pmu_alive_base + reboot_cmd_offset,
+					   REBOOT_MODE_RECOVERY);
+			/* TODO: remove following fallback. see b/169128860 */
+			if (ret)
+				regmap_write(pmureg, reboot_cmd_offset,
+					     REBOOT_MODE_RECOVERY);
 		} else {
 			pr_err("Unknown reboot command: '%s'\n", cmd);
 		}
