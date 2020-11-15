@@ -1064,6 +1064,8 @@ static void exynos_pcie_rc_set_iocc(struct pcie_port *pp, int enable)
 static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exynos_pcie)
 {
 	struct device_node *np = dev->of_node;
+	struct device_node *syscon_np;
+	struct resource res;
 	const char *use_cache_coherency;
 	const char *use_msi;
 	const char *use_sicd;
@@ -1253,6 +1255,19 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 		dev_err(dev, "syscon regmap lookup failed.\n");
 		return PTR_ERR(exynos_pcie->pmureg);
 	}
+
+	syscon_np = of_parse_phandle(np, "samsung,syscon-phandle", 0);
+	if (!syscon_np) {
+		dev_err(dev, "syscon device node not found\n");
+		return -EINVAL;
+	}
+
+	if (of_address_to_resource(syscon_np, 0, &res)) {
+		dev_err(dev, "failed to get syscon base address\n");
+		return -ENOMEM;
+	}
+
+	exynos_pcie->pmu_alive_pa = res.start;
 
 	exynos_pcie->sysreg = syscon_regmap_lookup_by_phandle(np, "samsung,sysreg-phandle");
 	/* Check definitions to access SYSREG in DT*/
@@ -1874,7 +1889,12 @@ void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
 	/* 1. PCIe PHY VREG On */
 	exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
 	/* 2. PMU: PCIe PHY input isolation bypassed - 1 (0: isolation) */
-	regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset, PCIE_PHY_CONTROL_MASK, 1);
+	ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
+			   PCIE_PHY_CONTROL_MASK, 1);
+	/* TODO: remove following as part of b/169128860 */
+	if (ret)
+		regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+				   PCIE_PHY_CONTROL_MASK, 1);
 
 	exynos_pcie_rc_assert_phy_reset(pp);
 
@@ -2428,8 +2448,12 @@ int exynos_pcie_rc_poweron(int ch_num)
 			/* 1. PCIe PHY VREG On */
 			exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
 			/* 2. PMU: PCIe PHY input isolation bypassed - 1(0: isolated) */
-			regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+			ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
 					   PCIE_PHY_CONTROL_MASK, 1);
+			/* TODO: remove following as part of b/169128860 */
+			if (ret)
+				regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+						   PCIE_PHY_CONTROL_MASK, 1);
 			dev_dbg(dev, "[%s]# PCIe PMU regmap update: 1(BYPASS) #\n", __func__);
 		}
 
@@ -3749,12 +3773,17 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+	int ret;
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		/* 1. PMU: PCIe PHY input isolation - 0: isolated (1: bypassed) */
 		dev_dbg(dev, "[%s] # PCIe PMU ISOLATION #\n", __func__);
-		regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+		ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
 				   PCIE_PHY_CONTROL_MASK, 0);
+		/* TODO: remove following as part of b/169128860 */
+		if (ret)
+			regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+					   PCIE_PHY_CONTROL_MASK, 0);
 
 		/*  2. PCIe PHY VREG off */
 		dev_dbg(dev, "[%s] # VREG OFF: vreg_control(PHY_VREG_OFF) #\n", __func__);
