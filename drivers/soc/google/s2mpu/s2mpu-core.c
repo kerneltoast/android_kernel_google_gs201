@@ -61,7 +61,7 @@ static ssize_t s2mpu_win_open_write(struct file *file, const char __user *ubuf,
 	if (*ppos != 0 || count == 0)
 		return -EINVAL;
 
-	buf = strndup_user(ubuf, count);
+	buf = memdup_user(ubuf, count);
 	if (IS_ERR(buf))
 		return (PTR_ERR(buf));
 
@@ -94,7 +94,7 @@ static ssize_t s2mpu_win_close_write(struct file *file, const char __user *ubuf,
 	if (*ppos != 0 || count == 0)
 		return -EINVAL;
 
-	buf = strndup_user(ubuf, count);
+	buf = memdup_user(ubuf, count);
 	if (IS_ERR(buf))
 		return (PTR_ERR(buf));
 
