@@ -12,7 +12,7 @@
 	s2mpg10mfd@00 {
 		google_bcl_m: google,bcl_m {
 			compatible = "google,gs101-bcl-m";
-			#thermal-sensor-cells = <0>;
+			#thermal-sensor-cells = <1>;
 		};
 	};
 };
@@ -28,12 +28,57 @@
 
 /* Thermal Zones */
 &thermal_zones {
+	pmic_120c {
+		zone_name  = "PMIC_120C";
+		polling-delay-passive = <1000>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&google_bcl_m 1>;
+		trips {
+			pmic_120c: pmic-120c {
+				temperature = <1200>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
+	pmic_140c {
+		zone_name  = "PMIC_140C";
+		polling-delay-passive = <1000>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&google_bcl_m 2>;
+		trips {
+			pmic_140c: pmic-140c {
+				temperature = <1400>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
+	pmic_overheat {
+		zone_name  = "PMIC_OVERHEAT";
+		polling-delay-passive = <1000>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&google_bcl_m 3>;
+		trips {
+			pmic_overheat: pmic-overheat{
+				temperature = <2000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
 	soc {
 		zone_name  = "BATT_SOC_MOD";
 		polling-delay-passive = <1000>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
-		thermal-sensors = <&google_bcl_m>;
+		thermal-sensors = <&google_bcl_m 0>;
 
 		trips {
 			soc_trip:soc-trip {
