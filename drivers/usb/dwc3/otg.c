@@ -723,11 +723,35 @@ static ssize_t force_speed_store(struct device *dev, struct device_attribute *at
 
 static DEVICE_ATTR_RW(force_speed);
 
+static ssize_t usb_data_enabled_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", exynos->usb_data_enabled ? "enabled" : "disabled");
+}
+
+static ssize_t usb_data_enabled_store(struct device *dev, struct device_attribute *attr,
+				       const char *buf, size_t n)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+	bool enabled = true;
+
+	if (kstrtobool(buf, &enabled))
+		return -EINVAL;
+
+	exynos->usb_data_enabled = enabled;
+
+	return n;
+}
+
+static DEVICE_ATTR_RW(usb_data_enabled);
+
 static struct attribute *dwc3_otg_attributes[] = {
 	&dev_attr_id.attr,
 	&dev_attr_b_sess.attr,
 	&dev_attr_state.attr,
 	&dev_attr_force_speed.attr,
+	&dev_attr_usb_data_enabled.attr,
 	NULL
 };
 
