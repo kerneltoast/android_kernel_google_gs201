@@ -32,6 +32,8 @@
 #include <soc/google/exynos-pmu-if.h>
 #include <soc/google/debug-snapshot.h>
 #include <linux/preempt.h>
+#include <linux/of_address.h>
+#include <soc/google/exynos-el3_mon.h>
 
 #define S3C2410_WTCON		0x00
 #define S3C2410_WTDAT		0x04
@@ -121,6 +123,7 @@ struct s3c2410_wdt {
 	struct notifier_block	freq_transition;
 	const struct s3c2410_wdt_variant *drv_data;
 	struct regmap *pmureg;
+	phys_addr_t pmu_alive_pa;
 	unsigned int cluster;
 	int use_multistage_wdt;
 	unsigned int disable_reg_val;
@@ -440,11 +443,15 @@ static int s3c2410wdt_mask_wdt_reset(struct s3c2410_wdt *wdt, bool mask)
 	if (mask)
 		val = mask_val;
 
-	ret = regmap_update_bits(wdt->pmureg, wdt->drv_data->mask_reset_reg, mask_val, val);
+	ret = rmw_priv_reg(wdt->pmu_alive_pa + wdt->drv_data->mask_reset_reg, mask_val, val);
+	/* TODO: remove following as part of b/169128860 */
+	if (ret) {
+		ret = regmap_update_bits(wdt->pmureg, wdt->drv_data->mask_reset_reg, mask_val, val);
 
-	if (ret < 0) {
-		dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
-		return ret;
+		if (ret < 0) {
+			dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
+			return ret;
+		}
 	}
 
 	ret = regmap_read(wdt->pmureg, wdt->drv_data->mask_reset_reg, &mask_reset_reg_val);
@@ -484,11 +491,14 @@ static int s3c2410wdt_automatic_disable_wdt(struct s3c2410_wdt *wdt, bool mask)
 	if (mask)
 		val = mask_val;
 
-	ret = regmap_update_bits(wdt->pmureg, wdt->drv_data->disable_reg, mask_val, val);
-
-	if (ret < 0) {
-		dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
-		return ret;
+	ret = rmw_priv_reg(wdt->pmu_alive_pa + wdt->drv_data->disable_reg, mask_val, val);
+	/* TODO: remove following as part of b/169128860 */
+	if (ret) {
+		ret = regmap_update_bits(wdt->pmureg, wdt->drv_data->disable_reg, mask_val, val);
+		if (ret < 0) {
+			dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
+			return ret;
+		}
 	}
 
 	ret = regmap_read(wdt->pmureg, wdt->drv_data->mask_reset_reg, &mask_reset_reg_val);
@@ -1370,12 +1380,28 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	}
 
 	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
+		struct device_node *syscon_np;
+		struct resource res;
+
 		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
 							      "samsung,syscon-phandle");
 		if (IS_ERR(wdt->pmureg)) {
 			dev_err(dev, "syscon regmap lookup failed.\n");
 			return PTR_ERR(wdt->pmureg);
 		}
+
+		syscon_np = of_parse_phandle(dev->of_node, "samsung,syscon-phandle", 0);
+		if (!syscon_np) {
+			dev_err(dev, "syscon device node not found\n");
+			return -EINVAL;
+		}
+
+		if (of_address_to_resource(syscon_np, 0, &res)) {
+			dev_err(dev, "failed to get syscon base address\n");
+			return -ENOMEM;
+		}
+
+		wdt->pmu_alive_pa = res.start;
 	}
 	if (wdt->drv_data->mask_reset_reg) {
 		ret = regmap_read(wdt->pmureg, wdt->drv_data->mask_reset_reg, &mask_reset_reg_val);
