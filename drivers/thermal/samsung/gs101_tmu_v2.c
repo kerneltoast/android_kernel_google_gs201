@@ -509,7 +509,9 @@ polling:
 	else
 		delay = params->polling_delay_off;
 
-	start_pi_polling(data, delay);
+	if (delay)
+		start_pi_polling(data, delay);
+
 	mutex_unlock(&data->lock);
 }
 
@@ -747,8 +749,6 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 
 		of_property_read_u32(pdev->dev.of_node, "polling_delay_off",
 				     &params->polling_delay_off);
-		if (!params->polling_delay_off)
-			dev_err(&pdev->dev, "No input polling_delay_off\n");
 
 		ret = of_property_read_u32(pdev->dev.of_node, "k_po",
 					   &value);
