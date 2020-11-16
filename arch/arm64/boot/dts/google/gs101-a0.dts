@@ -14,6 +14,10 @@
 
 #include "gs101.dtsi"
 
+&devfreq_0 {
+	max-volt = <863000>;
+};
+
 &devfreq_1 {
 	freq_info = <100000 100000 100000 100000 465000 465000>;
 	/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
