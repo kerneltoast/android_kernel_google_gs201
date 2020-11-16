@@ -1382,6 +1382,9 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 #if defined(CONFIG_EXYNOS_ALT_DVFS)
 	struct devfreq_alt_dvfs_data *alt_data;
 #endif
+	unsigned int i;
+	unsigned int val;
+	unsigned int *volt_table;
 
 	if (!np)
 		return -ENODEV;
@@ -1441,6 +1444,21 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 	data->min_freq = freq_array[3];
 	data->max_freq = freq_array[4];
 	data->reboot_freq = freq_array[5];
+
+	if (!of_property_read_u32(np, "max-volt", &val) &&
+	    !of_property_read_u32(np, "dfs_id", &data->dfs_id)) {
+		volt_table = kzalloc(sizeof(unsigned int) * data->max_state,
+				     GFP_KERNEL);
+		if (!volt_table)
+			return -ENOMEM;
+		cal_dfs_get_asv_table(data->dfs_id, volt_table);
+		for (i = 0; i < data->max_state; i++) {
+			if (volt_table[i] <= val)
+				break;
+		}
+		data->max_freq = min(data->max_freq, data->opp_list[i].freq);
+		kfree(volt_table);
+	}
 
 	if (of_property_read_u32_array(np, "boot_info", (u32 *)&boot_array,
 				       (size_t)(ARRAY_SIZE(boot_array)))) {
