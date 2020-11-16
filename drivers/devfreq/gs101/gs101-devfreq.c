@@ -552,7 +552,7 @@ static int exynos_devfreq_set_freq(struct device *dev, u32 new_freq,
 	return 0;
 }
 
-static int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
+int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
 {
 	u32 max_freq, min_freq;
 	unsigned long tmp_max, tmp_min;
@@ -676,6 +676,7 @@ static int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(exynos_devfreq_init_freq_table);
 
 static ssize_t show_exynos_devfreq_info(struct device *dev,
 					struct device_attribute *attr,
@@ -1322,7 +1323,7 @@ static struct devfreq *find_exynos_devfreq_device(void *devdata)
 
 #ifdef CONFIG_OF
 #if IS_ENABLED(CONFIG_ECT)
-static int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
+int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
 				    const char *dvfs_domain_name)
 {
 	int i;
@@ -1372,6 +1373,7 @@ static int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(exynos_devfreq_parse_ect);
 #endif
 
 static int exynos_devfreq_parse_dt(struct device_node *np,
