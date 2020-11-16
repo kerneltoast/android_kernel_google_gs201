@@ -114,12 +114,6 @@ int exynos_pmu_update(unsigned int offset, unsigned int mask, unsigned int val)
 }
 EXPORT_SYMBOL(exynos_pmu_update);
 
-struct regmap *exynos_get_pmu_regmap(void)
-{
-	return pmureg;
-}
-EXPORT_SYMBOL_GPL(exynos_get_pmu_regmap);
-
 #define PMU_CPU_CONFIG_BASE			0x1000
 #define PMU_CPU_STATUS_BASE			0x1004
 #define CPU_LOCAL_PWR_CFG			0x1

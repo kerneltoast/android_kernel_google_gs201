@@ -429,21 +429,18 @@ static void
 exynos_pinctrl_set_eint_wakeup_mask(struct samsung_pinctrl_drv_data *drvdata,
 				    struct exynos_irq_chip *irq_chip)
 {
-	struct regmap *pmu_regs;
-
 	if (!drvdata->retention_ctrl || !drvdata->retention_ctrl->priv) {
 		dev_warn(drvdata->dev,
 			 "No retention data configured bank with external wakeup interrupt. Wake-up mask will not be set.\n");
 		return;
 	}
 
-	pmu_regs = drvdata->retention_ctrl->priv;
 	dev_info(drvdata->dev,
 		 "Setting external wakeup interrupt mask: 0x%x\n",
 		 *irq_chip->eint_wake_mask_value);
 
-	regmap_write(pmu_regs, irq_chip->eint_wake_mask_reg,
-		     *irq_chip->eint_wake_mask_value);
+	exynos_pmu_write(irq_chip->eint_wake_mask_reg,
+			 *irq_chip->eint_wake_mask_value);
 }
 
 static void
@@ -830,14 +827,13 @@ static void exynos_retention_enable(struct samsung_pinctrl_drv_data *drvdata)
 static void exynos_retention_disable(struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct samsung_retention_ctrl *ctrl = drvdata->retention_ctrl;
-	struct regmap *pmu_regs = ctrl->priv;
 	int i;
 
 	if (ctrl->refcnt && !atomic_dec_and_test(ctrl->refcnt))
 		return;
 
 	for (i = 0; i < ctrl->nr_regs; i++)
-		regmap_write(pmu_regs, ctrl->regs[i], ctrl->value);
+		exynos_pmu_write(ctrl->regs[i], ctrl->value);
 }
 
 struct samsung_retention_ctrl *
@@ -845,18 +841,12 @@ exynos_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 		      const struct samsung_retention_data *data)
 {
 	struct samsung_retention_ctrl *ctrl;
-	struct regmap *pmu_regs;
-	int i;
+	int i, ret;
 
 	ctrl = devm_kzalloc(drvdata->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 
-	pmu_regs = exynos_get_pmu_regmap();
-	if (IS_ERR(pmu_regs))
-		return ERR_CAST(pmu_regs);
-
-	ctrl->priv = pmu_regs;
 	ctrl->regs = data->regs;
 	ctrl->nr_regs = data->nr_regs;
 	ctrl->value = data->value;
@@ -865,8 +855,11 @@ exynos_retention_init(struct samsung_pinctrl_drv_data *drvdata,
 	ctrl->disable = exynos_retention_disable;
 
 	/* Ensure that retention is disabled on driver init */
-	for (i = 0; i < ctrl->nr_regs; i++)
-		regmap_write(pmu_regs, ctrl->regs[i], ctrl->value);
+	for (i = 0; i < ctrl->nr_regs; i++) {
+		ret = exynos_pmu_write(ctrl->regs[i], ctrl->value);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	return ctrl;
 }
