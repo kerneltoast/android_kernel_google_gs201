@@ -11,6 +11,8 @@
 		compatible = "samsung,s6e3fc3";
 		label = "samsung-s6e3fc3";
 		channel = <0>;
+		touch = <&spitouch>;
+
 		/* vddi is from PP1850_SA which is always on */
 		/delete-node/ vddi-supply;
 	};
