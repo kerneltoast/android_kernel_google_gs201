@@ -76,7 +76,7 @@ static inline int hardlockup_debug_try_lock_timeout(raw_spinlock_t *lock,
 	int ret;
 
 	do {
-		ret = do_raw_spin_trylock(lock);
+		ret = raw_spin_trylock(lock);
 		if (!ret)
 			udelay(1);
 	} while(!ret && (timeout--) > 0);
