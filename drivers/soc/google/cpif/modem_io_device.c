@@ -493,7 +493,7 @@ static int rx_demux(struct link_device *ld, struct sk_buff *skb)
 			return rx_raw_misc(skb);
 		break;
 	case PROTOCOL_SIT:
-		if (skb_ld->is_fmt_ch(ch)) {
+		if (skb_ld->is_fmt_ch(ch) || skb_ld->is_oem_ch(ch)) {
 			iod->mc->receive_first_ipc = 1;
 			return rx_fmt_ipc(skb);
 		} else if (skb_ld->is_wfs0_ch(ch))
