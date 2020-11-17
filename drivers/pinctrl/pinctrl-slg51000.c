@@ -34,9 +34,14 @@ static const struct pinctrl_pin_desc slg51000_pins[] = {
 	PINCTRL_PIN(SLG51000_GPIO2, "gpio2"),
 	PINCTRL_PIN(SLG51000_GPIO3, "gpio3"),
 	PINCTRL_PIN(SLG51000_GPIO4, "gpio4"),
-	PINCTRL_PIN(SLG51000_SEQUENCE1, "sequence1"),
-	PINCTRL_PIN(SLG51000_SEQUENCE2, "sequence2"),
-	PINCTRL_PIN(SLG51000_SEQUENCE3, "sequence3"),
+	PINCTRL_PIN(SLG51000_SEQ1, "seq1"),
+	PINCTRL_PIN(SLG51000_SEQ2, "seq2"),
+	PINCTRL_PIN(SLG51000_SEQ3, "seq3"),
+};
+
+static const int slg51000_ctrl_bit_tbl[] = {
+	BIT(4), BIT(5), BIT(6), BIT(7),	/* gpio1, gpio2, gpio3, gpio4 */
+	BIT(0), BIT(1), BIT(2)		/* seq1, seq2, seq3 */
 };
 
 /* gpio_chip functions */
@@ -61,9 +66,9 @@ static int slg51000_gpio_get_direction(struct gpio_chip *chip,
 	case SLG51000_GPIO4:
 		addr = SLG51000_IO_GPIO4_CONF;
 		break;
-	case SLG51000_SEQUENCE1:
-	case SLG51000_SEQUENCE2:
-	case SLG51000_SEQUENCE3:
+	case SLG51000_SEQ1:
+	case SLG51000_SEQ2:
+	case SLG51000_SEQ3:
 		return GPIOF_DIR_OUT;
 	default:
 		return -EOPNOTSUPP;
@@ -99,9 +104,6 @@ static int slg51000_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	case SLG51000_GPIO4:
 		addr = GPIO4_CTRL;
 		break;
-	case SLG51000_SEQUENCE1:
-	case SLG51000_SEQUENCE2:
-	case SLG51000_SEQUENCE3:
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -120,6 +122,7 @@ static void slg51000_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			     int value)
 {
 	int ret;
+	int val = !!value; /* convert value to 0/1 */
 	unsigned int addr;
 	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
 
@@ -139,16 +142,13 @@ static void slg51000_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	case SLG51000_GPIO4:
 		addr = GPIO4_CTRL;
 		break;
-	case SLG51000_SEQUENCE1:
-	case SLG51000_SEQUENCE2:
-	case SLG51000_SEQUENCE3:
 	default:
 		pr_err("Error: %s Unsupported GPIO offset %d\n",
 			__func__, offset);
 		return;
 	}
 
-	ret = regmap_write(data->regmap, addr, value);
+	ret = regmap_write(data->regmap, addr, val);
 	if (ret < 0) {
 		pr_err("Error: %s Failed on GPIO offset %d\n",
 			__func__, offset);
@@ -156,6 +156,39 @@ static void slg51000_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 	if (data->chip->exit_sw_test_mode)
 		data->chip->exit_sw_test_mode(data->regmap);
+}
+
+static int slg51000_gpio_seq_get(struct gpio_chip *chip, unsigned int offset)
+{
+	int ret;
+	unsigned int val;
+	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
+
+	ret = regmap_read(data->regmap, SLG51000_SYSCTL_MATRIX_CONF_A, &val);
+	if (ret < 0) {
+		pr_err("Error: %s Failed on GPIO offset %d\n",
+			__func__, offset);
+		return ret;
+	}
+
+	return val & slg51000_ctrl_bit_tbl[offset];
+}
+
+static void slg51000_gpio_seq_set(struct gpio_chip *chip, unsigned int offset,
+			     int value)
+{
+	int ret;
+	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
+
+	ret = regmap_update_bits(data->regmap, SLG51000_SYSCTL_MATRIX_CONF_A,
+			slg51000_ctrl_bit_tbl[offset],
+			value ? slg51000_ctrl_bit_tbl[offset] : 0);
+	if (ret < 0) {
+		pr_err("Error: %s Failed on GPIO offset %d\n",
+			__func__, offset);
+	}
+
+	return;
 }
 
 static int slg51000_gpio_direction_input(struct gpio_chip *chip,
@@ -181,9 +214,6 @@ static int slg51000_gpio_direction_input(struct gpio_chip *chip,
 	case SLG51000_GPIO4:
 		addr = SLG51000_IO_GPIO4_CONF;
 		break;
-	case SLG51000_SEQUENCE1:
-	case SLG51000_SEQUENCE2:
-	case SLG51000_SEQUENCE3:
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -208,38 +238,42 @@ static int slg51000_gpio_direction_output(struct gpio_chip *chip,
 	unsigned int addr;
 	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
 
+	if (offset >= SLG51000_GPIO_NR)
+		return -EOPNOTSUPP;
+
 	if (data->chip->enter_sw_test_mode)
 		data->chip->enter_sw_test_mode(data->regmap);
 
-	switch (offset) {
-	case SLG51000_GPIO1:
-		addr = SLG51000_IO_GPIO1_CONF;
-		break;
-	case SLG51000_GPIO2:
-		addr = SLG51000_IO_GPIO2_CONF;
-		break;
-	case SLG51000_GPIO3:
-		addr = SLG51000_IO_GPIO3_CONF;
-		break;
-	case SLG51000_GPIO4:
-		addr = SLG51000_IO_GPIO4_CONF;
-		break;
-	case SLG51000_SEQUENCE1:
-	case SLG51000_SEQUENCE2:
-	case SLG51000_SEQUENCE3:
-	default:
-		return -EOPNOTSUPP;
+	if (offset >= SLG51000_GPIO1 && offset <= SLG51000_GPIO4){
+		switch (offset) {
+		case SLG51000_GPIO1:
+			addr = SLG51000_IO_GPIO1_CONF;
+			break;
+		case SLG51000_GPIO2:
+			addr = SLG51000_IO_GPIO2_CONF;
+			break;
+		case SLG51000_GPIO3:
+			addr = SLG51000_IO_GPIO3_CONF;
+			break;
+		case SLG51000_GPIO4:
+			addr = SLG51000_IO_GPIO4_CONF;
+			break;
+		default:
+			break;
+		}
+
+		ret = regmap_update_bits(data->regmap, addr,
+				SLG51000_GPIO_DIR_MASK,
+				BIT(SLG51000_GPIO_DIR_SHIFT));
+		if (ret < 0) {
+			pr_err("Error: %s Failed on GPIO offset %d\n",
+				__func__, offset);
+			return ret;
+		}
 	}
 
-	ret = regmap_update_bits(data->regmap, addr, SLG51000_GPIO_DIR_MASK,
-			BIT(SLG51000_GPIO_DIR_SHIFT));
-	if (ret < 0) {
-		pr_err("Error: %s Failed on GPIO offset %d\n",
-			__func__, offset);
-		return ret;
-	}
-
-	slg51000_gpio_set(chip, offset, value);
+	if (data->gc.set)
+		data->gc.set(chip, offset, value);
 
 	if (data->chip->exit_sw_test_mode)
 		data->chip->exit_sw_test_mode(data->regmap);
@@ -328,8 +362,15 @@ static int slg51000_pinctrl_probe(struct platform_device *pdev)
 	slg51000_pctl->gc.label = pdev->name;
 	slg51000_pctl->gc.parent = &pdev->dev;
 	slg51000_pctl->gc.get_direction = slg51000_gpio_get_direction;
-	slg51000_pctl->gc.get = slg51000_gpio_get;
-	slg51000_pctl->gc.set = slg51000_gpio_set;
+
+	if (slg51000_pctl->chip->support_power_seq) {
+		slg51000_pctl->gc.get = slg51000_gpio_seq_get;
+		slg51000_pctl->gc.set = slg51000_gpio_seq_set;
+	} else {
+		slg51000_pctl->gc.get = slg51000_gpio_get;
+		slg51000_pctl->gc.set = slg51000_gpio_set;
+	}
+
 	slg51000_pctl->gc.direction_input = slg51000_gpio_direction_input;
 	slg51000_pctl->gc.direction_output = slg51000_gpio_direction_output;
 	slg51000_pctl->gc.base = -1;

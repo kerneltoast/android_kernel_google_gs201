@@ -598,6 +598,7 @@ struct slg51000_dev {
 	int chip_bb_pin;
 	int chip_pu_pin;
 	int chip_id;
+	bool support_power_seq;
 
 	int (*enter_sw_test_mode)(struct regmap *map);
 	int (*exit_sw_test_mode)(struct regmap *map);
@@ -609,9 +610,10 @@ enum {
 	SLG51000_GPIO2,
 	SLG51000_GPIO3,
 	SLG51000_GPIO4,
-	SLG51000_SEQUENCE1,
-	SLG51000_SEQUENCE2,
-	SLG51000_SEQUENCE3,
+	SLG51000_SEQ1,
+	SLG51000_SEQ2,
+	SLG51000_SEQ3,
+	SLG51000_GPIO_NR,
 };
 
 struct slg51000_register_setting {
