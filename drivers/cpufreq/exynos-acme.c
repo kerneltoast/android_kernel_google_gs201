@@ -1182,7 +1182,7 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 			if (volt_table[index] <= val)
 				break;
 		}
-		domain->max_freq = min(domain->max_freq, freq_table[index]);
+		domain->max_freq = min(domain->max_freq, (unsigned int)freq_table[index]);
 		domain->max_freq_qos = domain->max_freq;
 	}
 
