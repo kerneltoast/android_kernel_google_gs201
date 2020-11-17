@@ -31,6 +31,7 @@
 			50  50   0
 			30   0   0
 		>;
+		#thermal-sensor-cells = <0>;
 	};
 
 	google_cpm: google,cpm {

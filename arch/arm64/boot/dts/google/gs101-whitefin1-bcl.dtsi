@@ -28,6 +28,13 @@
 
 /* Thermal Zones */
 &thermal_zones {
+	battery_cycle {
+		zone_name  = "BATTERY_CYCLE";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&google_battery>;
+	};
+
 	pmic_120c {
 		zone_name  = "PMIC_120C";
 		polling-delay-passive = <1000>;
