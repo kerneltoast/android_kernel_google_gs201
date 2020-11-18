@@ -1045,6 +1045,9 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->average_qp))
 		val |= ENC_SET_AVERAGE_QP;
 
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->mv_search_mode))
+		val |= ENC_SET_MV_SEARCH_MODE;
+
 	mfc_debug(5, "[CTRLS] ext info val: %#x\n", val);
 
 	return val;
@@ -1991,6 +1994,21 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 		ctx->operating_framerate = ctrl->value;
 		mfc_debug(2, "[QoS] user set the operating frame rate: %d\n", ctrl->value);
 		break;
+	case V4L2_CID_MPEG_VIDEO_MV_SEARCH_MODE:
+		p->mv_search_mode = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L0:
+		p->mv_hor_pos_l0 = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L1:
+		p->mv_hor_pos_l1 = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L0:
+		p->mv_ver_pos_l0 = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L1:
+		p->mv_ver_pos_l1 = ctrl->value;
+		break;
 	/* These are stored in specific variables */
 	case V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH:
 	case V4L2_CID_MPEG_VIDEO_VP9_HIERARCHICAL_CODING_LAYER_CH:
@@ -2082,6 +2100,10 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	case V4L2_CID_MPEG_VIDEO_YSUM:
 	case V4L2_CID_MPEG_VIDEO_RATIO_OF_INTRA:
 	case V4L2_CID_MPEG_VIDEO_DROP_CONTROL:
+	case V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L0:
+	case V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L1:
+	case V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L0:
+	case V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L1:
 	case V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG:
 	case V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG:
 		list_for_each_entry(ctx_ctrl, &ctx->ctrls, list) {

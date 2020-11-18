@@ -286,6 +286,9 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 	if (nal_q_parallel_disable)
 		mfc_set_bits(reg, 0x1, 18, 0x1);
 
+	/* Predict motion search mode */
+	mfc_clear_set_bits(reg, 0x3, 22, p->mv_search_mode);
+
 	mfc_clear_set_bits(reg, 0x3, 7, enc->sbwc_option);
 	mfc_debug(2, "[SBWC] option is %d\n", enc->sbwc_option);
 
@@ -304,6 +307,22 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 	}
 
 	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_ENC_OPTIONS);
+
+	if (p->mv_search_mode == 2) {
+		reg = MFC_CORE_RAW_READL(MFC_REG_E_MV_HOR_RANGE);
+		mfc_clear_set_bits(reg, 0xff, 16, p->mv_hor_pos_l0);
+		mfc_clear_set_bits(reg, 0xff, 24, p->mv_hor_pos_l1);
+		MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_MV_HOR_RANGE);
+
+		reg = MFC_CORE_RAW_READL(MFC_REG_E_MV_VER_RANGE);
+		mfc_clear_set_bits(reg, 0xff, 16, p->mv_ver_pos_l0);
+		mfc_clear_set_bits(reg, 0xff, 24, p->mv_ver_pos_l1);
+		MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_MV_VER_RANGE);
+		mfc_debug(2, "MV search mode(%d), HOR (L0: %d, L1: %d), VER (L0: %d, L1: %d)\n",
+				p->mv_search_mode,
+				p->mv_hor_pos_l0, p->mv_hor_pos_l1,
+				p->mv_ver_pos_l0, p->mv_ver_pos_l1);
+	}
 
 	if (ctx->src_fmt->type & MFC_FMT_RGB) {
 		reg = MFC_CORE_RAW_READL(MFC_REG_PIXEL_FORMAT);

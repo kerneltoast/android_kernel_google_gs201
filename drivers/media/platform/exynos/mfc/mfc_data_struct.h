@@ -755,6 +755,7 @@ struct mfc_platdata {
 	struct mfc_feature drm_switch_predict;
 	struct mfc_feature sbwc_enc_src_ctrl;
 	struct mfc_feature average_qp;
+	struct mfc_feature mv_search_mode;
 
 	/* AV1 Decoder */
 	unsigned int support_av1_dec;
@@ -880,7 +881,9 @@ typedef struct __EncoderInputStr {
 	int St2094_40sei[30];
 	int SourcePlaneStride[3];
 	int SourcePlane2BitStride[2];
-} EncoderInputStr; /* 86*4 = 344 bytes */
+	int MVHorRange;
+	int MVVerRange;
+} EncoderInputStr; /* 88*4 = 352 bytes */
 
 typedef struct __DecoderOutputStr {
 	int StartCode; /* 0xAAAAAAAA; Decoder output structure marker */
@@ -1607,6 +1610,12 @@ struct mfc_enc_params {
 	u32 display_primaries_2;
 	u32 chroma_qp_offset_cb; /* H.264, HEVC */
 	u32 chroma_qp_offset_cr; /* H.264, HEVC */
+
+	u32 mv_search_mode;
+	u32 mv_hor_pos_l0;
+	u32 mv_hor_pos_l1;
+	u32 mv_ver_pos_l0;
+	u32 mv_ver_pos_l1;
 
 	union {
 		struct mfc_h264_enc_params h264;
