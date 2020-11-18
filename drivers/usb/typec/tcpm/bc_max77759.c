@@ -57,6 +57,7 @@ static void vendor_bc12_alert(struct work_struct *work)
 	struct max77759_plat *plat = bc12->chip;
 	struct regmap *regmap = plat->data.regmap;
 	union power_supply_propval val;
+	int ret;
 
 	mutex_lock(&bc12->lock);
 	logbuffer_log(plat->log,
@@ -76,10 +77,10 @@ static void vendor_bc12_alert(struct work_struct *work)
 		 * attach
 		 */
 		if (update->vendor_bc_status1 & DCDTMO) {
-			max77759_write8(regmap, VENDOR_BC_CTRL1, CHGDETMAN);
+			ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL1, CHGDETMAN, CHGDETMAN);
 			logbuffer_log(plat->log,
-				      "BC12: DCD timeout occurred. Manual detection triggered"
-				      );
+				      "BC12: DCD timeout occurred. Manual detection triggered: %d",
+				      ret);
 		}
 	} else if (update->vendor_alert1_status & CHGTYPINT) {
 		switch (update->vendor_bc_status1 & CHGTYP) {
