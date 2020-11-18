@@ -45,20 +45,6 @@
 	};
 };
 
-&pinctrl_5 {
-	flash_active: flash_active {
-		samsung,pins = "gpp27-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-	};
-
-	flash_suspend: flash_suspend {
-		samsung,pins = "gpp27-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-	};
-};
-
 &hsi2c_1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -374,10 +360,6 @@
 				/* Registers */
 				reg-addr-bitwidth = <8>;
 				reg-value-bitwidth = <8>;
-
-				pinctrl-names = "mclk_on", "mclk_off";
-				pinctrl-0 = <&flash_active>;
-				pinctrl-1 = <&flash_suspend>;
 
 				/* GPIOs */
 				/* HW_ENABLE GPP23[6] */
