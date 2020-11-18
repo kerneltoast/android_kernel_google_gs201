@@ -123,8 +123,9 @@
 				/* RCAM_RST_L GPP2[2] */
 				reset-gpios = <&gpp2 2 GPIO_ACTIVE_HIGH>;
 
-				shared-enable-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>,
+				shared-enable1-gpios =
+					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				shared-enable2-gpios =
 					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
 				enable-gpios =
 					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
@@ -151,6 +152,64 @@
 				pinctrl-names = "mclk_on", "mclk_off";
 				pinctrl-0 = <&sensor_mclk4_fn>;
 				pinctrl-1 = <&sensor_mclk4_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"ldo7",
+					"enable",
+					"shared-enable1",
+					"ldo1",
+					"ldo4",
+					"shared-enable2",
+					"reset",
+					"mclk_on";
+				power-up-seq-types =
+					"regulator",
+					"gpio",
+					"gpio",
+					"regulator",
+					"regulator",
+					"gpio",
+					"gpio",
+					"pinctrl";
+				power-up-seq-delays-us =
+					<1000
+					 0
+					 1000
+					 0
+					 1000
+					 0
+					 1000
+					 9000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"mclk_off",
+					"reset",
+					"shared-enable2",
+					"ldo4",
+					"ldo1",
+					"shared-enable1",
+					"enable",
+					"ldo7";
+				power-down-seq-types =
+					"pinctrl",
+					"gpio",
+					"gpio",
+					"regulator",
+					"regulator",
+					"gpio",
+					"gpio",
+					"regulator";
+				power-down-seq-delays-us =
+					<1000
+					 0
+					 1000
+					 0
+					 1000
+					 0
+					 1000
+					 0>;
 			};
 
 			/* FRONT CAMERA IMX355 */
@@ -193,6 +252,46 @@
 				pinctrl-names = "mclk_on", "mclk_off";
 				pinctrl-0 = <&sensor_mclk2_fn>;
 				pinctrl-1 = <&sensor_mclk2_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"ldo3",
+					"ldo6",
+					"ldo7",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays-us =
+					<0
+					 0
+					 1000
+					 1000
+					 12000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"ldo7",
+					"ldo6",
+					"ldo3";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 1000
+					 0
+					 0
+					 0>;
 			};
 
 			/* REAR ULTRA WIDE CAMERA IMX386 */
@@ -235,6 +334,46 @@
 				pinctrl-names = "mclk_on", "mclk_off";
 				pinctrl-0 = <&sensor_mclk1_fn>;
 				pinctrl-1 = <&sensor_mclk1_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"ldo2",
+					"ldo5",
+					"ldo7",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays-us =
+					<0
+					 0
+					 1000
+					 1000
+					 12000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"ldo7",
+					"ldo5",
+					"ldo2";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 1000
+					 0
+					 0
+					 0>;
 			};
 
 			/* Eeprom lc898128 for gn1*/
