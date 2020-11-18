@@ -442,6 +442,10 @@
 		compatible = "google,acpm-flexpmu-dbg";
 	};
 
+	acpm_mbox_test {
+		compatible = "google,acpm-mbox-test";
+	};
+
 	acpm {
 		compatible = "google,gs-acpm";
 		#address-cells = <2>;
