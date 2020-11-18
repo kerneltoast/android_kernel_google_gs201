@@ -96,14 +96,15 @@
 			self-powered;
 			op-sink-microwatt = <2600000>;
 			frs-typec-current = <FRS_5V_1P5A>;
-			source-pdos = <PDO_FIXED(5000, 900,
+			source-pdos = <PDO_FIXED(5000, 1500,
 						 PDO_FIXED_SUSPEND |
 						 PDO_FIXED_USB_COMM |
 						 PDO_FIXED_DATA_SWAP |
 						 PDO_FIXED_DUAL_ROLE)>;
 			sink-pdos = <PDO_FIXED(5000, 3000,
-					       PDO_FIXED_USB_COMM |
 					       PDO_FIXED_DATA_SWAP |
+					       PDO_FIXED_USB_COMM |
+					       PDO_FIXED_HIGHER_CAP |
 					       PDO_FIXED_DUAL_ROLE)
 				     PDO_FIXED(9000, 2000, 0)
 				     PDO_PPS_APDO(5000, 11000, 3000)>;
