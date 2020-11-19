@@ -498,7 +498,7 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-ramp-delay = <12000>;
-				regulator-initial-mode = <3>;  /* ALWAYS_ON */
+				regulator-initial-mode = <1>;  /* GPIO_CONTROL */
 				channel-mux-selection = <0x34>;
 				schematic-name = "L20M_DMICS";
 				subsys-name = "DMIC";
