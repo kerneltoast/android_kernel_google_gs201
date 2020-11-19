@@ -1040,6 +1040,7 @@
 		interrupts = <GIC_SPI IRQ_TMU_TMU_SUB_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "G3D";
 		id = <3>;
+		ect_nouse = <1>;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
