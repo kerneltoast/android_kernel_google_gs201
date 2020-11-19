@@ -1,7 +1,11 @@
 per-file base/**=set noparent
 per-file base/**=gregkh@google.com,saravanak@google.com
 
+per-file block/zram/zcomp.c=*
+per-file block/zram/zcomp.h=*
 per-file block/zram/zram_cpu.c=*
+per-file block/zram/zram_drv.c=*
+per-file block/zram/zram_drv.h=*
 per-file block/zram/zram_eh.c=*
 
 per-file bts/**=*
@@ -26,15 +30,19 @@ per-file clk/Makefile=saravanak@google.com
 per-file clk/samsung/clk-gs101.c=*
 per-file clk/samsung/composite.*=*
 
+per-file clocksource/exynos_mct.c=*
+
 per-file cpufreq/exynos-*=*
 
 per-file devfreq/gs101/**=*
 
+per-file dma/pl330.c=*
 per-file dma/samsung-*=*
 
 per-file gpu/exynos/**=*
 
 per-file i2c/busses/i2c-acpm.c=*
+per-file i2c/busses/i2c-exynos5.c=*
 per-file i2c/busses/i2c-exynos5.h=*
 
 per-file iio/power/odpm.c=*
@@ -72,7 +80,9 @@ per-file pci/controller/dwc/pcie-exynos*=*
 
 per-file phy/samsung/**=*
 
+per-file pinctrl/samsung/pinctrl-exynos.c=*
 per-file pinctrl/samsung/pinctrl-gs*=*
+per-file pinctrl/samsung/pinctrl-samsung.c=*
 
 per-file power/reset/debug-reboot.c=*
 per-file power/reset/exynos-reboot.c=*
@@ -92,6 +102,7 @@ per-file regulator/max77826-gs-regulator*=*
 per-file regulator/of_regulator.c=saravanak@google.com
 per-file regulator/pmic_class.c=*
 per-file regulator/s2mpg*=*
+per-file regulator/slg51000-regulator.c=*
 per-file regulator/userspace-consumer.c=saravanak@google.com
 per-file regulator/virtual.c=saravanak@google.com
 
@@ -99,12 +110,16 @@ per-file rtc/rtc-s2mpg*=*
 
 per-file scsi/ufs/ufs-cal-gs101*=*
 per-file scsi/ufs/ufs-cal-if*=*
+per-file scsi/ufs/ufs-exynos.c=*
+per-file scsi/ufs/ufs-exynos.h=*
 per-file scsi/ufs/ufs-exynos-*=*
 per-file scsi/ufs/ufs-pixel*=*
 per-file scsi/ufs/ufs-vs-mmio.h=*
 per-file scsi/ufs/ufs-vs-regs.h=*
 
 per-file soc/google/**=*
+
+per-file spi/spi-s3c64xx.c=*
 
 per-file staging/android/ion/exynos/**=*
 
@@ -132,3 +147,5 @@ per-file usb/typec/tcpm/tcpci_max77759*=*
 per-file usb/typec/tcpm/tcpci_otg_helper.h=*
 per-file usb/typec/tcpm/usb_icl_voter.h=*
 per-file usb/typec/tcpm/usb_psy.*=*
+
+per-file watchdog/s3c2410_wdt.c=*
