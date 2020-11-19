@@ -1777,9 +1777,6 @@ int dwc3_probe(struct platform_device *pdev,
 		goto err4;
 	}
 
-	/* Enable LDO initially */
-	exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 1);
-
 	ret = dwc3_exynos_core_init(dwc);
 	if (ret) {
 		dev_err(dev, "failed to initialize exynos core\n");

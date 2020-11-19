@@ -909,6 +909,9 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	if (ret)
 		dev_err(dwc->dev, "failed to create dwc3 otg attributes\n");
 
+	/* Enable LDO initially */
+	exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 1);
+
 	init_completion(&dotg->resume_cmpl);
 	dotg->dwc3_suspended = 0;
 	dotg->pm_nb.notifier_call = dwc3_otg_pm_notifier;
@@ -930,6 +933,7 @@ int dwc3_otg_init(struct dwc3 *dwc)
 			      msecs_to_jiffies(2000));
 #endif
 
+	exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 0);
 	dev_info(dwc->dev, "%s done\n", __func__);
 
 	return 0;
