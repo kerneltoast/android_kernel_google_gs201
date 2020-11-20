@@ -338,6 +338,8 @@ void dbg_snapshot_ecc_dump(void)
 	case ARM_CPU_PART_CORTEX_A55:
 	case ARM_CPU_PART_CORTEX_A76:
 	case ARM_CPU_PART_CORTEX_A77:
+	case ARM_CPU_PART_CORTEX_A78:
+	case ARM_CPU_PART_CORTEX_X1:
 		asm volatile ("HINT #16");
 		erridr_el1.reg = read_erridr_el1();
 		dev_emerg(dss_desc.dev, "ECC error check erridr_el1.num = 0x%llx\n",
