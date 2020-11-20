@@ -1216,6 +1216,8 @@ static void gs101_bcl_mfd_init(struct work_struct *work)
 				      gs101_bcl_device);
 			bypass_smpl_warn = true;
 		}
+		thermal_zone_device_update(gs101_bcl_device->soc_tzd, THERMAL_DEVICE_UP);
+		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
 		gs101_bcl_device->s2mpg10_i2c = s2mpg10->pmic;
 		gs101_bcl_device->s2mpg11_i2c = 0x0;
 		gs101_bcl_device->s2mpg10_irq[IRQ_SMPL_WARN] =
@@ -1609,8 +1611,6 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 				  gs101_pmic_140c_work);
 		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_PMIC_OVERHEAT],
 				  gs101_pmic_overheat_work);
-		thermal_zone_device_update(gs101_bcl_device->soc_tzd, THERMAL_DEVICE_UP);
-		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
 	}
 	if (strcmp(dev_name(&pdev->dev), google_gs101_id_table[1].name) == 0) {
 		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg11_irq_work[IRQ_OCP_WARN_GPU],
