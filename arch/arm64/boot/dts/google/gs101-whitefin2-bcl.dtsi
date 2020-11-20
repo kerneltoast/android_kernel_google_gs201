@@ -82,16 +82,25 @@
 
 	soc {
 		zone_name  = "BATT_SOC_MOD";
-		polling-delay-passive = <1000>;
+		polling-delay-passive = <100>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
 		thermal-sensors = <&google_bcl_m 0>;
+		wake-capable-sensor;
 
 		trips {
 			soc_trip:soc-trip {
 				temperature = <90>;
 				hysteresis = <0>;
 				type = "passive";
+			};
+		};
+		cooling-maps {
+			cpu2-map {
+				trip = <&soc_trip>;
+				cooling-device = <&cpufreq_domain2
+						THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
 			};
 		};
 	};
