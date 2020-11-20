@@ -25,18 +25,11 @@
 #define SIMPLE_INTERACTIVE 0
 
 int devfreq_simple_interactive_init(void);
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 #define LOAD_BUFFER_MAX			10
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-#define MAX_LOG_TIME 300
-#endif
 struct devfreq_alt_load {
 	unsigned long long	delta;
 	unsigned int		load;
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-	unsigned long long clock;
-	unsigned int alt_freq;
-#endif
 };
 
 #define ALTDVFS_MIN_SAMPLE_TIME		15
@@ -58,18 +51,6 @@ struct devfreq_alt_dvfs_data {
 	unsigned int		max_load;
 	unsigned long long	max_spent;
 
-	struct devfreq_alt_dvfs_param *alt_param;
-	struct devfreq_alt_dvfs_param *alt_param_set;
-	struct devfreq_alt_dvfs_param *alt_user_mode;
-	int default_mode, current_mode, num_modes;
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-	bool				load_track;
-	unsigned int		log_top;
-	struct devfreq_alt_load *log;
-#endif
-};
-
-struct devfreq_alt_dvfs_param {
 	/* ALT-DVFS parameter */
 	unsigned int		*target_load;
 	unsigned int		num_target_load;
@@ -105,7 +86,7 @@ struct devfreq_simple_interactive_data {
 	struct devfreq_notifier_block nb;
 	struct devfreq_notifier_block nb_max;
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	struct devfreq_alt_dvfs_data alt_data;
 	unsigned int governor_freq;
 #endif

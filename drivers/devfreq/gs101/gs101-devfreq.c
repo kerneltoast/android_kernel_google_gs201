@@ -65,7 +65,7 @@ static u32 exynos_devfreq_opp_round_freq(
 				struct exynos_devfreq_opp_table *table,
 				unsigned int size, u32 freq);
 
-#ifdef CONFIG_EXYNOS_ALT_DVFS
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 static struct srcu_notifier_head exynos_alt_notifier;
 
 void exynos_alt_call_chain(void)
@@ -858,7 +858,7 @@ static ssize_t store_debug_scaling_devfreq_min(struct device *dev,
 static ssize_t show_alt_dvfs_info(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	struct device *parent = dev->parent;
 	struct platform_device *pdev =
 		container_of(parent, struct platform_device, dev);
@@ -1136,7 +1136,7 @@ static ssize_t store_delay_time(struct device *dev,
 	return count;
 }
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 static ssize_t show_target_load(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -1155,7 +1155,7 @@ static ssize_t show_target_load(struct device *dev,
 				  (i ==
 				   (data->simple_interactive_data.alt_data.num_target_load - 1) ?
 				   "" :
-				   (i % 2) ? ":" : " ");
+				   (i % 2) ? ":" : " "));
 	}
 	count += snprintf(buf + count, PAGE_SIZE, "\n");
 	mutex_unlock(&data->devfreq->lock);
@@ -1263,7 +1263,7 @@ static ssize_t min_sample_time_store(struct device *dev,
 static DEVICE_ATTR(use_delay_time, 0640, show_use_delay_time,
 		   store_use_delay_time);
 static DEVICE_ATTR(delay_time, 0640, show_delay_time, store_delay_time);
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 static DEVICE_ATTR(target_load, 0640, show_target_load, store_target_load);
 static DEVICE_ATTR(hold_sample_time, 0640, show_hold_sample_time,
 		   store_hold_sample_time);
@@ -1273,7 +1273,7 @@ static DEVICE_ATTR_RW(min_sample_time);
 static struct attribute *devfreq_interactive_sysfs_entries[] = {
 	&dev_attr_use_delay_time.attr,
 	&dev_attr_delay_time.attr,
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	&dev_attr_target_load.attr,
 	&dev_attr_hold_sample_time.attr,
 	&dev_attr_min_sample_time.attr,
@@ -1379,7 +1379,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 	const char *update_fvp;
 	int ntokens;
 	int not_using_ect = true;
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	struct devfreq_alt_dvfs_data *alt_data;
 #endif
 	unsigned int i;
@@ -1628,7 +1628,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 			dev_info(data->dev, "Not registered UM monitor data\n");
 		}
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 		/* Parse ALT-DVFS related parameters */
 		if (of_property_read_bool(np, "use_alt_dvfs")) {
 			alt_data = &data->simple_interactive_data.alt_data;
@@ -1782,7 +1782,7 @@ static int exynos_devfreq_reboot_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 static int exynos_devfreq_notifier(struct notifier_block *nb, unsigned long val,
 				   void *v)
 {
@@ -1961,7 +1961,7 @@ static int exynos_devfreq_suspend(struct device *dev)
 	if (exynos_devfreq_get_freq(data->dev, &get_freq, data->clk, data))
 		dev_err(data->dev, "failed get freq\n");
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	exynos_devfreq_um_exit(data);
 #endif
 
@@ -2033,7 +2033,7 @@ static int exynos_devfreq_resume(struct device *dev)
 		exynos_pm_qos_update_request(&data->default_pm_qos_min,
 					     data->default_qos);
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	ret = exynos_devfreq_um_init(data);
 	if (ret)
 		dev_err(data->dev, "failed to restart um\n");
@@ -2208,7 +2208,7 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 				  data->devfreq_profile.initial_freq);
 
 	/* Initialize ALT-DVFS */
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	if (data->use_get_dev) {
 		init_alt_notifier_list();
 
@@ -2306,7 +2306,7 @@ err_opp_noti:
 	exynos_pm_qos_remove_request(&data->debug_pm_qos_max);
 	exynos_pm_qos_remove_request(&data->sys_pm_qos_min);
 	devfreq_remove_device(data->devfreq);
-#ifdef CONFIG_EXYNOS_ALT_DVFS
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 err_um:
 	if (data->um_nb) {
 		exynos_alt_unregister_notifier(&data->um_nb->nb);
@@ -2366,7 +2366,7 @@ static int exynos_devfreq_remove(struct platform_device *pdev)
 	exynos_pm_qos_remove_request(&data->debug_pm_qos_min);
 	exynos_pm_qos_remove_request(&data->debug_pm_qos_max);
 	exynos_pm_qos_remove_request(&data->sys_pm_qos_min);
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	exynos_alt_unregister_notifier(&data->um_nb->nb);
 	exynos_devfreq_um_exit(data);
 #endif
