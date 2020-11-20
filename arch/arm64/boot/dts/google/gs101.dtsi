@@ -766,6 +766,26 @@
 			acpm-ipc-channel = <1>;
 			use_acpm = "true";
 
+			/* ALT-DVFS */
+			use_get_dev = "true";
+			um_count = <6>;
+			um_list = <
+				/* PPC_CPUCL0_D0_EVENT PPC_CPUCL0_D1_EVENT */
+				0x1E110000 0x1E120000
+				/* PPC_BUS2_M0_EVENT PPC_BUS2_M1_EVENT */
+				0x1E170000 0x1E180000
+				/* PPC_BUS2_M2_EVENT PPC_BUS2_M3_EVENT */
+				0x1E190000 0x1E1A0000
+			>;
+
+			use_alt_dvfs;
+			polling_ms = <0>;
+			target_load = "5";
+			min_sample_time = <20>;
+			hold_sample_time = <60>;
+			hispeed_load = <100>;
+			hispeed_freq = <1352000>;
+
 			/* Default remove MIF L1/L2/L3 */
 			l123_restrict = "1";
 		};
