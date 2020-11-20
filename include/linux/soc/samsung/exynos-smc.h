@@ -171,10 +171,11 @@
 #define PROT_L4				(6)
 #define PROT_L3				(9)
 #define PROT_L5				(10)
-#define PROT_WB1			(11)
+#define PROT_L12			(11)
 #define PROT_G3D			(12)
 #define PROT_JPEG			(13)
 #define PROT_G2D			(14)
+#define PROT_MFC1			(23)
 
 #ifndef __ASSEMBLY__
 /* secure SysMMU SFR access */
