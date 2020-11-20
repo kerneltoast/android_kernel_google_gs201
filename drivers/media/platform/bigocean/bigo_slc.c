@@ -14,6 +14,12 @@
 
 #include "bigo_slc.h"
 
+#define SID_S3_TEMPORAL 3
+#define SID_COMP_INFO 6
+#define SID_S4_SECONDARY_COLBUF 19
+#define SID_S4_COMP_TILE_COL 20
+#define SID_S4_CDEC_TILE_COL 21
+
 void bigo_bypass_ssmt_pid(struct bigo_core *core)
 {
 	int sid;
@@ -28,8 +34,11 @@ void bigo_bypass_ssmt_pid(struct bigo_core *core)
 
 	for (sid = 0; sid < 32; sid++) {
 		offset = sid * 4;
-		writel(0x80000000, core->slc.ssmt_pid_base + offset);
-		writel(0x80000000, core->slc.ssmt_pid_base + wr_off + offset);
+		if (sid == SID_S3_TEMPORAL || sid == SID_COMP_INFO ||
+			sid == SID_S4_SECONDARY_COLBUF || sid == SID_S4_COMP_TILE_COL ||
+			sid == SID_S4_CDEC_TILE_COL) {
+			writel(core->slc.pid, core->slc.ssmt_pid_base + offset);
+		}
 		writel(0xe, core->slc.ssmt_pid_base + cache_off + offset);
 		writel(0x80000000, core->slc.ssmt_pid_base + rd_alloc_off + offset);
 		writel(0x80000000, core->slc.ssmt_pid_base + wr_alloc_off + offset);
