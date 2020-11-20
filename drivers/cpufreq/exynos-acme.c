@@ -355,7 +355,6 @@ static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
 		 domain->id, domain->old, target_freq);
 
 	domain->old = target_freq;
-	arch_set_freq_scale(&domain->cpus, target_freq, policy->cpuinfo.max_freq);
 
 out:
 	mutex_unlock(&domain->lock);
