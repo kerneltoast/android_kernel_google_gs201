@@ -107,7 +107,8 @@ struct um_exynos {
 	u32 *channel;
 	unsigned int um_count;
 	u64 val_ccnt;
-	u64 val_pmcnt;
+	u64 val_pmcnt0;
+	u64 val_pmcnt1;
 };
 
 struct exynos_devfreq_data {

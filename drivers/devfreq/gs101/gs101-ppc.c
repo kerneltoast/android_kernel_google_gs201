@@ -28,10 +28,11 @@
 #define CNTENC 0x000C
 #define CNTRESET 0x002C
 #define CNTAUTO 0x0030
-#define PMCNT 0x0034
+#define PMCNT0 0x0034
+#define PMCNT1 0x0038
 #define CCNT 0x0048
 
-#define BIT_CHVALUE ((0x1 << 31) | (0x1 << 0))
+#define BIT_CHVALUE ((0x1 << 31) | (0x3 << 0))
 #define BIT_REGVALUE (0x1 << 24)
 #define BIT_RESETALL (0x6)
 #define BIT_GLBCNTEN (0x1)
@@ -71,19 +72,19 @@ static void exynos_read_ppc(struct exynos_devfreq_data *data)
 	struct ppc_data ppc = {
 		0,
 	};
-	int index = 0;
 
 	data->um_data.val_ccnt = 0;
-	data->um_data.val_pmcnt = 0;
+	data->um_data.val_pmcnt0 = 0;
+	data->um_data.val_pmcnt1 = 0;
 
 	for (i = 0; i < data->um_data.um_count; i++) {
 		ppc.ccnt = __raw_readl(data->um_data.va_base[i] + CCNT);
-		ppc.pmcnt = __raw_readl(data->um_data.va_base[i] + PMCNT);
-
-		if (data->um_data.val_pmcnt < ppc.pmcnt) {
+		ppc.pmcnt0 = __raw_readl(data->um_data.va_base[i] + PMCNT0);
+		ppc.pmcnt1 = __raw_readl(data->um_data.va_base[i] + PMCNT1);
+		if (data->um_data.val_pmcnt1 < ppc.pmcnt1) {
 			data->um_data.val_ccnt = ppc.ccnt;
-			data->um_data.val_pmcnt = ppc.pmcnt;
-			index = i;
+			data->um_data.val_pmcnt0 = ppc.pmcnt0;
+			data->um_data.val_pmcnt1 = ppc.pmcnt1;
 		}
 	}
 }
@@ -134,7 +135,7 @@ static int exynos_devfreq_get_dev_status(struct device *dev,
 	exynos_read_ppc(data);
 
 	stat->current_frequency = data->devfreq->previous_freq;
-	profile_data->busy_time = data->um_data.val_pmcnt;
+	profile_data->busy_time = data->um_data.val_pmcnt1;
 	profile_data->total_time = data->um_data.val_ccnt;
 	profile_data->delta_time = data->last_monitor_period;
 

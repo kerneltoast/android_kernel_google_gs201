@@ -21,7 +21,8 @@
 
 struct ppc_data {
 	u64 ccnt;
-	u64 pmcnt;
+	u64 pmcnt0;
+	u64 pmcnt1;
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
