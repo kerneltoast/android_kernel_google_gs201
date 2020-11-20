@@ -51,6 +51,9 @@ static ssize_t cp_temp_store(struct device *dev, struct device_attribute *attr, 
 		return -EINVAL;
 	}
 
+	if (!temp_manager->sensor[index].valid && temp_manager->sensor[index].tzd)
+		thermal_zone_device_enable(temp_manager->sensor[index].tzd);
+
 	temp_manager->sensor[index].valid = true;
 	temp_manager->sensor[index].temp = temp;
 
@@ -126,7 +129,7 @@ static int cp_thermal_zone_probe(struct platform_device *pdev)
 			continue;
 		}
 		temp_manager->sensor[i].tzd = tzd;
-		thermal_zone_device_enable(tzd);
+		thermal_zone_device_disable(tzd);
 	}
 	platform_set_drvdata(pdev, temp_manager);
 fail:
