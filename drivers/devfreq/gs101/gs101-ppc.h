@@ -17,7 +17,6 @@
 #include <linux/ktime.h>
 #include <linux/devfreq.h>
 #include <soc/google/exynos-devfreq.h>
-#include <trace/events/power.h>
 
 struct ppc_data {
 	u64 ccnt;

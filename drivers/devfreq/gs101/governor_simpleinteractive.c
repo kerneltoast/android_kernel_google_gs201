@@ -24,6 +24,8 @@
 #include <linux/devfreq.h>
 #include <soc/google/exynos-devfreq.h>
 
+#include "dvfs_events.h"
+
 static int devfreq_simple_interactive_notifier(struct notifier_block *nb, unsigned long val,
 					       void *v)
 {
@@ -155,6 +157,8 @@ out:
 	if (alt_data->max_load > alt_data->hispeed_load &&
 	    alt_data->hispeed_freq > freq)
 		freq = alt_data->hispeed_freq;
+
+	trace_dvfs_update_load(freq, alt_data);
 
 	data->governor_freq = freq;
 

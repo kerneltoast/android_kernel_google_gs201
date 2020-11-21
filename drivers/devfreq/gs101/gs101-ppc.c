@@ -21,6 +21,9 @@
 #include <linux/math64.h>
 #include <linux/slab.h>
 
+#define CREATE_TRACE_POINTS
+#include "dvfs_events.h"
+
 #include "gs101-ppc.h"
 
 #define PMNC 0x0004
@@ -81,12 +84,16 @@ static void exynos_read_ppc(struct exynos_devfreq_data *data)
 		ppc.ccnt = __raw_readl(data->um_data.va_base[i] + CCNT);
 		ppc.pmcnt0 = __raw_readl(data->um_data.va_base[i] + PMCNT0);
 		ppc.pmcnt1 = __raw_readl(data->um_data.va_base[i] + PMCNT1);
+		trace_dvfs_read_ppc(ppc.ccnt, ppc.pmcnt0, ppc.pmcnt1,
+				    data->um_data.pa_base[i]);
 		if (data->um_data.val_pmcnt1 < ppc.pmcnt1) {
 			data->um_data.val_ccnt = ppc.ccnt;
 			data->um_data.val_pmcnt0 = ppc.pmcnt0;
 			data->um_data.val_pmcnt1 = ppc.pmcnt1;
 		}
 	}
+	trace_dvfs_read_ppc(data->um_data.val_ccnt, data->um_data.val_pmcnt0,
+			    data->um_data.val_pmcnt1, 0);
 }
 
 int exynos_devfreq_um_init(struct exynos_devfreq_data *data)
