@@ -339,7 +339,6 @@
 				regulator-name = "S2MPG10_LDO8";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x28>;
 				schematic-name = "L8M_USB";
@@ -350,7 +349,6 @@
 				regulator-name = "S2MPG10_LDO9";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x29>;
 				schematic-name = "L9M_USB";
@@ -361,7 +359,6 @@
 				regulator-name = "S2MPG10_LDO10";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3350000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2A>;
 				schematic-name = "L10M_USB";
