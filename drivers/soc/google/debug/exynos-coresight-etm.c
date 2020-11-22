@@ -822,11 +822,13 @@ static int exynos_etm_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ee_info->trace_lock);
 	register_pm_notifier(&exynos_etm_pm_nb);
+	cpus_read_lock();
 	cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
 			"exynos-etm:online",
 			exynos_etm_enable,
 			exynos_etm_disable);
 	cpu_pm_register_notifier(&exynos_etm_c2_pm_nb);
+	cpus_read_unlock();
 
 	if (ee_info->boot_start) {
 		ee_info->enabled = true;
