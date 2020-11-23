@@ -11,9 +11,10 @@
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 TRACE_EVENT(dvfs_update_load,
 
-	TP_PROTO(unsigned int freq, struct devfreq_alt_dvfs_data *alt_data),
+	TP_PROTO(unsigned int freq, struct devfreq_alt_dvfs_data *alt_data,
+		 unsigned int idx),
 
-	TP_ARGS(freq, alt_data),
+	TP_ARGS(freq, alt_data, idx),
 
 	TP_STRUCT__entry(
 		__field(unsigned int, freq)
@@ -22,21 +23,23 @@ TRACE_EVENT(dvfs_update_load,
 		__field(unsigned int, min_load)
 		__field(unsigned int, max_load)
 		__field(unsigned int, max_spent)
+		__field(unsigned int, idx)
 	),
 
 	TP_fast_assign(
 		__entry->freq = freq;
-		__entry->busy = alt_data->busy;
-		__entry->total = alt_data->total;
-		__entry->min_load = alt_data->min_load;
-		__entry->max_load = alt_data->max_load;
-		__entry->max_spent = alt_data->max_spent;
+		__entry->busy = alt_data->track[idx].busy;
+		__entry->total = alt_data->track[idx].total;
+		__entry->min_load = alt_data->track[idx].min_load;
+		__entry->max_load = alt_data->track[idx].max_load;
+		__entry->max_spent = alt_data->track[idx].max_spent;
+		__entry->idx = idx;
 	),
 
-	TP_printk("freq=%u busy=%llu total=%llu min_load=%u max_load=%u max_spent=%u",
+	TP_printk("freq=%u busy=%llu total=%llu min_load=%u max_load=%u max_spent=%u idx=%u",
 			__entry->freq, __entry->busy, __entry->total,
 			__entry->min_load, __entry->max_load,
-			__entry->max_spent)
+			__entry->max_spent, __entry->idx)
 );
 
 TRACE_EVENT(dvfs_read_ppc,

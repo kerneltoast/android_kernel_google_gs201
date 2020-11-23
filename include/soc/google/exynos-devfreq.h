@@ -32,15 +32,7 @@ struct devfreq_alt_load {
 	unsigned int		load;
 };
 
-#define ALTDVFS_MIN_SAMPLE_TIME		15
-#define ALTDVFS_HOLD_SAMPLE_TIME	100
-#define ALTDVFS_TARGET_LOAD		75
-#define ALTDVFS_NUM_TARGET_LOAD		1
-#define ALTDVFS_HISPEED_LOAD		99
-#define ALTDVFS_HISPEED_FREQ		1000000
-#define ALTDVFS_TOLERANCE		1
-
-struct devfreq_alt_dvfs_data {
+struct devfreq_alt_track {
 	struct devfreq_alt_load	buffer[LOAD_BUFFER_MAX];
 	struct devfreq_alt_load	*front;
 	struct devfreq_alt_load	*rear;
@@ -50,6 +42,19 @@ struct devfreq_alt_dvfs_data {
 	unsigned int		min_load;
 	unsigned int		max_load;
 	unsigned long long	max_spent;
+};
+
+#define ALTDVFS_MIN_SAMPLE_TIME		15
+#define ALTDVFS_HOLD_SAMPLE_TIME	100
+#define ALTDVFS_TARGET_LOAD		75
+#define ALTDVFS_NUM_TARGET_LOAD		1
+#define ALTDVFS_HISPEED_LOAD		99
+#define ALTDVFS_HISPEED_FREQ		1000000
+#define ALTDVFS_TOLERANCE		1
+
+struct devfreq_alt_dvfs_data {
+	struct devfreq_alt_track	*track;
+	unsigned int			track_group;
 
 	/* ALT-DVFS parameter */
 	unsigned int		*target_load;
@@ -98,6 +103,12 @@ struct exynos_devfreq_opp_table {
 	u32 volt;
 };
 
+struct ppc_data {
+	u64 ccnt;
+	u64 pmcnt0;
+	u64 pmcnt1;
+};
+
 struct um_exynos {
 	struct list_head node;
 	void __iomem **va_base;
@@ -105,10 +116,10 @@ struct um_exynos {
 	u32 *mask_v;
 	u32 *mask_a;
 	u32 *channel;
-	unsigned int um_count;
-	u64 val_ccnt;
-	u64 val_pmcnt0;
-	u64 val_pmcnt1;
+	u32 um_group;
+	u32 *um_count;
+	u32 um_count_total;
+	struct ppc_data *ppc_val;
 };
 
 struct exynos_devfreq_data {
@@ -190,8 +201,7 @@ struct exynos_devfreq_data {
 };
 
 struct exynos_profile_data {
-	unsigned long long total_time;
-	unsigned long long busy_time;
+	struct ppc_data *ppc_val;
 	unsigned long long delta_time;
 };
 
