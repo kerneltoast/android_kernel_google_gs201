@@ -21,7 +21,7 @@
 		compatible = "samsung,s6e3hc2-fhd";
 		label = "samsung-s6e3hc2-fhd";
 		channel = <0>;
-		/* touch = <&spitouch>; */
+		touch = <&spitouch>;
 
 		/* reset, power */
 		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;
