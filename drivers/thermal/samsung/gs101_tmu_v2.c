@@ -340,11 +340,12 @@ static void allow_maximum_power(struct gs101_tmu_data *data)
 {
 	struct thermal_instance *instance;
 	struct thermal_zone_device *tz = data->tzd;
-	struct gs101_pi_param *params = data->pi_param;
+	int control_temp = data->pi_param->trip_control_temp;
 
+	mutex_unlock(&data->lock);
 	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != params->trip_control_temp ||
+		if (instance->trip != control_temp ||
 		    (!cdev_is_power_actor(instance->cdev)))
 			continue;
 
@@ -355,6 +356,7 @@ static void allow_maximum_power(struct gs101_tmu_data *data)
 		thermal_cdev_update(instance->cdev);
 	}
 	mutex_unlock(&tz->lock);
+	mutex_lock(&data->lock);
 }
 
 static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
@@ -422,6 +424,9 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	u32 max_power, power_range;
 	unsigned long state;
 
+	// TODO: refactor locking
+	mutex_unlock(&data->lock);
+	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if (instance->trip == params->trip_control_temp &&
 		    cdev_is_power_actor(instance->cdev)) {
@@ -430,6 +435,8 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 			break;
 		}
 	}
+	mutex_unlock(&tz->lock);
+	mutex_lock(&data->lock);
 
 	if (!found_actor)
 		return -ENODEV;
@@ -442,11 +449,16 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	if (ret)
 		return ret;
 
+	// TODO: refactor locking
+	mutex_unlock(&data->lock);
+	mutex_lock(&tz->lock);
 	instance->target = state;
 	mutex_lock(&cdev->lock);
 	cdev->updated = false;
 	mutex_unlock(&cdev->lock);
 	thermal_cdev_update(cdev);
+	mutex_unlock(&tz->lock);
+	mutex_lock(&data->lock);
 
 	trace_thermal_exynos_power_allocator(tz, power_range,
 					     max_power, tz->temperature,
@@ -467,6 +479,7 @@ static void gs101_pi_thermal(struct gs101_tmu_data *data)
 
 	if (tz) {
 		if (!thermal_zone_device_is_enabled(tz)) {
+			mutex_lock(&data->lock);
 			params->switched_on = false;
 			goto polling;
 		}
