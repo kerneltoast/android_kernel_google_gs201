@@ -349,6 +349,7 @@ static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 	const void *src;
 	void *dst;
 	unsigned long flags;
+	bool callback_exist = false;
 
 	spin_lock_irqsave(&channel->rx_lock, flags);
 	/* IPC command dequeue */
@@ -384,12 +385,6 @@ static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 			memcpy_align_4(dst, src, size);
 		}
 
-		list_for_each_entry(cb, cb_list, list)
-			if (cb && cb->ipc_callback) {
-				cb->ipc_callback(channel->cmd,
-						 channel->rx_ch.size);
-			}
-
 		rear++;
 		rear = rear % channel->rx_ch.len;
 
@@ -406,10 +401,20 @@ static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 			 */
 		}
 		ret = false;
+		callback_exist = true;
 		break;
 	}
 
 	spin_unlock_irqrestore(&channel->rx_lock, flags);
+
+	if (callback_exist) {
+		list_for_each_entry(cb, cb_list, list) {
+			if (cb && cb->ipc_callback) {
+				cb->ipc_callback(channel->cmd,
+					channel->rx_ch.size);
+			}
+		}
+	}
 
 	return ret;
 }
