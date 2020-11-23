@@ -34,9 +34,9 @@ struct acpm_ipc_ch {
 	unsigned int type;
 	unsigned int seq_num;
 	unsigned int *cmd;
-	struct mutex rx_lock;
-	struct mutex tx_lock;
-	struct mutex ch_lock;
+	spinlock_t rx_lock;
+	spinlock_t tx_lock;
+	spinlock_t ch_lock;
 	struct semaphore send_sem;
 
 	struct completion wait;
