@@ -11,6 +11,8 @@ extern unsigned long cpu_util(int cpu);
 extern unsigned long task_util(struct task_struct *p);
 extern bool task_fits_capacity(struct task_struct *p, int cpu);
 extern bool task_may_not_preempt(struct task_struct *task, int cpu);
+extern int cpu_is_idle(int cpu);
+extern int sched_cpu_idle(int cpu);
 
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
@@ -49,20 +51,15 @@ redo:
 		if (check_util && cpu_overutilized(util + task_util(p), capacity_orig_of(cpu)))
 			continue;
 
-		//TODO: chagne to cpu_is_idle later
-		if (idle_cpu(cpu)) {
+		if (cpu_is_idle(cpu)) {
 			util = 0;
 			idle = idle_get_state(cpu_rq(cpu));
 
-			if (idle) {
+			if (idle)
 				exit_lat = idle->exit_latency;
-			}
 
-			//TODO: change above to util = 1;
-			//if (sched_idle_cpu(cpu)) {
-				//util = 0;
-				//exit_lat = 0;
-			//}
+			if (sched_cpu_idle(cpu))
+				exit_lat = 0;
 		}
 
 		if (util > best_cpu_util)
@@ -181,7 +178,7 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 
 	may_not_preempt = task_may_not_preempt(curr, prev_cpu);
 
-	if (idle_cpu(prev_cpu) && !may_not_preempt)
+	if (cpu_is_idle(prev_cpu) && !may_not_preempt)
 		goto out_unlock;
 
 	target = find_lowest_rq(p);
