@@ -772,10 +772,14 @@
 
 			/* ALT-DVFS */
 			use_get_dev = "true";
-			um_count = <6>;
+			um_count = <2 4 4>;
 			um_list = <
 				/* PPC_CPUCL0_D0_EVENT PPC_CPUCL0_D1_EVENT */
 				0x1E110000 0x1E120000
+				/* PPC_CCI_M0_EVENT PPC_CCI_M1_EVENT */
+				0x1E130000 0x1E140000
+				/* PPC_CCI_M2_EVENT PPC_CCI_M3_EVENT */
+				0x1E150000 0x1E160000
 				/* PPC_BUS2_M0_EVENT PPC_BUS2_M1_EVENT */
 				0x1E170000 0x1E180000
 				/* PPC_BUS2_M2_EVENT PPC_BUS2_M3_EVENT */
@@ -784,7 +788,7 @@
 
 			use_alt_dvfs;
 			polling_ms = <0>;
-			target_load = "5";
+			target_load = <20 5 80>;
 			min_sample_time = <20>;
 			hold_sample_time = <60>;
 			hispeed_load = <100>;
