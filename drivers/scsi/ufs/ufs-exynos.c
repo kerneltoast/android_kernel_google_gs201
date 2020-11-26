@@ -574,7 +574,10 @@ static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	int ret = 0;
 
-	PRINT_STATES(ufs);
+	if (!IS_C_STATE_ON(ufs) ||
+	    (ufs->h_state != H_DISABLED &&
+	     ufs->h_state != H_SUSPEND))
+		PRINT_STATES(ufs);
 
 	switch (notify) {
 	case PRE_CHANGE:
