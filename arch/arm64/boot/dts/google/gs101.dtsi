@@ -971,6 +971,30 @@
 		clocks = <&clock GATE_G2D>;
 		clock-names = "gate";
 		samsung,tzmp;
+
+		hw_ppc =
+			/* sc_up none x1 x1/4 x1/9 x1/16 */
+			<3400 3100 2200 3600 5100 7000 /* rgb32 non-rotated */
+			3300 2700 2000 3000 5200 6500 /* rgb32 rotated */
+			3000 2900 2600 3400 5100 11900 /* yuv2p non-rotated */
+			3200 2000 1900 3300 5200 7000 /* yuv2p rotated */
+			2400 1900 1900 2700 3100 4100 /* 8+2 non-rotated */
+			2500 900 900 2200 2900 3700 /* 8+2 rotated */
+			2800 3000 1600 1600 2400 3200 /* afbc non-rotated */
+			2800 3000 1600 1600 2400 3200 /* afbc rotated */
+			2800>; /* colorfill */
+
+		g2d_dvfs_table = <533000 711000
+				465000 400000
+				332000 332000
+				200000 200000
+				100000 100000
+				>;
+
+		itmon,port = "G2D0", "G2D1";
+		itmon,dest = "G2D";
+		dvfs_mif = <DEVFREQ_MIF>;
+		dvfs_int = <DEVFREQ_INT>;
 	};
 
 	watchdog_cl0@10060000 {
