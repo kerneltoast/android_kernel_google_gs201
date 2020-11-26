@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/sched/clock.h>
 #include <linux/clk.h>
+#include <linux/thermal.h>
 #include <soc/google/cal-if.h>
 #include <soc/google/bts.h>
 #include <linux/of_platform.h>
@@ -2090,6 +2091,54 @@ static int exynos_devfreq_resume(struct device *dev)
 	return ret;
 }
 
+static int exynos_devfreq_get_max_state(struct thermal_cooling_device *cdev,
+			     unsigned long *state)
+{
+	struct exynos_devfreq_data *data = cdev->devdata;
+	*state = data->max_state;
+
+	return 0;
+}
+
+static int exynos_devfreq_get_cur_state(struct thermal_cooling_device *cdev,
+			     unsigned long *state)
+{
+	struct exynos_devfreq_data *data = cdev->devdata;
+	*state = data->cooling_state;
+
+	return 0;
+}
+
+static int exynos_devfreq_set_cur_state(struct thermal_cooling_device *cdev,
+			     unsigned long state)
+{
+	struct exynos_devfreq_data *data = cdev->devdata;
+
+	/* Request state should be less than max_level */
+	if (WARN_ON(state > data->max_state))
+		return -EINVAL;
+
+	/* Check if the old cooling action is same as new cooling action */
+	if (data->cooling_state == state)
+		return -EALREADY;
+
+	data->cooling_state = state;
+
+	dev_info(data->dev, "Set MIF cur_state %d, freq: %8uKhz\n",
+		 state, data->devfreq_profile.freq_table[state]);
+	if (exynos_pm_qos_request_active(&data->thermal_pm_qos_max))
+		exynos_pm_qos_update_request(&data->thermal_pm_qos_max,
+					     data->devfreq_profile.freq_table[state]);
+
+	return 0;
+}
+
+static struct thermal_cooling_device_ops exynos_devfreq_cooling_ops = {
+	.get_max_state = exynos_devfreq_get_max_state,
+	.get_cur_state = exynos_devfreq_get_cur_state,
+	.set_cur_state = exynos_devfreq_set_cur_state,
+};
+
 static int exynos_devfreq_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -2100,6 +2149,9 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 	int nr_constraint;
 	int dm_type;
 	int err;
+#endif
+#if IS_ENABLED(CONFIG_ECT)
+	const char *devfreq_domain_name;
 #endif
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -2247,6 +2299,8 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 				  data->min_freq);
 	exynos_pm_qos_add_request(&data->debug_pm_qos_max, (int)data->pm_qos_class_max,
 				  data->max_freq);
+	exynos_pm_qos_add_request(&data->thermal_pm_qos_max, (int)data->pm_qos_class_max,
+				  data->max_freq);
 	if (data->pm_qos_class_max)
 		exynos_pm_qos_add_request(&data->default_pm_qos_max,
 					  (int)data->pm_qos_class_max, data->max_freq);
@@ -2339,6 +2393,24 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 		pm_runtime_put_sync(&pdev->dev);
 	}
 
+#if IS_ENABLED(CONFIG_ECT)
+	if (of_property_read_string(data->dev->of_node, "devfreq_domain_name",
+				    &devfreq_domain_name))
+		return -ENODEV;
+
+	// Register cooling device
+	data->cooling_dev = thermal_of_cooling_device_register(
+			dev_of_node(data->dev), devfreq_domain_name,
+			data, &exynos_devfreq_cooling_ops);
+
+	if (IS_ERR(data->cooling_dev)) {
+		ret = PTR_ERR(data->cooling_dev);
+		dev_err(data->dev, "%s: failed to register cooling device: %d\n",
+			devfreq_domain_name, ret);
+	} else {
+		dev_info(data->dev, "%s cdev is initialized!!\n", devfreq_domain_name);
+	}
+#endif
 	dev_info(data->dev, "devfreq is initialized!!\n");
 
 	return 0;
@@ -2352,6 +2424,7 @@ err_opp_noti:
 		exynos_pm_qos_remove_request(&data->default_pm_qos_max);
 	exynos_pm_qos_remove_request(&data->debug_pm_qos_min);
 	exynos_pm_qos_remove_request(&data->debug_pm_qos_max);
+	exynos_pm_qos_remove_request(&data->thermal_pm_qos_max);
 	exynos_pm_qos_remove_request(&data->sys_pm_qos_min);
 	devfreq_remove_device(data->devfreq);
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
@@ -2413,6 +2486,7 @@ static int exynos_devfreq_remove(struct platform_device *pdev)
 		exynos_pm_qos_remove_request(&data->default_pm_qos_max);
 	exynos_pm_qos_remove_request(&data->debug_pm_qos_min);
 	exynos_pm_qos_remove_request(&data->debug_pm_qos_max);
+	exynos_pm_qos_remove_request(&data->thermal_pm_qos_max);
 	exynos_pm_qos_remove_request(&data->sys_pm_qos_min);
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	exynos_alt_unregister_notifier(&data->um_nb->nb);
