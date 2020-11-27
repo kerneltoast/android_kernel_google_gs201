@@ -43,6 +43,19 @@ extern bool ssi_dbg_pzc;
 extern bool ssi_dbg_rng;
 #endif
 
+#ifdef BBD_PWR_STATUS
+struct gnss_pwrstats {
+	bool    gps_stat;
+	u64	gps_on_cnt;
+	u64	gps_on_duration;
+	u64	gps_on_entry;
+	u64	gps_on_exit;
+	u64	gps_off_cnt;
+	u64	gps_off_duration;
+	u64	gps_off_entry;
+	u64	gps_off_exit;
+};
+#endif /* BBD_PWR_STATUS */
 
 #define BBD_BUFF_SIZE (PAGE_SIZE*2)
 struct bbd_cdev_priv {
@@ -54,6 +67,9 @@ struct bbd_cdev_priv {
 	char _read_buf[BBD_BUFF_SIZE];		/* LHD reads from BBD */
 	char write_buf[BBD_BUFF_SIZE];		/* LHD writes into BBD */
 	wait_queue_head_t poll_wait;		/* for poll */
+#ifdef BBD_PWR_STATUS
+	struct gnss_pwrstats pwrstats;		/* GNSS power state */
+#endif /* BBD_PWR_STATUS */
 };
 
 struct bbd_device {
@@ -75,6 +91,9 @@ static const char *bbd_dev_name[BBD_DEVICE_INDEX] = {
 	"bbd_sensor",
 	"bbd_control",
 	"bbd_patch",
+#ifdef BBD_PWR_STATUS
+	"bbd_pwrstat",
+#endif /* BBD_PWR_STATUS */
 };
 
 /*
@@ -239,16 +258,16 @@ ssize_t bbd_control(const char *buf, ssize_t len)
 	pr_info("%s\n", buf);
 #endif
 
-	if (strcmp(buf, ESW_CTRL_READY)) {
+	if (!strcmp(buf, ESW_CTRL_READY)) {
 		if (bbd.ssp_cb && bbd.ssp_cb->on_mcu_ready)
 			bbd.ssp_cb->on_mcu_ready(bbd.ssp_priv, true);
-	} else if (strcmp(buf, ESW_CTRL_NOTREADY)) {
+	} else if (!strcmp(buf, ESW_CTRL_NOTREADY)) {
 		struct circ_buf *circ = &bbd.priv[BBD_MINOR_SENSOR].read_buf;
 
 		circ->head = circ->tail = 0;
 		if (bbd.ssp_cb && bbd.ssp_cb->on_mcu_ready)
 			bbd.ssp_cb->on_mcu_ready(bbd.ssp_priv, false);
-	} else if (strcmp(buf, ESW_CTRL_CRASHED)) {
+	} else if (!strcmp(buf, ESW_CTRL_CRASHED)) {
 		struct circ_buf *circ = &bbd.priv[BBD_MINOR_SENSOR].read_buf;
 
 		circ->head = circ->tail = 0;
@@ -258,30 +277,62 @@ ssize_t bbd_control(const char *buf, ssize_t len)
 
 		if (bbd.ssp_cb && bbd.ssp_cb->on_control)
 			bbd.ssp_cb->on_control(bbd.ssp_priv, buf);
-	} else if (strcmp(buf, BBD_CTRL_DEBUG_OFF)) {
+	} else if (!strcmp(buf, BBD_CTRL_DEBUG_OFF)) {
 		bbd.db = false;
 #ifdef CONFIG_SENSORS_SSP
-	} else if (strcmp(buf, SSP_DEBUG_ON)) {
+	} else if (!strcmp(buf, SSP_DEBUG_ON)) {
 		ssp_dbg = true;
 		ssp_pkt_dbg = true;
-	} else if (strstr(buf, SSP_DEBUG_OFF)) {
+	} else if (!strstr(buf, SSP_DEBUG_OFF)) {
 		ssp_dbg = false;
 		ssp_pkt_dbg = false;
 #endif
 #ifdef CONFIG_BCM_GPS_SPI_DRIVER
-	} else if (strcmp(buf, SSI_DEBUG_ON)) {
+	} else if (!strcmp(buf, SSI_DEBUG_ON)) {
 		ssi_dbg = true;
-	} else if (strcmp(buf, SSI_DEBUG_OFF)) {
+	} else if (!strcmp(buf, SSI_DEBUG_OFF)) {
 		ssi_dbg = false;
-	} else if (strcmp(buf, PZC_DEBUG_ON)) {
+	} else if (!strcmp(buf, PZC_DEBUG_ON)) {
 		ssi_dbg_pzc = true;
-	} else if (strcmp(buf, PZC_DEBUG_OFF)) {
+	} else if (!strcmp(buf, PZC_DEBUG_OFF)) {
 		ssi_dbg_pzc = false;
-	} else if (strcmp(buf, RNG_DEBUG_ON)) {
+	} else if (!strcmp(buf, RNG_DEBUG_ON)) {
 		ssi_dbg_rng = true;
-	} else if (strcmp(buf, RNG_DEBUG_OFF)) {
+	} else if (!strcmp(buf, RNG_DEBUG_OFF)) {
 		ssi_dbg_rng = false;
 #endif
+#ifdef BBD_PWR_STATUS
+	} else if (!strcmp(buf, GPSD_CORE_ON)) {
+		u64 now = ktime_to_us(ktime_get_boottime());
+		struct gnss_pwrstats *pwrstats =
+			&bbd.priv[BBD_MINOR_PWRSTAT].pwrstats;
+
+		mutex_lock(&bbd.priv[BBD_MINOR_PWRSTAT].lock);
+
+		pwrstats->gps_stat = STAT_GPS_ON;
+		pwrstats->gps_on_cnt++;
+		pwrstats->gps_on_entry = now;
+		pwrstats->gps_off_exit = now;
+		pwrstats->gps_off_duration +=
+			pwrstats->gps_off_exit - pwrstats->gps_off_entry;
+
+		mutex_unlock(&bbd.priv[BBD_MINOR_PWRSTAT].lock);
+	} else if (!strcmp(buf, GPSD_CORE_OFF)) {
+		u64 now = ktime_to_us(ktime_get_boottime());
+		struct gnss_pwrstats *pwrstats =
+			&bbd.priv[BBD_MINOR_PWRSTAT].pwrstats;
+
+		mutex_lock(&bbd.priv[BBD_MINOR_PWRSTAT].lock);
+
+		pwrstats->gps_stat = STAT_GPS_OFF;
+		pwrstats->gps_off_cnt++;
+		pwrstats->gps_off_entry = now;
+		pwrstats->gps_on_exit = now;
+		pwrstats->gps_on_duration +=
+			pwrstats->gps_on_exit - pwrstats->gps_on_entry;
+
+		mutex_unlock(&bbd.priv[BBD_MINOR_PWRSTAT].lock);
+#endif /* BBD_PWR_STATUS */
 	} else if (bbd.ssp_cb && bbd.ssp_cb->on_control) {
 		/* Tell SHMD about the unknown control string */
 		bbd.ssp_cb->on_control(bbd.ssp_priv, buf);
@@ -522,6 +573,60 @@ ssize_t bbd_patch_read(
 	return rd_size;
 }
 
+#ifdef BBD_PWR_STATUS
+ssize_t bbd_pwrstat_read(
+	struct file *filp, char __user *buf, size_t size, loff_t *ppos)
+{
+
+	const int MAX_SIZE = 512;
+	char buf2[MAX_SIZE];
+	int ret = 0;
+	u64 now, gps_on_dur, gps_off_dur;
+	struct gnss_pwrstats *pwrstats = &bbd.priv[BBD_MINOR_PWRSTAT].pwrstats;
+
+	mutex_lock(&bbd.priv[BBD_MINOR_PWRSTAT].lock);
+
+	now = ktime_to_us(ktime_get_boottime());
+	if (pwrstats->gps_stat == STAT_GPS_ON) {
+		gps_on_dur = pwrstats->gps_on_duration +
+			(now - pwrstats->gps_on_entry);
+		gps_off_dur = pwrstats->gps_off_duration;
+	} else {
+		gps_on_dur = pwrstats->gps_on_duration;
+		gps_off_dur = pwrstats->gps_off_duration +
+			(now - pwrstats->gps_off_entry);
+	}
+
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret, "GPS_ON:\n");
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret,
+			"count: 0x%0llx\n", pwrstats->gps_on_cnt);
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret,
+			"duration_usec: 0x%0llx\n", gps_on_dur);
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret,
+			"last_entry_timestamp_usec: 0x%0llx\n",
+			pwrstats->gps_on_entry);
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret,
+			"last_exit_timestamp_usec: %0lld\n",
+			pwrstats->gps_on_exit);
+
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret, "GPS_OFF:\n");
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret,
+			"count: 0x%0llx\n", pwrstats->gps_off_cnt);
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret,
+			"duration_usec: 0x%0llx\n", gps_off_dur);
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret,
+			"last_entry_timestamp_usec: 0x%0llx\n",
+			pwrstats->gps_off_entry);
+	ret += scnprintf(buf2 + ret, MAX_SIZE - ret,
+			"last_exit_timestamp_usec: 0x%0llx\n",
+			pwrstats->gps_off_exit);
+
+	mutex_unlock(&bbd.priv[BBD_MINOR_PWRSTAT].lock);
+
+	return simple_read_from_buffer(buf, size, ppos, buf2, ret);
+}
+#endif /* BBD_PWR_STATUS */
+
 static ssize_t bbd_store(
 	struct device *dev, struct device_attribute *attr,
 	const char *buf, size_t len)
@@ -688,6 +793,17 @@ static const struct file_operations bbd_fops[BBD_DEVICE_INDEX] = {
 		.write		=  NULL, /* /dev/bbd_patch is read-only */
 		.poll		=  NULL,
 	},
+#ifdef BBD_PWR_STATUS
+	/* bbd power file operations */
+	{
+		.owner          =  THIS_MODULE,
+		.open           =  bbd_common_open,
+		.release        =  bbd_common_release,
+		.read           =  bbd_pwrstat_read,
+		.write          =  NULL,
+		.poll		=  NULL,
+	},
+#endif /* BBD_PWR_STATUS */
 };
 
 
@@ -736,6 +852,12 @@ int bbd_init(struct device *dev, bool legacy_patch)
 
 		init_waitqueue_head(&bbd.priv[minor].poll_wait);
 		mutex_init(&bbd.priv[minor].lock);
+
+#ifdef BBD_PWR_STATUS
+		/* Initial power stats */
+		memset(&bbd.priv[minor].pwrstats, 0, sizeof(struct gnss_pwrstats));
+		bbd.priv[minor].pwrstats.gps_off_cnt = 1;
+#endif /* BBD_PWR_STATUS */
 
 		/* Don't register /dev/bbd_shmd */
 		if (minor == BBD_MINOR_SHMD)

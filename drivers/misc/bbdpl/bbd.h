@@ -8,6 +8,8 @@
 #ifndef __BBD_H__
 #define __BBD_H__
 
+#define BBD_PWR_STATUS
+
 union long_union_t {
 	u8 uc[sizeof(u32)];
 	u32 ul;
@@ -23,6 +25,9 @@ enum {
 	BBD_MINOR_SENSOR    = 1,
 	BBD_MINOR_CONTROL   = 2,
 	BBD_MINOR_PATCH     = 3,
+#ifdef BBD_PWR_STATUS
+	BBD_MINOR_PWRSTAT   = 4,
+#endif
 	/* BBD_MINOR_SSI_SPI_DEBUG = 5, */ /* NOT supported yet */
 	BBD_DEVICE_INDEX
 };
@@ -47,6 +52,8 @@ enum {
 #define BBD_CTRL_SSI_PATCH_END		"SSI:PatchEnd"
 #define GPSD_SENSOR_ON		"GPSD:SENSOR_ON"
 #define GPSD_SENSOR_OFF		"GPSD:SENSOR_OFF"
+#define GPSD_CORE_ON		"GPSD:CORE_ON"
+#define GPSD_CORE_OFF		"GPSD:CORE_OFF"
 
 /* #define DEBUG_1HZ_STAT */
 
@@ -114,6 +121,13 @@ void bbd_enable_stat(void);
 void bbd_disable_stat(void);
 #endif
 
+#ifdef BBD_PWR_STATUS
+enum {
+	STAT_GPS_OFF = 0,
+	STAT_GPS_ON,
+	STAT_GPS_MAX
+};
+#endif /* BBD_PWR_STATUS */
 
 /** callback for incoming data from 477x to senser hub driver **/
 struct bbd_callbacks {
