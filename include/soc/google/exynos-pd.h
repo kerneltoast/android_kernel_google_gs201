@@ -27,6 +27,8 @@
 #include <soc/google/exynos-cpupm.h>
 #include <dt-bindings/power/exynos-power.h>
 
+#define HSI0_CAL_PDID	0xB1380008
+
 struct exynos_pm_domain;
 
 struct exynos_pd_stat {
@@ -107,10 +109,15 @@ static inline int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd,
 
 #ifdef CONFIG_USB_DWC3_EXYNOS
 extern u32 otg_is_connect(void);
+extern void exynos_usbdrd_ldo_manual_control(bool);
 #else
 static inline u32 otg_is_connect(void)
 {
 	return 0;
+}
+static inline void exynos_usbdrd_ldo_manual_control(bool)
+{
+	return;
 }
 #endif
 
