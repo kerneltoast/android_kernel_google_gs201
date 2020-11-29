@@ -64,6 +64,7 @@ private/google-modules/aoc/alsa
 private/google-modules/aoc/usb
 private/google-modules/touch/fts
 private/google-modules/touch/sec
+private/google-modules/power/reset
 "
 
 COMPRESS_UNSTRIPPED_MODULES=1
