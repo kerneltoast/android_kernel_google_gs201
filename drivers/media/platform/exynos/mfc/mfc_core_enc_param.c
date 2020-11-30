@@ -120,20 +120,29 @@ static void __mfc_set_gop_size(struct mfc_core *core, struct mfc_ctx *ctx,
 
 	if (ctrl_mode) {
 		p->i_frm_ctrl_mode = 1;
-		p->i_frm_ctrl = p->gop_size * (p->num_b_frame + 1);
-		if (p->i_frm_ctrl >= 0x3FFFFFFF) {
-			mfc_ctx_info("I frame interval is bigger than max: %d\n",
-					p->i_frm_ctrl);
-			p->i_frm_ctrl = 0x3FFFFFFF;
+		/*
+		 * gop_ctrl 1: gop_size means the I frame interval
+		 * gop_ctrl 0: gop_size means the number of P frames.
+		 */
+		if (p->gop_ctrl) {
+			p->i_frm_ctrl = p->gop_size;
+		} else {
+			p->i_frm_ctrl = p->gop_size * (p->num_b_frame + 1);
+			if (p->i_frm_ctrl >= 0x3FFFFFFF) {
+				mfc_ctx_info("I frame interval is bigger than max: %d\n",
+						p->i_frm_ctrl);
+				p->i_frm_ctrl = 0x3FFFFFFF;
+			}
 		}
 	} else {
 		p->i_frm_ctrl_mode = 0;
 		p->i_frm_ctrl = p->gop_size;
 	}
 
-	mfc_debug(2, "I frame interval: %d, (P: %d, B: %d), ctrl mode: %d\n",
-			p->i_frm_ctrl, p->gop_size,
-			p->num_b_frame, p->i_frm_ctrl_mode);
+	mfc_debug(2, "I frame interval: %d, (P: %d, B: %d), ctrl mode: %d, gop ctrl: %d\n",
+			p->i_frm_ctrl,
+			p->gop_ctrl ? (p->gop_size / (p->num_b_frame + 1)) : p->gop_size,
+			p->num_b_frame, p->i_frm_ctrl_mode, p->gop_ctrl);
 
 	/* pictype : IDR period, number of B */
 	reg = MFC_CORE_RAW_READL(MFC_REG_E_GOP_CONFIG);

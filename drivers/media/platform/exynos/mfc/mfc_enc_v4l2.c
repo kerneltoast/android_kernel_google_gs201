@@ -1024,6 +1024,7 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	val |= ENC_SET_CHROMA_QP_CONTROL;
 	val |= ENC_SET_BUF_FLAG_CTRL;
 	val |= ENC_SET_OPERATING_FPS;
+	val |= ENC_SET_GOP_CTRL;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc))
 		val |= ENC_SET_COLOR_ASPECT;
@@ -2008,6 +2009,9 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L1:
 		p->mv_ver_pos_l1 = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_CTRL:
+		p->gop_ctrl = ctrl->value;
 		break;
 	/* These are stored in specific variables */
 	case V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_LAYER_CH:

@@ -278,6 +278,7 @@
 #define ENC_SET_OPERATING_FPS		(1 << 18)
 #define ENC_SET_AVERAGE_QP		(1 << 19)
 #define ENC_SET_MV_SEARCH_MODE		(1 << 20)
+#define ENC_SET_GOP_CTRL		(1 << 21)
 
 #define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw_date >= (f).version))
 

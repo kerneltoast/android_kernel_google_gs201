@@ -1556,6 +1556,7 @@ struct mfc_enc_params {
 	u32 slice_bit;
 	u32 slice_mb_row;
 
+	u32 gop_ctrl;
 	u32 gop_size;
 	u32 intra_refresh_mb;
 	u32 i_frm_ctrl_mode;
