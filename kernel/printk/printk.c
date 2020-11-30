@@ -740,27 +740,22 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	printk_safe_enter_irq();
 	if (!prb_read_valid(prb, atomic64_read(&user->seq), r)) {
 		if (file->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
-			printk_safe_exit_irq();
 			goto out;
 		}
 
-		printk_safe_exit_irq();
 		ret = wait_event_interruptible(log_wait,
 				prb_read_valid(prb, atomic64_read(&user->seq), r));
 		if (ret)
 			goto out;
-		printk_safe_enter_irq();
 	}
 
 	if (r->info->seq != atomic64_read(&user->seq)) {
 		/* our last seen message is gone, return error and reset */
 		atomic64_set(&user->seq, r->info->seq);
 		ret = -EPIPE;
-		printk_safe_exit_irq();
 		goto out;
 	}
 
@@ -770,7 +765,6 @@ static ssize_t devkmsg_read(struct file *file, char __user *buf,
 				  &r->info->dev_info);
 
 	atomic64_set(&user->seq, r->info->seq + 1);
-	printk_safe_exit_irq();
 
 	if (len > count) {
 		ret = -EINVAL;
@@ -805,7 +799,6 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 	if (offset)
 		return -ESPIPE;
 
-	printk_safe_enter_irq();
 	switch (whence) {
 	case SEEK_SET:
 		/* the first record */
@@ -826,7 +819,6 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 	default:
 		ret = -EINVAL;
 	}
-	printk_safe_exit_irq();
 	return ret;
 }
 
@@ -841,7 +833,6 @@ static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &log_wait, wait);
 
-	printk_safe_enter_irq();
 	if (prb_read_valid_info(prb, atomic64_read(&user->seq), &info, NULL)) {
 		/* return error when data has vanished underneath us */
 		if (info.seq != atomic64_read(&user->seq))
@@ -849,7 +840,6 @@ static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 		else
 			ret = EPOLLIN|EPOLLRDNORM;
 	}
-	printk_safe_exit_irq();
 
 	return ret;
 }
@@ -882,9 +872,7 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 	prb_rec_init_rd(&user->record, &user->info,
 			&user->text_buf[0], sizeof(user->text_buf));
 
-	printk_safe_enter_irq();
 	atomic64_set(&user->seq, prb_first_valid_seq(prb));
-	printk_safe_exit_irq();
 
 	file->private_data = user;
 	return 0;
@@ -1050,9 +1038,6 @@ static inline void log_buf_add_cpu(void) {}
 
 static void __init set_percpu_data_ready(void)
 {
-	printk_safe_init();
-	/* Make sure we set this flag only after printk_safe() init is done */
-	barrier();
 	__printk_percpu_data_ready = true;
 }
 
@@ -1150,8 +1135,6 @@ void __init setup_log_buf(int early)
 		 new_descs, ilog2(new_descs_count),
 		 new_infos);
 
-	printk_safe_enter_irqsave(flags);
-
 	log_buf_len = new_log_buf_len;
 	log_buf = new_log_buf;
 	new_log_buf_len = 0;
@@ -1166,8 +1149,6 @@ void __init setup_log_buf(int early)
 	 * appear during the transition to the dynamic buffer.
 	 */
 	prb = &printk_rb_dynamic;
-
-	printk_safe_exit_irqrestore(flags);
 
 	if (seq != prb_next_seq(&printk_rb_static)) {
 		pr_err("dropped %llu messages\n",
@@ -1506,11 +1487,9 @@ static int syslog_print(char __user *buf, int size)
 		size_t n;
 		size_t skip;
 
-		printk_safe_enter_irq();
-		raw_spin_lock(&syslog_lock);
+		raw_spin_lock_irq(&syslog_lock);
 		if (!prb_read_valid(prb, syslog_seq, &r)) {
-			raw_spin_unlock(&syslog_lock);
-			printk_safe_exit_irq();
+			raw_spin_unlock_irq(&syslog_lock);
 			break;
 		}
 		if (r.info->seq != syslog_seq) {
@@ -1539,8 +1518,7 @@ static int syslog_print(char __user *buf, int size)
 			syslog_partial += n;
 		} else
 			n = 0;
-		raw_spin_unlock(&syslog_lock);
-		printk_safe_exit_irq();
+		raw_spin_unlock_irq(&syslog_lock);
 
 		if (!n)
 			break;
@@ -1574,7 +1552,6 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		return -ENOMEM;
 
 	time = printk_time;
-	printk_safe_enter_irq();
 	/*
 	 * Find first record that fits, including all following records,
 	 * into the user-provided buffer for this dump.
@@ -1595,23 +1572,20 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 			break;
 		}
 
-		printk_safe_exit_irq();
 		if (copy_to_user(buf + len, text, textlen))
 			len = -EFAULT;
 		else
 			len += textlen;
-		printk_safe_enter_irq();
 
 		if (len < 0)
 			break;
 	}
 
 	if (clear) {
-		raw_spin_lock(&syslog_lock);
+		raw_spin_lock_irq(&syslog_lock);
 		latched_seq_write(&clear_seq, seq);
-		raw_spin_unlock(&syslog_lock);
+		raw_spin_unlock_irq(&syslog_lock);
 	}
-	printk_safe_exit_irq();
 
 	kfree(text);
 	return len;
@@ -1619,11 +1593,9 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 
 static void syslog_clear(void)
 {
-	printk_safe_enter_irq();
-	raw_spin_lock(&syslog_lock);
+	raw_spin_lock_irq(&syslog_lock);
 	latched_seq_write(&clear_seq, prb_next_seq(prb));
-	raw_spin_unlock(&syslog_lock);
-	printk_safe_exit_irq();
+	raw_spin_unlock_irq(&syslog_lock);
 }
 
 /* Return a consistent copy of @syslog_seq. */
@@ -1711,12 +1683,10 @@ int do_syslog(int type, char __user *buf, int len, int source)
 		break;
 	/* Number of chars in the log buffer */
 	case SYSLOG_ACTION_SIZE_UNREAD:
-		printk_safe_enter_irq();
-		raw_spin_lock(&syslog_lock);
+		raw_spin_lock_irq(&syslog_lock);
 		if (!prb_read_valid_info(prb, syslog_seq, &info, NULL)) {
 			/* No unread messages. */
-			raw_spin_unlock(&syslog_lock);
-			printk_safe_exit_irq();
+			raw_spin_unlock_irq(&syslog_lock);
 			return 0;
 		}
 		if (info.seq != syslog_seq) {
@@ -1744,8 +1714,7 @@ int do_syslog(int type, char __user *buf, int len, int source)
 			}
 			error -= syslog_partial;
 		}
-		raw_spin_unlock(&syslog_lock);
-		printk_safe_exit_irq();
+		raw_spin_unlock_irq(&syslog_lock);
 		break;
 	/* Size of the log buffer */
 	case SYSLOG_ACTION_SIZE_BUFFER:
@@ -2218,7 +2187,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 {
 	int printed_len;
 	bool in_sched = false;
-	unsigned long flags;
 
 	/* Suppress unimportant messages after panic happens */
 	if (unlikely(suppress_printk))
@@ -2232,9 +2200,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	boot_delay_msec(level);
 	printk_delay();
 
-	printk_safe_enter_irqsave(flags);
 	printed_len = vprintk_store(facility, level, dev_info, fmt, args);
-	printk_safe_exit_irqrestore(flags);
 
 	/* If called from the scheduler, we can not call up(). */
 	if (!in_sched) {
@@ -2632,7 +2598,6 @@ void console_unlock(void)
 {
 	static char ext_text[CONSOLE_EXT_LOG_MAX];
 	static char text[CONSOLE_LOG_MAX];
-	unsigned long flags;
 	bool do_cond_resched, retry;
 	struct printk_info info;
 	struct printk_record r;
@@ -2677,7 +2642,6 @@ again:
 		size_t ext_len = 0;
 		size_t len;
 
-		printk_safe_enter_irqsave(flags);
 skip:
 		if (!prb_read_valid(prb, console_seq, &r))
 			break;
@@ -2734,12 +2698,8 @@ skip:
 		call_console_drivers(ext_text, ext_len, text, len);
 		start_critical_timings();
 
-		if (console_lock_spinning_disable_and_check()) {
-			printk_safe_exit_irqrestore(flags);
+		if (console_lock_spinning_disable_and_check())
 			return;
-		}
-
-		printk_safe_exit_irqrestore(flags);
 
 		if (do_cond_resched)
 			cond_resched();
@@ -2756,8 +2716,6 @@ skip:
 	 * flush, no worries.
 	 */
 	retry = prb_read_valid(prb, console_seq, NULL);
-	printk_safe_exit_irqrestore(flags);
-
 	if (retry && console_trylock())
 		goto again;
 }
@@ -2819,13 +2777,8 @@ void console_flush_on_panic(enum con_flush_mode mode)
 	console_trylock();
 	console_may_schedule = 0;
 
-	if (mode == CONSOLE_REPLAY_ALL) {
-		unsigned long flags;
-
-		printk_safe_enter_irqsave(flags);
+	if (mode == CONSOLE_REPLAY_ALL)
 		console_seq = prb_first_valid_seq(prb);
-		printk_safe_exit_irqrestore(flags);
-	}
 	console_unlock();
 }
 
@@ -3484,11 +3437,9 @@ bool kmsg_dump_get_line(struct kmsg_dumper_iter *iter, bool syslog,
 	struct printk_info info;
 	unsigned int line_count;
 	struct printk_record r;
-	unsigned long flags;
 	size_t l = 0;
 	bool ret = false;
 
-	printk_safe_enter_irqsave(flags);
 	prb_rec_init_rd(&r, &info, line, size);
 
 	if (!iter->active)
@@ -3512,7 +3463,6 @@ bool kmsg_dump_get_line(struct kmsg_dumper_iter *iter, bool syslog,
 	iter->cur_seq = r.info->seq + 1;
 	ret = true;
 out:
-	printk_safe_exit_irqrestore(flags);
 	if (len)
 		*len = l;
 	return ret;
@@ -3543,7 +3493,6 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper_iter *iter, bool syslog,
 {
 	struct printk_info info;
 	struct printk_record r;
-	unsigned long flags;
 	u64 seq;
 	u64 next_seq;
 	size_t len = 0;
@@ -3553,7 +3502,6 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper_iter *iter, bool syslog,
 	if (!iter->active || !buf || !size)
 		goto out;
 
-	printk_safe_enter_irqsave(flags);
 	if (prb_read_valid_info(prb, iter->cur_seq, &info, NULL)) {
 		if (info.seq != iter->cur_seq) {
 			/* messages are gone, move to first available one */
@@ -3562,10 +3510,8 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper_iter *iter, bool syslog,
 	}
 
 	/* last entry */
-	if (iter->cur_seq >= iter->next_seq) {
-		printk_safe_exit_irqrestore(flags);
+	if (iter->cur_seq >= iter->next_seq)
 		goto out;
-	}
 
 	/*
 	 * Find first record that fits, including all following records,
@@ -3597,7 +3543,6 @@ bool kmsg_dump_get_buffer(struct kmsg_dumper_iter *iter, bool syslog,
 
 	iter->next_seq = next_seq;
 	ret = true;
-	printk_safe_exit_irqrestore(flags);
 out:
 	if (len_out)
 		*len_out = len;
@@ -3615,12 +3560,8 @@ EXPORT_SYMBOL_GPL(kmsg_dump_get_buffer);
  */
 void kmsg_dump_rewind(struct kmsg_dumper_iter *iter)
 {
-	unsigned long flags;
-
-	printk_safe_enter_irqsave(flags);
 	iter->cur_seq = latched_seq_read_nolock(&clear_seq);
 	iter->next_seq = prb_next_seq(prb);
-	printk_safe_exit_irqrestore(flags);
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
 
