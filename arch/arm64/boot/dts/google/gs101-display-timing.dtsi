@@ -19,9 +19,6 @@
 		s-range = <0 6>; /* inclusive */
 		k-bits = <16>; /* K is a two's complement 16-bit intger */
 
-		te-idle = <1000>; /* microsecond */
-		te-var = <1>; /* te variation, percentage */
-
 		dsim-modes {
 			1440x3040 {
 				mode-name = "1440x3040";
@@ -70,6 +67,15 @@
 				hs-clk = <1490>;
 				esc-clk = <20>;
 				cmd_underrun_cnt = <1575>;
+			};
+			1080x2400 {
+				mode-name = "1080x2400";
+				pmsk = <
+					0x2 0xD4 0x3 0x96AB /* p m s k */
+					>;
+				hs-clk = <650>;
+				esc-clk = <20>;
+				cmd_underrun_cnt = <802>;
 			};
 		};
 	};

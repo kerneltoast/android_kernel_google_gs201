@@ -277,15 +277,15 @@ static enum ufs_cal_errno __match_mode_by_cfg(struct uic_pwr_mode *pmd, int mode
 		match = UFS_CAL_NO_ERROR;
 	} else if (IS_PWR_MODE_PWM(_m) && mode == PMD_PWM) {
 		match = UFS_CAL_NO_ERROR;
-	} else if (_l >= 1 || _l <= 2) {
+	} else if (_l >= 1 && _l <= 2) {
 		if (IS_PWR_MODE_HS(_m)) {
-			if (_g >= 1 || _g <= 4)
+			if (_g >= 1 && _g <= 4)
 				match = UFS_CAL_NO_ERROR;
 			else
 				/* invalid gear for hs */
 				match = UFS_CAL_ERROR;
 		} else if (IS_PWR_MODE_PWM(_m)) {
-			if (_g >= 1 || _g <= 5)
+			if (_g >= 1 && _g <= 5)
 				match = UFS_CAL_NO_ERROR;
 			else
 				/* invalid gear for pwm */

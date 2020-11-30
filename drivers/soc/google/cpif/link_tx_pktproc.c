@@ -62,7 +62,8 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 	desc->hw_set = 0;
 	desc->lcid = skbpriv(skb)->sipc_ch;
 
-	barrier();
+	/* ensure the done_ptr ordering */
+	smp_mb();
 
 	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 

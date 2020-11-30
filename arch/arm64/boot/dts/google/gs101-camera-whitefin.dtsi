@@ -134,7 +134,7 @@
 
 				/* GPIOs */
 				enable-gpios = <&s2mpg11_gpio 3 GPIO_ACTIVE_HIGH>;
-				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
@@ -179,7 +179,7 @@
 
 				/* GPIOs */
 				enable-gpios = <&s2mpg11_gpio 1 GPIO_ACTIVE_HIGH>;
-				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators = <&slg51000_ldo7>;
@@ -218,7 +218,7 @@
 
 				/* GPIOs */
 				enable-gpios = <&s2mpg11_gpio 2 GPIO_ACTIVE_HIGH>;
-				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
@@ -295,7 +295,7 @@
 				enable-gpios =
 					<&s2mpg11_gpio 3 GPIO_ACTIVE_HIGH>,
 					<&s2mpg11_gpio 4 GPIO_ACTIVE_HIGH>;
-				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators = <&slg51000_ldo7>;
@@ -328,7 +328,7 @@
 
 				/* GPIOs */
 				enable-gpios = <&s2mpg11_gpio 2 GPIO_ACTIVE_HIGH>;
-				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
@@ -364,7 +364,7 @@
 
 				/* GPIOs */
 				enable-gpios = <&s2mpg11_gpio 1 GPIO_ACTIVE_HIGH>;
-				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators = <&slg51000_ldo7>;

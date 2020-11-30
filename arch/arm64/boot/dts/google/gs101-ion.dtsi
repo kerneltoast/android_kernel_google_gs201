@@ -50,6 +50,46 @@
 		ion,protection_id = <7>;
 		ion,alignment = <0x10000>;
 	};
+
+	ion_faceauth_tpu_heap {
+		compatible = "exynos,ion,cma_heap";
+		memory-region = <&fatpu_heap>;
+		ion,secure;
+		ion,protection_id = <15>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_faceauth_image_heap {
+		compatible = "exynos,ion,cma_heap";
+		memory-region = <&faimg_heap>;
+		ion,secure;
+		ion,protection_id = <16>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_faceauth_rawimage_heap {
+		compatible = "exynos,ion,cma_heap";
+		memory-region = <&farawimg_heap>;
+		ion,secure;
+		ion,protection_id = <17>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_faceauth_preview_heap {
+		compatible = "exynos,ion,cma_heap";
+		memory-region = <&faprev_heap>;
+		ion,secure;
+		ion,protection_id = <18>;
+		ion,alignment = <0x10000>;
+	};
+
+	ion_faceauth_model_heap {
+		compatible = "exynos,ion,carveout_heap";
+		memory-region = <&famodel_heap>;
+		ion,secure;
+		ion,protection_id = <19>;
+		ion,alignment = <0x10000>;
+	};
 };
 
 &reserved_memory {
@@ -91,6 +131,39 @@
 		compatible = "shared-dma-pool";
 		reusable;
 		size = <0x400000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	fatpu_heap: fatpu_heap {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x400000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	faimg_heap: faimg_heap {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x3C00000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	farawimg_heap: farawimg_heap {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x9800000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	faprev_heap: faprev_heap {
+		compatible = "shared-dma-pool";
+		reusable;
+		size = <0x3000000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	famodel_heap: famodel_heap {
+		size = <0x3200000>;
 		alignment = <0x0 0x00010000>;
 	};
 };

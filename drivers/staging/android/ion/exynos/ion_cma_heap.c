@@ -61,6 +61,7 @@ static int ion_exynos_cma_allocate(struct ion_heap *heap,
 	sg_set_page(table->sgl, pages, alloc_size, 0);
 
 	buffer->sg_table = table;
+	buffer->size = alloc_size;
 
 	ion_page_clean(pages, alloc_size);
 

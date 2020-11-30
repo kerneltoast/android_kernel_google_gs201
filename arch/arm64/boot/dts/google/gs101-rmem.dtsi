@@ -36,8 +36,8 @@
 			no-map;
 		};
 
-		aoc_reserve: aoc@0x90700000 {
-			reg = <0x0 0x90700000 0x02000000>;
+		aoc_reserve: aoc@0x91000000 {
+			reg = <0x0 0x91000000 0x02000000>;
 			no-map;
 		};
 
@@ -101,15 +101,21 @@
 				reg = <0 DSS_LOG_S2D_ADDR DSS_LOG_S2D_SIZE>;
 				no-map;
 			};
-			log_arrdumpreset: log_arrdumpreset {
+			log_arrdumpreset: log_array_reset {
 				reg = <0 DSS_LOG_ARRAYRESET_ADDR
 						DSS_LOG_ARRAYRESET_SIZE>;
-				no-map;
 			};
-			log_arrdumppanic: log_arrdumppanic {
+			log_arrdumppanic: log_array_panic {
 				reg = <0 DSS_LOG_ARRAYPANIC_ADDR
 						DSS_LOG_ARRAYPANIC_SIZE>;
-				no-map;
+			};
+			log_slcdump: log_slcdump {
+				reg = <0 DSS_LOG_SLCDUMP_ADDR
+						DSS_LOG_SLCDUMP_SIZE>;
+			};
+			log_preslcdump: log_preslcdump {
+				reg = <0 DSS_LOG_PRE_SLCDUMP_ADDR
+						DSS_LOG_SLCDUMP_SIZE>;
 			};
 		};
 	};

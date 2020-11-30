@@ -22,7 +22,7 @@
 		samsung,tzmp;
 
 		/* MFC version */
-		ip_ver = <0x14020000>;
+		/* ip_ver is set in gs101-a0.dts and gs101-b0.dts */
 
 		/* Debug mode */
 		debug_mode = <1>;
@@ -50,6 +50,7 @@
 		drm_switch_predict = <1 0x0>;
 		/* Support SBWC per-frame control for encoder src */
 		sbwc_enc_src_ctrl = <1 0x200110>;
+		average_qp = <1 0x201030>;
 
 		/* AV1 Decoder */
 		support_av1_dec = <0>;
@@ -81,6 +82,9 @@
 		/* error type for sync_point display */
 		/* (1: concealment display, 2: error display, 3: error no display) */
 		display_err_type = <2>;
+
+		/* FW base security ctrl */
+		/* security_ctrl is set in gs101-a0.dts and gs101-b0.dts */
 
 		/* Encoder default parameter: max number is 100 */
 		enc_param_num = <25>;
@@ -178,7 +182,7 @@
 			samsung,imgloader-s2mpu-support;
 
 			/* MFC version */
-			ip_ver = <0x14020000>;
+			/* ip_ver is set in gs101-a0.dts and gs101-b0.dts */
 
 			/* Sysmmu check */
 			share_sysmmu = <0>;

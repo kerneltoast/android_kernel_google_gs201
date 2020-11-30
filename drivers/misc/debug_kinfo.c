@@ -37,7 +37,7 @@ extern const u16 kallsyms_token_index[] __weak;
 
 extern const unsigned int kallsyms_markers[] __weak;
 
-static phys_addr_t all_info_addr;
+static void *all_info_addr;
 static u32 all_info_size;
 
 static void update_kernel_all_info(struct kernel_all_info *all_info)
@@ -128,7 +128,7 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	all_info_addr = rmem->priv;
 	all_info_size = rmem->size;
 
-	memset((void *)all_info_addr, 0, all_info_size);
+	memset(all_info_addr, 0, all_info_size);
 	all_info = (struct kernel_all_info *)all_info_addr;
 	info = &(all_info->info);
 	info->enabled_all = IS_ENABLED(CONFIG_KALLSYMS_ALL);
@@ -141,7 +141,7 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	info->module_name_len = MODULE_NAME_LEN;
 	info->symbol_len = KSYM_SYMBOL_LEN;
 	info->_addresses_pa = (u64)virt_to_phys(kallsyms_addresses);
-	info->_relative_pa = (u64)virt_to_phys(kallsyms_relative_base);
+	info->_relative_pa = (u64)virt_to_phys((void *)kallsyms_relative_base);
 	info->_stext_pa = (u64)virt_to_phys(_stext);
 	info->_etext_pa = (u64)virt_to_phys(_etext);
 	info->_sinittext_pa = (u64)virt_to_phys(_sinittext);

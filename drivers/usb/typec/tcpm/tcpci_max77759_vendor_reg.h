@@ -71,7 +71,12 @@
 #define CCWTRSEL_MASK				GENMASK(5, 3)
 #define CCWTRSEL_SHIFT				3
 #define CCWTRSEL_1V				0x4
+#define CCWTRSEL_0_6V				0x2
 #define CCLADDERDIS				BIT(2)
+#define WTRCYCLE_MASK				BIT(0)
+#define WTRCYCLE_SHIFT				0
+#define WTRCYCLE_2_4_S				0
+#define WTRCYCLE_4_8_S				1
 
 #define TCPC_VENDOR_ADC_CTRL1			0x91
 #define ADCINSEL_MASK				GENMASK(7, 5)

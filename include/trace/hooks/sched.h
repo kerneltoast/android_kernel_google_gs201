@@ -87,6 +87,10 @@ DECLARE_HOOK(android_vh_dump_throttled_rt_tasks,
 			s64 rt_period_timer_expires),
 	TP_ARGS(cpu, clock, rt_period, rt_runtime, rt_period_timer_expires));
 
+struct sugov_policy;
+DECLARE_RESTRICTED_HOOK(android_rvh_set_sugov_update,
+	TP_PROTO(struct sugov_policy *sg_policy, unsigned int next_freq, bool *should_update),
+	TP_ARGS(sg_policy, next_freq, should_update), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -106,6 +110,7 @@ DECLARE_HOOK(android_vh_dump_throttled_rt_tasks,
 #define trace_android_vh_set_sugov_sched_attr(attr)
 #define trace_android_rvh_set_iowait(p, should_iowait_boost)
 #define trace_android_vh_dump_throttled_rt_tasks(cpu, clock, rt_period, rt_runtime, rt_period_timer_expires)
+#define trace_android_rvh_set_sugov_update(sg_policy, next_freq, should_update)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */

@@ -21,7 +21,6 @@
 #include <linux/pstore_ram.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/bldr_debug_tools.h>
 #include "internal.h"
 
 #define RAMOOPS_KERNMSG_HDR "===="
@@ -846,11 +845,6 @@ static int ramoops_probe(struct platform_device *pdev)
 	pr_info("using 0x%lx@0x%llx, ecc: %d\n",
 		cxt->size, (unsigned long long)cxt->phys_addr,
 		cxt->ecc_info.ecc_size);
-
-#if IS_ENABLED(CONFIG_PSTORE_CONSOLE_BLDR_LOG)
-	if (cxt->console_size)
-		bldr_log_init();
-#endif
 
 	return 0;
 

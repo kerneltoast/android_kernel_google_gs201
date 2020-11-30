@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 
+#include <dt-bindings/soc/google/debug-snapshot-def.h>
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-pmu-if.h>
 #include <soc/google/debug-test.h>
@@ -81,6 +82,9 @@ static const char * const test_vector[] = {
 	"spabort",
 	"overflow",
 	"cacheflush",
+	"arraydump",
+	"halt",
+	"scandump",
 };
 
 /* timeout for dog bark/bite */
@@ -537,6 +541,24 @@ static void simulate_CACHE_FLUSH(char *arg)
 	dbg_snapshot_emergency_reboot("cache flush test");
 }
 
+static void simulate_ARRAYDUMP(char *arg)
+{
+	dev_crit(exynos_debug_desc.dev, "%s()\n", __func__);
+	dbg_snapshot_do_dpm_policy(GO_ARRAYDUMP_ID, "TEST");
+}
+
+static void simulate_HALT(char *arg)
+{
+	dev_crit(exynos_debug_desc.dev, "%s()\n", __func__);
+	dbg_snapshot_do_dpm_policy(GO_HALT_ID, "TEST");
+}
+
+static void simulate_SCANDUMP(char *arg)
+{
+	dev_crit(exynos_debug_desc.dev, "%s()\n", __func__);
+	dbg_snapshot_do_dpm_policy(GO_SCANDUMP_ID, "TEST");
+}
+
 static struct force_error_item force_error_vector[] = {
 	{"KP",		&simulate_KP},
 	{"DP",		&simulate_DP},
@@ -564,6 +586,9 @@ static struct force_error_item force_error_vector[] = {
 	{"writero",	&simulate_WRITE_RO},
 	{"overflow",	&simulate_OVERFLOW},
 	{"cacheflush",	&simulate_CACHE_FLUSH},
+	{"arraydump",	&simulate_ARRAYDUMP},
+	{"halt",	&simulate_HALT},
+	{"scandump",	&simulate_SCANDUMP},
 };
 
 static int debug_force_error(const char *val)
@@ -736,6 +761,9 @@ static struct debug_trigger exynos_debug_test_trigger = {
 	.hard_lockup = simulate_HARD_LOCKUP,
 	.cold_reset = simulate_WP,
 	.watchdog_emergency_reset = simulate_QDP,
+	.halt = simulate_HALT,
+	.arraydump = simulate_ARRAYDUMP,
+	.scandump = simulate_SCANDUMP,
 };
 
 static int exynos_debug_test_probe(struct platform_device *pdev)

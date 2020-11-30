@@ -66,7 +66,7 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 	return NULL;
 }
 
-static void g2d_task_completion_work(struct work_struct *work)
+static void g2d_task_completion_work(struct kthread_work *work)
 {
 	struct g2d_task *task = container_of(work, struct g2d_task,
 					     completion_work);
@@ -95,7 +95,7 @@ static void __g2d_finish_task(struct g2d_task *task, bool success)
 	 * g2d_put_images() called by g2d_task_completion_work() which is the worker
 	 * function of task->completion_work.
 	 */
-	queue_work(task->g2d_dev->completion_workq, &task->completion_work);
+	kthread_queue_work(task->g2d_dev->completion_workq, &task->completion_work);
 }
 
 static void g2d_finish_task(struct g2d_device *g2d_dev,
@@ -453,7 +453,7 @@ void g2d_destroy_tasks(struct g2d_device *g2d_dev)
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
-	destroy_workqueue(g2d_dev->completion_workq);
+	kthread_destroy_worker(g2d_dev->completion_workq);
 	kthread_destroy_worker(g2d_dev->schedule_workq);
 }
 
@@ -501,7 +501,7 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 	timer_setup(&task->hw_timer, g2d_hw_timeout_handler, 0);
 	timer_setup(&task->fence_timer, g2d_fence_timeout_handler, 0);
 
-	INIT_WORK(&task->completion_work, g2d_task_completion_work);
+	kthread_init_work(&task->completion_work, g2d_task_completion_work);
 	kthread_init_work(&task->sched_work, g2d_task_schedule_work);
 
 	return task;
@@ -518,20 +518,25 @@ err_alloc:
 
 int g2d_create_tasks(struct g2d_device *g2d_dev)
 {
-	struct sched_param param = { .sched_priority =  MAX_RT_PRIO / 2 };
+	struct sched_param param[] = {
+		{.sched_priority =  MAX_RT_PRIO / 4 - 1 },
+		{.sched_priority =  MAX_RT_PRIO / 2 }
+	};
 	struct g2d_task *task;
 	unsigned int i;
 
-	g2d_dev->completion_workq =
-			create_singlethread_workqueue("g2d_completion");
-	if (!g2d_dev->completion_workq)
-		return -ENOMEM;
+	g2d_dev->completion_workq = kthread_create_worker(0, "g2d_completion");
+	if (IS_ERR(g2d_dev->completion_workq))
+		return PTR_ERR(g2d_dev->completion_workq);
+
+	sched_setscheduler_nocheck(g2d_dev->completion_workq->task, SCHED_FIFO, &param[0]);
 
 	g2d_dev->schedule_workq = kthread_create_worker(0, "g2d_scheduler");
 	if (IS_ERR(g2d_dev->schedule_workq))
 		return PTR_ERR(g2d_dev->schedule_workq);
 
-	sched_setscheduler(g2d_dev->schedule_workq->task, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(g2d_dev->schedule_workq->task, SCHED_FIFO, &param[1]);
+
 	for (i = 0; i < G2D_MAX_JOBS; i++) {
 		task = g2d_create_task(g2d_dev, i);
 		if (IS_ERR(task)) {

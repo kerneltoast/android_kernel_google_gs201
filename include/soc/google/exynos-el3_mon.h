@@ -20,9 +20,11 @@
 
 #define PRIV_REG_OPTION_READ			0
 #define PRIV_REG_OPTION_WRITE			1
+#define PRIV_REG_OPTION_RMW			2
 
 int exynos_pd_tz_save(unsigned int addr);
 int exynos_pd_tz_restore(unsigned int addr);
 int set_priv_reg(phys_addr_t reg, u32 val);
+int rmw_priv_reg(phys_addr_t reg, u32 mask, u32 val);
 
 #endif	/* __EXYNOS_EL3_MON_H */

@@ -34,20 +34,16 @@
 				core3 {
 					cpu = <&cpu3>;
 				};
-			};
-			cluster1 {
-				core0 {
+				core4 {
 					cpu = <&cpu4>;
 				};
-				core1 {
+				core5 {
 					cpu = <&cpu5>;
 				};
-			};
-			cluster2 {
-				core0 {
+				core6 {
 					cpu = <&cpu6>;
 				};
-				core1 {
+				core7 {
 					cpu = <&cpu7>;
 				};
 			};
@@ -209,6 +205,7 @@
 			target-residency = <10000>;
 			type = <POWERMODE_TYPE_SYSTEM>;
 			siblings = CPU_ALL;
+			entry-allowed = CPU_ALL;
 		};
 
 		wakeup-mask {
@@ -253,7 +250,7 @@
 			cal-id = <ACPM_DVFS_CPUCL0>;
 			dm-type = <DM_CPU_CL0>;
 
-			max-freq = <1598000>;
+			/* max-freq is set in gs101-a0.dts and gs101-b0.dts */
 			min-freq = <300000>;
 
 			#cooling-cells = <2>; /* min followed by max */
@@ -292,7 +289,7 @@
 			cal-id = <ACPM_DVFS_CPUCL2>;
 			dm-type = <DM_CPU_CL2>;
 
-			max-freq = <2048000>;
+			/* max-freq is set in gs101-a0.dts and gs101-b0.dts */
 			min-freq = <500000>;
 
 			#cooling-cells = <2>; /* min followed by max */
@@ -310,9 +307,9 @@
 	dm-tables {
 		lit_mif_perf: dm-table@0000 {
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_MIF>;
-			master-cal-id = <ACPM_DVFS_CPUCL0>;
-			slave-cal-id = <ACPM_DVFS_MIF>;
+			dm-constraint = <DM_MIF>;
+			driver-cal-id = <ACPM_DVFS_CPUCL0>;
+			constraint-cal-id = <ACPM_DVFS_MIF>;
 
 				/* CL0    MIF */
 			table = < 1598000 1539000
@@ -327,9 +324,9 @@
 		};
 		med_mif_perf: dm-table@0001 {
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_MIF>;
-			master-cal-id = <ACPM_DVFS_CPUCL1>;
-			slave-cal-id = <ACPM_DVFS_MIF>;
+			dm-constraint = <DM_MIF>;
+			driver-cal-id = <ACPM_DVFS_CPUCL1>;
+			constraint-cal-id = <ACPM_DVFS_MIF>;
 
 				/* CL1    MIF */
 			table = < 2348000 1716000
@@ -350,9 +347,9 @@
 		};
 		big_mif_perf: dm-table@0002 {
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_MIF>;
-			master-cal-id = <ACPM_DVFS_CPUCL2>;
-			slave-cal-id = <ACPM_DVFS_MIF>;
+			dm-constraint = <DM_MIF>;
+			driver-cal-id = <ACPM_DVFS_CPUCL2>;
+			constraint-cal-id = <ACPM_DVFS_MIF>;
 
 				/* CL2    MIF */
 			table = < 3195000 2730000
@@ -379,9 +376,9 @@
 		};
 		med_ank_perf: dm-table@0003 {
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_CPU_CL0>;
-			master-cal-id = <ACPM_DVFS_CPUCL1>;
-			slave-cal-id = <ACPM_DVFS_CPUCL0>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL1>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
 
 				/* CL1    CL0 */
 			table = < 2348000 1197000
@@ -403,17 +400,17 @@
 		med_dsu_skew: dm-table@0004 {
 			guidance;
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_CPU_CL0>;
-			master-cal-id = <ACPM_DVFS_CPUCL1>;
-			slave-cal-id = <ACPM_DVFS_CPUCL0>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL1>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
 			ect-name = "CPUCL1";
 		};
 		big_dsu_skew: dm-table@0005 {
 			guidance;
 			const-type = <CONSTRAINT_MIN>;
-			dm-slave = <DM_CPU_CL0>;
-			master-cal-id = <ACPM_DVFS_CPUCL2>;
-			slave-cal-id = <ACPM_DVFS_CPUCL0>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL2>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
 			ect-name = "CPUCL2";
 		};
 	};

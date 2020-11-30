@@ -41,6 +41,7 @@
 //#include "phy-exynos-debug.h"
 
 //#include <soc/samsung/exynos-cpupm.h>
+#include <soc/google/exynos-el3_mon.h>
 
 static void __iomem *usbdp_combo_phy_reg;
 void __iomem *phycon_base_addr;
@@ -598,33 +599,44 @@ static void exynos_usbdrd_pipe3_phy_isol(struct phy_usb_instance *inst,
 					 unsigned int on, unsigned int mask)
 {
 	unsigned int val;
+	int ret;
 
 	if (!inst->reg_pmu)
 		return;
 
 	val = on ? 0 : mask;
-
-	regmap_update_bits(inst->reg_pmu, inst->pmu_offset_dp,
-			   mask, val);
+	ret = rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset_dp, mask, val);
+	/* TODO: remove following as part of b/169128860 */
+	if (ret)
+		regmap_update_bits(inst->reg_pmu, inst->pmu_offset_dp,
+				   mask, val);
 }
 
 static void exynos_usbdrd_utmi_phy_isol(struct phy_usb_instance *inst,
 					unsigned int on, unsigned int mask)
 {
 	unsigned int val;
+	int ret;
 
 	if (!inst->reg_pmu)
 		return;
 
 	val = on ? 0 : mask;
-	regmap_update_bits(inst->reg_pmu, inst->pmu_offset,
-			   mask, val);
+	ret = rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset, mask, val);
+	/* TODO: remove following as part of b/169128860 */
+	if (ret)
+		regmap_update_bits(inst->reg_pmu, inst->pmu_offset,
+				   mask, val);
 
 	/* Control TCXO_BUF */
 	if (inst->pmu_mask_tcxobuf != 0) {
 		val = on ? 0 : inst->pmu_mask_tcxobuf;
-		regmap_update_bits(inst->reg_pmu, inst->pmu_offset_tcxobuf,
+		ret = rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset_tcxobuf,
 				   inst->pmu_mask_tcxobuf, val);
+		/* TODO: remove following as part of b/169128860 */
+		if (ret)
+			regmap_update_bits(inst->reg_pmu, inst->pmu_offset_tcxobuf,
+					   inst->pmu_mask_tcxobuf, val);
 	}
 }
 
@@ -2113,6 +2125,8 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const struct exynos_usbdrd_phy_drvdata *drv_data;
 	struct regmap *reg_pmu;
+	struct device_node *syscon_np;
+	struct resource pmu_res;
 	u32 pmu_offset, pmu_offset_dp, pmu_offset_tcxo;
 	u32 pmu_mask, pmu_mask_tcxo, pmu_mask_pll;
 	int i, ret;
@@ -2201,6 +2215,19 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 						  "samsung,pmu-syscon");
 	if (IS_ERR(reg_pmu)) {
 		dev_err(dev, "Failed to lookup PMU regmap\n");
+		goto err1;
+	}
+
+	syscon_np = of_parse_phandle(dev->of_node, "samsung,pmu-syscon", 0);
+	if (!syscon_np) {
+		dev_err(dev, "syscon device node not found\n");
+		ret = -EINVAL;
+		goto err1;
+	}
+
+	if (of_address_to_resource(syscon_np, 0, &pmu_res)) {
+		dev_err(dev, "failed to get syscon base address\n");
+		ret = -ENOMEM;
 		goto err1;
 	}
 
@@ -2338,6 +2365,7 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 		phy_drd->phys[i].phy = phy;
 		phy_drd->phys[i].index = i;
 		phy_drd->phys[i].reg_pmu = reg_pmu;
+		phy_drd->phys[i].pmu_alive_pa = pmu_res.start;
 		phy_drd->phys[i].pmu_offset = pmu_offset;
 		phy_drd->phys[i].pmu_offset_dp = pmu_offset_dp;
 		phy_drd->phys[i].pmu_mask = pmu_mask;

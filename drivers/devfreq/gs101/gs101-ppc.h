@@ -24,7 +24,7 @@ struct ppc_data {
 	u64 pmcnt;
 };
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 int exynos_devfreq_um_init(struct exynos_devfreq_data *data);
 void exynos_devfreq_um_exit(struct exynos_devfreq_data *data);
 void register_get_dev_status(struct exynos_devfreq_data *data);

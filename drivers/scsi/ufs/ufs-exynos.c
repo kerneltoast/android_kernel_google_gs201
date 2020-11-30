@@ -25,6 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <soc/google/exynos-pmu-if.h>
+#include <soc/google/exynos-cpupm.h>
 
 #define IS_C_STATE_ON(h) ((h)->c_state == C_ON)
 #define PRINT_STATES(h)						\
@@ -442,10 +443,8 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 		return ret;
 
 	/* idle ip nofification for SICD, disable by default */
-#if defined(CONFIG_ARM64_EXYNOS_CPUIDLE)
-	ufs->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
+	ufs->idle_ip_index = exynos_get_idle_ip_index(dev_name(hba->dev));
 	exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
-#endif
 
 	/* to read standard hci registers */
 	ufs->handle.std = hba->mmio_base;
@@ -504,9 +503,7 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 	if (on) {
 		if (notify == PRE_CHANGE) {
 			/* Clear for SICD */
-#if defined(CONFIG_ARM64_EXYNOS_CPUIDLE)
 			exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
-#endif
 		} else {
 			/* PM Qos hold for stability */
 #ifdef PM_QOS_DEVICE_THROUGHPUT
@@ -525,9 +522,7 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 #endif
 		} else {
 			/* Set for SICD */
-#if defined(CONFIG_ARM64_EXYNOS_CPUIDLE)
 			exynos_update_ip_idle_status(ufs->idle_ip_index, 1);
-#endif
 		}
 	}
 
@@ -579,7 +574,10 @@ static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	int ret = 0;
 
-	PRINT_STATES(ufs);
+	if (!IS_C_STATE_ON(ufs) ||
+	    (ufs->h_state != H_DISABLED &&
+	     ufs->h_state != H_SUSPEND))
+		PRINT_STATES(ufs);
 
 	switch (notify) {
 	case PRE_CHANGE:

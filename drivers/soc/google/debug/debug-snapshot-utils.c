@@ -684,3 +684,12 @@ void dbg_snapshot_init_utils(void)
 	smp_call_function(dbg_snapshot_save_system, NULL, 1);
 	dbg_snapshot_save_system(NULL);
 }
+
+int dbg_snapshot_stop_all_cpus(void)
+{
+	if (dss_soc_ops.stop_all_cpus)
+		return dss_soc_ops.stop_all_cpus();
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_stop_all_cpus);

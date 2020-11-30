@@ -196,7 +196,11 @@ static int gs101_get_temp(void *p, int *temp)
 
 	data->temperature = *temp / 1000;
 
-	if (data->hotplug_enable)
+	if (data->hotplug_enable &&
+		((data->is_cpu_hotplugged_out &&
+		  data->temperature < data->hotplug_in_threshold) ||
+		 (!data->is_cpu_hotplugged_out &&
+		  data->temperature >= data->hotplug_out_threshold)))
 		kthread_queue_work(hotplug_worker, &data->hotplug_work);
 
 	mutex_unlock(&data->lock);
@@ -505,7 +509,9 @@ polling:
 	else
 		delay = params->polling_delay_off;
 
-	start_pi_polling(data, delay);
+	if (delay)
+		start_pi_polling(data, delay);
+
 	mutex_unlock(&data->lock);
 }
 
@@ -743,8 +749,6 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 
 		of_property_read_u32(pdev->dev.of_node, "polling_delay_off",
 				     &params->polling_delay_off);
-		if (!params->polling_delay_off)
-			dev_err(&pdev->dev, "No input polling_delay_off\n");
 
 		ret = of_property_read_u32(pdev->dev.of_node, "k_po",
 					   &value);

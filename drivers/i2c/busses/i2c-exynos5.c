@@ -28,14 +28,7 @@
 #include <linux/regmap.h>
 #include "i2c-exynos5.h"
 
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
-#include <soc/samsung/exynos-cpupm.h>
-#include <soc/samsung/exynos-pm.h>
-#endif
-
-#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_ARM64_EXYNOS_CPUIDLE)
-static LIST_HEAD(drvdata_list);
-#endif
+#include <soc/google/exynos-cpupm.h>
 
 /*
  * HSI2C controller from Samsung supports 2 modes of operation
@@ -1015,26 +1008,18 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 #ifdef CONFIG_PM
 	clk_ret = pm_runtime_get_sync(i2c->dev);
 	if (clk_ret < 0) {
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-#endif
 		ret = clk_enable(i2c->clk);
 		if (ret) {
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 			exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 			return ret;
 		}
 	}
 #else
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-#endif
 	ret = clk_enable(i2c->clk);
 	if (ret) {
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 		return ret;
 	}
 #endif
@@ -1098,18 +1083,14 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 #ifdef CONFIG_PM
 	if (clk_ret < 0) {
 		clk_disable(i2c->clk);
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 	} else {
 		pm_runtime_mark_last_busy(i2c->dev);
 		pm_runtime_put_autosuspend(i2c->dev);
 	}
 #else
 	clk_disable(i2c->clk);
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 #endif
 
 	return ret;
@@ -1124,27 +1105,6 @@ static const struct i2c_algorithm exynos5_i2c_algorithm = {
 	.master_xfer		= exynos5_i2c_xfer,
 	.functionality		= exynos5_i2c_func,
 };
-
-#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_ARM64_EXYNOS_CPUIDLE)
-static int exynos5_i2c_notifier(struct notifier_block *self,
-				unsigned long cmd, void *v)
-{
-	struct exynos5_i2c *i2c;
-
-	switch (cmd) {
-	case LPA_EXIT:
-		list_for_each_entry(i2c, &drvdata_list, node)
-			i2c->need_hw_init = 1;
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block exynos5_i2c_notifier_block = {
-	.notifier_call = exynos5_i2c_notifier,
-};
-#endif /* CONFIG_EXYNOS_PM && CONFIG_ARM64_EXYNOS_CPUIDLE */
 
 static int exynos5_i2c_probe(struct platform_device *pdev)
 {
@@ -1247,9 +1207,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	else
 		i2c->nack_restart = 0;
 
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
-#endif
 
 	strlcpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
@@ -1300,14 +1258,10 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM
 	pm_runtime_get_sync(&pdev->dev);
 #else
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-#endif
 	ret = clk_enable(i2c->clk);
 	if (ret) {
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 		return ret;
 	}
 #endif
@@ -1353,15 +1307,8 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	pm_runtime_put_autosuspend(&pdev->dev);
 #else
 	clk_disable(i2c->clk);
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
 #endif
-#endif
-
-#if defined(CONFIG_EXYNOS_PM) && defined(CONFIG_ARM64_EXYNOS_CPUIDLE)
-	list_add_tail(&i2c->node, &drvdata_list);
-#endif
-
 	return 0;
 
  err_clk2:
@@ -1370,9 +1317,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	pm_runtime_put_autosuspend(&pdev->dev);
 #else
 	clk_disable_unprepare(i2c->clk);
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 #endif
  err_clk1:
 	return ret;
@@ -1396,9 +1341,7 @@ static int exynos5_i2c_runtime_suspend(struct device *dev)
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 
 	clk_disable(i2c->clk);
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 	i2c->runtime_resumed = 0;
 
 	return 0;
@@ -1410,15 +1353,11 @@ static int exynos5_i2c_runtime_resume(struct device *dev)
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 	int ret = 0;
 
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-#endif
 	ret = clk_enable(i2c->clk);
 	i2c->runtime_resumed = 1;
 	if (ret) {
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 		return ret;
 	}
 
@@ -1437,22 +1376,16 @@ static int exynos5_i2c_suspend_noirq(struct device *dev)
 
 	i2c_lock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 #ifdef CONFIG_I2C_SAMSUNG_HWACG
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-#endif
 	ret = clk_enable(i2c->clk);
 	if (ret) {
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 		i2c_unlock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 		return ret;
 	}
 	writel(HSI2C_SW_RST, i2c->regs + HSI2C_CTL);
 	clk_disable(i2c->clk);
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 #endif
 
 	if (!pm_runtime_status_suspended(dev))
@@ -1479,14 +1412,10 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 	if (!pm_runtime_status_suspended(dev))
 		exynos5_i2c_runtime_resume(dev);
 
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 0);
-#endif
 	ret = clk_enable(i2c->clk);
 	if (ret) {
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 		exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 		i2c_unlock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 		return ret;
 	}
@@ -1494,9 +1423,7 @@ static int exynos5_i2c_resume_noirq(struct device *dev)
 	exynos_usi_init(i2c);
 	exynos5_i2c_reset(i2c);
 	clk_disable(i2c->clk);
-#ifdef CONFIG_ARM64_EXYNOS_CPUIDLE
 	exynos_update_ip_idle_status(i2c->idle_ip_index, 1);
-#endif
 	i2c->suspended = 0;
 	i2c_unlock_bus(&i2c->adap, I2C_LOCK_ROOT_ADAPTER);
 

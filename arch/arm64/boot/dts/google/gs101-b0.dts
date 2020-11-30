@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GS101 SoC silicon revision B0
+ *
+ * Copyright 2020 Google LLC
+ *
+ */
+
+/dts-v1/;
+/ {
+	/* soc revision info */
+	soc_id = <0x09845001 0x00000000>;
+};
+
+#include "gs101.dtsi"
+
+&devfreq_1 {
+	freq_info = <100000 100000 100000 100000 533000 465000>;
+	/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
+};
+
+&cpufreq_domain0 {
+	max-freq = <2024000>;
+};
+&cpufreq_domain2 {
+	max-freq = <2630000>;
+};
+
+&bts_smc0 {
+	reg = <0x0 0x2084F258 0x4>;
+};
+&bts_smc1 {
+	reg = <0x0 0x2094F258 0x4>;
+};
+&bts_smc2 {
+	reg = <0x0 0x20A4F258 0x4>;
+};
+&bts_smc3 {
+	reg = <0x0 0x20B4F258 0x4>;
+};
+
+&mfc {
+	ip_ver = <0x14020100>;
+	/* FW base security ctrl */
+	security_ctrl = <1>;
+};
+&mfc_core0 {
+	ip_ver = <0x14020100>;
+};

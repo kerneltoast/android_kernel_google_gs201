@@ -160,6 +160,7 @@ struct exynos_usbdrd_phy {
 		struct phy *phy;
 		u32 index;
 		struct regmap *reg_pmu;
+		phys_addr_t pmu_alive_pa;
 		u32 pmu_offset;
 		u32 pmu_offset_dp;
 		u32 pmu_mask;

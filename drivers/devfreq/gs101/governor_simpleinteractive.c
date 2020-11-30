@@ -21,10 +21,6 @@
 #include <linux/pm_opp.h>
 #include "../governor.h"
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-#include <linux/sched/clock.h>
-#endif
-
 #include <linux/devfreq.h>
 #include <soc/google/exynos-devfreq.h>
 
@@ -42,7 +38,7 @@ static int devfreq_simple_interactive_notifier(struct notifier_block *nb, unsign
 	return NOTIFY_OK;
 }
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 #define NEXTBUF(x, b)	do { if (++(x) > &(b)[LOAD_BUFFER_MAX - 1]) (x) = (b); } while (0)
 #define POSTBUF(x, b)	((x) = ((--(x) < (b)) ?				\
 			&(b)[LOAD_BUFFER_MAX - 1] : (x)))
@@ -51,25 +47,18 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 {
 	struct devfreq_alt_load *ptr;
 	struct devfreq_alt_dvfs_data *alt_data = &data->alt_data;
-	struct devfreq_alt_dvfs_param *alt_param = alt_data->alt_param;
 	unsigned int targetload;
-	unsigned int freq;
-	unsigned int max_freq;
+	unsigned long freq;
 	int i;
 	struct exynos_profile_data *profile_data = (struct exynos_profile_data *)stat->private_data;
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-	struct devfreq_alt_load *cur_load;
-	bool trace_flag = false;
-#endif
 
 	if (!profile_data->total_time)
 		return stat->current_frequency;
-	for (i = 0; i < alt_param->num_target_load - 1 &&
-	     stat->current_frequency >= alt_param->target_load[i + 1]; i += 2)
+	for (i = 0; i < alt_data->num_target_load - 1 &&
+	     stat->current_frequency >= alt_data->target_load[i + 1]; i += 2)
 		;
 
-	targetload = alt_param->target_load[i];
-	max_freq = alt_param->target_load[alt_param->num_target_load - 2];
+	targetload = alt_data->target_load[i];
 
 	/* if frequency is changed then reset the load */
 	if (!stat->current_frequency ||
@@ -93,23 +82,15 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 	alt_data->busy += profile_data->busy_time;
 
 	/* if too short time, then not counting */
-	if (ptr->delta > alt_param->min_sample_time * NSEC_PER_MSEC) {
+	if (ptr->delta > alt_data->min_sample_time * NSEC_PER_MSEC) {
 		NEXTBUF(alt_data->front, alt_data->buffer);
 		alt_data->front->delta = 0;
 
 		if (alt_data->front == alt_data->rear)
 			NEXTBUF(alt_data->rear, alt_data->buffer);
 		ptr->load = alt_data->total ?
-			alt_data->busy * 100 / alt_data->total : 0;
-
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-		cur_load = ptr;
-		cur_load->clock = sched_clock();
-		// Save load data ptr to log buffer when logging is true
-		if (alt_data->load_track)
-			alt_data->log[alt_data->log_top] = *cur_load;
-#endif
-
+				    alt_data->busy * 1000 / alt_data->total :
+				    0;
 		alt_data->busy = 0;
 		alt_data->total = 0;
 
@@ -121,31 +102,17 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 			goto out;
 		} else if (ptr->load < alt_data->min_load) {
 			alt_data->min_load = ptr->load;
-			if (ptr->load < alt_param->tolerance) {
+			if (ptr->load < alt_data->tolerance) {
 				alt_data->max_load = ptr->load;
 				alt_data->max_spent = 0;
 				data->governor_freq = 0;
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-				if (alt_data->load_track) {
-					alt_data->log[alt_data->log_top].alt_freq =
-						data->governor_freq;
-					if (alt_data->log_top < (MSEC_PER_SEC /
-								 alt_param->min_sample_time *
-								 MAX_LOG_TIME))
-						alt_data->log_top++;
-					else
-						alt_data->load_track = false;
-				}
-				trace_alt_dvfs_load_tracking(cur_load->delta,
-							     cur_load->load, data->governor_freq);
-#endif
 				return 0;
 			}
 		}
 	}
 
 	/* new max load */
-	if (alt_data->max_spent > alt_param->hold_sample_time * NSEC_PER_MSEC) {
+	if (alt_data->max_spent > alt_data->hold_sample_time * NSEC_PER_MSEC) {
 		unsigned long long spent = 0;
 		/* if not valid data, then skip */
 		if (alt_data->front == ptr) {
@@ -155,11 +122,11 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 		alt_data->max_load = ptr->load;
 		alt_data->max_spent = spent;
 		/* if there is downtrend, then reflect current load */
-		if (ptr->load > alt_data->min_load + alt_param->tolerance) {
+		if (ptr->load > alt_data->min_load + alt_data->tolerance) {
 			alt_data->min_load = ptr->load;
 			spent += ptr->delta;
 			POSTBUF(ptr, alt_data->buffer);
-			for (; spent < alt_param->hold_sample_time *
+			for (; spent < alt_data->hold_sample_time *
 			     NSEC_PER_MSEC && ptr != alt_data->rear;
 			     POSTBUF(ptr, alt_data->buffer)) {
 				if (alt_data->max_load < ptr->load) {
@@ -176,38 +143,21 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 	}
 out:
 	/* a few measurement */
-	if (alt_data->max_load == targetload || alt_data->total) {
+	if (alt_data->max_load == targetload || alt_data->total)
 		freq = data->governor_freq;
-	} else {
+	else
 		freq = alt_data->max_load * stat->current_frequency / targetload;
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-		if (alt_data->load_track) {
-			alt_data->log[alt_data->log_top].alt_freq = freq;
-			if (alt_data->log_top < (MSEC_PER_SEC /
-						 alt_param->min_sample_time * MAX_LOG_TIME))
-				alt_data->log_top++;
-			else
-				alt_data->load_track = false;
-		}
-		trace_flag = true;
-#endif
-	}
 
-	if (alt_data->max_load > alt_param->hispeed_load &&
-	    alt_param->hispeed_freq > freq) {
-		freq = alt_param->hispeed_freq;
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-		if (alt_data->load_track)
-			alt_data->log[alt_data->log_top - 1].alt_freq = freq;
-#endif
-	}
+	/* Limit the change to 50% ~ 200% */
+	freq = min(freq, stat->current_frequency << 1);
+	freq = max(freq, stat->current_frequency >> 1);
 
-	freq = (freq <= max_freq ? freq : max_freq);
+	if (alt_data->max_load > alt_data->hispeed_load &&
+	    alt_data->hispeed_freq > freq)
+		freq = alt_data->hispeed_freq;
+
 	data->governor_freq = freq;
-#if defined(CONFIG_EXYNOS_ALT_DVFS_DEBUG)
-	if (trace_flag)
-		trace_alt_dvfs_load_tracking(cur_load->delta, cur_load->load, freq);
-#endif
+
 	return freq;
 }
 #endif
@@ -222,7 +172,7 @@ static int devfreq_simple_interactive_func(struct devfreq *df,
 	int delay_time = 0;
 	int i = 0;
 	struct dev_pm_opp *limit_opp;
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	struct exynos_devfreq_data *exynos_df =
 	       container_of(data, struct exynos_devfreq_data, simple_interactive_data);
 	struct devfreq_dev_status *stat;
@@ -248,7 +198,7 @@ static int devfreq_simple_interactive_func(struct devfreq *df,
 
 	*freq = exynos_pm_qos_min;
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	stat = &df->last_status;
 
 	if (df->profile->get_dev_status) {
@@ -298,16 +248,16 @@ out:
 	 */
 	data->prev_freq = df->previous_freq;
 	*freq = min(exynos_pm_qos_max, *freq);
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	if (df->profile->get_dev_status && !exynos_df->suspend_flag) {
 		unsigned long expires = jiffies;
 
 		mod_timer(&data->freq_timer, expires +
-			msecs_to_jiffies(data->alt_data.alt_param->min_sample_time * 2));
-		if (*freq > df->min_freq) {
+			msecs_to_jiffies(data->alt_data.min_sample_time * 2));
+		if (*freq > exynos_df->min_freq) {
 			/* timer is bound to cpu0 */
 			mod_timer(&data->freq_slack_timer, expires +
-				  msecs_to_jiffies(data->alt_data.alt_param->hold_sample_time));
+				  msecs_to_jiffies(data->alt_data.hold_sample_time));
 		} else if (timer_pending(&data->freq_slack_timer)) {
 			del_timer(&data->freq_slack_timer);
 		}
@@ -340,7 +290,7 @@ static int devfreq_change_freq_task(void *data)
 	return 0;
 }
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 static void alt_dvfs_nop_timer(struct timer_list *timer)
 {
 }
@@ -381,7 +331,7 @@ static int devfreq_simple_interactive_register_notifier(struct devfreq *df)
 	}
 
 	/* timer of governor for delay time initialize */
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	timer_setup(&data->freq_timer, simple_interactive_timer, TIMER_DEFERRABLE);
 	timer_setup(&data->freq_slack_timer, alt_dvfs_nop_timer, 0);
 #else
@@ -395,7 +345,7 @@ static int devfreq_simple_interactive_register_notifier(struct devfreq *df)
 		ret = PTR_ERR(data->change_freq_task);
 
 		destroy_timer_on_stack(&data->freq_timer);
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 		destroy_timer_on_stack(&data->freq_slack_timer);
 #endif
 		exynos_pm_qos_remove_notifier(data->pm_qos_class, &data->nb.nb);
@@ -405,13 +355,13 @@ static int devfreq_simple_interactive_register_notifier(struct devfreq *df)
 		goto err2;
 	}
 
-#if defined(CONFIG_EXYNOS_ALT_DVFS)
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	if (df->profile->get_dev_status) {
 		data->freq_timer.expires = jiffies +
-			msecs_to_jiffies(data->alt_data.alt_param->min_sample_time * 2);
+			msecs_to_jiffies(data->alt_data.min_sample_time * 2);
 		add_timer(&data->freq_timer);
 		data->freq_slack_timer.expires = jiffies +
-			msecs_to_jiffies(data->alt_data.alt_param->hold_sample_time);
+			msecs_to_jiffies(data->alt_data.hold_sample_time);
 		add_timer_on(&data->freq_slack_timer, BOUND_CPU_NUM);
 	}
 

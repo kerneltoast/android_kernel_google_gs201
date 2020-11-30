@@ -165,6 +165,10 @@ static ssize_t exynos_pcie_rc_show(struct device *dev, struct device_attribute *
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "0 : PCIe Unit Test\n");
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "1 : Link Test\n");
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "2 : DisLink Test\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "10 : L12 Enable\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "11 : L12 Disable\n");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "12 : L12 State\n");
+
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "14 : PCIe Hot Reset\n");
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
 				"20 : Check Link Speed\n");
@@ -1060,6 +1064,8 @@ static void exynos_pcie_rc_set_iocc(struct pcie_port *pp, int enable)
 static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exynos_pcie)
 {
 	struct device_node *np = dev->of_node;
+	struct device_node *syscon_np;
+	struct resource res;
 	const char *use_cache_coherency;
 	const char *use_msi;
 	const char *use_sicd;
@@ -1249,6 +1255,19 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 		dev_err(dev, "syscon regmap lookup failed.\n");
 		return PTR_ERR(exynos_pcie->pmureg);
 	}
+
+	syscon_np = of_parse_phandle(np, "samsung,syscon-phandle", 0);
+	if (!syscon_np) {
+		dev_err(dev, "syscon device node not found\n");
+		return -EINVAL;
+	}
+
+	if (of_address_to_resource(syscon_np, 0, &res)) {
+		dev_err(dev, "failed to get syscon base address\n");
+		return -ENOMEM;
+	}
+
+	exynos_pcie->pmu_alive_pa = res.start;
 
 	exynos_pcie->sysreg = syscon_regmap_lookup_by_phandle(np, "samsung,sysreg-phandle");
 	/* Check definitions to access SYSREG in DT*/
@@ -1608,11 +1627,6 @@ void exynos_pcie_rc_dislink_work(struct work_struct *work)
 	if (exynos_pcie->state == STATE_LINK_DOWN)
 		return;
 
-	/* DBG: exynos_pcie_rc_print_link_history(pp);
-	 * exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
-	 * exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
-	 */
-
 	exynos_pcie->linkdown_cnt++;
 	dev_info(dev, "link down and recovery cnt: %d\n", exynos_pcie->linkdown_cnt);
 	if (exynos_pcie->use_pcieon_sleep) {
@@ -1875,7 +1889,12 @@ void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
 	/* 1. PCIe PHY VREG On */
 	exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
 	/* 2. PMU: PCIe PHY input isolation bypassed - 1 (0: isolation) */
-	regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset, PCIE_PHY_CONTROL_MASK, 1);
+	ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
+			   PCIE_PHY_CONTROL_MASK, 1);
+	/* TODO: remove following as part of b/169128860 */
+	if (ret)
+		regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+				   PCIE_PHY_CONTROL_MASK, 1);
 
 	exynos_pcie_rc_assert_phy_reset(pp);
 
@@ -2187,13 +2206,6 @@ static int exynos_pcie_rc_establish_link(struct pcie_port *pp)
 	int count = 0, try_cnt = 0;
 	unsigned int save_before_state = 0xff;
 retry:
-	/* avoid checking rx elecidle when access DBI */
-	/* not used in gs101
-	 * if (exynos_pcie->phy_ops.phy_check_rx_elecidle != NULL)
-	 *	exynos_pcie->phy_ops.phy_check_rx_elecidle(
-	 *		exynos_pcie->phy_pcs_base, IGNORE_ELECIDLE,
-	 *			exynos_pcie->ch_num);
-	 */
 
 	/* to call eyxnos_pcie_rc_pcie_phy_config() in cal.c file */
 	exynos_pcie_rc_assert_phy_reset(pp);
@@ -2258,13 +2270,6 @@ retry:
 
 	if (exynos_pcie->use_cache_coherency)
 		exynos_pcie_rc_set_iocc(pp, 1);
-
-	/* not used in gs101
-	 * if (exynos_pcie->phy_ops.phy_check_rx_elecidle != NULL)
-	 *	exynos_pcie->phy_ops.phy_check_rx_elecidle(
-	 *		exynos_pcie->phy_pcs_base, ENABLE_ELECIDLE,
-	 *			exynos_pcie->ch_num);
-	 */
 
 	dev_dbg(dev, "D state: %x, %x\n",
 		exynos_elbi_read(exynos_pcie, PCIE_PM_DSTATE) & 0x7,
@@ -2443,8 +2448,12 @@ int exynos_pcie_rc_poweron(int ch_num)
 			/* 1. PCIe PHY VREG On */
 			exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
 			/* 2. PMU: PCIe PHY input isolation bypassed - 1(0: isolated) */
-			regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+			ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
 					   PCIE_PHY_CONTROL_MASK, 1);
+			/* TODO: remove following as part of b/169128860 */
+			if (ret)
+				regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+						   PCIE_PHY_CONTROL_MASK, 1);
 			dev_dbg(dev, "[%s]# PCIe PMU regmap update: 1(BYPASS) #\n", __func__);
 		}
 
@@ -2691,9 +2700,6 @@ static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp)
 	ep_pci_bus = pci_find_bus(domain_num, 1);
 
 	exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0, PCI_VENDOR_ID, 4, &val);
-	/* DBG: dev_info(pci->dev, "(%s): ep_pci_device: vendor/device id = 0x%x\n",
-	 *		 __func__, val);
-	 */
 
 	ep_pci_dev = pci_get_device(val & ID_MASK, (val >> 16) & ID_MASK, NULL);
 
@@ -2738,11 +2744,6 @@ int exynos_pcie_l1_exit(int ch_num)
 			pr_err("%s: cannot change to L0(LTSSM = 0x%x, cnt = %d)\n",
 			       __func__, val, count);
 			ret = -EPIPE;
-		} else {
-			/* DBG: l1_exit done (LTSSM = 0x11) */
-			/* pr_err("%s: L0 state(LTSSM = 0x%x, cnt = %d)\n",
-			 * __func__, val, count);
-			 */
 		}
 
 		/* Set h/w L1 exit mode */
@@ -2752,11 +2753,6 @@ int exynos_pcie_l1_exit(int ch_num)
 		exynos_elbi_write(exynos_pcie, val, PCIE_APP_REQ_EXIT_L1_MODE);
 		/* 2. Reset app_req_exit_l1 Signal */
 		exynos_elbi_write(exynos_pcie, 0x0, PCIE_APP_REQ_EXIT_L1);
-	} else {
-		/* remove too much print */
-		/* pr_err("%s: skip!!! l1.2 is already diabled(id = 0x%x)\n",
-		 *	  __func__, exynos_pcie->l1ss_ctrl_id_state);
-		 */
 	}
 
 	spin_unlock_irqrestore(&exynos_pcie->pcie_l1_exit_lock, flags);
@@ -2775,7 +2771,6 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 	int domain_num;
 	struct pci_bus *ep_pci_bus;
 	u32 exp_cap_off = PCIE_CAP_OFFSET;
-	int i, log_num;
 
 	/* This function is only working with the devices which support L1SS */
 	if (exynos_pcie->ep_device_type != EP_SAMSUNG_MODEM &&
@@ -2988,12 +2983,6 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 			} else {
 				dev_err(dev, "[ERR] EP: L1SS not supported\n");
 			}
-
-			/* DBG:
-			 * dev_info(dev, "(%s): l1ss_enabled(l1ss_ctrl_id_state "
-			 *			"= 0x%x)\n", __func__,
-			 *			exynos_pcie->l1ss_ctrl_id_state);
-			 */
 		}
 	} else {	/* enable == 0 */
 		if (exynos_pcie->l1ss_ctrl_id_state) {
@@ -3075,28 +3064,10 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 			} else {
 				dev_err(dev, "[ERR] EP: L1SS not supported\n");
 			}
-
-			/* DBG:
-			 * dev_info(dev, "(%s): l1ss_disabled(l1ss_ctrl_id_state = 0x%x)\n",
-			 *	    __func__, exynos_pcie->l1ss_ctrl_id_state);
-			 */
 		}
 	}
 
 	spin_unlock_irqrestore(&exynos_pcie->conf_lock, flags);
-
-#if L1SS_DBG_ONLY
-	/* need delay before checking LTSSM & PM_STATE after L1.2 en/disable */
-	mdelay(3);
-
-	log_num = 1;
-	for (i = 0; i < log_num; i++) {
-		dev_dbg(dev, "LOG_#%d) LTSSM(LINK L1.2: 0x14) = 0x%08x\n", i,
-			exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP));
-		dev_dbg(dev, "\tPM_STATE(PHY_PCS L1.2: 0x6) = 0x%08x\n",
-			exynos_phy_pcs_read(exynos_pcie, 0x188));
-	}
-#endif	/* L1SS_DBG_ONLY */
 
 	dev_dbg(dev, "%s:L1SS_END(l1ss_ctrl_id_state=0x%x, id=0x%x, enable=%d)\n",
 		__func__, exynos_pcie->l1ss_ctrl_id_state, id, enable);
@@ -3109,11 +3080,6 @@ int exynos_pcie_rc_l1ss_ctrl(int enable, int id, int ch_num)
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 	struct dw_pcie *pci = exynos_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
-
-	/* DBG
-	 * pr_info("%s(enalbe=%d, id=0x%x, ch_num=%d) is called\n",
-	 *		__func__, enable, id, ch_num);
-	 */
 
 	if (!exynos_pcie->use_l1ss) {
 		pr_err("%s: 'use_l1ss' is false in DT(not support L1.2)\n", __func__);
@@ -3140,19 +3106,6 @@ void exynos_pcie_poweroff(int ch_num)
 	return exynos_pcie_rc_poweroff(ch_num);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_poweroff);
-
-/*	to support WiFi driver
- *	exynos_pcie_l1ss_ctrl() function in pcie-exynos-host-v0.c & .h
- */
-int exynos_pcie_l1ss_ctrl(int enable, int id)
-{
-	/* temporary code */
-	pr_info("[DBG]%s() should not be call in gs101\n", __func__);
-
-	/* return exynos_pcie_rc_l1ss_ctrl(enable, id); */
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(exynos_pcie_l1ss_ctrl);
 
 /* PCIe link status check function */
 int exynos_pcie_rc_chk_link_status(int ch_num)
@@ -3445,11 +3398,6 @@ static int exynos_pcie_rc_power_mode_event(struct notifier_block *nb, unsigned l
 
 	dev_info(pci->dev, "[%s] event: %lx\n", __func__, event);
 	switch (event) {
-	case LPA_EXIT:
-		if (exynos_pcie->state == STATE_LINK_DOWN)
-			exynos_pcie_rc_resumed_phydown(&pci->pp);
-
-		break;
 	case SICD_ENTER:
 		if (exynos_pcie->use_sicd) {
 			if (exynos_pcie->ip_ver >= 0x889500) {
@@ -3772,7 +3720,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	exynos_pcie->power_mode_nb.next = NULL;
 	exynos_pcie->power_mode_nb.priority = 0;
 
-	ret = exynos_pm_register_notifier(&exynos_pcie->power_mode_nb);
+	ret = exynos_cpupm_notifier_register(&exynos_pcie->power_mode_nb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register lpa notifier\n");
 
@@ -3825,12 +3773,17 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+	int ret;
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		/* 1. PMU: PCIe PHY input isolation - 0: isolated (1: bypassed) */
 		dev_dbg(dev, "[%s] # PCIe PMU ISOLATION #\n", __func__);
-		regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+		ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
 				   PCIE_PHY_CONTROL_MASK, 0);
+		/* TODO: remove following as part of b/169128860 */
+		if (ret)
+			regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
+					   PCIE_PHY_CONTROL_MASK, 0);
 
 		/*  2. PCIe PHY VREG off */
 		dev_dbg(dev, "[%s] # VREG OFF: vreg_control(PHY_VREG_OFF) #\n", __func__);

@@ -672,6 +672,18 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_addr = 0,
 		.flag_shft = 0,
 	},
+	{	/* average QP of current frame */
+		.type = MFC_CTRL_TYPE_GET_DST,
+		.id = V4L2_CID_MPEG_VIDEO_AVERAGE_QP,
+		.is_volatile = 1,
+		.mode = MFC_CTRL_MODE_SFR,
+		.addr = MFC_REG_E_NAL_DONE_INFO,
+		.mask = 0x000000FF,
+		.shft = 12,
+		.flag_mode = MFC_CTRL_MODE_NONE,
+		.flag_addr = 0,
+		.flag_shft = 0,
+	},
 	{	/* buffer additional information */
 		.type = MFC_CTRL_TYPE_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG,
@@ -1685,6 +1697,9 @@ static int mfc_enc_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			break;
 		case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_STATUS:
 			value = !enc->in_slice;
+			break;
+		case V4L2_CID_MPEG_VIDEO_AVERAGE_QP:
+			value = pOutStr->NalDoneInfo;
 			break;
 		/* If new dynamic controls are added, insert here */
 		default:

@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS101 Oriole-specific display device tree source
+ *
+ * Copyright (c) 2020 Google, LLC
+ *
+ */
+
+&drmdsim0 {
+	panel@0 {
+		compatible = "samsung,s6e3fc3";
+		label = "samsung-s6e3fc3";
+		channel = <0>;
+		touch = <&spitouch>;
+
+		/* vddi is from PP1850_SA which is always on */
+		/delete-node/ vddi-supply;
+	};
+
+	panel@2 {
+		compatible = "samsung,s6e3hc2-fhd";
+		label = "samsung-s6e3hc2-fhd";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp24 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo22_reg>;
+	};
+};
+
+/* vci-supply voltage */
+&m_ldo22_reg {
+	regulator-min-microvolt = <3025000>;
+	regulator-max-microvolt = <3025000>;
+};
+
+&m_ldo31_reg {
+	/delete-property/ regulator-always-on;
+};

@@ -35,7 +35,6 @@
 		compatible = "samsung,s2mpg10mfd";
 		acpm-ipc-channel = <2>;
 		acpm-speedy-channel = <0>;
-		i2c-speedy-address;
 		s2mpg10,wakeup = "enabled";
 		s2mpg10,irq-gpio = <&gpa0 6 0>;
 		reg = <0x1f>;
@@ -128,6 +127,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x1>;
 				schematic-name = "S1M_VDD_MIF";
+				subsys-name = "MIF";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x1>;
@@ -142,6 +142,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2>;
 				schematic-name = "S2M_VDD_CPUCL2";
+				subsys-name = "CPU(BIG)";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x2>;
@@ -156,6 +157,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x3>;
 				schematic-name = "S3M_VDD_CPUCL1";
+				subsys-name = "CPU(MID)";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x4>;
@@ -170,6 +172,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x4>;
 				schematic-name = "S4M_VDD_CPUCL0";
+				subsys-name = "CPU(LITTLE)";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x8>;
@@ -184,6 +187,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x5>;
 				schematic-name = "S5M_VDD_INT";
+				subsys-name = "INT";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x10>;
@@ -198,6 +202,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x6>;
 				schematic-name = "S6M_VDD_CPUCL2_M";
+				subsys-name = "CPU(BIG)";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x20>;
@@ -212,6 +217,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x7>;
 				schematic-name = "S7M_VDD_INT";
+				subsys-name = "INT";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x40>;
@@ -226,6 +232,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x8>;
 				schematic-name = "S8M_LLDO2";
+				subsys-name = "LDO";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x80>;
@@ -240,6 +247,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x9>;
 				schematic-name = "S9M_LLDO3";
+				subsys-name = "LDO";
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x1>;
@@ -254,6 +262,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0xA>;
 				schematic-name = "S10M_VDD_TPU";
+				subsys-name = "TPU";
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x2>;
@@ -268,6 +277,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x21>;
 				schematic-name = "L1M_ALIVE";
+				subsys-name = "Alive";
 			};
 
 			m_ldo2_reg: LDO2M {
@@ -279,6 +289,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x22>;
 				schematic-name = "L2M_ALIVE";
+				subsys-name = "DDR";
 			};
 
 			m_ldo3_reg: LDO3M {
@@ -290,6 +301,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x23>;
 				schematic-name = "L3M";
+				subsys-name = "IO";
 			};
 
 			m_ldo4_reg: LDO4M {
@@ -301,6 +313,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x24>;
 				schematic-name = "L4M";
+				subsys-name = "IO";
 			};
 
 			m_ldo5_reg: LDO5M {
@@ -312,6 +325,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x25>;
 				schematic-name = "L5M_TCXO";
+				subsys-name = "PLL";
 			};
 
 			m_ldo6_reg: LDO6M {
@@ -323,6 +337,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x26>;
 				schematic-name = "L6M_PLL";
+				subsys-name = "PLL";
 			};
 
 			m_ldo7_reg: LDO7M {
@@ -334,6 +349,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x27>;
 				schematic-name = "L7M_VDD_HSI";
+				subsys-name = "IO";
 			};
 
 			m_ldo8_reg: LDO8M {
@@ -345,6 +361,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x28>;
 				schematic-name = "L8M_USB";
+				subsys-name = "USB";
 			};
 
 			m_ldo9_reg: LDO9M {
@@ -356,6 +373,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x29>;
 				schematic-name = "L9M_USB";
+				subsys-name = "USB";
 			};
 
 			m_ldo10_reg: LDO10M {
@@ -367,6 +385,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2A>;
 				schematic-name = "L10M_USB";
+				subsys-name = "USB";
 			};
 
 			m_ldo11_reg: LDO11M {
@@ -378,6 +397,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2B>;
 				schematic-name = "L11M_VDD_CPUCL1_M";
+				subsys-name = "CPU(MID)";
 			};
 
 			m_ldo12_reg: LDO12M {
@@ -389,6 +409,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2C>;
 				schematic-name = "L12M_VDD_CPUCL0_M";
+				subsys-name = "CPU(LITTLE)";
 			};
 
 			m_ldo13_reg: LDO13M {
@@ -400,6 +421,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2D>;
 				schematic-name = "L13M_VDD_TPU_M";
+				subsys-name = "TPU";
 			};
 
 			m_ldo14_reg: LDO14M {
@@ -411,6 +433,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2E>;
 				schematic-name = "L14M_TCXO";
+				subsys-name = "PLL";
 			};
 
 			m_ldo15_reg: LDO15M {
@@ -422,6 +445,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2F>;
 				schematic-name = "L15M_VDD_SLC_M";
+				subsys-name = "SLC";
 			};
 
 			m_ldo16_reg: LDO16M {
@@ -432,6 +456,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x30>;
 				schematic-name = "L16M_PCIE0";
+				subsys-name = "PCIE";
 			};
 
 			m_ldo17_reg: LDO17M {
@@ -442,6 +467,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x31>;
 				schematic-name = "L17M_PCIE1";
+				subsys-name = "PCIE";
 			};
 
 			m_ldo18_reg: LDO18M {
@@ -452,6 +478,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x32>;
 				schematic-name = "L18M_PCIE0";
+				subsys-name = "PCIE";
 			};
 
 			m_ldo19_reg: LDO19M {
@@ -462,6 +489,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x33>;
 				schematic-name = "L19M_PCIE1";
+				subsys-name = "PCIE";
 			};
 
 			m_ldo20_reg: LDO20M {
@@ -473,6 +501,7 @@
 				regulator-initial-mode = <3>;  /* ALWAYS_ON */
 				channel-mux-selection = <0x34>;
 				schematic-name = "L20M_DMICS";
+				subsys-name = "DMIC";
 			};
 
 			m_ldo21_reg: LDO21M {
@@ -484,6 +513,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x35>;
 				schematic-name = "L21M_DTLS";
+				subsys-name = "DTLS";
 			};
 
 			m_ldo22_reg: LDO22M {
@@ -494,6 +524,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x36>;
 				schematic-name = "L22M_DISP_VCI";
+				subsys-name = "Display";
 			};
 
 			m_ldo23_reg: LDO23M {
@@ -505,6 +536,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x37>;
 				schematic-name = "L23M_UNUSED";
+				subsys-name = "Spare";
 			};
 
 			m_ldo24_reg: LDO24M {
@@ -516,6 +548,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x38>;
 				schematic-name = "L24M_DISP_VDD";
+				subsys-name = "Display";
 			};
 
 			m_ldo25_reg: LDO25M {
@@ -526,6 +559,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x39>;
 				schematic-name = "L25M_TSP_DVDD";
+				subsys-name = "Touch";
 			};
 
 			m_ldo26_reg: LDO26M {
@@ -536,6 +570,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3A>;
 				schematic-name = "L26M_TS_AVDD";
+				subsys-name = "Touch";
 			};
 
 			m_ldo27_reg: LDO27M {
@@ -547,6 +582,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3B>;
 				schematic-name = "L27M_SENTONS";
+				subsys-name = "UDFPS";
 			};
 
 			m_ldo28_reg: LDO28M {
@@ -558,6 +594,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3C>;
 				schematic-name = "L28M_SENTONS";
+				subsys-name = "Display";
 			};
 
 			m_ldo29_reg: LDO29M {
@@ -569,6 +606,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3D>;
 				schematic-name = "L29M_DISP";
+				subsys-name = "Spare";
 			};
 
 			m_ldo30_reg: LDO30M {
@@ -579,6 +617,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3E>;
 				schematic-name = "L30M_DISP_VDDI";
+				subsys-name = "Spare";
 			};
 
 			m_ldo31_reg: LDO31M {
@@ -589,6 +628,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3F>;
 				schematic-name = "L31M_UNUSED";
+				subsys-name = "Spare";
 			};
 		};
 
@@ -641,8 +681,7 @@
 
 				ch7: channel@6 {
 					rail-name = "BUCK5M";
-					/* Disabled due to bug: 159965947 */
-					/* channel_enabled; */
+					channel_enabled;
 				};
 
 				ch8: channel@7 {
@@ -655,32 +694,7 @@
 				use-regulators-as-rails;
 
 				/* Additional rails */
-				m_ext1_rail: VSEN_V1 {
-					external_rail;
-					channel-en-index = <1>;
-					channel-mux-selection = <0x1C>;
-					shunt-res-uohms = <10000>;
-					schematic-name = "PPVAR_VSYS_PWR_DISP";
-					subsys-name = "display";
-				};
-
-				m_ext2_rail: VSEN_V2 {
-					external_rail;
-					channel-en-index = <2>;
-					channel-mux-selection = <0x1D>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "VSYS_PWR_MODEM";
-					subsys-name = "modem";
-				};
-
-				m_ext3_rail: VSEN_V3 {
-					external_rail;
-					channel-en-index = <4>;
-					channel-mux-selection = <0x1E>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "VSYS_PWR_RFFE";
-					subsys-name = "rffe";
-				};
+				/* Note; VSEN_P is not supported */
 
 				m_ext4_rail: VSEN_C1 {
 					external_rail;
@@ -688,7 +702,7 @@
 					channel-mux-selection = <0x5C>;
 					shunt-res-uohms = <10000>;
 					schematic-name = "PPVAR_VSYS_PWR_DISP";
-					subsys-name = "display";
+					subsys-name = "Display";
 				};
 
 				m_ext5_rail: VSEN_C2 {
@@ -697,7 +711,7 @@
 					channel-mux-selection = <0x5D>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "VSYS_PWR_MODEM";
-					subsys-name = "modem";
+					subsys-name = "Modem";
 				};
 
 				m_ext6_rail: VSEN_C3 {
@@ -706,7 +720,7 @@
 					channel-mux-selection = <0x5E>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "VSYS_PWR_RFFE";
-					subsys-name = "rffe";
+					subsys-name = "Cellular";
 				};
 			};
 		};
@@ -731,7 +745,6 @@
 		compatible = "samsung,s2mpg11mfd";
 		acpm-ipc-channel = <2>;
 		acpm-speedy-channel = <1>;
-		i2c-speedy-address;
 		s2mpg11,wakeup = "enabled";
 		s2mpg11,irq-gpio = <&gpa0 7 0>;
 		reg = <0x2f>;
@@ -764,6 +777,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x1>;
 				schematic-name = "S1S_VDD_CAM";
+				subsys-name = "Multimedia";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x1>;
@@ -778,6 +792,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2>;
 				schematic-name = "S2S_VDD_G3D";
+				subsys-name = "GPU";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x2>;
@@ -792,6 +807,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3>;
 				schematic-name = "S3S_LLDO1";
+				subsys-name = "LDO";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x4>;
@@ -806,6 +822,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x4>;
 				schematic-name = "S4S_VDD2H_MEM";
+				subsys-name = "DDR";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x8>;
@@ -820,6 +837,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x5>;
 				schematic-name = "S5S_VDDQ_MEM";
+				subsys-name = "DDR";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x10>;
@@ -834,6 +852,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x6>;
 				schematic-name = "S6S_LLDO4";
+				subsys-name = "LDO";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x20>;
@@ -848,6 +867,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x7>;
 				schematic-name = "S7S_MLDO";
+				subsys-name = "LDO";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x40>;
@@ -862,6 +882,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x8>;
 				schematic-name = "S8S_VDD_G3D_L2";
+				subsys-name = "GPU";
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x80>;
@@ -876,6 +897,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x9>;
 				schematic-name = "S9S_VDD_AOC";
+				subsys-name = "AOC";
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x1>;
@@ -890,6 +912,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xA>;
 				schematic-name = "S10S_VDD2L";
+				subsys-name = "DDR";
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x2>;
@@ -904,6 +927,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0xB>;
 				schematic-name = "SD";
+				subsys-name = "UFS";
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x4>;
@@ -918,6 +942,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xC>;
 				schematic-name = "SA";
+				subsys-name = "IO";
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x8>;
@@ -932,6 +957,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xD>;
 				schematic-name = "BB_HLDO";
+				subsys-name = "LDO";
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x10>;
@@ -946,6 +972,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x21>;
 				schematic-name = "L1S_VDD_G3D_M";
+				subsys-name = "GPU";
 			};
 
 			s_ldo2_reg: LDO2S {
@@ -957,6 +984,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x22>;
 				schematic-name = "L2S_VDD_AOC_RET";
+				subsys-name = "AOC";
 			};
 
 			s_ldo3_reg: LDO3S {
@@ -968,6 +996,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x23>;
 				schematic-name = "L3S_HS_AMP";
+				subsys-name = "Spare";
 			};
 
 			s_ldo4_reg: LDO4S {
@@ -979,6 +1008,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x24>;
 				schematic-name = "L4S_OSLO";
+				subsys-name = "UWB";
 			};
 
 			s_ldo5_reg: LDO5S {
@@ -990,6 +1020,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x25>;
 				schematic-name = "L5S_OSLO";
+				subsys-name = "Spare";
 			};
 
 			s_ldo6_reg: LDO6S {
@@ -1001,6 +1032,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x26>;
 				schematic-name = "L6S_PROX";
+				subsys-name = "Sensors";
 			};
 
 			s_ldo7_reg: LDO7S {
@@ -1012,6 +1044,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x27>;
 				schematic-name = "L7S_SENSORS";
+				subsys-name = "Sensors";
 			};
 
 			s_ldo8_reg: LDO8S {
@@ -1023,6 +1056,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x28>;
 				schematic-name = "L8S_UFS_VCCQ";
+				subsys-name = "UFS";
 			};
 
 			s_ldo9_reg: LDO9S {
@@ -1034,6 +1068,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x29>;
 				schematic-name = "L9S_GNSS_CORE";
+				subsys-name = "GPS";
 			};
 
 			s_ldo10_reg: LDO10S {
@@ -1045,6 +1080,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2A>;
 				schematic-name = "L10S_GNSS_RF";
+				subsys-name = "GPS";
 			};
 
 			s_ldo11_reg: LDO11S {
@@ -1056,6 +1092,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2B>;
 				schematic-name = "L11S_GNSS_AUX";
+				subsys-name = "GPS";
 			};
 
 			s_ldo12_reg: LDO12S {
@@ -1067,6 +1104,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2C>;
 				schematic-name = "L12S_WLAN";
+				subsys-name = "Spare";
 			};
 
 			s_ldo13_reg: LDO13S {
@@ -1078,6 +1116,7 @@
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2D>;
 				schematic-name = "L13S_MMC_CARD";
+				subsys-name = "MMC";
 			};
 
 			s_ldo14_reg: LDO14S {
@@ -1089,6 +1128,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2E>;
 				schematic-name = "L14S_NFC";
+				subsys-name = "UWB";
 			};
 
 			s_ldo15_reg: LDO15S {
@@ -1100,6 +1140,7 @@
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2F>;
 				schematic-name = "L15S_FPS";
+				subsys-name = "Spare";
 			};
 		};
 
@@ -1165,32 +1206,7 @@
 				use-regulators-as-rails;
 
 				/* Additional rails */
-				s_ext1_rail: VSEN_P4 {
-					external_rail;
-					channel-en-index = <1>;
-					channel-mux-selection = <0x1C>;
-					shunt-res-uohms = <10000>;
-					schematic-name = "VSYS_PWR_WLAN_BT";
-					subsys-name = "wlan-bt";
-				};
-
-				s_ext2_rail: VSEN_P5 {
-					external_rail;
-					channel-en-index = <2>;
-					channel-mux-selection = <0x1D>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "P5_GRAS";
-					subsys-name = "spare";
-				};
-
-				s_ext3_rail: VSEN_P6 {
-					external_rail;
-					channel-en-index = <4>;
-					channel-mux-selection = <0x1E>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "P6_GRAS";
-					subsys-name = "spare";
-				};
+				/* Note; VSEN_P is not supported */
 
 				s_ext4_rail: VSEN_C4 {
 					external_rail;
@@ -1198,7 +1214,7 @@
 					channel-mux-selection = <0x5C>;
 					shunt-res-uohms = <10000>;
 					schematic-name = "VSYS_PWR_WLAN_BT";
-					subsys-name = "wlan-bt";
+					subsys-name = "WLAN-BT";
 				};
 
 				s_ext5_rail: VSEN_C5 {
@@ -1207,7 +1223,7 @@
 					channel-mux-selection = <0x5D>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "P5_GRAS";
-					subsys-name = "spare";
+					subsys-name = "Spare";
 				};
 
 				s_ext6_rail: VSEN_C6 {
@@ -1216,7 +1232,7 @@
 					channel-mux-selection = <0x5E>;
 					shunt-res-uohms = <5000>;
 					schematic-name = "P6_GRAS";
-					subsys-name = "spare";
+					subsys-name = "Cellular";
 				};
 			};
 		};

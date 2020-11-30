@@ -83,8 +83,6 @@ static void exynos_read_ppc(struct exynos_devfreq_data *data)
 		if (data->um_data.val_pmcnt < ppc.pmcnt) {
 			data->um_data.val_ccnt = ppc.ccnt;
 			data->um_data.val_pmcnt = ppc.pmcnt;
-			trace_dvfs_read_ppc(ppc.ccnt, ppc.pmcnt,
-					    data->um_data.va_base[i]);
 			index = i;
 		}
 	}
@@ -135,13 +133,13 @@ static int exynos_devfreq_get_dev_status(struct device *dev,
 	/* Read current counter */
 	exynos_read_ppc(data);
 
-	profile_data->current_frequency = data->devfreq->previous_freq;
+	stat->current_frequency = data->devfreq->previous_freq;
 	profile_data->busy_time = data->um_data.val_pmcnt;
 	profile_data->total_time = data->um_data.val_ccnt;
 	profile_data->delta_time = data->last_monitor_period;
 
 	data->last_um_usage_rate =
-		div64_u64(profile_data->busy_time * 100, profile_data->total_time);
+		div64_u64(stat->busy_time * 100, stat->total_time);
 
 	for (i = 0; i < data->um_data.um_count; i++) {
 		exynos_reset_ppc(data->um_data.va_base[i]);

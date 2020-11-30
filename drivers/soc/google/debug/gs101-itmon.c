@@ -1150,6 +1150,9 @@ static void itmon_post_handler_by_client(struct itmon_dev *itmon,
 			dev_err(itmon->dev, "Skips CPU transaction detected - err_cnt_by_cpu: %u, interval: %lldns\n",
 				pdata->err_cnt_by_cpu, ktime_to_ns(interval));
 		}
+	} else {
+		if (info->errcode == ERRCODE_UNSUPPORTED)
+			pdata->policy[FATAL].error = true;
 	}
 }
 
@@ -1422,7 +1425,7 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 	if (!BIT_ERR_VALID(data->int_info))
 		return;
 
-	if (node->type == M_NODE && errcode != ERRCODE_DECERR)
+	if (node->type == M_NODE && !(errcode == ERRCODE_DECERR || errcode == ERRCODE_UNSUPPORTED))
 		return;
 
 	new_info = kmalloc(sizeof(struct itmon_traceinfo), GFP_ATOMIC);

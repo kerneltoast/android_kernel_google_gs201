@@ -253,6 +253,7 @@
 /* new C2_INTERFACE: DISPLAY_DELAY, FRAME_POC */
 #define	DEC_SET_C2_INTERFACE		(1 << 6)
 #define DEC_SET_FRAME_ERR_TYPE		(1 << 7)
+#define DEC_SET_OPERATING_FPS		(1 << 8)
 #define DEC_SET_BUF_FLAG_CTRL		(1 << 16)
 
 /* Extra information for Encoder */
@@ -274,6 +275,8 @@
 #define	ENC_SET_CHROMA_QP_CONTROL	(1 << 15)
 #define ENC_SET_BUF_FLAG_CTRL		(1 << 16)
 #define ENC_SET_GDC_VOTF		(1 << 17)
+#define ENC_SET_OPERATING_FPS		(1 << 18)
+#define ENC_SET_AVERAGE_QP		(1 << 19)
 
 #define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw_date >= (f).version))
 

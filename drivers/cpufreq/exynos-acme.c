@@ -288,7 +288,8 @@ static int exynos_cpufreq_verify(struct cpufreq_policy_data *new_policy)
 	struct exynos_cpufreq_domain *domain = find_domain(new_policy->cpu);
 	struct cpufreq_policy policy;
 	unsigned int min_freq, max_freq;
-	int index;
+	int index, ret;
+	unsigned long max_capacity, capacity;
 
 	if (!domain)
 		return -EINVAL;
@@ -319,7 +320,16 @@ static int exynos_cpufreq_verify(struct cpufreq_policy_data *new_policy)
 				 domain->min_freq_qos,
 				 domain->max_freq_qos);
 
-	return cpufreq_frequency_table_verify(new_policy, domain->freq_table);
+	ret = cpufreq_frequency_table_verify(new_policy, domain->freq_table);
+	if (!ret) {
+		max_capacity = arch_scale_cpu_capacity(cpumask_first(&domain->cpus));
+		capacity = new_policy->max * max_capacity;
+		capacity /= new_policy->cpuinfo.max_freq;
+		arch_set_thermal_pressure(&domain->cpus, max_capacity - capacity);
+		pr_debug_ratelimited("thermal pressure: %lu, cpus: %*pbl\n",
+			max_capacity - capacity, cpumask_pr_args(&domain->cpus));
+	}
+	return ret;
 }
 
 static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
@@ -698,12 +708,12 @@ static int init_constraint_table_ect(struct exynos_cpufreq_dm *dm,
 		return -ENODEV;
 
 	for (index = 0; index < dm->c.table_length; index++) {
-		unsigned int freq = dm->c.freq_table[index].master_freq;
+		unsigned int freq = dm->c.freq_table[index].driver_freq;
 
 		for (c_index = 0; c_index < ect_domain->num_of_level; c_index++) {
 			/* find row same as frequency */
 			if (freq == ect_domain->level[c_index].main_frequencies) {
-				dm->c.freq_table[index].slave_freq =
+				dm->c.freq_table[index].constraint_freq =
 					ect_domain->level[c_index].sub_frequencies;
 				valid_row = true;
 				break;
@@ -717,7 +727,8 @@ static int init_constraint_table_ect(struct exynos_cpufreq_dm *dm,
 		 * main_frequeucy of ect.
 		 */
 		if (!valid_row)
-			dm->c.freq_table[index].slave_freq = ect_domain->level[0].sub_frequencies;
+			dm->c.freq_table[index].constraint_freq =
+				ect_domain->level[0].sub_frequencies;
 	}
 
 	return 0;
@@ -725,29 +736,29 @@ static int init_constraint_table_ect(struct exynos_cpufreq_dm *dm,
 
 static void
 validate_dm_constraint_table(struct exynos_dm_freq *table, int table_size,
-			     int master_cal_id, int slave_cal_id)
+			     int driver_cal_id, int constraint_cal_id)
 {
 	unsigned long *ect_table;
 	int ect_size, index, ect_index;
 
-	if (!master_cal_id)
-		goto validate_slave;
+	if (!driver_cal_id)
+		goto validate_constraint;
 
-	/* validate master frequency */
-	ect_size = cal_dfs_get_lv_num(master_cal_id);
+	/* validate driver frequency */
+	ect_size = cal_dfs_get_lv_num(driver_cal_id);
 	ect_table = kcalloc(ect_size, sizeof(unsigned long), GFP_KERNEL);
 	if (!ect_table)
 		return;
 
-	cal_dfs_get_rate_table(master_cal_id, ect_table);
+	cal_dfs_get_rate_table(driver_cal_id, ect_table);
 
 	for (index = 0; index < table_size; index++) {
-		unsigned int freq = table[index].master_freq;
+		unsigned int freq = table[index].driver_freq;
 
 		ect_index = ect_size;
 		while (--ect_index >= 0) {
 			if (freq <= ect_table[ect_index]) {
-				table[index].master_freq = ect_table[ect_index];
+				table[index].driver_freq = ect_table[ect_index];
 				break;
 			}
 		}
@@ -755,25 +766,25 @@ validate_dm_constraint_table(struct exynos_dm_freq *table, int table_size,
 
 	kfree(ect_table);
 
-validate_slave:
-	if (!slave_cal_id)
+validate_constraint:
+	if (!constraint_cal_id)
 		return;
 
-	/* validate slave frequency */
-	ect_size = cal_dfs_get_lv_num(slave_cal_id);
+	/* validate constraint frequency */
+	ect_size = cal_dfs_get_lv_num(constraint_cal_id);
 	ect_table = kcalloc(ect_size, sizeof(unsigned long), GFP_KERNEL);
 	if (!ect_table)
 		return;
 
-	cal_dfs_get_rate_table(slave_cal_id, ect_table);
+	cal_dfs_get_rate_table(constraint_cal_id, ect_table);
 
 	for (index = 0; index < table_size; index++) {
-		unsigned int freq = table[index].slave_freq;
+		unsigned int freq = table[index].constraint_freq;
 
 		ect_index = ect_size;
 		while (--ect_index >= 0) {
 			if (freq <= ect_table[ect_index]) {
-				table[index].slave_freq = ect_table[ect_index];
+				table[index].constraint_freq = ect_table[ect_index];
 				break;
 			}
 		}
@@ -789,7 +800,7 @@ static int init_constraint_table_dt(struct exynos_cpufreq_dm *dm,
 	int size, table_size, index, c_index;
 
 	/*
-	 * A DM constraint table row consists of master and slave frequency
+	 * A DM constraint table row consists of driver and constraint frequency
 	 * value, the size of a row is 64bytes. Divide size in half when
 	 * table is allocated.
 	 */
@@ -805,14 +816,15 @@ static int init_constraint_table_dt(struct exynos_cpufreq_dm *dm,
 	of_property_read_u32_array(dn, "table", (unsigned int *)table, size);
 
 	validate_dm_constraint_table(table, table_size,
-				     dm->master_cal_id, dm->slave_cal_id);
+				     dm->driver_cal_id, dm->constraint_cal_id);
 
 	for (index = 0; index < dm->c.table_length; index++) {
-		unsigned int freq = dm->c.freq_table[index].master_freq;
+		unsigned int freq = dm->c.freq_table[index].driver_freq;
 
 		for (c_index = 0; c_index < table_size; c_index++) {
-			if (freq == table[c_index].master_freq) {
-				dm->c.freq_table[index].slave_freq = table[c_index].slave_freq;
+			if (freq == table[c_index].driver_freq) {
+				dm->c.freq_table[index].constraint_freq =
+					table[c_index].constraint_freq;
 				break;
 			}
 		}
@@ -887,9 +899,9 @@ static int init_dm(struct exynos_cpufreq_domain *domain,
 		list_add_tail(&dm->list, &domain->dm_list);
 
 		of_property_read_u32(iter.node, "const-type", &dm->c.constraint_type);
-		of_property_read_u32(iter.node, "dm-slave", &dm->c.dm_slave);
-		of_property_read_u32(iter.node, "master-cal-id", &dm->master_cal_id);
-		of_property_read_u32(iter.node, "slave-cal-id", &dm->slave_cal_id);
+		of_property_read_u32(iter.node, "dm-constraint", &dm->c.dm_constraint);
+		of_property_read_u32(iter.node, "driver-cal-id", &dm->driver_cal_id);
+		of_property_read_u32(iter.node, "constraint-cal-id", &dm->constraint_cal_id);
 
 		/* allocate DM constraint table */
 		dm->c.freq_table = kcalloc(domain->table_size,
@@ -901,20 +913,20 @@ static int init_dm(struct exynos_cpufreq_domain *domain,
 		dm->c.table_length = domain->table_size;
 
 		/*
-		 * fill master freq, domain frequency table is in ascending
+		 * fill driver freq, domain frequency table is in ascending
 		 * order, but DM constraint table must be in descending
 		 * order.
 		 */
 		index = 0;
 		r_index = domain->table_size - 1;
 		while (r_index >= 0) {
-			dm->c.freq_table[index].master_freq =
+			dm->c.freq_table[index].driver_freq =
 				domain->freq_table[r_index].frequency;
 			index++;
 			r_index--;
 		}
 
-		/* fill slave freq */
+		/* fill constraint freq */
 		if (of_property_read_bool(iter.node, "guidance")) {
 			dm->c.guidance = true;
 			if (init_constraint_table_ect(dm, iter.node))
@@ -1141,17 +1153,41 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	domain->min_freq_qos = domain->min_freq;
 
 	/*
-	 * Set frequency table size.
-	 * Allocate temporary table to get DVFS table from CAL.
-	 * Deliver this table to CAL API, then CAL fills the information.
+	 * Allocate temporary frequency and voltage tables
+	 * to get DVFS table from CAL.
 	 */
 	orig_table_size = cal_dfs_get_lv_num(domain->cal_id);
-	freq_table = kcalloc(orig_table_size, sizeof(unsigned long), GFP_KERNEL);
+
+	freq_table = kcalloc(orig_table_size, sizeof(unsigned long),
+			     GFP_KERNEL);
 	if (!freq_table)
 		return -ENOMEM;
-
 	cal_dfs_get_rate_table(domain->cal_id, freq_table);
 
+	volt_table = kzalloc(sizeof(unsigned int) * orig_table_size,
+			     GFP_KERNEL);
+	if (!volt_table) {
+		kfree(freq_table);
+		return -ENOMEM;
+	}
+	cal_dfs_get_asv_table(domain->cal_id, volt_table);
+
+	/*
+	 * A voltage-based cap can be used to find the max frequency
+	 * from the given ASV table.
+	 */
+	if (!of_property_read_u32(dn, "max-volt", &val)) {
+		for (index = 0; index < orig_table_size; index++) {
+			if (volt_table[index] <= val)
+				break;
+		}
+		domain->max_freq = min(domain->max_freq, (unsigned int)freq_table[index]);
+		domain->max_freq_qos = domain->max_freq;
+	}
+
+	/*
+	 * Set frequency table size.
+	 */
 	domain->table_size = 0;
 	for (index = 0; index < orig_table_size; index++) {
 		if (freq_table[index] > domain->max_freq)
@@ -1216,14 +1252,6 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	 * Add OPP table for thermal.
 	 * Thermal CPU cooling is based on the OPP table.
 	 */
-	volt_table = kzalloc(sizeof(unsigned int) * orig_table_size, GFP_KERNEL);
-	if (!volt_table) {
-		kfree(freq_table);
-		return -ENOMEM;
-	}
-
-	cal_dfs_get_asv_table(domain->cal_id, volt_table);
-
 	for (index = 0; index < orig_table_size; index++) {
 		int cpu;
 

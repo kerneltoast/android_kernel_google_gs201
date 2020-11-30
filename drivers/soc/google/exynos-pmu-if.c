@@ -14,12 +14,15 @@
 #include <linux/io.h>
 #include <soc/google/exynos-pmu-if.h>
 #include <linux/mod_devicetable.h>
+#include <soc/google/exynos-el3_mon.h>
 
 /**
  * "pmureg" has the mapped base address of PMU(Power Management Unit)
  */
 static struct regmap *pmureg;
+/* TODO: remove pmu_alive va as part of b/169128860 */
 static void __iomem *pmu_alive;
+static phys_addr_t pmu_alive_pa;
 static spinlock_t update_lock;
 
 /* Atomic operation for PMU_ALIVE registers. (offset 0~0x3FFF)
@@ -29,13 +32,38 @@ static spinlock_t update_lock;
 static inline void exynos_pmu_set_bit_atomic(unsigned int offset,
 						unsigned int val)
 {
-	__raw_writel(val, pmu_alive + (offset | 0xc000));
+	int ret;
+
+	ret = set_priv_reg(pmu_alive_pa + (offset | 0xc000), val);
+
+	/* TODO: remove following as part of b/169128860 */
+	if (ret)
+		__raw_writel(val, pmu_alive + (offset | 0xc000));
 }
 
 static inline void exynos_pmu_clr_bit_atomic(unsigned int offset,
 						unsigned int val)
 {
-	__raw_writel(val, pmu_alive + (offset | 0x8000));
+	int ret;
+
+	ret = set_priv_reg(pmu_alive_pa + (offset | 0x8000), val);
+
+	/* TODO: remove following as part of b/169128860 */
+	if (ret)
+		__raw_writel(val, pmu_alive + (offset | 0x8000));
+}
+
+static int exynos_pmu_update_bits(unsigned int offset, unsigned int mask, unsigned int val)
+{
+	int ret;
+
+	ret = rmw_priv_reg(pmu_alive_pa + offset, mask, val);
+
+	/* TODO: remove following as part of b/169128860 */
+	if (ret)
+		ret = regmap_update_bits(pmureg, offset, mask, val);
+
+	return ret;
 }
 
 /**
@@ -49,7 +77,15 @@ EXPORT_SYMBOL(exynos_pmu_read);
 
 int exynos_pmu_write(unsigned int offset, unsigned int val)
 {
-	return regmap_write(pmureg, offset, val);
+	int ret;
+
+	ret = set_priv_reg(pmu_alive_pa + offset, val);
+
+	/* TODO: remove following as part of b/169128860 */
+	if (ret)
+		ret = regmap_write(pmureg, offset, val);
+
+	return ret;
 }
 EXPORT_SYMBOL(exynos_pmu_write);
 
@@ -59,7 +95,7 @@ int exynos_pmu_update(unsigned int offset, unsigned int mask, unsigned int val)
 	unsigned long flags;
 
 	if (offset > 0x3fff)
-		return regmap_update_bits(pmureg, offset, mask, val);
+		return exynos_pmu_update_bits(offset, mask, val);
 
 	spin_lock_irqsave(&update_lock, flags);
 
@@ -77,12 +113,6 @@ int exynos_pmu_update(unsigned int offset, unsigned int mask, unsigned int val)
 	return 0;
 }
 EXPORT_SYMBOL(exynos_pmu_update);
-
-struct regmap *exynos_get_pmu_regmap(void)
-{
-	return pmureg;
-}
-EXPORT_SYMBOL_GPL(exynos_get_pmu_regmap);
 
 #define PMU_CPU_CONFIG_BASE			0x1000
 #define PMU_CPU_STATUS_BASE			0x1004
@@ -130,9 +160,9 @@ static void pmu_cpu_ctrl(unsigned int cpu, int enable)
 	unsigned int offset;
 
 	offset = pmu_cpu_offset(cpu);
-	regmap_update_bits(pmureg, PMU_CPU_CONFIG_BASE + offset,
-			CPU_LOCAL_PWR_CFG,
-			enable ? CPU_LOCAL_PWR_CFG : 0);
+	exynos_pmu_update_bits(PMU_CPU_CONFIG_BASE + offset,
+			       CPU_LOCAL_PWR_CFG,
+			       enable ? CPU_LOCAL_PWR_CFG : 0);
 }
 
 static int pmu_cpu_state(unsigned int cpu)
@@ -157,10 +187,9 @@ static void pmu_cluster_ctrl(unsigned int cpu, int enable)
 {
 	unsigned int offset = 0;
 
-	regmap_update_bits(pmureg,
-			PMU_NONCPU_CONFIG_BASE + offset,
-			NONCPU_LOCAL_PWR_CFG,
-			enable ? NONCPU_LOCAL_PWR_CFG : 0);
+	exynos_pmu_update_bits(PMU_NONCPU_CONFIG_BASE + offset,
+			       NONCPU_LOCAL_PWR_CFG,
+			       enable ? NONCPU_LOCAL_PWR_CFG : 0);
 }
 
 static bool pmu_noncpu_state(unsigned int cpu)
@@ -310,6 +339,8 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 		pr_err("Failed to get address of PMU_ALIVE\n");
 		return PTR_ERR(pmu_alive);
 	}
+
+	pmu_alive_pa = res->start;
 	spin_lock_init(&update_lock);
 
 	if (subsys_system_register(&exynos_info_subsys,

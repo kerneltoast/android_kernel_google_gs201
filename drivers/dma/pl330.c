@@ -3299,23 +3299,20 @@ EXPORT_SYMBOL_GPL(pl330_dma_getposition);
 				 BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_4_BYTES) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_8_BYTES))
+#ifdef CONFIG_PM
 /*
  * Runtime PM callbacks are provided by amba/bus.c driver.
  *
  * It is assumed here that IRQ safe runtime PM is chosen in probe and amba
  * bus driver will only disable/enable the clock in runtime PM callbacks.
  */
-static int __maybe_unused pl330_suspend(struct device *dev)
+static int pl330_suspend(struct device *dev)
 {
-	struct amba_device *pcdev = to_amba_device(dev);
-
 	pm_runtime_force_suspend(dev);
-	amba_pclk_unprepare(pcdev);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int pl330_resume(struct device *dev)
 {
 	struct pl330_dmac *pl330;

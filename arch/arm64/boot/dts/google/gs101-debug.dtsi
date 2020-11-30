@@ -15,7 +15,8 @@
 				"DISP", "INTCAM", "TPU", "TNR", "MFC",
 				"BO";
 		memory-region = <&header>, <&log_kevents>, <&log_s2d>,
-				<&log_arrdumpreset>, <&log_arrdumppanic>;
+				<&log_arrdumpreset>, <&log_arrdumppanic>,
+				<&log_slcdump>, <&log_preslcdump>;
 	};
 
 	hardlockup-debugger {
@@ -151,5 +152,111 @@
 				"CORE5, L1,L2 DATA or TAG RAM",
 				"CORE6, L1,L2 DATA or TAG RAM",
 				"CORE7, L1,L2 DATA or TAG RAM";
+	};
+
+	exynos-etm {
+		compatible = "google,exynos-etm";
+		cs_base = <0x25000000>;
+		boot-start = <0>;
+		funnel-num = <3>;
+		etf-num = <2>;
+		/* funnel-port = <(funnel num) (port num)>; */
+		etm0 {
+			device_type = "etm";
+			offset = <0x840000>;
+			funnel-port = <0 0>;
+		};
+		etm1 {
+			device_type = "etm";
+			offset = <0x940000>;
+			funnel-port = <0 1>;
+		};
+		etm2 {
+			device_type = "etm";
+			offset = <0xa40000>;
+			funnel-port = <1 0>;
+		};
+		etm3 {
+			device_type = "etm";
+			offset = <0xb40000>;
+			funnel-port = <1 1>;
+		};
+		etm4 {
+			device_type = "etm";
+			offset = <0xc40000>;
+			funnel-port = <1 2>;
+		};
+		etm5 {
+			device_type = "etm";
+			offset = <0xd40000>;
+			funnel-port = <1 3>;
+		};
+		etm6 {
+			device_type = "etm";
+			offset = <0xe40000>;
+			funnel-port = <0 2>;
+		};
+		etm7 {
+			device_type = "etm";
+			offset = <0xf40000>;
+			funnel-port = <0 3>;
+		};
+		etf0@4000 {
+			device_type = "etf";
+			offset = <0x4000>;
+			funnel-port = <2 0>;
+		};
+		etf1@5000 {
+			device_type = "etf";
+			offset = <0x5000>;
+			funnel-port = <2 1>;
+		};
+		funnel0@7000 {
+			device_type = "funnel";
+			offset = <0x7000>;
+		};
+		funnel1@8000 {
+			device_type = "funnel";
+			offset = <0x8000>;
+		};
+		funnel2@9000 {
+			device_type = "funnel";
+			offset = <0x9000>;
+		};
+		etr@A000 {
+			device_type = "etr";
+			sfr_base = <0x2500c000 0x100>;
+			qch-offset = <0x2c>;
+			offset = <0xA000>;
+			buf-size = <0x100000>;
+		};
+	};
+
+	exynos-adv_tracer {
+		compatible = "google,exynos-adv-tracer";
+		reg = <0x0 0x176c0000 0x1000>;
+		reg-names = "mailbox";
+		interrupts = <GIC_SPI IRQ_MAILBOX_DBGCORE2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
+		pmu-dbgcore-config = <0x3080>;
+		pmu-dbgcore-status = <0x3084>;
+		intr-bitoffset = <0>;
+		status = "ok";
+	};
+
+	exynos_adv_tracer_s2d {
+		compatible = "google,exynos-adv-tracer-s2d";
+		plugin-len = <3>;
+		plugin-name = "S2D";
+		pmu-burnin-ctrl = <0x3cd0>;
+		sel-scanmode-bit = <25>;
+		dbgsel-sw-bit = <4>;
+		blk-list = "AOC", "AOCCORE", "BO", "BOCORE", "BUS0", "BUS1",
+			   "BUS2", "CMU", "CORE", "CPUCL0", "CLUSTER0", "CSIS",
+			   "DISP", "DNS", "DPU", "EH", "G2D", "G3AA",
+			   "G3D", "GPU", "GDC", "GSA", "HSI0", "HSI1",
+			   "HSI2", "IPP", "ITP", "MCSC", "MFC", "MIF1",
+			   "MIF2", "MIF3", "PDP", "PERIC0", "PERIC1", "TNR",
+			   "TPU", "TPUCORE", "SLC0", "SLC1", "SLC2", "SLC3";
+		status = "ok";
 	};
 };

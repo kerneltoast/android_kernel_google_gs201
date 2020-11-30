@@ -517,6 +517,9 @@ static void dit_set_src_desc_kick_range(enum dit_direction dir, unsigned int src
 	src_desc = &desc_info->src_desc_ring[desc_info->src_desc_ring_len - 1];
 	src_desc->control |= BIT(DIT_DESC_C_RINGEND);
 
+	/* ensure the src_desc ordering */
+	smp_mb();
+
 	dit_set_snapshot(dir, DIT_SRC_DESC_RING, head, tail,
 		circ_get_usage(desc_info->src_desc_ring_len, tail, head) + 1);
 }
@@ -719,13 +722,14 @@ static int dit_fill_tx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 	return 0;
 }
 
-static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int read)
+static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int read, bool initial)
 {
 	struct dit_desc_info *desc_info;
 	struct dit_dst_desc *dst_desc;
 	struct sk_buff **dst_skb;
 	unsigned int buf_size;
 	unsigned int dst_rp_pos;
+	gfp_t gfp_mask;
 	int i;
 
 	if (!dc)
@@ -735,6 +739,9 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 		return 0;
 
 	desc_info = &dc->desc_info[DIT_DIR_RX];
+
+	if (initial && desc_info->dst_skb_buf[ring_num])
+		return 0;
 
 	if (unlikely(!desc_info->dst_skb_buf[ring_num])) {
 		buf_size = sizeof(struct sk_buff *) * desc_info->dst_desc_ring_len;
@@ -758,7 +765,15 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 		if (unlikely(dst_skb[dst_rp_pos]))
 			goto next;
 
-		dst_skb[dst_rp_pos] = napi_alloc_skb(&dc->napi, buf_size);
+		if (initial) {
+			gfp_mask = GFP_KERNEL;
+			if (ring_num == DIT_DST_DESC_RING_0)
+				gfp_mask = GFP_ATOMIC;
+
+			dst_skb[dst_rp_pos] = __netdev_alloc_skb(dc->netdev, buf_size, gfp_mask);
+		} else
+			dst_skb[dst_rp_pos] = napi_alloc_skb(&dc->napi, buf_size);
+
 		if (unlikely(!dst_skb[dst_rp_pos])) {
 			mif_err("dit dst[%d] skb[%d] build failed\n", ring_num, dst_rp_pos);
 			return -ENOMEM;
@@ -791,6 +806,12 @@ static int dit_free_dst_data_buffer(enum dit_direction dir, enum dit_desc_ring r
 	if (unlikely(!desc_info->dst_skb_buf[ring_num]))
 		return -EINVAL;
 
+	if (!circ_empty(desc_info->dst_wp[ring_num], desc_info->dst_rp[ring_num])) {
+		mif_err("skip free. dst[%d] is processing. wp:%d rp:%d\n", ring_num,
+			desc_info->dst_wp[ring_num], desc_info->dst_rp[ring_num]);
+		return -EBUSY;
+	}
+
 	dst_desc = desc_info->dst_desc_ring[ring_num];
 	dst_skb = desc_info->dst_skb_buf[ring_num];
 
@@ -805,7 +826,7 @@ static int dit_free_dst_data_buffer(enum dit_direction dir, enum dit_desc_ring r
 #if defined(DIT_DEBUG_LOW)
 			snapshot[dir][ring_num].alloc_skbs--;
 #endif
-			kfree_skb(dst_skb[i]);
+			dev_kfree_skb_any(dst_skb[i]);
 		}
 		dst_desc[i].dst_addr = 0;
 	}
@@ -847,16 +868,16 @@ int dit_manage_rx_dst_data_buffers(bool fill)
 	for (ring_num = DIT_DST_DESC_RING_1; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
 		if (fill) {
 			ret = dit_fill_rx_dst_data_buffer(ring_num,
-				dc->desc_info[DIT_DIR_RX].dst_desc_ring_len);
+				dc->desc_info[DIT_DIR_RX].dst_desc_ring_len, true);
 			if (ret)
 				break;
 
-			mif_info("dst[%d] filled with wp[%d] rp[%d]", ring_num,
+			mif_info("dst[%d] filled with wp[%d] rp[%d]\n", ring_num,
 				dc->desc_info[DIT_DIR_RX].dst_wp[ring_num],
 				dc->desc_info[DIT_DIR_RX].dst_rp[ring_num]);
 			dit_set_dst_desc_int_range(DIT_DIR_RX, ring_num);
 		} else
-			dit_free_dst_data_buffer(DIT_DIR_RX, ring_num);
+			ret = dit_free_dst_data_buffer(DIT_DIR_RX, ring_num);
 	}
 
 	return ret;
@@ -890,7 +911,7 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 
 			/* try to fill dst data buffers */
 			desc_info->dst_skb_buf[ring_num][desc_info->dst_rp[ring_num]] = NULL;
-			ret = dit_fill_rx_dst_data_buffer(ring_num, 1);
+			ret = dit_fill_rx_dst_data_buffer(ring_num, 1, false);
 			if (ret) {
 				desc_info->dst_skb_buf[ring_num][desc_info->dst_rp[ring_num]] = skb;
 				break;
@@ -1066,7 +1087,7 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 		break;
 	case ERR_INT_PENDING_BIT:
 		/* nothing to do when ERR interrupt */
-		mif_err("ERR interrupt!! int_pending: 0x%X",
+		mif_err_limited("ERR interrupt!! int_pending: 0x%X",
 			READ_REG_VALUE(dc, DIT_REG_INT_PENDING));
 		break;
 	default:
@@ -1480,7 +1501,7 @@ static int dit_init_desc(enum dit_direction dir)
 				offset_lo = DIT_REG_RX_RING_START_ADDR_0_DST0;
 				offset_hi = DIT_REG_RX_RING_START_ADDR_1_DST0;
 				ret = dit_fill_rx_dst_data_buffer(ring_num,
-					desc_info->dst_desc_ring_len);
+					desc_info->dst_desc_ring_len, true);
 			}
 
 			if (ret) {
@@ -1537,9 +1558,7 @@ int dit_init(struct link_device *ld, bool retry)
 	}
 
 	/* ld can be null if it is set before */
-	if (ld)
-		dc->ld = ld;
-	else if (unlikely(!dc->ld)) {
+	if (!ld && !dc->ld) {
 		mif_err("link device set failed\n");
 		return -EINVAL;
 	}
@@ -1584,6 +1603,9 @@ int dit_init(struct link_device *ld, bool retry)
 		mif_err("dit net init failed\n");
 		goto exit;
 	}
+
+	if (ld)
+		dc->ld = ld;
 
 	spin_lock_irqsave(&dc->src_lock, flags);
 	dc->init_done = true;

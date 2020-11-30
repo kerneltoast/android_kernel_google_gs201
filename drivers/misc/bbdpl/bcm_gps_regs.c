@@ -168,8 +168,6 @@ int bcm_dreg_read(struct bcm_spi_priv *priv, char *id, u8 offset, u8 *buf, u8 si
  */
 int bcm_ireg_write(struct bcm_spi_priv *priv, char *id, u32 regaddr, u32 regval)
 {
-	int i = 0;
-	/* int status; */
 	union long_union_t  swap_addr, swap_reg;
 	struct bcm_ssi_tx_frame *tx = priv->tx_buf;
 	struct bcm_ssi_rx_frame *rx = priv->rx_buf;

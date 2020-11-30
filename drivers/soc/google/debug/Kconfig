@@ -104,3 +104,44 @@ config EXYNOS_ECC_HANDLER
 	default n
 	help
 	  If ECC happened in cache of CPU, interrupt occurs to cpu.
+
+menuconfig EXYNOS_CORESIGHT_ETM
+        tristate "Enable ETM driver of exynos"
+        depends on ARM || ARM64
+        default n
+        help
+          ETM is the source of coresight component. ETM generates trace data
+	  for output through the ATB.
+
+config EXYNOS_CORESIGHT_ETF
+        bool "Enable ETF (FIFO or Buffer)"
+        depends on EXYNOS_CORESIGHT_ETM
+        default n
+        help
+          ETF is the sink or link part of coresight component.
+	  If you say Y only here, This is set sink(Circular buffer mode).
+	  If you also say Y ETR, This is set link(FIFO mode).
+
+config EXYNOS_CORESIGHT_ETR
+        bool "Enable ETR (Route DRAM)"
+        depends on EXYNOS_CORESIGHT_ETF
+        default n
+        help
+          ETR is the sink part of coresight component. Trace data is stored
+	  into DRAM. If say Y here, ETF is set link and this is set sink.
+
+config EXYNOS_ADV_TRACER
+        tristate "Exynos Advanced Tracer"
+        depends on ARM || ARM64
+        default n
+	help
+	  This driver communicates with debugcore via mailbox. This supports
+	  ipc API with debugcore. If you make a driver to communicates with
+	  debugcore, you should use this API.
+
+config EXYNOS_ADV_TRACER_S2D
+        tristate "Exynos Advanced Tracer: Plug-in - S2D"
+        depends on EXYNOS_ADV_TRACER
+        default n
+	help
+	  This driver communicates with scan2dram plugin in debugcore.

@@ -566,10 +566,13 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 		spin_unlock(&dhc->hal_lock);
 
 		dit_hal_set_event(INTERNAL_OFFLOAD_STOPPED);
-		/* init port table and take a delay to get a buffer free chance */
+
+		/* init port table and take a delay for the prior kick */
 		dit_init(NULL, false);
 		msleep(100);
-		dit_manage_rx_dst_data_buffers(false);
+		ret = dit_manage_rx_dst_data_buffers(false);
+		if (ret)
+			mif_err("hal buffer free. ret: %d\n", ret);
 		dit_hal_enable_udp_gro(true);
 
 		/* don't call dit_hal_init() here for the last event delivery */

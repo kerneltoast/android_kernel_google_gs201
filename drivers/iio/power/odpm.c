@@ -119,6 +119,7 @@ struct odpm_chip {
 	int sample_rate_ext_count;
 
 	/* Data */
+	u64 acc_timestamp_offset;
 	u64 acc_timestamp;
 	s2mpg1x_int_samp_rate int_sampling_rate_i;
 	s2mpg1x_ext_samp_rate ext_sampling_rate_i;
@@ -166,10 +167,21 @@ static const struct iio_chan_spec s2mpg1x_single_channel[ODPM_CHANNEL_MAX] = {
 };
 
 static int odpm_take_snapshot(struct odpm_info *info);
+static int odpm_take_snapshot_locked(struct odpm_info *info);
 
 static u64 odpm_get_timestamp_now_ms(void)
 {
 	return ktime_get_boottime_ns() / 1000000;
+}
+
+static u64 odpm_get_timestamp_offset_ms(struct odpm_info *info)
+{
+	u64 time_ms_raw = odpm_get_timestamp_now_ms();
+
+	if (time_ms_raw >= info->chip.acc_timestamp_offset)
+		return time_ms_raw - info->chip.acc_timestamp_offset;
+	else
+		return 0;
 }
 
 static int odpm_io_set_channel(struct odpm_info *info, int channel)
@@ -286,9 +298,8 @@ int odpm_configure_chip(struct odpm_info *info)
 	odpm_io_set_int_sample_rate(info, info->chip.int_sampling_rate_i);
 	odpm_io_set_ext_sample_rate(info, info->chip.ext_sampling_rate_i);
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
-		if (info->channels[ch].enabled) {
+		if (info->channels[ch].enabled)
 			odpm_io_set_channel(info, ch);
-		}
 	}
 
 	odpm_io_update_enable_bits(info);
@@ -303,15 +314,17 @@ int odpm_configure_start_measurement(struct odpm_info *info)
 {
 	unsigned long jiffies_capture = 0;
 	int ch;
-	u64 timestamp;
 
 	/* For s2mpg1x chips, clear ACC registers */
 	int ret = odpm_io_send_blank_async(info, &jiffies_capture);
 
-	timestamp = odpm_get_timestamp_now_ms();
+	/* This timestamp becomes the offset (to match measurement start ms) */
+	info->chip.acc_timestamp_offset = odpm_get_timestamp_now_ms();
+
+	/* Initialize boot measurement time to 0 */
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
 		if (info->channels[ch].enabled)
-			info->channels[ch].measurement_start_ms = timestamp;
+			info->channels[ch].measurement_start_ms = 0;
 	}
 
 	info->jiffies_last_poll = jiffies_capture;
@@ -339,9 +352,12 @@ static void odpm_periodic_refresh_work(struct work_struct *work)
 	struct odpm_info *info =
 		container_of(work, struct odpm_info, work_refresh);
 
-	pr_info("odpm: Refresh %s registers!\n", info->chip.name);
 
-	odpm_take_snapshot(info);
+	if (odpm_take_snapshot(info) < 0)
+		pr_err("odpm: Cannot refresh %s registers periodically!\n",
+		       info->chip.name);
+	else
+		pr_info("odpm: Refreshed %s registers!\n", info->chip.name);
 }
 
 static void odpm_periodic_refresh_setup(struct odpm_info *info)
@@ -423,6 +439,7 @@ static int odpm_parse_dt_rail(struct odpm_rail_data *rail_data,
 	switch (rail_data->type) {
 	case ODPM_RAIL_TYPE_SHUNT: {
 		u32 channel_en_index;
+
 		if (of_property_read_u32(node, "shunt-res-uohms",
 					 &rail_data->shunt_uohms)) {
 			pr_err("odpm: cannot read shunt-res-uohms\n");
@@ -652,7 +669,6 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 				 u64 acc_data, u32 int_sampling_frequency_uhz)
 {
-	u32 sampling_frequency_uhz;
 	u64 sampling_period_ms_iq30;
 	u32 sampling_period_ms_iq22;
 	u32 resolution_mW_iq30 = INVALID_RESOLUTION;
@@ -664,27 +680,12 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 	case ODPM_RAIL_TYPE_REGULATOR_BUCK:
 	case ODPM_RAIL_TYPE_REGULATOR_LDO:
 	default: {
-		sampling_frequency_uhz = int_sampling_frequency_uhz;
-
 		SWITCH_CHIP_FUNC(info, muxsel_to_power_resolution,
 				 info->chip.rails[rail_i].mux_select);
 
 	} break;
 	case ODPM_RAIL_TYPE_SHUNT: {
 		u64 resolution_W_iq60;
-
-		int int_sampling_rate_i = info->chip.int_sampling_rate_i;
-		int int_sampling_frequency_table_uhz =
-			info->chip.sample_rate_int_uhz[int_sampling_rate_i];
-		int ext_sampling_rate_i = info->chip.ext_sampling_rate_i;
-		int ext_sampling_frequency_table_uhz =
-			info->chip.sample_rate_ext_uhz[ext_sampling_rate_i];
-
-		/* b/156680376 - int/ext clocks are correlated */
-		sampling_frequency_uhz =
-			((u64)int_sampling_frequency_uhz *
-			 (u64)ext_sampling_frequency_table_uhz) /
-			int_sampling_frequency_table_uhz;
 
 		/* Losing a fraction of resolution performing u64 divisions,
 		 * as there is no support for 128 bit divisions
@@ -703,7 +704,7 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 
 	/* Maintain as much precision as possible computing period in ms */
 	sampling_period_ms_iq30 =
-		_IQ30(u64, (u64)(1000 * 1000000)) / sampling_frequency_uhz;
+		_IQ30(u64, (u64)(1000 * 1000000)) / int_sampling_frequency_uhz;
 
 	/* Allocate 10-bits in u32 for sample rate in ms (max: 1023 ms) */
 	sampling_period_ms_iq22 = _IQ30_to_IQ22(sampling_period_ms_iq30);
@@ -765,11 +766,12 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 	sampling_frequency_estimated_uhz =
 		((u64)acc_count * 1000 * 1000000) / elapsed_ms;
 
-	/* 100 ms check on register refresh...
-	   We want to verify that the transaction time isn't too long, as the
-	   process may have been pre-empted between the command to refresh
-	   registers and when jiffies were captured (jiffies_after).
-	*/
+	/**
+	 * 100 ms check on register refresh...
+	 * We want to verify that the transaction time isn't too long, as the
+	 * process may have been pre-empted between the command to refresh
+	 * registers and when jiffies were captured (jiffies_after).
+	 */
 	if (elapsed_refresh_ms >= 100) {
 		pr_err("odpm: %s: refresh registers took too long; %ld ms\n",
 		       info->chip.name, elapsed_refresh_ms);
@@ -802,7 +804,7 @@ static int odpm_refresh_registers(struct odpm_info *info)
 
 	u64 acc_data[ODPM_CHANNEL_MAX];
 	u32 acc_count = 0;
-	u64 absolute_timestamp_ms;
+	u64 measurement_timestamp_ms;
 	u32 sampling_frequency_uhz;
 
 	unsigned long jiffies_previous_sample;
@@ -812,14 +814,12 @@ static int odpm_refresh_registers(struct odpm_info *info)
 	unsigned int elapsed_ms;
 	unsigned int elapsed_refresh_ms;
 
-	mutex_lock(&info->lock);
-
 	jiffies_before_async = jiffies;
 
 	SWITCH_METER_FUNC(info, meter_load_measurement, S2MPG1X_METER_POWER,
 			  acc_data, &acc_count,
 			  &jiffies_after_async);
-	absolute_timestamp_ms = odpm_get_timestamp_now_ms();
+	measurement_timestamp_ms = odpm_get_timestamp_offset_ms(info);
 
 	if (ret < 0) {
 		pr_err("odpm: %s: i2c error; count not measure interval\n",
@@ -830,7 +830,7 @@ static int odpm_refresh_registers(struct odpm_info *info)
 	/* Store timestamps - the rest of the function will succeed */
 	jiffies_previous_sample = info->jiffies_last_poll;
 	info->jiffies_last_poll = jiffies_after_async;
-	info->chip.acc_timestamp = absolute_timestamp_ms;
+	info->chip.acc_timestamp = measurement_timestamp_ms;
 
 	elapsed_ms = jiffies_to_msecs(jiffies_after_async -
 				      jiffies_previous_sample);
@@ -852,14 +852,23 @@ static int odpm_refresh_registers(struct odpm_info *info)
 	}
 
 exit_refresh:
-	mutex_unlock(&info->lock);
-
 	return ret;
 }
 
 static int odpm_take_snapshot(struct odpm_info *info)
 {
-	int ret = 0;
+	int ret;
+
+	mutex_lock(&info->lock);
+	ret = odpm_take_snapshot_locked(info);
+	mutex_unlock(&info->lock);
+	return ret;
+}
+
+static int odpm_take_snapshot_locked(struct odpm_info *info)
+{
+	int ret_refresh = 0;
+	int ret_timer = 0;
 
 	/* check if the minimal elapsed time has passed and if so,
 	 * re-read the chip, otherwise the cached info is just fine
@@ -867,23 +876,28 @@ static int odpm_take_snapshot(struct odpm_info *info)
 	unsigned long future_time = info->jiffies_last_poll +
 				    msecs_to_jiffies(ODPM_MIN_POLLING_TIME_MS);
 	if (time_after(jiffies, future_time)) {
+		unsigned long future_timer =
+			info->jiffies_last_poll +
+			msecs_to_jiffies(info->chip.max_refresh_time_ms);
+
 		/* we need to re-read the chip values
 		 */
-		ret = odpm_refresh_registers(info);
-		if (ret < 0)
+		ret_refresh = odpm_refresh_registers(info);
+		if (ret_refresh < 0)
 			pr_err("odpm: could not refresh registers!\n");
 
 		/* re-schedule the work for the read registers timeout
 		 * (to prevent chip regs saturation)
 		 */
-		ret = mod_timer(&info->timer_refresh,
-				info->jiffies_last_poll +
-				msecs_to_jiffies(info->chip.max_refresh_time_ms)
-					);
-		if (ret < 0)
+		ret_timer = mod_timer(&info->timer_refresh, future_timer);
+		if (ret_timer < 0)
 			pr_err("odpm: read timer can't be modified!\n");
 	}
-	return ret;
+
+	if (ret_refresh < 0)
+		return ret_refresh;
+	else
+		return ret_timer;
 }
 
 /**
@@ -968,12 +982,18 @@ static ssize_t sampling_rate_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	/* Send a refresh and store values */
-	odpm_take_snapshot(info);
-
 	mutex_lock(&info->lock);
+
+	/* Send a refresh and store values */
+	if (odpm_take_snapshot_locked(info) < 0) {
+		pr_err("odpm: cannot refresh to apply new sample rate");
+		goto sampling_rate_store_exit;
+	}
+
 	info->chip.int_sampling_rate_i = new_sampling_rate_i;
 	odpm_io_set_int_sample_rate(info, new_sampling_rate_i);
+
+sampling_rate_store_exit:
 	mutex_unlock(&info->lock);
 
 	return count;
@@ -1016,12 +1036,18 @@ static ssize_t ext_sampling_rate_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	/* Send a refresh and store values */
-	odpm_take_snapshot(info);
-
 	mutex_lock(&info->lock);
+
+	/* Send a refresh and store values */
+	if (odpm_take_snapshot_locked(info) < 0) {
+		pr_err("odpm: cannot refresh to apply new ext sample rate");
+		goto ext_sampling_rate_store_exit;
+	}
+
 	info->chip.ext_sampling_rate_i = new_sampling_rate_i;
 	odpm_io_set_ext_sample_rate(info, new_sampling_rate_i);
+
+ext_sampling_rate_store_exit:
 	mutex_unlock(&info->lock);
 
 	return count;
@@ -1036,25 +1062,36 @@ static ssize_t energy_value_show(struct device *dev,
 	int ch;
 
 	/* take snapshot */
-	odpm_take_snapshot(info);
+	mutex_lock(&info->lock);
+	if (odpm_take_snapshot_locked(info) < 0) {
+		pr_err("odpm: cannot retrieve energy values");
+		goto energy_value_show_exit;
+	}
 
 	/**
 	 * Output format:
-	 * <time since boot in ms>
-	 * <Schematic name>, <energy value in uW-secs>
+	 * t=<Measurement timestamp, ms>
+	 * CH<N>(T=<Duration, ms>)[<Schematic name>], <Accumulated Energy, uWs>
 	 */
-	count += scnprintf(buf + count, PAGE_SIZE - count, "%ld\n",
+	count += scnprintf(buf + count, PAGE_SIZE - count, "t=%ld\n",
 			   info->chip.acc_timestamp);
 
-	mutex_lock(&info->lock);
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
 		int rail_i = info->channels[ch].rail_i;
+		u64 start_ms = info->channels[ch].measurement_start_ms;
+		u64 duration_ms = 0;
+
+		if (info->chip.acc_timestamp >= start_ms)
+			duration_ms = info->chip.acc_timestamp - start_ms;
 
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "CH%d[%s], %ld\n", ch,
+				   "CH%d(T=%ld)[%s], %ld\n", ch,
+				   duration_ms,
 				   info->chip.rails[rail_i].schematic_name,
 				   info->channels[ch].acc_power_uW_sec);
 	}
+
+energy_value_show_exit:
 	mutex_unlock(&info->lock);
 
 	return count;
@@ -1134,17 +1171,21 @@ static ssize_t enabled_rails_store(struct device *dev,
 		int current_rail;
 		int new_rail = rail_i;
 
-		/* Send a refresh and store values */
-		odpm_take_snapshot(info);
-
 		mutex_lock(&info->lock);
+
+		/* Send a refresh and store values */
+		if (odpm_take_snapshot_locked(info) < 0) {
+			pr_err("odpm: cannot refresh values to swap rails");
+			goto enabled_rails_store_exit;
+		}
+
 		current_rail = info->channels[channel].rail_i;
 
 		/* Capture measurement time for current rail */
 		info->chip.rails[current_rail].measurement_start_ms_cached =
 			info->channels[channel].measurement_start_ms;
 		info->chip.rails[current_rail].measurement_stop_ms =
-			odpm_get_timestamp_now_ms();
+			info->chip.acc_timestamp;
 
 		/* Reset stored energy for channel */
 		info->chip.rails[current_rail].acc_power_uW_sec_cached =
@@ -1162,9 +1203,10 @@ static ssize_t enabled_rails_store(struct device *dev,
 
 		/* Record measurement start time / reset stop time */
 		info->channels[channel].measurement_start_ms =
-			odpm_get_timestamp_now_ms();
+			odpm_get_timestamp_offset_ms(info);
 		info->chip.rails[new_rail].measurement_stop_ms = 0;
 
+enabled_rails_store_exit:
 		mutex_unlock(&info->lock);
 
 		return count;

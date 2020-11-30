@@ -476,15 +476,27 @@
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
 		};
-		decon_f_te_on: decon_f_te_on {
+
+		disp_te_pri_on: disp-te-pri-on {
 			samsung,pins = "gpp0-3";
 			samsung,pin-function = <0xf>;
 		};
 
-		decon_f_te_off: decon_f_te_off {
+		disp_te_pri_off: disp-te-pri-off {
 			samsung,pins = "gpp0-3";
 			samsung,pin-function = <0>;
 		};
+
+		disp_te_sec_on: disp-te-sec-on {
+			samsung,pins = "gpp0-4";
+			samsung,pin-function = <0xf>;
+		};
+
+		disp_te_sec_off: disp-te-sec-off {
+			samsung,pins = "gpp0-4";
+			samsung,pin-function = <0>;
+		};
+
 		sensor_mclk1_out: sensor-mclk1-out {
 			samsung,pins = "gpp3-0";
 			samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;

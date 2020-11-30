@@ -106,8 +106,6 @@ struct s2mpg11_platform_data {
 	unsigned int b2_soft_ocp_warn_cnt;
 	unsigned int b2_soft_ocp_warn_dvs_mask;
 	unsigned int b2_soft_ocp_warn_lvl;
-
-	bool use_i2c_speedy;
 };
 
 struct s2mpg11_dev {
@@ -149,13 +147,8 @@ struct s2mpg11_pmic {
 	unsigned int *opmode;
 	int num_regulators;
 	int *buck_ocp_irq;
-	int gpu_ocp_warn_irq;
-	int soft_gpu_ocp_warn_irq;
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
-	unsigned int ocp_gpu_lvl;
-	unsigned int soft_ocp_gpu_lvl;
 	struct device *dev;
-	u8 read_val;
 	u16 read_addr;
 #endif
 };

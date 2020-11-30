@@ -319,16 +319,7 @@ void pixel_ufs_compl_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 void pixel_ufs_prepare_command(struct ufs_hba *hba,
 			struct request *rq, struct ufshcd_lrb *lrbp)
 {
-	u8 opcode = (u8)(*lrbp->cmd->cmnd);
-
-	/* Assign correct RPMB lun */
-	if (opcode == SECURITY_PROTOCOL_IN || opcode == SECURITY_PROTOCOL_OUT) {
-		unsigned int lun = (SCSI_W_LUN_BASE |
-			(UFS_UPIU_RPMB_WLUN & UFS_UPIU_MAX_UNIT_NUM_ID));
-
-		lrbp->lun = ufshcd_scsi_to_upiu_lun(lun);
-		return;
-	}
+	u8 opcode;
 
 	if (!(rq->cmd_flags & REQ_META))
 		return;
@@ -336,33 +327,11 @@ void pixel_ufs_prepare_command(struct ufs_hba *hba,
 	if (hba->dev_info.wspecversion <= 0x300)
 		return;
 
+	opcode = (u8)(*lrbp->cmd->cmnd);
 	if (opcode == WRITE_10)
 		lrbp->cmd->cmnd[6] = 0x11;
 	else if (opcode == WRITE_16)
 		lrbp->cmd->cmnd[14] = 0x11;
-}
-
-static int ufs_sysfs_emulate_health_est_c(struct ufs_hba *hba, u8 *value)
-{
-	u8 desc_buf[2] = {0};
-	u32 avg_pe_cycle;
-	int ret;
-
-	if (ufshcd_eh_in_progress(hba))
-		return -EBUSY;
-
-	pm_runtime_get_sync(hba->dev);
-	ret = ufshcd_read_desc_param(hba, QUERY_DESC_IDN_HEALTH, 0,
-			HEALTH_DESC_PARAM_AVG_PE_CYCLE, desc_buf,
-			sizeof(desc_buf));
-	pm_runtime_put_sync(hba->dev);
-	if (ret)
-		return -EINVAL;
-
-	avg_pe_cycle = get_unaligned_be16(desc_buf);
-	*value = (u8)(avg_pe_cycle * 100 / HEALTH_DESC_DEFAULT_PE_CYCLE);
-
-	return ret;
 }
 
 static ssize_t life_time_estimation_c_show(struct device *dev,
@@ -382,8 +351,6 @@ static ssize_t life_time_estimation_c_show(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	if (value == 0 && ufs_sysfs_emulate_health_est_c(hba, &value))
-		return  -EINVAL;
 	return sprintf(buf, "0x%02X\n", value);
 }
 
@@ -509,26 +476,25 @@ static ssize_t manual_gc_store(struct device *dev,
 	pm_runtime_get_sync(hba->dev);
 
 	if (!ufs->manual_gc.hagc_support) {
-		enum query_opcode opcode = (value == MANUAL_GC_ON) ?
-						UPIU_QUERY_OPCODE_SET_FLAG:
-						UPIU_QUERY_OPCODE_CLEAR_FLAG;
-
 		err = ufshcd_bkops_ctrl(hba, (value == MANUAL_GC_ON) ?
 					BKOPS_STATUS_NON_CRITICAL:
 					BKOPS_STATUS_CRITICAL);
 		if (!hba->auto_bkops_enabled)
 			err = -EAGAIN;
+	}
 
-		/* flush wb buffer */
-		if (hba->dev_info.wspecversion >= 0x0310) {
-			u8 index = ufshcd_wb_get_query_index(hba);
+	/* flush wb buffer */
+	if (hba->dev_info.wspecversion >= 0x0310) {
+		enum query_opcode opcode = (value == MANUAL_GC_ON) ?
+						UPIU_QUERY_OPCODE_SET_FLAG:
+						UPIU_QUERY_OPCODE_CLEAR_FLAG;
+		u8 index = ufshcd_wb_get_query_index(hba);
 
-			ufshcd_query_flag_retry(hba, opcode,
+		ufshcd_query_flag_retry(hba, opcode,
 				QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8,
 				index, NULL);
-			ufshcd_query_flag_retry(hba, opcode,
+		ufshcd_query_flag_retry(hba, opcode,
 				QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN, index, NULL);
-		}
 	}
 
 	if (err || hrtimer_active(&ufs->manual_gc.hrtimer)) {

@@ -57,6 +57,8 @@
 #include <linux/pm_qos.h>
 #endif
 
+#include <soc/google/exynos-cpupm.h>
+
 #define EXYNOS_UART_PORT_LPM			0x5
 
 #define EXYNOS_SERIAL_CTRL_NUM			0x4
@@ -2390,8 +2392,6 @@ void exynos_serial_fifo_wait(void)
 }
 EXPORT_SYMBOL_GPL(exynos_serial_fifo_wait);
 
-#if 0
-#if defined(CONFIG_CPU_IDLE)
 static int exynos_serial_notifier(struct notifier_block *self,
 				  unsigned long cmd, void *v)
 {
@@ -2401,12 +2401,7 @@ static int exynos_serial_notifier(struct notifier_block *self,
 	unsigned int umcon;
 
 	switch (cmd) {
-	case LPA_ENTER:
-		exynos_serial_fifo_wait();
-		break;
-
 	case SICD_ENTER:
-	case SICD_AUD_ENTER:
 		list_for_each_entry(ourport, &drvdata_list, node) {
 			port = &ourport->port;
 
@@ -2430,7 +2425,6 @@ static int exynos_serial_notifier(struct notifier_block *self,
 		break;
 
 	case SICD_EXIT:
-	case SICD_AUD_EXIT:
 		list_for_each_entry(ourport, &drvdata_list, node) {
 			port = &ourport->port;
 
@@ -2461,8 +2455,6 @@ static int exynos_serial_notifier(struct notifier_block *self,
 static struct notifier_block exynos_serial_notifier_block = {
 	.notifier_call = exynos_serial_notifier,
 };
-#endif
-#endif
 
 static int exynos_serial_probe(struct platform_device *pdev)
 {
@@ -3172,11 +3164,7 @@ static int __init exynos_serial_modinit(void)
 		return ret;
 	}
 
-#if 0
-#if defined(CONFIG_CPU_IDLE)
-	exynos_pm_register_notifier(&exynos_serial_notifier_block);
-#endif
-#endif
+	exynos_cpupm_notifier_register(&exynos_serial_notifier_block);
 
 	return platform_driver_register(&exynos_serial_driver);
 }

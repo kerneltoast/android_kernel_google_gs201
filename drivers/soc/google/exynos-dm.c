@@ -68,14 +68,14 @@ static ssize_t show_constraint_table(struct device *dev, struct device_attribute
 	count += scnprintf(buf + count, PAGE_SIZE - count, "dm_type: %s\n",
 			   dm->dm_type_name);
 
-	constraint_list = &dm->min_slaves;
+	constraint_list = &dm->min_constraints;
 	if (list_empty(constraint_list)) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "This dm_type have not min constraint tables\n\n");
 		goto next;
 	}
 
-	list_for_each_entry(constraint, constraint_list, master_domain) {
+	list_for_each_entry(constraint, constraint_list, driver_domain) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "-------------------------------------------------\n");
 		count += scnprintf(buf + count, PAGE_SIZE - count,
@@ -88,24 +88,24 @@ static ssize_t show_constraint_table(struct device *dev, struct device_attribute
 				   "const_freq = %u, gov_freq =%u\n",
 				   constraint->const_freq, constraint->gov_freq);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "master_freq\t constraint_freq\n");
+				   "driver_freq\t constraint_freq\n");
 		for (i = 0; i < constraint->table_length; i++)
 			count += scnprintf(buf + count, PAGE_SIZE - count, "%10u\t %10u\n",
-					   constraint->freq_table[i].master_freq,
-					   constraint->freq_table[i].slave_freq);
+					   constraint->freq_table[i].driver_freq,
+					   constraint->freq_table[i].constraint_freq);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "-------------------------------------------------\n");
 	}
 
 next:
-	constraint_list = &dm->max_slaves;
+	constraint_list = &dm->max_constraints;
 	if (list_empty(constraint_list)) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "This dm_type have not max constraint tables\n\n");
 		return count;
 	}
 
-	list_for_each_entry(constraint, constraint_list, master_domain) {
+	list_for_each_entry(constraint, constraint_list, driver_domain) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "-------------------------------------------------\n");
 		count += scnprintf(buf + count, PAGE_SIZE - count,
@@ -118,11 +118,11 @@ next:
 				   "max_freq =%u\n",
 				   constraint->const_freq);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "master_freq\t constraint_freq\n");
+				   "driver_freq\t constraint_freq\n");
 		for (i = 0; i < constraint->table_length; i++)
 			count += scnprintf(buf + count, PAGE_SIZE - count, "%10u\t %10u\n",
-					   constraint->freq_table[i].master_freq,
-					   constraint->freq_table[i].slave_freq);
+					   constraint->freq_table[i].driver_freq,
+					   constraint->freq_table[i].constraint_freq);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "-------------------------------------------------\n");
 	}
@@ -170,11 +170,11 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 		if (!exynos_dm->dm_data[i].available)
 			continue;
 
-		constraint_list = &exynos_dm->dm_data[i].min_slaves;
+		constraint_list = &exynos_dm->dm_data[i].min_constraints;
 		if (list_empty(constraint_list))
 			continue;
-		list_for_each_entry(constraint, constraint_list, master_domain) {
-			if (constraint->dm_slave == dm->dm_type) {
+		list_for_each_entry(constraint, constraint_list, driver_domain) {
+			if (constraint->dm_constraint == dm->dm_type) {
 				count += scnprintf(buf + count, PAGE_SIZE - count,
 					"%s ---> %s\n"
 					"policy_min(%u), const_min(%u) ---> const_freq(%u)\n"
@@ -211,11 +211,11 @@ static ssize_t show_dm_policy(struct device *dev, struct device_attribute *attr,
 		if (!exynos_dm->dm_data[i].available)
 			continue;
 
-		constraint_list = &exynos_dm->dm_data[i].max_slaves;
+		constraint_list = &exynos_dm->dm_data[i].max_constraints;
 		if (list_empty(constraint_list))
 			continue;
-		list_for_each_entry(constraint, constraint_list, master_domain) {
-			if (constraint->dm_slave == dm->dm_type) {
+		list_for_each_entry(constraint, constraint_list, driver_domain) {
+			if (constraint->dm_constraint == dm->dm_type) {
 				count += scnprintf(buf + count, PAGE_SIZE - count,
 					"%s ---> %s\n"
 					"policy_min(%u), const_min(%u) ---> const_freq(%u)\n",
@@ -335,10 +335,10 @@ static int exynos_dm_parse_dt(struct device_node *np, struct exynos_dm_device *d
 					name, EXYNOS_DM_TYPE_NAME_LEN);
 			}
 
-			INIT_LIST_HEAD(&dm->dm_data[index].min_slaves);
-			INIT_LIST_HEAD(&dm->dm_data[index].max_slaves);
-			INIT_LIST_HEAD(&dm->dm_data[index].min_masters);
-			INIT_LIST_HEAD(&dm->dm_data[index].max_masters);
+			INIT_LIST_HEAD(&dm->dm_data[index].min_constraints);
+			INIT_LIST_HEAD(&dm->dm_data[index].max_constraints);
+			INIT_LIST_HEAD(&dm->dm_data[index].min_drivers);
+			INIT_LIST_HEAD(&dm->dm_data[index].max_drivers);
 		} else {
 			dm->dm_data[index].available = false;
 		}
@@ -429,15 +429,15 @@ static void exynos_dm_topological_sort(void)
 		if (!dm->available)
 			continue;
 
-		if (list_empty(&dm->min_slaves) && list_empty(&dm->max_slaves) &&
-		    list_empty(&dm->min_masters) && list_empty(&dm->max_masters))
+		if (list_empty(&dm->min_constraints) && list_empty(&dm->max_constraints) &&
+		    list_empty(&dm->min_drivers) && list_empty(&dm->max_drivers))
 			continue;
 
 		indegree[i] = dm->indegree;
 
 		/*
 		 * In indegree is 0, input to search_queue.
-		 * It means that the domain is not slave of any other domains.
+		 * It means that the domain is not constraint of any other domains.
 		 */
 		if (indegree[i] == 0)
 			search_queue[s_head++] = i;
@@ -451,9 +451,9 @@ static void exynos_dm_topological_sort(void)
 		result_queue[r_head++] = poll;
 		exynos_dm->dm_data[poll].my_order = r_head - 1;
 		/* Decrease the indegree which indecated by poll item. */
-		list_for_each_entry(t, &exynos_dm->dm_data[poll].min_slaves, master_domain) {
-			if (--indegree[t->dm_slave] == 0)
-				search_queue[s_head++] = t->dm_slave;
+		list_for_each_entry(t, &exynos_dm->dm_data[poll].min_constraints, driver_domain) {
+			if (--indegree[t->dm_constraint] == 0)
+				search_queue[s_head++] = t->dm_constraint;
 		}
 	}
 
@@ -462,104 +462,104 @@ static void exynos_dm_topological_sort(void)
 }
 
 int register_exynos_dm_constraint_table(int dm_type,
-					struct exynos_dm_constraint *constraint)
+					struct exynos_dm_constraint *constraint_list)
 {
-	struct exynos_dm_constraint *sub_constraint;
-	struct exynos_dm_data *master = &exynos_dm->dm_data[dm_type];
-	struct exynos_dm_data *slave = &exynos_dm->dm_data[constraint->dm_slave];
+	struct exynos_dm_constraint *sub_constraint_list;
+	struct exynos_dm_data *driver = &exynos_dm->dm_data[dm_type];
+	struct exynos_dm_data *constraint = &exynos_dm->dm_data[constraint_list->dm_constraint];
 	int i, ret = 0;
 
 	ret = exynos_dm_index_validate(dm_type);
 	if (ret)
 		return ret;
 
-	if (!constraint) {
+	if (!constraint_list) {
 		dev_err(exynos_dm->dev, "constraint is not valid\n");
 		return -EINVAL;
 	}
 
 	/* check member invalid */
-	if (constraint->constraint_type < CONSTRAINT_MIN ||
-	    constraint->constraint_type > CONSTRAINT_MAX) {
+	if (constraint_list->constraint_type < CONSTRAINT_MIN ||
+	    constraint_list->constraint_type > CONSTRAINT_MAX) {
 		dev_err(exynos_dm->dev, "constraint_type is invalid\n");
 		return -EINVAL;
 	}
 
-	ret = exynos_dm_index_validate(constraint->dm_slave);
+	ret = exynos_dm_index_validate(constraint_list->dm_constraint);
 	if (ret)
 		return ret;
 
-	if (!constraint->freq_table) {
+	if (!constraint_list->freq_table) {
 		dev_err(exynos_dm->dev, "No frequency table for constraint\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&exynos_dm->lock);
 
-	strncpy(constraint->dm_type_name,
-		exynos_dm->dm_data[constraint->dm_slave].dm_type_name,
+	strncpy(constraint_list->dm_type_name,
+		exynos_dm->dm_data[constraint_list->dm_constraint].dm_type_name,
 		EXYNOS_DM_TYPE_NAME_LEN);
-	constraint->const_freq = 0;
-	constraint->gov_freq = 0;
-	constraint->dm_master = dm_type;
+	constraint_list->const_freq = 0;
+	constraint_list->gov_freq = 0;
+	constraint_list->dm_driver = dm_type;
 
-	if (constraint->constraint_type == CONSTRAINT_MIN) {
+	if (constraint_list->constraint_type == CONSTRAINT_MIN) {
 		/*
-		 * In domain, min/max slaves are list of slave constraint conditions
-		 * In constraint, master_domain means that which work as master.
-		 * All min/max slaves in domains are linked with master_domain in constraint,
-		 * and min/max masters in domains are linked with slave_domain in constraint.
+		 * In domain, min/max constraints are list of constraint conditions
+		 * In constraint, driver_domain means that which work as driver.
+		 * All min/max constraints in domains are linked with driver_domain in constraint,
+		 * and min/max drivers in domains are linked with constraint_domain in constraint.
 		 */
-		list_add(&constraint->master_domain, &master->min_slaves);
-		list_add(&constraint->slave_domain, &slave->min_masters);
-		slave->indegree++;
-	} else if (constraint->constraint_type == CONSTRAINT_MAX) {
-		list_add(&constraint->master_domain, &master->max_slaves);
-		list_add(&constraint->slave_domain, &slave->max_masters);
+		list_add(&constraint_list->driver_domain, &driver->min_constraints);
+		list_add(&constraint_list->constraint_domain, &constraint->min_drivers);
+		constraint->indegree++;
+	} else if (constraint_list->constraint_type == CONSTRAINT_MAX) {
+		list_add(&constraint_list->driver_domain, &driver->max_constraints);
+		list_add(&constraint_list->constraint_domain, &constraint->max_drivers);
 	}
 
 	/* check guidance and sub constraint table generations */
-	if (constraint->guidance && constraint->constraint_type == CONSTRAINT_MIN) {
-		sub_constraint = kzalloc(sizeof(*sub_constraint), GFP_KERNEL);
-		if (!sub_constraint) {
+	if (constraint_list->guidance && constraint_list->constraint_type == CONSTRAINT_MIN) {
+		sub_constraint_list = kzalloc(sizeof(*sub_constraint_list), GFP_KERNEL);
+		if (!sub_constraint_list) {
 			ret = -ENOMEM;
 			goto err_sub_const;
 		}
 
 		// Initialize member variables
-		sub_constraint->dm_master = constraint->dm_slave;
-		sub_constraint->dm_slave = constraint->dm_master;
-		sub_constraint->table_length = constraint->table_length;
-		sub_constraint->constraint_type = CONSTRAINT_MAX;
-		sub_constraint->guidance = true;
-		sub_constraint->const_freq = UINT_MAX;
-		sub_constraint->gov_freq = UINT_MAX;
+		sub_constraint_list->dm_driver = constraint_list->dm_constraint;
+		sub_constraint_list->dm_constraint = constraint_list->dm_driver;
+		sub_constraint_list->table_length = constraint_list->table_length;
+		sub_constraint_list->constraint_type = CONSTRAINT_MAX;
+		sub_constraint_list->guidance = true;
+		sub_constraint_list->const_freq = UINT_MAX;
+		sub_constraint_list->gov_freq = UINT_MAX;
 
-		strncpy(sub_constraint->dm_type_name,
-			exynos_dm->dm_data[sub_constraint->dm_slave].dm_type_name,
+		strncpy(sub_constraint_list->dm_type_name,
+			exynos_dm->dm_data[sub_constraint_list->dm_constraint].dm_type_name,
 			EXYNOS_DM_TYPE_NAME_LEN);
 
-		sub_constraint->freq_table =
-			kcalloc(sub_constraint->table_length,
+		sub_constraint_list->freq_table =
+			kcalloc(sub_constraint_list->table_length,
 				sizeof(struct exynos_dm_freq), GFP_KERNEL);
-		if (!sub_constraint->freq_table) {
+		if (!sub_constraint_list->freq_table) {
 			ret = -ENOMEM;
 			goto err_freq_table;
 		}
 
 		/* generation table */
-		for (i = 0; i < constraint->table_length; i++) {
-			sub_constraint->freq_table[i].master_freq =
-					constraint->freq_table[i].slave_freq;
-			sub_constraint->freq_table[i].slave_freq =
-					constraint->freq_table[i].master_freq;
+		for (i = 0; i < constraint_list->table_length; i++) {
+			sub_constraint_list->freq_table[i].driver_freq =
+					constraint_list->freq_table[i].constraint_freq;
+			sub_constraint_list->freq_table[i].constraint_freq =
+					constraint_list->freq_table[i].driver_freq;
 		}
 
-		list_add(&sub_constraint->master_domain, &slave->max_slaves);
-		list_add(&sub_constraint->slave_domain, &master->max_masters);
+		list_add(&sub_constraint_list->driver_domain, &constraint->max_constraints);
+		list_add(&sub_constraint_list->constraint_domain, &driver->max_drivers);
 
 		/* linked sub constraint */
-		constraint->sub_constraint = sub_constraint;
+		constraint_list->sub_constraint = sub_constraint_list;
 	}
 
 	exynos_dm_topological_sort();
@@ -569,10 +569,10 @@ int register_exynos_dm_constraint_table(int dm_type,
 	return 0;
 
 err_freq_table:
-	kfree(sub_constraint);
+	kfree(sub_constraint_list);
 err_sub_const:
-	list_del(&constraint->master_domain);
-	list_del(&constraint->slave_domain);
+	list_del(&constraint_list->driver_domain);
+	list_del(&constraint_list->constraint_domain);
 
 	mutex_unlock(&exynos_dm->lock);
 
@@ -581,32 +581,32 @@ err_sub_const:
 EXPORT_SYMBOL_GPL(register_exynos_dm_constraint_table);
 
 int unregister_exynos_dm_constraint_table(int dm_type,
-					  struct exynos_dm_constraint *constraint)
+					  struct exynos_dm_constraint *constraint_list)
 {
-	struct exynos_dm_constraint *sub_constraint;
+	struct exynos_dm_constraint *sub_constraint_list;
 	int ret = 0;
 
 	ret = exynos_dm_index_validate(dm_type);
 	if (ret)
 		return ret;
 
-	if (!constraint) {
+	if (!constraint_list) {
 		dev_err(exynos_dm->dev, "constraint is not valid\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&exynos_dm->lock);
 
-	if (constraint->sub_constraint) {
-		sub_constraint = constraint->sub_constraint;
-		list_del(&sub_constraint->master_domain);
-		list_del(&sub_constraint->slave_domain);
-		kfree(sub_constraint->freq_table);
-		kfree(sub_constraint);
+	if (constraint_list->sub_constraint) {
+		sub_constraint_list = constraint_list->sub_constraint;
+		list_del(&sub_constraint_list->driver_domain);
+		list_del(&sub_constraint_list->constraint_domain);
+		kfree(sub_constraint_list->freq_table);
+		kfree(sub_constraint_list);
 	}
 
-	list_del(&constraint->master_domain);
-	list_del(&constraint->slave_domain);
+	list_del(&constraint_list->driver_domain);
+	list_del(&constraint_list->constraint_domain);
 
 	mutex_unlock(&exynos_dm->lock);
 
@@ -695,16 +695,16 @@ EXPORT_SYMBOL_GPL(unregister_exynos_dm_freq_scaler);
 #define POLICY_REQ	4
 
 /* DM Algorithm */
-static int update_constraint_min(struct exynos_dm_constraint *constraint, u32 master_min)
+static int update_constraint_min(struct exynos_dm_constraint *constraint, u32 driver_min)
 {
-	struct exynos_dm_data *dm = &exynos_dm->dm_data[constraint->dm_slave];
+	struct exynos_dm_data *dm = &exynos_dm->dm_data[constraint->dm_constraint];
 	struct exynos_dm_freq *const_table = constraint->freq_table;
 	struct exynos_dm_constraint *t;
 	int i;
 
 	/* Find constraint condition for min relationship */
 	for (i = constraint->table_length - 1; i >= 0; i--) {
-		if (const_table[i].master_freq >= master_min)
+		if (const_table[i].driver_freq >= driver_min)
 			break;
 	}
 
@@ -712,35 +712,35 @@ static int update_constraint_min(struct exynos_dm_constraint *constraint, u32 ma
 	if (i < 0)
 		i = 0;
 
-	constraint->const_freq = const_table[i].slave_freq;
+	constraint->const_freq = const_table[i].constraint_freq;
 	dm->const_min = 0;
 
-	/* Find min constraint frequency from master domains */
-	list_for_each_entry(t, &dm->min_masters, slave_domain) {
+	/* Find min constraint frequency from driver domains */
+	list_for_each_entry(t, &dm->min_drivers, constraint_domain) {
 		dm->const_min = max(t->const_freq, dm->const_min);
 	}
 
 	return 0;
 }
 
-static int update_constraint_max(struct exynos_dm_constraint *constraint, u32 master_max)
+static int update_constraint_max(struct exynos_dm_constraint *constraint, u32 driver_max)
 {
-	struct exynos_dm_data *dm = &exynos_dm->dm_data[constraint->dm_slave];
+	struct exynos_dm_data *dm = &exynos_dm->dm_data[constraint->dm_constraint];
 	struct exynos_dm_freq *const_table = constraint->freq_table;
 	struct exynos_dm_constraint *t;
 	int i;
 
 	/* Find constraint condition for max relationship */
 	for (i = 0; i < constraint->table_length; i++) {
-		if (const_table[i].master_freq <= master_max)
+		if (const_table[i].driver_freq <= driver_max)
 			break;
 	}
 
-	constraint->const_freq = const_table[i].slave_freq;
+	constraint->const_freq = const_table[i].constraint_freq;
 	dm->const_max = UINT_MAX;
 
-	/* Find max constraint frequency from master domains */
-	list_for_each_entry(t, &dm->max_masters, slave_domain) {
+	/* Find max constraint frequency from driver domains */
+	list_for_each_entry(t, &dm->max_drivers, constraint_domain) {
 		dm->const_max = min(t->const_freq, dm->const_max);
 	}
 
@@ -817,7 +817,7 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 	}
 #endif
 
-	if (list_empty(&dm->min_slaves) && list_empty(&dm->max_slaves))
+	if (list_empty(&dm->min_constraints) && list_empty(&dm->max_constraints))
 		goto out;
 
 	new_min = max(dm->policy_min, dm->const_min);
@@ -832,7 +832,7 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 			min_freq = max(domain->policy_min, domain->const_min);
 			max_freq = min(domain->policy_max, domain->const_max);
 			min_freq = min(min_freq, max_freq);
-			list_for_each_entry(t, &domain->min_slaves, master_domain) {
+			list_for_each_entry(t, &domain->min_constraints, driver_domain) {
 				update_constraint_min(t, min_freq);
 			}
 		}
@@ -844,7 +844,7 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 		for (i = dm->my_order; i >= 0; i--) {
 			domain = &exynos_dm->dm_data[exynos_dm->domain_order[i]];
 			max_freq = min(domain->policy_max, domain->const_max);
-			list_for_each_entry(t, &domain->max_slaves, master_domain) {
+			list_for_each_entry(t, &domain->max_constraints, driver_domain) {
 				update_constraint_max(t, max_freq);
 			}
 		}
@@ -878,16 +878,16 @@ static void update_new_target(int dm_type)
 	exynos_dm->dm_data[dm_type].next_target_freq = min(min_freq, max_freq);
 }
 
-static int update_gov_min(struct exynos_dm_constraint *constraint, u32 master_freq)
+static int update_gov_min(struct exynos_dm_constraint *constraint, u32 driver_freq)
 {
-	struct exynos_dm_data *dm = &exynos_dm->dm_data[constraint->dm_slave];
+	struct exynos_dm_data *dm = &exynos_dm->dm_data[constraint->dm_constraint];
 	struct exynos_dm_freq *const_table = constraint->freq_table;
 	struct exynos_dm_constraint *t;
 	int i;
 
 	/* Find constraint condition for min relationship */
 	for (i = constraint->table_length - 1; i >= 0; i--) {
-		if (const_table[i].master_freq >= master_freq)
+		if (const_table[i].driver_freq >= driver_freq)
 			break;
 	}
 
@@ -895,11 +895,11 @@ static int update_gov_min(struct exynos_dm_constraint *constraint, u32 master_fr
 	if (i < 0)
 		i = 0;
 
-	constraint->gov_freq = const_table[i].slave_freq;
+	constraint->gov_freq = const_table[i].constraint_freq;
 	dm->gov_min = 0;
 
-	/* Find gov_min frequency from master domains */
-	list_for_each_entry(t, &dm->min_masters, slave_domain) {
+	/* Find gov_min frequency from driver domains */
+	list_for_each_entry(t, &dm->min_drivers, constraint_domain) {
 		dm->gov_min = max(t->gov_freq, dm->gov_min);
 	}
 
@@ -947,7 +947,7 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 	if (target_dm->cur_freq == *target_freq)
 		goto out;
 
-	if (list_empty(&target_dm->max_slaves) && list_empty(&target_dm->min_slaves) &&
+	if (list_empty(&target_dm->max_constraints) && list_empty(&target_dm->min_constraints) &&
 	    target_dm->freq_scaler) {
 		update_new_target(target_dm->dm_type);
 		ret = target_dm->freq_scaler(target_dm->dm_type, target_dm->devdata,
@@ -964,8 +964,8 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 		/* Update new target frequency from all min, max restricts. */
 		update_new_target(dm->dm_type);
 
-		/* Travers all slave domains to update the gov_min value. */
-		list_for_each_entry(t, &dm->min_slaves, master_domain) {
+		/* Travers all constraint domains to update the gov_min value. */
+		list_for_each_entry(t, &dm->min_constraints, driver_domain) {
 			update_gov_min(t, dm->next_target_freq);
 		}
 

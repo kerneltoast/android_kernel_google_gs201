@@ -123,16 +123,15 @@ static void __mfc_qos_operate(struct mfc_core *core, int opr_type, int table_typ
 		qos_table = pdata->encoder_qos_table;
 	else
 		qos_table = pdata->default_qos_table;
-	freq_mfc = qos_table[idx].freq_mfc;
+
+	if (core->mfc_freq_by_bps > qos_table[idx].freq_mfc)
+		freq_mfc = core->mfc_freq_by_bps;
+	else
+		freq_mfc = qos_table[idx].freq_mfc;
 
 	switch (opr_type) {
 	case MFC_QOS_ADD:
-		if (core->mfc_freq_by_bps > freq_mfc) {
-			mfc_core_debug(2, "[QoS] mfc freq set to high %d -> %d by bps\n",
-					freq_mfc, core->mfc_freq_by_bps);
-			freq_mfc = core->mfc_freq_by_bps;
-		}
-
+		core->last_mfc_freq = freq_mfc;
 		if (pdata->mfc_freq_control)
 			exynos_pm_qos_add_request(&core->qos_req_mfc,
 					PM_QOS_MFC_THROUGHPUT +
@@ -177,12 +176,7 @@ static void __mfc_qos_operate(struct mfc_core *core, int opr_type, int table_typ
 				 qos_table[idx].freq_int, qos_table[idx].freq_mif);
 		break;
 	case MFC_QOS_UPDATE:
-		if (core->mfc_freq_by_bps > freq_mfc) {
-			mfc_core_debug(2, "[QoS] mfc freq set to high %d -> %d by bps\n",
-					freq_mfc, core->mfc_freq_by_bps);
-			freq_mfc = core->mfc_freq_by_bps;
-		}
-
+		core->last_mfc_freq = freq_mfc;
 		if (pdata->mfc_freq_control)
 			exynos_pm_qos_update_request(&core->qos_req_mfc, freq_mfc);
 		exynos_pm_qos_update_request(&core->qos_req_int, qos_table[idx].freq_int);
@@ -221,6 +215,7 @@ static void __mfc_qos_operate(struct mfc_core *core, int opr_type, int table_typ
 				qos_table[idx].freq_int, qos_table[idx].freq_mif);
 		break;
 	case MFC_QOS_REMOVE:
+		core->last_mfc_freq = 0;
 		if (atomic_read(&core->qos_req_cur) == 0) {
 			MFC_TRACE_CORE("QoS already removed\n");
 			mfc_core_debug(2, "[QoS] QoS already removed\n");
@@ -285,6 +280,7 @@ static void __mfc_qos_set(struct mfc_core *core, struct mfc_ctx *ctx,
 	struct mfc_core_platdata *pdata = core->core_pdata;
 	struct mfc_qos *qos_table;
 	int num_qos_steps;
+	int freq_mfc;
 
 	if (table_type == MFC_QOS_TABLE_TYPE_ENCODER) {
 		num_qos_steps = pdata->num_encoder_qos_steps;
@@ -316,9 +312,21 @@ static void __mfc_qos_set(struct mfc_core *core, struct mfc_ctx *ctx,
 		 * 1) QoS level is changed
 		 * 2) MFC freq should be high regardless of QoS level
 		 */
-		if ((atomic_read(&core->qos_req_cur) != (i + 1)) ||
-				(core->mfc_freq_by_bps > qos_table[i].freq_mfc))
+		if (atomic_read(&core->qos_req_cur) != (i + 1)) {
 			__mfc_qos_operate(core, MFC_QOS_UPDATE, table_type, i);
+		} else {
+			if (core->mfc_freq_by_bps > qos_table[i].freq_mfc)
+				freq_mfc = core->mfc_freq_by_bps;
+			else
+				freq_mfc = qos_table[i].freq_mfc;
+			if (freq_mfc != core->last_mfc_freq) {
+				mfc_debug(2, "[QoS] mfc freq changed (last: %d, by bps: %d, QoS table: %d)\n",
+						core->last_mfc_freq,
+						core->mfc_freq_by_bps,
+						qos_table[i].freq_mfc);
+				__mfc_qos_operate(core, MFC_QOS_UPDATE, table_type, i);
+			}
+		}
 	}
 }
 

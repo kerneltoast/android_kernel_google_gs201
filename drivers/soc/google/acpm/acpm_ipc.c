@@ -397,8 +397,11 @@ static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 		if (rear == front) {
 			__raw_writel(1 << channel->id,
 				     acpm_ipc->intr + AP_INTCR);
-			if (rear != __raw_readl(channel->rx_ch.front))
-				apm_interrupt_gen(channel->id);
+			/*
+			 * There is no race, if front is changed after the last check,
+			 * because even if AP_INT is cleared, the other call to
+			 * acpm_ipc_send_data() will continue to call check_response()
+			 */
 		}
 		ret = false;
 		break;
@@ -645,16 +648,22 @@ retry:
 		timeout = sched_clock() + IPC_TIMEOUT;
 		timeout_flag = false;
 
-		while (!(__raw_readl(acpm_ipc->intr + AP_INTSR) & (1 << channel->id)) ||
-		       check_response(channel, cfg)) {
+		while (check_response(channel, cfg)) {
 			now = sched_clock();
 			if (timeout < now) {
 				if (retry_cnt > 5) {
 					timeout_flag = true;
 					break;
 				} else if (retry_cnt > 0) {
-					pr_err("acpm_ipc retry %d, now = %llu, timeout = %llu\n",
-					       retry_cnt, now, timeout);
+					pr_err("acpm_ipc retry %d, now = %llu, timeout = %llu",
+							retry_cnt, now, timeout);
+					pr_err("I:0x%x %u RX r:%u f:%u TX r:%u f:%u\n",
+							__raw_readl(acpm_ipc->intr + AP_INTSR),
+							channel->id,
+							__raw_readl(channel->rx_ch.rear),
+							__raw_readl(channel->rx_ch.front),
+							__raw_readl(channel->tx_ch.rear),
+							__raw_readl(channel->tx_ch.front));
 					++retry_cnt;
 					goto retry;
 				} else {
@@ -672,17 +681,8 @@ retry:
 		if ((timeout_flag) && (check_response(channel, cfg))) {
 			unsigned int saved_debug_log_level =
 			    acpm_debug->debug_log_level;
-			pr_err("%s Timeout error! now = %llu, timeout = %llu\n",
-			       __func__, now, timeout);
-			pr_err("[ACPM] int_status:0x%x, ch_id: 0x%x\n",
-			       __raw_readl(acpm_ipc->intr + AP_INTSR),
-			       1 << channel->id);
-			pr_err("[ACPM] queue, rx_rear:%u, rx_front:%u\n",
-			       __raw_readl(channel->rx_ch.rear),
-			       __raw_readl(channel->rx_ch.front));
-			pr_err("[ACPM] queue, tx_rear:%u, tx_front:%u\n",
-			       __raw_readl(channel->tx_ch.rear),
-			       __raw_readl(channel->tx_ch.front));
+			pr_err("%s Timeout error! now = %llu, timeout = %llu ch:%u\n",
+			       __func__, now, timeout, channel->id);
 
 			acpm_debug->debug_log_level = 2;
 			acpm_log_print();

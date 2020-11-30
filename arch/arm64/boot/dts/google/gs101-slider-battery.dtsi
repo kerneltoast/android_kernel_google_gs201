@@ -31,6 +31,7 @@
 			50  50   0
 			30   0   0
 		>;
+		#thermal-sensor-cells = <0>;
 	};
 
 	google_cpm: google,cpm {
@@ -105,6 +106,7 @@
 		max777x9,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;
 
 		max77759,max_m5 = <&max77759_fg>;
+		max20339,ovp = <&max20339_ovp>;
 
 		max777x9_gpio: max777x9_gpio {
 			gpio-controller;
@@ -190,6 +192,11 @@
 
 		max77759,max_m5 = <&max77759_fg>;
 		max77759,pmic = <&max77729_pmic>;
+
+		/* system use cases */
+		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
+		max77759,bst-sel = <&gpp27 3 GPIO_ACTIVE_HIGH>;
+		max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
 	};
 
 };

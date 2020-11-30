@@ -734,6 +734,7 @@ struct mfc_platdata {
 	unsigned int max_hdr_win;
 	/* error type for sync_point display */
 	unsigned int display_err_type;
+	unsigned int security_ctrl;
 	/* NAL-Q size */
 	unsigned int nal_q_entry_size;
 	unsigned int nal_q_dump_size;
@@ -753,6 +754,7 @@ struct mfc_platdata {
 	struct mfc_feature wait_nalq_status;
 	struct mfc_feature drm_switch_predict;
 	struct mfc_feature sbwc_enc_src_ctrl;
+	struct mfc_feature average_qp;
 
 	/* AV1 Decoder */
 	unsigned int support_av1_dec;
@@ -1309,6 +1311,7 @@ struct mfc_core {
 #endif
 	struct mutex qos_mutex;
 	int mfc_freq_by_bps;
+	int last_mfc_freq;
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)
 	struct bts_bw mfc_bw;
 	unsigned int prev_bts_scen_idx;
@@ -2100,6 +2103,7 @@ struct mfc_ctx {
 
 	unsigned long framerate;
 	unsigned long last_framerate;
+	unsigned long operating_framerate;
 	unsigned int qos_ratio;
 	bool update_framerate;
 	bool update_bitrate;

@@ -177,8 +177,6 @@ struct s2mpg10_platform_data {
 	int cap_sel;
 	int osc_xin;
 	int osc_xout;
-
-	bool use_i2c_speedy;
 };
 
 struct s2mpg10_dev {
@@ -228,7 +226,6 @@ struct s2mpg10_pmic {
 	int soft_tpu_ocp_warn_irq;
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 	struct device *dev;
-	u8 read_val;
 	u16 read_addr;
 #endif
 };

@@ -88,5 +88,6 @@ struct p2v_map pmucal_p2v_list[] = {
 	DEFINE_PHY(0x1e080000),
 	DEFINE_PHY(0x1A700000),
 	DEFINE_PHY(0x1AA20000),
+	DEFINE_PHY(0x10000000),
 };
 unsigned int pmucal_p2v_list_size = ARRAY_SIZE(pmucal_p2v_list);

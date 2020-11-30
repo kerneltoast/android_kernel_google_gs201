@@ -52,11 +52,11 @@
 #define ID_AA64DFR0_EL1 (0xd28)
 
 /* DBG breakpoint registers (All RW) */
-#define DBGBVRn(n)	(0x400 + (n * 0x10)) /* 64bit */
-#define DBGBCRn(n)	(0x408 + (n * 0x10))
+#define DBGBVRn(n)	(0x400 + ((n) * 0x10)) /* 64bit */
+#define DBGBCRn(n)	(0x408 + ((n) * 0x10))
 /* DBG watchpoint registers (All RW) */
-#define DBGWVRn(n)	(0x800 + (n * 0x10)) /* 64bit */
-#define DBGWCRn(n)	(0x808 + (n * 0x10))
+#define DBGWVRn(n)	(0x800 + ((n) * 0x10)) /* 64bit */
+#define DBGWCRn(n)	(0x808 + ((n) * 0x10))
 
 /* DIDR or ID_AA64DFR0_EL1 bit */
 #define DEBUG_ARCH_V8	(0x6)
@@ -133,13 +133,13 @@
 #define ETMVDCTLR	(0x0a0)
 #define ETMVDSACCTLR	(0x0a4)
 #define ETMVDARCCTLR	(0x0a8)
-#define ETMSEQEVR(n)	(0x100 + (n * 4))
+#define ETMSEQEVR(n)	(0x100 + ((n) * 4))
 #define ETMSEQRSTEVR	(0x118)
 #define ETMSEQSTR	(0x11c)
 #define ETMEXTINSELR	(0x120)
-#define ETMCNTRLDVR(n)	(0x140 + (n * 4))
-#define ETMCNTCTLR(n)	(0x150 + (n * 4))
-#define ETMCNTVR(n)	(0x160 + (n * 4))
+#define ETMCNTRLDVR(n)	(0x140 + ((n) * 4))
+#define ETMCNTCTLR(n)	(0x150 + ((n) * 4))
+#define ETMCNTVR(n)	(0x160 + ((n) * 4))
 #define ETMIDR8		(0x180)
 #define ETMIDR9		(0x184)
 #define ETMID10		(0x188)
@@ -154,28 +154,34 @@
 #define ETMID5		(0x1f4)
 #define ETMID6		(0x1f8)
 #define ETMID7		(0x1fc)
-#define ETMRSCTLR(n)	(0x200 + (n * 4))
-#define ETMSSCCR(n)	(0x280 + (n * 4))
-#define ETMSSCSR(n)	(0x2a0 + (n * 4))
-#define ETMSSPCICR(n)	(0x2c0 + (n * 4))
+#define ETMRSCTLR(n)	(0x200 + ((n) * 4))
+#define ETMSSCCR(n)	(0x280 + ((n) * 4))
+#define ETMSSCSR(n)	(0x2a0 + ((n) * 4))
+#define ETMSSPCICR(n)	(0x2c0 + ((n) * 4))
 #define ETMOSLAR	(0x300)
 #define ETMOSLSR	(0x304)
 #define ETMPDCR		(0x310)
 #define ETMPDSR		(0x314)
-#define ETMACVR(n)	(0x400 + (n * 4))
-#define ETMACAT(n)	(0x480 + (n * 4))
-#define ETMDVCVR(n)	(0x500 + (n * 4))
-#define ETMDVCMR(n)	(0x580 + (n * 4))
-#define ETMCIDCVR(n)	(0x600 + (n * 4))
-#define ETMVMIDCVR(n)	(0x640 + (n * 4))
+#define ETMACVR(n)	(0x400 + ((n) * 4))
+#define ETMACAT(n)	(0x480 + ((n) * 4))
+#define ETMDVCVR(n)	(0x500 + ((n) * 4))
+#define ETMDVCMR(n)	(0x580 + ((n) * 4))
+#define ETMCIDCVR(n)	(0x600 + ((n) * 4))
+#define ETMVMIDCVR(n)	(0x640 + ((n) * 4))
 #define ETMCCIDCCTLR0	(0x680)
 #define ETMCCIDCCTLR1	(0x684)
 #define ETMVMIDCCTLR0	(0x688)
 #define ETMVMIDCCTLR1	(0x68c)
 
+#define OSLOCK		(1)
+#define ETM_EN		(1)
+#define PERIOD(x)	((x) & 0x1f)
+#define TIMESTAMP	(1 << 12)
+#define SSSSTATUS	(1 << 9)
+
 /* CTI registers */
-#define CTIOUTEN(n)	(0xA0 + (n * 0x4))
-#define CTIINEN(n)	(0x20 + (n * 0x4))
+#define CTIOUTEN(n)	(0xA0 + ((n) * 0x4))
+#define CTIINEN(n)	(0x20 + ((n) * 0x4))
 #define CTICONTROL	(0x000)
 #define CTIINTACK	(0x010)
 #define CTIAPPSET	(0x014)
@@ -193,4 +199,10 @@
 
 #define ARM_CPU_PART_HERCULES		0xD41
 #define ARM_CPU_PART_HERA		0xD44
+
+#if IS_ENABLED(CONFIG_EXYNOS_CORESIGHT_ETM)
+extern void exynos_etm_trace_stop(void);
+#else
+#define exynos_etm_trace_stop()		do { } while (0)
+#endif
 #endif

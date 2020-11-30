@@ -36,6 +36,9 @@ extern bool dbg_snapshot_is_scratch(void);
 extern unsigned int dbg_snapshot_get_hardlockup_magic(int cpu);
 extern unsigned long dbg_snapshot_get_last_pc(unsigned int cpu);
 extern unsigned long dbg_snapshot_get_last_pc_paddr(void);
+extern unsigned int dbg_snapshot_get_slcdump_base(void);
+extern unsigned int dbg_snapshot_get_pre_slcdump_base(void);
+
 /* debug-snapshot-dpm functions */
 extern bool dbg_snapshot_get_dpm_status(void);
 extern bool dbg_snapshot_get_enabled_debug_kinfo(void);
@@ -56,6 +59,7 @@ extern void dbg_snapshot_register_wdt_ops(void *start, void *expire, void *stop)
 extern void dbg_snapshot_register_debug_ops(void *halt, void *arraydump, void *scandump);
 extern void dbg_snapshot_save_context(struct pt_regs *regs, bool stack_dump);
 extern void cache_flush_all(void);
+extern int dbg_snapshot_stop_all_cpus(void);
 
 /* debug-snapshot-log functions */
 extern int dbg_snapshot_get_freq_idx(const char *name);
@@ -154,6 +158,8 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_get_hardlockup_magic(a)	(0)
 #define dbg_snapshot_get_last_pc(a)		(0)
 #define dbg_snapshot_get_last_pc_paddr		(0)
+#define dbg_snapshot_get_slcdump_base		(0)
+#define dbg_snapshot_get_pre_slcdump_base	(0)
 
 #define dbg_snapshot_get_dpm_status() 		(0)
 #define dbg_snapshot_qd_add_region(a, b)	(-1)
@@ -163,6 +169,7 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_emergency_reboot(a)	(-1)
 #define dbg_snapshot_kick_watchdog()		(-1)
 #define dbg_snapshot_get_val_offset(a)		(0)
+#define dbg_snapshot_stop_all_cpus()		(-1)
 
 #define dbg_snapshot_get_freq_idx(a)		(-1)
 
@@ -287,6 +294,8 @@ enum dss_item_index {
 	DSS_ITEM_S2D_ID,
 	DSS_ITEM_ARRDUMP_RESET_ID,
 	DSS_ITEM_ARRDUMP_PANIC_ID,
+	DSS_ITEM_SLCDUMP_ID,
+	DSS_ITEM_PRE_SLCDUMP_ID,
 };
 
 enum dss_log_item_indx {

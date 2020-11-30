@@ -273,3 +273,5 @@ obj-$(CONFIG_MFD_S2MPG1X_GPIO) 	+= s2mpg1x-gpio.o
 obj-$(CONFIG_SGI_MFD_IOC3)	+= ioc3.o
 obj-$(CONFIG_MFD_SIMPLE_MFD_I2C)	+= simple-mfd-i2c.o
 obj-$(CONFIG_MFD_INTEL_M10_BMC)   += intel-m10-bmc.o
+
+obj-$(CONFIG_MFD_SLG51000)	+= slg51000-core.o

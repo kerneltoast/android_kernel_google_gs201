@@ -915,7 +915,8 @@
 		pt_id =
 			"CAMERA2WAY",
 			"CAMERA3WAY",
-			"CAMERA4WAY",
+			"CAMERA4WAY0",
+			"CAMERA4WAY1",
 			"CAMERA8WAY",
 			"CAMERA12WAY";
 	};

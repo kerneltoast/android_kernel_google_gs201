@@ -228,6 +228,7 @@ struct exynos_pcie {
 	unsigned int		pci_cap[48];
 	unsigned int		pci_ext_cap[48];
 	struct regmap		*pmureg;
+	phys_addr_t		pmu_alive_pa;
 	struct regmap		*sysreg;
 	int			perst_gpio;
 	int			num_lanes;

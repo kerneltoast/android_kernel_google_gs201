@@ -44,7 +44,7 @@
 #include <linux/of_device.h>
 #endif
 
-//#include <soc/samsung/exynos-cpupm.h>
+#include <soc/google/exynos-cpupm.h>
 
 #define DWC3_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 
@@ -435,19 +435,6 @@ int dwc3_exynos_core_init(struct dwc3 *dwc)
 	dwc3_exynos_phy_setup(dwc);
 
 	dwc3_core_config(dwc);
-
-	reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
-	if (dwc->adj_sof_accuracy) {
-		reg &= ~DWC3_GFLADJ_REFCLK_240MHZDECR_PLS1;
-		reg &= ~DWC3_GFLADJ_REFCLK_240MHZ_DECR_MASK;
-		reg |= DWC3_GFLADJ_REFCLK_240MHZ_DECR(0xA);
-		reg |= DWC3_GFLADJ_REFCLK_LPM_SEL;
-		reg &= ~DWC3_GFLADJ_REFCLK_FLADJ_MASK;
-		reg |= DWC3_GFLADJ_REFCLK_FLADJ(0x7F0);
-	} else if (dwc->dis_u2_freeclk_exists_quirk) {
-		reg &= ~DWC3_GFLADJ_REFCLK_LPM_SEL;
-	}
-	dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 
@@ -900,10 +887,10 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	exynos->dev = dev;
 
-	//exynos->idle_ip_index = exynos_get_idle_ip_index(dev_name(dev));
-	//pr_info("%s, usb idle ip = %d\n", __func__,
-	//		exynos->idle_ip_index);
-	//exynos_update_ip_idle_status(exynos->idle_ip_index, 0);
+	exynos->idle_ip_index = exynos_get_idle_ip_index(dev_name(dev));
+	pr_info("%s, usb idle ip = %d\n", __func__,
+			exynos->idle_ip_index);
+	exynos_update_ip_idle_status(exynos->idle_ip_index, 0);
 
 	ret = dwc3_exynos_clk_get(exynos);
 	if (ret)
@@ -1029,7 +1016,7 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 	dwc3_exynos_clk_disable(exynos);
 
 	/* inform what USB state is idle to IDLE_IP */
-	//exynos_update_ip_idle_status(exynos->idle_ip_index, 1);
+	exynos_update_ip_idle_status(exynos->idle_ip_index, 1);
 
 	return 0;
 }
@@ -1044,7 +1031,7 @@ static int dwc3_exynos_runtime_resume(struct device *dev)
 		return 0;
 
 	/* inform what USB state is not idle to IDLE_IP */
-	//exynos_update_ip_idle_status(exynos->idle_ip_index, 0);
+	exynos_update_ip_idle_status(exynos->idle_ip_index, 0);
 
 	ret = dwc3_exynos_clk_enable(exynos);
 	if (ret) {

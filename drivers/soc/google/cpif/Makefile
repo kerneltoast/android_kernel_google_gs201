@@ -40,3 +40,5 @@ cpif-$(CONFIG_MODEM_IF_LEGACY_QOS) += cpif_qos_info.o
 ifeq ($(CONFIG_RPS), y)
 cpif-$(CONFIG_ARGOS) += modem_argos_notifier.o
 endif
+
+obj-$(CONFIG_CP_THERMAL) += cp_thermal_zone.o

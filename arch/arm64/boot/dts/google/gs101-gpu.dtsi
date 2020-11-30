@@ -39,7 +39,7 @@
 		gpu_dvfs_governor = "basic";
 		gpu_dvfs_clockdown_hysteresis = <50>;
 		gpu_dvfs_table_size = <6 10>; /*<row col>*/
-		gpu_dvfs_table = <
+		gpu_dvfs_table_v1 = <
 			/*
 			 *gpu0    gpu1   down     up    hys      int      mif   little  middle   big
 			 * clk     clk   util   util  ticks      min      min      min     min   max
@@ -52,7 +52,19 @@
 			302000  151000     50     80      2   200000   676000        0       0     0
 			151000  151000      0     60      1        0        0        0       0     0
 		>;
-
+		gpu_dvfs_table_v2 = <
+			/*
+			 *gpu0    gpu1   down     up    hys      int      mif   little  middle   big
+			 * clk     clk   util   util  ticks      min      min      min     min   max
+			 *--------------------------------------------------------------------------
+			 */
+			996000  670000     78    100      1   465000  2028000        0       0     0
+			885000  572000     78     98      2   465000  2028000        0       0     0
+			750000  455000     78     95      3   332000  1716000        0       0     0
+			603000  350000     78     85      6   200000  1539000        0       0     0
+			302000  200000     50     80      2   200000   676000        0       0     0
+			151000  151000      0     60      1        0        0        0       0     0
+		>;
 		/* QOS */
 		gpu_dvfs_qos_bts_scenario = "g3d_performance";
 		gpu_dvfs_qos_bts_level = <3>;

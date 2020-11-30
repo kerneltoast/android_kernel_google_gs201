@@ -327,7 +327,12 @@ static int detect_contaminant(struct max77759_contaminant *contaminant)
 			inferred_state = DETECTED;
 		} else {
 			logbuffer_log(chip->log, "Contaminant: AP floating cable detected");
-			inferred_state = FLOATING_CABLE;
+			/*
+			 * Consider floating cable as sink as well to allow
+			 * TotalPhase analyzer to work as it presents ~600k in
+			 * one of the CC pins.
+			 */
+			inferred_state = SINK;
 		}
 	}
 
@@ -345,6 +350,18 @@ static int enable_dry_detection(struct max77759_contaminant *contaminant)
 	struct max77759_plat *chip = contaminant->chip;
 	u8 temp;
 	int ret;
+
+	/*
+	 * tunable: 1ms water detection debounce
+	 * tunable: 1000mV/1000K thershold for water detection
+	 * tunable: 4.8s water cycle
+	 */
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRDEB_MASK | CCWTRSEL_MASK
+				    | WTRCYCLE_MASK, CCWTRDEB_1MS << CCWTRDEB_SHIFT |
+				    CCWTRSEL_1V << CCWTRSEL_SHIFT | WTRCYCLE_4_8_S <<
+				    WTRCYCLE_SHIFT);
+	if (ret < 0)
+		return ret;
 
 	ret = max77759_update_bits8(regmap, TCPC_ROLE_CTRL, TCPC_ROLE_CTRL_DRP,
 				    TCPC_ROLE_CTRL_DRP);
@@ -472,6 +489,10 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 	/* Exit if still LookingForConnection. */
 	if (cc_status & TCPC_CC_STATUS_TOGGLING) {
 		logbuffer_log(chip->log, "Contaminant: Looking for connection");
+		/* Restart toggling before returning in debounce path */
+		if (debounce_path && (contaminant->state == NOT_DETECTED ||
+				      contaminant->state == SINK))
+			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
 		return false;
 	}
 
@@ -542,6 +563,10 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 				}
 			}
 		}
+
+		/* Restart toggling before returning in debounce path */
+		if (debounce_path)
+			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
 		return false;
 	} else if (contaminant->state == DETECTED || contaminant->state ==
 		   FLOATING_CABLE) {
@@ -597,16 +622,15 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 	int ret;
 
 	contaminant_detect_maxq = maxq;
-
-	/* tunable: 1ms water detection debounce */
-	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRDEB_MASK,
-				    CCWTRDEB_1MS << CCWTRDEB_SHIFT);
-	if (ret < 0)
-		return ret;
-
-	/* tunable: 1000mV/1000K thershold for water detection */
-	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRSEL_MASK,
-				    CCWTRSEL_1V << CCWTRSEL_SHIFT);
+	/*
+	 * tunable: 1ms water detection debounce
+	 * tunable: 1000mV/1000K thershold for water detection
+	 * tunable: 4.8s water cycle
+	 */
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRDEB_MASK | CCWTRSEL_MASK
+				    | WTRCYCLE_MASK, CCWTRDEB_1MS << CCWTRDEB_SHIFT |
+				    CCWTRSEL_1V << CCWTRSEL_SHIFT | WTRCYCLE_4_8_S <<
+				    WTRCYCLE_SHIFT);
 	if (ret < 0)
 		return ret;
 

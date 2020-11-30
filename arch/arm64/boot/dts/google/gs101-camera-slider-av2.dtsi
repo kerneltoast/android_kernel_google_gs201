@@ -107,7 +107,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
@@ -152,7 +152,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
@@ -197,7 +197,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
@@ -302,7 +302,7 @@
 				reg-value-bitwidth = <32>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
 
 				clocks =
 					<&clock CIS_CLK0>,
@@ -335,7 +335,7 @@
 				reg-value-bitwidth = <32>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp6 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_HIGH>;
 
 				clocks =
 					<&clock CIS_CLK0>,
@@ -368,7 +368,7 @@
 				reg-value-bitwidth = <8>;
 
 				/* GPIOs */
-				reset-gpios = <&gpp4 2 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
 
 				clocks =
 					<&clock CIS_CLK1>,

@@ -18,7 +18,7 @@ obj-$(CONFIG_GS_ACPM)			+= acpm/
 
 obj-$(CONFIG_EXYNOS_DVFS_MANAGER)       += exynos-dm.o
 
-obj-$(CONFIG_EXYNOS_PM_QOS)	+= exynos_pm_qos.o
+obj-$(CONFIG_EXYNOS_PM_QOS)		+= exynos_pm_qos.o
 
 obj-$(CONFIG_SLC_PARTITION_MANAGER)	+= pt/
 
@@ -42,3 +42,5 @@ obj-$(CONFIG_HARDLOCKUP_WATCHDOG)	+= hardlockup-watchdog.o
 
 # vh/kernel/sched
 obj-$(CONFIG_VH_KERNEL)			+= vh/kernel/
+
+obj-$(CONFIG_DBGCORE_DUMP)		+= dbgcore-dump.o

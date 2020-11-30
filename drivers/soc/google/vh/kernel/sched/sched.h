@@ -1,18 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #define ANDROID_VENDOR_CHECK_SIZE_ALIGN(_orig, _new)				\
-	union {									\
-		_Static_assert(sizeof(struct{_new;}) <= sizeof(struct{_orig;}),	\
+		static_assert(sizeof(struct{_new;}) <= sizeof(struct{_orig;}),	\
 			       __FILE__ ":" __stringify(__LINE__) ": "		\
 			       __stringify(_new)				\
 			       " is larger than "				\
 			       __stringify(_orig) );				\
-		_Static_assert(__alignof__(struct{_new;}) <= __alignof__(struct{_orig;}),	\
+		static_assert(__alignof__(struct{_new;}) <= __alignof__(struct{_orig;}),	\
 			       __FILE__ ":" __stringify(__LINE__) ": "		\
 			       __stringify(_orig)				\
 			       " is not aligned the same as "			\
-			       __stringify(_new) );				\
-	}
+			       __stringify(_new) );
 
 // Maximum size: u64[2] for ANDROID_VENDOR_DATA_ARRAY(1, 2) in task_struct
 struct vendor_task_struct {

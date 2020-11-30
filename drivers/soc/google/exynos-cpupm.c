@@ -18,6 +18,10 @@
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
+
+#include <trace/hooks/cpuidle.h>
+#include <trace/events/power.h>
 
 #include <soc/google/exynos-cpupm.h>
 #include <soc/google/cal-if.h>
@@ -138,13 +142,20 @@ struct exynos_cpupm {
 	/* cpu state, BUSY or IDLE */
 	int			state;
 
+	/* CPU statistics */
+	struct cpupm_stats	stat[CPUIDLE_STATE_MAX];
+	struct cpupm_stats	stat_snapshot[CPUIDLE_STATE_MAX];
+	int			entered_state;
+
 	/* array to manage the power mode that contains the cpu */
 	struct power_mode	*modes[POWERMODE_TYPE_END];
 };
 
 static struct exynos_cpupm __percpu *cpupm;
 static bool __percpu *hotplug_ing;
+static int cpuidle_state_max;
 static int system_suspended;
+static int system_rebooting;
 
 #define NSCODE_BASE		(0xBFFFF000)
 #define CPU_STATE_BASE_OFFSET	0x2C
@@ -334,7 +345,46 @@ EXPORT_SYMBOL_GPL(exynos_get_idle_ip_index);
 /******************************************************************************
  *                               CPUPM profiler                               *
  ******************************************************************************/
+static void cpuidle_profile_begin(struct cpupm_stats *stat)
+{
+	stat->entry_time = ktime_get();
+	stat->entry_count++;
+}
+
+static void cpuidle_profile_end(struct cpupm_stats *stat, int cancel)
+{
+	if (!stat->entry_time)
+		return;
+
+	if (cancel < 0) {
+		stat->cancel_count++;
+		return;
+	}
+
+	stat->residency_time +=
+		ktime_to_us(ktime_sub(ktime_get(), stat->entry_time));
+	stat->entry_time = 0;
+}
+
+static void vendor_hook_cpu_idle(void *data, int event, int state, int cpu)
+{
+	struct exynos_cpupm *pm = per_cpu_ptr(cpupm, cpu);
+
+	if (state > cpuidle_state_max)
+	       cpuidle_state_max = state;
+
+	switch (event) {
+	case PWR_EVENT_EXIT:
+		cpuidle_profile_end(&pm->stat[pm->entered_state], state);
+	default:
+		pm->entered_state = state;
+		cpuidle_profile_begin(&pm->stat[state]);
+		break;
+	}
+}
+
 static ktime_t cpupm_init_time;
+
 static void cpupm_profile_begin(struct cpupm_stats *stat)
 {
 	stat->entry_time = ktime_get();
@@ -377,10 +427,11 @@ static ssize_t profile_show(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
 {
+	struct exynos_cpupm *pm;
 	struct power_mode *mode;
 	struct idle_ip *ip;
 	s64 total;
-	int ret = 0;
+	int i, cpu, ret = 0;
 
 	if (profiling)
 		return snprintf(buf, PAGE_SIZE, "Profile is ongoing\n");
@@ -389,6 +440,22 @@ static ssize_t profile_show(struct device *dev,
 			"format : [mode] [entry_count] [cancel_count] [time] [(ratio)]\n\n");
 
 	total = ktime_to_us(profile_time);
+
+	for (i = 0; i <= cpuidle_state_max; i++) {
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "[state%d]\n", i);
+		for_each_possible_cpu(cpu) {
+			pm = per_cpu_ptr(cpupm, cpu);
+			ret += snprintf(buf + ret, PAGE_SIZE - ret,
+					"cpu%d %d %d %lld (%d%%)\n",
+					cpu,
+					pm->stat_snapshot[i].entry_count,
+					pm->stat_snapshot[i].cancel_count,
+					pm->stat_snapshot[i].residency_time,
+					pm->stat_snapshot[i].residency_time * 100 / total);
+		}
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	}
+
 	list_for_each_entry(mode, &mode_list, list) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"%-7s %d %d %lld (%d%%)\n",
@@ -416,9 +483,10 @@ static ssize_t profile_store(struct device *dev,
 			     struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
+	struct exynos_cpupm *pm;
 	struct power_mode *mode;
 	struct idle_ip *ip;
-	int input;
+	int input, cpu, i;
 
 	if (kstrtoint(buf, 0, &input))
 		return -EINVAL;
@@ -436,6 +504,12 @@ static ssize_t profile_store(struct device *dev,
 	smp_call_function(do_nothing, NULL, 1);
 	preempt_enable();
 
+	for_each_possible_cpu(cpu) {
+		pm = per_cpu_ptr(cpupm, cpu);
+		for (i = 0; i <= cpuidle_state_max; i++)
+			pm->stat_snapshot[i] = pm->stat[i];
+	}
+
 	list_for_each_entry(mode, &mode_list, list)
 		mode->stat_snapshot = mode->stat;
 
@@ -449,12 +523,22 @@ static ssize_t profile_store(struct device *dev,
 
 stop_profile:
 #define delta(a, b)	(a = (b) - a)
-#define field_delta(field)			\
+#define field_delta(field)				\
 	delta(mode->stat_snapshot.field, mode->stat.field)
+#define state_delta(field)				\
+	for (i = 0; i <= cpuidle_state_max; i++)	\
+		delta(pm->stat_snapshot[i].field, pm->stat[i].field)
 
 	preempt_disable();
 	smp_call_function(do_nothing, NULL, 1);
 	preempt_enable();
+
+	for_each_possible_cpu(cpu) {
+		pm = per_cpu_ptr(cpupm, cpu);
+		state_delta(entry_count);
+		state_delta(cancel_count);
+		state_delta(residency_time);
+	}
 
 	list_for_each_entry(mode, &mode_list, list) {
 		field_delta(entry_count);
@@ -475,13 +559,29 @@ static ssize_t time_in_state_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
+	struct exynos_cpupm *pm;
 	struct power_mode *mode;
 	struct idle_ip *ip;
 	s64 total = ktime_to_us(ktime_sub(ktime_get(), cpupm_init_time));
-	int ret = 0;
+	int i, cpu, ret = 0;
 
 	ret += snprintf(buf + ret, PAGE_SIZE - ret,
 			"format : [mode] [entry_count] [cancel_count] [time] [(ratio)]\n\n");
+
+	for (i = 0; i <= cpuidle_state_max; i++) {
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "[state%d]\n", i);
+		for_each_possible_cpu(cpu) {
+			pm = per_cpu_ptr(cpupm, cpu);
+			ret += snprintf(buf + ret, PAGE_SIZE - ret,
+					"cpu%d %d %d %lld (%d%%)\n",
+					cpu,
+					pm->stat[i].entry_count,
+					pm->stat[i].cancel_count,
+					pm->stat[i].residency_time,
+					pm->stat[i].residency_time * 100 / total);
+		}
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	}
 
 	list_for_each_entry(mode, &mode_list, list) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
@@ -844,12 +944,16 @@ static int exynos_cpu_pm_notify_callback(struct notifier_block *self,
 	int cpu = smp_processor_id();
 	int cpu_state;
 
-	/* ignore CPU_PM event in suspend sequence */
-	if (system_suspended)
-		return NOTIFY_OK;
-
 	switch (action) {
 	case CPU_PM_ENTER:
+		/* disable CPU_PM_ENTER event in reboot sequence */
+		if (system_rebooting)
+			return NOTIFY_BAD;
+
+		/* ignore CPU_PM_ENTER event in suspend sequence */
+		if (system_suspended)
+			return NOTIFY_OK;
+
 		/*
 		 * There are few block condition of C2.
 		 *  - while cpu is hotpluging.
@@ -871,6 +975,25 @@ static int exynos_cpu_pm_notify_callback(struct notifier_block *self,
 
 static struct notifier_block exynos_cpu_pm_notifier = {
 	.notifier_call = exynos_cpu_pm_notify_callback,
+	.priority = INT_MAX	/* we want to be called first */
+};
+
+static int exynos_cpupm_reboot_notifier(struct notifier_block *nb,
+					unsigned long event, void *v)
+{
+	switch (event) {
+	case SYS_POWER_OFF:
+	case SYS_RESTART:
+		system_rebooting = true;
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block exynos_cpupm_reboot_nb = {
+	.priority = INT_MAX,
+	.notifier_call = exynos_cpupm_reboot_notifier,
 };
 
 /******************************************************************************
@@ -1269,9 +1392,15 @@ static int exynos_cpupm_probe(struct platform_device *pdev)
 
 	nscode_base = ioremap(NSCODE_BASE, SZ_4K);
 
+	system_rebooting = false;
+	register_reboot_notifier(&exynos_cpupm_reboot_nb);
+
 	ret = cpu_pm_register_notifier(&exynos_cpu_pm_notifier);
 	if (ret)
 		return ret;
+
+	ret = register_trace_android_vh_cpu_idle(vendor_hook_cpu_idle, NULL);
+	WARN_ON(ret);
 
 	cpupm_init_time = ktime_get();
 

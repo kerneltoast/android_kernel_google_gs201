@@ -7,10 +7,6 @@
  *
  */
 
-&m_ldo30_reg {
-	schematic-name = "L30M_DMICS";
-};
-
 &m_ldo31_reg {
 	schematic-name = "L31M_DISP_VDDI";
 };
