@@ -65,6 +65,7 @@ private/google-modules/aoc/usb
 private/google-modules/touch/fts
 private/google-modules/touch/sec
 private/google-modules/power/reset
+private/google-modules/bluetooth/broadcom
 "
 
 if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
