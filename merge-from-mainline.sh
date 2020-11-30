@@ -36,12 +36,14 @@ AUTHOR_EMAIL="`git config user.email`"
 do_merge() {
   dir=${1}
   shift
+  from_branch=${1}
+  shift
   (
     cd ${dir} || exit 1
     branch=`git branch -r 2>&1 | sed -n 's/ *m\/.* -> //p'`
     [ -n "${branch}" ] || branch=partner/android-gs-pixel-5.10-stabilization
-    repo start ${BRANCH} || exit 1
-    commits="`git cherry -v ${branch} ${1} |
+    repo start ${BRANCH} . || exit 1
+    commits="`git cherry -v ${branch} ${from_branch} |
                 sed -n 's/^[+] //p'`"
     titles="`echo \"${commits}\" |
                sed 's/[0-9a-fA-F]* /  /'`"
@@ -55,9 +57,10 @@ do_merge() {
             sort -u |
             grep -v '^$' |
             sed 's/.*/Bug: &/'`"
-    git merge --no-ff ${*} --m "Merge remote-tracing branch '${1}' into ${branch}
+    git merge --no-ff ${*} --m "Merge ${from_branch} into ${branch}
+${@}
 
-* ${1}:
+* ${from_branch}:
 ${titles}
 
 Signed-off-by: ${AUTHOR_NAME} "'<'"${AUTHOR_EMAIL}"'>'"
@@ -76,12 +79,18 @@ find common private -type d -name .git |
         do_merge ${dir} partner-common/android12-5.10-staging
         ;;
       */wlan/*)
-        do_merge ${dir} partner/android-gs-pixel-4.19
+        do_merge ${dir} partner/android-gs-pixel-4.19 "
+NB: All development for this driver for 4.19, 5.4 and 5.10 is in
+    partner/android-gs-pixel-4.19 tree.  If there are any problems
+    with one tree, then the maintainers have made it their
+    responsibility to not create branches and figure out a solution
+    that works in all three kernel versions and beyond."
         ;;
       *)
         do_merge ${dir} partner/android-gs-pixel-mainline
         ;;
-    esac
+    esac ||
+      echo ERROR: merge ${dir} failed
   done 2>&1 |
   tee /dev/stderr |
   grep 'Failed merge of ' |
