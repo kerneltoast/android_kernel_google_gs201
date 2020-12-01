@@ -508,15 +508,15 @@
 			/* vptid 3, size 512KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00002001 0x0 0x0 >;
 		};
-		CAMERA3WAY {
-			/* vptid 3, size 768KB, priority 0 (highest), pbha 0 */
-			id_size_priority = < 0x3 0x00008001 0x0 0x0 >;
-		};
 		CAMERA4WAY0 {
 			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
 		};
 		CAMERA4WAY1 {
+			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
+		};
+		CAMERA4WAY2 {
 			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
 		};
