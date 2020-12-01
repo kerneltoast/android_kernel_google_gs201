@@ -1051,20 +1051,18 @@ static void itmon_post_handler_apply_policy(struct itmon_dev *itmon,
 	struct itmon_platdata *pdata = itmon->pdata;
 
 	switch (ret_value) {
-	case NOTIFY_OK:
-		dev_err(itmon->dev, "notify calls response NOTIFY_OK\n");
-		break;
 	case NOTIFY_STOP:
 		dev_err(itmon->dev, "notify calls response NOTIFY_STOP, refer to notifier log\n");
 		pdata->policy[IP].error = true;
 		break;
 	case NOTIFY_BAD:
-		dev_err(itmon->dev, "notify calls response NOTIFY_BAD\n");
+		dev_err(itmon->dev, "notify calls response NOTIFY_BAD, refer to notifier log\n");
 		pdata->policy[FATAL].error = true;
 		break;
+	case NOTIFY_OK:
 	case NOTIFY_DONE:
 	default:
-		dev_err(itmon->dev, "notify calls response NOTIFY_DONE\n");
+		dev_err(itmon->dev, "notify calls response NOTIFY_OK/DONE\n");
 		pdata->policy[UNHANDLED].error = true;
 		break;
 	}
