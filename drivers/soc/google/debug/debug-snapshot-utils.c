@@ -540,7 +540,7 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	dbg_snapshot_print_log_report();
 	dbg_snapshot_save_context(NULL, false);
 
-	dbg_snapshot_do_dpm_policy(dss_desc.panic_action, "panic handler");
+	dbg_snapshot_do_dpm_policy(dss_desc.panic_action, kernel_panic_msg);
 
 	if (num_online_cpus() > 1)
 		dbg_snapshot_emergency_reboot(kernel_panic_msg);
