@@ -1,3 +1,17 @@
+What:		/sys/devices/platform/<....>ufs/curr_dev_pwr_mode
+Date:		December, 2020
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This file contains the current device power mode. Either of
+		ACTIVE, SLEEP, or POWERDOWN.
+
+What:		/sys/devices/platform/<....>ufs/uic_link_state
+Date:		December, 2020
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This file contains the device link state. Either of OFF,
+		ACTIVE, or HIBERN8.
+
 What:		/sys/devices/platform/<....>ufs/hc_register_ifc
 Date:		December, 2020
 Contact:	"Konstantin Vyshetsky" <vkon@google.com>

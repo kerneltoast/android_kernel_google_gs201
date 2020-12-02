@@ -627,6 +627,46 @@ static struct slowio_attr ufs_slowio_##_name##_cnt = {		\
 	.systype = PIXEL_SLOWIO_CNT,				\
 }
 
+static const char *ufschd_ufs_dev_pwr_mode_to_string(
+			enum ufs_dev_pwr_mode state)
+{
+	switch (state) {
+	case UFS_ACTIVE_PWR_MODE:	return "ACTIVE";
+	case UFS_SLEEP_PWR_MODE:	return "SLEEP";
+	case UFS_POWERDOWN_PWR_MODE:	return "POWERDOWN";
+	default:			return "UNKNOWN";
+	}
+}
+
+static ssize_t curr_dev_pwr_mode_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
+				hba->curr_dev_pwr_mode));
+}
+
+static const char *ufschd_uic_link_state_to_string(
+			enum uic_link_state state)
+{
+	switch (state) {
+	case UIC_LINK_OFF_STATE:	return "OFF";
+	case UIC_LINK_ACTIVE_STATE:	return "ACTIVE";
+	case UIC_LINK_HIBERN8_STATE:	return "HIBERN8";
+	default:			return "UNKNOWN";
+	}
+}
+
+static ssize_t uic_link_state_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ufschd_uic_link_state_to_string(
+				hba->uic_link_state));
+}
+
 static DEVICE_ATTR_RO(vendor);
 static DEVICE_ATTR_RO(model);
 static DEVICE_ATTR_RO(rev);
@@ -634,6 +674,8 @@ static DEVICE_ATTR_RO(platform_version);
 static DEVICE_ATTR_RW(manual_gc);
 static DEVICE_ATTR_RW(manual_gc_hold);
 static DEVICE_ATTR_RO(host_capabilities);
+static DEVICE_ATTR_RO(curr_dev_pwr_mode);
+static DEVICE_ATTR_RO(uic_link_state);
 SLOWIO_ATTR_RW(read, PIXEL_SLOWIO_READ);
 SLOWIO_ATTR_RW(write, PIXEL_SLOWIO_WRITE);
 SLOWIO_ATTR_RW(unmap, PIXEL_SLOWIO_UNMAP);
@@ -647,6 +689,8 @@ static struct attribute *pixel_sysfs_ufshcd_attrs[] = {
 	&dev_attr_manual_gc.attr,
 	&dev_attr_manual_gc_hold.attr,
 	&dev_attr_host_capabilities.attr,
+	&dev_attr_curr_dev_pwr_mode.attr,
+	&dev_attr_uic_link_state.attr,
 	&ufs_slowio_read_us.attr.attr,
 	&ufs_slowio_read_cnt.attr.attr,
 	&ufs_slowio_write_us.attr.attr,
