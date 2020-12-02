@@ -1183,6 +1183,39 @@ static const struct attribute_group pixel_sysfs_hc_register_ifc_group = {
 	.attrs = pixel_sysfs_hc_reg_ifc,
 };
 
+#define PIXEL_POWER_INFO_ATTR(_name)			\
+static ssize_t _name##_show(struct device *dev,			\
+	struct device_attribute *attr, char *buf)	\
+{			\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	return sprintf(buf, "%u\n", hba->pwr_info._name);	\
+}			\
+static DEVICE_ATTR_RO(_name)
+
+PIXEL_POWER_INFO_ATTR(gear_rx);
+PIXEL_POWER_INFO_ATTR(gear_tx);
+PIXEL_POWER_INFO_ATTR(lane_rx);
+PIXEL_POWER_INFO_ATTR(lane_tx);
+PIXEL_POWER_INFO_ATTR(pwr_rx);
+PIXEL_POWER_INFO_ATTR(pwr_tx);
+PIXEL_POWER_INFO_ATTR(hs_rate);
+
+static struct attribute *pixel_sysfs_power_info[] = {
+	&dev_attr_gear_rx.attr,
+	&dev_attr_gear_tx.attr,
+	&dev_attr_lane_rx.attr,
+	&dev_attr_lane_tx.attr,
+	&dev_attr_pwr_rx.attr,
+	&dev_attr_pwr_tx.attr,
+	&dev_attr_hs_rate.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_power_info_group = {
+	.name = "power_info",
+	.attrs = pixel_sysfs_power_info,
+};
+
 static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_group,
 	&pixel_sysfs_req_stats_group,
@@ -1190,6 +1223,7 @@ static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_err_stats_group,
 	&pixel_sysfs_ufs_stats_group,
 	&pixel_sysfs_hc_register_ifc_group,
+	&pixel_sysfs_power_info_group,
 	NULL,
 };
 

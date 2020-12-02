@@ -1,3 +1,16 @@
+What:		/sys/devices/platform/<....>ufs/power_info
+Date:		December, 2020
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This directory contains UFS power related settings info.
+		gear_tx: Current transmit gear
+		gear_rx: Current receive gear
+		lane_tx: Current transmit lane
+		lane_rx: Current receive lane
+		pwr_tx: Current transmit power
+		pwr_rx: Current receive power
+		hs_rate: Current high speed rate
+
 What:		/sys/devices/platform/<....>ufs/curr_dev_pwr_mode
 Date:		December, 2020
 Contact:	"Konstantin Vyshetsky" <vkon@google.com>
