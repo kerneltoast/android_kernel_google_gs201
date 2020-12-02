@@ -808,8 +808,8 @@ int __mfc_update_dpb_fd(struct mfc_ctx *ctx, struct vb2_buffer *vb, int index)
 {
 	struct mfc_dec *dec = ctx->dec_priv;
 
-	if ((dec->dynamic_used & (1UL << index)) == 0) {
-		mfc_ctx_err("[REFINFO] non-reference DPB[%d] is remained in table\n", index);
+	if (dec->dpb[index].queued) {
+		mfc_ctx_err("[REFINFO] DPB[%d] is already queued\n", index);
 		return -EINVAL;
 	}
 
@@ -888,13 +888,17 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 
 		list_add_tail(&mfc_buf->list, &ctx->dst_buf_err_queue.head);
 		ctx->dst_buf_err_queue.count++;
-		mfc_debug(2, "[DPB] DPB[%d][%d] fd: %d will be not used %pad (%d)\n",
+		mfc_debug(2, "[DPB] DPB[%d][%d] fd: %d will be not used %pad %s %s (%d)\n",
 				mfc_buf->vb.vb2_buf.index, index,
 				mfc_buf->vb.planes[0].m.fd, &mfc_buf->addr[0][0],
+				(dec->dynamic_used & (1UL << index)) ? "ref" : "no-ref",
+				dec->dpb[index].queued ? "q" : "dq",
 				ctx->dst_buf_err_queue.count);
-		MFC_TRACE_CTX("unused DPB[%d][%d] fd: %d %pad (%d)\n",
+		MFC_TRACE_CTX("unused DPB[%d][%d] fd: %d %pad %s %s (%d)\n",
 				mfc_buf->vb.vb2_buf.index, index,
 				mfc_buf->vb.planes[0].m.fd, &mfc_buf->addr[0][0],
+				(dec->dynamic_used & (1UL << index)) ? "ref" : "no-ref",
+				dec->dpb[index].queued ? "q" : "dq",
 				ctx->dst_buf_err_queue.count);
 
 		spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
