@@ -8,6 +8,7 @@
 #include <linux/tracepoint.h>
 #include <soc/google/exynos-devfreq.h>
 
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 TRACE_EVENT(dvfs_update_load,
 
 	TP_PROTO(unsigned int freq, struct devfreq_alt_dvfs_data *alt_data),
@@ -63,6 +64,7 @@ TRACE_EVENT(dvfs_read_ppc,
 		  __entry->pa_base, __entry->ccnt, __entry->pmcnt0,
 		  __entry->pmcnt1)
 );
+#endif /* CONFIG_EXYNOS_ALT_DVFS  */
 
 #endif /* _DVFS_EVENTS_H */
 
