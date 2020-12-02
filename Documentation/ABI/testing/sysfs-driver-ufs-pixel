@@ -1,3 +1,24 @@
+What:		/sys/devices/platform/<....>ufs/hc_register_ifc
+Date:		December, 2020
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This directory contains Host Controller Registers specified
+		in UFS Host Controller Interface version 2.1.
+		cap: Controller Capabilities
+		ver: UFS Version
+		hcpid: Host Controller Identification Descriptor - Product ID
+		hcmid: Host Controller Identification Descriptor - Manufacturer ID
+		ahit: Auto-Hiberne Idle Timer
+		is: Interrupt Status
+		ie: Interrupt Enable
+		hcs: Host Controller Status
+		hce: Host Controller Enable
+		uecpa: Host UIC Error Code PHY Adapter Layer
+		uecdl: Host UIC Error Code Data Link Layer
+		uecn: Host UIC Error Code Network Layer
+		uect: Host UIC Error Code Transport Layer
+		uecdme: Host UIC Error Code
+
 What:		/sys/devices/platform/<....>ufs/manual_gc
 Date:		April, 2018
 Contact:	"Jaegeuk Kim" <jaegeuk@google.com>

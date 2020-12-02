@@ -1086,6 +1086,58 @@ static const struct attribute_group pixel_sysfs_ufs_stats_group = {
 	.attrs = ufs_sysfs_ufs_stats,
 };
 
+#define PIXEL_HC_REG_ATTR(_name, _uname)			\
+static ssize_t _name##_show(struct device *dev,			\
+	struct device_attribute *attr, char *buf)		\
+{			\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	u32 value;						\
+	pm_runtime_get_sync(hba->dev);			\
+	ufshcd_hold(hba, false);			\
+	value = ufshcd_readl(hba, REG##_uname);			\
+	ufshcd_release(hba);			\
+	pm_runtime_put(hba->dev);			\
+	return sprintf(buf, "0x%08X\n", value);			\
+}			\
+static DEVICE_ATTR_RO(_name)
+
+PIXEL_HC_REG_ATTR(cap, _CONTROLLER_CAPABILITIES);
+PIXEL_HC_REG_ATTR(ver, _UFS_VERSION);
+PIXEL_HC_REG_ATTR(hcpid, _CONTROLLER_DEV_ID);
+PIXEL_HC_REG_ATTR(hcmid, _CONTROLLER_PROD_ID);
+PIXEL_HC_REG_ATTR(ahit, _AUTO_HIBERNATE_IDLE_TIMER);
+PIXEL_HC_REG_ATTR(is, _INTERRUPT_STATUS);
+PIXEL_HC_REG_ATTR(ie, _INTERRUPT_ENABLE);
+PIXEL_HC_REG_ATTR(hcs, _CONTROLLER_STATUS);
+PIXEL_HC_REG_ATTR(hce, _CONTROLLER_ENABLE);
+PIXEL_HC_REG_ATTR(uecpa, _UIC_ERROR_CODE_PHY_ADAPTER_LAYER);
+PIXEL_HC_REG_ATTR(uecdl, _UIC_ERROR_CODE_DATA_LINK_LAYER);
+PIXEL_HC_REG_ATTR(uecn, _UIC_ERROR_CODE_NETWORK_LAYER);
+PIXEL_HC_REG_ATTR(uect, _UIC_ERROR_CODE_TRANSPORT_LAYER);
+PIXEL_HC_REG_ATTR(uecdme, _UIC_ERROR_CODE_DME);
+
+static struct attribute *pixel_sysfs_hc_reg_ifc[] = {
+	&dev_attr_cap.attr,
+	&dev_attr_ver.attr,
+	&dev_attr_hcpid.attr,
+	&dev_attr_hcmid.attr,
+	&dev_attr_ahit.attr,
+	&dev_attr_is.attr,
+	&dev_attr_ie.attr,
+	&dev_attr_hcs.attr,
+	&dev_attr_hce.attr,
+	&dev_attr_uecpa.attr,
+	&dev_attr_uecdl.attr,
+	&dev_attr_uecn.attr,
+	&dev_attr_uect.attr,
+	&dev_attr_uecdme.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_hc_register_ifc_group = {
+	.name = "hc_register_ifc",
+	.attrs = pixel_sysfs_hc_reg_ifc,
+};
 
 static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_group,
@@ -1093,6 +1145,7 @@ static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_io_stats_group,
 	&pixel_sysfs_err_stats_group,
 	&pixel_sysfs_ufs_stats_group,
+	&pixel_sysfs_hc_register_ifc_group,
 	NULL,
 };
 
