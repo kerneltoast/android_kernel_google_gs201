@@ -292,6 +292,10 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 		logbuffer_log(log, "Unable to unmask FAST_ROLE_SWAP interrupt");
 		return;
 	}
+
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_VCON_CTRL, VCNILIM_MASK, VCNILIM_300_MA);
+	if (ret < 0)
+		logbuffer_log(log, "TCPC_VENDOR_VCON_CTRL: update vcnilim to 300mA failed");
 }
 
 static void process_rx(struct max77759_plat *chip, u16 status)
