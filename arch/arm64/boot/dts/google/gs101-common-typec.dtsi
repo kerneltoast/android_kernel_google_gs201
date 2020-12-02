@@ -96,7 +96,14 @@
 			self-powered;
 			op-sink-microwatt = <2600000>;
 			frs-typec-current = <FRS_5V_1P5A>;
-			source-pdos = <PDO_FIXED(5000, 1500,
+			/*
+			 * b/174044466: Extboost can only do ~1A.
+			 * However, max77759 operating in reverse boost
+			 * mode (0xA) can do till 1.5A.
+			 * Since extboost is the primary path, set this
+			 * to 900mA.
+			 */
+			source-pdos = <PDO_FIXED(5000, 900,
 						 PDO_FIXED_SUSPEND |
 						 PDO_FIXED_USB_COMM |
 						 PDO_FIXED_DATA_SWAP |
