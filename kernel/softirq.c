@@ -323,9 +323,9 @@ asmlinkage __visible void __softirq_entry __do_softirq(void)
 
 	pending = local_softirq_pending();
 	deferred = softirq_deferred_for_rt(pending);
-	account_irq_enter_time(current);
 	__local_bh_disable_ip(_RET_IP_, SOFTIRQ_OFFSET);
 	in_hardirq = lockdep_softirq_start();
+	account_softirq_enter(current);
 
 restart:
 	/* Reset the pending bitmask before enabling irqs */
@@ -377,8 +377,8 @@ restart:
 	if (pending | deferred)
 		wakeup_softirqd();
 
+	account_softirq_exit(current);
 	lockdep_softirq_end(in_hardirq);
-	account_irq_exit_time(current);
 	__local_bh_enable(SOFTIRQ_OFFSET);
 	WARN_ON_ONCE(in_interrupt());
 	current_restore_flags(old_flags, PF_MEMALLOC);
@@ -430,7 +430,7 @@ static inline void __irq_exit_rcu(void)
 #else
 	lockdep_assert_irqs_disabled();
 #endif
-	account_irq_exit_time(current);
+	account_hardirq_exit(current);
 	preempt_count_sub(HARDIRQ_OFFSET);
 	if (!in_interrupt() && local_softirq_pending())
 		invoke_softirq();
