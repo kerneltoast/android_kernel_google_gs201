@@ -235,6 +235,7 @@
 		interrupt-names = "frame_start", "frame_done", "extra";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
+		samsung,tzmp;
 
 		/* pinctrl */
 		pinctrl-names = "hw_te_on", "hw_te_off";
@@ -314,6 +315,7 @@
 		interrupt-names = "frame_start", "frame_done", "extra";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
+		samsung,tzmp;
 
 		max_win = <6>;
 		op_mode = <1>;		/* 0: video mode, 1: command mode */
