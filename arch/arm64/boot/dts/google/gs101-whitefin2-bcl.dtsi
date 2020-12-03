@@ -39,7 +39,6 @@
 		zone_name  = "PMIC_120C";
 		polling-delay-passive = <1000>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&google_bcl_m 1>;
 		trips {
 			pmic_120c: pmic-120c {
@@ -54,7 +53,6 @@
 		zone_name  = "PMIC_140C";
 		polling-delay-passive = <1000>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&google_bcl_m 2>;
 		trips {
 			pmic_140c: pmic-140c {
@@ -69,7 +67,6 @@
 		zone_name  = "PMIC_OVERHEAT";
 		polling-delay-passive = <1000>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&google_bcl_m 3>;
 		trips {
 			pmic_overheat: pmic-overheat{
@@ -82,11 +79,9 @@
 
 	soc {
 		zone_name  = "BATT_SOC_MOD";
-		polling-delay-passive = <100>;
+		polling-delay-passive = <1000>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&google_bcl_m 0>;
-		wake-capable-sensor;
 
 		trips {
 			soc_trip:soc-trip {
@@ -109,7 +104,6 @@
 		zone_name  = "SMPL_GM";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg10mfd 0>;
 
 		trips {
@@ -124,7 +118,6 @@
 		zone_name  = "OCP_CPU1";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg10mfd 1>;
 
 		trips {
@@ -139,7 +132,6 @@
 		zone_name  = "OCP_CPU2";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg10mfd 2>;
 
 		trips {
@@ -154,7 +146,6 @@
 		zone_name  = "SOFT_OCP_CPU1";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg10mfd 3>;
 
 		trips {
@@ -169,7 +160,6 @@
 		zone_name  = "SOFT_OCP_CPU2";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg10mfd 4>;
 
 		trips {
@@ -184,7 +174,6 @@
 		zone_name  = "OCP_TPU";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg10mfd 5>;
 
 		trips {
@@ -199,7 +188,6 @@
 		zone_name  = "SOFT_OCP_TPU";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg10mfd 6>;
 
 		trips {
@@ -214,7 +202,6 @@
 		zone_name  = "OCP_GPU";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg11mfd 0>;
 
 		trips {
@@ -229,7 +216,6 @@
 		zone_name  = "SOFT_OCP_GPU";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-governor = "user_space";
 		thermal-sensors = <&s2mpg11mfd 1>;
 
 		trips {
