@@ -69,7 +69,6 @@ struct exynos_pm_domain {
 	struct exynos_bcm_pd_info *bcm;
 #endif
 	bool power_down_skipped;
-	bool need_sync;
 	unsigned int need_smc;
 	bool skip_idle_ip;
 	struct exynos_pd_stat pd_stat;
