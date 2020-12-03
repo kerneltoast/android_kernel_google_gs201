@@ -2826,13 +2826,13 @@ static int exynos_serial_resume(struct device *dev)
 		if ((ourport->dbg_uart_ch) && (!console_suspend_enabled)) {
 			uart_clock_enable(ourport);
 			exynos_usi_init(port);
-			exynos_serial_resetport(port,
-					exynos_port_to_cfg(port));
 		}
 
 		uart_resume_port(&exynos_uart_drv, port);
 
 		if ((ourport->dbg_uart_ch) && (!console_suspend_enabled)) {
+			exynos_serial_resetport(port,
+					exynos_port_to_cfg(port));
 			__clear_bit(S3C64XX_UINTM_RXD,
 					portaddrl(port, S3C64XX_UINTM));
 		}
