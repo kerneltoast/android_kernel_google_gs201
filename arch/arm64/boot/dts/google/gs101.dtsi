@@ -533,8 +533,8 @@
 			id_size_priority = < 0x3 0x00080001 0x0 0x0 >;
 		};
 		bigocean {
-			/* vptid 3, 1536-256KB size, priority 0, pbha 0 */
-			id_size_priority = < 0x3 0x0003f001 0x0 0x0 >;
+			/* vptid 3, 512KB-8MB size, priority 0, pbha 0 */
+			id_size_priority = < 0x3 0x007fe001 0x0 0x0 >;
 		};
 		MFC {
 			/* vptid 9, 2*256KB, priority 0 (highest), pbha ? */
