@@ -24,6 +24,18 @@ config GS_CHIPID
 	select SOC_BUS
 	default y
 
+config EXYNOS_BCM_DBG
+        bool "EXYNOS_BCM_DBG driver support"
+        help
+          Enable exynos-bcm_dbg driver support
+
+config EXYNOS_BCM_DBG_DUMP
+        bool "EXYNOS_BCM_DBG dump support"
+        depends on EXYNOS_BCM_DBG
+        default y if EXYNOS_BCM_DBG
+        help
+          Enable exynos-bcm_dbg dump support
+
 config CAL_IF
        tristate "Exynos Chip Abstraction Layer Interface"
        help

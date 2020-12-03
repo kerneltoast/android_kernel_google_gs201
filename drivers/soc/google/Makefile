@@ -25,6 +25,9 @@ obj-$(CONFIG_SLC_PARTITION_MANAGER)	+= pt/
 # GSA
 obj-$(CONFIG_GSA)			+= gsa/
 
+obj-$(CONFIG_EXYNOS_BCM_DBG)    += exynos-bcm_dbg.o exynos-bcm_dbg-dt.o
+obj-$(CONFIG_EXYNOS_BCM_DBG_DUMP)       += exynos-bcm_dbg-dump.o
+
 # CPIF
 obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif/
 
