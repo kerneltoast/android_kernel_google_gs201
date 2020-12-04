@@ -2,3 +2,6 @@
 
 # vh/kernel/sched
 obj-$(CONFIG_VH_SCHED)	+= sched/
+
+# systrace
+obj-$(CONFIG_VH_SYSTRACE) += systrace.o
