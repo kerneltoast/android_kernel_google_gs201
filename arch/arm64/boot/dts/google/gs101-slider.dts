@@ -13,6 +13,7 @@
 
 #include "gs101-slider-common.dtsi"
 #include "gs101-slider-cp-s5200-sit.dtsi"
+#include "gs101-slider-ese.dtsi"
 #include "gs101-slider1-battery.dtsi"
 #include "gs101-slider1-gps.dtsi"
 
