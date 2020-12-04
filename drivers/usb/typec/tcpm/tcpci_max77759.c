@@ -330,7 +330,11 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 		return;
 	}
 
-	if (count > sizeof(struct pd_message) || count + 1 > TCPC_RECEIVE_BUFFER_LEN) {
+	/*
+	 * 1. struct pd_message does not have RX_BUF_FRAME_TYPE.
+	 * 2. READABLE_BYTE_COUNT is exclusive of itself.
+	 */
+	if (count > sizeof(struct pd_message) + 1 || count + 1 > TCPC_RECEIVE_BUFFER_LEN) {
 		dev_err(chip->dev, "Invalid TCPC_RX_BYTE_CNT %d", count);
 		return;
 	}
