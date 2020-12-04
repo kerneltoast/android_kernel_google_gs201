@@ -10,23 +10,16 @@
 &spitouch {
 	st,dchip_id = /bits/ 8 <0x36 0x48>;
 
-#if 0
 	/* Temporarily disable the panel_map. While the DTS compiles
 	 * successfully, its presence causes a kernel panic during
 	 * boot because the panels below are not defined in the maran
 	 * kernel.
 	 */
-	st,panel_map = <&dsi_s6e3hc2_dsc_wqhd_cmd 0>;
-#else
-	/* TODO: remove hardcoded max-coords when the panel_map is
-	 * enabled.
-	 */
-	st,max-coords = <1079 2399>;
+	st,panel_map = <&samsung_s6e3fc3 0>;
 	/* TODO: enable auto update if SDC default panel firmware
 	 * check is done.
 	 */
 	st,disable-auto-fw-update;
-#endif
 
 	st,firmware_names = "ftm5_fw_o6.ftb";
 	st,limits_names = "stm_fts_production_limits_o6.csv";

@@ -7,7 +7,7 @@
  */
 
 &drmdsim0 {
-	panel@0 {
+	samsung_s6e3fc3: panel@0 {
 		compatible = "samsung,s6e3fc3";
 		label = "samsung-s6e3fc3";
 		channel = <0>;
@@ -17,7 +17,7 @@
 		/delete-node/ vddi-supply;
 	};
 
-	panel@2 {
+	samsung_s6e3hc2_fhd: panel@2 {
 		compatible = "samsung,s6e3hc2-fhd";
 		label = "samsung-s6e3hc2-fhd";
 		channel = <0>;
