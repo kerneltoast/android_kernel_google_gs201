@@ -35,11 +35,15 @@
 #define CPUCL0_BASE (0x20c00000)
 #define CPUCL1_BASE (0x20c10000)
 #define CPUCL2_BASE (0x20c20000)
+#define G3D_BASE (0x1c400000)
+#define TPU_BASE (0x1c400000)
 #define SYSREG_CPUCL0_BASE (0x20c40000)
 #define CLUSTER0_GENERAL_CTRL_64 (0x1404)
 #define CLKDIVSTEP (0x830)
 #define CPUCL0_CLKDIVSTEP_STAT (0x83c)
 #define CPUCL12_CLKDIVSTEP_STAT (0x848)
+#define G3D_CLKDIVSTEP_STAT (0x854)
+#define TPU_CLKDIVSTEP_STAT (0x850)
 #define CLUSTER0_MPMM (0x1408)
 #define CLUSTER0_PPM (0x140c)
 #define MPMMEN_MASK (0xF << 21)
@@ -121,6 +125,8 @@ struct gs101_bcl_dev {
 	void __iomem *cpu0_mem;
 	void __iomem *cpu1_mem;
 	void __iomem *cpu2_mem;
+	void __iomem *gpu_mem;
+	void __iomem *tpu_mem;
 	void __iomem *sysreg_cpucl0;
 
 	struct notifier_block psy_nb;
@@ -683,7 +689,7 @@ static int gs101_bcl_soc_remove(struct gs101_bcl_dev *gs101_bcl_device)
 static int get_cpucl0_stat(void *data, u64 *val)
 {
 	unsigned int reg = 0;
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 
 	reg = __raw_readl(bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_STAT);
 	*val = (reg >> 16) & 0x0FFF;
@@ -692,7 +698,7 @@ static int get_cpucl0_stat(void *data, u64 *val)
 
 static int reset_cpucl0_stat(void *data, u64 val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 
 	if (val == 0)
 		__raw_writel(0x1, bcl_dev->cpu0_mem + CLKDIVSTEP);
@@ -706,7 +712,7 @@ DEFINE_SIMPLE_ATTRIBUTE(cpucl0_clkdivstep_stat_fops, get_cpucl0_stat,
 
 static int get_cpucl2_stat(void *data, u64 *val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 	unsigned int reg = 0;
 
 	reg = __raw_readl(bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_STAT);
@@ -716,7 +722,7 @@ static int get_cpucl2_stat(void *data, u64 *val)
 
 static int reset_cpucl2_stat(void *data, u64 val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 
 	if (val == 0)
 		__raw_writel(0x1, bcl_dev->cpu2_mem + CLKDIVSTEP);
@@ -730,7 +736,7 @@ DEFINE_SIMPLE_ATTRIBUTE(cpucl2_clkdivstep_stat_fops, get_cpucl2_stat,
 
 static int get_cpucl1_stat(void *data, u64 *val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 	unsigned int reg = 0;
 
 	reg = __raw_readl(bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_STAT);
@@ -740,7 +746,7 @@ static int get_cpucl1_stat(void *data, u64 *val)
 
 static int reset_cpucl1_stat(void *data, u64 val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 
 	if (val == 0)
 		__raw_writel(0x1, bcl_dev->cpu1_mem + CLKDIVSTEP);
@@ -751,6 +757,54 @@ static int reset_cpucl1_stat(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(cpucl1_clkdivstep_stat_fops, get_cpucl1_stat,
 			reset_cpucl1_stat, "%d\n");
+
+static int get_gpu_stat(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+	unsigned int reg = 0;
+
+	reg = __raw_readl(bcl_dev->gpu_mem + G3D_CLKDIVSTEP_STAT);
+	*val = (reg >> 16) & 0x0FFF;
+	return 0;
+}
+
+static int reset_gpu_stat(void *data, u64 val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	if (val == 0)
+		__raw_writel(0x1, bcl_dev->gpu_mem + CLKDIVSTEP);
+	else
+		__raw_writel(0x107f, bcl_dev->gpu_mem + CLKDIVSTEP);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(gpu_clkdivstep_stat_fops, get_gpu_stat,
+			reset_gpu_stat, "%d\n");
+
+static int get_tpu_stat(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+	unsigned int reg = 0;
+
+	reg = __raw_readl(bcl_dev->tpu_mem + TPU_CLKDIVSTEP_STAT);
+	*val = (reg >> 16) & 0x0FFF;
+	return 0;
+}
+
+static int reset_tpu_stat(void *data, u64 val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	if (val == 0)
+		__raw_writel(0x1, bcl_dev->tpu_mem + CLKDIVSTEP);
+	else
+		__raw_writel(0x107f, bcl_dev->tpu_mem + CLKDIVSTEP);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(tpu_clkdivstep_stat_fops, get_tpu_stat,
+			reset_tpu_stat, "%d\n");
 
 static int get_smpl_lvl(void *data, u64 *val)
 {
@@ -1515,6 +1569,12 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		debugfs_create_file("cpucl2_clkdiv_stat", 0644,
 				    gs101_bcl_device->debug_entry, gs101_bcl_device,
 				    &cpucl2_clkdivstep_stat_fops);
+		debugfs_create_file("gpu_clkdiv_stat", 0644,
+				    gs101_bcl_device->debug_entry, gs101_bcl_device,
+				    &gpu_clkdivstep_stat_fops);
+		debugfs_create_file("tpu_clkdiv_stat", 0644,
+				    gs101_bcl_device->debug_entry, gs101_bcl_device,
+				    &tpu_clkdivstep_stat_fops);
 		debugfs_create_file("mpmm_throttle", 0644,
 				    gs101_bcl_device->debug_entry, gs101_bcl_device,
 				    &mpmm_fops);
@@ -1538,6 +1598,18 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	gs101_bcl_device->cpu2_mem = ioremap(CPUCL2_BASE, SZ_8K);
 	if (!gs101_bcl_device->cpu2_mem) {
 		pr_err("cpu2_mem ioremap failed\n");
+		ret = -EIO;
+		goto bcl_soc_probe_exit;
+	}
+	gs101_bcl_device->gpu_mem = ioremap(G3D_BASE, SZ_8K);
+	if (!gs101_bcl_device->gpu_mem) {
+		pr_err("gpu_mem ioremap failed\n");
+		ret = -EIO;
+		goto bcl_soc_probe_exit;
+	}
+	gs101_bcl_device->tpu_mem = ioremap(TPU_BASE, SZ_8K);
+	if (!gs101_bcl_device->tpu_mem) {
+		pr_err("tpu_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
