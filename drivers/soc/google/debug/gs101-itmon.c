@@ -875,7 +875,8 @@ static const struct itmon_rpathinfo *itmon_get_rpathinfo(struct itmon_dev *itmon
 
 	for (i = 0; i < (int)ARRAY_SIZE(rpathinfo); i++) {
 		if (pdata->rpathinfo[i].id == (id & pdata->rpathinfo[i].bits)) {
-			if (dest_name && !strcmp(pdata->rpathinfo[i].dest_name, dest_name)) {
+			if (dest_name && !strncmp(pdata->rpathinfo[i].dest_name, dest_name,
+						  strlen(pdata->rpathinfo[i].dest_name))) {
 				rpath = &pdata->rpathinfo[i];
 				break;
 			}
