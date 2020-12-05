@@ -405,6 +405,7 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 
 	kfree(tmu_test);
 	pr_info("%s done.\n", __func__);
+	return 0;
 }
 
 static const struct of_device_id acpm_mbox_test_match[] = {
