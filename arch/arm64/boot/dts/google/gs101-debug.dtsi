@@ -14,7 +14,7 @@
 		freq_names = "LIT", "MID", "BIG", "INT", "MIF", "ISP",
 				"DISP", "INTCAM", "TPU", "TNR", "MFC",
 				"BO";
-		memory-region = <&header>, <&log_kevents>, <&log_s2d>,
+		memory-region = <&header>, <&log_kevents>, <&log_bcm>, <&log_s2d>,
 				<&log_arrdumpreset>, <&log_arrdumppanic>,
 				<&log_slcdump>, <&log_preslcdump>;
 		panic-action = <GO_DEFAULT_ID>;

@@ -97,6 +97,9 @@
 				reg = <0 DSS_LOG_KEVENTS_ADDR
 						DSS_LOG_KEVENTS_SIZE>;
 			};
+			log_bcm: log_bcm {
+				reg = <0 DSS_LOG_BCM_ADDR DSS_LOG_BCM_SIZE>;
+			};
 			log_s2d: log_s2d {
 				reg = <0 DSS_LOG_S2D_ADDR DSS_LOG_S2D_SIZE>;
 				no-map;
