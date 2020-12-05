@@ -27,20 +27,6 @@
 #include <soc/google/exynos-cpupm.h>
 #include <dt-bindings/power/exynos-power.h>
 
-#define EXYNOS_PD_PREFIX	"EXYNOS-PD: "
-#define EXYNOS_PD_DBG_PREFIX	"EXYNOS-PD-DBG: "
-
-#ifndef pr_fmt
-#define pr_fmt(fmt) fmt
-#endif
-
-#ifdef CONFIG_EXYNOS_PM_DOMAIN_DEBUG
-#define DEBUG_PRINT_INFO(fmt, ...) \
-	pr_info(EXYNOS_PD_DBG_PREFIX pr_fmt(fmt), ##__VA_ARGS__)
-#else
-#define DEBUG_PRINT_INFO(fmt, ...)
-#endif
-
 /* In Exynos, the number of MAX_POWER_DOMAIN is less than 15 */
 #define MAX_PARENT_POWER_DOMAIN	15
 

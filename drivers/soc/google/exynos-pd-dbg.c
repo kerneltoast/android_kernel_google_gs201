@@ -6,6 +6,9 @@
  *              http://www.samsung.com
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -23,13 +26,12 @@ static int exynos_pd_dbg_long_test(struct device *dev)
 {
 	int ret, i;
 
-	pr_info("%s: test start.\n", EXYNOS_PD_DBG_PREFIX);
+	pr_info("test start.\n");
 
 	if (pm_runtime_enabled(dev) && pm_runtime_active(dev)) {
 		ret = pm_runtime_put_sync(dev);
 		if (ret) {
-			pr_err("%s: put sync failed.\n",
-			       EXYNOS_PD_DBG_PREFIX);
+			pr_err("put sync failed.\n");
 			return ret;
 		}
 	}
@@ -37,21 +39,19 @@ static int exynos_pd_dbg_long_test(struct device *dev)
 	for (i = 0; i < 100; i++) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret) {
-			pr_err("%s: get sync failed.\n",
-			       EXYNOS_PD_DBG_PREFIX);
+			pr_err("get sync failed.\n");
 			return ret;
 		}
 		mdelay(50);
 		ret = pm_runtime_put_sync(dev);
 		if (ret) {
-			pr_err("%s: put sync failed.\n",
-			       EXYNOS_PD_DBG_PREFIX);
+			pr_err("put sync failed.\n");
 			return ret;
 		}
 		mdelay(50);
 	}
 
-	pr_info("%s: test done.\n", EXYNOS_PD_DBG_PREFIX);
+	pr_info("test done.\n");
 
 	return ret;
 }
@@ -114,7 +114,7 @@ static void exynos_pd_dbg_summary_show(struct generic_pm_domain *genpd)
 	exynos_pd_dbg_genpd_lock(genpd);
 
 	if (genpd->status >= ARRAY_SIZE(gpd_status_lookup)) {
-		pr_err("%s invalid GPD_STATUS\n", EXYNOS_PD_DBG_PREFIX);
+		pr_err("invalid GPD_STATUS\n");
 		exynos_pd_dbg_genpd_unlock(genpd);
 		return;
 	}
@@ -170,20 +170,17 @@ static ssize_t exynos_pd_dbg_write(struct file *file,
 	switch (buf[0]) {
 	case '0':
 		if (pm_runtime_put_sync(dev))
-			pr_err("%s: put sync failed.\n",
-			       EXYNOS_PD_DBG_PREFIX);
+			pr_err("put sync failed.\n");
 		break;
 	case '1':
 		if (pm_runtime_get_sync(dev))
-			pr_err("%s: get sync failed.\n",
-			       EXYNOS_PD_DBG_PREFIX);
+			pr_err("get sync failed.\n");
 		break;
 	case 'c':
 		exynos_pd_dbg_long_test(dev);
 		break;
 	default:
-		pr_err("%s: Invalid input ['0'|'1'|'c']\n",
-		       EXYNOS_PD_DBG_PREFIX);
+		pr_err("Invalid input ['0'|'1'|'c']\n");
 		break;
 	}
 
@@ -213,8 +210,7 @@ static int exynos_pd_dbg_probe(struct platform_device *pdev)
 	if (!exynos_pd_dbg_root) {
 		exynos_pd_dbg_root = debugfs_create_dir("exynos-pd", NULL);
 		if (!exynos_pd_dbg_root) {
-			pr_err("%s: could not create debugfs dir\n",
-			       EXYNOS_PD_DBG_PREFIX);
+			pr_err("could not create debugfs dir\n");
 			ret = -ENOMEM;
 			goto err_dbgfs_root;
 		}
@@ -225,8 +221,7 @@ static int exynos_pd_dbg_probe(struct platform_device *pdev)
 					  exynos_pd_dbg_root, dbg_info->dev,
 					  &dbg_info->fops);
 	if (!dbg_info->d) {
-		pr_err("%s: could not creatd debugfs file\n",
-		       EXYNOS_PD_DBG_PREFIX);
+		pr_err("could not creatd debugfs file\n");
 		ret = -ENOMEM;
 		goto err_dbgfs_pd;
 	}
@@ -237,15 +232,13 @@ static int exynos_pd_dbg_probe(struct platform_device *pdev)
 
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret) {
-		pr_err("%s: get_sync of %s failed.\n",
-		       EXYNOS_PD_DBG_PREFIX, dev_name(&pdev->dev));
+		pr_err("get_sync of %s failed.\n", dev_name(&pdev->dev));
 		goto err_get_sync;
 	}
 
 	ret = pm_runtime_put_sync(&pdev->dev);
 	if (ret) {
-		pr_err("%s: put sync of %s failed.\n",
-		       EXYNOS_PD_DBG_PREFIX, dev_name(&pdev->dev));
+		pr_err("put sync of %s failed.\n", dev_name(&pdev->dev));
 		goto err_put_sync;
 	}
 
@@ -287,15 +280,13 @@ static int exynos_pd_dbg_remove(struct platform_device *pdev)
 
 static int exynos_pd_dbg_runtime_suspend(struct device *dev)
 {
-	pr_info("%s %s's Runtime_Suspend\n",
-		EXYNOS_PD_DBG_PREFIX, dev_name(dev));
+	pr_info("%s's Runtime_Suspend\n", dev_name(dev));
 	return 0;
 }
 
 static int exynos_pd_dbg_runtime_resume(struct device *dev)
 {
-	pr_info("%s %s's Runtime_Resume\n",
-		EXYNOS_PD_DBG_PREFIX, dev_name(dev));
+	pr_info("%s %s's Runtime_Resume\n", dev_name(dev));
 	return 0;
 }
 
