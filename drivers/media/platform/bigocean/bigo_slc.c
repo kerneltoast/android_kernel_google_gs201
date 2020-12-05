@@ -24,7 +24,6 @@ void bigo_bypass_ssmt_pid(struct bigo_core *core)
 {
 	int sid;
 	unsigned int offset;
-	const int wr_off = 0x200;
 	const int cache_off = 0x400;
 	const int rd_alloc_off = 0x600;
 	const int wr_alloc_off = 0x800;
