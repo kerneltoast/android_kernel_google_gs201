@@ -26,7 +26,7 @@ obj-$(CONFIG_SLC_PARTITION_MANAGER)	+= pt/
 obj-$(CONFIG_GSA)			+= gsa/
 
 obj-$(CONFIG_EXYNOS_BCM_DBG)		+= bcm_dbg.o
-bcm_dbg-$(CONFIG_EXYNOS_BCM_DBG)	+= exynos-bcm_dbg.o exynos-bcm_dbg-dt.o
+bcm_dbg-$(CONFIG_EXYNOS_BCM_DBG)	+= exynos-bcm_dbg.o exynos-bcm_dbg-dt.o exynos-bcm_dbg-ppmu.o
 obj-$(CONFIG_EXYNOS_BCM_DBG_DUMP)	+= exynos-bcm_dbg-dump.o
 
 # CPIF

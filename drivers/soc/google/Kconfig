@@ -36,6 +36,13 @@ config EXYNOS_BCM_DBG_DUMP
 	help
 	Enable exynos-bcm_dbg dump support
 
+config EXYNOS_BCM_DBG_PPMU
+	bool "EXYNOS_BCM_DBG PPMU support"
+	depends on EXYNOS_BCM_DBG
+	default n if EXYNOS_BCM_DBG
+	help
+	Enable exynos-bcm_dbg PPMU perf_event support
+
 config CAL_IF
        tristate "Exynos Chip Abstraction Layer Interface"
        help
