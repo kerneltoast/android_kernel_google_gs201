@@ -8,6 +8,7 @@
 
 #include <dt-bindings/interrupt-controller/gs101.h>
 #include "gs101-dpm.dtsi"
+#include "gs101-ppmu.dtsi"
 / {
 	dss: dss {
 		compatible = "google,debug-snapshot";
