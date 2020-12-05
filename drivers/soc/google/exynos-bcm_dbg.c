@@ -15,25 +15,24 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/debug-snapshot.h>
 #include <linux/sched/clock.h>
 
-#include <asm/map.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 
-#include <soc/samsung/exynos-adv-tracer-ipc.h>
-#include <soc/samsung/exynos-bcm_dbg.h>
-#include <soc/samsung/exynos-bcm_dbg-dt.h>
-#include <soc/samsung/exynos-bcm_dbg-dump.h>
-#include <soc/samsung/exynos-pd.h>
-#include <soc/samsung/cal-if.h>
-#include <soc/samsung/exynos-itmon.h>
+#include <soc/google/debug-snapshot.h>
+#include <soc/google/exynos-adv-tracer.h>
+#include <soc/google/exynos-bcm_dbg.h>
+#include <soc/google/exynos-bcm_dbg-dt.h>
+#include <soc/google/exynos-bcm_dbg-dump.h>
+#include <soc/google/exynos-pd.h>
+#include <soc/google/cal-if.h>
+#include <soc/google/exynos-itmon.h>
 
 static struct exynos_bcm_dbg_data *bcm_dbg_data = NULL;
 static bool pd_sync_init;
 
-#ifdef CONFIG_EXYNOS_ADV_TRACER
+#if IS_ENABLED(CONFIG_EXYNOS_ADV_TRACER)
 static enum exynos_bcm_err_code exynos_bcm_dbg_ipc_err_handle(unsigned int cmd)
 {
 	enum exynos_bcm_err_code err_code;
@@ -80,7 +79,7 @@ static int __exynos_bcm_dbg_ipc_send_data(enum exynos_bcm_dbg_ipc_type ipc_type,
 				struct exynos_bcm_dbg_data *data,
 				unsigned int *cmd)
 {
-#ifdef CONFIG_EXYNOS_ADV_TRACER
+#if IS_ENABLED(CONFIG_EXYNOS_ADV_TRACER)
 	int i, ret = 0;
 	struct adv_tracer_ipc_cmd config;
 	enum exynos_bcm_err_code ipc_err;
@@ -140,7 +139,7 @@ int exynos_bcm_dbg_ipc_send_data(enum exynos_bcm_dbg_ipc_type ipc_type,
 }
 EXPORT_SYMBOL(exynos_bcm_dbg_ipc_send_data);
 
-#ifdef CONFIG_EXYNOS_ADV_TRACER
+#if IS_ENABLED(CONFIG_EXYNOS_ADV_TRACER)
 static int adv_tracer_bcm_dbg_handler(struct adv_tracer_ipc_cmd *cmd, unsigned int len)
 {
 	return 0;
@@ -1141,7 +1140,7 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_SNAPSHOT
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 static int exynos_bcm_dbg_dump_addr_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
 					struct exynos_bcm_dump_addr *dump_addr,
 					struct exynos_bcm_dbg_data *data)
@@ -2964,7 +2963,7 @@ static ssize_t store_ip_ctrl(struct file *fp, struct kobject *kobj,
 	return size;
 }
 
-#ifdef CONFIG_DEBUG_SNAPSHOT
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 static int exynos_bcm_dbg_set_dump_info(struct exynos_bcm_dbg_data *data)
 {
 	struct exynos_bcm_ipc_base_info ipc_base_info;
@@ -3276,7 +3275,7 @@ static BIN_ATTR(str_ctrl_help, 0440, show_str_ctrl_help, NULL, 0);
 static BIN_ATTR(str_ctrl, 0640, show_str_ctrl, store_str_ctrl, 0);
 static BIN_ATTR(ip_ctrl_help, 0440, show_ip_ctrl_help, NULL, 0);
 static BIN_ATTR(ip_ctrl, 0640, show_ip_ctrl, store_ip_ctrl, 0);
-#ifdef CONFIG_DEBUG_SNAPSHOT
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 static BIN_ATTR(dump_addr_info, 0640, show_dump_addr_info,
 		store_dump_addr_info, 0);
 #endif
@@ -3321,7 +3320,7 @@ static struct bin_attribute *exynos_bcm_dbg_sysfs_entries[] = {
 	&bin_attr_str_ctrl,
 	&bin_attr_ip_ctrl_help,
 	&bin_attr_ip_ctrl,
-#ifdef CONFIG_DEBUG_SNAPSHOT
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	&bin_attr_dump_addr_info,
 #endif
 	&bin_attr_enable_dump_klog,
@@ -3338,7 +3337,7 @@ static struct attribute_group exynos_bcm_dbg_attr_group = {
 	.bin_attrs	= exynos_bcm_dbg_sysfs_entries,
 };
 
-#ifdef CONFIG_DEBUG_SNAPSHOT
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 static int exynos_bcm_dbg_dump_config(struct exynos_bcm_dbg_data *data)
 {
 	int ret;
@@ -3358,7 +3357,7 @@ static int exynos_bcm_dbg_dump_config(struct exynos_bcm_dbg_data *data)
 }
 #endif
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 static int exynos_bcm_dbg_itmon_notifier(struct notifier_block *nb,
 					unsigned long val, void *v)
 {
@@ -3455,7 +3454,7 @@ static int __init exynos_bcm_dbg_probe(struct platform_device *pdev)
 		goto err_pd_sync_init;
 	}
 
-#ifdef CONFIG_DEBUG_SNAPSHOT
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	ret = exynos_bcm_dbg_dump_config(data);
 	if (ret) {
 		BCM_ERR("%s: failed to dump config\n", __func__);
@@ -3481,12 +3480,12 @@ static int __init exynos_bcm_dbg_probe(struct platform_device *pdev)
 		BCM_ERR("%s: failed creat sysfs for Exynos BCM DBG\n",
 			__func__);
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	data->itmon_notifier.notifier_call = exynos_bcm_dbg_itmon_notifier;
 	itmon_notifier_chain_register(&data->itmon_notifier);
 #endif
 
-#ifdef CONFIG_EXYNOS_BCM_DBG_PPMU
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_PPMU)
 	ret = exynos_bcm_dbg_ppmu_init(pdev);
 	if (ret)
 		BCM_ERR("%s: failed to initialize Platform PMU\n", __func__);
@@ -3497,7 +3496,7 @@ static int __init exynos_bcm_dbg_probe(struct platform_device *pdev)
 	return 0;
 
 err_initial_run:
-#ifdef CONFIG_DEBUG_SNAPSHOT
+#if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 err_dump_config:
 #endif
 err_pd_sync_init:
@@ -3530,7 +3529,7 @@ static int exynos_bcm_dbg_remove(struct platform_device *pdev)
 	kfree(data);
 	data = NULL;
 
-#ifdef CONFIG_EXYNOS_BCM_DBG_PPMU
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_PPMU)
 	exynos_bcm_dbg_ppmu_exit(pdev);
 #endif
 

@@ -40,6 +40,6 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data);
 #endif
 
 int exynos_bcm_dbg_print_accumulators(struct exynos_bcm_dbg_data *data,
-	bool klog, char *buf, size_t *buf_len, loff_t off);
+	bool klog, char *buf, size_t *buf_len, loff_t off, size_t size);
 
 #endif	/* __EXYNOS_BCM_DBG_DUMP_H_ */

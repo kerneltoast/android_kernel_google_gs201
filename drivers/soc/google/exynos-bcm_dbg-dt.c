@@ -13,8 +13,8 @@
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
 
-#include <soc/samsung/exynos-bcm_dbg.h>
-#include <soc/samsung/exynos-bcm_dbg-dt.h>
+#include <soc/google/exynos-bcm_dbg.h>
+#include <soc/google/exynos-bcm_dbg-dt.h>
 
 static const char *list[BCM_PD_INFO_MAX];
 
@@ -111,7 +111,7 @@ static void print_bcm_dbg_data(struct exynos_bcm_dbg_data *data)
 	BCM_DBG("\n");
 }
 
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF)
 static int exynos_bcm_ipc_node_parse_dt(struct device_node *np,
 				struct exynos_bcm_dbg_data *data)
 {
@@ -773,3 +773,4 @@ int exynos_bcm_dbg_parse_dt(struct device_node *np,
 	return -ENODEV;
 }
 #endif
+EXPORT_SYMBOL_GPL(exynos_bcm_dbg_parse_dt);

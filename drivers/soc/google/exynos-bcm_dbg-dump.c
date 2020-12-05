@@ -15,8 +15,8 @@
 #include <linux/io.h>
 #include <linux/sched/clock.h>
 
-#include <soc/samsung/exynos-bcm_dbg.h>
-#include <soc/samsung/exynos-bcm_dbg-dump.h>
+#include <soc/google/exynos-bcm_dbg.h>
+#include <soc/google/exynos-bcm_dbg-dump.h>
 
 static char file_name[128];
 
@@ -107,6 +107,7 @@ out:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(exynos_bcm_dbg_print_accumulators);
 
 int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 {
@@ -214,3 +215,6 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(exynos_bcm_dbg_buffer_dump);
+
+MODULE_LICENSE("GPL");
