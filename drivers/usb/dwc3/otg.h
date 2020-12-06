@@ -24,6 +24,7 @@
 #include <linux/pm_wakeup.h>
 #include <linux/usb/otg-fsm.h>
 #include <linux/pm_qos.h>
+#include <soc/google/exynos_pm_qos.h>
 #include "dwc3-exynos.h"
 
 struct dwc3_ext_otg_ops {
@@ -61,8 +62,8 @@ struct dwc3_otg {
 	int			*ldo_num;
 	int			ldos;
 
-	struct pm_qos_request	pm_qos_int_req;
-	int			pm_qos_int_val;
+	struct exynos_pm_qos_request	pm_qos_int_req;
+	int				pm_qos_int_val;
 
 	struct dwc3_ext_otg_ops *ext_otg_ops;
 #if defined(CONFIG_TYPEC_DEFAULT)

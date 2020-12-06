@@ -273,9 +273,13 @@ int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on)
 		} else {
 			exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 1);
 
-			//if (!dotg->pm_qos_int_val)
-			//	pm_qos_update_request(&dotg->pm_qos_int_req,
-			//			dotg->pm_qos_int_val);
+			if (dotg->pm_qos_int_val) {
+				pr_info("pm_qos set value = %d\n",
+						dotg->pm_qos_int_val);
+				exynos_pm_qos_update_request(&dotg->pm_qos_int_req,
+						dotg->pm_qos_int_val);
+			}
+
 			pm_runtime_get_sync(dev);
 			ret = dwc3_core_init(dwc);
 			if (ret) {
@@ -298,10 +302,9 @@ int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on)
 		if (dotg->combo_phy_control == 0) {
 			dwc3_core_exit(dwc);
 err:
-			//dwc3_otg_check_bus_act(dwc);
 			pm_runtime_put_sync_suspend(dev);
-			//if (!dotg->pm_qos_int_val)
-			//	pm_qos_update_request(&dotg->pm_qos_int_req, 0);
+			if (dotg->pm_qos_int_val)
+				exynos_pm_qos_update_request(&dotg->pm_qos_int_req, 0);
 			exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 0);
 		}
 	}
@@ -988,6 +991,17 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	dwc->dotg = dotg;
 	dotg->dwc = dwc;
 	dev_info(dwc->dev, "%s, dotg = %8x\n", __func__, dwc->dotg);
+
+	ret = of_property_read_u32(dwc->dev->of_node, "usb-pm-qos-int",
+				   &dotg->pm_qos_int_val);
+	if (ret < 0) {
+		dev_err(dwc->dev, "couldn't read usb-pm-qos-int %s node, error = %d\n",
+					dwc->dev->of_node->name, ret);
+		dotg->pm_qos_int_val = 0;
+	} else {
+		exynos_pm_qos_add_request(&dotg->pm_qos_int_req,
+					PM_QOS_DEVICE_THROUGHPUT, 0);
+	}
 
 	dotg->ext_otg_ops = ops;
 

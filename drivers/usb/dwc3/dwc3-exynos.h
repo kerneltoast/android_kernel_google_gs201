@@ -59,6 +59,7 @@ int dwc3_exynos_vbus_event(struct device *dev, bool vbus_active);
 int dwc3_exynos_start_ldo(struct device *dev, bool on);
 int dwc3_exynos_phy_enable(int owner, bool on);
 int dwc3_exynos_get_idle_ip_index(struct device *dev);
+extern int dwc3_exynos_set_bus_clock(struct device *dev, int clk_level);
 unsigned int of_usb_get_suspend_clk_freq(struct device *dev);
 int dwc3_probe(struct platform_device *pdev,
 	       struct dwc3_exynos *exynos);
