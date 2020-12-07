@@ -142,6 +142,11 @@ static int exynos_pd_power_on(struct generic_pm_domain *genpd)
 
 	pr_debug("pd_power_on:(%s)+\n", pd->name);
 
+	if (pd->need_sync) {
+		pd->turn_off_on_sync = false;
+		goto acc_unlock;
+	}
+
 	if (unlikely(!pd->pd_control)) {
 		pr_debug("%s is logical sub power domain, does not have power on control\n",
 			 pd->name);
@@ -175,19 +180,21 @@ acc_unlock:
 	return ret;
 }
 
-static int exynos_pd_power_off(struct generic_pm_domain *genpd)
+static int __exynos_pd_power_off(struct generic_pm_domain *genpd)
 {
 	struct exynos_pm_domain *pd =
 		container_of(genpd, struct exynos_pm_domain, genpd);
 	int ret = 0;
 	ktime_t now;
 
-	mutex_lock(&pd->access_lock);
-
 	pr_debug("pd_power_off:(%s)+\n", pd->name);
 
+	/* Until all consumers have probed, delay actual turn OFF of PD until
+	 * sync, tell GENPD that PD was turned OFF successfully to get correct
+	 * accounting, GENPD will request it to be back ON if needed.
+	 */
 	if (pd->need_sync) {
-		ret = -EBUSY;
+		pd->turn_off_on_sync = true;
 		goto acc_unlock;
 	}
 
@@ -218,6 +225,18 @@ static int exynos_pd_power_off(struct generic_pm_domain *genpd)
 
 acc_unlock:
 	pr_debug("pd_power_off:(%s)-, ret = %d\n", pd->name, ret);
+
+	return ret;
+}
+
+static int exynos_pd_power_off(struct generic_pm_domain *genpd)
+{
+	struct exynos_pm_domain *pd =
+		container_of(genpd, struct exynos_pm_domain, genpd);
+	int ret;
+
+	mutex_lock(&pd->access_lock);
+	ret = __exynos_pd_power_off(genpd);
 	mutex_unlock(&pd->access_lock);
 
 	return ret;
@@ -468,10 +487,16 @@ static int exynos_pd_probe(struct platform_device *pdev)
 static void exynos_pd_sync_state(struct device *dev)
 {
 	struct exynos_pm_domain *pd;
+
 	pd = platform_get_drvdata(to_platform_device(dev));
 
 	mutex_lock(&pd->access_lock);
-	pd->need_sync = false;
+	if (pd->need_sync) {
+		pd->need_sync = false;
+		dev_info(dev, "sync_state: turn_off = %d\n", pd->turn_off_on_sync);
+		if (pd->turn_off_on_sync)
+			__exynos_pd_power_off(&pd->genpd);
+	}
 	mutex_unlock(&pd->access_lock);
 }
 
