@@ -629,6 +629,25 @@ int pktproc_get_usage(struct pktproc_queue *q)
 	return usage;
 }
 
+int pktproc_get_usage_fore_rear(struct pktproc_queue *q)
+{
+	u32 usage = 0;
+
+	switch (q->ppa->desc_mode) {
+	case DESC_MODE_RINGBUF:
+		usage = circ_get_usage(q->num_desc, *q->fore_ptr, *q->rear_ptr);
+		break;
+	case DESC_MODE_SKTBUF:
+		usage = circ_get_usage(q->num_desc, *q->rear_ptr, *q->fore_ptr);
+		break;
+	default:
+		usage = 0;
+		break;
+	}
+
+	return usage;
+}
+
 static bool pktproc_check_memcpy_mode(struct pktproc_queue *q, u32 budget)
 {
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF)
@@ -705,7 +724,7 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 			dit_kick(DIT_DIR_RX, false);
 	} else {
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
-		if (rcvd && !tpmon_check_active())
+		if (rcvd)
 			tpmon_start();
 #endif
 		if (q->ppa->manager) {
@@ -1007,6 +1026,10 @@ static irqreturn_t pktproc_irq_handler(int irq, void *arg)
 	if (!pktproc_get_usage(q))
 		return IRQ_HANDLED;
 
+#if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
+	tpmon_start();
+#endif
+
 	if (q->ppa->use_napi) {
 		if (napi_schedule_prep(q->napi_ptr)) {
 			q->disable_irq(q);
@@ -1139,9 +1162,10 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 				"  fore/rear/done:%d/%d/%d\n",
 				*q->fore_ptr, *q->rear_ptr, q->done_ptr);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"  fore~rear:%d rear~done:%d\n",
+				"  fore~rear:%d rear~done:%d rear~fore:%d\n",
 				circ_get_usage(q->num_desc, *q->fore_ptr, *q->rear_ptr),
-				circ_get_usage(q->num_desc, *q->rear_ptr, q->done_ptr));
+				circ_get_usage(q->num_desc, *q->rear_ptr, q->done_ptr),
+				circ_get_usage(q->num_desc, *q->rear_ptr, *q->fore_ptr));
 			if (!dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx))
 				count += scnprintf(&buf[count], PAGE_SIZE - count,
 					"  use memcpy:%d count:%lld\n",

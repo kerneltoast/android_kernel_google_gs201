@@ -386,6 +386,24 @@ void cp_mbox_reset(void)
 EXPORT_SYMBOL(cp_mbox_reset);
 
 /* IRQ affinity */
+int cp_mbox_get_affinity(u32 idx)
+{
+	struct cp_mbox_irq_data *irq_data = &mbox_data.irq_data[idx];
+
+	if (!irq_data) {
+		mif_err("irq_data %d is null\n", idx);
+		return -EINVAL;
+	}
+
+	if (!irq_data->enable) {
+		mif_err_limited("irq_data %d is disabled\n", irq_data->idx);
+		return -EACCES;
+	}
+
+	return irq_data->affinity;
+}
+EXPORT_SYMBOL(cp_mbox_get_affinity);
+
 int cp_mbox_set_affinity(u32 idx, int affinity)
 {
 	struct cp_mbox_irq_data *irq_data = &mbox_data.irq_data[idx];

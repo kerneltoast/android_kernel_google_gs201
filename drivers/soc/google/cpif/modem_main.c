@@ -117,6 +117,7 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev,
 
 	INIT_LIST_HEAD(&modemctl->modem_state_notify_list);
 	spin_lock_init(&modemctl->lock);
+	spin_lock_init(&modemctl->tx_timer_lock);
 	init_completion(&modemctl->init_cmpl);
 	init_completion(&modemctl->off_cmpl);
 

@@ -656,6 +656,7 @@ struct modem_ctl {
 
 	/* spin lock for each modem_ctl instance */
 	spinlock_t lock;
+	spinlock_t tx_timer_lock;
 
 	/* list for notify to opened iod when changed modem state */
 	struct list_head modem_state_notify_list;

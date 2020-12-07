@@ -512,9 +512,11 @@ static void write_clk_table_to_shmem(struct mem_link_device *mld)
 	clk_data = (u32 *)&(clk_tb->table_info[clk_tb->total_table_count]);
 
 	for (i = 0; i < clk_tb->total_table_count; i++) {
-		for (j = 0; j < clk_tb->table_info[i].table_count; j++)
+		for (j = 0; j < clk_tb->table_info[i].table_count; j++) {
 			mif_info("CLOCK_TABLE[%d][%d] : %d\n",
-				i+1, j+1, *clk_data++);
+				i+1, j+1, *clk_data);
+			clk_data++;
+		}
 	}
 }
 
@@ -1072,18 +1074,19 @@ static inline void start_tx_timer(struct mem_link_device *mld,
 	unsigned long flags;
 
 	spin_lock_irqsave(&mc->lock, flags);
+	if (unlikely(cp_offline(mc))) {
+		spin_unlock_irqrestore(&mc->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&mc->lock, flags);
 
-	if (unlikely(cp_offline(mc)))
-		goto exit;
-
+	spin_lock_irqsave(&mc->tx_timer_lock, flags);
 	if (!hrtimer_is_queued(timer)) {
 		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 	}
-
-exit:
-	spin_unlock_irqrestore(&mc->lock, flags);
+	spin_unlock_irqrestore(&mc->tx_timer_lock, flags);
 }
 
 static inline void shmem_start_timers(struct mem_link_device *mld)
@@ -1103,12 +1106,10 @@ static inline void cancel_tx_timer(struct mem_link_device *mld,
 	struct modem_ctl *mc = ld->mc;
 	unsigned long flags;
 
-	spin_lock_irqsave(&mc->lock, flags);
-
+	spin_lock_irqsave(&mc->tx_timer_lock, flags);
 	if (hrtimer_active(timer))
 		hrtimer_cancel(timer);
-
-	spin_unlock_irqrestore(&mc->lock, flags);
+	spin_unlock_irqrestore(&mc->tx_timer_lock, flags);
 }
 
 static inline void shmem_stop_timers(struct mem_link_device *mld)
@@ -1433,13 +1434,11 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 	else if (need_irq)
 		send_ipc_irq(mld, mask2int(MASK_SEND_DATA));
 
-	spin_lock_irqsave(&mc->lock, flags);
 	if (need_schedule) {
 		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 	}
-	spin_unlock_irqrestore(&mc->lock, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -2797,7 +2796,7 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 #endif
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
-	if (total_ps_rcvd && !tpmon_check_active())
+	if (total_ps_rcvd)
 		tpmon_start();
 #endif
 
