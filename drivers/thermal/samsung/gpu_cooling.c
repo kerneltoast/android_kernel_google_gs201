@@ -580,7 +580,7 @@ static int gpufreq_apply_cooling(struct gpufreq_cooling_device *gpufreq_cdev,
 
 	/* Check if the old cooling action is same as new cooling action */
 	if (gpufreq_cdev->gpufreq_state == cooling_state)
-		return 0;
+		return -EALREADY;
 
 	gpufreq_cdev->gpufreq_state = cooling_state;
 
