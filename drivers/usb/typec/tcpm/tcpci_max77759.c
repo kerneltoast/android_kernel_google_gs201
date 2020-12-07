@@ -1237,6 +1237,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.set_current_limit = max77759_set_current_limit;
 	chip->data.TX_BUF_BYTE_x_hidden = 1;
 	chip->data.override_toggling = true;
+	chip->data.vbus_vsafe0v = true;
 	chip->data.set_pd_capable = max77759_set_pd_capable;
 	chip->data.set_roles = max77759_set_roles;
 	chip->data.init = tcpci_init;
