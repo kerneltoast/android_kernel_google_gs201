@@ -16,6 +16,10 @@
 	 * kernel.
 	 */
 	st,panel_map = <&samsung_s6e3fc3 0>;
+	/* TODO: remove hardcoded max-coords when the extinfo can be
+	 * fetched.
+	 */
+	st,max-coords = <1079 2399>;
 	/* TODO: enable auto update if SDC default panel firmware
 	 * check is done.
 	 */
