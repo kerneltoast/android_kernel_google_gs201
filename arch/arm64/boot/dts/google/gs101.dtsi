@@ -970,6 +970,7 @@
 		iommus = <&sysmmu_g2d0>, <&sysmmu_g2d1>;
 		clocks = <&clock GATE_G2D>;
 		clock-names = "gate";
+		samsung,tzmp;
 	};
 
 	watchdog_cl0@10060000 {
