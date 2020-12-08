@@ -1165,6 +1165,9 @@ static void itmon_post_handler_by_client(struct itmon_dev *itmon,
 		} else {
 			dev_err(itmon->dev, "Skips CPU transaction detected - err_cnt_by_cpu: %u, interval: %lldns\n",
 				pdata->err_cnt_by_cpu, ktime_to_ns(interval));
+
+			/* Ignore unhandled cpu errors */
+			pdata->policy[UNHANDLED].error = false;
 		}
 	} else {
 		if (info->errcode == ERRCODE_UNSUPPORTED)
