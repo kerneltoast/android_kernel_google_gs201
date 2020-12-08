@@ -1016,14 +1016,6 @@ static int exynos_mipi_phy_power_off(struct phy *phy)
 	return __set_phy_state(state, phy_desc, 0);
 }
 
-static int exynos_mipi_phy_set(struct phy *phy, int option, void *info)
-{
-	struct mipi_phy_desc *phy_desc = phy_get_drvdata(phy);
-	struct exynos_mipi_phy *state = to_mipi_video_phy(phy_desc);
-
-	return __set_phy_cfg(state, phy_desc, option, info);
-}
-
 static struct phy *exynos_mipi_phy_of_xlate(struct device *dev,
 					struct of_phandle_args *args)
 {
