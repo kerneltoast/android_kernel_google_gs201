@@ -558,17 +558,17 @@
 			/* vptid 3, size 512KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00002001 0x0 0x0 >;
 		};
-		CAMERA4WAY0 {
+		CAMERA4WAY {
 			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
 		};
-		CAMERA4WAY1 {
-			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
-			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
+		CAMERA6WAY0 {
+			/* vptid 3, size 1536KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x3 0x00020001 0x0 0x0 >;
 		};
-		CAMERA4WAY2 {
-			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
-			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
+		CAMERA6WAY1 {
+			/* vptid 3, size 1536KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x3 0x00020001 0x0 0x0 >;
 		};
 		CAMERA8WAY {
 			/* vptid 4, size 2048KB, priority 0 (highest), pbha 0 */
