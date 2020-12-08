@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/usb/composite.h>
 #include <linux/wait.h>
+#include "../../dwc3/gadget.h"
 
 #define MAX_INST_NAME_LEN 40
 
@@ -66,7 +67,6 @@ struct etr_miu_dev {
 	int online;
 	int alt;
 
-	struct usb_request *req;
 	struct work_struct etr_off_work;
 };
 
@@ -155,11 +155,6 @@ static inline struct etr_miu_dev *func_to_etr_miu(struct usb_function *f)
 	return container_of(f, struct etr_miu_dev, function);
 }
 
-static void etr_miu_complete_in(struct usb_ep *ep, struct usb_request *req)
-{
-	/* do nothing, should not be called */
-}
-
 static int
 etr_miu_create_bulk_endpoints(struct etr_miu_dev *dev,
 			      struct usb_endpoint_descriptor *in_desc)
@@ -177,29 +172,6 @@ etr_miu_create_bulk_endpoints(struct etr_miu_dev *dev,
 	DBG(cdev, "usb_ep_autoconfig for ep_in got %s\n", ep->name);
 	ep->driver_data = dev; /* claim the endpoint */
 	dev->ep_in = ep;
-
-	dev->req = usb_ep_alloc_request(dev->ep_in, GFP_KERNEL);
-	if (!dev->req) {
-		DBG(cdev, "usb_ep_alloc_request for ep_in failed\n");
-		return -ENOMEM;
-	}
-
-	/* the data buffer is not mapped */
-	dev->req->buf = NULL;
-	dev->req->length = ETR_MIU_TRANSFER_SIZE;
-	dev->req->dma = (uint64_t)ETR_MIU_DATA_ADDR;
-	/* usb driver should not attempt to map or unmap the data buffer */
-	dev->req->no_map_data = 1;
-
-	/*
-	 * trb and trb_dma is NOT the same memory
-	 * trb is the TRB configuration values in ETR MIU configuration space
-	 * trb_dma is the USB controller access port on ETR MIU
-	 */
-	dev->req->trb = base + ETR_DESC_ROM_RD(0);
-	dev->req->trb_dma = (uint64_t)ETR_MIU_TRB_ADDR;
-
-	dev->req->complete = etr_miu_complete_in;
 
 	return 0;
 }
@@ -260,8 +232,6 @@ static void etr_miu_function_unbind(struct usb_configuration *c,
 {
 	struct etr_miu_dev *dev = func_to_etr_miu(f);
 
-	usb_ep_free_request(dev->ep_in, dev->req);
-
 	dev->online = 0;
 
 	gs_coresight_etm_external_etr_off();
@@ -283,15 +253,8 @@ static void ep_disable(struct usb_function *f)
 {
 	struct etr_miu_dev *dev = func_to_etr_miu(f);
 	struct usb_composite_dev *cdev = dev->cdev;
-	int ret;
 
 	DBG(cdev, "%s cdev %pK\n", __func__, cdev);
-
-	if (dev->req && dev->alt) {
-		ret = usb_ep_dequeue(dev->ep_in, dev->req);
-		if (ret)
-			ERROR(cdev, "Error usb_ep_dequeue %d\n", ret);
-	}
 
 	if (dev->online)
 		usb_ep_disable(dev->ep_in);
@@ -337,7 +300,8 @@ static int etr_miu_function_set_alt(struct usb_function *f, unsigned int intf,
 	dev->online = 1;
 
 	__raw_writel(DATA_TRB_CTRL, base + ETR_DESC_ROM_RD(3));
-	ret = usb_ep_queue(dev->ep_in, dev->req, GFP_ATOMIC);
+
+	ret = dwc3_gadget_ep_custom_transfer(dev->ep_in, (dma_addr_t)ETR_MIU_TRB_ADDR);
 	if (ret)
 		goto alt0;
 
