@@ -215,20 +215,23 @@ static int slg51000_gpio_direction_input(struct gpio_chip *chip,
 		addr = SLG51000_IO_GPIO4_CONF;
 		break;
 	default:
-		return -EOPNOTSUPP;
+		pr_err("Error: %s Unsupported GPIO offset %d\n",
+			__func__, offset);
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
 
 	ret = regmap_update_bits(data->regmap, addr, SLG51000_GPIO_DIR_MASK, 0);
 	if (ret < 0) {
 		pr_err("Error: %s Failed on GPIO offset %d\n",
 			__func__, offset);
-		return ret;
 	}
 
+out:
 	if (data->chip->exit_sw_test_mode)
 		data->chip->exit_sw_test_mode(data->regmap);
 
-	return 0;
+	return ret;
 }
 
 static int slg51000_gpio_direction_output(struct gpio_chip *chip,
@@ -238,47 +241,45 @@ static int slg51000_gpio_direction_output(struct gpio_chip *chip,
 	unsigned int addr;
 	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
 
-	if (offset >= SLG51000_GPIO_NR)
-		return -EOPNOTSUPP;
-
 	if (data->chip->enter_sw_test_mode)
 		data->chip->enter_sw_test_mode(data->regmap);
 
-	if (offset >= SLG51000_GPIO1 && offset <= SLG51000_GPIO4){
-		switch (offset) {
-		case SLG51000_GPIO1:
-			addr = SLG51000_IO_GPIO1_CONF;
-			break;
-		case SLG51000_GPIO2:
-			addr = SLG51000_IO_GPIO2_CONF;
-			break;
-		case SLG51000_GPIO3:
-			addr = SLG51000_IO_GPIO3_CONF;
-			break;
-		case SLG51000_GPIO4:
-			addr = SLG51000_IO_GPIO4_CONF;
-			break;
-		default:
-			break;
-		}
+	switch (offset) {
+	case SLG51000_GPIO1:
+		addr = SLG51000_IO_GPIO1_CONF;
+		break;
+	case SLG51000_GPIO2:
+		addr = SLG51000_IO_GPIO2_CONF;
+		break;
+	case SLG51000_GPIO3:
+		addr = SLG51000_IO_GPIO3_CONF;
+		break;
+	case SLG51000_GPIO4:
+		addr = SLG51000_IO_GPIO4_CONF;
+		break;
+	default:
+		pr_err("Error: %s Unsupported GPIO offset %d\n",
+			__func__, offset);
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
-		ret = regmap_update_bits(data->regmap, addr,
-				SLG51000_GPIO_DIR_MASK,
-				BIT(SLG51000_GPIO_DIR_SHIFT));
-		if (ret < 0) {
-			pr_err("Error: %s Failed on GPIO offset %d\n",
-				__func__, offset);
-			return ret;
-		}
+	ret = regmap_update_bits(data->regmap, addr, SLG51000_GPIO_DIR_MASK,
+				 BIT(SLG51000_GPIO_DIR_SHIFT));
+	if (ret < 0) {
+		pr_err("Error: %s Failed on GPIO offset %d\n",
+			__func__, offset);
+		goto out;
 	}
 
 	if (data->gc.set)
 		data->gc.set(chip, offset, value);
 
+out:
 	if (data->chip->exit_sw_test_mode)
 		data->chip->exit_sw_test_mode(data->regmap);
 
-	return 0;
+	return ret;
 }
 
 /* pinctrl_ops functions */
