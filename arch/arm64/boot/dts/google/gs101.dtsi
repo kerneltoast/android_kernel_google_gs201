@@ -391,6 +391,52 @@
 		wakeup-stat-rtc = <0>;
 
 		wake_lock = <0>;		/* 1: held wake_lock */
+
+		wakeup_stats {
+			wakeup_stat {
+				ws-name =
+					"RTC_ALARM",		/* [ 0] */
+					"RTC_TICK",		/* [ 1] */
+					"TRTC_ALARM",		/* [ 2] */
+					"TRTC_TICK",		/* [ 3] */
+					"EINT",			/* [ 4] */
+					"EINT_FAR",		/* [ 5] */
+					"MAILBOX_APM2AP",	/* [ 6] */
+					"MAILBOX_AOC2AP",	/* [ 7] */
+					"L1SUB_PCIE_GEN4A_0",	/* [ 8] */
+					"L1SUB_PCIE_GEN4B_0",	/* [ 9] */
+					"L1SUB_PCIE_GEN4A_1",	/* [10] */
+					"L1SUB_PCIE_GEN4B_1",	/* [11] */
+					"EXT_PCIE_GEN4A_0",	/* [12] */
+					"EXT_PCIE_GEN4B_0",	/* [13] */
+					"EXT_PCIE_GEN4A_1",	/* [14] */
+					"EXT_PCIE_GEN4B_1",	/* [15] */
+					"USB_REWA",		/* [16] */
+					"USBDP",		/* [17] */
+					"MMC_CARD",		/* [18] */
+					"TIMER",		/* [19] */
+					"RESERVED",		/* [20] */
+					"RESERVED",		/* [21] */
+					"RESERVED",		/* [22] */
+					"CLUSTER0_CPU0_nIRQOUT",/* [23] */
+					"CLUSTER0_CPU1_nIRQOUT",/* [24] */
+					"CLUSTER0_CPU2_nIRQOUT",/* [25] */
+					"CLUSTER0_CPU3_nIRQOUT",/* [26] */
+					"CLUSTER1_CPU0_nIRQOUT",/* [27] */
+					"CLUSTER1_CPU1_nIRQOUT",/* [28] */
+					"CLUSTER2_CPU0_nIRQOUT",/* [29] */
+					"CLUSTER2_CPU1_nIRQOUT",/* [30] */
+					"RESERVED";		/* [31] */
+			};
+
+			wakeup_stat2 {
+				ws-name =
+					"RESERVED",		/* [ 0] */
+					"RESERVED",		/* [ 1] */
+					"USB20_PHY_FS_VMINUS",	/* [ 2] */
+					"USB20_PHY_FS_VPLUS";	/* [ 3] */
+			};
+		};
 	};
 
 	exynos-pmu {
