@@ -34,6 +34,10 @@ u32 exynos_eint_to_pin_num(int eint) { return 0; }
 u32 exynos_eint_wake_mask_array[3] = {~0U, ~0U, ~0U};
 #endif
 
+struct wakeup_stat_name {
+	const char *name[32];
+};
+
 struct exynos_pm_info {
 	void __iomem *eint_base;	/* GPIO_ALIVE base to check wkup reason */
 	void __iomem *eint_far_base;
@@ -68,6 +72,8 @@ struct exynos_pm_info {
 
 	struct wakeup_source *ws;
 	bool is_stay_awake;
+
+	struct wakeup_stat_name *ws_names;
 };
 
 struct exynos_pm_dbg {
