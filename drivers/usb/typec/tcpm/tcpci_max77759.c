@@ -163,10 +163,29 @@ static ssize_t contaminant_detection_store(struct device *dev, struct device_att
 }
 static DEVICE_ATTR_RW(contaminant_detection);
 
+static ssize_t contaminant_detection_status_show(struct device *dev, struct device_attribute *attr,
+						 char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	struct max77759_contaminant *contaminant;
+
+	if (!chip)
+		return -EAGAIN;
+
+	contaminant = chip->contaminant;
+
+	if (!contaminant)
+		return -EAGAIN;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", is_contaminant_detected(chip));
+}
+static DEVICE_ATTR_RO(contaminant_detection_status);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_auto_discharge,
 	&dev_attr_contaminant_detection,
+	&dev_attr_contaminant_detection_status,
 	NULL
 };
 

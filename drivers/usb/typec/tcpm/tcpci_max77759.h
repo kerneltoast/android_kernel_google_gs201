@@ -100,6 +100,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 			       bool tcpm_toggling);
 int enable_contaminant_detection(struct max77759_plat *chip, bool maxq);
 void disable_contaminant_detection(struct max77759_plat *chip);
+bool is_contaminant_detected(struct max77759_plat *chip);
 
 #define VBUS_VOLTAGE_MASK		0x3ff
 #define VBUS_VOLTAGE_LSB_MV		25
