@@ -246,8 +246,13 @@ static struct itmon_policy err_policy[] = {
 const static struct itmon_rpathinfo rpathinfo[] = {
 	/* 0x8000_0000 - 0xf_ffff_ffff */
 
+	/* CORE_M0 / M1 / M2 / M3 CPU specific */
+	{0,	"CPU0",		"CORE_M0",	0x3F, 0},
+	{0,	"CPU1",		"CORE_M1",	0x3F, 0},
+	{0,	"CPU2",		"CORE_M2",	0x3F, 0},
+	{0,	"CPU3",		"CORE_M3",	0x3F, 0},
+
 	/* CORE_M0 / M1 / M2 / M3 Common */
-	{0,	"CPU",		"CORE_M",	0x3F, 0},
 	{1,	"GPU0",		"CORE_M",	0x3F, 0},
 	{2,	"GPU1",		"CORE_M",	0x3F, 0},
 	{3,	"GPU2",		"CORE_M",	0x3F, 0},
