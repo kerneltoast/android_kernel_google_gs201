@@ -830,7 +830,7 @@
 
 			s_buck5_reg: BUCK5S {
 				regulator-name = "S2MPG11_BUCK5";
-				regulator-min-microvolt = <450000>;
+				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-ramp-delay = <6000>;
