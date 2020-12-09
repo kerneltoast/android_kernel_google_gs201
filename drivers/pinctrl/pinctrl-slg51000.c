@@ -257,6 +257,11 @@ static int slg51000_gpio_direction_output(struct gpio_chip *chip,
 	case SLG51000_GPIO4:
 		addr = SLG51000_IO_GPIO4_CONF;
 		break;
+	case SLG51000_SEQ1:
+	case SLG51000_SEQ2:
+	case SLG51000_SEQ3:
+		ret = 0;
+		goto out1;
 	default:
 		pr_err("Error: %s Unsupported GPIO offset %d\n",
 			__func__, offset);
@@ -272,6 +277,7 @@ static int slg51000_gpio_direction_output(struct gpio_chip *chip,
 		goto out;
 	}
 
+out1:
 	if (data->gc.set)
 		data->gc.set(chip, offset, value);
 
