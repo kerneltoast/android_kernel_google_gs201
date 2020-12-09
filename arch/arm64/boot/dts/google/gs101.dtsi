@@ -796,6 +796,13 @@
 
 			/* Default remove MIF L1/L2/L3 */
 			l123_restrict = "1";
+
+			skew {
+				skew_0 {
+					constraint_dm_type = <DM_INT>;
+					constraint_type = <CONSTRAINT_MIN>;
+				};
+			};
 		};
 
 		devfreq_1: devfreq_int@17000020 {
