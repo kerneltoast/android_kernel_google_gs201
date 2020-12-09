@@ -19,6 +19,8 @@
 
 #include "mfc_core_hw_reg_api.h"
 
+#include "mfc_sync.h"
+
 void mfc_core_pm_init(struct mfc_core *core)
 {
 	spin_lock_init(&core->pm.clklock);
@@ -34,6 +36,69 @@ void mfc_core_pm_init(struct mfc_core *core)
 void mfc_core_pm_final(struct mfc_core *core)
 {
 	pm_runtime_disable(core->pm.device);
+}
+
+void mfc_core_protection_on(struct mfc_core *core)
+{
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&core->pm.clklock, flags);
+	mfc_core_debug(3, "Begin: enable protection\n");
+	ret = exynos_smc(SMC_PROTECTION_SET, 0,
+			core->id * PROT_MFC1, SMC_PROTECTION_ENABLE);
+	if (ret != DRMDRV_OK) {
+		mfc_core_err("Protection Enable failed! ret(%u)\n", ret);
+		call_dop(core, dump_and_stop_debug_mode, core);
+		spin_unlock_irqrestore(&core->pm.clklock, flags);
+		return;
+	}
+	MFC_TRACE_CORE("protection\n");
+	mfc_core_debug(3, "End: enable protection\n");
+	spin_unlock_irqrestore(&core->pm.clklock, flags);
+
+	/* RISC_ON is required because the MFC was reset */
+	if (core->dev->pdata->security_ctrl) {
+		mfc_core_risc_on(core);
+		mfc_core_debug(2, "Will now wait for completion of firmware transfer\n");
+		if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_FW_STATUS_RET)) {
+			mfc_core_err("Failed to RISC_ON\n");
+			mfc_core_clean_dev_int_flags(core);
+			call_dop(core, dump_and_stop_always, core);
+		}
+	} else {
+		mfc_core_set_risc_base_addr(core, MFCBUF_DRM);
+	}
+#endif
+}
+
+void mfc_core_protection_off(struct mfc_core *core)
+{
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	unsigned long flags;
+	int ret = 0;
+	/*
+	 * After clock off the protection disable should be
+	 * because the MFC core can continuously run during clock on
+	 */
+	mfc_core_debug(3, "Begin: disable protection\n");
+	spin_lock_irqsave(&core->pm.clklock, flags);
+	ret = exynos_smc(SMC_PROTECTION_SET, 0,
+			core->id * PROT_MFC1, SMC_PROTECTION_DISABLE);
+	if (ret != DRMDRV_OK) {
+		mfc_core_err("Protection Disable failed! ret(%u)\n", ret);
+		call_dop(core, dump_and_stop_debug_mode, core);
+		spin_unlock_irqrestore(&core->pm.clklock, flags);
+		return;
+	}
+	mfc_core_debug(3, "End: disable protection\n");
+	MFC_TRACE_CORE("un-protection\n");
+	spin_unlock_irqrestore(&core->pm.clklock, flags);
+
+	/* Normal base address setting is required because the MFC was reset */
+	mfc_core_set_risc_base_addr(core, MFCBUF_NORMAL);
+#endif
 }
 
 int mfc_core_pm_clock_on(struct mfc_core *core)
@@ -55,6 +120,11 @@ int mfc_core_pm_clock_on(struct mfc_core *core)
 	 */
 	core->pm.clock_on_steps |= 0x1 << 1;
 	if (core->pm.base_type != MFCBUF_INVALID) {
+		/*
+		 * There is no place to set core->pm.base_type,
+		 * so it is always MFCBUF_INVALID now.
+		 * When necessary later, you can set the bse_type.
+		 */
 		core->pm.clock_on_steps |= 0x1 << 2;
 		ret = mfc_core_wait_pending(core);
 		if (ret != 0) {
@@ -67,54 +137,21 @@ int mfc_core_pm_clock_on(struct mfc_core *core)
 	}
 
 	core->pm.clock_on_steps |= 0x1 << 4;
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	if (core->curr_core_ctx_is_drm) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&core->pm.clklock, flags);
-		mfc_core_debug(3, "Begin: enable protection\n");
-		ret = exynos_smc(SMC_PROTECTION_SET, 0,
-				core->id * PROT_MFC1, SMC_PROTECTION_ENABLE);
-		core->pm.clock_on_steps |= 0x1 << 5;
-		if (ret != DRMDRV_OK) {
-			mfc_core_err("Protection Enable failed! ret(%u)\n", ret);
-			call_dop(core, dump_and_stop_debug_mode, core);
-			spin_unlock_irqrestore(&core->pm.clklock, flags);
-			return -EACCES;
-		}
-		mfc_core_debug(3, "End: enable protection\n");
-		spin_unlock_irqrestore(&core->pm.clklock, flags);
-	}
-#endif
-
-	core->pm.clock_on_steps |= 0x1 << 6;
 	if (!IS_ERR(core->pm.clock)) {
 		ret = clk_enable(core->pm.clock);
 		if (ret < 0)
 			mfc_core_err("clk_enable failed (%d)\n", ret);
 	}
 
-	core->pm.clock_on_steps |= 0x1 << 7;
+	core->pm.clock_on_steps |= 0x1 << 5;
 	atomic_inc_return(&core->clk_ref);
 
-	core->pm.clock_on_steps |= 0x1 << 8;
+	core->pm.clock_on_steps |= 0x1 << 6;
 	state = atomic_read(&core->clk_ref);
 	mfc_core_debug(2, "+ %d\n", state);
 	MFC_TRACE_LOG_CORE("c+%d", state);
 
 	return 0;
-}
-
-/* Use only in functions that first instance is guaranteed, like mfc_init_hw() */
-int mfc_core_pm_clock_on_with_base(struct mfc_core *core,
-				enum mfc_buf_usage_type buf_type)
-{
-	int ret;
-	core->pm.base_type = buf_type;
-	ret = mfc_core_pm_clock_on(core);
-	core->pm.base_type = MFCBUF_INVALID;
-
-	return ret;
 }
 
 void mfc_core_pm_clock_off(struct mfc_core *core)
@@ -133,37 +170,13 @@ void mfc_core_pm_clock_off(struct mfc_core *core)
 		MFC_TRACE_CORE("** clock_off wrong: ref state(%d)\n", atomic_read(&core->clk_ref));
 	} else {
 		core->pm.clock_off_steps |= 0x1 << 3;
-		if (!IS_ERR(core->pm.clock))
+		if (!IS_ERR(core->pm.clock)) {
 			clk_disable(core->pm.clock);
-
-		core->pm.clock_off_steps |= 0x1 << 4;
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-		if (core->curr_core_ctx_is_drm) {
-			unsigned long flags;
-			int ret = 0;
-			/*
-			 * After clock off the protection disable should be
-			 * because the MFC core can continuously run during clock on
-			 */
-			mfc_core_debug(3, "Begin: disable protection\n");
-			spin_lock_irqsave(&core->pm.clklock, flags);
-			core->pm.clock_off_steps |= 0x1 << 5;
-			ret = exynos_smc(SMC_PROTECTION_SET, 0,
-					core->id * PROT_MFC1, SMC_PROTECTION_DISABLE);
-			if (ret != DRMDRV_OK) {
-				mfc_core_err("Protection Disable failed! ret(%u)\n", ret);
-				call_dop(core, dump_and_stop_debug_mode, core);
-				spin_unlock_irqrestore(&core->pm.clklock, flags);
-				return;
-			}
-			mfc_core_debug(3, "End: disable protection\n");
-			core->pm.clock_off_steps |= 0x1 << 6;
-			spin_unlock_irqrestore(&core->pm.clklock, flags);
+			core->pm.clock_off_steps |= 0x1 << 4;
 		}
-#endif
 	}
 
-	core->pm.clock_off_steps |= 0x1 << 7;
+	core->pm.clock_off_steps |= 0x1 << 5;
 	state = atomic_read(&core->clk_ref);
 	mfc_core_debug(2, "- %d\n", state);
 	MFC_TRACE_LOG_CORE("c-%d", state);

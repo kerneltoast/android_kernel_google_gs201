@@ -28,9 +28,9 @@ static inline int mfc_core_pm_get_clk_ref_cnt(struct mfc_core *core)
 void mfc_core_pm_init(struct mfc_core *core);
 void mfc_core_pm_final(struct mfc_core *core);
 
+void mfc_core_protection_on(struct mfc_core *core);
+void mfc_core_protection_off(struct mfc_core *core);
 int mfc_core_pm_clock_on(struct mfc_core *core);
-int mfc_core_pm_clock_on_with_base(struct mfc_core *core,
-			enum mfc_buf_usage_type buf_type);
 void mfc_core_pm_clock_off(struct mfc_core *core);
 int mfc_core_pm_power_on(struct mfc_core *core);
 int mfc_core_pm_power_off(struct mfc_core *core);
