@@ -171,7 +171,7 @@
 				pktproc_ul_padding_required = <1>; /* for s5123 EVT1 only */
 				pktproc_ul_num_queue = <2>;
 				pktproc_ul_max_packet_size = <2048>;
-				pktproc_ul_info_desc_rgn_cached = <0>;
+				pktproc_ul_info_desc_rgn_cached = <1>;
 				pktproc_ul_buff_rgn_cached = <1>;
 				pktproc_ul_use_hw_iocc = <1>; /* H/W IO cache coherency */
 
@@ -185,8 +185,8 @@
 					tpmon_monitor_hold_msec = <3000>;
 					tpmon_monitor_stop_mbps = <15>;
 
-					tpmon_boost_hold_msec = <2000>;
-					tpmon_unboost_tp_percent = <80>;
+					tpmon_boost_hold_msec = <6000>;
+					tpmon_unboost_tp_percent = <40>;
 
 					tpmon_rps_q {
 						tpmon,enable = <0>;
@@ -196,7 +196,7 @@
 						tpmon,idx = <0>;
 						/* Netdev backlog queue */
 						tpmon,threshold = <3000>;
-						tpmon,values = <0x0B 0x60>;
+						tpmon,values = <0x03 0xC0>;
 					};
 					tpmon_rps_tp {
 						tpmon,enable = <1>;
@@ -204,8 +204,8 @@
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_RPS>;
 						tpmon,idx = <0>;
-						tpmon,threshold = <300 2000>;	/* Mbps */
-						tpmon,values = <0x0B 0x70 0x60>;
+						tpmon,threshold = <300>;	/* Mbps */
+						tpmon,values = <0x03 0xC0>;
 					};
 					tpmon_gro_flush_time {
 						tpmon,enable = <1>;
@@ -264,14 +264,35 @@
 						tpmon,threshold = <500>;	/* Mbps */
 						tpmon,values = <0 5>;
 					};
+					tpmon_irq_affinity_dit_pktproc_q {
+						tpmon,enable = <1>;
+						tpmon,name = "IRQ_DIT_PKTPROC_Q";
+						tpmon,measure = <TPMON_MEASURE_PKTPROC_DL_Q>;
+						tpmon,target = <TPMON_TARGET_IRQ_DIT>;
+						tpmon,idx = <0>;
+						/* PktProc rear~fore usage */
+						tpmon,threshold = <6000>;
+						tpmon,values = <2 5>;
+						tpmon,urgent = <1>;
+					};
+					tpmon_irq_affinity_dit_q {
+						tpmon,enable = <1>;
+						tpmon,name = "IRQ_DIT_Q";
+						tpmon,measure = <TPMON_MEASURE_DIT_SRC_Q>;
+						tpmon,target = <TPMON_TARGET_IRQ_DIT>;
+						tpmon,idx = <0>;
+						tpmon,threshold = <7000>;	/* DIT src queue */
+						tpmon,values = <2 5>;
+						tpmon,urgent = <1>;
+					};
 					tpmon_irq_affinity_dit {
 						tpmon,enable = <1>;
 						tpmon,name = "IRQ_DIT";
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_IRQ_DIT>;
 						tpmon,idx = <0>;
-						tpmon,threshold = <2000>;	/* Mbps */
-						tpmon,values = <2 4>;
+						tpmon,threshold = <300>;	/* Mbps */
+						tpmon,values = <2 5>;
 					};
 				};
 
