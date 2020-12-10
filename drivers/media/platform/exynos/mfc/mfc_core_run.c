@@ -46,15 +46,15 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 
 	/* 0. MFC reset */
 	mfc_core_debug(2, "MFC reset...\n");
-	mfc_core_reset_mfc(core);
-	mfc_core_debug(2, "Done MFC reset\n");
-
 	ret = mfc_core_pm_clock_on(core);
 	if (ret) {
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
 		core->curr_core_ctx_is_drm = curr_ctx_is_drm_backup;
 		return ret;
 	}
+
+	mfc_core_reset_mfc(core, buf_type);
+	mfc_core_debug(2, "Done MFC reset\n");
 
 	/* 1. Set DRAM base Addr */
 	mfc_core_set_risc_base_addr(core, buf_type);
@@ -254,14 +254,15 @@ int mfc_core_run_wakeup(struct mfc_core *core)
 
 	/* 0. MFC reset */
 	mfc_core_debug(2, "MFC reset...\n");
-	mfc_core_reset_mfc(core);
-	mfc_core_debug(2, "Done MFC reset...\n");
 
 	ret = mfc_core_pm_clock_on(core);
 	if (ret) {
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
 		return ret;
 	}
+
+	mfc_core_reset_mfc(core, buf_type);
+	mfc_core_debug(2, "Done MFC reset...\n");
 
 	/* 1. Set DRAM base Addr */
 	mfc_core_set_risc_base_addr(core, buf_type);
