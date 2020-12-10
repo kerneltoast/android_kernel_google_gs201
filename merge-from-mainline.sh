@@ -57,7 +57,7 @@ do_merge() {
             sort -u |
             grep -v '^$' |
             sed 's/.*/Bug: &/'`"
-    git merge --no-ff ${*} --m "Merge ${from_branch} into ${branch}
+    git merge --no-ff ${from_branch} --m "Merge ${from_branch} into ${branch}
 ${@}
 
 * ${from_branch}:
