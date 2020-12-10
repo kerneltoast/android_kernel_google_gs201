@@ -82,9 +82,9 @@ per-file pci/controller/dwc/pcie-exynos*=*
 per-file phy/samsung/**=*
 
 per-file pinctrl/pinctrl-slg51000.c=*
-per-file pinctrl/samsung/pinctrl-exynos.c=*
+per-file pinctrl/samsung/pinctrl-exynos*=*
 per-file pinctrl/samsung/pinctrl-gs*=*
-per-file pinctrl/samsung/pinctrl-samsung.c=*
+per-file pinctrl/samsung/pinctrl-samsung.*=*
 
 per-file power/reset/debug-reboot.c=*
 per-file power/reset/exynos-reboot.c=*
