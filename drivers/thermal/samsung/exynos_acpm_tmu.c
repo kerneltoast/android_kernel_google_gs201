@@ -16,6 +16,7 @@
 #include <linux/debugfs.h>
 #include <linux/sched/clock.h>
 #include <soc/google/acpm_ipc_ctrl.h>
+#include <trace/events/power.h>
 #include "exynos_acpm_tmu.h"
 
 static unsigned int acpm_tmu_ch_num, acpm_tmu_size;
@@ -41,7 +42,7 @@ void exynos_acpm_tmu_log(bool mode)
 #define acpm_ipc_latency_check() \
 	do { \
 		if (acpm_tmu_log) { \
-			pr_info("[acpm_tmu] type 0x%02x latency %llu ns ret %d\n", \
+			pr_info_ratelimited("[acpm_tmu] type 0x%02x latency %llu ns ret %d\n", \
 					message->req.type, latency, ret); \
 		} \
 	} while (0)
@@ -116,13 +117,23 @@ int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
+		char name[PAGE_SIZE];
+		int i;
+		u8 *temp = &message.resp.rsvd0;
+		pr_info_ratelimited("[acpm_tmu] tz %d temp 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d\n",
+			tz,
+			message.resp.rsvd0,
+			message.resp.rsvd1,
+			message.resp.rsvd2,
+			message.resp.rsvd3,
+			message.resp.rsvd4,
+			message.resp.rsvd5,
+			message.resp.rsvd6);
+		for (i = 0; i < 7; i++) {
+			scnprintf(name, PAGE_SIZE, "TMU%d_%d", tz, i);
+			trace_clock_set_rate(name, temp[i], raw_smp_processor_id());
+		}
 	}
-
 	*temp = message.resp.temp;
 	*stat = message.resp.stat;
 
@@ -143,7 +154,7 @@ int exynos_acpm_tmu_set_suspend(int flag)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+		pr_info_ratelimited("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
 			message.data[1],
 			message.data[2],
@@ -166,7 +177,7 @@ int exynos_acpm_tmu_set_cp_call(void)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+		pr_info_ratelimited("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
 			message.data[1],
 			message.data[2],
@@ -189,15 +200,15 @@ int exynos_acpm_tmu_set_resume(void)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+		pr_info_ratelimited("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
 			message.data[1],
 			message.data[2],
 			message.data[3]);
 	}
 
-	pr_info("%s: acpm irq %d cold cnt %d stat %d\n",
-		__func__, message.resp.rsvd2, message.resp.rsvd, message.resp.stat);
+	pr_info_ratelimited("%s: acpm irq %d cold cnt %d stat %d\n",
+		__func__, message.resp.rsvd2, message.resp.rsvd0, message.resp.stat);
 
 	return 0;
 }
@@ -213,7 +224,7 @@ int exynos_acpm_tmu_ipc_dump(int no, unsigned int dump[])
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu_dump] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+		pr_info_ratelimited("[acpm_tmu_dump] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
 			message.data[1],
 			message.data[2],
@@ -246,7 +257,7 @@ void exynos_acpm_tmu_set_threshold(int tz, unsigned char temp[])
 	message.req.req_rsvd7 = temp[7];
 
 	exynos_acpm_tmu_ipc_send_data(&message);
-	pr_info("[acpm_tmu] tz %d threshold: 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d\n",
+	pr_info_ratelimited("[acpm_tmu] tz %d threshold: 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d\n",
 		tz, temp[0], temp[1], temp[2], temp[3], temp[4], temp[5],
 		temp[6], temp[7]);
 }
@@ -269,7 +280,7 @@ void exynos_acpm_tmu_set_hysteresis(int tz, unsigned char hyst[])
 	message.req.req_rsvd7 = hyst[7];
 
 	exynos_acpm_tmu_ipc_send_data(&message);
-	pr_info("[acpm_tmu] tz %d hysteresis: 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d\n",
+	pr_info_ratelimited("[acpm_tmu] tz %d hysteresis: 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d\n",
 		tz, hyst[0], hyst[1], hyst[2], hyst[3], hyst[4], hyst[5],
 		hyst[6], hyst[7]);
 }
@@ -285,7 +296,7 @@ void exynos_acpm_tmu_set_interrupt_enable(int tz, unsigned char inten)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+		pr_info_ratelimited("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
 			message.data[1],
 			message.data[2],
@@ -304,7 +315,7 @@ void exynos_acpm_tmu_tz_control(int tz, bool enable)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+		pr_info_ratelimited("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
 			message.data[1],
 			message.data[2],
@@ -322,7 +333,7 @@ void exynos_acpm_tmu_clear_tz_irq(int tz)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+		pr_info_ratelimited("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
 			message.data[1],
 			message.data[2],
@@ -341,7 +352,7 @@ void exynos_acpm_tmu_set_emul_temp(int tz, unsigned char temp)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+		pr_info_ratelimited("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
 			message.data[1],
 			message.data[2],
