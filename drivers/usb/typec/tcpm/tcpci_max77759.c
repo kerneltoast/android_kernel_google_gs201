@@ -292,6 +292,10 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 		logbuffer_log(log, "Unable to unmask FAST_ROLE_SWAP interrupt");
 		return;
 	}
+
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_VCON_CTRL, VCNILIM_MASK, VCNILIM_300_MA);
+	if (ret < 0)
+		logbuffer_log(log, "TCPC_VENDOR_VCON_CTRL: update vcnilim to 300mA failed");
 }
 
 static void process_rx(struct max77759_plat *chip, u16 status)
@@ -326,7 +330,11 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 		return;
 	}
 
-	if (count > sizeof(struct pd_message) || count + 1 > TCPC_RECEIVE_BUFFER_LEN) {
+	/*
+	 * 1. struct pd_message does not have RX_BUF_FRAME_TYPE.
+	 * 2. READABLE_BYTE_COUNT is exclusive of itself.
+	 */
+	if (count > sizeof(struct pd_message) + 1 || count + 1 > TCPC_RECEIVE_BUFFER_LEN) {
 		dev_err(chip->dev, "Invalid TCPC_RX_BYTE_CNT %d", count);
 		return;
 	}
@@ -1229,6 +1237,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.set_current_limit = max77759_set_current_limit;
 	chip->data.TX_BUF_BYTE_x_hidden = 1;
 	chip->data.override_toggling = true;
+	chip->data.vbus_vsafe0v = true;
 	chip->data.set_pd_capable = max77759_set_pd_capable;
 	chip->data.set_roles = max77759_set_roles;
 	chip->data.init = tcpci_init;

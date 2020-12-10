@@ -28,4 +28,10 @@ config ACPM_POWER_STATS
 	help
 	  Manages the collection of power stats collected by the ACPM
 
+config ACPM_MBOX_TEST
+	tristate "ACPM_MBOX_TEST support"
+	default n
+	help
+	  Enable ACPM_MBOX_TEST support
+
 endif

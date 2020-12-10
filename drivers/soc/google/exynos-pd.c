@@ -10,6 +10,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <soc/google/exynos-pd.h>
 #include <soc/google/bts.h>
 #include <soc/google/cal-if.h>
@@ -138,16 +140,21 @@ static int exynos_pd_power_on(struct generic_pm_domain *genpd)
 
 	mutex_lock(&pd->access_lock);
 
-	DEBUG_PRINT_INFO("pd_power_on:(%s)+\n", pd->name);
+	pr_debug("pd_power_on:(%s)+\n", pd->name);
+
+	if (pd->need_sync) {
+		pd->turn_off_on_sync = false;
+		goto acc_unlock;
+	}
 
 	if (unlikely(!pd->pd_control)) {
-		pr_debug(EXYNOS_PD_PREFIX "%s is logical sub power domain, does not have power on control\n",
+		pr_debug("%s is logical sub power domain, does not have power on control\n",
 			 pd->name);
 		goto acc_unlock;
 	}
 
 	if (pd->power_down_skipped) {
-		pr_info(EXYNOS_PD_PREFIX "%s power-on is skipped.\n", pd->name);
+		pr_info("%s power-on is skipped.\n", pd->name);
 		goto acc_unlock;
 	}
 
@@ -155,7 +162,7 @@ static int exynos_pd_power_on(struct generic_pm_domain *genpd)
 
 	ret = pd->pd_control(pd->cal_pdid, 1);
 	if (ret) {
-		pr_err(EXYNOS_PD_PREFIX "%s cannot be powered on\n", pd->name);
+		pr_err("%s cannot be powered on\n", pd->name);
 		exynos_pd_power_off_post(pd);
 		ret = -EAGAIN;
 		goto acc_unlock;
@@ -167,37 +174,38 @@ static int exynos_pd_power_on(struct generic_pm_domain *genpd)
 	pd->pd_stat.last_on_time = ktime_get_boottime();
 
 acc_unlock:
-	DEBUG_PRINT_INFO("pd_power_on:(%s)-, ret = %d\n", pd->name, ret);
+	pr_debug("pd_power_on:(%s)-, ret = %d\n", pd->name, ret);
 	mutex_unlock(&pd->access_lock);
 
 	return ret;
 }
 
-static int exynos_pd_power_off(struct generic_pm_domain *genpd)
+static int __exynos_pd_power_off(struct generic_pm_domain *genpd)
 {
 	struct exynos_pm_domain *pd =
 		container_of(genpd, struct exynos_pm_domain, genpd);
 	int ret = 0;
 	ktime_t now;
 
-	mutex_lock(&pd->access_lock);
+	pr_debug("pd_power_off:(%s)+\n", pd->name);
 
-	DEBUG_PRINT_INFO("pd_power_off:(%s)+\n", pd->name);
-
+	/* Until all consumers have probed, delay actual turn OFF of PD until
+	 * sync, tell GENPD that PD was turned OFF successfully to get correct
+	 * accounting, GENPD will request it to be back ON if needed.
+	 */
 	if (pd->need_sync) {
-		ret = -EBUSY;
+		pd->turn_off_on_sync = true;
 		goto acc_unlock;
 	}
 
 	if (unlikely(!pd->pd_control)) {
-		pr_debug(EXYNOS_PD_PREFIX "%s is logical sub power domain, does not have power off control\n",
+		pr_debug("%s is logical sub power domain, does not have power off control\n",
 			 genpd->name);
 		goto acc_unlock;
 	}
 
 	if (pd->power_down_ok && !pd->power_down_ok()) {
-		pr_info(EXYNOS_PD_PREFIX "%s power-off is skipped.\n",
-			pd->name);
+		pr_info("%s power-off is skipped.\n", pd->name);
 		pd->power_down_skipped = true;
 		goto acc_unlock;
 	}
@@ -216,7 +224,19 @@ static int exynos_pd_power_off(struct generic_pm_domain *genpd)
 	pd->pd_stat.last_off_time = now;
 
 acc_unlock:
-	DEBUG_PRINT_INFO("pd_power_off:(%s)-, ret = %d\n", pd->name, ret);
+	pr_debug("pd_power_off:(%s)-, ret = %d\n", pd->name, ret);
+
+	return ret;
+}
+
+static int exynos_pd_power_off(struct generic_pm_domain *genpd)
+{
+	struct exynos_pm_domain *pd =
+		container_of(genpd, struct exynos_pm_domain, genpd);
+	int ret;
+
+	mutex_lock(&pd->access_lock);
+	ret = __exynos_pd_power_off(genpd);
 	mutex_unlock(&pd->access_lock);
 
 	return ret;
@@ -323,7 +343,7 @@ static int exynos_pd_suspend_late(struct device *dev)
 	/* Suspend callback function might be registered if necessary */
 	if (of_property_read_bool(dev->of_node, "pd-always-on")) {
 		data->genpd.flags = 0;
-		dev_info(dev, EXYNOS_PD_PREFIX "    %-9s flag set to 0\n", data->genpd.name);
+		dev_info(dev, "    %-9s flag set to 0\n", data->genpd.name);
 	}
 
 	return 0;
@@ -340,8 +360,7 @@ static int exynos_pd_resume_early(struct device *dev)
 	/* Resume callback function might be registered if necessary */
 	if (of_property_read_bool(dev->of_node, "pd-always-on")) {
 		data->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
-		dev_info(dev, EXYNOS_PD_PREFIX "    %-9s - %s\n", data->genpd.name,
-			 "on,  always");
+		dev_info(dev, "    %-9s - %s\n", data->genpd.name, "on,  always");
 	}
 
 	return 0;
@@ -364,7 +383,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	ktime_t now;
 
 	if (!of_have_populated_dt()) {
-		dev_err(dev, EXYNOS_PD_PREFIX "Could not find required device tree entries\n");
+		dev_err(dev, "Could not find required device tree entries\n");
 		return -EPERM;
 	}
 
@@ -380,8 +399,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	pd->name = kstrdup(np->name, GFP_KERNEL);
 	ret = of_property_read_u32(np, "cal_id", (u32 *)&pd->cal_pdid);
 	if (ret) {
-		dev_err(dev, EXYNOS_PD_PREFIX "failed to get cal_pdid from of %s\n",
-			pd->name);
+		dev_err(dev, "failed to get cal_pdid from of %s\n", pd->name);
 		return -ENODEV;
 	}
 
@@ -397,13 +415,12 @@ static int exynos_pd_probe(struct platform_device *pdev)
 		pd->need_smc = 0x0;
 	} else {
 		cal_pd_set_smc_id(pd->cal_pdid, pd->need_smc);
-		dev_info(dev, EXYNOS_PD_PREFIX "%s read need_smc 0x%x successfully.!\n",
-			 pd->name, pd->need_smc);
+		dev_dbg(dev, "read need_smc 0x%x successfully.!\n",
+			pd->need_smc);
 	}
 	initial_state = cal_pd_status(pd->cal_pdid);
 	if (initial_state == -1) {
-		dev_err(dev, EXYNOS_PD_PREFIX "%s is in unknown state\n",
-			pd->name);
+		dev_err(dev, "%s is in unknown state\n", pd->name);
 		kfree(pd->name);
 		return -EINVAL;
 	}
@@ -427,8 +444,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 
 	ret = exynos_pd_genpd_init(pd, initial_state);
 	if (ret) {
-		dev_err(dev, EXYNOS_PD_PREFIX "exynos_pd_genpd_init fail: %s, ret:%d\n",
-			pd->name, ret);
+		dev_err(dev, "exynos_pd_genpd_init fail: ret:%d\n", ret);
 		kfree(pd->name);
 		return ret;
 	}
@@ -437,12 +453,9 @@ static int exynos_pd_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(np, "pd-always-on")) {
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
-		dev_info(dev,
-			 EXYNOS_PD_PREFIX "    %-9s - %s\n", pd->genpd.name,
-			 "on,  always");
+		dev_info(dev, " - %s\n", "on,  always");
 	} else {
-		dev_info(dev,
-			 EXYNOS_PD_PREFIX "    %-9s - %-3s\n", pd->genpd.name,
+		dev_info(dev, " - %-3s\n", pd->genpd.name,
 			 cal_pd_status(pd->cal_pdid) ? "on" : "off");
 	}
 
@@ -450,39 +463,40 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	if (parent) {
 		parent_pd_pdev = of_find_device_by_node(parent);
 		if (!parent_pd_pdev) {
-			dev_info(dev,
-				 EXYNOS_PD_PREFIX "parent pd pdev not found");
+			dev_err(dev, "parent pd pdev not found");
 		} else {
 			parent_pd = platform_get_drvdata(parent_pd_pdev);
 			if (!parent_pd) {
-				dev_info(dev,
-					 EXYNOS_PD_PREFIX
-					 "parent pd not found");
+				dev_err(dev, "parent pd not found");
 			} else {
 				if (pm_genpd_add_subdomain(&parent_pd->genpd,
 							   &pd->genpd))
-					pr_err(EXYNOS_PD_PREFIX
-					       "%s cannot add subdomain %s\n",
-					       parent_pd->name, pd->name);
+					dev_err(dev, "cannot add subdomain %s\n",
+						pd->name);
 				else
-					pr_err(EXYNOS_PD_PREFIX
-					       "%s have new subdomain %s\n",
-					       parent_pd->name, pd->name);
+					dev_info(dev, "has new subdomain %s\n",
+						 pd->name);
 			}
 		}
 	}
 
-	dev_info(dev, EXYNOS_PD_PREFIX "PM Domain Initialized\n");
+	dev_info(dev, "PM Domain Initialized\n");
 	return ret;
 }
 
 static void exynos_pd_sync_state(struct device *dev)
 {
 	struct exynos_pm_domain *pd;
+
 	pd = platform_get_drvdata(to_platform_device(dev));
 
 	mutex_lock(&pd->access_lock);
-	pd->need_sync = false;
+	if (pd->need_sync) {
+		pd->need_sync = false;
+		dev_info(dev, "sync_state: turn_off = %d\n", pd->turn_off_on_sync);
+		if (pd->turn_off_on_sync)
+			__exynos_pd_power_off(&pd->genpd);
+	}
 	mutex_unlock(&pd->access_lock);
 }
 

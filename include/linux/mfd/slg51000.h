@@ -29,6 +29,7 @@
 #define SLG51000_SYSCTL_EVENT                   0x1116
 #define SLG51000_SYSCTL_STATUS                  0x1117
 #define SLG51000_SYSCTL_IRQ_MASK                0x1118
+#define SLG51000_SYSCTL_TEST_EN                 0x1119
 #define SLG51000_SW_TEST_MODE_1                 0x111a
 #define SLG51000_SW_TEST_MODE_2                 0x111b
 #define SLG51000_SW_TEST_MODE_3                 0x111c
@@ -287,6 +288,10 @@
 #define SLG51000_IRQ_MATRIX_MASK                (0x01 << 1)
 #define SLG51000_IRQ_HIGH_TEMP_WARN_SHIFT       0
 #define SLG51000_IRQ_HIGH_TEMP_WARN_MASK        (0x01 << 0)
+
+/* SLG51000_SYSCTL_TEST_EN = 0x1119 */
+#define SLG51000_TEST_EN_OFF                    0x00
+#define SLG51000_TEST_EN_ON_MASK                0x04
 
 /* SLG51000_SW_TEST_MODE = 0x111a */
 #define SLG51000_SW_TEST_MODE_1_ON              0x45
@@ -593,6 +598,10 @@ struct slg51000_dev {
 	int chip_bb_pin;
 	int chip_pu_pin;
 	int chip_id;
+	bool support_power_seq;
+
+	int (*enter_sw_test_mode)(struct regmap *map);
+	int (*exit_sw_test_mode)(struct regmap *map);
 };
 
 /* GPIOs */
@@ -601,9 +610,10 @@ enum {
 	SLG51000_GPIO2,
 	SLG51000_GPIO3,
 	SLG51000_GPIO4,
-	SLG51000_SEQUENCE1,
-	SLG51000_SEQUENCE2,
-	SLG51000_SEQUENCE3,
+	SLG51000_SEQ1,
+	SLG51000_SEQ2,
+	SLG51000_SEQ3,
+	SLG51000_GPIO_NR,
 };
 
 struct slg51000_register_setting {

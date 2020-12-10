@@ -562,7 +562,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	/* Check if the old cooling action is same as new cooling action */
 	if (cpufreq_cdev->cpufreq_state == state)
-		return 0;
+		return -EALREADY;
 
 	cpufreq_cdev->cpufreq_state = state;
 

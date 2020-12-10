@@ -20,6 +20,7 @@
 		samsung,iommu-group = <&iommu_group_bo>;
 		pt_id = "bigocean";
 		power-domains = <&pd_bo>;
+		samsung,tzmp;
 	};
 
 	bigo_opp_table: bigo_opp_table {

@@ -24,6 +24,8 @@
 #include <linux/devfreq.h>
 #include <soc/google/exynos-devfreq.h>
 
+#include "dvfs_events.h"
+
 static int devfreq_simple_interactive_notifier(struct notifier_block *nb, unsigned long val,
 					       void *v)
 {
@@ -42,119 +44,140 @@ static int devfreq_simple_interactive_notifier(struct notifier_block *nb, unsign
 #define NEXTBUF(x, b)	do { if (++(x) > &(b)[LOAD_BUFFER_MAX - 1]) (x) = (b); } while (0)
 #define POSTBUF(x, b)	((x) = ((--(x) < (b)) ?				\
 			&(b)[LOAD_BUFFER_MAX - 1] : (x)))
-static unsigned long update_load(struct devfreq_dev_status *stat,
-				 struct devfreq_simple_interactive_data *data)
+static unsigned long calculate_freq(struct devfreq_simple_interactive_data *data,
+				    struct devfreq_alt_track *track,
+				    unsigned long current_frequency,
+				    unsigned int targetload,
+				    unsigned long long delta_time,
+				    unsigned long long total_time,
+				    unsigned long long busy_time)
 {
+	struct devfreq_alt_dvfs_data *alt_data = &(data->alt_data);
 	struct devfreq_alt_load *ptr;
-	struct devfreq_alt_dvfs_data *alt_data = &data->alt_data;
-	unsigned int targetload;
 	unsigned long freq;
-	int i;
-	struct exynos_profile_data *profile_data = (struct exynos_profile_data *)stat->private_data;
 
-	if (!profile_data->total_time)
-		return stat->current_frequency;
-	for (i = 0; i < alt_data->num_target_load - 1 &&
-	     stat->current_frequency >= alt_data->target_load[i + 1]; i += 2)
-		;
-
-	targetload = alt_data->target_load[i];
+	if (!total_time)
+		goto out;
 
 	/* if frequency is changed then reset the load */
-	if (!stat->current_frequency ||
-	    stat->current_frequency != data->prev_freq) {
-		alt_data->rear = alt_data->front;
-		alt_data->front->delta = 0;
-		alt_data->total = 0;
-		alt_data->busy = 0;
-		if (alt_data->max_load >= targetload)
-			alt_data->max_load = targetload;
+	if (!current_frequency || current_frequency != data->prev_freq) {
+		track->rear = track->front;
+		track->front->delta = 0;
+		track->total = 0;
+		track->busy = 0;
+		if (track->max_load >= targetload)
+			track->max_load = targetload;
 		else
-			alt_data->max_load = 0;
+			track->max_load = 0;
 
-		alt_data->max_spent = 0;
-		alt_data->min_load = targetload;
+		track->max_spent = 0;
+		track->min_load = targetload;
 	}
-	ptr = alt_data->front;
-	ptr->delta += profile_data->delta_time;
-	alt_data->max_spent += profile_data->delta_time;
-	alt_data->total += profile_data->total_time;
-	alt_data->busy += profile_data->busy_time;
+	ptr = track->front;
+	ptr->delta += delta_time;
+	track->max_spent += delta_time;
+	track->total += total_time;
+	track->busy += busy_time;
 
 	/* if too short time, then not counting */
 	if (ptr->delta > alt_data->min_sample_time * NSEC_PER_MSEC) {
-		NEXTBUF(alt_data->front, alt_data->buffer);
-		alt_data->front->delta = 0;
+		NEXTBUF(track->front, track->buffer);
+		track->front->delta = 0;
 
-		if (alt_data->front == alt_data->rear)
-			NEXTBUF(alt_data->rear, alt_data->buffer);
-		ptr->load = alt_data->total ?
-				    alt_data->busy * 1000 / alt_data->total :
+		if (track->front == track->rear)
+			NEXTBUF(track->rear, track->buffer);
+		ptr->load = track->total ?
+				    track->busy * 1000 / track->total :
 				    0;
-		alt_data->busy = 0;
-		alt_data->total = 0;
+		track->busy = 0;
+		track->total = 0;
 
 		/* if ptr load is higher than pervious or too small load */
-		if (alt_data->max_load <= ptr->load) {
-			alt_data->min_load = ptr->load;
-			alt_data->max_spent = 0;
-			alt_data->max_load = ptr->load;
+		if (track->max_load <= ptr->load) {
+			track->min_load = ptr->load;
+			track->max_spent = 0;
+			track->max_load = ptr->load;
 			goto out;
-		} else if (ptr->load < alt_data->min_load) {
-			alt_data->min_load = ptr->load;
+		} else if (ptr->load < track->min_load) {
+			track->min_load = ptr->load;
 			if (ptr->load < alt_data->tolerance) {
-				alt_data->max_load = ptr->load;
-				alt_data->max_spent = 0;
-				data->governor_freq = 0;
+				track->max_load = ptr->load;
+				track->max_spent = 0;
 				return 0;
 			}
 		}
 	}
 
 	/* new max load */
-	if (alt_data->max_spent > alt_data->hold_sample_time * NSEC_PER_MSEC) {
+	if (track->max_spent > alt_data->hold_sample_time * NSEC_PER_MSEC) {
 		unsigned long long spent = 0;
 		/* if not valid data, then skip */
-		if (alt_data->front == ptr) {
+		if (track->front == ptr) {
 			spent += ptr->delta;
-			POSTBUF(ptr, alt_data->buffer);
+			POSTBUF(ptr, track->buffer);
 		}
-		alt_data->max_load = ptr->load;
-		alt_data->max_spent = spent;
+		track->max_load = ptr->load;
+		track->max_spent = spent;
 		/* if there is downtrend, then reflect current load */
-		if (ptr->load > alt_data->min_load + alt_data->tolerance) {
-			alt_data->min_load = ptr->load;
+		if (ptr->load > track->min_load + alt_data->tolerance) {
+			track->min_load = ptr->load;
 			spent += ptr->delta;
-			POSTBUF(ptr, alt_data->buffer);
+			POSTBUF(ptr, track->buffer);
 			for (; spent < alt_data->hold_sample_time *
-			     NSEC_PER_MSEC && ptr != alt_data->rear;
-			     POSTBUF(ptr, alt_data->buffer)) {
-				if (alt_data->max_load < ptr->load) {
-					alt_data->max_load = ptr->load;
-					alt_data->max_spent = spent;
-				} else if (alt_data->min_load > ptr->load) {
-					alt_data->min_load = ptr->load;
+			     NSEC_PER_MSEC && ptr != track->rear;
+			     POSTBUF(ptr, track->buffer)) {
+				if (track->max_load < ptr->load) {
+					track->max_load = ptr->load;
+					track->max_spent = spent;
+				} else if (track->min_load > ptr->load) {
+					track->min_load = ptr->load;
 				}
 				spent += ptr->delta;
 			}
 		} else {
-			alt_data->min_load = ptr->load;
+			track->min_load = ptr->load;
 		}
 	}
 out:
-	/* a few measurement */
-	if (alt_data->max_load == targetload || alt_data->total)
+	if (track->max_load == targetload || track->total)
 		freq = data->governor_freq;
 	else
-		freq = alt_data->max_load * stat->current_frequency / targetload;
+		freq = track->max_load * current_frequency / targetload;
+
+	return freq;
+}
+
+static unsigned long update_load(struct devfreq_dev_status *stat,
+				 struct devfreq_simple_interactive_data *data)
+{
+	struct devfreq_alt_dvfs_data *alt_data = &data->alt_data;
+	struct exynos_profile_data *profile_data = (struct exynos_profile_data *)stat->private_data;
+	unsigned long freq, cal_freq;
+	int i, idx = 0;
+
+	freq = 0;
+	for (i = 0; i < alt_data->track_group; i++) {
+		cal_freq = calculate_freq(data, &(alt_data->track[i]),
+					  stat->current_frequency,
+					  alt_data->target_load[i],
+					  profile_data->delta_time,
+					  profile_data->ppc_val[i].ccnt,
+					  profile_data->ppc_val[i].pmcnt1);
+		if (freq < cal_freq) {
+			freq = cal_freq;
+			idx = i;
+		}
+	}
 
 	/* Limit the change to 50% ~ 200% */
 	freq = min(freq, stat->current_frequency << 1);
 	freq = max(freq, stat->current_frequency >> 1);
 
-	if (alt_data->max_load > alt_data->hispeed_load &&
+	if (alt_data->track[idx].max_load > alt_data->hispeed_load &&
 	    alt_data->hispeed_freq > freq)
 		freq = alt_data->hispeed_freq;
+
+	trace_dvfs_update_load(freq, alt_data, idx);
 
 	data->governor_freq = freq;
 

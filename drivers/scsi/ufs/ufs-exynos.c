@@ -581,9 +581,6 @@ static int exynos_ufs_hce_enable_notify(struct ufs_hba *hba,
 
 	switch (notify) {
 	case PRE_CHANGE:
-		/* override some parameters from core driver */
-		exynos_ufs_override_hba_params(hba);
-
 		/*
 		 * This function is called in ufshcd_hba_enable,
 		 * maybe boot, wake-up or link start-up failure cases.
@@ -1323,7 +1320,7 @@ static ssize_t exynos_ufs_sysfs_store(struct kobject *kobj,
 	struct exynos_ufs_sysfs_attr *param = container_of(attr,
 			struct exynos_ufs_sysfs_attr, attr);
 	u32 val;
-	int ret;
+	int ret = 0;
 
 	if (kstrtou32(buf, 10, &val))
 		return -EINVAL;

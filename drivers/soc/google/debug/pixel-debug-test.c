@@ -580,7 +580,6 @@ static void parse_and_trigger(const char *buf)
 	char *cmd;
 	char *space = NULL, *param = NULL;
 	int cmd_size = strlen(buf);
-	int cmd_count = ARRAY_SIZE(force_error_vector);
 
 	pr_debug("cmd_size=%d, PAGE_SIZE=%d\n", cmd_size, PAGE_SIZE);
 	/*

@@ -336,6 +336,10 @@ static void dbg_snapshot_init_desc(struct device *dev)
 	raw_spin_lock_init(&dss_desc.ctrl_lock);
 	dbg_snapshot_set_sjtag_status();
 	dss_desc.dev = dev;
+
+	if (of_property_read_u32(dev->of_node, "panic-action",
+			&dss_desc.panic_action))
+		dss_desc.panic_action = GO_DEFAULT_ID;
 }
 
 static void dbg_snapshot_fixmap(void)
@@ -473,25 +477,6 @@ static int dbg_snapshot_rmem_setup(struct device *dev)
 	return 0;
 }
 
-static ssize_t dss_panic_to_wdt_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%sabled\n",
-			dss_desc.panic_to_wdt ? "En" : "Dis");
-}
-
-static ssize_t dss_panic_to_wdt_store(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	unsigned long mode;
-
-	if (!kstrtoul(buf, 10, &mode))
-		dss_desc.panic_to_wdt = !!mode;
-
-	return count;
-}
-
 static ssize_t dss_dpm_none_dump_mode_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -522,7 +507,6 @@ static ssize_t dss_dpm_none_dump_mode_store(struct device *dev,
 	return count;
 }
 
-DEVICE_ATTR_RW(dss_panic_to_wdt);
 DEVICE_ATTR_RW(dss_dpm_none_dump_mode);
 
 static void dbg_snapshot_set_slcdump_status(void)
@@ -559,7 +543,6 @@ static void dbg_snapshot_set_slcdump_status(void)
 
 static struct attribute *dss_sysfs_attrs[] = {
 	&dev_attr_dss_dpm_none_dump_mode.attr,
-	&dev_attr_dss_panic_to_wdt.attr,
 	NULL,
 };
 

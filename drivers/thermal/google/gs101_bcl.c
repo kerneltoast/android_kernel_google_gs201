@@ -35,11 +35,15 @@
 #define CPUCL0_BASE (0x20c00000)
 #define CPUCL1_BASE (0x20c10000)
 #define CPUCL2_BASE (0x20c20000)
+#define G3D_BASE (0x1c400000)
+#define TPU_BASE (0x1c400000)
 #define SYSREG_CPUCL0_BASE (0x20c40000)
 #define CLUSTER0_GENERAL_CTRL_64 (0x1404)
 #define CLKDIVSTEP (0x830)
 #define CPUCL0_CLKDIVSTEP_STAT (0x83c)
 #define CPUCL12_CLKDIVSTEP_STAT (0x848)
+#define G3D_CLKDIVSTEP_STAT (0x854)
+#define TPU_CLKDIVSTEP_STAT (0x850)
 #define CLUSTER0_MPMM (0x1408)
 #define CLUSTER0_PPM (0x140c)
 #define MPMMEN_MASK (0xF << 21)
@@ -102,7 +106,14 @@ enum IRQ_SOURCE_S2MPG11 {
 
 enum sys_throttling_core { SYS_THROTTLING_MID_CORE, SYS_THROTTLING_BIG_CORE };
 
-enum sys_throttling_switch { SYS_THROTTLING_DISABLED, SYS_THROTTLING_ENABLED };
+enum sys_throttling_switch {
+	SYS_THROTTLING_DISABLED,
+	SYS_THROTTLING_ENABLED,
+	SYS_THROTTLING_GEAR0,
+	SYS_THROTTLING_GEAR1,
+	SYS_THROTTLING_GEAR2,
+	SYS_THROTTLING_MAX,
+};
 
 enum sys_throttling_mode { SYS_THROTTLING_MPMM_MODE, SYS_THROTTLING_PPM_MODE };
 
@@ -114,6 +125,8 @@ struct gs101_bcl_dev {
 	void __iomem *cpu0_mem;
 	void __iomem *cpu1_mem;
 	void __iomem *cpu2_mem;
+	void __iomem *gpu_mem;
+	void __iomem *tpu_mem;
 	void __iomem *sysreg_cpucl0;
 
 	struct notifier_block psy_nb;
@@ -676,7 +689,7 @@ static int gs101_bcl_soc_remove(struct gs101_bcl_dev *gs101_bcl_device)
 static int get_cpucl0_stat(void *data, u64 *val)
 {
 	unsigned int reg = 0;
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 
 	reg = __raw_readl(bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_STAT);
 	*val = (reg >> 16) & 0x0FFF;
@@ -685,7 +698,7 @@ static int get_cpucl0_stat(void *data, u64 *val)
 
 static int reset_cpucl0_stat(void *data, u64 val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 
 	if (val == 0)
 		__raw_writel(0x1, bcl_dev->cpu0_mem + CLKDIVSTEP);
@@ -699,7 +712,7 @@ DEFINE_SIMPLE_ATTRIBUTE(cpucl0_clkdivstep_stat_fops, get_cpucl0_stat,
 
 static int get_cpucl2_stat(void *data, u64 *val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 	unsigned int reg = 0;
 
 	reg = __raw_readl(bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_STAT);
@@ -709,7 +722,7 @@ static int get_cpucl2_stat(void *data, u64 *val)
 
 static int reset_cpucl2_stat(void *data, u64 val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 
 	if (val == 0)
 		__raw_writel(0x1, bcl_dev->cpu2_mem + CLKDIVSTEP);
@@ -723,7 +736,7 @@ DEFINE_SIMPLE_ATTRIBUTE(cpucl2_clkdivstep_stat_fops, get_cpucl2_stat,
 
 static int get_cpucl1_stat(void *data, u64 *val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 	unsigned int reg = 0;
 
 	reg = __raw_readl(bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_STAT);
@@ -733,7 +746,7 @@ static int get_cpucl1_stat(void *data, u64 *val)
 
 static int reset_cpucl1_stat(void *data, u64 val)
 {
-	struct gs101_bcl_dev *bcl_dev = (struct gs101_bcl_dev *)data;
+	struct gs101_bcl_dev *bcl_dev = data;
 
 	if (val == 0)
 		__raw_writel(0x1, bcl_dev->cpu1_mem + CLKDIVSTEP);
@@ -744,6 +757,54 @@ static int reset_cpucl1_stat(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(cpucl1_clkdivstep_stat_fops, get_cpucl1_stat,
 			reset_cpucl1_stat, "%d\n");
+
+static int get_gpu_stat(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+	unsigned int reg = 0;
+
+	reg = __raw_readl(bcl_dev->gpu_mem + G3D_CLKDIVSTEP_STAT);
+	*val = (reg >> 16) & 0x0FFF;
+	return 0;
+}
+
+static int reset_gpu_stat(void *data, u64 val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	if (val == 0)
+		__raw_writel(0x1, bcl_dev->gpu_mem + CLKDIVSTEP);
+	else
+		__raw_writel(0x107f, bcl_dev->gpu_mem + CLKDIVSTEP);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(gpu_clkdivstep_stat_fops, get_gpu_stat,
+			reset_gpu_stat, "%d\n");
+
+static int get_tpu_stat(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+	unsigned int reg = 0;
+
+	reg = __raw_readl(bcl_dev->tpu_mem + TPU_CLKDIVSTEP_STAT);
+	*val = (reg >> 16) & 0x0FFF;
+	return 0;
+}
+
+static int reset_tpu_stat(void *data, u64 val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	if (val == 0)
+		__raw_writel(0x1, bcl_dev->tpu_mem + CLKDIVSTEP);
+	else
+		__raw_writel(0x107f, bcl_dev->tpu_mem + CLKDIVSTEP);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(tpu_clkdivstep_stat_fops, get_tpu_stat,
+			reset_tpu_stat, "%d\n");
 
 static int get_smpl_lvl(void *data, u64 *val)
 {
@@ -1051,6 +1112,8 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 {
 	unsigned int reg, mask;
 	void __iomem *addr;
+	unsigned int settings;
+	unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {0xF, 0x0, 0x0, 0x5, 0xA};
 
 	if (!gs101_bcl_device->sysreg_cpucl0) {
 		pr_err("sysreg_cpucl0 ioremap not mapped\n");
@@ -1059,16 +1122,21 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	mutex_lock(&sysreg_lock);
 	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_MPMM;
 	reg = __raw_readl(addr);
-	mask = (core == SYS_THROTTLING_BIG_CORE) ? (0x0F << 4) : 0x0F;
-	if (throttle_switch == SYS_THROTTLING_ENABLED)
-		reg &= ~mask;
+
+	if ((throttle_switch < 0) || (throttle_switch > SYS_THROTTLING_GEAR2))
+		settings = 0xF;
 	else
-		reg |= mask;
+		settings = sys_throttling_settings[throttle_switch];
+
+	mask = (core == SYS_THROTTLING_BIG_CORE) ? (0xF << 4) : 0xF;
+	reg &= ~mask;
+	mask = (core == SYS_THROTTLING_BIG_CORE) ? (settings << 4) : settings;
+	reg |= mask;
 	__raw_writel(reg, addr);
 	mutex_unlock(&sysreg_lock);
 }
 
-static int gs101_enable_ppm_throttling(void *data, u64 val)
+static int gs101_toggle_ppm_throttling(void *data, u64 val)
 {
 	unsigned int mode;
 
@@ -1080,21 +1148,20 @@ static int gs101_enable_ppm_throttling(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ppm_fops, NULL, gs101_enable_ppm_throttling, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(ppm_fops, NULL, gs101_toggle_ppm_throttling, "%d\n");
 
-static int gs101_enable_mpmm_throttling(void *data, u64 val)
+static int gs101_toggle_mpmm_throttling(void *data, u64 val)
 {
-	unsigned int mode;
+	unsigned int mode = val;
 
-	pr_info("gs101: enable MPMM throttling");
+	pr_info("gs101: MPMM throttling:%d", val);
 
-	mode = (val == 0) ? SYS_THROTTLING_DISABLED : SYS_THROTTLING_ENABLED;
 	gs101_set_mpmm_throttling(data, SYS_THROTTLING_MID_CORE, mode);
 	gs101_set_mpmm_throttling(data, SYS_THROTTLING_BIG_CORE, mode);
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(mpmm_fops, NULL, gs101_enable_mpmm_throttling, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(mpmm_fops, NULL, gs101_toggle_mpmm_throttling, "%d\n");
 
 static int gs101_bcl_register_pmic_irq(struct gs101_bcl_dev *gs101_bcl_device,
 				  int id, int sensor_id, irq_handler_t thread_fn,
@@ -1216,6 +1283,8 @@ static void gs101_bcl_mfd_init(struct work_struct *work)
 				      gs101_bcl_device);
 			bypass_smpl_warn = true;
 		}
+		thermal_zone_device_update(gs101_bcl_device->soc_tzd, THERMAL_DEVICE_UP);
+		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
 		gs101_bcl_device->s2mpg10_i2c = s2mpg10->pmic;
 		gs101_bcl_device->s2mpg11_i2c = 0x0;
 		gs101_bcl_device->s2mpg10_irq[IRQ_SMPL_WARN] =
@@ -1500,6 +1569,12 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		debugfs_create_file("cpucl2_clkdiv_stat", 0644,
 				    gs101_bcl_device->debug_entry, gs101_bcl_device,
 				    &cpucl2_clkdivstep_stat_fops);
+		debugfs_create_file("gpu_clkdiv_stat", 0644,
+				    gs101_bcl_device->debug_entry, gs101_bcl_device,
+				    &gpu_clkdivstep_stat_fops);
+		debugfs_create_file("tpu_clkdiv_stat", 0644,
+				    gs101_bcl_device->debug_entry, gs101_bcl_device,
+				    &tpu_clkdivstep_stat_fops);
 		debugfs_create_file("mpmm_throttle", 0644,
 				    gs101_bcl_device->debug_entry, gs101_bcl_device,
 				    &mpmm_fops);
@@ -1523,6 +1598,18 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	gs101_bcl_device->cpu2_mem = ioremap(CPUCL2_BASE, SZ_8K);
 	if (!gs101_bcl_device->cpu2_mem) {
 		pr_err("cpu2_mem ioremap failed\n");
+		ret = -EIO;
+		goto bcl_soc_probe_exit;
+	}
+	gs101_bcl_device->gpu_mem = ioremap(G3D_BASE, SZ_8K);
+	if (!gs101_bcl_device->gpu_mem) {
+		pr_err("gpu_mem ioremap failed\n");
+		ret = -EIO;
+		goto bcl_soc_probe_exit;
+	}
+	gs101_bcl_device->tpu_mem = ioremap(TPU_BASE, SZ_8K);
+	if (!gs101_bcl_device->tpu_mem) {
+		pr_err("tpu_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
@@ -1609,8 +1696,6 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 				  gs101_pmic_140c_work);
 		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_PMIC_OVERHEAT],
 				  gs101_pmic_overheat_work);
-		thermal_zone_device_update(gs101_bcl_device->soc_tzd, THERMAL_DEVICE_UP);
-		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
 	}
 	if (strcmp(dev_name(&pdev->dev), google_gs101_id_table[1].name) == 0) {
 		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg11_irq_work[IRQ_OCP_WARN_GPU],

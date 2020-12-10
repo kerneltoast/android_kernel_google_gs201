@@ -98,6 +98,47 @@ static void exynos_show_wakeup_registers(unsigned int wakeup_stat)
 		pr_info("0x%02x ", __raw_readl(EXYNOS_EINT_PEND(pm_info->eint_far_base, i)));
 }
 
+static void exynos_show_wakeup_reason_sysint(unsigned int stat,
+					     struct wakeup_stat_name *ws_names)
+{
+	int bit;
+	unsigned long lstat = stat;
+	const char *name;
+
+	for_each_set_bit(bit, &lstat, 32) {
+		name = ws_names->name[bit];
+
+		if (!name)
+			continue;
+#ifdef CONFIG_SUSPEND
+		log_abnormal_wakeup_reason(name);
+#endif
+	}
+}
+
+static void exynos_show_wakeup_reason_detail(unsigned int wakeup_stat)
+{
+	int i;
+	unsigned int wss;
+
+	if ((wakeup_stat & pm_info->wakeup_stat_eint))
+		exynos_show_wakeup_reason_eint();
+
+	if (unlikely(!pm_info->ws_names))
+		return;
+
+	for (i = 0; i < pm_info->num_wakeup_stat; i++) {
+		if (i == 0)
+			wss = wakeup_stat & ~(pm_info->wakeup_stat_eint);
+		else
+			exynos_pmu_read(pm_info->wakeup_stat_offset[i], &wss);
+		if (!wss)
+			continue;
+
+		exynos_show_wakeup_reason_sysint(wss, &pm_info->ws_names[i]);
+	}
+}
+
 static void exynos_show_wakeup_reason(bool sleep_abort)
 {
 	unsigned int wakeup_stat;
@@ -129,10 +170,10 @@ static void exynos_show_wakeup_reason(bool sleep_abort)
 	exynos_pmu_read(pm_info->wakeup_stat_offset[0], &wakeup_stat);
 	exynos_show_wakeup_registers(wakeup_stat);
 
+	exynos_show_wakeup_reason_detail(wakeup_stat);
+
 	if (wakeup_stat & (1 << pm_info->wakeup_stat_rtc)) {
 		pr_info("%s Resume caused by RTC alarm\n", EXYNOS_PM_PREFIX);
-	} else if (wakeup_stat & pm_info->wakeup_stat_eint) {
-		exynos_show_wakeup_reason_eint();
 	} else {
 		for (i = 0; i < pm_info->num_wakeup_stat; i++) {
 			exynos_pmu_read(pm_info->wakeup_stat_offset[i], &wakeup_stat);
@@ -300,6 +341,43 @@ static void exynos_pm_debugfs_init(void)
 }
 #endif
 
+static void parse_dt_wakeup_stat_names(struct device *dev, struct device_node *np)
+{
+	struct device_node *root, *child;
+	int ret;
+	int size, n, idx = 0;
+	int i;
+
+	root = of_find_node_by_name(np, "wakeup_stats");
+	n = of_get_child_count(root);
+
+	if (pm_info->num_wakeup_stat != n || !n) {
+		pr_err("drvinit: failed to get wakeup_stats(%d)\n", n);
+		return;
+	}
+
+	pm_info->ws_names = devm_kcalloc(dev, n, sizeof(*pm_info->ws_names), GFP_KERNEL);
+	if (!pm_info->ws_names)
+		return;
+
+	for_each_child_of_node(root, child) {
+		size = of_property_count_strings(child, "ws-name");
+		if (size <= 0 || size > 32) {
+			pr_err("drvinit: failed to get wakeup_stat name cnt(%d)\n", size);
+			return;
+		}
+
+		ret = of_property_read_string_array(child, "ws-name",
+						    pm_info->ws_names[idx].name, size);
+		if (ret < 0) {
+			pr_err("drvinit: failed to read wakeup_stat name(%d)\n", ret);
+			return;
+		}
+
+		idx++;
+	}
+}
+
 static int exynos_pm_drvinit(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -445,6 +523,8 @@ static int exynos_pm_drvinit(struct platform_device *pdev)
 		if (pm_info->is_stay_awake)
 			__pm_stay_awake(pm_info->ws);
 	}
+
+	parse_dt_wakeup_stat_names(dev, np);
 
 	register_syscore_ops(&exynos_pm_syscore_ops);
 #ifdef CONFIG_DEBUG_FS

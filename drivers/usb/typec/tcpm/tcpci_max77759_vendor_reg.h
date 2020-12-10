@@ -38,6 +38,10 @@
 #define CC2_VUFP_RD0P5				BIT(5)
 #define TCPC_VENDOR_FLADC_STATUS		0x89
 
+#define TCPC_VENDOR_VCON_CTRL			0x8b
+#define VCNILIM_MASK				GENMASK(2, 0)
+#define VCNILIM_300_MA				0x2
+
 #define TCPC_VENDOR_CC_CTRL1			0x8c
 #define CCCONNDRY				BIT(7)
 #define RDOPENDIS				BIT(6)

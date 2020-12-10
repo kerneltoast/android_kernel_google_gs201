@@ -875,7 +875,8 @@ static const struct itmon_rpathinfo *itmon_get_rpathinfo(struct itmon_dev *itmon
 
 	for (i = 0; i < (int)ARRAY_SIZE(rpathinfo); i++) {
 		if (pdata->rpathinfo[i].id == (id & pdata->rpathinfo[i].bits)) {
-			if (dest_name && !strcmp(pdata->rpathinfo[i].dest_name, dest_name)) {
+			if (dest_name && !strncmp(pdata->rpathinfo[i].dest_name, dest_name,
+						  strlen(pdata->rpathinfo[i].dest_name))) {
 				rpath = &pdata->rpathinfo[i];
 				break;
 			}
@@ -1051,20 +1052,18 @@ static void itmon_post_handler_apply_policy(struct itmon_dev *itmon,
 	struct itmon_platdata *pdata = itmon->pdata;
 
 	switch (ret_value) {
-	case NOTIFY_OK:
-		dev_err(itmon->dev, "notify calls response NOTIFY_OK\n");
-		break;
 	case NOTIFY_STOP:
 		dev_err(itmon->dev, "notify calls response NOTIFY_STOP, refer to notifier log\n");
 		pdata->policy[IP].error = true;
 		break;
 	case NOTIFY_BAD:
-		dev_err(itmon->dev, "notify calls response NOTIFY_BAD\n");
+		dev_err(itmon->dev, "notify calls response NOTIFY_BAD, refer to notifier log\n");
 		pdata->policy[FATAL].error = true;
 		break;
+	case NOTIFY_OK:
 	case NOTIFY_DONE:
 	default:
-		dev_err(itmon->dev, "notify calls response NOTIFY_DONE\n");
+		dev_err(itmon->dev, "notify calls response NOTIFY_OK/DONE\n");
 		pdata->policy[UNHANDLED].error = true;
 		break;
 	}

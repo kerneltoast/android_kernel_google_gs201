@@ -874,8 +874,7 @@ static ssize_t show_alt_dvfs_info(struct device *dev,
 				  data->simple_interactive_data.alt_data.target_load[i],
 				  (i ==
 				   (data->simple_interactive_data.alt_data.num_target_load - 1)) ?
-				   "" :
-				   (i % 2) ? ":" : " ");
+				   "" : " ");
 	}
 	count += snprintf(buf + count, PAGE_SIZE, "\n");
 	/* Parameters */
@@ -1154,8 +1153,7 @@ static ssize_t show_target_load(struct device *dev,
 				  data->simple_interactive_data.alt_data.target_load[i],
 				  (i ==
 				   (data->simple_interactive_data.alt_data.num_target_load - 1) ?
-				   "" :
-				   (i % 2) ? ":" : " "));
+				   "" : " "));
 	}
 	count += snprintf(buf + count, PAGE_SIZE, "\n");
 	mutex_unlock(&data->devfreq->lock);
@@ -1379,6 +1377,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 	const char *update_fvp;
 	int ntokens;
 	int not_using_ect = true;
+	u32 count_total = 0;
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	struct devfreq_alt_dvfs_data *alt_data;
 #endif
@@ -1590,12 +1589,37 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 			/* Register um_data and um_list for tracing load */
 			int i;
 
-			if (of_property_read_u32(np, "um_count",
-						 &data->um_data.um_count))
+			data->um_data.um_group =
+				of_property_count_elems_of_size(np, "um_count",
+								sizeof(u32));
+			if (data->um_data.um_group <= 0)
 				return -ENODEV;
-
+			data->um_data.um_count =
+				devm_kcalloc(data->dev, data->um_data.um_group,
+					     sizeof(u32), GFP_KERNEL);
+			if (!data->um_data.um_count) {
+				dev_err(data->dev,
+					"Failed to allocate memory for um_count\n");
+				return -ENOMEM;
+			}
+			if (of_property_read_u32_array(np, "um_count",
+						       (u32 *)data->um_data.um_count,
+						       (size_t)data->um_data.um_group))
+				return -ENODEV;
+			data->um_data.ppc_val =
+				devm_kcalloc(data->dev, data->um_data.um_group,
+					     sizeof(struct ppc_data),
+					     GFP_KERNEL);
+			if (data->um_data.ppc_val == NULL) {
+				dev_err(data->dev,
+					"failed to allocate memory for PPC val\n");
+				return -ENOMEM;
+			}
+			for (i = 0; i < data->um_data.um_group; i++)
+				count_total += data->um_data.um_count[i];
+			data->um_data.um_count_total = count_total;
 			data->um_data.pa_base =
-				kcalloc(data->um_data.um_count, sizeof(u32),
+				kcalloc(data->um_data.um_count_total, sizeof(u32),
 					GFP_KERNEL);
 
 			if (!data->um_data.pa_base) {
@@ -1606,10 +1630,10 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 
 			if (of_property_read_u32_array(np, "um_list",
 						       (u32 *)data->um_data.pa_base,
-						       (size_t)(data->um_data.um_count)))
+						       (size_t)(data->um_data.um_count_total)))
 				return -ENODEV;
 
-			data->um_data.va_base = kcalloc(data->um_data.um_count,
+			data->um_data.va_base = kcalloc(data->um_data.um_count_total,
 							sizeof(void __iomem *),
 							GFP_KERNEL);
 
@@ -1620,7 +1644,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 				return -ENOMEM;
 			}
 
-			for (i = 0; i < data->um_data.um_count; i++) {
+			for (i = 0; i < data->um_data.um_count_total; i++) {
 				data->um_data.va_base[i] = ioremap(data->um_data.pa_base[i],
 								   SZ_4K);
 			}
@@ -1631,13 +1655,25 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 		/* Parse ALT-DVFS related parameters */
 		if (of_property_read_bool(np, "use_alt_dvfs")) {
+			int i;
 			alt_data = &data->simple_interactive_data.alt_data;
 
-			if (!of_property_read_string(np, "target_load", &buf)) {
-				/* Parse target load table */
+			alt_data->num_target_load =
+				of_property_count_elems_of_size(np, "target_load",
+								sizeof(u32));
+			if (alt_data->num_target_load > 0) {
 				alt_data->target_load =
-					get_tokenized_data(buf, &ntokens);
-				alt_data->num_target_load = ntokens;
+					kmalloc_array(alt_data->num_target_load,
+						      sizeof(u32), GFP_KERNEL);
+				if (!alt_data->target_load) {
+					dev_err(data->dev,
+						"Failed to allocate memory for target_load\n");
+					return -ENOMEM;
+				}
+				if (of_property_read_u32_array(np, "target_load",
+							(u32 *)alt_data->target_load,
+							(size_t)alt_data->num_target_load))
+					return -ENODEV;
 			} else {
 				/* Fix target load as defined ALTDVFS_TARGET_LOAD */
 				alt_data->target_load = kmalloc(sizeof(unsigned int), GFP_KERNEL);
@@ -1668,9 +1704,21 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 				alt_data->tolerance = ALTDVFS_TOLERANCE;
 
 			/* Initial buffer and load setup */
-			alt_data->front = alt_data->buffer;
-			alt_data->rear = alt_data->buffer;
-			alt_data->min_load = 100;
+			alt_data->track_group = data->um_data.um_group;
+			alt_data->track = devm_kcalloc(data->dev,
+						alt_data->track_group,
+						sizeof(struct devfreq_alt_track),
+						GFP_KERNEL);
+			if (!alt_data->track) {
+				dev_err(data->dev,
+					"Failed to allocate memory\n");
+				return -ENOMEM;
+			}
+			for (i = 0; i < alt_data->track_group; i++) {
+				alt_data->track[i].front = alt_data->track[i].buffer;
+				alt_data->track[i].rear = alt_data->track[i].buffer;
+				alt_data->track[i].min_load = 100;
+			}
 
 			/* Initial governor freq setup */
 			data->simple_interactive_data.governor_freq = 0;

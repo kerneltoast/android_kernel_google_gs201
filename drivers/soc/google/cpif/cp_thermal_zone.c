@@ -41,7 +41,7 @@ static ssize_t cp_temp_store(struct device *dev, struct device_attribute *attr, 
 	}
 
 	ret = sscanf(buf, "%d %d %d", &index, &trigger, &temp);
-	if (IS_ERR(ret)) {
+	if (ret != 3) {
 		dev_err(dev, "Invalid CP temperature update");
 		return -EINVAL;
 	}
@@ -99,10 +99,10 @@ static int cp_thermal_zone_probe(struct platform_device *pdev)
 	struct cp_temp_manager *temp_manager;
 	struct thermal_zone_device *tzd;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
 
 	temp_manager = devm_kzalloc(dev, sizeof(struct cp_temp_manager), GFP_KERNEL);
 
-	struct device_node *np = pdev->dev.of_node;
 	if (of_property_read_u32(np, "num_sensors", &temp_manager->num_sensors)) {
 		dev_err(dev, "Cannot read number of CP sensors");
 		ret = -EINVAL;

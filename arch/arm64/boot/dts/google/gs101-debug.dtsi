@@ -17,6 +17,7 @@
 		memory-region = <&header>, <&log_kevents>, <&log_s2d>,
 				<&log_arrdumpreset>, <&log_arrdumppanic>,
 				<&log_slcdump>, <&log_preslcdump>;
+		panic-action = <GO_DEFAULT_ID>;
 	};
 
 	hardlockup-debugger {

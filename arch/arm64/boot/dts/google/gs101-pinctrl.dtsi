@@ -128,6 +128,19 @@
 		       samsung,pin-function = <2>;
 		       samsung,pin-pud = <0>;
 		};
+
+		spi15_bus: spi15-bus {
+			samsung,pins = "gpa4-0", "gpa4-1", "gpa4-2";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+		spi15_cs: spi15-cs {
+			samsung,pins = "gpa4-3";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
 	};
 	/* GPIO_FAR_ALIVE */
 	pinctrl@174E0000 {

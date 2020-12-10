@@ -54,7 +54,7 @@
 
 		attr = <0x50C7F>;
 		port = <0>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <1>;
@@ -93,7 +93,7 @@
 
 		attr = <0x50C7F>;
 		port = <1>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <3>;
@@ -132,7 +132,7 @@
 
 		attr = <0x50C7F>;
 		port = <2>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <5>;
@@ -187,6 +187,7 @@
 		phy-names = "dsim_dphy";
 
 		dsim_mode = <&dsim_modes>;
+		dphy_diag = <&dphy_diags>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -208,6 +209,7 @@
 		phy-names = "dsim_dphy";
 
 		dsim_mode = <&dsim_modes>;
+		dphy_diag = <&dphy_diags>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -248,9 +250,20 @@
 		te_from = <0>;
 
 		/* BTS */
-		ppc = <2>;
-		line_mem_cnt = <4>;
-		cycle_per_line = <8>;   /* 4ppc */
+		ppc = <2>;		/* pixel per clock */
+		ppc_rotator = <4>;	/* rotator ppc : 4(9830), 8(9840) */
+		ppc_scaler = <2>;	/* scaler ppc : 2(9830), 4(9840) */
+		delay_comp = <4>;	/* line delay for afbc or sbwc : DMA */
+		delay_scaler = <3>;	/* line delay for scaler : DPP */
+
+		/* bus info */
+		bus_width = <16>;	/* 16-Byte : 128-bit bus */
+		bus_util = <65>;	/* 65% */
+		rot_util = <60>;	/* MIF_UTIL(65%) - 5%: UTIL gets worse at rotation */
+
+		/* dpu dvfs */
+		dfs_lv_cnt = <7>;
+		dfs_lv = <664000 533000 465000 400000 310000 267000 134000>;
 
 		/* Urgent */
 		rd_en = <1>;
@@ -308,9 +321,20 @@
 		out_type = <0x100>;	/* BIT8: WB */
 
 		/* BTS */
-		ppc = <2>;
-		line_mem_cnt = <4>;
-		cycle_per_line = <8>;   /* 4ppc */
+		ppc = <2>;		/* pixel per clock */
+		ppc_rotator = <4>;	/* rotator ppc : 4(9830), 8(9840) */
+		ppc_scaler = <2>;	/* scaler ppc : 2(9830), 4(9840) */
+		delay_comp = <4>;	/* line delay for afbc or sbwc : DMA */
+		delay_scaler = <3>;	/* line delay for scaler : DPP */
+
+		/* bus info */
+		bus_width = <16>;	/* 16-Byte : 128-bit bus */
+		bus_util = <65>;	/* 65% */
+		rot_util = <60>;	/* MIF_UTIL(65%) - 5%: UTIL gets worse at rotation */
+
+		/* dpu dvfs */
+		dfs_lv_cnt = <7>;
+		dfs_lv = <664000 533000 465000 400000 310000 267000 134000>;
 
 		dpps = <&drmdpp0 &drmdpp1 &drmdpp2 &drmdpp3 &drmdpp4 &drmdpp5>;
 		/*

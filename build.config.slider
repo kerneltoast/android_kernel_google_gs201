@@ -65,14 +65,7 @@ private/google-modules/aoc/alsa
 private/google-modules/aoc/usb
 private/google-modules/touch/fts
 private/google-modules/touch/sec
-"
-
-COMPRESS_UNSTRIPPED_MODULES=1
-
-UNSTRIPPED_MODULES="
-bcmdhd43752.ko
-bcmdhd4389.ko
-dss.ko
+private/google-modules/power/reset
 "
 
 if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then

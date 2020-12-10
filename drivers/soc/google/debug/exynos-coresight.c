@@ -547,7 +547,7 @@ static int exynos_coresight_probe(struct platform_device *pdev)
 	ret = exynos_cs_parsing_dt(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "%s failed.\n", __func__);
-		goto err;
+		return ret;
 	}
 
 	ecs_info->dbg_reg = devm_kcalloc(&pdev->dev, num_possible_cpus(),
@@ -580,6 +580,7 @@ static int exynos_coresight_probe(struct platform_device *pdev)
 			&exynos_cs_lockup_nb);
 #endif
 
+	cpus_read_lock();
 	if (ecs_info->halt_enabled || ecs_info->retention_enabled) {
 		if (ecs_info->halt_enabled) {
 			for_each_online_cpu(cpu) {
@@ -607,12 +608,16 @@ static int exynos_coresight_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err;
 	}
+	cpus_read_unlock();
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 			&exynos_cs_panic_nb);
 	dbg_snapshot_register_debug_ops(exynos_cs_stop_cpus, NULL, NULL);
 	dev_info(&pdev->dev, "%s Successful\n", __func__);
+	return ret;
+
 err:
+	cpus_read_unlock();
 	return ret;
 }
 

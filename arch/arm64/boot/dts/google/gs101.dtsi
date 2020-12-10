@@ -371,7 +371,7 @@
 		compatible = "samsung,exynos-pm";
 		reg = <0x0 0x174D0000 0x1000>,
 			<0x0 0x174E0000 0x1000>,
-			<0x0 0x10540204 0x100>;
+			<0x0 0x10400204 0x100>;
 		reg-names = "gpio_alive_base",
 			"gpio_far_alive_base",
 			"gicd_ispendrn_base";
@@ -391,6 +391,52 @@
 		wakeup-stat-rtc = <0>;
 
 		wake_lock = <0>;		/* 1: held wake_lock */
+
+		wakeup_stats {
+			wakeup_stat {
+				ws-name =
+					"RTC_ALARM",		/* [ 0] */
+					"RTC_TICK",		/* [ 1] */
+					"TRTC_ALARM",		/* [ 2] */
+					"TRTC_TICK",		/* [ 3] */
+					"EINT",			/* [ 4] */
+					"EINT_FAR",		/* [ 5] */
+					"MAILBOX_APM2AP",	/* [ 6] */
+					"MAILBOX_AOC2AP",	/* [ 7] */
+					"L1SUB_PCIE_GEN4A_0",	/* [ 8] */
+					"L1SUB_PCIE_GEN4B_0",	/* [ 9] */
+					"L1SUB_PCIE_GEN4A_1",	/* [10] */
+					"L1SUB_PCIE_GEN4B_1",	/* [11] */
+					"EXT_PCIE_GEN4A_0",	/* [12] */
+					"EXT_PCIE_GEN4B_0",	/* [13] */
+					"EXT_PCIE_GEN4A_1",	/* [14] */
+					"EXT_PCIE_GEN4B_1",	/* [15] */
+					"USB_REWA",		/* [16] */
+					"USBDP",		/* [17] */
+					"MMC_CARD",		/* [18] */
+					"TIMER",		/* [19] */
+					"RESERVED",		/* [20] */
+					"RESERVED",		/* [21] */
+					"RESERVED",		/* [22] */
+					"CLUSTER0_CPU0_nIRQOUT",/* [23] */
+					"CLUSTER0_CPU1_nIRQOUT",/* [24] */
+					"CLUSTER0_CPU2_nIRQOUT",/* [25] */
+					"CLUSTER0_CPU3_nIRQOUT",/* [26] */
+					"CLUSTER1_CPU0_nIRQOUT",/* [27] */
+					"CLUSTER1_CPU1_nIRQOUT",/* [28] */
+					"CLUSTER2_CPU0_nIRQOUT",/* [29] */
+					"CLUSTER2_CPU1_nIRQOUT",/* [30] */
+					"RESERVED";		/* [31] */
+			};
+
+			wakeup_stat2 {
+				ws-name =
+					"RESERVED",		/* [ 0] */
+					"RESERVED",		/* [ 1] */
+					"USB20_PHY_FS_VMINUS",	/* [ 2] */
+					"USB20_PHY_FS_VPLUS";	/* [ 3] */
+			};
+		};
 	};
 
 	exynos-pmu {
@@ -440,6 +486,10 @@
 
 	acpm_flexpmu_dbg {
 		compatible = "google,acpm-flexpmu-dbg";
+	};
+
+	acpm_mbox_test {
+		compatible = "google,acpm-mbox-test";
 	};
 
 	acpm {
@@ -508,15 +558,15 @@
 			/* vptid 3, size 512KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00002001 0x0 0x0 >;
 		};
-		CAMERA3WAY {
-			/* vptid 3, size 768KB, priority 0 (highest), pbha 0 */
-			id_size_priority = < 0x3 0x00008001 0x0 0x0 >;
-		};
 		CAMERA4WAY0 {
 			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
 		};
 		CAMERA4WAY1 {
+			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
+		};
+		CAMERA4WAY2 {
 			/* vptid 3, size 1024KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00010001 0x0 0x0 >;
 		};
@@ -529,8 +579,8 @@
 			id_size_priority = < 0x3 0x00080001 0x0 0x0 >;
 		};
 		bigocean {
-			/* vptid 3, 1536-256KB size, priority 0, pbha 0 */
-			id_size_priority = < 0x3 0x0003f001 0x0 0x0 >;
+			/* vptid 3, 512KB-8MB size, priority 0, pbha 0 */
+			id_size_priority = < 0x3 0x007fe001 0x0 0x0 >;
 		};
 		MFC {
 			/* vptid 9, 2*256KB, priority 0 (highest), pbha ? */
@@ -766,8 +816,39 @@
 			acpm-ipc-channel = <1>;
 			use_acpm = "true";
 
+			/* ALT-DVFS */
+			use_get_dev = "true";
+			um_count = <2 4 4>;
+			um_list = <
+				/* PPC_CPUCL0_D0_EVENT PPC_CPUCL0_D1_EVENT */
+				0x1E110000 0x1E120000
+				/* PPC_CCI_M0_EVENT PPC_CCI_M1_EVENT */
+				0x1E130000 0x1E140000
+				/* PPC_CCI_M2_EVENT PPC_CCI_M3_EVENT */
+				0x1E150000 0x1E160000
+				/* PPC_BUS2_M0_EVENT PPC_BUS2_M1_EVENT */
+				0x1E170000 0x1E180000
+				/* PPC_BUS2_M2_EVENT PPC_BUS2_M3_EVENT */
+				0x1E190000 0x1E1A0000
+			>;
+
+			use_alt_dvfs;
+			polling_ms = <0>;
+			target_load = <20 5 80>;
+			min_sample_time = <20>;
+			hold_sample_time = <60>;
+			hispeed_load = <100>;
+			hispeed_freq = <1352000>;
+
 			/* Default remove MIF L1/L2/L3 */
 			l123_restrict = "1";
+
+			skew {
+				skew_0 {
+					constraint_dm_type = <DM_INT>;
+					constraint_type = <CONSTRAINT_MIN>;
+				};
+			};
 		};
 
 		devfreq_1: devfreq_int@17000020 {
@@ -942,6 +1023,31 @@
 		iommus = <&sysmmu_g2d0>, <&sysmmu_g2d1>;
 		clocks = <&clock GATE_G2D>;
 		clock-names = "gate";
+		samsung,tzmp;
+
+		hw_ppc =
+			/* sc_up none x1 x1/4 x1/9 x1/16 */
+			<3400 3100 2200 3600 5100 7000 /* rgb32 non-rotated */
+			3300 2700 2000 3000 5200 6500 /* rgb32 rotated */
+			3000 2900 2600 3400 5100 11900 /* yuv2p non-rotated */
+			3200 2000 1900 3300 5200 7000 /* yuv2p rotated */
+			2400 1900 1900 2700 3100 4100 /* 8+2 non-rotated */
+			2500 900 900 2200 2900 3700 /* 8+2 rotated */
+			2800 3000 1600 1600 2400 3200 /* afbc non-rotated */
+			2800 3000 1600 1600 2400 3200 /* afbc rotated */
+			2800>; /* colorfill */
+
+		g2d_dvfs_table = <533000 711000
+				465000 400000
+				332000 332000
+				200000 200000
+				100000 100000
+				>;
+
+		itmon,port = "G2D0", "G2D1";
+		itmon,dest = "G2D";
+		dvfs_mif = <DEVFREQ_MIF>;
+		dvfs_int = <DEVFREQ_INT>;
 	};
 
 	watchdog_cl0@10060000 {

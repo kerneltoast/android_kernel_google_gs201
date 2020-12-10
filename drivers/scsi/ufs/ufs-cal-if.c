@@ -18,9 +18,9 @@
 #include <ufs-cal-if.h>
 
 #elif defined(__UFS_CAL_FW__)		/* FW */
-#include <types.h>
-#include <ufs-cal-if.h>
-
+#include "../ufs_util.h"
+#include "ufs-vs-mmio.h"
+#include "ufs-cal-if.h"
 #else					/* Kernel */
 #include <linux/io.h>
 #include <linux/types.h>
@@ -37,14 +37,6 @@ struct ufs_cal_phy_cfg {
 	u32 flg;
 	u32 lyr;
 	u8 board;
-};
-
-enum {
-	GEAR_1 = 1,
-	GEAR_2,
-	GEAR_3,
-	GEAR_4,
-	GEAR_MAX = GEAR_4,
 };
 
 enum {
@@ -79,53 +71,21 @@ enum {
 };
 
 enum {
-	__PMD_PWM_G1_L1,
-	__PMD_PWM_G1_L2,
-	__PMD_PWM_G2_L1,
-	__PMD_PWM_G2_L2,
-	__PMD_PWM_G3_L1,
-	__PMD_PWM_G3_L2,
-	__PMD_PWM_G4_L1,
-	__PMD_PWM_G4_L2,
-	__PMD_PWM_G5_L1,
-	__PMD_PWM_G5_L2,
-	__PMD_PWM_MAX,
-	__PMD_HS_G1_L1,
-	__PMD_HS_G1_L2,
-	__PMD_HS_G2_L1,
-	__PMD_HS_G2_L2,
-	__PMD_HS_G3_L1,
-	__PMD_HS_G3_L2,
-	__PMD_HS_G4_L1,
-	__PMD_HS_G4_L2,
-	__PMD_HS_MAX,
+	PMD_PWM_G1 = 0,
+	PMD_PWM_G2,
+	PMD_PWM_G3,
+	PMD_PWM_G4,
+	PMD_PWM_G5,
+	PMD_PWM,
+
+	PMD_HS_G1,
+	PMD_HS_G2,
+	PMD_HS_G3,
+	PMD_HS_G4,
+	PMD_HS,
+
+	PMD_ALL,
 };
-
-#define PMD_PWM_G1_L1	BIT(__PMD_PWM_G1_L1)
-#define PMD_PWM_G1_L2	BIT(__PMD_PWM_G1_L2)
-#define PMD_PWM_G2_L1	BIT(__PMD_PWM_G2_L1)
-#define PMD_PWM_G2_L2	BIT(__PMD_PWM_G2_L2)
-#define PMD_PWM_G3_L1	BIT(__PMD_PWM_G3_L1)
-#define PMD_PWM_G3_L2	BIT(__PMD_PWM_G3_L2)
-#define PMD_PWM_G4_L1	BIT(__PMD_PWM_G4_L1)
-#define PMD_PWM_G4_L2	BIT(__PMD_PWM_G4_L2)
-#define PMD_PWM_G5_L1	BIT(__PMD_PWM_G5_L1)
-#define PMD_PWM_G5_L2	BIT(__PMD_PWM_G5_L2)
-#define PMD_PWM_MAX	BIT(__PMD_PWM_MAX)
-
-#define PMD_HS_G1_L1	BIT(__PMD_HS_G1_L1)
-#define PMD_HS_G1_L2	BIT(__PMD_HS_G1_L2)
-#define PMD_HS_G2_L1	BIT(__PMD_HS_G2_L1)
-#define PMD_HS_G2_L2	BIT(__PMD_HS_G2_L2)
-#define PMD_HS_G3_L1	BIT(__PMD_HS_G3_L1)
-#define PMD_HS_G3_L2	BIT(__PMD_HS_G3_L2)
-#define PMD_HS_G4_L1	BIT(__PMD_HS_G4_L1)
-#define PMD_HS_G4_L2	BIT(__PMD_HS_G4_L2)
-#define PMD_HS_MAX	BIT(__PMD_HS_MAX)
-
-#define PMD_ALL		(PMD_HS_MAX - 1)
-#define PMD_PWM		(PMD_PWM_MAX - 1)
-#define PMD_HS		(PMD_ALL ^ PMD_PWM)
 
 /*
  * CAL table, project specifics
@@ -168,13 +128,7 @@ enum {
 
 enum {
 	TX_LANE_0 = 0,
-	TX_LANE_1 = 1,
-	TX_LANE_2 = 2,
-	TX_LANE_3 = 3,
 	RX_LANE_0 = 4,
-	RX_LANE_1 = 5,
-	RX_LANE_2 = 6,
-	RX_LANE_3 = 7,
 };
 
 #define IS_PWR_MODE_HS(m)						\
@@ -202,10 +156,6 @@ enum {
  * private data
  */
 static struct ufs_cal_param *ufs_cal[NUM_OF_UFS_HOST];
-
-static const u32 ufs_s_eom_repeat[GEAR_MAX + 1] = {
-		0, EOM_RTY_G1, EOM_RTY_G2, EOM_RTY_G3, EOM_RTY_G4
-};
 
 /*
  * inline functions
@@ -239,11 +189,12 @@ static inline u32 __get_mclk_period_rnd_off(struct ufs_cal_param *p)
  * This function returns how many ticks is required to line reset
  * for predefined time value.
  */
-static inline u32 __get_line_reset_ticks(struct ufs_cal_param *p, u32 time_in_us)
+static inline u32 __get_line_reset_ticks(struct ufs_cal_param *p,
+					u32 time_in_us)
 {
 #if defined(__UFS_CAL_FW__)
 	return (u32)((float)time_in_us *
-			((float)p->mclk_rate / 1000000))
+			((float)p->mclk_rate / 1000000));
 #else
 	u64 val = (u64)p->mclk_rate;
 
@@ -262,38 +213,27 @@ static inline enum ufs_cal_errno __match_board_by_cfg(u8 board, u8 cfg_board)
 	return match;
 }
 
-static enum ufs_cal_errno __match_mode_by_cfg(struct uic_pwr_mode *pmd, int mode)
+static enum ufs_cal_errno __match_mode_by_cfg(struct uic_pwr_mode *pmd,
+					     int mode)
 {
 	enum ufs_cal_errno match;
-	u8 _m, _l, _g;
+	u8 _m, _g;
 
 	_m = pmd->mode;
 	_g = pmd->gear;
-	_l = pmd->lane;
 
 	if (mode == PMD_ALL) {
 		match = UFS_CAL_NO_ERROR;
-	} else if (IS_PWR_MODE_HS(_m) && mode == PMD_HS) {
+	} else if (IS_PWR_MODE_HS(_m) && mode >= PMD_HS_G1 &&
+		   mode <= PMD_HS) {
 		match = UFS_CAL_NO_ERROR;
-	} else if (IS_PWR_MODE_PWM(_m) && mode == PMD_PWM) {
-		match = UFS_CAL_NO_ERROR;
-	} else if (_l >= 1 && _l <= 2) {
-		if (IS_PWR_MODE_HS(_m)) {
-			if (_g >= 1 && _g <= 4)
-				match = UFS_CAL_NO_ERROR;
-			else
-				/* invalid gear for hs */
-				match = UFS_CAL_ERROR;
-		} else if (IS_PWR_MODE_PWM(_m)) {
-			if (_g >= 1 && _g <= 5)
-				match = UFS_CAL_NO_ERROR;
-			else
-				/* invalid gear for pwm */
-				match = UFS_CAL_ERROR;
-		} else {
-			/* invalid mode */
+		if (mode != PMD_HS && _g != (mode - PMD_HS_G1 + 1))
 			match = UFS_CAL_ERROR;
-		}
+	} else if (IS_PWR_MODE_PWM(_m) && mode >= PMD_PWM_G1 &&
+		   mode <= PMD_PWM) {
+		match = UFS_CAL_NO_ERROR;
+		if (mode != PMD_PWM && _g != (mode - PMD_PWM_G1 + 1))
+			match = UFS_CAL_ERROR;
 	} else {
 		/* invalid lanes */
 		match = UFS_CAL_ERROR;
@@ -302,10 +242,13 @@ static enum ufs_cal_errno __match_mode_by_cfg(struct uic_pwr_mode *pmd, int mode
 	return match;
 }
 
-static enum ufs_cal_errno ufs_cal_wait_pll_lock(struct ufs_vs_handle *handle, u32 addr, u32 mask)
+static enum ufs_cal_errno ufs_cal_wait_pll_lock(struct ufs_vs_handle *handle,
+						u32 addr, u32 mask)
 {
 	u32 reg;
+#if !defined(__UFS_CAL_FW__)
 	u32 residue = TIMEOUT_IN_US;
+#endif
 
 #if defined(__UFS_CAL_FW__)
 	while (1)
@@ -327,7 +270,9 @@ static enum ufs_cal_errno ufs_cal_wait_cdr_lock(struct ufs_vs_handle *handle,
 						u32 addr, u32 mask, int lane)
 {
 	u32 reg;
+#if !defined(__UFS_CAL_FW__)
 	u32 residue = TIMEOUT_IN_US;
+#endif
 
 #if defined(__UFS_CAL_FW__)
 	while (1)
@@ -372,13 +317,15 @@ static enum ufs_cal_errno ufs30_cal_wait_cdr_lock(struct ufs_vs_handle *handle,
 	return UFS_CAL_ERROR;
 }
 
-static enum ufs_cal_errno ufs_cal_wait_cdr_afc_check(struct ufs_vs_handle *handle,
-						     u32 addr, u32 mask, int lane)
+static enum ufs_cal_errno ufs_cal_wait_cdr_afc_check(
+					struct ufs_vs_handle *handle,
+					u32 addr, u32 mask, int lane)
 {
-	u32 reg = 0;
 	u32 i;
 
 	for (i = 0; i < 100; i++) {
+		u32 reg = 0;
+
 		if (handle->udelay)
 			handle->udelay(DELAY_PERIOD_IN_US);
 
@@ -402,10 +349,11 @@ static enum ufs_cal_errno ufs_cal_wait_cdr_afc_check(struct ufs_vs_handle *handl
 static enum ufs_cal_errno ufs30_cal_done_wait(struct ufs_vs_handle *handle,
 					      u32 addr, u32 mask, int lane)
 {
-	u32 reg = 0;
 	u32 i;
 
 	for (i = 0; i < 100; i++) {
+		u32 reg = 0;
+
 		if (handle->udelay)
 			handle->udelay(DELAY_PERIOD_IN_US);
 
@@ -420,13 +368,15 @@ static enum ufs_cal_errno ufs30_cal_done_wait(struct ufs_vs_handle *handle,
 static inline void __set_pcs(struct ufs_vs_handle *handle,
 			     u8 lane, u32 offset, u32 value)
 {
-	unipro_writel(handle, __WSTRB | __SEL_IDX(lane), UNIP_COMP_AXI_AUX_FIELD);
+	unipro_writel(handle, __WSTRB | __SEL_IDX(lane),
+				       UNIP_COMP_AXI_AUX_FIELD);
 	unipro_writel(handle, value, offset);
 	unipro_writel(handle, __WSTRB, UNIP_COMP_AXI_AUX_FIELD);
 }
 
 static enum ufs_cal_errno __config_uic(struct ufs_vs_handle *handle, u8 lane,
-				       const struct ufs_cal_phy_cfg *cfg, struct ufs_cal_param *p)
+				       const struct ufs_cal_phy_cfg *cfg,
+				       struct ufs_cal_param *p)
 {
 	u32 value;
 	u32 ticks;
@@ -476,24 +426,30 @@ static enum ufs_cal_errno __config_uic(struct ufs_vs_handle *handle, u8 lane,
 		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr, p->mclk_period);
 		break;
 	case PHY_PCS_RX_PRD_ROUND_OFF:
-		__set_pcs(handle, RX_LANE_0 + lane, cfg->addr, p->mclk_period_rnd_off);
+		__set_pcs(handle, RX_LANE_0 + lane, cfg->addr,
+			  p->mclk_period_rnd_off);
 		break;
 	case PHY_PCS_TX_PRD_ROUND_OFF:
-		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr, p->mclk_period_rnd_off);
+		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr,
+			  p->mclk_period_rnd_off);
 		break;
 	case PHY_PCS_RX_LR_PRD:
-		lane = RX_LANE_0 + lane;
 		ticks = __get_line_reset_ticks(p, RX_LINE_RESET_DETECT_TIME);
-		__set_pcs(handle, RX_LANE_0 + lane, cfg->addr, (ticks >> 16) & 0xFF);
-		__set_pcs(handle, RX_LANE_0 + lane, cfg->addr + 4, (ticks >> 8) & 0xFF);
-		__set_pcs(handle, RX_LANE_0 + lane, cfg->addr + 8, (ticks >> 0) & 0xFF);
+		__set_pcs(handle, RX_LANE_0 + lane, cfg->addr,
+			  (ticks >> 16) & 0xFF);
+		__set_pcs(handle, RX_LANE_0 + lane, cfg->addr + 4,
+			  (ticks >> 8) & 0xFF);
+		__set_pcs(handle, RX_LANE_0 + lane, cfg->addr + 8,
+			  (ticks >> 0) & 0xFF);
 		break;
 	case PHY_PCS_TX_LR_PRD:
-		lane = TX_LANE_0 + lane;
 		ticks = __get_line_reset_ticks(p, TX_LINE_RESET_TIME);
-		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr, (ticks >> 16) & 0xFF);
-		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr + 4, (ticks  >> 8) & 0xFF);
-		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr + 8, (ticks >> 0) & 0xFF);
+		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr,
+			  (ticks >> 16) & 0xFF);
+		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr + 4,
+			  (ticks  >> 8) & 0xFF);
+		__set_pcs(handle, TX_LANE_0 + lane, cfg->addr + 8,
+			  (ticks >> 0) & 0xFF);
 		break;
 
 	/* pma */
@@ -501,32 +457,40 @@ static enum ufs_cal_errno __config_uic(struct ufs_vs_handle *handle, u8 lane,
 		pma_writel(handle, cfg->val, PHY_PMA_COMN_ADDR(cfg->addr));
 		break;
 	case PHY_PMA_TRSV:
-		pma_writel(handle, cfg->val, PHY_PMA_TRSV_ADDR(cfg->addr, lane));
+		pma_writel(handle, cfg->val,
+			   PHY_PMA_TRSV_ADDR(cfg->addr, lane));
 		break;
 	case PHY_PLL_WAIT:
-		if (ufs_cal_wait_pll_lock(handle, cfg->addr, cfg->val) == UFS_CAL_ERROR)
+		if (ufs_cal_wait_pll_lock(handle, cfg->addr, cfg->val)
+		    == UFS_CAL_ERROR)
 			ret = UFS_CAL_TIMEOUT;
 		break;
 	case PHY_CDR_WAIT:
 		/* after gear change */
-		if (ufs_cal_wait_cdr_lock(handle, cfg->addr, cfg->val, lane) == UFS_CAL_ERROR)
+		if (ufs_cal_wait_cdr_lock(handle, cfg->addr, cfg->val, lane)
+		    == UFS_CAL_ERROR)
 			ret = UFS_CAL_TIMEOUT;
 		break;
 	case PHY_EMB_CDR_WAIT:
 		/* after gear change */
-		if (ufs30_cal_wait_cdr_lock(p->handle, cfg->addr, cfg->val, lane) == UFS_CAL_ERROR)
+		if (ufs30_cal_wait_cdr_lock(p->handle, cfg->addr, cfg->val,
+					    lane)
+		    == UFS_CAL_ERROR)
 			ret = UFS_CAL_TIMEOUT;
 		break;
 		/* after gear change */
 	case PHY_CDR_AFC_WAIT:
 		if (p->tbl == HOST_CARD) {
 			if (ufs_cal_wait_cdr_afc_check(p->handle,
-						       cfg->addr, cfg->val, lane) == UFS_CAL_ERROR)
+						       cfg->addr,
+						       cfg->val, lane)
+						       == UFS_CAL_ERROR)
 				ret = UFS_CAL_TIMEOUT;
 		}
 		break;
 	case PHY_EMB_CAL_WAIT:
-		if (ufs30_cal_done_wait(p->handle, cfg->addr, cfg->val, lane) == UFS_CAL_ERROR)
+		if (ufs30_cal_done_wait(p->handle, cfg->addr, cfg->val, lane)
+		    == UFS_CAL_ERROR)
 			ret = UFS_CAL_TIMEOUT;
 		break;
 	case COMMON_WAIT:
@@ -535,11 +499,13 @@ static enum ufs_cal_errno __config_uic(struct ufs_vs_handle *handle, u8 lane,
 		break;
 	case PHY_PMA_TRSV_SQ:
 		/* for hibern8 time */
-		pma_writel(handle, cfg->val, PHY_PMA_TRSV_ADDR(cfg->addr, lane));
+		pma_writel(handle, cfg->val, PHY_PMA_TRSV_ADDR(cfg->addr,
+			   lane));
 		break;
 	case PHY_PMA_TRSV_LANE1_SQ_OFF:
 		/* for hibern8 time */
-		pma_writel(handle, cfg->val, PHY_PMA_TRSV_ADDR(cfg->addr, lane));
+		pma_writel(handle, cfg->val, PHY_PMA_TRSV_ADDR(cfg->addr,
+			   lane));
 		break;
 	default:
 		break;
@@ -621,6 +587,7 @@ out:
 /*
  * public functions
  */
+#if defined(__UFS_CAL_FW__)
 enum ufs_cal_errno ufs_cal_loopback_init(struct ufs_cal_param *p)
 {
 	enum ufs_cal_errno ret = UFS_CAL_NO_ERROR;
@@ -653,6 +620,7 @@ enum ufs_cal_errno ufs_cal_loopback_set_2(struct ufs_cal_param *p)
 
 	return ret;
 }
+#endif
 
 enum ufs_cal_errno ufs_cal_post_h8_enter(struct ufs_cal_param *p)
 {
@@ -743,20 +711,13 @@ enum ufs_cal_errno ufs_cal_post_link(struct ufs_cal_param *p)
 	case GEAR_1:
 	case GEAR_2:
 	case GEAR_3:
-		if (p->evt_ver == 0)
-			cfg = (p->tbl == HOST_CARD) ? post_init_cfg_card :
-						post_init_cfg_evt0_g3;
-		else
-			cfg = (p->tbl == HOST_CARD) ? post_init_cfg_card :
-						post_init_cfg_evt1_g3;
-		break;
 	case GEAR_4:
 		if (p->evt_ver == 0)
 			cfg = (p->tbl == HOST_CARD) ? post_init_cfg_card :
-						post_init_cfg_evt0_g4;
+						post_init_cfg_evt0;
 		else
 			cfg = (p->tbl == HOST_CARD) ? post_init_cfg_card :
-						post_init_cfg_evt1_g4;
+						post_init_cfg_evt1;
 		break;
 	default:
 		ret = UFS_CAL_INV_ARG;
@@ -823,13 +784,15 @@ static enum ufs_cal_errno ufs_cal_eom_prepare(struct ufs_cal_param *p)
 
 static u32 ufs_cal_get_eom_err_cnt(struct ufs_vs_handle *handle, u32 lane_loop)
 {
-	return (u32)((pma_readl(handle, PHY_PMA_TRSV_ADDR(0xD20, lane_loop)) << 16)
+	return (u32)((pma_readl(handle,
+		PHY_PMA_TRSV_ADDR(0xD20, lane_loop)) << 16)
 		+ (pma_readl(handle, PHY_PMA_TRSV_ADDR(0xD24, lane_loop)) << 8)
 		+ (pma_readl(handle, PHY_PMA_TRSV_ADDR(0xD28, lane_loop))));
 }
 
 static void ufs_cal_sweep_get_eom_data(struct ufs_vs_handle *handle, u32 *cnt,
-				       struct ufs_cal_param *p, u32 lane, u32 repeat)
+				       struct ufs_cal_param *p, u32 lane,
+				       u32 repeat)
 {
 	u32 phase, vref;
 	u32 errors;
@@ -839,9 +802,12 @@ static void ufs_cal_sweep_get_eom_data(struct ufs_vs_handle *handle, u32 *cnt,
 		pma_writel(handle, phase, PHY_PMA_TRSV_ADDR(0xB78, lane));
 
 		for (vref = 0; vref < EOM_DEF_VREF_MAX; vref++) {
-			pma_writel(handle, 0x18, PHY_PMA_TRSV_ADDR(0xB5C, lane));
-			pma_writel(handle, vref, PHY_PMA_TRSV_ADDR(0xB74, lane));
-			pma_writel(handle, 0x19, PHY_PMA_TRSV_ADDR(0xB5C, lane));
+			pma_writel(handle, 0x18,
+				   PHY_PMA_TRSV_ADDR(0xB5C, lane));
+			pma_writel(handle, vref,
+				   PHY_PMA_TRSV_ADDR(0xB74, lane));
+			pma_writel(handle, 0x19,
+				   PHY_PMA_TRSV_ADDR(0xB5C, lane));
 
 			errors = ufs_cal_get_eom_err_cnt(handle, lane);
 
@@ -869,12 +835,12 @@ enum ufs_cal_errno ufs_cal_eom(struct ufs_cal_param *p)
 
 	ufs_cal_eom_prepare(p);
 
-	repeat = (p->max_gear <= GEAR_MAX) ? ufs_s_eom_repeat[p->max_gear] : 0;
+	repeat = (p->max_gear < GEAR_MAX) ? ufs_s_eom_repeat[p->max_gear] : 0;
 	if (repeat == 0) {
 		res = UFS_CAL_ERROR;
 		goto end;
 	} else {
-		for (i = GEAR_1 ; i <= GEAR_MAX ; i++) {
+		for (i = GEAR_1 ; i < GEAR_MAX ; i++) {
 			if (repeat > EOM_RTY_MAX) {
 				res = UFS_CAL_INV_CONF;
 				goto end;

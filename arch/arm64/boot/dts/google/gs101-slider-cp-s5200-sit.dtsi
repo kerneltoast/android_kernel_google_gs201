@@ -48,7 +48,7 @@
 	s5100_cp2ap_wakeup: s5100_cp2ap_wakeup {
 		samsung,pins = "gpa8-4";
 		samsung,pin-function = <0xf>;
-		samsung,pin-pud = <0>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 	};
 };
 

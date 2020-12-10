@@ -327,6 +327,9 @@ static int slg51000_regulator_probe(struct platform_device *pdev)
 	struct slg51000_dev *chip = dev_get_drvdata(pdev->dev.parent);
 	int ret;
 
+	if (chip->support_power_seq)
+		return -ENODEV;
+
 	ret = slg51000_regulator_register(chip);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to init regulator(%d)\n", ret);

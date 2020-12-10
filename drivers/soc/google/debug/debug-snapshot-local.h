@@ -49,8 +49,8 @@ struct dbg_snapshot_desc {
 	struct device *dev;
 	raw_spinlock_t ctrl_lock;
 	int sjtag_status;
-	bool panic_to_wdt;
 	bool in_reboot;
+	int panic_action;
 };
 
 struct dbg_snapshot_dpm {
@@ -154,4 +154,7 @@ extern struct dbg_snapshot_log_misc dss_log_misc;
 #define DSS_OFFSET_ITEM_INFO		(0x900)
 /* DSS_BASE + 0xE00 -- 0xFFF is reserved */
 #define DSS_OFFSET_PANIC_STRING		(0xC00)
+
+#define ARM_CPU_PART_CORTEX_A78		0xD41
+#define ARM_CPU_PART_CORTEX_X1		0xD44
 #endif

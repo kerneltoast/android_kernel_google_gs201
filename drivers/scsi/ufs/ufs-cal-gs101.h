@@ -17,7 +17,7 @@
 /* To display */
 #define UFS_CAL_TABLE_VER 1
 /* If not matched with ufs-cal-if, compling would fail */
-#define UFS_CAL_TABLE_COMPAT_IF_VER 1
+#define UFS_CAL_TABLE_COMPAT_IF_VER 4
 
 static const struct ufs_cal_phy_cfg init_cfg_evt0[] = {
 	/* mib(just to monitor), sfr offset, value, .. */
@@ -139,59 +139,7 @@ static const struct ufs_cal_phy_cfg init_cfg_evt1[] = {
 	{0, 0, 0, 0, PHY_CFG_NONE, BRD_ALL}
 };
 
-static struct ufs_cal_phy_cfg post_init_cfg_evt0_g3[] = {
-	/* mib(just to monitor), sfr offset, value, .. */
-	{0x15D2, 0x3348, 0x0, PMD_ALL, UNIPRO_ADAPT_LENGTH, BRD_ALL},
-	{0x15D3, 0x334C, 0x0, PMD_ALL, UNIPRO_ADAPT_LENGTH, BRD_ALL},
-
-	{0x9529, 0x3A84, 0x01, PMD_ALL, UNIPRO_DBG_MIB, BRD_ALL},
-	{0x15A4, 0x3290, 0x3E8, PMD_ALL, UNIPRO_STD_MIB, BRD_ALL},
-	{0x9529, 0x3A84, 0x00, PMD_ALL, UNIPRO_DBG_MIB, BRD_ALL},
-
-	{0xA006, 0x4818, 0x80000000, PMD_ALL, UNIPRO_DBG_MIB, BRD_ALL},
-	{0x0000, 0x00, 0x3E8, PMD_ALL, COMMON_WAIT, BRD_ALL},
-
-	{0x0000, 0x10C, 0x10, PMD_ALL, PHY_PMA_COMN, BRD_ALL},
-
-	{0x0000, 0xA8, 0x11, PMD_ALL, PHY_PMA_COMN, BRD_ALL},
-	{0x0000, 0xAC, 0x11, PMD_ALL, PHY_PMA_COMN, BRD_ALL},
-	{0x0000, 0x11C, 0x00, PMD_ALL, PHY_PMA_COMN, BRD_ALL},
-	{0x0000, 0x88C, 0x33, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x890, 0x37, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x894, 0x31, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x898, 0x00, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-
-	{0x0000, 0x89C, 0x33, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x8A0, 0x37, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x8A4, 0x31, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x8A8, 0x00, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-
-	{0x0000, 0xA8C, 0x00, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xA90, 0x82, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xA94, 0x00, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xA98, 0x98, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xAA0, 0x60, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xAA8, 0x70, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-
-	{0x0000, 0xBFC, 0x00, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xC00, 0x82, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xC04, 0x00, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xC08, 0x98, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xC10, 0x60, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0xC18, 0x70, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-
-	{0x0000, 0x8C4, 0x33, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x8C8, 0x3B, PMD_ALL, PHY_PMA_TRSV, BRD_ALL},
-
-	{0x0000, 0x10C, 0x18, PMD_ALL, PHY_PMA_COMN, BRD_ALL},
-	{0x0000, 0x10C, 0x00, PMD_ALL, PHY_PMA_COMN, BRD_ALL},
-	{0x0000, 0xCE0, 0x08, PMD_ALL, PHY_EMB_CAL_WAIT, BRD_ALL},
-	{0xA006, 0x4818, 0x0, PMD_ALL, UNIPRO_DBG_MIB, BRD_ALL},
-
-	{0, 0, 0, 0, PHY_CFG_NONE, BRD_ALL}
-};
-
-static struct ufs_cal_phy_cfg post_init_cfg_evt0_g4[] = {
+static struct ufs_cal_phy_cfg post_init_cfg_evt0[] = {
 	/* mib(just to monitor), sfr offset, value, .. */
 	{0x15D2, 0x3348, 0x0, PMD_ALL, UNIPRO_ADAPT_LENGTH, BRD_ALL},
 	{0x15D3, 0x334C, 0x0, PMD_ALL, UNIPRO_ADAPT_LENGTH, BRD_ALL},
@@ -203,12 +151,7 @@ static struct ufs_cal_phy_cfg post_init_cfg_evt0_g4[] = {
 	{0, 0, 0, 0, PHY_CFG_NONE, BRD_ALL}
 };
 
-static struct ufs_cal_phy_cfg post_init_cfg_evt1_g3[] = {
-	/* mib(just to monitor), sfr offset, value, .. */
-	{0, 0, 0, 0, PHY_CFG_NONE, BRD_ALL}
-};
-
-static struct ufs_cal_phy_cfg post_init_cfg_evt1_g4[] = {
+static struct ufs_cal_phy_cfg post_init_cfg_evt1[] = {
 	/* mib(just to monitor), sfr offset, value, .. */
 	{0, 0, 0, 0, PHY_CFG_NONE, BRD_ALL}
 };
@@ -379,14 +322,13 @@ static struct ufs_cal_phy_cfg eom_prepare[] = {
 	{0x0000, 0xBC0, 0x00, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
 	{0x0000, 0xA88, 0x05, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
 	{0x0000, 0x93C, 0x0F, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x940, 0x4F, (PMD_HS_G4_L1 | PMD_HS_G4_L2),
-					PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x940, 0x2F, (PMD_HS_G3_L1 | PMD_HS_G3_L2),
-					PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x940, 0x1F, (PMD_HS_G2_L1 | PMD_HS_G2_L2),
-					PHY_PMA_TRSV, BRD_ALL},
-	{0x0000, 0x940, 0x0F, (PMD_HS_G1_L1 | PMD_HS_G1_L2),
-					PHY_PMA_TRSV, BRD_ALL},
+
+	/* per gear */
+	{0x0000, 0x940, 0x4F, PMD_HS_G4, PHY_PMA_TRSV, BRD_ALL},
+	{0x0000, 0x940, 0x2F, PMD_HS_G3, PHY_PMA_TRSV, BRD_ALL},
+	{0x0000, 0x940, 0x1F, PMD_HS_G2, PHY_PMA_TRSV, BRD_ALL},
+	{0x0000, 0x940, 0x0F, PMD_HS_G1, PHY_PMA_TRSV, BRD_ALL},
+
 	{0x0000, 0xB64, 0xE3, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
 	{0x0000, 0xB68, 0x04, PMD_HS, PHY_PMA_TRSV, BRD_ALL},
 	{0x0000, 0xB6C, 0x00, PMD_HS, PHY_PMA_TRSV, BRD_ALL},

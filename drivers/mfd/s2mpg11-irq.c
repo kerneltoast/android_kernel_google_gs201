@@ -11,6 +11,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/wakeup_reason.h>
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/s2mpg11-register.h>
 
@@ -209,8 +210,11 @@ static irqreturn_t s2mpg11_irq_thread(int irq, void *data)
 
 	/* Report */
 	for (i = 0; i < S2MPG11_IRQ_NR; i++) {
-		if (irq_reg[s2mpg11_irqs[i].group] & s2mpg11_irqs[i].mask)
+		if (irq_reg[s2mpg11_irqs[i].group] & s2mpg11_irqs[i].mask) {
 			handle_nested_irq(s2mpg11->irq_base + i);
+			log_threaded_irq_wakeup_reason(s2mpg11->irq_base + i,
+						       s2mpg11->irq);
+		}
 	}
 
 	return IRQ_HANDLED;

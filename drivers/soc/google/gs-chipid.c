@@ -231,6 +231,15 @@ u32 gs_chipid_get_type(void)
 }
 EXPORT_SYMBOL_GPL(gs_chipid_get_type);
 
+u32 gs_chipid_get_revision(void)
+{
+	if (!gs_soc_info.initialized)
+		return -EPROBE_DEFER;
+
+	return gs_soc_info.revision;
+}
+EXPORT_SYMBOL_GPL(gs_chipid_get_revision);
+
 static void gs_chipid_get_chipid_info(void __iomem *reg)
 {
 	const struct gs_chipid_variant *data = gs_soc_info.drv_data;
