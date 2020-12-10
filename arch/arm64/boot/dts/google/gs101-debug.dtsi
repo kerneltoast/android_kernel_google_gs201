@@ -113,7 +113,7 @@
 		panic_count = <5>;
 		err_fatal = <GO_S2D_ID>;
 		err_drex_tmout = <GO_S2D_ID>;
-		err_ip = <GO_PANIC_ID>;
+		err_ip = <GO_S2D_ID>;
 		err_cpu = <GO_DEFAULT_ID>;
 		err_unhandled = <GO_PANIC_ID>;
 	};
