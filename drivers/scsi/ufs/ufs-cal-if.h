@@ -21,12 +21,8 @@
 #undef NULL
 #define NULL    0
 
-#if defined(__UFS_CAL_FW__)
 #undef BIT
-#endif
-#ifndef BIT
 #define BIT(a)	(1UL << (a))
-#endif
 
 struct uic_pwr_mode {
 	u8 lane;
@@ -135,4 +131,8 @@ enum ufs_cal_errno ufs_cal_post_link(struct ufs_cal_param *p);
 enum ufs_cal_errno ufs_cal_pre_link(struct ufs_cal_param *p);
 enum ufs_cal_errno ufs_cal_init(struct ufs_cal_param *p, int idx);
 enum ufs_cal_errno ufs_cal_eom(struct ufs_cal_param *p);
+
+enum ufs_cal_errno ufs_cal_loopback_init(struct ufs_cal_param *p);
+enum ufs_cal_errno ufs_cal_loopback_set_1(struct ufs_cal_param *p);
+enum ufs_cal_errno ufs_cal_loopback_set_2(struct ufs_cal_param *p);
 #endif /*_UFS_CAL_ */

@@ -47,3 +47,6 @@
 &mfc_core0 {
 	ip_ver = <0x14020100>;
 };
+&ufs {
+	evt-ver = /bits/ 8 <1>;
+};
