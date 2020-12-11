@@ -26,7 +26,10 @@
 #include <linux/perf_event.h>
 #include <linux/of_device.h>
 #include <linux/mutex.h>
+#include <trace/events/power.h>
+#include <trace/hooks/cpuidle.h>
 
+static DEFINE_PER_CPU(bool, is_idle);
 enum common_ev_idx {
 	INST_IDX,
 	CYC_IDX,
@@ -46,6 +49,7 @@ struct event_data {
 	struct perf_event *pevent;
 	unsigned long prev_count;
 	unsigned long last_delta;
+	unsigned long total;
 };
 
 struct cpu_data {
@@ -108,6 +112,7 @@ struct memlat_mon {
  * @mons_lock:		A lock used to protect the @mons.
  */
 struct memlat_cpu_grp {
+	struct			list_head node;
 	cpumask_t		cpus;
 	unsigned int		common_ev_ids[NUM_COMMON_EVS];
 	struct cpu_data		*cpus_data;
@@ -122,6 +127,7 @@ struct memlat_cpu_grp {
 	unsigned int		num_active_mons;
 	struct memlat_mon	*mons;
 	struct mutex		mons_lock;
+	bool			initialized;
 };
 
 struct memlat_mon_spec {
@@ -137,6 +143,7 @@ struct memlat_mon_spec {
 #define to_mon(hwmon) container_of(hwmon, struct memlat_mon, hw)
 
 static struct workqueue_struct *memlat_wq;
+static LIST_HEAD(cpu_grp_list);
 
 #define MAX_COUNT_LIM 0xFFFFFFFFFFFFFFFF
 static inline void read_event(struct event_data *event)
@@ -147,10 +154,74 @@ static inline void read_event(struct event_data *event)
 	if (!event->pevent)
 		return;
 
-	total = perf_event_read_value(event->pevent, &enabled, &running);
+	total = per_cpu(is_idle, event->pevent->cpu) ?
+		 event->total : perf_event_read_value(event->pevent, &enabled, &running);
 	ev_count = total - event->prev_count;
 	event->prev_count = total;
 	event->last_delta = ev_count;
+}
+
+static inline void read_event_local(struct event_data *event)
+{
+	u64 total, enabled, running;
+	int ret = 0;
+
+	if (!event->pevent)
+		return;
+
+	if (event->pevent->oncpu == -1)
+		return;
+
+	ret = perf_event_read_local(event->pevent, &total,
+			  &enabled, &running);
+
+	if (ret)
+		pr_err("read event fail %d\n", ret);
+	else
+		event->total = total;
+
+}
+
+static void update_counts_idle_core(struct memlat_cpu_grp *cpu_grp, int cpu)
+{
+	unsigned int i;
+	struct memlat_mon *mon;
+	unsigned int mon_idx;
+	struct cpu_data *cpu_data = to_cpu_data(cpu_grp, cpu);
+	struct event_data *common_evs = cpu_data->common_evs;
+
+	for (i = 0; i < NUM_COMMON_EVS; i++)
+		read_event_local(&common_evs[i]);
+
+	for (i = 0; i < cpu_grp->num_mons; i++) {
+		mon = &cpu_grp->mons[i];
+
+		if (!mon->is_active || !mon->miss_ev)
+			continue;
+
+		mon_idx = cpu - cpumask_first(&mon->cpus);
+		read_event_local(&mon->miss_ev[mon_idx]);
+	}
+
+}
+
+static void vendor_update_event_cpu_idle(void *data, int event, int state, int cpu)
+{
+	struct memlat_cpu_grp *cpu_grp;
+
+	if (event == PWR_EVENT_EXIT) {
+		__this_cpu_write(is_idle, false);
+	} else {
+		list_for_each_entry(cpu_grp, &cpu_grp_list, node) {
+			if (!cpu_grp->initialized)
+				continue;
+			if (cpumask_test_cpu(cpu, &cpu_grp->cpus)) {
+				update_counts_idle_core(cpu_grp, cpu);
+				break;
+			}
+		}
+		__this_cpu_write(is_idle, true);
+	}
 }
 
 static void update_counts(struct memlat_cpu_grp *cpu_grp)
@@ -245,7 +316,6 @@ static struct perf_event_attr *alloc_attr(void)
 	attr->type = PERF_TYPE_RAW;
 	attr->size = sizeof(struct perf_event_attr);
 	attr->pinned = 1;
-	attr->exclude_idle = 0;
 
 	return attr;
 }
@@ -275,6 +345,7 @@ static int init_common_evs(struct memlat_cpu_grp *cpu_grp,
 	unsigned int cpu, i;
 	int ret = 0;
 
+	cpu_grp->initialized = false;
 	for_each_cpu(cpu, &cpu_grp->cpus) {
 		struct event_data *common_evs = to_common_evs(cpu_grp, cpu);
 
@@ -285,6 +356,7 @@ static int init_common_evs(struct memlat_cpu_grp *cpu_grp,
 				break;
 		}
 	}
+	cpu_grp->initialized = true;
 
 	return ret;
 }
@@ -355,6 +427,8 @@ static int start_hwmon(struct memlat_hwmon *hw)
 		if (ret)
 			goto unlock_out;
 
+		INIT_LIST_HEAD(&cpu_grp->node);
+		list_add(&cpu_grp->node, &cpu_grp_list);
 		INIT_DEFERRABLE_WORK(&cpu_grp->work, &memlat_monitor_work);
 	}
 
@@ -407,6 +481,8 @@ static void stop_hwmon(struct memlat_hwmon *hw)
 	if (!cpu_grp->num_active_mons) {
 		cancel_delayed_work(&cpu_grp->work);
 		free_common_evs(cpu_grp);
+		cpu_grp->initialized=false;
+		list_del(&cpu_grp->node);
 	}
 	mutex_unlock(&cpu_grp->mons_lock);
 }
@@ -651,6 +727,7 @@ unlock_out:
 	return ret;
 }
 
+static bool hook_registered;
 static int arm_memlat_mon_driver_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -681,6 +758,15 @@ static int arm_memlat_mon_driver_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "Failure to probe memlat device: %d\n", ret);
 		return ret;
+	}
+
+	if (!hook_registered) {
+		ret = register_trace_android_vh_cpu_idle(vendor_update_event_cpu_idle, NULL);
+		if (ret) {
+			dev_err(dev, "Register vendor hook fail %d\n", ret);
+			return ret;
+		}
+		hook_registered = true;
 	}
 
 	return 0;
