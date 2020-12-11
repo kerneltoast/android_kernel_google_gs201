@@ -376,6 +376,7 @@ static void vendor_hook_cpu_idle(void *data, int event, int state, int cpu)
 	switch (event) {
 	case PWR_EVENT_EXIT:
 		cpuidle_profile_end(&pm->stat[pm->entered_state], state);
+		break;
 	default:
 		pm->entered_state = state;
 		cpuidle_profile_begin(&pm->stat[state]);
