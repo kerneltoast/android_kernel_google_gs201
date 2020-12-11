@@ -117,7 +117,7 @@ int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		char name[PAGE_SIZE];
+		char name[PAGE_SIZE / 4];
 		int i;
 		u8 *temp = &message.resp.rsvd0;
 		pr_info_ratelimited("[acpm_tmu] tz %d temp 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d\n",
@@ -130,7 +130,7 @@ int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat)
 			message.resp.rsvd5,
 			message.resp.rsvd6);
 		for (i = 0; i < 7; i++) {
-			scnprintf(name, PAGE_SIZE, "TMU%d_%d", tz, i);
+			scnprintf(name, PAGE_SIZE / 4, "TMU%d_%d", tz, i);
 			trace_clock_set_rate(name, temp[i], raw_smp_processor_id());
 		}
 	}
