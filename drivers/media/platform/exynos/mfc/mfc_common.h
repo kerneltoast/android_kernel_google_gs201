@@ -21,7 +21,7 @@
 
 #include "mfc_data_struct.h"
 #include "mfc_regs.h"
-#include "mfc_macros.h"
+#include <uapi/video/mfc_macros.h>
 #include "mfc_debug.h"
 #include "mfc_media.h"
 
