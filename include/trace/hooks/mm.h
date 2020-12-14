@@ -22,9 +22,16 @@ DECLARE_HOOK(android_vh_rmqueue,
 		unsigned int alloc_flags, int migratetype),
 	TP_ARGS(preferred_zone, zone, order,
 		gfp_flags, alloc_flags, migratetype));
+
+DECLARE_HOOK(android_vh_pagecache_get_page,
+	TP_PROTO(struct address_space *mapping, pgoff_t index,
+		int fgp_flags, gfp_t gfp_mask, struct page *page),
+	TP_ARGS(mapping, index, fgp_flags, gfp_mask, page));
 #else
 #define trace_android_vh_rmqueue(preferred_zone, zone, order, \
 				gfp_flags, alloc_flags, migratetype)
+#define trace_android_vh_pagecache_get_page(mapping, index, \
+				fgp_flags, gfp_mask, page)
 #endif
 #endif /* _TRACE_HOOK_MM_H */
 /* This part must be outside protection */

@@ -71,3 +71,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_mkfile);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_read);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_enable_thermal_genl_check);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rmqueue);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pagecache_get_page);
