@@ -316,22 +316,23 @@ void pixel_ufs_compl_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	pixel_ufs_update_req_stats(hba, lrbp);
 }
 
-void pixel_ufs_prepare_command(struct ufs_hba *hba,
+int pixel_ufs_prepare_command(struct ufs_hba *hba,
 			struct request *rq, struct ufshcd_lrb *lrbp)
 {
 	u8 opcode;
 
 	if (!(rq->cmd_flags & REQ_META))
-		return;
+		return 0;
 
 	if (hba->dev_info.wspecversion <= 0x300)
-		return;
+		return 0;
 
 	opcode = (u8)(*lrbp->cmd->cmnd);
 	if (opcode == WRITE_10)
 		lrbp->cmd->cmnd[6] = 0x11;
 	else if (opcode == WRITE_16)
 		lrbp->cmd->cmnd[14] = 0x11;
+	return 0;
 }
 
 static ssize_t life_time_estimation_c_show(struct device *dev,
