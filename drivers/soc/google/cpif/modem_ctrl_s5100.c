@@ -1389,6 +1389,7 @@ static void s5100_get_pdata(struct modem_ctl *mc, struct modem_data *pdata)
 	mc->s5100_gpio_phone_active.label = "CP2AP_PHONE_ACTIVE";
 	gpio_request(mc->s5100_gpio_phone_active.num, mc->s5100_gpio_phone_active.label);
 	mc->s5100_irq_phone_active.num = gpio_to_irq(mc->s5100_gpio_phone_active.num);
+	mc->s5100_irq_phone_active.not_alive = pdata->cp2ap_active_not_alive;
 
 	ret = of_property_read_u32(np, "mif,int_ap2cp_pcie_link_ack",
 				&mc->int_pcie_link_ack);

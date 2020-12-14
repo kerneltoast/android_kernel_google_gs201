@@ -1063,7 +1063,14 @@ void mif_enable_irq(struct modem_irq *irq)
 	}
 
 	enable_irq(irq->num);
-	enable_irq_wake(irq->num);
+	/*
+	 * The pad assignment of CP2AP_ACTIVE is not in PAD_ALIVE to be registered wake-up source.
+	 * (Bug 152900487)
+	 * This error can affect the crash dump process.
+	 * CP2AP_ACTIVE is assigned to XEINT_17 on planned form factor designs.
+	 */
+	if (!irq->not_alive)
+		enable_irq_wake(irq->num);
 
 	irq->active = true;
 
@@ -1088,7 +1095,14 @@ void mif_disable_irq(struct modem_irq *irq)
 	}
 
 	disable_irq_nosync(irq->num);
-	disable_irq_wake(irq->num);
+	/*
+	 * The pad assignment of CP2AP_ACTIVE is not in PAD_ALIVE to be registered wake-up source.
+	 * (Bug 152900487)
+	 * This error can affect the crash dump process.
+	 * CP2AP_ACTIVE is assigned to XEINT_17 on planned form factor designs.
+	 */
+	if (!irq->not_alive)
+		disable_irq_wake(irq->num);
 
 	irq->active = false;
 

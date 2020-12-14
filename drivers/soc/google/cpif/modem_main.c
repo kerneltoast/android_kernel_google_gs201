@@ -314,6 +314,9 @@ static int parse_dt_common_pdata(struct device_node *np,
 	mif_dt_read_u32_noerr(np, "mif,capability_check", pdata->capability_check);
 	mif_info("capability_check:%d\n", pdata->capability_check);
 
+	mif_dt_read_u32_noerr(np, "mif,cp2ap_active_not_alive", pdata->cp2ap_active_not_alive);
+	mif_info("cp2ap_active_not_alive:%d\n", pdata->cp2ap_active_not_alive);
+
 	return 0;
 }
 
