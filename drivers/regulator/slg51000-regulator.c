@@ -25,7 +25,7 @@
 #define SLG51000_SCTL_EVT               7
 #define SLG51000_MAX_EVT_REGISTER       8
 #define SLG51000_LDOHP_LV_MIN           1200000
-#define SLG51000_LDOHP_HV_MIN           2400000
+#define SLG51000_LDOHP_HV_MIN           2200000
 
 struct slg51000_evt_sta {
 	unsigned int ereg;
