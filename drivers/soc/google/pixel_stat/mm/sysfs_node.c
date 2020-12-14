@@ -11,20 +11,29 @@
 #include <linux/sysfs.h>
 
 DEFINE_PER_CPU(unsigned long, pgalloc_costly_order);
+DEFINE_PER_CPU(unsigned long, pgcache_miss);
+DEFINE_PER_CPU(unsigned long, pgcache_hit);
 
 static ssize_t vmstat_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
 	int cpu;
 	unsigned long pages = 0;
+	unsigned long miss_count = 0;
+	unsigned long hit_count = 0;
 
 	get_online_cpus();
-	for_each_online_cpu(cpu)
+	for_each_online_cpu(cpu) {
 		pages += per_cpu(pgalloc_costly_order, cpu);
-
+		miss_count += per_cpu(pgcache_miss, cpu);
+		hit_count += per_cpu(pgcache_hit, cpu);
+	}
 	put_online_cpus();
 
-	return sprintf(buf, "%s %d\n", "pgalloc_costly_order", pages);
+	return sprintf(buf, "%s %d\n%s %d\n%s %d\n",
+			"pgalloc_costly_order", pages,
+			"pgcache_miss", miss_count,
+			"pgcache_hit", hit_count);
 }
 
 static struct kobj_attribute vmstat_attribute = __ATTR_RO(vmstat);

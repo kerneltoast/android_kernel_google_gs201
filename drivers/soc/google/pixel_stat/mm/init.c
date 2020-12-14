@@ -13,12 +13,20 @@ extern void vh_rmqueue_mod(void *data, struct zone *preferred_zone,
 		struct zone *zone, unsigned int order, gfp_t gfp_flags,
 		unsigned int alloc_flags, int migratetype);
 extern int pixel_mm_sysfs(void);
+extern void vh_pagecache_get_page_mod(void *data,
+		struct address_space *mapping, pgoff_t index,
+		int fgp_flags, gfp_t gfp_mask, struct page *page);
 
 static int pixel_stat_mm_init(void)
 {
 	int ret;
 
 	ret = register_trace_android_vh_rmqueue(vh_rmqueue_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_pagecache_get_page(
+				vh_pagecache_get_page_mod, NULL);
 	if (ret)
 		return ret;
 
