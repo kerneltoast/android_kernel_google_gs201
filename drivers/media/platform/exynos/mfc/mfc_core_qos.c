@@ -340,6 +340,8 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 	u32 num_planes = ctx->dst_fmt->num_planes;
 	int weight = 1000;
 	unsigned long weighted_mb;
+	int hier_qp_type = -EINVAL;
+	u8 num_hier_layer = 0;
 
 	switch (ctx->codec_mode) {
 	case MFC_REG_CODEC_H264_DEC:
@@ -431,7 +433,19 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 
 	if (enc) {
 		p = &enc->params;
-		if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx)) && p->num_b_frame) {
+
+		if (IS_H264_ENC(ctx)) {
+			num_hier_layer = p->codec.h264.num_hier_layer;
+			hier_qp_type = (int)p->codec.h264.hier_qp_type;
+		} else if (IS_HEVC_ENC(ctx)) {
+			num_hier_layer = p->codec.hevc.num_hier_layer;
+			hier_qp_type = (int)p->codec.hevc.hier_qp_type;
+		}
+
+		if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx)) &&
+			(p->num_b_frame ||
+			((num_hier_layer >= 2) &&
+			 (hier_qp_type == V4L2_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_B)))) {
 			weight = (weight * 100) / qos_weight->weight_bframe;
 			mfc_debug(3, "[QoS] B frame encoding, weight: %d\n", weight / 10);
 		} else if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx) || IS_VP8_ENC(ctx) ||
