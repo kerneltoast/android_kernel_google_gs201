@@ -1141,7 +1141,7 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		max77759_vote_icl(tcpci, data, 0);
 
 	/* Signal usb_psy online */
-	usb_psy_set_sink_state(chip->usb_psy_data, attached);
+	usb_psy_set_sink_state(chip->usb_psy_data, role == TYPEC_SINK && attached);
 
 	return 0;
 }
