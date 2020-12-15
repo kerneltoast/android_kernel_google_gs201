@@ -2401,6 +2401,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	struct device *dev;
 	u32 val, vendor_id, device_id;
 	int ret;
+	struct irq_desc *exynos_pcie_desc;
 
 	if (!exynos_pcie) {
 		pr_err("%s: ch#%d PCIe device is not loaded\n", __func__, ch_num);
@@ -2411,6 +2412,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	pci = exynos_pcie->pci;
 	pp = &pci->pp;
 	dev = pci->dev;
+	exynos_pcie_desc = irq_to_desc(pp->irq);
 
 	dev_dbg(dev, "%s, start of poweron, pcie state: %d\n", __func__, exynos_pcie->state);
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
@@ -2477,7 +2479,11 @@ int exynos_pcie_rc_poweron(int ch_num)
 		exynos_elbi_write(exynos_pcie, 0x200000, PCIE_STATE_POWER_S);
 		exynos_elbi_write(exynos_pcie, 0xffffffff, PCIE_STATE_POWER_M);
 
-		enable_irq(pp->irq);
+		if ((exynos_pcie_desc) && (exynos_pcie_desc->depth > 0))
+			enable_irq(pp->irq);
+		else
+			dev_info(pci->dev, "%s, already enable_irq, so skip\n", __func__);
+
 		if (exynos_pcie_rc_establish_link(pp)) {
 			dev_err(dev, "pcie link up fail\n");
 			goto poweron_fail;
