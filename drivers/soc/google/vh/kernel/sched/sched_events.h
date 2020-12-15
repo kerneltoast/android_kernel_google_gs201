@@ -263,8 +263,8 @@ TRACE_EVENT(sched_find_best_target,
 		__entry->backup          = backup;
 		),
 
-	TP_printk("pid=%d comm=%s min_util=%lu prefer_idle=%d prefer_high_cap=%d prefer_prev=%d \
-		   sync_boost=%d start_cpu=%d best_idle=%d best_active=%d target=%d backup=%d",
+	TP_printk("pid=%d comm=%s min_util=%lu prefer_idle=%d prefer_high_cap=%d prefer_prev=%d " \
+		  "sync_boost=%d start_cpu=%d best_idle=%d best_active=%d target=%d backup=%d",
 		  __entry->pid, __entry->comm, __entry->min_util, __entry->prefer_idle,
 		  __entry->prefer_high_cap, __entry->prefer_prev, __entry->sync_boost,
 		  __entry->start_cpu, __entry->best_idle, __entry->best_active, __entry->target,
@@ -328,8 +328,8 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->online             = cpu_online(cpu);
 	),
 
-	TP_printk("cpu=%d nr_running=%d cpu_util=%ld capacity_curr=%u capacity=%u capacity_orig=%u \
-		   online=%u",
+	TP_printk("cpu=%d nr_running=%d cpu_util=%ld capacity_curr=%u capacity=%u " \
+		  "capacity_orig=%u online=%u",
 		__entry->cpu, __entry->nr_running, __entry->cpu_util, __entry->capacity_curr,
 		__entry->capacity, __entry->capacity_orig, __entry->online)
 );
