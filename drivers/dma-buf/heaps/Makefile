@@ -4,3 +4,5 @@ obj-$(CONFIG_DMABUF_HEAPS_PAGE_POOL)	+= page_pool.o
 obj-$(CONFIG_DMABUF_HEAPS_SYSTEM)	+= system_heap.o
 obj-$(CONFIG_DMABUF_HEAPS_CMA)		+= cma_heap.o
 obj-$(CONFIG_DMABUF_HEAPS_CHUNK)	+= chunk_heap.o
+
+obj-$(CONFIG_DMABUF_SAMSUNG_HEAPS)	+= samsung/

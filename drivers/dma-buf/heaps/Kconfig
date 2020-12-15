@@ -28,3 +28,5 @@ config DMABUF_HEAPS_CHUNK
 	  Choose this option to enable dma-buf CHUNK heap. This heap is backed
 	  by the Contiguous Memory Allocator (CMA) and allocates the buffers that
 	  are arranged into a list of fixed size chunks taken from CMA.
+
+source "drivers/dma-buf/heaps/samsung/Kconfig"
