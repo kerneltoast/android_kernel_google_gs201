@@ -783,19 +783,6 @@ static void exynos_pcie_rc_prog_viewport_cfg0(struct pcie_port *pp, u32 busdev)
 	exynos_pcie->atu_ok = 1;
 }
 
-static void exynos_pcie_rc_prog_viewport_cfg1(struct pcie_port *pp, u32 busdev)
-{
-	/* Program viewport 1 : OUTBOUND : CFG1 */
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR1_OUTBOUND0, 4, EXYNOS_PCIE_ATU_TYPE_CFG1);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_BASE_OUTBOUND0, 4, pp->cfg1_base);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_BASE_OUTBOUND0, 4, (pp->cfg1_base >> 32));
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LIMIT_OUTBOUND0, 4,
-				   pp->cfg1_base + pp->cfg1_size - 1);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_TARGET_OUTBOUND0, 4, busdev);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_TARGET_OUTBOUND0, 4, 0);
-	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR2_OUTBOUND0, 4, EXYNOS_PCIE_ATU_ENABLE);
-}
-
 static void exynos_pcie_rc_prog_viewport_mem_outbound(struct pcie_port *pp)
 {
 	/* Program viewport 0 : OUTBOUND : MEM */
@@ -903,37 +890,25 @@ EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_outbound_atu);
 static int exynos_pcie_rc_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus, u32 devfn,
 					int where, int size, u32 *val)
 {
-	int ret, type;
 	u32 busdev, cfg_size;
 	u64 cpu_addr;
 	void __iomem *va_cfg_base;
 
 	busdev = EXYNOS_PCIE_ATU_BUS(bus->number) | EXYNOS_PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 EXYNOS_PCIE_ATU_FUNC(PCI_FUNC(devfn));
-	if (pci_is_root_bus(bus->parent)) {
-		type = EXYNOS_PCIE_ATU_TYPE_CFG0;
-		cpu_addr = pp->cfg0_base;
-		cfg_size = pp->cfg0_size;
-		va_cfg_base = pp->va_cfg0_base;
-		/* setup ATU for cfg/mem outbound */
-		exynos_pcie_rc_prog_viewport_cfg0(pp, busdev);
-	} else {
-		type = EXYNOS_PCIE_ATU_TYPE_CFG1;
-		cpu_addr = pp->cfg1_base;
-		cfg_size = pp->cfg1_size;
-		va_cfg_base = pp->va_cfg1_base;
-		/* setup ATU for cfg/mem outbound */
-		exynos_pcie_rc_prog_viewport_cfg1(pp, busdev);
-	}
-	ret = dw_pcie_read(va_cfg_base + where, size, val);
 
-	return ret;
+	cpu_addr = pp->cfg0_base;
+	cfg_size = pp->cfg0_size;
+	va_cfg_base = pp->va_cfg0_base;
+	/* setup ATU for cfg/mem outbound */
+	exynos_pcie_rc_prog_viewport_cfg0(pp, busdev);
+
+	return dw_pcie_read(va_cfg_base + where, size, val);
 }
 
 static int exynos_pcie_rc_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus, u32 devfn,
 					int where, int size, u32 val)
 {
-	int ret, type;
 	u32 busdev, cfg_size;
 	u64 cpu_addr;
 	void __iomem *va_cfg_base;
@@ -941,26 +916,47 @@ static int exynos_pcie_rc_wr_other_conf(struct pcie_port *pp, struct pci_bus *bu
 	busdev = EXYNOS_PCIE_ATU_BUS(bus->number) | EXYNOS_PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 EXYNOS_PCIE_ATU_FUNC(PCI_FUNC(devfn));
 
-	if (pci_is_root_bus(bus->parent)) {
-		type = EXYNOS_PCIE_ATU_TYPE_CFG0;
-		cpu_addr = pp->cfg0_base;
-		cfg_size = pp->cfg0_size;
-		va_cfg_base = pp->va_cfg0_base;
-		/* setup ATU for cfg/mem outbound */
-		exynos_pcie_rc_prog_viewport_cfg0(pp, busdev);
-	} else {
-		type = EXYNOS_PCIE_ATU_TYPE_CFG1;
-		cpu_addr = pp->cfg1_base;
-		cfg_size = pp->cfg1_size;
-		va_cfg_base = pp->va_cfg1_base;
-		/* setup ATU for cfg/mem outbound */
-		exynos_pcie_rc_prog_viewport_cfg1(pp, busdev);
-	}
+	cpu_addr = pp->cfg0_base;
+	cfg_size = pp->cfg0_size;
+	va_cfg_base = pp->va_cfg0_base;
+	/* setup ATU for cfg/mem outbound */
+	exynos_pcie_rc_prog_viewport_cfg0(pp, busdev);
 
-	ret = dw_pcie_write(va_cfg_base + where, size, val);
+	return dw_pcie_write(va_cfg_base + where, size, val);
+}
 
+static int exynos_pcie_rc_rd_other_conf_new(struct pci_bus *bus,
+					    unsigned int devfn,
+					    int where, int size, u32 *val)
+{
+	struct pcie_port *pp = bus->sysdata;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	int ret = 0;
+
+	if (exynos_pcie->state == STATE_LINK_UP)
+		ret = exynos_pcie_rc_rd_other_conf(pp, bus, devfn, where, size, val);
 	return ret;
 }
+
+static int exynos_pcie_rc_wr_other_conf_new(struct pci_bus *bus,
+					    unsigned int devfn,
+					    int where, int size, u32 val)
+{
+	struct pcie_port *pp = bus->sysdata;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	int ret = 0;
+
+	if (exynos_pcie->state == STATE_LINK_UP)
+		ret = exynos_pcie_rc_wr_other_conf(pp, bus, devfn, where, size, val);
+	return ret;
+}
+
+static struct pci_ops exynos_pcie_rc_child_ops = {
+	.read = exynos_pcie_rc_rd_other_conf_new,
+	.write = exynos_pcie_rc_wr_other_conf_new
+};
 
 u32 exynos_pcie_rc_read_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg, size_t size)
 {
@@ -1981,16 +1977,13 @@ static void exynos_pcie_setup_rc(struct pcie_port *pp)
 static int exynos_pcie_rc_init(struct pcie_port *pp)
 {
 	/* Setup RC to avoid initialization faile in PCIe stack */
+	pp->bridge->child_ops = &exynos_pcie_rc_child_ops;
 	dw_pcie_setup_rc(pp);
 
 	return 0;
 }
 
 static struct dw_pcie_host_ops exynos_pcie_rc_ops = {
-	.rd_own_conf = exynos_pcie_rc_rd_own_conf,
-	.wr_own_conf = exynos_pcie_rc_wr_own_conf,
-	.rd_other_conf = exynos_pcie_rc_rd_other_conf,
-	.wr_other_conf = exynos_pcie_rc_wr_other_conf,
 	.host_init = exynos_pcie_rc_init,
 };
 
@@ -3494,8 +3487,6 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 		return ret;
 	}
 
-	pp->ops = &exynos_pcie_rc_ops;
-
 	exynos_pcie_setup_rc(pp);
 
 	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
@@ -3628,6 +3619,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	pci->ops = &dw_pcie_ops;
 
 	pp = &pci->pp;
+	pp->ops = &exynos_pcie_rc_ops;
 
 	exynos_pcie->ch_num = ch_num;
 	exynos_pcie->l1ss_enable = 1;
