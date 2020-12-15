@@ -33,6 +33,7 @@ struct usb_psy_data {
 	struct i2c_client *tcpc_client;
 	struct power_supply *usb_psy;
 	struct power_supply *chg_psy;
+	struct power_supply *main_chg_psy;
 	enum power_supply_usb_type usb_type;
 
 	/* Casts final vote on usb psy current max */
@@ -50,7 +51,10 @@ struct usb_psy_data {
 
 	struct usb_psy_ops *psy_ops;
 
+	/* For voting current limit */
 	char *chg_psy_name;
+	/* For reading USB current now */
+	char *main_chg_psy_name;
 
 	/*
 	 * Setting CURRENT limit on charger side can fail.
@@ -179,6 +183,28 @@ static void set_bc_current_limit(struct gvotable_election *usb_icl_proto_el,
 		      vote.reason);
 }
 
+static int usb_psy_current_now_ma(struct usb_psy_data *usb, int *current_now)
+{
+	union power_supply_propval val;
+	int ret;
+
+	if (IS_ERR_OR_NULL(usb->main_chg_psy)) {
+		if (!usb->main_chg_psy_name) {
+			logbuffer_log(usb->log, "main-chg-psy-name not set\n");
+			return -EINVAL;
+		}
+		usb->main_chg_psy = power_supply_get_by_name(usb->main_chg_psy_name);
+		if (IS_ERR_OR_NULL(usb->main_chg_psy))
+			return -EAGAIN;
+	}
+
+	ret = power_supply_get_property(usb->main_chg_psy, POWER_SUPPLY_PROP_CURRENT_NOW, &val);
+	if (!ret)
+		*current_now = val.intval;
+
+	return ret;
+}
+
 static int usb_psy_data_get_prop(struct power_supply *psy,
 				 enum power_supply_property psp,
 				 union power_supply_propval *val)
@@ -186,6 +212,7 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 	struct usb_psy_data *usb = power_supply_get_drvdata(psy);
 	struct usb_psy_ops *ops = usb->psy_ops;
 	struct i2c_client *client = usb->tcpc_client;
+	int ret;
 
 	if (!usb)
 		return 0;
@@ -204,6 +231,9 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 			* 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		ret = usb_psy_current_now_ma(usb, &val->intval);
+		if (ret < 0)
+			return ret;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = ops->tcpc_get_vbus_voltage_mv(client);
@@ -451,6 +481,8 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 			dev_err(&client->dev, "chg psy not up\n");
 	}
 
+	usb->main_chg_psy_name = (char *)of_get_property(dn, "main-chg-psy-name", NULL);
+
 	usb_cfg.drv_data = usb;
 	usb_cfg.of_node =  dev->of_node;
 	usb->usb_psy = devm_power_supply_register(dev, &usb_psy_desc,
@@ -527,6 +559,8 @@ unreg_icl_el:
 psy_put:
 	if (usb->chg_psy)
 		power_supply_put(usb->chg_psy);
+	if (usb->main_chg_psy)
+		power_supply_put(usb->main_chg_psy);
 
 	return ret;
 }
@@ -542,6 +576,8 @@ void usb_psy_teardown(void *usb_data)
 	gvotable_destroy_election(usb->usb_icl_el);
 	if (usb->chg_psy)
 		power_supply_put(usb->usb_psy);
+	if (usb->main_chg_psy)
+		power_supply_put(usb->main_chg_psy);
 }
 EXPORT_SYMBOL_GPL(usb_psy_teardown);
 
