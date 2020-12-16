@@ -3142,7 +3142,7 @@ int exynos_pcie_rc_chk_link_status(int ch_num)
 			dev_err(dev, "Check unexpected state - H/W:0x%x, S/W:%d\n",
 				val, exynos_pcie->state);
 			/* exynos_pcie->state = STATE_LINK_DOWN; */
-			link_status = 1;
+			link_status = 0;
 		}
 
 		return link_status;
