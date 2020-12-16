@@ -186,6 +186,7 @@ struct s2mpg10_dev {
 	struct i2c_client *rtc;
 	struct i2c_client *meter;
 	struct i2c_client *wlwp;
+	struct i2c_client *trim;
 
 	/* mutex for s2mpg10 speedy read/write */
 	struct mutex i2c_lock;

@@ -28,8 +28,8 @@
 #define I2C_ADDR_TOP 0x00
 #define I2C_ADDR_PMIC 0x01
 #define I2C_ADDR_METER 0x0A
-#define I2C_ADDR_TRIM 0x0F
 #define I2C_ADDR_WLWP 0x0B
+#define I2C_ADDR_TRIM 0x0F
 
 static struct device_node *acpm_mfd_node;
 
@@ -350,13 +350,13 @@ static int s2mpg11_i2c_probe(struct i2c_client *i2c,
 
 	s2mpg11->pmic = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_PMIC);
 	s2mpg11->meter = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_METER);
-	s2mpg11->trim = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_TRIM);
 	s2mpg11->wlwp = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_WLWP);
+	s2mpg11->trim = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_TRIM);
 
 	i2c_set_clientdata(s2mpg11->pmic, s2mpg11);
 	i2c_set_clientdata(s2mpg11->meter, s2mpg11);
-	i2c_set_clientdata(s2mpg11->trim, s2mpg11);
 	i2c_set_clientdata(s2mpg11->wlwp, s2mpg11);
+	i2c_set_clientdata(s2mpg11->trim, s2mpg11);
 
 	pr_info("%s device found: rev.0x%2x\n", __func__, s2mpg11->pmic_rev);
 
