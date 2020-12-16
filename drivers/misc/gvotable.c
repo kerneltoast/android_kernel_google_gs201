@@ -860,7 +860,8 @@ int gvotable_get_vote(struct gvotable_election *el, const char *reason,
 	ballot = gvotable_ballot_find_internal(el, reason);
 	if (!ballot) {
 		gvotable_unlock_result(el);
-		return -ENODEV;
+		*vote = NULL;
+		return (el->is_bool_type) ? 0 : -ENODEV;
 	}
 
 	if (!el->is_bool_type && !ballot->enabled)
