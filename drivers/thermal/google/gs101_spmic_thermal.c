@@ -226,7 +226,23 @@ static int gs101_spmic_thermal_set_trip_temp(void *data, int trip, int temp)
 static int gs101_spmic_thermal_set_emul_temp(void *data, int temp)
 {
 	struct gs101_spmic_thermal_sensor *sensor = data;
-	/* TODO: disable given NTC channel for HW emergency reset */
+	int ret;
+	u8 value, mask = 0x1;
+
+	if (sensor->chip->adc_chan_en & (mask << sensor->adc_chan)) {
+		ret = s2mpg11_read_reg(sensor->chip->i2c, S2MPG11_METER_CTRL3, &value);
+		if (ret)
+			return ret;
+
+		if (temp)
+			value &= ~(mask << sensor->adc_chan);
+		else
+			value |= mask << sensor->adc_chan;
+
+		ret = s2mpg11_write_reg(sensor->chip->i2c, S2MPG11_METER_CTRL3, value);
+		if (ret)
+			return ret;
+	}
 	sensor->emul_temperature = temp;
 	return 0;
 }
@@ -396,6 +412,58 @@ gs101_spmic_set_enable(struct gs101_spmic_thermal_chip *gs101_spmic_thermal,
 	return ret;
 }
 
+static ssize_t
+adc_chan_en_show(struct device *dev, struct device_attribute *devattr,
+		 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
+	int ret;
+	u8 value;
+
+	ret = s2mpg11_read_reg(chip->i2c, S2MPG11_METER_CTRL3, &value);
+
+	return ret ? ret : scnprintf(buf, PAGE_SIZE, "0x%02X\n", value);
+}
+
+static ssize_t
+adc_chan_en_store(struct device *dev, struct device_attribute *devattr,
+		  const char *buf, size_t count)
+{
+	int i, ret;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
+	u8 value, mask = 0x1;
+
+	ret = sscanf(buf, "%hhx", &value);
+	if (ret != 1)
+		return ret;
+
+	ret = s2mpg11_write_reg(chip->i2c, S2MPG11_METER_CTRL3, value);
+	if (ret)
+		return ret;
+
+	chip->adc_chan_en = value;
+
+	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
+		if (chip->adc_chan_en & mask)
+			thermal_zone_device_enable(chip->sensor[i].tzd);
+		else
+			thermal_zone_device_disable(chip->sensor[i].tzd);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(adc_chan_en);
+
+static struct attribute *gs101_spmic_dev_attrs[] = {
+	&dev_attr_adc_chan_en.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(gs101_spmic_dev);
+
 static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -515,6 +583,7 @@ static const struct platform_device_id gs101_spmic_thermal_id_table[] = {
 static struct platform_driver gs101_spmic_thermal_driver = {
 	.driver = {
 		.name = "gs101-spmic-thermal",
+		.dev_groups = gs101_spmic_dev_groups,
 		.owner = THIS_MODULE,
 	},
 	.probe = gs101_spmic_thermal_probe,

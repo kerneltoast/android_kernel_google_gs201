@@ -1,0 +1,8 @@
+What:		/sys/devices/platform/.../gs101-spmic-thermal/adc_chan_en
+Date:		December, 2020
+Contact:	"TeYuan Wang" <kamewang@google.com>
+Description:
+		Because NTC channels are not stable during developing
+		stage (e.g. b/175068512), this file provides the interface
+		which supports enable/disable the NTC channels and config the
+		corresponding thermal zone mode.
