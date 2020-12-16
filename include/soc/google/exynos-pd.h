@@ -73,6 +73,8 @@ struct exynos_pd_dbg_info {
 #if IS_ENABLED(CONFIG_EXYNOS_PD)
 struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name);
 int exynos_pd_status(struct exynos_pm_domain *pd);
+int exynos_pd_power_on(struct exynos_pm_domain *pd);
+int exynos_pd_power_off(struct exynos_pm_domain *pd);
 int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd,
 			  struct exynos_pd_stat *s);
 #else
@@ -81,10 +83,22 @@ struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name)
 {
 	return NULL;
 }
+
 static inline int exynos_pd_status(struct exynos_pm_domain *pd)
 {
 	return 1;
 }
+
+static inline int exynos_pd_power_on(struct exynos_pm_domain *pd)
+{
+	return 0;
+}
+
+static inline int exynos_pd_power_off(struct exynos_pm_domain *pd)
+{
+	return 0;
+}
+
 static inline int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd,
 					struct exynos_pd_stat *s)
 {

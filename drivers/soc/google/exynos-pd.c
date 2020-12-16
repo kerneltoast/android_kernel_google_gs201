@@ -132,10 +132,8 @@ static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 		exynos_bts_scitoken_setting(false);
 }
 
-static int exynos_pd_power_on(struct generic_pm_domain *genpd)
+int exynos_pd_power_on(struct exynos_pm_domain *pd)
 {
-	struct exynos_pm_domain *pd =
-		container_of(genpd, struct exynos_pm_domain, genpd);
 	int ret = 0;
 
 	mutex_lock(&pd->access_lock);
@@ -155,6 +153,11 @@ static int exynos_pd_power_on(struct generic_pm_domain *genpd)
 
 	if (pd->power_down_skipped) {
 		pr_info("%s power-on is skipped.\n", pd->name);
+		goto acc_unlock;
+	}
+
+	if (cal_pd_status(pd->cal_pdid)) {
+		pr_warn("pd_power_on:(%s) is already ON\n", pd->name);
 		goto acc_unlock;
 	}
 
@@ -179,11 +182,18 @@ acc_unlock:
 
 	return ret;
 }
+EXPORT_SYMBOL(exynos_pd_power_on);
 
-static int __exynos_pd_power_off(struct generic_pm_domain *genpd)
+static int genpd_power_on(struct generic_pm_domain *genpd)
 {
 	struct exynos_pm_domain *pd =
-		container_of(genpd, struct exynos_pm_domain, genpd);
+	    container_of(genpd, struct exynos_pm_domain, genpd);
+
+	return exynos_pd_power_on(pd);
+}
+
+static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
+{
 	int ret = 0;
 	ktime_t now;
 
@@ -200,13 +210,18 @@ static int __exynos_pd_power_off(struct generic_pm_domain *genpd)
 
 	if (unlikely(!pd->pd_control)) {
 		pr_debug("%s is logical sub power domain, does not have power off control\n",
-			 genpd->name);
+			 pd->name);
 		goto acc_unlock;
 	}
 
 	if (pd->power_down_ok && !pd->power_down_ok()) {
 		pr_info("%s power-off is skipped.\n", pd->name);
 		pd->power_down_skipped = true;
+		goto acc_unlock;
+	}
+
+	if (!cal_pd_status(pd->cal_pdid)) {
+		pr_warn("pd_power_off:(%s) is already OFF\n", pd->name);
 		goto acc_unlock;
 	}
 
@@ -229,17 +244,24 @@ acc_unlock:
 	return ret;
 }
 
-static int exynos_pd_power_off(struct generic_pm_domain *genpd)
+int exynos_pd_power_off(struct exynos_pm_domain *pd)
 {
-	struct exynos_pm_domain *pd =
-		container_of(genpd, struct exynos_pm_domain, genpd);
 	int ret;
 
 	mutex_lock(&pd->access_lock);
-	ret = __exynos_pd_power_off(genpd);
+	ret = __exynos_pd_power_off(pd);
 	mutex_unlock(&pd->access_lock);
 
 	return ret;
+}
+EXPORT_SYMBOL(exynos_pd_power_off);
+
+static int genpd_power_off(struct generic_pm_domain *genpd)
+{
+	struct exynos_pm_domain *pd =
+		container_of(genpd, struct exynos_pm_domain, genpd);
+
+	return exynos_pd_power_off(pd);
 }
 
 /**
@@ -315,8 +337,8 @@ static void of_get_power_down_ok(struct exynos_pm_domain *pd)
 static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 {
 	pd->genpd.name = pd->name;
-	pd->genpd.power_off = exynos_pd_power_off;
-	pd->genpd.power_on = exynos_pd_power_on;
+	pd->genpd.power_off = genpd_power_off;
+	pd->genpd.power_on = genpd_power_on;
 
 	/* pd power on/off latency is less than 1ms */
 	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
@@ -495,7 +517,7 @@ static void exynos_pd_sync_state(struct device *dev)
 		pd->need_sync = false;
 		dev_info(dev, "sync_state: turn_off = %d\n", pd->turn_off_on_sync);
 		if (pd->turn_off_on_sync)
-			__exynos_pd_power_off(&pd->genpd);
+			__exynos_pd_power_off(pd);
 	}
 	mutex_unlock(&pd->access_lock);
 }
