@@ -223,12 +223,12 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 			? 1 : 0 : 0;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		val->intval = usb_get_current_max_ma(usb);
+		/* Report the voted value to reflect TA capability */
+		val->intval = usb->current_max_cache;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		/** Report in uv **/
-		val->intval = ops->tcpc_get_vbus_voltage_max_mv(client)
-			* 1000;
+		/* Report in uv */
+		val->intval = ops->tcpc_get_vbus_voltage_max_mv(client) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		ret = usb_psy_current_now_ma(usb, &val->intval);
@@ -264,9 +264,7 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		ret = kthread_mod_delayed_work(usb->wq, &usb->icl_work, 0);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
-		ret = ops->tcpc_set_vbus_voltage_max_mv(client,
-							val->intval /
-							1000);
+		/* Enough to trigger just the uevent */
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		usb->usb_type = val->intval;
