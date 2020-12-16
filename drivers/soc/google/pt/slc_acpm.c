@@ -22,6 +22,7 @@
 #include "../cal-if/acpm_dvfs.h"
 #include <soc/google/acpm_ipc_ctrl.h>
 #include <linux/errno.h>
+#include <linux/debugfs.h>
 
 #define PT_PTID_MAX 64
 
@@ -33,6 +34,9 @@
 #define PT_VERSION_KNOWN 0x1
 #define PT_VERSION_ASYNC 0x10008
 #define PT_VERSION_INVALID 0x0
+
+#define SLC_PLDTRC 0x6a
+#define SLC_STOP  0x6b
 
 enum pt_property_index {
 	PT_PROPERTY_INDEX_VPTID = 0,
@@ -441,6 +445,41 @@ static void slc_acpm_disable(void *data, ptid_t ptid)
 	slc_acpm_check(driver_data);
 }
 
+static int slc_pldtrc_set(void *data, unsigned long long val)
+{
+	struct slc_acpm_driver_data *driver_data =
+				(struct slc_acpm_driver_data *)data;
+	int arg1, arg2;
+	uint64_t cmd;
+
+	if (!slc_version_check(driver_data))
+		return -ENOENT;
+
+	arg1 = (val & 0xff00) >> 8;
+	arg2 = (val & 0xff);
+	cmd = (arg1 == 0 || arg2 == 0) ? SLC_STOP : SLC_PLDTRC;
+
+	dev_info(&driver_data->pdev->dev, "send cmd:%x with arg1:%x arg2:%x to slc",
+		cmd, arg1, arg2);
+
+	return slc_acpm(driver_data, cmd, arg1, arg2, NULL);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(slc_pldtrc_ctl_fops,
+		NULL, slc_pldtrc_set, "%llu\n");
+
+static void slc_debugfs_init(struct slc_acpm_driver_data *driver_data)
+{
+	struct dentry *den;
+
+	den = debugfs_lookup("acpm_framework", NULL);
+	if (!den)
+		den = debugfs_create_dir("acpm_framework", NULL);
+
+	debugfs_create_file("slc_pldtrc_ctl", 0644, den, driver_data,
+			    &slc_pldtrc_ctl_fops);
+
+}
 static int slc_acpm_probe(struct platform_device *pdev)
 {
 	struct slc_acpm_driver_data *driver_data =
@@ -457,6 +496,8 @@ static int slc_acpm_probe(struct platform_device *pdev)
 	driver_data->driver = pt_driver_register(pdev->dev.of_node,
 			&slc_acpm_ops, driver_data);
 	WARN_ON(driver_data->driver == NULL);
+
+	slc_debugfs_init(driver_data);
 
 	slc_pmon_init(driver_data, slc_acpm);
 
