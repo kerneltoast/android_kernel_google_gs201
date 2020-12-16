@@ -10250,6 +10250,7 @@
   tcp_memory_pressure
   tcpm_get_partner_src_caps
   tcpm_is_debouncing
+  tcpm_is_toggling
   tcp_mmap
   tcpm_pd_hard_reset
   tcpm_pd_receive
