@@ -111,11 +111,11 @@
 							IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI IRQ_TREX_P_BUS2_debugInterrupt_BUS2
 							IRQ_TYPE_LEVEL_HIGH>;
-		panic_count = <5>;
+		panic_count = <0>;
 		err_fatal = <GO_S2D_ID>;
 		err_drex_tmout = <GO_S2D_ID>;
 		err_ip = <GO_S2D_ID>;
-		err_cpu = <GO_DEFAULT_ID>;
+		err_cpu = <GO_S2D_ID>;
 		err_unhandled = <GO_PANIC_ID>;
 	};
 
