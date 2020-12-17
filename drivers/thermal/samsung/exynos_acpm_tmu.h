@@ -90,10 +90,13 @@ struct tmu_ipc_response {
 	u8 tzid;
 	u8 temp;
 	u8 stat;
-	u8 rsvd;
+	u8 rsvd0;
+	u8 rsvd1;
 	u8 rsvd2;
 	u8 rsvd3;
-	u32 reserved;
+	u8 rsvd4;
+	u8 rsvd5;
+	u8 rsvd6;
 };
 
 union tmu_ipc_message {

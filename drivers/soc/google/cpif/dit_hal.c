@@ -130,6 +130,16 @@ static int dit_hal_set_event(enum offload_event_num event_num)
 
 struct net_device *dit_hal_get_dst_netdev(enum dit_desc_ring ring_num)
 {
+#if defined(DIT_DEBUG_LOW)
+	struct io_device *iod;
+
+	if (dc->pktgen_ch && (ring_num == DIT_DST_DESC_RING_0)) {
+		iod = link_get_iod_with_channel(dc->ld, dc->pktgen_ch);
+
+		return iod ? iod->ndev : NULL;
+	}
+#endif
+
 	if (dhc && dhc->dst_iface[ring_num].iface_set)
 		return dhc->dst_iface[ring_num].netdev;
 
@@ -406,11 +416,6 @@ static void dit_hal_set_iod_clat_netdev(struct io_device *iod, void *args)
 		if (iod->clat_ndev)
 			dev_put(iod->clat_ndev);
 
-		spin_lock(&dhc->hal_lock);
-		if (ndev && !dhc->hal_enabled)
-			ndev->features |= NETIF_F_GRO_FRAGLIST;
-		spin_unlock(&dhc->hal_lock);
-
 		iod->clat_ndev = ndev;
 		spin_unlock_irqrestore(&iod->clat_lock, flags);
 
@@ -490,39 +495,6 @@ exit:
 	return ret;
 }
 
-static void dit_hal_set_netdev_udp_gro(struct io_device *iod, void *args)
-{
-	netdev_features_t gro_feature = NETIF_F_GRO_FRAGLIST;
-	bool *enable = (bool *) args;
-	unsigned long flags;
-
-	if (!dc->ld || !dc->ld->is_ps_ch(iod->ch))
-		return;
-
-	if (!iod->ndev)
-		return;
-
-	spin_lock_irqsave(&iod->clat_lock, flags);
-	if (*enable) {
-		iod->ndev->features |= gro_feature;
-		if (iod->clat_ndev)
-			iod->clat_ndev->features |= gro_feature;
-	} else {
-		iod->ndev->features &= ~gro_feature;
-		if (iod->clat_ndev)
-			iod->clat_ndev->features &= ~gro_feature;
-	}
-	spin_unlock_irqrestore(&iod->clat_lock, flags);
-}
-
-static void dit_hal_enable_udp_gro(bool enable)
-{
-	if (!dc->ld)
-		return;
-
-	iodevs_for_each(dc->ld->msd, dit_hal_set_netdev_udp_gro, &enable);
-}
-
 static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct iface_info info;
@@ -552,12 +524,9 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			mif_err("hal buffer fill failed. ret: %d\n", ret);
 			return ret;
 		}
-
 		spin_lock(&dhc->hal_lock);
 		dhc->hal_enabled = true;
 		spin_unlock(&dhc->hal_lock);
-
-		dit_hal_enable_udp_gro(false);
 		break;
 	case OFFLOAD_IOCTL_STOP_OFFLOAD:
 		mif_info("hal stopped\n");
@@ -573,7 +542,6 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 		ret = dit_manage_rx_dst_data_buffers(false);
 		if (ret)
 			mif_err("hal buffer free. ret: %d\n", ret);
-		dit_hal_enable_udp_gro(true);
 
 		/* don't call dit_hal_init() here for the last event delivery */
 		break;

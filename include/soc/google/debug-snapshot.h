@@ -49,6 +49,7 @@ extern bool dbg_snapshot_qd_enabled(void);
 extern void dbg_snapshot_qd_dump_stack(u64 sp);
 /*debug-snapshot-utils functions */
 extern int dbg_snapshot_get_sjtag_status(void);
+extern bool dbg_snapshot_get_panic_status(void);
 extern void dbg_snapshot_ecc_dump(void);
 extern int dbg_snapshot_start_watchdog(int sec);
 extern int dbg_snapshot_emergency_reboot(const char *str);
@@ -291,6 +292,7 @@ enum dsslog_flag {
 enum dss_item_index {
 	DSS_ITEM_HEADER_ID = 0,
 	DSS_ITEM_KEVENTS_ID,
+	DSS_ITEM_BCM_ID,
 	DSS_ITEM_S2D_ID,
 	DSS_ITEM_ARRDUMP_RESET_ID,
 	DSS_ITEM_ARRDUMP_PANIC_ID,

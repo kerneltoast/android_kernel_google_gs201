@@ -28,6 +28,9 @@
 #endif
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include <linux/pci.h>
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+#include <soc/google/s2mpu.h>
+#endif
 #endif
 #include "modem_debug.h"
 #include "modem_v1.h"
@@ -656,6 +659,7 @@ struct modem_ctl {
 
 	/* spin lock for each modem_ctl instance */
 	spinlock_t lock;
+	spinlock_t tx_timer_lock;
 
 	/* list for notify to opened iod when changed modem state */
 	struct list_head modem_state_notify_list;
@@ -774,6 +778,10 @@ struct modem_ctl {
 	bool s5100_iommu_map_enabled;
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
 	bool s5100_s2mpu_enabled;
+#endif
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	struct s2mpu_info *s2mpu;
 #endif
 
 	struct notifier_block reboot_nb;

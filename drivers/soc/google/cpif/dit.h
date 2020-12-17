@@ -263,7 +263,8 @@ struct dit_src_desc {
 		/* the below 16 bits are "private info" on the document */
 		ch_id:5,		/* max ch value for rmnet is 17 */
 		pre_csum:1,		/* checksum successful from pktproc */
-		_reserved_2:10;
+		udp_csum_zero:1,	/* reset udp checksum 0 after NAT */
+		_reserved_2:9;
 	u64	length:16,
 		_reserved_1:32,
 		control:8,
@@ -276,7 +277,8 @@ struct dit_dst_desc {
 		/* the below 16 bits are "private info" on the document */
 		ch_id:5,
 		pre_csum:1,
-		_reserved_2:10;
+		udp_csum_zero:1,
+		_reserved_2:9;
 	u64	length:16,
 		org_port:16,
 		trans_port:16,
@@ -341,7 +343,7 @@ struct dit_ctrl_t {
 	atomic_t stop_napi_poll;
 
 #if defined(DIT_DEBUG_LOW)
-	int pktgen_mode;
+	int pktgen_ch;
 	int force_bypass;
 #endif
 };
@@ -390,12 +392,20 @@ enum dit_idle_ip {
 	DIT_IDLE_IP_IDLE,
 };
 
+/*
+ * if there is 1 src desc and it is at the ring_end,
+ * DIT will reads 3 descs from the ring_end.
+ * for the safety, add additional 2 descs.
+ */
+#define DIT_SRC_DESC_RING_LEN_PADDING	(2)
+
 int dit_create(struct platform_device *pdev);
 int dit_init(struct link_device *ld, bool retry);
 int dit_enqueue_reg_value_with_ext_lock(u32 value, u32 offset);
 int dit_enqueue_reg_value(u32 value, u32 offset);
 int dit_read_rx_dst_poll(struct napi_struct *napi, int budget);
 int dit_manage_rx_dst_data_buffers(bool fill);
+int dit_get_irq_affinity(void);
 int dit_set_irq_affinity(int affinity);
 int dit_set_buf_size(enum dit_direction dir, u32 size);
 int dit_set_pktproc_base(enum dit_direction dir, phys_addr_t base);

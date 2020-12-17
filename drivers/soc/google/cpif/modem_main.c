@@ -117,6 +117,7 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev,
 
 	INIT_LIST_HEAD(&modemctl->modem_state_notify_list);
 	spin_lock_init(&modemctl->lock);
+	spin_lock_init(&modemctl->tx_timer_lock);
 	init_completion(&modemctl->init_cmpl);
 	init_completion(&modemctl->off_cmpl);
 
@@ -312,6 +313,9 @@ static int parse_dt_common_pdata(struct device_node *np,
 
 	mif_dt_read_u32_noerr(np, "mif,capability_check", pdata->capability_check);
 	mif_info("capability_check:%d\n", pdata->capability_check);
+
+	mif_dt_read_u32_noerr(np, "mif,cp2ap_active_not_alive", pdata->cp2ap_active_not_alive);
+	mif_info("cp2ap_active_not_alive:%d\n", pdata->cp2ap_active_not_alive);
 
 	return 0;
 }

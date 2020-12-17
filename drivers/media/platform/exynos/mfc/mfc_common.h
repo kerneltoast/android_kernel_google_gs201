@@ -21,7 +21,7 @@
 
 #include "mfc_data_struct.h"
 #include "mfc_regs.h"
-#include "mfc_macros.h"
+#include <uapi/video/mfc_macros.h>
 #include "mfc_debug.h"
 #include "mfc_media.h"
 
@@ -277,6 +277,8 @@
 #define ENC_SET_GDC_VOTF		(1 << 17)
 #define ENC_SET_OPERATING_FPS		(1 << 18)
 #define ENC_SET_AVERAGE_QP		(1 << 19)
+#define ENC_SET_MV_SEARCH_MODE		(1 << 20)
+#define ENC_SET_GOP_CTRL		(1 << 21)
 
 #define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw_date >= (f).version))
 

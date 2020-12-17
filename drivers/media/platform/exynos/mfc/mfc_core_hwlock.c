@@ -606,20 +606,6 @@ void mfc_core_cache_flush(struct mfc_core *core, int is_drm,
 	mfc_core_pm_clock_off(core);
 	core->curr_core_ctx_is_drm = is_drm;
 	mfc_core_pm_clock_on_with_base(core, (is_drm ? MFCBUF_DRM : MFCBUF_NORMAL));
-
-	/*
-	 * If ctx is switched from normal to DRM,
-	 * RISC_ON is required because the MFC is reset.
-	 */
-	if (is_drm) {
-		mfc_core_risc_on(core);
-		mfc_core_debug(2, "Will now wait for completion of firmware transfer\n");
-		if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_FW_STATUS_RET)) {
-			mfc_core_err("Failed to RISC_ON\n");
-			mfc_core_clean_dev_int_flags(core);
-			call_dop(core, dump_and_stop_always, core);
-		}
-	}
 }
 
 /*

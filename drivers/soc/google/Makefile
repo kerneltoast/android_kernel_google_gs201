@@ -25,6 +25,10 @@ obj-$(CONFIG_SLC_PARTITION_MANAGER)	+= pt/
 # GSA
 obj-$(CONFIG_GSA)			+= gsa/
 
+obj-$(CONFIG_EXYNOS_BCM_DBG)		+= bcm_dbg.o
+bcm_dbg-$(CONFIG_EXYNOS_BCM_DBG)	+= exynos-bcm_dbg.o exynos-bcm_dbg-dt.o exynos-bcm_dbg-ppmu.o
+obj-$(CONFIG_EXYNOS_BCM_DBG_DUMP)	+= exynos-bcm_dbg-dump.o
+
 # CPIF
 obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif/
 
@@ -44,3 +48,5 @@ obj-$(CONFIG_HARDLOCKUP_WATCHDOG)	+= hardlockup-watchdog.o
 obj-$(CONFIG_VH_KERNEL)			+= vh/kernel/
 
 obj-$(CONFIG_DBGCORE_DUMP)		+= dbgcore-dump.o
+
+obj-$(CONFIG_EXYNOS_SECURE_LOG) 	+= exynos-seclog.o

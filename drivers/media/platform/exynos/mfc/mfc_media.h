@@ -201,6 +201,8 @@ enum v4l2_mpeg_mfc51_video_frame_type {
 					(V4L2_CID_MPEG_MFC_BASE + 33)
 #define V4L2_CID_MPEG_VIDEO_AVERAGE_QP				\
 					(V4L2_CID_MPEG_MFC_BASE + 34)
+#define V4L2_CID_MPEG_VIDEO_GOP_CTRL			\
+					(V4L2_CID_MPEG_MFC_BASE + 35)
 
 #define V4L2_CID_MPEG_VIDEO_CHROMA_QP_OFFSET_CB		\
 					(V4L2_CID_MPEG_MFC_BASE + 38)
@@ -332,8 +334,15 @@ enum v4l2_mpeg_mfc51_video_frame_type {
 #define V4L2_CID_MPEG_MFC_HDR_USER_SHARED_HANDLE	\
 					(V4L2_CID_MPEG_MFC_BASE + 109)
 
-/* CIDs for HEVC encoding. Number gaps are for compatibility */
-
+/*
+ * CIDs for HEVC encoding.
+ * Even though it was merged to mainline, do not use it for HAL code compatibility.
+ * HEVC_MIN_QP + 110
+ * HEVC_MAX_QP + 111
+ * HEVC_I_FRAME_QP + 112
+ * HEVC_P_FRAME_QP + 113
+ * HEVC_B_FRAME_QP + 114
+ */
 #define V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_QP_ENABLE \
 					(V4L2_CID_MPEG_MFC_BASE + 115)
 #define V4L2_CID_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_TYPE       \
@@ -560,6 +569,16 @@ enum v4l2_mpeg_mfc51_video_frame_type {
 					(V4L2_CID_MPEG_MFC_BASE + 231)
 #define V4L2_CID_MPEG_VIDEO_STATIC_INFO_ENABLE			\
 					(V4L2_CID_MPEG_MFC_BASE + 232)
+#define V4L2_CID_MPEG_VIDEO_MV_SEARCH_MODE			\
+					(V4L2_CID_MPEG_MFC_BASE + 233)
+#define V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L0			\
+					(V4L2_CID_MPEG_MFC_BASE + 234)
+#define V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L1			\
+					(V4L2_CID_MPEG_MFC_BASE + 235)
+#define V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L0			\
+					(V4L2_CID_MPEG_MFC_BASE + 236)
+#define V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L1			\
+					(V4L2_CID_MPEG_MFC_BASE + 237)
 
 /* CID for AV1 decoding interface */
 #define V4L2_CID_MPEG_MFC_AV1_FILM_GRAIN_USER_SHARED_HANDLE	\

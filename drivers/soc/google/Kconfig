@@ -24,6 +24,25 @@ config GS_CHIPID
 	select SOC_BUS
 	default y
 
+config EXYNOS_BCM_DBG
+	tristate "EXYNOS_BCM_DBG driver support"
+	help
+	Enable exynos-bcm_dbg driver support
+
+config EXYNOS_BCM_DBG_DUMP
+	tristate "EXYNOS_BCM_DBG dump support"
+	depends on EXYNOS_BCM_DBG
+	default y if EXYNOS_BCM_DBG
+	help
+	Enable exynos-bcm_dbg dump support
+
+config EXYNOS_BCM_DBG_PPMU
+	bool "EXYNOS_BCM_DBG PPMU support"
+	depends on EXYNOS_BCM_DBG
+	default n if EXYNOS_BCM_DBG
+	help
+	Enable exynos-bcm_dbg PPMU perf_event support
+
 config CAL_IF
        tristate "Exynos Chip Abstraction Layer Interface"
        help
@@ -150,6 +169,18 @@ config VH_KERNEL
 	default y
 	help
 	Modules for vendor kernel hooks.
+
+config EXYNOS_SECURE_LOG
+	tristate "Exynos Secure Log"
+	default n
+	help
+	Support Exynos Secure Log
+
+config EXYNOS_CONTENT_PATH_PROTECTION
+	tristate "Exynos Content Path Protection"
+	default n
+	help
+	  Enable content path protection of EXYNOS.
 
 source "drivers/soc/google/gsa/Kconfig"
 

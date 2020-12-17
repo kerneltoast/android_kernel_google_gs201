@@ -40,6 +40,9 @@ struct tpmon_data {
 	u32 proto;
 	u32 check_udp;
 
+	struct list_head urgent_data_node;
+	u32 urgent;
+
 	u32 num_threshold;
 	u32 threshold[MAX_TPMON_THRESHOLD];
 	u32 curr_threshold_pos;
@@ -92,6 +95,10 @@ struct cpif_tpmon {
 	u32 unboost_tp_percent;
 
 	u64 jiffies_to_trigger;
+
+	atomic_t need_urgent;
+	struct list_head urgent_data_list;
+	bool urgent_active;
 
 	struct workqueue_struct *monitor_wq;
 	struct delayed_work monitor_dwork;

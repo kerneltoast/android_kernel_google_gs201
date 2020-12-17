@@ -627,6 +627,46 @@ static struct slowio_attr ufs_slowio_##_name##_cnt = {		\
 	.systype = PIXEL_SLOWIO_CNT,				\
 }
 
+static const char *ufschd_ufs_dev_pwr_mode_to_string(
+			enum ufs_dev_pwr_mode state)
+{
+	switch (state) {
+	case UFS_ACTIVE_PWR_MODE:	return "ACTIVE";
+	case UFS_SLEEP_PWR_MODE:	return "SLEEP";
+	case UFS_POWERDOWN_PWR_MODE:	return "POWERDOWN";
+	default:			return "UNKNOWN";
+	}
+}
+
+static ssize_t curr_dev_pwr_mode_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
+				hba->curr_dev_pwr_mode));
+}
+
+static const char *ufschd_uic_link_state_to_string(
+			enum uic_link_state state)
+{
+	switch (state) {
+	case UIC_LINK_OFF_STATE:	return "OFF";
+	case UIC_LINK_ACTIVE_STATE:	return "ACTIVE";
+	case UIC_LINK_HIBERN8_STATE:	return "HIBERN8";
+	default:			return "UNKNOWN";
+	}
+}
+
+static ssize_t uic_link_state_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ufschd_uic_link_state_to_string(
+				hba->uic_link_state));
+}
+
 static DEVICE_ATTR_RO(vendor);
 static DEVICE_ATTR_RO(model);
 static DEVICE_ATTR_RO(rev);
@@ -634,6 +674,8 @@ static DEVICE_ATTR_RO(platform_version);
 static DEVICE_ATTR_RW(manual_gc);
 static DEVICE_ATTR_RW(manual_gc_hold);
 static DEVICE_ATTR_RO(host_capabilities);
+static DEVICE_ATTR_RO(curr_dev_pwr_mode);
+static DEVICE_ATTR_RO(uic_link_state);
 SLOWIO_ATTR_RW(read, PIXEL_SLOWIO_READ);
 SLOWIO_ATTR_RW(write, PIXEL_SLOWIO_WRITE);
 SLOWIO_ATTR_RW(unmap, PIXEL_SLOWIO_UNMAP);
@@ -647,6 +689,8 @@ static struct attribute *pixel_sysfs_ufshcd_attrs[] = {
 	&dev_attr_manual_gc.attr,
 	&dev_attr_manual_gc_hold.attr,
 	&dev_attr_host_capabilities.attr,
+	&dev_attr_curr_dev_pwr_mode.attr,
+	&dev_attr_uic_link_state.attr,
 	&ufs_slowio_read_us.attr.attr,
 	&ufs_slowio_read_cnt.attr.attr,
 	&ufs_slowio_write_us.attr.attr,
@@ -1086,6 +1130,91 @@ static const struct attribute_group pixel_sysfs_ufs_stats_group = {
 	.attrs = ufs_sysfs_ufs_stats,
 };
 
+#define PIXEL_HC_REG_ATTR(_name, _uname)			\
+static ssize_t _name##_show(struct device *dev,			\
+	struct device_attribute *attr, char *buf)		\
+{			\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	u32 value;						\
+	pm_runtime_get_sync(hba->dev);			\
+	ufshcd_hold(hba, false);			\
+	value = ufshcd_readl(hba, REG##_uname);			\
+	ufshcd_release(hba);			\
+	pm_runtime_put(hba->dev);			\
+	return sprintf(buf, "0x%08X\n", value);			\
+}			\
+static DEVICE_ATTR_RO(_name)
+
+PIXEL_HC_REG_ATTR(cap, _CONTROLLER_CAPABILITIES);
+PIXEL_HC_REG_ATTR(ver, _UFS_VERSION);
+PIXEL_HC_REG_ATTR(hcpid, _CONTROLLER_DEV_ID);
+PIXEL_HC_REG_ATTR(hcmid, _CONTROLLER_PROD_ID);
+PIXEL_HC_REG_ATTR(ahit, _AUTO_HIBERNATE_IDLE_TIMER);
+PIXEL_HC_REG_ATTR(is, _INTERRUPT_STATUS);
+PIXEL_HC_REG_ATTR(ie, _INTERRUPT_ENABLE);
+PIXEL_HC_REG_ATTR(hcs, _CONTROLLER_STATUS);
+PIXEL_HC_REG_ATTR(hce, _CONTROLLER_ENABLE);
+PIXEL_HC_REG_ATTR(uecpa, _UIC_ERROR_CODE_PHY_ADAPTER_LAYER);
+PIXEL_HC_REG_ATTR(uecdl, _UIC_ERROR_CODE_DATA_LINK_LAYER);
+PIXEL_HC_REG_ATTR(uecn, _UIC_ERROR_CODE_NETWORK_LAYER);
+PIXEL_HC_REG_ATTR(uect, _UIC_ERROR_CODE_TRANSPORT_LAYER);
+PIXEL_HC_REG_ATTR(uecdme, _UIC_ERROR_CODE_DME);
+
+static struct attribute *pixel_sysfs_hc_reg_ifc[] = {
+	&dev_attr_cap.attr,
+	&dev_attr_ver.attr,
+	&dev_attr_hcpid.attr,
+	&dev_attr_hcmid.attr,
+	&dev_attr_ahit.attr,
+	&dev_attr_is.attr,
+	&dev_attr_ie.attr,
+	&dev_attr_hcs.attr,
+	&dev_attr_hce.attr,
+	&dev_attr_uecpa.attr,
+	&dev_attr_uecdl.attr,
+	&dev_attr_uecn.attr,
+	&dev_attr_uect.attr,
+	&dev_attr_uecdme.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_hc_register_ifc_group = {
+	.name = "hc_register_ifc",
+	.attrs = pixel_sysfs_hc_reg_ifc,
+};
+
+#define PIXEL_POWER_INFO_ATTR(_name)			\
+static ssize_t _name##_show(struct device *dev,			\
+	struct device_attribute *attr, char *buf)	\
+{			\
+	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	return sprintf(buf, "%u\n", hba->pwr_info._name);	\
+}			\
+static DEVICE_ATTR_RO(_name)
+
+PIXEL_POWER_INFO_ATTR(gear_rx);
+PIXEL_POWER_INFO_ATTR(gear_tx);
+PIXEL_POWER_INFO_ATTR(lane_rx);
+PIXEL_POWER_INFO_ATTR(lane_tx);
+PIXEL_POWER_INFO_ATTR(pwr_rx);
+PIXEL_POWER_INFO_ATTR(pwr_tx);
+PIXEL_POWER_INFO_ATTR(hs_rate);
+
+static struct attribute *pixel_sysfs_power_info[] = {
+	&dev_attr_gear_rx.attr,
+	&dev_attr_gear_tx.attr,
+	&dev_attr_lane_rx.attr,
+	&dev_attr_lane_tx.attr,
+	&dev_attr_pwr_rx.attr,
+	&dev_attr_pwr_tx.attr,
+	&dev_attr_hs_rate.attr,
+	NULL,
+};
+
+static const struct attribute_group pixel_sysfs_power_info_group = {
+	.name = "power_info",
+	.attrs = pixel_sysfs_power_info,
+};
 
 static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_group,
@@ -1093,6 +1222,8 @@ static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_io_stats_group,
 	&pixel_sysfs_err_stats_group,
 	&pixel_sysfs_ufs_stats_group,
+	&pixel_sysfs_hc_register_ifc_group,
+	&pixel_sysfs_power_info_group,
 	NULL,
 };
 

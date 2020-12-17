@@ -491,6 +491,7 @@ static int s2mpg10_pmic_dt_parse_pdata(struct s2mpg10_dev *iodev,
 #define I2C_ADDR_RTC 0x02
 #define I2C_ADDR_METER 0x0A
 #define I2C_ADDR_WLWP 0x0B
+#define I2C_ADDR_TRIM 0x0F
 
 static ssize_t s2mpg10_pmic_read_store(struct device *dev,
 				       struct device_attribute *attr,
@@ -538,6 +539,9 @@ static ssize_t s2mpg10_pmic_read_show(struct device *dev,
 		break;
 	case I2C_ADDR_WLWP:
 		client = s2mpg10->iodev->wlwp;
+		break;
+	case I2C_ADDR_TRIM:
+		client = s2mpg10->iodev->trim;
 		break;
 	default:
 		return -1;
@@ -590,6 +594,9 @@ static ssize_t s2mpg10_pmic_write_store(struct device *dev,
 		break;
 	case I2C_ADDR_WLWP:
 		client = s2mpg10->iodev->wlwp;
+		break;
+	case I2C_ADDR_TRIM:
+		client = s2mpg10->iodev->trim;
 		break;
 	default:
 		return size;

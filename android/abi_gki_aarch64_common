@@ -3524,7 +3524,6 @@
   fscrypt_get_encryption_info
   fscrypt_get_symlink
   fscrypt_has_permitted_context
-  fscrypt_inherit_context
   __fscrypt_inode_uses_inline_crypto
   fscrypt_ioctl_add_key
   fscrypt_ioctl_get_key_status
@@ -3539,11 +3538,13 @@
   fscrypt_mergeable_bio_bh
   __fscrypt_prepare_link
   __fscrypt_prepare_lookup
+  fscrypt_prepare_new_inode
   __fscrypt_prepare_rename
-  __fscrypt_prepare_symlink
+  fscrypt_prepare_symlink
   fscrypt_put_encryption_info
   fscrypt_set_bio_crypt_ctx
   fscrypt_set_bio_crypt_ctx_bh
+  fscrypt_set_context
   fscrypt_set_test_dummy_encryption
   fscrypt_setup_filename
   fscrypt_show_test_dummy_encryption
@@ -10249,6 +10250,7 @@
   tcp_memory_pressure
   tcpm_get_partner_src_caps
   tcpm_is_debouncing
+  tcpm_is_toggling
   tcp_mmap
   tcpm_pd_hard_reset
   tcpm_pd_receive
@@ -10531,6 +10533,8 @@
   __tracepoint_spi_transfer_start
   __tracepoint_spi_transfer_stop
   tracepoint_srcu
+  __tracepoint_sugov_next_freq_tp
+  __tracepoint_sugov_util_update_tp
   __tracepoint_suspend_resume
   __tracepoint_tcp_send_reset
   __tracepoint_unmap

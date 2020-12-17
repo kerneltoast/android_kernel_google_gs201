@@ -8,6 +8,7 @@
  */
 
 #include <linux/ip.h>
+#include <linux/udp.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -227,7 +228,7 @@ static void dit_debug_out_of_order(enum dit_direction dir, enum dit_desc_ring ri
 	static unsigned int last_seq[DIT_DIR_MAX][DIT_DESC_RING_MAX];
 	static unsigned int out_count[DIT_DIR_MAX][DIT_DESC_RING_MAX];
 
-	if (!dc->pktgen_mode)
+	if (!dc->pktgen_ch)
 		return;
 
 	seq_p = (unsigned int *)&data[28];
@@ -381,7 +382,7 @@ static void dit_update_stat(struct sk_buff *skb)
 	dit_hal_add_data_bytes(len, 0);
 }
 
-static void dit_set_skb_checksum(struct dit_dst_desc *dst_desc,
+static inline void dit_set_skb_checksum(struct dit_dst_desc *dst_desc,
 		enum dit_desc_ring ring_num, struct sk_buff *skb)
 {
 	if ((ring_num == DIT_DST_DESC_RING_0) && dst_desc->pre_csum) {
@@ -395,6 +396,28 @@ static void dit_set_skb_checksum(struct dit_dst_desc *dst_desc,
 	if ((dst_desc->status & BIT(DIT_DESC_S_TCPC)) &&
 			(dst_desc->status & BIT(DIT_DESC_S_IPCS)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
+}
+
+static inline void dit_set_skb_udp_csum_zero(struct dit_dst_desc *dst_desc,
+		enum dit_desc_ring ring_num, struct sk_buff *skb)
+{
+	struct udphdr *uh;
+	unsigned int off;
+
+	if (ring_num == DIT_DST_DESC_RING_0)
+		return;
+
+	if (!dst_desc->udp_csum_zero)
+		return;
+
+	/* it must be IPv4 */
+	off = sizeof(struct ethhdr);
+	if ((*(skb->data + off) & 0xFF) != 0x45)
+		return;
+
+	off += sizeof(struct iphdr);
+	uh = (struct udphdr *)(skb->data + off);
+	uh->check = 0;
 }
 
 static int dit_pass_to_net(enum dit_desc_ring ring_num,
@@ -470,6 +493,23 @@ static inline void dit_set_src_desc_filter_bypass(
 		src_desc->control |= mask;
 }
 
+static inline void dit_set_src_desc_udp_csum_zero(struct dit_src_desc *src_desc,
+		u8 *src)
+{
+	const struct iphdr *iph = (struct iphdr *)src;
+	struct udphdr *uh;
+	unsigned int off;
+
+	/* check IPv4 UDP only */
+	if (((src[0] & 0xFF) != 0x45) || (iph->protocol != IPPROTO_UDP))
+		return;
+
+	off = sizeof(*iph);
+	uh = (struct udphdr *)(src + off);
+	if (uh->check == 0)
+		src_desc->udp_csum_zero = 1;
+}
+
 static void dit_set_src_desc_kick_range(enum dit_direction dir, unsigned int src_wp,
 		unsigned int src_rp)
 {
@@ -488,6 +528,8 @@ static void dit_set_src_desc_kick_range(enum dit_direction dir, unsigned int src
 	tail = dit_get_snapshot_tail(dir, DIT_SRC_DESC_RING);
 	src_desc = &desc_info->src_desc_ring[tail];
 	dit_reset_src_desc_kick_control(src_desc);
+
+	barrier();
 
 	/* set current kick */
 	head = src_rp;
@@ -516,9 +558,6 @@ static void dit_set_src_desc_kick_range(enum dit_direction dir, unsigned int src
 
 	src_desc = &desc_info->src_desc_ring[desc_info->src_desc_ring_len - 1];
 	src_desc->control |= BIT(DIT_DESC_C_RINGEND);
-
-	/* ensure the src_desc ordering */
-	smp_mb();
 
 	dit_set_snapshot(dir, DIT_SRC_DESC_RING, head, tail,
 		circ_get_usage(desc_info->src_desc_ring_len, tail, head) + 1);
@@ -630,7 +669,10 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 	src_desc->length = len;
 	src_desc->ch_id = (ch_id & 0x1F);
 	src_desc->pre_csum = csum;
+	src_desc->udp_csum_zero = 0;
 	src_desc->control = 0;
+	if (src_wp == (desc_info->src_desc_ring_len - 1))
+		src_desc->control |= BIT(DIT_DESC_C_RINGEND);
 	src_desc->status = 0;
 
 	do {
@@ -650,7 +692,8 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 		upstream_netdev = dit_hal_get_dst_netdev(DIT_DST_DESC_RING_0);
 		if (upstream_netdev) {
 			iod = link_get_iod_with_channel(dc->ld, ch_id);
-			if (upstream_netdev == iod->ndev) {
+			if (iod && (upstream_netdev == iod->ndev)) {
+				dit_set_src_desc_udp_csum_zero(src_desc, src);
 				filter_bypass = false;
 				break;
 			}
@@ -658,6 +701,9 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 	} while (0);
 
 	dit_set_src_desc_filter_bypass(src_desc, filter_bypass);
+
+	/* ensure the src_wp ordering */
+	smp_mb();
 
 	desc_info->src_wp = circ_new_ptr(desc_info->src_desc_ring_len, src_wp, 1);
 
@@ -936,6 +982,9 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			/* hw checksum */
 			dit_set_skb_checksum(dst_desc, ring_num, skb);
 
+			/* reset udp checksum if it was 0 */
+			dit_set_skb_udp_csum_zero(dst_desc, ring_num, skb);
+
 			dst_desc->packet_info = 0;
 			dst_desc->status = 0;
 
@@ -955,7 +1004,7 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 	}
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
-	if (rcvd_total && !mld->tpmon->check_active())
+	if (rcvd_total)
 		mld->tpmon->start();
 #endif
 
@@ -1095,7 +1144,10 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 	}
 
 	spin_lock(&dc->src_lock);
-	WRITE_REG_VALUE(dc, BIT(pending_bit), DIT_REG_INT_PENDING);
+	/* do not clear ERR for debugging */
+	if (pending_bit != ERR_INT_PENDING_BIT)
+		WRITE_REG_VALUE(dc, BIT(pending_bit), DIT_REG_INT_PENDING);
+
 	if ((READ_REG_VALUE(dc, DIT_REG_INT_PENDING) & pending_mask) == 0) {
 		if (dir < DIT_DIR_MAX)
 			dc->kicked[dir] = false;
@@ -1445,7 +1497,8 @@ static int dit_init_desc(enum dit_direction dir)
 	u32 offset_lo = 0, offset_hi = 0;
 
 	if (!desc_info->src_desc_ring) {
-		buf_size = sizeof(struct dit_src_desc) * desc_info->src_desc_ring_len;
+		buf_size = sizeof(struct dit_src_desc) *
+			(desc_info->src_desc_ring_len + DIT_SRC_DESC_RING_LEN_PADDING);
 		buf = devm_kzalloc(dc->dev, buf_size, GFP_KERNEL);
 		if (!buf) {
 			mif_err("dit dir[%d] src desc alloc failed\n", dir);
@@ -1951,25 +2004,24 @@ static ssize_t debug_use_clat_show(struct device *dev, struct device_attribute *
 #endif
 
 #if defined(DIT_DEBUG_LOW)
-static ssize_t debug_pktgen_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t debug_pktgen_ch_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "mode: %d\n", dc->pktgen_mode);
+	return scnprintf(buf, PAGE_SIZE, "pktgen ch: %d\n", dc->pktgen_ch);
 }
 
-static ssize_t debug_pktgen_mode_store(struct device *dev,
+static ssize_t debug_pktgen_ch_store(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	int mode;
+	int ch;
 	int ret;
 
-	ret = kstrtoint(buf, 0, &mode);
+	ret = kstrtoint(buf, 0, &ch);
 	if (ret)
 		return -EINVAL;
 
-	dc->pktgen_mode = mode;
-	/* 0x0: skip IP and TCP/UDP checksum if it is 0x0000 */
-	dit_enqueue_reg_value((mode ? 0x0 : 0xF), DIT_REG_NAT_ZERO_CHK_OFF);
+	dc->pktgen_ch = ch;
+
 	return count;
 }
 
@@ -2000,7 +2052,7 @@ static DEVICE_ATTR_RW(debug_use_rx);
 static DEVICE_ATTR_RW(debug_use_clat);
 #endif
 #if defined(DIT_DEBUG_LOW)
-static DEVICE_ATTR_RW(debug_pktgen_mode);
+static DEVICE_ATTR_RW(debug_pktgen_ch);
 static DEVICE_ATTR_WO(debug_set_force_bypass);
 #endif
 
@@ -2016,7 +2068,7 @@ static struct attribute *dit_attrs[] = {
 	&dev_attr_debug_use_clat.attr,
 #endif
 #if defined(DIT_DEBUG_LOW)
-	&dev_attr_debug_pktgen_mode.attr,
+	&dev_attr_debug_pktgen_ch.attr,
 	&dev_attr_debug_set_force_bypass.attr,
 #endif
 	NULL,
@@ -2045,6 +2097,15 @@ bool dit_check_dir_use_queue(enum dit_direction dir, unsigned int queue_num)
 	return false;
 }
 EXPORT_SYMBOL(dit_check_dir_use_queue);
+
+int dit_get_irq_affinity(void)
+{
+	if (!dc)
+		return -EPERM;
+
+	return dc->irq_affinity;
+}
+EXPORT_SYMBOL(dit_get_irq_affinity);
 
 int dit_set_irq_affinity(int affinity)
 {

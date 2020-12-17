@@ -30,3 +30,17 @@ config VH_SCHED_CPU_NR
         int "CPU number on this platform"
         depends on VH_KERNEL
         default 8
+
+config VH_SYSTRACE
+        tristate "Vendor SYSTRACE support"
+        depends on VH_KERNEL
+        depends on TRACING
+        default m
+        help
+          This module exports ATRACE_XXX APIs at kernel.
+          All tracepoints can be identified and plotted at Chrome tracing UI.
+
+          Use APIs exported by this module to correlate kernel activities
+          to userspace and system events in the timeline.
+
+          If in doubt, say N.

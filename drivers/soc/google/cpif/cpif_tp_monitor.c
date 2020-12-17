@@ -23,65 +23,6 @@
 
 static struct cpif_tpmon _tpmon;
 
-/*
- * Get data
- */
-static u32 tpmon_get_pktproc_queue_status(struct tpmon_data *data)
-{
-	if (!data->enable)
-		return 0;
-
-	return data->tpmon->pktproc_queue_status;
-}
-
-static u32 tpmon_get_netdev_backlog_queue_status(struct tpmon_data *data)
-{
-	if (!data->enable)
-		return 0;
-
-	return data->tpmon->netdev_backlog_queue_status;
-}
-
-static u32 tpmon_get_dit_src_queue_status(struct tpmon_data *data)
-{
-	if (!data->enable)
-		return 0;
-
-	return data->tpmon->dit_src_queue_status;
-}
-
-static u32 tpmon_get_rx_total_speed_mbps(struct tpmon_data *data)
-{
-	if (!data->enable)
-		return 0;
-
-	return (u32)data->tpmon->rx_total.rx_mbps;
-}
-
-static u32 tpmon_get_rx_tcp_speed_mbps(struct tpmon_data *data)
-{
-	if (!data->enable)
-		return 0;
-
-	return (u32)data->tpmon->rx_tcp.rx_mbps;
-}
-
-static u32 tpmon_get_rx_udp_speed_mbps(struct tpmon_data *data)
-{
-	if (!data->enable)
-		return 0;
-
-	return (u32)data->tpmon->rx_udp.rx_mbps;
-}
-
-static u32 tpmon_get_rx_others_speed_mbps(struct tpmon_data *data)
-{
-	if (!data->enable)
-		return 0;
-
-	return (u32)data->tpmon->rx_others.rx_mbps;
-}
-
 /* Queue status */
 static int tpmon_calc_pktproc_queue_status(struct cpif_tpmon *tpmon)
 {
@@ -97,8 +38,8 @@ static int tpmon_calc_pktproc_queue_status(struct cpif_tpmon *tpmon)
 		if (!pktproc_check_active(ppa, i))
 			continue;
 
-		if (pktproc_get_usage(ppa->q[i]) > 0)
-			usage += pktproc_get_usage(ppa->q[i]);
+		if (pktproc_get_usage_fore_rear(ppa->q[i]) > 0)
+			usage += pktproc_get_usage_fore_rear(ppa->q[i]);
 	}
 
 	tpmon->pktproc_queue_status = usage;
@@ -145,6 +86,71 @@ static int tpmon_calc_dit_src_queue_status(struct cpif_tpmon *tpmon)
 	tpmon->dit_src_queue_status = usage;
 
 	return 0;
+}
+
+/*
+ * Get data
+ */
+static u32 tpmon_get_pktproc_queue_status(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	tpmon_calc_pktproc_queue_status(data->tpmon);
+
+	return data->tpmon->pktproc_queue_status;
+}
+
+static u32 tpmon_get_netdev_backlog_queue_status(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	tpmon_calc_netdev_backlog_queue_status(data->tpmon);
+
+	return data->tpmon->netdev_backlog_queue_status;
+}
+
+static u32 tpmon_get_dit_src_queue_status(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	tpmon_calc_dit_src_queue_status(data->tpmon);
+
+	return data->tpmon->dit_src_queue_status;
+}
+
+static u32 tpmon_get_rx_total_speed_mbps(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	return (u32)data->tpmon->rx_total.rx_mbps;
+}
+
+static u32 tpmon_get_rx_tcp_speed_mbps(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	return (u32)data->tpmon->rx_tcp.rx_mbps;
+}
+
+static u32 tpmon_get_rx_udp_speed_mbps(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	return (u32)data->tpmon->rx_udp.rx_mbps;
+}
+
+static u32 tpmon_get_rx_others_speed_mbps(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	return (u32)data->tpmon->rx_others.rx_mbps;
 }
 
 /* RX speed */
@@ -205,6 +211,10 @@ static void tpmon_print_info(struct cpif_tpmon *tpmon)
 	if (tpmon->rx_total.rx_bytes_idx != 0)
 		return;
 
+	tpmon_calc_pktproc_queue_status(tpmon);
+	tpmon_calc_dit_src_queue_status(tpmon);
+	tpmon_calc_netdev_backlog_queue_status(tpmon);
+
 	mif_info("DL:%ld%s(%ld%s/%ld%s/%ld%s) pktproc:%d/dit:%d/netdev:%d legacy:%d\n",
 		tpmon->rx_total.rx_mbps ? tpmon->rx_total.rx_mbps : tpmon->rx_total.rx_kbps,
 		tpmon->rx_total.rx_mbps ? "Mbps" : "Kbps",
@@ -225,6 +235,7 @@ static void tpmon_print_info(struct cpif_tpmon *tpmon)
 /* Check speed changing */
 static bool tpmon_check_to_boost(struct tpmon_data *data)
 {
+	struct tpmon_data *data_list;
 	int usage = 0;
 	int i;
 
@@ -234,6 +245,20 @@ static bool tpmon_check_to_boost(struct tpmon_data *data)
 	if (!data->get_data) {
 		mif_err_limited("get_data is null:%s\n", data->name);
 		return false;
+	}
+
+	list_for_each_entry(data_list, &data->tpmon->data_list, data_node) {
+		if (strcmp(data_list->name, data->name) == 0)
+			continue;
+
+		if (data_list->target == data->target) {
+			if (data_list->curr_value_pos) {
+				mif_info("disable %s. %s is boosted\n",
+					data->name, data_list->name);
+				data->enable = 0;
+				continue;
+			}
+		}
 	}
 
 	if (data->check_udp &&
@@ -547,12 +572,7 @@ static void tpmon_set_gro(struct tpmon_data *data)
 #if IS_ENABLED(CONFIG_MCU_IPC)
 static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 {
-	struct mem_link_device *mld = ld_to_mem_link_device(data->tpmon->ld);
 	u32 cpu_num;
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	struct pktproc_adaptor *ppa = &mld->pktproc;
-	int i;
-#endif
 
 	if (!data->enable)
 		return;
@@ -560,19 +580,13 @@ static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 	cpu_num = data->tpmon->use_user_value ? data->user_value :
 				data->values[data->curr_value_pos];
 
-	mif_info("%s (CPU:%d)\n", data->name, cpu_num);
-
-	if (data->extra_idx == 0)
-		atomic_set(&mld->stop_napi_poll, 1);
-
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	if (ppa->use_exclusive_irq) {
-		for (i = 0; i < ppa->num_queue; i++) {
-			if (ppa->use_napi)
-				pktproc_stop_napi_poll(ppa, i);
-		}
+	if (cp_mbox_get_affinity(data->extra_idx) == cpu_num) {
+		mif_info("skip to set same cpu_num for %s (CPU:%d)\n",
+			data->name, cpu_num);
+		return;
 	}
-#endif
+
+	mif_info("%s (CPU:%d)\n", data->name, cpu_num);
 
 	cp_mbox_set_affinity(data->extra_idx, cpu_num);
 }
@@ -610,6 +624,12 @@ static void tpmon_set_irq_affinity_dit(struct tpmon_data *data)
 	cpu_num = data->tpmon->use_user_value ? data->user_value :
 				data->values[data->curr_value_pos];
 
+	if (dit_get_irq_affinity() == cpu_num) {
+		mif_info("skip to set same cpu_num for %s (CPU:%d)\n",
+			data->name, cpu_num);
+		return;
+	}
+
 	mif_info("%s (CPU:%d)\n", data->name, cpu_num);
 
 #if IS_ENABLED(CONFIG_MCPS)
@@ -622,7 +642,6 @@ static void tpmon_set_irq_affinity_dit(struct tpmon_data *data)
 	}
 #endif
 
-	dit_stop_napi_poll();
 	dit_set_irq_affinity(cpu_num);
 }
 #endif
@@ -767,10 +786,21 @@ static void tpmon_monitor_work(struct work_struct *ws)
 
 	if (tpmon_check_active()) {
 		tpmon_calc_rx_speed(tpmon);
-		tpmon_calc_pktproc_queue_status(tpmon);
-		tpmon_calc_netdev_backlog_queue_status(tpmon);
-		tpmon_calc_dit_src_queue_status(tpmon);
 		tpmon_print_info(tpmon);
+	}
+
+	if (atomic_read(&tpmon->need_urgent)) {
+		list_for_each_entry(data, &tpmon->urgent_data_list, urgent_data_node) {
+			if (!data->set_data) {
+				mif_err_limited("set_data is null:%s\n", data->name);
+				continue;
+			}
+
+			if (tpmon_check_to_boost(data)) {
+				data->set_data(data);
+				continue;
+			}
+		}
 	}
 
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
@@ -804,6 +834,9 @@ static void tpmon_monitor_work(struct work_struct *ws)
 		if (tpmon_check_to_unboost(data))
 			data->set_data(data);
 	}
+
+	if (atomic_read(&tpmon->need_urgent))
+		atomic_set(&tpmon->need_urgent, 0);
 
 	if (atomic_read(&tpmon->need_init)) {
 		atomic_set(&tpmon->need_init, 0);
@@ -930,6 +963,9 @@ static int tpmon_init_params(struct cpif_tpmon *tpmon)
 
 	tpmon->jiffies_to_trigger = 0;
 
+	atomic_set(&tpmon->need_urgent, 0);
+	tpmon->urgent_active = false;
+
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
 		data->curr_threshold_pos = 0;
 		data->prev_threshold_pos = 0;
@@ -938,16 +974,54 @@ static int tpmon_init_params(struct cpif_tpmon *tpmon)
 		data->jiffies_to_unboost = 0;
 		memset(data->unboost_tp_mbps, 0, sizeof(data->unboost_tp_mbps));
 		data->forced_unboost = false;
+		data->enable = 1;
 	}
 
 	return 0;
+}
+
+static bool tpmon_check_urgent(struct cpif_tpmon *tpmon)
+{
+	struct tpmon_data *data;
+	int usage;
+	int i;
+
+	if (tpmon->urgent_active && atomic_read(&tpmon->need_urgent))
+		return false;
+
+	list_for_each_entry(data, &tpmon->urgent_data_list, urgent_data_node) {
+		usage = data->get_data(data);
+		if (usage < 0) {
+			mif_err_limited("get_data(%s) error:%d\n", data->name, usage);
+			return false;
+		}
+
+		for (i = 0; i < data->num_threshold; i++)
+			if (usage < data->threshold[i])
+				break;
+
+		if (i <= data->curr_value_pos)
+			continue;
+
+		if (i >= data->num_values) {
+			mif_err_limited("Invalid value:%s %d %d\n",
+				data->name, i, data->num_values);
+			continue;
+		}
+
+		mif_info("urgent:%s\n", data->name);
+		atomic_set(&tpmon->need_urgent, 1);
+		tpmon->urgent_active = true;
+		return true;
+	}
+
+	return false;
 }
 
 static bool tpmon_check_to_start(struct cpif_tpmon *tpmon)
 {
 	u64 jiffies_curr;
 	u64 delta_msec;
-	unsigned long mbps, kbps;
 
 	jiffies_curr = get_jiffies_64();
 	if (!tpmon->jiffies_to_trigger) {
@@ -974,23 +1048,23 @@ static bool tpmon_check_to_start(struct cpif_tpmon *tpmon)
 		return false;
 
 	if (delta_msec >= 1000) {
-		mbps = tpmon->rx_total.rx_bytes / (131072 * delta_msec / 1000);
-		kbps = tpmon->rx_total.rx_bytes / (128 * delta_msec / 1000);
+		tpmon->rx_total.rx_mbps = tpmon->rx_total.rx_bytes / (131072 * delta_msec / 1000);
+		tpmon->rx_total.rx_kbps = tpmon->rx_total.rx_bytes / (128 * delta_msec / 1000);
 	} else {
-		mbps = (tpmon->rx_total.rx_bytes * 1000 / delta_msec) / 131072;
-		kbps = (tpmon->rx_total.rx_bytes * 1000 / delta_msec) / 128;
+		tpmon->rx_total.rx_mbps = (tpmon->rx_total.rx_bytes * 1000 / delta_msec) / 131072;
+		tpmon->rx_total.rx_kbps = (tpmon->rx_total.rx_bytes * 1000 / delta_msec) / 128;
 	}
 
 	if (tpmon->debug_print)
 		mif_info_limited("%ldMbps(%ldKbps) %ldmsec rx_bytes:%ld(%ld/%ld/%ld) legacy:%d\n",
-			mbps, kbps, delta_msec,
+			tpmon->rx_total.rx_mbps, tpmon->rx_total.rx_kbps, delta_msec,
 			tpmon->rx_total.rx_bytes, tpmon->rx_tcp.rx_bytes,
 			tpmon->rx_udp.rx_bytes, tpmon->rx_others.rx_bytes,
 			tpmon->legacy_packet_count);
 
 	tpmon->jiffies_to_trigger = jiffies_curr;
 
-	if ((mbps < tpmon->trigger_mbps) || tpmon->use_user_value) {
+	if ((tpmon->rx_total.rx_mbps < tpmon->trigger_mbps) || tpmon->use_user_value) {
 		tpmon->rx_total.rx_bytes = 0;
 		tpmon->rx_tcp.rx_bytes = 0;
 		tpmon->rx_udp.rx_bytes = 0;
@@ -999,7 +1073,7 @@ static bool tpmon_check_to_start(struct cpif_tpmon *tpmon)
 		return false;
 	}
 
-	mif_info("trigger@%ldMbps\n", mbps);
+	mif_info("trigger@%ldMbps\n", tpmon->rx_total.rx_mbps);
 
 	return true;
 }
@@ -1008,14 +1082,21 @@ int tpmon_start(void)
 {
 	struct cpif_tpmon *tpmon = &_tpmon;
 
+	if (tpmon_check_urgent(tpmon)) {
+		mif_info("need urgent\n");
+		goto run_monitor;
+	}
+
 	if (tpmon_check_active())
 		return 0;
 
 	if (!tpmon_check_to_start(tpmon))
 		return 0;
 
+run_monitor:
 	atomic_set(&tpmon->active, 1);
 
+	cancel_delayed_work(&tpmon->monitor_dwork);
 	queue_delayed_work(tpmon->monitor_wq, &tpmon->monitor_dwork, 0);
 
 	if (tpmon->debug_print)
@@ -1126,17 +1207,25 @@ static ssize_t curr_value_show(struct device *dev, struct device_attribute *attr
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
 		ret = tpmon->use_user_value ? data->user_value : data->values[data->curr_value_pos];
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%s: %d(0x%x)",
-			data->name, ret, ret);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s: enable:%d",
+			data->name, data->enable);
+
+		if (!data->enable) {
+			len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
+			continue;
+		}
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, " val:%d(0x%x)",
+			ret, ret);
 
 		if (tpmon->use_user_value)
 			len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
 		else
 			len += scnprintf(buf + len, PAGE_SIZE - len,
-				" pos:%d unboost@%dMbps forced_unboost:%d\n",
+				" pos:%d unboost@%dMbps forced_unboost:%d urgent:%d\n",
 				data->curr_value_pos,
 				data->unboost_tp_mbps[data->curr_threshold_pos],
-				data->forced_unboost);
+				data->forced_unboost, data->urgent);
 	}
 
 	return len;
@@ -1217,8 +1306,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			data->curr_value_pos, data->user_value);
 
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-			"check_udp:%d forced_unboost:%d\n",
-			data->check_udp, data->forced_unboost);
+			"check_udp:%d forced_unboost:%d urgent:%d\n",
+			data->check_udp, data->forced_unboost, data->urgent);
 	}
 
 	return len;
@@ -1303,7 +1392,7 @@ static ssize_t set_user_value_store(struct device *dev, struct device_attribute 
 		return count;
 	}
 
-	ret = sscanf(buf, "%s %i", name, &value);
+	ret = sscanf(buf, "%19s %i", name, &value);
 	if (ret < 1)
 		return -EINVAL;
 
@@ -1609,16 +1698,21 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 		/* check_udp */
 		of_property_read_u32(child_np, "tpmon,check_udp", &data->check_udp);
 
+		/* urgent */
+		of_property_read_u32(child_np, "tpmon,urgent", &data->urgent);
+
 		data->tpmon = tpmon;
 
 		spin_lock_irqsave(&tpmon->lock, flags);
 		list_add_tail(&data->data_node, &tpmon->data_list);
+		if (data->urgent)
+			list_add_tail(&data->urgent_data_node, &tpmon->urgent_data_list);
 		spin_unlock_irqrestore(&tpmon->lock, flags);
 
-		mif_info("name:%s measure:%d target:%d enable:%d idx:%d num:%d/%d proto:%d check_udp:%d\n",
+		mif_info("name:%s measure:%d target:%d enable:%d idx:%d num:%d/%d proto:%d check_udp:%d urgent:%d\n",
 				data->name, data->measure, data->target, data->enable,
 				data->extra_idx, data->num_threshold, data->num_values,
-				data->proto, data->check_udp);
+				data->proto, data->check_udp, data->urgent);
 
 		count++;
 	}
@@ -1653,6 +1747,7 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 	atomic_set(&tpmon->active, 0);
 
 	INIT_LIST_HEAD(&tpmon->data_list);
+	INIT_LIST_HEAD(&tpmon->urgent_data_list);
 
 	ret = tpmon_parse_dt(np, tpmon);
 	if (ret) {

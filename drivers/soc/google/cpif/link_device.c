@@ -38,6 +38,9 @@
 #include "modem_ctrl.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+#include <soc/google/s2mpu.h>
+#endif
 #endif
 #include "dit.h"
 
@@ -512,9 +515,11 @@ static void write_clk_table_to_shmem(struct mem_link_device *mld)
 	clk_data = (u32 *)&(clk_tb->table_info[clk_tb->total_table_count]);
 
 	for (i = 0; i < clk_tb->total_table_count; i++) {
-		for (j = 0; j < clk_tb->table_info[i].table_count; j++)
+		for (j = 0; j < clk_tb->table_info[i].table_count; j++) {
 			mif_info("CLOCK_TABLE[%d][%d] : %d\n",
-				i+1, j+1, *clk_data++);
+				i+1, j+1, *clk_data);
+			clk_data++;
+		}
 	}
 }
 
@@ -1072,18 +1077,19 @@ static inline void start_tx_timer(struct mem_link_device *mld,
 	unsigned long flags;
 
 	spin_lock_irqsave(&mc->lock, flags);
+	if (unlikely(cp_offline(mc))) {
+		spin_unlock_irqrestore(&mc->lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&mc->lock, flags);
 
-	if (unlikely(cp_offline(mc)))
-		goto exit;
-
+	spin_lock_irqsave(&mc->tx_timer_lock, flags);
 	if (!hrtimer_is_queued(timer)) {
 		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 	}
-
-exit:
-	spin_unlock_irqrestore(&mc->lock, flags);
+	spin_unlock_irqrestore(&mc->tx_timer_lock, flags);
 }
 
 static inline void shmem_start_timers(struct mem_link_device *mld)
@@ -1103,12 +1109,10 @@ static inline void cancel_tx_timer(struct mem_link_device *mld,
 	struct modem_ctl *mc = ld->mc;
 	unsigned long flags;
 
-	spin_lock_irqsave(&mc->lock, flags);
-
+	spin_lock_irqsave(&mc->tx_timer_lock, flags);
 	if (hrtimer_active(timer))
 		hrtimer_cancel(timer);
-
-	spin_unlock_irqrestore(&mc->lock, flags);
+	spin_unlock_irqrestore(&mc->tx_timer_lock, flags);
 }
 
 static inline void shmem_stop_timers(struct mem_link_device *mld)
@@ -1433,13 +1437,11 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 	else if (need_irq)
 		send_ipc_irq(mld, mask2int(MASK_SEND_DATA));
 
-	spin_lock_irqsave(&mc->lock, flags);
 	if (need_schedule) {
 		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 	}
-	spin_unlock_irqrestore(&mc->lock, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -2797,7 +2799,7 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 #endif
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
-	if (total_ps_rcvd && !tpmon_check_active())
+	if (total_ps_rcvd)
 		tpmon_start();
 #endif
 
@@ -3447,7 +3449,55 @@ static int shmem_register_pcie(struct link_device *ld)
 	static int is_registered;
 	struct mem_link_device *mld = to_mem_link_device(ld);
 
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	u32 cp_num;
+	u32 shmem_idx;
+	int ret;
+	struct device_node *s2mpu_dn;
+#endif
 	mif_err("CP EP driver initialization start.\n");
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+
+	s2mpu_dn = of_parse_phandle(mc->dev->of_node, "s2mpu", 0);
+	if (!s2mpu_dn) {
+		mif_err("Failed to find s2mpu from device tree\n");
+		return -EINVAL;
+	}
+
+	mc->s2mpu = s2mpu_fwnode_to_info(&s2mpu_dn->fwnode);
+	if (!mc->s2mpu) {
+		mif_err("Failed to get S2MPU\n");
+		return -EPROBE_DEFER;
+	}
+
+	cp_num = ld->mdm_data->cp_num;
+
+	for (shmem_idx = 0 ; shmem_idx < MAX_CP_SHMEM ; shmem_idx++) {
+		if (shmem_idx == SHMEM_MSI)
+			continue;
+
+		if (cp_shmem_get_base(cp_num, shmem_idx)) {
+			ret =  s2mpu_open(mc->s2mpu,
+					  cp_shmem_get_base(cp_num, shmem_idx),
+					  cp_shmem_get_size(cp_num, shmem_idx));
+			if (ret) {
+				mif_err("S2MPU open failed error=%d\n", ret);
+				return -EINVAL;
+			}
+		}
+	}
+
+	/* Also setup AoC window for voice calls */
+	ret =  s2mpu_open(mc->s2mpu,
+			  AOC_PCIE_WINDOW_START, AOC_PCIE_WINDOW_SIZE);
+
+	if (ret) {
+		mif_err("S2MPU AoC open failed error=%d\n", ret);
+		return -EINVAL;
+	}
+
+#endif
 
 	msleep(200);
 

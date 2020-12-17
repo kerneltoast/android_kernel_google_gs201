@@ -479,6 +479,18 @@ config HW_RANDOM_EXYNOS
 
 	  If unsure, say Y.
 
+config HW_RANDOM_EXYNOS_SWD
+	tristate "EXYNOS SWD HW random number generator support"
+	default n
+	help
+	  This driver provides kernel-side support for TRNG hardware
+	  found in secure world by using smc call
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exynos-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_OPTEE
 	tristate "OP-TEE based Random Number Generator support"
 	depends on OPTEE

@@ -107,11 +107,7 @@
 #define SMC_PROTECTION_DISABLE		(0)
 
 /* For DTRNG Access */
-#ifdef CONFIG_EXYRNG_USE_CRYPTOMANAGER
 #define SMC_CMD_RANDOM			(0x82001012)
-#else
-#define SMC_CMD_RANDOM			(0x81000030)
-#endif
 
 /* For Secure log information */
 #define SMC_CMD_SEC_LOG_INFO		(0x82000610)

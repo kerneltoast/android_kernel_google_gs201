@@ -99,35 +99,6 @@ static int __set_phy_isolation(struct regmap *reg_pmu,
 	return ret;
 }
 
-static int __set_phy_reset(struct regmap *reg_reset,
-		unsigned int bit, unsigned int on)
-{
-	unsigned int cfg;
-	int ret = 0;
-
-	if (!reg_reset)
-		return 0;
-
-	if (on) {
-		/* reset release */
-		ret = regmap_update_bits(reg_reset, 0, BIT(bit), BIT(bit));
-		if (ret)
-			pr_err("%s failed to release reset PHY(%d)\n",
-					__func__, bit);
-	} else {
-		/* reset assertion */
-		ret = regmap_update_bits(reg_reset, 0, BIT(bit), 0);
-		if (ret)
-			pr_err("%s failed to assrt reset PHY(%d)\n",
-					__func__, bit);
-	}
-
-	regmap_read(reg_reset, 0, &cfg);
-	pr_debug("%s bit=%d, cfg=0x%x\n", __func__, bit, cfg);
-
-	return ret;
-}
-
 static int __set_phy_init(struct exynos_mipi_phy *state,
 		struct mipi_phy_desc *phy_desc, unsigned int on)
 {
@@ -874,35 +845,6 @@ static const struct exynos_mipi_phy_cfg phy_cfg_table[] = {
 	},
 	{ },
 };
-
-static int __set_phy_cfg(struct exynos_mipi_phy *state,
-		struct mipi_phy_desc *phy_desc, int option, void *info)
-{
-	u32 *cfg = (u32 *)info;
-	unsigned long i;
-	int ret = -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(phy_cfg_table); i++) {
-		if ((cfg[VERSION] == MKVER(phy_cfg_table[i].major,
-					phy_cfg_table[i].minor))
-		    && ((cfg[TYPE] >> 16) == phy_cfg_table[i].mode)) {
-			/* reset assertion */
-			ret = __set_phy_reset(state->reg_reset,
-					phy_desc->rst_bit, 0);
-
-			ret = phy_cfg_table[i].set(phy_desc->regs,
-					option, cfg);
-
-			/* reset release */
-			ret = __set_phy_reset(state->reg_reset,
-					phy_desc->rst_bit, 1);
-
-			break;
-		}
-	}
-
-	return ret;
-}
 
 static struct exynos_mipi_phy_data mipi_phy_m4s4_top = {
 	.flags = MIPI_PHY_MxSx_SHARED,

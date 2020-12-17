@@ -188,6 +188,9 @@ struct modem_data {
 	/* capability check */
 	u32 capability_check;
 
+	/* check if cp2ap_active is in alive */
+	u32 cp2ap_active_not_alive;
+
 	/* Modem link PM support */
 	struct modemlink_pm_data *link_pm_data;
 
@@ -295,6 +298,7 @@ struct modem_irq {
 	unsigned long flags;
 	bool active;
 	bool registered;
+	u32 not_alive;
 };
 
 struct cpif_gpio {

@@ -1203,8 +1203,23 @@ static int suspend_cp(struct modem_ctl *mc)
 
 static int resume_cp(struct modem_ctl *mc)
 {
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	int ret;
+#endif
 	if (!mc)
 		return 0;
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+
+	if (!mc->s2mpu)
+		return 0;
+
+	ret =  s2mpu_restore(mc->s2mpu);
+	if (ret) {
+		mif_err("S2MPU restore failed error=%d\n", ret);
+		return -EINVAL;
+	}
+#endif
 
 #if !IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 	modem_ctrl_set_kerneltime(mc);
@@ -1374,6 +1389,7 @@ static void s5100_get_pdata(struct modem_ctl *mc, struct modem_data *pdata)
 	mc->s5100_gpio_phone_active.label = "CP2AP_PHONE_ACTIVE";
 	gpio_request(mc->s5100_gpio_phone_active.num, mc->s5100_gpio_phone_active.label);
 	mc->s5100_irq_phone_active.num = gpio_to_irq(mc->s5100_gpio_phone_active.num);
+	mc->s5100_irq_phone_active.not_alive = pdata->cp2ap_active_not_alive;
 
 	ret = of_property_read_u32(np, "mif,int_ap2cp_pcie_link_ack",
 				&mc->int_pcie_link_ack);

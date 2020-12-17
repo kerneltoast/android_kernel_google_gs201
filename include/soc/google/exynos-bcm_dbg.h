@@ -259,7 +259,7 @@ int exynos_bcm_dbg_load_bin(void);
 #define exynos_bcm_dbg_load_bin(a) do {} while (0)
 #endif
 
-#ifdef CONFIG_EXYNOS_BCM_DBG_PPMU
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_PPMU)
 struct platform_device;
 int exynos_bcm_dbg_ppmu_init(struct platform_device *pdev);
 void exynos_bcm_dbg_ppmu_exit(struct platform_device *pdev);

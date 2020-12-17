@@ -41,9 +41,9 @@ static bool dbg_snapshot_pd_is_power_up(struct dbg_snapshot_sfrdump *sfrdump)
 	}
 
 	dev_emerg(sfrdump_dev, "%s: power %s\n", sfrdump->pd_name,
-			cal_pd_status(pd_domain->cal_pdid) ? "on" : "off");
+		  exynos_pd_status(pd_domain) ? "on" : "off");
 
-	return (bool)cal_pd_status(pd_domain->cal_pdid);
+	return (bool)exynos_pd_status(pd_domain);
 }
 
 static void dbg_snapshot_dump_sfr(void)

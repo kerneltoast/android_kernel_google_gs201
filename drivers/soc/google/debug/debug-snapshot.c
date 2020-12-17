@@ -29,6 +29,7 @@ struct dbg_snapshot_param dss_param;
 struct dbg_snapshot_item dss_items[] = {
 	[DSS_ITEM_HEADER_ID]	= {DSS_ITEM_HEADER,	{0, 0, 0, true}, true, NULL, NULL},
 	[DSS_ITEM_KEVENTS_ID]	= {DSS_ITEM_KEVENTS,	{0, 0, 0, false}, false, NULL, NULL},
+	[DSS_ITEM_BCM_ID]	= {DSS_ITEM_BCM,	{0, 0, 0, true}, false, NULL, NULL},
 	[DSS_ITEM_S2D_ID]	= {DSS_ITEM_S2D,	{0, 0, 0, true}, false, NULL, NULL},
 	[DSS_ITEM_ARRDUMP_RESET_ID] = {DSS_ITEM_ARRDUMP_RESET, {0, 0, 0, false}, false, NULL, NULL},
 	[DSS_ITEM_ARRDUMP_PANIC_ID] = {DSS_ITEM_ARRDUMP_PANIC, {0, 0, 0, false}, false, NULL, NULL},
@@ -93,6 +94,12 @@ int dbg_snapshot_get_sjtag_status(void)
 	return dss_desc.sjtag_status;
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_sjtag_status);
+
+bool dbg_snapshot_get_panic_status(void)
+{
+	return dss_desc.in_panic;
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_get_panic_status);
 
 void dbg_snapshot_scratch_reg(unsigned int val)
 {

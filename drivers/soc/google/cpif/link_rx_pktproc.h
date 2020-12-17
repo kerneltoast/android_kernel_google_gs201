@@ -281,6 +281,7 @@ extern int pktproc_create(struct platform_device *pdev, struct mem_link_device *
 						unsigned long memaddr, u32 memsize);
 extern int pktproc_init(struct pktproc_adaptor *ppa);
 extern int pktproc_get_usage(struct pktproc_queue *q);
+extern int pktproc_get_usage_fore_rear(struct pktproc_queue *q);
 
 static inline int pktproc_check_support(struct pktproc_adaptor *ppa)
 {
@@ -318,6 +319,7 @@ static inline int pktproc_create(struct platform_device *pdev, struct mem_link_d
 				unsigned long memaddr, u32 memsize) { return 0; }
 static inline int pktproc_init(struct pktproc_adaptor *ppa) { return 0; }
 static inline int pktproc_get_usage(struct pktproc_queue *q) { return 0; }
+static inline int pktproc_get_usage_fore_rear(struct pktproc_queue *q) { return 0; }
 static inline int pktproc_check_support(struct pktproc_adaptor *ppa) { return 0; }
 static inline int pktproc_check_active(struct pktproc_adaptor *ppa, u32 q_idx) { return 0; }
 static inline int pktproc_stop_napi_poll(struct pktproc_adaptor *ppa, u32 q_idx) { return 0; }

@@ -96,7 +96,8 @@ int __attribute__((weak)) maxq_query_contaminant(u8 cc1_raw, u8 cc2_raw, u8 sbu1
 }
 
 struct max77759_contaminant *max77759_contaminant_init(struct max77759_plat *plat, bool enable);
-bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool debounce_path);
+bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool debounce_path,
+			       bool tcpm_toggling);
 int enable_contaminant_detection(struct max77759_plat *chip, bool maxq);
 void disable_contaminant_detection(struct max77759_plat *chip);
 
