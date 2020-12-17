@@ -347,7 +347,7 @@ static void eh_platform_init(struct eh_device *eh_dev, unsigned int vendor,
 
 static void eh_compr_fifo_init(struct eh_device *eh_dev)
 {
-	uint64_t data = ffs(eh_dev->fifo_size) - 1;
+	uint64_t data = __ffs(eh_dev->fifo_size);
 
 	data |= (uint64_t)virt_to_phys(eh_dev->fifo);
 	eh_write_register(eh_dev, EH_REG_CDESC_LOC, data);
@@ -911,7 +911,7 @@ struct eh_device *eh_init(struct device *dev, uint16_t fifo_size,
 	int i, cpu;
 
 	/* verify fifo_size is a power of two and less than 32k */
-	if (!fifo_size || ffs(fifo_size) != fls(fifo_size) ||
+	if (!fifo_size || __ffs(fifo_size) != __fls(fifo_size) ||
 	    (fifo_size > EH_MAX_FIFO_SIZE)) {
 		pr_err("invalid fifo size %u\n", fifo_size);
 		return ERR_PTR(-EINVAL);
@@ -1361,7 +1361,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 {
 	void *src_vaddr;
 	phys_addr_t src_paddr;
-	unsigned int alignment;
+	unsigned long alignment;
 	unsigned long csize_data;
 	unsigned long src_data;
 	unsigned long dst_data;
@@ -1378,7 +1378,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	 * 2048B aligned, max 2048B of data
 	 * 4096B aligned, max 4096B of data
 	 */
-	alignment = 1 << (ffs((int)compr_data) - 1);
+	alignment = 1UL << __ffs((unsigned long)compr_data);
 	if (alignment < 64 || compr_size > alignment) {
 		pr_devel("COPY: compr_data %px, compr_size %u, alignment %u\n",
 			 compr_data, compr_size, alignment);
@@ -1406,8 +1406,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 				  virt_to_phys(&eh_dev->decompr_status[index]));
 #endif
 
-	src_data = ((unsigned long)ffs(alignment) - 6)
-		   << EH_DCMD_BUF_SIZE_SHIFT;
+	src_data = (__ffs(alignment) - 5) << EH_DCMD_BUF_SIZE_SHIFT;
 	src_data |= src_paddr;
 	eh_write_register(eh_dev, EH_REG_DCMD_BUF0(index), src_data);
 	eh_write_register(eh_dev, EH_REG_DCMD_BUF1(index), 0);
