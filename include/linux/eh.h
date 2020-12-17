@@ -125,6 +125,9 @@ struct eh_device {
 	/* parent device */
 	struct device *dev;
 
+	/* PM suspend status */
+	bool suspended;
+
 	/*
 	 * interrupts:
 	 * one for errors

@@ -1195,6 +1195,12 @@ int eh_compress_pages(struct eh_device *eh_dev, struct page **pages,
 try_again:
 	spin_lock(&eh_dev->fifo_prod_lock);
 
+	if (eh_dev->suspended) {
+		WARN(1, "compress request when EH is suspended\n");
+		spin_unlock(&eh_dev->fifo_prod_lock);
+		return -EBUSY;
+	}
+
 	complete_index = READ_ONCE(eh_dev->complete_index);
 	new_write_index =
 		(eh_dev->write_index + page_cnt) & eh_dev->fifo_color_mask;
@@ -1274,6 +1280,12 @@ int eh_compress_pages_sync(struct eh_device *eh_dev, struct page **pages,
 	void *compr_data;
 
 	spin_lock(&eh_dev->fifo_prod_lock);
+
+	if (eh_dev->suspended) {
+		WARN(1, "compress request when EH is suspended\n");
+		spin_unlock(&eh_dev->fifo_prod_lock);
+		return -EBUSY;
+	}
 
 	complete_index = READ_ONCE(eh_dev->complete_index);
 	new_write_index =
@@ -1446,6 +1458,12 @@ int eh_decompress_page_sync(struct eh_device *eh_dev, void *compr_data,
 
 	spin_lock_irqsave(&eh_dev->decompr_lock[index], flags);
 
+	if (eh_dev->suspended) {
+		WARN(1, "decompress request when EH is suspended\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (eh_dev->decompr_busy[index]) {
 		/* this should never happen in polling mode */
 		ret = -EBUSY;
@@ -1508,6 +1526,12 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 	index = smp_processor_id() % eh_dev->decompr_cmd_count;
 
 	spin_lock_irqsave(&eh_dev->decompr_lock[index], flags);
+
+	if (eh_dev->suspended) {
+		WARN(1, "decompress request when EH is suspended\n");
+		ret = -EBUSY;
+		goto out;
+	}
 
 	if (eh_dev->decompr_busy[index]) {
 		/* previous decompress request still pending */
@@ -1612,6 +1636,81 @@ static int eh_of_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int eh_suspend(struct device *dev)
+{
+	int i;
+	int ret = 0;
+	unsigned long data;
+	struct eh_device *eh_dev = dev_get_drvdata(dev);
+
+	/* grab all locks */
+	spin_lock(&eh_dev->fifo_prod_lock);
+	for (i = 0; i < eh_dev->decompr_cmd_count; i++)
+		spin_lock(&eh_dev->decompr_lock[i]);
+
+	/* check pending work */
+	if (atomic_read(&eh_dev->nr_request) > 0) {
+		pr_info("%s: block suspend (compression pending)\n", __func__);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
+		if (eh_dev->decompr_busy[i]) {
+			pr_info("%s: block suspend (decompression pending)\n", __func__);
+			ret = -EBUSY;
+			goto out;
+		}
+	}
+
+	/* disable all interrupts */
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, ~0UL);
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, ~0UL);
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, ~0UL);
+
+	/* disable compression FIFO */
+	data = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
+	data &= ~(1UL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT);
+	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
+
+	eh_dev->suspended = true;
+	pr_info("%s: EH suspended\n", __func__);
+
+out:
+	for (i = eh_dev->decompr_cmd_count - 1; i >= 0; i--)
+		spin_unlock(&eh_dev->decompr_lock[i]);
+	spin_unlock(&eh_dev->fifo_prod_lock);
+
+	return ret;
+}
+
+static int eh_resume(struct device *dev)
+{
+	struct eh_device *eh_dev = dev_get_drvdata(dev);
+
+	spin_lock(&eh_dev->fifo_prod_lock);
+
+	/* re-enable compression FIFO */
+	eh_dev->write_index = eh_dev->complete_index = 0;
+	eh_compr_fifo_init(eh_dev);
+
+	/* re-enable all interrupts */
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, 0);
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, 0);
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0);
+
+	eh_dev->suspended = false;
+	pr_info("%s: EH resumed\n", __func__);
+
+	spin_unlock(&eh_dev->fifo_prod_lock);
+	return 0;
+}
+
+static const struct dev_pm_ops eh_pm_ops = {
+	.suspend = eh_suspend,
+	.resume = eh_resume,
+};
+
 static const struct of_device_id eh_of_match[] = {
 	{ .compatible = "google,eh", },
 	{ /* sentinel */ }
@@ -1623,6 +1722,7 @@ static struct platform_driver eh_of_driver = {
 	.remove		= eh_of_remove,
 	.driver		= {
 		.name	= "eh",
+		.pm	= &eh_pm_ops,
 		.of_match_table = of_match_ptr(eh_of_match),
 	},
 };
