@@ -132,6 +132,10 @@ static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 		exynos_bts_scitoken_setting(false);
 }
 
+/**
+ * returns 0 if the domain was already ON, 1 if was successfully turned ON
+ * and negative in case of error
+ */
 int exynos_pd_power_on(struct exynos_pm_domain *pd)
 {
 	int ret = 0;
@@ -176,6 +180,8 @@ int exynos_pd_power_on(struct exynos_pm_domain *pd)
 	pd->pd_stat.on_count++;
 	pd->pd_stat.last_on_time = ktime_get_boottime();
 
+	ret = 1;
+
 acc_unlock:
 	pr_debug("pd_power_on:(%s)-, ret = %d\n", pd->name, ret);
 	mutex_unlock(&pd->access_lock);
@@ -188,10 +194,15 @@ static int genpd_power_on(struct generic_pm_domain *genpd)
 {
 	struct exynos_pm_domain *pd =
 	    container_of(genpd, struct exynos_pm_domain, genpd);
+	int ret = exynos_pd_power_on(pd);
 
-	return exynos_pd_power_on(pd);
+	return ret < 0 ? ret : 0;
 }
 
+/**
+ * returns 0 if the domain was already OFF, 1 if was successfully turned OFF
+ * and negative in case of error
+ */
 static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 {
 	int ret = 0;
@@ -238,6 +249,8 @@ static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 			  ktime_sub(now, pd->pd_stat.last_on_time));
 	pd->pd_stat.last_off_time = now;
 
+	ret = ret < 0 ? ret : 1;
+
 acc_unlock:
 	pr_debug("pd_power_off:(%s)-, ret = %d\n", pd->name, ret);
 
@@ -260,8 +273,9 @@ static int genpd_power_off(struct generic_pm_domain *genpd)
 {
 	struct exynos_pm_domain *pd =
 		container_of(genpd, struct exynos_pm_domain, genpd);
+	int ret = exynos_pd_power_off(pd);
 
-	return exynos_pd_power_off(pd);
+	return ret < 0 ? ret : 0;
 }
 
 /**
