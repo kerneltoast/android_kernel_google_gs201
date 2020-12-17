@@ -179,7 +179,7 @@ int dbg_snapshot_start_watchdog(int sec)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_start_watchdog);
 
-int dbg_snapshot_emergency_reboot(const char *str)
+int dbg_snapshot_emergency_reboot_timeout(const char *str, int tick)
 {
 	void *addr;
 	char reboot_msg[DSS_PANIC_LOG_SIZE] = "Emergency Reboot";
@@ -188,7 +188,13 @@ int dbg_snapshot_emergency_reboot(const char *str)
 		dev_emerg(dss_desc.dev, "There is no wdt functions!\n");
 		return -ENODEV;
 	}
-	addr = return_address(0);
+
+	if (tick == INT_MAX) {
+		tick = 1;
+		addr = return_address(1);
+	} else {
+		addr = return_address(0);
+	}
 
 	dbg_snapshot_set_wdt_caller((unsigned long)addr);
 	if (str)
@@ -199,7 +205,14 @@ int dbg_snapshot_emergency_reboot(const char *str)
 	dbg_snapshot_dump_panic(reboot_msg, strlen(reboot_msg));
 	dump_stack();
 
-	dss_soc_ops.expire_watchdog(3, 0);
+	dss_soc_ops.expire_watchdog(tick, 0);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_emergency_reboot_timeout);
+
+int dbg_snapshot_emergency_reboot(const char *str)
+{
+	dbg_snapshot_emergency_reboot_timeout(str, INT_MAX);
 	dbg_snapshot_spin_func();
 	return 0;
 }
