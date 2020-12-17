@@ -254,7 +254,7 @@
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_PCIE_LOW_POWER>;
 						tpmon,idx = <0>;
-						tpmon,threshold = <50>;	/* Mbps */
+						tpmon,threshold = <3000>;	/* Mbps */
 						tpmon,values = <1 0>;
 					};
 					tpmon_irq_affinity_0 {
