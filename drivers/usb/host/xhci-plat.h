@@ -23,6 +23,12 @@ struct xhci_plat_priv {
 #define hcd_to_xhci_priv(h) ((struct xhci_plat_priv *)hcd_to_xhci(h)->priv)
 #define xhci_to_priv(x) ((struct xhci_plat_priv *)(x)->priv)
 
+struct xhci_plat_priv_overwrite {
+	struct xhci_vendor_ops *vendor_ops;
+};
+
+int xhci_plat_register_vendor_ops(struct xhci_vendor_ops *vendor_ops);
+
 #if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
 extern void __iomem *usb3_portsc;
 extern u32 pp_set_delayed;
