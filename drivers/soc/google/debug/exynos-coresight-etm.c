@@ -765,6 +765,37 @@ static ssize_t port_status_show(struct device *dev,
 
 static DEVICE_ATTR_RO(port_status);
 
+#ifdef CONFIG_EXYNOS_CORESIGHT_ETR
+static ssize_t etr_dump_read(struct file *filp,
+			     struct kobject *kobj,
+			     struct bin_attribute *attr,
+			     char *buffer,
+			     loff_t pos,
+			     size_t size)
+{
+	if (pos > ee_info->etr_buf_size)
+		return 0;
+
+	if (pos + size > ee_info->etr_buf_size)
+		size = ee_info->etr_buf_size - pos;
+
+	memcpy(buffer, ee_info->etr.buf_vaddr + pos, size);
+
+	return size;
+}
+
+static BIN_ATTR_RO(etr_dump, 0);
+
+static struct bin_attribute *exynos_etr_sysfs_attrs[] = {
+	&bin_attr_etr_dump,
+	NULL,
+};
+
+static struct attribute_group exynos_etr_sysfs_group = {
+	.bin_attrs = exynos_etr_sysfs_attrs,
+};
+#endif
+
 static struct attribute *funnel_attrs[] = {
 	&dev_attr_port_status.attr,
 	&dev_attr_manual_port_on.attr,
@@ -787,8 +818,11 @@ static struct attribute_group exynos_etm_sysfs_group = {
 	NULL,
 };
 
-static const struct attribute_group *exynos_etm_sysfs_groups[] = {
+static const struct attribute_group *exynos_coresight_sysfs_groups[] = {
 	&exynos_etm_sysfs_group,
+#ifdef CONFIG_EXYNOS_CORESIGHT_ETR
+	&exynos_etr_sysfs_group,
+#endif
 	NULL,
 };
 
@@ -978,7 +1012,7 @@ static int exynos_etm_probe(struct platform_device *pdev)
 		exynos_etm_trace_start();
 	}
 
-	if (sysfs_create_groups(&pdev->dev.kobj, exynos_etm_sysfs_groups)) {
+	if (sysfs_create_groups(&pdev->dev.kobj, exynos_coresight_sysfs_groups)) {
 		dev_err(&pdev->dev, "fail to register exynos-etm sysfs\n");
 		return -EFAULT;
 	}
