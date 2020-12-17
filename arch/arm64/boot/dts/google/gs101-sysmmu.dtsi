@@ -57,6 +57,7 @@
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW SYSMMU_ID_MASK(0x8,  0x3C)>,
 				      <3 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW SYSMMU_ID_MASK(0xC,  0x3C)>,
 				      <4 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW SYSMMU_ID_MASK(0x0,  0x3C)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_bo: sysmmu@1CA40000 {
