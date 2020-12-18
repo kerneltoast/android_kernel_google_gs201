@@ -68,6 +68,18 @@ static inline int __init cma_dma_heap_init(void)
 #define cma_dma_heap_exit() do { } while (0)
 #endif
 
+#if defined(CONFIG_DMABUF_HEAPS_SAMSUNG_CARVEOUT)
+int __init carveout_dma_heap_init(void);
+void carveout_dma_heap_exit(void);
+#else
+static inline int __init carveout_dma_heap_init(void)
+{
+	return 0;
+}
+
+#define carveout_dma_heap_exit() do { } while (0)
+#endif
+
 #define DMAHEAP_PREFIX "[Exynos][DMA-HEAP] "
 #define perr(format, arg...) \
 	pr_err(DMAHEAP_PREFIX format "\n", ##arg)

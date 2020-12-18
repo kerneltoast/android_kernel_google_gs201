@@ -125,11 +125,19 @@ static int __init samsung_dma_heap_init(void)
 	if (ret)
 		return ret;
 
+	ret = carveout_dma_heap_init();
+	if (ret) {
+		cma_dma_heap_exit();
+
+		return ret;
+	}
+
 	return 0;
 }
 
 static void __exit samsung_dma_heap_exit(void)
 {
+	carveout_dma_heap_exit();
 	cma_dma_heap_exit();
 }
 
