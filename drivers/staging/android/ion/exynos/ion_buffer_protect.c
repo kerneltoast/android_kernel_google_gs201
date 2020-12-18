@@ -12,6 +12,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/arm-smccc.h>
 #include <linux/dma-direct.h>
+#include <soc/google/exynos-itmon.h>
 
 #include <linux/ion.h>
 
@@ -196,3 +197,102 @@ void ion_secure_iova_pool_destroy(void)
 {
 	gen_pool_destroy(secure_iova_pool);
 }
+
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
+
+#define SMC_DRM_PPMPU_INFO	0x820020D1
+
+#define is_secure_info_fail(x)		((((x) >> 16) & 0xffff) == 0xdead)
+static inline u32 read_sec_info(unsigned int addr)
+{
+	unsigned long ret;
+
+	ret = ppmp_smc(SMC_DRM_PPMPU_INFO, addr, 0, 0);
+	if (is_secure_info_fail(ret))
+		perr("Invalid value returned, %#lx\n", ret);
+
+	return (u32)ret;
+}
+
+#define PPMPU0_SFR_BASE         0x228C0000
+#define PPMPU1_SFR_BASE         0x229C0000
+#define PPMPU2_SFR_BASE         0x22AC0000
+#define PPMPU3_SFR_BASE         0x22BC0000
+
+static phys_addr_t ppmpus[] = {
+	PPMPU0_SFR_BASE,
+	PPMPU1_SFR_BASE,
+	PPMPU2_SFR_BASE,
+	PPMPU3_SFR_BASE,
+};
+
+#define PPMPU_CTRL              0x0
+
+#define PPMPU_ILLEGAL_READ_ADDR_LOW     (0x10)
+#define PPMPU_ILLEGAL_READ_ADDR_HIGH    (0x14)
+#define PPMPU_ILLEGAL_READ_FIELD        (0x18)
+
+#define PPMPU_ILLEGAL_WRITE_ADDR_LOW    (0x20)
+#define PPMPU_ILLEGAL_WRITE_ADDR_HIGH   (0x24)
+#define PPMPU_ILLEGAL_WRITE_FIELD       (0x28)
+
+static int __ion_itmon_notifier(struct notifier_block *nb, unsigned long action,
+				void *nb_data)
+{
+	struct itmon_notifier *itmon_info = nb_data;
+	unsigned int i;
+	int ret = NOTIFY_BAD;
+
+	if (IS_ERR_OR_NULL(itmon_info))
+		return ret;
+
+	if (!pfn_valid(PHYS_PFN(itmon_info->target_addr)))
+		return ret;
+
+#define ERRCODE_DECERR			(1)
+	if (itmon_info->errcode != ERRCODE_DECERR)
+		return ret;
+
+	perr("PPMPU register dump:\n");
+	for (i = 0; i < ARRAY_SIZE(ppmpus); i++) {
+		phys_addr_t base = ppmpus[i];
+		phys_addr_t read_addr;
+		u32 read_field;
+		phys_addr_t write_addr;
+		u32 write_field;
+		u32 ctrl;
+
+		ctrl = read_sec_info(base + PPMPU_CTRL);
+		read_addr = (phys_addr_t)read_sec_info(base + PPMPU_ILLEGAL_READ_ADDR_HIGH) << 32;
+		read_addr |= (phys_addr_t)read_sec_info(base + PPMPU_ILLEGAL_READ_ADDR_LOW);
+		read_field = read_sec_info(base + PPMPU_ILLEGAL_READ_FIELD);
+		write_addr = (phys_addr_t)read_sec_info(base + PPMPU_ILLEGAL_WRITE_ADDR_HIGH) << 32;
+		write_addr |= (phys_addr_t)read_sec_info(base + PPMPU_ILLEGAL_WRITE_ADDR_LOW);
+		write_field = read_sec_info(base + PPMPU_ILLEGAL_WRITE_FIELD);
+
+		perr("PPMPU%u CTRL                %#010x", i, ctrl);
+		perr("PPMPU%u ILLEGAL_READ_ADDR   %pap", i, &read_addr);
+		perr("PPMPU%u ILLEGAL_READ_FIELD  %#010x", i, read_field);
+		perr("PPMPU%u ILLEGAL_WRITE_ADDR  %pap", i, &write_addr);
+		perr("PPMPU%u ILLEGAL_WRITE_FIELD %#010x", i, write_field);
+		perr("");
+	}
+
+	return ret;
+}
+
+static struct notifier_block itmon_nb;
+
+int ion_secure_itmon_init(void)
+{
+	itmon_nb.notifier_call = __ion_itmon_notifier;
+	itmon_notifier_chain_register(&itmon_nb);
+	return 0;
+}
+
+int ion_secure_itmon_exit(void)
+{
+	itmon_notifier_chain_unregister(&itmon_nb);
+	return 0;
+}
+#endif
