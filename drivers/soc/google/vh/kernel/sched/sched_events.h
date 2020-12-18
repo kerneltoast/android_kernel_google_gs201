@@ -377,6 +377,35 @@ TRACE_EVENT(sugov_next_freq,
 		      __entry->max,
 		      __entry->freq)
 );
+
+TRACE_EVENT(schedutil_cpu_util_clamp,
+
+	TP_PROTO(int cpu, unsigned long util_cfs, unsigned long util_rt, unsigned long util_clamp,
+		 unsigned long util_max),
+
+	TP_ARGS(cpu, util_cfs, util_rt, util_clamp, util_max),
+
+	TP_STRUCT__entry(
+		__field(int,		cpu)
+		__field(unsigned long,	util_cfs)
+		__field(unsigned long,	util_rt)
+		__field(unsigned long,	util_clamp)
+		__field(unsigned long,	util_max)
+	),
+
+	TP_fast_assign(
+		__entry->cpu                = cpu;
+		__entry->util_cfs           = util_cfs;
+		__entry->util_rt	    = util_rt;
+		__entry->util_clamp         = util_clamp;
+		__entry->util_max	    = util_max;
+	),
+
+	TP_printk("cpu=%d util_cfs=%ld util_rt=%ld util_clamp=%ld util_max=%ld",
+		__entry->cpu, __entry->util_cfs, __entry->util_rt, __entry->util_clamp,
+		__entry->util_max)
+);
+
 #endif /* _SCHED_EVENTS_H */
 
 /* This part must be outside protection */
