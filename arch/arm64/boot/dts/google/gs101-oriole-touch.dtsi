@@ -20,10 +20,6 @@
 	 * fetched.
 	 */
 	st,max-coords = <1079 2399>;
-	/* TODO: enable auto update if SDC default panel firmware
-	 * check is done.
-	 */
-	st,disable-auto-fw-update;
 
 	st,firmware_names = "ftm5_fw_o6.ftb";
 	st,limits_names = "stm_fts_production_limits_o6.csv";
