@@ -107,6 +107,7 @@
 				      <13 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x32, 0x7E)>,
 				      <14 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x40, 0x7E)>,
 				      <15 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x42, 0x7E)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_csis1: sysmmu@1A540000 {
@@ -143,6 +144,7 @@
 				      <20 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x88, 0xFE)>,
 				      <21 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x8C, 0xFE)>,
 				      <22 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x84, 0xFE)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_dns: sysmmu@1B080000 {
@@ -177,6 +179,7 @@
 				      <18 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0xD8, 0xFE)>,
 				      <19 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0xD2, 0xFE)>,
 				      <20 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0xD6, 0xFE)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_dpu0: sysmmu@1C100000 {
@@ -302,6 +305,7 @@
 				      <5 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x28, 0x38)>,
 				      <6 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x30, 0x38)>,
 				      <7 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x38, 0x38)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_gdc0: sysmmu@1BAA0000 {
@@ -323,6 +327,7 @@
 				      <5 TLB_CFG(BL16, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4, 0xE)>,
 				      <6 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x2, 0xE)>,
 				      <7 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x6, 0xE)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_gdc1: sysmmu@1BAD0000{
@@ -344,6 +349,7 @@
 				      <5 TLB_CFG(BL16, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4, 0xE)>,
 				      <6 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x2, 0xE)>,
 				      <7 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x6, 0xE)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_gdc2: sysmmu@1BB00000 {
@@ -372,6 +378,7 @@
 				      <12 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x18, 0x1E)>,
 				      <13 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x12, 0x1E)>,
 				      <14 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x16, 0x1E)>;
+		sysmmu,async-fault;
 	};
 
 #if 0
@@ -439,6 +446,7 @@
 				      <29 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x260, 0x3FE)>,
 				      <30 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x2E0, 0x3FE)>,
 				      <31 TLB_CFG(BL8, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x2C0, 0x3E0)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_mcsc0: sysmmu@1B780000 {
@@ -457,6 +465,7 @@
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x8, 0xE)>,
 				      <3 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x2, 0xE)>,
 				      <4 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x6, 0xE)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_mcsc1: sysmmu@1B7B0000 {
@@ -486,6 +495,7 @@
 				      <13 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x20, 0x3E)>,
 				      <14 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x24, 0x3E)>,
 				      <15 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x28, 0x3E)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_mcsc2: sysmmu@1B7E0000 {
@@ -507,6 +517,7 @@
 				      <5 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x10, 0x3E)>,
 				      <6 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x14, 0x3E)>,
 				      <7 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x18, 0x3E)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_mfc0: sysmmu@1C870000 {
@@ -552,7 +563,7 @@
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW   SYSMMU_ID_MASK(0x4,  0x7C)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x40, 0x7C)>,
 				      <3 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x44, 0x7C)>;
-
+		sysmmu,async-fault;
 	};
 
 	sysmmu_tnr1: sysmmu@1BCA0000 {
@@ -570,6 +581,7 @@
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4, 0x3C)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x0, 0x3C)>,
 				      <3 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x4, 0x3C)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_tnr2: sysmmu@1BCD0000 {
@@ -585,6 +597,7 @@
 		power-domains = <&pd_tnr>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0x3C)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_tnr3: sysmmu@1BD00000 {
@@ -600,6 +613,7 @@
 		power-domains = <&pd_tnr>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0x3C)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_tnr4: sysmmu@1BD30000 {
@@ -617,6 +631,7 @@
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW    SYSMMU_ID_MASK(0x80, 0xC0)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x0,  0xC0)>,
 				      <3 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4,  0xC0)>;
+		sysmmu,async-fault;
 	};
 
 	sysmmu_tpu: sysmmu@1CC40000 {
