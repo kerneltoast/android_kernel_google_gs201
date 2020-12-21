@@ -60,18 +60,13 @@ struct kmsg_dumper {
 #ifdef CONFIG_PRINTK
 void kmsg_dump(enum kmsg_dump_reason reason);
 
-bool kmsg_dump_get_line_nolock(struct kmsg_dumper_iter *iter, bool syslog,
-			       char *line, size_t size, size_t *len);
-
 bool kmsg_dump_get_line(struct kmsg_dumper_iter *iter, bool syslog,
 			char *line, size_t size, size_t *len);
 
 bool kmsg_dump_get_buffer(struct kmsg_dumper_iter *iter, bool syslog,
 			  char *buf, size_t size, size_t *len_out);
 
-void kmsg_dump_rewind_nolock(struct kmsg_dumper_iter *iter);
-
-void kmsg_dump_rewind(struct kmsg_dumper_iter *dumper_iter);
+void kmsg_dump_rewind(struct kmsg_dumper_iter *iter);
 
 int kmsg_dump_register(struct kmsg_dumper *dumper);
 
@@ -81,13 +76,6 @@ const char *kmsg_dump_reason_str(enum kmsg_dump_reason reason);
 #else
 static inline void kmsg_dump(enum kmsg_dump_reason reason)
 {
-}
-
-static inline bool kmsg_dump_get_line_nolock(struct kmsg_dumper_iter *iter,
-					     bool syslog, const char *line,
-					     size_t size, size_t *len)
-{
-	return false;
 }
 
 static inline bool kmsg_dump_get_line(struct kmsg_dumper_iter *iter, bool syslog,
@@ -100,10 +88,6 @@ static inline bool kmsg_dump_get_buffer(struct kmsg_dumper_iter *iter, bool sysl
 					char *buf, size_t size, size_t *len)
 {
 	return false;
-}
-
-static inline void kmsg_dump_rewind_nolock(struct kmsg_dumper_iter *iter)
-{
 }
 
 static inline void kmsg_dump_rewind(struct kmsg_dumper_iter *iter)
