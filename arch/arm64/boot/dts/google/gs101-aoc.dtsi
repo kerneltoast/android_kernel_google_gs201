@@ -48,6 +48,8 @@
 		mboxes = <&mbox_aoc 0>;
 
 		acpm-ipc-channel = <13>;
+
+		force-vnom = <0>;
 	};
 
 };
