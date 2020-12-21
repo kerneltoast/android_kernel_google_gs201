@@ -52,6 +52,12 @@ struct kernel_info {
 
 	/* Info of running build */
 	char build_info[BUILD_INFO_LEN];
+
+	/* For module kallsyms */
+	u32 enabled_modules_tree_lookup;
+	u32 mod_core_layout_offset;
+	u32 mod_init_layout_offset;
+	u32 mod_kallsyms_offset;
 } __packed;
 
 struct kernel_all_info {
