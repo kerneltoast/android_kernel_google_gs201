@@ -43,5 +43,6 @@ cat "${DIST_DIR}/ext_vendor_bootimg/vendor_ramdisk" "${DIST_DIR}/ext_bootimg/ram
 cp -v "${DIST_DIR}/zebu/zebu_ramdisk" "${DIST_DIR}/zebu/rootfs.cramfs"
 #cp -v "${DIST_DIR}/ext_bootimg/kernel" "${DIST_DIR}/zebu/Image"
 cp -v "${OUT_DIR}/private/gs-google/arch/arm64/boot/Image" "${DIST_DIR}/zebu/Image"
-cp -v "${DIST_DIR}/ext_vendor_bootimg/dtb" "${DIST_DIR}/zebu/devicetree.dtb"
+#cp -v "${DIST_DIR}/ext_vendor_bootimg/dtb" "${DIST_DIR}/zebu/devicetree.dtb"
+cp -v "${DIST_DIR}/gs201-out.dtb" "${DIST_DIR}/zebu/devicetree.dtb"
 
