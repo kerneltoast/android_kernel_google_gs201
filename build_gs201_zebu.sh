@@ -41,6 +41,7 @@ python "$UNPACK_BOOTIMG_PATH" --boot_img "${DIST_DIR}/boot.img" --out "${DIST_DI
 python "$UNPACK_BOOTIMG_PATH" --boot_img "${DIST_DIR}/vendor_boot.img" --out "${DIST_DIR}/ext_vendor_bootimg"
 cat "${DIST_DIR}/ext_vendor_bootimg/vendor_ramdisk" "${DIST_DIR}/ext_bootimg/ramdisk" > "${DIST_DIR}/zebu/zebu_ramdisk"
 cp -v "${DIST_DIR}/zebu/zebu_ramdisk" "${DIST_DIR}/zebu/rootfs.cramfs"
-cp -v "${DIST_DIR}/ext_bootimg/kernel" "${DIST_DIR}/zebu/Image"
+#cp -v "${DIST_DIR}/ext_bootimg/kernel" "${DIST_DIR}/zebu/Image"
+cp -v "${OUT_DIR}/private/gs-google/arch/arm64/boot/Image" "${DIST_DIR}/zebu/Image"
 cp -v "${DIST_DIR}/ext_vendor_bootimg/dtb" "${DIST_DIR}/zebu/devicetree.dtb"
 
