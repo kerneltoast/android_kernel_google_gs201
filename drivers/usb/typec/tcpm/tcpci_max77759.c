@@ -491,17 +491,16 @@ static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool
 static int max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *tdata)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
+	int ret;
 
-	/*
-	 * Alawys re-enable boost here.
-	 * In normal case, when say an headset is attached, TCPM would
-	 * have instructed to TCPC to enable boost, so the call is a
-	 * no-op.
-	 * But for Fast Role Swap case, Boost turns on autonomously without
-	 * AP intervention, but, needs AP to enable source mode explicitly
-	 * for AP to regain control.
-	 */
-	return max77759_set_vbus(tcpci, &chip->data, true, false);
+	ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+				 (void *)GBMS_USB_OTG_FRS_ON, true);
+	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE ret:%d", __func__, ret);
+
+	if (!ret)
+		chip->sourcing_vbus = 1;
+
+	return ret;
 }
 
 static void process_power_status(struct max77759_plat *chip)
