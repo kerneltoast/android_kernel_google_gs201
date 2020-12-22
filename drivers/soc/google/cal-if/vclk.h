@@ -31,7 +31,6 @@ extern unsigned int vclk_get_resume_freq(unsigned int id);
 extern unsigned int vclk_get_lv_num(unsigned int id);
 extern int vclk_get_rate_table(unsigned int id, unsigned long *table);
 extern int vclk_register_ops(unsigned int id, struct vclk_trans_ops *ops);
-extern int vclk_get_bigturbo_table(unsigned int *table);
 #else
 static inline void *get_vclk(unsigned int id)
 {
@@ -118,10 +117,6 @@ static inline int vclk_register_ops(unsigned int id, struct vclk_trans_ops *ops)
 	return 0;
 }
 
-static inline int vclk_get_bigturbo_table(unsigned int *table)
-{
-	return -EVCLKINVAL;
-}
 #endif
 
 #if IS_ENABLED(CONFIG_CMUCAL_DEBUG)
