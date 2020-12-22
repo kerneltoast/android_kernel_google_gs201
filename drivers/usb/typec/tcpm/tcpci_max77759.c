@@ -47,6 +47,8 @@
 
 #define GBMS_MODE_VOTABLE "CHARGER_MODE"
 
+#define MAX77759_DEVICE_ID_A1				0x2
+
 /* system use cases */
 enum gbms_charger_modes {
 	GBMS_USB_BUCK_ON	= 0x30,
@@ -1201,6 +1203,7 @@ static int max77759_probe(struct i2c_client *client,
 	char *usb_psy_name;
 	struct device_node *dn;
 	u8 power_status;
+	u16 device_id;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1306,7 +1309,14 @@ static int max77759_probe(struct i2c_client *client,
 		goto teardown_bc12;
 	}
 
-	chip->contaminant = max77759_contaminant_init(chip, false);
+	ret = max77759_read16(chip->data.regmap, TCPC_BCD_DEV, &device_id);
+	if (ret < 0)
+		goto teardown_bc12;
+
+	logbuffer_log(chip->log, "TCPC DEVICE id:%d", device_id);
+	/* Default enable on A1 or higher */
+	chip->contaminant_detection = device_id >= MAX77759_DEVICE_ID_A1;
+	chip->contaminant = max77759_contaminant_init(chip, chip->contaminant_detection);
 
 	chip->extcon = devm_extcon_dev_allocate(&client->dev,
 						usbpd_extcon_cable);
@@ -1336,6 +1346,13 @@ static int max77759_probe(struct i2c_client *client,
 		goto psy_put;
 	}
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
+
+	/* Default enable on A1 or higher */
+	if (device_id >= MAX77759_DEVICE_ID_A1) {
+		chip->data.auto_discharge_disconnect = true;
+		chip->frs = true;
+		tcpci_auto_discharge_update(chip->tcpci);
+	}
 
 	ret = max77759_init_alert(chip, client);
 	if (ret < 0)
