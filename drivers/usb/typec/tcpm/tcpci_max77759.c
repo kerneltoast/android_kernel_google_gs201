@@ -488,7 +488,7 @@ static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool
 	return 0;
 }
 
-static int max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *tdata)
+static void max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *tdata)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
 
@@ -501,7 +501,7 @@ static int max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *td
 	 * AP intervention, but, needs AP to enable source mode explicitly
 	 * for AP to regain control.
 	 */
-	return max77759_set_vbus(tcpci, &chip->data, true, false);
+	max77759_set_vbus(tcpci, &chip->data, true, false);
 }
 
 static void process_power_status(struct max77759_plat *chip)
