@@ -56,6 +56,9 @@
 #define TCPC_EXTENDED_STATUS		0x20
 #define TCPC_EXTENDED_STATUS_VSAFE0V	BIT(0)
 
+#define TCPC_EXTENDED_STATUS		0x20
+#define TCPC_EXTENDED_STATUS_VSAFE0V	BIT(0)
+
 #define TCPC_ROLE_CTRL			0x1a
 #define TCPC_ROLE_CTRL_DRP		BIT(6)
 #define TCPC_ROLE_CTRL_RP_VAL_SHIFT	4
@@ -157,8 +160,8 @@
 #define TCPC_VBUS_VOLTAGE_MASK			0x3ff
 #define TCPC_VBUS_VOLTAGE_LSB_MV		25
 #define TCPC_VBUS_SINK_DISCONNECT_THRESH	0x72
-#define TCPC_VBUS_SINK_DISCONNECT_THRESH_LSB	25
-#define TCPC_VBUS_SINK_DISCONNECT_THRESH_MAX	1023
+#define TCPC_VBUS_SINK_DISCONNECT_THRESH_LSB_MV	25
+#define TCPC_VBUS_SINK_DISCONNECT_THRESH_MAX	0x3ff
 #define TCPC_VBUS_STOP_DISCHARGE_THRESH		0x74
 #define TCPC_VBUS_VOLTAGE_ALARM_HI_CFG		0x76
 #define TCPC_VBUS_VOLTAGE_ALARM_LO_CFG		0x78
@@ -166,13 +169,14 @@
 /* I2C_WRITE_BYTE_COUNT + 1 when TX_BUF_BYTE_x is only accessible I2C_WRITE_BYTE_COUNT */
 #define TCPC_TRANSMIT_BUFFER_MAX_LEN		31
 
-/*
- * @TX_BUF_BYTE_x_hidden
- *		optional; Set when TX_BUF_BYTE_x can only be accessed through I2C_WRITE_BYTE_COUNT.
- */
 struct tcpci;
 
 /*
+ * @TX_BUF_BYTE_x_hidden:
+ *		optional; Set when TX_BUF_BYTE_x can only be accessed through I2C_WRITE_BYTE_COUNT.
+ * @frs_sourcing_vbus:
+ *		Optional; Callback to perform chip specific operations when FRS
+ *		is sourcing vbus.
  * @auto_discharge_disconnect:
  *		Optional; Enables TCPC to autonously discharge vbus on disconnect.
  * @get_vbus:
@@ -211,7 +215,7 @@ struct tcpci_data {
 	void (*set_pd_capable)(struct tcpci *tcpci, struct tcpci_data *data, bool capable);
 	void (*set_cc_polarity)(struct tcpci *tcpci, struct tcpci_data *data,
 				enum typec_cc_polarity polarity);
-	int (*frs_sourcing_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
+	void (*frs_sourcing_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
 	int (*enable_frs)(struct tcpci *tcpci, struct tcpci_data *data, bool enable);
 	int (*check_contaminant)(struct tcpci *tcpci, struct tcpci_data *data);
 };

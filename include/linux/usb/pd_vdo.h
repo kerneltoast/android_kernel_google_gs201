@@ -128,6 +128,12 @@
 #define IDH_PTYPE_AMC		4
 #define IDH_PTYPE_AMA		5
 
+#define IDH_PTYPE_DFP_UNDEF	0
+#define IDH_PTYPE_DFP_HUB	1
+#define IDH_PTYPE_DFP_HOST	2
+#define IDH_PTYPE_DFP_PB	3
+#define IDH_PTYPE_DFP_AMC	4
+
 #define IDH_USB_HOST		BIT(31)
 #define IDH_USB_DEVICE		BIT(30)
 #define IDH_PT_UFP_PLUG_SHIFT	27
@@ -148,6 +154,7 @@
 #define PD_IDH_PTYPE_DFP(vdo)	(((vdo) >> IDH_PT_DFP_SHIFT) & 0x7)
 #define PD_IDH_VID(vdo)		((vdo) & 0xffff)
 #define PD_IDH_MODAL_SUPP(vdo)	((vdo) & IDH_MODAL_SUPP)
+#define PD_IDH_DFP_PTYPE(vdo)	(((vdo) >> 23) & 0x7)
 
 /*
  * Cert Stat VDO
