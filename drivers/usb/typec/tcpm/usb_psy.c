@@ -239,7 +239,7 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 			return ret;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = ops->tcpc_get_vbus_voltage_mv(client);
+		val->intval = ops->tcpc_get_vbus_voltage_mv(client) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = usb->usb_type;
