@@ -483,12 +483,11 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 
 	usb_cfg.drv_data = usb;
 	usb_cfg.of_node =  dev->of_node;
-	usb->usb_psy = devm_power_supply_register(dev, &usb_psy_desc,
-						  &usb_cfg);
+	usb->usb_psy = power_supply_register(dev, &usb_psy_desc, &usb_cfg);
 	if (IS_ERR(usb->usb_psy)) {
 		dev_err(dev, "usb: Power supply register failed");
 		ret = usb->usb_psy;
-		goto psy_put;
+		goto chg_psy_put;
 	}
 	usb->usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
 
@@ -503,7 +502,7 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 					     usb_icl_callback, usb);
 	if (IS_ERR_OR_NULL(usb->usb_icl_el)) {
 		ret = usb->usb_icl_el;
-		goto psy_put;
+		goto usb_psy_unreg;
 	}
 	gvotable_set_vote2str(usb->usb_icl_el, gvotable_v2s_uint);
 
@@ -554,11 +553,14 @@ unreg_icl_combined_el:
 	gvotable_destroy_election(usb->usb_icl_combined_el);
 unreg_icl_el:
 	gvotable_destroy_election(usb->usb_icl_el);
-psy_put:
-	if (usb->chg_psy)
-		power_supply_put(usb->chg_psy);
-	if (usb->main_chg_psy)
+usb_psy_unreg:
+	if (!IS_ERR_OR_NULL(usb->main_chg_psy))
 		power_supply_put(usb->main_chg_psy);
+	if (!IS_ERR_OR_NULL(usb->usb_psy))
+		power_supply_unregister(usb->usb_psy);
+chg_psy_put:
+	if (!IS_ERR_OR_NULL(usb->chg_psy))
+		power_supply_put(usb->chg_psy);
 
 	return ret;
 }
@@ -572,10 +574,12 @@ void usb_psy_teardown(void *usb_data)
 	gvotable_destroy_election(usb->usb_icl_proto_el);
 	gvotable_destroy_election(usb->usb_icl_combined_el);
 	gvotable_destroy_election(usb->usb_icl_el);
-	if (usb->chg_psy)
-		power_supply_put(usb->usb_psy);
-	if (usb->main_chg_psy)
+	if (!IS_ERR_OR_NULL(usb->chg_psy))
+		power_supply_put(usb->chg_psy);
+	if (!IS_ERR_OR_NULL(usb->main_chg_psy))
 		power_supply_put(usb->main_chg_psy);
+	if (!IS_ERR_OR_NULL(usb->usb_psy))
+		power_supply_unregister(usb->usb_psy);
 }
 EXPORT_SYMBOL_GPL(usb_psy_teardown);
 
