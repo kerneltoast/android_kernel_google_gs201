@@ -222,6 +222,9 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 		val->intval = usb->sink_enabled ? usb_get_current_max_ma(usb) > ONLINE_THRESHOLD_UA
 			? 1 : 0 : 0;
 		break;
+	case POWER_SUPPLY_PROP_PRESENT:
+		val->intval = usb->sink_enabled;
+		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		/* Report the voted value to reflect TA capability */
 		val->intval = usb->current_max_cache;
@@ -300,6 +303,7 @@ static enum power_supply_property usb_psy_data_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_USB_TYPE,
+	POWER_SUPPLY_PROP_PRESENT,
 };
 
 static enum power_supply_usb_type usb_psy_data_types[] = {
