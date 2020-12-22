@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2019 Samsung Electronics Co., Ltd.
+ * SAMSUNG GS201 SoC device tree source
+ *
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  */
@@ -52,7 +54,7 @@
 
 		attr = <0x50C7F>;
 		port = <0>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <1>;
@@ -91,7 +93,7 @@
 
 		attr = <0x50C7F>;
 		port = <1>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <3>;
@@ -130,7 +132,7 @@
 
 		attr = <0x50C7F>;
 		port = <2>;
-		scale_down = <2>;
+		scale_down = <4>;
 		scale_up = <8>;
 
 		dpp,id = <5>;
@@ -185,6 +187,16 @@
 		phy-names = "dsim_dphy";
 
 		dsim_mode = <&dsim_modes>;
+		dphy_diag = <&dphy_diags>;
+
+		te_from = <0>;
+		/* EINT for TE */
+		te-gpio = <&gpp0 3 0xf>;
+
+		/* pinctrl */
+		pinctrl-names = "hw_te_on", "hw_te_off";
+		pinctrl-0 = <&disp_te_pri_on>;
+		pinctrl-1 = <&disp_te_pri_off>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -206,18 +218,27 @@
 		phy-names = "dsim_dphy";
 
 		dsim_mode = <&dsim_modes>;
+		dphy_diag = <&dphy_diags>;
+
+		te_from = <1>;
+		/* EINT for TE */
+		te-gpio = <&gpp0 4 0xf>;
+
+		pinctrl-names = "hw_te_on", "hw_te_off";
+		pinctrl-0 = <&disp_te_sec_on>;
+		pinctrl-1 = <&disp_te_sec_off>;
 
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
 
-	drmdecon0: drmdecon@0x1C300000 {
+	drmdecon0: drmdecon@0x1C240000 {
 		compatible = "samsung,exynos-decon";
-		reg = <0x0 0x1C300000 0x6000>,	/* DECON0_MAIN */
-		      <0x0 0x1C310000 0x6000>,	/* DECON_WIN */
-		      <0x0 0x1C320000 0x10000>,	/* DECON_SUB */
-		      <0x0 0x1C330000 0x6000>,	/* DECON0_WINCON */
-		      <0x0 0x1C360000 0xF000>;	/* DQE */
+		reg = <0x0 0x1C240000 0x6000>,	/* DECON0_MAIN */
+		      <0x0 0x1C250000 0x6000>,	/* DECON_WIN */
+		      <0x0 0x1C260000 0x10000>,	/* DECON_SUB */
+		      <0x0 0x1C270000 0x6000>,	/* DECON0_WINCON */
+		      <0x0 0x1C2A0000 0xF000>;	/* DQE0 */
 		reg-names = "main", "win", "sub", "wincon", "dqe";
 
 		decon,id = <0>;
@@ -227,28 +248,34 @@
 			     <GIC_SPI IRQ_DISP_DECON0_FRAME_DONE_DISP
 				IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI IRQ_DISP_DECON0_EXTRA_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON0_DQE_DIMMING_START_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON0_DQE_DIMMING_END_DISP
 				IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "frame_start", "frame_done", "extra";
+		interrupt-names = "frame_start", "frame_done", "extra",
+				"dimming_start", "dimming_end";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
-
-		/* pinctrl */
-		pinctrl-names = "hw_te_on", "hw_te_off";
-		pinctrl-0 = <&decon_f_te_on>;
-		pinctrl-1 = <&decon_f_te_off>;
+		samsung,tzmp;
 
 		max_win = <6>;
-		op_mode = <1>;	  /* 0: video mode, 1: command mode */
-		trig_mode = <0>;  /* 0: hw trigger, 1: sw trigger */
-		out_type = <0x2>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
-
-		/* 0: from DDI0, 1: from DDI1, 2: from DDI2 3: not receive TE */
-		te_from = <0>;
 
 		/* BTS */
-		ppc = <2>;
-		line_mem_cnt = <4>;
-		cycle_per_line = <8>;   /* 4ppc */
+		ppc = <2>;		/* pixel per clock */
+		ppc_rotator = <4>;	/* rotator ppc : 4(9830), 8(9840) */
+		ppc_scaler = <2>;	/* scaler ppc : 2(9830), 4(9840) */
+		delay_comp = <4>;	/* line delay for afbc or sbwc : DMA */
+		delay_scaler = <3>;	/* line delay for scaler : DPP */
+
+		/* bus info */
+		bus_width = <16>;	/* 16-Byte : 128-bit bus */
+		bus_util = <70>;	/* 70% */
+		rot_util = <65>;	/* UTIL gets worse at rotation */
+
+		/* dpu dvfs */
+		dfs_lv_cnt = <7>;
+		dfs_lv = <664000 533000 465000 400000 310000 267000 134000>;
 
 		/* Urgent */
 		rd_en = <1>;
@@ -264,8 +291,77 @@
 		dta_hi_thres = <0x3200>;
 		dta_lo_thres = <0x600>;
 
-		/* EINT for TE */
-		gpios = <&gpp0 3 0xf>;
+		dpps = <&drmdpp0 &drmdpp1 &drmdpp2 &drmdpp3 &drmdpp4 &drmdpp5>;
+
+		/*
+		 * connector type that can be connected to the DECON. please
+		 * refer to enum exynos_drm_output_type in exynos_drm_drv.h
+		 *
+		 * DSI0(0x1), DSI1(0x2), VIDI(0x8)
+		 */
+		connector = <0x1 0x2 0x8>;
+
+		hibernation;
+	};
+
+	drmdecon1: drmdecon@0x1C241000 {
+		compatible = "samsung,exynos-decon";
+		reg = <0x0 0x1C241000 0x6000>,	/* DECON1_MAIN */
+		      <0x0 0x1C250000 0x6000>,	/* DECON_WIN */
+		      <0x0 0x1C260000 0x10000>,	/* DECON_SUB */
+		      <0x0 0x1C280000 0x6000>,	/* DECON1_WINCON */
+		      <0x0 0x1C2B0000 0xF000>;	/* DQE1 */
+		reg-names = "main", "win", "sub", "wincon", "dqe";
+
+		decon,id = <1>;
+
+		interrupts = <GIC_SPI IRQ_DISP_DECON1_FRAME_START_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON1_FRAME_DONE_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON1_EXTRA_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON1_DQE_DIMMING_START_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON1_DQE_DIMMING_END_DISP
+				IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "frame_start", "frame_done", "extra",
+				"dimming_start", "dimming_end";
+		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
+		samsung,iommu-group = <&iommu_group_dpu>;
+		samsung,tzmp;
+
+		max_win = <6>;
+
+		/* BTS */
+		ppc = <2>;		/* pixel per clock */
+		ppc_rotator = <4>;	/* rotator ppc : 4(9830), 8(9840) */
+		ppc_scaler = <2>;	/* scaler ppc : 2(9830), 4(9840) */
+		delay_comp = <4>;	/* line delay for afbc or sbwc : DMA */
+		delay_scaler = <3>;	/* line delay for scaler : DPP */
+
+		/* bus info */
+		bus_width = <16>;	/* 16-Byte : 128-bit bus */
+		bus_util = <70>;	/* 70% */
+		rot_util = <65>;	/* UTIL gets worse at rotation */
+
+		/* dpu dvfs */
+		dfs_lv_cnt = <7>;
+		dfs_lv = <664000 533000 465000 400000 310000 267000 134000>;
+
+		/* Urgent */
+		rd_en = <1>;
+		rd_hi_thres = <0x800>;
+		rd_lo_thres = <0x400>;
+		rd_wait_cycle = <0x11>;
+		wr_en = <0>;
+		wr_hi_thres = <0x0>;
+		wr_lo_thres = <0x0>;
+
+		/* DTA */
+		dta_en = <1>;
+		dta_hi_thres = <0x3200>;
+		dta_lo_thres = <0x600>;
 
 		dpps = <&drmdpp0 &drmdpp1 &drmdpp2 &drmdpp3 &drmdpp4 &drmdpp5>;
 
@@ -280,12 +376,12 @@
 		hibernation;
 	};
 
-	drmdecon2: drmdecon@0x1C302000 {
+	drmdecon2: drmdecon@0x1C242000 {
 		compatible = "samsung,exynos-decon";
-		reg = <0x0 0x1C302000 0x4000>,	/* DECON2_MAIN */
-		      <0x0 0x1C310000 0x6000>,	/* DECON_WIN */
-		      <0x0 0x1C320000 0x10000>,	/* DECON_SUB */
-		      <0x0 0x1C350000 0x6000>;	/* DECON2_WINCON */
+		reg = <0x0 0x1C242000 0x4000>,	/* DECON2_MAIN */
+		      <0x0 0x1C250000 0x6000>,	/* DECON_WIN */
+		      <0x0 0x1C260000 0x10000>,	/* DECON_SUB */
+		      <0x0 0x1C290000 0x6000>;	/* DECON2_WINCON */
 		reg-names = "main", "win", "sub", "wincon";
 
 		decon,id = <2>;
@@ -299,18 +395,28 @@
 		interrupt-names = "frame_start", "frame_done", "extra";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
+		samsung,tzmp;
 
 		max_win = <6>;
-		op_mode = <1>;		/* 0: video mode, 1: command mode */
-		trig_mode = <1>;	/* 0: hw trigger, 1: sw trigger */
-		out_type = <0x100>;	/* BIT8: WB */
 
 		/* BTS */
-		ppc = <2>;
-		line_mem_cnt = <4>;
-		cycle_per_line = <8>;   /* 4ppc */
+		ppc = <2>;		/* pixel per clock */
+		ppc_rotator = <4>;	/* rotator ppc : 4(9830), 8(9840) */
+		ppc_scaler = <2>;	/* scaler ppc : 2(9830), 4(9840) */
+		delay_comp = <4>;	/* line delay for afbc or sbwc : DMA */
+		delay_scaler = <3>;	/* line delay for scaler : DPP */
+
+		/* bus info */
+		bus_width = <16>;	/* 16-Byte : 128-bit bus */
+		bus_util = <70>;	/* 70% */
+		rot_util = <65>;	/* UTIL gets worse at rotation */
+
+		/* dpu dvfs */
+		dfs_lv_cnt = <7>;
+		dfs_lv = <664000 533000 465000 400000 310000 267000 134000>;
 
 		dpps = <&drmdpp0 &drmdpp1 &drmdpp2 &drmdpp3 &drmdpp4 &drmdpp5>;
+
 		/*
 		 * connector type that can be connected to the DECON. please
 		 * refer to enum exynos_drm_output_type in exynos_drm_drv.h
@@ -318,5 +424,37 @@
 		 * DSI0(0x1), DSI1(0x2), VIDI(0x8)
 		 */
 		connector = <0x8>;
+	};
+
+	disp_vddi: disp-vddi {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddi";
+		regulator-boot-on;
+		enable-active-high;
+	};
+
+	disp_vddr_en: disp-vddr_en {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddr_en";
+		regulator-boot-on;
+		enable-active-high;
+	};
+
+	disp_vddr_0: disp-vddr_0 {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddr_0";
+		regulator-boot-on;
+		enable-active-high;
+	};
+
+	disp_vddr_1: disp-vddr_1 {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddr_1";
+		regulator-boot-on;
+		enable-active-high;
 	};
 };
