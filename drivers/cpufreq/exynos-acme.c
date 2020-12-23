@@ -416,24 +416,20 @@ static int __exynos_cpufreq_suspend(struct cpufreq_policy *policy,
 				    struct exynos_cpufreq_domain *domain)
 {
 	unsigned int freq;
+	struct work_struct *update_work = &policy->update;
 
 	if (!domain)
 		return 0;
 
 	mutex_lock(&domain->lock);
 	mutex_unlock(&domain->lock);
-	if (!domain->enabled)
-		return 0;
 
-	if (system_state == SYSTEM_RESTART && domain->id != 0)
-		freq = domain->min_freq;
-	else
-		freq = domain->resume_freq;
+	freq = domain->resume_freq;
 
 	freq_qos_update_request(policy->min_freq_req, freq);
 	freq_qos_update_request(policy->max_freq_req, freq);
 
-	disable_domain(domain);
+	flush_work(update_work);
 
 	return 0;
 }
@@ -451,10 +447,6 @@ static int __exynos_cpufreq_resume(struct cpufreq_policy *policy,
 
 	mutex_lock(&domain->lock);
 	mutex_unlock(&domain->lock);
-	if (domain->enabled)
-		return 0;
-
-	enable_domain(domain);
 
 	freq_qos_update_request(policy->max_freq_req, domain->max_freq);
 	freq_qos_update_request(policy->min_freq_req, domain->min_freq);
