@@ -489,6 +489,7 @@ static int exynos_cpufreq_pm_notifier(struct notifier_block *notifier,
 
 static struct notifier_block exynos_cpufreq_pm = {
 	.notifier_call = exynos_cpufreq_pm_notifier,
+	.priority = INT_MAX,
 };
 
 static struct cpufreq_driver exynos_driver = {
