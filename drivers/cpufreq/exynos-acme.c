@@ -1250,8 +1250,11 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	domain->boot_freq = cal_dfs_get_boot_freq(domain->cal_id);
 	domain->resume_freq = cal_dfs_get_resume_freq(domain->cal_id);
 	domain->old = get_freq(domain);
-	if (!domain->old)
-		domain->old = domain->resume_freq;
+	if (domain->old < domain->min_freq || domain->max_freq < domain->old) {
+		WARN(1, "Out-of-range freq(%dkhz) returned for domain%d in init time\n",
+		     domain->old, domain->id);
+		domain->old = domain->boot_freq;
+	}
 
 	mutex_init(&domain->lock);
 
@@ -1286,16 +1289,15 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 		if (!domain)
 			return -ENOMEM;
 
+		domain->id = domain_id++;
 		if (init_domain(domain, dn)) {
-			pr_err("failed to initialize cpufreq domain%d\n",
-			       domain_id);
+			pr_err("failed to initialize cpufreq domain%d\n", domain->id);
 			kfree(domain->freq_table);
 			kfree(domain);
 			continue;
 		}
 
 		domain->dn = dn;
-		domain->id = domain_id++;
 		list_add_tail(&domain->list, &domains);
 
 		print_domain_info(domain);
@@ -1329,7 +1331,7 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 
 	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_freq_qos_min.attr);
 	if (ret) {
-		pr_err("failed to create user_min\n");
+		pr_err("failed to create user_min node\n");
 		return ret;
 	}
 
