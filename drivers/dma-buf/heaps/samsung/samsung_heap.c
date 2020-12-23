@@ -18,6 +18,17 @@
 
 #include "heap_private.h"
 
+void heap_cache_flush(struct samsung_dma_buffer *buffer)
+{
+	struct device *dev = dma_heap_get_dev(buffer->heap->dma_heap);
+
+	if (!dma_heap_flags_uncached(buffer->flags))
+		return;
+
+	dma_map_sgtable(dev, &buffer->sg_table, DMA_TO_DEVICE, 0);
+	dma_unmap_sgtable(dev, &buffer->sg_table, DMA_FROM_DEVICE, 0);
+}
+
 /*
  * It should be called by physically contiguous buffer.
  */
@@ -58,6 +69,7 @@ struct samsung_dma_buffer *samsung_dma_buffer_alloc(struct samsung_dma_heap *sam
 	mutex_init(&buffer->lock);
 	buffer->heap = samsung_dma_heap;
 	buffer->len = size;
+	buffer->flags = samsung_dma_heap->flags;
 
 	return buffer;
 }
@@ -68,41 +80,92 @@ void samsung_dma_buffer_free(struct samsung_dma_buffer *buffer)
 	kfree(buffer);
 }
 
-int samsung_heap_add(struct device *dev, void *priv,
-		     void (*release)(struct samsung_dma_buffer *buffer),
-		     const struct dma_heap_ops *ops)
+static const char *samsung_add_heap_name(unsigned long flags)
+{
+	if (flags & DMA_HEAP_FLAG_UNCACHED)
+		return "-uncached";
+	return "";
+}
+
+/*
+ * registers cachable heap and uncachable heap both.
+ */
+static const unsigned int samsung_heap_type[] = {
+	0,
+	DMA_HEAP_FLAG_UNCACHED,
+};
+
+#define NUM_HEAP_TYPE ARRAY_SIZE(samsung_heap_type)
+
+static struct samsung_dma_heap *__samsung_heap_add(struct device *dev, void *priv,
+						   void (*release)(struct samsung_dma_buffer *),
+						   const struct dma_heap_ops *ops,
+						   unsigned int flags)
 {
 	struct samsung_dma_heap *heap;
 	unsigned int alignment = PAGE_SIZE, order;
 	struct dma_heap_export_info exp_info;
 	const char *name;
+	char *heap_name;
 
 	if (of_property_read_string(dev->of_node, "dma-heap,name", &name)) {
 		perrfn("The heap should define name on device node");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
-
-	heap = devm_kzalloc(dev, sizeof(*heap), GFP_KERNEL);
-	if (!heap)
-		return -ENOMEM;
 
 	of_property_read_u32(dev->of_node, "dma-heap,alignment", &alignment);
 	order = min_t(unsigned int, get_order(alignment), MAX_ORDER);
 
+	heap = devm_kzalloc(dev, sizeof(*heap), GFP_KERNEL);
+	if (!heap)
+		return ERR_PTR(-ENOMEM);
+	heap->flags = flags;
+
+	heap_name = devm_kasprintf(dev, GFP_KERNEL, "%s%s", name, samsung_add_heap_name(flags));
+	if (!heap_name)
+		return ERR_PTR(-ENOMEM);
+
 	heap->alignment = 1 << (order + PAGE_SHIFT);
 	heap->release = release;
 	heap->priv = priv;
+	heap->name = heap_name;
 
-	exp_info.name = name;
+	exp_info.name = heap_name;
 	exp_info.ops = ops;
 	exp_info.priv = heap;
 
 	heap->dma_heap = dma_heap_add(&exp_info);
 	if (IS_ERR(heap->dma_heap))
-		return PTR_ERR(heap->dma_heap);
+		return heap;
 
-	pr_info("Registered %s dma-heap successfully\n", name);
+	pr_info("Registered %s dma-heap successfully\n", heap_name);
+
+	dma_coerce_mask_and_coherent(dma_heap_get_dev(heap->dma_heap), DMA_BIT_MASK(36));
+
+	return heap;
+}
+
+int samsung_heap_add(struct device *dev, void *priv,
+		     void (*release)(struct samsung_dma_buffer *buffer),
+		     const struct dma_heap_ops *ops)
+{
+	struct samsung_dma_heap *heap[NUM_HEAP_TYPE];
+	int i, ret;
+
+	for (i = 0; i < NUM_HEAP_TYPE; i++) {
+		heap[i] = __samsung_heap_add(dev, priv, release, ops, samsung_heap_type[i]);
+		if (IS_ERR(heap[i])) {
+			ret = PTR_ERR(heap[i]);
+			goto heap_put;
+		}
+	}
+
 	return 0;
+heap_put:
+	while (i-- > 0)
+		dma_heap_put(heap[i]->dma_heap);
+
+	return ret;
 }
 
 struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags)

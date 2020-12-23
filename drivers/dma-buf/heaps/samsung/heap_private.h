@@ -28,6 +28,7 @@ struct samsung_dma_buffer {
 	unsigned long len;
 	struct sg_table sg_table;
 	void *vaddr;
+	unsigned long flags;
 	int vmap_cnt;
 };
 
@@ -35,6 +36,8 @@ struct samsung_dma_heap {
 	struct dma_heap *dma_heap;
 	void (*release)(struct samsung_dma_buffer *buffer);
 	void *priv;
+	const char *name;
+	unsigned long flags;
 	unsigned int alignment;
 };
 
@@ -42,11 +45,13 @@ struct samsung_map_attachment {
 	struct device *dev;
 	struct sg_table *table;
 	struct list_head list;
+	unsigned long flags;
 	bool mapped;
 };
 
 extern const struct dma_buf_ops samsung_dma_buf_ops;
 
+void heap_cache_flush(struct samsung_dma_buffer *buffer);
 void heap_page_clean(struct page *pages, unsigned long size);
 struct samsung_dma_buffer *samsung_dma_buffer_alloc(struct samsung_dma_heap *samsung_dma_heap,
 						    unsigned long size, unsigned int nents);
@@ -55,6 +60,13 @@ int samsung_heap_add(struct device *dev, void *priv,
 		     void (*release)(struct samsung_dma_buffer *buffer),
 		     const struct dma_heap_ops *ops);
 struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags);
+
+#define DMA_HEAP_FLAG_UNCACHED BIT(0)
+
+static inline bool dma_heap_flags_uncached(unsigned long flags)
+{
+	return !!(flags & DMA_HEAP_FLAG_UNCACHED);
+}
 
 #if defined(CONFIG_DMABUF_HEAPS_SAMSUNG_SYSTEM)
 int __init system_dma_heap_init(void);

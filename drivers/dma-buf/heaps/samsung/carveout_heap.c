@@ -54,6 +54,7 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap, unsigned lo
 	sg_set_page(buffer->sg_table.sgl, pages, size, 0);
 
 	heap_page_clean(pages, size);
+	heap_cache_flush(buffer);
 
 	dmabuf = samsung_export_dmabuf(buffer, fd_flags);
 	if (IS_ERR(dmabuf)) {

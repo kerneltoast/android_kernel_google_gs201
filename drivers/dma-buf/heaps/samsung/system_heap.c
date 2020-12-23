@@ -108,6 +108,8 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap, unsigned long
 		list_del(&page->lru);
 	}
 
+	heap_cache_flush(buffer);
+
 	dmabuf = samsung_export_dmabuf(buffer, fd_flags);
 	if (IS_ERR(dmabuf)) {
 		ret = PTR_ERR(dmabuf);
@@ -151,7 +153,7 @@ static int system_heap_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = samsung_heap_create(&pdev->dev, NULL, system_heap_release, &system_heap_ops);
+	ret = samsung_heap_add(&pdev->dev, NULL, system_heap_release, &system_heap_ops);
 	if (ret)
 		return ret;
 
