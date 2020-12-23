@@ -100,7 +100,7 @@ static inline u64 cfs_rq_last_update_time(struct cfs_rq *cfs_rq)
 }
 #endif
 
-static inline unsigned long task_util(struct task_struct *p)
+unsigned long task_util(struct task_struct *p)
 {
 	return READ_ONCE(p->se.avg.util_avg);
 }
@@ -136,7 +136,7 @@ static inline unsigned long capacity_of(int cpu)
 	return cpu_rq(cpu)->cpu_capacity;
 }
 
-static unsigned long cpu_util(int cpu)
+unsigned long cpu_util(int cpu)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
@@ -332,7 +332,7 @@ static inline bool get_prefer_high_cap(struct task_struct *p)
 	return vendor_sched_enable_prefer_high_cap && get_vendor_task_struct(p)->prefer_high_cap;
 }
 
-static inline bool task_fits_capacity(struct task_struct *p, int cpu)
+bool task_fits_capacity(struct task_struct *p, int cpu)
 {
 	unsigned int margin;
 	unsigned long capacity = capacity_of(cpu);
@@ -394,6 +394,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	bool prefer_prev = false;
 	int i;
 	int start_cpu = -1;
+	unsigned int min_exit_lat = UINT_MAX;
 
 	/*
 	 * In most cases, target_capacity tracks capacity of the most
@@ -425,7 +426,6 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		unsigned long wake_util, new_util;
 		long spare_cap;
 		struct cpuidle_state *idle;
-		unsigned int min_exit_lat = UINT_MAX;
 		int next_cpu = cpumask_next_wrap(i, p->cpus_ptr, i, false);
 
 		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity);

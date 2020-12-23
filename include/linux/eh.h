@@ -125,6 +125,9 @@ struct eh_device {
 	/* parent device */
 	struct device *dev;
 
+	/* EH clock */
+	struct clk *clk;
+
 	/* PM suspend status */
 	bool suspended;
 

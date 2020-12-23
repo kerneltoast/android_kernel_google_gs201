@@ -66,7 +66,7 @@
 					>;
 				hs-clk = <1490>;
 				esc-clk = <20>;
-				cmd_underrun_cnt = <1575>;
+				cmd_underrun_cnt = <9259>;
 			};
 			1080x2400 {
 				mode-name = "1080x2400";

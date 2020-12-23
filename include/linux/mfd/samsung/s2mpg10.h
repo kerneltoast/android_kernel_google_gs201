@@ -243,4 +243,6 @@ int s2mpg10_write_word(struct i2c_client *i2c, u8 reg, u16 value);
 int s2mpg10_read_word(struct i2c_client *i2c, u8 reg);
 int s2mpg10_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask);
 
+u8 s2mpg10_get_rev_id(void);
+
 #endif /* __S2MPG10_MFD_H__ */

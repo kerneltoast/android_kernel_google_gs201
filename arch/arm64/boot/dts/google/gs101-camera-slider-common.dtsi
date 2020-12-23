@@ -9,3 +9,4 @@
 #include "gs101-camera-pmic-av4.dtsi"
 #include "gs101-camera-slider-av2.dtsi"
 #include "gs101-camera-slider-av4.dtsi"
+#include "gs101-camera-slider-av4-ldaf.dtsi"

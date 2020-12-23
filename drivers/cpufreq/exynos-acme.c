@@ -128,8 +128,8 @@ static int set_freq(struct exynos_cpufreq_domain *domain,
 {
 	int err;
 
-//	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n",
-//			    domain->id, domain->old, target_freq, DSS_FLAG_IN);
+	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n",
+			    domain->id, domain->old, target_freq, DSS_FLAG_IN);
 
 	if (domain->need_awake)
 		disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
@@ -145,8 +145,8 @@ static int set_freq(struct exynos_cpufreq_domain *domain,
 	if (domain->need_awake)
 		enable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
-//	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n", domain->id, domain->old,
-//			    target_freq, DSS_FLAG_OUT);
+	dbg_snapshot_printk("ID %d: %d -> %d (%d)\n", domain->id, domain->old,
+			    target_freq, DSS_FLAG_OUT);
 
 	return err;
 }

@@ -1572,12 +1572,14 @@ static int eh_of_probe(struct platform_device *pdev)
 	int ret;
 
 	pr_devel("%s starting\n", __func__);
+
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "pm_runtime_get_sync returned %d\n", ret);
-		return ret;
+		goto err_pm_rt_get;
 	}
+
 	memset(irqs, 0, sizeof(irqs));
 
 	for (i = 0; i < ARRAY_SIZE(irqs); i++) {
@@ -1594,14 +1596,14 @@ static int eh_of_probe(struct platform_device *pdev)
 	clk = of_clk_get_by_name(pdev->dev.of_node, "eh-clock");
 	if (IS_ERR(clk)) {
 		pr_err("%s: of_clk_get_by_name() failed\n", __func__);
-		return PTR_ERR(clk);
+		ret = PTR_ERR(clk);
+		goto err_clk_get;
 	}
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
 		pr_err("%s: clk_prepare_enable() failed\n", __func__);
-		clk_put(clk);
-		return ret;
+		goto err_clk_en;
 	}
 
 	if (of_get_property(pdev->dev.of_node, "google,eh,poll-irqs", NULL))
@@ -1613,11 +1615,13 @@ static int eh_of_probe(struct platform_device *pdev)
 
 	eh_dev = eh_init(&pdev->dev, eh_default_fifo_size, mem->start, irqs,
 			 irq_count, quirks);
+	if (IS_ERR(eh_dev)) {
+		ret = -EINVAL;
+		goto err_eh_init;
+	}
 
+	eh_dev->clk = clk;
 	platform_set_drvdata(pdev, eh_dev);
-
-	if (IS_ERR(eh_dev))
-		return -EINVAL;
 
 	ret = device_add_groups(&pdev->dev, eh_dev_groups);
 	if (ret) {
@@ -1625,6 +1629,17 @@ static int eh_of_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+
+err_eh_init:
+	clk_disable_unprepare(clk);
+err_clk_en:
+	clk_put(clk);
+err_clk_get:
+	pm_runtime_put_sync(&pdev->dev);
+err_pm_rt_get:
+	pm_runtime_disable(&pdev->dev);
+
+	return ret;
 }
 
 static int eh_of_remove(struct platform_device *pdev)
@@ -1632,6 +1647,11 @@ static int eh_of_remove(struct platform_device *pdev)
 	struct eh_device *eh_dev = platform_get_drvdata(pdev);
 
 	eh_remove(eh_dev);
+
+	clk_disable_unprepare(eh_dev->clk);
+	clk_put(eh_dev->clk);
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
@@ -1673,6 +1693,9 @@ static int eh_suspend(struct device *dev)
 	data &= ~(1UL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT);
 	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
 
+	/* disable EH clock */
+	clk_disable_unprepare(eh_dev->clk);
+
 	eh_dev->suspended = true;
 	pr_info("%s: EH suspended\n", __func__);
 
@@ -1689,6 +1712,9 @@ static int eh_resume(struct device *dev)
 	struct eh_device *eh_dev = dev_get_drvdata(dev);
 
 	spin_lock(&eh_dev->fifo_prod_lock);
+
+	/* re-enable EH clock */
+	clk_prepare_enable(eh_dev->clk);
 
 	/* re-enable compression FIFO */
 	eh_dev->write_index = eh_dev->complete_index = 0;
