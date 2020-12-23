@@ -347,15 +347,17 @@ static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
 	if (!domain->enabled)
 		goto out;
 
+	target_freq = cpufreq_driver_resolve_freq(policy, target_freq);
+
+	/* Target is same as current, skip scaling */
+	if (domain->old == target_freq)
+		goto out;
+
 	if (domain->old != get_freq(domain)) {
 		pr_err("oops, inconsistency between domain->old:%d, real clk:%d\n",
 		       domain->old, get_freq(domain));
 		WARN_ON(0);
 	}
-
-	/* Target is same as current, skip scaling */
-	if (domain->old == target_freq)
-		goto out;
 
 	ret = scale(domain, policy, target_freq);
 	if (ret)
@@ -382,17 +384,6 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 
 	if (!domain)
 		return -EINVAL;
-
-	if (!domain->enabled)
-		return -EINVAL;
-
-	mutex_lock(&domain->lock);
-	freq = cpufreq_driver_resolve_freq(policy, target_freq);
-	if (!freq || domain->old == freq) {
-		mutex_unlock(&domain->lock);
-		return 0;
-	}
-	mutex_unlock(&domain->lock);
 
 	if (list_empty(&domain->dm_list))
 		return __exynos_cpufreq_target(policy, target_freq, relation);
