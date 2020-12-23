@@ -226,7 +226,6 @@ static unsigned int exynos_cpufreq_resolve_freq(struct cpufreq_policy *policy,
 static int exynos_cpufreq_online(struct cpufreq_policy *policy)
 {
 	struct exynos_cpufreq_domain *domain;
-	struct cpumask mask;
 
 	/*
 	 * CPU frequency is not changed before cpufreq_resume() is called.
@@ -240,15 +239,8 @@ static int exynos_cpufreq_online(struct cpufreq_policy *policy)
 	if (!domain)
 		return 0;
 
-	/*
-	 * The first incoming cpu in domain enables frequency scaling
-	 * and clears limit of frequency.
-	 */
-	cpumask_and(&mask, &domain->cpus, cpu_online_mask);
-	if (cpumask_weight(&mask) == 1) {
-		enable_domain(domain);
-		freq_qos_update_request(&domain->max_qos_req, domain->max_freq);
-	}
+	enable_domain(domain);
+	freq_qos_update_request(&domain->max_qos_req, domain->max_freq);
 
 	return 0;
 }
@@ -256,7 +248,6 @@ static int exynos_cpufreq_online(struct cpufreq_policy *policy)
 static int exynos_cpufreq_offline(struct cpufreq_policy *policy)
 {
 	struct exynos_cpufreq_domain *domain;
-	struct cpumask mask;
 
 	/*
 	 * CPU frequency is not changed after cpufreq_suspend() is called.
@@ -270,15 +261,8 @@ static int exynos_cpufreq_offline(struct cpufreq_policy *policy)
 	if (!domain)
 		return 0;
 
-	/*
-	 * The last outgoing cpu in domain limits frequency to minimum
-	 * and disables frequency scaling.
-	 */
-	cpumask_and(&mask, &domain->cpus, cpu_online_mask);
-	if (cpumask_weight(&mask) == 1) {
-		freq_qos_update_request(&domain->max_qos_req, domain->min_freq);
-		disable_domain(domain);
-	}
+	freq_qos_update_request(&domain->max_qos_req, domain->min_freq);
+	disable_domain(domain);
 
 	return 0;
 }
