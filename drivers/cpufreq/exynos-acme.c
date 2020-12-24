@@ -344,8 +344,10 @@ static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
 
 	mutex_lock(&domain->lock);
 
-	if (!domain->enabled)
+	if (!domain->enabled) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	target_freq = cpufreq_driver_resolve_freq(policy, target_freq);
 
