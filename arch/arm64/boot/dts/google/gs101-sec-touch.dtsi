@@ -85,7 +85,7 @@
 		sec,mis_cal_check = <1>;
 		sec,heatmap_mode = <1>;
 
-		sec,max_coords = <1080 2340>;
+		sec,max_coords = <1440 3120>;
 
 		vdd-supply = <&m_ldo25_reg>; /* VIO 1.8V */
 		avdd-supply = <&m_ldo26_reg>; /* AVDD 3.3V */
