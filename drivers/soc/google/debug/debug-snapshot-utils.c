@@ -571,6 +571,10 @@ static int dbg_snapshot_reboot_handler(struct notifier_block *nb,
 				    unsigned long mode, void *cmd)
 {
 	dss_desc.in_reboot = true;
+
+	if (mode == SYS_POWER_OFF)
+		dbg_snapshot_report_reason(DSS_SIGN_NORMAL_REBOOT);
+
 	return NOTIFY_DONE;
 }
 
