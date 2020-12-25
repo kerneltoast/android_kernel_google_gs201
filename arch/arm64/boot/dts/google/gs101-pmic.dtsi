@@ -123,7 +123,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x1>;
 				schematic-name = "S1M_VDD_MIF";
@@ -138,7 +137,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2>;
 				schematic-name = "S2M_VDD_CPUCL2";
@@ -153,7 +151,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x3>;
 				schematic-name = "S3M_VDD_CPUCL1";
@@ -168,7 +165,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x4>;
 				schematic-name = "S4M_VDD_CPUCL0";
@@ -183,7 +179,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x5>;
 				schematic-name = "S5M_VDD_INT";
@@ -198,7 +193,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x6>;
 				schematic-name = "S6M_VDD_CPUCL2_M";
@@ -213,7 +207,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x7>;
 				schematic-name = "S7M_VDD_INT";
@@ -228,7 +221,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x8>;
 				schematic-name = "S8M_LLDO2";
@@ -243,7 +235,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x9>;
 				schematic-name = "S9M_LLDO3";
@@ -258,7 +249,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0xA>;
 				schematic-name = "S10M_VDD_TPU";
@@ -273,7 +263,6 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x21>;
 				schematic-name = "L1M_ALIVE";
@@ -285,7 +274,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x22>;
 				schematic-name = "L2M_ALIVE";
@@ -297,7 +285,6 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x23>;
 				schematic-name = "L3M";
@@ -309,7 +296,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x24>;
 				schematic-name = "L4M";
@@ -321,7 +307,6 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x25>;
 				schematic-name = "L5M_TCXO";
@@ -333,7 +318,6 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x26>;
 				schematic-name = "L6M_PLL";
@@ -345,7 +329,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x27>;
 				schematic-name = "L7M_VDD_HSI";
@@ -357,7 +340,6 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x28>;
 				schematic-name = "L8M_USB";
@@ -369,7 +351,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x29>;
 				schematic-name = "L9M_USB";
@@ -381,7 +362,6 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3350000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2A>;
 				schematic-name = "L10M_USB";
@@ -393,7 +373,6 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2B>;
 				schematic-name = "L11M_VDD_CPUCL1_M";
@@ -405,7 +384,6 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2C>;
 				schematic-name = "L12M_VDD_CPUCL0_M";
@@ -417,7 +395,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2D>;
 				schematic-name = "L13M_VDD_TPU_M";
@@ -429,7 +406,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2E>;
 				schematic-name = "L14M_TCXO";
@@ -441,7 +417,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2F>;
 				schematic-name = "L15M_VDD_SLC_M";
@@ -452,7 +427,6 @@
 				regulator-name = "S2MPG10_LDO16";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x30>;
 				schematic-name = "L16M_PCIE0";
@@ -463,7 +437,6 @@
 				regulator-name = "S2MPG10_LDO17";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x31>;
 				schematic-name = "L17M_PCIE1";
@@ -474,7 +447,6 @@
 				regulator-name = "S2MPG10_LDO18";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x32>;
 				schematic-name = "L18M_PCIE0";
@@ -485,7 +457,6 @@
 				regulator-name = "S2MPG10_LDO19";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x33>;
 				schematic-name = "L19M_PCIE1";
@@ -497,7 +468,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;  /* ALWAYS_ON */
 				channel-mux-selection = <0x34>;
 				schematic-name = "L20M_DMICS";
@@ -509,7 +479,6 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x35>;
 				schematic-name = "L21M_DTLS";
@@ -520,7 +489,6 @@
 				regulator-name = "S2MPG10_LDO22";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x36>;
 				schematic-name = "L22M_DISP_VCI";
@@ -532,7 +500,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x37>;
 				schematic-name = "L23M_UNUSED";
@@ -544,7 +511,6 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x38>;
 				schematic-name = "L24M_DISP_VDD";
@@ -555,7 +521,6 @@
 				regulator-name = "S2MPG10_LDO25";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x39>;
 				schematic-name = "L25M_TSP_DVDD";
@@ -566,7 +531,6 @@
 				regulator-name = "S2MPG10_LDO26";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3A>;
 				schematic-name = "L26M_TS_AVDD";
@@ -578,7 +542,6 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3B>;
 				schematic-name = "L27M_SENTONS";
@@ -590,7 +553,6 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3C>;
 				schematic-name = "L28M_SENTONS";
@@ -602,7 +564,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3D>;
 				schematic-name = "L29M_DISP";
@@ -613,7 +574,6 @@
 				regulator-name = "S2MPG10_LDO30";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3E>;
 				schematic-name = "L30M_DISP_VDDI";
@@ -624,7 +584,6 @@
 				regulator-name = "S2MPG10_LDO31";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3F>;
 				schematic-name = "L31M_UNUSED";
@@ -773,7 +732,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x1>;
 				schematic-name = "S1S_VDD_CAM";
@@ -788,7 +746,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2>;
 				schematic-name = "S2S_VDD_G3D";
@@ -803,7 +760,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3>;
 				schematic-name = "S3S_LLDO1";
@@ -818,7 +774,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x4>;
 				schematic-name = "S4S_VDD2H_MEM";
@@ -833,7 +788,6 @@
 				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x5>;
 				schematic-name = "S5S_VDDQ_MEM";
@@ -848,7 +802,6 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x6>;
 				schematic-name = "S6S_LLDO4";
@@ -863,7 +816,6 @@
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <2200000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x7>;
 				schematic-name = "S7S_MLDO";
@@ -878,7 +830,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x8>;
 				schematic-name = "S8S_VDD_G3D_L2";
@@ -893,7 +844,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <25000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x9>;
 				schematic-name = "S9S_VDD_AOC";
@@ -908,7 +858,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xA>;
 				schematic-name = "S10S_VDD2L";
@@ -923,7 +872,6 @@
 				regulator-min-microvolt = <2400000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0xB>;
 				schematic-name = "SD";
@@ -938,7 +886,6 @@
 				regulator-min-microvolt = <1700000>;
 				regulator-max-microvolt = <2100000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xC>;
 				schematic-name = "SA";
@@ -953,7 +900,6 @@
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
-				regulator-ramp-delay = <6000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0xD>;
 				schematic-name = "BB_HLDO";
@@ -968,7 +914,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x21>;
 				schematic-name = "L1S_VDD_G3D_M";
@@ -980,7 +925,6 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x22>;
 				schematic-name = "L2S_VDD_AOC_RET";
@@ -992,7 +936,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x23>;
 				schematic-name = "L3S_HS_AMP";
@@ -1004,7 +947,6 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x24>;
 				schematic-name = "L4S_OSLO";
@@ -1016,7 +958,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x25>;
 				schematic-name = "L5S_OSLO";
@@ -1028,7 +969,6 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x26>;
 				schematic-name = "L6S_PROX";
@@ -1040,7 +980,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x27>;
 				schematic-name = "L7S_SENSORS";
@@ -1052,7 +991,6 @@
 				regulator-min-microvolt = <1127800>;
 				regulator-max-microvolt = <1278600>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x28>;
 				schematic-name = "L8S_UFS_VCCQ";
@@ -1064,7 +1002,6 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x29>;
 				schematic-name = "L9S_GNSS_CORE";
@@ -1076,7 +1013,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2A>;
 				schematic-name = "L10S_GNSS_RF";
@@ -1088,7 +1024,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2B>;
 				schematic-name = "L11S_GNSS_AUX";
@@ -1100,7 +1035,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2C>;
 				schematic-name = "L12S_WLAN";
@@ -1112,7 +1046,6 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3350000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2D>;
 				schematic-name = "L13S_MMC_CARD";
@@ -1124,7 +1057,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2E>;
 				schematic-name = "L14S_NFC";
@@ -1136,7 +1068,6 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-ramp-delay = <12000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2F>;
 				schematic-name = "L15S_FPS";
