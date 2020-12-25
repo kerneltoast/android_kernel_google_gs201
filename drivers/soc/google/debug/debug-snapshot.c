@@ -36,6 +36,7 @@ struct dbg_snapshot_item dss_items[] = {
 	[DSS_ITEM_ARRDUMP_PANIC_ID] = {DSS_ITEM_ARRDUMP_PANIC, {0, 0, 0, false}, false, NULL, NULL},
 	[DSS_ITEM_SLCDUMP_ID]	= {DSS_ITEM_SLCDUMP,	{0, 0, 0, false}, false, NULL ,NULL},
 	[DSS_ITEM_PRE_SLCDUMP_ID]   = {DSS_ITEM_PRE_SLCDUMP, {0, 0, 0, false}, false, NULL ,NULL},
+	[DSS_ITEM_ITMON_ID]     = {DSS_ITEM_ITMON,      {0, 0, 0, true}, false, NULL, NULL},
 };
 
 /*  External interface variable for trace debugging */

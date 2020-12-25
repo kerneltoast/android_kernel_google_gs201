@@ -300,6 +300,7 @@ enum dss_item_index {
 	DSS_ITEM_ARRDUMP_PANIC_ID,
 	DSS_ITEM_SLCDUMP_ID,
 	DSS_ITEM_PRE_SLCDUMP_ID,
+	DSS_ITEM_ITMON_ID,
 };
 
 enum dss_log_item_indx {
