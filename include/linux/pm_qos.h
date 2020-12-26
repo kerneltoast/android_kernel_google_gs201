@@ -71,7 +71,7 @@ struct pm_qos_constraints {
 
 struct pm_qos_request {
 	enum pm_qos_req_type type;
-	struct cpumask cpus_affine;
+	atomic_t cpus_affine;
 #ifdef CONFIG_SMP
 	uint32_t irq;
 	/* Internal structure members */
