@@ -163,7 +163,7 @@
 				pktproc_use_36bit_data_addr = <0>;
 
 				/* Packet processor for UL */
-				pktproc_support_ul = <0>;
+				pktproc_support_ul = <1>;
 				pktproc_ul_cp_base = <0x26000000>;
 				pktproc_ul_info_rgn_offset = <0x00000000>;
 				pktproc_ul_info_rgn_size = <0x00000100>;
@@ -558,7 +558,7 @@
 						region,index = <SHMEM_PKTPROC>;
 						region,rmem = <2>;
 						region,offset = <0x00000000>;
-						region,size = <0x08000000>;
+						region,size = <0x06000000>;
 						/* Cached info is defined by pktproc itself */
 					};
 					pktproc_ul {
