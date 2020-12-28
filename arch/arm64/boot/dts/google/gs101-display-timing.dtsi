@@ -72,7 +72,6 @@
 					>;
 				hs-clk = <650>;
 				esc-clk = <20>;
-				cmd_underrun_cnt = <802>;
 			};
 		};
 	};
