@@ -43,8 +43,13 @@ static unsigned long framerate_table[][2] = {
 static inline unsigned long __mfc_qos_timespec64_diff(struct timespec64 *to,
 					struct timespec64 *from)
 {
-	return (to->tv_sec * NSEC_PER_SEC + to->tv_nsec)
+	unsigned long interval_nsec = (to->tv_sec * NSEC_PER_SEC + to->tv_nsec)
 		- (from->tv_sec * NSEC_PER_SEC + from->tv_nsec);
+
+	if (interval_nsec <= 0)
+		interval_nsec = MFC_MAX_INTERVAL * 1000;
+
+	return interval_nsec / 1000;
 }
 
 static int __mfc_qos_ts_sort(const void *p0, const void *p1)

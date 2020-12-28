@@ -29,14 +29,13 @@
 				 * fout_mask rsel
 				 */
 				pmsk = <
-					0x2 0x8A 0x2 0x2762
+					0x2 0xB3 0x2 0x0955
 					0xd 0x3 0x0 0x0
 					0x0 0x0 0x0 0x0
 					0x0 0x0
 					>;
-				hs-clk = <898>;
+				hs-clk = <1100>;
 				esc-clk = <20>;
-				cmd_underrun_cnt = <2877>;
 			};
 			1440x2960 {
 				mode-name = "1440x2960";
@@ -53,11 +52,10 @@
 			1080x2340 {
 				mode-name = "1080x2340";
 				pmsk = <
-					0x2 0xB3 0x3 0x0955 /* p m s k */
+					0x2 0xD4 0x3 0x96AB /* p m s k */
 					>;
-				hs-clk = <550>;
+				hs-clk = <650>;
 				esc-clk = <20>;
-				cmd_underrun_cnt = <2032>;
 			};
 			1440x3120 {
 				mode-name = "1440x3120";
@@ -66,7 +64,6 @@
 					>;
 				hs-clk = <1490>;
 				esc-clk = <20>;
-				cmd_underrun_cnt = <9259>;
 			};
 			1080x2400 {
 				mode-name = "1080x2400";

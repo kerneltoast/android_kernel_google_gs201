@@ -27,7 +27,7 @@
 #include "../cal-if/fvmap.h"
 #include "fw_header/framework.h"
 
-#define IPC_TIMEOUT				(15000000)
+#define IPC_TIMEOUT				(200000000)
 #define APM_SYSTICK_PERIOD_US			(20345)
 
 static struct acpm_ipc_info *acpm_ipc;

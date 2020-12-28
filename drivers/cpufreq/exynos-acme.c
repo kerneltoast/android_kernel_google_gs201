@@ -821,12 +821,19 @@ static int init_constraint_table_dt(struct exynos_cpufreq_dm *dm,
 	for (index = 0; index < dm->c.table_length; index++) {
 		unsigned int freq = dm->c.freq_table[index].driver_freq;
 
+		if (freq > table[0].driver_freq)
+			continue;
+
 		for (c_index = 0; c_index < table_size; c_index++) {
-			if (freq == table[c_index].driver_freq) {
+			if (freq >= table[c_index].driver_freq) {
 				dm->c.freq_table[index].constraint_freq =
 					table[c_index].constraint_freq;
 				break;
 			}
+
+			if (c_index == table_size - 1)
+				dm->c.freq_table[index].constraint_freq =
+					table[c_index].constraint_freq;
 		}
 	}
 

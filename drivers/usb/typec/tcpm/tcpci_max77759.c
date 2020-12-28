@@ -1008,20 +1008,12 @@ static int max77759_set_current_limit(struct tcpci *tcpci,
 	union power_supply_propval val = {0};
 	int ret = 0;
 
-	val.intval = mv * 1000;
-
-	/*
-	 ret = power_supply_set_property(chip->usb_psy,
-					POWER_SUPPLY_PROP_VOLTAGE_MAX,
-					&val);
+	chip->vbus_mv = mv;
+	ret = power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &val);
 	if (ret < 0) {
-		logbuffer_log(chip->log,
-			      "unable to set max voltage to %d, ret=%d",
-				mv, ret);
+		logbuffer_log(chip->log, "unable to set max voltage to %d, ret=%d", mv, ret);
 		return ret;
 	}
-	*/
-
 	logbuffer_log(chip->log, "max_ma=%d, mv=%d", max_ma, mv);
 	max77759_vote_icl(tcpci, tdata, max_ma);
 
@@ -1034,7 +1026,7 @@ static int max77759_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
 	int ret;
 
-	if (!chip || !chip->tcpci || !chip->tcpci->regmap )
+	if (!chip || !chip->tcpci || !chip->tcpci->regmap || !chip->set_voltage_alarm)
 		return chip->vbus_mv;
 
 	ret = max77759_read16(chip->tcpci->regmap,
@@ -1141,7 +1133,7 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		max77759_vote_icl(tcpci, data, 0);
 
 	/* Signal usb_psy online */
-	usb_psy_set_sink_state(chip->usb_psy_data, attached);
+	usb_psy_set_sink_state(chip->usb_psy_data, role == TYPEC_SINK && attached);
 
 	return 0;
 }
