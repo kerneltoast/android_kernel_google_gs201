@@ -21,6 +21,10 @@
 
 #define DSS_DOMAIN_NUM			CONFIG_DEBUG_SNAPSHOT_FREQ_DOMAIN_NUM
 #define DSS_LOG_MAX_NUM			CONFIG_DEBUG_SNAPSHOT_LOG_ITEM_SIZE
+#define DSS_ITMON_LOG_MAX_LEN		(DSS_LOG_ITMON_SIZE - 4)
+/* ASCII presentaion of IMMI (Itmon Magic Memory Initialized) */
+#define DSS_ITMON_MAGIC_INITIALIZED	0x494D4D49
+
 #define DSS_CALLSTACK_MAX_NUM		3
 #define DSS_NR_CPUS			8
 #define TASK_COMM_LEN			16
@@ -141,6 +145,11 @@ struct print_log {
 	int cpu;
 	char log[DSS_LOG_STRING_LEN];
 };
+
+struct itmon_logs {
+	u32 magic;
+	char log[DSS_ITMON_LOG_MAX_LEN];
+} __packed;
 
 struct dbg_snapshot_log {
 	struct task_log task[DSS_NR_CPUS][DSS_LOG_MAX_NUM];

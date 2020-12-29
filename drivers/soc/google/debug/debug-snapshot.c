@@ -47,6 +47,7 @@ struct dbg_snapshot_base *dss_base;
 struct dbg_snapshot_base *ess_base;
 struct dbg_snapshot_log *dss_log;
 struct dbg_snapshot_desc dss_desc;
+struct itmon_logs *dss_itmon;
 
 void __iomem *dbg_snapshot_get_header_vaddr(void)
 {
@@ -377,6 +378,9 @@ static void dbg_snapshot_fixmap(void)
 	}
 
 	dss_log = (struct dbg_snapshot_log *)(dss_items[DSS_ITEM_KEVENTS_ID].entry.vaddr);
+	dss_itmon = (struct itmon_logs *)(dss_items[DSS_ITEM_ITMON_ID].entry.vaddr);
+	dss_itmon->magic = DSS_ITMON_MAGIC_INITIALIZED;
+
 	/*  set fake translation to virtual address to debug trace */
 	dss_info.info_event = dss_log;
 	ess_info = &dss_info;

@@ -98,6 +98,7 @@ extern struct dbg_snapshot_item dss_items[];
 extern struct dbg_snapshot_dpm dss_dpm;
 extern struct dbg_snapshot_log_item dss_log_items[];
 extern struct dbg_snapshot_log_misc dss_log_misc;
+extern struct itmon_logs *dss_itmon;
 
 /*  Size domain */
 #define DSS_KEEP_HEADER_SZ		(SZ_256 * 3)

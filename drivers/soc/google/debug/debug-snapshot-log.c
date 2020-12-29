@@ -462,6 +462,35 @@ void dbg_snapshot_printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_printk);
 
+void dbg_snapshot_itmon_backup_log(const char *fmt, ...)
+{
+	static atomic_t len_logs_a = ATOMIC_INIT(0);
+	size_t len_log, len_logs;
+	va_list args;
+
+	if (!dss_items[DSS_ITEM_ITMON_ID].entry.enabled)
+		return;
+
+	va_start(args, fmt);
+	len_log = vsnprintf(NULL, 0, fmt, args);
+	va_end(args);
+
+	len_log += 1;
+	len_logs = atomic_add_return(len_log, &len_logs_a);
+
+	if (len_logs >= DSS_ITMON_LOG_MAX_LEN) {
+		dss_items[DSS_ITEM_ITMON_ID].entry.enabled = false;
+		return;
+	}
+
+	va_start(args, fmt);
+	vsnprintf(dss_itmon->log + len_logs - len_log, len_log, fmt, args);
+	va_end(args);
+
+	*(dss_itmon->log + len_logs - 1) = ' ';
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_itmon_backup_log);
+
 static inline void dbg_snapshot_get_sec(unsigned long long ts,
 					unsigned long *sec, unsigned long *msec)
 {
