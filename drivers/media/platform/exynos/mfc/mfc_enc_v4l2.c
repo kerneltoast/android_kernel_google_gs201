@@ -2137,7 +2137,9 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH &&
 						p->i_frm_ctrl_mode) {
-					ctx_ctrl->set.val = ctx_ctrl->set.val * (p->num_b_frame + 1);
+					if (!p->gop_ctrl)
+						ctx_ctrl->set.val = ctx_ctrl->set.val *
+							(p->num_b_frame + 1);
 					if (ctx_ctrl->set.val >= 0x3FFFFFFF) {
 						mfc_ctx_info("I frame interval is bigger than max: %d\n",
 								ctx_ctrl->set.val);
