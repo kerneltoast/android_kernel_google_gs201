@@ -92,3 +92,7 @@
 &amba {
 	status = "disabled";
 };
+
+&dwmmc_2 {
+	status = "okay";
+};

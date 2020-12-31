@@ -23,6 +23,7 @@
 #include "gs201-sysmmu.dtsi"
 #include "gs201-usi.dtsi"
 #include "gs201-s2mpu.dtsi"
+#include "gs201-mmc.dtsi"
 
 / {
 	compatible = "google,gs201";
