@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 
 #define SLG51000_CHIP_ID_LEN            3
+#define TIMER_EXPIRED_SEC		(1 * HZ)
 
 static const struct mfd_cell slg51000_devs[] = {
 	{
@@ -146,15 +147,6 @@ static const struct regmap_access_table slg51000_volatile_table = {
 	.n_yes_ranges	= ARRAY_SIZE(slg51000_volatile_ranges),
 };
 
-static const struct regmap_config slg51000_regmap_config = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = 0x800F,
-	.wr_table = &slg51000_writeable_table,
-	.rd_table = &slg51000_readable_table,
-	.volatile_table = &slg51000_volatile_table,
-};
-
 static int read_chip_id(struct slg51000_dev *chip)
 {
 	int ret;
@@ -250,7 +242,7 @@ static int slg51000_init_regs(struct slg51000_dev *chip)
 			goto out;
 		regs[i].val = tmp;
 
-		ret = regmap_write(chip->regmap, regs[i].addr, regs[i].val);
+		ret = regmap_write(chip->i2c_regmap, regs[i].addr, regs[i].val);
 		if (ret < 0) {
 			dev_err(chip->dev, "Failed to set addr 0x%02x\n",
 					regs[i].addr);
@@ -317,7 +309,7 @@ static int slg51000_config_tuning(struct slg51000_dev *chip)
 		return -EINVAL;
 	}
 
-	ret = slg51000_enter_sw_test_mode(chip->regmap);
+	ret = slg51000_enter_sw_test_mode(chip->i2c_regmap);
 	if (ret < 0)
 		return ret;
 
@@ -326,7 +318,7 @@ static int slg51000_config_tuning(struct slg51000_dev *chip)
 	if (ret < 0)
 		return ret;
 
-	ret = slg51000_exit_sw_test_mode(chip->regmap);
+	ret = slg51000_exit_sw_test_mode(chip->i2c_regmap);
 	if (ret < 0)
 		return ret;
 
@@ -353,6 +345,161 @@ static void slg51000_clear_fault_log(struct slg51000_dev *chip)
 	if (val & SLG51000_FLT_POR_MASK)
 		dev_dbg(chip->dev, "Fault log: FLT_POR\n");
 }
+
+static int slg51000_power_on(struct slg51000_dev *chip)
+{
+	if (chip == NULL)
+		return -EINVAL;
+
+	mutex_lock(&chip->pwr_lock);
+	if (chip->is_power_on)
+		goto out;
+
+	if (gpio_is_valid(chip->chip_bb_pin))
+		gpio_set_value_cansleep(chip->chip_bb_pin, 1);
+
+	if (gpio_is_valid(chip->chip_buck_pin))
+		gpio_set_value_cansleep(chip->chip_buck_pin, 1);
+
+	if (gpio_is_valid(chip->chip_cs_pin))
+		gpio_set_value_cansleep(chip->chip_cs_pin, 1);
+
+	/*
+	 * According to datasheet, turn-on time from CS HIGH to Ready
+	 * state is ~10ms
+	 */
+	usleep_range(SLEEP_10000_USEC,
+			SLEEP_10000_USEC + SLEEP_RANGE_USEC);
+	chip->is_power_on = true;
+	dev_dbg(chip->dev, "power on\n");
+
+	slg51000_config_tuning(chip);
+
+	if (gpio_is_valid(chip->chip_pu_pin))
+		gpio_set_value_cansleep(chip->chip_pu_pin, 1);
+
+out:
+	mutex_unlock(&chip->pwr_lock);
+	return 0;
+}
+
+static int slg51000_power_off(struct slg51000_dev *chip)
+{
+	unsigned int val = 0;
+	int ret, idx;
+	uint8_t gpio_vals[SLG51000_PHYSICAL_GPIO_NR];
+
+	if (chip == NULL)
+		return -EINVAL;
+
+	mutex_lock(&chip->pwr_lock);
+	if (!chip->is_power_on) {
+		ret = 0;
+		goto out;
+	}
+
+	/* Check control register */
+	ret = regmap_read(chip->i2c_regmap, SLG51000_SYSCTL_MATRIX_CONF_A, &val);
+	if (ret < 0)
+		goto out;
+	if (val) {
+		ret = 0;
+		goto out;
+	}
+
+	/*
+	 * Need to check GPIO control registers for mode
+	 * SLG51000_OP_MODE_LDO_GPIO
+	 */
+	if (chip->op_mode == SLG51000_OP_MODE_LDO_GPIO) {
+		ret = regmap_bulk_read(chip->i2c_regmap,
+				GPIO1_CTRL, gpio_vals, ARRAY_SIZE(gpio_vals));
+		if (ret < 0)
+			goto out;
+
+		for (idx = 0; idx < ARRAY_SIZE(gpio_vals); idx++) {
+			if (gpio_vals[idx] != 0) {
+				ret = 0;
+				goto out;
+			}
+		}
+	}
+
+	/* power off */
+	if (gpio_is_valid(chip->chip_pu_pin))
+		gpio_set_value_cansleep(chip->chip_pu_pin, 0);
+
+	if (gpio_is_valid(chip->chip_cs_pin))
+		gpio_set_value_cansleep(chip->chip_cs_pin, 0);
+
+	if (gpio_is_valid(chip->chip_buck_pin))
+		gpio_set_value_cansleep(chip->chip_buck_pin, 0);
+
+	if (gpio_is_valid(chip->chip_bb_pin))
+		gpio_set_value_cansleep(chip->chip_bb_pin, 0);
+
+	chip->is_power_on = false;
+	dev_dbg(chip->dev, "power off\n");
+
+out:
+	mutex_unlock(&chip->pwr_lock);
+	return ret;
+}
+
+static void slg51000_timeout_work(struct work_struct *work)
+{
+	struct slg51000_dev *slg51000 =
+			container_of(work, struct slg51000_dev, timeout_work);
+	slg51000_power_off(slg51000);
+}
+
+static void slg51000_timer_trigger(struct timer_list *t)
+{
+	struct slg51000_dev *slg51000 = from_timer(slg51000, t, timer);
+	schedule_work(&slg51000->timeout_work);
+}
+
+static int slg51000_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	int ret;
+	struct i2c_client *client = context;
+	struct slg51000_dev *slg51000 = i2c_get_clientdata(client);
+
+	slg51000_power_on(slg51000);
+	ret = regmap_read(slg51000->i2c_regmap, reg, val);
+	mod_timer(&slg51000->timer, jiffies + TIMER_EXPIRED_SEC);
+	return ret;
+}
+
+static int slg51000_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	int ret;
+	struct i2c_client *client = context;
+	struct slg51000_dev *slg51000 = i2c_get_clientdata(client);
+
+	slg51000_power_on(slg51000);
+	ret = regmap_write(slg51000->i2c_regmap, reg, val);
+	mod_timer(&slg51000->timer, jiffies + TIMER_EXPIRED_SEC);
+	return ret;
+}
+
+static const struct regmap_config slg51000_i2c_regmap_config = {
+	.name = "i2c",
+	.reg_bits = 16,
+	.val_bits = 8,
+	.cache_type = REGCACHE_NONE,
+};
+
+static const struct regmap_config slg51000_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = 0x800F,
+	.wr_table = &slg51000_writeable_table,
+	.rd_table = &slg51000_readable_table,
+	.volatile_table = &slg51000_volatile_table,
+	.reg_read = slg51000_reg_read,
+	.reg_write = slg51000_reg_write,
+};
 
 static int slg51000_i2c_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
@@ -448,17 +595,32 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, slg51000);
+
+	slg51000->is_power_on = true;
+	INIT_WORK(&slg51000->timeout_work, slg51000_timeout_work);
+	timer_setup(&slg51000->timer, slg51000_timer_trigger, 0);
+	mutex_init(&slg51000->pwr_lock);
+
 	slg51000->chip_irq = client->irq;
 	slg51000->dev = &client->dev;
-	slg51000->regmap = devm_regmap_init_i2c(client,
-			&slg51000_regmap_config);
 	slg51000->chip_id = 0;
+
+	slg51000->i2c_regmap = devm_regmap_init_i2c(client, &slg51000_i2c_regmap_config);
+	if (IS_ERR(slg51000->i2c_regmap)) {
+		ret = PTR_ERR(slg51000->i2c_regmap);
+		dev_err(&client->dev, "Failed to allocate register map: %d\n",
+			ret);
+		return ret;
+	}
+
+	slg51000->regmap = devm_regmap_init(&client->dev, NULL, client, &slg51000_regmap_config);
 	if (IS_ERR(slg51000->regmap)) {
 		ret = PTR_ERR(slg51000->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
 				ret);
 		return ret;
 	}
+
 	ret = of_property_read_u32(slg51000->dev->of_node,
 			"dlg,op-mode", &slg51000->op_mode);
 	if (ret < 0)
@@ -513,7 +675,13 @@ static int slg51000_i2c_remove(struct i2c_client *client)
 	sysfs_remove_group(&slg51000->dev->kobj, &attr_group);
 
 	mfd_remove_devices(slg51000->dev);
+	mutex_destroy(&slg51000->pwr_lock);
+	del_timer_sync(&slg51000->timer);
 
+	if (gpio_is_valid(slg51000->chip_pu_pin)) {
+		desc = gpio_to_desc(slg51000->chip_pu_pin);
+		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
+	}
 	if (gpio_is_valid(slg51000->chip_cs_pin)) {
 		desc = gpio_to_desc(slg51000->chip_cs_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
