@@ -24,6 +24,7 @@
 			    "mfc_uhd_10bit",
 			    "mfc_8k_dec30",
 			    "g3d_performance",
+			    "tpu_performance",
 			    "dp_default",
 			    "camera_default",
 			    "mfc_uhd_enc60";
@@ -1525,6 +1526,16 @@
 				arqos = <0x4>;
 				awqos = <0x4>;
 				rmo = <0x20>;
+				wmo = <0x20>;
+				qurgent_on = <0>;
+				blocking_on = <0>;
+			};
+			tpu_performance {
+				stat_on = <1>;
+				bypass = <0>;
+				arqos = <0x4>;
+				awqos = <0x4>;
+				rmo = <0x40>;
 				wmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
