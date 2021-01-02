@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <soc/google/exynos-debug.h>
+#include <soc/google/debug-snapshot.h>
 
 #include "acpm.h"
 #include "acpm_ipc.h"
@@ -699,7 +700,7 @@ retry:
 			acpm_ramdump();
 
 			dump_stack();
-			s3c2410wdt_set_emergency_reset(0, 0);
+			dbg_snapshot_do_dpm_policy(acpm_ipc->panic_action, "acpm_ipc timeout");
 		}
 
 		if (!is_acpm_stop_log)
@@ -902,6 +903,10 @@ int acpm_ipc_probe(struct platform_device *pdev)
 						       acpm_ipc->initdata_base);
 	acpm_initdata = acpm_ipc->initdata;
 	acpm_srambase = acpm_ipc->sram_base;
+
+	if (of_property_read_u32(node, "panic-action",
+				&acpm_ipc->panic_action))
+		acpm_ipc->panic_action = GO_WATCHDOG_ID;
 
 	acpm_ipc->dev = &pdev->dev;
 
