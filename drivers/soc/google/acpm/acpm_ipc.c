@@ -19,6 +19,7 @@
 #include <linux/sched/clock.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
+#include <linux/debugfs.h>
 #include <soc/google/exynos-debug.h>
 #include <soc/google/debug-snapshot.h>
 
@@ -860,6 +861,42 @@ static void acpm_error_log_ipc_callback(unsigned int *cmd, unsigned int size)
 	acpm_log_print();
 }
 
+static int debug_acpm_ipc_panic_action_get(void *data, u64 *val)
+{
+	struct acpm_ipc_info *acpm_ipc = (struct acpm_ipc_info *)data;
+
+	*val = acpm_ipc->panic_action;
+
+	return 0;
+}
+
+static int debug_acpm_ipc_panic_action_set(void *data, u64 val)
+{
+	struct acpm_ipc_info *acpm_ipc = (struct acpm_ipc_info *)data;
+
+	if (val < 0 || val >= GO_ACTION_MAX)
+		return -ERANGE;
+	acpm_ipc->panic_action = val;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_ipc_panic_action_fops,
+			debug_acpm_ipc_panic_action_get,
+			debug_acpm_ipc_panic_action_set,
+			"%d\n");
+
+static void acpm_ipc_debugfs_init(struct acpm_ipc_info *acpm_ipc)
+{
+	struct dentry *den;
+
+	den = debugfs_lookup("acpm_framework", NULL);
+	if (!den)
+		den = debugfs_create_dir("acpm_framework", NULL);
+	debugfs_create_file("acpm_ipc_panic_action", 0644, den, acpm_ipc,
+			    &debug_acpm_ipc_panic_action_fops);
+}
+
 int acpm_ipc_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -907,6 +944,8 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	if (of_property_read_u32(node, "panic-action",
 				&acpm_ipc->panic_action))
 		acpm_ipc->panic_action = GO_WATCHDOG_ID;
+
+	acpm_ipc_debugfs_init(acpm_ipc);
 
 	acpm_ipc->dev = &pdev->dev;
 
