@@ -72,6 +72,7 @@
 #define GO_SCANDUMP_ID		5
 #define GO_HALT			"halt"
 #define GO_HALT_ID		6
+#define GO_ACTION_MAX		7
 
 /* EXCEPTION POLICY */
 #define DPM_F			"feature"
