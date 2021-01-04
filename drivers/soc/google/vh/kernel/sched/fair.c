@@ -16,6 +16,7 @@
 #define MAX_CAPACITY_CPU    CONFIG_VH_MAX_CAPACITY_CPU
 #define HIGH_CAPACITY_CPU   CONFIG_VH_HIGH_CAPACITY_CPU
 #define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
+#define UTIL_THRESHOLD      1280
 
 extern bool vendor_sched_enable_prefer_high_cap;
 
@@ -835,4 +836,9 @@ void vh_arch_set_freq_scale_pixel_mod(void *data, struct cpumask *cpus, unsigned
 void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost)
 {
 	*should_iowait_boost = p->in_iowait && uclamp_boosted(p);
+}
+
+void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
+{
+	*overutilized = cpu_util(cpu) * UTIL_THRESHOLD >= capacity_of(cpu) * 1024;
 }
