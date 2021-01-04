@@ -54,6 +54,10 @@ struct samsung_map_attachment {
 
 extern const struct dma_buf_ops samsung_dma_buf_ops;
 
+#define DEFINE_SAMSUNG_DMA_BUF_EXPORT_INFO(name, heap_name)	\
+	struct dma_buf_export_info name = { .exp_name = heap_name, \
+					 .owner = THIS_MODULE }
+
 void heap_cache_flush(struct samsung_dma_buffer *buffer);
 void heap_page_clean(struct page *pages, unsigned long size);
 struct samsung_dma_buffer *samsung_dma_buffer_alloc(struct samsung_dma_heap *samsung_dma_heap,

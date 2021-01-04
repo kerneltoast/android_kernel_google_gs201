@@ -220,7 +220,7 @@ heap_put:
 
 struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags)
 {
-	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+	DEFINE_SAMSUNG_DMA_BUF_EXPORT_INFO(exp_info, buffer->heap->name);
 
 	exp_info.ops = &samsung_dma_buf_ops;
 	exp_info.size = buffer->len;
