@@ -7,6 +7,7 @@
 
 #include "gs101-raviole.dtsi"
 #include "gs101-oriole-audio.dtsi"
+#include "gs101-oriole-battery.dtsi"
 #include "gs101-oriole-camera.dtsi"
 #include "gs101-oriole-display.dtsi"
 #include "gs101-oriole-touch.dtsi"
