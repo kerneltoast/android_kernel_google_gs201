@@ -70,7 +70,7 @@
 };
 
 &mct {
-	clocks = <&ext_26m>, <&ext_26m>;
+	clocks = <&ext_1m>, <&ext_1m>;
 };
 
 &memory_0 {
@@ -78,7 +78,7 @@
 };
 
 &chosen {
-		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 console=ttySAC0,115200n8 root=/dev/ram0 rw ramdisk_size=65536 initrd=0x84000000,64M clk_ignore_unused mem=1024M maxcpus=1 firmware_class.path=/vendor/firmware androidboot.first_stage_console=1 androidboot.force_normal_boot=1";
+		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 console=ttySAC0,115200n8 root=/dev/ram0 rw ramdisk_size=65536 initrd=0x84000000,64M clk_ignore_unused mem=1024M maxcpus=1 firmware_class.path=/vendor/firmware androidboot.first_stage_console=1 androidboot.force_normal_boot=1 clocksource=arch_sys_counter";
 };
 
 &pinctrl_6 {
