@@ -20,14 +20,11 @@
 
 extern bool vendor_sched_enable_prefer_high_cap;
 
-static unsigned int sched_capacity_margin_up[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
-static unsigned int sched_capacity_margin_down[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
-static unsigned int sched_capacity_margin_up_boosted[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
-static unsigned int sched_capacity_margin_down_boosted[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
+static unsigned int sched_capacity_margin[CPU_NUM] = {
+			[0 ... CPU_NUM-1] = UTIL_THRESHOLD};
+/* margin for boosted tasks are 85% 85% 85% 85% 20% 20% NA NA */
+static unsigned int sched_capacity_margin_boosted[CPU_NUM] = {
+			6826, 6826, 6826, 6826, UTIL_THRESHOLD, UTIL_THRESHOLD, 1024, 1024};
 static unsigned long scale_freq[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
 
@@ -352,18 +349,14 @@ bool task_fits_capacity(struct task_struct *p, int cpu)
 	unsigned int margin;
 	unsigned long capacity = capacity_of(cpu);
 
-	if (capacity_orig_of(task_cpu(p)) > capacity_orig_of(cpu))
-		margin = uclamp_boosted(p) > 0 &&
-			     !get_prefer_high_cap(p) ?
-			sched_capacity_margin_down_boosted[task_cpu(p)] :
-			sched_capacity_margin_down[task_cpu(p)];
-	else
-		margin = uclamp_boosted(p) > 0 &&
-			     !get_prefer_high_cap(p) ?
-			sched_capacity_margin_up_boosted[task_cpu(p)] :
-			sched_capacity_margin_up[task_cpu(p)];
+	if (cpu >= MAX_CAPACITY_CPU)
+		return true;
 
-	return capacity * 1024 > uclamp_task_util(p) * margin;
+	margin = uclamp_boosted(p) > 0 && !get_prefer_high_cap(p) ?
+		 sched_capacity_margin_boosted[cpu] :
+		 sched_capacity_margin[cpu];
+
+	return capacity * 1024 > task_util_est(p) * margin && capacity > uclamp_task_util(p);
 }
 
 static inline int find_start_cpu(struct task_struct *p, bool prefer_high_cap, bool sync_boost)
@@ -441,7 +434,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 
 	/* prefer prev cpu */
 	// TODO: add idle index check later
-	if (cpu_online(prev_cpu) && cpu_is_idle(prev_cpu) && cpu_is_in_target_set(p, prev_cpu)) {
+	if (cpu_online(prev_cpu) && cpu_is_idle(prev_cpu) && cpu_is_in_target_set(p, prev_cpu) &&
+	    task_fits_capacity(p, prev_cpu)) {
 		target_cpu = prev_cpu;
 		prefer_prev = true;
 		goto target;
@@ -747,8 +741,8 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 	bool sync_wakeup = false;
 
 	cpu = smp_processor_id();
-	if (sync && cpu_rq(cpu)->nr_running == 1 &&
-	    cpumask_test_cpu(cpu, p->cpus_ptr) && cpu_is_in_target_set(p, cpu)) {
+	if (sync && cpu_rq(cpu)->nr_running == 1 && cpumask_test_cpu(cpu, p->cpus_ptr) &&
+	    cpu_is_in_target_set(p, cpu) && task_fits_capacity(p, cpu)) {
 		*new_cpu = cpu;
 		sync_wakeup = true;
 		goto out;
