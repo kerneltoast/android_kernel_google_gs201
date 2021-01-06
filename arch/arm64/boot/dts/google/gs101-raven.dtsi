@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Raven proto1.0/1.1 common devicetree
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include "gs101-raviole.dtsi"
+#include "gs101-raven-audio.dtsi"
+#include "gs101-raven-display.dtsi"
+#include "gs101-raven-camera.dtsi"
+#include "gs101-raven-touch.dtsi"
