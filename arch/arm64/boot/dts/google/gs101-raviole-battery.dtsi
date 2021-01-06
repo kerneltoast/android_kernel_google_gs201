@@ -39,8 +39,8 @@
 				google,chg-power-supplies = "main-charger",
 							    "pca9468-mains";
 
-				/* S2MPG11X01 -> GPIO_6 -> CHARGE_PUMP_EN */
-				google,dc-en = <&s2mpg11_gpio 0 0>;
+				/* S2MPG10X01 -> GPIO_1 -> CHARGE_PUMP_EN */
+				google,dc-en = <&s2mpg10_gpio 1 0>;
 				/* DC enabled by default */
 				google,dc-en-value = <1>;
 
