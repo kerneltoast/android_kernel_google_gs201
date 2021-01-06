@@ -37,8 +37,8 @@
 			no-map;
 		};
 
-		aoc_reserve: aoc@0x91000000 {
-			reg = <0x0 0x91000000 0x02000000>;
+		aoc_reserve: aoc@0x94000000 {
+			reg = <0x0 0x94000000 0x02A00000>;
 			no-map;
 		};
 
