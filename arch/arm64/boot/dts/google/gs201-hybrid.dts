@@ -96,3 +96,115 @@
 &dwmmc_2 {
 	status = "okay";
 };
+
+/* [TEMP] Temporarily disable SysMMU power-domains as this feature has not yet
+ * been implemented on the hybrid emulator.
+ *
+ * Also disable the TPU SysMMU instance because it is not available on the
+ * hybrid emulator.
+ */
+
+&sysmmu_bo {
+	power-domains;
+};
+
+&sysmmu_csis0 {
+	power-domains;
+};
+
+&sysmmu_csis1 {
+	power-domains;
+};
+
+&sysmmu_dns {
+	power-domains;
+};
+
+&sysmmu_dpu0 {
+	power-domains;
+};
+
+&sysmmu_dpu1 {
+	power-domains;
+};
+
+&sysmmu_dpu2 {
+	power-domains;
+};
+
+&sysmmu_g2d0 {
+	power-domains;
+};
+
+&sysmmu_g2d1 {
+	power-domains;
+};
+
+&sysmmu_g2d2 {
+	power-domains;
+};
+
+&sysmmu_g3aa {
+	power-domains;
+};
+
+&sysmmu_gdc0 {
+	power-domains;
+};
+
+&sysmmu_gdc1 {
+	power-domains;
+};
+
+&sysmmu_gdc2 {
+	power-domains;
+};
+
+&sysmmu_ipp {
+	power-domains;
+};
+
+&sysmmu_mcsc0 {
+	power-domains;
+};
+
+&sysmmu_mcsc1 {
+	power-domains;
+};
+
+&sysmmu_mcsc2 {
+	power-domains;
+};
+
+&sysmmu_mfc0 {
+	power-domains;
+};
+
+&sysmmu_mfc1 {
+	power-domains;
+};
+
+&sysmmu_tnr0 {
+	power-domains;
+};
+
+&sysmmu_tnr1 {
+	power-domains;
+};
+
+&sysmmu_tnr2 {
+	power-domains;
+};
+
+&sysmmu_tnr3 {
+	power-domains;
+};
+
+&sysmmu_tnr4 {
+	power-domains;
+};
+
+&sysmmu_tpu {
+	status = "disabled";
+	power-domains;
+};
