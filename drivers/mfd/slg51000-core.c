@@ -459,8 +459,13 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 				ret);
 		return ret;
 	}
-	slg51000->support_power_seq = of_property_read_bool(
-			slg51000->dev->of_node, "dlg,support-power-seq");
+	ret = of_property_read_u32(slg51000->dev->of_node,
+			"dlg,op-mode", &slg51000->op_mode);
+	if (ret < 0)
+		slg51000->op_mode = SLG51000_OP_MODE_LDO_ONLY;
+
+	dev_dbg(slg51000->dev, "op_mode: %d\n", slg51000->op_mode);
+
 	slg51000->enter_sw_test_mode = slg51000_enter_sw_test_mode;
 	slg51000->exit_sw_test_mode = slg51000_exit_sw_test_mode;
 

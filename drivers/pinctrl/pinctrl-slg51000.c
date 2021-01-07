@@ -37,11 +37,23 @@ static const struct pinctrl_pin_desc slg51000_pins[] = {
 	PINCTRL_PIN(SLG51000_SEQ1, "seq1"),
 	PINCTRL_PIN(SLG51000_SEQ2, "seq2"),
 	PINCTRL_PIN(SLG51000_SEQ3, "seq3"),
+	PINCTRL_PIN(SLG51000_SEQ4, "seq4"),
+};
+
+static const struct pinctrl_pin_desc slg51000_generic_seq_pins[] = {
+	PINCTRL_PIN(SLG51000_GENERIC_SEQ0, "seq0"),
+	PINCTRL_PIN(SLG51000_GENERIC_SEQ1, "seq1"),
+	PINCTRL_PIN(SLG51000_GENERIC_SEQ2, "seq2"),
+	PINCTRL_PIN(SLG51000_GENERIC_SEQ3, "seq3"),
+	PINCTRL_PIN(SLG51000_GENERIC_SEQ4, "seq4"),
+	PINCTRL_PIN(SLG51000_GENERIC_SEQ5, "seq5"),
+	PINCTRL_PIN(SLG51000_GENERIC_SEQ6, "seq6"),
+	PINCTRL_PIN(SLG51000_GENERIC_SEQ7, "seq7"),
 };
 
 static const int slg51000_ctrl_bit_tbl[] = {
 	BIT(4), BIT(5), BIT(6), BIT(7),	/* gpio1, gpio2, gpio3, gpio4 */
-	BIT(0), BIT(1), BIT(2)		/* seq1, seq2, seq3 */
+	BIT(0), BIT(1), BIT(2), BIT(3)	/* seq1, seq2, seq3 seq4 */
 };
 
 /* gpio_chip functions */
@@ -69,6 +81,7 @@ static int slg51000_gpio_get_direction(struct gpio_chip *chip,
 	case SLG51000_SEQ1:
 	case SLG51000_SEQ2:
 	case SLG51000_SEQ3:
+	case SLG51000_SEQ4:
 		return GPIOF_DIR_OUT;
 	default:
 		return -EOPNOTSUPP;
@@ -82,6 +95,24 @@ static int slg51000_gpio_get_direction(struct gpio_chip *chip,
 	}
 
 	return (val & SLG51000_GPIO_DIR_MASK) ? GPIOF_DIR_OUT : GPIOF_DIR_IN;
+}
+
+static int slg51000_generic_seq_get_direction(struct gpio_chip *chip,
+				unsigned int offset)
+{
+	switch (offset) {
+	case SLG51000_GENERIC_SEQ0:
+	case SLG51000_GENERIC_SEQ1:
+	case SLG51000_GENERIC_SEQ2:
+	case SLG51000_GENERIC_SEQ3:
+	case SLG51000_GENERIC_SEQ4:
+	case SLG51000_GENERIC_SEQ5:
+	case SLG51000_GENERIC_SEQ6:
+	case SLG51000_GENERIC_SEQ7:
+		return GPIOF_DIR_OUT;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int slg51000_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -191,6 +222,39 @@ static void slg51000_gpio_seq_set(struct gpio_chip *chip, unsigned int offset,
 	return;
 }
 
+static int slg51000_generic_seq_get(struct gpio_chip *chip, unsigned int offset)
+{
+	int ret;
+	unsigned int val;
+	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
+
+	ret = regmap_read(data->regmap, SLG51000_SYSCTL_MATRIX_CONF_A, &val);
+	if (ret < 0) {
+		pr_err("Error: %s Failed on GPIO offset %d\n",
+			__func__, offset);
+		return ret;
+	}
+
+	return val & BIT(offset);
+}
+
+static void slg51000_generic_seq_set(struct gpio_chip *chip,
+				unsigned int offset, int value)
+{
+	int ret;
+	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
+
+	ret = regmap_update_bits(data->regmap, SLG51000_SYSCTL_MATRIX_CONF_A,
+			BIT(offset),
+			value ? BIT(offset) : 0);
+	if (ret < 0) {
+		pr_err("Error: %s Failed on GPIO offset %d\n",
+			__func__, offset);
+	}
+
+	return;
+}
+
 static int slg51000_gpio_direction_input(struct gpio_chip *chip,
 					unsigned int offset)
 {
@@ -260,6 +324,7 @@ static int slg51000_gpio_direction_output(struct gpio_chip *chip,
 	case SLG51000_SEQ1:
 	case SLG51000_SEQ2:
 	case SLG51000_SEQ3:
+	case SLG51000_SEQ4:
 		ret = 0;
 		goto out1;
 	default:
@@ -286,6 +351,36 @@ out:
 		data->chip->exit_sw_test_mode(data->regmap);
 
 	return ret;
+}
+
+static int slg51000_generic_seq_direction_input(struct gpio_chip *chip,
+				unsigned int offset)
+{
+	return -EOPNOTSUPP;
+}
+
+static int slg51000_generic_seq_direction_output(struct gpio_chip *chip,
+				unsigned int offset, int value)
+{
+	struct slg51000_pinctrl *data = gpiochip_get_data(chip);
+
+	switch (offset) {
+	case SLG51000_GENERIC_SEQ0:
+	case SLG51000_GENERIC_SEQ1:
+	case SLG51000_GENERIC_SEQ2:
+	case SLG51000_GENERIC_SEQ3:
+	case SLG51000_GENERIC_SEQ4:
+	case SLG51000_GENERIC_SEQ5:
+	case SLG51000_GENERIC_SEQ6:
+	case SLG51000_GENERIC_SEQ7:
+		if (data->gc.set)
+			data->gc.set(chip, offset, value);
+		return 0;
+	default:
+		pr_err("Error: %s Unsupported GPIO offset %d\n",
+			__func__, offset);
+		return -EOPNOTSUPP;
+	}
 }
 
 /* pinctrl_ops functions */
@@ -362,24 +457,40 @@ static int slg51000_pinctrl_probe(struct platform_device *pdev)
 
 	slg51000_pctl->chip = dev_get_drvdata(pdev->dev.parent);
 
+	if (slg51000_pctl->chip->op_mode == SLG51000_OP_MODE_LDO_ONLY)
+		return -ENODEV;
+
 	/* Get regmap */
 	slg51000_pctl->regmap = slg51000_pctl->chip->regmap;
 
 	/* GPIO config */
 	slg51000_pctl->gc.label = pdev->name;
 	slg51000_pctl->gc.parent = &pdev->dev;
-	slg51000_pctl->gc.get_direction = slg51000_gpio_get_direction;
 
-	if (slg51000_pctl->chip->support_power_seq) {
-		slg51000_pctl->gc.get = slg51000_gpio_seq_get;
-		slg51000_pctl->gc.set = slg51000_gpio_seq_set;
+	if (slg51000_pctl->chip->op_mode == SLG51000_OP_MODE_SEQ_GENERIC) {
+		slg51000_pctl->gc.get_direction =
+				slg51000_generic_seq_get_direction;
+		slg51000_pctl->gc.get = slg51000_generic_seq_get;
+		slg51000_pctl->gc.set = slg51000_generic_seq_set;
+		slg51000_pctl->gc.direction_input =
+				slg51000_generic_seq_direction_input;
+		slg51000_pctl->gc.direction_output =
+				slg51000_generic_seq_direction_output;
 	} else {
-		slg51000_pctl->gc.get = slg51000_gpio_get;
-		slg51000_pctl->gc.set = slg51000_gpio_set;
+		slg51000_pctl->gc.get_direction = slg51000_gpio_get_direction;
+		if (slg51000_pctl->chip->op_mode == SLG51000_OP_MODE_SEQ_GPIO) {
+			slg51000_pctl->gc.get = slg51000_gpio_seq_get;
+			slg51000_pctl->gc.set = slg51000_gpio_seq_set;
+		} else {
+			slg51000_pctl->gc.get = slg51000_gpio_get;
+			slg51000_pctl->gc.set = slg51000_gpio_set;
+		}
+		slg51000_pctl->gc.direction_input =
+				slg51000_gpio_direction_input;
+		slg51000_pctl->gc.direction_output =
+				slg51000_gpio_direction_output;
 	}
 
-	slg51000_pctl->gc.direction_input = slg51000_gpio_direction_input;
-	slg51000_pctl->gc.direction_output = slg51000_gpio_direction_output;
 	slg51000_pctl->gc.base = -1;
 	slg51000_pctl->gc.can_sleep = true;
 	slg51000_pctl->gc.of_node =
@@ -424,8 +535,15 @@ static int slg51000_pinctrl_probe(struct platform_device *pdev)
 	slg51000_pctl->pconf_ops.pin_config_set = slg51000_pinconf_set;
 
 	/* pins defined in chip */
-	slg51000_pctl->pctrl.pins = slg51000_pins;
-	slg51000_pctl->pctrl.npins = ARRAY_SIZE(slg51000_pins);
+	if (slg51000_pctl->chip->op_mode == SLG51000_OP_MODE_SEQ_GENERIC) {
+		slg51000_pctl->pctrl.pins = slg51000_generic_seq_pins;
+		slg51000_pctl->pctrl.npins =
+				ARRAY_SIZE(slg51000_generic_seq_pins);
+	} else {
+		slg51000_pctl->pctrl.pins = slg51000_pins;
+		slg51000_pctl->pctrl.npins = ARRAY_SIZE(slg51000_pins);
+	}
+
 	slg51000_pctl->pctrl.pctlops = &slg51000_pctl->pctrl_ops;
 	slg51000_pctl->pctrl.pmxops = &slg51000_pctl->pmux_ops;
 	slg51000_pctl->pctrl.confops = &slg51000_pctl->pconf_ops;

@@ -331,7 +331,8 @@ static int slg51000_regulator_probe(struct platform_device *pdev)
 	struct slg51000_dev *chip = dev_get_drvdata(pdev->dev.parent);
 	int ret;
 
-	if (chip->support_power_seq)
+	if (chip->op_mode != SLG51000_OP_MODE_LDO_ONLY &&
+			chip->op_mode != SLG51000_OP_MODE_LDO_GPIO)
 		return -ENODEV;
 
 	ret = slg51000_regulator_register(chip);
