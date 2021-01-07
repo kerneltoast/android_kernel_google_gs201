@@ -32,8 +32,6 @@
 #endif
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
-#include <../../../regulator/internal.h>
-
 #include <linux/pm_runtime.h>
 #include <linux/kthread.h>
 #include <linux/random.h>
