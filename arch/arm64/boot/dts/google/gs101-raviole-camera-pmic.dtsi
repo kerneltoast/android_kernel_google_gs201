@@ -22,7 +22,7 @@
 		dlg,buck-gpios = <&s2mpg11_gpio 3 GPIO_ACTIVE_HIGH>;
 		dlg,bb-gpios = <&s2mpg11_gpio 1 GPIO_ACTIVE_HIGH>;
 		dlg,cs-gpios = <&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
-
+		dlg,op-mode = <1>;
 		dlg,reg-init-cells = <2>;
 		dlg,reg-init =
 		<0x1109 0x75>, <0x110C 0x40>, <0x110D 0x00>, <0x110E 0x00>,
@@ -112,8 +112,8 @@
 		slg51000_gpio: slg51000_gpio {
 			gpio-controller;
 			#gpio-cells = <2>;
-			ngpios = <7>;
-			gpio-ranges = <&slg51000_pinctrl 0 0 7>;
+			ngpios = <8>;
+			gpio-ranges = <&slg51000_pinctrl 0 0 8>;
 		};
 
 		slg51000_pinctrl: slg51000_pinctrl {
