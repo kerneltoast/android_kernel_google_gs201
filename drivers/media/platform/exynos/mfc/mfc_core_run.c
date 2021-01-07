@@ -597,8 +597,14 @@ int mfc_core_run_enc_last_frames(struct mfc_core *core, struct mfc_ctx *ctx)
 	raw = &ctx->raw_buf;
 
 	dst_mb = mfc_get_buf(ctx, &ctx->dst_buf_queue, MFC_BUF_SET_USED);
-	if (!dst_mb)
+	if (!dst_mb) {
 		mfc_debug(2, "no dst buffers set to zero\n");
+
+		if (mfc_core_get_enc_bframe(ctx)) {
+			mfc_ctx_info("B frame encoding should be dst buffer\n");
+			return -EINVAL;
+		}
+	}
 
 	mfc_debug(2, "Set address zero for all planes\n");
 	mfc_core_set_enc_frame_buffer(core, ctx, 0, raw->num_planes);

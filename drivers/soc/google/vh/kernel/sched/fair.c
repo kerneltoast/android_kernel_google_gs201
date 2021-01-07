@@ -321,6 +321,20 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 	return em_cpu_energy(pd->em_pd, max_util, sum_util);
 }
 
+/* Runqueue only has SCHED_IDLE tasks enqueued */
+static int sched_idle_rq(struct rq *rq)
+{
+	return unlikely(rq->nr_running == rq->cfs.idle_h_nr_running &&
+			rq->nr_running);
+}
+
+#ifdef CONFIG_SMP
+int sched_cpu_idle(int cpu)
+{
+	return sched_idle_rq(cpu_rq(cpu));
+}
+#endif
+
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
@@ -378,6 +392,20 @@ static inline bool cpu_is_in_target_set(struct task_struct *p, int cpu)
 	return cpu >= next_usable_cpu || next_usable_cpu >= nr_cpu_ids;
 }
 
+/**
+ * cpu_is_idle - is a given CPU idle for enqueuing work.
+ * @cpu: the CPU in question.
+ *
+ * Return: 1 if the CPU is currently idle. 0 otherwise.
+ */
+int cpu_is_idle(int cpu)
+{
+	if (available_idle_cpu(cpu) || sched_cpu_idle(cpu))
+		return 1;
+
+	return 0;
+}
+
 static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cpu, bool sync_boost)
 {
 	unsigned long min_util = uclamp_task_util(p);
@@ -412,7 +440,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 
 	/* prefer prev cpu */
 	// TODO: add idle index check later
-	if (cpu_online(prev_cpu) && idle_cpu(prev_cpu) && cpu_is_in_target_set(p, prev_cpu)) {
+	if (cpu_online(prev_cpu) && cpu_is_idle(prev_cpu) && cpu_is_in_target_set(p, prev_cpu)) {
 		target_cpu = prev_cpu;
 		prefer_prev = true;
 		goto target;
@@ -425,7 +453,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		unsigned long capacity = capacity_of(i);
 		unsigned long wake_util, new_util;
 		long spare_cap;
-		struct cpuidle_state *idle;
+		struct cpuidle_state *idle = NULL;
 		int next_cpu = cpumask_next_wrap(i, p->cpus_ptr, i, false);
 
 		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity);
@@ -461,9 +489,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 */
 		spare_cap = capacity - new_util;
 
-		if (idle_cpu(i))
+		if (cpu_is_idle(i))
 			idle = idle_get_state(cpu_rq(i));
-
 
 		/*
 		 * Case A) Latency sensitive tasks
@@ -502,7 +529,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 			 * - for !prefer_high_cap tasks: the most energy
 			 * efficient CPU (i.e. smallest capacity)
 			 */
-			if (idle_cpu(i)) {
+			if (cpu_is_idle(i)) {
 				if (prefer_high_cap &&
 				    capacity < target_capacity)
 					goto check;
@@ -521,6 +548,9 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 
 				if (idle)
 					min_exit_lat = idle->exit_latency;
+
+				if (sched_cpu_idle(i))
+					min_exit_lat = 0;
 
 				target_capacity = capacity;
 				best_idle_cpu = i;
@@ -587,7 +617,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * will take care to ensure the minimization of energy
 		 * consumptions without affecting performance.
 		 */
-		if (idle_cpu(i)) {
+		if (cpu_is_idle(i)) {
 			/*
 			 * Skip CPUs in deeper idle state, but only
 			 * if they are also less energy efficient.
@@ -745,7 +775,7 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 
 	/* If there is only one sensible candidate, select it now. */
 	cpu = cpumask_first(candidates);
-	if (weight == 1 && ((uclamp_latency_sensitive(p) && idle_cpu(cpu)) ||
+	if (weight == 1 && ((uclamp_latency_sensitive(p) && cpu_is_idle(cpu)) ||
 			    (cpu == prev_cpu))) {
 		best_energy_cpu = cpu;
 		goto unlock;

@@ -5,6 +5,9 @@
 #include "sched.h"
 
 DEFINE_MUTEX(sched_domains_mutex);
+#ifdef CONFIG_LOCKDEP
+EXPORT_SYMBOL_GPL(sched_domains_mutex);
+#endif
 
 /* Protected by sched_domains_mutex: */
 static cpumask_var_t sched_domains_tmpmask;

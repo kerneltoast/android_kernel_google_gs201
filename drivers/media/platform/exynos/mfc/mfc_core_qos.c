@@ -12,6 +12,8 @@
 
 #include <linux/err.h>
 
+#include "mfc_core_enc_param.h"
+
 #include "mfc_core_qos.h"
 #include "mfc_utils.h"
 
@@ -431,7 +433,7 @@ static inline unsigned long __mfc_qos_get_weighted_mb(struct mfc_ctx *ctx,
 
 	if (enc) {
 		p = &enc->params;
-		if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx)) && p->num_b_frame) {
+		if (mfc_core_get_enc_bframe(ctx)) {
 			weight = (weight * 100) / qos_weight->weight_bframe;
 			mfc_debug(3, "[QoS] B frame encoding, weight: %d\n", weight / 10);
 		} else if ((IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx) || IS_VP8_ENC(ctx) ||

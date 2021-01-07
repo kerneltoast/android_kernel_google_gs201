@@ -166,6 +166,7 @@ struct exynos_devfreq_data {
 	struct exynos_pm_qos_request		debug_pm_qos_max;
 	struct exynos_pm_qos_request		default_pm_qos_min;
 	struct exynos_pm_qos_request		default_pm_qos_max;
+	struct exynos_pm_qos_request		thermal_pm_qos_max;
 	struct exynos_pm_qos_request		boot_pm_qos;
 	u32					boot_qos_timeout;
 
@@ -198,6 +199,8 @@ struct exynos_devfreq_data {
 	unsigned long last_stat_updated;
 
 	u32 l123_restrict;
+	struct thermal_cooling_device *cooling_dev;
+	unsigned int cooling_state;
 };
 
 struct exynos_profile_data {

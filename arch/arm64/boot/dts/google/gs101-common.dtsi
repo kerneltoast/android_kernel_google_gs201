@@ -353,7 +353,7 @@
 	use-sicd = "true";
 	use-ia = "true";
 	use-l1ss = "true";
-	max-link-speed = <LINK_SPEED_GEN1>;
+	max-link-speed = <LINK_SPEED_GEN2>;
 	ep-device-type = <EP_BCM_WIFI>;
 	pcie,wlan-gpio = <&gpp14 2 0x1 /* WLAN_EN */ >;
 	vreg1-supply = <&m_ldo17_reg>;

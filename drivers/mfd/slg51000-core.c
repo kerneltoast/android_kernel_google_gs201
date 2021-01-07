@@ -505,6 +505,8 @@ static int slg51000_i2c_remove(struct i2c_client *client)
 	struct gpio_desc *desc;
 	int ret = 0;
 
+	sysfs_remove_group(&slg51000->dev->kobj, &attr_group);
+
 	mfd_remove_devices(slg51000->dev);
 
 	if (gpio_is_valid(slg51000->chip_cs_pin)) {

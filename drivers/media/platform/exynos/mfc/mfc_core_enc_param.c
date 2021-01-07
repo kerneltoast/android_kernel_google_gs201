@@ -1501,6 +1501,28 @@ int mfc_core_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 	return 0;
 }
 
+int mfc_core_get_enc_bframe(struct mfc_ctx *ctx)
+{
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+	int hier_qp_type = -EINVAL;
+	u8 num_hier_layer = 0;
+
+	if (IS_H264_ENC(ctx)) {
+		num_hier_layer = p->codec.h264.num_hier_layer;
+		hier_qp_type = (int)p->codec.h264.hier_qp_type;
+	} else if (IS_HEVC_ENC(ctx)) {
+		num_hier_layer = p->codec.hevc.num_hier_layer;
+		hier_qp_type = (int)p->codec.hevc.hier_qp_type;
+	}
+
+	if (enc->params.num_b_frame || ((num_hier_layer >= 2) &&
+			(hier_qp_type == V4L2_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_B)))
+		return 1;
+
+	return 0;
+}
+
 void mfc_core_set_test_params(struct mfc_core *core)
 {
 	struct mfc_dev *dev = core->dev;

@@ -26,8 +26,42 @@
 	};
 };
 
+&hsi2c_12{
+	max77759_chg:max77759chrg@0x69 {
+		#thermal-sensor-cells = <1>;
+	};
+};
+
 /* Thermal Zones */
 &thermal_zones {
+	vdroop1 {
+		zone_name  = "VDROOP1";
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&max77759_chg 0>;
+		trips {
+			vdroop1: vdroop1{
+				temperature = <1200>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
+	vdroop2 {
+		zone_name  = "VDROOP2";
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&max77759_chg 1>;
+		trips {
+			vdroop2: vdroop2{
+				temperature = <1400>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
 	battery_cycle {
 		zone_name  = "BATTERY_CYCLE";
 		polling-delay-passive = <100>;

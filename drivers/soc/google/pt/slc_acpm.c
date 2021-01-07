@@ -78,7 +78,6 @@ struct slc_acpm_driver_data {
 	/* Synchronous command */
 	unsigned int id; /* ACPM FVP_PT channel id */
 	unsigned int size; /* ACPM FVP_PT channel queue sizes */
-	struct mutex mt; /* ACPM FVP_PT serialize access */
 
 	/* Asynchronous notification from ACPM */
 	unsigned int async_id; /* ACPM FVP_PT_ASYNC channel id */
@@ -128,10 +127,7 @@ static int slc_acpm(struct slc_acpm_driver_data *driver_data,
 	config.cmd[2] = command;
 	config.cmd[3] = arg1;
 
-	mutex_lock(&driver_data->mt);
 	ret = acpm_ipc_send_data(driver_data->id, &config);
-	mutex_unlock(&driver_data->mt);
-
 	if (ret == 0)
 		ret = config.cmd[1];
 	pt_driver_log_module(driver_data->pdev->dev.of_node->name, __func__,
@@ -443,7 +439,6 @@ static int slc_acpm_probe(struct platform_device *pdev)
 	memset(driver_data, 0, sizeof(struct slc_acpm_driver_data));
 	platform_set_drvdata(pdev, driver_data);
 	driver_data->pdev = pdev;
-	mutex_init(&driver_data->mt);
 	slc_version_check(driver_data);
 
 	driver_data->driver = pt_driver_register(pdev->dev.of_node,

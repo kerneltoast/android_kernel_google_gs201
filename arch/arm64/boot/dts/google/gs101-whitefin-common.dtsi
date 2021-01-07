@@ -13,5 +13,6 @@
 #include "gs101-whitefin-cp-s5200-sit-common.dtsi"
 #include "gs101-whitefin-display.dtsi"
 #include "gs101-whitefin-nfc.dtsi"
+#include "gs101-whitefin-pcie.dtsi"
 #include "gs101-whitefin-touch.dtsi"
 #include "gs101-slider-fingerprint.dtsi"

@@ -60,6 +60,8 @@ struct exynos_pm_domain {
 	unsigned int need_smc;
 	bool skip_idle_ip;
 	struct exynos_pd_stat pd_stat;
+	struct exynos_pm_domain *parent;
+	bool traversal_state;
 };
 
 struct exynos_pd_dbg_info {

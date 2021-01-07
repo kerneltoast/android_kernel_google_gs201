@@ -164,6 +164,7 @@
   audit_log_task_context
   audit_log_task_info
   autoremove_wake_function
+  available_idle_cpu
   avenrun
   backlight_device_get_by_name
   backlight_device_get_by_type
@@ -1117,6 +1118,7 @@
   cpu_pm_unregister_notifier
   __cpu_possible_mask
   __cpu_present_mask
+  cpupri_find_fitness
   cpu_rmap_add
   cpu_rmap_put
   cpu_rmap_update
@@ -4353,7 +4355,6 @@
   ida_alloc_range
   ida_destroy
   ida_free
-  idle_cpu
   idr_alloc
   idr_alloc_cyclic
   idr_alloc_u32
@@ -10161,6 +10162,7 @@
   tasklet_kill
   __tasklet_schedule
   tasklet_setup
+  task_may_not_preempt
   __task_pid_nr_ns
   task_user_regset_view
   tc_cleanup_flow_action
