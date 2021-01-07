@@ -15,17 +15,14 @@ static u16 enetc_get_max_gcl_len(struct enetc_hw *hw)
 		& ENETC_QBV_MAX_GCL_LEN_MASK;
 }
 
-void enetc_sched_speed_set(struct net_device *ndev)
+void enetc_sched_speed_set(struct enetc_ndev_priv *priv, int speed)
 {
-	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct phy_device *phydev = ndev->phydev;
 	u32 old_speed = priv->speed;
-	u32 speed, pspeed;
+	u32 pspeed;
 
-	if (phydev->speed == old_speed)
+	if (speed == old_speed)
 		return;
 
-	speed = phydev->speed;
 	switch (speed) {
 	case SPEED_1000:
 		pspeed = ENETC_PMR_PSPEED_1000M;
@@ -95,18 +92,8 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	gcl_config->atc = 0xff;
 	gcl_config->acl_len = cpu_to_le16(gcl_len);
 
-	if (!admin_conf->base_time) {
-		gcl_data->btl =
-			cpu_to_le32(enetc_rd(&priv->si->hw, ENETC_SICTR0));
-		gcl_data->bth =
-			cpu_to_le32(enetc_rd(&priv->si->hw, ENETC_SICTR1));
-	} else {
-		gcl_data->btl =
-			cpu_to_le32(lower_32_bits(admin_conf->base_time));
-		gcl_data->bth =
-			cpu_to_le32(upper_32_bits(admin_conf->base_time));
-	}
-
+	gcl_data->btl = cpu_to_le32(lower_32_bits(admin_conf->base_time));
+	gcl_data->bth = cpu_to_le32(upper_32_bits(admin_conf->base_time));
 	gcl_data->ct = cpu_to_le32(admin_conf->cycle_time);
 	gcl_data->cte = cpu_to_le32(admin_conf->cycle_time_extension);
 
@@ -405,7 +392,7 @@ struct enetc_psfp_gate {
 	u32 num_entries;
 	refcount_t refcount;
 	struct hlist_node node;
-	struct action_gate_entry entries[0];
+	struct action_gate_entry entries[];
 };
 
 /* Only enable the green color frame now

@@ -285,7 +285,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	struct hns_roce_srq *srq = to_hr_srq(ib_srq);
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_ib_create_srq ucmd = {};
-	int ret = 0;
+	int ret;
 	u32 cqn;
 
 	/* Check the actual SRQ wqe and SRQ sge num */
@@ -300,7 +300,8 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	srq->max_gs = init_attr->attr.max_sge;
 
 	if (udata) {
-		ret = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
+		ret = ib_copy_from_udata(&ucmd, udata,
+					 min(udata->inlen, sizeof(ucmd)));
 		if (ret) {
 			ibdev_err(ibdev, "Failed to copy SRQ udata, err %d\n",
 				  ret);
@@ -343,11 +344,10 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	resp.srqn = srq->srqn;
 
 	if (udata) {
-		if (ib_copy_to_udata(udata, &resp,
-				     min(udata->outlen, sizeof(resp)))) {
-			ret = -EFAULT;
+		ret = ib_copy_to_udata(udata, &resp,
+				       min(udata->outlen, sizeof(resp)));
+		if (ret)
 			goto err_srqc_alloc;
-		}
 	}
 
 	return 0;
@@ -363,7 +363,7 @@ err_buf_alloc:
 	return ret;
 }
 
-void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibsrq->device);
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
@@ -372,6 +372,7 @@ void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	free_srq_idx(hr_dev, srq);
 	free_srq_wrid(srq);
 	free_srq_buf(hr_dev, srq);
+	return 0;
 }
 
 int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev)

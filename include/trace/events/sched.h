@@ -412,9 +412,9 @@ TRACE_EVENT(sched_blocked_reason,
 	TP_ARGS(tsk),
 
 	TP_STRUCT__entry(
-		__field(pid_t,	pid)
-		__field(void*, caller)
-		__field(bool, io_wait)
+		__field( pid_t,	pid	)
+		__field( void*, caller	)
+		__field( bool, io_wait	)
 	),
 
 	TP_fast_assign(

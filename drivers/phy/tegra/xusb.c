@@ -688,7 +688,7 @@ static int tegra_xusb_setup_usb_role_switch(struct tegra_xusb_port *port)
 	 * reference to retrieve usb-phy details.
 	 */
 	port->usb_phy.dev = &lane->pad->lanes[port->index]->dev;
-	port->usb_phy.dev->driver = port->padctl->dev->driver;
+	port->usb_phy.dev->driver = port->dev.driver;
 	port->usb_phy.otg->usb_phy = &port->usb_phy;
 	port->usb_phy.otg->set_peripheral = tegra_xusb_set_peripheral;
 	port->usb_phy.otg->set_host = tegra_xusb_set_host;
@@ -1242,6 +1242,7 @@ power_down:
 reset:
 	reset_control_assert(padctl->rst);
 remove:
+	platform_set_drvdata(pdev, NULL);
 	soc->ops->remove(padctl);
 	return err;
 }

@@ -99,6 +99,12 @@ static inline int __cpupri_find(struct cpupri *cp, struct task_struct *p,
 
 	if (lowest_mask) {
 		cpumask_and(lowest_mask, p->cpus_ptr, vec->mask);
+		cpumask_and(lowest_mask, lowest_mask, cpu_active_mask);
+
+#ifdef CONFIG_RT_SOFTINT_OPTIMIZATION
+		if (drop_nopreempts)
+			drop_nopreempt_cpus(lowest_mask);
+#endif
 
 #ifdef CONFIG_RT_SOFTINT_OPTIMIZATION
 		if (drop_nopreempts)

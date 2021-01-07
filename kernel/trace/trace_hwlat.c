@@ -368,7 +368,7 @@ static int start_kthread(struct trace_array *tr)
 	struct task_struct *kthread;
 	int next_cpu;
 
-	if (WARN_ON(hwlat_kthread))
+	if (hwlat_kthread)
 		return 0;
 
 	/* Just pick the first CPU on first iteration */
@@ -538,14 +538,14 @@ static const struct file_operations window_fops = {
  */
 static int init_tracefs(void)
 {
-	struct dentry *d_tracer;
+	int ret;
 	struct dentry *top_dir;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return -ENOMEM;
 
-	top_dir = tracefs_create_dir("hwlat_detector", d_tracer);
+	top_dir = tracefs_create_dir("hwlat_detector", NULL);
 	if (!top_dir)
 		return -ENOMEM;
 

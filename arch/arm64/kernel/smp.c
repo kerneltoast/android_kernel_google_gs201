@@ -58,6 +58,9 @@
 
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
+EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_raise);
+EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_entry);
+EXPORT_TRACEPOINT_SYMBOL_GPL(ipi_exit);
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -93,6 +96,54 @@ static inline int op_cpu_kill(unsigned int cpu)
 {
 	return -ENOSYS;
 }
+#endif
+
+#ifdef CONFIG_ASYMMETRIC_AARCH32
+static int last_aarch32_cpu = -1;
+static cpumask_t aarch32_online;
+
+static void asym_aarch32_online(void)
+{
+		/*
+		 * Since we onlined another cpu, restore the hotpluggability of
+		 * the last AAarch32 cpu if it was disabled.
+		 */
+		cpumask_and(&aarch32_online, &aarch32_el0_mask, cpu_online_mask);
+
+		if (last_aarch32_cpu >= 0 &&
+		    cpumask_weight(&aarch32_online) > 1) {
+
+			struct device *dev;
+
+			dev = get_cpu_device(last_aarch32_cpu);
+			dev->offline_disabled = 0;
+			last_aarch32_cpu = -1;
+		}
+}
+
+static void asym_aarch32_offline(void)
+{
+	/* Don't let the last AArch32-compatible CPU go down */
+	if (!cpumask_empty(&aarch32_el0_mask)) {
+
+		cpumask_and(&aarch32_online, &aarch32_el0_mask, cpu_online_mask);
+
+		/*
+		 * If we're left with only one AAarch32 cpu, prevent it from
+		 * being offlined.
+		 */
+		if (cpumask_weight(&aarch32_online) == 1) {
+			struct device *dev;
+
+			last_aarch32_cpu = cpumask_first(&aarch32_online);
+			dev = get_cpu_device(last_aarch32_cpu);
+			dev->offline_disabled = 1;
+		}
+	}
+}
+#else
+static void asym_aarch32_online(void) {}
+static void asym_aarch32_offline(void) {}
 #endif
 
 
@@ -139,8 +190,10 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 */
 	wait_for_completion_timeout(&cpu_running,
 				    msecs_to_jiffies(5000));
-	if (cpu_online(cpu))
+	if (cpu_online(cpu)) {
+		asym_aarch32_online();
 		return 0;
+	}
 
 	pr_crit("CPU%u: failed to come online\n", cpu);
 	secondary_data.task = NULL;
@@ -224,6 +277,7 @@ asmlinkage notrace void secondary_start_kernel(void)
 	if (system_uses_irq_prio_masking())
 		init_gic_priority_masking();
 
+	rcu_cpu_starting(cpu);
 	preempt_disable();
 	trace_hardirqs_off();
 
@@ -317,6 +371,8 @@ int __cpu_disable(void)
 	set_cpu_online(cpu, false);
 	ipi_teardown(cpu);
 
+	asym_aarch32_offline();
+
 	/*
 	 * OK - migrate IRQs away from this CPU
 	 */
@@ -352,7 +408,7 @@ void __cpu_die(unsigned int cpu)
 		pr_crit("CPU%u: cpu didn't die\n", cpu);
 		return;
 	}
-	pr_notice("CPU%u: shutdown\n", cpu);
+	pr_debug("CPU%u: shutdown\n", cpu);
 
 	/*
 	 * Now that the dying CPU is beyond the point of no return w.r.t.
@@ -414,6 +470,7 @@ void cpu_die_early(void)
 
 	/* Mark this CPU absent */
 	set_cpu_present(cpu, 0);
+	rcu_report_dead(cpu);
 
 	if (IS_ENABLED(CONFIG_HOTPLUG_CPU)) {
 		update_cpu_boot_status(CPU_KILL_ME);
@@ -903,7 +960,7 @@ static void do_handle_IPI(int ipinr)
 		break;
 
 	case IPI_CPU_STOP:
-		trace_android_vh_ipi_stop(get_irq_regs());
+		trace_android_vh_ipi_stop_rcuidle(get_irq_regs());
 		local_cpu_stop();
 		break;
 

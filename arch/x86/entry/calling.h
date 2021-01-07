@@ -6,7 +6,6 @@
 #include <asm/percpu.h>
 #include <asm/asm-offsets.h>
 #include <asm/processor-flags.h>
-#include <asm/inst.h>
 
 /*
 
@@ -367,7 +366,11 @@ For 32-bit we have the following conventions - kernel is built with
  */
 .macro LOAD_CPU_AND_NODE_SEG_LIMIT reg:req
 	movq	$__CPUNODE_SEG, \reg
+#ifdef __clang__
+	.long 0xc0030f48
+#else
 	lsl	\reg, \reg
+#endif
 .endm
 
 /*

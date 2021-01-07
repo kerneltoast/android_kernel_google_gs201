@@ -92,9 +92,8 @@ enum tcpm_transmit_type {
  *		Enabling frs is accessory dependent as not all PD3.0
  *		accessories support fast role swap.
  * @frs_sourcing_vbus:
- *		Optional; Called to notify the low level chip drivers that
- *		sink frs operation is complete. The low level drivers can
- *		perform clean up operation if any.
+ *		Optional; Called to notify that vbus is now being sourced.
+ *		Low level drivers can perform chip specific operations, if any.
  * @enable_auto_vbus_discharge:
  *		Optional; TCPCI spec based TCPC implementations can optionally
  *		support hardware to autonomously dischrge vbus upon disconnecting
@@ -107,6 +106,12 @@ enum tcpm_transmit_type {
  *		will be turned on. requested_vbus_voltage is set to 0 when vbus
  *		is going to disappear knowingly i.e. during PR_SWAP and
  *		HARD_RESET etc.
+ * @is_vbus_vsafe0v:
+ *		Optional; TCPCI spec based TCPC implementations are expected to
+ *		detect VSAFE0V voltage level at vbus. When detection of VSAFE0V
+ *		is supported by TCPC, set this callback for TCPM to query
+ *		whether vbus is at VSAFE0V when needed.
+ *		Returns true when vbus is at VSAFE0V, false otherwise.
  * @check_contaminant:
  *		Optional; The callback is called when CC pins report open status
  *		at the end of the toggling period. Chip level drivers are
@@ -115,12 +120,6 @@ enum tcpm_transmit_type {
  *		when the connector is free of contaminant; this forces the TCPM
  *		state machine to tranistion to TOGGLING state without calling
  *		start_toggling.
- * @is_vbus_vsafe0v:
- *		Optional; TCPCI spec based TCPC implementations are expected to
- *		detect VSAFE0V voltage level at vbus. When detection of VSAFE0V
- *		is supported by TCPC, set this callback for TCPM to query
- *		whether vbus is at VSAFE0V when needed.
- *		Returns true when vbus is at VSAFE0V, false otherwise.
  */
 struct tcpc_dev {
 	struct fwnode_handle *fwnode;
@@ -149,7 +148,7 @@ struct tcpc_dev {
 	int (*set_bist_data)(struct tcpc_dev *dev, bool on);
 	void (*set_pd_capable)(struct tcpc_dev *dev, bool capable);
 	int (*enable_frs)(struct tcpc_dev *dev, bool enable);
-	int (*frs_sourcing_vbus)(struct tcpc_dev *dev);
+	void (*frs_sourcing_vbus)(struct tcpc_dev *dev);
 	int (*enable_auto_vbus_discharge)(struct tcpc_dev *dev, bool enable);
 	int (*set_auto_vbus_discharge_threshold)(struct tcpc_dev *dev, enum typec_pwr_opmode mode,
 						 bool pps_active, u32 requested_vbus_voltage);
@@ -177,8 +176,8 @@ void tcpm_pd_transmit_complete(struct tcpm_port *port,
 void tcpm_pd_hard_reset(struct tcpm_port *port);
 void tcpm_tcpc_reset(struct tcpm_port *port);
 bool tcpm_is_debouncing(struct tcpm_port *tcpm);
+bool tcpm_is_toggling(struct tcpm_port *port);
 int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **pdo);
 void tcpm_put_partner_src_caps(u32 **pdo);
-bool tcpm_is_toggling(struct tcpm_port *port);
 
 #endif /* __LINUX_USB_TCPM_H */

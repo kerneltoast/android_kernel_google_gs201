@@ -238,7 +238,7 @@ static void free_fwp(struct mlx5_core_dev *dev, struct fw_page *fwp,
 	rb_erase(&fwp->rb_node, root);
 	if (in_free_list)
 		list_del(&fwp->list);
-	dma_unmap_page(dev->device, fwp->addr & MLX5_U64_4K_PAGE_MASK,
+	dma_unmap_page(mlx5_core_dma_dev(dev), fwp->addr & MLX5_U64_4K_PAGE_MASK,
 		       PAGE_SIZE, DMA_BIDIRECTIONAL);
 	__free_page(fwp->page);
 	kfree(fwp);
@@ -265,7 +265,7 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr, u32 func_id)
 
 static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
 {
-	struct device *device = dev->device;
+	struct device *device = mlx5_core_dma_dev(dev);
 	int nid = dev_to_node(device);
 	struct page *page;
 	u64 zero_addr = 1;
@@ -422,6 +422,24 @@ static void release_all_pages(struct mlx5_core_dev *dev, u32 func_id,
 		      npages, ec_function, func_id);
 }
 
+static u32 fwp_fill_manage_pages_out(struct fw_page *fwp, u32 *out, u32 index,
+				     u32 npages)
+{
+	u32 pages_set = 0;
+	unsigned int n;
+
+	for_each_clear_bit(n, &fwp->bitmask, MLX5_NUM_4K_IN_PAGE) {
+		MLX5_ARRAY_SET64(manage_pages_out, out, pas, index + pages_set,
+				 fwp->addr + (n * MLX5_ADAPTER_PAGE_SIZE));
+		pages_set++;
+
+		if (!--npages)
+			break;
+	}
+
+	return pages_set;
+}
+
 static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 			     u32 *in, int in_size, u32 *out, int out_size)
 {
@@ -448,8 +466,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 		fwp = rb_entry(p, struct fw_page, rb_node);
 		p = rb_next(p);
 
-		MLX5_ARRAY_SET64(manage_pages_out, out, pas, i, fwp->addr);
-		i++;
+		i += fwp_fill_manage_pages_out(fwp, out, i, npages - i);
 	}
 
 	MLX5_SET(manage_pages_out, out, output_num_entries, i);
