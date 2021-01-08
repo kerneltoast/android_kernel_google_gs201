@@ -342,7 +342,7 @@ static void usb_icl_callback(struct gvotable_election *el,
 			     const char *reason, void *result)
 {
 	struct usb_psy_data *usb = gvotable_get_data(el);
-	union power_supply_propval val = {.intval = (unsigned int)result};
+	union power_supply_propval val = {.strval = result};
 	int ret;
 
 	ret = power_supply_set_property(usb->usb_psy,
