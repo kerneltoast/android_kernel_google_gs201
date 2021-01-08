@@ -570,7 +570,6 @@
 #define GPIO3_CTRL				SLG51000_MUXARRAY_INPUT_SEL_18
 #define GPIO4_CTRL				SLG51000_MUXARRAY_INPUT_SEL_19
 
-#define SLG51000_PHYSICAL_GPIO_NR		4
 #define SLEEP_10000_USEC			10000
 #define SLEEP_RANGE_USEC			1000
 
@@ -624,7 +623,7 @@ enum {
 
 struct slg51000_dev {
 	struct device *dev;
-	struct regmap *regmap, *i2c_regmap;
+	struct regmap *regmap;
 	struct regulator_desc *rdesc[SLG51000_MAX_REGULATORS];
 	struct regulator_dev *rdev[SLG51000_MAX_REGULATORS];
 	struct gpio_desc *cs_gpiod;
@@ -637,11 +636,6 @@ struct slg51000_dev {
 	int chip_pu_pin;
 	int chip_id;
 	u32 op_mode;
-
-	bool is_power_on;
-	struct timer_list timer;
-	struct work_struct timeout_work;
-	struct mutex pwr_lock;
 
 	int (*enter_sw_test_mode)(struct regmap *map);
 	int (*exit_sw_test_mode)(struct regmap *map);
