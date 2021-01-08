@@ -326,7 +326,12 @@
   blk_get_queue
   blk_get_request
   blkg_lookup_slowpath
+  __blkg_prfill_rwstat
+  blkg_prfill_rwstat
   __blkg_prfill_u64
+  blkg_rwstat_exit
+  blkg_rwstat_init
+  blkg_rwstat_recursive_sum
   blk_insert_cloned_request
   blk_io_schedule
   blk_ksm_derive_raw_secret
