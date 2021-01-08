@@ -105,6 +105,18 @@
 #define INTEND_ADDR_START		(0)
 #define INTEND_ADDR_END			(0)
 
+#define log_dev_err(dev, fmt, ...)	\
+do {									\
+	dev_printk_emit(LOGLEVEL_ERR, dev, fmt, ##__VA_ARGS__);		\
+	dbg_snapshot_itmon_backup_log(fmt, ##__VA_ARGS__);		\
+} while (0)
+
+#define log_dev_info(dev, fmt, ...)	\
+do {									\
+	dev_printk_emit(LOGLEVEL_INFO, dev, fmt, ##__VA_ARGS__);	\
+	dbg_snapshot_itmon_backup_log(fmt, ##__VA_ARGS__);		\
+} while (0)
+
 enum err_type {
 	FATAL = 0,
 	DREX_TMOUT,
@@ -1091,17 +1103,17 @@ static void itmon_post_handler_apply_policy(struct itmon_dev *itmon,
 
 	switch (ret_value) {
 	case NOTIFY_STOP:
-		dev_err(itmon->dev, "notify calls response NOTIFY_STOP, refer to notifier log\n");
+		log_dev_err(itmon->dev, "notify calls response NOTIFY_STOP, refer to notifier log\n");
 		pdata->policy[IP].error = true;
 		break;
 	case NOTIFY_BAD:
-		dev_err(itmon->dev, "notify calls response NOTIFY_BAD, refer to notifier log\n");
+		log_dev_err(itmon->dev, "notify calls response NOTIFY_BAD, refer to notifier log\n");
 		pdata->policy[FATAL].error = true;
 		break;
 	case NOTIFY_OK:
 	case NOTIFY_DONE:
 	default:
-		dev_err(itmon->dev, "notify calls response NOTIFY_OK/DONE\n");
+		log_dev_err(itmon->dev, "notify calls response NOTIFY_OK/DONE\n");
 		pdata->policy[UNHANDLED].error = true;
 		break;
 	}
@@ -1125,14 +1137,14 @@ static void itmon_post_handler_to_notifier(struct itmon_dev *itmon,
 	itmon->notifier_info.errcode = info->errcode;
 	itmon->notifier_info.onoff = info->onoff;
 
-	dev_err(itmon->dev, "     +ITMON Notifier Call Information\n\n");
+	log_dev_err(itmon->dev, "     +ITMON Notifier Call Information\n\n");
 
 	/* call notifier_call_chain of itmon */
 	ret = atomic_notifier_call_chain(&itmon_notifier_list,
 						0, &itmon->notifier_info);
 	itmon_post_handler_apply_policy(itmon, ret);
 
-	dev_err(itmon->dev, "     -ITMON Notifier Call Information\n"
+	log_dev_err(itmon->dev, "     -ITMON Notifier Call Information\n"
 			"-----------------------------------------------------------\n");
 }
 
@@ -1180,12 +1192,12 @@ static void itmon_post_handler_by_client(struct itmon_dev *itmon,
 
 		if (info->errcode == ERRCODE_TMOUT) {
 			pdata->policy[FATAL].error = true;
-			dev_err(itmon->dev,
-				"Try to handle error, even CPU transaction detected - %s",
-				itmon_errcode[info->errcode]);
+			log_dev_err(itmon->dev,
+				    "Try to handle error, even CPU transaction detected - %s",
+				    itmon_errcode[info->errcode]);
 		} else {
-			dev_err(itmon->dev, "Skips CPU transaction detected - err_cnt_by_cpu: %u, interval: %lldns\n",
-				pdata->err_cnt_by_cpu, ktime_to_ns(interval));
+			log_dev_err(itmon->dev, "Skips CPU transaction detected - err_cnt_by_cpu: %u, interval: %lldns\n",
+				    pdata->err_cnt_by_cpu, ktime_to_ns(interval));
 
 			/* Ignore unhandled cpu errors */
 			pdata->policy[UNHANDLED].error = false;
@@ -1218,16 +1230,16 @@ static void itmon_report_timeout(struct itmon_dev *itmon,
 	if (group->path_type == DATA)
 		path_offset = SZ_4;
 
-	dev_err(itmon->dev,
-			"\n-----------------------------------------------------------\n"
-			"      ITMON Report (%s)\n"
-			"-----------------------------------------------------------\n"
-			"      Timeout Error Occurred : Client --> %s\n\n",
-			trans_type == TRANS_TYPE_READ ? "READ" : "WRITE", node->name);
-	dev_err(itmon->dev,
-			"      TIMEOUT_BUFFER Information(NODE: %s)\n"
-			"	> NUM|   BLOCK|  CLIENT|VALID|TIMEOUT|      ID| PAYLOAD0|         ADDRESS| PAYLOAD4|\n",
-			node->name);
+	log_dev_err(itmon->dev,
+		    "\n-----------------------------------------------------------\n"
+		    "      ITMON Report (%s)\n"
+		    "-----------------------------------------------------------\n"
+		    "      Timeout Error Occurred : Client --> %s\n\n",
+		    trans_type == TRANS_TYPE_READ ? "READ" : "WRITE", node->name);
+	log_dev_err(itmon->dev,
+		    "      TIMEOUT_BUFFER Information(NODE: %s)\n"
+		    "	> NUM|   BLOCK|  CLIENT|VALID|TIMEOUT|      ID| PAYLOAD0|         ADDRESS| PAYLOAD4|\n",
+		    node->name);
 
 	for (i = 0; i < num; i++) {
 		writel(i, node->regs + OFFSET_TMOUT_REG + REG_TMOUT_BUF_POINT_ADDR + rw_offset);
@@ -1274,13 +1286,13 @@ static void itmon_report_timeout(struct itmon_dev *itmon,
 			}
 		}
 
-		dev_err(itmon->dev,
-			"      > %03d|%8s|%8s|%5u|%7x|%08x|%08X|%016zx|%08x\n",
-				i, port_name, client_name, valid, timeout,
-				id, payload0, addr, payload4);
+		log_dev_err(itmon->dev,
+			    "      > %03d|%8s|%8s|%5u|%7x|%08x|%08X|%016zx|%08x\n",
+			    i, port_name, client_name, valid, timeout,
+			    id, payload0, addr, payload4);
 	}
-	dev_err(itmon->dev,
-			"-----------------------------------------------------------\n");
+	log_dev_err(itmon->dev,
+		    "-----------------------------------------------------------\n");
 }
 
 static unsigned int power(unsigned int param, unsigned int num)
@@ -1304,10 +1316,10 @@ static void itmon_report_prot_chk_rawdata(struct itmon_dev *itmon,
 				OFFSET_PROT_CHK + REG_PROT_CHK_INT_ID);
 
 	/* Output Raw register information */
-	dev_err(itmon->dev,
+	log_dev_err(itmon->dev,
 			"\n-----------------------------------------------------------\n"
 			"      Protocol Checker Raw Register Information (ITMON information)\n\n");
-	dev_err(itmon->dev,
+	log_dev_err(itmon->dev,
 			"      > %s(%s, 0x%08X)\n"
 			"      > REG(0x100~0x10C)      : 0x%08X, 0x%08X, 0x%08X, 0x%08X\n",
 			node->name, itmon_node_string[node->type],
@@ -1326,23 +1338,23 @@ static void itmon_report_rawdata(struct itmon_dev *itmon,
 	struct itmon_tracedata *data = &node->tracedata;
 
 	/* Output Raw register information */
-	dev_err(itmon->dev,
-			"Raw Register Information ----------------------------------\n"
-			"      > %s(%s, 0x%08X)\n"
-			"      > REG(0x08~0x18)        : 0x%08X, 0x%08X, 0x%08X, 0x%08X\n"
-			"      > REG(0x80)             : 0x%08X\n"
-			"      > REG(0x100~0x10C)      : 0x%08X, 0x%08X, 0x%08X, 0x%08X\n",
-			node->name, itmon_node_string[node->type],
-			node->phy_regs + data->offset,
-			data->int_info,
-			data->ext_info_0,
-			data->ext_info_1,
-			data->ext_info_2,
-			data->ext_user,
-			data->dbg_mo_cnt,
-			data->prot_chk_ctl,
-			data->prot_chk_info,
-			data->prot_chk_int_id);
+	log_dev_err(itmon->dev,
+		    "Raw Register Information ----------------------------------\n"
+		    "      > %s(%s, 0x%08X)\n"
+		    "      > REG(0x08~0x18)        : 0x%08X, 0x%08X, 0x%08X, 0x%08X\n"
+		    "      > REG(0x80)             : 0x%08X\n"
+		    "      > REG(0x100~0x10C)      : 0x%08X, 0x%08X, 0x%08X, 0x%08X\n",
+		    node->name, itmon_node_string[node->type],
+		    node->phy_regs + data->offset,
+		    data->int_info,
+		    data->ext_info_0,
+		    data->ext_info_1,
+		    data->ext_info_2,
+		    data->ext_user,
+		    data->dbg_mo_cnt,
+		    data->prot_chk_ctl,
+		    data->prot_chk_info,
+		    data->prot_chk_int_id);
 }
 
 static void itmon_report_traceinfo(struct itmon_dev *itmon,
@@ -1352,7 +1364,7 @@ static void itmon_report_traceinfo(struct itmon_dev *itmon,
 	if (!info->dirty)
 		return;
 
-	dev_err(itmon->dev,
+	log_dev_err(itmon->dev,
 			"\n-----------------------------------------------------------\n"
 			"      Transaction Information\n\n"
 			"      > Client (User)  : %s %s (0x%X)\n"
@@ -1371,7 +1383,7 @@ static void itmon_report_traceinfo(struct itmon_dev *itmon,
 			  info->port, info->client ? info->client : "",
 			  info->dest ? info->dest : NOT_AVAILABLE_STR);
 
-	dev_err(itmon->dev,
+	log_dev_err(itmon->dev,
 			"\n------------------------------------------------------------\n"
 			"      > Size           : %u bytes x %u burst => %u bytes\n"
 			"      > Burst Type     : %u (0:FIXED, 1:INCR, 2:WRAP)\n"
@@ -1395,30 +1407,34 @@ static void itmon_report_pathinfo(struct itmon_dev *itmon,
 	struct itmon_tracedata *data = &node->tracedata;
 
 	if (!info->path_dirty) {
-		dev_err(itmon->dev,
-				"\n-----------------------------------------------------------\n"
-				"      ITMON Report (%s)\n"
-				"-----------------------------------------------------------\n"
-				"      PATH Information\n\n",
-				trans_type == TRANS_TYPE_READ ? "READ" : "WRITE");
+		log_dev_err(itmon->dev,
+			    "\n-----------------------------------------------------------\n"
+			    "      ITMON Report (%s)\n"
+			    "-----------------------------------------------------------\n"
+			    "      PATH Information\n\n",
+			    trans_type == TRANS_TYPE_READ ? "READ" : "WRITE");
 		info->path_dirty = true;
 	}
 	switch (node->type) {
 	case M_NODE:
-		pr_info("      > %14s, %8s(0x%08X)\n",
-			node->name, "M_NODE", node->phy_regs + data->offset);
+		log_dev_info(itmon->dev, "      > %14s, %8s(0x%08X)\n",
+			     node->name, "M_NODE",
+			     node->phy_regs + data->offset);
 		break;
 	case T_S_NODE:
-		pr_info("      > %14s, %8s(0x%08X)\n",
-			node->name, "T_S_NODE", node->phy_regs + data->offset);
+		log_dev_info(itmon->dev, "      > %14s, %8s(0x%08X)\n",
+			     node->name, "T_S_NODE",
+			     node->phy_regs + data->offset);
 		break;
 	case T_M_NODE:
-		pr_info("      > %14s, %8s(0x%08X)\n",
-			node->name, "T_M_NODE", node->phy_regs + data->offset);
+		log_dev_info(itmon->dev, "      > %14s, %8s(0x%08X)\n",
+			     node->name, "T_M_NODE",
+			     node->phy_regs + data->offset);
 		break;
 	case S_NODE:
-		pr_info("      > %14s, %8s(0x%08X)\n",
-			node->name, "S_NODE", node->phy_regs + data->offset);
+		log_dev_info(itmon->dev, "      > %14s, %8s(0x%08X)\n",
+			     node->name, "S_NODE",
+			     node->phy_regs + data->offset);
 		break;
 	}
 }
@@ -1540,8 +1556,8 @@ static void itmon_parse_traceinfo(struct itmon_dev *itmon,
 		new_info->client = client ? client->client_name : " ";
 		break;
 	default:
-		dev_err(itmon->dev,
-			"Unknown Error - offset:%u\n", data->offset);
+		log_dev_err(itmon->dev,
+			    "Unknown Error - offset:%u\n", data->offset);
 		return;
 	}
 
@@ -1670,8 +1686,8 @@ static void itmon_collect_errnode(struct itmon_dev *itmon,
 		/* Only NOT S-Node is able to make log to registers */
 		break;
 	default:
-		dev_err(itmon->dev, "Unknown Error - node:%s offset:%u\n",
-				node->name, offset);
+		log_dev_err(itmon->dev, "Unknown Error - node:%s offset:%u\n",
+			    node->name, offset);
 		break;
 	}
 
@@ -1700,8 +1716,8 @@ static void itmon_collect_errnode(struct itmon_dev *itmon,
 
 		list_add(&new_node->list, &pdata->datalist[read]);
 	} else {
-		dev_err(itmon->dev, "failed to kmalloc for %s node %x offset\n",
-				node->name, offset);
+		log_dev_err(itmon->dev, "failed to kmalloc for %s node %x offset\n",
+			    node->name, offset);
 	}
 }
 
@@ -1834,22 +1850,23 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 	int i;
 
 	itmon_pattern_reset();
+	dbg_snapshot_itmon_irq_received();
 
 	/* Search itmon group */
 	for (i = 0; i < (int)ARRAY_SIZE(nodegroup); i++) {
 		group = &pdata->nodegroup[i];
-		dev_err(itmon->dev,
-				"%s: %d irq, %s group, 0x%x vec",
-				__func__, irq, group->name,
-				group->phy_regs == 0 ? 0 : __raw_readl(group->regs));
+		log_dev_err(itmon->dev,
+			    "%s: %d irq, %s group, 0x%x vec",
+			    __func__, irq, group->name,
+			    group->phy_regs == 0 ? 0 : __raw_readl(group->regs));
 	}
 
 	ret = itmon_search_node(itmon, NULL, true);
 	if (!ret) {
-		dev_err(itmon->dev, "No errors found\n");
+		log_dev_err(itmon->dev, "No errors found\n");
 	} else {
-		dev_err(itmon->dev, "\nError detected: err_cnt_by_cpu:%u\n",
-				pdata->err_cnt_by_cpu);
+		log_dev_err(itmon->dev, "\nError detected: err_cnt_by_cpu:%u\n",
+			    pdata->err_cnt_by_cpu);
 
 		/* This will stop recursive panic when dpm action is panic */
 		if (!pdata->in_do_policy)
@@ -1896,7 +1913,7 @@ static ssize_t itmon_timeout_fix_val_store(struct kobject *kobj,
 		if (val > 0 && val <= 0xFFFFF)
 			pdata->sysfs_tmout_val = val;
 	} else {
-		dev_err(g_itmon->dev, "kstrtoul return value is %d\n", ret);
+		log_dev_err(g_itmon->dev, "kstrtoul return value is %d\n", ret);
 	}
 
 	return count;
@@ -2069,11 +2086,11 @@ static int itmon_logging_panic_handler(struct notifier_block *nb,
 		/* Check error has been logged */
 		ret = itmon_search_node(itmon, NULL, false);
 		if (!ret) {
-			dev_info(itmon->dev, "No errors found %s\n", __func__);
+			log_dev_info(itmon->dev, "No errors found %s\n", __func__);
 		} else {
-			dev_err(itmon->dev,
-				"\nError detected, err_cnt_by_cpu:%u\n",
-				pdata->err_cnt_by_cpu);
+			log_dev_err(itmon->dev,
+				    "\nError detected, err_cnt_by_cpu:%u\n",
+				    pdata->err_cnt_by_cpu);
 
 			itmon_do_dpm_policy(itmon);
 		}
@@ -2093,13 +2110,13 @@ static void itmon_parse_dt(struct itmon_dev *itmon)
 	else
 		pdata->panic_threshold = PANIC_THRESHOLD;
 
-	dev_info(itmon->dev, "panic threshold: %d\n", pdata->panic_threshold);
+	log_dev_info(itmon->dev, "panic threshold: %d\n", pdata->panic_threshold);
 	for (i = 0; i < TYPE_MAX; i++) {
 		if (!of_property_read_u32(np, pdata->policy[i].name, &val))
 			pdata->policy[i].policy = val;
 
-		dev_info(itmon->dev, "policy: %s: [%d]\n",
-				pdata->policy[i].name, pdata->policy[i].policy);
+		log_dev_info(itmon->dev, "policy: %s: [%d]\n",
+			     pdata->policy[i].name, pdata->policy[i].policy);
 	}
 }
 
@@ -2143,9 +2160,9 @@ static int itmon_probe(struct platform_device *pdev)
 		if (nodegroup[i].phy_regs) {
 			nodegroup[i].regs = devm_ioremap(&pdev->dev, nodegroup[i].phy_regs, SZ_16K);
 			if (nodegroup[i].regs == NULL) {
-				dev_err(&pdev->dev,
-					"failed to claim register region - %s\n",
-					dev_name);
+				log_dev_err(&pdev->dev,
+					    "failed to claim register region - %s\n",
+					    dev_name);
 				return -ENOENT;
 			}
 		}
@@ -2155,21 +2172,21 @@ static int itmon_probe(struct platform_device *pdev)
 		ret = devm_request_irq(&pdev->dev, irq,
 				       itmon_irq_handler, irq_option, dev_name, itmon);
 		if (ret == 0) {
-			dev_info(&pdev->dev,
-				 "success to register request irq%u - %s\n",
-				 irq, dev_name);
+			log_dev_info(&pdev->dev,
+				     "success to register request irq%u - %s\n",
+				     irq, dev_name);
 		} else {
-			dev_err(&pdev->dev, "failed to request irq - %s\n",
-				dev_name);
+			log_dev_err(&pdev->dev, "failed to request irq - %s\n",
+				    dev_name);
 			return -ENOENT;
 		}
 
 		for (j = 0; j < nodegroup[i].nodesize; j++) {
 			node[j].regs = devm_ioremap(&pdev->dev, node[j].phy_regs, SZ_16K);
 			if (node[j].regs == NULL) {
-				dev_err(&pdev->dev,
-					"failed to claim register region - %s\n",
-					dev_name);
+				log_dev_err(&pdev->dev,
+					    "failed to claim register region - %s\n",
+					    dev_name);
 				return -ENOENT;
 			}
 		}
@@ -2200,9 +2217,9 @@ static int itmon_probe(struct platform_device *pdev)
 
 	ret = subsys_system_register(&itmon_subsys, itmon_sysfs_groups);
 	if (ret)
-		dev_err(g_itmon->dev, "fail to register itmon subsys\n");
+		log_dev_err(g_itmon->dev, "fail to register itmon subsys\n");
 
-	dev_info(&pdev->dev, "success to probe gs101 ITMON driver\n");
+	log_dev_info(&pdev->dev, "success to probe gs101 ITMON driver\n");
 
 	return 0;
 }
@@ -2216,7 +2233,7 @@ static int itmon_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int itmon_suspend(struct device *dev)
 {
-	dev_info(dev, "%s\n", __func__);
+	log_dev_info(dev, "%s\n", __func__);
 	return 0;
 }
 
@@ -2230,7 +2247,7 @@ static int itmon_resume(struct device *dev)
 	if (!pdata->cp_crash_in_progress)
 		itmon_init(itmon, true);
 
-	dev_info(dev, "%s\n", __func__);
+	log_dev_info(dev, "%s\n", __func__);
 	return 0;
 }
 
