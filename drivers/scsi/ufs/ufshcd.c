@@ -6862,22 +6862,17 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	}
 
 	/* Skip task abort in case previous aborts failed and report failure */
-	if (lrbp->req_abort_skip) {
+	if (lrbp->req_abort_skip)
 		err = -EIO;
-		goto out;
-	}
+	else
+		err = ufshcd_try_to_abort_task(hba, tag);
 
-	err = ufshcd_try_to_abort_task(hba, tag);
-	if (err)
-		goto out;
-
-cleanup:
-	spin_lock_irqsave(host->host_lock, flags);
-	__ufshcd_transfer_req_compl(hba, (1UL << tag));
-	spin_unlock_irqrestore(host->host_lock, flags);
-
-out:
 	if (!err) {
+cleanup:
+		spin_lock_irqsave(host->host_lock, flags);
+		__ufshcd_transfer_req_compl(hba, (1UL << tag));
+		spin_unlock_irqrestore(host->host_lock, flags);
+out:
 		err = SUCCESS;
 	} else {
 		dev_err(hba->dev, "%s: failed with err %d\n", __func__, err);
