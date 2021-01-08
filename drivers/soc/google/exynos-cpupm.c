@@ -141,6 +141,7 @@ static LIST_HEAD(mode_list);
 struct exynos_cpupm {
 	/* cpu state, BUSY or IDLE */
 	int			state;
+	ktime_t			next_hrtimer;
 
 	/* CPU statistics */
 	struct cpupm_stats	stat[CPUIDLE_STATE_MAX];
@@ -369,6 +370,8 @@ static void cpuidle_profile_end(struct cpupm_stats *stat, int cancel)
 static void vendor_hook_cpu_idle_enter(void *data, int *state, struct cpuidle_device *dev)
 {
 	struct exynos_cpupm *pm = per_cpu_ptr(cpupm, dev->cpu);
+
+	pm->next_hrtimer = dev->next_hrtimer;
 
 	pm->entered_state = *state;
 	cpuidle_profile_begin(&pm->stat[pm->entered_state]);
@@ -694,9 +697,17 @@ void enable_power_mode(int cpu, int type)
 }
 EXPORT_SYMBOL_GPL(enable_power_mode);
 
+static s64 get_sleep_length(int cpu, ktime_t now)
+{
+	struct exynos_cpupm *pm = per_cpu_ptr(cpupm, cpu);
+
+	return ktime_to_us(ktime_sub(pm->next_hrtimer, now));
+}
+
 static int cpus_busy(int target_residency, const struct cpumask *cpus)
 {
 	int cpu;
+	ktime_t now = ktime_get();
 
 	/*
 	 * If there is even one cpu which is not in IDLE state or has
@@ -707,6 +718,9 @@ static int cpus_busy(int target_residency, const struct cpumask *cpus)
 		struct exynos_cpupm *pm = per_cpu_ptr(cpupm, cpu);
 
 		if (check_state_busy(pm))
+			return -EBUSY;
+
+		if (get_sleep_length(cpu, now) < target_residency)
 			return -EBUSY;
 	}
 
