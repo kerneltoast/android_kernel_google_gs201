@@ -462,6 +462,15 @@ void dbg_snapshot_printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_printk);
 
+void dbg_snapshot_itmon_irq_received(void)
+{
+	if (!dss_items[DSS_ITEM_ITMON_ID].entry.enabled)
+		return;
+
+	dss_itmon->magic = DSS_ITMON_MAGIC_IRQ_RECEIVED;
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_itmon_irq_received);
+
 void dbg_snapshot_itmon_backup_log(const char *fmt, ...)
 {
 	static atomic_t len_logs_a = ATOMIC_INIT(0);

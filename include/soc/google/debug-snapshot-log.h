@@ -24,6 +24,8 @@
 #define DSS_ITMON_LOG_MAX_LEN		(DSS_LOG_ITMON_SIZE - 4)
 /* ASCII presentaion of IMMI (Itmon Magic Memory Initialized) */
 #define DSS_ITMON_MAGIC_INITIALIZED	0x494D4D49
+/* ASCII presentaion of IMIR (Itmon Magic Irq Received) */
+#define DSS_ITMON_MAGIC_IRQ_RECEIVED	0x494D4952
 
 #define DSS_CALLSTACK_MAX_NUM		3
 #define DSS_NR_CPUS			8
