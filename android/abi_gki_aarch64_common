@@ -10436,6 +10436,7 @@
   __tracepoint_android_fs_datawrite_end
   __tracepoint_android_fs_datawrite_start
   __tracepoint_android_rvh_can_migrate_task
+  __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_find_busiest_group
