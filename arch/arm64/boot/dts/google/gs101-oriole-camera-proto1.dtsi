@@ -6,108 +6,6 @@
  *
  */
 
-#include <dt-bindings/clock/gs101.h>
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/samsung.h>
-
-&pinctrl_4 {
-	hsi2c1_bus: hsi2c1-bus {
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-	};
-
-	hsi2c1_bus_in: hsi2c1-bus-in {
-		samsung,pins = "gpp2-0", "gpp2-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
-	};
-
-	hsi2c2_bus: hsi2c2-bus {
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-	};
-
-	hsi2c2_bus_in: hsi2c2-bus-in {
-		samsung,pins = "gpp4-0", "gpp4-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
-	};
-
-	hsi2c3_bus: hsi2c3-bus {
-		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
-	};
-
-	hsi2c3_bus_in: hsi2c3-bus-in {
-		samsung,pins = "gpp6-0", "gpp6-1";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
-	};
-};
-
-&hsi2c_1 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	gpios = <&gpp2 0 0 &gpp2 1 0>;
-	status = "okay";
-	clock-frequency = <1000000>;
-	samsung,reset-before-trans;
-
-	pinctrl-names = "default","on_i2c","off_i2c";
-	pinctrl-0 = <&hsi2c1_bus_in>;
-	pinctrl-1 = <&hsi2c1_bus>;
-	pinctrl-2 = <&hsi2c1_bus_in>;
-};
-
-&hsi2c_2 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	gpios = <&gpp4 0 0 &gpp4 1 0>;
-	status = "okay";
-	clock-frequency = <400000>;
-	samsung,reset-before-trans;
-
-	pinctrl-names = "default","on_i2c","off_i2c";
-	pinctrl-0 = <&hsi2c2_bus_in>;
-	pinctrl-1 = <&hsi2c2_bus>;
-	pinctrl-2 = <&hsi2c2_bus_in>;
-};
-
-&hsi2c_3 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	gpios = <&gpp6 0 0 &gpp6 1 0>; /* RCAM_SCL RCAM_SDA */
-	status = "okay";
-	clock-frequency = <1000000>;
-	samsung,reset-before-trans;
-
-	pinctrl-names = "default","on_i2c","off_i2c";
-	pinctrl-0 = <&hsi2c3_bus_in>;
-	pinctrl-1 = <&hsi2c3_bus>;
-	pinctrl-2 = <&hsi2c3_bus_in>;
-};
-
-&hsi2c_7 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	gpios = <&gpp14 0 0 &gpp14 1 0>;
-	status = "okay";
-	clock-frequency = <400000>;
-
-	pinctrl-names = "default","on_i2c","off_i2c";
-	pinctrl-0 = <&hsi2c7_bus>;
-	pinctrl-1 = <&hsi2c7_bus>;
-	pinctrl-2 = <&hsi2c7_bus>;
-};
-
-&sensor_mclk2_fn {
-	samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
-};
-
-&sensor_mclk2_out {
-	samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
-};
-
 / {
 	fragment@lwiscamera {
 		target-path = "/";
@@ -135,8 +33,16 @@
 					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
 				shared-enable2-gpios =
 					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
-				shared-enable3-gpios =
+				enable-gpios =
 					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo1 &slg51000_ldo4
+					 &slg51000_ldo7>;
+				regulator-voltages =
+					<2850000 2900000
+					 1800000>;
 
 				clocks =
 					<&clock CIS_CLK3>,
@@ -155,21 +61,30 @@
 
 				/* Power up sequence */
 				power-up-seqs =
+					"ldo7",
+					"enable",
 					"shared-enable1",
+					"ldo1",
+					"ldo4",
 					"shared-enable2",
-					"shared-enable3",
 					"reset",
 					"mclk_on";
 				power-up-seq-types =
+					"regulator",
 					"gpio",
 					"gpio",
+					"regulator",
+					"regulator",
 					"gpio",
 					"gpio",
 					"pinctrl";
 				power-up-seq-delays-us =
 					<1000
+					 0
 					 1000
+					 0
 					 1000
+					 0
 					 1000
 					 9000>;
 
@@ -177,21 +92,30 @@
 				power-down-seqs =
 					"mclk_off",
 					"reset",
-					"shared-enable3",
 					"shared-enable2",
-					"shared-enable1";
+					"ldo4",
+					"ldo1",
+					"shared-enable1",
+					"enable",
+					"ldo7";
 				power-down-seq-types =
 					"pinctrl",
 					"gpio",
 					"gpio",
+					"regulator",
+					"regulator",
 					"gpio",
-					"gpio";
+					"gpio",
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
+					 0
 					 1000
+					 0
 					 1000
+					 0
 					 1000
-					 1000>;
+					 0>;
 			};
 
 			/* FRONT CAMERA IMX355 */
@@ -211,10 +135,14 @@
 
 				/* GPIOs */
 				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 7 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo3 &slg51000_ldo6
+					 &slg51000_ldo7>;
+				regulator-voltages =
+					<2800000 1200000
+					 1800000>;
 
 				clocks =
 					<&clock CIS_CLK1>,
@@ -233,17 +161,20 @@
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
+					"ldo3",
+					"ldo6",
+					"ldo7",
 					"mclk_on",
 					"reset";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
+					"regulator",
+					"regulator",
+					"regulator",
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
-					<4000
+					<0
+					 0
 					 1000
 					 1000
 					 12000>;
@@ -252,18 +183,21 @@
 				power-down-seqs =
 					"reset",
 					"mclk_off",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo7",
+					"ldo6",
+					"ldo3";
 				power-down-seq-types =
 					"gpio",
 					"pinctrl",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
-					<1000
+					<0
 					 1000
-					 4000
-					 1000>;
+					 0
+					 0
+					 0>;
 			};
 
 			/* REAR ULTRA WIDE CAMERA IMX386 */
@@ -283,10 +217,14 @@
 
 				/* GPIOs */
 				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 3 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators =
+					<&slg51000_ldo2 &slg51000_ldo5
+					 &slg51000_ldo7>;
+				regulator-voltages =
+					<2850000 1150000
+					 1800000>;
 
 				clocks =
 					<&clock CIS_CLK0>,
@@ -305,17 +243,20 @@
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
+					"ldo2",
+					"ldo5",
+					"ldo7",
 					"mclk_on",
 					"reset";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
+					"regulator",
+					"regulator",
+					"regulator",
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
-					<3000
+					<0
+					 0
 					 1000
 					 1000
 					 12000>;
@@ -324,18 +265,21 @@
 				power-down-seqs =
 					"reset",
 					"mclk_off",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo7",
+					"ldo5",
+					"ldo2";
 				power-down-seq-types =
 					"gpio",
 					"pinctrl",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
-					<1000
+					<0
 					 1000
-					 3000
-					 1000>;
+					 0
+					 0
+					 0>;
 			};
 
 			/* Eeprom lc898128 for gn1*/
@@ -358,37 +302,44 @@
 					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
 				shared-enable2-gpios =
 					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
-				shared-enable3-gpios =
-					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo4 &slg51000_ldo7>;
+				regulator-voltages = <2900000 1800000>;
 
 				/* Power up sequence */
 				power-up-seqs =
+					"ldo7",
 					"shared-enable1",
-					"shared-enable2",
-					"shared-enable3";
+					"ldo4",
+					"shared-enable2";
 				power-up-seq-types =
+					"regulator",
 					"gpio",
-					"gpio",
+					"regulator",
 					"gpio";
 				power-up-seq-delays-us =
 					<1000
 					 1000
-					 1000>;
+					 1000
+					 0>;
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable3",
 					"shared-enable2",
-					"shared-enable1";
+					"ldo4",
+					"shared-enable1",
+					"ldo7";
 				power-down-seq-types =
 					"gpio",
+					"regulator",
 					"gpio",
-					"gpio";
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
 					 1000
-					 1000>;
-
+					 1000
+					 0>;
 			};
 
 			/* Eeprom m24c64s for imx355 */
@@ -406,22 +357,23 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <8>;
 
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				/* Power supplies */
+				regulators = <&slg51000_ldo7>;
+				regulator-voltages = <1800000>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1";
+					"ldo7";
 				power-up-seq-types =
-					"gpio";
+					"regulator";
 				power-up-seq-delays-us =
 					<1000>;
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable1";
+					"ldo7";
 				power-down-seq-types =
-					"gpio";
+					"regulator";
 				power-down-seq-delays-us =
 					<1000>;
 			};
@@ -441,22 +393,23 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <8>;
 
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				/* Power supplies */
+				regulators = <&slg51000_ldo7>;
+				regulator-voltages = <1800000>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1";
+					"ldo7";
 				power-up-seq-types =
-					"gpio";
+					"regulator";
 				power-up-seq-delays-us =
 					<1000>;
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable1";
+					"ldo7";
 				power-down-seq-types =
-					"gpio";
+					"regulator";
 				power-down-seq-delays-us =
 					<1000>;
 			};
@@ -476,41 +429,31 @@
 				reg-addr-bitwidth = <8>;
 				reg-value-bitwidth = <8>;
 
-				/* GPIOs */
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
-				shared-enable3-gpios =
-					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
+				/* Power supplies */
+				regulators = <&slg51000_ldo4 &slg51000_ldo7>;
+				regulator-voltages = <2900000 1800000>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
-					"shared-enable3";
+					"ldo7",
+					"ldo4";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator";
 				power-up-seq-delays-us =
-					<1000
-					 1000
-					 1000>;
+					<2000
+					 0>;
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable3",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo4",
+					"ldo7";
 				power-down-seq-types =
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
-					<1000
-					 1000
-					 1000>;
+					<2000
+					 0>;
 			};
 
 			/* Ois lc898128 for gn1*/
@@ -533,36 +476,44 @@
 					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
 				shared-enable2-gpios =
 					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
-				shared-enable3-gpios =
-					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				regulators = <&slg51000_ldo4 &slg51000_ldo7>;
+				regulator-voltages = <2900000 1800000>;
 
 				/* Power up sequence */
 				power-up-seqs =
+					"ldo7",
 					"shared-enable1",
-					"shared-enable2",
-					"shared-enable3";
+					"ldo4",
+					"shared-enable2";
 				power-up-seq-types =
+					"regulator",
 					"gpio",
-					"gpio",
+					"regulator",
 					"gpio";
 				power-up-seq-delays-us =
 					<1000
 					 1000
-					 1000>;
+					 1000
+					 0>;
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable3",
 					"shared-enable2",
-					"shared-enable1";
+					"ldo4",
+					"shared-enable1",
+					"ldo7";
 				power-down-seq-types =
 					"gpio",
+					"regulator",
 					"gpio",
-					"gpio";
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
 					 1000
-					 1000>;
+					 1000
+					 0>;
 			};
 
 			flash0: flash@0 {
