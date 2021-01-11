@@ -22,6 +22,7 @@
 #include <trace/hooks/debug.h>
 #include <trace/hooks/pstore.h>
 #include <trace/hooks/thermal.h>
+#include <trace/hooks/mm.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -69,3 +70,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_overutilized);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_mkfile);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_read);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_enable_thermal_genl_check);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rmqueue);
