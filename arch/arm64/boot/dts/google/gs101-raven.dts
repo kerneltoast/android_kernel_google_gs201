@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Raven Proto device tree source
+ * Raven Proto 1.1 device tree source
  *
  * Copyright 2020 Google,LLC
  */
@@ -8,16 +8,14 @@
 /dts-v1/;
 /plugin/;
 
-#include "gs101-raviole.dtsi"
-#include "gs101-raven-audio.dtsi"
-#include "gs101-raven-touch.dtsi"
+#include "gs101-raven.dtsi"
 / {
 	board_id = <0x20202>;
-	board_rev = <0x010000>;
+	board_rev = <0x010100>;
 	fragment@boardbase {
 		target-path="/";
 		__overlay__ {
-			model = "Raven Proto 1.0";
+			model = "Raven Proto 1.1";
 			compatible = "google,GS101 Raven", "google,GS101";
 		};
 	};

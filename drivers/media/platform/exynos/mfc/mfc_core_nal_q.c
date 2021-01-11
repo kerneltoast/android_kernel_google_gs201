@@ -13,6 +13,7 @@
 #include "mfc_core_nal_q.h"
 
 #include "mfc_core_hwlock.h"
+#include "mfc_core_enc_param.h"
 #include "mfc_sync.h"
 
 #include "mfc_core_pm.h"
@@ -1308,7 +1309,7 @@ static void __mfc_core_nal_q_handle_stream_input(struct mfc_core_ctx *core_ctx,
 	if (enc_addr[0] == 0) {
 		mfc_debug(3, "[NALQ] no encoded src\n");
 
-		if (enc->fake_src && enc->params.num_b_frame) {
+		if (enc->fake_src && mfc_core_get_enc_bframe(ctx)) {
 			mfc_change_state(core_ctx, MFCINST_FINISHING);
 			enc->fake_src = 0;
 			mfc_debug(2, "[NALQ] clear fake_src and change to FINISHING\n");

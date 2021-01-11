@@ -11,8 +11,10 @@ dtbo-$(CONFIG_BOARD_SLIDER) += \
 	gs101-whitefin.dtbo \
 	gs101-whitefin2.dtbo \
 	gs101-whitefin2v2.dtbo \
+	gs101-oriole.dtbo \
+	gs101-oriole-proto1.dtbo \
 	gs101-raven.dtbo \
-	gs101-oriole.dtbo
+	gs101-raven-proto1.dtbo
 
 dtbo-$(CONFIG_BOARD_GS201_EMULATOR) += \
 	gs201-emulator.dtbo
@@ -25,8 +27,10 @@ gs101-slider2.dtbo-base := gs101-a0.dtb
 gs101-whitefin.dtbo-base := gs101-a0.dtb
 gs101-whitefin2.dtbo-base := gs101-a0.dtb
 gs101-whitefin2v2.dtbo-base := gs101-a0.dtb
-gs101-raven.dtbo-base := gs101-a0.dtb
-gs101-oriole.dtbo-base := gs101-a0.dtb
+gs101-oriole.dtbo-base := gs101-b0.dtb
+gs101-oriole-proto1.dtbo-base := gs101-a0.dtb
+gs101-raven.dtbo-base := gs101-b0.dtb
+gs101-raven-proto1.dtbo-base := gs101-b0.dtb
 
 gs201-emulator.dtbo-base := gs201-a0.dtb
 gs201-hybrid.dtbo-base := gs201-a0.dtb

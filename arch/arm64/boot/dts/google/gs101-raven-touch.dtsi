@@ -7,3 +7,7 @@
  */
 
 #include "gs101-sec-touch.dtsi"
+
+&spitouch {
+	sec,panel_map = <&samsung_s6e3hc3 0>;
+};

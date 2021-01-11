@@ -120,20 +120,29 @@ static void __mfc_set_gop_size(struct mfc_core *core, struct mfc_ctx *ctx,
 
 	if (ctrl_mode) {
 		p->i_frm_ctrl_mode = 1;
-		p->i_frm_ctrl = p->gop_size * (p->num_b_frame + 1);
-		if (p->i_frm_ctrl >= 0x3FFFFFFF) {
-			mfc_ctx_info("I frame interval is bigger than max: %d\n",
-					p->i_frm_ctrl);
-			p->i_frm_ctrl = 0x3FFFFFFF;
+		/*
+		 * gop_ctrl 1: gop_size means the I frame interval
+		 * gop_ctrl 0: gop_size means the number of P frames.
+		 */
+		if (p->gop_ctrl) {
+			p->i_frm_ctrl = p->gop_size;
+		} else {
+			p->i_frm_ctrl = p->gop_size * (p->num_b_frame + 1);
+			if (p->i_frm_ctrl >= 0x3FFFFFFF) {
+				mfc_ctx_info("I frame interval is bigger than max: %d\n",
+						p->i_frm_ctrl);
+				p->i_frm_ctrl = 0x3FFFFFFF;
+			}
 		}
 	} else {
 		p->i_frm_ctrl_mode = 0;
 		p->i_frm_ctrl = p->gop_size;
 	}
 
-	mfc_debug(2, "I frame interval: %d, (P: %d, B: %d), ctrl mode: %d\n",
-			p->i_frm_ctrl, p->gop_size,
-			p->num_b_frame, p->i_frm_ctrl_mode);
+	mfc_debug(2, "I frame interval: %d, (P: %d, B: %d), ctrl mode: %d, gop ctrl: %d\n",
+			p->i_frm_ctrl,
+			p->gop_ctrl ? (p->gop_size / (p->num_b_frame + 1)) : p->gop_size,
+			p->num_b_frame, p->i_frm_ctrl_mode, p->gop_ctrl);
 
 	/* pictype : IDR period, number of B */
 	reg = MFC_CORE_RAW_READL(MFC_REG_E_GOP_CONFIG);
@@ -286,6 +295,9 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 	if (nal_q_parallel_disable)
 		mfc_set_bits(reg, 0x1, 18, 0x1);
 
+	/* Predict motion search mode */
+	mfc_clear_set_bits(reg, 0x3, 22, p->mv_search_mode);
+
 	mfc_clear_set_bits(reg, 0x3, 7, enc->sbwc_option);
 	mfc_debug(2, "[SBWC] option is %d\n", enc->sbwc_option);
 
@@ -304,6 +316,22 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 	}
 
 	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_ENC_OPTIONS);
+
+	if (p->mv_search_mode == 2) {
+		reg = MFC_CORE_RAW_READL(MFC_REG_E_MV_HOR_RANGE);
+		mfc_clear_set_bits(reg, 0xff, 16, p->mv_hor_pos_l0);
+		mfc_clear_set_bits(reg, 0xff, 24, p->mv_hor_pos_l1);
+		MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_MV_HOR_RANGE);
+
+		reg = MFC_CORE_RAW_READL(MFC_REG_E_MV_VER_RANGE);
+		mfc_clear_set_bits(reg, 0xff, 16, p->mv_ver_pos_l0);
+		mfc_clear_set_bits(reg, 0xff, 24, p->mv_ver_pos_l1);
+		MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_MV_VER_RANGE);
+		mfc_debug(2, "MV search mode(%d), HOR (L0: %d, L1: %d), VER (L0: %d, L1: %d)\n",
+				p->mv_search_mode,
+				p->mv_hor_pos_l0, p->mv_hor_pos_l1,
+				p->mv_ver_pos_l0, p->mv_ver_pos_l1);
+	}
 
 	if (ctx->src_fmt->type & MFC_FMT_RGB) {
 		reg = MFC_CORE_RAW_READL(MFC_REG_PIXEL_FORMAT);
@@ -1469,6 +1497,28 @@ int mfc_core_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 			MFC_CORE_RAW_READL(MFC_REG_E_RC_FRAME_RATE),
 			MFC_CORE_RAW_READL(MFC_REG_E_RC_CONFIG),
 			MFC_CORE_RAW_READL(MFC_REG_E_RC_MODE));
+
+	return 0;
+}
+
+int mfc_core_get_enc_bframe(struct mfc_ctx *ctx)
+{
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+	int hier_qp_type = -EINVAL;
+	u8 num_hier_layer = 0;
+
+	if (IS_H264_ENC(ctx)) {
+		num_hier_layer = p->codec.h264.num_hier_layer;
+		hier_qp_type = (int)p->codec.h264.hier_qp_type;
+	} else if (IS_HEVC_ENC(ctx)) {
+		num_hier_layer = p->codec.hevc.num_hier_layer;
+		hier_qp_type = (int)p->codec.hevc.hier_qp_type;
+	}
+
+	if (enc->params.num_b_frame || ((num_hier_layer >= 2) &&
+			(hier_qp_type == V4L2_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_B)))
+		return 1;
 
 	return 0;
 }

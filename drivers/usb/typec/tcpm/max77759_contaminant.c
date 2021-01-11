@@ -464,11 +464,24 @@ static bool is_cc_open(cc_status)
 								    TCPC_CC_STATE_SRC_OPEN);
 }
 
+static void update_contaminant_state(struct max77759_contaminant *contaminant,
+				     enum contamiant_state state)
+{
+	struct max77759_plat *chip = contaminant->chip;
+
+	if (contaminant->state == state)
+		return;
+
+	contaminant->state = state;
+	kobject_uevent(&chip->dev->kobj, KOBJ_CHANGE);
+}
+
 /*
  * Don't want to be in workqueue as this is time critical for the state machine
  * to forward progress.
  */
-bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool debounce_path)
+bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool debounce_path,
+			       bool tcpm_toggling)
 {
 	u8 cc_status, pwr_cntl;
 	struct regmap *regmap = contaminant->chip->data.regmap;
@@ -508,7 +521,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 			state = contaminant_detect_maxq ?
 				maxq_detect_contaminant(contaminant, cc_status)
 				: detect_contaminant(contaminant);
-			contaminant->state = state;
+			update_contaminant_state(contaminant, state);
 
 			if (state == DETECTED || state == FLOATING_CABLE) {
 				enable_dry_detection(contaminant);
@@ -521,8 +534,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 		} else {
 			/* Need to check again after tCCDebounce */
 			if (((cc_status & TCPC_CC_STATUS_TOGGLING) == 0)  &&
-			    ((pwr_cntl & TCPC_POWER_CTRL_AUTO_DISCHARGE) == 0) &&
-			    (debounce_path || is_cc_open(cc_status))) {
+			    (debounce_path || (tcpm_toggling && is_cc_open(cc_status)))) {
 				/*
 				 * Stage 3
 				 */
@@ -550,7 +562,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 					state = contaminant_detect_maxq ?
 						maxq_detect_contaminant(contaminant, cc_status)
 						: detect_contaminant(contaminant);
-					contaminant->state = state;
+					update_contaminant_state(contaminant, state);
 
 					max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl_backup);
 					if (state == DETECTED || state == FLOATING_CABLE) {
@@ -575,7 +587,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 			state = contaminant_detect_maxq ?
 				maxq_detect_contaminant(contaminant, cc_status)
 				: detect_contaminant(contaminant);
-			contaminant->state = state;
+			update_contaminant_state(contaminant, state);
 
 			if (state == DETECTED || state == FLOATING_CABLE) {
 				enable_dry_detection(contaminant);
@@ -597,9 +609,24 @@ EXPORT_SYMBOL_GPL(process_contaminant_alert);
 void disable_contaminant_detection(struct max77759_plat *chip)
 {
 	struct regmap *regmap = chip->data.regmap;
+	struct max77759_contaminant *contaminant = chip->contaminant;
 	int ret;
 
+	if (!contaminant)
+		return;
+
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK, 0);
+	if (ret < 0)
+		return;
+
+	ret = max77759_write8(regmap, TCPC_ROLE_CTRL, TCPC_ROLE_CTRL_DRP |
+			      (TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_CC1_SHIFT) |
+			      (TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_CC2_SHIFT));
+	if (ret < 0)
+		return;
+
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
+				    LOW_POWER_MODE_DISABLE);
 	if (ret < 0)
 		return;
 
@@ -608,9 +635,18 @@ void disable_contaminant_detection(struct max77759_plat *chip)
 	if (ret < 0)
 		return;
 
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL1, CCCONNDRY, 0);
+	if (ret < 0)
+		return;
+
 	ret = max77759_write8(regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
 	if (ret < 0)
 		return;
+
+	/* Reset state before disabling detection */
+	if (contaminant->state != NOT_DETECTED && contaminant->state != SINK)
+		contaminant->state = NOT_DETECTED;
+
 	logbuffer_log(chip->log, "Contaminant: Contaminant detection disabled");
 }
 EXPORT_SYMBOL_GPL(disable_contaminant_detection);
@@ -618,8 +654,12 @@ EXPORT_SYMBOL_GPL(disable_contaminant_detection);
 int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 {
 	struct regmap *regmap = chip->data.regmap;
+	struct max77759_contaminant *contaminant = chip->contaminant;
 	u8 vcc2;
 	int ret;
+
+	if (!contaminant)
+		return -EAGAIN;
 
 	contaminant_detect_maxq = maxq;
 	/*
@@ -676,11 +716,24 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 	if (ret < 0)
 		return ret;
 
+	/* Reset state before enabling detection */
+	if (contaminant->state != NOT_DETECTED && contaminant->state != SINK)
+		contaminant->state = NOT_DETECTED;
+
 	logbuffer_log(chip->log, "Contaminant: Contaminant detection enabled");
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(enable_contaminant_detection);
+
+bool is_contaminant_detected(struct max77759_plat *chip)
+{
+	if (chip)
+		return chip->contaminant->state == DETECTED;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(is_contaminant_detected);
 
 struct max77759_contaminant *max77759_contaminant_init(struct max77759_plat
 							 *plat, bool enable)

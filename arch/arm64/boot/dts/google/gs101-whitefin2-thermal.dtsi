@@ -96,10 +96,15 @@
 				hysteresis = <1000>;
 				type = "passive";
 			};
-			skin_backup_shutdown: skin-backup-shutdown {
+			skin_sw_shutdown: skin-sw-shutdown {
 				temperature = <50000>;
 				hysteresis = <1000>;
 				type = "critical";
+			};
+			skin_hw_shutdown: skin-hw-shutdown {
+				temperature = <80000>;
+				hysteresis = <1000>;
+				type = "hot";
 			};
 		};
 		cooling-maps {

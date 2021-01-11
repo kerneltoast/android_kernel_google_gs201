@@ -16,17 +16,15 @@
 #define MAX_CAPACITY_CPU    CONFIG_VH_MAX_CAPACITY_CPU
 #define HIGH_CAPACITY_CPU   CONFIG_VH_HIGH_CAPACITY_CPU
 #define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
+#define UTIL_THRESHOLD      1280
 
 extern bool vendor_sched_enable_prefer_high_cap;
 
-static unsigned int sched_capacity_margin_up[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
-static unsigned int sched_capacity_margin_down[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
-static unsigned int sched_capacity_margin_up_boosted[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
-static unsigned int sched_capacity_margin_down_boosted[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = 1078}; /* ~5% margin */
+static unsigned int sched_capacity_margin[CPU_NUM] = {
+			[0 ... CPU_NUM-1] = UTIL_THRESHOLD};
+/* margin for boosted tasks are 85% 85% 85% 85% 20% 20% NA NA */
+static unsigned int sched_capacity_margin_boosted[CPU_NUM] = {
+			6826, 6826, 6826, 6826, UTIL_THRESHOLD, UTIL_THRESHOLD, 1024, 1024};
 static unsigned long scale_freq[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
 
@@ -100,7 +98,7 @@ static inline u64 cfs_rq_last_update_time(struct cfs_rq *cfs_rq)
 }
 #endif
 
-static inline unsigned long task_util(struct task_struct *p)
+unsigned long task_util(struct task_struct *p)
 {
 	return READ_ONCE(p->se.avg.util_avg);
 }
@@ -136,7 +134,7 @@ static inline unsigned long capacity_of(int cpu)
 	return cpu_rq(cpu)->cpu_capacity;
 }
 
-static unsigned long cpu_util(int cpu)
+unsigned long cpu_util(int cpu)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
@@ -321,6 +319,20 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 	return em_cpu_energy(pd->em_pd, max_util, sum_util);
 }
 
+/* Runqueue only has SCHED_IDLE tasks enqueued */
+static int sched_idle_rq(struct rq *rq)
+{
+	return unlikely(rq->nr_running == rq->cfs.idle_h_nr_running &&
+			rq->nr_running);
+}
+
+#ifdef CONFIG_SMP
+int sched_cpu_idle(int cpu)
+{
+	return sched_idle_rq(cpu_rq(cpu));
+}
+#endif
+
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
@@ -332,23 +344,19 @@ static inline bool get_prefer_high_cap(struct task_struct *p)
 	return vendor_sched_enable_prefer_high_cap && get_vendor_task_struct(p)->prefer_high_cap;
 }
 
-static inline bool task_fits_capacity(struct task_struct *p, int cpu)
+bool task_fits_capacity(struct task_struct *p, int cpu)
 {
 	unsigned int margin;
 	unsigned long capacity = capacity_of(cpu);
 
-	if (capacity_orig_of(task_cpu(p)) > capacity_orig_of(cpu))
-		margin = uclamp_boosted(p) > 0 &&
-			     !get_prefer_high_cap(p) ?
-			sched_capacity_margin_down_boosted[task_cpu(p)] :
-			sched_capacity_margin_down[task_cpu(p)];
-	else
-		margin = uclamp_boosted(p) > 0 &&
-			     !get_prefer_high_cap(p) ?
-			sched_capacity_margin_up_boosted[task_cpu(p)] :
-			sched_capacity_margin_up[task_cpu(p)];
+	if (cpu >= MAX_CAPACITY_CPU)
+		return true;
 
-	return capacity * 1024 > uclamp_task_util(p) * margin;
+	margin = uclamp_boosted(p) > 0 && !get_prefer_high_cap(p) ?
+		 sched_capacity_margin_boosted[cpu] :
+		 sched_capacity_margin[cpu];
+
+	return capacity * 1024 > task_util_est(p) * margin && capacity > uclamp_task_util(p);
 }
 
 static inline int find_start_cpu(struct task_struct *p, bool prefer_high_cap, bool sync_boost)
@@ -378,6 +386,20 @@ static inline bool cpu_is_in_target_set(struct task_struct *p, int cpu)
 	return cpu >= next_usable_cpu || next_usable_cpu >= nr_cpu_ids;
 }
 
+/**
+ * cpu_is_idle - is a given CPU idle for enqueuing work.
+ * @cpu: the CPU in question.
+ *
+ * Return: 1 if the CPU is currently idle. 0 otherwise.
+ */
+int cpu_is_idle(int cpu)
+{
+	if (available_idle_cpu(cpu) || sched_cpu_idle(cpu))
+		return 1;
+
+	return 0;
+}
+
 static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cpu, bool sync_boost)
 {
 	unsigned long min_util = uclamp_task_util(p);
@@ -394,6 +416,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	bool prefer_prev = false;
 	int i;
 	int start_cpu = -1;
+	unsigned int min_exit_lat = UINT_MAX;
 
 	/*
 	 * In most cases, target_capacity tracks capacity of the most
@@ -411,7 +434,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 
 	/* prefer prev cpu */
 	// TODO: add idle index check later
-	if (cpu_online(prev_cpu) && idle_cpu(prev_cpu) && cpu_is_in_target_set(p, prev_cpu)) {
+	if (cpu_online(prev_cpu) && cpu_is_idle(prev_cpu) && cpu_is_in_target_set(p, prev_cpu) &&
+	    task_fits_capacity(p, prev_cpu)) {
 		target_cpu = prev_cpu;
 		prefer_prev = true;
 		goto target;
@@ -424,8 +448,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		unsigned long capacity = capacity_of(i);
 		unsigned long wake_util, new_util;
 		long spare_cap;
-		struct cpuidle_state *idle;
-		unsigned int min_exit_lat = UINT_MAX;
+		struct cpuidle_state *idle = NULL;
 		int next_cpu = cpumask_next_wrap(i, p->cpus_ptr, i, false);
 
 		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity);
@@ -461,9 +484,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 */
 		spare_cap = capacity - new_util;
 
-		if (idle_cpu(i))
+		if (cpu_is_idle(i))
 			idle = idle_get_state(cpu_rq(i));
-
 
 		/*
 		 * Case A) Latency sensitive tasks
@@ -502,7 +524,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 			 * - for !prefer_high_cap tasks: the most energy
 			 * efficient CPU (i.e. smallest capacity)
 			 */
-			if (idle_cpu(i)) {
+			if (cpu_is_idle(i)) {
 				if (prefer_high_cap &&
 				    capacity < target_capacity)
 					goto check;
@@ -521,6 +543,9 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 
 				if (idle)
 					min_exit_lat = idle->exit_latency;
+
+				if (sched_cpu_idle(i))
+					min_exit_lat = 0;
 
 				target_capacity = capacity;
 				best_idle_cpu = i;
@@ -587,7 +612,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * will take care to ensure the minimization of energy
 		 * consumptions without affecting performance.
 		 */
-		if (idle_cpu(i)) {
+		if (cpu_is_idle(i)) {
 			/*
 			 * Skip CPUs in deeper idle state, but only
 			 * if they are also less energy efficient.
@@ -716,8 +741,8 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 	bool sync_wakeup = false;
 
 	cpu = smp_processor_id();
-	if (sync && cpu_rq(cpu)->nr_running == 1 &&
-	    cpumask_test_cpu(cpu, p->cpus_ptr) && cpu_is_in_target_set(p, cpu)) {
+	if (sync && cpu_rq(cpu)->nr_running == 1 && cpumask_test_cpu(cpu, p->cpus_ptr) &&
+	    cpu_is_in_target_set(p, cpu) && task_fits_capacity(p, cpu)) {
 		*new_cpu = cpu;
 		sync_wakeup = true;
 		goto out;
@@ -745,7 +770,7 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 
 	/* If there is only one sensible candidate, select it now. */
 	cpu = cpumask_first(candidates);
-	if (weight == 1 && ((uclamp_latency_sensitive(p) && idle_cpu(cpu)) ||
+	if (weight == 1 && ((uclamp_latency_sensitive(p) && cpu_is_idle(cpu)) ||
 			    (cpu == prev_cpu))) {
 		best_energy_cpu = cpu;
 		goto unlock;
@@ -805,4 +830,9 @@ void vh_arch_set_freq_scale_pixel_mod(void *data, struct cpumask *cpus, unsigned
 void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost)
 {
 	*should_iowait_boost = p->in_iowait && uclamp_boosted(p);
+}
+
+void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
+{
+	*overutilized = cpu_util(cpu) * UTIL_THRESHOLD >= capacity_of(cpu) * 1024;
 }

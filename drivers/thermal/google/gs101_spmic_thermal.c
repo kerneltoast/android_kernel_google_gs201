@@ -209,9 +209,10 @@ static int gs101_spmic_thermal_set_trip_temp(void *data, int trip, int temp)
 	if (!trip_points)
 		return -EINVAL;
 
-	if (trip_points[trip].type != THERMAL_TRIP_CRITICAL)
+	if (trip_points[trip].type != THERMAL_TRIP_HOT)
 		return ret;
 
+	/* Use THERMAL_TRIP_HOT for HW thermal shutdown */
 	raw = gs101_map_temp_volt(temp) >> 4 & 0xFF;
 	ret = s2mpg11_write_reg(gs101_spmic_thermal->i2c,
 				S2MPG11_METER_NTC_H_WARN0 + s->adc_chan, raw);

@@ -132,13 +132,13 @@ static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 		exynos_bts_scitoken_setting(false);
 }
 
-static int exynos_pd_power_on(struct generic_pm_domain *genpd)
+/**
+ * returns 0 if the domain was already ON or waiting for sync, 1 if was successfully turned ON
+ * and negative in case of error
+ */
+static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
 {
-	struct exynos_pm_domain *pd =
-		container_of(genpd, struct exynos_pm_domain, genpd);
 	int ret = 0;
-
-	mutex_lock(&pd->access_lock);
 
 	pr_debug("pd_power_on:(%s)+\n", pd->name);
 
@@ -158,6 +158,11 @@ static int exynos_pd_power_on(struct generic_pm_domain *genpd)
 		goto acc_unlock;
 	}
 
+	if (cal_pd_status(pd->cal_pdid)) {
+		pr_warn("pd_power_on:(%s) is already ON\n", pd->name);
+		goto acc_unlock;
+	}
+
 	exynos_pd_power_on_pre(pd);
 
 	ret = pd->pd_control(pd->cal_pdid, 1);
@@ -173,17 +178,41 @@ static int exynos_pd_power_on(struct generic_pm_domain *genpd)
 	pd->pd_stat.on_count++;
 	pd->pd_stat.last_on_time = ktime_get_boottime();
 
+	ret = 1;
+
 acc_unlock:
 	pr_debug("pd_power_on:(%s)-, ret = %d\n", pd->name, ret);
-	mutex_unlock(&pd->access_lock);
 
 	return ret;
 }
 
-static int __exynos_pd_power_off(struct generic_pm_domain *genpd)
+int exynos_pd_power_on(struct exynos_pm_domain *pd)
+{
+	int ret;
+
+	mutex_lock(&pd->access_lock);
+	ret = __exynos_pd_power_on(pd);
+	mutex_unlock(&pd->access_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(exynos_pd_power_on);
+
+static int genpd_power_on(struct generic_pm_domain *genpd)
 {
 	struct exynos_pm_domain *pd =
-		container_of(genpd, struct exynos_pm_domain, genpd);
+	    container_of(genpd, struct exynos_pm_domain, genpd);
+	int ret = exynos_pd_power_on(pd);
+
+	return ret < 0 ? ret : 0;
+}
+
+/**
+ * returns 0 if the domain was already OFF or waiting for sync, 1 if was successfully turned OFF
+ * and negative in case of error
+ */
+static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
+{
 	int ret = 0;
 	ktime_t now;
 
@@ -200,13 +229,18 @@ static int __exynos_pd_power_off(struct generic_pm_domain *genpd)
 
 	if (unlikely(!pd->pd_control)) {
 		pr_debug("%s is logical sub power domain, does not have power off control\n",
-			 genpd->name);
+			 pd->name);
 		goto acc_unlock;
 	}
 
 	if (pd->power_down_ok && !pd->power_down_ok()) {
 		pr_info("%s power-off is skipped.\n", pd->name);
 		pd->power_down_skipped = true;
+		goto acc_unlock;
+	}
+
+	if (!cal_pd_status(pd->cal_pdid)) {
+		pr_warn("pd_power_off:(%s) is already OFF\n", pd->name);
 		goto acc_unlock;
 	}
 
@@ -223,23 +257,33 @@ static int __exynos_pd_power_off(struct generic_pm_domain *genpd)
 			  ktime_sub(now, pd->pd_stat.last_on_time));
 	pd->pd_stat.last_off_time = now;
 
+	ret = ret < 0 ? ret : 1;
+
 acc_unlock:
 	pr_debug("pd_power_off:(%s)-, ret = %d\n", pd->name, ret);
 
 	return ret;
 }
 
-static int exynos_pd_power_off(struct generic_pm_domain *genpd)
+int exynos_pd_power_off(struct exynos_pm_domain *pd)
 {
-	struct exynos_pm_domain *pd =
-		container_of(genpd, struct exynos_pm_domain, genpd);
 	int ret;
 
 	mutex_lock(&pd->access_lock);
-	ret = __exynos_pd_power_off(genpd);
+	ret = __exynos_pd_power_off(pd);
 	mutex_unlock(&pd->access_lock);
 
 	return ret;
+}
+EXPORT_SYMBOL(exynos_pd_power_off);
+
+static int genpd_power_off(struct generic_pm_domain *genpd)
+{
+	struct exynos_pm_domain *pd =
+		container_of(genpd, struct exynos_pm_domain, genpd);
+	int ret = exynos_pd_power_off(pd);
+
+	return ret < 0 ? ret : 0;
 }
 
 /**
@@ -315,8 +359,8 @@ static void of_get_power_down_ok(struct exynos_pm_domain *pd)
 static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 {
 	pd->genpd.name = pd->name;
-	pd->genpd.power_off = exynos_pd_power_off;
-	pd->genpd.power_on = exynos_pd_power_on;
+	pd->genpd.power_off = genpd_power_off;
+	pd->genpd.power_on = genpd_power_on;
 
 	/* pd power on/off latency is less than 1ms */
 	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
@@ -470,18 +514,46 @@ static int exynos_pd_probe(struct platform_device *pdev)
 				dev_err(dev, "parent pd not found");
 			} else {
 				if (pm_genpd_add_subdomain(&parent_pd->genpd,
-							   &pd->genpd))
-					dev_err(dev, "cannot add subdomain %s\n",
+							   &pd->genpd)) {
+					dev_err(&parent_pd_pdev->dev, "cannot add subdomain %s\n",
 						pd->name);
-				else
-					dev_info(dev, "has new subdomain %s\n",
+				} else {
+					pd->parent = parent_pd;
+					dev_info(&parent_pd_pdev->dev, "has new subdomain %s\n",
 						 pd->name);
+				}
 			}
 		}
 	}
 
 	dev_info(dev, "PM Domain Initialized\n");
 	return ret;
+}
+
+/**
+ * Ensure parents PD are ON before powering off the PD. pd access_lock must be held
+ */
+static void exynos_pd_save_power_state_on(struct exynos_pm_domain *pd)
+{
+	if (pd->parent) {
+		mutex_lock(&pd->parent->access_lock);
+		pd->parent->traversal_state = cal_pd_status(pd->parent->cal_pdid);
+		/* If parent is not ON, turn it ON */
+		if (!pd->parent->traversal_state)
+			exynos_pd_save_power_state_on(pd->parent);
+	}
+	__exynos_pd_power_on(pd);
+}
+
+static void exynos_pd_restore_power_state_off(struct exynos_pm_domain *pd)
+{
+	__exynos_pd_power_off(pd);
+	if (pd->parent) {
+		/* If parent was OFF, turn it back OFF */
+		if (!pd->parent->traversal_state)
+			exynos_pd_restore_power_state_off(pd->parent);
+		mutex_unlock(&pd->parent->access_lock);
+	}
 }
 
 static void exynos_pd_sync_state(struct device *dev)
@@ -494,8 +566,10 @@ static void exynos_pd_sync_state(struct device *dev)
 	if (pd->need_sync) {
 		pd->need_sync = false;
 		dev_info(dev, "sync_state: turn_off = %d\n", pd->turn_off_on_sync);
-		if (pd->turn_off_on_sync)
-			__exynos_pd_power_off(&pd->genpd);
+		if (pd->turn_off_on_sync) {
+			exynos_pd_save_power_state_on(pd);
+			exynos_pd_restore_power_state_off(pd);
+		}
 	}
 	mutex_unlock(&pd->access_lock);
 }

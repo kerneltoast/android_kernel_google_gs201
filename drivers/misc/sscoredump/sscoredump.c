@@ -255,8 +255,8 @@ static void fill_elf##elf_type##_phdr(void *elf_addr, u32 phdr_offset,	\
 									\
 	for (i = 0; i < nsegs; i++) {					\
 		phdr[i].p_type = PT_LOAD;				\
-		phdr[i].p_paddr = (Elf##elf_type##_Addr) segs[i].paddr;	\
-		phdr[i].p_vaddr = (Elf##elf_type##_Addr) segs[i].vaddr;	\
+		phdr[i].p_paddr = (Elf##elf_type##_Addr)(unsigned long) segs[i].paddr;	\
+		phdr[i].p_vaddr = (Elf##elf_type##_Addr)(unsigned long) segs[i].vaddr;	\
 		phdr[i].p_memsz = segs[i].size;				\
 		phdr[i].p_filesz = segs[i].size;			\
 		phdr[i].p_offset = p_offset;				\

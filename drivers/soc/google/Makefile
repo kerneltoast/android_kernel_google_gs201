@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
+
+ccflags-y := -DDYNAMIC_DEBUG_MODULE
+
 obj-$(CONFIG_GS_CHIPID)			+= gs-chipid.o
 obj-$(CONFIG_CAL_IF)            	+= cal-if/
 obj-$(CONFIG_EXYNOS_PMU_IF)		+= exynos-pmu-if.o
@@ -26,7 +29,7 @@ obj-$(CONFIG_SLC_PARTITION_MANAGER)	+= pt/
 obj-$(CONFIG_GSA)			+= gsa/
 
 obj-$(CONFIG_EXYNOS_BCM_DBG)		+= bcm_dbg.o
-bcm_dbg-$(CONFIG_EXYNOS_BCM_DBG)	+= exynos-bcm_dbg.o exynos-bcm_dbg-dt.o
+bcm_dbg-$(CONFIG_EXYNOS_BCM_DBG)	+= exynos-bcm_dbg.o exynos-bcm_dbg-dt.o exynos-bcm_dbg-ppmu.o
 obj-$(CONFIG_EXYNOS_BCM_DBG_DUMP)	+= exynos-bcm_dbg-dump.o
 
 # CPIF
@@ -48,3 +51,5 @@ obj-$(CONFIG_HARDLOCKUP_WATCHDOG)	+= hardlockup-watchdog.o
 obj-$(CONFIG_VH_KERNEL)			+= vh/kernel/
 
 obj-$(CONFIG_DBGCORE_DUMP)		+= dbgcore-dump.o
+
+obj-$(CONFIG_EXYNOS_SECURE_LOG) 	+= exynos-seclog.o

@@ -317,6 +317,7 @@ static int exynos_bcm_dbg_pd_sync_init(struct exynos_bcm_dbg_data *data)
 		}
 	}
 
+	exynos_cal_pd_bcm_sync = exynos_bcm_dbg_pd_sync;
 	pd_sync_init = true;
 
 	return ret;

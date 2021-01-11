@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Oriole Early SMT device tree source
+ * Oriole Proto 1.1 Device Tree
  *
  * Copyright 2020 Google,LLC
  */
@@ -8,19 +8,16 @@
 /dts-v1/;
 /plugin/;
 
-#include "gs101-raviole.dtsi"
-#include "gs101-oriole-audio.dtsi"
-#include "gs101-oriole-camera.dtsi"
-#include "gs101-oriole-display.dtsi"
-#include "gs101-oriole-touch.dtsi"
+#include "gs101-oriole.dtsi"
+#include "gs101-oriole-camera-pmic.dtsi"
 
 / {
 	board_id = <0x20302>;
-	board_rev = <0x10000>;
+	board_rev = <0x10100>;
 	fragment@boardbase {
 		target-path="/";
 		__overlay__ {
-			model = "Oriole Proto 1.0";
+			model = "Oriole Proto 1.1";
 			compatible = "google,GS101 Oriole", "google,GS101";
 		};
 	};

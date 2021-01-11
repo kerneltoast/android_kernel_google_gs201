@@ -51,7 +51,7 @@
 /* Interrupt timeout */
 #define MFC_INT_TIMEOUT		4000
 /* Interrupt short timeout */
-#define MFC_INT_SHORT_TIMEOUT	800
+#define MFC_INT_SHORT_TIMEOUT	2000
 /* hwlock timeout */
 #define MFC_HWLOCK_TIMEOUT	5000
 /* Busy wait timeout */
@@ -277,6 +277,8 @@
 #define ENC_SET_GDC_VOTF		(1 << 17)
 #define ENC_SET_OPERATING_FPS		(1 << 18)
 #define ENC_SET_AVERAGE_QP		(1 << 19)
+#define ENC_SET_MV_SEARCH_MODE		(1 << 20)
+#define ENC_SET_GOP_CTRL		(1 << 21)
 
 #define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw_date >= (f).version))
 

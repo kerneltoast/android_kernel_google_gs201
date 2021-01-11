@@ -21,5 +21,6 @@ void mfc_core_set_aso_slice_order_h264(struct mfc_core *core,
 void mfc_core_set_enc_config_qp(struct mfc_core *core, struct mfc_ctx *ctx);
 int mfc_core_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx);
 void mfc_core_set_test_params(struct mfc_core *core);
+int mfc_core_get_enc_bframe(struct mfc_ctx *ctx);
 
 #endif /* __MFC_ENC_PARAM_H */

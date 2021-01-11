@@ -263,8 +263,8 @@ TRACE_EVENT(sched_find_best_target,
 		__entry->backup          = backup;
 		),
 
-	TP_printk("pid=%d comm=%s min_util=%lu prefer_idle=%d prefer_high_cap=%d prefer_prev=%d \
-		   sync_boost=%d start_cpu=%d best_idle=%d best_active=%d target=%d backup=%d",
+	TP_printk("pid=%d comm=%s min_util=%lu prefer_idle=%d prefer_high_cap=%d prefer_prev=%d " \
+		  "sync_boost=%d start_cpu=%d best_idle=%d best_active=%d target=%d backup=%d",
 		  __entry->pid, __entry->comm, __entry->min_util, __entry->prefer_idle,
 		  __entry->prefer_high_cap, __entry->prefer_prev, __entry->sync_boost,
 		  __entry->start_cpu, __entry->best_idle, __entry->best_active, __entry->target,
@@ -328,12 +328,55 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->online             = cpu_online(cpu);
 	),
 
-	TP_printk("cpu=%d nr_running=%d cpu_util=%ld capacity_curr=%u capacity=%u capacity_orig=%u \
-		   online=%u",
+	TP_printk("cpu=%d nr_running=%d cpu_util=%ld capacity_curr=%u capacity=%u " \
+		  "capacity_orig=%u online=%u",
 		__entry->cpu, __entry->nr_running, __entry->cpu_util, __entry->capacity_curr,
 		__entry->capacity, __entry->capacity_orig, __entry->online)
 );
 
+TRACE_EVENT(sugov_util_update,
+	    TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max_cap,
+		     unsigned int flags),
+	    TP_ARGS(cpu, util, max_cap, flags),
+	    TP_STRUCT__entry(
+		    __field(unsigned int, cpu)
+		    __field(unsigned long, util)
+		    __field(unsigned long, max_cap)
+		    __field(unsigned int, flags)
+	    ),
+	    TP_fast_assign(
+		    __entry->cpu = cpu;
+		    __entry->util = util;
+		    __entry->max_cap = max_cap;
+		    __entry->flags = flags;
+	    ),
+	    TP_printk("cpu=%u util=%lu max_cap=%lu flags=0x%x",
+		      __entry->cpu, __entry->util,
+		      __entry->max_cap, __entry->flags)
+);
+
+TRACE_EVENT(sugov_next_freq,
+	    TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max,
+		     unsigned int freq),
+	    TP_ARGS(cpu, util, max, freq),
+	    TP_STRUCT__entry(
+		    __field(unsigned int, cpu)
+		    __field(unsigned long, util)
+		    __field(unsigned long, max)
+		    __field(unsigned int, freq)
+	    ),
+	    TP_fast_assign(
+		    __entry->cpu = cpu;
+		    __entry->util = util;
+		    __entry->max = max;
+		    __entry->freq = freq;
+	    ),
+	    TP_printk("cpu=%u util=%lu max=%lu freq=%u",
+		      __entry->cpu,
+		      __entry->util,
+		      __entry->max,
+		      __entry->freq)
+);
 #endif /* _SCHED_EVENTS_H */
 
 /* This part must be outside protection */

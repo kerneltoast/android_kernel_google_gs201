@@ -684,6 +684,54 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 		.flag_addr = 0,
 		.flag_shft = 0,
 	},
+	{	/* HOR range position of current frame */
+		.type = MFC_CTRL_TYPE_SET_SRC,
+		.id = V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L0,
+		.is_volatile = 1,
+		.mode = MFC_CTRL_MODE_SFR,
+		.addr = MFC_REG_E_MV_HOR_RANGE,
+		.mask = 0x000000FF,
+		.shft = 16,
+		.flag_mode = MFC_CTRL_MODE_NONE,
+		.flag_addr = 0,
+		.flag_shft = 0,
+	},
+	{	/* HOR range position of current frame */
+		.type = MFC_CTRL_TYPE_SET_SRC,
+		.id = V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L1,
+		.is_volatile = 1,
+		.mode = MFC_CTRL_MODE_SFR,
+		.addr = MFC_REG_E_MV_HOR_RANGE,
+		.mask = 0x000000FF,
+		.shft = 24,
+		.flag_mode = MFC_CTRL_MODE_NONE,
+		.flag_addr = 0,
+		.flag_shft = 0,
+	},
+	{	/* VER range position of current frame */
+		.type = MFC_CTRL_TYPE_SET_SRC,
+		.id = V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L0,
+		.is_volatile = 1,
+		.mode = MFC_CTRL_MODE_SFR,
+		.addr = MFC_REG_E_MV_VER_RANGE,
+		.mask = 0x000000FF,
+		.shft = 16,
+		.flag_mode = MFC_CTRL_MODE_NONE,
+		.flag_addr = 0,
+		.flag_shft = 0,
+	},
+	{	/* VER range position of current frame */
+		.type = MFC_CTRL_TYPE_SET_SRC,
+		.id = V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L1,
+		.is_volatile = 1,
+		.mode = MFC_CTRL_MODE_SFR,
+		.addr = MFC_REG_E_MV_VER_RANGE,
+		.mask = 0x000000FF,
+		.shft = 24,
+		.flag_mode = MFC_CTRL_MODE_NONE,
+		.flag_addr = 0,
+		.flag_shft = 0,
+	},
 	{	/* buffer additional information */
 		.type = MFC_CTRL_TYPE_SRC,
 		.id = V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG,
@@ -1654,6 +1702,19 @@ static int mfc_enc_set_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 			mfc_debug(3, "[NALQ][DROPCTRL] fps %d -> %ld, delta: %d, reg: %#x\n",
 					p->rc_framerate, USEC_PER_SEC / ctx->ts_last_interval,
 					p->rc_frame_delta, pInStr->RcFrameRate);
+			break;
+		case V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L0:
+		case V4L2_CID_MPEG_VIDEO_MV_HOR_POSITION_L1:
+			pInStr->MVHorRange &= ~(buf_ctrl->mask << buf_ctrl->shft);
+			pInStr->MVHorRange |=
+				(buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft;
+			break;
+		case V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L0:
+		case V4L2_CID_MPEG_VIDEO_MV_VER_POSITION_L1:
+			pInStr->MVVerRange &= ~(buf_ctrl->mask << buf_ctrl->shft);
+			pInStr->MVVerRange |=
+				(buf_ctrl->val & buf_ctrl->mask) << buf_ctrl->shft;
+			break;
 			break;
 		/* If new dynamic controls are added, insert here */
 		default:

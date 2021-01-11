@@ -31,6 +31,7 @@
 #define I2C_ADDR_RTC 0x02
 #define I2C_ADDR_METER 0x0A
 #define I2C_ADDR_WLWP 0x0B
+#define I2C_ADDR_TRIM 0x0F
 
 static struct device_node *acpm_mfd_node;
 
@@ -52,6 +53,8 @@ static struct mfd_cell s2mpg10_devs[] = {
 		.of_compatible = "google,gs101-bcl-m",
 	},
 };
+
+static u8 s2mpg10_pmic_rev;
 
 int s2mpg10_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 {
@@ -142,6 +145,12 @@ int s2mpg10_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(s2mpg10_update_reg);
+
+u8 s2mpg10_get_rev_id(void)
+{
+	return s2mpg10_pmic_rev;
+}
+EXPORT_SYMBOL_GPL(s2mpg10_get_rev_id);
 
 struct i2c_client *s2mpg10_get_i2c_client(struct s2mpg10_dev *dev,
 					  unsigned int reg)
@@ -402,7 +411,7 @@ static int of_s2mpg10_dt(struct device *dev,
 }
 #endif /* CONFIG_OF */
 
-static void s2mpg10_get_rev_id(struct s2mpg10_dev *s2mpg10, int id)
+static void s2mpg10_set_rev_id(struct s2mpg10_dev *s2mpg10, int id)
 {
 	if (id == 0x0 || id == 0x1)
 		s2mpg10->pmic_rev = S2MPG10_EVT0;
@@ -481,18 +490,21 @@ static int s2mpg10_i2c_probe(struct i2c_client *i2c,
 		ret = -ENODEV;
 		goto err_w_lock;
 	} else {
-		s2mpg10_get_rev_id(s2mpg10, reg_data & 0x7);
+		s2mpg10_set_rev_id(s2mpg10, reg_data & 0x7);
 	}
 
 	s2mpg10->pmic = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_PMIC);
 	s2mpg10->rtc = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_RTC);
 	s2mpg10->meter = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_METER);
 	s2mpg10->wlwp = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_WLWP);
+	s2mpg10->trim = i2c_new_dummy_device(i2c->adapter, I2C_ADDR_TRIM);
+	s2mpg10_pmic_rev = s2mpg10->pmic_rev;
 
 	i2c_set_clientdata(s2mpg10->pmic, s2mpg10);
 	i2c_set_clientdata(s2mpg10->rtc, s2mpg10);
 	i2c_set_clientdata(s2mpg10->meter, s2mpg10);
 	i2c_set_clientdata(s2mpg10->wlwp, s2mpg10);
+	i2c_set_clientdata(s2mpg10->trim, s2mpg10);
 
 	pr_info("%s device found: rev.0x%2x\n", __func__, s2mpg10->pmic_rev);
 

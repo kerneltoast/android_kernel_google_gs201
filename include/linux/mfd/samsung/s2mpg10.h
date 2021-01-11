@@ -186,6 +186,7 @@ struct s2mpg10_dev {
 	struct i2c_client *rtc;
 	struct i2c_client *meter;
 	struct i2c_client *wlwp;
+	struct i2c_client *trim;
 
 	/* mutex for s2mpg10 speedy read/write */
 	struct mutex i2c_lock;
@@ -241,5 +242,7 @@ int s2mpg10_bulk_write(struct i2c_client *i2c, u8 reg, int count, u8 *buf);
 int s2mpg10_write_word(struct i2c_client *i2c, u8 reg, u16 value);
 int s2mpg10_read_word(struct i2c_client *i2c, u8 reg);
 int s2mpg10_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask);
+
+u8 s2mpg10_get_rev_id(void);
 
 #endif /* __S2MPG10_MFD_H__ */

@@ -663,9 +663,9 @@ static void __mfc_dump_info(struct mfc_core *core)
 		return;
 	}
 
-	__mfc_save_logging_sfr(core);
 	__mfc_dump_buffer_info(core);
 	__mfc_dump_regs(core);
+	__mfc_save_logging_sfr(core);
 }
 
 static void __mfc_dump_info_and_stop_hw(struct mfc_core *core)

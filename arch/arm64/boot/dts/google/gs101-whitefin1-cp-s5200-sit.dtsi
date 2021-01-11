@@ -14,6 +14,13 @@
 			#size-cells = <1>;
 			cpif {
 				gpio_cp2ap_phone_active = <&gph1 2 0x1>;
+
+				/*
+				 * The pad assignment of CP2AP_ACTIVE is not in PAD_ALIVE
+				 * to be registered wake-up source. (Bug 152900487)
+				 * CP2AP_ACTIVE is assigned to XEINT_17 for factor designs.
+				 */
+				mif,cp2ap_active_not_alive = <1>;
 			};
 		};
 	};

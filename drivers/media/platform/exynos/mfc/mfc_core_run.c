@@ -46,15 +46,15 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 
 	/* 0. MFC reset */
 	mfc_core_debug(2, "MFC reset...\n");
+	mfc_core_reset_mfc(core);
+	mfc_core_debug(2, "Done MFC reset\n");
+
 	ret = mfc_core_pm_clock_on(core);
 	if (ret) {
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
 		core->curr_core_ctx_is_drm = curr_ctx_is_drm_backup;
 		return ret;
 	}
-
-	mfc_core_reset_mfc(core, buf_type);
-	mfc_core_debug(2, "Done MFC reset\n");
 
 	/* 1. Set DRAM base Addr */
 	mfc_core_set_risc_base_addr(core, buf_type);
@@ -254,15 +254,14 @@ int mfc_core_run_wakeup(struct mfc_core *core)
 
 	/* 0. MFC reset */
 	mfc_core_debug(2, "MFC reset...\n");
+	mfc_core_reset_mfc(core);
+	mfc_core_debug(2, "Done MFC reset...\n");
 
 	ret = mfc_core_pm_clock_on(core);
 	if (ret) {
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
 		return ret;
 	}
-
-	mfc_core_reset_mfc(core, buf_type);
-	mfc_core_debug(2, "Done MFC reset...\n");
 
 	/* 1. Set DRAM base Addr */
 	mfc_core_set_risc_base_addr(core, buf_type);
@@ -598,8 +597,14 @@ int mfc_core_run_enc_last_frames(struct mfc_core *core, struct mfc_ctx *ctx)
 	raw = &ctx->raw_buf;
 
 	dst_mb = mfc_get_buf(ctx, &ctx->dst_buf_queue, MFC_BUF_SET_USED);
-	if (!dst_mb)
+	if (!dst_mb) {
 		mfc_debug(2, "no dst buffers set to zero\n");
+
+		if (mfc_core_get_enc_bframe(ctx)) {
+			mfc_ctx_info("B frame encoding should be dst buffer\n");
+			return -EINVAL;
+		}
+	}
 
 	mfc_debug(2, "Set address zero for all planes\n");
 	mfc_core_set_enc_frame_buffer(core, ctx, 0, raw->num_planes);

@@ -164,6 +164,7 @@
   audit_log_task_context
   audit_log_task_info
   autoremove_wake_function
+  available_idle_cpu
   avenrun
   backlight_device_get_by_name
   backlight_device_get_by_type
@@ -325,7 +326,12 @@
   blk_get_queue
   blk_get_request
   blkg_lookup_slowpath
+  __blkg_prfill_rwstat
+  blkg_prfill_rwstat
   __blkg_prfill_u64
+  blkg_rwstat_exit
+  blkg_rwstat_init
+  blkg_rwstat_recursive_sum
   blk_insert_cloned_request
   blk_io_schedule
   blk_ksm_derive_raw_secret
@@ -1117,6 +1123,7 @@
   cpu_pm_unregister_notifier
   __cpu_possible_mask
   __cpu_present_mask
+  cpupri_find_fitness
   cpu_rmap_add
   cpu_rmap_put
   cpu_rmap_update
@@ -4353,7 +4360,6 @@
   ida_alloc_range
   ida_destroy
   ida_free
-  idle_cpu
   idr_alloc
   idr_alloc_cyclic
   idr_alloc_u32
@@ -10161,6 +10167,7 @@
   tasklet_kill
   __tasklet_schedule
   tasklet_setup
+  task_may_not_preempt
   __task_pid_nr_ns
   task_user_regset_view
   tc_cleanup_flow_action
@@ -10250,6 +10257,7 @@
   tcp_memory_pressure
   tcpm_get_partner_src_caps
   tcpm_is_debouncing
+  tcpm_is_toggling
   tcp_mmap
   tcpm_pd_hard_reset
   tcpm_pd_receive

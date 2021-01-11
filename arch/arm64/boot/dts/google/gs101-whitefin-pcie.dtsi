@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Whitefin PCIe
+ *
+ * Copyright 2020 Google LLC
+ */
+
+&pcie_1 {   /* pcie ch1 used for the connection with WiFi on Whitefin */
+	max-link-speed = <LINK_SPEED_GEN1>;
+};

@@ -51,6 +51,7 @@
 		/* Support SBWC per-frame control for encoder src */
 		sbwc_enc_src_ctrl = <1 0x200110>;
 		average_qp = <1 0x201030>;
+		mv_search_mode = <1 0x201118>;
 
 		/* AV1 Decoder */
 		support_av1_dec = <0>;

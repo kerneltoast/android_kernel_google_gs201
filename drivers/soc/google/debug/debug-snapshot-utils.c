@@ -501,6 +501,8 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	char kernel_panic_msg[DSS_PANIC_LOG_SIZE] = "Kernel Panic";
 	unsigned long cpu;
 
+	dss_desc.in_panic = true;
+
 	if (!dbg_snapshot_get_enable())
 		return 0;
 
@@ -569,6 +571,10 @@ static int dbg_snapshot_reboot_handler(struct notifier_block *nb,
 				    unsigned long mode, void *cmd)
 {
 	dss_desc.in_reboot = true;
+
+	if (mode == SYS_POWER_OFF)
+		dbg_snapshot_report_reason(DSS_SIGN_NORMAL_REBOOT);
+
 	return NOTIFY_DONE;
 }
 

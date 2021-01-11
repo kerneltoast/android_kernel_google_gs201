@@ -47,6 +47,8 @@
 
 #define GBMS_MODE_VOTABLE "CHARGER_MODE"
 
+#define MAX77759_DEVICE_ID_A1				0x2
+
 /* system use cases */
 enum gbms_charger_modes {
 	GBMS_USB_BUCK_ON	= 0x30,
@@ -163,10 +165,29 @@ static ssize_t contaminant_detection_store(struct device *dev, struct device_att
 }
 static DEVICE_ATTR_RW(contaminant_detection);
 
+static ssize_t contaminant_detection_status_show(struct device *dev, struct device_attribute *attr,
+						 char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	struct max77759_contaminant *contaminant;
+
+	if (!chip)
+		return -EAGAIN;
+
+	contaminant = chip->contaminant;
+
+	if (!contaminant)
+		return -EAGAIN;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", is_contaminant_detected(chip));
+}
+static DEVICE_ATTR_RO(contaminant_detection_status);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_auto_discharge,
 	&dev_attr_contaminant_detection,
+	&dev_attr_contaminant_detection_status,
 	NULL
 };
 
@@ -491,17 +512,16 @@ static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool
 static int max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *tdata)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
+	int ret;
 
-	/*
-	 * Alawys re-enable boost here.
-	 * In normal case, when say an headset is attached, TCPM would
-	 * have instructed to TCPC to enable boost, so the call is a
-	 * no-op.
-	 * But for Fast Role Swap case, Boost turns on autonomously without
-	 * AP intervention, but, needs AP to enable source mode explicitly
-	 * for AP to regain control.
-	 */
-	return max77759_set_vbus(tcpci, &chip->data, true, false);
+	ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+				 (void *)GBMS_USB_OTG_FRS_ON, true);
+	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE ret:%d", __func__, ret);
+
+	if (!ret)
+		chip->sourcing_vbus = 1;
+
+	return ret;
 }
 
 static void process_power_status(struct max77759_plat *chip)
@@ -664,15 +684,13 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	}
 
 	if (status & TCPC_ALERT_CC_STATUS) {
-		bool is_debouncing = tcpci_is_debouncing(tcpci);
-
 		/**
 		 * Process generic CC updates if it doesn't belong to
 		 * contaminant detection.
 		 */
 		mutex_lock(&chip->contaminant_detection_lock);
-		if (!chip->contaminant_detection || is_debouncing ||
-		    !process_contaminant_alert(chip->contaminant, false))
+		if (!chip->contaminant_detection || !tcpm_is_toggling(tcpci->port) ||
+		    !process_contaminant_alert(chip->contaminant, false, true))
 			tcpm_cc_change(tcpci->port);
 		else
 			logbuffer_log(log, "CC update: Contaminant algorithm responded");
@@ -900,7 +918,7 @@ static int max77759_check_contaminant(struct tcpci *tcpci, struct tcpci_data *td
 	logbuffer_log(chip->log, "%s: debounce path", __func__);
 	mutex_lock(&chip->contaminant_detection_lock);
 	if (chip->contaminant_detection) {
-		process_contaminant_alert(chip->contaminant, true);
+		process_contaminant_alert(chip->contaminant, true, false);
 		ret = CONTAMINANT_HANDLES_TOGGLING;
 	} else {
 		ret = TCPM_RESTART_TOGGLING;
@@ -1010,20 +1028,12 @@ static int max77759_set_current_limit(struct tcpci *tcpci,
 	union power_supply_propval val = {0};
 	int ret = 0;
 
-	val.intval = mv * 1000;
-
-	/*
-	 ret = power_supply_set_property(chip->usb_psy,
-					POWER_SUPPLY_PROP_VOLTAGE_MAX,
-					&val);
+	chip->vbus_mv = mv;
+	ret = power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &val);
 	if (ret < 0) {
-		logbuffer_log(chip->log,
-			      "unable to set max voltage to %d, ret=%d",
-				mv, ret);
+		logbuffer_log(chip->log, "unable to set max voltage to %d, ret=%d", mv, ret);
 		return ret;
 	}
-	*/
-
 	logbuffer_log(chip->log, "max_ma=%d, mv=%d", max_ma, mv);
 	max77759_vote_icl(tcpci, tdata, max_ma);
 
@@ -1036,7 +1046,7 @@ static int max77759_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
 	int ret;
 
-	if (!chip || !chip->tcpci || !chip->tcpci->regmap )
+	if (!chip || !chip->tcpci || !chip->tcpci->regmap || !chip->set_voltage_alarm)
 		return chip->vbus_mv;
 
 	ret = max77759_read16(chip->tcpci->regmap,
@@ -1143,7 +1153,7 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		max77759_vote_icl(tcpci, data, 0);
 
 	/* Signal usb_psy online */
-	usb_psy_set_sink_state(chip->usb_psy_data, attached);
+	usb_psy_set_sink_state(chip->usb_psy_data, role == TYPEC_SINK && attached);
 
 	return 0;
 }
@@ -1193,6 +1203,7 @@ static int max77759_probe(struct i2c_client *client,
 	char *usb_psy_name;
 	struct device_node *dn;
 	u8 power_status;
+	u16 device_id;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1298,7 +1309,14 @@ static int max77759_probe(struct i2c_client *client,
 		goto teardown_bc12;
 	}
 
-	chip->contaminant = max77759_contaminant_init(chip, false);
+	ret = max77759_read16(chip->data.regmap, TCPC_BCD_DEV, &device_id);
+	if (ret < 0)
+		goto teardown_bc12;
+
+	logbuffer_log(chip->log, "TCPC DEVICE id:%d", device_id);
+	/* Default enable on A1 or higher */
+	chip->contaminant_detection = device_id >= MAX77759_DEVICE_ID_A1;
+	chip->contaminant = max77759_contaminant_init(chip, chip->contaminant_detection);
 
 	chip->extcon = devm_extcon_dev_allocate(&client->dev,
 						usbpd_extcon_cable);
@@ -1328,6 +1346,13 @@ static int max77759_probe(struct i2c_client *client,
 		goto psy_put;
 	}
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
+
+	/* Default enable on A1 or higher */
+	if (device_id >= MAX77759_DEVICE_ID_A1) {
+		chip->data.auto_discharge_disconnect = true;
+		chip->frs = true;
+		tcpci_auto_discharge_update(chip->tcpci);
+	}
 
 	ret = max77759_init_alert(chip, client);
 	if (ret < 0)

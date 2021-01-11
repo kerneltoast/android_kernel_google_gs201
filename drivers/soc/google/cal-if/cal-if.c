@@ -58,12 +58,6 @@ unsigned int cal_dfs_get_lv_num(unsigned int id)
 }
 EXPORT_SYMBOL_GPL(cal_dfs_get_lv_num);
 
-int cal_dfs_get_bigturbo_max_freq(unsigned int *table)
-{
-	return vclk_get_bigturbo_table(table);
-}
-EXPORT_SYMBOL_GPL(cal_dfs_get_bigturbo_max_freq);
-
 int cal_dfs_set_rate(unsigned int id, unsigned long rate)
 {
 	struct vclk *vclk;
@@ -416,12 +410,6 @@ int cal_asv_get_grp(unsigned int id)
 	return asv_get_grp(id);
 }
 EXPORT_SYMBOL_GPL(cal_asv_get_grp);
-
-int cal_asv_get_tablever(void)
-{
-	return asv_get_table_ver();
-}
-EXPORT_SYMBOL_GPL(cal_asv_get_tablever);
 
 #if IS_ENABLED(CONFIG_CP_PMUCAL)
 int cal_cp_init(void)

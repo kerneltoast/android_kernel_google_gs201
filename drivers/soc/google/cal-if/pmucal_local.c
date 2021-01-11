@@ -69,9 +69,8 @@ int pmucal_local_enable(unsigned int pd_id)
 			PMUCAL_PREFIX, __func__, pd_id);
 		goto err_out;
 	}
-#if 0
+
 	dbg_snapshot_pmu(pd_id, __func__, DSS_FLAG_OUT);
-#endif
 
 	pmucal_dbg_do_profile(pmucal_pd_list[pd_id].dbg, true);
 

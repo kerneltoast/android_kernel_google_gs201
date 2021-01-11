@@ -896,6 +896,7 @@ static void exynos_cpupm_enter(int cpu)
 	cal_cpu_disable(cpu);
 
 	/* Set cpu state to IDLE */
+	dbg_snapshot_cpuidle_mod("c2", 0, 0, DSS_FLAG_IN);
 	set_state_idle(pm);
 
 	/* Try to enter power mode */
@@ -933,6 +934,7 @@ static void exynos_cpupm_exit(int cpu, int cancel)
 
 	/* Set cpu state to BUSY */
 	set_state_busy(pm);
+	dbg_snapshot_cpuidle_mod("c2", 0, 0, DSS_FLAG_OUT);
 
 	/* Configure PMUCAL to power up core */
 	cal_cpu_enable(cpu);

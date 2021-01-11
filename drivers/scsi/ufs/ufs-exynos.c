@@ -1064,6 +1064,10 @@ static int exynos_ufs_populate_dt(struct device *dev,
 		goto out;
 	}
 
+	/* Get exynos-evt version for featuring */
+	if (of_property_read_u8(np, "evt-ver", &ufs->cal_param.evt_ver))
+		ufs->cal_param.evt_ver = 0;
+
 	/* PM QoS */
 	child_np = of_get_child_by_name(np, "ufs-pm-qos");
 	ufs->pm_qos_int_value = 0;
@@ -1076,9 +1080,11 @@ static int exynos_ufs_populate_dt(struct device *dev,
 	/* UIC specifics */
 	exynos_ufs_get_pwr_mode(np, ufs);
 
-	ufs->cal_param.board = 0;
+	ufs->cal_param.board = 1;
 	of_property_read_u8(np, "brd-for-cal", &ufs->cal_param.board);
 out:
+	dev_info(dev, "evt version : %d, board: %d\n",
+			ufs->cal_param.evt_ver, ufs->cal_param.board);
 	return ret;
 }
 
@@ -1448,7 +1454,6 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 
 	/* init cal */
 	ufs->cal_param.handle = &ufs->handle;
-	ufs->cal_param.board = 0;	/* ken: need a dt node for board */
 	ret = ufs_call_cal(ufs, 1, ufs_cal_init);
 	if (ret)
 		return ret;

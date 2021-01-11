@@ -11,9 +11,6 @@
 #include "asv.h"
 
 #define ECT_DUMMY_SFR	(0xFFFFFFFF)
-unsigned int asv_table_ver;
-unsigned int main_rev;
-unsigned int sub_rev;
 
 static struct vclk_lut *get_lut(struct vclk *vclk, unsigned int rate)
 {
@@ -354,35 +351,6 @@ int vclk_get_rate_table(unsigned int id, unsigned long *table)
 	return nums;
 }
 
-int vclk_get_bigturbo_table(unsigned int *table)
-{
-	void *gen_block;
-	struct ect_gen_param_table *bigturbo;
-	int idx;
-	int i;
-
-	gen_block = ect_get_block("GEN");
-	if (gen_block == NULL)
-		return -EVCLKINVAL;
-
-	bigturbo = ect_gen_param_get_table(gen_block, "BIGTURBO");
-	if (bigturbo == NULL)
-		return -EVCLKINVAL;
-
-	if (bigturbo->num_of_row == 0)
-		return -EVCLKINVAL;
-
-	if (asv_table_ver >= bigturbo->num_of_row)
-		idx = bigturbo->num_of_row - 1;
-	else
-		idx = asv_table_ver;
-
-	for (i = 0; i < bigturbo->num_of_col; i++)
-		table[i] = bigturbo->parameter[idx * bigturbo->num_of_col + i];
-
-	return 0;
-}
-
 unsigned int vclk_get_boot_freq(unsigned int id)
 {
 	struct vclk *vclk;
@@ -441,13 +409,9 @@ static int vclk_get_dfs_info(struct vclk *vclk)
 	if (gen_block) {
 		sprintf(buf, "MINMAX_%s", vclk->name);
 		minmax = ect_gen_param_get_table(gen_block, buf);
-		if (minmax != NULL) {
-			for (i = 0; i < minmax->num_of_row; i++) {
-				minmax_table = &minmax->parameter[minmax->num_of_col * i];
-				if (minmax_table[0] == asv_table_ver)
-					break;
-			}
-		}
+		if (minmax != NULL)
+			/* min/max freq are the same for all versions */
+			minmax_table = &minmax->parameter[0];
 	}
 
 	vclk->num_rates = dvfs_domain->num_of_level;
@@ -520,109 +484,6 @@ err_nomem1:
 	return ret;
 }
 
-static struct ect_voltage_table *get_max_min_freq_lv(struct ect_voltage_domain *domain, unsigned int version, int *max_lv, int *min_lv)
-{
-	int i;
-	unsigned int max_asv_version = 0;
-	struct ect_voltage_table *table = NULL;
-
-	for (i = 0; i < domain->num_of_table; i++) {
-		table = &domain->table_list[i];
-		if (version == table->table_version)
-			break;
-
-		if (table->table_version > max_asv_version)
-			max_asv_version = table->table_version;
-	}
-
-	if (i == domain->num_of_table) {
-		pr_err("There is no voltage table, force change %d to %d\n",
-			asv_table_ver, max_asv_version);
-		asv_table_ver = max_asv_version;
-	}
-
-	if (!table) {
-		*max_lv = -1;
-		*min_lv = -1;
-		return NULL;
-	}
-
-	*max_lv = -1;
-	*min_lv = domain->num_of_level - 1;
-	for (i = 0; i < domain->num_of_level; i++) {
-		if (*max_lv == -1 && table->level_en[i])
-			*max_lv = i;
-		if (*max_lv != -1 && !table->level_en[i]) {
-			*min_lv = i - 1;
-			break;
-		}
-	}
-
-	return table;
-}
-
-static int vclk_get_asv_info(struct vclk *vclk)
-{
-	void *asv_block;
-	struct ect_voltage_domain *domain;
-	struct ect_voltage_table *table = NULL;
-	int max_lv, min_lv;
-	int ret = 0;
-	char buf[32];
-	void *gen_block;
-	struct ect_gen_param_table *minmax = NULL;
-
-	asv_block = ect_get_block("ASV");
-	if (asv_block == NULL)
-		return -EVCLKNOENT;
-
-	domain = ect_asv_get_domain(asv_block, vclk->name);
-	if (domain == NULL)
-		return -EVCLKINVAL;
-
-	gen_block = ect_get_block("GEN");
-	if (gen_block) {
-		sprintf(buf, "MINMAX_%s", vclk->name);
-		minmax = ect_gen_param_get_table(gen_block, buf);
-		if (minmax != NULL)
-			goto minmax_skip;
-	}
-
-	table = get_max_min_freq_lv(domain, asv_table_ver, &max_lv, &min_lv);
-	if (table == NULL)
-		return -EVCLKFAULT;
-
-	if (max_lv >= 0)
-		vclk->max_freq = domain->level_list[max_lv] * 1000;
-	else
-		vclk->max_freq = -1;
-
-	if (min_lv >= 0)
-		vclk->min_freq = domain->level_list[min_lv] * 1000;
-	else
-		vclk->min_freq = -1;
-
-	if (table->boot_level_idx >= 0)
-		vclk->boot_freq = domain->level_list[table->boot_level_idx] * 1000;
-	else
-		vclk->boot_freq = -1;
-
-	if (table->resume_level_idx >= 0)
-		vclk->resume_freq = domain->level_list[table->resume_level_idx] * 1000;
-	else
-		vclk->resume_freq = -1;
-
-minmax_skip:
-	pr_debug("   num_rates    : %7d\n", vclk->num_rates);
-	pr_debug("   num_clk_list : %7d\n", vclk->num_list);
-	pr_debug("   max_freq     : %7d\n", vclk->max_freq);
-	pr_debug("   min_freq     : %7d\n", vclk->min_freq);
-	pr_debug("   boot_freq    : %7d\n", vclk->boot_freq);
-	pr_debug("   resume_freq  : %7d\n", vclk->resume_freq);
-
-	return ret;
-}
-
 static void vclk_bind(void)
 {
 	struct vclk *vclk;
@@ -645,11 +506,6 @@ static void vclk_bind(void)
 		} else if (ret) {
 			pr_err("ECT DVFS [%s] not found %d\n",
 				   vclk->name, ret);
-		} else {
-			ret = vclk_get_asv_info(vclk);
-			if (ret)
-				pr_err("ECT ASV [%s] not found %d\n",
-					vclk->name, ret);
 		}
 	}
 }
@@ -675,9 +531,6 @@ int vclk_initialize(void)
 	pr_info("vclk initialize for cmucal\n");
 
 	ra_init();
-
-	asv_table_ver = asv_table_init();
-	id_get_rev(&main_rev, &sub_rev);
 
 	vclk_bind();
 

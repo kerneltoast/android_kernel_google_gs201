@@ -64,7 +64,7 @@
 	#size-cells = <0>;
 	gpios = <&gpp4 0 0 &gpp4 1 0>;
 	status = "okay";
-	clock-frequency = <1000000>;
+	clock-frequency = <400000>;
 	samsung,reset-before-trans;
 
 	pinctrl-names = "default","on_i2c","off_i2c";
@@ -98,6 +98,14 @@
 	pinctrl-0 = <&hsi2c7_bus>;
 	pinctrl-1 = <&hsi2c7_bus>;
 	pinctrl-2 = <&hsi2c7_bus>;
+};
+
+&sensor_mclk2_fn {
+	samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+};
+
+&sensor_mclk2_out {
+	samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 };
 
 / {

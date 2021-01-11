@@ -552,7 +552,7 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		fusb307b_vote_icl(tcpci, data, 0);
 
 	/* Signal usb_psy online */
-	usb_psy_set_sink_state(chip->usb_psy_data, attached);
+	usb_psy_set_sink_state(chip->usb_psy_data, role == TYPEC_SINK && attached);
 	return 0;
 }
 
