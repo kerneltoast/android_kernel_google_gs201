@@ -216,12 +216,6 @@ config USB_F_PRINTER
 config USB_F_TCM
 	tristate
 
-config USB_F_MTP
-	tristate
-
-config USB_F_PTP
-	tristate
-
 config USB_F_ACC
 	tristate
 
@@ -399,20 +393,6 @@ config USB_CONFIGFS_F_DM
 	select USB_U_SERIAL
 	help
 	  USB gadget DM(Diagnosis Monitor) support
-
-config USB_CONFIGFS_F_MTP
-	tristate "MTP gadget"
-	depends on USB_CONFIGFS
-	select USB_F_MTP
-	help
-	  USB gadget MTP support
-
-config USB_CONFIGFS_F_PTP
-	tristate "PTP gadget"
-	depends on USB_CONFIGFS && USB_CONFIGFS_F_MTP
-	select USB_F_PTP
-	help
-	  USB gadget PTP support
 
 config USB_CONFIGFS_F_ACC
 	bool "Accessory gadget"
