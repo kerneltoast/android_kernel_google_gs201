@@ -1,12 +1,7 @@
 per-file base/**=set noparent
 per-file base/**=gregkh@google.com,saravanak@google.com
 
-per-file block/zram/zcomp.c=*
-per-file block/zram/zcomp.h=*
-per-file block/zram/zram_cpu.c=*
-per-file block/zram/zram_drv.c=*
-per-file block/zram/zram_drv.h=*
-per-file block/zram/zram_eh.c=*
+per-file block/zram/**=minchan@google.com
 
 per-file bts/**=*
 
