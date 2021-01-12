@@ -13,7 +13,7 @@
 		gs101_tm1: gs101_spmic_tm1 {
 			compatible = "google,gs101-spmic-thermal";
 			#thermal-sensor-cells = <1>;
-			adc_chan_en = /bits/ 8 <0x97>;
+			adc_chan_en = /bits/ 8 <0xb7>;
 		};
 	};
 };
