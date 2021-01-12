@@ -810,10 +810,9 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	tcpci->tcpc.set_bist_data = tcpci_set_bist_data;
 	tcpci->tcpc.set_current_limit =  tcpci_set_current_limit;
 	tcpci->tcpc.set_pd_capable = tcpci_set_pd_capable;
-	tcpci->tcpc.frs_sourcing_vbus = tcpci_frs_sourcing_vbus;
-	tcpci->tcpc.check_contaminant = tcpci_check_contaminant;
 	tcpci->tcpc.enable_frs = tcpci_enable_frs;
 	tcpci->tcpc.frs_sourcing_vbus = tcpci_frs_sourcing_vbus;
+	tcpci->tcpc.check_contaminant = tcpci_check_contaminant;
 
 	if (tcpci->data->auto_discharge_disconnect) {
 		tcpci->tcpc.enable_auto_vbus_discharge = tcpci_enable_auto_vbus_discharge;
@@ -822,9 +821,6 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 		regmap_update_bits(tcpci->regmap, TCPC_POWER_CTRL, TCPC_POWER_CTRL_BLEED_DISCHARGE,
 				   TCPC_POWER_CTRL_BLEED_DISCHARGE);
 	}
-
-	if (tcpci->data->vbus_vsafe0v)
-		tcpci->tcpc.is_vbus_vsafe0v = tcpci_is_vbus_vsafe0v;
 
 	if (tcpci->data->vbus_vsafe0v)
 		tcpci->tcpc.is_vbus_vsafe0v = tcpci_is_vbus_vsafe0v;

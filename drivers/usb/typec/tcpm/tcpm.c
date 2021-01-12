@@ -3551,6 +3551,9 @@ static void tcpm_reset_port(struct tcpm_port *port)
 
 static void tcpm_detach(struct tcpm_port *port)
 {
+	if (tcpm_port_is_disconnected(port))
+		port->hard_reset_count = 0;
+
 	if (!port->attached)
 		return;
 
@@ -3558,9 +3561,6 @@ static void tcpm_detach(struct tcpm_port *port)
 		tcpm_log(port, "disable BIST MODE TESTDATA");
 		port->tcpc->set_bist_data(port->tcpc, false);
 	}
-
-	if (tcpm_port_is_disconnected(port))
-		port->hard_reset_count = 0;
 
 	tcpm_reset_port(port);
 }
@@ -4182,10 +4182,7 @@ static void run_state_machine(struct tcpm_port *port)
 
 		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
-		tcpm_check_send_discover(port);
-		mod_enable_frs_delayed_work(port, 0);
 		tcpm_pps_complete(port, port->pps_status);
-		power_supply_changed(port->psy);
 
 		if (port->ams != NONE_AMS)
 			tcpm_ams_finish(port);
@@ -4204,6 +4201,9 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_set_state(port, upcoming_state, 0);
 			break;
 		}
+		tcpm_check_send_discover(port);
+		mod_enable_frs_delayed_work(port, 0);
+		power_supply_changed(port->psy);
 		break;
 
 	/* Accessory states */
