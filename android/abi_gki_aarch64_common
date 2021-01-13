@@ -10536,6 +10536,7 @@
   __tracepoint_sched_cpu_capacity_tp
   __tracepoint_sched_overutilized_tp
   __tracepoint_sched_update_nr_running_tp
+  __tracepoint_schedutil_cpu_util_clamp_tp
   __tracepoint_sched_util_est_cfs_tp
   __tracepoint_sched_util_est_se_tp
   __tracepoint_spi_transfer_start
