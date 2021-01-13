@@ -1193,6 +1193,12 @@ struct mfc_core_ops {
 			struct mfc_ctx *ctx);
 };
 
+struct dump_info {
+	char		*name;
+	void            *addr;
+	u64             size;
+};
+
 struct mfc_core {
 	struct device		*device;
 	struct iommu_domain	*domain;
@@ -1333,6 +1339,8 @@ struct mfc_core {
 	int last_int;
 	struct timespec64 last_cmd_time;
 	struct timespec64 last_int_time;
+	/* debug info dump */
+	struct dump_info dbg_info;
 
 	/* ITMON */
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)

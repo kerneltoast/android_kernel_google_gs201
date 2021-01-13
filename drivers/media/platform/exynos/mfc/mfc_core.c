@@ -697,6 +697,11 @@ static int mfc_core_probe(struct platform_device *pdev)
 	sysevent_notif_register_notifier(core->sysevent_desc.name, &mfc_core_nb);
 #endif
 
+	core->dbg_info.size = MFC_DUMP_BUF_SIZE;
+	core->dbg_info.addr = vmalloc(core->dbg_info.size);
+	if (!core->dbg_info.addr)
+		dev_err(&pdev->dev, "failed to alloc for debug buffer\n");
+
 	dev_info(&pdev->dev, "%s is completed\n", __func__);
 
 	return 0;
@@ -753,6 +758,8 @@ static int mfc_core_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s++\n", __func__);
 
+	if (core->dbg_info.addr)
+		vfree(core->dbg_info.addr);
 	iommu_unregister_device_fault_handler(&pdev->dev);
 	if (timer_pending(&core->meerkat_timer))
 		del_timer(&core->meerkat_timer);
