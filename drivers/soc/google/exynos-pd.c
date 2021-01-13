@@ -109,7 +109,7 @@ static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 }
 
 /**
- * returns 0 if the domain was already ON or waiting for sync, 1 if was successfully turned ON
+ * returns 0 if the domain was already ON, 1 if was successfully turned ON or waiting for sync
  * and negative in case of error
  */
 static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
@@ -120,6 +120,7 @@ static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
 
 	if (pd->need_sync) {
 		pd->turn_off_on_sync = false;
+		ret = 1;
 		goto acc_unlock;
 	}
 
@@ -182,7 +183,7 @@ static int genpd_power_on(struct generic_pm_domain *genpd)
 }
 
 /**
- * returns 0 if the domain was already OFF or waiting for sync, 1 if was successfully turned OFF
+ * returns 0 if the domain was already OFF, 1 if was successfully turned OFF or waiting for sync
  * and negative in case of error
  */
 static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
@@ -198,6 +199,7 @@ static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 	 */
 	if (pd->need_sync) {
 		pd->turn_off_on_sync = true;
+		ret = 1;
 		goto acc_unlock;
 	}
 
