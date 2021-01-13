@@ -39,10 +39,10 @@ BUILD_CONFIG=private/gs-google/build.config.gs201_hybrid \
 mkdir -p "${DIST_DIR}/zebu/"
 python "$UNPACK_BOOTIMG_PATH" --boot_img "${DIST_DIR}/boot.img" --out "${DIST_DIR}/ext_bootimg"
 python "$UNPACK_BOOTIMG_PATH" --boot_img "${DIST_DIR}/vendor_boot.img" --out "${DIST_DIR}/ext_vendor_bootimg"
-cat "${DIST_DIR}/ext_vendor_bootimg/vendor_ramdisk" "${DIST_DIR}/ext_bootimg/ramdisk" > "${DIST_DIR}/zebu/zebu_ramdisk"
-cp -v "${DIST_DIR}/zebu/zebu_ramdisk" "${DIST_DIR}/zebu/rootfs.cramfs"
+cat "${DIST_DIR}/ext_vendor_bootimg/vendor_ramdisk" "${DIST_DIR}/ext_bootimg/ramdisk" > \
+  "${DIST_DIR}/zebu/buildroot_v201105_r03_ttySAC0_debug.cramfs"
 #cp -v "${DIST_DIR}/ext_bootimg/kernel" "${DIST_DIR}/zebu/Image"
 cp -v "${OUT_DIR}/private/gs-google/arch/arm64/boot/Image" "${DIST_DIR}/zebu/Image"
 #cp -v "${DIST_DIR}/ext_vendor_bootimg/dtb" "${DIST_DIR}/zebu/devicetree.dtb"
-cp -v "${DIST_DIR}/gs201-out.dtb" "${DIST_DIR}/zebu/devicetree.dtb"
+cp -v "${DIST_DIR}/gs201-out.dtb" "${DIST_DIR}/zebu/exynos9855-emulator9855.dtb"
 
