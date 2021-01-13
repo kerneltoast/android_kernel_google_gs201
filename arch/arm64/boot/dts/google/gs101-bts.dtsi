@@ -19,6 +19,22 @@
 		#size-cells = <1>;
 		ranges;
 
+		/* BUS1 to INT mapping table */
+		bus1_int_map = <
+			/*
+			 * bus1     int
+			 *  clk     clk
+			 *-------------
+			 */
+			 620000  533000
+			 533000  465000
+			 400000  332000
+			 310000  267000
+			 267000  200000
+			 200000  155000
+			 134000  100000
+		>;
+
 		list-scen = "default",
 			    "mfc_uhd",
 			    "mfc_uhd_10bit",
