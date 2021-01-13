@@ -283,6 +283,15 @@ static void samsung_heap_dma_buf_release(struct dma_buf *dmabuf)
 	buffer->heap->release(buffer);
 }
 
+static int samsung_heap_dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long *flags)
+{
+	struct samsung_dma_buffer *buffer = dmabuf->priv;
+
+	*flags = buffer->flags;
+
+	return 0;
+}
+
 const struct dma_buf_ops samsung_dma_buf_ops = {
 	.attach = samsung_heap_attach,
 	.detach = samsung_heap_detach,
@@ -294,4 +303,5 @@ const struct dma_buf_ops samsung_dma_buf_ops = {
 	.vmap = samsung_heap_vmap,
 	.vunmap = samsung_heap_vunmap,
 	.release = samsung_heap_dma_buf_release,
+	.get_flags = samsung_heap_dma_buf_get_flags,
 };
