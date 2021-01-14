@@ -27,9 +27,6 @@
 #include <soc/google/exynos-cpupm.h>
 #include <dt-bindings/power/exynos-power.h>
 
-/* In Exynos, the number of MAX_POWER_DOMAIN is less than 15 */
-#define MAX_PARENT_POWER_DOMAIN	15
-
 struct exynos_pm_domain;
 
 struct exynos_pd_stat {
@@ -108,12 +105,6 @@ static inline int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd,
 }
 #endif
 
-#if IS_ENABLED(CONFIG_SND_SOC_SAMSUNG_VTS)
-extern bool vts_is_on(void);
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SAMSUNG_ABOX)
-extern bool abox_is_on(void);
-#endif
 #ifdef CONFIG_USB_DWC3_EXYNOS
 extern u32 otg_is_connect(void);
 #else

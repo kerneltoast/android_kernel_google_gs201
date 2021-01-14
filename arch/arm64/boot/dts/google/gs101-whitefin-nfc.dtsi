@@ -20,6 +20,7 @@
 	/* XAPC_USI7 */
 	#address-cells = <1>;
 	#size-cells = <0>;
+	clock-frequency = <400000>;
 	status = "okay";
 	st21nfc@08 {
 		compatible = "st,st21nfc";

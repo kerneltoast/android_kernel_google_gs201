@@ -13,7 +13,10 @@
 		gs101_tm1: gs101_spmic_tm1 {
 			compatible = "google,gs101-spmic-thermal";
 			#thermal-sensor-cells = <1>;
-			adc_chan_en = /bits/ 8 <0x37>;
+			/* TODO: need to enable adc channels back after
+			 * solving PMIC_THERM_IRQ issue - b/175068512
+			 */
+			adc_chan_en = /bits/ 8 <0x00>;
 		};
 	};
 };

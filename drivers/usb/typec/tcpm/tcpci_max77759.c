@@ -47,6 +47,8 @@
 
 #define GBMS_MODE_VOTABLE "CHARGER_MODE"
 
+#define MAX77759_DEVICE_ID_A1				0x2
+
 /* system use cases */
 enum gbms_charger_modes {
 	GBMS_USB_BUCK_ON	= 0x30,
@@ -163,10 +165,29 @@ static ssize_t contaminant_detection_store(struct device *dev, struct device_att
 }
 static DEVICE_ATTR_RW(contaminant_detection);
 
+static ssize_t contaminant_detection_status_show(struct device *dev, struct device_attribute *attr,
+						 char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	struct max77759_contaminant *contaminant;
+
+	if (!chip)
+		return -EAGAIN;
+
+	contaminant = chip->contaminant;
+
+	if (!contaminant)
+		return -EAGAIN;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", is_contaminant_detected(chip));
+}
+static DEVICE_ATTR_RO(contaminant_detection_status);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_auto_discharge,
 	&dev_attr_contaminant_detection,
+	&dev_attr_contaminant_detection_status,
 	NULL
 };
 
@@ -491,17 +512,14 @@ static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool
 static void max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *tdata)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
+	int ret;
 
-	/*
-	 * Alawys re-enable boost here.
-	 * In normal case, when say an headset is attached, TCPM would
-	 * have instructed to TCPC to enable boost, so the call is a
-	 * no-op.
-	 * But for Fast Role Swap case, Boost turns on autonomously without
-	 * AP intervention, but, needs AP to enable source mode explicitly
-	 * for AP to regain control.
-	 */
-	max77759_set_vbus(tcpci, &chip->data, true, false);
+	ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+				 (void *)GBMS_USB_OTG_FRS_ON, true);
+	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE ret:%d", __func__, ret);
+
+	if (!ret)
+		chip->sourcing_vbus = 1;
 }
 
 static void process_power_status(struct max77759_plat *chip)
@@ -1183,6 +1201,7 @@ static int max77759_probe(struct i2c_client *client,
 	char *usb_psy_name;
 	struct device_node *dn;
 	u8 power_status;
+	u16 device_id;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1288,7 +1307,14 @@ static int max77759_probe(struct i2c_client *client,
 		goto teardown_bc12;
 	}
 
-	chip->contaminant = max77759_contaminant_init(chip, false);
+	ret = max77759_read16(chip->data.regmap, TCPC_BCD_DEV, &device_id);
+	if (ret < 0)
+		goto teardown_bc12;
+
+	logbuffer_log(chip->log, "TCPC DEVICE id:%d", device_id);
+	/* Default enable on A1 or higher */
+	chip->contaminant_detection = device_id >= MAX77759_DEVICE_ID_A1;
+	chip->contaminant = max77759_contaminant_init(chip, chip->contaminant_detection);
 
 	chip->extcon = devm_extcon_dev_allocate(&client->dev,
 						usbpd_extcon_cable);
@@ -1318,6 +1344,13 @@ static int max77759_probe(struct i2c_client *client,
 		goto psy_put;
 	}
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
+
+	/* Default enable on A1 or higher */
+	if (device_id >= MAX77759_DEVICE_ID_A1) {
+		chip->data.auto_discharge_disconnect = true;
+		chip->frs = true;
+		tcpci_auto_discharge_update(chip->tcpci);
+	}
 
 	ret = max77759_init_alert(chip, client);
 	if (ret < 0)

@@ -570,6 +570,7 @@
 #define GPIO3_CTRL				SLG51000_MUXARRAY_INPUT_SEL_18
 #define GPIO4_CTRL				SLG51000_MUXARRAY_INPUT_SEL_19
 
+#define SLG51000_PHYSICAL_GPIO_NR		4
 #define SLEEP_10000_USEC			10000
 #define SLEEP_RANGE_USEC			1000
 
@@ -584,9 +585,46 @@ enum slg51000_regulators {
 	SLG51000_MAX_REGULATORS,
 };
 
+/*
+ * GPIOs and sequences for mode SLG51000_OP_MODE_DEFAULT and
+ * SLG51000_OP_MODE_SEQ_GPIO
+ */
+enum {
+	SLG51000_GPIO1,
+	SLG51000_GPIO2,
+	SLG51000_GPIO3,
+	SLG51000_GPIO4,
+	SLG51000_SEQ1,
+	SLG51000_SEQ2,
+	SLG51000_SEQ3,
+	SLG51000_SEQ4,
+	SLG51000_GPIO_NR,
+};
+
+/* Sequences for mode SLG51000_OP_MODE_SEQ_GENERIC */
+enum {
+	SLG51000_GENERIC_SEQ0,
+	SLG51000_GENERIC_SEQ1,
+	SLG51000_GENERIC_SEQ2,
+	SLG51000_GENERIC_SEQ3,
+	SLG51000_GENERIC_SEQ4,
+	SLG51000_GENERIC_SEQ5,
+	SLG51000_GENERIC_SEQ6,
+	SLG51000_GENERIC_SEQ7,
+	SLG51000_GENERIC_SEQ_NR,
+};
+
+/* Operation mode */
+enum {
+	SLG51000_OP_MODE_LDO_ONLY,
+	SLG51000_OP_MODE_LDO_GPIO,
+	SLG51000_OP_MODE_SEQ_GPIO,
+	SLG51000_OP_MODE_SEQ_GENERIC,
+};
+
 struct slg51000_dev {
 	struct device *dev;
-	struct regmap *regmap;
+	struct regmap *regmap, *i2c_regmap;
 	struct regulator_desc *rdesc[SLG51000_MAX_REGULATORS];
 	struct regulator_dev *rdev[SLG51000_MAX_REGULATORS];
 	struct gpio_desc *cs_gpiod;
@@ -598,22 +636,15 @@ struct slg51000_dev {
 	int chip_bb_pin;
 	int chip_pu_pin;
 	int chip_id;
-	bool support_power_seq;
+	u32 op_mode;
+
+	bool is_power_on;
+	struct timer_list timer;
+	struct work_struct timeout_work;
+	struct mutex pwr_lock;
 
 	int (*enter_sw_test_mode)(struct regmap *map);
 	int (*exit_sw_test_mode)(struct regmap *map);
-};
-
-/* GPIOs */
-enum {
-	SLG51000_GPIO1,
-	SLG51000_GPIO2,
-	SLG51000_GPIO3,
-	SLG51000_GPIO4,
-	SLG51000_SEQ1,
-	SLG51000_SEQ2,
-	SLG51000_SEQ3,
-	SLG51000_GPIO_NR,
 };
 
 struct slg51000_register_setting {

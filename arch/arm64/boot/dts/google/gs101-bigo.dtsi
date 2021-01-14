@@ -24,8 +24,8 @@
 	};
 
 	bigo_opp_table: bigo_opp_table {
-		opp-100000000 {
-			freq-khz = <100000>;
+		opp-95000000 {
+			freq-khz = <95000>;
 			/* 1080p@30fps */
 			load-pps = <61200>;
 		};

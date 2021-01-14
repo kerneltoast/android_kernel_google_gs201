@@ -17,19 +17,6 @@
 				#cooling-cells = <2>;
 				google,fg-psy-name = "maxfg";
 
-				google,chg-battery-capacity = <4000>;
-
-				/* charge table */
-				google,chg-temp-limits = <0 100 200 420 460 480 550>;
-				google,chg-cv-limits = <4200000 4300000 4400000>;
-				google,chg-cc-limits = <
-					 30  10   0
-					 50  30  30
-					100  70  50
-					 80  50  50
-					 50  50   0
-					 30   0   0
-				>;
 				#thermal-sensor-cells = <0>;
 			};
 
@@ -148,6 +135,7 @@
 		pinctrl-0 = <&if_pmic_fg_irq>;
 		maxim,irq-gpio = <&gpa9 3 GPIO_ACTIVE_LOW>;
 
+		maxim,gauge-type = <2>;
 		maxim,rsense-default = <500>;
 
 		/* no needed for EEPROM */
@@ -156,7 +144,7 @@
 		maxim,psy-type-unknown;
 
 		maxim,fg-data {
-			#include "gs101-slider-battery-data.dtsi"
+			#include "gs101-raviole-battery-data.dtsi"
 		};
 	};
 

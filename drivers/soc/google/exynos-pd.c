@@ -99,30 +99,6 @@ static void exynos_pd_power_on_pre(struct exynos_pm_domain *pd)
 		exynos_bts_scitoken_setting(true);
 }
 
-static void exynos_pd_power_on_post(struct exynos_pm_domain *pd)
-{
-#if defined(CONFIG_EXYNOS_BCM)
-	if (cal_pd_status(pd->cal_pdid)) {
-		if (pd->bcm)
-			bcm_pd_sync(pd->bcm, true);
-	}
-#endif
-}
-
-static void exynos_pd_power_off_pre(struct exynos_pm_domain *pd)
-{
-#ifdef CONFIG_EXYNOS_CL_DVFS_G3D
-	if (!strcmp(pd->name, "pd-g3d"))
-		exynos_g3d_power_down_noti_apm();
-#endif /* CONFIG_EXYNOS_CL_DVFS_G3D */
-#if defined(CONFIG_EXYNOS_BCM)
-	if (cal_pd_status(pd->cal_pdid)) {
-		if (pd->bcm)
-			bcm_pd_sync(pd->bcm, false);
-	}
-#endif
-}
-
 static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 {
 	if (!pd->skip_idle_ip)
@@ -133,7 +109,7 @@ static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 }
 
 /**
- * returns 0 if the domain was already ON or waiting for sync, 1 if was successfully turned ON
+ * returns 0 if the domain was already ON, 1 if was successfully turned ON or waiting for sync
  * and negative in case of error
  */
 static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
@@ -144,6 +120,7 @@ static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
 
 	if (pd->need_sync) {
 		pd->turn_off_on_sync = false;
+		ret = 1;
 		goto acc_unlock;
 	}
 
@@ -172,8 +149,6 @@ static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
 		ret = -EAGAIN;
 		goto acc_unlock;
 	}
-
-	exynos_pd_power_on_post(pd);
 
 	pd->pd_stat.on_count++;
 	pd->pd_stat.last_on_time = ktime_get_boottime();
@@ -208,7 +183,7 @@ static int genpd_power_on(struct generic_pm_domain *genpd)
 }
 
 /**
- * returns 0 if the domain was already OFF or waiting for sync, 1 if was successfully turned OFF
+ * returns 0 if the domain was already OFF, 1 if was successfully turned OFF or waiting for sync
  * and negative in case of error
  */
 static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
@@ -224,6 +199,7 @@ static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 	 */
 	if (pd->need_sync) {
 		pd->turn_off_on_sync = true;
+		ret = 1;
 		goto acc_unlock;
 	}
 
@@ -243,8 +219,6 @@ static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 		pr_warn("pd_power_off:(%s) is already OFF\n", pd->name);
 		goto acc_unlock;
 	}
-
-	exynos_pd_power_off_pre(pd);
 
 	ret = pd->pd_control(pd->cal_pdid, 0);
 
@@ -304,24 +278,6 @@ static int of_get_devfreq_sync_volt_idx(const struct device_node *device)
 	return val;
 }
 
-static bool exynos_pd_power_down_ok_aud(void)
-{
-#if IS_ENABLED(CONFIG_SND_SOC_SAMSUNG_ABOX)
-	return !abox_is_on();
-#else
-	return true;
-#endif
-}
-
-static bool exynos_pd_power_down_ok_vts(void)
-{
-#if IS_ENABLED(CONFIG_SND_SOC_SAMSUNG_VTS)
-	return !vts_is_on();
-#else
-	return true;
-#endif
-}
-
 static bool exynos_pd_power_down_ok_usb(void)
 {
 #if IS_ENABLED(CONFIG_USB_DWC3_EXYNOS)
@@ -342,12 +298,6 @@ static void of_get_power_down_ok(struct exynos_pm_domain *pd)
 		return;
 
 	switch (val) {
-	case PD_OK_AUD:
-		pd->power_down_ok = exynos_pd_power_down_ok_aud;
-		break;
-	case PD_OK_VTS:
-		pd->power_down_ok = exynos_pd_power_down_ok_vts;
-		break;
 	case PD_OK_USB:
 		pd->power_down_ok = exynos_pd_power_down_ok_usb;
 		break;

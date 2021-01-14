@@ -812,6 +812,9 @@ static int dwc3_exynos_vbus_notifier(struct notifier_block *nb,
 {
 	struct dwc3_exynos *exynos = container_of(nb, struct dwc3_exynos, vbus_nb);
 
+	if (!exynos->usb_data_enabled)
+		return NOTIFY_OK;
+
 	dev_info(exynos->dev, "%s: vbus:%d\n", __func__, action);
 
 	dwc3_exynos_vbus_event(exynos->dev, action);
@@ -823,6 +826,9 @@ static int dwc3_exynos_id_notifier(struct notifier_block *nb,
 				   unsigned long action, void *dev)
 {
 	struct dwc3_exynos *exynos = container_of(nb, struct dwc3_exynos, id_nb);
+
+	if (!exynos->usb_data_enabled)
+		return NOTIFY_OK;
 
 	dev_info(exynos->dev, "%s: host enabled:%d\n", __func__, action);
 
@@ -961,6 +967,9 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to lookup Sysreg regmap\n");
 	regmap_update_bits(reg_sysreg, 0x704, 0x6, 0x6);
 #endif
+
+	/* set the initial value */
+	exynos->usb_data_enabled = true;
 
 	/*
 	 * To avoid missing notification in kernel booting check extcon

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs101 pmic device tree source for oriole
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+
+&slg51000 {
+	dlg,op-mode = <3>;
+	dlg,reg-init =
+	<0x2300 0xA0>, <0x2900 0xA0>;
+};

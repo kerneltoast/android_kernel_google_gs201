@@ -250,7 +250,7 @@ static int exynos_etm_enable(unsigned int cpu)
 {
 	struct etm_info *info = &ee_info->cpu[cpu];
 	struct funnel_info *funnel;
-	unsigned int channel, port, val;
+	unsigned int channel, port;
 
 	if (!info->enabled || info->status)
 		return 0;
@@ -260,16 +260,24 @@ static int exynos_etm_enable(unsigned int cpu)
 	etm_writel(info->base, !ETM_EN, ETMCTLR);
 
 	/* Main control and Configuration */
+	etm_writel(info->base, 0, ETMPROCSELR);
 	etm_writel(info->base, TIMESTAMP, ETMCONFIG);
 	etm_writel(info->base, PERIOD(8), ETMSYNCPR);
 
-	val = etm_readl(info->base, ETMID3);
-	val &= 0xfff;
-	etm_writel(info->base, val, ETMCCCCTLR);
 	etm_writel(info->base, cpu + 1, ETMTRACEIDR);
 
-	etm_writel(info->base, 0x0, ETMEVENTCTL0R);
+	etm_writel(info->base, 0x1000, ETMEVENTCTL0R);
 	etm_writel(info->base, 0x0, ETMEVENTCTL1R);
+	etm_writel(info->base, 0xc, ETMSTALLCTLR);
+	etm_writel(info->base, 0x801, ETMCONFIG);
+	etm_writel(info->base, 0x0, ETMTSCTLR);
+	etm_writel(info->base, 0x4, ETMCCCCTLR);
+
+
+	etm_writel(info->base, 0x201, ETMVICTLR);
+	etm_writel(info->base, 0x0, ETMVIIECTLR);
+	etm_writel(info->base, 0x0, ETMVISSCTLR);
+	etm_writel(info->base, 0x2, ETMAUXCTLR);
 
 	etm_writel(info->base, ETM_EN, ETMCTLR);
 	etm_writel(info->base, !OSLOCK, ETMOSLAR);
