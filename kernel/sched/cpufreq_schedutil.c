@@ -140,6 +140,19 @@ static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
 	}
 }
 
+unsigned long map_util_freq(unsigned long util,
+					unsigned long freq, unsigned long cap)
+{
+	unsigned long mapped_freq = 0;
+
+	trace_android_rvh_map_util_freq(util, freq, cap, &mapped_freq);
+	if (mapped_freq)
+		return mapped_freq;
+
+	return (freq + (freq >> 2)) * util / cap;
+}
+EXPORT_SYMBOL_GPL(map_util_freq);
+
 /**
  * get_next_freq - Compute a new frequency for a given cpufreq policy.
  * @sg_policy: schedutil policy object to compute the new frequency for.
@@ -233,8 +246,10 @@ unsigned long schedutil_cpu_util(int cpu, unsigned long util_cfs,
 	 * frequency will be gracefully reduced with the utilization decay.
 	 */
 	util = util_cfs + cpu_util_rt(rq);
-	if (type == FREQUENCY_UTIL)
+	if (type == FREQUENCY_UTIL) {
 		util = uclamp_rq_util_with(rq, util, p);
+		trace_schedutil_cpu_util_clamp_tp(cpu, util_cfs, cpu_util_rt(rq), util, max);
+	}
 
 	dl_util = cpu_util_dl(rq);
 
