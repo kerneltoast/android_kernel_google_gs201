@@ -345,7 +345,6 @@ EXPORT_SYMBOL_GPL(exynos_get_idle_ip_index);
 /******************************************************************************
  *                               CPUPM profiler                               *
  ******************************************************************************/
-/*
 static void cpuidle_profile_begin(struct cpupm_stats *stat)
 {
 	stat->entry_time = ktime_get();
@@ -384,7 +383,6 @@ static void vendor_hook_cpu_idle(void *data, int event, int state, int cpu)
 		break;
 	}
 }
-*/
 
 static ktime_t cpupm_init_time;
 
@@ -1404,10 +1402,8 @@ static int exynos_cpupm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/*
 	ret = register_trace_android_vh_cpu_idle(vendor_hook_cpu_idle, NULL);
 	WARN_ON(ret);
-	*/
 
 	cpupm_init_time = ktime_get();
 
