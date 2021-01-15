@@ -59,7 +59,7 @@ static struct platform_device bigo_sscd_dev = {
 	},
 };
 
-void bigo_coredump(struct bigo_core *core)
+static void bigo_coredump(struct bigo_core *core, const char *crash_info)
 {
 	struct sscd_platform_data *sscd_platdata = &bigo_sscd_platdata;
 	struct sscd_segment seg;
@@ -75,7 +75,7 @@ void bigo_coredump(struct bigo_core *core)
 	seg.vaddr = (void *)core->base;
 
 	sscd_platdata->sscd_report(&bigo_sscd_dev, &seg, 1,
-		SSCD_FLAGS_ELFARM64HDR, "bigo_coredump");
+		SSCD_FLAGS_ELFARM64HDR, crash_info);
 }
 
 static inline void on_first_instance_open(struct bigo_core *core)
@@ -190,9 +190,11 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 
 	bigo_check_status(core);
 	rc = bigo_wait_disabled(core, BIGO_DISABLE_TIMEOUT_MS);
-	if (rc) {
-		pr_err("Failed to disable hw: %d\n");
-		bigo_coredump(core);
+	if (rc || core->debugfs.trigger_ssr) {
+		if(core->debugfs.trigger_ssr)
+			rc = -EFAULT;
+		pr_err("Failed to disable hw: %d\n", rc);
+		bigo_coredump(core, "bigo_timeout");
 	}
 
 	bigo_pull_regs(core, job->regs);

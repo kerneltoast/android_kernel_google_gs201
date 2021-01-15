@@ -73,6 +73,7 @@ struct bigo_bw {
 struct bigo_debugfs {
 	struct dentry *root;
 	u32 set_freq;
+	u32 trigger_ssr;
 };
 
 struct bigo_core {

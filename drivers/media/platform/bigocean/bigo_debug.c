@@ -41,11 +41,14 @@ void bigo_init_debugfs(struct bigo_core *core)
 	struct bigo_debugfs *debugfs = &core->debugfs;
 
 	debugfs->set_freq = 0;
+	debugfs->trigger_ssr = 0;
 
 	debugfs->root = debugfs_create_dir("bigo", NULL);
 	debugfs_create_file("avail_freqs", 0400, debugfs->root, core,
 			&avail_freqs_fops);
 	debugfs_create_u32("set_freq", 0200, debugfs->root, &debugfs->set_freq);
+	debugfs_create_u32("trigger_ssr", 0600, debugfs->root,
+			&debugfs->trigger_ssr);
 }
 
 void bigo_uninit_debugfs(struct bigo_core *core)
