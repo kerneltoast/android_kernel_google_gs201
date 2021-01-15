@@ -42,6 +42,7 @@ KMI_SYMBOL_LIST=android/abi_gki_aarch64_common
 KMI_SYMBOL_LIST_MODULE_GROUPING=0
 
 BUILD_INITRAMFS=1
+LZ4_RAMDISK=1
 BUILD_BOOT_IMG=1
 GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-slider.img
 KERNEL_VENDOR_CMDLINE="androidboot.selinux=permissive androidboot.boot_devices=14700000.ufs buildvariant=userdebug"
