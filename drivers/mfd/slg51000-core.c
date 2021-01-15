@@ -355,28 +355,36 @@ static int slg51000_power_on(struct slg51000_dev *chip)
 	if (chip->is_power_on)
 		goto out;
 
-	if (gpio_is_valid(chip->chip_bb_pin))
+	if (gpio_is_valid(chip->chip_bb_pin)) {
 		gpio_set_value_cansleep(chip->chip_bb_pin, 1);
+		usleep_range(1000,1020);
+	}
 
-	if (gpio_is_valid(chip->chip_buck_pin))
+	if (gpio_is_valid(chip->chip_buck_pin)) {
 		gpio_set_value_cansleep(chip->chip_buck_pin, 1);
+		usleep_range(1000,1020);
+	}
 
-	if (gpio_is_valid(chip->chip_cs_pin))
+	if (gpio_is_valid(chip->chip_cs_pin)) {
 		gpio_set_value_cansleep(chip->chip_cs_pin, 1);
 
-	/*
-	 * According to datasheet, turn-on time from CS HIGH to Ready
-	 * state is ~10ms
-	 */
-	usleep_range(SLEEP_10000_USEC,
-			SLEEP_10000_USEC + SLEEP_RANGE_USEC);
+		/*
+		* According to datasheet, turn-on time from CS HIGH to Ready
+		* state is ~10ms
+		*/
+		usleep_range(SLEEP_10000_USEC,
+				SLEEP_10000_USEC + SLEEP_RANGE_USEC);
+	}
+
 	chip->is_power_on = true;
 	dev_dbg(chip->dev, "power on\n");
 
 	slg51000_config_tuning(chip);
 
-	if (gpio_is_valid(chip->chip_pu_pin))
+	if (gpio_is_valid(chip->chip_pu_pin)) {
 		gpio_set_value_cansleep(chip->chip_pu_pin, 1);
+		usleep_range(1000,1020);
+	}
 
 out:
 	mutex_unlock(&chip->pwr_lock);
@@ -426,17 +434,27 @@ static int slg51000_power_off(struct slg51000_dev *chip)
 	}
 
 	/* power off */
-	if (gpio_is_valid(chip->chip_pu_pin))
+	if (gpio_is_valid(chip->chip_pu_pin)) {
 		gpio_set_value_cansleep(chip->chip_pu_pin, 0);
+		usleep_range(1000,1020);
+	}
 
-	if (gpio_is_valid(chip->chip_cs_pin))
+	if (gpio_is_valid(chip->chip_cs_pin)) {
 		gpio_set_value_cansleep(chip->chip_cs_pin, 0);
+		usleep_range(1000,1020);
+	}
 
-	if (gpio_is_valid(chip->chip_buck_pin))
+	if (gpio_is_valid(chip->chip_buck_pin)) {
 		gpio_set_value_cansleep(chip->chip_buck_pin, 0);
+		usleep_range(1000,1020);
+	}
 
-	if (gpio_is_valid(chip->chip_bb_pin))
+
+	if (gpio_is_valid(chip->chip_bb_pin)) {
 		gpio_set_value_cansleep(chip->chip_bb_pin, 0);
+		usleep_range(1000,1020);
+	}
+
 
 	chip->is_power_on = false;
 	dev_dbg(chip->dev, "power off\n");
@@ -553,6 +571,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		dev_dbg(&client->dev, "GPIO(%d) request (%d)\n", gpio, ret);
 
 		slg51000->chip_bb_pin = gpio;
+		usleep_range(1000,1020);
 	}
 
 	/* optional property */
@@ -569,6 +588,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		dev_dbg(&client->dev, "GPIO(%d) request (%d)\n", gpio, ret);
 
 		slg51000->chip_buck_pin = gpio;
+		usleep_range(1000,1020);
 	}
 
 	/* mandatory property. It wakes the chip from low-power reset state */
@@ -650,6 +670,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		dev_dbg(&client->dev, "GPIO(%d) request (%d)\n", gpio, ret);
 
 		slg51000->chip_pu_pin = gpio;
+		usleep_range(1000,1020);
 	}
 
 	slg51000_clear_fault_log(slg51000);
@@ -686,18 +707,22 @@ static int slg51000_i2c_remove(struct i2c_client *client)
 	if (gpio_is_valid(slg51000->chip_pu_pin)) {
 		desc = gpio_to_desc(slg51000->chip_pu_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
+		usleep_range(1000,1020);
 	}
 	if (gpio_is_valid(slg51000->chip_cs_pin)) {
 		desc = gpio_to_desc(slg51000->chip_cs_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
+		usleep_range(1000,1020);
 	}
 	if (gpio_is_valid(slg51000->chip_buck_pin)) {
 		desc = gpio_to_desc(slg51000->chip_buck_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
+		usleep_range(1000,1020);
 	}
 	if (gpio_is_valid(slg51000->chip_bb_pin)) {
 		desc = gpio_to_desc(slg51000->chip_bb_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
+		usleep_range(1000,1020);
 	}
 
 	return ret ? -EIO : 0;
