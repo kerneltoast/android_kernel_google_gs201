@@ -17,5 +17,6 @@
 		idt,gpio_extben = <&gpp1 3 GPIO_ACTIVE_HIGH>;
 
 		idt,gpio_qi_vbus_en = <&s2mpg10_gpio 2 GPIO_ACTIVE_HIGH>;
+		max_vout_mv = <19500>;
 	};
 };
