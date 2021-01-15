@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Wireless Charger device tree entries.
+ *
+ * Copyright 2020 Google Inc.
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+
+&hsi2c_8 {
+	p9412@3c {
+		/* Tx Enable GPIOS */
+		idt,gpio_ben = <&max20339_gpio 1 GPIO_ACTIVE_HIGH>;
+		idt,gpio_boost = <&s2mpg10_gpio 3 GPIO_ACTIVE_HIGH>;
+		idt,gpio_extben = <&gpp1 3 GPIO_ACTIVE_HIGH>;
+
+		idt,gpio_qi_vbus_en = <&s2mpg10_gpio 2 GPIO_ACTIVE_HIGH>;
+	};
+};
