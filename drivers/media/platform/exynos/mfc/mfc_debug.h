@@ -40,6 +40,7 @@ extern unsigned int feature_option;
 extern unsigned int regression_option;
 extern unsigned int core_balance;
 extern unsigned int sbwc_disable;
+extern unsigned int sscd_report;
 
 #define mfc_debug(level, fmt, args...)					\
 	do {								\

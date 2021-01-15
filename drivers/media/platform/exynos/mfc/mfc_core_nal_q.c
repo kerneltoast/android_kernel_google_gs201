@@ -2306,6 +2306,11 @@ void __mfc_core_nal_q_handle_frame(struct mfc_core *core, struct mfc_core_ctx *c
 		mfc_debug(2, "[NALQ][DPB] can't support display only in NAL-Q, is_dpb_full: %d\n",
 				dec->is_dpb_full);
 
+#ifdef CONFIG_MFC_USE_COREDUMP
+	if (sscd_report && (ctx->frame_cnt == 200))
+		call_dop(core, dump_and_stop_debug_mode, core);
+#endif
+
 leave_handle_frame:
 	if (core->nal_q_handle->nal_q_exception == 2)
 		__mfc_core_nal_q_handle_frame_all_extracted(ctx, pOutStr);

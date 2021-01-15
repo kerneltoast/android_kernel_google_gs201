@@ -1001,6 +1001,11 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 	if (regression_option & MFC_TEST_DEC_PER_FRAME)
 		mfc_core_dec_save_regression_result(core);
 
+#ifdef CONFIG_MFC_USE_COREDUMP
+	if (sscd_report && (ctx->frame_cnt == 200))
+		call_dop(core, dump_and_stop_debug_mode, core);
+#endif
+
 leave_handle_frame:
 	mfc_debug(2, "Assesing whether this context should be run again\n");
 }

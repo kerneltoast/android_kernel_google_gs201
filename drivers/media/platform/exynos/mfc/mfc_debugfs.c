@@ -43,6 +43,7 @@ unsigned int feature_option;
 unsigned int regression_option;
 unsigned int core_balance;
 unsigned int sbwc_disable;
+unsigned int sscd_report;
 
 static int __mfc_info_show(struct seq_file *s, void *unused)
 {
@@ -194,6 +195,10 @@ static int __mfc_debug_info_show(struct seq_file *s, void *unused)
 	seq_puts(s, "2   (1 << 1): memlog printf\n");
 	seq_puts(s, "4   (1 << 2): memlog sfr dump\n");
 
+#ifdef CONFIG_MFC_USE_COREDUMP
+	seq_puts(s, "-----Forcely run sscordump\n");
+	seq_puts(s, "ex) echo 1 > /d/mfc/sscd_report\n");
+#endif
 	return 0;
 }
 
@@ -528,6 +533,10 @@ void mfc_init_debugfs(struct mfc_dev *dev)
 			0644, debugfs->root, &logging_option);
 	debugfs_create_u32("sbwc_disable",
 			0644, debugfs->root, &sbwc_disable);
+#ifdef CONFIG_MFC_USE_COREDUMP
+	debugfs_create_u32("sscd_report",
+			0644, debugfs->root, &sscd_report);
+#endif
 }
 
 void mfc_deinit_debugfs(struct mfc_dev *dev)
