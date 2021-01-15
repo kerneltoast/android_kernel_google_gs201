@@ -35,7 +35,8 @@
 #define ODPM_PRINT_ESTIMATED_CLOCK_SKEW 0
 
 /* Cache accumulated values to prevent too frequent updates,
- * allow a refresh only every 50 ms.
+ * allow a refresh only every X ms. There have been requests to
+ * get snapshots at 10 Hz, so set the timeout at < 100 ms (50 ms).
  * Note: s2mpg1x chips can take on average between 1-2 ms
  * for a refresh.
  */
@@ -123,6 +124,8 @@ struct odpm_chip {
 	u64 acc_timestamp;
 	s2mpg1x_int_samp_rate int_sampling_rate_i;
 	s2mpg1x_ext_samp_rate ext_sampling_rate_i;
+
+	bool rx_ext_config_confirmation;
 };
 
 struct odpm_channel_data {
@@ -351,7 +354,6 @@ static void odpm_periodic_refresh_work(struct work_struct *work)
 {
 	struct odpm_info *info =
 		container_of(work, struct odpm_info, work_refresh);
-
 
 	if (odpm_take_snapshot(info) < 0)
 		pr_err("odpm: Cannot refresh %s registers periodically!\n",
@@ -855,6 +857,22 @@ exit_refresh:
 	return ret;
 }
 
+static int odpm_reset_timer(struct odpm_info *info)
+{
+	unsigned long future_timer = jiffies +
+		msecs_to_jiffies(info->chip.max_refresh_time_ms);
+
+	/* re-schedule the work for the read registers timeout
+	 * (to prevent chip regs saturation)
+	 */
+	int ret_timer = mod_timer(&info->timer_refresh, future_timer);
+
+	if (ret_timer < 0)
+		pr_err("odpm: read timer can't be modified!\n");
+
+	return ret_timer;
+}
+
 static int odpm_take_snapshot(struct odpm_info *info)
 {
 	int ret;
@@ -867,37 +885,26 @@ static int odpm_take_snapshot(struct odpm_info *info)
 
 static int odpm_take_snapshot_locked(struct odpm_info *info)
 {
-	int ret_refresh = 0;
-	int ret_timer = 0;
-
 	/* check if the minimal elapsed time has passed and if so,
 	 * re-read the chip, otherwise the cached info is just fine
 	 */
 	unsigned long future_time = info->jiffies_last_poll +
 				    msecs_to_jiffies(ODPM_MIN_POLLING_TIME_MS);
 	if (time_after(jiffies, future_time)) {
-		unsigned long future_timer =
-			info->jiffies_last_poll +
-			msecs_to_jiffies(info->chip.max_refresh_time_ms);
+		int ret_timer = odpm_reset_timer(info);
 
-		/* we need to re-read the chip values
-		 */
-		ret_refresh = odpm_refresh_registers(info);
-		if (ret_refresh < 0)
+		/* we need to re-read the chip values */
+		int ret_refresh = odpm_refresh_registers(info);
+
+		if (ret_refresh < 0) {
 			pr_err("odpm: could not refresh registers!\n");
+			return ret_refresh;
+		}
 
-		/* re-schedule the work for the read registers timeout
-		 * (to prevent chip regs saturation)
-		 */
-		ret_timer = mod_timer(&info->timer_refresh, future_timer);
-		if (ret_timer < 0)
-			pr_err("odpm: read timer can't be modified!\n");
+		return ret_timer;
 	}
 
-	if (ret_refresh < 0)
-		return ret_refresh;
-	else
-		return ret_timer;
+	return 0; /* Refresh skipped for min elapsed time */
 }
 
 /**
@@ -1172,14 +1179,20 @@ static ssize_t enabled_rails_store(struct device *dev,
 		int new_rail = rail_i;
 
 		mutex_lock(&info->lock);
+		current_rail = info->channels[channel].rail_i;
 
-		/* Send a refresh and store values */
+		if (new_rail == current_rail) {
+			/* Do not apply rail selection if the same rail is being
+			 * replaced.
+			 */
+			goto enabled_rails_store_exit;
+		}
+
+		/* Send a refresh and store values for old rails */
 		if (odpm_take_snapshot_locked(info) < 0) {
 			pr_err("odpm: cannot refresh values to swap rails");
 			goto enabled_rails_store_exit;
 		}
-
-		current_rail = info->channels[channel].rail_i;
 
 		/* Capture measurement time for current rail */
 		info->chip.rails[current_rail].measurement_start_ms_cached =
@@ -1210,9 +1223,29 @@ enabled_rails_store_exit:
 		mutex_unlock(&info->lock);
 
 		return count;
+
+	} else if (strcmp(buf, "CONFIG_COMPLETE") == 0) {
+		/**
+		 * External configuration applied, so reset the timestamps and
+		 * measurements. This can only be done once from boot.
+		 */
+		mutex_lock(&info->lock);
+		if (!info->chip.rx_ext_config_confirmation) {
+			info->chip.rx_ext_config_confirmation = true;
+			odpm_reset_timer(info);
+			if (odpm_configure_start_measurement(info))
+				pr_err("odpm: Failed to start measurement\n");
+			else
+				pr_info("odpm: Boot config complete!\n");
+		} else {
+			pr_err("odpm: Boot config already applied\n");
+		}
+		mutex_unlock(&info->lock);
+
+		return count;
 	}
 
-	/* The channel syntax was invalid if this is reached. */
+	/* The buffer syntax was invalid if this is reached. */
 	return -EINVAL;
 }
 
@@ -1400,6 +1433,8 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 		info->i2c = meter->i2c;
 	} break;
 	}
+
+	info->chip.rx_ext_config_confirmation = false;
 }
 
 static int odpm_probe(struct platform_device *pdev)
@@ -1475,7 +1510,8 @@ static int odpm_probe(struct platform_device *pdev)
 	}
 
 	/* Start measurement of default rails */
-	odpm_configure_start_measurement(odpm_info);
+	if (odpm_configure_start_measurement(odpm_info))
+		pr_err("odpm: Failed to start measurement at probe\n");
 
 	/* Configure work to kick off every XHz */
 	odpm_periodic_refresh_setup(odpm_info);

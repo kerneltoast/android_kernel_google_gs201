@@ -44,7 +44,7 @@
 				google,bat-power-supply = "battery";
 				google,usb-power-supply = "usb";
 
-				google,fv-max-uv = <4400000>;
+				google,fv-max-uv = <4450000>;
 			};
 
 			google_bms {
@@ -135,6 +135,7 @@
 		pinctrl-0 = <&if_pmic_fg_irq>;
 		maxim,irq-gpio = <&gpa9 3 GPIO_ACTIVE_LOW>;
 
+		maxim,gauge-type = <2>;
 		maxim,rsense-default = <500>;
 
 		/* no needed for EEPROM */
@@ -143,7 +144,7 @@
 		maxim,psy-type-unknown;
 
 		maxim,fg-data {
-			#include "gs101-slider-battery-data.dtsi"
+			#include "gs101-raviole-battery-data.dtsi"
 		};
 	};
 

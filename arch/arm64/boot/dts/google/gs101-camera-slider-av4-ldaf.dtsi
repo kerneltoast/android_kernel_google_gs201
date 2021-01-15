@@ -30,6 +30,7 @@
 		/* XEINT_9: GPA7[1] GPIO54 */
 		intr-gpio = <&gpa7 1 GPIO_ACTIVE_LOW>;
 
+		vio-type = "regulator";
 		vio-supply = <&slg51000_ldo7>;
 		vio-voltage = <1850000>;
 

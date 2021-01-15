@@ -575,6 +575,11 @@
 	};
 };
 
+&spi9_cs_func {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
 &spi_9 {
 	#address-cells = <1>;
 	#size-cells = <0>;

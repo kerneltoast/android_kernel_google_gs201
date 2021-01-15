@@ -202,7 +202,7 @@
 				rmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd_enc60 {
 				stat_on = <1>;
@@ -212,7 +212,7 @@
 				rmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 		};
 		bts_dpu1 {
@@ -295,7 +295,7 @@
 				rmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd_enc60 {
 				stat_on = <1>;
@@ -305,7 +305,7 @@
 				rmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 		};
 		bts_dpu2 {
@@ -394,7 +394,7 @@
 				wmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd_enc60 {
 				stat_on = <1>;
@@ -405,7 +405,7 @@
 				wmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 		};
 		bts_csis0 {
@@ -419,11 +419,10 @@
 				awqos = <0xC>;
 				rmo = <0xFFFF>;
 				wmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x10>;
 				qurgent_th_w = <0x10>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
 			};
 		};
 		bts_csis1 {
@@ -437,11 +436,10 @@
 				awqos = <0xC>;
 				rmo = <0xFFFF>;
 				wmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x10>;
 				qurgent_th_w = <0x10>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
 			};
 		};
 		bts_g3aa {
@@ -1186,8 +1184,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1196,8 +1194,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1206,8 +1204,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1216,8 +1214,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1236,8 +1234,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1246,8 +1244,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1256,8 +1254,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1271,8 +1269,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1281,8 +1279,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1291,8 +1289,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1301,8 +1299,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1321,8 +1319,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1331,8 +1329,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1341,8 +1339,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1356,8 +1354,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1366,8 +1364,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1376,8 +1374,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1386,8 +1384,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1406,8 +1404,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1416,8 +1414,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1426,8 +1424,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1441,8 +1439,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1451,8 +1449,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1461,8 +1459,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1471,8 +1469,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1491,8 +1489,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1501,8 +1499,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -1511,8 +1509,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x4>;
-				wmo = <0x4>;
+				rmo = <0x14>;
+				wmo = <0x8>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};

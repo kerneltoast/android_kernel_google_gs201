@@ -10,6 +10,7 @@
 
 #include "gs101-raven.dtsi"
 #include "gs101-raviole-camera-pmic-proto1.dtsi"
+#include "gs101-raviole-ldaf-proto1.dtsi"
 
 / {
 	board_id = <0x20202>;

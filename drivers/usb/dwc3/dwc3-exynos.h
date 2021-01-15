@@ -41,6 +41,8 @@ struct dwc3_exynos {
 	struct notifier_block	vbus_nb;
 	struct notifier_block	id_nb;
 
+	bool			usb_data_enabled;
+
 	int			idle_ip_index;
 	unsigned long		bus_clock_rate;
 

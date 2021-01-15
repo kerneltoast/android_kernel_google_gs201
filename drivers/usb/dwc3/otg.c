@@ -313,7 +313,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(dwc3_otg_phy_enable);
 
-int list_clear;
 static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg	*otg = fsm->otg;
@@ -345,8 +344,6 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 
 		dwc3_otg_set_host_mode(dotg);
 
-		if (list_clear == 1)
-			INIT_LIST_HEAD(&dwc->xhci->dev.links.needs_suppliers);
 		ret = platform_device_add(dwc->xhci);
 		if (ret) {
 			dev_err(dev, "%s: cannot add xhci\n", __func__);
@@ -375,7 +372,6 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 
 		dwc3_host_exit(dwc);
 		dwc->xhci = NULL;
-		list_clear = 1;
 
 err2:
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
@@ -727,11 +723,35 @@ static ssize_t force_speed_store(struct device *dev, struct device_attribute *at
 
 static DEVICE_ATTR_RW(force_speed);
 
+static ssize_t usb_data_enabled_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", exynos->usb_data_enabled ? "enabled" : "disabled");
+}
+
+static ssize_t usb_data_enabled_store(struct device *dev, struct device_attribute *attr,
+				       const char *buf, size_t n)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+	bool enabled = true;
+
+	if (kstrtobool(buf, &enabled))
+		return -EINVAL;
+
+	exynos->usb_data_enabled = enabled;
+
+	return n;
+}
+
+static DEVICE_ATTR_RW(usb_data_enabled);
+
 static struct attribute *dwc3_otg_attributes[] = {
 	&dev_attr_id.attr,
 	&dev_attr_b_sess.attr,
 	&dev_attr_state.attr,
 	&dev_attr_force_speed.attr,
+	&dev_attr_usb_data_enabled.attr,
 	NULL
 };
 

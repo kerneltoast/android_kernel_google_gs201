@@ -1,12 +1,7 @@
 per-file base/**=set noparent
 per-file base/**=gregkh@google.com,saravanak@google.com
 
-per-file block/zram/zcomp.c=*
-per-file block/zram/zcomp.h=*
-per-file block/zram/zram_cpu.c=*
-per-file block/zram/zram_drv.c=*
-per-file block/zram/zram_drv.h=*
-per-file block/zram/zram_eh.c=*
+per-file block/zram/**=minchan@google.com
 
 per-file bts/**=*
 
@@ -138,6 +133,7 @@ per-file usb/dwc3/otg.*=*
 per-file usb/dwc3/usb_power_notify.*=*
 per-file usb/gadget/function/f_dm.*=*
 per-file usb/gadget/function/f_dm1.*=*
+per-file usb/gadget/function/f_etr_miu.c=*
 per-file usb/gadget/function/f_mtp.*=*
 per-file usb/gadget/function/f_ptp.*=*
 per-file usb/gadget/function/f_uts.*=*

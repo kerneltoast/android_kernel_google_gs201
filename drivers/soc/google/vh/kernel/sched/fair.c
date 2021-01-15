@@ -834,5 +834,11 @@ void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iow
 
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 {
-	*overutilized = cpu_util(cpu) * UTIL_THRESHOLD >= capacity_of(cpu) * 1024;
+	*overutilized = cpu_util(cpu) * UTIL_THRESHOLD >= capacity_of(cpu) << SCHED_CAPACITY_SHIFT;
+}
+
+void rvh_map_util_freq_pixel_mod(void *data, unsigned long util, unsigned long freq,
+				 unsigned long cap, unsigned long *mapped_freq)
+{
+	*mapped_freq = (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap ;
 }
