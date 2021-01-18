@@ -527,43 +527,29 @@ void mfc_cleanup_iovmm_except_used(struct mfc_ctx *ctx)
 int mfc_iommu_map_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
 {
 	struct mfc_dev *dev = core->dev;
-	dma_addr_t fw_base_addr;
 	struct device_node *node = core->device->of_node;
+	dma_addr_t reserved_base;
 	const __be32 *prop;
-	dma_addr_t reserved_base, reserved_end;
-	size_t reserved_size;
-
-	fw_base_addr = MFC_BASE_ADDR + dev->fw_base_offset;
-
-	fw_buf->map_size = iommu_map_sg(core->domain, fw_base_addr,
-			fw_buf->sgt->sgl,
-			fw_buf->sgt->nents,
-			IOMMU_READ|IOMMU_WRITE);
-	if (!fw_buf->map_size) {
-		mfc_core_err("Failed to remap iova (err %#llx)\n",
-				fw_buf->daddr);
-		return -ENOMEM;
-	}
-
-	fw_buf->daddr = fw_base_addr;
-	dev->fw_base_offset += fw_buf->map_size;
 
 	prop = of_get_property(node, "samsung,iommu-reserved-map", NULL);
 	if (!prop) {
 		mfc_dev_err("No reserved F/W dma area\n");
-		iommu_unmap(core->domain, fw_base_addr, fw_buf->map_size);
 		return -ENOENT;
 	}
 
 	reserved_base = of_read_number(prop, of_n_addr_cells(node));
-	reserved_size = of_read_number(prop + of_n_addr_cells(node), of_n_size_cells(node));
-	reserved_end = reserved_base + reserved_size;
 
-	if (fw_base_addr + fw_buf->map_size > reserved_end) {
-		mfc_core_err("F/W area flood the reserved region\n");
-		iommu_unmap(core->domain, fw_base_addr, fw_buf->map_size);
-		return -EINVAL;
+	fw_buf->map_size = iommu_map_sg(core->domain, reserved_base,
+			fw_buf->sgt->sgl,
+			fw_buf->sgt->orig_nents,
+			IOMMU_READ|IOMMU_WRITE);
+	if (!fw_buf->map_size) {
+		mfc_core_err("Failed to map iova (err VA: %pad, PA: %pap)\n",
+				&reserved_base, &fw_buf->paddr);
+		return -ENOMEM;
 	}
+
+	fw_buf->daddr = reserved_base;
 
 	return 0;
 }

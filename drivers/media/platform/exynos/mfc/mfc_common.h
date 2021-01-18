@@ -46,8 +46,6 @@
 #define MFC_ENC_DEFAULT_CORE	0
 #define MFC_SURPLUS_CORE	1
 
-/* MFC base address */
-#define MFC_BASE_ADDR		0x10000000
 /* Interrupt timeout */
 #define MFC_INT_TIMEOUT		4000
 /* Interrupt short timeout */
