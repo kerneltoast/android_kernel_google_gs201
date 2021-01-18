@@ -176,7 +176,7 @@ void mfc_init_dpb_table(struct mfc_ctx *ctx);
 void mfc_cleanup_iovmm(struct mfc_ctx *ctx);
 void mfc_cleanup_iovmm_except_used(struct mfc_ctx *ctx);
 
-int mfc_remap_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf);
+int mfc_iommu_map_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf);
 int mfc_iommu_map_sfr(struct mfc_core *core);
 
 void mfc_check_iova(struct mfc_dev *dev);

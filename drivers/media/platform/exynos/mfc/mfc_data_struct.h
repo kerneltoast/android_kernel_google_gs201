@@ -1133,6 +1133,7 @@ struct mfc_dev {
 	int num_core;
 	int fw_date;
 	size_t fw_base_offset;
+	size_t fw_rmem_offset;
 
 	struct device		*device;
 	struct v4l2_device	v4l2_dev;

@@ -695,7 +695,7 @@ int mfc_alloc_firmware(struct mfc_core *core)
 
 	buf_size = dev->variant->buf_size->ctx_buf;
 
-	if (core->fw_buf.dma_buf)
+	if (core->fw_buf.sgt)
 		return 0;
 
 	mfc_core_debug(4, "[F/W] Allocating memory for firmware\n");
@@ -710,11 +710,11 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	}
 
 	fw_buf = &core->fw_buf;
-	if (mfc_remap_firmware(core, fw_buf))
+	if (mfc_iommu_map_firmware(core, fw_buf))
 		goto err_reserve_iova;
 
-	mfc_core_info("[MEMINFO][F/W] MFC-%d FW normal: 0x%08llx (vaddr: 0x%p, paddr:%#llx), size: %08zu\n",
-			core->id, core->fw_buf.daddr, core->fw_buf.vaddr, core->fw_buf.paddr,
+	mfc_core_info("[MEMINFO][F/W] MFC-%d FW normal: %pad(vaddr: %p, paddr:%pap), size: %08zu\n",
+			core->id, &core->fw_buf.daddr, core->fw_buf.vaddr, &core->fw_buf.paddr,
 			core->fw_buf.size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
@@ -725,9 +725,8 @@ int mfc_alloc_firmware(struct mfc_core *core)
 		goto err_daddr;
 	}
 
-	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
-			core->id,
-			core->drm_fw_buf.daddr, core->drm_fw_buf.vaddr,
+	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad (vaddr: %p), size: %08zu\n",
+			core->id, &core->drm_fw_buf.daddr, core->drm_fw_buf.vaddr,
 			core->drm_fw_buf.size);
 #endif
 
@@ -784,7 +783,7 @@ int mfc_load_firmware(struct mfc_core *core)
 
 	core->fw.fw_size = fw_blob->size;
 
-	if (core->fw_buf.dma_buf == NULL || core->fw_buf.daddr == 0) {
+	if (core->fw_buf.sgt == NULL || core->fw_buf.daddr == 0) {
 		mfc_core_err("[F/W] MFC firmware is not allocated or was not mapped correctly\n");
 		release_firmware(fw_blob);
 		return -EINVAL;
@@ -795,12 +794,20 @@ int mfc_load_firmware(struct mfc_core *core)
 	memset((core->fw_buf.vaddr + fw_blob->size), 0,
 			(core->fw_buf.size - fw_blob->size));
 	memcpy(core->fw_buf.vaddr, fw_blob->data, fw_blob->size);
+
+	/* cache flush for memcpy by CPU */
+	dma_sync_sgtable_for_device(core->device, core->fw_buf.sgt, DMA_TO_DEVICE);
+
 	if (core->drm_fw_buf.vaddr) {
 		mfc_core_debug(4, "[F/W] memset before memcpy for secure fw\n");
 		memset((core->drm_fw_buf.vaddr + fw_blob->size), 0,
 				(core->fw_buf.size - fw_blob->size));
 		memcpy(core->drm_fw_buf.vaddr, fw_blob->data, fw_blob->size);
 		mfc_core_debug(4, "[F/W] copy firmware to secure region\n");
+
+		/* cache flush for memcpy by CPU */
+		dma_sync_sgtable_for_device(core->device, core->drm_fw_buf.sgt, DMA_TO_DEVICE);
+		mfc_core_debug(4, "[F/W] cache flush for secure region\n");
 	}
 
 	release_firmware(fw_blob);
@@ -886,7 +893,7 @@ int mfc_imgloader_mem_setup(struct imgloader_desc *desc, const u8 *fw_data, size
 
 	core->fw.fw_size = fw_size;
 
-	if (core->fw_buf.dma_buf == NULL || core->fw_buf.daddr == 0) {
+	if (core->fw_buf.sgt == NULL || core->fw_buf.daddr == 0) {
 		mfc_core_err("[F/W] MFC firmware is not allocated or was not mapped correctly\n");
 		return -EINVAL;
 	}
@@ -895,11 +902,19 @@ int mfc_imgloader_mem_setup(struct imgloader_desc *desc, const u8 *fw_data, size
 	mfc_core_debug(4, "[F/W] memset before memcpy for normal fw\n");
 	memset((core->fw_buf.vaddr + fw_size), 0, (core->fw_buf.size - fw_size));
 	memcpy(core->fw_buf.vaddr, fw_data, fw_size);
+
+	/* cache flush for memcpy by CPU */
+	dma_sync_sgtable_for_device(core->device, core->fw_buf.sgt, DMA_TO_DEVICE);
+
 	if (core->drm_fw_buf.vaddr) {
 		mfc_core_debug(4, "[F/W] memset before memcpy for secure fw\n");
 		memset((core->drm_fw_buf.vaddr + fw_size), 0, (core->drm_fw_buf.size - fw_size));
 		memcpy(core->drm_fw_buf.vaddr, fw_data, fw_size);
 		mfc_core_debug(4, "[F/W] copy firmware to secure region\n");
+
+		/* cache flush for memcpy by CPU */
+		dma_sync_sgtable_for_device(core->device, core->drm_fw_buf.sgt, DMA_TO_DEVICE);
+		mfc_core_debug(4, "[F/W] cache flush for secure region\n");
 	}
 
 	*fw_phys_base = core->fw_buf.paddr;
