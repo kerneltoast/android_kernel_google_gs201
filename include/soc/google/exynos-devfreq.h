@@ -200,7 +200,8 @@ struct exynos_devfreq_data {
 
 	u32 l123_restrict;
 	struct thermal_cooling_device *cooling_dev;
-	unsigned int cooling_state;
+	unsigned long cooling_state;
+	unsigned long sysfs_req;
 };
 
 struct exynos_profile_data {

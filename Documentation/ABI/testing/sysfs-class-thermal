@@ -1,0 +1,10 @@
+What:		/sys/class/thermal/cooling_device%d/user_vote
+Date:		January, 2021
+Contact:	"TeYuan Wang" <kamewang@google.com>
+Description:
+		For the current upstream design, userspace can request
+		cooling device via "cur_state" sysfs. However, the request
+		will be overwritten by other kernel governor or it will
+		overwrite other governor's request. So, create this user_vote
+		sysfs for userspace to request cooling device and vote with
+		other kernel governor's request.
