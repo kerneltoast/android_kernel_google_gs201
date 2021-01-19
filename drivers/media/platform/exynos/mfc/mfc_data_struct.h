@@ -47,6 +47,10 @@
 #include <soc/samsung/sysevent.h>
 #include <soc/samsung/sysevent_notif.h>
 #endif
+#if IS_ENABLED(CONFIG_SUBSYSTEM_COREDUMP)
+#include <linux/platform_data/sscoredump.h>
+#define CONFIG_MFC_USE_COREDUMP
+#endif
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -1341,6 +1345,7 @@ struct mfc_core {
 	struct timespec64 last_int_time;
 	/* debug info dump */
 	struct dump_info dbg_info;
+	struct platform_device *sscd_dev;
 
 	/* ITMON */
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)

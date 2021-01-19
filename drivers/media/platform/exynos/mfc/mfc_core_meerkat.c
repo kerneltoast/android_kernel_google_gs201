@@ -1106,6 +1106,37 @@ static int __mfc_store_debug_info(struct mfc_core *core)
 	return ret;
 }
 
+static int __mfc_do_sscoredump(struct mfc_core *core)
+{
+#ifdef CONFIG_MFC_USE_COREDUMP
+	struct sscd_platform_data *sscd_platdata;
+	struct sscd_segment seg;
+	int ret;
+
+	if (!core->sscd_dev)
+		return -EINVAL;
+
+	mfc_core_info("[SSCD] ---------------MFC core dump\n");
+	sscd_platdata = dev_get_platdata(&core->sscd_dev->dev);
+	if (!sscd_platdata->sscd_report) {
+		mfc_core_err("[SSCD] there is no sscd_report\n");
+		return -EINVAL;
+	}
+
+	memset(&seg, 0, sizeof(seg));
+	seg.addr = (void *)core->dbg_info.addr;
+	seg.size = core->dbg_info.size;
+	seg.flags = 0;
+
+	ret = sscd_platdata->sscd_report(core->sscd_dev, &seg, 1,
+		SSCD_FLAGS_ELFARM64HDR, "MFC crash\n");
+
+	return ret;
+#else
+	return -EINVAL;
+#endif
+}
+
 static void __mfc_dump_info_and_stop_hw(struct mfc_core *core)
 {
 	struct mfc_dev *dev = core->dev;
@@ -1158,7 +1189,8 @@ static void __mfc_dump_info_and_stop_hw_debug(struct mfc_core *core)
 	*	If debug mode is enabled, show logs and kernel panic
 	*/
 	if (__mfc_store_debug_info(core) > 0)
-		return;
+		if (!__mfc_do_sscoredump(core))
+			return;
 
 	if (!dev->pdata->debug_mode && !debug_mode_en)
 		return;

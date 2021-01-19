@@ -58,6 +58,25 @@
 
 struct _mfc_trace_logging g_mfc_core_trace_logging[MFC_TRACE_LOG_COUNT_MAX];
 
+#ifdef CONFIG_MFC_USE_COREDUMP
+static struct sscd_platform_data mfc_core_sscd_platdata;
+
+static void mfc_core_sscd_release(struct device *dev)
+{
+	dev_info(dev, "%s: sscd_dev is released\n", __func__);
+}
+
+static struct platform_device mfc_core_sscd_dev = {
+	.name            = MFC_CORE_NAME,
+	.driver_override = SSCD_NAME,
+	.id              = -1,
+	.dev             = {
+		.platform_data = &mfc_core_sscd_platdata,
+		.release       = mfc_core_sscd_release,
+	},
+};
+#endif
+
 void mfc_core_butler_worker(struct work_struct *work)
 {
 	struct mfc_core *core;
@@ -697,10 +716,18 @@ static int mfc_core_probe(struct platform_device *pdev)
 	sysevent_notif_register_notifier(core->sysevent_desc.name, &mfc_core_nb);
 #endif
 
-	core->dbg_info.size = MFC_DUMP_BUF_SIZE;
-	core->dbg_info.addr = vmalloc(core->dbg_info.size);
-	if (!core->dbg_info.addr)
-		dev_err(&pdev->dev, "failed to alloc for debug buffer\n");
+#ifdef CONFIG_MFC_USE_COREDUMP
+	if (platform_device_register(&mfc_core_sscd_dev)) {
+		dev_err(&pdev->dev, "failed to register sscd_dev\n");
+	} else {
+		core->sscd_dev = &mfc_core_sscd_dev;
+
+		core->dbg_info.size = MFC_DUMP_BUF_SIZE;
+		core->dbg_info.addr = vmalloc(core->dbg_info.size);
+		if (!core->dbg_info.addr)
+			dev_err(&pdev->dev, "failed to alloc for debug buffer\n");
+	}
+#endif
 
 	dev_info(&pdev->dev, "%s is completed\n", __func__);
 
@@ -760,6 +787,9 @@ static int mfc_core_remove(struct platform_device *pdev)
 
 	if (core->dbg_info.addr)
 		vfree(core->dbg_info.addr);
+#ifdef CONFIG_MFC_USE_COREDUMP
+	platform_device_unregister(&mfc_core_sscd_dev);
+#endif
 	iommu_unregister_device_fault_handler(&pdev->dev);
 	if (timer_pending(&core->meerkat_timer))
 		del_timer(&core->meerkat_timer);
