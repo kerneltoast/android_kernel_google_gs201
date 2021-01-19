@@ -3876,6 +3876,7 @@
   gether_set_dev_addr
   gether_set_gadget
   gether_set_host_addr
+  gether_set_ifname
   gether_set_qmult
   gether_setup_name
   gether_setup_name_default
@@ -5879,6 +5880,7 @@
   make_bad_inode
   make_flow_keys_digest
   mangle_path
+  map_util_freq
   mark_buffer_async_write
   mark_buffer_dirty
   mark_buffer_dirty_inode
@@ -10443,6 +10445,7 @@
   __tracepoint_android_rvh_find_energy_efficient_cpu
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_finish_prio_fork
+  __tracepoint_android_rvh_map_util_freq
   __tracepoint_android_rvh_prepare_prio_fork
   __tracepoint_android_rvh_rtmutex_prepare_setprio
   __tracepoint_android_rvh_select_fallback_rq
