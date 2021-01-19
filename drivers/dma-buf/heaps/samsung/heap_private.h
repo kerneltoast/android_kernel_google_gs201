@@ -68,8 +68,12 @@ int samsung_heap_add(struct device *dev, void *priv,
 		     const struct dma_heap_ops *ops);
 struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags);
 
+#define DMA_HEAP_VIDEO_PADDING (512)
+#define dma_heap_add_video_padding(len) (PAGE_ALIGN((len) + DMA_HEAP_VIDEO_PADDING))
+
 #define DMA_HEAP_FLAG_UNCACHED  BIT(0)
 #define DMA_HEAP_FLAG_PROTECTED BIT(1)
+#define DMA_HEAP_FLAG_VIDEO_ALIGNED BIT(2)
 
 static inline bool dma_heap_flags_uncached(unsigned long flags)
 {
@@ -84,6 +88,11 @@ static inline bool dma_heap_flags_protected(unsigned long flags)
 static inline bool dma_heap_skip_cache_ops(unsigned long flags)
 {
 	return dma_heap_flags_protected(flags) || dma_heap_flags_uncached(flags);
+}
+
+static inline bool dma_heap_flags_video_aligned(unsigned long flags)
+{
+	return !!(flags & DMA_HEAP_FLAG_VIDEO_ALIGNED);
 }
 
 /*

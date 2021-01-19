@@ -35,9 +35,14 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap, unsigned long le
 	struct dma_buf *dmabuf;
 	struct page *pages;
 	unsigned int alignment = samsung_dma_heap->alignment;
-	unsigned long size = ALIGN(len, alignment);
-	unsigned long nr_pages = size >> PAGE_SHIFT;
+	unsigned long size, nr_pages;
 	int ret = -ENOMEM;
+
+	if (dma_heap_flags_video_aligned(samsung_dma_heap->flags))
+		len = dma_heap_add_video_padding(len);
+
+	size = ALIGN(len, alignment);
+	nr_pages = size >> PAGE_SHIFT;
 
 	buffer = samsung_dma_buffer_alloc(samsung_dma_heap, size, 1);
 	if (IS_ERR(buffer))

@@ -120,6 +120,9 @@ static struct samsung_dma_heap *__samsung_heap_add(struct device *dev, void *pri
 			return ERR_PTR(-ENODEV);
 	}
 
+	if (of_property_read_bool(dev->of_node, "dma-heap,video_aligned"))
+		flags |= DMA_HEAP_FLAG_VIDEO_ALIGNED;
+
 	if (of_property_read_string(dev->of_node, "dma-heap,name", &name)) {
 		perrfn("The heap should define name on device node");
 		return ERR_PTR(-EINVAL);

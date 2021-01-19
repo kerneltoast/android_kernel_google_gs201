@@ -36,9 +36,14 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap, unsigned lo
 	struct dma_buf *dmabuf;
 	struct page *pages;
 	unsigned int alignment = samsung_dma_heap->alignment;
-	unsigned long size = ALIGN(len, alignment);
+	unsigned long size;
 	phys_addr_t paddr;
 	int ret = -ENOMEM;
+
+	if (dma_heap_flags_video_aligned(samsung_dma_heap->flags))
+		len = dma_heap_add_video_padding(len);
+
+	size = ALIGN(len, alignment);
 
 	buffer = samsung_dma_buffer_alloc(samsung_dma_heap, size, 1);
 	if (IS_ERR(buffer))

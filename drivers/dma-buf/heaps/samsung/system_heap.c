@@ -68,9 +68,13 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap, unsigned long
 	struct dma_buf *dmabuf;
 	struct list_head pages;
 	struct page *page, *tmp_page;
-	unsigned long size_remaining = len;
+	unsigned long size_remaining;
 	unsigned int max_order = orders[0];
 	int i, ret = -ENOMEM;
+
+	if (dma_heap_flags_video_aligned(samsung_dma_heap->flags))
+		len = dma_heap_add_video_padding(len);
+	size_remaining = len;
 
 	INIT_LIST_HEAD(&pages);
 	i = 0;
