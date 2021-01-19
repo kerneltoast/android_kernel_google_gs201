@@ -432,16 +432,16 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	if (prefer_idle && prefer_high_cap)
 		target_capacity = 0;
 
+	start_cpu = find_start_cpu(p, prefer_high_cap, sync_boost);
+
 	/* prefer prev cpu */
 	// TODO: add idle index check later
-	if (cpu_online(prev_cpu) && cpu_is_idle(prev_cpu) && cpu_is_in_target_set(p, prev_cpu) &&
-	    task_fits_capacity(p, prev_cpu)) {
+	if (cpu_online(prev_cpu) && cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu) &&
+		(capacity_orig_of(prev_cpu) == capacity_orig_of(start_cpu))) {
 		target_cpu = prev_cpu;
 		prefer_prev = true;
 		goto target;
 	}
-
-	start_cpu = find_start_cpu(p, prefer_high_cap, sync_boost);
 
 	for_each_cpu_wrap(i, p->cpus_ptr, start_cpu) {
 		unsigned long capacity_curr = capacity_curr_of(i);
@@ -835,5 +835,11 @@ void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iow
 
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 {
-	*overutilized = cpu_util(cpu) * UTIL_THRESHOLD >= capacity_of(cpu) * 1024;
+	*overutilized = cpu_util(cpu) * UTIL_THRESHOLD >= capacity_of(cpu) << SCHED_CAPACITY_SHIFT;
+}
+
+void rvh_map_util_freq_pixel_mod(void *data, unsigned long util, unsigned long freq,
+				 unsigned long cap, unsigned long *mapped_freq)
+{
+	*mapped_freq = (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap ;
 }

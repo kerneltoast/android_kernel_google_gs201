@@ -166,9 +166,9 @@
 		VA-supply = <&s_bucka_reg>;
 		VP-supply = <&V_SYS_dummy>;
 
-		cirrus,boost-peak-milliamp = <3700>;
+		cirrus,boost-peak-milliamp = <3500>;
 		cirrus,boost-ind-nanohenry = <1000>;
-		cirrus,boost-cap-microfarad = <15>;
+		cirrus,boost-cap-microfarad = <30>;
 
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,tuning-has-prefix;
@@ -197,9 +197,9 @@
 		VA-supply = <&s_bucka_reg>;
 		VP-supply = <&V_SYS_dummy>;
 
-		cirrus,boost-peak-milliamp = <3700>;
+		cirrus,boost-peak-milliamp = <3500>;
 		cirrus,boost-ind-nanohenry = <1000>;
-		cirrus,boost-cap-microfarad = <15>;
+		cirrus,boost-cap-microfarad = <30>;
 
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,tuning-has-prefix;

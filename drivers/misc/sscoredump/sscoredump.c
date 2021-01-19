@@ -798,7 +798,7 @@ fail3:
 fail2:
 	ida_simple_remove(&sscd_ida, minor);
 fail1:
-	devm_kfree(&pdev->dev, sdev);
+	kfree(sdev);
 
 	return -EAGAIN;
 }

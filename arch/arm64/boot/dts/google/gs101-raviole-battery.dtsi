@@ -44,7 +44,7 @@
 				google,bat-power-supply = "battery";
 				google,usb-power-supply = "usb";
 
-				google,fv-max-uv = <4400000>;
+				google,fv-max-uv = <4450000>;
 			};
 
 			google_bms {

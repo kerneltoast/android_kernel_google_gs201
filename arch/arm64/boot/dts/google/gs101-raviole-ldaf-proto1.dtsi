@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs101 ldaf(Laser Detection Auto Focus) device tree source
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+&stmvl53l1 {
+	vio-type = "regulator";
+};

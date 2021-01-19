@@ -9,17 +9,8 @@
 /dts-v1/;
 /plugin/;
 
-#include "gs101-camera-slider2.dtsi"
-#include "gs101-slider-common.dtsi"
-#include "gs101-slider2-battery.dtsi"
-#include "gs101-slider2-cp-s5200-sit.dtsi"
-#include "gs101-slider2-gps.dtsi"
-
-#define WC_BUS &hsi2c_8
-#include "gs101-slider-wcharger.dtsi"
-#include "gs101-slider-thermal.dtsi"
-#include "gs101-slider-bcl.dtsi"
-#include "gs101-slider2-audio.dtsi"
+#include "gs101-slider2-common.dtsi"
+#include "gs101-slider-ese.dtsi"
 
 / {
 	board_id = <0x201>;

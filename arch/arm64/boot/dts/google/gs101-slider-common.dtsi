@@ -12,7 +12,6 @@
 #include "gs101-slider-display.dtsi"
 #include "gs101-slider-touch.dtsi"
 #include "gs101-slider-nfc.dtsi"
-#include "gs101-slider-ese.dtsi"
 #include "gs101-slider-battery.dtsi"
 #include "gs101-slider-sbbm.dtsi"
 #include "gs101-slider-fingerprint.dtsi"

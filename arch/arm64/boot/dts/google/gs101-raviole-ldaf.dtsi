@@ -30,6 +30,8 @@
 		/* XEINT_9: GPA7[1] GPIO54 */
 		intr-gpio = <&gpa7 1 GPIO_ACTIVE_LOW>;
 
+		vio-type = "gpio";
+		vio-gpio = <&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
 		vio-supply = <&slg51000_ldo7>;
 		vio-voltage = <1800000>;
 
