@@ -48,7 +48,7 @@ static int __mfc_alloc_common_context(struct mfc_core *core,
 	buf_size = dev->variant->buf_size->ctx_buf;
 	ctx_buf->size = buf_size->dev_ctx;
 
-	if (mfc_mem_ion_alloc(dev, ctx_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, ctx_buf)) {
 		mfc_core_err("Allocating %s context buffer failed\n",
 				buf_type == MFCBUF_DRM ? "secure" : "normal");
 		return -ENOMEM;
@@ -95,7 +95,7 @@ static void __mfc_release_common_context(struct mfc_core *core,
 		ctx_buf = &core->drm_common_ctx_buf;
 #endif
 
-	mfc_mem_ion_free(ctx_buf);
+	mfc_mem_special_buf_free(ctx_buf);
 	mfc_core_debug(2, "[MEMINFO] Release %s common context buffer\n",
 			buf_type == MFCBUF_DRM ? "secure" : "normal");
 
@@ -171,7 +171,7 @@ int mfc_alloc_instance_context(struct mfc_core_ctx *core_ctx)
 	else
 		core_ctx->instance_ctx_buf.buftype = MFCBUF_NORMAL;
 
-	if (mfc_mem_ion_alloc(dev, &core_ctx->instance_ctx_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, &core_ctx->instance_ctx_buf)) {
 		mfc_err("Allocating context buffer failed\n");
 		return -ENOMEM;
 	}
@@ -191,7 +191,7 @@ void mfc_release_instance_context(struct mfc_core_ctx *core_ctx)
 
 	mfc_core_debug_enter();
 
-	mfc_mem_ion_free(&core_ctx->instance_ctx_buf);
+	mfc_mem_special_buf_free(&core_ctx->instance_ctx_buf);
 	mfc_core_debug(2, "[MEMINFO] Release the instance buffer ctx[%d]\n",
 			core_ctx->num);
 
@@ -417,7 +417,7 @@ int mfc_alloc_codec_buffers(struct mfc_core_ctx *core_ctx)
 	}
 
 	if (core_ctx->codec_buf.size > 0) {
-		if (mfc_mem_ion_alloc(dev, &core_ctx->codec_buf)) {
+		if (mfc_mem_special_buf_alloc(dev, &core_ctx->codec_buf)) {
 			mfc_err("Allocating codec buffer failed\n");
 			return -ENOMEM;
 		}
@@ -427,7 +427,7 @@ int mfc_alloc_codec_buffers(struct mfc_core_ctx *core_ctx)
 	}
 
 	if (!ctx->mv_buffer_allocated && ctx->mv_buf.size > 0) {
-		if (mfc_mem_ion_alloc(dev, &ctx->mv_buf)) {
+		if (mfc_mem_special_buf_alloc(dev, &ctx->mv_buf)) {
 			mfc_err("Allocating MV buffer failed\n");
 			return -ENOMEM;
 		}
@@ -451,12 +451,12 @@ void mfc_release_codec_buffers(struct mfc_core_ctx *core_ctx)
 	struct mfc_ctx *ctx = core_ctx->ctx;
 
 	if (core_ctx->codec_buffer_allocated) {
-		mfc_mem_ion_free(&core_ctx->codec_buf);
+		mfc_mem_special_buf_free(&core_ctx->codec_buf);
 		core_ctx->codec_buffer_allocated = 0;
 	}
 
 	if (ctx->mv_buffer_allocated) {
-		mfc_mem_ion_free(&ctx->mv_buf);
+		mfc_mem_special_buf_free(&ctx->mv_buf);
 		ctx->mv_buffer_allocated = 0;
 	}
 
@@ -474,7 +474,7 @@ int mfc_alloc_scratch_buffer(struct mfc_core_ctx *core_ctx)
 	mfc_debug_enter();
 
 	if (core_ctx->scratch_buffer_allocated) {
-		mfc_mem_ion_free(&core_ctx->scratch_buf);
+		mfc_mem_special_buf_free(&core_ctx->scratch_buf);
 		core_ctx->scratch_buffer_allocated = 0;
 		mfc_debug(2, "[MEMINFO] Release the scratch buffer ctx[%d]\n",
 				core_ctx->num);
@@ -487,7 +487,7 @@ int mfc_alloc_scratch_buffer(struct mfc_core_ctx *core_ctx)
 
 	core_ctx->scratch_buf.size =  ALIGN(ctx->scratch_buf_size, 256);
 	if (core_ctx->scratch_buf.size > 0) {
-		if (mfc_mem_ion_alloc(dev, &core_ctx->scratch_buf)) {
+		if (mfc_mem_special_buf_alloc(dev, &core_ctx->scratch_buf)) {
 			mfc_err("Allocating scratch_buf buffer failed\n");
 			return -ENOMEM;
 		}
@@ -509,7 +509,7 @@ void mfc_release_scratch_buffer(struct mfc_core_ctx *core_ctx)
 
 	mfc_debug_enter();
 	if (core_ctx->scratch_buffer_allocated) {
-		mfc_mem_ion_free(&core_ctx->scratch_buf);
+		mfc_mem_special_buf_free(&core_ctx->scratch_buf);
 		core_ctx->scratch_buffer_allocated = 0;
 		mfc_debug(2, "[MEMINFO] Release the scratch buffer ctx[%d]\n",
 				core_ctx->num);
@@ -527,7 +527,7 @@ int mfc_alloc_dbg_info_buffer(struct mfc_core *core)
 
 	core->dbg_info_buf.buftype = MFCBUF_NORMAL;
 	core->dbg_info_buf.size = buf_size->dbg_info_buf;
-	if (mfc_mem_ion_alloc(dev, &core->dbg_info_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, &core->dbg_info_buf)) {
 		mfc_core_err("Allocating debug info buffer failed\n");
 		return -ENOMEM;
 	}
@@ -544,7 +544,7 @@ void mfc_release_dbg_info_buffer(struct mfc_core *core)
 	if (!core->dbg_info_buf.dma_buf)
 		mfc_core_debug(2, "debug info buffer is already freed\n");
 
-	mfc_mem_ion_free(&core->dbg_info_buf);
+	mfc_mem_special_buf_free(&core->dbg_info_buf);
 	mfc_core_debug(2, "[MEMINFO] Release the debug info buffer\n");
 }
 
@@ -559,7 +559,7 @@ static int __mfc_alloc_enc_roi_buffer(struct mfc_core_ctx *core_ctx,
 	roi_buf->buftype = MFCBUF_NORMAL;
 
 	if (roi_buf->dma_buf == NULL) {
-		if (mfc_mem_ion_alloc(dev, roi_buf)) {
+		if (mfc_mem_special_buf_alloc(dev, roi_buf)) {
 			mfc_err("[ROI] Allocating ROI buffer failed\n");
 			return -ENOMEM;
 		}
@@ -631,7 +631,7 @@ void mfc_release_enc_roi_buffer(struct mfc_core_ctx *core_ctx)
 
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++)
 		if (enc->roi_buf[i].dma_buf)
-			mfc_mem_ion_free(&enc->roi_buf[i]);
+			mfc_mem_special_buf_free(&enc->roi_buf[i]);
 
 	mfc_debug(2, "[MEMINFO][ROI] Release the ROI buffer\n");
 }
@@ -651,7 +651,7 @@ int mfc_otf_alloc_stream_buf(struct mfc_ctx *ctx)
 		buf = &debug->stream_buf[i];
 		buf->buftype = MFCBUF_NORMAL;
 		buf->size = raw->total_plane_size;
-		if (mfc_mem_ion_alloc(dev, buf)) {
+		if (mfc_mem_special_buf_alloc(dev, buf)) {
 			mfc_ctx_err("[OTF] Allocating stream buffer failed\n");
 			return -EINVAL;
 		}
@@ -677,7 +677,7 @@ void mfc_otf_release_stream_buf(struct mfc_ctx *ctx)
 	for (i = 0; i < OTF_MAX_BUF; i++) {
 		buf = &debug->stream_buf[i];
 		if (buf->dma_buf)
-			mfc_mem_ion_free(buf);
+			mfc_mem_special_buf_free(buf);
 	}
 
 	mfc_debug(2, "[OTF][MEMINFO] Release the OTF stream buffer\n");
@@ -704,7 +704,7 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	trace_mfc_loadfw_start(core->fw_buf.size, core->fw_buf.size);
 
 	core->fw_buf.buftype = MFCBUF_NORMAL_FW;
-	if (mfc_mem_ion_alloc(dev, &core->fw_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, &core->fw_buf)) {
 		mfc_core_err("[F/W] Allocating normal firmware buffer failed\n");
 		return -ENOMEM;
 	}
@@ -720,7 +720,7 @@ int mfc_alloc_firmware(struct mfc_core *core)
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	core->drm_fw_buf.buftype = MFCBUF_DRM_FW;
 	core->drm_fw_buf.size = core->fw_buf.size;
-	if (mfc_mem_ion_alloc(dev, &core->drm_fw_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, &core->drm_fw_buf)) {
 		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
 		goto err_daddr;
 	}
@@ -739,7 +739,7 @@ err_daddr:
 	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
 #endif
 err_reserve_iova:
-	mfc_mem_ion_free(&core->fw_buf);
+	mfc_mem_special_buf_free(&core->fw_buf);
 	return -ENOMEM;
 }
 
@@ -833,10 +833,10 @@ int mfc_release_firmware(struct mfc_core *core)
 	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	mfc_mem_ion_free(&core->drm_fw_buf);
+	mfc_mem_special_buf_free(&core->drm_fw_buf);
 #endif
 
-	mfc_mem_ion_free(&core->fw_buf);
+	mfc_mem_special_buf_free(&core->fw_buf);
 
 	return 0;
 }

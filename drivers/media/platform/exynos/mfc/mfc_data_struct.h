@@ -652,7 +652,6 @@ struct mfc_special_buf {
 	void				*vaddr;
 	size_t				size;
 	size_t				map_size;
-	unsigned int			heapmask;
 };
 
 struct mfc_mem {

@@ -11,11 +11,11 @@
  */
 
 #include <linux/property.h>
-#include <linux/ion.h>
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
 #include <linux/dma-iommu.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/dma-heap.h>
 
 #include "mfc_mem.h"
 
@@ -146,40 +146,43 @@ static void mfc_mem_fw_free(struct mfc_special_buf *special_buf)
 	special_buf->vaddr = NULL;
 }
 
-int mfc_mem_ion_alloc(struct mfc_dev *dev,
+static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 		struct mfc_special_buf *special_buf)
 {
-	int flag = 0;
+	struct dma_heap *dma_heap;
 	const char *heapname;
-
-	if (special_buf->buftype == MFCBUF_NORMAL_FW ||
-	    special_buf->buftype == MFCBUF_DRM_FW)
-		return mfc_mem_fw_alloc(dev, special_buf);
 
 	switch (special_buf->buftype) {
 	case MFCBUF_NORMAL:
-		heapname = "ion_system_heap";
+		heapname = "system-uncached";
 		break;
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	case MFCBUF_DRM:
-		heapname = "vframe_heap";
-		flag |= ION_EXYNOS_FLAG_PROTECTED;
+		heapname = "vframe-secure";
 		break;
 #endif
 	default:
-		heapname = "unknown";
-		mfc_dev_err("not supported mfc mem type: %d, heapname: %s\n",
-				special_buf->buftype, heapname);
 		return -EINVAL;
 	}
 
-	special_buf->dma_buf = ion_alloc(special_buf->size, special_buf->heapmask, flag);
+	/* control by DMA heap API */
+	dma_heap = dma_heap_find(heapname);
+	if (!dma_heap) {
+		mfc_dev_err("Failed to get DMA heap (name: %s)\n", heapname);
+		goto err_dma_heap_find;
+	}
+
+	special_buf->dma_buf = dma_heap_buffer_alloc(dma_heap,
+			special_buf->size, 0, 0);
 	if (IS_ERR(special_buf->dma_buf)) {
 		mfc_dev_err("Failed to allocate buffer (err %ld)\n",
 				PTR_ERR(special_buf->dma_buf));
-		goto err_ion_alloc;
+		goto err_dma_heap_alloc;
 	}
 
+	dma_heap_put(dma_heap);
+
+	/* control by DMA buf API */
 	special_buf->attachment = dma_buf_attach(special_buf->dma_buf,
 					dev->device);
 	if (IS_ERR(special_buf->attachment)) {
@@ -225,17 +228,15 @@ err_map:
 err_attach:
 	special_buf->attachment = NULL;
 	dma_buf_put(special_buf->dma_buf);
-err_ion_alloc:
+err_dma_heap_alloc:
+	dma_heap_put(dma_heap);
 	special_buf->dma_buf = NULL;
+err_dma_heap_find:
 	return -ENOMEM;
 }
 
-void mfc_mem_ion_free(struct mfc_special_buf *special_buf)
+void mfc_mem_dma_heap_free(struct mfc_special_buf *special_buf)
 {
-	if (special_buf->buftype == MFCBUF_NORMAL_FW ||
-	    special_buf->buftype == MFCBUF_DRM_FW)
-		return mfc_mem_fw_free(special_buf);
-
 	if (special_buf->vaddr)
 		dma_buf_vunmap(special_buf->dma_buf, special_buf->vaddr);
 	if (special_buf->sgt)
@@ -251,6 +252,51 @@ void mfc_mem_ion_free(struct mfc_special_buf *special_buf)
 	special_buf->sgt = NULL;
 	special_buf->daddr = 0;
 	special_buf->vaddr = NULL;
+
+}
+
+int mfc_mem_special_buf_alloc(struct mfc_dev *dev,
+		struct mfc_special_buf *special_buf)
+{
+	int ret;
+
+	switch (special_buf->buftype) {
+	case MFCBUF_NORMAL_FW:
+	case MFCBUF_DRM_FW:
+		ret = mfc_mem_fw_alloc(dev, special_buf);
+		break;
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	case MFCBUF_DRM:
+#endif
+	case MFCBUF_NORMAL:
+		ret = mfc_mem_dma_heap_alloc(dev, special_buf);
+		break;
+	default:
+		mfc_dev_err("not supported mfc mem type: %d\n", special_buf->buftype);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+void mfc_mem_special_buf_free(struct mfc_special_buf *special_buf)
+{
+	switch (special_buf->buftype) {
+	case MFCBUF_NORMAL_FW:
+	case MFCBUF_DRM_FW:
+		mfc_mem_fw_free(special_buf);
+		break;
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	case MFCBUF_DRM:
+#endif
+	case MFCBUF_NORMAL:
+		mfc_mem_dma_heap_free(special_buf);
+		break;
+	default:
+		break;
+	}
+
+	return;
 }
 
 void mfc_bufcon_put_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf, int plane)
