@@ -614,7 +614,7 @@
 	};
 
 	udc: usb@11110000 {
-		compatible = "samsung,exynos-dwusb";
+		compatible = "samsung,exynos9-dwusb";
 		clocks = <&clock GATE_USB31DRD_SLV_LINK>,
 			<&clock MUX_HSI0_USB20_REF>,
 			<&clock VDOUT_CLK_TOP_HSI0_BUS>;
@@ -634,13 +634,23 @@
 		phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
 		phy-names = "usb2-phy", "usb3-phy";
 		/* check susphy support */
-		xhci_l2_support = <1>;
-		dr_mode = "otg";
 		suspend_clk_freq = <19200000>;
 		/* support usb offloading, 0: disabled, 1: audio */
 		offload = <1>;
 		/* INT min lock support */
 		usb-pm-qos-int = <200000>;
+
+		usbdrd_dwc3: dwc3 {
+			compatible = "synopsys,dwc3";
+			clocks = <&clock GATE_USB31DRD_SLV_LINK>,
+				<&clock MUX_HSI0_USB20_REF>;
+			clock-names = "aclk", "sclk";
+			reg = <0x0 0x11110000 0x10000>;
+			interrupts = <GIC_SPI IRQ_USB31DRD_GIC_0_HSI0 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "peripheral";
+			phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
+			phy-names = "usb2-phy", "usb3-phy";
+		};
 	};
 
 	usbdrd_phy0: phy@11100000 {
