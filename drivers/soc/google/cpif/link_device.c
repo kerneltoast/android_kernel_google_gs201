@@ -663,36 +663,6 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 		}
 	}
 
-	if (ld->capability_check) {
-		/* get cp_capability */
-		mld->cp_capability_0 = ioread32(mld->cp_capability_0_offset);
-		mld->cp_capability_1 = ioread32(mld->cp_capability_1_offset);
-
-		if ((mld->ap_capability_0 ^ mld->cp_capability_0) & mld->ap_capability_0) {
-			/* if at least one feature is owned by AP only, crash CP */
-			link_trigger_cp_crash(mld, CRASH_REASON_MIF_FORCED,
-					"CP lacks capability\n");
-			mif_err("AP capability 0: 0x%08x CP capability 0: 0x%08x\n",
-					mld->ap_capability_0, mld->cp_capability_0);
-			return;
-		}
-		if ((mld->ap_capability_1 ^ mld->cp_capability_1) & mld->ap_capability_1) {
-			/* if at least one feature is owned by AP only, crash CP */
-			link_trigger_cp_crash(mld, CRASH_REASON_MIF_FORCED,
-					"CP lacks capability\n");
-			mif_err("AP capability 1: 0x%08x CP capability 1: 0x%08x\n",
-					mld->ap_capability_1, mld->cp_capability_1);
-			return;
-		}
-
-		mif_info("ap_capability_0:0x%08x ap_capability_1:0x%08x\n",
-				mld->ap_capability_0, mld->ap_capability_1);
-		mif_info("cp_capability_0:0x%08x cp_capability_1:0x%08x\n",
-				mld->cp_capability_0, mld->cp_capability_1);
-
-		init_enabled_capabilities(mld);
-	}
-
 	spin_lock_irqsave(&mld->state_lock, flags);
 
 	if (mld->state == LINK_STATE_IPC) {
@@ -715,6 +685,32 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 			atomic_set(&mld->cp_boot_done, 1);
 		}
 		goto exit;
+	}
+
+	if (ld->capability_check) {
+		/* get cp_capability */
+		mld->cp_capability_0 = ioread32(mld->cp_capability_0_offset);
+		mld->cp_capability_1 = ioread32(mld->cp_capability_1_offset);
+
+		if ((mld->ap_capability_0 ^ mld->cp_capability_0) & mld->ap_capability_0) {
+			/* if at least one feature is owned by AP only, crash CP */
+			mif_err("AP capability 0: 0x%08x CP capability 0: 0x%08x\n",
+					mld->ap_capability_0, mld->cp_capability_0);
+			goto capability_fail;
+		}
+		if ((mld->ap_capability_1 ^ mld->cp_capability_1) & mld->ap_capability_1) {
+			/* if at least one feature is owned by AP only, crash CP */
+			mif_err("AP capability 1: 0x%08x CP capability 1: 0x%08x\n",
+					mld->ap_capability_1, mld->cp_capability_1);
+			goto capability_fail;
+		}
+
+		mif_info("ap_capability_0:0x%08x ap_capability_1:0x%08x\n",
+				mld->ap_capability_0, mld->ap_capability_1);
+		mif_info("cp_capability_0:0x%08x cp_capability_1:0x%08x\n",
+				mld->cp_capability_0, mld->cp_capability_1);
+
+		init_enabled_capabilities(mld);
 	}
 
 	err = init_legacy_link(&mld->legacy_link_dev);
@@ -758,6 +754,13 @@ exit:
 	if (ld->sbd_ipc)
 		start_tx_timer(mld, &mld->sbd_print_timer);
 	spin_unlock_irqrestore(&mld->state_lock, flags);
+	return;
+
+capability_fail:
+	spin_unlock_irqrestore(&mld->state_lock, flags);
+	link_trigger_cp_crash(mld, CRASH_REASON_MIF_FORCED,
+			"CP lacks capability\n");
+	return;
 }
 
 static void cmd_crash_reset_handler(struct mem_link_device *mld)
@@ -2556,11 +2559,6 @@ static void gro_flush_timer(struct link_device *ld, struct napi_struct *napi)
 
 	if (!gro_flush_time) {
 		napi_gro_flush(napi, false);
-		if (napi->rx_count) {
-			netif_receive_skb_list(&napi->rx_list);
-			INIT_LIST_HEAD(&napi->rx_list);
-			napi->rx_count = 0;
-		}
 		return;
 	}
 
@@ -2571,11 +2569,6 @@ static void gro_flush_timer(struct link_device *ld, struct napi_struct *napi)
 		diff = timespec64_sub(curr, mld->flush_time);
 		if ((diff.tv_sec > 0) || (diff.tv_nsec > gro_flush_time)) {
 			napi_gro_flush(napi, false);
-			if (napi->rx_count) {
-				netif_receive_skb_list(&napi->rx_list);
-				INIT_LIST_HEAD(&napi->rx_list);
-				napi->rx_count = 0;
-			}
 			ktime_get_real_ts64(&mld->flush_time);
 		}
 	}

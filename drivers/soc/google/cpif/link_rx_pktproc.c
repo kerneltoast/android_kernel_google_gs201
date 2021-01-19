@@ -5,6 +5,9 @@
  */
 
 #include <asm/cacheflush.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/udp.h>
 #include <linux/shm_ipc.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
@@ -80,10 +83,22 @@ static bool pktproc_check_hw_checksum(u8 status)
 
 static void pktproc_set_pktgen_checksum(struct pktproc_queue *q, u8 *data)
 {
-	u16 *csum_ptr;
+	unsigned int off;
+	struct udphdr *uh;
 
-	csum_ptr = (u16 *)&data[26];
-	*csum_ptr = htons(0x1234);
+	switch (data[0] & 0xF0) {
+	case 0x40:
+		off = sizeof(struct iphdr);
+		break;
+	case 0x60:
+		off = sizeof(struct ipv6hdr);
+		break;
+	default:
+		return;
+	}
+
+	uh = (struct udphdr *)(data + off);
+	uh->check = htons(0x1234);
 }
 
 static ssize_t pktgen_gro_store(struct device *dev,
@@ -840,23 +855,27 @@ static int pktproc_perftest_thread(void *arg)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 	struct pktproc_queue *q = ppa->q[0];
 	struct pktproc_perftest *perf = &ppa->perftest;
+	bool session_queue = false;
 	int i, pkts;
 
 	if (perf->session > PKTPROC_MAX_QUEUE)
 		perf->session = PKTPROC_MAX_QUEUE;
 
+	if (ppa->use_exclusive_irq && (perf->session > 1) && (perf->session <= ppa->num_queue))
+		session_queue = true;
+
 	/* max 1023 packets per 1ms for 12Gbps */
 	pkts = (perf->session > 0 ? (1023 / perf->session) : 0);
 	do {
 		for (i = 0 ; i < perf->session ; i++) {
-			if (ppa->use_exclusive_irq)
+			if (session_queue)
 				q = ppa->q[i];
 
 			if (!pktproc_perftest_gen_rx_packet_sktbuf_mode(q, pkts, i))
 				continue;
 
 			if (ppa->use_napi) {
-				if (ppa->use_exclusive_irq) {
+				if (session_queue) {
 					if (cpu_online(perf->ipi_cpu[i]))
 						smp_call_function_single(perf->ipi_cpu[i],
 							pktproc_perftest_napi_schedule,

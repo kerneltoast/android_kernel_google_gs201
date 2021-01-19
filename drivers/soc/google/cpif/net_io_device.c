@@ -20,6 +20,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/netdevice.h>
+#include <net/tcp.h>
 
 #include <soc/google/exynos-modem-ctrl.h>
 
@@ -282,6 +283,44 @@ drop:
 	return NETDEV_TX_OK;
 }
 
+static bool _is_tcp_ack(struct sk_buff *skb)
+{
+	switch (skb->protocol) {
+	/* TCPv4 ACKs */
+	case htons(ETH_P_IP):
+		if ((ip_hdr(skb)->protocol == IPPROTO_TCP) &&
+			(ntohs(ip_hdr(skb)->tot_len) - (ip_hdr(skb)->ihl << 2) ==
+			 tcp_hdr(skb)->doff << 2) &&
+		    ((tcp_flag_word(tcp_hdr(skb)) &
+		      cpu_to_be32(0x00FF0000)) == TCP_FLAG_ACK))
+			return true;
+		break;
+
+	/* TCPv6 ACKs */
+	case htons(ETH_P_IPV6):
+		if ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) &&
+			(ntohs(ipv6_hdr(skb)->payload_len) ==
+			 (tcp_hdr(skb)->doff) << 2) &&
+		    ((tcp_flag_word(tcp_hdr(skb)) &
+		      cpu_to_be32(0x00FF0000)) == TCP_FLAG_ACK))
+			return true;
+		break;
+	}
+
+	return false;
+}
+
+static inline bool is_tcp_ack(struct sk_buff *skb)
+{
+	if (skb_is_tcp_pure_ack(skb))
+		return true;
+
+	if (unlikely(_is_tcp_ack(skb)))
+		return true;
+
+	return false;
+}
+
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS) || IS_ENABLED(CONFIG_MODEM_IF_QOS)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
@@ -295,7 +334,7 @@ static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 #endif
 {
 #if IS_ENABLED(CONFIG_MODEM_IF_QOS)
-	return (skb && skb_is_tcp_pure_ack(skb)) ? 1 : 0;
+	return (skb && is_tcp_ack(skb)) ? 1 : 0;
 #elif IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
 	return ((skb && skb->truesize == 2) ||
 			(skb && skb->sk && cpif_qos_get_node(skb->sk->sk_uid.val))) ? 1 : 0;

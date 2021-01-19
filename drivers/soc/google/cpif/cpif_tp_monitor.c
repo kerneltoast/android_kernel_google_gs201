@@ -215,7 +215,7 @@ static void tpmon_print_info(struct cpif_tpmon *tpmon)
 	tpmon_calc_dit_src_queue_status(tpmon);
 	tpmon_calc_netdev_backlog_queue_status(tpmon);
 
-	mif_info("DL:%ld%s(%ld%s/%ld%s/%ld%s) pktproc:%d/dit:%d/netdev:%d legacy:%d\n",
+	mif_info("DL:%ld%s(%ld%s/%ld%s/%ld%s) pktproc:%d/dit:%d/netdev:%d legacy:%d tcp_rmem:%d %d %d\n",
 		tpmon->rx_total.rx_mbps ? tpmon->rx_total.rx_mbps : tpmon->rx_total.rx_kbps,
 		tpmon->rx_total.rx_mbps ? "Mbps" : "Kbps",
 		tpmon->rx_tcp.rx_mbps ? tpmon->rx_tcp.rx_mbps : tpmon->rx_tcp.rx_kbps,
@@ -227,7 +227,9 @@ static void tpmon_print_info(struct cpif_tpmon *tpmon)
 		tpmon->pktproc_queue_status,
 		tpmon->dit_src_queue_status,
 		tpmon->netdev_backlog_queue_status,
-		tpmon->legacy_packet_count);
+		tpmon->legacy_packet_count,
+		init_net.ipv4.sysctl_tcp_rmem[0], init_net.ipv4.sysctl_tcp_rmem[1],
+		init_net.ipv4.sysctl_tcp_rmem[2]);
 
 	tpmon->legacy_packet_count = 0;
 }
@@ -1639,7 +1641,7 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 #endif
 		default:
 			mif_err("%s target error:%d %d\n", data->name, count, data->target);
-			return -EINVAL;
+			continue;
 		}
 
 		/* extra_idx */

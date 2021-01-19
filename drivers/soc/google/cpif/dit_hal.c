@@ -81,13 +81,13 @@ static int dit_hal_init(void)
 
 	dhc->last_event_num = OFFLOAD_MAX;
 
-	spin_lock(&dhc->stats_lock);
+	spin_lock_irqsave(&dhc->stats_lock, flags);
 	dhc->stats.data_limit = S64_MAX;
 	dhc->stats.rx_bytes = 0;
 	dhc->stats.tx_bytes = 0;
 	dhc->stats.rx_diff = 0;
 	dhc->stats.tx_diff = 0;
-	spin_unlock(&dhc->stats_lock);
+	spin_unlock_irqrestore(&dhc->stats_lock, flags);
 
 	for (i = 0; i < DIT_DST_DESC_RING_MAX; i++)
 		dhc->dst_iface[i].iface_set = false;
@@ -149,29 +149,33 @@ EXPORT_SYMBOL(dit_hal_get_dst_netdev);
 
 static bool dit_hal_check_data_limit_reached(void)
 {
+	unsigned long flags;
+
 	if (!dhc)
 		return false;
 
-	spin_lock(&dhc->stats_lock);
+	spin_lock_irqsave(&dhc->stats_lock, flags);
 	if ((dhc->stats.rx_bytes + dhc->stats.tx_bytes) >= dhc->stats.data_limit) {
-		spin_unlock(&dhc->stats_lock);
+		spin_unlock_irqrestore(&dhc->stats_lock, flags);
 		return true;
 	}
-	spin_unlock(&dhc->stats_lock);
+	spin_unlock_irqrestore(&dhc->stats_lock, flags);
 	return false;
 }
 
 void dit_hal_add_data_bytes(u64 rx_bytes, u64 tx_bytes)
 {
+	unsigned long flags;
+
 	if (!dhc)
 		return;
 
-	spin_lock(&dhc->stats_lock);
+	spin_lock_irqsave(&dhc->stats_lock, flags);
 	dhc->stats.rx_bytes += rx_bytes;
 	dhc->stats.tx_bytes += tx_bytes;
 	dhc->stats.rx_diff += rx_bytes;
 	dhc->stats.tx_diff += tx_bytes;
-	spin_unlock(&dhc->stats_lock);
+	spin_unlock_irqrestore(&dhc->stats_lock, flags);
 
 	if (dit_hal_check_data_limit_reached())
 		dit_hal_set_event(OFFLOAD_STOPPED_LIMIT_REACHED);
@@ -180,9 +184,10 @@ EXPORT_SYMBOL(dit_hal_add_data_bytes);
 
 static bool dit_hal_get_forwarded_stats(struct forward_stats *stats)
 {
+	unsigned long flags;
 	bool ret = false;
 
-	spin_lock(&dhc->stats_lock);
+	spin_lock_irqsave(&dhc->stats_lock, flags);
 	if (strncmp(stats->iface, dhc->stats.iface, IFNAMSIZ))
 		goto exit;
 
@@ -196,18 +201,20 @@ static bool dit_hal_get_forwarded_stats(struct forward_stats *stats)
 exit:
 	dhc->stats.rx_diff = 0;
 	dhc->stats.tx_diff = 0;
-	spin_unlock(&dhc->stats_lock);
+	spin_unlock_irqrestore(&dhc->stats_lock, flags);
 	return ret;
 }
 
 static void dit_hal_set_data_limit(struct forward_stats *stats)
 {
-	spin_lock(&dhc->stats_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dhc->stats_lock, flags);
 	strlcpy(dhc->stats.iface, stats->iface, IFNAMSIZ);
 	dhc->stats.data_limit = stats->data_limit;
 	dhc->stats.rx_bytes = 0;
 	dhc->stats.tx_bytes = 0;
-	spin_unlock(&dhc->stats_lock);
+	spin_unlock_irqrestore(&dhc->stats_lock, flags);
 }
 
 static bool dit_hal_check_ready_to_start(void)
