@@ -19,6 +19,7 @@
 #endif
 
 #include <soc/google/exynos-dm.h>
+#include "vh/kernel/systrace.h"
 
 #define DM_EMPTY	0xFF
 static struct exynos_dm_device *exynos_dm;
@@ -920,6 +921,7 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 	u64 pre, before, after;
 	s32 time = 0, pre_time = 0;
 
+	ATRACE_BEGIN(__func__);
 #if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	dbg_snapshot_dm((int)dm_type, *target_freq, 1, pre_time, time);
 #endif
@@ -1001,7 +1003,7 @@ out:
 #if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	dbg_snapshot_dm((int)dm_type, *target_freq, 3, pre_time, time);
 #endif
-
+	ATRACE_END();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(DM_CALL);

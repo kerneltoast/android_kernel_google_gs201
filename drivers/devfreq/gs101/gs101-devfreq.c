@@ -50,6 +50,7 @@
 #include "../governor.h"
 
 #include "gs101-ppc.h"
+#include "../../soc/google/vh/kernel/systrace.h"
 
 #define HZ_PER_KHZ	1000
 
@@ -120,7 +121,7 @@ static int exynos_devfreq_dm_call(struct device *parent,
 	err = find_exynos_devfreq_dm_type(devfreq->dev.parent, &dm_type);
 	if (err)
 		return -EINVAL;
-
+	ATRACE_BEGIN(__func__);
 	exynos_pm_qos_max = (unsigned long)HZ_PER_KHZ * dev_pm_qos_read_value(devfreq->dev.parent,
 						  DEV_PM_QOS_MAX_FREQUENCY);
 
@@ -135,6 +136,7 @@ static int exynos_devfreq_dm_call(struct device *parent,
 	DM_CALL(dm_type, target_freq);
 
 	*target_freq = data->previous_freq;
+	ATRACE_END();
 	return err;
 }
 
@@ -207,6 +209,7 @@ static int devfreq_frequency_scaler(int dm_type, void *devdata,
 	u32 flags = 0;
 	int err = 0;
 
+	ATRACE_BEGIN(__func__);
 	devfreq = find_exynos_devfreq_device(devdata);
 	if (IS_ERR_OR_NULL(devfreq)) {
 		pr_err("%s: No such devfreq for dm_type(%d)\n", __func__, dm_type);
@@ -236,9 +239,9 @@ static int devfreq_frequency_scaler(int dm_type, void *devdata,
 	}
 
 	err = exynos_devfreq_target(devfreq->dev.parent, &freq, flags);
-	if (err)
-		return err;
+
 err_out:
+	ATRACE_END();
 	return err;
 }
 #endif

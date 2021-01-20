@@ -27,6 +27,7 @@
 #include "acpm_ipc.h"
 #include "../cal-if/fvmap.h"
 #include "fw_header/framework.h"
+#include "../vh/kernel/systrace.h"
 
 #define IPC_TIMEOUT				(200000000)
 #define APM_SYSTICK_PERIOD_US			(20345)
@@ -560,7 +561,7 @@ int acpm_ipc_send_data_sync(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
 	struct acpm_ipc_ch *channel;
-
+	ATRACE_BEGIN(__func__);
 	ret = acpm_ipc_send_data(channel_id, cfg);
 
 	if (!ret) {
@@ -577,7 +578,7 @@ int acpm_ipc_send_data_sync(unsigned int channel_id, struct ipc_config *cfg)
 			}
 		}
 	}
-
+	ATRACE_END();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_send_data_sync);
@@ -715,9 +716,9 @@ retry:
 int acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
-
+	ATRACE_BEGIN(__func__);
 	ret = __acpm_ipc_send_data(channel_id, cfg, false);
-
+	ATRACE_END();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_send_data);
@@ -725,12 +726,12 @@ EXPORT_SYMBOL_GPL(acpm_ipc_send_data);
 int acpm_ipc_send_data_lazy(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
-
+	ATRACE_BEGIN(__func__);
 	if (is_rt_dl_task_policy())
 		ret = __acpm_ipc_send_data(channel_id, cfg, true);
 	else
 		ret = __acpm_ipc_send_data(channel_id, cfg, false);
-
+	ATRACE_END();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_send_data_lazy);
