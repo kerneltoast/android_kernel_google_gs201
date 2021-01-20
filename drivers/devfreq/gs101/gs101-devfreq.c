@@ -1375,6 +1375,10 @@ int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
 EXPORT_SYMBOL_GPL(exynos_devfreq_parse_ect);
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
+#define NUM_COLS 2
+#endif
+
 static int exynos_devfreq_parse_dt(struct device_node *np,
 				   struct exynos_devfreq_data *data)
 {
@@ -1392,6 +1396,8 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 	u32 count_total = 0;
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	struct devfreq_alt_dvfs_data *alt_data;
+	u32 *of_data_int_array;
+	int map_cnt;
 #endif
 	unsigned int i;
 	unsigned int val;
@@ -1735,6 +1741,42 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 			/* Initial governor freq setup */
 			data->simple_interactive_data.governor_freq = 0;
 
+			map_cnt = of_property_count_elems_of_size(np, "mif_int_map",
+								  sizeof(u32));
+			if (map_cnt <= 0 || map_cnt % NUM_COLS) {
+				dev_info(data->dev,
+					 "No valid mif_int_map available\n");
+				goto out;
+			}
+			of_data_int_array = kcalloc(map_cnt, sizeof(u32), GFP_KERNEL);
+			if (!of_data_int_array) {
+				dev_err(data->dev,
+					"Failed to allocate memory\n");
+				return -ENOMEM;
+			}
+			if (of_property_read_u32_array(np, "mif_int_map",
+						       of_data_int_array,
+						       (size_t)map_cnt)) {
+				kfree(of_data_int_array);
+				return -ENODEV;
+			}
+			alt_data->map_row_cnt = map_cnt / NUM_COLS;
+			alt_data->mif_int_tbl =
+				devm_kcalloc(data->dev, alt_data->map_row_cnt,
+					     sizeof(u32), GFP_KERNEL);
+			if (!alt_data->mif_int_tbl) {
+				dev_err(data->dev,
+					"Failed to allocate memory for mif_int_tbl\n");
+				kfree(of_data_int_array);
+				return -ENOMEM;
+			}
+			for (i = 0; i < alt_data->map_row_cnt; i++) {
+				alt_data->mif_int_tbl[i].mif_freq =
+					of_data_int_array[i * NUM_COLS];
+				alt_data->mif_int_tbl[i].int_freq =
+					of_data_int_array[i * NUM_COLS + 1];
+			}
+			kfree(of_data_int_array);
 		} else {
 			dev_info(data->dev,
 				 "ALT-DVFS is not declared by device tree.\n");
@@ -1746,6 +1788,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 		return -EINVAL;
 	}
 
+out:
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 	if (of_property_read_u32(np, "dm-index", &data->dm_type)) {
 		dev_err(data->dev, "not support dvfs manager\n");
@@ -2392,6 +2435,7 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 			goto err_um;
 		}
 	}
+	exynos_pm_qos_add_request(&data->bus_pm_qos_min, PM_QOS_DEVICE_THROUGHPUT, 0);
 
 #endif
 	ret = devfreq_register_opp_notifier(data->dev, data->devfreq);
@@ -2481,6 +2525,7 @@ err_opp_noti:
 	exynos_pm_qos_remove_request(&data->sys_pm_qos_min);
 	devfreq_remove_device(data->devfreq);
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
+	exynos_pm_qos_remove_request(&data->bus_pm_qos_min);
 err_um:
 	if (data->um_nb) {
 		exynos_alt_unregister_notifier(&data->um_nb->nb);

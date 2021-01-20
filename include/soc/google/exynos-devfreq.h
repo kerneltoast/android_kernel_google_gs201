@@ -45,6 +45,11 @@ struct devfreq_alt_track {
 	unsigned long long	max_spent;
 };
 
+struct mif_int_map {
+	unsigned int mif_freq;
+	unsigned int int_freq;
+};
+
 #define ALTDVFS_MIN_SAMPLE_TIME		15
 #define ALTDVFS_HOLD_SAMPLE_TIME	100
 #define ALTDVFS_TARGET_LOAD		75
@@ -65,6 +70,10 @@ struct devfreq_alt_dvfs_data {
 	unsigned int		hispeed_load;
 	unsigned int		hispeed_freq;
 	unsigned int		tolerance;
+
+	/* MIF to INT mapping table */
+	struct mif_int_map	*mif_int_tbl;
+	unsigned int		map_row_cnt;
 };
 #endif /* ALT_DVFS */
 
@@ -169,6 +178,9 @@ struct exynos_devfreq_data {
 	struct exynos_pm_qos_request		default_pm_qos_max;
 	struct exynos_pm_qos_request		thermal_pm_qos_max;
 	struct exynos_pm_qos_request		boot_pm_qos;
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
+	struct exynos_pm_qos_request		bus_pm_qos_min;
+#endif
 	u32					boot_qos_timeout;
 
 	struct notifier_block			reboot_notifier;
