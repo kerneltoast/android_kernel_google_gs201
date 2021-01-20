@@ -111,20 +111,19 @@ struct acpm_tmu_cap {
 };
 
 int exynos_acpm_tmu_set_init(struct acpm_tmu_cap *cap);
-int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat);
 int exynos_acpm_tmu_set_suspend(int flag);
 int exynos_acpm_tmu_set_cp_call(void);
 int exynos_acpm_tmu_set_resume(void);
 int exynos_acpm_tmu_ipc_dump(int no, unsigned int dump[]);
 bool exynos_acpm_tmu_is_test_mode(void);
 void exynos_acpm_tmu_set_test_mode(bool mode);
+void exynos_acpm_tmu_set_ipc_blocked(bool mode);
 void exynos_acpm_tmu_log(bool mode);
 
 void exynos_acpm_tmu_set_threshold(int tz, unsigned char temp[]);
 void exynos_acpm_tmu_set_hysteresis(int tz, unsigned char hyst[]);
 void exynos_acpm_tmu_set_interrupt_enable(int tz, unsigned char inten);
 void exynos_acpm_tmu_tz_control(int tz, bool enable);
-void exynos_acpm_tmu_clear_tz_irq(int tz);
 void exynos_acpm_tmu_set_emul_temp(int tz, unsigned char temp);
 
 int exynos_acpm_tmu_init(void);

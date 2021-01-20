@@ -39,6 +39,7 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_exynos.h>
+#include <trace/events/power.h>
 
 #define EXYNOS_GPU_TMU_GRP_ID		(3)
 
@@ -47,6 +48,212 @@
 #define frac_to_int(x) ((x) >> FRAC_BITS)
 
 #define INVALID_TRIP -1
+
+enum tmu_grp_idx_t {
+	TZ_BIG = 0,
+	TZ_MID = 1,
+	TZ_LIT = 2,
+	TZ_GPU = 3,
+	TZ_ISP = 4,
+	TZ_TPU = 5,
+	TZ_END = 6,
+};
+
+#define TZ_BIG_SENSOR_MASK (TMU_P0_SENSOR_MASK | \
+			    TMU_P6_SENSOR_MASK | \
+			    TMU_P7_SENSOR_MASK | \
+			    TMU_P8_SENSOR_MASK | \
+			    TMU_P9_SENSOR_MASK)
+#define TZ_MID_SENSOR_MASK (TMU_P4_SENSOR_MASK | \
+			    TMU_P5_SENSOR_MASK)
+#define TZ_LIT_SENSOR_MASK (TMU_P1_SENSOR_MASK | \
+			    TMU_P2_SENSOR_MASK)
+#define TZ_GPU_SENSOR_MASK (TMU_P1_SENSOR_MASK | \
+			    TMU_P2_SENSOR_MASK | \
+			    TMU_P3_SENSOR_MASK | \
+			    TMU_P4_SENSOR_MASK | \
+			    TMU_P5_SENSOR_MASK | \
+			    TMU_P6_SENSOR_MASK | \
+			    TMU_P7_SENSOR_MASK)
+#define TZ_ISP_SENSOR_MASK (TMU_P14_SENSOR_MASK)
+#define TZ_TPU_SENSOR_MASK (TMU_P8_SENSOR_MASK | \
+			    TMU_P9_SENSOR_MASK | \
+			    TMU_P10_SENSOR_MASK | \
+			    TMU_P11_SENSOR_MASK)
+
+static struct thermal_zone_data tz_config[] = {
+	[TZ_BIG] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_BIG_SENSOR_MASK,
+	},
+	[TZ_MID] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_MID_SENSOR_MASK,
+	},
+	[TZ_LIT] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_LIT_SENSOR_MASK,
+	},
+	[TZ_GPU] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_GPU_SENSOR_MASK,
+	},
+	[TZ_ISP] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_ISP_SENSOR_MASK,
+	},
+	[TZ_TPU] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_TPU_SENSOR_MASK,
+	},
+};
+
+static int gs101_tmu_tz_config_init(struct platform_device *pdev)
+{
+	struct gs101_tmu_data *pdata = platform_get_drvdata(pdev);
+	struct thermal_zone_data *tz_config_p;
+	enum trim_type_t tmu_trim_type[TMU_END];
+	u16 cnt;
+	u32 val;
+	enum tmu_zone_t tmu_zone_id;
+	enum tmu_grp_idx_t tmu_grp_idx;
+	enum tmu_sensor_t probe_id;
+
+	for (tmu_zone_id = 0; tmu_zone_id < TMU_END; tmu_zone_id++) {
+		val = readl(pdata->base + TMU_TRIMINFO_CONFIG_REG);
+		tmu_trim_type[tmu_zone_id] = (val &
+			TMU_TRIMINFO_CONFIG_CALIB_SEL_MASK);
+	}
+
+	for (tmu_grp_idx = 0; tmu_grp_idx < TZ_END; tmu_grp_idx++) {
+		tz_config_p = &tz_config[tmu_grp_idx];
+		if (tz_config_p->tmu_zone_id >= TMU_END) {
+			dev_err(&pdev->dev,
+				"Invalid tmu zone id %d for tz id %d\n",
+				tz_config_p->tmu_zone_id, tmu_grp_idx);
+			return -EINVAL;
+			break;
+		}
+		tz_config_p->trim_type =
+			tmu_trim_type[tz_config_p->tmu_zone_id];
+
+		cnt = 0;
+		for (probe_id = 0; probe_id < TMU_SENSOR_PROBE_NUM; probe_id++) {
+			if ((1 << probe_id) & tz_config_p->sensors_mask) {
+				tz_config_p->sensors[cnt].probe_id = probe_id;
+				val = readl(pdata->base +
+					    TMU_TRIMINFO_REG(probe_id));
+				tz_config_p->sensors[cnt].trim_info_25 =
+					(val & TMU_TRIMINFO_25_85_MASK);
+				tz_config_p->sensors[cnt].trim_info_85 =
+					((val >> TMU_TRIMINFO_85_SHIFT) &
+					 TMU_TRIMINFO_25_85_MASK);
+				cnt++;
+			}
+		}
+		tz_config_p->sensor_cnt = cnt;
+	}
+
+	return 0;
+}
+
+static int gs101_tmu_get_sensor_temp(struct gs101_tmu_data *pdata,
+				     enum trim_type_t trim_type,
+				     struct sensor_data *sensor_data_p,
+				     int *temp)
+{
+	enum tmu_sensor_t probe_id = sensor_data_p->probe_id;
+	u32 temp_code;
+
+	temp_code = readl(pdata->base + TMU_CURRENT_TEMP_REG(probe_id));
+	temp_code = ((temp_code >> TMU_CURRENT_TEMP_SHIFT(probe_id)) &
+		     TMU_CURRENT_TEMP_MASK);
+
+	switch (trim_type) {
+	case ONE_POINT_TRIMMING:
+		*temp = (temp_code - sensor_data_p->trim_info_25) +
+			TMU_1P_TRIM_TEMP_25;
+	case TWO_POINT_TRIMMING:
+		*temp = (temp_code - sensor_data_p->trim_info_25) *
+			(TMU_2P_TRIM_TEMP_85 - TMU_1P_TRIM_TEMP_25) /
+			(sensor_data_p->trim_info_85 -
+			 sensor_data_p->trim_info_25) +
+			TMU_1P_TRIM_TEMP_25;
+	}
+
+	if (*temp > TMU_MAX_TEMP) {
+		*temp = TMU_MAX_TEMP;
+	} else if (*temp < TMU_MIN_TEMP) {
+		*temp = TMU_MIN_TEMP;
+	}
+
+	return 0;
+}
+
+static int gs101_tmu_get_tz_temp(struct gs101_tmu_data *pdata, int *temp)
+{
+	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
+	struct thermal_zone_device *tz = pdata->tzd;
+	int sensor_temp = TMU_UNKNOWN_TEMP;
+	int max_sensor_temp = TMU_UNKNOWN_TEMP;
+	u16 cnt;
+	char name[40];
+
+	for (cnt = 0; cnt < tz_config_p->sensor_cnt; cnt++) {
+		gs101_tmu_get_sensor_temp(pdata,
+					  tz_config_p->trim_type,
+					  &(tz_config_p->sensors[cnt]),
+					  &sensor_temp);
+
+		dev_dbg_ratelimited(&tz->device, "tz %d temp %d:%d",
+				    pdata->id, cnt, sensor_temp);
+		scnprintf(name, sizeof(name), "TMU%d_%d", pdata->id, cnt);
+		trace_clock_set_rate(name, sensor_temp, raw_smp_processor_id());
+
+		if (sensor_temp > max_sensor_temp)
+			max_sensor_temp = sensor_temp;
+	}
+
+	*temp = max_sensor_temp;
+	return 0;
+}
+
+static int gs101_tmu_clear_tz_irq(struct gs101_tmu_data *pdata)
+{
+	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
+	u32 val;
+	u16 cnt;
+	enum tmu_sensor_t probe_id;
+
+	mutex_lock(&pdata->lock);
+	for (cnt = 0; cnt < tz_config_p->sensor_cnt; cnt++) {
+		probe_id = tz_config_p->sensors[cnt].probe_id;
+		val = readl(pdata->base + TMU_INTPEND_REG(probe_id));
+		exynos_acpm_tmu_set_ipc_blocked(true);
+		writel(val, pdata->base + TMU_INTPEND_REG(probe_id));
+		exynos_acpm_tmu_set_ipc_blocked(false);
+	}
+	mutex_unlock(&pdata->lock);
+
+	return 0;
+}
+
+static bool has_tz_pending_irq(struct gs101_tmu_data *pdata)
+{
+	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
+	u32 val;
+	u16 cnt;
+	enum tmu_sensor_t probe_id;
+
+	for (cnt = 0; cnt < tz_config_p->sensor_cnt; cnt++) {
+		probe_id = tz_config_p->sensors[cnt].probe_id;
+		val = readl(pdata->base + TMU_INTPEND_REG(probe_id));
+		if (val)
+			return true;
+	}
+
+	return false;
+}
 
 /**
  * mul_frac() - multiply two fixed-point numbers
@@ -133,6 +340,13 @@ static int gs101_tmu_initialize(struct platform_device *pdev)
 
 		hysteresis[i] = (unsigned char)(temp / MCELSIUS);
 	}
+
+	ret = gs101_tmu_tz_config_init(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to initialize tmu tz config\n");
+		goto out;
+	}
+
 	exynos_acpm_tmu_set_threshold(data->id, threshold);
 	exynos_acpm_tmu_set_hysteresis(data->id, hysteresis);
 	exynos_acpm_tmu_set_interrupt_enable(data->id, inten);
@@ -165,16 +379,15 @@ static int gs101_get_temp(void *p, int *temp)
 	unsigned int mcinfo_temp = 0;
 	unsigned int i;
 #endif
-	int acpm_temp = 0, stat = 0;
+	int tz_temp = 0;
 
 	if (!data || !data->enabled)
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
 
-	exynos_acpm_tmu_set_read_temp(data->id, &acpm_temp, &stat);
-
-	*temp = acpm_temp * MCELSIUS;
+	gs101_tmu_get_tz_temp(data, &tz_temp);
+	*temp = tz_temp * MCELSIUS;
 
 	if (data->limited_frequency) {
 		if (!data->limited) {
@@ -548,28 +761,16 @@ static void gs101_tmu_work(struct kthread_work *work)
 	struct gs101_tmu_data *data = container_of(work,
 			struct gs101_tmu_data, irq_work);
 	struct thermal_zone_device *tz = data->tzd;
-	struct gs101_pi_param *params = data->pi_param;
 
 	gs101_report_trigger(data);
-	mutex_lock(&data->lock);
 
-	exynos_acpm_tmu_clear_tz_irq(data->id);
+	gs101_tmu_clear_tz_irq(data);
 
 	dev_dbg_ratelimited(&tz->device, "IRQ handled: tz:%s, temp:%d\n",
 			    tz->type, tz->temperature);
 
-	mutex_unlock(&data->lock);
-
-	if (data->use_pi_thermal) {
-		if (params->switched_on)
-			/*
-			 * handle hotplug and limited_threshold but do
-			 * not trigger polling if it is already on
-			 */
-			thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
-		else
+	if (data->use_pi_thermal)
 			gs101_pi_thermal(data);
-	}
 
 	enable_irq(data->irq);
 }
@@ -579,8 +780,13 @@ static irqreturn_t gs101_tmu_irq(int irq, void *id)
 	struct gs101_tmu_data *data = id;
 
 	disable_irq_nosync(irq);
-	kthread_queue_work(&data->thermal_worker, &data->irq_work);
+	if (has_tz_pending_irq(data)) {
+		kthread_queue_work(&data->thermal_worker, &data->irq_work);
+		goto irq_handler_exit;
+	}
+	enable_irq(data->irq);
 
+irq_handler_exit:
 	return IRQ_HANDLED;
 }
 
@@ -1746,17 +1952,11 @@ static int gs101_tmu_resume(struct device *dev)
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
 	struct cpumask mask;
-	int temp, stat;
 
 	if (suspended_count == num_of_devices)
 		exynos_acpm_tmu_set_resume();
 
 	gs101_tmu_control(pdev, true);
-
-	exynos_acpm_tmu_set_read_temp(data->id, &temp, &stat);
-
-	pr_info("%s: thermal zone %d temp %d stat %d\n",
-		__func__, data->tzd->id, temp, stat);
 
 	enable_irq(data->irq);
 	suspended_count--;

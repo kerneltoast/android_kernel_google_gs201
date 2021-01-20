@@ -16,13 +16,13 @@
 #include <linux/debugfs.h>
 #include <linux/sched/clock.h>
 #include <soc/google/acpm_ipc_ctrl.h>
-#include <trace/events/power.h>
 #include "exynos_acpm_tmu.h"
 
 static unsigned int acpm_tmu_ch_num, acpm_tmu_size;
 
 static bool acpm_tmu_test_mode;
 static bool acpm_tmu_log;
+static bool acpm_tmu_ipc_blocked;
 
 bool exynos_acpm_tmu_is_test_mode(void)
 {
@@ -32,6 +32,11 @@ bool exynos_acpm_tmu_is_test_mode(void)
 void exynos_acpm_tmu_set_test_mode(bool mode)
 {
 	acpm_tmu_test_mode = mode;
+}
+
+void exynos_acpm_tmu_set_ipc_blocked(bool mode)
+{
+	acpm_tmu_ipc_blocked = mode;
 }
 
 void exynos_acpm_tmu_log(bool mode)
@@ -60,6 +65,9 @@ static void exynos_acpm_tmu_ipc_send_data(union tmu_ipc_message *message)
 	struct ipc_config config;
 	int ret;
 	unsigned long long before, after, latency;
+
+	if (acpm_tmu_ipc_blocked)
+		return;
 
 	config.cmd = message->data;
 	config.response = true;
@@ -93,49 +101,6 @@ int exynos_acpm_tmu_set_init(struct acpm_tmu_cap *cap)
 
 	if (message.resp.ret & CAP_APM_DIVIDER)
 		cap->acpm_divider = true;
-
-	return 0;
-}
-
-/*
- * TMU_IPC_READ_TEMP
- *
- * - tz: thermal zone index registered in device tree
- */
-int exynos_acpm_tmu_set_read_temp(int tz, int *temp, int *stat)
-{
-	union tmu_ipc_message message;
-
-	if (acpm_tmu_test_mode)
-		return -1;
-
-	memset(&message, 0, sizeof(message));
-
-	message.req.type = TMU_IPC_READ_TEMP;
-	message.req.tzid = tz;
-
-	exynos_acpm_tmu_ipc_send_data(&message);
-	if (acpm_tmu_log) {
-		int i;
-		u8 *temp = &message.resp.rsvd0;
-		pr_info_ratelimited("[acpm_tmu] tz %d temp 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d\n",
-			tz,
-			message.resp.rsvd0,
-			message.resp.rsvd1,
-			message.resp.rsvd2,
-			message.resp.rsvd3,
-			message.resp.rsvd4,
-			message.resp.rsvd5,
-			message.resp.rsvd6);
-		for (i = 0; i < 7; i++) {
-			char name[40];
-
-			scnprintf(name, sizeof(name), "TMU%d_%d", tz, i);
-			trace_clock_set_rate(name, temp[i], raw_smp_processor_id());
-		}
-	}
-	*temp = message.resp.temp;
-	*stat = message.resp.stat;
 
 	return 0;
 }
@@ -312,24 +277,6 @@ void exynos_acpm_tmu_tz_control(int tz, bool enable)
 	message.req.type = TMU_IPC_TMU_CONTROL;
 	message.req.tzid = tz;
 	message.req.req_rsvd0 = ((enable) ? 1 : 0);
-
-	exynos_acpm_tmu_ipc_send_data(&message);
-	if (acpm_tmu_log) {
-		pr_info_ratelimited("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
-	}
-}
-
-void exynos_acpm_tmu_clear_tz_irq(int tz)
-{
-	union tmu_ipc_message message;
-
-	memset(&message, 0, sizeof(message));
-	message.req.type = TMU_IPC_IRQ_CLEAR;
-	message.req.tzid = tz;
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {

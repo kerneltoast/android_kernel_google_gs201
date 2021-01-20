@@ -92,4 +92,89 @@ struct gs101_tmu_data {
 	char cpuhp_name[CPUHP_USER_NAME_LEN + 1];
 };
 
+#define TMU_TRIMINFO_CONFIG_REG			0
+#define TMU_TRIMINFO_CONFIG_CALIB_SEL_MASK	1
+
+#define TMU_TRIMINFO0				0x0010
+#define TMU_TRIMINFO_REG(i)			(TMU_TRIMINFO0 + 0x4 * (i))
+#define TMU_TRIMINFO_85_SHIFT			9
+#define TMU_TRIMINFO_25_85_MASK			0x1ff
+
+#define TMU_CURRENT_TEMP_P1_P0			0x0084
+#define TMU_CURRENT_TEMP_REG(i)			(TMU_CURRENT_TEMP_P1_P0 + 0x4 * ((i) / 2))
+#define TMU_CURRENT_TEMP_SHIFT(i)		(((i) % 2) * 16)
+#define TMU_CURRENT_TEMP_MASK			0x1ff
+
+#define TMU_INTPEND_P0				0x00F8
+#define TMU_INTPEND_REG(i)			(TMU_INTPEND_P0 + 0x50 * (i))
+
+#define TMU_1P_TRIM_TEMP_25 25
+#define TMU_2P_TRIM_TEMP_85 85
+
+#define TMU_UNKNOWN_TEMP 0
+#define TMU_MAX_TEMP 125
+#define TMU_MIN_TEMP 10
+#define TMU_SENSOR_PROBE_NUM 16
+
+enum tmu_zone_t {
+	TMU_TOP = 0,
+	TMU_SUB = 1,
+	TMU_END = 2,
+};
+
+enum tmu_sensor_t {
+	TMU_P0_SENSOR = 0,
+	TMU_P1_SENSOR = 1,
+	TMU_P2_SENSOR = 2,
+	TMU_P3_SENSOR = 3,
+	TMU_P4_SENSOR = 4,
+	TMU_P5_SENSOR = 5,
+	TMU_P6_SENSOR = 6,
+	TMU_P7_SENSOR = 7,
+	TMU_P8_SENSOR = 8,
+	TMU_P9_SENSOR = 9,
+	TMU_P10_SENSOR = 10,
+	TMU_P11_SENSOR = 11,
+	TMU_P12_SENSOR = 12,
+	TMU_P13_SENSOR = 13,
+	TMU_P14_SENSOR = 14,
+	TMU_P15_SENSOR = 15,
+};
+
+#define TMU_P0_SENSOR_MASK (1 << TMU_P0_SENSOR)
+#define TMU_P1_SENSOR_MASK (1 << TMU_P1_SENSOR)
+#define TMU_P2_SENSOR_MASK (1 << TMU_P2_SENSOR)
+#define TMU_P3_SENSOR_MASK (1 << TMU_P3_SENSOR)
+#define TMU_P4_SENSOR_MASK (1 << TMU_P4_SENSOR)
+#define TMU_P5_SENSOR_MASK (1 << TMU_P5_SENSOR)
+#define TMU_P6_SENSOR_MASK (1 << TMU_P6_SENSOR)
+#define TMU_P7_SENSOR_MASK (1 << TMU_P7_SENSOR)
+#define TMU_P8_SENSOR_MASK (1 << TMU_P8_SENSOR)
+#define TMU_P9_SENSOR_MASK (1 << TMU_P9_SENSOR)
+#define TMU_P10_SENSOR_MASK (1 << TMU_P10_SENSOR)
+#define TMU_P11_SENSOR_MASK (1 << TMU_P11_SENSOR)
+#define TMU_P12_SENSOR_MASK (1 << TMU_P12_SENSOR)
+#define TMU_P13_SENSOR_MASK (1 << TMU_P13_SENSOR)
+#define TMU_P14_SENSOR_MASK (1 << TMU_P14_SENSOR)
+#define TMU_P15_SENSOR_MASK (1 << TMU_P15_SENSOR)
+
+struct sensor_data {
+	enum tmu_sensor_t probe_id;
+	u16 trim_info_25;
+	u16 trim_info_85;
+};
+
+enum trim_type_t {
+	ONE_POINT_TRIMMING = 0,
+	TWO_POINT_TRIMMING = 1,
+};
+
+struct thermal_zone_data {
+	enum tmu_zone_t tmu_zone_id;
+	enum trim_type_t trim_type;
+	u16 sensors_mask;
+	struct sensor_data sensors[TMU_SENSOR_PROBE_NUM];
+	u16 sensor_cnt;
+};
+
 #endif /* _GS101_TMU_H */
