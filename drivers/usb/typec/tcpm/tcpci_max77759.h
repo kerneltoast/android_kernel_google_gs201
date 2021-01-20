@@ -75,6 +75,11 @@ struct max77759_plat {
 #endif
 
 	struct logbuffer *log;
+
+	u8 force_device_mode_on:1;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *dentry;
+#endif
 };
 
 /*
