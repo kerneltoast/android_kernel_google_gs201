@@ -461,14 +461,10 @@ static unsigned long _exynos_devfreq_get_freq(unsigned int devfreq_type)
 		return 0;
 	}
 
-	if (data->clk) {
-		if (preemptible() && !in_interrupt())
-			freq = (clk_get_rate(data->clk) / 1000) / 2;
-		else
-			freq = data->old_freq;
-	} else {
+	if (data->clk)
+		freq = data->old_freq;
+	else
 		freq = cal_dfs_get_rate(data->dfs_id);
-	}
 
 	if ((u32)freq == 0) {
 		if (data->clk)
