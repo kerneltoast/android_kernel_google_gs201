@@ -34,8 +34,8 @@ extern int sched_cpu_idle(int cpu);
 static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_mask)
 {
 	int cpu, best_cpu = -1;
-	unsigned long best_cpu_util = ULONG_MAX;
-	unsigned long best_cpu_capacity = ULONG_MAX;
+	unsigned long min_cpu_util = ULONG_MAX;
+	unsigned long min_cpu_capacity = ULONG_MAX;
 	unsigned int min_exit_lat = UINT_MAX;
 	bool check_util = true;
 	unsigned long util;
@@ -45,7 +45,7 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 redo:
 	for_each_cpu(cpu, lowest_mask) {
 		struct cpuidle_state *idle;
-		unsigned int exit_lat = UINT_MAX;
+		unsigned int exit_lat = 0;
 		unsigned long capacity = capacity_orig_of(cpu);
 
 		util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
@@ -65,25 +65,27 @@ redo:
 		}
 
 		/* Always prefer the least loaded cpu. */
-		if (util > best_cpu_util)
+		if (util > min_cpu_util)
 			continue;
 
-		/* Prefer prev cpu if util is the same. */
-		if (best_cpu_util == util && best_cpu == task_cpu(p))
-			continue;
-
-		/* If cpu is not prev cpu anf util is the same: */
-		if (cpu != task_cpu(p) && best_cpu_util == util) {
-			/* prefer the min exit latency */
+		/* If util is the same: */
+		if (util == min_cpu_util) {
+			/* Prefer lower exit latency. */
 			if (exit_lat > min_exit_lat)
 				continue;
-			/* prefer lower capacity cpu if the exit latency is the same */
-			if (capacity > best_cpu_capacity && exit_lat == min_exit_lat)
-				continue;
+			/* If exit latency is the same: */
+			if (exit_lat == min_exit_lat) {
+				/* Prefer lower capacity. */
+				if (capacity > min_cpu_capacity )
+					continue;
+				/* If capacity is the same, prefer prev cpu */
+				if (best_cpu == task_cpu(p))
+					continue;
+			}
 		}
 
-		best_cpu_util = util;
-		best_cpu_capacity = capacity;
+		min_cpu_util = util;
+		min_cpu_capacity = capacity;
 		min_exit_lat = exit_lat;
 		best_cpu = cpu;
 	}
