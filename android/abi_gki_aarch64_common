@@ -3528,7 +3528,6 @@
   fscrypt_fname_siphash
   fscrypt_free_bounce_page
   fscrypt_free_inode
-  fscrypt_get_encryption_info
   fscrypt_get_symlink
   fscrypt_has_permitted_context
   __fscrypt_inode_uses_inline_crypto
@@ -3546,7 +3545,9 @@
   __fscrypt_prepare_link
   __fscrypt_prepare_lookup
   fscrypt_prepare_new_inode
+  __fscrypt_prepare_readdir
   __fscrypt_prepare_rename
+  __fscrypt_prepare_setattr
   fscrypt_prepare_symlink
   fscrypt_put_encryption_info
   fscrypt_set_bio_crypt_ctx
@@ -7043,7 +7044,7 @@
   pagecache_isize_extended
   page_cache_next_miss
   page_cache_prev_miss
-  page_cache_readahead_unbounded
+  page_cache_ra_unbounded
   page_cache_sync_readahead
   pagecache_write_begin
   pagecache_write_end
