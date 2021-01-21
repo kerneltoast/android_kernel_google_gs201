@@ -117,6 +117,7 @@ static int exynos_devfreq_dm_call(struct device *parent,
 	unsigned long exynos_pm_qos_max;
 	struct devfreq *devfreq = data->devfreq;
 	struct devfreq_simple_interactive_data *gov_data = devfreq->data;
+	struct dev_pm_opp *max_opp;
 
 	err = find_exynos_devfreq_dm_type(devfreq->dev.parent, &dm_type);
 	if (err)
@@ -128,6 +129,15 @@ static int exynos_devfreq_dm_call(struct device *parent,
 	if (!strcmp(devfreq->governor->name, "interactive") && gov_data->pm_qos_class_max)
 		exynos_pm_qos_max =
 			(unsigned long)exynos_pm_qos_request(gov_data->pm_qos_class_max);
+
+	max_opp = dev_pm_opp_find_freq_floor(devfreq->dev.parent, &exynos_pm_qos_max);
+	if (max_opp == ERR_PTR(-ERANGE)) {
+		exynos_pm_qos_max = data->min_freq;
+		max_opp = dev_pm_opp_find_freq_ceil(devfreq->dev.parent, &exynos_pm_qos_max);
+	}
+
+	dev_pm_opp_put(max_opp);
+
 	if (data->suspend_flag)
 		policy_update_call_to_DM(dm_type, str_freq,
 					 str_freq);
