@@ -1203,6 +1203,8 @@ void mfc_core_meerkat_worker(struct work_struct *work)
 	struct mfc_core *core;
 	int cmd;
 	int max_tick_cnt = 3 * MEERKAT_TICK_CNT_TO_START_MEERKAT;
+	struct mfc_core_ctx *core_ctx = NULL;
+	int curr_ctx;
 
 	core = container_of(work, struct mfc_core, meerkat_work);
 
@@ -1219,6 +1221,17 @@ void mfc_core_meerkat_worker(struct work_struct *work)
 	if (feature_option & MFC_OPTION_MEERKAT_DISABLE) {
 		mfc_core_info("meerkat disable: no interrupt ignore\n");
 		return;
+	}
+
+	curr_ctx = __mfc_get_curr_ctx(core);
+	if (curr_ctx >= 0) {
+		core_ctx = core->core_ctx[curr_ctx];
+		if ((core_ctx->state == MFCINST_ERROR) || (core->state == MFCCORE_ERROR)) {
+			mfc_core_info("[MSR] It's Error state: core_ctx %d core %d\n",
+					core_ctx->state, core->state);
+			mfc_core_meerkat_stop_tick(core);
+			return;
+		}
 	}
 
 	cmd = mfc_core_check_risc2host(core);

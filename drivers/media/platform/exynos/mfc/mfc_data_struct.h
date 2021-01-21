@@ -137,6 +137,14 @@ enum mfc_node_type {
 };
 
 /**
+ * enum mfc_core_state - The type of MFC core device.
+ */
+enum mfc_core_state {
+	MFCCORE_INIT	= 0,
+	MFCCORE_ERROR	= 1,
+};
+
+/**
  * enum mfc_inst_type - The type of an MFC instance.
  */
 enum mfc_inst_type {
@@ -1235,6 +1243,8 @@ struct mfc_core {
 
 	struct mfc_variant	*variant;
 	struct mfc_core_platdata *core_pdata;
+
+	enum mfc_core_state state;
 
 	bool has_2sysmmu;
 	bool has_hwfc;

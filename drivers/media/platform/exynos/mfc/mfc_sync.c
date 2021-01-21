@@ -163,6 +163,11 @@ int mfc_wait_for_done_core(struct mfc_core *core, int command)
 {
 	int ret;
 
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_info("[MSR] Couldn't run HW. It's Error state\n");
+		return 0;
+	}
+
 	ret = wait_event_timeout(core->cmd_wq,
 			wait_condition(core, command),
 			msecs_to_jiffies(MFC_INT_TIMEOUT));
@@ -209,6 +214,11 @@ int mfc_wait_for_done_core_ctx(struct mfc_core_ctx *core_ctx, int command)
 	struct mfc_ctx *ctx = core_ctx->ctx;
 	int ret;
 	unsigned int timeout = MFC_INT_TIMEOUT;
+
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_info("[MSR] Couldn't run HW. It's Error state\n");
+		return 0;
+	}
 
 	if (command == MFC_REG_R2H_CMD_CLOSE_INSTANCE_RET)
 		timeout = MFC_INT_SHORT_TIMEOUT;
