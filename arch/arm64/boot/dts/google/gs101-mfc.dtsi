@@ -25,8 +25,8 @@
 		/* MFC version */
 		/* ip_ver is set in gs101-a0.dts and gs101-b0.dts */
 
-		/* Debug mode */
-		debug_mode = <1>;
+		/* Debug mode (disable needs sysmmu,async-fault) */
+		debug_mode = <0>;
 
 		/* NAL-Q size */
 		nal_q_entry_size = <512>;
