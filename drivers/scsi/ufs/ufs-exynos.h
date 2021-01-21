@@ -167,6 +167,9 @@ struct exynos_ufs {
 	u64 slowio_min_us;
 	u64 slowio[PIXEL_SLOWIO_OP_MAX][PIXEL_SLOWIO_SYS_MAX];
 
+	/* Pointer to GSA device */
+	struct device *gsa_dev;
+
 	/* Hibern8 recording */
 	struct pixel_ufs_stats ufs_stats;
 };
@@ -186,18 +189,19 @@ void exynos_ufs_cmd_log_end(struct ufs_vs_handle *handle,
 			    struct ufs_hba *hba, int tag);
 
 #ifdef CONFIG_SCSI_UFS_CRYPTO
-void exynos_ufs_fmp_init(struct ufs_hba *hba);
-void exynos_ufs_fmp_resume(struct ufs_hba *hba);
-int exynos_ufs_fmp_fill_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
-			     unsigned int segments);
+int pixel_ufs_crypto_init(struct ufs_hba *hba);
+void pixel_ufs_crypto_resume(struct ufs_hba *hba);
+int pixel_ufs_crypto_fill_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
+			       unsigned int segments);
 #else
-static inline void exynos_ufs_fmp_init(struct ufs_hba *hba)
+static inline int pixel_ufs_crypto_init(struct ufs_hba *hba)
+{
+	return 0;
+}
+static inline void pixel_ufs_crypto_resume(struct ufs_hba *hba)
 {
 }
-static inline void exynos_ufs_fmp_resume(struct ufs_hba *hba)
-{
-}
-#define exynos_ufs_fmp_fill_prdt NULL
+#define pixel_ufs_crypto_fill_prdt NULL
 #endif /* !CONFIG_SCSI_UFS_CRYPTO */
 
 int pixel_ufs_prepare_command(struct ufs_hba *hba,

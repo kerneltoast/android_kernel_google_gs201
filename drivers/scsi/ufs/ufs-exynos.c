@@ -463,7 +463,9 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	/* set features, such as caps or quirks */
 	exynos_ufs_set_features(hba);
 
-	exynos_ufs_fmp_init(hba);
+	ret = pixel_ufs_crypto_init(hba);
+	if (ret)
+		return ret;
 
 	pixel_init_parameter(hba);
 
@@ -878,7 +880,7 @@ static int __exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	if (ret)
 		return ret;
 
-	exynos_ufs_fmp_resume(hba);
+	pixel_ufs_crypto_resume(hba);
 
 	return 0;
 }
@@ -928,7 +930,7 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.dbg_register_dump = exynos_ufs_dump_debug_info,
 	.suspend = __exynos_ufs_suspend,
 	.resume = __exynos_ufs_resume,
-	.fill_prdt = exynos_ufs_fmp_fill_prdt,
+	.fill_prdt = pixel_ufs_crypto_fill_prdt,
 	.prepare_command = pixel_ufs_prepare_command,
 	.update_sysfs = pixel_ufs_update_sysfs,
 	.send_command = pixel_ufs_send_command,
