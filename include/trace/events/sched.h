@@ -682,11 +682,6 @@ DECLARE_TRACE(sugov_next_freq_tp,
 	TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max, unsigned int freq),
 	TP_ARGS(cpu, util, max, freq));
 
-DECLARE_TRACE(schedutil_cpu_util_clamp_tp,
-	TP_PROTO(int cpu, unsigned long util_cfs, unsigned long util_rt, unsigned long util_clamp,
-		 unsigned long util_max),
-	TP_ARGS(cpu, util_cfs, util_rt, util_clamp, util_max));
-
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
