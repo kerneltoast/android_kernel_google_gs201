@@ -151,13 +151,6 @@ static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
 	}
 }
 
-unsigned long map_util_freq(unsigned long util,
-					unsigned long freq, unsigned long cap)
-{
-	return (freq + (freq >> 2)) * util / cap;
-}
-EXPORT_SYMBOL_GPL(map_util_freq);
-
 /**
  * get_next_freq - Compute a new frequency for a given cpufreq policy.
  * @sg_policy: schedutil policy object to compute the new frequency for.
