@@ -18,6 +18,7 @@
 		idt,gpio_dc_switch = <&s2mpg10_gpio 0 GPIO_ACTIVE_HIGH>;
 
 		idt,gpio_qi_vbus_en = <&s2mpg10_gpio 2 GPIO_ACTIVE_HIGH>;
+		idt,has_wlc_dc = <0>;
 		max_vout_mv = <19500>;
 	};
 };
