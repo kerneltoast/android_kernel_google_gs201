@@ -238,10 +238,8 @@ unsigned long schedutil_cpu_util(int cpu, unsigned long util_cfs,
 	 * frequency will be gracefully reduced with the utilization decay.
 	 */
 	util = util_cfs + cpu_util_rt(rq);
-	if (type == FREQUENCY_UTIL) {
+	if (type == FREQUENCY_UTIL)
 		util = uclamp_rq_util_with(rq, util, p);
-		trace_schedutil_cpu_util_clamp_tp(cpu, util_cfs, cpu_util_rt(rq), util, max);
-	}
 
 	dl_util = cpu_util_dl(rq);
 
