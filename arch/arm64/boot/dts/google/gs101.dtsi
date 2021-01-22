@@ -14,6 +14,7 @@
 #include <dt-bindings/soc/google/gs101-dm.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #include <dt-bindings/soc/google/gs101-pm-qos.h>
+#include <dt-bindings/soc/google/debug-snapshot-def.h>
 #include "gs101-rmem.dtsi"
 #include "gs101-bigo.dtsi"
 #include "gs101-bts.dtsi"
@@ -460,10 +461,10 @@
 	exynos-reboot {
 		compatible = "samsung,exynos-reboot";
 		syscon = <&pmu_system_controller>;
-		shutdown-offset = <0x3E9C>;
-		shutdown-trigger = <0x100>;
-		reboot-offset = <0x3A00>;
-		reboot-trigger = <0x2>;
+		pshold-control-offset = <0x3E9C>;
+		pshold-control-trigger = <0x100>;
+		swreset-system-offset = <0x3A00>;
+		swreset-system-trigger = <0x2>;
 		reboot-cmd-offset = <0x0810>;
 	};
 
@@ -516,6 +517,7 @@
 		dump-size = <0x3B000>;                  /* 236KB */
 		acpm-ipc-channel = <12>;
 		fvmap_addr = <0x31000>;
+		panic-action = <GO_WATCHDOG_ID>;
 	};
 
 	acpm_stats {

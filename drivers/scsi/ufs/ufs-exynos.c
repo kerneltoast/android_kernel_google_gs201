@@ -506,9 +506,9 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 			exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
 		} else {
 			/* PM Qos hold for stability */
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-			pm_qos_update_request(&ufs->pm_qos_int,
-					      ufs->pm_qos_int_value);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+			exynos_pm_qos_update_request(&ufs->pm_qos_int,
+						ufs->pm_qos_int_value);
 #endif
 			ufs->c_state = C_ON;
 		}
@@ -517,8 +517,8 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 			ufs->c_state = C_OFF;
 
 			/* PM Qos Release for stability */
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-			pm_qos_update_request(&ufs->pm_qos_int, 0);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+			exynos_pm_qos_update_request(&ufs->pm_qos_int, 0);
 #endif
 		} else {
 			/* Set for SICD */
@@ -841,8 +841,8 @@ static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	    ufs->h_state != H_HIBERN8)
 		PRINT_STATES(ufs);
 
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-	pm_qos_update_request(&ufs->pm_qos_int, 0);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+	exynos_pm_qos_update_request(&ufs->pm_qos_int, 0);
 #endif
 
 	hci_writel(&ufs->handle, 0 << 0, HCI_GPIO_OUT);
@@ -1460,8 +1460,9 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	dev_info(dev, "===============================\n");
 
 	/* register pm qos knobs */
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-	pm_qos_add_request(&ufs->pm_qos_int, PM_QOS_DEVICE_THROUGHPUT, 0);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+	exynos_pm_qos_add_request(&ufs->pm_qos_int,
+				PM_QOS_DEVICE_THROUGHPUT, 0);
 #endif
 
 	/* init dbg */
@@ -1499,8 +1500,8 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 	disable_irq(hba->irq);
 	ufshcd_remove(hba);
 
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-	pm_qos_remove_request(&ufs->pm_qos_int);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+	exynos_pm_qos_remove_request(&ufs->pm_qos_int);
 #endif
 
 	exynos_ufs_ctrl_phy_pwr(ufs, false);

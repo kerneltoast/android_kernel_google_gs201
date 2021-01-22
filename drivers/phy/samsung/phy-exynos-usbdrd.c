@@ -1627,12 +1627,6 @@ static int exynos_usbdrd_phy_init(struct phy *phy)
 	return 0;
 }
 
-static void __exynos_usbdrd_phy_shutdown(struct exynos_usbdrd_phy *phy_drd)
-{
-	phy_exynos_usb_v3p1_disable(&phy_drd->usbphy_info);
-	phy_exynos_usbdp_g2_v4_disable(&phy_drd->usbphy_sub_info);
-}
-
 static void exynos_usbdrd_utmi_ilbk(struct exynos_usbdrd_phy *phy_drd)
 {
 	dev_info(phy_drd->dev, "%s\n", __func__);
@@ -1788,7 +1782,52 @@ EXPORT_SYMBOL_GPL(exynos_usbdrd_phy_tune);
 
 void exynos_usbdrd_ldo_control(struct exynos_usbdrd_phy *phy_drd, int on)
 {
-	/* Implement later */
+	int ret1, ret2, ret3;
+
+	if (phy_drd->vdd085 == NULL ||
+	    phy_drd->vdd18 == NULL ||
+	    phy_drd->vdd30 == NULL) {
+		dev_err(phy_drd->dev, "%s: not defined regulator\n",
+			__func__);
+		return;
+	}
+
+	dev_info(phy_drd->dev, "Turn %s LDOs\n", on ? "on" : "off");
+
+	if (on) {
+		ret1 = regulator_enable(phy_drd->vdd085);
+		if (ret1) {
+			dev_err(phy_drd->dev,
+				"Failed to enable vdd085: %d\n", ret1);
+			return;
+		}
+
+		ret1 = regulator_enable(phy_drd->vdd18);
+		if (ret1) {
+			dev_err(phy_drd->dev,
+				"Failed to enable vdd18: %d\n", ret1);
+			regulator_disable(phy_drd->vdd085);
+			return;
+		}
+
+		ret1 = regulator_enable(phy_drd->vdd30);
+		if (ret1) {
+			dev_err(phy_drd->dev,
+				"Failed to enable vdd30: %d\n", ret1);
+			regulator_disable(phy_drd->vdd085);
+			regulator_disable(phy_drd->vdd18);
+			return;
+		}
+	} else {
+		ret1 = regulator_disable(phy_drd->vdd085);
+		ret2 = regulator_disable(phy_drd->vdd18);
+		ret3 = regulator_disable(phy_drd->vdd30);
+		if (ret1 || ret2 || ret3) {
+			dev_err(phy_drd->dev,
+				"Failed to disable USB LDOs: %d %d %d\n",
+				ret1, ret2, ret3);
+		}
+	}
 }
 
 /*
@@ -1800,16 +1839,13 @@ void exynos_usbdrd_phy_conn(struct phy *phy, int is_conn)
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
 	struct exynos_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
+	/* ldo control is moved to power sw */
 	if (is_conn) {
 		dev_info(phy_drd->dev, "USB PHY Conn Set\n");
 		phy_drd->is_conn = 1;
-
-		exynos_usbdrd_ldo_control(phy_drd, 1);
 	} else {
 		dev_info(phy_drd->dev, "USB PHY Conn Clear\n");
 		phy_drd->is_conn = 0;
-
-		exynos_usbdrd_ldo_control(phy_drd, 0);
 	}
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_phy_conn);
@@ -2426,6 +2462,7 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 
 	phy_drd->is_irq_enabled = 0;
 	phy_drd->is_usb3_rewa_enabled = 0;
+	pm_runtime_enable(dev);
 
 	ret = sysfs_create_file(&dev->kobj, &dev_attr_phy_tune.attr);
 	if (ret)
@@ -2454,35 +2491,10 @@ err1:
 #ifdef CONFIG_PM
 static int exynos_usbdrd_phy_resume(struct device *dev)
 {
-	int ret;
 	struct exynos_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 
-	/*
-	 * There is issue, when USB3.0 PHY is in active state
-	 * after resume. This leads to increased power consumption
-	 * if no USB drivers use the PHY.
-	 *
-	 * The following code shutdowns the PHY, so it is in defined
-	 * state (OFF) after resume. If any USB driver already got
-	 * the PHY at this time, we do nothing and just exit.
-	 */
-
-	dev_info(dev, "%s\n", __func__);
-
-	if (!phy_drd->is_conn) {
-		dev_info(dev, "USB wasn't connected\n");
-		ret = exynos_usbdrd_clk_enable(phy_drd, false);
-		if (ret) {
-			dev_err(phy_drd->dev, "%s: Failed to enable clk\n", __func__);
-			return ret;
-		}
-
-		__exynos_usbdrd_phy_shutdown(phy_drd);
-
-		exynos_usbdrd_clk_disable(phy_drd, false);
-	} else {
-		dev_info(dev, "USB was connected\n");
-	}
+	dev_info(dev, "%s, is_conn = %d\n",
+		 __func__, phy_drd->is_conn);
 
 	return 0;
 }

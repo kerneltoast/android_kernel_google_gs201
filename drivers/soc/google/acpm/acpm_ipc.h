@@ -54,6 +54,7 @@ struct acpm_ipc_info {
 	struct acpm_framework *initdata;
 	unsigned int initdata_base;
 	unsigned int intr_status;
+	unsigned int panic_action;
 };
 
 struct acpm_log_buff {

@@ -1384,20 +1384,6 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 			dwc3_otg_exit(dwc);
 			return ret;
 		}
-
-		/* Unblock runtime PM for OTG */
-		pm_runtime_put_sync(dev);
-
-		/* New drd routine in Kernel 4.14 */
-		/*
-		 * INIT_WORK(&dwc->drd_work, __dwc3_set_mode);
-		 * ret = dwc3_drd_init(dwc);
-		 * if (ret) {
-		 * if (ret != -EPROBE_DEFER)
-		 * dev_err(dev, "failed to initialize dual-role\n");
-		 * return ret;
-		 * }
-		 */
 		break;
 	default:
 		dev_err(dev, "Unsupported mode of operation %d\n", dwc->dr_mode);
@@ -1790,9 +1776,6 @@ int dwc3_probe(struct platform_device *pdev,
 
 	dwc3_debugfs_init(dwc);
 
-	/* Disable LDO */
-	exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 0);
-
 	pr_info("%s: ---\n", __func__);
 	return 0;
 
@@ -1815,8 +1798,6 @@ disable_clks:
 assert_reset:
 	reset_control_assert(dwc->reset);
 #endif
-	/* Disable LDO */
-	exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 0);
 
 	return ret;
 }

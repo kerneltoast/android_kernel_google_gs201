@@ -97,6 +97,9 @@ static void exynos_pd_power_on_pre(struct exynos_pm_domain *pd)
 
 	if (pd->devfreq_index >= 0)
 		exynos_bts_scitoken_setting(true);
+
+	if (pd->cal_pdid == HSI0_CAL_PDID)
+		exynos_usbdrd_ldo_manual_control(1);
 }
 
 static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
@@ -106,6 +109,9 @@ static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 
 	if (pd->devfreq_index >= 0)
 		exynos_bts_scitoken_setting(false);
+
+	if (pd->cal_pdid == HSI0_CAL_PDID)
+		exynos_usbdrd_ldo_manual_control(0);
 }
 
 /**

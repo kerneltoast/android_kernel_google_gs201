@@ -80,6 +80,21 @@ static inline int ion_buffer_unprotect(void *priv)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) && IS_ENABLED(CONFIG_EXYNOS_ITMON)
+int ion_secure_itmon_init(void);
+int ion_secure_itmon_exit(void);
+#else
+static inline int ion_secure_itmon_init(void)
+{
+	return 0;
+}
+
+static inline int ion_secure_itmon_exit(void)
+{
+	return 0;
+}
+#endif
+
 #define IONPREFIX "[Exynos][ION] "
 #define perr(format, arg...) \
 	pr_err(IONPREFIX format "\n", ##arg)

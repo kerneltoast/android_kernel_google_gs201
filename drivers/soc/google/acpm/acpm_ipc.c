@@ -19,7 +19,9 @@
 #include <linux/sched/clock.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
+#include <linux/debugfs.h>
 #include <soc/google/exynos-debug.h>
+#include <soc/google/debug-snapshot.h>
 
 #include "acpm.h"
 #include "acpm_ipc.h"
@@ -699,7 +701,7 @@ retry:
 			acpm_ramdump();
 
 			dump_stack();
-			s3c2410wdt_set_emergency_reset(0, 0);
+			dbg_snapshot_do_dpm_policy(acpm_ipc->panic_action, "acpm_ipc timeout");
 		}
 
 		if (!is_acpm_stop_log)
@@ -859,6 +861,42 @@ static void acpm_error_log_ipc_callback(unsigned int *cmd, unsigned int size)
 	acpm_log_print();
 }
 
+static int debug_acpm_ipc_panic_action_get(void *data, u64 *val)
+{
+	struct acpm_ipc_info *acpm_ipc = (struct acpm_ipc_info *)data;
+
+	*val = acpm_ipc->panic_action;
+
+	return 0;
+}
+
+static int debug_acpm_ipc_panic_action_set(void *data, u64 val)
+{
+	struct acpm_ipc_info *acpm_ipc = (struct acpm_ipc_info *)data;
+
+	if (val < 0 || val >= GO_ACTION_MAX)
+		return -ERANGE;
+	acpm_ipc->panic_action = val;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_ipc_panic_action_fops,
+			debug_acpm_ipc_panic_action_get,
+			debug_acpm_ipc_panic_action_set,
+			"%d\n");
+
+static void acpm_ipc_debugfs_init(struct acpm_ipc_info *acpm_ipc)
+{
+	struct dentry *den;
+
+	den = debugfs_lookup("acpm_framework", NULL);
+	if (!den)
+		den = debugfs_create_dir("acpm_framework", NULL);
+	debugfs_create_file("acpm_ipc_panic_action", 0644, den, acpm_ipc,
+			    &debug_acpm_ipc_panic_action_fops);
+}
+
 int acpm_ipc_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -902,6 +940,12 @@ int acpm_ipc_probe(struct platform_device *pdev)
 						       acpm_ipc->initdata_base);
 	acpm_initdata = acpm_ipc->initdata;
 	acpm_srambase = acpm_ipc->sram_base;
+
+	if (of_property_read_u32(node, "panic-action",
+				&acpm_ipc->panic_action))
+		acpm_ipc->panic_action = GO_WATCHDOG_ID;
+
+	acpm_ipc_debugfs_init(acpm_ipc);
 
 	acpm_ipc->dev = &pdev->dev;
 

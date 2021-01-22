@@ -90,6 +90,13 @@
 		ion,protection_id = <19>;
 		ion,alignment = <0x10000>;
 	};
+
+	ion_tui_heap {
+		compatible = "exynos,ion,carveout_heap";
+		memory-region = <&tui_heap>;
+		ion,protection_id = <20>;
+		ion,alignment = <0x10000>;
+	};
 };
 
 &reserved_memory {
@@ -164,6 +171,12 @@
 
 	famodel_heap: famodel_heap {
 		size = <0x3200000>;
+		alignment = <0x0 0x00010000>;
+	};
+
+	tui_heap: tui_heap {
+		size = <0x2000000>;
+		alloc-ranges = <0x0 0x80000000 0x80000000>;
 		alignment = <0x0 0x00010000>;
 	};
 };

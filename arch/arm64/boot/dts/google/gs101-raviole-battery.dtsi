@@ -30,6 +30,8 @@
 				google,dc-en = <&s2mpg10_gpio 1 0>;
 				/* DC enabled by default */
 				google,dc-en-value = <1>;
+				google,dc_limit-demand = <10012500>;
+				google,dc_limit-vbatt = <4350000>;
 
 				google,tcpm-power-supply = <&max77759tcpc>;
 				google,pps-awake;

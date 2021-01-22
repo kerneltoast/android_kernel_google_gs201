@@ -12,7 +12,7 @@
 #ifndef _UFS_EXYNOS_H_
 #define _UFS_EXYNOS_H_
 
-#include <linux/pm_qos.h>
+#include <soc/google/exynos_pm_qos.h>
 #include <ufs-vs-mmio.h>
 #include <ufs-vs-regs.h>
 #include "ufs-cal-if.h"
@@ -128,7 +128,7 @@ struct exynos_ufs {
 	int idle_ip_index;
 
 	/* PM QoS for stability, not for performance */
-	struct pm_qos_request	pm_qos_int;
+	struct exynos_pm_qos_request	pm_qos_int;
 	s32			pm_qos_int_value;
 
 	/* cal */

@@ -227,6 +227,12 @@
 	};
 };
 
+
+&hsi2c0_bus {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
 &hsi2c_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;

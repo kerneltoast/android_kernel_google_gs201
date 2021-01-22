@@ -49,8 +49,6 @@
 #define BUS_ACTIVITY_CHECK	(0x3F << 16)
 #define READ_TRANS_OFFSET	10
 
-struct dwc3 *g_dwc;
-
 /* -------------------------------------------------------------------------- */
 #if defined(CONFIG_TYPEC_DEFAULT)
 struct intf_typec {
@@ -836,10 +834,54 @@ u32 otg_is_connect(void)
 }
 EXPORT_SYMBOL_GPL(otg_is_connect);
 
+static struct device_node *exynos_dwusb_parse_dt(void)
+{
+	struct device_node *np = NULL;
+
+	np = of_find_compatible_node(NULL, NULL, "samsung,exynos-dwusb");
+	if (!np) {
+		pr_err("%s: failed to get the usbdrd node\n", __func__);
+		goto err;
+	}
+	return np;
+err:
+	return NULL;
+}
+
+static struct dwc3 *exynos_dwusb_get_struct(void)
+{
+	struct device_node *np = NULL;
+	struct platform_device *pdev = NULL;
+	struct device *dev;
+	struct dwc3_exynos *exynos;
+	struct dwc3 *dwc;
+
+	np = exynos_dwusb_parse_dt();
+	if (np) {
+		pdev = of_find_device_by_node(np);
+		dev = &pdev->dev;
+		of_node_put(np);
+		if (pdev) {
+			exynos = dev->driver_data;
+			dwc = exynos->dwc;
+			return dwc;
+		}
+	}
+
+	pr_err("%s: failed to get the platform_device\n", __func__);
+	return NULL;
+}
+
 u32 get_speed_and_disu1u2(void)
 {
 	u32 reg;
-	struct dwc3 *dwc = g_dwc;
+	struct dwc3 *dwc;
+
+	dwc = exynos_dwusb_get_struct();
+	if (!dwc) {
+		dev_err(dwc->dev, "[%s] error\n", __func__);
+		return -ENODEV;
+	}
 
 	/* Disable U1/U2 */
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
@@ -853,11 +895,15 @@ EXPORT_SYMBOL_GPL(get_speed_and_disu1u2);
 
 int get_idle_ip_index(void)
 {
-	if (!g_dwc) {
-		pr_info("Idle ip index will be set next time.(g_dwc==NULL)\n");
+	struct dwc3 *dwc;
+
+	dwc = exynos_dwusb_get_struct();
+	if (!dwc) {
+		dev_err(dwc->dev, "[%s] error\n", __func__);
 		return -ENODEV;
 	}
-	return dwc3_exynos_get_idle_ip_index(g_dwc->dev);
+
+	return dwc3_exynos_get_idle_ip_index(dwc->dev);
 }
 EXPORT_SYMBOL_GPL(get_idle_ip_index);
 
@@ -933,8 +979,6 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	if (!ops)
 		return 0;
 
-	g_dwc = dwc;
-
 	/* Allocate and init otg instance */
 	dotg = devm_kzalloc(dwc->dev, sizeof(struct dwc3_otg), GFP_KERNEL);
 	if (!dotg)
@@ -976,9 +1020,6 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	if (ret)
 		dev_err(dwc->dev, "failed to create dwc3 otg attributes\n");
 
-	/* Enable LDO initially */
-	exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 1);
-
 	init_completion(&dotg->resume_cmpl);
 	dotg->dwc3_suspended = 0;
 	dotg->pm_nb.notifier_call = dwc3_otg_pm_notifier;
@@ -1000,7 +1041,6 @@ int dwc3_otg_init(struct dwc3 *dwc)
 			      msecs_to_jiffies(2000));
 #endif
 
-	exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 0);
 	dev_info(dwc->dev, "%s done\n", __func__);
 
 	return 0;

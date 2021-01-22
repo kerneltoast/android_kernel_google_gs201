@@ -26,9 +26,11 @@ struct itmon_notifier {
 
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 extern void itmon_notifier_chain_register(struct notifier_block *n);
+extern void itmon_notifier_chain_unregister(struct notifier_block *n);
 extern void itmon_enable(bool enabled);
 #else
 #define itmon_notifier_chain_register(x)		do { } while (0)
+#define itmon_notifier_chain_unregister(x)		do { } while (0)
 #define itmon_enable(x)					do { } while (0)
 #endif
 #endif
