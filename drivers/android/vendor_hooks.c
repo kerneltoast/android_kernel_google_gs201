@@ -65,7 +65,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ipi_stop);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_energy_efficient_cpu);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_sugov_sched_attr);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_iowait);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_sugov_update);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_overutilized);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_mkfile);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_read);
