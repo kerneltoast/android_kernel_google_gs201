@@ -37,6 +37,10 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = core->dev;
 	int ret = 0;
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	phys_addr_t protdesc_phys;
+	dma_addr_t protdesc_daddr;
+#endif
 
 	/* set meerkat timer */
 	mod_timer(&core->meerkat_timer, jiffies + msecs_to_jiffies(MEERKAT_TICK_INTERVAL));
@@ -51,10 +55,39 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 		goto err_fw_load;
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	if (!core->drm_fw_buf.daddr) {
+	if (!core->drm_fw_buf.sgt) {
 		mfc_core_err("DRM F/W buffer is not allocated\n");
 		core->fw.drm_status = 0;
 	} else {
+		core->drm_fw_prot = kzalloc(sizeof(struct buffer_smc_prot_info), GFP_KERNEL);
+		if (!core->drm_fw_prot) {
+			mfc_core_err("no memory for drm_fw_prot\n");
+			ret = -ENOMEM;
+			core->fw.drm_status = 0;
+			goto err_fw_load;
+		}
+
+		/* Request buffer Secure-DVA set */
+		core->drm_fw_prot->chunk_count = core->drm_fw_buf.sgt->orig_nents;
+		core->drm_fw_prot->dma_addr = core->drm_fw_buf.daddr;
+		core->drm_fw_prot->protect_id = EXYNOS_SECBUF_VIDEO_FW_PROT_ID;
+		core->drm_fw_prot->chunk_size = core->drm_fw_buf.size;
+		core->drm_fw_prot->paddr = core->drm_fw_buf.paddr;
+
+		/* We must cache flush for secure world cache */
+		protdesc_phys = virt_to_phys(core->drm_fw_prot);
+		protdesc_daddr = phys_to_dma(core->dev->cache_op_dev, protdesc_phys);
+
+		dma_sync_single_for_device(core->dev->cache_op_dev, protdesc_daddr,
+						sizeof(struct buffer_smc_prot_info), DMA_TO_DEVICE);
+
+		ret = exynos_smc(SMC_DRM_PPMP_PROT, protdesc_phys, 0, 0);
+		if (ret != DRMDRV_OK) {
+			mfc_core_err("failed MFC DRM F/W prot region setting(%#x)\n", ret);
+			call_dop(core, dump_and_stop_debug_mode, core);
+			core->fw.drm_status = 0;
+		}
+
 		/* Request buffer protection for DRM F/W */
 		ret = exynos_smc(SMC_DRM_PPMP_MFCFW_PROT,
 				core->drm_fw_buf.daddr, 0, 0);
@@ -192,6 +225,9 @@ static int __mfc_wait_close_inst(struct mfc_core *core, struct mfc_ctx *ctx)
 static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	int ret = 0;
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	phys_addr_t protdesc_phys = 0;
+#endif
 
 	mfc_clear_bit(ctx->num, &core->work_bits);
 
@@ -238,6 +274,17 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 				mfc_ctx_err("failed MFC DRM F/W unprot(%#x)\n", ret);
 				call_dop(core, dump_and_stop_debug_mode, core);
 			}
+
+			/* Request buffer Secure-DVA unset */
+			protdesc_phys = virt_to_phys(core->drm_fw_prot);
+			ret = exynos_smc(SMC_DRM_PPMP_UNPROT, protdesc_phys, 0, 0);
+			if (ret != DRMDRV_OK) {
+				mfc_core_err("failed MFC DRM F/W prot region unset(%#x)\n", ret);
+				call_dop(core, dump_and_stop_debug_mode, core);
+			}
+
+			kfree(core->drm_fw_prot);
+			core->drm_fw_prot = NULL;
 		}
 #endif
 

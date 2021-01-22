@@ -156,11 +156,9 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 	case MFCBUF_NORMAL:
 		heapname = "system-uncached";
 		break;
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	case MFCBUF_DRM:
 		heapname = "vframe-secure";
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -206,11 +204,13 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 		goto err_daddr;
 	}
 
-	special_buf->vaddr = dma_buf_vmap(special_buf->dma_buf);
-	if (IS_ERR(special_buf->vaddr)) {
-		mfc_dev_err("Failed to get vaddr (err 0x%p)\n",
-				&special_buf->vaddr);
-		goto err_vaddr;
+	if (special_buf->buftype == MFCBUF_NORMAL) {
+		special_buf->vaddr = dma_buf_vmap(special_buf->dma_buf);
+		if (IS_ERR(special_buf->vaddr)) {
+			mfc_dev_err("Failed to get vaddr (err 0x%p)\n",
+					&special_buf->vaddr);
+			goto err_vaddr;
+		}
 	}
 
 	special_buf->paddr = page_to_phys(sg_page(special_buf->sgt->sgl));
@@ -265,9 +265,7 @@ int mfc_mem_special_buf_alloc(struct mfc_dev *dev,
 	case MFCBUF_DRM_FW:
 		ret = mfc_mem_fw_alloc(dev, special_buf);
 		break;
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	case MFCBUF_DRM:
-#endif
 	case MFCBUF_NORMAL:
 		ret = mfc_mem_dma_heap_alloc(dev, special_buf);
 		break;
@@ -286,9 +284,7 @@ void mfc_mem_special_buf_free(struct mfc_special_buf *special_buf)
 	case MFCBUF_DRM_FW:
 		mfc_mem_fw_free(special_buf);
 		break;
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	case MFCBUF_DRM:
-#endif
 	case MFCBUF_NORMAL:
 		mfc_mem_dma_heap_free(special_buf);
 		break;

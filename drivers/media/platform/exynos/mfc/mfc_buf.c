@@ -690,6 +690,9 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	struct mfc_dev *dev = core->dev;
 	struct mfc_ctx_buf_size *buf_size;
 	struct mfc_special_buf *fw_buf;
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	unsigned long secure_daddr = 0;
+#endif
 
 	mfc_core_debug_enter();
 
@@ -722,11 +725,21 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	core->drm_fw_buf.size = core->fw_buf.size;
 	if (mfc_mem_special_buf_alloc(dev, &core->drm_fw_buf)) {
 		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
-		goto err_daddr;
+		goto err_reserve_iova;
 	}
 
-	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad (vaddr: %p), size: %08zu\n",
-			core->id, &core->drm_fw_buf.daddr, core->drm_fw_buf.vaddr,
+	/* allocate Secure-DVA region */
+	secure_daddr = secure_iova_alloc(core->drm_fw_buf.size, EXYNOS_SECBUF_PROT_ALIGNMENTS);
+	if (!secure_daddr) {
+		mfc_core_err("DRM F/W buffer can not get IOVA!\n");
+		goto err_reserve_iova_secure;
+	}
+
+	core->drm_fw_buf.daddr = (dma_addr_t)secure_daddr;
+
+	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad(vaddr: %p paddr:%pap), size: %08zu\n",
+			core->id, &core->drm_fw_buf.daddr,
+			core->drm_fw_buf.vaddr, &core->drm_fw_buf.paddr,
 			core->drm_fw_buf.size);
 #endif
 
@@ -735,10 +748,11 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	return 0;
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-err_daddr:
-	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
+err_reserve_iova_secure:
+	mfc_mem_special_buf_free(&core->drm_fw_buf);
 #endif
 err_reserve_iova:
+	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
 	mfc_mem_special_buf_free(&core->fw_buf);
 	return -ENOMEM;
 }
@@ -833,6 +847,10 @@ int mfc_release_firmware(struct mfc_core *core)
 	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	/* free Secure-DVA region */
+	if (core->drm_fw_buf.daddr)
+		secure_iova_free(core->drm_fw_buf.daddr, core->drm_fw_buf.size);
+	core->drm_fw_buf.daddr = 0;
 	mfc_mem_special_buf_free(&core->drm_fw_buf);
 #endif
 

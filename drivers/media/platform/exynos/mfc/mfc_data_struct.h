@@ -385,6 +385,18 @@ enum mfc_op_mode {
 	MFC_OP_SWITCH_BUT_MODE2		= 5,
 };
 
+/* Secure Protection */
+#define EXYNOS_SECBUF_VIDEO_FW_PROT_ID	2
+#define EXYNOS_SECBUF_PROT_ALIGNMENTS	0x10000
+
+struct buffer_smc_prot_info {
+	unsigned int chunk_count;
+	unsigned int dma_addr;
+	unsigned int protect_id;
+	unsigned int chunk_size;
+	unsigned long paddr;
+};
+
 /* core driver */
 extern struct platform_driver mfc_core_driver;
 
@@ -1134,6 +1146,7 @@ struct mfc_dev {
 	size_t fw_rmem_offset;
 
 	struct device		*device;
+	struct device		*cache_op_dev;
 	struct v4l2_device	v4l2_dev;
 	struct video_device	*vfd_dec;
 	struct video_device	*vfd_enc;
@@ -1301,6 +1314,9 @@ struct mfc_core {
 	struct mfc_special_buf	common_ctx_buf;
 	struct mfc_special_buf	drm_common_ctx_buf;
 	struct mfc_special_buf	dbg_info_buf;
+
+	/* Secure F/W prot information */
+	struct buffer_smc_prot_info *drm_fw_prot;
 
 	/* Context information */
 	struct mfc_dev *dev;

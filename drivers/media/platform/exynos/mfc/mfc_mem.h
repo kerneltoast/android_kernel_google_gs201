@@ -19,6 +19,10 @@
 #include <linux/dma-buf-container.h>
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+#include <linux/samsung-secure-iova.h>
+#endif
+
 #include "mfc_common.h"
 
 extern void vb2_dma_sg_set_map_attr(void *mem_priv, unsigned long attr);
