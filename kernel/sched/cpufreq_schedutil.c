@@ -154,12 +154,6 @@ static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
 unsigned long map_util_freq(unsigned long util,
 					unsigned long freq, unsigned long cap)
 {
-	unsigned long mapped_freq = 0;
-
-	trace_android_rvh_map_util_freq(util, freq, cap, &mapped_freq);
-	if (mapped_freq)
-		return mapped_freq;
-
 	return (freq + (freq >> 2)) * util / cap;
 }
 EXPORT_SYMBOL_GPL(map_util_freq);
