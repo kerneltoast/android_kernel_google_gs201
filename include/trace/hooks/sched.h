@@ -92,11 +92,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_sugov_update,
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_overutilized,
 	TP_PROTO(int cpu, int *overutilized),
 	TP_ARGS(cpu, overutilized), 1);
-
-DECLARE_RESTRICTED_HOOK(android_rvh_map_util_freq,
-	TP_PROTO(unsigned long util, unsigned long freq, unsigned long cap,
-		 unsigned long *mapped_freq),
-	TP_ARGS(util, freq, cap, mapped_freq), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -117,7 +112,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_map_util_freq,
 #define trace_android_rvh_set_iowait(p, should_iowait_boost)
 #define trace_android_rvh_set_sugov_update(sg_policy, next_freq, should_update)
 #define trace_android_rvh_cpu_overutilized(cpu, overutilized)
-#define trace_android_rvh_map_util_freq(util, freq, cap, mapped_freq)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
