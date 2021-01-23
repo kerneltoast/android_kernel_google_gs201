@@ -64,7 +64,7 @@
 };
 
 &serial_0 {
-	samsung,fifo-size = <4096>;
+	samsung,fifo-size = <256>;
 	clocks = <&ext_26m>, <&ext_26m>;
 	status = "okay";
 };
