@@ -22,4 +22,8 @@
 	>;
 };
 
-
+&max77759_fg {
+	maxim,fg-data {
+		#include "gs101-raven-battery-data.dtsi"
+	};
+};

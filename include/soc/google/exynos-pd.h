@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
+#include <linux/atomic.h>
 
 #include <linux/mfd/samsung/core.h>
 #if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG)
@@ -54,13 +55,13 @@ struct exynos_pm_domain {
 	struct exynos_bcm_pd_info *bcm;
 #endif
 	bool power_down_skipped;
-	bool need_sync;
+	/* Total number of descendants needing sync, including self */
+	atomic_t need_sync;
 	bool turn_off_on_sync;
 	unsigned int need_smc;
 	bool skip_idle_ip;
 	struct exynos_pd_stat pd_stat;
 	struct exynos_pm_domain *parent;
-	bool traversal_state;
 };
 
 struct exynos_pd_dbg_info {

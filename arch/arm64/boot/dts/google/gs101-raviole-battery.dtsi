@@ -144,10 +144,6 @@
 		maxim,batt-id-range-pct = <0>;
 
 		maxim,psy-type-unknown;
-
-		maxim,fg-data {
-			#include "gs101-raviole-battery-data.dtsi"
-		};
 	};
 
 	max77759chrg@0x69 {

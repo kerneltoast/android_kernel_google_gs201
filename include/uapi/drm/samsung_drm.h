@@ -234,6 +234,24 @@ struct brightness_capability {
 	struct brightness_attribute hbm;
 };
 
+/**
+ * struct tui_hw_buffer - buffer allocation query by user-space
+ *
+ * @fb_physical: the physical address of the buffer allocated
+ * @fb_size: the size of the buffer allocated
+ *
+ * The structure is used to return the parameter of the allocated buffer.
+ */
+struct tui_hw_buffer {
+	__u64 fb_physical;
+	__u64 fb_size;
+} __packed;
+
+#define EXYNOS_START_TUI	0x10
+#define EXYNOS_FINISH_TUI	0x11
+#define EXYNOS_TUI_REQUEST_BUFFER	0x20
+#define EXYNOS_TUI_RELEASE_BUFFER	0x21
+
 #if defined(__cplusplus)
 }
 #endif

@@ -55,12 +55,11 @@ struct sscd_device {
 	 * @enabled: coredump enabled/disabled
 	 * @opened: tracks active client
 	 */
-	struct device            *dev;
+	struct device            dev;
 	struct cdev              chrdev;
 	struct device            *parent_dev;
 	struct list_head         node;
 	struct mutex             rx_lock; /* access to structure */
-	struct kref              refcount;
 
 	bool                     enabled;
 	atomic_t                 opened;
@@ -97,7 +96,6 @@ static u8 sscd_level = REPORT_CRASHINFO_ONLY;
 static LIST_HEAD(sscd_devs_list);
 static DEFINE_IDA(sscd_ida);
 static DEFINE_MUTEX(sscd_mutex); /* protects access to sscd dev list */
-static void sscoredump_data_release(struct kref *ref);
 
 
 static void report_read_completed(struct sscd_device *sdev)
@@ -116,7 +114,7 @@ static int sscd_dev_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 
 	filp->private_data = sdev;
-	kref_get(&sdev->refcount);
+	get_device(&sdev->dev);
 
 	return 0;
 }
@@ -127,7 +125,7 @@ static int sscd_dev_release(struct inode *nodp, struct file *filp)
 
 	atomic_set(&sdev->opened, 0);
 	report_read_completed(sdev);
-	kref_put(&sdev->refcount, sscoredump_data_release);
+	put_device(&sdev->dev);
 
 	return 0;
 }
@@ -138,11 +136,9 @@ static unsigned int sscd_dev_poll(struct file *filp,
 	struct sscd_device *sdev = filp->private_data;
 	unsigned int mask = 0;
 
-	kref_get(&sdev->refcount);
 	poll_wait(filp, &sdev->read_wait_q, wait);
 	if (atomic_read(&sdev->report_active) == 1)
 		mask = POLLIN | POLLRDNORM;
-	kref_put(&sdev->refcount, sscoredump_data_release);
 
 	return mask;
 }
@@ -177,7 +173,7 @@ static ssize_t sscd_dev_read(struct file *filp, char __user *ubuf, size_t count,
 	 * Enforce EOF condition if such condition detected.
 	 */
 	if (pos != sdev->read_offset) {
-		dev_info(sdev->dev, "Invalid offset(%lld/%lld) in stream, abort",
+		dev_info(&sdev->dev, "Invalid offset(%lld/%lld) in stream, abort",
 			 pos, sdev->read_offset);
 		goto out;
 	}
@@ -193,7 +189,7 @@ static ssize_t sscd_dev_read(struct file *filp, char __user *ubuf, size_t count,
 			count -= len;
 			copied += len;
 			ubuf += len;
-			dev_dbg(sdev->dev, "seg[%hu] read %zd ", i, len);
+			dev_dbg(&sdev->dev, "seg[%hu] read %zd ", i, len);
 		}
 		pos -= sdev->segs[i].size;
 		if (pos < 0)
@@ -426,7 +422,7 @@ static int create_report(struct sscd_device *sdev, struct sscd_segment *segs,
 		rc = -ENOMEM;
 		goto err;
 	}
-	dev_dbg(sdev->dev, "segs: reported %hu, report %hu", nsegs, sdev->nsegs);
+	dev_dbg(&sdev->dev, "segs: reported %hu, report %hu", nsegs, sdev->nsegs);
 
 	/*
 	 * represent crashinfo as additional segment
@@ -478,11 +474,11 @@ static int sscd_report(struct platform_device *pdev, struct sscd_segment *segs,
 	struct sscd_device *sdev = platform_get_drvdata(pdev);
 	int rc = 0;
 
-	dev_info(sdev->dev, "crash: %s", crash_info);
+	dev_info(&sdev->dev, "crash: %s", crash_info);
 
 	mutex_lock(&sdev->rx_lock);
 
-	get_device(sdev->dev);
+	get_device(&sdev->dev);
 
 	/* check if enabled */
 	if (!sscd_enabled || !sdev->enabled)
@@ -506,7 +502,7 @@ static int sscd_report(struct platform_device *pdev, struct sscd_segment *segs,
 
 	rc = create_report(sdev, segs, nsegs, flags, crash_info);
 	if (rc) {
-		dev_dbg(sdev->dev, "Unable to prepare coredump");
+		dev_dbg(&sdev->dev, "Unable to prepare coredump");
 		goto out;
 	}
 
@@ -526,12 +522,12 @@ static int sscd_report(struct platform_device *pdev, struct sscd_segment *segs,
 
 	mutex_lock(&sdev->rx_lock);
 	if (!rc) {
-		dev_err(sdev->dev, "timeout on completion");
+		dev_err(&sdev->dev, "timeout on completion");
 		rc = -EPIPE;
 	} else {
 		rc = 0; /* reset error code */
 		sdev->read_count++;
-		dev_dbg(sdev->dev, "wait_for_completion done (%d)", rc);
+		dev_dbg(&sdev->dev, "wait_for_completion done (%d)", rc);
 	}
 
 	atomic_set(&sdev->report_active, 0);
@@ -540,7 +536,7 @@ static int sscd_report(struct platform_device *pdev, struct sscd_segment *segs,
 out:
 	sdev->report_count++;
 	sdev->report_time = ktime_get_real_seconds(); /* capture report time */
-	put_device(sdev->dev);
+	put_device(&sdev->dev);
 
 	mutex_unlock(&sdev->rx_lock);
 
@@ -698,7 +694,7 @@ static ssize_t clients_show(struct class *class, struct class_attribute *attr,
 	mutex_lock(&sscd_mutex);
 	list_for_each_entry(sdev, &sscd_devs_list, node) {
 		n += scnprintf(buf + n, PAGE_SIZE - n,
-			       "%s\n", dev_name(sdev->dev));
+			       "%s\n", dev_name(&sdev->dev));
 	}
 	mutex_unlock(&sscd_mutex);
 
@@ -725,6 +721,20 @@ static struct class sscd_class = {
 };
 
 /**
+ * sscoredump_release
+ *
+ * Release resources back to system.
+ */
+static void sscoredump_release(struct device *dev)
+{
+	struct sscd_device *sdev = container_of(dev, struct sscd_device, dev);
+
+	mutex_destroy(&sdev->rx_lock);
+	free_report(sdev);
+	kfree(sdev);
+}
+
+/**
  * sscoredump_probe
  *
  * A zero is returned on success and a negative errno code for
@@ -747,13 +757,12 @@ static int sscoredump_probe(struct platform_device *pdev)
 	sdev->read_timeout = SSCD_REPORT_TIMEOUT;
 	sdev->enabled = sscd_enabled;
 	mutex_init(&sdev->rx_lock);
-	kref_init(&sdev->refcount);
 
 	/* fill crashinfo header data (static part) */
 	memcpy(sdev->crash_hdr.magic, CRASHINFO_MAGIC, CRASHINFO_MAGIC_SIZE);
 	sdev->crash_hdr.header_size = sizeof(struct crashinfo_img_hdr);
 
-	/* create character device */
+	/* initialize a new device of our class */
 	minor = ida_simple_get(&sscd_ida, 0, SSCD_MAX_DEVS, GFP_KERNEL);
 	if (minor < 0) {
 		pr_err("unable to reserve dev_minor\n");
@@ -761,29 +770,28 @@ static int sscoredump_probe(struct platform_device *pdev)
 	}
 
 	cdev_init(&sdev->chrdev, &sscd_dev_fops);
-	ret = cdev_add(&sdev->chrdev, MKDEV(sscd_major, minor), 1);
+	sdev->chrdev.owner = THIS_MODULE;
+
+	device_initialize(&sdev->dev);
+	sdev->dev.devt = MKDEV(sscd_major, minor);
+	sdev->dev.class = &sscd_class;
+	sdev->dev.parent = &pdev->dev;
+	sdev->dev.groups = sscd_dev_groups;
+	sdev->dev.release = sscoredump_release;
+	dev_set_drvdata(&sdev->dev, sdev);
+	dev_set_name(&sdev->dev, "sscd_%s", dev_name(&pdev->dev));
+
+	ret = cdev_device_add(&sdev->chrdev, &sdev->dev);
 	if (ret < 0) {
 		pr_err("failed to add cdev (%d)", ret);
 		goto fail2;
-	}
-
-	sdev->dev =
-		device_create_with_groups(&sscd_class,
-					  &pdev->dev,
-					  MKDEV(sscd_major, minor),
-					  sdev,
-					  sscd_dev_groups,
-					  "sscd_%s",
-					  dev_name(&pdev->dev));
-	if (PTR_ERR_OR_ZERO(sdev->dev)) {
-		pr_err("unable to create device");
-		goto fail3;
 	}
 
 	/* add to list */
 	mutex_lock(&sscd_mutex);
 	list_add_tail(&sdev->node, &sscd_devs_list);
 	platform_set_drvdata(pdev, sdev);
+
 	/*
 	 * function pointer for client
 	 * TODO: do we have better way to pass function to client.
@@ -793,8 +801,6 @@ static int sscoredump_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail3:
-	cdev_del(&sdev->chrdev);
 fail2:
 	ida_simple_remove(&sscd_ida, minor);
 fail1:
@@ -803,21 +809,12 @@ fail1:
 	return -EAGAIN;
 }
 
-static void sscoredump_data_release(struct kref *ref)
-{
-	struct sscd_device *sdev = container_of(ref, struct sscd_device, refcount);
-
-	mutex_destroy(&sdev->rx_lock);
-	free_report(sdev);
-	kfree(sdev);
-}
-
 static int sscoredump_remove(struct platform_device *pdev)
 {
 	struct sscd_device *sdev = platform_get_drvdata(pdev);
 	int minor;
 
-	dev_info(sdev->dev, "remove");
+	dev_info(&sdev->dev, "remove");
 
 	if (!sdev)
 		return -ENODEV;
@@ -831,11 +828,10 @@ static int sscoredump_remove(struct platform_device *pdev)
 	list_del(&sdev->node);
 	mutex_unlock(&sscd_mutex);
 
-	device_destroy(&sscd_class, MKDEV(sscd_major, minor));
-	cdev_del(&sdev->chrdev);
+	cdev_device_del(&sdev->chrdev, &sdev->dev);
 	ida_simple_remove(&sscd_ida, minor);
 
-	kref_put(&sdev->refcount, sscoredump_data_release);
+	put_device(&sdev->dev);
 
 	return 0;
 }
@@ -884,4 +880,4 @@ module_exit(sscoredump_exit);
 MODULE_DESCRIPTION("Subsystem coredump driver");
 MODULE_AUTHOR("Oleg Matcovschi");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.1a");
+MODULE_VERSION("0.2a");
