@@ -84,7 +84,8 @@ int stmvl53l1_init_i2c(void);
 void __exit stmvl53l1_exit_i2c(void *arg);
 int stmvl53l1_power_up_i2c(void *arg);
 int stmvl53l1_power_down_i2c(void *arg);
-void stmvl53l1_pinctrl_set_state(struct pinctrl *pinctrl, const char *state_str);
+void stmvl53l1_pinctrl_set_state(struct device *dev, struct pinctrl *pinctrl,
+				 const char *state_str);
 int stmvl53l1_reset_release_i2c(void *arg);
 int stmvl53l1_reset_hold_i2c(void *arg);
 void stmvl53l1_clean_up_i2c(void);
