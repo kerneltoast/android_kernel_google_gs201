@@ -54,7 +54,6 @@
 /*
  * When doing wakeups, attempt to limit superfluous scans of the LLC domain.
  */
-#define SCHED_FEAT_SIS_AVG_CPU 0
 #define SCHED_FEAT_SIS_PROP 1
 
 /*
