@@ -43,9 +43,14 @@ KMI_SYMBOL_LIST_MODULE_GROUPING=0
 BUILD_INITRAMFS=1
 LZ4_RAMDISK=1
 BUILD_BOOT_IMG=1
-GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-slider.img
+GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-aosp_arm64.img
+VENDOR_RAMDISK_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-oriole.img
 KERNEL_VENDOR_CMDLINE="androidboot.selinux=permissive androidboot.boot_devices=14700000.ufs buildvariant=userdebug"
-VENDOR_FSTAB=${ROOT_DIR}/prebuilts/boot-artifacts/fstabs/fstab.gs101
+
+AVB_SIGN_BOOT_IMG=1
+AVB_BOOT_PARTITION_SIZE=0x04000000
+AVB_BOOT_KEY=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/share/avb/testkey_rsa2048.pem
+AVB_BOOT_ALGORITHM=SHA256_RSA2048
 
 EXT_MODULES="
 private/google-modules/display/samsung
