@@ -303,7 +303,6 @@ static void put_vio(struct i2c_data *i2c_data)
 		gpio_free(i2c_data->vio_gpio);
 		i2c_data->io_flag.vio_owned = 0;
 	}
-	i2c_data->vio_gpio = -1;
 }
 
 /**
@@ -339,12 +338,6 @@ static int stmvl53l1_parse_tree(struct device *dev, struct i2c_data *i2c_data)
 			i2c_data->vio_gpio = -1;
 			vl53l1_wanrmsg(" Unable to find vio-gpio %d", vio_gpio);
 		}
-
-		/* configure vio gpio */
-		rc = get_vio(dev, i2c_data);
-		if (rc)
-			goto no_vio;
-
 	} else if (strcmp(vio_type, "regulator") == 0) {
 		i2c_data->vio = regulator_get_optional(dev, "vio");
 		if (IS_ERR(i2c_data->vio) || i2c_data->vio == NULL) {
@@ -426,7 +419,6 @@ no_intr:
 no_pwren:
 	put_xsdn(i2c_data);
 no_xsdn:
-	put_vio(i2c_data);
 	if (i2c_data->vio) {
 		regulator_put(i2c_data->vio);
 		i2c_data->vio = NULL;
@@ -440,7 +432,10 @@ static void stmvl53l1_release_gpios(struct i2c_data *i2c_data)
 	put_xsdn(i2c_data);
 	put_pwren(i2c_data);
 	put_intr(i2c_data);
-	put_vio(i2c_data);
+	if (i2c_data->vio_gpio != -1) {
+		put_vio(i2c_data);
+		i2c_data->vio_gpio = -1;
+	}
 	if (i2c_data->vio) {
 		regulator_put(i2c_data->vio);
 		i2c_data->vio = NULL;
@@ -597,8 +592,22 @@ int stmvl53l1_power_up_i2c(void *object)
 
 	/* turn on power */
 	if (data->vio_gpio != -1) {
-		gpio_set_value(data->vio_gpio, 1);
-	} else if (data->vio) {
+		rc = get_vio(&data->client->dev, data);
+		if (rc) {
+			/* This GPIO is shared with camera and suppose camera
+			 * has already pulled up its power. Reset rc as well.
+			 */
+			vl53l1_wanrmsg("request vio gpio failed");
+			rc = 0;
+		} else {
+			rc = gpiod_direction_output(
+				gpio_to_desc(data->vio_gpio), 1);
+			if (rc) {
+				vl53l1_errmsg("fail to set vio high %d\n", rc);
+				return rc;
+			}
+		}
+	} else if (data->vio != NULL) {
 		rc = regulator_set_voltage(data->vio, data->vio_voltage,
 					data->vio_voltage);
 		if (rc < 0) {
@@ -611,6 +620,7 @@ int stmvl53l1_power_up_i2c(void *object)
 			return rc;
 		}
 	}
+
 	if (data->pwren_gpio != -1) {
 		gpio_set_value(data->pwren_gpio, 1);
 		vl53l1_info("slow power on");
@@ -645,16 +655,18 @@ int stmvl53l1_power_down_i2c(void *i2c_object)
 	if (data->pwren_gpio != -1)
 		gpio_set_value(data->pwren_gpio, 0);
 
-	if (data->vio_gpio != -1)
-		gpio_set_value(data->vio_gpio, 0);
-	else if (data->vio) {
+	if (data->vio_gpio != -1 && data->io_flag.vio_owned) {
+		rc = gpiod_direction_output(gpio_to_desc(data->vio_gpio), 0);
+		if (rc) {
+			vl53l1_errmsg("fail to set vio low %d\n", rc);
+			return rc;
+		}
+		put_vio(data);
+	} else if (data->vio != NULL) {
 		rc = regulator_disable(data->vio);
 		if (rc)
 			vl53l1_errmsg("reg disable vio failed. rc=%d\n", rc);
 	}
-
-	/* Disable I2C */
-	stmvl53l1_pinctrl_set_state(data->state_pinctrl, "off_i2c");
 
 	if (data->vl53l1_data != NULL) {
 		data->vl53l1_data->is_power_up = false;
