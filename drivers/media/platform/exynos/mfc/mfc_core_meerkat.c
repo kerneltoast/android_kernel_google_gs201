@@ -668,22 +668,36 @@ static void __mfc_dump_info(struct mfc_core *core)
 	__mfc_save_logging_sfr(core);
 }
 
-static int __mfc_store_dump_state(struct mfc_dev *dev, char *buf)
+static void __mfc_store_dump_buf(char *buf, int *idx, int size, const char *fmt, ...)
 {
-	int i;
-	int idx = 0, ret;
+	va_list args;
+	int ret;
 
-	ret = snprintf(buf, 50, "\n-----------dumping MFC device info-----------\n");
-	idx += ret;
-	ret = snprintf((buf + idx), 100,
+	if ((*idx + size) > MFC_DUMP_BUF_SIZE)
+		return;
+
+	va_start(args, fmt);
+	ret = vsnprintf((buf + *idx), size, fmt, args);
+	va_end(args);
+
+	*idx += ret;
+}
+
+static int __mfc_store_dump_state(struct mfc_core *core, int idx)
+{
+	struct mfc_dev *dev = core->dev;
+	char *buf = core->dbg_info.addr;
+	int i;
+
+	__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC device info-----------\n");
+	__mfc_store_dump_buf(buf, &idx, 100,
 			"options debug_level:%d, debug_mode:%d (%d), perf_boost:%d, wait_fw_status %d\n",
 			debug_level, dev->pdata->debug_mode, debug_mode_en,
 			perf_boost_mode, dev->pdata->wait_fw_status.support);
-	idx += ret;
 
 	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
 		if (dev->ctx[i]) {
-			ret = snprintf((buf + idx), 300,
+			__mfc_store_dump_buf(buf, &idx, 300,
 			"- ctx[%d] %s %s, %s, %s, size: %dx%d@%ldfps(op: %ldfps), crop: %d %d %d %d\n",
 				dev->ctx[i]->num,
 				dev->ctx[i]->type == MFCINST_DECODER ? "DEC" : "ENC",
@@ -695,8 +709,7 @@ static int __mfc_store_dump_state(struct mfc_dev *dev, char *buf)
 				dev->ctx[i]->operating_framerate,
 				dev->ctx[i]->crop_width, dev->ctx[i]->crop_height,
 				dev->ctx[i]->crop_left, dev->ctx[i]->crop_top);
-			idx += ret;
-			ret = snprintf((buf + idx), 100,
+			__mfc_store_dump_buf(buf, &idx, 300,
 			"\tmain core-%d, op_mode: %d, queue_cnt(src:%d, dst:%d, ref:%d, qsrc:%d, qdst:%d)\n",
 				dev->ctx[i]->op_core_num[MFC_CORE_MAIN],
 				dev->ctx[i]->op_mode,
@@ -705,57 +718,56 @@ static int __mfc_store_dump_state(struct mfc_dev *dev, char *buf)
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->ref_buf_queue),
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->src_buf_nal_queue),
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->dst_buf_nal_queue));
-			idx += ret;
 		}
 	}
 
 	return idx;
 }
 
-static int __mfc_store_dump_trace(struct mfc_core *core, char *buf)
+static int __mfc_store_dump_trace(struct mfc_core *core, int idx)
 {
 	struct mfc_dev *dev = core->dev;
+	char *buf = core->dbg_info.addr;
 	int i, cnt, trace_cnt;
-	int idx = 0, ret;
 
-	ret = snprintf(buf, 50, "\n-----------dumping MFC trace info-----------\n");
-	idx += ret;
+	__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC trace info-----------\n");
 
 	trace_cnt = atomic_read(&dev->trace_ref);
 	for (i = MFC_TRACE_COUNT_PRINT_LONG - 1; i >= 0; i--) {
 		cnt = ((trace_cnt + MFC_TRACE_COUNT_MAX) - i) % MFC_TRACE_COUNT_MAX;
-		ret = snprintf((buf + idx), 150, "MFC trace[%d]: time=%llu, str=%s", cnt,
+		__mfc_store_dump_buf(buf, &idx, 150, "MFC trace[%d]: time=%llu, str=%s", cnt,
 				dev->mfc_trace[cnt].time, dev->mfc_trace[cnt].str);
-		idx += ret;
 	}
 
 	return idx;
 }
 
-static int __mfc_store_dump_hex(char *buf, void *data_buf, size_t len)
+static void __mfc_store_dump_hex(char *buf, int *idx, void *data_buf, size_t len)
 {
 	const u8 *ptr = data_buf;
 	int i, linelen, remaining = len;
 	int rowsize = 32, groupsize = 4;
-	int idx = 0, ret;
+	int ret;
 
 	for (i = 0; i < len; i += rowsize) {
 		linelen = min(remaining, rowsize);
 		remaining -= rowsize;
 
-		ret = snprintf((buf + idx), 12, "%.8x: ", i);
+		if ((*idx + linelen + 15) > MFC_DUMP_BUF_SIZE)
+			return;
+
+		ret = snprintf((buf + *idx), 12, "%.8x: ", i);
 		ret += hex_dump_to_buffer((ptr + i), linelen, rowsize, groupsize,
-				(buf + idx + ret), (rowsize * groupsize + 3), false);
-		ret += snprintf((buf + idx + ret), 3, "\n");
+				(buf + *idx + ret), (rowsize * groupsize + 3), false);
+		ret += snprintf((buf + *idx + ret), 3, "\n");
 
-		idx += ret;
+		*idx += ret;
 	}
-
-	return idx;
 }
 
-static int __mfc_store_dump_nal_q_buffer_info(struct mfc_core *core, int curr_ctx, char *buf)
+static int __mfc_store_dump_nal_q_buffer_info(struct mfc_core *core, int curr_ctx, int idx)
 {
+	char *buf = core->dbg_info.addr;
 	struct mfc_dev *dev = core->dev;
 	struct mfc_ctx *ctx = dev->ctx[curr_ctx];
 	nal_queue_in_handle *nal_q_in_handle = core->nal_q_handle->nal_q_in_handle;
@@ -765,7 +777,6 @@ static int __mfc_store_dump_nal_q_buffer_info(struct mfc_core *core, int curr_ct
 	DecoderInputStr *pDecIn = NULL;
 	DecoderOutputStr *pDecOut = NULL;
 	int i, offset, Inindex, cnt;
-	int idx = 0, ret;
 
 	/* Skip NAL_Q dump when multi instance */
 	if (core->num_inst != 1)
@@ -774,36 +785,31 @@ static int __mfc_store_dump_nal_q_buffer_info(struct mfc_core *core, int curr_ct
 	Inindex = mfc_core_get_nal_q_input_count() % NAL_Q_QUEUE_SIZE;
 
 	if (ctx->type == MFCINST_DECODER) {
-		ret = snprintf(buf, 100, "Decoder scratch:%#x++%#x, static(vp9):%#x++%#x, MV:++%#lx\n",
+		__mfc_store_dump_buf(buf, &idx, 100, "Decoder scratch:%#x++%#x, static(vp9):%#x++%#x, MV:++%#lx\n",
 				MFC_CORE_READL(MFC_REG_D_SCRATCH_BUFFER_ADDR),
 				MFC_CORE_READL(MFC_REG_D_SCRATCH_BUFFER_SIZE),
 				MFC_CORE_READL(MFC_REG_D_STATIC_BUFFER_ADDR),
 				MFC_CORE_READL(MFC_REG_D_STATIC_BUFFER_SIZE), ctx->mv_size);
-		idx += ret;
-		ret = snprintf((buf + idx), 100, "CPB:++%#x, DPB[0]:++%#x, [1]:++%#x, [2]plane:++%#x\n",
+		__mfc_store_dump_buf(buf, &idx, 100, "CPB:++%#x, DPB[0]:++%#x, [1]:++%#x, [2]plane:++%#x\n",
 				MFC_CORE_READL(MFC_REG_D_CPB_BUFFER_SIZE),
 				ctx->raw_buf.plane_size[0], ctx->raw_buf.plane_size[1],
 				ctx->raw_buf.plane_size[2]);
-		idx += ret;
 		if (ctx->mv_size) {
-			ret = snprintf((buf + idx), 25, "MV buffer\n");
-			idx += ret;
-			ret = __mfc_store_dump_hex((buf + idx),
+			__mfc_store_dump_buf(buf, &idx, 25, "MV buffer\n");
+			__mfc_store_dump_hex(buf, &idx,
 					(core->regs_base + MFC_REG_D_MV_BUFFER0), 0x100);
-			idx += ret;
 		}
-		ret = snprintf((buf + idx), 300, "NALQ In(in%d-exe%d): ID CPB DPBFlag DPB0 DPB1\
+		__mfc_store_dump_buf(buf, &idx, 300, "NALQ In(in%d-exe%d): ID CPB DPBFlag DPB0 DPB1\
 		/ Out(%d): ID dispstat diap0 disp1 used decstat dec0 dec1 type\n",
 				mfc_core_get_nal_q_input_count(),
 				nal_q_in_handle->in_exe_count,
 				mfc_core_get_nal_q_output_count());
-		idx += ret;
 		for (i = MFC_TRACE_NAL_QUEUE_PRINT - 1; i >= 0; i--) {
 			cnt = ((Inindex + NAL_Q_QUEUE_SIZE) - i) % NAL_Q_QUEUE_SIZE;
 			offset = dev->pdata->nal_q_entry_size * cnt;
 			pDecIn = (DecoderInputStr *)(nal_q_in_handle->nal_q_in_addr + offset);
 			pDecOut = (DecoderOutputStr *)(nal_q_out_handle->nal_q_out_addr + offset);
-			ret = snprintf((buf + idx), 300,
+			__mfc_store_dump_buf(buf, &idx, 300,
 					"[%d] In: %d %x %x[%d] %x %x / Out: %d %d %x %x %x %d %x %x %d\n",
 					cnt, pDecIn->CommandId, pDecIn->CpbBufferAddr,
 					pDecIn->DynamicDpbFlagLower, ffs(pDecIn->DynamicDpbFlagLower) - 1,
@@ -813,36 +819,30 @@ static int __mfc_store_dump_nal_q_buffer_info(struct mfc_core *core, int curr_ct
 					pDecOut->UsedDpbFlagLower, pDecOut->DecodedStatus,
 					pDecOut->DecodedAddr[0], pDecOut->DecodedAddr[1],
 					pDecOut->DecodedFrameType);
-			idx += ret;
 		}
 	} else if (ctx->type == MFCINST_ENCODER) {
-		ret = snprintf((buf + idx), 300,
+		__mfc_store_dump_buf(buf, &idx, 300,
 				"Encoder scratch:%#x++%#x, recon[0]:++%#lx, [1]:++%#lx, ME:++%#lx\n",
 				MFC_CORE_READL(MFC_REG_E_SCRATCH_BUFFER_ADDR),
 				MFC_CORE_READL(MFC_REG_E_SCRATCH_BUFFER_SIZE),
 				ctx->enc_priv->luma_dpb_size,
 				ctx->enc_priv->chroma_dpb_size,
 				ctx->enc_priv->me_buffer_size);
-		idx += ret;
-		ret = snprintf((buf + idx), 300, "SRC[0]:++%#x, [1]:++%#x, [2]:++%#x, DST:++%#x\n",
+		__mfc_store_dump_buf(buf, &idx, 300, "SRC[0]:++%#x, [1]:++%#x, [2]:++%#x, DST:++%#x\n",
 				MFC_CORE_READL(MFC_REG_E_STREAM_BUFFER_SIZE),
 				ctx->raw_buf.plane_size[0], ctx->raw_buf.plane_size[1],
 				ctx->raw_buf.plane_size[2]);
-		idx += ret;
-		ret = snprintf((buf + idx), 25, "ME buffer\n");
-		idx += ret;
-		ret = __mfc_store_dump_hex((buf + idx),
+		__mfc_store_dump_buf(buf, &idx, 25, "ME buffer\n");
+		__mfc_store_dump_hex(buf, &idx,
 				(core->regs_base + MFC_REG_E_ME_BUFFER), 0x44);
-		idx += ret;
-		ret = snprintf((buf + idx), 300, "NALQ In: ID src0 src1 dst\
+		__mfc_store_dump_buf(buf, &idx, 300, "NALQ In: ID src0 src1 dst\
 			/ Out: ID enc0 enc1 strm recon0 recon1 type\n");
-		idx += ret;
 		for (i = MFC_TRACE_NAL_QUEUE_PRINT - 1; i >= 0; i--) {
 			cnt = ((Inindex + NAL_Q_QUEUE_SIZE) - i) % NAL_Q_QUEUE_SIZE;
 			offset = dev->pdata->nal_q_entry_size * cnt;
 			pEncIn = (EncoderInputStr *)(nal_q_in_handle->nal_q_in_addr + offset);
 			pEncOut = (EncoderOutputStr *)(nal_q_out_handle->nal_q_out_addr + offset);
-			ret = snprintf((buf + idx), 300,
+			__mfc_store_dump_buf(buf, &idx, 300,
 					"[%d] In: %d %#x %#x %#x / Out: %d %#x %#x %#x %d %#x %#x\n",
 					cnt, pEncIn->CommandId, pEncIn->FrameAddr[0],
 					pEncIn->FrameAddr[1], pEncIn->StreamBufferAddr,
@@ -850,36 +850,32 @@ static int __mfc_store_dump_nal_q_buffer_info(struct mfc_core *core, int curr_ct
 					pEncOut->EncodedFrameAddr[1], pEncOut->StreamBufferAddr,
 					pEncOut->SliceType, pEncOut->ReconLumaDpbAddr,
 					pEncOut->ReconChromaDpbAddr);
-			idx += ret;
 		}
 	}
 
 	return idx;
 }
 
-static int __mfc_store_dump_buffer_info(struct mfc_core *core, char *buf)
+static int __mfc_store_dump_buffer_info(struct mfc_core *core, int idx)
 {
+	char *buf = core->dbg_info.addr;
 	int curr_ctx = __mfc_get_curr_ctx(core);
 	struct mfc_ctx *ctx;
 	struct mfc_core_ctx *core_ctx;
-	int idx = 0, ret;
 
-	ret = snprintf(buf, 100, "\n-----------dumping MFC buffer info (fault at: %#x)\n",
+	__mfc_store_dump_buf(buf, &idx, 100, "\n-----------dumping MFC buffer info (fault at: %#x)\n",
 			core->logging_data->fault_addr);
-	idx += ret;
-	ret = snprintf((buf + idx), 100, "Normal FW:%llx~%#llx (common ctx buf:%#llx~%#llx)\n",
+	__mfc_store_dump_buf(buf, &idx, 100, "Normal FW:%llx~%#llx (common ctx buf:%#llx~%#llx)\n",
 			core->fw_buf.daddr,
 			core->fw_buf.daddr + core->fw_buf.size,
 			core->common_ctx_buf.daddr,
 			core->common_ctx_buf.daddr + PAGE_ALIGN(0x7800));
-	idx += ret;
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	ret = snprintf((buf + idx), 100, "Secure FW:%llx~%#llx (common ctx buf:%#llx~%#llx)\n",
+	__mfc_store_dump_buf(buf, &idx, 100, "Secure FW:%llx~%#llx (common ctx buf:%#llx~%#llx)\n",
 			core->drm_fw_buf.daddr,
 			core->drm_fw_buf.daddr + core->drm_fw_buf.size,
 			core->drm_common_ctx_buf.daddr,
 			core->drm_common_ctx_buf.daddr + PAGE_ALIGN(0x7800));
-	idx += ret;
 #endif
 
 	if (curr_ctx < 0)
@@ -888,21 +884,19 @@ static int __mfc_store_dump_buffer_info(struct mfc_core *core, char *buf)
 	core_ctx = core->core_ctx[curr_ctx];
 	ctx = core_ctx->ctx;
 
-	ret = snprintf((buf + idx), 100, "instance buf:%#llx~%#llx, codec buf:%#llx~%#llx\n",
+	__mfc_store_dump_buf(buf, &idx, 100, "instance buf:%#llx~%#llx, codec buf:%#llx~%#llx\n",
 			core_ctx->instance_ctx_buf.daddr,
 			core_ctx->instance_ctx_buf.daddr + core_ctx->instance_ctx_buf.size,
 			core_ctx->codec_buf.daddr,
 			core_ctx->codec_buf.daddr + core_ctx->codec_buf.size);
-	idx += ret;
 
 	if (core->nal_q_handle && (core->nal_q_handle->nal_q_state == NAL_Q_STATE_STARTED)) {
-		ret = __mfc_store_dump_nal_q_buffer_info(core, curr_ctx, (buf + idx));
-		idx += ret;
+		idx += __mfc_store_dump_nal_q_buffer_info(core, curr_ctx, idx);
 		return idx;
 	}
 
 	if (ctx->type == MFCINST_DECODER) {
-		ret = snprintf((buf + idx), 300,
+		__mfc_store_dump_buf(buf, &idx, 300,
 				"Decoder CPB:%#x++%#x, scratch:%#x++%#x, static(vp9):%#x++%#x\n",
 				MFC_CORE_READL(MFC_REG_D_CPB_BUFFER_ADDR),
 				MFC_CORE_READL(MFC_REG_D_CPB_BUFFER_SIZE),
@@ -910,39 +904,29 @@ static int __mfc_store_dump_buffer_info(struct mfc_core *core, char *buf)
 				MFC_CORE_READL(MFC_REG_D_SCRATCH_BUFFER_SIZE),
 				MFC_CORE_READL(MFC_REG_D_STATIC_BUFFER_ADDR),
 				MFC_CORE_READL(MFC_REG_D_STATIC_BUFFER_SIZE));
-		idx += ret;
-		ret = snprintf((buf + idx), 300,
+		__mfc_store_dump_buf(buf, &idx, 300,
 				"DPB [0]plane:++%#x, [1]plane:++%#x, [2]plane:++%#x, MV buffer:++%#lx\n",
 				ctx->raw_buf.plane_size[0], ctx->raw_buf.plane_size[1],
 				ctx->raw_buf.plane_size[2], ctx->mv_size);
-		idx += ret;
-		ret = snprintf((buf + idx), 25, "[0] plane:\n");
-		idx += ret;
-		ret = __mfc_store_dump_hex((buf + idx),
+		__mfc_store_dump_buf(buf, &idx, 25, "[0] plane:\n");
+		__mfc_store_dump_hex(buf, &idx,
 				(core->regs_base + MFC_REG_D_FIRST_PLANE_DPB0), 0x100);
-		idx += ret;
-		ret = snprintf((buf + idx), 25, "[1] plane:\n");
-		idx += ret;
-		ret = __mfc_store_dump_hex((buf + idx),
+		__mfc_store_dump_buf(buf, &idx, 25, "[1] plane:\n");
+		__mfc_store_dump_hex(buf, &idx,
 				(core->regs_base + MFC_REG_D_SECOND_PLANE_DPB0), 0x100);
-		idx += ret;
 
 		if (ctx->dst_fmt->num_planes == 3) {
-			ret = snprintf((buf + idx), 25, "[2] plane:\n");
-			idx += ret;
-			ret = __mfc_store_dump_hex((buf + idx),
+			__mfc_store_dump_buf(buf, &idx, 25, "[2] plane:\n");
+			__mfc_store_dump_hex(buf, &idx,
 					(core->regs_base + MFC_REG_D_THIRD_PLANE_DPB0), 0x100);
-			idx += ret;
 		}
 		if (ctx->mv_size) {
-			ret = snprintf((buf + idx), 25, "MV buffer\n");
-			idx += ret;
-			ret = __mfc_store_dump_hex((buf + idx),
+			__mfc_store_dump_buf(buf, &idx, 25, "MV buffer\n");
+			__mfc_store_dump_hex(buf, &idx,
 					(core->regs_base + MFC_REG_D_MV_BUFFER0), 0x100);
-			idx += ret;
 		}
 	} else if (ctx->type == MFCINST_ENCODER) {
-		ret = snprintf((buf + idx), 300,
+		__mfc_store_dump_buf(buf, &idx, 300,
 				"Encoder SRC %dplane, [0]:%#x++%#x, [1]:%#x++%#x, [2]:%#x++%#x\n",
 				ctx->src_fmt->num_planes,
 				MFC_CORE_READL(MFC_REG_E_SOURCE_FIRST_ADDR),
@@ -951,44 +935,36 @@ static int __mfc_store_dump_buffer_info(struct mfc_core *core, char *buf)
 				ctx->raw_buf.plane_size[1],
 				MFC_CORE_READL(MFC_REG_E_SOURCE_THIRD_ADDR),
 				ctx->raw_buf.plane_size[2]);
-		idx += ret;
-		ret = snprintf((buf + idx), 300, "DST:%#x++%#x, scratch:%#x++%#x\n",
+		__mfc_store_dump_buf(buf, &idx, 300, "DST:%#x++%#x, scratch:%#x++%#x\n",
 				MFC_CORE_READL(MFC_REG_E_STREAM_BUFFER_ADDR),
 				MFC_CORE_READL(MFC_REG_E_STREAM_BUFFER_SIZE),
 				MFC_CORE_READL(MFC_REG_E_SCRATCH_BUFFER_ADDR),
 				MFC_CORE_READL(MFC_REG_E_SCRATCH_BUFFER_SIZE));
-		idx += ret;
-		ret = snprintf((buf + idx), 300,
+		__mfc_store_dump_buf(buf, &idx, 300,
 				"recon [0] plane:++%#lx, [1] plane:++%#lx, ME buffer:++%#lx\n",
 				ctx->enc_priv->luma_dpb_size,
 				ctx->enc_priv->chroma_dpb_size,
 				ctx->enc_priv->me_buffer_size);
-		idx += ret;
 
-		ret = snprintf((buf + idx), 25, "[0] plane:\n");
-		idx += ret;
-		ret = __mfc_store_dump_hex((buf + idx),
+		__mfc_store_dump_buf(buf, &idx, 25, "[0] plane:\n");
+		__mfc_store_dump_hex(buf, &idx,
 				(core->regs_base + MFC_REG_E_LUMA_DPB), 0x44);
-		idx += ret;
 
-		ret = snprintf((buf + idx), 25, "[1] plane:\n");
-		idx += ret;
-		ret = __mfc_store_dump_hex((buf + idx),
+		__mfc_store_dump_buf(buf, &idx, 25, "[1] plane:\n");
+		__mfc_store_dump_hex(buf, &idx,
 				(core->regs_base + MFC_REG_E_CHROMA_DPB), 0x44);
-		idx += ret;
 
-		ret = snprintf((buf + idx), 25, "ME buffer\n");
-		idx += ret;
-		ret = __mfc_store_dump_hex((buf + idx),
+		__mfc_store_dump_buf(buf, &idx, 25, "ME buffer\n");
+		__mfc_store_dump_hex(buf, &idx,
 				(core->regs_base + MFC_REG_E_ME_BUFFER), 0x44);
-		idx += ret;
 	}
 
 	return idx;
 }
 
-static int __mfc_store_dump_regs(struct mfc_core *core, char *buf)
+static int __mfc_store_dump_regs(struct mfc_core *core, int idx)
 {
+	char *buf = core->dbg_info.addr;
 	int i;
 	int addr[MFC_SFR_AREA_COUNT][2] = {
 		{ 0x0, 0x80 },
@@ -1018,7 +994,6 @@ static int __mfc_store_dump_regs(struct mfc_core *core, char *buf)
 	struct mfc_core_ctx *core_ctx = NULL;
 	size_t buf_size;
 	int curr_ctx;
-	int idx = 0, ret;
 
 	if (!mfc_core_pm_get_pwr_ref_cnt(core)) {
 		dev_err(core->device, "Power(%d) is not enabled\n",
@@ -1028,26 +1003,19 @@ static int __mfc_store_dump_regs(struct mfc_core *core, char *buf)
 
 	mfc_core_enable_all_clocks(core);
 
-	ret = snprintf((buf + idx), 50, "\n-----------dumping MFC0 registers-----------\n");
-	idx += ret;
+	__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC0 registers-----------\n");
 
 	for (i = 0; i < MFC_SFR_AREA_COUNT; i++) {
-		ret = snprintf((buf + idx), 25, "[%04X .. %04X]\n", addr[i][0], addr[i][0] + addr[i][1]);
-		idx += ret;
-		ret = __mfc_store_dump_hex((buf + idx), (core->regs_base + addr[i][0]), addr[i][1]);
-		idx += ret;
-		ret = snprintf((buf + idx), 5, "...\n");
-		idx += ret;
+		__mfc_store_dump_buf(buf, &idx, 25, "[%04X .. %04X]\n", addr[i][0], addr[i][0] + addr[i][1]);
+		__mfc_store_dump_hex(buf, &idx, (core->regs_base + addr[i][0]), addr[i][1]);
+		__mfc_store_dump_buf(buf, &idx, 5, "...\n");
 	}
 
 	/* dump COMMON context */
 	buf_size = core->common_ctx_buf.size;
-	ret = snprintf((buf + idx), 50, "\n-----------dumping MFC common ctx-----------\n");
-	idx += ret;
-	ret = __mfc_store_dump_hex((buf + idx), core->common_ctx_buf.vaddr, buf_size);
-	idx += ret;
-	ret = snprintf((buf + idx), 5, "...\n");
-	idx += ret;
+	__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC common ctx-----------\n");
+	__mfc_store_dump_hex(buf, &idx, core->common_ctx_buf.vaddr, buf_size);
+	__mfc_store_dump_buf(buf, &idx, 5, "...\n");
 
 	/* dump INSTANCE context */
 	curr_ctx = __mfc_get_curr_ctx(core);
@@ -1055,35 +1023,25 @@ static int __mfc_store_dump_regs(struct mfc_core *core, char *buf)
 		goto nal_q;
 	core_ctx = core->core_ctx[curr_ctx];
 	buf_size = core_ctx->instance_ctx_buf.size;
-	ret = snprintf((buf + idx), 50, "\n-----------dumping MFC inst ctx-----------\n");
-	idx += ret;
-	ret = __mfc_store_dump_hex((buf + idx), core_ctx->instance_ctx_buf.vaddr, buf_size);
-	idx += ret;
-	ret = snprintf((buf + idx), 5, "...\n");
-	idx += ret;
+	__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC inst ctx-----------\n");
+	__mfc_store_dump_hex(buf, &idx, core_ctx->instance_ctx_buf.vaddr, buf_size);
+	__mfc_store_dump_buf(buf, &idx, 5, "...\n");
 
 nal_q:
 	if (nal_q_handle) {
 		if (nal_q_handle->nal_q_in_handle) {
 			buf_size = nal_q_handle->nal_q_in_handle->in_buf.size;
-			ret = snprintf((buf + idx), 50, "\n-----------dumping MFC NALQ in----------\n");
-			idx += ret;
-			ret = __mfc_store_dump_hex((buf + idx),
+			__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC NALQ in----------\n");
+			__mfc_store_dump_hex(buf, &idx,
 					nal_q_handle->nal_q_in_handle->in_buf.vaddr, buf_size);
-			idx += ret;
-			ret = snprintf((buf + idx), 5, "...\n");
-			idx += ret;
-
+			__mfc_store_dump_buf(buf, &idx, 5, "...\n");
 		}
 		if (nal_q_handle->nal_q_out_handle) {
 			buf_size = nal_q_handle->nal_q_out_handle->out_buf.size;
-			ret = snprintf((buf + idx), 50, "\n-----------dumping MFC NALQ out----------\n");
-			idx += ret;
-			ret = __mfc_store_dump_hex((buf + idx),
+			__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC NALQ out----------\n");
+			__mfc_store_dump_hex(buf, &idx,
 					nal_q_handle->nal_q_out_handle->out_buf.vaddr, buf_size);
-			idx += ret;
-			ret = snprintf((buf + idx), 5, "...\n");
-			idx += ret;
+			__mfc_store_dump_buf(buf, &idx, 5, "...\n");
 		}
 	}
 	return idx;
@@ -1092,18 +1050,18 @@ nal_q:
 static int __mfc_store_debug_info(struct mfc_core *core)
 {
 	char *buf = core->dbg_info.addr;
-	int ret = 0;
+	int idx = 0;
 
 	if (!buf)
 		return -EINVAL;
 
 	dev_err(core->device, "[COREDUMP] -----------store MFC info\n");
-	ret += __mfc_store_dump_state(core->dev, buf);
-	ret += __mfc_store_dump_trace(core, (buf + ret));
-	ret += __mfc_store_dump_buffer_info(core, (buf + ret));
-	ret += __mfc_store_dump_regs(core, (buf + ret));
+	idx += __mfc_store_dump_state(core, idx);
+	idx += __mfc_store_dump_trace(core, idx);
+	idx += __mfc_store_dump_buffer_info(core, idx);
+	idx += __mfc_store_dump_regs(core, idx);
 
-	return ret;
+	return idx;
 }
 
 static int __mfc_do_sscoredump(struct mfc_core *core)
