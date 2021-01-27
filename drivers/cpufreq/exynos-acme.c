@@ -31,7 +31,7 @@
 #include <trace/events/power.h>
 
 #include "exynos-acme.h"
-
+#include "../soc/google/vh/kernel/systrace.h"
 /*
  * list head of cpufreq domain
  */
@@ -325,7 +325,7 @@ static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
 
 	if (!domain)
 		return -EINVAL;
-
+	ATRACE_BEGIN(__func__);
 	mutex_lock(&domain->lock);
 
 	if (!domain->enabled) {
@@ -354,7 +354,7 @@ static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
 
 out:
 	mutex_unlock(&domain->lock);
-
+	ATRACE_END();
 	return ret;
 }
 
@@ -364,27 +364,34 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 {
 	struct exynos_cpufreq_domain *domain = find_domain(policy->cpu);
 	unsigned long freq;
+	int ret = 0;
 
-	if (!domain)
-		return -EINVAL;
-
-	if (!domain->enabled)
-		return -EINVAL;
+	ATRACE_BEGIN(__func__);
+	if (!domain || !domain->enabled) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	mutex_lock(&domain->lock);
 	freq = cpufreq_driver_resolve_freq(policy, target_freq);
 	if (!freq || domain->old == freq) {
 		mutex_unlock(&domain->lock);
-		return 0;
+		goto out;
 	}
 	mutex_unlock(&domain->lock);
 
-	if (list_empty(&domain->dm_list))
-		return __exynos_cpufreq_target(policy, target_freq, relation);
+	if (list_empty(&domain->dm_list)) {
+		ret = __exynos_cpufreq_target(policy, target_freq, relation);
+		goto out;
+	}
 
 	freq = (unsigned long)target_freq;
 
-	return DM_CALL(domain->dm_type, &freq);
+	ret = DM_CALL(domain->dm_type, &freq);
+
+out:
+	ATRACE_END();
+	return ret;
 }
 
 static unsigned int exynos_cpufreq_get(unsigned int cpu)

@@ -82,6 +82,6 @@ WC_BUS {
 		idt,gpio_qien = <&gpp27 3 GPIO_ACTIVE_HIGH>;
 
 		google,epp_rp_value = <15000>; /* mW */
-		max_vout_mv = <10000>;  /* max voltage in mV */
+		idt,max_vout_mv = <10000>;  /* max voltage in mV */
 	};
 };

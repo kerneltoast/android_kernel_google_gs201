@@ -248,8 +248,13 @@
 			     <GIC_SPI IRQ_DISP_DECON0_FRAME_DONE_DISP
 				IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI IRQ_DISP_DECON0_EXTRA_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON0_DQE_DIMMING_START_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DISP_DECON0_DQE_DIMMING_END_DISP
 				IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "frame_start", "frame_done", "extra";
+		interrupt-names = "frame_start", "frame_done", "extra",
+				"dimming_start", "dimming_end";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
 		samsung,tzmp;

@@ -499,8 +499,11 @@ static void exynos_pd_sync_state(struct exynos_pm_domain *pd)
 		pr_info("%s sync_state: turn_off = %d\n", pd->name, pd->turn_off_on_sync);
 		if (pd->turn_off_on_sync)
 			__exynos_pd_power_off(pd);
+		mutex_unlock(&pd->access_lock);
 		if (pd->parent)
 			exynos_pd_sync_state(pd->parent);
+		/* Return right here because we already unlocked the mutex */
+		return;
 	} else {
 		pr_info("%s sync_state: children need sync\n", pd->name);
 	}

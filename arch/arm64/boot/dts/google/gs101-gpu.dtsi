@@ -77,7 +77,7 @@
 
 		/* QOS */
 		gpu_dvfs_qos_bts_scenario = "g3d_performance";
-		gpu_dvfs_qos_bts_level = <3>;
+		gpu_dvfs_qos_bts_threshold = <400000>;
 
 		/* Thermal */
 		#cooling-cells = <2>;

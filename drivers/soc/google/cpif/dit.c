@@ -8,6 +8,7 @@
  */
 
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -222,19 +223,60 @@ static void dit_debug_out_of_order(enum dit_direction dir, enum dit_desc_ring ri
 		u8 *data)
 {
 	struct modem_ctl *mc;
+	struct udphdr *uh;
+	unsigned int off;
 	unsigned int *seq_p;
 	unsigned int seq;
+	u16 port;
 
 	static unsigned int last_seq[DIT_DIR_MAX][DIT_DESC_RING_MAX];
 	static unsigned int out_count[DIT_DIR_MAX][DIT_DESC_RING_MAX];
+	static u16 target_port[DIT_DIR_MAX][DIT_DESC_RING_MAX];
 
 	if (!dc->pktgen_ch)
 		return;
 
-	seq_p = (unsigned int *)&data[28];
+	switch (data[0] & 0xF0) {
+	case 0x40:
+		off = sizeof(struct iphdr);
+		break;
+	case 0x60:
+		off = sizeof(struct ipv6hdr);
+		break;
+	default:
+		return;
+	}
+
+	uh = (struct udphdr *)(data + off);
+	off += sizeof(struct udphdr);
+
+	switch (dir) {
+	case DIT_DIR_TX:
+		port = uh->source;
+		break;
+	case DIT_DIR_RX:
+		port = uh->dest;
+		break;
+	default:
+		return;
+	}
+
+	if (!target_port[dir][ring]) {
+		mif_info("check dir[%d] out of order at ring[%d] for port:%u\n", dir, ring,
+			ntohs(port));
+		/* ntohs() is not needed */
+		target_port[dir][ring] = port;
+	}
+
+	/* check the first detected port only */
+	if (port != target_port[dir][ring])
+		return;
+
+	seq_p = (unsigned int *)&data[off];
 	seq = ntohl(*seq_p);
+
 	if (seq < last_seq[dir][ring]) {
-		mif_err("dir[%d] out of order at ring[%d] seq:0x%08x, last:0x%08x", dir, ring,
+		mif_err("dir[%d] out of order at ring[%d] seq:0x%08x last:0x%08x\n", dir, ring,
 			seq, last_seq[dir][ring]);
 		if (++out_count[dir][ring] > 5) {
 			dit_print_dump(dir, DIT_DUMP_ALL);

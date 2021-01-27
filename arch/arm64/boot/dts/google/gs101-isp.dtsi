@@ -377,6 +377,7 @@
 			<&sysmmu_csis1>;
 		power-domains = <&pd_pdp>;
 		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
 	};
 
 	lwis_pdp: lwis_pdp@1AA40000 {
@@ -710,6 +711,7 @@
 			<&sysmmu_dns>,
 			<&sysmmu_mcsc0>;
 		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
 	};
 
 	lwis_mcsc: lwis_mcsc@1B760000 {
@@ -742,6 +744,7 @@
 			<&sysmmu_mcsc1>,
 			<&sysmmu_mcsc2>;
 		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
 	};
 
 	lwis_scsc: lwis_scsc@1BA80000 {
@@ -770,6 +773,7 @@
 
 		iommus = <&sysmmu_gdc2>;
 		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
 	};
 
 	lwis_gdc0: lwis_gdc@1BA40000 {
@@ -798,6 +802,7 @@
 
 		iommus = <&sysmmu_gdc0>;
 		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
 	};
 
 	lwis_gdc1: lwis_gdc@1BA60000 {
@@ -826,6 +831,7 @@
 
 		iommus = <&sysmmu_gdc1>;
 		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
 	};
 
 	lwis_votf: lwis_votf@1A4E0000 {
