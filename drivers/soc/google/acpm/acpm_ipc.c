@@ -223,11 +223,6 @@ void acpm_stop_log(void)
 }
 EXPORT_SYMBOL_GPL(acpm_stop_log);
 
-static void acpm_update_log(struct work_struct *work)
-{
-	acpm_log_print();
-}
-
 static void acpm_debug_logging(struct work_struct *work)
 {
 	acpm_log_print();
@@ -704,9 +699,6 @@ retry:
 			dump_stack();
 			dbg_snapshot_do_dpm_policy(acpm_ipc->panic_action, "acpm_ipc timeout");
 		}
-
-		if (!is_acpm_stop_log)
-			queue_work_on(0, update_log_wq, &acpm_debug->update_log_work);
 	}
 
 	up(&channel->send_sem);
@@ -967,10 +959,9 @@ int acpm_ipc_probe(struct platform_device *pdev)
 
 	update_log_wq = alloc_workqueue("%s",
 					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-					1, "acpm_update_log");
-	INIT_WORK(&acpm_debug->update_log_work, acpm_update_log);
+					1, "acpm_log");
 
-	if (acpm_debug->period)
+	if (acpm_debug->debug_log_level && acpm_debug->period)
 		INIT_DELAYED_WORK(&acpm_debug->periodic_work, acpm_debug_logging);
 
 	if (acpm_ipc_request_channel(node, acpm_error_log_ipc_callback,
