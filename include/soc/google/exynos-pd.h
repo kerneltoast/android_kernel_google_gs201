@@ -60,6 +60,7 @@ struct exynos_pm_domain {
 	bool turn_off_on_sync;
 	unsigned int need_smc;
 	bool skip_idle_ip;
+	bool always_on;
 	struct exynos_pd_stat pd_stat;
 	struct exynos_pm_domain *parent;
 };
