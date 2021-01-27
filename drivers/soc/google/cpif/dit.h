@@ -259,6 +259,8 @@ enum dit_status_mask {
 };
 
 enum dit_packet_info_bits {
+	DIT_PACKET_INFO_UDP_BIT = 6,
+	DIT_PACKET_INFO_TCP_BIT,
 	DIT_PACKET_INFO_IPV6_BIT = 10,
 	DIT_PACKET_INFO_IPV4_BIT,
 };

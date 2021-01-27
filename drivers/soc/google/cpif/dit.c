@@ -449,17 +449,21 @@ static inline void dit_set_skb_udp_csum_zero(struct dit_dst_desc *dst_desc,
 	if (ring_num == DIT_DST_DESC_RING_0)
 		return;
 
-	if (!dst_desc->udp_csum_zero)
+	/* every packets on DST1/2 are IPv4 NATed */
+	if (!(dst_desc->packet_info & BIT(DIT_PACKET_INFO_IPV4_BIT)) ||
+	    !(dst_desc->packet_info & BIT(DIT_PACKET_INFO_UDP_BIT)))
 		return;
 
-	/* it must be IPv4 */
-	off = sizeof(struct ethhdr);
-	if ((*(skb->data + off) & 0xFF) != 0x45)
-		return;
-
-	off += sizeof(struct iphdr);
+	off = sizeof(struct ethhdr) + sizeof(struct iphdr);
 	uh = (struct udphdr *)(skb->data + off);
-	uh->check = 0;
+
+	/* set to 0 if csum was 0 from SRC.
+	 * set to CSUM_MANGLED_0 if csum is 0 after the hw csum magic.
+	 */
+	if (dst_desc->udp_csum_zero)
+		uh->check = 0;
+	else if (!uh->check)
+		uh->check = CSUM_MANGLED_0;
 }
 
 static int dit_pass_to_net(enum dit_desc_ring ring_num,
@@ -1026,7 +1030,7 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			/* hw checksum */
 			dit_set_skb_checksum(dst_desc, ring_num, skb);
 
-			/* reset udp checksum if it was 0 */
+			/* adjust udp zero checksum */
 			dit_set_skb_udp_csum_zero(dst_desc, ring_num, skb);
 
 			dst_desc->packet_info = 0;
