@@ -14,9 +14,7 @@
 #include <linux/exynos-pci-ctrl.h>
 #include "s51xx_pcie.h"
 #endif
-#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 #include "dit.h"
-#endif
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)
 #include <soc/google/bts.h>
 #endif
@@ -76,6 +74,7 @@ static int tpmon_calc_dit_src_queue_status(struct cpif_tpmon *tpmon)
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	int ret = dit_get_src_usage(DIT_DIR_RX, &usage);
+
 	if (ret && (ret != -EPERM)) {
 		mif_err_limited("dit_get_src_usage() error:%d\n", ret);
 		return ret;
@@ -532,9 +531,6 @@ static void tpmon_set_gro(struct tpmon_data *data)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 	int i;
 #endif
-#if IS_ENABLED(CONFIG_EXYNOS_DIT)
-	struct net_device *netdev = NULL;
-#endif
 
 	if (!data->enable)
 		return;
@@ -558,13 +554,10 @@ static void tpmon_set_gro(struct tpmon_data *data)
 	}
 #endif
 
-#if IS_ENABLED(CONFIG_EXYNOS_DIT)
-	netdev = dit_get_netdev();
-	if (netdev) {
-		netdev->gro_flush_timeout = gro_flush_time;
+	if (dit_get_netdev()) {
+		dit_get_netdev()->gro_flush_timeout = gro_flush_time;
 		mld->dummy_net.gro_flush_timeout = 0;
 	}
-#endif
 
 	mif_info("%s (flush time:%u)\n", data->name, gro_flush_time);
 }

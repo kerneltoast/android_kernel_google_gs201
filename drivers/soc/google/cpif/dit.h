@@ -419,7 +419,6 @@ int dit_set_buf_size(enum dit_direction dir, u32 size);
 int dit_set_pktproc_base(enum dit_direction dir, phys_addr_t base);
 int dit_set_desc_ring_len(enum dit_direction dir, u32 len);
 int dit_get_src_usage(enum dit_direction dir, u32 *usage);
-struct net_device *dit_get_netdev(void);
 extern u32 gs_chipid_get_type(void);
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
@@ -431,6 +430,7 @@ int dit_kick(enum dit_direction dir, bool retry);
 bool dit_check_dir_use_queue(enum dit_direction dir, unsigned int queue_num);
 int dit_reset_dst_wp_rp(enum dit_direction dir);
 int dit_stop_napi_poll(void);
+struct net_device *dit_get_netdev(void);
 bool dit_support_clat(void);
 #else
 static inline int dit_enqueue_src_desc_ring(
@@ -443,6 +443,7 @@ static inline bool dit_check_dir_use_queue(
 	enum dit_direction dir, unsigned int queue_num) { return false; }
 static inline int dit_reset_dst_wp_rp(enum dit_direction dir) { return -1; }
 static inline int dit_stop_napi_poll(void) { return 0; }
+static inline struct net_device *dit_get_netdev(void) { return NULL; }
 static inline bool dit_support_clat(void) { return false; }
 #endif
 
