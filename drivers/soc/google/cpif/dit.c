@@ -2292,6 +2292,12 @@ int dit_stop_napi_poll(void)
 }
 EXPORT_SYMBOL(dit_stop_napi_poll);
 
+bool dit_support_clat(void)
+{
+	return dc ? dc->use_clat : false;
+}
+EXPORT_SYMBOL(dit_support_clat);
+
 static int dit_read_dt(struct device_node *np)
 {
 	mif_dt_read_u32(np, "dit_sharability_offset", dc->sharability_offset);

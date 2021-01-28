@@ -25,6 +25,7 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_dump.h"
+#include "dit.h"
 
 static ssize_t waketime_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -147,12 +148,13 @@ static struct device_attribute attr_txlink =
 	__ATTR_RW(txlink);
 
 enum gro_opt {
-	GRO_FULL_SUPPORT,
+	GRO_TCP_UDP,
 	GRO_TCP_ONLY,
 	GRO_NONE,
 	MAX_GRO_OPTION
 };
-static enum gro_opt gro_support = GRO_FULL_SUPPORT;
+
+static enum gro_opt gro_support = GRO_TCP_UDP;
 
 static ssize_t gro_option_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -366,27 +368,44 @@ static int rx_raw_misc(struct sk_buff *skb)
 	return queue_skb_to_iod(skb, iod);
 }
 
-static int check_gro_support(struct sk_buff *skb)
+static bool check_hw_support_clat(void)
 {
+	return dit_support_clat();
+}
+
+static bool check_gro_support(struct sk_buff *skb)
+{
+	u8 proto;
 
 	if (gro_support == GRO_NONE)
-		return 0;
+		return false;
 
 	switch (skb->data[0] & 0xF0) {
 	case 0x40:
-		return (gro_support == GRO_FULL_SUPPORT) ?
-			((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
-				(ip_hdr(skb)->protocol == IPPROTO_UDP)) :
-			(ip_hdr(skb)->protocol == IPPROTO_TCP);
-
+		proto = ip_hdr(skb)->protocol;
+		break;
 	case 0x60:
-		return (gro_support == GRO_FULL_SUPPORT) ?
-			((ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP) ||
-				(ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP)) :
-			(ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP);
+		proto = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		return false;
 	}
 
-	return 0;
+	switch (gro_support) {
+	case GRO_TCP_UDP:
+		/* bpf_skb_proto_6_to_4 on the eBPF clat call path
+		 * does not support UDP GROed skb.
+		 * allow UDP GRO only when hw clat supported.
+		 */
+		return proto == IPPROTO_TCP ||
+		       (proto == IPPROTO_UDP && check_hw_support_clat());
+	case GRO_TCP_ONLY:
+		return proto == IPPROTO_TCP;
+	default:
+		break;
+	}
+
+	return false;
 }
 
 static int rx_multi_pdp(struct sk_buff *skb)
