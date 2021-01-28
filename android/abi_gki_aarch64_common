@@ -4509,6 +4509,19 @@
   ieee80211_vif_to_wdev
   ieee80211_wake_queue
   ieee80211_wake_queues
+  ieee802154_alloc_hw
+  ieee802154_free_hw
+  ieee802154_hdr_peek
+  ieee802154_hdr_peek_addrs
+  ieee802154_hdr_pull
+  ieee802154_hdr_push
+  ieee802154_max_payload
+  ieee802154_register_hw
+  ieee802154_rx_irqsafe
+  ieee802154_stop_queue
+  ieee802154_unregister_hw
+  ieee802154_wake_queue
+  ieee802154_xmit_complete
   iget5_locked
   iget_failed
   iget_locked
@@ -5865,6 +5878,14 @@
   loop_register_transfer
   loops_per_jiffy
   loop_unregister_transfer
+  lowpan_header_compress
+  lowpan_header_decompress
+  lowpan_nhc_add
+  lowpan_nhc_del
+  lowpan_register_netdev
+  lowpan_register_netdevice
+  lowpan_unregister_netdev
+  lowpan_unregister_netdevice
   lru_cache_add
   __lshrti3
   LZ4_compress_default
@@ -12012,6 +12033,12 @@
   workqueue_congested
   workqueue_set_max_active
   would_dump
+  wpan_phy_find
+  wpan_phy_for_each
+  wpan_phy_free
+  wpan_phy_new
+  wpan_phy_register
+  wpan_phy_unregister
   writeback_inodes_sb
   writeback_inodes_sb_nr
   write_cache_pages
