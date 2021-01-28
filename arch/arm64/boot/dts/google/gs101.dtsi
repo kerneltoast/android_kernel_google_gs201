@@ -27,6 +27,7 @@
 #include "gs101-audio.dtsi"
 #include "gs101-gsa.dtsi"
 #include "gs101-ion.dtsi"
+#include "gs101-dma-heap.dtsi"
 #include "gs101-mfc.dtsi"
 #include "gs101-pcie.dtsi"
 #include "gs101-pinctrl.dtsi"
