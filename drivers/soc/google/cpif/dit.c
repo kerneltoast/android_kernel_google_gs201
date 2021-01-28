@@ -864,7 +864,8 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 			if (ring_num == DIT_DST_DESC_RING_0)
 				gfp_mask = GFP_ATOMIC;
 
-			dst_skb[dst_rp_pos] = __netdev_alloc_skb(dc->netdev, buf_size, gfp_mask);
+			dst_skb[dst_rp_pos] = __netdev_alloc_skb_ip_align(dc->netdev,
+									  buf_size, gfp_mask);
 		} else
 			dst_skb[dst_rp_pos] = napi_alloc_skb(&dc->napi, buf_size);
 
