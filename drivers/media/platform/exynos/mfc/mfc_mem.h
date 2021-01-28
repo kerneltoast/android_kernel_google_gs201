@@ -53,38 +53,44 @@ static inline void mfc_mem_buf_prepare(struct vb2_buffer *vb, int stream)
 {
 	int i, ret;
 	enum dma_data_direction dir;
+	struct dma_buf *dbuf;
 
 	dir = V4L2_TYPE_IS_OUTPUT(vb->type) ?
 					DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
 	for (i = 0; i < vb->num_planes; i++) {
-		if (stream) {
-			ret = dma_buf_end_cpu_access_partial(vb->planes[i].dbuf, dir,
+		dbuf = vb->planes[i].dbuf;
+
+		/* check for partial cache flush support */
+		ret = -ENOTSUPP;
+		if (stream && dbuf->ops->end_cpu_access_partial)
+			ret = dma_buf_end_cpu_access_partial(dbuf, dir,
 					0, vb2_get_plane_payload(vb, i));
-			if (ret < 0)
-				dma_buf_end_cpu_access(vb->planes[i].dbuf, dir);
-		} else {
-			dma_buf_end_cpu_access(vb->planes[i].dbuf, dir);
-		}
+
+		if (ret < 0)
+			dma_buf_end_cpu_access(dbuf, dir);
 	}
 }
 
 static inline void mfc_mem_buf_finish(struct vb2_buffer *vb, int stream)
 {
 	int i, ret;
+	struct dma_buf *dbuf;
 
 	if (V4L2_TYPE_IS_OUTPUT(vb->type))
 		return;
 
 	for (i = 0; i < vb->num_planes; i++) {
-		if (stream) {
-			ret = dma_buf_begin_cpu_access_partial(vb->planes[i].dbuf, DMA_FROM_DEVICE,
+		dbuf = vb->planes[i].dbuf;
+
+		/* check for partial cache flush support */
+		ret = -ENOTSUPP;
+		if (stream && dbuf->ops->begin_cpu_access_partial)
+			ret = dma_buf_begin_cpu_access_partial(dbuf, DMA_FROM_DEVICE,
 					0, vb2_get_plane_payload(vb, i));
-			if (ret < 0)
-				dma_buf_begin_cpu_access(vb->planes[i].dbuf, DMA_FROM_DEVICE);
-		} else {
-			dma_buf_begin_cpu_access(vb->planes[i].dbuf, DMA_FROM_DEVICE);
-		}
+
+		if (ret < 0)
+			dma_buf_begin_cpu_access(dbuf, DMA_FROM_DEVICE);
 	}
 }
 
