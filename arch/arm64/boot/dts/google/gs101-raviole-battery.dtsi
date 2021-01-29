@@ -178,7 +178,7 @@
 		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
 		max77759,bst-sel = <&s2mpg10_gpio 3 GPIO_ACTIVE_HIGH>;
 		max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
-
+		max77759,ls2-en = <&max20339_gpio 1 GPIO_ACTIVE_HIGH>;
 	};
 
 	pca9468@57 {
