@@ -119,6 +119,8 @@ static void pcie_clean_dislink(struct modem_ctl *mc)
 	if (mc->pcie_voice_call_on) {
 		modem_notify_event(MODEM_EVENT_RESET, mc);
 		mc->pcie_voice_call_on = false;
+	} else {
+		modem_notify_event(MODEM_EVENT_OFFLINE, mc);
 	}
 #endif
 
