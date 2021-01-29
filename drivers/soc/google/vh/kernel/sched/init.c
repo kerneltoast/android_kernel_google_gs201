@@ -6,6 +6,7 @@
  * Copyright 2020 Google LLC
  */
 
+#include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <trace/hooks/sched.h>
 #include <trace/hooks/topology.h>
@@ -23,8 +24,7 @@ extern int create_sysfs_node(void);
 extern void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 					    int sd_flag, int wake_flags, int *new_cpu);
 extern void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized);
-extern void rvh_map_util_freq_pixel_mod(void *data, unsigned long util, unsigned long freq,
-					unsigned long cap, unsigned long *mapped_freq);
+extern struct cpufreq_governor sched_pixel_gov;
 
 static int vh_sched_init(void)
 {
@@ -36,11 +36,6 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_vh_arch_set_freq_scale(vh_arch_set_freq_scale_pixel_mod, NULL);
-	if (ret)
-		return ret;
-
-	ret = register_trace_android_vh_set_sugov_sched_attr(
-		vh_set_sugov_sched_attr_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
@@ -60,7 +55,7 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
-	ret = register_trace_android_rvh_map_util_freq(rvh_map_util_freq_pixel_mod, NULL);
+	ret = cpufreq_register_governor(&sched_pixel_gov);
 	if (ret)
 		return ret;
 

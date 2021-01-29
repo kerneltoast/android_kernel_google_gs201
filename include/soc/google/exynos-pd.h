@@ -64,14 +64,6 @@ struct exynos_pm_domain {
 	struct exynos_pm_domain *parent;
 };
 
-struct exynos_pd_dbg_info {
-	struct device *dev;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *d;
-	struct file_operations fops;
-#endif
-};
-
 #if IS_ENABLED(CONFIG_EXYNOS_PD)
 struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name);
 int exynos_pd_status(struct exynos_pm_domain *pd);

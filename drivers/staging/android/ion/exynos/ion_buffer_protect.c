@@ -241,7 +241,7 @@ static int __ion_itmon_notifier(struct notifier_block *nb, unsigned long action,
 {
 	struct itmon_notifier *itmon_info = nb_data;
 	unsigned int i;
-	int ret = NOTIFY_BAD;
+	int ret = NOTIFY_OK;
 
 	if (IS_ERR_OR_NULL(itmon_info))
 		return ret;

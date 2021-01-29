@@ -11,6 +11,9 @@
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_find_best_target);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_find_energy_efficient_cpu);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_cpu_util);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sugov_util_update);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sugov_next_freq);
+EXPORT_TRACEPOINT_SYMBOL_GPL(schedutil_cpu_util_clamp);
 static inline struct cfs_rq *get_group_cfs_rq(struct sched_entity *se)
 {
 #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -133,26 +136,6 @@ static void sched_util_est_se(void *data, struct sched_entity *se)
 	_trace_se(se, trace_sched_util_est_se);
 }
 
-static void sugov_util_update(void *data, unsigned int cpu, unsigned long util,
-			      unsigned long max_cap, unsigned int flags)
-{
-	trace_sugov_util_update(cpu, util, max_cap, flags);
-}
-
-static void sugov_next_freq(void *data, unsigned int cpu, unsigned long util,
-			    unsigned long max, unsigned int freq)
-{
-	trace_sugov_next_freq(cpu, util,  max, freq);
-
-}
-
-static void schedutil_cpu_util_clamp(void *data, int cpu, unsigned long util_cfs,
-				     unsigned long util_rt, unsigned long util_clamp,
-				     unsigned long util_max)
-{
-	trace_schedutil_cpu_util_clamp(cpu, util_cfs, util_rt, util_clamp, util_max);
-}
-
 static int sched_tp_init(void)
 {
 	register_trace_pelt_cfs_tp(sched_pelt_cfs, NULL);
@@ -164,9 +147,6 @@ static int sched_tp_init(void)
 	register_trace_sched_overutilized_tp(sched_overutilized, NULL);
 	register_trace_sched_util_est_cfs_tp(sched_util_est_cfs, NULL);
 	register_trace_sched_util_est_se_tp(sched_util_est_se, NULL);
-	register_trace_sugov_util_update_tp(sugov_util_update, NULL);
-	register_trace_sugov_next_freq_tp(sugov_next_freq, NULL);
-	register_trace_schedutil_cpu_util_clamp_tp(schedutil_cpu_util_clamp, NULL);
 
 	return 0;
 }
@@ -182,9 +162,6 @@ static void sched_tp_finish(void)
 	unregister_trace_sched_overutilized_tp(sched_overutilized, NULL);
 	unregister_trace_sched_util_est_cfs_tp(sched_util_est_cfs, NULL);
 	unregister_trace_sched_util_est_se_tp(sched_util_est_se, NULL);
-	unregister_trace_sugov_util_update_tp(sugov_util_update, NULL);
-	unregister_trace_sugov_next_freq_tp(sugov_next_freq, NULL);
-	unregister_trace_schedutil_cpu_util_clamp_tp(schedutil_cpu_util_clamp, NULL);
 }
 
 

@@ -1073,6 +1073,7 @@
   cpufreq_remove_update_util_hook
   cpufreq_show_cpus
   cpufreq_table_index_unsorted
+  cpufreq_this_cpu_can_update
   cpufreq_unregister_driver
   cpufreq_unregister_governor
   cpufreq_unregister_notifier
@@ -1102,6 +1103,7 @@
   cpuidle_unregister
   cpuidle_unregister_device
   cpuidle_unregister_driver
+  cpu_irqtime
   cpu_is_hotpluggable
   cpu_latency_qos_add_request
   cpu_latency_qos_remove_request
@@ -1340,6 +1342,7 @@
   crypto_unregister_template
   crypto_unregister_templates
   __crypto_xor
+  css_next_child
   css_next_descendant_pre
   csum_and_copy_from_iter
   csum_and_copy_from_iter_full
@@ -3505,6 +3508,7 @@
   freq_qos_remove_request
   freq_qos_update_request
   freq_reg_info
+  freq_scale
   from_kqid
   from_kqid_munged
   fs_bio_set
@@ -4505,6 +4509,19 @@
   ieee80211_vif_to_wdev
   ieee80211_wake_queue
   ieee80211_wake_queues
+  ieee802154_alloc_hw
+  ieee802154_free_hw
+  ieee802154_hdr_peek
+  ieee802154_hdr_peek_addrs
+  ieee802154_hdr_pull
+  ieee802154_hdr_push
+  ieee802154_max_payload
+  ieee802154_register_hw
+  ieee802154_rx_irqsafe
+  ieee802154_stop_queue
+  ieee802154_unregister_hw
+  ieee802154_wake_queue
+  ieee802154_xmit_complete
   iget5_locked
   iget_failed
   iget_locked
@@ -5274,6 +5291,7 @@
   irq_to_desc
   irq_wake_thread
   irq_work_queue
+  irq_work_queue_on
   irq_work_run
   irq_work_sync
   ir_raw_encode_carrier
@@ -5556,6 +5574,7 @@
   kset_unregister
   __ksize
   ksize
+  ksoftirqd
   kstat
   kstrdup
   kstrdup_const
@@ -5588,6 +5607,7 @@
   ksys_sync_helper
   kthread_associate_blkcg
   kthread_bind
+  kthread_bind_mask
   kthread_blkcg
   kthread_cancel_delayed_work_sync
   kthread_cancel_work_sync
@@ -5858,6 +5878,14 @@
   loop_register_transfer
   loops_per_jiffy
   loop_unregister_transfer
+  lowpan_header_compress
+  lowpan_header_decompress
+  lowpan_nhc_add
+  lowpan_nhc_del
+  lowpan_register_netdev
+  lowpan_register_netdevice
+  lowpan_unregister_netdev
+  lowpan_unregister_netdevice
   lru_cache_add
   __lshrti3
   LZ4_compress_default
@@ -5881,7 +5909,6 @@
   make_bad_inode
   make_flow_keys_digest
   mangle_path
-  map_util_freq
   mark_buffer_async_write
   mark_buffer_dirty
   mark_buffer_dirty_inode
@@ -8532,6 +8559,7 @@
   rng_is_initialized
   __root_device_register
   root_device_unregister
+  root_task_group
   __round_jiffies
   round_jiffies
   __round_jiffies_relative
@@ -8684,6 +8712,7 @@
   sched_clock
   sched_feat_keys
   sched_setattr
+  sched_setattr_nocheck
   sched_set_fifo
   sched_set_fifo_low
   sched_set_normal
@@ -8700,6 +8729,7 @@
   sched_trace_rq_cpu
   sched_trace_rq_cpu_capacity
   sched_trace_rq_nr_running
+  sched_uclamp_used
   schedule
   schedule_hrtimeout
   schedule_hrtimeout_range
@@ -8708,7 +8738,6 @@
   schedule_timeout_interruptible
   schedule_timeout_killable
   schedule_timeout_uninterruptible
-  schedutil_cpu_util
   __scm_destroy
   scm_detach_fds
   scmd_printk
@@ -10163,6 +10192,7 @@
   task_active_pid_ns
   task_cgroup_path
   task_cputime_adjusted
+  task_groups
   task_handoff_register
   task_handoff_unregister
   __tasklet_hi_schedule
@@ -10170,8 +10200,10 @@
   tasklet_kill
   __tasklet_schedule
   tasklet_setup
+  tasklist_lock
   task_may_not_preempt
   __task_pid_nr_ns
+  __task_rq_lock
   task_user_regset_view
   tc_cleanup_flow_action
   tcf_action_check_ctrlact
@@ -10377,6 +10409,7 @@
   thread_group_exited
   tick_broadcast_control
   tick_broadcast_oneshot_control
+  tick_nohz_get_idle_calls_cpu
   time64_to_tm
   timecounter_cyc2time
   timecounter_init
@@ -10446,7 +10479,6 @@
   __tracepoint_android_rvh_find_energy_efficient_cpu
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_finish_prio_fork
-  __tracepoint_android_rvh_map_util_freq
   __tracepoint_android_rvh_prepare_prio_fork
   __tracepoint_android_rvh_rtmutex_prepare_setprio
   __tracepoint_android_rvh_select_fallback_rq
@@ -10454,7 +10486,6 @@
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_iowait
   __tracepoint_android_rvh_setscheduler
-  __tracepoint_android_rvh_set_sugov_update
   __tracepoint_android_rvh_set_user_nice
   __tracepoint_android_vh_alter_futex_plist_add
   __tracepoint_android_vh_alter_rwsem_list_add
@@ -10480,7 +10511,6 @@
   __tracepoint_android_vh_rwsem_write_wait_start
   __tracepoint_android_vh_sched_show_task
   __tracepoint_android_vh_scheduler_tick
-  __tracepoint_android_vh_set_sugov_sched_attr
   __tracepoint_android_vh_wq_lockup_pool
   __tracepoint_arm_event
   __tracepoint_attach_device_to_domain
@@ -10540,14 +10570,11 @@
   __tracepoint_sched_cpu_capacity_tp
   __tracepoint_sched_overutilized_tp
   __tracepoint_sched_update_nr_running_tp
-  __tracepoint_schedutil_cpu_util_clamp_tp
   __tracepoint_sched_util_est_cfs_tp
   __tracepoint_sched_util_est_se_tp
   __tracepoint_spi_transfer_start
   __tracepoint_spi_transfer_stop
   tracepoint_srcu
-  __tracepoint_sugov_next_freq_tp
-  __tracepoint_sugov_util_update_tp
   __tracepoint_suspend_resume
   __tracepoint_tcp_send_reset
   __tracepoint_unmap
@@ -12006,6 +12033,12 @@
   workqueue_congested
   workqueue_set_max_active
   would_dump
+  wpan_phy_find
+  wpan_phy_for_each
+  wpan_phy_free
+  wpan_phy_new
+  wpan_phy_register
+  wpan_phy_unregister
   writeback_inodes_sb
   writeback_inodes_sb_nr
   write_cache_pages

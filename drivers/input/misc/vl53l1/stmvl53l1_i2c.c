@@ -26,25 +26,6 @@ static inline void st_gettimeofday(struct timespec64 *tv)
 	tv->tv_nsec = now.tv_nsec;
 }
 
-#if STMVL53L1_LOG_POLL_TIMING
-/**
- * helper to elapse time in polling
- * @param ptv pointer to start time_val
-
- */
-#define poll_timing_log(ptv) \
-	vl53l1_dbgmsg("poll in %d us\n", tv_elapsed_us(ptv))
-#else
-#define poll_timing_log(...) (void)0
-#endif
-
-#if STMVL53L1_LOG_CCI_TIMING
-/**
- * compute elapsed time in micro sec based on do_gettimeofday
- * @param tv pointer to start time_val
- * @return time elapsed in  micro seconde
- */
-
 /**
  * compute elapsed time in micro sec based on do_gettimeofday
  * @param tv pointer to start time_val
@@ -59,21 +40,16 @@ static uint32_t tv_elapsed_us(struct timespec64 *tv)
 	       (now.tv_nsec - tv->tv_nsec) / 1000;
 }
 
+#if STMVL53L1_LOG_CCI_TIMING
 #define cci_access_var struct timespec64 cci_log_start_tv
 #define cci_access_start() st_gettimeofday(&cci_log_start_tv)
-#define cci_access_over(fmt, ...) \
-	vl53l1_dbgmsg("cci_timing %d us" fmt "\n", \
+#define cci_access_over(dev, fmt, ...) \
+	dev_dbg(dev, "cci_timing %d us" fmt "\n", \
 		tv_elapsed_us(&cci_log_start_tv), ##__VA_ARGS__)
 #else
 #define cci_access_var
 #define cci_access_start(...) (void)0
 #define cci_access_over(...) (void)0
-#endif
-
-#ifdef STMVL53L1_DEBUG_I2C
-#define i2c_debug(fmt, ...) vl53l1_dbgmsg(fmt, ##__VA_ARGS__)
-#else
-#define i2c_debug(fmt, ...) (void)0
 #endif
 
 VL53L1_Error VL53L1_GetTickCount(uint32_t *ptime_ms)
@@ -108,7 +84,7 @@ static int cci_write(struct stmvl53l1_data *dev, int index,
 
 	cci_access_var;
 	if (len > STMVL53L1_MAX_CCI_XFER_SZ || len == 0) {
-		vl53l1_errmsg("invalid len %d\n", len);
+		dev_err(&client->dev, "%s: invalid len %d\n", __func__, len);
 		return -1;
 	}
 	cci_access_start();
@@ -125,10 +101,11 @@ static int cci_write(struct stmvl53l1_data *dev, int index,
 
 	rc = i2c_transfer(client->adapter, &msg, 1);
 	if (rc != 1) {
-		vl53l1_errmsg("wr i2c_transfer err:%d, index 0x%x len %d\n",
-				rc, index, len);
+		dev_err(&client->dev,
+			"wr i2c_transfer err:%d, index 0x%x len %d\n",
+			rc, index, len);
 	}
-	cci_access_over("rd status %d long %d ", rc != 1, len);
+	cci_access_over(&client->dev, "rd status %d long %d ", rc != 1, len);
 	return rc != 1;
 }
 
@@ -143,7 +120,7 @@ static int cci_read(struct stmvl53l1_data *dev, int index,
 
 	cci_access_var;
 	if (len > STMVL53L1_MAX_CCI_XFER_SZ || len == 0) {
-		vl53l1_errmsg("invalid len %d\n", len);
+		dev_err(&client->dev, "%s: invalid len %d\n", __func__, len);
 		return -1;
 	}
 	cci_access_start();
@@ -164,11 +141,11 @@ static int cci_read(struct stmvl53l1_data *dev, int index,
 
 	rc = i2c_transfer(client->adapter, msg, 2);
 	if (rc != 2) {
-		pr_err("%s: i2c_transfer :%d, @%x index 0x%x len %d\n",
-				__func__, rc, client->addr, index, len);
-
+		dev_err(&client->dev,
+			"i2c_transfer :%d, @%x index 0x%x len %d\n",
+			rc, client->addr, index, len);
 	}
-	cci_access_over(" wr len %d status %d", rc != 2, len);
+	cci_access_over(&client->dev, "wr len %d status %d", rc != 2, len);
 	return rc != 2;
 }
 
@@ -200,13 +177,17 @@ VL53L1_Error VL53L1_WrWord(VL53L1_DEV pdev, uint16_t index, uint16_t data)
 {
 	VL53L1_Error status;
 	uint8_t buffer[2];
+	struct stmvl53l1_data *dev =
+		(struct stmvl53l1_data *)container_of(
+			pdev, struct stmvl53l1_data, stdev);
+	struct i2c_data *i2c_data = (struct i2c_data *)dev->client_object;
 
 	/* Split 16-bit word into MS and L*  stmvl53l1 FlightSense sensor */
 
 	buffer[0] = (uint8_t)(data >> 8);
 	buffer[1] = (uint8_t)(data & 0x00FF);
-	i2c_debug(" @%x d= %x  => [ %x , %x ] ", index, data, buffer[0],
-			buffer[1]);
+	dev_dbg(&i2c_data->client->dev, " @%x d= %x  => [ %x , %x ] \n",
+		index, data, buffer[0], buffer[1]);
 	status = VL53L1_WriteMulti(pdev, index, buffer, 2);
 
 	return status;
@@ -294,10 +275,12 @@ VL53L1_Error VL53L1_WaitValueMaskEx(VL53L1_DEV pdev,
 	struct stmvl53l1_data *dev;
 	int rc, time_over;
 	uint8_t rd_val;
+	struct i2c_data *data;
 
 	dev = (struct stmvl53l1_data *)container_of(pdev,
 			struct stmvl53l1_data,
 			stdev);
+	data = (struct i2c_data *)dev->client_object;
 
 	st_gettimeofday(&start_tv);
 	do {
@@ -305,16 +288,17 @@ VL53L1_Error VL53L1_WaitValueMaskEx(VL53L1_DEV pdev,
 		if (rc)
 			return VL53L1_ERROR_CONTROL_INTERFACE;
 		if ((rd_val & mask) == value) {
-			poll_timing_log(&start_tv);
+			dev_dbg(&data->client->dev, "poll in %d us\n",
+				tv_elapsed_us(&start_tv));
 			return VL53L1_ERROR_NONE;
 		}
-		vl53l1_dbgmsg("poll @%x %x & %d != %x", index,
-				rd_val, mask, value);
+		dev_dbg(&data->client->dev, "poll @%x %x & %d != %x\n",
+			index, rd_val, mask, value);
 		time_over = is_time_over(&start_tv, timeout_ms);
 		if (!time_over)
 			msleep(poll_delay_ms);
 	} while (!time_over);
-	vl53l1_errmsg("time over %d ms", timeout_ms);
+	dev_err(&data->client->dev, "time over %d ms\n", timeout_ms);
 	return VL53L1_ERROR_TIME_OUT;
 }
 

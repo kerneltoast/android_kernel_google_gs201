@@ -541,6 +541,7 @@ static void gs101_tmu_work(struct kthread_work *work)
 	struct gs101_tmu_data *data = container_of(work,
 			struct gs101_tmu_data, irq_work);
 	struct thermal_zone_device *tz = data->tzd;
+	struct gs101_pi_param *params = data->pi_param;
 
 	gs101_report_trigger(data);
 	mutex_lock(&data->lock);
@@ -552,8 +553,16 @@ static void gs101_tmu_work(struct kthread_work *work)
 
 	mutex_unlock(&data->lock);
 
-	if (data->use_pi_thermal)
-		gs101_pi_thermal(data);
+	if (data->use_pi_thermal) {
+		if (params->switched_on)
+			/*
+			 * handle hotplug and limited_threshold but do
+			 * not trigger polling if it is already on
+			 */
+			thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+		else
+			gs101_pi_thermal(data);
+	}
 
 	enable_irq(data->irq);
 }

@@ -52,32 +52,6 @@
 #define STMVL53L1_CFG_MAX_DEV 2
 /** @} */ /* ingroup vl53l1_config */
 
-/** @ingroup vl53l1_mod_dbg
- * @{
- */
-
-/* enable debug if necessary */
-//#define DEBUG	1
-//#define FORCE_CONSOLE_DEBUG
-
-extern int stmvl53l1_enable_debug;
-
-#ifdef DEBUG
-#ifdef FORCE_CONSOLE_DEBUG
-#define vl53l1_dbgmsg(str, ...) do { \
-	if (stmvl53l1_enable_debug) \
-		pr_info("%s: " str, __func__, ##__VA_ARGS__); \
-} while (0)
-#else
-#define vl53l1_dbgmsg(str, ...) do { \
-	if (stmvl53l1_enable_debug) \
-		pr_debug("%s: " str, __func__, ##__VA_ARGS__); \
-} while (0)
-#endif
-#else
-#define vl53l1_dbgmsg(...) (void)0
-#endif
-
 /**
  * set to 0 1 activate or not debug from work (data interrupt/polling)
  */
@@ -89,14 +63,6 @@ extern int stmvl53l1_enable_debug;
 #define work_dbg(...) (void)0
 #endif
 
-#define vl53l1_info(str, args...) \
-	pr_info("%s: " str "\n", __func__, ##args)
-
-#define vl53l1_errmsg(str, args...) \
-	pr_err("%s: " str, __func__, ##args)
-
-#define vl53l1_wanrmsg(str, args...) \
-	pr_warn("%s: " str, __func__, ##args)
 
 /* turn off poll log if not defined */
 #ifndef STMVL53L1_LOG_POLL_TIMING

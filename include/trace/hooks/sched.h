@@ -110,11 +110,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_find_energy_efficient_cpu,
 	TP_PROTO(struct task_struct *p, int prev_cpu, int sync, int *new_cpu),
 	TP_ARGS(p, prev_cpu, sync, new_cpu), 1);
 
-struct sched_attr;
-DECLARE_HOOK(android_vh_set_sugov_sched_attr,
-	TP_PROTO(struct sched_attr *attr),
-	TP_ARGS(attr));
-
 DECLARE_RESTRICTED_HOOK(android_rvh_set_iowait,
 	TP_PROTO(struct task_struct *p, int *should_iowait_boost),
 	TP_ARGS(p, should_iowait_boost), 1);
@@ -205,11 +200,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_can_attach,
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_overutilized,
 	TP_PROTO(int cpu, int *overutilized),
 	TP_ARGS(cpu, overutilized), 1);
-
-DECLARE_RESTRICTED_HOOK(android_rvh_map_util_freq,
-	TP_PROTO(unsigned long util, unsigned long freq, unsigned long cap,
-		 unsigned long *mapped_freq),
-	TP_ARGS(util, freq, cap, mapped_freq), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -259,7 +249,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_map_util_freq,
 #define trace_android_rvh_cpu_cgroup_attach(tset)
 #define trace_android_rvh_cpu_cgroup_can_attach(tset, retval)
 #define trace_android_rvh_cpu_overutilized(cpu, overutilized)
-#define trace_android_rvh_map_util_freq(util, freq, cap, mapped_freq)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */

@@ -99,7 +99,7 @@
 /**
  * activate dump of roi in roi ctrl operation
  *
- * @note uses @a vl53l1_dbgmsg for output so make sure to enable debug
+ * @note uses @a dev_dbg for output so make sure to enable debug
  * to get roi dump
  */
 #define STMVL53L1_CFG_ROI_DEBUG 0
@@ -164,10 +164,9 @@ static ssize_t stmvl53l1_store_##sysfs_name(struct device *dev, \
 \
 	mutex_lock(&data->work_mutex); \
 \
-	if (kstrtoint(buf, 0, &param)) { \
-		vl53l1_errmsg("invalid syntax in %s", buf); \
+	if (kstrtoint(buf, 0, &param)) \
 		rc = -EINVAL; \
-	} else \
+	else \
 		rc = stmvl53l1_set_##sysfs_name(data, param); \
 \
 	mutex_unlock(&data->work_mutex); \
@@ -179,15 +178,17 @@ static int ctrl_param_##sysfs_name(struct stmvl53l1_data *data, \
 		struct stmvl53l1_parameter *param) \
 { \
 	int rc; \
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object; \
+	struct device *dev = &i2c_data->client->dev; \
 \
 	if (param->is_read) { \
 		param->value = data->sysfs_name; \
 		param->status = 0; \
-		vl53l1_dbgmsg("get " info_name " %d", param->value); \
+		dev_dbg(dev, "get " info_name " %d", param->value); \
 		rc = 0; \
 	} else { \
 		rc = stmvl53l1_set_##sysfs_name(data, param->value); \
-		vl53l1_dbgmsg("rc %d req %d now %d", rc, \
+		dev_dbg(dev, "rc %d req %d now %d", rc, \
 				param->value, data->sysfs_name); \
 	} \
 \
@@ -369,12 +370,14 @@ static void wake_up_data_waiters(struct stmvl53l1_data *data)
 
 static void stmvl53l1_insert_flush_events_lock(struct stmvl53l1_data *data)
 {
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
 	while (data->flush_todo_counter) {
 		data->flushCount++;
 		input_report_abs(data->input_dev_ps, ABS_GAS, data->flushCount);
 		input_sync(data->input_dev_ps);
-		vl53l1_dbgmsg("Sensor HAL Flush Count = %u\n",
-			data->flushCount);
+		dev_dbg(dev, "Sensor HAL Flush Count = %u\n", data->flushCount);
 		data->flush_todo_counter--;
 	}
 }
@@ -382,13 +385,15 @@ static void stmvl53l1_insert_flush_events_lock(struct stmvl53l1_data *data)
 static int reset_release(struct stmvl53l1_data *data)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (!data->reset_state)
 		return 0;
 
 	rc = stmvl53l1_module_func_tbl.reset_release(data->client_object);
 	if (rc)
-		vl53l1_errmsg("reset release fail rc=%d\n", rc);
+		dev_err(dev, "reset release fail rc = %d\n", rc);
 	else
 		data->reset_state = 0;
 
@@ -437,15 +442,16 @@ long stmvl53l1_tv_dif(struct timespec64 *pstart_tv, struct timespec64 *pstop_tv)
 }
 
 #if STMVL53L1_CFG_ROI_DEBUG
-static void dump_roi(struct VL53L1_UserRoi_t *rois, uint32_t n)
+static void dump_roi(struct device *dev, struct VL53L1_UserRoi_t *rois,
+		     uint32_t n)
 {
 	uint32_t i;
 
-	vl53l1_dbgmsg("roi dump %d roi:\n", n);
+	dev_dbg(dev, "roi dump %d roi:\n", n);
 	for (i = 0; i < n; i++) {
-		vl53l1_dbgmsg("ROI#%02d %2d %2d %2d %2d\n", (int)i,
-				(int)rois[i].TopLeftX, (int)rois[i].TopLeftY,
-				(int)rois[i].BotRightX, (int)rois[i].BotRightY);
+		dev_dbg(dev, "ROI#%02d %2d %2d %2d %2d\n", (int)i,
+			(int)rois[i].TopLeftX, (int)rois[i].TopLeftY,
+			(int)rois[i].BotRightX, (int)rois[i].BotRightY);
 	}
 }
 #else
@@ -515,6 +521,8 @@ static int stmvl53l1_check_calibration_id(struct stmvl53l1_data *data)
 {
 	uint32_t roi_id;
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->offset_correction_mode != VL53L1_OFFSETCORRECTIONMODE_PERZONE)
 		return 0;
@@ -525,8 +533,7 @@ static int stmvl53l1_check_calibration_id(struct stmvl53l1_data *data)
 	rc = roi_id == data->current_roi_id ? 0 : -EINVAL;
 
 	if (rc)
-		vl53l1_errmsg(
-			"Mismatch in zone calibration data 0x%08x != 0x%08x",
+		dev_err(dev, "Mismatch in zone cal data 0x%08x != 0x%08x\n",
 			roi_id, data->current_roi_id);
 
 	return rc;
@@ -542,12 +549,14 @@ static int stmvl53l1_check_calibration_id(struct stmvl53l1_data *data)
 static int stmvl53l1_sendparams(struct stmvl53l1_data *data)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	/* activated  stored or last request defined mode */
 	rc = VL53L1_SetPresetMode(&data->stdev, data->preset_mode);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_SetPresetMode %d fail %d",
-				data->preset_mode, rc);
+		dev_err(dev, "VL53L1_SetPresetMode %d fail %d\n",
+			data->preset_mode, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -555,8 +564,8 @@ static int stmvl53l1_sendparams(struct stmvl53l1_data *data)
 	rc = VL53L1_SetXTalkCompensationEnable(&data->stdev,
 		data->crosstalk_enable);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_SetXTalkCompensationEnable %d fail %d",
-				data->crosstalk_enable, rc);
+		dev_err(dev, "VL53L1_SetXTalkCompensationEn %d fail %d\n",
+			data->crosstalk_enable, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -564,7 +573,7 @@ static int stmvl53l1_sendparams(struct stmvl53l1_data *data)
 	/* apply distance mode only in lite and standard ranging */
 	rc = VL53L1_SetDistanceMode(&data->stdev, data->distance_mode);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_SetDistanceMode %d fail %d",
+		dev_err(dev, "VL53L1_SetDistanceMode %d fail %d\n",
 			data->distance_mode, rc);
 		rc = store_last_error(data, rc);
 		goto done;
@@ -574,23 +583,23 @@ static int stmvl53l1_sendparams(struct stmvl53l1_data *data)
 	rc = VL53L1_SetMeasurementTimingBudgetMicroSeconds(&data->stdev,
 			data->timing_budget);
 	if (rc) {
-		vl53l1_errmsg("SetTimingBudget %d fail %d",
-				data->timing_budget, rc);
+		dev_err(dev, "SetTimingBudget %d fail %d\n",
+			data->timing_budget, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
-	vl53l1_dbgmsg("timing budget @%d\n", data->timing_budget);
+	dev_dbg(dev, "timing budget @%d\n", data->timing_budget);
 
 	/* apply offset correction mode */
 	rc = VL53L1_SetOffsetCorrectionMode(&data->stdev,
 			data->offset_correction_mode);
 	if (rc) {
-		vl53l1_errmsg("offset correction mode %d fail %d",
-				data->offset_correction_mode, rc);
+		dev_err(dev, "offset correction mode %d fail %d\n",
+			data->offset_correction_mode, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
-	vl53l1_dbgmsg("offset correction mode @%d\n",
+	dev_dbg(dev, "offset correction mode @%d\n",
 		data->offset_correction_mode);
 
 	/* check zone calibration vs roi */
@@ -601,46 +610,47 @@ static int stmvl53l1_sendparams(struct stmvl53l1_data *data)
 	/* apply Dmax reflectance */
 	rc = VL53L1_SetDmaxReflectance(&data->stdev, data->dmax_reflectance);
 	if (rc) {
-		vl53l1_errmsg("dmax relectance %d fail %d",
+		dev_err(dev, "dmax relectance %d fail %d\n",
 			data->dmax_reflectance, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
-	vl53l1_dbgmsg("dmax reflectance @%d\n", data->dmax_reflectance);
+	dev_dbg(dev, "dmax reflectance @%d\n", data->dmax_reflectance);
 
 	/* apply Dmax mode */
 	rc = VL53L1_SetDmaxMode(&data->stdev, data->dmax_mode);
 	if (rc) {
-		vl53l1_errmsg("dmax mode %d fail %d", data->dmax_mode, rc);
+		dev_err(dev, "dmax mode %d fail %d\n",
+			data->dmax_mode, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
-	vl53l1_dbgmsg("dmax mode @%d\n", data->dmax_mode);
+	dev_dbg(dev, "dmax mode @%d\n", data->dmax_mode);
 
 	/* apply smudge correction enable */
 	rc = VL53L1_SmudgeCorrectionEnable(&data->stdev,
 		data->smudge_correction_mode);
 	if (rc) {
-		vl53l1_errmsg("smudge correction mode %d fail %d",
+		dev_err(dev, "smudge correction mode %d fail %d\n",
 			data->smudge_correction_mode, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
-	vl53l1_dbgmsg("smudge correction mode @%d\n",
+	dev_dbg(dev, "smudge correction mode @%d\n",
 		data->smudge_correction_mode);
 
 	/* apply roi if any set */
 	if (data->roi_cfg.NumberOfRoi) {
 		rc = VL53L1_SetROI(&data->stdev, &data->roi_cfg);
 		if (rc) {
-			vl53l1_errmsg("VL53L1_SetROI fail %d\n", rc);
+			dev_err(dev, "VL53L1_SetROI fail %d\n", rc);
 			rc = store_last_error(data, rc);
 			goto done;
 		}
-		vl53l1_dbgmsg("#%d custom ROI set status\n",
-				data->roi_cfg.NumberOfRoi);
+		dev_dbg(dev, "#%d custom ROI set status\n",
+			data->roi_cfg.NumberOfRoi);
 	} else {
-		vl53l1_dbgmsg("using default ROI\n");
+		dev_dbg(dev, "using default ROI\n");
 	}
 
 	/* set autonomous mode configuration */
@@ -649,14 +659,14 @@ static int stmvl53l1_sendparams(struct stmvl53l1_data *data)
 		rc = VL53L1_SetInterMeasurementPeriodMilliSeconds(&data->stdev,
 			data->auto_pollingTimeInMs);
 		if (rc) {
-			vl53l1_errmsg("Fail to set auto period %d\n", rc);
+			dev_err(dev, "Fail to set auto period %d\n", rc);
 			rc = store_last_error(data, rc);
 			goto done;
 		}
 		rc = VL53L1_SetThresholdConfig(&data->stdev,
 			&data->auto_config);
 		if (rc) {
-			vl53l1_errmsg("Fail to set auto config %d\n", rc);
+			dev_err(dev, "Fail to set auto config %d\n", rc);
 			rc = store_last_error(data, rc);
 			goto done;
 		}
@@ -677,6 +687,8 @@ done:
 static int stmvl53l1_start(struct stmvl53l1_data *data)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	data->is_first_irq = true;
 	data->is_data_valid = false;
@@ -689,8 +701,7 @@ static int stmvl53l1_start(struct stmvl53l1_data *data)
 	/* full setup when out of reset or power up */
 	rc = VL53L1_StaticInit(&data->stdev);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_StaticInit @%d fail %d\n",
-				__LINE__, rc);
+		dev_err(dev, "VL53L1_StaticInit @%d fail %d\n", __LINE__, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -712,8 +723,8 @@ static int stmvl53l1_start(struct stmvl53l1_data *data)
 	/* kick off ranging */
 	rc = VL53L1_StartMeasurement(&data->stdev);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_StartMeasurement @%d fail %d",
-				__LINE__, rc);
+		dev_err(dev, "VL53L1_StartMeasurement @%d fail %d",
+			__LINE__, rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -744,11 +755,13 @@ done:
 static int stmvl53l1_stop(struct stmvl53l1_data *data)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	rc = VL53L1_StopMeasurement(&data->stdev);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_StopMeasurement @%d fail %d",
-				__LINE__, rc);
+		dev_err(dev, "VL53L1_StopMeasurement @%d fail %d\n",
+			__LINE__, rc);
 		rc = store_last_error(data, rc);
 	}
 	/* put device under reset */
@@ -789,7 +802,7 @@ static ssize_t stmvl53l1_store_enable_ps_sensor(struct device *dev,
 
 	rc = kstrtoul(buf, 10, &val);
 	if (rc) {
-		vl53l1_errmsg("enable sensor syntax in %s\n", buf);
+		dev_err(dev, "enable sensor syntax in %s\n", buf);
 		return -EINVAL;
 	}
 	if (val == 1) {
@@ -800,7 +813,7 @@ static ssize_t stmvl53l1_store_enable_ps_sensor(struct device *dev,
 		/* TODO: Remove this workaround after investigation
 		 * see Codex - 479397 for details
 		 */
-		vl53l1_dbgmsg("Unclog Input sub-system\n");
+		dev_dbg(dev, "Unclog Input sub-system\n");
 		/* Unclog the input device sub-system */
 		input_report_abs(data->input_dev_ps, ABS_HAT0X, -1);
 		input_report_abs(data->input_dev_ps, ABS_HAT0Y, -1);
@@ -822,11 +835,9 @@ static ssize_t stmvl53l1_store_enable_ps_sensor(struct device *dev,
 		input_report_abs(data->input_dev_ps, ABS_MISC, -1);
 		input_report_abs(data->input_dev_ps, ABS_VOLUME, -1);
 		input_sync(data->input_dev_ps);
-		vl53l1_dbgmsg("Unclog the input sub-system\n");
+		dev_dbg(dev, "Unclog the input sub-system\n");
 		rc = 0;
 	}
-
-	vl53l1_dbgmsg("End\n");
 
 	return rc ? rc : count;
 }
@@ -908,15 +919,18 @@ static DEVICE_ATTR(set_delay_ms, 0660/*S_IWUGO | S_IRUGO*/,
 static int stmvl53l1_set_timing_budget(struct stmvl53l1_data *data, int timing)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (timing <= 0) {
-		vl53l1_errmsg("invalid timing valid %d\n", timing);
+		dev_err(dev, "invalid timing valid %d\n", timing);
 		rc = -EINVAL;
 	} else if (data->enable_sensor) {
 		rc = VL53L1_SetMeasurementTimingBudgetMicroSeconds(&data->stdev,
 			timing);
 		if (rc) {
-			vl53l1_errmsg("SetTimingBudget %d fail %d", timing, rc);
+			dev_err(dev, "SetTimingBudget %d fail %d\n",
+				timing, rc);
 			rc = store_last_error(data, rc);
 		} else
 			data->timing_budget = timing;
@@ -981,7 +995,7 @@ static ssize_t stmvl53l1_store_roi(struct device *dev,
 
 	mutex_lock(&data->work_mutex);
 	if (data->enable_sensor) {
-		vl53l1_errmsg(" can't set roi now\n");
+		dev_err(dev, "can't set roi now\n");
 		rc = -EBUSY;
 	} else {
 		int n, n_roi = 0;
@@ -998,9 +1012,8 @@ static ssize_t stmvl53l1_store_roi(struct device *dev,
 				rois[n_roi].BotRightY = bry;
 				n_roi++;
 			} else {
-				vl53l1_errmsg(
-					"wrong roi #%d syntax around %s of %s",
-					n_roi, pc, buf);
+				dev_err(dev, "wrong roi #%d syntax\n", n_roi);
+				dev_err(dev, "around %s of %s\n", pc, buf);
 				n_roi = -1;
 				break;
 			}
@@ -1015,15 +1028,15 @@ static ssize_t stmvl53l1_store_roi(struct device *dev,
 				memcpy(data->roi_cfg.UserRois, rois,
 						n_roi*sizeof(rois[0]));
 			data->roi_cfg.NumberOfRoi = n_roi;
-			dump_roi(data->roi_cfg.UserRois,
-					data->roi_cfg.NumberOfRoi);
+			dump_roi(dev, data->roi_cfg.UserRois,
+				 data->roi_cfg.NumberOfRoi);
 			rc = count;
 		} else {
 			rc = -EINVAL;
 		}
 	}
 	mutex_unlock(&data->work_mutex);
-	vl53l1_dbgmsg("ret %d count %d\n", rc, (int)count);
+	dev_dbg(dev, "ret %d count %d\n", rc, (int)count);
 
 	return rc;
 }
@@ -1073,9 +1086,11 @@ static DEVICE_ATTR(roi, 0660/*S_IWUGO | S_IRUGO*/,
 static int stmvl53l1_set_preset_mode(struct stmvl53l1_data *data, int mode)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg("can't change mode while ranging\n");
+		dev_err(dev, "can't change mode while ranging\n");
 		rc = -EBUSY;
 	} else {
 		switch (mode) {
@@ -1087,7 +1102,7 @@ static int stmvl53l1_set_preset_mode(struct stmvl53l1_data *data, int mode)
 			data->preset_mode = mode;
 			break;
 		default:
-			vl53l1_errmsg("invalid mode %d\n", mode);
+			dev_err(dev, "invalid mode %d\n", mode);
 			rc = -EINVAL;
 			break;
 		}
@@ -1118,9 +1133,11 @@ static int stmvl53l1_set_distance_mode(struct stmvl53l1_data *data,
 	int distance_mode)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg("can't change distance mode while ranging\n");
+		dev_err(dev, "can't change distance mode while ranging\n");
 		rc = -EBUSY;
 	} else {
 		switch (distance_mode) {
@@ -1130,8 +1147,7 @@ static int stmvl53l1_set_distance_mode(struct stmvl53l1_data *data,
 			data->distance_mode = distance_mode;
 			break;
 		default:
-			vl53l1_errmsg("invalid distance mode %d\n",
-				distance_mode);
+			dev_err(dev, "invalid distance mode %d\n", distance_mode);
 			rc = -EINVAL;
 			break;
 		}
@@ -1160,15 +1176,17 @@ static int stmvl53l1_set_crosstalk_enable(struct stmvl53l1_data *data,
 	int crosstalk_enable)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg("can't change crosstalk enable while ranging\n");
+		dev_err(dev,
+			"can't change crosstalk enable while ranging\n");
 		rc = -EBUSY;
 	} else if (crosstalk_enable == 0 || crosstalk_enable == 1) {
 		data->crosstalk_enable = crosstalk_enable;
 	} else {
-		vl53l1_errmsg("invalid crosstalk enable %d\n",
-			crosstalk_enable);
+		dev_err(dev, "invalid crosstalk enable %d\n", crosstalk_enable);
 		rc = -EINVAL;
 	}
 
@@ -1194,9 +1212,11 @@ static int stmvl53l1_set_output_mode(struct stmvl53l1_data *data,
 	int output_mode)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg("can't change output mode while ranging\n");
+		dev_err(dev, "can't change output mode while ranging\n");
 		rc = -EBUSY;
 	} else {
 		switch (output_mode) {
@@ -1205,7 +1225,7 @@ static int stmvl53l1_set_output_mode(struct stmvl53l1_data *data,
 			data->output_mode = output_mode;
 			break;
 		default:
-			vl53l1_errmsg("invalid output mode %d\n", output_mode);
+			dev_err(dev, "invalid output mode %d\n", output_mode);
 			rc = -EINVAL;
 			break;
 		}
@@ -1234,9 +1254,11 @@ static int stmvl53l1_set_force_device_on_en(struct stmvl53l1_data *data,
 	int force_device_on_en)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (force_device_on_en != 0 && force_device_on_en != 1) {
-		vl53l1_errmsg("invalid force_device_on_en mode %d\n",
+		dev_err(dev, "invalid force_device_on_en mode %d\n",
 			force_device_on_en);
 		return -EINVAL;
 	}
@@ -1275,9 +1297,11 @@ static int stmvl53l1_set_offset_correction_mode(struct stmvl53l1_data *data,
 	int offset_correction_mode)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg(
+		dev_err(dev,
 			"can't change offset correction mode while ranging\n");
 		rc = -EBUSY;
 	} else {
@@ -1288,7 +1312,7 @@ static int stmvl53l1_set_offset_correction_mode(struct stmvl53l1_data *data,
 			data->offset_correction_mode = offset_correction_mode;
 			break;
 		default:
-			vl53l1_errmsg("invalid offset correction mode %d\n",
+			dev_err(dev, "invalid offset correction mode %d\n",
 				offset_correction_mode);
 			rc = -EINVAL;
 			break;
@@ -1348,10 +1372,9 @@ static ssize_t stmvl53l1_store_enable_debug(struct device *dev,
 	int enable_debug;
 	int rc = 0;
 
-	if (kstrtoint(buf, 0, &enable_debug)) {
-		vl53l1_errmsg("invalid syntax in %s", buf);
+	if (kstrtoint(buf, 0, &enable_debug))
 		rc = -EINVAL;
-	} else
+	else
 		stmvl53l1_enable_debug = enable_debug;
 
 	return rc ? rc : count;
@@ -1543,12 +1566,12 @@ static ssize_t stmvl53l1_store_autonomous_config(struct device *dev,
 	return count;
 
 busy:
-	vl53l1_errmsg("can't change config while ranging");
+	dev_err(dev, "can't change config while ranging\n");
 	rc = -EBUSY;
 	goto error;
 
 invalid:
-	vl53l1_errmsg("invalid syntax in %s", buf_ori);
+	dev_err(dev, "%s: invalid syntax in %s\n", __func__, buf_ori);
 	rc = -EINVAL;
 	goto error;
 
@@ -1628,9 +1651,11 @@ static int stmvl53l1_set_dmax_reflectance(struct stmvl53l1_data *data,
 	int dmax_reflectance)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg(
+		dev_err(dev,
 			"can't change dmax reflectance while ranging\n");
 		rc = -EBUSY;
 	} else
@@ -1676,7 +1701,7 @@ static ssize_t stmvl53l1_store_dmax_reflectance(struct device *dev,
 	return count;
 
 invalid:
-	vl53l1_errmsg("invalid syntax in %s", buf_ori);
+	dev_err(dev, "%s: invalid syntax in %s\n", __func__, buf_ori);
 	rc = -EINVAL;
 	goto error;
 
@@ -1702,9 +1727,11 @@ static int stmvl53l1_set_dmax_mode(struct stmvl53l1_data *data,
 	int dmax_mode)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg("can't change dmax mode while ranging\n");
+		dev_err(dev, "can't change dmax mode while ranging\n");
 		rc = -EBUSY;
 	} else {
 		switch (dmax_mode) {
@@ -1714,7 +1741,7 @@ static int stmvl53l1_set_dmax_mode(struct stmvl53l1_data *data,
 			data->dmax_mode = dmax_mode;
 			break;
 		default:
-			vl53l1_errmsg("invalid dmax mode %d\n", dmax_mode);
+			dev_err(dev, "invalid dmax mode %d\n", dmax_mode);
 			rc = -EINVAL;
 			break;
 		}
@@ -1743,21 +1770,24 @@ static int stmvl53l1_set_tuning(struct stmvl53l1_data *data, int key,
 	int value)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg("can't change tuning params while ranging\n");
+		dev_err(dev, "can't change tuning params while ranging\n");
 		return -EBUSY;
 	}
 
 	if (data->is_calibrating) {
-		vl53l1_errmsg("can't change tuning params while calibrating\n");
+		dev_err(dev,
+			"can't change tuning params while calibrating\n");
 		return -EBUSY;
 	}
 
 	if (key & ~0xffff)
 		return -EINVAL;
 
-	vl53l1_dbgmsg("trying to set %d with key %d", value, key);
+	dev_dbg(dev, "trying to set %d with key %d\n", value, key);
 
 	rc = VL53L1_SetTuningParameter(&data->stdev, key, value);
 	if (rc)
@@ -1873,9 +1903,12 @@ static int stmvl53l1_set_smudge_correction_mode(struct stmvl53l1_data *data,
 	int smudge_correction_mode)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->enable_sensor) {
-		vl53l1_errmsg("can't change smudge corr mode while ranging\n");
+		dev_err(dev,
+			"can't change smudge corr mode while ranging\n");
 		rc = -EBUSY;
 	} else {
 		switch (smudge_correction_mode) {
@@ -1886,7 +1919,7 @@ static int stmvl53l1_set_smudge_correction_mode(struct stmvl53l1_data *data,
 			data->smudge_correction_mode = smudge_correction_mode;
 			break;
 		default:
-			vl53l1_errmsg("invalid smudge correction mode %d\n",
+			dev_err(dev, "invalid smudge correction mode %d\n",
 				smudge_correction_mode);
 			rc = -EINVAL;
 			break;
@@ -1980,7 +2013,7 @@ static ssize_t stmvl53l1_calib_data_read(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	vl53l1_dbgmsg("off = %lld / count = %d", off, count);
+	dev_dbg(dev, "off = %lld / count = %d\n",  off, count);
 
 	if (off < 0 || off > sizeof(struct VL53L1_CalibrationData_t))
 		goto invalid;
@@ -1989,7 +2022,7 @@ static ssize_t stmvl53l1_calib_data_read(struct file *filp,
 	memset(&calib, 0, sizeof(calib));
 	rc = VL53L1_GetCalibrationData(&data->stdev, &calib);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_GetCalibrationData fail %d", rc);
+		dev_err(dev, "VL53L1_GetCalibrationData fail %d\n", rc);
 		rc = store_last_error(data, rc);
 		goto error;
 	}
@@ -2004,7 +2037,7 @@ static ssize_t stmvl53l1_calib_data_read(struct file *filp,
 	return count;
 
 invalid:
-	vl53l1_errmsg("invalid syntax");
+	dev_err(dev, "%s: invalid syntax\n", __func__);
 	rc = -EINVAL;
 	goto error;
 
@@ -2024,11 +2057,11 @@ static ssize_t stmvl53l1_calib_data_write(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	vl53l1_dbgmsg("off = %lld / count = %d", off, count);
+	dev_dbg(dev, "off = %lld / count = %d\n", off, count);
 
 	if (data->enable_sensor) {
 		rc = -EBUSY;
-		vl53l1_errmsg("can't set calib data while ranging\n");
+		dev_err(dev, "can't set calib data while ranging\n");
 		goto error;
 	}
 
@@ -2039,7 +2072,7 @@ static ssize_t stmvl53l1_calib_data_write(struct file *filp,
 	rc = VL53L1_SetCalibrationData(&data->stdev,
 		(struct VL53L1_CalibrationData_t *)buf);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_SetCalibrationData fail %d", rc);
+		dev_err(dev, "VL53L1_SetCalibrationData fail %d\n", rc);
 		rc = store_last_error(data, rc);
 		goto error;
 	}
@@ -2049,7 +2082,7 @@ static ssize_t stmvl53l1_calib_data_write(struct file *filp,
 	return count;
 
 invalid:
-	vl53l1_errmsg("invalid syntax");
+	dev_err(dev, "%s: invalid syntax\n", __func__);
 	rc = -EINVAL;
 	goto error;
 
@@ -2080,7 +2113,7 @@ static ssize_t stmvl53l1_zone_calib_data_read(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	vl53l1_dbgmsg("off = %lld / count = %d", off, count);
+	dev_dbg(dev, "off = %lld / count = %d\n", off, count);
 
 	if (off < 0 || off > sizeof(stmvl531_zone_calibration_data_t))
 		goto invalid;
@@ -2089,7 +2122,7 @@ static ssize_t stmvl53l1_zone_calib_data_read(struct file *filp,
 	rc = VL53L1_GetZoneCalibrationData(&data->stdev,
 		&data->calib.data.data);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_GetZoneCalibrationData fail %d", rc);
+		dev_err(dev, "VL53L1_GetZoneCalibrationData fail %d\n", rc);
 		rc = store_last_error(data, rc);
 		goto error;
 	}
@@ -2105,7 +2138,7 @@ static ssize_t stmvl53l1_zone_calib_data_read(struct file *filp,
 	return count;
 
 invalid:
-	vl53l1_errmsg("invalid syntax");
+	dev_err(dev, "%s: invalid syntax\n", __func__);
 	rc = -EINVAL;
 	goto error;
 
@@ -2126,7 +2159,7 @@ static ssize_t stmvl53l1_zone_calib_data_write(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	vl53l1_dbgmsg("off = %lld / count = %d", off, count);
+	dev_dbg(dev, "off = %lld / count = %d\n", off, count);
 
 	/* implementation if quite fragile. We suppose successive access. We
 	 * trigger set on last byte write if amount is exact.
@@ -2138,11 +2171,11 @@ static ssize_t stmvl53l1_zone_calib_data_write(struct file *filp,
 
 	memcpy(dst + off, buf, count);
 	if (off + count == sizeof(stmvl531_zone_calibration_data_t)) {
-		vl53l1_dbgmsg("trigger zone calib setting");
+		dev_dbg(dev, "trigger zone calib setting\n");
 		rc = VL53L1_SetZoneCalibrationData(&data->stdev,
 			&data->calib.data.data);
 		if (rc) {
-			vl53l1_errmsg("VL53L1_SetZoneCalibrationData fail %d",
+			dev_err(dev, "VL53L1_SetZoneCalibrationData fail %d\n",
 				rc);
 		rc = store_last_error(data, rc);
 		goto error;
@@ -2155,7 +2188,7 @@ static ssize_t stmvl53l1_zone_calib_data_write(struct file *filp,
 	return count;
 
 invalid:
-	vl53l1_errmsg("invalid syntax");
+	dev_err(dev, "%s: invalid syntax\n", __func__);
 	rc = -EINVAL;
 	goto error;
 
@@ -2180,18 +2213,20 @@ static int ctrl_reg_access(struct stmvl53l1_data *data, void *p)
 	struct stmvl53l1_register reg;
 	size_t total_byte;
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (data->is_device_remove)
 		return -ENODEV;
 
 	total_byte = offsetof(struct stmvl53l1_register, data.b);
 	if (copy_from_user(&reg, p, total_byte)) {
-		vl53l1_errmsg("%d, fail\n", __LINE__);
+		dev_err(dev, "%d, fail\n", __LINE__);
 		return -EFAULT;
 	}
 
 	if (reg.cnt > STMVL53L1_MAX_CCI_XFER_SZ) {
-		vl53l1_errmsg("reg len %d > size limit\n", reg.cnt);
+		dev_err(dev, "reg len %d > size limit\n", reg.cnt);
 		return -EINVAL;
 	}
 
@@ -2199,7 +2234,7 @@ static int ctrl_reg_access(struct stmvl53l1_data *data, void *p)
 	/* for write get the effective data part of the structure */
 	if (!reg.is_read) {
 		if (copy_from_user(&reg, p, total_byte)) {
-			vl53l1_errmsg(" data cpy fail\n");
+			dev_err(dev, "data copy fail\n");
 			return -EFAULT;
 		}
 	}
@@ -2211,16 +2246,16 @@ static int ctrl_reg_access(struct stmvl53l1_data *data, void *p)
 		reg.status = rc;
 		/* for write only write back status no data */
 		total_byte = offsetof(struct stmvl53l1_register, data.b);
-		vl53l1_dbgmsg("wr %x %d bytes statu %d\n",
-				reg.index, reg.cnt, rc);
+		dev_dbg(dev, "wr %x %d bytes statu %d\n",
+			reg.index, reg.cnt, rc);
 		if (rc)
 			rc = store_last_error(data, rc);
 	} else {
 		rc = VL53L1_ReadMulti(&data->stdev, (uint16_t)reg.index,
 				reg.data.bytes, reg.cnt);
 		reg.status = rc;
-		vl53l1_dbgmsg("rd %x %d bytes status %d\n",
-				reg.index, reg.cnt, rc);
+		dev_dbg(dev, "rd %x %d bytes status %d\n",
+			reg.index, reg.cnt, rc);
 		/*  if fail do not copy back data only status */
 		if (rc) {
 			total_byte = offsetof(struct stmvl53l1_register,
@@ -2231,7 +2266,7 @@ static int ctrl_reg_access(struct stmvl53l1_data *data, void *p)
 	}
 
 	if (copy_to_user(p, &reg, total_byte)) {
-		vl53l1_errmsg("%d, fail\n", __LINE__);
+		dev_err(dev, "%d, fail\n", __LINE__);
 		return -EFAULT;
 	}
 	return rc;
@@ -2241,9 +2276,7 @@ static int ctrl_power_up(struct stmvl53l1_data *data)
 {
 	int rc;
 
-	vl53l1_dbgmsg("Power up\n");
 	rc = stmvl53l1_module_func_tbl.power_up(data->client_object);
-	vl53l1_dbgmsg("Power up end\n");
 
 	return rc;
 }
@@ -2252,9 +2285,7 @@ static int ctrl_power_down(struct stmvl53l1_data *data)
 {
 	int rc;
 
-	vl53l1_dbgmsg("Power down\n");
 	rc = stmvl53l1_module_func_tbl.power_down(data->client_object);
-	vl53l1_dbgmsg("Power down end\n");
 
 	return rc;
 }
@@ -2262,6 +2293,8 @@ static int ctrl_power_down(struct stmvl53l1_data *data)
 static int ctrl_start(struct stmvl53l1_data *data)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 
@@ -2270,7 +2303,7 @@ static int ctrl_start(struct stmvl53l1_data *data)
 		goto done;
 	}
 
-	vl53l1_dbgmsg(" state = %d\n", data->enable_sensor);
+	dev_dbg(dev, "state = %d\n", data->enable_sensor);
 
 	/* turn on tof sensor only if it's not already started */
 	if (data->enable_sensor == 0 && !data->is_calibrating) {
@@ -2279,7 +2312,7 @@ static int ctrl_start(struct stmvl53l1_data *data)
 	} else {
 		rc = -EBUSY;
 	}
-	vl53l1_dbgmsg(" final state = %d\n", data->enable_sensor);
+	dev_dbg(dev, "final state = %d\n", data->enable_sensor);
 
 done:
 	mutex_unlock(&data->work_mutex);
@@ -2297,8 +2330,10 @@ done:
 static int _ctrl_stop(struct stmvl53l1_data *data)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
-	vl53l1_dbgmsg("enter state = %d\n", data->enable_sensor);
+	dev_dbg(dev, "enter state = %d\n", data->enable_sensor);
 	/* be sure waiters are woken */
 	data->is_data_valid = true;
 	/* turn on tof sensor only if it's not enabled by other	client */
@@ -2306,11 +2341,11 @@ static int _ctrl_stop(struct stmvl53l1_data *data)
 		/* to stop */
 		rc = stmvl53l1_stop(data);
 	} else {
-		vl53l1_dbgmsg("already off did nothing\n");
+		dev_dbg(dev, "already off did nothing\n");
 		rc = 0;
 	}
 	stmvl53l1_insert_flush_events_lock(data);
-	vl53l1_dbgmsg("	final state = %d\n", data->enable_sensor);
+	dev_dbg(dev, "final state = %d\n", data->enable_sensor);
 
 	return rc;
 }
@@ -2347,6 +2382,8 @@ done:
 static int ctrl_getdata(struct stmvl53l1_data *data, void __user *p)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 
@@ -2358,7 +2395,7 @@ static int ctrl_getdata(struct stmvl53l1_data *data, void __user *p)
 		&data->meas.single_range_data,
 		sizeof(stmvl531_range_data_t));
 	if (rc) {
-		vl53l1_dbgmsg("copy to user fail %d", rc);
+		dev_dbg(dev, "copy to user fail %d\n", rc);
 		rc = -EFAULT;
 	}
 
@@ -2434,6 +2471,8 @@ static int ctrl_mz_data_common(struct stmvl53l1_data *data, void __user *p,
 {
 	struct stmvl53l1_data_with_additional __user *d = p;
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 	if (data->is_device_remove) {
@@ -2443,7 +2482,7 @@ static int ctrl_mz_data_common(struct stmvl53l1_data *data, void __user *p,
 	rc = copy_to_user(&d->data, &data->meas.multi_range_data,
 		sizeof(struct VL53L1_MultiRangingData_t));
 	if (rc) {
-		vl53l1_dbgmsg("copy to user fail %d", rc);
+		dev_dbg(dev, "copy to user fail %d\n", rc);
 		rc = -EFAULT;
 		goto done;
 	}
@@ -2452,7 +2491,7 @@ static int ctrl_mz_data_common(struct stmvl53l1_data *data, void __user *p,
 			&data->meas.additional_data,
 			sizeof(VL53L1_AdditionalData_t));
 		if (rc) {
-			vl53l1_dbgmsg("copy to user fail %d", rc);
+			dev_dbg(dev, "copy to user fail %d\n", rc);
 			rc = -EFAULT;
 			goto done;
 		}
@@ -2565,11 +2604,13 @@ static int ctrl_param_last_error(struct stmvl53l1_data *data,
 		struct stmvl53l1_parameter *param)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (param->is_read) {
 		param->value = data->last_error;
 		param->status = 0;
-		vl53l1_dbgmsg("get last error %d", param->value);
+		dev_dbg(dev, "get last error %d\n", param->value);
 		rc = 0;
 	} else {
 		rc = -EINVAL;
@@ -2594,16 +2635,18 @@ static int ctrl_param_dmax_reflectance(struct stmvl53l1_data *data,
 		struct stmvl53l1_parameter *param)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (param->is_read) {
 		param->value = data->dmax_reflectance;
 		param->status = 0;
-		vl53l1_dbgmsg("get dmax reflectance %d", param->value);
+		dev_dbg(dev, "get dmax reflectance %d\n", param->value);
 		rc = 0;
 	} else {
 		rc = stmvl53l1_set_dmax_reflectance(data, param->value);
-		vl53l1_dbgmsg("rc %d req %d now %d", rc,
-				param->value, data->dmax_reflectance);
+		dev_dbg(dev, "rc %d req %d now %d\n", rc,
+			param->value, data->dmax_reflectance);
 	}
 
 	return rc;
@@ -2640,6 +2683,8 @@ static int ctrl_params(struct stmvl53l1_data *data, void __user *p)
 {
 	int rc, rc2;
 	struct stmvl53l1_parameter param;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 
@@ -2700,7 +2745,7 @@ static int ctrl_params(struct stmvl53l1_data *data, void __user *p)
 		rc = ctrl_param_is_xtalk_value_changed(data, &param);
 		break;
 	default:
-		vl53l1_errmsg("unknown or unsupported %d\n", param.name);
+		dev_err(dev, "unknown or unsupported %d\n", param.name);
 		rc = -EINVAL;
 	}
 	/* copy back (status at least ) to user */
@@ -2708,7 +2753,7 @@ static int ctrl_params(struct stmvl53l1_data *data, void __user *p)
 		rc2 = copy_to_user(p, &param, sizeof(param));
 		if (rc2) {
 			rc = -EFAULT; /* kill prev status if that fail */
-			vl53l1_errmsg("copy to user fail %d\n", rc);
+			dev_err(dev, "copy to user fail %d\n", rc);
 		}
 	}
 done:
@@ -2730,6 +2775,8 @@ static int ctrl_roi(struct stmvl53l1_data *data, void __user *p)
 	int rc;
 	int roi_cnt;
 	struct stmvl53l1_roi_full_t rois;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 	if (data->is_device_remove) {
@@ -2747,9 +2794,8 @@ static int ctrl_roi(struct stmvl53l1_data *data, void __user *p)
 	/* check no of roi limit is ok */
 	roi_cnt = rois.roi_cfg.NumberOfRoi;
 	if (roi_cnt > VL53L1_MAX_USER_ZONES) {
-		vl53l1_errmsg("invalid roi spec cnt=%d > %d",
-				rois.roi_cfg.NumberOfRoi,
-				VL53L1_MAX_USER_ZONES);
+		dev_err(dev, "invalid roi spec cnt=%d > %d\n",
+			rois.roi_cfg.NumberOfRoi, VL53L1_MAX_USER_ZONES);
 		rc = -EINVAL;
 		goto done;
 	}
@@ -2759,17 +2805,18 @@ static int ctrl_roi(struct stmvl53l1_data *data, void __user *p)
 
 		roi_cnt = min(rois.roi_cfg.NumberOfRoi,
 				data->roi_cfg.NumberOfRoi);
-		cpy_size = offsetof(struct VL53L1_RoiConfig_t, UserRois[roi_cnt]);
+		cpy_size = offsetof(struct VL53L1_RoiConfig_t,
+				    UserRois[roi_cnt]);
 		/* copy from local to user only effective part requested */
 		rc = copy_to_user(&((struct stmvl53l1_roi_full_t *)p)->roi_cfg,
 			&data->roi_cfg, cpy_size);
-		vl53l1_dbgmsg("return %d of %d\n", roi_cnt,
-				data->roi_cfg.NumberOfRoi);
+		dev_err(dev, "return %d of %d\n",
+			roi_cnt, data->roi_cfg.NumberOfRoi);
 	} else {
 		/* SET check cnt roi is ok */
 		if (data->enable_sensor) {
 			rc = -EBUSY;
-			vl53l1_errmsg("can't set roi while ranging\n");
+			dev_err(dev, "can't set roi while ranging\n");
 			goto done;
 		}
 		/* get full data that  required from user */
@@ -2777,11 +2824,12 @@ static int ctrl_roi(struct stmvl53l1_data *data, void __user *p)
 					offsetof(struct stmvl53l1_roi_full_t,
 						roi_cfg.UserRois[roi_cnt]));
 		if (rc) {
-			vl53l1_errmsg("get %d roi fm user fail", roi_cnt);
+			dev_err(dev, "get %d roi fm user fail\n", roi_cnt);
 			rc = -EFAULT;
 			goto done;
 		}
-		dump_roi(data->roi_cfg.UserRois, data->roi_cfg.NumberOfRoi);
+		dump_roi(dev, data->roi_cfg.UserRois,
+			 data->roi_cfg.NumberOfRoi);
 		/* we may ask ll driver to check but check is mode dependent
 		 * and so we could get erroneous error back
 		 */
@@ -2796,6 +2844,8 @@ static int ctrl_autonomous_config(struct stmvl53l1_data *data, void __user *p)
 {
 	int rc = 0;
 	struct stmvl53l1_autonomous_config_t full;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 	if (data->is_device_remove) {
@@ -2818,7 +2868,7 @@ static int ctrl_autonomous_config(struct stmvl53l1_data *data, void __user *p)
 	} else {
 		if (data->enable_sensor) {
 			rc = -EBUSY;
-			vl53l1_errmsg("can't change config while ranging\n");
+			dev_err(dev, "can't change config while ranging\n");
 			goto done;
 		}
 		data->auto_pollingTimeInMs = full.pollingTimeInMs;
@@ -2837,6 +2887,8 @@ static int ctrl_calibration_data(struct stmvl53l1_data *data, void __user *p)
 	struct stmvl53l1_ioctl_calibration_data_t calib;
 	int data_offset = offsetof(struct stmvl53l1_ioctl_calibration_data_t,
 					data);
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 
@@ -2846,7 +2898,7 @@ static int ctrl_calibration_data(struct stmvl53l1_data *data, void __user *p)
 	}
 	rc = copy_from_user(&calib, p, data_offset);
 	if (rc) {
-		vl53l1_errmsg("fail to detect read or write %d", rc);
+		dev_err(dev, "fail to detect read or write %d\n", rc);
 		rc = -EFAULT;
 		goto done;
 	}
@@ -2855,7 +2907,7 @@ static int ctrl_calibration_data(struct stmvl53l1_data *data, void __user *p)
 		memset(&calib.data, 0, sizeof(calib.data));
 		rc = VL53L1_GetCalibrationData(&data->stdev, &calib.data);
 		if (rc) {
-			vl53l1_errmsg("VL53L1_GetCalibrationData fail %d", rc);
+			dev_err(dev, "VL53L1_GetCalibrationData fail %d\n", rc);
 			rc = store_last_error(data, rc);
 			goto done;
 		}
@@ -2864,19 +2916,19 @@ static int ctrl_calibration_data(struct stmvl53l1_data *data, void __user *p)
 	} else {
 		if (data->enable_sensor) {
 			rc = -EBUSY;
-			vl53l1_errmsg("can't set calib data while ranging\n");
+			dev_err(dev, "can't set calib data while ranging\n");
 			goto done;
 		}
 		rc = copy_from_user(&calib.data, p + data_offset,
 			sizeof(calib.data));
 		if (rc) {
-			vl53l1_errmsg("fail to copy calib data");
+			dev_err(dev, "fail to copy calib data\n");
 			rc = -EFAULT;
 			goto done;
 		}
 		rc = VL53L1_SetCalibrationData(&data->stdev, &calib.data);
 		if (rc) {
-			vl53l1_errmsg("VL53L1_SetCalibrationData fail %d", rc);
+			dev_err(dev, "VL53L1_SetCalibrationData fail %d\n", rc);
 			rc = store_last_error(data, rc);
 		}
 	}
@@ -2894,6 +2946,8 @@ static int ctrl_zone_calibration_data(struct stmvl53l1_data *data,
 	struct stmvl53l1_ioctl_zone_calibration_data_t *calib;
 	int data_offset =
 		offsetof(struct stmvl53l1_ioctl_zone_calibration_data_t, data);
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 
@@ -2904,7 +2958,7 @@ static int ctrl_zone_calibration_data(struct stmvl53l1_data *data,
 	}
 	rc = copy_from_user(calib, p, data_offset);
 	if (rc) {
-		vl53l1_errmsg("fail to detect read or write %d", rc);
+		dev_err(dev, "fail to detect read or write %d\n", rc);
 		rc = -EFAULT;
 		goto done;
 	}
@@ -2914,8 +2968,8 @@ static int ctrl_zone_calibration_data(struct stmvl53l1_data *data,
 		rc = VL53L1_GetZoneCalibrationData(&data->stdev,
 			&calib->data.data);
 		if (rc) {
-			vl53l1_errmsg("VL53L1_GetZoneCalibrationData fail %d",
-				rc);
+			dev_err(dev,
+				"VL53L1_GetZoneCalibrationData fail %d\n", rc);
 			rc = store_last_error(data, rc);
 			goto done;
 		}
@@ -2925,20 +2979,20 @@ static int ctrl_zone_calibration_data(struct stmvl53l1_data *data,
 	} else {
 		if (data->enable_sensor) {
 			rc = -EBUSY;
-			vl53l1_errmsg("can't set calib data while ranging\n");
+			dev_err(dev, "can't set calib data while ranging\n");
 			goto done;
 		}
 		rc = copy_from_user(&calib->data, p + data_offset,
 			sizeof(calib->data));
 		if (rc) {
-			vl53l1_errmsg("fail to copy calib data");
+			dev_err(dev, "fail to copy calib data\n");
 			rc = -EFAULT;
 			goto done;
 		}
 		rc = VL53L1_SetZoneCalibrationData(&data->stdev,
 			&calib->data.data);
 		if (rc) {
-			vl53l1_errmsg("VL53L1_SetZoneCalibrationData fail %d",
+			dev_err(dev, "VL53L1_SetZoneCalibrationData fail %d\n",
 				rc);
 			rc = store_last_error(data, rc);
 			goto done;
@@ -2956,9 +3010,12 @@ static int ctrl_perform_calibration_ref_spad_lock(struct stmvl53l1_data *data,
 	struct stmvl53l1_ioctl_perform_calibration_t *calib)
 {
 	int rc = VL53L1_PerformRefSpadManagement(&data->stdev);
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (rc) {
-		vl53l1_errmsg("VL53L1_PerformRefSpadManagement fail => %d", rc);
+		dev_err(dev, "VL53L1_PerformRefSpadManagement fail => %d\n",
+			rc);
 		rc = store_last_error(data, rc);
 	}
 
@@ -2969,6 +3026,8 @@ static int ctrl_perform_calibration_crosstalk_lock(struct stmvl53l1_data *data,
 	struct stmvl53l1_ioctl_perform_calibration_t *calib)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	/* Set the preset mode passed on param2 */
 	data->preset_mode = (VL53L1_PresetModes)(calib->param2);
@@ -2979,7 +3038,7 @@ static int ctrl_perform_calibration_crosstalk_lock(struct stmvl53l1_data *data,
 
 	rc = VL53L1_PerformXTalkCalibration(&data->stdev, calib->param1);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_PerformXTalkCalibration fail => %d", rc);
+		dev_err(dev, "VL53L1_PerformXTalkCalibration fail => %d\n", rc);
 		rc = store_last_error(data, rc);
 	}
 
@@ -2992,9 +3051,11 @@ static int ctrl_perform_zone_calibration_offset_lock(
 	struct stmvl53l1_ioctl_perform_calibration_t *calib)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (calib->param1 != VL53L1_OFFSETCALIBRATIONMODE_MULTI_ZONE) {
-		vl53l1_errmsg("invalid param1");
+		dev_err(dev, "invalid param1\n");
 		rc = -EINVAL;
 		goto done;
 	}
@@ -3002,7 +3063,8 @@ static int ctrl_perform_zone_calibration_offset_lock(
 	/* setup offset calibration mode */
 	rc = VL53L1_SetOffsetCalibrationMode(&data->stdev, calib->param1);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_SetOffsetCalibrationMode fail => %d", rc);
+		dev_err(dev, "VL53L1_SetOffsetCalibrationMode fail => %d\n",
+			rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -3011,7 +3073,7 @@ static int ctrl_perform_zone_calibration_offset_lock(
 	rc = VL53L1_SetPresetMode(&data->stdev,
 		VL53L1_PRESETMODE_MULTIZONES_SCANNING);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_SetPresetMode fail => %d", rc);
+		dev_err(dev, "VL53L1_SetPresetMode fail => %d\n", rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -3019,7 +3081,7 @@ static int ctrl_perform_zone_calibration_offset_lock(
 	/* setup roi */
 	rc = VL53L1_SetROI(&data->stdev, &data->roi_cfg);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_SetROI fail => %d", rc);
+		dev_err(dev, "VL53L1_SetROI fail => %d\n", rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -3031,7 +3093,8 @@ static int ctrl_perform_zone_calibration_offset_lock(
 		calib->param3);
 	data->is_delay_allowed = 0;
 	if (rc) {
-		vl53l1_errmsg("VL53L1_PerformOffsetCalibration fail => %d", rc);
+		dev_err(dev, "VL53L1_PerformOffsetCalibration fail => %d\n",
+			rc);
 		rc = store_last_error(data, rc);
 	}
 
@@ -3046,6 +3109,8 @@ static int ctrl_perform_calibration_offset_lock(struct stmvl53l1_data *data,
 	struct stmvl53l1_ioctl_perform_calibration_t *calib)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	/* for legacy purpose we still support mz */
 	if (calib->param1 == VL53L1_OFFSETCALIBRATIONMODE_MULTI_ZONE)
@@ -3054,7 +3119,8 @@ static int ctrl_perform_calibration_offset_lock(struct stmvl53l1_data *data,
 	/* setup offset calibration mode */
 	rc = VL53L1_SetOffsetCalibrationMode(&data->stdev, calib->param1);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_SetOffsetCalibrationMode fail => %d", rc);
+		dev_err(dev, "VL53L1_SetOffsetCalibrationMode fail => %d\n",
+			rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -3066,7 +3132,8 @@ static int ctrl_perform_calibration_offset_lock(struct stmvl53l1_data *data,
 		calib->param3);
 	data->is_delay_allowed = 0;
 	if (rc) {
-		vl53l1_errmsg("VL53L1_PerformOffsetCalibration fail => %d", rc);
+		dev_err(dev, "VL53L1_PerformOffsetCalibration fail => %d\n",
+			rc);
 		rc = store_last_error(data, rc);
 	}
 
@@ -3079,6 +3146,8 @@ static int ctrl_perform_simple_calibration_offset_lock(
 	struct stmvl53l1_ioctl_perform_calibration_t *calib)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	/* finally perform calibration */
 	/* allow delay add after stop in VL53L1_run_<offset|zone>_calibration */
@@ -3091,8 +3160,8 @@ static int ctrl_perform_simple_calibration_offset_lock(
 	rc = VL53L1_PerformOffsetSimpleCalibration(&data->stdev, calib->param1);
 	data->is_delay_allowed = 0;
 	if (rc) {
-		vl53l1_errmsg(
-			"VL53L1_PerformOffsetSimpleCalibration fail => %d", rc);
+		dev_err(dev, "VL53L1_PerformOffsetSimpleCalibration fail %d\n",
+			rc);
 		rc = store_last_error(data, rc);
 	}
 
@@ -3105,6 +3174,8 @@ static int ctrl_perform_per_vcsel_calibration_offset_lock(
 	struct stmvl53l1_ioctl_perform_calibration_t *calib)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	/* finally perform calibration */
 	/* allow delay add after stop in VL53L1_run_<offset|zone>_calibration */
@@ -3118,8 +3189,9 @@ static int ctrl_perform_per_vcsel_calibration_offset_lock(
 		calib->param1);
 	data->is_delay_allowed = 0;
 	if (rc) {
-		vl53l1_errmsg(
-		"VL53L1_PerformOffsetPerVcselCalibration fail => %d", rc);
+		dev_err(dev,
+			"VL53L1_PerformOffsetPerVcselCalibration fail => %d\n",
+			rc);
 		rc = store_last_error(data, rc);
 	}
 
@@ -3132,6 +3204,8 @@ static int ctrl_perform_zero_distance_calibration_offset_lock(
 	struct stmvl53l1_ioctl_perform_calibration_t *calib)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	/* finally perform calibration */
 	/* allow delay add after stop in VL53L1_run_<offset|zone>_calibration */
@@ -3144,8 +3218,8 @@ static int ctrl_perform_zero_distance_calibration_offset_lock(
 	rc = VL53L1_PerformOffsetZeroDistanceCalibration(&data->stdev);
 	data->is_delay_allowed = 0;
 	if (rc) {
-		vl53l1_errmsg(
-		"VL53L1_PerformOffsetZeroDistanceCalibration fail => %d", rc);
+		dev_err(dev, "VL53L1_PerformOffsetZeroDistanceCal fail %d\n",
+			rc);
 		rc = store_last_error(data, rc);
 	}
 
@@ -3157,6 +3231,8 @@ static int ctrl_perform_calibration(struct stmvl53l1_data *data, void __user *p)
 {
 	int rc;
 	struct stmvl53l1_ioctl_perform_calibration_t calib;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 
@@ -3172,7 +3248,7 @@ static int ctrl_perform_calibration(struct stmvl53l1_data *data, void __user *p)
 	}
 	if (data->enable_sensor) {
 		rc = -EBUSY;
-		vl53l1_errmsg("can't perform calibration while ranging\n");
+		dev_err(dev, "can't perform calibration while ranging\n");
 		goto done;
 	}
 
@@ -3182,7 +3258,7 @@ static int ctrl_perform_calibration(struct stmvl53l1_data *data, void __user *p)
 
 	rc = VL53L1_StaticInit(&data->stdev);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_StaticInit fail => %d", rc);
+		dev_err(dev, "VL53L1_StaticInit fail => %d\n", rc);
 		rc = store_last_error(data, rc);
 		goto done;
 	}
@@ -3237,89 +3313,84 @@ static int stmvl53l1_ioctl_handler(
 		void __user *p)
 {
 	int rc = 0;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (!data)
 		return -EINVAL;
 
 	switch (cmd) {
 	case VL53L1_IOCTL_POWER_UP:
-		vl53l1_dbgmsg("VL53L1_IOCTL_POWER_UP\n");
+		dev_dbg(dev, "VL53L1_IOCTL_POWER_UP\n");
 		rc = ctrl_power_up(data);
 		break;
 
 	case VL53L1_IOCTL_POWER_DOWN:
-		vl53l1_dbgmsg("VL53L1_IOCTL_POWER_DOWN\n");
+		dev_dbg(dev, "VL53L1_IOCTL_POWER_DOWN\n");
 		rc = ctrl_power_down(data);
 		break;
 
 	case VL53L1_IOCTL_START:
-		vl53l1_dbgmsg("VL53L1_IOCTL_START\n");
+		dev_dbg(dev, "VL53L1_IOCTL_START\n");
 		rc = ctrl_start(data);
 		break;
 
 	case VL53L1_IOCTL_STOP:
-		vl53l1_dbgmsg("VL53L1_IOCTL_STOP\n");
+		dev_dbg(dev, "VL53L1_IOCTL_STOP\n");
 		rc = ctrl_stop(data);
 		break;
 
 	case VL53L1_IOCTL_GETDATAS:
-		/* vl53l1_dbgmsg("VL53L1_IOCTL_GETDATAS\n"); */
 		rc = ctrl_getdata(data, p);
 		break;
 
 	case VL53L1_IOCTL_GETDATAS_BLOCKING:
-		/* vl53l1_dbgmsg("VL53L1_IOCTL_GETDATAS_BLOCKING\n"); */
 		rc = ctrl_getdata_blocking(data, p);
 		break;
 
 	/* Register tool */
 	case VL53L1_IOCTL_REGISTER:
-		vl53l1_dbgmsg("VL53L1_IOCTL_REGISTER\n");
+		dev_dbg(dev, "VL53L1_IOCTL_REGISTER\n");
 		reset_release(data);
 		rc = ctrl_reg_access(data, p);
 		reset_hold(data);
 		break;
 
 	case VL53L1_IOCTL_PARAMETER:
-		vl53l1_dbgmsg("VL53L1_IOCTL_PARAMETER\n");
+		dev_dbg(dev, "VL53L1_IOCTL_PARAMETER\n");
 		rc = ctrl_params(data, p);
 		break;
 
 	case VL53L1_IOCTL_ROI:
-		vl53l1_dbgmsg("VL53L1_IOCTL_ROI\n");
+		dev_dbg(dev, "VL53L1_IOCTL_ROI\n");
 		rc = ctrl_roi(data, p);
 		break;
 	case VL53L1_IOCTL_MZ_DATA:
-		/* vl53l1_dbgmsg("VL53L1_IOCTL_MZ_DATA\n"); */
 		rc = ctrl_mz_data(data, p);
 		break;
 	case VL53L1_IOCTL_MZ_DATA_BLOCKING:
-		/* vl53l1_dbgmsg("VL53L1_IOCTL_MZ_DATA_BLOCKING\n"); */
 		rc = ctrl_mz_data_blocking(data, p);
 		break;
 	case VL53L1_IOCTL_CALIBRATION_DATA:
-		vl53l1_dbgmsg("VL53L1_IOCTL_CALIBRATION_DATA\n");
+		dev_dbg(dev, "VL53L1_IOCTL_CALIBRATION_DATA\n");
 		rc = ctrl_calibration_data(data, p);
 		break;
 	case VL53L1_IOCTL_PERFORM_CALIBRATION:
-		vl53l1_dbgmsg("VL53L1_IOCTL_PERFORM_CALIBRATION\n");
+		dev_dbg(dev, "VL53L1_IOCTL_PERFORM_CALIBRATION\n");
 		rc = ctrl_perform_calibration(data, p);
 		break;
 	case VL53L1_IOCTL_AUTONOMOUS_CONFIG:
-		vl53l1_dbgmsg("VL53L1_IOCTL_AUTONOMOUS_CONFIG\n");
+		dev_dbg(dev, "VL53L1_IOCTL_AUTONOMOUS_CONFIG\n");
 		rc = ctrl_autonomous_config(data, p);
 		break;
 	case VL53L1_IOCTL_ZONE_CALIBRATION_DATA:
-		vl53l1_dbgmsg("VL53L1_IOCTL_ZONE_CALIBRATION_DATA\n");
+		dev_dbg(dev, "VL53L1_IOCTL_ZONE_CALIBRATION_DATA\n");
 		rc = ctrl_zone_calibration_data(data, p);
 		break;
 	case VL53L1_IOCTL_MZ_DATA_ADDITIONAL:
-		/* vl53l1_dbgmsg("VL53L1_IOCTL_MZ_DATA_ADDITIONAL\n"); */
 		rc = ctrl_mz_data_additional(data, p);
 		break;
 	case VL53L1_IOCTL_MZ_DATA_ADDITIONAL_BLOCKING:
-		/* vl53l1_dbgmsg("VL53L1_IOCTL_MZ_DATA_ADDITIONAL_BLOCKING\n");
-		 */
 		rc = ctrl_mz_data_blocking_additional(data, p);
 		break;
 	default:
@@ -3335,9 +3406,7 @@ static int stmvl53l1_open(struct inode *inode, struct file *file)
 	struct stmvl53l1_data *data = container_of(file->private_data,
 		struct stmvl53l1_data, miscdev);
 
-	vl53l1_dbgmsg("Start\n");
 	stmvl53l1_module_func_tbl.get(data->client_object);
-	vl53l1_dbgmsg("End\n");
 
 	return 0;
 }
@@ -3347,9 +3416,7 @@ static int stmvl53l1_release(struct inode *inode, struct file *file)
 	struct stmvl53l1_data *data = container_of(file->private_data,
 		struct stmvl53l1_data, miscdev);
 
-	vl53l1_dbgmsg("Start\n");
 	stmvl53l1_module_func_tbl.put(data->client_object);
-	vl53l1_dbgmsg("End\n");
 
 	return 0;
 }
@@ -3385,6 +3452,8 @@ static void stmvl53l1_on_newdata_event(struct stmvl53l1_data *data)
 	struct VL53L1_RangingMeasurementData_t singledata;
 	long ts_msec;
 	int i;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	st_gettimeofday(&data->meas.comp_tv);
 	ts_msec = stmvl53l1_tv_dif(&data->start_tv, &data->meas.comp_tv) / 1000;
@@ -3420,8 +3489,9 @@ static void stmvl53l1_on_newdata_event(struct stmvl53l1_data *data)
 		rc = VL53L1_GetMultiRangingData(&data->stdev,
 			&data->meas.tmp_range_data);
 		if (rc)
-			vl53l1_errmsg("VL53L1_GetRangingMeasurementData @%d %d",
-					__LINE__, rc);
+			dev_err(dev,
+				"VL53L1_GetRangingMeasurementData @%d %d\n",
+				__LINE__, rc);
 
 		/* be sure we got VL53L1_RANGESTATUS_NONE for object 0 if we got
 		 * invalid roi or no object. So if client read data using
@@ -3432,7 +3502,8 @@ static void stmvl53l1_on_newdata_event(struct stmvl53l1_data *data)
 			tmprange->RangeData[0].RangeStatus =
 						VL53L1_RANGESTATUS_NONE;
 
-		memcpy(pmrange, tmprange, sizeof(struct VL53L1_MultiRangingData_t));
+		memcpy(pmrange, tmprange,
+		       sizeof(struct VL53L1_MultiRangingData_t));
 
 		/* got histogram debug data in case user want it later on */
 		if (!rc)
@@ -3443,24 +3514,24 @@ static void stmvl53l1_on_newdata_event(struct stmvl53l1_data *data)
 	default:
 		/* that must be some bug or data corruption stop now */
 		rc = -1;
-		vl53l1_errmsg("unsorted mode %d=>stop\n", data->preset_mode);
+		dev_err(dev, "unsorted mode %d=>stop\n", data->preset_mode);
 		_ctrl_stop(data);
 	}
 	/* check if not stopped yet
 	 * as we may have been unlocked we must re-check
 	 */
 	if (data->enable_sensor == 0) {
-		vl53l1_dbgmsg("at meas #%d we got stopped\n", data->meas.cnt);
+		dev_dbg(dev, "at meas #%d we got stopped\n", data->meas.cnt);
 		return;
 	}
 	if (rc) {
-		vl53l1_errmsg("VL53L1_GetRangingMeasurementData @%d %d",
-				__LINE__, rc);
+		dev_err(dev, "VL53L1_GetRangingMeasurementData @%d %d\n",
+			__LINE__, rc);
 		data->meas.err_cnt++;
 		data->meas.err_tot++;
 		if (data->meas.err_cnt > stvm531_get_max_meas_err(data) ||
 			data->meas.err_tot > stvm531_get_max_stream_err(data)) {
-			vl53l1_errmsg("on #%d %d err %d tot stop",
+			dev_err(dev, "on #%d %d err %d tot stop\n",
 				data->meas.cnt, data->meas.err_cnt,
 				data->meas.err_tot);
 			_ctrl_stop(data);
@@ -3475,7 +3546,7 @@ static void stmvl53l1_on_newdata_event(struct stmvl53l1_data *data)
 		pmrange->TimeStamp = ts_msec;
 
 	data->meas.cnt++;
-	vl53l1_dbgmsg("#%3d %2d poll ts %5d status=%d obj cnt=%d\n",
+	dev_dbg(dev, "#%3d %2d poll ts %5d status=%d obj cnt=%d\n",
 		data->meas.cnt,
 		data->meas.poll_cnt,
 		pmrange->TimeStamp,
@@ -3514,6 +3585,8 @@ static int stmvl53l1_intr_process(struct stmvl53l1_data *data)
 	uint8_t data_rdy;
 	int rc = 0;
 	struct timespec64 tv_now;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	if (!data->enable_sensor)
 		goto done;
@@ -3521,8 +3594,8 @@ static int stmvl53l1_intr_process(struct stmvl53l1_data *data)
 	data->meas.poll_cnt++;
 	rc = VL53L1_GetMeasurementDataReady(&data->stdev, &data_rdy);
 	if (rc) {
-		vl53l1_errmsg("GetMeasurementDataReady @%d %d, fail\n",
-				__LINE__, rc);
+		dev_err(dev, "GetMeasurementDataReady @%d %d, fail\n",
+			__LINE__, rc);
 		/* too many successive fail => stop but do not try to do any new
 		 * i/o
 		 */
@@ -3539,8 +3612,8 @@ static int stmvl53l1_intr_process(struct stmvl53l1_data *data)
 		st_gettimeofday(&tv_now);
 		poll_us = stmvl53l1_tv_dif(&data->meas.start_tv, &tv_now);
 		if (poll_us > data->timing_budget * 4) {
-			vl53l1_errmsg("we're polling %ld ms too long\n",
-					poll_us / 1000);
+			dev_err(dev, "we're polling %ld ms too long\n",
+				poll_us / 1000);
 			/*  fixme stop or just warn ? */
 			goto stop_io;
 		}
@@ -3562,7 +3635,8 @@ static int stmvl53l1_intr_process(struct stmvl53l1_data *data)
 			 * the thresholds do not seem
 			 * to work for ALP mode
 			 */
-			struct VL53L1_RangingMeasurementData_t RangingMeasurementData;
+			struct VL53L1_RangingMeasurementData_t
+				RangingMeasurementData;
 
 			/* printk("Test Workaround for ALP mode\n"); */
 			VL53L1_GetRangingMeasurementData(&data->stdev,
@@ -3585,7 +3659,7 @@ static int stmvl53l1_intr_process(struct stmvl53l1_data *data)
 		data->is_delay_allowed = 0;
 		if (rc) {
 			/* go to stop but stop any new i/o for dbg */
-			vl53l1_errmsg("Cltr intr restart fail %d\n", rc);
+			dev_err(dev, "Cltr intr restart fail %d\n", rc);
 			goto stop_io;
 		}
 	}
@@ -3595,7 +3669,7 @@ stop_io:
 	/* too many successive fail take action => stop but do not try to do
 	 * any new i/o
 	 */
-	vl53l1_errmsg("GetDatardy fail stop\n");
+	dev_err(dev, "GetDatardy fail stop\n");
 	_ctrl_stop(data);
 	return rc;
 
@@ -3620,13 +3694,16 @@ static void stmvl53l1_work_handler(struct work_struct *work)
 static void stmvl53l1_input_push_data_singleobject(struct stmvl53l1_data *data)
 {
 	struct input_dev *input = data->input_dev_ps;
-	struct VL53L1_RangingMeasurementData_t *meas = &data->meas.single_range_data;
+	struct VL53L1_RangingMeasurementData_t *meas =
+		&data->meas.single_range_data;
 	FixPoint1616_t LimitCheckCurrent;
 	VL53L1_Error st = VL53L1_ERROR_NONE;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
-	vl53l1_dbgmsg("******* FIXME!!! ************\n");
-	vl53l1_dbgmsg("Sensor HAL in Lite ranging mode not yet updated\n");
-	vl53l1_dbgmsg("******* FIXME!!! ************\n");
+	dev_dbg(dev, "******* FIXME!!! ************\n");
+	dev_dbg(dev, "Sensor HAL in Lite ranging mode not yet updated\n");
+	dev_dbg(dev, "******* FIXME!!! ************\n");
 
 	/* Do not send the events till this if fixed properly */
 	return;
@@ -3658,6 +3735,8 @@ static void stmvl53l1_input_push_data_multiobject(struct stmvl53l1_data *data)
 	struct VL53L1_CalibrationData_t calibration_data;
 	struct timespec64 tv;
 	struct input_dev *input = data->input_dev_ps;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	st_gettimeofday(&tv);
 
@@ -3692,24 +3771,24 @@ static void stmvl53l1_input_push_data_multiobject(struct stmvl53l1_data *data)
 	rc = VL53L1_GetCalibrationData(&data->stdev, &calibration_data);
 	if (rc) {
 		/* This should not happen */
-		vl53l1_errmsg("%d error:%d\n", __LINE__, rc);
+		dev_err(dev, "%d error:%d\n", __LINE__, rc);
 		return;
 	}
 
 	/* ABS_HAT0X  -	Time in Sec(32) */
 
 	input_report_abs(input, ABS_HAT0X, tv.tv_sec);
-	vl53l1_dbgmsg("ABS_HAT0X : %ld, %zu\n", tv.tv_sec, sizeof(tv.tv_sec));
+	dev_dbg(dev, "ABS_HAT0X : %ld, %zu\n", tv.tv_sec, sizeof(tv.tv_sec));
 	/* ABS_HAT0Y   - Time in uSec(32) */
 	/* REVISIT : The following code may cause loss of data due to */
 	/* 8 bytes to 32 bits conversion */
 	input_report_abs(input, ABS_HAT0Y, tv.tv_nsec);
-	vl53l1_dbgmsg("ABS_HAT0Y : %ld\n", tv.tv_nsec);
+	dev_dbg(dev, "ABS_HAT0Y : %ld\n", tv.tv_nsec);
 
 	/* ABS_WHEEL - AmbientRate(32) */
 	input_report_abs(input, ABS_WHEEL,
 		meas_array[0]->AmbientRateRtnMegaCps);
-	vl53l1_dbgmsg("ABS_WHEEL : AmbRate = %d\n",
+	dev_dbg(dev, "ABS_WHEEL : AmbRate = %d\n",
 		meas_array[0]->AmbientRateRtnMegaCps);
 
 	/* ABS_TILT_X	XtalkChange(8) :StreamCount(8) : */
@@ -3720,24 +3799,23 @@ static void stmvl53l1_input_push_data_multiobject(struct stmvl53l1_data *data)
 				 ((mmeas->NumberOfObjectsFound & 0x3) << 6) |
 				 ((mmeas->RoiNumber & 0xF) << 2) |
 				 (mmeas->RoiStatus & 0x3));
-	vl53l1_dbgmsg("ABS_TILT_X :(%d):(%d):(%d):(%d):(%d)\n\n",
-					mmeas->HasXtalkValueChanged,
-					mmeas->StreamCount,
-					mmeas->NumberOfObjectsFound,
-					mmeas->RoiNumber,
-					mmeas->RoiStatus
-					);
+	dev_dbg(dev, "ABS_TILT_X :(%d):(%d):(%d):(%d):(%d)\n\n",
+		mmeas->HasXtalkValueChanged,
+		mmeas->StreamCount,
+		mmeas->NumberOfObjectsFound,
+		mmeas->RoiNumber,
+		mmeas->RoiStatus);
 
 	/* ABS_TILT_Y	DMAX */
 	input_report_abs(input, ABS_TILT_Y, mmeas->DmaxMilliMeter);
-	vl53l1_dbgmsg("ABS_TILT_Y DMAX = %d\n", mmeas->DmaxMilliMeter);
+	dev_dbg(dev, "ABS_TILT_Y DMAX = %d\n", mmeas->DmaxMilliMeter);
 
 	/* ABS_TOOL_WIDTH */
 	input_report_abs(
 		input, ABS_TOOL_WIDTH,
 		calibration_data.customer
 			.algo__crosstalk_compensation_plane_offset_kcps);
-	vl53l1_dbgmsg("ABS_TOOL_WIDTH Xtalk = %d\n",
+	dev_dbg(dev, "ABS_TOOL_WIDTH Xtalk = %d\n",
 		calibration_data.customer
 			.algo__crosstalk_compensation_plane_offset_kcps);
 
@@ -3748,15 +3826,15 @@ static void stmvl53l1_input_push_data_multiobject(struct stmvl53l1_data *data)
 			| ((meas_array[1]->RangeStatus) << 8)
 			| meas_array[0]->RangeStatus);
 
-	vl53l1_dbgmsg("ABS_BRAKE : (%d):(%d):(%d)\n",
-			mmeas->EffectiveSpadRtnCount,
-			meas_array[1]->RangeStatus,
-			meas_array[0]->RangeStatus);
+	dev_dbg(dev, "ABS_BRAKE : (%d):(%d):(%d)\n",
+		mmeas->EffectiveSpadRtnCount,
+		meas_array[1]->RangeStatus,
+		meas_array[0]->RangeStatus);
 
-	vl53l1_dbgmsg("ABS_BRAKE : 0x%X\n",
-			(mmeas->EffectiveSpadRtnCount & 0xFFFF) << 16
-			| ((meas_array[1]->RangeStatus) << 8)
-			| meas_array[0]->RangeStatus);
+	dev_dbg(dev, "ABS_BRAKE : 0x%X\n",
+		(mmeas->EffectiveSpadRtnCount & 0xFFFF) << 16 |
+			((meas_array[1]->RangeStatus) << 8) |
+				meas_array[0]->RangeStatus);
 
 	/*  Remaining of data are meaningless in case of no target */
 	if (mmeas->NumberOfObjectsFound == 0) {
@@ -3767,57 +3845,56 @@ static void stmvl53l1_input_push_data_multiobject(struct stmvl53l1_data *data)
 	/* ABS_HAT1X   -	 Obj0_Distance(16) :  Obj0_Sigma(16) */
 	input_report_abs(input, ABS_HAT1X, meas_array[0]->RangeMilliMeter << 16
 			| (meas_array[0]->SigmaMilliMeter/65536));
-	vl53l1_dbgmsg("ABS_HAT1X : 0x%X(%d:%d)\n",
-			meas_array[0]->RangeMilliMeter << 16
-			| (meas_array[0]->SigmaMilliMeter/65536),
-			meas_array[0]->RangeMilliMeter,
-			(meas_array[0]->SigmaMilliMeter/65536));
+	dev_dbg(dev, "ABS_HAT1X : 0x%X(%d:%d)\n",
+		meas_array[0]->RangeMilliMeter << 16 |
+			(meas_array[0]->SigmaMilliMeter/65536),
+		meas_array[0]->RangeMilliMeter,
+		(meas_array[0]->SigmaMilliMeter/65536));
 
 	/* ABS_HAT1Y   -	Obj0_MinRange(16) : Obj0_MaxRange(16) */
 	input_report_abs(input, ABS_HAT1Y,
 			meas_array[0]->RangeMinMilliMeter << 16
 			| meas_array[0]->RangeMaxMilliMeter);
 
-	vl53l1_dbgmsg("ABS_HAT1Y : 0x%X(%d:%d)\n",
-			meas_array[0]->RangeMinMilliMeter << 16
-			| meas_array[0]->RangeMaxMilliMeter,
-			meas_array[0]->RangeMinMilliMeter,
-			meas_array[0]->RangeMaxMilliMeter);
+	dev_dbg(dev, "ABS_HAT1Y : 0x%X(%d:%d)\n",
+		meas_array[0]->RangeMinMilliMeter << 16 |
+			meas_array[0]->RangeMaxMilliMeter,
+		meas_array[0]->RangeMinMilliMeter,
+		meas_array[0]->RangeMaxMilliMeter);
 
 	if (mmeas->NumberOfObjectsFound > 1) {
 		/* ABS_HAT2X   -	Obj1_Distance(16) :  Obj1_Sigma(16) */
 		input_report_abs(input, ABS_HAT2X,
 				meas_array[1]->RangeMilliMeter << 16
 				| (meas_array[1]->SigmaMilliMeter/65536));
-		vl53l1_dbgmsg("ABS_HAT2X : 0x%x(%d:%d)\n",
-				meas_array[1]->RangeMilliMeter << 16
-				| (meas_array[1]->SigmaMilliMeter/65536),
-				meas_array[1]->RangeMilliMeter,
-				(meas_array[1]->SigmaMilliMeter/65536));
+		dev_dbg(dev, "ABS_HAT2X : 0x%x(%d:%d)\n",
+			meas_array[1]->RangeMilliMeter << 16 |
+				(meas_array[1]->SigmaMilliMeter/65536),
+			meas_array[1]->RangeMilliMeter,
+			(meas_array[1]->SigmaMilliMeter/65536));
 
 		/* ABS_HAT2Y - Obj1_ MinRange (16) : Obj1_ MaxRange (16) */
 		input_report_abs(input, ABS_HAT2Y,
 				meas_array[1]->RangeMinMilliMeter << 16
 				| meas_array[1]->RangeMaxMilliMeter);
 
-		vl53l1_dbgmsg("ABS_HAT1Y : 0x%X(%d:%d)\n",
-				meas_array[1]->RangeMinMilliMeter << 16
-				| meas_array[1]->RangeMaxMilliMeter,
-				meas_array[1]->RangeMinMilliMeter,
-				meas_array[1]->RangeMaxMilliMeter);
-
+		dev_dbg(dev, "ABS_HAT1Y : 0x%X(%d:%d)\n",
+			meas_array[1]->RangeMinMilliMeter << 16 |
+				meas_array[1]->RangeMaxMilliMeter,
+			meas_array[1]->RangeMinMilliMeter,
+			meas_array[1]->RangeMaxMilliMeter);
 	}
 
 	/* ABS_HAT3X - Obj0_SignalRate_Spad(32) */
 	input_report_abs(input, ABS_HAT3X,
 			meas_array[0]->SignalRateRtnMegaCps);
-	vl53l1_dbgmsg("ABS_HAT3X : SignalRateRtnMegaCps_0(%d)\n",
-			meas_array[0]->SignalRateRtnMegaCps);
+	dev_dbg(dev, "ABS_HAT3X : SignalRateRtnMegaCps_0(%d)\n",
+		meas_array[0]->SignalRateRtnMegaCps);
 	if (mmeas->NumberOfObjectsFound > 1) {
 		/* ABS_HAT3Y  - Obj1_SignalRate_Spad(32) */
 		input_report_abs(input, ABS_HAT3Y,
 			meas_array[1]->SignalRateRtnMegaCps);
-		vl53l1_dbgmsg("ABS_HAT3Y : SignalRateRtnMegaCps_1(%d)\n",
+		dev_dbg(dev, "%ABS_HAT3Y : SignalRateRtnMegaCps_1(%d)\n",
 			meas_array[1]->SignalRateRtnMegaCps);
 	}
 
@@ -3847,11 +3924,14 @@ static int stmvl53l1_input_setup(struct stmvl53l1_data *data)
 {
 	int rc;
 	struct input_dev *idev;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
 	/* Register to Input Device */
 	idev = input_allocate_device();
 	if (idev == NULL) {
 		rc = -ENOMEM;
-		vl53l1_errmsg("%d error:%d\n", __LINE__, rc);
+		dev_err(dev, "%d error:%d\n", __LINE__, rc);
 		goto exit_err;
 	}
 	/*  setup all event */
@@ -3886,7 +3966,7 @@ static int stmvl53l1_input_setup(struct stmvl53l1_data *data)
 	rc = input_register_device(idev);
 	if (rc) {
 		rc = -ENOMEM;
-		vl53l1_errmsg("%d error:%d\n", __LINE__, rc);
+		dev_err(dev, "%d error:%d\n", __LINE__, rc);
 		goto exit_free_dev_ps;
 	}
 	/* setup drv data */
@@ -3913,6 +3993,8 @@ exit_err:
 int stmvl53l1_intr_handler(struct stmvl53l1_data *data)
 {
 	int rc;
+	struct i2c_data *i2c_data = data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	mutex_lock(&data->work_mutex);
 
@@ -3925,7 +4007,7 @@ int stmvl53l1_intr_handler(struct stmvl53l1_data *data)
 		 * Such complex irq also occurred during offset and crosstalk
 		 * calibration procedures.
 		 */
-		vl53l1_dbgmsg("got intr but not on (complex or calibration)\n");
+		dev_dbg(dev, "got intr but not on (complex or calibration)\n");
 		rc = 0;
 	}
 
@@ -3947,16 +4029,16 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 	int rc = 0;
 	uint8_t device_id, device_type;
 	struct VL53L1_DeviceInfo_t dev_info;
-
-	vl53l1_dbgmsg("Enter\n");
+	struct i2c_data *i2c_data = data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	/* acquire an id */
 	data->id = allocate_dev_id();
 	if (data->id < 0) {
-		vl53l1_errmsg("too many device already created");
+		dev_err(dev, "too many device already created\n");
 		return -1;
 	}
-	vl53l1_dbgmsg("Dev id %d is @%p\n", data->id, data);
+	dev_dbg(dev, "Dev id %d is @%p\n", data->id, data);
 	stmvl53l1_dev_table[data->id] = data;
 
 	/* init mutex */
@@ -3975,7 +4057,7 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 
 	rc = stmvl53l1_module_func_tbl.power_up(data->client_object);
 	if (rc) {
-		vl53l1_errmsg("%d,error rc %d\n", __LINE__, rc);
+		dev_err(dev, "%d, error rc %d\n", __LINE__, rc);
 		goto exit_ipp_cleanup;
 	}
 	rc = reset_release(data);
@@ -3997,21 +4079,21 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 			&stmvl53l1_attr_group);
 	if (rc) {
 		rc = -ENOMEM;
-		vl53l1_errmsg("%d error:%d\n", __LINE__, rc);
+		dev_err(dev, "%d error:%d\n", __LINE__, rc);
 		goto exit_unregister_dev_ps;
 	}
 	rc = sysfs_create_bin_file(&data->input_dev_ps->dev.kobj,
 		&stmvl53l1_calib_data_attr);
 	if (rc) {
 		rc = -ENOMEM;
-		vl53l1_errmsg("%d error:%d\n", __LINE__, rc);
+		dev_err(dev, "%d error:%d\n", __LINE__, rc);
 		goto exit_unregister_dev_ps;
 	}
 	rc = sysfs_create_bin_file(&data->input_dev_ps->dev.kobj,
 		&stmvl53l1_zone_calib_data_attr);
 	if (rc) {
 		rc = -ENOMEM;
-		vl53l1_errmsg("%d error:%d\n", __LINE__, rc);
+		dev_err(dev, "%d error:%d\n", __LINE__, rc);
 		goto exit_unregister_dev_ps;
 	}
 
@@ -4037,51 +4119,49 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 	rc = VL53L1_DataInit(&data->stdev);
 	data->is_delay_allowed = false;
 	if (rc) {
-		vl53l1_errmsg("VL53L1_DataInit %d\n", rc);
+		dev_err(dev, "VL53L1_DataInit %d\n", rc);
 		goto exit_unregister_dev_ps;
 	}
 
 	rc = VL53L1_GetDeviceInfo(&data->stdev, &dev_info);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_GetDeviceInfo %d\n", rc);
+		dev_err(dev, "VL53L1_GetDeviceInfo %d\n", rc);
 		goto exit_unregister_dev_ps;
 	}
-	vl53l1_info("device name %s\ntype %s\n", dev_info.Name, dev_info.Type);
+	dev_info(dev, "device name %s type %s\n", dev_info.Name, dev_info.Type);
 	data->product_type = dev_info.ProductType;
 
 	rc = VL53L1_RdByte(&data->stdev, VL53L1_IDENTIFICATION__MODEL_ID,
-			&device_id);
-
+			   &device_id);
 	if (rc)
-		vl53l1_errmsg("Failed to read sensor id %d\n", rc);
+		dev_err(dev, "Failed to read sensor id %d\n", rc);
 	else
-		vl53l1_info("Probe Success, device id 0x%x\n", device_id);
+		dev_info(dev, "Probe Success, device id 0x%x\n", device_id);
 
 	rc = VL53L1_RdByte(&data->stdev, VL53L1_IDENTIFICATION__MODULE_TYPE,
 			&device_type);
-
 	if (rc)
-		vl53l1_errmsg("Failed to read device type %d\n", rc);
+		dev_err(dev, "Failed to read device type %d\n", rc);
 	else
-		vl53l1_info("Probe Success, device type 0x%x\n", device_type);
+		dev_info(dev, "Probe Success, device type 0x%x\n", device_type);
 
 	/* get managed data here */
 	rc = VL53L1_GetDmaxReflectance(&data->stdev, &data->dmax_reflectance);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_GetDmaxReflectance %d\n", rc);
+		dev_err(dev, "VL53L1_GetDmaxReflectance %d\n", rc);
 		goto exit_unregister_dev_ps;
 	}
 	rc = VL53L1_GetOpticalCenter(&data->stdev, &data->optical_offset_x,
-		&data->optical_offset_y);
+				     &data->optical_offset_y);
 	if (rc) {
-		vl53l1_errmsg("VL53L1_GetOpticalCenter %d\n", rc);
+		dev_err(dev, "VL53L1_GetOpticalCenter %d\n", rc);
 		goto exit_unregister_dev_ps;
 	}
 
 	/* set tuning from stmvl53l1_tunings.h */
 	rc = setup_tunings(data);
 	if (rc) {
-		vl53l1_errmsg("setup_tunings %d\n", rc);
+		dev_err(dev, "setup_tunings %d\n", rc);
 		goto exit_unregister_dev_ps;
 	}
 
@@ -4099,9 +4179,9 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 	/* if working in interrupt ask intr to enable and hook the handler */
 	data->poll_mode = 0;
 	rc = stmvl53l1_module_func_tbl.start_intr(data->client_object,
-		&data->poll_mode);
+						  &data->poll_mode);
 	if (rc < 0) {
-		vl53l1_errmsg("can't start no  intr\n");
+		dev_err(dev, "can't start intr\n");
 		goto exit_unregister_dev_ps;
 	}
 
@@ -4119,10 +4199,10 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 
 	data->miscdev.name = data->name;
 	data->miscdev.fops = &stmvl53l1_ranging_fops;
-	vl53l1_errmsg("Misc device registration name:%s\n", data->miscdev.name);
+	dev_info(dev, "Misc device registration name:%s\n", data->miscdev.name);
 	rc = misc_register(&data->miscdev);
 	if (rc != 0) {
-		vl53l1_errmsg("misc dev reg fail\n");
+		dev_err(dev, "misc dev reg fail\n");
 		goto exit_unregister_dev_ps;
 	}
 	/* bring back device under reset */
@@ -4151,14 +4231,15 @@ exit_ipp_cleanup:
 void stmvl53l1_cleanup(struct stmvl53l1_data *data)
 {
 	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
-	vl53l1_dbgmsg("enter\n");
 	rc = _ctrl_stop(data);
 	if (rc < 0)
-		vl53l1_errmsg("stop failed %d aborting anyway\n", rc);
+		dev_err(dev, "stop failed %d aborting anyway\n", rc);
 
 	if (data->input_dev_ps) {
-		vl53l1_dbgmsg("to remove sysfs group\n");
+		dev_dbg(dev, "to remove sysfs group\n");
 		sysfs_remove_group(&data->input_dev_ps->dev.kobj,
 				&stmvl53l1_attr_group);
 		sysfs_remove_bin_file(&data->input_dev_ps->dev.kobj,
@@ -4166,13 +4247,13 @@ void stmvl53l1_cleanup(struct stmvl53l1_data *data)
 		sysfs_remove_bin_file(&data->input_dev_ps->dev.kobj,
 				&stmvl53l1_zone_calib_data_attr);
 
-		vl53l1_dbgmsg("to unregister input dev\n");
+		dev_dbg(dev, "to unregister input dev\n");
 		input_unregister_device(data->input_dev_ps);
 	}
 
 	if (!IS_ERR(data->miscdev.this_device) &&
 			data->miscdev.this_device != NULL) {
-		vl53l1_dbgmsg("to unregister misc dev\n");
+		dev_dbg(dev, "to unregister misc dev\n");
 		misc_deregister(&data->miscdev);
 	}
 
@@ -4180,7 +4261,7 @@ void stmvl53l1_cleanup(struct stmvl53l1_data *data)
 	data->force_device_on_en = false;
 	reset_hold(data);
 	stmvl53l1_module_func_tbl.power_down(data->client_object);
-	vl53l1_dbgmsg("done\n");
+
 	deallocate_dev_id(data->id);
 	data->is_device_remove = true;
 }
@@ -4189,14 +4270,12 @@ void stmvl53l1_cleanup(struct stmvl53l1_data *data)
 void stmvl53l1_pm_suspend_stop(struct stmvl53l1_data *data)
 {
 	int rc;
-
-	vl53l1_dbgmsg("Enter\n");
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
 
 	rc = _ctrl_stop(data);
 	if (rc < 0)
-		vl53l1_errmsg("stop failed %d aborting anyway\n", rc);
-
-	vl53l1_dbgmsg("done\n");
+		dev_err(dev, "stop failed %d aborting anyway\n", rc);
 }
 #endif
 
@@ -4215,20 +4294,17 @@ static int __init stmvl53l1_init(void)
 {
 	int rc = -1;
 
-	vl53l1_dbgmsg("Enter\n");
 	/* i2c/cci client specific init function */
 	rc = stmvl53l1_module_func_tbl.init();
-	vl53l1_dbgmsg("End %d\n", rc);
+
 	return rc;
 }
 
 static void __exit stmvl53l1_exit(void)
 {
-	vl53l1_dbgmsg("Enter\n");
 	stmvl53l1_module_func_tbl.deinit(NULL);
 	if (stmvl53l1_module_func_tbl.clean_up != NULL)
 		stmvl53l1_module_func_tbl.clean_up();
-	vl53l1_dbgmsg("End\n");
 }
 
 MODULE_AUTHOR("STMicroelectronics Imaging Division");

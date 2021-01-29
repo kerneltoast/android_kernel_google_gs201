@@ -274,6 +274,9 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 	return min(util, capacity_of(cpu));
 }
 
+unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
+				 unsigned long max, enum schedutil_type type,
+				 struct task_struct *p);
 static long
 compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 {
@@ -301,8 +304,9 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 		 * is already enough to scale the EM reported power
 		 * consumption at the (eventually clamped) cpu_capacity.
 		 */
-		sum_util += schedutil_cpu_util(cpu, util_cfs, cpu_cap,
-					       ENERGY_UTIL, NULL);
+		sum_util += schedutil_cpu_util_pixel_mod(cpu, util_cfs,
+							 cpu_cap, ENERGY_UTIL,
+							 NULL);
 
 		/*
 		 * Performance domain frequency: utilization clamping
@@ -311,8 +315,8 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 		 * NOTE: in case RT tasks are running, by default the
 		 * FREQUENCY_UTIL's utilization can be max OPP.
 		 */
-		cpu_util = schedutil_cpu_util(cpu, util_cfs, cpu_cap,
-					      FREQUENCY_UTIL, tsk);
+		cpu_util = schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
+							FREQUENCY_UTIL, tsk);
 		max_util = max(max_util, cpu_util);
 	}
 
@@ -838,8 +842,8 @@ void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 	*overutilized = cpu_util(cpu) * UTIL_THRESHOLD >= capacity_of(cpu) << SCHED_CAPACITY_SHIFT;
 }
 
-void rvh_map_util_freq_pixel_mod(void *data, unsigned long util, unsigned long freq,
-				 unsigned long cap, unsigned long *mapped_freq)
+unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
+				      unsigned long cap)
 {
-	*mapped_freq = (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap ;
+	return (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap;
 }
