@@ -12,7 +12,6 @@
 
 #include <linux/sched/cpufreq.h>
 #include <trace/events/power.h>
-#include <trace/hooks/sched.h>
 
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 
@@ -111,7 +110,6 @@ static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 		sg_policy->need_freq_update = cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS);
 	}
 
-	trace_android_rvh_set_sugov_update(sg_policy, next_freq, &should_update);
 	if (!should_update)
 		return false;
 
@@ -139,19 +137,6 @@ static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
 		irq_work_queue(&sg_policy->irq_work);
 	}
 }
-
-unsigned long map_util_freq(unsigned long util,
-					unsigned long freq, unsigned long cap)
-{
-	unsigned long mapped_freq = 0;
-
-	trace_android_rvh_map_util_freq(util, freq, cap, &mapped_freq);
-	if (mapped_freq)
-		return mapped_freq;
-
-	return (freq + (freq >> 2)) * util / cap;
-}
-EXPORT_SYMBOL_GPL(map_util_freq);
 
 /**
  * get_next_freq - Compute a new frequency for a given cpufreq policy.
@@ -183,7 +168,6 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 				policy->cpuinfo.max_freq : policy->cur;
 
 	freq = map_util_freq(util, freq, max);
-	trace_sugov_next_freq_tp(policy->cpu, util, max, freq);
 
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
 		return sg_policy->next_freq;
@@ -246,10 +230,8 @@ unsigned long schedutil_cpu_util(int cpu, unsigned long util_cfs,
 	 * frequency will be gracefully reduced with the utilization decay.
 	 */
 	util = util_cfs + cpu_util_rt(rq);
-	if (type == FREQUENCY_UTIL) {
+	if (type == FREQUENCY_UTIL)
 		util = uclamp_rq_util_with(rq, util, p);
-		trace_schedutil_cpu_util_clamp_tp(cpu, util_cfs, cpu_util_rt(rq), util, max);
-	}
 
 	dl_util = cpu_util_dl(rq);
 
@@ -299,7 +281,6 @@ unsigned long schedutil_cpu_util(int cpu, unsigned long util_cfs,
 
 	return min(max, util);
 }
-EXPORT_SYMBOL_GPL(schedutil_cpu_util);
 
 static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
 {
@@ -478,9 +459,6 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 
 	util = sugov_get_util(sg_cpu);
 	max = sg_cpu->max;
-
-	trace_sugov_util_update_tp(sg_cpu->cpu, util, max, flags);
-
 	util = sugov_iowait_apply(sg_cpu, time, util, max);
 	next_f = get_next_freq(sg_policy, util, max);
 	/*
@@ -537,7 +515,6 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
-	unsigned long util = sugov_get_util(sg_cpu);
 	unsigned int next_f;
 
 	raw_spin_lock(&sg_policy->update_lock);
@@ -549,8 +526,6 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 
 	if (sugov_should_update_freq(sg_policy, time)) {
 		next_f = sugov_next_freq_shared(sg_cpu, time);
-
-		trace_sugov_util_update_tp(sg_cpu->cpu, util, sg_cpu->max, flags);
 
 		if (sg_policy->policy->fast_switch_enabled)
 			sugov_fast_switch(sg_policy, time, next_f);
@@ -690,7 +665,6 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 	if (policy->fast_switch_enabled)
 		return 0;
 
-	trace_android_vh_set_sugov_sched_attr(&attr);
 	kthread_init_work(&sg_policy->work, sugov_work);
 	kthread_init_worker(&sg_policy->worker);
 	thread = kthread_create(kthread_worker_fn, &sg_policy->worker,
