@@ -607,13 +607,15 @@ init_exit:
 	mif_err("%s: PIF_INIT_DONE -> %s\n", ld->name, mc->name);
 }
 
+#define PHONE_START_IRQ_MARGIN	4
+#define PHONE_START_ACK_MARGIN	5
 static void cmd_phone_start_handler(struct mem_link_device *mld)
 {
+	static int phone_start_count;
 	struct link_device *ld = &mld->link_dev;
 	struct modem_ctl *mc = ld->mc;
 	unsigned long flags;
 	int err;
-	static int phone_start_count;
 
 	mif_info_limited("%s: PHONE_START <- %s (%s.state:%s cp_boot_done:%d)\n",
 		ld->name, mc->name, mc->name, mc_state(mc),
@@ -625,40 +627,28 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 	if (atomic_read(&mld->cp_boot_done)) {
 		mif_err_limited("Abnormal PHONE_START from CP\n");
 
-		if (phone_start_count < 100) {
-			if (phone_start_count++ > 3) {
-				phone_start_count = 101;
-#if IS_ENABLED(CONFIG_MCU_IPC)
-				if (mld->ap2cp_msg.type == MAILBOX_SR)
-					cp_mbox_dump_sr();
-#endif
-				send_ipc_irq(mld,
-					cmd2int(phone_start_count - 100));
-#if IS_ENABLED(CONFIG_MCU_IPC)
-				if (mld->ap2cp_msg.type == MAILBOX_SR)
-					cp_mbox_dump_sr();
-#endif
+		if (++phone_start_count > PHONE_START_IRQ_MARGIN) {
+			int ack_count = phone_start_count -
+				PHONE_START_IRQ_MARGIN;
+
+			if (ack_count > PHONE_START_ACK_MARGIN) {
+				link_trigger_cp_crash(mld,
+						      CRASH_REASON_CP_RSV_0,
+						      "Abnormal PHONE_START from CP");
 				return;
 			}
-		} else {
-			if (phone_start_count++ < 105) {
-				mif_err("%s: CMD(0x%x) -> %s\n", ld->name,
-					cmd2int(phone_start_count - 100),
-					mc->name);
+
+			mif_err("%s: CMD(0x%x) -> %s\n", ld->name,
+				cmd2int(ack_count), mc->name);
 #if IS_ENABLED(CONFIG_MCU_IPC)
-				if (mld->ap2cp_msg.type == MAILBOX_SR)
-					cp_mbox_dump_sr();
+			if (mld->ap2cp_msg.type == MAILBOX_SR)
+				cp_mbox_dump_sr();
 #endif
-				send_ipc_irq(mld, cmd2int(phone_start_count - 100));
+			send_ipc_irq(mld, cmd2int(ack_count));
 #if IS_ENABLED(CONFIG_MCU_IPC)
-				if (mld->ap2cp_msg.type == MAILBOX_SR)
-					cp_mbox_dump_sr();
+			if (mld->ap2cp_msg.type == MAILBOX_SR)
+				cp_mbox_dump_sr();
 #endif
-			} else {
-				link_trigger_cp_crash(mld,
-					CRASH_REASON_CP_RSV_0,
-					"Abnormal CP_START from CP");
-			}
 			return;
 		}
 	}
