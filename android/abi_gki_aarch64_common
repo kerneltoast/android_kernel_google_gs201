@@ -2093,6 +2093,8 @@
   dma_heap_bufferfd_alloc
   dma_heap_buffer_free
   dma_heap_find
+  dma_heap_get_dev
+  dma_heap_get_drvdata
   dma_issue_pending_all
   d_make_root
   dmam_alloc_attrs
