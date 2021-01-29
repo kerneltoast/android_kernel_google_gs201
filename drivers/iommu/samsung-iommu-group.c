@@ -23,7 +23,7 @@ static int sysmmu_group_device_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 	iommu_group_set_name(data, dev->of_node->name);
 
-	dev_info(dev, "Initialized IOMMU group[%s]\n", dev->of_node->name);
+	dev_dbg(dev, "Initialized IOMMU group[%s]\n", dev->of_node->name);
 
 	return 0;
 }
