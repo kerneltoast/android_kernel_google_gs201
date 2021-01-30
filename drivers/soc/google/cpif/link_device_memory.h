@@ -359,10 +359,8 @@ struct mem_link_device {
 	u32 __iomem *buff_desc_offset;
 	u32 __iomem *capability_offset;
 
-	u32 __iomem *ap_capability_0_offset;
-	u32 __iomem *cp_capability_0_offset;
-	u32 __iomem *ap_capability_1_offset;
-	u32 __iomem *cp_capability_1_offset;
+	u32 __iomem *ap_capability_offset[AP_CP_CAP_PARTS];
+	u32 __iomem *cp_capability_offset[AP_CP_CAP_PARTS];
 
 	/* Location for control messages in shared memory */
 	struct ctrl_msg ap2cp_msg;
@@ -384,10 +382,8 @@ struct mem_link_device {
 	u32 srinfo_size;
 	u32 __iomem *clk_table;
 
-	u32 ap_capability_0;
-	u32 cp_capability_0;
-	u32 ap_capability_1;
-	u32 cp_capability_1;
+	u32 ap_capability[AP_CP_CAP_PARTS];
+	u32 cp_capability[AP_CP_CAP_PARTS];
 
 	int (*pass_skb_to_net)(struct mem_link_device *mld, struct sk_buff *skb);
 

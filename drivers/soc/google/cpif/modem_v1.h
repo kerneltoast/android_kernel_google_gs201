@@ -159,6 +159,21 @@ struct modem_mbox {
 };
 #endif
 
+#define AP_CP_CAP_PARTS		2
+#define AP_CP_CAP_PART_LEN	4
+#define AP_CP_CAP_BIT_MAX	32
+
+/* AP capability[0] index */
+enum ap_capability_0_bits {
+	AP_CAP_0_PKTPROC_UL_BIT = 0,
+	AP_CAP_0_MAX = AP_CP_CAP_BIT_MAX
+};
+
+/* AP capability[1] index */
+enum ap_capability_1_bits {
+	AP_CAP_1_MAX = AP_CP_CAP_BIT_MAX
+};
+
 /* platform data */
 struct modem_data {
 	char *name;
@@ -275,8 +290,7 @@ struct modem_data {
 
 	/* capability */
 	u32 capability_offset;
-	u32 ap_capability_0;
-	u32 ap_capability_1;
+	u32 ap_capability[AP_CP_CAP_PARTS];
 
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
 	/* SIT priority queue info */

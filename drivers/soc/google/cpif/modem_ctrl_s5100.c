@@ -520,13 +520,15 @@ static int init_control_messages(struct modem_ctl *mc)
 	set_ctrl_msg(&mld->cp2ap_united_status, 0);
 
 	if (ld->capability_check) {
+		int part;
+
 		if (modem->offset_capability_offset)
 			iowrite32(modem->capability_offset, mld->capability_offset);
 
-		iowrite32(0, mld->ap_capability_0_offset);
-		iowrite32(0, mld->cp_capability_0_offset);
-		iowrite32(0, mld->ap_capability_1_offset);
-		iowrite32(0, mld->cp_capability_1_offset);
+		for (part = 0; part < AP_CP_CAP_PARTS; part++) {
+			iowrite32(0, mld->ap_capability_offset[part]);
+			iowrite32(0, mld->cp_capability_offset[part]);
+		}
 	}
 
 	ds_det = get_ds_detect();

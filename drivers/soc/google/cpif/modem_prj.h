@@ -96,9 +96,6 @@ struct cp_image {
 #define IOCTL_GET_CP_BOOTLOG		_IO(IOCTL_MAGIC, 0x47)
 #define IOCTL_CLR_CP_BOOTLOG		_IO(IOCTL_MAGIC, 0x48)
 
-/* AP capability index - considers first 32bits only*/
-#define AP_CAP_PKTPROC_UL		0x00000001
-
 /* Log dump */
 #define IOCTL_MIF_LOG_DUMP		_IO(IOCTL_MAGIC, 0x51)
 

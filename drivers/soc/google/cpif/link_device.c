@@ -517,31 +517,57 @@ static void write_clk_table_to_shmem(struct mem_link_device *mld)
 	}
 }
 
-static void write_ap_capabilities(struct mem_link_device *mld)
+static void set_ap_capabilities(struct mem_link_device *mld)
 {
-#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
-	mld->ap_capability_0 = mld->ap_capability_0 | AP_CAP_PKTPROC_UL;
-#endif
-	iowrite32(mld->ap_capability_0, mld->ap_capability_0_offset);
-	iowrite32(mld->ap_capability_1, mld->ap_capability_1_offset);
+	int part;
 
-	mif_info("ap_capability_0:0x%08x ap_capability_1:0x%08x\n",
-			mld->ap_capability_0, mld->ap_capability_1);
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+	mld->ap_capability[0] |= BIT(AP_CAP_0_PKTPROC_UL_BIT);
+#endif
+
+	for (part = 0; part < AP_CP_CAP_PARTS; part++) {
+		iowrite32(mld->ap_capability[part], mld->ap_capability_offset[part]);
+
+		mif_info("capability part:%d AP:0x%08x\n", part, mld->ap_capability[part]);
+	}
 }
 
-static void init_enabled_capabilities(struct mem_link_device *mld)
+static int init_ap_capabilities(struct mem_link_device *mld, int part)
 {
-#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
-	int err;
+	int cap;
+	int ret = 0;
 
-	if (mld->ap_capability_0 & AP_CAP_PKTPROC_UL) {
-		err = pktproc_init_ul(&mld->pktproc_ul);
-		if (err < 0) {
-			mif_err("pktproc_init_ul() error %d\n", err);
-			return;
-		}
-	}
+	if (!mld->ap_capability[part])
+		goto out;
+
+	for (cap = 0; cap < AP_CP_CAP_BIT_MAX; cap++) {
+		if (!(mld->ap_capability[part] & BIT(cap)))
+			continue;
+
+		/* should handle the matched capability */
+		ret = -EINVAL;
+
+		if (part == 0) {
+			switch (cap) {
+			case AP_CAP_0_PKTPROC_UL_BIT:
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+				ret = pktproc_init_ul(&mld->pktproc_ul);
+				if (ret)
+					mif_err("pktproc_init_ul() ret:%d\n", ret);
 #endif
+				break;
+			default:
+				mif_err("unsupported capability part:%d cap:%d\n", part, cap);
+				break;
+			}
+		}
+
+		if (ret)
+			break;
+	}
+
+out:
+	return ret;
 }
 
 static void cmd_init_start_handler(struct mem_link_device *mld)
@@ -575,7 +601,7 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 #endif
 
 	if (ld->capability_check)
-		write_ap_capabilities(mld);
+		set_ap_capabilities(mld);
 
 	if (!ld->sbd_ipc) {
 		mif_err("%s: LINK_ATTR_SBD_IPC is NOT set\n", ld->name);
@@ -658,29 +684,30 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 	}
 
 	if (ld->capability_check) {
-		/* get cp_capability */
-		mld->cp_capability_0 = ioread32(mld->cp_capability_0_offset);
-		mld->cp_capability_1 = ioread32(mld->cp_capability_1_offset);
+		int part;
 
-		if ((mld->ap_capability_0 ^ mld->cp_capability_0) & mld->ap_capability_0) {
-			/* if at least one feature is owned by AP only, crash CP */
-			mif_err("AP capability 0: 0x%08x CP capability 0: 0x%08x\n",
-					mld->ap_capability_0, mld->cp_capability_0);
-			goto capability_fail;
+		for (part = 0; part < AP_CP_CAP_PARTS; part++) {
+			/* get cp_capability */
+			mld->cp_capability[part] = ioread32(mld->cp_capability_offset[part]);
+
+			if ((mld->ap_capability[part] ^ mld->cp_capability[part]) &
+			    mld->ap_capability[part]) {
+				/* if at least one feature is owned by AP only, crash CP */
+				mif_err("ERR! capability part:%d AP:0x%08x CP:0x%08x\n",
+					part, mld->ap_capability[part], mld->cp_capability[part]);
+				goto capability_failed;
+			}
+
+			mif_info("capability part:%d AP:0x%08x CP:0x%08x\n",
+				 part, mld->ap_capability[part], mld->cp_capability[part]);
+
+			err = init_ap_capabilities(mld, part);
+			if (err) {
+				mif_err("%s: init_ap_capabilities part:%d fail(%d)\n",
+					ld->name, part, err);
+				goto exit;
+			}
 		}
-		if ((mld->ap_capability_1 ^ mld->cp_capability_1) & mld->ap_capability_1) {
-			/* if at least one feature is owned by AP only, crash CP */
-			mif_err("AP capability 1: 0x%08x CP capability 1: 0x%08x\n",
-					mld->ap_capability_1, mld->cp_capability_1);
-			goto capability_fail;
-		}
-
-		mif_info("ap_capability_0:0x%08x ap_capability_1:0x%08x\n",
-				mld->ap_capability_0, mld->ap_capability_1);
-		mif_info("cp_capability_0:0x%08x cp_capability_1:0x%08x\n",
-				mld->cp_capability_0, mld->cp_capability_1);
-
-		init_enabled_capabilities(mld);
 	}
 
 	err = init_legacy_link(&mld->legacy_link_dev);
@@ -688,6 +715,7 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 		mif_err("%s: init_legacy_link fail(%d)\n", ld->name, err);
 		goto exit;
 	}
+
 	atomic_set(&ld->netif_stopped, 0);
 
 	if (rild_ready(ld)) {
@@ -719,10 +747,9 @@ exit:
 	spin_unlock_irqrestore(&mld->state_lock, flags);
 	return;
 
-capability_fail:
+capability_failed:
 	spin_unlock_irqrestore(&mld->state_lock, flags);
-	link_trigger_cp_crash(mld, CRASH_REASON_MIF_FORCED,
-			"CP lacks capability\n");
+	link_trigger_cp_crash(mld, CRASH_REASON_MIF_FORCED, "CP lacks capability\n");
 	return;
 }
 
@@ -3559,21 +3586,20 @@ static ssize_t info_region_show(struct device *dev,
 			ioread32(mld->buff_desc_offset));
 
 	if (modem->offset_capability_offset) {
+		int part;
+
 		count += scnprintf(&buf[count], PAGE_SIZE - count,
 				"capability_offset:0x%08X\n",
 				ioread32(mld->capability_offset));
-		count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"ap_capability_0_offset:0x%08X\n",
-				ioread32(mld->ap_capability_0_offset));
-		count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"ap_capability_1_offset:0x%08X\n",
-				ioread32(mld->ap_capability_1_offset));
-		count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"cp_capability_0_offset:0x%08X\n",
-				ioread32(mld->cp_capability_0_offset));
-		count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"cp_capability_1_offset:0x%08X\n",
-				ioread32(mld->cp_capability_1_offset));
+
+		for (part = 0; part < AP_CP_CAP_PARTS; part++) {
+			count += scnprintf(&buf[count], PAGE_SIZE - count,
+					"ap_capability_offset[%d]:0x%08X\n", part,
+					ioread32(mld->ap_capability_offset[part]));
+			count += scnprintf(&buf[count], PAGE_SIZE - count,
+					"cp_capability_offset[%d]:0x%08X\n", part,
+					ioread32(mld->cp_capability_offset[part]));
+		}
 	}
 
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "ap2cp_msg:0x%08X\n",
@@ -3827,6 +3853,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	struct device_node *np_acpm = NULL;
 	u32 acpm_addr;
 	u8 __iomem *cmsg_base;
+	int part;
 
 	mif_err("+++\n");
 
@@ -4241,25 +4268,25 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	mld->clk_table = (u32 __iomem *)(mld->base + modem->clk_table_offset);
 
 	if (ld->capability_check) {
+		u8 __iomem *offset;
+
 		/* AP/CP capability */
-		mld->capability_offset =
-			(u32 __iomem *)(mld->base + modem->offset_capability_offset);
+		offset = mld->base + modem->offset_capability_offset;
+		mld->capability_offset = (u32 __iomem *)(offset);
 		iowrite32(modem->capability_offset, mld->capability_offset);
 
-		mld->ap_capability_0_offset =
-			(u32 __iomem *)(mld->base + modem->capability_offset);
-		mld->cp_capability_0_offset =
-			(u32 __iomem *)(mld->base + modem->capability_offset + 0x4);
-		mld->ap_capability_1_offset =
-			(u32 __iomem *)(mld->base + modem->capability_offset + 0x8);
-		mld->cp_capability_1_offset =
-			(u32 __iomem *)(mld->base + modem->capability_offset + 0xC);
+		offset = mld->base + modem->capability_offset;
+		for (part = 0; part < AP_CP_CAP_PARTS; part++) {
+			mld->ap_capability_offset[part] =
+				(u32 __iomem *)(offset + (AP_CP_CAP_PART_LEN * 2 * part));
+			mld->cp_capability_offset[part] =
+				(u32 __iomem *)(offset + (AP_CP_CAP_PART_LEN * 2 * part) +
+				AP_CP_CAP_PART_LEN);
 
-		/* Initial value */
-		iowrite32(0, mld->ap_capability_0_offset);
-		iowrite32(0, mld->cp_capability_0_offset);
-		iowrite32(0, mld->ap_capability_1_offset);
-		iowrite32(0, mld->cp_capability_1_offset);
+			/* Initial values */
+			iowrite32(0, mld->ap_capability_offset[part]);
+			iowrite32(0, mld->cp_capability_offset[part]);
+		}
 	}
 
 	construct_ctrl_msg(&mld->cp2ap_msg, modem->cp2ap_msg, cmsg_base);
@@ -4283,8 +4310,8 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	mld->sbi_cp_rat_mode_mask = modem->sbi_cp2ap_rat_mode_mask;
 	mld->sbi_cp_rat_mode_pos = modem->sbi_cp2ap_rat_mode_pos;
 
-	mld->ap_capability_0 = modem->ap_capability_0;
-	mld->ap_capability_1 = modem->ap_capability_1;
+	for (part = 0; part < AP_CP_CAP_PARTS; part++)
+		mld->ap_capability[part] = modem->ap_capability[part];
 
 	/*
 	 * Register interrupt handlers

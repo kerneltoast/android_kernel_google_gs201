@@ -405,8 +405,8 @@ static int parse_dt_ipc_region_pdata(struct device *dev, struct device_node *np,
 	/* offset setting for capability */
 	if (pdata->capability_check) {
 		mif_dt_read_u32(np, "capability_offset", pdata->capability_offset);
-		mif_dt_read_u32(np, "ap_capability_0", pdata->ap_capability_0);
-		mif_dt_read_u32(np, "ap_capability_1", pdata->ap_capability_1);
+		mif_dt_read_u32(np, "ap_capability_0", pdata->ap_capability[0]);
+		mif_dt_read_u32(np, "ap_capability_1", pdata->ap_capability[1]);
 	}
 
 	of_property_read_u32_array(np, "ap2cp_msg", pdata->ap2cp_msg, 2);
