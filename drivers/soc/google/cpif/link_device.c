@@ -402,13 +402,7 @@ static void link_trigger_cp_crash(struct mem_link_device *mld, u32 crash_type,
 #if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM)
 	if (ld->interrupt_types == INTERRUPT_MAILBOX) {
 		/* Send CRASH_EXIT command to a CP */
-		if (mld->ap2cp_msg.type == MAILBOX_SR)
-			cp_mbox_dump_sr();
-
-		send_ipc_irq(mld, cmd2int(CMD_CRASH_EXIT));
-
-		if (mld->ap2cp_msg.type == MAILBOX_SR)
-			cp_mbox_dump_sr();
+		send_ipc_irq_debug(mld, cmd2int(CMD_CRASH_EXIT));
 	}
 #endif
 
@@ -640,15 +634,8 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 
 			mif_err("%s: CMD(0x%x) -> %s\n", ld->name,
 				cmd2int(ack_count), mc->name);
-#if IS_ENABLED(CONFIG_MCU_IPC)
-			if (mld->ap2cp_msg.type == MAILBOX_SR)
-				cp_mbox_dump_sr();
-#endif
-			send_ipc_irq(mld, cmd2int(ack_count));
-#if IS_ENABLED(CONFIG_MCU_IPC)
-			if (mld->ap2cp_msg.type == MAILBOX_SR)
-				cp_mbox_dump_sr();
-#endif
+			send_ipc_irq_debug(mld, cmd2int(ack_count));
+
 			return;
 		}
 	}
@@ -663,15 +650,8 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 		 */
 		if (rild_ready(ld)) {
 			mif_info("%s: INIT_END -> %s\n", ld->name, mc->name);
-#if IS_ENABLED(CONFIG_MCU_IPC)
-			if (mld->ap2cp_msg.type == MAILBOX_SR)
-				cp_mbox_dump_sr();
-#endif
-			send_ipc_irq(mld, cmd2int(CMD_INIT_END));
-#if IS_ENABLED(CONFIG_MCU_IPC)
-			if (mld->ap2cp_msg.type == MAILBOX_SR)
-				cp_mbox_dump_sr();
-#endif
+			send_ipc_irq_debug(mld, cmd2int(CMD_INIT_END));
+
 			atomic_set(&mld->cp_boot_done, 1);
 		}
 		goto exit;
@@ -712,15 +692,8 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 
 	if (rild_ready(ld)) {
 		mif_info("%s: INIT_END -> %s\n", ld->name, mc->name);
-#if IS_ENABLED(CONFIG_MCU_IPC)
-		if (mld->ap2cp_msg.type == MAILBOX_SR)
-			cp_mbox_dump_sr();
-#endif
-		send_ipc_irq(mld, cmd2int(CMD_INIT_END));
-#if IS_ENABLED(CONFIG_MCU_IPC)
-		if (mld->ap2cp_msg.type == MAILBOX_SR)
-			cp_mbox_dump_sr();
-#endif
+		send_ipc_irq_debug(mld, cmd2int(CMD_INIT_END));
+
 		atomic_set(&mld->cp_boot_done, 1);
 	}
 

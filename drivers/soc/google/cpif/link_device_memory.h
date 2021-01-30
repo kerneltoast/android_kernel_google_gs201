@@ -755,6 +755,19 @@ static inline void send_ipc_irq(struct mem_link_device *mld, u16 val)
 		mld->send_ap2cp_irq(mld, val);
 }
 
+static inline void send_ipc_irq_debug(struct mem_link_device *mld, u16 val)
+{
+#if IS_ENABLED(CONFIG_MCU_IPC)
+	if (mld->ap2cp_msg.type == MAILBOX_SR)
+		cp_mbox_dump_sr();
+#endif
+	send_ipc_irq(mld, val);
+#if IS_ENABLED(CONFIG_MCU_IPC)
+	if (mld->ap2cp_msg.type == MAILBOX_SR)
+		cp_mbox_dump_sr();
+#endif
+}
+
 void mem_irq_handler(struct mem_link_device *mld, struct mst_buff *msb);
 
 /*============================================================================*/
