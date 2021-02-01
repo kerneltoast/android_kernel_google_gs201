@@ -47,6 +47,10 @@
 #include <soc/samsung/sysevent.h>
 #include <soc/samsung/sysevent_notif.h>
 #endif
+#if IS_ENABLED(CONFIG_SUBSYSTEM_COREDUMP)
+#include <linux/platform_data/sscoredump.h>
+#define CONFIG_MFC_USE_COREDUMP
+#endif
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -130,6 +134,14 @@ enum mfc_node_type {
 	MFCNODE_ENCODER_DRM = 3,
 	MFCNODE_ENCODER_OTF = 4,
 	MFCNODE_ENCODER_OTF_DRM = 5,
+};
+
+/**
+ * enum mfc_core_state - The type of MFC core device.
+ */
+enum mfc_core_state {
+	MFCCORE_INIT	= 0,
+	MFCCORE_ERROR	= 1,
 };
 
 /**
@@ -1193,6 +1205,12 @@ struct mfc_core_ops {
 			struct mfc_ctx *ctx);
 };
 
+struct dump_info {
+	char		*name;
+	void            *addr;
+	u64             size;
+};
+
 struct mfc_core {
 	struct device		*device;
 	struct iommu_domain	*domain;
@@ -1225,6 +1243,8 @@ struct mfc_core {
 
 	struct mfc_variant	*variant;
 	struct mfc_core_platdata *core_pdata;
+
+	enum mfc_core_state state;
 
 	bool has_2sysmmu;
 	bool has_hwfc;
@@ -1333,6 +1353,9 @@ struct mfc_core {
 	int last_int;
 	struct timespec64 last_cmd_time;
 	struct timespec64 last_int_time;
+	/* debug info dump */
+	struct dump_info dbg_info;
+	struct platform_device *sscd_dev;
 
 	/* ITMON */
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)

@@ -702,6 +702,8 @@
 #define MFC_REG_ERR_MFC_TIMEOUT				140
 #define MFC_REG_ERR_TS_MUX_TIMEOUT			141
 #define MFC_REG_ERR_G2D_TIMEOUT				142
+/* Exception */
+#define MFC_REG_ERR_UNDEFINED_EXCEPTION			145
 /* Frame concealment and warning */
 #define MFC_REG_ERR_FRAME_CONCEAL			150
 #define MFC_REG_ERR_BROKEN_LINK				161

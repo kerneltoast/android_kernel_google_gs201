@@ -15,6 +15,35 @@
 #include "mfc_utils.h"
 #include "mfc_qos.h"
 #include "mfc_mem.h"
+#include "mfc_queue.h"
+
+void mfc_core_handle_error(struct mfc_core *core)
+{
+	struct mfc_dev *dev = core->dev;
+	struct mfc_ctx *ctx;
+	struct mfc_core_ctx *core_ctx;
+	int i;
+
+	mfc_core_err("[MSR] >>>>>>>> MFC CORE is Error state <<<<<<<<\n");
+	mfc_core_change_state(core, MFCCORE_ERROR);
+
+	mutex_lock(&dev->mfc_mutex);
+	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
+		if (!core->core_ctx[i])
+			continue;
+		/* TODO: need to check two core mode */
+		core_ctx = core->core_ctx[i];
+		mfc_change_state(core_ctx, MFCINST_ERROR);
+		ctx = core_ctx->ctx;
+
+		/* Mark all dst buffers as having an error */
+		mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
+		/* Mark all src buffers as having an error */
+		mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_ready_queue);
+		mfc_cleanup_queue(&ctx->buf_queue_lock, &core_ctx->src_buf_queue);
+	}
+	mutex_unlock(&dev->mfc_mutex);
+}
 
 int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb)
 {
@@ -515,6 +544,13 @@ void mfc_core_meerkat_tick(struct timer_list *t)
 	struct mfc_core *core = from_timer(core, t, meerkat_timer);
 
 	mfc_core_debug(5, "meerkat is ticking!\n");
+
+	if (core->state == MFCCORE_ERROR) {
+		atomic_set(&core->meerkat_tick_running, 0);
+		atomic_set(&core->meerkat_tick_cnt, 0);
+		mfc_core_info("[MSR] meerkat timer is now stopped! It's Error state\n");
+		return;
+	}
 
 	if (atomic_read(&core->meerkat_tick_running))
 		atomic_inc(&core->meerkat_tick_cnt);

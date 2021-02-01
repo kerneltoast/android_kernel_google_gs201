@@ -526,6 +526,7 @@
 		interrupts = <0 IRQ_SYSMMU_D0_MFC_interrupt_s1_ns_MFC IRQ_TYPE_LEVEL_HIGH>,
 			     <0 IRQ_SYSMMU_D0_MFC_interrupt_s1_s_MFC  IRQ_TYPE_LEVEL_HIGH>;
 		qos = <15>;
+		sysmmu,async-fault;
 		sysmmu,secure-irq;
 		sysmmu,secure_base = <0x1C880000>;
 		port-name = "MFC0";
@@ -540,6 +541,7 @@
 		interrupts = <0 IRQ_SYSMMU_D1_MFC_interrupt_s1_ns_MFC IRQ_TYPE_LEVEL_HIGH>,
 			     <0 IRQ_SYSMMU_D1_MFC_interrupt_s1_s_MFC  IRQ_TYPE_LEVEL_HIGH>;
 		qos = <15>;
+		sysmmu,async-fault;
 		sysmmu,secure-irq;
 		sysmmu,secure_base = <0x1C8B0000>;
 		port-name = "MFC1";

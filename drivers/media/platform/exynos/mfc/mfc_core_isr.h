@@ -55,6 +55,7 @@ static inline int __mfc_core_is_err_condition(unsigned int err)
 	case MFC_REG_ERR_INSUFFICIENT_NUM_DPB:
 	case MFC_REG_ERR_INSUFFICIENT_MV_BUF_SIZE:
 	case MFC_REG_ERR_INSUFFICIENT_SCRATCH_BUF_SIZE:
+	case MFC_REG_ERR_UNDEFINED_EXCEPTION:
 		return 1;
 	default:
 		return 0;

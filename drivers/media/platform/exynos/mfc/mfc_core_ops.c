@@ -144,6 +144,11 @@ static int __mfc_wait_close_inst(struct mfc_core *core, struct mfc_ctx *ctx)
 	struct mfc_core_ctx *core_ctx = core->core_ctx[ctx->num];
 	int ret = 0;
 
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_info("[MSR] Couldn't close inst. It's Error state\n");
+		return 0;
+	}
+
 	if (atomic_read(&core->meerkat_run)) {
 		mfc_err("meerkat already running!\n");
 		return 0;
@@ -238,6 +243,11 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 
 		if (core->nal_q_handle)
 			mfc_core_nal_q_destroy(core, core->nal_q_handle);
+
+		if (core->state == MFCCORE_ERROR) {
+			mfc_core_change_state(core, MFCCORE_INIT);
+			mfc_ctx_info("[MSR] MFC-%d will be reset\n", core->id);
+		}
 	}
 
 	mfc_core_qos_off(core, ctx);
@@ -297,6 +307,11 @@ int mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	int ret = 0;
 
 	mfc_core_debug_enter();
+
+	if (core->state == MFCCORE_ERROR) {
+		mfc_ctx_err("MFC-%d is ERROR state\n", core->id);
+		return -EBUSY;
+	}
 
 	ret = mfc_core_get_hwlock_dev(core);
 	if (ret < 0) {
@@ -636,6 +651,9 @@ void mfc_core_instance_dpb_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 	int index = 0, i, ret;
 	int prev_state;
 
+	if ((core->state == MFCCORE_ERROR) || (core_ctx->state == MFCINST_ERROR))
+		goto cleanup;
+
 	ret = mfc_core_get_hwlock_ctx(core_ctx);
 	if (ret < 0) {
 		mfc_err("Failed to get hwlock\n");
@@ -711,6 +729,12 @@ void mfc_core_instance_dpb_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 	mfc_ctx_ready_set_bit(core_ctx, &core->work_bits);
 	if (mfc_core_is_work_to_do(core))
 		queue_work(core->butler_wq, &core->butler_work);
+
+	return;
+
+cleanup:
+	mfc_core_info("[MSR] Cleanup dst buffers. It's Error state\n");
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
 }
 
 void mfc_core_instance_csd_parsing(struct mfc_core *core, struct mfc_ctx *ctx)
@@ -721,6 +745,9 @@ void mfc_core_instance_csd_parsing(struct mfc_core *core, struct mfc_ctx *ctx)
 	int index = 0, csd, condition = 0, ret = 0;
 	enum mfc_inst_state prev_state = MFCINST_FREE;
 	int buf_in_ready;
+
+	if ((core->state == MFCCORE_ERROR) || (core_ctx->state == MFCINST_ERROR))
+		goto cleanup;
 
 	ret = mfc_core_get_hwlock_ctx(core_ctx);
 	if (ret < 0) {
@@ -829,6 +856,13 @@ void mfc_core_instance_csd_parsing(struct mfc_core *core, struct mfc_ctx *ctx)
 	mfc_ctx_ready_set_bit(core_ctx, &core->work_bits);
 	if (mfc_core_is_work_to_do(core))
 		queue_work(core->butler_wq, &core->butler_work);
+
+	return;
+
+cleanup:
+	mfc_core_info("[MSR] Cleanup src buffers. It's Error state\n");
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &core_ctx->src_buf_queue);
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_ready_queue);
 }
 
 int mfc_core_instance_init_buf(struct mfc_core *core, struct mfc_ctx *ctx)

@@ -40,6 +40,7 @@ extern unsigned int feature_option;
 extern unsigned int regression_option;
 extern unsigned int core_balance;
 extern unsigned int sbwc_disable;
+extern unsigned int sscd_report;
 
 #define mfc_debug(level, fmt, args...)					\
 	do {								\
@@ -215,11 +216,13 @@ extern unsigned int sbwc_disable;
 #define MFC_TRACE_STR_LEN		80
 #define MFC_TRACE_COUNT_MAX		1024
 #define MFC_TRACE_COUNT_PRINT		30
+#define MFC_TRACE_COUNT_PRINT_LONG	100
 #define MFC_TRACE_LOG_STR_LEN		25
 #define MFC_TRACE_LOG_COUNT_MAX		256
 #define MFC_TRACE_LOG_COUNT_PRINT	20
 #define MFC_TRACE_NAL_QUEUE_PRINT	25
 
+#define MFC_DUMP_BUF_SIZE		0x600000
 
 struct _mfc_trace {
 	unsigned long long time;

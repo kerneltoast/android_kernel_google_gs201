@@ -638,14 +638,22 @@ end_release:
 }
 
 /* Poll */
-static unsigned int mfc_poll(struct file *file,
+static __poll_t mfc_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	unsigned long req_events = poll_requested_events(wait);
-	unsigned int ret = 0;
+	__poll_t ret = 0;
 
 	mfc_debug_enter();
+
+	if (mfc_rm_query_state(ctx, EQUAL, MFCINST_ERROR)) {
+		if (req_events & (POLLOUT | POLLWRNORM))
+			mfc_ctx_err("SRC: Call on POLL after unrecoverable error\n");
+		else
+			mfc_ctx_err("DST: Call on POLL after unrecoverable error\n");
+		return EPOLLERR;
+	}
 
 	if (req_events & (POLLOUT | POLLWRNORM)) {
 		mfc_debug(2, "wait source buffer\n");

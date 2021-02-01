@@ -183,6 +183,13 @@ int mfc_core_get_hwlock_dev(struct mfc_core *core)
 	spin_lock_irqsave(&core->hwlock.lock, flags);
 	__mfc_print_hwlock(core);
 
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_info("[MSR] Couldn't lock HW. It's Error state\n");
+		spin_unlock_irqrestore(&core->hwlock.lock, flags);
+		mutex_unlock(&core->hwlock_wq.wait_mutex);
+		return 0;
+	}
+
 	if (core->shutdown) {
 		mfc_core_info("Couldn't lock HW. Shutdown was called\n");
 		spin_unlock_irqrestore(&core->hwlock.lock, flags);
@@ -248,6 +255,13 @@ int mfc_core_get_hwlock_ctx(struct mfc_core_ctx *core_ctx)
 
 	spin_lock_irqsave(&core->hwlock.lock, flags);
 	__mfc_print_hwlock(core);
+
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_info("[MSR] Couldn't lock HW. It's Error state\n");
+		spin_unlock_irqrestore(&core->hwlock.lock, flags);
+		mutex_unlock(&core->hwlock_wq.wait_mutex);
+		return 0;
+	}
 
 	if (core->shutdown) {
 		mfc_core_info("Couldn't lock HW. Shutdown was called\n");
@@ -336,7 +350,9 @@ void mfc_core_release_hwlock_dev(struct mfc_core *core)
 	core->hwlock.dev = 0;
 	core->hwlock.owned_by_irq = 0;
 
-	if (core->shutdown) {
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_debug(2, "[MSR] Couldn't wakeup module. It's Error state\n");
+	} else if (core->shutdown) {
 		mfc_core_debug(2, "Couldn't wakeup module. Shutdown was called\n");
 	} else if (list_empty(&core->hwlock.waiting_list)) {
 		mfc_core_debug(2, "No waiting module\n");
@@ -379,7 +395,9 @@ static void __mfc_release_hwlock_ctx_protected(struct mfc_core_ctx *core_ctx)
 	clear_bit(core_ctx->num, &core->hwlock.bits);
 	core->hwlock.owned_by_irq = 0;
 
-	if (core->shutdown) {
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_debug(2, "[MSR] Couldn't wakeup module. It's Error state\n");
+	} else if (core->shutdown) {
 		mfc_core_debug(2, "Couldn't wakeup module. Shutdown was called\n");
 	} else if (list_empty(&core->hwlock.waiting_list)) {
 		mfc_core_debug(2, "No waiting module\n");
@@ -552,6 +570,11 @@ void mfc_core_try_run(struct mfc_core *core)
 	int new_ctx_index;
 	int ret;
 	unsigned long flags;
+
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_info("[MSR] Couldn't run HW. It's Error state\n");
+		return;
+	}
 
 	spin_lock_irqsave(&core->hwlock.lock, flags);
 	__mfc_print_hwlock(core);
@@ -838,6 +861,11 @@ int mfc_core_just_run(struct mfc_core *core, int new_ctx_index)
 	int drm_switch = 0;
 	int next_ctx_index;
 
+	if ((core->state == MFCCORE_ERROR) || (core_ctx->state == MFCINST_ERROR)) {
+		mfc_core_info("[MSR] Couldn't run HW. It's Error state\n");
+		return 0;
+	}
+
 	atomic_inc(&core->hw_run_cnt);
 
 	if (core_ctx->state == MFCINST_RUNNING)
@@ -953,6 +981,11 @@ void mfc_core_hwlock_handler_irq(struct mfc_core *core, struct mfc_ctx *ctx,
 	int new_ctx_index;
 	unsigned long flags;
 	int ret;
+
+	if (core->state == MFCCORE_ERROR) {
+		mfc_core_info("[MSR] Couldn't lock HW. It's Error state\n");
+		return;
+	}
 
 	spin_lock_irqsave(&core->hwlock.lock, flags);
 	__mfc_print_hwlock(core);
