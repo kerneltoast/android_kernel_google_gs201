@@ -31,7 +31,6 @@
 		need_smc = <0x1F010204>;
 		cmu_id = <0x1F000000>;
 		status = "disabled";
-		parent = <&pd_bus2>;
 		#power-domain-cells = <0>;
 	};
 
@@ -63,7 +62,6 @@
 		need_smc = <0x1C410204>;
 		cmu_id = <0x1C400000>;
 		status = "okay";
-		parent = <&pd_bus2>;
 		#power-domain-cells = <0>;
 	};
 
@@ -72,7 +70,7 @@
 		reg = <0x0 0x17462000 0x20>;
 		cal_id = <0xB1380006>;
 		status = "okay";
-		parent = <&pd_g3d>;
+		power-domains = <&pd_g3d>;
 		#power-domain-cells = <0>;
 	};
 
@@ -95,7 +93,6 @@
 		need_smc = <0x14410204>;
 		cmu_id = <0x14400000>;
 		status = "disabled";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -106,7 +103,6 @@
 		need_smc = <0x1C210204>;
 		cmu_id = <0x1C200000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 		skip-idle-ip;
 	};
@@ -118,7 +114,7 @@
 		need_smc = <0x1C010204>;
 		cmu_id = <0x1C000000>;
 		status = "okay";
-		parent = <&pd_disp>;
+		power-domains = <&pd_disp>;
 		#power-domain-cells = <0>;
 		skip-idle-ip;
 	};
@@ -130,7 +126,6 @@
 		need_smc = <0x1C610204>;
 		cmu_id = <0x1C600000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -141,7 +136,6 @@
 		need_smc = <0x1C810204>;
 		cmu_id = <0x1C800000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -152,7 +146,6 @@
 		need_smc = <0x1A410204>;
 		cmu_id = <0x1A400000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -163,7 +156,6 @@
 		need_smc = <0x1AA10204>;
 		cmu_id = <0x1AA00000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -174,7 +166,6 @@
 		need_smc = <0x1B410204>;
 		cmu_id = <0x1B400000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -185,7 +176,7 @@
 		need_smc = <0x1B010204>;
 		cmu_id = <0x1B000000>;
 		status = "okay";
-		parent = <&pd_itp>;
+		power-domains = <&pd_itp>;
 		#power-domain-cells = <0>;
 	};
 
@@ -196,7 +187,6 @@
 		need_smc = <0x1A810204>;
 		cmu_id = <0x1A800000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -207,7 +197,7 @@
 		need_smc = <0x1AC10204>;
 		cmu_id = <0x1AC00000>;
 		status = "okay";
-		parent = <&pd_pdp>;
+		power-domains = <&pd_pdp>;
 		#power-domain-cells = <0>;
 	};
 
@@ -218,7 +208,6 @@
 		need_smc = <0x1B710204>;
 		cmu_id = <0x1B700000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -229,7 +218,6 @@
 		need_smc = <0x1BA10204>;
 		cmu_id = <0x1BA00000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -240,7 +228,6 @@
 		need_smc = <0x1BC10204>;
 		cmu_id = <0x1BC00000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -251,7 +238,6 @@
 		need_smc = <0x1CA10204>;
 		cmu_id = <0x1CA00000>;
 		status = "okay";
-		parent = <&pd_bus1>;
 		#power-domain-cells = <0>;
 	};
 
@@ -262,8 +248,121 @@
 		need_smc = <0x1CC10204>;
 		cmu_id = <0x1CC00000>;
 		status = "okay";
-		parent = <&pd_bus2>;
 		#power-domain-cells = <0>;
 	};
 
+	dbgdev-pd-aoc {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_aoc>;
+	};
+
+	dbgdev-pd-bus1 {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_bus1>;
+	};
+
+	dbgdev-pd-bus2 {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_bus2>;
+	};
+
+	dbgdev-pd-eh {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_eh>;
+	};
+
+	dbgdev-pd-embedded_g3d {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_embedded_g3d>;
+	};
+
+	dbgdev-pd-g3d {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_g3d>;
+	};
+
+	dbgdev-pd-hsi0 {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_hsi0>;
+	};
+
+	dbgdev-pd-hsi2 {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_hsi2>;
+	};
+
+	dbgdev-pd-dpu {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_dpu>;
+	};
+
+	dbgdev-pd-disp {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_disp>;
+	};
+
+	dbgdev-pd-g2d {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_g2d>;
+	};
+
+	dbgdev-pd-mfc {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_mfc>;
+	};
+
+	dbgdev-pd-csis {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_csis>;
+	};
+
+	dbgdev-pd-pdp {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_pdp>;
+	};
+
+	dbgdev-pd-dns {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_dns>;
+	};
+
+	dbgdev-pd-g3aa {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_g3aa>;
+	};
+
+	dbgdev-pd-ipp {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_ipp>;
+	};
+
+	dbgdev-pd-itp {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_itp>;
+	};
+
+	dbgdev-pd-mcsc {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_mcsc>;
+	};
+
+	dbgdev-pd-gdc {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_gdc>;
+	};
+
+	dbgdev-pd-tnr {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_tnr>;
+	};
+
+	dbgdev-pd-bo {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_bo>;
+	};
+
+	dbgdev-pd-tpu {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_tpu>;
+	};
 };

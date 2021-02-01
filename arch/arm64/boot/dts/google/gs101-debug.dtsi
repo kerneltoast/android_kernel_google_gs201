@@ -114,7 +114,7 @@
 		panic_count = <0>;
 		err_fatal = <GO_S2D_ID>;
 		err_drex_tmout = <GO_S2D_ID>;
-		err_ip = <GO_S2D_ID>;
+		err_ip = <GO_DEFAULT_ID>;
 		err_cpu = <GO_S2D_ID>;
 		err_unhandled = <GO_PANIC_ID>;
 	};
@@ -232,6 +232,13 @@
 			offset = <0xA000>;
 			buf-size = <0x100000>;
 		};
+	};
+
+	etr-miu@11090000 {
+		compatible = "google,gs101-etr-miu";
+		reg = <0x0 0x11090000 0x100>;
+		tmc_buf_addr = <0x00000010 0x00000000>;
+		tmc_buf_size = <0x80000000>;
 	};
 
 	exynos-adv_tracer {

@@ -5,6 +5,7 @@
  * MAX77759 TCPCI driver
  */
 
+#include <linux/debugfs.h>
 #include <linux/extcon.h>
 #include <linux/extcon-provider.h>
 #include <linux/gpio.h>
@@ -411,6 +412,11 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 	bool enable_data = false;
 	struct regmap *regmap = chip->data.regmap;
 
+	if (chip->force_device_mode_on) {
+		logbuffer_log(chip->log, "%s skipping as force_device_mode_on is set", __func__);
+		return;
+	}
+
 	logbuffer_log(chip->log,
 		      "%s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
 		      __func__, chip->pd_capable ? 1 : 0, chip->pd_data_capable ? 1 : 0,
@@ -422,11 +428,9 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 		 1 : 0, chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
 		 chip->debug_acc_connected);
 
-	if (chip->pd_capable)
-		enable_data = chip->pd_data_capable;
-	else
-		enable_data = chip->no_bc_12 || chip->bc12_data_capable || chip->data_role ==
-			TYPEC_HOST || chip->debug_acc_connected;
+	enable_data = (chip->pd_capable && chip->pd_data_capable) || chip->no_bc_12 ||
+		chip->bc12_data_capable || chip->data_role == TYPEC_HOST ||
+		chip->debug_acc_connected;
 
 	if (chip->attached && enable_data && !chip->data_active) {
 		if (chip->data_role == TYPEC_HOST) {
@@ -681,6 +685,11 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		chip->vbus_present = 0;
 		logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
 		tcpm_vbus_change(tcpci->port);
+		if (chip->force_device_mode_on) {
+			ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
+			logbuffer_log(chip->log, "Forcing on dp switches %s", ret < 0 ? "fail" :
+				      "success");
+		}
 	}
 
 	if (status & TCPC_ALERT_CC_STATUS) {
@@ -1112,14 +1121,13 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 
 	mutex_lock(&chip->data_path_lock);
 	chip->pd_data_capable = usb_comm_capable;
-	if (chip->pd_capable)
-		enable_data = chip->pd_data_capable;
-	else
-		enable_data = chip->no_bc_12 || chip->bc12_data_capable || chip->data_role ==
-			TYPEC_HOST || chip->debug_acc_connected;
 
-	if (chip->data_active && ((chip->active_data_role != data_role) ||
-				  !attached || !enable_data)) {
+	enable_data = (chip->pd_capable && chip->pd_data_capable) || chip->no_bc_12 ||
+		chip->bc12_data_capable || chip->data_role == TYPEC_HOST ||
+		chip->debug_acc_connected;
+
+	if (!chip->force_device_mode_on && chip->data_active &&
+	    (chip->active_data_role != data_role || !attached || !enable_data)) {
 		ret = extcon_set_state_sync(chip->extcon,
 					    chip->active_data_role ==
 					    TYPEC_HOST ? EXTCON_USB_HOST :
@@ -1194,6 +1202,70 @@ static int tcpci_init(struct tcpci *tcpci, struct tcpci_data *data)
 	 */
 	return -1;
 }
+
+#ifdef CONFIG_DEBUG_FS
+static ssize_t force_device_mode_on_write(struct file *file, const char __user *ubuf, size_t count,
+					  loff_t *ppos)
+{
+	struct max77759_plat *chip = file->private_data;
+	long result, ret;
+
+	ret = kstrtol_from_user(ubuf, count, 10, &result);
+	if (ret)
+		return ret;
+
+	if (result == chip->force_device_mode_on)
+		return count;
+
+	mutex_lock(&chip->data_path_lock);
+	chip->force_device_mode_on = result;
+	/* Tear down previous data role if needed */
+	if (((result && chip->active_data_role != TYPEC_DEVICE) ||
+	    (!result && chip->active_data_role != chip->data_role)) && chip->data_active) {
+		ret = extcon_set_state_sync(chip->extcon,
+					    chip->active_data_role == TYPEC_HOST ?
+					    EXTCON_USB_HOST : EXTCON_USB, 0);
+
+		logbuffer_log(chip->log, "%s: %s turning off %s", __func__, ret < 0 ?
+			      "Failed" : "Succeeded", chip->active_data_role == TYPEC_HOST ?
+			      "Host" : "Device");
+		chip->data_active = false;
+	}
+
+	if (result && !chip->data_active) {
+		ret = extcon_set_state_sync(chip->extcon, EXTCON_USB, 1);
+		logbuffer_log(chip->log, "%s: %s turning on device", __func__, ret < 0 ? "Failed" :
+			      "Succeeded");
+		chip->data_active = !ret;
+		chip->active_data_role = TYPEC_DEVICE;
+
+	} else if (!result) {
+		enable_data_path_locked(chip);
+	}
+
+	mutex_unlock(&chip->data_path_lock);
+	return count;
+}
+
+static ssize_t force_device_mode_on_read(struct file *file, char __user *userbuf, size_t count,
+					 loff_t *ppos)
+{
+	struct max77759_plat *chip = file->private_data;
+	char buf[16];
+	int ret;
+
+	ret = snprintf(buf, sizeof(buf) - 1, "%d\n", chip->force_device_mode_on);
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, ret);
+}
+
+static const struct file_operations force_device_mode_on_fops = {
+	.read	= force_device_mode_on_read,
+	.write	= force_device_mode_on_write,
+	.open	= simple_open,
+	.llseek = default_llseek,
+};
+#endif
 
 static int max77759_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
@@ -1375,14 +1447,27 @@ static int max77759_probe(struct i2c_client *client,
 				ret);
 	}
 
+#ifdef CONFIG_DEBUG_FS
+	chip->dentry = debugfs_create_dir("tcpci_max77759", NULL);
+	if (IS_ERR(chip->dentry)) {
+		dev_err(&client->dev, "TCPCI: debugfs dentry failed: %d", PTR_ERR(chip->dentry));
+	} else {
+		debugfs_create_file("force_device_mode_on", 0644, chip->dentry, chip,
+				    &force_device_mode_on_fops);
+	}
+#endif
+
 #ifdef CONFIG_GPIOLIB
 	ret = ext_bst_en_gpio_init(chip);
 	if (ret)
-		goto remove_dev_attr;
+		goto remove_files;
 #endif
 	return 0;
 
-remove_dev_attr:
+remove_files:
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(chip->dentry);
+#endif
 	for (i = 0; max77759_device_attrs[i]; i++)
 		device_remove_file(&client->dev, max77759_device_attrs[i]);
 unreg_port:
@@ -1404,6 +1489,9 @@ static int max77759_remove(struct i2c_client *client)
 	struct max77759_plat *chip = i2c_get_clientdata(client);
 	int i;
 
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(chip->dentry);
+#endif
 	for (i = 0; max77759_device_attrs[i]; i++)
 		device_remove_file(&client->dev, max77759_device_attrs[i]);
 	if (!IS_ERR_OR_NULL(chip->tcpci))

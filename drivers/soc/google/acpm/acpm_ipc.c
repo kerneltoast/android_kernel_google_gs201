@@ -19,12 +19,15 @@
 #include <linux/sched/clock.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
+#include <linux/debugfs.h>
 #include <soc/google/exynos-debug.h>
+#include <soc/google/debug-snapshot.h>
 
 #include "acpm.h"
 #include "acpm_ipc.h"
 #include "../cal-if/fvmap.h"
 #include "fw_header/framework.h"
+#include "../vh/kernel/systrace.h"
 
 #define IPC_TIMEOUT				(200000000)
 #define APM_SYSTICK_PERIOD_US			(20345)
@@ -219,11 +222,6 @@ void acpm_stop_log(void)
 	acpm_log_print();
 }
 EXPORT_SYMBOL_GPL(acpm_stop_log);
-
-static void acpm_update_log(struct work_struct *work)
-{
-	acpm_log_print();
-}
 
 static void acpm_debug_logging(struct work_struct *work)
 {
@@ -558,7 +556,7 @@ int acpm_ipc_send_data_sync(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
 	struct acpm_ipc_ch *channel;
-
+	ATRACE_BEGIN(__func__);
 	ret = acpm_ipc_send_data(channel_id, cfg);
 
 	if (!ret) {
@@ -575,7 +573,7 @@ int acpm_ipc_send_data_sync(unsigned int channel_id, struct ipc_config *cfg)
 			}
 		}
 	}
-
+	ATRACE_END();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_send_data_sync);
@@ -699,11 +697,8 @@ retry:
 			acpm_ramdump();
 
 			dump_stack();
-			s3c2410wdt_set_emergency_reset(0, 0);
+			dbg_snapshot_do_dpm_policy(acpm_ipc->panic_action, "acpm_ipc timeout");
 		}
-
-		if (!is_acpm_stop_log)
-			queue_work_on(0, update_log_wq, &acpm_debug->update_log_work);
 	}
 
 	up(&channel->send_sem);
@@ -713,9 +708,9 @@ retry:
 int acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
-
+	ATRACE_BEGIN(__func__);
 	ret = __acpm_ipc_send_data(channel_id, cfg, false);
-
+	ATRACE_END();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_send_data);
@@ -723,12 +718,12 @@ EXPORT_SYMBOL_GPL(acpm_ipc_send_data);
 int acpm_ipc_send_data_lazy(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
-
+	ATRACE_BEGIN(__func__);
 	if (is_rt_dl_task_policy())
 		ret = __acpm_ipc_send_data(channel_id, cfg, true);
 	else
 		ret = __acpm_ipc_send_data(channel_id, cfg, false);
-
+	ATRACE_END();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(acpm_ipc_send_data_lazy);
@@ -859,6 +854,42 @@ static void acpm_error_log_ipc_callback(unsigned int *cmd, unsigned int size)
 	acpm_log_print();
 }
 
+static int debug_acpm_ipc_panic_action_get(void *data, u64 *val)
+{
+	struct acpm_ipc_info *acpm_ipc = (struct acpm_ipc_info *)data;
+
+	*val = acpm_ipc->panic_action;
+
+	return 0;
+}
+
+static int debug_acpm_ipc_panic_action_set(void *data, u64 val)
+{
+	struct acpm_ipc_info *acpm_ipc = (struct acpm_ipc_info *)data;
+
+	if (val < 0 || val >= GO_ACTION_MAX)
+		return -ERANGE;
+	acpm_ipc->panic_action = val;
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_ipc_panic_action_fops,
+			debug_acpm_ipc_panic_action_get,
+			debug_acpm_ipc_panic_action_set,
+			"%d\n");
+
+static void acpm_ipc_debugfs_init(struct acpm_ipc_info *acpm_ipc)
+{
+	struct dentry *den;
+
+	den = debugfs_lookup("acpm_framework", NULL);
+	if (!den)
+		den = debugfs_create_dir("acpm_framework", NULL);
+	debugfs_create_file("acpm_ipc_panic_action", 0644, den, acpm_ipc,
+			    &debug_acpm_ipc_panic_action_fops);
+}
+
 int acpm_ipc_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -903,6 +934,12 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	acpm_initdata = acpm_ipc->initdata;
 	acpm_srambase = acpm_ipc->sram_base;
 
+	if (of_property_read_u32(node, "panic-action",
+				&acpm_ipc->panic_action))
+		acpm_ipc->panic_action = GO_WATCHDOG_ID;
+
+	acpm_ipc_debugfs_init(acpm_ipc);
+
 	acpm_ipc->dev = &pdev->dev;
 
 	ret = devm_request_threaded_irq(&pdev->dev, acpm_ipc->irq,
@@ -922,10 +959,9 @@ int acpm_ipc_probe(struct platform_device *pdev)
 
 	update_log_wq = alloc_workqueue("%s",
 					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-					1, "acpm_update_log");
-	INIT_WORK(&acpm_debug->update_log_work, acpm_update_log);
+					1, "acpm_log");
 
-	if (acpm_debug->period)
+	if (acpm_debug->debug_log_level && acpm_debug->period)
 		INIT_DELAYED_WORK(&acpm_debug->periodic_work, acpm_debug_logging);
 
 	if (acpm_ipc_request_channel(node, acpm_error_log_ipc_callback,

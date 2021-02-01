@@ -24,14 +24,14 @@ static struct dentry *exynos_pd_dbg_root;
 
 static int exynos_pd_dbg_long_test(struct device *dev)
 {
-	int ret, i;
+	int ret = 0, i;
 
-	pr_info("test start.\n");
+	dev_info(dev, "Starting test\n");
 
 	if (pm_runtime_enabled(dev) && pm_runtime_active(dev)) {
 		ret = pm_runtime_put_sync(dev);
 		if (ret) {
-			pr_err("put sync failed.\n");
+			dev_err(dev, "put failed\n");
 			return ret;
 		}
 	}
@@ -39,262 +39,84 @@ static int exynos_pd_dbg_long_test(struct device *dev)
 	for (i = 0; i < 100; i++) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret) {
-			pr_err("get sync failed.\n");
+			dev_err(dev, "%d get failed\n", i);
 			return ret;
 		}
 		mdelay(50);
 		ret = pm_runtime_put_sync(dev);
 		if (ret) {
-			pr_err("put sync failed.\n");
+			dev_err(dev, "%d put failed\n", i);
 			return ret;
 		}
 		mdelay(50);
 	}
 
-	pr_info("test done.\n");
+	dev_info(dev, "Test done\n");
 
 	return ret;
 }
 
-static struct generic_pm_domain *exynos_pd_dbg_dev_to_genpd(struct device *dev)
+static int debug_state_get(void *data, u64 *val)
 {
-	if (IS_ERR_OR_NULL(dev->pm_domain))
-		return ERR_PTR(-EINVAL);
+	struct device *dev = data;
 
-	return pd_to_genpd(dev->pm_domain);
-}
-
-static void exynos_pd_dbg_genpd_lock_spin(struct generic_pm_domain *genpd)
-	__acquires(&genpd->slock)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&genpd->slock, flags);
-	genpd->lock_flags = flags;
-}
-
-static void exynos_pd_dbg_genpd_unlock_spin(struct generic_pm_domain *genpd)
-	__releases(&genpd->slock)
-{
-	spin_unlock_irqrestore(&genpd->slock, genpd->lock_flags);
-}
-
-static void exynos_pd_dbg_genpd_lock(struct generic_pm_domain *genpd)
-{
-	if (genpd->flags & GENPD_FLAG_IRQ_SAFE)
-		exynos_pd_dbg_genpd_lock_spin(genpd);
-	else
-		mutex_lock(&genpd->mlock);
-}
-
-static void exynos_pd_dbg_genpd_unlock(struct generic_pm_domain *genpd)
-{
-	if (genpd->flags & GENPD_FLAG_IRQ_SAFE)
-		exynos_pd_dbg_genpd_unlock_spin(genpd);
-	else
-		mutex_unlock(&genpd->mlock);
-}
-
-static void exynos_pd_dbg_summary_show(struct generic_pm_domain *genpd)
-{
-	static const char * const gpd_status_lookup[] = {
-		[GPD_STATE_ACTIVE] = "on",
-		[GPD_STATE_POWER_OFF] = "off"
-	};
-	static const char * const rpm_status_lookup[] = {
-		[RPM_ACTIVE] = "active",
-		[RPM_RESUMING] = "resuming",
-		[RPM_SUSPENDED] = "suspended",
-		[RPM_SUSPENDING] = "suspending"
-	};
-	const char *p = "";
-	struct pm_domain_data *pm_data;
-	struct gpd_link *link;
-
-	exynos_pd_dbg_genpd_lock(genpd);
-
-	if (genpd->status >= ARRAY_SIZE(gpd_status_lookup)) {
-		pr_err("invalid GPD_STATUS\n");
-		exynos_pd_dbg_genpd_unlock(genpd);
-		return;
-	}
-
-	pr_info("[GENPD] : %-30s [GPD_STATUS] : %-15s\n",
-		genpd->name, gpd_status_lookup[genpd->status]);
-
-	list_for_each_entry(pm_data, &genpd->dev_list, list_node) {
-		if (pm_data->dev->power.runtime_error)
-			p = "error";
-		else if (pm_data->dev->power.disable_depth)
-			p = "unsupported";
-		else if (pm_data->dev->power.runtime_status <
-			       ARRAY_SIZE(rpm_status_lookup))
-			p =
-			rpm_status_lookup[pm_data->dev->power.runtime_status];
-		else
-			WARN_ON(1);
-
-		pr_info("\t[DEV] : %-30s [RPM_STATUS] : %-15s\n",
-			dev_name(pm_data->dev), p);
-	}
-
-	list_for_each_entry(link, &genpd->parent_links, parent_node)
-		exynos_pd_dbg_summary_show(link->child);
-
-	exynos_pd_dbg_genpd_unlock(genpd);
-}
-
-static ssize_t exynos_pd_dbg_read(struct file *file, char __user *user_buf,
-				  size_t count, loff_t *ppos)
-{
-	struct device *dev = file->private_data;
-	struct generic_pm_domain *genpd = exynos_pd_dbg_dev_to_genpd(dev);
-
-	exynos_pd_dbg_summary_show(genpd);
+	*val = dev->power.runtime_status;
 
 	return 0;
 }
 
-static ssize_t exynos_pd_dbg_write(struct file *file,
-				   const char __user *user_buf,
-				   size_t count, loff_t *ppos)
+static int debug_state_set(void *data, u64 val)
 {
-	struct device *dev = file->private_data;
-	char buf[32];
-	size_t buf_size;
+	struct device *dev = data;
+	int ret = 0;
 
-	buf_size = min(count, (sizeof(buf) - 1));
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	switch (buf[0]) {
-	case '0':
-		if (pm_runtime_put_sync(dev))
-			pr_err("put sync failed.\n");
-		break;
-	case '1':
-		if (pm_runtime_get_sync(dev))
-			pr_err("get sync failed.\n");
-		break;
-	case 'c':
-		exynos_pd_dbg_long_test(dev);
-		break;
-	default:
-		pr_err("Invalid input ['0'|'1'|'c']\n");
-		break;
+	if (val == 0) {
+		ret = pm_runtime_put_sync(dev);
+		if (ret)
+			dev_err(dev, "put failed");
+	} else if (val == 1) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret)
+			dev_err(dev, "get failed");
+	} else {
+		ret = exynos_pd_dbg_long_test(dev);
 	}
 
-	return count;
+	return ret;
 }
 
-static const struct file_operations exynos_pd_dbg_fops = {
-	.open = simple_open,
-	.read = exynos_pd_dbg_read,
-	.write = exynos_pd_dbg_write,
-	.llseek = default_llseek,
-};
+DEFINE_SIMPLE_ATTRIBUTE(state_fops, debug_state_get, debug_state_set, "%d\n");
 #endif
 
 static int exynos_pd_dbg_probe(struct platform_device *pdev)
 {
-	int ret;
-	struct exynos_pd_dbg_info *dbg_info;
-
-	dbg_info = kzalloc(sizeof(*dbg_info), GFP_KERNEL);
-	if (!dbg_info) {
-		ret = -ENOMEM;
-		goto err_dbg_info;
-	}
-	dbg_info->dev = &pdev->dev;
 #ifdef CONFIG_DEBUG_FS
-	if (!exynos_pd_dbg_root) {
+	if (!exynos_pd_dbg_root)
 		exynos_pd_dbg_root = debugfs_create_dir("exynos-pd", NULL);
-		if (!exynos_pd_dbg_root) {
-			pr_err("could not create debugfs dir\n");
-			ret = -ENOMEM;
-			goto err_dbgfs_root;
-		}
-	}
 
-	dbg_info->fops = exynos_pd_dbg_fops;
-	dbg_info->d = debugfs_create_file(dev_name(&pdev->dev), 0644,
-					  exynos_pd_dbg_root, dbg_info->dev,
-					  &dbg_info->fops);
-	if (!dbg_info->d) {
-		pr_err("could not creatd debugfs file\n");
-		ret = -ENOMEM;
-		goto err_dbgfs_pd;
-	}
+	debugfs_create_file(dev_name(&pdev->dev), 0644, exynos_pd_dbg_root,
+			    &pdev->dev, &state_fops);
 #endif
-	platform_set_drvdata(pdev, dbg_info);
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret) {
-		pr_err("get_sync of %s failed.\n", dev_name(&pdev->dev));
-		goto err_get_sync;
-	}
-
-	ret = pm_runtime_put_sync(&pdev->dev);
-	if (ret) {
-		pr_err("put sync of %s failed.\n", dev_name(&pdev->dev));
-		goto err_put_sync;
-	}
+	if (pm_runtime_get_sync(&pdev->dev))
+		dev_err(&pdev->dev, "probe get failed\n");
+	else if (pm_runtime_put_sync(&pdev->dev))
+		dev_err(&pdev->dev, "probe put failed\n");
 
 	return 0;
-
-err_get_sync:
-err_put_sync:
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(dbg_info->d);
-err_dbgfs_pd:
-	debugfs_remove_recursive(exynos_pd_dbg_root);
-err_dbgfs_root:
-#endif
-	kfree(dbg_info);
-err_dbg_info:
-	return ret;
 }
 
 static int exynos_pd_dbg_remove(struct platform_device *pdev)
 {
-	struct exynos_pd_dbg_info *dbg_info = platform_get_drvdata(pdev);
-	struct device *dev = dbg_info->dev;
-
-	if (pm_runtime_enabled(dev) && pm_runtime_active(dev))
-		pm_runtime_put_sync(dev);
-
-	pm_runtime_disable(dev);
-
+	pm_runtime_disable(&pdev->dev);
 #ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(dbg_info->d);
 	debugfs_remove_recursive(exynos_pd_dbg_root);
+	exynos_pd_dbg_root = NULL;
 #endif
-	kfree(dbg_info);
-
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
-
-static int exynos_pd_dbg_runtime_suspend(struct device *dev)
-{
-	pr_info("%s's Runtime_Suspend\n", dev_name(dev));
-	return 0;
-}
-
-static int exynos_pd_dbg_runtime_resume(struct device *dev)
-{
-	pr_info("%s %s's Runtime_Resume\n", dev_name(dev));
-	return 0;
-}
-
-static const struct dev_pm_ops exynos_pd_dbg_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos_pd_dbg_runtime_suspend,
-			   exynos_pd_dbg_runtime_resume,
-			   NULL)
-};
 
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_pd_dbg_match[] = {
@@ -311,7 +133,6 @@ static struct platform_driver exynos_pd_dbg_drv = {
 	.driver		= {
 		.name	= "exynos_pd_dbg",
 		.owner	= THIS_MODULE,
-		.pm	= &exynos_pd_dbg_pm_ops,
 #ifdef CONFIG_OF
 		.of_match_table = exynos_pd_dbg_match,
 #endif
@@ -325,4 +146,4 @@ static int __init exynos_pd_dbg_init(void)
 late_initcall(exynos_pd_dbg_init);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Exynos PM domain Support");
+MODULE_DESCRIPTION("Exynos PM domain debug");

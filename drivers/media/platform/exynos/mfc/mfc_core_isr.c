@@ -602,6 +602,20 @@ static struct mfc_buf *__mfc_handle_frame_output(struct mfc_core *core,
 	return __mfc_handle_frame_output_del(core, ctx, err);
 }
 
+static void __mfc_handle_error_state(struct mfc_ctx *ctx, struct mfc_core_ctx *core_ctx)
+{
+	mfc_err("[MSR] It's Error state: cleanup queue\n");
+	MFC_TRACE_CORE_CTX("*** ERROR state\n");
+
+	mfc_change_state(core_ctx, MFCINST_ERROR);
+
+	/* Mark all dst buffers as having an error */
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
+	/* Mark all src buffers as having an error */
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->src_buf_ready_queue);
+	mfc_cleanup_queue(&ctx->buf_queue_lock, &core_ctx->src_buf_queue);
+}
+
 /* Error handling for interrupt */
 static inline void __mfc_handle_error(struct mfc_core *core, struct mfc_ctx *ctx,
 	unsigned int reason, unsigned int err)
@@ -661,11 +675,7 @@ static inline void __mfc_handle_error(struct mfc_core *core, struct mfc_ctx *ctx
 	case MFCINST_FINISHING:
 		/* It is higly probable that an error occured
 		 * while decoding a frame */
-		mfc_change_state(core_ctx, MFCINST_ERROR);
-		/* Mark all dst buffers as having an error */
-		mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
-		/* Mark all src buffers as having an error */
-		mfc_cleanup_queue(&ctx->buf_queue_lock, &core_ctx->src_buf_queue);
+		__mfc_handle_error_state(ctx, core_ctx);
 		break;
 	default:
 		mfc_err("Encountered an error interrupt which had not been handled\n");
@@ -727,6 +737,11 @@ static void __mfc_handle_frame_error(struct mfc_core *core, struct mfc_ctx *ctx,
 		mfc_debug(2, "[STREAM] consumed only by error (state: %d)\n", vb2_state);
 		vb2_buffer_done(&src_mb->vb.vb2_buf, vb2_state);
 	}
+
+	if (mfc_get_err(err) == MFC_REG_ERR_UNDEFINED_EXCEPTION)
+		mfc_core_handle_error(core);
+	else
+		__mfc_handle_error_state(ctx, core_ctx);
 
 	mfc_debug(2, "Assesing whether this context should be run again\n");
 }
@@ -1000,6 +1015,11 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 
 	if (regression_option & MFC_TEST_DEC_PER_FRAME)
 		mfc_core_dec_save_regression_result(core);
+
+#ifdef CONFIG_MFC_USE_COREDUMP
+	if (sscd_report && (ctx->frame_cnt == 200))
+		call_dop(core, dump_and_stop_debug_mode, core);
+#endif
 
 leave_handle_frame:
 	mfc_debug(2, "Assesing whether this context should be run again\n");
@@ -1396,7 +1416,8 @@ static int __mfc_handle_seq_dec(struct mfc_core *core, struct mfc_ctx *ctx)
 	}
 
 	if (ctx->img_width == 0 || ctx->img_height == 0) {
-		mfc_change_state(core_ctx, MFCINST_ERROR);
+		mfc_err("[STREAM] wrong resolution w: %d, h: %d\n",
+				ctx->img_width, ctx->img_height);
 	} else {
 		is_interlace = mfc_core_is_interlace_picture();
 		is_mbaff = mfc_core_is_mbaff_picture();

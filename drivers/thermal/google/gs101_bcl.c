@@ -24,6 +24,8 @@
 #include <linux/mfd/samsung/s2mpg10-register.h>
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/s2mpg11-register.h>
+#include <soc/google/exynos-pm.h>
+#include <soc/google/exynos-pmu-if.h>
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -36,12 +38,15 @@
 #define CPUCL1_BASE (0x20c10000)
 #define CPUCL2_BASE (0x20c20000)
 #define G3D_BASE (0x1c400000)
-#define TPU_BASE (0x1c400000)
+#define TPU_BASE (0x1cc00000)
 #define SYSREG_CPUCL0_BASE (0x20c40000)
 #define CLUSTER0_GENERAL_CTRL_64 (0x1404)
 #define CLKDIVSTEP (0x830)
 #define CPUCL0_CLKDIVSTEP_STAT (0x83c)
+#define CPUCL0_CLKDIVSTEP_CON (0x838)
 #define CPUCL12_CLKDIVSTEP_STAT (0x848)
+#define CPUCL12_CLKDIVSTEP_CON_HEAVY (0x840)
+#define CPUCL12_CLKDIVSTEP_CON_LIGHT (0x844)
 #define G3D_CLKDIVSTEP_STAT (0x854)
 #define TPU_CLKDIVSTEP_STAT (0x850)
 #define CLUSTER0_MPMM (0x1408)
@@ -75,6 +80,19 @@
 #define PMIC_OVERHEAT_UPPER_LIMIT (2000)
 #define PMIC_120C_UPPER_LIMIT (1200)
 #define PMIC_140C_UPPER_LIMIT (1400)
+#define BUF_SIZE 192
+#define PMU_ALIVE_CPU1_OUT (0x1D20)
+#define PMU_ALIVE_CPU2_OUT (0x1DA0)
+#define PMU_ALIVE_TPU_OUT (0x2920)
+#define PMU_ALIVE_GPU_OUT (0x1E20)
+
+#define BCL_DEBUG_ATTRIBUTE(name, fn_read, fn_write) \
+static const struct file_operations name = {	\
+	.open	= simple_open,			\
+	.llseek	= no_llseek,			\
+	.read	= fn_read,			\
+	.write	= fn_write,			\
+}
 
 enum PMIC_THERMAL_SENSOR {
 	PMIC_SOC,
@@ -103,8 +121,6 @@ enum IRQ_SOURCE_S2MPG11 {
 	IRQ_SOFT_OCP_WARN_GPU,
 	IRQ_SOURCE_S2MPG11_MAX,
 };
-
-enum sys_throttling_core { SYS_THROTTLING_MID_CORE, SYS_THROTTLING_BIG_CORE };
 
 enum sys_throttling_switch {
 	SYS_THROTTLING_DISABLED,
@@ -139,6 +155,7 @@ struct gs101_bcl_dev {
 	int trip_low_temp;
 	int trip_val;
 	struct mutex state_trans_lock;
+	struct mutex ratio_lock;
 	struct thermal_zone_device *soc_tzd;
 	struct thermal_zone_of_device_ops soc_ops;
 	struct mutex s2mpg10_irq_lock[IRQ_SOURCE_S2MPG10_MAX];
@@ -172,6 +189,14 @@ static const struct platform_device_id google_gs101_id_table[] = {
 };
 
 DEFINE_MUTEX(sysreg_lock);
+
+static bool is_subsystem_on(unsigned int addr)
+{
+	unsigned int value;
+
+	exynos_pmu_read(addr, &value);
+	return ((value & 0xF) == 0x4);
+}
 
 static int s2mpg10_read_level(void *data, int *val, int id)
 {
@@ -686,125 +711,321 @@ static int gs101_bcl_soc_remove(struct gs101_bcl_dev *gs101_bcl_device)
 	return 0;
 }
 
-static int get_cpucl0_stat(void *data, u64 *val)
+static ssize_t clk_ratio_get(struct gs101_bcl_dev *bcl_dev, char __user *buf, size_t count,
+			     loff_t *ppos, void __iomem *addr, const char *label,
+			     bool is_subsystem_on)
 {
+	char buff[BUF_SIZE];
+	int len = 0;
 	unsigned int reg = 0;
-	struct gs101_bcl_dev *bcl_dev = data;
+	unsigned int step_count, step_size, numerator, denominator;
 
-	reg = __raw_readl(bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_STAT);
-	*val = (reg >> 16) & 0x0FFF;
+	if (!is_subsystem_on) {
+
+		len = scnprintf(buff, BUF_SIZE, "%s is off.\n\n", label);
+		return simple_read_from_buffer(buf, count, ppos, buff, len);
+	}
+
+	reg = __raw_readl(addr);
+	step_count = (reg >> 20) & 0xFFF;
+	step_size = (reg >> 14) & 0x3F;
+	numerator = (reg >> 6) & 0x3F;
+	denominator = reg & 0x3F;
+
+	len = scnprintf(buff, BUF_SIZE, "%s:0x%x\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s:\n%s%s\n\n",
+			label, reg, "Step count [31:20]", step_count,
+			"Step size [19:14]", step_size, "Numerator [11:6]", numerator,
+			"Denominator [5:0]", denominator,
+			"To set", "echo 0x(value) > ", label);
+
+	return simple_read_from_buffer(buf, count, ppos, buff, len);
+}
+
+static ssize_t clk_ratio_set(struct gs101_bcl_dev *bcl_dev, struct file *filp,
+			     const char __user *user_buf,
+			     size_t count, loff_t *ppos, void __iomem *addr)
+{
+	int ret;
+	char buf[16];
+	unsigned int value;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (ret < 0)
+		return ret;
+	buf[ret] = 0;
+
+	ret = sscanf(buf, "0x%x", &value);
+	if (ret != 1)
+		return -EINVAL;
+
+	/* Denominator cannot be zero */
+	if ((value & 0x3F) == 0)
+		return -EINVAL;
+
+	mutex_lock(&bcl_dev->ratio_lock);
+	__raw_writel(value, addr);
+	mutex_unlock(&bcl_dev->ratio_lock);
+
 	return 0;
 }
 
-static int reset_cpucl0_stat(void *data, u64 val)
+static ssize_t tpu_clk_ratio_get(struct file *filp, char __user *buf,
+				 size_t count, loff_t *ppos)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
 
-	if (val == 0)
-		__raw_writel(0x1, bcl_dev->cpu0_mem + CLKDIVSTEP);
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->tpu_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY,
+			     "tpu_clkdiv_ratio_heavy", is_subsystem_on(PMU_ALIVE_TPU_OUT));
+}
+
+static ssize_t tpu_clk_ratio_set(struct file *filp, const char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	if (!is_subsystem_on(PMU_ALIVE_TPU_OUT))
+		return -EIO;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->tpu_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
+}
+
+static ssize_t gpu_clk_ratio_get(struct file *filp, char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->gpu_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY,
+			     "gpu_clkdiv_ratio_heavy", is_subsystem_on(PMU_ALIVE_GPU_OUT));
+}
+
+static ssize_t gpu_clk_ratio_set(struct file *filp, const char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	if (!is_subsystem_on(PMU_ALIVE_GPU_OUT))
+		return -EIO;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->gpu_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
+}
+
+static ssize_t cpucl0_clk_ratio_get(struct file *filp, char __user *buf,
+				    size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_CON,
+			     "cpucl0_clkdiv_ratio_heavy", true);
+}
+
+static ssize_t cpucl0_clk_ratio_set(struct file *filp, const char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_CON);
+}
+
+static ssize_t cpucl1_clk_ratio_get(struct file *filp, char __user *buf,
+				    size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY,
+			     "cpucl1_clkdiv_ratio_heavy", is_subsystem_on(PMU_ALIVE_CPU1_OUT));
+}
+
+static ssize_t cpucl1_clk_ratio_set(struct file *filp, const char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	if (!is_subsystem_on(PMU_ALIVE_CPU1_OUT))
+		return -EIO;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
+}
+
+static ssize_t cpucl2_clk_ratio_get(struct file *filp, char __user *buf,
+				    size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY,
+			     "cpucl2_clkdiv_ratio_heavy", is_subsystem_on(PMU_ALIVE_CPU2_OUT));
+}
+
+static ssize_t cpucl2_clk_ratio_set(struct file *filp, const char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	if (!is_subsystem_on(PMU_ALIVE_CPU2_OUT))
+		return -EIO;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
+}
+
+BCL_DEBUG_ATTRIBUTE(tpu_clk_ratio_fops, tpu_clk_ratio_get, tpu_clk_ratio_set);
+BCL_DEBUG_ATTRIBUTE(gpu_clk_ratio_fops, gpu_clk_ratio_get, gpu_clk_ratio_set);
+BCL_DEBUG_ATTRIBUTE(cpucl0_clk_ratio_fops, cpucl0_clk_ratio_get, cpucl0_clk_ratio_set);
+BCL_DEBUG_ATTRIBUTE(cpucl1_clk_ratio_fops, cpucl1_clk_ratio_get, cpucl1_clk_ratio_set);
+BCL_DEBUG_ATTRIBUTE(cpucl2_clk_ratio_fops, cpucl2_clk_ratio_get, cpucl2_clk_ratio_set);
+
+static ssize_t reset_stats(const char __user *user_buf, size_t count, loff_t *ppos,
+			   void __iomem *addr, bool is_subsystem_on)
+{
+	int ret;
+	char buf[1];
+
+	if (!is_subsystem_on)
+		return -EIO;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
+	if (!ret)
+		return -EFAULT;
+
+	if (buf[0] == '0')
+		__raw_writel(0x1, addr);
 	else
-		__raw_writel(0x107f, bcl_dev->cpu0_mem + CLKDIVSTEP);
+		__raw_writel(0x107f, addr);
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(cpucl0_clkdivstep_stat_fops, get_cpucl0_stat,
-			reset_cpucl0_stat, "%d\n");
-
-static int get_cpucl2_stat(void *data, u64 *val)
+static ssize_t trigger_stats_get(struct gs101_bcl_dev *bcl_dev, char __user *buf, size_t count,
+				 loff_t *ppos, void __iomem *addr, const char *label,
+				 bool is_subsystem_on)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
+	char buff[BUF_SIZE];
+	int len = 0;
 	unsigned int reg = 0;
+	unsigned int stepup_run, trig_overflow, trig_cnt_value, current_numerator;
 
-	reg = __raw_readl(bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_STAT);
-	*val = (reg >> 16) & 0x0FFF;
-	return 0;
+	if (!is_subsystem_on) {
+
+		len = scnprintf(buff, BUF_SIZE, "%s is off.\n\n", label);
+		return simple_read_from_buffer(buf, count, ppos, buff, len);
+	}
+
+	reg = __raw_readl(addr);
+	stepup_run = (reg >> 31) & 0x1;
+	trig_overflow = (reg >> 29) & 0x1;
+	trig_cnt_value = (reg >> 16) & 0xFFF;
+	current_numerator = (reg >> 8) & 0x3F;
+
+	len = scnprintf(buff, BUF_SIZE, "%s:0x%x\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s:\n%s%s\n\n",
+			label, reg, "Stepup run [31]", stepup_run,
+			"Trig CNT OFL [29]", trig_overflow, "Trig CNT [27:16]",
+			trig_cnt_value, "Current Num. [14:8]", current_numerator,
+			"To disable/enable", "echo 0/1 > ", label);
+
+	return simple_read_from_buffer(buf, count, ppos, buff, len);
 }
 
-static int reset_cpucl2_stat(void *data, u64 val)
+static ssize_t get_cpucl0_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
 
-	if (val == 0)
-		__raw_writel(0x1, bcl_dev->cpu2_mem + CLKDIVSTEP);
-	else
-		__raw_writel(0x107f, bcl_dev->cpu2_mem + CLKDIVSTEP);
-	return 0;
+	return trigger_stats_get(bcl_dev, buf, count, ppos,
+				 bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_STAT,
+				 "cpucl0_clkdiv_stat", true);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(cpucl2_clkdivstep_stat_fops, get_cpucl2_stat,
-			reset_cpucl2_stat, "%d\n");
-
-static int get_cpucl1_stat(void *data, u64 *val)
+static ssize_t reset_cpucl0_stat(struct file *filp, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
-	unsigned int reg = 0;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
 
-	reg = __raw_readl(bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_STAT);
-	*val = (reg >> 16) & 0x0FFF;
-	return 0;
+	return reset_stats(user_buf, count, ppos, bcl_dev->cpu0_mem + CLKDIVSTEP, true);
 }
 
-static int reset_cpucl1_stat(void *data, u64 val)
+static ssize_t get_cpucl2_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
 
-	if (val == 0)
-		__raw_writel(0x1, bcl_dev->cpu1_mem + CLKDIVSTEP);
-	else
-		__raw_writel(0x107f, bcl_dev->cpu1_mem + CLKDIVSTEP);
-	return 0;
+	return trigger_stats_get(bcl_dev, buf, count, ppos,
+				 bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_STAT,
+				 "cpucl2_clkdiv_stat", is_subsystem_on(PMU_ALIVE_CPU2_OUT));
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(cpucl1_clkdivstep_stat_fops, get_cpucl1_stat,
-			reset_cpucl1_stat, "%d\n");
-
-static int get_gpu_stat(void *data, u64 *val)
+static ssize_t reset_cpucl2_stat(struct file *filp, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
-	unsigned int reg = 0;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
 
-	reg = __raw_readl(bcl_dev->gpu_mem + G3D_CLKDIVSTEP_STAT);
-	*val = (reg >> 16) & 0x0FFF;
-	return 0;
+	return reset_stats(user_buf, count, ppos, bcl_dev->cpu2_mem + CLKDIVSTEP,
+			   is_subsystem_on(PMU_ALIVE_CPU2_OUT));
 }
 
-static int reset_gpu_stat(void *data, u64 val)
+static ssize_t get_cpucl1_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
 
-	if (val == 0)
-		__raw_writel(0x1, bcl_dev->gpu_mem + CLKDIVSTEP);
-	else
-		__raw_writel(0x107f, bcl_dev->gpu_mem + CLKDIVSTEP);
-	return 0;
+	return trigger_stats_get(bcl_dev, buf, count, ppos,
+				 bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_STAT,
+				 "cpucl1_clkdiv_stat", is_subsystem_on(PMU_ALIVE_CPU1_OUT));
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(gpu_clkdivstep_stat_fops, get_gpu_stat,
-			reset_gpu_stat, "%d\n");
-
-static int get_tpu_stat(void *data, u64 *val)
+static ssize_t reset_cpucl1_stat(struct file *filp, const char __user *user_buf,
+				 size_t count, loff_t *ppos)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
-	unsigned int reg = 0;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
 
-	reg = __raw_readl(bcl_dev->tpu_mem + TPU_CLKDIVSTEP_STAT);
-	*val = (reg >> 16) & 0x0FFF;
-	return 0;
+	return reset_stats(user_buf, count, ppos, bcl_dev->cpu1_mem + CLKDIVSTEP,
+			   is_subsystem_on(PMU_ALIVE_CPU1_OUT));
 }
 
-static int reset_tpu_stat(void *data, u64 val)
+static ssize_t get_gpu_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
 
-	if (val == 0)
-		__raw_writel(0x1, bcl_dev->tpu_mem + CLKDIVSTEP);
-	else
-		__raw_writel(0x107f, bcl_dev->tpu_mem + CLKDIVSTEP);
-	return 0;
+	return trigger_stats_get(bcl_dev, buf, count, ppos,
+				 bcl_dev->gpu_mem + G3D_CLKDIVSTEP_STAT,
+				 "gpu_clkdiv_stat", is_subsystem_on(PMU_ALIVE_GPU_OUT));
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(tpu_clkdivstep_stat_fops, get_tpu_stat,
-			reset_tpu_stat, "%d\n");
+static ssize_t reset_gpu_stat(struct file *filp, const char __user *user_buf,
+			  size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return reset_stats(user_buf, count, ppos, bcl_dev->gpu_mem + CLKDIVSTEP,
+			   is_subsystem_on(PMU_ALIVE_GPU_OUT));
+}
+
+static ssize_t get_tpu_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return trigger_stats_get(bcl_dev, buf, count, ppos,
+				 bcl_dev->tpu_mem + TPU_CLKDIVSTEP_STAT,
+				 "tpu_clkdiv_stat", is_subsystem_on(PMU_ALIVE_TPU_OUT));
+}
+
+static ssize_t reset_tpu_stat(struct file *filp, const char __user *user_buf,
+			  size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return reset_stats(user_buf, count, ppos, bcl_dev->tpu_mem + CLKDIVSTEP,
+			   is_subsystem_on(PMU_ALIVE_TPU_OUT));
+}
+
+BCL_DEBUG_ATTRIBUTE(cpucl0_clkdivstep_stat_fops, get_cpucl0_stat, reset_cpucl0_stat);
+BCL_DEBUG_ATTRIBUTE(cpucl1_clkdivstep_stat_fops, get_cpucl1_stat, reset_cpucl1_stat);
+BCL_DEBUG_ATTRIBUTE(cpucl2_clkdivstep_stat_fops, get_cpucl2_stat, reset_cpucl2_stat);
+BCL_DEBUG_ATTRIBUTE(gpu_clkdivstep_stat_fops, get_gpu_stat, reset_gpu_stat);
+BCL_DEBUG_ATTRIBUTE(tpu_clkdivstep_stat_fops, get_tpu_stat, reset_tpu_stat);
 
 static int get_smpl_lvl(void *data, u64 *val)
 {
@@ -1079,7 +1300,6 @@ DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_lvl_fops, get_soft_gpu_lvl,
 			set_soft_gpu_lvl, "%d\n");
 
 static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
-				     enum sys_throttling_core core,
 				     enum sys_throttling_switch throttle_switch)
 {
 	unsigned int reg, mask;
@@ -1092,7 +1312,7 @@ static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	mutex_lock(&sysreg_lock);
 	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM;
 	reg = __raw_readl(addr);
-	mask = (core == SYS_THROTTLING_BIG_CORE) ? (0x01 << 8) : (0x01 << 9);
+	mask = 0x01 << 8;
 	/* 75% dispatch reduction */
 	if (throttle_switch == SYS_THROTTLING_ENABLED) {
 		reg |= mask;
@@ -1105,12 +1325,82 @@ static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	mutex_unlock(&sysreg_lock);
 }
 
+static ssize_t gs101_mpmm_settings_set(struct file *filp, const char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	void __iomem *addr;
+	int value;
+	char buf[16];
+	int ret;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (ret < 0)
+		return ret;
+	buf[ret] = 0;
+
+	ret = sscanf(buf, "0x%x", &value);
+	if (ret != 1)
+		return -EINVAL;
+
+	mutex_lock(&sysreg_lock);
+	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_MPMM;
+	__raw_writel(value, addr);
+	mutex_unlock(&sysreg_lock);
+
+	return 0;
+}
+
+static const char *mpmm_gear_parse(unsigned int state)
+{
+	switch (state) {
+	case 0x0:
+		return "GEAR 0";
+	case 0x1:
+		return "GEAR 1";
+	case 0x2:
+		return "GEAR 2";
+	case 0x3:
+	default:
+		return "DISABLED";
+	}
+}
+
+static ssize_t gs101_mpmm_settings_get(struct file *filp, char __user *buf,
+				       size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	unsigned int reg = 0;
+	unsigned int state_big7, state_big6;
+	int len = 0;
+	void __iomem *addr;
+	char buff[BUF_SIZE];
+
+	if (!bcl_dev->sysreg_cpucl0) {
+		len = scnprintf(buff, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
+		return simple_read_from_buffer(buf, count, ppos, buff, len);
+	}
+
+	mutex_lock(&sysreg_lock);
+	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_MPMM;
+	reg = __raw_readl(addr);
+	mutex_unlock(&sysreg_lock);
+	state_big7 = (reg >> 2) & 0x3;
+	state_big6  = reg & 0x3;
+	len = scnprintf(buff, BUF_SIZE,
+			"0x%x\n%s: 0x%x,%s\n%s: 0x%x,%s\n%s:\n%s\n\n",
+			reg, "MPMMSTATE_BIG7 [3:2]", state_big7, mpmm_gear_parse(state_big7),
+			"MPMMSTATE_BIG6 [1:0]", state_big6, mpmm_gear_parse(state_big6),
+			"To set", "echo 0x(value) > mpmm_settings");
+
+	return simple_read_from_buffer(buf, count, ppos, buff, len);
+}
+
 static void
 gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
-			  enum sys_throttling_core core,
 			  enum sys_throttling_switch throttle_switch)
 {
-	unsigned int reg, mask;
+	unsigned int reg;
 	void __iomem *addr;
 	unsigned int settings;
 	unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {0xF, 0x0, 0x0, 0x5, 0xA};
@@ -1128,40 +1418,70 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	else
 		settings = sys_throttling_settings[throttle_switch];
 
-	mask = (core == SYS_THROTTLING_BIG_CORE) ? (0xF << 4) : 0xF;
-	reg &= ~mask;
-	mask = (core == SYS_THROTTLING_BIG_CORE) ? (settings << 4) : settings;
-	reg |= mask;
+	reg &= ~0xF;
+	reg |= settings;
 	__raw_writel(reg, addr);
 	mutex_unlock(&sysreg_lock);
 }
 
-static int gs101_toggle_ppm_throttling(void *data, u64 val)
+static ssize_t gs101_ppm_settings_set(struct file *filp, const char __user *user_buf,
+				      size_t count, loff_t *ppos)
 {
-	unsigned int mode;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	void __iomem *addr;
+	int value;
+	char buf[16];
+	int ret;
 
-	pr_info("gs101: enable PPM throttling");
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (ret < 0)
+		return ret;
+	buf[ret] = 0;
 
-	mode = (val == 0) ? SYS_THROTTLING_DISABLED : SYS_THROTTLING_ENABLED;
-	gs101_set_ppm_throttling(data, SYS_THROTTLING_MID_CORE, mode);
-	gs101_set_ppm_throttling(data, SYS_THROTTLING_BIG_CORE, mode);
+	ret = sscanf(buf, "0x%x", &value);
+	if (ret != 1)
+		return -EINVAL;
+
+	mutex_lock(&sysreg_lock);
+	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM;
+	__raw_writel(value, addr);
+	mutex_unlock(&sysreg_lock);
+
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ppm_fops, NULL, gs101_toggle_ppm_throttling, "%d\n");
-
-static int gs101_toggle_mpmm_throttling(void *data, u64 val)
+static ssize_t gs101_ppm_settings_get(struct file *filp, char __user *buf,
+				      size_t count, loff_t *ppos)
 {
-	unsigned int mode = val;
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	unsigned int reg = 0;
+	unsigned int ppmctl7, ppmctl6, ocp_en_big;
+	int len = 0;
+	void __iomem *addr;
+	char buff[BUF_SIZE];
 
-	pr_info("gs101: MPMM throttling:%d", val);
+	if (!bcl_dev->sysreg_cpucl0) {
+		len = scnprintf(buff, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
+		return simple_read_from_buffer(buf, count, ppos, buff, len);
+	}
 
-	gs101_set_mpmm_throttling(data, SYS_THROTTLING_MID_CORE, mode);
-	gs101_set_mpmm_throttling(data, SYS_THROTTLING_BIG_CORE, mode);
-	return 0;
+	mutex_lock(&sysreg_lock);
+	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM;
+	reg = __raw_readl(addr);
+	mutex_unlock(&sysreg_lock);
+	ocp_en_big = test_bit(8, (unsigned long *)&reg);
+	ppmctl7 = (reg >> 4) & 0xF;
+	ppmctl6 = reg & 0xF;
+	len = scnprintf(buff, BUF_SIZE,
+			"0x%x\n%s: %d\n%s: 0x%x\n%s: 0x%x\n%s:\n%s\n\n",
+			reg, "PPMOCP_EN_BIG [8]", ocp_en_big,
+			"PPMCTL7 BIG1 [7:4]", ppmctl7, "PPMCTL6 BIG0 [3:0]", ppmctl6,
+			"To set", "echo 0x(value) > ppm_settings");
+
+	return simple_read_from_buffer(buf, count, ppos, buff, len);
 }
-
-DEFINE_SIMPLE_ATTRIBUTE(mpmm_fops, NULL, gs101_toggle_mpmm_throttling, "%d\n");
+BCL_DEBUG_ATTRIBUTE(mpmm_fops, gs101_mpmm_settings_get, gs101_mpmm_settings_set);
+BCL_DEBUG_ATTRIBUTE(ppm_fops, gs101_ppm_settings_get, gs101_ppm_settings_set);
 
 static int gs101_bcl_register_pmic_irq(struct gs101_bcl_dev *gs101_bcl_device,
 				  int id, int sensor_id, irq_handler_t thread_fn,
@@ -1575,11 +1895,23 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		debugfs_create_file("tpu_clkdiv_stat", 0644,
 				    gs101_bcl_device->debug_entry, gs101_bcl_device,
 				    &tpu_clkdivstep_stat_fops);
-		debugfs_create_file("mpmm_throttle", 0644,
-				    gs101_bcl_device->debug_entry, gs101_bcl_device,
-				    &mpmm_fops);
-		debugfs_create_file("ppm_throttle", 0644, gs101_bcl_device->debug_entry,
+		debugfs_create_file("mpmm_settings", 0644,
+				    gs101_bcl_device->debug_entry, gs101_bcl_device, &mpmm_fops);
+		debugfs_create_file("ppm_settings", 0644, gs101_bcl_device->debug_entry,
 				    gs101_bcl_device, &ppm_fops);
+		debugfs_create_file("cpucl2_clkdiv_ratio_heavy", 0644,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &cpucl2_clk_ratio_fops);
+		debugfs_create_file("cpucl1_clkdiv_ratio_heavy", 0644,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &cpucl1_clk_ratio_fops);
+		debugfs_create_file("cpucl0_clkdiv_ratio_heavy", 0644,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &cpucl0_clk_ratio_fops);
+		debugfs_create_file("gpu_clkdiv_ratio_heavy", 0644, gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &gpu_clk_ratio_fops);
+		debugfs_create_file("tpu_clkdiv_ratio_heavy", 0644, gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &tpu_clk_ratio_fops);
 
 	} else
 		gs101_bcl_device->debug_entry = root;
@@ -1631,19 +1963,11 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	__raw_writel(reg, gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM);
 	mutex_unlock(&sysreg_lock);
 	gs101_set_ppm_throttling(gs101_bcl_device,
-				 SYS_THROTTLING_MID_CORE,
-				 SYS_THROTTLING_DISABLED);
-	gs101_set_ppm_throttling(gs101_bcl_device,
-				 SYS_THROTTLING_BIG_CORE,
 				 SYS_THROTTLING_DISABLED);
 	gs101_set_mpmm_throttling(gs101_bcl_device,
-				  SYS_THROTTLING_MID_CORE,
 				  SYS_THROTTLING_DISABLED);
-	gs101_set_mpmm_throttling(gs101_bcl_device,
-				  SYS_THROTTLING_BIG_CORE,
-				  SYS_THROTTLING_DISABLED);
-
 	mutex_init(&gs101_bcl_device->state_trans_lock);
+	mutex_init(&gs101_bcl_device->ratio_lock);
 	gs101_bcl_device->soc_ops.get_temp = gs101_bcl_read_soc;
 	gs101_bcl_device->soc_ops.set_trips = gs101_bcl_set_soc;
 	for (i = 0; i < IRQ_SOURCE_S2MPG10_MAX; i++) {

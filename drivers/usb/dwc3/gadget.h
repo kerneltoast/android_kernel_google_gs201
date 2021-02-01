@@ -115,6 +115,7 @@ int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
 int __dwc3_gadget_ep_set_halt(struct dwc3_ep *dep, int value, int protocol);
 int dwc3_gadget_vbus_session(struct usb_gadget *g, int is_active);
 int dwc3_gadget_run_stop_vbus(struct dwc3 *dwc, int is_on, int suspend);
+int dwc3_gadget_ep_custom_transfer(struct usb_ep *ep, dma_addr_t trb_dma);
 
 /**
  * dwc3_gadget_ep_get_transfer_index - Gets transfer index from HW

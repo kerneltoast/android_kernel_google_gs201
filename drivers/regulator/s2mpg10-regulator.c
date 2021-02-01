@@ -212,7 +212,7 @@ static struct regulator_ops s2mpg10_regulator_ops = {
 
 static struct regulator_desc regulators[S2MPG10_REGULATOR_MAX] = {
 	/* name, id, voltage_group, vsel_reg, n_voltages, */
-	/* enable_reg, enable_mask, ramp_delay */
+	/* enable_reg, enable_mask, enable_time */
 	REG_DESC("LDO1M", _LDO(1), 2, _REG(_L1M_CTRL), _N_VOLTAGES(128),
 		 _REG(_L1M_CTRL), _MASK(_7), _TIME(_LDO)),
 	REG_DESC("LDO2M", _LDO(2), 4, _REG(_L2M_CTRL), _N_VOLTAGES(64),

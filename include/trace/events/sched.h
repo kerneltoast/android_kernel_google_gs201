@@ -674,19 +674,6 @@ DECLARE_TRACE(sched_update_nr_running_tp,
 	TP_PROTO(struct rq *rq, int change),
 	TP_ARGS(rq, change));
 
-DECLARE_TRACE(sugov_util_update_tp,
-	TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max_cap, unsigned int flags),
-	TP_ARGS(cpu, util, max_cap, flags));
-
-DECLARE_TRACE(sugov_next_freq_tp,
-	TP_PROTO(unsigned int cpu, unsigned long util, unsigned long max, unsigned int freq),
-	TP_ARGS(cpu, util, max, freq));
-
-DECLARE_TRACE(schedutil_cpu_util_clamp_tp,
-	TP_PROTO(int cpu, unsigned long util_cfs, unsigned long util_rt, unsigned long util_clamp,
-		 unsigned long util_max),
-	TP_ARGS(cpu, util_cfs, util_rt, util_clamp, util_max));
-
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */

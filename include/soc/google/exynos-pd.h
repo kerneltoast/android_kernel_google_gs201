@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
+#include <linux/atomic.h>
 
 #include <linux/mfd/samsung/core.h>
 #if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG)
@@ -26,6 +27,8 @@
 
 #include <soc/google/exynos-cpupm.h>
 #include <dt-bindings/power/exynos-power.h>
+
+#define HSI0_CAL_PDID	0xB1380008
 
 struct exynos_pm_domain;
 
@@ -52,21 +55,13 @@ struct exynos_pm_domain {
 	struct exynos_bcm_pd_info *bcm;
 #endif
 	bool power_down_skipped;
-	bool need_sync;
+	/* Total number of descendants needing sync, including self */
+	atomic_t need_sync;
 	bool turn_off_on_sync;
 	unsigned int need_smc;
 	bool skip_idle_ip;
 	struct exynos_pd_stat pd_stat;
 	struct exynos_pm_domain *parent;
-	bool traversal_state;
-};
-
-struct exynos_pd_dbg_info {
-	struct device *dev;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *d;
-	struct file_operations fops;
-#endif
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_PD)
@@ -107,10 +102,15 @@ static inline int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd,
 
 #ifdef CONFIG_USB_DWC3_EXYNOS
 extern u32 otg_is_connect(void);
+extern void exynos_usbdrd_ldo_manual_control(bool);
 #else
 static inline u32 otg_is_connect(void)
 {
 	return 0;
+}
+static inline void exynos_usbdrd_ldo_manual_control(bool)
+{
+	return;
 }
 #endif
 

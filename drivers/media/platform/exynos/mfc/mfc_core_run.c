@@ -225,7 +225,7 @@ int mfc_core_run_sleep(struct mfc_core *core)
 		/* Failure. */
 		mfc_core_err("Failed to sleep - error: %d, int: %d\n",
 				core->int_err, core->int_reason);
-		call_dop(core, dump_and_stop_always, core);
+		call_dop(core, dump_and_stop_debug_mode, core);
 		return -EBUSY;
 	}
 
@@ -293,8 +293,7 @@ int mfc_core_run_wakeup(struct mfc_core *core)
 		/* Failure. */
 		mfc_core_err("Failed to wakeup - error: %d, int: %d\n",
 				core->int_err, core->int_reason);
-		call_dop(core, dump_and_stop_always, core);
-		return -EBUSY;
+		call_dop(core, dump_and_stop_debug_mode, core);
 	}
 
 	core->sleep = 0;

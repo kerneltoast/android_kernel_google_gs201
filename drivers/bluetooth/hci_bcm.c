@@ -172,17 +172,15 @@ static int bcm_set_baudrate(struct hci_uart *hu, unsigned int speed)
 		skb = __hci_cmd_sync(hdev, 0xfc45, 1, &clock, HCI_INIT_TIMEOUT);
 		if (IS_ERR(skb)) {
 			int err = PTR_ERR(skb);
-			/* Ignore err if command is deprecated in controller */
-			if (err != -EBADRQC) {
-				bt_dev_err(hdev, "BCM: failed to write clock (%d)", err);
-				return err;
-			}
-		} else {
-			kfree_skb(skb);
+			bt_dev_err(hdev, "BCM: failed to write clock (%d)",
+				   err);
+			return err;
 		}
+
+		kfree_skb(skb);
 	}
 
-	bt_dev_info(hdev, "Set Controller UART speed to %d bit/s", speed);
+	bt_dev_dbg(hdev, "Set Controller UART speed to %d bit/s", speed);
 
 	param.zero = cpu_to_le16(0);
 	param.baud_rate = cpu_to_le32(speed);
@@ -1489,7 +1487,6 @@ static const struct of_device_id bcm_bluetooth_of_match[] = {
 	{ .compatible = "brcm,bcm43438-bt", .data = &bcm43438_device_data },
 	{ .compatible = "brcm,bcm43540-bt", .data = &bcm4354_device_data },
 	{ .compatible = "brcm,bcm4335a0" },
-	{ .compatible = "brcm,bcm43xx-bt" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bcm_bluetooth_of_match);

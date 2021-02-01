@@ -140,8 +140,10 @@ static void exynos_ufs_update_active_lanes(struct ufs_hba *hba)
 	p->active_rx_lane = (u8)active_rx_lane;
 	p->active_tx_lane = (u8)active_tx_lane;
 
-	dev_info(ufs->dev, "PA_ActiveTxDataLanes(%d), PA_ActiveRxDataLanes(%d)\n",
-		 active_tx_lane, active_rx_lane);
+	if (!hba->clk_gating.is_suspended)
+		dev_info(ufs->dev, "PA_ActiveTxDataLanes(%d),"
+				   "PA_ActiveRxDataLanes(%d)\n",
+				    active_tx_lane, active_rx_lane);
 }
 
 static void exynos_ufs_update_max_gear(struct ufs_hba *hba)
@@ -155,7 +157,9 @@ static void exynos_ufs_update_max_gear(struct ufs_hba *hba)
 
 	p->max_gear = min_t(u8, max_rx_hs_gear, pmd->gear);
 
-	dev_info(ufs->dev, "max_gear(%d), PA_MaxRxHSGear(%d)\n", p->max_gear, max_rx_hs_gear);
+	if (!hba->clk_gating.is_suspended)
+		dev_info(ufs->dev, "max_gear(%d), PA_MaxRxHSGear(%d)\n",
+			 p->max_gear, max_rx_hs_gear);
 }
 
 static inline void exynos_ufs_ctrl_phy_pwr(struct exynos_ufs *ufs, bool en)
@@ -248,7 +252,8 @@ static inline void exynos_ufs_gate_clk(struct exynos_ufs *ufs, bool en)
 static void exynos_ufs_set_unipro_mclk(struct exynos_ufs *ufs)
 {
 	ufs->mclk_rate = (u32)clk_get_rate(ufs->clk_unipro);
-	dev_info(ufs->dev, "mclk: %u\n", ufs->mclk_rate);
+	if (!ufs->hba->clk_gating.is_suspended)
+		dev_info(ufs->dev, "mclk: %u\n", ufs->mclk_rate);
 }
 
 static void exynos_ufs_fit_aggr_timeout(struct exynos_ufs *ufs)
@@ -422,7 +427,8 @@ static void exynos_ufs_set_features(struct ufs_hba *hba)
 	hba->quirks = UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 			UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
 			UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
-			UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR;
+			UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
+			UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL;
 }
 
 /*
@@ -506,9 +512,9 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 			exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
 		} else {
 			/* PM Qos hold for stability */
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-			pm_qos_update_request(&ufs->pm_qos_int,
-					      ufs->pm_qos_int_value);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+			exynos_pm_qos_update_request(&ufs->pm_qos_int,
+						ufs->pm_qos_int_value);
 #endif
 			ufs->c_state = C_ON;
 		}
@@ -517,8 +523,8 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 			ufs->c_state = C_OFF;
 
 			/* PM Qos Release for stability */
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-			pm_qos_update_request(&ufs->pm_qos_int, 0);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+			exynos_pm_qos_update_request(&ufs->pm_qos_int, 0);
 #endif
 		} else {
 			/* Set for SICD */
@@ -658,8 +664,9 @@ static int exynos_ufs_link_startup_notify(struct ufs_hba *hba,
 		ufs->params[UFS_S_PARAM_EOM_SZ] = p->eom_sz;
 
 		/* print link start-up result */
-		dev_info(ufs->dev, "UFS link start-up %s\n",
-			 (!ret) ? res_token[0] : res_token[1]);
+		if (!hba->clk_gating.is_suspended)
+			dev_info(ufs->dev, "UFS link start-up %s\n",
+				 (!ret) ? res_token[0] : res_token[1]);
 
 		ufs->h_state = H_LINK_UP;
 		break;
@@ -685,7 +692,8 @@ static int exynos_ufs_pwr_change_notify(struct ufs_hba *hba,
 		 * we're here, that means the sequence up to fDeviceinit
 		 * is doen successfully.
 		 */
-		dev_info(ufs->dev, "UFS device initialized\n");
+		if (!hba->clk_gating.is_suspended)
+			dev_info(ufs->dev, "UFS device initialized\n");
 
 		if (!IS_C_STATE_ON(ufs) || ufs->h_state != H_REQ_BUSY)
 			PRINT_STATES(ufs);
@@ -705,17 +713,20 @@ static int exynos_ufs_pwr_change_notify(struct ufs_hba *hba,
 		/* cal */
 		ret = ufs_call_cal(ufs, 0, ufs_cal_post_pmc);
 
-		dev_info(ufs->dev,
-			 "Power mode change(%d): M(%d)G(%d)L(%d)HS-series(%d)\n",
-			 ret, act_pmd->mode, act_pmd->gear,
-			 act_pmd->lane, act_pmd->hs_series);
+		if (!hba->clk_gating.is_suspended)
+			dev_info(ufs->dev,
+				 "Power mode change(%d): M(%d)G(%d)L(%d)"
+				 "HS-series(%d)\n",
+				 ret, act_pmd->mode, act_pmd->gear,
+				 act_pmd->lane, act_pmd->hs_series);
 		/*
 		 * print gear change result.
 		 * Exynos driver always considers gear change to
 		 * HS-B and fast mode.
 		 */
 		if (ufs->req_pmd_parm.mode == FAST_MODE &&
-		    ufs->req_pmd_parm.hs_series == PA_HS_MODE_B)
+		    ufs->req_pmd_parm.hs_series == PA_HS_MODE_B &&
+		    !hba->clk_gating.is_suspended)
 			dev_info(ufs->dev, "HS mode config %s\n",
 				 (!ret) ? res_token[0] : res_token[1]);
 
@@ -841,8 +852,8 @@ static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	    ufs->h_state != H_HIBERN8)
 		PRINT_STATES(ufs);
 
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-	pm_qos_update_request(&ufs->pm_qos_int, 0);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+	exynos_pm_qos_update_request(&ufs->pm_qos_int, 0);
 #endif
 
 	hci_writel(&ufs->handle, 0 << 0, HCI_GPIO_OUT);
@@ -1460,8 +1471,9 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 	dev_info(dev, "===============================\n");
 
 	/* register pm qos knobs */
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-	pm_qos_add_request(&ufs->pm_qos_int, PM_QOS_DEVICE_THROUGHPUT, 0);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+	exynos_pm_qos_add_request(&ufs->pm_qos_int,
+				PM_QOS_DEVICE_THROUGHPUT, 0);
 #endif
 
 	/* init dbg */
@@ -1499,8 +1511,8 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 	disable_irq(hba->irq);
 	ufshcd_remove(hba);
 
-#ifdef PM_QOS_DEVICE_THROUGHPUT
-	pm_qos_remove_request(&ufs->pm_qos_int);
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
+	exynos_pm_qos_remove_request(&ufs->pm_qos_int);
 #endif
 
 	exynos_ufs_ctrl_phy_pwr(ufs, false);

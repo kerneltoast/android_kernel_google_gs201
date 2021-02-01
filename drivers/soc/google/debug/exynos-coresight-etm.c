@@ -66,6 +66,7 @@ struct etr_info {
 	void __iomem	*sfr_base;
 	u32		status;
 	dma_addr_t	buf_addr;
+	dma_addr_t	aux_buf_addr;
 	void		*buf_vaddr;
 	u64		buf_pointer;
 	u32		qch_offset;
@@ -80,6 +81,7 @@ struct exynos_etm_info {
 	bool			status;
 	u32			boot_start;
 	u32			etr_buf_size;
+	u32			etr_aux_buf_size;
 
 	u32			funnel_num;
 	struct funnel_info	*funnel;
@@ -211,19 +213,32 @@ static void exynos_etm_etf_disable(void)
 static void exynos_etm_etr_enable(void)
 {
 	struct etr_info *etr = &ee_info->etr;
+	dma_addr_t buf_addr;
+	u64 buf_pointer;
+	u32 etr_buf_size;
+
+	if (etr->aux_buf_addr) {
+		buf_addr = etr->aux_buf_addr;
+		etr_buf_size = ee_info->etr_aux_buf_size;
+		buf_pointer = 0;
+	} else {
+		buf_addr = etr->buf_addr;
+		etr_buf_size = ee_info->etr_buf_size;
+		buf_pointer = etr->buf_pointer;
+	}
 
 	if (etr->hwacg)
 		writel_relaxed(0x1, etr->sfr_base + etr->qch_offset);
 
 	soft_unlock(etr->base);
 	etm_writel(etr->base, 0x0, TMCCTL);
-	etm_writel(etr->base, ee_info->etr_buf_size / 4, TMCRSZ);
+	etm_writel(etr->base, etr_buf_size / 4, TMCRSZ);
 	etm_writel(etr->base, 0x4, TMCTGR);
 	etm_writel(etr->base, 0x0, TMCAXICTL);
-	etm_writel(etr->base, lower_32_bits(etr->buf_addr), TMCDBALO);
-	etm_writel(etr->base, upper_32_bits(etr->buf_addr), TMCDBAHI);
-	etm_writel(etr->base, lower_32_bits(etr->buf_pointer), TMCRWP);
-	etm_writel(etr->base, upper_32_bits(etr->buf_pointer), TMCRWPHI);
+	etm_writel(etr->base, lower_32_bits(buf_addr), TMCDBALO);
+	etm_writel(etr->base, upper_32_bits(buf_addr), TMCDBAHI);
+	etm_writel(etr->base, lower_32_bits(buf_pointer), TMCRWP);
+	etm_writel(etr->base, upper_32_bits(buf_pointer), TMCRWPHI);
 	etm_writel(etr->base, 0x0, TMCMODE);
 	etm_writel(etr->base, 0x2001, TMCFFCR);
 	etm_writel(etr->base, 0x1, TMCCTL);
@@ -236,13 +251,81 @@ static void exynos_etm_etr_disable(void)
 
 	soft_unlock(etr->base);
 	etm_writel(etr->base, 0x0, TMCCTL);
-	etr->buf_pointer = etm_readl(etr->base, TMCRWPHI);
-	etr->buf_pointer <<= 32;
-	etr->buf_pointer |= etm_readl(etr->base, TMCRWP);
+	if (!etr->aux_buf_addr) {
+		etr->buf_pointer = etm_readl(etr->base, TMCRWPHI);
+		etr->buf_pointer <<= 32;
+		etr->buf_pointer |= etm_readl(etr->base, TMCRWP);
+	}
 	soft_lock(etr->base);
 
 	if (etr->hwacg)
 		writel_relaxed(0x0, etr->sfr_base + etr->qch_offset);
+}
+
+static void exynos_etm_smp_enable(void *ununsed);
+void exynos_etm_trace_start(void);
+int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
+{
+	struct etr_info *etr = &ee_info->etr;
+	unsigned int i;
+
+	if (ee_info->enabled)
+		return -EINVAL;
+
+	etr->aux_buf_addr = buf_addr;
+	ee_info->etr_aux_buf_size = buf_size;
+
+	for_each_possible_cpu(i) {
+		ee_info->cpu[i].enabled = true;
+	}
+
+	for_each_online_cpu(i) {
+		smp_call_function_single(i, exynos_etm_smp_enable, NULL, 1);
+	}
+
+	ee_info->enabled = true;
+	exynos_etm_trace_stop();
+	exynos_etm_trace_start();
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gs_coresight_etm_external_etr_on);
+
+int gs_coresight_etm_external_etr_off(void)
+{
+	struct etr_info *etr = &ee_info->etr;
+	unsigned int i;
+
+	if (!ee_info->etr_aux_buf_size)
+		return -EINVAL;
+
+	etr->aux_buf_addr = 0;
+	ee_info->etr_aux_buf_size = 0;
+
+	ee_info->enabled = false;
+	exynos_etm_trace_stop();
+
+	for_each_possible_cpu(i) {
+		ee_info->cpu[i].enabled = false;
+	}
+
+	for_each_online_cpu(i) {
+		smp_call_function_single(i, exynos_etm_smp_enable, NULL, 1);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gs_coresight_etm_external_etr_off);
+
+#else
+int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
+{
+	return -EINVAL;
+}
+
+int gs_coresight_etm_external_etr_off(void)
+{
+	return -EINVAL;
 }
 #endif
 

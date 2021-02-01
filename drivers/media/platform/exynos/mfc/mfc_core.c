@@ -58,6 +58,25 @@
 
 struct _mfc_trace_logging g_mfc_core_trace_logging[MFC_TRACE_LOG_COUNT_MAX];
 
+#ifdef CONFIG_MFC_USE_COREDUMP
+static struct sscd_platform_data mfc_core_sscd_platdata;
+
+static void mfc_core_sscd_release(struct device *dev)
+{
+	dev_info(dev, "%s: sscd_dev is released\n", __func__);
+}
+
+static struct platform_device mfc_core_sscd_dev = {
+	.name            = MFC_CORE_NAME,
+	.driver_override = SSCD_NAME,
+	.id              = -1,
+	.dev             = {
+		.platform_data = &mfc_core_sscd_platdata,
+		.release       = mfc_core_sscd_release,
+	},
+};
+#endif
+
 void mfc_core_butler_worker(struct work_struct *work)
 {
 	struct mfc_core *core;
@@ -109,6 +128,7 @@ int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
 {
 	struct mfc_core *core = (struct mfc_core *)param;
 	unsigned int trans_info;
+	int ret;
 
 	if (core->core_pdata->trans_info_offset)
 		trans_info = core->core_pdata->trans_info_offset;
@@ -155,9 +175,25 @@ int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
 	}
 	core->logging_data->fault_addr = (unsigned int)(fault->event.addr);
 
-	call_dop(core, dump_and_stop_always, core);
+	mfc_core_err("MFC-%d SysMMU PAGE FAULT at %#lx (AxID: %#x)\n",
+			core->id, (unsigned int)(fault->event.addr), trans_info);
+	MFC_TRACE_CORE("MFC-%d SysMMU PAGE FAULT at %#lx (AxID: %#x)\n",
+			core->id, (unsigned int)(fault->event.addr), trans_info);
 
-	return 0;
+	call_dop(core, dump_and_stop_debug_mode, core);
+
+	/*
+	 * if return 0, sysmmu occurs kernel panic for debugging
+	 * if -EAGAIN, sysmmu doesn't occur kernel panic (but need async-fault in dt).
+	 */
+	if (!core->dev->pdata->debug_mode && !debug_mode_en) {
+		mfc_core_handle_error(core);
+		ret = -EAGAIN;
+	} else {
+		ret = 0;
+	}
+
+	return ret;
 }
 
 static int __mfc_core_parse_dt(struct device_node *np, struct mfc_core *core)
@@ -697,6 +733,19 @@ static int mfc_core_probe(struct platform_device *pdev)
 	sysevent_notif_register_notifier(core->sysevent_desc.name, &mfc_core_nb);
 #endif
 
+#ifdef CONFIG_MFC_USE_COREDUMP
+	if (platform_device_register(&mfc_core_sscd_dev)) {
+		dev_err(&pdev->dev, "failed to register sscd_dev\n");
+	} else {
+		core->sscd_dev = &mfc_core_sscd_dev;
+
+		core->dbg_info.size = MFC_DUMP_BUF_SIZE;
+		core->dbg_info.addr = vmalloc(core->dbg_info.size);
+		if (!core->dbg_info.addr)
+			dev_err(&pdev->dev, "failed to alloc for debug buffer\n");
+	}
+#endif
+
 	dev_info(&pdev->dev, "%s is completed\n", __func__);
 
 	return 0;
@@ -753,6 +802,11 @@ static int mfc_core_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s++\n", __func__);
 
+	if (core->dbg_info.addr)
+		vfree(core->dbg_info.addr);
+#ifdef CONFIG_MFC_USE_COREDUMP
+	platform_device_unregister(&mfc_core_sscd_dev);
+#endif
 	iommu_unregister_device_fault_handler(&pdev->dev);
 	if (timer_pending(&core->meerkat_timer))
 		del_timer(&core->meerkat_timer);

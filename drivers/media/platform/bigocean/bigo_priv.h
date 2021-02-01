@@ -70,6 +70,11 @@ struct bigo_bw {
 	u32 wr_bw;
 };
 
+struct bigo_debugfs {
+	struct dentry *root;
+	u32 set_freq;
+};
+
 struct bigo_core {
 	struct class *_class;
 	struct cdev cdev;
@@ -90,6 +95,7 @@ struct bigo_core {
 	unsigned int regs_size;
 	struct bigo_inst *curr_inst;
 	phys_addr_t paddr;
+	struct bigo_debugfs debugfs;
 };
 
 struct bigo_inst {

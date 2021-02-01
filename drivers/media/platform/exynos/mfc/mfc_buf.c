@@ -737,9 +737,10 @@ int mfc_alloc_firmware(struct mfc_core *core)
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 err_daddr:
+	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
 #endif
 err_reserve_iova:
-	iommu_unmap(core->domain, MFC_BASE_ADDR, fw_buf->map_size);
+	mfc_mem_ion_free(&core->fw_buf);
 	return -ENOMEM;
 }
 

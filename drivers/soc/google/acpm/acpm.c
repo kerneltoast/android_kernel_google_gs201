@@ -225,7 +225,10 @@ static void acpm_debugfs_init(struct acpm_info *acpm)
 {
 	struct dentry *den;
 
-	den = debugfs_create_dir("acpm_framework", NULL);
+	den = debugfs_lookup("acpm_framework", NULL);
+	if (!den)
+		den = debugfs_create_dir("acpm_framework", NULL);
+
 	debugfs_create_file("ipc_loopback_test", 0644, den, acpm,
 			    &debug_ipc_loopback_test_fops);
 	debugfs_create_file("log_level", 0644, den, acpm,

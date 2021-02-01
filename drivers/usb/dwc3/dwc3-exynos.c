@@ -20,7 +20,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-//#include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/workqueue.h>
 #include <linux/usb/gadget.h>
@@ -29,6 +28,7 @@
 
 #include "core.h"
 #include "core_exynos.h"
+#include "dwc3-exynos-ldo.h"
 #include "io.h"
 #include "gadget.h"
 
@@ -37,7 +37,6 @@
 #include <linux/extcon.h>
 
 #include <linux/suspend.h>
-//#include <soc/samsung/exynos-pm.h>
 
 #include "otg.h"
 #ifdef CONFIG_OF
@@ -916,49 +915,34 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(dev, "failed to register extcon\n");
 		ret = -EPROBE_DEFER;
-		goto vdd33_err;
+		goto err2;
 	}
-
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
 
 	ret = dwc3_exynos_register_phys(exynos);
 	if (ret) {
 		dev_err(dev, "couldn't register PHYs\n");
-		goto vdd33_err;
+		goto err2;
 	}
 
 	pm_runtime_set_active(dev);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DWC3_DEFAULT_AUTOSUSPEND_DELAY);
 	pm_runtime_enable(dev);
+
+	exynos_usbdrd_ldo_manual_control(1);
+
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
-		goto vdd33_err;
-
-	pm_runtime_forbid(dev);
+		goto err1;
 
 	ret = dwc3_probe(pdev, exynos);
 	if (ret < 0)
-		goto vdd33_err;
+		goto err1;
 
-	ret = pm_runtime_put(dev);
-	pr_info("%s, pm_runtime_put = %d\n",
+	ret = pm_runtime_put_sync(dev);
+	dev_dbg(dev, "%s, pm_runtime_put_sync = %d\n",
 		__func__, ret);
 
-/*
-	if (node) {
-		ret = of_platform_populate(node, NULL, NULL, dev);
-		if (ret) {
-			dev_err(dev, "failed to add dwc3 core\n");
-			goto populate_err;
-		}
-	} else {
-		dev_err(dev, "no device node, failed to add dwc3 core\n");
-		ret = -ENODEV;
-		goto populate_err;
-	}
-*/
 #ifdef USB_USE_IOCOHERENCY
 	dev_info(dev, "Configure USB sharability.\n");
 	reg_sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
@@ -983,11 +967,12 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	pr_info("%s: ---\n", __func__);
 	return 0;
 
-vdd33_err:
-	dwc3_exynos_clk_disable(exynos);
-	dwc3_exynos_clk_unprepare(exynos);
+err1:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+err2:
+	dwc3_exynos_clk_disable(exynos);
+	dwc3_exynos_clk_unprepare(exynos);
 	pr_info("%s err = %d\n", __func__, ret);
 
 	return ret;
@@ -1079,11 +1064,19 @@ static int dwc3_exynos_resume(struct device *dev)
 
 	dev_info(dev, "%s\n", __func__);
 
+	if (pm_runtime_suspended(dev))
+		return 0;
+
 	ret = dwc3_exynos_clk_enable(exynos);
 	if (ret) {
 		dev_err(dev, "%s: clk_enable failed\n", __func__);
 		return ret;
 	}
+
+	/* runtime set active to reflect active state. */
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 }

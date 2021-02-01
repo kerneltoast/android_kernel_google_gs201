@@ -6,6 +6,8 @@
 #include <linux/types.h>
 #endif
 
+#include "drm.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -233,6 +235,88 @@ struct brightness_capability {
 	struct brightness_attribute normal;
 	struct brightness_attribute hbm;
 };
+
+/**
+ * struct tui_hw_buffer - buffer allocation query by user-space
+ *
+ * @fb_physical: the physical address of the buffer allocated
+ * @fb_size: the size of the buffer allocated
+ *
+ * The structure is used to return the parameter of the allocated buffer.
+ */
+struct tui_hw_buffer {
+	__u64 fb_physical;
+	__u64 fb_size;
+} __packed;
+
+#define EXYNOS_START_TUI	0x10
+#define EXYNOS_FINISH_TUI	0x11
+#define EXYNOS_TUI_REQUEST_BUFFER	0x20
+#define EXYNOS_TUI_RELEASE_BUFFER	0x21
+
+/**
+ * struct histogram_roi - region of interest for histogram to set by user-space
+ *
+ * @start_x: upper left x position of ROI
+ * @start_y: upper left y position of ROI
+ * @hsize: horizontal size of image
+ * @vsize: vertical  size of image
+ *
+ * A histogram_roi sets region of interest on image for gathering histogram
+ * data. It is used to set a property of a crtc.
+ */
+struct histogram_roi {
+	__u16 start_x;
+	__u16 start_y;
+	__u16 hsize;
+	__u16 vsize;
+};
+
+/**
+ * struct histogram_weights - weight for each color component to set by user-space
+ *
+ * @weight_r: histogram weight for red
+ * @weight_g: histogram weight for green
+ * @weight_b: histogram weight for blue
+ *
+ * A histogram_weights sets a weight of each color component for calculating
+ * histogram data. It is used to set a property of a crtc.
+ */
+struct histogram_weights {
+	__u16 weight_r;
+	__u16 weight_g;
+	__u16 weight_b;
+};
+
+#define HISTOGRAM_BIN_COUNT	256
+struct histogram_bins {
+	__u16 data[HISTOGRAM_BIN_COUNT];
+};
+
+#define EXYNOS_DRM_HISTOGRAM_EVENT	0x80000000
+
+/**
+ * struct exynos_drm_histogram_event - histogram event to wait for user-space
+ *
+ * @base: event header which informs user space event type and length.
+ * @bins: histogram bin data to be sent to user space through using read()
+ *
+ * User space waits for POLLIN event using like poll() or select(). If event
+ * type is EXYNOS_DRM_HISTOGRAM_EVENT, user space can try to read histogram
+ * bin data through "bins".
+ */
+struct exynos_drm_histogram_event {
+	struct drm_event base;
+	struct histogram_bins bins;
+};
+
+#define EXYNOS_HISTOGRAM_REQUEST	0x0
+#define EXYNOS_HISTOGRAM_CANCEL		0x1
+
+#define DRM_IOCTL_EXYNOS_HISTOGRAM_REQUEST	DRM_IOW(DRM_COMMAND_BASE + \
+		EXYNOS_HISTOGRAM_REQUEST, __u32)
+#define DRM_IOCTL_EXYNOS_HISTOGRAM_CANCEL	DRM_IOW(DRM_COMMAND_BASE + \
+		EXYNOS_HISTOGRAM_CANCEL, __u32)
 
 #if defined(__cplusplus)
 }

@@ -34,7 +34,8 @@ extern int sched_cpu_idle(int cpu);
 static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_mask)
 {
 	int cpu, best_cpu = -1;
-	unsigned long best_cpu_util = ULONG_MAX;
+	unsigned long min_cpu_util = ULONG_MAX;
+	unsigned long min_cpu_capacity = ULONG_MAX;
 	unsigned int min_exit_lat = UINT_MAX;
 	bool check_util = true;
 	unsigned long util;
@@ -44,11 +45,12 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 redo:
 	for_each_cpu(cpu, lowest_mask) {
 		struct cpuidle_state *idle;
-		unsigned int exit_lat = UINT_MAX;
+		unsigned int exit_lat = 0;
+		unsigned long capacity = capacity_orig_of(cpu);
 
 		util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
 
-		if (check_util && cpu_overutilized(util + task_util(p), capacity_orig_of(cpu)))
+		if (check_util && cpu_overutilized(util + task_util(p), capacity))
 			continue;
 
 		if (cpu_is_idle(cpu)) {
@@ -62,16 +64,28 @@ redo:
 				exit_lat = 0;
 		}
 
-		if (util > best_cpu_util)
+		/* Always prefer the least loaded cpu. */
+		if (util > min_cpu_util)
 			continue;
 
-		if (best_cpu_util == util && best_cpu == task_cpu(p))
-			continue;
+		/* If util is the same: */
+		if (util == min_cpu_util) {
+			/* Prefer lower exit latency. */
+			if (exit_lat > min_exit_lat)
+				continue;
+			/* If exit latency is the same: */
+			if (exit_lat == min_exit_lat) {
+				/* Prefer lower capacity. */
+				if (capacity > min_cpu_capacity )
+					continue;
+				/* If capacity is the same, prefer prev cpu */
+				if (best_cpu == task_cpu(p))
+					continue;
+			}
+		}
 
-		if (best_cpu_util == util && exit_lat > min_exit_lat)
-			continue;
-
-		best_cpu_util = util;
+		min_cpu_util = util;
+		min_cpu_capacity = capacity;
 		min_exit_lat = exit_lat;
 		best_cpu = cpu;
 	}
@@ -163,7 +177,6 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 {
 	struct task_struct *curr, *tgt_task;
 	struct rq *rq;
-	bool may_not_preempt;
 	int target;
 
 	*new_cpu = prev_cpu;
@@ -176,11 +189,6 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	rcu_read_lock();
 	curr = READ_ONCE(rq->curr);
 
-	may_not_preempt = task_may_not_preempt(curr, prev_cpu);
-
-	if (cpu_is_idle(prev_cpu) && !may_not_preempt)
-		goto out_unlock;
-
 	target = find_lowest_rq(p);
 
 	if (target != -1) {
@@ -190,14 +198,12 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	}
 
 	if (target != -1 &&
-	   (may_not_preempt ||
-	    p->prio < cpu_rq(target)->rt.highest_prio.curr)) {
+	   (p->prio < cpu_rq(target)->rt.highest_prio.curr ||
+	   task_may_not_preempt(curr, prev_cpu))) {
 		*new_cpu = target;
 	}
 
-out_unlock:
 	rcu_read_unlock();
-
 out:
 	return;
 }

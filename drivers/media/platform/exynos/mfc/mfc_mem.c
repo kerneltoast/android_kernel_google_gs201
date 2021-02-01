@@ -498,6 +498,7 @@ int mfc_remap_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
 	prop = of_get_property(node, "samsung,iommu-reserved-map", NULL);
 	if (!prop) {
 		mfc_dev_err("No reserved F/W dma area\n");
+		iommu_unmap(core->domain, fw_base_addr, fw_buf->map_size);
 		return -ENOENT;
 	}
 

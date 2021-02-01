@@ -30,8 +30,11 @@
 				google,dc-en = <&s2mpg10_gpio 1 0>;
 				/* DC enabled by default */
 				google,dc-en-value = <1>;
+				google,dc_limit-demand = <10012500>;
+				google,dc_limit-vbatt = <4350000>;
 
 				google,tcpm-power-supply = <&max77759tcpc>;
+				google,wlc_dc-power-supply = "wireless";
 				google,pps-awake;
 			};
 
@@ -45,6 +48,9 @@
 				google,usb-power-supply = "usb";
 
 				google,fv-max-uv = <4450000>;
+
+				google,wlc-thermal-mitigation = <1100000 500000 250000 110000>;
+				google,therm-wlc-overrides-fcc;
 			};
 
 			google_bms {
@@ -142,10 +148,6 @@
 		maxim,batt-id-range-pct = <0>;
 
 		maxim,psy-type-unknown;
-
-		maxim,fg-data {
-			#include "gs101-raviole-battery-data.dtsi"
-		};
 	};
 
 	max77759chrg@0x69 {
@@ -162,7 +164,7 @@
 
 		/* system use cases */
 		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
-		max77759,bst-sel = <&gpp27 3 GPIO_ACTIVE_HIGH>;
+		max77759,bst-sel = <&s2mpg10_gpio 3 GPIO_ACTIVE_HIGH>;
 		max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
 
 	};
@@ -174,7 +176,7 @@
 		/* TODO: add IRQ pca9468,irq-gpio = <xxx>; */
 
 		pca9468,input-current-limit = <2000000>; /* 2.0A */
-		pca9468,charging-current = <4000000>; /* 4A */
+		pca9468,charging-current = <4520000>; /* 4.5A */
 		pca9468,float-voltage = <4300000>; /* 4.3V */
 
 		pca9468,input-itopoff = <500000>; /* 500mA */
@@ -184,11 +186,10 @@
 		/* disable USBC NTC */
 		pca9468,ntc-threshold = <0>; /* disabled */
 
-		/* enable passthrough PPS */
-		google,tcpm-power-supply = <&max77759tcpc>;
-
 		/* USBC thermal zone */
 		google,usb-port-tz-name = "usbc-therm-adc";
+
+		pca9468,google_cpm = <&google_cpm>;
 	};
 
 };
