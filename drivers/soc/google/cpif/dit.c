@@ -1462,8 +1462,7 @@ error:
 static int dit_init_hw(void)
 {
 	unsigned int dir;
-	bool done;
-	u16 count = 0;
+	unsigned int count = 0;
 
 	const u16 port_offset_start[DIT_DIR_MAX] = {
 		DIT_REG_NAT_TX_PORT_INIT_START,
@@ -1479,19 +1478,16 @@ static int dit_init_hw(void)
 	 * it requires 20us at 100MHz until DONE.
 	 */
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
-		done = false;
-
 		WRITE_REG_VALUE(dc, 0x0, port_offset_done[dir]);
 		WRITE_REG_VALUE(dc, 0x1, port_offset_start[dir]);
 		while (++count < 100) {
-			usleep_range(20, 22);
+			udelay(20);
 			if (READ_REG_VALUE(dc, port_offset_done[dir])) {
-				done = true;
 				break;
 			}
 		}
 
-		if (!done) {
+		if (count >= 100) {
 			mif_err("PORT_INIT_DONE failed dir:%d\n", dir);
 			return -EIO;
 		}
