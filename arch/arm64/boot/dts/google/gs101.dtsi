@@ -1089,6 +1089,7 @@
 		hotplug_enable = <1>;
 		hotplug_in_threshold = <91>;
 		hotplug_out_threshold = <96>;
+		hotplug_cpus = "6-7";
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
