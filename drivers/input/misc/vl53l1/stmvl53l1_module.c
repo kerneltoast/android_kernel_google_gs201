@@ -116,7 +116,6 @@ static inline void st_gettimeofday(struct timespec64 *tv)
 }
 
 /* #define DEBUG_TIME_LOG */
-
 #ifdef DEBUG_TIME_LOG
 struct timespec64 start_tv, stop_tv;
 #endif
@@ -140,23 +139,23 @@ MODULE_PARM_DESC(force_device_on_en_default,
 	"select whether force_device_on_en is true or false by default");
 
 /* boilerplate for integer parameter */
-#define IMPLEMENT_PARAMETER_INTEGER(sysfs_name, info_name)\
-static ssize_t stmvl53l1_show_##sysfs_name(struct device *dev, \
-				struct device_attribute *attr, char *buf) \
+#define IMPLEMENT_PARAMETER_INTEGER(sysfs_name, info_name) \
+static ssize_t sysfs_name##_show(struct device *dev, \
+				 struct device_attribute *attr, char *buf) \
 { \
 	struct stmvl53l1_data *data = dev_get_drvdata(dev); \
 	int param; \
 \
 	mutex_lock(&data->work_mutex); \
 	param = data->sysfs_name; \
-	mutex_unlock(&data->work_mutex);; \
+	mutex_unlock(&data->work_mutex); \
 \
 	return scnprintf(buf, PAGE_SIZE, "%d\n", param); \
 } \
 \
-static ssize_t stmvl53l1_store_##sysfs_name(struct device *dev, \
-					struct device_attribute *attr, \
-					const char *buf, size_t count) \
+static ssize_t sysfs_name##_store(struct device *dev, \
+				  struct device_attribute *attr, \
+				  const char *buf, size_t count) \
 { \
 	struct stmvl53l1_data *data = dev_get_drvdata(dev); \
 	int rc; \
@@ -175,7 +174,7 @@ static ssize_t stmvl53l1_store_##sysfs_name(struct device *dev, \
 } \
 \
 static int ctrl_param_##sysfs_name(struct stmvl53l1_data *data, \
-		struct stmvl53l1_parameter *param) \
+				   struct stmvl53l1_parameter *param) \
 { \
 	int rc; \
 	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object; \
@@ -189,7 +188,7 @@ static int ctrl_param_##sysfs_name(struct stmvl53l1_data *data, \
 	} else { \
 		rc = stmvl53l1_set_##sysfs_name(data, param->value); \
 		dev_dbg(dev, "rc %d req %d now %d", rc, \
-				param->value, data->sysfs_name); \
+			param->value, data->sysfs_name); \
 	} \
 \
 	return rc; \
@@ -407,7 +406,7 @@ static int reset_hold(struct stmvl53l1_data *data)
 	if (data->reset_state)
 		return 0;
 
-	if (data->force_device_on_en)
+	if (data->force_device_on_enable)
 		return 0;
 
 	rc = stmvl53l1_module_func_tbl.reset_hold(data->client_object);
@@ -422,7 +421,6 @@ static void stmvl53l0_DebugTimeGet(struct timespec64 *ptv)
 {
 	st_gettimeofday(ptv);
 }
-
 #endif
 
 /**
@@ -784,17 +782,17 @@ static int stmvl53l1_stop(struct stmvl53l1_data *data)
 /*
  * SysFS support
  */
-static ssize_t stmvl53l1_show_enable_ps_sensor(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t enable_ps_sensor_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 
 	return snprintf(buf, 5, "%d\n", data->enable_sensor);
 }
 
-static ssize_t stmvl53l1_store_enable_ps_sensor(struct device *dev,
-				struct device_attribute *attr, const char *buf,
-				size_t count)
+static ssize_t enable_ps_sensor_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	int rc = 0;
@@ -842,8 +840,8 @@ static ssize_t stmvl53l1_store_enable_ps_sensor(struct device *dev,
 	return rc ? rc : count;
 }
 
-static ssize_t stmvl53l1_show_product_type(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t product_type_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	int param;
@@ -864,9 +862,7 @@ static ssize_t stmvl53l1_show_product_type(struct device *dev,
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(product_type, 0440/*S_IRUGO*/,
-				stmvl53l1_show_product_type,
-				NULL);
+static DEVICE_ATTR_RO(product_type);
 
 /**
  * sysfs attribute "enable_ps_sensor" [rd/wr]
@@ -881,9 +877,7 @@ static DEVICE_ATTR(product_type, 0440/*S_IRUGO*/,
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(enable_ps_sensor, 0664/*S_IWUGO | S_IRUGO*/,
-		stmvl53l1_show_enable_ps_sensor,
-		stmvl53l1_store_enable_ps_sensor);
+static DEVICE_ATTR_RW(enable_ps_sensor);
 
 static int stmvl53l1_set_poll_delay_ms(struct stmvl53l1_data *data, int delay)
 {
@@ -897,10 +891,62 @@ static int stmvl53l1_set_poll_delay_ms(struct stmvl53l1_data *data, int delay)
 	return rc;
 }
 
-IMPLEMENT_PARAMETER_INTEGER(poll_delay_ms, "poll delay ms")
+static ssize_t set_delay_ms_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct stmvl53l1_data *data = dev_get_drvdata(dev);
+	int param;
+
+	mutex_lock(&data->work_mutex);
+	param = data->poll_delay_ms;
+	mutex_unlock(&data->work_mutex);
+
+	return sysfs_emit(buf, "%d\n", param);
+}
+
+static ssize_t set_delay_ms_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct stmvl53l1_data *data = dev_get_drvdata(dev);
+	int rc;
+	int param;
+
+	mutex_lock(&data->work_mutex);
+
+	if (kstrtoint(buf, 0, &param))
+		rc = -EINVAL;
+	else
+		rc = stmvl53l1_set_poll_delay_ms(data, param);
+
+	mutex_unlock(&data->work_mutex);
+
+	return rc ? rc : count;
+}
+
+static int ctrl_param_poll_delay_ms(struct stmvl53l1_data *data,
+				   struct stmvl53l1_parameter *param)
+{
+	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
+	if (param->is_read) {
+		param->value = data->poll_delay_ms;
+		param->status = 0;
+		dev_dbg(dev, "get poll delay ms %d", param->value);
+		rc = 0;
+	} else {
+		rc = stmvl53l1_set_poll_delay_ms(data, param->value);
+		dev_dbg(dev, "rc %d req %d now %d", rc,
+			param->value, data->poll_delay_ms);
+	}
+
+	return rc;
+}
 
 /**
- * sysfs attribute "poll_delay_ms" [rd/wr]
+ * sysfs attribute "set_delay_ms" [rd/wr]
  *
  * @li read show the current polling delay in millisecond
  * @li write set the new polling delay in millisecond
@@ -911,11 +957,8 @@ IMPLEMENT_PARAMETER_INTEGER(poll_delay_ms, "poll delay ms")
 
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(set_delay_ms, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_poll_delay_ms,
-				stmvl53l1_store_poll_delay_ms);
+static DEVICE_ATTR_RW(set_delay_ms);
 
-/* Timing Budget */
 static int stmvl53l1_set_timing_budget(struct stmvl53l1_data *data, int timing)
 {
 	int rc = 0;
@@ -949,13 +992,10 @@ IMPLEMENT_PARAMETER_INTEGER(timing_budget, "timing budget")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(timing_budget, 0660/*S_IWUGO | S_IRUGO*/,
-			stmvl53l1_show_timing_budget,
-			stmvl53l1_store_timing_budget);
+static DEVICE_ATTR_RW(timing_budget);
 
-
-static ssize_t stmvl53l1_show_roi(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t roi_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	int i;
@@ -982,12 +1022,11 @@ static ssize_t stmvl53l1_show_roi(struct device *dev,
 	return n;
 }
 
-
 static const char str_roi_ranging[] = "ERROR can't set roi while ranging\n";
 
-static ssize_t stmvl53l1_store_roi(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t roi_store(struct device *dev,
+			 struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	struct VL53L1_UserRoi_t rois[VL53L1_MAX_USER_ZONES];
@@ -1078,10 +1117,7 @@ static ssize_t stmvl53l1_store_roi(struct device *dev,
  *@endcode
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(roi, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_roi,
-				stmvl53l1_store_roi);
-
+static DEVICE_ATTR_RW(roi);
 
 static int stmvl53l1_set_preset_mode(struct stmvl53l1_data *data, int mode)
 {
@@ -1111,7 +1147,59 @@ static int stmvl53l1_set_preset_mode(struct stmvl53l1_data *data, int mode)
 	return rc;
 }
 
-IMPLEMENT_PARAMETER_INTEGER(preset_mode, "preset mode")
+static ssize_t mode_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct stmvl53l1_data *data = dev_get_drvdata(dev);
+	int param;
+
+	mutex_lock(&data->work_mutex);
+	param = data->preset_mode;
+	mutex_unlock(&data->work_mutex);
+
+	return sysfs_emit(buf, "%d\n", param);
+}
+
+static ssize_t mode_store(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct stmvl53l1_data *data = dev_get_drvdata(dev);
+	int rc;
+	int param;
+
+	mutex_lock(&data->work_mutex);
+
+	if (kstrtoint(buf, 0, &param))
+		rc = -EINVAL;
+	else
+		rc = stmvl53l1_set_preset_mode(data, param);
+
+	mutex_unlock(&data->work_mutex);
+
+	return rc ? rc : count;
+}
+
+static int ctrl_param_preset_mode(struct stmvl53l1_data *data,
+				  struct stmvl53l1_parameter *param)
+{
+	int rc;
+	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
+	if (param->is_read) {
+		param->value = data->preset_mode;
+		param->status = 0;
+		dev_dbg(dev, "get preset_mode %d", param->value);
+		rc = 0;
+	} else {
+		rc = stmvl53l1_set_preset_mode(data, param->value);
+		dev_dbg(dev, "rc %d req %d now %d", rc,
+			param->value, data->poll_delay_ms);
+	}
+
+	return rc;
+}
 
 /**
  * sysfs attribute "mode " [rd/wr]
@@ -1125,9 +1213,7 @@ IMPLEMENT_PARAMETER_INTEGER(preset_mode, "preset mode")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(mode, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_preset_mode,
-				stmvl53l1_store_preset_mode);
+static DEVICE_ATTR_RW(mode);
 
 static int stmvl53l1_set_distance_mode(struct stmvl53l1_data *data,
 	int distance_mode)
@@ -1168,9 +1254,7 @@ IMPLEMENT_PARAMETER_INTEGER(distance_mode, "distance mode")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(distance_mode, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_distance_mode,
-				stmvl53l1_store_distance_mode);
+static DEVICE_ATTR_RW(distance_mode);
 
 static int stmvl53l1_set_crosstalk_enable(struct stmvl53l1_data *data,
 	int crosstalk_enable)
@@ -1204,9 +1288,7 @@ IMPLEMENT_PARAMETER_INTEGER(crosstalk_enable, "crosstalk enable")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(crosstalk_enable, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_crosstalk_enable,
-				stmvl53l1_store_crosstalk_enable);
+static DEVICE_ATTR_RW(crosstalk_enable);
 
 static int stmvl53l1_set_output_mode(struct stmvl53l1_data *data,
 	int output_mode)
@@ -1245,13 +1327,10 @@ IMPLEMENT_PARAMETER_INTEGER(output_mode, "output mode")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(output_mode, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_output_mode,
-				stmvl53l1_store_output_mode);
+static DEVICE_ATTR_RW(output_mode);
 
-
-static int stmvl53l1_set_force_device_on_en(struct stmvl53l1_data *data,
-	int force_device_on_en)
+static int stmvl53l1_set_force_device_on_enable(struct stmvl53l1_data *data,
+						int force_device_on_en)
 {
 	int rc;
 	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
@@ -1263,7 +1342,7 @@ static int stmvl53l1_set_force_device_on_en(struct stmvl53l1_data *data,
 		return -EINVAL;
 	}
 
-	data->force_device_on_en = force_device_on_en;
+	data->force_device_on_enable = force_device_on_en;
 
 	/* don't update reset if sensor is enable */
 	if (data->enable_sensor)
@@ -1278,7 +1357,7 @@ static int stmvl53l1_set_force_device_on_en(struct stmvl53l1_data *data,
 	return rc;
 }
 
-IMPLEMENT_PARAMETER_INTEGER(force_device_on_en, "force device on enable")
+IMPLEMENT_PARAMETER_INTEGER(force_device_on_enable, "force device on enable")
 
 /**
  * sysfs attribute " force_device_on_enable" [rd/wr]
@@ -1289,9 +1368,7 @@ IMPLEMENT_PARAMETER_INTEGER(force_device_on_en, "force device on enable")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(force_device_on_enable, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_force_device_on_en,
-				stmvl53l1_store_force_device_on_en);
+static DEVICE_ATTR_RW(force_device_on_enable);
 
 static int stmvl53l1_set_offset_correction_mode(struct stmvl53l1_data *data,
 	int offset_correction_mode)
@@ -1335,12 +1412,11 @@ IMPLEMENT_PARAMETER_INTEGER(offset_correction_mode, "offset correction mode")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(offset_correction_mode, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_offset_correction_mode,
-				stmvl53l1_store_offset_correction_mode);
+static DEVICE_ATTR_RW(offset_correction_mode);
 
-static ssize_t stmvl53l1_do_flush(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t do_flush_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 
@@ -1355,19 +1431,17 @@ static ssize_t stmvl53l1_do_flush(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(do_flush, 0660/*S_IWUGO | S_IRUGO*/,
-			NULL,
-			stmvl53l1_do_flush);
+static DEVICE_ATTR_WO(do_flush);
 
-static ssize_t stmvl53l1_show_enable_debug(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t enable_debug_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", stmvl53l1_enable_debug);
 }
 
-static ssize_t stmvl53l1_store_enable_debug(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t enable_debug_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
 	int enable_debug;
 	int rc = 0;
@@ -1390,9 +1464,7 @@ static ssize_t stmvl53l1_store_enable_debug(struct device *dev,
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(enable_debug, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_enable_debug,
-				stmvl53l1_store_enable_debug);
+static DEVICE_ATTR_RW(enable_debug);
 
 static ssize_t display_FixPoint1616(char *buf, size_t size, FixPoint1616_t fix)
 {
@@ -1404,8 +1476,8 @@ static ssize_t display_FixPoint1616(char *buf, size_t size, FixPoint1616_t fix)
 	return scnprintf(buf, size, "%d.%06d", msb, (uint32_t)lsb);
 }
 
-static ssize_t stmvl53l1_show_autonomous_config(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t autonomous_config_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	ssize_t res = 0;
@@ -1506,9 +1578,9 @@ static const char *parse_FixPoint16x16(const char *buf, FixPoint1616_t *res,
 	return strchr(buf, is_last ? '\0' : ' ');
 }
 
-static ssize_t stmvl53l1_store_autonomous_config(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t autonomous_config_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	int pollingTimeInMs, DetectionMode, IntrNoTarget;
@@ -1596,12 +1668,10 @@ error:
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(autonomous_config, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_autonomous_config,
-				stmvl53l1_store_autonomous_config);
+static DEVICE_ATTR_RW(autonomous_config);
 
-static ssize_t stmvl53l1_show_last_error_config(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t last_error_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 
@@ -1615,12 +1685,10 @@ static ssize_t stmvl53l1_show_last_error_config(struct device *dev,
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(last_error, 0440/*S_IRUGO*/,
-				stmvl53l1_show_last_error_config,
-				NULL);
+static DEVICE_ATTR_RO(last_error);
 
-static ssize_t stmvl53l1_show_optical_center_config(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t optical_center_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	ssize_t res = 0;
@@ -1643,9 +1711,7 @@ static ssize_t stmvl53l1_show_optical_center_config(struct device *dev,
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(optical_center, 0440/*S_IRUGO*/,
-				stmvl53l1_show_optical_center_config,
-				NULL);
+static DEVICE_ATTR_RO(optical_center);
 
 static int stmvl53l1_set_dmax_reflectance(struct stmvl53l1_data *data,
 	int dmax_reflectance)
@@ -1664,8 +1730,8 @@ static int stmvl53l1_set_dmax_reflectance(struct stmvl53l1_data *data,
 	return rc;
 }
 
-static ssize_t stmvl53l1_show_dmax_reflectance(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t dmax_reflectance_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	ssize_t res = 0;
@@ -1678,9 +1744,9 @@ static ssize_t stmvl53l1_show_dmax_reflectance(struct device *dev,
 	return res;
 }
 
-static ssize_t stmvl53l1_store_dmax_reflectance(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t dmax_reflectance_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	FixPoint1616_t dmax_reflectance;
@@ -1719,9 +1785,7 @@ error:
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(dmax_reflectance, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_dmax_reflectance,
-				stmvl53l1_store_dmax_reflectance);
+static DEVICE_ATTR_RW(dmax_reflectance);
 
 static int stmvl53l1_set_dmax_mode(struct stmvl53l1_data *data,
 	int dmax_mode)
@@ -1762,9 +1826,7 @@ IMPLEMENT_PARAMETER_INTEGER(dmax_mode, "dmax mode")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(dmax_mode, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_dmax_mode,
-				stmvl53l1_store_dmax_mode);
+static DEVICE_ATTR_RW(dmax_mode);
 
 static int stmvl53l1_set_tuning(struct stmvl53l1_data *data, int key,
 	int value)
@@ -1796,9 +1858,9 @@ static int stmvl53l1_set_tuning(struct stmvl53l1_data *data, int key,
 	return rc;
 }
 
-static ssize_t stmvl53l1_store_tuning(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t tuning_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	int key;
@@ -1838,9 +1900,7 @@ error:
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(tuning, 0220/*S_IWUGO */,
-				NULL,
-				stmvl53l1_store_tuning);
+static DEVICE_ATTR_WO(tuning);
 
 static int stmvl53l1_display_tuning_key(struct stmvl53l1_data *data, char *buf,
 	int *pos, int key)
@@ -1862,8 +1922,8 @@ static int stmvl53l1_display_tuning_key(struct stmvl53l1_data *data, char *buf,
 	return 0;
 }
 
-static ssize_t stmvl53l1_show_tuning_status(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t tuning_status_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	const int max_tuning_key = 65535;
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
@@ -1895,9 +1955,7 @@ static ssize_t stmvl53l1_show_tuning_status(struct device *dev,
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(tuning_status, 0440/*S_IRUGO */,
-				stmvl53l1_show_tuning_status,
-				NULL);
+static DEVICE_ATTR_RO(tuning_status);
 
 static int stmvl53l1_set_smudge_correction_mode(struct stmvl53l1_data *data,
 	int smudge_correction_mode)
@@ -1943,12 +2001,11 @@ IMPLEMENT_PARAMETER_INTEGER(smudge_correction_mode, "smudge correction mode")
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(smudge_correction_mode, 0660/*S_IWUGO | S_IRUGO*/,
-				stmvl53l1_show_smudge_correction_mode,
-				stmvl53l1_store_smudge_correction_mode);
+static DEVICE_ATTR_RW(smudge_correction_mode);
 
-static ssize_t stmvl53l1_show_is_xtalk_value_changed_config(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t is_xtalk_value_changed_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	int param;
@@ -1967,9 +2024,7 @@ static ssize_t stmvl53l1_show_is_xtalk_value_changed_config(struct device *dev,
  *
  * @ingroup sysfs_attrib
  */
-static DEVICE_ATTR(is_xtalk_value_changed, 0440/*S_IRUGO*/,
-				stmvl53l1_show_is_xtalk_value_changed_config,
-				NULL);
+static DEVICE_ATTR_RO(is_xtalk_value_changed);
 
 static struct attribute *stmvl53l1_attributes[] = {
 	&dev_attr_enable_ps_sensor.attr,
@@ -1997,7 +2052,7 @@ static struct attribute *stmvl53l1_attributes[] = {
 	NULL
 };
 
-static ssize_t stmvl53l1_calib_data_read(struct file *filp,
+static ssize_t calibration_data_read(struct file *filp,
 	struct kobject *kobj, struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
 {
@@ -2043,7 +2098,7 @@ error:
 	return rc;
 }
 
-static ssize_t stmvl53l1_calib_data_write(struct file *filp,
+static ssize_t calibration_data_write(struct file *filp,
 	struct kobject *kobj, struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
 {
@@ -2088,17 +2143,9 @@ error:
 	return rc;
 }
 
-static struct bin_attribute stmvl53l1_calib_data_attr = {
-	.attr = {
-		.name = "calibration_data",
-		.mode = 0660/*S_IWUGO | S_IRUGO*/,
-	},
-	.size = sizeof(struct VL53L1_CalibrationData_t),
-	.read = stmvl53l1_calib_data_read,
-	.write = stmvl53l1_calib_data_write,
-};
+static BIN_ATTR_RW(calibration_data, sizeof(struct VL53L1_CalibrationData_t));
 
-static ssize_t stmvl53l1_zone_calib_data_read(struct file *filp,
+static ssize_t zone_calibration_data_read(struct file *filp,
 	struct kobject *kobj, struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
 {
@@ -2144,7 +2191,7 @@ error:
 	return rc;
 }
 
-static ssize_t stmvl53l1_zone_calib_data_write(struct file *filp,
+static ssize_t zone_calibration_data_write(struct file *filp,
 	struct kobject *kobj, struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
 {
@@ -2194,19 +2241,11 @@ error:
 	return rc;
 }
 
-static struct bin_attribute stmvl53l1_zone_calib_data_attr = {
-	.attr = {
-		.name = "zone_calibration_data",
-		.mode = 0660/*S_IWUGO | S_IRUGO*/,
-	},
-	.size = sizeof(stmvl531_zone_calibration_data_t),
-	.read = stmvl53l1_zone_calib_data_read,
-	.write = stmvl53l1_zone_calib_data_write,
-};
+static BIN_ATTR_RW(zone_calibration_data, sizeof(stmvl531_zone_calibration_data_t));
 
 static struct bin_attribute *stmvl53l1_bin_attributes[] = {
-	&stmvl53l1_calib_data_attr,
-	&stmvl53l1_zone_calib_data_attr,
+	&bin_attr_calibration_data,
+	&bin_attr_zone_calibration_data,
 	NULL
 };
 
@@ -2730,7 +2769,7 @@ static int ctrl_params(struct stmvl53l1_data *data, void __user *p)
 		rc = ctrl_param_output_mode(data, &param);
 		break;
 	case VL53L1_FORCEDEVICEONEN_PAR:
-		rc = ctrl_param_force_device_on_en(data, &param);
+		rc = ctrl_param_force_device_on_enable(data, &param);
 		break;
 	case VL53L1_LASTERROR_PAR:
 		rc = ctrl_param_last_error(data, &param);
@@ -4061,7 +4100,7 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 	/* init work handler */
 	INIT_DELAYED_WORK(&data->dwork, stmvl53l1_work_handler);
 
-	data->force_device_on_en = false/*force_device_on_en_default*/;
+	data->force_device_on_enable = false/*force_device_on_en_default*/;
 	data->reset_state = 1;
 	data->is_calibrating = false;
 	data->last_error = VL53L1_ERROR_NONE;
@@ -4234,7 +4273,7 @@ void stmvl53l1_cleanup(struct stmvl53l1_data *data)
 	}
 
 	/* be sure device is put under reset */
-	data->force_device_on_en = false;
+	data->force_device_on_enable = false;
 	reset_hold(data);
 	stmvl53l1_module_func_tbl.power_down(data->client_object);
 
