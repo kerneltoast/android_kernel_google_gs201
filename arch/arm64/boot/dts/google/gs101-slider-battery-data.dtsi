@@ -10,6 +10,7 @@
 maxim,config {
 	maxim,r3-default-0k {
 		maxim,batt-id-kohm = <0>;
+		maxim,model-version = <1>;
 		maxim,fg-model = /bits/ 16 <
 			0x8e70 0x8ed0 0xb6f0 0xb8c0 0xbaa0 0xbbf0 0xbd40 0xbe60
 			0xbfa0 0xc180 0xc370 0xc680 0xc7f0 0xcfc0 0xd5c0 0xdc70
@@ -46,12 +47,14 @@ maxim,config {
 			/* 0x0004 */	0x0000	/* AtRate @ 0x04 */
 			/* 0x0049 */	0x2241	/* ConvCFG */
 			/* 0x0029 */	0xceb4	/* FilterCFG */
+			/* 0x003c */	0x1680	/* TaskPeriod */
 		>;
 	};
 
 	/* COS: 2733 (b/156053400) */
 	maxim,r3-default-2k {
 		maxim,batt-id-kohm = <2>;
+		maxim,model-version = <1>;
 		maxim,fg-model = /bits/ 16 <
 			0x8e70 0x8ed0 0xb6f0 0xb8c0 0xbaa0 0xbbf0 0xbd40 0xbe60
 			0xbfa0 0xc180 0xc370 0xc680 0xc7f0 0xcfc0 0xd5c0 0xdc70
@@ -87,13 +90,14 @@ maxim,config {
 			/* 0x0004 */	0x0000	/* AtRate @ 0x04 */
 			/* 0x0049 */	0x2241	/* ConvCFG */
 			/* 0x0029 */	0xceb4	/* FilterCFG */
+			/* 0x003c */	0x1680	/* TaskPeriod */
 		>;
 	};
 
 	/* LSN: 2729 (b/156053831) */
 	maxim,r3-default-a0-3k {
-		maxim,fg-algo = <0>;
 		maxim,batt-id-kohm = <3>;
+		maxim,model-version = <1>;
 		maxim,fg-model = /bits/ 16 <
 			0x7fc0 0x8030 0xb600 0xb950 0xba70 0xbc10 0xbcf0 0xbec0
 			0xc0f0 0xc2e0 0xc520 0xc9a0 0xcd50 0xd120 0xd720 0xdc90
@@ -129,6 +133,7 @@ maxim,config {
 			/* 0x0004 */	0x0000	/* AtRate @ 0x04 */
 			/* 0x0049 */	0x2241	/* ConvCFG */
 			/* 0x0029 */	0xceb4	/* FilterCFG */
+			/* 0x003c */	0x1680	/* TaskPeriod */
 		>;
 	};
 
@@ -140,8 +145,8 @@ maxim,config {
 	*              Write16Registers(0xA0)
 	*/
 	maxim,r3-default-a1-3k {
-		maxim,fg-algo = <1>;
 		maxim,batt-id-kohm = <3>;
+		maxim,model-version = <1>;
 		maxim,fg-model = /bits/ 16 <
 			0x7dd0 0x9ae0 0xb770 0xb8d0 0xba90 0xbc00 0xbcf0 0xbe90
 			0xc0b0 0xc280 0xc520 0xc930 0xcbb0 0xd040 0xd720 0xdbe0
@@ -176,7 +181,8 @@ maxim,config {
 			/* 0x002B */    0x3870  /* nMiscCfg */
 			/* 0x0004 */    0x0000  /* AtRate @ 0x04 */
 			/* 0x0049 */    0x2241  /* ConvCFG */
-			/* 0x0029 */    0xceb4  /*FilterCFG */
+			/* 0x0029 */    0xceb4  /* FilterCFG */
+			/* 0x003c */	0x1680	/* TaskPeriod */
 		>;
 	};
 
