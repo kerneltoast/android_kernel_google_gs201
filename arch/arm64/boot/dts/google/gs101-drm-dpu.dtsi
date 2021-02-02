@@ -410,4 +410,28 @@
 		regulator-boot-on;
 		enable-active-high;
 	};
+
+	disp_vddr_en: disp-vddr_en {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddr_en";
+		regulator-boot-on;
+		enable-active-high;
+	};
+
+	disp_vddr_0: disp-vddr_0 {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddr_0";
+		regulator-boot-on;
+		enable-active-high;
+	};
+
+	disp_vddr_1: disp-vddr_1 {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddr_1";
+		regulator-boot-on;
+		enable-active-high;
+	};
 };
