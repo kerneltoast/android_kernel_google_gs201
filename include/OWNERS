@@ -25,6 +25,7 @@ per-file linux/regulator/pmic_class.h=*
 per-file linux/shm_ipc.h=*
 per-file linux/samsung-secure-iova.h=*
 per-file linux/samsung-dma-heap.h=*
+per-file linux/samsung-dma-mapping.h=*
 per-file linux/soc/**=*
 per-file linux/trusty/*=*
 per-file linux/usb/f_mtp.h=*
