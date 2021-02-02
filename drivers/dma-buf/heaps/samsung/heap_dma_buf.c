@@ -12,6 +12,7 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/dma-direct.h>
 #include <linux/dma-heap.h>
 #include <linux/dma-map-ops.h>
 #include <linux/err.h>
@@ -22,6 +23,7 @@
 #include <linux/samsung-dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <uapi/linux/dma-buf.h>
 
 struct dma_iovm_map {
 	struct list_head list;
@@ -265,6 +267,75 @@ static int samsung_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return 0;
 }
 
+static void dma_sync_sg_partial(struct dma_buf *dmabuf, enum dma_data_direction direction,
+				unsigned int offset, unsigned int len, unsigned long flag)
+{
+	struct samsung_dma_buffer *buffer = dmabuf->priv;
+	struct device *dev = dma_heap_get_dev(buffer->heap->dma_heap);
+	struct dma_iovm_map *iovm_map;
+	struct sg_table *sgt = NULL;
+	struct scatterlist *sg;
+	int i;
+	unsigned int size;
+
+	if (dma_heap_skip_cache_ops(buffer->flags))
+		return;
+
+	mutex_lock(&buffer->lock);
+	list_for_each_entry(iovm_map, &buffer->attachments, list) {
+		if (iovm_map->mapcnt && !dev_is_dma_coherent(iovm_map->dev)) {
+			sgt = &iovm_map->table;
+			break;
+		}
+	}
+	mutex_unlock(&buffer->lock);
+
+	if (!sgt)
+		return;
+
+	for_each_sgtable_sg(sgt, sg, i) {
+		dma_addr_t dma_addr;
+
+		if (offset >= sg->length) {
+			offset -= sg->length;
+			continue;
+		}
+
+		size = min_t(unsigned int, len, sg->length - offset);
+		len -= size;
+
+		dma_addr = phys_to_dma(dev, sg_phys(sg));
+
+		if (flag & DMA_BUF_SYNC_END)
+			dma_sync_single_range_for_device(dev, dma_addr, offset, size, direction);
+		else
+			dma_sync_single_range_for_cpu(dev, dma_addr, offset, size, direction);
+
+		offset = 0;
+
+		if (!len)
+			break;
+	}
+}
+
+static int samsung_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
+							 enum dma_data_direction direction,
+							 unsigned int offset, unsigned int len)
+{
+	dma_sync_sg_partial(dmabuf, direction, offset, len, DMA_BUF_SYNC_START);
+
+	return 0;
+}
+
+static int samsung_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
+						       enum dma_data_direction direction,
+						       unsigned int offset, unsigned int len)
+{
+	dma_sync_sg_partial(dmabuf, direction, offset, len, DMA_BUF_SYNC_END);
+
+	return 0;
+}
+
 static int samsung_heap_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct samsung_dma_buffer *buffer = dmabuf->priv;
@@ -389,6 +460,8 @@ const struct dma_buf_ops samsung_dma_buf_ops = {
 	.unmap_dma_buf = samsung_heap_unmap_dma_buf,
 	.begin_cpu_access = samsung_heap_dma_buf_begin_cpu_access,
 	.end_cpu_access = samsung_heap_dma_buf_end_cpu_access,
+	.begin_cpu_access_partial = samsung_heap_dma_buf_begin_cpu_access_partial,
+	.end_cpu_access_partial = samsung_heap_dma_buf_end_cpu_access_partial,
 	.mmap = samsung_heap_mmap,
 	.vmap = samsung_heap_vmap,
 	.vunmap = samsung_heap_vunmap,
