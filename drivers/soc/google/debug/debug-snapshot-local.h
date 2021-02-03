@@ -132,12 +132,6 @@ extern struct dbg_snapshot_log_misc dss_log_misc;
 #define DSS_OFFSET_SCRATCH		(0x100)
 #define DSS_OFFSET_NONE_DPM_DUMP_MODE	(0x108)
 #define DSS_OFFSET_DEBUG_TEST_BUFFER(n)	(0x190 + (0x8 * n))
-#define DSS_OFFSET_LAST_LOGBUF		(0x200)
-#define DSS_OFFSET_LAST_PLATFORM_LOGBUF	(0x204)
-#define DSS_OFFSET_BL_BOOT_CNT_MAGIC	(0x210)
-#define DSS_OFFSET_BL_BOOT_CNT		(0x214)
-#define DSS_OFFSET_KERNEL_BOOT_CNT_MAGIC (0x218)
-#define DSS_OFFSET_KERNEL_BOOT_CNT	(0x21C)
 #define DSS_OFFSET_SLCDUMP_MAGIC	(0x270)
 #define DSS_OFFSET_SLCDUMP_STATUS	(0x274)
 #define DSS_OFFSET_SLCDUMP_BASE_REG	(0x278)
@@ -148,12 +142,6 @@ extern struct dbg_snapshot_log_misc dss_log_misc;
 #define DSS_OFFSET_PANIC_STAT		(0x500)
 #define DSS_OFFSET_CORE_LAST_PC		(0x600)
 #define DSS_OFFSET_QD_ENTRY		(0x660)
-
-/* DSS_BASE + 0x700 -- 0x8FF is reserved */
-#define DSS_OFFSET_LINUX_BANNER		(0x700)
-/* DSS_BASE + 0x900 -- 0xDFF is reserved */
-#define DSS_OFFSET_ITEM_INFO		(0x900)
-/* DSS_BASE + 0xE00 -- 0xFFF is reserved */
 #define DSS_OFFSET_PANIC_STRING		(0xC00)
 
 #define ARM_CPU_PART_CORTEX_A78		0xD41
