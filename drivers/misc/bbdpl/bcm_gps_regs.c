@@ -70,7 +70,7 @@ int bcm_dreg_write(struct bcm_spi_priv *priv, char *id, u8 offset, u8 *buf, u8 s
 	memcpy(&tx->data[2], buf, size);
 	rx->status = 0;
 
-	if (bcm_spi_sync(priv, tx, rx, size + 3, 8))
+	if (bcm_spi_sync(priv, tx, rx, size + 3, size + 3))
 		return -1;
 
 	for (i = 0; i < size; i++) {
@@ -121,7 +121,7 @@ int bcm_dreg_read(struct bcm_spi_priv *priv, char *id, u8 offset, u8 *buf, u8 si
 	tx->data[1] = size;
 	rx->status = 0;
 
-	if (bcm_spi_sync(priv, tx, rx, 3, 8))
+	if (bcm_spi_sync(priv, tx, rx, 3, 3))
 		return -1;
 
 	dev_dbg(&priv->spi->dev, "regR: REG(W) %s @ [%02X]: %08X ", id,
@@ -144,7 +144,7 @@ int bcm_dreg_read(struct bcm_spi_priv *priv, char *id, u8 offset, u8 *buf, u8 si
 
 	memset(&tx->data[2], 0, size);
 
-	if (bcm_spi_sync(priv, tx, rx, size + 3, 8))
+	if (bcm_spi_sync(priv, tx, rx, size + 3, size + 3))
 		return -1;
 
 	memcpy(buf, &rx->data[2], size);
@@ -229,7 +229,7 @@ int bcm_ireg_write(struct bcm_spi_priv *priv, char *id, u32 regaddr, u32 regval)
 	tx->data[13] = 0x00;
 	rx->status = 0;
 
-	if (bcm_spi_sync(priv, tx, rx, 15, 8))
+	if (bcm_spi_sync(priv, tx, rx, 15, 15))
 		return -1;
 
 	if (id)
