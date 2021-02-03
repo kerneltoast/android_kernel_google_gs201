@@ -52,20 +52,11 @@ void exynos_fdt_setup(struct device *dev, struct exynos_fdt_attrs *attrs);
 extern const struct dma_buf_ops exynos_dma_buf_ops;
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-int ion_secure_iova_pool_create(void);
-void ion_secure_iova_pool_destroy(void);
 void *ion_buffer_protect(struct device *dev, unsigned int protection_id,
 			 unsigned int size, unsigned long phys,
 			 unsigned int protalign);
 int ion_buffer_unprotect(void *priv);
 #else
-static inline int ion_secure_iova_pool_create(void)
-{
-	return 0;
-}
-
-#define ion_secure_iova_pool_destroy() do { } while (0)
-
 static inline void *ion_buffer_protect(struct device *dev,
 				       unsigned int protection_id,
 				       unsigned int size, unsigned long phys,

@@ -402,10 +402,6 @@ static int __init ion_exynos_init(void)
 {
 	int ret;
 
-	ret = ion_secure_iova_pool_create();
-	if (ret)
-		return ret;
-
 	ret = ion_exynos_cma_heap_init();
 	if (ret)
 		return ret;
@@ -426,7 +422,6 @@ static void __exit ion_exynos_exit(void)
 	ion_secure_itmon_exit();
 	ion_exynos_cma_heap_exit();
 	ion_carveout_heap_exit();
-	ion_secure_iova_pool_destroy();
 }
 
 module_init(ion_exynos_init);
