@@ -799,7 +799,7 @@ static struct itmon_nodeinfo vec_p2[] = {
 	{S_NODE, "DNS",		0x1F283000, 1, 1, 0, 0, TMOUT, 1},
 	{S_NODE, "DPU",		0x1F223000, 1, 1, 0, 0, TMOUT, 1},
 	{S_NODE, "G2D",		0x1F2E3000, 1, 1, 0, 0, TMOUT, 1},
-	{S_NODE, "G3AA",	0x1F263000, 1, 1, 0, 0, TMOUT, 1},
+	{S_NODE, "G3AA",	0x1F263000, 1, 1, 0, 0, TMOUT, 0},
 	{S_NODE, "GDC",		0x1F303000, 1, 1, 0, 0, TMOUT, 1},
 	{S_NODE, "HSI2",	0x1F2F3000, 1, 1, 0, 0, TMOUT, 1},
 	{S_NODE, "IPP",		0x1F273000, 1, 1, 0, 0, TMOUT, 1},
