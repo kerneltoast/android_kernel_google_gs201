@@ -350,8 +350,6 @@ static inline void pr_skb(const char *tag, struct sk_buff *skb, struct link_devi
 			(size_t)((urb)->actual_length), (size_t)16)
 
 /* Stop/wake all TX queues in network interfaces */
-void stop_net_iface(struct link_device *ld, unsigned int channel);
-void resume_net_iface(struct link_device *ld, unsigned int channel);
 void stop_net_ifaces(struct link_device *ld);
 void resume_net_ifaces(struct link_device *ld);
 

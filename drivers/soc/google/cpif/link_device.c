@@ -34,7 +34,6 @@
 #include "modem_utils.h"
 #include "link_device.h"
 #include "modem_dump.h"
-#include "link_ctrlmsg_iosm.h"
 #include "modem_ctrl.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
@@ -2197,21 +2196,6 @@ static int shmem_init_comm(struct link_device *ld, struct io_device *iod)
 	if (atomic_read(&mld->cp_boot_done))
 		return 0;
 
-#if IS_ENABLED(CONFIG_LINK_CONTROL_MSG_IOSM)
-	if (mld->iosm) {
-		struct sbd_link_device *sl = &mld->sbd_link_dev;
-		struct sbd_ipc_device *sid = sbd_ch2dev(sl, iod->ch);
-
-		if (!atomic_read(&sid->config_done)) {
-			mif_err("%s isn't configured channel\n", iod->name);
-			return -ENODEV;
-		}
-
-		tx_iosm_message(mld, IOSM_A2C_OPEN_CH, (u32 *)&id);
-		return 0;
-	}
-#endif
-
 	if (ld->protocol == PROTOCOL_SIT)
 		return 0;
 
@@ -2254,16 +2238,6 @@ static int shmem_init_comm(struct link_device *ld, struct io_device *iod)
 	return 0;
 }
 
-static void shmem_terminate_comm(struct link_device *ld, struct io_device *iod)
-{
-#if IS_ENABLED(CONFIG_LINK_CONTROL_MSG_IOSM)
-	struct mem_link_device *mld = to_mem_link_device(ld);
-
-	if (mld->iosm)
-		tx_iosm_message(mld, IOSM_A2C_CLOSE_CH, (u32 *)&iod->ch);
-#endif
-}
-
 static int shmem_send(struct link_device *ld, struct io_device *iod,
 		    struct sk_buff *skb)
 {
@@ -2292,11 +2266,6 @@ static void link_prepare_normal_boot(struct link_device *ld, struct io_device *i
 #endif
 		cancel_tx_timer(mld, &mld->sbd_tx_timer);
 		cancel_datalloc_timer(mld);
-
-		if (mld->iosm) {
-			memset(mld->base + CMD_RGN_OFFSET, 0, CMD_RGN_SIZE);
-			mif_info("Control message region has been initialized\n");
-		}
 	}
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
@@ -3937,7 +3906,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	ld->ioctl = shmem_ioctl;
 
 	ld->init_comm = shmem_init_comm;
-	ld->terminate_comm = shmem_terminate_comm;
+	ld->terminate_comm = NULL;
 	ld->send = shmem_send;
 	ld->reset_zerocopy = NULL;
 
@@ -4088,13 +4057,8 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 			ld->name, modem->name);
 		mld->dpram_magic = true;
 	}
-#if IS_ENABLED(CONFIG_LINK_CONTROL_MSG_IOSM)
-	mld->iosm = true;
-	mld->cmd_handler = iosm_event_bh;
-	INIT_WORK(&mld->iosm_w, iosm_event_work);
-#else
+
 	mld->cmd_handler = shmem_cmd_handler;
-#endif
 
 	spin_lock_init(&mld->state_lock);
 	mld->state = LINK_STATE_OFFLINE;

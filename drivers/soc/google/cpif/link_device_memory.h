@@ -189,7 +189,6 @@ struct mem_link_device {
 	 * Flags
 	 */
 	bool dpram_magic;		/* DPRAM-style magic code	*/
-	bool iosm;			/* IOSM message			*/
 
 	/**
 	 * {physical address, size, virtual address} for BOOT region
@@ -236,7 +235,6 @@ struct mem_link_device {
 
 	/* sbd link device */
 	struct sbd_link_device sbd_link_dev;
-	struct work_struct iosm_w;
 
 	/**
 	 * GPIO#, MBOX#, IRQ# for IPC
@@ -853,33 +851,6 @@ static inline struct sk_buff *mem_alloc_skb(unsigned int len)
 }
 
 /*============================================================================*/
-/* direction: CP -> AP */
-#define IOSM_C2A_MDM_READY	0x80
-#define IOSM_C2A_CONF_CH_RSP	0xA3	/* answer of flow control msg */
-#define IOSM_C2A_STOP_TX_CH	0xB0
-#define IOSM_C2A_START_TX_CH	0xB1
-#define IOSM_C2A_ACK		0xE0
-#define IOSM_C2A_NACK		0xE1
-
-/* direction: AP -> CP */
-#define IOSM_A2C_AP_READY	0x00
-#define IOSM_A2C_CONF_CH_REQ	0x22	/* flow control on/off */
-#define IOSM_A2C_OPEN_CH	0x24
-#define IOSM_A2C_CLOSE_CH	0x25
-#define IOSM_A2C_STOP_TX_CH	0x30
-#define IOSM_A2C_START_TX_CH	0x30
-#define IOSM_A2C_ACK		0x60
-#define IOSM_A2C_NACK		0x61
-
-#define IOSM_TRANS_ID_MAX	255
-#define IOSM_MSG_AREA_SIZE	(CTRL_RGN_SIZE / 2)
-#define IOSM_MSG_TX_OFFSET	CMD_RGN_OFFSET
-#define IOSM_MSG_RX_OFFSET	(CMD_RGN_OFFSET + IOSM_MSG_AREA_SIZE)
-#define IOSM_MSG_DESC_OFFSET	(CMD_RGN_OFFSET + CMD_RGN_SIZE)
-
-void tx_iosm_message(struct mem_link_device *mld, u8 id, u32 *args);
-void iosm_event_work(struct work_struct *work);
-void iosm_event_bh(struct mem_link_device *mld, u16 cmd);
 
 #define NET_HEADROOM (NET_SKB_PAD + NET_IP_ALIGN)
 

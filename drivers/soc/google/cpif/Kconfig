@@ -71,10 +71,6 @@ config LINK_DEVICE_PCIE
 	tristate "modem driver link device PCIe"
 	default n
 
-config LINK_CONTROL_MSG_IOSM
-	tristate "Control Message Type: IPC Over Shared Memory (IOSM)"
-	default n
-
 config CP_SECURE_BOOT
 	tristate "Support CP Secure Boot"
 	default n

@@ -29,8 +29,6 @@ cpif-$(CONFIG_CP_ZEROCOPY) += link_rx_zerocopy.o
 cpif-$(CONFIG_CP_PKTPROC) += link_rx_pktproc.o
 cpif-$(CONFIG_CP_PKTPROC_UL) += link_tx_pktproc.o
 
-cpif-$(CONFIG_LINK_CONTROL_MSG_IOSM) += link_ctrlmsg_iosm.o
-
 cpif-$(CONFIG_CP_BTL) += cp_btl.o
 
 cpif-$(CONFIG_CPIF_TP_MONITOR) += cpif_tp_monitor.o

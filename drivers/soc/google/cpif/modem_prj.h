@@ -495,7 +495,6 @@ struct link_device {
 	spinlock_t netif_lock;
 
 	/* bit mask for stopped channel */
-	unsigned long netif_stop_mask;
 	unsigned long tx_flowctrl_mask;
 
 	/* flag of stopped state for all channels */

@@ -268,7 +268,6 @@ int init_sbd_link(struct sbd_link_device *sl)
 
 		ipc_dev->id = link_attr->id;
 		ipc_dev->ch = link_attr->ch;
-		atomic_set(&ipc_dev->config_done, 0);
 		ipc_dev->zerocopy = link_attr->zerocopy;
 
 		for (dir = 0; dir < ULDL; dir++) {

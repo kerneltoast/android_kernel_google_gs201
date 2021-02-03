@@ -249,8 +249,6 @@ struct sbd_ipc_device {
 	/* SIPC Channel ID --> rb.ch */
 	u16 ch;
 
-	atomic_t config_done;
-
 	/* UL/DL SBD RB pair in the kernel space */
 	struct sbd_ring_buffer rb[ULDL];
 

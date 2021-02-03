@@ -468,26 +468,6 @@ void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop)
 	spin_unlock(&msd->active_list_lock);
 }
 
-void stop_net_iface(struct link_device *ld, unsigned int channel)
-{
-	struct io_device *iod;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ld->netif_lock, flags);
-
-	if (test_bit(channel, &ld->netif_stop_mask)) {
-		mif_err("channel %d was already stopped!\n", channel);
-		goto exit;
-	}
-
-	iod = link_get_iod_with_channel(ld, channel);
-	iodev_netif_stop(iod, 0);
-	set_bit(channel, &ld->netif_stop_mask);
-
-exit:
-	spin_unlock_irqrestore(&ld->netif_lock, flags);
-}
-
 void stop_net_ifaces(struct link_device *ld)
 {
 	unsigned long flags;
@@ -501,26 +481,6 @@ void stop_net_ifaces(struct link_device *ld)
 		atomic_set(&ld->netif_stopped, 1);
 	}
 
-	spin_unlock_irqrestore(&ld->netif_lock, flags);
-}
-
-void resume_net_iface(struct link_device *ld, unsigned int channel)
-{
-	struct io_device *iod;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ld->netif_lock, flags);
-
-	if (!test_bit(channel, &ld->netif_stop_mask)) {
-		mif_err("channel %d was already resumed!\n", channel);
-		goto exit;
-	}
-
-	iod = link_get_iod_with_channel(ld, channel);
-	iodev_netif_wake(iod, 0);
-	clear_bit(channel, &ld->netif_stop_mask);
-
-exit:
 	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
