@@ -1110,6 +1110,10 @@
 		tmu_name = "MID";
 		id = <1>;
 		ect_nouse = <1>;
+		hotplug_enable = <1>;
+		hotplug_in_threshold = <91>;
+		hotplug_out_threshold = <96>;
+		hotplug_cpus = "4-5";
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
