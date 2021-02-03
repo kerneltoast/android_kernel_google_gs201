@@ -3936,8 +3936,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	 */
 	ld->ioctl = shmem_ioctl;
 
-	if (link_type == LINKDEV_SHMEM)
-		ld->init_comm = shmem_init_comm;
+	ld->init_comm = shmem_init_comm;
 	ld->terminate_comm = shmem_terminate_comm;
 	ld->send = shmem_send;
 	ld->reset_zerocopy = NULL;
