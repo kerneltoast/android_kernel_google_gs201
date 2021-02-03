@@ -69,11 +69,9 @@
 		/* no needed for EEPROM */
 		maxim,batt-id-range-pct = <0>;
 
-		maxim,psy-type-unknown;
+		/* model data available only for V2P2 */
 
-		maxim,fg-data {
-			#include "gs101-slider-battery-data.dtsi"
-		};
+		maxim,psy-type-unknown;
 	};
 
 	max77759chrg@0x69 {
