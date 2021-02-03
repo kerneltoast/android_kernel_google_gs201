@@ -10,6 +10,7 @@
 #define _GS101_TMU_H
 #include <linux/kthread.h>
 #include <soc/google/exynos_pm_qos.h>
+#include <soc/google/exynos-cpuhp.h>
 
 #define MCELSIUS        1000
 
@@ -79,6 +80,7 @@ struct gs101_tmu_data {
 	struct kthread_delayed_work pi_work;
 	struct gs101_pi_param *pi_param;
 	struct cpumask hotplug_cpus;
+	char cpuhp_name[CPUHP_USER_NAME_LEN + 1];
 };
 
 #endif /* _GS101_TMU_H */

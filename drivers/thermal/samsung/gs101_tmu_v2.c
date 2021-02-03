@@ -591,7 +591,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			 * If current temperature is lower than low threshold,
 			 * call cluster1_cores_hotplug(false) for hotplugged out cpus.
 			 */
-			exynos_cpuhp_request("DTM", *cpu_possible_mask);
+			exynos_cpuhp_request(data->cpuhp_name, *cpu_possible_mask);
 			data->is_cpu_hotplugged_out = false;
 		}
 	} else {
@@ -602,7 +602,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			 */
 			data->is_cpu_hotplugged_out = true;
 			cpumask_andnot(&mask, cpu_possible_mask, &data->hotplug_cpus);
-			exynos_cpuhp_request("DTM", mask);
+			exynos_cpuhp_request(data->cpuhp_name, mask);
 		}
 	}
 
@@ -681,7 +681,8 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	wake_up_process(thread);
 
 	if (data->hotplug_enable) {
-		exynos_cpuhp_register("DTM", *cpu_online_mask);
+		scnprintf(data->cpuhp_name, CPUHP_USER_NAME_LEN, "DTM_%s", data->tmu_name);
+		exynos_cpuhp_register(data->cpuhp_name, *cpu_online_mask);
 		kthread_init_work(&data->hotplug_work, gs101_throttle_cpu_hotplug);
 
 		if (!hotplug_worker) {
