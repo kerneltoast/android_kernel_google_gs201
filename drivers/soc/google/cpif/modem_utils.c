@@ -344,35 +344,6 @@ int pr_buffer(const char *tag, const char *data, size_t data_len,
 			str, (len == data_len) ? "" : " ...");
 }
 
-/* flow control CM from CP, it use in serial devices */
-int link_rx_flowctl_cmd(struct link_device *ld, const char *data, size_t len)
-{
-	struct modem_shared *msd = ld->msd;
-	unsigned short *cmd, *end = (unsigned short *)(data + len);
-
-	mif_debug("flow control cmd: size=%ld\n", (long)len);
-
-	for (cmd = (unsigned short *)data; cmd < end; cmd++) {
-		switch (*cmd) {
-		case CMD_SUSPEND:
-			iodevs_for_each(msd, iodev_netif_stop, 0);
-			mif_info("flowctl CMD_SUSPEND(%04X)\n", *cmd);
-			break;
-
-		case CMD_RESUME:
-			iodevs_for_each(msd, iodev_netif_wake, 0);
-			mif_info("flowctl CMD_RESUME(%04X)\n", *cmd);
-			break;
-
-		default:
-			mif_err("flowctl BAD CMD: %04X\n", *cmd);
-			break;
-		}
-	}
-
-	return 0;
-}
-
 struct io_device *get_iod_with_format(struct modem_shared *msd,
 			u32 format)
 {
@@ -425,22 +396,6 @@ struct io_device *insert_iod_with_format(struct modem_shared *msd,
 	rb_link_node(&iod->node_fmt, parent, p);
 	rb_insert_color(&iod->node_fmt, &msd->iodevs_tree_fmt);
 	return NULL;
-}
-
-void iodev_netif_wake(struct io_device *iod, void *args)
-{
-	if (iod->io_typ == IODEV_NET && iod->ndev) {
-		netif_wake_queue(iod->ndev);
-		mif_info("%s\n", iod->name);
-	}
-}
-
-void iodev_netif_stop(struct io_device *iod, void *args)
-{
-	if (iod->io_typ == IODEV_NET && iod->ndev) {
-		netif_stop_queue(iod->ndev);
-		mif_info("%s\n", iod->name);
-	}
 }
 
 void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop)

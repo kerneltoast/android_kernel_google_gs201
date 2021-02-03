@@ -353,9 +353,6 @@ static inline void pr_skb(const char *tag, struct sk_buff *skb, struct link_devi
 void stop_net_ifaces(struct link_device *ld);
 void resume_net_ifaces(struct link_device *ld);
 
-/* flow control CMD from CP, it use in serial devices */
-int link_rx_flowctl_cmd(struct link_device *ld, const char *data, size_t len);
-
 /* Get an IO device */
 struct io_device *get_iod_with_format(struct modem_shared *msd,
 					u32 format);
@@ -405,10 +402,6 @@ static inline void iodevs_for_each(struct modem_shared *msd, action_fn action, v
 		action(iod, args);
 	}
 }
-
-/* netif wake/stop queue of iod */
-void iodev_netif_wake(struct io_device *iod, void *args);
-void iodev_netif_stop(struct io_device *iod, void *args);
 
 /* netif wake/stop queue of iod having activated ndev */
 void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop);
