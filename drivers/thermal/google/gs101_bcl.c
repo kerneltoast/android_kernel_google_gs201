@@ -131,8 +131,6 @@ enum sys_throttling_switch {
 	SYS_THROTTLING_MAX,
 };
 
-enum sys_throttling_mode { SYS_THROTTLING_MPMM_MODE, SYS_THROTTLING_PPM_MODE };
-
 enum PMIC_REG { S2MPG10, S2MPG11 };
 
 struct gs101_bcl_dev {
@@ -1403,7 +1401,7 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	unsigned int reg;
 	void __iomem *addr;
 	unsigned int settings;
-	unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {0xF, 0x0, 0x0, 0x5, 0xA};
+	unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {0x1F, 0x10, 0x10, 0x15, 0x1A};
 
 	if (!gs101_bcl_device->sysreg_cpucl0) {
 		pr_err("sysreg_cpucl0 ioremap not mapped\n");
@@ -1418,7 +1416,7 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	else
 		settings = sys_throttling_settings[throttle_switch];
 
-	reg &= ~0xF;
+	reg &= ~0x1F;
 	reg |= settings;
 	__raw_writel(reg, addr);
 	mutex_unlock(&sysreg_lock);
