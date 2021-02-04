@@ -605,14 +605,15 @@ retry:
 					break;
 				} else if (retry_cnt > 0) {
 					pr_err("acpm_ipc retry %d, now = %llu, timeout = %llu",
-							retry_cnt, now, timeout);
-					pr_err("I:0x%x %u RX r:%u f:%u TX r:%u f:%u\n",
-							__raw_readl(acpm_ipc->intr + AP_INTSR),
-							channel->id,
-							__raw_readl(channel->rx_ch.rear),
-							__raw_readl(channel->rx_ch.front),
-							__raw_readl(channel->tx_ch.rear),
-							__raw_readl(channel->tx_ch.front));
+					       retry_cnt, now, timeout);
+					pr_err("I:0x%x %u s:%2d RX r:%u f:%u TX r:%u f:%u\n",
+					       __raw_readl(acpm_ipc->intr + AP_INTSR),
+					       channel->id,
+					       (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f,
+					       __raw_readl(channel->rx_ch.rear),
+					       __raw_readl(channel->rx_ch.front),
+					       __raw_readl(channel->tx_ch.rear),
+					       __raw_readl(channel->tx_ch.front));
 					++retry_cnt;
 					goto retry;
 				} else {
@@ -630,8 +631,9 @@ retry:
 		if ((timeout_flag) && (check_response(channel, cfg))) {
 			unsigned int saved_debug_log_level =
 			    acpm_debug->debug_log_level;
-			pr_err("%s Timeout error! now = %llu, timeout = %llu ch:%u\n",
-			       __func__, now, timeout, channel->id);
+			pr_err("%s Timeout error! now = %llu, timeout = %llu ch:%u s:%2d\n",
+			       __func__, now, timeout, channel->id,
+			       (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f);
 
 			acpm_debug->debug_log_level = 2;
 			acpm_log_print();
