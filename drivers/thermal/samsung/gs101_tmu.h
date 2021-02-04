@@ -80,6 +80,8 @@ struct gs101_tmu_data {
 	struct kthread_delayed_work pi_work;
 	struct gs101_pi_param *pi_param;
 	struct cpumask hotplug_cpus;
+	struct cpumask tmu_work_affinity;
+	struct cpumask hotplug_work_affinity;
 	char cpuhp_name[CPUHP_USER_NAME_LEN + 1];
 };
 
