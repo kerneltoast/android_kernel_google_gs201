@@ -5061,6 +5061,16 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 		 */
 		break;
 
+	case SRC_STARTUP:
+	case SRC_SEND_CAPABILITIES:
+	case SRC_SEND_CAPABILITIES_TIMEOUT:
+	case SRC_NEGOTIATE_CAPABILITIES:
+	case SRC_TRANSITION_SUPPLY:
+	case SRC_READY:
+	case SRC_WAIT_NEW_CAPABILITIES:
+		tcpm_set_state(port, SRC_UNATTACHED, 0);
+		break;
+
 	case FR_SWAP_SEND:
 	case FR_SWAP_SEND_TIMEOUT:
 	case FR_SWAP_SNK_SRC_TRANSITION_TO_OFF:

@@ -77,6 +77,7 @@ struct gpufreq_cooling_device {
 	int *asv_coeff;
 	unsigned int var_volt_size;
 	unsigned int var_temp_size;
+	unsigned long sysfs_req;
 };
 
 static DEFINE_IDR(gpufreq_idr);
@@ -568,33 +569,35 @@ static u32 get_dynamic_power(struct gpufreq_cooling_device *gpufreq_cdev,
 }
 
 /**
- * gpufreq_apply_cooling() - function to apply frequency clipping.
+ * gpufreq_set_cur_state() - callback function to set the current cooling state.
  *
- * @gpufreq_cdev:  gpufreq_cooling_device pointer containing frequency
- *	           clipping data.
- * @cooling_state: value of the cooling state.
+ * @cdev:  thermal cooling device pointer.
+ * @state: set this variable to the current cooling state.
  *
- * Function used to make sure the gpufreq layer is aware of current thermal
- * limits. The limits are applied by updating the gpufreq policy.
+ * Callback for the thermal cooling device to change the gpufreq
+ * current cooling state.
  *
- * Return: 0 on success, an error code otherwise (-EINVAL if &cooling_state is
- *         not valid).
- */
-static int gpufreq_apply_cooling(struct gpufreq_cooling_device *gpufreq_cdev,
-				 unsigned long cooling_state)
+ * Return: 0 on success, an error code otherwise.
+*/
+
+static int gpufreq_set_cur_state(struct thermal_cooling_device *cdev,
+				unsigned long state)
 {
 	struct gpu_tmu_notification_data nd;
+	struct gpufreq_cooling_device *gpufreq_cdev = cdev->devdata;
 
+	state = max(gpufreq_cdev->sysfs_req, state);
 	/* Check if the old cooling action is same as new cooling action */
-	if (gpufreq_cdev->gpufreq_state == cooling_state)
+	if (gpufreq_cdev->gpufreq_state == state)
 		return -EALREADY;
 
-	gpufreq_cdev->gpufreq_state = cooling_state;
+	gpufreq_cdev->gpufreq_state = state;
 
 	nd.gpu_drv_data = gpufreq_cdev->gpu_drv_data;
 	nd.data = gpufreq_cdev->gpufreq_state;
 
 	blocking_notifier_call_chain(&gpu_notifier, GPU_THROTTLING, &nd);
+	trace_vendor_cdev_update(cdev->type, gpufreq_cdev->sysfs_req, state);
 
 	return 0;
 }
@@ -646,25 +649,6 @@ static int gpufreq_get_cur_state(struct thermal_cooling_device *cdev,
 	*state = gpufreq_cdev->gpufreq_state;
 
 	return 0;
-}
-
-/**
- * gpufreq_set_cur_state() - callback function to set the current cooling state.
- *
- * @cdev:  thermal cooling device pointer.
- * @state: set this variable to the current cooling state.
- *
- * Callback for the thermal cooling device to change the gpufreq
- * current cooling state.
- *
- * Return: 0 on success, an error code otherwise.
- */
-static int gpufreq_set_cur_state(struct thermal_cooling_device *cdev,
-				 unsigned long state)
-{
-	struct gpufreq_cooling_device *gpufreq_cdev = cdev->devdata;
-
-	return gpufreq_apply_cooling(gpufreq_cdev, state);
 }
 
 /**
@@ -954,6 +938,51 @@ static int gpu_cooling_table_init(struct gpufreq_cooling_device *gpufreq_cdev)
 	return 0;
 }
 
+ssize_t
+user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct gpufreq_cooling_device *gpufreq_cdev = cdev->devdata;
+
+	if (!gpufreq_cdev)
+		return -ENODEV;
+
+	return sprintf(buf, "%lu\n", gpufreq_cdev->sysfs_req);
+}
+
+ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct gpufreq_cooling_device *gpufreq_cdev = cdev->devdata;
+	int ret;
+	unsigned int max_state = 0;
+	unsigned long state;
+
+	if (!gpufreq_cdev)
+		return -ENODEV;
+
+	ret = kstrtoul(buf, 0, &state);
+	if (ret)
+		return ret;
+
+	ret = get_property(gpufreq_cdev, 0, &max_state, GET_MAXL);
+	if (ret)
+		return ret;
+
+	if (state > max_state)
+		return -EINVAL;
+
+	mutex_lock(&cdev->lock);
+	gpufreq_cdev->sysfs_req = state;
+	cdev->updated = false;
+	mutex_unlock(&cdev->lock);
+	thermal_cdev_update(cdev);
+	return count;
+}
+
+static DEVICE_ATTR_RW(user_vote);
+
 /**
  * __gpufreq_cooling_register - helper function to create gpufreq cooling device
  *
@@ -1014,11 +1043,15 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 	cool_dev = thermal_of_cooling_device_register(np, dev_name,
 						      gpufreq_cdev, cooling_ops);
 	if (IS_ERR(cool_dev)) {
-		release_idr(&gpufreq_idr, gpufreq_cdev->id);
-		kfree(gpufreq_cdev);
 		pr_warn("%s: register cooling device %s failed\n", __func__,
 			dev_name);
-		return cool_dev;
+		goto free_cool_dev;
+	}
+
+	ret = device_create_file(&cool_dev->device, &dev_attr_user_vote);
+	if (ret) {
+		thermal_cooling_device_unregister(cool_dev);
+		goto free_cool_dev;
 	}
 
 	gpufreq_cdev->tzd = parse_ect_cooling_level(cool_dev, "G3D");
@@ -1029,6 +1062,11 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 	pr_info("gpu cooling registered for %s, capacitance: %d, power_callback: %s\n",
 		dev_name, capacitance,
 		cooling_ops == &gpufreq_power_cooling_ops ? "true" : "false");
+	return cool_dev;
+
+free_cool_dev:
+	release_idr(&gpufreq_idr, gpufreq_cdev->id);
+	kfree(gpufreq_cdev);
 	return cool_dev;
 }
 

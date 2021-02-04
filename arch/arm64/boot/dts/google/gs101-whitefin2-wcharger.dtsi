@@ -68,7 +68,5 @@
 		google,epp_rp_value = <15000>; /* mW */
 		idt,max_vout_mv = <10000>;  /* max voltage in mV */
 
-		/* Tx Enable GPIOS */
-		idt,gpio_switch = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
 	};
 };

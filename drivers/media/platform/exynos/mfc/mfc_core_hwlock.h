@@ -79,7 +79,7 @@ void mfc_core_move_hwlock_ctx(struct mfc_core *to_core, struct mfc_core *from_co
 void mfc_core_try_run(struct mfc_core *core);
 void mfc_core_cleanup_work_bit_and_try_run(struct mfc_core_ctx *core_ctx);
 void mfc_core_cache_flush(struct mfc_core *core, int is_drm,
-		enum mfc_do_cache_flush do_cache_flush);
+		enum mfc_do_cache_flush do_cache_flush, int drm_switch);
 int mfc_core_just_run(struct mfc_core *core, int new_ctx_index);
 void mfc_core_hwlock_handler_irq(struct mfc_core *core, struct mfc_ctx *ctx,
 		unsigned int reason, unsigned int err);

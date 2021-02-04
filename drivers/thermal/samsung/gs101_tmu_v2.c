@@ -601,7 +601,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			 * call cluster1_cores_hotplug(true) to hold temperature down.
 			 */
 			data->is_cpu_hotplugged_out = true;
-			cpumask_and(&mask, cpu_possible_mask, &cpu_topology[0].core_sibling);
+			cpumask_andnot(&mask, cpu_possible_mask, &data->hotplug_cpus);
 			exynos_cpuhp_request("DTM", mask);
 		}
 	}
@@ -705,7 +705,7 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 {
 	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
 	struct resource res;
-	const char *tmu_name;
+	const char *tmu_name, *buf;
 	int ret;
 
 	if (!data || !pdev->dev.of_node)
@@ -752,6 +752,10 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 				     &data->hotplug_out_threshold);
 		if (!data->hotplug_out_threshold)
 			dev_err(&pdev->dev, "No input hotplug_out_threshold\n");
+
+		ret = of_property_read_string(pdev->dev.of_node, "hotplug_cpus", &buf);
+		if (!ret)
+			cpulist_parse(buf, &data->hotplug_cpus);
 	}
 
 	if (of_property_read_bool(pdev->dev.of_node, "use-pi-thermal")) {

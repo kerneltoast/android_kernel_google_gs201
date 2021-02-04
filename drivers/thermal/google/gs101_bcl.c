@@ -131,8 +131,6 @@ enum sys_throttling_switch {
 	SYS_THROTTLING_MAX,
 };
 
-enum sys_throttling_mode { SYS_THROTTLING_MPMM_MODE, SYS_THROTTLING_PPM_MODE };
-
 enum PMIC_REG { S2MPG10, S2MPG11 };
 
 struct gs101_bcl_dev {
@@ -769,6 +767,94 @@ static ssize_t clk_ratio_set(struct gs101_bcl_dev *bcl_dev, struct file *filp,
 	return 0;
 }
 
+static ssize_t tpu_clk_ratio_light_get(struct file *filp, char __user *buf,
+				       size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->tpu_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT,
+			     "tpu_clkdiv_ratio_light", is_subsystem_on(PMU_ALIVE_TPU_OUT));
+}
+
+static ssize_t tpu_clk_ratio_light_set(struct file *filp, const char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	if (!is_subsystem_on(PMU_ALIVE_TPU_OUT))
+		return -EIO;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->tpu_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT);
+}
+
+static ssize_t gpu_clk_ratio_light_get(struct file *filp, char __user *buf,
+				       size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->gpu_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT,
+			     "gpu_clkdiv_ratio_light", is_subsystem_on(PMU_ALIVE_GPU_OUT));
+}
+
+static ssize_t gpu_clk_ratio_light_set(struct file *filp, const char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	if (!is_subsystem_on(PMU_ALIVE_GPU_OUT))
+		return -EIO;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->gpu_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT);
+}
+
+static ssize_t cpucl1_clk_ratio_light_get(struct file *filp, char __user *buf,
+					  size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT,
+			     "cpucl1_clkdiv_ratio_light", is_subsystem_on(PMU_ALIVE_CPU1_OUT));
+}
+
+static ssize_t cpucl1_clk_ratio_light_set(struct file *filp, const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	if (!is_subsystem_on(PMU_ALIVE_CPU1_OUT))
+		return -EIO;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT);
+}
+
+static ssize_t cpucl2_clk_ratio_light_get(struct file *filp, char __user *buf,
+					  size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	return clk_ratio_get(bcl_dev, buf, count, ppos,
+			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT,
+			     "cpucl2_clkdiv_ratio_light", is_subsystem_on(PMU_ALIVE_CPU2_OUT));
+}
+
+static ssize_t cpucl2_clk_ratio_light_set(struct file *filp, const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+
+	if (!is_subsystem_on(PMU_ALIVE_CPU2_OUT))
+		return -EIO;
+
+	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
+			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT);
+}
+
 static ssize_t tpu_clk_ratio_get(struct file *filp, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
@@ -876,6 +962,12 @@ static ssize_t cpucl2_clk_ratio_set(struct file *filp, const char __user *user_b
 			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
 }
 
+BCL_DEBUG_ATTRIBUTE(tpu_clk_ratio_light_fops, tpu_clk_ratio_light_get, tpu_clk_ratio_light_set);
+BCL_DEBUG_ATTRIBUTE(gpu_clk_ratio_light_fops, gpu_clk_ratio_light_get, gpu_clk_ratio_light_set);
+BCL_DEBUG_ATTRIBUTE(cpucl1_clk_ratio_light_fops, cpucl1_clk_ratio_light_get,
+		    cpucl1_clk_ratio_light_set);
+BCL_DEBUG_ATTRIBUTE(cpucl2_clk_ratio_light_fops, cpucl2_clk_ratio_light_get,
+		    cpucl2_clk_ratio_light_set);
 BCL_DEBUG_ATTRIBUTE(tpu_clk_ratio_fops, tpu_clk_ratio_get, tpu_clk_ratio_set);
 BCL_DEBUG_ATTRIBUTE(gpu_clk_ratio_fops, gpu_clk_ratio_get, gpu_clk_ratio_set);
 BCL_DEBUG_ATTRIBUTE(cpucl0_clk_ratio_fops, cpucl0_clk_ratio_get, cpucl0_clk_ratio_set);
@@ -1403,7 +1495,7 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	unsigned int reg;
 	void __iomem *addr;
 	unsigned int settings;
-	unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {0xF, 0x0, 0x0, 0x5, 0xA};
+	unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {0x1F, 0x10, 0x10, 0x15, 0x1A};
 
 	if (!gs101_bcl_device->sysreg_cpucl0) {
 		pr_err("sysreg_cpucl0 ioremap not mapped\n");
@@ -1418,7 +1510,7 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	else
 		settings = sys_throttling_settings[throttle_switch];
 
-	reg &= ~0xF;
+	reg &= ~0x1F;
 	reg |= settings;
 	__raw_writel(reg, addr);
 	mutex_unlock(&sysreg_lock);
@@ -1912,6 +2004,16 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 				    gs101_bcl_device, &gpu_clk_ratio_fops);
 		debugfs_create_file("tpu_clkdiv_ratio_heavy", 0644, gs101_bcl_device->debug_entry,
 				    gs101_bcl_device, &tpu_clk_ratio_fops);
+		debugfs_create_file("cpucl2_clkdiv_ratio_light", 0644,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &cpucl2_clk_ratio_light_fops);
+		debugfs_create_file("cpucl1_clkdiv_ratio_light", 0644,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &cpucl1_clk_ratio_light_fops);
+		debugfs_create_file("gpu_clkdiv_ratio_light", 0644, gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &gpu_clk_ratio_light_fops);
+		debugfs_create_file("tpu_clkdiv_ratio_light", 0644, gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &tpu_clk_ratio_light_fops);
 
 	} else
 		gs101_bcl_device->debug_entry = root;

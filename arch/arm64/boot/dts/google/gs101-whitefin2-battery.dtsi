@@ -69,11 +69,9 @@
 		/* no needed for EEPROM */
 		maxim,batt-id-range-pct = <0>;
 
-		maxim,psy-type-unknown;
+		/* model data available only for V2P2 */
 
-		maxim,fg-data {
-			#include "gs101-slider-battery-data.dtsi"
-		};
+		maxim,psy-type-unknown;
 	};
 
 	max77759chrg@0x69 {
@@ -92,6 +90,8 @@
 		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
 		max77759,bst-sel = <&gpp27 3 GPIO_ACTIVE_HIGH>;
 		max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
+		max77759,lsw1-status = <&max20339_gpio 2 GPIO_ACTIVE_HIGH>;
+		max77759,vin-valid =  <&max20339_gpio 3 GPIO_ACTIVE_HIGH>;
 	};
 
 };

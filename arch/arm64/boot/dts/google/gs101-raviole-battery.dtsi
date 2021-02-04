@@ -17,6 +17,18 @@
 				#cooling-cells = <2>;
 				google,fg-psy-name = "maxfg";
 
+				/* charge table */
+				google,chg-temp-limits = <0 100 200 420 460 480 550>;
+				google,chg-cv-limits = <4200000 4300000 4450000>;
+				google,chg-cc-limits = <
+				 30  10   0
+				 50  30  30
+				100  70  50
+				 80  50  50
+				 50  50   0
+				 30   0   0
+				>;
+
 				#thermal-sensor-cells = <0>;
 			};
 
@@ -49,6 +61,8 @@
 
 				google,fv-max-uv = <4450000>;
 
+				google,thermal-mitigation = <4000000 3000000
+							2000000 1000000 500000>;
 				google,wlc-thermal-mitigation = <1100000 500000 250000 110000>;
 				google,therm-wlc-overrides-fcc;
 			};
@@ -166,7 +180,9 @@
 		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
 		max77759,bst-sel = <&s2mpg10_gpio 3 GPIO_ACTIVE_HIGH>;
 		max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
-
+		max77759,ls2-en = <&max20339_gpio 1 GPIO_ACTIVE_HIGH>;
+		max77759,lsw1-status = <&max20339_gpio 2 GPIO_ACTIVE_HIGH>;
+		max77759,vin-valid =  <&max20339_gpio 3 GPIO_ACTIVE_HIGH>;
 	};
 
 	pca9468@57 {

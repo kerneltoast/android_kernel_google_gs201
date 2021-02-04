@@ -188,7 +188,8 @@ static inline void mfc_core_enable_all_clocks(struct mfc_core *core)
 	MFC_CORE_WRITEL(0xFFFFFFFF, MFC_REG_MFC_FW_CLOCK);
 }
 
-void mfc_core_reset_mfc(struct mfc_core *core);
+void mfc_core_reg_clear(struct mfc_core *core);
+void mfc_core_reset_mfc(struct mfc_core *core, enum mfc_buf_usage_type buf_type);
 void mfc_core_set_risc_base_addr(struct mfc_core *core,
 				enum mfc_buf_usage_type buf_type);
 void mfc_core_cmd_host2risc(struct mfc_core *core, int cmd);

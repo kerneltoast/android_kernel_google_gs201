@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Whitefin2 part 2 device tree source
+ *
+ * Copyright 2020 Google,LLC
+ */
+
+
+&max77759_fg {
+
+	maxim,fg-data {
+		#include "gs101-slider-battery-data.dtsi"
+	};
+
+};

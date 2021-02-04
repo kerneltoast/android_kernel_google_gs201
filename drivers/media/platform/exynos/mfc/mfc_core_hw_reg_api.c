@@ -16,11 +16,9 @@
 #include "mfc_core_pm.h"
 
 /* Reset the device */
-void mfc_core_reset_mfc(struct mfc_core *core)
+void mfc_core_reg_clear(struct mfc_core *core)
 {
 	int i;
-
-	mfc_core_debug_enter();
 
 	/* Zero Initialization of MFC registers */
 	MFC_CORE_WRITEL(0, MFC_REG_RISC2HOST_CMD);
@@ -29,9 +27,16 @@ void mfc_core_reset_mfc(struct mfc_core *core)
 
 	for (i = 0; i < MFC_REG_CLEAR_COUNT; i++)
 		MFC_CORE_WRITEL(0, MFC_REG_CLEAR_BEGIN + (i*4));
+}
 
-	MFC_CORE_WRITEL(0x1FFF, MFC_REG_MFC_RESET);
-	MFC_CORE_WRITEL(0, MFC_REG_MFC_RESET);
+void mfc_core_reset_mfc(struct mfc_core *core, enum mfc_buf_usage_type buf_type)
+{
+	mfc_core_debug_enter();
+
+	if (!(core->dev->pdata->security_ctrl && (buf_type == MFCBUF_DRM))) {
+		MFC_CORE_WRITEL(0x1FFF, MFC_REG_MFC_RESET);
+		MFC_CORE_WRITEL(0, MFC_REG_MFC_RESET);
+	}
 
 	mfc_core_debug_leave();
 }

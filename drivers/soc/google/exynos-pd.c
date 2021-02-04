@@ -335,16 +335,19 @@ static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 static int exynos_pd_suspend_late(struct device *dev)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct exynos_pm_domain *data = platform_get_drvdata(pdev);
+	struct exynos_pm_domain *pd = platform_get_drvdata(pdev);
 
-	if (IS_ERR(&data->genpd))
+	if (IS_ERR(&pd->genpd))
 		return 0;
 
 	/* Suspend callback function might be registered if necessary */
-	if (of_property_read_bool(dev->of_node, "pd-always-on")) {
-		data->genpd.flags = 0;
-		dev_info(dev, "    %-9s flag set to 0\n", data->genpd.name);
+	if (pd->always_on) {
+		pd->genpd.flags = 0;
+		dev_info(dev, "    %-9s flag set to 0\n", pd->genpd.name);
 	}
+
+	pr_debug("%s: %s is %s\n", __func__, pd->name,
+		 exynos_pd_status(pd) ? "on" : "off");
 
 	return 0;
 }
@@ -352,15 +355,15 @@ static int exynos_pd_suspend_late(struct device *dev)
 static int exynos_pd_resume_early(struct device *dev)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct exynos_pm_domain *data = (struct exynos_pm_domain *)platform_get_drvdata(pdev);
+	struct exynos_pm_domain *pd = (struct exynos_pm_domain *)platform_get_drvdata(pdev);
 
-	if (IS_ERR(&data->genpd))
+	if (IS_ERR(&pd->genpd))
 		return 0;
 
 	/* Resume callback function might be registered if necessary */
-	if (of_property_read_bool(dev->of_node, "pd-always-on")) {
-		data->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
-		dev_info(dev, "    %-9s - %s\n", data->genpd.name, "on,  always");
+	if (pd->always_on) {
+		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
+		dev_info(dev, "    %-9s - %s\n", pd->genpd.name, "on,  always");
 	}
 
 	return 0;
@@ -451,6 +454,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(np, "pd-always-on")) {
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
+		pd->always_on = true;
 		dev_info(dev, " - %s\n", "on,  always");
 	} else {
 		dev_info(dev, " - %-3s\n", pd->genpd.name,

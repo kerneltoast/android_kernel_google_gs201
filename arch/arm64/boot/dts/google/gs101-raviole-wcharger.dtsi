@@ -10,9 +10,7 @@
 
 &hsi2c_8 {
 	p9412@3c {
-		/* Tx Enable GPIOS */
-		idt,gpio_ben = <&max20339_gpio 1 GPIO_ACTIVE_HIGH>;
-		idt,gpio_boost = <&s2mpg10_gpio 3 GPIO_ACTIVE_HIGH>;
+		idt,has_rtx = <1>;
 		idt,gpio_extben = <&gpp1 3 GPIO_ACTIVE_HIGH>;
 		/* WLCDC */
 		idt,gpio_dc_switch = <&s2mpg10_gpio 0 GPIO_ACTIVE_HIGH>;

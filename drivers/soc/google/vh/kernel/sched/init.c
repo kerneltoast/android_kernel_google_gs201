@@ -24,6 +24,7 @@ extern int create_sysfs_node(void);
 extern void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 					    int sd_flag, int wake_flags, int *new_cpu);
 extern void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized);
+extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p);
 extern struct cpufreq_governor sched_pixel_gov;
 
 static int vh_sched_init(void)
@@ -52,6 +53,10 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_rvh_cpu_overutilized(rvh_cpu_overutilized_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_dequeue_task(rvh_dequeue_task_pixel_mod, NULL);
 	if (ret)
 		return ret;
 

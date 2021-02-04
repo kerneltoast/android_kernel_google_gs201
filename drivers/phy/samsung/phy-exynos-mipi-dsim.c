@@ -47,7 +47,6 @@ struct exynos_mipi_phy_data {
 struct exynos_mipi_phy {
 	struct device *dev;
 	spinlock_t slock;
-	struct regmap *reg_pmu;
 	struct regmap *reg_reset;
 	enum exynos_mipi_phy_owner owner;
 	struct mipi_phy_desc {
@@ -61,20 +60,14 @@ struct exynos_mipi_phy {
 };
 
 /* 1: Isolation bypass, 0: Isolation enable */
-static int __set_phy_isolation(struct regmap *reg_pmu,
-		unsigned int offset, unsigned int on)
+static int __set_phy_isolation(unsigned int offset, unsigned int on)
 {
 	unsigned int val;
 	int ret;
 
 	val = on ? EXYNOS_MIPI_PHY_M4M4_ISO_BYPASS : 0;
 
-	if (reg_pmu)
-		ret = regmap_update_bits(reg_pmu, offset,
-			EXYNOS_MIPI_PHY_M4M4_ISO_BYPASS, val);
-	else
-		ret = exynos_pmu_update(offset,
-			EXYNOS_MIPI_PHY_M4M4_ISO_BYPASS, val);
+	ret = exynos_pmu_update(offset, EXYNOS_MIPI_PHY_M4M4_ISO_BYPASS, val);
 
 	if (ret)
 		pr_err("%s failed to %s PHY isolation 0x%x\n",
@@ -125,11 +118,7 @@ static int __set_phy_init(struct exynos_mipi_phy *state,
 	unsigned int cfg;
 	int ret = 0;
 
-	if (state->reg_pmu)
-		ret = regmap_read(state->reg_pmu,
-			phy_desc->iso_offset, &cfg);
-	else
-		ret = exynos_pmu_read(phy_desc->iso_offset, &cfg);
+	ret = exynos_pmu_read(phy_desc->iso_offset, &cfg);
 
 	if (ret) {
 		dev_err(state->dev, "%s Can't read 0x%x\n",
@@ -155,8 +144,7 @@ static int __set_phy_alone(struct exynos_mipi_phy *state,
 	spin_lock_irqsave(&state->slock, flags);
 
 	if (on) {
-		ret = __set_phy_isolation(state->reg_pmu,
-				phy_desc->iso_offset, on);
+		ret = __set_phy_isolation(phy_desc->iso_offset, on);
 		if (ret)
 			goto phy_exit;
 
@@ -168,8 +156,7 @@ static int __set_phy_alone(struct exynos_mipi_phy *state,
 		if (ret)
 			goto phy_exit;
 
-		ret = __set_phy_isolation(state->reg_pmu,
-				phy_desc->iso_offset, on);
+		ret = __set_phy_isolation(phy_desc->iso_offset, on);
 	}
 
 phy_exit:
@@ -205,8 +192,7 @@ static int __set_phy_share(struct exynos_mipi_phy *state,
 	if (on) {
 		/* Isolation bypass when reference count is 1 */
 		if (phy_desc->data->active_count) {
-			ret = __set_phy_isolation(state->reg_pmu,
-					phy_desc->iso_offset, on);
+			ret = __set_phy_isolation(phy_desc->iso_offset, on);
 			if (ret)
 				goto phy_exit;
 		}
@@ -221,8 +207,7 @@ static int __set_phy_share(struct exynos_mipi_phy *state,
 
 		/* Isolation enabled when reference count is zero */
 		if (phy_desc->data->active_count == 0)
-			ret = __set_phy_isolation(state->reg_pmu,
-					phy_desc->iso_offset, on);
+			ret = __set_phy_isolation(phy_desc->iso_offset, on);
 	}
 
 phy_exit:
@@ -337,13 +322,6 @@ static int exynos_mipi_phy_probe(struct platform_device *pdev)
 	spin_lock_init(&state->slock);
 
 	/* PMU isolation (optional) */
-	state->reg_pmu = syscon_regmap_lookup_by_phandle(node,
-						   "samsung,pmu-syscon");
-	if (IS_ERR(state->reg_pmu)) {
-		dev_err(dev, "failed to lookup PMU regmap, use PMU interface\n");
-		state->reg_pmu = NULL;
-	}
-
 	elements = of_property_count_u32_elems(node, "isolation");
 	if ((elements < 0) || (elements > EXYNOS_MIPI_PHYS_MASTER_NUM))
 		return -EINVAL;

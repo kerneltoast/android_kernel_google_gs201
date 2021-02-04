@@ -78,6 +78,7 @@ struct gs101_tmu_data {
 	bool use_pi_thermal;
 	struct kthread_delayed_work pi_work;
 	struct gs101_pi_param *pi_param;
+	struct cpumask hotplug_cpus;
 };
 
 #endif /* _GS101_TMU_H */
