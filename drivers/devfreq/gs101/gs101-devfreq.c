@@ -390,7 +390,6 @@ static int exynos_devfreq_update_fvp(struct exynos_devfreq_data *data,
 	}
 	config.cmd = cmd;
 	config.response = true;
-	config.indirection = false;
 
 	/* constraint info update */
 	if (nr_constraint == 0) {
@@ -1991,7 +1990,6 @@ static int exynos_devfreq_suspend(struct device *dev)
 		 */
 		config.cmd = cmd;
 		config.response = true;
-		config.indirection = false;
 		config.cmd[0] = data->devfreq_type;
 		config.cmd[1] = false;
 		config.cmd[2] = DATA_INIT;
@@ -2065,7 +2063,6 @@ static int exynos_devfreq_resume(struct device *dev)
 
 		config.cmd = cmd;
 		config.response = true;
-		config.indirection = false;
 		config.cmd[0] = data->devfreq_type;
 		config.cmd[1] = true;
 		config.cmd[2] = DATA_INIT;

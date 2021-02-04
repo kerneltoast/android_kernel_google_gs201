@@ -15,7 +15,6 @@ struct ipc_config {
 	unsigned int *indirection_base;
 	unsigned int indirection_size;
 	bool response;
-	bool indirection;
 };
 
 #define ACPM_IPC_PROTOCOL_OWN			(31)

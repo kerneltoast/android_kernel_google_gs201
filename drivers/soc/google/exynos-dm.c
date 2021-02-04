@@ -805,7 +805,6 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 		}
 		config.cmd = cmd;
 		config.response = true;
-		config.indirection = false;
 		config.cmd[0] = dm->cal_id;
 		config.cmd[1] = max_freq;
 		config.cmd[2] = POLICY_REQ;
