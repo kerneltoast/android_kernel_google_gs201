@@ -9542,8 +9542,6 @@
   shash_register_instance
   shmem_file_setup
   shmem_file_setup_with_mnt
-  shmem_getpage
-  shmem_mapping
   shmem_read_mapping_page_gfp
   shmem_truncate_range
   should_remove_suid
