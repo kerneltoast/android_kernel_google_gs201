@@ -101,11 +101,11 @@
 		/* RTC: wtsr/smpl */
 		wtsr_en = "enabled"; /* enable */
 		coldrst_en = "disabled";
-		smpl_en = "enabled"; /* enable */
+		smpl_en = "disabled"; /* disable */
 		wtsr_timer_val = <3>;	/* 1000ms */
 		coldrst_timer_val = <3>;	/* 256ms */
 		smpl_timer_val = <4>;	/* 500ms */
-		sub_smpl_en = "enabled"; /* enable */
+		sub_smpl_en = "disabled"; /* disable */
 		check_jigon = <0>; /* do not check jigon */
 
 		/* RTC: If first boot, reset rtc to 1/1/2020 12:00:00(Wed) */
