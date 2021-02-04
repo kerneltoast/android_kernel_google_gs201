@@ -1101,6 +1101,9 @@
 		i_max = <5>;
 		integral_cutoff = <0>;
 		sustainable_power = <2000>;
+
+		tmu_work_affinity = "0-7";
+		hotplug_work_affinity = "0-3";
 	};
 
 	tmuctrl_1: MID@100A0000 {
@@ -1125,6 +1128,9 @@
 		i_max = <5>;
 		integral_cutoff = <20>;
 		sustainable_power = <1000>;
+
+		tmu_work_affinity = "0-7";
+		hotplug_work_affinity = "0-3";
 	};
 
 	tmuctrl_2: LITTLE@100A0000 {
@@ -1145,6 +1151,8 @@
 		i_max = <5>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
+
+		tmu_work_affinity = "0-7";
 	};
 
 	tmuctrl_3: G3D@100B0000 {
@@ -1165,6 +1173,8 @@
 		i_max = <5>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
+
+		tmu_work_affinity = "0-7";
 	};
 
 	tmuctrl_4: ISP@100B0000 {
@@ -1175,6 +1185,8 @@
 		id = <4>;
 		ect_nouse = <1>;
 		#thermal-sensor-cells = <0>;
+
+		tmu_work_affinity = "0-7";
 	};
 
 	tmuctrl_5: TPU@100B0000 {
@@ -1195,6 +1207,8 @@
 		i_max = <5>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
+
+		tmu_work_affinity = "0-7";
 	};
 
 	thermal_zones: thermal-zones {
