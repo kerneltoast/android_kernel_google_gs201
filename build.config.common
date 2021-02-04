@@ -1,4 +1,4 @@
-BRANCH=android-gs-pixel-mainline
+BRANCH=android-gs-pixel-5.10
 KMI_GENERATION=0
 
 LLVM=1
