@@ -83,6 +83,7 @@ static const char * const test_vector[] = {
 	"spabort",
 	"overflow",
 	"cacheflush",
+	"cpucontext",
 	"arraydump",
 	"halt",
 	"scandump",
@@ -494,7 +495,7 @@ static void simulate_OVERFLOW(char *arg)
 }
 
 static char *buffer[NR_CPUS];
-static void simulate_CACHE_FLUSH_handler(void *info)
+static void simulate_CPU_CONTEXT_CACHE_FLUSH_handler(void *info)
 {
 	int cpu = raw_smp_processor_id();
 	u64 i = 0;
@@ -548,7 +549,7 @@ static void simulate_CACHE_FLUSH_ALL(void *info)
 	cache_flush_all();
 }
 
-static void simulate_CACHE_FLUSH(char *arg)
+static void simulate_CPU_CONTEXT_CACHE_FLUSH(char *arg)
 {
 	int cpu;
 
@@ -563,7 +564,7 @@ static void simulate_CACHE_FLUSH(char *arg)
 	smp_call_function(simulate_CACHE_FLUSH_ALL, NULL, 1);
 	cache_flush_all();
 
-	smp_call_function(simulate_CACHE_FLUSH_handler, NULL, 0);
+	smp_call_function(simulate_CPU_CONTEXT_CACHE_FLUSH_handler, NULL, 0);
 	for (cpu = 0; cpu < exynos_debug_desc.nr_cpu; cpu++) {
 		if (cpu == raw_smp_processor_id())
 			continue;
@@ -573,9 +574,19 @@ static void simulate_CACHE_FLUSH(char *arg)
 		dev_crit(exynos_debug_desc.dev, "CPU %d STOPPING\n", cpu);
 	}
 
-	dbg_snapshot_emergency_reboot_timeout("cache flush test", 500);
+	dbg_snapshot_emergency_reboot_timeout(arg, 500);
 
-	simulate_CACHE_FLUSH_handler(NULL);
+	simulate_CPU_CONTEXT_CACHE_FLUSH_handler(NULL);
+}
+
+static void simulate_CPU_CONTEXT(char *arg)
+{
+	simulate_CPU_CONTEXT_CACHE_FLUSH("cpu context test");
+}
+
+static void simulate_CACHE_FLUSH(char *arg)
+{
+	simulate_CPU_CONTEXT_CACHE_FLUSH("cache flush test");
 }
 
 static void simulate_ARRAYDUMP(char *arg)
@@ -623,6 +634,7 @@ static struct force_error_item force_error_vector[] = {
 	{"writero",	&simulate_WRITE_RO},
 	{"overflow",	&simulate_OVERFLOW},
 	{"cacheflush",	&simulate_CACHE_FLUSH},
+	{"cpucontext",	&simulate_CPU_CONTEXT},
 	{"arraydump",	&simulate_ARRAYDUMP},
 	{"halt",	&simulate_HALT},
 	{"scandump",	&simulate_SCANDUMP},
