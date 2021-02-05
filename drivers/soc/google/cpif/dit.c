@@ -1663,7 +1663,7 @@ int dit_init(struct link_device *ld, bool retry)
 	if (dit_is_kicked_any()) {
 		dc->init_reserved = true;
 		spin_unlock_irqrestore(&dc->src_lock, flags);
-		return -EBUSY;
+		return -EEXIST;
 	}
 
 	if (atomic_inc_return(&dc->init_running) > 1) {
@@ -2435,19 +2435,38 @@ static int dit_suspend(struct device *dev)
 static int dit_resume(struct device *dev)
 {
 	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
-	int ret = 0;
+	unsigned int dir;
+	int ret;
 
-	if (unlikely(!dc) || unlikely(!dc->ld))
-		return 0;
+	if (unlikely(!dc)) {
+		mif_err_limited("dc is null\n");
+		return -EPERM;
+	}
+
+	if (unlikely(!dc->ld)) {
+		mif_err_limited("dc->ld is null\n");
+		return -EPERM;
+	}
 
 	dit_set_irq_affinity(dc->irq_affinity);
 
-	dit_init(NULL, false);
-	ret = dit_reg_backup_restore(false);
-	if (ret)
-		mif_err("reg restore failed ret:%d\n", ret);
+	ret = dit_init(NULL, false);
+	if (ret) {
+		mif_err("init failed ret:%d\n", ret);
+		for (dir = 0; dir < DIT_DIR_MAX; dir++) {
+			if (dit_is_busy(dir))
+				mif_err("busy (dir:%d)\n", dir);
+		}
+		return ret;
+	}
 
-	return ret;
+	ret = dit_reg_backup_restore(false);
+	if (ret) {
+		mif_err("reg restore failed ret:%d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static const struct dev_pm_ops dit_pm_ops = {
