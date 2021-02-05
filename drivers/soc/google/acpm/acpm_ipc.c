@@ -604,6 +604,8 @@ retry:
 					timeout_flag = true;
 					break;
 				} else if (retry_cnt > 0) {
+					/* in case AP -> ACPM was lost, ask APM to check again */
+					apm_interrupt_gen(channel->id);
 					pr_err("acpm_ipc retry %d, now = %llu, timeout = %llu",
 					       retry_cnt, now, timeout);
 					pr_err("I:0x%x %u s:%2d RX r:%u f:%u TX r:%u f:%u\n",
