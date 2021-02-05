@@ -813,7 +813,7 @@ static struct itmon_nodeinfo vec_p2[] = {
 };
 
 static struct itmon_nodeinfo vec_p3[] = {
-	{T_M_NODE, "BUS0_S0",	0x20653000, 1, 1, 0},
+	{T_M_NODE, "BUS2_S0",	0x20653000, 1, 1, 0},
 	{S_NODE, "GPU",		0x20633000, 1, 1, 0, 0, TMOUT, 1},
 	{S_NODE, "SFR_P0_BUS2",	0x20613000, 1, 1, 0, 0, TMOUT, 1},
 	{S_NODE, "SFR_P1_BUS2",	0x20623000, 1, 1, 0, 0, TMOUT, 1},
