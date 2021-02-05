@@ -12,6 +12,8 @@
 
 #define DIT_NET_DEV_NAME "dit%d"
 
+#include "dit_common.h"
+
 struct dit_net_priv {
 	struct dit_ctrl_t *dc;
 };

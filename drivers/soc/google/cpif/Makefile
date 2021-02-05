@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile of cpif
 
-EXTRA_CFLAGS += -Idrivers/soc/samsung/cpif \
-		-DCONFIG_OPTION_REGION=\"$(PROJECT_REGION)\"
+ccflags-y += -DCONFIG_OPTION_REGION=\"$(PROJECT_REGION)\"
+subdir-ccflags-y += -I$(srctree)/$(src)
 
 obj-$(CONFIG_MCU_IPC) += mcu_ipc.o
 obj-$(CONFIG_SHM_IPC) += shm_ipc.o
 obj-$(CONFIG_BOOT_DEVICE_SPI) += boot_device_spi.o
 
-obj-$(CONFIG_EXYNOS_DIT) += exynos_dit.o
-exynos_dit-y += dit.o dit_net.o dit_hal.o
+obj-$(CONFIG_EXYNOS_DIT) += dit/
 
 obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif.o
 cpif-y += modem_main.o modem_variation.o

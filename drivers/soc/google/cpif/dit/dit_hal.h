@@ -14,7 +14,7 @@
 #include <linux/in6.h>
 #include <linux/inet.h>
 
-#include "dit.h"
+#include "dit_common.h"
 
 #define DIT_HAL_DEV_NAME	"dit2"
 

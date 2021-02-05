@@ -16,7 +16,6 @@
 #include <linux/netdevice.h>
 
 #include "modem_utils.h"
-#include "dit.h"
 #include "dit_net.h"
 
 int dit_net_receive_skb(struct sk_buff *skb)

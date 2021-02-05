@@ -20,7 +20,7 @@
 #endif
 
 #include "modem_utils.h"
-#include "dit.h"
+#include "dit_common.h"
 #include "dit_net.h"
 #include "dit_hal.h"
 
