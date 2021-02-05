@@ -55,13 +55,14 @@
 		>;
 
 		/* DVFS v2 operating points */
-		gpu_dvfs_table_size_v2 = <11 10>; /*<row col>*/
+		gpu_dvfs_table_size_v2 = <12 10>; /*<row col>*/
 		gpu_dvfs_table_v2 = <
 			/*
 			 *gpu0    gpu1   down     up    hys      int      mif   little  middle   big
 			 * clk     clk   util   util  ticks      min      min      min     min   max
 			 *--------------------------------------------------------------------------
 			 */
+			996000  848000     78    101      1   465000        0        0       0     0
 			996000  762000     78    100      1   465000        0        0       0     0
 			885000  701000     78     98      1   465000        0        0       0     0
 			750000  572000     78     95      2   465000        0        0       0     0

@@ -591,7 +591,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			 * If current temperature is lower than low threshold,
 			 * call cluster1_cores_hotplug(false) for hotplugged out cpus.
 			 */
-			exynos_cpuhp_request("DTM", *cpu_possible_mask);
+			exynos_cpuhp_request(data->cpuhp_name, *cpu_possible_mask);
 			data->is_cpu_hotplugged_out = false;
 		}
 	} else {
@@ -602,7 +602,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			 */
 			data->is_cpu_hotplugged_out = true;
 			cpumask_andnot(&mask, cpu_possible_mask, &data->hotplug_cpus);
-			exynos_cpuhp_request("DTM", mask);
+			exynos_cpuhp_request(data->cpuhp_name, mask);
 		}
 	}
 
@@ -666,7 +666,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 		return PTR_ERR(thread);
 	}
 
-	cpumask_and(&mask, cpu_possible_mask, &cpu_topology[0].core_sibling);
+	cpumask_and(&mask, cpu_possible_mask, &data->tmu_work_affinity);
 	set_cpus_allowed_ptr(thread, &mask);
 
 	ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
@@ -681,7 +681,8 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	wake_up_process(thread);
 
 	if (data->hotplug_enable) {
-		exynos_cpuhp_register("DTM", *cpu_online_mask);
+		scnprintf(data->cpuhp_name, CPUHP_USER_NAME_LEN, "DTM_%s", data->tmu_name);
+		exynos_cpuhp_register(data->cpuhp_name, *cpu_online_mask);
 		kthread_init_work(&data->hotplug_work, gs101_throttle_cpu_hotplug);
 
 		if (!hotplug_worker) {
@@ -692,8 +693,16 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 			kthread_init_worker(hotplug_worker);
 			thread = kthread_create(kthread_worker_fn, hotplug_worker,
 						"thermal_hotplug_kworker");
-			kthread_bind(thread, 0);
-			sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
+
+			cpumask_and(&mask, cpu_possible_mask, &data->hotplug_work_affinity);
+			set_cpus_allowed_ptr(thread, &mask);
+
+			ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
+			if (ret) {
+				kthread_stop(thread);
+				dev_warn(&pdev->dev, "thermal failed to set SCHED_FIFO\n");
+				return ret;
+			}
 			wake_up_process(thread);
 		}
 	}
@@ -756,7 +765,15 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 		ret = of_property_read_string(pdev->dev.of_node, "hotplug_cpus", &buf);
 		if (!ret)
 			cpulist_parse(buf, &data->hotplug_cpus);
+
+		ret = of_property_read_string(pdev->dev.of_node, "hotplug_work_affinity", &buf);
+		if (!ret)
+			cpulist_parse(buf, &data->hotplug_work_affinity);
 	}
+
+	ret = of_property_read_string(pdev->dev.of_node, "tmu_work_affinity", &buf);
+	if (!ret)
+		cpulist_parse(buf, &data->tmu_work_affinity);
 
 	if (of_property_read_bool(pdev->dev.of_node, "use-pi-thermal")) {
 		struct gs101_pi_param *params;
@@ -1509,7 +1526,7 @@ static int gs101_tmu_resume(struct device *dev)
 	enable_irq(data->irq);
 	suspended_count--;
 
-	cpumask_and(&mask, cpu_possible_mask, &cpu_topology[0].core_sibling);
+	cpumask_and(&mask, cpu_possible_mask, &data->tmu_work_affinity);
 	set_cpus_allowed_ptr(data->thermal_worker.task, &mask);
 
 	if (!suspended_count)
