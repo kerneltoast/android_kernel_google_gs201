@@ -17,11 +17,18 @@
 #include "usb_psy.h"
 #include "usb_icl_voter.h"
 
+#ifndef CHAR_BIT
+#define CHAR_BIT 8
+#endif
+
 #define ONLINE_THRESHOLD_UA 125000
 
-#define CDP_DCP_ICL_UA	1500000
-/* TODO: needs to be 100mA when SDP_CONFIGURED is voted */
-#define SDP_ICL_UA	500000
+#define CDP_DCP_ICL_UA 1500000
+#define SDP_SUSPEND_UA 2500
+#define SDP_HS_CONN_UA 100000
+#define SDP_HS_CONFIG_UA 500000
+#define SDP_SS_CONN_UA 150000
+#define SDP_SS_CONFIG_UA 900000
 
 /* Defer vote for pSnkStby */
 #define BC_VOTE_DELAY_MS	3000
@@ -72,6 +79,8 @@ struct usb_psy_data {
 
 	/* sink connected state from Type-C */
 	bool sink_enabled;
+
+	bool usb_configured;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -133,50 +142,95 @@ static int usb_set_current_max_ma(struct usb_psy_data *usb,
 	return ret;
 }
 
+static void disable_proto_votes(struct gvotable_election *el, struct logbuffer *log,
+				unsigned int map)
+{
+	struct usb_vote vote;
+	int i;
+
+	for (i = 0; i < sizeof(unsigned int) * CHAR_BIT; i++) {
+		if (map & (0x1 << i)) {
+			init_vote(&vote, proto_voter_reason[i], i, 0);
+			gvotable_cast_vote(el, vote.reason, &vote, false);
+		}
+	}
+}
+
+static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
+{
+	struct gvotable_election *usb_icl_proto_el = usb->usb_icl_proto_el;
+	struct logbuffer *log = usb->log;
+	unsigned int voter_map = 0;
+	struct usb_vote vote;
+	int ret;
+
+	if (ua < 0)
+		return;
+
+	switch (ua) {
+	case SDP_SUSPEND_UA:
+		if (usb->usb_configured) {
+			voter_map = BIT(USB_CONFIGURED);
+			init_vote(&vote, proto_voter_reason[USB_SUSPEND], USB_SUSPEND, ua);
+		} else {
+			voter_map = BIT(USB_CONFIGURED) | BIT(USB_SUSPEND);
+			init_vote(&vote, proto_voter_reason[USB_SUSPEND_UNCFG],
+				  USB_SUSPEND_UNCFG, ua);
+		}
+		break;
+	case SDP_HS_CONN_UA:
+	case SDP_SS_CONN_UA:
+		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_CONFIGURED) | BIT(USB_SUSPEND);
+		init_vote(&vote, proto_voter_reason[BC12_SDP], BC12_SDP, ua);
+		break;
+	case SDP_HS_CONFIG_UA:
+	case SDP_SS_CONFIG_UA:
+		usb->usb_configured = true;
+		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_SUSPEND);
+		init_vote(&vote, proto_voter_reason[USB_CONFIGURED], USB_CONFIGURED, ua);
+		break;
+	default:
+		logbuffer_log(log, "%s: current %d uA not supported", __func__, ua);
+		return;
+	}
+
+	ret = gvotable_cast_vote(usb_icl_proto_el, vote.reason, &vote, true);
+
+	logbuffer_log(log, "%s: %s voting usb proto_el: %d by %s",
+		      __func__, ret < 0 ? "error" : "",  vote.val,
+		      vote.reason);
+
+	if (voter_map)
+		disable_proto_votes(usb_icl_proto_el, log, voter_map);
+}
+
 static void set_bc_current_limit(struct gvotable_election *usb_icl_proto_el,
 				 enum power_supply_usb_type usb_type,
 				 struct logbuffer *log)
 {
-	int ret;
+	unsigned int voter_map = 0;
 	struct usb_vote vote;
-	bool vote_enable;
+	int ret;
 
 	switch (usb_type) {
 	case POWER_SUPPLY_USB_TYPE_CDP:
 	case POWER_SUPPLY_USB_TYPE_DCP:
 		init_vote(&vote, proto_voter_reason[BC12_CDP_DCP],
 			  BC12_CDP_DCP, CDP_DCP_ICL_UA);
-		vote_enable = true;
 		break;
 	case POWER_SUPPLY_USB_TYPE_SDP:
 		init_vote(&vote, proto_voter_reason[BC12_SDP],
-			  BC12_SDP, SDP_ICL_UA);
-		vote_enable = true;
+			  BC12_SDP, SDP_HS_CONN_UA);
 		break;
 	default:
-		vote_enable = false;
+		voter_map = BIT(BC12_SDP) | BIT(USB_SUSPEND_UNCFG) | BIT(USB_CONFIGURED) |
+			    BIT(USB_SUSPEND) | BIT(BC12_CDP_DCP);
 		break;
 	}
 
 	/** Disable all votes for unknown type **/
-	if (!vote_enable) {
-		init_vote(&vote, proto_voter_reason[BC12_CDP_DCP],
-			  BC12_CDP_DCP, 0);
-		ret = gvotable_cast_vote(usb_icl_proto_el, vote.reason, &vote,
-					 false);
-		logbuffer_log(log,
-			      "%s: %s disabling DCP vote usb proto_el: %d by %s"
-			      , __func__, ret < 0 ? "error" : "",  vote.val
-			      , vote.reason);
-
-		init_vote(&vote, proto_voter_reason[BC12_SDP],
-			  BC12_SDP, 0);
-		ret = gvotable_cast_vote(usb_icl_proto_el, vote.reason, &vote,
-					 false);
-		logbuffer_log(log,
-			      "%s: %s disabling SDP vote usb proto_el: %d by %s"
-			      , __func__, ret < 0 ? "error" : "",  vote.val
-			      , vote.reason);
+	if (voter_map) {
+		disable_proto_votes(usb_icl_proto_el, log, voter_map);
 		return;
 	}
 
@@ -253,6 +307,10 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = ops->tcpc_get_vbus_voltage_mv(client) * 1000;
 		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		/* TODO: return the current limit based on bc12 type.
+		 * if the type is SDP, return the limit set before */
+		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = usb->usb_type;
 		break;
@@ -280,8 +338,15 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		/* Enough to trigger just the uevent */
 		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		/* Handle SDP current only */
+		if (usb->usb_type != POWER_SUPPLY_USB_TYPE_SDP)
+			return 0;
+		set_sdp_current_limit(usb, val->intval);
+		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		usb->usb_type = val->intval;
+		usb->usb_configured = false;
 		ops->tcpc_set_port_data_capable(client, usb->usb_type);
 		kthread_mod_delayed_work(usb->wq, &usb->bc_icl_work,
 					 usb->usb_type != POWER_SUPPLY_USB_TYPE_UNKNOWN ?
@@ -314,6 +379,7 @@ static enum power_supply_property usb_psy_data_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_USB_TYPE,
 	POWER_SUPPLY_PROP_PRESENT,
 };
