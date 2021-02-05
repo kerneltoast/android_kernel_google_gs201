@@ -56,7 +56,7 @@
 			enable-method = "psci";
 			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
 			capacity-dmips-mhz = <316>;
-			dynamic-power-coefficient = <77>;
+			dynamic-power-coefficient = <70>;
 		};
 		cpu1: cpu@0100 {
 			device_type = "cpu";
@@ -65,7 +65,7 @@
 			enable-method = "psci";
 			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
 			capacity-dmips-mhz = <316>;
-			dynamic-power-coefficient = <77>;
+			dynamic-power-coefficient = <70>;
 		};
 		cpu2: cpu@0200 {
 			device_type = "cpu";
@@ -74,7 +74,7 @@
 			enable-method = "psci";
 			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
 			capacity-dmips-mhz = <316>;
-			dynamic-power-coefficient = <77>;
+			dynamic-power-coefficient = <70>;
 		};
 		cpu3: cpu@0300 {
 			device_type = "cpu";
@@ -83,7 +83,7 @@
 			enable-method = "psci";
 			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
 			capacity-dmips-mhz = <316>;
-			dynamic-power-coefficient = <77>;
+			dynamic-power-coefficient = <70>;
 		};
 		cpu4: cpu@0400 {
 			device_type = "cpu";
@@ -92,7 +92,7 @@
 			enable-method = "psci";
 			cpu-idle-states =  <&ENYO_CPU_SLEEP>;
 			capacity-dmips-mhz = <737>;
-			dynamic-power-coefficient = <423>;
+			dynamic-power-coefficient = <284>;
 		};
 		cpu5: cpu@0500 {
 			device_type = "cpu";
@@ -101,7 +101,7 @@
 			enable-method = "psci";
 			cpu-idle-states =  <&ENYO_CPU_SLEEP>;
 			capacity-dmips-mhz = <737>;
-			dynamic-power-coefficient = <423>;
+			dynamic-power-coefficient = <284>;
 		};
 		cpu6: cpu@0600 {
 			device_type = "cpu";
@@ -110,7 +110,7 @@
 			enable-method = "psci";
 			cpu-idle-states =  <&HERA_CPU_SLEEP>;
 			capacity-dmips-mhz = <1024>;
-			dynamic-power-coefficient = <922>;
+			dynamic-power-coefficient = <650>;
 		};
 		cpu7: cpu@0700 {
 			device_type = "cpu";
@@ -119,7 +119,7 @@
 			enable-method = "psci";
 			cpu-idle-states =  <&HERA_CPU_SLEEP>;
 			capacity-dmips-mhz = <1024>;
-			dynamic-power-coefficient = <922>;
+			dynamic-power-coefficient = <650>;
 		};
 
 		idle-states {
@@ -276,6 +276,7 @@
 			ect-coeff-index = <1>;
 			tz-cooling-name = "MID";
 			skip-boot-pmqos;
+			use-em-coeff;
 
 			dm-constraints {
 				list = <&med_mif_perf>,
@@ -296,6 +297,7 @@
 			ect-coeff-index = <0>;
 			tz-cooling-name = "BIG";
 			skip-boot-pmqos;
+			use-em-coeff;
 
 			dm-constraints {
 				list = <&big_mif_perf>,
