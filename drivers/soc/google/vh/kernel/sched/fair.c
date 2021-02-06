@@ -18,8 +18,6 @@
 #define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
 #define UTIL_THRESHOLD      1280
 
-extern void update_uclamp_stats(int cpu, u64 time);
-
 extern bool vendor_sched_enable_prefer_high_cap;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
@@ -861,10 +859,4 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap)
 {
 	return (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap;
-}
-
-void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p)
-{
-	if (rq->nr_running == 0)
-		update_uclamp_stats(rq->cpu, rq_clock(rq));
 }
