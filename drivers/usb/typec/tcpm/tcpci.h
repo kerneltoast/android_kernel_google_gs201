@@ -174,6 +174,10 @@ struct tcpci;
  *		Return 0 from callback for TCPM to restart toggling.
  * @vbus_vsafe0v:
  *		optional; Set when TCPC can detect whether vbus is at VSAFE0V.
+ * @set_partner_usb_comm_capable:
+ *		Optional; The USB Communications Capable bit indicates if port
+ *		partner is capable of communication over the USB data lines
+ *		(e.g. D+/- or SS Tx/Rx). Called to notify the status of the bit.
  */
 struct tcpci_data {
 	struct regmap *regmap;
@@ -200,6 +204,8 @@ struct tcpci_data {
 	void (*frs_sourcing_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
 	int (*enable_frs)(struct tcpci *tcpci, struct tcpci_data *data, bool enable);
 	int (*check_contaminant)(struct tcpci *tcpci, struct tcpci_data *data);
+  	void (*set_partner_usb_comm_capable)(struct tcpci *tcpci, struct tcpci_data *data,
+					     bool capable);
 };
 
 struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data);

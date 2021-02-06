@@ -1229,7 +1229,7 @@ struct task_struct {
 	u64				timer_slack_ns;
 	u64				default_timer_slack_ns;
 
-#ifdef CONFIG_KASAN
+#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	unsigned int			kasan_depth;
 #endif
 
@@ -1358,6 +1358,7 @@ struct task_struct {
 	struct callback_head		mce_kill_me;
 #endif
 	ANDROID_VENDOR_DATA_ARRAY(1, 64);
+	ANDROID_OEM_DATA_ARRAY(1, 2);
 
 	/*
 	 * New fields for task_struct should be added above here, so that

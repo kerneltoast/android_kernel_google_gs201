@@ -6,9 +6,19 @@ MAKE_GOALS="${MAKE_GOALS}
 Image.lz4
 "
 
+ABI_DEFINITION=android/abi_gki_aarch64.xml
+KMI_SYMBOL_LIST=android/abi_gki_aarch64
+ADDITIONAL_KMI_SYMBOL_LISTS="
+android/abi_gki_aarch64_db845c
+android/abi_gki_aarch64_qcom
+android/abi_gki_aarch64_virtual_device
+"
+
 FILES="${FILES}
 arch/arm64/boot/Image.lz4
 "
+
+MODULES_ORDER=android/gki_aarch64_modules
 
 KERNEL_BINARY=Image.lz4
 SKIP_VENDOR_BOOT=1

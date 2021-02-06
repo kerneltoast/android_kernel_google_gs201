@@ -481,17 +481,6 @@ config HISI_HIKEY_USB
 	  switching between the dual-role USB-C port and the USB-A host ports
 	  using only one USB controller.
 
-config DEBUG_KINFO
-	bool "Debug Kernel Information Support"
-	depends on KALLSYMS
-	help
-	  This supports kernel information backup for bootloader usage.
-	  Specifics:
-	   - The kallsyms symbols for unwind_backtrace
-	   - Page directory pointer
-	   - UTS_RELEASE
-	   - BUILD_INFO(ro.build.fingerprint)
-
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

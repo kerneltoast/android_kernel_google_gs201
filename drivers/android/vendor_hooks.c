@@ -9,6 +9,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/hooks/vendor_hooks.h>
 #include <trace/hooks/sched.h>
+#include <trace/hooks/cpu.h>
 #include <trace/hooks/fpsimd.h>
 #include <trace/hooks/binder.h>
 #include <trace/hooks/rwsem.h>
@@ -28,6 +29,10 @@
 #include <trace/hooks/mm.h>
 #include <trace/hooks/preemptirq.h>
 #include <trace/hooks/pstore.h>
+#include <trace/hooks/ftrace_dump.h>
+#include <trace/hooks/pm_domain.h>
+#include <trace/hooks/bug.h>
+#include <trace/hooks/timer.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -83,6 +88,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_max_freq);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_freq_table_limits);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_newidle_balance);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_nohz_balancer_kick);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_rebalance_domains);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_busiest_queue);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_migrate_queued_task);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_resume_cpus);
@@ -111,6 +117,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_cpu_starting);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_cpu_dying);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_account_irq);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_place_entity);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_build_perf_domains);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_cpu_capacity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_misfit_status);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_cgroup_attach);
@@ -118,3 +125,20 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_cgroup_can_attach);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_overutilized);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_mkfile);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_read);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_fork_init);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_ttwu_cond);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_schedule_bug);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_exec);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ftrace_oops_enter);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ftrace_oops_exit);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ftrace_size_check);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ftrace_format_check);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ftrace_dump_buffer);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_allow_domain_state);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_map_util_freq);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_report_bug);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_em_cpu_energy);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_up);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_down);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_balance_rt);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_timer_calc_index);
