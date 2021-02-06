@@ -879,6 +879,13 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 
 	max77759_init_regs(chip->tcpci->regmap, chip->log);
 
+	/* Kick debug accessory state machine when enabling toggling for the first time */
+	if (chip->first_toggle) {
+		gpio_set_value_cansleep(chip->in_switch_gpio, 0);
+		mdelay(10);
+		gpio_set_value_cansleep(chip->in_switch_gpio, 1);
+		chip->first_toggle = false;
+	}
 	mutex_lock(&chip->contaminant_detection_lock);
 	if (chip->contaminant_detection) {
 		ret = enable_contaminant_detection(chip, chip->contaminant_detection ==
@@ -1296,11 +1303,24 @@ static int max77759_probe(struct i2c_client *client,
 		return -EPROBE_DEFER;
 	}
 
+	dn = dev_of_node(&client->dev);
+	if (!dn) {
+		dev_err(&client->dev, "of node not found\n");
+		return -EINVAL;
+	}
+
+	chip->in_switch_gpio = of_get_named_gpio(dn, "in-switch-gpio", 0);
+	if (chip->in_switch_gpio < 0) {
+		dev_err(&client->dev, "in-switch-gpio not found\n");
+		return -EPROBE_DEFER;
+	}
+
 	chip->dev = &client->dev;
 	i2c_set_clientdata(client, chip);
 	mutex_init(&chip->icl_proto_el_lock);
 	mutex_init(&chip->data_path_lock);
 	mutex_init(&chip->contaminant_detection_lock);
+	chip->first_toggle = true;
 
 	ret = max77759_read8(chip->data.regmap, TCPC_POWER_STATUS,
 			     &power_status);
@@ -1356,13 +1376,6 @@ static int max77759_probe(struct i2c_client *client,
 	if (IS_ERR_OR_NULL(chip->bc12)) {
 		ret = PTR_ERR(chip->bc12);
 		goto unreg_psy;
-	}
-
-	dn = dev_of_node(&client->dev);
-	if (!dn) {
-		dev_err(&client->dev, "of node not found\n");
-		ret = -EINVAL;
-		goto teardown_bc12;
 	}
 
 	usb_psy_name = (char *)of_get_property(dn, "usb-psy-name", NULL);
