@@ -21,6 +21,7 @@
 	 */
 	st,max-coords = <1079 2399>;
 
+	st,touch_offload_id = /bits/ 8 <'0' '0' 'o' '6'>;
 	st,firmware_names = "ftm5_fw_o6.ftb";
 	st,limits_names = "stm_fts_production_limits_o6.csv";
 };
