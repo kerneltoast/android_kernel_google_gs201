@@ -78,7 +78,6 @@ static void exynos_acpm_tmu_ipc_send_data(union tmu_ipc_message *message)
 
 	config.cmd = message->data;
 	config.response = true;
-	config.indirection = false;
 
 	before = sched_clock();
 	ret = acpm_ipc_send_data(IPC_AP_TMU, &config);

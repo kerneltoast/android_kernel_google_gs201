@@ -18,8 +18,6 @@
 #define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
 #define UTIL_THRESHOLD      1280
 
-extern void update_uclamp_stats(int cpu, u64 time);
-
 extern bool vendor_sched_enable_prefer_high_cap;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
@@ -279,50 +277,64 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 				 unsigned long max, enum schedutil_type type,
 				 struct task_struct *p);
+
 static long
 compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 {
-	struct cpumask *pd_mask = perf_domain_span(pd);
-	unsigned long cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
-	unsigned long max_util = 0, sum_util = 0;
+	unsigned int max_util, util_cfs, cpu_util, cpu_cap;
+	unsigned long sum_util, energy = 0;
+	struct task_struct *tsk;
 	int cpu;
 
-	/*
-	 * The capacity state of CPUs of the current rd can be driven by CPUs
-	 * of another rd if they belong to the same pd. So, account for the
-	 * utilization of these CPUs too by masking pd with cpu_online_mask
-	 * instead of the rd span.
-	 *
-	 * If an entire pd is outside of the current rd, it will not appear in
-	 * its pd list and will not be accounted by compute_energy().
-	 */
-	for_each_cpu_and(cpu, pd_mask, cpu_online_mask) {
-		unsigned long cpu_util, util_cfs = cpu_util_next(cpu, p, dst_cpu);
-		struct task_struct *tsk = cpu == dst_cpu ? p : NULL;
+	for (; pd; pd = pd->next) {
+		struct cpumask *pd_mask = perf_domain_span(pd);
 
 		/*
-		 * Busy time computation: utilization clamping is not
-		 * required since the ratio (sum_util / cpu_capacity)
-		 * is already enough to scale the EM reported power
-		 * consumption at the (eventually clamped) cpu_capacity.
+		 * The energy model mandates all the CPUs of a performance
+		 * domain have the same capacity.
 		 */
-		sum_util += schedutil_cpu_util_pixel_mod(cpu, util_cfs,
-							 cpu_cap, ENERGY_UTIL,
-							 NULL);
+		cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
+		max_util = sum_util = 0;
 
 		/*
-		 * Performance domain frequency: utilization clamping
-		 * must be considered since it affects the selection
-		 * of the performance domain frequency.
-		 * NOTE: in case RT tasks are running, by default the
-		 * FREQUENCY_UTIL's utilization can be max OPP.
+		 * The capacity state of CPUs of the current rd can be driven by
+		 * CPUs of another rd if they belong to the same performance
+		 * domain. So, account for the utilization of these CPUs too
+		 * by masking pd with cpu_online_mask instead of the rd span.
+		 *
+		 * If an entire performance domain is outside of the current rd,
+		 * it will not appear in its pd list and will not be accounted
+		 * by compute_energy().
 		 */
-		cpu_util = schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
-							FREQUENCY_UTIL, tsk);
-		max_util = max(max_util, cpu_util);
+		for_each_cpu_and(cpu, pd_mask, cpu_online_mask) {
+			util_cfs = cpu_util_next(cpu, p, dst_cpu);
+
+			/*
+			 * Busy time computation: utilization clamping is not
+			 * required since the ratio (sum_util / cpu_capacity)
+			 * is already enough to scale the EM reported power
+			 * consumption at the (eventually clamped) cpu_capacity.
+			 */
+			sum_util += schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
+						       ENERGY_UTIL, NULL);
+
+			/*
+			 * Performance domain frequency: utilization clamping
+			 * must be considered since it affects the selection
+			 * of the performance domain frequency.
+			 * NOTE: in case RT tasks are running, by default the
+			 * FREQUENCY_UTIL's utilization can be max OPP.
+			 */
+			tsk = cpu == dst_cpu ? p : NULL;
+			cpu_util = schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
+						      FREQUENCY_UTIL, tsk);
+			max_util = max(max_util, cpu_util);
+		}
+
+		energy += em_cpu_energy(pd->em_pd, max_util, sum_util);
 	}
 
-	return em_cpu_energy(pd->em_pd, max_util, sum_util);
+	return energy;
 }
 
 /* Runqueue only has SCHED_IDLE tasks enqueued */
@@ -848,10 +860,4 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap)
 {
 	return (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap;
-}
-
-void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p)
-{
-	if (rq->nr_running == 0)
-		update_uclamp_stats(rq->cpu, rq_clock(rq));
 }

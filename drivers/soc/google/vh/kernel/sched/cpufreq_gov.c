@@ -14,7 +14,6 @@
 #include <trace/events/power.h>
 
 #include "sched_events.h"
-#include "sched.h"
 
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 
@@ -70,104 +69,8 @@ struct sugov_cpu {
 };
 
 static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
-DEFINE_PER_CPU(struct uclamp_stats, uclamp_stats);
 
 /************************ Governor internals ***********************/
-void update_uclamp_stats(int cpu, u64 time)
-{
-	struct uclamp_stats *stats = &per_cpu(uclamp_stats, cpu);
-	s64 delta_ns = time - stats->last_update_time;
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long cpu_util = min(capacity_orig_of(cpu), cpu_util_cfs(rq) + cpu_util_rt(rq));
-	unsigned int uclamp_min = READ_ONCE(rq->uclamp[UCLAMP_MIN].value);
-	unsigned int uclamp_max = READ_ONCE(rq->uclamp[UCLAMP_MAX].value);
-	int util_diff_min, util_diff_max;
-
-	if (delta_ns <= 0)
-		return;
-
-	spin_lock(&stats->lock);
-	stats->last_update_time = time;
-
-	if(rq->curr == rq->idle)
-		goto out;
-
-	if (stats->last_min_in_effect) {
-		stats->effect_time_in_state_min[stats->last_uclamp_min_index] += delta_ns;
-		stats->util_diff_min[stats->last_util_diff_min_index] += delta_ns;
-	}
-
-	if (stats->last_max_in_effect) {
-		stats->effect_time_in_state_max[stats->last_uclamp_max_index] += delta_ns;
-		stats->util_diff_max[stats->last_util_diff_max_index] += delta_ns;
-	}
-
-	stats->total_time += delta_ns;
-
-	util_diff_min = (int)uclamp_min - cpu_util;
-	util_diff_max = (int)cpu_util - uclamp_max;
-
-	/* uclamp min is in effect */
-	if (util_diff_min > 0) {
-		stats->last_min_in_effect = true;
-		stats->last_util_diff_min_index = ((util_diff_min * 100) >> SCHED_CAPACITY_SHIFT)
-						  / UCLAMP_STATS_STEP;
-	} else
-		stats->last_min_in_effect = false;
-
-	/* uclamp max is in effect */
-	if (util_diff_max > 0) {
-		stats->last_max_in_effect = true;
-		stats->last_util_diff_max_index = ((util_diff_max * 100) >> SCHED_CAPACITY_SHIFT)
-						  / UCLAMP_STATS_STEP;
-	} else
-		stats->last_max_in_effect = false;
-
-	stats->time_in_state_min[stats->last_uclamp_min_index] += delta_ns;
-	stats->time_in_state_max[stats->last_uclamp_max_index] += delta_ns;
-	stats->last_uclamp_min_index = (((uclamp_min + UCLAMP_STATS_STEP) *
-				100) >> SCHED_CAPACITY_SHIFT) / UCLAMP_STATS_STEP;
-	stats->last_uclamp_max_index = (((uclamp_max + UCLAMP_STATS_STEP) *
-				100) >> SCHED_CAPACITY_SHIFT) / UCLAMP_STATS_STEP;
-out:
-	spin_unlock(&stats->lock);
-}
-
-void reset_uclamp_stats(void)
-{
-	int i;
-
-	for (i = 0; i < CONFIG_VH_SCHED_CPU_NR; i++) {
-		struct uclamp_stats *stats = &per_cpu(uclamp_stats, i);
-		spin_lock(&stats->lock);
-		stats->last_min_in_effect = false;
-		stats->last_max_in_effect = false;
-		stats->last_uclamp_min_index = 0;
-		stats->last_uclamp_max_index = UCLAMP_STATS_SLOTS - 1;
-		stats->last_util_diff_min_index = 0;
-		stats->last_util_diff_max_index = 0;
-		memset(stats->util_diff_min, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
-		memset(stats->util_diff_max, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
-		stats->total_time = 0;
-		stats->last_update_time = rq_clock(cpu_rq(i));
-		memset(stats->time_in_state_min, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
-		memset(stats->time_in_state_max, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
-		memset(stats->effect_time_in_state_min, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
-		memset(stats->effect_time_in_state_max, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
-		spin_unlock(&stats->lock);
-	}
-}
-
-static void init_uclamp_stats(void)
-{
-	int i;
-
-	for (i = 0; i < CONFIG_VH_SCHED_CPU_NR; i++) {
-		struct uclamp_stats *stats = &per_cpu(uclamp_stats, i);
-		spin_lock_init(&stats->lock);
-	}
-	reset_uclamp_stats();
-}
 
 static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 {
@@ -589,8 +492,6 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	unsigned int next_f;
 	bool busy;
 
-	update_uclamp_stats(sg_cpu->cpu, time);
-
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
 
@@ -667,8 +568,6 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 	unsigned int next_f;
 
 	raw_spin_lock(&sg_policy->update_lock);
-
-	update_uclamp_stats(sg_cpu->cpu, time);
 
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
@@ -966,7 +865,6 @@ static int sugov_init(struct cpufreq_policy *policy)
 
 out:
 	mutex_unlock(&global_tunables_lock);
-	init_uclamp_stats();
 	return 0;
 
 fail:

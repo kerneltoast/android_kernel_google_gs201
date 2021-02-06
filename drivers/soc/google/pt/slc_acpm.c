@@ -121,7 +121,6 @@ static int slc_acpm(struct slc_acpm_driver_data *driver_data,
 
 	config.cmd = opt_buffer ? opt_buffer : cmd;
 	config.response = true;
-	config.indirection = false;
 	config.cmd[0] = 0;
 	config.cmd[1] = arg;
 	config.cmd[2] = command;

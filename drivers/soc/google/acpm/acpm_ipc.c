@@ -503,55 +503,6 @@ static irqreturn_t acpm_ipc_irq_handler_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int enqueue_indirection_cmd(struct acpm_ipc_ch *channel,
-				   struct ipc_config *cfg)
-{
-	unsigned int front;
-	unsigned int rear;
-	unsigned int buf;
-	bool timeout_flag = 0;
-
-	if (cfg->indirection) {
-		front = __raw_readl(channel->tx_ch.front);
-		rear = __raw_readl(channel->tx_ch.rear);
-
-		/* another indirection command check */
-		while (rear != front) {
-			buf = __raw_readl(channel->tx_ch.base +
-					  channel->tx_ch.size * rear);
-
-			if (buf & (1 << ACPM_IPC_PROTOCOL_INDIRECTION)) {
-				UNTIL_EQUAL(true,
-					    rear != __raw_readl(channel->tx_ch.rear),
-					    timeout_flag);
-
-				if (timeout_flag) {
-					acpm_log_print();
-					return -ETIMEDOUT;
-				}
-
-				rear = __raw_readl(channel->tx_ch.rear);
-
-			} else {
-				if (channel->tx_ch.len == (rear + 1))
-					rear = 0;
-				else
-					rear++;
-			}
-		}
-
-		if (cfg->indirection_base) {
-			memcpy_align_4(channel->tx_ch.direction,
-				       cfg->indirection_base,
-				       cfg->indirection_size);
-		} else {
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
 int acpm_ipc_send_data_sync(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
@@ -585,7 +536,6 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	unsigned int tmp_index;
 	struct acpm_ipc_ch *channel;
 	bool timeout_flag = 0;
-	int ret;
 	u64 timeout, now;
 	u32 retry_cnt = 0;
 	unsigned long flags;
@@ -637,14 +587,6 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	cfg->cmd[2] = 0;
 	cfg->cmd[3] = 0;
 
-	ret = enqueue_indirection_cmd(channel, cfg);
-	if (ret) {
-		pr_err("[ACPM] indirection command fail %d\n", ret);
-		spin_unlock_irqrestore(&channel->tx_lock, flags);
-		up(&channel->send_sem);
-		return ret;
-	}
-
 	writel(tmp_index, channel->tx_ch.front);
 
 	apm_interrupt_gen(channel->id);
@@ -662,15 +604,18 @@ retry:
 					timeout_flag = true;
 					break;
 				} else if (retry_cnt > 0) {
+					/* in case AP -> ACPM was lost, ask APM to check again */
+					apm_interrupt_gen(channel->id);
 					pr_err("acpm_ipc retry %d, now = %llu, timeout = %llu",
-							retry_cnt, now, timeout);
-					pr_err("I:0x%x %u RX r:%u f:%u TX r:%u f:%u\n",
-							__raw_readl(acpm_ipc->intr + AP_INTSR),
-							channel->id,
-							__raw_readl(channel->rx_ch.rear),
-							__raw_readl(channel->rx_ch.front),
-							__raw_readl(channel->tx_ch.rear),
-							__raw_readl(channel->tx_ch.front));
+					       retry_cnt, now, timeout);
+					pr_err("I:0x%x %u s:%2d RX r:%u f:%u TX r:%u f:%u\n",
+					       __raw_readl(acpm_ipc->intr + AP_INTSR),
+					       channel->id,
+					       (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f,
+					       __raw_readl(channel->rx_ch.rear),
+					       __raw_readl(channel->rx_ch.front),
+					       __raw_readl(channel->tx_ch.rear),
+					       __raw_readl(channel->tx_ch.front));
 					++retry_cnt;
 					goto retry;
 				} else {
@@ -688,8 +633,9 @@ retry:
 		if ((timeout_flag) && (check_response(channel, cfg))) {
 			unsigned int saved_debug_log_level =
 			    acpm_debug->debug_log_level;
-			pr_err("%s Timeout error! now = %llu, timeout = %llu ch:%u\n",
-			       __func__, now, timeout, channel->id);
+			pr_err("%s Timeout error! now = %llu, timeout = %llu ch:%u s:%2d\n",
+			       __func__, now, timeout, channel->id,
+			       (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f);
 
 			acpm_debug->debug_log_level = 2;
 			acpm_log_print();

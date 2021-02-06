@@ -201,8 +201,8 @@ static int update_freq_table(struct exynos_cpu_cooling_device *cpufreq_cdev,
 
 		/* power is stored in mW */
 		freq_table[i].power = power;
-		pr_info("cpu_cooling %d: freq:%u power: %u\n", cpu,
-			freq_table[i].frequency, freq_table[i].power);
+		pr_info("cpu_cooling %d: freq:%u power: %u, mV: %u, cap: %u\n", cpu,
+			freq_table[i].frequency, freq_table[i].power, voltage_mv, capacitance);
 	}
 
 	return 0;
