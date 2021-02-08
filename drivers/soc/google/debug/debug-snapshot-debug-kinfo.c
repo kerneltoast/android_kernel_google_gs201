@@ -11,8 +11,8 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/debug_kinfo.h>
 #include <soc/google/debug-snapshot.h>
+#include "../../../../drivers/staging/android/debug_kinfo.h"
 
 static int debug_snapshot_debug_kinfo_probe(struct platform_device *pdev)
 {
