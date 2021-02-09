@@ -524,17 +524,6 @@ config ACCESS_RAMOOPS
 	  To compile this driver as a module, choose M here: the module will be
 	  called access_ramoops.
 
-config DEBUG_KINFO
-	bool "Debug Kernel Information Support"
-	depends on KALLSYMS
-	help
-	  This supports kernel information backup for bootloader usage.
-	  Specifics:
-	   - The kallsyms symbols for unwind_backtrace
-	   - Page directory pointer
-	   - UTS_RELEASE
-	   - BUILD_INFO(ro.build.fingerprint)
-
 config PSTORE_CONSOLE_BLDR_LOG
 	tristate "Pstore console bootloader logs driver"
 	depends on PSTORE_CONSOLE

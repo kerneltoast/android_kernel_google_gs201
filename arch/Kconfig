@@ -704,6 +704,29 @@ config LTO_CLANG_THIN
 	  If unsure, say Y.
 endchoice
 
+config CFI_CLANG
+	bool "Use Clang's Control Flow Integrity (CFI)"
+	depends on LTO_CLANG && KALLSYMS
+	help
+	  This option enables Clang's Control Flow Integrity (CFI), which adds
+	  runtime checking for indirect function calls.
+
+config CFI_CLANG_SHADOW
+	bool "Use CFI shadow to speed up cross-module checks"
+	default y
+	depends on CFI_CLANG && MODULES
+	help
+	  If you select this option, the kernel builds a fast look-up table of
+	  CFI check functions in loaded modules to reduce overhead.
+
+config CFI_PERMISSIVE
+	bool "Use CFI in permissive mode"
+	depends on CFI_CLANG
+	help
+	  When selected, Control Flow Integrity (CFI) violations result in a
+	  warning instead of a kernel panic. This option is useful for finding
+	  CFI violations during development.
+
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool
 	help
@@ -753,6 +776,13 @@ config HAVE_IRQ_TIME_ACCOUNTING
 	help
 	  Archs need to ensure they use a high enough resolution clock to
 	  support irq time accounting and then call enable_sched_clock_irqtime().
+
+config HAVE_MOVE_PUD
+	bool
+	help
+	  Architectures that select this are able to move page tables at the
+	  PUD level. If there are only 3 page table levels, the move effectively
+	  happens at the PGD level.
 
 config HAVE_MOVE_PMD
 	bool
@@ -1020,16 +1050,16 @@ config VMAP_STACK
 	default y
 	bool "Use a virtually-mapped stack"
 	depends on HAVE_ARCH_VMAP_STACK
-	depends on !KASAN || KASAN_VMALLOC
+	depends on !KASAN || KASAN_HW_TAGS || KASAN_VMALLOC
 	help
 	  Enable this if you want the use virtually-mapped kernel stacks
 	  with guard pages.  This causes kernel stack overflows to be
 	  caught immediately rather than causing difficult-to-diagnose
 	  corruption.
 
-	  To use this with KASAN, the architecture must support backing
-	  virtual mappings with real shadow memory, and KASAN_VMALLOC must
-	  be enabled.
+	  To use this with software KASAN modes, the architecture must support
+	  backing virtual mappings with real shadow memory, and KASAN_VMALLOC
+	  must be enabled.
 
 config ARCH_OPTIONAL_KERNEL_RWX
 	def_bool n
@@ -1142,6 +1172,12 @@ config ARCH_WANT_LD_ORPHAN_WARN
 	  important because we never want expected sections to be placed heuristically
 	  by the linker, since the locations of such sections can change between linker
 	  versions.
+
+config ARCH_SPLIT_ARG64
+	bool
+	help
+	   If a 32-bit architecture requires 64-bit arguments to be split into
+	   pairs of 32-bit arguments, select this option.
 
 source "kernel/gcov/Kconfig"
 

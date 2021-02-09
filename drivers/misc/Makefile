@@ -65,5 +65,4 @@ obj-$(CONFIG_SBB_MUX)		+= sbb-mux/
 obj-$(CONFIG_SUBSYSTEM_COREDUMP)	+= sscoredump/
 obj-$(CONFIG_ACCESS_RAMOOPS)	+= access_ramoops.o
 obj-$(CONFIG_SENSORS_SSP_BBD)   += bbdpl/
-obj-$(CONFIG_DEBUG_KINFO)	+= debug_kinfo.o
 obj-$(CONFIG_PSTORE_CONSOLE_BLDR_LOG)	+= pstore_bldr_log.o

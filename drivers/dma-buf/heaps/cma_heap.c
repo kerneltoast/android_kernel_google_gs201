@@ -245,6 +245,9 @@ static void cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 		vunmap(buffer->vaddr);
 	}
 
+	/* free page list */
+	kfree(buffer->pages);
+	/* release memory */
 	cma_release(cma_heap->cma, buffer->cma_pages, buffer->pagecount);
 	kfree(buffer);
 }
@@ -289,7 +292,7 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 	if (align > CONFIG_CMA_ALIGNMENT)
 		align = CONFIG_CMA_ALIGNMENT;
 
-	cma_pages = cma_alloc(cma_heap->cma, pagecount, align, false);
+	cma_pages = cma_alloc(cma_heap->cma, pagecount, align, GFP_KERNEL);
 	if (!cma_pages)
 		goto free_buffer;
 
