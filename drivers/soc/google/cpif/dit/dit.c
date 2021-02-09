@@ -19,7 +19,6 @@
 #include <soc/google/exynos-cpupm.h>
 #endif
 
-#include "modem_utils.h"
 #include "dit_common.h"
 #include "dit_net.h"
 #include "dit_hal.h"
@@ -1787,7 +1786,9 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 	unsigned int wp, rp, desc_len;
 	unsigned int dir, ring_num;
 
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "use tx: %d, rx: %d, clat: %d\n",
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "hw_ver:0x%08X reg_ver:%lu\n",
+		dc->hw_version, dc->reg_version);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "use tx:%d rx:%d clat:%d\n",
 		dc->use_tx, dc->use_rx, dc->use_clat);
 
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
@@ -2298,24 +2299,37 @@ bool dit_support_clat(void)
 }
 EXPORT_SYMBOL(dit_support_clat);
 
-static int dit_read_dt(struct device_node *np)
+static void dit_set_hw_specific(void)
 {
-	mif_dt_read_u32(np, "dit_sharability_offset", dc->sharability_offset);
-	mif_dt_read_u32(np, "dit_sharability_value", dc->sharability_value);
+#if defined(CONFIG_EXYNOS_DIT_VERSION)
+	dc->hw_version = CONFIG_EXYNOS_DIT_VERSION;
+#else
+	dc->hw_version = DIT_VERSION(2, 1, 0);
+#endif
 
-	mif_dt_read_u32(np, "dit_hw_version", dc->hw_version);
-	mif_dt_read_u32(np, "dit_hw_capabilities", dc->hw_capabilities);
+	DIT_INDIRECT_CALL(dc, get_reg_version, &dc->reg_version);
+
 #if defined(CONFIG_SOC_GS101)
 	dc->hw_capabilities |= DIT_CAP_MASK_PORT_BIG_ENDIAN;
 	/* chipid: A0 = 0, B0 = 1 */
 	if (gs_chipid_get_type() >= 1)
 		dc->hw_capabilities &= ~DIT_CAP_MASK_PORT_BIG_ENDIAN;
 #endif
+}
+
+static int dit_read_dt(struct device_node *np)
+{
+	mif_dt_read_u32(np, "dit_sharability_offset", dc->sharability_offset);
+	mif_dt_read_u32(np, "dit_sharability_value", dc->sharability_value);
+
+	mif_dt_read_u32(np, "dit_hw_capabilities", dc->hw_capabilities);
+
 	mif_dt_read_bool(np, "dit_use_tx", dc->use_tx);
 	mif_dt_read_bool(np, "dit_use_rx", dc->use_rx);
 	mif_dt_read_bool(np, "dit_use_clat", dc->use_clat);
 	mif_dt_read_bool(np, "dit_hal_linked", dc->hal_linked);
 	mif_dt_read_u32(np, "dit_rx_extra_desc_ring_len", dc->rx_extra_desc_ring_len);
+
 	mif_dt_read_u32(np, "dit_irq_affinity", dc->irq_affinity);
 
 	return 0;
@@ -2363,6 +2377,14 @@ int dit_create(struct platform_device *pdev)
 		goto error;
 	}
 
+	dit_set_hw_specific();
+
+	ret = dit_ver_create(dc);
+	if (ret) {
+		mif_err("dit versioning failed\n");
+		goto error;
+	}
+
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
 
 	ret = dit_register_irq(pdev);
@@ -2396,7 +2418,7 @@ int dit_create(struct platform_device *pdev)
 		goto error;
 	}
 
-	dit_hal_create(dc);
+	ret = dit_hal_create(dc);
 	if (ret) {
 		mif_err("dit hal create failed\n");
 		goto error;

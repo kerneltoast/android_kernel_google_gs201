@@ -157,6 +157,13 @@ config EXYNOS_DIT
 	help
 	  Enable DIT (Direct Internet Packet Transfer)
 
+config EXYNOS_DIT_VERSION
+	hex "DIT version"
+	depends on EXYNOS_DIT
+	default 0x02010000
+	help
+	  DIT version
+
 config CP_WRESET_WA
     tristate "CP warm reset WA due to WRSTBI disabled"
     depends on LINK_DEVICE_PCIE

@@ -10,6 +10,8 @@
 #ifndef __DIT_H__
 #define __DIT_H__
 
+#include "modem_utils.h"
+
 enum dit_direction {
 	DIT_DIR_TX,
 	DIT_DIR_RX,
