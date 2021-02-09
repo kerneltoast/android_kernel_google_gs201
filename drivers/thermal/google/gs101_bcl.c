@@ -988,7 +988,7 @@ static ssize_t reset_stats(const char __user *user_buf, size_t count, loff_t *pp
 		return -EFAULT;
 
 	if (buf[0] == '0')
-		__raw_writel(0x1, addr);
+		__raw_writel(0x107d, addr);
 	else
 		__raw_writel(0x107f, addr);
 	return 0;
