@@ -73,7 +73,7 @@ static void eh_update_latency(struct eh_device *eh_dev, unsigned long start,
 {
 	unsigned long prev_avg, new_avg;
 	unsigned long count;
-	u64 delta, end;
+	unsigned long delta, end;
 
 	WARN_ON(start == 0);
 
@@ -105,7 +105,7 @@ static inline void set_submit_ts(struct eh_completion *cmpl, unsigned long ts)
 	cmpl->submit_ts = ts;
 }
 
-static inline u64 get_submit_ts(struct eh_completion *cmpl)
+static inline unsigned long get_submit_ts(struct eh_completion *cmpl)
 {
 	return cmpl->submit_ts;
 }
@@ -115,16 +115,16 @@ static inline void eh_update_latency(struct eh_device *eh_dev, unsigned long sta
 			      enum eh_stat_event type) {};
 
 static inline void set_submit_ts(struct eh_completion *cmpl, unsigned long ts) {};
-static inline u64 get_submit_ts(struct eh_completion *cmpl) { return 0; };
+static inline unsigned long get_submit_ts(struct eh_completion *cmpl) { return 0; };
 #endif
 static inline void eh_write_register(struct eh_device *eh_dev,
-				     unsigned int offset, uint64_t val)
+				     unsigned int offset, unsigned long val)
 {
 	writeq(val, eh_dev->regs + offset);
 }
 
-static inline uint64_t eh_read_register(struct eh_device *eh_dev,
-					unsigned int offset)
+static inline unsigned long eh_read_register(struct eh_device *eh_dev,
+					     unsigned int offset)
 {
 	return readq(eh_dev->regs + offset);
 }
@@ -170,7 +170,7 @@ static int eh_update_complete_index(struct eh_device *eh_dev,
 
 static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev)
 {
-	uint16_t new_complete_index, masked_write_index;
+	unsigned short new_complete_index, masked_write_index;
 	int i;
 
 	masked_write_index = eh_dev->write_index & eh_dev->fifo_index_mask;
@@ -211,7 +211,7 @@ static int eh_comp_thread(void *data)
 		wait_event_freezable(eh_dev->comp_wq,
 				atomic_read(&eh_dev->nr_request) > 0);
 		if (unlikely(eh_update_complete_index(eh_dev, false))) {
-			u64 error;
+			unsigned long error;
 
 			error = eh_read_register(eh_dev, EH_REG_ERR_COND);
 			if (error) {
@@ -258,7 +258,7 @@ static void eh_complete_decompression(struct eh_device *eh_dev, int index)
 static irqreturn_t eh_error_irq(int irq, void *data)
 {
 	struct eh_device *eh_dev = data;
-	u64 compr, decompr, error;
+	unsigned long compr, decompr, error;
 
 	compr = eh_read_register(eh_dev, EH_REG_INTRP_STS_CMP);
 	decompr = eh_read_register(eh_dev, EH_REG_INTRP_STS_DCMP);
@@ -279,7 +279,7 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 static irqreturn_t eh_decompress_irq(int irq, void *data)
 {
 	struct eh_device *eh_dev = data;
-	u64 decompr;
+	unsigned long decompr;
 	int i;
 
 	decompr = eh_read_register(eh_dev, EH_REG_INTRP_STS_DCMP);
@@ -311,7 +311,7 @@ static irqreturn_t eh_decompress_irq(int irq, void *data)
 
 static int __eh_reset(struct eh_device *eh_dev, unsigned int offset)
 {
-	uint64_t tmp = (uint64_t)-1ULL;
+	unsigned long tmp = (unsigned long)-1UL;
 	unsigned int count = 0;
 
 	if (eh_dev->quirks & EH_QUIRK_IGNORE_GCTRL_RESET)
@@ -678,7 +678,7 @@ static void init_desc_0(struct eh_device *eh_dev)
 }
 
 /* initialize compression fifo and related stuff */
-static int __eh_compr_init(struct eh_device *eh_dev, uint16_t fifo_size)
+static int __eh_compr_init(struct eh_device *eh_dev, unsigned short fifo_size)
 {
 	unsigned int desc_size;
 	int i, ret = 0;
@@ -794,11 +794,11 @@ out_cleanup:
 	return ret;
 }
 
-static struct eh_device *__eh_init(struct eh_device *eh_dev, uint16_t fifo_size,
+static struct eh_device *__eh_init(struct eh_device *eh_dev, unsigned short fifo_size,
 				   int *irqs, int irq_count)
 {
 	int ret, i;
-	uint64_t hwid, hwfeatures, hwfeatures2;
+	unsigned long hwid, hwfeatures, hwfeatures2;
 	int expected_irq_count = 1;
 	int irq_index = 0;
 
@@ -886,9 +886,9 @@ static struct eh_device *__eh_init(struct eh_device *eh_dev, uint16_t fifo_size,
 	eh_compr_fifo_init(eh_dev);
 
 	/* enable all the interrupts */
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, 0ULL);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, 0ULL);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0ULL);
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, 0);
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, 0);
+	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0);
 
 	return eh_dev;
 
@@ -916,9 +916,9 @@ out_cleanup:
  * functions.  If there is only one interrupt, it should be passed through
  * error_irq and the rest of the interrupt arguments should be zero.
  */
-struct eh_device *eh_init(struct device *dev, uint16_t fifo_size,
+struct eh_device *eh_init(struct device *dev, unsigned short fifo_size,
 			  phys_addr_t regs, int *irqs, int irq_count,
-			  uint16_t quirks)
+			  unsigned short quirks)
 {
 	struct eh_device *ret;
 	struct eh_device *eh_dev;
@@ -1049,7 +1049,7 @@ static void eh_setup_desc_0(struct eh_device *eh_dev, struct page *src_page,
 }
 
 static int eh_process_completed_descriptor(struct eh_device *eh_dev,
-					   uint16_t fifo_index,
+					   unsigned short fifo_index,
 					   struct eh_completion *cmpl)
 {
 	struct eh_compr_desc_0 *desc;
@@ -1122,11 +1122,11 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 		       fifo_index, compr_status);
 		{
 			int i;
-			uint32_t *p = (uint32_t *)(eh_dev->fifo +
-						   (fifo_index *
-						    EH_COMPR_DESC_0_SIZE));
+			unsigned int *p = (unsigned int *)(eh_dev->fifo +
+							   (fifo_index *
+							    EH_COMPR_DESC_0_SIZE));
 			for (i = 0;
-			     i < (EH_COMPR_DESC_0_SIZE / sizeof(uint32_t));
+			     i < (EH_COMPR_DESC_0_SIZE / sizeof(unsigned int));
 			     i++) {
 				pr_cont("%08X ", p[i]);
 			}
@@ -1428,7 +1428,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	eh_dev->decompr_status[index] = EH_DCMD_PENDING
 					<< EH_DCMD_DEST_STATUS_SHIFT;
 	eh_write_register(eh_dev, EH_REG_DCMD_RES(index),
-			  1ULL << 63 |
+			  1UL << 63 |
 				  virt_to_phys(&eh_dev->decompr_status[index]));
 #endif
 
@@ -1443,7 +1443,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	dst_data |= ((unsigned long)EH_DCMD_PENDING)
 		    << EH_DCMD_DEST_STATUS_SHIFT;
 	if (use_irq)
-		dst_data |= 1ULL << EH_DCMD_DEST_INTR_SHIFT;
+		dst_data |= 1UL << EH_DCMD_DEST_INTR_SHIFT;
 #ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
 	*ts = ktime_get_ns();
 #endif
@@ -1581,7 +1581,7 @@ static int eh_of_probe(struct platform_device *pdev)
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irqs[EH_MAX_IRQS];
 	int i, irq_count = 0;
-	uint16_t quirks = 0;
+	unsigned short quirks = 0;
 	struct clk *clk;
 	int ret;
 

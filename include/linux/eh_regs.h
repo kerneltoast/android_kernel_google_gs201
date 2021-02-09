@@ -109,10 +109,10 @@ struct eh_compr_desc_0 {
 	unsigned int reserved1 : 4;
 
 	/* 16 bits for compressed length*/
-	uint16_t compr_len;
+	unsigned short compr_len;
 
 	/* 32 bits for the hash */
-	uint32_t hash;
+	unsigned int hash;
 
 	/* word 1, status and interrupt request are in the lower 12 bits */
 	union {
@@ -130,14 +130,14 @@ struct eh_compr_desc_0 {
 			unsigned int max_buf : 2;
 
 			/* pad out the rest of the word */
-			uint64_t padding : 54;
+			unsigned long padding : 54;
 		} s1;
-#define EH_COMPR_DESC_0_SRC_MASK ~(0xFULL)
-		uint64_t src_addr;
+#define EH_COMPR_DESC_0_SRC_MASK ~(0xFUL)
+		unsigned long src_addr;
 	} u1;
 
 	/* words 2 - 5, destination buffers */
-	uint64_t dst_addr[EH_NUM_OF_FREE_BLOCKS];
+	unsigned long dst_addr[EH_NUM_OF_FREE_BLOCKS];
 };
 
 #define EH_COMPR_DESC_0_SIZE sizeof(struct eh_compr_desc_0)
@@ -199,65 +199,65 @@ struct eh_compr_desc_0 {
 #define EH_REG_DBGTRIGMASK      0x238
 #define EH_REG_DBGTRIGMATCH     0x240
 
-#define SHIFT_AND_MASK(val, shift, mask)                                       \
-	(((val) >> (uint64_t)shift) & (uint64_t)(mask))
+#define SHIFT_AND_MASK(val, shift, mask) \
+	(((val) >> (unsigned long)(shift)) & (unsigned long)(mask))
 
 /* meanings of some of the register bits for global */
-#define EH_HWID_VENDOR_SHIFT             0ULL
-#define EH_HWID_DEVICE_SHIFT             16ULL
-#define EH_FEATURES2_RESULT_WRITE_SHIFT  23ULL
-#define EH_FEATURES2_WIDE_REG_SHIFT      22ULL
-#define EH_FEATURES2_DESC_FIXED_SHIFT    21ULL
-#define EH_FEATURES2_BUF_MAX_SHIFT       16ULL
-#define EH_FEATURES2_BUF_MAX_MASK        0x7ULL
-#define EH_FEATURES2_DECOMPR_CMDS_SHIFT  8ULL
-#define EH_FEATURES2_DECOMPR_CMDS_MASK   0xFFULL
-#define EH_FEATURES2_DESC_TYPE_SHIFT     5ULL
-#define EH_FEATURES2_DESC_TYPE_MASK      0x7ULL
-#define EH_GCTRL_RESET_SHIFT             0ULL
+#define EH_HWID_VENDOR_SHIFT             0UL
+#define EH_HWID_DEVICE_SHIFT             16UL
+#define EH_FEATURES2_RESULT_WRITE_SHIFT  23UL
+#define EH_FEATURES2_WIDE_REG_SHIFT      22UL
+#define EH_FEATURES2_DESC_FIXED_SHIFT    21UL
+#define EH_FEATURES2_BUF_MAX_SHIFT       16UL
+#define EH_FEATURES2_BUF_MAX_MASK        0x7UL
+#define EH_FEATURES2_DECOMPR_CMDS_SHIFT  8UL
+#define EH_FEATURES2_DECOMPR_CMDS_MASK   0xFFUL
+#define EH_FEATURES2_DESC_TYPE_SHIFT     5UL
+#define EH_FEATURES2_DESC_TYPE_MASK      0x7UL
+#define EH_GCTRL_RESET_SHIFT             0UL
 
-#define EH_ERR_COND_ERROR_OVERFLOW_SHIFT 36ULL
-#define EH_ERR_COND_ERROR_VEC_SHIFT      8ULL
-#define EH_ERR_COND_ERR_CNT_OV_SHIFT     7ULL
-#define EH_ERR_COND_Q_HALT_SHIFT         6ULL
-#define EH_ERR_COND_D_CMD_ERR_SHIFT      5ULL
-#define EH_ERR_COND_C_CMD_ERR_SHIFT      4ULL
-#define EH_ERR_COND_COR_SHIFT            3ULL
-#define EH_ERR_COND_UNC_SHIFT            2ULL
-#define EH_ERR_COND_DEV_FATAL_SHIFT      1ULL
-#define EH_ERR_COND_SYS_FATAL_SHIFT      0ULL
-#define EH_ERR_ADDR_LOG_ADDR_MASK        0xFFFFFFFFC0ULL
-#define EH_ERR_ADDR_LOG_ADDR_VLD_SHIFT   1ULL
-#define EH_ERR_ADDR_LOG_BUSY_SHIFT       0ULL
-#define EH_ERR_CMD_LOG_BUS_ID_MASK       0xFFULL
-#define EH_ERR_CMD_LOG_BUS_ID_SHIFT      40ULL
-#define EH_ERR_CMD_LOG_CMD_MASK          0xFFULL
-#define EH_ERR_CMD_LOG_CMD_SHIFT         32ULL
-#define EH_ERR_CMD_LOG_INDEX_MASK        0xFFFFULL
-#define EH_ERR_CMD_LOG_INDEX_SHIFT       16ULL
-#define EH_ERR_CMD_LOG_BARRIER_SHIFT     9ULL
-#define EH_ERR_CMD_LOG_BUS_ID_VLD_SHIFT  8ULL
-#define EH_ERR_CMD_LOG_INDEX_VLD_SHIFT   7ULL
-#define EH_ERR_CMD_LOG_CMD_VLD_SHIFT     6ULL
-#define EH_ERR_CMD_LOG_PAYLOAD_SHIFT     5ULL
-#define EH_ERR_CMD_LOG_DESCR_SHIFT       4ULL
-#define EH_ERR_CMD_LOG_WRITE_SHIFT       3ULL
-#define EH_ERR_CMD_LOG_READ_SHIFT        2ULL
-#define EH_ERR_CMD_LOG_COMPRESS_SHIFT    1ULL
-#define EH_ERR_CMD_LOG_DECOMPRESS_SHIFT  0ULL
+#define EH_ERR_COND_ERROR_OVERFLOW_SHIFT 36UL
+#define EH_ERR_COND_ERROR_VEC_SHIFT      8UL
+#define EH_ERR_COND_ERR_CNT_OV_SHIFT     7UL
+#define EH_ERR_COND_Q_HALT_SHIFT         6UL
+#define EH_ERR_COND_D_CMD_ERR_SHIFT      5UL
+#define EH_ERR_COND_C_CMD_ERR_SHIFT      4UL
+#define EH_ERR_COND_COR_SHIFT            3UL
+#define EH_ERR_COND_UNC_SHIFT            2UL
+#define EH_ERR_COND_DEV_FATAL_SHIFT      1UL
+#define EH_ERR_COND_SYS_FATAL_SHIFT      0UL
+#define EH_ERR_ADDR_LOG_ADDR_MASK        0xFFFFFFFFC0UL
+#define EH_ERR_ADDR_LOG_ADDR_VLD_SHIFT   1UL
+#define EH_ERR_ADDR_LOG_BUSY_SHIFT       0UL
+#define EH_ERR_CMD_LOG_BUS_ID_MASK       0xFFUL
+#define EH_ERR_CMD_LOG_BUS_ID_SHIFT      40UL
+#define EH_ERR_CMD_LOG_CMD_MASK          0xFFUL
+#define EH_ERR_CMD_LOG_CMD_SHIFT         32UL
+#define EH_ERR_CMD_LOG_INDEX_MASK        0xFFFFUL
+#define EH_ERR_CMD_LOG_INDEX_SHIFT       16UL
+#define EH_ERR_CMD_LOG_BARRIER_SHIFT     9UL
+#define EH_ERR_CMD_LOG_BUS_ID_VLD_SHIFT  8UL
+#define EH_ERR_CMD_LOG_INDEX_VLD_SHIFT   7UL
+#define EH_ERR_CMD_LOG_CMD_VLD_SHIFT     6UL
+#define EH_ERR_CMD_LOG_PAYLOAD_SHIFT     5UL
+#define EH_ERR_CMD_LOG_DESCR_SHIFT       4UL
+#define EH_ERR_CMD_LOG_WRITE_SHIFT       3UL
+#define EH_ERR_CMD_LOG_READ_SHIFT        2UL
+#define EH_ERR_CMD_LOG_COMPRESS_SHIFT    1UL
+#define EH_ERR_CMD_LOG_DECOMPRESS_SHIFT  0UL
 
 // bits of error vec and error overflow
 // in google implementation
-#define EH_ERR_DBG_BIT       9ULL
-#define EH_ERR_DSIZE_BIT     8ULL
-#define EH_ERR_DENGINE_BIT   7ULL
-#define EH_ERR_BAD_DESC_BIT  6ULL
-#define EH_ERR_DEC_BIT       5ULL
-#define EH_ERR_SLV_BIT       4ULL
-#define EH_ERR_D_PIPE_TO_BIT 3ULL
-#define EH_ERR_C_PIPE_TO_BIT 2ULL
-#define EH_ERR_UR_BIT        1ULL
-#define EH_ERR_BUS_TO_BIT    0ULL
+#define EH_ERR_DBG_BIT       9UL
+#define EH_ERR_DSIZE_BIT     8UL
+#define EH_ERR_DENGINE_BIT   7UL
+#define EH_ERR_BAD_DESC_BIT  6UL
+#define EH_ERR_DEC_BIT       5UL
+#define EH_ERR_SLV_BIT       4UL
+#define EH_ERR_D_PIPE_TO_BIT 3UL
+#define EH_ERR_C_PIPE_TO_BIT 2UL
+#define EH_ERR_UR_BIT        1UL
+#define EH_ERR_BUS_TO_BIT    0UL
 
 #define EH_HWID_VENDOR(val)            SHIFT_AND_MASK(val, 16, 0xFFFF)
 #define EH_HWID_DEVICE(val)            SHIFT_AND_MASK(val,  0, 0xFFFF)
@@ -282,17 +282,17 @@ struct eh_compr_desc_0 {
 #define EH_REG_CINTERP_TIMER 0x428
 
 /* meanings of some of the bits for compression */
-#define EH_CDESC_LOC_BASE_MASK              0xFFFFFFFFC0ULL
-#define EH_CDESC_LOC_NUM_DESC_MASK          0xFULL
-#define EH_CDESC_WRIDX_WRITE_IDX_MASK       0xFFFFULL
-#define EH_CDESC_CTRL_FIFO_RESET            16ULL
-#define EH_CDESC_CTRL_COMPRESS_BUSY_SHIFT   17ULL
-#define EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT 18ULL
-#define EH_CDESC_CTRL_COMPRESS_ERROR_SHIFT  19ULL
-#define EH_CDESC_CTRL_COMPRESS_HALTED_SHIFT 20ULL
-#define EH_CDESC_CTRL_COMPLETE_IDX_MASK     0xFFFFULL
-#define EH_CINTERP_CTRL_IDX_MASK            0xFFFFULL
-#define EH_CINTERP_CTRL_ENABLE_SHIFT        16ULL
+#define EH_CDESC_LOC_BASE_MASK              0xFFFFFFFFC0UL
+#define EH_CDESC_LOC_NUM_DESC_MASK          0xFUL
+#define EH_CDESC_WRIDX_WRITE_IDX_MASK       0xFFFFUL
+#define EH_CDESC_CTRL_FIFO_RESET            16UL
+#define EH_CDESC_CTRL_COMPRESS_BUSY_SHIFT   17UL
+#define EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT 18UL
+#define EH_CDESC_CTRL_COMPRESS_ERROR_SHIFT  19UL
+#define EH_CDESC_CTRL_COMPRESS_HALTED_SHIFT 20UL
+#define EH_CDESC_CTRL_COMPLETE_IDX_MASK     0xFFFFUL
+#define EH_CINTERP_CTRL_IDX_MASK            0xFFFFUL
+#define EH_CINTERP_CTRL_ENABLE_SHIFT        16UL
 
 /*
  * decompression related
@@ -335,19 +335,19 @@ enum eh_dcmd_status {
 };
 
 /* meanings of some of the bits for decompression */
-#define EH_DCMD_DEST_BUF_MASK          ~((1ULL << 12ULL) - 1ULL)
-#define EH_DCMD_DEST_STATUS_MASK       0xEULL
-#define EH_DCMD_DEST_STATUS_SHIFT      1ULL
-#define EH_DCMD_DEST_STATUS(val)       SHIFT_AND_MASK(val, 1, 0x7ULL)
-#define EH_DCMD_DEST_INTR_MASK         0x1ULL
-#define EH_DCMD_DEST_INTR_SHIFT        0x0ULL
-#define EH_DCMD_CSIZE_HASH_SHIFT       32ULL
-#define EH_DCMD_CSIZE_SIZE_SHIFT       16ULL
-#define EH_DCMD_CSIZE_HASH_ENABLE_MASK 0x1ULL
-#define EH_DCMD_BUF_SIZE_SHIFT         60ULL
-#define EH_DCMD_RES_ADDR_MASK          0x000000FFFFFFFFF8ULL
-#define EH_DCMD_RES_ENABLE_SHIFT       63ULL
-#define EH_DCMD_RES_OVERWRITE_SHIFT    62ULL
+#define EH_DCMD_DEST_BUF_MASK          ~((1UL << 12UL) - 1UL)
+#define EH_DCMD_DEST_STATUS_MASK       0xEUL
+#define EH_DCMD_DEST_STATUS_SHIFT      1UL
+#define EH_DCMD_DEST_STATUS(val)       SHIFT_AND_MASK(val, 1, 0x7UL)
+#define EH_DCMD_DEST_INTR_MASK         0x1UL
+#define EH_DCMD_DEST_INTR_SHIFT        0x0UL
+#define EH_DCMD_CSIZE_HASH_SHIFT       32UL
+#define EH_DCMD_CSIZE_SIZE_SHIFT       16UL
+#define EH_DCMD_CSIZE_HASH_ENABLE_MASK 0x1UL
+#define EH_DCMD_BUF_SIZE_SHIFT         60UL
+#define EH_DCMD_RES_ADDR_MASK          0x000000FFFFFFFFF8UL
+#define EH_DCMD_RES_ENABLE_SHIFT       63UL
+#define EH_DCMD_RES_OVERWRITE_SHIFT    62UL
 
 #define EH_DCMD_DEST_TO_STATUS(d)                                              \
 	(((d) & EH_DCMD_DEST_STATUS_MASK) >> EH_DCMD_DEST_STATUS_SHIFT)

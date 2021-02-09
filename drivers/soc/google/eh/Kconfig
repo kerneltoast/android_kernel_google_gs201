@@ -1,5 +1,6 @@
 config GOOGLE_EH
         tristate "Google Emerald Hill compression engine driver"
+        depends on 64BIT
         default n
 
 config GOOGLE_EH_CFIFO_DST_BUFFER_3KB
