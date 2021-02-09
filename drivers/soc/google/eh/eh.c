@@ -347,12 +347,26 @@ static void eh_platform_init(struct eh_device *eh_dev, unsigned int vendor,
 
 static void eh_compr_fifo_init(struct eh_device *eh_dev)
 {
-	uint64_t data = __ffs(eh_dev->fifo_size);
+	unsigned long data;
 
-	data |= (uint64_t)virt_to_phys(eh_dev->fifo);
+	/* FIFO reset: reset hardware write/read/complete index registers */
+	data = 1UL << EH_CDESC_CTRL_FIFO_RESET;
+	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
+	do {
+		udelay(1);
+		data = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
+	} while (data & (1UL << EH_CDESC_CTRL_FIFO_RESET));
+
+	/* reset software copies of index registers */
+	eh_dev->write_index = 0;
+	eh_dev->complete_index = 0;
+
+	/* program FIFO memory location and size */
+	data = (unsigned long)virt_to_phys(eh_dev->fifo) | __ffs(eh_dev->fifo_size);
 	eh_write_register(eh_dev, EH_REG_CDESC_LOC, data);
 
-	data = 1ULL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT;
+	/* enable compression */
+	data = 1UL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT;
 	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
 }
 
@@ -1717,7 +1731,6 @@ static int eh_resume(struct device *dev)
 	clk_prepare_enable(eh_dev->clk);
 
 	/* re-enable compression FIFO */
-	eh_dev->write_index = eh_dev->complete_index = 0;
 	eh_compr_fifo_init(eh_dev);
 
 	/* re-enable all interrupts */
