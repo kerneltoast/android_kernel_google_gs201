@@ -36,7 +36,6 @@ fi
 ABI_DEFINITION=android/abi_gki_aarch64_common.xml
 FULL_GKI_ABI=1
 GKI_MODULES_LIST=android/gki_aarch64_modules
-KMI_ENFORCED=1
 KMI_SYMBOL_LIST=android/abi_gki_aarch64_common
 KMI_SYMBOL_LIST_MODULE_GROUPING=0
 
