@@ -71,7 +71,7 @@
 		max20339_gpio: max20339_gpio {
 			gpio-controller;
 			#gpio-cells = <2>;
-			ngpios = <5>;
+			ngpios = <7>;
 		};
 	};
 
