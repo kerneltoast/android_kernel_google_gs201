@@ -33,3 +33,5 @@ OUT_DIR=${BASE_OUT}/device-kernel/
 BUILD_CONFIG=private/gs-google/build.config.slider \
   build/build.sh KCFLAGS=-Werror "$@"
 
+# Remove abi.xml to avoid triggering the KernelABI linter
+rm ${DIST_DIR}/abi.xml
