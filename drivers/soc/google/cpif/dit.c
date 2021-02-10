@@ -2420,10 +2420,18 @@ static int dit_remove(struct platform_device *pdev)
 static int dit_suspend(struct device *dev)
 {
 	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
+	unsigned long flags;
 	int ret = 0;
 
 	if (unlikely(!dc) || unlikely(!dc->ld))
 		return 0;
+
+	spin_lock_irqsave(&dc->src_lock, flags);
+	if (dit_is_kicked_any()) {
+		spin_unlock_irqrestore(&dc->src_lock, flags);
+		return -EEXIST;
+	}
+	spin_unlock_irqrestore(&dc->src_lock, flags);
 
 	ret = dit_reg_backup_restore(true);
 	if (ret)
