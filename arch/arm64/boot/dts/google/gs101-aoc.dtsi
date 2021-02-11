@@ -53,4 +53,10 @@
 		force-vnom = <0>;
 	};
 
+	aoc_gpiochip: aoc_gpiochip {
+		compatible = "google,aoc_uwb_rst";
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpio = <1>;
+	};
 };

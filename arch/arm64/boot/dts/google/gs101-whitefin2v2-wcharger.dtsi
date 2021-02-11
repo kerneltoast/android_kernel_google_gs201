@@ -13,5 +13,6 @@
 	p9412@3c {
 		idt,has_rtx = <1>;
 		idt,gpio_extben = <&gpp1 3 GPIO_ACTIVE_HIGH>;
+		idt,has_wlc_dc = <0>;
 	};
 };

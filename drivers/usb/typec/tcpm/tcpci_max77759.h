@@ -56,6 +56,10 @@ struct max77759_plat {
 	bool no_bc_12;
 	struct tcpm_port *port;
 	struct usb_psy_ops psy_ops;
+	/* toggle in_switch to kick debug accessory statemachine when already connected */
+	int in_switch_gpio;
+	bool first_toggle;
+
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
 	u8 debug_acc_connected:1;
 	/* Cache status when sourcing vbus. Used to modify vbus_present status */

@@ -71,7 +71,7 @@
 		max20339_gpio: max20339_gpio {
 			gpio-controller;
 			#gpio-cells = <2>;
-			ngpios = <4>;
+			ngpios = <5>;
 		};
 	};
 
@@ -87,6 +87,7 @@
 		usb-psy-name = "usb";
 		chg-psy-name = "gcpm";
 		main-chg-psy-name = "main-charger";
+		in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
 
 		connector {
 			compatible = "usb-c-connector";
