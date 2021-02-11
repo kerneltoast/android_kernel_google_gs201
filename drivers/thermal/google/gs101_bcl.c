@@ -177,6 +177,9 @@ struct gs101_bcl_dev {
 
 	struct i2c_client *s2mpg10_i2c;
 	struct i2c_client *s2mpg11_i2c;
+
+	unsigned int s2mpg10_triggered_irq[IRQ_SOURCE_S2MPG10_MAX];
+	unsigned int s2mpg11_triggered_irq[IRQ_SOURCE_S2MPG11_MAX];
 };
 
 
@@ -233,10 +236,11 @@ static void irq_work(struct gs101_bcl_dev *gs101_bcl_device, u8 active_pull, u8 
 		mutex_lock(&gs101_bcl_device->s2mpg10_irq_lock[idx]);
 		state = gpio_get_value(gs101_bcl_device->s2mpg10_pin[idx]);
 		if (state == active_pull) {
-			queue_delayed_work(system_wq,
-			 &gs101_bcl_device->s2mpg10_irq_work[idx],
+			gs101_bcl_device->s2mpg10_triggered_irq[idx] = 1;
+			queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg10_irq_work[idx],
 			 msecs_to_jiffies(300));
 		} else {
+			gs101_bcl_device->s2mpg10_triggered_irq[idx] = 0;
 			gs101_bcl_device->s2mpg10_counter[idx] = 0;
 			enable_irq(gs101_bcl_device->s2mpg10_irq[idx]);
 		}
@@ -245,10 +249,11 @@ static void irq_work(struct gs101_bcl_dev *gs101_bcl_device, u8 active_pull, u8 
 		mutex_lock(&gs101_bcl_device->s2mpg11_irq_lock[idx]);
 		state = gpio_get_value(gs101_bcl_device->s2mpg11_pin[idx]);
 		if (state == active_pull) {
-			queue_delayed_work(system_wq,
-			 &gs101_bcl_device->s2mpg11_irq_work[idx],
+			gs101_bcl_device->s2mpg11_triggered_irq[idx] = 1;
+			queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg11_irq_work[idx],
 			 msecs_to_jiffies(300));
 		} else {
+			gs101_bcl_device->s2mpg11_triggered_irq[idx] = 0;
 			gs101_bcl_device->s2mpg11_counter[idx] = 0;
 			enable_irq(gs101_bcl_device->s2mpg11_irq[idx]);
 		}
@@ -259,9 +264,15 @@ static void irq_work(struct gs101_bcl_dev *gs101_bcl_device, u8 active_pull, u8 
 static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_pull)
 {
 	struct gs101_bcl_dev *gs101_bcl_device = data;
+	int state = !active_pull;
 
 	if (pmic == S2MPG10) {
 		mutex_lock(&gs101_bcl_device->s2mpg10_irq_lock[idx]);
+		gs101_bcl_device->s2mpg10_triggered_irq[idx] = 1;
+		disable_irq_nosync(gs101_bcl_device->s2mpg10_irq[idx]);
+		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg10_irq_work[idx],
+				   msecs_to_jiffies(300));
+		mutex_unlock(&gs101_bcl_device->s2mpg10_irq_lock[idx]);
 		pr_info_ratelimited("S2MPG10 IRQ : %d triggered\n", irq);
 		if (gs101_bcl_device->s2mpg10_counter[idx] == 0) {
 			gs101_bcl_device->s2mpg10_counter[idx] += 1;
@@ -274,13 +285,13 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 						gs101_bcl_device->s2mpg10_tz_irq[idx],
 						THERMAL_EVENT_UNSPECIFIED);
 		}
-
-		disable_irq_nosync(gs101_bcl_device->s2mpg10_irq[idx]);
-		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg10_irq_work[idx],
-			   msecs_to_jiffies(300));
-		mutex_unlock(&gs101_bcl_device->s2mpg10_irq_lock[idx]);
 	} else {
 		mutex_lock(&gs101_bcl_device->s2mpg11_irq_lock[idx]);
+		gs101_bcl_device->s2mpg11_triggered_irq[idx] = 1;
+		disable_irq_nosync(gs101_bcl_device->s2mpg11_irq[idx]);
+		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg11_irq_work[idx],
+				   msecs_to_jiffies(300));
+		mutex_unlock(&gs101_bcl_device->s2mpg11_irq_lock[idx]);
 		pr_info_ratelimited("S2MPG11 IRQ : %d triggered\n", irq);
 		if (gs101_bcl_device->s2mpg11_counter[idx] == 0) {
 			gs101_bcl_device->s2mpg11_counter[idx] = 1;
@@ -293,11 +304,6 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 						gs101_bcl_device->s2mpg11_tz_irq[idx],
 						THERMAL_EVENT_UNSPECIFIED);
 		}
-
-		disable_irq_nosync(gs101_bcl_device->s2mpg11_irq[idx]);
-		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg11_irq_work[idx],
-			   msecs_to_jiffies(300));
-		mutex_unlock(&gs101_bcl_device->s2mpg11_irq_lock[idx]);
 	}
 	return IRQ_HANDLED;
 }
@@ -1118,6 +1124,88 @@ BCL_DEBUG_ATTRIBUTE(cpucl1_clkdivstep_stat_fops, get_cpucl1_stat, reset_cpucl1_s
 BCL_DEBUG_ATTRIBUTE(cpucl2_clkdivstep_stat_fops, get_cpucl2_stat, reset_cpucl2_stat);
 BCL_DEBUG_ATTRIBUTE(gpu_clkdivstep_stat_fops, get_gpu_stat, reset_gpu_stat);
 BCL_DEBUG_ATTRIBUTE(tpu_clkdivstep_stat_fops, get_tpu_stat, reset_tpu_stat);
+
+static int get_smpl_warn(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_SMPL_WARN];
+	return 0;
+}
+
+static int get_cpu1_ocp(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_OCP_WARN_CPUCL1];
+	return 0;
+}
+
+static int get_cpu2_ocp(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_OCP_WARN_CPUCL2];
+	return 0;
+}
+
+static int get_tpu_ocp(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_OCP_WARN_TPU];
+	return 0;
+}
+
+static int get_gpu_ocp(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg11_triggered_irq[IRQ_OCP_WARN_GPU];
+	return 0;
+}
+
+static int get_soft_cpu1_ocp(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_SOFT_OCP_WARN_CPUCL1];
+	return 0;
+}
+
+static int get_soft_cpu2_ocp(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_SOFT_OCP_WARN_CPUCL2];
+	return 0;
+}
+
+static int get_soft_tpu_ocp(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_SOFT_OCP_WARN_TPU];
+	return 0;
+}
+
+static int get_soft_gpu_ocp(void *data, u64 *val)
+{
+	struct gs101_bcl_dev *bcl_dev = data;
+
+	*val = bcl_dev->s2mpg11_triggered_irq[IRQ_SOFT_OCP_WARN_GPU];
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(smpl_triggered_fops, get_smpl_warn, NULL, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(soft_cpucl1_ocp_triggered_fops, get_soft_cpu1_ocp, NULL, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(soft_cpucl2_ocp_triggered_fops, get_soft_cpu2_ocp, NULL, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(soft_tpu_ocp_triggered_fops, get_soft_tpu_ocp, NULL, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_ocp_triggered_fops, get_soft_gpu_ocp, NULL, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(cpucl1_ocp_triggered_fops, get_cpu1_ocp, NULL, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(cpucl2_ocp_triggered_fops, get_cpu2_ocp, NULL, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(tpu_ocp_triggered_fops, get_tpu_ocp, NULL, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(gpu_ocp_triggered_fops, get_gpu_ocp, NULL, "%d\n");
 
 static int get_smpl_lvl(void *data, u64 *val)
 {
@@ -2014,6 +2102,33 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 				    gs101_bcl_device, &gpu_clk_ratio_light_fops);
 		debugfs_create_file("tpu_clkdiv_ratio_light", 0644, gs101_bcl_device->debug_entry,
 				    gs101_bcl_device, &tpu_clk_ratio_light_fops);
+		debugfs_create_file("smpl_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &smpl_triggered_fops);
+		debugfs_create_file("cpu1_ocp_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &cpucl1_ocp_triggered_fops);
+		debugfs_create_file("cpu2_ocp_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &cpucl2_ocp_triggered_fops);
+		debugfs_create_file("tpu_ocp_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &tpu_ocp_triggered_fops);
+		debugfs_create_file("gpu_ocp_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &gpu_ocp_triggered_fops);
+		debugfs_create_file("soft_cpu1_ocp_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &soft_cpucl1_ocp_triggered_fops);
+		debugfs_create_file("soft_cpu2_ocp_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &soft_cpucl2_ocp_triggered_fops);
+		debugfs_create_file("soft_tpu_ocp_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &soft_tpu_ocp_triggered_fops);
+		debugfs_create_file("soft_gpu_ocp_triggered", 0600,
+				    gs101_bcl_device->debug_entry,
+				    gs101_bcl_device, &soft_gpu_ocp_triggered_fops);
 
 	} else
 		gs101_bcl_device->debug_entry = root;
@@ -2074,10 +2189,12 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	gs101_bcl_device->soc_ops.set_trips = gs101_bcl_set_soc;
 	for (i = 0; i < IRQ_SOURCE_S2MPG10_MAX; i++) {
 		gs101_bcl_device->s2mpg10_counter[i] = 0;
+		gs101_bcl_device->s2mpg10_triggered_irq[i] = 0;
 		mutex_init(&gs101_bcl_device->s2mpg10_irq_lock[i]);
 	}
 	for (i = 0; i < IRQ_SOURCE_S2MPG11_MAX; i++) {
 		gs101_bcl_device->s2mpg11_counter[i] = 0;
+		gs101_bcl_device->s2mpg11_triggered_irq[i] = 0;
 		mutex_init(&gs101_bcl_device->s2mpg11_irq_lock[i]);
 	}
 	INIT_DELAYED_WORK(&gs101_bcl_device->mfd_init, gs101_bcl_mfd_init);
