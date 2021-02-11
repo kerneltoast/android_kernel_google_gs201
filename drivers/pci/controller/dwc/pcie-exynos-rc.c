@@ -55,6 +55,10 @@
 #include "pcie-exynos-rc.h"
 #include "pcie-exynos-dbg.h"
 
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+#include <soc/google/s2mpu.h>
+#endif
+
 struct exynos_pcie g_pcie_rc[MAX_RC_NUM];
 int pcie_is_linkup;	/* checkpatch: do not initialise globals to 0 */
 /* currnet_cnt & current_cnt2 for EOM test */
@@ -3678,6 +3682,9 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 	int ch_num;
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	struct device_node *s2mpu_dn;
+#endif
 
 	dev_info(&pdev->dev, "## PCIe RC PROBE start\n");
 
@@ -3726,6 +3733,17 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
 	platform_set_drvdata(pdev, exynos_pcie);
 	power_stats_init(exynos_pcie);
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	s2mpu_dn = of_parse_phandle(np, "s2mpu", 0);
+	if (s2mpu_dn) {
+		exynos_pcie->s2mpu = s2mpu_fwnode_to_info(&s2mpu_dn->fwnode);
+		if (!exynos_pcie->s2mpu) {
+			dev_err(&pdev->dev, "Failed to get S2MPU\n");
+			return -EPROBE_DEFER;
+		}
+	}
+#endif
 
 	/* parsing pcie dts data for exynos */
 	ret = exynos_pcie_rc_parse_dt(&pdev->dev, exynos_pcie);
