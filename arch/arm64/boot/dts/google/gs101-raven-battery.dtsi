@@ -15,3 +15,8 @@
 		#include "gs101-raven-battery-data.dtsi"
 	};
 };
+
+&pca9468_dc {
+	pca9468,charging-current = <5000000>; /* 5A */
+	pca9468,input-current-limit = <3000000>; /* 3.0A */
+};

@@ -186,14 +186,12 @@
 		max77759,vin-is_valid =  <&max20339_gpio 3 GPIO_ACTIVE_HIGH>;
 	};
 
-	pca9468@57 {
+	pca9468_dc: pca9468@57 {
 		compatible = "nxp,pca9468";
 		reg = <0x57>;
 
 		/* TODO: add IRQ pca9468,irq-gpio = <xxx>; */
 
-		pca9468,input-current-limit = <2000000>; /* 2.0A */
-		pca9468,charging-current = <4520000>; /* 4.5A */
 		pca9468,float-voltage = <4300000>; /* 4.3V */
 
 		pca9468,input-itopoff = <500000>; /* 500mA */
