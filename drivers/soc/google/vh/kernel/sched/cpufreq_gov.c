@@ -233,8 +233,14 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 	    delta_ns < sg_policy->up_rate_delay_ns)
 			return true;
 
+	/*
+	 * TODO: consider using a table with ratio and rate limit defined
+	 * Here consider the ratio of freq change e.g. selecting larger rate limit
+	 * when freq changed dramatically and smaller rate limit for the opposite.
+	 * here for simple, rate_limit = down_rate_delay_ns * new_freq / old_freq
+	 */
 	if (next_freq < sg_policy->next_freq &&
-	    delta_ns < sg_policy->down_rate_delay_ns)
+		delta_ns * sg_policy->next_freq < sg_policy->down_rate_delay_ns * next_freq)
 			return true;
 
 	return false;
