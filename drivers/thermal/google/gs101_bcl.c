@@ -264,7 +264,6 @@ static void irq_work(struct gs101_bcl_dev *gs101_bcl_device, u8 active_pull, u8 
 static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_pull)
 {
 	struct gs101_bcl_dev *gs101_bcl_device = data;
-	int state = !active_pull;
 
 	if (pmic == S2MPG10) {
 		mutex_lock(&gs101_bcl_device->s2mpg10_irq_lock[idx]);
