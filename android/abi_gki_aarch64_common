@@ -2118,6 +2118,7 @@
   dma_heap_find
   dma_heap_get_dev
   dma_heap_get_drvdata
+  dma_heap_get_name
   dma_heap_put
   dma_issue_pending_all
   d_make_root
