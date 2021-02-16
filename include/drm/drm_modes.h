@@ -350,16 +350,6 @@ struct drm_display_mode {
 	u8 type;
 
 	/**
-	 * @private_flags:
-	 *
-	 * Driver private flags. private_flags can only be used for mode
-	 * objects passed to drivers in modeset operations. It shouldn't be used
-	 * by atomic drivers since they can store any additional data by
-	 * subclassing state structures.
-	 */
-	int private_flags;
-
-	/**
 	 * @expose_to_userspace:
 	 *
 	 * Indicates whether the mode is to be exposed to the userspace.
