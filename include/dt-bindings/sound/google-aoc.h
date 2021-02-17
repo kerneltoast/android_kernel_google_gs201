@@ -12,7 +12,7 @@
 #define TDM_0_TX		0xC0000007
 #define TDM_1_RX		0x80000008
 #define TDM_1_TX		0xC0000009
-#define INTERNAL_MIC_TX	0xC000000A
+#define INTERNAL_MIC_TX	        0xC000000A
 #define BT_RX			0x8000000B
 #define BT_TX			0xC000000C
 #define USB_RX			0x8000000D
@@ -27,6 +27,9 @@
 #define IDX_EP7_RX		0x6
 #define IDX_EP8_RX		0x7
 #define IDX_NOHOST1_RX		0x8
+#define IDX_VOIP_RX		0x9
+#define IDX_INCALL_PB0_RX       0xa
+#define IDX_INCALL_PB1_RX       0xb
 
 #define IDX_EP1_TX		0x40000000
 #define IDX_EP2_TX		0x40000001
@@ -37,4 +40,8 @@
 #define IDX_EP7_TX		0x40000006
 #define IDX_EP8_TX		0x40000007
 #define IDX_NOHOST1_TX		0x40000008
+#define IDX_VOIP_TX		0x40000009
+#define IDX_INCALL_CAP0_TX	0x4000000c
+#define IDX_INCALL_CAP1_TX	0x4000000d
+#define IDX_INCALL_CAP2_TX	0x4000000e
 #endif /* __DT_GOOGLE_AOC_H */

@@ -29,7 +29,8 @@
 #include "fw_header/framework.h"
 #include "../vh/kernel/systrace.h"
 
-#define IPC_TIMEOUT				(200000000)
+#define IPC_TIMEOUT				(10000000)
+#define IPC_NB_RETRIES				2
 #define APM_SYSTICK_PERIOD_US			(20345)
 
 static struct acpm_ipc_info *acpm_ipc;
@@ -600,7 +601,7 @@ retry:
 		while (check_response(channel, cfg)) {
 			now = sched_clock();
 			if (timeout < now) {
-				if (retry_cnt > 5) {
+				if (retry_cnt > IPC_NB_RETRIES) {
 					timeout_flag = true;
 					break;
 				} else if (retry_cnt > 0) {

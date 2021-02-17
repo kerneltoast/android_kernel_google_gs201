@@ -1203,7 +1203,7 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 	spin_unlock(&dc->src_lock);
 
 	/* try init and kick again */
-	dit_init(NULL, true);
+	dit_init(NULL, DIT_INIT_RETRY);
 	if (dir < DIT_DIR_MAX)
 		dit_kick(dir, true);
 
@@ -1637,7 +1637,7 @@ static int dit_init_desc(enum dit_direction dir)
 	return 0;
 }
 
-int dit_init(struct link_device *ld, bool retry)
+int dit_init(struct link_device *ld, enum dit_init_type type)
 {
 	unsigned long flags;
 	unsigned int dir;
@@ -1655,7 +1655,7 @@ int dit_init(struct link_device *ld, bool retry)
 	}
 
 	spin_lock_irqsave(&dc->src_lock, flags);
-	if (retry && !dc->init_reserved) {
+	if (type == DIT_INIT_RETRY && !dc->init_reserved) {
 		spin_unlock_irqrestore(&dc->src_lock, flags);
 		return -EAGAIN;
 	}
@@ -1674,6 +1674,9 @@ int dit_init(struct link_device *ld, bool retry)
 
 	dc->init_done = false;
 	spin_unlock_irqrestore(&dc->src_lock, flags);
+
+	if (type == DIT_INIT_DEINIT)
+		goto exit;
 
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
 		ret = dit_init_desc(dir);
@@ -1708,7 +1711,7 @@ int dit_init(struct link_device *ld, bool retry)
 
 exit:
 	atomic_dec(&dc->init_running);
-	if (ret)
+	if (ret || type == DIT_INIT_DEINIT)
 		return ret;
 
 	dit_kick(DIT_DIR_TX, true);
@@ -2420,24 +2423,24 @@ static int dit_remove(struct platform_device *pdev)
 static int dit_suspend(struct device *dev)
 {
 	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
-	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	if (unlikely(!dc) || unlikely(!dc->ld))
 		return 0;
 
-	spin_lock_irqsave(&dc->src_lock, flags);
-	if (dit_is_kicked_any()) {
-		spin_unlock_irqrestore(&dc->src_lock, flags);
-		return -EEXIST;
-	}
-	spin_unlock_irqrestore(&dc->src_lock, flags);
-
 	ret = dit_reg_backup_restore(true);
-	if (ret)
+	if (ret) {
 		mif_err("reg backup failed ret:%d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	ret = dit_init(NULL, DIT_INIT_DEINIT);
+	if (ret) {
+		mif_err("deinit failed ret:%d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int dit_resume(struct device *dev)
@@ -2458,7 +2461,7 @@ static int dit_resume(struct device *dev)
 
 	dit_set_irq_affinity(dc->irq_affinity);
 
-	ret = dit_init(NULL, false);
+	ret = dit_init(NULL, DIT_INIT_NORMAL);
 	if (ret) {
 		mif_err("init failed ret:%d\n", ret);
 		for (dir = 0; dir < DIT_DIR_MAX; dir++) {

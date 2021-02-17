@@ -544,7 +544,7 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 		dit_hal_set_event(INTERNAL_OFFLOAD_STOPPED);
 
 		/* init port table and take a delay for the prior kick */
-		dit_init(NULL, false);
+		dit_init(NULL, DIT_INIT_NORMAL);
 		msleep(100);
 		ret = dit_manage_rx_dst_data_buffers(false);
 		if (ret)

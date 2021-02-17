@@ -43,3 +43,36 @@
 &m_ldo30_reg {
 	regulator-always-on;
 };
+
+&drmdsim0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	te_from = <1>;
+	/* EINT for TE */
+	te-gpio = <&gpp0 4 0xf>;
+
+	/* pinctrl */
+	pinctrl-names = "hw_te_on", "hw_te_off";
+	pinctrl-0 = <&disp_te_sec_on>;
+	pinctrl-1 = <&disp_te_sec_off>;
+
+	panel@0 {
+		compatible = "samsung,s6e3hc2-fhd";
+		label = "samsung-s6e3hc2-fhd";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa0 0 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo22_reg>;
+		vddi-supply = <&m_ldo30_reg>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa0 0 GPIO_ACTIVE_HIGH>;
+	};
+};

@@ -878,7 +878,8 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 	max77759_init_regs(chip->tcpci->regmap, chip->log);
 
 	/* Kick debug accessory state machine when enabling toggling for the first time */
-	if (chip->first_toggle) {
+	if (chip->first_toggle && chip->in_switch_gpio >= 0) {
+		logbuffer_log(chip->log, "[%s]: Kick Debug accessory FSM", __func__);
 		gpio_set_value_cansleep(chip->in_switch_gpio, 0);
 		mdelay(10);
 		gpio_set_value_cansleep(chip->in_switch_gpio, 1);
@@ -1278,9 +1279,11 @@ static int max77759_probe(struct i2c_client *client,
 	int ret, i;
 	struct max77759_plat *chip;
 	char *usb_psy_name;
-	struct device_node *dn;
+	struct device_node *dn, *ovp_dn;
 	u8 power_status;
 	u16 device_id;
+	u32 ovp_handle;
+	const char *ovp_status;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1307,10 +1310,17 @@ static int max77759_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	chip->in_switch_gpio = of_get_named_gpio(dn, "in-switch-gpio", 0);
-	if (chip->in_switch_gpio < 0) {
-		dev_err(&client->dev, "in-switch-gpio not found\n");
-		return -EPROBE_DEFER;
+	if (!of_property_read_u32(dn, "max20339,ovp", &ovp_handle)) {
+		ovp_dn = of_find_node_by_phandle(ovp_handle);
+		if (!IS_ERR_OR_NULL(ovp_dn) &&
+		    !of_property_read_string(ovp_dn, "status", &ovp_status) &&
+		    strncmp(ovp_status, "disabled", strlen("disabled"))) {
+			chip->in_switch_gpio = of_get_named_gpio(dn, "in-switch-gpio", 0);
+			if (chip->in_switch_gpio < 0) {
+				dev_err(&client->dev, "in-switch-gpio not found\n");
+				return -EPROBE_DEFER;
+			}
+		}
 	}
 
 	chip->dev = &client->dev;
