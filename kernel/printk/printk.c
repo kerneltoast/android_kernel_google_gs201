@@ -3371,7 +3371,6 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 {
 	struct kmsg_dumper_iter iter;
 	struct kmsg_dumper *dumper;
-	unsigned long flags;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(dumper, &dump_list, list) {
@@ -3390,10 +3389,7 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 
 		/* initialize iterator with data about the stored records */
 		iter.active = true;
-		printk_safe_enter_irqsave(flags);
-		iter.cur_seq = latched_seq_read_nolock(&clear_seq);
-		iter.next_seq = prb_next_seq(prb);
-		printk_safe_exit_irqrestore(flags);
+		kmsg_dump_rewind(&iter);
 
 		/* invoke dumper which will iterate over records */
 		dumper->dump(dumper, reason, &iter);
