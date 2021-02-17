@@ -502,6 +502,14 @@ exit:
 	return ret;
 }
 
+static void dit_hal_set_clat_hal_ready(u32 value)
+{
+	if (unlikely(!dc))
+		return;
+
+	dc->clat_hal_ready = (value ? true : false);
+}
+
 static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct iface_info info;
@@ -510,6 +518,7 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 	struct nat_local_port local_port;
 	struct clat_info clat;
 	struct hw_info hw;
+	u32 ready;
 	int ret;
 
 	if (unlikely(!dc) || unlikely(!dc->ld))
@@ -632,6 +641,12 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 
 		if (!dit_hal_set_clat_info(&clat))
 			return -EINVAL;
+		break;
+	case OFFLOAD_IOCTL_SET_CLAT_HAL_READY:
+		if (copy_from_user(&ready, (const void __user *)arg, sizeof(ready)))
+			return -EFAULT;
+
+		dit_hal_set_clat_hal_ready(ready);
 		break;
 	case OFFLOAD_IOCTL_GET_HW_INFO:
 		hw.version = dc->hw_version;

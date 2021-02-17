@@ -89,6 +89,7 @@ struct hw_info {
 #define OFFLOAD_IOCTL_SET_NAT_LOCAL_PORT	_IOW(OFFLOAD_IOC_MAGIC, 0x21, struct nat_local_port)
 
 #define OFFLOAD_IOCTL_SET_CLAT_INFO		_IOW(OFFLOAD_IOC_MAGIC, 0x40, struct clat_info)
+#define OFFLOAD_IOCTL_SET_CLAT_HAL_READY	_IOW(OFFLOAD_IOC_MAGIC, 0x41, u32)
 
 /* mandatory */
 #define OFFLOAD_IOCTL_GET_HW_INFO		_IOR(OFFLOAD_IOC_MAGIC, 0xE0, struct hw_info)
