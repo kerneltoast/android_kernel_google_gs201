@@ -1216,7 +1216,7 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static bool dit_is_busy(enum dit_direction dir)
+bool dit_is_busy(enum dit_direction dir)
 {
 	u32 status_bits = 0;
 	u32 status_mask = 0;
@@ -1409,7 +1409,7 @@ exit:
 	return ret;
 }
 
-static int dit_reg_backup_restore(bool backup)
+int dit_reg_backup_restore(bool backup)
 {
 	/* NAT */
 	static const u16 nat_offset[] = {
@@ -2465,18 +2465,14 @@ static int dit_suspend(struct device *dev)
 	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
 	int ret;
 
-	if (unlikely(!dc) || unlikely(!dc->ld))
-		return 0;
-
-	ret = dit_reg_backup_restore(true);
-	if (ret) {
-		mif_err("reg backup failed ret:%d\n", ret);
-		return ret;
+	if (unlikely(!dc)) {
+		mif_err_limited("dc is null\n");
+		return -EPERM;
 	}
 
-	ret = dit_init(NULL, DIT_INIT_DEINIT);
+	ret = DIT_INDIRECT_CALL(dc, do_suspend);
 	if (ret) {
-		mif_err("deinit failed ret:%d\n", ret);
+		mif_err("do_suspend failed ret:%d\n", ret);
 		return ret;
 	}
 
@@ -2486,7 +2482,6 @@ static int dit_suspend(struct device *dev)
 static int dit_resume(struct device *dev)
 {
 	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
-	unsigned int dir;
 	int ret;
 
 	if (unlikely(!dc)) {
@@ -2501,19 +2496,9 @@ static int dit_resume(struct device *dev)
 
 	dit_set_irq_affinity(dc->irq_affinity);
 
-	ret = dit_init(NULL, DIT_INIT_NORMAL);
+	ret = DIT_INDIRECT_CALL(dc, do_resume);
 	if (ret) {
-		mif_err("init failed ret:%d\n", ret);
-		for (dir = 0; dir < DIT_DIR_MAX; dir++) {
-			if (dit_is_busy(dir))
-				mif_err("busy (dir:%d)\n", dir);
-		}
-		return ret;
-	}
-
-	ret = dit_reg_backup_restore(false);
-	if (ret) {
-		mif_err("reg restore failed ret:%d\n", ret);
+		mif_err("do_resume failed ret:%d\n", ret);
 		return ret;
 	}
 

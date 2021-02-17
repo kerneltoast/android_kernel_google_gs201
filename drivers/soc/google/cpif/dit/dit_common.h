@@ -235,6 +235,8 @@ struct dit_ctrl_t {
 
 	/* every functions should return int for DIT_INDIRECT_CALL */
 	int (*get_reg_version)(u32 *version);
+	int (*do_suspend)(void);
+	int (*do_resume)(void);
 };
 
 struct dit_snapshot_t {
@@ -288,7 +290,11 @@ int dit_enqueue_reg_value_with_ext_lock(u32 value, u32 offset);
 int dit_enqueue_reg_value(u32 value, u32 offset);
 int dit_read_rx_dst_poll(struct napi_struct *napi, int budget);
 int dit_manage_rx_dst_data_buffers(bool fill);
+bool dit_is_busy(enum dit_direction dir);
+int dit_reg_backup_restore(bool backup);
 int dit_stop_napi_poll(void);
+
+static inline int dit_dummy(void) { return 0; }
 int dit_ver_create(struct dit_ctrl_t *dc_ptr);
 
 #endif /* __DIT_COMMON_H__ */
