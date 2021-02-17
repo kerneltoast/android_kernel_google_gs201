@@ -1667,7 +1667,9 @@ int dit_init(struct link_device *ld, enum dit_init_type type)
 	}
 
 	if (dit_is_kicked_any()) {
-		dc->init_reserved = true;
+		if (type != DIT_INIT_DEINIT)
+			dc->init_reserved = true;
+
 		spin_unlock_irqrestore(&dc->src_lock, flags);
 		return -EEXIST;
 	}
