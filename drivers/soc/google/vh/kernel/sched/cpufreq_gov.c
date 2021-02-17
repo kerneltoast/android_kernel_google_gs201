@@ -432,10 +432,42 @@ unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 	return min(max, util);
 }
 
+#if defined(CONFIG_UCLAMP_TASK) && defined(CONFIG_FAIR_GROUP_SCHED)
+static unsigned long cpu_util_cfs_group_mod(struct rq *rq)
+{
+	struct cfs_rq *cfs_rq, *pos;
+	unsigned long util = 0, unclamped_util = 0;
+	struct task_group *tg;
+
+	// cpu_util_cfs = root_util - subgroup_util_sum + throttled_subgroup_util_sum
+	for_each_leaf_cfs_rq_safe(rq, cfs_rq, pos) {
+		if (&rq->cfs != cfs_rq) {
+			tg = cfs_rq->tg;
+			unclamped_util += cfs_rq->avg.util_avg;
+			util += min_t(unsigned long, READ_ONCE(cfs_rq->avg.util_avg),
+				tg->uclamp_req[UCLAMP_MAX].value);
+		}
+	}
+
+	util += max_t(int, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util, 0);
+
+	if (sched_feat(UTIL_EST)) {
+		// TODO: right now the limit of util_est is per task
+		// consider to make it per group.
+		util = max_t(unsigned long, util,
+			     READ_ONCE(rq->cfs.avg.util_est.enqueued));
+	}
+
+	return util;
+}
+#else
+#define cpu_util_cfs_group_mod cpu_util_cfs
+#endif
+
 static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
 {
 	struct rq *rq = cpu_rq(sg_cpu->cpu);
-	unsigned long util = cpu_util_cfs(rq);
+	unsigned long util = cpu_util_cfs_group_mod(rq);
 	unsigned long max = arch_scale_cpu_capacity(sg_cpu->cpu);
 
 	sg_cpu->max = max;
