@@ -574,7 +574,7 @@ enum mfc_get_img_size {
 	MFC_GET_RESOL_DPB_SIZE		= 1,
 };
 
-enum mfc_color_primaries {
+enum mfc_color_space {
 	MFC_COLORSPACE_UNSPECIFICED	= 0,
 	MFC_COLORSPACE_BT601		= 1,
 	MFC_COLORSPACE_BT709		= 2,
@@ -583,6 +583,18 @@ enum mfc_color_primaries {
 	MFC_COLORSPACE_BT2020		= 5,
 	MFC_COLORSPACE_RESERVED		= 6,
 	MFC_COLORSPACE_SRGB		= 7,
+};
+
+enum mfc_color_primaries {
+	MFC_PRIMARIES_RESERVED		= 0,
+	MFC_PRIMARIES_BT709_5		= 1,
+	MFC_PRIMARIES_UNSPECIFIED	= 2,
+	MFC_PRIMARIES_BT470_6M		= 4,
+	MFC_PRIMARIES_BT601_6_625	= 5,
+	MFC_PRIMARIES_BT601_6_525	= 6,
+	MFC_PRIMARIES_SMPTE_240M	= 7,
+	MFC_PRIMARIES_GENERIC_FILM	= 8,
+	MFC_PRIMARIES_BT2020		= 9,
 };
 
 enum mfc_transfer_characteristics {
@@ -605,6 +617,19 @@ enum mfc_transfer_characteristics {
 	MFC_TRANSFER_ST2084		= 16,
 	MFC_TRANSFER_ST428		= 17,
 	MFC_TRANSFER_HLG		= 18,
+};
+
+enum mfc_matrix_coeff {
+	MFC_MATRIX_COEFF_IDENTITY		= 0,
+	MFC_MATRIX_COEFF_REC709			= 1,
+	MFC_MATRIX_COEFF_UNSPECIFIED		= 2,
+	MFC_MATRIX_COEFF_RESERVED		= 3,
+	MFC_MATRIX_COEFF_470_SYSTEM_M		= 4,
+	MFC_MATRIX_COEFF_470_SYSTEM_BG		= 5,
+	MFC_MATRIX_COEFF_SMPTE170M		= 6,
+	MFC_MATRIX_COEFF_SMPTE240M		= 7,
+	MFC_MATRIX_COEFF_BT2020			= 9,
+	MFC_MATRIX_COEFF_BT2020_CONSTANT	= 10,
 };
 
 struct mfc_debugfs {
@@ -742,6 +767,7 @@ struct mfc_platdata {
 	/* SBWC decoder max resolution */
 	unsigned int sbwc_dec_max_width;
 	unsigned int sbwc_dec_max_height;
+	unsigned int sbwc_dec_hdr10_off;
 	/* HDR10+ */
 	unsigned int max_hdr_win;
 	/* error type for sync_point display */

@@ -243,6 +243,11 @@
 #define IS_SWITCH_SINGLE_MODE(ctx) (((ctx)->op_mode == MFC_OP_SWITCH_TO_SINGLE) || \
 					((ctx)->op_mode == MFC_OP_SWITCH_BUT_MODE2))
 #define IS_MODE_SWITCHING(ctx)	   ((ctx)->op_mode == MFC_OP_SWITCHING)
+#define IS_HDR10(ctx, p, t, m)									\
+	((ctx)->is_10bit &&									\
+	(p == MFC_PRIMARIES_BT2020) &&								\
+	((m == MFC_MATRIX_COEFF_BT2020) || (m == MFC_MATRIX_COEFF_BT2020_CONSTANT)) &&		\
+	((t == MFC_TRANSFER_SMPTE_170M) || (t == MFC_TRANSFER_ST2084) || (t == MFC_TRANSFER_HLG)))
 
 /* Extra information for Decoder */
 #define	DEC_SET_DUAL_DPB		(1 << 0)
