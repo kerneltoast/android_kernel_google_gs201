@@ -130,10 +130,13 @@ static int dit_hal_set_event(enum offload_event_num event_num)
 
 struct net_device *dit_hal_get_dst_netdev(enum dit_desc_ring ring_num)
 {
-#if defined(DIT_DEBUG_LOW)
-	struct io_device *iod;
+	if (ring_num < DIT_DST_DESC_RING_0 || ring_num >= DIT_DST_DESC_RING_MAX)
+		return NULL;
 
+#if defined(DIT_DEBUG_LOW)
 	if (dc->pktgen_ch && (ring_num == DIT_DST_DESC_RING_0)) {
+		struct io_device *iod;
+
 		iod = link_get_iod_with_channel(dc->ld, dc->pktgen_ch);
 
 		return iod ? iod->ndev : NULL;
