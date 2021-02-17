@@ -88,6 +88,7 @@
 		chg-psy-name = "gcpm";
 		main-chg-psy-name = "main-charger";
 		in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
+		max20339,ovp = <&max20339_ovp>;
 
 		connector {
 			compatible = "usb-c-connector";
