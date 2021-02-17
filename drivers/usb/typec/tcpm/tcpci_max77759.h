@@ -59,6 +59,8 @@ struct max77759_plat {
 	/* toggle in_switch to kick debug accessory statemachine when already connected */
 	int in_switch_gpio;
 	bool first_toggle;
+	/* Disable toggle during shutdown */
+	bool disable_toggling;
 
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
 	u8 debug_acc_connected:1;
