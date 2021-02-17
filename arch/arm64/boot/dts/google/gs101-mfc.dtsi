@@ -79,6 +79,7 @@
 		/* SBWC decoder max resolution */
 		sbwc_dec_max_width = <1920>;
 		sbwc_dec_max_height = <1088>;
+		sbwc_dec_hdr10_off = <1>;
 
 		/* HDR10+ num max window */
 		max_hdr_win = <1>;
