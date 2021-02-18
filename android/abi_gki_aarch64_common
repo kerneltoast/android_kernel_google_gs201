@@ -9011,6 +9011,7 @@
   __SCK__tp_func_android_vh_cpu_up
   __SCK__tp_func_android_vh_dump_throttled_rt_tasks
   __SCK__tp_func_android_vh_em_cpu_energy
+  __SCK__tp_func_android_vh_enable_thermal_genl_check
   __SCK__tp_func_android_vh_freq_table_limits
   __SCK__tp_func_android_vh_ftrace_dump_buffer
   __SCK__tp_func_android_vh_ftrace_format_check
@@ -10951,6 +10952,7 @@
   __traceiter_android_vh_cpu_up
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_em_cpu_energy
+  __traceiter_android_vh_enable_thermal_genl_check
   __traceiter_android_vh_freq_table_limits
   __traceiter_android_vh_ftrace_dump_buffer
   __traceiter_android_vh_ftrace_format_check
@@ -11150,6 +11152,7 @@
   __tracepoint_android_vh_cpu_up
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_em_cpu_energy
+  __tracepoint_android_vh_enable_thermal_genl_check
   __tracepoint_android_vh_freq_table_limits
   __tracepoint_android_vh_ftrace_dump_buffer
   __tracepoint_android_vh_ftrace_format_check
