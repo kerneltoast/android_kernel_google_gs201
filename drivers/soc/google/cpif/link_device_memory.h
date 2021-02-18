@@ -328,6 +328,8 @@ struct mem_link_device {
 	struct timer_list crash_ack_timer;
 
 	spinlock_t state_lock;
+	/* protects boot_base nc region */
+	struct mutex vmap_lock;
 	enum link_state state;
 
 	struct net_device dummy_net;

@@ -2284,28 +2284,30 @@ static int link_load_cp_image(struct link_device *ld, struct io_device *iod,
 #endif
 	void __iomem *dst;
 	void __user *src;
-	int err;
 	struct cp_image img;
 	void __iomem *v_base;
 	size_t valid_space;
+	int ret = 0;
 
 	/**
 	 * Get the information about the boot image
 	 */
 	memset(&img, 0, sizeof(struct cp_image));
 
-	err = copy_from_user(&img, (const void __user *)arg, sizeof(img));
-	if (err) {
+	ret = copy_from_user(&img, (const void __user *)arg, sizeof(img));
+	if (ret) {
 		mif_err("%s: ERR! INFO copy_from_user fail\n", ld->name);
 		return -EFAULT;
 	}
 
+	mutex_lock(&mld->vmap_lock);
 	if (mld->boot_base == NULL) {
 		mld->boot_base = cp_shmem_get_nc_region(cp_shmem_get_base(ld->mdm_data->cp_num,
 					SHMEM_CP), mld->boot_size);
 		if (!mld->boot_base) {
 			mif_err("Failed to vmap boot_region\n");
-			return -EINVAL;		/* TODO : need better return */
+			ret = -EINVAL;
+			goto out;
 		}
 	}
 
@@ -2322,7 +2324,8 @@ static int link_load_cp_image(struct link_device *ld, struct io_device *iod,
 			|| img.m_offset > valid_space - img.len) {
 		mif_err("%s: ERR! Invalid args: size %x, offset %x, len %x\n",
 			ld->name, img.size, img.m_offset, img.len);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	dst = (void __iomem *)(v_base + img.m_offset);
@@ -2333,13 +2336,16 @@ static int link_load_cp_image(struct link_device *ld, struct io_device *iod,
 		mld->cp_binary_size = img.size;
 #endif
 
-	err = copy_from_user(dst, src, img.len);
-	if (err) {
+	ret = copy_from_user(dst, src, img.len);
+	if (ret) {
 		mif_err("%s: ERR! BOOT copy_from_user fail\n", ld->name);
-		return err;
+		goto out;
 	}
 
-	return 0;
+out:
+	mutex_unlock(&mld->vmap_lock);
+
+	return ret;
 }
 
 #if !IS_ENABLED(CONFIG_CP_SECURE_BOOT)
@@ -2359,7 +2365,7 @@ unsigned long shmem_calculate_CRC32(const unsigned char *buf, unsigned long len)
 	return ul_crc;
 }
 
-void shmem_check_modem_binary_crc(struct link_device *ld)
+static void shmem_check_modem_binary_crc(struct link_device *ld)
 {
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	struct resource *cpmem_info = mld->syscp_info;
@@ -2453,20 +2459,20 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 	param2 = shm_get_security_param2(cp_num, mode, msr.param2);
 	param3 = shm_get_security_param3(cp_num, mode, msr.param3);
 
+
+	mutex_lock(&mld->vmap_lock);
+	if (mld->boot_base != NULL) {
 #if !IS_ENABLED(CONFIG_CP_SECURE_BOOT)
-	if (mode == CP_BOOT_MODE_NORMAL)
-		shmem_check_modem_binary_crc(ld);
-	/* boot_base should be unmapped after its usage on crc check */
-	if (mld->boot_base != NULL) {
+		if (mode == CP_BOOT_MODE_NORMAL)
+			shmem_check_modem_binary_crc(ld);
+#endif
+		/* boot_base is in no use at this point */
 		vunmap(mld->boot_base);
 		mld->boot_base = NULL;
 	}
-#else
-	/* boot_base is in no use at this point */
-	if (mld->boot_base != NULL) {
-		vunmap(mld->boot_base);
-		mld->boot_base = NULL;
-	}
+	mutex_unlock(&mld->vmap_lock);
+
+#if IS_ENABLED(CONFIG_CP_SECURE_BOOT)
 	exynos_smc(SMC_ID_CLK, SSS_CLK_ENABLE, 0, 0);
 	if ((mode == CP_BOOT_MODE_NORMAL) && cp_shmem_get_mem_map_on_cp_flag(cp_num))
 		mode |= cp_shmem_get_base(cp_num, SHMEM_CP);
@@ -4061,6 +4067,8 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	mld->cmd_handler = shmem_cmd_handler;
 
 	spin_lock_init(&mld->state_lock);
+	mutex_init(&mld->vmap_lock);
+
 	mld->state = LINK_STATE_OFFLINE;
 
 	/*
