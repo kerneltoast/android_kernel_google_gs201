@@ -24,6 +24,9 @@
 
 		samsung,tzmp;
 
+		/* for F/W buffer */
+		memory-region = <&mfc_fw_rmem>;
+
 		/* MFC version */
 		/* ip_ver is set in gs101-a0.dts and gs101-b0.dts */
 
