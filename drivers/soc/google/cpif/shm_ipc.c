@@ -362,28 +362,31 @@ int cp_shmem_get_mem_map_on_cp_flag(u32 cp_num)
 }
 EXPORT_SYMBOL(cp_shmem_get_mem_map_on_cp_flag);
 
-static struct page *nc_region_pages[SZ_64K];
 void __iomem *cp_shmem_get_nc_region(unsigned long base, u32 size)
 {
-	int i;
-	unsigned int num_pages = (size >> PAGE_SHIFT);
+	unsigned int num_pages = (unsigned int)DIV_ROUND_UP(size, PAGE_SIZE);
 	pgprot_t prot = pgprot_writecombine(PAGE_KERNEL);
+	struct page **pages;
 	void *v_addr;
+	unsigned int i;
 
 	if (!base)
 		return NULL;
 
-	if (size > (num_pages << PAGE_SHIFT))
-		num_pages++;
+	pages = kvcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return NULL;
 
 	for (i = 0; i < num_pages; i++) {
-		nc_region_pages[i] = phys_to_page(base);
+		pages[i] = phys_to_page(base);
 		base += PAGE_SIZE;
 	}
 
-	v_addr = vmap(nc_region_pages, num_pages, VM_MAP, prot);
-	if (v_addr == NULL)
-		mif_err("%s: Failed to vmap pages\n", __func__);
+	v_addr = vmap(pages, num_pages, VM_MAP, prot);
+	if (!v_addr)
+		mif_err("Failed to vmap pages\n");
+
+	kvfree(pages);
 
 	return (void __iomem *)v_addr;
 }
