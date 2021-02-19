@@ -521,7 +521,7 @@ static void set_ap_capabilities(struct mem_link_device *mld)
 	int part;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
-	mld->ap_capability[0] |= BIT(AP_CAP_0_PKTPROC_UL_BIT);
+	cpif_set_bit(mld->ap_capability[0], AP_CAP_0_PKTPROC_UL_BIT);
 #endif
 
 	for (part = 0; part < AP_CP_CAP_PARTS; part++) {
@@ -540,7 +540,7 @@ static int init_ap_capabilities(struct mem_link_device *mld, int part)
 		goto out;
 
 	for (cap = 0; cap < AP_CP_CAP_BIT_MAX; cap++) {
-		if (!(mld->ap_capability[part] & BIT(cap)))
+		if (!cpif_check_bit(mld->ap_capability[part], cap))
 			continue;
 
 		/* should handle the matched capability */

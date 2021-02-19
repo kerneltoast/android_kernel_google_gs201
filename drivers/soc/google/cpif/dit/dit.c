@@ -120,7 +120,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 	u16 ring_num;
 	u32 i;
 
-	if (dump_bits & BIT(DIT_DUMP_SNAPSHOT_BIT)) {
+	if (cpif_check_bit(dump_bits, DIT_DUMP_SNAPSHOT_BIT)) {
 		mif_err("---- SNAPSHOT[dir:%d] ----\n", dir);
 		for (ring_num = 0; ring_num < DIT_DESC_RING_MAX; ring_num++) {
 			pr_info("%s head:%d,tail:%d\n", snapshot[dir][ring_num].name,
@@ -128,7 +128,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 		}
 	}
 
-	if (dump_bits & BIT(DIT_DUMP_DESC_BIT)) {
+	if (cpif_check_bit(dump_bits, DIT_DUMP_DESC_BIT)) {
 		desc_info = &dc->desc_info[dir];
 
 		mif_err("---- SRC RING[dir:%d] wp:%u,rp:%u ----\n", dir,
@@ -155,7 +155,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 		}
 	}
 
-	if ((dump_bits & BIT(DIT_DUMP_PORT_TABLE_BIT)) && (dir == DIT_DIR_RX)) {
+	if (cpif_check_bit(dump_bits, DIT_DUMP_PORT_TABLE_BIT) && dir == DIT_DIR_RX) {
 		mif_err("---- PORT TABLE[dir:%d] ----\n", dir);
 		for (i = 0; i < DIT_REG_NAT_LOCAL_PORT_MAX; i++) {
 			local_port.hw_val = READ_REG_VALUE(dc, DIT_REG_NAT_RX_PORT_TABLE_SLOT +
@@ -434,8 +434,8 @@ static inline void dit_set_skb_checksum(struct dit_dst_desc *dst_desc,
 	if (dst_desc->status & DIT_CHECKSUM_FAILED_STATUS_MASK)
 		return;
 
-	if ((dst_desc->status & BIT(DIT_DESC_S_TCPC)) &&
-			(dst_desc->status & BIT(DIT_DESC_S_IPCS)))
+	if (cpif_check_bit(dst_desc->status, DIT_DESC_S_TCPC) &&
+	    cpif_check_bit(dst_desc->status, DIT_DESC_S_IPCS))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
@@ -449,8 +449,8 @@ static inline void dit_set_skb_udp_csum_zero(struct dit_dst_desc *dst_desc,
 		return;
 
 	/* every packets on DST1/2 are IPv4 NATed */
-	if (!(dst_desc->packet_info & BIT(DIT_PACKET_INFO_IPV4_BIT)) ||
-	    !(dst_desc->packet_info & BIT(DIT_PACKET_INFO_UDP_BIT)))
+	if (!cpif_check_bit(dst_desc->packet_info, DIT_PACKET_INFO_IPV4_BIT) ||
+	    !cpif_check_bit(dst_desc->packet_info, DIT_PACKET_INFO_UDP_BIT))
 		return;
 
 	off = sizeof(struct ethhdr) + sizeof(struct iphdr);
@@ -523,7 +523,10 @@ static inline void dit_set_src_desc_filter_bypass(
 	 * 0/0: filter bypass
 	 * dit does not support checksum yet
 	 */
-	u8 mask = (BIT(DIT_DESC_C_END) | BIT(DIT_DESC_C_START));
+	u8 mask = 0;
+
+	cpif_set_bit(mask, DIT_DESC_C_END);
+	cpif_set_bit(mask, DIT_DESC_C_START);
 
 #if defined(DIT_DEBUG_LOW)
 	if (dc->force_bypass == 1)
@@ -579,7 +582,7 @@ static void dit_set_src_desc_kick_range(enum dit_direction dir, unsigned int src
 	/* set current kick */
 	head = src_rp;
 	src_desc = &desc_info->src_desc_ring[head];
-	src_desc->control |= BIT(DIT_DESC_C_HEAD);
+	cpif_set_bit(src_desc->control, DIT_DESC_C_HEAD);
 	p_desc = virt_to_phys(src_desc);
 
 	if (dir == DIT_DIR_TX) {
@@ -598,11 +601,11 @@ static void dit_set_src_desc_kick_range(enum dit_direction dir, unsigned int src
 
 	tail = circ_prev_ptr(desc_info->src_desc_ring_len, src_wp, 1);
 	src_desc = &desc_info->src_desc_ring[tail];
-	src_desc->control |= BIT(DIT_DESC_C_TAIL);
-	src_desc->control |= BIT(DIT_DESC_C_INT);
+	cpif_set_bit(src_desc->control, DIT_DESC_C_TAIL);
+	cpif_set_bit(src_desc->control, DIT_DESC_C_INT);
 
 	src_desc = &desc_info->src_desc_ring[desc_info->src_desc_ring_len - 1];
-	src_desc->control |= BIT(DIT_DESC_C_RINGEND);
+	cpif_set_bit(src_desc->control, DIT_DESC_C_RINGEND);
 
 	dit_set_snapshot(dir, DIT_SRC_DESC_RING, head, tail,
 		circ_get_usage(desc_info->src_desc_ring_len, tail, head) + 1);
@@ -656,7 +659,8 @@ static void dit_set_dst_desc_int_range(enum dit_direction dir,
 	if (offset_lo && offset_hi && (desc_info->dst_desc_ring_len > 0)) {
 		WRITE_REG_PADDR_LO(dc, p_desc, offset_lo);
 		WRITE_REG_PADDR_HI(dc, p_desc, offset_hi);
-		dst_desc[desc_info->dst_desc_ring_len - 1].control |= BIT(DIT_DESC_C_RINGEND);
+		cpif_set_bit(dst_desc[desc_info->dst_desc_ring_len - 1].control,
+			     DIT_DESC_C_RINGEND);
 	}
 }
 
@@ -717,7 +721,7 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 	src_desc->udp_csum_zero = 0;
 	src_desc->control = 0;
 	if (src_wp == (desc_info->src_desc_ring_len - 1))
-		src_desc->control |= BIT(DIT_DESC_C_RINGEND);
+		cpif_set_bit(src_desc->control, DIT_DESC_C_RINGEND);
 	src_desc->status = 0;
 
 	do {
@@ -1021,8 +1025,8 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			skbpriv(skb)->napi = napi;
 
 			/* clat */
-			if ((dst_desc->packet_info & BIT(DIT_PACKET_INFO_IPV6_BIT)) &&
-					((skb->data[0] & 0xFF) == 0x45)) {
+			if (cpif_check_bit(dst_desc->packet_info, DIT_PACKET_INFO_IPV6_BIT) &&
+			    ((skb->data[0] & 0xFF) == 0x45)) {
 				skbpriv(skb)->rx_clat = 1;
 				snapshot[DIT_DIR_RX][ring_num].clat_packets++;
 			}
@@ -1087,11 +1091,11 @@ static void dit_update_dst_desc_pos(enum dit_direction dir, enum dit_desc_ring r
 
 	do {
 		dst_desc = &desc_info->dst_desc_ring[ring_num][desc_info->dst_wp[ring_num]];
-		if (!(dst_desc->status & BIT(DIT_DESC_S_DONE)))
+		if (!cpif_check_bit(dst_desc->status, DIT_DESC_S_DONE))
 			break;
 
 		/* update dst */
-		dst_desc->status &= ~BIT(DIT_DESC_S_DONE);
+		cpif_clear_bit(dst_desc->status, DIT_DESC_S_DONE);
 		/* tx does not use status field */
 		if (dir == DIT_DIR_TX)
 			dst_desc->status = 0;
@@ -1304,10 +1308,10 @@ int dit_kick(enum dit_direction dir, bool retry)
 
 	switch (dir) {
 	case DIT_DIR_TX:
-		kick_mask = BIT(TX_COMMAND_BIT);
+		cpif_set_bit(kick_mask, TX_COMMAND_BIT);
 		break;
 	case DIT_DIR_RX:
-		kick_mask = BIT(RX_COMMAND_BIT);
+		cpif_set_bit(kick_mask, RX_COMMAND_BIT);
 		break;
 	default:
 		break;

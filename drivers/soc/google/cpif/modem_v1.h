@@ -368,6 +368,10 @@ struct cpif_gpio {
 	} while (0)
 #endif
 
+#define cpif_set_bit(data, offset)	((data) |= BIT(offset))
+#define cpif_clear_bit(data, offset)	((data) &= ~BIT(offset))
+#define cpif_check_bit(data, offset)	((data) & BIT(offset))
+
 #define LOG_TAG	"cpif: "
 #define FUNC	(__func__)
 #define CALLER	(__builtin_return_address(0))
