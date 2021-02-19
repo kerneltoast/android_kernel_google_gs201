@@ -681,7 +681,7 @@ static int validate(struct device *dev, phys_addr_t pa, size_t len)
 	 * which is not mapped to any target
 	 */
 	if (pa < WHI_RESERVED_START) {
-		if (pa + len >= WHI_RESERVED_START) {
+		if (pa + len > WHI_RESERVED_START) {
 			dev_warn(dev, "window overlaps with reserved region\n");
 			return -1;
 		}
