@@ -170,6 +170,12 @@ config VH_KERNEL
 	help
 	Modules for vendor kernel hooks.
 
+config PIXEL_STAT
+	tristate "Enable Pixel statistics"
+	default n
+	help
+	Support Pixel statistics.
+
 config EXYNOS_SECURE_LOG
 	tristate "Exynos Secure Log"
 	default n

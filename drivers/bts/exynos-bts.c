@@ -96,6 +96,56 @@ static void bts_calc_bw(void)
 	mutex_unlock(&btsdev->mutex_lock);
 }
 
+static void bts_update_stats(unsigned int index)
+{
+	int i;
+	int total_prev_idx, peak_prev_idx;
+	int total_bin_idx, peak_bin_idx;
+	unsigned int total_bw, peak_bw;
+	u64 curr, duration;
+
+	total_bw = btsdev->bts_bw[index].read + btsdev->bts_bw[index].write;
+	peak_bw = btsdev->bts_bw[index].peak;
+
+	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
+		if (total_bw < bw_trip[i])
+			break;
+	}
+	total_bin_idx = total_bw ? i : -1;
+
+	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
+		if (peak_bw < bw_trip[i])
+			break;
+	}
+	peak_bin_idx = peak_bw ? i : -1;
+
+	curr = ktime_get_ns();
+	if (!btsdev->bts_bw[index].stats.start_time) {
+		if (total_bin_idx < 0 && peak_bin_idx < 0)
+			return;
+		btsdev->bts_bw[index].stats.start_time = curr;
+		btsdev->bts_bw[index].stats.total.hist_idx = total_bin_idx;
+		btsdev->bts_bw[index].stats.peak.hist_idx = peak_bin_idx;
+		return;
+	}
+
+	total_prev_idx = btsdev->bts_bw[index].stats.total.hist_idx;
+	peak_prev_idx = btsdev->bts_bw[index].stats.peak.hist_idx;
+	btsdev->bts_bw[index].stats.total.hist_idx = total_bin_idx;
+	btsdev->bts_bw[index].stats.peak.hist_idx = peak_bin_idx;
+	duration = curr - btsdev->bts_bw[index].stats.start_time;
+	btsdev->bts_bw[index].stats.start_time = curr;
+	if (total_prev_idx < 0 && peak_prev_idx < 0)
+		return;
+
+	btsdev->bts_bw[index].stats.total.count[total_prev_idx]++;
+	btsdev->bts_bw[index].stats.total.total_time[total_prev_idx] += duration;
+	btsdev->bts_bw[index].stats.peak.count[peak_prev_idx]++;
+	btsdev->bts_bw[index].stats.peak.total_time[peak_prev_idx] += duration;
+
+	return;
+}
+
 static void bts_set(unsigned int scen, unsigned int index)
 {
 	struct bts_info *info = btsdev->bts_list;
@@ -217,6 +267,7 @@ int bts_update_bw(unsigned int index, struct bts_bw bw)
 		   btsdev->bts_bw[index].name, bw.read, bw.write, bw.peak);
 
 	bts_calc_bw();
+	bts_update_stats(index);
 
 	return 0;
 }
@@ -381,6 +432,179 @@ static int exynos_bts_bw_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, exynos_bts_bw_open_show,
 			   inode->i_private);
+}
+
+static int exynos_bts_bw_hist_open_show(struct seq_file *buf, void *d)
+{
+	int i, j;
+
+	mutex_lock(&btsdev->mutex_lock);
+	seq_printf(buf, "Total BW, Count:\nkB/s:\t");
+	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
+		seq_printf(
+			buf,
+			"%lu\t",
+			bw_trip[i]);
+	}
+	seq_printf(buf, ">%lu\n", bw_trip[i - 1]);
+	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
+		(i < btsdev->num_bts); i++) {
+		seq_printf(
+			buf,
+			"%s:\t",
+			btsdev->bts_bw[i].name);
+		for (j = 0; j < BTS_HIST_BIN; j++) {
+			seq_printf(
+				buf,
+				"%lu\t",
+				btsdev->bts_bw[i].stats.total.count[j]);
+		}
+		seq_printf(buf, "\n");
+	}
+	seq_printf(buf, "\nTotal BW, Total time in ms:\nkB/s:\t");
+	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
+		seq_printf(
+			buf,
+			"%lu\t",
+			bw_trip[i]);
+	}
+	seq_printf(buf, ">%lu\n", bw_trip[i - 1]);
+
+	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
+		(i < btsdev->num_bts); i++) {
+		seq_printf(
+			buf,
+			"%s:\t",
+			btsdev->bts_bw[i].name);
+		for (j = 0; j < BTS_HIST_BIN; j++) {
+			seq_printf(
+				buf,
+				"%llu\t",
+				btsdev->bts_bw[i].stats.total.total_time[j] /
+				NSEC_PER_MSEC);
+		}
+		seq_printf(buf, "\n");
+	}
+	seq_printf(buf, "\nPeak BW, Count:\nkB/s:\t");
+	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
+		seq_printf(
+			buf,
+			"%lu\t",
+			bw_trip[i]);
+	}
+	seq_printf(buf, ">%lu\n", bw_trip[i - 1]);
+	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
+		(i < btsdev->num_bts); i++) {
+		seq_printf(
+			buf,
+			"%s:\t",
+			btsdev->bts_bw[i].name);
+		for (j = 0; j < BTS_HIST_BIN; j++) {
+			seq_printf(
+				buf,
+				"%lu\t",
+				btsdev->bts_bw[i].stats.peak.count[j]);
+		}
+		seq_printf(buf, "\n");
+	}
+	seq_printf(buf, "\nPeak BW, Total time in ms:\nkB/s:\t");
+	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
+		seq_printf(
+			buf,
+			"%lu\t",
+			bw_trip[i]);
+	}
+	seq_printf(buf, ">%lu\n", bw_trip[i - 1]);
+
+	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
+		(i < btsdev->num_bts); i++) {
+		seq_printf(
+			buf,
+			"%s:\t",
+			btsdev->bts_bw[i].name);
+		for (j = 0; j < BTS_HIST_BIN; j++) {
+			seq_printf(
+				buf,
+				"%llu\t",
+				btsdev->bts_bw[i].stats.peak.total_time[j] /
+				NSEC_PER_MSEC);
+		}
+		seq_printf(buf, "\n");
+	}
+	mutex_unlock(&btsdev->mutex_lock);
+	return 0;
+}
+
+static int exynos_bts_bw_hist_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, exynos_bts_bw_hist_open_show,
+			   inode->i_private);
+}
+
+static ssize_t bts_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int i, j;
+	ssize_t ret = 0;
+
+	mutex_lock(&btsdev->mutex_lock);
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
+			"Total BW, Time in ms:\nkB/s:\t");
+	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
+		ret += scnprintf(
+			buf + ret,
+			PAGE_SIZE - ret,
+			"%lu\t",
+			bw_trip[i]);
+	}
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, ">%lu\n", bw_trip[i - 1]);
+
+	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
+		(i < btsdev->num_bts); i++) {
+		ret += scnprintf(
+			buf + ret,
+			PAGE_SIZE - ret,
+			"%s:\t",
+			btsdev->bts_bw[i].name);
+		for (j = 0; j < BTS_HIST_BIN; j++) {
+			ret += scnprintf(
+				buf + ret,
+				PAGE_SIZE - ret,
+				"%llu\t",
+				btsdev->bts_bw[i].stats.total.total_time[j] /
+				NSEC_PER_MSEC);
+		}
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	}
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
+			"\nPeak BW, Time in ms:\nkB/s:\t");
+	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
+		ret += scnprintf(
+			buf + ret,
+			PAGE_SIZE - ret,
+			"%lu\t",
+			bw_trip[i]);
+	}
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, ">%lu\n", bw_trip[i - 1]);
+
+	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
+		(i < btsdev->num_bts); i++) {
+		ret += scnprintf(
+			buf + ret,
+			PAGE_SIZE - ret,
+			"%s:\t",
+			btsdev->bts_bw[i].name);
+		for (j = 0; j < BTS_HIST_BIN; j++) {
+			ret += scnprintf(
+				buf + ret,
+				PAGE_SIZE - ret,
+				"%llu\t",
+				btsdev->bts_bw[i].stats.peak.total_time[j] /
+				NSEC_PER_MSEC);
+		}
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	}
+	mutex_unlock(&btsdev->mutex_lock);
+	return ret;
 }
 
 static int exynos_bts_scenario_open_show(struct seq_file *buf, void *d)
@@ -871,6 +1095,13 @@ static const struct file_operations debug_bts_bw_fops = {
 	.release = single_release,
 };
 
+static const struct file_operations debug_bts_bw_hist_fops = {
+	.open = exynos_bts_bw_hist_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static const struct file_operations debug_bts_scenario_fops = {
 	.open = exynos_bts_scenario_open,
 	.read = seq_read,
@@ -938,6 +1169,7 @@ int exynos_bts_debugfs_init(void)
 			    &debug_bts_blocking_fops);
 	debugfs_create_file("log", 0440, den, NULL, &debug_bts_log_fops);
 	debugfs_create_file("bw", 0440, den, NULL, &debug_bts_bw_fops);
+	debugfs_create_file("bw_hist", 0440, den, NULL, &debug_bts_bw_hist_fops);
 
 	return 0;
 }
@@ -1223,6 +1455,15 @@ err:
 	return ret;
 }
 
+static DEVICE_ATTR_RO(bts_stats);
+
+static struct attribute *bts_dev_attrs[] = {
+	&dev_attr_bts_stats.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(bts_dev);
+
 static int bts_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -1298,6 +1539,7 @@ static struct platform_driver bts_pdrv = {
 	.remove = bts_remove,
 	.driver = {
 		   .name = BTS_PDEV_NAME,
+		   .dev_groups = bts_dev_groups,
 		   .owner = THIS_MODULE,
 		   .of_match_table = exynos_bts_match,
 		    },
