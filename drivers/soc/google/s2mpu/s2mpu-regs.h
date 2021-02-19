@@ -8,6 +8,7 @@
 #define S2MPU_CFG_MPTW_USER_HIGH_OFFSET			0x18
 
 #define S2MPU_INTERRUPT_ENABLE_PER_VID_SET_OFFSET	0x20
+#define S2MPU_INTERRUPT_CLEAR_OFFSET			0x2c
 #define S2MPU_MPC_CTRL_OFFSET				0x40
 #define S2MPU_PAGE_AWARE_DECODING_0_OFFSET		0x44
 #define S2MPU_PAGE_AWARE_DECODING_1_OFFSET		0x48
@@ -18,6 +19,10 @@
 #define S2MPU_RANGE_INVALIDATION_END_PPN_OFFSET		0x1028
 #define S2MPU_L1ENTRY_L2TABLE_ADDR_OFFSET(n, m)		(0x4000 + ((n) * 0x200) + ((m) * 0x8))
 #define S2MPU_L1ENTRY_ATTR_OFFSET(n, m)			(0x4004 + ((n) * 0x200) + ((m) * 0x8))
+#define S2MPU_FAULT_STATUS_OFFSET			0x2000
+#define S2MPU_FAULT_PA_LOW_OFFSET(n)			(0x2004 + ((n) * 0x20))
+#define S2MPU_FAULT_PA_HIGH_OFFSET(n)			(0x2008 + ((n) * 0x20))
+#define S2MPU_FAULT_INFO_OFFSET(n)			(0x2010 + ((n) * 0x20))
 
 /* register values */
 #define S2MPU_CTRL0(base)				((base) + S2MPU_CTRL0_OFFSET)
@@ -95,6 +100,12 @@
 
 #define S2MPU_INTERRUPT_ENABLE_PER_VID_SET(base) ((base) + \
 						  S2MPU_INTERRUPT_ENABLE_PER_VID_SET_OFFSET)
+#define S2MPU_INTERRUPT_CLEAR(base)		((base) + S2MPU_INTERRUPT_CLEAR_OFFSET)
+#define S2MPU_FAULT_STATUS(base)		((base) + S2MPU_FAULT_STATUS_OFFSET)
+#define S2MPU_FAULT_PA_LOW(base, n)		((base) + S2MPU_FAULT_PA_LOW_OFFSET(n))
+#define S2MPU_FAULT_PA_HIGH(base, n)		((base) + S2MPU_FAULT_PA_HIGH_OFFSET(n))
+#define S2MPU_FAULT_INFO(base, n)		((base) + S2MPU_FAULT_INFO_OFFSET(n))
+#define S2MPU_FAULT_TYPE(fault_info)		((fault_info) & (3 << 20))
 
 #define S2MPU_MPC_CTRL(base)			((base) + S2MPU_MPC_CTRL_OFFSET)
 #define S2MPU_MPC_CTRL_RD_CH_TKN_SHIFT		0
