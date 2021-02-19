@@ -9028,9 +9028,11 @@
   __SCK__tp_func_android_vh_mpam_set
   __SCK__tp_func_android_vh_mutex_wait_finish
   __SCK__tp_func_android_vh_mutex_wait_start
+  __SCK__tp_func_android_vh_pagecache_get_page
   __SCK__tp_func_android_vh_printk_hotplug
   __SCK__tp_func_android_vh_pstore_console_mkfile
   __SCK__tp_func_android_vh_pstore_console_read
+  __SCK__tp_func_android_vh_rmqueue
   __SCK__tp_func_android_vh_rwsem_init
   __SCK__tp_func_android_vh_rwsem_read_wait_finish
   __SCK__tp_func_android_vh_rwsem_read_wait_start
@@ -10969,9 +10971,11 @@
   __traceiter_android_vh_mpam_set
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
+  __traceiter_android_vh_pagecache_get_page
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_pstore_console_mkfile
   __traceiter_android_vh_pstore_console_read
+  __traceiter_android_vh_rmqueue
   __traceiter_android_vh_rwsem_init
   __traceiter_android_vh_rwsem_read_wait_finish
   __traceiter_android_vh_rwsem_read_wait_start
@@ -11169,9 +11173,11 @@
   __tracepoint_android_vh_mpam_set
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
+  __tracepoint_android_vh_pagecache_get_page
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_pstore_console_mkfile
   __tracepoint_android_vh_pstore_console_read
+  __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_read_wait_finish
   __tracepoint_android_vh_rwsem_read_wait_start
