@@ -19,13 +19,13 @@
 
 	crypto_dma_heap {
 		compatible = "samsung,dma-heap-cma";
-		memory-region = <&crypto>;
+		memory-region = <&crypto_heap>;
 		dma-heap,name = "crypto";
 	};
 
 	video_stream_dma_heap {
 		compatible = "samsung,dma-heap-cma";
-		memory-region = <&vstream>;
+		memory-region = <&vstream_heap>;
 		dma-heap,name = "vstream";
 		dma-heap,video_aligned;
 		dma-heap,secure;
@@ -62,7 +62,7 @@
 
 	faceauth_image_heap {
 		compatible = "samsung,dma-heap-cma";
-		memory-region = <&faimg>;
+		memory-region = <&faimg_heap>;
 		dma-heap,name = "faimg";
 		dma-heap,secure;
 		dma-heap,protection_id = <16>;
@@ -71,7 +71,7 @@
 
 	faceauth_rawimage_heap {
 		compatible = "samsung,dma-heap-cma";
-		memory-region = <&farawimg>;
+		memory-region = <&farawimg_heap>;
 		dma-heap,name = "farawimg";
 		dma-heap,secure;
 		dma-heap,protection_id = <17>;
@@ -80,7 +80,7 @@
 
 	faceauth_preview_heap {
 		compatible = "samsung,dma-heap-cma";
-		memory-region = <&faprev>;
+		memory-region = <&faprev_heap>;
 		dma-heap,name = "faprev";
 		dma-heap,secure;
 		dma-heap,protection_id = <18>;
@@ -109,20 +109,6 @@
 	#address-cells = <2>;
 	#size-cells = <1>;
 
-	crypto: crypto {
-		compatible = "shared-dma-pool";
-		size = <0x1800000>;
-		alignment = <0x0 0x00010000>;
-		reusable;
-	};
-
-	vstream: vstream {
-		compatible = "shared-dma-pool";
-		size = <0x4800000>;
-		alignment = <0x0 0x00010000>;
-		reusable;
-	};
-
 	vframe: vframe {
 		compatible = "shared-dma-pool";
 		size = <0x20000000>;
@@ -141,27 +127,6 @@
 		compatible = "shared-dma-pool";
 		reusable;
 		size = <0x400000>;
-		alignment = <0x0 0x00010000>;
-	};
-
-	faimg: faimg {
-		compatible = "shared-dma-pool";
-		reusable;
-		size = <0x3C00000>;
-		alignment = <0x0 0x00010000>;
-	};
-
-	farawimg: farawimg {
-		compatible = "shared-dma-pool";
-		reusable;
-		size = <0x9800000>;
-		alignment = <0x0 0x00010000>;
-	};
-
-	faprev: faprev {
-		compatible = "shared-dma-pool";
-		reusable;
-		size = <0x3000000>;
 		alignment = <0x0 0x00010000>;
 	};
 
