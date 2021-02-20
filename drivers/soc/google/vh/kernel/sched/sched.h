@@ -20,6 +20,7 @@
 // Maximum size: u64[2] for ANDROID_VENDOR_DATA_ARRAY(1, 2) in task_struct
 struct vendor_task_struct {
 	bool prefer_high_cap;
+	bool task_spreading;
 };
 ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[2], struct vendor_task_struct t);
 
