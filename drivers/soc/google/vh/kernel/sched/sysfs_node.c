@@ -18,6 +18,7 @@ DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 
 bool __read_mostly vendor_sched_enable_prefer_high_cap;
 bool __read_mostly vendor_sched_task_spreading_enable;
+unsigned int __read_mostly vendor_sched_uclamp_threshold;
 static struct kobject *vendor_sched_kobj;
 
 static int update_prefer_high_cap(const char *buf, bool val)
@@ -164,6 +165,32 @@ static ssize_t task_spreading_enable_store(struct kobject *kobj,
 
 static struct kobj_attribute task_spreading_enable_attribute = __ATTR_RW(task_spreading_enable);
 
+static ssize_t uclamp_threshold_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_uclamp_threshold);
+}
+
+static ssize_t uclamp_threshold_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val))
+		return -EINVAL;
+
+	if (val > 1024)
+		return -EINVAL;
+
+	vendor_sched_uclamp_threshold = val;
+
+	return count;
+}
+
+static struct kobj_attribute uclamp_threshold_attribute = __ATTR_RW(uclamp_threshold);
+
 static ssize_t uclamp_stats_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	int i, j, index;
@@ -309,6 +336,7 @@ static struct attribute *attrs[] = {
 	&set_task_spreading_attribute.attr,
 	&clear_task_spreading_attribute.attr,
 	&task_spreading_enable_attribute.attr,
+	&uclamp_threshold_attribute.attr,
 	NULL,
 };
 
