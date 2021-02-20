@@ -37,6 +37,7 @@
 #define TCPC_RECEIVE_BUFFER_FRAME_TYPE_OFFSET           1
 #define TCPC_RECEIVE_BUFFER_RX_BYTE_BUF_OFFSET          2
 
+#define TCPCI_HI_Z_CC		0xf
 /*
  * LongMessage not supported, hence 32 bytes for buf to be read from RECEIVE_BUFFER.
  * DEVICE_CAPABILITIES_2.LongMessage = 0, the value in READABLE_BYTE_COUNT reg shall be
@@ -851,6 +852,9 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 	unsigned int reg = TCPC_ROLE_CTRL_DRP;
 	int ret;
 
+	if (chip->disable_toggling)
+		return 0;
+
 	switch (cc) {
 	case TYPEC_CC_RP_DEF:
 		reg |= (TCPC_ROLE_CTRL_RP_VAL_DEF <<
@@ -1531,6 +1535,19 @@ static int max77759_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void max77759_shutdown(struct i2c_client *client)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(client);
+
+	dev_info(&client->dev, "disabling Type-C upon shutdown\n");
+	/* Set current limit to 0. Will eventually happen after hi-Z as well */
+	max77759_vote_icl(chip->tcpci, chip->tcpci->data, 0);
+	/* Prevent re-enabling toggling */
+	chip->disable_toggling = true;
+	/* Hi-z CC pins to trigger disconnection */
+	max77759_write8(chip->data.regmap, TCPC_ROLE_CTRL, TCPCI_HI_Z_CC);
+}
+
 static const struct i2c_device_id max77759_id[] = {
 	{ "max77759tcpc", 0 },
 	{ }
@@ -1553,6 +1570,7 @@ static struct i2c_driver max77759_i2c_driver = {
 	.probe = max77759_probe,
 	.remove = max77759_remove,
 	.id_table = max77759_id,
+	.shutdown = max77759_shutdown,
 };
 module_i2c_driver(max77759_i2c_driver);
 

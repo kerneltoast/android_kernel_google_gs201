@@ -96,6 +96,12 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
+
+	dc_charger_irq: dc-charger-irq {
+		samsung,pins = "gpa6-0"; /* XEINT_0 (PLC_INT_L) */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
 };
 
 &hsi2c12_bus {
@@ -186,14 +192,16 @@
 		max77759,vin-is_valid =  <&max20339_gpio 3 GPIO_ACTIVE_HIGH>;
 	};
 
-	pca9468@57 {
+	pca9468_dc: pca9468@57 {
 		compatible = "nxp,pca9468";
 		reg = <0x57>;
 
-		/* TODO: add IRQ pca9468,irq-gpio = <xxx>; */
+		pinctrl-names = "default";
+		pinctrl-0 = <&dc_charger_irq>;
 
-		pca9468,input-current-limit = <2000000>; /* 2.0A */
-		pca9468,charging-current = <4520000>; /* 4.5A */
+		interrupt-parent = <&gpa6>;
+		pca9468,irq-gpio = <&gpa6 0 GPIO_ACTIVE_LOW>; /* PLC_INT_L */
+
 		pca9468,float-voltage = <4300000>; /* 4.3V */
 
 		pca9468,input-itopoff = <500000>; /* 500mA */
