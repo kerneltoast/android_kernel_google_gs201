@@ -29,6 +29,17 @@
 				 30   0   0
 				>;
 
+				/* IRDrop Compensation */
+				google,fv-uv-resolution = <10000>;
+				/* NOTE: high value for DC charging */
+				google,fv-uv-margin-dpct = <1025>;
+				/* tier switch */
+				google,cv-range-accuracy = <20000>;
+				google,cv-otv-margin = <12000>;
+				google,cv-debounce-cnt = <3>;
+				google,cv-tier-ov-cnt = <10>;
+				google,cv-tier-switch-cnt = <3>;
+
 				#thermal-sensor-cells = <0>;
 			};
 
