@@ -49,12 +49,24 @@ extern const struct dma_buf_ops samsung_dma_buf_ops;
 
 void heap_page_clean(struct page *pages, unsigned long size);
 struct samsung_dma_buffer *samsung_dma_buffer_alloc(struct samsung_dma_heap *samsung_dma_heap,
-						    unsigned long size);
+						    unsigned long size, unsigned int nents);
 void samsung_dma_buffer_free(struct samsung_dma_buffer *buffer);
 int samsung_heap_add(struct device *dev, void *priv,
 		     void (*release)(struct samsung_dma_buffer *buffer),
 		     const struct dma_heap_ops *ops);
 struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags);
+
+#if defined(CONFIG_DMABUF_HEAPS_SAMSUNG_SYSTEM)
+int __init system_dma_heap_init(void);
+void system_dma_heap_exit(void);
+#else
+static inline int __init system_dma_heap_init(void)
+{
+	return 0;
+}
+
+#define system_dma_heap_exit() do { } while (0)
+#endif
 
 #if defined(CONFIG_DMABUF_HEAPS_SAMSUNG_CMA)
 int __init cma_dma_heap_init(void);

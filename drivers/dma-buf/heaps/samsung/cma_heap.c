@@ -39,7 +39,7 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap, unsigned long le
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret = -ENOMEM;
 
-	buffer = samsung_dma_buffer_alloc(samsung_dma_heap, size);
+	buffer = samsung_dma_buffer_alloc(samsung_dma_heap, size, 1);
 	if (IS_ERR(buffer))
 		return ERR_PTR(-ENOMEM);
 

@@ -19,3 +19,8 @@ config DMABUF_HEAPS_SAMSUNG_CARVEOUT
 	help
 	  Choose this option to enable dma-buf Carveout heap for samsung.
 	  This heap has own reserved region by dt binding.
+
+config DMABUF_HEAPS_SAMSUNG_SYSTEM
+	bool "DMA-BUF System Samsung Heap"
+	help
+	  Choose this option to enable dma-buf System heap for samsung.
