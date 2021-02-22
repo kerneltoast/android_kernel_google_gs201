@@ -485,7 +485,7 @@ struct mfc_core_intlock {
 };
 
 struct mfc_core_lock {
-	unsigned int cnt;
+	int cnt;
 	int migrate;
 	spinlock_t lock;
 	wait_queue_head_t wq;
