@@ -23,7 +23,6 @@
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
-#include <linux/debugfs.h>
 #include <linux/mcu_ipc.h>
 #include <asm/cacheflush.h>
 
@@ -314,11 +313,6 @@ struct mem_link_device {
 	char dump_path[MIF_MAX_PATH_LEN];
 #endif
 
-#ifdef DEBUG_MODEM_IF
-	struct dentry *dbgfs_dir;
-	struct debugfs_blob_wrapper mem_dump_blob;
-	struct dentry *dbgfs_frame;
-#endif
 	unsigned int tx_period_ms;
 	unsigned int force_use_memcpy;
 	unsigned int memcpy_packet_count;
