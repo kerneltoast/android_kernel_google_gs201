@@ -4,3 +4,4 @@ samsung_dma_heap-y += heap_dma_buf.o samsung_heap.o
 samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_CMA) += cma_heap.o
 samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_CARVEOUT) += carveout_heap.o
 samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_SYSTEM) += system_heap.o
+samsung_dma_heap-$(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) += secure_buffer.o

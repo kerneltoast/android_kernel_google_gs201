@@ -18,6 +18,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
+#include <linux/iommu.h>
 #include <linux/device.h>
 
 struct samsung_dma_buffer {
@@ -28,6 +29,7 @@ struct samsung_dma_buffer {
 	unsigned long len;
 	struct sg_table sg_table;
 	void *vaddr;
+	void *priv;
 	unsigned long flags;
 	int vmap_cnt;
 };
@@ -39,6 +41,7 @@ struct samsung_dma_heap {
 	const char *name;
 	unsigned long flags;
 	unsigned int alignment;
+	unsigned int protection_id;
 };
 
 struct samsung_map_attachment {
@@ -61,12 +64,77 @@ int samsung_heap_add(struct device *dev, void *priv,
 		     const struct dma_heap_ops *ops);
 struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags);
 
-#define DMA_HEAP_FLAG_UNCACHED BIT(0)
+#define DMA_HEAP_FLAG_UNCACHED  BIT(0)
+#define DMA_HEAP_FLAG_PROTECTED BIT(1)
 
 static inline bool dma_heap_flags_uncached(unsigned long flags)
 {
 	return !!(flags & DMA_HEAP_FLAG_UNCACHED);
 }
+
+static inline bool dma_heap_flags_protected(unsigned long flags)
+{
+	return !!(flags & DMA_HEAP_FLAG_PROTECTED);
+}
+
+static inline bool dma_heap_skip_cache_ops(unsigned long flags)
+{
+	return dma_heap_flags_protected(flags) || dma_heap_flags_uncached(flags);
+}
+
+/*
+ * Use pre-mapped protected device virtual address instead of dma-mapping.
+ */
+static inline bool dma_heap_tzmp_buffer(struct samsung_map_attachment *a)
+{
+	return dma_heap_flags_protected(a->flags) && !!dev_iommu_fwspec_get(a->dev);
+}
+
+/*
+ * struct buffer_prot_info - buffer protection information
+ * @chunk_count: number of physically contiguous memory chunks to protect
+ *               each chunk should has the same size.
+ * @dma_addr:    device virtual address for protected memory access
+ * @flags:       protection flags but actually, protectid
+ * @chunk_size:  length in bytes of each chunk.
+ * @bus_address: if @chunk_count is 1, this is the physical address the chunk.
+ *               if @chunk_count > 1, this is the physical address of unsigned
+ *               long array of @chunk_count elements that contains the physical
+ *               address of each chunk.
+ */
+struct buffer_prot_info {
+	unsigned int chunk_count;
+	unsigned int dma_addr;
+	unsigned int flags;
+	unsigned int chunk_size;
+	unsigned long bus_address;
+};
+
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+int secure_iova_pool_create(void);
+void secure_iova_pool_destroy(void);
+void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
+				 unsigned int size, unsigned long phys);
+int samsung_dma_buffer_unprotect(void *priv, struct device *dev);
+#else
+static inline int secure_iova_pool_create(void)
+{
+	return 0;
+}
+
+#define secure_iova_pool_destroy() do { } while (0)
+
+static inline void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
+					       unsigned int size, unsigned long phys)
+{
+	return NULL;
+}
+
+static inline int samsung_dma_buffer_unprotect(void *priv, struct device *dev)
+{
+	return 0;
+}
+#endif
 
 #if defined(CONFIG_DMABUF_HEAPS_SAMSUNG_SYSTEM)
 int __init system_dma_heap_init(void);

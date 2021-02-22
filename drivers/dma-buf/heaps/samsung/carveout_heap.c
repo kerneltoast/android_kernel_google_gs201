@@ -56,6 +56,14 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap, unsigned lo
 	heap_page_clean(pages, size);
 	heap_cache_flush(buffer);
 
+	if (dma_heap_flags_protected(samsung_dma_heap->flags)) {
+		buffer->priv = samsung_dma_buffer_protect(samsung_dma_heap, size, paddr);
+		if (IS_ERR(buffer->priv)) {
+			ret = PTR_ERR(buffer->priv);
+			goto free_prot;
+		}
+	}
+
 	dmabuf = samsung_export_dmabuf(buffer, fd_flags);
 	if (IS_ERR(dmabuf)) {
 		ret = PTR_ERR(dmabuf);
@@ -65,6 +73,8 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap, unsigned lo
 	return dmabuf;
 
 free_export:
+	samsung_dma_buffer_unprotect(buffer->priv, dma_heap_get_dev(heap));
+free_prot:
 	gen_pool_free(carveout_heap->pool, paddr, size);
 free_gen:
 	samsung_dma_buffer_free(buffer);
@@ -76,8 +86,14 @@ static void carveout_heap_release(struct samsung_dma_buffer *buffer)
 {
 	struct samsung_dma_heap *samsung_dma_heap = buffer->heap;
 	struct carveout_heap *carveout_heap = samsung_dma_heap->priv;
+	int ret = 0;
 
-	gen_pool_free(carveout_heap->pool, sg_phys(buffer->sg_table.sgl), buffer->len);
+	if (dma_heap_flags_protected(buffer->flags))
+		ret = samsung_dma_buffer_unprotect(buffer->priv,
+						   dma_heap_get_dev(samsung_dma_heap->dma_heap));
+
+	if (!ret)
+		gen_pool_free(carveout_heap->pool, sg_phys(buffer->sg_table.sgl), buffer->len);
 	samsung_dma_buffer_free(buffer);
 }
 
@@ -114,6 +130,9 @@ static int carveout_heap_probe(struct platform_device *pdev)
 
 	ret = samsung_heap_add(&pdev->dev, carveout_heap, carveout_heap_release,
 			       &carveout_heap_ops);
+	if (ret == -ENODEV)
+		return 0;
+
 	if (ret)
 		return ret;
 
