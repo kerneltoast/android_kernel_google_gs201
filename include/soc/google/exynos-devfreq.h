@@ -23,6 +23,7 @@
 
 /* DEVFREQ GOV TYPE */
 #define SIMPLE_INTERACTIVE 0
+#define MEM_LATENCY 1
 
 int devfreq_simple_interactive_init(void);
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
@@ -200,7 +201,8 @@ struct exynos_devfreq_data {
 
 	u32 l123_restrict;
 	struct thermal_cooling_device *cooling_dev;
-	unsigned int cooling_state;
+	unsigned long cooling_state;
+	unsigned long sysfs_req;
 };
 
 struct exynos_profile_data {
@@ -217,8 +219,24 @@ u32 exynos_devfreq_get_devfreq_type(int dm_type);
 
 #if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type);
+int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data);
 #else
 static inline unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type)
+{
+	return 0;
+}
+static inline int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
+{
+	return 0;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_ECT)
+int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
+				    const char *dvfs_domain_name);
+#else
+static inline int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
+				    const char *dvfs_domain_name);
 {
 	return 0;
 }

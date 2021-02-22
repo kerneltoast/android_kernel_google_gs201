@@ -56,7 +56,6 @@ static int debug_ipc_loopback_test_get(void *data, unsigned long long *val)
 	config.cmd[0] = (1 << ACPM_IPC_PROTOCOL_TEST);
 
 	config.response = true;
-	config.indirection = false;
 
 	ipc_time_start = sched_clock();
 	ret = acpm_ipc_send_data(channel_num, &config);
@@ -95,7 +94,6 @@ static int acpm_set_print_setting(struct acpm_info *acpm,
 	config.cmd[2] = val >> 32;
 
 	config.response = true;
-	config.indirection = false;
 
 	ret = acpm_ipc_send_data(channel_num, &config);
 
@@ -125,7 +123,6 @@ static int acpm_get_print_setting(struct acpm_info *acpm,
 	config.cmd[0] |= (setting & 0x3) << (ACPM_IPC_PROTOCOL_SETTINGS + 1);
 
 	config.response = true;
-	config.indirection = false;
 	ret = acpm_ipc_send_data(channel_num, &config);
 
 	if (!ret)
@@ -162,7 +159,6 @@ static int acpm_framework_debug_cmd_setting(struct acpm_info *acpm,
 				(ACPM_IPC_PROTOCOL_SETTINGS + 1);
 
 	config.response = true;
-	config.indirection = false;
 
 	pr_info("%s, command:0x%X, sub-cmd:0x%X\n", __func__, config.cmd[0], subcmd);
 
@@ -276,7 +272,6 @@ static void acpm_enter_wfi(struct acpm_info *acpm)
 	}
 	config.cmd = cmd;
 	config.response = true;
-	config.indirection = false;
 	config.cmd[0] = 1 << ACPM_IPC_PROTOCOL_STOP;
 
 	acpm_stop_log();

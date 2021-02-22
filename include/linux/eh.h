@@ -40,7 +40,7 @@ typedef void (*eh_cb_fn)(unsigned int status, void *data, unsigned int size,
 struct eh_completion {
 	void *priv;
 #ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-	u64 submit_ts;
+	unsigned long submit_ts;
 #endif
 };
 
@@ -76,15 +76,15 @@ struct eh_device {
 	 * implementations can specify how many buffers are used to store
 	 * compressed data
 	 */
-	uint8_t max_buffer_count;
+	unsigned char max_buffer_count;
 
 	/* how many decompression command sets are implemented */
 	unsigned int decompr_cmd_count;
 
 	/* relating to the fifo and masks used to do related calculations */
-	uint16_t fifo_size;
-	uint16_t fifo_index_mask;
-	uint16_t fifo_color_mask;
+	unsigned short fifo_size;
+	unsigned short fifo_index_mask;
+	unsigned short fifo_color_mask;
 
 	/* cached copy of HW write index */
 	unsigned int write_index;
@@ -92,7 +92,7 @@ struct eh_device {
 	/* cached copy of HW complete index */
 	unsigned int complete_index;
 
-	__iomem uint8_t *regs;
+	__iomem unsigned char *regs;
 
 	/* in-memory allocated location (not aligned) for cacheable fifo */
 	void *fifo_alloc;
@@ -153,7 +153,7 @@ struct eh_device {
 	int irq_count;
 	int irqs_copy[EH_MAX_DCMD * 2];
 
-	uint16_t quirks;
+	unsigned short quirks;
 	/* indicate whether compression mode is poll or irq */
 	bool comp_poll;
 
@@ -197,7 +197,7 @@ int eh_decompress_page_sync(struct eh_device *eh_dev, void *compr_data,
 			    unsigned int compr_size, struct page *page);
 
 /* returns the currently set fifo size */
-static inline uint16_t eh_get_fifo_size(struct eh_device *eh_dev)
+static inline unsigned short eh_get_fifo_size(struct eh_device *eh_dev)
 {
 	return eh_dev->fifo_size;
 }

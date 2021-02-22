@@ -2095,6 +2095,8 @@
   dma_heap_find
   dma_heap_get_dev
   dma_heap_get_drvdata
+  dma_heap_get_name
+  dma_heap_put
   dma_issue_pending_all
   d_make_root
   dmam_alloc_attrs
@@ -9213,8 +9215,6 @@
   shash_register_instance
   shmem_file_setup
   shmem_file_setup_with_mnt
-  shmem_getpage
-  shmem_mapping
   shmem_read_mapping_page_gfp
   shmem_truncate_range
   should_remove_suid

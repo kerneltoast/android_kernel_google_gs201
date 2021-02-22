@@ -364,7 +364,7 @@ static int fusb307b_get_current_limit(struct tcpci *tcpci,
 static void enable_data_path_locked(struct fusb307b_plat *chip)
 {
 	int ret;
-	bool enable_data = false;
+	bool enable_data;
 
 	logbuffer_log(chip->log,
 		      "%s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u",
@@ -378,10 +378,8 @@ static void enable_data_path_locked(struct fusb307b_plat *chip)
 		 ? 1 : 0, chip->no_bc_12 ? 1 : 0, chip->bc12_data_capable
 		 ? 1 : 0, chip->attached ? 1 : 0);
 
-	if (chip->pd_capable)
-		enable_data = chip->pd_data_capable;
-	else
-		enable_data = chip->no_bc_12 || chip->bc12_data_capable;
+	enable_data = (chip->pd_capable && chip->pd_data_capable) || chip->no_bc_12 ||
+		chip->bc12_data_capable || chip->data_role == TYPEC_HOST;
 
 	if (chip->attached && enable_data && !chip->data_active) {
 		ret = extcon_set_state_sync(chip->extcon,
@@ -521,10 +519,9 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 
 	mutex_lock(&chip->data_path_lock);
 	chip->pd_data_capable = usb_comm_capable;
-	if (chip->pd_capable)
-		enable_data = chip->pd_data_capable;
-	else
-		enable_data = chip->no_bc_12 || chip->bc12_data_capable;
+
+	enable_data = (chip->pd_capable && chip->pd_data_capable) || chip->no_bc_12 ||
+		chip->bc12_data_capable || chip->data_role == TYPEC_HOST;
 
 	if (chip->data_active && ((chip->active_data_role != data_role) ||
 				  !attached || !enable_data)) {

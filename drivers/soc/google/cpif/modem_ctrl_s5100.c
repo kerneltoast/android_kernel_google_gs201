@@ -22,6 +22,8 @@
 #include <soc/google/acpm_mfd.h>
 #include <linux/reboot.h>
 #include <linux/suspend.h>
+#include <linux/time.h>
+#include <linux/timer.h>
 
 #if IS_ENABLED(CONFIG_MUIC_NOTIFIER)
 #include <linux/muic/muic.h>
@@ -130,9 +132,19 @@ static void pcie_clean_dislink(struct modem_ctl *mc)
 static void cp2ap_wakeup_work(struct work_struct *work)
 {
 	struct modem_ctl *mc = container_of(work, struct modem_ctl, wakeup_work);
+	static ktime_t cp2ap_wakeup_time;
+	unsigned long flags;
 
 	if (mc->phone_state == STATE_CRASH_EXIT)
 		return;
+
+	cp2ap_wakeup_time = ktime_get_boottime();
+
+	spin_lock_irqsave(&mc->power_stats_lock, flags);
+	mc->cp_power_stats.last_exit_timestamp_usec = ktime_to_us(cp2ap_wakeup_time);
+	mc->cp_power_stats.duration_usec += (mc->cp_power_stats.last_exit_timestamp_usec -
+			mc->cp_power_stats.last_entry_timestamp_usec);
+	spin_unlock_irqrestore(&mc->power_stats_lock, flags);
 
 	s5100_poweron_pcie(mc);
 }
@@ -140,12 +152,63 @@ static void cp2ap_wakeup_work(struct work_struct *work)
 static void cp2ap_suspend_work(struct work_struct *work)
 {
 	struct modem_ctl *mc = container_of(work, struct modem_ctl, suspend_work);
+	static ktime_t cp2ap_suspend_time;
+	unsigned long flags;
 
 	if (mc->phone_state == STATE_CRASH_EXIT)
 		return;
 
+	cp2ap_suspend_time = ktime_get_boottime();
+
+	spin_lock_irqsave(&mc->power_stats_lock, flags);
+	mc->cp_power_stats.last_entry_timestamp_usec = ktime_to_us(cp2ap_suspend_time);
+	mc->cp_power_stats.count++;
+	spin_unlock_irqrestore(&mc->power_stats_lock, flags);
+
 	s5100_poweroff_pcie(mc, false);
 }
+
+static ssize_t power_stats_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	ssize_t count = 0;
+	unsigned long flags;
+	u64 adjusted_duration_usec = mc->cp_power_stats.duration_usec;
+
+	spin_lock_irqsave(&mc->power_stats_lock, flags);
+	if (mc->cp_power_stats.last_entry_timestamp_usec >
+			mc->cp_power_stats.last_exit_timestamp_usec) {
+		u64 now_usec = ktime_to_us(ktime_get_boottime());
+		adjusted_duration_usec += now_usec -
+			mc->cp_power_stats.last_entry_timestamp_usec;
+	}
+
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "SLEEP:\n");
+	count += scnprintf(&buf[count], PAGE_SIZE - count, " count: 0x%llx\n",
+		mc->cp_power_stats.count);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, " duration_usec: 0x%llx\n",
+		adjusted_duration_usec);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, " last_entry_timestamp_usec: 0x%llx\n",
+		mc->cp_power_stats.last_entry_timestamp_usec);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, " last_exit_timestamp_usec: 0x%llx\n",
+		mc->cp_power_stats.last_exit_timestamp_usec);
+	spin_unlock_irqrestore(&mc->power_stats_lock, flags);
+
+	return count;
+}
+
+static DEVICE_ATTR_RO(power_stats);
+
+static struct attribute *modem_attrs[] = {
+	&dev_attr_power_stats.attr,
+	NULL,
+};
+
+static const struct attribute_group modem_group = {
+	.attrs = modem_attrs,
+	.name = "modem",
+};
 
 #if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
 static void voice_call_on_work(struct work_struct *work)
@@ -1510,8 +1573,6 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	struct platform_device *pdev = to_platform_device(mc->dev);
 	struct resource __maybe_unused *sysram_alive;
 
-	mif_err("+++\n");
-
 	g_mc = mc;
 
 	s5100_get_ops(mc);
@@ -1527,6 +1588,7 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	mutex_init(&mc->pcie_check_lock);
 	spin_lock_init(&mc->pcie_tx_lock);
 	spin_lock_init(&mc->pcie_pm_lock);
+	spin_lock_init(&mc->power_stats_lock);
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_GPIO_WA)
 	atomic_set(&mc->dump_toggle_issued, 0);
 #endif
@@ -1581,7 +1643,8 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	if (sysfs_create_group(&pdev->dev.kobj, &sim_group))
 		mif_err("failed to create sysfs node related sim\n");
 
-	mif_err("---\n");
+	if (sysfs_create_group(&pdev->dev.kobj, &modem_group))
+		mif_err("failed to create sysfs node related modem\n");
 
 	return 0;
 }

@@ -12,7 +12,7 @@
 	status = "ok";
 	compatible = "sec,sec_ts";
 
-	spi-max-frequency = <1000000>;
+	spi-max-frequency = <10000000>;
 	spi-cpol;
 	spi-cpha;
 
@@ -28,6 +28,6 @@
 
 	controller-data {
 		samsung,spi-feedback-delay = <0>;
-		samsung,spi-chip-select-mode = <1>;
+		samsung,spi-chip-select-mode = <0>;
 	};
 };

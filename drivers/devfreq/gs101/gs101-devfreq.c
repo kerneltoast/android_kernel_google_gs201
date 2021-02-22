@@ -51,6 +51,7 @@
 
 #include "gs101-ppc.h"
 #include "../../soc/google/vh/kernel/systrace.h"
+#include "../../thermal/thermal_core.h"
 
 #define HZ_PER_KHZ	1000
 
@@ -389,7 +390,6 @@ static int exynos_devfreq_update_fvp(struct exynos_devfreq_data *data,
 	}
 	config.cmd = cmd;
 	config.response = true;
-	config.indirection = false;
 
 	/* constraint info update */
 	if (nr_constraint == 0) {
@@ -551,7 +551,7 @@ static int exynos_devfreq_set_freq(struct device *dev, u32 new_freq,
 	return 0;
 }
 
-static int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
+int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
 {
 	u32 max_freq, min_freq;
 	unsigned long tmp_max, tmp_min;
@@ -675,6 +675,7 @@ static int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(exynos_devfreq_init_freq_table);
 
 static ssize_t show_exynos_devfreq_info(struct device *dev,
 					struct device_attribute *attr,
@@ -1321,7 +1322,7 @@ static struct devfreq *find_exynos_devfreq_device(void *devdata)
 
 #ifdef CONFIG_OF
 #if IS_ENABLED(CONFIG_ECT)
-static int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
+int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
 				    const char *dvfs_domain_name)
 {
 	int i;
@@ -1371,6 +1372,7 @@ static int exynos_devfreq_parse_ect(struct exynos_devfreq_data *data,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(exynos_devfreq_parse_ect);
 #endif
 
 static int exynos_devfreq_parse_dt(struct device_node *np,
@@ -1988,7 +1990,6 @@ static int exynos_devfreq_suspend(struct device *dev)
 		 */
 		config.cmd = cmd;
 		config.response = true;
-		config.indirection = false;
 		config.cmd[0] = data->devfreq_type;
 		config.cmd[1] = false;
 		config.cmd[2] = DATA_INIT;
@@ -2062,7 +2063,6 @@ static int exynos_devfreq_resume(struct device *dev)
 
 		config.cmd = cmd;
 		config.response = true;
-		config.indirection = false;
 		config.cmd[0] = data->devfreq_type;
 		config.cmd[1] = true;
 		config.cmd[2] = DATA_INIT;
@@ -2100,6 +2100,46 @@ static int exynos_devfreq_resume(struct device *dev)
 	return ret;
 }
 
+ssize_t
+user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct exynos_devfreq_data *devfreq_cdev = cdev->devdata;
+
+	if (!devfreq_cdev)
+		return -ENODEV;
+
+	return sprintf(buf, "%lu\n", devfreq_cdev->sysfs_req);
+}
+
+ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct exynos_devfreq_data *devfreq_cdev = cdev->devdata;
+	int ret;
+	unsigned long state;
+
+	if (!devfreq_cdev)
+		return -ENODEV;
+
+	ret = kstrtoul(buf, 0, &state);
+	if (ret)
+		return ret;
+
+	if (state > devfreq_cdev->max_state)
+		return -EINVAL;
+
+	mutex_lock(&cdev->lock);
+	devfreq_cdev->sysfs_req = state;
+	cdev->updated = false;
+	mutex_unlock(&cdev->lock);
+	thermal_cdev_update(cdev);
+	return count;
+}
+
+static DEVICE_ATTR_RW(user_vote);
+
 static int exynos_devfreq_get_max_state(struct thermal_cooling_device *cdev,
 			     unsigned long *state)
 {
@@ -2127,14 +2167,15 @@ static int exynos_devfreq_set_cur_state(struct thermal_cooling_device *cdev,
 	if (WARN_ON(state > data->max_state))
 		return -EINVAL;
 
+	state = max(data->sysfs_req, state);
 	/* Check if the old cooling action is same as new cooling action */
 	if (data->cooling_state == state)
 		return -EALREADY;
 
 	data->cooling_state = state;
 
-	dev_info(data->dev, "Set MIF cur_state %d, freq: %8uKhz\n",
-		 state, data->devfreq_profile.freq_table[state]);
+	dev_info(data->dev, "Set %s cur_state %lu, freq: %8uKhz\n", cdev->type,
+			 state, data->devfreq_profile.freq_table[state]);
 	if (exynos_pm_qos_request_active(&data->thermal_pm_qos_max))
 		exynos_pm_qos_update_request(&data->thermal_pm_qos_max,
 					     data->devfreq_profile.freq_table[state]);
@@ -2408,8 +2449,8 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	// Register cooling device
-	data->cooling_dev = thermal_of_cooling_device_register(
-			dev_of_node(data->dev), devfreq_domain_name,
+	data->cooling_dev = devm_thermal_of_cooling_device_register(data->dev,
+			dev_of_node(data->dev), (char *)devfreq_domain_name,
 			data, &exynos_devfreq_cooling_ops);
 
 	if (IS_ERR(data->cooling_dev)) {
@@ -2418,11 +2459,14 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 			devfreq_domain_name, ret);
 	} else {
 		dev_info(data->dev, "%s cdev is initialized!!\n", devfreq_domain_name);
+		ret = device_create_file(&data->cooling_dev->device, &dev_attr_user_vote);
+		if (ret)
+			thermal_cooling_device_unregister(data->cooling_dev);
 	}
 #endif
 	dev_info(data->dev, "devfreq is initialized!!\n");
 
-	return 0;
+	return ret;
 
 err_reboot_noti:
 	devfreq_unregister_opp_notifier(data->dev, data->devfreq);

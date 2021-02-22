@@ -515,43 +515,48 @@ int mfc_remap_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
 	return 0;
 }
 
-int mfc_map_votf_sfr(struct mfc_core *core, unsigned int addr)
+int mfc_iommu_map_sfr(struct mfc_core *core)
 {
-	struct mfc_core_platdata *pdata = core->core_pdata;
-	size_t map_size;
-	dma_addr_t daddr;
-	phys_addr_t paddr;
-	int ret;
+	struct device_node *node = core->device->of_node;
+	dma_addr_t reserved_base;
+	const __be32 *prop;
+	size_t reserved_size;
+	int n_addr_cells = of_n_addr_cells(node);
+	int n_size_cells = of_n_size_cells(node);
+	int n_all_cells = n_addr_cells + n_size_cells;
+	int i, cnt;
 
-	paddr = addr + pdata->votf_start_offset;
-	daddr = addr + pdata->votf_start_offset;
-	map_size = pdata->votf_end_offset - pdata->votf_start_offset;
-
-	ret = iommu_map(core->domain, daddr, paddr, map_size, 0);
-	if (ret) {
-		mfc_core_err("failed to map votf sfr(0x%x)\n", addr);
-		return ret;
+	prop = of_get_property(node, "samsung,iommu-identity-map", &cnt);
+	if (!prop) {
+		mfc_core_err("No reserved votf SFR area\n");
+		return -ENOENT;
 	}
 
-	ret = iommu_dma_reserve_iova(core->device, daddr, map_size);
-	if (ret) {
-		mfc_core_err("failed to reserve dva for votf sfr(0x%x)\n", addr);
-		return ret;
+	cnt /= sizeof(unsigned int);
+	if (cnt % n_all_cells != 0) {
+		mfc_core_err("Invalid number(%d) of values\n", cnt);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cnt; i += n_all_cells) {
+		reserved_base = of_read_number(prop + i, n_addr_cells);
+		reserved_size = of_read_number(prop + i + n_addr_cells, n_size_cells);
+		if (reserved_base == core->core_pdata->gdc_votf_base) {
+			core->has_gdc_votf = 1;
+			mfc_core_info("iommu mapped at GDC vOTF SFR %#llx ++ %#zx\n",
+					reserved_base, reserved_size);
+		} else if (reserved_base == core->core_pdata->dpu_votf_base) {
+			core->has_dpu_votf = 1;
+			mfc_core_info("iommu mapped at DPU vOTF SFR %#llx ++ %#zx\n",
+					reserved_base, reserved_size);
+		} else {
+			mfc_core_err("iommu mapped at unknown SFR %#llx ++ %#zx\n",
+					reserved_base, reserved_size);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
-}
-
-void mfc_unmap_votf_sfr(struct mfc_core *core, unsigned int addr)
-{
-	struct mfc_core_platdata *pdata = core->core_pdata;
-	size_t map_size;
-	dma_addr_t daddr;
-
-	daddr = addr + pdata->votf_start_offset;
-	map_size = pdata->votf_end_offset - pdata->votf_start_offset;
-
-	iommu_unmap(core->domain, daddr, map_size);
 }
 
 void mfc_check_iova(struct mfc_dev *dev)

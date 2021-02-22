@@ -144,7 +144,7 @@
 	fatpu_heap: fatpu_heap {
 		compatible = "shared-dma-pool";
 		reusable;
-		size = <0x400000>;
+		size = <0x600000>;
 		alignment = <0x0 0x00010000>;
 	};
 
@@ -158,7 +158,7 @@
 	farawimg_heap: farawimg_heap {
 		compatible = "shared-dma-pool";
 		reusable;
-		size = <0x9800000>;
+		size = <0x10000000>;
 		alignment = <0x0 0x00010000>;
 	};
 

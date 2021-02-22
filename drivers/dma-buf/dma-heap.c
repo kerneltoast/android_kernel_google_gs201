@@ -265,6 +265,7 @@ void dma_heap_put(struct dma_heap *h)
 	kref_put(&h->refcount, dma_heap_release);
 	mutex_unlock(&heap_list_lock);
 }
+EXPORT_SYMBOL_GPL(dma_heap_put);
 
 /**
  * dma_heap_get_dev() - get device struct for the heap
@@ -278,6 +279,19 @@ struct device *dma_heap_get_dev(struct dma_heap *heap)
 	return heap->heap_dev;
 }
 EXPORT_SYMBOL_GPL(dma_heap_get_dev);
+
+/**
+ * dma_heap_get_name() - get heap name
+ * @heap: DMA-Heap to retrieve private data for
+ *
+ * Returns:
+ * The char* for the heap name.
+ */
+const char *dma_heap_get_name(struct dma_heap *heap)
+{
+	return heap->name;
+}
+EXPORT_SYMBOL_GPL(dma_heap_get_name);
 
 struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info)
 {

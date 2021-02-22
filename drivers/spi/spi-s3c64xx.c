@@ -832,11 +832,11 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 			if (ret < 0)
 				dev_err(&sdd->pdev->dev, "SPI clk set failed\n");
 			else
-				dev_info(&sdd->pdev->dev, "Set SPI clock rate: %u(%lu)\n",
+				dev_dbg(&sdd->pdev->dev, "Set SPI clock rate: %u(%lu)\n",
 					 sdd->cur_speed,
 					clk_get_rate(sdd->src_clk));
 		} else {
-			dev_info(&sdd->pdev->dev, "Set SPI clock rate: %u(%lu)\n",
+			dev_dbg(&sdd->pdev->dev, "Set SPI clock rate: %u(%lu)\n",
 				 sdd->cur_speed, clk_get_rate(sdd->src_clk));
 		}
 
@@ -857,6 +857,9 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	if (sci->dbg_mode & SPI_DBG_MODE) {
 		dev_info(&sdd->pdev->dev, "SPI_MODE_%d", sdd->cur_mode & 0x3);
 		dev_info(&sdd->pdev->dev, "BTS : %d", sdd->cur_bpw);
+		dev_info(&sdd->pdev->dev, "Set SPI clock rate: %u(%lu)\n",
+					 sdd->cur_speed,
+					clk_get_rate(sdd->src_clk));
 	}
 }
 

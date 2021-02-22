@@ -357,12 +357,12 @@ static int slg51000_power_on(struct slg51000_dev *chip)
 
 	if (gpio_is_valid(chip->chip_bb_pin)) {
 		gpio_set_value_cansleep(chip->chip_bb_pin, 1);
-		usleep_range(1000,1020);
+		usleep_range(2000, 2020);
 	}
 
 	if (gpio_is_valid(chip->chip_buck_pin)) {
 		gpio_set_value_cansleep(chip->chip_buck_pin, 1);
-		usleep_range(1000,1020);
+		usleep_range(2000, 2020);
 	}
 
 	if (gpio_is_valid(chip->chip_cs_pin)) {
@@ -383,7 +383,7 @@ static int slg51000_power_on(struct slg51000_dev *chip)
 
 	if (gpio_is_valid(chip->chip_pu_pin)) {
 		gpio_set_value_cansleep(chip->chip_pu_pin, 1);
-		usleep_range(1000,1020);
+		usleep_range(1000, 1020);
 	}
 
 out:
@@ -436,23 +436,24 @@ static int slg51000_power_off(struct slg51000_dev *chip)
 	/* power off */
 	if (gpio_is_valid(chip->chip_pu_pin)) {
 		gpio_set_value_cansleep(chip->chip_pu_pin, 0);
-		usleep_range(1000,1020);
+		usleep_range(1000, 1020);
 	}
 
 	if (gpio_is_valid(chip->chip_cs_pin)) {
 		gpio_set_value_cansleep(chip->chip_cs_pin, 0);
-		usleep_range(1000,1020);
+		/* Put SLG51000 back to Reset state */
+		usleep_range(SLEEP_10000_USEC,
+				SLEEP_10000_USEC + SLEEP_RANGE_USEC);
 	}
 
 	if (gpio_is_valid(chip->chip_buck_pin)) {
 		gpio_set_value_cansleep(chip->chip_buck_pin, 0);
-		usleep_range(1000,1020);
+		usleep_range(1000, 1020);
 	}
-
 
 	if (gpio_is_valid(chip->chip_bb_pin)) {
 		gpio_set_value_cansleep(chip->chip_bb_pin, 0);
-		usleep_range(1000,1020);
+		usleep_range(1000, 1020);
 	}
 
 
@@ -571,7 +572,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		dev_dbg(&client->dev, "GPIO(%d) request (%d)\n", gpio, ret);
 
 		slg51000->chip_bb_pin = gpio;
-		usleep_range(1000,1020);
+		usleep_range(2000, 2020);
 	}
 
 	/* optional property */
@@ -588,7 +589,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		dev_dbg(&client->dev, "GPIO(%d) request (%d)\n", gpio, ret);
 
 		slg51000->chip_buck_pin = gpio;
-		usleep_range(1000,1020);
+		usleep_range(2000, 2020);
 	}
 
 	/* mandatory property. It wakes the chip from low-power reset state */
@@ -670,7 +671,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 		dev_dbg(&client->dev, "GPIO(%d) request (%d)\n", gpio, ret);
 
 		slg51000->chip_pu_pin = gpio;
-		usleep_range(1000,1020);
+		usleep_range(1000, 1020);
 	}
 
 	slg51000_clear_fault_log(slg51000);
@@ -707,22 +708,24 @@ static int slg51000_i2c_remove(struct i2c_client *client)
 	if (gpio_is_valid(slg51000->chip_pu_pin)) {
 		desc = gpio_to_desc(slg51000->chip_pu_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
-		usleep_range(1000,1020);
+		usleep_range(1000, 1020);
 	}
 	if (gpio_is_valid(slg51000->chip_cs_pin)) {
 		desc = gpio_to_desc(slg51000->chip_cs_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
-		usleep_range(1000,1020);
+		/* Put SLG51000 back to Reset state */
+		usleep_range(SLEEP_10000_USEC,
+				SLEEP_10000_USEC + SLEEP_RANGE_USEC);
 	}
 	if (gpio_is_valid(slg51000->chip_buck_pin)) {
 		desc = gpio_to_desc(slg51000->chip_buck_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
-		usleep_range(1000,1020);
+		usleep_range(1000, 1020);
 	}
 	if (gpio_is_valid(slg51000->chip_bb_pin)) {
 		desc = gpio_to_desc(slg51000->chip_bb_pin);
 		ret |= gpiod_direction_output_raw(desc, GPIOF_INIT_LOW);
-		usleep_range(1000,1020);
+		usleep_range(1000, 1020);
 	}
 
 	return ret ? -EIO : 0;

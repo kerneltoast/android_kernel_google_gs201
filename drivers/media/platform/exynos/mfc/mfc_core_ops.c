@@ -570,6 +570,7 @@ err_open:
 int mfc_core_instance_move_to(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	struct mfc_core_ctx *core_ctx = NULL;
+	int drm_switch = 0;
 
 	core->num_inst++;
 	if (ctx->is_drm)
@@ -596,12 +597,12 @@ int mfc_core_instance_move_to(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	mfc_create_queue(&core_ctx->src_buf_queue);
 	core->curr_core_ctx = ctx->num;
-	core->curr_core_ctx_is_drm = ctx->is_drm;
+
+	if (core->curr_core_ctx_is_drm != ctx->is_drm)
+		drm_switch = 1;
 
 	mfc_core_pm_clock_on(core);
-
-	mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH);
-
+	mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH, drm_switch);
 	mfc_core_pm_clock_off(core);
 
 	mfc_ctx_info("to core-%d is ready to move\n", core->id);

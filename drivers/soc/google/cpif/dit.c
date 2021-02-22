@@ -1203,7 +1203,7 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 	spin_unlock(&dc->src_lock);
 
 	/* try init and kick again */
-	dit_init(NULL, true);
+	dit_init(NULL, DIT_INIT_RETRY);
 	if (dir < DIT_DIR_MAX)
 		dit_kick(dir, true);
 
@@ -1462,8 +1462,7 @@ error:
 static int dit_init_hw(void)
 {
 	unsigned int dir;
-	bool done;
-	u16 count = 0;
+	unsigned int count = 0;
 
 	const u16 port_offset_start[DIT_DIR_MAX] = {
 		DIT_REG_NAT_TX_PORT_INIT_START,
@@ -1479,19 +1478,16 @@ static int dit_init_hw(void)
 	 * it requires 20us at 100MHz until DONE.
 	 */
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
-		done = false;
-
 		WRITE_REG_VALUE(dc, 0x0, port_offset_done[dir]);
 		WRITE_REG_VALUE(dc, 0x1, port_offset_start[dir]);
 		while (++count < 100) {
-			usleep_range(20, 22);
+			udelay(20);
 			if (READ_REG_VALUE(dc, port_offset_done[dir])) {
-				done = true;
 				break;
 			}
 		}
 
-		if (!done) {
+		if (count >= 100) {
 			mif_err("PORT_INIT_DONE failed dir:%d\n", dir);
 			return -EIO;
 		}
@@ -1641,7 +1637,7 @@ static int dit_init_desc(enum dit_direction dir)
 	return 0;
 }
 
-int dit_init(struct link_device *ld, bool retry)
+int dit_init(struct link_device *ld, enum dit_init_type type)
 {
 	unsigned long flags;
 	unsigned int dir;
@@ -1659,7 +1655,7 @@ int dit_init(struct link_device *ld, bool retry)
 	}
 
 	spin_lock_irqsave(&dc->src_lock, flags);
-	if (retry && !dc->init_reserved) {
+	if (type == DIT_INIT_RETRY && !dc->init_reserved) {
 		spin_unlock_irqrestore(&dc->src_lock, flags);
 		return -EAGAIN;
 	}
@@ -1667,7 +1663,7 @@ int dit_init(struct link_device *ld, bool retry)
 	if (dit_is_kicked_any()) {
 		dc->init_reserved = true;
 		spin_unlock_irqrestore(&dc->src_lock, flags);
-		return -EBUSY;
+		return -EEXIST;
 	}
 
 	if (atomic_inc_return(&dc->init_running) > 1) {
@@ -1678,6 +1674,9 @@ int dit_init(struct link_device *ld, bool retry)
 
 	dc->init_done = false;
 	spin_unlock_irqrestore(&dc->src_lock, flags);
+
+	if (type == DIT_INIT_DEINIT)
+		goto exit;
 
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
 		ret = dit_init_desc(dir);
@@ -1712,7 +1711,7 @@ int dit_init(struct link_device *ld, bool retry)
 
 exit:
 	atomic_dec(&dc->init_running);
-	if (ret)
+	if (ret || type == DIT_INIT_DEINIT)
 		return ret;
 
 	dit_kick(DIT_DIR_TX, true);
@@ -2424,34 +2423,61 @@ static int dit_remove(struct platform_device *pdev)
 static int dit_suspend(struct device *dev)
 {
 	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret;
 
 	if (unlikely(!dc) || unlikely(!dc->ld))
 		return 0;
 
 	ret = dit_reg_backup_restore(true);
-	if (ret)
+	if (ret) {
 		mif_err("reg backup failed ret:%d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	ret = dit_init(NULL, DIT_INIT_DEINIT);
+	if (ret) {
+		mif_err("deinit failed ret:%d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int dit_resume(struct device *dev)
 {
 	struct dit_ctrl_t *dc = dev_get_drvdata(dev);
-	int ret = 0;
+	unsigned int dir;
+	int ret;
 
-	if (unlikely(!dc) || unlikely(!dc->ld))
-		return 0;
+	if (unlikely(!dc)) {
+		mif_err_limited("dc is null\n");
+		return -EPERM;
+	}
+
+	if (unlikely(!dc->ld)) {
+		mif_err_limited("dc->ld is null\n");
+		return -EPERM;
+	}
 
 	dit_set_irq_affinity(dc->irq_affinity);
 
-	dit_init(NULL, false);
-	ret = dit_reg_backup_restore(false);
-	if (ret)
-		mif_err("reg restore failed ret:%d\n", ret);
+	ret = dit_init(NULL, DIT_INIT_NORMAL);
+	if (ret) {
+		mif_err("init failed ret:%d\n", ret);
+		for (dir = 0; dir < DIT_DIR_MAX; dir++) {
+			if (dit_is_busy(dir))
+				mif_err("busy (dir:%d)\n", dir);
+		}
+		return ret;
+	}
 
-	return ret;
+	ret = dit_reg_backup_restore(false);
+	if (ret) {
+		mif_err("reg restore failed ret:%d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static const struct dev_pm_ops dit_pm_ops = {

@@ -259,18 +259,7 @@
 		samsung,iommu-group = <&iommu_group_dpu>;
 		samsung,tzmp;
 
-		/* pinctrl */
-		pinctrl-names = "hw_te_on", "hw_te_off";
-		pinctrl-0 = <&disp_te_pri_on>;
-		pinctrl-1 = <&disp_te_pri_off>;
-
 		max_win = <6>;
-		op_mode = <1>;	  /* 0: video mode, 1: command mode */
-		trig_mode = <0>;  /* 0: hw trigger, 1: sw trigger */
-		out_type = <0x2>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
-
-		/* 0: from DDI0, 1: from DDI1, 2: from DDI2 3: not receive TE */
-		te_from = <0>;
 
 		/* BTS */
 		ppc = <2>;		/* pixel per clock */
@@ -301,9 +290,6 @@
 		dta_en = <1>;
 		dta_hi_thres = <0x3200>;
 		dta_lo_thres = <0x600>;
-
-		/* EINT for TE */
-		gpios = <&gpp0 3 0xf>;
 
 		dpps = <&drmdpp0 &drmdpp1 &drmdpp2 &drmdpp3 &drmdpp4 &drmdpp5>;
 
@@ -337,12 +323,6 @@
 		samsung,iommu-group = <&iommu_group_dpu>;
 
 		max_win = <6>;
-		op_mode = <1>;	  /* 0: video mode, 1: command mode */
-		trig_mode = <0>;  /* 0: hw trigger, 1: sw trigger */
-		out_type = <0x1>; /* BIT0:DSI0, BIT1:DSI1, BIT4:DP0, BIT5:DP1 */
-
-		/* 0: from DDI0, 1: from DDI1, 2: from DDI2 3: not receive TE */
-		te_from = <1>;
 
 		/* BTS */
 		ppc = <2>;
@@ -396,9 +376,6 @@
 		samsung,tzmp;
 
 		max_win = <6>;
-		op_mode = <1>;		/* 0: video mode, 1: command mode */
-		trig_mode = <1>;	/* 0: hw trigger, 1: sw trigger */
-		out_type = <0x100>;	/* BIT8: WB */
 
 		/* BTS */
 		ppc = <2>;		/* pixel per clock */

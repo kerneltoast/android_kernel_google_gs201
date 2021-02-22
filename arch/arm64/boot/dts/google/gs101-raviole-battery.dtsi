@@ -17,6 +17,18 @@
 				#cooling-cells = <2>;
 				google,fg-psy-name = "maxfg";
 
+				/* charge table */
+				google,chg-temp-limits = <0 100 200 420 460 480 550>;
+				google,chg-cv-limits = <4200000 4300000 4450000>;
+				google,chg-cc-limits = <
+				 30  10   0
+				 50  30  30
+				100  70  50
+				 80  50  50
+				 50  50   0
+				 30   0   0
+				>;
+
 				#thermal-sensor-cells = <0>;
 			};
 
@@ -49,6 +61,8 @@
 
 				google,fv-max-uv = <4450000>;
 
+				google,thermal-mitigation = <4000000 3000000
+							2000000 1000000 500000>;
 				google,wlc-thermal-mitigation = <1100000 500000 250000 110000>;
 				google,therm-wlc-overrides-fcc;
 			};
@@ -81,6 +95,12 @@
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	dc_charger_irq: dc-charger-irq {
+		samsung,pins = "gpa6-0"; /* XEINT_0 (PLC_INT_L) */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
 
@@ -166,17 +186,22 @@
 		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
 		max77759,bst-sel = <&s2mpg10_gpio 3 GPIO_ACTIVE_HIGH>;
 		max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
-
+		max77759,ls2-en = <&max20339_gpio 1 GPIO_ACTIVE_HIGH>;
+		max77759,lsw1-is_open = <&max20339_gpio 5 GPIO_ACTIVE_HIGH>;
+		max77759,lsw1-is_closed = <&max20339_gpio 6 GPIO_ACTIVE_HIGH>;
+		max77759,vin-is_valid =  <&max20339_gpio 3 GPIO_ACTIVE_HIGH>;
 	};
 
-	pca9468@57 {
+	pca9468_dc: pca9468@57 {
 		compatible = "nxp,pca9468";
 		reg = <0x57>;
 
-		/* TODO: add IRQ pca9468,irq-gpio = <xxx>; */
+		pinctrl-names = "default";
+		pinctrl-0 = <&dc_charger_irq>;
 
-		pca9468,input-current-limit = <2000000>; /* 2.0A */
-		pca9468,charging-current = <4520000>; /* 4.5A */
+		interrupt-parent = <&gpa6>;
+		pca9468,irq-gpio = <&gpa6 0 GPIO_ACTIVE_LOW>; /* PLC_INT_L */
+
 		pca9468,float-voltage = <4300000>; /* 4.3V */
 
 		pca9468,input-itopoff = <500000>; /* 500mA */

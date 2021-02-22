@@ -137,7 +137,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd {
 				stat_on = <1>;
@@ -148,7 +148,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd_10bit {
 				stat_on = <1>;
@@ -159,7 +159,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_8k_dec30 {
 				stat_on = <1>;
@@ -170,7 +170,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			g3d_performance {
 				stat_on = <1>;
@@ -181,7 +181,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			dp_default {
 				stat_on = <1>;
@@ -193,7 +193,7 @@
 				qurgent_th_r = <0xC>;
 				qurgent_th_w = <0x6>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			camera_default {
 				stat_on = <1>;
@@ -230,7 +230,7 @@
 				qurgent_th_r = <0x20>;
 				qurgent_th_w = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd {
 				stat_on = <1>;
@@ -241,7 +241,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd_10bit {
 				stat_on = <1>;
@@ -252,7 +252,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_8k_dec30 {
 				stat_on = <1>;
@@ -263,7 +263,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			g3d_performance {
 				stat_on = <1>;
@@ -274,7 +274,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			dp_default {
 				stat_on = <1>;
@@ -286,7 +286,7 @@
 				qurgent_th_r = <0xC>;
 				qurgent_th_w = <0x6>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			camera_default {
 				stat_on = <1>;
@@ -323,7 +323,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd {
 				stat_on = <1>;
@@ -335,7 +335,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_uhd_10bit {
 				stat_on = <1>;
@@ -347,7 +347,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			mfc_8k_dec30 {
 				stat_on = <1>;
@@ -359,7 +359,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			g3d_performance {
 				stat_on = <1>;
@@ -371,7 +371,7 @@
 				qurgent_on = <0>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			dp_default {
 				stat_on = <1>;
@@ -384,7 +384,7 @@
 				qurgent_th_r = <0xC>;
 				qurgent_th_w = <0x6>;
 				blocking_on = <0>;
-				ex_qurgent_on = <1>;
+				ex_qurgent_on = <0>;
 			};
 			camera_default {
 				stat_on = <1>;

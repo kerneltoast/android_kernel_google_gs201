@@ -44,3 +44,8 @@ config VH_SYSTRACE
           to userspace and system events in the timeline.
 
           If in doubt, say N.
+
+config VH_THERMAL
+        tristate "Vendor hooks for kernel thermal"
+        depends on VH_KERNEL
+        default m

@@ -78,7 +78,7 @@
 	#size-cells = <0>;
 	gpios = <&gpp6 0 0 &gpp6 1 0>; /* RCAM_SCL RCAM_SDA */
 	status = "okay";
-	clock-frequency = <1000000>;
+	clock-frequency = <400000>;
 	samsung,reset-before-trans;
 
 	pinctrl-names = "default","on_i2c","off_i2c";

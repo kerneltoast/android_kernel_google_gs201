@@ -37,6 +37,7 @@
 #define TCPC_RECEIVE_BUFFER_FRAME_TYPE_OFFSET           1
 #define TCPC_RECEIVE_BUFFER_RX_BYTE_BUF_OFFSET          2
 
+#define TCPCI_HI_Z_CC		0xf
 /*
  * LongMessage not supported, hence 32 bytes for buf to be read from RECEIVE_BUFFER.
  * DEVICE_CAPABILITIES_2.LongMessage = 0, the value in READABLE_BYTE_COUNT reg shall be
@@ -853,6 +854,9 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 	unsigned int reg = TCPC_ROLE_CTRL_DRP;
 	int ret;
 
+	if (chip->disable_toggling)
+		return 0;
+
 	switch (cc) {
 	case TYPEC_CC_RP_DEF:
 		reg |= (TCPC_ROLE_CTRL_RP_VAL_DEF <<
@@ -879,6 +883,14 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 
 	max77759_init_regs(chip->tcpci->regmap, chip->log);
 
+	/* Kick debug accessory state machine when enabling toggling for the first time */
+	if (chip->first_toggle && chip->in_switch_gpio >= 0) {
+		logbuffer_log(chip->log, "[%s]: Kick Debug accessory FSM", __func__);
+		gpio_set_value_cansleep(chip->in_switch_gpio, 0);
+		mdelay(10);
+		gpio_set_value_cansleep(chip->in_switch_gpio, 1);
+		chip->first_toggle = false;
+	}
 	mutex_lock(&chip->contaminant_detection_lock);
 	if (chip->contaminant_detection) {
 		ret = enable_contaminant_detection(chip, chip->contaminant_detection ==
@@ -1273,9 +1285,11 @@ static int max77759_probe(struct i2c_client *client,
 	int ret, i;
 	struct max77759_plat *chip;
 	char *usb_psy_name;
-	struct device_node *dn;
+	struct device_node *dn, *ovp_dn;
 	u8 power_status;
 	u16 device_id;
+	u32 ovp_handle;
+	const char *ovp_status;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1296,11 +1310,31 @@ static int max77759_probe(struct i2c_client *client,
 		return -EPROBE_DEFER;
 	}
 
+	dn = dev_of_node(&client->dev);
+	if (!dn) {
+		dev_err(&client->dev, "of node not found\n");
+		return -EINVAL;
+	}
+
+	if (!of_property_read_u32(dn, "max20339,ovp", &ovp_handle)) {
+		ovp_dn = of_find_node_by_phandle(ovp_handle);
+		if (!IS_ERR_OR_NULL(ovp_dn) &&
+		    !of_property_read_string(ovp_dn, "status", &ovp_status) &&
+		    strncmp(ovp_status, "disabled", strlen("disabled"))) {
+			chip->in_switch_gpio = of_get_named_gpio(dn, "in-switch-gpio", 0);
+			if (chip->in_switch_gpio < 0) {
+				dev_err(&client->dev, "in-switch-gpio not found\n");
+				return -EPROBE_DEFER;
+			}
+		}
+	}
+
 	chip->dev = &client->dev;
 	i2c_set_clientdata(client, chip);
 	mutex_init(&chip->icl_proto_el_lock);
 	mutex_init(&chip->data_path_lock);
 	mutex_init(&chip->contaminant_detection_lock);
+	chip->first_toggle = true;
 
 	ret = max77759_read8(chip->data.regmap, TCPC_POWER_STATUS,
 			     &power_status);
@@ -1356,13 +1390,6 @@ static int max77759_probe(struct i2c_client *client,
 	if (IS_ERR_OR_NULL(chip->bc12)) {
 		ret = PTR_ERR(chip->bc12);
 		goto unreg_psy;
-	}
-
-	dn = dev_of_node(&client->dev);
-	if (!dn) {
-		dev_err(&client->dev, "of node not found\n");
-		ret = -EINVAL;
-		goto teardown_bc12;
 	}
 
 	usb_psy_name = (char *)of_get_property(dn, "usb-psy-name", NULL);
@@ -1510,6 +1537,19 @@ static int max77759_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void max77759_shutdown(struct i2c_client *client)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(client);
+
+	dev_info(&client->dev, "disabling Type-C upon shutdown\n");
+	/* Set current limit to 0. Will eventually happen after hi-Z as well */
+	max77759_vote_icl(chip->tcpci, chip->tcpci->data, 0);
+	/* Prevent re-enabling toggling */
+	chip->disable_toggling = true;
+	/* Hi-z CC pins to trigger disconnection */
+	max77759_write8(chip->data.regmap, TCPC_ROLE_CTRL, TCPCI_HI_Z_CC);
+}
+
 static const struct i2c_device_id max77759_id[] = {
 	{ "max77759tcpc", 0 },
 	{ }
@@ -1532,6 +1572,7 @@ static struct i2c_driver max77759_i2c_driver = {
 	.probe = max77759_probe,
 	.remove = max77759_remove,
 	.id_table = max77759_id,
+	.shutdown = max77759_shutdown,
 };
 module_i2c_driver(max77759_i2c_driver);
 

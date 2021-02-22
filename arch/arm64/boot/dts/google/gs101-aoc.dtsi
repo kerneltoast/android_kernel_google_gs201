@@ -46,11 +46,33 @@
 		samsung,iommu-group = <&iommu_group_aoc>;
 
 		mbox-names = "aoc2ap";
-		mboxes = <&mbox_aoc 0>;
+		mboxes = <&mbox_aoc 0
+		&mbox_aoc 1
+		&mbox_aoc 2
+		&mbox_aoc 3
+		&mbox_aoc 4
+		&mbox_aoc 5
+		&mbox_aoc 6
+		&mbox_aoc 7
+		&mbox_aoc 8
+		&mbox_aoc 9
+		&mbox_aoc 10
+		&mbox_aoc 11
+		&mbox_aoc 12
+		&mbox_aoc 13
+		&mbox_aoc 14
+		&mbox_aoc 15
+		>;
 
 		acpm-ipc-channel = <13>;
 
 		force-vnom = <0>;
 	};
 
+	aoc_gpiochip: aoc_gpiochip {
+		compatible = "google,aoc_uwb_rst";
+		gpio-controller;
+		#gpio-cells = <2>;
+		ngpio = <1>;
+	};
 };

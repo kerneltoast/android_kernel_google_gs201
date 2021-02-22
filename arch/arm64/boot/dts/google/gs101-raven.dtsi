@@ -11,3 +11,4 @@
 #include "gs101-raven-display.dtsi"
 #include "gs101-raven-camera.dtsi"
 #include "gs101-raven-touch.dtsi"
+#include "gs101-raven-uwb.dtsi"

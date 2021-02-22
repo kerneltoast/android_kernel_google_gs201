@@ -21,8 +21,6 @@
 
 #include <soc/google/exynos-cpuhp.h>
 
-#define CPUHP_USER_NAME_LEN	16
-
 struct cpuhp_user {
 	char			name[CPUHP_USER_NAME_LEN];
 	struct cpumask		online_cpus;

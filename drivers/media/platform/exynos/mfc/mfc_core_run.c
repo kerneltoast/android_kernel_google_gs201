@@ -45,29 +45,35 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 		core->curr_core_ctx_is_drm = 1;
 
 	/* 0. MFC reset */
-	mfc_core_debug(2, "MFC reset...\n");
-	mfc_core_reset_mfc(core);
-	mfc_core_debug(2, "Done MFC reset\n");
-
 	ret = mfc_core_pm_clock_on(core);
 	if (ret) {
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
 		core->curr_core_ctx_is_drm = curr_ctx_is_drm_backup;
 		return ret;
 	}
+	mfc_core_reg_clear(core);
+	mfc_core_debug(2, "Done register clear\n");
+
+	if (core->curr_core_ctx_is_drm)
+		mfc_core_protection_on(core);
+
+	mfc_core_reset_mfc(core, buf_type);
+	mfc_core_debug(2, "Done MFC reset\n");
 
 	/* 1. Set DRAM base Addr */
 	mfc_core_set_risc_base_addr(core, buf_type);
 
 	/* 2. Release reset signal to the RISC */
-	mfc_core_risc_on(core);
+	if (!(core->dev->pdata->security_ctrl && (buf_type == MFCBUF_DRM))) {
+		mfc_core_risc_on(core);
 
-	mfc_core_debug(2, "Will now wait for completion of firmware transfer\n");
-	if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_FW_STATUS_RET)) {
-		mfc_core_err("Failed to RISC_ON\n");
-		mfc_core_clean_dev_int_flags(core);
-		ret = -EIO;
-		goto err_init_hw;
+		mfc_core_debug(2, "Will now wait for completion of firmware transfer\n");
+		if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_FW_STATUS_RET)) {
+			mfc_core_err("Failed to RISC_ON\n");
+			mfc_core_clean_dev_int_flags(core);
+			ret = -EIO;
+			goto err_init_hw;
+		}
 	}
 
 	/* 3. Initialize firmware */
@@ -112,7 +118,6 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 	}
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	/* Cache flush for base address change */
 	mfc_core_cmd_cache_flush(core);
 	if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_CACHE_FLUSH_RET)) {
 		mfc_core_err("Failed to CACHE_FLUSH\n");
@@ -122,9 +127,8 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 	}
 
 	if (buf_type == MFCBUF_DRM && !curr_ctx_is_drm_backup) {
-		mfc_core_pm_clock_off(core);
 		core->curr_core_ctx_is_drm = curr_ctx_is_drm_backup;
-		mfc_core_pm_clock_on_with_base(core, MFCBUF_NORMAL);
+		mfc_core_protection_off(core);
 	}
 #endif
 
@@ -170,6 +174,9 @@ void mfc_core_run_deinit_hw(struct mfc_core *core)
 
 	mfc_core_pm_clock_off(core);
 
+	if (core->curr_core_ctx_is_drm)
+		mfc_core_protection_off(core);
+
 	mfc_core_debug(2, "mfc deinit completed\n");
 }
 
@@ -177,7 +184,7 @@ int mfc_core_run_sleep(struct mfc_core *core)
 {
 	struct mfc_core_ctx *core_ctx;
 	int i;
-	int need_cache_flush = 0;
+	int drm_switch = 0;
 
 	mfc_core_debug_enter();
 
@@ -199,7 +206,7 @@ int mfc_core_run_sleep(struct mfc_core *core)
 
 		core->curr_core_ctx = core_ctx->num;
 		if (core->curr_core_ctx_is_drm != core_ctx->is_drm) {
-			need_cache_flush = 1;
+			drm_switch = 1;
 			mfc_core_info("DRM attribute is changed %d->%d\n",
 					core->curr_core_ctx_is_drm, core_ctx->is_drm);
 		}
@@ -208,8 +215,8 @@ int mfc_core_run_sleep(struct mfc_core *core)
 
 	mfc_core_pm_clock_on(core);
 
-	if (need_cache_flush)
-		mfc_core_cache_flush(core, core_ctx->is_drm, MFC_CACHEFLUSH);
+	if (drm_switch)
+		mfc_core_cache_flush(core, core_ctx->is_drm, MFC_CACHEFLUSH, drm_switch);
 
 	mfc_core_cmd_sleep(core);
 
@@ -253,28 +260,34 @@ int mfc_core_run_wakeup(struct mfc_core *core)
 		buf_type = MFCBUF_NORMAL;
 
 	/* 0. MFC reset */
-	mfc_core_debug(2, "MFC reset...\n");
-	mfc_core_reset_mfc(core);
-	mfc_core_debug(2, "Done MFC reset...\n");
-
 	ret = mfc_core_pm_clock_on(core);
 	if (ret) {
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
 		return ret;
 	}
+	mfc_core_reg_clear(core);
+	mfc_core_debug(2, "Done register clear\n");
+
+	if (core->curr_core_ctx_is_drm)
+		mfc_core_protection_on(core);
+
+	mfc_core_reset_mfc(core, buf_type);
+	mfc_core_debug(2, "Done MFC reset\n");
 
 	/* 1. Set DRAM base Addr */
 	mfc_core_set_risc_base_addr(core, buf_type);
 
 	/* 2. Release reset signal to the RISC */
-	mfc_core_risc_on(core);
+	if (!(core->dev->pdata->security_ctrl && (buf_type == MFCBUF_DRM))) {
+		mfc_core_risc_on(core);
 
-	mfc_core_debug(2, "Will now wait for completion of firmware transfer\n");
-	if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_FW_STATUS_RET)) {
-		mfc_core_err("Failed to RISC_ON\n");
-		core->logging_data->cause |= (1 << MFC_CAUSE_FAIL_RISC_ON);
-		call_dop(core, dump_and_stop_always, core);
-		return -EBUSY;
+		mfc_core_debug(2, "Will now wait for completion of firmware transfer\n");
+		if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_FW_STATUS_RET)) {
+			mfc_core_err("Failed to RISC_ON\n");
+			core->logging_data->cause |= (1 << MFC_CAUSE_FAIL_RISC_ON);
+			call_dop(core, dump_and_stop_always, core);
+			return -EBUSY;
+		}
 	}
 
 	mfc_core_debug(2, "Ok, now will write a command to wakeup the system\n");

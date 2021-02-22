@@ -19,6 +19,8 @@
 		samsung,iommu-group = <&iommu_group_mfc>;
 		samsung,iommu-reserved-map = <0x0 0x0 0x10000000>,
 					   <0x0 0x10000000 0x100000>;
+		/* Enable if there is vOTF */
+		/* samsung,iommu-identity-map = <0x0 0x15E1F000 0x10000>; */
 
 		samsung,tzmp;
 
@@ -179,6 +181,7 @@
 			iommus = <&sysmmu_mfc0>, <&sysmmu_mfc1>;
 			samsung,iommu-group = <&iommu_group_mfc>;
 			samsung,iommu-reserved-map = <0x0 0x10000000 0x100000>;
+			/* samsung,iommu-identity-map = <0x0 0x15E1F000 0x10000> */
 
 			samsung,tzmp;
 			samsung,imgloader-s2mpu-support;
@@ -200,11 +203,9 @@
 			pt_id = "MFC";
 
 			/* vOTF */
-			//mfc_votf_base = <0x16650000>;
-			//gdc_votf_base = <0x15E10000>;
-			//dpu_votf_base = <0x160A0000>;
-			//votf_start_offset = <0xF000>;
-			//votf_end_offset = <0x10000>;
+			/* mfc_votf_base = <0x16650000>; */
+			/* gdc_votf_base = <0x15E1F000>; */
+			/* dpu_votf_base = <0x19CAF000>; */
 
 			/* QoS */
 			num_default_qos_steps = <8>;

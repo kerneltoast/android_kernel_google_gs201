@@ -225,8 +225,6 @@ static int __mfc_core_parse_dt(struct device_node *np, struct mfc_core *core)
 	of_property_read_u32(np, "mfc_votf_base", &pdata->mfc_votf_base);
 	of_property_read_u32(np, "gdc_votf_base", &pdata->gdc_votf_base);
 	of_property_read_u32(np, "dpu_votf_base", &pdata->dpu_votf_base);
-	of_property_read_u32(np, "votf_start_offset", &pdata->votf_start_offset);
-	of_property_read_u32(np, "votf_end_offset", &pdata->votf_end_offset);
 
 	/* QoS */
 	of_property_read_u32(np, "num_default_qos_steps",
@@ -689,24 +687,11 @@ static int mfc_core_probe(struct platform_device *pdev)
 
 	/* vOTF 1:1 mapping */
 	core->domain = iommu_get_domain_for_dev(core->device);
-	if (core->core_pdata->gdc_votf_base) {
-		ret = mfc_map_votf_sfr(core, core->core_pdata->gdc_votf_base);
+	if (core->core_pdata->gdc_votf_base || core->core_pdata->dpu_votf_base) {
+		ret = mfc_iommu_map_sfr(core);
 		if (ret) {
-			core->has_gdc_votf = 0;
-			dev_err(&pdev->dev, "failed to map GDC vOTF SFR\n");
-			goto err_gdc_votf;
-		} else {
-			core->has_gdc_votf = 1;
-		}
-	}
-	if (core->core_pdata->dpu_votf_base) {
-		ret = mfc_map_votf_sfr(core, core->core_pdata->dpu_votf_base);
-		if (ret) {
-			core->has_dpu_votf = 0;
-			dev_err(&pdev->dev, "failed to map DPU vOTF SFR\n");
-			goto err_dpu_votf;
-		} else {
-			core->has_dpu_votf = 1;
+			dev_err(&pdev->dev, "failed to map vOTF SFR\n");
+			goto err_alloc_debug;
 		}
 	}
 
@@ -751,12 +736,6 @@ static int mfc_core_probe(struct platform_device *pdev)
 	return 0;
 
 err_alloc_debug:
-	if (core->has_dpu_votf)
-		mfc_unmap_votf_sfr(core, core->core_pdata->dpu_votf_base);
-err_dpu_votf:
-	if (core->has_gdc_votf)
-		mfc_unmap_votf_sfr(core, core->core_pdata->gdc_votf_base);
-err_gdc_votf:
 	iommu_unregister_device_fault_handler(&pdev->dev);
 err_sysmmu_fault_handler:
 	destroy_workqueue(core->butler_wq);

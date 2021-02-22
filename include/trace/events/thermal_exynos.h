@@ -182,6 +182,27 @@ TRACE_EVENT(thermal_cpu_pressure,
 
 	TP_printk("pressure=%lu cpu=%d", __entry->pressure, __entry->cpu)
 );
+
+TRACE_EVENT(vendor_cdev_update,
+	TP_PROTO(const char *cdev_type, unsigned long sysfs_req, unsigned long state),
+
+	TP_ARGS(cdev_type, sysfs_req, state),
+
+	TP_STRUCT__entry(
+		__field(const char *, cdev_type)
+		__field(unsigned long, sysfs_req)
+		__field(unsigned long, state)
+	),
+
+	TP_fast_assign(
+		__entry->cdev_type = cdev_type;
+		__entry->sysfs_req = sysfs_req;
+		__entry->state = state;
+	),
+
+	TP_printk("cdev:%s sysfs_req=%lu, state=%lu", __entry->cdev_type,
+					__entry->sysfs_req, __entry->state)
+);
 #endif /* _TRACE_THERMAL_EXYNOS_H */
 
 /* This part must be outside protection */

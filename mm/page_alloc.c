@@ -70,6 +70,7 @@
 #include <linux/psi.h>
 #include <linux/padata.h>
 #include <linux/khugepaged.h>
+#include <trace/hooks/mm.h>
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -3462,6 +3463,8 @@ struct page *rmqueue(struct zone *preferred_zone,
 
 	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
 	zone_statistics(preferred_zone, zone);
+	trace_android_vh_rmqueue(preferred_zone, zone, order,
+			gfp_flags, alloc_flags, migratetype);
 	local_irq_restore(flags);
 
 out:
@@ -8431,11 +8434,15 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
 	unsigned int nr_reclaimed;
 	unsigned long pfn = start;
 	unsigned int tries = 0;
+	unsigned int max_tries = 5;
 	int ret = 0;
 	struct migration_target_control mtc = {
 		.nid = zone_to_nid(cc->zone),
 		.gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_RETRY_MAYFAIL,
 	};
+
+	if (cc->alloc_contig && cc->mode == MIGRATE_ASYNC)
+		max_tries = 1;
 
 	migrate_prep();
 
@@ -8453,7 +8460,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
 				break;
 			}
 			tries = 0;
-		} else if (++tries == 5) {
+		} else if (++tries == max_tries) {
 			ret = ret < 0 ? ret : -EBUSY;
 			break;
 		}
@@ -8504,7 +8511,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 		.nr_migratepages = 0,
 		.order = -1,
 		.zone = page_zone(pfn_to_page(start)),
-		.mode = MIGRATE_SYNC,
+		.mode = gfp_mask & __GFP_NORETRY ? MIGRATE_ASYNC : MIGRATE_SYNC,
 		.ignore_skip_hint = true,
 		.no_set_skip_hint = true,
 		.gfp_mask = current_gfp_context(gfp_mask),

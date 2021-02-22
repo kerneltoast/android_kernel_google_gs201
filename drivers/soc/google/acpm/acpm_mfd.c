@@ -25,7 +25,6 @@ int exynos_acpm_read_reg(struct device_node *acpm_mfd_node, u8 channel,
 				set_protocol(channel, CHANNEL);
 		config.cmd[1] = set_protocol(FUNC_READ, FUNC);
 		config.response = true;
-		config.indirection = false;
 
 		ACPM_MFD_PRINT("%s - addr: 0x%03x\n", __func__,
 			       set_protocol(type, TYPE) | set_protocol(reg, REG));
@@ -72,7 +71,6 @@ int exynos_acpm_bulk_read(struct device_node *acpm_mfd_node, u8 channel,
 		config.cmd[1] = set_protocol(FUNC_BULK_READ, FUNC) |
 			set_protocol(count, CNT);
 		config.response = true;
-		config.indirection = false;
 
 		ACPM_MFD_PRINT("%s - addr: 0x%03x\n", __func__,
 			       set_protocol(type, TYPE) | set_protocol(reg, REG));
@@ -122,7 +120,6 @@ int exynos_acpm_write_reg(struct device_node *acpm_mfd_node, u8 channel,
 		config.cmd[1] = set_protocol(FUNC_WRITE, FUNC) |
 				set_protocol(value, WRITE_VAL);
 		config.response = true;
-		config.indirection = false;
 
 		ACPM_MFD_PRINT("%s - addr: 0x%03x val: 0x%02x\n",
 			       __func__, set_protocol(type, TYPE) |
@@ -171,7 +168,6 @@ int exynos_acpm_bulk_write(struct device_node *acpm_mfd_node, u8 channel,
 		config.cmd[1] = set_protocol(FUNC_BULK_WRITE, FUNC) |
 			set_protocol(count, CNT);
 		config.response = true;
-		config.indirection = false;
 
 		ACPM_MFD_PRINT("%s - addr: 0x%03x\n cnt: 0x%02x\n", __func__,
 			       set_protocol(type, TYPE) | set_protocol(reg, REG),
@@ -223,7 +219,6 @@ int exynos_acpm_update_reg(struct device_node *acpm_mfd_node, u8 channel,
 				| set_protocol(value, UPDATE_VAL)
 				| set_protocol(mask, UPDATE_MASK);
 		config.response = true;
-		config.indirection = false;
 
 		ACPM_MFD_PRINT("%s - addr: 0x%03x val: 0x%02x mask: 0x%02x\n", __func__,
 			       set_protocol(type, TYPE) | set_protocol(reg, REG),

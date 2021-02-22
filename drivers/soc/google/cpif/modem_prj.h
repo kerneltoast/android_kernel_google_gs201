@@ -227,6 +227,13 @@ struct sim_state {
 	bool changed;	/* online is changed? */
 };
 
+struct cp_power_stats {
+	u64 count;			/* count state was entered */
+	u64 duration_usec;		/* total time (usecs) in state */
+	u64 last_entry_timestamp_usec;	/* timestamp(usecs since boot) of last time entered */
+	u64 last_exit_timestamp_usec;	/* timestamp(usecs since boot) of last time exited */
+};
+
 struct sec_info {
 	enum cp_boot_mode mode;
 	u32 size;
@@ -820,6 +827,9 @@ struct modem_ctl {
 	int receive_first_ipc;
 
 	struct notifier_block lcd_notifier;
+
+	struct cp_power_stats cp_power_stats;
+	spinlock_t power_stats_lock;
 };
 
 static inline bool cp_offline(struct modem_ctl *mc)
