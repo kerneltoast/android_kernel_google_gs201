@@ -501,9 +501,8 @@ static size_t afbc_payload_len(u32 width, u32 height, const struct g2d_fmt *fmt)
 static size_t afbc_buffer_len(unsigned long caps, int layer_flags,
 			      struct g2d_reg cmd[], const struct g2d_fmt *fmt)
 {
-	bool landscape = !!(layer_flags & G2D_LAYERFLAG_AFBC_LANDSCAPE);
-	u32 walign = get_afbc_width_align(landscape);
-	u32 halign = get_afbc_height_align(landscape);
+	u32 walign = get_afbc_width_align(layer_flags);
+	u32 halign = get_afbc_height_align(layer_flags);
 	u32 width = ALIGN(cmd[G2DSFR_IMG_WIDTH].value, walign);
 	u32 height = ALIGN(cmd[G2DSFR_IMG_HEIGHT].value, halign);
 	size_t len = afbc_header_len(caps, width / walign, height / halign);
@@ -514,9 +513,8 @@ static size_t afbc_buffer_len(unsigned long caps, int layer_flags,
 static u32 afbc_header_len_only(unsigned long caps, int layer_flags,
 				struct g2d_reg cmd[])
 {
-	bool landscape = !!(layer_flags & G2D_LAYERFLAG_AFBC_LANDSCAPE);
-	u32 walign = get_afbc_width_align(landscape);
-	u32 halign = get_afbc_height_align(landscape);
+	u32 walign = get_afbc_width_align(layer_flags);
+	u32 halign = get_afbc_height_align(layer_flags);
 	u32 width = ALIGN(cmd[G2DSFR_IMG_WIDTH].value, walign);
 	u32 height = ALIGN(cmd[G2DSFR_IMG_HEIGHT].value, halign);
 
