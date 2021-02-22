@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/cpuidle.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -26,7 +27,6 @@
 #include <linux/perf_event.h>
 #include <linux/of_device.h>
 #include <linux/mutex.h>
-#include <trace/events/power.h>
 #include <trace/hooks/cpuidle.h>
 
 static DEFINE_PER_CPU(bool, is_idle);
@@ -205,23 +205,25 @@ static void update_counts_idle_core(struct memlat_cpu_grp *cpu_grp, int cpu)
 
 }
 
-static void vendor_update_event_cpu_idle(void *data, int event, int state, int cpu)
+
+static void vendor_update_event_cpu_idle_enter(void *data, int *state, struct cpuidle_device *dev)
 {
 	struct memlat_cpu_grp *cpu_grp;
 
-	if (event == PWR_EVENT_EXIT) {
-		__this_cpu_write(is_idle, false);
-	} else {
-		list_for_each_entry(cpu_grp, &cpu_grp_list, node) {
-			if (!cpu_grp->initialized)
-				continue;
-			if (cpumask_test_cpu(cpu, &cpu_grp->cpus)) {
-				update_counts_idle_core(cpu_grp, cpu);
-				break;
-			}
+	list_for_each_entry(cpu_grp, &cpu_grp_list, node) {
+		if (!cpu_grp->initialized)
+			continue;
+		if (cpumask_test_cpu(dev->cpu, &cpu_grp->cpus)) {
+			update_counts_idle_core(cpu_grp, dev->cpu);
+			break;
 		}
-		__this_cpu_write(is_idle, true);
 	}
+	__this_cpu_write(is_idle, true);
+}
+
+static void vendor_update_event_cpu_idle_exit(void *data, int state, struct cpuidle_device *dev)
+{
+	__this_cpu_write(is_idle, false);
 }
 
 static void update_counts(struct memlat_cpu_grp *cpu_grp)
@@ -761,11 +763,20 @@ static int arm_memlat_mon_driver_probe(struct platform_device *pdev)
 	}
 
 	if (!hook_registered) {
-		ret = register_trace_android_vh_cpu_idle(vendor_update_event_cpu_idle, NULL);
+		ret = register_trace_android_vh_cpu_idle_enter(
+				vendor_update_event_cpu_idle_enter, NULL);
 		if (ret) {
-			dev_err(dev, "Register vendor hook fail %d\n", ret);
+			dev_err(dev, "Register enter vendor hook fail %d\n", ret);
 			return ret;
 		}
+
+		ret = register_trace_android_vh_cpu_idle_exit(
+				vendor_update_event_cpu_idle_exit, NULL);
+		if (ret) {
+			dev_err(dev, "Register exit vendor hook fail %d\n", ret);
+			return ret;
+		}
+
 		hook_registered = true;
 	}
 
