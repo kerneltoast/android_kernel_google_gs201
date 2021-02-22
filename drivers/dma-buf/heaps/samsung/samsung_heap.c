@@ -237,13 +237,9 @@ static int __init samsung_dma_heap_init(void)
 {
 	int ret;
 
-	ret = secure_iova_pool_create();
-	if (ret)
-		return ret;
-
 	ret = cma_dma_heap_init();
 	if (ret)
-		goto err_cma;
+		return ret;
 
 	ret = carveout_dma_heap_init();
 	if (ret)
@@ -258,8 +254,6 @@ err_system:
 	carveout_dma_heap_exit();
 err_carveout:
 	cma_dma_heap_exit();
-err_cma:
-	secure_iova_pool_destroy();
 
 	return ret;
 }
@@ -269,8 +263,6 @@ static void __exit samsung_dma_heap_exit(void)
 	system_dma_heap_exit();
 	carveout_dma_heap_exit();
 	cma_dma_heap_exit();
-
-	secure_iova_pool_destroy();
 }
 
 module_init(samsung_dma_heap_init);
