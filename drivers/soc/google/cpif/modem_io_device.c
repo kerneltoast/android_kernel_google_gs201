@@ -292,6 +292,7 @@ static int gather_multi_frame_sit(struct exynos_link_header *hdr, struct sk_buff
 		skb_new = alloc_skb(total_len, GFP_ATOMIC);
 		if (unlikely(skb_new == NULL)) {
 			mif_err("ERR - alloc_skb fail\n");
+			skb_dequeue_tail(multi_q);
 			skb_queue_purge(multi_q);
 			return -ENOMEM;
 		}
