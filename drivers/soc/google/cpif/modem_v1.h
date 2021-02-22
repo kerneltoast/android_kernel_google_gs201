@@ -302,7 +302,7 @@ struct modem_irq {
 };
 
 struct cpif_gpio {
-	unsigned int num;
+	int num;
 	const char *label;
 };
 
