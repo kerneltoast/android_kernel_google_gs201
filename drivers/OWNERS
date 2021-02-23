@@ -51,6 +51,7 @@ per-file input/touchscreen/sec_ts/**=*
 per-file input/touchscreen/stm/**=*
 
 per-file iommu/samsung-iommu*=*
+per-file iommu/samsung-secure-iova.c=*
 
 per-file media/platform/bigocean/**=*
 per-file media/platform/exynos/**=*
