@@ -2410,7 +2410,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	dev = pci->dev;
 	exynos_pcie_desc = irq_to_desc(pp->irq);
 
-	dev_dbg(dev, "%s, start of poweron, pcie state: %d\n", __func__, exynos_pcie->state);
+	dev_info(dev, "start poweron, state: %d\n", exynos_pcie->state);
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		if (exynos_pcie->use_pcieon_sleep) {
 			dev_dbg(dev, "%s, pcie_is_linkup 1\n", __func__);
@@ -2541,7 +2541,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 		}
 	}
 
-	dev_dbg(dev, "pcie end of poweron, state: %d\n", exynos_pcie->state);
+	dev_info(dev, "end poweron, state: %d\n", exynos_pcie->state);
 
 	return 0;
 
@@ -2563,7 +2563,6 @@ void exynos_pcie_rc_poweroff(int ch_num)
 
 	if (!exynos_pcie) {
 		pr_err("%s: ch#%d PCIe device is not loaded\n", __func__, ch_num);
-
 		return;
 	}
 
@@ -2571,7 +2570,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 	pp = &pci->pp;
 	dev = pci->dev;
 
-	dev_dbg(dev, "%s, start of poweroff, pcie state: %d\n", __func__, exynos_pcie->state);
+	dev_info(dev, "start poweroff, state: %d\n", exynos_pcie->state);
 
 	if (exynos_pcie->state == STATE_LINK_UP ||
 	    exynos_pcie->state == STATE_LINK_DOWN_TRY) {
@@ -2655,7 +2654,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		pcie_is_linkup = 0;
 	}
 
-	dev_dbg(dev, "end of poweroff, state: %d\n", exynos_pcie->state);
+	dev_info(dev, "end poweroff, state: %d\n", exynos_pcie->state);
 }
 
 void exynos_pcie_pm_suspend(int ch_num)
