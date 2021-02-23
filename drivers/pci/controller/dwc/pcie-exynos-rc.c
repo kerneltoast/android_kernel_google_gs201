@@ -792,7 +792,7 @@ static void exynos_pcie_rc_prog_viewport_mem_outbound(struct pcie_port *pp)
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_BASE_OUTBOUND1, 4, (entry->res->start >> 32));
 	/* exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LIMIT_OUTBOUND1, 4,
 	 *			      entry->res->start +
-         *			      resource_size(entry->res) - 1);
+	 *			      resource_size(entry->res) - 1);
 	 */
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LIMIT_OUTBOUND1, 4, entry->res->start + SZ_2M - 1);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_TARGET_OUTBOUND1, 4,
@@ -1520,81 +1520,95 @@ void exynos_pcie_rc_register_dump(int ch_num)
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 	struct dw_pcie *pci = exynos_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
-	u32 i, j, val, offset, lane_offset;
-	u32 sc_dump_offset[24] = {0x54, 0x6c, 0x80, 0x118, 0x138,
-		0x25c, 0x268, 0x26c, 0x270, 0x278,
-		0x2c8, 0x2e4, 0x2e8, 0x2ec, 0x300,
-		0x3a0, 0x3a4, 0x3ac, 0x3bc, 0x3c0,
-		0x3d0, 0x1400, 0x1404, 0x1408};
+	u32 i, val_0, val_4, val_8, val_c;
 
-	/* 1) Sub_controller register dump */
-	pr_err("Print Sub_controller region.\n");
-	for (i = 0; i <= 2; i++) {
-		for (j = 0; j < 4; j++) {
-			offset = (i * 0x10) + (j * 4);
-			pr_err("Sub_controller 0x%04x: 0x%08x\n", offset,
-			       exynos_elbi_read(exynos_pcie, offset));
-		}
-	}
-	if (exynos_pcie->ip_ver == EXYNOS_IP_VER_OF_WHI) {
-		for (i = 0; i < 24; i++) {
-			pr_err("Sub_controller 0x%04x: 0x%08x\n",
-			       sc_dump_offset[i], exynos_elbi_read(exynos_pcie, sc_dump_offset[i]));
-		}
+	pr_err("%s: +++\n", __func__);
+	/* ---------------------- */
+	/* Link Reg : 0x0 ~ 0x47C */
+	/* ---------------------- */
+	pr_err("[Print SUB_CTRL region]\n");
+	pr_err("offset:	0x0	0x4	0x8	0xC\n");
+	for (i = 0; i < 0x480; i += 0x10) {
+		pr_err("ELBI 0x%04x:    0x%08x    0x%08x    0x%08x    0x%08x\n",
+				i,
+				exynos_elbi_read(exynos_pcie, i + 0x0),
+				exynos_elbi_read(exynos_pcie, i + 0x4),
+				exynos_elbi_read(exynos_pcie, i + 0x8),
+				exynos_elbi_read(exynos_pcie, i + 0xC));
 	}
 	pr_err("\n");
 
-	/* 2) DBI(config) register dump */
-	pr_err("Print DBI region..\n");
-	for (i = 0; i <= 11; i++) {
-		for (j = 0; j < 4; j++) {
-			offset = (i * 0x10) + (j * 4);
-			exynos_pcie_rc_rd_own_conf(pp, offset, 4, &val);
-			pr_err("DBI 0x%04x: 0x%08x\n", offset, val);
-		}
+	/* ---------------------- */
+	/* PHY Reg : 0x0 ~ 0x19C */
+	/* ---------------------- */
+	pr_err("[Print PHY region]\n");
+	pr_err("offset:	0x0	0x4	0x8	0xC\n");
+	for (i = 0; i < 0x200; i += 0x10) {
+		pr_err("PHY 0x%04x:    0x%08x    0x%08x    0x%08x    0x%08x\n",
+				i,
+				exynos_phy_read(exynos_pcie, i + 0x0),
+				exynos_phy_read(exynos_pcie, i + 0x4),
+				exynos_phy_read(exynos_pcie, i + 0x8),
+				exynos_phy_read(exynos_pcie, i + 0xC));
 	}
-	pr_err("\n");
-
-	/* 3) PHY PMA register dump */
-	pr_err("Print PHY PMA region...\n");
 	/* common */
-	pr_err("PHY PMA 0x03f0: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x3f0));
+	pr_err("PHY 0x03F0:    0x%08x\n", exynos_phy_read(exynos_pcie, 0x3F0));
+
 	/* lane0 */
-	for (i = 0xe00; i < 0xe50; i += 4)
-		pr_err("PHY PMA 0x%04x: 0x%08x\n", i, exynos_phy_read(exynos_pcie, i));
+	for (i = 0xE00; i < 0xED0; i += 0x10) {
+		pr_err("PHY 0x%04x:    0x%08x    0x%08x    0x%08x    0x%08x\n",
+				i,
+				exynos_phy_read(exynos_pcie, i + 0x0),
+				exynos_phy_read(exynos_pcie, i + 0x4),
+				exynos_phy_read(exynos_pcie, i + 0x8),
+				exynos_phy_read(exynos_pcie, i + 0xC));
+	}
+	pr_err("PHY 0x0FC0:    0x%08x\n", exynos_phy_read(exynos_pcie, 0xFC0));
 
-	pr_err("PHY PMA 0x0e74: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xe74));
-	pr_err("PHY PMA 0x0e78: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xe78));
-	pr_err("PHY PMA 0x0e7c: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xe7c));
-	pr_err("PHY PMA 0x0ec4: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xec4));
-	pr_err("PHY PMA 0x0ec8: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xec8));
-	pr_err("PHY PMA 0x0fc0: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xfc0));
-	if (exynos_pcie->num_lanes == 2) {
-		/* lane1 */
-		for (i = 0x1600; i < 0x1650; i += 4)
-			pr_err("PHY PMA 0x%04x: 0x%08x\n", i, exynos_phy_read(exynos_pcie, i));
+	/* lane1 */
+	for (i = (0xE00 + 0x800); i < ( 0xED0 + 0x800); i += 0x10) {
+		pr_err("PHY 0x%04x:    0x%08x    0x%08x    0x%08x    0x%08x\n",
+				i,
+				exynos_phy_read(exynos_pcie, i + 0x0),
+				exynos_phy_read(exynos_pcie, i + 0x4),
+				exynos_phy_read(exynos_pcie, i + 0x8),
+				exynos_phy_read(exynos_pcie, i + 0xC));
+	}
+	pr_err("PHY 0x17C0 : 0x%08x\n",
+		exynos_phy_read(exynos_pcie, 0xFC0 + 0x800));
+	pr_err("\n");
 
-		pr_err("PHY PMA 0x1674: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x1674));
-		pr_err("PHY PMA 0x1678: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x1678));
-		pr_err("PHY PMA 0x167c: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x167c));
-		pr_err("PHY PMA 0x16c4: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x16c4));
-		pr_err("PHY PMA 0x16c8: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x16c8));
-		pr_err("PHY PMA 0x17c0: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x17c0));
+	/* ---------------------- */
+	/* PHY PCS : 0x0 ~ 0x19C */
+	/* ---------------------- */
+	pr_err("[Print PHY_PCS region]\n");
+	pr_err("offset:	0x0 	0x4	0x8	0xC\n");
+	for (i = 0; i < 0x200; i += 0x10) {
+		pr_err("PCS 0x%04x:    0x%08x    0x%08x    0x%08x    0x%08x\n",
+				i,
+				exynos_phy_pcs_read(exynos_pcie, i + 0x0),
+				exynos_phy_pcs_read(exynos_pcie, i + 0x4),
+				exynos_phy_pcs_read(exynos_pcie, i + 0x8),
+				exynos_phy_pcs_read(exynos_pcie, i + 0xC));
 	}
 	pr_err("\n");
 
-	/* 4) PHY PCS register dump */
-	pr_err("Print PHY PCS region....\n");
-	for (i = 0; i < exynos_pcie->num_lanes; i++) {
-		lane_offset = (i * 0x800);
-		pr_err("PHY PCS 0x%04x: 0x%08x\n", 0x4 + lane_offset,
-		       exynos_phy_pcs_read(exynos_pcie,  0x4 + lane_offset));
-		pr_err("PHY PCS 0x%04x: 0x%08x\n", 0x8 + lane_offset,
-		       exynos_phy_pcs_read(exynos_pcie,  0x8 + lane_offset));
-		pr_err("PHY PCS 0x%04x: 0x%08x\n", 0x180 + lane_offset,
-		       exynos_phy_pcs_read(exynos_pcie,  0x180 + lane_offset));
+	/* ---------------------- */
+	/* DBI : 0x0 ~ 0x8FC */
+	/* ---------------------- */
+	pr_err("[Print DBI region]\n");
+	pr_err("offset:	0x0	0x4	0x8	0xC\n");
+	for (i = 0; i < 0x900; i += 0x10) {
+		exynos_pcie_rc_rd_own_conf(pp, i + 0x0, 4, &val_0);
+		exynos_pcie_rc_rd_own_conf(pp, i + 0x4, 4, &val_4);
+		exynos_pcie_rc_rd_own_conf(pp, i + 0x8, 4, &val_8);
+		exynos_pcie_rc_rd_own_conf(pp, i + 0xC, 4, &val_c);
+		pr_err("DBI 0x%04x:    0x%08x    0x%08x    0x%08x    0x%08x\n",
+				i, val_0, val_4, val_8, val_c);
 	}
 	pr_err("\n");
+	pr_err("%s: ---\n", __func__);
+
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_register_dump);
 
@@ -3459,6 +3473,14 @@ int exynos_pcie_rc_itmon_notifier(struct notifier_block *nb, unsigned long actio
 
 	/* only for 9830 HSI2 block */
 	if (exynos_pcie->ip_ver == 0x983000) {
+		if ((itmon_info->port && !strcmp(itmon_info->port, "HSI2")) ||
+		    (itmon_info->dest && !strcmp(itmon_info->dest, "HSI2"))) {
+			regmap_read(exynos_pcie->pmureg, exynos_pcie->pmu_offset, &val);
+			dev_info(dev, "### PMU PHY Isolation : 0x%x\n", val);
+
+			exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
+		}
+	} else if (exynos_pcie->ip_ver == 0x984500){
 		if ((itmon_info->port && !strcmp(itmon_info->port, "HSI2")) ||
 		    (itmon_info->dest && !strcmp(itmon_info->dest, "HSI2"))) {
 			regmap_read(exynos_pcie->pmureg, exynos_pcie->pmu_offset, &val);
