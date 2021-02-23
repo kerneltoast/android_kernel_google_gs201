@@ -112,7 +112,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_resume_cpus,
 DECLARE_RESTRICTED_HOOK(android_rvh_find_energy_efficient_cpu,
 	TP_PROTO(struct task_struct *p, int prev_cpu, int sync, int *new_cpu),
 	TP_ARGS(p, prev_cpu, sync, new_cpu), 1);
-
+struct sched_attr;
+DECLARE_HOOK(android_vh_set_sugov_sched_attr,
+	TP_PROTO(struct sched_attr *attr),
+	TP_ARGS(attr));
 DECLARE_RESTRICTED_HOOK(android_rvh_set_iowait,
 	TP_PROTO(struct task_struct *p, int *should_iowait_boost),
 	TP_ARGS(p, should_iowait_boost), 1);
@@ -212,8 +215,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_ttwu_cond,
 	TP_ARGS(cond), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_schedule_bug,
-	TP_PROTO(void *unused),
-	TP_ARGS(unused), 1);
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_sched_exec,
 	TP_PROTO(bool *cond),
@@ -238,6 +241,20 @@ DECLARE_RESTRICTED_HOOK(android_rvh_sched_balance_rt,
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_overutilized,
 	TP_PROTO(int cpu, int *overutilized),
 	TP_ARGS(cpu, overutilized), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_dequeue_task_idle,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+struct cfs_rq;
+DECLARE_RESTRICTED_HOOK(android_rvh_pick_next_entity,
+	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *curr,
+		 struct sched_entity **se),
+	TP_ARGS(cfs_rq, curr, se), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_wakeup,
+	TP_PROTO(struct rq *rq, struct task_struct *p, bool *preempt),
+	TP_ARGS(rq, p, preempt), 1);
 
 /* macro versions of hooks are no longer required */
 
