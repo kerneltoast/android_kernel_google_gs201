@@ -153,6 +153,7 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 	const char *heapname;
 
 	switch (special_buf->buftype) {
+	case MFCBUF_NORMAL_FW:
 	case MFCBUF_NORMAL:
 		heapname = "system-uncached";
 		break;
@@ -204,7 +205,7 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 		goto err_daddr;
 	}
 
-	if (special_buf->buftype == MFCBUF_NORMAL) {
+	if (special_buf->buftype != MFCBUF_DRM) {
 		special_buf->vaddr = dma_buf_vmap(special_buf->dma_buf);
 		if (IS_ERR(special_buf->vaddr)) {
 			mfc_dev_err("Failed to get vaddr (err 0x%p)\n",
@@ -261,10 +262,10 @@ int mfc_mem_special_buf_alloc(struct mfc_dev *dev,
 	int ret;
 
 	switch (special_buf->buftype) {
-	case MFCBUF_NORMAL_FW:
 	case MFCBUF_DRM_FW:
 		ret = mfc_mem_fw_alloc(dev, special_buf);
 		break;
+	case MFCBUF_NORMAL_FW:
 	case MFCBUF_DRM:
 	case MFCBUF_NORMAL:
 		ret = mfc_mem_dma_heap_alloc(dev, special_buf);
@@ -280,10 +281,10 @@ int mfc_mem_special_buf_alloc(struct mfc_dev *dev,
 void mfc_mem_special_buf_free(struct mfc_special_buf *special_buf)
 {
 	switch (special_buf->buftype) {
-	case MFCBUF_NORMAL_FW:
 	case MFCBUF_DRM_FW:
 		mfc_mem_fw_free(special_buf);
 		break;
+	case MFCBUF_NORMAL_FW:
 	case MFCBUF_DRM:
 	case MFCBUF_NORMAL:
 		mfc_mem_dma_heap_free(special_buf);
