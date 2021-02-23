@@ -25,22 +25,9 @@
 #define SSS_CLK_ENABLE	0
 #define SSS_CLK_DISABLE	1
 
-enum modem_network {
-	UMTS_NETWORK,
-	CDMA_NETWORK,
-	TDSCDMA_NETWORK,
-	LTE_NETWORK,
-	MAX_MODEM_NETWORK
-};
-
 struct __packed multi_frame_control {
 	u8 id:7,
 	   more:1;
-};
-
-enum io_mode {
-	PIO,
-	DMA
 };
 
 enum direction {
@@ -60,9 +47,6 @@ enum read_write {
 	WR = 1,
 	RDWR = 2
 };
-
-#define STR_CP_FAIL	"cp_fail"
-#define STR_CP_WDT	"cp_wdt"	/* CP watchdog timer */
 
 /**
  * struct modem_io_t - declaration for io_device
@@ -91,44 +75,7 @@ struct modem_io_t {
 	unsigned int dl_buffer_size;
 };
 
-struct modemlink_pm_data {
-	char *name;
-	struct device *dev;
-	/* link power control 2 types : pin & regulator control */
-	int (*link_ldo_enable)(bool enable);
-	unsigned int gpio_link_enable;
-	unsigned int gpio_link_active;
-	unsigned int gpio_link_hostwake;
-	unsigned int gpio_link_slavewake;
-	int (*link_reconnect)(void *reconnect);
-
-	/* usb hub only */
-	int (*port_enable)(int i, int j);
-	int (*hub_standby)(void *standby);
-	void *hub_pm_data;
-	bool has_usbhub;
-
-	/* cpu/bus frequency lock */
-	atomic_t freqlock;
-	int (*freq_lock)(struct device *dev);
-	int (*freq_unlock)(struct device *dev);
-
-	int autosuspend_delay_ms; /* if zero, the default value is used */
-	void (*ehci_reg_dump)(struct device *dev);
-};
-
-struct modemlink_pm_link_activectl {
-	int gpio_initialized;
-	int gpio_request_host_active;
-};
-
 #if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM) || IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-enum shmem_type {
-	REAL_SHMEM,
-	C2C_SHMEM,
-	MAX_SHMEM_TYPE
-};
-
 struct modem_mbox {
 	unsigned int mbx_ap2cp_msg;
 	unsigned int mbx_cp2ap_msg;
@@ -183,7 +130,6 @@ struct modem_data {
 	struct mem_link_device *mld;
 
 	/* Modem component */
-	enum modem_network modem_net;
 	u32 modem_type;
 
 	u32 link_type;
@@ -205,12 +151,6 @@ struct modem_data {
 
 	/* check if cp2ap_active is in alive */
 	u32 cp2ap_active_not_alive;
-
-	/* Modem link PM support */
-	struct modemlink_pm_data *link_pm_data;
-
-	/* SIM Detect polarity */
-	bool sim_polarity;
 
 	/* legacy buffer setting */
 	u32 legacy_fmt_head_tail_offset;
@@ -300,9 +240,6 @@ struct modem_data {
 	u32 legacy_raw_qos_rxq_size; /* unused for now */
 #endif
 	struct cp_btl btl;	/* CP background trace log */
-
-	void (*gpio_revers_bias_clear)(void);
-	void (*gpio_revers_bias_restore)(void);
 };
 
 struct modem_irq {
@@ -373,7 +310,6 @@ struct cpif_gpio {
 #define cpif_check_bit(data, offset)	((data) & BIT(offset))
 
 #define LOG_TAG	"cpif: "
-#define FUNC	(__func__)
 #define CALLER	(__builtin_return_address(0))
 
 #define mif_err_limited(fmt, ...) \

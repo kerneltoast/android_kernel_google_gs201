@@ -1601,7 +1601,6 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 {
 	int ret = 0;
 	struct platform_device *pdev = to_platform_device(mc->dev);
-	struct resource __maybe_unused *sysram_alive;
 
 	g_mc = mc;
 

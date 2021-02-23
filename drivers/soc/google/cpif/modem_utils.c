@@ -38,9 +38,6 @@
 #include "modem_utils.h"
 #include "cpif_version.h"
 
-#define CMD_SUSPEND	((u16)(0x00CA))
-#define CMD_RESUME	((u16)(0x00CB))
-
 #define TX_SEPARATOR	"cpif: >>>>>>>>>> Outgoing packet "
 #define RX_SEPARATOR	"cpif: Incoming packet <<<<<<<<<<"
 #define LINE_SEPARATOR	\

@@ -268,15 +268,6 @@ struct __packed sipc_fmt_hdr {
 /* mark value for high priority packet, hex QOSH */
 #define RAW_HPRIO	0x514F5348
 
-/* for fragmented data from link devices */
-struct fragmented_data {
-	struct sk_buff *skb_recv;
-	struct sipc5_frame_data f_data;
-	/* page alloc fail retry*/
-	unsigned int realloc_offset;
-};
-#define fragdata(iod, ld) (&(iod)->fragments[(ld)->link_type])
-
 /** struct skbuff_priv - private data of struct sk_buff
  * this is matched to char cb[48] of struct sk_buff
  */
@@ -302,34 +293,10 @@ static inline struct skbuff_private *skbpriv(struct sk_buff *skb)
 	return (struct skbuff_private *)&skb->cb;
 }
 
-enum iod_rx_state {
-	IOD_RX_ON_STANDBY = 0,
-	IOD_RX_HEADER,
-	IOD_RX_PAYLOAD,
-	IOD_RX_PADDING,
-	MAX_IOD_RX_STATE
-};
-
-static const char * const rx_state_string[] = {
-	[IOD_RX_ON_STANDBY]	= "RX_ON_STANDBY",
-	[IOD_RX_HEADER]		= "RX_HEADER",
-	[IOD_RX_PAYLOAD]	= "RX_PAYLOAD",
-	[IOD_RX_PADDING]	= "RX_PADDING",
-};
-
-static const inline char *rx_state(enum iod_rx_state state)
-{
-	if (unlikely(state >= MAX_IOD_RX_STATE))
-		return "INVALID_STATE";
-	else
-		return rx_state_string[state];
-}
-
 struct io_device {
 	struct list_head list;
 
 	/* rb_tree node for an io device */
-	struct rb_node node_chan;
 	struct rb_node node_fmt;
 
 	/* Name of the IO device */
@@ -360,7 +327,6 @@ struct io_device {
 	u32 link_type;
 	u32 format;
 	u32 io_typ;
-	enum modem_network net_typ;
 
 	/* Attributes of an IO device */
 	u32 attrs;
@@ -383,10 +349,6 @@ struct io_device {
 	/* For keeping multi-frame packets temporarily */
 	struct sk_buff_head sk_multi_q[NUM_SIPC_MULTI_FRAME_IDS];
 
-	/* RX state used in RX FSM */
-	enum iod_rx_state curr_rx_state;
-	enum iod_rx_state next_rx_state;
-
 	/*
 	 * work for each io device, when delayed work needed
 	 * use this for private io device rx action
@@ -398,8 +360,6 @@ struct io_device {
 	 */
 	u8 info_id;
 	spinlock_t info_id_lock;
-
-	struct fragmented_data fragments[LINKDEV_MAX];
 
 	int (*recv_skb_single)(struct io_device *iod, struct link_device *ld,
 			       struct sk_buff *skb);
@@ -572,8 +532,6 @@ struct link_device {
 
 extern long gro_flush_time;
 
-#define pm_to_link_device(pm)	container_of(pm, struct link_device, pm)
-
 static inline struct sk_buff *rx_alloc_skb(unsigned int length,
 		struct io_device *iod, struct link_device *ld)
 {
@@ -654,9 +612,7 @@ struct modem_ctl {
 	struct device *dev;
 	char *name;
 	struct modem_data *mdm_data;
-
 	struct modem_shared *msd;
-	void __iomem *sysram_alive;
 
 	enum modem_state phone_state;
 	struct sim_state sim_state;
@@ -779,7 +735,6 @@ struct modem_ctl {
 	struct modem_irq s5100_irq_phone_active;
 
 	bool s5100_cp_reset_required;
-	bool s5100_iommu_map_enabled;
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
 	bool s5100_s2mpu_enabled;
 #endif
@@ -804,11 +759,6 @@ struct modem_ctl {
 	bool uart_connect;
 	bool uart_dir;
 
-	const struct attribute_group *group;
-
-	struct delayed_work dwork;
-	struct work_struct work;
-
 	struct modemctl_ops ops;
 	struct io_device *iod;
 	struct io_device *bootd;
@@ -817,8 +767,6 @@ struct modem_ctl {
 	struct notifier_block itmon_nb;
 #endif
 
-	void (*gpio_revers_bias_clear)(void);
-	void (*gpio_revers_bias_restore)(void);
 	void (*modem_complete)(struct modem_ctl *mc);
 
 	int receive_first_ipc;

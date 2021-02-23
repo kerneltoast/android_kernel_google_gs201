@@ -42,13 +42,6 @@
 #define EXYNOS_FMT_NUM		1
 #define EXYNOS_RFS_NUM		10
 
-struct __packed frag_config {
-	u8 frame_first:1,
-	frame_last:1,
-	packet_index:6;
-	u8 frame_index;
-};
-
 /* EXYNOS link-layer header */
 struct __packed exynos_link_header {
 	u16 sync;
@@ -62,32 +55,6 @@ struct __packed exynos_link_header {
 struct __packed exynos_seq_num {
 	u16 frame_cnt;
 	u8 ch_cnt[255];
-};
-
-struct exynos_frame_data {
-	/* Frame length calculated from the length fields */
-	unsigned int len;
-
-	/* The length of link layer header */
-	unsigned int hdr_len;
-
-	/* The length of received header */
-	unsigned int hdr_rcvd;
-
-	/* The length of link layer payload */
-	unsigned int pay_len;
-
-	/* The length of received data */
-	unsigned int pay_rcvd;
-
-	/* The length of link layer padding */
-	unsigned int pad_len;
-
-	/* The length of received padding */
-	unsigned int pad_rcvd;
-
-	/* Header buffer */
-	u8 hdr[EXYNOS_HEADER_SIZE];
 };
 
 static inline bool exynos_start_valid(u8 *frm)

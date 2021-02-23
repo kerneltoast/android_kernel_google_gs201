@@ -151,7 +151,6 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	}
 
 	INIT_LIST_HEAD(&iod->list);
-	RB_CLEAR_NODE(&iod->node_chan);
 	RB_CLEAR_NODE(&iod->node_fmt);
 
 	iod->name = io_t->name;
@@ -161,7 +160,6 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	iod->link_type = io_t->link_type;
 	iod->attrs = io_t->attrs;
 	iod->max_tx_size = io_t->ul_buffer_size;
-	iod->net_typ = pdata->modem_net;
 	iod->ipc_version = pdata->ipc_version;
 	atomic_set(&iod->opened, 0);
 	spin_lock_init(&iod->info_id_lock);
