@@ -33,6 +33,7 @@ per-file devfreq/gs101/**=*
 
 per-file dma/pl330.c=*
 per-file dma/samsung-*=*
+per-file dma-buf/heaps/samsung/**=*
 
 per-file gpu/exynos/**=*
 
