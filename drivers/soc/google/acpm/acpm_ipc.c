@@ -617,6 +617,14 @@ retry:
 					       __raw_readl(channel->rx_ch.front),
 					       __raw_readl(channel->tx_ch.rear),
 					       __raw_readl(channel->tx_ch.front));
+					pr_err("SR0:0x%x MR0:0x%X MSR0:0x%X,"
+						" SR1:0x%x MR1:0x%X MSR1:0x%X\n",
+						__raw_readl(acpm_ipc->intr + INTSR0),
+						__raw_readl(acpm_ipc->intr + INTMR0),
+						__raw_readl(acpm_ipc->intr + INTMSR0),
+						__raw_readl(acpm_ipc->intr + INTSR1),
+						__raw_readl(acpm_ipc->intr + INTMR1),
+						__raw_readl(acpm_ipc->intr + INTMSR1));
 					++retry_cnt;
 					goto retry;
 				} else {
