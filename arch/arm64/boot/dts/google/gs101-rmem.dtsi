@@ -135,7 +135,7 @@
 
 		mfc_fw_rmem: mfc_fw_rmem {
 			compatible = "samsung,exynos-mfc";
-			size = <0x400000>;
+			size = <0x200000>;
 			alignment = <0x0 0x00010000>;
 		};
 	};
