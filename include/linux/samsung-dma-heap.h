@@ -6,8 +6,8 @@
  * Author: <hyesoo.yu@samsung.com> for Samsung
  */
 
-#ifndef _HEAP_PRIVATE_H
-#define _HEAP_PRIVATE_H
+#ifndef _SAMSUNG_DMA_HEAP_H
+#define _SAMSUNG_DMA_HEAP_H
 
 #include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
@@ -191,4 +191,4 @@ static inline int __init carveout_dma_heap_init(void)
 #define perrfndev(dev, format, arg...) \
 	dev_err(dev, DMAHEAP_PREFIX "%s: " format "\n", __func__, ##arg)
 
-#endif /* _HEAP_PRIVATE_H */
+#endif /* _SAMSUNG_DMA_HEAP_H */
