@@ -123,22 +123,12 @@ static void __mfc_core_unprot_firmware(struct mfc_core *core, struct mfc_ctx *ct
 }
 #endif
 
-int __mfc_power_on_verify_fw(struct mfc_core *core, unsigned int fw_id,
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
+int __mfc_verify_fw(struct mfc_core *core, unsigned int fw_id,
 		phys_addr_t fw_phys_base, size_t fw_bin_size, size_t fw_mem_size)
 {
-	int ret = 0;
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
 	uint64_t ret64 = 0;
-#endif
 
-	mfc_core_debug(2, "power on\n");
-	ret = mfc_core_pm_power_on(core);
-	if (ret) {
-		mfc_core_err("Failed block power on, ret=%d\n", ret);
-		return ret;
-	}
-
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
 	/* Request F/W verification. This must be requested after power on */
 	ret64 = exynos_verify_subsystem_fw(core->name, fw_id,
 				fw_phys_base, fw_bin_size, fw_mem_size);
@@ -152,10 +142,10 @@ int __mfc_power_on_verify_fw(struct mfc_core *core, unsigned int fw_id,
 		mfc_core_err("Failed F/W verification to S2MPU, ret=%llu\n", ret64);
 		return -EIO;
 	}
-#endif
 
 	return 0;
 }
+#endif
 
 static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 {
@@ -169,17 +159,6 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	atomic_set(&core->hw_run_cnt, 0);
 	mfc_core_change_idle_mode(core, MFC_IDLE_MODE_NONE);
 
-	/* Load the FW */
-	ret = mfc_request_load_firmware(core);
-	if (ret)
-		goto err_fw_load;
-
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	ret = __mfc_core_prot_firmware(core, ctx);
-	if (ret)
-		goto err_fw_load;
-#endif
-
 	ret = mfc_alloc_common_context(core);
 	if (ret < 0) {
 		mfc_core_err("Failed to alloc common context\n");
@@ -188,13 +167,6 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	if (dbg_enable)
 		mfc_alloc_dbg_info_buffer(core);
-
-#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-	ret = __mfc_power_on_verify_fw(core, 0, core->fw_buf.paddr,
-				core->fw.fw_size, core->fw_buf.size);
-	if (ret < 0)
-		goto err_pwr_enable;
-#endif
 
 	core->curr_core_ctx = ctx->num;
 	core->preempt_core_ctx = MFC_NO_INSTANCE_SET;
@@ -221,19 +193,9 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	return ret;
 
 err_hw_init:
-#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-	mfc_core_pm_power_off(core);
-
-err_pwr_enable:
-#endif
 	mfc_release_common_context(core);
 
 err_common_ctx:
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	__mfc_core_unprot_firmware(core, ctx);
-#endif
-
-err_fw_load:
 	del_timer(&core->meerkat_timer);
 	del_timer(&core->mfc_idle_timer);
 
@@ -428,6 +390,34 @@ int __mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	if (core->num_inst == 1) {
 		mfc_debug(2, "it is first instance in to core-%d\n", core->id);
+
+		/* Load the FW */
+		ret = mfc_request_load_firmware(core);
+		if (ret)
+			goto err_fw_load;
+
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+		ret = __mfc_core_prot_firmware(core, ctx);
+		if (ret)
+			goto err_fw_load;
+#endif
+
+#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+		mfc_core_debug(2, "power on\n");
+		ret = mfc_core_pm_power_on(core);
+		if (ret) {
+			mfc_core_err("Failed block power on, ret=%d\n", ret);
+			goto err_power_on;
+		}
+
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
+		ret = __mfc_verify_fw(core, 0, core->fw_buf.paddr,
+				core->fw.fw_size, core->fw_buf.size);
+		if (ret < 0)
+			goto err_init_core;
+#endif
+#endif
+
 		ret = __mfc_core_init(core, ctx);
 		if (ret)
 			goto err_init_core;
@@ -446,6 +436,16 @@ int __mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	return 0;
 
 err_init_core:
+#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+	mfc_core_pm_power_off(core);
+
+err_power_on:
+#endif
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	__mfc_core_unprot_firmware(core, ctx);
+#endif
+
+err_fw_load:
 	core->core_ctx[ctx->num] = 0;
 	kfree(core->core_ctx[ctx->num]);
 
@@ -1146,7 +1146,20 @@ int mfc_imgloader_verify_fw(struct imgloader_desc *desc, phys_addr_t fw_phys_bas
 	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
 	int ret = 0;
 
-	ret = __mfc_power_on_verify_fw(core, desc->fw_id, fw_phys_base, fw_bin_size, fw_mem_size);
+	mfc_core_debug_enter();
+
+	mfc_core_debug(2, "power on\n");
+	ret = mfc_core_pm_power_on(core);
+	if (ret) {
+		mfc_core_err("failed block power on, ret=%d\n", ret);
+		return ret;
+	}
+
+	ret = __mfc_verify_fw(core, desc->fw_id, fw_phys_base, fw_bin_size, fw_mem_size);
+	if (ret)
+		mfc_core_pm_power_off(core);
+
+	mfc_core_debug_leave();
 
 	return ret;
 }
@@ -1156,12 +1169,16 @@ int mfc_imgloader_blk_pwron(struct imgloader_desc *desc)
 	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
 	int ret = 0;
 
+	mfc_core_debug_enter();
+
 	mfc_core_debug(2, "power on\n");
 	ret = mfc_core_pm_power_on(core);
 	if (ret) {
 		mfc_core_err("Failed %s block power on, ret=%d\n", ret);
 		return ret;
 	}
+
+	mfc_core_debug_leave();
 
 	return 0;
 }
@@ -1170,10 +1187,14 @@ int mfc_imgloader_deinit_image(struct imgloader_desc *desc)
 {
 	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
 
+	mfc_core_debug_enter();
+
 	if (mfc_core_pm_get_pwr_ref_cnt(core)) {
 		mfc_core_debug(2, "power off\n");
 		mfc_core_pm_power_off(core);
 	}
+
+	mfc_core_debug_leave();
 
 	return 0;
 }
