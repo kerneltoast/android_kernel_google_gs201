@@ -11,6 +11,12 @@
  */
 
 #include <linux/soc/samsung/exynos-smc.h>
+#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+#include <soc/samsung/imgloader.h>
+#endif
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
+#include <soc/samsung/exynos-s2mpu.h>
+#endif
 
 #include "mfc_common.h"
 
@@ -32,6 +38,40 @@
 #include "mfc_utils.h"
 #include "mfc_queue.h"
 #include "mfc_mem.h"
+
+int mfc_power_on_verify_fw(struct mfc_core *core, unsigned int fw_id,
+		phys_addr_t fw_phys_base, size_t fw_bin_size, size_t fw_mem_size)
+{
+	int ret = 0;
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
+	uint64_t ret64 = 0;
+#endif
+
+	mfc_core_debug(2, "power on\n");
+	ret = mfc_core_pm_power_on(core);
+	if (ret) {
+		mfc_core_err("Failed block power on, ret=%d\n", ret);
+		return ret;
+	}
+
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
+	/* Request F/W verification. This must be requested after power on */
+	ret64 = exynos_verify_subsystem_fw(core->name, fw_id,
+				fw_phys_base, fw_bin_size, fw_mem_size);
+	if (ret64) {
+		mfc_core_err("Failed F/W verification, ret=%llu\n", ret64);
+		return -EIO;
+	}
+
+	ret64 = exynos_request_fw_stage2_ap(core->name);
+	if (ret64) {
+		mfc_core_err("Failed F/W verification to S2MPU, ret=%llu\n", ret64);
+		return -EIO;
+	}
+#endif
+
+	return 0;
+}
 
 static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 {
@@ -1091,3 +1131,102 @@ int mfc_core_request_work(struct mfc_core *core, enum mfc_request_work work,
 
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+int mfc_imgloader_mem_setup(struct imgloader_desc *desc, const u8 *fw_data, size_t fw_size,
+	phys_addr_t *fw_phys_base, size_t *fw_bin_size, size_t *fw_mem_size)
+{
+	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
+
+	mfc_core_debug_enter();
+
+	mfc_core_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n", fw_size);
+
+	if (fw_size > core->fw_buf.size) {
+		mfc_core_err("[MEMINFO][F/W] MFC firmware(%zu) is too big to be loaded in memory(%zu)\n",
+				fw_size, core->fw_buf.size);
+		return -ENOMEM;
+	}
+
+	core->fw.fw_size = fw_size;
+
+	if (core->fw_buf.sgt == NULL || core->fw_buf.daddr == 0) {
+		mfc_core_err("[F/W] MFC firmware is not allocated or was not mapped correctly\n");
+		return -EINVAL;
+	}
+
+	/*  This adds to clear with '0' for firmware memory except code region. */
+	mfc_core_debug(4, "[F/W] memset before memcpy for normal fw\n");
+	memset((core->fw_buf.vaddr + fw_size), 0, (core->fw_buf.size - fw_size));
+	memcpy(core->fw_buf.vaddr, fw_data, fw_size);
+
+	/* cache flush for memcpy by CPU */
+	dma_sync_sg_for_device(core->device, core->fw_buf.sgt->sgl,
+		core->fw_buf.sgt->orig_nents, DMA_TO_DEVICE);
+
+	if (core->drm_fw_buf.vaddr) {
+		mfc_core_debug(4, "[F/W] memset before memcpy for secure fw\n");
+		memset((core->drm_fw_buf.vaddr + fw_size), 0, (core->drm_fw_buf.size - fw_size));
+		memcpy(core->drm_fw_buf.vaddr, fw_data, fw_size);
+		mfc_core_debug(4, "[F/W] copy firmware to secure region\n");
+
+		/* cache flush for memcpy by CPU */
+		dma_sync_sg_for_device(core->device, core->drm_fw_buf.sgt->sgl,
+				core->drm_fw_buf.sgt->orig_nents, DMA_TO_DEVICE);
+		mfc_core_debug(4, "[F/W] cache flush for secure region\n");
+	}
+
+	*fw_phys_base = core->fw_buf.paddr;
+	*fw_bin_size = fw_size;
+	*fw_mem_size = core->fw_buf.size;
+
+	mfc_core_debug_leave();
+
+	return 0;
+}
+
+int mfc_imgloader_verify_fw(struct imgloader_desc *desc, phys_addr_t fw_phys_base,
+	size_t fw_bin_size, size_t fw_mem_size)
+{
+	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
+	int ret = 0;
+
+	ret = mfc_power_on_verify_fw(core, desc->fw_id, fw_phys_base, fw_bin_size, fw_mem_size);
+
+	return ret;
+}
+
+int mfc_imgloader_blk_pwron(struct imgloader_desc *desc)
+{
+	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
+	int ret = 0;
+
+	mfc_core_debug(2, "power on\n");
+	ret = mfc_core_pm_power_on(core);
+	if (ret) {
+		mfc_core_err("Failed %s block power on, ret=%d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+int mfc_imgloader_deinit_image(struct imgloader_desc *desc)
+{
+	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
+
+	if (mfc_core_pm_get_pwr_ref_cnt(core)) {
+		mfc_core_debug(2, "power off\n");
+		mfc_core_pm_power_off(core);
+	}
+
+	return 0;
+}
+
+struct imgloader_ops mfc_imgloader_ops = {
+	.mem_setup = mfc_imgloader_mem_setup,
+	.verify_fw = mfc_imgloader_verify_fw,
+	.blk_pwron = mfc_imgloader_blk_pwron,
+	.deinit_image = mfc_imgloader_deinit_image,
+};
+#endif

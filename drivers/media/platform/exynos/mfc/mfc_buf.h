@@ -36,8 +36,6 @@ void mfc_otf_release_stream_buf(struct mfc_ctx *ctx);
 int mfc_alloc_firmware(struct mfc_core *core);
 int mfc_load_firmware(struct mfc_core *core);
 int mfc_release_firmware(struct mfc_core *core);
-int mfc_power_on_verify_fw(struct mfc_core *core, unsigned int fw_id,
-	phys_addr_t fw_phys_base, size_t fw_bin_size, size_t fw_mem_size);
 
 int mfc_alloc_dbg_info_buffer(struct mfc_core *core);
 void mfc_release_dbg_info_buffer(struct mfc_core *core);
