@@ -1177,60 +1177,6 @@ out:
 	return ret;
 }
 
-static void setup_dma_device(struct ib_device *device)
-{
-	struct device *parent = device->dev.parent;
-
-	WARN_ON_ONCE(device->dma_device);
-
-#ifdef CONFIG_DMA_OPS
-	if (device->dev.dma_ops) {
-		/*
-		 * The caller provided custom DMA operations. Copy the
-		 * DMA-related fields that are used by e.g. dma_alloc_coherent()
-		 * into device->dev.
-		 */
-		device->dma_device = &device->dev;
-		if (!device->dev.dma_mask) {
-			if (parent)
-				device->dev.dma_mask = parent->dma_mask;
-			else
-				WARN_ON_ONCE(true);
-		}
-		if (!device->dev.coherent_dma_mask) {
-			if (parent)
-				device->dev.coherent_dma_mask =
-					parent->coherent_dma_mask;
-			else
-				WARN_ON_ONCE(true);
-		}
-	} else
-#endif /* CONFIG_DMA_OPS */
-	{
-		/*
-		 * The caller did not provide custom DMA operations. Use the
-		 * DMA mapping operations of the parent device.
-		 */
-		WARN_ON_ONCE(!parent);
-		device->dma_device = parent;
-	}
-
-	if (!device->dev.dma_parms) {
-		if (parent) {
-			/*
-			 * The caller did not provide DMA parameters, so
-			 * 'parent' probably represents a PCI device. The PCI
-			 * core sets the maximum segment size to 64
-			 * KB. Increase this parameter to 2 GB.
-			 */
-			device->dev.dma_parms = parent->dma_parms;
-			dma_set_max_seg_size(device->dma_device, SZ_2G);
-		} else {
-			WARN_ON_ONCE(true);
-		}
-	}
-}
-
 /*
  * setup_device() allocates memory and sets up data that requires calling the
  * device ops, this is the only reason these actions are not done during
@@ -1241,7 +1187,6 @@ static int setup_device(struct ib_device *device)
 	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
 	int ret;
 
-	setup_dma_device(device);
 	ib_device_check_mandatory(device);
 
 	ret = setup_port_data(device);
@@ -1354,7 +1299,10 @@ static void prevent_dealloc_device(struct ib_device *ib_dev)
  * ib_register_device - Register an IB device with IB core
  * @device: Device to register
  * @name: unique string device name. This may include a '%' which will
- * cause a unique index to be added to the passed device name.
+ * 	  cause a unique index to be added to the passed device name.
+ * @dma_device: pointer to a DMA-capable device. If %NULL, then the IB
+ *	        device will be used. In this case the caller should fully
+ *		setup the ibdev for DMA. This usually means using dma_virt_ops.
  *
  * Low-level drivers use ib_register_device() to register their
  * devices with the IB core.  All registered clients will receive a
@@ -1365,13 +1313,22 @@ static void prevent_dealloc_device(struct ib_device *ib_dev)
  * asynchronously then the device pointer may become freed as soon as this
  * function returns.
  */
-int ib_register_device(struct ib_device *device, const char *name)
+int ib_register_device(struct ib_device *device, const char *name,
+		       struct device *dma_device)
 {
 	int ret;
 
 	ret = assign_name(device, name);
 	if (ret)
 		return ret;
+
+	/*
+	 * If the caller does not provide a DMA capable device then the IB core
+	 * will set up ib_sge and scatterlist structures that stash the kernel
+	 * virtual address into the address field.
+	 */
+	WARN_ON(dma_device && !dma_device->dma_parms);
+	device->dma_device = dma_device;
 
 	ret = setup_device(device);
 	if (ret)
@@ -1405,9 +1362,6 @@ int ib_register_device(struct ib_device *device, const char *name)
 	}
 
 	ret = enable_device_and_get(device);
-	dev_set_uevent_suppress(&device->dev, false);
-	/* Mark for userspace that device is ready */
-	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
 	if (ret) {
 		void (*dealloc_fn)(struct ib_device *);
 
@@ -1427,8 +1381,12 @@ int ib_register_device(struct ib_device *device, const char *name)
 		ib_device_put(device);
 		__ib_unregister_device(device);
 		device->ops.dealloc_driver = dealloc_fn;
+		dev_set_uevent_suppress(&device->dev, false);
 		return ret;
 	}
+	dev_set_uevent_suppress(&device->dev, false);
+	/* Mark for userspace that device is ready */
+	kobject_uevent(&device->dev.kobj, KOBJ_ADD);
 	ib_device_put(device);
 
 	return 0;
@@ -2697,12 +2655,29 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_OBJ_SIZE(dev_ops, ib_ah);
 	SET_OBJ_SIZE(dev_ops, ib_counters);
 	SET_OBJ_SIZE(dev_ops, ib_cq);
+	SET_OBJ_SIZE(dev_ops, ib_mw);
 	SET_OBJ_SIZE(dev_ops, ib_pd);
+	SET_OBJ_SIZE(dev_ops, ib_rwq_ind_table);
 	SET_OBJ_SIZE(dev_ops, ib_srq);
 	SET_OBJ_SIZE(dev_ops, ib_ucontext);
 	SET_OBJ_SIZE(dev_ops, ib_xrcd);
 }
 EXPORT_SYMBOL(ib_set_device_ops);
+
+#ifdef CONFIG_INFINIBAND_VIRT_DMA
+int ib_dma_virt_map_sg(struct ib_device *dev, struct scatterlist *sg, int nents)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i) {
+		sg_dma_address(s) = (uintptr_t)sg_virt(s);
+		sg_dma_len(s) = s->length;
+	}
+	return nents;
+}
+EXPORT_SYMBOL(ib_dma_virt_map_sg);
+#endif /* CONFIG_INFINIBAND_VIRT_DMA */
 
 static const struct rdma_nl_cbs ibnl_ls_cb_table[RDMA_NL_LS_NUM_OPS] = {
 	[RDMA_NL_LS_OP_RESOLVE] = {

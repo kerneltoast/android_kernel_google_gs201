@@ -38,6 +38,7 @@ struct power_table {
  *
  * @id:           unique identifier for thie GPU cooling device
  * @cool_dev:     &thermal_cooling_device backing this GPU cooling device
+ * @tzd:          &thermal zone device backing this GPU cooling device
  *
  * @gpu_drv_data: Data passed unmodified to GPU query functions
  * @gpu_fns:      Function pointer block of GPU query functions for this GPU
@@ -63,6 +64,7 @@ struct power_table {
 struct gpufreq_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
+	struct thermal_zone_device *tzd;
 	void *gpu_drv_data;
 	struct gpufreq_cooling_query_fns *gpu_fns;
 	struct cpufreq_frequency_table *gpu_freq_table;
@@ -510,7 +512,6 @@ static u32 gpu_power_to_freq(struct gpufreq_cooling_device *gpufreq_cdev,
  * get_static_power() - calculate the static power consumed by the gpus
  *
  * @gpufreq_cdev: struct &gpufreq_cooling_device for this gpu cdev
- * @tz:           thermal zone device in which we're operating
  * @level:        level in the GPU DVFS OPP table
  * @power:        pointer in which to store the calculated static power
  *
@@ -523,13 +524,19 @@ static u32 gpu_power_to_freq(struct gpufreq_cooling_device *gpufreq_cdev,
  * Return: 0 on success, or an error value on failure.
  */
 static int get_static_power(struct gpufreq_cooling_device *gpufreq_cdev,
-			    struct thermal_zone_device *tz, int level,
-			    u32 *power)
+			    int level, u32 *power)
 {
+	struct thermal_zone_device *tz = gpufreq_cdev->tzd;
 	unsigned int voltage;
 
 	if (level < 0) {
 		pr_warn("%s passed invalid level %d\n", __func__, level);
+		*power = 0;
+		return -EINVAL;
+	}
+
+	if (!tz) {
+		pr_warn("%s no thermal zone\n", __func__);
 		*power = 0;
 		return -EINVAL;
 	}
@@ -648,7 +655,6 @@ static int gpufreq_get_cur_state(struct thermal_cooling_device *cdev,
  * gpufreq_get_requested_power() - get the current power
  *
  * @cdev:  &thermal_cooling_device pointer
- * @tz:	   a valid thermal zone device pointer
  * @power: pointer in which to store the resulting power
  *
  * Calculate the current power consumption of the gpus in milliwatts
@@ -669,7 +675,6 @@ static int gpufreq_get_cur_state(struct thermal_cooling_device *cdev,
  * Return: 0 on success, -E* if getting the static power failed.
  */
 static int gpufreq_get_requested_power(struct thermal_cooling_device *cdev,
-				       struct thermal_zone_device *tz,
 				       u32 *power)
 {
 	unsigned int freq;
@@ -684,7 +689,7 @@ static int gpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	gpufreq_cdev->last_load = load;
 	dynamic_power = get_dynamic_power(gpufreq_cdev, freq);
 
-	ret = get_static_power(gpufreq_cdev, tz, level, &static_power);
+	ret = get_static_power(gpufreq_cdev, level, &static_power);
 	if (ret)
 		return ret;
 
@@ -700,7 +705,6 @@ static int gpufreq_get_requested_power(struct thermal_cooling_device *cdev,
  * gpufreq_state2power() - convert a gpu cdev state to power consumed
  *
  * @cdev:  &thermal_cooling_device pointer
- * @tz:	   a valid thermal zone device pointer
  * @state: cooling device state to be converted
  * @power: pointer in which to store the resulting power
  *
@@ -713,7 +717,6 @@ static int gpufreq_get_requested_power(struct thermal_cooling_device *cdev,
  *         when calculating the static power.
  */
 static int gpufreq_state2power(struct thermal_cooling_device *cdev,
-			       struct thermal_zone_device *tz,
 			       unsigned long state, u32 *power)
 {
 	unsigned int freq;
@@ -726,7 +729,7 @@ static int gpufreq_state2power(struct thermal_cooling_device *cdev,
 		return -EINVAL;
 
 	dynamic_power = gpu_freq_to_power(gpufreq_cdev, freq);
-	ret = get_static_power(gpufreq_cdev, tz, state, &static_power);
+	ret = get_static_power(gpufreq_cdev, state, &static_power);
 	if (ret)
 		return ret;
 
@@ -738,7 +741,6 @@ static int gpufreq_state2power(struct thermal_cooling_device *cdev,
  * gpufreq_power2state() - convert power to a cooling device state
  *
  * @cdev:  &thermal_cooling_device pointer
- * @tz:	   a valid thermal zone device pointer
  * @power: power in milliwatts to be converted
  * @state: pointer in which to store the resulting state
  *
@@ -756,8 +758,7 @@ static int gpufreq_state2power(struct thermal_cooling_device *cdev,
  *         device.
  */
 static int gpufreq_power2state(struct thermal_cooling_device *cdev,
-			       struct thermal_zone_device *tz, u32 power,
-			       unsigned long *state)
+			       u32 power, unsigned long *state)
 {
 	unsigned int target_freq;
 	int ret;
@@ -767,7 +768,7 @@ static int gpufreq_power2state(struct thermal_cooling_device *cdev,
 	int level;
 
 	level = gpufreq_cdev->gpu_fns->get_cur_level(gpufreq_cdev->gpu_drv_data);
-	ret = get_static_power(gpufreq_cdev, tz, level, &static_power);
+	ret = get_static_power(gpufreq_cdev, level, &static_power);
 	if (ret)
 		return ret;
 
@@ -828,11 +829,11 @@ int gpufreq_cooling_remove_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(gpufreq_cooling_remove_notifier);
 
-static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
-				   char *cooling_name)
+static struct thermal_zone_device * parse_ect_cooling_level(
+	struct thermal_cooling_device *cdev, char *cooling_name)
 {
 	struct thermal_instance *instance;
-	struct thermal_zone_device *tz;
+	struct thermal_zone_device *tz = NULL;
 	bool foundtz = false;
 	void *thermal_block;
 	struct ect_ap_thermal_function *function;
@@ -886,7 +887,7 @@ static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
 			cooling_name, i, temperature, freq, level);
 	}
 skip_ect:
-	return 0;
+	return tz;
 }
 
 /**
@@ -1053,7 +1054,7 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 		goto free_cool_dev;
 	}
 
-	parse_ect_cooling_level(cool_dev, "G3D");
+	gpufreq_cdev->tzd = parse_ect_cooling_level(cool_dev, "G3D");
 
 	gpufreq_cdev->cool_dev = cool_dev;
 	gpufreq_cdev->gpufreq_state = 0;

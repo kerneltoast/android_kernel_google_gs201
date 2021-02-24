@@ -48,6 +48,7 @@
 #include <linux/sched/mm.h>
 #include <trace/events/block.h>
 #include <linux/fscrypt.h>
+#include <linux/xarray.h>
 
 #include "internal.h"
 
@@ -842,13 +843,13 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
 	struct buffer_head *bh, *head;
 	gfp_t gfp = GFP_NOFS | __GFP_ACCOUNT;
 	long offset;
-	struct mem_cgroup *memcg;
+	struct mem_cgroup *memcg, *old_memcg;
 
 	if (retry)
 		gfp |= __GFP_NOFAIL;
 
 	memcg = get_mem_cgroup_from_page(page);
-	memalloc_use_memcg(memcg);
+	old_memcg = set_active_memcg(memcg);
 
 	head = NULL;
 	offset = PAGE_SIZE;
@@ -867,7 +868,7 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
 		set_bh_page(bh, page, offset);
 	}
 out:
-	memalloc_unuse_memcg();
+	set_active_memcg(old_memcg);
 	mem_cgroup_put(memcg);
 	return head;
 /*
@@ -1434,11 +1435,54 @@ static bool has_bh_in_lru(int cpu, void *dummy)
 	return false;
 }
 
+static void __evict_bhs_lru(void *arg)
+{
+	struct bh_lru *b = &get_cpu_var(bh_lrus);
+	struct xarray *busy_bhs = arg;
+	struct buffer_head *bh;
+	unsigned long i, xarray_index;
+
+	xa_for_each(busy_bhs, xarray_index, bh) {
+		for (i = 0; i < BH_LRU_SIZE; i++) {
+			if (b->bhs[i] == bh) {
+				brelse(b->bhs[i]);
+				b->bhs[i] = NULL;
+				break;
+			}
+		}
+	}
+
+	put_cpu_var(bh_lrus);
+}
+
+static bool page_has_bhs_in_lru(int cpu, void *arg)
+{
+	struct bh_lru *b = per_cpu_ptr(&bh_lrus, cpu);
+	struct xarray *busy_bhs = arg;
+	struct buffer_head *bh;
+	unsigned long i, xarray_index;
+
+	xa_for_each(busy_bhs, xarray_index, bh) {
+		for (i = 0; i < BH_LRU_SIZE; i++) {
+			if (b->bhs[i] == bh)
+				return true;
+		}
+	}
+
+	return false;
+
+}
 void invalidate_bh_lrus(void)
 {
 	on_each_cpu_cond(has_bh_in_lru, invalidate_bh_lru, NULL, 1);
 }
 EXPORT_SYMBOL_GPL(invalidate_bh_lrus);
+
+static void evict_bh_lrus(struct xarray *busy_bhs)
+{
+	on_each_cpu_cond(page_has_bhs_in_lru, __evict_bhs_lru,
+			 busy_bhs, 1);
+}
 
 void set_bh_page(struct buffer_head *bh,
 		struct page *page, unsigned long offset)
@@ -2771,16 +2815,6 @@ int nobh_writepage(struct page *page, get_block_t *get_block,
 	/* Is the page fully outside i_size? (truncate in progress) */
 	offset = i_size & (PAGE_SIZE-1);
 	if (page->index >= end_index+1 || !offset) {
-		/*
-		 * The page may have dirty, unmapped buffers.  For example,
-		 * they may have been added in ext3_writepage().  Make them
-		 * freeable here, so the page does not leak.
-		 */
-#if 0
-		/* Not really sure about this  - do we need this ? */
-		if (page->mapping->a_ops->invalidatepage)
-			page->mapping->a_ops->invalidatepage(page, offset);
-#endif
 		unlock_page(page);
 		return 0; /* don't care */
 	}
@@ -2975,12 +3009,6 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 	/* Is the page fully outside i_size? (truncate in progress) */
 	offset = i_size & (PAGE_SIZE-1);
 	if (page->index >= end_index+1 || !offset) {
-		/*
-		 * The page may have dirty, unmapped buffers.  For example,
-		 * they may have been added in ext3_writepage().  Make them
-		 * freeable here, so the page does not leak.
-		 */
-		do_invalidatepage(page, 0, PAGE_SIZE);
 		unlock_page(page);
 		return 0; /* don't care */
 	}
@@ -3216,14 +3244,38 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
 {
 	struct buffer_head *head = page_buffers(page);
 	struct buffer_head *bh;
+	struct xarray busy_bhs;
+	int bh_count = 0;
+	int xa_ret, ret = 0;
+
+	xa_init(&busy_bhs);
 
 	bh = head;
 	do {
-		if (buffer_busy(bh))
-			goto failed;
+		if (buffer_busy(bh)) {
+			xa_ret = xa_err(xa_store(&busy_bhs, bh_count++,
+						 bh, GFP_ATOMIC));
+			if (xa_ret)
+				goto out;
+		}
 		bh = bh->b_this_page;
 	} while (bh != head);
 
+	if (bh_count) {
+		/*
+		 * Check if the busy failure was due to an outstanding
+		 * LRU reference
+		 */
+		evict_bh_lrus(&busy_bhs);
+		do {
+			if (buffer_busy(bh))
+				goto out;
+
+			bh = bh->b_this_page;
+		} while (bh != head);
+	}
+
+	ret = 1;
 	do {
 		struct buffer_head *next = bh->b_this_page;
 
@@ -3233,9 +3285,10 @@ drop_buffers(struct page *page, struct buffer_head **buffers_to_free)
 	} while (bh != head);
 	*buffers_to_free = head;
 	detach_page_private(page);
-	return 1;
-failed:
-	return 0;
+out:
+	xa_destroy(&busy_bhs);
+
+	return ret;
 }
 
 int try_to_free_buffers(struct page *page)

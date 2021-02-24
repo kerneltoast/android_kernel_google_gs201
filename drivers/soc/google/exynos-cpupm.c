@@ -17,11 +17,11 @@
 #include <linux/cpu_pm.h>
 #include <linux/cpuidle.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 
 #include <trace/hooks/cpuidle.h>
-#include <trace/events/power.h>
 
 #include <soc/google/exynos-cpupm.h>
 #include <soc/google/cal-if.h>
@@ -141,6 +141,7 @@ static LIST_HEAD(mode_list);
 struct exynos_cpupm {
 	/* cpu state, BUSY or IDLE */
 	int			state;
+	ktime_t			next_hrtimer;
 
 	/* CPU statistics */
 	struct cpupm_stats	stat[CPUIDLE_STATE_MAX];
@@ -188,11 +189,10 @@ EXPORT_SYMBOL_GPL(exynos_cpupm_notifier_register);
 
 static int exynos_cpupm_notify(int event, int v)
 {
-	int nr_calls;
-	int ret = 0;
+	int ret;
 
 	read_lock(&notifier_lock);
-	ret = __raw_notifier_call_chain(&notifier_chain, event, &v, -1, &nr_calls);
+	ret = raw_notifier_call_chain(&notifier_chain, event, &v);
 	read_unlock(&notifier_lock);
 
 	return notifier_to_errno(ret);
@@ -367,22 +367,21 @@ static void cpuidle_profile_end(struct cpupm_stats *stat, int cancel)
 	stat->entry_time = 0;
 }
 
-static void vendor_hook_cpu_idle(void *data, int event, int state, int cpu)
+static void vendor_hook_cpu_idle_enter(void *data, int *state, struct cpuidle_device *dev)
 {
-	struct exynos_cpupm *pm = per_cpu_ptr(cpupm, cpu);
+	struct exynos_cpupm *pm = per_cpu_ptr(cpupm, dev->cpu);
 
-	if (state > cpuidle_state_max)
-	       cpuidle_state_max = state;
+	pm->next_hrtimer = dev->next_hrtimer;
 
-	switch (event) {
-	case PWR_EVENT_EXIT:
-		cpuidle_profile_end(&pm->stat[pm->entered_state], state);
-		break;
-	default:
-		pm->entered_state = state;
-		cpuidle_profile_begin(&pm->stat[state]);
-		break;
-	}
+	pm->entered_state = *state;
+	cpuidle_profile_begin(&pm->stat[pm->entered_state]);
+}
+
+static void vendor_hook_cpu_idle_exit(void *data, int state, struct cpuidle_device *dev)
+{
+	struct exynos_cpupm *pm = per_cpu_ptr(cpupm, dev->cpu);
+
+	cpuidle_profile_end(&pm->stat[pm->entered_state], state);
 }
 
 static ktime_t cpupm_init_time;
@@ -698,9 +697,17 @@ void enable_power_mode(int cpu, int type)
 }
 EXPORT_SYMBOL_GPL(enable_power_mode);
 
+static s64 get_sleep_length(int cpu, ktime_t now)
+{
+	struct exynos_cpupm *pm = per_cpu_ptr(cpupm, cpu);
+
+	return ktime_to_us(ktime_sub(pm->next_hrtimer, now));
+}
+
 static int cpus_busy(int target_residency, const struct cpumask *cpus)
 {
 	int cpu;
+	ktime_t now = ktime_get();
 
 	/*
 	 * If there is even one cpu which is not in IDLE state or has
@@ -711,6 +718,9 @@ static int cpus_busy(int target_residency, const struct cpumask *cpus)
 		struct exynos_cpupm *pm = per_cpu_ptr(cpupm, cpu);
 
 		if (check_state_busy(pm))
+			return -EBUSY;
+
+		if (get_sleep_length(cpu, now) < target_residency)
 			return -EBUSY;
 	}
 
@@ -1297,6 +1307,24 @@ static int exynos_cpupm_mode_init(struct platform_device *pdev)
 	return 0;
 }
 
+static int exynos_cpuidle_state_init(void)
+{
+	struct device_node *cpu_node;
+	int cpu, max;
+
+	for_each_possible_cpu(cpu) {
+		cpu_node = of_cpu_device_node_get(cpu);
+		if (!cpu_node)
+			return -ENODEV;
+
+		max = of_count_phandle_with_args(cpu_node, "cpu-idle-states", NULL);
+		if (max > cpuidle_state_max)
+			cpuidle_state_max = max;
+	}
+
+	return 0;
+}
+
 #define PMU_IDLE_IP(x)			(0x03E0 + (0x4 * x))
 #define EXTERN_IDLE_IP_MAX		(4)
 static int extern_idle_ip_init(struct device_node *dn)
@@ -1375,6 +1403,10 @@ static int exynos_cpupm_probe(struct platform_device *pdev)
 			      &pdev->dev.kobj, "cpupm"))
 		pr_err("Failed to link CPUPM sysfs to cpu\n");
 
+	ret = exynos_cpuidle_state_init();
+	if (ret)
+		return ret;
+
 	ret = exynos_cpupm_mode_init(pdev);
 	if (ret)
 		return ret;
@@ -1403,7 +1435,9 @@ static int exynos_cpupm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = register_trace_android_vh_cpu_idle(vendor_hook_cpu_idle, NULL);
+	ret = register_trace_android_vh_cpu_idle_enter(vendor_hook_cpu_idle_enter, NULL);
+	WARN_ON(ret);
+	ret = register_trace_android_vh_cpu_idle_exit(vendor_hook_cpu_idle_exit, NULL);
 	WARN_ON(ret);
 
 	cpupm_init_time = ktime_get();

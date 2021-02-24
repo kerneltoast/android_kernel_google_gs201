@@ -22,6 +22,7 @@ per-file linux/platform_data/spi-s3c64xx.h=*
 per-file linux/platform_data/sscoredump.h=*
 per-file linux/regulator/pmic_class.h=*
 per-file linux/shm_ipc.h=*
+per-file linux/samsung-secure-iova.h=*
 per-file linux/soc/**=*
 per-file linux/trusty/*=*
 per-file linux/usb/f_mtp.h=*

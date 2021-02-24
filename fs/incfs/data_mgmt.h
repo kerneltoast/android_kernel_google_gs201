@@ -13,12 +13,14 @@
 #include <linux/rcupdate.h>
 #include <linux/completion.h>
 #include <linux/wait.h>
+#include <linux/zstd.h>
 #include <crypto/hash.h>
 #include <linux/rwsem.h>
 
 #include <uapi/linux/incrementalfs.h>
 
 #include "internal.h"
+#include "pseudo_files.h"
 
 #define SEGMENTS_PER_FILE 3
 
@@ -41,7 +43,7 @@ struct same_file_record {
 	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE */
 	u32 block_index : 30;
 	u32 relative_ts_us; /* max 2^32 us ~= 1 hour (1:11:30) */
-} __packed; /* 12 bytes */
+} __packed; /* 8 bytes */
 
 struct same_file_next_block {
 	enum LOG_RECORD_TYPE type : 2; /* SAME_FILE_NEXT_BLOCK */
@@ -102,8 +104,6 @@ struct mount_options {
 	unsigned int readahead_pages;
 	unsigned int read_log_pages;
 	unsigned int read_log_wakeup_count;
-	bool no_backing_file_cache;
-	bool no_backing_file_readahead;
 	bool report_uid;
 };
 
@@ -152,11 +152,8 @@ struct mount_info {
 	/* Temporary buffer for read logger. */
 	struct read_log mi_log;
 
-	void *log_xattr;
-	size_t log_xattr_size;
-
-	void *pending_read_xattr;
-	size_t pending_read_xattr_size;
+	/* SELinux needs special xattrs on our pseudo files */
+	struct mem_range pseudo_file_xattr[PSEUDO_FILE_COUNT];
 
 	/* A queue of waiters who want to be notified about blocks_written */
 	wait_queue_head_t mi_blocks_written_notif_wq;
@@ -168,6 +165,12 @@ struct mount_info {
 	spinlock_t mi_per_uid_read_timeouts_lock;
 	struct incfs_per_uid_read_timeouts *mi_per_uid_read_timeouts;
 	int mi_per_uid_read_timeouts_size;
+
+	/* zstd workspace */
+	struct mutex mi_zstd_workspace_mutex;
+	void *mi_zstd_workspace;
+	ZSTD_DStream *mi_zstd_stream;
+	struct delayed_work mi_zstd_cleanup_work;
 };
 
 struct data_file_block {
@@ -326,14 +329,12 @@ struct dentry *incfs_lookup_dentry(struct dentry *parent, const char *name);
 struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf);
 void incfs_free_data_file(struct data_file *df);
 
-int incfs_scan_metadata_chain(struct data_file *df);
-
 struct dir_file *incfs_open_dir_file(struct mount_info *mi, struct file *bf);
 void incfs_free_dir_file(struct dir_file *dir);
 
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
-			int index, int min_time_ms,
-			int min_pending_time_ms, int max_pending_time_ms,
+			int index, u32 min_time_us,
+			u32 min_pending_time_us, u32 max_pending_time_us,
 			struct mem_range tmp);
 
 int incfs_get_filled_blocks(struct data_file *df,
@@ -447,7 +448,5 @@ static inline int get_blocks_count_for_size(u64 size)
 		return 0;
 	return 1 + (size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
 }
-
-bool incfs_equal_ranges(struct mem_range lhs, struct mem_range rhs);
 
 #endif /* _INCFS_DATA_MGMT_H */

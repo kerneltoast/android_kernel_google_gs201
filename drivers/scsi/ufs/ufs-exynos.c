@@ -911,8 +911,9 @@ static void __fixup_dev_quirks(struct ufs_hba *hba)
 }
 
 /* to make device state active */
-static void __device_reset(struct ufs_hba *hba)
+static int __device_reset(struct ufs_hba *hba)
 {
+	return 0;
 }
 
 static struct ufs_hba_variant_ops exynos_ufs_ops = {

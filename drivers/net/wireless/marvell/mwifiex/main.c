@@ -48,6 +48,8 @@ bool aggr_ctrl;
 module_param(aggr_ctrl, bool, 0000);
 MODULE_PARM_DESC(aggr_ctrl, "usb tx aggregation enable:1, disable:0");
 
+const u16 mwifiex_1d_to_wmm_queue[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
+
 /*
  * This function registers the device and performs all the necessary
  * initializations.
@@ -1468,6 +1470,8 @@ int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	mwifiex_deauthenticate(priv, NULL);
+
+	mwifiex_init_shutdown_fw(priv, MWIFIEX_FUNC_SHUTDOWN);
 
 	mwifiex_uninit_sw(adapter);
 	adapter->is_up = false;

@@ -15,7 +15,8 @@
 #include "format.h"
 #include "data_mgmt.h"
 
-struct backing_file_context *incfs_alloc_bfc(struct file *backing_file)
+struct backing_file_context *incfs_alloc_bfc(struct mount_info *mi,
+					     struct file *backing_file)
 {
 	struct backing_file_context *result = NULL;
 
@@ -24,6 +25,7 @@ struct backing_file_context *incfs_alloc_bfc(struct file *backing_file)
 		return ERR_PTR(-ENOMEM);
 
 	result->bc_file = get_file(backing_file);
+	result->bc_cred = mi->mi_owner;
 	mutex_init(&result->bc_mutex);
 	return result;
 }
@@ -40,7 +42,7 @@ void incfs_free_bfc(struct backing_file_context *bfc)
 	kfree(bfc);
 }
 
-loff_t incfs_get_end_offset(struct file *f)
+static loff_t incfs_get_end_offset(struct file *f)
 {
 	/*
 	 * This function assumes that file size and the end-offset
@@ -92,7 +94,7 @@ static int truncate_backing_file(struct backing_file_context *bfc,
 static int write_to_bf(struct backing_file_context *bfc, const void *buf,
 			size_t count, loff_t pos)
 {
-	ssize_t res = incfs_kwrite(bfc->bc_file, buf, count, pos);
+	ssize_t res = incfs_kwrite(bfc, buf, count, pos);
 
 	if (res < 0)
 		return res;
@@ -346,13 +348,13 @@ int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
 		return write_new_status_to_backing_file(bfc,
 				data_blocks_written, hash_blocks_written);
 
-	result = incfs_kread(bfc->bc_file, &is, sizeof(is), status_offset);
+	result = incfs_kread(bfc, &is, sizeof(is), status_offset);
 	if (result != sizeof(is))
 		return -EIO;
 
 	is.is_data_blocks_written = cpu_to_le32(data_blocks_written);
 	is.is_hash_blocks_written = cpu_to_le32(hash_blocks_written);
-	result = incfs_kwrite(bfc->bc_file, &is, sizeof(is), status_offset);
+	result = incfs_kwrite(bfc, &is, sizeof(is), status_offset);
 	if (result != sizeof(is))
 		return -EIO;
 
@@ -503,29 +505,6 @@ int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
 	return write_to_bf(bfc, &bm_entry, sizeof(bm_entry), bm_entry_off);
 }
 
-/* Initialize a new image in a given backing file. */
-int incfs_make_empty_backing_file(struct backing_file_context *bfc,
-				  incfs_uuid_t *uuid, u64 file_size)
-{
-	int result = 0;
-
-	if (!bfc || !bfc->bc_file)
-		return -EFAULT;
-
-	result = mutex_lock_interruptible(&bfc->bc_mutex);
-	if (result)
-		goto out;
-
-	result = truncate_backing_file(bfc, 0);
-	if (result)
-		goto out;
-
-	result = incfs_write_fh_to_backing_file(bfc, uuid, file_size);
-out:
-	mutex_unlock(&bfc->bc_mutex);
-	return result;
-}
-
 int incfs_read_blockmap_entry(struct backing_file_context *bfc, int block_index,
 			loff_t bm_base_off,
 			struct incfs_blockmap_entry *bm_entry)
@@ -562,8 +541,7 @@ int incfs_read_blockmap_entries(struct backing_file_context *bfc,
 	if (start_index < 0 || bm_base_off <= 0)
 		return -ENODATA;
 
-	result = incfs_kread(bfc->bc_file, entries, bytes_to_read,
-			     bm_entry_off);
+	result = incfs_kread(bfc, entries, bytes_to_read, bm_entry_off);
 	if (result < 0)
 		return result;
 	return result / sizeof(*entries);
@@ -579,8 +557,7 @@ int incfs_read_file_header(struct backing_file_context *bfc,
 	if (!bfc || !first_md_off)
 		return -EFAULT;
 
-	LOCK_REQUIRED(bfc->bc_mutex);
-	bytes_read = incfs_kread(bfc->bc_file, &fh, sizeof(fh), 0);
+	bytes_read = incfs_kread(bfc, &fh, sizeof(fh), 0);
 	if (bytes_read < 0)
 		return bytes_read;
 
@@ -627,14 +604,12 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 	if (!bfc || !handler)
 		return -EFAULT;
 
-	LOCK_REQUIRED(bfc->bc_mutex);
-
 	if (handler->md_record_offset == 0)
 		return -EPERM;
 
 	memset(&handler->md_buffer, 0, max_md_size);
-	bytes_read = incfs_kread(bfc->bc_file, &handler->md_buffer,
-				 max_md_size, handler->md_record_offset);
+	bytes_read = incfs_kread(bfc, &handler->md_buffer, max_md_size,
+				 handler->md_record_offset);
 	if (bytes_read < 0)
 		return bytes_read;
 	if (bytes_read < sizeof(*md_hdr))
@@ -705,12 +680,22 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 	return res;
 }
 
-ssize_t incfs_kread(struct file *f, void *buf, size_t size, loff_t pos)
+ssize_t incfs_kread(struct backing_file_context *bfc, void *buf, size_t size,
+		    loff_t pos)
 {
-	return kernel_read(f, buf, size, &pos);
+	const struct cred *old_cred = override_creds(bfc->bc_cred);
+	int ret = kernel_read(bfc->bc_file, buf, size, &pos);
+
+	revert_creds(old_cred);
+	return ret;
 }
 
-ssize_t incfs_kwrite(struct file *f, const void *buf, size_t size, loff_t pos)
+ssize_t incfs_kwrite(struct backing_file_context *bfc, const void *buf,
+		     size_t size, loff_t pos)
 {
-	return kernel_write(f, buf, size, &pos);
+	const struct cred *old_cred = override_creds(bfc->bc_cred);
+	int ret = kernel_write(bfc->bc_file, buf, size, &pos);
+
+	revert_creds(old_cred);
+	return ret;
 }

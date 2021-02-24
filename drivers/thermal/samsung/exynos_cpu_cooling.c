@@ -79,6 +79,7 @@ struct time_in_idle {
  * @policy: cpufreq policy.
  * @node: list_head to link all exynos_cpu_cooling_device together.
  * @idle_time: idle time stats
+ * @tzd: &thermal zone device backing this cpu cooling device.
  *
  * This structure is required for keeping information of each registered
  * exynos_cpu_cooling_device.
@@ -100,6 +101,8 @@ struct exynos_cpu_cooling_device {
 	int *asv_coeff;
 	unsigned int var_volt_size;
 	unsigned int var_temp_size;
+
+	struct thermal_zone_device *tzd;
 	unsigned long sysfs_req;
 };
 
@@ -422,7 +425,6 @@ static u32 get_load(struct exynos_cpu_cooling_device *cpufreq_cdev, int cpu,
 /**
  * get_static_power() - calculate the static power consumed by the cpus
  * @cpufreq_cdev:	struct &cpufreq_cooling_device for this cpu cdev
- * @tz:		thermal zone device in which we're operating
  * @freq:	frequency in KHz
  * @power:	pointer in which to store the calculated static power
  *
@@ -435,9 +437,9 @@ static u32 get_load(struct exynos_cpu_cooling_device *cpufreq_cdev, int cpu,
  * Return: 0 on success, -E* on failure.
  */
 static int get_static_power(struct exynos_cpu_cooling_device *cpufreq_cdev,
-			    struct thermal_zone_device *tz, unsigned long freq,
-			    u32 *power)
+			    unsigned long freq, u32 *power)
 {
+	struct thermal_zone_device *tz = cpufreq_cdev->tzd;
 	struct dev_pm_opp *opp;
 	unsigned long voltage;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
@@ -580,7 +582,6 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 /**
  * cpufreq_get_requested_power() - get the current power
  * @cdev:	&thermal_cooling_device pointer
- * @tz:		a valid thermal zone device pointer
  * @power:	pointer in which to store the resulting power
  *
  * Calculate the current power consumption of the cpus in milliwatts
@@ -601,7 +602,6 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
  * Return: 0 on success, -E* if getting the static power failed.
  */
 static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
-				       struct thermal_zone_device *tz,
 				       u32 *power)
 {
 	unsigned long freq;
@@ -611,6 +611,7 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
 	u32 *load_cpu = NULL;
 	u32 ncpus;
+	struct thermal_zone_device *tz = cpufreq_cdev->tzd;
 
 	freq = cpufreq_quick_get(policy->cpu);
 
@@ -642,7 +643,7 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 	cpufreq_cdev->last_load = total_load;
 
 	dynamic_power = get_dynamic_power(cpufreq_cdev, freq);
-	ret = get_static_power(cpufreq_cdev, tz, freq, &static_power);
+	ret = get_static_power(cpufreq_cdev, freq, &static_power);
 	if (ret) {
 		kfree(load_cpu);
 		return ret;
@@ -663,7 +664,6 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 /**
  * cpufreq_state2power() - convert a cpu cdev state to power consumed
  * @cdev:	&thermal_cooling_device pointer
- * @tz:		a valid thermal zone device pointer
  * @state:	cooling device state to be converted
  * @power:	pointer in which to store the resulting power
  *
@@ -676,7 +676,6 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
  * when calculating the static power.
  */
 static int cpufreq_state2power(struct thermal_cooling_device *cdev,
-			       struct thermal_zone_device *tz,
 			       unsigned long state, u32 *power)
 {
 	unsigned int freq, num_cpus;
@@ -692,7 +691,7 @@ static int cpufreq_state2power(struct thermal_cooling_device *cdev,
 
 	freq = cpufreq_cdev->freq_table[state].frequency;
 	dynamic_power = cpu_freq_to_power(cpufreq_cdev, freq) * num_cpus;
-	ret = get_static_power(cpufreq_cdev, tz, freq, &static_power);
+	ret = get_static_power(cpufreq_cdev, freq, &static_power);
 	if (ret)
 		return ret;
 
@@ -703,7 +702,6 @@ static int cpufreq_state2power(struct thermal_cooling_device *cdev,
 /**
  * cpufreq_power2state() - convert power to a cooling device state
  * @cdev:	&thermal_cooling_device pointer
- * @tz:		a valid thermal zone device pointer
  * @power:	power in milliwatts to be converted
  * @state:	pointer in which to store the resulting state
  *
@@ -721,8 +719,7 @@ static int cpufreq_state2power(struct thermal_cooling_device *cdev,
  * device.
  */
 static int cpufreq_power2state(struct thermal_cooling_device *cdev,
-			       struct thermal_zone_device *tz, u32 power,
-			       unsigned long *state)
+			       u32 power, unsigned long *state)
 {
 	unsigned int cpu, cur_freq, target_freq;
 	int ret;
@@ -731,6 +728,7 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 	struct exynos_cpu_cooling_device *cpufreq_cdev = cdev->devdata;
 	struct cpufreq_policy *policy = cpufreq_cdev->policy;
 	int num_cpus;
+	struct thermal_zone_device *tz = cpufreq_cdev->tzd;
 
 	num_cpus = cpumask_weight(policy->related_cpus);
 	cpu = cpumask_first(policy->related_cpus);
@@ -740,7 +738,7 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 		return -ENODEV;
 
 	cur_freq = cpufreq_quick_get(policy->cpu);
-	ret = get_static_power(cpufreq_cdev, tz, cur_freq, &static_power);
+	ret = get_static_power(cpufreq_cdev, cur_freq, &static_power);
 	if (ret)
 		return ret;
 
@@ -786,11 +784,11 @@ static unsigned int find_next_max(struct cpufreq_frequency_table *table,
 	return max;
 }
 
-static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
-				   char *cooling_name)
+static struct thermal_zone_device *parse_ect_cooling_level(
+	struct thermal_cooling_device *cdev, char *cooling_name)
 {
 	struct thermal_instance *instance;
-	struct thermal_zone_device *tz;
+	struct thermal_zone_device *tz = NULL;
 	bool foundtz = false;
 	void *thermal_block;
 	struct ect_ap_thermal_function *function;
@@ -844,7 +842,7 @@ static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
 			cooling_name, i, temperature, freq, level);
 	}
 skip_ect:
-	return 0;
+	return tz;
 }
 
 ssize_t
@@ -1005,7 +1003,7 @@ __exynos_cpu_cooling_register(struct device_node *np,
 		thermal_cooling_device_unregister(cdev);
 		goto remove_qos_req;
 	}
-	parse_ect_cooling_level(cdev, cooling_name);
+	cpufreq_cdev->tzd = parse_ect_cooling_level(cdev, cooling_name);
 
 	mutex_lock(&cooling_list_lock);
 	list_add(&cpufreq_cdev->node, &cpufreq_cdev_list);

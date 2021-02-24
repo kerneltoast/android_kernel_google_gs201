@@ -177,6 +177,11 @@ static int exynos_cs_lockup_handler(struct notifier_block *nb,
 		return 0;
 	}
 
+	if (dbg_snapshot_get_sjtag_status()) {
+		dev_err(ecs_info->dev, "SJTAG enabled\n");
+		return 0;
+	}
+
 	dev_err(ecs_info->dev, "CPU[%d] saved pc value\n", *cpu);
 	for (iter = 0; iter < ITERATION; iter++) {
 #if IS_ENABLED(CONFIG_EXYNOS_PMU_IF)
@@ -212,6 +217,11 @@ static int exynos_cs_panic_handler(struct notifier_block *np,
 
 	if (num_online_cpus() <= 1)
 		return 0;
+
+	if (dbg_snapshot_get_sjtag_status()) {
+		dev_err(ecs_info->dev, "SJTAG enabled\n");
+		return 0;
+	}
 
 	local_irq_save(flags);
 	curr_cpu = raw_smp_processor_id();
@@ -264,8 +274,10 @@ static int exynos_cs_halt_enable(unsigned int cpu)
 
 static int exynos_cs_halt_disable(unsigned int cpu)
 {
-	if (ecs_info->halt_enabled && ecs_info->gpr_base)
-		__raw_writel(0x0, ecs_info->cti_base[cpu]);
+	if (!ecs_info->halt_enabled || !ecs_info->gpr_base)
+		return 0;
+
+	__raw_writel(0x0, ecs_info->cti_base[cpu]);
 
 	return 0;
 }
@@ -403,6 +415,9 @@ static int exynos_cs_c2_notifier(struct notifier_block *self,
 {
 	int cpu = raw_smp_processor_id();
 
+	if (dbg_snapshot_get_sjtag_status())
+		return 0;
+
 	switch (cmd) {
 	case CPU_PM_ENTER:
 		exynos_cs_suspend_cpu(cpu);
@@ -441,9 +456,6 @@ static int exynos_cs_parsing_dt(struct device *dev)
 	const __be32 *cur;
 	u32 val, i = 0;
 	int ret;
-
-	if (dbg_snapshot_get_sjtag_status())
-		return -EACCES;
 
 	ecs_info->dbg_base = devm_kcalloc(dev, num_possible_cpus(),
 			sizeof(void *), GFP_KERNEL);
@@ -583,8 +595,10 @@ static int exynos_coresight_probe(struct platform_device *pdev)
 	cpus_read_lock();
 	if (ecs_info->halt_enabled || ecs_info->retention_enabled) {
 		if (ecs_info->halt_enabled) {
-			for_each_online_cpu(cpu) {
-				exynos_cs_halt_enable(cpu);
+			if (!dbg_snapshot_get_sjtag_status()) {
+				for_each_online_cpu(cpu) {
+					exynos_cs_halt_enable(cpu);
+				}
 			}
 			ret = cpuhp_setup_state_nocalls_cpuslocked(
 					CPUHP_AP_ONLINE_DYN,

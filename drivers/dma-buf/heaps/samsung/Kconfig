@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
+config DMABUF_SAMSUNG_HEAPS
+	tristate "DMA-BUF Userland Memory Heaps for Samsung"
+	select SAMSUNG_SECURE_IOVA if EXYNOS_CONTENT_PATH_PROTECTION
+	depends on DMABUF_HEAPS
+	help
+	  Choose this option to enable the DMA-BUF userland memory heaps for samsung.
+	  This options creates per heap chardevs in /dev/dma_heap/* which allows
+	  userspace to allocate dma-bufs that can be shared between drivers.
+
+config DMABUF_HEAPS_SAMSUNG_CMA
+	bool "DMA-BUF CMA Samsung Heap"
+	help
+	  Choose this option to enable dma-buf CMA heap for samsung.
+	  This heap is backed by the Contiguous Memory Allocator (CMA) and have own
+	  cma region by dt binding.
+
+config DMABUF_HEAPS_SAMSUNG_CARVEOUT
+	bool "DMA-BUF Carveout Samsung Heap"
+	help
+	  Choose this option to enable dma-buf Carveout heap for samsung.
+	  This heap has own reserved region by dt binding.
+
+config DMABUF_HEAPS_SAMSUNG_SYSTEM
+	bool "DMA-BUF System Samsung Heap"
+	help
+	  Choose this option to enable dma-buf System heap for samsung.

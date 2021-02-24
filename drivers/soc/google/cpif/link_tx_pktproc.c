@@ -17,7 +17,8 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 	struct pktproc_desc_ul *desc;
 	void *target_addr;
 	int len = skb->len;
-	int ret = -1;
+	int ret;
+	bool use_dit;
 	u32 space;
 
 	q->stat.total_cnt++;
@@ -35,16 +36,9 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 		return -ENOSPC;
 	}
 
-	if (dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx)) {
-		ret = dit_enqueue_src_desc_ring_skb(DIT_DIR_TX, skb);
-		if (ret < 0) {
-			mif_err_limited("Enqueue failed for %d, ret: %d\n", q->done_ptr, ret);
-			q->stat.buff_full_cnt++;
-			return ret;
-		}
-	}
+	use_dit = dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx);
 
-	if (ret < 0) {
+	if (!use_dit) {
 		target_addr = (void *)(q->q_buff_vbase +
 			(q->done_ptr * q->ppa_ul->max_packet_size));
 		skb_copy_from_linear_data(skb, target_addr, skb->len);
@@ -64,6 +58,15 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 
 	/* ensure the done_ptr ordering */
 	smp_mb();
+
+	if (use_dit) {
+		ret = dit_enqueue_src_desc_ring_skb(DIT_DIR_TX, skb);
+		if (ret < 0) {
+			mif_err_limited("Enqueue failed for %d, ret: %d\n", q->done_ptr, ret);
+			q->stat.buff_full_cnt++;
+			return ret;
+		}
+	}
 
 	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 

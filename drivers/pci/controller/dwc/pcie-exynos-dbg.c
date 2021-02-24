@@ -115,6 +115,8 @@ static int chk_epmem_access(struct exynos_pcie *exynos_pcie)
 
 	struct pci_bus *ep_pci_bus;
 	void __iomem *reg_addr;
+	struct resource_entry *entry =
+		resource_list_first_type(&pp->bridge->windows, IORESOURCE_MEM);
 
 	if (!pcie_ops->rd_other_conf) {
 		pr_err("Can't find PCIe read other configuration function\n");
@@ -128,12 +130,12 @@ static int chk_epmem_access(struct exynos_pcie *exynos_pcie)
 
 	ep_pci_bus = pci_find_bus(exynos_pcie->pci_dev->bus->domain_nr, 1);
 	pcie_ops->wr_other_conf(pp, ep_pci_bus, 0, PCI_BASE_ADDRESS_0,
-				4, lower_32_bits(pp->mem_base));
+				4, lower_32_bits(entry->res->start));
 	pcie_ops->rd_other_conf(pp, ep_pci_bus, 0, PCI_BASE_ADDRESS_0,
 				4, &val);
 	pr_info("Set BAR0 : 0x%x\n", val);
 
-	reg_addr = ioremap(pp->mem_base, SZ_4K);
+	reg_addr = ioremap(entry->res->start, SZ_4K);
 
 	val = readl(reg_addr);
 	iounmap(reg_addr);

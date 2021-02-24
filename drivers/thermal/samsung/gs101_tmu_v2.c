@@ -441,11 +441,11 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	if (!found_actor)
 		return -ENODEV;
 
-	cdev->ops->state2power(cdev, tz, 0, &max_power);
+	cdev->ops->state2power(cdev, 0, &max_power);
 
 	power_range = pi_calculate(data, control_temp, max_power);
 
-	ret = cdev->ops->power2state(cdev, tz, power_range, &state);
+	ret = cdev->ops->power2state(cdev, power_range, &state);
 	if (ret)
 		return ret;
 
@@ -945,6 +945,76 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
+static ssize_t
+polling_delay_on_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	if (data->pi_param)
+		return sprintf(buf, "%u\n", data->pi_param->polling_delay_on);
+	else
+		return -EIO;
+}
+
+static ssize_t
+polling_delay_on_store(struct device *dev, struct device_attribute *devattr,
+			const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	u32 polling_delay_on;
+
+	if (!data->pi_param)
+		return -EIO;
+
+	if (kstrtou32(buf, 10, &polling_delay_on))
+		return -EINVAL;
+
+	data->pi_param->polling_delay_on = polling_delay_on;
+
+	if (data->use_pi_thermal)
+		start_pi_polling(data, 0);
+
+	return count;
+}
+
+static ssize_t
+polling_delay_off_show(struct device *dev, struct device_attribute *devattr,
+		       char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	if (data->pi_param)
+		return sprintf(buf, "%u\n", data->pi_param->polling_delay_off);
+	else
+		return -EIO;
+}
+
+static ssize_t
+polling_delay_off_store(struct device *dev, struct device_attribute *devattr,
+			const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	u32 polling_delay_off;
+
+	if (!data->pi_param)
+		return -EIO;
+
+	if (kstrtou32(buf, 10, &polling_delay_off))
+		return -EINVAL;
+
+	data->pi_param->polling_delay_off = polling_delay_off;
+
+	if (data->use_pi_thermal)
+		start_pi_polling(data, 0);
+
+	return count;
+}
+
 #define create_s32_param_attr(name)						\
 	static ssize_t								\
 	name##_show(struct device *dev, struct device_attribute *devattr,	\
@@ -982,6 +1052,8 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 static DEVICE_ATTR_RW(hotplug_out_temp);
 static DEVICE_ATTR_RW(hotplug_in_temp);
 static DEVICE_ATTR_RW(sustainable_power);
+static DEVICE_ATTR_RW(polling_delay_off);
+static DEVICE_ATTR_RW(polling_delay_on);
 create_s32_param_attr(k_po);
 create_s32_param_attr(k_pu);
 create_s32_param_attr(k_i);
@@ -989,6 +1061,8 @@ create_s32_param_attr(i_max);
 create_s32_param_attr(integral_cutoff);
 
 static struct attribute *gs101_tmu_attrs[] = {
+	&dev_attr_polling_delay_off.attr,
+	&dev_attr_polling_delay_on.attr,
 	&dev_attr_hotplug_out_temp.attr,
 	&dev_attr_hotplug_in_temp.attr,
 	&dev_attr_sustainable_power.attr,

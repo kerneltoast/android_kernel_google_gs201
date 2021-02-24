@@ -18,6 +18,8 @@
 #define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
 #define UTIL_THRESHOLD      1280
 
+extern void update_uclamp_stats(int cpu, u64 time);
+
 extern bool vendor_sched_enable_prefer_high_cap;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
@@ -836,7 +838,8 @@ out:
 	trace_sched_find_energy_efficient_cpu(p, sync_wakeup, *new_cpu, best_energy_cpu, prev_cpu);
 }
 
-void vh_arch_set_freq_scale_pixel_mod(void *data, struct cpumask *cpus, unsigned long freq,
+void vh_arch_set_freq_scale_pixel_mod(void *data, const struct cpumask *cpus,
+				      unsigned long freq,
 				      unsigned long max, unsigned long *scale)
 {
 	int i;
@@ -859,4 +862,10 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap)
 {
 	return (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap;
+}
+
+void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
+{
+	if (rq->nr_running == 0)
+		update_uclamp_stats(rq->cpu, rq_clock(rq));
 }

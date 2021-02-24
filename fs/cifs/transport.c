@@ -338,9 +338,9 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	if (ssocket == NULL)
 		return -EAGAIN;
 
-	if (signal_pending(current)) {
-		cifs_dbg(FYI, "signal is pending before sending any data\n");
-		return -EINTR;
+	if (fatal_signal_pending(current)) {
+		cifs_dbg(FYI, "signal pending before send request\n");
+		return -ERESTARTSYS;
 	}
 
 	/* cork the socket */
@@ -429,7 +429,7 @@ unmask:
 
 	if (signal_pending(current) && (total_len != send_length)) {
 		cifs_dbg(FYI, "signal is pending after attempt to send\n");
-		rc = -EINTR;
+		rc = -ERESTARTSYS;
 	}
 
 	/* uncork it */
@@ -563,7 +563,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			cifs_num_waiters_dec(server);
 			if (!rc) {
 				trace_smb3_credit_timeout(server->CurrentMid,
-					server->hostname, num_credits);
+					server->hostname, num_credits, 0);
 				cifs_server_dbg(VFS, "wait timed out after %d ms\n",
 					 timeout);
 				return -ENOTSUPP;
@@ -604,7 +604,8 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 				if (!rc) {
 					trace_smb3_credit_timeout(
 						server->CurrentMid,
-						server->hostname, num_credits);
+						server->hostname, num_credits,
+						0);
 					cifs_server_dbg(VFS, "wait timed out after %d ms\n",
 						 timeout);
 					return -ENOTSUPP;

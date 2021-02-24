@@ -1420,6 +1420,24 @@ static void __init intel_pstate_sysfs_expose_params(void)
 	}
 }
 
+static void __init intel_pstate_sysfs_remove(void)
+{
+	if (!intel_pstate_kobject)
+		return;
+
+	sysfs_remove_group(intel_pstate_kobject, &intel_pstate_attr_group);
+
+	if (!per_cpu_limits) {
+		sysfs_remove_file(intel_pstate_kobject, &max_perf_pct.attr);
+		sysfs_remove_file(intel_pstate_kobject, &min_perf_pct.attr);
+
+		if (x86_match_cpu(intel_pstate_cpu_ee_disable_ids))
+			sysfs_remove_file(intel_pstate_kobject, &energy_efficiency.attr);
+	}
+
+	kobject_put(intel_pstate_kobject);
+}
+
 static void intel_pstate_sysfs_expose_hwp_dynamic_boost(void)
 {
 	int rc;
@@ -2189,9 +2207,9 @@ static void intel_pstate_update_perf_limits(struct cpudata *cpu,
 					    unsigned int policy_min,
 					    unsigned int policy_max)
 {
-	int max_freq = intel_pstate_get_max_freq(cpu);
 	int32_t max_policy_perf, min_policy_perf;
 	int max_state, turbo_max;
+	int max_freq;
 
 	/*
 	 * HWP needs some special consideration, because on BDX the
@@ -2205,6 +2223,7 @@ static void intel_pstate_update_perf_limits(struct cpudata *cpu,
 			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 		turbo_max = cpu->pstate.turbo_pstate;
 	}
+	max_freq = max_state * cpu->pstate.scaling;
 
 	max_policy_perf = max_state * policy_max / max_freq;
 	if (policy_max == policy_min) {
@@ -2307,9 +2326,18 @@ static void intel_pstate_adjust_policy_max(struct cpudata *cpu,
 static void intel_pstate_verify_cpu_policy(struct cpudata *cpu,
 					   struct cpufreq_policy_data *policy)
 {
+	int max_freq;
+
 	update_turbo_state();
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
-				     intel_pstate_get_max_freq(cpu));
+	if (hwp_active) {
+		int max_state, turbo_max;
+
+		intel_pstate_get_hwp_max(cpu->cpu, &turbo_max, &max_state);
+		max_freq = max_state * cpu->pstate.scaling;
+	} else {
+		max_freq = intel_pstate_get_max_freq(cpu);
+	}
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq, max_freq);
 
 	intel_pstate_adjust_policy_max(cpu, policy);
 }
@@ -2509,7 +2537,7 @@ static void intel_cpufreq_trace(struct cpudata *cpu, unsigned int trace_type, in
 }
 
 static void intel_cpufreq_adjust_hwp(struct cpudata *cpu, u32 target_pstate,
-				     bool fast_switch)
+				     bool strict, bool fast_switch)
 {
 	u64 prev = READ_ONCE(cpu->hwp_req_cached), value = prev;
 
@@ -2521,7 +2549,7 @@ static void intel_cpufreq_adjust_hwp(struct cpudata *cpu, u32 target_pstate,
 	 * field in it, so opportunistically update the max too if needed.
 	 */
 	value &= ~HWP_MAX_PERF(~0L);
-	value |= HWP_MAX_PERF(cpu->max_perf_ratio);
+	value |= HWP_MAX_PERF(strict ? target_pstate : cpu->max_perf_ratio);
 
 	if (value == prev)
 		return;
@@ -2544,20 +2572,20 @@ static void intel_cpufreq_adjust_perf_ctl(struct cpudata *cpu,
 			      pstate_funcs.get_val(cpu, target_pstate));
 }
 
-static int intel_cpufreq_update_pstate(struct cpudata *cpu, int target_pstate,
-				       bool fast_switch)
+static int intel_cpufreq_update_pstate(struct cpufreq_policy *policy,
+				       int target_pstate, bool fast_switch)
 {
+	struct cpudata *cpu = all_cpu_data[policy->cpu];
 	int old_pstate = cpu->pstate.current_pstate;
 
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
-	if (target_pstate != old_pstate) {
+	if (hwp_active) {
+		intel_cpufreq_adjust_hwp(cpu, target_pstate,
+					 policy->strict_target, fast_switch);
 		cpu->pstate.current_pstate = target_pstate;
-		if (hwp_active)
-			intel_cpufreq_adjust_hwp(cpu, target_pstate,
-						 fast_switch);
-		else
-			intel_cpufreq_adjust_perf_ctl(cpu, target_pstate,
-						      fast_switch);
+	} else if (target_pstate != old_pstate) {
+		intel_cpufreq_adjust_perf_ctl(cpu, target_pstate, fast_switch);
+		cpu->pstate.current_pstate = target_pstate;
 	}
 
 	intel_cpufreq_trace(cpu, fast_switch ? INTEL_PSTATE_TRACE_FAST_SWITCH :
@@ -2593,7 +2621,7 @@ static int intel_cpufreq_target(struct cpufreq_policy *policy,
 		break;
 	}
 
-	target_pstate = intel_cpufreq_update_pstate(cpu, target_pstate, false);
+	target_pstate = intel_cpufreq_update_pstate(policy, target_pstate, false);
 
 	freqs.new = target_pstate * cpu->pstate.scaling;
 
@@ -2612,7 +2640,7 @@ static unsigned int intel_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 	target_pstate = DIV_ROUND_UP(target_freq, cpu->pstate.scaling);
 
-	target_pstate = intel_cpufreq_update_pstate(cpu, target_pstate, true);
+	target_pstate = intel_cpufreq_update_pstate(policy, target_pstate, true);
 
 	return target_pstate * cpu->pstate.scaling;
 }
@@ -3014,6 +3042,7 @@ static int __init intel_pstate_init(void)
 			hwp_mode_bdw = id->driver_data;
 			intel_pstate.attr = hwp_cpufreq_attrs;
 			intel_cpufreq.attr = hwp_cpufreq_attrs;
+			intel_cpufreq.flags |= CPUFREQ_NEED_UPDATE_LIMITS;
 			if (!default_driver)
 				default_driver = &intel_pstate;
 
@@ -3063,8 +3092,10 @@ hwp_cpu_matched:
 	mutex_lock(&intel_pstate_driver_lock);
 	rc = intel_pstate_register_driver(default_driver);
 	mutex_unlock(&intel_pstate_driver_lock);
-	if (rc)
+	if (rc) {
+		intel_pstate_sysfs_remove();
 		return rc;
+	}
 
 	if (hwp_active) {
 		const struct x86_cpu_id *id;

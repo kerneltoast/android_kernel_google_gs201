@@ -272,6 +272,11 @@ int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 	if (ee_info->enabled)
 		return -EINVAL;
 
+	if (dbg_snapshot_get_sjtag_status()) {
+		dev_err(ee_info->dev, "SJTAG enabled\n");
+		return -EACCES;
+	}
+
 	etr->aux_buf_addr = buf_addr;
 	ee_info->etr_aux_buf_size = buf_size;
 
@@ -298,6 +303,11 @@ int gs_coresight_etm_external_etr_off(void)
 
 	if (!ee_info->etr_aux_buf_size)
 		return -EINVAL;
+
+	if (dbg_snapshot_get_sjtag_status()) {
+		dev_err(ee_info->dev, "SJTAG enabled\n");
+		return -EACCES;
+	}
 
 	etr->aux_buf_addr = 0;
 	ee_info->etr_aux_buf_size = 0;
@@ -407,6 +417,9 @@ static void exynos_etm_smp_enable(void *ununsed)
 	unsigned int cpu = raw_smp_processor_id();
 	struct etm_info *info = &ee_info->cpu[cpu];
 
+	if (dbg_snapshot_get_sjtag_status())
+		return;
+
 	if (info->enabled)
 		exynos_etm_enable(cpu);
 	else
@@ -423,6 +436,12 @@ static ssize_t exynos_etm_print_info(char *buf)
 	struct etf_info *etf;
 	unsigned long ctrl, sts, port_status, read_p;
 	int i, channel, port, size = 0;
+
+	if (dbg_snapshot_get_sjtag_status()) {
+		size = scnprintf(buf, PAGE_SIZE, "SJTAG enabled\n");
+		return size;
+	}
+
 
 	size += scnprintf(buf + size, PAGE_SIZE - size,
 			"\n---------------------------------------\n");
@@ -493,6 +512,11 @@ void exynos_etm_trace_start(void)
 	if (!ee_info->enabled || ee_info->status)
 		return;
 
+	if (dbg_snapshot_get_sjtag_status()) {
+		dev_err(ee_info->dev, "SJTAG enabled\n");
+		return;
+	}
+
 	ee_info->status = true;
 
 	exynos_etm_funnel_init();
@@ -518,6 +542,11 @@ void exynos_etm_trace_stop(void)
 	if (!ee_info->status)
 		return;
 
+	if (dbg_snapshot_get_sjtag_status()) {
+		dev_err(ee_info->dev, "SJTAG enabled\n");
+		return;
+	}
+
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 	exynos_etm_etr_disable();
 #endif
@@ -536,6 +565,9 @@ static int exynos_etm_c2_pm_notifier(struct notifier_block *self,
 				     unsigned long action, void *v)
 {
 	int cpu = raw_smp_processor_id();
+
+	if (dbg_snapshot_get_sjtag_status())
+		return NOTIFY_OK;
 
 	switch (action) {
 	case CPU_PM_ENTER:
@@ -584,6 +616,9 @@ static ssize_t etm_on_store(struct device *dev,
 	bool on;
 	int ret;
 
+	if (dbg_snapshot_get_sjtag_status())
+		return -EACCES;
+
 	ret = kstrtobool(buf, &on);
 	if (ret)
 		return ret;
@@ -607,6 +642,9 @@ static ssize_t trace_on_store(struct device *dev,
 {
 	bool on;
 	int ret;
+
+	if (dbg_snapshot_get_sjtag_status())
+		return -EACCES;
 
 	ret = kstrtobool(buf, &on);
 	if (ret)
@@ -638,6 +676,9 @@ static ssize_t manual_port_on_store(struct device *dev,
 	struct funnel_info *funnel;
 	unsigned int port;
 
+	if (dbg_snapshot_get_sjtag_status())
+		return -EACCES;
+
 	if (kstrtouint(buf, 0, &port))
 		return -EINVAL;
 
@@ -666,6 +707,9 @@ static ssize_t manual_port_off_store(struct device *dev,
 {
 	struct funnel_info *funnel;
 	unsigned int port;
+
+	if (dbg_snapshot_get_sjtag_status())
+		return -EACCES;
 
 	if (kstrtouint(buf, 0, &port))
 		return -EINVAL;

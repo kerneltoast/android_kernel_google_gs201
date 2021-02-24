@@ -283,6 +283,14 @@ static int tcpci_set_polarity(struct tcpc_dev *tcpc,
 	return ret;
 }
 
+static void tcpci_set_partner_usb_comm_capable(struct tcpc_dev *tcpc, bool capable)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
+
+	if (tcpci->data->set_partner_usb_comm_capable)
+		tcpci->data->set_partner_usb_comm_capable(tcpci, tcpci->data, capable);
+}
+
 static int tcpci_set_vconn(struct tcpc_dev *tcpc, bool enable)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
@@ -343,7 +351,7 @@ static int tcpci_set_auto_vbus_discharge_threshold(struct tcpc_dev *dev, enum ty
 		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;
 	}
 
-	threshold = threshold / TCPC_VBUS_SINK_DISCONNECT_THRESH_LSB;
+	threshold = threshold / TCPC_VBUS_SINK_DISCONNECT_THRESH_LSB_MV;
 
 	if (threshold > TCPC_VBUS_SINK_DISCONNECT_THRESH_MAX)
 		return -EINVAL;
@@ -374,14 +382,12 @@ static int tcpci_enable_frs(struct tcpc_dev *dev, bool enable)
 	return ret;
 }
 
-static int tcpci_frs_sourcing_vbus(struct tcpc_dev *dev)
+static void tcpci_frs_sourcing_vbus(struct tcpc_dev *dev)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(dev);
 
 	if (tcpci->data->frs_sourcing_vbus)
-		return tcpci->data->frs_sourcing_vbus(tcpci, tcpci->data);
-
-	return 0;
+		tcpci->data->frs_sourcing_vbus(tcpci, tcpci->data);
 }
 
 static int tcpci_set_bist_data(struct tcpc_dev *tcpc, bool enable)
@@ -815,6 +821,15 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	tcpci->tcpc.enable_frs = tcpci_enable_frs;
 	tcpci->tcpc.frs_sourcing_vbus = tcpci_frs_sourcing_vbus;
 	tcpci->tcpc.check_contaminant = tcpci_check_contaminant;
+ 	tcpci->tcpc.set_partner_usb_comm_capable = tcpci_set_partner_usb_comm_capable;
+
+	if (tcpci->data->auto_discharge_disconnect) {
+		tcpci->tcpc.enable_auto_vbus_discharge = tcpci_enable_auto_vbus_discharge;
+		tcpci->tcpc.set_auto_vbus_discharge_threshold =
+			tcpci_set_auto_vbus_discharge_threshold;
+		regmap_update_bits(tcpci->regmap, TCPC_POWER_CTRL, TCPC_POWER_CTRL_BLEED_DISCHARGE,
+				   TCPC_POWER_CTRL_BLEED_DISCHARGE);
+	}
 
 	if (tcpci->data->vbus_vsafe0v)
 		tcpci->tcpc.is_vbus_vsafe0v = tcpci_is_vbus_vsafe0v;

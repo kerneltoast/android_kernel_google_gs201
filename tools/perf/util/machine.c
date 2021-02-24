@@ -786,11 +786,20 @@ static int machine__process_ksymbol_unregister(struct machine *machine,
 					       union perf_event *event,
 					       struct perf_sample *sample __maybe_unused)
 {
+	struct symbol *sym;
 	struct map *map;
 
 	map = maps__find(&machine->kmaps, event->ksymbol.addr);
-	if (map)
+	if (!map)
+		return 0;
+
+	if (map != machine->vmlinux_map)
 		maps__remove(&machine->kmaps, map);
+	else {
+		sym = dso__find_symbol(map->dso, map->map_ip(map, map->start));
+		if (sym)
+			dso__delete_symbol(map->dso, sym);
+	}
 
 	return 0;
 }
@@ -2964,7 +2973,7 @@ int machines__for_each_thread(struct machines *machines,
 
 pid_t machine__get_current_tid(struct machine *machine, int cpu)
 {
-	int nr_cpus = min(machine->env->nr_cpus_online, MAX_NR_CPUS);
+	int nr_cpus = min(machine->env->nr_cpus_avail, MAX_NR_CPUS);
 
 	if (cpu < 0 || cpu >= nr_cpus || !machine->current_tid)
 		return -1;
@@ -2976,7 +2985,7 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 			     pid_t tid)
 {
 	struct thread *thread;
-	int nr_cpus = min(machine->env->nr_cpus_online, MAX_NR_CPUS);
+	int nr_cpus = min(machine->env->nr_cpus_avail, MAX_NR_CPUS);
 
 	if (cpu < 0)
 		return -EINVAL;
@@ -3099,4 +3108,16 @@ char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, ch
 	*modp = __map__is_kmodule(map) ? (char *)map->dso->short_name : NULL;
 	*addrp = map->unmap_ip(map, sym->start);
 	return sym->name;
+}
+
+int machine__for_each_dso(struct machine *machine, machine__dso_t fn, void *priv)
+{
+	struct dso *pos;
+	int err = 0;
+
+	list_for_each_entry(pos, &machine->dsos.head, node) {
+		if (fn(pos, machine, priv))
+			err = -1;
+	}
+	return err;
 }

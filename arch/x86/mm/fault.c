@@ -1128,7 +1128,7 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int fault_in_kernel_space(unsigned long address)
+bool fault_in_kernel_space(unsigned long address)
 {
 	/*
 	 * On 64-bit systems, the vsyscall page is at an address above
@@ -1214,7 +1214,7 @@ void do_user_addr_fault(struct pt_regs *regs,
 			unsigned long hw_error_code,
 			unsigned long address)
 {
-	struct vm_area_struct *vma;
+	struct vm_area_struct *vma = NULL;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	vm_fault_t fault;
@@ -1297,6 +1297,16 @@ void do_user_addr_fault(struct pt_regs *regs,
 			return;
 	}
 #endif
+
+	/*
+	 * Do not try to do a speculative page fault if the fault was due to
+	 * protection keys since it can't be resolved.
+	 */
+	if (!(hw_error_code & X86_PF_PK)) {
+		fault = handle_speculative_fault(mm, address, flags, &vma);
+		if (fault != VM_FAULT_RETRY)
+			goto done;
+	}
 
 	/*
 	 * Kernel-mode access to the user address space should only occur
@@ -1391,6 +1401,8 @@ good_area:
 	}
 
 	mmap_read_unlock(mm);
+
+done:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		mm_fault_error(regs, hw_error_code, address, fault);
 		return;
@@ -1446,11 +1458,14 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 	prefetchw(&current->mm->mmap_lock);
 
 	/*
-	 * KVM has two types of events that are, logically, interrupts, but
-	 * are unfortunately delivered using the #PF vector.  These events are
-	 * "you just accessed valid memory, but the host doesn't have it right
-	 * now, so I'll put you to sleep if you continue" and "that memory
-	 * you tried to access earlier is available now."
+	 * KVM uses #PF vector to deliver 'page not present' events to guests
+	 * (asynchronous page fault mechanism). The event happens when a
+	 * userspace task is trying to access some valid (from guest's point of
+	 * view) memory which is not currently mapped by the host (e.g. the
+	 * memory is swapped out). Note, the corresponding "page ready" event
+	 * which is injected when the memory becomes available, is delived via
+	 * an interrupt mechanism and not a #PF exception
+	 * (see arch/x86/kernel/kvm.c: sysvec_kvm_asyncpf_interrupt()).
 	 *
 	 * We are relying on the interrupted context being sane (valid RSP,
 	 * relevant locks not held, etc.), which is fine as long as the

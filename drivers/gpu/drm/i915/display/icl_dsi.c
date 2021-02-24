@@ -1585,10 +1585,6 @@ static void gen11_dsi_get_power_domains(struct intel_encoder *encoder,
 
 	get_dsi_io_power_domains(i915,
 				 enc_to_intel_dsi(encoder));
-
-	if (crtc_state->dsc.compression_enable)
-		intel_display_power_get(i915,
-					intel_dsc_power_domain(crtc_state));
 }
 
 static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
@@ -1646,6 +1642,7 @@ static const struct drm_encoder_funcs gen11_dsi_encoder_funcs = {
 };
 
 static const struct drm_connector_funcs gen11_dsi_connector_funcs = {
+	.detect = intel_panel_detect,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_connector_destroy,

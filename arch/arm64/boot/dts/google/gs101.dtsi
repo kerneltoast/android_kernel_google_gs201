@@ -27,6 +27,7 @@
 #include "gs101-audio.dtsi"
 #include "gs101-gsa.dtsi"
 #include "gs101-ion.dtsi"
+#include "gs101-dma-heap.dtsi"
 #include "gs101-mfc.dtsi"
 #include "gs101-pcie.dtsi"
 #include "gs101-pinctrl.dtsi"
@@ -615,8 +616,9 @@
 	udc: usb@11110000 {
 		compatible = "samsung,exynos-dwusb";
 		clocks = <&clock GATE_USB31DRD_SLV_LINK>,
-			<&clock MUX_HSI0_USB20_REF>;
-		clock-names = "aclk", "sclk";
+			<&clock MUX_HSI0_USB20_REF>,
+			<&clock VDOUT_CLK_TOP_HSI0_BUS>;
+		clock-names = "aclk", "sclk", "bus";
 		reg = <0x0 0x11110000 0x10000>;
 		#address-cells = <2>;
 		#size-cells = <1>;
@@ -638,7 +640,7 @@
 		/* support usb offloading, 0: disabled, 1: audio */
 		offload = <1>;
 		/* INT min lock support */
-		//usb-pm-qos-int = <400000>;
+		usb-pm-qos-int = <200000>;
 	};
 
 	usbdrd_phy0: phy@11100000 {

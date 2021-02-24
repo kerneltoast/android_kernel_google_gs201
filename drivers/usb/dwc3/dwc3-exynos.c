@@ -105,6 +105,18 @@ static int dwc3_exynos_clk_get(struct dwc3_exynos *exynos)
 				i, dev->of_node->name);
 			return ret;
 		}
+		/*
+		 * Check Bus clock to get clk node from DT.
+		 * CAUTION : Bus clock SHOULD be defiend at the last.
+		 */
+		if (!strncmp(clk_ids[i], "bus", 3)) {
+			dev_info(dev, "BUS clock is defined.\n");
+			exynos->bus_clock = devm_clk_get(exynos->dev, clk_ids[i]);
+			if (IS_ERR_OR_NULL(exynos->bus_clock))
+				dev_err(dev, "Can't get Bus clock.\n");
+			else
+				clk_count--;
+		}
 	}
 	clk_ids[clk_count] = NULL;
 
@@ -320,8 +332,10 @@ void dwc3_core_config(struct dwc3 *dwc)
 		reg |= (DWC3_PENDING_HP_TIMER_US(0xb) | DWC3_EN_US_HP_TIMER) |
 		    (DWC3_LLUCTL_PIPE_RESET) | (DWC3_LLUCTL_LTSSM_TIMER_OVRRD) |
 		    (DWC3_LLUCTL_TX_TS1_CNT(0x0));
-		//if (dwc->force_gen1)
-			//reg |= DWC3_FORCE_GEN1;
+
+		if (dwc->force_gen1)
+			reg |= DWC3_FORCE_GEN1;
+
 		dwc3_writel(dwc->regs, DWC3_LLUCTL, reg);
 
 		reg = dwc3_readl(dwc->regs, DWC3_LSKIPFREQ);

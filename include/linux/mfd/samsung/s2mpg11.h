@@ -95,13 +95,13 @@ struct s2mpg11_platform_data {
 	int device_type;
 	int buck_ramp_delay;
 
-	unsigned int b2_ocp_warn_pin;
+	int b2_ocp_warn_pin;
 	unsigned int b2_ocp_warn_en;
 	unsigned int b2_ocp_warn_cnt;
 	unsigned int b2_ocp_warn_dvs_mask;
 	unsigned int b2_ocp_warn_lvl;
 
-	unsigned int b2_soft_ocp_warn_pin;
+	int b2_soft_ocp_warn_pin;
 	unsigned int b2_soft_ocp_warn_en;
 	unsigned int b2_soft_ocp_warn_cnt;
 	unsigned int b2_soft_ocp_warn_dvs_mask;

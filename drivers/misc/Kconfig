@@ -471,6 +471,16 @@ config PVPANIC
 	  a paravirtualized device provided by QEMU; it lets a virtual machine
 	  (guest) communicate panic events to the host.
 
+config HISI_HIKEY_USB
+	tristate "USB GPIO Hub on HiSilicon Hikey 960/970 Platform"
+	depends on (OF && GPIOLIB) || COMPILE_TEST
+	depends on USB_ROLE_SWITCH
+	help
+	  If you say yes here this adds support for the on-board USB GPIO hub
+	  found on HiKey 960/970 boards, which is necessary to support
+	  switching between the dual-role USB-C port and the USB-A host ports
+	  using only one USB controller.
+
 config GSC_TPM
 	tristate "Google Security Companion"
 	depends on SPI
@@ -514,17 +524,6 @@ config ACCESS_RAMOOPS
 	  To compile this driver as a module, choose M here: the module will be
 	  called access_ramoops.
 
-config DEBUG_KINFO
-	bool "Debug Kernel Information Support"
-	depends on KALLSYMS
-	help
-	  This supports kernel information backup for bootloader usage.
-	  Specifics:
-	   - The kallsyms symbols for unwind_backtrace
-	   - Page directory pointer
-	   - UTS_RELEASE
-	   - BUILD_INFO(ro.build.fingerprint)
-
 config PSTORE_CONSOLE_BLDR_LOG
 	tristate "Pstore console bootloader logs driver"
 	depends on PSTORE_CONSOLE
@@ -536,7 +535,6 @@ config PSTORE_CONSOLE_BLDR_LOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called pstore_bldr_log.
 
-
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -545,7 +543,6 @@ source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
 source "drivers/misc/mei/Kconfig"
 source "drivers/misc/vmw_vmci/Kconfig"
-source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"

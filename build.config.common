@@ -1,10 +1,10 @@
-BRANCH=android-gs-pixel-mainline
+BRANCH=android-gs-pixel-5.10
 KMI_GENERATION=0
 
 LLVM=1
 DEPMOD=depmod
 DTC=dtc
-CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r383902/bin
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r407598/bin
 BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
 
 EXTRA_CMDS=''
@@ -14,3 +14,5 @@ COMPRESS_UNSTRIPPED_MODULES=1
 UNSTRIPPED_MODULES="
 *.ko
 "
+
+HERMETIC_TOOLCHAIN=${HERMETIC_TOOLCHAIN:-1}

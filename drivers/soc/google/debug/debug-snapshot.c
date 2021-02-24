@@ -20,6 +20,7 @@
 #include <linux/smc.h>
 #include <linux/regmap.h>
 
+#include <linux/soc/samsung/exynos-smc.h>
 #include "debug-snapshot-local.h"
 
 struct dbg_snapshot_interface {

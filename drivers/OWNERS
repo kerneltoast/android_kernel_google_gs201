@@ -33,6 +33,7 @@ per-file devfreq/gs101/**=*
 
 per-file dma/pl330.c=*
 per-file dma/samsung-*=*
+per-file dma-buf/heaps/samsung/**=*
 
 per-file gpu/exynos/**=*
 
@@ -50,6 +51,7 @@ per-file input/touchscreen/sec_ts/**=*
 per-file input/touchscreen/stm/**=*
 
 per-file iommu/samsung-iommu*=*
+per-file iommu/samsung-secure-iova.c=*
 
 per-file media/platform/bigocean/**=*
 per-file media/platform/exynos/**=*
