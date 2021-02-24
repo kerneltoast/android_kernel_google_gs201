@@ -307,10 +307,6 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 
 		mfc_release_common_context(core);
 
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-		__mfc_core_unprot_firmware(core, ctx);
-#endif
-
 		if (core->nal_q_handle)
 			mfc_core_nal_q_destroy(core, core->nal_q_handle);
 
@@ -319,6 +315,11 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 			mfc_ctx_info("[MSR] MFC-%d will be reset\n", core->id);
 		}
 	}
+
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	if (ctx->is_drm && (core->num_drm_inst == 0))
+		__mfc_core_unprot_firmware(core, ctx);
+#endif
 
 	mfc_core_qos_off(core, ctx);
 
@@ -404,19 +405,28 @@ int __mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	mfc_create_queue(&core_ctx->src_buf_queue);
 
 	if (core->num_inst == 1) {
-		mfc_debug(2, "it is first instance in to core-%d\n", core->id);
+		/* Load the normal FW when any first instance */
+		mfc_debug(2, "it is first instance in core-%d\n", core->id);
+		ret = mfc_request_load_firmware(core, &core->fw_buf);
+		if (ret)
+			goto err_fw_load;
+	}
 
-		/* Load the FW */
-		ret = mfc_request_load_firmware(core);
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	if (ctx->is_drm && (core->num_drm_inst == 1)) {
+		/* Load the secure FW when it is first DRM instance */
+		mfc_debug(2, "it is first DRM instance in core-%d\n", core->id);
+		ret = mfc_request_load_firmware(core, &core->drm_fw_buf);
 		if (ret)
 			goto err_fw_load;
 
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 		ret = __mfc_core_prot_firmware(core, ctx);
 		if (ret)
 			goto err_fw_load;
+	}
 #endif
 
+	if (core->num_inst == 1) {
 #if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
 		mfc_core_debug(2, "power on\n");
 		ret = mfc_core_pm_power_on(core);
@@ -1142,7 +1152,7 @@ int mfc_imgloader_mem_setup(struct imgloader_desc *desc, const u8 *fw_data, size
 
 	mfc_core_debug_enter();
 
-	ret = mfc_load_firmware(core, fw_data, fw_size);
+	ret = mfc_load_firmware(core, &core->fw_buf, fw_data, fw_size);
 	if (ret)
 		return ret;
 
