@@ -755,70 +755,75 @@ err_reserve_iova:
 }
 
 /* Load firmware to MFC */
-int mfc_load_firmware(struct mfc_core *core)
+int mfc_load_firmware(struct mfc_core *core, const u8 *fw_data, size_t fw_size)
 {
-#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-	struct firmware *fw_blob;
-#endif
-	int err;
+	mfc_core_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n", fw_size);
 
-	mfc_core_debug_enter();
-#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-	mfc_core_debug(4, "[F/W] Requesting imgloader boot for F/W\n");
-
-	err = imgloader_boot(&core->mfc_imgloader_desc);
-	if (err) {
-		 mfc_core_err("[F/W] imgloader boot failed.\n");
-		        return -EINVAL;
-	}
-#else
-	mfc_core_debug(4, "[F/W] Requesting F/W\n");
-	err = request_firmware((const struct firmware **)&fw_blob,
-					MFC_FW_NAME, core->dev->v4l2_dev.dev);
-
-	if (err != 0) {
-		mfc_core_err("[F/W] Couldn't find the F/W invalid path\n");
-		release_firmware(fw_blob);
-		return -EINVAL;
-	}
-
-	mfc_core_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n",
-			fw_blob->size);
-
-	if (fw_blob->size > core->fw_buf.size) {
+	if (fw_size > core->fw_buf.size) {
 		mfc_core_err("[MEMINFO][F/W] MFC firmware(%zu) is too big to be loaded in memory(%zu)\n",
-				fw_blob->size, core->fw_buf.size);
-		release_firmware(fw_blob);
+				fw_size, core->fw_buf.size);
 		return -ENOMEM;
 	}
 
-	core->fw.fw_size = fw_blob->size;
+	core->fw.fw_size = fw_size;
 
 	if (core->fw_buf.sgt == NULL || core->fw_buf.daddr == 0) {
 		mfc_core_err("[F/W] MFC firmware is not allocated or was not mapped correctly\n");
-		release_firmware(fw_blob);
 		return -EINVAL;
 	}
 
 	/*  This adds to clear with '0' for firmware memory except code region. */
 	mfc_core_debug(4, "[F/W] memset before memcpy for normal fw\n");
-	memset((core->fw_buf.vaddr + fw_blob->size), 0,
-			(core->fw_buf.size - fw_blob->size));
-	memcpy(core->fw_buf.vaddr, fw_blob->data, fw_blob->size);
+	memset((core->fw_buf.vaddr + fw_size), 0, (core->fw_buf.size - fw_size));
+	memcpy(core->fw_buf.vaddr, fw_data, fw_size);
 
 	/* cache flush for memcpy by CPU */
 	dma_sync_sgtable_for_device(core->device, core->fw_buf.sgt, DMA_TO_DEVICE);
 
 	if (core->drm_fw_buf.vaddr) {
 		mfc_core_debug(4, "[F/W] memset before memcpy for secure fw\n");
-		memset((core->drm_fw_buf.vaddr + fw_blob->size), 0,
-				(core->fw_buf.size - fw_blob->size));
-		memcpy(core->drm_fw_buf.vaddr, fw_blob->data, fw_blob->size);
+		memset((core->drm_fw_buf.vaddr + fw_size), 0, (core->drm_fw_buf.size - fw_size));
+		memcpy(core->drm_fw_buf.vaddr, fw_data, fw_size);
 		mfc_core_debug(4, "[F/W] copy firmware to secure region\n");
 
 		/* cache flush for memcpy by CPU */
 		dma_sync_sgtable_for_device(core->device, core->drm_fw_buf.sgt, DMA_TO_DEVICE);
 		mfc_core_debug(4, "[F/W] cache flush for secure region\n");
+	}
+
+	return 0;
+}
+
+/* Request and load firmware to MFC */
+int mfc_request_load_firmware(struct mfc_core *core)
+{
+#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+	const struct firmware *fw_blob;
+#endif
+	int ret;
+
+	mfc_core_debug_enter();
+#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+	mfc_core_debug(4, "[F/W] Requesting imgloader boot for F/W\n");
+
+	ret = imgloader_boot(&core->mfc_imgloader_desc);
+	if (ret) {
+		mfc_core_err("[F/W] imgloader boot failed.\n");
+		return -EINVAL;
+	}
+#else
+	mfc_core_debug(4, "[F/W] Requesting F/W\n");
+	ret = request_firmware(&fw_blob, MFC_FW_NAME, core->dev->v4l2_dev.dev);
+	if (ret != 0) {
+		mfc_core_err("[F/W] Couldn't find the F/W invalid path\n");
+		return ret;
+	}
+
+	ret = mfc_load_firmware(core, fw_blob->data, fw_blob->size);
+	if (ret) {
+		mfc_core_err("[F/W] Failed to load the MFC F/W\n");
+		release_firmware(fw_blob);
+		return ret;
 	}
 
 	release_firmware(fw_blob);

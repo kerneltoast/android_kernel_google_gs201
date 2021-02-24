@@ -39,7 +39,7 @@
 #include "mfc_queue.h"
 #include "mfc_mem.h"
 
-int mfc_power_on_verify_fw(struct mfc_core *core, unsigned int fw_id,
+int __mfc_power_on_verify_fw(struct mfc_core *core, unsigned int fw_id,
 		phys_addr_t fw_phys_base, size_t fw_bin_size, size_t fw_mem_size)
 {
 	int ret = 0;
@@ -90,7 +90,7 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	mfc_core_change_idle_mode(core, MFC_IDLE_MODE_NONE);
 
 	/* Load the FW */
-	ret = mfc_load_firmware(core);
+	ret = mfc_request_load_firmware(core);
 	if (ret)
 		goto err_fw_load;
 
@@ -151,7 +151,7 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 		mfc_alloc_dbg_info_buffer(core);
 
 #if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-	ret = mfc_power_on_verify_fw(core, 0, core->fw_buf.paddr,
+	ret = __mfc_power_on_verify_fw(core, 0, core->fw_buf.paddr,
 				core->fw.fw_size, core->fw_buf.size);
 	if (ret < 0)
 		goto err_pwr_enable;
@@ -1137,44 +1137,13 @@ int mfc_imgloader_mem_setup(struct imgloader_desc *desc, const u8 *fw_data, size
 	phys_addr_t *fw_phys_base, size_t *fw_bin_size, size_t *fw_mem_size)
 {
 	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
+	int ret = 0;
 
 	mfc_core_debug_enter();
 
-	mfc_core_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n", fw_size);
-
-	if (fw_size > core->fw_buf.size) {
-		mfc_core_err("[MEMINFO][F/W] MFC firmware(%zu) is too big to be loaded in memory(%zu)\n",
-				fw_size, core->fw_buf.size);
-		return -ENOMEM;
-	}
-
-	core->fw.fw_size = fw_size;
-
-	if (core->fw_buf.sgt == NULL || core->fw_buf.daddr == 0) {
-		mfc_core_err("[F/W] MFC firmware is not allocated or was not mapped correctly\n");
-		return -EINVAL;
-	}
-
-	/*  This adds to clear with '0' for firmware memory except code region. */
-	mfc_core_debug(4, "[F/W] memset before memcpy for normal fw\n");
-	memset((core->fw_buf.vaddr + fw_size), 0, (core->fw_buf.size - fw_size));
-	memcpy(core->fw_buf.vaddr, fw_data, fw_size);
-
-	/* cache flush for memcpy by CPU */
-	dma_sync_sg_for_device(core->device, core->fw_buf.sgt->sgl,
-		core->fw_buf.sgt->orig_nents, DMA_TO_DEVICE);
-
-	if (core->drm_fw_buf.vaddr) {
-		mfc_core_debug(4, "[F/W] memset before memcpy for secure fw\n");
-		memset((core->drm_fw_buf.vaddr + fw_size), 0, (core->drm_fw_buf.size - fw_size));
-		memcpy(core->drm_fw_buf.vaddr, fw_data, fw_size);
-		mfc_core_debug(4, "[F/W] copy firmware to secure region\n");
-
-		/* cache flush for memcpy by CPU */
-		dma_sync_sg_for_device(core->device, core->drm_fw_buf.sgt->sgl,
-				core->drm_fw_buf.sgt->orig_nents, DMA_TO_DEVICE);
-		mfc_core_debug(4, "[F/W] cache flush for secure region\n");
-	}
+	ret = mfc_load_firmware(core, fw_data, fw_size);
+	if (ret)
+		return ret;
 
 	*fw_phys_base = core->fw_buf.paddr;
 	*fw_bin_size = fw_size;
@@ -1191,7 +1160,7 @@ int mfc_imgloader_verify_fw(struct imgloader_desc *desc, phys_addr_t fw_phys_bas
 	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
 	int ret = 0;
 
-	ret = mfc_power_on_verify_fw(core, desc->fw_id, fw_phys_base, fw_bin_size, fw_mem_size);
+	ret = __mfc_power_on_verify_fw(core, desc->fw_id, fw_phys_base, fw_bin_size, fw_mem_size);
 
 	return ret;
 }
