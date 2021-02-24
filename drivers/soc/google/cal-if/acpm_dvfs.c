@@ -32,7 +32,7 @@ int exynos_acpm_set_rate(unsigned int id, unsigned long rate)
 	config.cmd[0] = id;
 	config.cmd[1] = (unsigned int)rate;
 	config.cmd[2] = FREQ_REQ;
-	config.cmd[3] = 0;
+	config.cmd[3] = (u32)(sched_clock() / 1000000); /*record ktime ms*/
 
 	before = sched_clock();
 	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
@@ -90,7 +90,7 @@ int exynos_acpm_get_rate(unsigned int id, unsigned long dbg_val)
 	config.cmd[0] = id;
 	config.cmd[1] = dbg_val;
 	config.cmd[2] = FREQ_GET;
-	config.cmd[3] = 0;
+	config.cmd[3] = (u32)(sched_clock() / 1000000); /*record ktime ms*/
 
 	before = sched_clock();
 	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
@@ -118,7 +118,7 @@ int exynos_acpm_set_volt_margin(unsigned int id, int volt)
 	config.cmd[0] = id;
 	config.cmd[1] = volt;
 	config.cmd[2] = MARGIN_REQ;
-	config.cmd[3] = 0;
+	config.cmd[3] = (u32)(sched_clock() / 1000000); /*record ktime ms*/
 
 	before = sched_clock();
 	ret = acpm_ipc_send_data_lazy(acpm_dvfs.ch_num, &config);
@@ -145,7 +145,7 @@ int exynos_acpm_set_policy(unsigned int id, unsigned long policy)
 	config.cmd[0] = id;
 	config.cmd[1] = policy;
 	config.cmd[2] = POLICY_REQ;
-	config.cmd[3] = 0;
+	config.cmd[3] = (u32)(sched_clock() / 1000000); /*record ktime ms*/
 
 	before = sched_clock();
 	ret = acpm_ipc_send_data(acpm_dvfs.ch_num, &config);
