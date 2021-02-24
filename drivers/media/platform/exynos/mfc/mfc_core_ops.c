@@ -46,6 +46,8 @@ static int __mfc_core_prot_firmware(struct mfc_core *core, struct mfc_ctx *ctx)
 	dma_addr_t protdesc_daddr;
 	int ret = 0;
 
+	mfc_core_debug_enter();
+
 	if (!core->drm_fw_buf.sgt) {
 		mfc_core_err("DRM F/W buffer is not allocated\n");
 		core->fw.drm_status = 0;
@@ -76,6 +78,9 @@ static int __mfc_core_prot_firmware(struct mfc_core *core, struct mfc_ctx *ctx)
 			mfc_core_err("failed MFC DRM F/W prot region setting(%#x)\n", ret);
 			call_dop(core, dump_and_stop_debug_mode, core);
 			core->fw.drm_status = 0;
+			kfree(core->drm_fw_prot);
+			core->drm_fw_prot = NULL;
+			return -EACCES;
 		}
 
 		/* Request buffer protection for DRM F/W */
@@ -84,10 +89,16 @@ static int __mfc_core_prot_firmware(struct mfc_core *core, struct mfc_ctx *ctx)
 			mfc_core_err("failed MFC DRM F/W prot(%#x)\n", ret);
 			call_dop(core, dump_and_stop_debug_mode, core);
 			core->fw.drm_status = 0;
+			kfree(core->drm_fw_prot);
+			core->drm_fw_prot = NULL;
+			return -EACCES;
 		} else {
+			mfc_debug(2, "DRM F/W region protected\n");
 			core->fw.drm_status = 1;
 		}
 	}
+
+	mfc_core_debug_leave();
 
 	return 0;
 }
@@ -96,6 +107,8 @@ static void __mfc_core_unprot_firmware(struct mfc_core *core, struct mfc_ctx *ct
 {
 	phys_addr_t protdesc_phys;
 	int ret = 0;
+
+	mfc_core_debug_enter();
 
 	if (!core->fw.drm_status) {
 		mfc_ctx_info("DRM F/W region already unprotected\n");
@@ -120,6 +133,8 @@ static void __mfc_core_unprot_firmware(struct mfc_core *core, struct mfc_ctx *ct
 
 	kfree(core->drm_fw_prot);
 	core->drm_fw_prot = NULL;
+
+	mfc_core_debug_leave();
 }
 #endif
 
