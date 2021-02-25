@@ -300,6 +300,9 @@
 
 			/* Eeprom m24c64x for imx663 */
 			eeprom1: eeprom@1 {
+				/* I2C */
+				i2c-addr = <0x50>;
+
 				/* Power supplies */
 				regulators = <&slg51000_ldo7>;
 				regulator-voltages = <1800000>;
