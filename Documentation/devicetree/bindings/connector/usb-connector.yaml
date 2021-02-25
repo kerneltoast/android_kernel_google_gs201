@@ -119,6 +119,18 @@ properties:
     maxItems: 7
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
+  sink-vdos:
+    description: An array of u32 with each entry, a Vendor Defined Message Object (VDO),
+      providing additional information corresponding to the product, the detailed bit
+      definitions and the order of each VDO can be found in
+      "USB Power Delivery Specification Revision 3.0, Version 2.0 + ECNs 2020-12-10"
+      chapter 6.4.4.3.1 Discover Identity. User can specify the VDO array via
+      VDO_IDH/_CERT/_PRODUCT/_UFP/_DFP/_PCABLE/_ACABLE(1/2)/_VPD() defined in
+      dt-bindings/usb/pd.h.
+    minItems: 3
+    maxItems: 6
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
   op-sink-microwatt:
     description: Sink required operating power in microwatt, if source can't
       offer the power, Capability Mismatch is set. Required for power sink and
@@ -160,18 +172,11 @@ properties:
       This property refers to maximum current capability that the current sink can
       satisfy. During FRS, VBUS voltage is at 5V, as the partners are in implicit
       contract, hence, the power level is only a function of the current capability.
-      "not-supported" implies sink to source fast role swap not supported.
-      "default" refers to default USB power level as described by
-      "Table 6-14 Fixed Supply PDO - Sink".
-      "1.5A" refers to 1.5A@5V.
-      "3.0A" refers to 3.0A@5V.
-
-    $ref: /schemas/types.yaml#/definitions/string
-    enum:
-      - not-supported
-      - default
-      - 1.5A
-      - 3.0A
+      "1" refers to default USB power level as described by "Table 6-14 Fixed Supply PDO - Sink".
+      "2" refers to 1.5A@5V.
+      "3" refers to 3.0A@5V.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 3]
 
 required:
   - compatible
