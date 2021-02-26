@@ -1084,7 +1084,7 @@ static ssize_t mm_stat_show(struct device *dev,
 			orig_size << PAGE_SHIFT, compr_size,
 			mem_used << PAGE_SHIFT, zram->limit_pages << PAGE_SHIFT,
 			max_used << PAGE_SHIFT, same_pages,
-			pool_stats.pages_compacted, huge_pages,
+			atomic_long_read(&pool_stats.pages_compacted), huge_pages,
 			huge_pages_since);
 
 	up_read(&zram->init_lock);
