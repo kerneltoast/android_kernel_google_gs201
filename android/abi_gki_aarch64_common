@@ -12578,7 +12578,6 @@
   vfs_parse_fs_param
   vfs_parse_fs_string
   vfs_path_lookup
-  vfs_read
   vfs_readlink
   __vfs_removexattr
   vfs_removexattr
