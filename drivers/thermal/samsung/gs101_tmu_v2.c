@@ -589,20 +589,32 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 		if (data->temperature < data->hotplug_in_threshold) {
 			/*
 			 * If current temperature is lower than low threshold,
-			 * call cluster1_cores_hotplug(false) for hotplugged out cpus.
+			 * call exynos_cpuhp_request for hotplugged out cpus.
 			 */
-			exynos_cpuhp_request(data->cpuhp_name, *cpu_possible_mask);
-			data->is_cpu_hotplugged_out = false;
+			if (exynos_cpuhp_request(data->cpuhp_name, *cpu_possible_mask)) {
+				// queue the work again in case failure
+				// also do not queue again when prepare to suspend
+				if (!atomic_read(&gs101_tmu_in_suspend))
+					kthread_queue_work(hotplug_worker, &data->hotplug_work);
+			} else {
+				data->is_cpu_hotplugged_out = false;
+			}
 		}
 	} else {
 		if (data->temperature >= data->hotplug_out_threshold) {
 			/*
 			 * If current temperature is higher than high threshold,
-			 * call cluster1_cores_hotplug(true) to hold temperature down.
+			 * call exynos_cpuhp_request to hold temperature down.
 			 */
-			data->is_cpu_hotplugged_out = true;
 			cpumask_andnot(&mask, cpu_possible_mask, &data->hotplug_cpus);
-			exynos_cpuhp_request(data->cpuhp_name, mask);
+			if (exynos_cpuhp_request(data->cpuhp_name, mask)) {
+				// queue the work again in case of failure
+				// also do not queue again when prepare to suspend
+				if (!atomic_read(&gs101_tmu_in_suspend))
+					kthread_queue_work(hotplug_worker, &data->hotplug_work);
+			} else {
+				data->is_cpu_hotplugged_out = true;
+			}
 		}
 	}
 
@@ -749,6 +761,7 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 	else
 		strncpy(data->tmu_name, tmu_name, THERMAL_NAME_LENGTH);
 
+#if IS_ENABLED(CONFIG_EXYNOS_CPUHP)
 	data->hotplug_enable = of_property_read_bool(pdev->dev.of_node, "hotplug_enable");
 	if (data->hotplug_enable) {
 		dev_info(&pdev->dev, "thermal zone use hotplug function\n");
@@ -770,6 +783,7 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 		if (!ret)
 			cpulist_parse(buf, &data->hotplug_work_affinity);
 	}
+#endif
 
 	ret = of_property_read_string(pdev->dev.of_node, "tmu_work_affinity", &buf);
 	if (!ret)
