@@ -13,6 +13,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ufs_pixel.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/ufshcd.h>
+
 /* UFSHCD error handling flags */
 enum {
 	UFSHCD_EH_IN_PROGRESS = (1 << 0),
@@ -297,42 +300,37 @@ void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8)
 	}
 }
 
-void pixel_init_parameter(struct ufs_hba *hba)
-{
-	struct exynos_ufs *ufs = to_exynos_ufs(hba);
-
-	memset(&ufs->ufs_stats, 0, sizeof(struct pixel_ufs_stats));
-	ufs->ufs_stats.hibern8_flag = false;
-}
-
-void pixel_ufs_send_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+static void pixel_ufs_send_command(void *data, struct ufs_hba *hba,
+					struct ufshcd_lrb *lrbp)
 {
 	pixel_ufs_update_io_stats(hba, lrbp, true);
 }
 
-void pixel_ufs_compl_command(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
+					struct ufshcd_lrb *lrbp)
 {
 	pixel_ufs_update_io_stats(hba, lrbp, false);
 	pixel_ufs_update_req_stats(hba, lrbp);
 }
 
-int pixel_ufs_prepare_command(struct ufs_hba *hba,
-			struct request *rq, struct ufshcd_lrb *lrbp)
+static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
+			struct request *rq, struct ufshcd_lrb *lrbp, int *err)
 {
 	u8 opcode;
 
+	*err = 0;
+
 	if (!(rq->cmd_flags & REQ_META))
-		return 0;
+		return;
 
 	if (hba->dev_info.wspecversion <= 0x300)
-		return 0;
+		return;
 
 	opcode = (u8)(*lrbp->cmd->cmnd);
 	if (opcode == WRITE_10)
 		lrbp->cmd->cmnd[6] = 0x11;
 	else if (opcode == WRITE_16)
 		lrbp->cmd->cmnd[14] = 0x11;
-	return 0;
 }
 
 static ssize_t life_time_estimation_c_show(struct device *dev,
@@ -1228,7 +1226,7 @@ static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	NULL,
 };
 
-int pixel_ufs_update_sysfs(struct ufs_hba *hba)
+static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
 {
 	int err;
 
@@ -1237,7 +1235,7 @@ int pixel_ufs_update_sysfs(struct ufs_hba *hba)
 		dev_err(hba->dev,
 			"%s: sysfs groups creation failed (err = %d)\n",
 			__func__, err);
-		return err;
+		return;
 	}
 
 	err = sysfs_update_group(&hba->dev->kobj,
@@ -1251,6 +1249,35 @@ int pixel_ufs_update_sysfs(struct ufs_hba *hba)
 	if (err)
 		dev_err(hba->dev, "%s: Failed to add a pixel group\n",
 				__func__);
+}
 
-	return err;
+int pixel_init(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	int ret;
+
+	memset(&ufs->ufs_stats, 0, sizeof(struct pixel_ufs_stats));
+	ufs->ufs_stats.hibern8_flag = false;
+
+	ret = register_trace_android_vh_ufs_prepare_command(
+				pixel_ufs_prepare_command, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_ufs_update_sysfs(
+				pixel_ufs_update_sysfs, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_ufs_send_command(
+				pixel_ufs_send_command, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_ufs_compl_command(
+				pixel_ufs_compl_command, NULL);
+	if (ret)
+		return ret;
+
+	return 0;
 }

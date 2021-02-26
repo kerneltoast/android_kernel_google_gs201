@@ -467,7 +467,9 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	if (ret)
 		return ret;
 
-	pixel_init_parameter(hba);
+	ret = pixel_init(hba);
+	if (ret)
+		return ret;
 
 	pixel_init_manual_gc(hba);
 
@@ -931,10 +933,6 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.suspend = __exynos_ufs_suspend,
 	.resume = __exynos_ufs_resume,
 	.fill_prdt = pixel_ufs_crypto_fill_prdt,
-	.prepare_command = pixel_ufs_prepare_command,
-	.update_sysfs = pixel_ufs_update_sysfs,
-	.send_command = pixel_ufs_send_command,
-	.compl_command = pixel_ufs_compl_command,
 	.apply_dev_quirks = __apply_dev_quirks,
 	.fixup_dev_quirks = __fixup_dev_quirks,
 	.device_reset = __device_reset,
