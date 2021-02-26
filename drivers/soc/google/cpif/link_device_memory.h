@@ -253,8 +253,10 @@ struct mem_link_device {
 	unsigned int total_freq_table_count;
 
 	struct freq_table mif_table;
+	struct freq_table cp_cpu_table;
 	struct freq_table cp_table;
-	struct freq_table modem_table;
+	struct freq_table cp_em_table;
+	struct freq_table cp_mcw_table;
 
 	unsigned int irq_cp2ap_wakelock;	/* INTR# for wakelock */
 

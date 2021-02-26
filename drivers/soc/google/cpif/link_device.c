@@ -463,17 +463,24 @@ static void write_clk_table_to_shmem(struct mem_link_device *mld)
 
 	clk_tb = (struct clock_table *)mld->clk_table;
 
-	strcpy(clk_tb->parser_version, "CT0");
+	strcpy(clk_tb->parser_version, "CT1");
 	clk_tb->total_table_count = mld->total_freq_table_count;
 
-	strcpy(clk_tb->table_info[0].table_name, "MIF");
+	strcpy(clk_tb->table_info[0].table_name, "MIF\0");
 	clk_tb->table_info[0].table_count = mld->mif_table.num_of_table;
 
-	strcpy(clk_tb->table_info[1].table_name, "CP");
-	clk_tb->table_info[1].table_count = mld->cp_table.num_of_table;
+	strcpy(clk_tb->table_info[1].table_name, "CP_C");
+	clk_tb->table_info[1].table_count = mld->cp_cpu_table.num_of_table;
 
-	strcpy(clk_tb->table_info[2].table_name, "MDM");
-	clk_tb->table_info[2].table_count = mld->modem_table.num_of_table;
+	strcpy(clk_tb->table_info[2].table_name, "CP\0");
+	clk_tb->table_info[2].table_count = mld->cp_table.num_of_table;
+
+	strcpy(clk_tb->table_info[3].table_name, "CP_E");
+	clk_tb->table_info[3].table_count = mld->cp_em_table.num_of_table;
+
+	strcpy(clk_tb->table_info[4].table_name, "CP_M");
+	clk_tb->table_info[4].table_count = mld->cp_mcw_table.num_of_table;
+
 
 	clk_data = (u32 *)&(clk_tb->table_info[clk_tb->total_table_count]);
 
@@ -483,15 +490,27 @@ static void write_clk_table_to_shmem(struct mem_link_device *mld)
 		clk_data++;
 	}
 
+	/* CP_CPU */
+	for (i = 0; i < mld->cp_cpu_table.num_of_table; i++) {
+		*clk_data = mld->cp_cpu_table.freq[i];
+		clk_data++;
+	}
+
 	/* CP */
 	for (i = 0; i < mld->cp_table.num_of_table; i++) {
 		*clk_data = mld->cp_table.freq[i];
 		clk_data++;
 	}
 
-	/* MODEM */
-	for (i = 0; i < mld->modem_table.num_of_table; i++) {
-		*clk_data = mld->modem_table.freq[i];
+	/* CP_EM */
+	for (i = 0; i < mld->cp_em_table.num_of_table; i++) {
+		*clk_data = mld->cp_em_table.freq[i];
+		clk_data++;
+	}
+
+	/* CP_MCW */
+	for (i = 0; i < mld->cp_mcw_table.num_of_table; i++) {
+		*clk_data = mld->cp_mcw_table.freq[i];
 		clk_data++;
 	}
 
@@ -3289,6 +3308,15 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 					mld->mif_table.freq[i]);
 		}
 	} else if (!strcmp(dvfs_domain_name, "CP_CPU")) {
+		mld->cp_cpu_table.num_of_table = dvfs_domain->num_of_level;
+		mld->total_freq_table_count++;
+		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
+			mld->cp_cpu_table.freq[i] =
+				dvfs_domain->list_level[counter++].level;
+			mif_err("CP_CPU_LEV[%d] : %u\n", i + 1,
+					mld->cp_cpu_table.freq[i]);
+		}
+	} else if (!strcmp(dvfs_domain_name, "CP")) {
 		mld->cp_table.num_of_table = dvfs_domain->num_of_level;
 		mld->total_freq_table_count++;
 		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
@@ -3297,14 +3325,23 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 			mif_err("CP_LEV[%d] : %u\n", i + 1,
 					mld->cp_table.freq[i]);
 		}
-	} else if (!strcmp(dvfs_domain_name, "CP")) {
-		mld->modem_table.num_of_table = dvfs_domain->num_of_level;
+	} else if (!strcmp(dvfs_domain_name, "CP_EM")) {
+		mld->cp_em_table.num_of_table = dvfs_domain->num_of_level;
 		mld->total_freq_table_count++;
 		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
-			mld->modem_table.freq[i] =
+			mld->cp_em_table.freq[i] =
 				dvfs_domain->list_level[counter++].level;
-			mif_err("MODEM_LEV[%d] : %u\n", i + 1,
-					mld->modem_table.freq[i]);
+			mif_err("CP_LEV[%d] : %u\n", i + 1,
+					mld->cp_em_table.freq[i]);
+		}
+	} else if (!strcmp(dvfs_domain_name, "CP_MCW")) {
+		mld->cp_mcw_table.num_of_table = dvfs_domain->num_of_level;
+		mld->total_freq_table_count++;
+		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
+			mld->cp_mcw_table.freq[i] =
+				dvfs_domain->list_level[counter++].level;
+			mif_err("CP_LEV[%d] : %u\n", i + 1,
+					mld->cp_mcw_table.freq[i]);
 		}
 	}
 
@@ -3316,8 +3353,10 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 	mif_err("ECT is not defined(%s)\n", __func__);
 
 	mld->mif_table.num_of_table = 0;
+	mld->cp_cpu_table.num_of_table = 0;
 	mld->cp_table.num_of_table = 0;
-	mld->modem_table.num_of_table = 0;
+	mld->cp_em_table.num_of_table = 0;
+	mld->cp_mcw_table.num_of_table = 0;
 
 	return 0;
 }
@@ -4369,15 +4408,25 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 		if (err < 0)
 			mif_err("Can't get MIF frequency table!!!!!\n");
 
-		mif_info("Parsing CP frequency table...\n");
+		mif_info("Parsing CP_CPU frequency table...\n");
 		err = parse_ect(mld, "CP_CPU");
+		if (err < 0)
+			mif_err("Can't get CP_CPU frequency table!!!!!\n");
+
+		mif_info("Parsing CP frequency table...\n");
+		err = parse_ect(mld, "CP");
 		if (err < 0)
 			mif_err("Can't get CP frequency table!!!!!\n");
 
-		mif_info("Parsing MODEM frequency table...\n");
-		err = parse_ect(mld, "CP");
+		mif_info("Parsing CP_EM frequency table...\n");
+		err = parse_ect(mld, "CP_EM");
 		if (err < 0)
-			mif_err("Can't get MODEM frequency table!!!!!\n");
+			mif_err("Can't get CP_EM frequency table!!!!!\n");
+
+		mif_info("Parsing CP_MCW frequency table...\n");
+		err = parse_ect(mld, "CP_MCW");
+		if (err < 0)
+			mif_err("Can't get CP_MCW frequency table!!!!!\n");
 	}
 
 	/**
