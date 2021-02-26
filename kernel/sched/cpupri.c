@@ -106,11 +106,6 @@ static inline int __cpupri_find(struct cpupri *cp, struct task_struct *p,
 			drop_nopreempt_cpus(lowest_mask);
 #endif
 
-#ifdef CONFIG_RT_SOFTINT_OPTIMIZATION
-		if (drop_nopreempts)
-			drop_nopreempt_cpus(lowest_mask);
-#endif
-
 		/*
 		 * We have to ensure that we have at least one bit
 		 * still set in the array, since the map could have
