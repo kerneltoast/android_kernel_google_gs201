@@ -186,9 +186,6 @@
 				/* RTCAM_AVDD30 SLG GPIO1 */
 				shared-enable-gpios =
 					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				/* RTCAM_EN S2MPG11 GPIO8 */
-				enable-gpios =
-					<&s2mpg11_gpio 2 GPIO_ACTIVE_HIGH>;
 
 				/* Power supplies */
 				regulators =
