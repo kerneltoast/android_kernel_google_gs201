@@ -51,6 +51,11 @@
 
 #define MAX77759_DEVICE_ID_A1				0x2
 
+#define MAX77759_DISABLE_TOGGLE				1
+#define MAX77759_ENABLE_TOGGLE				0
+/* Vote value doesn't matter. Only status matters. */
+#define MAX77759_DISABLE_TOGGLE_VOTE			1
+
 /* system use cases */
 enum gbms_charger_modes {
 	GBMS_USB_BUCK_ON	= 0x30,
@@ -58,7 +63,9 @@ enum gbms_charger_modes {
 	GBMS_USB_OTG_FRS_ON	= 0x32,
 };
 
-#define CONTAMINANT_DETECT_MAXQ	2
+#define CONTAMINANT_DETECT_DISABLE	0
+#define CONTAMINANT_DETECT_AP		1
+#define CONTAMINANT_DETECT_MAXQ		2
 
 #define TCPM_RESTART_TOGGLING		0
 #define CONTAMINANT_HANDLES_TOGGLING	1
@@ -140,8 +147,22 @@ static ssize_t contaminant_detection_show(struct device *dev, struct device_attr
 {
 	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->contaminant_detection);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->contaminant_detection_userspace);
 };
+
+static void update_contaminant_detection_locked(struct max77759_plat *chip, int val)
+{
+
+	chip->contaminant_detection = val;
+
+	if (chip->contaminant_detection)
+		enable_contaminant_detection(chip, chip->contaminant_detection ==
+					     CONTAMINANT_DETECT_MAXQ);
+	else
+		disable_contaminant_detection(chip);
+
+	logbuffer_log(chip->log, "[%s]: %d", __func__, chip->contaminant_detection);
+}
 
 static ssize_t contaminant_detection_store(struct device *dev, struct device_attribute *attr,
 					   const char *buf, size_t count)
@@ -152,20 +173,40 @@ static ssize_t contaminant_detection_store(struct device *dev, struct device_att
 	if (kstrtoint(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	mutex_lock(&chip->contaminant_detection_lock);
-	chip->contaminant_detection = val;
-
-	if (chip->contaminant_detection)
-		enable_contaminant_detection(chip, chip->contaminant_detection ==
-					     CONTAMINANT_DETECT_MAXQ);
-	else
-		disable_contaminant_detection(chip);
-
-	logbuffer_log(chip->log, "[%s]: %d", __func__, chip->contaminant_detection);
-	mutex_unlock(&chip->contaminant_detection_lock);
+	mutex_lock(&chip->rc_lock);
+	chip->contaminant_detection_userspace = val;
+	update_contaminant_detection_locked(chip, val);
+	mutex_unlock(&chip->rc_lock);
 	return count;
 }
 static DEVICE_ATTR_RW(contaminant_detection);
+
+static ssize_t cc_toggle_enable_show(struct device *dev, struct device_attribute *attr,
+				     char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->toggle_disable_status ? 0 : 1);
+};
+
+static ssize_t cc_toggle_enable_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	int val, ret;
+
+	if (kstrtoint(buf, 10, &val) < 0)
+		return -EINVAL;
+
+	ret = gvotable_cast_vote(chip->toggle_disable_votable, "USER_VOTE",
+				 (void *)MAX77759_DISABLE_TOGGLE_VOTE, val ?
+				 MAX77759_ENABLE_TOGGLE : MAX77759_DISABLE_TOGGLE);
+	if (ret < 0)
+		dev_err(chip->dev, "Cannot set TOGGLE DISABLE=%d (%d)\n", val, ret);
+
+	return count;
+}
+static DEVICE_ATTR_RW(cc_toggle_enable);
 
 static ssize_t contaminant_detection_status_show(struct device *dev, struct device_attribute *attr,
 						 char *buf)
@@ -190,6 +231,7 @@ static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_auto_discharge,
 	&dev_attr_contaminant_detection,
 	&dev_attr_contaminant_detection_status,
+	&dev_attr_cc_toggle_enable,
 	NULL
 };
 
@@ -696,13 +738,13 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		 * Process generic CC updates if it doesn't belong to
 		 * contaminant detection.
 		 */
-		mutex_lock(&chip->contaminant_detection_lock);
+		mutex_lock(&chip->rc_lock);
 		if (!chip->contaminant_detection || !tcpm_is_toggling(tcpci->port) ||
 		    !process_contaminant_alert(chip->contaminant, false, true))
 			tcpm_cc_change(tcpci->port);
 		else
 			logbuffer_log(log, "CC update: Contaminant algorithm responded");
-		mutex_unlock(&chip->contaminant_detection_lock);
+		mutex_unlock(&chip->rc_lock);
 	}
 
 	if (status & TCPC_ALERT_POWER_STATUS)
@@ -844,16 +886,41 @@ static int max77759_init_alert(struct max77759_plat *chip,
 	return 0;
 }
 
+/* Called while holding rc_lock */
+static void max77759_enable_toggling_locked(struct max77759_plat *chip, bool enable)
+{
+	int ret;
+
+	if (!enable) {
+		ret = max77759_write8(chip->data.regmap, TCPC_ROLE_CTRL, TCPCI_HI_Z_CC);
+		logbuffer_log(chip->log, "%s: HI-Z ret:%d", __func__, ret);
+		return;
+	}
+
+	ret = max77759_write8(chip->data.regmap, TCPC_ROLE_CTRL, chip->role_ctrl_cache);
+	if (ret < 0) {
+		logbuffer_log(chip->log, "%s: update ROLE_CTRL failed ret:%d", __func__, ret);
+		return;
+	}
+
+	ret = max77759_update_bits8(chip->data.regmap, TCPC_TCPC_CTRL,
+				    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT,
+				    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT);
+	if (ret < 0) {
+		logbuffer_log(chip->log, "%s: Enable LK4CONN alert failed ret:%d", __func__, ret);
+		return;
+	}
+
+	ret = regmap_write(chip->data.regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
+	if (ret < 0)
+		logbuffer_log(chip->log, "%s: Enable LK4CONN failed ret:%d", __func__, ret);
+}
 static int max77759_start_toggling(struct tcpci *tcpci,
 				   struct tcpci_data *tdata,
 				   enum typec_cc_status cc)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
-	unsigned int reg = TCPC_ROLE_CTRL_DRP;
-	int ret;
-
-	if (chip->disable_toggling)
-		return 0;
+	u8 reg = TCPC_ROLE_CTRL_DRP;
 
 	switch (cc) {
 	case TYPEC_CC_RP_DEF:
@@ -881,6 +948,11 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 
 	max77759_init_regs(chip->tcpci->regmap, chip->log);
 
+	chip->role_ctrl_cache = reg;
+	mutex_lock(&chip->rc_lock);
+	if (chip->toggle_disable_status)
+		goto unlock;
+
 	/* Kick debug accessory state machine when enabling toggling for the first time */
 	if (chip->first_toggle && chip->in_switch_gpio >= 0) {
 		logbuffer_log(chip->log, "[%s]: Kick Debug accessory FSM", __func__);
@@ -889,28 +961,16 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 		gpio_set_value_cansleep(chip->in_switch_gpio, 1);
 		chip->first_toggle = false;
 	}
-	mutex_lock(&chip->contaminant_detection_lock);
-	if (chip->contaminant_detection) {
-		ret = enable_contaminant_detection(chip, chip->contaminant_detection ==
-						   CONTAMINANT_DETECT_MAXQ);
-	} else {
-		ret = max77759_write8(tcpci->regmap, TCPC_ROLE_CTRL, reg);
-		if (ret < 0)
-			goto error;
 
-		ret = max77759_update_bits8(tcpci->regmap, TCPC_TCPC_CTRL,
-					    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT,
-					    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT);
+	if (chip->contaminant_detection)
+		update_contaminant_detection_locked(chip, chip->contaminant_detection);
+	else
+		max77759_enable_toggling_locked(chip, true);
 
-		if (ret < 0)
-			goto error;
+unlock:
+	mutex_unlock(&chip->rc_lock);
 
-		ret = regmap_write(tcpci->regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
-	}
-error:
-	mutex_unlock(&chip->contaminant_detection_lock);
-
-	return ret;
+	return 0;
 }
 
 static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
@@ -935,7 +995,7 @@ static int max77759_check_contaminant(struct tcpci *tcpci, struct tcpci_data *td
 	int ret;
 
 	logbuffer_log(chip->log, "%s: debounce path", __func__);
-	mutex_lock(&chip->contaminant_detection_lock);
+	mutex_lock(&chip->rc_lock);
 	if (chip->contaminant_detection) {
 		process_contaminant_alert(chip->contaminant, true, false);
 		ret = CONTAMINANT_HANDLES_TOGGLING;
@@ -943,7 +1003,7 @@ static int max77759_check_contaminant(struct tcpci *tcpci, struct tcpci_data *td
 		ret = TCPM_RESTART_TOGGLING;
 	}
 
-	mutex_unlock(&chip->contaminant_detection_lock);
+	mutex_unlock(&chip->rc_lock);
 	return ret;
 }
 
@@ -1213,6 +1273,38 @@ static int tcpci_init(struct tcpci *tcpci, struct tcpci_data *data)
 	return -1;
 }
 
+static void max77759_toggle_disable_votable_callback(struct gvotable_election *el,
+						     const char *reason, void *value)
+{
+	struct max77759_plat *chip = gvotable_get_data(el);
+	int disable = (long)value ? MAX77759_DISABLE_TOGGLE : MAX77759_ENABLE_TOGGLE;
+
+	mutex_lock(&chip->rc_lock);
+	if (chip->toggle_disable_status == disable) {
+		mutex_unlock(&chip->rc_lock);
+		return;
+	}
+
+	chip->toggle_disable_status = disable;
+	if (chip->toggle_disable_status) {
+		update_contaminant_detection_locked(chip, CONTAMINANT_DETECT_DISABLE);
+		disable_contaminant_detection(chip);
+		max77759_enable_toggling_locked(chip, false);
+		gpio_set_value_cansleep(chip->in_switch_gpio, 0);
+		logbuffer_log(chip->log, "[%s]: Disable in-switch", __func__);
+	} else {
+		if (chip->contaminant_detection_userspace)
+			update_contaminant_detection_locked(chip,
+							    chip->contaminant_detection_userspace);
+		else
+			max77759_enable_toggling_locked(chip, true);
+		gpio_set_value_cansleep(chip->in_switch_gpio, 1);
+		logbuffer_log(chip->log, "[%s]: Enable in-switch", __func__);
+	}
+	mutex_unlock(&chip->rc_lock);
+	logbuffer_log(chip->log, "%s: reason %s value %ld\n", __func__, reason, (long)value);
+}
+
 #ifdef CONFIG_DEBUG_FS
 static ssize_t force_device_mode_on_write(struct file *file, const char __user *ubuf, size_t count,
 					  loff_t *ppos)
@@ -1331,7 +1423,7 @@ static int max77759_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, chip);
 	mutex_init(&chip->icl_proto_el_lock);
 	mutex_init(&chip->data_path_lock);
-	mutex_init(&chip->contaminant_detection_lock);
+	mutex_init(&chip->rc_lock);
 	chip->first_toggle = true;
 
 	ret = max77759_read8(chip->data.regmap, TCPC_POWER_STATUS,
@@ -1343,6 +1435,16 @@ static int max77759_probe(struct i2c_client *client,
 		dev_err(&client->dev, "TCPC not ready!");
 		return -EPROBE_DEFER;
 	}
+
+	chip->toggle_disable_votable =
+		gvotable_create_bool_election(NULL, max77759_toggle_disable_votable_callback, chip);
+	if (IS_ERR_OR_NULL(chip->toggle_disable_votable)) {
+		ret = PTR_ERR(chip->toggle_disable_votable);
+		dev_err(chip->dev, "no toggle_disable votable (%d)\n", ret);
+		return ret;
+	}
+	gvotable_set_vote2str(chip->toggle_disable_votable, gvotable_v2s_int);
+	gvotable_election_set_name(chip->toggle_disable_votable, "TOGGLE_DISABLE");
 
 	/* Chip level tcpci callbacks */
 	chip->data.set_vbus = max77759_set_vbus;
@@ -1413,6 +1515,7 @@ static int max77759_probe(struct i2c_client *client,
 	logbuffer_log(chip->log, "TCPC DEVICE id:%d", device_id);
 	/* Default enable on A1 or higher */
 	chip->contaminant_detection = device_id >= MAX77759_DEVICE_ID_A1;
+	chip->contaminant_detection_userspace = chip->contaminant_detection;
 	chip->contaminant = max77759_contaminant_init(chip, chip->contaminant_detection);
 
 	chip->extcon = devm_extcon_dev_allocate(&client->dev,
@@ -1538,14 +1641,17 @@ static int max77759_remove(struct i2c_client *client)
 static void max77759_shutdown(struct i2c_client *client)
 {
 	struct max77759_plat *chip = i2c_get_clientdata(client);
+	int ret;
 
 	dev_info(&client->dev, "disabling Type-C upon shutdown\n");
 	/* Set current limit to 0. Will eventually happen after hi-Z as well */
 	max77759_vote_icl(chip->tcpci, chip->tcpci->data, 0);
 	/* Prevent re-enabling toggling */
-	chip->disable_toggling = true;
 	/* Hi-z CC pins to trigger disconnection */
-	max77759_write8(chip->data.regmap, TCPC_ROLE_CTRL, TCPCI_HI_Z_CC);
+	ret = gvotable_cast_vote(chip->toggle_disable_votable, "SHUTDOWN_VOTE",
+				 (void *)MAX77759_DISABLE_TOGGLE_VOTE, MAX77759_DISABLE_TOGGLE);
+	if (ret < 0)
+		dev_err(chip->dev, "Cannot set TOGGLE DISABLE (%d)\n", ret);
 }
 
 static const struct i2c_device_id max77759_id[] = {
