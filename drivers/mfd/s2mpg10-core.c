@@ -48,10 +48,6 @@ static struct mfd_cell s2mpg10_devs[] = {
 	{
 		.name = "s2mpg10_gpio",
 	},
-	{
-		.name = "gs101-bcl-m",
-		.of_compatible = "google,gs101-bcl-m",
-	},
 };
 
 static u8 s2mpg10_pmic_rev;

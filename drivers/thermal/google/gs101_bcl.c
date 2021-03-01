@@ -16,6 +16,8 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
@@ -24,6 +26,7 @@
 #include <linux/mfd/samsung/s2mpg10-register.h>
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/s2mpg11-register.h>
+#include <linux/regulator/pmic_class.h>
 #include <soc/google/exynos-pm.h>
 #include <soc/google/exynos-pmu-if.h>
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -81,6 +84,7 @@
 #define PMIC_120C_UPPER_LIMIT (1200)
 #define PMIC_140C_UPPER_LIMIT (1400)
 #define BUF_SIZE 192
+#define PMU_ALIVE_CPU0_OUT (0x1CA0)
 #define PMU_ALIVE_CPU1_OUT (0x1D20)
 #define PMU_ALIVE_CPU2_OUT (0x1DA0)
 #define PMU_ALIVE_TPU_OUT (0x2920)
@@ -133,15 +137,58 @@ enum sys_throttling_switch {
 
 enum PMIC_REG { S2MPG10, S2MPG11 };
 
+static const unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {
+	[SYS_THROTTLING_DISABLED] = 0x1F,
+	[SYS_THROTTLING_ENABLED] = 0x10,
+	[SYS_THROTTLING_GEAR0] = 0x10,
+	[SYS_THROTTLING_GEAR1] = 0x15,
+	[SYS_THROTTLING_GEAR2] = 0x1A};
+
+static const char * const s2mpg10_source[] = {
+	[IRQ_SMPL_WARN] = "smpl_warn",
+	[IRQ_OCP_WARN_CPUCL1] = "ocp_cpu1",
+	[IRQ_OCP_WARN_CPUCL2] = "ocp_cpu2",
+	[IRQ_SOFT_OCP_WARN_CPUCL1] = "soft_ocp_cpu1",
+	[IRQ_SOFT_OCP_WARN_CPUCL2] = "soft_ocp_cpu2",
+	[IRQ_OCP_WARN_TPU] = "ocp_tpu",
+	[IRQ_SOFT_OCP_WARN_TPU] = "soft_ocp_tpu",
+	[IRQ_PMIC_120C] = "pmic_120c",
+	[IRQ_PMIC_140C] = "pmic_140c",
+	[IRQ_PMIC_OVERHEAT] = "pmic_overheat"};
+
+static const char * const s2mpg11_source[] = {
+	[IRQ_OCP_WARN_GPU] = "ocp_gpu",
+	[IRQ_SOFT_OCP_WARN_GPU] = "soft_ocp_gpu"};
+
+static const char * const clk_ratio_source[] = {
+	"cpu0", "cpu1_heavy", "cpu2_heavy", "tpu_heavy", "gpu_heavy",
+	"cpu1_light", "cpu2_light", "tpu_light", "gpu_light"
+};
+
+static const char * const clk_stats_source[] = {
+	"cpu0", "cpu1", "cpu2", "tpu", "gpu"
+};
+
+static const unsigned int subsystem_pmu[] = {
+	PMU_ALIVE_CPU0_OUT,
+	PMU_ALIVE_CPU1_OUT,
+	PMU_ALIVE_CPU2_OUT,
+	PMU_ALIVE_TPU_OUT,
+	PMU_ALIVE_GPU_OUT
+};
+
+struct ocpsmpl_stats {
+	ktime_t _time;
+	int capacity;
+	int voltage;
+};
+
 struct gs101_bcl_dev {
 	struct device *device;
 	struct dentry *debug_entry;
-	void __iomem *cpu0_mem;
-	void __iomem *cpu1_mem;
-	void __iomem *cpu2_mem;
-	void __iomem *gpu_mem;
-	void __iomem *tpu_mem;
+	void __iomem *base_mem[5];
 	void __iomem *sysreg_cpucl0;
+	struct power_supply *batt_psy;
 
 	struct notifier_block psy_nb;
 	struct delayed_work soc_eval_work;
@@ -171,6 +218,10 @@ struct gs101_bcl_dev {
 	int s2mpg11_counter[IRQ_SOURCE_S2MPG11_MAX];
 	int s2mpg10_pin[IRQ_SOURCE_S2MPG10_MAX];
 	int s2mpg11_pin[IRQ_SOURCE_S2MPG11_MAX];
+	atomic_t s2mpg10_cnt[IRQ_SOURCE_S2MPG10_MAX];
+	struct ocpsmpl_stats s2mpg10_stats[IRQ_SOURCE_S2MPG10_MAX];
+	atomic_t s2mpg11_cnt[IRQ_SOURCE_S2MPG11_MAX];
+	struct ocpsmpl_stats s2mpg11_stats[IRQ_SOURCE_S2MPG11_MAX];
 
 	struct s2mpg10_dev *s2mpg10;
 	struct s2mpg11_dev *s2mpg11;
@@ -180,12 +231,12 @@ struct gs101_bcl_dev {
 
 	unsigned int s2mpg10_triggered_irq[IRQ_SOURCE_S2MPG10_MAX];
 	unsigned int s2mpg11_triggered_irq[IRQ_SOURCE_S2MPG11_MAX];
+
 };
 
 
 static const struct platform_device_id google_gs101_id_table[] = {
-	{.name = "gs101-bcl-m",},
-	{.name = "gs101-bcl-s",},
+	{.name = "google_mitigation",},
 	{},
 };
 
@@ -261,12 +312,49 @@ static void irq_work(struct gs101_bcl_dev *gs101_bcl_device, u8 active_pull, u8 
 	}
 }
 
+static struct power_supply *google_gs101_get_power_supply(struct gs101_bcl_dev *bcl_dev)
+{
+	static struct power_supply *psy[2];
+	static struct power_supply *batt_psy;
+	int err = 0;
+
+	batt_psy = NULL;
+	err = power_supply_get_by_phandle_array(bcl_dev->device->of_node,
+						"google,power-supply", psy,
+						ARRAY_SIZE(psy));
+	if (err > 0)
+		batt_psy = psy[0];
+	return batt_psy;
+}
+
+static void ocpsmpl_read_stats(struct ocpsmpl_stats *dst, struct power_supply *psy)
+{
+	union power_supply_propval ret = {0};
+	int err = 0;
+
+	dst->_time = ktime_to_ms(ktime_get());
+	err = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &ret);
+	if (err < 0)
+		dst->capacity = -1;
+	else
+		dst->capacity = ret.intval;
+	err = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW, &ret);
+	if (err < 0)
+		dst->voltage = -1;
+	else
+		dst->voltage = ret.intval;
+
+}
+
 static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_pull)
 {
 	struct gs101_bcl_dev *gs101_bcl_device = data;
 
 	if (pmic == S2MPG10) {
 		mutex_lock(&gs101_bcl_device->s2mpg10_irq_lock[idx]);
+		atomic_inc(&gs101_bcl_device->s2mpg10_cnt[idx]);
+		ocpsmpl_read_stats(&gs101_bcl_device->s2mpg10_stats[idx],
+				   gs101_bcl_device->batt_psy);
 		gs101_bcl_device->s2mpg10_triggered_irq[idx] = 1;
 		disable_irq_nosync(gs101_bcl_device->s2mpg10_irq[idx]);
 		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg10_irq_work[idx],
@@ -286,6 +374,9 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 		}
 	} else {
 		mutex_lock(&gs101_bcl_device->s2mpg11_irq_lock[idx]);
+		atomic_inc(&gs101_bcl_device->s2mpg11_cnt[idx]);
+		ocpsmpl_read_stats(&gs101_bcl_device->s2mpg11_stats[idx],
+				   gs101_bcl_device->batt_psy);
 		gs101_bcl_device->s2mpg11_triggered_irq[idx] = 1;
 		disable_irq_nosync(gs101_bcl_device->s2mpg11_irq[idx]);
 		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg11_irq_work[idx],
@@ -309,9 +400,7 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 
 static irqreturn_t gs101_smpl_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG10, IRQ_SMPL_WARN, ACTIVE_LOW);
@@ -345,9 +434,7 @@ static void gs101_cpu1_warn_work(struct work_struct *work)
 
 static irqreturn_t gs101_cpu1_ocp_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG10, IRQ_OCP_WARN_CPUCL1, ACTIVE_HIGH);
@@ -373,9 +460,7 @@ static void gs101_cpu2_warn_work(struct work_struct *work)
 
 static irqreturn_t gs101_cpu2_ocp_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG10, IRQ_OCP_WARN_CPUCL2, ACTIVE_HIGH);
@@ -401,9 +486,7 @@ static void gs101_soft_cpu1_warn_work(struct work_struct *work)
 
 static irqreturn_t gs101_soft_cpu1_ocp_warn_irq_handler(int irq, void *data)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
-
-	if (!gs101_bcl_device)
+	if (!data)
 		return IRQ_HANDLED;
 
 	return irq_handler(irq, data, S2MPG10, IRQ_SOFT_OCP_WARN_CPUCL1, ACTIVE_HIGH);
@@ -644,6 +727,7 @@ static int gs101_bcl_set_soc(void *data, int low, int high)
 
 static int gs101_bcl_read_soc(void *data, int *val)
 {
+	struct gs101_bcl_dev *bcl_dev = data;
 	static struct power_supply *batt_psy;
 	union power_supply_propval ret = {
 		0,
@@ -657,7 +741,7 @@ static int gs101_bcl_read_soc(void *data, int *val)
 		err = power_supply_get_property(
 			batt_psy, POWER_SUPPLY_PROP_CAPACITY, &ret);
 		if (err) {
-			pr_err("battery percentage read error:%d\n", err);
+			dev_err(bcl_dev->device, "battery percentage read error:%d\n", err);
 			return err;
 		}
 		*val = 100 - ret.intval;
@@ -673,7 +757,7 @@ static void gs101_bcl_evaluate_soc(struct work_struct *work)
 	struct gs101_bcl_dev *gs101_bcl_device =
 	    container_of(work, struct gs101_bcl_dev, soc_eval_work.work);
 
-	if (gs101_bcl_read_soc(NULL, &battery_percentage_reverse))
+	if (gs101_bcl_read_soc(gs101_bcl_device, &battery_percentage_reverse))
 		return;
 
 	mutex_lock(&gs101_bcl_device->state_trans_lock);
@@ -714,497 +798,241 @@ static int gs101_bcl_soc_remove(struct gs101_bcl_dev *gs101_bcl_device)
 	return 0;
 }
 
-static ssize_t clk_ratio_get(struct gs101_bcl_dev *bcl_dev, char __user *buf, size_t count,
-			     loff_t *ppos, void __iomem *addr, const char *label,
-			     bool is_subsystem_on)
+static ssize_t triggered_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	char buff[BUF_SIZE];
-	int len = 0;
-	unsigned int reg = 0;
-	unsigned int step_count, step_size, numerator, denominator;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_device = platform_get_drvdata(pdev);
+	int i, len = 0;
 
-	if (!is_subsystem_on) {
+	len = scnprintf(buf, PAGE_SIZE, "%-10s\t%s\t%s\t%s\t%s\n",
+			"Source", "Count", "Last Triggered", "Last SOC", "Last Voltage");
 
-		len = scnprintf(buff, BUF_SIZE, "%s is off.\n\n", label);
-		return simple_read_from_buffer(buf, count, ppos, buff, len);
+	for (i = 0; i < IRQ_SOURCE_S2MPG10_MAX; i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				"%-15s\t%d\t%lld\t\t%d\t\t%d\n",
+				s2mpg10_source[i],
+				atomic_read(&bcl_device->s2mpg10_cnt[i]),
+				bcl_device->s2mpg10_stats[i]._time,
+				bcl_device->s2mpg10_stats[i].capacity,
+				bcl_device->s2mpg10_stats[i].voltage);
+	}
+	for (i = 0; i < IRQ_SOURCE_S2MPG11_MAX; i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				"%-15s\t%d\t%lld\t\t%d\t\t%d\n",
+				s2mpg11_source[i],
+				atomic_read(&bcl_device->s2mpg11_cnt[i]),
+				bcl_device->s2mpg11_stats[i]._time,
+				bcl_device->s2mpg11_stats[i].capacity,
+				bcl_device->s2mpg11_stats[i].voltage);
 	}
 
-	reg = __raw_readl(addr);
-	step_count = (reg >> 20) & 0xFFF;
-	step_size = (reg >> 14) & 0x3F;
-	numerator = (reg >> 6) & 0x3F;
-	denominator = reg & 0x3F;
-
-	len = scnprintf(buff, BUF_SIZE, "%s:0x%x\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s:\n%s%s\n\n",
-			label, reg, "Step count [31:20]", step_count,
-			"Step size [19:14]", step_size, "Numerator [11:6]", numerator,
-			"Denominator [5:0]", denominator,
-			"To set", "echo 0x(value) > ", label);
-
-	return simple_read_from_buffer(buf, count, ppos, buff, len);
+	return len;
 }
 
-static ssize_t clk_ratio_set(struct gs101_bcl_dev *bcl_dev, struct file *filp,
-			     const char __user *user_buf,
-			     size_t count, loff_t *ppos, void __iomem *addr)
+static DEVICE_ATTR_RO(triggered_stats);
+
+static void __iomem *get_addr_by_rail(struct gs101_bcl_dev *bcl_dev, const char *rail_name)
 {
+	int i = 0, idx;
+
+	for (i = 0; i < 9; i++) {
+		if (strcmp(rail_name, clk_ratio_source[i]) == 0) {
+			idx = i > 4 ? i - 4 : i;
+			if (is_subsystem_on(subsystem_pmu[idx])) {
+				if (idx == 0)
+					return bcl_dev->base_mem[0] + CPUCL0_CLKDIVSTEP_CON;
+				if (i > 4)
+					return bcl_dev->base_mem[idx] +
+							CPUCL12_CLKDIVSTEP_CON_LIGHT;
+				else
+					return bcl_dev->base_mem[idx] +
+							CPUCL12_CLKDIVSTEP_CON_HEAVY;
+			} else
+				return NULL;
+		}
+	}
+
+	return NULL;
+}
+
+static ssize_t clk_ratio_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	int len = 0, i;
+	unsigned int reg[8];
+	void __iomem *addr;
+
+	len = scnprintf(buf, PAGE_SIZE, "%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\n",
+			"Source", "Reg", "Step Count[31:20]", "Step Size[19:14]",
+			"Numerator [8:6]", "Denominator [2:0]");
+
+	for (i = 0; i < 9; i++) {
+		addr = get_addr_by_rail(bcl_dev, clk_ratio_source[i]);
+		if (addr != NULL) {
+			reg[i] = __raw_readl(addr);
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+					 "%-15s\t0x%-15x\t0x%-15x\t0x%-15x\t0x%-10x\t0x%-10x\n",
+					 clk_ratio_source[i], reg[i], (reg[i] >> 20) & 0xFF,
+					 (reg[i] >> 14) & 0x3F, (reg[i] >> 6) & 0x3F,
+					 reg[i] & 0x3F);
+		} else
+			len += scnprintf(buf + len, PAGE_SIZE - len, "%-15s\t is off\n",
+					 clk_ratio_source[i]);
+	}
+	len += scnprintf(buf + len, PAGE_SIZE - len, "echo (source) (data) > clk_ratio\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "i.e. echo cpu1_heavy 0xF041C3 > clk_ratio\n");
+
+	return len;
+}
+
+static ssize_t clk_ratio_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	char rail_name[11];
+	void __iomem *addr;
 	int ret;
-	char buf[16];
 	unsigned int value;
 
-	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-	if (ret < 0)
-		return ret;
-	buf[ret] = 0;
+	/* Possible Rail name:
+	 * cpu1_heavy, cpu1_light, cpu2_heavy, cpu2_light,
+	 * tpu_heavy, tpu_light, gpu_heavy, gpu_light
+	 */
 
-	ret = sscanf(buf, "0x%x", &value);
-	if (ret != 1)
+	ret = sscanf(buf, "%s 0x%x", &rail_name, &value);
+	if (ret != 2)
 		return -EINVAL;
 
-	/* Denominator cannot be zero */
-	if ((value & 0x3F) == 0)
+	if ((value & 0x3F) == 0) {
+		dev_err(bcl_dev->device, "Denominator cannot be zero\n");
 		return -EINVAL;
+	}
+
+	addr = get_addr_by_rail(bcl_dev, rail_name);
+
+	if (addr == NULL) {
+		dev_err(bcl_dev->device, "Address is NULL\n");
+		return -EINVAL;
+	}
 
 	mutex_lock(&bcl_dev->ratio_lock);
 	__raw_writel(value, addr);
 	mutex_unlock(&bcl_dev->ratio_lock);
 
-	return 0;
+	return size;
 }
 
-static ssize_t tpu_clk_ratio_light_get(struct file *filp, char __user *buf,
-				       size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+static DEVICE_ATTR_RW(clk_ratio);
 
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->tpu_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT,
-			     "tpu_clkdiv_ratio_light", is_subsystem_on(PMU_ALIVE_TPU_OUT));
+static void __iomem *get_addr_by_subsystem(struct gs101_bcl_dev *bcl_dev,
+					   const char *subsystem, bool is_store)
+{
+	int i = 0;
+
+	for (i = 0; i < 5; i++) {
+		if (strcmp(subsystem, clk_stats_source[i]) == 0) {
+			if (is_subsystem_on(subsystem_pmu[i])) {
+				if (i == 0)
+					return is_store ? bcl_dev->base_mem[i] + CLKDIVSTEP :
+							bcl_dev->base_mem[i] +
+							CPUCL0_CLKDIVSTEP_STAT;
+				return is_store ? bcl_dev->base_mem[i] + CLKDIVSTEP :
+						bcl_dev->base_mem[i] + CPUCL12_CLKDIVSTEP_STAT;
+			} else
+				return NULL;
+		}
+	}
+	return NULL;
 }
 
-static ssize_t tpu_clk_ratio_light_set(struct file *filp, const char __user *user_buf,
-				       size_t count, loff_t *ppos)
+static ssize_t clk_stats_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	int len = 0, i;
+	unsigned int reg[5];
+	void __iomem *addr;
 
-	if (!is_subsystem_on(PMU_ALIVE_TPU_OUT))
-		return -EIO;
 
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->tpu_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT);
-}
-
-static ssize_t gpu_clk_ratio_light_get(struct file *filp, char __user *buf,
-				       size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->gpu_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT,
-			     "gpu_clkdiv_ratio_light", is_subsystem_on(PMU_ALIVE_GPU_OUT));
-}
-
-static ssize_t gpu_clk_ratio_light_set(struct file *filp, const char __user *user_buf,
-				       size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	if (!is_subsystem_on(PMU_ALIVE_GPU_OUT))
-		return -EIO;
-
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->gpu_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT);
-}
-
-static ssize_t cpucl1_clk_ratio_light_get(struct file *filp, char __user *buf,
-					  size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT,
-			     "cpucl1_clkdiv_ratio_light", is_subsystem_on(PMU_ALIVE_CPU1_OUT));
-}
-
-static ssize_t cpucl1_clk_ratio_light_set(struct file *filp, const char __user *user_buf,
-					  size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	if (!is_subsystem_on(PMU_ALIVE_CPU1_OUT))
-		return -EIO;
-
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT);
-}
-
-static ssize_t cpucl2_clk_ratio_light_get(struct file *filp, char __user *buf,
-					  size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT,
-			     "cpucl2_clkdiv_ratio_light", is_subsystem_on(PMU_ALIVE_CPU2_OUT));
-}
-
-static ssize_t cpucl2_clk_ratio_light_set(struct file *filp, const char __user *user_buf,
-					  size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	if (!is_subsystem_on(PMU_ALIVE_CPU2_OUT))
-		return -EIO;
-
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_LIGHT);
-}
-
-static ssize_t tpu_clk_ratio_get(struct file *filp, char __user *buf,
-				 size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->tpu_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY,
-			     "tpu_clkdiv_ratio_heavy", is_subsystem_on(PMU_ALIVE_TPU_OUT));
-}
-
-static ssize_t tpu_clk_ratio_set(struct file *filp, const char __user *user_buf,
-				 size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	if (!is_subsystem_on(PMU_ALIVE_TPU_OUT))
-		return -EIO;
-
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->tpu_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
-}
-
-static ssize_t gpu_clk_ratio_get(struct file *filp, char __user *buf,
-				 size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->gpu_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY,
-			     "gpu_clkdiv_ratio_heavy", is_subsystem_on(PMU_ALIVE_GPU_OUT));
-}
-
-static ssize_t gpu_clk_ratio_set(struct file *filp, const char __user *user_buf,
-				 size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	if (!is_subsystem_on(PMU_ALIVE_GPU_OUT))
-		return -EIO;
-
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->gpu_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
-}
-
-static ssize_t cpucl0_clk_ratio_get(struct file *filp, char __user *buf,
-				    size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_CON,
-			     "cpucl0_clkdiv_ratio_heavy", true);
-}
-
-static ssize_t cpucl0_clk_ratio_set(struct file *filp, const char __user *user_buf,
-				    size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_CON);
-}
-
-static ssize_t cpucl1_clk_ratio_get(struct file *filp, char __user *buf,
-				    size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY,
-			     "cpucl1_clkdiv_ratio_heavy", is_subsystem_on(PMU_ALIVE_CPU1_OUT));
-}
-
-static ssize_t cpucl1_clk_ratio_set(struct file *filp, const char __user *user_buf,
-				    size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	if (!is_subsystem_on(PMU_ALIVE_CPU1_OUT))
-		return -EIO;
-
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
-}
-
-static ssize_t cpucl2_clk_ratio_get(struct file *filp, char __user *buf,
-				    size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return clk_ratio_get(bcl_dev, buf, count, ppos,
-			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY,
-			     "cpucl2_clkdiv_ratio_heavy", is_subsystem_on(PMU_ALIVE_CPU2_OUT));
-}
-
-static ssize_t cpucl2_clk_ratio_set(struct file *filp, const char __user *user_buf,
-				    size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	if (!is_subsystem_on(PMU_ALIVE_CPU2_OUT))
-		return -EIO;
-
-	return clk_ratio_set(bcl_dev, filp, user_buf, count, ppos,
-			     bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_CON_HEAVY);
-}
-
-BCL_DEBUG_ATTRIBUTE(tpu_clk_ratio_light_fops, tpu_clk_ratio_light_get, tpu_clk_ratio_light_set);
-BCL_DEBUG_ATTRIBUTE(gpu_clk_ratio_light_fops, gpu_clk_ratio_light_get, gpu_clk_ratio_light_set);
-BCL_DEBUG_ATTRIBUTE(cpucl1_clk_ratio_light_fops, cpucl1_clk_ratio_light_get,
-		    cpucl1_clk_ratio_light_set);
-BCL_DEBUG_ATTRIBUTE(cpucl2_clk_ratio_light_fops, cpucl2_clk_ratio_light_get,
-		    cpucl2_clk_ratio_light_set);
-BCL_DEBUG_ATTRIBUTE(tpu_clk_ratio_fops, tpu_clk_ratio_get, tpu_clk_ratio_set);
-BCL_DEBUG_ATTRIBUTE(gpu_clk_ratio_fops, gpu_clk_ratio_get, gpu_clk_ratio_set);
-BCL_DEBUG_ATTRIBUTE(cpucl0_clk_ratio_fops, cpucl0_clk_ratio_get, cpucl0_clk_ratio_set);
-BCL_DEBUG_ATTRIBUTE(cpucl1_clk_ratio_fops, cpucl1_clk_ratio_get, cpucl1_clk_ratio_set);
-BCL_DEBUG_ATTRIBUTE(cpucl2_clk_ratio_fops, cpucl2_clk_ratio_get, cpucl2_clk_ratio_set);
-
-static ssize_t reset_stats(const char __user *user_buf, size_t count, loff_t *ppos,
-			   void __iomem *addr, bool is_subsystem_on)
-{
-	int ret;
-	char buf[1];
-
-	if (!is_subsystem_on)
-		return -EIO;
-
-	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
-	if (!ret)
-		return -EFAULT;
-
-	if (buf[0] == '0')
-		__raw_writel(0x107d, addr);
-	else
-		__raw_writel(0x107f, addr);
-	return 0;
-}
-
-static ssize_t trigger_stats_get(struct gs101_bcl_dev *bcl_dev, char __user *buf, size_t count,
-				 loff_t *ppos, void __iomem *addr, const char *label,
-				 bool is_subsystem_on)
-{
-	char buff[BUF_SIZE];
-	int len = 0;
-	unsigned int reg = 0;
-	unsigned int stepup_run, trig_overflow, trig_cnt_value, current_numerator;
-
-	if (!is_subsystem_on) {
-
-		len = scnprintf(buff, BUF_SIZE, "%s is off.\n\n", label);
-		return simple_read_from_buffer(buf, count, ppos, buff, len);
+	len = scnprintf(buf, PAGE_SIZE, "%s\n%-10s\t%-10s\n",
+			"Configuration", "Source", "Reg");
+	for (i = 0; i < 5; i++) {
+		addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[i], true);
+		if (addr == NULL) {
+			len += scnprintf(buf + len, PAGE_SIZE - len, "%-15s\t is off\n",
+					 clk_stats_source[i]);
+			continue;
+		}
+		reg[i] = __raw_readl(addr);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%-15s\t0x%-15x\n",
+				 clk_stats_source[i], reg[i]);
 	}
 
-	reg = __raw_readl(addr);
-	stepup_run = (reg >> 31) & 0x1;
-	trig_overflow = (reg >> 29) & 0x1;
-	trig_cnt_value = (reg >> 16) & 0xFFF;
-	current_numerator = (reg >> 8) & 0x3F;
+	len += scnprintf(buf + len, PAGE_SIZE - len, "\nStatistics:\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\n",
+			 "Source", "Reg", "Step run[31]", "Trig CNT OFL[29]",
+			 "Trig CNT [27:16]", "Numerator [11:8]", "Denominator [3:0]");
 
-	len = scnprintf(buff, BUF_SIZE, "%s:0x%x\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s:\n%s%s\n\n",
-			label, reg, "Stepup run [31]", stepup_run,
-			"Trig CNT OFL [29]", trig_overflow, "Trig CNT [27:16]",
-			trig_cnt_value, "Current Num. [14:8]", current_numerator,
-			"To disable/enable", "echo 0/1 > ", label);
+	for (i = 0; i < 5; i++) {
+		addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[i], false);
+		if (addr == NULL) {
+			len += scnprintf(buf + len, PAGE_SIZE - len, "%-15s\t is off\n",
+					 clk_stats_source[i]);
+			continue;
+		}
+		reg[i] = __raw_readl(addr);
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				 "%-15s\t0x%-15x\t0x%-10x\t0x%-10x\t0x%-10x\t0x%-10x\t0x%-10x\n",
+				 clk_stats_source[i], reg[i], (reg[i] >> 31) & 0x1,
+				 (reg[i] >> 29) & 0x1, (reg[i] >> 16) & 0xFFF,
+				 (reg[i] >> 8) & 0x3F, reg[i] & 0xF);
+	}
 
-	return simple_read_from_buffer(buf, count, ppos, buff, len);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "echo (source) (data) > clk_stats\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "i.e. echo cpu1 0x3 > clk_stats\n");
+	return len;
 }
 
-static ssize_t get_cpucl0_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
+static ssize_t clk_stats_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	char subsystem[4];
+	void __iomem *addr;
+	int ret;
+	unsigned int value;
 
-	return trigger_stats_get(bcl_dev, buf, count, ppos,
-				 bcl_dev->cpu0_mem + CPUCL0_CLKDIVSTEP_STAT,
-				 "cpucl0_clkdiv_stat", true);
+	/* Possible Subsystem:
+	 * cpu0, cpu1, cpu2, tpu, gpu
+	 */
+
+	ret = sscanf(buf, "%s 0x%x", &subsystem, &value);
+	if (ret != 2)
+		return -EINVAL;
+
+	addr = get_addr_by_subsystem(bcl_dev, subsystem, true);
+
+	if (addr == NULL) {
+		dev_err(bcl_dev->device, "Address is NULL\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&bcl_dev->ratio_lock);
+	__raw_writel(value, addr);
+	mutex_unlock(&bcl_dev->ratio_lock);
+
+	return size;
 }
 
-static ssize_t reset_cpucl0_stat(struct file *filp, const char __user *user_buf,
-			     size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return reset_stats(user_buf, count, ppos, bcl_dev->cpu0_mem + CLKDIVSTEP, true);
-}
-
-static ssize_t get_cpucl2_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return trigger_stats_get(bcl_dev, buf, count, ppos,
-				 bcl_dev->cpu2_mem + CPUCL12_CLKDIVSTEP_STAT,
-				 "cpucl2_clkdiv_stat", is_subsystem_on(PMU_ALIVE_CPU2_OUT));
-}
-
-static ssize_t reset_cpucl2_stat(struct file *filp, const char __user *user_buf,
-			     size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return reset_stats(user_buf, count, ppos, bcl_dev->cpu2_mem + CLKDIVSTEP,
-			   is_subsystem_on(PMU_ALIVE_CPU2_OUT));
-}
-
-static ssize_t get_cpucl1_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return trigger_stats_get(bcl_dev, buf, count, ppos,
-				 bcl_dev->cpu1_mem + CPUCL12_CLKDIVSTEP_STAT,
-				 "cpucl1_clkdiv_stat", is_subsystem_on(PMU_ALIVE_CPU1_OUT));
-}
-
-static ssize_t reset_cpucl1_stat(struct file *filp, const char __user *user_buf,
-				 size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return reset_stats(user_buf, count, ppos, bcl_dev->cpu1_mem + CLKDIVSTEP,
-			   is_subsystem_on(PMU_ALIVE_CPU1_OUT));
-}
-
-static ssize_t get_gpu_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return trigger_stats_get(bcl_dev, buf, count, ppos,
-				 bcl_dev->gpu_mem + G3D_CLKDIVSTEP_STAT,
-				 "gpu_clkdiv_stat", is_subsystem_on(PMU_ALIVE_GPU_OUT));
-}
-
-static ssize_t reset_gpu_stat(struct file *filp, const char __user *user_buf,
-			  size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return reset_stats(user_buf, count, ppos, bcl_dev->gpu_mem + CLKDIVSTEP,
-			   is_subsystem_on(PMU_ALIVE_GPU_OUT));
-}
-
-static ssize_t get_tpu_stat(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return trigger_stats_get(bcl_dev, buf, count, ppos,
-				 bcl_dev->tpu_mem + TPU_CLKDIVSTEP_STAT,
-				 "tpu_clkdiv_stat", is_subsystem_on(PMU_ALIVE_TPU_OUT));
-}
-
-static ssize_t reset_tpu_stat(struct file *filp, const char __user *user_buf,
-			  size_t count, loff_t *ppos)
-{
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
-
-	return reset_stats(user_buf, count, ppos, bcl_dev->tpu_mem + CLKDIVSTEP,
-			   is_subsystem_on(PMU_ALIVE_TPU_OUT));
-}
-
-BCL_DEBUG_ATTRIBUTE(cpucl0_clkdivstep_stat_fops, get_cpucl0_stat, reset_cpucl0_stat);
-BCL_DEBUG_ATTRIBUTE(cpucl1_clkdivstep_stat_fops, get_cpucl1_stat, reset_cpucl1_stat);
-BCL_DEBUG_ATTRIBUTE(cpucl2_clkdivstep_stat_fops, get_cpucl2_stat, reset_cpucl2_stat);
-BCL_DEBUG_ATTRIBUTE(gpu_clkdivstep_stat_fops, get_gpu_stat, reset_gpu_stat);
-BCL_DEBUG_ATTRIBUTE(tpu_clkdivstep_stat_fops, get_tpu_stat, reset_tpu_stat);
-
-static int get_smpl_warn(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_SMPL_WARN];
-	return 0;
-}
-
-static int get_cpu1_ocp(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_OCP_WARN_CPUCL1];
-	return 0;
-}
-
-static int get_cpu2_ocp(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_OCP_WARN_CPUCL2];
-	return 0;
-}
-
-static int get_tpu_ocp(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_OCP_WARN_TPU];
-	return 0;
-}
-
-static int get_gpu_ocp(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg11_triggered_irq[IRQ_OCP_WARN_GPU];
-	return 0;
-}
-
-static int get_soft_cpu1_ocp(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_SOFT_OCP_WARN_CPUCL1];
-	return 0;
-}
-
-static int get_soft_cpu2_ocp(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_SOFT_OCP_WARN_CPUCL2];
-	return 0;
-}
-
-static int get_soft_tpu_ocp(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg10_triggered_irq[IRQ_SOFT_OCP_WARN_TPU];
-	return 0;
-}
-
-static int get_soft_gpu_ocp(void *data, u64 *val)
-{
-	struct gs101_bcl_dev *bcl_dev = data;
-
-	*val = bcl_dev->s2mpg11_triggered_irq[IRQ_SOFT_OCP_WARN_GPU];
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(smpl_triggered_fops, get_smpl_warn, NULL, "%d\n");
-DEFINE_SIMPLE_ATTRIBUTE(soft_cpucl1_ocp_triggered_fops, get_soft_cpu1_ocp, NULL, "%d\n");
-DEFINE_SIMPLE_ATTRIBUTE(soft_cpucl2_ocp_triggered_fops, get_soft_cpu2_ocp, NULL, "%d\n");
-DEFINE_SIMPLE_ATTRIBUTE(soft_tpu_ocp_triggered_fops, get_soft_tpu_ocp, NULL, "%d\n");
-DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_ocp_triggered_fops, get_soft_gpu_ocp, NULL, "%d\n");
-DEFINE_SIMPLE_ATTRIBUTE(cpucl1_ocp_triggered_fops, get_cpu1_ocp, NULL, "%d\n");
-DEFINE_SIMPLE_ATTRIBUTE(cpucl2_ocp_triggered_fops, get_cpu2_ocp, NULL, "%d\n");
-DEFINE_SIMPLE_ATTRIBUTE(tpu_ocp_triggered_fops, get_tpu_ocp, NULL, "%d\n");
-DEFINE_SIMPLE_ATTRIBUTE(gpu_ocp_triggered_fops, get_gpu_ocp, NULL, "%d\n");
+static DEVICE_ATTR_RW(clk_stats);
 
 static int get_smpl_lvl(void *data, u64 *val)
 {
@@ -1213,12 +1041,12 @@ static int get_smpl_lvl(void *data, u64 *val)
 	unsigned int smpl_warn_lvl;
 
 	if (!bcl_dev->s2mpg10_i2c) {
-		pr_err("S2MPG10 I2C not found.");
+		dev_err(bcl_dev->device, "S2MPG10 I2C not found.");
 		return 0;
 	}
 	if (s2mpg10_read_reg(bcl_dev->s2mpg10_i2c,
 			     S2MPG10_PM_SMPL_WARN_CTRL, &value)) {
-		pr_err("S2MPG10 read SMPL_WARN_CTRL failed.");
+		dev_err(bcl_dev->device, "S2MPG10 read SMPL_WARN_CTRL failed.");
 		return 0;
 	}
 	value >>= S2MPG10_SMPL_WARN_LVL_SHIFT;
@@ -1234,21 +1062,21 @@ static int set_smpl_lvl(void *data, u64 val)
 	int ret;
 
 	if (val < SMPL_LOWER_LIMIT || val > SMPL_UPPER_LIMIT) {
-		pr_err("SMPL_WARN LEVEL %d outside of range %d - %d mV.", val,
-		       SMPL_LOWER_LIMIT, SMPL_UPPER_LIMIT);
+		dev_err(bcl_dev->device, "SMPL_WARN LEVEL %d outside of range %d - %d mV.", val,
+			SMPL_LOWER_LIMIT, SMPL_UPPER_LIMIT);
 		return -1;
 	}
 
 	if (s2mpg10_read_reg(bcl_dev->s2mpg10_i2c,
 			     S2MPG10_PM_SMPL_WARN_CTRL, &value)) {
-		pr_err("S2MPG10 read 0x%x failed.", S2MPG10_PM_SMPL_WARN_CTRL);
+		dev_err(bcl_dev->device, "S2MPG10 read 0x%x failed.", S2MPG10_PM_SMPL_WARN_CTRL);
 	}
 	value |= ((val - SMPL_LOWER_LIMIT) / 100) << S2MPG10_SMPL_WARN_LVL_SHIFT;
 	ret = s2mpg10_write_reg(bcl_dev->s2mpg10_i2c,
 				S2MPG10_PM_SMPL_WARN_CTRL, value);
 
 	if (ret)
-		pr_err("i2c write error setting smpl_warn\n");
+		dev_err(bcl_dev->device, "i2c write error setting smpl_warn\n");
 	else {
 		bcl_dev->s2mpg10_lvl[IRQ_SMPL_WARN] = SMPL_BATTERY_VOLTAGE - val -
 				THERMAL_HYST_LEVEL;
@@ -1256,7 +1084,7 @@ static int set_smpl_lvl(void *data, u64 val)
 				bcl_dev->s2mpg10_tz_irq[IRQ_SMPL_WARN], 0,
 				SMPL_BATTERY_VOLTAGE - val);
 		if (ret)
-			pr_err("Fail to set smpl_warn trip temp\n");
+			dev_err(bcl_dev->device, "Fail to set smpl_warn trip temp\n");
 
 	}
 
@@ -1264,8 +1092,7 @@ static int set_smpl_lvl(void *data, u64 val)
 
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(smpl_lvl_fops, get_smpl_lvl,
-			set_smpl_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(smpl_lvl_fops, get_smpl_lvl, set_smpl_lvl, "%d\n");
 
 static int get_ocp_lvl(void *data, u64 *val, u8 addr,
 		       u8 pmic, u8 mask, u16 limit,
@@ -1277,12 +1104,12 @@ static int get_ocp_lvl(void *data, u64 *val, u8 addr,
 
 	if (pmic == S2MPG10) {
 		if (s2mpg10_read_reg(bcl_dev->s2mpg10_i2c, addr, &value)) {
-			pr_err("S2MPG10 read 0x%x failed.", addr);
+			dev_err(bcl_dev->device, "S2MPG10 read 0x%x failed.", addr);
 			return -1;
 		}
 	} else {
 		if (s2mpg11_read_reg(bcl_dev->s2mpg11_i2c, addr, &value)) {
-			pr_err("S2MPG11 read 0x%x failed.", addr);
+			dev_err(bcl_dev->device, "S2MPG11 read 0x%x failed.", addr);
 			return -1;
 		}
 	}
@@ -1300,14 +1127,14 @@ static int set_ocp_lvl(void *data, u64 val, u8 addr, u8 pmic, u8 mask,
 	int ret;
 
 	if (val < llimit || val > ulimit) {
-		pr_err("OCP_WARN LEVEL %d outside of range %d - %d mA.", val,
+		dev_err(bcl_dev->device, "OCP_WARN LEVEL %d outside of range %d - %d mA.", val,
 		       llimit, ulimit);
 		return -1;
 	}
 	if (pmic == S2MPG10) {
 		mutex_lock(&bcl_dev->s2mpg10_irq_lock[id]);
 		if (s2mpg10_read_reg(bcl_dev->s2mpg10_i2c, addr, &value)) {
-			pr_err("S2MPG10 read 0x%x failed.", addr);
+			dev_err(bcl_dev->device, "S2MPG10 read 0x%x failed.", addr);
 			mutex_unlock(&bcl_dev->s2mpg10_irq_lock[id]);
 			return -1;
 		}
@@ -1320,13 +1147,13 @@ static int set_ocp_lvl(void *data, u64 val, u8 addr, u8 pmic, u8 mask,
 					bcl_dev->s2mpg10_tz_irq[id], 0,
 					val);
 			if (ret)
-				pr_err("Fail to set ocp_warn trip temp\n");
+				dev_err(bcl_dev->device, "Fail to set ocp_warn trip temp\n");
 		}
 		mutex_unlock(&bcl_dev->s2mpg10_irq_lock[id]);
 	} else {
 		mutex_lock(&bcl_dev->s2mpg11_irq_lock[id]);
 		if (s2mpg11_read_reg(bcl_dev->s2mpg11_i2c, addr, &value)) {
-			pr_err("S2MPG11 read 0x%x failed.", addr);
+			dev_err(bcl_dev->device, "S2MPG11 read 0x%x failed.", addr);
 			mutex_unlock(&bcl_dev->s2mpg11_irq_lock[id]);
 			return -1;
 		}
@@ -1339,13 +1166,13 @@ static int set_ocp_lvl(void *data, u64 val, u8 addr, u8 pmic, u8 mask,
 					bcl_dev->s2mpg11_tz_irq[id], 0,
 					val);
 			if (ret)
-				pr_err("Fail to set ocp_warn trip temp\n");
+				dev_err(bcl_dev->device, "Fail to set ocp_warn trip temp\n");
 		}
 		mutex_unlock(&bcl_dev->s2mpg11_irq_lock[id]);
 	}
 
 	if (ret)
-		pr_err("i2c write error setting smpl_warn\n");
+		dev_err(bcl_dev->device, "i2c write error setting smpl_warn\n");
 
 	return ret;
 }
@@ -1363,8 +1190,7 @@ static int set_soft_cpu1_lvl(void *data, u64 val)
 			   B3M_STEP, IRQ_SOFT_OCP_WARN_CPUCL1);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(soft_cpu1_lvl_fops, get_soft_cpu1_lvl,
-			set_soft_cpu1_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(soft_cpu1_lvl_fops, get_soft_cpu1_lvl, set_soft_cpu1_lvl, "%d\n");
 
 static int get_soft_cpu2_lvl(void *data, u64 *val)
 {
@@ -1379,8 +1205,7 @@ static int set_soft_cpu2_lvl(void *data, u64 val)
 			   B2M_STEP, IRQ_SOFT_OCP_WARN_CPUCL2);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(soft_cpu2_lvl_fops, get_soft_cpu2_lvl,
-			set_soft_cpu2_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(soft_cpu2_lvl_fops, get_soft_cpu2_lvl, set_soft_cpu2_lvl, "%d\n");
 
 static int get_cpu1_lvl(void *data, u64 *val)
 {
@@ -1395,8 +1220,7 @@ static int set_cpu1_lvl(void *data, u64 val)
 			   B3M_STEP, IRQ_OCP_WARN_CPUCL1);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(cpu1_lvl_fops, get_cpu1_lvl,
-			set_cpu1_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(cpu1_lvl_fops, get_cpu1_lvl, set_cpu1_lvl, "%d\n");
 
 static int get_cpu2_lvl(void *data, u64 *val)
 {
@@ -1411,8 +1235,7 @@ static int set_cpu2_lvl(void *data, u64 val)
 			   B2M_STEP, IRQ_OCP_WARN_CPUCL2);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(cpu2_lvl_fops, get_cpu2_lvl,
-			set_cpu2_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(cpu2_lvl_fops, get_cpu2_lvl, set_cpu2_lvl, "%d\n");
 
 static int get_tpu_lvl(void *data, u64 *val)
 {
@@ -1427,8 +1250,7 @@ static int set_tpu_lvl(void *data, u64 val)
 			   B10M_STEP, IRQ_OCP_WARN_TPU);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(tpu_lvl_fops, get_tpu_lvl,
-			set_tpu_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(tpu_lvl_fops, get_tpu_lvl, set_tpu_lvl, "%d\n");
 
 static int get_soft_tpu_lvl(void *data, u64 *val)
 {
@@ -1443,8 +1265,7 @@ static int set_soft_tpu_lvl(void *data, u64 val)
 			   B10M_STEP, IRQ_SOFT_OCP_WARN_TPU);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(soft_tpu_lvl_fops, get_soft_tpu_lvl,
-			set_soft_tpu_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(soft_tpu_lvl_fops, get_soft_tpu_lvl, set_soft_tpu_lvl, "%d\n");
 
 static int get_gpu_lvl(void *data, u64 *val)
 {
@@ -1459,8 +1280,7 @@ static int set_gpu_lvl(void *data, u64 val)
 			   B2S_STEP, IRQ_OCP_WARN_GPU);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(gpu_lvl_fops, get_gpu_lvl,
-			set_gpu_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(gpu_lvl_fops, get_gpu_lvl, set_gpu_lvl, "%d\n");
 
 static int get_soft_gpu_lvl(void *data, u64 *val)
 {
@@ -1475,8 +1295,7 @@ static int set_soft_gpu_lvl(void *data, u64 val)
 			   B2S_STEP, IRQ_SOFT_OCP_WARN_GPU);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_lvl_fops, get_soft_gpu_lvl,
-			set_soft_gpu_lvl, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_lvl_fops, get_soft_gpu_lvl, set_soft_gpu_lvl, "%d\n");
 
 static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 				     enum sys_throttling_switch throttle_switch)
@@ -1485,13 +1304,13 @@ static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	void __iomem *addr;
 
 	if (!gs101_bcl_device->sysreg_cpucl0) {
-		pr_err("sysreg_cpucl0 ioremap not mapped\n");
+		dev_err(gs101_bcl_device->device, "sysreg_cpucl0 ioremap not mapped\n");
 		return;
 	}
 	mutex_lock(&sysreg_lock);
 	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM;
 	reg = __raw_readl(addr);
-	mask = 0x01 << 8;
+	mask = BIT(8);
 	/* 75% dispatch reduction */
 	if (throttle_switch == SYS_THROTTLING_ENABLED) {
 		reg |= mask;
@@ -1504,19 +1323,14 @@ static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	mutex_unlock(&sysreg_lock);
 }
 
-static ssize_t gs101_mpmm_settings_set(struct file *filp, const char __user *user_buf,
-				       size_t count, loff_t *ppos)
+static ssize_t mpmm_settings_store(struct device *dev,
+				   struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
 	void __iomem *addr;
 	int value;
-	char buf[16];
 	int ret;
-
-	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-	if (ret < 0)
-		return ret;
-	buf[ret] = 0;
 
 	ret = sscanf(buf, "0x%x", &value);
 	if (ret != 1)
@@ -1527,7 +1341,7 @@ static ssize_t gs101_mpmm_settings_set(struct file *filp, const char __user *use
 	__raw_writel(value, addr);
 	mutex_unlock(&sysreg_lock);
 
-	return 0;
+	return size;
 }
 
 static const char *mpmm_gear_parse(unsigned int state)
@@ -1545,20 +1359,16 @@ static const char *mpmm_gear_parse(unsigned int state)
 	}
 }
 
-static ssize_t gs101_mpmm_settings_get(struct file *filp, char __user *buf,
-				       size_t count, loff_t *ppos)
+static ssize_t mpmm_settings_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int reg = 0;
 	unsigned int state_big7, state_big6;
-	int len = 0;
 	void __iomem *addr;
-	char buff[BUF_SIZE];
 
-	if (!bcl_dev->sysreg_cpucl0) {
-		len = scnprintf(buff, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
-		return simple_read_from_buffer(buf, count, ppos, buff, len);
-	}
+	if (!bcl_dev->sysreg_cpucl0)
+		return scnprintf(buf, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
 
 	mutex_lock(&sysreg_lock);
 	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_MPMM;
@@ -1566,14 +1376,15 @@ static ssize_t gs101_mpmm_settings_get(struct file *filp, char __user *buf,
 	mutex_unlock(&sysreg_lock);
 	state_big7 = (reg >> 2) & 0x3;
 	state_big6  = reg & 0x3;
-	len = scnprintf(buff, BUF_SIZE,
-			"0x%x\n%s: 0x%x,%s\n%s: 0x%x,%s\n%s:\n%s\n\n",
-			reg, "MPMMSTATE_BIG7 [3:2]", state_big7, mpmm_gear_parse(state_big7),
-			"MPMMSTATE_BIG6 [1:0]", state_big6, mpmm_gear_parse(state_big6),
-			"To set", "echo 0x(value) > mpmm_settings");
-
-	return simple_read_from_buffer(buf, count, ppos, buff, len);
+	return scnprintf(buf, BUF_SIZE,
+			 "Reg: 0x%x\n%s: 0x%x\n%s: 0x%x,%s\n%s: 0x%x,%s\n%s:\n%s\n\n",
+			 reg, "CAPTURE_ENABLE [4]", reg >> 4,
+			 "MPMMSTATE_BIG7 [3:2]", state_big7, mpmm_gear_parse(state_big7),
+			 "MPMMSTATE_BIG6 [1:0]", state_big6, mpmm_gear_parse(state_big6),
+			 "To set", "echo 0x(value) > mpmm_settings");
 }
+
+static DEVICE_ATTR_RW(mpmm_settings);
 
 static void
 gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
@@ -1582,10 +1393,9 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	unsigned int reg;
 	void __iomem *addr;
 	unsigned int settings;
-	unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {0x1F, 0x10, 0x10, 0x15, 0x1A};
 
 	if (!gs101_bcl_device->sysreg_cpucl0) {
-		pr_err("sysreg_cpucl0 ioremap not mapped\n");
+		dev_err(gs101_bcl_device->device, "sysreg_cpucl0 ioremap not mapped\n");
 		return;
 	}
 	mutex_lock(&sysreg_lock);
@@ -1603,19 +1413,14 @@ gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
 	mutex_unlock(&sysreg_lock);
 }
 
-static ssize_t gs101_ppm_settings_set(struct file *filp, const char __user *user_buf,
-				      size_t count, loff_t *ppos)
+static ssize_t ppm_settings_store(struct device *dev,
+				  struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
 	void __iomem *addr;
 	int value;
-	char buf[16];
 	int ret;
-
-	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
-	if (ret < 0)
-		return ret;
-	buf[ret] = 0;
 
 	ret = sscanf(buf, "0x%x", &value);
 	if (ret != 1)
@@ -1626,23 +1431,19 @@ static ssize_t gs101_ppm_settings_set(struct file *filp, const char __user *user
 	__raw_writel(value, addr);
 	mutex_unlock(&sysreg_lock);
 
-	return 0;
+	return size;
 }
 
-static ssize_t gs101_ppm_settings_get(struct file *filp, char __user *buf,
-				      size_t count, loff_t *ppos)
+static ssize_t ppm_settings_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct gs101_bcl_dev *bcl_dev = filp->private_data;
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int reg = 0;
 	unsigned int ppmctl7, ppmctl6, ocp_en_big;
-	int len = 0;
 	void __iomem *addr;
-	char buff[BUF_SIZE];
 
-	if (!bcl_dev->sysreg_cpucl0) {
-		len = scnprintf(buff, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
-		return simple_read_from_buffer(buf, count, ppos, buff, len);
-	}
+	if (!bcl_dev->sysreg_cpucl0)
+		return scnprintf(buf, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
 
 	mutex_lock(&sysreg_lock);
 	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM;
@@ -1651,16 +1452,15 @@ static ssize_t gs101_ppm_settings_get(struct file *filp, char __user *buf,
 	ocp_en_big = test_bit(8, (unsigned long *)&reg);
 	ppmctl7 = (reg >> 4) & 0xF;
 	ppmctl6 = reg & 0xF;
-	len = scnprintf(buff, BUF_SIZE,
-			"0x%x\n%s: %d\n%s: 0x%x\n%s: 0x%x\n%s:\n%s\n\n",
-			reg, "PPMOCP_EN_BIG [8]", ocp_en_big,
-			"PPMCTL7 BIG1 [7:4]", ppmctl7, "PPMCTL6 BIG0 [3:0]", ppmctl6,
-			"To set", "echo 0x(value) > ppm_settings");
+	return scnprintf(buf, BUF_SIZE,
+			 "0x%x\n%s: %d\n%s: 0x%x\n%s: 0x%x\n%s:\n%s\n\n",
+			 reg, "PPMOCP_EN_BIG [8]", ocp_en_big,
+			 "PPMCTL7 BIG1 [7:4]", ppmctl7, "PPMCTL6 BIG0 [3:0]", ppmctl6,
+			 "To set", "echo 0x(value) > ppm_settings");
 
-	return simple_read_from_buffer(buf, count, ppos, buff, len);
 }
-BCL_DEBUG_ATTRIBUTE(mpmm_fops, gs101_mpmm_settings_get, gs101_mpmm_settings_set);
-BCL_DEBUG_ATTRIBUTE(ppm_fops, gs101_ppm_settings_get, gs101_ppm_settings_set);
+
+static DEVICE_ATTR_RW(ppm_settings);
 
 static int gs101_bcl_register_pmic_irq(struct gs101_bcl_dev *gs101_bcl_device,
 				  int id, int sensor_id, irq_handler_t thread_fn,
@@ -1676,7 +1476,7 @@ static int gs101_bcl_register_pmic_irq(struct gs101_bcl_dev *gs101_bcl_device,
 					intr_flag | IRQF_ONESHOT,
 					devname, gs101_bcl_device);
 	if (ret < 0) {
-		pr_err("Failed to request IRQ: %d: %d\n",
+		dev_err(gs101_bcl_device->device, "Failed to request IRQ: %d: %d\n",
 			gs101_bcl_device->s2mpg10_irq[id], ret);
 		return ret;
 	}
@@ -1686,8 +1486,9 @@ static int gs101_bcl_register_pmic_irq(struct gs101_bcl_dev *gs101_bcl_device,
 					gs101_bcl_device,
 								ops);
 		if (IS_ERR(gs101_bcl_device->s2mpg10_tz_irq[id])) {
-			pr_err("PMIC TZ register failed. %d, err:%ld\n", id,
-					PTR_ERR(gs101_bcl_device->s2mpg10_tz_irq[id]));
+			dev_err(gs101_bcl_device->device,
+				"PMIC TZ register failed. %d, err:%ld\n", id,
+				PTR_ERR(gs101_bcl_device->s2mpg10_tz_irq[id]));
 		} else {
 			thermal_zone_device_enable(gs101_bcl_device->s2mpg10_tz_irq[id]);
 			thermal_zone_device_update(gs101_bcl_device->s2mpg10_tz_irq[id],
@@ -1712,7 +1513,8 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 						intr_flag | IRQF_ONESHOT,
 						devname, gs101_bcl_device);
 		if (ret < 0) {
-			pr_err("Failed to request IRQ: %d: %d\n",
+			dev_err(gs101_bcl_device->device,
+				"Failed to request IRQ: %d: %d\n",
 				gs101_bcl_device->s2mpg10_irq[id], ret);
 			return ret;
 		}
@@ -1722,8 +1524,9 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 									gs101_bcl_device,
 									ops);
 			if (IS_ERR(gs101_bcl_device->s2mpg10_tz_irq[id])) {
-				pr_err("TZ register failed. %d, err:%ld\n", id,
-						PTR_ERR(gs101_bcl_device->s2mpg10_tz_irq[id]));
+				dev_err(gs101_bcl_device->device,
+					"TZ register failed. %d, err:%ld\n", id,
+					PTR_ERR(gs101_bcl_device->s2mpg10_tz_irq[id]));
 			} else {
 				thermal_zone_device_enable(gs101_bcl_device->s2mpg10_tz_irq[id]);
 				thermal_zone_device_update(gs101_bcl_device->s2mpg10_tz_irq[id],
@@ -1737,7 +1540,8 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 						intr_flag | IRQF_ONESHOT,
 						devname, gs101_bcl_device);
 		if (ret < 0) {
-			pr_err("Failed to request IRQ: %d: %d\n",
+			dev_err(gs101_bcl_device->device,
+				"Failed to request IRQ: %d: %d\n",
 				gs101_bcl_device->s2mpg11_irq[id], ret);
 			return ret;
 		}
@@ -1747,8 +1551,9 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 									gs101_bcl_device,
 									ops);
 			if (IS_ERR(gs101_bcl_device->s2mpg11_tz_irq[id])) {
-				pr_err("TZ register failed. %d, err:%ld\n", id,
-						PTR_ERR(gs101_bcl_device->s2mpg11_tz_irq[id]));
+				dev_err(gs101_bcl_device->device,
+					"TZ register failed. %d, err:%ld\n", id,
+					PTR_ERR(gs101_bcl_device->s2mpg11_tz_irq[id]));
 			} else {
 				thermal_zone_device_enable(gs101_bcl_device->s2mpg11_tz_irq[id]);
 				thermal_zone_device_update(gs101_bcl_device->s2mpg11_tz_irq[id],
@@ -1759,499 +1564,426 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 	return ret;
 }
 
-static void gs101_bcl_mfd_init(struct work_struct *work)
+static int google_gs101_set_sub_pmic(struct gs101_bcl_dev *bcl_dev)
 {
-	u8 val = 0;
-	bool bypass_smpl_warn = false;
-	int ret;
-	struct gs101_bcl_dev *gs101_bcl_device =
-	    container_of(work, struct gs101_bcl_dev, mfd_init.work);
-	struct s2mpg10_dev *s2mpg10;
-	struct s2mpg11_dev *s2mpg11;
-	struct s2mpg10_platform_data *pdata_s2mpg10;
 	struct s2mpg11_platform_data *pdata_s2mpg11;
+	struct device_node *p_np;
+	struct device_node *np = bcl_dev->device->of_node;
+	struct s2mpg11_dev *s2mpg11 = NULL;
+	struct i2c_client *i2c;
+	u8 val = 0;
+	int ret;
 
-	if (strcmp(dev_name(gs101_bcl_device->device), google_gs101_id_table[0].name) == 0) {
-		s2mpg10 = gs101_bcl_device->iodev;
-		pdata_s2mpg10 = dev_get_platdata(s2mpg10->dev);
-		/* request smpl_warn interrupt */
-		if (!gpio_is_valid(pdata_s2mpg10->smpl_warn_pin)) {
-			pr_err("smpl_warn GPIO NOT VALID\n");
-			devm_free_irq(gs101_bcl_device->device,
-				      gs101_bcl_device->s2mpg10_irq[IRQ_SMPL_WARN],
-				      gs101_bcl_device);
-			bypass_smpl_warn = true;
+	p_np = of_parse_phandle(np, "google,sub-power", 0);
+	if (p_np) {
+		i2c = of_find_i2c_device_by_node(p_np);
+		if (!i2c) {
+			dev_err(bcl_dev->device, "Cannot find sub-power I2C\n");
+			return -ENODEV;
 		}
-		thermal_zone_device_update(gs101_bcl_device->soc_tzd, THERMAL_DEVICE_UP);
-		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
-		gs101_bcl_device->s2mpg10_i2c = s2mpg10->pmic;
-		gs101_bcl_device->s2mpg11_i2c = 0x0;
-		gs101_bcl_device->s2mpg10_irq[IRQ_SMPL_WARN] =
-				gpio_to_irq(pdata_s2mpg10->smpl_warn_pin);
-		irq_set_status_flags(gs101_bcl_device->s2mpg10_irq[IRQ_SMPL_WARN],
-				     IRQ_DISABLE_UNLAZY);
-		gs101_bcl_device->s2mpg10_pin[IRQ_SMPL_WARN] = pdata_s2mpg10->smpl_warn_pin;
-		gs101_bcl_device->s2mpg10_lvl[IRQ_SMPL_WARN] = SMPL_BATTERY_VOLTAGE -
-				(pdata_s2mpg10->smpl_warn_lvl * SMPL_STEP +
-				 SMPL_LOWER_LIMIT);
-		gs101_bcl_device->s2mpg10_lvl[IRQ_OCP_WARN_CPUCL1] = B3M_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL - (pdata_s2mpg10->b3_ocp_warn_lvl * B3M_STEP);
-		gs101_bcl_device->s2mpg10_lvl[IRQ_SOFT_OCP_WARN_CPUCL1] = B3M_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL -
-				(pdata_s2mpg10->b3_soft_ocp_warn_lvl * B3M_STEP);
-		gs101_bcl_device->s2mpg10_lvl[IRQ_OCP_WARN_CPUCL2] = B2M_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL - (pdata_s2mpg10->b2_ocp_warn_lvl * B2M_STEP);
-		gs101_bcl_device->s2mpg10_lvl[IRQ_SOFT_OCP_WARN_CPUCL2] = B2M_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL -
-				(pdata_s2mpg10->b2_soft_ocp_warn_lvl * B2M_STEP);
-		gs101_bcl_device->s2mpg10_lvl[IRQ_OCP_WARN_TPU] = B10M_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL -
-				(pdata_s2mpg10->b10_ocp_warn_lvl * B10M_STEP);
-		gs101_bcl_device->s2mpg10_lvl[IRQ_SOFT_OCP_WARN_TPU] = B10M_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL -
-				(pdata_s2mpg10->b10_soft_ocp_warn_lvl * B10M_STEP);
-		gs101_bcl_device->s2mpg10_lvl[IRQ_PMIC_120C] = PMIC_120C_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL;
-		gs101_bcl_device->s2mpg10_lvl[IRQ_PMIC_140C] = PMIC_140C_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL;
-		gs101_bcl_device->s2mpg10_lvl[IRQ_PMIC_OVERHEAT] = PMIC_OVERHEAT_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL;
-		gs101_bcl_device->s2mpg10_pin[IRQ_OCP_WARN_CPUCL1] =
-				pdata_s2mpg10->b3_ocp_warn_pin;
-		gs101_bcl_device->s2mpg10_pin[IRQ_OCP_WARN_CPUCL2] =
-				pdata_s2mpg10->b2_ocp_warn_pin;
-		gs101_bcl_device->s2mpg10_pin[IRQ_SOFT_OCP_WARN_CPUCL1] =
-				pdata_s2mpg10->b3_soft_ocp_warn_pin;
-		gs101_bcl_device->s2mpg10_pin[IRQ_SOFT_OCP_WARN_CPUCL2] =
-				pdata_s2mpg10->b2_soft_ocp_warn_pin;
-		gs101_bcl_device->s2mpg10_pin[IRQ_OCP_WARN_TPU] =
-				pdata_s2mpg10->b10_ocp_warn_pin;
-		gs101_bcl_device->s2mpg10_pin[IRQ_SOFT_OCP_WARN_TPU] =
-				pdata_s2mpg10->b10_soft_ocp_warn_pin;
-		gs101_bcl_device->s2mpg10_irq[IRQ_OCP_WARN_CPUCL1] =
-				gpio_to_irq(pdata_s2mpg10->b3_ocp_warn_pin);
-		gs101_bcl_device->s2mpg10_irq[IRQ_OCP_WARN_CPUCL2] =
-				gpio_to_irq(pdata_s2mpg10->b2_ocp_warn_pin);
-		gs101_bcl_device->s2mpg10_irq[IRQ_SOFT_OCP_WARN_CPUCL1] =
-				gpio_to_irq(pdata_s2mpg10->b3_soft_ocp_warn_pin);
-		gs101_bcl_device->s2mpg10_irq[IRQ_SOFT_OCP_WARN_CPUCL2] =
-				gpio_to_irq(pdata_s2mpg10->b2_soft_ocp_warn_pin);
-		gs101_bcl_device->s2mpg10_irq[IRQ_OCP_WARN_TPU] =
-				gpio_to_irq(pdata_s2mpg10->b10_ocp_warn_pin);
-		gs101_bcl_device->s2mpg10_irq[IRQ_SOFT_OCP_WARN_TPU] =
-				gpio_to_irq(pdata_s2mpg10->b10_soft_ocp_warn_pin);
-		gs101_bcl_device->s2mpg10_irq[IRQ_PMIC_120C] =
-				pdata_s2mpg10->irq_base + S2MPG10_IRQ_120C_INT3;
-		gs101_bcl_device->s2mpg10_irq[IRQ_PMIC_140C] =
-				pdata_s2mpg10->irq_base + S2MPG10_IRQ_140C_INT3;
-		gs101_bcl_device->s2mpg10_irq[IRQ_PMIC_OVERHEAT] =
-				pdata_s2mpg10->irq_base + S2MPG10_IRQ_TSD_INT3;
-		if (s2mpg10_read_reg(gs101_bcl_device->s2mpg10_i2c,
-				     S2MPG10_COMMON_CHIPID, &val)) {
-			pr_err("S2MPG10 not loaded.\n");
-			return;
-		}
-		if (!bypass_smpl_warn) {
-			ret = gs101_bcl_register_irq(gs101_bcl_device,
-						     IRQ_SMPL_WARN,
-						     gs101_smpl_warn_irq_handler,
-						     s2mpg10->dev,
-						     &gs101_smpl_warn_ops,
-						     "SMPL_WARN_IRQ",
-						     S2MPG10, IRQF_TRIGGER_LOW);
-			if (ret < 0) {
-				pr_err("bcl_register fail:%d\n", IRQ_SMPL_WARN);
-				return;
-			}
-		}
-		ret = gs101_bcl_register_irq(gs101_bcl_device,
-					     IRQ_OCP_WARN_CPUCL1,
-					     gs101_cpu1_ocp_warn_irq_handler,
-					     s2mpg10->dev,
-					     &gs101_ocp_cpu1_ops, "CPU1_OCP_IRQ",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_register fail:%d\n", IRQ_OCP_WARN_CPUCL1);
-			return;
-		}
-		ret = gs101_bcl_register_irq(gs101_bcl_device,
-					     IRQ_OCP_WARN_CPUCL2,
-					     gs101_cpu2_ocp_warn_irq_handler,
-					     s2mpg10->dev,
-					     &gs101_ocp_cpu2_ops, "CPU2_OCP_IRQ",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_register fail:%d\n", IRQ_OCP_WARN_CPUCL2);
-			return;
-		}
-		ret = gs101_bcl_register_irq(gs101_bcl_device,
-					     IRQ_SOFT_OCP_WARN_CPUCL1,
-					     gs101_soft_cpu1_ocp_warn_irq_handler,
-					     s2mpg10->dev,
-					     &gs101_soft_ocp_cpu1_ops, "SOFT_CPU1_OCP_IRQ",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_CPUCL1);
-			return;
-		}
-		ret = gs101_bcl_register_irq(gs101_bcl_device,
-					     IRQ_SOFT_OCP_WARN_CPUCL2,
-					     gs101_soft_cpu2_ocp_warn_irq_handler,
-					     s2mpg10->dev,
-					     &gs101_soft_ocp_cpu2_ops, "SOFT_CPU2_OCP_IRQ",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_CPUCL2);
-			return;
-		}
-		ret = gs101_bcl_register_irq(gs101_bcl_device,
-					     IRQ_OCP_WARN_TPU,
-					     gs101_tpu_ocp_warn_irq_handler,
-					     s2mpg10->dev,
-					     &gs101_ocp_tpu_ops, "TPU_OCP_IRQ",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_register fail:%d\n", IRQ_OCP_WARN_TPU);
-			return;
-		}
-		ret = gs101_bcl_register_irq(gs101_bcl_device,
-					     IRQ_SOFT_OCP_WARN_TPU,
-					     gs101_soft_tpu_ocp_warn_irq_handler,
-					     s2mpg10->dev,
-					     &gs101_soft_ocp_tpu_ops, "SOFT_TPU_OCP_IRQ",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_TPU);
-			return;
-		}
-		ret = gs101_bcl_register_pmic_irq(gs101_bcl_device,
-					     IRQ_PMIC_120C, PMIC_120C,
-					     gs101_pmic_120c_irq_handler,
-					     gs101_bcl_device->device,
-					     &gs101_pmic_120c_ops, "PMIC_120C",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_pmic_register fail:%d\n", IRQ_PMIC_120C);
-			return;
-		}
-		ret = gs101_bcl_register_pmic_irq(gs101_bcl_device,
-					     IRQ_PMIC_140C, PMIC_140C,
-					     gs101_pmic_140c_irq_handler,
-					     gs101_bcl_device->device,
-					     &gs101_pmic_140c_ops, "PMIC_140C",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_pmic_register fail:%d\n", IRQ_PMIC_140C);
-			return;
-		}
-		ret = gs101_bcl_register_pmic_irq(gs101_bcl_device,
-					     IRQ_PMIC_OVERHEAT, PMIC_OVERHEAT,
-					     gs101_tsd_overheat_irq_handler,
-					     gs101_bcl_device->device,
-					     &gs101_pmic_overheat_ops, "THERMAL_OVERHEAT",
-					     S2MPG10, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_pmic_register fail:%d\n", IRQ_PMIC_OVERHEAT);
-			return;
-		}
-		debugfs_create_file("smpl_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &smpl_lvl_fops);
-
-		debugfs_create_file("soft_ocp_cpu1_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_cpu1_lvl_fops);
-
-		debugfs_create_file("soft_ocp_cpu2_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_cpu2_lvl_fops);
-
-		debugfs_create_file("soft_ocp_tpu_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_tpu_lvl_fops);
-
-		debugfs_create_file("ocp_cpu1_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpu1_lvl_fops);
-
-		debugfs_create_file("ocp_cpu2_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpu2_lvl_fops);
-
-		debugfs_create_file("ocp_tpu_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &tpu_lvl_fops);
-
+		s2mpg11 = i2c_get_clientdata(i2c);
 	}
-	if (strcmp(dev_name(gs101_bcl_device->device), google_gs101_id_table[1].name) == 0) {
-		s2mpg11 = gs101_bcl_device->iodev;
-		pdata_s2mpg11 = dev_get_platdata(s2mpg11->dev);
-		gs101_bcl_device->s2mpg10_i2c = 0;
-		gs101_bcl_device->s2mpg11_i2c = s2mpg11->pmic;
-		gs101_bcl_device->s2mpg11_lvl[IRQ_OCP_WARN_GPU] = B2S_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL -
-				(pdata_s2mpg11->b2_ocp_warn_lvl * B2S_STEP);
-		gs101_bcl_device->s2mpg11_lvl[IRQ_SOFT_OCP_WARN_GPU] = B2S_UPPER_LIMIT -
-				THERMAL_HYST_LEVEL -
-				(pdata_s2mpg11->b2_soft_ocp_warn_lvl * B2S_STEP);
-		gs101_bcl_device->s2mpg11_pin[IRQ_OCP_WARN_GPU] =
-				pdata_s2mpg11->b2_ocp_warn_pin;
-		gs101_bcl_device->s2mpg11_pin[IRQ_SOFT_OCP_WARN_GPU] =
-				pdata_s2mpg11->b2_soft_ocp_warn_pin;
-		gs101_bcl_device->s2mpg11_irq[IRQ_OCP_WARN_GPU] =
-				gpio_to_irq(pdata_s2mpg11->b2_ocp_warn_pin);
-		gs101_bcl_device->s2mpg11_irq[IRQ_SOFT_OCP_WARN_GPU] =
-				gpio_to_irq(pdata_s2mpg11->b2_soft_ocp_warn_pin);
-		if (s2mpg11_read_reg(gs101_bcl_device->s2mpg11_i2c,
-				     S2MPG11_COMMON_CHIPID, &val)) {
-			pr_err("S2MPG11 not loaded.\n");
-			return;
-		}
-		ret = gs101_bcl_register_irq(gs101_bcl_device,
-					     IRQ_OCP_WARN_GPU,
-					     gs101_gpu_ocp_warn_irq_handler,
-					     s2mpg11->dev,
-					     &gs101_ocp_gpu_ops, "GPU_OCP_IRQ",
-					     S2MPG11, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_register fail:%d\n", IRQ_OCP_WARN_GPU);
-			return;
-		}
-		ret = gs101_bcl_register_irq(gs101_bcl_device,
-					     IRQ_SOFT_OCP_WARN_GPU,
-					     gs101_soft_gpu_ocp_warn_irq_handler,
-					     s2mpg11->dev,
-					     &gs101_soft_ocp_gpu_ops, "SOFT_GPU_OCP_IRQ",
-					     S2MPG11, IRQF_TRIGGER_HIGH);
-		if (ret < 0) {
-			pr_err("bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_GPU);
-			return;
-		}
-		debugfs_create_file("soft_ocp_gpu_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_gpu_lvl_fops);
-
-		debugfs_create_file("ocp_gpu_lvl", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &gpu_lvl_fops);
+	of_node_put(p_np);
+	if (!s2mpg11) {
+		dev_err(bcl_dev->device, "S2MPG11 device not found\n");
+		return -ENODEV;
 	}
+	pdata_s2mpg11 = dev_get_platdata(s2mpg11->dev);
+	bcl_dev->s2mpg11_i2c = s2mpg11->pmic;
+	bcl_dev->s2mpg11_lvl[IRQ_OCP_WARN_GPU] = B2S_UPPER_LIMIT - THERMAL_HYST_LEVEL -
+			(pdata_s2mpg11->b2_ocp_warn_lvl * B2S_STEP);
+	bcl_dev->s2mpg11_lvl[IRQ_SOFT_OCP_WARN_GPU] = B2S_UPPER_LIMIT - THERMAL_HYST_LEVEL -
+			(pdata_s2mpg11->b2_soft_ocp_warn_lvl * B2S_STEP);
+	bcl_dev->s2mpg11_pin[IRQ_OCP_WARN_GPU] = pdata_s2mpg11->b2_ocp_warn_pin;
+	bcl_dev->s2mpg11_pin[IRQ_SOFT_OCP_WARN_GPU] = pdata_s2mpg11->b2_soft_ocp_warn_pin;
+	bcl_dev->s2mpg11_irq[IRQ_OCP_WARN_GPU] = gpio_to_irq(pdata_s2mpg11->b2_ocp_warn_pin);
+	bcl_dev->s2mpg11_irq[IRQ_SOFT_OCP_WARN_GPU] =
+			gpio_to_irq(pdata_s2mpg11->b2_soft_ocp_warn_pin);
+	if (s2mpg11_read_reg(bcl_dev->s2mpg11_i2c, S2MPG11_COMMON_CHIPID, &val)) {
+		dev_err(bcl_dev->device, "Failed to read S2MPG11 chipid.\n");
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_irq(bcl_dev,
+				     IRQ_OCP_WARN_GPU,
+				     gs101_gpu_ocp_warn_irq_handler,
+				     s2mpg11->dev,
+				     &gs101_ocp_gpu_ops, "GPU_OCP_IRQ",
+				     S2MPG11, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_OCP_WARN_GPU);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_irq(bcl_dev,
+				     IRQ_SOFT_OCP_WARN_GPU,
+				     gs101_soft_gpu_ocp_warn_irq_handler,
+				     s2mpg11->dev,
+				     &gs101_soft_ocp_gpu_ops, "SOFT_GPU_OCP_IRQ",
+				     S2MPG11, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_GPU);
+		return -ENODEV;
+	}
+	debugfs_create_file("soft_ocp_gpu_lvl", 0644,
+			    bcl_dev->debug_entry,
+			    bcl_dev, &soft_gpu_lvl_fops);
+
+	debugfs_create_file("ocp_gpu_lvl", 0644,
+			    bcl_dev->debug_entry,
+			    bcl_dev, &gpu_lvl_fops);
+	return 0;
+}
+
+static int google_gs101_set_main_pmic(struct gs101_bcl_dev *bcl_dev)
+{
+	struct s2mpg10_platform_data *pdata_s2mpg10;
+	struct device_node *p_np;
+	struct device_node *np = bcl_dev->device->of_node;
+	struct s2mpg10_dev *s2mpg10 = NULL;
+	struct i2c_client *i2c;
+	bool bypass_smpl_warn = false;
+	u8 val = 0;
+	int ret;
+
+	p_np = of_parse_phandle(np, "google,main-power", 0);
+	if (p_np) {
+		i2c = of_find_i2c_device_by_node(p_np);
+		if (!i2c) {
+			dev_err(bcl_dev->device, "Cannot find main-power I2C\n");
+			return -ENODEV;
+		}
+		s2mpg10 = i2c_get_clientdata(i2c);
+	}
+	of_node_put(p_np);
+	if (!s2mpg10) {
+		dev_err(bcl_dev->device, "S2MPG10 device not found\n");
+		return -ENODEV;
+	}
+	pdata_s2mpg10 = dev_get_platdata(s2mpg10->dev);
+	/* request smpl_warn interrupt */
+	if (!gpio_is_valid(pdata_s2mpg10->smpl_warn_pin)) {
+		dev_err(bcl_dev->device, "smpl_warn GPIO NOT VALID\n");
+		devm_free_irq(bcl_dev->device, bcl_dev->s2mpg10_irq[IRQ_SMPL_WARN], bcl_dev);
+		bypass_smpl_warn = true;
+	}
+	bcl_dev->s2mpg10_i2c = s2mpg10->pmic;
+	bcl_dev->s2mpg10_irq[IRQ_SMPL_WARN] = gpio_to_irq(pdata_s2mpg10->smpl_warn_pin);
+	irq_set_status_flags(bcl_dev->s2mpg10_irq[IRQ_SMPL_WARN], IRQ_DISABLE_UNLAZY);
+	bcl_dev->s2mpg10_pin[IRQ_SMPL_WARN] = pdata_s2mpg10->smpl_warn_pin;
+	bcl_dev->s2mpg10_lvl[IRQ_SMPL_WARN] = SMPL_BATTERY_VOLTAGE -
+			(pdata_s2mpg10->smpl_warn_lvl * SMPL_STEP + SMPL_LOWER_LIMIT);
+	bcl_dev->s2mpg10_lvl[IRQ_OCP_WARN_CPUCL1] = B3M_UPPER_LIMIT -
+			THERMAL_HYST_LEVEL - (pdata_s2mpg10->b3_ocp_warn_lvl * B3M_STEP);
+	bcl_dev->s2mpg10_lvl[IRQ_SOFT_OCP_WARN_CPUCL1] = B3M_UPPER_LIMIT -
+			THERMAL_HYST_LEVEL - (pdata_s2mpg10->b3_soft_ocp_warn_lvl * B3M_STEP);
+	bcl_dev->s2mpg10_lvl[IRQ_OCP_WARN_CPUCL2] = B2M_UPPER_LIMIT -
+			THERMAL_HYST_LEVEL - (pdata_s2mpg10->b2_ocp_warn_lvl * B2M_STEP);
+	bcl_dev->s2mpg10_lvl[IRQ_SOFT_OCP_WARN_CPUCL2] = B2M_UPPER_LIMIT -
+			THERMAL_HYST_LEVEL - (pdata_s2mpg10->b2_soft_ocp_warn_lvl * B2M_STEP);
+	bcl_dev->s2mpg10_lvl[IRQ_OCP_WARN_TPU] = B10M_UPPER_LIMIT -
+			THERMAL_HYST_LEVEL - (pdata_s2mpg10->b10_ocp_warn_lvl * B10M_STEP);
+	bcl_dev->s2mpg10_lvl[IRQ_SOFT_OCP_WARN_TPU] = B10M_UPPER_LIMIT -
+			THERMAL_HYST_LEVEL - (pdata_s2mpg10->b10_soft_ocp_warn_lvl * B10M_STEP);
+	bcl_dev->s2mpg10_lvl[IRQ_PMIC_120C] = PMIC_120C_UPPER_LIMIT - THERMAL_HYST_LEVEL;
+	bcl_dev->s2mpg10_lvl[IRQ_PMIC_140C] = PMIC_140C_UPPER_LIMIT - THERMAL_HYST_LEVEL;
+	bcl_dev->s2mpg10_lvl[IRQ_PMIC_OVERHEAT] = PMIC_OVERHEAT_UPPER_LIMIT - THERMAL_HYST_LEVEL;
+	bcl_dev->s2mpg10_pin[IRQ_OCP_WARN_CPUCL1] = pdata_s2mpg10->b3_ocp_warn_pin;
+	bcl_dev->s2mpg10_pin[IRQ_OCP_WARN_CPUCL2] = pdata_s2mpg10->b2_ocp_warn_pin;
+	bcl_dev->s2mpg10_pin[IRQ_SOFT_OCP_WARN_CPUCL1] = pdata_s2mpg10->b3_soft_ocp_warn_pin;
+	bcl_dev->s2mpg10_pin[IRQ_SOFT_OCP_WARN_CPUCL2] = pdata_s2mpg10->b2_soft_ocp_warn_pin;
+	bcl_dev->s2mpg10_pin[IRQ_OCP_WARN_TPU] = pdata_s2mpg10->b10_ocp_warn_pin;
+	bcl_dev->s2mpg10_pin[IRQ_SOFT_OCP_WARN_TPU] = pdata_s2mpg10->b10_soft_ocp_warn_pin;
+	bcl_dev->s2mpg10_irq[IRQ_OCP_WARN_CPUCL1] = gpio_to_irq(pdata_s2mpg10->b3_ocp_warn_pin);
+	bcl_dev->s2mpg10_irq[IRQ_OCP_WARN_CPUCL2] = gpio_to_irq(pdata_s2mpg10->b2_ocp_warn_pin);
+	bcl_dev->s2mpg10_irq[IRQ_SOFT_OCP_WARN_CPUCL1] =
+			gpio_to_irq(pdata_s2mpg10->b3_soft_ocp_warn_pin);
+	bcl_dev->s2mpg10_irq[IRQ_SOFT_OCP_WARN_CPUCL2] =
+			gpio_to_irq(pdata_s2mpg10->b2_soft_ocp_warn_pin);
+	bcl_dev->s2mpg10_irq[IRQ_OCP_WARN_TPU] = gpio_to_irq(pdata_s2mpg10->b10_ocp_warn_pin);
+	bcl_dev->s2mpg10_irq[IRQ_SOFT_OCP_WARN_TPU] =
+			gpio_to_irq(pdata_s2mpg10->b10_soft_ocp_warn_pin);
+	bcl_dev->s2mpg10_irq[IRQ_PMIC_120C] = pdata_s2mpg10->irq_base + S2MPG10_IRQ_120C_INT3;
+	bcl_dev->s2mpg10_irq[IRQ_PMIC_140C] = pdata_s2mpg10->irq_base + S2MPG10_IRQ_140C_INT3;
+	bcl_dev->s2mpg10_irq[IRQ_PMIC_OVERHEAT] = pdata_s2mpg10->irq_base + S2MPG10_IRQ_TSD_INT3;
+	if (s2mpg10_read_reg(bcl_dev->s2mpg10_i2c, S2MPG10_COMMON_CHIPID, &val)) {
+		dev_err(bcl_dev->device, "Failed to read S2MPG10 chipid.\n");
+		return -ENODEV;
+	}
+	if (!bypass_smpl_warn) {
+		ret = gs101_bcl_register_irq(bcl_dev,
+					     IRQ_SMPL_WARN,
+					     gs101_smpl_warn_irq_handler,
+					     s2mpg10->dev,
+					     &gs101_smpl_warn_ops,
+					     "SMPL_WARN_IRQ",
+					     S2MPG10, IRQF_TRIGGER_LOW);
+		if (ret < 0) {
+			dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SMPL_WARN);
+			return -ENODEV;
+		}
+	}
+	ret = gs101_bcl_register_irq(bcl_dev,
+				     IRQ_OCP_WARN_CPUCL1,
+				     gs101_cpu1_ocp_warn_irq_handler,
+				     s2mpg10->dev,
+				     &gs101_ocp_cpu1_ops, "CPU1_OCP_IRQ",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_OCP_WARN_CPUCL1);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_irq(bcl_dev,
+				     IRQ_OCP_WARN_CPUCL2,
+				     gs101_cpu2_ocp_warn_irq_handler,
+				     s2mpg10->dev,
+				     &gs101_ocp_cpu2_ops, "CPU2_OCP_IRQ",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_OCP_WARN_CPUCL2);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_irq(bcl_dev,
+				     IRQ_SOFT_OCP_WARN_CPUCL1,
+				     gs101_soft_cpu1_ocp_warn_irq_handler,
+				     s2mpg10->dev,
+				     &gs101_soft_ocp_cpu1_ops, "SOFT_CPU1_OCP_IRQ",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_CPUCL1);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_irq(bcl_dev,
+				     IRQ_SOFT_OCP_WARN_CPUCL2,
+				     gs101_soft_cpu2_ocp_warn_irq_handler,
+				     s2mpg10->dev,
+				     &gs101_soft_ocp_cpu2_ops, "SOFT_CPU2_OCP_IRQ",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_CPUCL2);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_irq(bcl_dev,
+				     IRQ_OCP_WARN_TPU,
+				     gs101_tpu_ocp_warn_irq_handler,
+				     s2mpg10->dev,
+				     &gs101_ocp_tpu_ops, "TPU_OCP_IRQ",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_OCP_WARN_TPU);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_irq(bcl_dev,
+				     IRQ_SOFT_OCP_WARN_TPU,
+				     gs101_soft_tpu_ocp_warn_irq_handler,
+				     s2mpg10->dev,
+				     &gs101_soft_ocp_tpu_ops, "SOFT_TPU_OCP_IRQ",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_TPU);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_pmic_irq(bcl_dev,
+				     IRQ_PMIC_120C, PMIC_120C,
+				     gs101_pmic_120c_irq_handler,
+				     bcl_dev->device,
+				     &gs101_pmic_120c_ops, "PMIC_120C",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_pmic_register fail:%d\n", IRQ_PMIC_120C);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_pmic_irq(bcl_dev,
+				     IRQ_PMIC_140C, PMIC_140C,
+				     gs101_pmic_140c_irq_handler,
+				     bcl_dev->device,
+				     &gs101_pmic_140c_ops, "PMIC_140C",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_pmic_register fail:%d\n", IRQ_PMIC_140C);
+		return -ENODEV;
+	}
+	ret = gs101_bcl_register_pmic_irq(bcl_dev,
+				     IRQ_PMIC_OVERHEAT, PMIC_OVERHEAT,
+				     gs101_tsd_overheat_irq_handler,
+				     bcl_dev->device,
+				     &gs101_pmic_overheat_ops, "THERMAL_OVERHEAT",
+				     S2MPG10, IRQF_TRIGGER_HIGH);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "bcl_pmic_register fail:%d\n", IRQ_PMIC_OVERHEAT);
+		return -ENODEV;
+	}
+	debugfs_create_file("smpl_lvl", 0644, bcl_dev->debug_entry, bcl_dev, &smpl_lvl_fops);
+	debugfs_create_file("soft_ocp_cpu1_lvl", 0644, bcl_dev->debug_entry,
+			    bcl_dev, &soft_cpu1_lvl_fops);
+	debugfs_create_file("soft_ocp_cpu2_lvl", 0644, bcl_dev->debug_entry,
+			    bcl_dev, &soft_cpu2_lvl_fops);
+	debugfs_create_file("soft_ocp_tpu_lvl", 0644, bcl_dev->debug_entry,
+			    bcl_dev, &soft_tpu_lvl_fops);
+	debugfs_create_file("ocp_cpu1_lvl", 0644, bcl_dev->debug_entry, bcl_dev, &cpu1_lvl_fops);
+	debugfs_create_file("ocp_cpu2_lvl", 0644, bcl_dev->debug_entry, bcl_dev, &cpu2_lvl_fops);
+	debugfs_create_file("ocp_tpu_lvl", 0644, bcl_dev->debug_entry, bcl_dev, &tpu_lvl_fops);
+
+	return 0;
+
 }
 
 static int google_gs101_bcl_probe(struct platform_device *pdev)
 {
 	unsigned int reg;
 	int ret = 0, i;
-	struct gs101_bcl_dev *gs101_bcl_device;
+	struct gs101_bcl_dev *bcl_dev;
 	struct dentry *root;
 
-	gs101_bcl_device =
-		devm_kzalloc(&pdev->dev, sizeof(*gs101_bcl_device), GFP_KERNEL);
-	if (!gs101_bcl_device)
+	bcl_dev = devm_kzalloc(&pdev->dev, sizeof(*bcl_dev), GFP_KERNEL);
+	if (!bcl_dev)
 		return -ENOMEM;
-	gs101_bcl_device->device = &pdev->dev;
-	gs101_bcl_device->iodev = dev_get_drvdata(pdev->dev.parent);
-
-	platform_set_drvdata(pdev, gs101_bcl_device);
+	bcl_dev->device = &pdev->dev;
+	bcl_dev->iodev = dev_get_drvdata(pdev->dev.parent);
+	platform_set_drvdata(pdev, bcl_dev);
+	bcl_dev->psy_nb.notifier_call = battery_supply_callback;
+	ret = power_supply_reg_notifier(&bcl_dev->psy_nb);
+	if (ret < 0) {
+		dev_err(bcl_dev->device, "soc notifier registration error. defer. err:%d\n", ret);
+		ret = -EPROBE_DEFER;
+		goto bcl_soc_probe_exit;
+	}
+	bcl_dev->soc_tzd = thermal_zone_of_sensor_register(
+		bcl_dev->device, PMIC_SOC, bcl_dev,
+		&bcl_dev->soc_ops);
+	if (IS_ERR(bcl_dev->soc_tzd)) {
+		dev_err(bcl_dev->device, "soc TZ register failed. err:%ld\n",
+			PTR_ERR(bcl_dev->soc_tzd));
+		ret = PTR_ERR(bcl_dev->soc_tzd);
+		bcl_dev->soc_tzd = NULL;
+		ret = -EPROBE_DEFER;
+		goto bcl_soc_probe_exit;
+	}
+	INIT_DELAYED_WORK(&bcl_dev->soc_eval_work, gs101_bcl_evaluate_soc);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_SMPL_WARN], gs101_smpl_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_OCP_WARN_CPUCL1], gs101_cpu1_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_SOFT_OCP_WARN_CPUCL1],
+			  gs101_soft_cpu1_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_OCP_WARN_CPUCL2], gs101_cpu2_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_SOFT_OCP_WARN_CPUCL2],
+			  gs101_soft_cpu2_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_OCP_WARN_TPU], gs101_tpu_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_SOFT_OCP_WARN_TPU],
+			  gs101_soft_tpu_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_PMIC_120C], gs101_pmic_120c_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_PMIC_140C], gs101_pmic_140c_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_PMIC_OVERHEAT], gs101_pmic_overheat_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg11_irq_work[IRQ_OCP_WARN_GPU], gs101_gpu_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->s2mpg11_irq_work[IRQ_SOFT_OCP_WARN_GPU],
+			  gs101_soft_gpu_warn_work);
 	root = debugfs_lookup("gs101-bcl", NULL);
 	if (!root) {
-		gs101_bcl_device->debug_entry = debugfs_create_dir("gs101-bcl", 0);
-		if (IS_ERR_OR_NULL(gs101_bcl_device->debug_entry)) {
-			gs101_bcl_device->debug_entry = NULL;
+		bcl_dev->debug_entry = debugfs_create_dir("gs101-bcl", 0);
+		if (IS_ERR_OR_NULL(bcl_dev->debug_entry)) {
+			bcl_dev->debug_entry = NULL;
 			return -EINVAL;
 		}
-		debugfs_create_file("cpucl0_clkdiv_stat", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpucl0_clkdivstep_stat_fops);
-		debugfs_create_file("cpucl1_clkdiv_stat", 0644,
-				    gs101_bcl_device->debug_entry, gs101_bcl_device,
-				    &cpucl1_clkdivstep_stat_fops);
-		debugfs_create_file("cpucl2_clkdiv_stat", 0644,
-				    gs101_bcl_device->debug_entry, gs101_bcl_device,
-				    &cpucl2_clkdivstep_stat_fops);
-		debugfs_create_file("gpu_clkdiv_stat", 0644,
-				    gs101_bcl_device->debug_entry, gs101_bcl_device,
-				    &gpu_clkdivstep_stat_fops);
-		debugfs_create_file("tpu_clkdiv_stat", 0644,
-				    gs101_bcl_device->debug_entry, gs101_bcl_device,
-				    &tpu_clkdivstep_stat_fops);
-		debugfs_create_file("mpmm_settings", 0644,
-				    gs101_bcl_device->debug_entry, gs101_bcl_device, &mpmm_fops);
-		debugfs_create_file("ppm_settings", 0644, gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &ppm_fops);
-		debugfs_create_file("cpucl2_clkdiv_ratio_heavy", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpucl2_clk_ratio_fops);
-		debugfs_create_file("cpucl1_clkdiv_ratio_heavy", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpucl1_clk_ratio_fops);
-		debugfs_create_file("cpucl0_clkdiv_ratio_heavy", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpucl0_clk_ratio_fops);
-		debugfs_create_file("gpu_clkdiv_ratio_heavy", 0644, gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &gpu_clk_ratio_fops);
-		debugfs_create_file("tpu_clkdiv_ratio_heavy", 0644, gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &tpu_clk_ratio_fops);
-		debugfs_create_file("cpucl2_clkdiv_ratio_light", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpucl2_clk_ratio_light_fops);
-		debugfs_create_file("cpucl1_clkdiv_ratio_light", 0644,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpucl1_clk_ratio_light_fops);
-		debugfs_create_file("gpu_clkdiv_ratio_light", 0644, gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &gpu_clk_ratio_light_fops);
-		debugfs_create_file("tpu_clkdiv_ratio_light", 0644, gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &tpu_clk_ratio_light_fops);
-		debugfs_create_file("smpl_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &smpl_triggered_fops);
-		debugfs_create_file("cpu1_ocp_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpucl1_ocp_triggered_fops);
-		debugfs_create_file("cpu2_ocp_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &cpucl2_ocp_triggered_fops);
-		debugfs_create_file("tpu_ocp_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &tpu_ocp_triggered_fops);
-		debugfs_create_file("gpu_ocp_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &gpu_ocp_triggered_fops);
-		debugfs_create_file("soft_cpu1_ocp_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_cpucl1_ocp_triggered_fops);
-		debugfs_create_file("soft_cpu2_ocp_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_cpucl2_ocp_triggered_fops);
-		debugfs_create_file("soft_tpu_ocp_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_tpu_ocp_triggered_fops);
-		debugfs_create_file("soft_gpu_ocp_triggered", 0600,
-				    gs101_bcl_device->debug_entry,
-				    gs101_bcl_device, &soft_gpu_ocp_triggered_fops);
-
 	} else
-		gs101_bcl_device->debug_entry = root;
-	gs101_bcl_device->cpu0_mem = ioremap(CPUCL0_BASE, SZ_8K);
-	if (!gs101_bcl_device->cpu0_mem) {
-		pr_err("cpu0_mem ioremap failed\n");
+		bcl_dev->debug_entry = root;
+	bcl_dev->base_mem[0] = ioremap(CPUCL0_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[0]) {
+		dev_err(bcl_dev->device, "cpu0_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	gs101_bcl_device->cpu1_mem = ioremap(CPUCL1_BASE, SZ_8K);
-	if (!gs101_bcl_device->cpu1_mem) {
-		pr_err("cpu1_mem ioremap failed\n");
+	bcl_dev->base_mem[1] = ioremap(CPUCL1_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[1]) {
+		dev_err(bcl_dev->device, "cpu1_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	gs101_bcl_device->cpu2_mem = ioremap(CPUCL2_BASE, SZ_8K);
-	if (!gs101_bcl_device->cpu2_mem) {
-		pr_err("cpu2_mem ioremap failed\n");
+	bcl_dev->base_mem[2] = ioremap(CPUCL2_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[2]) {
+		dev_err(bcl_dev->device, "cpu2_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	gs101_bcl_device->gpu_mem = ioremap(G3D_BASE, SZ_8K);
-	if (!gs101_bcl_device->gpu_mem) {
-		pr_err("gpu_mem ioremap failed\n");
+	bcl_dev->base_mem[3] = ioremap(TPU_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[3]) {
+		dev_err(bcl_dev->device, "tpu_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	gs101_bcl_device->tpu_mem = ioremap(TPU_BASE, SZ_8K);
-	if (!gs101_bcl_device->tpu_mem) {
-		pr_err("tpu_mem ioremap failed\n");
+	bcl_dev->base_mem[4] = ioremap(G3D_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[4]) {
+		dev_err(bcl_dev->device, "gpu_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	gs101_bcl_device->sysreg_cpucl0 = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
-	if (!gs101_bcl_device->sysreg_cpucl0) {
-		pr_err("sysreg_cpucl0 ioremap failed\n");
+	bcl_dev->sysreg_cpucl0 = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
+	if (!bcl_dev->sysreg_cpucl0) {
+		dev_err(bcl_dev->device, "sysreg_cpucl0 ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
+
 
 	mutex_lock(&sysreg_lock);
-	reg = __raw_readl(gs101_bcl_device->sysreg_cpucl0 +
-			  CLUSTER0_GENERAL_CTRL_64);
+	reg = __raw_readl(bcl_dev->sysreg_cpucl0 + CLUSTER0_GENERAL_CTRL_64);
 	reg |= MPMMEN_MASK;
-	__raw_writel(reg, gs101_bcl_device->sysreg_cpucl0 +
-				  CLUSTER0_GENERAL_CTRL_64);
-	reg = __raw_readl(gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM);
+	__raw_writel(reg, bcl_dev->sysreg_cpucl0 + CLUSTER0_GENERAL_CTRL_64);
+	reg = __raw_readl(bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM);
 	reg |= PPMEN_MASK;
-	__raw_writel(reg, gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM);
+	__raw_writel(reg, bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM);
+
 	mutex_unlock(&sysreg_lock);
-	gs101_set_ppm_throttling(gs101_bcl_device,
-				 SYS_THROTTLING_DISABLED);
-	gs101_set_mpmm_throttling(gs101_bcl_device,
-				  SYS_THROTTLING_DISABLED);
-	mutex_init(&gs101_bcl_device->state_trans_lock);
-	mutex_init(&gs101_bcl_device->ratio_lock);
-	gs101_bcl_device->soc_ops.get_temp = gs101_bcl_read_soc;
-	gs101_bcl_device->soc_ops.set_trips = gs101_bcl_set_soc;
+	gs101_set_ppm_throttling(bcl_dev, SYS_THROTTLING_DISABLED);
+	gs101_set_mpmm_throttling(bcl_dev, SYS_THROTTLING_DISABLED);
+	mutex_init(&bcl_dev->state_trans_lock);
+	mutex_init(&bcl_dev->ratio_lock);
+	bcl_dev->soc_ops.get_temp = gs101_bcl_read_soc;
+	bcl_dev->soc_ops.set_trips = gs101_bcl_set_soc;
 	for (i = 0; i < IRQ_SOURCE_S2MPG10_MAX; i++) {
-		gs101_bcl_device->s2mpg10_counter[i] = 0;
-		gs101_bcl_device->s2mpg10_triggered_irq[i] = 0;
-		mutex_init(&gs101_bcl_device->s2mpg10_irq_lock[i]);
+		bcl_dev->s2mpg10_counter[i] = 0;
+		bcl_dev->s2mpg10_triggered_irq[i] = 0;
+		atomic_set(&bcl_dev->s2mpg10_cnt[i], 0);
+		mutex_init(&bcl_dev->s2mpg10_irq_lock[i]);
 	}
 	for (i = 0; i < IRQ_SOURCE_S2MPG11_MAX; i++) {
-		gs101_bcl_device->s2mpg11_counter[i] = 0;
-		gs101_bcl_device->s2mpg11_triggered_irq[i] = 0;
-		mutex_init(&gs101_bcl_device->s2mpg11_irq_lock[i]);
+		bcl_dev->s2mpg11_counter[i] = 0;
+		bcl_dev->s2mpg11_triggered_irq[i] = 0;
+		atomic_set(&bcl_dev->s2mpg11_cnt[i], 0);
+		mutex_init(&bcl_dev->s2mpg11_irq_lock[i]);
 	}
-	INIT_DELAYED_WORK(&gs101_bcl_device->mfd_init, gs101_bcl_mfd_init);
-
-	if (strcmp(dev_name(&pdev->dev), google_gs101_id_table[0].name) == 0) {
-		INIT_DELAYED_WORK(&gs101_bcl_device->soc_eval_work, gs101_bcl_evaluate_soc);
-		gs101_bcl_device->psy_nb.notifier_call = battery_supply_callback;
-		ret = power_supply_reg_notifier(&gs101_bcl_device->psy_nb);
-		if (ret < 0) {
-			pr_err("soc notifier registration error. defer. err:%d\n", ret);
-			ret = -EPROBE_DEFER;
-			goto bcl_soc_probe_exit;
-		}
-		gs101_bcl_device->soc_tzd = thermal_zone_of_sensor_register(
-			gs101_bcl_device->device, PMIC_SOC, gs101_bcl_device,
-			&gs101_bcl_device->soc_ops);
-		if (IS_ERR(gs101_bcl_device->soc_tzd)) {
-			pr_err("soc TZ register failed. err:%ld\n",
-			       PTR_ERR(gs101_bcl_device->soc_tzd));
-			ret = PTR_ERR(gs101_bcl_device->soc_tzd);
-			gs101_bcl_device->soc_tzd = NULL;
-			ret = -EPROBE_DEFER;
-			goto bcl_soc_probe_exit;
-		}
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_SMPL_WARN],
-				  gs101_smpl_warn_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_OCP_WARN_CPUCL1],
-				  gs101_cpu1_warn_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_SOFT_OCP_WARN_CPUCL1],
-				  gs101_soft_cpu1_warn_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_OCP_WARN_CPUCL2],
-				  gs101_cpu2_warn_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_SOFT_OCP_WARN_CPUCL2],
-				  gs101_soft_cpu2_warn_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_OCP_WARN_TPU],
-				  gs101_tpu_warn_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_SOFT_OCP_WARN_TPU],
-				  gs101_soft_tpu_warn_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_PMIC_120C],
-				  gs101_pmic_120c_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_PMIC_140C],
-				  gs101_pmic_140c_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg10_irq_work[IRQ_PMIC_OVERHEAT],
-				  gs101_pmic_overheat_work);
+	thermal_zone_device_update(bcl_dev->soc_tzd, THERMAL_DEVICE_UP);
+	schedule_delayed_work(&bcl_dev->soc_eval_work, 0);
+	bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
+	google_gs101_set_main_pmic(bcl_dev);
+	google_gs101_set_sub_pmic(bcl_dev);
+	bcl_dev->device = pmic_device_create(bcl_dev, "mitigation");
+	ret = device_create_file(bcl_dev->device, &dev_attr_triggered_stats);
+	if (ret) {
+		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+			dev_attr_triggered_stats.attr.name);
 	}
-	if (strcmp(dev_name(&pdev->dev), google_gs101_id_table[1].name) == 0) {
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg11_irq_work[IRQ_OCP_WARN_GPU],
-				  gs101_gpu_warn_work);
-		INIT_DELAYED_WORK(&gs101_bcl_device->s2mpg11_irq_work[IRQ_SOFT_OCP_WARN_GPU],
-				  gs101_soft_gpu_warn_work);
+	ret = device_create_file(bcl_dev->device, &dev_attr_mpmm_settings);
+	if (ret) {
+		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+			dev_attr_mpmm_settings.attr.name);
 	}
-
-	schedule_delayed_work(&gs101_bcl_device->mfd_init, 1000);
+	ret = device_create_file(bcl_dev->device, &dev_attr_ppm_settings);
+	if (ret) {
+		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+			dev_attr_ppm_settings.attr.name);
+	}
+	ret = device_create_file(bcl_dev->device, &dev_attr_clk_ratio);
+	if (ret) {
+		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+			dev_attr_clk_ratio.attr.name);
+	}
+	ret = device_create_file(bcl_dev->device, &dev_attr_clk_stats);
+	if (ret) {
+		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+			dev_attr_clk_stats.attr.name);
+	}
 
 	return 0;
 
 bcl_soc_probe_exit:
-	gs101_bcl_soc_remove(gs101_bcl_device);
+	gs101_bcl_soc_remove(bcl_dev);
 	return ret;
 }
 
@@ -2259,14 +1991,15 @@ static int google_gs101_bcl_remove(struct platform_device *pdev)
 {
 	struct gs101_bcl_dev *gs101_bcl_device = platform_get_drvdata(pdev);
 
+	pmic_device_destroy(gs101_bcl_device->device->devt);
 	gs101_bcl_soc_remove(gs101_bcl_device);
 	debugfs_remove(gs101_bcl_device->debug_entry);
+
 	return 0;
 }
 
 static const struct of_device_id match_table[] = {
-	{ .compatible = "google,gs101-bcl-m"},
-	{ .compatible = "google,gs101-bcl-s"},
+	{ .compatible = "google,gs101-bcl"},
 	{},
 };
 
@@ -2275,7 +2008,7 @@ static struct platform_driver gs101_bcl_driver = {
 	.remove = google_gs101_bcl_remove,
 	.id_table = google_gs101_id_table,
 	.driver = {
-		.name           = "google,gs101-bcl",
+		.name           = "google_mitigation",
 		.owner          = THIS_MODULE,
 		.of_match_table = match_table,
 	},
