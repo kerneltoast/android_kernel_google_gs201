@@ -5,6 +5,8 @@
 /* TODO: temporary workaround. must remove. see b/169128860  */
 #include <linux/smc.h>
 
+#define A_FEW_USECS 10		/* see Documentation/timers/timers-howto.rst */
+
 /**
  * A global index for pmucal_rae_handle_seq.
  * it should be helpful in ramdump.
@@ -409,7 +411,10 @@ int pmucal_rae_handle_seq(struct pmucal_seq *seq, unsigned int seq_size)
 			pmucal_rae_write(&seq[i]);
 			return 0;
 		case PMUCAL_DELAY:
-			udelay(seq[i].value);
+			if (seq[i].value <= A_FEW_USECS)
+				udelay(seq[i].value);
+			else
+				usleep_range(seq[i].value, seq[i].value);
 			break;
 		case PMUCAL_SET_BIT_ATOMIC:
 			pmucal_set_bit_atomic(&seq[i]);
