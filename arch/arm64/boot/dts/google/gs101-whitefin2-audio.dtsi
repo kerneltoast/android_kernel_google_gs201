@@ -14,8 +14,7 @@
 };
 
 &aoc {
-	board_id = <0x201>;
-	board_rev = <0x201>;
+	aoc-board-cfg = "wf2";
 };
 
 &m_ldo30_reg {

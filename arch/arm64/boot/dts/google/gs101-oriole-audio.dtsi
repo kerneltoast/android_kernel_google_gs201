@@ -14,6 +14,5 @@
 };
 
 &aoc {
-	board_id = <0x20302>;
-	board_rev = <0x10000>;
+	aoc-board-cfg = "o6";
 };
