@@ -414,10 +414,6 @@
 	};
 };
 
-&aoc_audio_cfg{
-	aoc-audio-config = "sl2";
-};
-
 &aoc {
 	aoc-board-cfg = "sl2";
 };
