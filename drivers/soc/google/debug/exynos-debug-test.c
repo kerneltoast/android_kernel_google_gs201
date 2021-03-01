@@ -26,6 +26,7 @@
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-pmu-if.h>
 #include <soc/google/debug-test.h>
+#include <soc/google/exynos-debug.h>
 
 #include "debug-snapshot-local.h"
 
@@ -82,6 +83,7 @@ static const char * const test_vector[] = {
 	"spabort",
 	"overflow",
 	"cacheflush",
+	"cpucontext",
 	"arraydump",
 	"halt",
 	"scandump",
@@ -493,14 +495,53 @@ static void simulate_OVERFLOW(char *arg)
 }
 
 static char *buffer[NR_CPUS];
-static void simulate_CACHE_FLUSH_handler(void *info)
+static void simulate_CPU_CONTEXT_CACHE_FLUSH_handler(void *info)
 {
 	int cpu = raw_smp_processor_id();
+	u64 i = 0;
 	u64 addr = virt_to_phys((void *)(buffer[cpu]));
+	local_irq_disable();
 
 	memset(buffer[cpu], 0x5A, PAGE_SIZE * 2);
 	dbg_snapshot_set_debug_test_buffer_addr(addr, cpu);
-	asm("b .");
+
+	i = cpu << 16;
+	/* populate registers with known values and infinite loop */
+	asm volatile("mov x0, %0\n\t"
+			"add x1, x0, #1\n\t"
+			"add x2, x0, #2\n\t"
+			"add x3, x0, #3\n\t"
+			"add x4, x0, #4\n\t"
+			"add x5, x0, #5\n\t"
+			"add x6, x0, #6\n\t"
+			"add x7, x0, #7\n\t"
+			"add x8, x0, #8\n\t"
+			"add x9, x0, #9\n\t"
+			"add x10, x0, #10\n\t"
+			"add x11, x0, #11\n\t"
+			"add x12, x0, #12\n\t"
+			"add x13, x0, #13\n\t"
+			"add x14, x0, #14\n\t"
+			"add x15, x0, #15\n\t"
+			"add x16, x0, #16\n\t"
+			"add x17, x0, #17\n\t"
+			"add x18, x0, #18\n\t"
+			"add x19, x0, #19\n\t"
+			"add x20, x0, #20\n\t"
+			"add x21, x0, #21\n\t"
+			"add x22, x0, #22\n\t"
+			"add x23, x0, #23\n\t"
+			"add x24, x0, #24\n\t"
+			"add x25, x0, #25\n\t"
+			"add x26, x0, #26\n\t"
+			"add x27, x0, #27\n\t"
+			"add x28, x0, #28\n\t"
+			"add x29, x0, #29\n\t"
+			"add x30, x0, #30\n\t"
+			"b .\n\t"
+			: : "r" (i));
+
+	/* should not reach here */
 }
 
 static void simulate_CACHE_FLUSH_ALL(void *info)
@@ -508,9 +549,8 @@ static void simulate_CACHE_FLUSH_ALL(void *info)
 	cache_flush_all();
 }
 
-static void simulate_CACHE_FLUSH(char *arg)
+static void simulate_CPU_CONTEXT_CACHE_FLUSH(char *arg)
 {
-	u64 addr;
 	int cpu;
 
 	dev_crit(exynos_debug_desc.dev, "%s()\n", __func__);
@@ -524,7 +564,7 @@ static void simulate_CACHE_FLUSH(char *arg)
 	smp_call_function(simulate_CACHE_FLUSH_ALL, NULL, 1);
 	cache_flush_all();
 
-	smp_call_function(simulate_CACHE_FLUSH_handler, NULL, 0);
+	smp_call_function(simulate_CPU_CONTEXT_CACHE_FLUSH_handler, NULL, 0);
 	for (cpu = 0; cpu < exynos_debug_desc.nr_cpu; cpu++) {
 		if (cpu == raw_smp_processor_id())
 			continue;
@@ -534,11 +574,19 @@ static void simulate_CACHE_FLUSH(char *arg)
 		dev_crit(exynos_debug_desc.dev, "CPU %d STOPPING\n", cpu);
 	}
 
-	cpu = raw_smp_processor_id();
-	addr = virt_to_phys((void *)(buffer[cpu]));
-	memset(buffer[cpu], 0x5A, PAGE_SIZE * 2);
-	dbg_snapshot_set_debug_test_buffer_addr(addr, cpu);
-	dbg_snapshot_emergency_reboot("cache flush test");
+	dbg_snapshot_emergency_reboot_timeout(arg, 500);
+
+	simulate_CPU_CONTEXT_CACHE_FLUSH_handler(NULL);
+}
+
+static void simulate_CPU_CONTEXT(char *arg)
+{
+	simulate_CPU_CONTEXT_CACHE_FLUSH("cpu context test");
+}
+
+static void simulate_CACHE_FLUSH(char *arg)
+{
+	simulate_CPU_CONTEXT_CACHE_FLUSH("cache flush test");
 }
 
 static void simulate_ARRAYDUMP(char *arg)
@@ -586,6 +634,7 @@ static struct force_error_item force_error_vector[] = {
 	{"writero",	&simulate_WRITE_RO},
 	{"overflow",	&simulate_OVERFLOW},
 	{"cacheflush",	&simulate_CACHE_FLUSH},
+	{"cpucontext",	&simulate_CPU_CONTEXT},
 	{"arraydump",	&simulate_ARRAYDUMP},
 	{"halt",	&simulate_HALT},
 	{"scandump",	&simulate_SCANDUMP},

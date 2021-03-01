@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <soc/google/acpm_mfd.h>
 #include <soc/google/acpm_ipc_ctrl.h>
+#include <linux/sched/clock.h>
 
 int exynos_acpm_read_reg(struct device_node *acpm_mfd_node, u8 channel,
 			 u16 type, u8 reg, u8 *dest)
@@ -24,6 +25,7 @@ int exynos_acpm_read_reg(struct device_node *acpm_mfd_node, u8 channel,
 		config.cmd[0] = set_protocol(type, TYPE) | set_protocol(reg, REG) |
 				set_protocol(channel, CHANNEL);
 		config.cmd[1] = set_protocol(FUNC_READ, FUNC);
+		config.cmd[3] = (u32)(sched_clock() / 1000000); /*record ktime ms*/
 		config.response = true;
 
 		ACPM_MFD_PRINT("%s - addr: 0x%03x\n", __func__,
@@ -119,6 +121,7 @@ int exynos_acpm_write_reg(struct device_node *acpm_mfd_node, u8 channel,
 				set_protocol(channel, CHANNEL);
 		config.cmd[1] = set_protocol(FUNC_WRITE, FUNC) |
 				set_protocol(value, WRITE_VAL);
+		config.cmd[3] = (u32)(sched_clock() / 1000000); /*record ktime ms*/
 		config.response = true;
 
 		ACPM_MFD_PRINT("%s - addr: 0x%03x val: 0x%02x\n",
@@ -218,6 +221,7 @@ int exynos_acpm_update_reg(struct device_node *acpm_mfd_node, u8 channel,
 		config.cmd[1] = set_protocol(FUNC_UPDATE, FUNC)
 				| set_protocol(value, UPDATE_VAL)
 				| set_protocol(mask, UPDATE_MASK);
+		config.cmd[3] = (u32)(sched_clock() / 1000000); /*record ktime ms*/
 		config.response = true;
 
 		ACPM_MFD_PRINT("%s - addr: 0x%03x val: 0x%02x mask: 0x%02x\n", __func__,

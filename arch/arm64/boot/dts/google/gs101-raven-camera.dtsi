@@ -497,7 +497,7 @@
 
 				/* I2C */
 				i2c-bus = <&hsi2c_2>;
-				i2c-addr = <0x50>;
+				i2c-addr = <0x51>;
 
 				/* Registers */
 				reg-addr-bitwidth = <16>;

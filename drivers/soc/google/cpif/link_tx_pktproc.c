@@ -44,13 +44,13 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 		skb_copy_from_linear_data(skb, target_addr, skb->len);
 	}
 
-	if (q->ppa_ul->padding_required)
-		len += CP_PADDING;
-
 	desc = &q->desc_ul[q->done_ptr];
 	desc->sktbuf_point = q->buff_addr_cp + (q->done_ptr * q->ppa_ul->max_packet_size);
-	desc->data_size = len;
-	desc->total_pkt_size = len;
+
+	desc->data_size = skb->len;
+	if (q->ppa_ul->padding_required)
+		desc->data_size += CP_PADDING;
+	desc->total_pkt_size = desc->data_size;
 	desc->last_desc = 0;
 	desc->seg_on = 0;
 	desc->hw_set = 0;
@@ -60,6 +60,7 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 	smp_mb();
 
 	if (use_dit) {
+		/* skb may not be valid after dit_enqueue is done */
 		ret = dit_enqueue_src_desc_ring_skb(DIT_DIR_TX, skb);
 		if (ret < 0) {
 			mif_err_limited("Enqueue failed for %d, ret: %d\n", q->done_ptr, ret);
@@ -70,7 +71,7 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 
 	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
-	return skb->len;
+	return len;
 }
 
 static int pktproc_set_end(struct pktproc_queue_ul *q, unsigned int desc_index,

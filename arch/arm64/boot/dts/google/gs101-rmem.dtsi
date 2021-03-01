@@ -69,6 +69,11 @@
 			no-map;
 		};
 
+		bldr_log_hist_reserved: bldr_log_hist_reserved@fd900000 {
+			reg = <0 0xfd900000 0x00002000>;
+			no-map;
+		};
+
 		cp_rmem: cp_rmem {
 			compatible = "exynos,modem_if";
 			reg = <0x0 0xF0000000 0x00800000>;

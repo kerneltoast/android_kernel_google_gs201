@@ -289,6 +289,14 @@
 			do not want to use tracing_snapshot_alloc() as it needs
 			to be done where GFP_KERNEL allocations are allowed.
 
+	allow_mismatched_32bit_el0 [ARM64]
+			Allow execve() of 32-bit applications and setting of the
+			PER_LINUX32 personality on systems where only a strict
+			subset of the CPUs support 32-bit EL0. When this
+			parameter is present, the set of CPUs supporting 32-bit
+			EL0 is indicated by /sys/devices/system/cpu/aarch32_el0
+			and hot-unplug operations may be restricted.
+
 	amd_iommu=	[HW,X86-64]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
@@ -372,6 +380,12 @@
 
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
+
+	arm64.nobti	[ARM64] Unconditionally disable Branch Target
+			Identification support
+
+	arm64.nopauth	[ARM64] Unconditionally disable Pointer Authentication
+			support
 
 	ataflop=	[HW,M68k]
 
@@ -2266,6 +2280,9 @@
 	kvm-arm.mode=
 			[KVM,ARM] Select one of KVM/arm64's modes of operation.
 
+			nvhe: Standard nVHE-based mode, without support for
+			      protected guests.
+
 			protected: nVHE-based mode with support for guests whose
 				   state is kept private from the host.
 				   Not valid if the kernel is running in EL2.
@@ -2954,6 +2971,26 @@
 			firmware feature for updating multiple TCE entries
 			at a time.
 
+	kswapd_per_node=
+			kswapd_per_node allows you to control the number of kswapd threads
+			running on the system. This provides the ability to devote additional
+			CPU resources toward proactive page replacement with the goal of
+			reducing direct reclaims. When direct reclaims are prevented, the CPU
+			consumed by them is prevented as well. Depending on the workload, the
+			result can cause aggregate CPU usage on the system to go up, down or
+			stay the same.
+
+			More aggressive page replacement can reduce direct reclaims which
+			cause latency for tasks and decrease throughput when doing filesystem
+			IO through the pagecache. Direct reclaims are recorded using the
+			allocstall counter in /proc/vmstat.
+
+			The range of acceptible values are 1-16. Always start with lower
+			values in the 2-6 range. Higher values should be justified with
+			testing. If direct reclaims occur in spite of high values, the cost
+			of direct reclaims (in latency) that occur can be higher due to
+			increased lock contention.
+
 	onenand.bdry=	[HW,MTD] Flex-OneNAND Boundary Configuration
 
 			Format: [die0_boundary][,die0_lock][,die1_boundary][,die1_lock]
@@ -3537,6 +3574,12 @@
 
 	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
+
+	pelt=		[KNL] Boot-time parameter changing the PELT half life in ms
+			Format: <int>
+			32: Set the half life to 32ms
+			8: Set the half life to 8ms
+			default: 32
 
 	crash_kexec_post_notifiers
 			Run kdump after running panic-notifiers and dumping
@@ -5150,6 +5193,12 @@
 			to (for stacks growing down) resp. after (for stacks
 			growing up) the main stack are reserved for no other
 			mapping. Default value is 256 pages.
+
+	stack_depot_disable= [KNL]
+			Setting this to true through kernel command line will
+			disable the stack depot thereby saving the static memory
+			consumed by the stack hash table. By default this is set
+			to false.
 
 	stacktrace	[FTRACE]
 			Enabled the stack tracer on boot up.

@@ -19,7 +19,8 @@
 
 	pinctrl@10840000 {
 		aoc_vsync_pins: aoc-vsync-pins {
-			samsung,pins = "gpp3-1", "gpp5-1", "gpp7-1", "gpp9-1";
+			samsung,pins = "gpp3-1", "gpp5-1", "gpp7-1", "gpp9-1",
+				"gpp11-1", "gpp13-1", "gpp15-1", "gpp17-1";
 			samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		};
 	};

@@ -148,12 +148,33 @@ out:
 	return freq;
 }
 
+static unsigned int mif_to_int_freq(struct devfreq_alt_dvfs_data *alt_data,
+				    unsigned long freq)
+{
+	unsigned int i;
+
+	if (!alt_data->mif_int_tbl)
+		return 0;
+
+	for (i = 0; alt_data->map_row_cnt; i++) {
+		if (freq > alt_data->mif_int_tbl[i].mif_freq)
+			break;
+	}
+	i = i ? i - 1 : i;
+
+	return alt_data->mif_int_tbl[i].int_freq;
+}
+
+#define PPC_BUS2_ID 2
 static unsigned long update_load(struct devfreq_dev_status *stat,
 				 struct devfreq_simple_interactive_data *data)
 {
 	struct devfreq_alt_dvfs_data *alt_data = &data->alt_data;
 	struct exynos_profile_data *profile_data = (struct exynos_profile_data *)stat->private_data;
+	struct exynos_devfreq_data *exynos_df =
+		container_of(data, struct exynos_devfreq_data, simple_interactive_data);
 	unsigned long freq, cal_freq;
+	unsigned int int_freq;
 	int i, idx = 0;
 
 	freq = 0;
@@ -178,6 +199,13 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 	    alt_data->hispeed_freq > freq)
 		freq = alt_data->hispeed_freq;
 
+	/* Only vote for INT freq from PPC BUS2 */
+	if (idx == PPC_BUS2_ID &&
+		exynos_pm_qos_request_active(&exynos_df->bus_pm_qos_min)) {
+		int_freq = mif_to_int_freq(alt_data, freq);
+		exynos_pm_qos_update_request(&exynos_df->bus_pm_qos_min,
+					     int_freq);
+	}
 	trace_dvfs_update_load(freq, alt_data, idx);
 
 	data->governor_freq = freq;
