@@ -21,6 +21,8 @@
 #include <linux/iommu.h>
 #include <linux/device.h>
 
+#include "../../drivers/dma-buf/heaps/deferred-free-helper.h"
+
 struct samsung_dma_buffer {
 	struct samsung_dma_heap *heap;
 	struct list_head attachments;
@@ -32,6 +34,7 @@ struct samsung_dma_buffer {
 	void *priv;
 	unsigned long flags;
 	int vmap_cnt;
+	struct deferred_freelist_item deferred_free;
 };
 
 struct samsung_dma_heap {

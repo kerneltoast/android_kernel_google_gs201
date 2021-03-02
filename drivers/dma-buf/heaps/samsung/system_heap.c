@@ -24,6 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/of.h>
 
+#include "../deferred-free-helper.h"
 #include "../page_pool.h"
 
 #define HIGH_ORDER_GFP  (((GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN \
@@ -179,23 +180,39 @@ static void system_heap_zero_buffer(struct samsung_dma_buffer *buffer)
 	}
 }
 
-static void system_heap_release(struct samsung_dma_buffer *buffer)
+static void system_heap_free(struct deferred_freelist_item *item, enum df_reason reason)
 {
+	struct samsung_dma_buffer *buffer;
+	struct sg_table *table;
 	struct scatterlist *sg;
 	int i, j;
 
-	system_heap_zero_buffer(buffer);
+	buffer = container_of(item, struct samsung_dma_buffer, deferred_free);
+	if (reason == DF_NORMAL)
+		system_heap_zero_buffer(buffer);
 
-	for_each_sgtable_sg(&buffer->sg_table, sg, i) {
+	table = &buffer->sg_table;
+	for_each_sg(table->sgl, sg, table->nents, i) {
 		struct page *page = sg_page(sg);
 
-		for (j = 0; j < NUM_ORDERS; j++) {
-			if (compound_order(page) == orders[j])
-				break;
+		if (reason == DF_UNDER_PRESSURE) {
+			__free_pages(page, compound_order(page));
+		} else {
+			for (j = 0; j < NUM_ORDERS; j++) {
+				if (compound_order(page) == orders[j])
+					break;
+			}
+			dmabuf_page_pool_free(pools[j], page);
 		}
-		dmabuf_page_pool_free(pools[j], page);
 	}
 	samsung_dma_buffer_free(buffer);
+}
+
+static void system_heap_release(struct samsung_dma_buffer *buffer)
+{
+	int npages = PAGE_ALIGN(buffer->len) / PAGE_SIZE;
+
+	deferred_free(&buffer->deferred_free, system_heap_free, npages);
 }
 
 static int system_heap_probe(struct platform_device *pdev)
