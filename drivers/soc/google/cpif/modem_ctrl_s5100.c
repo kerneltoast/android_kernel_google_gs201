@@ -884,7 +884,7 @@ static int complete_normal_boot(struct modem_ctl *mc)
 		mc->lcd_notifier.notifier_call = s5100_lcd_notifier;
 		ret = register_lcd_status_notifier(&mc->lcd_notifier);
 		if (ret) {
-			mif_err("failed to register LCD notifier");
+			mif_err("failed to register LCD notifier\n");
 			return ret;
 		}
 	}
@@ -1280,7 +1280,7 @@ static int suspend_cp(struct modem_ctl *mc)
 #endif
 
 		if (mif_gpio_get_value(&mc->s5100_gpio_ap_wakeup, true) == 1) {
-			mif_err("abort suspend");
+			mif_err("abort suspend\n");
 			return -EBUSY;
 		}
 	} while (0);

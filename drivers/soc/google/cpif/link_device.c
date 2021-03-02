@@ -2147,7 +2147,7 @@ static int bootdump_rx_func(struct mem_link_device *mld)
 		if (!work_pending(&mld->page_reclaim_work)) {
 			struct link_device *ld = &mld->link_dev;
 
-			mif_err_limited("Rx ENOMEM, try reclaim work");
+			mif_err_limited("Rx ENOMEM, try reclaim work\n");
 			queue_work(ld->rx_wq,
 					&mld->page_reclaim_work);
 		}
@@ -2499,7 +2499,7 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	if ((mode == CP_BOOT_RE_INIT) && mld->pktproc.use_dedicated_baaw) {
-		mif_info("memaddr:0x%lx memsize:0x%08x",
+		mif_info("memaddr:0x%lx memsize:0x%08x\n",
 				cp_shmem_get_base(cp_num, SHMEM_PKTPROC),
 				cp_shmem_get_size(cp_num, SHMEM_PKTPROC));
 

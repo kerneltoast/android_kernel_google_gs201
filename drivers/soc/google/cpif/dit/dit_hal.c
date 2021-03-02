@@ -687,7 +687,7 @@ int dit_hal_create(struct dit_ctrl_t *dc_ptr)
 	int ret = 0;
 
 	if (!dc_ptr) {
-		mif_err("dc not valid");
+		mif_err("dc not valid\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -708,7 +708,7 @@ int dit_hal_create(struct dit_ctrl_t *dc_ptr)
 
 	ret = misc_register(&dit_misc);
 	if (ret) {
-		mif_err("misc register error");
+		mif_err("misc register error\n");
 		goto error;
 	}
 

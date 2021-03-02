@@ -1118,7 +1118,7 @@ static void dit_update_dst_desc_pos(enum dit_direction dir, enum dit_desc_ring r
 
 #if defined(DIT_DEBUG)
 		if (desc_info->dst_wp[ring_num] == desc_info->dst_rp[ring_num]) {
-			mif_err("dst[%d] wp[%d] would overwrite rp (dir:%d)", ring_num,
+			mif_err("dst[%d] wp[%d] would overwrite rp (dir:%d)\n", ring_num,
 				desc_info->dst_wp[ring_num], dir);
 		}
 #endif
@@ -1188,7 +1188,7 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 		break;
 	case ERR_INT_PENDING_BIT:
 		/* nothing to do when ERR interrupt */
-		mif_err_limited("ERR interrupt!! int_pending: 0x%X",
+		mif_err_limited("ERR interrupt!! int_pending: 0x%X\n",
 			READ_REG_VALUE(dc, DIT_REG_INT_PENDING));
 		break;
 	default:

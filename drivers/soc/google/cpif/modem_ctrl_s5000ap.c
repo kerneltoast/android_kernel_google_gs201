@@ -584,7 +584,7 @@ static int complete_normal_boot(struct modem_ctl *mc)
 		mc->lcd_notifier.notifier_call = s5000ap_lcd_notifier;
 		ret = register_lcd_status_notifier(&mc->lcd_notifier);
 		if (ret) {
-			mif_err("failed to register LCD notifier");
+			mif_err("failed to register LCD notifier\n");
 			return ret;
 		}
 	}
