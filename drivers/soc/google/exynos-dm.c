@@ -737,6 +737,10 @@ static int update_constraint_max(struct exynos_dm_constraint *constraint, u32 dr
 			break;
 	}
 
+	/* If not found in the table, assuming lowest constraint condition. */
+	if (i == constraint->table_length)
+		i = constraint->table_length - 1;
+
 	constraint->const_freq = const_table[i].constraint_freq;
 	dm->const_max = UINT_MAX;
 
