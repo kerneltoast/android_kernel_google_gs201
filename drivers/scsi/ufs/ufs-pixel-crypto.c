@@ -18,6 +18,13 @@
 #include "ufshcd-crypto.h"
 #include "ufs-exynos.h"
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/ufshcd.h>
+
+static void pixel_ufs_crypto_fill_prdt(void *unused, struct ufs_hba *hba,
+				       struct ufshcd_lrb *lrbp,
+				       unsigned int segments, int *err);
+
 #define CRYPTO_DATA_UNIT_SIZE 4096
 
 /*
@@ -330,6 +337,11 @@ int pixel_ufs_crypto_init(struct ufs_hba *hba)
 	if (err)
 		return err;
 
+	err = register_trace_android_vh_ufs_fill_prdt(
+				pixel_ufs_crypto_fill_prdt, NULL);
+	if (err)
+		return err;
+
 	/* Advertise crypto support to ufshcd-core. */
 	hba->caps |= UFSHCD_CAP_CRYPTO;
 
@@ -412,8 +424,9 @@ void pixel_ufs_crypto_resume(struct ufs_hba *hba)
 }
 
 /* Configure inline encryption (or decryption) on requests that require it. */
-int pixel_ufs_crypto_fill_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
-			       unsigned int segments)
+static void pixel_ufs_crypto_fill_prdt(void *unused, struct ufs_hba *hba,
+				       struct ufshcd_lrb *lrbp,
+				       unsigned int segments, int *err)
 {
 	struct pixel_ufs_prdt_entry *prdt =
 		(struct pixel_ufs_prdt_entry *)lrbp->ucd_prdt_ptr;
@@ -425,7 +438,7 @@ int pixel_ufs_crypto_fill_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 	 * ufshcd_sg_entry::size which was already initialized.
 	 */
 	if (lrbp->crypto_key_slot < 0)
-		return 0;
+		return;
 
 	/* Configure encryption on each segment of the request. */
 	for (i = 0; i < segments; i++) {
@@ -436,7 +449,8 @@ int pixel_ufs_crypto_fill_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 		if (le32_to_cpu(prd->size) + 1 != CRYPTO_DATA_UNIT_SIZE) {
 			dev_err(hba->dev,
 				"scatterlist segment is misaligned for crypto\n");
-			return -EIO;
+			*err = -EIO;
+			return;
 		}
 
 		/* Enable crypto and set the keyslot. */
@@ -459,5 +473,4 @@ int pixel_ufs_crypto_fill_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 	 * get filled into the UTRD according to the UFSHCI standard.
 	 */
 	lrbp->crypto_key_slot = -1;
-	return 0;
 }

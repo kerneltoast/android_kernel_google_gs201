@@ -932,7 +932,6 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.dbg_register_dump = exynos_ufs_dump_debug_info,
 	.suspend = __exynos_ufs_suspend,
 	.resume = __exynos_ufs_resume,
-	.fill_prdt = pixel_ufs_crypto_fill_prdt,
 	.apply_dev_quirks = __apply_dev_quirks,
 	.fixup_dev_quirks = __fixup_dev_quirks,
 	.device_reset = __device_reset,

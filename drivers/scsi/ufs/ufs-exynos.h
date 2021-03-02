@@ -191,8 +191,6 @@ void exynos_ufs_cmd_log_end(struct ufs_vs_handle *handle,
 #ifdef CONFIG_SCSI_UFS_CRYPTO
 int pixel_ufs_crypto_init(struct ufs_hba *hba);
 void pixel_ufs_crypto_resume(struct ufs_hba *hba);
-int pixel_ufs_crypto_fill_prdt(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
-			       unsigned int segments);
 #else
 static inline int pixel_ufs_crypto_init(struct ufs_hba *hba)
 {
@@ -201,6 +199,5 @@ static inline int pixel_ufs_crypto_init(struct ufs_hba *hba)
 static inline void pixel_ufs_crypto_resume(struct ufs_hba *hba)
 {
 }
-#define pixel_ufs_crypto_fill_prdt NULL
 #endif /* !CONFIG_SCSI_UFS_CRYPTO */
 #endif /* _UFS_EXYNOS_H_ */
