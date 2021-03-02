@@ -17,6 +17,8 @@
 #include <linux/gsa/gsa_tpu.h>
 #include "gsa_mbox.h"
 #include "gsa_priv.h"
+#include "gsa_tz.h"
+#include "hwmgr-ipc.h"
 
 struct gsa_dev_state {
 	struct device *dev;
@@ -25,6 +27,7 @@ struct gsa_dev_state {
 	void *bb_va;
 	size_t bb_sz;
 	struct mutex bb_lock; /* protects access to bounce buffer */
+	struct gsa_tz_chan_ctx tpu_srv;
 };
 
 /*
@@ -67,6 +70,75 @@ static int gsa_send_load_img_cmd(struct device *dev, uint32_t cmd,
 	return gsa_send_mbox_cmd(s->mb, cmd, req, 4, NULL, 0);
 }
 
+static int gsa_tz_send_hwmgr_state_cmd(struct gsa_tz_chan_ctx *ctx, u32 cmd)
+{
+	int rc;
+	struct {
+		struct hwmgr_rsp_hdr hdr;
+		struct hwmgr_state_cmd_rsp rsp;
+	} rsp_msg;
+
+	struct {
+		struct hwmgr_req_hdr hdr;
+		struct hwmgr_state_cmd_req req;
+	} req_msg;
+
+
+	req_msg.hdr.cmd = HWMGR_CMD_STATE_CMD;
+	req_msg.req.cmd = cmd;
+
+	rc = gsa_tz_chan_msg_xchg(ctx,
+				  &req_msg, sizeof(req_msg),
+				  &rsp_msg, sizeof(rsp_msg));
+
+	if (rc != sizeof(rsp_msg)) {
+		return -EIO;
+	}
+
+	if (rsp_msg.hdr.cmd != (req_msg.hdr.cmd | HWMGR_CMD_RESP)) {
+		return -EIO;
+	}
+
+	if (rsp_msg.hdr.err) {
+		return -EIO;
+	}
+
+	return rsp_msg.rsp.state;
+}
+
+static int gsa_tz_send_hwmgr_unload_fw_image_cmd(struct gsa_tz_chan_ctx *ctx)
+{
+	int rc;
+	struct {
+		struct hwmgr_rsp_hdr hdr;
+	} rsp_msg;
+
+	struct {
+		struct hwmgr_req_hdr hdr;
+	} req_msg;
+
+
+	req_msg.hdr.cmd = HWMGR_CMD_UNLOAD_IMG;
+
+	rc = gsa_tz_chan_msg_xchg(ctx,
+				  &req_msg, sizeof(req_msg),
+				  &rsp_msg, sizeof(rsp_msg));
+
+	if (rc != sizeof(rsp_msg)) {
+		return -EIO;
+	}
+
+	if (rsp_msg.hdr.cmd != (req_msg.hdr.cmd | HWMGR_CMD_RESP)) {
+		return -EIO;
+	}
+
+	if (rsp_msg.hdr.err) {
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /*
  *  External TPU interface
  */
@@ -81,26 +153,19 @@ EXPORT_SYMBOL_GPL(gsa_load_tpu_fw_image);
 
 int gsa_unload_tpu_fw_image(struct device *gsa)
 {
-	return gsa_send_simple_cmd(gsa, GSA_MB_CMD_UNLOAD_TPU_FW_IMG);
+	struct platform_device *pdev = to_platform_device(gsa);
+	struct gsa_dev_state *s = platform_get_drvdata(pdev);
+
+	return gsa_tz_send_hwmgr_unload_fw_image_cmd(&s->tpu_srv);
 }
 EXPORT_SYMBOL_GPL(gsa_unload_tpu_fw_image);
 
-int gsa_send_tpu_cmd(struct device *dev, enum gsa_tpu_cmd arg)
+int gsa_send_tpu_cmd(struct device *gsa, enum gsa_tpu_cmd arg)
 {
-	int ret;
-	u32 tpu_state;
-	u32 cmd_arg = arg;
+	struct platform_device *pdev = to_platform_device(gsa);
+	struct gsa_dev_state *s = platform_get_drvdata(pdev);
 
-	ret = gsa_send_cmd(dev, GSA_MB_CMD_TPU_CMD,
-			   &cmd_arg, 1, &tpu_state, 1);
-	if (ret < 0)
-		return ret;
-
-	/* check arg count */
-	if (ret < 1)
-		return -EINVAL;
-
-	return tpu_state;
+	return gsa_tz_send_hwmgr_state_cmd(&s->tpu_srv, arg);
 }
 EXPORT_SYMBOL_GPL(gsa_send_tpu_cmd);
 
@@ -288,6 +353,9 @@ static int gsa_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	s->bb_sz = PAGE_SIZE;
 
+	/* Initialize TZ serice link to HWMGR */
+	gsa_tz_chan_ctx_init(&s->tpu_srv, HWMGR_TPU_PORT, dev);
+
 	dev_info(dev, "Initialized\n");
 
 	return 0;
@@ -295,6 +363,11 @@ static int gsa_probe(struct platform_device *pdev)
 
 static int gsa_remove(struct platform_device *pdev)
 {
+	struct gsa_dev_state *s = platform_get_drvdata(pdev);
+
+	/* close connection to tz services */
+	gsa_tz_chan_close(&s->tpu_srv);
+
 	return 0;
 }
 
