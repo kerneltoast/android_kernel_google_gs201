@@ -2308,6 +2308,25 @@ bool dit_support_clat(void)
 }
 EXPORT_SYMBOL(dit_support_clat);
 
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
+static int itmon_notifier_callback(struct notifier_block *nb,
+				   unsigned long action, void *nb_data)
+{
+	struct itmon_notifier *itmon_data = nb_data;
+
+	if (IS_ERR_OR_NULL(itmon_data))
+		return NOTIFY_DONE;
+
+	if (itmon_data->port && !strncmp("DIT", itmon_data->port, sizeof("DIT") - 1)) {
+		dit_print_dump(DIT_DIR_TX, DIT_DUMP_ALL);
+		dit_print_dump(DIT_DIR_RX, DIT_DUMP_ALL);
+		return NOTIFY_BAD;
+	}
+
+	return NOTIFY_DONE;
+}
+#endif
+
 static void dit_set_hw_specific(void)
 {
 #if defined(CONFIG_EXYNOS_DIT_VERSION)
@@ -2349,6 +2368,9 @@ int dit_create(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct resource *res;
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
+	struct notifier_block *itmon_nb = NULL;
+#endif
 	int ret;
 
 	if (!np) {
@@ -2419,6 +2441,17 @@ int dit_create(struct platform_device *pdev)
 	}
 
 	exynos_update_ip_idle_status(dc->idle_ip_index, DIT_IDLE_IP_IDLE);
+#endif
+
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
+	itmon_nb = devm_kzalloc(dev, sizeof(struct notifier_block), GFP_KERNEL);
+	if (!itmon_nb) {
+		mif_err("itmon notifier block alloc failed\n");
+		goto error;
+	}
+
+	itmon_nb->notifier_call = itmon_notifier_callback;
+	itmon_notifier_chain_register(itmon_nb);
 #endif
 
 	ret = sysfs_create_groups(&dev->kobj, dit_groups);
