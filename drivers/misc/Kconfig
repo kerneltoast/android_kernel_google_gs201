@@ -524,17 +524,6 @@ config ACCESS_RAMOOPS
 	  To compile this driver as a module, choose M here: the module will be
 	  called access_ramoops.
 
-config PSTORE_CONSOLE_BLDR_LOG
-	tristate "Pstore console bootloader logs driver"
-	depends on PSTORE_CONSOLE
-	help
-	  Say Y here to enable addition bootloader logs in pstore console.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pstore_bldr_log.
-
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
