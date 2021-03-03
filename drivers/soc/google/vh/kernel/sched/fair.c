@@ -16,7 +16,6 @@
 #define MAX_CAPACITY_CPU    CONFIG_VH_MAX_CAPACITY_CPU
 #define HIGH_CAPACITY_CPU   CONFIG_VH_HIGH_CAPACITY_CPU
 #define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
-#define UTIL_THRESHOLD      1280
 
 extern void update_uclamp_stats(int cpu, u64 time);
 
@@ -422,7 +421,6 @@ int cpu_is_idle(int cpu)
 
 static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cpu, bool sync_boost)
 {
-	unsigned long min_util = uclamp_task_util(p);
 	unsigned long target_capacity = ULONG_MAX;
 	unsigned long min_wake_util = ULONG_MAX;
 	unsigned long target_max_spare_cap = 0;
@@ -465,11 +463,13 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 
 	for_each_cpu_wrap(i, p->cpus_ptr, start_cpu) {
 		unsigned long capacity_curr = capacity_curr_of(i);
+		unsigned long capacity_orig = capacity_orig_of(i);
 		unsigned long capacity = capacity_of(i);
 		unsigned long wake_util, new_util;
 		long spare_cap;
 		struct cpuidle_state *idle = NULL;
 		int next_cpu = cpumask_next_wrap(i, p->cpus_ptr, i, false);
+		unsigned int exit_lat = UINT_MAX;
 
 		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity);
 
@@ -485,11 +485,10 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		new_util = wake_util + task_util_est(p);
 
 		/*
-		 * Ensure minimum capacity to grant the required boost.
-		 * The target CPU can be already at a capacity level higher
-		 * than the one required to boost the task.
+		 * There is no need to check the boosted util of the task since
+		 * it is checked in task_fits_capacity already. It only needs
+		 * to check total util here.
 		 */
-		new_util = max(min_util, new_util);
 		if (new_util > capacity)
 			goto check;
 
@@ -546,28 +545,28 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 			 */
 			if (cpu_is_idle(i)) {
 				if (prefer_high_cap &&
-				    capacity < target_capacity)
+				    capacity_orig < target_capacity)
 					goto check;
 
 				if (!prefer_high_cap &&
-				    capacity > target_capacity)
+				    capacity_orig > target_capacity)
 					goto check;
 				/*
 				 * Minimise value of idle state: skip
 				 * deeper idle states and pick the
 				 * shallowest.
 				 */
-				if (idle && idle->exit_latency > min_exit_lat &&
-				    capacity == target_capacity)
+				if (sched_cpu_idle(i))
+					exit_lat = 0;
+				else if (idle)
+					exit_lat = idle->exit_latency;
+
+				if (exit_lat > min_exit_lat &&
+				    capacity_orig == target_capacity)
 					goto check;
 
-				if (idle)
-					min_exit_lat = idle->exit_latency;
-
-				if (sched_cpu_idle(i))
-					min_exit_lat = 0;
-
-				target_capacity = capacity;
+				min_exit_lat = exit_lat;
+				target_capacity = capacity_orig;
 				best_idle_cpu = i;
 				goto check;
 			}
@@ -605,7 +604,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * Favor CPUs with smaller capacity for non latency
 		 * sensitive tasks.
 		 */
-		if (capacity > target_capacity)
+		if (capacity_orig > target_capacity)
 			goto check;
 
 		/*
@@ -639,14 +638,17 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 			 * IOW, prefer a deep IDLE LITTLE CPU vs a
 			 * shallow idle big CPU.
 			 */
-			if (idle && idle->exit_latency > min_exit_lat &&
-				capacity == target_capacity)
+			if (sched_cpu_idle(i))
+				exit_lat = 0;
+			else if (idle)
+				exit_lat = idle->exit_latency;
+
+			if (exit_lat > min_exit_lat &&
+				capacity_orig == target_capacity)
 				goto check;
 
-			if (idle)
-				min_exit_lat = idle->exit_latency;
-
-			target_capacity = capacity;
+			min_exit_lat = exit_lat;
+			target_capacity = capacity_orig;
 			best_idle_cpu = i;
 			goto check;
 		}
@@ -672,17 +674,17 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 */
 
 		/* Favor CPUs with maximum spare capacity */
-		if (capacity == target_capacity &&
+		if (capacity_orig == target_capacity &&
 		    spare_cap < target_max_spare_cap)
 			goto check;
 
 		target_max_spare_cap = spare_cap;
-		target_capacity = capacity;
+		target_capacity = capacity_orig;
 		target_util = new_util;
 		target_cpu = i;
 
 check:
-		if (capacity_orig_of(i) == capacity_orig_of(next_cpu))
+		if (capacity_orig == capacity_orig_of(next_cpu))
 			continue;
 
 		if ((prefer_idle && best_idle_cpu != -1) ||
@@ -735,7 +737,7 @@ target:
 	}
 
 	trace_sched_find_best_target(p, prefer_idle, prefer_high_cap, prefer_prev, sync_boost,
-				     min_util, start_cpu, best_idle_cpu, best_active_cpu,
+				     task_util_est(p), start_cpu, best_idle_cpu, best_active_cpu,
 				     target_cpu, backup_cpu);
 }
 
@@ -855,7 +857,7 @@ void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iow
 
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 {
-	*overutilized = cpu_util(cpu) * UTIL_THRESHOLD >= capacity_of(cpu) << SCHED_CAPACITY_SHIFT;
+	*overutilized = cpu_overutilized(cpu_util(cpu), capacity_of(cpu));
 }
 
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
