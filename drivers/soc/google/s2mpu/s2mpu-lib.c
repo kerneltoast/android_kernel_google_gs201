@@ -8,7 +8,6 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
-#include <linux/mutex.h>
 #include <linux/bits.h>
 #include <linux/irq.h>
 
@@ -238,11 +237,12 @@ struct s2mpu_info *s2mpu_lib_init(struct device *dev, void __iomem *base,
 	info->base = base;
 	info->ssmt_base = ssmt_base;
 	info->dev = dev;
-	mutex_init(&info->lock);
 	info->sids = sids;
 	info->sidcount = sidcount;
 	info->vid = vid;
 	INIT_LIST_HEAD(&info->smpt_regions);
+
+	spin_lock_init(&info->lock);
 
 	/* first make sure that S2MPU is disabled */
 	__raw_writel(0, S2MPU_CTRL0(base));
@@ -713,11 +713,9 @@ int s2mpu_lib_open_close(struct s2mpu_info *info, phys_addr_t start, size_t len,
 	enum s2_gran ag, lg, winnerg;
 	size_t gcount;
 	int ret;
+	unsigned long flags;
 
-	if (!mutex_trylock(&info->lock)) {
-		ret = -EAGAIN;
-		goto out_nolock;
-	}
+	spin_lock_irqsave(&info->lock, flags);
 
 	ret = validate(info->dev, start, len);
 	if (ret)
@@ -743,8 +741,8 @@ int s2mpu_lib_open_close(struct s2mpu_info *info, phys_addr_t start, size_t len,
 
 	open_close_granules(info, start, winnerg, gcount, open);
 out:
-	mutex_unlock(&info->lock);
-out_nolock:
+	spin_unlock_irqrestore(&info->lock, flags);
+
 	return ret;
 }
 
@@ -752,9 +750,9 @@ int s2mpu_lib_restore(struct s2mpu_info *info)
 {
 	void __iomem *base = info->base;
 	u32 gb_index, reg;
+	unsigned long flags;
 
-	if (!mutex_trylock(&info->lock))
-		return -EAGAIN;
+	spin_lock_irqsave(&info->lock, flags);
 
 	for (gb_index = 0; gb_index < 4; gb_index++) {
 		__raw_writel(info->pt.l2table_addrs[gb_index],
@@ -799,7 +797,7 @@ int s2mpu_lib_restore(struct s2mpu_info *info)
 			(0 << S2MPU_ALL_INVALIDATION_VID_SPECIFIC_SHIFT);
 	__raw_writel(reg, S2MPU_ALL_INVALIDATION(base));
 
-	mutex_unlock(&info->lock);
+	spin_unlock_irqrestore(&info->lock, flags);
 
 	return 0;
 }

@@ -3,6 +3,7 @@
 #define __S2MPU_LIB_H
 
 #include <linux/irq.h>
+#include <linux/spinlock.h>
 
 #define WHI_MAX_GB_GRANULES 64
 
@@ -24,8 +25,7 @@ struct s2mpu_info {
 	void __iomem *base;
 	void __iomem *ssmt_base;
 	struct device *dev;
-	/* lock to take whenever calling an operation using this s2mpu_info instance */
-	struct mutex lock;
+	spinlock_t lock; /* protect access to page tables */
 	struct s2pt pt;
 	/* this is list of s2mpu regions for this particular instance */
 	struct list_head smpt_regions;
