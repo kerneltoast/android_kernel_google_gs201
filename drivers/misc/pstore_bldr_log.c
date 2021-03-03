@@ -12,8 +12,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 #include <linux/uaccess.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 
 #include <trace/hooks/pstore.h>
 
@@ -177,24 +175,6 @@ static void bldr_log_if_console_read(void *data, void __user *to, size_t count, 
 	*ret = bldr_log_read(to, count, ppos, from, available);
 }
 
-static int bldrlog_proc_show(struct seq_file *m, void *v)
-{
-	if (!bl_cur_log_buf) {
-		seq_printf(m, "%s: failed to alloc bootloader log buffer\n",
-				__func__);
-		return 0;
-	}
-
-	if (bl_cur_log_buf_size <= 0) {
-		seq_printf(m, "%s: failed to determine current bootloader log size\n",
-				__func__);
-		return 0;
-	}
-
-	seq_printf(m, "%s\n", bl_cur_log_buf);
-	return 0;
-}
-
 static int __init bldr_log_probe(struct platform_device *pdev)
 {
 	struct resource temp_res;
@@ -228,7 +208,6 @@ static int __init bldr_log_probe(struct platform_device *pdev)
 	if (rc)
 		dev_err(&pdev->dev, "unable to register console read hook\n");
 
-	proc_create_single("bldrlog", 0400, NULL, bldrlog_proc_show);
 	return rc;
 }
 
