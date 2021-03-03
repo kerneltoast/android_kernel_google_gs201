@@ -28,7 +28,6 @@
 #include <trace/hooks/cpufreq.h>
 #include <trace/hooks/mm.h>
 #include <trace/hooks/preemptirq.h>
-#include <trace/hooks/pstore.h>
 #include <trace/hooks/ftrace_dump.h>
 #include <trace/hooks/pm_domain.h>
 #include <trace/hooks/bug.h>
@@ -130,8 +129,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_cpu_capacity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_misfit_status);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_cgroup_attach);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_cgroup_can_attach);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_mkfile);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_read);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_fork_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_ttwu_cond);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_schedule_bug);
