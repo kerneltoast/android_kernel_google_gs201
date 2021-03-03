@@ -218,6 +218,7 @@ struct exynos_pcie {
 	struct dw_pcie		*pci;
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	struct s2mpu_info	*s2mpu;
+	struct pci_dev		*ep_pci_dev;
 #endif
 	void __iomem		*elbi_base;
 	void __iomem		*phy_base;
@@ -256,6 +257,7 @@ struct exynos_pcie {
 	spinlock_t		reg_lock;		/* pcie config - reg_lock(reserved) */
 	spinlock_t		pcie_l1_exit_lock;	/* pcie l1.2 exit - ctrl_id_state */
 	spinlock_t		power_stats_lock;	/* pcie config - power state change */
+	spinlock_t		s2mpu_refcnt_lock;
 	struct workqueue_struct	*pcie_wq;
 	struct exynos_pcie_clks	clks;
 	struct pci_dev		*pci_dev;
