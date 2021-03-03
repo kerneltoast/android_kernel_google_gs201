@@ -841,6 +841,10 @@
 				reg-addr-bitwidth = <8>;
 				reg-value-bitwidth = <8>;
 
+				/* Power Management hibernation (deep sleep) */
+				/* 1 : enable, 0 : disable */
+				pm-hibernation = <0>;
+
 				/* GPIOs */
 				/* HW_ENABLE GPP23[6] */
 				/* FLASH_STROBE GPP27[0] */
