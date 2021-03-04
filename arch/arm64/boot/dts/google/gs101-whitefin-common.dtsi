@@ -5,14 +5,15 @@
  * Copyright 2020 Google,LLC
  *
  */
+#include "gs101-common.dtsi"
 
 #include "gs101-camera-pmic-whitefin.dtsi"
 #include "gs101-camera-whitefin.dtsi"
-#include "gs101-common.dtsi"
+#include "gs101-slider-fingerprint.dtsi"
+#include "gs101-slider-pmic.dtsi"
 #include "gs101-whitefin-battery.dtsi"
 #include "gs101-whitefin-cp-s5200-sit-common.dtsi"
 #include "gs101-whitefin-display.dtsi"
 #include "gs101-whitefin-nfc.dtsi"
 #include "gs101-whitefin-pcie.dtsi"
 #include "gs101-whitefin-touch.dtsi"
-#include "gs101-slider-fingerprint.dtsi"

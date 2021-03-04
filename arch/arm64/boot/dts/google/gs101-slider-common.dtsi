@@ -14,6 +14,7 @@
 #include "gs101-slider-fingerprint.dtsi"
 #include "gs101-slider-gsa-gsc.dtsi"
 #include "gs101-slider-nfc.dtsi"
+#include "gs101-slider-pmic.dtsi"
 #include "gs101-slider-serial.dtsi"
 #include "gs101-slider-sbbm.dtsi"
 #include "gs101-slider-thermal.dtsi"

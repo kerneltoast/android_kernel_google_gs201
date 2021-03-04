@@ -402,7 +402,6 @@
 				regulator-name = "S2MPG10_LDO14";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2E>;
 				schematic-name = "L14M_TCXO";
@@ -496,7 +495,6 @@
 				regulator-name = "S2MPG10_LDO23";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x37>;
 				schematic-name = "L23M_UNUSED";
@@ -943,7 +941,6 @@
 				regulator-name = "S2MPG11_LDO4";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x24>;
 				schematic-name = "L4S_OSLO";
@@ -1053,7 +1050,6 @@
 				regulator-name = "S2MPG11_LDO14";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2E>;
 				schematic-name = "L14S_NFC";
