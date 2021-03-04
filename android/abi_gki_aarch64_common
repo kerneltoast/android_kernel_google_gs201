@@ -3510,7 +3510,7 @@
   follow_down
   follow_down_one
   follow_pfn
-  follow_pte_pmd
+  follow_pte
   follow_up
   font_vga_8x16
   force_irqthreads
@@ -3596,6 +3596,7 @@
   fscrypt_ioctl_remove_key
   fscrypt_ioctl_remove_key_all_users
   fscrypt_ioctl_set_policy
+  fscrypt_limit_io_blocks
   fscrypt_match_name
   fscrypt_mergeable_bio
   fscrypt_mergeable_bio_bh
@@ -3692,9 +3693,11 @@
   fsverity_file_open
   fsverity_ioctl_enable
   fsverity_ioctl_measure
+  fsverity_ioctl_read_metadata
   fsverity_prepare_setattr
   fsverity_verify_bio
   fsverity_verify_page
+  __fsverity_verify_signature
   fsync_bdev
   ftrace_dump
   __ftrace_vbprintk
@@ -3778,8 +3781,6 @@
   generic_block_bmap
   generic_block_fiemap
   generic_check_addressable
-  generic_ci_d_compare
-  generic_ci_d_hash
   generic_cont_expand_simple
   generic_copy_file_range
   generic_delete_inode
@@ -4014,6 +4015,7 @@
   gfn_to_pfn_memslot
   gfn_to_pfn_memslot_atomic
   gfn_to_pfn_prot
+  gfp_zone
   gic_nonsecure_priorities
   gic_pmr_sync
   glob_match
@@ -5379,6 +5381,7 @@
   isa_dma_bridge_buggy
   is_bad_inode
   is_console_locked
+  is_dma_buf_file
   is_module_sig_enforced
   is_nd_btt
   is_nvdimm_bus_locked
@@ -5386,6 +5389,7 @@
   is_skb_forwardable
   is_software_node
   is_subdir
+  is_transparent_hugepage
   is_virtio_device
   is_vmalloc_addr
   iterate_dir
@@ -6015,6 +6019,8 @@
   LZ4_compress_destSize
   LZ4_compress_fast
   LZ4_compress_fast_continue
+  LZ4_compress_HC
+  LZ4_compress_HC_continue
   LZ4_decompress_fast
   LZ4_decompress_fast_continue
   LZ4_decompress_fast_usingDict
@@ -6023,7 +6029,9 @@
   LZ4_decompress_safe_partial
   LZ4_decompress_safe_usingDict
   LZ4_loadDict
+  LZ4_loadDictHC
   LZ4_saveDict
+  LZ4_saveDictHC
   LZ4_setStreamDecode
   lzo1x_1_compress
   lzo1x_decompress_safe
@@ -6662,6 +6670,7 @@
   nexthop_free_rcu
   nexthop_select_path
   __next_node_in
+  __next_zones_zonelist
   nf_br_ops
   nf_checksum
   nf_checksum_partial
@@ -6767,6 +6776,8 @@
   nf_ct_zone_dflt
   nf_defrag_ipv4_enable
   nf_defrag_ipv6_enable
+  nf_dup_ipv4
+  nf_dup_ipv6
   nf_getsockopt
   nf_hook_entries_delete_raw
   nf_hook_entries_insert_raw
@@ -6902,6 +6913,7 @@
   nobh_write_end
   nobh_writepage
   node_states
+  no_hash_pointers
   no_llseek
   nonseekable_open
   noop_backing_dev_info
@@ -9091,6 +9103,10 @@
   __SCK__tp_func_android_vh_timer_calc_index
   __SCK__tp_func_android_vh_try_to_freeze_todo
   __SCK__tp_func_android_vh_try_to_freeze_todo_unfrozen
+  __SCK__tp_func_android_vh_ufs_compl_command
+  __SCK__tp_func_android_vh_ufs_prepare_command
+  __SCK__tp_func_android_vh_ufs_send_command
+  __SCK__tp_func_android_vh_ufs_update_sysfs
   __SCK__tp_func_android_vh_watchdog_timer_softlockup
   __SCK__tp_func_android_vh_wq_lockup_pool
   __SCK__tp_func_arm_event
@@ -10866,6 +10882,7 @@
   thermal_zone_of_sensor_register
   thermal_zone_of_sensor_unregister
   thermal_zone_unbind_cooling_device
+  thp_get_unmapped_area
   thread_group_cputime_adjusted
   thread_group_exited
   tick_broadcast_control
@@ -11049,6 +11066,10 @@
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
+  __traceiter_android_vh_ufs_compl_command
+  __traceiter_android_vh_ufs_prepare_command
+  __traceiter_android_vh_ufs_send_command
+  __traceiter_android_vh_ufs_update_sysfs
   __traceiter_android_vh_watchdog_timer_softlockup
   __traceiter_android_vh_wq_lockup_pool
   __traceiter_arm_event
@@ -11264,6 +11285,10 @@
   __tracepoint_android_vh_timer_calc_index
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
+  __tracepoint_android_vh_ufs_compl_command
+  __tracepoint_android_vh_ufs_prepare_command
+  __tracepoint_android_vh_ufs_send_command
+  __tracepoint_android_vh_ufs_update_sysfs
   __tracepoint_android_vh_watchdog_timer_softlockup
   __tracepoint_android_vh_wq_lockup_pool
   __tracepoint_arm_event
@@ -12748,6 +12773,7 @@
   vmf_insert_mixed_mkwrite
   vmf_insert_mixed_prot
   vmf_insert_pfn
+  vmf_insert_pfn_pmd_prot
   vmf_insert_pfn_prot
   vm_get_page_prot
   vm_insert_page
@@ -12917,6 +12943,7 @@
   xa_find
   xa_find_after
   xa_get_mark
+  xa_get_order
   __xa_insert
   xa_load
   xas_clear_mark
@@ -12934,9 +12961,12 @@
   xas_pause
   __xas_prev
   xas_set_mark
+  xas_split
+  xas_split_alloc
   xas_store
   __xa_store
   xa_store
+  xa_store_range
   xattr_full_name
   xattr_supported_namespace
   xchacha20poly1305_decrypt
@@ -13182,6 +13212,8 @@
   zlib_inflateInit2
   zlib_inflateReset
   zlib_inflate_workspacesize
+  zone_watermark_ok
+  zone_watermark_ok_safe
   ZSTD_adjustCParams
   ZSTD_CCtxWorkspaceBound
   ZSTD_CDictWorkspaceBound
