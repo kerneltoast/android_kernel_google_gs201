@@ -583,7 +583,7 @@ static void gs101_gpu_warn_work(struct work_struct *work)
 {
 	struct gs101_bcl_dev *gs101_bcl_device =
 			container_of(work, struct gs101_bcl_dev,
-		   s2mpg10_irq_work[IRQ_OCP_WARN_GPU].work);
+		   s2mpg11_irq_work[IRQ_OCP_WARN_GPU].work);
 
 	irq_work(gs101_bcl_device, ACTIVE_HIGH, IRQ_OCP_WARN_GPU, S2MPG11);
 }
@@ -609,7 +609,7 @@ static void gs101_soft_gpu_warn_work(struct work_struct *work)
 {
 	struct gs101_bcl_dev *gs101_bcl_device =
 			container_of(work, struct gs101_bcl_dev,
-		   s2mpg10_irq_work[IRQ_SOFT_OCP_WARN_GPU].work);
+		   s2mpg11_irq_work[IRQ_SOFT_OCP_WARN_GPU].work);
 
 	irq_work(gs101_bcl_device, ACTIVE_HIGH, IRQ_SOFT_OCP_WARN_GPU, S2MPG11);
 }
