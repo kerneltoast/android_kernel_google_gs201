@@ -110,7 +110,7 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Deferred until dss.ko(dpm.o) and debug-snapshot-debug-kinfo.ko are ready */
+	/* Need to wait for reserved memory to be mapped */
 	if (!rmem->priv) {
 		return -EPROBE_DEFER;
 	}
