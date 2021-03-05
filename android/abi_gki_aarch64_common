@@ -9102,6 +9102,7 @@
   __SCK__tp_func_android_vh_try_to_freeze_todo
   __SCK__tp_func_android_vh_try_to_freeze_todo_unfrozen
   __SCK__tp_func_android_vh_ufs_compl_command
+  __SCK__tp_func_android_vh_ufs_fill_prdt
   __SCK__tp_func_android_vh_ufs_prepare_command
   __SCK__tp_func_android_vh_ufs_send_command
   __SCK__tp_func_android_vh_ufs_update_sysfs
@@ -11063,6 +11064,7 @@
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
   __traceiter_android_vh_ufs_compl_command
+  __traceiter_android_vh_ufs_fill_prdt
   __traceiter_android_vh_ufs_prepare_command
   __traceiter_android_vh_ufs_send_command
   __traceiter_android_vh_ufs_update_sysfs
@@ -11280,6 +11282,7 @@
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
   __tracepoint_android_vh_ufs_compl_command
+  __tracepoint_android_vh_ufs_fill_prdt
   __tracepoint_android_vh_ufs_prepare_command
   __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_ufs_update_sysfs
