@@ -68,7 +68,7 @@ struct nat_local_port {
 } __packed;
 
 struct clat_info {
-	unsigned int rmnet_index;
+	u32 rmnet_index;
 	char ipv6_iface[IFNAMSIZ];
 	char ipv4_iface[IFNAMSIZ];
 	struct in6_addr ipv6_local_subnet;
