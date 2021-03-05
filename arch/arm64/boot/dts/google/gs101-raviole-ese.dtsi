@@ -10,13 +10,51 @@
 #include <dt-bindings/pinctrl/samsung.h>
 #include <dt-bindings/gpio/gpio.h>
 
+&pinctrl_5 {
+	ese1_spi_rst: ese1-spi-rst {
+		samsung,pins ="gpp26-3";
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&pinctrl_6 {
+	ese2_spi_rst: ese2-spi-rst {
+		samsung,pins ="gph0-4";
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+
+&spi14_bus {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&spi14_cs {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&spi6_bus {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&spi6_cs {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+
 &spi_6 {
 	/* XAPC_USI6 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi6_bus &spi6_cs>;
+	pinctrl-0 = <&spi6_bus &spi6_cs &ese2_spi_rst>;
 
 	cs-gpios = <&gpp12 3 GPIO_ACTIVE_HIGH>;
 
@@ -41,7 +79,7 @@
 	#size-cells = <0>;
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi14_bus &spi14_cs>;
+	pinctrl-0 = <&spi14_bus &spi14_cs &ese1_spi_rst>;
 	cs-gpios = <&gpp18 3 GPIO_ACTIVE_HIGH>;
 
 	ese1: ese@0 {
@@ -58,5 +96,4 @@
 		};
 	};
 };
-
 
