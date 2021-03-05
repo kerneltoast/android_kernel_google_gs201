@@ -89,6 +89,7 @@
 #define PMU_ALIVE_CPU2_OUT (0x1DA0)
 #define PMU_ALIVE_TPU_OUT (0x2920)
 #define PMU_ALIVE_GPU_OUT (0x1E20)
+#define ONE_SECOND 1000
 
 #define BCL_DEBUG_ATTRIBUTE(name, fn_read, fn_write) \
 static const struct file_operations name = {	\
@@ -289,7 +290,7 @@ static void irq_work(struct gs101_bcl_dev *gs101_bcl_device, u8 active_pull, u8 
 		if (state == active_pull) {
 			gs101_bcl_device->s2mpg10_triggered_irq[idx] = 1;
 			queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg10_irq_work[idx],
-			 msecs_to_jiffies(300));
+			 msecs_to_jiffies(ONE_SECOND));
 		} else {
 			gs101_bcl_device->s2mpg10_triggered_irq[idx] = 0;
 			gs101_bcl_device->s2mpg10_counter[idx] = 0;
@@ -302,7 +303,7 @@ static void irq_work(struct gs101_bcl_dev *gs101_bcl_device, u8 active_pull, u8 
 		if (state == active_pull) {
 			gs101_bcl_device->s2mpg11_triggered_irq[idx] = 1;
 			queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg11_irq_work[idx],
-			 msecs_to_jiffies(300));
+			 msecs_to_jiffies(ONE_SECOND));
 		} else {
 			gs101_bcl_device->s2mpg11_triggered_irq[idx] = 0;
 			gs101_bcl_device->s2mpg11_counter[idx] = 0;
@@ -358,7 +359,7 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 		gs101_bcl_device->s2mpg10_triggered_irq[idx] = 1;
 		disable_irq_nosync(gs101_bcl_device->s2mpg10_irq[idx]);
 		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg10_irq_work[idx],
-				   msecs_to_jiffies(300));
+				   msecs_to_jiffies(ONE_SECOND));
 		mutex_unlock(&gs101_bcl_device->s2mpg10_irq_lock[idx]);
 		pr_info_ratelimited("S2MPG10 IRQ : %d triggered\n", irq);
 		if (gs101_bcl_device->s2mpg10_counter[idx] == 0) {
@@ -380,7 +381,7 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 		gs101_bcl_device->s2mpg11_triggered_irq[idx] = 1;
 		disable_irq_nosync(gs101_bcl_device->s2mpg11_irq[idx]);
 		queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg11_irq_work[idx],
-				   msecs_to_jiffies(300));
+				   msecs_to_jiffies(ONE_SECOND));
 		mutex_unlock(&gs101_bcl_device->s2mpg11_irq_lock[idx]);
 		pr_info_ratelimited("S2MPG11 IRQ : %d triggered\n", irq);
 		if (gs101_bcl_device->s2mpg11_counter[idx] == 0) {
