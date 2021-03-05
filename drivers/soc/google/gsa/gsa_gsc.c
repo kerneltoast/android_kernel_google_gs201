@@ -47,6 +47,7 @@ struct gsc_state {
 	void *bbuf;
 	dma_addr_t bbuf_da;
 	size_t bbuf_sz;
+	struct mutex bbuf_lock; /* protects bounce buffer */
 	int ctdl_ap_irq;
 	wait_queue_head_t waitq;
 	atomic_t users;
@@ -73,11 +74,14 @@ static int gsc_tpm_datagram(struct gsc_state *s,
 	if (dg.len > MAX_DATA_SIZE)
 		return -E2BIG;
 
+	mutex_lock(&s->bbuf_lock);
 	if (!(dg.command & GSC_TPM_READ)) {
 		/* copy in data */
 		if (copy_from_user(s->bbuf, (const void __user *)dg.buf,
-				   dg.len))
-			return -EFAULT;
+				   dg.len)) {
+			ret = -EFAULT;
+			goto out;
+		}
 	}
 
 	/* send command */
@@ -88,13 +92,17 @@ static int gsc_tpm_datagram(struct gsc_state *s,
 	ret = gsa_send_cmd(s->dev->parent, GSA_MB_CMD_GSC_TPM_DATAGRAM,
 			   req, 4, NULL, 0);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	if (dg.command & GSC_TPM_READ) {
 		/* copy out data */
-		if (copy_to_user((void __user *)dg.buf, s->bbuf, dg.len))
-			return -EFAULT;
+		if (copy_to_user((void __user *)dg.buf, s->bbuf, dg.len)) {
+			ret = -EFAULT;
+			goto out;
+		}
 	}
+out:
+	mutex_unlock(&s->bbuf_lock);
 	return ret;
 }
 
@@ -249,6 +257,7 @@ static int gsa_gsc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	s->dev = dev;
+	mutex_init(&s->bbuf_lock);
 	platform_set_drvdata(pdev, s);
 
 	init_waitqueue_head(&s->waitq);
