@@ -270,8 +270,8 @@
 
 		/* bus info */
 		bus_width = <16>;	/* 16-Byte : 128-bit bus */
-		bus_util = <65>;	/* 65% */
-		rot_util = <60>;	/* MIF_UTIL(65%) - 5%: UTIL gets worse at rotation */
+		bus_util = <70>;	/* 70% */
+		rot_util = <65>;	/* UTIL gets worse at rotation */
 
 		/* dpu dvfs */
 		dfs_lv_cnt = <7>;
@@ -386,8 +386,8 @@
 
 		/* bus info */
 		bus_width = <16>;	/* 16-Byte : 128-bit bus */
-		bus_util = <65>;	/* 65% */
-		rot_util = <60>;	/* MIF_UTIL(65%) - 5%: UTIL gets worse at rotation */
+		bus_util = <70>;	/* 70% */
+		rot_util = <65>;	/* UTIL gets worse at rotation */
 
 		/* dpu dvfs */
 		dfs_lv_cnt = <7>;
