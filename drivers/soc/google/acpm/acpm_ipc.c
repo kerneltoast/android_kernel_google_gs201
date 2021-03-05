@@ -42,12 +42,47 @@ static bool acpm_stop_log_req;
 static struct acpm_framework *acpm_initdata;
 static void __iomem *acpm_srambase;
 static void __iomem *fvmap_base_address;
+static void __iomem *frc_ctrl;
 
 void *get_fvmap_base(void)
 {
 	return fvmap_base_address;
 }
 EXPORT_SYMBOL_GPL(get_fvmap_base);
+
+u64 get_frc_time(void)
+{
+	u32 lsb, msb1, msb2;
+	u64 raw_time;
+
+	if (!frc_ctrl)
+		return 0;
+
+	__raw_writel(0x10, frc_ctrl); /* Write CAPTURE bit to ALIVE_FRC */
+	__raw_writel(0x00, frc_ctrl); /* Clear CAPTURE bit */
+
+	/*
+	 * ALIVE_FRC timer needs 3 24.576MHz cycles = 122ns
+	 * to detect rising edge of CAPTURE signal
+	 */
+	usleep_range(122, 200);
+
+	/*
+	 * Read ALIVE_FRC counter values. Need to read MSB
+	 * at least twice in case another user captures timer during reading
+	 */
+	do {
+		msb1 = __raw_readl(frc_ctrl + 4 * 4);
+		lsb = __raw_readl(frc_ctrl + 3 * 4);
+		msb2 = __raw_readl(frc_ctrl + 4 * 4);
+	} while (msb1 != msb2);
+
+	raw_time = ((u64)msb1 << 32) | lsb;
+
+	/* convert to 49.152Hz ticks to be synchronized timer reported by ACPM */
+	return raw_time << 1;
+}
+EXPORT_SYMBOL_GPL(get_frc_time);
 
 static int plugins_init(struct device_node *node)
 {
@@ -537,7 +572,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	unsigned int tmp_index;
 	struct acpm_ipc_ch *channel;
 	bool timeout_flag = 0;
-	u64 timeout, now;
+	u64 timeout, now, frc;
 	u32 retry_cnt = 0;
 	unsigned long flags;
 
@@ -600,6 +635,7 @@ retry:
 
 		while (check_response(channel, cfg)) {
 			now = sched_clock();
+			frc = get_frc_time();
 			if (timeout < now) {
 				if (retry_cnt > IPC_NB_RETRIES) {
 					timeout_flag = true;
@@ -607,8 +643,8 @@ retry:
 				} else if (retry_cnt > 0) {
 					/* in case AP -> ACPM was lost, ask APM to check again */
 					apm_interrupt_gen(channel->id);
-					pr_err("acpm_ipc retry %d, now = %llu, timeout = %llu",
-					       retry_cnt, now, timeout);
+					pr_err("acpm_ipc retry %d, now = %llu, frc = %llu, timeout = %llu",
+					       retry_cnt, now, frc, timeout);
 					pr_err("I:0x%x %u s:%2d RX r:%u f:%u TX r:%u f:%u\n",
 					       __raw_readl(acpm_ipc->intr + AP_INTSR),
 					       channel->id,
@@ -876,6 +912,11 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	acpm_ipc->sram_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(acpm_ipc->sram_base))
 		return PTR_ERR(acpm_ipc->sram_base);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	frc_ctrl = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(frc_ctrl))
+		return PTR_ERR(frc_ctrl);
 
 	prop = of_get_property(node, "initdata-base", &len);
 	if (prop) {
