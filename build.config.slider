@@ -67,6 +67,7 @@ private/google-modules/touch/fts
 private/google-modules/touch/sec
 private/google-modules/power/reset
 private/google-modules/bluetooth/broadcom
+private/google-modules/nfc
 "
 
 UWB_MODULE="private/google-modules/uwb/kernel"
