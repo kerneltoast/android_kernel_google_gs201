@@ -20,5 +20,12 @@
 		idt,has_wlc_dc = <1>;
 
 		idt,gpio_qi_vbus_en = <&s2mpg10_gpio 2 GPIO_ACTIVE_HIGH>;
+
+		p9412_gpio: p9412_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <5>;
+		};
+
 	};
 };
