@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 
-#include <linux/mcu_ipc.h>
+#include <soc/google/mcu_ipc.h>
 #include "mcu_ipc_priv.h"
 #include "modem_utils.h"
 

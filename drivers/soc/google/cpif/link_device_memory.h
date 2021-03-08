@@ -23,9 +23,9 @@
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
-#include <linux/mcu_ipc.h>
 #include <asm/cacheflush.h>
 
+#include <soc/google/mcu_ipc.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "include/circ_queue.h"

@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/shm_ipc.h>
+#include <soc/google/shm_ipc.h>
 
 #include "modem_prj.h"
 #include "modem_utils.h"

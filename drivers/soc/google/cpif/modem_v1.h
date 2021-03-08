@@ -11,8 +11,8 @@
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
 #include <linux/types.h>
-#include <linux/shm_ipc.h>
 #include <dt-bindings/soc/google/exynos-cpif.h>
+#include <soc/google/shm_ipc.h>
 
 #include "cp_btl.h"
 

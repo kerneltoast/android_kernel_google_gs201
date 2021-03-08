@@ -15,7 +15,6 @@
 #include <linux/file.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/modem_notifier.h>
 #include <linux/clk.h>
 #include <linux/pci.h>
 #include <linux/regulator/consumer.h>
@@ -31,7 +30,8 @@
 #endif
 
 #include <linux/exynos-pci-ctrl.h>
-#include <linux/shm_ipc.h>
+#include <soc/google/modem_notifier.h>
+#include <soc/google/shm_ipc.h>
 
 #include "modem_prj.h"
 #include "modem_utils.h"

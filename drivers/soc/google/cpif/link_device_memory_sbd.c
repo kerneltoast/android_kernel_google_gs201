@@ -11,11 +11,11 @@
  */
 
 #include <soc/google/exynos-modem-ctrl.h>
+#include <soc/google/shm_ipc.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "link_device_memory.h"
 #include "include/sbd.h"
-#include <linux/shm_ipc.h>
 
 static void print_sbd_config(struct sbd_link_device *sl)
 {

@@ -17,9 +17,6 @@
 #include <linux/suspend.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
-#include <linux/shm_ipc.h>
-#include <linux/mcu_ipc.h>
-#include <linux/modem_notifier.h>
 #include <linux/of_reserved_mem.h>
 #if IS_ENABLED(CONFIG_PCI_EXYNOS)
 #include <linux/exynos-pci-ctrl.h>
@@ -27,6 +24,9 @@
 #if IS_ENABLED(CONFIG_ECT)
 #include <soc/google/ect_parser.h>
 #endif
+#include <soc/google/shm_ipc.h>
+#include <soc/google/mcu_ipc.h>
+#include <soc/google/modem_notifier.h>
 #include <soc/google/cal-if.h>
 #include <linux/soc/samsung/exynos-smc.h>
 #include <trace/events/napi.h>
