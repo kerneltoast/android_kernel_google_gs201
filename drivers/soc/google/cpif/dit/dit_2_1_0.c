@@ -54,12 +54,30 @@ static int dit_do_resume(void)
 	return 0;
 }
 
+static void __dit_set_interrupt(void)
+{
+	static int irq_pending_bit[] = {
+		RX_DST0_INT_PENDING_BIT, RX_DST1_INT_PENDING_BIT,
+		RX_DST2_INT_PENDING_BIT, TX_DST0_INT_PENDING_BIT,
+		ERR_INT_PENDING_BIT};
+	static char const *irq_name[] = {
+		"DIT-RxDst0", "DIT-RxDst1",
+		"DIT-RxDst2", "DIT-Tx",
+		"DIT-Err"};
+
+	dc->irq_pending_bit = irq_pending_bit;
+	dc->irq_name = irq_name;
+	dc->irq_len = ARRAY_SIZE(irq_pending_bit);
+}
+
 int dit_ver_create(struct dit_ctrl_t *dc_ptr)
 {
 	if (unlikely(!dc_ptr))
 		return -EPERM;
 
 	dc = dc_ptr;
+
+	__dit_set_interrupt();
 
 	dc->do_suspend = dit_do_suspend;
 	dc->do_resume = dit_do_resume;

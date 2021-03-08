@@ -1741,30 +1741,28 @@ EXPORT_SYMBOL(dit_deinit);
 
 static int dit_register_irq(struct platform_device *pdev)
 {
-	static int irq_pending_bit[] = {
-		RX_DST0_INT_PENDING_BIT, RX_DST1_INT_PENDING_BIT, RX_DST2_INT_PENDING_BIT,
-		TX_DST0_INT_PENDING_BIT, ERR_INT_PENDING_BIT};
-	static char const *irq_name[] = {
-		"DIT-RxDst0", "DIT-RxDst1", "DIT-RxDst2",
-		"DIT-Tx", "DIT-Err"};
-
 	struct device *dev = &pdev->dev;
-	int irq_len = ARRAY_SIZE(irq_pending_bit);
-	int irq_num;
 	int ret = 0;
 	int i;
 
-	dc->irq_buf = devm_kzalloc(dev, sizeof(int) * irq_len, GFP_KERNEL);
+	if (!dc->irq_len) {
+		mif_err("dit irq not defined\n");
+		return -ENODEV;
+	}
+
+	dc->irq_buf = devm_kzalloc(dev, sizeof(int) * dc->irq_len, GFP_KERNEL);
 	if (!dc->irq_buf) {
 		mif_err("dit irq buf alloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	for (i = 0; i < irq_len; i++) {
-		irq_num = platform_get_irq_byname(pdev, irq_name[i]);
-		ret = devm_request_irq(dev, irq_num, dit_irq_handler, 0, irq_name[i],
-				&irq_pending_bit[i]);
+	for (i = 0; i < dc->irq_len; i++) {
+		int irq_num;
+
+		irq_num = platform_get_irq_byname(pdev, dc->irq_name[i]);
+		ret = devm_request_irq(dev, irq_num, dit_irq_handler, 0, dc->irq_name[i],
+				       &dc->irq_pending_bit[i]);
 		if (ret) {
 			mif_err("failed to request irq: %d, ret: %d\n", i, ret);
 			ret = -EIO;
@@ -1772,7 +1770,6 @@ static int dit_register_irq(struct platform_device *pdev)
 		}
 		dc->irq_buf[i] = irq_num;
 	}
-	dc->irq_len = irq_len;
 
 	return 0;
 

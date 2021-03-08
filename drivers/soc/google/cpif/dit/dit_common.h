@@ -132,17 +132,6 @@ enum dit_nat_ethernet_en_bits {
 	RX_ETHERNET_EN_BIT,
 };
 
-/* DIT_INT_PENDING */
-enum dit_int_pending_bits {
-	TX_DST0_INT_PENDING_BIT = 0,
-	TX_DST1_INT_PENDING_BIT,
-	TX_DST2_INT_PENDING_BIT,
-	RX_DST0_INT_PENDING_BIT = 3,
-	RX_DST1_INT_PENDING_BIT,
-	RX_DST2_INT_PENDING_BIT,
-	ERR_INT_PENDING_BIT = 14,
-};
-
 #define DIT_TX_INT_PENDING_MASK \
 	(BIT(TX_DST0_INT_PENDING_BIT) | BIT(TX_DST1_INT_PENDING_BIT) | \
 		BIT(TX_DST2_INT_PENDING_BIT) | BIT(ERR_INT_PENDING_BIT))
@@ -194,6 +183,8 @@ struct dit_ctrl_t {
 	struct link_device *ld;
 	struct net_device *netdev;
 	struct napi_struct napi;
+	int *irq_pending_bit;
+	char const **irq_name;
 	int *irq_buf;
 	int irq_len;
 	int irq_affinity;

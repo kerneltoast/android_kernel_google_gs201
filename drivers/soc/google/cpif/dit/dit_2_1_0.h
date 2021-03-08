@@ -137,4 +137,15 @@ struct dit_dst_desc {
 		status:8;
 } __packed;
 
+/* DIT_INT_PENDING */
+enum dit_int_pending_bits {
+	TX_DST0_INT_PENDING_BIT = 0,
+	TX_DST1_INT_PENDING_BIT,
+	TX_DST2_INT_PENDING_BIT,
+	RX_DST0_INT_PENDING_BIT = 3,
+	RX_DST1_INT_PENDING_BIT,
+	RX_DST2_INT_PENDING_BIT,
+	ERR_INT_PENDING_BIT = 14,
+};
+
 #endif /* __DIT_2_1_0_H__ */
