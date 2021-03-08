@@ -17,10 +17,9 @@
 #include <linux/of.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
+#include <linux/samsung-dma-heap.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-
-#include "heap_private.h"
 
 struct carveout_heap {
 	struct gen_pool *pool;

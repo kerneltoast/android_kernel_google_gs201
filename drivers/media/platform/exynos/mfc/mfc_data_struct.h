@@ -385,6 +385,18 @@ enum mfc_op_mode {
 	MFC_OP_SWITCH_BUT_MODE2		= 5,
 };
 
+/* Secure Protection */
+#define EXYNOS_SECBUF_VIDEO_FW_PROT_ID	2
+#define EXYNOS_SECBUF_PROT_ALIGNMENTS	0x10000
+
+struct buffer_smc_prot_info {
+	unsigned int chunk_count;
+	unsigned int dma_addr;
+	unsigned int protect_id;
+	unsigned int chunk_size;
+	unsigned long paddr;
+};
+
 /* core driver */
 extern struct platform_driver mfc_core_driver;
 
@@ -574,7 +586,7 @@ enum mfc_get_img_size {
 	MFC_GET_RESOL_DPB_SIZE		= 1,
 };
 
-enum mfc_color_primaries {
+enum mfc_color_space {
 	MFC_COLORSPACE_UNSPECIFICED	= 0,
 	MFC_COLORSPACE_BT601		= 1,
 	MFC_COLORSPACE_BT709		= 2,
@@ -583,6 +595,18 @@ enum mfc_color_primaries {
 	MFC_COLORSPACE_BT2020		= 5,
 	MFC_COLORSPACE_RESERVED		= 6,
 	MFC_COLORSPACE_SRGB		= 7,
+};
+
+enum mfc_color_primaries {
+	MFC_PRIMARIES_RESERVED		= 0,
+	MFC_PRIMARIES_BT709_5		= 1,
+	MFC_PRIMARIES_UNSPECIFIED	= 2,
+	MFC_PRIMARIES_BT470_6M		= 4,
+	MFC_PRIMARIES_BT601_6_625	= 5,
+	MFC_PRIMARIES_BT601_6_525	= 6,
+	MFC_PRIMARIES_SMPTE_240M	= 7,
+	MFC_PRIMARIES_GENERIC_FILM	= 8,
+	MFC_PRIMARIES_BT2020		= 9,
 };
 
 enum mfc_transfer_characteristics {
@@ -607,6 +631,19 @@ enum mfc_transfer_characteristics {
 	MFC_TRANSFER_HLG		= 18,
 };
 
+enum mfc_matrix_coeff {
+	MFC_MATRIX_COEFF_IDENTITY		= 0,
+	MFC_MATRIX_COEFF_REC709			= 1,
+	MFC_MATRIX_COEFF_UNSPECIFIED		= 2,
+	MFC_MATRIX_COEFF_RESERVED		= 3,
+	MFC_MATRIX_COEFF_470_SYSTEM_M		= 4,
+	MFC_MATRIX_COEFF_470_SYSTEM_BG		= 5,
+	MFC_MATRIX_COEFF_SMPTE170M		= 6,
+	MFC_MATRIX_COEFF_SMPTE240M		= 7,
+	MFC_MATRIX_COEFF_BT2020			= 9,
+	MFC_MATRIX_COEFF_BT2020_CONSTANT	= 10,
+};
+
 struct mfc_debugfs {
 	struct dentry *root;
 };
@@ -627,7 +664,6 @@ struct mfc_special_buf {
 	void				*vaddr;
 	size_t				size;
 	size_t				map_size;
-	unsigned int			heapmask;
 };
 
 struct mfc_mem {
@@ -742,6 +778,7 @@ struct mfc_platdata {
 	/* SBWC decoder max resolution */
 	unsigned int sbwc_dec_max_width;
 	unsigned int sbwc_dec_max_height;
+	unsigned int sbwc_dec_hdr10_off;
 	/* HDR10+ */
 	unsigned int max_hdr_win;
 	/* error type for sync_point display */
@@ -1106,9 +1143,10 @@ struct mfc_dev {
 	struct mfc_core	*core[MFC_NUM_CORE];
 	int num_core;
 	int fw_date;
-	size_t fw_base_offset;
+	size_t fw_rmem_offset;
 
 	struct device		*device;
+	struct device		*cache_op_dev;
 	struct v4l2_device	v4l2_dev;
 	struct video_device	*vfd_dec;
 	struct video_device	*vfd_enc;
@@ -1276,6 +1314,9 @@ struct mfc_core {
 	struct mfc_special_buf	common_ctx_buf;
 	struct mfc_special_buf	drm_common_ctx_buf;
 	struct mfc_special_buf	dbg_info_buf;
+
+	/* Secure F/W prot information */
+	struct buffer_smc_prot_info *drm_fw_prot;
 
 	/* Context information */
 	struct mfc_dev *dev;

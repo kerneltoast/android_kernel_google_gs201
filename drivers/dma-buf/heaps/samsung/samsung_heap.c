@@ -12,11 +12,11 @@
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/samsung-dma-heap.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 
-#include "heap_private.h"
 
 void heap_cache_flush(struct samsung_dma_buffer *buffer)
 {
@@ -80,12 +80,14 @@ struct samsung_dma_buffer *samsung_dma_buffer_alloc(struct samsung_dma_heap *sam
 
 	return buffer;
 }
+EXPORT_SYMBOL_GPL(samsung_dma_buffer_alloc);
 
 void samsung_dma_buffer_free(struct samsung_dma_buffer *buffer)
 {
 	sg_free_table(&buffer->sg_table);
 	kfree(buffer);
 }
+EXPORT_SYMBOL_GPL(samsung_dma_buffer_free);
 
 static const char *samsung_add_heap_name(unsigned long flags)
 {
@@ -232,6 +234,7 @@ struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigne
 
 	return dma_buf_export(&exp_info);
 }
+EXPORT_SYMBOL_GPL(samsung_export_dmabuf);
 
 static int __init samsung_dma_heap_init(void)
 {

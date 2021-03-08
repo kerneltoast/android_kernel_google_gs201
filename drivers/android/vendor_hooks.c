@@ -28,16 +28,16 @@
 #include <trace/hooks/cpufreq.h>
 #include <trace/hooks/mm.h>
 #include <trace/hooks/preemptirq.h>
-#include <trace/hooks/pstore.h>
 #include <trace/hooks/ftrace_dump.h>
 #include <trace/hooks/pm_domain.h>
 #include <trace/hooks/bug.h>
 #include <trace/hooks/timer.h>
-#include <trace/hooks/thermal.h>
 #include <trace/hooks/softlockup.h>
 #include <trace/hooks/power.h>
 #include <trace/hooks/fault.h>
 #include <trace/hooks/iommu.h>
+#include <trace/hooks/thermal.h>
+#include <trace/hooks/ufshcd.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -101,6 +101,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_energy_efficient_cpu);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_sugov_sched_attr);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_iowait);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_sugov_update);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_overutilized);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_setaffinity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_cpus_allowed);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_skip_swapcache_flags);
@@ -128,9 +129,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_cpu_capacity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_misfit_status);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_cgroup_attach);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_cgroup_can_attach);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_overutilized);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_mkfile);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pstore_console_read);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_fork_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_ttwu_cond);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_schedule_bug);
@@ -148,7 +146,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_up);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_down);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_balance_rt);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_timer_calc_index);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_enable_thermal_genl_check);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_watchdog_timer_softlockup);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_try_to_freeze_todo);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_try_to_freeze_todo_unfrozen);
@@ -162,3 +159,9 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_pick_next_entity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_check_preempt_wakeup);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rmqueue);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_pagecache_get_page);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_enable_thermal_genl_check);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_fill_prdt);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_prepare_command);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_update_sysfs);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_send_command);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_compl_command);

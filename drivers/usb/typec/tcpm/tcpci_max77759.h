@@ -59,8 +59,6 @@ struct max77759_plat {
 	/* toggle in_switch to kick debug accessory statemachine when already connected */
 	int in_switch_gpio;
 	bool first_toggle;
-	/* Disable toggle during shutdown */
-	bool disable_toggling;
 
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
 	u8 debug_acc_connected:1;
@@ -71,9 +69,25 @@ struct max77759_plat {
 
 	/* Runtime flags */
 	int frs;
+	/*
+	 * Current status of contaminant detection.
+	 * 0 - Disabled
+	 * 1 - AP
+	 * 2 - MAXQ
+	 */
 	int contaminant_detection;
-	/* Protects contaminant_detection variable */
-	struct mutex contaminant_detection_lock;
+	/* Userspace status */
+	bool contaminant_detection_userspace;
+
+	/* Protects contaminant_detection variable and role_control */
+	struct mutex rc_lock;
+
+	/* Accumulate votes to disable toggling as needed */
+	struct gvotable_election *toggle_disable_votable;
+	/* Current status of toggle */
+	bool toggle_disable_status;
+	/* Cached role ctrl setting */
+	u8 role_ctrl_cache;
 
 	/* EXT_BST_EN exposed as GPIO */
 #ifdef CONFIG_GPIOLIB

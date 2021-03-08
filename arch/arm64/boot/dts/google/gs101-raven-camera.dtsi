@@ -379,6 +379,9 @@
 					<&slg51000_gpio 4 GPIO_ACTIVE_HIGH>;
 				shared-enable3-gpios =
 					<&slg51000_gpio 5 GPIO_ACTIVE_HIGH>;
+				/* RTCAM_EN_S2MPG11 GPIO8 */
+				enable-gpios =
+					<&s2mpg11_gpio 2 GPIO_ACTIVE_HIGH>;
 
 				clocks =
 					<&clock CIS_CLK2>,
@@ -399,6 +402,7 @@
 				power-up-seqs =
 					"shared-enable1",
 					"shared-enable2",
+					"enable",
 					"shared-enable3",
 					"mclk_on",
 					"reset";
@@ -406,11 +410,13 @@
 					"gpio",
 					"gpio",
 					"gpio",
+					"gpio",
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
 					<1000
-					 4000
+					 3000
+					 1000
 					 0
 					 1000
 					 10000>;
@@ -420,6 +426,7 @@
 					"reset",
 					"mclk_off",
 					"shared-enable3",
+					"enable",
 					"shared-enable2",
 					"shared-enable1";
 				power-down-seq-types =
@@ -427,12 +434,14 @@
 					"pinctrl",
 					"gpio",
 					"gpio",
+					"gpio",
 					"gpio";
 				power-down-seq-delays-us =
 					<0
 					 1000
 					 1000
-					 4000
+					 3000
+					 1000
 					 1000>;
 			};
 
@@ -831,6 +840,10 @@
 				/* Registers */
 				reg-addr-bitwidth = <8>;
 				reg-value-bitwidth = <8>;
+
+				/* Power Management hibernation (deep sleep) */
+				/* 1 : enable, 0 : disable */
+				pm-hibernation = <0>;
 
 				/* GPIOs */
 				/* HW_ENABLE GPP23[6] */

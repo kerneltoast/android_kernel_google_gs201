@@ -817,7 +817,6 @@ static int mfc_core_remove(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
 	imgloader_desc_release(&core->mfc_imgloader_desc);
 #endif
-	kfree(core);
 
 	dev_dbg(&pdev->dev, "%s--\n", __func__);
 	return 0;

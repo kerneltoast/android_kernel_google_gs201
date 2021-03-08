@@ -36,6 +36,14 @@ enum gsa_mbox_cmd {
 	/* GSC commands */
 	GSA_MB_CMD_GSC_HARD_RESET = 60,
 	GSA_MB_CMD_GSC_TPM_DATAGRAM = 61,
+
+	/* KDN */
+	GSA_MB_CMD_KDN_GENERATE_KEY = 70,
+	GSA_MB_CMD_KDN_EPHEMERAL_WRAP_KEY = 71,
+	GSA_MB_CMD_KDN_DERIVE_RAW_SECRET = 72,
+	GSA_MB_CMD_KDN_PROGRAM_KEY = 73,
+	GSA_MB_CMD_KDN_RESTORE_KEYS = 74,
+	GSA_MB_CMD_KDN_SET_OP_MODE = 75,
 };
 
 /**
@@ -65,6 +73,46 @@ enum gsc_tpm_datagram_args {
 	GSC_TPM_ADDR_LO_IDX,
 	GSC_TPM_ADDR_HI_IDX,
 	GSC_TPM_ARGC,
+};
+
+/**
+ * enum kdn_data_req_args - parameters layout for KDN related calls
+ * @KDN_DATA_BUF_ADDR_LO_IDX: index of low word of KDN data buffer address
+ * @KDN_DATA_BUF_ADDR_HI_IDX: index of high word of KDN data buffer address
+ * @KDN_DATA_BUF_SIZE_IDX: index of KDN data buffer size parameter
+ * @KDN_DATA_LEN_IDX: index of KDN data length parameter
+ * @KDN_OPTION_IDX: index of KDN request option parameter
+ * @KDN_REQ_ARGC: total number of parameters expected by KDN service
+ */
+enum kdn_data_req_args {
+	KDN_DATA_BUF_ADDR_LO_IDX = 0,
+	KDN_DATA_BUF_ADDR_HI_IDX,
+	KDN_DATA_BUF_SIZE_IDX,
+	KDN_DATA_LEN_IDX,
+	KDN_OPTION_IDX,
+	KDN_REQ_ARGC,
+};
+
+/**
+ * enum kdn_data_rsp_args - parameters layout for KDN response calls
+ * @KDN_RSP_DATA_LEN_IDX: number of bytes returned in KDN data buffer by GSA
+ * @KDN_RSP_ARGC: total number of parameters expected by KDN service
+ */
+enum kdn_data_rsp_args {
+	KDN_RSP_DATA_LEN_IDX = 0,
+	KDN_RSP_ARGC,
+};
+
+/**
+ * enum kdn_set_mode_req_args - parameter layout for KDN set mode command
+ * @KDN_SET_OP_MODE_MODE_IDX: index of operating mode parameter
+ * @KDN_SET_OP_MODE_UFS_DESCR_IDX: index of UFS descriptor format parameter
+ * @KDN_SET_OP_MODE_ARGC: total number of parameters
+ */
+enum kdn_set_op_mode_req_args {
+	KDN_SET_OP_MODE_MODE_IDX = 0,
+	KDN_SET_OP_MODE_UFS_DESCR_IDX = 1,
+	KDN_SET_OP_MODE_ARGC,
 };
 
 struct gsa_mbox;

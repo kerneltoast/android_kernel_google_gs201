@@ -17,10 +17,9 @@
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/samsung-dma-heap.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-
-#include "heap_private.h"
 
 static struct sg_table *dup_sg_table(struct sg_table *table)
 {

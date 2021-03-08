@@ -51,21 +51,22 @@ enum acpm_framework_debug_commands {
 };
 
 #if IS_ENABLED(CONFIG_GS_ACPM_MODULE)
-extern int acpm_ipc_request_channel(struct device_node *np,
-		ipc_callback handler,
-		unsigned int *id, unsigned int *size);
-extern int acpm_ipc_release_channel(struct device_node *np,
-		unsigned int channel_id);
-extern int acpm_ipc_send_data(unsigned int channel_id,
-		struct ipc_config *cfg);
-extern int acpm_ipc_send_data_sync(unsigned int channel_id,
-		struct ipc_config *cfg);
-extern int acpm_ipc_send_data_lazy(unsigned int channel_id,
-		struct ipc_config *cfg);
-extern int acpm_ipc_set_ch_mode(struct device_node *np, bool polling);
-extern int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size);
-extern void exynos_acpm_reboot(void);
-extern void acpm_stop_log(void);
+int acpm_ipc_request_channel(struct device_node *np,
+			     ipc_callback handler,
+			     unsigned int *id, unsigned int *size);
+int acpm_ipc_release_channel(struct device_node *np,
+			     unsigned int channel_id);
+int acpm_ipc_send_data(unsigned int channel_id,
+		       struct ipc_config *cfg);
+int acpm_ipc_send_data_sync(unsigned int channel_id,
+			    struct ipc_config *cfg);
+int acpm_ipc_send_data_lazy(unsigned int channel_id,
+			    struct ipc_config *cfg);
+int acpm_ipc_set_ch_mode(struct device_node *np, bool polling);
+int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size);
+void exynos_acpm_reboot(void);
+void acpm_stop_log(void);
+u64 get_frc_time(void);
 #else
 
 static inline int acpm_ipc_request_channel(struct device_node *np,
@@ -115,6 +116,11 @@ static inline void exynos_acpm_reboot(void)
 
 static inline void acpm_stop_log(void)
 {
+}
+
+static u64 get_frc_time(void)
+{
+	return 0;
 }
 #endif
 

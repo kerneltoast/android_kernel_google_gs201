@@ -17,6 +17,7 @@ extern void reset_uclamp_stats(void);
 DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 
 bool __read_mostly vendor_sched_enable_prefer_high_cap;
+bool __read_mostly vendor_sched_task_spreading_enable;
 static struct kobject *vendor_sched_kobj;
 
 static int update_prefer_high_cap(const char *buf, bool val)
@@ -90,6 +91,78 @@ static ssize_t prefer_high_cap_enable_store(struct kobject *kobj,
 }
 
 static struct kobj_attribute prefer_high_cap_enable_attribute = __ATTR_RW(prefer_high_cap_enable);
+
+static int update_task_spreading(const char *buf, bool val)
+{
+	struct vendor_task_struct *vp;
+	struct task_struct *p;
+	pid_t pid;
+
+	if (kstrtoint(buf, 0, &pid) || pid <= 0)
+		return -EINVAL;
+
+	rcu_read_lock();
+	p = find_task_by_vpid(pid);
+	if (!p) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+
+	get_task_struct(p);
+	rcu_read_unlock();
+
+	vp = get_vendor_task_struct(p);
+	vp->task_spreading = val;
+
+	put_task_struct(p);
+
+	return 0;
+}
+
+static ssize_t set_task_spreading_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	int ret = update_task_spreading(buf, true);
+
+	return ret ?: count;
+}
+
+static struct kobj_attribute set_task_spreading_attribute = __ATTR_WO(set_task_spreading);
+
+static ssize_t clear_task_spreading_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	int ret = update_task_spreading(buf, false);
+
+	return ret ?: count;
+}
+
+static struct kobj_attribute clear_task_spreading_attribute = __ATTR_WO(clear_task_spreading);
+
+static ssize_t task_spreading_enable_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_task_spreading_enable);
+}
+
+static ssize_t task_spreading_enable_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	bool enable;
+
+	if (kstrtobool(buf, &enable))
+		return -EINVAL;
+
+	vendor_sched_task_spreading_enable = enable;
+
+	return count;
+}
+
+static struct kobj_attribute task_spreading_enable_attribute = __ATTR_RW(task_spreading_enable);
 
 static ssize_t uclamp_stats_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -233,6 +306,9 @@ static struct attribute *attrs[] = {
 	&uclamp_effective_stats_attribute.attr,
 	&uclamp_util_diff_stats_attribute.attr,
 	&reset_uclamp_stats_attribute.attr,
+	&set_task_spreading_attribute.attr,
+	&clear_task_spreading_attribute.attr,
+	&task_spreading_enable_attribute.attr,
 	NULL,
 };
 

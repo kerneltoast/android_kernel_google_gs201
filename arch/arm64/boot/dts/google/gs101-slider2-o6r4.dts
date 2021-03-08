@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * slider board device tree source
+ * Device tree for a slider2 reworked so that
+ * the two secure elements are on different busses,
+ * similar to Oriole and Raven.
  *
- * Copyright 2019 Google LLC
+ * Copyright 2021 Google LLC
  *
  */
 

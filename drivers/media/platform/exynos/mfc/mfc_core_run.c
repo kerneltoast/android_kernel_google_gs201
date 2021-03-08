@@ -35,7 +35,7 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 
 	curr_ctx_is_drm_backup = core->curr_core_ctx_is_drm;
 
-	if (!core->fw_buf.dma_buf)
+	if (!core->fw_buf.sgt)
 		return -EINVAL;
 
 	/* At init time, do not call secure API */

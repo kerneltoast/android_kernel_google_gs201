@@ -42,6 +42,7 @@ static char const *const core_names[NUM_CORES] = { "CORE00", "CORE01", "CORE02",
 
 static char const *const domain_names[NUM_DOMAINS] = { "MIF", "TPU", "CL0",
 						       "CL1", "CL2" };
+
 struct pd_entry {
 	struct list_head entry;
 	struct exynos_pm_domain *domain;
@@ -75,7 +76,6 @@ struct power_stats_device {
 
 	u32 mult;
 	u32 shift;
-	void __iomem *frc_ctrl;
 
 	struct list_head pd_list;
 
@@ -85,39 +85,6 @@ struct power_stats_device {
 static inline u64 cyc_to_ns(u64 cyc, u32 mult, u32 shift)
 {
 	return (cyc * mult) >> shift;
-}
-
-static u64 get_frc_time(void __iomem *frc_ctrl)
-{
-	u32 lsb, msb1, msb2;
-	u64 raw_time;
-
-	if (!frc_ctrl)
-		return 0;
-
-	__raw_writel(0x10, frc_ctrl); /* Write CAPTURE bit to ALIVE_FRC */
-	__raw_writel(0x00, frc_ctrl); /* Clear CAPTURE bit */
-
-	/*
-	 * ALIVE_FRC timer needs 3 24.576MHz cycles = 122ns
-	 * to detect rising edge of CAPTURE signal
-	 */
-	ndelay(122);
-
-	/*
-	 * Read ALIVE_FRC counter values. Need to read MSB
-	 * at least twice in case another user captures timer during reading
-	 */
-	do {
-		msb1 = __raw_readl(frc_ctrl + 4 * 4);
-		lsb = __raw_readl(frc_ctrl + 3 * 4);
-		msb2 = __raw_readl(frc_ctrl + 4 * 4);
-	} while (msb1 != msb2);
-
-	raw_time = ((u64)msb1 << 32) | lsb;
-
-	/* convert to 49.152Hz ticks to be synchronized timer reported by ACPM*/
-	return raw_time << 1;
 }
 
 /*
@@ -321,7 +288,7 @@ static ssize_t fvp_stats_show(struct device *dev, struct device_attribute *attr,
 			       sizeof(struct fvp_stats))) {
 		ps_dev->fvp_stats_fails++;
 	} else {
-		u64 now = get_frc_time(ps_dev->frc_ctrl);
+		u64 now = get_frc_time();
 
 		for (i = 0; i < NUM_DOMAINS; i++) {
 			s += scnprintf(buf + s, PAGE_SIZE - s, "%s\n",
@@ -352,7 +319,7 @@ static ssize_t soc_stats_show(struct device *dev, struct device_attribute *attr,
 			       sizeof(struct soc_stats))) {
 		ps_dev->soc_stats_fails++;
 	} else {
-		u64 now = get_frc_time(ps_dev->frc_ctrl);
+		u64 now = get_frc_time();
 
 		s += scnprintf(buf, PAGE_SIZE, "LPM:\n");
 		s += print_lpm_stats(ps_dev, buf + s, PAGE_SIZE - s,
@@ -401,7 +368,7 @@ static ssize_t core_stats_show(struct device *dev,
 			       sizeof(struct core_stats))) {
 		ps_dev->core_stats_fails++;
 	} else {
-		u64 now = get_frc_time(ps_dev->frc_ctrl);
+		u64 now = get_frc_time();
 
 		s += scnprintf(buf, PAGE_SIZE, "CORES:\n");
 		s += print_resource_stats(ps_dev, buf + s, PAGE_SIZE - s,
@@ -434,7 +401,7 @@ static ssize_t pmu_stats_show(struct device *dev, struct device_attribute *attr,
 			       sizeof(struct pmu_stats))) {
 		ps_dev->pmu_stats_fails++;
 	} else {
-		u64 now = get_frc_time(ps_dev->frc_ctrl);
+		u64 now = get_frc_time();
 
 		s += scnprintf(buf + s, PAGE_SIZE - s, "MIF_PWR_REQ:\n");
 		s += print_resource_req_stats(ps_dev, buf + s, PAGE_SIZE - s,
@@ -626,12 +593,6 @@ static int power_stats_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ps_dev->frc_ctrl = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ps_dev->frc_ctrl)) {
-		dev_err(&pdev->dev, "Failed to map resource\n");
-		return PTR_ERR(ps_dev->frc_ctrl);
-	}
-
 	mutex_init(&ps_dev->lock);
 
 	/*
@@ -698,10 +659,11 @@ static int __init power_stats_init(void)
 	return platform_driver_register(&power_stats_dev);
 }
 
-static __exit void power_stats_exit(void)
+static void __exit power_stats_exit(void)
 {
 	platform_driver_unregister(&power_stats_dev);
 }
+
 module_init(power_stats_init);
 module_exit(power_stats_exit);
 

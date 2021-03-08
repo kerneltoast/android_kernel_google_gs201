@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#define UCLAMP_STATS_SLOTS 21
-#define UCLAMP_STATS_STEP (100 / (UCLAMP_STATS_SLOTS - 1))
+#define UTIL_THRESHOLD      1280
+#define UCLAMP_STATS_SLOTS  21
+#define UCLAMP_STATS_STEP   (100 / (UCLAMP_STATS_SLOTS - 1))
+
+#define cpu_overutilized(cap, max)	((cap) * UTIL_THRESHOLD > (max) << SCHED_CAPACITY_SHIFT)
+
 #define ANDROID_VENDOR_CHECK_SIZE_ALIGN(_orig, _new)				\
 		static_assert(sizeof(struct{_new;}) <= sizeof(struct{_orig;}),	\
 			       __FILE__ ":" __stringify(__LINE__) ": "		\
@@ -16,6 +20,7 @@
 // Maximum size: u64[2] for ANDROID_VENDOR_DATA_ARRAY(1, 2) in task_struct
 struct vendor_task_struct {
 	bool prefer_high_cap;
+	bool task_spreading;
 };
 ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[2], struct vendor_task_struct t);
 

@@ -1662,8 +1662,13 @@ static void s3c2410wdt_shutdown(struct platform_device *dev)
 	struct s3c2410_wdt *wdt = platform_get_drvdata(dev);
 
 #ifdef CONFIG_S3C2410_SHUTDOWN_REBOOT
-	dev_emerg(wdt->dev, "%s: watchdog is still alive\n", __func__);
-	s3c2410wdt_keepalive_emergency(true, 0, wdt->wdt_device.timeout);
+	if (wdt->cluster == 0) {
+		/* 0 and multistage are reconfigured altogether by this */
+		dev_emerg(wdt->dev, "watchdog is still alive\n");
+		s3c2410wdt_keepalive_emergency(true, 0, wdt->wdt_device.timeout);
+	} else if (wdt->cluster != 0 && wdt->cluster != s3c2410wdt_get_multistage_index()) {
+		s3c2410wdt_stop(&wdt->wdt_device);
+	}
 #else
 	/* Only little cluster watchdog excute mask function */
 	if (wdt->cluster == LITTLE_CLUSTER && wdt->drv_data->pmu_reset_func)

@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * slider board device tree source
+ * Common devicetree base for all slider/slider2 configs.
  *
- * Copyright 2019 Google LLC
+ * Copyright 2021 Google LLC
  *
  */
 
 #include "gs101-common.dtsi"
-#include "gs101-slider-serial.dtsi"
-#include "gs101-slider-gsa-gsc.dtsi"
-#include "gs101-slider-display.dtsi"
-#include "gs101-slider-touch.dtsi"
-#include "gs101-slider-nfc.dtsi"
+
 #include "gs101-slider-battery.dtsi"
-#include "gs101-slider-sbbm.dtsi"
+#include "gs101-slider-bcl.dtsi"
+#include "gs101-slider-display.dtsi"
 #include "gs101-slider-fingerprint.dtsi"
+#include "gs101-slider-gsa-gsc.dtsi"
+#include "gs101-slider-nfc.dtsi"
+#include "gs101-slider-serial.dtsi"
+#include "gs101-slider-sbbm.dtsi"
+#include "gs101-slider-thermal.dtsi"
+#include "gs101-slider-touch.dtsi"
+#include "gs101-slider-wcharger.dtsi"

@@ -257,7 +257,7 @@ static nal_queue_in_handle* __mfc_core_nal_q_create_in_q(struct mfc_core *core,
 	 * Plus 1 is needed for margin, because F/W exceeds sometimes.
 	 */
 	nal_q_in_handle->in_buf.size = core->dev->pdata->nal_q_entry_size * (NAL_Q_QUEUE_SIZE + 1);
-	if (mfc_mem_ion_alloc(core->dev, &nal_q_in_handle->in_buf)) {
+	if (mfc_mem_special_buf_alloc(core->dev, &nal_q_in_handle->in_buf)) {
 		mfc_core_err("[NALQ] failed to get memory\n");
 		kfree(nal_q_in_handle);
 		return NULL;
@@ -292,7 +292,7 @@ static nal_queue_out_handle* __mfc_core_nal_q_create_out_q(struct mfc_core *core
 	 * Plus 1 is needed for margin, because F/W exceeds sometimes.
 	 */
 	nal_q_out_handle->out_buf.size = core->dev->pdata->nal_q_entry_size * (NAL_Q_QUEUE_SIZE + 1);
-	if (mfc_mem_ion_alloc(core->dev, &nal_q_out_handle->out_buf)) {
+	if (mfc_mem_special_buf_alloc(core->dev, &nal_q_out_handle->out_buf)) {
 		mfc_core_err("[NALQ] failed to get memory\n");
 		kfree(nal_q_out_handle);
 		return NULL;
@@ -311,7 +311,7 @@ static void __mfc_core_nal_q_destroy_in_q(struct mfc_core *core,
 	mfc_core_debug_enter();
 
 	if (nal_q_in_handle) {
-		mfc_mem_ion_free(&nal_q_in_handle->in_buf);
+		mfc_mem_special_buf_free(&nal_q_in_handle->in_buf);
 		kfree(nal_q_in_handle);
 	}
 
@@ -324,7 +324,7 @@ static void __mfc_core_nal_q_destroy_out_q(struct mfc_core *core,
 	mfc_core_debug_enter();
 
 	if (nal_q_out_handle) {
-		mfc_mem_ion_free(&nal_q_out_handle->out_buf);
+		mfc_mem_special_buf_free(&nal_q_out_handle->out_buf);
 		kfree(nal_q_out_handle);
 	}
 

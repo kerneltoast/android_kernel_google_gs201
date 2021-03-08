@@ -7,9 +7,10 @@
  */
 #include <kernel/sched/sched.h>
 
+#include "sched.h"
+
 extern unsigned long cpu_util(int cpu);
 extern unsigned long task_util(struct task_struct *p);
-extern bool task_fits_capacity(struct task_struct *p, int cpu);
 extern bool task_may_not_preempt(struct task_struct *task, int cpu);
 extern int cpu_is_idle(int cpu);
 extern int sched_cpu_idle(int cpu);
@@ -23,13 +24,26 @@ extern int sched_cpu_idle(int cpu);
  * to make proper adjustment in vendor hook.
  */
 
+static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
+{
+	unsigned int min_cap;
+	unsigned int max_cap;
+	unsigned int cpu_cap;
+
+	min_cap = uclamp_eff_value(p, UCLAMP_MIN);
+	max_cap = uclamp_eff_value(p, UCLAMP_MAX);
+
+	cpu_cap = capacity_orig_of(cpu);
+
+	return cpu_cap >= min(min_cap, max_cap);
+}
+
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
-#define cpu_overutilized(cap, max)	((cap) * 1280 > (max) * 1024)
 
 static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_mask)
 {
@@ -37,21 +51,16 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 	unsigned long min_cpu_util = ULONG_MAX;
 	unsigned long min_cpu_capacity = ULONG_MAX;
 	unsigned int min_exit_lat = UINT_MAX;
-	bool check_util = true;
-	unsigned long util;
+	bool check_cpu_overutilized = true;
 
 	rcu_read_lock();
 
 redo:
 	for_each_cpu(cpu, lowest_mask) {
 		struct cpuidle_state *idle;
+		unsigned long util;
 		unsigned int exit_lat = 0;
 		unsigned long capacity = capacity_orig_of(cpu);
-
-		util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
-
-		if (check_util && cpu_overutilized(util + task_util(p), capacity))
-			continue;
 
 		if (cpu_is_idle(cpu)) {
 			util = 0;
@@ -62,7 +71,13 @@ redo:
 
 			if (sched_cpu_idle(cpu))
 				exit_lat = 0;
+		} else {
+			util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
 		}
+
+		if (check_cpu_overutilized &&
+		    cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util, p), capacity))
+			continue;
 
 		/* Always prefer the least loaded cpu. */
 		if (util > min_cpu_util)
@@ -90,8 +105,8 @@ redo:
 		best_cpu = cpu;
 	}
 
-	if (best_cpu == -1 && check_util) {
-		check_util = false;
+	if (best_cpu == -1 && check_cpu_overutilized) {
+		check_cpu_overutilized = false;
 		goto redo;
 	}
 
@@ -121,7 +136,7 @@ static int find_lowest_rq(struct task_struct *p)
 		return cpumask_first(p->cpus_ptr);
 	}
 
-	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, &lowest_mask, task_fits_capacity);
+	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, &lowest_mask, rt_task_fits_capacity);
 	if (!ret) {
 		return -1;
 	}

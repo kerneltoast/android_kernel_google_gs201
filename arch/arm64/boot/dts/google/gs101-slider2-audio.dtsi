@@ -127,10 +127,6 @@
 	};
 };
 
-&aoc_audio_cfg{
-	aoc-audio-config = "sl2";
-};
-
 /* GPIO_ALIVE */
 &pinctrl_0 {
 	hapt_amp_irq: hapt-amp-irq {
@@ -418,7 +414,10 @@
 	};
 };
 
+&aoc_audio_cfg{
+	aoc-audio-config = "sl2";
+};
+
 &aoc {
-	board_id = <0x201>;
-	board_rev = <0x101>;
+	aoc-board-cfg = "sl2";
 };

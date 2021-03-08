@@ -794,6 +794,7 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	/* SBWC */
 	of_property_read_u32(np, "sbwc_dec_max_width", &pdata->sbwc_dec_max_width);
 	of_property_read_u32(np, "sbwc_dec_max_height", &pdata->sbwc_dec_max_height);
+	of_property_read_u32(np, "sbwc_dec_hdr10_off", &pdata->sbwc_dec_hdr10_off);
 
 	/* HDR10+ num max window */
 	of_property_read_u32(np, "max_hdr_win", &pdata->max_hdr_win);
@@ -987,6 +988,11 @@ static int mfc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	/* empty device for CPU cache flush with dma_sync_* API */
+	dev->cache_op_dev = devm_kzalloc(&pdev->dev, sizeof(struct device), GFP_KERNEL);
+	device_initialize(dev->cache_op_dev);
+	dma_coerce_mask_and_coherent(dev->cache_op_dev, DMA_BIT_MASK(36));
+
 	dev->device = &pdev->dev;
 	dev->variant = __mfc_get_drv_data(pdev);
 	platform_set_drvdata(pdev, dev);
@@ -1148,7 +1154,6 @@ static int mfc_remove(struct platform_device *pdev)
 #endif
 	mfc_dev_deinit_memlog(dev);
 	mfc_dev_debug(2, "Will now deinit HW\n");
-	kfree(dev);
 
 	dev_dbg(&pdev->dev, "%s--\n", __func__);
 	return 0;

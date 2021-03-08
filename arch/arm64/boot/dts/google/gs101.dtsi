@@ -509,8 +509,9 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		interrupts = <GIC_SPI IRQ_MAILBOX_APM2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
-		reg = <0x0 0x17610000 0x1000>,          /* AP2APM MAILBOX */
-		    <0x0 0x2039000 0x40000>;        /* APM SRAM */
+		reg = <0x0 0x17610000 0x1000>,	/* AP2APM MAILBOX */
+		    <0x0 0x2039000 0x40000>,	/* APM SRAM */
+		    <0x0 0x1742048c 0x14>;	/* ALIVE_FRC_CTRL */
 		initdata-base = <0xA000>;
 		debug-log-level = <0>;
 		logging-period = <500>;
@@ -523,7 +524,6 @@
 
 	acpm_stats {
 		compatible = "google,power-stats";
-		reg = <0x0 0x1742048c 0x14>;          /* ALIVE_FRC_CTRL */
 		timer-frequency-hz = <49152000>;
 	};
 

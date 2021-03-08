@@ -14,9 +14,6 @@
 #if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
 #include <soc/samsung/imgloader.h>
 #endif
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
-#include <soc/samsung/exynos-s2mpu.h>
-#endif
 #include <linux/firmware.h>
 #include <trace/events/mfc.h>
 #include <linux/iommu.h>
@@ -48,7 +45,7 @@ static int __mfc_alloc_common_context(struct mfc_core *core,
 	buf_size = dev->variant->buf_size->ctx_buf;
 	ctx_buf->size = buf_size->dev_ctx;
 
-	if (mfc_mem_ion_alloc(dev, ctx_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, ctx_buf)) {
 		mfc_core_err("Allocating %s context buffer failed\n",
 				buf_type == MFCBUF_DRM ? "secure" : "normal");
 		return -ENOMEM;
@@ -95,7 +92,7 @@ static void __mfc_release_common_context(struct mfc_core *core,
 		ctx_buf = &core->drm_common_ctx_buf;
 #endif
 
-	mfc_mem_ion_free(ctx_buf);
+	mfc_mem_special_buf_free(ctx_buf);
 	mfc_core_debug(2, "[MEMINFO] Release %s common context buffer\n",
 			buf_type == MFCBUF_DRM ? "secure" : "normal");
 
@@ -110,7 +107,8 @@ void mfc_release_common_context(struct mfc_core *core)
 	__mfc_release_common_context(core, MFCBUF_NORMAL);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	__mfc_release_common_context(core, MFCBUF_DRM);
+	if (core->fw.drm_status)
+		__mfc_release_common_context(core, MFCBUF_DRM);
 #endif
 }
 
@@ -171,7 +169,7 @@ int mfc_alloc_instance_context(struct mfc_core_ctx *core_ctx)
 	else
 		core_ctx->instance_ctx_buf.buftype = MFCBUF_NORMAL;
 
-	if (mfc_mem_ion_alloc(dev, &core_ctx->instance_ctx_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, &core_ctx->instance_ctx_buf)) {
 		mfc_err("Allocating context buffer failed\n");
 		return -ENOMEM;
 	}
@@ -191,7 +189,7 @@ void mfc_release_instance_context(struct mfc_core_ctx *core_ctx)
 
 	mfc_core_debug_enter();
 
-	mfc_mem_ion_free(&core_ctx->instance_ctx_buf);
+	mfc_mem_special_buf_free(&core_ctx->instance_ctx_buf);
 	mfc_core_debug(2, "[MEMINFO] Release the instance buffer ctx[%d]\n",
 			core_ctx->num);
 
@@ -417,7 +415,7 @@ int mfc_alloc_codec_buffers(struct mfc_core_ctx *core_ctx)
 	}
 
 	if (core_ctx->codec_buf.size > 0) {
-		if (mfc_mem_ion_alloc(dev, &core_ctx->codec_buf)) {
+		if (mfc_mem_special_buf_alloc(dev, &core_ctx->codec_buf)) {
 			mfc_err("Allocating codec buffer failed\n");
 			return -ENOMEM;
 		}
@@ -427,7 +425,7 @@ int mfc_alloc_codec_buffers(struct mfc_core_ctx *core_ctx)
 	}
 
 	if (!ctx->mv_buffer_allocated && ctx->mv_buf.size > 0) {
-		if (mfc_mem_ion_alloc(dev, &ctx->mv_buf)) {
+		if (mfc_mem_special_buf_alloc(dev, &ctx->mv_buf)) {
 			mfc_err("Allocating MV buffer failed\n");
 			return -ENOMEM;
 		}
@@ -451,12 +449,12 @@ void mfc_release_codec_buffers(struct mfc_core_ctx *core_ctx)
 	struct mfc_ctx *ctx = core_ctx->ctx;
 
 	if (core_ctx->codec_buffer_allocated) {
-		mfc_mem_ion_free(&core_ctx->codec_buf);
+		mfc_mem_special_buf_free(&core_ctx->codec_buf);
 		core_ctx->codec_buffer_allocated = 0;
 	}
 
 	if (ctx->mv_buffer_allocated) {
-		mfc_mem_ion_free(&ctx->mv_buf);
+		mfc_mem_special_buf_free(&ctx->mv_buf);
 		ctx->mv_buffer_allocated = 0;
 	}
 
@@ -474,7 +472,7 @@ int mfc_alloc_scratch_buffer(struct mfc_core_ctx *core_ctx)
 	mfc_debug_enter();
 
 	if (core_ctx->scratch_buffer_allocated) {
-		mfc_mem_ion_free(&core_ctx->scratch_buf);
+		mfc_mem_special_buf_free(&core_ctx->scratch_buf);
 		core_ctx->scratch_buffer_allocated = 0;
 		mfc_debug(2, "[MEMINFO] Release the scratch buffer ctx[%d]\n",
 				core_ctx->num);
@@ -487,7 +485,7 @@ int mfc_alloc_scratch_buffer(struct mfc_core_ctx *core_ctx)
 
 	core_ctx->scratch_buf.size =  ALIGN(ctx->scratch_buf_size, 256);
 	if (core_ctx->scratch_buf.size > 0) {
-		if (mfc_mem_ion_alloc(dev, &core_ctx->scratch_buf)) {
+		if (mfc_mem_special_buf_alloc(dev, &core_ctx->scratch_buf)) {
 			mfc_err("Allocating scratch_buf buffer failed\n");
 			return -ENOMEM;
 		}
@@ -509,7 +507,7 @@ void mfc_release_scratch_buffer(struct mfc_core_ctx *core_ctx)
 
 	mfc_debug_enter();
 	if (core_ctx->scratch_buffer_allocated) {
-		mfc_mem_ion_free(&core_ctx->scratch_buf);
+		mfc_mem_special_buf_free(&core_ctx->scratch_buf);
 		core_ctx->scratch_buffer_allocated = 0;
 		mfc_debug(2, "[MEMINFO] Release the scratch buffer ctx[%d]\n",
 				core_ctx->num);
@@ -527,7 +525,7 @@ int mfc_alloc_dbg_info_buffer(struct mfc_core *core)
 
 	core->dbg_info_buf.buftype = MFCBUF_NORMAL;
 	core->dbg_info_buf.size = buf_size->dbg_info_buf;
-	if (mfc_mem_ion_alloc(dev, &core->dbg_info_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, &core->dbg_info_buf)) {
 		mfc_core_err("Allocating debug info buffer failed\n");
 		return -ENOMEM;
 	}
@@ -544,7 +542,7 @@ void mfc_release_dbg_info_buffer(struct mfc_core *core)
 	if (!core->dbg_info_buf.dma_buf)
 		mfc_core_debug(2, "debug info buffer is already freed\n");
 
-	mfc_mem_ion_free(&core->dbg_info_buf);
+	mfc_mem_special_buf_free(&core->dbg_info_buf);
 	mfc_core_debug(2, "[MEMINFO] Release the debug info buffer\n");
 }
 
@@ -559,7 +557,7 @@ static int __mfc_alloc_enc_roi_buffer(struct mfc_core_ctx *core_ctx,
 	roi_buf->buftype = MFCBUF_NORMAL;
 
 	if (roi_buf->dma_buf == NULL) {
-		if (mfc_mem_ion_alloc(dev, roi_buf)) {
+		if (mfc_mem_special_buf_alloc(dev, roi_buf)) {
 			mfc_err("[ROI] Allocating ROI buffer failed\n");
 			return -ENOMEM;
 		}
@@ -631,7 +629,7 @@ void mfc_release_enc_roi_buffer(struct mfc_core_ctx *core_ctx)
 
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++)
 		if (enc->roi_buf[i].dma_buf)
-			mfc_mem_ion_free(&enc->roi_buf[i]);
+			mfc_mem_special_buf_free(&enc->roi_buf[i]);
 
 	mfc_debug(2, "[MEMINFO][ROI] Release the ROI buffer\n");
 }
@@ -651,7 +649,7 @@ int mfc_otf_alloc_stream_buf(struct mfc_ctx *ctx)
 		buf = &debug->stream_buf[i];
 		buf->buftype = MFCBUF_NORMAL;
 		buf->size = raw->total_plane_size;
-		if (mfc_mem_ion_alloc(dev, buf)) {
+		if (mfc_mem_special_buf_alloc(dev, buf)) {
 			mfc_ctx_err("[OTF] Allocating stream buffer failed\n");
 			return -EINVAL;
 		}
@@ -677,7 +675,7 @@ void mfc_otf_release_stream_buf(struct mfc_ctx *ctx)
 	for (i = 0; i < OTF_MAX_BUF; i++) {
 		buf = &debug->stream_buf[i];
 		if (buf->dma_buf)
-			mfc_mem_ion_free(buf);
+			mfc_mem_special_buf_free(buf);
 	}
 
 	mfc_debug(2, "[OTF][MEMINFO] Release the OTF stream buffer\n");
@@ -690,12 +688,15 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	struct mfc_dev *dev = core->dev;
 	struct mfc_ctx_buf_size *buf_size;
 	struct mfc_special_buf *fw_buf;
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	unsigned long secure_daddr = 0;
+#endif
 
 	mfc_core_debug_enter();
 
 	buf_size = dev->variant->buf_size->ctx_buf;
 
-	if (core->fw_buf.dma_buf)
+	if (core->fw_buf.sgt)
 		return 0;
 
 	mfc_core_debug(4, "[F/W] Allocating memory for firmware\n");
@@ -704,30 +705,39 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	trace_mfc_loadfw_start(core->fw_buf.size, core->fw_buf.size);
 
 	core->fw_buf.buftype = MFCBUF_NORMAL_FW;
-	if (mfc_mem_ion_alloc(dev, &core->fw_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, &core->fw_buf)) {
 		mfc_core_err("[F/W] Allocating normal firmware buffer failed\n");
 		return -ENOMEM;
 	}
 
 	fw_buf = &core->fw_buf;
-	if (mfc_remap_firmware(core, fw_buf))
+	if (mfc_iommu_map_firmware(core, fw_buf))
 		goto err_reserve_iova;
 
-	mfc_core_info("[MEMINFO][F/W] MFC-%d FW normal: 0x%08llx (vaddr: 0x%p, paddr:%#llx), size: %08zu\n",
-			core->id, core->fw_buf.daddr, core->fw_buf.vaddr, core->fw_buf.paddr,
+	mfc_core_info("[MEMINFO][F/W] MFC-%d FW normal: %pad(vaddr: %p, paddr:%pap), size: %08zu\n",
+			core->id, &core->fw_buf.daddr, core->fw_buf.vaddr, &core->fw_buf.paddr,
 			core->fw_buf.size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	core->drm_fw_buf.buftype = MFCBUF_DRM_FW;
 	core->drm_fw_buf.size = core->fw_buf.size;
-	if (mfc_mem_ion_alloc(dev, &core->drm_fw_buf)) {
+	if (mfc_mem_special_buf_alloc(dev, &core->drm_fw_buf)) {
 		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
-		goto err_daddr;
+		goto err_reserve_iova;
 	}
 
-	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: 0x%08llx (vaddr: 0x%p), size: %08zu\n",
-			core->id,
-			core->drm_fw_buf.daddr, core->drm_fw_buf.vaddr,
+	/* allocate Secure-DVA region */
+	secure_daddr = secure_iova_alloc(core->drm_fw_buf.size, EXYNOS_SECBUF_PROT_ALIGNMENTS);
+	if (!secure_daddr) {
+		mfc_core_err("DRM F/W buffer can not get IOVA!\n");
+		goto err_reserve_iova_secure;
+	}
+
+	core->drm_fw_buf.daddr = (dma_addr_t)secure_daddr;
+
+	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad(vaddr: %p paddr:%pap), size: %08zu\n",
+			core->id, &core->drm_fw_buf.daddr,
+			core->drm_fw_buf.vaddr, &core->drm_fw_buf.paddr,
 			core->drm_fw_buf.size);
 #endif
 
@@ -736,75 +746,101 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	return 0;
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-err_daddr:
-	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
+err_reserve_iova_secure:
+	mfc_mem_special_buf_free(&core->drm_fw_buf);
 #endif
 err_reserve_iova:
-	mfc_mem_ion_free(&core->fw_buf);
+	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
+	mfc_mem_special_buf_free(&core->fw_buf);
 	return -ENOMEM;
 }
 
 /* Load firmware to MFC */
-int mfc_load_firmware(struct mfc_core *core)
+int mfc_load_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf,
+		const u8 *fw_data, size_t fw_size)
 {
-#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-	struct firmware *fw_blob;
-#endif
-	int err;
+	mfc_core_debug(2, "[MEMINFO][F/W] loaded %s F/W Size: %zu\n",
+			fw_buf->buftype == MFCBUF_NORMAL_FW ? "normal" : "secure", fw_size);
 
-	mfc_core_debug_enter();
-#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-	mfc_core_debug(4, "[F/W] Requesting imgloader boot for F/W\n");
-
-	err = imgloader_boot(&core->mfc_imgloader_desc);
-	if (err) {
-		 mfc_core_err("[F/W] imgloader boot failed.\n");
-		        return -EINVAL;
-	}
-#else
-	mfc_core_debug(4, "[F/W] Requesting F/W\n");
-	err = request_firmware((const struct firmware **)&fw_blob,
-					MFC_FW_NAME, core->dev->v4l2_dev.dev);
-
-	if (err != 0) {
-		mfc_core_err("[F/W] Couldn't find the F/W invalid path\n");
-		release_firmware(fw_blob);
-		return -EINVAL;
-	}
-
-	mfc_core_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n",
-			fw_blob->size);
-
-	if (fw_blob->size > core->fw_buf.size) {
+	if (fw_size > fw_buf->size) {
 		mfc_core_err("[MEMINFO][F/W] MFC firmware(%zu) is too big to be loaded in memory(%zu)\n",
-				fw_blob->size, core->fw_buf.size);
-		release_firmware(fw_blob);
+				fw_size, fw_buf->size);
 		return -ENOMEM;
 	}
 
-	core->fw.fw_size = fw_blob->size;
+	core->fw.fw_size = fw_size;
 
-	if (core->fw_buf.dma_buf == NULL || core->fw_buf.daddr == 0) {
+	if (fw_buf->sgt == NULL || fw_buf->daddr == 0) {
 		mfc_core_err("[F/W] MFC firmware is not allocated or was not mapped correctly\n");
-		release_firmware(fw_blob);
 		return -EINVAL;
 	}
 
 	/*  This adds to clear with '0' for firmware memory except code region. */
 	mfc_core_debug(4, "[F/W] memset before memcpy for normal fw\n");
-	memset((core->fw_buf.vaddr + fw_blob->size), 0,
-			(core->fw_buf.size - fw_blob->size));
-	memcpy(core->fw_buf.vaddr, fw_blob->data, fw_blob->size);
-	if (core->drm_fw_buf.vaddr) {
-		mfc_core_debug(4, "[F/W] memset before memcpy for secure fw\n");
-		memset((core->drm_fw_buf.vaddr + fw_blob->size), 0,
-				(core->fw_buf.size - fw_blob->size));
-		memcpy(core->drm_fw_buf.vaddr, fw_blob->data, fw_blob->size);
-		mfc_core_debug(4, "[F/W] copy firmware to secure region\n");
+	memset((fw_buf->vaddr + fw_size), 0, (fw_buf->size - fw_size));
+	memcpy(fw_buf->vaddr, fw_data, fw_size);
+
+	/* cache flush for memcpy by CPU */
+	dma_sync_sgtable_for_device(core->device, fw_buf->sgt, DMA_TO_DEVICE);
+
+	return 0;
+}
+
+/* Request and load firmware to MFC */
+int __mfc_request_load_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
+{
+	const struct firmware *fw_blob;
+	int ret;
+
+	mfc_core_debug(4, "[F/W] Requesting %s F/W\n",
+			fw_buf->buftype == MFCBUF_NORMAL_FW ? "normal" : "secure");
+
+	ret = request_firmware(&fw_blob, MFC_FW_NAME, core->dev->v4l2_dev.dev);
+	if (ret != 0) {
+		mfc_core_err("[F/W] Couldn't find the F/W invalid path\n");
+		return ret;
+	}
+
+	ret = mfc_load_firmware(core, fw_buf, fw_blob->data, fw_blob->size);
+	if (ret) {
+		mfc_core_err("[F/W] Failed to load the MFC F/W\n");
+		release_firmware(fw_blob);
+		return ret;
 	}
 
 	release_firmware(fw_blob);
+
+	return 0;
+}
+
+int mfc_request_load_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
+{
+	int ret;
+
+	mfc_core_debug_enter();
+
+#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+	if (fw_buf->buftype == MFCBUF_NORMAL_FW) {
+		mfc_core_debug(4, "[F/W] Requesting imgloader boot for normal F/W\n");
+
+		ret = imgloader_boot(&core->mfc_imgloader_desc);
+		if (ret) {
+			mfc_core_err("[F/W] imgloader boot failed.\n");
+			return -EINVAL;
+		}
+	} else if (fw_buf->buftype == MFCBUF_DRM_FW) {
+		ret = __mfc_request_load_firmware(core, fw_buf);
+		if (ret)
+			return ret;
+	} else {
+		mfc_core_err("[F/W] not supported FW buftype: %d\n", fw_buf->buftype);
+	}
+#else
+	ret = __mfc_request_load_firmware(core, fw_buf);
+	if (ret)
+		return ret;
 #endif
+
 	trace_mfc_loadfw_end(core->fw_buf.size, core->fw_buf.size);
 	mfc_core_debug_leave();
 
@@ -826,133 +862,14 @@ int mfc_release_firmware(struct mfc_core *core)
 	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	mfc_mem_ion_free(&core->drm_fw_buf);
+	/* free Secure-DVA region */
+	if (core->drm_fw_buf.daddr)
+		secure_iova_free(core->drm_fw_buf.daddr, core->drm_fw_buf.size);
+	core->drm_fw_buf.daddr = 0;
+	mfc_mem_special_buf_free(&core->drm_fw_buf);
 #endif
 
-	mfc_mem_ion_free(&core->fw_buf);
+	mfc_mem_special_buf_free(&core->fw_buf);
 
 	return 0;
 }
-
-int mfc_power_on_verify_fw(struct mfc_core *core, unsigned int fw_id,
-		phys_addr_t fw_phys_base, size_t fw_bin_size, size_t fw_mem_size)
-{
-	int ret = 0;
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
-	uint64_t ret64 = 0;
-#endif
-
-	mfc_core_debug(2, "power on\n");
-	ret = mfc_core_pm_power_on(core);
-	if (ret) {
-		mfc_core_err("Failed block power on, ret=%d\n", ret);
-		return ret;
-	}
-
-#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
-	/* Request F/W verification. This must be requested after power on */
-	ret64 = exynos_verify_subsystem_fw(core->name, fw_id,
-				fw_phys_base, fw_bin_size, fw_mem_size);
-	if (ret64) {
-		mfc_core_err("Failed F/W verification, ret=%llu\n", ret64);
-		return -EIO;
-	}
-
-	ret64 = exynos_request_fw_stage2_ap(core->name);
-	if (ret64) {
-		mfc_core_err("Failed F/W verification to S2MPU, ret=%llu\n", ret64);
-		return -EIO;
-	}
-#endif
-
-	return 0;
-}
-
-#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
-int mfc_imgloader_mem_setup(struct imgloader_desc *desc, const u8 *fw_data, size_t fw_size,
-	phys_addr_t *fw_phys_base, size_t *fw_bin_size, size_t *fw_mem_size)
-{
-	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
-
-	mfc_core_debug_enter();
-
-	mfc_core_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n", fw_size);
-
-	if (fw_size > core->fw_buf.size) {
-		mfc_core_err("[MEMINFO][F/W] MFC firmware(%zu) is too big to be loaded in memory(%zu)\n",
-				fw_size, core->fw_buf.size);
-		return -ENOMEM;
-	}
-
-	core->fw.fw_size = fw_size;
-
-	if (core->fw_buf.dma_buf == NULL || core->fw_buf.daddr == 0) {
-		mfc_core_err("[F/W] MFC firmware is not allocated or was not mapped correctly\n");
-		return -EINVAL;
-	}
-
-	/*  This adds to clear with '0' for firmware memory except code region. */
-	mfc_core_debug(4, "[F/W] memset before memcpy for normal fw\n");
-	memset((core->fw_buf.vaddr + fw_size), 0, (core->fw_buf.size - fw_size));
-	memcpy(core->fw_buf.vaddr, fw_data, fw_size);
-	if (core->drm_fw_buf.vaddr) {
-		mfc_core_debug(4, "[F/W] memset before memcpy for secure fw\n");
-		memset((core->drm_fw_buf.vaddr + fw_size), 0, (core->drm_fw_buf.size - fw_size));
-		memcpy(core->drm_fw_buf.vaddr, fw_data, fw_size);
-		mfc_core_debug(4, "[F/W] copy firmware to secure region\n");
-	}
-
-	*fw_phys_base = core->fw_buf.paddr;
-	*fw_bin_size = fw_size;
-	*fw_mem_size = core->fw_buf.size;
-
-	mfc_core_debug_leave();
-
-	return 0;
-}
-
-int mfc_imgloader_verify_fw(struct imgloader_desc *desc, phys_addr_t fw_phys_base,
-	size_t fw_bin_size, size_t fw_mem_size)
-{
-	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
-	int ret = 0;
-
-	ret = mfc_power_on_verify_fw(core, desc->fw_id, fw_phys_base, fw_bin_size, fw_mem_size);
-
-	return ret;
-}
-
-int mfc_imgloader_blk_pwron(struct imgloader_desc *desc)
-{
-	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
-	int ret = 0;
-
-	mfc_core_debug(2, "power on\n");
-	ret = mfc_core_pm_power_on(core);
-	if (ret) {
-		mfc_core_err("Failed %s block power on, ret=%d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-int mfc_imgloader_deinit_image(struct imgloader_desc *desc)
-{
-	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
-
-	if (mfc_core_pm_get_pwr_ref_cnt(core)) {
-		mfc_core_debug(2, "power off\n");
-		mfc_core_pm_power_off(core);
-	}
-
-	return 0;
-}
-
-struct imgloader_ops mfc_imgloader_ops = {
-	.mem_setup = mfc_imgloader_mem_setup,
-	.verify_fw = mfc_imgloader_verify_fw,
-	.blk_pwron = mfc_imgloader_blk_pwron,
-	.deinit_image = mfc_imgloader_deinit_image,
-};
-#endif

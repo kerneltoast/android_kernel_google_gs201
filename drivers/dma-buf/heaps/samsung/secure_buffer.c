@@ -13,9 +13,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/arm-smccc.h>
 #include <linux/dma-direct.h>
+#include <linux/samsung-dma-heap.h>
 #include <linux/samsung-secure-iova.h>
-
-#include "heap_private.h"
 
 #define SMC_DRM_PPMP_PROT		(0x82002110)
 #define SMC_DRM_PPMP_UNPROT		(0x82002111)

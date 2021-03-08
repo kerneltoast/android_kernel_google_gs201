@@ -222,34 +222,19 @@ static int __mfc_rm_move_core_running(struct mfc_ctx *ctx, int to_core_num, int 
 	ctx->is_migration = 1;
 
 	/* 2. Cache flush on to_core */
-	if (!to_core->num_inst) {
-		mfc_debug(2, "[RMLB] it is first instance in core%d\n", to_core->id);
-		ret = to_core->core_ops->instance_init(to_core, ctx);
-		if (ret) {
-			mfc_ctx_err("Failed to instance init\n");
-			goto err_migrate;
-		}
-
-		ret = mfc_core_get_hwlock_dev(to_core);
-		if (ret < 0) {
-			mfc_ctx_err("Failed to get hwlock\n");
-			goto err_migrate;
-		}
-		is_to_core = 1;
-	} else {
-		ret = mfc_core_get_hwlock_dev(to_core);
-		if (ret < 0) {
-			mfc_ctx_err("Failed to get hwlock\n");
-			goto err_migrate;
-		}
-
-		is_to_core = 1;
-		ret = to_core->core_ops->instance_move_to(to_core, ctx);
-		if (ret) {
-			mfc_ctx_err("Failed to instance move init\n");
-			goto err_migrate;
-		}
+	ret = mfc_core_get_hwlock_dev(to_core);
+	if (ret < 0) {
+		mfc_ctx_err("Failed to get hwlock\n");
+		goto err_migrate;
 	}
+	is_to_core = 1;
+
+	ret = to_core->core_ops->instance_move_to(to_core, ctx);
+	if (ret) {
+		mfc_ctx_err("Failed to instance move init\n");
+		goto err_migrate;
+	}
+
 	kfree(to_core->core_ctx[ctx->num]);
 	ctx->op_core_num[MFC_CORE_MAIN] = MFC_CORE_INVALID;
 
