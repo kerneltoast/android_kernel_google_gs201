@@ -46,7 +46,7 @@ BUILD_BOOT_IMG=1
 GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-aosp_arm64.img
 VENDOR_RAMDISK_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-oriole.img
 KERNEL_VENDOR_CMDLINE="earlycon=exynos4210,0x10A00000 console=ttySAC0,115200 androidboot.console=ttySAC0"
-KERNEL_VENDOR_CMDLINE+=" printk.devkmsg=on androidboot.selinux=permissive androidboot.boot_devices=14700000.ufs"
+KERNEL_VENDOR_CMDLINE+=" printk.devkmsg=on androidboot.boot_devices=14700000.ufs"
 KERNEL_VENDOR_CMDLINE+=" at24.write_timeout=100 buildvariant=userdebug"
 
 AVB_SIGN_BOOT_IMG=1
