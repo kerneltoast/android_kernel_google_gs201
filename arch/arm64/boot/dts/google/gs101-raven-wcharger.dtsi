@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Wireless Charger device tree entries.
+ *
+ * Copyright 2020 Google Inc.
+ */
+
+#include "gs101-raviole-wcharger.dtsi"
+
+&hsi2c_8 {
+	p9412@3c {
+		fod = [c0 24 ac 1b 98 12 94 0e 92 0f 92 0f];
+		fod_epp = [a4 46 94 46 94 10 8c 20 8c 14 8c 12];
+	};
+};

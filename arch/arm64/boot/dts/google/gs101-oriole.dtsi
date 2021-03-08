@@ -12,3 +12,4 @@
 #include "gs101-oriole-display.dtsi"
 #include "gs101-oriole-touch.dtsi"
 #include "gs101-oriole-usb.dtsi"
+#include "gs101-oriole-wcharger.dtsi"
