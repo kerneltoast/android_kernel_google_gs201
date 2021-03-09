@@ -1171,7 +1171,7 @@
 
 	tmuctrl_2: LITTLE@100A0000 {
 		compatible = "samsung,gs101-tmu-v2";
-		reg = <0x0 0x1000000 0x800>;
+		reg = <0x0 0x100A0000 0x800>;
 		interrupts = <GIC_SPI IRQ_TMU_TMU_TOP_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "LITTLE";
 		id = <2>;
