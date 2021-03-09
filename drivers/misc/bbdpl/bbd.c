@@ -574,12 +574,13 @@ ssize_t bbd_patch_read(
 }
 
 #ifdef BBD_PWR_STATUS
+#define BBD_MAX_PWRSTAT_SIZE 512
+
 ssize_t bbd_pwrstat_read(
 	struct file *filp, char __user *buf, size_t size, loff_t *ppos)
 {
-
-	const int MAX_SIZE = 512;
-	char buf2[MAX_SIZE];
+	const int MAX_SIZE = BBD_MAX_PWRSTAT_SIZE;
+	char buf2[BBD_MAX_PWRSTAT_SIZE];
 	int ret = 0;
 	u64 now, gps_on_dur, gps_off_dur;
 	struct gnss_pwrstats *pwrstats = &bbd.priv[BBD_MINOR_PWRSTAT].pwrstats;
