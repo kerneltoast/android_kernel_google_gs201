@@ -964,6 +964,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	}
 	exynos->dwc->gadget->sg_supported = false;
 	exynos->dwc->imod_interval = 100;
+	pm_runtime_dont_use_autosuspend(exynos->dwc->dev);
 
 	/* set the initial value */
 	exynos->usb_data_enabled = true;
