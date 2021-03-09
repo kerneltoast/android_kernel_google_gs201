@@ -135,7 +135,6 @@ struct vclk {
 	unsigned int		min_freq;
 	unsigned int		boot_freq;
 	unsigned int		resume_freq;
-	int			margin_id;
 	struct vclk_switch	*switch_info;
 	struct vclk_trans_ops	*ops;
 #ifdef CONFIG_DEBUG_FS
@@ -175,31 +174,6 @@ enum clk_pll_type {
 	PLL_1031X = 10310,
 
 	DPL_L0817X = 138170,
-};
-
-enum margin_id {
-	MARGIN_MIF,
-	MARGIN_INT,
-	MARGIN_BIG,
-	MARGIN_LIT,
-	MARGIN_G3D,
-	MARGIN_INTCAM,
-	MARGIN_CAM,
-	MARGIN_DISP,
-	MARGIN_G3DM,
-	MARGIN_CP,
-	MARGIN_FSYS0,
-	MARGIN_AUD,
-	MARGIN_IVA,
-	MARGIN_SCORE,
-	MARGIN_MFC,
-	MARGIN_NPU,
-	MARGIN_MID,
-	MARGIN_G3DL2,
-	MARGIN_TPU,
-	MARGIN_TNR,
-	MARGIN_BO,
-	MAX_MARGIN_ID,
 };
 
 #define IS_FIXED_RATE(_id)	((_id & MASK_OF_TYPE) == FIXED_RATE_TYPE)
@@ -437,9 +411,9 @@ struct cmucal_clkout {
 	.ops		= NULL,						\
 }
 
-#define CMUCAL_ACPM_VCLK(_id, _lut, _list, _seq, _switch, _margin_id)	\
-[_id & MASK_OF_ID] = {	\
-	.id		= _id,						\
+#define CMUCAL_ACPM_VCLK(_id, _lut, _list, _seq, _switch)		\
+[_id & MASK_OF_ID] = {							\
+	.id		= (_id),					\
 	.name		= #_id,						\
 	.lut		= _lut,						\
 	.list		= _list,					\
@@ -448,7 +422,6 @@ struct cmucal_clkout {
 	.num_list	= (sizeof(_list) / sizeof(enum clk_id)),	\
 	.switch_info	= _switch,					\
 	.ops		= NULL,						\
-	.margin_id	= _margin_id,					\
 }
 
 #define SFR_BLOCK(_id, _pa, _size) \
