@@ -162,6 +162,8 @@
 		max77759,max_m5 = <&max77759_fg>;
 		max77759,pmic = <&max77729_pmic>;
 
+		max77759,chg-term-voltage = <4400>;
+
 		#thermal-sensor-cells = <1>;
 	};
 
