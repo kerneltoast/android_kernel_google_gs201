@@ -83,7 +83,6 @@
 #define PMIC_OVERHEAT_UPPER_LIMIT (2000)
 #define PMIC_120C_UPPER_LIMIT (1200)
 #define PMIC_140C_UPPER_LIMIT (1400)
-#define BUF_SIZE 192
 #define PMU_ALIVE_CPU0_OUT (0x1CA0)
 #define PMU_ALIVE_CPU1_OUT (0x1D20)
 #define PMU_ALIVE_CPU2_OUT (0x1DA0)
@@ -789,12 +788,23 @@ static int battery_supply_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int gs101_bcl_soc_remove(struct gs101_bcl_dev *gs101_bcl_device)
+static int gs101_bcl_remove(struct gs101_bcl_dev *bcl_dev)
 {
-	power_supply_unreg_notifier(&gs101_bcl_device->psy_nb);
-	if (gs101_bcl_device->soc_tzd)
-		thermal_zone_of_sensor_unregister(gs101_bcl_device->device,
-						  gs101_bcl_device->soc_tzd);
+	int i = 0;
+
+	power_supply_unreg_notifier(&bcl_dev->psy_nb);
+	if (bcl_dev->soc_tzd)
+		thermal_zone_of_sensor_unregister(bcl_dev->device, bcl_dev->soc_tzd);
+	for (i = 0; i < IRQ_SOURCE_S2MPG10_MAX; i++) {
+		if (bcl_dev->s2mpg10_tz_irq[i])
+			thermal_zone_of_sensor_unregister(bcl_dev->device,
+							  bcl_dev->s2mpg10_tz_irq[i]);
+	}
+	for (i = 0; i < IRQ_SOURCE_S2MPG11_MAX; i++) {
+		if (bcl_dev->s2mpg11_tz_irq[i])
+			thermal_zone_of_sensor_unregister(bcl_dev->device,
+							  bcl_dev->s2mpg11_tz_irq[i]);
+	}
 
 	return 0;
 }
@@ -1364,12 +1374,12 @@ static ssize_t mpmm_settings_show(struct device *dev, struct device_attribute *a
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-	unsigned int reg = 0;
+	unsigned int reg = 0, len;
 	unsigned int state_big7, state_big6;
 	void __iomem *addr;
 
 	if (!bcl_dev->sysreg_cpucl0)
-		return scnprintf(buf, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
+		return scnprintf(buf, PAGE_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
 
 	mutex_lock(&sysreg_lock);
 	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_MPMM;
@@ -1377,12 +1387,23 @@ static ssize_t mpmm_settings_show(struct device *dev, struct device_attribute *a
 	mutex_unlock(&sysreg_lock);
 	state_big7 = (reg >> 2) & 0x3;
 	state_big6  = reg & 0x3;
-	return scnprintf(buf, BUF_SIZE,
-			 "Reg: 0x%x\n%s: 0x%x\n%s: 0x%x,%s\n%s: 0x%x,%s\n%s:\n%s\n\n",
-			 reg, "CAPTURE_ENABLE [4]", reg >> 4,
-			 "MPMMSTATE_BIG7 [3:2]", state_big7, mpmm_gear_parse(state_big7),
-			 "MPMMSTATE_BIG6 [1:0]", state_big6, mpmm_gear_parse(state_big6),
-			 "To set", "echo 0x(value) > mpmm_settings");
+	len = scnprintf(buf, PAGE_SIZE, "Value\tSettings\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n",
+			 0, "Gear 0", 1, "Gear 1", 2,
+			 "Gear 2", 3, "Disabled", 4);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			"Reg: 0x%x\n%s: 0x%x\n%s: 0x%x,%s\n%s: 0x%x,%s\n%s:\n%s\n\n",
+			reg, "CAPTURE_ENABLE [4]", reg >> 4, "MPMMSTATE_BIG7 [3:2]",
+			state_big7, mpmm_gear_parse(state_big7), "MPMMSTATE_BIG6 [1:0]",
+			state_big6, mpmm_gear_parse(state_big6),
+			"To set", "echo 0x(value) > mpmm_settings");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Value\tSettings\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n",
+			 0, "Gear 0", 1, "Gear 1", 2,
+			 "Gear 2", 3, "Disabled", 4);
+	return len;
 }
 
 static DEVICE_ATTR_RW(mpmm_settings);
@@ -1439,12 +1460,12 @@ static ssize_t ppm_settings_show(struct device *dev, struct device_attribute *at
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-	unsigned int reg = 0;
+	unsigned int reg = 0, len;
 	unsigned int ppmctl7, ppmctl6, ocp_en_big;
 	void __iomem *addr;
 
 	if (!bcl_dev->sysreg_cpucl0)
-		return scnprintf(buf, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
+		return scnprintf(buf, PAGE_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
 
 	mutex_lock(&sysreg_lock);
 	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM;
@@ -1453,12 +1474,17 @@ static ssize_t ppm_settings_show(struct device *dev, struct device_attribute *at
 	ocp_en_big = test_bit(8, (unsigned long *)&reg);
 	ppmctl7 = (reg >> 4) & 0xF;
 	ppmctl6 = reg & 0xF;
-	return scnprintf(buf, BUF_SIZE,
-			 "0x%x\n%s: %d\n%s: 0x%x\n%s: 0x%x\n%s:\n%s\n\n",
-			 reg, "PPMOCP_EN_BIG [8]", ocp_en_big,
-			 "PPMCTL7 BIG1 [7:4]", ppmctl7, "PPMCTL6 BIG0 [3:0]", ppmctl6,
-			 "To set", "echo 0x(value) > ppm_settings");
-
+	len = scnprintf(buf, PAGE_SIZE, "Reg: 0x%x\n%s: %d\n%s: 0x%x\n%s: 0x%x\n%s:\n%s\n\n",
+			reg, "PPMOCP_EN_BIG [8]", ocp_en_big, "PPMCTL7 BIG1 [7:4]", ppmctl7,
+			"PPMCTL6 BIG0 [3:0]", ppmctl6, "To set", "echo 0x(value) > ppm_settings");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Value\tDispatch Reduction\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n",
+			 0, "0 percent reduction", 1, "12 percent reduction", 2,
+			 "25 percent reduction", 3, "30 percent reduction", 4,
+			 "35 percent reduction", 5, "40 percent reduction", 6,
+			 "75 percent reduction");
+	return len;
 }
 
 static DEVICE_ATTR_RW(ppm_settings);
@@ -1984,7 +2010,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	return 0;
 
 bcl_soc_probe_exit:
-	gs101_bcl_soc_remove(bcl_dev);
+	gs101_bcl_remove(bcl_dev);
 	return ret;
 }
 
@@ -1993,7 +2019,7 @@ static int google_gs101_bcl_remove(struct platform_device *pdev)
 	struct gs101_bcl_dev *gs101_bcl_device = platform_get_drvdata(pdev);
 
 	pmic_device_destroy(gs101_bcl_device->device->devt);
-	gs101_bcl_soc_remove(gs101_bcl_device);
+	gs101_bcl_remove(gs101_bcl_device);
 	debugfs_remove(gs101_bcl_device->debug_entry);
 
 	return 0;
