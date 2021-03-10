@@ -321,6 +321,22 @@ static int dit_check_dst_ready(enum dit_direction dir, enum dit_desc_ring ring_n
 	return 0;
 }
 
+static inline bool dit_check_queues_empty(enum dit_direction dir)
+{
+	struct dit_desc_info *desc_info = &dc->desc_info[dir];
+	unsigned int ring_num;
+
+	if (!circ_empty(desc_info->src_wp, desc_info->src_rp))
+		return false;
+
+	for (ring_num = DIT_DST_DESC_RING_0; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
+		if (!circ_empty(desc_info->dst_wp[ring_num], desc_info->dst_rp[ring_num]))
+			return false;
+	}
+
+	return true;
+}
+
 static bool dit_is_reg_value_valid(u32 value, u32 offset)
 {
 	struct nat_local_port local_port;
@@ -1040,16 +1056,16 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			dst_desc->packet_info = 0;
 			dst_desc->status = 0;
 
-			rcvd_total++;
+			ret = dit_pass_to_net(ring_num, skb);
 
-			/* update dst rp */
+			/* update dst rp after dit_pass_to_net */
 			desc_info->dst_rp[ring_num] = circ_new_ptr(desc_info->dst_desc_ring_len,
 				desc_info->dst_rp[ring_num], 1);
-
+			rcvd_total++;
 #if defined(DIT_DEBUG_LOW)
 			snapshot[DIT_DIR_RX][ring_num].alloc_skbs--;
 #endif
-			ret = dit_pass_to_net(ring_num, skb);
+
 			if (ret < 0)
 				break;
 		}
@@ -1733,12 +1749,6 @@ exit:
 }
 EXPORT_SYMBOL(dit_init);
 
-int dit_deinit(void)
-{
-	return 0;
-}
-EXPORT_SYMBOL(dit_deinit);
-
 static int dit_register_irq(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1791,8 +1801,9 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "hw_ver:0x%08X reg_ver:%lu\n",
 		dc->hw_version, dc->reg_version);
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "use tx:%d rx:%d clat:%d\n",
-		dc->use_tx, dc->use_rx, dc->use_clat);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "use tx:%d rx:%d(stop:%d) clat:%d\n",
+		dc->use_dir[DIT_DIR_TX], dc->use_dir[DIT_DIR_RX], dc->stop_enqueue[DIT_DIR_RX],
+		dc->use_clat);
 
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
 		desc_info = &dc->desc_info[dir];
@@ -1992,14 +2003,14 @@ static ssize_t debug_use_tx_store(struct device *dev, struct device_attribute *a
 	if (ret)
 		return -EINVAL;
 
-	dc->use_tx = (flag > 0 ? true : false);
+	dc->use_dir[DIT_DIR_TX] = (flag > 0 ? true : false);
 	return count;
 }
 
 static ssize_t debug_use_tx_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "use_tx: %d\n", dc->use_tx);
+	return scnprintf(buf, PAGE_SIZE, "use_tx: %d\n", dc->use_dir[DIT_DIR_TX]);
 }
 
 static ssize_t debug_use_rx_store(struct device *dev, struct device_attribute *attr,
@@ -2012,14 +2023,14 @@ static ssize_t debug_use_rx_store(struct device *dev, struct device_attribute *a
 	if (ret)
 		return -EINVAL;
 
-	dc->use_rx = (flag > 0 ? true : false);
+	dc->use_dir[DIT_DIR_RX] = (flag > 0 ? true : false);
 	return count;
 }
 
 static ssize_t debug_use_rx_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "use_rx: %d\n", dc->use_rx);
+	return scnprintf(buf, PAGE_SIZE, "use_rx: %d\n", dc->use_dir[DIT_DIR_RX]);
 }
 
 static ssize_t debug_use_clat_store(struct device *dev, struct device_attribute *attr,
@@ -2130,23 +2141,20 @@ ATTRIBUTE_GROUPS(dit);
 
 bool dit_check_dir_use_queue(enum dit_direction dir, unsigned int queue_num)
 {
+	static unsigned int target_queue[DIT_DIR_MAX] = {
+		DIT_PKTPROC_TX_QUEUE_NUM,
+		DIT_PKTPROC_RX_QUEUE_NUM};
+
 	if (!dc)
 		return false;
 
-	switch (dir) {
-	case DIT_DIR_TX:
-		if (dc->use_tx && (queue_num == DIT_PKTPROC_TX_QUEUE_NUM))
-			return true;
-		break;
-	case DIT_DIR_RX:
-		if (dc->use_rx && (queue_num == DIT_PKTPROC_RX_QUEUE_NUM))
-			return true;
-		break;
-	default:
-		break;
-	}
+	if (!dc->use_dir[dir] || queue_num != target_queue[dir])
+		return false;
 
-	return false;
+	if (dc->stop_enqueue[dir] && dit_check_queues_empty(dir))
+		return false;
+
+	return true;
 }
 EXPORT_SYMBOL(dit_check_dir_use_queue);
 
@@ -2266,7 +2274,7 @@ int dit_reset_dst_wp_rp(enum dit_direction dir)
 		return -EPERM;
 
 	desc_info = &dc->desc_info[dir];
-	for (ring_num = 0; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
+	for (ring_num = DIT_DST_DESC_RING_0; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
 		desc_info->dst_wp[ring_num] = 0;
 		desc_info->dst_rp[ring_num] = 0;
 		dit_set_dst_desc_int_range(dir, ring_num);
@@ -2349,12 +2357,18 @@ static int dit_read_dt(struct device_node *np)
 
 	mif_dt_read_u32(np, "dit_hw_capabilities", dc->hw_capabilities);
 
-	mif_dt_read_bool(np, "dit_use_tx", dc->use_tx);
-	mif_dt_read_bool(np, "dit_use_rx", dc->use_rx);
+	mif_dt_read_bool(np, "dit_use_tx", dc->use_dir[DIT_DIR_TX]);
+	mif_dt_read_bool(np, "dit_use_rx", dc->use_dir[DIT_DIR_RX]);
 	mif_dt_read_bool(np, "dit_use_clat", dc->use_clat);
-	mif_dt_read_bool(np, "dit_hal_linked", dc->hal_linked);
-	mif_dt_read_u32(np, "dit_rx_extra_desc_ring_len", dc->rx_extra_desc_ring_len);
 
+	mif_dt_read_bool(np, "dit_hal_support", dc->hal_support);
+	if (dc->hal_support) {
+		mif_dt_read_bool(np, "dit_hal_enqueue_rx", dc->hal_enqueue_rx);
+		if (dc->hal_enqueue_rx)
+			dc->stop_enqueue[DIT_DIR_RX] = true;
+	}
+
+	mif_dt_read_u32(np, "dit_rx_extra_desc_ring_len", dc->rx_extra_desc_ring_len);
 	mif_dt_read_u32(np, "dit_irq_affinity", dc->irq_affinity);
 
 	return 0;
@@ -2464,8 +2478,8 @@ int dit_create(struct platform_device *pdev)
 	}
 
 	mif_info("dit created. hw_ver:0x%08X, tx:%d, rx:%d, clat:%d, hal:%d, ext_len:%d, irq:%d\n",
-		dc->hw_version, dc->use_tx, dc->use_rx, dc->use_clat, dc->hal_linked,
-		dc->rx_extra_desc_ring_len, dc->irq_affinity);
+		dc->hw_version, dc->use_dir[DIT_DIR_TX], dc->use_dir[DIT_DIR_RX], dc->use_clat,
+		dc->hal_support, dc->rx_extra_desc_ring_len, dc->irq_affinity);
 
 	return 0;
 

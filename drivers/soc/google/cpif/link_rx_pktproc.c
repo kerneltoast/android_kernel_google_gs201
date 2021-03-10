@@ -470,7 +470,14 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 static int pktproc_update_fore_ptr(struct pktproc_queue *q, u32 count)
 {
+	unsigned long flags;
+
+	if (!count)
+		return 0;
+
+	spin_lock_irqsave(&q->lock, flags);
 	*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, count);
+	spin_unlock_irqrestore(&q->lock, flags);
 
 	return 0;
 }
@@ -704,7 +711,7 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 {
 	int ret = 0;
 	u32 num_frames = 0;
-	u32 rcvd = 0;
+	u32 rcvd_total = 0, rcvd_dit = 0;
 
 	if (!pktproc_check_active(q->ppa, q->q_idx))
 		return -EACCES;
@@ -723,7 +730,7 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 			q->q_idx, num_frames, q->use_memcpy,
 			*q->fore_ptr, *q->rear_ptr, q->done_ptr);
 
-	while (rcvd < num_frames) {
+	while (rcvd_total < num_frames) {
 		struct sk_buff *skb = NULL;
 
 		ret = q->get_packet(q, &skb);
@@ -732,44 +739,41 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 			break;
 		}
 
-		if (dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx)) {
-			rcvd++;
+		rcvd_total++;
+		/* skb will be null if dit fills the skb */
+		if (!skb) {
+			rcvd_dit++;
 			continue;
 		}
-
-		if (unlikely(!skb)) {
-			mif_err_limited("skb is null\n");
-			ret = -ENOMEM;
-			break;
-		}
-
-		rcvd++;
 
 		ret = q->mld->pass_skb_to_net(q->mld, skb);
 		if (ret < 0)
 			break;
 	}
 
-	if (dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx)) {
-		pp_debug("rcvd for dit:%d\n", rcvd);
-		if (rcvd > 0)
-			dit_kick(DIT_DIR_RX, false);
-	} else {
-#if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
-		if (rcvd)
-			tpmon_start();
-#endif
-		if (q->ppa->manager) {
-			ret = q->alloc_rx_buf(q);
-			if (ret)
-				mif_err_limited("alloc_rx_buf() error %d Q%d\n", ret, q->q_idx);
-		} else {
-			q->update_fore_ptr(q, rcvd);
-		}
+	if (rcvd_dit) {
+		dit_kick(DIT_DIR_RX, false);
+
+		/* dit processed every packets*/
+		if (rcvd_dit == rcvd_total)
+			goto out;
 	}
 
+#if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
+	if (rcvd_total - rcvd_dit > 0)
+		tpmon_start();
+#endif
+	if (q->ppa->manager) {
+		ret = q->alloc_rx_buf(q);
+		if (ret)
+			mif_err_limited("alloc_rx_buf() error %d Q%d\n", ret, q->q_idx);
+	} else {
+		q->update_fore_ptr(q, rcvd_total - rcvd_dit);
+	}
+
+out:
 	if (q->ppa->use_napi)
-		*work_done = rcvd;
+		*work_done = rcvd_total;
 
 	return ret;
 }

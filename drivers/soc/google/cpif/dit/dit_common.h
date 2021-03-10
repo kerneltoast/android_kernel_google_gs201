@@ -198,10 +198,11 @@ struct dit_ctrl_t {
 	u32 hw_version;
 	u32 reg_version;
 	u32 hw_capabilities;
-	bool use_tx;
-	bool use_rx;
+	bool use_dir[DIT_DIR_MAX];
+	bool stop_enqueue[DIT_DIR_MAX];
 	bool use_clat;
-	bool hal_linked;
+	bool hal_support;
+	bool hal_enqueue_rx;
 	u32 rx_extra_desc_ring_len;
 
 	struct dit_desc_info desc_info[DIT_DIR_MAX];

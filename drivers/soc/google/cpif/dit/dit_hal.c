@@ -76,7 +76,7 @@ static int dit_hal_init(void)
 	struct offload_event_item *event_item;
 	unsigned long flags;
 
-	if (!dc->hal_linked) {
+	if (!dc->hal_support) {
 		mif_err("does not support hal\n");
 		return -EPERM;
 	}
@@ -551,6 +551,15 @@ static void dit_hal_set_clat_hal_ready(u32 value)
 	dc->clat_hal_ready = (value ? true : false);
 }
 
+static void dit_hal_try_stop_enqueue_rx(bool stop)
+{
+	if (unlikely(!dc))
+		return;
+
+	if (dc->hal_enqueue_rx)
+		dc->stop_enqueue[DIT_DIR_RX] = stop;
+}
+
 static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct iface_info info;
@@ -572,6 +581,7 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 	switch (cmd) {
 	case OFFLOAD_IOCTL_INIT_OFFLOAD:
 		mif_info("hal init\n");
+
 		ret = dit_hal_init();
 		if (ret) {
 			mif_err("hal init failed. ret: %d\n", ret);
@@ -582,15 +592,19 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			mif_err("hal buffer fill failed. ret: %d\n", ret);
 			return ret;
 		}
+
+		dit_hal_try_stop_enqueue_rx(false);
 		spin_lock(&dhc->hal_lock);
 		dhc->hal_enabled = true;
 		spin_unlock(&dhc->hal_lock);
 		break;
 	case OFFLOAD_IOCTL_STOP_OFFLOAD:
 		mif_info("hal stopped\n");
+
 		spin_lock(&dhc->hal_lock);
 		dhc->hal_enabled = false;
 		spin_unlock(&dhc->hal_lock);
+		dit_hal_try_stop_enqueue_rx(true);
 
 		dit_hal_set_event(INTERNAL_OFFLOAD_STOPPED);
 
