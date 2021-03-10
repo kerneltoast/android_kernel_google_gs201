@@ -22,9 +22,10 @@ extern void update_uclamp_stats(int cpu, u64 time);
 extern bool vendor_sched_enable_prefer_high_cap;
 extern bool vendor_sched_task_spreading_enable;
 extern unsigned int vendor_sched_uclamp_threshold;
+extern unsigned int vendor_sched_util_threshold;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = UTIL_THRESHOLD};
+			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD};
 static unsigned long scale_freq[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
 
@@ -864,7 +865,7 @@ void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap)
 {
-	return (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap;
+	return (freq * vendor_sched_util_threshold >> SCHED_CAPACITY_SHIFT) * util / cap;
 }
 
 void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
@@ -932,4 +933,12 @@ void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp
 
 	*uclamp_eff = uc_req;
 	return;
+}
+
+void update_sched_capacity_margin(unsigned int util_threshold)
+{
+	int i;
+
+	for (i = 0; i < CPU_NUM; i++)
+		sched_capacity_margin[i] = util_threshold;
 }
