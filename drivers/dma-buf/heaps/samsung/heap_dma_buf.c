@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include <uapi/linux/dma-buf.h>
 
+#include "dmabuf_heap_trace.h"
+
 struct dma_iovm_map {
 	struct list_head list;
 	struct device *dev;
@@ -443,6 +445,7 @@ static void samsung_heap_dma_buf_release(struct dma_buf *dmabuf)
 
 	dma_iova_release(dmabuf);
 
+	samsung_track_buffer_destroyed(buffer);
 	buffer->heap->release(buffer);
 }
 

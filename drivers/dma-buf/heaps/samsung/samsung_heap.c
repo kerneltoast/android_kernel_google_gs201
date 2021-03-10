@@ -17,6 +17,24 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 
+#define CREATE_TRACE_POINTS
+#include "dmabuf_heap_trace.h"
+
+static atomic_long_t total_exported;
+
+static void samsung_track_buffer_created(struct samsung_dma_buffer *buffer)
+{
+	long total = atomic_long_add_return(buffer->len, &total_exported);
+
+	trace_dma_heap_stat(buffer->ino, buffer->len, total);
+}
+
+void samsung_track_buffer_destroyed(struct samsung_dma_buffer *buffer)
+{
+	long total = atomic_long_sub_return(buffer->len, &total_exported);
+
+	trace_dma_heap_stat(buffer->ino, -buffer->len, total);
+}
 
 void heap_cache_flush(struct samsung_dma_buffer *buffer)
 {
@@ -226,13 +244,25 @@ heap_put:
 struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags)
 {
 	DEFINE_SAMSUNG_DMA_BUF_EXPORT_INFO(exp_info, buffer->heap->name);
+	struct dma_buf *dmabuf;
 
 	exp_info.ops = &samsung_dma_buf_ops;
 	exp_info.size = buffer->len;
 	exp_info.flags = fd_flags;
 	exp_info.priv = buffer;
 
-	return dma_buf_export(&exp_info);
+	dmabuf = dma_buf_export(&exp_info);
+
+	if (!IS_ERR(dmabuf)) {
+		/*
+		 * We stash the inode number in buffer for tracing purposes
+		 * since by the time the dma_buf_release() op is called the
+		 * inode will have been released.
+		 */
+		buffer->ino = file_inode(dmabuf->file)->i_ino;
+		samsung_track_buffer_created(buffer);
+	}
+	return dmabuf;
 }
 EXPORT_SYMBOL_GPL(samsung_export_dmabuf);
 
