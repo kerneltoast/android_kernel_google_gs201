@@ -194,10 +194,10 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 		vclk = cmucal_get_node(ACPM_VCLK_TYPE | i);
 		if (vclk == NULL)
 			continue;
-		pr_info("dvfs_type : %s - id : %x\n",
-			vclk->name, fvmap_header[i].dvfs_type);
-		pr_info("  num_of_lv      : %d\n", fvmap_header[i].num_of_lv);
-		pr_info("  num_of_members : %d\n", fvmap_header[i].num_of_members);
+		pr_debug("dvfs_type : %s - id : %x\n",
+			 vclk->name, fvmap_header[i].dvfs_type);
+		pr_debug("  num_of_lv      : %d\n", fvmap_header[i].num_of_lv);
+		pr_debug("  num_of_members : %d\n", fvmap_header[i].num_of_members);
 
 		old = sram_base + fvmap_header[i].o_ratevolt;
 		new = map_base + fvmap_header[i].o_ratevolt;
@@ -223,9 +223,9 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 			vclk->list[j] = cmucal_get_id_by_addr(member_addr);
 
 			if (vclk->list[j] == INVALID_CLK_ID)
-				pr_info("  Invalid addr :0x%x\n", member_addr);
+				pr_err("  Invalid addr :0x%x\n", member_addr);
 			else
-				pr_info("  DVFS CMU addr:0x%x\n", member_addr);
+				pr_debug("  DVFS CMU addr:0x%x\n", member_addr);
 		}
 
 		if ((strcmp(vclk->name, "MIF") == 0)
@@ -260,9 +260,9 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 					volt = volt + margin;
 				}
 			}
-			pr_info("  lv : [%7d], volt = %d uV (%+d uV)\n",
-				new->table[j].rate, new->table[j].volt,
-				volt - new->table[j].volt);
+			pr_debug("  lv : [%7d], volt = %d uV (%+d uV)\n",
+				 new->table[j].rate, new->table[j].volt,
+				 volt - new->table[j].volt);
 		}
 	}
 }
@@ -336,7 +336,7 @@ int fvmap_init(void __iomem *sram_base)
 		ret = of_property_read_string(np, "l123_restrict", &str);
 
 	if ((str) && (!ret)) {
-		pr_info("%s:fvmap l123_restrict=%s\n", __func__, str);
+		pr_debug("%s:fvmap l123_restrict=%s\n", __func__, str);
 		l123_restrict = (str[0] != '0');
 	}
 
@@ -344,7 +344,7 @@ int fvmap_init(void __iomem *sram_base)
 
 	fvmap_base = map_base;
 	sram_fvmap_base = sram_base;
-	pr_info("%s:fvmap initialize %p\n", __func__, sram_base);
+	pr_debug("%s:fvmap initialize %p\n", __func__, sram_base);
 
 	margin_table_init();
 	fvmap_copy_from_sram(map_base, sram_base);
