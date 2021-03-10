@@ -86,9 +86,6 @@
 
 			google_bms {
 				nvmem = <&pack_bee>;
-				nvmem-names = "5-00500";
-				/* pack eeprom is available only with P20+ batteries */
-				google,bee-name = "5-00500";
 			};
 
 		};

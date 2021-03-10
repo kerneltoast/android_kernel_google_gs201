@@ -20,3 +20,16 @@
 	pca9468,charging-current = <5000000>; /* 5A */
 	pca9468,input-current-limit = <3000000>; /* 3.0A */
 };
+
+/ {
+	fragment@battery {
+		target-path = "/";
+		__overlay__ {
+			google_bms {
+				nvmem-names = "5-00500";
+				/* pack eeprom is available only with P20+ batteries */
+				google,bee-name = "5-00500";
+			};
+		};
+	};
+};
