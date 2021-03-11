@@ -15,9 +15,6 @@
 #define BIGO_REG_PRODUCT 0x00
 #define BIGO_REG_CFG 0x04
 #define BIGO_REG_STAT 0x08
-#define BIGO_REG_HW_CYCLES 0x10
-#define BIGO_REG_RD_BW 0x14
-#define BIGO_REG_WR_BW 0x18
 
 #define BIGO_CFG_H264 BIT(2)
 #define BIGO_CFG_VP9D BIT(3)

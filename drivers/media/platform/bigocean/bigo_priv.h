@@ -43,10 +43,19 @@ struct bigo_opp {
 	u32 load_pps;
 };
 
+struct bigo_bw {
+	struct list_head list;
+	u32 load_pps;
+	u32 rd_bw;
+	u32 wr_bw;
+	u32 pk_bw;
+};
+
 struct power_manager {
 	int bwindex;
 	struct exynos_pm_qos_request qos_bigo;
 	struct list_head opps;
+	struct list_head bw;
 	u32 max_load;
 	u32 min_freq;
 };
@@ -63,11 +72,6 @@ struct slc_manager {
 struct bigo_job {
 	void *regs;
 	size_t regs_size;
-};
-
-struct bigo_bw {
-	u32 rd_bw;
-	u32 wr_bw;
 };
 
 struct bigo_debugfs {

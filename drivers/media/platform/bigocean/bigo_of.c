@@ -76,6 +76,16 @@ static void bigo_of_remove_opp_table(struct bigo_core *core)
 	}
 }
 
+static void bigo_of_remove_bw_table(struct bigo_core *core)
+{
+	struct bigo_bw *bw, *tmp;
+
+	list_for_each_entry_safe(bw, tmp, &core->pm.bw, list) {
+		list_del(&bw->list);
+		kfree(bw);
+	}
+}
+
 static int bigo_of_parse_opp_table(struct bigo_core *core)
 {
 	int rc = 0;
@@ -117,6 +127,53 @@ err_add_table:
 	return rc;
 }
 
+static int bigo_of_parse_bw_table(struct bigo_core *core)
+{
+	int rc = 0;
+	struct device_node *np;
+	struct bigo_bw *bw;
+
+	struct device_node *bw_np =
+		of_parse_phandle(core->dev->of_node, "bigo-bw-table", 0);
+	if (!bw_np) {
+		return -ENOENT;
+		goto err_add_table;
+	}
+	for_each_available_child_of_node(bw_np, np) {
+		bw = kmalloc(sizeof(*bw), GFP_KERNEL);
+		if (!bw) {
+			rc = -ENOMEM;
+			goto err_entry;
+		}
+		rc = of_property_read_u32(np, "load-pps", &bw->load_pps);
+		if (rc < 0) {
+			kfree(bw);
+			goto err_entry;
+		}
+		rc = of_property_read_u32(np, "rd-bw", &bw->rd_bw);
+		if (rc < 0) {
+			kfree(bw);
+			goto err_entry;
+		}
+		rc = of_property_read_u32(np, "wr-bw", &bw->wr_bw);
+		if (rc < 0) {
+			kfree(bw);
+			goto err_entry;
+		}
+		rc = of_property_read_u32(np, "pk-bw", &bw->pk_bw);
+		if (rc < 0) {
+			kfree(bw);
+			goto err_entry;
+		}
+		list_add_tail(&bw->list, &core->pm.bw);
+	}
+	return rc;
+err_entry:
+	bigo_of_remove_bw_table(core);
+err_add_table:
+	return rc;
+}
+
 int bigo_of_dt_parse(struct bigo_core *core)
 {
 	int rc = 0;
@@ -130,7 +187,13 @@ int bigo_of_dt_parse(struct bigo_core *core)
 	rc = bigo_of_parse_opp_table(core);
 	if (rc < 0) {
 		pr_err("failed to parse bigocean OPP table\n");
-		goto err_parse_table;
+		goto err_parse_opp_table;
+	}
+
+	rc = bigo_of_parse_bw_table(core);
+	if (rc < 0) {
+		pr_err("failed to parse bigocean bandwidth table\n");
+		goto err_parse_bw_table;
 	}
 
 	core->pm.bwindex = bts_get_bwindex("bo");
@@ -141,8 +204,10 @@ int bigo_of_dt_parse(struct bigo_core *core)
 
 	return rc;
 err_bwindex:
+	bigo_of_remove_bw_table(core);
+err_parse_bw_table:
 	bigo_of_remove_opp_table(core);
-err_parse_table:
+err_parse_opp_table:
 err_get_res:
 	return rc;
 }
