@@ -6,6 +6,8 @@
  *
  */
 
+#include "gs101-raviole-battery.dtsi"
+
 &google_battery {
 	google,chg-battery-capacity = <4520>;
 };
