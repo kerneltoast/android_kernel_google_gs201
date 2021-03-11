@@ -11,6 +11,143 @@
 
 static struct dit_ctrl_t *dc;
 
+static bool dit_check_nat_enabled(void)
+{
+	unsigned int ring_num;
+
+	for (ring_num = DIT_DST_DESC_RING_1; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
+		if (dit_check_dst_ready(DIT_DIR_RX, ring_num) == 0)
+			return true;
+	}
+
+	return false;
+}
+
+static void dit_check_clat_enabled_internal(struct io_device *iod, void *args)
+{
+	bool *enabled = (bool *)args;
+
+	if (*enabled || !dc->ld->is_ps_ch(iod->ch))
+		return;
+
+	if (iod->clat_ndev)
+		*enabled = true;
+}
+
+static bool dit_check_clat_enabled(void)
+{
+	bool enabled = false;
+
+	if (unlikely(!dc->ld))
+		return false;
+
+	iodevs_for_each(dc->ld->msd, dit_check_clat_enabled_internal, &enabled);
+
+	return enabled;
+}
+
+static int dit_reg_backup_restore_internal(bool backup, const u16 *offset,
+					   const u16 *size, void **buf,
+					   const unsigned int arr_len)
+{
+	unsigned long flags;
+	unsigned int i;
+	int ret = 0;
+
+	for (i = 0; i < arr_len; i++) {
+		if (!buf[i]) {
+			buf[i] = kvzalloc(size[i], GFP_KERNEL);
+			if (!buf[i]) {
+				ret = -ENOMEM;
+				goto exit;
+			}
+		}
+
+		spin_lock_irqsave(&dc->src_lock, flags);
+		if (dit_is_kicked_any() || !dc->init_done) {
+			ret = -EAGAIN;
+			spin_unlock_irqrestore(&dc->src_lock, flags);
+			goto exit;
+		}
+
+		if (backup)
+			BACKUP_REG_VALUE(dc, buf[i], offset[i], size[i]);
+		else
+			RESTORE_REG_VALUE(dc, buf[i], offset[i], size[i]);
+		spin_unlock_irqrestore(&dc->src_lock, flags);
+	}
+
+exit:
+	/* reset buffer if failed to backup */
+	if (unlikely(ret && backup)) {
+		for (i = 0; i < arr_len; i++) {
+			if (buf[i])
+				memset(buf[i], 0, size[i]);
+		}
+	}
+
+	return ret;
+}
+
+static int dit_reg_backup_restore(bool backup)
+{
+	/* NAT */
+	static const u16 nat_offset[] = {
+		DIT_REG_NAT_LOCAL_ADDR,
+		DIT_REG_NAT_ETHERNET_DST_MAC_ADDR_0,
+		DIT_REG_NAT_RX_PORT_TABLE_SLOT,
+	};
+	static const u16 nat_size[] = {
+		(DIT_REG_NAT_LOCAL_ADDR_MAX * DIT_REG_NAT_LOCAL_INTERVAL),
+		(DIT_REG_NAT_LOCAL_ADDR_MAX * DIT_REG_ETHERNET_MAC_INTERVAL),
+		(DIT_REG_NAT_LOCAL_PORT_MAX * DIT_REG_NAT_LOCAL_INTERVAL),
+	};
+	static const unsigned int nat_len = ARRAY_SIZE(nat_offset);
+	static void *nat_buf[ARRAY_SIZE(nat_offset)];
+
+	/* CLAT */
+	static const u16 clat_offset[] = {
+		DIT_REG_CLAT_TX_FILTER,
+		DIT_REG_CLAT_TX_PLAT_PREFIX_0,
+		DIT_REG_CLAT_TX_CLAT_SRC_0,
+	};
+	static const u16 clat_size[] = {
+		(DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_FILTER_INTERVAL),
+		(DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL),
+		(DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL),
+	};
+	static const unsigned int clat_len = ARRAY_SIZE(clat_offset);
+	static void *clat_buf[ARRAY_SIZE(clat_offset)];
+
+	int ret = 0;
+
+	if (unlikely(!dc))
+		return -EPERM;
+
+	/* NAT */
+	if (dit_check_nat_enabled()) {
+		ret = dit_reg_backup_restore_internal(backup, nat_offset,
+						      nat_size, nat_buf, nat_len);
+		if (ret)
+			goto error;
+	}
+
+	/* CLAT */
+	if (dit_check_clat_enabled()) {
+		ret = dit_reg_backup_restore_internal(backup, clat_offset,
+						      clat_size, clat_buf, clat_len);
+		if (ret)
+			goto error;
+	}
+
+	return 0;
+
+error:
+	mif_err("backup/restore failed is_backup:%d, ret:%d\n", backup, ret);
+
+	return ret;
+}
+
 static int dit_do_suspend(void)
 {
 	int ret;

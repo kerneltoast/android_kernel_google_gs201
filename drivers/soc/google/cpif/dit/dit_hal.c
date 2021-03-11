@@ -560,6 +560,19 @@ static void dit_hal_try_stop_enqueue_rx(bool stop)
 		dc->stop_enqueue[DIT_DIR_RX] = stop;
 }
 
+static void dit_hal_set_reg_upstream(void)
+{
+	struct net_device *netdev = NULL;
+
+	if (unlikely(!dc))
+		return;
+
+	if (dhc->dst_iface[DIT_DST_DESC_RING_0].iface_set)
+		netdev = dhc->dst_iface[DIT_DST_DESC_RING_0].netdev;
+
+	DIT_INDIRECT_CALL(dc, set_reg_upstream, netdev);
+}
+
 static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct iface_info info;
@@ -651,10 +664,13 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 
 		/* hal can remove upstream by null iface name */
-		if (dit_hal_add_dst_iface(true, &info) < 0) {
+		ret = dit_hal_add_dst_iface(true, &info);
+		dit_hal_set_reg_upstream();
+		if (ret < 0) {
 			dit_hal_set_event(OFFLOAD_STOPPED_ERROR);
 			break;
 		}
+
 		if (dit_hal_check_ready_to_start())
 			dit_hal_set_event(OFFLOAD_STARTED);
 		break;

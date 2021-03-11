@@ -7,7 +7,6 @@
 #ifndef __DIT_2_2_0_H__
 #define __DIT_2_2_0_H__
 
-#define DIT_REG_SW_COMMAND			0x0000
 #define DIT_REG_CLK_GT_OFF			0x0100 /* 20 bit */
 #define DIT_REG_DMA_INIT_DATA			0x0104 /* 28 bit */
 
@@ -52,18 +51,6 @@
 #define DIT_REG_RX_RING_START_ADDR_0_DST2	0x0270
 #define DIT_REG_RX_RING_START_ADDR_1_DST2	0x0274
 
-/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_FILTER_INTERVAL */
-#define DIT_REG_CLAT_TX_FILTER			0x2000
-/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL */
-#define DIT_REG_CLAT_TX_PLAT_PREFIX_0		0x2020
-#define DIT_REG_CLAT_TX_PLAT_PREFIX_1		0x2024
-#define DIT_REG_CLAT_TX_PLAT_PREFIX_2		0x2028
-/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL */
-#define DIT_REG_CLAT_TX_CLAT_SRC_0		0x2080
-#define DIT_REG_CLAT_TX_CLAT_SRC_1		0x2084
-#define DIT_REG_CLAT_TX_CLAT_SRC_2		0x2088
-#define DIT_REG_CLAT_TX_CLAT_SRC_3		0x208C
-
 /* address for Tx desc */
 #define DIT_REG_NAT_TX_DESC_ADDR_0_SRC		0x4000	/* SRC_A, 32 bit */
 #define DIT_REG_NAT_TX_DESC_ADDR_1_SRC		0x4004	/* 4 bit */
@@ -86,39 +73,30 @@
 #define DIT_REG_NAT_RX_DESC_ADDR_0_DST2		0x4088
 #define DIT_REG_NAT_RX_DESC_ADDR_1_DST2		0x408C
 
-/* total: DIT_REG_NAT_LOCAL_ADDR_MAX, interval: DIT_REG_NAT_LOCAL_INTERVAL */
-#define DIT_REG_NAT_LOCAL_ADDR			0x4100
+#define DIT_REG_NAT_TTLDEC_EN			0x4150
 
-#define DIT_REG_NAT_ZERO_CHK_OFF		0x4144
-#define DIT_REG_NAT_ETHERNET_EN			0x414C
-
-/* total: DIT_REG_NAT_LOCAL_ADDR_MAX, interval: DIT_REG_ETHERNET_MAC_INTERVAL */
-#define DIT_REG_NAT_ETHERNET_DST_MAC_ADDR_0	0x6000	/* 32 bit */
-#define DIT_REG_NAT_ETHERNET_DST_MAC_ADDR_1	0x6004	/* 16 bit */
-#define DIT_REG_NAT_ETHERNET_SRC_MAC_ADDR_0	0x6008	/* 32 bit */
-#define DIT_REG_NAT_ETHERNET_SRC_MAC_ADDR_1	0x600C	/* 16 bit */
-#define DIT_REG_NAT_ETHERNET_TYPE		0x6010	/* 16 bit */
-
-#define DIT_REG_NAT_TX_PORT_INIT_START		0x6210
-#define DIT_REG_NAT_TX_PORT_INIT_DONE		0x6214
-#define DIT_REG_NAT_RX_PORT_INIT_START		0x6228
-#define DIT_REG_NAT_RX_PORT_INIT_DONE		0x622C
+/* total: DIT_REG_NAT_INTERFACE_NUM_MAX, interval: DIT_REG_NAT_INTERFACE_NUM_INTERVAL */
+#define DIT_REG_NAT_INTERFACE_NUM		0x4200
 
 #define DIT_REG_VERSION				0x9000
 
-/* total: DIT_REG_NAT_LOCAL_PORT_MAX, interval: DIT_REG_NAT_LOCAL_INTERVAL */
-#define DIT_REG_NAT_RX_PORT_TABLE_SLOT		0xC000
+#define DIT_REG_NAT_INTERFACE_NUM_MAX		(8)
+#define DIT_REG_NAT_INTERFACE_NUM_INTERVAL	(4)
+
+enum dit_nat_ttldec_en_bits {
+	TX_TTLDEC_EN_BIT,
+	RX_TTLDEC_EN_BIT,
+};
 
 struct dit_src_desc {
 	u64	src_addr:36,
 		_reserved_0:12,
 		/* the below 16 bits are "private info" on the document */
-		ch_id:5,		/* max ch value for rmnet is 17 */
 		pre_csum:1,		/* checksum successful from pktproc */
 		udp_csum_zero:1,	/* reset udp checksum 0 after NAT */
-		_reserved_2:9;
+		_reserved_2:14;
 	u64	length:16,
-		interface:8,
+		ch_id:8,		/* "interface" on the document */
 		_reserved_1:24,
 		control:8,
 		status:8;
@@ -128,15 +106,18 @@ struct dit_dst_desc {
 	u64	dst_addr:36,
 		packet_info:12,
 		/* the below 16 bits are "private info" on the document */
-		ch_id:5,
 		pre_csum:1,
 		udp_csum_zero:1,
-		_reserved_2:9;
+		_reserved_2:14;
 	u64	length:16,
 		org_port:16,
-		trans_port:16,
-		control:8,		/* represents interface after interrupt */
-		status:8;
+		trans_port:16;
+	union {
+		/* meaning changes before/after interrupt */
+		u64	control:8,
+			ch_id:8;	/* "interface" on the document */
+	};
+	u64	status:8;
 } __packed;
 
 /* DIT_INT_PENDING */

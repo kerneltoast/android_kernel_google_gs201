@@ -29,6 +29,41 @@
 #include "dit_2_1_0.h"
 #endif
 
+#define DIT_REG_SW_COMMAND			0x0000
+
+/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_FILTER_INTERVAL */
+#define DIT_REG_CLAT_TX_FILTER			0x2000
+/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL */
+#define DIT_REG_CLAT_TX_PLAT_PREFIX_0		0x2020
+#define DIT_REG_CLAT_TX_PLAT_PREFIX_1		0x2024
+#define DIT_REG_CLAT_TX_PLAT_PREFIX_2		0x2028
+/* total: DIT_REG_CLAT_ADDR_MAX, interval: DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL */
+#define DIT_REG_CLAT_TX_CLAT_SRC_0		0x2080
+#define DIT_REG_CLAT_TX_CLAT_SRC_1		0x2084
+#define DIT_REG_CLAT_TX_CLAT_SRC_2		0x2088
+#define DIT_REG_CLAT_TX_CLAT_SRC_3		0x208C
+
+/* total: DIT_REG_NAT_LOCAL_ADDR_MAX, interval: DIT_REG_NAT_LOCAL_INTERVAL */
+#define DIT_REG_NAT_LOCAL_ADDR			0x4100
+
+#define DIT_REG_NAT_ZERO_CHK_OFF		0x4144
+#define DIT_REG_NAT_ETHERNET_EN			0x414C
+
+/* total: DIT_REG_NAT_LOCAL_ADDR_MAX, interval: DIT_REG_ETHERNET_MAC_INTERVAL */
+#define DIT_REG_NAT_ETHERNET_DST_MAC_ADDR_0	0x6000	/* 32 bit */
+#define DIT_REG_NAT_ETHERNET_DST_MAC_ADDR_1	0x6004	/* 16 bit */
+#define DIT_REG_NAT_ETHERNET_SRC_MAC_ADDR_0	0x6008	/* 32 bit */
+#define DIT_REG_NAT_ETHERNET_SRC_MAC_ADDR_1	0x600C	/* 16 bit */
+#define DIT_REG_NAT_ETHERNET_TYPE		0x6010	/* 16 bit */
+
+#define DIT_REG_NAT_TX_PORT_INIT_START		0x6210
+#define DIT_REG_NAT_TX_PORT_INIT_DONE		0x6214
+#define DIT_REG_NAT_RX_PORT_INIT_START		0x6228
+#define DIT_REG_NAT_RX_PORT_INIT_DONE		0x622C
+
+/* total: DIT_REG_NAT_LOCAL_PORT_MAX, interval: DIT_REG_NAT_LOCAL_INTERVAL */
+#define DIT_REG_NAT_RX_PORT_TABLE_SLOT		0xC000
+
 /* total numbers and intervals */
 #define DIT_REG_NAT_LOCAL_ADDR_MAX		(16)
 #define DIT_REG_NAT_LOCAL_PORT_MAX		(2048)
@@ -227,6 +262,8 @@ struct dit_ctrl_t {
 
 	/* every functions should return int for DIT_INDIRECT_CALL */
 	int (*get_reg_version)(u32 *version);
+	int (*set_reg_upstream)(struct net_device *netdev);
+	int (*do_init_hw)(void);
 	int (*do_suspend)(void);
 	int (*do_resume)(void);
 };
@@ -278,12 +315,13 @@ enum dit_idle_ip {
  */
 #define DIT_SRC_DESC_RING_LEN_PADDING	(2)
 
+bool dit_is_kicked_any(void);
+int dit_check_dst_ready(enum dit_direction dir, enum dit_desc_ring ring_num);
 int dit_enqueue_reg_value_with_ext_lock(u32 value, u32 offset);
 int dit_enqueue_reg_value(u32 value, u32 offset);
 int dit_read_rx_dst_poll(struct napi_struct *napi, int budget);
 int dit_manage_rx_dst_data_buffers(bool fill);
 bool dit_is_busy(enum dit_direction dir);
-int dit_reg_backup_restore(bool backup);
 int dit_stop_napi_poll(void);
 
 static inline int dit_dummy(void) { return 0; }

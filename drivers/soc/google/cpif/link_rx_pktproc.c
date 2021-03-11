@@ -486,7 +486,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 {
 	int ret = 0;
 	u16 len, tmp_len;
-	u16 ch_id;
+	u8 ch_id;
 	u8 *src;
 	unsigned long src_paddr;
 	struct sk_buff *skb = NULL;

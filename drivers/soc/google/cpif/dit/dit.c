@@ -137,7 +137,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 		for (i = 0; i < desc_info->src_desc_ring_len; i++) {
 			if (!(src_desc[i].control & DIT_SRC_KICK_CONTROL_MASK))
 				continue;
-			pr_info("src[%06d] ctrl:0x%02X,stat:0x%02X,ch_id:%02u\n",
+			pr_info("src[%06d] ctrl:0x%02X,stat:0x%02X,ch_id:%03u\n",
 				i, src_desc[i].control, src_desc[i].status, src_desc[i].ch_id);
 		}
 
@@ -184,7 +184,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 	}
 }
 
-static bool dit_is_kicked_any(void)
+bool dit_is_kicked_any(void)
 {
 	unsigned int dir;
 
@@ -289,7 +289,7 @@ static void dit_debug_out_of_order(enum dit_direction dir, enum dit_desc_ring ri
 }
 #endif
 
-static int dit_check_dst_ready(enum dit_direction dir, enum dit_desc_ring ring_num)
+int dit_check_dst_ready(enum dit_direction dir, enum dit_desc_ring ring_num)
 {
 	struct dit_desc_info *desc_info;
 
@@ -682,7 +682,7 @@ static void dit_set_dst_desc_int_range(enum dit_direction dir,
 
 static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 		u8 *src, unsigned long src_paddr,
-		u16 len, u16 ch_id, bool csum)
+		u16 len, u8 ch_id, bool csum)
 {
 	struct dit_desc_info *desc_info;
 	struct dit_src_desc *src_desc;
@@ -732,7 +732,7 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 	else
 		src_desc->src_addr = virt_to_phys(src);
 	src_desc->length = len;
-	src_desc->ch_id = (ch_id & 0x1F);
+	src_desc->ch_id = ch_id;
 	src_desc->pre_csum = csum;
 	src_desc->udp_csum_zero = 0;
 	src_desc->control = 0;
@@ -785,7 +785,7 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 
 int dit_enqueue_src_desc_ring(enum dit_direction dir,
 		u8 *src, unsigned long src_paddr,
-		u16 len, u16 ch_id, bool csum)
+		u16 len, u8 ch_id, bool csum)
 {
 	return dit_enqueue_src_desc_ring_internal(
 		dir, src, src_paddr, len, ch_id, csum);
@@ -1054,6 +1054,7 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			dit_set_skb_udp_csum_zero(dst_desc, ring_num, skb);
 
 			dst_desc->packet_info = 0;
+			dst_desc->control = 0;
 			dst_desc->status = 0;
 
 			ret = dit_pass_to_net(ring_num, skb);
@@ -1352,139 +1353,6 @@ exit:
 }
 EXPORT_SYMBOL(dit_kick);
 
-static bool dit_check_nat_enabled(void)
-{
-	unsigned int ring_num;
-
-	for (ring_num = DIT_DST_DESC_RING_1; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
-		if (dit_check_dst_ready(DIT_DIR_RX, ring_num) == 0)
-			return true;
-	}
-
-	return false;
-}
-
-static void dit_check_clat_enabled_internal(struct io_device *iod, void *args)
-{
-	bool *enabled = (bool *) args;
-
-	if (*enabled || !dc->ld->is_ps_ch(iod->ch))
-		return;
-
-	if (iod->clat_ndev)
-		*enabled = true;
-}
-
-static bool dit_check_clat_enabled(void)
-{
-	bool enabled = false;
-
-	if (unlikely(!dc->ld))
-		return false;
-
-	iodevs_for_each(dc->ld->msd, dit_check_clat_enabled_internal, &enabled);
-
-	return enabled;
-}
-
-static int dit_reg_backup_restore_internal(bool backup, const u16 *offset,
-	const u16 *size, void **buf, const unsigned int arr_len)
-{
-	unsigned long flags;
-	unsigned int i;
-	int ret = 0;
-
-	for (i = 0; i < arr_len; i++) {
-		if (!buf[i]) {
-			buf[i] = kvzalloc(size[i], GFP_KERNEL);
-			if (!buf[i]) {
-				ret = -ENOMEM;
-				goto exit;
-			}
-		}
-
-		spin_lock_irqsave(&dc->src_lock, flags);
-		if (dit_is_kicked_any() || !dc->init_done) {
-			ret = -EAGAIN;
-			spin_unlock_irqrestore(&dc->src_lock, flags);
-			goto exit;
-		}
-
-		if (backup)
-			BACKUP_REG_VALUE(dc, buf[i], offset[i], size[i]);
-		else
-			RESTORE_REG_VALUE(dc, buf[i], offset[i], size[i]);
-		spin_unlock_irqrestore(&dc->src_lock, flags);
-	}
-
-exit:
-	/* reset buffer if failed to backup */
-	if (unlikely(ret && backup)) {
-		for (i = 0; i < arr_len; i++) {
-			if (buf[i])
-				memset(buf[i], 0, size[i]);
-		}
-	}
-
-	return ret;
-}
-
-int dit_reg_backup_restore(bool backup)
-{
-	/* NAT */
-	static const u16 nat_offset[] = {
-		DIT_REG_NAT_LOCAL_ADDR,
-		DIT_REG_NAT_ETHERNET_DST_MAC_ADDR_0,
-		DIT_REG_NAT_RX_PORT_TABLE_SLOT,
-	};
-	static const u16 nat_size[] = {
-		DIT_REG_NAT_LOCAL_ADDR_MAX * DIT_REG_NAT_LOCAL_INTERVAL,
-		DIT_REG_NAT_LOCAL_ADDR_MAX * DIT_REG_ETHERNET_MAC_INTERVAL,
-		DIT_REG_NAT_LOCAL_PORT_MAX * DIT_REG_NAT_LOCAL_INTERVAL,
-	};
-	static const unsigned int nat_len = ARRAY_SIZE(nat_offset);
-	static void *nat_buf[ARRAY_SIZE(nat_offset)];
-
-	/* CLAT */
-	static const u16 clat_offset[] = {
-		DIT_REG_CLAT_TX_FILTER,
-		DIT_REG_CLAT_TX_PLAT_PREFIX_0,
-		DIT_REG_CLAT_TX_CLAT_SRC_0,
-	};
-	static const u16 clat_size[] = {
-		DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_FILTER_INTERVAL,
-		DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL,
-		DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL,
-	};
-	static const unsigned int clat_len = ARRAY_SIZE(clat_offset);
-	static void *clat_buf[ARRAY_SIZE(clat_offset)];
-
-	int ret = 0;
-
-	/* NAT */
-	if (dit_check_nat_enabled()) {
-		ret = dit_reg_backup_restore_internal(backup, nat_offset, nat_size, nat_buf,
-			nat_len);
-		if (ret)
-			goto error;
-	}
-
-	/* CLAT */
-	if (dit_check_clat_enabled()) {
-		ret = dit_reg_backup_restore_internal(backup, clat_offset, clat_size, clat_buf,
-			clat_len);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	mif_err("backup/restore failed is_backup:%d, ret:%d\n", backup, ret);
-
-	return ret;
-}
-
 static int dit_init_hw(void)
 {
 	unsigned int dir;
@@ -1545,6 +1413,8 @@ static int dit_init_hw(void)
 	WRITE_REG_VALUE(dc, DIT_ALL_INT_PENDING_MASK, DIT_REG_INT_PENDING);
 
 	WRITE_REG_VALUE(dc, 0x0, DIT_REG_CLK_GT_OFF);
+
+	DIT_INDIRECT_CALL(dc, do_init_hw);
 
 	WRITE_SHR_VALUE(dc, dc->sharability_value);
 
