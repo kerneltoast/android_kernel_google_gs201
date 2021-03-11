@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 __dtbo := $(sort $(dtbo-y))
+__soc_dtbo := $(sort $(soc-dtbo-y))
 
 dtbo-base	:= $(sort $(foreach m,$(__dtbo),$($(m)-base)))
+dtbo-base	+= $(sort $(foreach m,$(__soc_dtbo),$($(m)-base)))
 dtbo := $(foreach m,$(__dtbo),$(if $($(m)-base),$(m)))
+dtbo += $(foreach m,$(__soc_dtbo),$(if $($(m)-base),$(m)))
 
 __dtbo     := $(addprefix $(obj)/,$(__dtbo))
 dtbo-base	:= $(addprefix $(obj)/,$(dtbo-base))
