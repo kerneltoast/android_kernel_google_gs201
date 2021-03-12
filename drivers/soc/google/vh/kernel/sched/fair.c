@@ -873,6 +873,15 @@ void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p
 		update_uclamp_stats(rq->cpu, rq_clock(rq));
 }
 
+static inline bool check_uclamp_threshold(struct task_struct *p, enum uclamp_id clamp_id)
+{
+	if (clamp_id == UCLAMP_MIN && !rt_task(p) &&
+	    task_util_est(p) < vendor_sched_uclamp_threshold) {
+		return true;
+	}
+	return false;
+}
+
 static inline struct uclamp_se
 uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 {
@@ -898,38 +907,29 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 	return uc_req;
 }
 
-static inline struct uclamp_se
-uclamp_eff_get_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id,
-			 struct uclamp_se *uclamp_default)
+void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
+				  struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff,
+				  int *ret)
 {
-	struct uclamp_se uc_req = uclamp_tg_restrict_pixel_mod(p, clamp_id);
-	struct uclamp_se uc_max = *uclamp_default;
+	struct uclamp_se uc_req;
+
+	*ret = 1;
+
+	/* Apply threshold first. */
+	if (check_uclamp_threshold(p, clamp_id)) {
+		uclamp_eff->value = 0;
+		uclamp_eff->bucket_id = 0;
+		return;
+	}
+
+	uc_req = uclamp_tg_restrict_pixel_mod(p, clamp_id);
 
 	/* System default restrictions always apply */
-	if (unlikely(uc_req.value > uc_max.value))
-		return uc_max;
-
-	return uc_req;
-}
-
-void rvh_uclamp_eff_value_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
-				    struct uclamp_se *uclamp_default, unsigned long *ret)
-{
-	struct uclamp_se uc_eff;
-
-	if ((enum uclamp_id)clamp_id == UCLAMP_MIN &&
-	    task_util_est(p) < vendor_sched_uclamp_threshold) {
-		*ret = 0;
+	if (unlikely(uc_req.value > uclamp_max->value)) {
+		*uclamp_eff = *uclamp_max;
 		return;
 	}
 
-	/* Task currently refcounted: use back-annotated (effective) value */
-	if (p->uclamp[clamp_id].active) {
-		*ret = (unsigned long)p->uclamp[clamp_id].value;
-		return;
-	}
-
-	uc_eff = uclamp_eff_get_pixel_mod(p, clamp_id, uclamp_default);
-	*ret = (unsigned long)uc_eff.value;
+	*uclamp_eff = uc_req;
 	return;
 }
