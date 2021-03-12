@@ -17,6 +17,8 @@
 #define BT_TX			0xC000000C
 #define USB_RX			0x8000000D
 #define USB_TX			0xC000000E
+#define INCALL_RX		0x8000000F
+#define INCALL_TX		0xC0000010
 
 #define IDX_EP1_RX		0x0
 #define IDX_EP2_RX		0x1
