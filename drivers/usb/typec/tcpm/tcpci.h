@@ -210,7 +210,6 @@ struct tcpci_data {
 struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data);
 void tcpci_unregister_port(struct tcpci *tcpci);
 irqreturn_t tcpci_irq(struct tcpci *tcpci);
-void tcpci_auto_discharge_update(struct tcpci *tcpci);
 bool tcpci_is_debouncing(struct tcpci *tcpci);
 
 struct tcpm_port;
