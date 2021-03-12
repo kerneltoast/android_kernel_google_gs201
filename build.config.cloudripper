@@ -23,6 +23,14 @@ fi
 
 MODULES_LIST=${KERNEL_DIR}/vendor_boot_modules.cloudripper
 
+VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
+function modify_vendor_ramdisk() {
+  ln -f init.recovery.gs201.rc init.recovery.cloudripper.rc
+  ln -f init.recovery.gs201.rc init.recovery.ravenclaw.rc
+  ln -f init.recovery.gs201.rc init.recovery.cheetah.rc
+  ln -f init.recovery.gs201.rc init.recovery.panther.rc
+}
+
 EXT_MODULES_MAKEFILE=${KERNEL_DIR}/Makefile.ext_modules.cloudripper
 # Explicitly clear EXT_MODULES because build.config.gs101 might set it to
 # "private/google-modules/uwb/kernel" which we don't want because uwb/kernel is
