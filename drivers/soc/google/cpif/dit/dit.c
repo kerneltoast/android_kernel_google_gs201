@@ -531,32 +531,6 @@ static inline void dit_reset_src_desc_kick_control(struct dit_src_desc *src_desc
 	src_desc->control &= ~mask;
 }
 
-static inline void dit_set_src_desc_filter_bypass(
-	struct dit_src_desc *src_desc, bool bypass)
-{
-	/* LRO start/end bit can be used for filter bypass
-	 * 1/1: filtered
-	 * 0/0: filter bypass
-	 * dit does not support checksum yet
-	 */
-	u8 mask = 0;
-
-	cpif_set_bit(mask, DIT_DESC_C_END);
-	cpif_set_bit(mask, DIT_DESC_C_START);
-
-#if defined(DIT_DEBUG_LOW)
-	if (dc->force_bypass == 1)
-		bypass = true;
-	else if (dc->force_bypass == 2)
-		bypass = false;
-#endif
-
-	if (bypass)
-		src_desc->control &= ~mask;
-	else
-		src_desc->control |= mask;
-}
-
 static inline void dit_set_src_desc_udp_csum_zero(struct dit_src_desc *src_desc,
 		u8 *src)
 {
@@ -687,10 +661,8 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 	struct dit_desc_info *desc_info;
 	struct dit_src_desc *src_desc;
 	int remain;
-	struct net_device *upstream_netdev;
-	struct io_device *iod;
 	int src_wp = 0;
-	bool filter_bypass = true;
+	bool is_upstream_pkt = false;
 #if defined(DIT_DEBUG)
 	static unsigned int overflow;
 	static unsigned int last_max_overflow;
@@ -740,32 +712,9 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 		cpif_set_bit(src_desc->control, DIT_DESC_C_RINGEND);
 	src_desc->status = 0;
 
-	do {
-		if (dir != DIT_DIR_RX)
-			break;
-		/*
-		 * check ipv6 for clat.
-		 * port table does not have entries for tun device or ipv6.
-		 * every ipv6 packets from any rmnet can see port table.
-		 */
-		if ((src[0] & 0xF0) == 0x60) {
-			filter_bypass = false;
-			break;
-		}
-
-		/* check upstream netdev */
-		upstream_netdev = dit_hal_get_dst_netdev(DIT_DST_DESC_RING_0);
-		if (upstream_netdev) {
-			iod = link_get_iod_with_channel(dc->ld, ch_id);
-			if (iod && (upstream_netdev == iod->ndev)) {
-				dit_set_src_desc_udp_csum_zero(src_desc, src);
-				filter_bypass = false;
-				break;
-			}
-		}
-	} while (0);
-
-	dit_set_src_desc_filter_bypass(src_desc, filter_bypass);
+	DIT_INDIRECT_CALL(dc, set_desc_filter_bypass, dir, src_desc, src, &is_upstream_pkt);
+	if (is_upstream_pkt)
+		dit_set_src_desc_udp_csum_zero(src_desc, src);
 
 	barrier();
 
@@ -1946,6 +1895,7 @@ static ssize_t debug_pktgen_ch_store(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t count)
 {
+	struct io_device *iod;
 	int ch;
 	int ret;
 
@@ -1955,6 +1905,16 @@ static ssize_t debug_pktgen_ch_store(struct device *dev,
 
 	dc->pktgen_ch = ch;
 
+	if (!dc->ld)
+		goto out;
+
+	iod = link_get_iod_with_channel(dc->ld, dc->pktgen_ch);
+	if (iod)
+		DIT_INDIRECT_CALL(dc, set_reg_upstream, iod->ndev);
+	else
+		DIT_INDIRECT_CALL(dc, set_reg_upstream, NULL);
+
+out:
 	return count;
 }
 

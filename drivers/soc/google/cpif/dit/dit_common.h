@@ -263,6 +263,8 @@ struct dit_ctrl_t {
 	/* every functions should return int for DIT_INDIRECT_CALL */
 	int (*get_reg_version)(u32 *version);
 	int (*set_reg_upstream)(struct net_device *netdev);
+	int (*set_desc_filter_bypass)(enum dit_direction dir, struct dit_src_desc *src_desc,
+				      u8 *src, bool *is_upstream_pkt);
 	int (*do_init_hw)(void);
 	int (*do_suspend)(void);
 	int (*do_resume)(void);

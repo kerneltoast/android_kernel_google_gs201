@@ -8,6 +8,7 @@
  */
 
 #include "dit_common.h"
+#include "dit_hal.h"
 
 static struct dit_ctrl_t *dc;
 
@@ -60,6 +61,52 @@ static int dit_set_reg_upstream(struct net_device *netdev)
 	return 0;
 }
 
+static int dit_set_desc_filter_bypass(enum dit_direction dir, struct dit_src_desc *src_desc,
+				      u8 *src, bool *is_upstream_pkt)
+{
+	struct net_device *upstream_netdev;
+	bool bypass = false;
+	u8 mask = 0;
+
+	/*
+	 * LRO start/end bit can be used for filter bypass
+	 * 1/1: filtered
+	 * 0/0: filter bypass
+	 * dit does not support checksum yet
+	 */
+	cpif_set_bit(mask, DIT_DESC_C_END);
+	cpif_set_bit(mask, DIT_DESC_C_START);
+
+	if (dir != DIT_DIR_RX) {
+		bypass = true;
+		goto out;
+	}
+
+	/* check upstream netdev */
+	upstream_netdev = dit_hal_get_dst_netdev(DIT_DST_DESC_RING_0);
+	if (upstream_netdev) {
+		struct io_device *iod = link_get_iod_with_channel(dc->ld, src_desc->ch_id);
+
+		if (iod && iod->ndev == upstream_netdev) {
+			*is_upstream_pkt = true;
+			goto out;
+		}
+	}
+
+out:
+#if defined(DIT_DEBUG_LOW)
+	if (dc->force_bypass == 1)
+		bypass = true;
+#endif
+
+	if (bypass)
+		src_desc->control &= ~mask;
+	else
+		src_desc->control |= mask;
+
+	return 0;
+}
+
 static int dit_do_init_hw(void)
 {
 	WRITE_REG_VALUE(dc, BIT(RX_TTLDEC_EN_BIT), DIT_REG_NAT_TTLDEC_EN);
@@ -93,6 +140,7 @@ int dit_ver_create(struct dit_ctrl_t *dc_ptr)
 
 	dc->get_reg_version = dit_get_reg_version;
 	dc->set_reg_upstream = dit_set_reg_upstream;
+	dc->set_desc_filter_bypass = dit_set_desc_filter_bypass;
 	dc->do_init_hw = dit_do_init_hw;
 	dc->do_suspend = dit_dummy;
 	dc->do_resume = dit_dummy;
