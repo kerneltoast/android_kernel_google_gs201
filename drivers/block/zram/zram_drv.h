@@ -76,6 +76,7 @@ enum zram_stat_item {
 	NR_NOTIFY_FREE,		/* no. of swap slot free notifications */
 	NR_SAME_PAGE,		/* no. of same element filled pages */
 	NR_HUGE_PAGE,		/* no. of huge pages */
+	NR_HUGE_PAGE_SINCE,	/* no. of huge pages since zram set up */
 	NR_PAGE_STORED,		/* no. of pages currently stored */
 	NR_WRITESTALL,		/* no. of write slow paths */
 	NR_MISS_FREE,		/* no. of missed free */
