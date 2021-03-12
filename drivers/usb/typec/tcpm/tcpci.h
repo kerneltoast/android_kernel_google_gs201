@@ -201,7 +201,6 @@ struct tcpci_data {
 	void (*set_cc_polarity)(struct tcpci *tcpci, struct tcpci_data *data,
 				enum typec_cc_polarity polarity);
 	void (*frs_sourcing_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
-	int (*enable_frs)(struct tcpci *tcpci, struct tcpci_data *data, bool enable);
 	int (*check_contaminant)(struct tcpci *tcpci, struct tcpci_data *data);
   	void (*set_partner_usb_comm_capable)(struct tcpci *tcpci, struct tcpci_data *data,
 					     bool capable);
