@@ -30,7 +30,7 @@
 #include "../vh/kernel/systrace.h"
 
 #define IPC_TIMEOUT				(10000000)
-#define IPC_NB_RETRIES				2
+#define IPC_NB_RETRIES				5
 #define APM_SYSTICK_PERIOD_US			(20345)
 
 static struct acpm_ipc_info *acpm_ipc;
@@ -245,19 +245,19 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 	}
 }
 
-void acpm_log_print(void)
+static void acpm_log_print(void)
 {
 	if (acpm_debug->debug_log_level >= 2)
 		acpm_log_print_buff(&acpm_debug->preempt);
 	acpm_log_print_buff(&acpm_debug->normal);
 }
 
-void acpm_stop_log(void)
+void acpm_stop_log_and_dumpram(void)
 {
 	acpm_stop_log_req = true;
 	acpm_log_print();
 }
-EXPORT_SYMBOL_GPL(acpm_stop_log);
+EXPORT_SYMBOL_GPL(acpm_stop_log_and_dumpram);
 
 static void acpm_debug_logging(struct work_struct *work)
 {
@@ -641,6 +641,8 @@ retry:
 					timeout_flag = true;
 					break;
 				} else if (retry_cnt > 0) {
+					unsigned int saved_debug_log_level =
+					    acpm_debug->debug_log_level;
 					/* in case AP -> ACPM was lost, ask APM to check again */
 					apm_interrupt_gen(channel->id);
 					pr_err("acpm_ipc retry %d, now = %llu, frc = %llu, timeout = %llu",
@@ -661,7 +663,12 @@ retry:
 						__raw_readl(acpm_ipc->intr + INTSR1),
 						__raw_readl(acpm_ipc->intr + INTMR1),
 						__raw_readl(acpm_ipc->intr + INTMSR1));
+
 					++retry_cnt;
+					acpm_debug->debug_log_level = 2;
+					acpm_log_print();
+					acpm_debug->debug_log_level = saved_debug_log_level;
+
 					goto retry;
 				} else {
 					++retry_cnt;
@@ -676,17 +683,11 @@ retry:
 		}
 
 		if ((timeout_flag) && (check_response(channel, cfg))) {
-			unsigned int saved_debug_log_level =
-			    acpm_debug->debug_log_level;
 			pr_err("%s Timeout error! now = %llu, timeout = %llu ch:%u s:%2d\n",
 			       __func__, now, timeout, channel->id,
 			       (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f);
 
-			acpm_debug->debug_log_level = 2;
-			acpm_log_print();
-			acpm_debug->debug_log_level = saved_debug_log_level;
 			acpm_ramdump();
-
 			dump_stack();
 			dbg_snapshot_do_dpm_policy(acpm_ipc->panic_action, "acpm_ipc timeout");
 		}

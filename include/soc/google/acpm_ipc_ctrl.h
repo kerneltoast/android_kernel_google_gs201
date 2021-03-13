@@ -65,7 +65,7 @@ int acpm_ipc_send_data_lazy(unsigned int channel_id,
 int acpm_ipc_set_ch_mode(struct device_node *np, bool polling);
 int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size);
 void exynos_acpm_reboot(void);
-void acpm_stop_log(void);
+void acpm_stop_log_and_dumpram(void);
 u64 get_frc_time(void);
 #else
 
@@ -114,7 +114,7 @@ static inline void exynos_acpm_reboot(void)
 {
 }
 
-static inline void acpm_stop_log(void)
+static inline void acpm_stop_log_and_dumpram(void)
 {
 }
 

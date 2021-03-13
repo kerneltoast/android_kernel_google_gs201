@@ -1216,7 +1216,6 @@ void __ref modemctl_notify_event(enum modemctl_event evt)
 
 void mif_stop_logging(void)
 {
-	acpm_stop_log();
 }
 
 static LIST_HEAD(bm_list);

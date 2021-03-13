@@ -128,7 +128,6 @@ do {							\
 
 #define REGULATOR_INFO_ID	8
 
-extern void acpm_log_print(void);
 extern void timestamp_write(void);
 extern void acpm_ramdump(void);
 extern void acpm_fw_set_log_level(unsigned int on);
