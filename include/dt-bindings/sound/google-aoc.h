@@ -27,11 +27,13 @@
 #define IDX_EP5_RX		0x4
 #define IDX_EP6_RX		0x5
 #define IDX_EP7_RX		0x6
-#define IDX_EP8_RX		0x7
+#define IDX_EP8_RX              0x7
 #define IDX_NOHOST1_RX		0x8
-#define IDX_VOIP_RX		0x9
-#define IDX_INCALL_PB0_RX       0xa
-#define IDX_INCALL_PB1_RX       0xb
+#define IDX_RAW_RX              0x9
+#define IDX_VOIP_RX             0xa
+#define IDX_INCALL_PB0_RX       0xb
+#define IDX_INCALL_PB1_RX       0xc
+#define IDX_HIFI_RX             0x10
 
 #define IDX_EP1_TX		0x40000000
 #define IDX_EP2_TX		0x40000001
@@ -42,8 +44,10 @@
 #define IDX_EP7_TX		0x40000006
 #define IDX_EP8_TX		0x40000007
 #define IDX_NOHOST1_TX		0x40000008
-#define IDX_VOIP_TX		0x40000009
-#define IDX_INCALL_CAP0_TX	0x4000000c
-#define IDX_INCALL_CAP1_TX	0x4000000d
-#define IDX_INCALL_CAP2_TX	0x4000000e
+#define IDX_RAW_TX	        0x40000009
+#define IDX_VOIP_TX		0x4000000a
+#define IDX_INCALL_CAP0_TX	0x4000000d
+#define IDX_INCALL_CAP1_TX	0x4000000e
+#define IDX_INCALL_CAP2_TX	0x4000000f
+#define IDX_HIFI_TX	        0x40000010
 #endif /* __DT_GOOGLE_AOC_H */
