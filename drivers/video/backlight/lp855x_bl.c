@@ -199,11 +199,6 @@ static int lp855x_configure(struct lp855x *lp)
 	if (ret)
 		goto err;
 
-	val = pd->device_control;
-	ret = lp855x_write_byte(lp, lp->cfg->reg_devicectrl, val);
-	if (ret)
-		goto err;
-
 	if (pd->size_program > 0) {
 		for (i = 0; i < pd->size_program; i++) {
 			addr = pd->rom_data[i].addr;
@@ -216,6 +211,11 @@ static int lp855x_configure(struct lp855x *lp)
 				goto err;
 		}
 	}
+
+	val = pd->device_control;
+	ret = lp855x_write_byte(lp, lp->cfg->reg_devicectrl, val);
+	if (ret)
+		goto err;
 
 	if (lp->cfg->post_init_device) {
 		ret = lp->cfg->post_init_device(lp);
