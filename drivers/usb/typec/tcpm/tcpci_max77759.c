@@ -102,21 +102,7 @@ static ssize_t frs_show(struct device *dev, struct device_attribute *attr, char 
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->frs);
 };
-
-static ssize_t frs_store(struct device *dev, struct device_attribute *attr, const char *buf,
-			 size_t count)
-{
-	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
-	int val;
-
-	if (kstrtoint(buf, 10, &val) < 0)
-		return -EINVAL;
-
-	chip->frs = val;
-	logbuffer_log(chip->log, "[%s]: %d", __func__, chip->frs);
-	return count;
-}
-static DEVICE_ATTR_RW(frs);
+static DEVICE_ATTR_RO(frs);
 
 static ssize_t auto_discharge_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -124,23 +110,7 @@ static ssize_t auto_discharge_show(struct device *dev, struct device_attribute *
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->data.auto_discharge_disconnect ? 1 : 0);
 };
-
-static ssize_t auto_discharge_store(struct device *dev, struct device_attribute *attr,
-				    const char *buf, size_t count)
-{
-	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
-	int val;
-
-	if (kstrtoint(buf, 10, &val) < 0)
-		return -EINVAL;
-
-	chip->data.auto_discharge_disconnect = !!val;
-	logbuffer_log(chip->log, "[%s]: %d", __func__, chip->data.auto_discharge_disconnect);
-	tcpci_auto_discharge_update(chip->tcpci);
-
-	return count;
-}
-static DEVICE_ATTR_RW(auto_discharge);
+static DEVICE_ATTR_RO(auto_discharge);
 
 static ssize_t contaminant_detection_show(struct device *dev, struct device_attribute *attr,
 					  char *buf)
@@ -1038,13 +1008,6 @@ static void max77759_set_partner_usb_comm_capable(struct tcpci *tcpci, struct tc
 	mutex_unlock(&chip->data_path_lock);
 }
 
-static int max77759_enable_frs(struct tcpci *tcpci, struct tcpci_data *data, bool enable)
-{
-	struct max77759_plat *chip = tdata_to_max77759(data);
-
-	return !chip->frs ? -1 : 1;
-}
-
 static void max77759_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data *data,
 				     enum typec_cc_polarity polarity)
 {
@@ -1456,7 +1419,6 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.init = tcpci_init;
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
-	chip->data.enable_frs = max77759_enable_frs;
 	chip->data.check_contaminant = max77759_check_contaminant;
 
 	chip->log = logbuffer_register("usbpd");
@@ -1535,6 +1497,13 @@ static int max77759_probe(struct i2c_client *client,
 				       EXTCON_PROP_USB_TYPEC_POLARITY);
 
 	max77759_init_regs(chip->data.regmap, chip->log);
+
+	/* Default enable on A1 or higher */
+	if (device_id >= MAX77759_DEVICE_ID_A1) {
+		chip->data.auto_discharge_disconnect = true;
+		chip->frs = true;
+	}
+
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
 	if (IS_ERR_OR_NULL(chip->tcpci)) {
 		dev_err(&client->dev, "TCPCI port registration failed");
@@ -1542,13 +1511,6 @@ static int max77759_probe(struct i2c_client *client,
 		goto psy_put;
 	}
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
-
-	/* Default enable on A1 or higher */
-	if (device_id >= MAX77759_DEVICE_ID_A1) {
-		chip->data.auto_discharge_disconnect = true;
-		chip->frs = true;
-		tcpci_auto_discharge_update(chip->tcpci);
-	}
 
 	ret = max77759_init_alert(chip, client);
 	if (ret < 0)
