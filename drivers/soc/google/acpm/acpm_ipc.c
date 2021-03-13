@@ -43,6 +43,7 @@ static struct acpm_framework *acpm_initdata;
 static void __iomem *acpm_srambase;
 static void __iomem *fvmap_base_address;
 static void __iomem *frc_ctrl;
+static DEFINE_MUTEX(print_log_mutex);
 
 void *get_fvmap_base(void)
 {
@@ -151,9 +152,9 @@ void acpm_fw_set_log_level(unsigned int level)
 	acpm_debug->debug_log_level = level;
 
 	if (!level)
-		cancel_delayed_work_sync(&acpm_debug->periodic_work);
+		cancel_delayed_work_sync(&acpm_debug->acpm_log_work);
 	else if (level <= 2)
-		queue_delayed_work(update_log_wq, &acpm_debug->periodic_work,
+		queue_delayed_work(update_log_wq, &acpm_debug->acpm_log_work,
 			msecs_to_jiffies(acpm_debug->period));
 }
 
@@ -189,7 +190,7 @@ static void acpm_log_print_helper(unsigned int head, unsigned int arg0,
 	char *str;
 
 	if (acpm_debug->debug_log_level >= 1 || !is_err) {
-		id  = (head >> LOG_ID_SHIFT) & 0xf;
+		id = (head >> LOG_ID_SHIFT) & 0xf;
 		is_raw = (head >> LOG_IS_RAW_SHIFT) & 0x1;
 		if (is_raw) {
 			pr_info("[ACPM_FW] : id:%u, %x, %x, %x\n",
@@ -247,9 +248,11 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 
 static void acpm_log_print(void)
 {
+	mutex_lock(&print_log_mutex);
 	if (acpm_debug->debug_log_level >= 2)
 		acpm_log_print_buff(&acpm_debug->preempt);
 	acpm_log_print_buff(&acpm_debug->normal);
+	mutex_unlock(&print_log_mutex);
 }
 
 void acpm_stop_log_and_dumpram(void)
@@ -259,12 +262,12 @@ void acpm_stop_log_and_dumpram(void)
 }
 EXPORT_SYMBOL_GPL(acpm_stop_log_and_dumpram);
 
-static void acpm_debug_logging(struct work_struct *work)
+static void acpm_log_work_fn(struct work_struct *work)
 {
 	acpm_log_print();
 
-	queue_delayed_work_on(0, update_log_wq, &acpm_debug->periodic_work,
-			      msecs_to_jiffies(acpm_debug->period));
+	queue_delayed_work(update_log_wq, &acpm_debug->acpm_log_work,
+			   msecs_to_jiffies(acpm_debug->period));
 }
 
 int acpm_ipc_set_ch_mode(struct device_node *np, bool polling)
@@ -501,7 +504,6 @@ static void dequeue_policy(struct acpm_ipc_ch *channel)
 		front = __raw_readl(channel->rx_ch.front);
 	}
 
-	acpm_log_print();
 	spin_unlock_irqrestore(&channel->rx_lock, flags);
 }
 
@@ -954,12 +956,12 @@ int acpm_ipc_probe(struct platform_device *pdev)
 
 	channel_init();
 
-	update_log_wq = alloc_workqueue("%s",
-					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-					1, "acpm_log");
-
-	if (acpm_debug->debug_log_level && acpm_debug->period)
-		INIT_DELAYED_WORK(&acpm_debug->periodic_work, acpm_debug_logging);
+	update_log_wq = create_workqueue("acpm_log");
+	if (!update_log_wq) {
+		dev_err(&pdev->dev, "failed to create workqueue\n");
+	}
+	INIT_DELAYED_WORK(&acpm_debug->acpm_log_work, acpm_log_work_fn);
+	acpm_fw_set_log_level(acpm_debug->debug_log_level);
 
 	if (acpm_ipc_request_channel(node, acpm_error_log_ipc_callback,
 				     &acpm_debug->async_id,

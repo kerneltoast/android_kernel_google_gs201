@@ -76,7 +76,7 @@ struct acpm_debug_info {
 	unsigned int dump_size;
 	void __iomem *dump_dram_base;
 	unsigned int debug_log_level;
-	struct delayed_work periodic_work;
+	struct delayed_work acpm_log_work;
 	unsigned int async_id; /* ACPM IPC_AP_ERR_LOG_ASYNC channel id */
 	unsigned int async_size; /* ACPM IPC_AP_ERR_LOG_ASYNC channel queue sizes */
 
