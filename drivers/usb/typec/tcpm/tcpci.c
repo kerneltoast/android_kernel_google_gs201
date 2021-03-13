@@ -456,14 +456,6 @@ static int tcpci_set_current_limit(struct tcpc_dev *tcpc, u32 max_ma, u32 mv)
 	return ret;
 }
 
-static void tcpci_set_pd_capable(struct tcpc_dev *tcpc, bool capable)
-{
-	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
-
-	if (tcpci->data->set_pd_capable)
-		tcpci->data->set_pd_capable(tcpci, tcpci->data, capable);
-}
-
 static int tcpci_check_contaminant(struct tcpc_dev *tcpc)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
@@ -789,7 +781,6 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	tcpci->tcpc.pd_transmit = tcpci_pd_transmit;
 	tcpci->tcpc.set_bist_data = tcpci_set_bist_data;
 	tcpci->tcpc.set_current_limit =  tcpci_set_current_limit;
-	tcpci->tcpc.set_pd_capable = tcpci_set_pd_capable;
 	tcpci->tcpc.enable_frs = tcpci_enable_frs;
 	tcpci->tcpc.frs_sourcing_vbus = tcpci_frs_sourcing_vbus;
 	tcpci->tcpc.set_partner_usb_comm_capable = tcpci_set_partner_usb_comm_capable;
