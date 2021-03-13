@@ -128,6 +128,7 @@ struct lp855x_rom_data {
  * @name : Backlight driver name. If it is not defined, default name is set.
  * @device_control : value of DEVICE CONTROL register
  * @initial_brightness : initial value of backlight brightness
+ * @led_string_enable: value of LED STRING ENABLE register (LP8556 only)
  * @period_ns : platform specific pwm period value. unit is nano.
 		Only valid when mode is PWM_BASED.
  * @size_program : total size of lp855x_rom_data
@@ -137,6 +138,7 @@ struct lp855x_platform_data {
 	const char *name;
 	u8 device_control;
 	u8 initial_brightness;
+	u8 led_string_enable;
 	unsigned int period_ns;
 	int size_program;
 	struct lp855x_rom_data *rom_data;
