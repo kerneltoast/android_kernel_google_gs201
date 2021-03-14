@@ -212,8 +212,7 @@ struct tcpci_data {
 	int (*set_vbus)(struct tcpci *tcpci, struct tcpci_data *data, bool source, bool sink);
 	int (*get_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
 	int (*set_roles)(struct tcpci *tcpci, struct tcpci_data *data, bool attached,
-			 enum typec_role role, enum typec_data_role data_role,
-			 bool usb_comm_capable);
+			 enum typec_role role, enum typec_data_role data_role);
 	int (*get_current_limit)(struct tcpci *tcpci, struct tcpci_data *data);
 	int (*set_current_limit)(struct tcpci *tcpci, struct tcpci_data *data, u32 max_ma, u32 mv);
 	void (*set_pd_capable)(struct tcpci *tcpci, struct tcpci_data *data, bool capable);
