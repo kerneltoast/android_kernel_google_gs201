@@ -984,27 +984,6 @@ static void max77759_check_contaminant(void *unused, struct tcpci *tcpci, struct
 	mutex_unlock(&chip->rc_lock);
 }
 
-static int max77759_get_current_limit(struct tcpci *tcpci,
-				      struct tcpci_data *tdata)
-{
-	struct max77759_plat *chip = tdata_to_max77759(tdata);
-	void *vote;
-	int ret = 0;
-
-	if (IS_ERR_OR_NULL(chip->usb_icl_proto_el))
-		return 0;
-
-	ret = gvotable_get_vote(chip->usb_icl_proto_el,
-				proto_voter_reason[USB_ICL_PD], &vote);
-	if (ret < 0)
-		logbuffer_log(chip->log,
-			      "icl_proto_el get vote failed:%d", ret);
-	else
-		ret = ((struct usb_vote *)(vote))->val;
-
-	return ret;
-}
-
 static void max77759_set_partner_usb_comm_capable(struct tcpci *tcpci, struct tcpci_data *data,
 						  bool capable)
 {
@@ -1037,31 +1016,29 @@ static void max77759_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data *dat
 		 "Succeeded", polarity);
 }
 
-static int max77759_vote_icl(struct tcpci *tcpci, struct tcpci_data *tdata,
-			     u32 max_ma)
+static int max77759_vote_icl(struct max77759_plat *chip, u32 max_ua)
 {
-	struct max77759_plat *chip = tdata_to_max77759(tdata);
 	int ret = 0;
 	struct usb_vote vote;
 
 	/*
-	 * TCPM sets max_ma to zero for Rp-default which needs to be
-	 * ignored.
+	 * TCPM sets max_ua to zero for Rp-default which needs to be
+	 * ignored. PPS values reflect the requested ones not the max.
 	 */
 	mutex_lock(&chip->icl_proto_el_lock);
-	if (!chip->pd_capable && max_ma == 0 && chip->attached)
+	if ((chip->usb_type != POWER_SUPPLY_USB_TYPE_PD && max_ua == 0 && chip->online) ||
+	    chip->usb_type == POWER_SUPPLY_USB_TYPE_PD_PPS)
 		goto exit;
 
-	init_vote(&vote, proto_voter_reason[USB_ICL_PD], USB_ICL_PD, max_ma
-		  * 1000);
+	init_vote(&vote, proto_voter_reason[USB_ICL_PD], USB_ICL_PD, max_ua);
 	ret = gvotable_cast_vote(chip->usb_icl_proto_el,
 				 proto_voter_reason[USB_ICL_PD], &vote,
-				 chip->attached);
+				 chip->online);
 
 	logbuffer_log(chip->log,
 		      "%s: %s:%d voting enabled:%s usb proto_el: %d by %s",
 		      __func__, ret < 0 ? "error" : "success", ret,
-		      chip->attached ? "enabled" : "disabled", vote.val,
+		      chip->online ? "enabled" : "disabled", vote.val,
 		      proto_voter_reason[USB_ICL_PD]);
 
 exit:
@@ -1069,24 +1046,46 @@ exit:
 	return ret;
 }
 
-static int max77759_set_current_limit(struct tcpci *tcpci,
-				      struct tcpci_data *tdata,
-				      u32 max_ma, u32 mv)
+static void icl_work_item(struct kthread_work *work)
 {
-	struct max77759_plat *chip = tdata_to_max77759(tdata);
-	union power_supply_propval val = {0};
-	int ret = 0;
+	struct max77759_plat *chip  =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct max77759_plat, icl_work);
 
-	chip->vbus_mv = mv;
+	max77759_vote_icl(chip, chip->typec_current_max);
+}
+
+static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
+{
+	struct max77759_plat *chip = container_of(nb, struct max77759_plat, psy_notifier);
+	struct power_supply *psy = ptr;
+	union power_supply_propval current_max = {0}, voltage_max = {0}, online = {0},
+	      usb_type = {0}, val = {0};
+	int ret;
+
+	if (!strstr(psy->desc->name, "tcpm-source") || evt != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_OK;
+
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &current_max);
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &voltage_max);
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE, &online);
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_USB_TYPE, &usb_type);
+	logbuffer_log(chip->log, "psy: %s ONLINE:%d USB_TYPE:%d CURRENT_MAX:%d VOLTAGE_MAX:%d",
+		      psy->desc->name, online.intval, usb_type.intval, current_max.intval,
+		      voltage_max.intval);
+
+	chip->vbus_mv = voltage_max.intval / 1000;
 	ret = power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &val);
-	if (ret < 0) {
-		logbuffer_log(chip->log, "unable to set max voltage to %d, ret=%d", mv, ret);
-		return ret;
-	}
-	logbuffer_log(chip->log, "max_ma=%d, mv=%d", max_ma, mv);
-	max77759_vote_icl(tcpci, tdata, max_ma);
+	if (ret < 0)
+		logbuffer_log(chip->log, "unable to set max voltage to %d, ret=%d", chip->vbus_mv,
+			      ret);
 
-	return ret;
+	chip->online = online.intval;
+	chip->usb_type = usb_type.intval;
+	chip->typec_current_max = current_max.intval;
+	/* Notifier is atomic, hence offloading */
+	kthread_mod_delayed_work(chip->wq, &chip->icl_work, 0);
+	return NOTIFY_OK;
 }
 
 static int max77759_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
@@ -1197,7 +1196,7 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 	mutex_unlock(&chip->data_path_lock);
 
 	if (!chip->attached)
-		max77759_vote_icl(tcpci, data, 0);
+		max77759_vote_icl(chip, 0);
 
 	/* Signal usb_psy online */
 	usb_psy_set_sink_state(chip->usb_psy_data, role == TYPEC_SINK && attached);
@@ -1534,8 +1533,6 @@ static int max77759_probe(struct i2c_client *client,
 	/* Chip level tcpci callbacks */
 	chip->data.set_vbus = max77759_set_vbus;
 	chip->data.start_drp_toggling = max77759_start_toggling;
-	chip->data.get_current_limit = max77759_get_current_limit;
-	chip->data.set_current_limit = max77759_set_current_limit;
 	chip->data.TX_BUF_BYTE_x_hidden = 1;
 	chip->data.vbus_vsafe0v = true;
 	chip->data.set_partner_usb_comm_capable = max77759_set_partner_usb_comm_capable;
@@ -1627,25 +1624,40 @@ static int max77759_probe(struct i2c_client *client,
 		chip->frs = true;
 	}
 
-	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
-	if (IS_ERR_OR_NULL(chip->tcpci)) {
-		dev_err(&client->dev, "TCPCI port registration failed");
-		ret = PTR_ERR(chip->tcpci);
+	chip->wq = kthread_create_worker(0, "wq-tcpm-tcpc");
+	if (IS_ERR_OR_NULL(chip->wq)) {
+		ret = PTR_ERR(chip->wq);
 		goto psy_put;
 	}
-	chip->port = tcpci_get_tcpm_port(chip->tcpci);
 
-	ret = max77759_init_alert(chip, client);
-	if (ret < 0)
-		goto unreg_port;
+	kthread_init_delayed_work(&chip->icl_work, icl_work_item);
+
+	chip->psy_notifier.notifier_call = psy_changed;
+	ret = power_supply_reg_notifier(&chip->psy_notifier);
+	if (ret < 0) {
+		dev_err(&client->dev, "failed to register power supply callback\n");
+		goto destroy_worker;
+	}
 
 	chip->usb_icl_proto_el = gvotable_election_get_handle(USB_ICL_PROTO_EL);
 	if (IS_ERR_OR_NULL(chip->usb_icl_proto_el)) {
 		dev_err(&client->dev, "TCPCI: USB ICL PROTO EL get failed:%d",
 			PTR_ERR(chip->usb_icl_proto_el));
 		ret = -ENODEV;
-		goto unreg_port;
+		goto unreg_notifier;
 	}
+
+	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
+	if (IS_ERR_OR_NULL(chip->tcpci)) {
+		dev_err(&client->dev, "TCPCI port registration failed");
+		ret = PTR_ERR(chip->tcpci);
+		goto unreg_notifier;
+	}
+	chip->port = tcpci_get_tcpm_port(chip->tcpci);
+
+	ret = max77759_init_alert(chip, client);
+	if (ret < 0)
+		goto unreg_port;
 
 	device_init_wakeup(chip->dev, true);
 
@@ -1681,6 +1693,10 @@ remove_files:
 		device_remove_file(&client->dev, max77759_device_attrs[i]);
 unreg_port:
 	tcpci_unregister_port(chip->tcpci);
+unreg_notifier:
+	power_supply_unreg_notifier(&chip->psy_notifier);
+destroy_worker:
+	kthread_destroy_worker(chip->wq);
 psy_put:
 	power_supply_put(chip->usb_psy);
 teardown_bc12:
@@ -1715,6 +1731,9 @@ static int max77759_remove(struct i2c_client *client)
 		logbuffer_unregister(chip->log);
 	if (!IS_ERR_OR_NULL(chip->extcon))
 		devm_extcon_dev_free(chip->dev, chip->extcon);
+	if (!IS_ERR_OR_NULL(chip->wq))
+		kthread_destroy_worker(chip->wq);
+	power_supply_unreg_notifier(&chip->psy_notifier);
 
 	return 0;
 }
@@ -1726,7 +1745,7 @@ static void max77759_shutdown(struct i2c_client *client)
 
 	dev_info(&client->dev, "disabling Type-C upon shutdown\n");
 	/* Set current limit to 0. Will eventually happen after hi-Z as well */
-	max77759_vote_icl(chip->tcpci, chip->tcpci->data, 0);
+	max77759_vote_icl(chip, 0);
 	/* Prevent re-enabling toggling */
 	/* Hi-z CC pins to trigger disconnection */
 	ret = gvotable_cast_vote(chip->toggle_disable_votable, "SHUTDOWN_VOTE",
