@@ -76,6 +76,13 @@ struct fusb307b_plat {
 
 	struct logbuffer *log;
 
+	struct notifier_block psy_notifier;
+	int online;
+	int usb_type;
+	int typec_current_max;
+	struct kthread_worker *wq;
+	struct kthread_delayed_work icl_work;
+
 	struct i2c_client *uic_i2c_client;
 	struct device_node *uic_device_node;
 	struct i2c_client *ls_i2c_client;
@@ -343,24 +350,6 @@ static int fusb307b_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 	return (raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV;
 }
 
-static int fusb307b_get_current_limit(struct tcpci *tcpci,
-				      struct tcpci_data *tdata)
-{
-	struct fusb307b_plat *chip = tdata_to_fusb307b(tdata);
-	void *vote;
-	int ret;
-
-	ret = gvotable_get_vote(chip->usb_icl_proto_el,
-				proto_voter_reason[USB_ICL_PD], &vote);
-	if (ret < 0)
-		logbuffer_log(chip->log, "icl_proto_el get vote failed:%d", ret)
-			;
-	else
-		ret = ((struct usb_vote *)(vote))->val;
-
-	return ret;
-}
-
 static void enable_data_path_locked(struct fusb307b_plat *chip)
 {
 	int ret;
@@ -446,31 +435,29 @@ static void fusb307b_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data
 		 ret < 0 ? "Failed" : "Succeeded", polarity);
 }
 
-static int fusb307b_vote_icl(struct tcpci *tcpci, struct tcpci_data *tdata,
-			     u32 max_ma)
+static int fusb307b_vote_icl(struct fusb307b_plat *chip, u32 max_ua)
 {
-	struct fusb307b_plat *chip = tdata_to_fusb307b(tdata);
 	int ret = 0;
 	struct usb_vote vote;
 
 	/*
-	 * TCPM sets max_ma to zero for Rp-default which needs to be
-	 * ignored.
+	 * TCPM sets max_ua to zero for Rp-default which needs to be
+	 * ignored. PPS values reflect the requested ones not the max.
 	 */
 	mutex_lock(&chip->icl_proto_el_lock);
-	if (!chip->pd_capable && max_ma == 0 && chip->attached)
+	if ((chip->usb_type != POWER_SUPPLY_USB_TYPE_PD && max_ua == 0 && chip->online) ||
+	    chip->usb_type == POWER_SUPPLY_USB_TYPE_PD_PPS)
 		goto exit;
 
-	init_vote(&vote, proto_voter_reason[USB_ICL_PD], USB_ICL_PD, max_ma
-		  * 1000);
+	init_vote(&vote, proto_voter_reason[USB_ICL_PD], USB_ICL_PD, max_ua);
 	ret = gvotable_cast_vote(chip->usb_icl_proto_el,
 				 proto_voter_reason[USB_ICL_PD], &vote,
-				 chip->attached);
+				 chip->online);
 
 	logbuffer_log(chip->log,
 		      "%s: %s:%d voting enabled:%s usb proto_el: %d by %s",
 		      __func__, ret < 0 ? "error" : "success", ret,
-		      chip->attached ? "enabled" : "disabled", vote.val,
+		      chip->online ? "enabled" : "disabled", vote.val,
 		      proto_voter_reason[USB_ICL_PD]);
 
 exit:
@@ -478,30 +465,46 @@ exit:
 	return ret;
 }
 
-static int fusb307b_set_current_limit(struct tcpci *tcpci,
-				      struct tcpci_data *tdata,
-				      u32 max_ma, u32 mv)
+static void icl_work_item(struct kthread_work *work)
 {
-	struct fusb307b_plat *chip = tdata_to_fusb307b(tdata);
-	union power_supply_propval val = {0};
+	struct fusb307b_plat *chip  =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct fusb307b_plat, icl_work);
+
+	fusb307b_vote_icl(chip, chip->typec_current_max);
+}
+
+static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
+{
+	struct fusb307b_plat *chip = container_of(nb, struct fusb307b_plat, psy_notifier);
+	struct power_supply *psy = ptr;
+	union power_supply_propval current_max = {0}, voltage_max = {0}, online = {0},
+	      usb_type = {0}, val = {0};
 	int ret;
 
-	/* Setprop in uv */
-	val.intval = mv * 1000;
-	ret = power_supply_set_property(chip->usb_psy,
-					POWER_SUPPLY_PROP_VOLTAGE_MAX,
-					&val);
-	if (ret < 0) {
-		logbuffer_log(chip->log,
-			      "unable to set max voltage to %d, ret=%d",
-				mv, ret);
-		return ret;
-	}
+	if (!strstr(psy->desc->name, "tcpm-source") || evt != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_OK;
 
-	logbuffer_log(chip->log, "mv=%d", mv);
-	fusb307b_vote_icl(tcpci, tdata, max_ma);
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX, &current_max);
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &voltage_max);
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE, &online);
+	power_supply_get_property(psy, POWER_SUPPLY_PROP_USB_TYPE, &usb_type);
+	logbuffer_log(chip->log, "psy: %s ONLINE:%d USB_TYPE:%d CURRENT_MAX:%d VOLTAGE_MAX:%d",
+		      psy->desc->name, online.intval, usb_type.intval, current_max.intval,
+		      voltage_max.intval);
 
-	return ret;
+	chip->vbus_mv = voltage_max.intval / 1000;
+	ret = power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &val);
+	if (ret < 0)
+		logbuffer_log(chip->log, "unable to set max voltage to %d, ret=%d", chip->vbus_mv,
+			      ret);
+
+	chip->online = online.intval;
+	chip->usb_type = usb_type.intval;
+	chip->typec_current_max = current_max.intval;
+	/* Notifier is atomic, hence offloading */
+	kthread_mod_delayed_work(chip->wq, &chip->icl_work, 0);
+	return NOTIFY_OK;
 }
 
 /* Notifier structure inferred from usbpd-manager.c */
@@ -541,7 +544,7 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 	enable_data_path_locked(chip);
 	mutex_unlock(&chip->data_path_lock);
 	if (!chip->attached)
-		fusb307b_vote_icl(tcpci, data, 0);
+		fusb307b_vote_icl(chip, 0);
 
 	/* Signal usb_psy online */
 	usb_psy_set_sink_state(chip->usb_psy_data, role == TYPEC_SINK && attached);
@@ -664,8 +667,6 @@ static int fusb307b_probe(struct i2c_client *client,
 
 	chip->data.set_vbus = fusb307_set_vbus;
 	chip->data.set_roles = fusb307_set_roles;
-	chip->data.get_current_limit = fusb307b_get_current_limit;
-	chip->data.set_current_limit = fusb307b_set_current_limit;
 	chip->data.set_partner_usb_comm_capable = fusb307b_set_pd_data_capable;
 	chip->data.set_cc_polarity = fusb307b_set_cc_polarity;
 
@@ -674,7 +675,7 @@ static int fusb307b_probe(struct i2c_client *client,
 		dev_err(&client->dev, "TCPCI: USB ICL PROTO EL get failed:%d",
 			PTR_ERR(chip->usb_icl_proto_el));
 		ret = -ENODEV;
-		goto unreg_port;
+		goto unreg_psy;
 	}
 
 	usb_psy_name = (char *)of_get_property(dn, "usb-psy-name", NULL);
@@ -698,13 +699,14 @@ static int fusb307b_probe(struct i2c_client *client,
 	if (IS_ERR(chip->extcon)) {
 		dev_err(&client->dev, "Error allocating extcon: %d\n",
 			PTR_ERR(chip->extcon));
-		return PTR_ERR(chip->extcon);
+		ret = PTR_ERR(chip->extcon);
+		goto psy_put;
 	}
 
 	ret = devm_extcon_dev_register(&client->dev, chip->extcon);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to register extcon device");
-		return ret;
+		goto psy_put;
 	}
 
 	extcon_set_property_capability(chip->extcon, EXTCON_USB,
@@ -712,23 +714,40 @@ static int fusb307b_probe(struct i2c_client *client,
 	extcon_set_property_capability(chip->extcon, EXTCON_USB_HOST,
 				       EXTCON_PROP_USB_TYPEC_POLARITY);
 
+	chip->wq = kthread_create_worker(0, "wq-tcpm-tcpc");
+	if (IS_ERR_OR_NULL(chip->wq)) {
+		ret = PTR_ERR(chip->wq);
+		goto psy_put;
+	}
+
+	kthread_init_delayed_work(&chip->icl_work, icl_work_item);
+
+	chip->psy_notifier.notifier_call = psy_changed;
+	ret = power_supply_reg_notifier(&chip->psy_notifier);
+	if (ret < 0) {
+		dev_err(&client->dev, "failed to register power supply callback\n");
+		goto destroy_worker;
+	}
+
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
 	if (IS_ERR_OR_NULL(chip->tcpci)) {
 		dev_err(&client->dev, "TCPCI register failed: %d\n",
 			PTR_ERR(chip->tcpci));
 		ret = PTR_ERR(chip->tcpci);
-		goto psy_put;
+		goto unreg_notifier;
 	}
 
 	device_init_wakeup(chip->dev, true);
 	return 0;
 
+unreg_notifier:
+	power_supply_unreg_notifier(&chip->psy_notifier);
+destroy_worker:
+	kthread_destroy_worker(chip->wq);
 psy_put:
 	power_supply_put(chip->usb_psy);
 unreg_psy:
 	usb_psy_teardown(chip->usb_psy_data);
-unreg_port:
-	tcpci_unregister_port(chip->tcpci);
 unreg_log:
 	logbuffer_unregister(chip->log);
 
@@ -743,6 +762,8 @@ static int fusb307b_remove(struct i2c_client *client)
 	tcpci_unregister_port(chip->tcpci);
 	power_supply_put(chip->usb_psy);
 	usb_psy_teardown(chip->usb_psy_data);
+	kthread_destroy_worker(chip->wq);
+	power_supply_unreg_notifier(&chip->psy_notifier);
 
 	return 0;
 }
