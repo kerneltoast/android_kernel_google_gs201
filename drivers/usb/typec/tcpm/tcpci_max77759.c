@@ -461,19 +461,18 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 	}
 
 	logbuffer_log(chip->log,
-		      "%s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
-		      __func__, chip->pd_capable ? 1 : 0, chip->pd_data_capable ? 1 : 0,
-		      chip->no_bc_12 ? 1 : 0, chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 :
-		      0, chip->debug_acc_connected);
+		      "%s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
+		      __func__, chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
+		      chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
+		      chip->debug_acc_connected);
 	dev_info(chip->dev,
-		 "TCPM_DEBUG %s pd_capable:%u pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
-		 __func__, chip->pd_capable ? 1 : 0, chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ?
-		 1 : 0, chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
+		 "TCPM_DEBUG %s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
+		 __func__, chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
+		 chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
 		 chip->debug_acc_connected);
 
-	enable_data = (chip->pd_capable && chip->pd_data_capable) || chip->no_bc_12 ||
-		chip->bc12_data_capable || chip->data_role == TYPEC_HOST ||
-		chip->debug_acc_connected;
+	enable_data = chip->pd_data_capable || chip->no_bc_12 || chip->bc12_data_capable ||
+		chip->data_role == TYPEC_HOST || chip->debug_acc_connected;
 
 	if (chip->attached && enable_data && !chip->data_active) {
 		if (chip->data_role == TYPEC_HOST) {
@@ -1028,13 +1027,13 @@ static int max77759_get_current_limit(struct tcpci *tcpci,
 	return ret;
 }
 
-static void max77759_set_pd_capable(struct tcpci *tcpci, struct tcpci_data
-				     *data, bool capable)
+static void max77759_set_partner_usb_comm_capable(struct tcpci *tcpci, struct tcpci_data *data,
+						  bool capable)
 {
 	struct max77759_plat *chip = tdata_to_max77759(data);
 
 	mutex_lock(&chip->data_path_lock);
-	chip->pd_capable = capable;
+	chip->pd_data_capable = capable;
 	enable_data_path_locked(chip);
 	mutex_unlock(&chip->data_path_lock);
 }
@@ -1182,19 +1181,16 @@ static int max77759_get_vbus(struct tcpci *tcpci, struct tcpci_data *data)
 /* Notifier structure inferred from usbpd-manager.c */
 static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 			      bool attached, enum typec_role role,
-			      enum typec_data_role data_role,
-			      bool usb_comm_capable)
+			      enum typec_data_role data_role)
 {
 	struct max77759_plat *chip = tdata_to_max77759(data);
 	int ret;
 	bool enable_data;
 
 	mutex_lock(&chip->data_path_lock);
-	chip->pd_data_capable = usb_comm_capable;
 
-	enable_data = (chip->pd_capable && chip->pd_data_capable) || chip->no_bc_12 ||
-		chip->bc12_data_capable || chip->data_role == TYPEC_HOST ||
-		chip->debug_acc_connected;
+	enable_data = chip->pd_data_capable || chip->no_bc_12 || chip->bc12_data_capable ||
+		chip->data_role == TYPEC_HOST || chip->debug_acc_connected;
 
 	if (!chip->force_device_mode_on && chip->data_active &&
 	    (chip->active_data_role != data_role || !attached || !enable_data)) {
@@ -1455,7 +1451,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.TX_BUF_BYTE_x_hidden = 1;
 	chip->data.override_toggling = true;
 	chip->data.vbus_vsafe0v = true;
-	chip->data.set_pd_capable = max77759_set_pd_capable;
+	chip->data.set_partner_usb_comm_capable = max77759_set_partner_usb_comm_capable;
 	chip->data.set_roles = max77759_set_roles;
 	chip->data.init = tcpci_init;
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
