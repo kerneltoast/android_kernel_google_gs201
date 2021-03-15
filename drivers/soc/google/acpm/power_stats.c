@@ -570,7 +570,6 @@ ATTRIBUTE_GROUPS(power_stats);
 static int power_stats_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	struct resource *res;
 	u32 timer_freq_hz;
 
 	struct power_stats_device *ps_dev =
@@ -585,12 +584,6 @@ static int power_stats_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Error getting timer frequency\n");
 		return ret;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "No timer resource\n");
-		return -ENOENT;
 	}
 
 	mutex_init(&ps_dev->lock);

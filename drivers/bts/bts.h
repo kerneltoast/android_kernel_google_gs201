@@ -80,6 +80,8 @@ struct bts_device {
 	struct bts_bw *bts_bw;
 	unsigned int peak_bw;
 	unsigned int total_bw;
+	struct bus1_int_map *bus1_int_tbl;
+	unsigned int map_row_cnt;
 };
 
 /**

@@ -52,12 +52,30 @@ static struct pm_qos_request exynos_int_qos;
 
 static struct bts_device *btsdev;
 
+static unsigned int bus1_to_int_freq(unsigned int freq)
+{
+	unsigned int i;
+
+	if (!btsdev->bus1_int_tbl) {
+		dev_err(btsdev->dev, "bus1_int_tbl unavailable\n");
+		return freq;
+	}
+	/* The bus1_int_tbl stores frequencies from high to low */
+	for (i = 0; i < btsdev->map_row_cnt; i++) {
+		if (freq > btsdev->bus1_int_tbl[i].bus1_freq)
+			break;
+	}
+	i = i ? i - 1 : i;
+
+	return btsdev->bus1_int_tbl[i].int_freq;
+}
+
 static void bts_calc_bw(void)
 {
 	unsigned int i;
 	unsigned int total_read = 0;
 	unsigned int total_write = 0;
-	unsigned int mif_freq, int_freq;
+	unsigned int mif_freq, int_freq, bus1_freq;
 
 	mutex_lock(&btsdev->mutex_lock);
 
@@ -79,12 +97,13 @@ static void bts_calc_bw(void)
 		btsdev->peak_bw = (total_write / NUM_CHANNEL);
 
 	mif_freq = (btsdev->total_bw / BUS_WIDTH) * 100 / MIF_UTIL;
-	int_freq = (btsdev->peak_bw / BUS_WIDTH) * 100 / INT_UTIL;
+	bus1_freq = (btsdev->peak_bw / BUS_WIDTH) * 100 / INT_UTIL;
+	int_freq = bus1_to_int_freq(bus1_freq);
 
 	BTSDBG_LOG(btsdev->dev,
-		   "BW: T:%.8u R:%.8u W:%.8u P:%.8u MIF:%.8u INT:%.8u\n",
+		   "BW: T:%.8u R:%.8u W:%.8u P:%.8u MIF:%.8u BUS1:%.8u INT:%.8u\n",
 		   btsdev->total_bw, total_read, total_write, btsdev->peak_bw,
-		   mif_freq, int_freq);
+		   mif_freq, bus1_freq, int_freq);
 
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 	exynos_pm_qos_update_request(&exynos_mif_qos, mif_freq);
@@ -1293,6 +1312,8 @@ static int bts_parse_setting(struct device_node *np, struct bts_stat *stat)
 	return 0;
 }
 
+#define NUM_COLS 2
+#define OF_DATA_NUM_MAX 16
 static int bts_parse_data(struct device_node *np, struct bts_device *data)
 {
 	struct bts_scen *scen;
@@ -1300,13 +1321,40 @@ static int bts_parse_data(struct device_node *np, struct bts_device *data)
 	struct device_node *child_np = NULL;
 	struct device_node *snp = NULL;
 	struct resource res;
-	int i, j;
+	int i, j, map_cnt;
+	int of_data_int_array[OF_DATA_NUM_MAX];
 	int ret = 0;
 
 	if (!of_have_populated_dt()) {
 		dev_err(data->dev, "Invalid device tree node!\n");
 		ret = -EINVAL;
 		goto err;
+	}
+
+	map_cnt = of_property_count_elems_of_size(np, "bus1_int_map",
+						    sizeof(u32));
+	if (map_cnt <= 0 || map_cnt % NUM_COLS) {
+		ret = -ENODEV;
+		goto err;
+	}
+	if (of_property_read_u32_array(np, "bus1_int_map",
+				       (u32 *)of_data_int_array,
+				       (size_t)map_cnt)) {
+		ret = -ENODEV;
+		goto err;
+	}
+	data->map_row_cnt = map_cnt / NUM_COLS;
+	data->bus1_int_tbl =
+		devm_kcalloc(data->dev, data->map_row_cnt, sizeof(u32), GFP_KERNEL);
+	if (!data->bus1_int_tbl) {
+		dev_err(data->dev,
+			"Failed to allocate memory for bus1_int_tbl\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+	for (i = 0; i < data->map_row_cnt; i++) {
+		data->bus1_int_tbl[i].bus1_freq = of_data_int_array[i * NUM_COLS];
+		data->bus1_int_tbl[i].int_freq = of_data_int_array[i * NUM_COLS + 1];
 	}
 
 	data->num_scen = (unsigned int)of_property_count_strings(

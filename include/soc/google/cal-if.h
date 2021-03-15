@@ -113,7 +113,7 @@ extern void cal_cp_enable_dump_pc_no_pg(void);
 extern void cal_cp_disable_dump_pc_no_pg(void);
 
 extern int cal_init(void);
-extern int cal_if_init(void *dev);
+extern int cal_if_init(void *np);
 
 /* It is for debugging. */
 #define cal_vclk_dbg_info(a)	do {} while (0)

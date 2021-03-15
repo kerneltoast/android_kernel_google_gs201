@@ -385,7 +385,7 @@ unsigned int vclk_get_resume_freq(unsigned int id)
 	return rate;
 }
 
-static int vclk_get_dfs_info(struct vclk *vclk)
+static int vclk_get_dfs_info(struct vclk *vclk, unsigned int minmax_idx)
 {
 	int i, j;
 	void *dvfs_block;
@@ -409,9 +409,12 @@ static int vclk_get_dfs_info(struct vclk *vclk)
 	if (gen_block) {
 		sprintf(buf, "MINMAX_%s", vclk->name);
 		minmax = ect_gen_param_get_table(gen_block, buf);
-		if (minmax != NULL)
-			/* min/max freq are the same for all versions */
-			minmax_table = &minmax->parameter[0];
+		if (minmax != NULL) {
+			if (minmax_idx > minmax->num_of_row)
+				minmax_idx = 0;
+			minmax_table =
+			    &minmax->parameter[minmax_idx * minmax->num_of_col];
+		}
 	}
 
 	vclk->num_rates = dvfs_domain->num_of_level;
@@ -484,7 +487,7 @@ err_nomem1:
 	return ret;
 }
 
-static void vclk_bind(void)
+static void vclk_bind(unsigned int minmax_idx)
 {
 	struct vclk *vclk;
 	int i;
@@ -498,7 +501,7 @@ static void vclk_bind(void)
 			continue;
 		}
 
-		ret = vclk_get_dfs_info(vclk);
+		ret = vclk_get_dfs_info(vclk, minmax_idx);
 		if (ret == -EVCLKNOENT) {
 			if (!warn_on)
 				pr_warn("ECT DVFS not found\n");
@@ -526,13 +529,13 @@ int vclk_register_ops(unsigned int id, struct vclk_trans_ops *ops)
 	return -EVCLKNOENT;
 }
 
-int vclk_initialize(void)
+int vclk_initialize(unsigned int minmax_idx)
 {
 	pr_info("vclk initialize for cmucal\n");
 
 	ra_init();
 
-	vclk_bind();
+	vclk_bind(minmax_idx);
 
 	return 0;
 }

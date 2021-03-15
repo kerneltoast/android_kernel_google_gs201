@@ -1417,7 +1417,7 @@ static int dit_reg_backup_restore(bool backup)
 		DIT_REG_NAT_LOCAL_PORT_MAX * DIT_REG_NAT_LOCAL_INTERVAL,
 	};
 	static const unsigned int nat_len = ARRAY_SIZE(nat_offset);
-	static void *nat_buf[nat_len];
+	static void *nat_buf[ARRAY_SIZE(nat_offset)];
 
 	/* CLAT */
 	static const u16 clat_offset[] = {
@@ -1431,7 +1431,7 @@ static int dit_reg_backup_restore(bool backup)
 		DIT_REG_CLAT_ADDR_MAX * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL,
 	};
 	static const unsigned int clat_len = ARRAY_SIZE(clat_offset);
-	static void *clat_buf[clat_len];
+	static void *clat_buf[ARRAY_SIZE(clat_offset)];
 
 	int ret = 0;
 

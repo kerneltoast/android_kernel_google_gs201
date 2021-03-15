@@ -480,6 +480,8 @@ static void gs101_pi_thermal(struct gs101_tmu_data *data)
 	if (tz) {
 		if (!thermal_zone_device_is_enabled(tz)) {
 			mutex_lock(&data->lock);
+			reset_pi_params(data);
+			allow_maximum_power(data);
 			params->switched_on = false;
 			goto polling;
 		}

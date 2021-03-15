@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Raven pmic settings.
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+&s_ldo4_reg {
+	/* Enabled for UWB. */
+	regulator-always-on;
+};
+
+&s_ldo14_reg {
+	/* Enabled for UWB. */
+	regulator-always-on;
+};
+

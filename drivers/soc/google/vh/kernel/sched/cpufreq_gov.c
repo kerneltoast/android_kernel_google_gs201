@@ -137,10 +137,18 @@ out:
 void reset_uclamp_stats(void)
 {
 	int i;
-	unsigned long flags;
 
 	for (i = 0; i < CONFIG_VH_SCHED_CPU_NR; i++) {
+		unsigned long flags;
+		u64 time;
+		struct rq_flags rf;
 		struct uclamp_stats *stats = &per_cpu(uclamp_stats, i);
+
+		rq_lock(cpu_rq(i), &rf);
+		update_rq_clock(cpu_rq(i));
+		time = rq_clock(cpu_rq(i));
+		rq_unlock(cpu_rq(i), &rf);
+
 		spin_lock_irqsave(&stats->lock, flags);
 		stats->last_min_in_effect = false;
 		stats->last_max_in_effect = false;
@@ -151,7 +159,7 @@ void reset_uclamp_stats(void)
 		memset(stats->util_diff_min, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
 		memset(stats->util_diff_max, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
 		stats->total_time = 0;
-		stats->last_update_time = rq_clock(cpu_rq(i));
+		stats->last_update_time = time;
 		memset(stats->time_in_state_min, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
 		memset(stats->time_in_state_max, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);
 		memset(stats->effect_time_in_state_min, 0, sizeof(u64) * UCLAMP_STATS_SLOTS);

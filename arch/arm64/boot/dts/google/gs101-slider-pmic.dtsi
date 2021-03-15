@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * pmic adjustments for slider&whitefin vs oriole/raven.
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+&m_ldo14_reg {
+	regulator-always-on;
+};
+
+&m_ldo23_reg {
+	regulator-always-on;
+};
+
+&s_ldo4_reg {
+	/* Enabled for OSLO. */
+	regulator-always-on;
+};

@@ -9,10 +9,6 @@
 
 #include "gs101-raviole-audio.dtsi"
 
-&aoc_audio_cfg{
-	aoc-audio-config = "o6";
-};
-
 &aoc {
 	aoc-board-cfg = "o6";
 };

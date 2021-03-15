@@ -19,6 +19,10 @@
 	/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
 };
 
+&cal_if {
+	minmax_idx = <7>;
+};
+
 &cpufreq_domain0 {
 	max-freq = <2024000>;
 };

@@ -2824,14 +2824,6 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 
 	spin_lock_irqsave(&exynos_pcie->conf_lock, flags);
 	if (enable) {	/* enable == 1 */
-		/* ToDo: may remove or move these to phy_config */
-		/* make force_pclk_en enabled: moved to phy_config() in gs101
-		 * writel(0x0c, exynos_pcie->phy_pcs_base + 0x0180);
-		 */
-		/* P1.CPM Entry pclk 32cycle delay option */
-		writel(0x18500000, exynos_pcie->phy_pcs_base + 0x0114);
-
-		mdelay(1);
 		exynos_pcie->l1ss_ctrl_id_state &= ~(id);
 
 		if (exynos_pcie->l1ss_ctrl_id_state == 0) {

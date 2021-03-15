@@ -21,6 +21,7 @@ extern void update_uclamp_stats(int cpu, u64 time);
 
 extern bool vendor_sched_enable_prefer_high_cap;
 extern bool vendor_sched_task_spreading_enable;
+extern unsigned int vendor_sched_uclamp_threshold;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = UTIL_THRESHOLD};
@@ -870,4 +871,65 @@ void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p
 {
 	if (rq->nr_running == 0)
 		update_uclamp_stats(rq->cpu, rq_clock(rq));
+}
+
+static inline struct uclamp_se
+uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
+{
+	struct uclamp_se uc_req = p->uclamp_req[clamp_id];
+#ifdef CONFIG_UCLAMP_TASK_GROUP
+	struct uclamp_se uc_max;
+
+	/*
+	 * Tasks in autogroups or root task group will be
+	 * restricted by system defaults.
+	 */
+	if (task_group_is_autogroup(task_group(p)))
+		return uc_req;
+	if (task_group(p) == &root_task_group)
+		return uc_req;
+
+	uc_max = task_group(p)->uclamp[clamp_id];
+	if ((clamp_id == UCLAMP_MAX && (uc_req.value > uc_max.value || !uc_req.user_defined)) ||
+	    (clamp_id == UCLAMP_MIN && (uc_req.value < uc_max.value || !uc_req.user_defined)))
+		return uc_max;
+#endif
+
+	return uc_req;
+}
+
+static inline struct uclamp_se
+uclamp_eff_get_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id,
+			 struct uclamp_se *uclamp_default)
+{
+	struct uclamp_se uc_req = uclamp_tg_restrict_pixel_mod(p, clamp_id);
+	struct uclamp_se uc_max = *uclamp_default;
+
+	/* System default restrictions always apply */
+	if (unlikely(uc_req.value > uc_max.value))
+		return uc_max;
+
+	return uc_req;
+}
+
+void rvh_uclamp_eff_value_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
+				    struct uclamp_se *uclamp_default, unsigned long *ret)
+{
+	struct uclamp_se uc_eff;
+
+	if ((enum uclamp_id)clamp_id == UCLAMP_MIN &&
+	    task_util_est(p) < vendor_sched_uclamp_threshold) {
+		*ret = 0;
+		return;
+	}
+
+	/* Task currently refcounted: use back-annotated (effective) value */
+	if (p->uclamp[clamp_id].active) {
+		*ret = (unsigned long)p->uclamp[clamp_id].value;
+		return;
+	}
+
+	uc_eff = uclamp_eff_get_pixel_mod(p, clamp_id, uclamp_default);
+	*ret = (unsigned long)uc_eff.value;
+	return;
 }

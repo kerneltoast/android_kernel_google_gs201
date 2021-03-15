@@ -69,6 +69,17 @@ struct bts_bw {
 	struct bts_bw_stats stats;
 };
 
+/**
+ * struct bus1_int_map - Freq mapping information
+ * @bus1_freq:	Frequency of BUS1 in KHz
+ * @int_freq:	Frequency of INT in KHz
+ *
+ */
+struct bus1_int_map {
+	unsigned int bus1_freq;
+	unsigned int int_freq;
+};
+
 #if IS_ENABLED(CONFIG_EXYNOS_BTS) || IS_ENABLED(CONFIG_EXYNOS_BTS_MODULE)
 int bts_get_bwindex(const char *name);
 int bts_update_bw(unsigned int index, struct bts_bw bw);

@@ -1059,7 +1059,8 @@ static ssize_t mm_stat_show(struct device *dev,
 {
 	struct zram *zram = dev_to_zram(dev);
 	struct zs_pool_stats pool_stats;
-	unsigned long orig_size, compr_size, max_used, same_pages, huge_pages, mem_used;
+	unsigned long orig_size, compr_size, max_used, same_pages,
+		      huge_pages, huge_pages_since, mem_used;
 	ssize_t ret;
 
 	mem_used = 0;
@@ -1076,13 +1077,15 @@ static ssize_t mm_stat_show(struct device *dev,
 	max_used = atomic_long_read(&zram->max_used_pages);
 	same_pages = zram_stat_read(zram, NR_SAME_PAGE);
 	huge_pages = zram_stat_read(zram, NR_HUGE_PAGE);
+	huge_pages_since = zram_stat_read(zram, NR_HUGE_PAGE_SINCE);
 
 	ret = scnprintf(buf, PAGE_SIZE,
-			"%8llu %8llu %8llu %8lu %8ld %8llu %8lu %8llu\n",
+			"%8llu %8llu %8llu %8lu %8ld %8llu %8lu %8llu %8llu\n",
 			orig_size << PAGE_SHIFT, compr_size,
 			mem_used << PAGE_SHIFT, zram->limit_pages << PAGE_SHIFT,
 			max_used << PAGE_SHIFT, same_pages,
-			pool_stats.pages_compacted, huge_pages);
+			pool_stats.pages_compacted, huge_pages,
+			huge_pages_since);
 
 	up_read(&zram->init_lock);
 
@@ -1187,6 +1190,8 @@ void zram_slot_update(struct zram *zram, u32 index,
 		if (comp_len == PAGE_SIZE) {
 			zram_set_flag(zram, index, ZRAM_HUGE);
 			__this_cpu_inc(zram->pcp_stats->items[NR_HUGE_PAGE]);
+			__this_cpu_inc(
+				zram->pcp_stats->items[NR_HUGE_PAGE_SINCE]);
 		}
 		zram_set_handle(zram, index, handle);
 		zram_set_obj_size(zram, index, comp_len);

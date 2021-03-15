@@ -13,7 +13,7 @@
 #include "gs101-raviole-ldaf.dtsi"
 #include "gs101-raviole-sbbm.dtsi"
 #include "gs101-raviole-thermal.dtsi"
-#include "gs101-raviole-wcharger.dtsi"
+#include "gs101-raviole-usb.dtsi"
 #include "gs101-slider-fingerprint.dtsi"
 #include "gs101-slider-gsa-gsc.dtsi"
 #include "gs101-slider2-gps.dtsi"

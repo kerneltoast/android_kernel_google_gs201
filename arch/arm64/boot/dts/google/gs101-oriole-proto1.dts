@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Oriole Early SMT device tree source
+ * Oriole Proto 1.0 device tree source
  *
  * Copyright 2020 Google,LLC
  */
@@ -8,11 +8,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "gs101-oriole.dtsi"
-#include "gs101-raviole-camera-pmic-proto1.dtsi"
-#include "gs101-raviole-ldaf-proto1.dtsi"
-#include "gs101-oriole-camera-proto1.dtsi"
-
+#include "gs101-oriole-proto1.dtsi"
 / {
 	board_id = <0x20302>;
 	board_rev = <0x10000>;

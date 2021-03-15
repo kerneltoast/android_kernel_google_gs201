@@ -76,6 +76,11 @@
 			302000  151000      0     60      1        0        0        0       0     0
 		>;
 
+		/* Designate the minimum level for when compute work is detected. If this value
+		   falls between two dvfs levels, the higher level will be used as the minimum
+		   level.*/
+		gpu_dvfs_compute_min = <450000>;
+
 		/* QOS */
 		gpu_dvfs_qos_bts_scenario = "g3d_performance";
 		gpu_dvfs_qos_bts_threshold = <400000>;
@@ -84,12 +89,6 @@
 		#cooling-cells = <2>;
 		gpu_power_coeff = <625>;
 		ect-coeff-index = <3>;
-
-		/*
-		 * Pixel Platform integration log level
-		 * (0: off, 1: debug, 2: info, 3: warn, 4: error)
-		 */
-		gpu_log_level = <2>;
 
 	};
 

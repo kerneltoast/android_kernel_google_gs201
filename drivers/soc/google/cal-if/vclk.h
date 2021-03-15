@@ -23,7 +23,7 @@ extern unsigned long vclk_recalc_rate(unsigned int id);
 extern unsigned long vclk_get_rate(unsigned int id);
 extern int vclk_set_enable(unsigned int id);
 extern int vclk_set_disable(unsigned int id);
-extern int vclk_initialize(void);
+extern int vclk_initialize(unsigned int minmax_idx);
 extern unsigned int vclk_get_max_freq(unsigned int id);
 extern unsigned int vclk_get_min_freq(unsigned int id);
 extern unsigned int vclk_get_boot_freq(unsigned int id);

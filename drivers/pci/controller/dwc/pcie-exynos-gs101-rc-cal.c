@@ -95,71 +95,39 @@ void exynos_pcie_rc_pcie_phy_otp_config(void *phy_base_regs, int ch_num)
 
 #define LCPLL_REF_CLK_SEL	(0x3 << 4)
 
-void pcie_phy_oc_workaround(struct exynos_pcie *exynos_pcie, int ch_num)
-{
-	u32 i, val;
-	void __iomem *phy_base_regs = exynos_pcie->phy_base;
-	int num_lanes = exynos_pcie->num_lanes;
-
-	/* Offset Calibration Workaround */
-	for (i = 0; i < num_lanes; i++) {
-		/* ln0_ov_s_ana_rx_dfe_vref_even_ctrl = 1 */
-		writel(0xF7, phy_base_regs + 0x9B4);
-
-		/* ln0_ov_s_ana_rx_dfe_vref_odd_ctrl = 1 */
-		writel(0x25, phy_base_regs + 0x9AC);
-
-		/* ln0_ov_s_ana_rx_dfe_adap_en = 1 */
-		writel(0x7C, phy_base_regs + 0x97C);
-
-		/* ln0_ov_s_ana_rx_rterm_en = 1 */
-		/* ln0_ov_i_ana_rx_rterm_en = 0 */
-		writel(0x80, phy_base_regs + 0x9CC);
-
-		phy_base_regs += 0x800;
-	}
-
-	phy_base_regs = exynos_pcie->phy_base;
-	for (i = 0; i < 20; i++) {
-		mdelay(1);
-
-		val = ((readl(phy_base_regs + 0x760)) & 0x4) >> 2;
-		if (val == 1)
-			break;
-	}
-	if (val == 0)
-		pr_err("PLL_LOCK: Fail(0x%X)\n", val);
-
-	phy_base_regs = exynos_pcie->phy_base;
-	for (i = 0; i < num_lanes; i++) {
-		/* ln0_ov_s_ana_rx_dfe_vref_even_ctrl = 1 */
-		writel(0xF6, phy_base_regs + 0x9B4);
-
-		/* ln0_ov_s_ana_rx_dfe_vref_odd_ctrl = 1 */
-		writel(0x24, phy_base_regs + 0x9AC);
-
-		/* ln0_ov_s_ana_rx_dfe_adap_en = 1 */
-		writel(0x5C, phy_base_regs + 0x97C);
-
-		/* ln0_ov_s_ana_rx_rterm_en = 1 */
-		/* ln0_ov_i_ana_rx_rterm_en = 0 */
-		writel(0x00, phy_base_regs + 0x9CC);
-
-		phy_base_regs += 0x800;
-	}
-}
-
 void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 {
 	void __iomem *elbi_base_regs = exynos_pcie->elbi_base;
 	void __iomem *phy_base_regs = exynos_pcie->phy_base;
 	void __iomem *phy_pcs_base_regs = exynos_pcie->phy_pcs_base;
 	int num_lanes = exynos_pcie->num_lanes;
-	u32 val, val2;
+	u32 val;
 	u32 i;
 
 	/* init. input clk path */
 	writel(0x28, phy_base_regs + 0xD8);
+
+	/* PCS MUX glitch W/A */
+	val = readl(exynos_pcie->phy_pcs_base + 0x008);
+	val |= (1 << 7);
+	writel(val, phy_pcs_base_regs + 0x008);
+	if (num_lanes == 2) {
+		val = readl(exynos_pcie->phy_pcs_base + 0x808);
+		val |= (1 << 7);
+		writel(val, phy_pcs_base_regs + 0x808);
+	}
+
+	/* PHY CMN_RST, INIT_RST, PORT_RST Assert */
+	writel(0x1, elbi_base_regs + 0x1404);
+	writel(0x1, elbi_base_regs + 0x1408);
+	writel(0x1, elbi_base_regs + 0x1400);
+	writel(0x0, elbi_base_regs + 0x1404);
+	writel(0x0, elbi_base_regs + 0x1408);
+	writel(0x0, elbi_base_regs + 0x1400);
+	udelay(10);
+
+	writel(0x1, elbi_base_regs + 0x1404);
+	udelay(10);
 
 	/* pma_setting */
 	/* Common */
@@ -289,74 +257,7 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 		writel(0x04, phy_base_regs + 0xC40);
 	}
 
-	/* ungating Link CLK with PIPE. */
-	val = readl(exynos_pcie->phy_pcs_base + 0x8); /* = 0x35 */
-	/*
-	 * sfr_controller[2:2]
-	 * '0': if PLL is unlocked, gating Link clock by gating pipe clock
-	 * '1': always ungating => should be always '1'
-	 */
-	val |= 0x4;
-	/*
-	 * sfr_controller[5:4]
-	 *	2'bx0: REFCLK is always gated(EP mode)
-	 *	2'b01: REFCLK is gated at L1.2(RC mode)
-	 *	2'b11(def.): REFCLK is not gated(RC mode)
-	 * sfr_controller[5:5]
-	 * '0': ref clock gating in L1.2
-	 * sfr_controller[4:4]
-	 * should be always '1'
-	 */
-	val &= ~(PHY_PCS_REFCLK_GATE_L12);
-	val |= PHY_PCS_REFCLK_EN;
-	/*
-	 * sfr_controller[7:7]
-	 * '1': set to avoid PHY tx clock glitch before phy_init_rstn(0x1404)
-	 */
-	val |= 0x80;
-	writel(val, phy_pcs_base_regs + 0x8);
-	if (num_lanes == 2) {
-		val = readl(exynos_pcie->phy_pcs_base + 0x808);
-		val |= 0x4;
-		val &= ~(PHY_PCS_REFCLK_GATE_L12);
-		val |= PHY_PCS_REFCLK_EN;
-		val |= 0x80;
-		writel(val, phy_pcs_base_regs + 0x808);
-	}
-	/*
-	 * DBG:
-	 * val = readl(exynos_pcie->phy_pcs_base + 0x8);
-	 * printk("DBG: sfr_controller(0x8) = 0x%x\n", val);
-	 * val = readl(exynos_pcie->phy_pcs_base + 0x808);
-	 * printk("DBG: sfr_controller(0x808) = 0x%x\n", val);
-	 */
-
-	/* PCS & PHY Global_RST and  PHY CMN_RST */
-	writel(0x1, elbi_base_regs + 0x1404);
-	writel(0x1, elbi_base_regs + 0x1408);
-	writel(0x0, elbi_base_regs + 0x1404);
-	writel(0x0, elbi_base_regs + 0x1408);
-	mdelay(1);
-	writel(0x1, elbi_base_regs + 0x1404);
-	writel(0x1, elbi_base_regs + 0x1408);
-
-	/* Offset Calibration W/A: pcie_phy_oc_workaround() in F/W code */
-	pcie_phy_oc_workaround(exynos_pcie, ch_num);
-
-	/* PHY PMA_RST */
-	writel(0x1, elbi_base_regs + 0x1400);
-	udelay(10);
-	writel(0x0, elbi_base_regs + 0x1400);
-	mdelay(1);
-	writel(0x1, elbi_base_regs + 0x1400);
-
-	/* CDR Reset */
-	/* TBD */
-
-	/* EQ Off: write 0x12001 at DBI_Base + 0x890h => Need to insert at the Setup_RC code */
-
 	/* PCS setting: pcie_pcs_setting() in F/W code */
-	mdelay(3);
 
 	/* aggregation mdoe(bifurcation disabled) */
 	writel(0x00, phy_pcs_base_regs + 0x004);
@@ -372,21 +273,27 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	writel(0x300FF, phy_pcs_base_regs + 0x150);
 	if (num_lanes == 2)
 		writel(0x300FF, phy_pcs_base_regs + 0x950);
-	mdelay(1);
 
-	/* force_en_pipe_pclk */
-	val = readl(exynos_pcie->phy_pcs_base + 0x180);
-	val &= ~(0x1);
-	writel(val, phy_pcs_base_regs + 0x180);
+	/* add L2 power down delay */
+	writel(0x40, phy_pcs_base_regs + 0x170);
+	if (num_lanes == 2)
+		writel(0x40, phy_pcs_base_regs + 0x970);
+
+	/* when entring L1.2, ERIO CLK gating */
+	val = readl(exynos_pcie->phy_pcs_base + 0x008);
+	val &= ~((1 << 4) | (1 << 5));
+	val |= (1 << 4);
+	writel(val, phy_pcs_base_regs + 0x008);
 	if (num_lanes == 2) {
-		val = readl(exynos_pcie->phy_pcs_base + 0x980);
-		val &= ~(0x1);
-		writel(val, phy_pcs_base_regs + 0x980);
+		val = readl(exynos_pcie->phy_pcs_base + 0x808);
+		val &= ~((1 << 4) | (1 << 5));
+		val |= (1 << 4);
+		writel(val, phy_pcs_base_regs + 0x808);
 	}
 
-	/* ungating Link CLK with PIPE & Glitch MUX reset disable */
-	val = readl(exynos_pcie->phy_pcs_base + 0x8);
-	val2 = readl(exynos_pcie->phy_pcs_base + 0x808);
+	/* PHY CMN_RST, PORT_RST Release */
+	writel(0x1, elbi_base_regs + 0x1400);
+	writel(0x1, elbi_base_regs + 0x1408);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_pcie_phy_config);
 

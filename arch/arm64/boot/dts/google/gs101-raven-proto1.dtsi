@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Raven Proto Wingboard device tree
+ *
+ * Copyright 2021 Google,LLC
+ */
+#include "gs101-raven.dtsi"
+#ifndef GS101_RAVEN_WINGBOARD
+#include "gs101-raviole-camera-pmic-proto1.dtsi"
+#endif
+#include "gs101-raviole-ldaf-proto1.dtsi"
+
