@@ -148,4 +148,6 @@ per-file usb/typec/tcpm/tcpci_otg_helper.h=*
 per-file usb/typec/tcpm/usb_icl_voter.h=*
 per-file usb/typec/tcpm/usb_psy.*=*
 
+per-file video/backlight/lp855x_bl.c=*
+
 per-file watchdog/s3c2410_wdt.c=*
