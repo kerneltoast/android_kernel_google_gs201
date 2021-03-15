@@ -8,3 +8,6 @@ obj-$(CONFIG_VH_SYSTRACE) += systrace.o
 
 # vh/kernel/thermal
 obj-$(CONFIG_VH_THERMAL)  += thermal/
+
+# vh/kernel/fs
+obj-$(CONFIG_VH_FS)	+= fs/
