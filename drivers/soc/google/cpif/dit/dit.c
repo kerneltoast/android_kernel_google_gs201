@@ -1867,7 +1867,7 @@ static ssize_t debug_use_clat_store(struct device *dev, struct device_attribute 
 	if (!flag) {
 		memset(&clat, 0, sizeof(clat));
 		for (i = 0; i < DIT_REG_CLAT_ADDR_MAX; i++) {
-			clat.rmnet_index = i;
+			clat.clat_index = i;
 			scnprintf(clat.ipv6_iface, IFNAMSIZ, "rmnet%d", i);
 			dit_hal_set_clat_info(&clat);
 		}

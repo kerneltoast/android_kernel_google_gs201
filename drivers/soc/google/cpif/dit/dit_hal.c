@@ -477,7 +477,7 @@ static void dit_hal_set_iod_clat_netdev(struct io_device *iod, void *args)
 #endif
 
 		mif_info("%s clat netdev[%d] ch: %d, iface v6/v4: %s/%s\n",
-			(ndev ? "set" : "clear"), clat->rmnet_index, iod->ch,
+			(ndev ? "set" : "clear"), clat->clat_index, iod->ch,
 			clat->ipv6_iface, clat->ipv4_iface);
 	}
 }
@@ -493,13 +493,13 @@ bool dit_hal_set_clat_info(struct clat_info *clat)
 
 	spin_lock_irqsave(&dc->src_lock, flags);
 	/* IPv4 addr of TUN device */
-	offset = clat->rmnet_index * DIT_REG_CLAT_TX_FILTER_INTERVAL;
+	offset = clat->clat_index * DIT_REG_CLAT_TX_FILTER_INTERVAL;
 	if (dit_enqueue_reg_value_with_ext_lock(clat->ipv4_local_subnet.s_addr,
 			DIT_REG_CLAT_TX_FILTER + offset) < 0)
 		goto exit;
 
 	/* IPv6 addr for TUN device */
-	offset = clat->rmnet_index * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL;
+	offset = clat->clat_index * DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL;
 	if (dit_enqueue_reg_value_with_ext_lock(clat->ipv6_local_subnet.s6_addr32[0],
 			DIT_REG_CLAT_TX_CLAT_SRC_0 + offset) < 0)
 		goto exit;
@@ -514,7 +514,7 @@ bool dit_hal_set_clat_info(struct clat_info *clat)
 		goto exit;
 
 	/* PLAT prefix */
-	offset = clat->rmnet_index * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL;
+	offset = clat->clat_index * DIT_REG_CLAT_TX_PLAT_PREFIX_INTERVAL;
 	if (dit_enqueue_reg_value_with_ext_lock(clat->plat_subnet.s6_addr32[0],
 			DIT_REG_CLAT_TX_PLAT_PREFIX_0 + offset) < 0)
 		goto exit;
