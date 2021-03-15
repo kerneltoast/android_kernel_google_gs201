@@ -18,6 +18,7 @@ per-file linux/mfd/samsung/rtc-s2mpg10.h=*
 per-file linux/mfd/samsung/s2mpg1*=*
 per-file linux/mfd/slg51000.h=*
 per-file linux/modem_notifier.h=*
+per-file linux/platform_data/lp855x.h=*
 per-file linux/platform_data/spi-s3c64xx.h=*
 per-file linux/platform_data/sscoredump.h=*
 per-file linux/regulator/pmic_class.h=*
