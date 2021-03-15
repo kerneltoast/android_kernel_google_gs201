@@ -474,7 +474,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 
 		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity);
 
-		if (!cpu_online(i))
+		if (!cpu_active(i))
 			goto check;
 
 		/*
