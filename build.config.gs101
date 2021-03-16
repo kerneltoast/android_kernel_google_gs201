@@ -30,6 +30,7 @@ KMI_SYMBOL_LIST_MODULE_GROUPING=0
 BUILD_INITRAMFS=1
 LZ4_RAMDISK=1
 BUILD_BOOT_IMG=1
+VENDOR_DLKM_MODULES_LIST=${KERNEL_DIR}/vendor_dlkm_modules.slider
 GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-aosp_arm64.img
 VENDOR_RAMDISK_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-oriole.img
 KERNEL_VENDOR_CMDLINE="earlycon=exynos4210,0x10A00000 console=ttySAC0,115200 androidboot.console=ttySAC0"

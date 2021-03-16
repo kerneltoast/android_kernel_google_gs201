@@ -1,0 +1,5 @@
+# List of modules to be copied into vendor_dlkm partition image.
+#
+# We use a regular expression that matches any filename to copy all modules
+# into vendor_dlkm partition
+.*
