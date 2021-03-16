@@ -126,23 +126,7 @@ enum IRQ_SOURCE_S2MPG11 {
 	IRQ_SOURCE_S2MPG11_MAX,
 };
 
-enum sys_throttling_switch {
-	SYS_THROTTLING_DISABLED,
-	SYS_THROTTLING_ENABLED,
-	SYS_THROTTLING_GEAR0,
-	SYS_THROTTLING_GEAR1,
-	SYS_THROTTLING_GEAR2,
-	SYS_THROTTLING_MAX,
-};
-
 enum PMIC_REG { S2MPG10, S2MPG11 };
-
-static const unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {
-	[SYS_THROTTLING_DISABLED] = 0x1F,
-	[SYS_THROTTLING_ENABLED] = 0x10,
-	[SYS_THROTTLING_GEAR0] = 0x10,
-	[SYS_THROTTLING_GEAR1] = 0x15,
-	[SYS_THROTTLING_GEAR2] = 0x1A};
 
 static const char * const s2mpg10_source[] = {
 	[IRQ_SMPL_WARN] = "smpl_warn",
@@ -1308,32 +1292,6 @@ static int set_soft_gpu_lvl(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_lvl_fops, get_soft_gpu_lvl, set_soft_gpu_lvl, "%d\n");
 
-static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
-				     enum sys_throttling_switch throttle_switch)
-{
-	unsigned int reg, mask;
-	void __iomem *addr;
-
-	if (!gs101_bcl_device->sysreg_cpucl0) {
-		dev_err(gs101_bcl_device->device, "sysreg_cpucl0 ioremap not mapped\n");
-		return;
-	}
-	mutex_lock(&sysreg_lock);
-	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM;
-	reg = __raw_readl(addr);
-	mask = BIT(8);
-	/* 75% dispatch reduction */
-	if (throttle_switch == SYS_THROTTLING_ENABLED) {
-		reg |= mask;
-		reg |= PPMCTL_MASK;
-	} else {
-		reg &= ~mask;
-		reg &= ~(PPMCTL_MASK);
-	}
-	__raw_writel(reg, addr);
-	mutex_unlock(&sysreg_lock);
-}
-
 static ssize_t mpmm_settings_store(struct device *dev,
 				   struct device_attribute *attr, const char *buf, size_t size)
 {
@@ -1407,33 +1365,6 @@ static ssize_t mpmm_settings_show(struct device *dev, struct device_attribute *a
 }
 
 static DEVICE_ATTR_RW(mpmm_settings);
-
-static void
-gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
-			  enum sys_throttling_switch throttle_switch)
-{
-	unsigned int reg;
-	void __iomem *addr;
-	unsigned int settings;
-
-	if (!gs101_bcl_device->sysreg_cpucl0) {
-		dev_err(gs101_bcl_device->device, "sysreg_cpucl0 ioremap not mapped\n");
-		return;
-	}
-	mutex_lock(&sysreg_lock);
-	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_MPMM;
-	reg = __raw_readl(addr);
-
-	if ((throttle_switch < 0) || (throttle_switch > SYS_THROTTLING_GEAR2))
-		settings = 0xF;
-	else
-		settings = sys_throttling_settings[throttle_switch];
-
-	reg &= ~0x1F;
-	reg |= settings;
-	__raw_writel(reg, addr);
-	mutex_unlock(&sysreg_lock);
-}
 
 static ssize_t ppm_settings_store(struct device *dev,
 				  struct device_attribute *attr, const char *buf, size_t size)
@@ -1589,6 +1520,32 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 		}
 	}
 	return ret;
+}
+
+static void google_gs101_set_throttling(struct gs101_bcl_dev *bcl_dev)
+{
+	struct device_node *np = bcl_dev->device->of_node;
+	int ret;
+	u32 val, ppm_settings, mpmm_settings;
+	void __iomem *addr;
+
+	if (!bcl_dev->sysreg_cpucl0) {
+		dev_err(bcl_dev->device, "sysreg_cpucl0 ioremap not mapped\n");
+		return;
+	}
+	ret = of_property_read_u32(np, "ppm_settings", &val);
+	ppm_settings = ret ? 0 : val;
+
+	ret = of_property_read_u32(np, "mpmm_settings", &val);
+	mpmm_settings = ret ? 0 : val;
+
+	mutex_lock(&sysreg_lock);
+	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM;
+	__raw_writel(ppm_settings, addr);
+	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_MPMM;
+	__raw_writel(mpmm_settings, addr);
+	mutex_unlock(&sysreg_lock);
+
 }
 
 static int google_gs101_set_sub_pmic(struct gs101_bcl_dev *bcl_dev)
@@ -1957,8 +1914,6 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	__raw_writel(reg, bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM);
 
 	mutex_unlock(&sysreg_lock);
-	gs101_set_ppm_throttling(bcl_dev, SYS_THROTTLING_DISABLED);
-	gs101_set_mpmm_throttling(bcl_dev, SYS_THROTTLING_DISABLED);
 	mutex_init(&bcl_dev->state_trans_lock);
 	mutex_init(&bcl_dev->ratio_lock);
 	bcl_dev->soc_ops.get_temp = gs101_bcl_read_soc;
@@ -1978,6 +1933,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	thermal_zone_device_update(bcl_dev->soc_tzd, THERMAL_DEVICE_UP);
 	schedule_delayed_work(&bcl_dev->soc_eval_work, 0);
 	bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
+	google_gs101_set_throttling(bcl_dev);
 	google_gs101_set_main_pmic(bcl_dev);
 	google_gs101_set_sub_pmic(bcl_dev);
 	bcl_dev->device = pmic_device_create(bcl_dev, "mitigation");
