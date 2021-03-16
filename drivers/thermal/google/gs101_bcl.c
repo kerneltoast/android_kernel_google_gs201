@@ -27,6 +27,7 @@
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/s2mpg11-register.h>
 #include <linux/regulator/pmic_class.h>
+#include <soc/google/bcl.h>
 #include <soc/google/exynos-pm.h>
 #include <soc/google/exynos-pmu-if.h>
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -1291,6 +1292,42 @@ static int set_soft_gpu_lvl(void *data, u64 val)
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_lvl_fops, get_soft_gpu_lvl, set_soft_gpu_lvl, "%d\n");
+
+int gs101_set_ppm(unsigned int value)
+{
+	void __iomem *addr;
+
+	addr = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
+	if (!addr) {
+		pr_err("Error in sysreg_cpucl0 ioremap\n");
+		return -EIO;
+	}
+	mutex_lock(&sysreg_lock);
+	addr = addr + CLUSTER0_PPM;
+	__raw_writel(value, addr);
+	mutex_unlock(&sysreg_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gs101_set_ppm);
+
+int gs101_set_mpmm(unsigned int value)
+{
+	void __iomem *addr;
+
+	addr = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
+	if (!addr) {
+		pr_err("Error in sysreg_cpucl0 ioremap\n");
+		return -EIO;
+	}
+	mutex_lock(&sysreg_lock);
+	addr = addr + CLUSTER0_MPMM;
+	__raw_writel(value, addr);
+	mutex_unlock(&sysreg_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gs101_set_mpmm);
 
 static ssize_t mpmm_settings_store(struct device *dev,
 				   struct device_attribute *attr, const char *buf, size_t size)
