@@ -207,7 +207,6 @@
 		max77759,vin-is_valid =  <&max20339_gpio 3 GPIO_ACTIVE_HIGH>;
 
 		max77759,cpout-en =  <&p9412_gpio 1 GPIO_ACTIVE_HIGH>;
-		max77759,cpout_21-en = <&p9412_gpio 2 GPIO_ACTIVE_HIGH>;
 		max77759,cpout-ctl =  <&p9412_gpio 3 GPIO_ACTIVE_HIGH>;
 	};
 
