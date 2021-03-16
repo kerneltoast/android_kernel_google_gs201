@@ -454,6 +454,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	int i;
 	int start_cpu = -1;
 	unsigned int min_exit_lat = UINT_MAX;
+	unsigned long best_idle_util = ULONG_MAX;
 
 	/*
 	 * In most cases, target_capacity tracks capacity of the most
@@ -507,8 +508,9 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * There is no need to check the boosted util of the task since
 		 * it is checked in task_fits_capacity already. It only needs
 		 * to check total util here.
+		 * However, if task prefers idle and cpu is idle, we skip this check.
 		 */
-		if (new_util > capacity)
+		if (!(prefer_idle && cpu_is_idle(i)) && new_util > capacity)
 			goto check;
 
 		if (is_min_capacity_cpu(i) &&
@@ -573,19 +575,22 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 				/*
 				 * Minimise value of idle state: skip
 				 * deeper idle states and pick the
-				 * shallowest.
+				 * shallowest. If idle state is the same,
+				 * pick the least utilized cpu.
 				 */
 				if (sched_cpu_idle(i))
 					exit_lat = 0;
 				else if (idle)
 					exit_lat = idle->exit_latency;
 
-				if (exit_lat > min_exit_lat &&
-				    capacity_orig == target_capacity)
+				if (exit_lat > min_exit_lat ||
+				    (exit_lat == min_exit_lat &&
+				     best_idle_util <= new_util))
 					goto check;
 
 				min_exit_lat = exit_lat;
 				target_capacity = capacity_orig;
+				best_idle_util = new_util;
 				best_idle_cpu = i;
 				goto check;
 			}
@@ -655,19 +660,22 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 			 * Skip CPUs in deeper idle state, but only
 			 * if they are also less energy efficient.
 			 * IOW, prefer a deep IDLE LITTLE CPU vs a
-			 * shallow idle big CPU.
+			 * shallow idle big CPU. If idle state is the same,
+			 * pick the least utilized cpu.
 			 */
 			if (sched_cpu_idle(i))
 				exit_lat = 0;
 			else if (idle)
 				exit_lat = idle->exit_latency;
 
-			if (exit_lat > min_exit_lat &&
-				capacity_orig == target_capacity)
+			if (exit_lat > min_exit_lat ||
+			    (exit_lat == min_exit_lat &&
+			     best_idle_util <= new_util))
 				goto check;
 
 			min_exit_lat = exit_lat;
 			target_capacity = capacity_orig;
+			best_idle_util = new_util;
 			best_idle_cpu = i;
 			goto check;
 		}
