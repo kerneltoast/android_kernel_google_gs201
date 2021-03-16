@@ -99,36 +99,6 @@ static const struct file_operations name = {	\
 	.write	= fn_write,			\
 }
 
-enum PMIC_THERMAL_SENSOR {
-	PMIC_SOC,
-	PMIC_120C,
-	PMIC_140C,
-	PMIC_OVERHEAT,
-	PMIC_THERMAL_SENSOR_MAX,
-};
-
-enum IRQ_SOURCE_S2MPG10 {
-	IRQ_SMPL_WARN,
-	IRQ_OCP_WARN_CPUCL1,
-	IRQ_OCP_WARN_CPUCL2,
-	IRQ_SOFT_OCP_WARN_CPUCL1,
-	IRQ_SOFT_OCP_WARN_CPUCL2,
-	IRQ_OCP_WARN_TPU,
-	IRQ_SOFT_OCP_WARN_TPU,
-	IRQ_PMIC_120C,
-	IRQ_PMIC_140C,
-	IRQ_PMIC_OVERHEAT,
-	IRQ_SOURCE_S2MPG10_MAX,
-};
-
-enum IRQ_SOURCE_S2MPG11 {
-	IRQ_OCP_WARN_GPU,
-	IRQ_SOFT_OCP_WARN_GPU,
-	IRQ_SOURCE_S2MPG11_MAX,
-};
-
-enum PMIC_REG { S2MPG10, S2MPG11 };
-
 static const char * const s2mpg10_source[] = {
 	[IRQ_SMPL_WARN] = "smpl_warn",
 	[IRQ_OCP_WARN_CPUCL1] = "ocp_cpu1",
@@ -169,64 +139,6 @@ static const unsigned int subsystem_pmu[] = {
 	PMU_ALIVE_TPU_OUT,
 	PMU_ALIVE_GPU_OUT
 };
-
-struct ocpsmpl_stats {
-	ktime_t _time;
-	int capacity;
-	int voltage;
-};
-
-struct gs101_bcl_dev {
-	struct device *device;
-	struct dentry *debug_entry;
-	void __iomem *base_mem[5];
-	void __iomem *sysreg_cpucl0;
-	struct power_supply *batt_psy;
-
-	struct notifier_block psy_nb;
-	struct delayed_work soc_eval_work;
-	struct delayed_work mfd_init;
-
-	void *iodev;
-
-	int trip_high_temp;
-	int trip_low_temp;
-	int trip_val;
-	struct mutex state_trans_lock;
-	struct mutex ratio_lock;
-	struct thermal_zone_device *soc_tzd;
-	struct thermal_zone_of_device_ops soc_ops;
-	struct mutex s2mpg10_irq_lock[IRQ_SOURCE_S2MPG10_MAX];
-	struct mutex s2mpg11_irq_lock[IRQ_SOURCE_S2MPG11_MAX];
-	struct delayed_work s2mpg10_irq_work[IRQ_SOURCE_S2MPG10_MAX];
-	struct delayed_work s2mpg11_irq_work[IRQ_SOURCE_S2MPG11_MAX];
-	struct thermal_zone_device *s2mpg10_tz_irq[IRQ_SOURCE_S2MPG10_MAX];
-	struct thermal_zone_device *s2mpg11_tz_irq[IRQ_SOURCE_S2MPG11_MAX];
-
-	unsigned int s2mpg10_lvl[IRQ_SOURCE_S2MPG10_MAX];
-	unsigned int s2mpg11_lvl[IRQ_SOURCE_S2MPG11_MAX];
-	unsigned int s2mpg10_irq[IRQ_SOURCE_S2MPG10_MAX];
-	unsigned int s2mpg11_irq[IRQ_SOURCE_S2MPG11_MAX];
-	int s2mpg10_counter[IRQ_SOURCE_S2MPG10_MAX];
-	int s2mpg11_counter[IRQ_SOURCE_S2MPG11_MAX];
-	int s2mpg10_pin[IRQ_SOURCE_S2MPG10_MAX];
-	int s2mpg11_pin[IRQ_SOURCE_S2MPG11_MAX];
-	atomic_t s2mpg10_cnt[IRQ_SOURCE_S2MPG10_MAX];
-	struct ocpsmpl_stats s2mpg10_stats[IRQ_SOURCE_S2MPG10_MAX];
-	atomic_t s2mpg11_cnt[IRQ_SOURCE_S2MPG11_MAX];
-	struct ocpsmpl_stats s2mpg11_stats[IRQ_SOURCE_S2MPG11_MAX];
-
-	struct s2mpg10_dev *s2mpg10;
-	struct s2mpg11_dev *s2mpg11;
-
-	struct i2c_client *s2mpg10_i2c;
-	struct i2c_client *s2mpg11_i2c;
-
-	unsigned int s2mpg10_triggered_irq[IRQ_SOURCE_S2MPG10_MAX];
-	unsigned int s2mpg11_triggered_irq[IRQ_SOURCE_S2MPG11_MAX];
-
-};
-
 
 static const struct platform_device_id google_gs101_id_table[] = {
 	{.name = "google_mitigation",},
@@ -1300,17 +1212,81 @@ static int set_soft_gpu_lvl(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_lvl_fops, get_soft_gpu_lvl, set_soft_gpu_lvl, "%d\n");
 
-int gs101_set_ppm(unsigned int value)
+struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+	struct gs101_bcl_dev *bcl_dev;
+
+	np = of_find_node_by_name(NULL, "google,mitigation");
+	if (!np)
+		return NULL;
+	pdev = of_find_device_by_node(np);
+	if (!pdev)
+		return NULL;
+	bcl_dev = platform_get_drvdata(pdev);
+	if (!bcl_dev)
+		return NULL;
+
+	return bcl_dev;
+}
+EXPORT_SYMBOL_GPL(gs101_retrieve_bcl_handle);
+
+unsigned int gs101_get_ppm(struct gs101_bcl_dev *data)
+{
+	void __iomem *addr;
+	unsigned int reg;
+
+	if (!data)
+		return -ENOMEM;
+	if (!data->sysreg_cpucl0) {
+		pr_err("Error in sysreg_cpucl0\n");
+		return -ENOMEM;
+	}
+
+	mutex_lock(&sysreg_lock);
+	addr = data->sysreg_cpucl0 + CLUSTER0_PPM;
+	reg = __raw_readl(addr);
+	mutex_unlock(&sysreg_lock);
+
+	return reg;
+}
+EXPORT_SYMBOL_GPL(gs101_get_ppm);
+
+unsigned int gs101_get_mpmm(struct gs101_bcl_dev *data)
+{
+	void __iomem *addr;
+	unsigned int reg;
+
+	if (!data)
+		return -ENOMEM;
+	if (!data->sysreg_cpucl0) {
+		pr_err("Error in sysreg_cpucl0\n");
+		return -ENOMEM;
+	}
+
+	mutex_lock(&sysreg_lock);
+	addr = data->sysreg_cpucl0 + CLUSTER0_MPMM;
+	reg = __raw_readl(addr);
+	mutex_unlock(&sysreg_lock);
+
+	return reg;
+}
+EXPORT_SYMBOL_GPL(gs101_get_mpmm);
+
+int gs101_set_ppm(struct gs101_bcl_dev *data, unsigned int value)
 {
 	void __iomem *addr;
 
-	addr = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
-	if (!addr) {
-		pr_err("Error in sysreg_cpucl0 ioremap\n");
-		return -EIO;
+	if (!data)
+		return -ENOMEM;
+	if (!data->sysreg_cpucl0) {
+		pr_err("Error in sysreg_cpucl0\n");
+		return -ENOMEM;
 	}
+
 	mutex_lock(&sysreg_lock);
-	addr = addr + CLUSTER0_PPM;
+	addr = data->sysreg_cpucl0 + CLUSTER0_PPM;
 	__raw_writel(value, addr);
 	mutex_unlock(&sysreg_lock);
 
@@ -1318,17 +1294,19 @@ int gs101_set_ppm(unsigned int value)
 }
 EXPORT_SYMBOL_GPL(gs101_set_ppm);
 
-int gs101_set_mpmm(unsigned int value)
+int gs101_set_mpmm(struct gs101_bcl_dev *data, unsigned int value)
 {
 	void __iomem *addr;
 
-	addr = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
-	if (!addr) {
-		pr_err("Error in sysreg_cpucl0 ioremap\n");
-		return -EIO;
+	if (!data)
+		return -ENOMEM;
+	if (!data->sysreg_cpucl0) {
+		pr_err("Error in sysreg_cpucl0\n");
+		return -ENOMEM;
 	}
+
 	mutex_lock(&sysreg_lock);
-	addr = addr + CLUSTER0_MPMM;
+	addr = data->sysreg_cpucl0 + CLUSTER0_MPMM;
 	__raw_writel(value, addr);
 	mutex_unlock(&sysreg_lock);
 
@@ -1911,37 +1889,37 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		}
 	} else
 		bcl_dev->debug_entry = root;
-	bcl_dev->base_mem[0] = ioremap(CPUCL0_BASE, SZ_8K);
+	bcl_dev->base_mem[0] = devm_ioremap(bcl_dev->device, CPUCL0_BASE, SZ_8K);
 	if (!bcl_dev->base_mem[0]) {
 		dev_err(bcl_dev->device, "cpu0_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->base_mem[1] = ioremap(CPUCL1_BASE, SZ_8K);
+	bcl_dev->base_mem[1] = devm_ioremap(bcl_dev->device, CPUCL1_BASE, SZ_8K);
 	if (!bcl_dev->base_mem[1]) {
 		dev_err(bcl_dev->device, "cpu1_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->base_mem[2] = ioremap(CPUCL2_BASE, SZ_8K);
+	bcl_dev->base_mem[2] = devm_ioremap(bcl_dev->device, CPUCL2_BASE, SZ_8K);
 	if (!bcl_dev->base_mem[2]) {
 		dev_err(bcl_dev->device, "cpu2_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->base_mem[3] = ioremap(TPU_BASE, SZ_8K);
+	bcl_dev->base_mem[3] = devm_ioremap(bcl_dev->device, TPU_BASE, SZ_8K);
 	if (!bcl_dev->base_mem[3]) {
 		dev_err(bcl_dev->device, "tpu_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->base_mem[4] = ioremap(G3D_BASE, SZ_8K);
+	bcl_dev->base_mem[4] = devm_ioremap(bcl_dev->device, G3D_BASE, SZ_8K);
 	if (!bcl_dev->base_mem[4]) {
 		dev_err(bcl_dev->device, "gpu_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->sysreg_cpucl0 = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
+	bcl_dev->sysreg_cpucl0 = devm_ioremap(bcl_dev->device, SYSREG_CPUCL0_BASE, SZ_8K);
 	if (!bcl_dev->sysreg_cpucl0) {
 		dev_err(bcl_dev->device, "sysreg_cpucl0 ioremap failed\n");
 		ret = -EIO;
