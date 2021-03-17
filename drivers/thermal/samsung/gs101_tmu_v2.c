@@ -76,8 +76,6 @@ static inline s64 div_frac(s64 x, s64 y)
 
 static atomic_t gs101_tmu_in_suspend;
 
-struct kthread_worker *hotplug_worker;
-
 static struct acpm_tmu_cap cap;
 static unsigned int num_of_devices, suspended_count;
 
@@ -201,7 +199,14 @@ static int gs101_get_temp(void *p, int *temp)
 		  data->temperature < data->hotplug_in_threshold) ||
 		 (!data->is_cpu_hotplugged_out &&
 		  data->temperature >= data->hotplug_out_threshold)))
-		kthread_queue_work(hotplug_worker, &data->hotplug_work);
+		kthread_queue_work(&data->pause_worker, &data->hotplug_work);
+
+	if (data->pause_enable &&
+	    ((data->is_cpu_paused &&
+	      data->temperature < data->resume_threshold) ||
+	     (!data->is_cpu_paused &&
+	      data->temperature >= data->pause_threshold)))
+		kthread_queue_work(&data->pause_worker, &data->cpu_pause_work);
 
 	mutex_unlock(&data->lock);
 
@@ -597,7 +602,8 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 				// queue the work again in case failure
 				// also do not queue again when prepare to suspend
 				if (!atomic_read(&gs101_tmu_in_suspend))
-					kthread_queue_work(hotplug_worker, &data->hotplug_work);
+					kthread_queue_work(&data->pause_worker,
+							   &data->hotplug_work);
 			} else {
 				data->is_cpu_hotplugged_out = false;
 			}
@@ -613,13 +619,55 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 				// queue the work again in case of failure
 				// also do not queue again when prepare to suspend
 				if (!atomic_read(&gs101_tmu_in_suspend))
-					kthread_queue_work(hotplug_worker, &data->hotplug_work);
+					kthread_queue_work(&data->pause_worker,
+							   &data->hotplug_work);
 			} else {
 				data->is_cpu_hotplugged_out = true;
 			}
 		}
 	}
 
+	mutex_unlock(&data->lock);
+}
+
+static void gs101_throttle_cpu_pause(struct kthread_work *work)
+{
+	struct gs101_tmu_data *data = container_of(work,
+						   struct gs101_tmu_data, cpu_pause_work);
+	struct cpumask mask;
+
+	mutex_lock(&data->lock);
+	cpumask_and(&mask, cpu_possible_mask, &data->pause_cpus);
+
+	if (data->is_cpu_paused) {
+		if (data->temperature < data->resume_threshold) {
+			if (resume_cpus(&mask)) {
+				// queue the work again in case failure
+				// also do not queue again when prepare to suspend
+				if (!atomic_read(&gs101_tmu_in_suspend))
+					kthread_queue_work(&data->pause_worker,
+							   &data->cpu_pause_work);
+			} else {
+				data->is_cpu_paused = false;
+				pr_info_ratelimited("%s resume cpus: %*pbl\n",
+					data->tmu_name, cpumask_pr_args(&mask));
+			}
+		}
+	} else {
+		if (data->temperature >= data->pause_threshold) {
+			if (pause_cpus(&mask)) {
+				// queue the work again in case of failure
+				// also do not queue again when prepare to suspend
+				if (!atomic_read(&gs101_tmu_in_suspend))
+					kthread_queue_work(&data->pause_worker,
+							   &data->cpu_pause_work);
+			} else {
+				data->is_cpu_paused = true;
+				pr_info_ratelimited("%s pause cpus: %*pbl\n",
+					data->tmu_name, cpumask_pr_args(&mask));
+			}
+		}
+	}
 	mutex_unlock(&data->lock);
 }
 
@@ -670,6 +718,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 4 - 1 };
 	struct task_struct *thread;
 	int ret = 0;
+	char kworker_name[CPUHP_USER_NAME_LEN + 1];
 
 	kthread_init_worker(&data->thermal_worker);
 	thread = kthread_create(kthread_worker_fn, &data->thermal_worker,
@@ -694,31 +743,32 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 
 	wake_up_process(thread);
 
-	if (data->hotplug_enable) {
-		scnprintf(data->cpuhp_name, CPUHP_USER_NAME_LEN, "DTM_%s", data->tmu_name);
-		exynos_cpuhp_register(data->cpuhp_name, *cpu_online_mask);
-		kthread_init_work(&data->hotplug_work, gs101_throttle_cpu_hotplug);
-
-		if (!hotplug_worker) {
-			hotplug_worker = kzalloc(sizeof(*hotplug_worker), GFP_KERNEL);
-			if (!hotplug_worker)
-				return -ENOMEM;
-
-			kthread_init_worker(hotplug_worker);
-			thread = kthread_create(kthread_worker_fn, hotplug_worker,
-						"thermal_hotplug_kworker");
-
-			cpumask_and(&mask, cpu_possible_mask, &data->hotplug_work_affinity);
-			set_cpus_allowed_ptr(thread, &mask);
-
-			ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
-			if (ret) {
-				kthread_stop(thread);
-				dev_warn(&pdev->dev, "thermal failed to set SCHED_FIFO\n");
-				return ret;
-			}
-			wake_up_process(thread);
+	if (data->hotplug_enable || data->pause_enable) {
+		if (data->hotplug_enable) {
+			scnprintf(data->cpuhp_name, CPUHP_USER_NAME_LEN, "DTM_%s", data->tmu_name);
+			exynos_cpuhp_register(data->cpuhp_name, *cpu_online_mask);
+			kthread_init_work(&data->hotplug_work, gs101_throttle_cpu_hotplug);
 		}
+
+		if (data->pause_enable) {
+			kthread_init_work(&data->cpu_pause_work, gs101_throttle_cpu_pause);
+		}
+
+		kthread_init_worker(&data->pause_worker);
+		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_pause", data->tmu_name);
+		thread = kthread_create(kthread_worker_fn,
+					&data->pause_worker, kworker_name);
+
+		cpumask_and(&mask, cpu_possible_mask, &data->hotplug_work_affinity);
+		set_cpus_allowed_ptr(thread, &mask);
+
+		ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
+		if (ret) {
+			kthread_stop(thread);
+			dev_warn(&pdev->dev, "thermal cpu disable failed to set SCHED_FIFO\n");
+			return ret;
+		}
+		wake_up_process(thread);
 	}
 
 	return ret;
@@ -762,6 +812,27 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get tmu_name\n");
 	else
 		strncpy(data->tmu_name, tmu_name, THERMAL_NAME_LENGTH);
+
+	data->pause_enable = of_property_read_bool(pdev->dev.of_node,
+							    "pause_enable");
+	if (data->pause_enable) {
+		dev_info(&pdev->dev, "thermal zone use cpu_pause function\n");
+		of_property_read_u32(pdev->dev.of_node, "pause_threshold",
+				     &data->pause_threshold);
+
+		if (!data->pause_threshold)
+			dev_err(&pdev->dev, "No input pause_threshold\n");
+
+		of_property_read_u32(pdev->dev.of_node, "resume_threshold",
+				     &data->resume_threshold);
+
+		if (!data->resume_threshold)
+			dev_err(&pdev->dev, "No input resume_threshold\n");
+
+		ret = of_property_read_string(pdev->dev.of_node, "pause_cpus", &buf);
+		if (!ret)
+			cpulist_parse(buf, &data->pause_cpus);
+	}
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPUHP)
 	data->hotplug_enable = of_property_read_bool(pdev->dev.of_node, "hotplug_enable");
@@ -930,6 +1001,70 @@ hotplug_in_temp_store(struct device *dev, struct device_attribute *devattr,
 }
 
 static ssize_t
+pause_cpus_temp_show(struct device *dev, struct device_attribute *devattr,
+			    char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", data->pause_threshold);
+}
+
+static ssize_t
+pause_cpus_temp_store(struct device *dev, struct device_attribute *devattr,
+			     const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	int pause_throttling_trigger = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &pause_throttling_trigger)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->pause_threshold = pause_throttling_trigger;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
+resume_cpus_temp_show(struct device *dev, struct device_attribute *devattr,
+			     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", data->resume_threshold);
+}
+
+static ssize_t
+resume_cpus_temp_store(struct device *dev, struct device_attribute *devattr,
+			      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	int resume_threshold = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &resume_threshold)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->resume_threshold = resume_threshold;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
 sustainable_power_show(struct device *dev, struct device_attribute *devattr,
 		       char *buf)
 {
@@ -1065,6 +1200,8 @@ polling_delay_off_store(struct device *dev, struct device_attribute *devattr,
 	}									\
 	static DEVICE_ATTR_RW(name)
 
+static DEVICE_ATTR_RW(pause_cpus_temp);
+static DEVICE_ATTR_RW(resume_cpus_temp);
 static DEVICE_ATTR_RW(hotplug_out_temp);
 static DEVICE_ATTR_RW(hotplug_in_temp);
 static DEVICE_ATTR_RW(sustainable_power);
@@ -1077,6 +1214,8 @@ create_s32_param_attr(i_max);
 create_s32_param_attr(integral_cutoff);
 
 static struct attribute *gs101_tmu_attrs[] = {
+	&dev_attr_pause_cpus_temp.attr,
+	&dev_attr_resume_cpus_temp.attr,
 	&dev_attr_polling_delay_off.attr,
 	&dev_attr_polling_delay_on.attr,
 	&dev_attr_hotplug_out_temp.attr,
@@ -1588,6 +1727,8 @@ static int gs101_tmu_suspend(struct device *dev)
 
 	if (data->hotplug_enable)
 		kthread_flush_work(&data->hotplug_work);
+	if (data->pause_enable)
+		kthread_flush_work(&data->cpu_pause_work);
 	kthread_flush_work(&data->irq_work);
 
 	gs101_tmu_control(pdev, false);
