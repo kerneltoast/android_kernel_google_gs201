@@ -1108,11 +1108,11 @@
 		interrupts = <GIC_SPI IRQ_TMU_TMU_TOP_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "BIG";
 		id = <0>;
-		ect_nouse = <1>;
-		hotplug_enable = <1>;
-		hotplug_in_threshold = <91>;
-		hotplug_out_threshold = <96>;
-		hotplug_cpus = "6-7";
+		ect_nouse;
+		pause_enable;
+		resume_threshold = <91>;
+		pause_threshold = <96>;
+		pause_cpus = "6-7";
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1135,11 +1135,11 @@
 		interrupts = <GIC_SPI IRQ_TMU_TMU_TOP_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "MID";
 		id = <1>;
-		ect_nouse = <1>;
-		hotplug_enable = <1>;
-		hotplug_in_threshold = <91>;
-		hotplug_out_threshold = <96>;
-		hotplug_cpus = "4-5";
+		ect_nouse;
+		pause_enable;
+		resume_threshold = <91>;
+		pause_threshold = <96>;
+		pause_cpus = "4-5";
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1162,7 +1162,7 @@
 		interrupts = <GIC_SPI IRQ_TMU_TMU_TOP_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "LITTLE";
 		id = <2>;
-		ect_nouse = <1>;
+		ect_nouse;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1184,7 +1184,7 @@
 		interrupts = <GIC_SPI IRQ_TMU_TMU_SUB_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "G3D";
 		id = <3>;
-		ect_nouse = <1>;
+		ect_nouse;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1206,7 +1206,7 @@
 		interrupts = <GIC_SPI IRQ_TMU_TMU_SUB_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "ISP";
 		id = <4>;
-		ect_nouse = <1>;
+		ect_nouse;
 		#thermal-sensor-cells = <0>;
 
 		tmu_work_affinity = "0-7";
@@ -1218,7 +1218,7 @@
 		interrupts = <GIC_SPI IRQ_TMU_TMU_SUB_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "TPU";
 		id = <5>;
-		ect_nouse = <1>;
+		ect_nouse;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
