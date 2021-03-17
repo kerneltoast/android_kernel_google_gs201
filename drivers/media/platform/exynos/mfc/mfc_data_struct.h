@@ -110,6 +110,8 @@
 /* MFC meminfo */
 #define MFC_MEMINFO_MAX_NUM		10
 
+/* MFC SSR info length */
+#define MFC_CRASH_INFO_LEN             100
 /*
  *  MFC region id for smc
  */
@@ -1214,6 +1216,7 @@ struct mfc_dev {
 
 	struct mfc_meminfo meminfo[MFC_MEMINFO_DEV_ALL + 1];
 	struct mfc_dev_memlog memlog;
+	char dev_crash_info[MFC_CRASH_INFO_LEN];
 };
 
 struct mfc_core_ops {
@@ -1418,6 +1421,7 @@ struct mfc_core {
 	unsigned int reg_cnt;
 	struct mfc_meminfo meminfo[MFC_MEMINFO_DEV_ALL + 1];
 	struct mfc_core_memlog memlog;
+	char crash_info[MFC_CRASH_INFO_LEN];
 };
 
 

@@ -1381,7 +1381,9 @@ void mfc_rm_qos_control(struct mfc_ctx *ctx, enum mfc_qos_control qos_control)
 		if (IS_MULTI_MODE(ctx) || IS_SWITCH_SINGLE_MODE(ctx)) {
 			core = mfc_get_sub_core(dev, ctx);
 			if (!core) {
-				mfc_ctx_err("[RM] There is no subcore\n");
+				snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
+					"[RM] There is no subcore\n");
+				mfc_ctx_err("%s", dev->dev_crash_info);
 				call_dop(dev, dump_and_stop_debug_mode, dev);
 				goto release_corelock;
 			}
@@ -1399,7 +1401,9 @@ void mfc_rm_qos_control(struct mfc_ctx *ctx, enum mfc_qos_control qos_control)
 		if (IS_MULTI_MODE(ctx) || IS_SWITCH_SINGLE_MODE(ctx)) {
 			core = mfc_get_sub_core(dev, ctx);
 			if (!core) {
-				mfc_ctx_err("[RM] There is no subcore\n");
+				snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
+					"[RM] There is no subcore\n");
+				mfc_ctx_err("%s", dev->dev_crash_info);
 				call_dop(dev, dump_and_stop_debug_mode, dev);
 				goto release_corelock;
 			}
@@ -1416,7 +1420,8 @@ void mfc_rm_qos_control(struct mfc_ctx *ctx, enum mfc_qos_control qos_control)
 		if (IS_MULTI_MODE(ctx) || IS_SWITCH_SINGLE_MODE(ctx)) {
 			core = mfc_get_sub_core(dev, ctx);
 			if (!core) {
-				mfc_ctx_err("[RM] There is no subcore\n");
+				snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
+					"[RM] There is no subcore\n");
 				call_dop(dev, dump_and_stop_debug_mode, dev);
 				goto release_corelock;
 			}

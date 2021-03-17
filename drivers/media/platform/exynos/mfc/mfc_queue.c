@@ -769,7 +769,8 @@ int __mfc_assign_dpb_index(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf)
 
 	/* case 3: allocate new dpb index */
 	if (dec->dpb_table_used == ~0UL) {
-		mfc_ctx_err("[DPB] index is full\n");
+		snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN, "[DPB] index is full\n");
+		mfc_ctx_err("%s", dev->dev_crash_info);
 		call_dop(dev, dump_and_stop_debug_mode, dev);
 		return 0;
 	}
@@ -852,7 +853,9 @@ void mfc_store_dpb(struct mfc_ctx *ctx, struct vb2_buffer *vb)
 					index, dec->dpb[index].paddr, dec->dynamic_used);
 			__mfc_update_dpb_fd(ctx, vb, index);
 		} else {
-			mfc_ctx_err("[DPB] wrong assign dpb index\n");
+			snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
+					"[DPB] wrong assign dpb index\n");
+			mfc_ctx_err("%s", dev->dev_crash_info);
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 		}
 	}
