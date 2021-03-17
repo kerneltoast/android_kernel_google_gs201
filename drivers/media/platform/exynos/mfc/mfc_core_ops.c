@@ -75,7 +75,9 @@ static int __mfc_core_prot_firmware(struct mfc_core *core, struct mfc_ctx *ctx)
 
 		ret = exynos_smc(SMC_DRM_PPMP_PROT, protdesc_phys, 0, 0);
 		if (ret != DRMDRV_OK) {
-			mfc_core_err("failed MFC DRM F/W prot region setting(%#x)\n", ret);
+			snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+				"failed MFC DRM F/W prot region setting(%#x)\n", ret);
+			mfc_core_err("%s", core->crash_info);
 			call_dop(core, dump_and_stop_debug_mode, core);
 			core->fw.drm_status = 0;
 			kfree(core->drm_fw_prot);
@@ -86,7 +88,9 @@ static int __mfc_core_prot_firmware(struct mfc_core *core, struct mfc_ctx *ctx)
 		/* Request buffer protection for DRM F/W */
 		ret = exynos_smc(SMC_DRM_PPMP_MFCFW_PROT, core->drm_fw_buf.daddr, 0, 0);
 		if (ret != DRMDRV_OK) {
-			mfc_core_err("failed MFC DRM F/W prot(%#x)\n", ret);
+			snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+				"failed MFC DRM F/W prot(%#x)\n", ret);
+			mfc_core_err("%s", core->crash_info);
 			call_dop(core, dump_and_stop_debug_mode, core);
 			core->fw.drm_status = 0;
 			kfree(core->drm_fw_prot);
@@ -119,7 +123,10 @@ static void __mfc_core_unprot_firmware(struct mfc_core *core, struct mfc_ctx *ct
 	/* Request buffer unprotection for DRM F/W */
 	ret = exynos_smc(SMC_DRM_PPMP_MFCFW_UNPROT, core->drm_fw_buf.daddr, 0, 0);
 	if (ret != DRMDRV_OK) {
-		mfc_ctx_err("failed MFC DRM F/W unprot(%#x)\n", ret);
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+			"failed MFC DRM F/W unprot(%#x)\n", ret);
+		mfc_ctx_err("%s", core->crash_info);
+
 		call_dop(core, dump_and_stop_debug_mode, core);
 	}
 
@@ -127,7 +134,9 @@ static void __mfc_core_unprot_firmware(struct mfc_core *core, struct mfc_ctx *ct
 	protdesc_phys = virt_to_phys(core->drm_fw_prot);
 	ret = exynos_smc(SMC_DRM_PPMP_UNPROT, protdesc_phys, 0, 0);
 	if (ret != DRMDRV_OK) {
-		mfc_core_err("failed MFC DRM F/W prot region unset(%#x)\n", ret);
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+			"failed MFC DRM F/W prot region unset(%#x)\n", ret);
+		mfc_core_err("%s", core->crash_info);
 		call_dop(core, dump_and_stop_debug_mode, core);
 	}
 
@@ -261,7 +270,9 @@ static int __mfc_wait_close_inst(struct mfc_core *core, struct mfc_ctx *ctx)
 			call_dop(core, dump_and_stop_always, core);
 		}
 	} else if (ret == -1) {
-		mfc_err("failed to wait CLOSE_INSTANCE(err)\n");
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+			"failed to wait CLOSE_INSTANCE(err)\n");
+		mfc_err("%s", core->crash_info);
 		call_dop(core, dump_and_stop_debug_mode, core);
 	}
 

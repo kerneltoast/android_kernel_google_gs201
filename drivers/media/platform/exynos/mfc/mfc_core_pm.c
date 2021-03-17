@@ -49,7 +49,9 @@ void mfc_core_protection_on(struct mfc_core *core)
 	ret = exynos_smc(SMC_PROTECTION_SET, 0,
 			core->id * PROT_MFC1, SMC_PROTECTION_ENABLE);
 	if (ret != DRMDRV_OK) {
-		mfc_core_err("Protection Enable failed! ret(%u)\n", ret);
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+			"Protection Enable failed! ret(%u)\n", ret);
+		mfc_core_err("%s", core->crash_info);
 		call_dop(core, dump_and_stop_debug_mode, core);
 		spin_unlock_irqrestore(&core->pm.clklock, flags);
 		return;
@@ -87,7 +89,9 @@ void mfc_core_protection_off(struct mfc_core *core)
 	ret = exynos_smc(SMC_PROTECTION_SET, 0,
 			core->id * PROT_MFC1, SMC_PROTECTION_DISABLE);
 	if (ret != DRMDRV_OK) {
-		mfc_core_err("Protection Disable failed! ret(%u)\n", ret);
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+			"Protection Disable failed! ret(%u)\n", ret);
+		mfc_core_err("%s", core->crash_info);
 		call_dop(core, dump_and_stop_debug_mode, core);
 		spin_unlock_irqrestore(&core->pm.clklock, flags);
 		return;
@@ -128,7 +132,9 @@ int mfc_core_pm_clock_on(struct mfc_core *core)
 		core->pm.clock_on_steps |= 0x1 << 2;
 		ret = mfc_core_wait_pending(core);
 		if (ret != 0) {
-			mfc_core_err("pending wait failed (%d)\n", ret);
+			snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+				"pending wait failed (%d)\n", ret);
+			mfc_core_err("%s", core->crash_info);
 			call_dop(core, dump_and_stop_debug_mode, core);
 			return ret;
 		}
@@ -191,7 +197,9 @@ int mfc_core_pm_power_on(struct mfc_core *core)
 	MFC_TRACE_CORE("++ Power on\n");
 	ret = pm_runtime_get_sync(core->pm.device);
 	if (ret < 0) {
-		mfc_core_err("Failed to get power: ret(%d)\n", ret);
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+			"Failed to get power: ret(%d)\n", ret);
+		mfc_core_err("%s", core->crash_info);
 		call_dop(core, dump_and_stop_debug_mode, core);
 		goto err_power_on;
 	}
@@ -250,7 +258,9 @@ int mfc_core_pm_power_off(struct mfc_core *core)
 
 	ret = pm_runtime_put_sync(core->pm.device);
 	if (ret < 0) {
-		mfc_core_err("Failed to put power: ret(%d)\n", ret);
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+			"Failed to put power: ret(%d)\n", ret);
+		mfc_core_err("%s", core->crash_info);
 		call_dop(core, dump_and_stop_debug_mode, core);
 		return ret;
 	}
