@@ -14,7 +14,7 @@ static const int thermal_genl_enable[NUM_EVENT] = {
 	THERMAL_GENL_EVENT_TZ_TRIP_UP
 };
 
-void vh_enable_thermal_genl_check(void *data, int event, int *enable_thermal_genl)
+void vh_enable_thermal_genl_check(void *data, int event, int tz_id, int *enable_thermal_genl)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(thermal_genl_enable); i++) {
