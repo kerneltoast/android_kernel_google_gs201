@@ -24,6 +24,11 @@
 #define	AUTO_DISCHARGE_PD_HEADROOM_MV		850
 #define	AUTO_DISCHARGE_PPS_HEADROOM_MV		1250
 
+#define tcpc_presenting_rd(reg, cc) \
+	(!(TCPC_ROLE_CTRL_DRP & (reg)) && \
+	 (((reg) & (TCPC_ROLE_CTRL_## cc ##_MASK << TCPC_ROLE_CTRL_## cc ##_SHIFT)) == \
+	  (TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_## cc ##_SHIFT)))
+
 struct tcpci {
 	struct device *dev;
 
@@ -32,7 +37,6 @@ struct tcpci {
 	struct regmap *regmap;
 
 	bool controls_vbus;
-	enum typec_port_type port_type;
 
 	struct tcpc_dev tcpc;
 	struct tcpci_data *data;
@@ -119,8 +123,6 @@ static int tcpci_start_toggling(struct tcpc_dev *tcpc,
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	unsigned int reg = TCPC_ROLE_CTRL_DRP;
 
-	tcpci->port_type = port_type;
-
 	if (port_type != TYPEC_PORT_DRP)
 		return -EOPNOTSUPP;
 
@@ -183,35 +185,23 @@ static int tcpci_get_cc(struct tcpc_dev *tcpc,
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	unsigned int reg, role_control;
 	int ret;
-	bool presenting_rd;
 
 	ret = regmap_read(tcpci->regmap, TCPC_ROLE_CTRL, &role_control);
 	if (ret < 0)
 		return ret;
 
-	/* DRP not set and CC1,CC2 = RD */
-	presenting_rd = (role_control == ((TCPC_ROLE_CTRL_CC_RD <<
-					   TCPC_ROLE_CTRL_CC1_SHIFT) |
-					  (TCPC_ROLE_CTRL_CC_RD <<
-					   TCPC_ROLE_CTRL_CC2_SHIFT)));
 	ret = regmap_read(tcpci->regmap, TCPC_CC_STATUS, &reg);
 	if (ret < 0)
 		return ret;
 
-	dev_info(tcpci->dev,
-		 "TCPM_DEBUG TCPC_CC_STATUS port_type:%#x status:%#x\n",
-		 tcpci->port_type, reg);
-
 	*cc1 = tcpci_to_typec_cc((reg >> TCPC_CC_STATUS_CC1_SHIFT) &
 				 TCPC_CC_STATUS_CC1_MASK,
 				 reg & TCPC_CC_STATUS_TERM ||
-				 tcpci->port_type == TYPEC_PORT_SNK ||
-				 presenting_rd);
+				 tcpc_presenting_rd(role_control, CC1));
 	*cc2 = tcpci_to_typec_cc((reg >> TCPC_CC_STATUS_CC2_SHIFT) &
 				 TCPC_CC_STATUS_CC2_MASK,
 				 reg & TCPC_CC_STATUS_TERM ||
-				 tcpci->port_type == TYPEC_PORT_SNK ||
-				 presenting_rd);
+				 tcpc_presenting_rd(role_control, CC2));
 
 	return 0;
 }
