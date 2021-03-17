@@ -770,6 +770,7 @@
   cfg80211_update_owe_info_event
   cfg80211_vendor_cmd_get_sender
   cfg80211_vendor_cmd_reply
+  __cfi_slowpath
   cgroup_attach_task_all
   cgroup_bpf_enabled_key
   __cgroup_bpf_run_filter_sk
@@ -1559,6 +1560,7 @@
   dev_getfirstbyhwtype
   dev_get_flags
   dev_get_iflink
+  dev_get_mac_address
   dev_get_phys_port_id
   dev_get_phys_port_name
   dev_get_port_parent_id
@@ -1993,6 +1995,7 @@
   dev_set_allmulti
   dev_set_group
   dev_set_mac_address
+  dev_set_mac_address_user
   __dev_set_mtu
   dev_set_mtu
   dev_set_name
@@ -3921,6 +3924,7 @@
   get_device
   get_device_system_crosststamp
   get_disk_and_module
+  get_each_dmabuf
   get_each_object_track
   __get_free_pages
   get_fs_type
@@ -7947,6 +7951,9 @@
   __platform_register_drivers
   platform_unregister_drivers
   play_idle_precise
+  plist_add
+  plist_del
+  plist_requeue
   pm_clk_add
   pm_clk_add_clk
   pm_clk_add_notifier
@@ -8058,6 +8065,10 @@
   posix_clock_unregister
   posix_lock_file
   posix_test_lock
+  powercap_register_control_type
+  powercap_register_zone
+  powercap_unregister_control_type
+  powercap_unregister_zone
   power_group_name
   power_supply_am_i_supplied
   power_supply_batinfo_ocv2cap
@@ -8987,11 +8998,16 @@
   __SCK__tp_func_android_fs_datawrite_end
   __SCK__tp_func_android_fs_datawrite_start
   __SCK__tp_func_android_rvh_account_irq
+  __SCK__tp_func_android_rvh_arm64_serror_panic
+  __SCK__tp_func_android_rvh_bad_mode
   __SCK__tp_func_android_rvh_build_perf_domains
   __SCK__tp_func_android_rvh_can_migrate_task
+  __SCK__tp_func_android_rvh_check_preempt_tick
   __SCK__tp_func_android_rvh_check_preempt_wakeup
+  __SCK__tp_func_android_rvh_check_preempt_wakeup_ignore
   __SCK__tp_func_android_rvh_cpu_cgroup_attach
   __SCK__tp_func_android_rvh_cpu_cgroup_can_attach
+  __SCK__tp_func_android_rvh_cpufreq_transition
   __SCK__tp_func_android_rvh_cpu_overutilized
   __SCK__tp_func_android_rvh_dequeue_task
   __SCK__tp_func_android_rvh_dequeue_task_idle
@@ -8999,6 +9015,7 @@
   __SCK__tp_func_android_rvh_do_mem_abort
   __SCK__tp_func_android_rvh_do_sea
   __SCK__tp_func_android_rvh_do_sp_pc_abort
+  __SCK__tp_func_android_rvh_do_undefinstr
   __SCK__tp_func_android_rvh_enqueue_task
   __SCK__tp_func_android_rvh_find_busiest_group
   __SCK__tp_func_android_rvh_find_busiest_queue
@@ -9015,6 +9032,7 @@
   __SCK__tp_func_android_rvh_preempt_disable
   __SCK__tp_func_android_rvh_preempt_enable
   __SCK__tp_func_android_rvh_prepare_prio_fork
+  __SCK__tp_func_android_rvh_replace_next_task_fair
   __SCK__tp_func_android_rvh_report_bug
   __SCK__tp_func_android_rvh_resume_cpus
   __SCK__tp_func_android_rvh_rtmutex_prepare_setprio
@@ -9049,22 +9067,29 @@
   __SCK__tp_func_android_rvh_update_cpu_capacity
   __SCK__tp_func_android_rvh_update_cpus_allowed
   __SCK__tp_func_android_rvh_update_misfit_status
+  __SCK__tp_func_android_rvh_util_est_update
   __SCK__tp_func_android_rvh_wake_up_new_task
   __SCK__tp_func_android_vh_allow_domain_state
   __SCK__tp_func_android_vh_alter_futex_plist_add
+  __SCK__tp_func_android_vh_alter_mutex_list_add
   __SCK__tp_func_android_vh_alter_rwsem_list_add
   __SCK__tp_func_android_vh_arch_set_freq_scale
   __SCK__tp_func_android_vh_binder_restore_priority
   __SCK__tp_func_android_vh_binder_set_priority
   __SCK__tp_func_android_vh_binder_transaction_init
   __SCK__tp_func_android_vh_binder_wakeup_ilocked
+  __SCK__tp_func_android_vh_build_sched_domains
+  __SCK__tp_func_android_vh_cgroup_set_task
+  __SCK__tp_func_android_vh_commit_creds
   __SCK__tp_func_android_vh_cpu_down
   __SCK__tp_func_android_vh_cpu_idle_enter
   __SCK__tp_func_android_vh_cpu_idle_exit
   __SCK__tp_func_android_vh_cpu_up
+  __SCK__tp_func_android_vh_do_wake_up_sync
   __SCK__tp_func_android_vh_dump_throttled_rt_tasks
   __SCK__tp_func_android_vh_em_cpu_energy
   __SCK__tp_func_android_vh_enable_thermal_genl_check
+  __SCK__tp_func_android_vh_exit_creds
   __SCK__tp_func_android_vh_freq_table_limits
   __SCK__tp_func_android_vh_ftrace_dump_buffer
   __SCK__tp_func_android_vh_ftrace_format_check
@@ -9080,32 +9105,51 @@
   __SCK__tp_func_android_vh_jiffies_update
   __SCK__tp_func_android_vh_map_util_freq
   __SCK__tp_func_android_vh_mpam_set
+  __SCK__tp_func_android_vh_mutex_unlock_slowpath
   __SCK__tp_func_android_vh_mutex_wait_finish
   __SCK__tp_func_android_vh_mutex_wait_start
+  __SCK__tp_func_android_vh_override_creds
   __SCK__tp_func_android_vh_pagecache_get_page
   __SCK__tp_func_android_vh_printk_hotplug
+  __SCK__tp_func_android_vh_revert_creds
   __SCK__tp_func_android_vh_rmqueue
   __SCK__tp_func_android_vh_rwsem_init
   __SCK__tp_func_android_vh_rwsem_read_wait_finish
   __SCK__tp_func_android_vh_rwsem_read_wait_start
   __SCK__tp_func_android_vh_rwsem_wake
+  __SCK__tp_func_android_vh_rwsem_wake_finish
   __SCK__tp_func_android_vh_rwsem_write_finished
   __SCK__tp_func_android_vh_rwsem_write_wait_finish
   __SCK__tp_func_android_vh_rwsem_write_wait_start
   __SCK__tp_func_android_vh_sched_show_task
   __SCK__tp_func_android_vh_scheduler_tick
+  __SCK__tp_func_android_vh_selinux_avc_insert
+  __SCK__tp_func_android_vh_selinux_avc_lookup
+  __SCK__tp_func_android_vh_selinux_avc_node_delete
+  __SCK__tp_func_android_vh_selinux_avc_node_replace
+  __SCK__tp_func_android_vh_set_memory_nx
+  __SCK__tp_func_android_vh_set_memory_ro
+  __SCK__tp_func_android_vh_set_memory_rw
+  __SCK__tp_func_android_vh_set_memory_x
+  __SCK__tp_func_android_vh_set_module_permit_after_init
+  __SCK__tp_func_android_vh_set_module_permit_before_init
   __SCK__tp_func_android_vh_set_sugov_sched_attr
+  __SCK__tp_func_android_vh_set_wake_flags
   __SCK__tp_func_android_vh_show_max_freq
   __SCK__tp_func_android_vh_show_resume_epoch_val
   __SCK__tp_func_android_vh_show_suspend_epoch_val
+  __SCK__tp_func_android_vh_syscall_prctl_finished
   __SCK__tp_func_android_vh_sysrq_crash
   __SCK__tp_func_android_vh_timer_calc_index
   __SCK__tp_func_android_vh_try_to_freeze_todo
   __SCK__tp_func_android_vh_try_to_freeze_todo_unfrozen
+  __SCK__tp_func_android_vh_ufs_check_int_errors
   __SCK__tp_func_android_vh_ufs_compl_command
   __SCK__tp_func_android_vh_ufs_fill_prdt
   __SCK__tp_func_android_vh_ufs_prepare_command
   __SCK__tp_func_android_vh_ufs_send_command
+  __SCK__tp_func_android_vh_ufs_send_tm_command
+  __SCK__tp_func_android_vh_ufs_send_uic_command
   __SCK__tp_func_android_vh_ufs_update_sysfs
   __SCK__tp_func_android_vh_watchdog_timer_softlockup
   __SCK__tp_func_android_vh_wq_lockup_pool
@@ -9122,6 +9166,7 @@
   __SCK__tp_func_br_fdb_update
   __SCK__tp_func_clock_set_rate
   __SCK__tp_func_cpu_frequency
+  __SCK__tp_func_cpu_frequency_limits
   __SCK__tp_func_cpu_idle
   __SCK__tp_func_detach_device_from_domain
   __SCK__tp_func_device_pm_callback_end
@@ -10950,11 +10995,16 @@
   __traceiter_android_fs_datawrite_end
   __traceiter_android_fs_datawrite_start
   __traceiter_android_rvh_account_irq
+  __traceiter_android_rvh_arm64_serror_panic
+  __traceiter_android_rvh_bad_mode
   __traceiter_android_rvh_build_perf_domains
   __traceiter_android_rvh_can_migrate_task
+  __traceiter_android_rvh_check_preempt_tick
   __traceiter_android_rvh_check_preempt_wakeup
+  __traceiter_android_rvh_check_preempt_wakeup_ignore
   __traceiter_android_rvh_cpu_cgroup_attach
   __traceiter_android_rvh_cpu_cgroup_can_attach
+  __traceiter_android_rvh_cpufreq_transition
   __traceiter_android_rvh_cpu_overutilized
   __traceiter_android_rvh_dequeue_task
   __traceiter_android_rvh_dequeue_task_idle
@@ -10962,6 +11012,7 @@
   __traceiter_android_rvh_do_mem_abort
   __traceiter_android_rvh_do_sea
   __traceiter_android_rvh_do_sp_pc_abort
+  __traceiter_android_rvh_do_undefinstr
   __traceiter_android_rvh_enqueue_task
   __traceiter_android_rvh_find_busiest_group
   __traceiter_android_rvh_find_busiest_queue
@@ -10978,6 +11029,7 @@
   __traceiter_android_rvh_preempt_disable
   __traceiter_android_rvh_preempt_enable
   __traceiter_android_rvh_prepare_prio_fork
+  __traceiter_android_rvh_replace_next_task_fair
   __traceiter_android_rvh_report_bug
   __traceiter_android_rvh_resume_cpus
   __traceiter_android_rvh_rtmutex_prepare_setprio
@@ -11012,22 +11064,29 @@
   __traceiter_android_rvh_update_cpu_capacity
   __traceiter_android_rvh_update_cpus_allowed
   __traceiter_android_rvh_update_misfit_status
+  __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_wake_up_new_task
   __traceiter_android_vh_allow_domain_state
   __traceiter_android_vh_alter_futex_plist_add
+  __traceiter_android_vh_alter_mutex_list_add
   __traceiter_android_vh_alter_rwsem_list_add
   __traceiter_android_vh_arch_set_freq_scale
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
   __traceiter_android_vh_binder_transaction_init
   __traceiter_android_vh_binder_wakeup_ilocked
+  __traceiter_android_vh_build_sched_domains
+  __traceiter_android_vh_cgroup_set_task
+  __traceiter_android_vh_commit_creds
   __traceiter_android_vh_cpu_down
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpu_up
+  __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_em_cpu_energy
   __traceiter_android_vh_enable_thermal_genl_check
+  __traceiter_android_vh_exit_creds
   __traceiter_android_vh_freq_table_limits
   __traceiter_android_vh_ftrace_dump_buffer
   __traceiter_android_vh_ftrace_format_check
@@ -11043,32 +11102,51 @@
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_map_util_freq
   __traceiter_android_vh_mpam_set
+  __traceiter_android_vh_mutex_unlock_slowpath
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
+  __traceiter_android_vh_override_creds
   __traceiter_android_vh_pagecache_get_page
   __traceiter_android_vh_printk_hotplug
+  __traceiter_android_vh_revert_creds
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_rwsem_init
   __traceiter_android_vh_rwsem_read_wait_finish
   __traceiter_android_vh_rwsem_read_wait_start
   __traceiter_android_vh_rwsem_wake
+  __traceiter_android_vh_rwsem_wake_finish
   __traceiter_android_vh_rwsem_write_finished
   __traceiter_android_vh_rwsem_write_wait_finish
   __traceiter_android_vh_rwsem_write_wait_start
   __traceiter_android_vh_sched_show_task
   __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_selinux_avc_insert
+  __traceiter_android_vh_selinux_avc_lookup
+  __traceiter_android_vh_selinux_avc_node_delete
+  __traceiter_android_vh_selinux_avc_node_replace
+  __traceiter_android_vh_set_memory_nx
+  __traceiter_android_vh_set_memory_ro
+  __traceiter_android_vh_set_memory_rw
+  __traceiter_android_vh_set_memory_x
+  __traceiter_android_vh_set_module_permit_after_init
+  __traceiter_android_vh_set_module_permit_before_init
   __traceiter_android_vh_set_sugov_sched_attr
+  __traceiter_android_vh_set_wake_flags
   __traceiter_android_vh_show_max_freq
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
+  __traceiter_android_vh_syscall_prctl_finished
   __traceiter_android_vh_sysrq_crash
   __traceiter_android_vh_timer_calc_index
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
+  __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_fill_prdt
   __traceiter_android_vh_ufs_prepare_command
   __traceiter_android_vh_ufs_send_command
+  __traceiter_android_vh_ufs_send_tm_command
+  __traceiter_android_vh_ufs_send_uic_command
   __traceiter_android_vh_ufs_update_sysfs
   __traceiter_android_vh_watchdog_timer_softlockup
   __traceiter_android_vh_wq_lockup_pool
@@ -11085,6 +11163,7 @@
   __traceiter_br_fdb_update
   __traceiter_clock_set_rate
   __traceiter_cpu_frequency
+  __traceiter_cpu_frequency_limits
   __traceiter_cpu_idle
   __traceiter_detach_device_from_domain
   __traceiter_device_pm_callback_end
@@ -11169,11 +11248,16 @@
   __tracepoint_android_fs_datawrite_end
   __tracepoint_android_fs_datawrite_start
   __tracepoint_android_rvh_account_irq
+  __tracepoint_android_rvh_arm64_serror_panic
+  __tracepoint_android_rvh_bad_mode
   __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
+  __tracepoint_android_rvh_check_preempt_tick
   __tracepoint_android_rvh_check_preempt_wakeup
+  __tracepoint_android_rvh_check_preempt_wakeup_ignore
   __tracepoint_android_rvh_cpu_cgroup_attach
   __tracepoint_android_rvh_cpu_cgroup_can_attach
+  __tracepoint_android_rvh_cpufreq_transition
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_dequeue_task_idle
@@ -11181,6 +11265,7 @@
   __tracepoint_android_rvh_do_mem_abort
   __tracepoint_android_rvh_do_sea
   __tracepoint_android_rvh_do_sp_pc_abort
+  __tracepoint_android_rvh_do_undefinstr
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_find_busiest_group
   __tracepoint_android_rvh_find_busiest_queue
@@ -11197,6 +11282,7 @@
   __tracepoint_android_rvh_preempt_disable
   __tracepoint_android_rvh_preempt_enable
   __tracepoint_android_rvh_prepare_prio_fork
+  __tracepoint_android_rvh_replace_next_task_fair
   __tracepoint_android_rvh_report_bug
   __tracepoint_android_rvh_resume_cpus
   __tracepoint_android_rvh_rtmutex_prepare_setprio
@@ -11231,22 +11317,29 @@
   __tracepoint_android_rvh_update_cpu_capacity
   __tracepoint_android_rvh_update_cpus_allowed
   __tracepoint_android_rvh_update_misfit_status
+  __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_wake_up_new_task
   __tracepoint_android_vh_allow_domain_state
   __tracepoint_android_vh_alter_futex_plist_add
+  __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_arch_set_freq_scale
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_transaction_init
   __tracepoint_android_vh_binder_wakeup_ilocked
+  __tracepoint_android_vh_build_sched_domains
+  __tracepoint_android_vh_cgroup_set_task
+  __tracepoint_android_vh_commit_creds
   __tracepoint_android_vh_cpu_down
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpu_up
+  __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_em_cpu_energy
   __tracepoint_android_vh_enable_thermal_genl_check
+  __tracepoint_android_vh_exit_creds
   __tracepoint_android_vh_freq_table_limits
   __tracepoint_android_vh_ftrace_dump_buffer
   __tracepoint_android_vh_ftrace_format_check
@@ -11262,32 +11355,51 @@
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_map_util_freq
   __tracepoint_android_vh_mpam_set
+  __tracepoint_android_vh_mutex_unlock_slowpath
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
+  __tracepoint_android_vh_override_creds
   __tracepoint_android_vh_pagecache_get_page
   __tracepoint_android_vh_printk_hotplug
+  __tracepoint_android_vh_revert_creds
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_read_wait_finish
   __tracepoint_android_vh_rwsem_read_wait_start
   __tracepoint_android_vh_rwsem_wake
+  __tracepoint_android_vh_rwsem_wake_finish
   __tracepoint_android_vh_rwsem_write_finished
   __tracepoint_android_vh_rwsem_write_wait_finish
   __tracepoint_android_vh_rwsem_write_wait_start
   __tracepoint_android_vh_sched_show_task
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_selinux_avc_insert
+  __tracepoint_android_vh_selinux_avc_lookup
+  __tracepoint_android_vh_selinux_avc_node_delete
+  __tracepoint_android_vh_selinux_avc_node_replace
+  __tracepoint_android_vh_set_memory_nx
+  __tracepoint_android_vh_set_memory_ro
+  __tracepoint_android_vh_set_memory_rw
+  __tracepoint_android_vh_set_memory_x
+  __tracepoint_android_vh_set_module_permit_after_init
+  __tracepoint_android_vh_set_module_permit_before_init
   __tracepoint_android_vh_set_sugov_sched_attr
+  __tracepoint_android_vh_set_wake_flags
   __tracepoint_android_vh_show_max_freq
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
+  __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_android_vh_sysrq_crash
   __tracepoint_android_vh_timer_calc_index
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
+  __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_fill_prdt
   __tracepoint_android_vh_ufs_prepare_command
   __tracepoint_android_vh_ufs_send_command
+  __tracepoint_android_vh_ufs_send_tm_command
+  __tracepoint_android_vh_ufs_send_uic_command
   __tracepoint_android_vh_ufs_update_sysfs
   __tracepoint_android_vh_watchdog_timer_softlockup
   __tracepoint_android_vh_wq_lockup_pool
@@ -11304,6 +11416,7 @@
   __tracepoint_br_fdb_update
   __tracepoint_clock_set_rate
   __tracepoint_cpu_frequency
+  __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
   __tracepoint_detach_device_from_domain
   __tracepoint_device_pm_callback_end
@@ -11685,6 +11798,7 @@
   uart_unregister_driver
   uart_update_timeout
   uart_write_wakeup
+  __ubsan_handle_cfi_check_fail_abort
   uclamp_eff_value
   ucs2_as_utf8
   ucs2_strlen
@@ -11954,6 +12068,7 @@
   usb_create_shared_hcd
   usb_debug_root
   usb_decode_ctrl
+  usb_decode_interval
   usb_del_gadget
   usb_del_gadget_udc
   usb_deregister
