@@ -45,6 +45,7 @@
 #include <trace/hooks/creds.h>
 #include <trace/hooks/module.h>
 #include <trace/hooks/memory.h>
+#include <trace/hooks/typec.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -206,3 +207,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_memory_rw);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_module_permit_before_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_module_permit_after_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_util_est_update);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_typec_tcpci_override_toggling);
