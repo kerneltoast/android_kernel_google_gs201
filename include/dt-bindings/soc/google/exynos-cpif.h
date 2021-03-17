@@ -91,7 +91,8 @@
 #define SHMEM_ZMC		8
 #define SHMEM_C2C		9
 #define SHMEM_MSI		10
-#define MAX_CP_SHMEM		11
+#define SHMEM_DDM		11
+#define MAX_CP_SHMEM		12
 
 /* TPMON measure */
 #define TPMON_MEASURE_TP	0
