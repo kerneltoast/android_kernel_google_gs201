@@ -22,6 +22,7 @@
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
 #include <misc/logbuffer.h>
+#include <trace/hooks/typec.h>
 
 #include "bc_max77759.h"
 #include "max77759_helper.h"
@@ -69,6 +70,8 @@ enum gbms_charger_modes {
 
 #define TCPM_RESTART_TOGGLING		0
 #define CONTAMINANT_HANDLES_TOGGLING	1
+
+static bool hooks_installed;
 
 struct tcpci {
 	struct device *dev;
@@ -1328,6 +1331,33 @@ static const struct file_operations force_device_mode_on_fops = {
 };
 #endif
 
+static void max77759_typec_tcpci_override_toggling(void *unused, struct tcpci *tcpci,
+						   struct tcpci_data *data,
+						   int *override_toggling)
+{
+	*override_toggling = 1;
+}
+
+static int max77759_register_vendor_hooks(struct i2c_client *client)
+{
+	int ret;
+
+	if (hooks_installed)
+		return 0;
+
+	ret = register_trace_android_vh_typec_tcpci_override_toggling(
+			max77759_typec_tcpci_override_toggling, NULL);
+
+	if (ret)
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_tcpci_override_toggling failed ret:%d",
+			ret);
+	else
+		hooks_installed = true;
+
+	return ret;
+}
+
 static int max77759_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
@@ -1339,6 +1369,10 @@ static int max77759_probe(struct i2c_client *client,
 	u16 device_id;
 	u32 ovp_handle;
 	const char *ovp_status;
+
+	ret = max77759_register_vendor_hooks(client);
+	if (ret)
+		return ret;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1412,7 +1446,6 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.get_current_limit = max77759_get_current_limit;
 	chip->data.set_current_limit = max77759_set_current_limit;
 	chip->data.TX_BUF_BYTE_x_hidden = 1;
-	chip->data.override_toggling = true;
 	chip->data.vbus_vsafe0v = true;
 	chip->data.set_partner_usb_comm_capable = max77759_set_partner_usb_comm_capable;
 	chip->data.set_roles = max77759_set_roles;
