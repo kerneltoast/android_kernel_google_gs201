@@ -10,7 +10,7 @@
 #include <dt-bindings/pinctrl/samsung.h>
 
 &slg51000 {
-	dlg,op-mode = <3>;
+	dlg,op-mode = <4>;
 	dlg,reg-init =
 	<0x2300 0xA0>, <0x2900 0xA0>;
 };

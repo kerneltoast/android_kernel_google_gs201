@@ -131,12 +131,12 @@
 				/* RCAM_RST_L GPP2[2] */
 				reset-gpios = <&gpp2 2 GPIO_ACTIVE_HIGH>;
 
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
-				shared-enable3-gpios =
-					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
+				/* Power sequence */
+				regulators =
+					<&slg51000_ldo1 &slg51000_ldo2
+					 &slg51000_ldo3>;
+				regulator-voltages =
+					<0 0 0>;
 
 				clocks =
 					<&clock CIS_CLK3>,
@@ -155,15 +155,15 @@
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
-					"shared-enable3",
+					"ldo1",
+					"ldo2",
+					"ldo3",
 					"reset",
 					"mclk_on";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
-					"gpio",
+					"regulator",
+					"regulator",
+					"regulator",
 					"gpio",
 					"pinctrl";
 				power-up-seq-delays-us =
@@ -177,15 +177,15 @@
 				power-down-seqs =
 					"mclk_off",
 					"reset",
-					"shared-enable3",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo3",
+					"ldo2",
+					"ldo1";
 				power-down-seq-types =
 					"pinctrl",
 					"gpio",
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
 					 1000
@@ -211,10 +211,12 @@
 
 				/* GPIOs */
 				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 7 GPIO_ACTIVE_HIGH>;
+
+				/* Power sequence */
+				regulators =
+					<&slg51000_ldo1 &slg51000_ldo_dummy>;
+				regulator-voltages =
+					<0 0>;
 
 				clocks =
 					<&clock CIS_CLK1>,
@@ -233,13 +235,13 @@
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
+					"ldo1",
+					"ldo_dummy",
 					"mclk_on",
 					"reset";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
+					"regulator",
+					"regulator",
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
@@ -252,13 +254,13 @@
 				power-down-seqs =
 					"reset",
 					"mclk_off",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo_dummy",
+					"ldo1";
 				power-down-seq-types =
 					"gpio",
 					"pinctrl",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
 					 1000
@@ -283,10 +285,12 @@
 
 				/* GPIOs */
 				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 3 GPIO_ACTIVE_HIGH>;
+
+				/* Power sequence */
+				regulators =
+					<&slg51000_ldo1 &slg51000_ldo4>;
+				regulator-voltages =
+					<0 0>;
 
 				clocks =
 					<&clock CIS_CLK0>,
@@ -305,13 +309,13 @@
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
+					"ldo1",
+					"ldo4",
 					"mclk_on",
 					"reset";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
+					"regulator",
+					"regulator",
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
@@ -324,13 +328,13 @@
 				power-down-seqs =
 					"reset",
 					"mclk_off",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo4",
+					"ldo1";
 				power-down-seq-types =
 					"gpio",
 					"pinctrl",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
 					 1000
@@ -353,23 +357,22 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <32>;
 
-				/* GPIOs */
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
-				shared-enable3-gpios =
-					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
+				/* Power sequence */
+				regulators =
+					<&slg51000_ldo1 &slg51000_ldo2
+					 &slg51000_ldo3>;
+				regulator-voltages =
+					<0 0 0>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
-					"shared-enable3";
+					"ldo1",
+					"ldo2",
+					"ldo3";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-up-seq-delays-us =
 					<1000
 					 1000
@@ -377,13 +380,13 @@
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable3",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo3",
+					"ldo2",
+					"ldo1";
 				power-down-seq-types =
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
 					 1000
@@ -406,22 +409,25 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <8>;
 
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				/* Power sequence */
+				regulators =
+					<&slg51000_ldo1>;
+				regulator-voltages =
+					<0>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1";
+					"ldo1";
 				power-up-seq-types =
-					"gpio";
+					"regulator";
 				power-up-seq-delays-us =
 					<1000>;
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable1";
+					"ldo1";
 				power-down-seq-types =
-					"gpio";
+					"regulator";
 				power-down-seq-delays-us =
 					<1000>;
 			};
@@ -441,22 +447,25 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <8>;
 
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				/* Power sequence */
+				regulators =
+					<&slg51000_ldo1>;
+				regulator-voltages =
+					<0>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1";
+					"ldo1";
 				power-up-seq-types =
-					"gpio";
+					"regulator";
 				power-up-seq-delays-us =
 					<1000>;
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable1";
+					"ldo1";
 				power-down-seq-types =
-					"gpio";
+					"regulator";
 				power-down-seq-delays-us =
 					<1000>;
 			};
@@ -476,23 +485,22 @@
 				reg-addr-bitwidth = <8>;
 				reg-value-bitwidth = <8>;
 
-				/* GPIOs */
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
-				shared-enable3-gpios =
-					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
+				/* Power sequence */
+				regulators =
+					<&slg51000_ldo1 &slg51000_ldo2
+					 &slg51000_ldo3>;
+				regulator-voltages =
+					<0 0 0>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
-					"shared-enable3";
+					"ldo1",
+					"ldo2",
+					"ldo3";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-up-seq-delays-us =
 					<1000
 					 1000
@@ -500,13 +508,13 @@
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable3",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo3",
+					"ldo2",
+					"ldo1";
 				power-down-seq-types =
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
 					 1000
@@ -528,23 +536,22 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <32>;
 
-				/* GPIOs */
-				shared-enable1-gpios =
-					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
-				shared-enable2-gpios =
-					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
-				shared-enable3-gpios =
-					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
+				/* Power sequence */
+				regulators =
+					<&slg51000_ldo1 &slg51000_ldo2
+					 &slg51000_ldo3>;
+				regulator-voltages =
+					<0 0 0>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"shared-enable1",
-					"shared-enable2",
-					"shared-enable3";
+					"ldo1",
+					"ldo2",
+					"ldo3";
 				power-up-seq-types =
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-up-seq-delays-us =
 					<1000
 					 1000
@@ -552,13 +559,13 @@
 
 				/* Power down sequence */
 				power-down-seqs =
-					"shared-enable3",
-					"shared-enable2",
-					"shared-enable1";
+					"ldo3",
+					"ldo2",
+					"ldo1";
 				power-down-seq-types =
-					"gpio",
-					"gpio",
-					"gpio";
+					"regulator",
+					"regulator",
+					"regulator";
 				power-down-seq-delays-us =
 					<1000
 					 1000

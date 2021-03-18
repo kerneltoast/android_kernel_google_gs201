@@ -15,6 +15,12 @@
 				enable-gpios =
 					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
 
+				/* GPIOs */
+				shared-enable1-gpios =
+					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				shared-enable2-gpios =
+					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
+
 				/* Power supplies */
 				regulators =
 					<&slg51000_ldo1 &slg51000_ldo4
@@ -186,6 +192,12 @@
 
 			/* Eeprom lc898128 for gn1*/
 			eeprom0: eeprom@0 {
+				/* GPIOs */
+				shared-enable1-gpios =
+					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				shared-enable2-gpios =
+					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
+
 				/* Power supplies */
 				regulators = <&slg51000_ldo4 &slg51000_ldo7>;
 				regulator-voltages = <2900000 1800000>;
@@ -302,6 +314,12 @@
 
 			/* Ois lc898128 for gn1*/
 			ois0: ois@0 {
+				/* GPIOs */
+				shared-enable1-gpios =
+					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				shared-enable2-gpios =
+					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
+
 				/* Power supplies */
 				regulators = <&slg51000_ldo4 &slg51000_ldo7>;
 				regulator-voltages = <2900000 1800000>;

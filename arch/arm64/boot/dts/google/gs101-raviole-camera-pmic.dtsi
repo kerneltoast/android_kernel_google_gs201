@@ -22,7 +22,7 @@
 		dlg,buck-gpios = <&s2mpg11_gpio 3 GPIO_ACTIVE_HIGH>;
 		dlg,bb-gpios = <&s2mpg11_gpio 1 GPIO_ACTIVE_HIGH>;
 		dlg,cs-gpios = <&s2mpg11_gpio 0 GPIO_ACTIVE_HIGH>;
-		dlg,op-mode = <3>;
+		dlg,op-mode = <4>;
 		dlg,reg-init-cells = <2>;
 
 		regulators {
@@ -64,6 +64,12 @@
 
 			slg51000_ldo7: ldo7 {
 				regulator-name = "ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_ldo_dummy: ldo_dummy {
+				regulator-name = "ldo_dummy";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <3750000>;
 			};

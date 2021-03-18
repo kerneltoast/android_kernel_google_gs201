@@ -15,6 +15,12 @@
 				enable-gpios =
 					<&slg51000_gpio 2 GPIO_ACTIVE_HIGH>;
 
+				/* GPIOs */
+				shared-enable1-gpios =
+					<&slg51000_gpio 0 GPIO_ACTIVE_HIGH>;
+				shared-enable2-gpios =
+					<&slg51000_gpio 1 GPIO_ACTIVE_HIGH>;
+
 				/* Power supplies */
 				regulators =
 					<&slg51000_ldo1 &slg51000_ldo4

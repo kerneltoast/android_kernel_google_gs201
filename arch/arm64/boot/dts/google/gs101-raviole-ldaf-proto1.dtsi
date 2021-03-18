@@ -7,4 +7,6 @@
 
 &stmvl53l1 {
 	vio-type = "regulator";
+	vio-supply = <&slg51000_ldo7>;
+	vio-voltage = <1800000>;
 };
