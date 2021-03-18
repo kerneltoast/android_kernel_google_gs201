@@ -961,22 +961,21 @@ static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 		TCPC_VBUS_VOLTAGE_LSB_MV);
 }
 
-static int max77759_check_contaminant(struct tcpci *tcpci, struct tcpci_data *tdata)
+static void max77759_check_contaminant(void *unused, struct tcpci *tcpci, struct tcpci_data *tdata,
+				       int *ret)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
-	int ret;
 
 	logbuffer_log(chip->log, "%s: debounce path", __func__);
 	mutex_lock(&chip->rc_lock);
 	if (chip->contaminant_detection) {
 		process_contaminant_alert(chip->contaminant, true, false);
-		ret = CONTAMINANT_HANDLES_TOGGLING;
+		*ret = CONTAMINANT_HANDLES_TOGGLING;
 	} else {
-		ret = TCPM_RESTART_TOGGLING;
+		*ret = TCPM_RESTART_TOGGLING;
 	}
 
 	mutex_unlock(&chip->rc_lock);
-	return ret;
 }
 
 static int max77759_get_current_limit(struct tcpci *tcpci,
@@ -1348,12 +1347,23 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 	ret = register_trace_android_vh_typec_tcpci_override_toggling(
 			max77759_typec_tcpci_override_toggling, NULL);
 
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev,
 			"register_trace_android_vh_typec_tcpci_override_toggling failed ret:%d",
 			ret);
-	else
-		hooks_installed = true;
+		return ret;
+	}
+
+	ret = register_trace_android_vh_typec_tcpci_check_contaminant(
+			max77759_check_contaminant, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_tcpci_check_contaminant failed ret:%d",
+			ret);
+		return ret;
+	}
+
+	hooks_installed = true;
 
 	return ret;
 }
@@ -1452,7 +1462,6 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.init = tcpci_init;
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
-	chip->data.check_contaminant = max77759_check_contaminant;
 
 	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
