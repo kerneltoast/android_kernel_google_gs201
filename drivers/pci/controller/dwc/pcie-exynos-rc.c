@@ -84,6 +84,7 @@ static unsigned char *s2mpu_refcnt_array;
 #define MEM2_START_ADDR	0x880000000UL
 #define MEM2_END_ADDR	0x9ffffffffUL
 #define MEM2_INDEX_START ((MEM1_END_ADDR + 1 - MEM1_START_ADDR) / ALIGN_SIZE)
+#define REF_COUNT_UNDERFLOW 255
 #endif
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
@@ -109,6 +110,31 @@ void s2mpu_get_alignment(dma_addr_t addr, size_t size,
 	*align_size = ALIGN(addr - *align_addr + size, ALIGN_SIZE);
 }
 
+unsigned char s2mpu_get_and_modify(struct exynos_pcie *exynos_pcie,
+				   unsigned char *refcnt_ptr,
+				   bool inc)
+{
+	unsigned char val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&exynos_pcie->s2mpu_refcnt_lock, flags);
+	val = (*refcnt_ptr);
+	if (inc) {
+		val++;
+		*refcnt_ptr = val;
+	} else {
+		// Check for underflow. Should never happen.
+		if (val == 0) {
+			val = REF_COUNT_UNDERFLOW;
+		} else {
+			val--;
+			*refcnt_ptr = val;
+		}
+	}
+	spin_unlock_irqrestore(&exynos_pcie->s2mpu_refcnt_lock, flags);
+	return val;
+}
+
 void s2mpu_update_refcnt(struct device *dev,
 			 dma_addr_t dma_addr, size_t size, bool incr)
 {
@@ -116,9 +142,9 @@ void s2mpu_update_refcnt(struct device *dev,
 	phys_addr_t align_addr;
 	size_t align_size;
 	unsigned char *refcnt_ptr;
-	unsigned long flags;
 	int index;
 	int ret;
+	unsigned char refcnt;
 
 	/* Align to 4K as required by S2MPU */
 	s2mpu_get_alignment(dma_addr, size, &align_addr, &align_size);
@@ -140,11 +166,12 @@ void s2mpu_update_refcnt(struct device *dev,
 	}
 
 	refcnt_ptr = s2mpu_refcnt_array + index;
+
 	while (align_size != 0) {
-		spin_lock_irqsave(&exynos_pcie->s2mpu_refcnt_lock, flags);
 		if (incr) {
-			*refcnt_ptr = (*refcnt_ptr) + 1;
-			if (*refcnt_ptr == 1) {
+			refcnt = s2mpu_get_and_modify(exynos_pcie, refcnt_ptr,
+						      true);
+			if (refcnt == 1) {
 				ret = s2mpu_open(exynos_pcie->s2mpu,
 						 align_addr,
 						 ALIGN_SIZE);
@@ -155,8 +182,13 @@ void s2mpu_update_refcnt(struct device *dev,
 				}
 			}
 		} else {
-			*refcnt_ptr = (*refcnt_ptr) - 1;
-			if (*refcnt_ptr == 0) {
+			refcnt = s2mpu_get_and_modify(exynos_pcie, refcnt_ptr,
+						      false);
+			if (refcnt == REF_COUNT_UNDERFLOW) {
+				dev_err(dev, "Error underflow in refcount\n");
+				return;
+			}
+			if (refcnt == 0) {
 				ret = s2mpu_close(exynos_pcie->s2mpu,
 						  align_addr,
 						  ALIGN_SIZE);
@@ -171,7 +203,6 @@ void s2mpu_update_refcnt(struct device *dev,
 		align_addr += ALIGN_SIZE;
 		align_size -= ALIGN_SIZE;
 		refcnt_ptr++;
-		spin_unlock_irqrestore(&exynos_pcie->s2mpu_refcnt_lock, flags);
 	}
 }
 
