@@ -88,6 +88,7 @@
 #define PCIE_STATE_HISTORY_CHECK	0xC00
 #define HISTORY_BUFFER_ENABLE		0x3
 #define HISTORY_BUFFER_CLEAR		(0x1 << 1)
+#define HISTORY_BUFFER_CONDITION_SEL	(0x1 << 2)
 #define PCIE_STATE_POWER_S		0xC04
 #define PCIE_STATE_POWER_M		0xC08
 #define PCIE_HISTORY_REG(x)		(0xC0C + ((x) * 0x4)) /* history_reg0: 0xC0C */

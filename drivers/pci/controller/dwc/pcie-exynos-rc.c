@@ -692,6 +692,25 @@ static int exynos_pcie_rc_phy_clock_enable(struct pcie_port *pp, int enable)
 	return ret;
 }
 
+void exynos_pcie_rc_print_link_history(struct pcie_port *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct device *dev = pci->dev;
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	u32 history;
+	int i;
+
+	for (i = 31; i >= 0; i--) {
+		history = exynos_elbi_read(exynos_pcie,
+					   PCIE_HISTORY_REG(i));
+
+		dev_info(dev, "LTSSM: 0x%02x, L1sub: 0x%x, D state: 0x%x\n",
+				LTSSM_STATE(history),
+				L1SUB_STATE(history),
+				PM_DSTATE(history));
+	}
+}
+
 static int exynos_pcie_rc_rd_own_conf(struct pcie_port *pp, int where, int size, u32 *val)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -1643,6 +1662,7 @@ void exynos_pcie_rc_dislink_work(struct work_struct *work)
 	if (exynos_pcie->state == STATE_LINK_DOWN)
 		return;
 
+	exynos_pcie_rc_print_link_history(pp);
 	exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
 	exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
 
@@ -2487,15 +2507,6 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 		exynos_pcie->state = STATE_LINK_UP_TRY;
 
-		/* Enable history buffer */
-		val = exynos_elbi_read(exynos_pcie, PCIE_STATE_HISTORY_CHECK);
-		exynos_elbi_write(exynos_pcie, 0, PCIE_STATE_HISTORY_CHECK);
-		val = HISTORY_BUFFER_ENABLE;
-		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
-
-		exynos_elbi_write(exynos_pcie, 0x200000, PCIE_STATE_POWER_S);
-		exynos_elbi_write(exynos_pcie, 0xffffffff, PCIE_STATE_POWER_M);
-
 		if ((exynos_pcie_desc) && (exynos_pcie_desc->depth > 0))
 			enable_irq(pp->irq);
 		else
@@ -2505,6 +2516,18 @@ int exynos_pcie_rc_poweron(int ch_num)
 			dev_err(dev, "pcie link up fail\n");
 			goto poweron_fail;
 		}
+
+		val = exynos_elbi_read(exynos_pcie, PCIE_STATE_HISTORY_CHECK);
+		val &= ~(HISTORY_BUFFER_CONDITION_SEL);
+		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
+
+		exynos_elbi_write(exynos_pcie, 0xffffffff, PCIE_STATE_POWER_S);
+		exynos_elbi_write(exynos_pcie, 0xffffffff, PCIE_STATE_POWER_M);
+
+		val = exynos_elbi_read(exynos_pcie, PCIE_STATE_HISTORY_CHECK);
+		val |= HISTORY_BUFFER_ENABLE;
+		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
+
 		exynos_pcie->state = STATE_LINK_UP;
 		power_stats_update_up(exynos_pcie);
 
