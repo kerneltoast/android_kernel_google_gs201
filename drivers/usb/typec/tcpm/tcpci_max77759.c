@@ -1127,7 +1127,8 @@ static int max77759_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
 	return 0;
 }
 
-static int max77759_get_vbus(struct tcpci *tcpci, struct tcpci_data *data)
+static void max77759_get_vbus(void *unused, struct tcpci *tcpci, struct tcpci_data *data, int *vbus,
+			      int *bypass)
 {
 	struct max77759_plat *chip = tdata_to_max77759(data);
 	u8 pwr_status;
@@ -1140,7 +1141,8 @@ static int max77759_get_vbus(struct tcpci *tcpci, struct tcpci_data *data)
 	}
 
 	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
-	return chip->vbus_present;
+	*vbus = chip->vbus_present;
+	*bypass = 1;
 }
 
 /* Notifier structure inferred from usbpd-manager.c */
@@ -1363,6 +1365,13 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 		return ret;
 	}
 
+	ret = register_trace_android_vh_typec_tcpci_get_vbus(max77759_get_vbus, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_tcpci_get_vbus failed ret:%d\n", ret);
+		return ret;
+	}
+
 	hooks_installed = true;
 
 	return ret;
@@ -1451,7 +1460,6 @@ static int max77759_probe(struct i2c_client *client,
 
 	/* Chip level tcpci callbacks */
 	chip->data.set_vbus = max77759_set_vbus;
-	chip->data.get_vbus = max77759_get_vbus;
 	chip->data.start_drp_toggling = max77759_start_toggling;
 	chip->data.get_current_limit = max77759_get_current_limit;
 	chip->data.set_current_limit = max77759_set_current_limit;
