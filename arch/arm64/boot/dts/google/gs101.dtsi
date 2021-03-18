@@ -635,8 +635,6 @@
 		phy-names = "usb2-phy", "usb3-phy";
 		/* check susphy support */
 		suspend_clk_freq = <19200000>;
-		/* support usb offloading, 0: disabled, 1: audio */
-		offload = <1>;
 		/* INT min lock support */
 		usb-pm-qos-int = <200000>;
 
@@ -650,6 +648,8 @@
 			dr_mode = "peripheral";
 			phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
 			phy-names = "usb2-phy", "usb3-phy";
+			/* support usb offloading, 0: disabled, 1: audio */
+			offload = <1>;
 		};
 	};
 
