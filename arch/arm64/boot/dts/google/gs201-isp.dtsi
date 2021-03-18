@@ -600,14 +600,14 @@
 		clock-family = <CAMERA_CLOCK_FAMILY_TNR>;
 
 		interrupts =
-			<0 IRQ_TNR_TNR IRQ_TYPE_LEVEL_HIGH>,
-			<0 IRQ_TNR_MUTE_TNR IRQ_TYPE_LEVEL_HIGH>;
+			<0 IRQ_TNR_0_TNR IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_TNR_1_TNR IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names =
-			"gtnr-merge-int",
-			"gtnr-merge-mute";
+			"gtnr-merge-int0",
+			"gtnr-merge-int1";
 		interrupt-event-infos =
-			<&gtnr_merge_int>,
-			<&gtnr_merge_secu_int_mute>;
+			<&gtnr_merge_int0>,
+			<&gtnr_merge_int1>;
 
 		iommus =
 			<&sysmmu_tnr0>,
