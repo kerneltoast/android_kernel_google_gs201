@@ -463,6 +463,15 @@ static void tcpci_set_pd_capable(struct tcpc_dev *tcpc, bool capable)
 		tcpci->data->set_pd_capable(tcpci, tcpci->data, capable);
 }
 
+static int tcpci_check_contaminant(struct tcpc_dev *tcpc)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
+	int ret = 0;
+
+	trace_android_vh_typec_tcpci_check_contaminant(tcpci, tcpci->data, &ret);
+	return ret;
+}
+
 static bool tcpci_is_vbus_vsafe0v(struct tcpc_dev *tcpc)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
@@ -782,7 +791,8 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	tcpci->tcpc.set_pd_capable = tcpci_set_pd_capable;
 	tcpci->tcpc.enable_frs = tcpci_enable_frs;
 	tcpci->tcpc.frs_sourcing_vbus = tcpci_frs_sourcing_vbus;
- 	tcpci->tcpc.set_partner_usb_comm_capable = tcpci_set_partner_usb_comm_capable;
+	tcpci->tcpc.set_partner_usb_comm_capable = tcpci_set_partner_usb_comm_capable;
+	tcpci->tcpc.check_contaminant = tcpci_check_contaminant;
 
 	if (tcpci->data->auto_discharge_disconnect) {
 		tcpci->tcpc.enable_auto_vbus_discharge = tcpci_enable_auto_vbus_discharge;
