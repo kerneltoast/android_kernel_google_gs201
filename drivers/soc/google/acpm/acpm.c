@@ -274,7 +274,7 @@ static void acpm_enter_wfi(struct acpm_info *acpm)
 	config.response = true;
 	config.cmd[0] = 1 << ACPM_IPC_PROTOCOL_STOP;
 
-	acpm_stop_log();
+	acpm_stop_log_and_dumpram();
 	ret = acpm_ipc_send_data(channel_num, &config);
 
 	if (ret) {

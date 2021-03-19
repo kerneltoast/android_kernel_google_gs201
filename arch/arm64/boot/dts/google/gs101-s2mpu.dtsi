@@ -12,6 +12,7 @@
 
 		sids = <0x0 0x1>;
 		vid = <0>;
+		interrupts = <GIC_SPI IRQ_SYSMMU_HSI1_S2MPU_HSI1 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	s2mpu_hsi2: s2mpu@0x14480000 {
@@ -34,5 +35,7 @@
 		 */
 		sids = <0x4 0x5>;
 		vid = <1>;
+
+		interrupts = <GIC_SPI IRQ_SYSMMU_HSI2_S2_HSI2 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };

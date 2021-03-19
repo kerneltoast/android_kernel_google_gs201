@@ -1643,6 +1643,9 @@ void exynos_pcie_rc_dislink_work(struct work_struct *work)
 	if (exynos_pcie->state == STATE_LINK_DOWN)
 		return;
 
+	exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
+	exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
+
 	exynos_pcie->linkdown_cnt++;
 	dev_info(dev, "link down and recovery cnt: %d\n", exynos_pcie->linkdown_cnt);
 	if (exynos_pcie->use_pcieon_sleep) {

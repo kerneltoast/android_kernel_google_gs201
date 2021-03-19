@@ -27,6 +27,7 @@
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/s2mpg11-register.h>
 #include <linux/regulator/pmic_class.h>
+#include <soc/google/bcl.h>
 #include <soc/google/exynos-pm.h>
 #include <soc/google/exynos-pmu-if.h>
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -83,7 +84,6 @@
 #define PMIC_OVERHEAT_UPPER_LIMIT (2000)
 #define PMIC_120C_UPPER_LIMIT (1200)
 #define PMIC_140C_UPPER_LIMIT (1400)
-#define BUF_SIZE 192
 #define PMU_ALIVE_CPU0_OUT (0x1CA0)
 #define PMU_ALIVE_CPU1_OUT (0x1D20)
 #define PMU_ALIVE_CPU2_OUT (0x1DA0)
@@ -127,23 +127,7 @@ enum IRQ_SOURCE_S2MPG11 {
 	IRQ_SOURCE_S2MPG11_MAX,
 };
 
-enum sys_throttling_switch {
-	SYS_THROTTLING_DISABLED,
-	SYS_THROTTLING_ENABLED,
-	SYS_THROTTLING_GEAR0,
-	SYS_THROTTLING_GEAR1,
-	SYS_THROTTLING_GEAR2,
-	SYS_THROTTLING_MAX,
-};
-
 enum PMIC_REG { S2MPG10, S2MPG11 };
-
-static const unsigned int sys_throttling_settings[SYS_THROTTLING_MAX] = {
-	[SYS_THROTTLING_DISABLED] = 0x1F,
-	[SYS_THROTTLING_ENABLED] = 0x10,
-	[SYS_THROTTLING_GEAR0] = 0x10,
-	[SYS_THROTTLING_GEAR1] = 0x15,
-	[SYS_THROTTLING_GEAR2] = 0x1A};
 
 static const char * const s2mpg10_source[] = {
 	[IRQ_SMPL_WARN] = "smpl_warn",
@@ -789,12 +773,23 @@ static int battery_supply_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int gs101_bcl_soc_remove(struct gs101_bcl_dev *gs101_bcl_device)
+static int gs101_bcl_remove(struct gs101_bcl_dev *bcl_dev)
 {
-	power_supply_unreg_notifier(&gs101_bcl_device->psy_nb);
-	if (gs101_bcl_device->soc_tzd)
-		thermal_zone_of_sensor_unregister(gs101_bcl_device->device,
-						  gs101_bcl_device->soc_tzd);
+	int i = 0;
+
+	power_supply_unreg_notifier(&bcl_dev->psy_nb);
+	if (bcl_dev->soc_tzd)
+		thermal_zone_of_sensor_unregister(bcl_dev->device, bcl_dev->soc_tzd);
+	for (i = 0; i < IRQ_SOURCE_S2MPG10_MAX; i++) {
+		if (bcl_dev->s2mpg10_tz_irq[i])
+			thermal_zone_of_sensor_unregister(bcl_dev->device,
+							  bcl_dev->s2mpg10_tz_irq[i]);
+	}
+	for (i = 0; i < IRQ_SOURCE_S2MPG11_MAX; i++) {
+		if (bcl_dev->s2mpg11_tz_irq[i])
+			thermal_zone_of_sensor_unregister(bcl_dev->device,
+							  bcl_dev->s2mpg11_tz_irq[i]);
+	}
 
 	return 0;
 }
@@ -1298,31 +1293,41 @@ static int set_soft_gpu_lvl(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(soft_gpu_lvl_fops, get_soft_gpu_lvl, set_soft_gpu_lvl, "%d\n");
 
-static void gs101_set_ppm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
-				     enum sys_throttling_switch throttle_switch)
+int gs101_set_ppm(unsigned int value)
 {
-	unsigned int reg, mask;
 	void __iomem *addr;
 
-	if (!gs101_bcl_device->sysreg_cpucl0) {
-		dev_err(gs101_bcl_device->device, "sysreg_cpucl0 ioremap not mapped\n");
-		return;
+	addr = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
+	if (!addr) {
+		pr_err("Error in sysreg_cpucl0 ioremap\n");
+		return -EIO;
 	}
 	mutex_lock(&sysreg_lock);
-	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_PPM;
-	reg = __raw_readl(addr);
-	mask = BIT(8);
-	/* 75% dispatch reduction */
-	if (throttle_switch == SYS_THROTTLING_ENABLED) {
-		reg |= mask;
-		reg |= PPMCTL_MASK;
-	} else {
-		reg &= ~mask;
-		reg &= ~(PPMCTL_MASK);
-	}
-	__raw_writel(reg, addr);
+	addr = addr + CLUSTER0_PPM;
+	__raw_writel(value, addr);
 	mutex_unlock(&sysreg_lock);
+
+	return 0;
 }
+EXPORT_SYMBOL_GPL(gs101_set_ppm);
+
+int gs101_set_mpmm(unsigned int value)
+{
+	void __iomem *addr;
+
+	addr = ioremap(SYSREG_CPUCL0_BASE, SZ_8K);
+	if (!addr) {
+		pr_err("Error in sysreg_cpucl0 ioremap\n");
+		return -EIO;
+	}
+	mutex_lock(&sysreg_lock);
+	addr = addr + CLUSTER0_MPMM;
+	__raw_writel(value, addr);
+	mutex_unlock(&sysreg_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gs101_set_mpmm);
 
 static ssize_t mpmm_settings_store(struct device *dev,
 				   struct device_attribute *attr, const char *buf, size_t size)
@@ -1364,12 +1369,12 @@ static ssize_t mpmm_settings_show(struct device *dev, struct device_attribute *a
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-	unsigned int reg = 0;
+	unsigned int reg = 0, len;
 	unsigned int state_big7, state_big6;
 	void __iomem *addr;
 
 	if (!bcl_dev->sysreg_cpucl0)
-		return scnprintf(buf, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
+		return scnprintf(buf, PAGE_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
 
 	mutex_lock(&sysreg_lock);
 	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_MPMM;
@@ -1377,42 +1382,26 @@ static ssize_t mpmm_settings_show(struct device *dev, struct device_attribute *a
 	mutex_unlock(&sysreg_lock);
 	state_big7 = (reg >> 2) & 0x3;
 	state_big6  = reg & 0x3;
-	return scnprintf(buf, BUF_SIZE,
-			 "Reg: 0x%x\n%s: 0x%x\n%s: 0x%x,%s\n%s: 0x%x,%s\n%s:\n%s\n\n",
-			 reg, "CAPTURE_ENABLE [4]", reg >> 4,
-			 "MPMMSTATE_BIG7 [3:2]", state_big7, mpmm_gear_parse(state_big7),
-			 "MPMMSTATE_BIG6 [1:0]", state_big6, mpmm_gear_parse(state_big6),
-			 "To set", "echo 0x(value) > mpmm_settings");
+	len = scnprintf(buf, PAGE_SIZE, "Value\tSettings\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n",
+			 0, "Gear 0", 1, "Gear 1", 2,
+			 "Gear 2", 3, "Disabled", 4);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			"Reg: 0x%x\n%s: 0x%x\n%s: 0x%x,%s\n%s: 0x%x,%s\n%s:\n%s\n\n",
+			reg, "CAPTURE_ENABLE [4]", reg >> 4, "MPMMSTATE_BIG7 [3:2]",
+			state_big7, mpmm_gear_parse(state_big7), "MPMMSTATE_BIG6 [1:0]",
+			state_big6, mpmm_gear_parse(state_big6),
+			"To set", "echo 0x(value) > mpmm_settings");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Value\tSettings\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n",
+			 0, "Gear 0", 1, "Gear 1", 2,
+			 "Gear 2", 3, "Disabled", 4);
+	return len;
 }
 
 static DEVICE_ATTR_RW(mpmm_settings);
-
-static void
-gs101_set_mpmm_throttling(struct gs101_bcl_dev *gs101_bcl_device,
-			  enum sys_throttling_switch throttle_switch)
-{
-	unsigned int reg;
-	void __iomem *addr;
-	unsigned int settings;
-
-	if (!gs101_bcl_device->sysreg_cpucl0) {
-		dev_err(gs101_bcl_device->device, "sysreg_cpucl0 ioremap not mapped\n");
-		return;
-	}
-	mutex_lock(&sysreg_lock);
-	addr = gs101_bcl_device->sysreg_cpucl0 + CLUSTER0_MPMM;
-	reg = __raw_readl(addr);
-
-	if ((throttle_switch < 0) || (throttle_switch > SYS_THROTTLING_GEAR2))
-		settings = 0xF;
-	else
-		settings = sys_throttling_settings[throttle_switch];
-
-	reg &= ~0x1F;
-	reg |= settings;
-	__raw_writel(reg, addr);
-	mutex_unlock(&sysreg_lock);
-}
 
 static ssize_t ppm_settings_store(struct device *dev,
 				  struct device_attribute *attr, const char *buf, size_t size)
@@ -1439,12 +1428,12 @@ static ssize_t ppm_settings_show(struct device *dev, struct device_attribute *at
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-	unsigned int reg = 0;
+	unsigned int reg = 0, len;
 	unsigned int ppmctl7, ppmctl6, ocp_en_big;
 	void __iomem *addr;
 
 	if (!bcl_dev->sysreg_cpucl0)
-		return scnprintf(buf, BUF_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
+		return scnprintf(buf, PAGE_SIZE, "sysreg_cpucl0 memory is not accessible.\n\n");
 
 	mutex_lock(&sysreg_lock);
 	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM;
@@ -1453,12 +1442,17 @@ static ssize_t ppm_settings_show(struct device *dev, struct device_attribute *at
 	ocp_en_big = test_bit(8, (unsigned long *)&reg);
 	ppmctl7 = (reg >> 4) & 0xF;
 	ppmctl6 = reg & 0xF;
-	return scnprintf(buf, BUF_SIZE,
-			 "0x%x\n%s: %d\n%s: 0x%x\n%s: 0x%x\n%s:\n%s\n\n",
-			 reg, "PPMOCP_EN_BIG [8]", ocp_en_big,
-			 "PPMCTL7 BIG1 [7:4]", ppmctl7, "PPMCTL6 BIG0 [3:0]", ppmctl6,
-			 "To set", "echo 0x(value) > ppm_settings");
-
+	len = scnprintf(buf, PAGE_SIZE, "Reg: 0x%x\n%s: %d\n%s: 0x%x\n%s: 0x%x\n%s:\n%s\n\n",
+			reg, "PPMOCP_EN_BIG [8]", ocp_en_big, "PPMCTL7 BIG1 [7:4]", ppmctl7,
+			"PPMCTL6 BIG0 [3:0]", ppmctl6, "To set", "echo 0x(value) > ppm_settings");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Value\tDispatch Reduction\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n0x%x\t%s\n",
+			 0, "0 percent reduction", 1, "12 percent reduction", 2,
+			 "25 percent reduction", 3, "30 percent reduction", 4,
+			 "35 percent reduction", 5, "40 percent reduction", 6,
+			 "75 percent reduction");
+	return len;
 }
 
 static DEVICE_ATTR_RW(ppm_settings);
@@ -1563,6 +1557,32 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *gs101_bcl_device,
 		}
 	}
 	return ret;
+}
+
+static void google_gs101_set_throttling(struct gs101_bcl_dev *bcl_dev)
+{
+	struct device_node *np = bcl_dev->device->of_node;
+	int ret;
+	u32 val, ppm_settings, mpmm_settings;
+	void __iomem *addr;
+
+	if (!bcl_dev->sysreg_cpucl0) {
+		dev_err(bcl_dev->device, "sysreg_cpucl0 ioremap not mapped\n");
+		return;
+	}
+	ret = of_property_read_u32(np, "ppm_settings", &val);
+	ppm_settings = ret ? 0 : val;
+
+	ret = of_property_read_u32(np, "mpmm_settings", &val);
+	mpmm_settings = ret ? 0 : val;
+
+	mutex_lock(&sysreg_lock);
+	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM;
+	__raw_writel(ppm_settings, addr);
+	addr = bcl_dev->sysreg_cpucl0 + CLUSTER0_MPMM;
+	__raw_writel(mpmm_settings, addr);
+	mutex_unlock(&sysreg_lock);
+
 }
 
 static int google_gs101_set_sub_pmic(struct gs101_bcl_dev *bcl_dev)
@@ -1931,8 +1951,6 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	__raw_writel(reg, bcl_dev->sysreg_cpucl0 + CLUSTER0_PPM);
 
 	mutex_unlock(&sysreg_lock);
-	gs101_set_ppm_throttling(bcl_dev, SYS_THROTTLING_DISABLED);
-	gs101_set_mpmm_throttling(bcl_dev, SYS_THROTTLING_DISABLED);
 	mutex_init(&bcl_dev->state_trans_lock);
 	mutex_init(&bcl_dev->ratio_lock);
 	bcl_dev->soc_ops.get_temp = gs101_bcl_read_soc;
@@ -1952,6 +1970,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	thermal_zone_device_update(bcl_dev->soc_tzd, THERMAL_DEVICE_UP);
 	schedule_delayed_work(&bcl_dev->soc_eval_work, 0);
 	bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
+	google_gs101_set_throttling(bcl_dev);
 	google_gs101_set_main_pmic(bcl_dev);
 	google_gs101_set_sub_pmic(bcl_dev);
 	bcl_dev->device = pmic_device_create(bcl_dev, "mitigation");
@@ -1984,7 +2003,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	return 0;
 
 bcl_soc_probe_exit:
-	gs101_bcl_soc_remove(bcl_dev);
+	gs101_bcl_remove(bcl_dev);
 	return ret;
 }
 
@@ -1993,7 +2012,7 @@ static int google_gs101_bcl_remove(struct platform_device *pdev)
 	struct gs101_bcl_dev *gs101_bcl_device = platform_get_drvdata(pdev);
 
 	pmic_device_destroy(gs101_bcl_device->device->devt);
-	gs101_bcl_soc_remove(gs101_bcl_device);
+	gs101_bcl_remove(gs101_bcl_device);
 	debugfs_remove(gs101_bcl_device->debug_entry);
 
 	return 0;

@@ -30,7 +30,7 @@
 #include "../vh/kernel/systrace.h"
 
 #define IPC_TIMEOUT				(10000000)
-#define IPC_NB_RETRIES				2
+#define IPC_NB_RETRIES				5
 #define APM_SYSTICK_PERIOD_US			(20345)
 
 static struct acpm_ipc_info *acpm_ipc;
@@ -43,6 +43,7 @@ static struct acpm_framework *acpm_initdata;
 static void __iomem *acpm_srambase;
 static void __iomem *fvmap_base_address;
 static void __iomem *frc_ctrl;
+static DEFINE_MUTEX(print_log_mutex);
 
 void *get_fvmap_base(void)
 {
@@ -151,9 +152,9 @@ void acpm_fw_set_log_level(unsigned int level)
 	acpm_debug->debug_log_level = level;
 
 	if (!level)
-		cancel_delayed_work_sync(&acpm_debug->periodic_work);
+		cancel_delayed_work_sync(&acpm_debug->acpm_log_work);
 	else if (level <= 2)
-		queue_delayed_work(update_log_wq, &acpm_debug->periodic_work,
+		queue_delayed_work(update_log_wq, &acpm_debug->acpm_log_work,
 			msecs_to_jiffies(acpm_debug->period));
 }
 
@@ -189,7 +190,7 @@ static void acpm_log_print_helper(unsigned int head, unsigned int arg0,
 	char *str;
 
 	if (acpm_debug->debug_log_level >= 1 || !is_err) {
-		id  = (head >> LOG_ID_SHIFT) & 0xf;
+		id = (head >> LOG_ID_SHIFT) & 0xf;
 		is_raw = (head >> LOG_IS_RAW_SHIFT) & 0x1;
 		if (is_raw) {
 			pr_info("[ACPM_FW] : id:%u, %x, %x, %x\n",
@@ -245,26 +246,28 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 	}
 }
 
-void acpm_log_print(void)
+static void acpm_log_print(void)
 {
+	mutex_lock(&print_log_mutex);
 	if (acpm_debug->debug_log_level >= 2)
 		acpm_log_print_buff(&acpm_debug->preempt);
 	acpm_log_print_buff(&acpm_debug->normal);
+	mutex_unlock(&print_log_mutex);
 }
 
-void acpm_stop_log(void)
+void acpm_stop_log_and_dumpram(void)
 {
 	acpm_stop_log_req = true;
 	acpm_log_print();
 }
-EXPORT_SYMBOL_GPL(acpm_stop_log);
+EXPORT_SYMBOL_GPL(acpm_stop_log_and_dumpram);
 
-static void acpm_debug_logging(struct work_struct *work)
+static void acpm_log_work_fn(struct work_struct *work)
 {
 	acpm_log_print();
 
-	queue_delayed_work_on(0, update_log_wq, &acpm_debug->periodic_work,
-			      msecs_to_jiffies(acpm_debug->period));
+	queue_delayed_work(update_log_wq, &acpm_debug->acpm_log_work,
+			   msecs_to_jiffies(acpm_debug->period));
 }
 
 int acpm_ipc_set_ch_mode(struct device_node *np, bool polling)
@@ -501,7 +504,6 @@ static void dequeue_policy(struct acpm_ipc_ch *channel)
 		front = __raw_readl(channel->rx_ch.front);
 	}
 
-	acpm_log_print();
 	spin_unlock_irqrestore(&channel->rx_lock, flags);
 }
 
@@ -641,6 +643,8 @@ retry:
 					timeout_flag = true;
 					break;
 				} else if (retry_cnt > 0) {
+					unsigned int saved_debug_log_level =
+					    acpm_debug->debug_log_level;
 					/* in case AP -> ACPM was lost, ask APM to check again */
 					apm_interrupt_gen(channel->id);
 					pr_err("acpm_ipc retry %d, now = %llu, frc = %llu, timeout = %llu",
@@ -661,7 +665,12 @@ retry:
 						__raw_readl(acpm_ipc->intr + INTSR1),
 						__raw_readl(acpm_ipc->intr + INTMR1),
 						__raw_readl(acpm_ipc->intr + INTMSR1));
+
 					++retry_cnt;
+					acpm_debug->debug_log_level = 2;
+					acpm_log_print();
+					acpm_debug->debug_log_level = saved_debug_log_level;
+
 					goto retry;
 				} else {
 					++retry_cnt;
@@ -676,17 +685,11 @@ retry:
 		}
 
 		if ((timeout_flag) && (check_response(channel, cfg))) {
-			unsigned int saved_debug_log_level =
-			    acpm_debug->debug_log_level;
 			pr_err("%s Timeout error! now = %llu, timeout = %llu ch:%u s:%2d\n",
 			       __func__, now, timeout, channel->id,
 			       (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f);
 
-			acpm_debug->debug_log_level = 2;
-			acpm_log_print();
-			acpm_debug->debug_log_level = saved_debug_log_level;
 			acpm_ramdump();
-
 			dump_stack();
 			dbg_snapshot_do_dpm_policy(acpm_ipc->panic_action, "acpm_ipc timeout");
 		}
@@ -953,12 +956,12 @@ int acpm_ipc_probe(struct platform_device *pdev)
 
 	channel_init();
 
-	update_log_wq = alloc_workqueue("%s",
-					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-					1, "acpm_log");
-
-	if (acpm_debug->debug_log_level && acpm_debug->period)
-		INIT_DELAYED_WORK(&acpm_debug->periodic_work, acpm_debug_logging);
+	update_log_wq = create_workqueue("acpm_log");
+	if (!update_log_wq) {
+		dev_err(&pdev->dev, "failed to create workqueue\n");
+	}
+	INIT_DELAYED_WORK(&acpm_debug->acpm_log_work, acpm_log_work_fn);
+	acpm_fw_set_log_level(acpm_debug->debug_log_level);
 
 	if (acpm_ipc_request_channel(node, acpm_error_log_ipc_callback,
 				     &acpm_debug->async_id,

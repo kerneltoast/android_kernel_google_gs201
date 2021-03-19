@@ -643,6 +643,33 @@
 					sound-dai = <&aud_aoc_path USB_TX>;
 				};
 			};
+
+			dai_be_incall_rx: be_incall_rx  {
+				dai-name = "INCALL_RX Playback";
+				stream-name = "INCALL_RX Playback";
+				id = <INCALL_RX>;
+				playback;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path INCALL_RX>;
+				};
+			};
+
+			dai_be_incall_tx: be_incall_tx {
+				dai-name = "INCALL_TX Capture";
+				stream-name = "INCALL_TX Capture";
+				id = <INCALL_TX>;
+				capture;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path INCALL_TX>;
+				};
+			};
+
 		};
 	};
 

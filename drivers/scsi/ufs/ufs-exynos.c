@@ -428,7 +428,8 @@ static void exynos_ufs_set_features(struct ufs_hba *hba)
 			UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
 			UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
 			UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
-			UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL;
+			UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL |
+			UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING;
 }
 
 /*
@@ -1507,6 +1508,7 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 	ufs_host_index--;
 
 	exynos_ufs_sysfs_exit(ufs);
+	pixel_exit(hba);
 
 	disable_irq(hba->irq);
 	ufshcd_remove(hba);

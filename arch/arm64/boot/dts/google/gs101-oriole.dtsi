@@ -5,10 +5,6 @@
  * Copyright 2021 Google,LLC
  */
 
-#include "gs101-raviole.dtsi"
-#include "gs101-oriole-audio.dtsi"
+#include "gs101-oriole-common.dtsi"
 #include "gs101-oriole-battery.dtsi"
-#include "gs101-oriole-camera.dtsi"
-#include "gs101-oriole-display.dtsi"
-#include "gs101-oriole-touch.dtsi"
 #include "gs101-oriole-wcharger.dtsi"

@@ -175,5 +175,78 @@ struct pixel_ufs_stats {
 };
 
 extern int pixel_init(struct ufs_hba *hba);
+extern void pixel_exit(struct ufs_hba *hba);
 extern void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8);
+
+enum pixel_event_type {
+	EVENT_UNDEF = 0,
+	EVENT_DME_SEND,
+	EVENT_DME_COMPL,
+	EVENT_SCSI_SEND,
+	EVENT_SCSI_COMPL,
+	EVENT_NOP_OUT,
+	EVENT_NOP_IN,
+	EVENT_QUERY_SEND,
+	EVENT_QUERY_COMPL,
+	EVENT_TM_SEND,
+	EVENT_TM_ERR,
+	EVENT_TM_COMPL,
+	EVENT_INTR_FATAL_ERR,
+	EVENT_INTR_UIC_ERR,
+	EVENT_INTR_H8_ERR,
+	EVENT_TYPE_MAX,
+};
+
+enum pixel_command_type {
+	CMD_UNDEF = 0,
+	/* dme cmd */
+	CMD_DME_GET,
+	CMD_DME_SET,
+	CMD_DME_PWR_ON,
+	CMD_DME_PWR_OFF,
+	CMD_DME_RESET,
+	CMD_DME_LINKSTARTUP,
+	CMD_DME_H8_ENTER,
+	CMD_DME_H8_EXIT,
+	/* scsi cmd */
+	CMD_SCSI_WRITE_10,
+	CMD_SCSI_READ_10,
+	CMD_SCSI_SYNC,
+	CMD_SCSI_UNMAP,
+	CMD_SCSI_SSU,
+	CMD_SCSI_PROTOCOL_IN,
+	CMD_SCSI_PROTOCOL_OUT,
+	/* query cmd */
+	CMD_TYPE_MAX,
+};
+
+struct pixel_cmd_log_entry {
+	u8  *event;
+	u8  *cmd;
+	u8  opcode;
+	u8  lun;
+	u8  idn;
+	u64 lba;
+	s32 transfer_len;
+	u64 doorbell;
+	u64 outstanding_reqs;
+	u32 seq_num;
+	s32 tag;
+	u8  group_id;
+	ktime_t tstamp;
+	u64 error;
+	u8 queue_eh_work;
+};
+
+#define MAX_CMD_ENTRY_NUM       200
+#define MAX_EVENT_STR_LEN       16
+#define MAX_CMD_STR_LEN         16
+
+struct pixel_cmd_log {
+	struct pixel_cmd_log_entry *entry;
+	u32 head;
+	u32 seq_cnt;
+	u8 *event_str[EVENT_TYPE_MAX];
+	u8 *cmd_str[CMD_TYPE_MAX];
+};
 #endif

@@ -9,6 +9,8 @@
 
 #include "sched.h"
 
+extern unsigned int vendor_sched_util_threshold;
+
 extern unsigned long cpu_util(int cpu);
 extern unsigned long task_util(struct task_struct *p);
 extern bool task_may_not_preempt(struct task_struct *task, int cpu);

@@ -920,9 +920,9 @@
 		/* SLC partitions */
 		pt_id =
 			"CAMERA2WAY",
-			"CAMERA4WAY",
 			"CAMERA6WAY0",
 			"CAMERA6WAY1",
+			"CAMERA6WAY2",
 			"CAMERA8WAY",
 			"CAMERA12WAY";
 	};

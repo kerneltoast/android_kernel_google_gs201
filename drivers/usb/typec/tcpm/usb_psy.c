@@ -185,20 +185,28 @@ static void set_bc_current_limit(struct gvotable_election *usb_icl_proto_el,
 
 static int usb_psy_current_now_ma(struct usb_psy_data *usb, int *current_now)
 {
+	struct power_supply *psy = NULL;
 	union power_supply_propval val;
 	int ret;
 
-	if (IS_ERR_OR_NULL(usb->main_chg_psy)) {
-		if (!usb->main_chg_psy_name) {
-			logbuffer_log(usb->log, "main-chg-psy-name not set\n");
-			return -EINVAL;
-		}
+	if (IS_ERR_OR_NULL(usb->main_chg_psy) && usb->main_chg_psy_name) {
 		usb->main_chg_psy = power_supply_get_by_name(usb->main_chg_psy_name);
 		if (IS_ERR_OR_NULL(usb->main_chg_psy))
 			return -EAGAIN;
 	}
 
-	ret = power_supply_get_property(usb->main_chg_psy, POWER_SUPPLY_PROP_CURRENT_NOW, &val);
+	if (!IS_ERR_OR_NULL(usb->main_chg_psy))
+		psy = usb->main_chg_psy;
+	else if (!IS_ERR_OR_NULL(usb->chg_psy))
+		psy = usb->chg_psy;
+
+	if (!psy) {
+		/* NOTE: you might want to log only once */
+		logbuffer_log(usb->log, "Neither chg_psy nor main_chg_psy found for reading current_now");
+		return -EINVAL;
+	}
+
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_NOW, &val);
 	if (!ret)
 		*current_now = val.intval;
 

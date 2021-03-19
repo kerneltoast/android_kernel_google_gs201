@@ -58,8 +58,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_rtmutex_prepare_setprio,
 	TP_ARGS(p, pi_task), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_set_user_nice,
-	TP_PROTO(struct task_struct *p, long *nice),
-	TP_ARGS(p, nice), 1);
+	TP_PROTO(struct task_struct *p, long *nice, bool *allowed),
+	TP_ARGS(p, nice, allowed), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_setscheduler,
 	TP_PROTO(struct task_struct *p),
@@ -190,8 +190,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_account_irq,
 
 struct sched_entity;
 DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
-	TP_PROTO(struct sched_entity *se, u64 *vruntime),
-	TP_ARGS(se, vruntime), 1);
+	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 vruntime),
+	TP_ARGS(cfs_rq, se, initial, vruntime), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_build_perf_domains,
 	TP_PROTO(bool *eas_check),
@@ -260,12 +260,37 @@ DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_wakeup,
 	TP_PROTO(struct rq *rq, struct task_struct *p, bool *preempt),
 	TP_ARGS(rq, p, preempt), 1);
 
+DECLARE_HOOK(android_vh_do_wake_up_sync,
+	TP_PROTO(struct wait_queue_head *wq_head, int *done),
+	TP_ARGS(wq_head, done));
+
+DECLARE_HOOK(android_vh_set_wake_flags,
+	TP_PROTO(int *wake_flags, unsigned int *mode),
+	TP_ARGS(wake_flags, mode));
+
 enum uclamp_id;
 struct uclamp_se;
-DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_value,
+DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_get,
 	TP_PROTO(struct task_struct *p, enum uclamp_id clamp_id,
-		 struct uclamp_se *uclamp_default, unsigned long *ret),
-	TP_ARGS(p, clamp_id, uclamp_default, ret), 1);
+		 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff, int *ret),
+	TP_ARGS(p, clamp_id, uclamp_max, uclamp_eff, ret), 1);
+
+DECLARE_HOOK(android_vh_build_sched_domains,
+	TP_PROTO(bool has_asym),
+	TP_ARGS(has_asym));
+DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_tick,
+	TP_PROTO(struct task_struct *p, unsigned long *ideal_runtime, bool *skip_preempt),
+	TP_ARGS(p, ideal_runtime, skip_preempt), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_check_preempt_wakeup_ignore,
+	TP_PROTO(struct task_struct *p, bool *ignore),
+	TP_ARGS(p, ignore), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_replace_next_task_fair,
+	TP_PROTO(struct rq *rq, struct task_struct **p, struct sched_entity **se, bool *repick, bool simple),
+	TP_ARGS(rq, p, se, repick, simple), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_util_est_update,
+	TP_PROTO(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep, int *ret),
+	TP_ARGS(cfs_rq, p, task_sleep, ret), 1);
 
 /* macro versions of hooks are no longer required */
 

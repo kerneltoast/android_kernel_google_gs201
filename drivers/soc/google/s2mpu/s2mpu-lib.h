@@ -2,6 +2,8 @@
 #ifndef __S2MPU_LIB_H
 #define __S2MPU_LIB_H
 
+#include <linux/irq.h>
+
 #define WHI_MAX_GB_GRANULES 64
 
 #define S2MPU_TEST
@@ -50,6 +52,7 @@ void s2mpu_lib_deinit(struct s2mpu_info *info);
 int s2mpu_lib_open_close(struct s2mpu_info *info, u64 start, size_t len,
 			 bool open);
 int s2mpu_lib_restore(struct s2mpu_info *info);
+irqreturn_t s2mpu_lib_irq_handler(int irq, void *data);
 #ifdef S2MPU_TEST
 u32 s2mpu_get_enabled(struct s2mpu_info *info);
 void s2mpu_set_enabled(struct s2mpu_info *info, u32 val);

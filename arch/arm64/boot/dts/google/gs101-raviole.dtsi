@@ -7,7 +7,6 @@
 
 #include "gs101-common.dtsi"
 
-#include "gs101-raviole-battery.dtsi"
 #include "gs101-raviole-camera-pmic.dtsi"
 #include "gs101-raviole-ese.dtsi"
 #include "gs101-raviole-ldaf.dtsi"

@@ -123,8 +123,9 @@ struct channel_info {
  */
 struct ipc_channel {
 	u32 id;
-	u32 field:31; // Only 16 are manage by HW
+	u32 field:30; // Only 16 are manage by HW
 	u32 late_init_source:1;
+	u32 use_sacpm:1;
 	s32 owner;
 	u32 type;
 	struct channel_info ch;

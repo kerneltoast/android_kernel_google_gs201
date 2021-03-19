@@ -1255,20 +1255,8 @@ err_block_list_allocation:
 
 static void ect_present_test_data(char *version)
 {
-	if (version[1] == '.')
-		return;
-
-	if (version[3] == '0')
-		return;
-
-	pr_info("========================================\n");
-	pr_info("=\n");
-	pr_info("= [ECT] current version is TEST VERSION!!\n");
-	pr_info("= Please be aware that error can be happen.\n");
-	pr_info("= [VERSION] : %c%c%c%c\n", version[0], version[1],
-		version[2], version[3]);
-	pr_info("=\n");
-	pr_info("========================================\n");
+	pr_info("ECT version: %c%c%c%c\n",
+		version[0], version[1], version[2], version[3]);
 }
 
 static struct class *ect_class;

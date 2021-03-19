@@ -22,9 +22,10 @@ extern void update_uclamp_stats(int cpu, u64 time);
 extern bool vendor_sched_enable_prefer_high_cap;
 extern bool vendor_sched_task_spreading_enable;
 extern unsigned int vendor_sched_uclamp_threshold;
+extern unsigned int vendor_sched_util_threshold;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = UTIL_THRESHOLD};
+			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD};
 static unsigned long scale_freq[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
 
@@ -474,7 +475,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 
 		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity);
 
-		if (!cpu_online(i))
+		if (!cpu_active(i))
 			goto check;
 
 		/*
@@ -864,13 +865,22 @@ void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap)
 {
-	return (freq * UTIL_THRESHOLD >> SCHED_CAPACITY_SHIFT) * util / cap;
+	return (freq * vendor_sched_util_threshold >> SCHED_CAPACITY_SHIFT) * util / cap;
 }
 
 void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
 	if (rq->nr_running == 0)
 		update_uclamp_stats(rq->cpu, rq_clock(rq));
+}
+
+static inline bool check_uclamp_threshold(struct task_struct *p, enum uclamp_id clamp_id)
+{
+	if (clamp_id == UCLAMP_MIN && !rt_task(p) &&
+	    task_util_est(p) < vendor_sched_uclamp_threshold) {
+		return true;
+	}
+	return false;
 }
 
 static inline struct uclamp_se
@@ -898,38 +908,37 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 	return uc_req;
 }
 
-static inline struct uclamp_se
-uclamp_eff_get_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id,
-			 struct uclamp_se *uclamp_default)
+void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
+				  struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff,
+				  int *ret)
 {
-	struct uclamp_se uc_req = uclamp_tg_restrict_pixel_mod(p, clamp_id);
-	struct uclamp_se uc_max = *uclamp_default;
+	struct uclamp_se uc_req;
+
+	*ret = 1;
+
+	/* Apply threshold first. */
+	if (check_uclamp_threshold(p, clamp_id)) {
+		uclamp_eff->value = 0;
+		uclamp_eff->bucket_id = 0;
+		return;
+	}
+
+	uc_req = uclamp_tg_restrict_pixel_mod(p, clamp_id);
 
 	/* System default restrictions always apply */
-	if (unlikely(uc_req.value > uc_max.value))
-		return uc_max;
+	if (unlikely(uc_req.value > uclamp_max->value)) {
+		*uclamp_eff = *uclamp_max;
+		return;
+	}
 
-	return uc_req;
+	*uclamp_eff = uc_req;
+	return;
 }
 
-void rvh_uclamp_eff_value_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
-				    struct uclamp_se *uclamp_default, unsigned long *ret)
+void update_sched_capacity_margin(unsigned int util_threshold)
 {
-	struct uclamp_se uc_eff;
+	int i;
 
-	if ((enum uclamp_id)clamp_id == UCLAMP_MIN &&
-	    task_util_est(p) < vendor_sched_uclamp_threshold) {
-		*ret = 0;
-		return;
-	}
-
-	/* Task currently refcounted: use back-annotated (effective) value */
-	if (p->uclamp[clamp_id].active) {
-		*ret = (unsigned long)p->uclamp[clamp_id].value;
-		return;
-	}
-
-	uc_eff = uclamp_eff_get_pixel_mod(p, clamp_id, uclamp_default);
-	*ret = (unsigned long)uc_eff.value;
-	return;
+	for (i = 0; i < CPU_NUM; i++)
+		sched_capacity_margin[i] = util_threshold;
 }

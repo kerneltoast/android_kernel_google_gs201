@@ -21,6 +21,8 @@
 #include <linux/iommu.h>
 #include <linux/device.h>
 
+#include "../../drivers/dma-buf/heaps/deferred-free-helper.h"
+
 struct samsung_dma_buffer {
 	struct samsung_dma_heap *heap;
 	struct list_head attachments;
@@ -32,6 +34,8 @@ struct samsung_dma_buffer {
 	void *priv;
 	unsigned long flags;
 	int vmap_cnt;
+	struct deferred_freelist_item deferred_free;
+	unsigned long ino;
 };
 
 struct samsung_dma_heap {
@@ -42,14 +46,6 @@ struct samsung_dma_heap {
 	unsigned long flags;
 	unsigned int alignment;
 	unsigned int protection_id;
-};
-
-struct samsung_map_attachment {
-	struct device *dev;
-	struct sg_table *table;
-	struct list_head list;
-	unsigned long flags;
-	bool mapped;
 };
 
 extern const struct dma_buf_ops samsung_dma_buf_ops;
@@ -67,6 +63,7 @@ int samsung_heap_add(struct device *dev, void *priv,
 		     void (*release)(struct samsung_dma_buffer *buffer),
 		     const struct dma_heap_ops *ops);
 struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags);
+void samsung_track_buffer_destroyed(struct samsung_dma_buffer *buffer);
 
 #define DMA_HEAP_VIDEO_PADDING (512)
 #define dma_heap_add_video_padding(len) (PAGE_ALIGN((len) + DMA_HEAP_VIDEO_PADDING))
@@ -98,9 +95,9 @@ static inline bool dma_heap_flags_video_aligned(unsigned long flags)
 /*
  * Use pre-mapped protected device virtual address instead of dma-mapping.
  */
-static inline bool dma_heap_tzmp_buffer(struct samsung_map_attachment *a)
+static inline bool dma_heap_tzmp_buffer(struct device *dev, unsigned long flags)
 {
-	return dma_heap_flags_protected(a->flags) && !!dev_iommu_fwspec_get(a->dev);
+	return dma_heap_flags_protected(flags) && !!dev_iommu_fwspec_get(dev);
 }
 
 /*

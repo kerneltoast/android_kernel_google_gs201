@@ -10,6 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 #include <linux/bits.h>
+#include <linux/irq.h>
 
 #include "s2mpu-regs.h"
 #include "s2mpu-lib.h"
@@ -26,6 +27,8 @@
 #define WHI_PHY_ADDR_MASK (0xfffffffff)
 #define WHI_RESERVED_START (0x100000000)
 #define WHI_RESERVED_END (0x87fffffff)
+
+#define INT_SHIFT 32
 
 #define extend_to_byte(two_bits) ((u8)(((two_bits) << 6) | ((two_bits) << 4) | ((two_bits) << 2) \
 				       | ((two_bits) << 0)))
@@ -186,6 +189,32 @@ void s2mpu_lib_deinit(struct s2mpu_info *info)
 	}
 }
 
+/* print fault info and clear fault status in s2mpu fault register */
+irqreturn_t s2mpu_lib_irq_handler(int irq, void *data)
+{
+	u32 fault_status, pa_low, pa_high, fault_info, fault_type;
+	struct s2mpu_info *info = data;
+	phys_addr_t full_pa;
+
+	fault_status = __raw_readl(S2MPU_FAULT_STATUS(info->base));
+	pa_low = __raw_readl(S2MPU_FAULT_PA_LOW(info->base, info->vid));
+	pa_high = __raw_readl(S2MPU_FAULT_PA_HIGH(info->base, info->vid)) & 0xf;
+	fault_info = __raw_readl(S2MPU_FAULT_INFO(info->base, info->vid));
+	fault_type = S2MPU_FAULT_TYPE(fault_info);
+
+	full_pa = pa_high;
+	full_pa = (full_pa << INT_SHIFT) | pa_low;
+
+	dev_err(info->dev, "IRQ (%d): FAULT_STATUS=0x%x\nPA=0x%pap\nDIRECTION=%s\nFAULT_TYPE=%s\nFAULT_INFO=0x%x\n",
+		irq, fault_status, &full_pa, fault_info & BIT(20) ? "write" : "read",
+		fault_type == 2 ? "access perm fault" : fault_type == 1 ? "ptw fault" : "[n/a]",
+		fault_info);
+
+	__raw_writel(0xff, S2MPU_INTERRUPT_CLEAR(info->base));
+
+	return IRQ_HANDLED;
+}
+
 /* this does two things:
  * 1. initialise s2mpu_info and related data structures
  * 2. initialise the hardware registers of the device
@@ -256,8 +285,8 @@ struct s2mpu_info *s2mpu_lib_init(struct device *dev, void __iomem *base,
 	reg = (0 << S2MPU_CFG_MPTW_USER_HIGH_EXT_DOMAIN_SHIFT);
 	__raw_writel(reg, S2MPU_CFG_MPTW_USER_HIGH(base));
 
-	/* interrupts are not enabled but set interrupt related registers to valid defaults */
-	__raw_writel(0, S2MPU_INTERRUPT_ENABLE_PER_VID_SET(base));
+	/* enable per-vid interrupts */
+	__raw_writel(0xff, S2MPU_INTERRUPT_ENABLE_PER_VID_SET(base));
 
 	/* TODO: come back to this when optimising performance */
 	reg = (0 << S2MPU_MPC_CTRL_RD_CH_TKN_SHIFT) |
@@ -320,6 +349,9 @@ struct s2mpu_info *s2mpu_lib_init(struct device *dev, void __iomem *base,
 		/* assign vid 1 to the sids specified in device tree */
 		ssmt_set_vid(info);
 	}
+
+	/* clear interrupts before enabling them */
+	__raw_writel(0xff, S2MPU_INTERRUPT_CLEAR(base));
 #ifndef S2MPU_TEST
 	reg = (1 << S2MPU_CTRL0_ENABLE_SHIFT) |
 #else
@@ -328,7 +360,7 @@ struct s2mpu_info *s2mpu_lib_init(struct device *dev, void __iomem *base,
 	 */
 	reg = (0 << S2MPU_CTRL0_ENABLE_SHIFT) |
 #endif
-			(0 << S2MPU_CTRL0_INTERRUPT_ENABLE_SHIFT) |
+			(1 << S2MPU_CTRL0_INTERRUPT_ENABLE_SHIFT) |
 			/* don't send OKAY in case of a S2MPU violation */
 			(1 << S2MPU_CTRL0_FAULT_RESP_TYPE_SHIFT);
 	__raw_writel(reg, S2MPU_CTRL0(base));
@@ -649,7 +681,7 @@ static int validate(struct device *dev, phys_addr_t pa, size_t len)
 	 * which is not mapped to any target
 	 */
 	if (pa < WHI_RESERVED_START) {
-		if (pa + len >= WHI_RESERVED_START) {
+		if (pa + len > WHI_RESERVED_START) {
 			dev_warn(dev, "window overlaps with reserved region\n");
 			return -1;
 		}
@@ -757,7 +789,7 @@ int s2mpu_lib_restore(struct s2mpu_info *info)
 	/* if testing, restore whatever enabled state was set through debugfs */
 	reg = (info->enabled << S2MPU_CTRL0_ENABLE_SHIFT) |
 #endif
-			(0 << S2MPU_CTRL0_INTERRUPT_ENABLE_SHIFT) |
+			(1 << S2MPU_CTRL0_INTERRUPT_ENABLE_SHIFT) |
 			/* don't send OKAY in case of a S2MPU violation */
 			(1 << S2MPU_CTRL0_FAULT_RESP_TYPE_SHIFT);
 	__raw_writel(reg, S2MPU_CTRL0(base));

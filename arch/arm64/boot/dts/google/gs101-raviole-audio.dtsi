@@ -228,6 +228,7 @@
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,tuning-has-prefix;
 		cirrus,left-channel-amp;
+		cirrus,hw-noise-gate-select = <63>;
 
 		cirrus,gpio-config2 {
 			cirrus,gpio-src-select = <0x5>;
@@ -270,6 +271,7 @@
 		cirrus,asp-sdout-hiz = <3>;
 		cirrus,tuning-has-prefix;
 		cirrus,left-channel-amp;
+		cirrus,hw-noise-gate-select = <63>;
 
 		cirrus,gpio-config2 {
 			cirrus,gpio-src-select = <0x5>;

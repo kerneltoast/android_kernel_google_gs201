@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <soc/google/s2mpu.h>
 #include "s2mpu-lib.h"
@@ -238,9 +240,10 @@ static int s2mpu_probe(struct platform_device *pdev)
 	void __iomem *ssmt_base;
 	struct resource *res;
 	void __iomem *base;
-	u32 vid;
 	int sidcount;
+	int irq_num;
 	u32 *sids;
+	u32 vid;
 	int ret;
 
 	dma_set_mask(dev, DMA_BIT_MASK(36));
@@ -302,6 +305,17 @@ static int s2mpu_probe(struct platform_device *pdev)
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 
+	/* register s2mpu fault handler interrupt */
+	irq_num = platform_get_irq(pdev, 0);
+	if (irq_num < 0)
+		goto list_add;
+
+	ret = devm_request_irq(dev, irq_num, s2mpu_lib_irq_handler, IRQF_TRIGGER_NONE,
+			       dev_name(dev), info);
+	if (ret)
+		dev_err(dev, "request_irq failed %d\n", ret);
+
+list_add:
 	spin_lock(&s2mpu_driver_lock);
 	list_add_tail(&info->list, &info_list);
 	spin_unlock(&s2mpu_driver_lock);

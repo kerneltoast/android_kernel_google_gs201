@@ -12,142 +12,236 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/dma-direct.h>
 #include <linux/dma-heap.h>
+#include <linux/dma-map-ops.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/samsung-dma-heap.h>
+#include <linux/samsung-dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <uapi/linux/dma-buf.h>
 
-static struct sg_table *dup_sg_table(struct sg_table *table)
+#include "dmabuf_heap_trace.h"
+
+struct dma_iovm_map {
+	struct list_head list;
+	struct device *dev;
+	struct sg_table table;
+	unsigned long attrs;
+	unsigned int mapcnt;
+};
+
+static struct dma_iovm_map *dma_iova_create(struct dma_buf_attachment *a)
 {
-	struct sg_table *new_table;
-	int ret, i;
+	struct samsung_dma_buffer *buffer = a->dmabuf->priv;
+	struct dma_iovm_map *iovm_map;
 	struct scatterlist *sg, *new_sg;
+	struct sg_table *table = &buffer->sg_table;
+	int i;
 
-	new_table = kzalloc(sizeof(*new_table), GFP_KERNEL);
-	if (!new_table)
-		return ERR_PTR(-ENOMEM);
+	iovm_map = kzalloc(sizeof(*iovm_map), GFP_KERNEL);
+	if (!iovm_map)
+		return NULL;
 
-	ret = sg_alloc_table(new_table, table->orig_nents, GFP_KERNEL);
-	if (ret) {
-		kfree(new_table);
-		return ERR_PTR(-ENOMEM);
+	if (sg_alloc_table(&iovm_map->table, table->orig_nents, GFP_KERNEL)) {
+		kfree(iovm_map);
+		return NULL;
 	}
 
-	new_sg = new_table->sgl;
+	new_sg = iovm_map->table.sgl;
 	for_each_sgtable_sg(table, sg, i) {
 		sg_set_page(new_sg, sg_page(sg), sg->length, sg->offset);
 		new_sg = sg_next(new_sg);
 	}
 
-	return new_table;
+	iovm_map->dev = a->dev;
+	iovm_map->attrs = a->dma_map_attrs;
+
+	return iovm_map;
 }
 
-static int samsung_heap_attach(struct dma_buf *dmabuf, struct dma_buf_attachment *attachment)
+static void dma_iova_remove(struct dma_iovm_map *iovm_map)
+{
+	sg_free_table(&iovm_map->table);
+	kfree(iovm_map);
+}
+
+static void dma_iova_release(struct dma_buf *dmabuf)
 {
 	struct samsung_dma_buffer *buffer = dmabuf->priv;
-	struct samsung_map_attachment *a;
-	struct sg_table *table;
+	struct dma_iovm_map *iovm_map, *tmp;
 
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
-	if (!a)
-		return -ENOMEM;
+	list_for_each_entry_safe(iovm_map, tmp, &buffer->attachments, list) {
+		if (iovm_map->mapcnt)
+			WARN(1, "iova_map refcount leak found for %s\n",
+			     dev_name(iovm_map->dev));
 
-	table = dup_sg_table(&buffer->sg_table);
-	if (IS_ERR(table)) {
-		kfree(a);
-		return -ENOMEM;
+		list_del(&iovm_map->list);
+		if (!dma_heap_tzmp_buffer(iovm_map->dev, buffer->flags))
+			dma_unmap_sgtable(iovm_map->dev, &iovm_map->table,
+					  DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+		dma_iova_remove(iovm_map);
 	}
-
-	a->table = table;
-	a->dev = attachment->dev;
-	a->flags = buffer->flags;
-
-	attachment->priv = a;
-
-	mutex_lock(&buffer->lock);
-	list_add(&a->list, &buffer->attachments);
-	mutex_unlock(&buffer->lock);
-
-	return 0;
 }
 
-static void samsung_heap_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attachment)
+#define DMA_MAP_ATTRS_MASK	DMA_ATTR_PRIVILEGED
+#define DMA_MAP_ATTRS(attrs)	((attrs) & DMA_MAP_ATTRS_MASK)
+
+/* this function should only be called while buffer->lock is held */
+static struct dma_iovm_map *dma_find_iovm_map(struct dma_buf_attachment *a)
 {
-	struct samsung_dma_buffer *buffer = dmabuf->priv;
-	struct samsung_map_attachment *a = attachment->priv;
+	struct samsung_dma_buffer *buffer = a->dmabuf->priv;
+	struct dma_iovm_map *iovm_map;
+	unsigned long attrs;
 
-	mutex_lock(&buffer->lock);
-	list_del(&a->list);
-	mutex_unlock(&buffer->lock);
+	if (dma_heap_flags_uncached(buffer->flags)) {
+		/*
+		 * If the device of sharable domain would access non-cachable
+		 * memory with sharable mapping, device could access prefetched clean
+		 * cache data which is not coherent with memory, so we need to map
+		 * non-sharable for non-cached. To support non-sharable mapping,
+		 * DMA_ATTR_PRIVILEGED is set because samsung sysmmu driver clear
+		 * the sharable bit when DMA_ATTR_PRIVILEGED (i.e. IOMMU_PRIV) is set.
+		 */
+		a->dma_map_attrs |= (DMA_ATTR_PRIVILEGED | DMA_ATTR_SKIP_CPU_SYNC);
+	}
+	attrs = DMA_MAP_ATTRS(a->dma_map_attrs);
 
-	sg_free_table(a->table);
-	kfree(a->table);
-	kfree(a);
+	list_for_each_entry(iovm_map, &buffer->attachments, list) {
+		// device virtual mapping doesn't consider direction currently.
+		if ((iommu_get_domain_for_dev(iovm_map->dev) ==
+		    iommu_get_domain_for_dev(a->dev)) &&
+		    (DMA_MAP_ATTRS(iovm_map->attrs) == attrs)) {
+			return iovm_map;
+		}
+	}
+	return NULL;
 }
 
-static struct sg_table *samsung_heap_map_dma_buf(struct dma_buf_attachment *attachment,
-						 enum dma_data_direction direction)
+static struct dma_iovm_map *dma_put_iovm_map(struct dma_buf_attachment *a)
 {
-	struct samsung_map_attachment *a = attachment->priv;
-	struct sg_table *table = a->table;
-	unsigned int attr = 0;
+	struct samsung_dma_buffer *buffer = a->dmabuf->priv;
+	struct dma_iovm_map *iovm_map;
+
+	mutex_lock(&buffer->lock);
+	iovm_map = dma_find_iovm_map(a);
+	if (iovm_map) {
+		iovm_map->mapcnt--;
+
+		if (!iovm_map->mapcnt && (a->dma_map_attrs & DMA_ATTR_SKIP_LAZY_UNMAP)) {
+			list_del(&iovm_map->list);
+			if (!dma_heap_tzmp_buffer(iovm_map->dev, buffer->flags))
+				dma_unmap_sgtable(iovm_map->dev, &iovm_map->table,
+						  DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+			dma_iova_remove(iovm_map);
+			iovm_map = NULL;
+		}
+	}
+	mutex_unlock(&buffer->lock);
+
+	return iovm_map;
+}
+
+static struct dma_iovm_map *dma_get_iovm_map(struct dma_buf_attachment *a,
+					     enum dma_data_direction direction)
+{
+	struct samsung_dma_buffer *buffer = a->dmabuf->priv;
+	struct dma_iovm_map *iovm_map, *dup_iovm_map;
 	int ret;
 
-	if (dma_heap_tzmp_buffer(a)) {
-		struct samsung_dma_buffer *buffer = attachment->dmabuf->priv;
+	mutex_lock(&buffer->lock);
+	iovm_map = dma_find_iovm_map(a);
+	if (iovm_map) {
+		iovm_map->mapcnt++;
+		mutex_unlock(&buffer->lock);
+		return iovm_map;
+	}
+	mutex_unlock(&buffer->lock);
+
+	iovm_map = dma_iova_create(a);
+	if (!iovm_map)
+		return NULL;
+
+	if (dma_heap_tzmp_buffer(iovm_map->dev, buffer->flags)) {
 		struct buffer_prot_info *info = buffer->priv;
 
-		sg_dma_address(table->sgl) = info->dma_addr;
-		sg_dma_len(table->sgl) = info->chunk_count * info->chunk_size;
-		table->nents = 1;
+		sg_dma_address(iovm_map->table.sgl) = info->dma_addr;
+		sg_dma_len(iovm_map->table.sgl) = info->chunk_count * info->chunk_size;
 
-		return table;
+		iovm_map->table.nents = 1;
+	} else {
+		ret = dma_map_sgtable(iovm_map->dev, &iovm_map->table, direction,
+				      iovm_map->attrs | DMA_ATTR_SKIP_CPU_SYNC);
+		if (ret) {
+			dma_iova_remove(iovm_map);
+			return ERR_PTR(ret);
+		}
 	}
-	if (dma_heap_skip_cache_ops(a->flags))
-		attr |= DMA_ATTR_SKIP_CPU_SYNC;
 
-	ret = dma_map_sgtable(attachment->dev, table, direction, attr);
-	if (ret)
-		return ERR_PTR(ret);
-	a->mapped = true;
-	return table;
+	mutex_lock(&buffer->lock);
+	dup_iovm_map = dma_find_iovm_map(a);
+	if (!dup_iovm_map) {
+		list_add(&iovm_map->list, &buffer->attachments);
+	} else {
+		if (!dma_heap_tzmp_buffer(iovm_map->dev, buffer->flags))
+			dma_unmap_sgtable(iovm_map->dev, &iovm_map->table, direction,
+					  DMA_ATTR_SKIP_CPU_SYNC);
+		dma_iova_remove(iovm_map);
+		iovm_map = dup_iovm_map;
+	}
+	iovm_map->mapcnt++;
+	mutex_unlock(&buffer->lock);
+
+	return iovm_map;
 }
 
-static void samsung_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
+static struct sg_table *samsung_heap_map_dma_buf(struct dma_buf_attachment *a,
+						 enum dma_data_direction direction)
+{
+	struct dma_iovm_map *iovm_map;
+	struct samsung_dma_buffer *buffer = a->dmabuf->priv;
+
+	iovm_map = dma_get_iovm_map(a, direction);
+	if (!iovm_map)
+		return ERR_PTR(-ENOMEM);
+
+	if (!dma_heap_skip_cache_ops(buffer->flags))
+		dma_sync_sgtable_for_device(iovm_map->dev, &iovm_map->table, direction);
+
+	return &iovm_map->table;
+}
+
+static void samsung_heap_unmap_dma_buf(struct dma_buf_attachment *a,
 				       struct sg_table *table,
 				       enum dma_data_direction direction)
 {
-	struct samsung_map_attachment *a = attachment->priv;
-	unsigned int attr = 0;
+	struct samsung_dma_buffer *buffer = a->dmabuf->priv;
 
-	if (dma_heap_tzmp_buffer(a))
-		return;
+	if (!dma_heap_skip_cache_ops(buffer->flags))
+		dma_sync_sgtable_for_cpu(a->dev, table, direction);
 
-	if (dma_heap_skip_cache_ops(a->flags))
-		attr |= DMA_ATTR_SKIP_CPU_SYNC;
-
-	a->mapped = false;
-	dma_unmap_sgtable(attachment->dev, table, direction, attr);
+	dma_put_iovm_map(a);
 }
 
 static int samsung_heap_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 						 enum dma_data_direction direction)
 {
 	struct samsung_dma_buffer *buffer = dmabuf->priv;
-	struct samsung_map_attachment *a;
+	struct dma_iovm_map *iovm_map;
 
 	if (dma_heap_skip_cache_ops(buffer->flags))
 		return 0;
 
 	mutex_lock(&buffer->lock);
-	list_for_each_entry(a, &buffer->attachments, list) {
-		if (!a->mapped)
-			continue;
-		dma_sync_sgtable_for_cpu(a->dev, a->table, direction);
+	list_for_each_entry(iovm_map, &buffer->attachments, list) {
+		if (iovm_map->mapcnt && !dev_is_dma_coherent(iovm_map->dev)) {
+			dma_sync_sgtable_for_cpu(iovm_map->dev, &iovm_map->table, direction);
+			break;
+		}
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -158,18 +252,88 @@ static int samsung_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 					       enum dma_data_direction direction)
 {
 	struct samsung_dma_buffer *buffer = dmabuf->priv;
-	struct samsung_map_attachment *a;
+	struct dma_iovm_map *iovm_map;
 
 	if (dma_heap_skip_cache_ops(buffer->flags))
 		return 0;
 
 	mutex_lock(&buffer->lock);
-	list_for_each_entry(a, &buffer->attachments, list) {
-		if (!a->mapped)
-			continue;
-		dma_sync_sgtable_for_device(a->dev, a->table, direction);
+	list_for_each_entry(iovm_map, &buffer->attachments, list) {
+		if (iovm_map->mapcnt && !dev_is_dma_coherent(iovm_map->dev)) {
+			dma_sync_sgtable_for_device(iovm_map->dev, &iovm_map->table, direction);
+			break;
+		}
 	}
 	mutex_unlock(&buffer->lock);
+
+	return 0;
+}
+
+static void dma_sync_sg_partial(struct dma_buf *dmabuf, enum dma_data_direction direction,
+				unsigned int offset, unsigned int len, unsigned long flag)
+{
+	struct samsung_dma_buffer *buffer = dmabuf->priv;
+	struct device *dev = dma_heap_get_dev(buffer->heap->dma_heap);
+	struct dma_iovm_map *iovm_map;
+	struct sg_table *sgt = NULL;
+	struct scatterlist *sg;
+	int i;
+	unsigned int size;
+
+	if (dma_heap_skip_cache_ops(buffer->flags))
+		return;
+
+	mutex_lock(&buffer->lock);
+	list_for_each_entry(iovm_map, &buffer->attachments, list) {
+		if (iovm_map->mapcnt && !dev_is_dma_coherent(iovm_map->dev)) {
+			sgt = &iovm_map->table;
+			break;
+		}
+	}
+	mutex_unlock(&buffer->lock);
+
+	if (!sgt)
+		return;
+
+	for_each_sgtable_sg(sgt, sg, i) {
+		dma_addr_t dma_addr;
+
+		if (offset >= sg->length) {
+			offset -= sg->length;
+			continue;
+		}
+
+		size = min_t(unsigned int, len, sg->length - offset);
+		len -= size;
+
+		dma_addr = phys_to_dma(dev, sg_phys(sg));
+
+		if (flag & DMA_BUF_SYNC_END)
+			dma_sync_single_range_for_device(dev, dma_addr, offset, size, direction);
+		else
+			dma_sync_single_range_for_cpu(dev, dma_addr, offset, size, direction);
+
+		offset = 0;
+
+		if (!len)
+			break;
+	}
+}
+
+static int samsung_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
+							 enum dma_data_direction direction,
+							 unsigned int offset, unsigned int len)
+{
+	dma_sync_sg_partial(dmabuf, direction, offset, len, DMA_BUF_SYNC_START);
+
+	return 0;
+}
+
+static int samsung_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
+						       enum dma_data_direction direction,
+						       unsigned int offset, unsigned int len)
+{
+	dma_sync_sg_partial(dmabuf, direction, offset, len, DMA_BUF_SYNC_END);
 
 	return 0;
 }
@@ -279,6 +443,9 @@ static void samsung_heap_dma_buf_release(struct dma_buf *dmabuf)
 {
 	struct samsung_dma_buffer *buffer = dmabuf->priv;
 
+	dma_iova_release(dmabuf);
+
+	samsung_track_buffer_destroyed(buffer);
 	buffer->heap->release(buffer);
 }
 
@@ -292,12 +459,12 @@ static int samsung_heap_dma_buf_get_flags(struct dma_buf *dmabuf, unsigned long 
 }
 
 const struct dma_buf_ops samsung_dma_buf_ops = {
-	.attach = samsung_heap_attach,
-	.detach = samsung_heap_detach,
 	.map_dma_buf = samsung_heap_map_dma_buf,
 	.unmap_dma_buf = samsung_heap_unmap_dma_buf,
 	.begin_cpu_access = samsung_heap_dma_buf_begin_cpu_access,
 	.end_cpu_access = samsung_heap_dma_buf_end_cpu_access,
+	.begin_cpu_access_partial = samsung_heap_dma_buf_begin_cpu_access_partial,
+	.end_cpu_access_partial = samsung_heap_dma_buf_end_cpu_access_partial,
 	.mmap = samsung_heap_mmap,
 	.vmap = samsung_heap_vmap,
 	.vunmap = samsung_heap_vunmap,

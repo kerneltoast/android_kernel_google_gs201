@@ -300,10 +300,303 @@ void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8)
 	}
 }
 
+static int pixel_ufs_init_cmd_log(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	int i;
+
+	memset(&ufs->cmd_log, 0, sizeof(struct pixel_cmd_log));
+
+	ufs->cmd_log.entry = devm_kcalloc(ufs->dev, MAX_CMD_ENTRY_NUM,
+					  sizeof(struct pixel_cmd_log_entry),
+					  GFP_KERNEL);
+	for (i = 0; i < EVENT_TYPE_MAX; i++)
+		ufs->cmd_log.event_str[i] = devm_kzalloc(ufs->dev,
+							    MAX_EVENT_STR_LEN,
+							    GFP_KERNEL);
+	for (i = 0; i < CMD_TYPE_MAX; i++)
+		ufs->cmd_log.cmd_str[i] = devm_kzalloc(ufs->dev,
+							MAX_CMD_STR_LEN,
+							GFP_KERNEL);
+
+	/* set command type string*/
+	strncpy(ufs->cmd_log.event_str[EVENT_UNDEF], "event_undef",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_DME_SEND], "dme_send",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_DME_COMPL], "dme_compl",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_SCSI_SEND], "scsi_send",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_SCSI_COMPL], "scsi_compl",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_NOP_OUT], "nop_out",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_NOP_IN], "nop_in",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_QUERY_SEND], "query_send",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_QUERY_COMPL], "query_compl",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_TM_SEND], "tm_send",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_TM_ERR], "tm_err",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_TM_COMPL], "tm_compl",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_INTR_FATAL_ERR], "intr_fatal_err",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_INTR_UIC_ERR], "intr_uic_err",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.event_str[EVENT_INTR_H8_ERR], "intr_h8_err",
+		MAX_EVENT_STR_LEN);
+
+	/* set command opcode string */
+	strncpy(ufs->cmd_log.cmd_str[CMD_UNDEF], "cmd_undef",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_DME_GET], "dme_get",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_DME_SET], "dme_set",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_DME_PWR_ON], "dme_pwr_on",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_DME_PWR_OFF], "dme_pwr_off",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_DME_RESET], "dme_reset",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_DME_LINKSTARTUP], "dme_linkstartup",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_DME_H8_ENTER], "dme_h8_enter",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_DME_H8_EXIT], "dme_h8_exit",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_WRITE_10], "write_10",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_READ_10], "read_10",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_SYNC], "sync",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_UNMAP], "unmap",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_SSU], "ssu",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_PROTOCOL_IN], "protocol_in",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_PROTOCOL_OUT], "protocol_out",
+		MAX_EVENT_STR_LEN);
+
+	ufs->enable_cmd_log = 1;
+
+	return 0;
+}
+
+static struct pixel_cmd_log_entry *__get_log_entry(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct pixel_cmd_log_entry *entry = NULL;
+
+	if (!virt_addr_valid(ufs->cmd_log.entry))
+		return entry;
+
+	ufs->cmd_log.seq_cnt++;
+	ufs->cmd_log.head = (ufs->cmd_log.head + 1) % MAX_CMD_ENTRY_NUM;
+	entry = &ufs->cmd_log.entry[ufs->cmd_log.head];
+	memset(entry, 0, sizeof(struct pixel_cmd_log_entry));
+	entry->seq_num = ufs->cmd_log.seq_cnt;
+
+	return entry;
+}
+
+static void __set_cmd_log_str(struct ufs_hba *hba, u8 event, u8 opcode,
+		struct pixel_cmd_log_entry *entry)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	u8 cmd_type = 0;
+
+	entry->event = ufs->cmd_log.event_str[event];
+	switch (event) {
+	case EVENT_DME_SEND:
+	case EVENT_DME_COMPL:
+		switch (opcode) {
+		case 0x01:
+			cmd_type = CMD_DME_GET; break;
+		case 0x02:
+			cmd_type = CMD_DME_SET; break;
+		case 0x10:
+			cmd_type = CMD_DME_PWR_ON; break;
+		case 0x11:
+			cmd_type = CMD_DME_PWR_OFF; break;
+		case 0x14:
+			cmd_type = CMD_DME_RESET; break;
+		case 0x16:
+			cmd_type = CMD_DME_LINKSTARTUP; break;
+		case 0x17:
+			cmd_type = CMD_DME_H8_ENTER; break;
+		case 0x18:
+			cmd_type = CMD_DME_H8_EXIT; break;
+		}
+		break;
+	case EVENT_SCSI_SEND:
+	case EVENT_SCSI_COMPL:
+		switch (opcode) {
+		case 0x1b:
+			cmd_type = CMD_SCSI_SSU; break;
+		case 0x28:
+			cmd_type = CMD_SCSI_READ_10; break;
+		case 0x2a:
+			cmd_type = CMD_SCSI_WRITE_10; break;
+		case 0x35:
+			cmd_type = CMD_SCSI_SYNC; break;
+		case 0x42:
+			cmd_type = CMD_SCSI_UNMAP; break;
+		case 0xa2:
+			cmd_type = CMD_SCSI_PROTOCOL_IN; break;
+		case 0xb5:
+			cmd_type = CMD_SCSI_PROTOCOL_OUT; break;
+		}
+		break;
+	}
+
+	if (cmd_type > 0 && cmd_type < CMD_TYPE_MAX)
+		entry->cmd = ufs->cmd_log.cmd_str[cmd_type];
+	else
+		entry->cmd = 0;
+}
+
+static void __store_cmd_log(struct ufs_hba *hba, u8 event, u8 lun,
+		u8 opcode, u8 idn, u64 lba, int transfer_len, u8 group_id,
+		int tag, u64 error, u8 queue_eh_work)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct pixel_cmd_log_entry *entry;
+
+	if (!ufs->enable_cmd_log)
+		return;
+
+	entry = __get_log_entry(hba);
+	if (!entry || event >= EVENT_TYPE_MAX)
+		return;
+
+	__set_cmd_log_str(hba, event, opcode, entry);
+	entry->tstamp = ktime_get();
+	entry->lun = lun;
+	entry->opcode = opcode;
+	entry->idn = idn;
+	entry->lba = lba;
+	entry->transfer_len = transfer_len;
+	entry->doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
+	entry->outstanding_reqs = hba->outstanding_reqs;
+	entry->tag = tag;
+	entry->group_id = group_id;
+	entry->error = error;
+	entry->queue_eh_work = queue_eh_work;
+}
+
+static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
+		struct ufshcd_lrb *lrbp, bool is_start)
+{
+	u8 event = 0;
+	u8 lun = 0;
+	u8 opcode = 0;
+	u8 idn = 0;
+	u64 lba = 0;
+	int transfer_len = 0;
+	u8 tag = 0;
+	u8 group_id = 0;
+
+	lun = lrbp->lun;
+	tag = lrbp->task_tag;
+
+	if (lrbp->cmd) {
+		event = (is_start) ? EVENT_SCSI_SEND : EVENT_SCSI_COMPL;
+		opcode = (u8)(*lrbp->cmd->cmnd);
+
+		switch (opcode) {
+		case WRITE_10:
+			group_id = lrbp->cmd->cmnd[6];
+		case READ_10:
+			transfer_len = be32_to_cpu(
+				lrbp->ucd_req_ptr->sc.exp_data_transfer_len);
+		default:
+			if (lrbp->cmd->request && lrbp->cmd->request->bio)
+				lba = lrbp->cmd->request->bio->bi_iter.bi_sector;
+			break;
+		}
+	} else {
+		if (hba->dev_cmd.type == DEV_CMD_TYPE_NOP)
+			event = (is_start) ? EVENT_NOP_OUT : EVENT_NOP_IN;
+		else if (hba->dev_cmd.type == DEV_CMD_TYPE_QUERY) {
+			event = (is_start) ? EVENT_QUERY_SEND : EVENT_QUERY_COMPL;
+			opcode = hba->dev_cmd.query.request.upiu_req.opcode;
+			idn = hba->dev_cmd.query.request.upiu_req.idn;
+		}
+	}
+
+	__store_cmd_log(hba, event, lun, opcode, idn, lba,
+		transfer_len, group_id, tag, 0, 0);
+}
+
+static void pixel_ufs_send_uic_command(void *data, struct ufs_hba *hba,
+				struct uic_command *ucmd, const char *str)
+{
+	u8 event = 0;
+	u8 opcode = (ucmd) ? ucmd->command : 0xFF;
+
+	if (!strcmp(str, "send"))
+		event = EVENT_DME_SEND;
+	else if (!strcmp(str, "complete"))
+		event = EVENT_DME_COMPL;
+	else
+		event = EVENT_UNDEF;
+
+	__store_cmd_log(hba, event, 0, opcode, 0, 0, 0, 0, 0, 0, 0);
+}
+
+static void pixel_ufs_send_tm_command(void *data, struct ufs_hba *hba,
+				int tag, const char *str)
+{
+	u8 event = 0;
+
+	if (!strcmp(str, "tm_send"))
+		event = EVENT_TM_SEND;
+	else if (!strcmp(str, "tm_err"))
+		event = EVENT_TM_ERR;
+	else if (!strcmp(str, "tm_compl"))
+		event = EVENT_TM_COMPL;
+	else
+		event = EVENT_UNDEF;
+
+	__store_cmd_log(hba, event, 0, 0, 0, 0, 0, 0, tag,
+			((event == EVENT_TM_ERR) ? 1 : 0), 0);
+}
+
+static void pixel_ufs_check_int_errors(void *data, struct ufs_hba *hba,
+				bool queue_eh_work)
+{
+	u8 event = 0;
+	u32 status = 0;
+
+	if (!queue_eh_work)
+		return;
+
+	if (hba->errors & INT_FATAL_ERRORS)
+		event = EVENT_INTR_FATAL_ERR;
+	else if (hba->errors & UIC_ERROR) {
+		event = EVENT_INTR_UIC_ERR;
+		status = hba->uic_error;
+	} else if (hba->errors & UFSHCD_UIC_HIBERN8_MASK) {
+		event = EVENT_INTR_H8_ERR;
+	}
+
+	__store_cmd_log(hba, event, 0, 0, 0, 0, 0, 0, 0, hba->errors,
+			queue_eh_work);
+}
+
 static void pixel_ufs_send_command(void *data, struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp)
 {
 	pixel_ufs_update_io_stats(hba, lrbp, true);
+	pixel_ufs_trace_upiu_cmd(hba, lrbp, true);
 }
 
 static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
@@ -311,6 +604,7 @@ static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 {
 	pixel_ufs_update_io_stats(hba, lrbp, false);
 	pixel_ufs_update_req_stats(hba, lrbp);
+	pixel_ufs_trace_upiu_cmd(hba, lrbp, false);
 }
 
 static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
@@ -1279,5 +1573,31 @@ int pixel_init(struct ufs_hba *hba)
 	if (ret)
 		return ret;
 
+	ret = register_trace_android_vh_ufs_send_uic_command(
+				pixel_ufs_send_uic_command, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_ufs_send_tm_command(
+				pixel_ufs_send_tm_command, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_ufs_check_int_errors(
+				pixel_ufs_check_int_errors, NULL);
+	if (ret)
+		return ret;
+
+	pixel_ufs_init_cmd_log(hba);
 	return 0;
+}
+
+void pixel_exit(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	int i;
+
+	devm_kfree(ufs->dev, ufs->cmd_log.entry);
+	for (i = 0; i < EVENT_TYPE_MAX; i++)
+		devm_kfree(ufs->dev, ufs->cmd_log.event_str);
 }

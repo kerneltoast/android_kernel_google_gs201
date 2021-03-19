@@ -21,6 +21,7 @@
 #define LP855X_DEVICE_CTRL		0x01
 #define LP855X_EEPROM_START		0xA0
 #define LP855X_EEPROM_END		0xA7
+#define LP8556_LED_STRING_EN		0x16
 #define LP8556_EPROM_START		0xA0
 #define LP8556_EPROM_END		0xAF
 
@@ -128,6 +129,15 @@ static bool lp855x_is_valid_rom_area(struct lp855x *lp, u8 addr)
 	return addr >= start && addr <= end;
 }
 
+static int lp8556_pre_init(struct lp855x *lp)
+{
+	/* need this step because the register is not in the EPROM range */
+	u8 val = lp->pdata->led_string_enable;
+	if (val > 0)
+		return lp855x_write_byte(lp, LP8556_LED_STRING_EN, val);
+	return 0;
+}
+
 static int lp8557_bl_off(struct lp855x *lp)
 {
 	/* BL_ON = 0 before updating EPROM settings */
@@ -145,6 +155,12 @@ static int lp8557_bl_on(struct lp855x *lp)
 static struct lp855x_device_config lp855x_dev_cfg = {
 	.reg_brightness = LP855X_BRIGHTNESS_CTRL,
 	.reg_devicectrl = LP855X_DEVICE_CTRL,
+};
+
+static struct lp855x_device_config lp8556_dev_cfg = {
+	.reg_brightness = LP855X_BRIGHTNESS_CTRL,
+	.reg_devicectrl = LP855X_DEVICE_CTRL,
+	.pre_init_device = lp8556_pre_init,
 };
 
 static struct lp855x_device_config lp8557_dev_cfg = {
@@ -175,8 +191,10 @@ static int lp855x_configure(struct lp855x *lp)
 	case LP8551:
 	case LP8552:
 	case LP8553:
-	case LP8556:
 		lp->cfg = &lp855x_dev_cfg;
+		break;
+	case LP8556:
+		lp->cfg = &lp8556_dev_cfg;
 		break;
 	case LP8555:
 	case LP8557:
@@ -199,11 +217,6 @@ static int lp855x_configure(struct lp855x *lp)
 	if (ret)
 		goto err;
 
-	val = pd->device_control;
-	ret = lp855x_write_byte(lp, lp->cfg->reg_devicectrl, val);
-	if (ret)
-		goto err;
-
 	if (pd->size_program > 0) {
 		for (i = 0; i < pd->size_program; i++) {
 			addr = pd->rom_data[i].addr;
@@ -216,6 +229,11 @@ static int lp855x_configure(struct lp855x *lp)
 				goto err;
 		}
 	}
+
+	val = pd->device_control;
+	ret = lp855x_write_byte(lp, lp->cfg->reg_devicectrl, val);
+	if (ret)
+		goto err;
 
 	if (lp->cfg->post_init_device) {
 		ret = lp->cfg->post_init_device(lp);
@@ -361,6 +379,7 @@ static int lp855x_parse_dt(struct lp855x *lp)
 	of_property_read_string(node, "bl-name", &pdata->name);
 	of_property_read_u8(node, "dev-ctrl", &pdata->device_control);
 	of_property_read_u8(node, "init-brt", &pdata->initial_brightness);
+	of_property_read_u8(node, "led-string-en", &pdata->led_string_enable);
 	of_property_read_u32(node, "pwm-period", &pdata->period_ns);
 
 	/* Fill ROM platform data if defined */

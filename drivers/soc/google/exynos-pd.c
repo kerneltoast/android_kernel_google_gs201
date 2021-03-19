@@ -343,7 +343,7 @@ static int exynos_pd_suspend_late(struct device *dev)
 	/* Suspend callback function might be registered if necessary */
 	if (pd->always_on) {
 		pd->genpd.flags = 0;
-		dev_info(dev, "    %-9s flag set to 0\n", pd->genpd.name);
+		dev_info(dev, "genpd.flags set to 0\n");
 	}
 
 	pr_debug("%s: %s is %s\n", __func__, pd->name,
@@ -363,7 +363,7 @@ static int exynos_pd_resume_early(struct device *dev)
 	/* Resume callback function might be registered if necessary */
 	if (pd->always_on) {
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
-		dev_info(dev, "    %-9s - %s\n", pd->genpd.name, "on,  always");
+		dev_info(dev, "%s\n", "on,  always");
 	}
 
 	return 0;
@@ -455,9 +455,9 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "pd-always-on")) {
 		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		pd->always_on = true;
-		dev_info(dev, " - %s\n", "on,  always");
+		dev_info(dev, "%s\n", "on,  always");
 	} else {
-		dev_info(dev, " - %-3s\n", pd->genpd.name,
+		dev_info(dev, "%s\n",
 			 cal_pd_status(pd->cal_pdid) ? "on" : "off");
 	}
 
@@ -484,7 +484,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	dev_info(dev, "PM Domain Initialized\n");
+	dev_dbg(dev, "PM Domain Initialized\n");
 	return ret;
 }
 

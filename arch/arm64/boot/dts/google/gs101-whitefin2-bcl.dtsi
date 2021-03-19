@@ -18,6 +18,8 @@
 				google,power-supply = <&google_battery>;
 				google,main-power = <&s2mpg10mfd>;
 				google,sub-power = <&s2mpg11mfd>;
+				ppm_settings = <0>;
+				mpmm_settings = <0x1f>;
 			};
 		};
 	};

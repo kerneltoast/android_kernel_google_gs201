@@ -70,6 +70,14 @@
 				hs-clk = <1120>;
 				esc-clk = <20>;
 			};
+			1200x1920 {
+				mode-name = "1200x1920";
+				pmsk = <
+					0x2 0x9E 0x2 0xB700 /* p m s k */
+					>;
+				hs-clk = <969>;
+				esc-clk = <20>;
+			};
 		};
 	};
 

@@ -20,8 +20,25 @@
 void __iomem *fvmap_base;
 void __iomem *sram_fvmap_base;
 
-static int init_margin_table[MAX_MARGIN_ID];
-static int percent_margin_table[MAX_MARGIN_ID];
+enum margin_id {
+	MARGIN_MIF,
+	MARGIN_INT,
+	MARGIN_LIT,
+	MARGIN_MID,
+	MARGIN_BIG,
+	MARGIN_G3D,
+	MARGIN_G3DL2,
+	MARGIN_TPU,
+	MARGIN_INTCAM,
+	MARGIN_TNR,
+	MARGIN_CAM,
+	MARGIN_MFC,
+	MARGIN_DISP,
+	MARGIN_BO,
+	MARGIN_MAX
+};
+
+static int *margin_table[MARGIN_MAX];
 static int l123_restrict;
 
 static int margin_mif;
@@ -38,7 +55,6 @@ static int margin_cam;
 static int margin_mfc;
 static int margin_disp;
 static int margin_bo;
-static int volt_offset_percent;
 
 module_param(margin_mif, int, 0);
 module_param(margin_int, int, 0);
@@ -57,20 +73,20 @@ module_param(margin_bo, int, 0);
 
 void margin_table_init(void)
 {
-	init_margin_table[MARGIN_MIF] = margin_mif;
-	init_margin_table[MARGIN_INT] = margin_int;
-	init_margin_table[MARGIN_LIT] = margin_lit;
-	init_margin_table[MARGIN_MID] = margin_mid;
-	init_margin_table[MARGIN_BIG] = margin_big;
-	init_margin_table[MARGIN_G3D] = margin_g3d;
-	init_margin_table[MARGIN_G3DL2] = margin_g3dl2;
-	init_margin_table[MARGIN_TPU] = margin_tpu;
-	init_margin_table[MARGIN_INTCAM] = margin_intcam;
-	init_margin_table[MARGIN_TNR] = margin_tnr;
-	init_margin_table[MARGIN_CAM] = margin_cam;
-	init_margin_table[MARGIN_MFC] = margin_mfc;
-	init_margin_table[MARGIN_DISP] = margin_disp;
-	init_margin_table[MARGIN_BO] = margin_bo;
+	margin_table[MARGIN_MIF] = &margin_mif;
+	margin_table[MARGIN_INT] = &margin_int;
+	margin_table[MARGIN_LIT] = &margin_lit;
+	margin_table[MARGIN_MID] = &margin_mid;
+	margin_table[MARGIN_BIG] = &margin_big;
+	margin_table[MARGIN_G3D] = &margin_g3d;
+	margin_table[MARGIN_G3DL2] = &margin_g3dl2;
+	margin_table[MARGIN_TPU] = &margin_tpu;
+	margin_table[MARGIN_INTCAM] = &margin_intcam;
+	margin_table[MARGIN_TNR] = &margin_tnr;
+	margin_table[MARGIN_CAM] = &margin_cam;
+	margin_table[MARGIN_MFC] = &margin_mfc;
+	margin_table[MARGIN_DISP] = &margin_disp;
+	margin_table[MARGIN_BO] = &margin_bo;
 }
 
 int fvmap_set_raw_voltage_table(unsigned int id, int uV)
@@ -138,106 +154,6 @@ int fvmap_get_raw_voltage_table(unsigned int id)
 	return 0;
 }
 
-static void check_percent_margin(struct rate_volt_header *head, unsigned int num_of_lv)
-{
-	int org_volt;
-	int percent_volt;
-	int i;
-
-	if (!volt_offset_percent)
-		return;
-
-	for (i = 0; i < num_of_lv; i++) {
-		org_volt = head->table[i].volt;
-		percent_volt = org_volt * volt_offset_percent / 100;
-		head->table[i].volt = org_volt + rounddown(percent_volt, STEP_UV);
-	}
-}
-
-static int get_vclk_id_from_margin_id(int margin_id)
-{
-	int size = cmucal_get_list_size(ACPM_VCLK_TYPE);
-	int i;
-	struct vclk *vclk;
-
-	for (i = 0; i < size; i++) {
-		vclk = cmucal_get_node(ACPM_VCLK_TYPE | i);
-
-		if (vclk->margin_id == margin_id)
-			return i;
-	}
-
-	return -EINVAL;
-}
-
-#define attr_percent(margin_id, type)								\
-static ssize_t show_##type##_percent								\
-(struct kobject *kobj, struct kobj_attribute *attr, char *buf)					\
-{												\
-	return snprintf(buf, PAGE_SIZE, "%d\n", percent_margin_table[margin_id]);		\
-}												\
-												\
-static ssize_t store_##type##_percent								\
-(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)		\
-{												\
-	int input, vclk_id;									\
-												\
-	if (!sscanf(buf, "%d", &input))								\
-		return -EINVAL;									\
-												\
-	if (input < -100 || input > 100)							\
-		return -EINVAL;									\
-												\
-	vclk_id = get_vclk_id_from_margin_id(margin_id);					\
-	if (vclk_id == -EINVAL)									\
-		return vclk_id;									\
-	percent_margin_table[margin_id] = input;						\
-	cal_dfs_set_volt_margin(vclk_id | ACPM_VCLK_TYPE, input);				\
-												\
-	return count;										\
-}												\
-												\
-static struct kobj_attribute type##_percent =							\
-__ATTR(type##_percent, 0600,									\
-	show_##type##_percent, store_##type##_percent)
-
-attr_percent(MARGIN_MIF, mif_margin);
-attr_percent(MARGIN_INT, int_margin);
-attr_percent(MARGIN_BIG, big_margin);
-attr_percent(MARGIN_MID, mid_margin);
-attr_percent(MARGIN_LIT, lit_margin);
-attr_percent(MARGIN_G3D, g3d_margin);
-attr_percent(MARGIN_G3DL2, g3dl2_margin);
-attr_percent(MARGIN_TPU, tpu_margin);
-attr_percent(MARGIN_INTCAM, intcam_margin);
-attr_percent(MARGIN_TNR, tnr_margin);
-attr_percent(MARGIN_CAM, cam_margin);
-attr_percent(MARGIN_MFC, mfc_margin);
-attr_percent(MARGIN_DISP, disp_margin);
-attr_percent(MARGIN_BO, bo_margin);
-
-static struct attribute *percent_margin_attrs[] = {
-	&mif_margin_percent.attr,
-	&int_margin_percent.attr,
-	&big_margin_percent.attr,
-	&mid_margin_percent.attr,
-	&lit_margin_percent.attr,
-	&g3d_margin_percent.attr,
-	&g3dl2_margin_percent.attr,
-	&tpu_margin_percent.attr,
-	&intcam_margin_percent.attr,
-	&tnr_margin_percent.attr,
-	&cam_margin_percent.attr,
-	&mfc_margin_percent.attr,
-	&disp_margin_percent.attr,
-	&bo_margin_percent.attr,
-	NULL,
-};
-
-static const struct attribute_group percent_margin_group = {
-	.attrs = percent_margin_attrs,
-};
-
 static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base)
 {
 	struct fvmap_header *fvmap_header, *header;
@@ -278,17 +194,15 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 		vclk = cmucal_get_node(ACPM_VCLK_TYPE | i);
 		if (vclk == NULL)
 			continue;
-		pr_info("dvfs_type : %s - id : %x\n",
-			vclk->name, fvmap_header[i].dvfs_type);
-		pr_info("  num_of_lv      : %d\n", fvmap_header[i].num_of_lv);
-		pr_info("  num_of_members : %d\n", fvmap_header[i].num_of_members);
+		pr_debug("dvfs_type : %s - id : %x\n",
+			 vclk->name, fvmap_header[i].dvfs_type);
+		pr_debug("  num_of_lv      : %d\n", fvmap_header[i].num_of_lv);
+		pr_debug("  num_of_members : %d\n", fvmap_header[i].num_of_members);
 
 		old = sram_base + fvmap_header[i].o_ratevolt;
 		new = map_base + fvmap_header[i].o_ratevolt;
 
-		check_percent_margin(old, fvmap_header[i].num_of_lv);
-
-		margin = init_margin_table[vclk->margin_id];
+		margin = *margin_table[vclk->id - ACPM_VCLK_TYPE];
 		if (margin)
 			cal_dfs_set_volt_margin(i | ACPM_VCLK_TYPE, margin);
 
@@ -309,9 +223,9 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 			vclk->list[j] = cmucal_get_id_by_addr(member_addr);
 
 			if (vclk->list[j] == INVALID_CLK_ID)
-				pr_info("  Invalid addr :0x%x\n", member_addr);
+				pr_err("  Invalid addr :0x%x\n", member_addr);
 			else
-				pr_info("  DVFS CMU addr:0x%x\n", member_addr);
+				pr_debug("  DVFS CMU addr:0x%x\n", member_addr);
 		}
 
 		if ((strcmp(vclk->name, "MIF") == 0)
@@ -336,27 +250,93 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 			}
 		}
 		for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
-			pr_info("  lv : [%7d], volt = %d uV (%d %%)\n",
-				new->table[j].rate, new->table[j].volt,
-				volt_offset_percent);
+			int volt = new->table[j].volt;
+
+			if (margin) {
+				if (margin <= 100 && margin >= -100) {
+					volt = volt + (volt * margin / 100);
+				} else {
+					margin = (margin / STEP_UV) * STEP_UV;
+					volt = volt + margin;
+				}
+			}
+			pr_debug("  lv : [%7d], volt = %d uV (%+d uV)\n",
+				 new->table[j].rate, new->table[j].volt,
+				 volt - new->table[j].volt);
 		}
 	}
 }
 
+#define DEFINE_INT_ATTRIBUTE(__margin, __id)				\
+static int __margin##_show(struct seq_file *buf, void *d)		\
+{									\
+	seq_printf(buf, "%d\n", __margin);				\
+	return 0;							\
+}									\
+static int __margin##_open(struct inode *inode, struct file *file)	\
+{									\
+	return single_open(file, __margin##_show, inode->i_private);	\
+}									\
+static ssize_t __margin##_write_file(struct file *file,			\
+				     const char __user *user_buf,	\
+				     size_t count, loff_t *ppos)	\
+{									\
+	char buf[32];							\
+	ssize_t buf_size;						\
+	int ret, margin;						\
+									\
+	buf_size = simple_write_to_buffer(buf, sizeof(buf) - 1,		\
+					  ppos, user_buf, count);	\
+	if (buf_size < 0)						\
+		return buf_size;					\
+									\
+	ret = sscanf(buf, "%d\n", &margin);				\
+	if (ret != 1) {							\
+		pr_err("%s: sscanf failed (%d)\n", __func__, ret);	\
+		return -EINVAL;						\
+	}								\
+	__margin = margin;						\
+	cal_dfs_set_volt_margin((__id) | ACPM_VCLK_TYPE, __margin);	\
+									\
+	return buf_size;						\
+}									\
+static const struct file_operations __margin##_fops = {			\
+	.open = __margin##_open,					\
+	.read = seq_read,						\
+	.write = __margin##_write_file,					\
+	.llseek = seq_lseek,						\
+	.release = single_release,					\
+}
+
+DEFINE_INT_ATTRIBUTE(margin_mif, MARGIN_MIF);
+DEFINE_INT_ATTRIBUTE(margin_int, MARGIN_INT);
+DEFINE_INT_ATTRIBUTE(margin_lit, MARGIN_LIT);
+DEFINE_INT_ATTRIBUTE(margin_mid, MARGIN_MID);
+DEFINE_INT_ATTRIBUTE(margin_big, MARGIN_BIG);
+DEFINE_INT_ATTRIBUTE(margin_g3d, MARGIN_G3D);
+DEFINE_INT_ATTRIBUTE(margin_g3dl2, MARGIN_G3DL2);
+DEFINE_INT_ATTRIBUTE(margin_tpu, MARGIN_TPU);
+DEFINE_INT_ATTRIBUTE(margin_intcam, MARGIN_INTCAM);
+DEFINE_INT_ATTRIBUTE(margin_tnr, MARGIN_TNR);
+DEFINE_INT_ATTRIBUTE(margin_cam, MARGIN_CAM);
+DEFINE_INT_ATTRIBUTE(margin_mfc, MARGIN_MFC);
+DEFINE_INT_ATTRIBUTE(margin_disp, MARGIN_DISP);
+DEFINE_INT_ATTRIBUTE(margin_bo, MARGIN_BO);
+
 int fvmap_init(void __iomem *sram_base)
 {
 	void __iomem *map_base;
-	struct kobject *kobj;
 	struct device_node *np;
 	int ret = 0;
 	const char *str = NULL;
+	struct dentry *de = NULL;
 
 	np = of_find_node_by_path("/exynos_devfreq/devfreq_mif@17000010");
 	if (!IS_ERR(np))
 		ret = of_property_read_string(np, "l123_restrict", &str);
 
 	if ((str) && (!ret)) {
-		pr_info("%s:fvmap l123_restrict=%s\n", __func__, str);
+		pr_debug("%s:fvmap l123_restrict=%s\n", __func__, str);
 		l123_restrict = (str[0] != '0');
 	}
 
@@ -364,18 +344,29 @@ int fvmap_init(void __iomem *sram_base)
 
 	fvmap_base = map_base;
 	sram_fvmap_base = sram_base;
-	pr_info("%s:fvmap initialize %p\n", __func__, sram_base);
+	pr_debug("%s:fvmap initialize %p\n", __func__, sram_base);
 
 	margin_table_init();
 	fvmap_copy_from_sram(map_base, sram_base);
 
-	/* percent margin for each doamin at runtime */
-	kobj = kobject_create_and_add("percent_margin", kernel_kobj);
-	if (!kobj)
-		pr_err("Fail to create percent_margin kboject\n");
+	de = debugfs_create_dir("fvmap_margin", 0);
+	if (IS_ERR_OR_NULL(de))
+		return 0;
 
-	if (sysfs_create_group(kobj, &percent_margin_group))
-		pr_err("Fail to create percent_margin group\n");
+	debugfs_create_file("margin_mif", 0600, de, NULL, &margin_mif_fops);
+	debugfs_create_file("margin_int", 0600, de, NULL, &margin_int_fops);
+	debugfs_create_file("margin_lit", 0600, de, NULL, &margin_lit_fops);
+	debugfs_create_file("margin_mid", 0600, de, NULL, &margin_mid_fops);
+	debugfs_create_file("margin_big", 0600, de, NULL, &margin_big_fops);
+	debugfs_create_file("margin_g3d", 0600, de, NULL, &margin_g3d_fops);
+	debugfs_create_file("margin_g3dl2", 0600, de, NULL, &margin_g3dl2_fops);
+	debugfs_create_file("margin_tpu", 0600, de, NULL, &margin_tpu_fops);
+	debugfs_create_file("margin_intcam", 0600, de, NULL, &margin_intcam_fops);
+	debugfs_create_file("margin_tnr", 0600, de, NULL, &margin_tnr_fops);
+	debugfs_create_file("margin_cam", 0600, de, NULL, &margin_cam_fops);
+	debugfs_create_file("margin_mfc", 0600, de, NULL, &margin_mfc_fops);
+	debugfs_create_file("margin_disp", 0600, de, NULL, &margin_disp_fops);
+	debugfs_create_file("margin_bo", 0600, de, NULL, &margin_bo_fops);
 
 	return 0;
 }
