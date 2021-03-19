@@ -446,6 +446,37 @@
 				platform {
 					rx1 {
 						of_drv = <&aoc_nohost_drv>;
+
+					};
+				};
+			};
+
+			dai_fe_hifi_rx: fe_hifi_rx {
+				dai-name = "audio_hifiout";
+				stream-name = "audio_hifiout";
+				id = <IDX_HIFI_RX>;
+				playback;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_HIFI_RX>;
+				};
+				platform {
+					rx1 {
+						of_drv = <&aoc_incall_ep>;
+					};
+				};
+			};
+
+			dai_fe_hifi_tx: fe_hifi_tx {
+				dai-name = "audio_hifiin";
+				stream-name = "audio_hifiin";
+				id = <IDX_HIFI_TX>;
+				capture;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_HIFI_TX>;
+				};
+				platform {
+					tx1 {
+						of_drv = <&aoc_incall_ep>;
 					};
 				};
 			};
