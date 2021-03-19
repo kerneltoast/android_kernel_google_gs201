@@ -251,41 +251,32 @@ static int odpm_io_send_blank_async(struct odpm_info *info,
 						jiffies);
 }
 
-static int odpm_io_update_enable_bits(struct odpm_info *info)
+static int odpm_io_update_ext_enable_bits(struct odpm_info *info)
 {
-	u8 ext_channels_en = 0;
+	/* As of b/181251561, we permanently enable all 3 external rail bits */
+	/* This must be done while the ext meter en bit is set to 0 */
+	return odpm_io_set_ext_channels_en(info, EXT_METER_CHANNEL_EN_ALL);
+}
+
+static int odpm_io_update_bucken_enable_bits(struct odpm_info *info)
+{
 	u8 buck_channels_en[ODPM_BUCK_EN_BYTES] = { 0 };
 	int ch;
-	int ret;
 
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
-		if (info->channels[ch].enabled) {
-			int rail_i = info->channels[ch].rail_i;
-			struct odpm_rail_data *rail = &info->chip.rails[rail_i];
+		int rail_i = info->channels[ch].rail_i;
+		struct odpm_rail_data *rail = &info->chip.rails[rail_i];
 
-			u8 channel_en_i = rail->channel_en_index;
-			int channel_offset_byte = rail->channel_en_byte_offset;
+		u8 channel_en_i = rail->channel_en_index;
+		int channel_offset_byte = rail->channel_en_byte_offset;
 
-			switch (rail->type) {
-			case ODPM_RAIL_TYPE_SHUNT:
-				ext_channels_en |= channel_en_i;
-				break;
-			case ODPM_RAIL_TYPE_REGULATOR_BUCK:
-				if (channel_offset_byte < ODPM_BUCK_EN_BYTES) {
-					buck_channels_en[channel_offset_byte] |=
-						channel_en_i;
-				}
-				break;
-			case ODPM_RAIL_TYPE_REGULATOR_LDO:
-			default:
-				break;
-			}
-		}
+		if (!info->channels[ch].enabled)
+			continue;
+
+		if (rail->type == ODPM_RAIL_TYPE_REGULATOR_BUCK &&
+		    channel_offset_byte < ODPM_BUCK_EN_BYTES)
+			buck_channels_en[channel_offset_byte] |= channel_en_i;
 	}
-
-	ret = odpm_io_set_ext_channels_en(info, ext_channels_en);
-	if (ret < 0)
-		return ret;
 
 	return odpm_io_set_buck_channels_en(info, buck_channels_en,
 					    ODPM_BUCK_EN_BYTES);
@@ -305,7 +296,10 @@ int odpm_configure_chip(struct odpm_info *info)
 			odpm_io_set_channel(info, ch);
 	}
 
-	odpm_io_update_enable_bits(info);
+	odpm_io_update_bucken_enable_bits(info);
+
+	odpm_io_set_ext_meter_on(info, false);
+	odpm_io_update_ext_enable_bits(info);
 
 	odpm_io_set_meter_on(info, true);
 	odpm_io_set_ext_meter_on(info, true);
@@ -1209,7 +1203,7 @@ static ssize_t enabled_rails_store(struct device *dev,
 		info->channels[channel].rail_i = new_rail;
 
 		/* Rail is swapped, update en bits */
-		odpm_io_update_enable_bits(info);
+		odpm_io_update_bucken_enable_bits(info);
 
 		/* Update rail muxsel */
 		odpm_io_set_channel(info, channel);
