@@ -200,7 +200,6 @@ struct tcpci_data {
 	void (*set_cc_polarity)(struct tcpci *tcpci, struct tcpci_data *data,
 				enum typec_cc_polarity polarity);
 	void (*frs_sourcing_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
-	int (*check_contaminant)(struct tcpci *tcpci, struct tcpci_data *data);
   	void (*set_partner_usb_comm_capable)(struct tcpci *tcpci, struct tcpci_data *data,
 					     bool capable);
 };
@@ -208,7 +207,6 @@ struct tcpci_data {
 struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data);
 void tcpci_unregister_port(struct tcpci *tcpci);
 irqreturn_t tcpci_irq(struct tcpci *tcpci);
-bool tcpci_is_debouncing(struct tcpci *tcpci);
 
 struct tcpm_port;
 struct tcpm_port *tcpci_get_tcpm_port(struct tcpci *tcpci);

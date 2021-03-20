@@ -463,16 +463,6 @@ static void tcpci_set_pd_capable(struct tcpc_dev *tcpc, bool capable)
 		tcpci->data->set_pd_capable(tcpci, tcpci->data, capable);
 }
 
-static int tcpci_check_contaminant(struct tcpc_dev *tcpc)
-{
-	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
-
-	if (tcpci->data->check_contaminant)
-		return tcpci->data->check_contaminant(tcpci, tcpci->data);
-
-	return 0;
-}
-
 static bool tcpci_is_vbus_vsafe0v(struct tcpc_dev *tcpc)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
@@ -792,7 +782,6 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	tcpci->tcpc.set_pd_capable = tcpci_set_pd_capable;
 	tcpci->tcpc.enable_frs = tcpci_enable_frs;
 	tcpci->tcpc.frs_sourcing_vbus = tcpci_frs_sourcing_vbus;
-	tcpci->tcpc.check_contaminant = tcpci_check_contaminant;
  	tcpci->tcpc.set_partner_usb_comm_capable = tcpci_set_partner_usb_comm_capable;
 
 	if (tcpci->data->auto_discharge_disconnect) {
@@ -823,15 +812,6 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	return tcpci;
 }
 EXPORT_SYMBOL_GPL(tcpci_register_port);
-
-bool tcpci_is_debouncing(struct tcpci *tcpci)
-{
-	if (tcpci && tcpci->port)
-		return tcpm_is_debouncing(tcpci->port);
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(tcpci_is_debouncing);
 
 void tcpci_unregister_port(struct tcpci *tcpci)
 {
