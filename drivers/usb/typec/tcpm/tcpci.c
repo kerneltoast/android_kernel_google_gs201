@@ -129,7 +129,7 @@ static int tcpci_start_toggling(struct tcpc_dev *tcpc,
 	/* Handle vendor drp toggling */
 	if (tcpci->data->start_drp_toggling) {
 		ret = tcpci->data->start_drp_toggling(tcpci, tcpci->data, cc);
-		if (ret < 0 || tcpci->data->override_toggling)
+		if (ret < 0)
 			return ret;
 	}
 
