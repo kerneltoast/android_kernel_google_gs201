@@ -120,9 +120,9 @@ struct pktproc_queue {
 	u32 done_ptr;
 
 	/* Store */
-	u32 cp_desc_pbase;
+	u64 cp_desc_pbase;
 	u32 num_desc;
-	u32 cp_buff_pbase;
+	u64 cp_buff_pbase;
 
 	/* Pointer to info region by version */
 	union {
@@ -239,7 +239,7 @@ struct pktproc_adaptor {
 	bool support;	/* Is support PktProc feature? */
 	enum pktproc_version version;	/* Version */
 
-	u32 cp_base;		/* CP base address for pktproc */
+	u64 cp_base;		/* CP base address for pktproc */
 	u32 info_rgn_offset;	/* Offset of info region */
 	u32 info_rgn_size;	/* Size of info region */
 	u32 desc_rgn_offset;	/* Offset of descriptor region */
@@ -257,7 +257,6 @@ struct pktproc_adaptor {
 	bool use_hw_iocc;	/* H/W IO cache coherency */
 	u32 max_packet_size;	/* Max packet size */
 	bool use_dedicated_baaw;	/* BAAW for 36bit address */
-	bool use_36bit_data_addr;	/* Data is located to 36bit address range */
 
 	struct device *dev;
 

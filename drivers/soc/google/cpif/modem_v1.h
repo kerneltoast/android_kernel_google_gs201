@@ -303,6 +303,23 @@ struct cpif_gpio {
 		if (!of_property_read_u32(np, prop, &val)) \
 			dest = val; \
 	} while (0)
+
+#define mif_dt_read_u64(np, prop, dest) \
+	do { \
+		u64 val; \
+		if (of_property_read_u64(np, prop, &val)) { \
+			mif_err("%s is not defined\n", prop); \
+			return -EINVAL; \
+		} \
+		dest = val; \
+	} while (0)
+
+#define mif_dt_read_u64_noerr(np, prop, dest) \
+	do { \
+		u64 val; \
+		if (!of_property_read_u64(np, prop, &val)) \
+			dest = val; \
+	} while (0)
 #endif
 
 #define cpif_set_bit(data, offset)	((data) |= BIT(offset))

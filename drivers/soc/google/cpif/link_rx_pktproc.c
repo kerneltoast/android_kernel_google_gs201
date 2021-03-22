@@ -171,10 +171,7 @@ static int pktproc_get_pkt_from_ringbuf_mode(struct pktproc_queue *q, struct sk_
 		ret = -EPERM;
 		goto rx_error_on_desc;
 	}
-	if (q->ppa->use_36bit_data_addr)
-		src = desc[*q->rear_ptr].cp_data_paddr - q->q_buff_pbase + q->q_buff_vbase;
-	else
-		src = desc[*q->rear_ptr].cp_data_paddr - q->cp_buff_pbase + q->q_buff_vbase;
+	src = desc[*q->rear_ptr].cp_data_paddr - q->cp_buff_pbase + q->q_buff_vbase;
 	if ((src < q->q_buff_vbase) || (src > q->q_buff_vbase + q->q_buff_size)) {
 		mif_err_limited("Data address is invalid:%pK q_buff_vbase:%pK size:0x%08x\n",
 						src, q->q_buff_vbase, q->q_buff_size);
@@ -271,12 +268,9 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 			dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[q->done_ptr],
 							q->manager->cell_size, DMA_FROM_DEVICE, 0);
 
-		if (q->ppa->use_36bit_data_addr)
-			src = desc[q->done_ptr].cp_data_paddr - q->q_buff_pbase +
-					q->q_buff_vbase - q->ppa->skb_padding_size;
-		else
-			src = desc[q->done_ptr].cp_data_paddr - q->cp_buff_pbase +
-					q->q_buff_vbase - q->ppa->skb_padding_size;
+		src = desc[q->done_ptr].cp_data_paddr - q->cp_buff_pbase +
+				q->q_buff_vbase - q->ppa->skb_padding_size;
+
 		if (src)
 			free_mif_buff(q->manager, src);
 
@@ -366,12 +360,8 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 			}
 		}
 
-		if (q->ppa->use_36bit_data_addr)
-			desc[fore].cp_data_paddr = (dst_vaddr - q->q_buff_vbase) +
-					q->q_buff_pbase + q->ppa->skb_padding_size;
-		else
-			desc[fore].cp_data_paddr = (dst_vaddr - q->q_buff_vbase) +
-					q->cp_buff_pbase + q->ppa->skb_padding_size;
+		desc[fore].cp_data_paddr = (dst_vaddr - q->q_buff_vbase) +
+				q->cp_buff_pbase + q->ppa->skb_padding_size;
 
 		if (fore == 0)
 			desc[fore].control |= (1 << 7);	/* HEAD */
@@ -440,13 +430,9 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 			}
 		}
 
-		if (q->ppa->use_36bit_data_addr)
-			desc[fore].cp_data_paddr = dst_paddr +
-							q->ppa->skb_padding_size;
-		else
-			desc[fore].cp_data_paddr = (dst_paddr - q->q_buff_pbase) +
-							q->cp_buff_pbase +
-							q->ppa->skb_padding_size;
+		desc[fore].cp_data_paddr = (dst_paddr - q->q_buff_pbase) +
+						q->cp_buff_pbase +
+						q->ppa->skb_padding_size;
 
 		if (fore == 0)
 			desc[fore].control |= (1 << 7);	/* HEAD */
@@ -522,16 +508,11 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		goto rx_error_on_desc;
 	}
 
-	if (q->ppa->use_36bit_data_addr) {
-		src_paddr = desc_done_ptr.cp_data_paddr - q->ppa->skb_padding_size;
-		src = desc_done_ptr.cp_data_paddr - q->q_buff_pbase +
-				q->q_buff_vbase - q->ppa->skb_padding_size;
-	} else {
-		src_paddr = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
-				q->q_buff_pbase - q->ppa->skb_padding_size;
-		src = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
-				q->q_buff_vbase - q->ppa->skb_padding_size;
-	}
+	src_paddr = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
+			q->q_buff_pbase - q->ppa->skb_padding_size;
+	src = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
+			q->q_buff_vbase - q->ppa->skb_padding_size;
+
 	if ((src < q->q_buff_vbase) || (src > q->q_buff_vbase + q->q_buff_size)) {
 		mif_err_limited("Data address is invalid:%pK data:%pK size:0x%08x\n",
 					src, q->q_buff_vbase, q->q_buff_size);
@@ -826,12 +807,8 @@ static unsigned int pktproc_perftest_gen_rx_packet_sktbuf_mode(
 		desc[rear_ptr].channel_id = perf->ch;
 
 		/* set data */
-		if (q->ppa->use_36bit_data_addr)
-			src = desc[rear_ptr].cp_data_paddr -
-					q->q_buff_pbase + q->q_buff_vbase;
-		else
-			src = desc[rear_ptr].cp_data_paddr -
-					q->cp_buff_pbase + q->q_buff_vbase;
+		src = desc[rear_ptr].cp_data_paddr -
+				q->cp_buff_pbase + q->q_buff_vbase;
 		memset(src, 0x0, desc[rear_ptr].length);
 		memcpy(src, perftest_data[perf->mode].header, header_len);
 		seq = (u32 *)(src + header_len);
@@ -1099,7 +1076,7 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 	int i;
 
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Version:%d\n", ppa->version);
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08x\n", ppa->cp_base);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08lx\n", ppa->cp_base);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Descriptor mode:%d\n", ppa->desc_mode);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Num of queue:%d\n", ppa->num_queue);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Buffer manager:%d\n",
@@ -1115,8 +1092,6 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 		ppa->skb_padding_size);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Dedicated BAAW:%d\n",
 		ppa->use_dedicated_baaw);
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "36bit data addr:%d\n",
-		ppa->use_36bit_data_addr);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "info_desc:%s/buff:%s\n",
 		ppa->info_desc_rgn_cached ? "C" : "NC",
 		ppa->buff_rgn_cached ? "C" : "NC");
@@ -1265,7 +1240,7 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 	if (!pktproc_check_support(ppa))
 		return 0;
 
-	mif_info("version:%d cp_base:0x%08x desc_mode:%d num_queue:%d\n",
+	mif_info("version:%d cp_base:0x%08lx desc_mode:%d num_queue:%d\n",
 		ppa->version, ppa->cp_base, ppa->desc_mode, ppa->num_queue);
 	mif_info("interrupt:%d napi:%d iocc:%d max_packet_size:%d\n",
 		ppa->use_exclusive_irq, ppa->use_napi,
@@ -1364,7 +1339,7 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	int ret = 0;
 
 	mif_dt_read_u32(np, "pktproc_version", ppa->version);
-	mif_dt_read_u32(np, "pktproc_cp_base", ppa->cp_base);
+	mif_dt_read_u64(np, "pktproc_cp_base", ppa->cp_base);
 	switch (ppa->version) {
 	case PKTPROC_V1:
 		ppa->desc_mode = DESC_MODE_RINGBUF;
@@ -1386,14 +1361,13 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 			}
 		}
 		mif_dt_read_bool(np, "pktproc_use_napi", ppa->use_napi);
-		mif_dt_read_u32(np, "pktproc_use_36bit_data_addr", ppa->use_36bit_data_addr);
 		break;
 	default:
 		mif_err("Unsupported version:%d\n", ppa->version);
 		return -EINVAL;
 	}
 
-	mif_info("version:%d cp_base:0x%08x mode:%d num_queue:%d\n",
+	mif_info("version:%d cp_base:0x%08lx mode:%d num_queue:%d\n",
 		ppa->version, ppa->cp_base, ppa->desc_mode, ppa->num_queue);
 	mif_info("use_buff_mng:%d use_napi:%d exclusive_irq:%d\n",
 		ppa->use_buff_mng, ppa->use_napi, ppa->use_exclusive_irq);
@@ -1401,9 +1375,8 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	mif_dt_read_u32(np, "pktproc_use_hw_iocc", ppa->use_hw_iocc);
 	mif_dt_read_u32(np, "pktproc_max_packet_size", ppa->max_packet_size);
 	mif_dt_read_u32(np, "pktproc_use_dedicated_baaw", ppa->use_dedicated_baaw);
-	mif_info("iocc:%d max_packet_size:%d baaw:%d 36bit_data:%d\n",
-		ppa->use_hw_iocc, ppa->max_packet_size,
-		ppa->use_dedicated_baaw, ppa->use_36bit_data_addr);
+	mif_info("iocc:%d max_packet_size:%d baaw:%d\n",
+		ppa->use_hw_iocc, ppa->max_packet_size, ppa->use_dedicated_baaw);
 
 	mif_dt_read_u32(np, "pktproc_info_rgn_offset", ppa->info_rgn_offset);
 	mif_dt_read_u32(np, "pktproc_info_rgn_size", ppa->info_rgn_size);
@@ -1592,7 +1565,10 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			q->cp_desc_pbase = ppa->cp_base + ppa->desc_rgn_offset +
 					(i * sizeof(struct pktproc_desc_sktbuf) *
 					 q->num_desc);
-			q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase;
+			q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase >> 4;
+			mif_info("cp_desc_pbase - 36bit addr: 0x%08lx, 32bit addr: 0x%08x\n",
+				q->cp_desc_pbase, q->q_info_ptr->cp_desc_pbase);
+
 			q->desc_size = sizeof(struct pktproc_desc_sktbuf) * q->num_desc;
 
 			q->dma_addr = kzalloc(q->desc_size, GFP_KERNEL);
