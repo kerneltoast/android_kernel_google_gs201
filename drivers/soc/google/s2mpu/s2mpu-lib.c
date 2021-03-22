@@ -86,38 +86,30 @@ static struct smpt_region *smpt_region_for_pa(struct s2mpu_info *info, dma_addr_
 static struct smpt_region *alloc_smpt(struct s2mpu_info *info, size_t len)
 {
 	struct smpt_region *r;
-	void *buf;
 
 	/* len must be one of 64kb, 4kb or 128b */
 	if (WARN_ON(len != 128 && len != 4096 && len != (64 * 1024)))
 		return NULL;
 
-	buf = kzalloc(len, GFP_KERNEL);
-	if (!buf)
+	r = kmalloc(sizeof(*r), GFP_ATOMIC);
+	if (unlikely(!r))
 		return NULL;
 
-	r = kmalloc(sizeof(*r), GFP_KERNEL);
-	if (!r)
-		goto out;
-
-	r->va = buf;
-	r->pa = dma_map_single(info->dev, buf, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(info->dev, r->pa)) {
-		dev_err(info->dev, "dma_map_single failed\n");
+	r->va = dma_alloc_coherent(info->dev, len, &r->pa, GFP_ATOMIC);
+	if (unlikely(!r->va)) {
+		dev_err(info->dev, "dma_alloc_coherent failed len=%zu\n", len);
 		goto out_free;
 	}
 
 	r->len = len;
-
+	memset(r->va, 0, len);
 	list_add(&r->list, &info->smpt_regions);
 
 	return r;
+
 out_free:
 	kfree(r);
 	r = NULL;
-
-out:
-	kfree(buf);
 	return r;
 }
 
@@ -141,8 +133,7 @@ static void free_smpt(struct s2mpu_info *info, void *buf)
 	}
 
 	list_del(&r->list);
-	dma_unmap_single(info->dev, r->pa, r->len, DMA_TO_DEVICE);
-	kfree(buf);
+	dma_free_coherent(info->dev, r->len, r->va, r->pa);
 	kfree(r);
 }
 
@@ -182,8 +173,8 @@ void s2mpu_lib_deinit(struct s2mpu_info *info)
 	/* unmap SMPT and free up memory allocated in s2mpu_dev_init() */
 	list_for_each_entry_safe(curr, next, &info->smpt_regions, list) {
 		list_del(&curr->list);
-		dma_unmap_single(info->dev, curr->pa, curr->len, DMA_TO_DEVICE);
-		kfree(curr->va);
+
+		dma_free_coherent(info->dev, curr->len, curr->va, curr->pa);
 		kfree(curr);
 	}
 }
@@ -511,8 +502,6 @@ static void decompose(struct s2mpu_info *info, u32 gb_index, enum s2_gran curr_g
 		return;
 	}
 
-	dma_sync_single_for_cpu(info->dev, r->pa, r->len, DMA_TO_DEVICE);
-
 	new_smpt = r->va;
 
 	if (curr_gran != S2_GRAN_1GB) {
@@ -534,9 +523,6 @@ static void decompose(struct s2mpu_info *info, u32 gb_index, enum s2_gran curr_g
 		copy_decompose_gb(two_bits, new_smpt,
 				  s2_table_size(gran_shift[new_gran]));
 	}
-
-	/* flush cpu cache for s2mpu device to see the page tables */
-	dma_sync_single_for_device(info->dev, r->pa, r->len, DMA_TO_DEVICE);
 
 	__raw_writel((((u64)r->pa) >> 4) & 0xffffffff,
 		     S2MPU_L1ENTRY_L2TABLE_ADDR(info->base, info->vid, gb_index));
@@ -595,7 +581,6 @@ static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum 
 			if (WARN_ON(!r))
 				return;
 
-			dma_sync_single_for_cpu(info->dev, r->pa, r->len, DMA_TO_DEVICE);
 			smpt = r->va;
 			b = smpt[byte_offset];
 			bit_offset = get_bit_offset(start, eg);
@@ -608,11 +593,6 @@ static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum 
 			else
 				b = b & ~(3 << bit_offset);
 			smpt[byte_offset] = b;
-
-			/* flush cpu cache for s2mpu device to see the page
-			 * tables
-			 */
-			dma_sync_single_for_device(info->dev, r->pa, r->len, DMA_TO_DEVICE);
 
 			/* invalidate MPTC */
 			range_invalidate_mptc_vid_specific(info->base, info->vid, start, eg);
