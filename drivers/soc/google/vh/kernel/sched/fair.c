@@ -11,18 +11,13 @@
 #include "sched.h"
 #include "sched_events.h"
 
-#define MIN_CAPACITY_CPU    CONFIG_VH_MIN_CAPACITY_CPU
-#define MID_CAPACITY_CPU    CONFIG_VH_MID_CAPACITY_CPU
-#define MAX_CAPACITY_CPU    CONFIG_VH_MAX_CAPACITY_CPU
-#define HIGH_CAPACITY_CPU   CONFIG_VH_HIGH_CAPACITY_CPU
-#define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
-
 extern void update_uclamp_stats(int cpu, u64 time);
 
 extern bool vendor_sched_enable_prefer_high_cap;
 extern bool vendor_sched_task_spreading_enable;
 extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_util_threshold;
+extern unsigned int vendor_sched_high_capacity_start_cpu;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD};
@@ -297,7 +292,7 @@ static inline int find_start_cpu(struct task_struct *p, bool prefer_high_cap, bo
 	if (!prefer_high_cap && !sync_boost && task_fits_capacity(p, MIN_CAPACITY_CPU))
 		return MIN_CAPACITY_CPU;
 	else
-		return HIGH_CAPACITY_CPU;
+		return vendor_sched_high_capacity_start_cpu;
 }
 
 static inline bool is_min_capacity_cpu(int cpu)
