@@ -879,6 +879,27 @@ static struct itmon_dev *g_itmon;
 /* declare notifier_list */
 ATOMIC_NOTIFIER_HEAD(itmon_notifier_list);
 
+static char itmon_pattern[SZ_32];
+static atomic_t itmon_pattern_cnt = ATOMIC_INIT(0);
+
+static void itmon_pattern_reset(void)
+{
+	atomic_set(&itmon_pattern_cnt, 0);
+}
+
+static void itmon_pattern_set(const char *fmt, ...)
+{
+	va_list args;
+
+	/* only take the first pattern even there could be multiple paths */
+	if (atomic_inc_return(&itmon_pattern_cnt) > 1)
+		return;
+
+	va_start(args, fmt);
+	vsnprintf(itmon_pattern, sizeof(itmon_pattern), fmt, args);
+	va_end(args);
+}
+
 static const struct itmon_rpathinfo *itmon_get_rpathinfo(struct itmon_dev *itmon,
 							unsigned int id,
 							char *dest_name)
@@ -1295,6 +1316,7 @@ static void itmon_report_prot_chk_rawdata(struct itmon_dev *itmon,
 			prot_chk_ctl,
 			prot_chk_info,
 			prot_chk_int_id);
+	itmon_pattern_set("from %s", node->name);
 }
 
 static void itmon_report_rawdata(struct itmon_dev *itmon,
@@ -1344,6 +1366,10 @@ static void itmon_report_traceinfo(struct itmon_dev *itmon,
 			info->baaw_prot == true ? "(BAAW Remapped address)" : "",
 			trans_type == TRANS_TYPE_READ ? "READ" : "WRITE",
 			itmon_errcode[info->errcode]);
+
+	itmon_pattern_set("from %s %s to %s",
+			  info->port, info->client ? info->client : "",
+			  info->dest ? info->dest : NOT_AVAILABLE_STR);
 
 	dev_err(itmon->dev,
 			"\n------------------------------------------------------------\n"
@@ -1790,7 +1816,8 @@ static void itmon_do_dpm_policy(struct itmon_dev *itmon)
 		if (!pdata->policy[i].error)
 			continue;
 
-		scnprintf(buf, sizeof(buf), "itmon triggering %s", pdata->policy[i].name);
+		scnprintf(buf, sizeof(buf), "itmon triggering %s %s",
+			  pdata->policy[i].name, itmon_pattern);
 		dbg_snapshot_do_dpm_policy(pdata->policy[i].policy, buf);
 		pdata->policy[i].error = false;
 	}
@@ -1805,6 +1832,8 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 	struct itmon_nodegroup *group = NULL;
 	bool ret;
 	int i;
+
+	itmon_pattern_reset();
 
 	/* Search itmon group */
 	for (i = 0; i < (int)ARRAY_SIZE(nodegroup); i++) {
