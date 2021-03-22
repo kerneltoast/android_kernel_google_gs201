@@ -1356,19 +1356,19 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 		return ret;
 	}
 
-	ret = register_trace_android_vh_typec_tcpci_check_contaminant(
+	ret = register_trace_android_rvh_typec_tcpci_chk_contaminant(
 			max77759_check_contaminant, NULL);
 	if (ret) {
 		dev_err(&client->dev,
-			"register_trace_android_vh_typec_tcpci_check_contaminant failed ret:%d",
+			"register_trace_android_rvh_typec_tcpci_chk_contaminant failed ret:%d",
 			ret);
 		return ret;
 	}
 
-	ret = register_trace_android_vh_typec_tcpci_get_vbus(max77759_get_vbus, NULL);
+	ret = register_trace_android_rvh_typec_tcpci_get_vbus(max77759_get_vbus, NULL);
 	if (ret) {
 		dev_err(&client->dev,
-			"register_trace_android_vh_typec_tcpci_get_vbus failed ret:%d\n", ret);
+			"register_trace_android_rvh_typec_tcpci_get_vbus failed ret:%d\n", ret);
 		return ret;
 	}
 
