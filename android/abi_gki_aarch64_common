@@ -10779,7 +10779,6 @@
   tcp_ca_openreq_child
   tcp_check_req
   tcp_child_process
-  tcpci_auto_discharge_update
   tcpci_get_tcpm_port
   tcpci_irq
   tcpci_is_debouncing

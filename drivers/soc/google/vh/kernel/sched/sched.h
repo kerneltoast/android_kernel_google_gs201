@@ -3,6 +3,11 @@
 #define UCLAMP_STATS_STEP   (100 / (UCLAMP_STATS_SLOTS - 1))
 #define DEF_UTIL_THRESHOLD  1280
 
+/* Iterate thr' all leaf cfs_rq's on a runqueue */
+#define for_each_leaf_cfs_rq_safe(rq, cfs_rq, pos)			\
+	list_for_each_entry_safe(cfs_rq, pos, &rq->leaf_cfs_rq_list,	\
+				 leaf_cfs_rq_list)
+
 #define cpu_overutilized(cap, max)	\
 		((cap) * vendor_sched_util_threshold > (max) << SCHED_CAPACITY_SHIFT)
 

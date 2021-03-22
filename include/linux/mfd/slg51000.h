@@ -211,6 +211,8 @@
 #define SLG51000_LDO7_EVENT                     0x31c0
 #define SLG51000_LDO7_STATUS                    0x31c1
 #define SLG51000_LDO7_IRQ_MASK                  0x31c2
+#define SLG51000_LDO_DUMMY_VSEL                 0x3100
+#define SLG51000_LDO_DUMMY_MINV                 0x3160
 #define SLG51000_OTP_EVENT                      0x782b
 #define SLG51000_OTP_IRQ_MASK                   0x782d
 #define SLG51000_OTP_LOCK_OTP_PROG              0x78fe
@@ -582,6 +584,7 @@ enum slg51000_regulators {
 	SLG51000_REGULATOR_LDO5,
 	SLG51000_REGULATOR_LDO6,
 	SLG51000_REGULATOR_LDO7,
+	SLG51000_REGULATOR_LDO_DUMMY,
 	SLG51000_MAX_REGULATORS,
 };
 
@@ -620,6 +623,7 @@ enum {
 	SLG51000_OP_MODE_LDO_GPIO,
 	SLG51000_OP_MODE_SEQ_GPIO,
 	SLG51000_OP_MODE_SEQ_GENERIC,
+	SLG51000_OP_MODE_CONTROL_REG,
 };
 
 struct slg51000_dev {

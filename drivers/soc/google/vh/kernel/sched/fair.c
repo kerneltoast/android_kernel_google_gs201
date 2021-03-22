@@ -29,6 +29,10 @@ static unsigned int sched_capacity_margin[CPU_NUM] = {
 static unsigned long scale_freq[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
 
+unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
+				 unsigned long max, enum schedutil_type type,
+				 struct task_struct *p);
+
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
 /*****************************************************************************/
@@ -241,103 +245,6 @@ static unsigned long capacity_curr_of(int cpu)
 	return cap_scale(max_cap, scale_freq[cpu]);
 }
 
-static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
-{
-	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
-	unsigned long util_est, util = READ_ONCE(cfs_rq->avg.util_avg);
-
-	/*
-	 * If @p migrates from @cpu to another, remove its contribution. Or,
-	 * if @p migrates from another CPU to @cpu, add its contribution. In
-	 * the other cases, @cpu is not impacted by the migration, so the
-	 * util_avg should already be correct.
-	 */
-	if (task_cpu(p) == cpu && dst_cpu != cpu)
-		sub_positive(&util, task_util(p));
-	else if (task_cpu(p) != cpu && dst_cpu == cpu)
-		util += task_util(p);
-
-	if (sched_feat(UTIL_EST)) {
-		util_est = READ_ONCE(cfs_rq->avg.util_est.enqueued);
-
-		/*
-		 * During wake-up, the task isn't enqueued yet and doesn't
-		 * appear in the cfs_rq->avg.util_est.enqueued of any rq,
-		 * so just add it (if needed) to "simulate" what will be
-		 * cpu_util() after the task has been enqueued.
-		 */
-		if (dst_cpu == cpu)
-			util_est += _task_util_est(p);
-
-		util = max(util, util_est);
-	}
-
-	return min(util, capacity_of(cpu));
-}
-
-unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
-				 unsigned long max, enum schedutil_type type,
-				 struct task_struct *p);
-
-static long
-compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
-{
-	unsigned int max_util, util_cfs, cpu_util, cpu_cap;
-	unsigned long sum_util, energy = 0;
-	struct task_struct *tsk;
-	int cpu;
-
-	for (; pd; pd = pd->next) {
-		struct cpumask *pd_mask = perf_domain_span(pd);
-
-		/*
-		 * The energy model mandates all the CPUs of a performance
-		 * domain have the same capacity.
-		 */
-		cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
-		max_util = sum_util = 0;
-
-		/*
-		 * The capacity state of CPUs of the current rd can be driven by
-		 * CPUs of another rd if they belong to the same performance
-		 * domain. So, account for the utilization of these CPUs too
-		 * by masking pd with cpu_online_mask instead of the rd span.
-		 *
-		 * If an entire performance domain is outside of the current rd,
-		 * it will not appear in its pd list and will not be accounted
-		 * by compute_energy().
-		 */
-		for_each_cpu_and(cpu, pd_mask, cpu_online_mask) {
-			util_cfs = cpu_util_next(cpu, p, dst_cpu);
-
-			/*
-			 * Busy time computation: utilization clamping is not
-			 * required since the ratio (sum_util / cpu_capacity)
-			 * is already enough to scale the EM reported power
-			 * consumption at the (eventually clamped) cpu_capacity.
-			 */
-			sum_util += schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
-						       ENERGY_UTIL, NULL);
-
-			/*
-			 * Performance domain frequency: utilization clamping
-			 * must be considered since it affects the selection
-			 * of the performance domain frequency.
-			 * NOTE: in case RT tasks are running, by default the
-			 * FREQUENCY_UTIL's utilization can be max OPP.
-			 */
-			tsk = cpu == dst_cpu ? p : NULL;
-			cpu_util = schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
-						      FREQUENCY_UTIL, tsk);
-			max_util = max(max_util, cpu_util);
-		}
-
-		energy += em_cpu_energy(pd->em_pd, max_util, sum_util);
-	}
-
-	return energy;
-}
-
 /* Runqueue only has SCHED_IDLE tasks enqueued */
 static int sched_idle_rq(struct rq *rq)
 {
@@ -351,6 +258,11 @@ int sched_cpu_idle(int cpu)
 	return sched_idle_rq(cpu_rq(cpu));
 }
 #endif
+
+static inline bool within_margin(int value, int margin)
+{
+	return ((unsigned int)(value + margin - 1) < (2 * margin - 1));
+}
 
 /*****************************************************************************/
 /*                       New Code Section                                    */
@@ -419,6 +331,116 @@ int cpu_is_idle(int cpu)
 		return 1;
 
 	return 0;
+}
+
+static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
+{
+	struct cfs_rq *cfs_rq, *pos;
+	unsigned long util = 0, unclamped_util = 0;
+	unsigned long util_est;
+	struct task_group *tg;
+	int delta = 0;
+	unsigned long group_util = 0;
+	struct rq *rq = cpu_rq(cpu);
+
+	if (task_cpu(p) == cpu && dst_cpu != cpu)
+		delta = -task_util(p);
+	else if (task_cpu(p) != cpu && dst_cpu == cpu)
+		delta = task_util(p);
+
+	// For leaf groups
+	for_each_leaf_cfs_rq_safe(rq, cfs_rq, pos) {
+		if (&rq->cfs != cfs_rq) {
+			tg = cfs_rq->tg;
+
+			if (p->se.cfs_rq->tg == tg)
+				group_util = max_t(int, READ_ONCE(cfs_rq->avg.util_avg) + delta, 0);
+			else
+				group_util = READ_ONCE(cfs_rq->avg.util_avg);
+
+			unclamped_util += cfs_rq->avg.util_avg;
+			util += min_t(unsigned long, group_util, tg->uclamp_req[UCLAMP_MAX].value);
+		}
+	}
+
+	// For root group
+	if (p->se.cfs_rq->tg == rq->cfs.tg)
+		group_util = max_t(int, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util + delta,
+				   0);
+	else
+		group_util = max_t(int, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util, 0);
+
+	util += group_util;
+
+	if (sched_feat(UTIL_EST)) {
+		util_est = READ_ONCE(cfs_rq->avg.util_est.enqueued);
+
+		if (dst_cpu == cpu)
+			util_est += _task_util_est(p);
+
+		util = max_t(unsigned long, util, util_est);
+	}
+
+	return min(util, capacity_of(cpu));
+}
+
+static long
+compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
+{
+	unsigned int max_util, util_cfs, cpu_util, cpu_cap;
+	unsigned long sum_util, energy = 0;
+	struct task_struct *tsk;
+	int cpu;
+
+	for (; pd; pd = pd->next) {
+		struct cpumask *pd_mask = perf_domain_span(pd);
+
+		/*
+		 * The energy model mandates all the CPUs of a performance
+		 * domain have the same capacity.
+		 */
+		cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
+		max_util = sum_util = 0;
+
+		/*
+		 * The capacity state of CPUs of the current rd can be driven by
+		 * CPUs of another rd if they belong to the same performance
+		 * domain. So, account for the utilization of these CPUs too
+		 * by masking pd with cpu_online_mask instead of the rd span.
+		 *
+		 * If an entire performance domain is outside of the current rd,
+		 * it will not appear in its pd list and will not be accounted
+		 * by compute_energy().
+		 */
+		for_each_cpu_and(cpu, pd_mask, cpu_online_mask) {
+			util_cfs = cpu_util_next(cpu, p, dst_cpu);
+
+			/*
+			 * Busy time computation: utilization clamping is not
+			 * required since the ratio (sum_util / cpu_capacity)
+			 * is already enough to scale the EM reported power
+			 * consumption at the (eventually clamped) cpu_capacity.
+			 */
+			sum_util += schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
+						       ENERGY_UTIL, NULL);
+
+			/*
+			 * Performance domain frequency: utilization clamping
+			 * must be considered since it affects the selection
+			 * of the performance domain frequency.
+			 * NOTE: in case RT tasks are running, by default the
+			 * FREQUENCY_UTIL's utilization can be max OPP.
+			 */
+			tsk = cpu == dst_cpu ? p : NULL;
+			cpu_util = schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
+						      FREQUENCY_UTIL, tsk);
+			max_util = max(max_util, cpu_util);
+		}
+
+		energy += em_cpu_energy(pd->em_pd, max_util, sum_util);
+	}
+
+	return energy;
 }
 
 static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cpu, bool sync_boost)
@@ -941,4 +963,99 @@ void update_sched_capacity_margin(unsigned int util_threshold)
 
 	for (i = 0; i < CPU_NUM; i++)
 		sched_capacity_margin[i] = util_threshold;
+}
+
+void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct task_struct *p,
+				    bool task_sleep, int *ret)
+{
+	long last_ewma_diff;
+	struct util_est ue;
+	int cpu;
+
+	*ret = 1;
+
+	if (!sched_feat(UTIL_EST))
+		return;
+
+	/*
+	 * Skip update of task's estimated utilization when the task has not
+	 * yet completed an activation, e.g. being migrated.
+	 */
+	if (!task_sleep)
+		return;
+
+	/*
+	 * If the PELT values haven't changed since enqueue time,
+	 * skip the util_est update.
+	 */
+	ue = p->se.avg.util_est;
+	if (ue.enqueued & UTIL_AVG_UNCHANGED)
+		return;
+
+	/*
+	 * Reset EWMA on utilization increases, the moving average is used only
+	 * to smooth utilization decreases.
+	 */
+	ue.enqueued = (task_util(p) | UTIL_AVG_UNCHANGED);
+
+	// TODO: make util_est to sub cfs-rq and aggregate.
+#ifdef CONFIG_UCLAMP_TASK
+	// Currently util_est is done only in the root group
+	// Current solution apply the clamp in the per-task level for simplicity.
+	// However it may
+	// 1) over grow by the group limit
+	// 2) out of sync when task migrated between cgroups (cfs_rq)
+	ue.enqueued = min((unsigned long)ue.enqueued, uclamp_eff_value(p, UCLAMP_MAX));
+#endif
+
+	if (sched_feat(UTIL_EST_FASTUP)) {
+		if (ue.ewma < ue.enqueued) {
+			ue.ewma = ue.enqueued;
+			goto done;
+		}
+	}
+
+	/*
+	 * Skip update of task's estimated utilization when its EWMA is
+	 * already ~1% close to its last activation value.
+	 */
+	last_ewma_diff = ue.enqueued - ue.ewma;
+	if (within_margin(last_ewma_diff, (SCHED_CAPACITY_SCALE / 100)))
+		return;
+
+	/*
+	 * To avoid overestimation of actual task utilization, skip updates if
+	 * we cannot grant there is idle time in this CPU.
+	 */
+	cpu = cpu_of(rq_of(cfs_rq));
+	if (task_util(p) > capacity_orig_of(cpu))
+		return;
+
+	/*
+	 * Update Task's estimated utilization
+	 *
+	 * When *p completes an activation we can consolidate another sample
+	 * of the task size. This is done by storing the current PELT value
+	 * as ue.enqueued and by using this value to update the Exponential
+	 * Weighted Moving Average (EWMA):
+	 *
+	 *  ewma(t) = w *  task_util(p) + (1-w) * ewma(t-1)
+	 *          = w *  task_util(p) +         ewma(t-1)  - w * ewma(t-1)
+	 *          = w * (task_util(p) -         ewma(t-1)) +     ewma(t-1)
+	 *          = w * (      last_ewma_diff            ) +     ewma(t-1)
+	 *          = w * (last_ewma_diff  +  ewma(t-1) / w)
+	 *
+	 * Where 'w' is the weight of new samples, which is configured to be
+	 * 0.25, thus making w=1/4 ( >>= UTIL_EST_WEIGHT_SHIFT)
+	 */
+	ue.ewma <<= UTIL_EST_WEIGHT_SHIFT;
+	ue.ewma  += last_ewma_diff;
+	ue.ewma >>= UTIL_EST_WEIGHT_SHIFT;
+#ifdef CONFIG_UCLAMP_TASK
+	ue.ewma = min((unsigned long)ue.enqueued, uclamp_eff_value(p, UCLAMP_MAX));
+#endif
+done:
+	WRITE_ONCE(p->se.avg.util_est, ue);
+
+	trace_sched_util_est_se_tp(&p->se);
 }

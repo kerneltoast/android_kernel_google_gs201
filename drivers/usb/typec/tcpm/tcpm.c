@@ -369,7 +369,6 @@ struct tcpm_port {
 	unsigned int hard_reset_count;
 	bool pd_capable;
 	bool explicit_contract;
-	bool usb_comm_capable;
 	unsigned int rx_msgid;
 
 	/* Partner capabilities/requests */
@@ -1004,8 +1003,7 @@ static void tcpm_set_pd_capable(struct tcpm_port *port, bool capable)
 static int tcpm_set_attached_state(struct tcpm_port *port, bool attached)
 {
 	return port->tcpc->set_roles(port->tcpc, attached, port->pwr_role,
-				     port->data_role,
-				     port->usb_comm_capable);
+				     port->data_role);
 }
 
 static int tcpm_set_roles(struct tcpm_port *port, bool attached,
@@ -1049,8 +1047,7 @@ static int tcpm_set_roles(struct tcpm_port *port, bool attached,
 	if (ret < 0)
 		return ret;
 
-	ret = port->tcpc->set_roles(port->tcpc, attached, role, data,
-				    port->usb_comm_capable);
+	ret = port->tcpc->set_roles(port->tcpc, attached, role, data);
 	if (ret < 0)
 		return ret;
 
@@ -1067,8 +1064,7 @@ static int tcpm_set_pwr_role(struct tcpm_port *port, enum typec_role role)
 	int ret;
 
 	ret = port->tcpc->set_roles(port->tcpc, true, role,
-				    port->data_role,
-				    port->usb_comm_capable);
+				    port->data_role);
 	if (ret < 0)
 		return ret;
 
@@ -4167,8 +4163,8 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SNK_NEGOTIATE_CAPABILITIES:
 		tcpm_set_pd_capable(port, true);
-		port->usb_comm_capable = port->source_caps[0] &
-					 PDO_FIXED_USB_COMM;
+		tcpm_set_partner_usb_comm_capable(port,
+						  !!(port->source_caps[0] & PDO_FIXED_USB_COMM));
 		/* Notify TCPC of usb_comm_capable. */
 		tcpm_set_attached_state(port, true);
 		port->hard_reset_count = 0;

@@ -77,6 +77,16 @@ static int slg51000_get_status(struct regulator_dev *rdev)
 	return REGULATOR_STATUS_ERROR;
 }
 
+static int slg51000_regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned int sel)
+{
+	struct slg51000_dev *chip = rdev_get_drvdata(rdev);
+
+	if (chip->op_mode == SLG51000_OP_MODE_CONTROL_REG)
+		return 0;
+
+	return regulator_set_voltage_sel_regmap(rdev, sel);
+}
+
 static const struct regulator_ops slg51000_regl_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -84,7 +94,7 @@ static const struct regulator_ops slg51000_regl_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.set_voltage_sel = slg51000_regulator_set_voltage_sel_regmap,
 	.get_status = slg51000_get_status,
 };
 
@@ -140,6 +150,7 @@ static struct regulator_desc regls_desc[SLG51000_MAX_REGULATORS] = {
 	SLG51000_REGL_DESC(LDO5, ldo5, "vin5",  400000,  5000),
 	SLG51000_REGL_DESC(LDO6, ldo6, "vin6",  400000,  5000),
 	SLG51000_REGL_DESC(LDO7, ldo7, "vin7", 1200000, 10000),
+	SLG51000_REGL_DESC(LDO_DUMMY, ldo_dummy, NULL, 1200000, 10000),
 };
 
 static int slg51000_regulator_register(struct slg51000_dev *chip)
@@ -152,10 +163,14 @@ static int slg51000_regulator_register(struct slg51000_dev *chip)
 	const unsigned int min_regs[SLG51000_MAX_REGULATORS] = {
 		SLG51000_LDO1_MINV, SLG51000_LDO2_MINV, SLG51000_LDO3_MINV,
 		SLG51000_LDO4_MINV, SLG51000_LDO5_MINV, SLG51000_LDO6_MINV,
-		SLG51000_LDO7_MINV,
+		SLG51000_LDO7_MINV, SLG51000_LDO_DUMMY_MINV,
 	};
 
 	for (id = 0; id < SLG51000_MAX_REGULATORS; id++) {
+		if (chip->op_mode != SLG51000_OP_MODE_CONTROL_REG &&
+			id == SLG51000_REGULATOR_LDO_DUMMY)
+			continue;
+
 		chip->rdesc[id] = &regls_desc[id];
 		rdesc = chip->rdesc[id];
 		config.regmap = chip->regmap;
@@ -328,7 +343,8 @@ static int slg51000_regulator_probe(struct platform_device *pdev)
 	int ret;
 
 	if (chip->op_mode != SLG51000_OP_MODE_LDO_ONLY &&
-			chip->op_mode != SLG51000_OP_MODE_LDO_GPIO)
+			chip->op_mode != SLG51000_OP_MODE_LDO_GPIO &&
+			chip->op_mode != SLG51000_OP_MODE_CONTROL_REG)
 		return -ENODEV;
 
 	ret = slg51000_regulator_register(chip);

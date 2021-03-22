@@ -183,7 +183,7 @@ static int cpuhp_in(const struct cpumask *mask)
 
 	for_each_cpu(cpu, mask) {
 		ret = add_cpu(cpu);
-		if (ret) {
+		if (ret && ret != 1) {
 			/*
 			 * If it fails to enable cpu,
 			 * it cancels cpu hotplug request and retries later.
@@ -211,7 +211,7 @@ static int cpuhp_out(const struct cpumask *mask)
 			continue;
 
 		ret = remove_cpu(cpu);
-		if (ret) {
+		if (ret && ret != 1) {
 			pr_err("Failed to hotplug out CPU%d with error %d\n",
 			       cpu, ret);
 			break;
@@ -225,7 +225,7 @@ static int cpuhp_out(const struct cpumask *mask)
  * Return last target online cpu mask
  * Returns the cpu_mask INTERSECTIONS of all users in the user list.
  */
-static struct cpumask cpuhp_get_online_cpus(void)
+static struct cpumask cpuhp_get_req_online_cpus(void)
 {
 	struct cpumask mask;
 	struct cpuhp_user *user;
@@ -266,16 +266,6 @@ static int cpuhp_cpu_down(struct cpumask disable_cpus)
 	return cpuhp_out(&disable_cpus);
 }
 
-/* print cpu control information for debugging */
-static void cpuhp_print_debug_info(const char *reason, struct cpumask online_cpus)
-{
-	char new_buf[10], pre_buf[10];
-
-	scnprintf(pre_buf, sizeof(pre_buf), "%*pbl", cpumask_pr_args(&cpuhp.online_cpus));
-	scnprintf(new_buf, sizeof(new_buf), "%*pbl", cpumask_pr_args(&online_cpus));
-	pr_info("%s: (%s) %s -> %s\n", __func__, reason, pre_buf, new_buf);
-}
-
 /*
  * cpuhp_do() is the main function for cpu hotplug. Only this function
  * enables or disables cpus, so all APIs in this driver call cpuhp_do()
@@ -283,7 +273,7 @@ static void cpuhp_print_debug_info(const char *reason, struct cpumask online_cpu
  */
 static int cpuhp_do(const char *reason)
 {
-	struct cpumask online_cpus, enable_cpus, disable_cpus;
+	struct cpumask req_online_cpus, enable_cpus, disable_cpus;
 	int ret = 0;
 
 	mutex_lock(&cpuhp.lock);
@@ -296,28 +286,39 @@ static int cpuhp_do(const char *reason)
 		return 0;
 	}
 
-	online_cpus = cpuhp_get_online_cpus();
+	req_online_cpus = cpuhp_get_req_online_cpus();
 
 	/* if there is no mask change, skip */
-	if (cpumask_equal(&cpuhp.online_cpus, &online_cpus))
+	if (cpumask_equal(&cpuhp.online_cpus, &req_online_cpus))
 		goto out;
 
-	cpuhp_print_debug_info(reason, online_cpus);
+	pr_info("(%s) [%*pbl] %*pbl -> %*pbl\n", reason,
+		cpumask_pr_args(&__cpu_online_mask),
+		cpumask_pr_args(&cpuhp.online_cpus),
+		cpumask_pr_args(&req_online_cpus));
 
 	/* get the enable cpu mask for new online cpu */
-	cpumask_andnot(&enable_cpus, &online_cpus, &cpuhp.online_cpus);
+	cpumask_andnot(&enable_cpus, &req_online_cpus, &cpuhp.online_cpus);
 	/* get the disable cpu mask for new offline cpu */
-	cpumask_andnot(&disable_cpus, &cpuhp.online_cpus, &online_cpus);
+	cpumask_andnot(&disable_cpus, &cpuhp.online_cpus, &req_online_cpus);
 
-	if (!cpumask_empty(&enable_cpus))
+	if (!cpumask_empty(&enable_cpus)) {
 		ret = cpuhp_cpu_up(enable_cpus);
-	if (ret)
-		goto out;
+		if (ret) {
+			cpumask_copy(&cpuhp.online_cpus, &__cpu_online_mask);
+			goto out;
+		}
+	}
 
-	if (!cpumask_empty(&disable_cpus))
+	if (!cpumask_empty(&disable_cpus)) {
 		ret = cpuhp_cpu_down(disable_cpus);
+		if (ret) {
+			cpumask_copy(&cpuhp.online_cpus, &__cpu_online_mask);
+			goto out;
+		}
+	}
 
-	cpumask_copy(&cpuhp.online_cpus, &online_cpus);
+	cpumask_copy(&cpuhp.online_cpus, &req_online_cpus);
 
 out:
 	mutex_unlock(&cpuhp.lock);

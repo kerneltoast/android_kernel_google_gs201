@@ -457,7 +457,9 @@ static int slg51000_pinctrl_probe(struct platform_device *pdev)
 
 	slg51000_pctl->chip = dev_get_drvdata(pdev->dev.parent);
 
-	if (slg51000_pctl->chip->op_mode == SLG51000_OP_MODE_LDO_ONLY)
+	if (slg51000_pctl->chip->op_mode != SLG51000_OP_MODE_LDO_GPIO &&
+		slg51000_pctl->chip->op_mode != SLG51000_OP_MODE_SEQ_GPIO &&
+		slg51000_pctl->chip->op_mode != SLG51000_OP_MODE_SEQ_GENERIC)
 		return -ENODEV;
 
 	/* Get regmap */

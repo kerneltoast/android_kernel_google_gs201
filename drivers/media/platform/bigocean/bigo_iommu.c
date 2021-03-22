@@ -11,15 +11,20 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/samsung-dma-mapping.h>
 
 #include "bigo_iommu.h"
 
-static void bigo_unmap_one(struct bufinfo *binfo)
+static void bigo_unmap_one(struct bigo_core *core, struct bufinfo *binfo)
 {
+	/* This lock is needed to unmap. Look @ b/180443732 */
+	mutex_lock(&core->lock);
+	binfo->attachment->dma_map_attrs |= DMA_ATTR_SKIP_LAZY_UNMAP;
 	dma_buf_unmap_attachment(binfo->attachment, binfo->sgt,
 				 DMA_BIDIRECTIONAL);
 	dma_buf_detach(binfo->dmabuf, binfo->attachment);
 	dma_buf_put(binfo->dmabuf);
+	mutex_unlock(&core->lock);
 }
 
 void bigo_unmap_all(struct bigo_inst *inst)
@@ -29,7 +34,7 @@ void bigo_unmap_all(struct bigo_inst *inst)
 	mutex_lock(&inst->lock);
 	list_for_each_entry_safe(curr, next, &inst->buffers, list) {
 		list_del(&curr->list);
-		bigo_unmap_one(curr);
+		bigo_unmap_one(inst->core, curr);
 		kfree(curr);
 	}
 	mutex_unlock(&inst->lock);
@@ -131,7 +136,7 @@ int bigo_unmap(struct bigo_inst *inst, struct bigo_ioc_mapping *mapping)
 	if (!found)
 		return -ENOENT;
 
-	bigo_unmap_one(found);
+	bigo_unmap_one(inst->core, found);
 	kfree(found);
 	return 0;
 }

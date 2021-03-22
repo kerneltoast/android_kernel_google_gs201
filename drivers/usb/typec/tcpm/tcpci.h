@@ -212,15 +212,13 @@ struct tcpci_data {
 	int (*set_vbus)(struct tcpci *tcpci, struct tcpci_data *data, bool source, bool sink);
 	int (*get_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
 	int (*set_roles)(struct tcpci *tcpci, struct tcpci_data *data, bool attached,
-			 enum typec_role role, enum typec_data_role data_role,
-			 bool usb_comm_capable);
+			 enum typec_role role, enum typec_data_role data_role);
 	int (*get_current_limit)(struct tcpci *tcpci, struct tcpci_data *data);
 	int (*set_current_limit)(struct tcpci *tcpci, struct tcpci_data *data, u32 max_ma, u32 mv);
 	void (*set_pd_capable)(struct tcpci *tcpci, struct tcpci_data *data, bool capable);
 	void (*set_cc_polarity)(struct tcpci *tcpci, struct tcpci_data *data,
 				enum typec_cc_polarity polarity);
 	void (*frs_sourcing_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
-	int (*enable_frs)(struct tcpci *tcpci, struct tcpci_data *data, bool enable);
 	int (*check_contaminant)(struct tcpci *tcpci, struct tcpci_data *data);
   	void (*set_partner_usb_comm_capable)(struct tcpci *tcpci, struct tcpci_data *data,
 					     bool capable);
@@ -229,7 +227,6 @@ struct tcpci_data {
 struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data);
 void tcpci_unregister_port(struct tcpci *tcpci);
 irqreturn_t tcpci_irq(struct tcpci *tcpci);
-void tcpci_auto_discharge_update(struct tcpci *tcpci);
 bool tcpci_is_debouncing(struct tcpci *tcpci);
 
 struct tcpm_port;
