@@ -231,8 +231,11 @@ static bool is_subsystem_on(unsigned int addr)
 {
 	unsigned int value;
 
-	exynos_pmu_read(addr, &value);
-	return ((value & 0xF) == 0x4);
+	if ((addr == PMU_ALIVE_TPU_OUT) || (addr == PMU_ALIVE_GPU_OUT)) {
+		exynos_pmu_read(addr, &value);
+		return value & BIT(6);
+	}
+	return true;
 }
 
 static int s2mpg10_read_level(void *data, int *val, int id)
