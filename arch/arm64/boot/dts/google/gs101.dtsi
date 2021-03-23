@@ -383,6 +383,9 @@
 		num-gic = <30>;
 		suspend_mode_idx = <8>;
 
+		pcieon_suspend_available = <1>;
+		pcieon_suspend_mode_idx = <13>;
+
 					/* WAKEUP_STAT,		WAKEUP2_STAT */
 		wakeup_stat_offset =	<0x3950>,		<0x3954>;
 		wakeup_int_en_offset =	<0x3944>,		<0x3964>;
