@@ -78,6 +78,7 @@ private/google-modules/bms
 private/google-modules/amplifiers/drv2624
 private/google-modules/amplifiers/cs40l25
 private/google-modules/amplifiers/cs35l41
+private/google-modules/amplifiers/audiometrics
 private/google-modules/aoc
 private/google-modules/aoc/alsa
 private/google-modules/aoc/usb
