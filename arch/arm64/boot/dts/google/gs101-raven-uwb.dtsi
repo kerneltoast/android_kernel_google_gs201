@@ -9,11 +9,31 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/samsung.h>
 
+&pinctrl_0 {
+	dw3xxx_sync: dw3xxx-sync {
+		samsung,pins = "gpa9-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PDN_PREV>;
+	};
+};
+
 &pinctrl_1 {
 	dw3xxx_irq: dw3xxx-irq {
 		samsung,pins = "gpa7-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PDN_PREV>;
+	};
+};
+
+&pinctrl_4 {
+	dw3xxx_ap_rst: dw3xxx-ap-rst {
+		samsung,pins = "gpp11-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PDN_PREV>;
 	};
@@ -29,8 +49,7 @@
 		interrupts = <2 IRQ_TYPE_LEVEL_HIGH 0>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&spi10_cs &dw3xxx_irq>;
-
+		pinctrl-0 = <&spi10_cs &dw3xxx_irq &dw3xxx_ap_rst &dw3xxx_sync>;
 		spi-max-frequency = <40000000>;
 
 		uwbhal,reset-gpio = <&aoc_gpiochip 0 GPIO_OPEN_DRAIN>;

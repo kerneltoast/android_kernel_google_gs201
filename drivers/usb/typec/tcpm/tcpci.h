@@ -56,9 +56,6 @@
 #define TCPC_EXTENDED_STATUS		0x20
 #define TCPC_EXTENDED_STATUS_VSAFE0V	BIT(0)
 
-#define TCPC_EXTENDED_STATUS		0x20
-#define TCPC_EXTENDED_STATUS_VSAFE0V	BIT(0)
-
 #define TCPC_ROLE_CTRL			0x1a
 #define TCPC_ROLE_CTRL_DRP		BIT(6)
 #define TCPC_ROLE_CTRL_RP_VAL_SHIFT	4
@@ -179,17 +176,6 @@ struct tcpci;
  *		is sourcing vbus.
  * @auto_discharge_disconnect:
  *		Optional; Enables TCPC to autonously discharge vbus on disconnect.
- * @get_vbus:
- *		Optional; From the tcpci spec, "The TCPC shall report VBUS present
- *		when TCPC detects VBUS rises above 4V. The TCPC shall report VBUS is
- *		not present when TCPC detects VBUS falls below 3.5V. The TCPC may report
- *		VBUS is not present if VBUS is between 3.5V and 4V." Between one
- *		implementation of TCPC and another, 3.5V < VBUS < 4V might or
- *		might not be reported as PRESENT. When VBUS < 4V is reported as
- *		absent, the link might be disconnected to early before
- *		vSinkDisconnect max(3.67V) is reached. Hence provide a chip
- *		specific callback for the tcpc chip driver override if needed.
- *		Return 0 from callback for TCPM to restart toggling.
  * @vbus_vsafe0v:
  *		optional; Set when TCPC can detect whether vbus is at VSAFE0V.
  * @set_partner_usb_comm_capable:
@@ -200,7 +186,6 @@ struct tcpci;
 struct tcpci_data {
 	struct regmap *regmap;
 	unsigned char TX_BUF_BYTE_x_hidden:1;
-	bool override_toggling;
 	unsigned char auto_discharge_disconnect:1;
 	unsigned char vbus_vsafe0v:1;
 
@@ -210,7 +195,6 @@ struct tcpci_data {
 	int (*start_drp_toggling)(struct tcpci *tcpci, struct tcpci_data *data,
 				  enum typec_cc_status cc);
 	int (*set_vbus)(struct tcpci *tcpci, struct tcpci_data *data, bool source, bool sink);
-	int (*get_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
 	int (*set_roles)(struct tcpci *tcpci, struct tcpci_data *data, bool attached,
 			 enum typec_role role, enum typec_data_role data_role);
 	int (*get_current_limit)(struct tcpci *tcpci, struct tcpci_data *data);
@@ -219,7 +203,6 @@ struct tcpci_data {
 	void (*set_cc_polarity)(struct tcpci *tcpci, struct tcpci_data *data,
 				enum typec_cc_polarity polarity);
 	void (*frs_sourcing_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
-	int (*check_contaminant)(struct tcpci *tcpci, struct tcpci_data *data);
   	void (*set_partner_usb_comm_capable)(struct tcpci *tcpci, struct tcpci_data *data,
 					     bool capable);
 };
@@ -227,7 +210,6 @@ struct tcpci_data {
 struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data);
 void tcpci_unregister_port(struct tcpci *tcpci);
 irqreturn_t tcpci_irq(struct tcpci *tcpci);
-bool tcpci_is_debouncing(struct tcpci *tcpci);
 
 struct tcpm_port;
 struct tcpm_port *tcpci_get_tcpm_port(struct tcpci *tcpci);

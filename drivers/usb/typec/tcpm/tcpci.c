@@ -15,6 +15,7 @@
 #include <linux/usb/pd.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
+#include <trace/hooks/typec.h>
 
 #include "tcpci.h"
 
@@ -122,14 +123,17 @@ static int tcpci_start_toggling(struct tcpc_dev *tcpc,
 	int ret;
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	unsigned int reg = TCPC_ROLE_CTRL_DRP;
+	int override_toggling = 0;
 
 	if (port_type != TYPEC_PORT_DRP)
 		return -EOPNOTSUPP;
 
 	/* Handle vendor drp toggling */
 	if (tcpci->data->start_drp_toggling) {
+		trace_android_vh_typec_tcpci_override_toggling(tcpci, tcpci->data,
+							       &override_toggling);
 		ret = tcpci->data->start_drp_toggling(tcpci, tcpci->data, cc);
-		if (ret < 0 || tcpci->data->override_toggling)
+		if (ret < 0 || override_toggling)
 			return ret;
 	}
 
@@ -427,10 +431,11 @@ static int tcpci_get_vbus(struct tcpc_dev *tcpc)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
 	unsigned int reg;
-	int ret;
+	int ret, vbus, bypass = 0;
 
-	if (tcpci->data->get_vbus)
-		return tcpci->data->get_vbus(tcpci, tcpci->data);
+	trace_android_rvh_typec_tcpci_get_vbus(tcpci, tcpci->data, &vbus, &bypass);
+	if (bypass)
+		return vbus;
 
 	ret = regmap_read(tcpci->regmap, TCPC_POWER_STATUS, &reg);
 	if (ret < 0)
@@ -462,11 +467,10 @@ static void tcpci_set_pd_capable(struct tcpc_dev *tcpc, bool capable)
 static int tcpci_check_contaminant(struct tcpc_dev *tcpc)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
+	int ret = 0;
 
-	if (tcpci->data->check_contaminant)
-		return tcpci->data->check_contaminant(tcpci, tcpci->data);
-
-	return 0;
+	trace_android_rvh_typec_tcpci_chk_contaminant(tcpci, tcpci->data, &ret);
+	return ret;
 }
 
 static bool tcpci_is_vbus_vsafe0v(struct tcpc_dev *tcpc)
@@ -788,8 +792,8 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	tcpci->tcpc.set_pd_capable = tcpci_set_pd_capable;
 	tcpci->tcpc.enable_frs = tcpci_enable_frs;
 	tcpci->tcpc.frs_sourcing_vbus = tcpci_frs_sourcing_vbus;
+	tcpci->tcpc.set_partner_usb_comm_capable = tcpci_set_partner_usb_comm_capable;
 	tcpci->tcpc.check_contaminant = tcpci_check_contaminant;
- 	tcpci->tcpc.set_partner_usb_comm_capable = tcpci_set_partner_usb_comm_capable;
 
 	if (tcpci->data->auto_discharge_disconnect) {
 		tcpci->tcpc.enable_auto_vbus_discharge = tcpci_enable_auto_vbus_discharge;
@@ -819,15 +823,6 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	return tcpci;
 }
 EXPORT_SYMBOL_GPL(tcpci_register_port);
-
-bool tcpci_is_debouncing(struct tcpci *tcpci)
-{
-	if (tcpci && tcpci->port)
-		return tcpm_is_debouncing(tcpci->port);
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(tcpci_is_debouncing);
 
 void tcpci_unregister_port(struct tcpci *tcpci)
 {

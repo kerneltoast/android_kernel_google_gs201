@@ -22,6 +22,7 @@
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
 #include <misc/logbuffer.h>
+#include <trace/hooks/typec.h>
 
 #include "bc_max77759.h"
 #include "max77759_helper.h"
@@ -69,6 +70,8 @@ enum gbms_charger_modes {
 
 #define TCPM_RESTART_TOGGLING		0
 #define CONTAMINANT_HANDLES_TOGGLING	1
+
+static bool hooks_installed;
 
 struct tcpci {
 	struct device *dev;
@@ -958,22 +961,21 @@ static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 		TCPC_VBUS_VOLTAGE_LSB_MV);
 }
 
-static int max77759_check_contaminant(struct tcpci *tcpci, struct tcpci_data *tdata)
+static void max77759_check_contaminant(void *unused, struct tcpci *tcpci, struct tcpci_data *tdata,
+				       int *ret)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
-	int ret;
 
 	logbuffer_log(chip->log, "%s: debounce path", __func__);
 	mutex_lock(&chip->rc_lock);
 	if (chip->contaminant_detection) {
 		process_contaminant_alert(chip->contaminant, true, false);
-		ret = CONTAMINANT_HANDLES_TOGGLING;
+		*ret = CONTAMINANT_HANDLES_TOGGLING;
 	} else {
-		ret = TCPM_RESTART_TOGGLING;
+		*ret = TCPM_RESTART_TOGGLING;
 	}
 
 	mutex_unlock(&chip->rc_lock);
-	return ret;
 }
 
 static int max77759_get_current_limit(struct tcpci *tcpci,
@@ -1125,7 +1127,8 @@ static int max77759_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
 	return 0;
 }
 
-static int max77759_get_vbus(struct tcpci *tcpci, struct tcpci_data *data)
+static void max77759_get_vbus(void *unused, struct tcpci *tcpci, struct tcpci_data *data, int *vbus,
+			      int *bypass)
 {
 	struct max77759_plat *chip = tdata_to_max77759(data);
 	u8 pwr_status;
@@ -1138,7 +1141,8 @@ static int max77759_get_vbus(struct tcpci *tcpci, struct tcpci_data *data)
 	}
 
 	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
-	return chip->vbus_present;
+	*vbus = chip->vbus_present;
+	*bypass = 1;
 }
 
 /* Notifier structure inferred from usbpd-manager.c */
@@ -1328,6 +1332,51 @@ static const struct file_operations force_device_mode_on_fops = {
 };
 #endif
 
+static void max77759_typec_tcpci_override_toggling(void *unused, struct tcpci *tcpci,
+						   struct tcpci_data *data,
+						   int *override_toggling)
+{
+	*override_toggling = 1;
+}
+
+static int max77759_register_vendor_hooks(struct i2c_client *client)
+{
+	int ret;
+
+	if (hooks_installed)
+		return 0;
+
+	ret = register_trace_android_vh_typec_tcpci_override_toggling(
+			max77759_typec_tcpci_override_toggling, NULL);
+
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_tcpci_override_toggling failed ret:%d",
+			ret);
+		return ret;
+	}
+
+	ret = register_trace_android_rvh_typec_tcpci_chk_contaminant(
+			max77759_check_contaminant, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_rvh_typec_tcpci_chk_contaminant failed ret:%d",
+			ret);
+		return ret;
+	}
+
+	ret = register_trace_android_rvh_typec_tcpci_get_vbus(max77759_get_vbus, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_rvh_typec_tcpci_get_vbus failed ret:%d\n", ret);
+		return ret;
+	}
+
+	hooks_installed = true;
+
+	return ret;
+}
+
 static int max77759_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
@@ -1339,6 +1388,10 @@ static int max77759_probe(struct i2c_client *client,
 	u16 device_id;
 	u32 ovp_handle;
 	const char *ovp_status;
+
+	ret = max77759_register_vendor_hooks(client);
+	if (ret)
+		return ret;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -1407,19 +1460,16 @@ static int max77759_probe(struct i2c_client *client,
 
 	/* Chip level tcpci callbacks */
 	chip->data.set_vbus = max77759_set_vbus;
-	chip->data.get_vbus = max77759_get_vbus;
 	chip->data.start_drp_toggling = max77759_start_toggling;
 	chip->data.get_current_limit = max77759_get_current_limit;
 	chip->data.set_current_limit = max77759_set_current_limit;
 	chip->data.TX_BUF_BYTE_x_hidden = 1;
-	chip->data.override_toggling = true;
 	chip->data.vbus_vsafe0v = true;
 	chip->data.set_partner_usb_comm_capable = max77759_set_partner_usb_comm_capable;
 	chip->data.set_roles = max77759_set_roles;
 	chip->data.init = tcpci_init;
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
-	chip->data.check_contaminant = max77759_check_contaminant;
 
 	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
