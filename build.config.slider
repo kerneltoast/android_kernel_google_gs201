@@ -62,8 +62,7 @@ EXT_MODULES="
 private/google-modules/display/samsung
 private/google-modules/wlan/bcmdhd43752
 private/google-modules/wlan/bcmdhd4389
-private/google-modules/gpu/mali_pcm
-private/google-modules/gpu/mali_mgm
+private/google-modules/gpu/mali_pixel
 private/google-modules/gpu/mali_kbase
 private/google-modules/lwis
 private/google-modules/edgetpu/drivers/edgetpu
