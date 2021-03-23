@@ -235,9 +235,21 @@ static int exynos_pm_syscore_suspend(void)
 	}
 #endif
 
-	exynos_prepare_sys_powerdown(pm_info->suspend_mode_idx);
-	pr_info("%s syscore_suspend: Enter Suspend scenario. suspend_mode_idx = %d)\n",
-		EXYNOS_PM_PREFIX, pm_info->suspend_mode_idx);
+	pm_info->is_pcieon_suspend = false;
+	if (pm_info->pcieon_suspend_available) {
+		if (!IS_ERR_OR_NULL(pm_info->pcie_is_connect))
+			pm_info->is_pcieon_suspend = !!pm_info->pcie_is_connect();
+	}
+
+	if (pm_info->is_pcieon_suspend || pm_dbg->test_pcieon_suspend) {
+		exynos_prepare_sys_powerdown(pm_info->pcieon_suspend_mode_idx);
+		pr_debug("%s syscore_suspend: Enter Suspend scenario. pcieon_mode_idx = %d)\n",
+			EXYNOS_PM_PREFIX, pm_info->pcieon_suspend_mode_idx);
+	} else {
+		exynos_prepare_sys_powerdown(pm_info->suspend_mode_idx);
+		pr_debug("%s syscore_suspend: Enter Suspend scenario. suspend_mode_idx = %d)\n",
+			EXYNOS_PM_PREFIX, pm_info->suspend_mode_idx);
+	}
 
 	/* Send an IPI if test_early_wakeup flag is set */
 //	if (pm_dbg->test_early_wakeup)
@@ -286,13 +298,40 @@ static void exynos_pm_syscore_resume(void)
 			pm_dbg->mifdn_cnt - pm_dbg->mifdn_cnt_prev,
 			pm_dbg->mifdn_cnt);
 
-	exynos_wakeup_sys_powerdown(pm_info->suspend_mode_idx, pm_info->is_early_wakeup);
+	if (pm_info->is_pcieon_suspend || pm_dbg->test_pcieon_suspend)
+		exynos_wakeup_sys_powerdown(pm_info->pcieon_suspend_mode_idx,
+					    pm_info->is_early_wakeup);
+	else
+		exynos_wakeup_sys_powerdown(pm_info->suspend_mode_idx,
+					    pm_info->is_early_wakeup);
+
 	exynos_show_wakeup_reason(pm_info->is_early_wakeup);
 
 	if (!pm_info->is_early_wakeup)
 		pr_debug("%s syscore_resume: post sleep, preparing to return\n",
 			 EXYNOS_PM_PREFIX);
 }
+
+int register_pcie_is_connect(u32 (*func)(void))
+{
+	if (func) {
+		pm_info->pcie_is_connect = func;
+		pr_info("Registered pcie_is_connect func\n");
+		return 0;
+	}
+
+	pr_err("%s: function pointer is NULL\n", __func__);
+	return -ENXIO;
+}
+EXPORT_SYMBOL_GPL(register_pcie_is_connect);
+
+bool is_test_pcieon_suspend_set(void)
+{
+	if (!pm_dbg)
+		return false;
+	return pm_dbg->test_pcieon_suspend;
+}
+EXPORT_SYMBOL_GPL(is_test_pcieon_suspend_set);
 
 static struct syscore_ops exynos_pm_syscore_ops = {
 	.suspend	= exynos_pm_syscore_suspend,
@@ -333,6 +372,9 @@ static void exynos_pm_debugfs_init(void)
 		       EXYNOS_PM_PREFIX);
 		return;
 	}
+
+	debugfs_create_u32("test_pcieon_suspend", 0644, root,
+			   &pm_dbg->test_pcieon_suspend);
 
 	debugfs_create_u32("test_early_wakeup", 0644, root, &pm_dbg->test_early_wakeup);
 
@@ -521,6 +563,19 @@ static int exynos_pm_drvinit(struct platform_device *pdev)
 
 		if (pm_info->is_stay_awake)
 			__pm_stay_awake(pm_info->ws);
+	}
+
+	ret = of_property_read_u32(np, "pcieon_suspend_available",
+				   &pm_info->pcieon_suspend_available);
+	if (ret) {
+		dev_info(dev, "drvinit: Not support pcieon_suspend mode\n");
+	} else {
+		ret = of_property_read_u32(np, "pcieon_suspend_mode_idx",
+					   &pm_info->pcieon_suspend_mode_idx);
+		if (ret) {
+			dev_err(dev, "drvinit: unabled to get pcieon_suspemd_mode_idx from DT\n");
+			WARN_ON(1);
+		}
 	}
 
 	parse_dt_wakeup_stat_names(dev, np);
