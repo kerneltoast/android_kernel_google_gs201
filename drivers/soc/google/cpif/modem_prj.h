@@ -98,6 +98,7 @@ struct cp_image {
 
 /* AP capability index - considers first 32bits only*/
 #define AP_CAP_PKTPROC_UL		0x00000001
+#define AP_CAP_CH_EXTENSION		0x00000002
 
 /* Log dump */
 #define IOCTL_MIF_LOG_DUMP		_IO(IOCTL_MAGIC, 0x51)
