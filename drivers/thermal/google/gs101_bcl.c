@@ -154,6 +154,14 @@ static const char * const clk_stats_source[] = {
 	"cpu0", "cpu1", "cpu2", "tpu", "gpu"
 };
 
+static const unsigned int clk_stats_offset[] = {
+	CPUCL0_CLKDIVSTEP_STAT,
+	CPUCL12_CLKDIVSTEP_STAT,
+	CPUCL12_CLKDIVSTEP_STAT,
+	TPU_CLKDIVSTEP_STAT,
+	G3D_CLKDIVSTEP_STAT
+};
+
 static const unsigned int subsystem_pmu[] = {
 	PMU_ALIVE_CPU0_OUT,
 	PMU_ALIVE_CPU1_OUT,
@@ -932,17 +940,13 @@ static void __iomem *get_addr_by_subsystem(struct gs101_bcl_dev *bcl_dev,
 {
 	int i = 0;
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < ARRAY_SIZE(clk_stats_source); i++) {
 		if (strcmp(subsystem, clk_stats_source[i]) == 0) {
-			if (is_subsystem_on(subsystem_pmu[i])) {
-				if (i == 0)
-					return is_store ? bcl_dev->base_mem[i] + CLKDIVSTEP :
-							bcl_dev->base_mem[i] +
-							CPUCL0_CLKDIVSTEP_STAT;
-				return is_store ? bcl_dev->base_mem[i] + CLKDIVSTEP :
-						bcl_dev->base_mem[i] + CPUCL12_CLKDIVSTEP_STAT;
-			} else
+			if (!is_subsystem_on(subsystem_pmu[i]))
 				return NULL;
+			if (is_store)
+				return bcl_dev->base_mem[i] + CLKDIVSTEP;
+			return bcl_dev->base_mem[i] + clk_stats_offset[i];
 		}
 	}
 	return NULL;
