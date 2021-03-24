@@ -36,6 +36,13 @@ config EXYNOS_BCM_DBG_DUMP
 	help
 	Enable exynos-bcm_dbg dump support
 
+config EXYNOS_BCM_DBG_DUMP_FILE
+	bool "EXYNOS_BCM_DBG dump file support"
+	depends on EXYNOS_BCM_DBG_DUMP
+	default n
+	help
+	Enable exynos-bcm_dbg dump file support
+
 config EXYNOS_BCM_DBG_PPMU
 	bool "EXYNOS_BCM_DBG PPMU support"
 	depends on EXYNOS_BCM_DBG

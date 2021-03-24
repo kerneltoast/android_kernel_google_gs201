@@ -1412,7 +1412,11 @@ void exynos_bcm_dbg_set_dump(bool enable_klog, bool enable_file,
 			     struct exynos_bcm_dbg_data *data)
 {
 	data->dump_klog = enable_klog;
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 	data->dump_file = enable_file;
+#else
+	data->dump_file = false;
+#endif
 }
 EXPORT_SYMBOL(exynos_bcm_dbg_set_dump);
 
@@ -3097,6 +3101,7 @@ static ssize_t store_enable_dump_klog(struct file *fp, struct kobject *kobj,
 	return size;
 }
 
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 static ssize_t show_enable_dump_file(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *battr, char *buf, loff_t off, size_t size)
 {
@@ -3138,6 +3143,7 @@ static ssize_t store_enable_dump_file(struct file *fp, struct kobject *kobj,
 
 	return size;
 }
+#endif
 
 static ssize_t show_enable_stop_owner(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *battr, char *buf, loff_t off, size_t size)
@@ -3282,8 +3288,10 @@ static BIN_ATTR(dump_addr_info, 0640, show_dump_addr_info,
 #endif
 static BIN_ATTR(enable_dump_klog, 0640, show_enable_dump_klog,
 		store_enable_dump_klog, 0);
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 static BIN_ATTR(enable_dump_file, 0640, show_enable_dump_file,
 		store_enable_dump_file, 0);
+#endif
 static BIN_ATTR(enable_stop_owner, 0640, show_enable_stop_owner,
 		store_enable_stop_owner, 0);
 
@@ -3325,7 +3333,9 @@ static struct bin_attribute *exynos_bcm_dbg_sysfs_entries[] = {
 	&bin_attr_dump_addr_info,
 #endif
 	&bin_attr_enable_dump_klog,
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 	&bin_attr_enable_dump_file,
+#endif
 	&bin_attr_enable_stop_owner,
 	&bin_attr_dump_accumulators,
 	&bin_attr_dump_accumulators_help,
@@ -3463,7 +3473,11 @@ static int __init exynos_bcm_dbg_probe(struct platform_device *pdev)
 	}
 #endif
 	data->dump_klog = false;
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 	data->dump_file = true;  /* for backward compatibility */
+#else
+	data->dump_file = false;
+#endif
 
 	/* BCM plugin run */
 	if (data->initial_bcm_run) {
