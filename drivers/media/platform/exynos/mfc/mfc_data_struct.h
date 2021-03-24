@@ -817,6 +817,7 @@ struct mfc_platdata {
 
 	struct mfc_bw_info mfc_bw_info;
 	struct mfc_bw_info mfc_bw_info_sbwc;
+	struct mfc_bw_info mfc_bw_info_dpb_sbwc;
 	struct mfc_qos_weight qos_weight;
 
 	unsigned int ip_ver;

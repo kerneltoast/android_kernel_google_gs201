@@ -486,8 +486,9 @@ static inline unsigned long __mfc_qos_get_mb_per_second(struct mfc_ctx *ctx, uns
 #ifdef CONFIG_MFC_USE_BTS
 static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *curr_mfc_bw_ctx)
 {
+	struct mfc_enc *enc = NULL;
 	struct mfc_bw_data bw_data;
-	struct mfc_bw_info *bw_info = NULL;
+	struct mfc_bw_info *bw_info = NULL, *dpb_sbwc_bw_info = NULL;
 	unsigned long mb_width, mb_height, fps, mb;
 	unsigned long peak_bw_per_sec;
 	unsigned long read_bw_per_sec;
@@ -507,6 +508,14 @@ static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *curr
 	else
 		bw_info = &ctx->dev->pdata->mfc_bw_info;
 
+	if (ctx->type == MFCINST_ENCODER) {
+		enc = ctx->enc_priv;
+		if (enc->sbwc_option == 2) {
+			mfc_debug(4, "[QoS] Apply BW with SBWC only for recon DPB\n");
+			dpb_sbwc_bw_info = &ctx->dev->pdata->mfc_bw_info_dpb_sbwc;
+		}
+	}
+
 	switch (ctx->codec_mode) {
 	case MFC_REG_CODEC_H264_DEC:
 	case MFC_REG_CODEC_H264_MVC_DEC:
@@ -514,6 +523,8 @@ static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *curr
 		break;
 	case MFC_REG_CODEC_H264_ENC:
 	case MFC_REG_CODEC_H264_MVC_ENC:
+		if (dpb_sbwc_bw_info)
+			bw_info = dpb_sbwc_bw_info;
 		bw_data = bw_info->bw_enc_h264;
 		break;
 	case MFC_REG_CODEC_HEVC_DEC:
@@ -525,6 +536,8 @@ static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *curr
 		break;
 	case MFC_REG_CODEC_HEVC_ENC:
 	case MFC_REG_CODEC_BPG_ENC:
+		if (dpb_sbwc_bw_info)
+			bw_info = dpb_sbwc_bw_info;
 		if (ctx->is_10bit)
 			bw_data = bw_info->bw_enc_hevc_10bit;
 		else
@@ -564,6 +577,8 @@ static void __mfc_qos_get_bw_per_second(struct mfc_ctx *ctx, struct bts_bw *curr
 		bw_data = bw_info->bw_enc_vp8;
 		break;
 	case MFC_REG_CODEC_VP9_ENC:
+		if (dpb_sbwc_bw_info)
+			bw_info = dpb_sbwc_bw_info;
 		if (ctx->is_10bit)
 			bw_data = bw_info->bw_enc_vp9_10bit;
 		else
