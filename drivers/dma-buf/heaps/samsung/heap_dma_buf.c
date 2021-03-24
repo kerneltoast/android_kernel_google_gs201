@@ -178,7 +178,7 @@ static struct dma_iovm_map *dma_get_iovm_map(struct dma_buf_attachment *a,
 				      iovm_map->attrs | DMA_ATTR_SKIP_CPU_SYNC);
 		if (ret) {
 			dma_iova_remove(iovm_map);
-			return ERR_PTR(ret);
+			return NULL;
 		}
 	}
 
