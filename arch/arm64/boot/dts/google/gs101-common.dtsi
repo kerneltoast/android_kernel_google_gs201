@@ -342,6 +342,7 @@
 	use-ia = "true";
 	use-l1ss = "true";
 	phy-power-off = "false";
+	use-pcieon-sleep = "true";
 	ep-device-type = <EP_SAMSUNG_MODEM>;
 	vreg1-supply = <&m_ldo16_reg>;
 	vreg2-supply = <&m_ldo18_reg>;
