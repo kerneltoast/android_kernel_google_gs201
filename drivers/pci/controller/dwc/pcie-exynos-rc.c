@@ -3809,7 +3809,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	if (exynos_pcie->use_pcieon_sleep) {
 		dev_info(&pdev->dev, "## register pcie connection function\n");
-		/* need to check: register_pcie_is_connect(pcie_linkup_stat); */
+		register_pcie_is_connect(pcie_linkup_stat);
 	}
 
 	platform_set_drvdata(pdev, exynos_pcie);
