@@ -21,6 +21,7 @@
 #include <linux/debug_locks.h>
 #include <linux/android_vendor.h>
 
+struct ww_class;
 struct ww_acquire_ctx;
 
 /*
@@ -66,9 +67,6 @@ struct mutex {
 #endif
 	ANDROID_OEM_DATA_ARRAY(1, 2);
 };
-
-struct ww_class;
-struct ww_acquire_ctx;
 
 struct ww_mutex {
 	struct mutex base;
