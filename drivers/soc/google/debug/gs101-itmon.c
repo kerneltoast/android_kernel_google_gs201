@@ -1193,7 +1193,7 @@ static void itmon_post_handler_by_client(struct itmon_dev *itmon,
 		if (info->errcode == ERRCODE_TMOUT) {
 			pdata->policy[FATAL].error = true;
 			log_dev_err(itmon->dev,
-				    "Try to handle error, even CPU transaction detected - %s",
+				    "Try to handle error, even CPU transaction detected - %s\n",
 				    itmon_errcode[info->errcode]);
 		} else {
 			log_dev_err(itmon->dev, "Skips CPU transaction detected - err_cnt_by_cpu: %u, interval: %lldns\n",
@@ -1287,9 +1287,9 @@ static void itmon_report_timeout(struct itmon_dev *itmon,
 		}
 
 		log_dev_err(itmon->dev,
-			    "      > %03d|%8s|%8s|%5u|%7x|%08x|%08X|%016zx|%08x\n",
+			    "      > %03d|%8s|%8s|%5u|%7x|%08x|%08x|%pa[p]|%08x\n",
 			    i, port_name, client_name, valid, timeout,
-			    id, payload0, addr, payload4);
+			    id, payload0, &addr, payload4);
 	}
 	log_dev_err(itmon->dev,
 		    "-----------------------------------------------------------\n");
@@ -1692,33 +1692,33 @@ static void itmon_collect_errnode(struct itmon_dev *itmon,
 	}
 
 	new_node = kmalloc(sizeof(struct itmon_nodeinfo), GFP_ATOMIC);
-	if (new_node) {
-		/* Fill detected node information to tracedata's list */
-		memcpy(new_node, node, sizeof(struct itmon_nodeinfo));
-		new_node->tracedata.int_info = int_info;
-		new_node->tracedata.ext_info_0 = info0;
-		new_node->tracedata.ext_info_1 = info1;
-		new_node->tracedata.ext_info_2 = info2;
-		new_node->tracedata.ext_user = user;
-		new_node->tracedata.dbg_mo_cnt = dbg_mo_cnt;
-		new_node->tracedata.prot_chk_ctl = prot_chk_ctl;
-		new_node->tracedata.prot_chk_info = prot_chk_info;
-		new_node->tracedata.prot_chk_int_id = prot_chk_int_id;
 
-		new_node->tracedata.offset = offset;
-		new_node->tracedata.read = read;
-		new_node->tracedata.ref_info = NULL;
-		new_node->group = group;
-		if (BIT_ERR_VALID(int_info))
-			node->tracedata.logging = true;
-		else
-			node->tracedata.logging = false;
-
-		list_add(&new_node->list, &pdata->datalist[read]);
-	} else {
+	if (!new_node) {
 		log_dev_err(itmon->dev, "failed to kmalloc for %s node %x offset\n",
 			    node->name, offset);
+		return;
 	}
+
+	/* Fill detected node information to tracedata's list */
+	memcpy(new_node, node, sizeof(struct itmon_nodeinfo));
+	new_node->tracedata.int_info = int_info;
+	new_node->tracedata.ext_info_0 = info0;
+	new_node->tracedata.ext_info_1 = info1;
+	new_node->tracedata.ext_info_2 = info2;
+	new_node->tracedata.ext_user = user;
+	new_node->tracedata.dbg_mo_cnt = dbg_mo_cnt;
+	new_node->tracedata.prot_chk_ctl = prot_chk_ctl;
+	new_node->tracedata.prot_chk_info = prot_chk_info;
+	new_node->tracedata.prot_chk_int_id = prot_chk_int_id;
+
+	new_node->tracedata.offset = offset;
+	new_node->tracedata.read = read;
+	new_node->tracedata.ref_info = NULL;
+	new_node->group = group;
+
+	node->tracedata.logging = BIT_ERR_VALID(int_info);
+
+	list_add(&new_node->list, &pdata->datalist[read]);
 }
 
 static int __itmon_search_node(struct itmon_dev *itmon,
@@ -1855,17 +1855,17 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 	/* Search itmon group */
 	for (i = 0; i < (int)ARRAY_SIZE(nodegroup); i++) {
 		group = &pdata->nodegroup[i];
-		log_dev_err(itmon->dev,
-			    "%s: %d irq, %s group, 0x%x vec",
-			    __func__, irq, group->name,
+		log_dev_info(itmon->dev,
+			    "%d irq, %s group, 0x%x\n",
+			    irq, group->name,
 			    group->phy_regs == 0 ? 0 : __raw_readl(group->regs));
 	}
 
 	ret = itmon_search_node(itmon, NULL, true);
 	if (!ret) {
-		log_dev_err(itmon->dev, "No errors found\n");
+		log_dev_info(itmon->dev, "No errors found\n");
 	} else {
-		log_dev_err(itmon->dev, "\nError detected: err_cnt_by_cpu:%u\n",
+		log_dev_err(itmon->dev, "Error detected: err_cnt_by_cpu:%u\n",
 			    pdata->err_cnt_by_cpu);
 
 		/* This will stop recursive panic when dpm action is panic */
@@ -2086,10 +2086,10 @@ static int itmon_logging_panic_handler(struct notifier_block *nb,
 		/* Check error has been logged */
 		ret = itmon_search_node(itmon, NULL, false);
 		if (!ret) {
-			log_dev_info(itmon->dev, "No errors found %s\n", __func__);
+			log_dev_info(itmon->dev, "No errors found\n");
 		} else {
 			log_dev_err(itmon->dev,
-				    "\nError detected, err_cnt_by_cpu:%u\n",
+				    "Error detected, err_cnt_by_cpu:%u\n",
 				    pdata->err_cnt_by_cpu);
 
 			itmon_do_dpm_policy(itmon);
@@ -2233,7 +2233,6 @@ static int itmon_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int itmon_suspend(struct device *dev)
 {
-	log_dev_info(dev, "%s\n", __func__);
 	return 0;
 }
 
@@ -2247,7 +2246,6 @@ static int itmon_resume(struct device *dev)
 	if (!pdata->cp_crash_in_progress)
 		itmon_init(itmon, true);
 
-	log_dev_info(dev, "%s\n", __func__);
 	return 0;
 }
 
