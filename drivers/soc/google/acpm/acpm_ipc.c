@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
+#include <linux/bitmap.h>
 #include <soc/google/exynos-debug.h>
 #include <soc/google/debug-snapshot.h>
 
@@ -32,6 +33,7 @@
 #define IPC_TIMEOUT				(10000000)
 #define IPC_NB_RETRIES				5
 #define APM_SYSTICK_PERIOD_US			(20345)
+#define IPC_TIMEOUT_COUNT_US			(500*1000)
 
 static struct acpm_ipc_info *acpm_ipc;
 static struct workqueue_struct *update_log_wq;
@@ -373,87 +375,67 @@ static void apm_interrupt_gen(unsigned int id)
 	writel((1 << id), acpm_ipc->intr + APM_INTGR);
 }
 
-static bool check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
+static void check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 {
-	unsigned int front;
-	unsigned int rear;
+	volatile unsigned int rx_front;
 	void __iomem *base;
-	struct list_head *cb_list = &channel->list;
-	struct callback_info *cb;
-	unsigned int data, seq_num, size;
-	bool ret = true;
-	unsigned int i;
+	unsigned int i, data, size;
+	unsigned int cfg_seq;
 	const void *src;
-	void *dst;
 	unsigned long flags;
-	bool callback_exist = false;
 
 	spin_lock_irqsave(&channel->rx_lock, flags);
-	/* IPC command dequeue */
-	front = __raw_readl(channel->rx_ch.front);
-	rear = __raw_readl(channel->rx_ch.rear);
 
-	i = rear;
+	rx_front = __raw_readl(channel->rx_ch.front);
+	i = __raw_readl(channel->rx_ch.rear);
+
 	base = channel->rx_ch.base;
 	size = channel->rx_ch.size;
 
-	while (i != front) {
+	while (i != rx_front) {
+		/* Read seq_num out from ACPM */
 		data = __raw_readl(base + size * i);
 		data = (data >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f;
-		seq_num = (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f;
-		if (data != seq_num) {
-			i++;
-			i = i % channel->rx_ch.len;
-			continue;
-		}
 
-		src = base + size * i;
-		memcpy_align_4(cfg->cmd, src, size);
-		memcpy_align_4(channel->cmd, cfg->cmd, size);
+		if (!data || (data >= SEQ_NUM_MAX))
+			panic("[ACPM] Invalid seq_num %u of channel %u\n", data, channel->id);
 
-		/* i: target command, rear: another command
-		 * 1. i index command dequeue
-		 * 2. rear index command copy to i index position
-		 * 3. incresed rear index
-		 */
-		if (i != rear) {
-			dst = base + size * i;
-			src = base + size * rear;
-			memcpy_align_4(dst, src, size);
-		}
-
-		rear++;
-		rear = rear % channel->rx_ch.len;
-
-		__raw_writel(rear, channel->rx_ch.rear);
-		front = __raw_readl(channel->rx_ch.front);
-
-		if (rear == front) {
-			__raw_writel(1 << channel->id,
-				     acpm_ipc->intr + AP_INTCR);
+		if (channel->ch_cfg[data - 1].response == true) {
 			/*
-			 * There is no race, if front is changed after the last check,
-			 * because even if AP_INT is cleared, the other call to
-			 * acpm_ipc_send_data() will continue to call check_response()
+			 * Copy responds to the Global ch_chg and clear bitmap[data-1]
+			 * later after ch_chg[data-1] assigns to cfg->cmd
 			 */
+			src = base + size * i;
+			memcpy_align_4(channel->ch_cfg[data - 1].cmd, src, size);
+		} else
+			clear_bit(data - 1, channel->bitmap_seqnum);
+
+		i++;
+		i = i % channel->rx_ch.len;
+	}
+
+	/* Make RX-Rear catch up with RX-Front */
+	__raw_writel(rx_front, channel->rx_ch.rear);
+
+	/* Clear ACPM IPC pending Interrupt */
+	__raw_writel(1 << channel->id, acpm_ipc->intr + AP_INTCR);
+
+	/*
+	 * For cases cfg->response = true, copy cmd[] data from ch_chg to cfg->cmd.
+	 * Clear_bit so that we won't go timeout when waiting for responses.
+	 */
+	if (cfg != NULL) {
+		cfg_seq = (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f;
+		data = (channel->ch_cfg[cfg_seq - 1].cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f;
+		if (data == cfg_seq) {
+			memcpy_align_4(cfg->cmd,
+				channel->ch_cfg[data - 1].cmd,
+				channel->rx_ch.size);
+			clear_bit(data - 1, channel->bitmap_seqnum);
 		}
-		ret = false;
-		callback_exist = true;
-		break;
 	}
 
 	spin_unlock_irqrestore(&channel->rx_lock, flags);
-
-	if (callback_exist) {
-		list_for_each_entry(cb, cb_list, list) {
-			if (cb && cb->ipc_callback) {
-				cb->ipc_callback(channel->cmd,
-					channel->rx_ch.size);
-			}
-		}
-	}
-
-	return ret;
 }
 
 static void dequeue_policy(struct acpm_ipc_ch *channel)
@@ -569,13 +551,14 @@ EXPORT_SYMBOL_GPL(acpm_ipc_send_data_sync);
 
 int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w_mode)
 {
-	unsigned int front;
-	unsigned int rear;
+	volatile unsigned int tx_front, tx_rear, rx_front;
 	unsigned int tmp_index;
+	unsigned int seq_num;
 	struct acpm_ipc_ch *channel;
 	bool timeout_flag = 0;
 	u64 timeout, now, frc;
 	u32 retry_cnt = 0;
+	u32 count = 0;
 	unsigned long flags;
 
 	if (channel_id >= acpm_ipc->num_channels && !cfg)
@@ -583,21 +566,38 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 
 	channel = &acpm_ipc->channel[channel_id];
 
-	if (down_timeout(&channel->send_sem, msecs_to_jiffies(1000)))
-		panic("[ACPM] channel %u send_sem timeout\n", channel_id);
+	if (channel->tx_ch.len < 3)
+		return -EIO;
 
 	spin_lock_irqsave(&channel->tx_lock, flags);
 
-	front = __raw_readl(channel->tx_ch.front);
-	rear = __raw_readl(channel->tx_ch.rear);
+	/*
+	 * Reserve at least 2 elements in the queue to prevent buffer full and qfull.
+	 * For those channels tx_ch.len = 1, it's not allowed to use acpm_ipc_send_data.
+	 * For those channels tx_ch.len = 3, it's allowed to acpm_ipc_send once a request.
+	 */
+	for (;;) {
+		tx_front = __raw_readl(channel->tx_ch.front);
+		rx_front = __raw_readl(channel->rx_ch.front);
 
-	tmp_index = front + 1;
+		if (((tx_front + 2) % channel->tx_ch.len) != rx_front)
+			break;
+		/* timeout if rx front can't catch up with tx front */
+		if (count++ > IPC_TIMEOUT_COUNT_US)
+			panic("[ACPM] channel %u tx f:%u rx f:%u timeout!\n",
+				channel_id, tx_front, rx_front);
+		/*
+		 * Add 1us delay to avoid being occupied by kernel
+		 * all the time since ACPM also does the same access.
+		 */
+		udelay(1);
+	}
 
-	if (tmp_index >= channel->tx_ch.len)
-		tmp_index = 0;
+	tx_rear = __raw_readl(channel->tx_ch.rear);
+	tmp_index = (tx_front + 1) % channel->tx_ch.len;
 
 	/* buffer full check */
-	if (tmp_index == rear) {
+	if (tmp_index == tx_rear) {
 		acpm_log_print();
 		panic("[ACPM] channel %u tx buffer full!\n", channel_id);
 	}
@@ -608,16 +608,29 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 		 * because cfg->cmd could be used as a barrier.
 		 */
 		spin_unlock_irqrestore(&channel->tx_lock, flags);
-		up(&channel->send_sem);
 		return -EIO;
 	}
 
-	if (++channel->seq_num == 64)
-		channel->seq_num = 1;
+	/* Check before a new request is sent. */
+	check_response(channel, NULL);
+
+	/* Prevent channel->seq_num from being re-used */
+	do {
+		if (++channel->seq_num == SEQ_NUM_MAX)
+			channel->seq_num = 1;
+	} while (test_bit(channel->seq_num - 1, channel->bitmap_seqnum));
+
+	/* Clear ch_cfg for upcoming responses */
+	memset(channel->ch_cfg[channel->seq_num - 1].cmd, 0,
+		sizeof(int) * channel->rx_ch.size);
+	/* Flag the index based on seq_num. (seq_num: 1~63, bitmap/ch_cfg: 0~62) */
+	set_bit(channel->seq_num - 1, channel->bitmap_seqnum);
+	channel->ch_cfg[channel->seq_num - 1].response = cfg->response;
 
 	cfg->cmd[0] |= (channel->seq_num & 0x3f) << ACPM_IPC_PROTOCOL_SEQ_NUM;
+	seq_num = (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f;
 
-	memcpy_align_4(channel->tx_ch.base + channel->tx_ch.size * front,
+	memcpy_align_4(channel->tx_ch.base + channel->tx_ch.size * tx_front,
 		       cfg->cmd,
 		       channel->tx_ch.size);
 
@@ -634,8 +647,10 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 retry:
 		timeout = sched_clock() + IPC_TIMEOUT;
 		timeout_flag = false;
-
-		while (check_response(channel, cfg)) {
+		do {
+			check_response(channel, cfg);
+			if (!test_bit(seq_num - 1, channel->bitmap_seqnum))
+				break;
 			now = sched_clock();
 			if (timeout < now) {
 				if (retry_cnt > IPC_NB_RETRIES) {
@@ -647,10 +662,9 @@ retry:
 					frc = get_frc_time();
 					pr_err("acpm_ipc retry %d, now = %llu, frc = %llu, timeout = %llu",
 					       retry_cnt, now, frc, timeout);
-					pr_err("I:0x%x %u s:%2d RX r:%u f:%u TX r:%u f:%u\n",
+					pr_err("I:0x%x %u s:%u RX r:%u f:%u TX r:%u f:%u\n",
 					       __raw_readl(acpm_ipc->intr + AP_INTSR),
-					       channel->id,
-					       (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f,
+					       channel->id, seq_num,
 					       __raw_readl(channel->rx_ch.rear),
 					       __raw_readl(channel->rx_ch.front),
 					       __raw_readl(channel->tx_ch.rear),
@@ -680,12 +694,12 @@ retry:
 				else
 					udelay(10);
 			}
-		}
+		} while (true);
 
-		if ((timeout_flag) && (check_response(channel, cfg))) {
-			pr_err("%s Timeout error! now = %llu, timeout = %llu ch:%u s:%2d\n",
-			       __func__, now, timeout, channel->id,
-			       (cfg->cmd[0] >> ACPM_IPC_PROTOCOL_SEQ_NUM) & 0x3f);
+		if (timeout_flag) {
+			pr_err("%s Timeout error! now = %llu timeout = %llu ch:%u s:%u bitmap:%llx\n",
+			       __func__, now, timeout, channel->id, seq_num,
+			       channel->bitmap_seqnum[0]);
 
 			acpm_ramdump();
 			dump_stack();
@@ -693,7 +707,6 @@ retry:
 		}
 	}
 
-	up(&channel->send_sem);
 	return 0;
 }
 
@@ -789,7 +802,7 @@ static int log_buffer_init(struct device *dev, struct device_node *node)
 
 static int channel_init(void)
 {
-	int i;
+	int i, j;
 	unsigned int mask = 0;
 	struct ipc_channel *ipc_ch;
 	void __iomem *base;
@@ -824,15 +837,22 @@ static int channel_init(void)
 		acpm_ipc->channel[i].tx_ch.d_buff_size = ipc_ch[i].ch.rx_indr_buf_size;
 		acpm_ipc->channel[i].tx_ch.direction = base + ipc_ch[i].ch.rx_indr_buf;
 
-		acpm_ipc->channel[i].cmd = devm_kzalloc(acpm_ipc->dev,
-							acpm_ipc->channel[i].tx_ch.size,
-							GFP_KERNEL);
+		acpm_ipc->channel[i].cmd = devm_kzalloc(
+					acpm_ipc->dev,
+					sizeof(unsigned int) * acpm_ipc->channel[i].tx_ch.size,
+					GFP_KERNEL);
+
+		for (j = 0; j < SEQ_NUM_MAX; j++) {
+			acpm_ipc->channel[i].ch_cfg[j].cmd = devm_kzalloc(
+						acpm_ipc->dev,
+						sizeof(int) * acpm_ipc->channel[i].tx_ch.size,
+						GFP_KERNEL);
+		}
 
 		init_completion(&acpm_ipc->channel[i].wait);
 		spin_lock_init(&acpm_ipc->channel[i].rx_lock);
 		spin_lock_init(&acpm_ipc->channel[i].tx_lock);
 		spin_lock_init(&acpm_ipc->channel[i].ch_lock);
-		sema_init(&acpm_ipc->channel[i].send_sem, acpm_ipc->channel[i].tx_ch.len - 1);
 		INIT_LIST_HEAD(&acpm_ipc->channel[i].list);
 	}
 
