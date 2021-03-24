@@ -895,7 +895,7 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 
 void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
-	if (rq->nr_running == 0)
+	if (rq->nr_running == 1)
 		update_uclamp_stats(rq->cpu, rq_clock(rq));
 }
 
