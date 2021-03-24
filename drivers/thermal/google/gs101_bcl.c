@@ -120,6 +120,18 @@ static const char * const clk_ratio_source[] = {
 	"cpu1_light", "cpu2_light", "tpu_light", "gpu_light"
 };
 
+enum RATIO_SOURCE {
+	CPU0_CON,
+	CPU1_HEAVY,
+	CPU2_HEAVY,
+	TPU_HEAVY,
+	GPU_HEAVY,
+	CPU1_LIGHT,
+	CPU2_LIGHT,
+	TPU_LIGHT,
+	GPU_LIGHT
+};
+
 static const char * const clk_stats_source[] = {
 	"cpu0", "cpu1", "cpu2", "tpu", "gpu"
 };
@@ -130,6 +142,14 @@ static const unsigned int clk_stats_offset[] = {
 	CPUCL12_CLKDIVSTEP_STAT,
 	TPU_CLKDIVSTEP_STAT,
 	G3D_CLKDIVSTEP_STAT
+};
+
+enum SUBSYSTEM_SOURCE {
+	CPU0,
+	CPU1,
+	CPU2,
+	TPU,
+	GPU
 };
 
 static const unsigned int subsystem_pmu[] = {
@@ -759,7 +779,7 @@ static void __iomem *get_addr_by_rail(struct gs101_bcl_dev *bcl_dev, const char 
 			idx = i > 4 ? i - 4 : i;
 			if (is_subsystem_on(subsystem_pmu[idx])) {
 				if (idx == 0)
-					return bcl_dev->base_mem[0] + CPUCL0_CLKDIVSTEP_CON;
+					return bcl_dev->base_mem[CPU0] + CPUCL0_CLKDIVSTEP_CON;
 				if (i > 4)
 					return bcl_dev->base_mem[idx] +
 							CPUCL12_CLKDIVSTEP_CON_LIGHT;
@@ -841,6 +861,15 @@ static ssize_t clk_ratio_store(struct device *dev,
 	mutex_lock(&bcl_dev->ratio_lock);
 	__raw_writel(value, addr);
 	mutex_unlock(&bcl_dev->ratio_lock);
+
+	if (strcmp(rail_name, clk_ratio_source[TPU_HEAVY]) == 0)
+		bcl_dev->tpu_con_heavy = value;
+	else if (strcmp(rail_name, clk_ratio_source[GPU_HEAVY]) == 0)
+		bcl_dev->gpu_con_heavy = value;
+	else if (strcmp(rail_name, clk_ratio_source[TPU_LIGHT]) == 0)
+		bcl_dev->tpu_con_light = value;
+	else if (strcmp(rail_name, clk_ratio_source[GPU_LIGHT]) == 0)
+		bcl_dev->gpu_con_light = value;
 
 	return size;
 }
@@ -943,6 +972,11 @@ static ssize_t clk_stats_store(struct device *dev,
 	mutex_lock(&bcl_dev->ratio_lock);
 	__raw_writel(value, addr);
 	mutex_unlock(&bcl_dev->ratio_lock);
+
+	if (strcmp(subsystem, clk_stats_source[TPU]) == 0)
+		bcl_dev->tpu_clkdivstep = value;
+	else if (strcmp(subsystem, clk_stats_source[GPU]) == 0)
+		bcl_dev->gpu_clkdivstep = value;
 
 	return size;
 }
@@ -1231,6 +1265,58 @@ struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
 	return bcl_dev;
 }
 EXPORT_SYMBOL_GPL(gs101_retrieve_bcl_handle);
+
+int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
+{
+	void __iomem *addr;
+
+	if (!data)
+		return -ENOMEM;
+
+	if (!data->sysreg_cpucl0)
+		return -ENOMEM;
+
+	if (!is_subsystem_on(subsystem_pmu[TPU]))
+		return -EIO;
+
+	mutex_lock(&data->ratio_lock);
+	addr = data->base_mem[TPU] + CPUCL12_CLKDIVSTEP_CON_HEAVY;
+	__raw_writel(data->tpu_con_heavy, addr);
+	addr = data->base_mem[TPU] + CPUCL12_CLKDIVSTEP_CON_LIGHT;
+	__raw_writel(data->tpu_con_light, addr);
+	addr = data->base_mem[TPU] + CLKDIVSTEP;
+	__raw_writel(data->tpu_clkdivstep, addr);
+	mutex_unlock(&data->ratio_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gs101_init_tpu_ratio);
+
+int gs101_init_gpu_ratio(struct gs101_bcl_dev *data)
+{
+	void __iomem *addr;
+
+	if (!data)
+		return -ENOMEM;
+
+	if (!data->sysreg_cpucl0)
+		return -ENOMEM;
+
+	if (!is_subsystem_on(subsystem_pmu[GPU]))
+		return -EIO;
+
+	mutex_lock(&data->ratio_lock);
+	addr = data->base_mem[GPU] + CPUCL12_CLKDIVSTEP_CON_HEAVY;
+	__raw_writel(data->gpu_con_heavy, addr);
+	addr = data->base_mem[GPU] + CPUCL12_CLKDIVSTEP_CON_LIGHT;
+	__raw_writel(data->gpu_con_light, addr);
+	addr = data->base_mem[GPU] + CLKDIVSTEP;
+	__raw_writel(data->gpu_clkdivstep, addr);
+	mutex_unlock(&data->ratio_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gs101_init_gpu_ratio);
 
 unsigned int gs101_get_ppm(struct gs101_bcl_dev *data)
 {
@@ -1838,6 +1924,8 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	int ret = 0, i;
 	struct gs101_bcl_dev *bcl_dev;
 	struct dentry *root;
+	u32 val;
+	struct device_node *np;
 
 	bcl_dev = devm_kzalloc(&pdev->dev, sizeof(*bcl_dev), GFP_KERNEL);
 	if (!bcl_dev)
@@ -1845,6 +1933,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	bcl_dev->device = &pdev->dev;
 	bcl_dev->iodev = dev_get_drvdata(pdev->dev.parent);
 	platform_set_drvdata(pdev, bcl_dev);
+	np = bcl_dev->device->of_node;
 	bcl_dev->psy_nb.notifier_call = battery_supply_callback;
 	ret = power_supply_reg_notifier(&bcl_dev->psy_nb);
 	if (ret < 0) {
@@ -1889,32 +1978,32 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		}
 	} else
 		bcl_dev->debug_entry = root;
-	bcl_dev->base_mem[0] = devm_ioremap(bcl_dev->device, CPUCL0_BASE, SZ_8K);
-	if (!bcl_dev->base_mem[0]) {
+	bcl_dev->base_mem[CPU0] = devm_ioremap(bcl_dev->device, CPUCL0_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[CPU0]) {
 		dev_err(bcl_dev->device, "cpu0_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->base_mem[1] = devm_ioremap(bcl_dev->device, CPUCL1_BASE, SZ_8K);
-	if (!bcl_dev->base_mem[1]) {
+	bcl_dev->base_mem[CPU1] = devm_ioremap(bcl_dev->device, CPUCL1_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[CPU1]) {
 		dev_err(bcl_dev->device, "cpu1_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->base_mem[2] = devm_ioremap(bcl_dev->device, CPUCL2_BASE, SZ_8K);
-	if (!bcl_dev->base_mem[2]) {
+	bcl_dev->base_mem[CPU2] = devm_ioremap(bcl_dev->device, CPUCL2_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[CPU2]) {
 		dev_err(bcl_dev->device, "cpu2_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->base_mem[3] = devm_ioremap(bcl_dev->device, TPU_BASE, SZ_8K);
-	if (!bcl_dev->base_mem[3]) {
+	bcl_dev->base_mem[TPU] = devm_ioremap(bcl_dev->device, TPU_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[TPU]) {
 		dev_err(bcl_dev->device, "tpu_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
 	}
-	bcl_dev->base_mem[4] = devm_ioremap(bcl_dev->device, G3D_BASE, SZ_8K);
-	if (!bcl_dev->base_mem[4]) {
+	bcl_dev->base_mem[GPU] = devm_ioremap(bcl_dev->device, G3D_BASE, SZ_8K);
+	if (!bcl_dev->base_mem[GPU]) {
 		dev_err(bcl_dev->device, "gpu_mem ioremap failed\n");
 		ret = -EIO;
 		goto bcl_soc_probe_exit;
@@ -1984,6 +2073,18 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
 			dev_attr_clk_stats.attr.name);
 	}
+	ret = of_property_read_u32(np, "tpu_con_heavy", &val);
+	bcl_dev->tpu_con_heavy = ret ? 0 : val;
+	ret = of_property_read_u32(np, "tpu_con_light", &val);
+	bcl_dev->tpu_con_light = ret ? 0 : val;
+	ret = of_property_read_u32(np, "gpu_con_heavy", &val);
+	bcl_dev->gpu_con_heavy = ret ? 0 : val;
+	ret = of_property_read_u32(np, "gpu_con_light", &val);
+	bcl_dev->gpu_con_light = ret ? 0 : val;
+	ret = of_property_read_u32(np, "gpu_clkdivstep", &val);
+	bcl_dev->gpu_clkdivstep = ret ? 0 : val;
+	ret = of_property_read_u32(np, "tpu_clkdivstep", &val);
+	bcl_dev->tpu_clkdivstep = ret ? 0 : val;
 
 	return 0;
 

@@ -96,6 +96,12 @@ struct gs101_bcl_dev {
 	unsigned int s2mpg10_triggered_irq[IRQ_SOURCE_S2MPG10_MAX];
 	unsigned int s2mpg11_triggered_irq[IRQ_SOURCE_S2MPG11_MAX];
 
+	unsigned int tpu_con_heavy;
+	unsigned int tpu_con_light;
+	unsigned int gpu_con_heavy;
+	unsigned int gpu_con_light;
+	unsigned int tpu_clkdivstep;
+	unsigned int gpu_clkdivstep;
 };
 
 extern int gs101_set_mpmm(struct gs101_bcl_dev *data, unsigned int value);
@@ -103,6 +109,8 @@ extern int gs101_set_ppm(struct gs101_bcl_dev *data, unsigned int value);
 extern unsigned int gs101_get_mpmm(struct gs101_bcl_dev *data);
 extern unsigned int gs101_get_ppm(struct gs101_bcl_dev *data);
 extern struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void);
+extern int gs101_init_gpu_ratio(struct gs101_bcl_dev *data);
+extern int gs101_init_tpu_ratio(struct gs101_bcl_dev *data);
 #else
 struct gs101_bcl_dev;
 
@@ -125,6 +133,14 @@ static inline int gs101_set_mpmm(struct gs101_bcl_dev *data, unsigned int value)
 static struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
 {
 	return NULL;
+}
+static int gs101_init_gpu_ratio(struct gs101_bcl_dev *data)
+{
+	return 0;
+}
+static int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
+{
+	return 0;
 }
 #endif /* IS_ENABLED(CONFIG_GOOGLE_BCL) */
 
