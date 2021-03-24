@@ -627,10 +627,10 @@ struct modem_shared {
 	spinlock_t active_list_lock;
 
 	/* Array of pointers to IO devices corresponding to ch[n] */
-	struct io_device *ch2iod[256];
+	struct io_device *ch2iod[IOD_CH_ID_MAX];
 
 	/* Array of active channels */
-	u8 ch[256];
+	u8 ch[IOD_CH_ID_MAX];
 
 	/* The number of active channels in the array @ch[] */
 	unsigned int num_channels;
