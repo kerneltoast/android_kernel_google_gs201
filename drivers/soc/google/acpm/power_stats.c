@@ -30,7 +30,7 @@ static char const *const mif_user_names[NUM_MIF_USERS] = { "AOC", "GSA" };
 static char const *const slc_user_names[NUM_SLC_USERS] = { "AOC" };
 
 static char const *const sys_powermode_names[NUM_SYS_POWERMODE] = {
-	"SICD", "SLEEP", "SLEEP_SLCMON", "STOP"
+	"SICD", "SLEEP", "SLEEP_SLCMON", "SLEEP_HSI1ON", "STOP"
 };
 
 static char const *const cluster_names[NUM_CLUSTERS] = { "CLUSTER0", "CLUSTER1",
