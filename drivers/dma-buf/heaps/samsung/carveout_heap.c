@@ -37,7 +37,7 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap, unsigned lo
 	unsigned int alignment = samsung_dma_heap->alignment;
 	unsigned long size;
 	phys_addr_t paddr;
-	int ret = -ENOMEM;
+	int protret = 0, ret = -ENOMEM;
 
 	if (dma_heap_flags_video_aligned(samsung_dma_heap->flags))
 		len = dma_heap_add_video_padding(len);
@@ -77,9 +77,10 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap, unsigned lo
 	return dmabuf;
 
 free_export:
-	samsung_dma_buffer_unprotect(buffer->priv, dma_heap_get_dev(heap));
+	protret = samsung_dma_buffer_unprotect(buffer->priv, dma_heap_get_dev(heap));
 free_prot:
-	gen_pool_free(carveout_heap->pool, paddr, size);
+	if (!protret)
+		gen_pool_free(carveout_heap->pool, paddr, size);
 free_gen:
 	samsung_dma_buffer_free(buffer);
 
