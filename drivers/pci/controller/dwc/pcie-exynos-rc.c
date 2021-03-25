@@ -55,10 +55,8 @@
 #include "pcie-exynos-rc.h"
 #include "pcie-exynos-dbg.h"
 
-#if IS_ENABLED(CONFIG_GS_S2MPU)
 #include <linux/dma-map-ops.h>
 #include <soc/google/s2mpu.h>
-#endif
 
 struct exynos_pcie g_pcie_rc[MAX_RC_NUM];
 int pcie_is_linkup;	/* checkpatch: do not initialise globals to 0 */
@@ -3893,6 +3891,8 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	int ch_num;
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	struct device_node *s2mpu_dn;
+	phys_addr_t addr;
+	int gb_indx;
 #endif
 
 	dev_info(&pdev->dev, "## PCIe RC PROBE start\n");
@@ -3958,6 +3958,28 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Failed to get S2MPU\n");
 			return -EPROBE_DEFER;
 		}
+
+		/* The following code is done to optimize S2MPU operation.
+		 * Changing s2mpu csr's at runtime, which would require a
+		 * spinlock and hence cause contention.
+		 * Performance cost of allocating new page tables at runtime.
+		 * TODO: Cleanup this implementation. b/186022538
+		 */
+
+		for (gb_indx = 0; gb_indx < 50; gb_indx++) {
+			if (gb_indx > 1 && gb_indx < 32) {
+				//Skip this region
+				continue;
+			}
+			addr = MEM1_START_ADDR + gb_indx * SZ_1G;
+			ret = s2mpu_close(exynos_pcie->s2mpu, addr, ALIGN_SIZE);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"Initial s2mpu_close failed addr = 0x%pad\n",
+					&addr);
+			}
+		}
+		dev_err(&pdev->dev, "successfully bound to S2MPU\n");
 	}
 #endif
 
