@@ -28,6 +28,7 @@
 #include "gs201-mmc.dtsi"
 #include "gs201-tpu.dtsi"
 #include "gs101-dma-heap.dtsi"
+#include "gs201-isp.dtsi"
 
 / {
 	compatible = "google,gs201";
