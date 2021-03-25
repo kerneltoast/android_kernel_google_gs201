@@ -217,13 +217,7 @@ static void system_heap_release(struct samsung_dma_buffer *buffer)
 
 static int system_heap_probe(struct platform_device *pdev)
 {
-	int ret;
-
-	ret = samsung_heap_add(&pdev->dev, NULL, system_heap_release, &system_heap_ops);
-	if (ret)
-		return ret;
-
-	return 0;
+	return samsung_heap_add(&pdev->dev, NULL, system_heap_release, &system_heap_ops);
 }
 
 static const struct of_device_id system_heap_of_match[] = {

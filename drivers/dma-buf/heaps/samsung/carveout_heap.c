@@ -138,10 +138,7 @@ static int carveout_heap_probe(struct platform_device *pdev)
 	if (ret == -ENODEV)
 		return 0;
 
-	if (ret)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 static const struct of_device_id carveout_heap_of_match[] = {
