@@ -9075,6 +9075,7 @@
   __SCK__tp_func_android_vh_dump_throttled_rt_tasks
   __SCK__tp_func_android_vh_em_cpu_energy
   __SCK__tp_func_android_vh_enable_thermal_genl_check
+  __SCK__tp_func_android_vh_ep_create_wakeup_source
   __SCK__tp_func_android_vh_exit_creds
   __SCK__tp_func_android_vh_exit_mm
   __SCK__tp_func_android_vh_freq_table_limits
@@ -9130,6 +9131,7 @@
   __SCK__tp_func_android_vh_syscall_prctl_finished
   __SCK__tp_func_android_vh_sysrq_crash
   __SCK__tp_func_android_vh_timer_calc_index
+  __SCK__tp_func_android_vh_timerfd_create
   __SCK__tp_func_android_vh_try_to_freeze_todo
   __SCK__tp_func_android_vh_try_to_freeze_todo_unfrozen
   __SCK__tp_func_android_vh_typec_tcpci_override_toggling
@@ -11076,6 +11078,7 @@
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_em_cpu_energy
   __traceiter_android_vh_enable_thermal_genl_check
+  __traceiter_android_vh_ep_create_wakeup_source
   __traceiter_android_vh_exit_creds
   __traceiter_android_vh_exit_mm
   __traceiter_android_vh_freq_table_limits
@@ -11131,6 +11134,7 @@
   __traceiter_android_vh_syscall_prctl_finished
   __traceiter_android_vh_sysrq_crash
   __traceiter_android_vh_timer_calc_index
+  __traceiter_android_vh_timerfd_create
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
   __traceiter_android_vh_typec_tcpci_override_toggling
@@ -11335,6 +11339,7 @@
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_em_cpu_energy
   __tracepoint_android_vh_enable_thermal_genl_check
+  __tracepoint_android_vh_ep_create_wakeup_source
   __tracepoint_android_vh_exit_creds
   __tracepoint_android_vh_exit_mm
   __tracepoint_android_vh_freq_table_limits
@@ -11390,6 +11395,7 @@
   __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_android_vh_sysrq_crash
   __tracepoint_android_vh_timer_calc_index
+  __tracepoint_android_vh_timerfd_create
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
   __tracepoint_android_vh_typec_tcpci_override_toggling
