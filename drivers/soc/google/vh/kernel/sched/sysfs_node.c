@@ -20,6 +20,7 @@ bool __read_mostly vendor_sched_enable_prefer_high_cap;
 bool __read_mostly vendor_sched_task_spreading_enable;
 unsigned int __read_mostly vendor_sched_uclamp_threshold;
 unsigned int __read_mostly vendor_sched_util_threshold = DEF_UTIL_THRESHOLD;
+unsigned int __read_mostly vendor_sched_high_capacity_start_cpu = HIGH_CAPACITY_CPU;
 static struct kobject *vendor_sched_kobj;
 
 extern void update_sched_capacity_margin(unsigned int util_threshold);
@@ -184,7 +185,7 @@ static ssize_t uclamp_threshold_store(struct kobject *kobj,
 	if (kstrtouint(buf, 0, &val))
 		return -EINVAL;
 
-	if (val > 1024)
+	if (val > SCHED_CAPACITY_SCALE)
 		return -EINVAL;
 
 	vendor_sched_uclamp_threshold = val;
@@ -352,6 +353,32 @@ static ssize_t reset_uclamp_stats_store(struct kobject *kobj, struct kobj_attrib
 
 static struct kobj_attribute reset_uclamp_stats_attribute = __ATTR_WO(reset_uclamp_stats);
 
+static ssize_t high_capacity_start_cpu_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_high_capacity_start_cpu);
+}
+
+static ssize_t high_capacity_start_cpu_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val))
+		return -EINVAL;
+
+	if (val < MID_CAPACITY_CPU || val >= CPU_NUM)
+		return -EINVAL;
+
+	vendor_sched_high_capacity_start_cpu = val;
+
+	return count;
+}
+
+static struct kobj_attribute high_capacity_start_cpu_attribute = __ATTR_RW(high_capacity_start_cpu);
+
 static struct attribute *attrs[] = {
 	&set_prefer_high_cap_attribute.attr,
 	&clear_prefer_high_cap_attribute.attr,
@@ -365,6 +392,7 @@ static struct attribute *attrs[] = {
 	&task_spreading_enable_attribute.attr,
 	&uclamp_threshold_attribute.attr,
 	&util_threshold_attribute.attr,
+	&high_capacity_start_cpu_attribute.attr,
 	NULL,
 };
 

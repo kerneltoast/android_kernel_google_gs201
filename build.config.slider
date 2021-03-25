@@ -53,6 +53,14 @@ KERNEL_VENDOR_CMDLINE="earlycon=exynos4210,0x10A00000 console=ttySAC0,115200 and
 KERNEL_VENDOR_CMDLINE+=" printk.devkmsg=on androidboot.boot_devices=14700000.ufs"
 KERNEL_VENDOR_CMDLINE+=" at24.write_timeout=100 buildvariant=userdebug"
 
+VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
+function modify_vendor_ramdisk() {
+  ln -sf init.recovery.gs101.rc init.recovery.slider.rc
+  ln -sf init.recovery.gs101.rc init.recovery.whitefin.rc
+  ln -sf init.recovery.gs101.rc init.recovery.oriole.rc
+  ln -sf init.recovery.gs101.rc init.recovery.raven.rc
+}
+
 AVB_SIGN_BOOT_IMG=1
 AVB_BOOT_PARTITION_SIZE=0x04000000
 AVB_BOOT_KEY=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/share/avb/testkey_rsa2048.pem
@@ -62,8 +70,7 @@ EXT_MODULES="
 private/google-modules/display/samsung
 private/google-modules/wlan/bcmdhd43752
 private/google-modules/wlan/bcmdhd4389
-private/google-modules/gpu/mali_pcm
-private/google-modules/gpu/mali_mgm
+private/google-modules/gpu/mali_pixel
 private/google-modules/gpu/mali_kbase
 private/google-modules/lwis
 private/google-modules/edgetpu/drivers/edgetpu

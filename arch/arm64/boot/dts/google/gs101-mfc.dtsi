@@ -108,20 +108,22 @@
 				0x1D 0xF4240 0x33003300 0x2 0x1>;
 
 		/* BW <peak, read, write> : KB/UHD frame */
-		bw_enc_h264 = <62543 75230 13080>;
-		bw_enc_hevc = <54863 65417 11422>;
-		bw_enc_hevc_10bit = <68011 79367 14688>;
-		bw_enc_vp8 = <63970 67281 22508>;
-		bw_enc_vp9 = <84443 71588 19337>;
-		bw_enc_vp9_10bit = <109442 99305 23747>;
-		bw_enc_mpeg4 = <44633 55310 9599>;
-		bw_dec_h264 = <38131 40206 24870>;
-		bw_dec_hevc = <35055 33741 20511>;
-		bw_dec_hevc_10bit = <38643 36428 25491>;
-		bw_dec_vp8 = <28693 30464 22331>;
-		bw_dec_vp9 = <21464 22160 19747>;
-		bw_dec_vp9_10bit = <31591 26771 24160>;
-		bw_dec_mpeg4 = <31567 25191 15961>;
+		bw_enc_h264		= <45456 56112 11170>;
+		bw_enc_hevc		= <46756 52766 9763>;
+		bw_enc_hevc_10bit	= <53865 64753 12556>;
+		bw_enc_vp8		= <64000 67318 22518>;
+		bw_enc_vp9		= <72326 59726 16530>;
+		bw_enc_vp9_10bit	= <149085 114928 31419>;
+		bw_enc_mpeg4		= <44647 55324 9531>;
+		bw_dec_h264		= <32605 34381 21263>;
+		bw_dec_hevc		= <29973 28851 17538>;
+		bw_dec_hevc_10bit	= <52859 46245 31351>;
+		bw_dec_vp8		= <28672 30468 22324>;
+		bw_dec_vp9		= <18351 18947 16877>;
+		bw_dec_vp9_10bit	= <42384 34452 31766>;
+		bw_dec_av1		= <23787 19570 15856>;
+		bw_dec_av1_10bit	= <41407 35490 29699>;
+		bw_dec_mpeg4		= <31540 25368 15770>;
 
 		/* BW <peak, read, write> : KB/UHD frame. For SBWC format */
 		/* It is valid when only support_sbwc = <1> */

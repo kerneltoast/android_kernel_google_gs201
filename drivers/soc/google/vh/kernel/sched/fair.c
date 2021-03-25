@@ -11,18 +11,13 @@
 #include "sched.h"
 #include "sched_events.h"
 
-#define MIN_CAPACITY_CPU    CONFIG_VH_MIN_CAPACITY_CPU
-#define MID_CAPACITY_CPU    CONFIG_VH_MID_CAPACITY_CPU
-#define MAX_CAPACITY_CPU    CONFIG_VH_MAX_CAPACITY_CPU
-#define HIGH_CAPACITY_CPU   CONFIG_VH_HIGH_CAPACITY_CPU
-#define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
-
 extern void update_uclamp_stats(int cpu, u64 time);
 
 extern bool vendor_sched_enable_prefer_high_cap;
 extern bool vendor_sched_task_spreading_enable;
 extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_util_threshold;
+extern unsigned int vendor_sched_high_capacity_start_cpu;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD};
@@ -297,7 +292,7 @@ static inline int find_start_cpu(struct task_struct *p, bool prefer_high_cap, bo
 	if (!prefer_high_cap && !sync_boost && task_fits_capacity(p, MIN_CAPACITY_CPU))
 		return MIN_CAPACITY_CPU;
 	else
-		return HIGH_CAPACITY_CPU;
+		return vendor_sched_high_capacity_start_cpu;
 }
 
 static inline bool is_min_capacity_cpu(int cpu)
@@ -459,6 +454,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	int i;
 	int start_cpu = -1;
 	unsigned int min_exit_lat = UINT_MAX;
+	unsigned long best_idle_util = ULONG_MAX;
 
 	/*
 	 * In most cases, target_capacity tracks capacity of the most
@@ -512,8 +508,9 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * There is no need to check the boosted util of the task since
 		 * it is checked in task_fits_capacity already. It only needs
 		 * to check total util here.
+		 * However, if task prefers idle and cpu is idle, we skip this check.
 		 */
-		if (new_util > capacity)
+		if (!(prefer_idle && cpu_is_idle(i)) && new_util > capacity)
 			goto check;
 
 		if (is_min_capacity_cpu(i) &&
@@ -578,19 +575,22 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 				/*
 				 * Minimise value of idle state: skip
 				 * deeper idle states and pick the
-				 * shallowest.
+				 * shallowest. If idle state is the same,
+				 * pick the least utilized cpu.
 				 */
 				if (sched_cpu_idle(i))
 					exit_lat = 0;
 				else if (idle)
 					exit_lat = idle->exit_latency;
 
-				if (exit_lat > min_exit_lat &&
-				    capacity_orig == target_capacity)
+				if (exit_lat > min_exit_lat ||
+				    (exit_lat == min_exit_lat &&
+				     best_idle_util <= new_util))
 					goto check;
 
 				min_exit_lat = exit_lat;
 				target_capacity = capacity_orig;
+				best_idle_util = new_util;
 				best_idle_cpu = i;
 				goto check;
 			}
@@ -660,19 +660,22 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 			 * Skip CPUs in deeper idle state, but only
 			 * if they are also less energy efficient.
 			 * IOW, prefer a deep IDLE LITTLE CPU vs a
-			 * shallow idle big CPU.
+			 * shallow idle big CPU. If idle state is the same,
+			 * pick the least utilized cpu.
 			 */
 			if (sched_cpu_idle(i))
 				exit_lat = 0;
 			else if (idle)
 				exit_lat = idle->exit_latency;
 
-			if (exit_lat > min_exit_lat &&
-				capacity_orig == target_capacity)
+			if (exit_lat > min_exit_lat ||
+			    (exit_lat == min_exit_lat &&
+			     best_idle_util <= new_util))
 				goto check;
 
 			min_exit_lat = exit_lat;
 			target_capacity = capacity_orig;
+			best_idle_util = new_util;
 			best_idle_cpu = i;
 			goto check;
 		}
@@ -892,7 +895,7 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 
 void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
-	if (rq->nr_running == 0)
+	if (rq->nr_running == 1)
 		update_uclamp_stats(rq->cpu, rq_clock(rq));
 }
 

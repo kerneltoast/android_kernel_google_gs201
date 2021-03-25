@@ -9,7 +9,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/ktime.h>
 #include <linux/io.h>
@@ -18,7 +17,9 @@
 #include <soc/google/exynos-bcm_dbg.h>
 #include <soc/google/exynos-bcm_dbg-dump.h>
 
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 static char file_name[128];
+#endif
 
 int exynos_bcm_dbg_print_accumulators(struct exynos_bcm_dbg_data *data,
 	bool klog, char *out_buff, size_t *out_buff_len, loff_t off,
@@ -123,8 +124,10 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 	ssize_t str_size;
 	u32 tmp_ktime[2];
 	u64 last_ktime;
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 	struct file *fp = NULL;
 	mm_segment_t old_fs = get_fs();
+#endif
 
 	if (!data->dump_addr.p_addr) {
 		BCM_ERR("%s: No memory region for dump\n", __func__);
@@ -135,10 +138,6 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 		BCM_INFO("%s: skip file dump in interrupt context\n", __func__);
 		return 0;
 	}
-
-	str_size = snprintf(file_name, sizeof(file_name),
-				"/data/result_bcm_%llu.csv",
-				cpu_clock(raw_smp_processor_id()));
 
 	result = kzalloc(sizeof(char) * BCM_DUMP_MAX_STR, GFP_KERNEL);
 	if (result == NULL) {
@@ -155,7 +154,12 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 	dump_info = (struct exynos_bcm_dump_info *)(v_addr +
 				EXYNOS_BCM_KTIME_SIZE);
 
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 	if (data->dump_file) {
+		str_size = snprintf(file_name, sizeof(file_name),
+				    "/data/result_bcm_%llu.csv",
+				    cpu_clock(raw_smp_processor_id()));
+
 		set_fs(KERNEL_DS);
 
 		fp = filp_open(file_name, O_WRONLY|O_CREAT|O_APPEND, 0);
@@ -171,12 +175,15 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 				    "last kernel time, %llu\n", last_ktime);
 		vfs_write(fp, result, str_size, &fp->f_pos);
 	}
+#endif
 
 	str_size = snprintf(result, PAGE_SIZE,
 	    "seq_no, ip_index, define_event, time, ccnt, pmcnt0, pmcnt1, pmcnt2, pmcnt3, pmcnt4, pmcnt5, pmcnt6, pmcnt7\n");
 
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 	if (data->dump_file)
 		vfs_write(fp, result, str_size, &fp->f_pos);
+#endif
 	if (data->dump_klog)
 		pr_info("%s", result);
 
@@ -197,8 +204,10 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 				out_data->pmcnt[4], out_data->pmcnt[5],
 				out_data->pmcnt[6], out_data->pmcnt[7]);
 
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 		if (data->dump_file)
 			vfs_write(fp, result, str_size, &fp->f_pos);
+#endif
 		if (data->dump_klog)
 			pr_info("%s", result);
 
@@ -207,10 +216,12 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 		buff_cnt += dump_entry_size;
 	}
 
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
 	if (data->dump_file) {
 		filp_close(fp, NULL);
 		set_fs(old_fs);
 	}
+#endif
 	kfree(result);
 
 	return 0;

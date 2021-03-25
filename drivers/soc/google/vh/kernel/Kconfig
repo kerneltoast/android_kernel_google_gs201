@@ -49,3 +49,8 @@ config VH_THERMAL
         tristate "Vendor hooks for kernel thermal"
         depends on VH_KERNEL
         default m
+
+config VH_FS
+	tristate "Vendor hooks for filesystem"
+	depends on VH_KERNEL
+	default m
