@@ -1145,7 +1145,7 @@
 					external_rail;
 					channel-en-index = <2>;
 					channel-mux-selection = <0x5D>;
-					shunt-res-uohms = <5000>;
+					shunt-res-uohms = <10000>;
 					schematic-name = "P5_GRAS";
 					subsys-name = "Spare";
 				};
@@ -1154,8 +1154,8 @@
 					external_rail;
 					channel-en-index = <4>;
 					channel-mux-selection = <0x5E>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "P6_GRAS";
+					shunt-res-uohms = <10000>;
+					schematic-name = "VSYS_PWR_MMWAVE";
 					subsys-name = "Cellular";
 				};
 			};
