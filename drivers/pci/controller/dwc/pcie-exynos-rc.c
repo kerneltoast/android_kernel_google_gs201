@@ -2254,7 +2254,11 @@ retry:
 
 	dev_dbg(dev, "%s: Set PERST to HIGH, gpio val = %d\n",
 		__func__, gpio_get_value(exynos_pcie->perst_gpio));
-	usleep_range(18000, 20000);
+	if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
+		usleep_range(20000, 22000);
+	} else {
+		usleep_range(18000, 20000);
+	}
 
 	val = exynos_elbi_read(exynos_pcie, PCIE_APP_REQ_EXIT_L1_MODE);
 	val |= APP_REQ_EXIT_L1_MODE;
