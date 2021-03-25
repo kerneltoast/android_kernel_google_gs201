@@ -384,8 +384,7 @@
 						iod,format = <IPC_RAW>;
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(IO_ATTR_MULTI_CH)>;
-						iod,ch_count = <8>;
+						iod,attrs = <(0x0)>;
 					};
 					io_device_7 {
 						iod,name = "multipdp";
