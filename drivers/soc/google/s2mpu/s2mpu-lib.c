@@ -550,6 +550,7 @@ static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum 
 	u32 gb_index = start >> gran_shift[S2_GRAN_1GB];
 	enum s2_gran eg;
 	u32 l1_entry;
+	unsigned long flags;
 
 	if (WARN_ON(gb_index >= 64))
 		return;
@@ -582,17 +583,20 @@ static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum 
 				return;
 
 			smpt = r->va;
-			b = smpt[byte_offset];
-			bit_offset = get_bit_offset(start, eg);
 
+			bit_offset = get_bit_offset(start, eg);
 			if (WARN_ON(bit_offset >= BITS_PER_BYTE || (bit_offset & 1) != 0))
 				return;
 
+			spin_lock_irqsave(&info->lock, flags);
+			b = smpt[byte_offset];
 			if (open)
 				b = b | (3 << bit_offset);
 			else
 				b = b & ~(3 << bit_offset);
 			smpt[byte_offset] = b;
+
+			spin_unlock_irqrestore(&info->lock, flags);
 
 			/* invalidate MPTC */
 			range_invalidate_mptc_vid_specific(info->base, info->vid, start, eg);
@@ -600,7 +604,7 @@ static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum 
 	} else {
 		/* This is the more complicated case where existing granularity
 		 * is different from requested granularity. There are two
-		 * possibilties here:
+		 * possibilities here:
 		 * 1. existing_granularity < window_granularity
 		 * 2. existing_granularity > window_granularity
 		 *
@@ -693,9 +697,6 @@ int s2mpu_lib_open_close(struct s2mpu_info *info, phys_addr_t start, size_t len,
 	enum s2_gran ag, lg, winnerg;
 	size_t gcount;
 	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&info->lock, flags);
 
 	ret = validate(info->dev, start, len);
 	if (ret)
@@ -721,8 +722,6 @@ int s2mpu_lib_open_close(struct s2mpu_info *info, phys_addr_t start, size_t len,
 
 	open_close_granules(info, start, winnerg, gcount, open);
 out:
-	spin_unlock_irqrestore(&info->lock, flags);
-
 	return ret;
 }
 
