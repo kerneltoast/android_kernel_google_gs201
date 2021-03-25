@@ -2728,7 +2728,7 @@
 	 */
 	gtnr_merge_int0: gtnr_merge-event-info@0 {
 		irq-reg-space = "tnr";
-		irq-src-reg = <0x0 0x800>;
+		irq-src-reg = <0x0 0x808>;
 		irq-reset-reg = <0x0 0x80c>;
 		irq-mask-reg = <0x0 0x804>;
 
@@ -2798,7 +2798,7 @@
 
 	gtnr_merge_int1: gtnr_merge-event-info@1 {
 		irq-reg-space = "tnr";
-		irq-src-reg = <0x0 0x810>;
+		irq-src-reg = <0x0 0x818>;
 		irq-reset-reg = <0x0 0x81c>;
 		irq-mask-reg = <0x0 0x814>;
 
@@ -2809,6 +2809,22 @@
 			<GTNR_MERGE_INT1_VOTF_LOST_FLUSH>,
 			<GTNR_MERGE_INT1_COMP_ERROR>;
 	};
+	gtnr_merge_cmdq_int: gtnr_merge-event-info@2 {
+		irq-reg-space = "tnr";
+		irq-src-reg = <0x0 0x4f8>;
+		irq-reset-reg = <0x0 0x4fc>;
+		irq-mask-reg = <0x0 0x4f4>;
+
+		irq-events =
+			<LWIS_PLATFORM_EVENT_ID_GTNR_MERGE_STOP_CRPT_OFF_CMDQ_EN>,
+			<LWIS_PLATFORM_EVENT_ID_GTNR_MERGE_PRELOAD_FLUSH>,
+			<LWIS_PLATFORM_EVENT_ID_GTNR_MERGE_QUE0_OVERFLOW>;
+		int-reg-bits =
+			<GTNR_MERGE_CMDQ_INT_STOP_CRPT_OFF_CMDQ_EN>,
+			<GTNR_MERGE_CMDQ_INT_PRELOAD_FLUSH>,
+			<GTNR_MERGE_CMDQ_INT_QUE0_OVERFLOW>;
+};
+
 
 	/*
 	 * IPP Interrupt Event Definitions

@@ -601,13 +601,16 @@
 
 		interrupts =
 			<0 IRQ_TNR_0_TNR IRQ_TYPE_LEVEL_HIGH>,
-			<0 IRQ_TNR_1_TNR IRQ_TYPE_LEVEL_HIGH>;
+			<0 IRQ_TNR_1_TNR IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_TNR_0_TNR IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names =
 			"gtnr-merge-int0",
-			"gtnr-merge-int1";
+			"gtnr-merge-int1",
+			"gtnr-merge-cmdq-int";
 		interrupt-event-infos =
 			<&gtnr_merge_int0>,
-			<&gtnr_merge_int1>;
+			<&gtnr_merge_int1>,
+			<&gtnr_merge_cmdq_int>;
 
 		iommus =
 			<&sysmmu_tnr0>,
