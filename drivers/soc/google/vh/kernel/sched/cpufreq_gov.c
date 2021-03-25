@@ -291,8 +291,6 @@ static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
 	}
 }
 
-unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
-				      unsigned long cap);
 /**
  * get_next_freq - Compute a new frequency for a given cpufreq policy.
 
