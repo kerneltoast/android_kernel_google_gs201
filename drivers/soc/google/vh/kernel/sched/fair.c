@@ -172,6 +172,95 @@ static inline bool within_margin(int value, int margin)
 	return ((unsigned int)(value + margin - 1) < (2 * margin - 1));
 }
 
+static inline void update_load_add(struct load_weight *lw, unsigned long inc)
+{
+	lw->weight += inc;
+	lw->inv_weight = 0;
+}
+
+#define WMULT_CONST	(~0U)
+#define WMULT_SHIFT	32
+
+static void __update_inv_weight(struct load_weight *lw)
+{
+	unsigned long w;
+
+	if (likely(lw->inv_weight))
+		return;
+
+	w = scale_load_down(lw->weight);
+
+	if (BITS_PER_LONG > 32 && unlikely(w >= WMULT_CONST))
+		lw->inv_weight = 1;
+	else if (unlikely(!w))
+		lw->inv_weight = WMULT_CONST;
+	else
+		lw->inv_weight = WMULT_CONST / w;
+}
+
+static u64 __calc_delta(u64 delta_exec, unsigned long weight, struct load_weight *lw)
+{
+	u64 fact = scale_load_down(weight);
+	int shift = WMULT_SHIFT;
+
+	__update_inv_weight(lw);
+
+	if (unlikely(fact >> 32)) {
+		while (fact >> 32) {
+			fact >>= 1;
+			shift--;
+		}
+	}
+
+	fact = mul_u32_u32(fact, lw->inv_weight);
+
+	while (fact >> 32) {
+		fact >>= 1;
+		shift--;
+	}
+
+	return mul_u64_u32_shr(delta_exec, fact, shift);
+}
+
+static u64 __sched_period(unsigned long nr_running);
+
+#define for_each_sched_entity(se) \
+		for (; se; se = se->parent)
+
+static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	u64 slice = __sched_period(cfs_rq->nr_running + !se->on_rq);
+
+	for_each_sched_entity(se) {
+		struct load_weight *load;
+		struct load_weight lw;
+
+		cfs_rq = cfs_rq_of(se);
+		load = &cfs_rq->load;
+
+		if (unlikely(!se->on_rq)) {
+			lw = cfs_rq->load;
+
+			update_load_add(&lw, se->load.weight);
+			load = &lw;
+		}
+		slice = __calc_delta(slice, se->load.weight, load);
+	}
+	return slice;
+}
+
+static void set_next_buddy(struct sched_entity *se)
+{
+	if (entity_is_task(se) && unlikely(task_has_idle_policy(task_of(se))))
+		return;
+
+	for_each_sched_entity(se) {
+		if (SCHED_WARN_ON(!se->on_rq))
+			return;
+		cfs_rq_of(se)->next = se;
+	}
+}
+
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
@@ -909,6 +998,33 @@ static DEFINE_PER_CPU(cpumask_t, energy_cpus);
  * This part of code is vendor hook functions, which modify or extend the original
  * functions.
  */
+
+/*
+ * To avoid export more and more sysctl from GKI kernel,
+ * use following setting directly dumped from running Android
+ * and also assume the setting is not changed in runtime.
+ *
+ * sysctl_sched
+ * .sysctl_sched_latency                    : 10.000000
+ * .sysctl_sched_min_granularity            : 3.000000
+ * .sysctl_sched_wakeup_granularity         : 2.000000
+ * .sysctl_sched_child_runs_first           : 0
+ * .sysctl_sched_features                   : 33477435
+ * .sysctl_sched_tunable_scaling            : 0 (none)
+ */
+#define sysctl_sched_min_granularity 3000000ULL
+
+static u64 __sched_period(unsigned long nr_running)
+{
+	unsigned int sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
+					sysctl_sched_min_granularity);
+
+	if (unlikely(nr_running > sched_nr_latency))
+		return nr_running * sysctl_sched_min_granularity;
+	else
+		return sysctl_sched_latency;
+}
+
 void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 					     int sync, int *new_cpu)
 {
@@ -1139,6 +1255,30 @@ void initialize_vendor_group_property(void)
 		vg[i].uc_req[UCLAMP_MAX].bucket_id = get_bucket_id(max_val);
 		vg[i].uc_req[UCLAMP_MAX].user_defined = false;
 	}
+}
+
+void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
+			bool *preempt, bool *nopreempt, int wake_flags, struct sched_entity *se,
+			struct sched_entity *pse, int next_buddy_marked, unsigned int granularity)
+{
+	unsigned long ideal_runtime, delta_exec;
+
+	if (entity_is_task(pse) || entity_is_task(se))
+		return;
+
+	ideal_runtime = sched_slice(cfs_rq_of(se), se);
+	delta_exec = se->sum_exec_runtime - se->prev_sum_exec_runtime;
+	/*
+	 * If the current group has run enough time for its slice and the new
+	 * group has bigger weight, go ahead and preempt.
+	 */
+	if (ideal_runtime <= delta_exec && se->load.weight < pse->load.weight) {
+		if (!next_buddy_marked)
+			set_next_buddy(pse);
+
+		*preempt = true;
+	}
+
 }
 
 void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct task_struct *p,
