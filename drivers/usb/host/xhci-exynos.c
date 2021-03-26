@@ -191,44 +191,6 @@ static void xhci_exynos_pm_runtime_init(struct device *dev)
 	init_waitqueue_head(&dev->power.wait_queue);
 }
 
-static struct xhci_plat_priv_overwrite xhci_plat_vendor_overwrite;
-
-int xhci_exynos_register_vendor_ops(struct xhci_vendor_ops *vendor_ops)
-{
-	if (vendor_ops == NULL)
-		return -EINVAL;
-
-	xhci_plat_vendor_overwrite.vendor_ops = vendor_ops;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(xhci_exynos_register_vendor_ops);
-
-static int xhci_vendor_init(struct xhci_hcd *xhci)
-{
-	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
-	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
-
-	if (xhci_plat_vendor_overwrite.vendor_ops)
-		ops = priv->vendor_ops = xhci_plat_vendor_overwrite.vendor_ops;
-
-	if (ops && ops->vendor_init)
-		return ops->vendor_init(xhci);
-
-	return 0;
-}
-
-static void xhci_vendor_cleanup(struct xhci_hcd *xhci)
-{
-	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
-	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
-
-	if (ops && ops->vendor_cleanup)
-		ops->vendor_cleanup(xhci);
-
-	priv->vendor_ops = NULL;
-}
-
 static int xhci_exynos_probe(struct platform_device *pdev)
 {
 	const struct xhci_plat_priv *priv_match;
@@ -381,10 +343,6 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 			goto put_usb3_hcd;
 	}
 
-	ret = xhci_vendor_init(xhci);
-	if (ret)
-		goto disable_usb_phy;
-
 	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_node);
 	xhci->shared_hcd->tpl_support = hcd->tpl_support;
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
@@ -459,8 +417,6 @@ remove_hcd:
 	xhci->shared_hcd = NULL;
 	usb_phy_shutdown(hcd->usb_phy);
 	usb_remove_hcd(hcd);
-
-	xhci_vendor_cleanup(xhci);
 
 	devm_iounmap(&dev->dev, hcd->regs);
 	usb_put_hcd(shared_hcd);
