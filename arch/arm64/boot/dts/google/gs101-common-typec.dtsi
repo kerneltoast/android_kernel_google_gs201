@@ -30,6 +30,7 @@
 		 * uic-io = <0x1>;
 		 */
 		ls = <&slg_pld>;
+		conn = <&usb_con>;
 
 		usb_con: connector {
 			compatible = "usb-c-connector";
@@ -39,6 +40,7 @@
 			try-power-role = "sink";
 			self-powered;
 			op-sink-microwatt = <2600000>;
+			usb-role-switch;
 			source-pdos = <PDO_FIXED(5000, 900,
 						 PDO_FIXED_SUSPEND |
 						 PDO_FIXED_USB_COMM |
@@ -49,6 +51,25 @@
 					       PDO_FIXED_DATA_SWAP |
 					       PDO_FIXED_DUAL_ROLE)
 				     PDO_FIXED(9000, 2000, 0)>;
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				in_role: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&out_role>;
+				};
+			};
+		};
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			out_role: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&in_role>;
+			};
+
 		};
 	};
 
