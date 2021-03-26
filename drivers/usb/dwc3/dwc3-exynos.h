@@ -122,8 +122,6 @@ extern int dwc3_exynos_set_bus_clock(struct device *dev, int clk_level);
 void dwc3_otg_run_sm(struct otg_fsm *fsm);
 
 int dwc3_exynos_core_init(struct dwc3 *dwc, struct dwc3_exynos *exynos);
-int dwc3_exynos_host_init(struct dwc3_exynos *exynos);
-void dwc3_exynos_host_exit(struct dwc3_exynos *exynos);
 void dwc3_exynos_gadget_disconnect_proc(struct dwc3 *dwc);
 int dwc3_core_susphy_set(struct dwc3 *dwc, int on);
 #endif /* __LINUX_USB_DWC3_EXYNOS_H */
