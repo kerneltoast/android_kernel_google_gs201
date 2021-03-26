@@ -88,8 +88,9 @@
 		chg-psy-name = "gcpm";
 		in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
 		max20339,ovp = <&max20339_ovp>;
+		conn = <&conn>;
 
-		connector {
+		conn: connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
 			data-role = "dual";
@@ -98,6 +99,7 @@
 			self-powered;
 			op-sink-microwatt = <2600000>;
 			frs-typec-current = <FRS_5V_1P5A>;
+			usb-role-switch;
 			/*
 			 * b/174044466: Extboost can only do ~1A.
 			 * However, max77759 operating in reverse boost
@@ -117,6 +119,25 @@
 					       PDO_FIXED_DUAL_ROLE)
 				     PDO_FIXED(9000, 2200, 0)
 				     PDO_PPS_APDO(5000, 11000, 3000)>;
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				in_role_sw: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&out_role_sw>;
+				};
+			};
+		};
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			out_role_sw: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&in_role_sw>;
+			};
+
 		};
 
 		/* EXT_BST_EN exposed as GPIO */
