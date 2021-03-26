@@ -17,6 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/usb/hcd.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/pm_wakeup.h>
+#include <linux/phy/phy.h>
 #include <linux/android_kabi.h>
 
 /* Code sharing between pci-quirks and xhci hcd */
@@ -1826,6 +1828,9 @@ struct xhci_hcd {
 	struct dma_pool	*small_streams_pool;
 	struct dma_pool	*medium_streams_pool;
 
+	struct wakeup_source *main_wakelock; /* Wakelock for HS HCD */
+	struct wakeup_source *shared_wakelock; /* Wakelock for SS HCD */
+
 	/* Host controller watchdog timer structures */
 	unsigned int		xhc_state;
 
@@ -1928,6 +1933,8 @@ struct xhci_hcd {
 	struct list_head	regset_list;
 
 	void			*dbc;
+	struct phy		*phy_usb2;
+	struct phy		*phy_usb3;
 
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
@@ -2179,6 +2186,7 @@ int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1);
 struct xhci_hub *xhci_get_rhub(struct usb_hcd *hcd);
 
 void xhci_hc_died(struct xhci_hcd *xhci);
+int xhci_wake_lock(struct usb_hcd *hcd, int is_lock);
 
 #ifdef CONFIG_PM
 int xhci_bus_suspend(struct usb_hcd *hcd);
@@ -2189,6 +2197,10 @@ unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd);
 #define	xhci_bus_resume		NULL
 #define	xhci_get_resuming_ports	NULL
 #endif	/* CONFIG_PM */
+
+int exynos_usbdrd_phy_vendor_set(struct phy *phy, int is_enable,
+				 int is_cancel);
+int exynos_usbdrd_phy_tune(struct phy *phy, int phy_state);
 
 u32 xhci_port_state_to_neutral(u32 state);
 int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,

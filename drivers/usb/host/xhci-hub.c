@@ -1213,7 +1213,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			/* In spec software should not attempt to suspend
 			 * a port unless the port reports that it is in the
-			 * enabled (PED = ‘1’,PLS < ‘3’) state.
+			 * enabled (PED = '1',PLS < '3') state.
 			 */
 			temp = readl(ports[wIndex]->addr);
 			if ((temp & PORT_PE) == 0 || (temp & PORT_RESET)
@@ -1604,6 +1604,9 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	struct xhci_port **ports;
 	u32 portsc_buf[USB_MAXCHILDREN];
 	bool wake_enabled;
+#ifdef CONFIG_USB_DWC3_EXYNOS
+	int is_port_connect = 0;
+#endif
 
 	rhub = xhci_get_rhub(hcd);
 	ports = rhub->ports;
@@ -1677,6 +1680,9 @@ retry:
 			if (t1 & PORT_CONNECT) {
 				t2 |= PORT_WKOC_E | PORT_WKDISC_E;
 				t2 &= ~PORT_WKCONN_E;
+#ifdef CONFIG_USB_DWC3_EXYNOS
+				is_port_connect = 1;
+#endif
 			} else {
 				t2 |= PORT_WKOC_E | PORT_WKCONN_E;
 				t2 &= ~PORT_WKDISC_E;
@@ -1714,6 +1720,13 @@ retry:
 		}
 		writel(portsc_buf[port_index], ports[port_index]->addr);
 	}
+
+#ifdef CONFIG_USB_DWC3_EXYNOS
+	xhci_info(xhci, "%s 'HC_STATE_SUSPENDED' portcon: %d main_hcd: %d\n",
+		  __func__, is_port_connect, (hcd == xhci->main_hcd));
+
+	xhci_wake_lock(hcd, 0);
+#endif
 	hcd->state = HC_STATE_SUSPENDED;
 	bus_state->next_statechange = jiffies + msecs_to_jiffies(10);
 	spin_unlock_irqrestore(&xhci->lock, flags);
@@ -1865,6 +1878,14 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	temp = readl(&xhci->op_regs->command);
 
 	spin_unlock_irqrestore(&xhci->lock, flags);
+
+#ifdef CONFIG_USB_DWC3_EXYNOS
+	hcd->state = HC_STATE_RESUMING;
+	xhci_info(xhci, "%s is done, hcd state is 'HC_STATE_RESUMING'\n", __func__);
+
+	xhci_wake_lock(hcd, 1);
+#endif
+
 	return 0;
 }
 

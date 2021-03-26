@@ -5312,6 +5312,48 @@ static void xhci_clear_tt_buffer_complete(struct usb_hcd *hcd,
 	spin_unlock_irqrestore(&xhci->lock, flags);
 }
 
+int xhci_wake_lock(struct usb_hcd *hcd, int is_lock)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+#ifdef CONFIG_USB_DWC3_EXYNOS_NOT_DEFINED
+	int idle_ip_index;
+#endif
+
+	if (is_lock) {
+		if (hcd == xhci->main_hcd) {
+			xhci_info(xhci, "%s: Main HCD WAKE LOCK\n", __func__);
+			__pm_stay_awake(xhci->main_wakelock);
+		} else {
+			xhci_info(xhci, "%s: Shared HCD WAKE LOCK\n", __func__);
+			__pm_stay_awake(xhci->shared_wakelock);
+		}
+		/* Add a routine for disable IDLEIP (IP idle) */
+#ifdef CONFIG_USB_DWC3_EXYNOS_NOT_DEFINED
+		xhci_info(xhci, "IDLEIP(SICD) disable.\n");
+		idle_ip_index = get_idle_ip_index();
+		exynos_update_ip_idle_status(idle_ip_index, 0);
+#endif
+	} else {
+		if (hcd == xhci->main_hcd) {
+			xhci_info(xhci, "%s: Main HCD WAKE UNLOCK\n", __func__);
+			__pm_relax(xhci->main_wakelock);
+		} else {
+			xhci_info(xhci, "%s: Shared HCD WAKE UNLOCK\n", __func__);
+			__pm_relax(xhci->shared_wakelock);
+		}
+#ifdef CONFIG_USB_DWC3_EXYNOS_NOT_DEFINED
+		xhci_info(xhci, "Try to IDLEIP Enable!!!\n");
+
+		/* Add a routine for enable IDLEIP (IP idle) */
+		xhci_info(xhci, "IDLEIP(SICD) Enable.\n");
+		idle_ip_index = get_idle_ip_index();
+		exynos_update_ip_idle_status(idle_ip_index, 1);
+#endif
+	}
+
+	return 0;
+}
+
 static const struct hc_driver xhci_hc_driver = {
 	.description =		"xhci-hcd",
 	.product_desc =		"xHCI Host Controller",
