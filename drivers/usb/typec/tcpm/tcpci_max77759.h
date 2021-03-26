@@ -12,6 +12,7 @@
 #include <linux/usb/tcpm.h>
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
+#include <linux/usb/role.h>
 
 #include "usb_psy.h"
 
@@ -96,6 +97,9 @@ struct max77759_plat {
 	int typec_current_max;
 	struct kthread_worker *wq;
 	struct kthread_delayed_work icl_work;
+
+	/* Notifier for data role */
+	struct usb_role_switch *usb_sw;
 
 	/* EXT_BST_EN exposed as GPIO */
 #ifdef CONFIG_GPIOLIB

@@ -1021,6 +1021,7 @@ static int max77759_vote_icl(struct max77759_plat *chip, u32 max_ua)
 	int ret = 0;
 	struct usb_vote vote;
 
+	usb_psy_set_sink_state(chip->usb_psy_data, chip->online);
 	/*
 	 * TCPM sets max_ua to zero for Rp-default which needs to be
 	 * ignored. PPS values reflect the requested ones not the max.
@@ -1150,14 +1151,15 @@ static void max77759_get_vbus(void *unused, struct tcpci *tcpci, struct tcpci_da
 	*bypass = 1;
 }
 
-/* Notifier structure inferred from usbpd-manager.c */
-static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
-			      bool attached, enum typec_role role,
-			      enum typec_data_role data_role)
+static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 {
-	struct max77759_plat *chip = tdata_to_max77759(data);
+	struct max77759_plat *chip = usb_role_switch_get_drvdata(sw);
+	enum typec_data_role typec_data_role = TYPEC_DEVICE;
+	bool attached = role != USB_ROLE_NONE, enable_data;
 	int ret;
-	bool enable_data;
+
+	if (role == USB_ROLE_HOST)
+		typec_data_role = TYPEC_HOST;
 
 	mutex_lock(&chip->data_path_lock);
 
@@ -1165,7 +1167,7 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		chip->data_role == TYPEC_HOST || chip->debug_acc_connected;
 
 	if (!chip->force_device_mode_on && chip->data_active &&
-	    (chip->active_data_role != data_role || !attached || !enable_data)) {
+	    (chip->active_data_role != typec_data_role || !attached || !enable_data)) {
 		ret = extcon_set_state_sync(chip->extcon,
 					    chip->active_data_role ==
 					    TYPEC_HOST ? EXTCON_USB_HOST :
@@ -1178,7 +1180,7 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 		chip->data_active = false;
 
 		if  (chip->active_data_role == TYPEC_HOST) {
-			ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_USBSW_CTRL,
+			ret = max77759_write8(chip->data.regmap, TCPC_VENDOR_USBSW_CTRL,
 					      USBSW_DISCONNECT);
 			logbuffer_log(chip->log, "Turning off dp switches %s", ret < 0 ? "fail" :
 				      "success");
@@ -1191,15 +1193,9 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 	 */
 
 	chip->attached = attached;
-	chip->data_role = data_role;
+	chip->data_role = typec_data_role;
 	enable_data_path_locked(chip);
 	mutex_unlock(&chip->data_path_lock);
-
-	if (!chip->attached)
-		max77759_vote_icl(chip, 0);
-
-	/* Signal usb_psy online */
-	usb_psy_set_sink_state(chip->usb_psy_data, role == TYPEC_SINK && attached);
 
 	return 0;
 }
@@ -1448,6 +1444,52 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 	return ret;
 }
 
+static int max77759_setup_data_notifier(struct max77759_plat *chip)
+{
+	struct usb_role_switch_desc desc = { };
+	u32 conn_handle;
+	int ret;
+
+	chip->extcon = devm_extcon_dev_allocate(chip->dev, usbpd_extcon_cable);
+	if (IS_ERR(chip->extcon)) {
+		dev_err(chip->dev, "Error allocating extcon: %d\n",
+			PTR_ERR(chip->extcon));
+		return PTR_ERR(chip->extcon);
+	}
+
+	ret = devm_extcon_dev_register(chip->dev, chip->extcon);
+	if (ret < 0) {
+		dev_err(chip->dev, "failed to register extcon device:%d\n", ret);
+		return ret;
+	}
+
+	extcon_set_property_capability(chip->extcon, EXTCON_USB,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+	extcon_set_property_capability(chip->extcon, EXTCON_USB_HOST,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+
+	of_property_read_u32(dev_of_node(chip->dev), "conn", &conn_handle);
+	desc.fwnode = &of_find_node_by_phandle(conn_handle)->fwnode;
+	desc.driver_data = chip;
+	desc.name = fwnode_get_name(dev_fwnode(chip->dev));
+	desc.set = max77759_usb_set_role;
+
+	chip->usb_sw = usb_role_switch_register(chip->dev, &desc);
+	if (IS_ERR(chip->usb_sw)) {
+		ret = PTR_ERR(chip->usb_sw);
+		dev_err(chip->dev, "Error while registering role switch:%d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static void max77759_teardown_data_notifier(struct max77759_plat *chip)
+{
+	if (!IS_ERR_OR_NULL(chip->usb_sw))
+		usb_role_switch_unregister(chip->usb_sw);
+}
+
 static int max77759_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
@@ -1536,7 +1578,6 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.TX_BUF_BYTE_x_hidden = 1;
 	chip->data.vbus_vsafe0v = true;
 	chip->data.set_partner_usb_comm_capable = max77759_set_partner_usb_comm_capable;
-	chip->data.set_roles = max77759_set_roles;
 	chip->data.init = tcpci_init;
 	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
@@ -1588,7 +1629,7 @@ static int max77759_probe(struct i2c_client *client,
 
 	ret = max77759_read16(chip->data.regmap, TCPC_BCD_DEV, &device_id);
 	if (ret < 0)
-		goto teardown_bc12;
+		goto psy_put;
 
 	logbuffer_log(chip->log, "TCPC DEVICE id:%d", device_id);
 	/* Default enable on A1 or higher */
@@ -1596,26 +1637,9 @@ static int max77759_probe(struct i2c_client *client,
 	chip->contaminant_detection_userspace = chip->contaminant_detection;
 	chip->contaminant = max77759_contaminant_init(chip, chip->contaminant_detection);
 
-	chip->extcon = devm_extcon_dev_allocate(&client->dev,
-						usbpd_extcon_cable);
-	if (IS_ERR(chip->extcon)) {
-		dev_err(&client->dev, "Error allocating extcon: %d\n",
-			PTR_ERR(chip->extcon));
-		ret = PTR_ERR(chip->extcon);
+	ret = max77759_setup_data_notifier(chip);
+	if (ret < 0)
 		goto psy_put;
-	}
-
-	ret = devm_extcon_dev_register(&client->dev, chip->extcon);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to register extcon device");
-		goto psy_put;
-	}
-
-	extcon_set_property_capability(chip->extcon, EXTCON_USB,
-				       EXTCON_PROP_USB_TYPEC_POLARITY);
-	extcon_set_property_capability(chip->extcon, EXTCON_USB_HOST,
-				       EXTCON_PROP_USB_TYPEC_POLARITY);
-
 	max77759_init_regs(chip->data.regmap, chip->log);
 
 	/* Default enable on A1 or higher */
@@ -1627,7 +1651,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->wq = kthread_create_worker(0, "wq-tcpm-tcpc");
 	if (IS_ERR_OR_NULL(chip->wq)) {
 		ret = PTR_ERR(chip->wq);
-		goto psy_put;
+		goto teardown_data;
 	}
 
 	kthread_init_delayed_work(&chip->icl_work, icl_work_item);
@@ -1697,6 +1721,8 @@ unreg_notifier:
 	power_supply_unreg_notifier(&chip->psy_notifier);
 destroy_worker:
 	kthread_destroy_worker(chip->wq);
+teardown_data:
+	max77759_teardown_data_notifier(chip);
 psy_put:
 	power_supply_put(chip->usb_psy);
 teardown_bc12:
@@ -1729,11 +1755,10 @@ static int max77759_remove(struct i2c_client *client)
 		bc12_teardown(chip->bc12);
 	if (!IS_ERR_OR_NULL(chip->log))
 		logbuffer_unregister(chip->log);
-	if (!IS_ERR_OR_NULL(chip->extcon))
-		devm_extcon_dev_free(chip->dev, chip->extcon);
 	if (!IS_ERR_OR_NULL(chip->wq))
 		kthread_destroy_worker(chip->wq);
 	power_supply_unreg_notifier(&chip->psy_notifier);
+	max77759_teardown_data_notifier(chip);
 
 	return 0;
 }
