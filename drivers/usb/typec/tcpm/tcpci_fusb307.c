@@ -17,6 +17,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/usb/role.h>
 #include <linux/usb/tcpm.h>
 #include <misc/gvotable.h>
 #include <misc/logbuffer.h>
@@ -82,6 +83,9 @@ struct fusb307b_plat {
 	int typec_current_max;
 	struct kthread_worker *wq;
 	struct kthread_delayed_work icl_work;
+
+	/* Notifier for data role */
+	struct usb_role_switch *usb_sw;
 
 	struct i2c_client *uic_i2c_client;
 	struct device_node *uic_device_node;
@@ -440,6 +444,7 @@ static int fusb307b_vote_icl(struct fusb307b_plat *chip, u32 max_ua)
 	int ret = 0;
 	struct usb_vote vote;
 
+	usb_psy_set_sink_state(chip->usb_psy_data, chip->online);
 	/*
 	 * TCPM sets max_ua to zero for Rp-default which needs to be
 	 * ignored. PPS values reflect the requested ones not the max.
@@ -507,21 +512,22 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 	return NOTIFY_OK;
 }
 
-/* Notifier structure inferred from usbpd-manager.c */
-static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
-			     bool attached, enum typec_role role,
-			     enum typec_data_role data_role)
+static int fusb307b_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 {
-	struct fusb307b_plat *chip = tdata_to_fusb307(data);
+	struct fusb307b_plat *chip = usb_role_switch_get_drvdata(sw);
+	enum typec_data_role typec_data_role = TYPEC_DEVICE;
+	bool attached = role != USB_ROLE_NONE, enable_data;
 	int ret;
-	bool enable_data;
+
+	if (role == USB_ROLE_HOST)
+		typec_data_role = TYPEC_HOST;
 
 	mutex_lock(&chip->data_path_lock);
 
 	enable_data = chip->pd_data_capable || chip->no_bc_12 ||
 		chip->bc12_data_capable || chip->data_role == TYPEC_HOST;
 
-	if (chip->data_active && ((chip->active_data_role != data_role) ||
+	if (chip->data_active && (chip->active_data_role != typec_data_role ||
 				  !attached || !enable_data)) {
 		ret = extcon_set_state_sync(chip->extcon,
 					    chip->active_data_role ==
@@ -540,14 +546,10 @@ static int fusb307_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 	}
 
 	chip->attached = attached;
-	chip->data_role = data_role;
+	chip->data_role = typec_data_role;
 	enable_data_path_locked(chip);
 	mutex_unlock(&chip->data_path_lock);
-	if (!chip->attached)
-		fusb307b_vote_icl(chip, 0);
 
-	/* Signal usb_psy online */
-	usb_psy_set_sink_state(chip->usb_psy_data, role == TYPEC_SINK && attached);
 	return 0;
 }
 
@@ -579,6 +581,51 @@ static const unsigned int usbpd_extcon_cable[] = {
 	EXTCON_DISP_DP,
 	EXTCON_NONE,
 };
+
+static int fusb307b_setup_data_notifier(struct fusb307b_plat *chip)
+{
+	struct usb_role_switch_desc desc = { };
+	u32 conn_handle;
+	int ret;
+
+	chip->extcon = devm_extcon_dev_allocate(chip->dev, usbpd_extcon_cable);
+	if (IS_ERR(chip->extcon)) {
+		dev_err(chip->dev, "Error allocating extcon: %d\n",
+			PTR_ERR(chip->extcon));
+		return PTR_ERR(chip->extcon);
+	}
+
+	ret = devm_extcon_dev_register(chip->dev, chip->extcon);
+	if (ret < 0) {
+		dev_err(chip->dev, "failed to register extcon device:%d\n", ret);
+		return ret;
+	}
+
+	extcon_set_property_capability(chip->extcon, EXTCON_USB,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+	extcon_set_property_capability(chip->extcon, EXTCON_USB_HOST,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+
+	of_property_read_u32(dev_of_node(chip->dev), "conn", &conn_handle);
+	desc.fwnode = &of_find_node_by_phandle(conn_handle)->fwnode;
+	desc.driver_data = chip;
+	desc.name = fwnode_get_name(dev_fwnode(chip->dev));
+	desc.set = fusb307b_usb_set_role;
+
+	chip->usb_sw = usb_role_switch_register(chip->dev, &desc);
+	if (IS_ERR(chip->usb_sw)) {
+		ret = PTR_ERR(chip->usb_sw);
+		dev_err(chip->dev, "Error while registering role switch: %d\n", ret);
+	}
+
+	return ret;
+}
+
+static void fusb307b_teardown_data_notifier(struct fusb307b_plat *chip)
+{
+	if (!IS_ERR_OR_NULL(chip->usb_sw))
+		usb_role_switch_unregister(chip->usb_sw);
+}
 
 static int fusb307b_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
@@ -666,7 +713,6 @@ static int fusb307b_probe(struct i2c_client *client,
 	}
 
 	chip->data.set_vbus = fusb307_set_vbus;
-	chip->data.set_roles = fusb307_set_roles;
 	chip->data.set_partner_usb_comm_capable = fusb307b_set_pd_data_capable;
 	chip->data.set_cc_polarity = fusb307b_set_cc_polarity;
 
@@ -694,30 +740,14 @@ static int fusb307b_probe(struct i2c_client *client,
 		goto unreg_psy;
 	}
 
-	chip->extcon = devm_extcon_dev_allocate(&client->dev,
-						usbpd_extcon_cable);
-	if (IS_ERR(chip->extcon)) {
-		dev_err(&client->dev, "Error allocating extcon: %d\n",
-			PTR_ERR(chip->extcon));
-		ret = PTR_ERR(chip->extcon);
+	ret = fusb307b_setup_data_notifier(chip);
+	if (ret < 0)
 		goto psy_put;
-	}
-
-	ret = devm_extcon_dev_register(&client->dev, chip->extcon);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to register extcon device");
-		goto psy_put;
-	}
-
-	extcon_set_property_capability(chip->extcon, EXTCON_USB,
-				       EXTCON_PROP_USB_TYPEC_POLARITY);
-	extcon_set_property_capability(chip->extcon, EXTCON_USB_HOST,
-				       EXTCON_PROP_USB_TYPEC_POLARITY);
 
 	chip->wq = kthread_create_worker(0, "wq-tcpm-tcpc");
 	if (IS_ERR_OR_NULL(chip->wq)) {
 		ret = PTR_ERR(chip->wq);
-		goto psy_put;
+		goto teardown_data;
 	}
 
 	kthread_init_delayed_work(&chip->icl_work, icl_work_item);
@@ -744,6 +774,8 @@ unreg_notifier:
 	power_supply_unreg_notifier(&chip->psy_notifier);
 destroy_worker:
 	kthread_destroy_worker(chip->wq);
+teardown_data:
+	fusb307b_teardown_data_notifier(chip);
 psy_put:
 	power_supply_put(chip->usb_psy);
 unreg_psy:
@@ -764,6 +796,7 @@ static int fusb307b_remove(struct i2c_client *client)
 	usb_psy_teardown(chip->usb_psy_data);
 	kthread_destroy_worker(chip->wq);
 	power_supply_unreg_notifier(&chip->psy_notifier);
+	fusb307b_teardown_data_notifier(chip);
 
 	return 0;
 }
