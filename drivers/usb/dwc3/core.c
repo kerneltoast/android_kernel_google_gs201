@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
+/**
  * core.c - DesignWare USB3 DRD Controller Core file
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com
@@ -33,13 +33,20 @@
 #include <linux/usb/otg.h>
 
 #include "core.h"
+#include "core_exynos.h"
 #include "gadget.h"
 #include "io.h"
+#include "otg.h"
 
 #include "debug.h"
 
 #define DWC3_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
+#define PORTSC_OFFSET		0x430
 
+void __iomem		*usb3_portsc;
+EXPORT_SYMBOL_GPL(usb3_portsc);
+
+#if !defined(CONFIG_USB_DWC3_EXYNOS)
 /**
  * dwc3_get_dr_mode - Validates and sets dr_mode
  * @dwc: pointer to our context structure
@@ -101,6 +108,7 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 
 	return 0;
 }
+#endif
 
 void dwc3_set_prtcap(struct dwc3 *dwc, u32 mode)
 {
@@ -114,12 +122,15 @@ void dwc3_set_prtcap(struct dwc3 *dwc, u32 mode)
 	dwc->current_dr_role = mode;
 }
 
+#if !defined(CONFIG_USB_DWC3_EXYNOS)
 static void __dwc3_set_mode(struct work_struct *work)
 {
 	struct dwc3 *dwc = work_to_dwc(work);
 	unsigned long flags;
 	int ret;
-	u32 reg;
+
+	if (dwc->dr_mode != USB_DR_MODE_OTG)
+		return;
 
 	pm_runtime_get_sync(dwc->dev);
 
@@ -170,11 +181,6 @@ static void __dwc3_set_mode(struct work_struct *work)
 				otg_set_vbus(dwc->usb2_phy->otg, true);
 			phy_set_mode(dwc->usb2_generic_phy, PHY_MODE_USB_HOST);
 			phy_set_mode(dwc->usb3_generic_phy, PHY_MODE_USB_HOST);
-			if (dwc->dis_split_quirk) {
-				reg = dwc3_readl(dwc->regs, DWC3_GUCTL3);
-				reg |= DWC3_GUCTL3_SPLITDISABLE;
-				dwc3_writel(dwc->regs, DWC3_GUCTL3, reg);
-			}
 		}
 		break;
 	case DWC3_GCTL_PRTCAP_DEVICE:
@@ -206,15 +212,26 @@ void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
 {
 	unsigned long flags;
 
-	if (dwc->dr_mode != USB_DR_MODE_OTG)
-		return;
-
 	spin_lock_irqsave(&dwc->lock, flags);
 	dwc->desired_dr_role = mode;
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	queue_work(system_freezable_wq, &dwc->drd_work);
 }
+#endif
+
+#if defined(CONFIG_USB_DWC3_EXYNOS)
+void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
+{
+	u32 reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg &= ~(DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG));
+	reg |= DWC3_GCTL_PRTCAPDIR(mode);
+	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
+}
+
+#endif
 
 u32 dwc3_core_fifo_space(struct dwc3_ep *dep, u8 type)
 {
@@ -230,6 +247,27 @@ u32 dwc3_core_fifo_space(struct dwc3_ep *dep, u8 type)
 	return DWC3_GDBGFIFOSPACE_SPACE_AVAILABLE(reg);
 }
 
+int dwc3_core_susphy_set(struct dwc3 *dwc, int on)
+{
+	u32		reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(0));
+	if (on)
+		reg |= DWC3_GUSB3PIPECTL_SUSPHY;
+	else
+		reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
+	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	if (on)
+		reg |= DWC3_GUSB2PHYCFG_SUSPHY;
+	else
+		reg &= ~DWC3_GUSB2PHYCFG_SUSPHY;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+
+	return 0;
+}
+
 /**
  * dwc3_core_soft_reset - Issues core soft reset and PHY reset
  * @dwc: pointer to our context structure
@@ -240,15 +278,39 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 	int		retries = 1000;
 	int		ret;
 
-	usb_phy_init(dwc->usb2_phy);
-	usb_phy_init(dwc->usb3_phy);
-	ret = phy_init(dwc->usb2_generic_phy);
+	phy_reset(dwc->usb2_generic_phy);
+
+	/*
+	 * Change phy init sequence due to DP altmode issue.
+	 * Initialize phy without link_sw_rst setting
+	 */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(0));
+	reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
+	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	reg &= ~DWC3_GUSB2PHYCFG_SUSPHY;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+
+	ret = phy_power_on(dwc->usb3_generic_phy);
 	if (ret < 0)
 		return ret;
 
-	ret = phy_init(dwc->usb3_generic_phy);
+	ret = phy_power_on(dwc->usb2_generic_phy);
+	if (ret < 0)
+		return ret;
+
+	usb_phy_init(dwc->usb2_phy);
+	usb_phy_init(dwc->usb3_phy);
+	ret = phy_init(dwc->usb2_generic_phy);
 	if (ret < 0) {
 		phy_exit(dwc->usb2_generic_phy);
+		return ret;
+	}
+
+	ret = phy_init(dwc->usb3_generic_phy);
+	if (ret < 0) {
+		phy_exit(dwc->usb3_generic_phy);
 		return ret;
 	}
 
@@ -316,13 +378,38 @@ static void dwc3_frame_length_adjustment(struct dwc3 *dwc)
 	if (dwc->fladj == 0)
 		return;
 
+#if defined(CONFIG_PHY_SAMSUNG_USB_GEN2)
 	reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
 	dft = reg & DWC3_GFLADJ_30MHZ_MASK;
+	/*
+	 * if (!dev_WARN_ONCE(dwc->dev, dft == dwc->fladj,
+	 *    "request value same as default, ignoring\n")) {
+	 */
 	if (dft != dwc->fladj) {
 		reg &= ~DWC3_GFLADJ_30MHZ_MASK;
 		reg |= DWC3_GFLADJ_30MHZ_SDBND_SEL | dwc->fladj;
 		dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
 	}
+
+#elif defined(CONFIG_PHY_SAMSUNG_USB_GEN2_V4)
+	/* FOR ref_clk 19.2MHz */
+	reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
+	dft = reg & DWC3_GFLADJ_30MHZ_MASK;
+	if (dft != dwc->fladj) {
+		reg &= ~DWC3_GFLADJ_30MHZ_MASK;
+		reg |= dwc->fladj;
+	}
+
+	reg &= ~DWC3_GFLADJ_REFCLK_240MHZ_DECR_MASK;
+	reg |= DWC3_GFLADJ_REFCLK_240MHZ_DECR(0xc);
+	reg |= DWC3_GFLADJ_REFCLK_240MHZDECR_PLS1;
+
+	reg |= DWC3_GFLADJ_REFCLK_LPM_SEL;
+	reg &= ~DWC3_GFLADJ_REFCLK_FLADJ_MASK;
+	reg |= DWC3_GFLADJ_30MHZ_SDBND_SEL;
+
+	dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
+#endif
 }
 
 /**
@@ -371,7 +458,7 @@ static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
  * dwc3_free_event_buffers - frees all allocated event buffers
  * @dwc: Pointer to our controller context structure
  */
-static void dwc3_free_event_buffers(struct dwc3 *dwc)
+void dwc3_free_event_buffers(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 
@@ -413,6 +500,10 @@ int dwc3_event_buffers_setup(struct dwc3 *dwc)
 	struct dwc3_event_buffer	*evt;
 
 	evt = dwc->ev_buf;
+	if (!evt) {
+		dev_err(dwc->dev, "Event buffer is NULL!!!\n");
+		return -ENOMEM;
+	}
 	evt->lpos = 0;
 	dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(0),
 			lower_32_bits(evt->dma));
@@ -428,16 +519,22 @@ int dwc3_event_buffers_setup(struct dwc3 *dwc)
 void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
+	u32 left = 0;
 
 	evt = dwc->ev_buf;
 
 	evt->lpos = 0;
 
-	dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(0), 0);
-	dwc3_writel(dwc->regs, DWC3_GEVNTADRHI(0), 0);
 	dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(0), DWC3_GEVNTSIZ_INTMASK
 			| DWC3_GEVNTSIZ_SIZE(0));
-	dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(0), 0);
+
+	left = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
+	left &= DWC3_GEVNTCOUNT_MASK;
+
+	while (left > 0) {
+		dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(0), 4);
+		left -= 4;
+	}
 }
 
 static int dwc3_alloc_scratch_buffers(struct dwc3 *dwc)
@@ -507,7 +604,7 @@ err0:
 	return ret;
 }
 
-static void dwc3_free_scratch_buffers(struct dwc3 *dwc)
+void dwc3_free_scratch_buffers(struct dwc3 *dwc)
 {
 	if (!dwc->has_hibernation)
 		return;
@@ -570,7 +667,7 @@ static int dwc3_core_ulpi_init(struct dwc3 *dwc)
  * initialized. The PHY interfaces and the PHYs get initialized together with
  * the core in dwc3_core_init.
  */
-static int dwc3_phy_setup(struct dwc3 *dwc)
+int dwc3_phy_setup(struct dwc3 *dwc)
 {
 	unsigned int hw_mode;
 	u32 reg;
@@ -583,7 +680,10 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 	 * Make sure UX_EXIT_PX is cleared as that causes issues with some
 	 * PHYs. Also, this bit is not supposed to be used in normal operation.
 	 */
-	reg &= ~DWC3_GUSB3PIPECTL_UX_EXIT_PX;
+	if (dwc->ux_exit_in_px_quirk)
+		reg |= DWC3_GUSB3PIPECTL_UX_EXIT_PX;
+	else
+		reg &= ~DWC3_GUSB3PIPECTL_UX_EXIT_PX;
 
 	/*
 	 * Above 1.94a, it is recommended to set DWC3_GUSB3PIPECTL_SUSPHY
@@ -607,6 +707,9 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 
 	if (dwc->dis_rxdet_inp3_quirk)
 		reg |= DWC3_GUSB3PIPECTL_DISRXDETINP3;
+
+	if (dwc->u1u2_exitfail_to_recov_quirk)
+		reg |= DWC3_GUSB3PIPECTL_U1U2EXITFAIL_TO_RECOV;
 
 	if (dwc->req_p1p2p3_quirk)
 		reg |= DWC3_GUSB3PIPECTL_REQP1P2P3;
@@ -697,18 +800,21 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 
 	if (dwc->dis_enblslpm_quirk)
 		reg &= ~DWC3_GUSB2PHYCFG_ENBLSLPM;
-	else
-		reg |= DWC3_GUSB2PHYCFG_ENBLSLPM;
 
 	if (dwc->dis_u2_freeclk_exists_quirk)
 		reg &= ~DWC3_GUSB2PHYCFG_U2_FREECLK_EXISTS;
+
+	if (dwc->adj_sof_accuracy)
+		reg &= ~DWC3_GUSB2PHYCFG_U2_FREECLK_EXISTS;
+
+	reg &= ~DWC3_GUSB2PHYCFG_ENBLSLPM;
 
 	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
 
 	return 0;
 }
 
-static void dwc3_core_exit(struct dwc3 *dwc)
+void dwc3_core_exit(struct dwc3 *dwc)
 {
 	dwc3_event_buffers_cleanup(dwc);
 
@@ -723,6 +829,8 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 	phy_power_off(dwc->usb3_generic_phy);
 	clk_bulk_disable_unprepare(dwc->num_clks, dwc->clks);
 	reset_control_assert(dwc->reset);
+
+	dwc->link_state = DWC3_LINK_STATE_SS_DIS;
 }
 
 static bool dwc3_core_is_valid(struct dwc3 *dwc)
@@ -814,6 +922,22 @@ static void dwc3_core_setup_global_control(struct dwc3 *dwc)
 	 */
 	if (DWC3_VER_IS_PRIOR(DWC3, 190A))
 		reg |= DWC3_GCTL_U2RSTECN;
+
+	if (dwc->adj_sof_accuracy) {
+		reg &= ~DWC3_GCTL_SOFITPSYNC;
+		reg |= DWC3_GCTL_DSBLCLKGTNG;
+	}
+
+	if (dwc->suspend_clk_freq == 0) {
+		dev_info(dwc->dev, "Set suspend clock freq to 26Mhz(Default)\n");
+		dwc->suspend_clk_freq = 26000000;
+	}
+
+	if (dwc->suspend_clk_freq) {
+		reg &= ~DWC3_GCTL_PWRDNSCALE_MASK;
+		reg |= DWC3_GCTL_PWRDNSCALE(dwc->suspend_clk_freq /
+					(16 * 1000));
+	}
 
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 }
@@ -921,10 +1045,11 @@ static void dwc3_set_incr_burst_type(struct dwc3 *dwc)
  *
  * Returns 0 on success otherwise negative errno.
  */
-static int dwc3_core_init(struct dwc3 *dwc)
+int dwc3_core_init(struct dwc3 *dwc)
 {
 	unsigned int		hw_mode;
-	u32			reg;
+	u32			reg = 0;
+	struct dwc3_otg		*dotg = dwc->dotg;
 	int			ret;
 
 	hw_mode = DWC3_GHWPARAMS0_MODE(dwc->hwparams.hwparams0);
@@ -935,9 +1060,12 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	 */
 	dwc3_writel(dwc->regs, DWC3_GUID, LINUX_VERSION_CODE);
 
-	ret = dwc3_phy_setup(dwc);
-	if (ret)
-		goto err0;
+	/* Handle USB2.0-only core configuration */
+	if (DWC3_GHWPARAMS3_SSPHY_IFC(dwc->hwparams.hwparams3) ==
+			DWC3_GHWPARAMS3_SSPHY_IFC_DIS) {
+		if (dwc->maximum_speed == USB_SPEED_SUPER)
+			dwc->maximum_speed = USB_SPEED_HIGH;
+	}
 
 	if (!dwc->ulpi_ready) {
 		ret = dwc3_core_ulpi_init(dwc);
@@ -957,6 +1085,18 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	if (ret)
 		goto err0a;
 
+	ret = dwc3_phy_setup(dwc);
+	if (ret)
+		goto err0a;
+
+	if (dotg) {
+		exynos_usbdrd_phy_tune(dwc->usb2_generic_phy, dotg->otg.state);
+		exynos_usbdrd_phy_tune(dwc->usb3_generic_phy, dotg->otg.state);
+	} else {
+		exynos_usbdrd_phy_tune(dwc->usb2_generic_phy, 0);
+		exynos_usbdrd_phy_tune(dwc->usb3_generic_phy, 0);
+	}
+
 	if (hw_mode == DWC3_GHWPARAMS0_MODE_DRD &&
 	    !DWC3_VER_IS_WITHIN(DWC3, ANY, 194A)) {
 		if (!dwc->dis_u3_susphy_quirk) {
@@ -975,6 +1115,10 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	dwc3_core_setup_global_control(dwc);
 	dwc3_core_num_eps(dwc);
 
+	dev_info(dwc->dev, "%s: max speed:%d, hibernation:%d, nr_scratch:%d\n",
+		 __func__, dwc->maximum_speed, dwc->has_hibernation,
+		 dwc->nr_scratch);
+
 	ret = dwc3_setup_scratch_buffers(dwc);
 	if (ret)
 		goto err1;
@@ -986,18 +1130,11 @@ static int dwc3_core_init(struct dwc3 *dwc)
 
 	usb_phy_set_suspend(dwc->usb2_phy, 0);
 	usb_phy_set_suspend(dwc->usb3_phy, 0);
-	ret = phy_power_on(dwc->usb2_generic_phy);
-	if (ret < 0)
-		goto err2;
-
-	ret = phy_power_on(dwc->usb3_generic_phy);
-	if (ret < 0)
-		goto err3;
 
 	ret = dwc3_event_buffers_setup(dwc);
 	if (ret) {
 		dev_err(dwc->dev, "failed to setup event buffers\n");
-		goto err4;
+		goto err2;
 	}
 
 	/*
@@ -1083,15 +1220,12 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		}
 	}
 
+	dwc->link_state = DWC3_LINK_STATE_U0;
 	return 0;
 
-err4:
-	phy_power_off(dwc->usb3_generic_phy);
-
-err3:
-	phy_power_off(dwc->usb2_generic_phy);
-
 err2:
+	phy_power_off(dwc->usb3_generic_phy);
+	phy_power_off(dwc->usb2_generic_phy);
 	usb_phy_set_suspend(dwc->usb2_phy, 1);
 	usb_phy_set_suspend(dwc->usb3_phy, 1);
 
@@ -1101,6 +1235,10 @@ err1:
 	phy_exit(dwc->usb2_generic_phy);
 	phy_exit(dwc->usb3_generic_phy);
 
+	phy_power_off(dwc->usb2_generic_phy);
+	phy_power_off(dwc->usb3_generic_phy);
+
+	dwc->link_state = DWC3_LINK_STATE_SS_DIS;
 err0a:
 	dwc3_ulpi_exit(dwc);
 
@@ -1194,10 +1332,40 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 			return dev_err_probe(dev, ret, "failed to initialize host\n");
 		break;
 	case USB_DR_MODE_OTG:
-		INIT_WORK(&dwc->drd_work, __dwc3_set_mode);
-		ret = dwc3_drd_init(dwc);
-		if (ret)
-			return dev_err_probe(dev, ret, "failed to initialize dual-role\n");
+		ret = dwc3_otg_init(dwc);
+		if (ret) {
+			dev_err(dev, "failed to initialize otg\n");
+			return ret;
+		}
+
+		/* turn off PHYs to save power */
+		dwc3_core_exit(dwc);
+
+		ret = dwc3_host_init(dwc);
+		if (ret) {
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "failed to initialize host\n");
+			dwc3_otg_exit(dwc);
+			return ret;
+		}
+		ret = dwc3_gadget_init(dwc);
+		if (ret) {
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "failed to initialize gadget\n");
+			dwc3_host_exit(dwc);
+			dwc3_otg_exit(dwc);
+			return ret;
+		}
+
+		/* Now we are ready to start OTG */
+		ret = dwc3_otg_start(dwc);
+		if (ret) {
+			dev_err(dev, "failed to start otg\n");
+			dwc3_host_exit(dwc);
+			dwc3_gadget_exit(dwc);
+			dwc3_otg_exit(dwc);
+			return ret;
+		}
 		break;
 	default:
 		dev_err(dev, "Unsupported mode of operation %d\n", dwc->dr_mode);
@@ -1207,7 +1375,7 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 	return 0;
 }
 
-static void dwc3_core_exit_mode(struct dwc3 *dwc)
+void dwc3_core_exit_mode(struct dwc3 *dwc)
 {
 	switch (dwc->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -1223,9 +1391,45 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 		/* do nothing */
 		break;
 	}
+}
 
-	/* de-assert DRVVBUS for HOST and OTG mode */
-	dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_DEVICE);
+static int dwc3_get_option(struct dwc3 *dwc)
+{
+	struct device		*dev = dwc->dev;
+	struct device_node	*node = dev->of_node;
+	int			value;
+
+	if (!of_property_read_u32(node, "adj-sof-accuracy", &value)) {
+		dwc->adj_sof_accuracy = value ? true : false;
+		dev_info(dev, "adj-sof-accuracy set from %s node", node->name);
+	} else {
+		dev_err(dev, "can't get adj-sof-accuracy from %s node",
+			node->name);
+		return -EINVAL;
+	}
+	if (!of_property_read_u32(node, "is_not_vbus_pad", &value)) {
+		dwc->is_not_vbus_pad = value ? true : false;
+	} else {
+		dev_err(dev, "can't get is_not_vbus_pad from %s node",
+			node->name);
+		return -EINVAL;
+	}
+	if (!of_property_read_u32(node, "enable_sprs_transfer", &value)) {
+		dwc->sparse_transfer_control = value ? true : false;
+	} else {
+		dev_err(dev, "can't get sprs-xfer-ctrl from %s node",
+			node->name);
+		return -EINVAL;
+	}
+	if (!of_property_read_u32(node, "usb_host_device_timeout", &value)) {
+		dwc->usb_host_device_timeout = value;
+	} else {
+		dev_info(dev, "usb_host_device_timeout is not defined...\n");
+		dwc->usb_host_device_timeout = 0x0;
+	}
+
+	return 0;
+
 }
 
 static void dwc3_get_properties(struct dwc3 *dwc)
@@ -1238,6 +1442,7 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 	u8			rx_max_burst_prd;
 	u8			tx_thr_num_pkt_prd;
 	u8			tx_max_burst_prd;
+	int			ret;
 
 	/* default to highest possible threshold */
 	lpm_nyet_threshold = 0xf;
@@ -1252,8 +1457,8 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 	hird_threshold = 12;
 
 	dwc->maximum_speed = usb_get_maximum_speed(dev);
-	dwc->max_ssp_rate = usb_get_maximum_ssp_rate(dev);
 	dwc->dr_mode = usb_get_dr_mode(dev);
+	dwc->suspend_clk_freq = of_usb_get_suspend_clk_freq(dev);
 	dwc->hsphy_mode = of_usb_get_phy_mode(dev->of_node);
 
 	dwc->sysdev_is_parent = device_property_read_bool(dev,
@@ -1323,8 +1528,8 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 	dwc->parkmode_disable_ss_quirk = device_property_read_bool(dev,
 				"snps,parkmode-disable-ss-quirk");
 
-	dwc->tx_de_emphasis_quirk = device_property_read_bool(dev,
-				"snps,tx_de_emphasis_quirk");
+	dwc->tx_de_emphasis_quirk =
+		device_property_read_bool(dev, "snps,tx_de_emphasis_quirk");
 	device_property_read_u8(dev, "snps,tx_de_emphasis",
 				&tx_de_emphasis);
 	device_property_read_string(dev, "snps,hsphy_interface",
@@ -1332,11 +1537,23 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 	device_property_read_u32(dev, "snps,quirk-frame-length-adjustment",
 				 &dwc->fladj);
 
-	dwc->dis_metastability_quirk = device_property_read_bool(dev,
-				"snps,dis_metastability_quirk");
+	dwc->dis_metastability_quirk =
+		device_property_read_bool(dev, "snps,dis_metastability_quirk");
 
-	dwc->dis_split_quirk = device_property_read_bool(dev,
-				"snps,dis-split-quirk");
+	ret = dwc3_get_option(dwc);
+	if (ret)
+		dev_err(dev, "dwc3_get_option error occurred\n");
+
+	dwc->u1u2_exitfail_to_recov_quirk =
+		device_property_read_bool(dev, "snps,u1u2_exitfail_quirk");
+	dwc->ux_exit_in_px_quirk =
+		device_property_read_bool(dev, "snps,ux_exit_in_px_quirk");
+	dwc->elastic_buf_mode_quirk =
+		device_property_read_bool(dev, "snps,elastic_buf_mode_quirk");
+	dev_info(dwc->dev, "%s: dr_mode:%d, suspend clock:%dMHz\n", __func__,
+		 dwc->dr_mode, dwc->suspend_clk_freq / 1000000);
+
+	dwc->no_extra_delay = device_property_read_bool(dev, "samsung,no-extra-delay");
 
 	dwc->lpm_nyet_threshold = lpm_nyet_threshold;
 	dwc->tx_de_emphasis = tx_de_emphasis;
@@ -1363,8 +1580,6 @@ bool dwc3_has_imod(struct dwc3 *dwc)
 static void dwc3_check_params(struct dwc3 *dwc)
 {
 	struct device *dev = dwc->dev;
-	unsigned int hwparam_gen =
-		DWC3_GHWPARAMS3_SSPHY_IFC(dwc->hwparams.hwparams3);
 
 	/* Check for proper value of imod_interval */
 	if (dwc->imod_interval && !dwc3_has_imod(dwc)) {
@@ -1388,81 +1603,31 @@ static void dwc3_check_params(struct dwc3 *dwc)
 	case USB_SPEED_LOW:
 	case USB_SPEED_FULL:
 	case USB_SPEED_HIGH:
-		break;
 	case USB_SPEED_SUPER:
-		if (hwparam_gen == DWC3_GHWPARAMS3_SSPHY_IFC_DIS)
-			dev_warn(dev, "UDC doesn't support Gen 1\n");
-		break;
 	case USB_SPEED_SUPER_PLUS:
-		if ((DWC3_IP_IS(DWC32) &&
-		     hwparam_gen == DWC3_GHWPARAMS3_SSPHY_IFC_DIS) ||
-		    (!DWC3_IP_IS(DWC32) &&
-		     hwparam_gen != DWC3_GHWPARAMS3_SSPHY_IFC_GEN2))
-			dev_warn(dev, "UDC doesn't support SSP\n");
 		break;
 	default:
 		dev_err(dev, "invalid maximum_speed parameter %d\n",
 			dwc->maximum_speed);
 		fallthrough;
 	case USB_SPEED_UNKNOWN:
-		switch (hwparam_gen) {
-		case DWC3_GHWPARAMS3_SSPHY_IFC_GEN2:
-			dwc->maximum_speed = USB_SPEED_SUPER_PLUS;
-			break;
-		case DWC3_GHWPARAMS3_SSPHY_IFC_GEN1:
-			if (DWC3_IP_IS(DWC32))
-				dwc->maximum_speed = USB_SPEED_SUPER_PLUS;
-			else
-				dwc->maximum_speed = USB_SPEED_SUPER;
-			break;
-		case DWC3_GHWPARAMS3_SSPHY_IFC_DIS:
-			dwc->maximum_speed = USB_SPEED_HIGH;
-			break;
-		default:
-			dwc->maximum_speed = USB_SPEED_SUPER;
-			break;
-		}
-		break;
-	}
+		/* default to superspeed */
+		dwc->maximum_speed = USB_SPEED_SUPER;
 
-	/*
-	 * Currently the controller does not have visibility into the HW
-	 * parameter to determine the maximum number of lanes the HW supports.
-	 * If the number of lanes is not specified in the device property, then
-	 * set the default to support dual-lane for DWC_usb32 and single-lane
-	 * for DWC_usb31 for super-speed-plus.
-	 */
-	if (dwc->maximum_speed == USB_SPEED_SUPER_PLUS) {
-		switch (dwc->max_ssp_rate) {
-		case USB_SSP_GEN_2x1:
-			if (hwparam_gen == DWC3_GHWPARAMS3_SSPHY_IFC_GEN1)
-				dev_warn(dev, "UDC only supports Gen 1\n");
-			break;
-		case USB_SSP_GEN_1x2:
-		case USB_SSP_GEN_2x2:
-			if (DWC3_IP_IS(DWC31))
-				dev_warn(dev, "UDC only supports single lane\n");
-			break;
-		case USB_SSP_GEN_UNKNOWN:
-		default:
-			switch (hwparam_gen) {
-			case DWC3_GHWPARAMS3_SSPHY_IFC_GEN2:
-				if (DWC3_IP_IS(DWC32))
-					dwc->max_ssp_rate = USB_SSP_GEN_2x2;
-				else
-					dwc->max_ssp_rate = USB_SSP_GEN_2x1;
-				break;
-			case DWC3_GHWPARAMS3_SSPHY_IFC_GEN1:
-				if (DWC3_IP_IS(DWC32))
-					dwc->max_ssp_rate = USB_SSP_GEN_1x2;
-				break;
-			}
-			break;
-		}
+		/*
+		 * default to superspeed plus if we are capable.
+		 */
+		if ((DWC3_IP_IS(DWC31) || DWC3_IP_IS(DWC32)) &&
+		    (DWC3_GHWPARAMS3_SSPHY_IFC(dwc->hwparams.hwparams3) ==
+		     DWC3_GHWPARAMS3_SSPHY_IFC_GEN2))
+			dwc->maximum_speed = USB_SPEED_SUPER_PLUS;
+
+		break;
 	}
 }
 
-static int dwc3_probe(struct platform_device *pdev)
+int dwc3_probe(struct platform_device *pdev,
+	       struct dwc3_exynos *exynos)
 {
 	struct device		*dev = &pdev->dev;
 	struct resource		*res, dwc_res;
@@ -1472,11 +1637,14 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	void __iomem		*regs;
 
+	pr_info("%s: +++\n", __func__);
 	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
 	if (!dwc)
 		return -ENOMEM;
 
 	dwc->dev = dev;
+	dwc->exynos = exynos;
+	exynos->dwc = dwc;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -1495,6 +1663,12 @@ static int dwc3_probe(struct platform_device *pdev)
 	 * since it will be requested by the xhci-plat driver.
 	 */
 	dwc_res = *res;
+	/*
+	 * devm_ioremap_resource is also used in XHCI host driver
+	 * so host register region from 0 to 0xc100 is excluded in
+	 * dwc3 driver. dwc3_readl, dwc3_writel recover
+	 * DWC3_GLOBALS_REGS_START offset again.
+	 */
 	dwc_res.start += DWC3_GLOBALS_REGS_START;
 
 	regs = devm_ioremap_resource(dev, &dwc_res);
@@ -1506,7 +1680,8 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	dwc3_get_properties(dwc);
 
-	dwc->reset = devm_reset_control_array_get_optional_shared(dev);
+#if !defined(CONFIG_USB_DWC3_EXYNOS)
+	dwc->reset = devm_reset_control_array_get(dev, true, true);
 	if (IS_ERR(dwc->reset))
 		return PTR_ERR(dwc->reset);
 
@@ -1532,27 +1707,25 @@ static int dwc3_probe(struct platform_device *pdev)
 	ret = clk_bulk_prepare_enable(dwc->num_clks, dwc->clks);
 	if (ret)
 		goto assert_reset;
+#endif
 
 	if (!dwc3_core_is_valid(dwc)) {
 		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
 		ret = -ENODEV;
-		goto disable_clks;
+		return ret;
 	}
 
-	platform_set_drvdata(pdev, dwc);
+	ret = dma_set_mask(dwc->sysdev, DMA_BIT_MASK(36));
+	if (ret) {
+		pr_err("dma set mask ret = %d\n", ret);
+		return ret;
+	}
+
+	/*platform_set_drvdata(pdev, dwc);*/
 	dwc3_cache_hwparams(dwc);
 
 	spin_lock_init(&dwc->lock);
-
-	pm_runtime_set_active(dev);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_set_autosuspend_delay(dev, DWC3_DEFAULT_AUTOSUSPEND_DELAY);
-	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		goto err1;
-
-	pm_runtime_forbid(dev);
+	init_completion(&dwc->disconnect);
 
 	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
 	if (ret) {
@@ -1561,44 +1734,35 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	ret = dwc3_get_dr_mode(dwc);
-	if (ret)
-		goto err3;
-
 	ret = dwc3_alloc_scratch_buffers(dwc);
 	if (ret)
 		goto err3;
 
 	ret = dwc3_core_init(dwc);
 	if (ret) {
-		dev_err_probe(dev, ret, "failed to initialize core\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "failed to initialize core: %d\n", ret);
+		goto err4;
+	}
+
+	ret = dwc3_exynos_core_init(dwc);
+	if (ret) {
+		dev_err(dev, "failed to initialize exynos core\n");
 		goto err4;
 	}
 
 	dwc3_check_params(dwc);
-
 	ret = dwc3_core_init_mode(dwc);
 	if (ret)
 		goto err5;
 
 	dwc3_debugfs_init(dwc);
-	pm_runtime_put(dev);
 
+	pr_info("%s: ---\n", __func__);
 	return 0;
 
 err5:
 	dwc3_event_buffers_cleanup(dwc);
-
-	usb_phy_shutdown(dwc->usb2_phy);
-	usb_phy_shutdown(dwc->usb3_phy);
-	phy_exit(dwc->usb2_generic_phy);
-	phy_exit(dwc->usb3_generic_phy);
-
-	usb_phy_set_suspend(dwc->usb2_phy, 1);
-	usb_phy_set_suspend(dwc->usb3_phy, 1);
-	phy_power_off(dwc->usb2_generic_phy);
-	phy_power_off(dwc->usb3_generic_phy);
-
 	dwc3_ulpi_exit(dwc);
 
 err4:
@@ -1608,370 +1772,14 @@ err3:
 	dwc3_free_event_buffers(dwc);
 
 err2:
-	pm_runtime_allow(&pdev->dev);
+	pr_info("%s err = %d\n", __func__, ret);
 
-err1:
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
-
+#if !defined(CONFIG_USB_DWC3_EXYNOS)
 disable_clks:
 	clk_bulk_disable_unprepare(dwc->num_clks, dwc->clks);
 assert_reset:
 	reset_control_assert(dwc->reset);
+#endif
 
 	return ret;
 }
-
-static int dwc3_remove(struct platform_device *pdev)
-{
-	struct dwc3	*dwc = platform_get_drvdata(pdev);
-
-	pm_runtime_get_sync(&pdev->dev);
-
-	dwc3_debugfs_exit(dwc);
-	dwc3_core_exit_mode(dwc);
-
-	dwc3_core_exit(dwc);
-	dwc3_ulpi_exit(dwc);
-
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
-	pm_runtime_set_suspended(&pdev->dev);
-
-	dwc3_free_event_buffers(dwc);
-	dwc3_free_scratch_buffers(dwc);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int dwc3_core_init_for_resume(struct dwc3 *dwc)
-{
-	int ret;
-
-	ret = reset_control_deassert(dwc->reset);
-	if (ret)
-		return ret;
-
-	ret = clk_bulk_prepare_enable(dwc->num_clks, dwc->clks);
-	if (ret)
-		goto assert_reset;
-
-	ret = dwc3_core_init(dwc);
-	if (ret)
-		goto disable_clks;
-
-	return 0;
-
-disable_clks:
-	clk_bulk_disable_unprepare(dwc->num_clks, dwc->clks);
-assert_reset:
-	reset_control_assert(dwc->reset);
-
-	return ret;
-}
-
-static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
-{
-	unsigned long	flags;
-	u32 reg;
-
-	switch (dwc->current_dr_role) {
-	case DWC3_GCTL_PRTCAP_DEVICE:
-		if (pm_runtime_suspended(dwc->dev))
-			break;
-		spin_lock_irqsave(&dwc->lock, flags);
-		dwc3_gadget_suspend(dwc);
-		spin_unlock_irqrestore(&dwc->lock, flags);
-		synchronize_irq(dwc->irq_gadget);
-		dwc3_core_exit(dwc);
-		break;
-	case DWC3_GCTL_PRTCAP_HOST:
-		if (!PMSG_IS_AUTO(msg)) {
-			dwc3_core_exit(dwc);
-			break;
-		}
-
-		/* Let controller to suspend HSPHY before PHY driver suspends */
-		if (dwc->dis_u2_susphy_quirk ||
-		    dwc->dis_enblslpm_quirk) {
-			reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
-			reg |=  DWC3_GUSB2PHYCFG_ENBLSLPM |
-				DWC3_GUSB2PHYCFG_SUSPHY;
-			dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
-
-			/* Give some time for USB2 PHY to suspend */
-			usleep_range(5000, 6000);
-		}
-
-		phy_pm_runtime_put_sync(dwc->usb2_generic_phy);
-		phy_pm_runtime_put_sync(dwc->usb3_generic_phy);
-		break;
-	case DWC3_GCTL_PRTCAP_OTG:
-		/* do nothing during runtime_suspend */
-		if (PMSG_IS_AUTO(msg))
-			break;
-
-		if (dwc->current_otg_role == DWC3_OTG_ROLE_DEVICE) {
-			spin_lock_irqsave(&dwc->lock, flags);
-			dwc3_gadget_suspend(dwc);
-			spin_unlock_irqrestore(&dwc->lock, flags);
-			synchronize_irq(dwc->irq_gadget);
-		}
-
-		dwc3_otg_exit(dwc);
-		dwc3_core_exit(dwc);
-		break;
-	default:
-		/* do nothing */
-		break;
-	}
-
-	return 0;
-}
-
-static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
-{
-	unsigned long	flags;
-	int		ret;
-	u32		reg;
-
-	switch (dwc->current_dr_role) {
-	case DWC3_GCTL_PRTCAP_DEVICE:
-		ret = dwc3_core_init_for_resume(dwc);
-		if (ret)
-			return ret;
-
-		dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_DEVICE);
-		spin_lock_irqsave(&dwc->lock, flags);
-		dwc3_gadget_resume(dwc);
-		spin_unlock_irqrestore(&dwc->lock, flags);
-		break;
-	case DWC3_GCTL_PRTCAP_HOST:
-		if (!PMSG_IS_AUTO(msg)) {
-			ret = dwc3_core_init_for_resume(dwc);
-			if (ret)
-				return ret;
-			dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_HOST);
-			break;
-		}
-		/* Restore GUSB2PHYCFG bits that were modified in suspend */
-		reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
-		if (dwc->dis_u2_susphy_quirk)
-			reg &= ~DWC3_GUSB2PHYCFG_SUSPHY;
-
-		if (dwc->dis_enblslpm_quirk)
-			reg &= ~DWC3_GUSB2PHYCFG_ENBLSLPM;
-
-		dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
-
-		phy_pm_runtime_get_sync(dwc->usb2_generic_phy);
-		phy_pm_runtime_get_sync(dwc->usb3_generic_phy);
-		break;
-	case DWC3_GCTL_PRTCAP_OTG:
-		/* nothing to do on runtime_resume */
-		if (PMSG_IS_AUTO(msg))
-			break;
-
-		ret = dwc3_core_init_for_resume(dwc);
-		if (ret)
-			return ret;
-
-		dwc3_set_prtcap(dwc, dwc->current_dr_role);
-
-		dwc3_otg_init(dwc);
-		if (dwc->current_otg_role == DWC3_OTG_ROLE_HOST) {
-			dwc3_otg_host_init(dwc);
-		} else if (dwc->current_otg_role == DWC3_OTG_ROLE_DEVICE) {
-			spin_lock_irqsave(&dwc->lock, flags);
-			dwc3_gadget_resume(dwc);
-			spin_unlock_irqrestore(&dwc->lock, flags);
-		}
-
-		break;
-	default:
-		/* do nothing */
-		break;
-	}
-
-	return 0;
-}
-
-static int dwc3_runtime_checks(struct dwc3 *dwc)
-{
-	switch (dwc->current_dr_role) {
-	case DWC3_GCTL_PRTCAP_DEVICE:
-		if (dwc->connected)
-			return -EBUSY;
-		break;
-	case DWC3_GCTL_PRTCAP_HOST:
-	default:
-		/* do nothing */
-		break;
-	}
-
-	return 0;
-}
-
-static int dwc3_runtime_suspend(struct device *dev)
-{
-	struct dwc3     *dwc = dev_get_drvdata(dev);
-	int		ret;
-
-	if (dwc3_runtime_checks(dwc))
-		return -EBUSY;
-
-	ret = dwc3_suspend_common(dwc, PMSG_AUTO_SUSPEND);
-	if (ret)
-		return ret;
-
-	device_init_wakeup(dev, true);
-
-	return 0;
-}
-
-static int dwc3_runtime_resume(struct device *dev)
-{
-	struct dwc3     *dwc = dev_get_drvdata(dev);
-	int		ret;
-
-	device_init_wakeup(dev, false);
-
-	ret = dwc3_resume_common(dwc, PMSG_AUTO_RESUME);
-	if (ret)
-		return ret;
-
-	switch (dwc->current_dr_role) {
-	case DWC3_GCTL_PRTCAP_DEVICE:
-		dwc3_gadget_process_pending_events(dwc);
-		break;
-	case DWC3_GCTL_PRTCAP_HOST:
-	default:
-		/* do nothing */
-		break;
-	}
-
-	pm_runtime_mark_last_busy(dev);
-
-	return 0;
-}
-
-static int dwc3_runtime_idle(struct device *dev)
-{
-	struct dwc3     *dwc = dev_get_drvdata(dev);
-
-	switch (dwc->current_dr_role) {
-	case DWC3_GCTL_PRTCAP_DEVICE:
-		if (dwc3_runtime_checks(dwc))
-			return -EBUSY;
-		break;
-	case DWC3_GCTL_PRTCAP_HOST:
-	default:
-		/* do nothing */
-		break;
-	}
-
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_autosuspend(dev);
-
-	return 0;
-}
-#endif /* CONFIG_PM */
-
-#ifdef CONFIG_PM_SLEEP
-static int dwc3_suspend(struct device *dev)
-{
-	struct dwc3	*dwc = dev_get_drvdata(dev);
-	int		ret;
-
-	ret = dwc3_suspend_common(dwc, PMSG_SUSPEND);
-	if (ret)
-		return ret;
-
-	pinctrl_pm_select_sleep_state(dev);
-
-	return 0;
-}
-
-static int dwc3_resume(struct device *dev)
-{
-	struct dwc3	*dwc = dev_get_drvdata(dev);
-	int		ret;
-
-	pinctrl_pm_select_default_state(dev);
-
-	ret = dwc3_resume_common(dwc, PMSG_RESUME);
-	if (ret)
-		return ret;
-
-	pm_runtime_disable(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
-	return 0;
-}
-
-static void dwc3_complete(struct device *dev)
-{
-	struct dwc3	*dwc = dev_get_drvdata(dev);
-	u32		reg;
-
-	if (dwc->current_dr_role == DWC3_GCTL_PRTCAP_HOST &&
-			dwc->dis_split_quirk) {
-		reg = dwc3_readl(dwc->regs, DWC3_GUCTL3);
-		reg |= DWC3_GUCTL3_SPLITDISABLE;
-		dwc3_writel(dwc->regs, DWC3_GUCTL3, reg);
-	}
-}
-#else
-#define dwc3_complete NULL
-#endif /* CONFIG_PM_SLEEP */
-
-static const struct dev_pm_ops dwc3_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dwc3_suspend, dwc3_resume)
-	.complete = dwc3_complete,
-	SET_RUNTIME_PM_OPS(dwc3_runtime_suspend, dwc3_runtime_resume,
-			dwc3_runtime_idle)
-};
-
-#ifdef CONFIG_OF
-static const struct of_device_id of_dwc3_match[] = {
-	{
-		.compatible = "snps,dwc3"
-	},
-	{
-		.compatible = "synopsys,dwc3"
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, of_dwc3_match);
-#endif
-
-#ifdef CONFIG_ACPI
-
-#define ACPI_ID_INTEL_BSW	"808622B7"
-
-static const struct acpi_device_id dwc3_acpi_match[] = {
-	{ ACPI_ID_INTEL_BSW, 0 },
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, dwc3_acpi_match);
-#endif
-
-static struct platform_driver dwc3_driver = {
-	.probe		= dwc3_probe,
-	.remove		= dwc3_remove,
-	.driver		= {
-		.name	= "dwc3",
-		.of_match_table	= of_match_ptr(of_dwc3_match),
-		.acpi_match_table = ACPI_PTR(dwc3_acpi_match),
-		.pm	= &dwc3_dev_pm_ops,
-	},
-};
-
-module_platform_driver(dwc3_driver);
-
-MODULE_ALIAS("platform:dwc3");
-MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("DesignWare USB3 DRD Controller Driver");
