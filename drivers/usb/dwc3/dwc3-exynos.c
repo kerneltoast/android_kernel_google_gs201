@@ -774,89 +774,6 @@ static int dwc3_exynos_get_properties(struct dwc3_exynos *exynos)
 	return ret;
 }
 
-/* -------------------------------------------------------------------------- */
-
-static ssize_t
-dwc3_exynos_otg_state_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct usb_otg		*otg = &exynos->dotg->otg;
-
-	return sysfs_emit(buf, "%s\n",
-			usb_otg_state_string(otg->state));
-}
-
-static DEVICE_ATTR_RO(dwc3_exynos_otg_state);
-
-static ssize_t
-dwc3_exynos_otg_b_sess_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct otg_fsm	*fsm = &exynos->dotg->fsm;
-
-	return sysfs_emit(buf, "%d\n", fsm->b_sess_vld);
-}
-
-static ssize_t
-dwc3_exynos_otg_b_sess_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t n)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct otg_fsm	*fsm = &exynos->dotg->fsm;
-	int		b_sess_vld;
-
-	if (kstrtoint(buf, 10, &b_sess_vld) != 0)
-		return -EINVAL;
-
-	fsm->b_sess_vld = !!b_sess_vld;
-
-	dwc3_otg_run_sm(fsm);
-
-	return n;
-}
-
-static DEVICE_ATTR_RW(dwc3_exynos_otg_b_sess);
-
-static ssize_t
-dwc3_exynos_otg_id_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct otg_fsm	*fsm = &exynos->dotg->fsm;
-
-	return sysfs_emit(buf, "%d\n", fsm->id);
-}
-
-static ssize_t
-dwc3_exynos_otg_id_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t n)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct otg_fsm	*fsm = &exynos->dotg->fsm;
-	int id;
-
-	if (kstrtoint(buf, 10, &id) != 0)
-		return -EINVAL;
-
-	fsm->id = !!id;
-
-	dwc3_otg_run_sm(fsm);
-
-	return n;
-}
-
-static DEVICE_ATTR_RW(dwc3_exynos_otg_id);
-
-static struct attribute *dwc3_exynos_otg_attrs[] = {
-	&dev_attr_dwc3_exynos_otg_id.attr,
-	&dev_attr_dwc3_exynos_otg_b_sess.attr,
-	&dev_attr_dwc3_exynos_otg_state.attr,
-	NULL
-};
-ATTRIBUTE_GROUPS(dwc3_exynos_otg);
-
 static int dwc3_exynos_probe(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos;
@@ -1121,7 +1038,6 @@ static struct platform_driver dwc3_exynos_driver = {
 	.driver		= {
 		.name	= "exynos-dwc3",
 		.of_match_table = exynos_dwc3_match,
-		.dev_groups = dwc3_exynos_otg_groups,
 		.pm	= DEV_PM_OPS,
 	},
 };

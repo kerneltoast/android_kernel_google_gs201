@@ -29,4 +29,5 @@ void phy_exynos_usbdp_tune_each(struct exynos_usbphy_info
 					*info, char *name, int val);
 void phy_exynos_usbdp_tune(struct exynos_usbphy_info *info);
 void exynos_usbdrd_request_phy_isol(void);
+int exynos_usbdrd_inform_dp_use(int use, int lane_cnt);
 #endif /* PHY_EXYNOS_USBDP_H_ */

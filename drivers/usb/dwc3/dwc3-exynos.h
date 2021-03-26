@@ -119,6 +119,7 @@ int dwc3_exynos_id_event(struct device *dev, int state);
 int dwc3_exynos_vbus_event(struct device *dev, bool vbus_active);
 int dwc3_exynos_get_idle_ip_index(struct device *dev);
 extern int dwc3_exynos_set_bus_clock(struct device *dev, int clk_level);
+int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on);
 void dwc3_otg_run_sm(struct otg_fsm *fsm);
 
 int dwc3_exynos_core_init(struct dwc3 *dwc, struct dwc3_exynos *exynos);
