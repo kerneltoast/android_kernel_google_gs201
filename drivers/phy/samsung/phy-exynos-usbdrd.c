@@ -1530,10 +1530,6 @@ static void exynos_usbdrd_pipe3_init(struct exynos_usbdrd_phy *phy_drd)
 #elif defined(CONFIG_PHY_SAMSUNG_USB_GEN2_V4)
 	int ret = 0;
 	union extcon_property_value property = { 0 };
-	struct phy_usb_instance *inst = &phy_drd->phys[1];
-
-	//power on
-	inst->phy_cfg->phy_isol(inst, 0, inst->pmu_mask);
 
 	if (!phy_drd->edev) {
 		ret = exynos_usbdrd_extcon_register(phy_drd);
@@ -1569,7 +1565,6 @@ static void exynos_usbdrd_pipe3_init(struct exynos_usbdrd_phy *phy_drd)
 static void exynos_usbdrd_utmi_init(struct exynos_usbdrd_phy *phy_drd)
 {
 	int ret;
-	struct phy_usb_instance *inst = &phy_drd->phys[0];
 #if IS_ENABLED(CONFIG_EXYNOS_OTP)
 	struct tune_bits *otp_data;
 	u8 otp_type;
@@ -1577,12 +1572,6 @@ static void exynos_usbdrd_utmi_init(struct exynos_usbdrd_phy *phy_drd)
 	u8 i;
 #endif
 	pr_info("%s: +++\n", __func__);
-
-	//phy reset
-	phy_exynos_usb_v3p1_link_sw_reset(&phy_drd->usbphy_info);
-
-	//phy power on
-	inst->phy_cfg->phy_isol(inst, 0, inst->pmu_mask);
 
 	ret = exynos_usbdrd_clk_enable(phy_drd, false);
 	if (ret) {
@@ -1998,7 +1987,7 @@ static int exynos_usbdrd_get_idle_ip(void)
 	struct device *dev;
 	int idle_ip_idx;
 
-	np = of_find_compatible_node(NULL, NULL, "samsung,exynos9-dwusb");
+	np = of_find_compatible_node(NULL, NULL, "samsung,exynos-dwusb");
 	if (np) {
 		pdev = of_find_device_by_node(np);
 		dev = &pdev->dev;
