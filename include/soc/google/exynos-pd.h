@@ -102,14 +102,14 @@ static inline int exynos_pd_get_pd_stat(struct exynos_pm_domain *pd,
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC3_EXYNOS)
-extern u32 dwc3_otg_is_connect(void);
-extern void exynos_usbdrd_ldo_manual_control(bool on);
+extern u32 otg_is_connect(void);
+extern void exynos_usbdrd_ldo_manual_control(bool);
 #else
-static inline u32 dwc3_otg_is_connect(void)
+static inline u32 otg_is_connect(void)
 {
 	return 0;
 }
-static inline void exynos_usbdrd_ldo_manual_control(bool on)
+static inline void exynos_usbdrd_ldo_manual_control(bool)
 {
 	return;
 }
