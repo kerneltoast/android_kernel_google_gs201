@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google Raven/Oriole NFC proto devicetree.
+ *
+ * Copyright (c) 2021 Google, LLC
+ *		https://www.google.com
+*/
+
+/* LDO31M was introduced as an always-on regulator in EVT. */
+&m_ldo31_reg {
+       /delete-property/ regulator-always-on;
+};

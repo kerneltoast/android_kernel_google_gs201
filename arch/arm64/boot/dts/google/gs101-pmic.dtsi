@@ -583,6 +583,7 @@
 				channel-mux-selection = <0x3F>;
 				schematic-name = "L31M_UNUSED";
 				subsys-name = "Spare";
+				regulator-always-on;
 			};
 		};
 

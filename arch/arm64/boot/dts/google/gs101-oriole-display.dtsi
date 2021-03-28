@@ -35,6 +35,3 @@
 	regulator-max-microvolt = <3025000>;
 };
 
-&m_ldo31_reg {
-	/delete-property/ regulator-always-on;
-};
