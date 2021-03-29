@@ -75,6 +75,7 @@ static void bts_calc_bw(void)
 	unsigned int i;
 	unsigned int total_read = 0;
 	unsigned int total_write = 0;
+	unsigned int rt_bw = 0;
 	unsigned int mif_freq, int_freq, bus1_freq;
 
 	mutex_lock(&btsdev->mutex_lock);
@@ -85,6 +86,10 @@ static void bts_calc_bw(void)
 	for (i = 0; i < btsdev->num_bts; i++) {
 		if (btsdev->peak_bw < btsdev->bts_bw[i].peak)
 			btsdev->peak_bw = btsdev->bts_bw[i].peak;
+
+		/* Calculate total RT BW based on peak BW */
+		if (btsdev->bts_bw[i].is_rt)
+			rt_bw += btsdev->bts_bw[i].peak;
 
 		total_read += btsdev->bts_bw[i].read;
 		total_write += btsdev->bts_bw[i].write;
@@ -97,12 +102,15 @@ static void bts_calc_bw(void)
 		btsdev->peak_bw = (total_write / NUM_CHANNEL);
 
 	mif_freq = (btsdev->total_bw / BUS_WIDTH) * 100 / MIF_UTIL;
+	/* Additional MIF constriant to guarantee RT BW < 40% */
+	mif_freq = max(mif_freq, (rt_bw / BUS_WIDTH) * 100 / RT_UTIL);
+
 	bus1_freq = (btsdev->peak_bw / BUS_WIDTH) * 100 / INT_UTIL;
 	int_freq = bus1_to_int_freq(bus1_freq);
 
 	BTSDBG_LOG(btsdev->dev,
-		   "BW: T:%.8u R:%.8u W:%.8u P:%.8u MIF:%.8u BUS1:%.8u INT:%.8u\n",
-		   btsdev->total_bw, total_read, total_write, btsdev->peak_bw,
+		   "BW: T:%.8u R:%.8u W:%.8u P:%.8u RT:%.8u MIF:%.8u BUS1:%.8u INT:%.8u\n",
+		   btsdev->total_bw, total_read, total_write, btsdev->peak_bw, rt_bw,
 		   mif_freq, bus1_freq, int_freq);
 
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
@@ -217,7 +225,7 @@ int bts_get_bwindex(const char *name)
 {
 	struct bts_bw *bw = btsdev->bts_bw;
 	unsigned int index;
-	int ret;
+	int ret, i;
 
 	spin_lock(&btsdev->lock);
 
@@ -241,6 +249,11 @@ int bts_get_bwindex(const char *name)
 		goto out;
 	}
 	ret = index;
+	bw[index].is_rt = false;
+	for (i = 0; i < btsdev->num_rts; i++) {
+		if (!strcmp(bw[index].name, btsdev->rt_names[i]))
+			bw[index].is_rt = true;
+	}
 
 out:
 	spin_unlock(&btsdev->lock);
@@ -457,9 +470,10 @@ static int exynos_bts_bw_open_show(struct seq_file *buf, void *d)
 		(i < btsdev->num_bts); i++) {
 		seq_printf(
 			buf,
-			"%s:\tRead: %.8u Write: %.8u Peak %.8u\n",
+			"%s:\tRead: %.8u Write: %.8u Peak %.8u RT %c\n",
 			btsdev->bts_bw[i].name, btsdev->bts_bw[i].read,
-			btsdev->bts_bw[i].write, btsdev->bts_bw[i].peak);
+			btsdev->bts_bw[i].write, btsdev->bts_bw[i].peak,
+			btsdev->bts_bw[i].is_rt? 'Y' : 'N');
 	}
 	mutex_unlock(&btsdev->mutex_lock);
 	return 0;
@@ -1402,6 +1416,33 @@ static int bts_parse_data(struct device_node *np, struct bts_device *data)
 				"Unable to get name of bts scenarios\n");
 			goto err;
 		}
+	}
+
+	data->num_rts = (unsigned int)of_property_count_strings(
+			np, "rt-names");
+	if (!data->num_rts) {
+		BTSDBG_LOG(data->dev,
+			   "No rt names found\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	data->rt_names = devm_kcalloc(data->dev, data->num_rts,
+				      sizeof(char *), GFP_KERNEL);
+	if (!data->rt_names) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	for (i = 0; i < data->num_rts; i++) {
+		const char *rt_name;
+		ret = of_property_read_string_index(np, "rt-names", i,
+						    &rt_name);
+		if (ret) {
+			dev_err(data->dev,
+				"Unable to get name of rt IPs\n");
+			goto err;
+		}
+		data->rt_names[i] = rt_name;
 	}
 
 	data->num_bts = (unsigned int)of_get_child_count(np);
