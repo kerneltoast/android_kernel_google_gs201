@@ -111,12 +111,6 @@ static bool dit_hw_capa_matched(u32 mask)
 
 static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 {
-	struct dit_desc_info *desc_info;
-	struct dit_src_desc *src_desc = NULL;
-	struct dit_dst_desc *dst_desc = NULL;
-	struct nat_local_port local_port;
-	u16 reply_port_dst, reply_port_dst_h, reply_port_dst_l;
-	u16 origin_port_src;
 	u16 ring_num;
 	u32 i;
 
@@ -129,11 +123,13 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 	}
 
 	if (cpif_check_bit(dump_bits, DIT_DUMP_DESC_BIT)) {
-		desc_info = &dc->desc_info[dir];
+		struct dit_desc_info *desc_info = &dc->desc_info[dir];
+		struct dit_src_desc *src_desc = NULL;
+		struct dit_dst_desc *dst_desc = NULL;
 
+		src_desc = desc_info->src_desc_ring;
 		mif_err("---- SRC RING[dir:%d] wp:%u,rp:%u ----\n", dir,
 			desc_info->src_wp, desc_info->src_rp);
-		src_desc = desc_info->src_desc_ring;
 		for (i = 0; i < desc_info->src_desc_ring_len; i++) {
 			if (!(src_desc[i].control & DIT_SRC_KICK_CONTROL_MASK))
 				continue;
@@ -156,6 +152,10 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 	}
 
 	if (cpif_check_bit(dump_bits, DIT_DUMP_PORT_TABLE_BIT) && dir == DIT_DIR_RX) {
+		struct nat_local_port local_port;
+		u16 reply_port_dst, reply_port_dst_h, reply_port_dst_l;
+		u16 origin_port_src;
+
 		mif_err("---- PORT TABLE[dir:%d] ----\n", dir);
 		for (i = 0; i < DIT_REG_NAT_LOCAL_PORT_MAX; i++) {
 			local_port.hw_val = READ_REG_VALUE(dc, DIT_REG_NAT_RX_PORT_TABLE_SLOT +
@@ -1364,6 +1364,8 @@ static int dit_init_hw(void)
 	WRITE_REG_VALUE(dc, 0x0, DIT_REG_CLK_GT_OFF);
 
 	DIT_INDIRECT_CALL(dc, do_init_hw);
+	if (!dc->reg_version)
+		DIT_INDIRECT_CALL(dc, get_reg_version, &dc->reg_version);
 
 	WRITE_SHR_VALUE(dc, dc->sharability_value);
 
@@ -1618,7 +1620,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 	unsigned int wp, rp, desc_len;
 	unsigned int dir, ring_num;
 
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "hw_ver:0x%08X reg_ver:%lu\n",
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "hw_ver:0x%08X reg_ver:0x%X\n",
 		dc->hw_version, dc->reg_version);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "use tx:%d rx:%d(stop:%d) clat:%d\n",
 		dc->use_dir[DIT_DIR_TX], dc->use_dir[DIT_DIR_RX], dc->stop_enqueue[DIT_DIR_RX],
@@ -2169,8 +2171,6 @@ static void dit_set_hw_specific(void)
 #else
 	dc->hw_version = DIT_VERSION(2, 1, 0);
 #endif
-
-	DIT_INDIRECT_CALL(dc, get_reg_version, &dc->reg_version);
 
 #if defined(CONFIG_SOC_GS101)
 	dc->hw_capabilities |= DIT_CAP_MASK_PORT_BIG_ENDIAN;
