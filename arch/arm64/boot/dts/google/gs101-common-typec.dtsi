@@ -110,6 +110,7 @@
 		in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
 		max20339,ovp = <&max20339_ovp>;
 		conn = <&conn>;
+		orientation-switch;
 
 		conn: connector {
 			compatible = "usb-c-connector";
@@ -147,6 +148,11 @@
 					reg = <0>;
 					remote-endpoint = <&out_role_sw>;
 				};
+
+				in_orientation_sw: endpoint@1 {
+					reg = <0>;
+					remote-endpoint = <&out_orientation_sw>;
+				};
 			};
 		};
 
@@ -157,6 +163,11 @@
 			out_role_sw: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&in_role_sw>;
+			};
+
+			out_orientation_sw: endpoint@1 {
+				reg = <0>;
+				remote-endpoint = <&in_orientation_sw>;
 			};
 
 		};
