@@ -116,7 +116,7 @@ struct dit_dst_desc {
 		/* meaning changes before/after interrupt */
 		u64	control:8,
 			ch_id:8;	/* "interface" on the document */
-	};
+	} __packed;
 	u64	status:8;
 } __packed;
 
