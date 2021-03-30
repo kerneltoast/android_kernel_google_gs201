@@ -13,6 +13,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/usb/role.h>
+#include <linux/usb/typec_mux.h>
 
 #include "usb_psy.h"
 
@@ -100,6 +101,8 @@ struct max77759_plat {
 
 	/* Notifier for data role */
 	struct usb_role_switch *usb_sw;
+	/* Notifier for orientation */
+	struct typec_switch *typec_sw;
 
 	/* EXT_BST_EN exposed as GPIO */
 #ifdef CONFIG_GPIOLIB

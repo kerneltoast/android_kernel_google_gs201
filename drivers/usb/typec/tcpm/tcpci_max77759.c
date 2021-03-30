@@ -995,10 +995,11 @@ static void max77759_set_partner_usb_comm_capable(struct tcpci *tcpci, struct tc
 	mutex_unlock(&chip->data_path_lock);
 }
 
-static void max77759_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data *data,
-				     enum typec_cc_polarity polarity)
+static int max77759_usb_set_orientation(struct typec_switch *sw, enum typec_orientation orientation)
 {
-	struct max77759_plat *chip = tdata_to_max77759(data);
+	struct max77759_plat *chip = typec_switch_get_drvdata(sw);
+	enum typec_cc_polarity polarity = orientation == TYPEC_ORIENTATION_REVERSE ?
+		TYPEC_POLARITY_CC2 : TYPEC_POLARITY_CC1;
 	int ret;
 
 	ret = extcon_set_property(chip->extcon, EXTCON_USB, EXTCON_PROP_USB_TYPEC_POLARITY,
@@ -1014,6 +1015,7 @@ static void max77759_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data *dat
 		      "Failed" : "Succeeded", polarity);
 	dev_info(chip->dev, "TCPM_DEBUG %s setting polarity USB %d", ret < 0 ? "Failed" :
 		 "Succeeded", polarity);
+	return ret;
 }
 
 static int max77759_vote_icl(struct max77759_plat *chip, u32 max_ua)
@@ -1447,6 +1449,7 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 static int max77759_setup_data_notifier(struct max77759_plat *chip)
 {
 	struct usb_role_switch_desc desc = { };
+	struct typec_switch_desc sw_desc = { };
 	u32 conn_handle;
 	int ret;
 
@@ -1481,11 +1484,29 @@ static int max77759_setup_data_notifier(struct max77759_plat *chip)
 		return ret;
 	}
 
+	sw_desc.fwnode = dev_fwnode(chip->dev);
+	sw_desc.drvdata = chip;
+	sw_desc.name = fwnode_get_name(dev_fwnode(chip->dev));
+	sw_desc.set = max77759_usb_set_orientation;
+
+	chip->typec_sw = typec_switch_register(chip->dev, &sw_desc);
+	if (IS_ERR(chip->typec_sw)) {
+		ret = PTR_ERR(chip->typec_sw);
+		dev_err(chip->dev, "Error while registering orientation switch:%d\n", ret);
+		goto usb_sw_free;
+	}
+
+	return 0;
+
+usb_sw_free:
+	usb_role_switch_unregister(chip->usb_sw);
 	return ret;
 }
 
 static void max77759_teardown_data_notifier(struct max77759_plat *chip)
 {
+	if (!IS_ERR_OR_NULL(chip->typec_sw))
+		typec_switch_unregister(chip->typec_sw);
 	if (!IS_ERR_OR_NULL(chip->usb_sw))
 		usb_role_switch_unregister(chip->usb_sw);
 }
@@ -1579,7 +1600,6 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.vbus_vsafe0v = true;
 	chip->data.set_partner_usb_comm_capable = max77759_set_partner_usb_comm_capable;
 	chip->data.init = tcpci_init;
-	chip->data.set_cc_polarity = max77759_set_cc_polarity;
 	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
 
 	chip->log = logbuffer_register("usbpd");
