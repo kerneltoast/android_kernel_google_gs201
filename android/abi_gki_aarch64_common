@@ -642,6 +642,17 @@
   capable
   capable_wrt_inode_uidgid
   __cap_empty_set
+  cdc_ncm_bind_common
+  cdc_ncm_change_mtu
+  cdc_ncm_fill_tx_frame
+  cdc_ncm_rx_fixup
+  cdc_ncm_rx_verify_ndp16
+  cdc_ncm_rx_verify_ndp32
+  cdc_ncm_rx_verify_nth16
+  cdc_ncm_rx_verify_nth32
+  cdc_ncm_select_altsetting
+  cdc_ncm_tx_fixup
+  cdc_ncm_unbind
   cdc_parse_cdc_header
   cdev_add
   cdev_alloc
@@ -3553,6 +3564,7 @@
   free_task
   free_vm_area
   freeze_bdev
+  freezer_cgrp_subsys
   freezer_cgrp_subsys_enabled_key
   freezer_cgrp_subsys_on_dfl_key
   freeze_super
@@ -8680,6 +8692,7 @@
   reset_control_reset
   reset_control_status
   reset_devices
+  reset_hung_task_detector
   reset_simple_ops
   resource_list_create_entry
   resource_list_free
@@ -9053,15 +9066,21 @@
   __SCK__tp_func_android_rvh_update_misfit_status
   __SCK__tp_func_android_rvh_util_est_update
   __SCK__tp_func_android_rvh_wake_up_new_task
+  __SCK__tp_func_android_vh_account_task_time
   __SCK__tp_func_android_vh_alloc_pages_slowpath
   __SCK__tp_func_android_vh_allow_domain_state
   __SCK__tp_func_android_vh_alter_futex_plist_add
   __SCK__tp_func_android_vh_alter_mutex_list_add
   __SCK__tp_func_android_vh_alter_rwsem_list_add
   __SCK__tp_func_android_vh_arch_set_freq_scale
+  __SCK__tp_func_android_vh_binder_alloc_new_buf_locked
+  __SCK__tp_func_android_vh_binder_preset
+  __SCK__tp_func_android_vh_binder_reply
   __SCK__tp_func_android_vh_binder_restore_priority
   __SCK__tp_func_android_vh_binder_set_priority
+  __SCK__tp_func_android_vh_binder_trans
   __SCK__tp_func_android_vh_binder_transaction_init
+  __SCK__tp_func_android_vh_binder_wait_for_work
   __SCK__tp_func_android_vh_binder_wakeup_ilocked
   __SCK__tp_func_android_vh_build_sched_domains
   __SCK__tp_func_android_vh_cache_show
@@ -9087,6 +9106,7 @@
   __SCK__tp_func_android_vh_gic_resume
   __SCK__tp_func_android_vh_gic_v3_affinity_init
   __SCK__tp_func_android_vh_gic_v3_set_affinity
+  __SCK__tp_func_android_vh_gpio_block_read
   __SCK__tp_func_android_vh_iommu_setup_dma_ops
   __SCK__tp_func_android_vh_ipi_stop
   __SCK__tp_func_android_vh_is_fpsimd_save
@@ -9128,6 +9148,7 @@
   __SCK__tp_func_android_vh_show_mem
   __SCK__tp_func_android_vh_show_resume_epoch_val
   __SCK__tp_func_android_vh_show_suspend_epoch_val
+  __SCK__tp_func_android_vh_sync_txn_recvd
   __SCK__tp_func_android_vh_syscall_prctl_finished
   __SCK__tp_func_android_vh_sysrq_crash
   __SCK__tp_func_android_vh_timer_calc_index
@@ -11056,15 +11077,21 @@
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_wake_up_new_task
+  __traceiter_android_vh_account_task_time
   __traceiter_android_vh_alloc_pages_slowpath
   __traceiter_android_vh_allow_domain_state
   __traceiter_android_vh_alter_futex_plist_add
   __traceiter_android_vh_alter_mutex_list_add
   __traceiter_android_vh_alter_rwsem_list_add
   __traceiter_android_vh_arch_set_freq_scale
+  __traceiter_android_vh_binder_alloc_new_buf_locked
+  __traceiter_android_vh_binder_preset
+  __traceiter_android_vh_binder_reply
   __traceiter_android_vh_binder_restore_priority
   __traceiter_android_vh_binder_set_priority
+  __traceiter_android_vh_binder_trans
   __traceiter_android_vh_binder_transaction_init
+  __traceiter_android_vh_binder_wait_for_work
   __traceiter_android_vh_binder_wakeup_ilocked
   __traceiter_android_vh_build_sched_domains
   __traceiter_android_vh_cache_show
@@ -11090,6 +11117,7 @@
   __traceiter_android_vh_gic_resume
   __traceiter_android_vh_gic_v3_affinity_init
   __traceiter_android_vh_gic_v3_set_affinity
+  __traceiter_android_vh_gpio_block_read
   __traceiter_android_vh_iommu_setup_dma_ops
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_is_fpsimd_save
@@ -11131,6 +11159,7 @@
   __traceiter_android_vh_show_mem
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
+  __traceiter_android_vh_sync_txn_recvd
   __traceiter_android_vh_syscall_prctl_finished
   __traceiter_android_vh_sysrq_crash
   __traceiter_android_vh_timer_calc_index
@@ -11317,15 +11346,21 @@
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_wake_up_new_task
+  __tracepoint_android_vh_account_task_time
   __tracepoint_android_vh_alloc_pages_slowpath
   __tracepoint_android_vh_allow_domain_state
   __tracepoint_android_vh_alter_futex_plist_add
   __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_alter_rwsem_list_add
   __tracepoint_android_vh_arch_set_freq_scale
+  __tracepoint_android_vh_binder_alloc_new_buf_locked
+  __tracepoint_android_vh_binder_preset
+  __tracepoint_android_vh_binder_reply
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
+  __tracepoint_android_vh_binder_trans
   __tracepoint_android_vh_binder_transaction_init
+  __tracepoint_android_vh_binder_wait_for_work
   __tracepoint_android_vh_binder_wakeup_ilocked
   __tracepoint_android_vh_build_sched_domains
   __tracepoint_android_vh_cache_show
@@ -11351,6 +11386,7 @@
   __tracepoint_android_vh_gic_resume
   __tracepoint_android_vh_gic_v3_affinity_init
   __tracepoint_android_vh_gic_v3_set_affinity
+  __tracepoint_android_vh_gpio_block_read
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_is_fpsimd_save
@@ -11392,6 +11428,7 @@
   __tracepoint_android_vh_show_mem
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
+  __tracepoint_android_vh_sync_txn_recvd
   __tracepoint_android_vh_syscall_prctl_finished
   __tracepoint_android_vh_sysrq_crash
   __tracepoint_android_vh_timer_calc_index
@@ -12194,15 +12231,22 @@
   usb_init_urb
   usb_interface_id
   usb_interrupt_msg
+  usb_intf_get_dma_device
   usb_kill_anchored_urbs
   usb_kill_urb
   usb_lock_device_for_reset
   usb_match_id
   usb_match_one_id
+  usbnet_cdc_bind
+  usbnet_cdc_status
+  usbnet_cdc_unbind
+  usbnet_cdc_update_filter
   usbnet_change_mtu
   usbnet_defer_kevent
   usbnet_device_suggests_idle
   usbnet_disconnect
+  usbnet_ether_cdc_bind
+  usbnet_generic_cdc_bind
   usbnet_get_drvinfo
   usbnet_get_endpoints
   usbnet_get_ethernet_addr
