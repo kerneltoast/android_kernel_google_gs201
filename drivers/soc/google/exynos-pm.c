@@ -183,8 +183,6 @@ static void exynos_show_wakeup_reason(bool sleep_abort)
 	}
 }
 
-extern u32 otg_is_connect(void);
-
 static void exynos_set_wakeupmask(enum sys_powerdown mode)
 {
 	int i;
