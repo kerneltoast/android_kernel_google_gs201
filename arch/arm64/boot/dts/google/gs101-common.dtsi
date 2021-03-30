@@ -67,36 +67,41 @@
 };
 
 &udc {
-	dr_mode = "otg";
-	maximum-speed = "super-speed-plus";
-	snps,quirk-frame-length-adjustment = <0x20>;
-	snps,u1u2_exitfail_quirk;
-	/* ux_exit_in_px should be defined in MK, LT */
-	snps,ux_exit_in_px_quirk;
-	/* elastic_buf_mode_quirk should be defined in MK */
-	snps,elastic_buf_mode_quirk;
 	usb3-lpm-capable;
-	snps,usb3_lpm_capable;
-	snps,has-lpm-erratum;
-	snps,lpm-nyet-threshold = <0>;
 	adj-sof-accuracy = <1>;
-	/*
-	 * dis-u2-freeclk-exists-quirk, dis_u2_susphy_quirk are alternative.
-	 * One of them should be selected
-	 */
-	snps,dis-u2-freeclk-exists-quirk;
-	/*snps,dis_u2_susphy_quirk;*/
 	samsung,no-extra-delay;
 	usb_host_device_timeout = <0x7ff>; /* Max value */
-
 	extcon = <&fusb307b>;
 
-	/*abox = <&abox>;*/ /* Temporary block */
+	u1u2_exitfail_quirk;
+	/* ux_exit_in_px should be defined in MK, LT */
+	ux_exit_in_px_quirk;
+	/* elastic_buf_mode_quirk should be defined in MK */
+	elastic_buf_mode_quirk;
 	xhci_l2_support = <1>;
 
-	/* http://b/171478776 : disabling U1/U2 speed up NCM tethering by >2x */
-	snps,dis-u1-entry-quirk;
-	snps,dis-u2-entry-quirk;
+	usbdrd_dwc3: dwc3 {
+		dr_mode = "peripheral";
+		maximum-speed = "super-speed-plus";
+		usb3-lpm-capable;
+		snps,quirk-frame-length-adjustment = <0x20>;
+
+		snps,usb3_lpm_capable;
+		snps,has-lpm-erratum;
+		snps,lpm-nyet-threshold = <0>;
+
+		/*
+		 * dis-u2-freeclk-exists-quirk, dis_u2_susphy_quirk are alternative.
+		 * One of them should be selected
+		 */
+		snps,dis-u2-freeclk-exists-quirk;
+		/*snps,dis_u2_susphy_quirk;*/
+
+		/* http://b/171478776 : disabling U1/U2 speed up NCM tethering by >2x */
+		snps,dis-u1-entry-quirk;
+		snps,dis-u2-entry-quirk;
+		xhci_l2_support = <1>;
+	};
 };
 
 &usbdrd_phy0 {
