@@ -52,6 +52,10 @@
 
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/consumer.h>
+#include <misc/logbuffer.h>
+
+/* Debug logging */
+#define DATA_BYTES_PER_LINE     (16)
 
 #ifdef CONFIG_PM_DEVFREQ
 #include <linux/pm_qos.h>
@@ -185,6 +189,7 @@ struct exynos_uart_port {
 	unsigned int dbg_word_len;
 	unsigned int			uart_logging;
 	struct uart_local_buf		uart_local_buf;
+	struct logbuffer *log;
 };
 
 /* conversion functions */
@@ -1066,6 +1071,7 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 	unsigned int insert_cnt = 0;
 	unsigned char trace_buf[256] = {0, };
 	int trace_cnt = 0;
+	char buf[DATA_BYTES_PER_LINE * 3 + 1];
 
 	exynos_set_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
 	wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
@@ -1154,9 +1160,14 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 			trace_buf[trace_cnt++] = ch;
 	}
 
-	if (ourport->uart_logging && trace_cnt)
-		uart_copy_to_local_buf(1, &ourport->uart_local_buf, trace_buf,
-				       trace_cnt);
+	if (ourport->uart_logging && trace_cnt) {
+		if (!IS_ERR_OR_NULL(ourport->log)) {
+			hex_dump_to_buffer(trace_buf, trace_cnt, DATA_BYTES_PER_LINE,
+				1, buf, sizeof(buf), false);
+			logbuffer_log(ourport->log, "RX: len: %d, buf: %s", trace_cnt, buf);
+		}
+		uart_copy_to_local_buf(1, &ourport->uart_local_buf, trace_buf, trace_cnt);
+	}
 
 	exynos_clear_bit(port, S3C64XX_UINTM_RXD, S3C64XX_UINTM);
 
@@ -1198,6 +1209,7 @@ static irqreturn_t exynos_serial_tx_chars(int irq, void *id)
 	int count = port->fifosize, dma_count = 0;
 	unsigned char trace_buf[256] = {0, };
 	int trace_cnt = 0;
+	char buf[DATA_BYTES_PER_LINE * 3 + 1];
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1271,9 +1283,14 @@ out:
 	if (ourport->tx_enabled)
 		exynos_clear_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
 
-	if (ourport->uart_logging && trace_cnt)
-		uart_copy_to_local_buf(0, &ourport->uart_local_buf, trace_buf,
-				       trace_cnt);
+	if (ourport->uart_logging && trace_cnt) {
+		if (!IS_ERR_OR_NULL(ourport->log)) {
+			hex_dump_to_buffer(trace_buf, trace_cnt, DATA_BYTES_PER_LINE,
+				1, buf, sizeof(buf), false);
+			logbuffer_log(ourport->log, "TX: len: %d, buf: %s", trace_cnt, buf);
+		}
+		uart_copy_to_local_buf(0, &ourport->uart_local_buf, trace_buf, trace_cnt);
+	}
 
 	spin_unlock_irqrestore(&port->lock, flags);
 	return IRQ_HANDLED;
@@ -1355,12 +1372,19 @@ static unsigned int exynos_serial_get_mctrl(struct uart_port *port)
 
 static void exynos_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	struct exynos_uart_port *ourport = to_ourport(port);
 	unsigned int umcon = rd_regl(port, S3C2410_UMCON);
 
-	if (mctrl & TIOCM_RTS)
+	if (mctrl & TIOCM_RTS) {
 		umcon |= S3C2410_UMCOM_RTS_LOW;
-	else
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "set_mctrl: Activate RTS, umcon:0x%08x", umcon);
+	} else {
 		umcon &= ~S3C2410_UMCOM_RTS_LOW;
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "set_mctrl: Inactivate RTS, umcon:0x%08x",
+				umcon);
+	}
 
 	wr_regl(port, S3C2410_UMCON, umcon);
 }
@@ -1610,13 +1634,19 @@ static void exynos_serial_pm(struct uart_port *port, unsigned int level,
 			/* disable auto flow control & set nRTS for High */
 			umcon = rd_regl(port, S3C2410_UMCON);
 			umcon &= ~(S3C2410_UMCOM_AFC | S3C2410_UMCOM_RTS_LOW);
+			if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+				logbuffer_log(ourport->log,
+					"pm: OFF: Disable AFC & Inactivate RTS, 0x%08x", umcon);
 			wr_regl(port, S3C2410_UMCON, umcon);
 		}
-
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "pm: OFF: uart_clock_disable");
 		uart_clock_disable(ourport);
 		break;
 
 	case UART_PM_STATE_ON:
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "pm: ON: uart_clock_enable");
 		uart_clock_enable(ourport);
 
 		exynos_usi_init(port);
@@ -1864,6 +1894,9 @@ static void exynos_serial_set_termios(struct uart_port *port,
 
 	dev_dbg(port->dev, "setting ulcon to %08x, brddiv to %d, udivslot %08x\n",
 		ulcon, quot, udivslot);
+	if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+		logbuffer_log(ourport->log, "set_termios: ulcon %08x, brddiv %d, udivslot %08x",
+		ulcon, quot, udivslot);
 
 	wr_regl(port, S3C2410_ULCON, ulcon);
 	wr_regl(port, S3C2410_UBRDIV, quot);
@@ -1876,12 +1909,22 @@ static void exynos_serial_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CRTSCTS) {
 		umcon |= S3C2410_UMCOM_AFC;
 		port->status = UPSTAT_AUTOCTS;
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "set_termios: Enable AFC, umcon:0x%08x", umcon);
 	} else {
 		umcon &= ~S3C2410_UMCOM_AFC;
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "set_termios: Disable AFC, umcon:0x%08x",
+				umcon);
 	}
 	wr_regl(port, S3C2410_UMCON, umcon);
 
 	dev_dbg(port->dev, "uart: ulcon = 0x%08x, ucon = 0x%08x, ufcon = 0x%08x\n",
+		rd_regl(port, S3C2410_ULCON),
+		rd_regl(port, S3C2410_UCON),
+		rd_regl(port, S3C2410_UFCON));
+	if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+		logbuffer_log(ourport->log, "set_termios: ulcon 0x%08x, ucon 0x%08x, ufcon 0x%08x",
 		rd_regl(port, S3C2410_ULCON),
 		rd_regl(port, S3C2410_UCON),
 		rd_regl(port, S3C2410_UFCON));
@@ -2469,6 +2512,7 @@ static int exynos_serial_probe(struct platform_device *pdev)
 	int ret, fifo_size, prop = 0;
 	int port_index = probe_index;
 	int rts_trig_level;
+	char logbuf_port[6];
 
 	dev_dbg(&pdev->dev, "%s %d\n", __func__, index);
 
@@ -2723,6 +2767,15 @@ static int exynos_serial_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (ourport->uart_logging == 1) {
+		snprintf(logbuf_port, sizeof(logbuf_port), "tty%d", port_index);
+		ourport->log = logbuffer_register(logbuf_port);
+		if (IS_ERR_OR_NULL(ourport->log)) {
+			dev_err(&pdev->dev, "probe: logbuffer get failed\n");
+			ourport->log = NULL;
+		}
+	}
+
 	return 0;
 }
 
@@ -2739,6 +2792,10 @@ static int exynos_serial_remove(struct platform_device *dev)
 	if (ourport->cpu_qos_val && ourport->qos_timeout)
 		cpu_latency_qos_remove_request(&ourport->exynos_uart_cpu_qos);
 #endif
+
+	if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log)) {
+		logbuffer_unregister(ourport->log);
+	}
 
 	if (port) {
 		if (ourport->uart_logging == 1)
@@ -2770,6 +2827,8 @@ static int exynos_serial_suspend(struct device *dev)
 		usleep_range(200, 300);//delay for sfr update
 		exynos_serial_rx_fifo_wait(ourport);
 
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "suspend: uart_suspend_port");
 		uart_suspend_port(&exynos_uart_drv, port);
 		if (!ourport->dbg_uart_ch || console_suspend_enabled) {
 			uart_clock_enable(ourport);
@@ -2779,7 +2838,6 @@ static int exynos_serial_suspend(struct device *dev)
 			wr_regl(port, S3C2410_UCON, ucon);
 			exynos_usi_stop(port);
 			uart_clock_disable(ourport);
-
 			ourport->rx_enabled = 0;
 			ourport->tx_enabled = 0;
 		} else {
@@ -2832,6 +2890,9 @@ static int exynos_serial_resume(struct device *dev)
 			uart_clock_enable(ourport);
 			exynos_usi_init(port);
 		}
+
+		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+			logbuffer_log(ourport->log, "resume: uart_resume_port");
 
 		uart_resume_port(&exynos_uart_drv, port);
 
