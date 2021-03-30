@@ -24,7 +24,7 @@
 	};
 
 	video_stream_dma_heap {
-		compatible = "samsung,dma-heap-cma";
+		compatible = "samsung,dma-heap-chunk";
 		memory-region = <&vstream>;
 		dma-heap,name = "vstream";
 		dma-heap,video_aligned;
@@ -34,7 +34,7 @@
 	};
 
 	video_frame_dma_heap {
-		compatible = "samsung,dma-heap-cma";
+		compatible = "samsung,dma-heap-chunk";
 		memory-region = <&vframe>;
 		dma-heap,name = "vframe";
 		dma-heap,secure;
@@ -43,7 +43,7 @@
 	};
 
 	video_scaler_dma_heap {
-		compatible = "samsung,dma-heap-cma";
+		compatible = "samsung,dma-heap-chunk";
 		memory-region = <&vscaler>;
 		dma-heap,name = "vscaler";
 		dma-heap,secure;
