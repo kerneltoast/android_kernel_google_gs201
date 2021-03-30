@@ -2252,6 +2252,24 @@ retry:
 	val |= SOFT_PWR_RESET;
 	exynos_elbi_write(exynos_pcie, val, PCIE_SOFT_RESET);
 
+	/* Check if OC (CDR Offset Calibration) is done */
+	count = 0;
+	while (count < 1000) {
+		usleep_range(10, 12);
+		val = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
+		if (val != 0)
+			break;
+		count++;
+	}
+	if (count >= 1000)
+		dev_err(dev, "OC failed\n");
+
+	dev_info(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
+			exynos_phy_read(exynos_pcie, 0x760),
+			exynos_phy_read(exynos_pcie, 0xE0C),
+			exynos_phy_read(exynos_pcie, 0x3F0),
+			exynos_phy_read(exynos_pcie, 0xFC0));
+
 	/* Device Type (Sub Controller: DEVICE_TYPE offset: 0x80  */
 	exynos_elbi_write(exynos_pcie, 0x04, 0x80);
 
