@@ -391,10 +391,31 @@ static void dwc3_exynos_phy_setup(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 int dwc3_exynos_core_init(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 {
 	u32 reg;
+	u32 dft;
 
 	dwc3_exynos_phy_setup(dwc, exynos);
 
 	dwc3_core_config(dwc, exynos);
+
+	if (DWC3_VER_IS(DWC31, 180A)) {
+		/* FOR ref_clk 19.2MHz */
+		reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
+		dft = reg & DWC3_GFLADJ_30MHZ_MASK;
+		if (dft != dwc->fladj) {
+			reg &= ~DWC3_GFLADJ_30MHZ_MASK;
+			reg |= dwc->fladj;
+		}
+
+		reg &= ~DWC3_GFLADJ_REFCLK_240MHZ_DECR_MASK;
+		reg |= DWC3_GFLADJ_REFCLK_240MHZ_DECR(0xc);
+		reg |= DWC3_GFLADJ_REFCLK_240MHZDECR_PLS1;
+
+		reg |= DWC3_GFLADJ_REFCLK_LPM_SEL;
+		reg &= ~DWC3_GFLADJ_REFCLK_FLADJ_MASK;
+		reg |= DWC3_GFLADJ_30MHZ_SDBND_SEL;
+
+		dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
+	}
 
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 
