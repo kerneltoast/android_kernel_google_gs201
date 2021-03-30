@@ -107,6 +107,40 @@ out:
 	return 0;
 }
 
+static int dit_do_init_desc(enum dit_direction dir)
+{
+	struct dit_desc_info *desc_info;
+	phys_addr_t p_desc;
+
+	/* dst01-dst03 is not used but hw checks the registers */
+	u32 offset_lo[] = {
+		DIT_REG_RX_RING_START_ADDR_0_DST01, DIT_REG_RX_RING_START_ADDR_0_DST02,
+		DIT_REG_RX_RING_START_ADDR_0_DST03,
+		DIT_REG_NAT_RX_DESC_ADDR_0_DST01, DIT_REG_NAT_RX_DESC_ADDR_0_DST02,
+		DIT_REG_NAT_RX_DESC_ADDR_0_DST03};
+	u32 offset_hi[] = {
+		DIT_REG_RX_RING_START_ADDR_1_DST01, DIT_REG_RX_RING_START_ADDR_1_DST02,
+		DIT_REG_RX_RING_START_ADDR_1_DST03,
+		DIT_REG_NAT_RX_DESC_ADDR_1_DST01, DIT_REG_NAT_RX_DESC_ADDR_1_DST02,
+		DIT_REG_NAT_RX_DESC_ADDR_1_DST03};
+	unsigned int offset_len;
+	unsigned int i;
+
+	if (dir == DIT_DIR_TX)
+		return 0;
+
+	desc_info = &dc->desc_info[DIT_DIR_RX];
+	p_desc = virt_to_phys(desc_info->dst_desc_ring[DIT_DST_DESC_RING_0]);
+
+	offset_len = ARRAY_SIZE(offset_lo);
+	for (i = 0; i < offset_len; i++) {
+		WRITE_REG_PADDR_LO(dc, p_desc, offset_lo[i]);
+		WRITE_REG_PADDR_HI(dc, p_desc, offset_hi[i]);
+	}
+
+	return 0;
+}
+
 static int dit_do_init_hw(void)
 {
 	WRITE_REG_VALUE(dc, BIT(RX_TTLDEC_EN_BIT), DIT_REG_NAT_TTLDEC_EN);
@@ -141,6 +175,7 @@ int dit_ver_create(struct dit_ctrl_t *dc_ptr)
 	dc->get_reg_version = dit_get_reg_version;
 	dc->set_reg_upstream = dit_set_reg_upstream;
 	dc->set_desc_filter_bypass = dit_set_desc_filter_bypass;
+	dc->do_init_desc = dit_do_init_desc;
 	dc->do_init_hw = dit_do_init_hw;
 	dc->do_suspend = dit_dummy;
 	dc->do_resume = dit_dummy;

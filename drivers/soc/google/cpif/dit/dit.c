@@ -1377,7 +1377,7 @@ static int dit_init_desc(enum dit_direction dir)
 	struct dit_desc_info *desc_info = &dc->desc_info[dir];
 	void *buf = NULL;
 	unsigned int buf_size;
-	phys_addr_t p_buf;
+	phys_addr_t p_desc;
 	int ret = 0, ring_num;
 	u32 offset_lo = 0, offset_hi = 0;
 
@@ -1392,7 +1392,7 @@ static int dit_init_desc(enum dit_direction dir)
 		desc_info->src_desc_ring = buf;
 	}
 
-	p_buf = virt_to_phys(desc_info->src_desc_ring);
+	p_desc = virt_to_phys(desc_info->src_desc_ring);
 	if (dir == DIT_DIR_TX) {
 		offset_lo = DIT_REG_TX_RING_START_ADDR_0_SRC;
 		offset_hi = DIT_REG_TX_RING_START_ADDR_1_SRC;
@@ -1400,8 +1400,8 @@ static int dit_init_desc(enum dit_direction dir)
 		offset_lo = DIT_REG_RX_RING_START_ADDR_0_SRC;
 		offset_hi = DIT_REG_RX_RING_START_ADDR_1_SRC;
 	}
-	WRITE_REG_PADDR_LO(dc, p_buf, offset_lo);
-	WRITE_REG_PADDR_HI(dc, p_buf, offset_hi);
+	WRITE_REG_PADDR_LO(dc, p_desc, offset_lo);
+	WRITE_REG_PADDR_HI(dc, p_desc, offset_hi);
 
 	if (!desc_info->src_skb_buf) {
 		buf_size = sizeof(struct sk_buff *) * desc_info->src_desc_ring_len;
@@ -1427,7 +1427,7 @@ static int dit_init_desc(enum dit_direction dir)
 			desc_info->dst_desc_ring[ring_num] = buf;
 		}
 
-		p_buf = virt_to_phys(desc_info->dst_desc_ring[ring_num]);
+		p_desc = virt_to_phys(desc_info->dst_desc_ring[ring_num]);
 		switch (ring_num) {
 		case DIT_DST_DESC_RING_0:
 			if (dir == DIT_DIR_TX) {
@@ -1471,12 +1471,14 @@ static int dit_init_desc(enum dit_direction dir)
 		}
 
 		if (offset_lo && offset_hi) {
-			WRITE_REG_PADDR_LO(dc, p_buf, offset_lo);
-			WRITE_REG_PADDR_HI(dc, p_buf, offset_hi);
+			WRITE_REG_PADDR_LO(dc, p_desc, offset_lo);
+			WRITE_REG_PADDR_HI(dc, p_desc, offset_hi);
 		}
 
 		dit_set_dst_desc_int_range(dir, ring_num);
 	}
+
+	DIT_INDIRECT_CALL(dc, do_init_desc, dir);
 
 	mif_info("dir:%d src_len:%d dst_len:%d\n",
 		dir, desc_info->src_desc_ring_len, desc_info->dst_desc_ring_len);

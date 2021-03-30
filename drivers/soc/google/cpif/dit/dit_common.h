@@ -266,6 +266,7 @@ struct dit_ctrl_t {
 	int (*set_desc_filter_bypass)(enum dit_direction dir, struct dit_src_desc *src_desc,
 				      u8 *src, bool *is_upstream_pkt);
 	int (*do_init_hw)(void);
+	int (*do_init_desc)(enum dit_direction dir);
 	int (*do_suspend)(void);
 	int (*do_resume)(void);
 };
