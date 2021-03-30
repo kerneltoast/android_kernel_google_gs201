@@ -45,6 +45,7 @@ endif
 obj-$(CONFIG_USB_DWC3_OMAP)		+= dwc3-omap.o
 obj-$(CONFIG_USB_DWC3_EXYNOS)		+= dwc3-exynos-usb.o
 dwc3-exynos-usb-y			+= dwc3-exynos.o
+dwc3-exynos-usb-y			+= dwc3-exynos-otg.o
 
 ifneq ($(CONFIG_TRACING),)
 	dwc3-exynos-usb-y		+= trace.o
