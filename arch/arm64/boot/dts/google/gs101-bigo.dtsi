@@ -16,6 +16,7 @@
 		reg-names = "bo", "ssmt_bo_pid";
 		interrupts = <GIC_SPI IRQ_BO_XINT_BO IRQ_TYPE_LEVEL_HIGH>;
 		bigo-opp-table = <&bigo_opp_table>;
+		bigo-bw-table = <&bigo_bw_table>;
 		iommus = <&sysmmu_bo>;
 		samsung,iommu-group = <&iommu_group_bo>;
 		pt_id = "bigocean";
@@ -26,23 +27,50 @@
 	bigo_opp_table: bigo_opp_table {
 		opp-95000000 {
 			freq-khz = <95000>;
-			/* 1080p@30fps */
+			/* 1920x1088@30fps */
 			load-pps = <61200>;
 		};
 		opp-222000000 {
 			freq-khz = <222000>;
-			/* 1080p@60fps */
+			/* 1920x1088@60fps */
 			load-pps = <122400>;
 		};
 		opp-400000000 {
 			freq-khz = <400000>;
-			/* 4K@30fps */
-			load-pps = <280800>;
+			/* 4096x2160@30fps */
+			load-pps = <259200>;
 		};
 		opp-620000000 {
 			freq-khz = <620000>;
-			/* 4K@60fps */
-			load-pps = <561600>;
+			/* 4096x2160@60fps */
+			load-pps = <518400>;
+		};
+	};
+
+	bigo_bw_table: bigo_bw_table {
+		bw-1080p-30 {
+			rd-bw = <190000>;
+			wr-bw = <85000>;
+			pk-bw = <210000>;
+			load-pps = <61200>;
+		};
+		bw-1080p-60 {
+			rd-bw = <340000>;
+			wr-bw = <165000>;
+			pk-bw = <410000>;
+			load-pps = <122400>;
+		};
+		bw-2160p-30 {
+			rd-bw = <700000>;
+			wr-bw = <340000>;
+			pk-bw = <820000>;
+			load-pps = <259200>;
+		};
+		bw-2160p-60 {
+			rd-bw = <1900000>;
+			wr-bw = <680000>;
+			pk-bw = <1850000>;
+			load-pps = <518400>;
 		};
 	};
 };
