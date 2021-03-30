@@ -781,6 +781,7 @@
   cfg80211_update_owe_info_event
   cfg80211_vendor_cmd_get_sender
   cfg80211_vendor_cmd_reply
+  __cfi_slowpath
   cgroup_attach_task_all
   cgroup_bpf_enabled_key
   __cgroup_bpf_run_filter_sk
@@ -11840,6 +11841,7 @@
   uart_unregister_driver
   uart_update_timeout
   uart_write_wakeup
+  __ubsan_handle_cfi_check_fail_abort
   uclamp_eff_value
   ucs2_as_utf8
   ucs2_strlen
