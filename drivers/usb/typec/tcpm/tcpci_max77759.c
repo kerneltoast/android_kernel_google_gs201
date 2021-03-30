@@ -18,6 +18,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/spinlock.h>
 #include <linux/usb/pd.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
@@ -25,6 +26,7 @@
 #include <trace/hooks/typec.h>
 
 #include "bc_max77759.h"
+#include "max77759_export.h"
 #include "max77759_helper.h"
 #include "tcpci.h"
 #include "tcpci_max77759.h"
@@ -72,6 +74,10 @@ enum gbms_charger_modes {
 #define CONTAMINANT_HANDLES_TOGGLING	1
 
 static bool hooks_installed;
+
+static u32 partner_src_caps[PDO_MAX_OBJECTS];
+static unsigned int nr_partner_src_caps;
+spinlock_t g_caps_lock;
 
 struct tcpci {
 	struct device *dev;
@@ -1199,6 +1205,63 @@ static int max77759_set_roles(struct tcpci *tcpci, struct tcpci_data *data,
 	return 0;
 }
 
+static void max77759_store_partner_src_caps(void *unused, struct tcpm_port *port,
+					    unsigned int *nr_source_caps,
+					    u32 (*source_caps)[PDO_MAX_OBJECTS])
+{
+	int i;
+
+	spin_lock(&g_caps_lock);
+
+	nr_partner_src_caps = *nr_source_caps > PDO_MAX_OBJECTS ?
+			      PDO_MAX_OBJECTS : *nr_source_caps;
+
+	for (i = 0; i < nr_partner_src_caps; i++)
+		partner_src_caps[i] = *(source_caps[i]);
+
+	spin_unlock(&g_caps_lock);
+}
+
+/*
+ * Don't call this function in interrupt context. Caller needs to free the
+ * memory by calling tcpm_put_partner_src_caps.
+ */
+int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **src_pdo)
+{
+	int i, ret;
+
+	*src_pdo = kcalloc(sizeof(u32) * PDO_MAX_OBJECTS, sizeof(u32), GFP_KERNEL);
+	if (!src_pdo)
+		return -ENOMEM;
+
+	spin_lock(&g_caps_lock);
+
+	if (!nr_partner_src_caps) {
+		ret = -ENODATA;
+		goto cleanup;
+	}
+
+	for (i = 0, ret = nr_partner_src_caps; i < nr_partner_src_caps; i++)
+		*src_pdo[i] = partner_src_caps[i];
+
+	goto unlock;
+
+cleanup:
+	kfree(*src_pdo);
+	*src_pdo = NULL;
+unlock:
+	spin_unlock(&g_caps_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(tcpm_get_partner_src_caps);
+
+void tcpm_put_partner_src_caps(u32 **src_pdo)
+{
+	kfree(*src_pdo);
+	*src_pdo = NULL;
+}
+EXPORT_SYMBOL_GPL(tcpm_put_partner_src_caps);
+
 static void max77759_set_port_data_capable(struct i2c_client *tcpc_client,
 					   enum power_supply_usb_type
 					   usb_type)
@@ -1372,6 +1435,15 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 		return ret;
 	}
 
+	ret = register_trace_android_vh_typec_store_partner_src_caps(
+			max77759_store_partner_src_caps, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_store_partner_src_caps failed ret:%d\n",
+			ret);
+		return ret;
+	}
+
 	hooks_installed = true;
 
 	return ret;
@@ -1436,6 +1508,7 @@ static int max77759_probe(struct i2c_client *client,
 	mutex_init(&chip->icl_proto_el_lock);
 	mutex_init(&chip->data_path_lock);
 	mutex_init(&chip->rc_lock);
+	spin_lock_init(&g_caps_lock);
 	chip->first_toggle = true;
 
 	ret = max77759_read8(chip->data.regmap, TCPC_POWER_STATUS,
