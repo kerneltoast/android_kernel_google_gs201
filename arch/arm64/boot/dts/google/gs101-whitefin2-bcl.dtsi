@@ -246,7 +246,7 @@
 
 		trips {
 			ocp_gpu:ocp-gpu{
-				temperature = <13200>;
+				temperature = <12000>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -260,7 +260,7 @@
 
 		trips {
 			soft_ocp_gpu:soft-ocp-gpu {
-				temperature = <13200>;
+				temperature = <12000>;
 				hysteresis = <100>;
 				type = "passive";
 			};
