@@ -4,6 +4,5 @@
 #define CPU_INFORM_SICD			(3)
 #define CPU_INFORM_SLEEP			(4)
 #define CPU_INFORM_SLEEP_SLCMON			(5)
-#define CPU_INFORM_SLEEP_HSI1ON			(6)
-#define CPU_INFORM_STOP			(7)
-#define CPU_INFORM_POWERMODE_NUM			(8)
+#define CPU_INFORM_STOP			(6)
+#define CPU_INFORM_POWERMODE_NUM			(7)
