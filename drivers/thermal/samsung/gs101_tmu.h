@@ -59,6 +59,13 @@ struct gs101_tmu_data {
 	bool hotplug_enable;
 	int hotplug_in_threshold;
 	int hotplug_out_threshold;
+	bool cpu_hw_throttling_enable;
+	int cpu_hw_throttling_trigger_threshold;
+	int cpu_hw_throttling_clr_threshold;
+	int ppm_clr_throttle_level;
+	int ppm_throttle_level;
+	int mpmm_clr_throttle_level;
+	int mpmm_throttle_level;
 	int limited_frequency;
 	int limited_threshold;
 	int limited_threshold_release;
@@ -68,11 +75,15 @@ struct gs101_tmu_data {
 	int irq;
 	struct kthread_worker thermal_worker;
 	struct kthread_worker pause_worker;
+	struct kthread_worker cpu_hw_throttle_worker;
 	struct kthread_work irq_work;
 	struct kthread_work cpu_pause_work;
 	struct kthread_work hotplug_work;
+	struct kthread_work cpu_hw_throttle_work;
+	struct kthread_delayed_work cpu_hw_throttle_init_work;
 	struct mutex lock;			/* lock to protect gs101 tmu */
 	struct thermal_zone_device *tzd;
+	struct gs101_bcl_dev *bcl_dev;
 	unsigned int ntrip;
 	bool enabled;
 	struct thermal_cooling_device *cool_dev;
@@ -81,6 +92,7 @@ struct gs101_tmu_data {
 	struct device_node *np;
 	bool is_cpu_paused;
 	bool is_cpu_hotplugged_out;
+	bool is_cpu_hw_throttled;
 	int temperature;
 	bool use_pi_thermal;
 	struct kthread_delayed_work pi_work;

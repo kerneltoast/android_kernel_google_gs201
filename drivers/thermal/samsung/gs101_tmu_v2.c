@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <uapi/linux/sched/types.h>
+#include <soc/google/bcl.h>
 #include <soc/google/tmu.h>
 #include <soc/google/ect_parser.h>
 #include <soc/google/isp_cooling.h>
@@ -414,6 +415,13 @@ static int gs101_get_temp(void *p, int *temp)
 		  data->temperature >= data->hotplug_out_threshold)))
 		kthread_queue_work(&data->pause_worker, &data->hotplug_work);
 
+	if (data->cpu_hw_throttling_enable &&
+	    ((data->is_cpu_hw_throttled &&
+	      data->temperature < data->cpu_hw_throttling_clr_threshold) ||
+	     (!data->is_cpu_hw_throttled &&
+	      data->temperature >= data->cpu_hw_throttling_trigger_threshold)))
+		kthread_queue_work(&data->cpu_hw_throttle_worker, &data->cpu_hw_throttle_work);
+
 	if (data->pause_enable &&
 	    ((data->is_cpu_paused &&
 	      data->temperature < data->resume_threshold) ||
@@ -790,6 +798,118 @@ irq_handler_exit:
 	return IRQ_HANDLED;
 }
 
+static void init_bcl_dev(struct kthread_work *work)
+{
+	struct gs101_tmu_data *data = container_of(work,
+						   struct gs101_tmu_data,
+						   cpu_hw_throttle_init_work.work);
+	int ret = 0;
+
+	mutex_lock(&data->lock);
+	data->bcl_dev = gs101_retrieve_bcl_handle();
+
+	if (!data->bcl_dev) {
+		pr_warn_ratelimited("%s: failed to retrieve bcl_dev. Retry.\n", data->tmu_name);
+		kthread_mod_delayed_work(&data->cpu_hw_throttle_worker,
+					 &data->cpu_hw_throttle_init_work,
+					 msecs_to_jiffies(500));
+		goto init_exit;
+	}
+
+	if (!data->ppm_clr_throttle_level)
+		data->ppm_clr_throttle_level = gs101_get_ppm(data->bcl_dev);
+
+	if (!data->mpmm_clr_throttle_level)
+		data->mpmm_clr_throttle_level = gs101_get_mpmm(data->bcl_dev);
+
+	if (data->ppm_clr_throttle_level < 0)
+		ret = data->ppm_clr_throttle_level;
+
+	if (data->mpmm_clr_throttle_level < 0)
+		ret = data->mpmm_clr_throttle_level;
+
+	if (ret < 0) {
+		pr_err_ratelimited("%s: failed to get ppm(0x%x)/mpmm(0x%x) setting, ret = %d\n",
+				   data->tmu_name,
+				   data->ppm_clr_throttle_level,
+				   data->mpmm_clr_throttle_level, ret);
+		goto init_exit;
+	}
+
+	pr_info("%s: pasring default setting ppm: 0x%x, mpmm: 0x%x\n", data->tmu_name,
+		data->ppm_clr_throttle_level, data->mpmm_clr_throttle_level);
+
+init_exit:
+	mutex_unlock(&data->lock);
+}
+
+static void gs101_throttle_arm(struct kthread_work *work)
+{
+	struct gs101_tmu_data *data = container_of(work,
+						   struct gs101_tmu_data, cpu_hw_throttle_work);
+
+	int ret = 0;
+
+	if (!data->bcl_dev) {
+		pr_err_ratelimited("Failed to retrieve bcl_dev, ppm/mpmm throttling failed\n");
+		return;
+	}
+
+	mutex_lock(&data->lock);
+
+	if (data->is_cpu_hw_throttled) {
+		if (data->temperature < data->cpu_hw_throttling_clr_threshold) {
+			pr_info_ratelimited("ppm/mpmm thermal throttling disable!\n");
+
+			ret = gs101_set_ppm(data->bcl_dev, data->ppm_clr_throttle_level);
+			if (ret) {
+				pr_err_ratelimited("Failed to clr ppm throttle to 0x%x, ret = %d",
+						   data->ppm_clr_throttle_level, ret);
+				return;
+			}
+			pr_info_ratelimited("Set ppm throttle to 0x%x\n",
+					    data->ppm_clr_throttle_level);
+
+			ret = gs101_set_mpmm(data->bcl_dev, data->mpmm_clr_throttle_level);
+			if (ret) {
+				pr_err_ratelimited("Failed to clr mpmm throttle to 0x%x, ret = %d",
+						   data->mpmm_clr_throttle_level, ret);
+				return;
+			}
+			pr_info_ratelimited("Set mpmm throttle to 0x%x\n",
+					    data->mpmm_clr_throttle_level);
+
+			data->is_cpu_hw_throttled = false;
+		}
+	} else {
+		if (data->temperature >= data->cpu_hw_throttling_trigger_threshold) {
+			pr_info_ratelimited("ppm/mpmm thermal throttling enable!\n");
+
+			ret = gs101_set_ppm(data->bcl_dev, data->ppm_throttle_level);
+			if (ret) {
+				pr_err_ratelimited("Failed to set ppm throttle to 0x%x, ret = %d",
+						   data->ppm_throttle_level, ret);
+				return;
+			}
+			pr_info_ratelimited("Set ppm throttle to 0x%x\n",
+					    data->ppm_throttle_level);
+
+			ret = gs101_set_mpmm(data->bcl_dev, data->mpmm_throttle_level);
+			if (ret) {
+				pr_err_ratelimited("Failed to set mpmm throttle to 0x%x, ret = %d",
+						   data->mpmm_throttle_level, ret);
+				return;
+			}
+			pr_info_ratelimited("Set mpmm throttle to 0x%x\n",
+					    data->mpmm_throttle_level);
+
+			data->is_cpu_hw_throttled = true;
+		}
+	}
+
+	mutex_unlock(&data->lock);
+}
+
 static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 {
 	struct gs101_tmu_data *data = container_of(work,
@@ -977,6 +1097,31 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 		wake_up_process(thread);
 	}
 
+	if (data->cpu_hw_throttling_enable) {
+		kthread_init_work(&data->cpu_hw_throttle_work, gs101_throttle_arm);
+		kthread_init_worker(&data->cpu_hw_throttle_worker);
+
+		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_hw_throttle", data->tmu_name);
+		thread = kthread_create(kthread_worker_fn, &data->cpu_hw_throttle_worker,
+					kworker_name);
+
+		cpumask_and(&mask, cpu_possible_mask, &data->tmu_work_affinity);
+		set_cpus_allowed_ptr(thread, &mask);
+
+		ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
+		if (ret) {
+			kthread_stop(thread);
+			dev_warn(&pdev->dev, "cpu_hw_throttling failed to set SCHED_FIFO\n");
+			return ret;
+		}
+		wake_up_process(thread);
+
+		kthread_init_delayed_work(&data->cpu_hw_throttle_init_work, init_bcl_dev);
+		kthread_mod_delayed_work(&data->cpu_hw_throttle_worker,
+					 &data->cpu_hw_throttle_init_work,
+					 msecs_to_jiffies(0));
+	}
+
 	return ret;
 }
 
@@ -1064,6 +1209,37 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 	}
 #endif
 
+#if IS_ENABLED(CONFIG_GOOGLE_BCL)
+	data->cpu_hw_throttling_enable = of_property_read_bool(pdev->dev.of_node,
+							       "cpu_hw_throttling_enable");
+	if (data->cpu_hw_throttling_enable) {
+		dev_info(&pdev->dev, "thermal zone use cpu hw throttling function\n");
+		of_property_read_u32(pdev->dev.of_node, "cpu_hw_throttling_trigger_threshold",
+				     &data->cpu_hw_throttling_trigger_threshold);
+
+		if (!data->cpu_hw_throttling_trigger_threshold)
+			dev_err(&pdev->dev, "No input cpu_hw_throttling_trigger_threshold\n");
+
+		of_property_read_u32(pdev->dev.of_node, "cpu_hw_throttling_clr_threshold",
+				     &data->cpu_hw_throttling_clr_threshold);
+
+		if (!data->cpu_hw_throttling_clr_threshold)
+			dev_err(&pdev->dev, "No input cpu_hw_throttling_clr_threshold\n");
+
+		of_property_read_u32(pdev->dev.of_node, "ppm_level",
+				     &data->ppm_throttle_level);
+
+		if (!data->ppm_throttle_level)
+			dev_err(&pdev->dev, "No input ppm_level\n");
+
+		of_property_read_u32(pdev->dev.of_node, "mpmm_level",
+				     &data->mpmm_throttle_level);
+
+		if (!data->mpmm_throttle_level)
+			dev_err(&pdev->dev, "No input mpmm_level\n");
+	}
+#endif
+
 	ret = of_property_read_string(pdev->dev.of_node, "tmu_work_affinity", &buf);
 	if (!ret)
 		cpulist_parse(buf, &data->tmu_work_affinity);
@@ -1141,6 +1317,70 @@ static const struct thermal_zone_of_device_ops gs101_sensor_ops = {
 	.set_emul_temp = gs101_tmu_set_emulation,
 	.get_trend = gs101_get_trend,
 };
+
+static ssize_t
+cpu_hw_throttling_trigger_temp_show(struct device *dev, struct device_attribute *devattr,
+				 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", data->cpu_hw_throttling_trigger_threshold);
+}
+
+static ssize_t
+cpu_hw_throttling_trigger_temp_store(struct device *dev, struct device_attribute *devattr,
+				  const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	int cpu_hw_throttling_trigger = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &cpu_hw_throttling_trigger)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->cpu_hw_throttling_trigger_threshold = cpu_hw_throttling_trigger;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
+cpu_hw_throttling_clr_temp_show(struct device *dev, struct device_attribute *devattr,
+						 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", data->cpu_hw_throttling_clr_threshold);
+}
+
+static ssize_t
+cpu_hw_throttling_clr_temp_store(struct device *dev, struct device_attribute *devattr,
+			      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	int cpu_hw_throttling_clear = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &cpu_hw_throttling_clear)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->cpu_hw_throttling_clr_threshold = cpu_hw_throttling_clear;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
 
 static ssize_t
 hotplug_out_temp_show(struct device *dev, struct device_attribute *devattr,
@@ -1410,6 +1650,8 @@ static DEVICE_ATTR_RW(pause_cpus_temp);
 static DEVICE_ATTR_RW(resume_cpus_temp);
 static DEVICE_ATTR_RW(hotplug_out_temp);
 static DEVICE_ATTR_RW(hotplug_in_temp);
+static DEVICE_ATTR_RW(cpu_hw_throttling_clr_temp);
+static DEVICE_ATTR_RW(cpu_hw_throttling_trigger_temp);
 static DEVICE_ATTR_RW(sustainable_power);
 static DEVICE_ATTR_RW(polling_delay_off);
 static DEVICE_ATTR_RW(polling_delay_on);
@@ -1426,6 +1668,8 @@ static struct attribute *gs101_tmu_attrs[] = {
 	&dev_attr_polling_delay_on.attr,
 	&dev_attr_hotplug_out_temp.attr,
 	&dev_attr_hotplug_in_temp.attr,
+	&dev_attr_cpu_hw_throttling_clr_temp.attr,
+	&dev_attr_cpu_hw_throttling_trigger_temp.attr,
 	&dev_attr_sustainable_power.attr,
 	&dev_attr_k_po.attr,
 	&dev_attr_k_pu.attr,
