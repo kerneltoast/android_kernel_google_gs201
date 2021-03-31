@@ -153,7 +153,7 @@ static void __dit_set_interrupt(void)
 {
 	static int irq_pending_bit[] = {
 		RX_DST00_INT_PENDING_BIT, RX_DST1_INT_PENDING_BIT,
-		RX_DST2_INT_PENDING_BIT, TX_DST0_INT_PENDING_BIT};
+		RX_DST2_INT_PENDING_BIT, TX_DST00_INT_PENDING_BIT};
 	static char const *irq_name[] = {
 		"DIT-RxDst00", "DIT-RxDst1",
 		"DIT-RxDst2", "DIT-Tx"};
