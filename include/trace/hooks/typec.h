@@ -15,6 +15,16 @@ struct tcpci;
 struct tcpci_data;
 struct tcpm_port;
 
+#ifndef TYPEC_TIMER
+#define TYPEC_TIMER
+enum typec_timer {
+	SINK_WAIT_CAP,
+	SOURCE_OFF,
+	CC_DEBOUNCE,
+	SINK_DISCOVERY_BC12,
+};
+#endif
+
 DECLARE_HOOK(android_vh_typec_tcpci_override_toggling,
 	TP_PROTO(struct tcpci *tcpci, struct tcpci_data *data, int *override_toggling),
 	TP_ARGS(tcpci, data, override_toggling));
@@ -38,6 +48,10 @@ DECLARE_HOOK(android_vh_typec_store_partner_src_caps,
 	TP_PROTO(struct tcpm_port *port, unsigned int *nr_source_caps,
 		 u32 (*source_caps)[PDO_MAX_OBJECTS]),
 	TP_ARGS(port, nr_source_caps, source_caps));
+
+DECLARE_HOOK(android_vh_typec_tcpm_get_timer,
+	TP_PROTO(const char *state, enum typec_timer timer, unsigned int *msecs),
+	TP_ARGS(state, timer, msecs));
 
 #endif /* _TRACE_HOOK_UFSHCD_H */
 /* This part must be outside protection */
