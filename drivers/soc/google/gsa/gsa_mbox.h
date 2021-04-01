@@ -49,6 +49,15 @@ enum gsa_mbox_cmd {
 	GSA_MB_CMD_LOAD_AOC_FW_IMG = 90,
 	GSA_MB_CMD_AOC_CMD = 91,
 	GSA_MB_CMD_UNLOAD_AOC_FW_IMG = 92,
+
+	/* SJTAG */
+	GSA_MB_CMD_SJTAG_GET_STATUS = 100,
+	GSA_MB_CMD_SJTAG_GET_CHIP_ID = 101,
+	GSA_MB_CMD_SJTAG_GET_PUB_KEY_HASH = 102,
+	GSA_MB_CMD_SJTAG_SET_PUB_KEY = 103,
+	GSA_MB_CMD_SJTAG_GET_CHALLENGE = 104,
+	GSA_MB_CMD_SJTAG_ENABLE = 105,
+	GSA_MB_CMD_SJTAG_FINISH = 106,
 };
 
 /**
@@ -119,6 +128,49 @@ enum kdn_set_op_mode_req_args {
 	KDN_SET_OP_MODE_MODE_IDX = 0,
 	KDN_SET_OP_MODE_UFS_DESCR_IDX = 1,
 	KDN_SET_OP_MODE_ARGC,
+};
+
+/**
+ * enum sjtag_data_req_args - parameters layout for SJTAG related calls
+ * @SJTAG_DATA_BUF_ADDR_LO_IDX: index of low word of SJTAG data buffer address
+ * @SJTAG_DATA_BUF_ADDR_HI_IDX: index of high word of SJTAG data buffer address
+ * @SJTAG_DATA_BUF_SIZE_IDX: index of SJTAG data buffer size parameter
+ * @SJTAG_DATA_LEN_IDX: index of SJTAG data length parameter
+ * @SJTAG_DATA_REQ_ARGC: total number of parameters expected by SJTAG service
+ */
+enum sjtag_data_req_args {
+	SJTAG_DATA_BUF_ADDR_LO_IDX = 0,
+	SJTAG_DATA_BUF_ADDR_HI_IDX,
+	SJTAG_DATA_BUF_SIZE_IDX,
+	SJTAG_DATA_LEN_IDX,
+	SJTAG_DATA_REQ_ARGC,
+};
+
+/**
+ * enum sjtag_data_rsp_args - parameters layout for SJTAG response calls
+ * @SJTAG_DATA_RSP_STATUS_IDX: index of status word returned by SJTAG service
+ * @SJTAG_DATA_RSP_DATA_LEN_IDX: index of parameters contining number of bytes
+ *                               returned in SJTAG data buffer by GSA
+ * @SJTAG_DATA_RSP_DATA_ARGC: total number of parameters returned by SJTAG
+ *                            data request
+ */
+enum sjtag_data_rsp_args {
+	SJTAG_DATA_RSP_STATUS_IDX = 0,
+	SJTAG_DATA_RSP_DATA_LEN_IDX,
+	SJTAG_DATA_RSP_ARGC,
+};
+
+/**
+ * enum sjtag_status_rsp_args - parameter layout for SJTAG get status command
+ * @SJTAG_STATUS_RSP_DEBUG_ALLOWED_IDX: Index of debug allowed parameter
+ * @SJTAG_STATUS_RSP_HW_STATUS_IDX: index of hardware status parameter
+ * @SJTAG_STATUS_RSP_DEBUG_TIME_IDX: index of DEBUG time parameter
+ */
+enum sjtag_status_rsp_args {
+	SJTAG_STATUS_RSP_DEBUG_ALLOWED_IDX = 0,
+	SJTAG_STATUS_RSP_HW_STATUS_IDX = 1,
+	SJTAG_STATUS_RSP_DEBUG_TIME_IDX = 2,
+	SJTAG_STATUS_RSP_ARGC,
 };
 
 struct gsa_mbox;

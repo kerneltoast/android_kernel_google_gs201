@@ -15,6 +15,7 @@
 
 #include <linux/gsa/gsa_aoc.h>
 #include <linux/gsa/gsa_kdn.h>
+#include <linux/gsa/gsa_sjtag.h>
 #include <linux/gsa/gsa_tpu.h>
 #include "gsa_mbox.h"
 #include "gsa_priv.h"
@@ -339,6 +340,230 @@ int gsa_kdn_set_operating_mode(struct device *gsa,
 		return 0;
 }
 EXPORT_SYMBOL_GPL(gsa_kdn_set_operating_mode);
+
+/*
+ *   External SJTAG management interface
+ */
+static int send_sjtag_data_cmd(struct gsa_dev_state *s, u32 cmd,
+			       void *dst_buf, size_t dst_buf_sz,
+			       const void *src_data, size_t src_data_len,
+			       u32 *status)
+{
+	int ret;
+	size_t cb;
+	u32 req[SJTAG_DATA_REQ_ARGC];
+	u32 rsp[SJTAG_DATA_RSP_ARGC];
+
+	if (dst_buf_sz) {
+		if (!dst_buf) {
+			/* invalid args */
+			return -EINVAL;
+		}
+		if (dst_buf_sz > s->bb_sz) {
+			/* too much data */
+			return -EINVAL;
+		}
+	}
+
+	/* copy in data */
+	if (src_data_len) {
+		if (!src_data) {
+			/* invalid args */
+			return -EINVAL;
+		}
+
+		if (src_data_len > s->bb_sz) {
+			/* too much data */
+			return -EINVAL;
+		}
+
+		memcpy(s->bb_va, src_data, src_data_len);
+	}
+
+	/* Invoke SJTAG command */
+	req[SJTAG_DATA_BUF_ADDR_LO_IDX] = (u32)s->bb_da;
+	req[SJTAG_DATA_BUF_ADDR_HI_IDX] = (u32)(s->bb_da >> 32);
+	req[SJTAG_DATA_BUF_SIZE_IDX] = max_t(u32, dst_buf_sz, src_data_len);
+	req[SJTAG_DATA_LEN_IDX] = (u32)src_data_len;
+
+	ret = gsa_send_mbox_cmd(s->mb, cmd, req, ARRAY_SIZE(req),
+				rsp, ARRAY_SIZE(rsp));
+	if (ret < 0) {
+		/* mailbox command failed */
+		return ret;
+	}
+
+	if (ret != SJTAG_DATA_RSP_ARGC) {
+		/* unexpected reply */
+		return -EINVAL;
+	}
+
+	/* return command status */
+	if (status)
+		*status = rsp[SJTAG_DATA_RSP_STATUS_IDX];
+
+	/* copy data out */
+	cb = rsp[SJTAG_DATA_RSP_DATA_LEN_IDX];
+
+	if (cb > dst_buf_sz) {
+		/* buffer too short */
+		return -EINVAL;
+	}
+
+	if (cb) {
+		/* copy data to destination buffer */
+		memcpy(dst_buf, s->bb_va, cb);
+	}
+
+	return cb;
+}
+
+int gsa_sjtag_get_status(struct device *gsa, u32 *debug_allowed, u32 *hw_state,
+			 u32 *debug_time)
+{
+	int ret;
+	u32 rsp[SJTAG_STATUS_RSP_ARGC];
+	struct gsa_dev_state *s;
+	struct platform_device *pdev;
+
+	pdev = to_platform_device(gsa);
+	s = platform_get_drvdata(pdev);
+
+	ret = gsa_send_cmd(gsa, GSA_MB_CMD_SJTAG_GET_STATUS, NULL, 0,
+			   rsp, ARRAY_SIZE(rsp));
+	if (ret < 0)
+		return ret;
+
+	/* we expect exactly 2 parameters */
+	if (ret != SJTAG_STATUS_RSP_ARGC)
+		return -EIO;
+
+	if (debug_allowed)
+		*debug_allowed= rsp[SJTAG_STATUS_RSP_DEBUG_ALLOWED_IDX];
+
+	if (hw_state)
+		*hw_state = rsp[SJTAG_STATUS_RSP_HW_STATUS_IDX];
+
+	if (debug_time)
+		*debug_time = rsp[SJTAG_STATUS_RSP_DEBUG_TIME_IDX];
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gsa_sjtag_get_status);
+
+int gsa_sjtag_get_chip_id(struct device *gsa, u32 id[2])
+{
+	int ret;
+
+	ret = gsa_send_cmd(gsa, GSA_MB_CMD_SJTAG_GET_CHIP_ID, NULL, 0, id, 2);
+	if (ret < 0)
+		return ret;
+
+	/* we expect exactly 2 parameters */
+	if (ret != 2)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gsa_sjtag_get_chip_id);
+
+int gsa_sjtag_get_pub_key_hash(struct device *gsa, void *hash, size_t size,
+			       u32 *status)
+{
+	int ret;
+	struct gsa_dev_state *s;
+	struct platform_device *pdev;
+
+	pdev = to_platform_device(gsa);
+	s = platform_get_drvdata(pdev);
+
+	mutex_lock(&s->bb_lock);
+	ret = send_sjtag_data_cmd(s, GSA_MB_CMD_SJTAG_GET_PUB_KEY_HASH,
+				  hash, size, NULL, 0, status);
+	mutex_unlock(&s->bb_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gsa_sjtag_get_pub_key_hash);
+
+int gsa_sjtag_set_pub_key(struct device *gsa, const void *key, size_t size,
+			  u32 *status)
+{
+	int ret;
+	struct gsa_dev_state *s;
+	struct platform_device *pdev;
+
+	pdev = to_platform_device(gsa);
+	s = platform_get_drvdata(pdev);
+
+	mutex_lock(&s->bb_lock);
+	ret = send_sjtag_data_cmd(s, GSA_MB_CMD_SJTAG_SET_PUB_KEY,
+				  NULL, 0, key, size, status);
+	mutex_unlock(&s->bb_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gsa_sjtag_set_pub_key);
+
+int gsa_sjtag_get_challenge(struct device *gsa, void *challenge, size_t size,
+			    u32 *status)
+{
+	int ret;
+	struct gsa_dev_state *s;
+	struct platform_device *pdev;
+
+	pdev = to_platform_device(gsa);
+	s = platform_get_drvdata(pdev);
+
+	mutex_lock(&s->bb_lock);
+	ret = send_sjtag_data_cmd(s, GSA_MB_CMD_SJTAG_GET_CHALLENGE,
+				  challenge, size, NULL, 0, status);
+	mutex_unlock(&s->bb_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gsa_sjtag_get_challenge);
+
+int gsa_sjtag_send_srv_response(struct device *gsa,
+				const void *rsp, size_t size,
+				u32 *status)
+{
+	int ret;
+	struct gsa_dev_state *s;
+	struct platform_device *pdev;
+
+	pdev = to_platform_device(gsa);
+	s = platform_get_drvdata(pdev);
+
+	mutex_lock(&s->bb_lock);
+	ret = send_sjtag_data_cmd(s, GSA_MB_CMD_SJTAG_ENABLE,
+				  NULL, 0, rsp, size, status);
+	mutex_unlock(&s->bb_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gsa_sjtag_send_srv_response);
+
+int gsa_sjtag_end_session(struct device *gsa, u32 *status)
+{
+	int rc;
+	struct gsa_dev_state *s;
+	struct platform_device *pdev;
+
+	pdev = to_platform_device(gsa);
+	s = platform_get_drvdata(pdev);
+
+	rc = gsa_send_cmd(gsa, GSA_MB_CMD_SJTAG_FINISH, NULL, 0, status, 1);
+	if (rc < 0)
+		return rc;
+
+	/* exactly 1 argument is expected  */
+	if (rc != 1)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gsa_sjtag_end_session);
 
 /********************************************************************/
 
