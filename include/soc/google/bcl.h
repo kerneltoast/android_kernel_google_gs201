@@ -93,9 +93,6 @@ struct gs101_bcl_dev {
 	struct i2c_client *s2mpg10_i2c;
 	struct i2c_client *s2mpg11_i2c;
 
-	unsigned int s2mpg10_triggered_irq[IRQ_SOURCE_S2MPG10_MAX];
-	unsigned int s2mpg11_triggered_irq[IRQ_SOURCE_S2MPG11_MAX];
-
 	unsigned int tpu_con_heavy;
 	unsigned int tpu_con_light;
 	unsigned int gpu_con_heavy;
