@@ -11,7 +11,9 @@
 #include "sched.h"
 #include "sched_events.h"
 
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 extern void update_uclamp_stats(int cpu, u64 time);
+#endif
 
 extern bool vendor_sched_enable_prefer_high_cap;
 extern bool vendor_sched_task_spreading_enable;
@@ -895,8 +897,10 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 
 void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	if (rq->nr_running == 1)
 		update_uclamp_stats(rq->cpu, rq_clock(rq));
+#endif
 }
 
 static inline bool check_uclamp_threshold(struct task_struct *p, enum uclamp_id clamp_id)
