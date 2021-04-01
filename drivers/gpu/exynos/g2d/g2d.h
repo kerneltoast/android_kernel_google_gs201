@@ -50,8 +50,9 @@ enum g2d_hw_ppc_rot {
 enum g2d_hw_ppc_fmt {
 	PPC_RGB,
 	PPC_YUV2P,
-	PPC_YUV2P_82,
-	PPC_AFBC,
+	PPC_SBWC,
+	PPC_RGB_AFBC,
+	PPC_YUV_AFBC,
 	PPC_FMT,
 };
 
