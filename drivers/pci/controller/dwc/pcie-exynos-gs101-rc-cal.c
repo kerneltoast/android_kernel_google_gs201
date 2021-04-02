@@ -294,6 +294,14 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	/* PHY CMN_RST, PORT_RST Release */
 	writel(0x1, elbi_base_regs + 0x1400);
 	writel(0x1, elbi_base_regs + 0x1408);
+
+	/* Additional PMA Configurations */
+	phy_base_regs = exynos_pcie->phy_base;
+	val = readl(phy_base_regs + 0x5D0);
+	val |= (0x1 << 4);
+	val &= ~(0x1 << 3);
+	writel(val, phy_base_regs + 0x5D0);
+	pr_info("XO clock configuration : 0x%x\n", readl(phy_base_regs + 0x5D0));
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_pcie_phy_config);
 
