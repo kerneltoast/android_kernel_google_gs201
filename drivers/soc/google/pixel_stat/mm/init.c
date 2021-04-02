@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <trace/hooks/mm.h>
+#include "cma.h"
 
 extern void vh_rmqueue_mod(void *data, struct zone *preferred_zone,
 		struct zone *zone, unsigned int order, gfp_t gfp_flags,
@@ -27,6 +28,14 @@ static int pixel_stat_mm_init(void)
 
 	ret = register_trace_android_vh_pagecache_get_page(
 				vh_pagecache_get_page_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_cma_alloc_start(vh_cma_alloc_start, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_cma_alloc_finish(vh_cma_alloc_finish, NULL);
 	if (ret)
 		return ret;
 

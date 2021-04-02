@@ -9,6 +9,7 @@
 #include <linux/cpu.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include "cma.h"
 
 DEFINE_PER_CPU(unsigned long, pgalloc_costly_order);
 DEFINE_PER_CPU(unsigned long, pgcache_miss);
@@ -59,9 +60,18 @@ int pixel_mm_sysfs(void)
 		return -ENOMEM;
 
 	ret = sysfs_create_group(pixel_stat_mm_kobj, &attr_group);
-
 	if (ret)
-		kobject_put(pixel_stat_mm_kobj);
+		goto put_mm_kobj;
+
+	ret = pixel_mm_cma_sysfs(pixel_stat_mm_kobj);
+	if (ret)
+		goto remove_stat_sysfs;
+
+	return ret;
+remove_stat_sysfs:
+	sysfs_remove_group(pixel_stat_mm_kobj, &attr_group);
+put_mm_kobj:
+	kobject_put(pixel_stat_mm_kobj);
 
 	return ret;
 }
