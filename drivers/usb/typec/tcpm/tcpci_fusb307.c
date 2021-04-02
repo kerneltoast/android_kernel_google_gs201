@@ -19,6 +19,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/usb/role.h>
 #include <linux/usb/tcpm.h>
+#include <linux/usb/typec_mux.h>
 #include <misc/gvotable.h>
 #include <misc/logbuffer.h>
 
@@ -86,6 +87,8 @@ struct fusb307b_plat {
 
 	/* Notifier for data role */
 	struct usb_role_switch *usb_sw;
+	/* Notifier for orientation */
+	struct typec_switch *typec_sw;
 
 	struct i2c_client *uic_i2c_client;
 	struct device_node *uic_device_node;
@@ -414,10 +417,11 @@ static void fusb307b_set_pd_data_capable(struct tcpci *tcpci, struct tcpci_data 
 	mutex_unlock(&chip->data_path_lock);
 }
 
-static void fusb307b_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data
-				     *data, enum typec_cc_polarity polarity)
+static int fusb307b_usb_set_orientation(struct typec_switch *sw, enum typec_orientation orientation)
 {
-	struct fusb307b_plat *chip = tdata_to_fusb307b(data);
+	struct fusb307b_plat *chip = typec_switch_get_drvdata(sw);
+	enum typec_cc_polarity polarity = orientation == TYPEC_ORIENTATION_REVERSE ?
+		TYPEC_POLARITY_CC2 : TYPEC_POLARITY_CC1;
 	int ret;
 
 	ret = extcon_set_property(chip->extcon, EXTCON_USB,
@@ -437,6 +441,7 @@ static void fusb307b_set_cc_polarity(struct tcpci *tcpci, struct tcpci_data
 		      "Failed" : "Succeeded", polarity);
 	dev_info(chip->dev, "TCPM_DEBUG %s setting polarity USB %d",
 		 ret < 0 ? "Failed" : "Succeeded", polarity);
+	return ret;
 }
 
 static int fusb307b_vote_icl(struct fusb307b_plat *chip, u32 max_ua)
@@ -585,6 +590,7 @@ static const unsigned int usbpd_extcon_cable[] = {
 static int fusb307b_setup_data_notifier(struct fusb307b_plat *chip)
 {
 	struct usb_role_switch_desc desc = { };
+	struct typec_switch_desc sw_desc = { };
 	u32 conn_handle;
 	int ret;
 
@@ -616,8 +622,25 @@ static int fusb307b_setup_data_notifier(struct fusb307b_plat *chip)
 	if (IS_ERR(chip->usb_sw)) {
 		ret = PTR_ERR(chip->usb_sw);
 		dev_err(chip->dev, "Error while registering role switch: %d\n", ret);
+		return ret;
 	}
 
+	sw_desc.fwnode = dev_fwnode(chip->dev);
+	sw_desc.drvdata = chip;
+	sw_desc.name = fwnode_get_name(dev_fwnode(chip->dev));
+	sw_desc.set = fusb307b_usb_set_orientation;
+
+	chip->typec_sw = typec_switch_register(chip->dev, &sw_desc);
+	if (IS_ERR(chip->typec_sw)) {
+		ret = PTR_ERR(chip->typec_sw);
+		dev_err(chip->dev, "Error while registering orientation switch:%d\n", ret);
+		goto usb_sw_free;
+	}
+
+	return 0;
+
+usb_sw_free:
+	usb_role_switch_unregister(chip->usb_sw);
 	return ret;
 }
 
@@ -714,7 +737,6 @@ static int fusb307b_probe(struct i2c_client *client,
 
 	chip->data.set_vbus = fusb307_set_vbus;
 	chip->data.set_partner_usb_comm_capable = fusb307b_set_pd_data_capable;
-	chip->data.set_cc_polarity = fusb307b_set_cc_polarity;
 
 	chip->usb_icl_proto_el = gvotable_election_get_handle(USB_ICL_PROTO_EL);
 	if (IS_ERR_OR_NULL(chip->usb_icl_proto_el)) {
