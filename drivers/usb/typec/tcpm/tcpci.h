@@ -195,8 +195,6 @@ struct tcpci_data {
 	int (*start_drp_toggling)(struct tcpci *tcpci, struct tcpci_data *data,
 				  enum typec_cc_status cc);
 	int (*set_vbus)(struct tcpci *tcpci, struct tcpci_data *data, bool source, bool sink);
-	void (*set_cc_polarity)(struct tcpci *tcpci, struct tcpci_data *data,
-				enum typec_cc_polarity polarity);
 	void (*frs_sourcing_vbus)(struct tcpci *tcpci, struct tcpci_data *data);
   	void (*set_partner_usb_comm_capable)(struct tcpci *tcpci, struct tcpci_data *data,
 					     bool capable);
