@@ -31,6 +31,7 @@
 		 */
 		ls = <&slg_pld>;
 		conn = <&usb_con>;
+		orientation-switch;
 
 		usb_con: connector {
 			compatible = "usb-c-connector";
@@ -58,6 +59,10 @@
 					reg = <0>;
 					remote-endpoint = <&out_role>;
 				};
+				in_or_sw: endpoint@1 {
+					reg = <0>;
+					remote-endpoint = <&out_or_sw>;
+				};
 			};
 		};
 
@@ -69,7 +74,10 @@
 				reg = <0>;
 				remote-endpoint = <&in_role>;
 			};
-
+			out_or_sw: endpoint@1 {
+				reg = <0>;
+				remote-endpoint = <&in_or_sw>;
+			};
 		};
 	};
 
