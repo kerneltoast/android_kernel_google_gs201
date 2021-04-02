@@ -3134,6 +3134,8 @@
   dump_stack
   dump_truncate
   dup_iter
+  dwc3_send_gadget_ep_cmd
+  dwc3_stop_active_transfer
   dw_handle_msi_irq
   dw_pcie_ep_init
   dw_pcie_ep_init_complete
@@ -9257,6 +9259,7 @@
   __SCK__tp_func_workqueue_execute_start
   __SCK__tp_func_xdp_bulk_tx
   __SCK__tp_func_xdp_exception
+  __SCK__tp_func_xhci_dbg_quirks
   __scm_destroy
   scm_detach_fds
   scmd_printk
@@ -11268,6 +11271,7 @@
   __traceiter_workqueue_execute_start
   __traceiter_xdp_bulk_tx
   __traceiter_xdp_exception
+  __traceiter_xhci_dbg_quirks
   trace_output_call
   __tracepoint_add_device_to_group
   __tracepoint_android_fs_dataread_end
@@ -11541,6 +11545,7 @@
   __tracepoint_workqueue_execute_start
   __tracepoint_xdp_bulk_tx
   __tracepoint_xdp_exception
+  __tracepoint_xhci_dbg_quirks
   trace_print_array_seq
   trace_print_bitmask_seq
   trace_print_flags_seq
@@ -13269,6 +13274,34 @@
   xfrm_unregister_type
   xfrm_unregister_type_offload
   xfrm_user_policy
+  xhci_add_endpoint
+  xhci_alloc_command
+  xhci_alloc_erst
+  xhci_check_bandwidth
+  xhci_dbg_trace
+  xhci_drop_endpoint
+  xhci_ext_cap_init
+  xhci_free_command
+  xhci_free_erst
+  xhci_gen_setup
+  xhci_get_endpoint_index
+  xhci_get_ep_ctx
+  xhci_get_slot_ctx
+  xhci_handle_event
+  xhci_init_driver
+  xhci_plat_register_vendor_ops
+  xhci_queue_stop_endpoint
+  xhci_reset_bandwidth
+  xhci_resume
+  xhci_ring_alloc
+  xhci_ring_cmd_db
+  xhci_ring_free
+  xhci_run
+  xhci_shutdown
+  xhci_suspend
+  xhci_trb_virt_to_dma
+  xhci_update_erst_dequeue
+  xhci_vendor_get_ops
   xp_alloc
   xp_can_alloc
   xp_dma_map
