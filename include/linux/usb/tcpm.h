@@ -82,9 +82,6 @@ enum tcpm_transmit_type {
  *		automatically if a connection is established.
  * @try_role:	Optional; called to set a preferred role
  * @pd_transmit:Called to transmit PD message
- * @set_pd_capable:
- *		Optional; Called to notify that pd capable partner has been
- *		detected.
  * @mux:	Pointer to multiplexer data
  * @set_bist_data: Turn on/off bist data mode for compliance testing
  * @enable_frs:
@@ -149,7 +146,6 @@ struct tcpc_dev {
 	int (*pd_transmit)(struct tcpc_dev *dev, enum tcpm_transmit_type type,
 			   const struct pd_message *msg, unsigned int negotiated_rev);
 	int (*set_bist_data)(struct tcpc_dev *dev, bool on);
-	void (*set_pd_capable)(struct tcpc_dev *dev, bool capable);
 	int (*enable_frs)(struct tcpc_dev *dev, bool enable);
 	void (*frs_sourcing_vbus)(struct tcpc_dev *dev);
 	int (*enable_auto_vbus_discharge)(struct tcpc_dev *dev, bool enable);
