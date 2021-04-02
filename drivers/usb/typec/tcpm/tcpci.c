@@ -265,16 +265,9 @@ static int tcpci_set_polarity(struct tcpc_dev *tcpc,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_write(tcpci->regmap, TCPC_TCPC_CTRL,
+	return regmap_write(tcpci->regmap, TCPC_TCPC_CTRL,
 			   (polarity == TYPEC_POLARITY_CC2) ?
 			   TCPC_TCPC_CTRL_ORIENTATION : 0);
-	if (ret < 0)
-		return ret;
-
-	if (tcpci->data->set_cc_polarity)
-		tcpci->data->set_cc_polarity(tcpci, tcpci->data, polarity);
-
-	return ret;
 }
 
 static void tcpci_set_partner_usb_comm_capable(struct tcpc_dev *tcpc, bool capable)
