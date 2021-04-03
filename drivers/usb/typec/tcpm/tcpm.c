@@ -393,9 +393,6 @@ struct tcpm_port {
 	/* Requested current / voltage */
 	u32 current_limit;
 	u32 supply_voltage;
-	/* current / voltage requested to partner */
-	u32 req_current_limit;
-	u32 req_supply_voltage;
 
 	/* Used to export TA voltage and current */
 	struct power_supply *psy;
@@ -447,21 +444,6 @@ struct tcpm_port {
 
 	/* Auto vbus discharge status */
 	bool auto_vbus_discharge_enabled;
-
-	/*
-	 * Honour psnkstdby after accept is received.
-	 * However, in this case it has to be made sure that the tSnkStdby (15
-	 * msec) is met.
-	 *
-	 * When not set, port requests PD_P_SNK_STDBY_5V upon entering SNK_DISCOVERY and
-	 * the actual currrent limit after RX of PD_CTRL_PSRDY for PD link,
-	 * SNK_READY for non-pd link.
-	 *
-	 * When set, port requests CC advertisement based current limit during
-	 * SNK_DISCOVERY, current gets limited to PD_P_SNK_STDBY_5V during SNK_TRANSITION_SINK,
-	 * PD based current limit gets set after RX of PD_CTRL_PSRDY.
-	 */
-	bool psnkstdby_after_accept;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
@@ -2478,8 +2460,9 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 		switch (port->state) {
 		case SNK_TRANSITION_SINK:
 			if (port->vbus_present) {
-				tcpm_set_current_limit(port, port->req_current_limit,
-						       port->req_supply_voltage);
+				tcpm_set_current_limit(port,
+						       port->current_limit,
+						       port->supply_voltage);
 				port->explicit_contract = true;
 				tcpm_set_auto_vbus_discharge_threshold(port,
 								       TYPEC_PWR_MODE_PD,
@@ -2588,8 +2571,8 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 			break;
 		case SNK_NEGOTIATE_PPS_CAPABILITIES:
 			port->pps_data.active = true;
-			port->req_supply_voltage = port->pps_data.out_volt;
-			port->req_current_limit = port->pps_data.op_curr;
+			port->supply_voltage = port->pps_data.out_volt;
+			port->current_limit = port->pps_data.op_curr;
 			tcpm_set_state(port, SNK_TRANSITION_SINK, 0);
 			break;
 		case SOFT_RESET_SEND:
@@ -3238,8 +3221,8 @@ static int tcpm_pd_build_request(struct tcpm_port *port, u32 *rdo)
 			 flags & RDO_CAP_MISMATCH ? " [mismatch]" : "");
 	}
 
-	port->req_current_limit = ma;
-	port->req_supply_voltage = mv;
+	port->current_limit = ma;
+	port->supply_voltage = mv;
 
 	return 0;
 }
@@ -4124,11 +4107,9 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SNK_DISCOVERY:
 		if (port->vbus_present) {
-			if (port->psnkstdby_after_accept || tcpm_get_current_limit(port) <=
-			    PD_P_SNK_STDBY_5V)
-				tcpm_set_current_limit(port, tcpm_get_current_limit(port), 5000);
-			else
-				tcpm_set_current_limit(port, PD_P_SNK_STDBY_5V, 5000);
+			tcpm_set_current_limit(port,
+					       tcpm_get_current_limit(port),
+					       5000);
 			tcpm_set_charge(port, true);
 			tcpm_set_state(port, SNK_WAIT_CAPABILITIES, 0);
 			break;
@@ -4217,10 +4198,6 @@ static void run_state_machine(struct tcpm_port *port)
 		}
 		break;
 	case SNK_TRANSITION_SINK:
-		if (port->psnkstdby_after_accept)
-			tcpm_set_current_limit(port, tcpm_get_current_limit(port) >
-					       PD_P_SNK_STDBY_5V ? PD_P_SNK_STDBY_5V :
-					       tcpm_get_current_limit(port), 5000);
 	case SNK_TRANSITION_SINK_VBUS:
 		tcpm_set_state(port, hard_reset_state(port),
 			       PD_T_PS_TRANSITION);
@@ -4233,10 +4210,6 @@ static void run_state_machine(struct tcpm_port *port)
 					     TYPEC_PWR_MODE_PD);
 			port->pwr_opmode = TYPEC_PWR_MODE_PD;
 		}
-
-		/* Set current limit for NON-PD link when psnkstdby_after_accept is not set*/
-		if (!port->pd_capable && !port->psnkstdby_after_accept)
-			tcpm_set_current_limit(port, tcpm_get_current_limit(port), 5000);
 
 		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
@@ -5879,8 +5852,6 @@ static int tcpm_fw_get_caps(struct tcpm_port *port,
 		return ret;
 	port->typec_caps.type = ret;
 	port->port_type = port->typec_caps.type;
-
-	port->psnkstdby_after_accept = fwnode_property_read_bool(fwnode, "psnkstdby-after-accept");
 
 	if (port->port_type == TYPEC_PORT_SNK)
 		goto sink;
