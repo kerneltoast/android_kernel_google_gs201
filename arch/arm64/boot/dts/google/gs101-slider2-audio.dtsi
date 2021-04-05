@@ -21,27 +21,15 @@
 };
 
 &dai_be_i2s0_rx {
-	codec {
-		sound-dai = <&headphone_amp 0>;
-	};
 };
 
 &dai_be_i2s0_tx {
-	codec {
-		sound-dai = <&headphone_amp 0>;
-	};
 };
 
 &dai_be_tdm1_rx {
-	codec {
-		sound-dai = <&headphone_amp 0>;
-	};
 };
 
 &dai_be_tdm1_tx {
-	codec {
-		sound-dai = <&headphone_amp 0>;
-	};
 };
 
 &dai_be_tdm0_rx {
