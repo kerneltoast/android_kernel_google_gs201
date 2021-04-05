@@ -1134,12 +1134,26 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 
 	switch (pending_bit) {
 	case RX_DST0_INT_PENDING_BIT:
+	case TX_DST0_INT_PENDING_BIT:
+		ring_num = DIT_DST_DESC_RING_0;
+		break;
+	case RX_DST1_INT_PENDING_BIT:
+		ring_num = DIT_DST_DESC_RING_1;
+		break;
+	case RX_DST2_INT_PENDING_BIT:
+		ring_num = DIT_DST_DESC_RING_2;
+		break;
+	default:
+		break;
+	}
+
+	switch (pending_bit) {
+	case RX_DST0_INT_PENDING_BIT:
 	case RX_DST1_INT_PENDING_BIT:
 	case RX_DST2_INT_PENDING_BIT:
 		dir = DIT_DIR_RX;
 		pending_mask = DIT_RX_INT_PENDING_MASK;
 
-		ring_num = (enum dit_desc_ring)(pending_bit - RX_DST0_INT_PENDING_BIT);
 		dit_update_dst_desc_pos(DIT_DIR_RX, ring_num);
 		if (napi_schedule_prep(&dc->napi))
 			__napi_schedule(&dc->napi);
@@ -1147,9 +1161,9 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 	case TX_DST0_INT_PENDING_BIT:
 		dir = DIT_DIR_TX;
 		pending_mask = DIT_TX_INT_PENDING_MASK;
-
 		mld = ld_to_mem_link_device(dc->ld);
-		dit_update_dst_desc_pos(DIT_DIR_TX, DIT_DST_DESC_RING_0);
+
+		dit_update_dst_desc_pos(DIT_DIR_TX, ring_num);
 		send_ipc_irq(mld, mask2int(MASK_SEND_DATA));
 		break;
 	case ERR_INT_PENDING_BIT:
