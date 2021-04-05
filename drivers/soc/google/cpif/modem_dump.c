@@ -135,6 +135,11 @@ int cp_get_log_dump(struct io_device *iod, struct link_device *ld, unsigned long
 		size = cp_shmem_get_size(cp_num, SHMEM_L2B);
 		break;
 
+	case LOG_IDX_DDM:
+		base = phys_to_virt(cp_shmem_get_base(cp_num, SHMEM_DDM));
+		size = cp_shmem_get_size(cp_num, SHMEM_DDM);
+		break;
+
 	default:
 		mif_err("%s: invalid index:%d\n", iod->name, log_dump.idx);
 		return -EINVAL;

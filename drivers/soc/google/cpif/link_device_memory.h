@@ -382,6 +382,7 @@ struct mem_link_device {
 	u32 cp_capability[AP_CP_CAP_PARTS];
 
 	int (*pass_skb_to_net)(struct mem_link_device *mld, struct sk_buff *skb);
+	int (*pass_skb_to_demux)(struct mem_link_device *mld, struct sk_buff *skb);
 
 	struct pktproc_adaptor pktproc;
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)

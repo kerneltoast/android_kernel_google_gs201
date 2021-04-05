@@ -42,6 +42,7 @@
 #endif
 #endif
 #include "dit.h"
+#include "direct_dm.h"
 
 #define MIF_TX_QUOTA 64
 
@@ -610,6 +611,14 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 	err = dit_init(ld, DIT_INIT_NORMAL);
 	if ((err < 0) && (err != -EPERM)) {
 		mif_err("dit_init() error %d\n", err);
+		return;
+	}
+#endif
+
+#if IS_ENABLED(CONFIG_CPIF_DIRECT_DM)
+	err = direct_dm_init(ld);
+	if (err < 0) {
+		mif_err("direct_dm_init() error %d\n", err);
 		return;
 	}
 #endif
@@ -1664,11 +1673,11 @@ static int xmit_to_cp(struct mem_link_device *mld, struct io_device *iod,
 }
 
 /*============================================================================*/
-static void pass_skb_to_demux(struct mem_link_device *mld, struct sk_buff *skb)
+static int pass_skb_to_demux(struct mem_link_device *mld, struct sk_buff *skb)
 {
 	struct link_device *ld = &mld->link_dev;
 	struct io_device *iod = skbpriv(skb)->iod;
-	int ret;
+	int ret = 0;
 	u8 ch = skbpriv(skb)->sipc_ch;
 
 	if (unlikely(!iod)) {
@@ -1676,7 +1685,7 @@ static void pass_skb_to_demux(struct mem_link_device *mld, struct sk_buff *skb)
 		dev_kfree_skb_any(skb);
 		link_trigger_cp_crash(mld, CRASH_REASON_MIF_RIL_BAD_CH,
 			"ERR! No IOD for CH.XX");
-		return;
+		return -EACCES;
 	}
 
 #ifdef DEBUG_MODEM_IF_LINK_RX
@@ -1691,6 +1700,8 @@ static void pass_skb_to_demux(struct mem_link_device *mld, struct sk_buff *skb)
 				ld->name, iod->name, mc->name, iod->name, ret);
 		dev_kfree_skb_any(skb);
 	}
+
+	return ret;
 }
 
 static int pass_skb_to_net(struct mem_link_device *mld, struct sk_buff *skb)
@@ -4460,6 +4471,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	mld->tx_period_ms = TX_PERIOD_MS;
 
 	mld->pass_skb_to_net = pass_skb_to_net;
+	mld->pass_skb_to_demux = pass_skb_to_demux;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	err = pktproc_create(pdev, mld, cp_shmem_get_base(cp_num, SHMEM_PKTPROC),

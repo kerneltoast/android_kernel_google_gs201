@@ -171,6 +171,12 @@ config CP_WRESET_WA
     help
       CP warm reset WA
 
+config CPIF_DIRECT_DM
+	tristate "Enable direct dm path"
+	default n
+	help
+	  This enables direct dm path
+
 config CP_THERMAL
     tristate "Enable CP thermal zones"
     depends on THERMAL

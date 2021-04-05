@@ -262,6 +262,8 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 			shmem_index = SHMEM_PKTPROC;
 		else if (!strncmp((const char *)&name, "UKP\0", sizeof(name)))
 			shmem_index = SHMEM_PKTPROC_UL;
+		else if (!strncmp((const char *)&name, "MDD\0", sizeof(name)))
+			shmem_index = SHMEM_DDM;
 		else
 			continue;
 

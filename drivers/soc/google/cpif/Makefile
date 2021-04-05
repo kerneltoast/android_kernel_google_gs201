@@ -10,6 +10,8 @@ obj-$(CONFIG_BOOT_DEVICE_SPI) += boot_device_spi.o
 
 obj-$(CONFIG_EXYNOS_DIT) += dit/
 
+obj-$(CONFIG_CPIF_DIRECT_DM) += direct_dm.o
+
 obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif.o
 cpif-y += modem_main.o modem_variation.o
 cpif-y += modem_io_device.o net_io_device.o bootdump_io_device.o ipc_io_device.o

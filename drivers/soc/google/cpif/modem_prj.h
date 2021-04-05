@@ -107,6 +107,7 @@ enum cp_log_dump_index {
 	LOG_IDX_DATABUF_DL,
 	LOG_IDX_DATABUF_UL,
 	LOG_IDX_L2B,
+	LOG_IDX_DDM,
 	MAX_LOG_DUMP_IDX
 };
 struct cp_log_dump {

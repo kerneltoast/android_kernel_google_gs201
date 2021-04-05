@@ -11,6 +11,8 @@
 #include "modem_prj.h"
 #include "link_device_memory.h"
 
+#define CP_CPU_BASE_ADDRESS	0x40000000
+
 #define MIF_TAG	"cpif"
 
 #define IS_CONNECTED(iod, ld) ((iod)->link_type == (ld)->link_type)
