@@ -11,6 +11,7 @@
 #include "dit_hal.h"
 
 static struct dit_ctrl_t *dc;
+static int upstream_ch = -1;
 
 static int dit_get_reg_version(u32 *version)
 {
@@ -43,14 +44,17 @@ static void dit_set_reg_upstream_internal(struct io_device *iod, void *args)
 {
 	struct net_device *netdev = (struct net_device *)args;
 
-	if (iod->ndev == netdev)
+	if (iod->ndev == netdev) {
+		upstream_ch = (int)iod->ch;
 		dit_set_reg_nat_interface(iod->ch);
+	}
 }
 
 static int dit_set_reg_upstream(struct net_device *netdev)
 {
 	if (!netdev) {
 		dit_set_reg_nat_interface(-1);
+		upstream_ch = -1;
 	} else {
 		if (unlikely(!dc->ld))
 			return -EINVAL;
@@ -64,7 +68,6 @@ static int dit_set_reg_upstream(struct net_device *netdev)
 static int dit_set_desc_filter_bypass(enum dit_direction dir, struct dit_src_desc *src_desc,
 				      u8 *src, bool *is_upstream_pkt)
 {
-	struct net_device *upstream_netdev;
 	bool bypass = false;
 	u8 mask = 0;
 
@@ -82,16 +85,11 @@ static int dit_set_desc_filter_bypass(enum dit_direction dir, struct dit_src_des
 		goto out;
 	}
 
-	/* check upstream netdev */
-	upstream_netdev = dit_hal_get_dst_netdev(DIT_DST_DESC_RING_0);
-	if (upstream_netdev) {
-		struct io_device *iod = link_get_iod_with_channel(dc->ld, src_desc->ch_id);
-
-		if (iod && iod->ndev == upstream_netdev) {
-			*is_upstream_pkt = true;
-			goto out;
-		}
-	}
+	/* ToDo: not need if HW supports UDP zero checksum.
+	 * check if the packet will be filtered by DIT_REG_NAT_INTERFACE_NUM.
+	 */
+	if (upstream_ch >= 0 && src_desc->ch_id == upstream_ch)
+		*is_upstream_pkt = true;
 
 out:
 #if defined(DIT_DEBUG_LOW)
@@ -99,10 +97,12 @@ out:
 		bypass = true;
 #endif
 
-	if (bypass)
+	if (bypass) {
 		src_desc->control &= ~mask;
-	else
+	} else {
 		src_desc->control |= mask;
+		src_desc->interface = src_desc->ch_id;
+	}
 
 	return 0;
 }
