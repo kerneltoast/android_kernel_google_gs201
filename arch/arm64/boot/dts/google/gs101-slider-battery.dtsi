@@ -181,10 +181,12 @@
 	};
 
 	/* slider (some), whitefin2 (if any), POR */
-	max77759chrg@0x69 {
+	max77759_chg:max77759chrg@0x69 {
 		status = "okay";
 		compatible = "maxim,max77759chrg";
 		reg = <0x69>;
+
+		#thermal-sensor-cells = <1>;
 
 		interrupt-parent = <&gpa8>;
 		max77759,irq-gpio = <&gpa8 3 GPIO_ACTIVE_LOW>;

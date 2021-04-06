@@ -31,12 +31,6 @@
 	};
 };
 
-&hsi2c_12{
-	max77759_chg:max77759chrg@0x69 {
-		#thermal-sensor-cells = <1>;
-	};
-};
-
 /* Thermal Zones */
 &thermal_zones {
 	vdroop1 {
