@@ -6,5 +6,7 @@
  */
 
 #include "gs101-oriole-common.dtsi"
+
 #include "gs101-oriole-battery.dtsi"
+#include "gs101-oriole-camera-pmic.dtsi"
 #include "gs101-oriole-wcharger.dtsi"

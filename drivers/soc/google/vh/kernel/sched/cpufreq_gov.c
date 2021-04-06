@@ -18,6 +18,8 @@
 
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 
+static unsigned long cpu_util_cfs_group_mod(struct rq *rq);
+
 struct sugov_tunables {
 	struct gov_attr_set	attr_set;
 	unsigned int		up_rate_limit_us;
@@ -73,15 +75,18 @@ static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
 DEFINE_PER_CPU(struct uclamp_stats, uclamp_stats);
 
 /************************ Governor internals ***********************/
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 void update_uclamp_stats(int cpu, u64 time)
 {
 	struct uclamp_stats *stats = &per_cpu(uclamp_stats, cpu);
 	s64 delta_ns = time - stats->last_update_time;
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long cpu_util = min(capacity_orig_of(cpu), cpu_util_cfs(rq) + cpu_util_rt(rq));
+	unsigned long cpu_util_max_clamped = min(capacity_orig_of(cpu), cpu_util_cfs_group_mod(rq) +
+						 cpu_util_rt(rq));
 	unsigned int uclamp_min = READ_ONCE(rq->uclamp[UCLAMP_MIN].value);
 	unsigned int uclamp_max = READ_ONCE(rq->uclamp[UCLAMP_MAX].value);
-	int util_diff_min, util_diff_max;
+	long util_diff_min, util_diff_max;
 	unsigned long flags;
 
 	if (delta_ns <= 0)
@@ -105,8 +110,8 @@ void update_uclamp_stats(int cpu, u64 time)
 
 	stats->total_time += delta_ns;
 
-	util_diff_min = (int)uclamp_min - cpu_util;
-	util_diff_max = (int)cpu_util - uclamp_max;
+	util_diff_min = (long)uclamp_min - (long)cpu_util;
+	util_diff_max = (long)cpu_util - (long)cpu_util_max_clamped;
 
 	/* uclamp min is in effect */
 	if (util_diff_min > 0) {
@@ -178,6 +183,7 @@ static void init_uclamp_stats(void)
 	}
 	reset_uclamp_stats();
 }
+#endif
 
 static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 {
@@ -631,7 +637,9 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	unsigned int next_f;
 	bool busy;
 
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	update_uclamp_stats(sg_cpu->cpu, time);
+#endif
 
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
@@ -710,7 +718,9 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 
 	raw_spin_lock(&sg_policy->update_lock);
 
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	update_uclamp_stats(sg_cpu->cpu, time);
+#endif
 
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
@@ -957,7 +967,9 @@ static int sugov_init(struct cpufreq_policy *policy)
 	struct sugov_policy *sg_policy;
 	struct sugov_tunables *tunables;
 	int ret = 0;
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	static bool uclamp_stats_need_init = true;
+#endif
 
 	/* State should be equivalent to EXIT */
 	if (policy->governor_data)
@@ -1009,10 +1021,12 @@ static int sugov_init(struct cpufreq_policy *policy)
 
 out:
 	mutex_unlock(&global_tunables_lock);
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	if (uclamp_stats_need_init) {
 		uclamp_stats_need_init = false;
 		init_uclamp_stats();
 	}
+#endif
 	return 0;
 
 fail:

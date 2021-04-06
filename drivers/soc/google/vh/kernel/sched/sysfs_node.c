@@ -13,8 +13,10 @@
 
 #include "sched.h"
 
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 extern void reset_uclamp_stats(void);
 DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
+#endif
 
 bool __read_mostly vendor_sched_enable_prefer_high_cap;
 bool __read_mostly vendor_sched_task_spreading_enable;
@@ -219,6 +221,7 @@ static ssize_t util_threshold_store(struct kobject *kobj,
 
 static struct kobj_attribute util_threshold_attribute = __ATTR_RW(util_threshold);
 
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 static ssize_t uclamp_stats_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	int i, j, index;
@@ -352,6 +355,8 @@ static ssize_t reset_uclamp_stats_store(struct kobject *kobj, struct kobj_attrib
 }
 
 static struct kobj_attribute reset_uclamp_stats_attribute = __ATTR_WO(reset_uclamp_stats);
+#endif
+
 
 static ssize_t high_capacity_start_cpu_show(struct kobject *kobj,
 					struct kobj_attribute *attr,
@@ -383,10 +388,12 @@ static struct attribute *attrs[] = {
 	&set_prefer_high_cap_attribute.attr,
 	&clear_prefer_high_cap_attribute.attr,
 	&prefer_high_cap_enable_attribute.attr,
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	&uclamp_stats_attribute.attr,
 	&uclamp_effective_stats_attribute.attr,
 	&uclamp_util_diff_stats_attribute.attr,
 	&reset_uclamp_stats_attribute.attr,
+#endif
 	&set_task_spreading_attribute.attr,
 	&clear_task_spreading_attribute.attr,
 	&task_spreading_enable_attribute.attr,

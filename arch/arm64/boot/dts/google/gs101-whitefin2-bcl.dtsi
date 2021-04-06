@@ -20,15 +20,14 @@
 				google,sub-power = <&s2mpg11mfd>;
 				ppm_settings = <0>;
 				mpmm_settings = <0x1f>;
+				tpu_con_heavy = <0xf041c3>;
+				tpu_con_light = <0xf041c5>;
+				tpu_clkdivstep = <0x1>;
+				gpu_con_heavy = <0xf04385>;
+				gpu_con_light = <0>;
+				gpu_clkdivstep = <0x1>;
 			};
 		};
-	};
-};
-
-
-&hsi2c_12{
-	max77759_chg:max77759chrg@0x69 {
-		#thermal-sensor-cells = <1>;
 	};
 };
 
@@ -240,7 +239,7 @@
 
 		trips {
 			ocp_gpu:ocp-gpu{
-				temperature = <13200>;
+				temperature = <12000>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -254,7 +253,7 @@
 
 		trips {
 			soft_ocp_gpu:soft-ocp-gpu {
-				temperature = <13200>;
+				temperature = <12000>;
 				hysteresis = <100>;
 				type = "passive";
 			};

@@ -54,3 +54,8 @@ config VH_FS
 	tristate "Vendor hooks for filesystem"
 	depends on VH_KERNEL
 	default m
+
+config UCLAMP_STATS
+        bool "Uclamp stats"
+        depends on VH_KERNEL
+        default y

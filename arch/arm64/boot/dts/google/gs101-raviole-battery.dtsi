@@ -139,7 +139,7 @@
 	};
 };
 
-&hsi2c_12{
+&hsi2c_12 {
 
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -184,7 +184,7 @@
 		maxim,psy-type-unknown;
 	};
 
-	max77759chrg@0x69 {
+	max77759_chg:max77759chrg@0x69 {
 		status = "okay";
 		compatible = "maxim,max77759chrg";
 		reg = <0x69>;
@@ -196,18 +196,7 @@
 		max77759,max_m5 = <&max77759_fg>;
 		max77759,pmic = <&max77729_pmic>;
 
-		/* system use cases */
-		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
-		max77759,bst-sel = <&s2mpg10_gpio 3 GPIO_ACTIVE_HIGH>;
-		max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
-		max77759,ls2-en = <&max20339_gpio 1 GPIO_ACTIVE_HIGH>;
-		max77759,sw-en = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
-		max77759,lsw1-is_open = <&max20339_gpio 5 GPIO_ACTIVE_HIGH>;
-		max77759,lsw1-is_closed = <&max20339_gpio 6 GPIO_ACTIVE_HIGH>;
-		max77759,vin-is_valid =  <&max20339_gpio 3 GPIO_ACTIVE_HIGH>;
-
-		max77759,cpout-en =  <&p9412_gpio 1 GPIO_ACTIVE_HIGH>;
-		max77759,cpout-ctl =  <&p9412_gpio 3 GPIO_ACTIVE_HIGH>;
+		#thermal-sensor-cells = <1>;
 	};
 
 	pca9468_dc: pca9468@57 {

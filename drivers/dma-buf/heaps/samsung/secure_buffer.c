@@ -32,8 +32,7 @@ static int buffer_protect_smc(struct device *dev, struct buffer_prot_info *protd
 			      unsigned int protalign)
 {
 	unsigned long size = protdesc->chunk_count * protdesc->chunk_size;
-	unsigned long drmret = 0, dma_addr = 0;
-	unsigned long ret;
+	unsigned long ret, dma_addr = 0;
 
 	dma_addr = secure_iova_alloc(size, max_t(u32, protalign, PAGE_SIZE));
 	if (!dma_addr)
@@ -45,12 +44,12 @@ static int buffer_protect_smc(struct device *dev, struct buffer_prot_info *protd
 
 	ret = ppmp_smc(SMC_DRM_PPMP_PROT, virt_to_phys(protdesc), 0, 0);
 	if (ret) {
+		dma_unmap_single(dev, phys_to_dma(dev, virt_to_phys(protdesc)), sizeof(*protdesc),
+				 DMA_TO_DEVICE);
 		secure_iova_free(dma_addr, size);
 		perr("CMD %#x (err=%#lx,va=%#x,len=%#lx,cnt=%u,flg=%u)",
-		     SMC_DRM_PPMP_PROT, drmret, protdesc->dma_addr, size,
+		     SMC_DRM_PPMP_PROT, ret, protdesc->dma_addr, size,
 		     protdesc->chunk_count, protdesc->flags);
-		dma_unmap_single(dev, protdesc->dma_addr, sizeof(*protdesc),
-				 DMA_TO_DEVICE);
 		return -EACCES;
 	}
 
@@ -65,15 +64,15 @@ static int buffer_unprotect_smc(struct device *dev,
 
 	ret = ppmp_smc(SMC_DRM_PPMP_UNPROT, virt_to_phys(protdesc), 0, 0);
 
+	dma_unmap_single(dev, phys_to_dma(dev, virt_to_phys(protdesc)), sizeof(*protdesc),
+			 DMA_TO_DEVICE);
+
 	if (ret) {
 		perr("CMD %#x (err=%#lx,va=%#x,len=%#lx,cnt=%u,flg=%u)",
 		     SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
 		     size, protdesc->chunk_count, protdesc->flags);
 		return -EACCES;
 	}
-
-	dma_unmap_single(dev, protdesc->dma_addr, sizeof(*protdesc),
-			 DMA_TO_DEVICE);
 
 	/*
 	 * retain the secure device address if unprotection to its area fails.

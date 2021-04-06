@@ -1,20 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * core.h - DesignWare USB3 DRD Core Header
+ * core-exynos.h - Samsung EXYNOS USB3 DRD Core Header
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
  *
- * Authors: Felipe Balbi <balbi@ti.com>,
- *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __DRIVERS_USB_DWC3_CORE_EXYNOS_H
@@ -90,6 +80,16 @@
 #define DWC3_GFLADJ_REFCLK_FLADJ(n)		((n) << 8)
 #define DWC3_GFLADJ_REFCLK_FLADJ_MASK		DWC3_GFLADJ_REFCLK_FLADJ(0x3FFF)
 
+/* Global User Control Register */
+#define DWC3_GUCTL_REFCLKPER(n)		((n) << 22)
+#define DWC3_GUCTL_NOEXTRDL		BIT(21)
+#define DWC3_GUCTL_USBHSTINAUTORETRYEN	BIT(14)
+#define DWC3_GUCTL_SPRSCTRLTRANSEN	BIT(17)
+#define DWC3_GUCTL_RESBWHSEPS		BIT(16)
+#define DWC3_GUCTL_DTOUT(n)		(n)
+#define DWC3_GUCTL_DTOUT_MASK		(0x7ff)
+
+
 #define DWC3_DCFG_FULLSPEED1	(3 << 0)
 
 #define DWC3_DEVTEN_U3L2_SUSPEN		BIT(6)
@@ -105,17 +105,24 @@
 #define DWC3_OEVTEN_OTGBDEVVBUSCHNGEVNT		BIT(8)
 
 /* OTG Status Register */
-#define DWC3_OTG_OSTS_BSESVALID		BIT(1)
+#define DWC3_OTG_OSTS_BSESVALID		BIT(2)
 #define DWC3_OTG_OSTS_CONIDSTS		BIT(0)
 
 #define DWC3_TRB_MASK		(DWC3_TRB_NUM - 1)
 
-int dwc3_exynos_core_init(struct dwc3 *dwc);
 int exynos_usbdrd_phy_tune(struct phy *phy, int phy_state);
 void exynos_usbdrd_phy_conn(struct phy *phy, int is_conn);
-//int exynos_usbdrd_dp_ilbk(struct phy *phy);
-//int exynos_usbdrd_phy_vendor_set(struct phy *phy, int is_enable,
-//						int is_cancel);
+void exynos_usbdrd_phy_vol_set(struct phy *phy, int voltage);
 int exynos_usbdrd_phy_set(struct phy *phy, int option, void *info);
+
+enum dwc3_phy_owner {
+	DWC3_PHY_OWNER_SELF =  0,
+	DWC3_PHY_OWNER_DP = 1,
+	DWC3_PHY_OWNER_EMEG = 8,
+};
+
+#define CHG_CONNECTED_DELAY_TIME	(HZ * 3) /* 3s */
+#define MAX_RETRY_CNT			5
+#define REMOVED_RETRY_CNT		99
 
 #endif /* __DRIVERS_USB_DWC3_CORE_H */

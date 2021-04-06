@@ -469,6 +469,32 @@ static const struct attribute_group sim_group = {
 	.name = "sim",
 };
 
+static ssize_t s5100_wake_lock_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", cpif_wake_lock_active(mc->ws));
+}
+
+static ssize_t s5100_wake_lock_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+	long op_num;
+
+	if (kstrtol(buf, 0, &op_num))
+		return -EINVAL;
+
+	if (op_num)
+		cpif_wake_lock(mc->ws);
+	else
+		cpif_wake_unlock(mc->ws);
+
+	return count;
+}
+
+DEVICE_ATTR_RW(s5100_wake_lock);
+
 static int get_ds_detect(void)
 {
 	if (ds_detect > 2 || ds_detect < 1)
@@ -1645,6 +1671,12 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 
 	if (sysfs_create_group(&pdev->dev.kobj, &modem_group))
 		mif_err("failed to create sysfs node related modem\n");
+
+	ret = device_create_file(&pdev->dev, &dev_attr_s5100_wake_lock);
+	if (ret) {
+		mif_err("%s: couldn't create s5100_wake_lock(%d)\n", __func__, ret);
+		return ret;
+	}
 
 	return 0;
 }

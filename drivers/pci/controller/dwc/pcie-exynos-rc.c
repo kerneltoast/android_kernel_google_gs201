@@ -692,6 +692,25 @@ static int exynos_pcie_rc_phy_clock_enable(struct pcie_port *pp, int enable)
 	return ret;
 }
 
+void exynos_pcie_rc_print_link_history(struct pcie_port *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct device *dev = pci->dev;
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	u32 history;
+	int i;
+
+	for (i = 31; i >= 0; i--) {
+		history = exynos_elbi_read(exynos_pcie,
+					   PCIE_HISTORY_REG(i));
+
+		dev_info(dev, "LTSSM: 0x%02x, L1sub: 0x%x, D state: 0x%x\n",
+				LTSSM_STATE(history),
+				L1SUB_STATE(history),
+				PM_DSTATE(history));
+	}
+}
+
 static int exynos_pcie_rc_rd_own_conf(struct pcie_port *pp, int where, int size, u32 *val)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -1643,6 +1662,7 @@ void exynos_pcie_rc_dislink_work(struct work_struct *work)
 	if (exynos_pcie->state == STATE_LINK_DOWN)
 		return;
 
+	exynos_pcie_rc_print_link_history(pp);
 	exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
 	exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
 
@@ -2232,6 +2252,24 @@ retry:
 	val |= SOFT_PWR_RESET;
 	exynos_elbi_write(exynos_pcie, val, PCIE_SOFT_RESET);
 
+	/* Check if OC (CDR Offset Calibration) is done */
+	count = 0;
+	while (count < 1000) {
+		usleep_range(10, 12);
+		val = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
+		if (val != 0)
+			break;
+		count++;
+	}
+	if (count >= 1000)
+		dev_err(dev, "OC failed\n");
+
+	dev_info(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
+			exynos_phy_read(exynos_pcie, 0x760),
+			exynos_phy_read(exynos_pcie, 0xE0C),
+			exynos_phy_read(exynos_pcie, 0x3F0),
+			exynos_phy_read(exynos_pcie, 0xFC0));
+
 	/* Device Type (Sub Controller: DEVICE_TYPE offset: 0x80  */
 	exynos_elbi_write(exynos_pcie, 0x04, 0x80);
 
@@ -2254,7 +2292,11 @@ retry:
 
 	dev_dbg(dev, "%s: Set PERST to HIGH, gpio val = %d\n",
 		__func__, gpio_get_value(exynos_pcie->perst_gpio));
-	usleep_range(18000, 20000);
+	if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
+		usleep_range(20000, 22000);
+	} else {
+		usleep_range(18000, 20000);
+	}
 
 	val = exynos_elbi_read(exynos_pcie, PCIE_APP_REQ_EXIT_L1_MODE);
 	val |= APP_REQ_EXIT_L1_MODE;
@@ -2483,15 +2525,6 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 		exynos_pcie->state = STATE_LINK_UP_TRY;
 
-		/* Enable history buffer */
-		val = exynos_elbi_read(exynos_pcie, PCIE_STATE_HISTORY_CHECK);
-		exynos_elbi_write(exynos_pcie, 0, PCIE_STATE_HISTORY_CHECK);
-		val = HISTORY_BUFFER_ENABLE;
-		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
-
-		exynos_elbi_write(exynos_pcie, 0x200000, PCIE_STATE_POWER_S);
-		exynos_elbi_write(exynos_pcie, 0xffffffff, PCIE_STATE_POWER_M);
-
 		if ((exynos_pcie_desc) && (exynos_pcie_desc->depth > 0))
 			enable_irq(pp->irq);
 		else
@@ -2501,6 +2534,18 @@ int exynos_pcie_rc_poweron(int ch_num)
 			dev_err(dev, "pcie link up fail\n");
 			goto poweron_fail;
 		}
+
+		val = exynos_elbi_read(exynos_pcie, PCIE_STATE_HISTORY_CHECK);
+		val &= ~(HISTORY_BUFFER_CONDITION_SEL);
+		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
+
+		exynos_elbi_write(exynos_pcie, 0xffffffff, PCIE_STATE_POWER_S);
+		exynos_elbi_write(exynos_pcie, 0xffffffff, PCIE_STATE_POWER_M);
+
+		val = exynos_elbi_read(exynos_pcie, PCIE_STATE_HISTORY_CHECK);
+		val |= HISTORY_BUFFER_ENABLE;
+		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
+
 		exynos_pcie->state = STATE_LINK_UP;
 		power_stats_update_up(exynos_pcie);
 
@@ -3764,7 +3809,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	if (exynos_pcie->use_pcieon_sleep) {
 		dev_info(&pdev->dev, "## register pcie connection function\n");
-		/* need to check: register_pcie_is_connect(pcie_linkup_stat); */
+		register_pcie_is_connect(pcie_linkup_stat);
 	}
 
 	platform_set_drvdata(pdev, exynos_pcie);

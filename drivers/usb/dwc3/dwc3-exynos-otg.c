@@ -1,23 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * otg.c - DesignWare USB3 DRD Controller OTG
+ * dwc3-exynos-otg.c - DesignWare Exynos USB3 DRD Controller OTG
  *
  * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
- * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *
- * Authors: Ido Shayevitz <idos@codeaurora.org>
- *	    Anton Tikhomirov <av.tikhomirov@samsung.com>
- *	    Minho Lee <minho55.lee@samsung.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/mutex.h>
@@ -26,20 +13,16 @@
 #include <linux/pm_runtime.h>
 #include <linux/workqueue.h>
 #include <linux/suspend.h>
-#if defined(CONFIG_TYPEC_DEFAULT)
-#include <linux/usb/typec.h>
-#endif
 
 #include "core.h"
-#include "core_exynos.h"
-#include "otg.h"
+#include "core-exynos.h"
+#include "exynos-otg.h"
 #include "io.h"
-#ifdef CONFIG_OF
 #include <linux/of_device.h>
-#endif
-#if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
-#include "usb_power_notify.h"
-#endif
+#include "../../base/base.h"
+#include <linux/usb/composite.h>
+#include <linux/reboot.h>
+#include "dwc3-exynos.h"
 
 #define OTG_NO_CONNECT		0
 #define OTG_CONNECT_ONLY	1
@@ -50,25 +33,16 @@
 #define READ_TRANS_OFFSET	10
 
 /* -------------------------------------------------------------------------- */
-#if defined(CONFIG_TYPEC_DEFAULT)
-struct intf_typec {
-	/* struct mutex lock; */ /* device lock */
-	struct device *dev;
-	struct typec_port *port;
-	struct typec_capability cap;
-	struct typec_partner *partner;
-};
-#endif
-
-int otg_connection;
-EXPORT_SYMBOL_GPL(otg_connection);
 static int dwc3_otg_statemachine(struct otg_fsm *fsm)
 {
 	struct usb_otg *otg = fsm->otg;
+	struct dwc3_otg	*dotg = container_of(otg, struct dwc3_otg, otg);
+	struct dwc3_exynos *exynos = dotg->exynos;
+	struct device *dev = dotg->dwc->dev;
 	enum usb_otg_state prev_state = otg->state;
 	int ret = 0;
 
-	if (fsm->reset) {
+	if (dotg->fsm_reset) {
 		if (otg->state == OTG_STATE_A_HOST) {
 			otg_drv_vbus(fsm, 0);
 			otg_start_host(fsm, 0);
@@ -91,20 +65,22 @@ static int dwc3_otg_statemachine(struct otg_fsm *fsm)
 		if (!fsm->id) {
 			otg->state = OTG_STATE_A_IDLE;
 		} else if (fsm->b_sess_vld) {
+			exynos->retry_cnt = 0;
 			ret = otg_start_gadget(fsm, 1);
 			if (!ret)
 				otg->state = OTG_STATE_B_PERIPHERAL;
 			else
-				pr_err("OTG SM: cannot start gadget\n");
+				dev_err(dev, "OTG SM: cannot start gadget\n");
 		}
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		if (!fsm->id || !fsm->b_sess_vld) {
+			exynos->retry_cnt = REMOVED_RETRY_CNT;
 			ret = otg_start_gadget(fsm, 0);
 			if (!ret)
 				otg->state = OTG_STATE_B_IDLE;
 			else
-				pr_err("OTG SM: cannot stop gadget\n");
+				dev_err(dev, "OTG SM: cannot stop gadget\n");
 		}
 		break;
 	case OTG_STATE_A_IDLE:
@@ -116,7 +92,7 @@ static int dwc3_otg_statemachine(struct otg_fsm *fsm)
 				otg_drv_vbus(fsm, 1);
 				otg->state = OTG_STATE_A_HOST;
 			} else {
-				pr_err("OTG SM: cannot start host\n");
+				dev_err(dev, "OTG SM: cannot start host\n");
 			}
 		}
 		break;
@@ -127,19 +103,19 @@ static int dwc3_otg_statemachine(struct otg_fsm *fsm)
 			if (!ret)
 				otg->state = OTG_STATE_A_IDLE;
 			else
-				pr_err("OTG SM: cannot stop host\n");
+				dev_err(dev, "OTG SM: cannot stop host\n");
 		}
 		break;
 	default:
-		pr_err("OTG SM: invalid state\n");
+		dev_err(dev, "OTG SM: invalid state\n");
 	}
 
 exit:
 	if (!ret)
 		ret = (otg->state != prev_state);
 
-	pr_debug("OTG SM: %s => %s\n", usb_otg_state_string(prev_state),
-		 (ret > 0) ? usb_otg_state_string(otg->state) : "(no change)");
+	dev_dbg(dev, "OTG SM: %s => %s\n", usb_otg_state_string(prev_state),
+		(ret > 0) ? usb_otg_state_string(otg->state) : "(no change)");
 
 	return ret;
 }
@@ -151,8 +127,7 @@ static struct dwc3_ext_otg_ops *dwc3_otg_exynos_rsw_probe(struct dwc3 *dwc)
 	struct dwc3_ext_otg_ops *ops;
 	bool ext_otg;
 
-	//ext_otg = dwc3_exynos_rsw_available(dwc->dev->parent); // two module
-	ext_otg = dwc3_exynos_rsw_available(dwc->dev); // one module
+	ext_otg = dwc3_exynos_rsw_available(dwc->dev->parent);
 	if (!ext_otg) {
 		dev_err(dwc->dev, "failed to get ext_otg\n");
 		return NULL;
@@ -160,18 +135,27 @@ static struct dwc3_ext_otg_ops *dwc3_otg_exynos_rsw_probe(struct dwc3 *dwc)
 
 	/* Allocate and init otg instance */
 	ops = devm_kzalloc(dwc->dev, sizeof(struct dwc3_ext_otg_ops),
-			   GFP_KERNEL);
+			GFP_KERNEL);
 	if (!ops)
 		return NULL;
 
 	ops->setup = dwc3_exynos_rsw_setup;
 	ops->exit = dwc3_exynos_rsw_exit;
 	ops->start = dwc3_exynos_rsw_start;
-	ops->stop = dwc3_exynos_rsw_stop;
 
-	dev_err(dwc->dev, "%s done\n", __func__);
+	dev_dbg(dwc->dev, "rsw_probe done\n");
 
 	return ops;
+}
+
+static void dwc3_otg_set_mode(struct dwc3 *dwc, u32 mode)
+{
+	u32 reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg &= ~(DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG));
+	reg |= DWC3_GCTL_PRTCAPDIR(mode);
+	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 }
 
 static void dwc3_otg_set_host_mode(struct dwc3_otg *dotg)
@@ -184,7 +168,7 @@ static void dwc3_otg_set_host_mode(struct dwc3_otg *dotg)
 		reg &= ~DWC3_OTG_OCTL_PERIMODE;
 		dwc3_writel(dotg->regs, DWC3_OCTL, reg);
 	} else {
-		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
+		dwc3_otg_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
 	}
 }
 
@@ -198,7 +182,7 @@ static void dwc3_otg_set_peripheral_mode(struct dwc3_otg *dotg)
 		reg |= DWC3_OTG_OCTL_PERIMODE;
 		dwc3_writel(dotg->regs, DWC3_OCTL, reg);
 	} else {
-		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
+		dwc3_otg_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 	}
 }
 
@@ -219,93 +203,153 @@ static void dwc3_otg_drv_vbus(struct otg_fsm *fsm, int on)
 
 	if (ret)
 		dev_err(dotg->dwc->dev, "failed to turn Vbus %s\n",
-			on ? "on" : "off");
+						on ? "on" : "off");
 }
 
-int exynos_usbdrd_inform_dp_use(int use, int lane_cnt)
+void dwc3_otg_pm_ctrl(struct dwc3 *dwc, int onoff)
 {
-	int ret = 0;
+	u32 reg;
 
-	pr_info("[%s] dp use = %d, lane_cnt = %d\n",
-		__func__, use, lane_cnt);
+	if (onoff == 0) {
+		/* Disable U1U2 */
+		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+		reg &= ~(DWC3_DCTL_INITU1ENA | DWC3_DCTL_ACCEPTU1ENA |
+				DWC3_DCTL_INITU2ENA | DWC3_DCTL_ACCEPTU2ENA);
+		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 
-	if (use == 1 && lane_cnt == 4) {
-#if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
-		ret = xhci_portsc_set(0);
-#endif
-		udelay(1);
+	} else {
+		/* Enable U1U2 */
+		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+		reg |= (DWC3_DCTL_INITU1ENA | DWC3_DCTL_ACCEPTU1ENA |
+				DWC3_DCTL_INITU2ENA | DWC3_DCTL_ACCEPTU2ENA);
+		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 	}
-
-	return ret;
-}
-
-void exynos_usbdrd_request_phy_isol(void)
-{
 }
 
 /*
  * owner 0 - USB
  * owner 1 - DP
  */
+static void usb3_phy_control(struct dwc3_otg	*dotg,
+		int owner, int on)
+{
+	struct dwc3	*dwc = dotg->dwc;
+	struct device	*dev = dwc->dev;
+
+	dev_dbg(dev, "USB3.0 PHY %s\n", on ? "on" : "off");
+
+	if (on) {
+		dwc3_core_susphy_set(dwc, 0);
+		exynos_usbdrd_pipe3_enable(dwc->usb3_generic_phy);
+		dwc3_core_susphy_set(dwc, 1);
+	} else {
+		dwc3_core_susphy_set(dwc, 0);
+		exynos_usbdrd_pipe3_disable(dwc->usb3_generic_phy);
+		dwc3_core_susphy_set(dwc, 1);
+	}
+}
+
 int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on)
 {
 	struct usb_otg	*otg = fsm->otg;
 	struct dwc3_otg	*dotg = container_of(otg, struct dwc3_otg, otg);
 	struct dwc3	*dwc = dotg->dwc;
+	struct dwc3_exynos *exynos = dotg->exynos;
 	struct device	*dev = dotg->dwc->dev;
 	int ret = 0;
 	u8 owner_bit = 0;
+	int wait_counter = 0;
 
 	mutex_lock(&dotg->lock);
 
-	dev_info(dev, "%s phy control=%d owner=%d (usb:0 dp:1) on=%d\n",
-		 __func__, dotg->combo_phy_control, owner, on);
+	dev_dbg(dev, "combo phy=%d usb2 phy=%d owner=%d (usb:0 dp:1) on=%d\n",
+		      dotg->combo_phy_control, dotg->usb2_phy_control,
+		      owner, on);
 
 	if (owner > 1)
 		goto out;
 
 	owner_bit = (1 << owner);
 
-	if (on) {
-		if (dotg->combo_phy_control) {
-			dotg->combo_phy_control |= owner_bit;
-			goto out;
-		} else {
-			exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 1);
+	/* To initialize dwc3_core, it always set DEVICE role */
+	exynos->dwc->current_dr_role = DWC3_GCTL_PRTCAP_DEVICE;
 
+	if (on) {
+		if (dotg->combo_phy_control && dotg->usb2_phy_control) {
+			dotg->combo_phy_control |= owner_bit;
+			dotg->usb2_phy_control |= owner_bit;
+			goto out;
+		} else if (dotg->usb2_phy_control == 0) {
 			if (dotg->pm_qos_int_val) {
-				pr_info("pm_qos set value = %d\n",
-						dotg->pm_qos_int_val);
+				dev_dbg(dev, "pm_qos set value = %d\n", dotg->pm_qos_int_val);
 				exynos_pm_qos_update_request(&dotg->pm_qos_int_req,
 						dotg->pm_qos_int_val);
 			}
 
+			/*
+			 * dwc3_otg_phy_enable function enables
+			 * both combo phy and usb2 phy
+			 */
 			pm_runtime_get_sync(dev);
-			ret = dwc3_core_init(dwc);
-			if (ret) {
-				dev_err(dwc->dev, "%s: failed to reinitialize core\n",
-					__func__);
-				goto err;
-			}
 
-			ret = dwc3_exynos_core_init(dwc);
+			exynos_usbdrd_phy_tune(dwc->usb2_generic_phy,
+							dotg->otg.state);
+			exynos_usbdrd_phy_tune(dwc->usb3_generic_phy,
+							dotg->otg.state);
+
+			ret = dwc3_exynos_core_init(dwc, exynos);
 			if (ret) {
 				dev_err(dev, "failed to reinitialize exynos core\n");
 				goto err;
 			}
 
 			dotg->combo_phy_control |= owner_bit;
+			dotg->usb2_phy_control |= owner_bit;
+		} else { /* dotg->combo_phy_control == 0 */
+			usb3_phy_control(dotg, owner, on);
+			dotg->combo_phy_control |= owner_bit;
 		}
 	} else {
 		dotg->combo_phy_control &= ~(owner_bit);
+		dotg->usb2_phy_control &= ~(owner_bit);
 
-		if (dotg->combo_phy_control == 0) {
-			dwc3_core_exit(dwc);
+		if (dotg->usb2_phy_control == 0
+				&& dotg->combo_phy_control == 0) {
+
+			/*
+			 * Need to check why phy init_count has mismatch.
+			 * Phy_init is called from usb_phy_roothub_init() in
+			 * usb_add_hcd function(usb/core/hcd.c)
+			 */
+			dwc->usb2_generic_phy->init_count = 1;
+			dwc->usb3_generic_phy->init_count = 1;
+			dwc->usb2_generic_phy->power_count = 1;
+			dwc->usb3_generic_phy->power_count = 1;
+
 err:
+			/* We must disable gadget here. (Ignore other job) */
+			atomic_set(&dev->power.usage_count, 1);
 			pm_runtime_put_sync_suspend(dev);
+
 			if (dotg->pm_qos_int_val)
 				exynos_pm_qos_update_request(&dotg->pm_qos_int_req, 0);
-			exynos_usbdrd_phy_conn(dwc->usb2_generic_phy, 0);
+
+			msleep(500);
+
+			/* Wait for end of runtime suspend */
+			wait_counter = 0;
+			while (exynos->dwc->current_dr_role !=
+					DWC3_EXYNOS_IGNORE_CORE_OPS) {
+				wait_counter++;
+				msleep(20);
+
+				if (wait_counter > 10) {
+					dev_err(dev, "Can't wait runtime suspend!!!!\n");
+					dev_err(dev, "RPM Usage Count : %d",
+							dev->power.usage_count);
+					break;
+				}
+			}
 		}
 	}
 out:
@@ -320,16 +364,26 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 	struct dwc3_otg	*dotg = container_of(otg, struct dwc3_otg, otg);
 	struct dwc3	*dwc = dotg->dwc;
 	struct device	*dev = dotg->dwc->dev;
+	struct dwc3_exynos *exynos = dotg->exynos;
 	int ret = 0;
 	int ret1 = -1;
-
-	dev_info(dev, "Turn %s host\n", on ? "on" : "off");
+	int wait_counter = 0;
 
 	if (on) {
-		otg_connection = 1;
+		dotg->otg_connection = 1;
+
+		while (dwc->gadget_driver == NULL) {
+			wait_counter++;
+			msleep(20);
+
+			if (wait_counter > 50) {
+				dev_err(dev, "Can't wait host start!\n");
+				break;
+			}
+		}
 
 		if (!dwc->xhci) {
-			ret = dwc3_host_init(dwc);
+			ret = dwc3_exynos_host_init(exynos);
 			if (ret) {
 				dev_err(dev, "%s: failed to init dwc3 host\n", __func__);
 				goto err1;
@@ -339,9 +393,12 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
 		if (ret) {
 			dev_err(dwc->dev, "%s: failed to reinitialize core\n",
-				__func__);
+					__func__);
 			goto err1;
 		}
+
+		/* To ignore gadget suspend/resume on host l2 suspend */
+		exynos->dwc->current_dr_role = DWC3_EXYNOS_IGNORE_CORE_OPS;
 
 		dwc3_otg_set_host_mode(dotg);
 
@@ -351,27 +408,22 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 			goto err2;
 		}
 
-#if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
-		register_usb_power_notify();
-#endif
 	} else {
-		otg_connection = 0;
-#if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
-		xhci_port_power_set(1, 3);
-		unregister_usb_power_notify();
-#endif
+		dotg->otg_connection = 0;
+
 		if (!dwc->xhci) {
-			dev_err(dev, "%s: stop USB host without xhci device\n", __func__);
+			dev_err(dev, "%s: stop USB host without xhci device\n",
+				__func__);
 			return -EINVAL;
 		}
 
 		if (dotg->dwc3_suspended) {
-			pr_info("%s: wait resume completion\n", __func__);
+			dev_dbg(dev, "wait resume completion\n");
 			ret1 = wait_for_completion_timeout(&dotg->resume_cmpl,
-							   msecs_to_jiffies(5000));
+							msecs_to_jiffies(5000));
 		}
 
-		dwc3_host_exit(dwc);
+		dwc3_exynos_host_exit(exynos);
 		dwc->xhci = NULL;
 
 err2:
@@ -381,68 +433,157 @@ err1:
 	return ret;
 }
 
+static void dwc3_otg_retry_configuration(struct timer_list *t)
+{
+	struct dwc3_exynos *exynos = from_timer(exynos, t, usb_connect_timer);
+	struct usb_gadget *gadget = exynos->dwc->gadget;
+	struct usb_composite_dev *cdev = get_gadget_data(gadget);
+
+	dev_dbg(exynos->dev, "retry start: +++\n");
+
+	if (cdev == NULL || exynos->retry_cnt == REMOVED_RETRY_CNT) {
+		dev_dbg(exynos->dev, "Stop retry configuration(cdev is NULL) or Removed\n");
+		return;
+	}
+
+	if (!cdev->config) {
+		if (exynos->retry_cnt >= MAX_RETRY_CNT) {
+			dev_err(exynos->dev, "%s: Re-try 5 times, But usb enumeration fail\n",
+					__func__);
+			return;
+		}
+
+		dev_dbg(exynos->dev, "%s: retry USB enumeration, retry count : %d\n",
+				__func__, exynos->retry_cnt);
+
+		dwc3_otg_usb_recovery_reconn(exynos);
+
+		exynos->retry_cnt += 1;
+	} else {
+		exynos->retry_cnt = 0;
+		dev_dbg(exynos->dev, "%s: already configuration done!!\n", __func__);
+		return;
+	}
+
+	dev_dbg(exynos->dev, "retry done\n");
+}
+
+static int dwc3_check_extra_work(struct dwc3 *dwc)
+{
+	struct usb_gadget *gadget = dwc->gadget;
+	struct usb_composite_dev *cdev;
+	struct usb_function *f;
+	struct device *dev = dwc->dev;
+	int i, ret = 0;
+
+	if (gadget == NULL) {
+		dev_err(dev, "%s : Can't check extra work. gadget is NULL\n", __func__);
+		return 0;
+	}
+
+	cdev = get_gadget_data(gadget);
+
+	if (cdev == NULL) {
+		dev_err(dev, "%s : Can't check extra work. cdev is NULL\n", __func__);
+		return 0;
+	}
+
+	for (i = 0; i < MAX_CONFIG_INTERFACES; i++) {
+		if (cdev->config == NULL)
+			break;
+
+		f = cdev->config->interface[i];
+		if (f == NULL)
+			break;
+
+		/* Exynos specific function need extra delay */
+		if (strncmp(f->name, "dm", sizeof("dm")) == 0) {
+			dev_dbg(dev, "found dm function...\n");
+			/* f->disable(f); */
+			ret = 1;
+		} else if (strncmp(f->name, "acm", sizeof("acm")) == 0) {
+			dev_dbg(dev, "found acm function...\n");
+			/* f->disable(f); */
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
+
 static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg	*otg = fsm->otg;
 	struct dwc3_otg	*dotg = container_of(otg, struct dwc3_otg, otg);
 	struct dwc3	*dwc = dotg->dwc;
+	struct dwc3_exynos *exynos = dotg->exynos;
 	struct device	*dev = dotg->dwc->dev;
 	int ret = 0;
+	int wait_counter = 0, extra_delay = 0;
 
 	if (!otg->gadget) {
 		dev_err(dev, "%s does not have any gadget\n", __func__);
 		return -EINVAL;
 	}
 
-	dev_info(dev, "Turn %s gadget %s\n",
-		 on ? "on" : "off", otg->gadget->name);
-
 	if (on) {
 		__pm_stay_awake(dotg->wakelock);
-		dwc->vbus_state = true;
+		exynos->vbus_state = true;
+		while (dwc->gadget_driver == NULL) {
+			wait_counter++;
+			usleep_range(100, 200);
+
+			if (wait_counter > 500) {
+				dev_err(dev, "Can't wait gadget start!\n");
+				break;
+			}
+		}
+
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
-		if (ret)
-			dev_err(dwc->dev, "%s: failed to reinitialize core\n",
-				__func__);
+		if (ret) {
+			dev_err(dev, "%s: failed to reinitialize core\n",
+					__func__);
+			goto err1;
+		}
 
 		dwc3_otg_set_peripheral_mode(dotg);
-		ret = usb_gadget_vbus_connect(otg->gadget);
 
-		if (ret) {
-			dev_err(dwc->dev, "%s: vbus connect failed\n",
-				__func__);
-			/* Reinitialize LDO and PHY */
-			dotg->combo_phy_control = 0;
-			dwc3_gadget_disconnect_proc(dwc);
-			usb_gadget_vbus_disconnect(otg->gadget);
-
-			mdelay(200);
-			ret = dwc3_otg_phy_enable(fsm, 0, 0);
-			mdelay(200);
-			ret = dwc3_otg_phy_enable(fsm, 0, 1);
-
-			dwc3_otg_set_peripheral_mode(dotg);
-			ret = usb_gadget_vbus_connect(otg->gadget);
-			if (ret)
-				dev_err(dwc->dev, "%s: vbus connect failed again\n",
-					__func__);
-		}
+		dev_dbg(dev, "%s: start check usb configuration timer\n", __func__);
+		timer_setup(&exynos->usb_connect_timer, dwc3_otg_retry_configuration, 0);
+		mod_timer(&exynos->usb_connect_timer,
+				jiffies + CHG_CONNECTED_DELAY_TIME);
 	} else {
-		dwc->vbus_state = false;
-		dwc3_gadget_disconnect_proc(dwc);
-		/* avoid missing disconnect interrupt */
-		ret = wait_for_completion_timeout(&dwc->disconnect,
-						  msecs_to_jiffies(200));
-		if (!ret) {
-			dev_err(dwc->dev, "%s: disconnect completion timeout\n",
-				__func__);
-			return ret;
+		exynos->vbus_state = false;
+		del_timer_sync(&exynos->usb_connect_timer);
+
+		extra_delay = dwc3_check_extra_work(dwc);
+		/*
+		 * we can extra work corresponding each functions by
+		 * the following function.
+		 */
+		if (exynos->config.is_not_vbus_pad)
+			dwc3_exynos_gadget_disconnect_proc(dwc);
+
+		/* Wait until gadget stop */
+		while (dwc->gadget_driver != NULL) {
+			wait_counter++;
+			usleep_range(100, 200);
+
+			if (wait_counter > 500) {
+				dev_err(dev, "Can't wait gadget stop!\n");
+				break;
+			}
 		}
-		ret = usb_gadget_vbus_disconnect(otg->gadget);
-		if (ret)
-			dev_err(dwc->dev, "%s: vbus disconnect failed\n",
-				__func__);
+
+		/*
+		 * We can block udc core operation by the following flags.
+		 *  - gadget->connected and gadget->deactivated
+		 */
+		if (extra_delay)
+			msleep(100);
+
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
+err1:
 		__pm_relax(dotg->wakelock);
 	}
 
@@ -474,30 +615,29 @@ void dwc3_otg_run_sm(struct otg_fsm *fsm)
 
 	mutex_unlock(&fsm->lock);
 }
-EXPORT_SYMBOL_GPL(dwc3_otg_run_sm);
 
 /* Bind/Unbind the peripheral controller driver */
 static int dwc3_otg_set_peripheral(struct usb_otg *otg,
-				   struct usb_gadget *gadget)
+				struct usb_gadget *gadget)
 {
 	struct dwc3_otg	*dotg = container_of(otg, struct dwc3_otg, otg);
 	struct otg_fsm	*fsm = &dotg->fsm;
 	struct device	*dev = dotg->dwc->dev;
 
 	if (gadget) {
-		dev_info(dev, "Binding gadget %s\n", gadget->name);
+		dev_dbg(dev, "Binding gadget %s\n", gadget->name);
 
 		otg->gadget = gadget;
 	} else {
-		dev_info(dev, "Unbinding gadget\n");
+		dev_dbg(dev, "Unbinding gadget\n");
 
 		mutex_lock(&fsm->lock);
 
 		if (otg->state == OTG_STATE_B_PERIPHERAL) {
 			/* Reset OTG Statemachine */
-			fsm->reset = 1;
+			dotg->fsm_reset = 1;
 			dwc3_otg_statemachine(fsm);
-			fsm->reset = 0;
+			dotg->fsm_reset = 0;
 		}
 		otg->gadget = NULL;
 
@@ -565,8 +705,8 @@ static void dwc3_otg_enable_irq(struct dwc3_otg *dotg)
 {
 	/* Enable only connector ID status & VBUS change events */
 	dwc3_writel(dotg->regs, DWC3_OEVTEN,
-		    DWC3_OEVTEN_OTGCONIDSTSCHNGEVNT |
-		    DWC3_OEVTEN_OTGBDEVVBUSCHNGEVNT);
+			DWC3_OEVTEN_OTGCONIDSTSCHNGEVNT |
+			DWC3_OEVTEN_OTGBDEVVBUSCHNGEVNT);
 }
 
 static void dwc3_otg_disable_irq(struct dwc3_otg *dotg)
@@ -598,175 +738,13 @@ static void dwc3_otg_reset(struct dwc3_otg *dotg)
 	dwc3_writel(dotg->regs, DWC3_OEVT, (u32)DWC3_OEVT_CLEAR_ALL);
 }
 
-/* -------------------------------------------------------------------------- */
-
-static ssize_t
-state_show(struct device *dev,
-	   struct device_attribute *attr, char *buf)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct dwc3		*dwc = exynos->dwc;
-	struct usb_otg		*otg = &dwc->dotg->otg;
-
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			usb_otg_state_string(otg->state));
-}
-
-static DEVICE_ATTR_RO(state);
-
-static ssize_t
-b_sess_show(struct device *dev,
-	    struct device_attribute *attr, char *buf)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct dwc3		*dwc = exynos->dwc;
-	struct otg_fsm	*fsm = &dwc->dotg->fsm;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", fsm->b_sess_vld);
-}
-
-static ssize_t
-b_sess_store(struct device *dev,
-	     struct device_attribute *attr, const char *buf, size_t n)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct dwc3		*dwc = exynos->dwc;
-	struct otg_fsm	*fsm = &dwc->dotg->fsm;
-	int		b_sess_vld;
-
-	if (kstrtoint(buf, 10, &b_sess_vld) != 0)
-		return -EINVAL;
-
-	fsm->b_sess_vld = !!b_sess_vld;
-
-	dwc3_otg_run_sm(fsm);
-
-	return n;
-}
-
-static DEVICE_ATTR_RW(b_sess);
-
-static ssize_t
-id_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct dwc3		*dwc = exynos->dwc;
-	struct otg_fsm	*fsm = &dwc->dotg->fsm;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", fsm->id);
-}
-
-static ssize_t
-id_store(struct device *dev,
-	 struct device_attribute *attr, const char *buf, size_t n)
-{
-	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
-	struct dwc3		*dwc = exynos->dwc;
-	struct otg_fsm	*fsm = &dwc->dotg->fsm;
-	int id;
-
-	if (kstrtoint(buf, 10, &id) != 0)
-		return -EINVAL;
-
-	fsm->id = !!id;
-
-	dwc3_otg_run_sm(fsm);
-
-	return n;
-}
-
-static DEVICE_ATTR_RW(id);
-
-static ssize_t force_speed_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
-	struct dwc3 *dwc = exynos->dwc;
-
-	return sprintf(buf, "%s\n", usb_speed_string(dwc->maximum_speed));
-}
-
-static ssize_t force_speed_store(struct device *dev, struct device_attribute *attr, const char *buf,
-				 size_t n)
-{
-	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
-	struct dwc3 *dwc = exynos->dwc;
-	struct otg_fsm *fsm = &dwc->dotg->fsm;
-	int force_speed = 0;
-	int vbus_state = 0;
-
-	if (sysfs_streq(buf, "super-speed-plus")) {
-		force_speed = USB_SPEED_SUPER_PLUS;
-	} else if (sysfs_streq(buf, "super-speed")) {
-		force_speed = USB_SPEED_SUPER;
-	} else if (sysfs_streq(buf, "high-speed")) {
-		force_speed = USB_SPEED_HIGH;
-	} else {
-		return -EINVAL;
-	}
-
-	if (fsm->b_sess_vld == 1) {
-		vbus_state = fsm->b_sess_vld;
-		fsm->b_sess_vld = 0;
-		dwc3_otg_run_sm(fsm);
-	}
-
-	dwc->maximum_speed = force_speed;
-	dwc->gadget.max_speed = force_speed;
-
-	if (vbus_state) {
-		fsm->b_sess_vld = vbus_state;
-		dwc3_otg_run_sm(fsm);
-	}
-
-	return n;
-}
-
-static DEVICE_ATTR_RW(force_speed);
-
-static ssize_t usb_data_enabled_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%s\n", exynos->usb_data_enabled ? "enabled" : "disabled");
-}
-
-static ssize_t usb_data_enabled_store(struct device *dev, struct device_attribute *attr,
-				       const char *buf, size_t n)
-{
-	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
-	bool enabled = true;
-
-	if (kstrtobool(buf, &enabled))
-		return -EINVAL;
-
-	exynos->usb_data_enabled = enabled;
-
-	return n;
-}
-
-static DEVICE_ATTR_RW(usb_data_enabled);
-
-static struct attribute *dwc3_otg_attributes[] = {
-	&dev_attr_id.attr,
-	&dev_attr_b_sess.attr,
-	&dev_attr_state.attr,
-	&dev_attr_force_speed.attr,
-	&dev_attr_usb_data_enabled.attr,
-	NULL
-};
-
-static const struct attribute_group dwc3_otg_attr_group = {
-	.attrs = dwc3_otg_attributes,
-};
-
 /**
  * dwc3_otg_start
  * @dwc: pointer to our controller context structure
  */
-int dwc3_otg_start(struct dwc3 *dwc)
+int dwc3_otg_start(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 {
-	struct dwc3_otg	*dotg = dwc->dotg;
+	struct dwc3_otg	*dotg = exynos->dotg;
 	struct otg_fsm	*fsm = &dotg->fsm;
 	int		ret;
 
@@ -786,12 +764,12 @@ int dwc3_otg_start(struct dwc3 *dwc)
 
 		dotg->irq = platform_get_irq(to_platform_device(dwc->dev), 0);
 		ret = devm_request_threaded_irq(dwc->dev, dotg->irq,
-						dwc3_otg_interrupt,
-						dwc3_otg_thread_interrupt,
-						IRQF_SHARED, "dwc3-otg", dotg);
+				dwc3_otg_interrupt,
+				dwc3_otg_thread_interrupt,
+				IRQF_SHARED, "dwc3-otg", dotg);
 		if (ret) {
 			dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
-				dotg->irq, ret);
+					dotg->irq, ret);
 			return ret;
 		}
 
@@ -809,9 +787,9 @@ int dwc3_otg_start(struct dwc3 *dwc)
  * dwc3_otg_stop
  * @dwc: pointer to our controller context structure
  */
-void dwc3_otg_stop(struct dwc3 *dwc)
+void dwc3_otg_stop(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 {
-	struct dwc3_otg         *dotg = dwc->dotg;
+	struct dwc3_otg         *dotg = exynos->dotg;
 
 	if (dotg->ext_otg_ops) {
 		dwc3_ext_otg_stop(dotg);
@@ -824,24 +802,11 @@ void dwc3_otg_stop(struct dwc3 *dwc)
 }
 
 /* -------------------------------------------------------------------------- */
-u32 otg_is_connect(void)
-{
-	if (!otg_connection)
-		return OTG_NO_CONNECT;
-#if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
-	else if (is_otg_only)
-		return OTG_CONNECT_ONLY;
-#endif
-	else
-		return OTG_DEVICE_CONNECT;
-}
-EXPORT_SYMBOL_GPL(otg_is_connect);
-
 static struct device_node *exynos_dwusb_parse_dt(void)
 {
 	struct device_node *np = NULL;
 
-	np = of_find_compatible_node(NULL, NULL, "samsung,exynos-dwusb");
+	np = of_find_compatible_node(NULL, NULL, "samsung,exynos9-dwusb");
 	if (!np) {
 		pr_err("%s: failed to get the usbdrd node\n", __func__);
 		goto err;
@@ -851,13 +816,12 @@ err:
 	return NULL;
 }
 
-static struct dwc3 *exynos_dwusb_get_struct(void)
+static struct dwc3_exynos *exynos_dwusb_get_struct(void)
 {
 	struct device_node *np = NULL;
 	struct platform_device *pdev = NULL;
 	struct device *dev;
 	struct dwc3_exynos *exynos;
-	struct dwc3 *dwc;
 
 	np = exynos_dwusb_parse_dt();
 	if (np) {
@@ -866,8 +830,7 @@ static struct dwc3 *exynos_dwusb_get_struct(void)
 		of_node_put(np);
 		if (pdev) {
 			exynos = dev->driver_data;
-			dwc = exynos->dwc;
-			return dwc;
+			return exynos;
 		}
 	}
 
@@ -875,54 +838,95 @@ static struct dwc3 *exynos_dwusb_get_struct(void)
 	return NULL;
 }
 
-u32 get_speed_and_disu1u2(void)
+u32 dwc3_otg_is_connect(void)
 {
-	u32 reg;
-	struct dwc3 *dwc;
+	struct dwc3_exynos *exynos;
+	struct dwc3_otg *dotg;
 
-	dwc = exynos_dwusb_get_struct();
-	if (!dwc) {
-		dev_err(dwc->dev, "[%s] error\n", __func__);
+	exynos = exynos_dwusb_get_struct();
+	if (!exynos) {
+		dev_err(exynos->dev, "[%s] error\n", __func__);
+		return -ENODEV;
+	}
+	dotg = exynos->dotg;
+
+	if (!dotg->otg_connection)
+		return OTG_NO_CONNECT;
+	else
+		return OTG_DEVICE_CONNECT;
+}
+EXPORT_SYMBOL_GPL(dwc3_otg_is_connect);
+
+static void dwc3_otg_recovery_reconnection(struct work_struct *w)
+{
+	struct dwc3_otg *dotg = container_of(w, struct dwc3_otg,
+					     recov_work);
+	struct dwc3_exynos *exynos = dotg->exynos;
+	struct otg_fsm	*fsm = &dotg->fsm;
+	int ret = 0;
+
+	__pm_stay_awake(dotg->reconn_wakelock);
+	/* Lock to avoid real cable insert/remove operation. */
+	mutex_lock(&fsm->lock);
+
+	/* To ignore PHY disable */
+	dwc3_otg_phy_enable(fsm, DWC3_PHY_OWNER_EMEG, 1);
+
+	if (dotg->otg_connection == 1) {
+		pr_err("Recovery Host Reconnection\n");
+		ret = dwc3_otg_start_host(fsm, 0);
+		if (ret < 0) {
+			pr_err("Cable was already disconnected!!\n");
+			goto emeg_out;
+		}
+	} else {
+		pr_err("Recovery Gadget Reconnection\n");
+		if (exynos->vbus_state == false) {
+			pr_err("Cable was already disconnected!!\n");
+			goto emeg_out;
+		}
+		dwc3_otg_start_gadget(fsm, 0);
+	}
+
+	msleep(50);
+	if (dotg->otg_connection == 1)
+		dwc3_otg_start_host(fsm, 1);
+	else
+		dwc3_otg_start_gadget(fsm, 1);
+
+emeg_out:
+	dwc3_otg_phy_enable(fsm, DWC3_PHY_OWNER_EMEG, 0);
+
+	mutex_unlock(&fsm->lock);
+	__pm_relax(dotg->reconn_wakelock);
+}
+
+int dwc3_otg_usb_recovery_reconn(struct dwc3_exynos *exynos)
+{
+	struct dwc3_otg *dotg = exynos->dotg;
+
+	if (exynos == NULL) {
+		pr_err("WARNING : exynos is NULL\n");
 		return -ENODEV;
 	}
 
-	/* Disable U1/U2 */
-	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-	reg &= ~(DWC3_DCTL_INITU1ENA | DWC3_DCTL_ACCEPTU1ENA |
-			DWC3_DCTL_INITU2ENA | DWC3_DCTL_ACCEPTU2ENA);
-	dwc3_writel(dwc->regs, DWC3_DCTL, reg);
+	schedule_work(&dotg->recov_work);
 
-	return dwc->level_val;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(get_speed_and_disu1u2);
-
-int get_idle_ip_index(void)
-{
-	struct dwc3 *dwc;
-
-	dwc = exynos_dwusb_get_struct();
-	if (!dwc) {
-		dev_err(dwc->dev, "[%s] error\n", __func__);
-		return -ENODEV;
-	}
-
-	return dwc3_exynos_get_idle_ip_index(dwc->dev);
-}
-EXPORT_SYMBOL_GPL(get_idle_ip_index);
 
 static int dwc3_otg_pm_notifier(struct notifier_block *nb,
-				unsigned long action, void *nb_data)
+		unsigned long action, void *nb_data)
 {
-	struct dwc3_otg *dotg = container_of(nb, struct dwc3_otg, pm_nb);
+	struct dwc3_otg *dotg
+		= container_of(nb, struct dwc3_otg, pm_nb);
 
 	switch (action) {
 	case PM_SUSPEND_PREPARE:
-		pr_info("%s suspend prepare\n", __func__);
 		dotg->dwc3_suspended = 1;
 		reinit_completion(&dotg->resume_cmpl);
 		break;
 	case PM_POST_SUSPEND:
-		pr_info("%s post suspend\n", __func__);
 		dotg->dwc3_suspended = 0;
 		complete(&dotg->resume_cmpl);
 		break;
@@ -932,52 +936,13 @@ static int dwc3_otg_pm_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-#if defined(CONFIG_TYPEC_DEFAULT)
-static void typec_work_func(struct work_struct *work)
+int dwc3_exynos_otg_init(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 {
-	struct dwc3_otg		*dotg = container_of(work, struct dwc3_otg,
-							typec_work.work);
-	struct dwc3		*dwc = dotg->dwc;
-	struct intf_typec	*typec = dotg->typec;
-	struct typec_partner_desc partner;
-
-	pr_info("%s\n", __func__);
-
-	typec->cap.type = TYPEC_PORT_DRP;
-	typec->cap.revision = USB_TYPEC_REV_1_2;
-	typec->cap.pd_revision = 0x312;
-	typec->cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
-
-	typec->port = typec_register_port(dwc->dev, &typec->cap);
-	if (!typec->port) {
-		dev_err(dwc->dev, "failed register port\n");
-		return;
-	}
-
-	typec_set_data_role(typec->port, TYPEC_DEVICE);
-	typec_set_pwr_role(typec->port, TYPEC_SINK);
-	typec_set_pwr_opmode(typec->port, TYPEC_PWR_MODE_USB);
-
-	memset(&partner, 0, sizeof(struct typec_partner_desc));
-
-	typec->partner = typec_register_partner(typec->port, &partner);
-	if (!dotg->typec->partner)
-		dev_err(dwc->dev, "failed register partner\n");
-}
-#endif
-
-int dwc3_otg_init(struct dwc3 *dwc)
-{
-	struct dwc3_otg *dotg;
+	struct dwc3_otg *dotg = exynos->dotg;
 	struct dwc3_ext_otg_ops *ops = NULL;
 	int ret = 0;
-#if defined(CONFIG_TYPEC_DEFAULT)
-	struct intf_typec	*typec;
-#endif
 
-	dev_info(dwc->dev, "%s\n", __func__);
-
-	/* EXYNOS SoCs don't have HW OTG, but support SW OTG. */
+	/* EXYNOS SoCs don't have HW OTG, but it supports SW OTG. */
 	ops = dwc3_otg_exynos_rsw_probe(dwc);
 	if (!ops)
 		return 0;
@@ -988,19 +953,19 @@ int dwc3_otg_init(struct dwc3 *dwc)
 		return -ENOMEM;
 
 	/* This reference is used by dwc3 modules for checking otg existence */
-	dwc->dotg = dotg;
+	exynos->dotg = dotg;
 	dotg->dwc = dwc;
-	dev_info(dwc->dev, "%s, dotg = %8x\n", __func__, dwc->dotg);
+	dotg->exynos = exynos;
 
-	ret = of_property_read_u32(dwc->dev->of_node, "usb-pm-qos-int",
+	ret = of_property_read_u32(exynos->dev->of_node, "usb-pm-qos-int",
 				   &dotg->pm_qos_int_val);
 	if (ret < 0) {
 		dev_err(dwc->dev, "couldn't read usb-pm-qos-int %s node, error = %d\n",
-					dwc->dev->of_node->name, ret);
+			dwc->dev->of_node->name, ret);
 		dotg->pm_qos_int_val = 0;
 	} else {
 		exynos_pm_qos_add_request(&dotg->pm_qos_int_req,
-					PM_QOS_DEVICE_THROUGHPUT, 0);
+					  PM_QOS_DEVICE_THROUGHPUT, 0);
 	}
 
 	dotg->ext_otg_ops = ops;
@@ -1014,12 +979,13 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	dotg->fsm.ops = &dwc3_otg_fsm_ops;
 	dotg->fsm.otg = &dotg->otg;
 
+	INIT_WORK(&dotg->recov_work, dwc3_otg_recovery_reconnection);
 	dotg->vbus_reg = devm_regulator_get(dwc->dev, "dwc3-vbus");
 	if (IS_ERR(dotg->vbus_reg))
 		dev_err(dwc->dev, "failed to obtain vbus regulator\n");
 
 	if (dotg->ext_otg_ops) {
-		dev_info(dwc->dev, "%s, dwc3_ext_otg_setup call\n", __func__);
+		dev_dbg(dwc->dev, "%s, dwc3_ext_otg_setup call\n", __func__);
 		ret = dwc3_ext_otg_setup(dotg);
 		if (ret) {
 			dev_err(dwc->dev, "failed to setup OTG\n");
@@ -1028,57 +994,35 @@ int dwc3_otg_init(struct dwc3 *dwc)
 	}
 
 	dotg->wakelock = wakeup_source_register(dwc->dev, "dwc3-otg");
+	dotg->reconn_wakelock = wakeup_source_register(dwc->dev,
+				"dwc3-reconnection");
 	mutex_init(&dotg->lock);
-
-	ret = sysfs_create_group(&dwc->dev->kobj, &dwc3_otg_attr_group);
-	if (ret)
-		dev_err(dwc->dev, "failed to create dwc3 otg attributes\n");
 
 	init_completion(&dotg->resume_cmpl);
 	dotg->dwc3_suspended = 0;
 	dotg->pm_nb.notifier_call = dwc3_otg_pm_notifier;
 	register_pm_notifier(&dotg->pm_nb);
-	/*register_usb_is_connect(otg_is_connect);*/
 
-#if defined(CONFIG_TYPEC_DEFAULT)
-	INIT_DELAYED_WORK(&dotg->typec_work, typec_work_func);
-
-	typec = devm_kzalloc(dwc->dev, sizeof(*typec), GFP_KERNEL);
-	if (!typec)
-		return -ENOMEM;
-
-	/* mutex_init(&md05->lock); */
-	typec->dev = dwc->dev;
-	dotg->typec = typec;
-
-	schedule_delayed_work(&dotg->typec_work,
-			      msecs_to_jiffies(2000));
-#endif
-
-	dev_info(dwc->dev, "%s done\n", __func__);
+	dev_dbg(dwc->dev, "otg_init done\n");
 
 	return 0;
 }
 
-void dwc3_otg_exit(struct dwc3 *dwc)
+void dwc3_exynos_otg_exit(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 {
-	struct dwc3_otg *dotg = dwc->dotg;
+	struct dwc3_otg *dotg = exynos->dotg;
 
 	if (!dotg->ext_otg_ops)
 		return;
 
-#if defined(CONFIG_TYPEC_DEFAULT)
-	typec_unregister_partner(dotg->typec->partner);
-	typec_unregister_port(dotg->typec->port);
-#endif
 	unregister_pm_notifier(&dotg->pm_nb);
 
 	dwc3_ext_otg_exit(dotg);
 
-	sysfs_remove_group(&dwc->dev->kobj, &dwc3_otg_attr_group);
 	wakeup_source_unregister(dotg->wakelock);
+	wakeup_source_unregister(dotg->reconn_wakelock);
 	free_irq(dotg->irq, dotg);
 	dotg->otg.state = OTG_STATE_UNDEFINED;
 	kfree(dotg);
-	dwc->dotg = NULL;
+	exynos->dotg = NULL;
 }

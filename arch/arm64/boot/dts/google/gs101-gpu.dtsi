@@ -43,7 +43,7 @@
 		gpu1_cmu_cal_id = <ACPM_DVFS_G3D>;
 
 		/* DVFS */
-		gpu_dvfs_governor = "basic";
+		gpu_dvfs_governor = "quickstep";
 		gpu_dvfs_clockdown_hysteresis = <50>;
 
 		/* DVFS v1 operating points */

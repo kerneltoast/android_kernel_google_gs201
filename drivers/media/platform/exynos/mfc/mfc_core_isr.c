@@ -740,8 +740,6 @@ static void __mfc_handle_frame_error(struct mfc_core *core, struct mfc_ctx *ctx,
 
 	if (mfc_get_err(err) == MFC_REG_ERR_UNDEFINED_EXCEPTION)
 		mfc_core_handle_error(core);
-	else
-		__mfc_handle_error_state(ctx, core_ctx);
 
 	mfc_debug(2, "Assesing whether this context should be run again\n");
 }

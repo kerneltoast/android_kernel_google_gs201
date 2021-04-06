@@ -125,8 +125,6 @@ void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
 				 unsigned int size, unsigned long phys);
 int samsung_dma_buffer_unprotect(void *priv, struct device *dev);
 #else
-#define secure_iova_pool_destroy() do { } while (0)
-
 static inline void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
 					       unsigned int size, unsigned long phys)
 {

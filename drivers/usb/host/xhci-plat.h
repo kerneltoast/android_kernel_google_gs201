@@ -31,12 +31,4 @@ struct xhci_plat_priv_overwrite {
 
 int xhci_plat_register_vendor_ops(struct xhci_vendor_ops *vendor_ops);
 
-#if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
-extern void __iomem *usb3_portsc;
-extern u32 pp_set_delayed;
-extern int port_off_done;
-extern u32 portsc_control_priority;
-extern spinlock_t xhcioff_lock;
-#endif
-
 #endif	/* _XHCI_PLAT_H */

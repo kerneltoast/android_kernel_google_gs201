@@ -572,6 +572,7 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci,
 }
 EXPORT_SYMBOL_GPL(xhci_get_ep_ctx);
 
+
 /***************** Streams structures manipulation *************************/
 
 static void xhci_free_stream_ctx(struct xhci_hcd *xhci,

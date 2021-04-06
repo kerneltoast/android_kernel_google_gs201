@@ -17,7 +17,8 @@
 				"BO";
 		memory-region = <&header>, <&log_kevents>, <&log_bcm>, <&log_s2d>,
 				<&log_arrdumpreset>, <&log_arrdumppanic>,
-				<&log_slcdump>, <&log_preslcdump>;
+				<&log_slcdump>, <&log_preslcdump>,
+				<&log_itmon>;
 		panic-action = <GO_DEFAULT_ID>;
 	};
 

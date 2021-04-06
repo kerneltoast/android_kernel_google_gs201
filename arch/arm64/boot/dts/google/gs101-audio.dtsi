@@ -43,7 +43,7 @@
 	};
 
 	aoc_voip_ep: aoc_voip_drv {
-		compatible = "google-aoc-snd-incall";
+		compatible = "google-aoc-snd-voip";
 	};
 
 	aoc_incall_ep: aoc_incall_drv {

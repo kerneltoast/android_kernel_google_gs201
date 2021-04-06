@@ -53,6 +53,9 @@ struct gs101_pi_param {
 struct gs101_tmu_data {
 	int id;
 	/* Throttle hotplug related variables */
+	bool pause_enable;
+	int pause_threshold;
+	int resume_threshold;
 	bool hotplug_enable;
 	int hotplug_in_threshold;
 	int hotplug_out_threshold;
@@ -64,7 +67,9 @@ struct gs101_tmu_data {
 	void __iomem *base;
 	int irq;
 	struct kthread_worker thermal_worker;
+	struct kthread_worker pause_worker;
 	struct kthread_work irq_work;
+	struct kthread_work cpu_pause_work;
 	struct kthread_work hotplug_work;
 	struct mutex lock;			/* lock to protect gs101 tmu */
 	struct thermal_zone_device *tzd;
@@ -74,11 +79,13 @@ struct gs101_tmu_data {
 	struct list_head node;
 	char tmu_name[THERMAL_NAME_LENGTH + 1];
 	struct device_node *np;
+	bool is_cpu_paused;
 	bool is_cpu_hotplugged_out;
 	int temperature;
 	bool use_pi_thermal;
 	struct kthread_delayed_work pi_work;
 	struct gs101_pi_param *pi_param;
+	struct cpumask pause_cpus;
 	struct cpumask hotplug_cpus;
 	struct cpumask tmu_work_affinity;
 	struct cpumask hotplug_work_affinity;

@@ -17,6 +17,9 @@ export OUT_DIR
 # share a common DIST_DIR
 export DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
 
+# build with LTO=thin by default
+export LTO=${LTO:-thin}
+
 OUT_DIR=${BASE_OUT}/android12-5.10-staging/
 # Now build the GKI kernel
 SKIP_CP_KERNEL_HDR=1 \

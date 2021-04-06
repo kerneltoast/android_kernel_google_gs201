@@ -69,6 +69,7 @@ void gs101_cal_data_init(void)
 	pmucal_sys_powermode[SYS_SICD] = CPU_INFORM_SICD;
 	pmucal_sys_powermode[SYS_SLEEP] = CPU_INFORM_SLEEP;
 	pmucal_sys_powermode[SYS_SLEEP_SLCMON] = CPU_INFORM_SLEEP_SLCMON;
+	pmucal_sys_powermode[SYS_SLEEP_HSI1ON] = CPU_INFORM_SLEEP_HSI1ON;
 
 	cpu_inform_c2 = CPU_INFORM_C2;
 	cpu_inform_cpd = CPU_INFORM_CPD;

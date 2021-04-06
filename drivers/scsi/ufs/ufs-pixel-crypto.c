@@ -366,7 +366,7 @@ int pixel_ufs_crypto_init(struct ufs_hba *hba)
 	hba->sg_entry_size = sizeof(struct pixel_ufs_prdt_entry);
 
 	/* Advertise crypto capabilities to the block layer. */
-	err = blk_ksm_init(&hba->ksm, KDN_SLOT_NUM);
+	err = devm_blk_ksm_init(hba->dev, &hba->ksm, KDN_SLOT_NUM);
 	if (err)
 		return err;
 	hba->ksm.ksm_ll_ops = pixel_ufs_ksm_ops;

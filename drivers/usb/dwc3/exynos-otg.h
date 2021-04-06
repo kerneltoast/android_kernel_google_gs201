@@ -1,22 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/**
- * otg.c - DesignWare USB3 DRD Controller OTG
+/*
+ * exynos-otg.h - Samsung EXYNOS OTG Header
  *
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
- * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Authors: Ido Shayevitz <idos@codeaurora.org>
- *	    Anton Tikhomirov <av.tikhomirov@samsung.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __LINUX_USB_DWC3_OTG_H
@@ -26,6 +14,7 @@
 #include <linux/pm_qos.h>
 #include <soc/google/exynos_pm_qos.h>
 #include "dwc3-exynos.h"
+
 
 struct dwc3_ext_otg_ops {
 	int	(*setup)(struct device *dev, struct otg_fsm *fsm);
@@ -51,39 +40,38 @@ struct dwc3_otg {
 	struct usb_otg          otg;
 	struct otg_fsm		fsm;
 	struct dwc3             *dwc;
+	struct dwc3_exynos      *exynos;
 	int                     irq;
 	void __iomem            *regs;
 	struct wakeup_source	*wakelock;
+	struct wakeup_source	*reconn_wakelock;
 
 	unsigned		ready:1;
 	int			otg_connection;
 
 	struct regulator	*vbus_reg;
-	int			*ldo_num;
-	int			ldos;
 
 	struct exynos_pm_qos_request	pm_qos_int_req;
 	int				pm_qos_int_val;
 
 	struct dwc3_ext_otg_ops *ext_otg_ops;
-#if defined(CONFIG_TYPEC_DEFAULT)
-	struct intf_typec	*typec;
-	struct delayed_work	typec_work;
-#endif
+
+	struct work_struct	recov_work;
+
 	struct notifier_block	pm_nb;
 	struct completion	resume_cmpl;
 	int			dwc3_suspended;
+	int			fsm_reset;
 
-	struct mutex lock; /* protect otg setting */
-	u32 combo_phy_control;
+	struct mutex lock;
+	u16 combo_phy_control;
+	u16 usb2_phy_control;
 
 };
 
 static inline int dwc3_ext_otg_setup(struct dwc3_otg *dotg)
 {
-	struct device *dev = dotg->dwc->dev;
-
-	pr_info("%s, fsm = %8x\n", __func__, &dotg->fsm);
+	struct device *dev = dotg->exynos->dev;
 
 	if (!dotg->ext_otg_ops->setup)
 		return -EOPNOTSUPP;
@@ -92,7 +80,7 @@ static inline int dwc3_ext_otg_setup(struct dwc3_otg *dotg)
 
 static inline int dwc3_ext_otg_exit(struct dwc3_otg *dotg)
 {
-	struct device *dev = dotg->dwc->dev;
+	struct device *dev = dotg->exynos->dev;
 
 	if (!dotg->ext_otg_ops->exit)
 		return -EOPNOTSUPP;
@@ -102,7 +90,7 @@ static inline int dwc3_ext_otg_exit(struct dwc3_otg *dotg)
 
 static inline int dwc3_ext_otg_start(struct dwc3_otg *dotg)
 {
-	struct device *dev = dotg->dwc->dev;
+	struct device *dev = dotg->exynos->dev;
 
 	pr_info("%s\n", __func__);
 
@@ -113,7 +101,7 @@ static inline int dwc3_ext_otg_start(struct dwc3_otg *dotg)
 
 static inline int dwc3_ext_otg_stop(struct dwc3_otg *dotg)
 {
-	struct device *dev = dotg->dwc->dev;
+	struct device *dev = dotg->exynos->dev;
 
 	if (!dotg->ext_otg_ops->stop)
 		return -EOPNOTSUPP;
@@ -121,15 +109,14 @@ static inline int dwc3_ext_otg_stop(struct dwc3_otg *dotg)
 	return 0;
 }
 
-#if defined(CONFIG_USB_PORT_POWER_OPTIMIZATION)
-int xhci_portsc_set(u32 on);
-int xhci_port_power_set(u32 on, u32 prt);
-extern int is_otg_only;
-#endif
-#ifdef CONFIG_SND_EXYNOS_USB_AUDIO
-extern struct exynos_usb_audio *usb_audio;
-#endif
+int dwc3_exynos_otg_init(struct dwc3 *dwc, struct dwc3_exynos *exynos);
+void dwc3_exynos_otg_exit(struct dwc3 *dwc, struct dwc3_exynos *exynos);
+int dwc3_otg_start(struct dwc3 *dwc, struct dwc3_exynos *exynos);
+void dwc3_otg_stop(struct dwc3 *dwc, struct dwc3_exynos *exynos);
+int dwc3_otg_usb_recovery_reconn(struct dwc3_exynos *exynos);
 
 extern void __iomem *phycon_base_addr;
+extern int exynos_usbdrd_pipe3_enable(struct phy *phy);
+extern int exynos_usbdrd_pipe3_disable(struct phy *phy);
 
 #endif /* __LINUX_USB_DWC3_OTG_H */

@@ -34,6 +34,8 @@ u32 exynos_eint_to_pin_num(int eint) { return 0; }
 u32 exynos_eint_wake_mask_array[3] = {~0U, ~0U, ~0U};
 #endif
 
+int register_pcie_is_connect(u32 (*func)(void));
+
 struct wakeup_stat_name {
 	const char *name[32];
 };
@@ -74,10 +76,16 @@ struct exynos_pm_info {
 	bool is_stay_awake;
 
 	struct wakeup_stat_name *ws_names;
+
+	bool is_pcieon_suspend;
+	unsigned int pcieon_suspend_available;
+	unsigned int pcieon_suspend_mode_idx;
+	u32 (*pcie_is_connect)(void);
 };
 
 struct exynos_pm_dbg {
 	u32 test_early_wakeup;
+	u32 test_pcieon_suspend;
 
 	unsigned int mifdn_early_wakeup_prev;
 	unsigned int mifdn_early_wakeup_cnt;

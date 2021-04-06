@@ -2,7 +2,7 @@
 /*
  * Raven Proto device tree source
  *
- * Copyright 2020 Google,LLC
+ * Copyright 2021 Google,LLC
  */
 
 /dts-v1/;
@@ -12,6 +12,7 @@
 #include "gs101-raven-camera-proto1.dtsi"
 #include "gs101-raviole-camera-pmic-proto1.dtsi"
 #include "gs101-raviole-ldaf-proto1.dtsi"
+#include "gs101-raviole-nfc-proto.dtsi"
 
 / {
 	board_id = <0x20202>;
