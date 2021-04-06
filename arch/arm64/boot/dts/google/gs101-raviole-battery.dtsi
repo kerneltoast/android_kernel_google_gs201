@@ -139,7 +139,7 @@
 	};
 };
 
-&hsi2c_12 {
+&hsi2c_12{
 
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -184,7 +184,7 @@
 		maxim,psy-type-unknown;
 	};
 
-	max77759_chg:max77759chrg@0x69 {
+	max77759chrg@0x69 {
 		status = "okay";
 		compatible = "maxim,max77759chrg";
 		reg = <0x69>;
@@ -195,8 +195,6 @@
 
 		max77759,max_m5 = <&max77759_fg>;
 		max77759,pmic = <&max77729_pmic>;
-
-		#thermal-sensor-cells = <1>;
 
 		/* system use cases */
 		max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
