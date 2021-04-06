@@ -1420,6 +1420,20 @@ static void max77759_get_timer_value(void *unused, const char *state, enum typec
 	}
 }
 
+static void max77759_get_cr_limit(void *unused, const char *state, u32 port_current_limit,
+				  u32 port_voltage, bool pd_capable, u32 *current_limit,
+				  bool *adjust)
+{
+	if (!strncmp(state, "SNK_DISCOVERY", strlen("SNK_DISCOVERY"))) {
+		if (*current_limit) {
+			*adjust = true;
+			*current_limit = 500;
+		}
+	} else if (!strncmp(state, "SNK_READY", strlen("SNK_READY"))) {
+		*adjust = !pd_capable;
+	}
+}
+
 static int max77759_register_vendor_hooks(struct i2c_client *client)
 {
 	int ret;
@@ -1466,6 +1480,14 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 	if (ret) {
 		dev_err(&client->dev,
 			"register_trace_android_vh_typec_tcpm_get_timer failed ret:%d\n", ret);
+		return ret;
+	}
+
+	ret = register_trace_android_vh_typec_tcpm_adj_current_limit(max77759_get_cr_limit, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_tcpm_get_adj_current_limit failed ret",
+			ret);
 		return ret;
 	}
 
