@@ -41,6 +41,7 @@
 		    800000    3314
 		    500000    1507
 		>;
+		samsung,tzmp;
 	};
 	tpu_cooling: tpu-cooling {
 		#cooling-cells = <2>;
