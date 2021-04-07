@@ -30,7 +30,7 @@ struct s2mpg11_meter {
 /* Public s2mpg11 Meter functions */
 int s2mpg11_meter_load_measurement(struct s2mpg11_meter *s2mpg11,
 				   s2mpg1x_meter_mode mode, u64 *data,
-				   u32 *count, unsigned long *jiffies_capture);
+				   u32 *count, u64 *timestamp_capture);
 int s2mpg11_meter_set_muxsel(struct s2mpg11_meter *s2mpg11, int channel,
 			     s2mpg11_meter_muxsel m);
 

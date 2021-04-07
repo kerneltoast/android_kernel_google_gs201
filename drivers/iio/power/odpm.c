@@ -40,7 +40,7 @@
  * Note: s2mpg1x chips can take on average between 1-2 ms
  * for a refresh.
  */
-#define ODPM_MIN_POLLING_TIME_MS 50 /* ms */
+#define ODPM_MIN_POLLING_TIME_NS ((u64)50 * NSEC_PER_MSEC)
 
 #define str(val) #val
 #define xstr(s) str(s)
@@ -130,7 +130,7 @@ struct odpm_chip {
 	s2mpg1x_ext_samp_rate ext_config_sampling_rate_i;
 
 	/* Data */
-	u64 acc_timestamp;
+	u64 acc_timestamp_ms;
 	s2mpg1x_int_samp_rate int_sampling_rate_i;
 	s2mpg1x_ext_samp_rate ext_sampling_rate_i;
 
@@ -159,7 +159,8 @@ struct odpm_info {
 	struct workqueue_struct *work_queue;
 	struct work_struct work_refresh;
 	struct timer_list timer_refresh;
-	unsigned long jiffies_last_poll;
+
+	u64 timestamp_last_poll_kboot_ns;
 };
 
 /**
@@ -185,9 +186,9 @@ static int odpm_take_snapshot_instant_locked(struct odpm_info *info);
 static void odpm_print_new_sampling_rate(struct odpm_info *info, int ret,
 					 enum odpm_sampling_rate_type type);
 
-static u64 odpm_get_timestamp_now_ms(void)
+static u64 to_ms(u64 ns)
 {
-	return ktime_get_boottime_ns() / 1000000;
+	return ns / NSEC_PER_MSEC;
 }
 
 static int odpm_io_set_channel(struct odpm_info *info, int channel)
@@ -256,10 +257,10 @@ static int odpm_io_set_buck_channels_en(struct odpm_info *info, u8 *channels,
 }
 
 static int odpm_io_send_blank_async(struct odpm_info *info,
-				    unsigned long *jiffies)
+				    u64 *timestamp_capture)
 {
 	return s2mpg1x_meter_set_async_blocking(info->chip.hw_id, info->i2c,
-						jiffies);
+						timestamp_capture);
 }
 
 static int odpm_io_update_ext_enable_bits(struct odpm_info *info)
@@ -326,16 +327,16 @@ int odpm_configure_chip(struct odpm_info *info)
 
 int odpm_configure_start_measurement(struct odpm_info *info)
 {
-	unsigned long jiffies_capture = 0;
+	u64 timestamp_capture_ns = 0;
 	int ch;
 
 	/* For s2mpg1x chips, clear ACC registers */
-	int ret = odpm_io_send_blank_async(info, &jiffies_capture);
+	int ret = odpm_io_send_blank_async(info, &timestamp_capture_ns);
 
-	info->jiffies_last_poll = jiffies_capture;
+	info->timestamp_last_poll_kboot_ns = timestamp_capture_ns;
 
 	pr_info("odpm: Starting at timestamp (ms): %ld\n",
-		odpm_get_timestamp_now_ms());
+		to_ms(timestamp_capture_ns));
 
 	/* Initialize boot measurement time to 0. This means that there will be
 	 * some amount of time from boot where power measurements are not
@@ -753,6 +754,8 @@ static void odpm_print_clock_skew(struct odpm_info *info, u64 elapsed_ms,
 	u64 ratio_u = (1000000 * uHz_estimated) / uHz;
 	s64 pct_u = (((s64)ratio_u - (1 * 1000000)) * 100);
 
+	pr_info("odpm: %s: elapsed_ms: %d, acc_count: %d\n", info->chip.name,
+		elapsed_ms, acc_count);
 	pr_info("odpm: %s: internal clock skew: %d.%06d %%\n", info->chip.name,
 		pct_u / 1000000, abs(pct_u) % 1000000);
 }
@@ -795,7 +798,7 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 	 * 100 ms check on register refresh...
 	 * We want to verify that the transaction time isn't too long, as the
 	 * process may have been pre-empted between the command to refresh
-	 * registers and when jiffies were captured (jiffies_after).
+	 * registers and when the timestamp was captured.
 	 */
 	if (elapsed_refresh_ms >= 100) {
 		pr_err("odpm: %s: refresh registers took too long; %ld ms\n",
@@ -830,22 +833,19 @@ static int odpm_refresh_registers(struct odpm_info *info)
 
 	u64 acc_data[ODPM_CHANNEL_MAX];
 	u32 acc_count = 0;
-	u64 measurement_timestamp_ms;
 	u32 sampling_frequency_uhz;
 
-	unsigned long jiffies_previous_sample;
-	unsigned long jiffies_before_async;
-	unsigned long jiffies_after_async;
+	u64 timestamp_previous_sample = info->timestamp_last_poll_kboot_ns;
+	u64 timestamp_before_async;
+	u64 timestamp_after_async;
 
 	unsigned int elapsed_ms;
 	unsigned int elapsed_refresh_ms;
 
-	jiffies_before_async = jiffies;
+	timestamp_before_async = ktime_get_boottime_ns();
 
 	SWITCH_METER_FUNC(info, meter_load_measurement, S2MPG1X_METER_POWER,
-			  acc_data, &acc_count,
-			  &jiffies_after_async);
-	measurement_timestamp_ms = odpm_get_timestamp_now_ms();
+			  acc_data, &acc_count, &timestamp_after_async);
 
 	if (ret < 0) {
 		pr_err("odpm: %s: i2c error; count not measure interval\n",
@@ -854,14 +854,13 @@ static int odpm_refresh_registers(struct odpm_info *info)
 	}
 
 	/* Store timestamps - the rest of the function will succeed */
-	jiffies_previous_sample = info->jiffies_last_poll;
-	info->jiffies_last_poll = jiffies_after_async;
-	info->chip.acc_timestamp = measurement_timestamp_ms;
+	info->timestamp_last_poll_kboot_ns = timestamp_after_async;
+	info->chip.acc_timestamp_ms = to_ms(timestamp_after_async);
 
-	elapsed_ms = jiffies_to_msecs(jiffies_after_async -
-				      jiffies_previous_sample);
-	elapsed_refresh_ms = jiffies_to_msecs(jiffies_after_async -
-					      jiffies_before_async);
+	elapsed_ms = to_ms(timestamp_after_async - timestamp_previous_sample);
+	elapsed_refresh_ms =
+		to_ms(timestamp_after_async - timestamp_before_async);
+
 	sampling_frequency_uhz =
 		odpm_estimate_sampling_frequency(info,
 						 elapsed_ms,
@@ -912,9 +911,10 @@ static int odpm_take_snapshot_locked(struct odpm_info *info)
 	/* check if the minimal elapsed time has passed and if so,
 	 * re-read the chip, otherwise the cached info is just fine
 	 */
-	unsigned long future_time = info->jiffies_last_poll +
-				    msecs_to_jiffies(ODPM_MIN_POLLING_TIME_MS);
-	if (time_after(jiffies, future_time))
+	u64 now_ns = ktime_get_boottime_ns();
+	u64 min_time_ns = ODPM_MIN_POLLING_TIME_NS;
+
+	if (now_ns > info->timestamp_last_poll_kboot_ns + min_time_ns)
 		return odpm_take_snapshot_instant_locked(info);
 
 	return 0; /* Refresh skipped for min elapsed time */
@@ -1042,7 +1042,7 @@ static void odpm_set_sampling_rate(struct odpm_info *info,
 	}
 
 	/* Send blank ASYNC, ignoring the latest set of data */
-	if (odpm_io_send_blank_async(info, &info->jiffies_last_poll) < 0)
+	if (odpm_io_send_blank_async(info, &info->timestamp_last_poll_kboot_ns) < 0)
 		pr_err("odpm: Could not send blank async when applying sampling rate\n");
 
 sampling_rate_store_exit:
@@ -1148,15 +1148,15 @@ static ssize_t energy_value_show(struct device *dev,
 	 * CH<N>(T=<Duration, ms>)[<Schematic name>], <Accumulated Energy, uWs>
 	 */
 	count += scnprintf(buf + count, PAGE_SIZE - count, "t=%ld\n",
-			   info->chip.acc_timestamp);
+			   info->chip.acc_timestamp_ms);
 
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
 		int rail_i = info->channels[ch].rail_i;
 		u64 start_ms = info->channels[ch].measurement_start_ms;
 		u64 duration_ms = 0;
 
-		if (info->chip.acc_timestamp >= start_ms)
-			duration_ms = info->chip.acc_timestamp - start_ms;
+		if (info->chip.acc_timestamp_ms >= start_ms)
+			duration_ms = info->chip.acc_timestamp_ms - start_ms;
 
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "CH%d(T=%ld)[%s], %ld\n", ch,
@@ -1230,6 +1230,7 @@ static ssize_t enabled_rails_store(struct device *dev,
 	int scan_result;
 	int current_rail;
 	int new_rail;
+	u64 timestamp_ns;
 
 	if (strcmp(buf, "CONFIG_COMPLETE") == 0) {
 		/**
@@ -1254,6 +1255,7 @@ static ssize_t enabled_rails_store(struct device *dev,
 
 	scan_result = sscanf(buf, "CH%d=%" xstr(ODPM_RAIL_NAME_STR_LEN_MAX) "s",
 			     &channel, rail_name);
+
 	if (scan_result == 2 && channel >= 0 && channel < ODPM_CHANNEL_MAX) {
 		for (rail_i = 0; rail_i < info->chip.num_rails; rail_i++) {
 			if (strcmp(info->chip.rails[rail_i].name, rail_name) ==
@@ -1288,7 +1290,7 @@ static ssize_t enabled_rails_store(struct device *dev,
 	info->chip.rails[current_rail].measurement_start_ms_cached =
 		info->channels[channel].measurement_start_ms;
 	info->chip.rails[current_rail].measurement_stop_ms =
-		info->chip.acc_timestamp;
+		info->chip.acc_timestamp_ms;
 
 	/* Reset stored energy for channel */
 	info->chip.rails[current_rail].acc_power_uW_sec_cached =
@@ -1304,9 +1306,19 @@ static ssize_t enabled_rails_store(struct device *dev,
 	/* Update rail muxsel */
 	odpm_io_set_channel(info, channel);
 
+	/* Send blank ASYNC, ignoring the last data set, if we've already init.
+	 * If we haven't init, there's a high probability that this is boot-time
+	 * rail selection, which will clear with CONFIG_COMPLETE.
+	 */
+	if (!info->chip.rx_ext_config_confirmation) {
+		odpm_io_send_blank_async(info, &timestamp_ns);
+		info->last_poll_ktime_boot_ns = timestamp_ns;
+	} else {
+		timestamp_ns = ktime_get_boottime_ns();
+	}
+
 	/* Record measurement start time / reset stop time */
-	info->channels[channel].measurement_start_ms =
-		odpm_get_timestamp_now_ms();
+	info->channels[channel].measurement_start_ms = to_ms(timestamp_ns);
 	info->chip.rails[new_rail].measurement_stop_ms = 0;
 
 enabled_rails_store_exit:
