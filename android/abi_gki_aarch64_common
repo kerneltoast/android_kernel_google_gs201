@@ -9088,6 +9088,8 @@
   __SCK__tp_func_android_vh_build_sched_domains
   __SCK__tp_func_android_vh_cache_show
   __SCK__tp_func_android_vh_cgroup_set_task
+  __SCK__tp_func_android_vh_cma_alloc_finish
+  __SCK__tp_func_android_vh_cma_alloc_start
   __SCK__tp_func_android_vh_commit_creds
   __SCK__tp_func_android_vh_cpu_down
   __SCK__tp_func_android_vh_cpu_idle_enter
@@ -9160,6 +9162,8 @@
   __SCK__tp_func_android_vh_try_to_freeze_todo_unfrozen
   __SCK__tp_func_android_vh_typec_store_partner_src_caps
   __SCK__tp_func_android_vh_typec_tcpci_override_toggling
+  __SCK__tp_func_android_vh_typec_tcpm_adj_current_limit
+  __SCK__tp_func_android_vh_typec_tcpm_get_timer
   __SCK__tp_func_android_vh_ufs_check_int_errors
   __SCK__tp_func_android_vh_ufs_compl_command
   __SCK__tp_func_android_vh_ufs_fill_prdt
@@ -11099,6 +11103,8 @@
   __traceiter_android_vh_build_sched_domains
   __traceiter_android_vh_cache_show
   __traceiter_android_vh_cgroup_set_task
+  __traceiter_android_vh_cma_alloc_finish
+  __traceiter_android_vh_cma_alloc_start
   __traceiter_android_vh_commit_creds
   __traceiter_android_vh_cpu_down
   __traceiter_android_vh_cpu_idle_enter
@@ -11171,6 +11177,8 @@
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
   __traceiter_android_vh_typec_store_partner_src_caps
   __traceiter_android_vh_typec_tcpci_override_toggling
+  __traceiter_android_vh_typec_tcpm_adj_current_limit
+  __traceiter_android_vh_typec_tcpm_get_timer
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_fill_prdt
@@ -11370,6 +11378,8 @@
   __tracepoint_android_vh_build_sched_domains
   __tracepoint_android_vh_cache_show
   __tracepoint_android_vh_cgroup_set_task
+  __tracepoint_android_vh_cma_alloc_finish
+  __tracepoint_android_vh_cma_alloc_start
   __tracepoint_android_vh_commit_creds
   __tracepoint_android_vh_cpu_down
   __tracepoint_android_vh_cpu_idle_enter
@@ -11442,6 +11452,8 @@
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
   __tracepoint_android_vh_typec_store_partner_src_caps
   __tracepoint_android_vh_typec_tcpci_override_toggling
+  __tracepoint_android_vh_typec_tcpm_adj_current_limit
+  __tracepoint_android_vh_typec_tcpm_get_timer
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_fill_prdt
