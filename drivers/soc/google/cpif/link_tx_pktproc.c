@@ -288,9 +288,9 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 		q->done_ptr = 0;
 		*q->rear_ptr = 0; /* sets q_info->rear_ptr to 0 */
 
-		q->q_info->cp_desc_pbase = q->cp_desc_pbase;
+		q->q_info->cp_desc_pbase = q->cp_desc_pbase >> 4;
 		q->q_info->num_desc = q->num_desc;
-		q->q_info->cp_buff_pbase = q->cp_buff_pbase;
+		q->q_info->cp_buff_pbase = q->cp_buff_pbase >> 4;
 
 		if (dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx))
 			dit_reset_dst_wp_rp(DIT_DIR_TX);
@@ -299,7 +299,7 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 
 		atomic_set(&q->active, 1);
 		atomic_set(&q->busy, 0);
-		mif_info("num_desc:0x%08x cp_desc_pbase:0x%08x cp_buff_pbase:0x%08x\n",
+		mif_info("num_desc:0x%08x cp_desc_pbase:0x%08lx cp_buff_pbase:0x%08lx\n",
 			q->num_desc, q->cp_desc_pbase, q->cp_buff_pbase);
 		mif_info("fore:%d rear:%d\n",
 			q->q_info->fore_ptr, q->q_info->rear_ptr);
@@ -434,7 +434,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->q_buff_vbase = ppa_ul->buff_vbase + (i * buff_size_by_q);
 		q->cp_buff_pbase = ppa_ul->cp_base +
 			ppa_ul->buff_rgn_offset + (i * buff_size_by_q);
-		q->q_info->cp_buff_pbase = q->cp_buff_pbase;
+		q->q_info->cp_buff_pbase = q->cp_buff_pbase >> 4;
 		q->q_buff_size = buff_size_by_q;
 		q->num_desc = buff_size_by_q / ppa_ul->max_packet_size;
 		q->q_info->num_desc = q->num_desc;
@@ -443,7 +443,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->cp_desc_pbase = ppa_ul->cp_base +
 			ppa_ul->desc_rgn_offset +
 			(i * sizeof(struct pktproc_desc_ul) * q->num_desc);
-		q->q_info->cp_desc_pbase = q->cp_desc_pbase;
+		q->q_info->cp_desc_pbase = q->cp_desc_pbase >> 4;
 		q->desc_size = sizeof(struct pktproc_desc_ul) * q->num_desc;
 		q->buff_addr_cp = ppa_ul->cp_base + ppa_ul->buff_rgn_offset +
 			(i * buff_size_by_q);
@@ -451,7 +451,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->update_fore_ptr = pktproc_ul_update_fore_ptr;
 
 		if ((q->cp_desc_pbase + q->desc_size) > q->cp_buff_pbase) {
-			mif_err("Descriptor overflow:0x%08x 0x%08x 0x%08x\n",
+			mif_err("Descriptor overflow:0x%08lx 0x%08x 0x%08lx\n",
 				q->cp_desc_pbase, q->desc_size, q->cp_buff_pbase);
 			goto create_error;
 		}
@@ -469,9 +469,9 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->rear_ptr = &q->q_info->rear_ptr;
 		q->done_ptr = *q->fore_ptr;
 
-		mif_info("num_desc:%d desc_offset:0x%08x desc_size:0x%08x\n",
+		mif_info("num_desc:%d desc_offset:0x%08lx desc_size:0x%08x\n",
 			q->num_desc, q->cp_desc_pbase, q->desc_size);
-		mif_info("buff_offset:0x%08x buff_size:0x%08x\n",
+		mif_info("buff_offset:0x%08lx buff_size:0x%08x\n",
 			q->cp_buff_pbase, q->q_buff_size);
 	}
 
