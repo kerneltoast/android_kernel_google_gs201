@@ -44,6 +44,7 @@ const u32 s2mpg1x_ext_sample_rate_uhz[S2MPG1X_EXT_FREQ_COUNT] = {
 	[EXT_122P_05HZ] = 122050000,
 };
 
+#define ACQUISITION_TIME_US (40 * S2MPG1X_METER_CHANNEL_MAX)
 static inline int s2mpg1x_meter_set_async_blocking(enum s2mpg1x_id id,
 						   struct i2c_client *i2c,
 						   unsigned long *jiffies_capture)
@@ -63,14 +64,26 @@ static inline int s2mpg1x_meter_set_async_blocking(enum s2mpg1x_id id,
 	if (jiffies_capture)
 		*jiffies_capture = jiffies;
 
-	do {
-		/* TODO: Expected 320 us before cleared reading */
-		// usleep_range(ASYNC_MIN_SLEEP_US, ASYNC_MIN_SLEEP_US + 50);
+	/* Based on the s2mpg1x datasheets, (40 us * channel count) is the
+	 * maximum time required for acquisition of all samples across all
+	 * channels. However, typically, we do not write 1 to ASYNC during
+	 * acquisition, so return immediately to reduce refresh time.
+	 */
+	ret = s2mpg1x_read_reg(id, i2c, reg, &val);
 
-		ret = s2mpg1x_read_reg(id, i2c, reg, &val);
-	} while ((val & ASYNC_RD_MASK) != 0x00 && ret == 0);
+	if (ret == 0 && (val & ASYNC_RD_MASK) == 0x00)
+		return ret; /* Read success */
 
-	return ret;
+	/* Reading has failed OR we sampled during acquisition, so wait the
+	 * acquisition time and return based on the values read.
+	 */
+	usleep_range(ACQUISITION_TIME_US, ACQUISITION_TIME_US + 100);
+
+	ret = s2mpg1x_read_reg(id, i2c, reg, &val);
+	if (ret != 0 || (val & ASYNC_RD_MASK) == 0x00)
+		return ret;
+
+	return -1; /* ASYNC value has not changed */
 }
 
 static inline ssize_t s2mpg1x_meter_format_channel(char *buf, ssize_t count,
