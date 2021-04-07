@@ -589,7 +589,7 @@
 
 		odpm {
 			chip-name = "S2MPG10";
-			sample-rate-uhz = <500000000>;
+			sample-rate-uhz = <125000000>;
 			sample-rate-external-uhz = <30512500>;
 
 			/* 15 minutes was selected as the spec
@@ -1071,7 +1071,7 @@
 
 		odpm {
 			chip-name = "S2MPG11";
-			sample-rate-uhz = <500000000>;
+			sample-rate-uhz = <125000000>;
 			sample-rate-external-uhz = <30512500>;
 
 			/* 15 minutes was selected as the spec
