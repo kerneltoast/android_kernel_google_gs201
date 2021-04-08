@@ -20,10 +20,19 @@ export DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
 # build with LTO=thin by default
 export LTO=${LTO:-thin}
 
-OUT_DIR=${BASE_OUT}/android12-5.10-staging/
+if [ -n "${EXPERIMENTAL_BUILD}" ]; then
+    KERNEL_OUT_DIR=android12-5.10-staging
+    KERNEL_BUILD_CONFIG=common/build.config.gki.aarch64
+else
+    KERNEL_OUT_DIR=android12-5.10
+    KERNEL_BUILD_CONFIG=aosp/build.config.gki.aarch64
+fi
+
+OUT_DIR=${BASE_OUT}/${KERNEL_OUT_DIR}/
+
 # Now build the GKI kernel
 SKIP_CP_KERNEL_HDR=1 \
-  BUILD_CONFIG=common/build.config.gki.aarch64 \
+  BUILD_CONFIG=${KERNEL_BUILD_CONFIG} \
   build/build.sh KCFLAGS=-Werror "$@"
 error_code=$?
 if [ $error_code -ne 0 ]; then
