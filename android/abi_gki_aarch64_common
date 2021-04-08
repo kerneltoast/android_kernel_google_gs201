@@ -12757,7 +12757,6 @@
   vfs_dup_fs_context
   vfs_fadvise
   vfs_fallocate
-  vfs_fstatat
   vfs_fsync
   vfs_fsync_range
   vfs_getattr
