@@ -1214,7 +1214,7 @@ static void max77759_store_partner_src_caps(void *unused, struct tcpm_port *port
 			      PDO_MAX_OBJECTS : *nr_source_caps;
 
 	for (i = 0; i < nr_partner_src_caps; i++)
-		partner_src_caps[i] = *(source_caps[i]);
+		partner_src_caps[i] = (*source_caps)[i];
 
 	spin_unlock(&g_caps_lock);
 }
@@ -1227,7 +1227,7 @@ int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **src_pdo)
 {
 	int i, ret;
 
-	*src_pdo = kcalloc(sizeof(u32) * PDO_MAX_OBJECTS, sizeof(u32), GFP_KERNEL);
+	*src_pdo = kcalloc(PDO_MAX_OBJECTS, sizeof(u32), GFP_KERNEL);
 	if (!src_pdo)
 		return -ENOMEM;
 
@@ -1239,7 +1239,7 @@ int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **src_pdo)
 	}
 
 	for (i = 0, ret = nr_partner_src_caps; i < nr_partner_src_caps; i++)
-		*src_pdo[i] = partner_src_caps[i];
+		(*src_pdo)[i] = partner_src_caps[i];
 
 	goto unlock;
 
