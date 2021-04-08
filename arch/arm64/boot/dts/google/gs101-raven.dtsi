@@ -16,3 +16,4 @@
 #include "gs101-raven-wcharger.dtsi"
 #include "gs101-raviole-charging.dtsi"
 #include "gs101-raviole-usecases.dtsi"
+#include "gs101-raven-bluetooth.dtsi"
