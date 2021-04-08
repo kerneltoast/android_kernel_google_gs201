@@ -150,7 +150,7 @@ static ssize_t sysfs_name##_show(struct device *dev, \
 	param = data->sysfs_name; \
 	mutex_unlock(&data->work_mutex); \
 \
-	return scnprintf(buf, PAGE_SIZE, "%d\n", param); \
+	return sysfs_emit(buf, "%d\n", param); \
 } \
 \
 static ssize_t sysfs_name##_store(struct device *dev, \
@@ -787,7 +787,7 @@ static ssize_t enable_ps_sensor_show(struct device *dev,
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 
-	return snprintf(buf, 5, "%d\n", data->enable_sensor);
+	return sysfs_emit(buf, "%d\n", data->enable_sensor);
 }
 
 static ssize_t enable_ps_sensor_store(struct device *dev,
@@ -850,7 +850,7 @@ static ssize_t product_type_show(struct device *dev,
 	param = data->product_type;
 	mutex_unlock(&data->work_mutex);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", param);
+	return sysfs_emit(buf, "%d\n", param);
 }
 
 /**
@@ -1006,16 +1006,16 @@ static ssize_t roi_show(struct device *dev,
 	if (data->roi_cfg.NumberOfRoi == 0) {
 		/* none define by user */
 		/* we could get what stored but may not even be default */
-		n = scnprintf(buf, PAGE_SIZE, "device default\n");
+		n = sysfs_emit(buf, "device default\n");
 	} else {
 		for (i = 0, n = 0; i < data->roi_cfg.NumberOfRoi; i++) {
-			n += scnprintf(buf+n, PAGE_SIZE-n, "%d %d %d %d%c",
-					data->roi_cfg.UserRois[i].TopLeftX,
-					data->roi_cfg.UserRois[i].TopLeftY,
-					data->roi_cfg.UserRois[i].BotRightX,
-					data->roi_cfg.UserRois[i].BotRightY,
-					i == data->roi_cfg.NumberOfRoi-1 ?
-							'\n' : ',');
+			n += sysfs_emit_at(buf, n, "%d %d %d %d%c",
+					   data->roi_cfg.UserRois[i].TopLeftX,
+					   data->roi_cfg.UserRois[i].TopLeftY,
+					   data->roi_cfg.UserRois[i].BotRightX,
+					   data->roi_cfg.UserRois[i].BotRightY,
+					   i == data->roi_cfg.NumberOfRoi-1 ?
+					   '\n' : ',');
 		}
 	}
 	mutex_unlock(&data->work_mutex);
@@ -1436,7 +1436,7 @@ static DEVICE_ATTR_WO(do_flush);
 static ssize_t enable_debug_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", stmvl53l1_enable_debug);
+	return sysfs_emit(buf, "%d\n", stmvl53l1_enable_debug);
 }
 
 static ssize_t enable_debug_store(struct device *dev,
@@ -1482,7 +1482,7 @@ static ssize_t autonomous_config_show(struct device *dev,
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 	ssize_t res = 0;
 
-	res += scnprintf(&buf[res], PAGE_SIZE, "%d %d %d %d %d %d %d ",
+	res += sysfs_emit(buf, "%d %d %d %d %d %d %d ",
 		data->auto_pollingTimeInMs,
 		data->auto_config.DetectionMode,
 		data->auto_config.IntrNoTarget,
@@ -1494,12 +1494,12 @@ static ssize_t autonomous_config_show(struct device *dev,
 	res += display_FixPoint1616(&buf[res], PAGE_SIZE - res,
 		data->auto_config.Rate.High);
 
-	res += scnprintf(&buf[res], PAGE_SIZE - res, " ");
+	res += sysfs_emit_at(buf, res, " ");
 
 	res += display_FixPoint1616(&buf[res], PAGE_SIZE - res,
 		data->auto_config.Rate.Low);
 
-	res += scnprintf(&buf[res], PAGE_SIZE - res, "\n");
+	res += sysfs_emit_at(buf, res, "\n");
 
 	return res;
 }
@@ -1675,7 +1675,7 @@ static ssize_t last_error_show(struct device *dev,
 {
 	struct stmvl53l1_data *data = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", data->last_error);
+	return sysfs_emit(buf, "%d\n", data->last_error);
 }
 
 /**
@@ -1695,11 +1695,11 @@ static ssize_t optical_center_show(struct device *dev,
 
 	res += display_FixPoint1616(&buf[res], PAGE_SIZE - res,
 		data->optical_offset_x);
-	res += scnprintf(&buf[res], PAGE_SIZE - res, " ");
+	res += sysfs_emit_at(buf, res, " ");
 	res += display_FixPoint1616(&buf[res], PAGE_SIZE - res,
 		data->optical_offset_y);
 
-	res += scnprintf(&buf[res], PAGE_SIZE - res, "\n");
+	res += sysfs_emit_at(buf, res, "\n");
 
 	return res;
 }
@@ -1739,7 +1739,7 @@ static ssize_t dmax_reflectance_show(struct device *dev,
 	res += display_FixPoint1616(&buf[res], PAGE_SIZE - res,
 		data->dmax_reflectance);
 
-	res += scnprintf(&buf[res], PAGE_SIZE - res, "\n");
+	res += sysfs_emit_at(buf, res, "\n");
 
 	return res;
 }
@@ -1913,9 +1913,7 @@ static int stmvl53l1_display_tuning_key(struct stmvl53l1_data *data, char *buf,
 	if (rc)
 		return 0;
 
-	sz = snprintf(&buf[*pos], PAGE_SIZE - *pos, "%d %d\n", key, value);
-	if (sz >= PAGE_SIZE - *pos)
-		return -ENOSPC; /* FIXME : another better error ? */
+	sz = sysfs_emit_at(buf, *pos, "%d %d\n", key, value);
 
 	*pos += sz;
 
@@ -2014,7 +2012,7 @@ static ssize_t is_xtalk_value_changed_show(struct device *dev,
 	param = data->is_xtalk_value_changed;
 	mutex_unlock(&data->work_mutex);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", param);
+	return sysfs_emit(buf, "%d\n", param);
 }
 
 /**
