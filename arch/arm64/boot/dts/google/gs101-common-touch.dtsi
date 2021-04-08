@@ -35,11 +35,15 @@
 	ts_reset: ts-reset {
 		samsung,pins = "gpp26-0";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
 
 	ap2aoc: ap2aoc {
 		samsung,pins = "gpp26-1";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
 
 	ts_spi_bus_active: ts_spi_bus_active {
