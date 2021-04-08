@@ -1997,10 +1997,6 @@ static struct attribute *stmvl53l1_attributes[] = {
 	NULL
 };
 
-static const struct attribute_group stmvl53l1_attr_group = {
-	.attrs = stmvl53l1_attributes,
-};
-
 static ssize_t stmvl53l1_calib_data_read(struct file *filp,
 	struct kobject *kobj, struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
@@ -2206,6 +2202,22 @@ static struct bin_attribute stmvl53l1_zone_calib_data_attr = {
 	.size = sizeof(stmvl531_zone_calibration_data_t),
 	.read = stmvl53l1_zone_calib_data_read,
 	.write = stmvl53l1_zone_calib_data_write,
+};
+
+static struct bin_attribute *stmvl53l1_bin_attributes[] = {
+	&stmvl53l1_calib_data_attr,
+	&stmvl53l1_zone_calib_data_attr,
+	NULL
+};
+
+static const struct attribute_group stmvl53l1_attr_group = {
+	.attrs = stmvl53l1_attributes,
+	.bin_attrs = stmvl53l1_bin_attributes,
+};
+
+static const struct attribute_group *stmvl53l1_attr_groups[] = {
+	&stmvl53l1_attr_group,
+	NULL,
 };
 
 static int ctrl_reg_access(struct stmvl53l1_data *data, void *p)
@@ -3963,6 +3975,7 @@ static int stmvl53l1_input_setup(struct stmvl53l1_data *data)
 	input_set_abs_params(idev, ABS_GAS, 0, 0xffffffff, 0, 0);
 
 	idev->name = "STM VL53L1 proximity sensor";
+	idev->dev.groups = stmvl53l1_attr_groups;
 	rc = input_register_device(idev);
 	if (rc) {
 		rc = -ENOMEM;
@@ -4073,29 +4086,6 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 	INIT_LIST_HEAD(&data->mz_data_reader_list);
 	init_waitqueue_head(&data->waiter_for_data);
 	data->is_data_valid = false;
-
-	/* Register sysfs hooks under input dev */
-	rc = sysfs_create_group(&data->input_dev_ps->dev.kobj,
-			&stmvl53l1_attr_group);
-	if (rc) {
-		rc = -ENOMEM;
-		dev_err(dev, "%d error:%d\n", __LINE__, rc);
-		goto exit_unregister_dev_ps;
-	}
-	rc = sysfs_create_bin_file(&data->input_dev_ps->dev.kobj,
-		&stmvl53l1_calib_data_attr);
-	if (rc) {
-		rc = -ENOMEM;
-		dev_err(dev, "%d error:%d\n", __LINE__, rc);
-		goto exit_unregister_dev_ps;
-	}
-	rc = sysfs_create_bin_file(&data->input_dev_ps->dev.kobj,
-		&stmvl53l1_zone_calib_data_attr);
-	if (rc) {
-		rc = -ENOMEM;
-		dev_err(dev, "%d error:%d\n", __LINE__, rc);
-		goto exit_unregister_dev_ps;
-	}
 
 	data->enable_sensor = 0;
 
@@ -4214,12 +4204,6 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 	return 0;
 
 exit_unregister_dev_ps:
-	sysfs_remove_bin_file(&data->input_dev_ps->dev.kobj,
-		&stmvl53l1_zone_calib_data_attr);
-	sysfs_remove_bin_file(&data->input_dev_ps->dev.kobj,
-		&stmvl53l1_calib_data_attr);
-	sysfs_remove_group(&data->input_dev_ps->dev.kobj,
-		&stmvl53l1_attr_group);
 	input_unregister_device(data->input_dev_ps);
 exit_ipp_cleanup:
 	/* power down if probe failed */
@@ -4239,14 +4223,6 @@ void stmvl53l1_cleanup(struct stmvl53l1_data *data)
 		dev_err(dev, "stop failed %d aborting anyway\n", rc);
 
 	if (data->input_dev_ps) {
-		dev_dbg(dev, "to remove sysfs group\n");
-		sysfs_remove_group(&data->input_dev_ps->dev.kobj,
-				&stmvl53l1_attr_group);
-		sysfs_remove_bin_file(&data->input_dev_ps->dev.kobj,
-				&stmvl53l1_calib_data_attr);
-		sysfs_remove_bin_file(&data->input_dev_ps->dev.kobj,
-				&stmvl53l1_zone_calib_data_attr);
-
 		dev_dbg(dev, "to unregister input dev\n");
 		input_unregister_device(data->input_dev_ps);
 	}
