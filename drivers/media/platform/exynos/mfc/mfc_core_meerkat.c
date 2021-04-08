@@ -12,6 +12,8 @@
 #if IS_ENABLED(CONFIG_SEC_DEBUG_EXTRA_INFO)
 #include <linux/sec_debug.h>
 #endif
+#include <linux/workqueue.h>
+#include <soc/google/debug-snapshot.h>
 
 #include "mfc_rm.h"
 
@@ -663,9 +665,9 @@ static void __mfc_dump_info(struct mfc_core *core)
 		return;
 	}
 
-	__mfc_save_logging_sfr(core);
 	__mfc_dump_buffer_info(core);
 	__mfc_dump_regs(core);
+	__mfc_save_logging_sfr(core);
 }
 
 static void __mfc_store_dump_buf(char *buf, int *idx, int size, const char *fmt, ...)
@@ -1133,7 +1135,7 @@ static void __mfc_dump_info_and_stop_hw(struct mfc_core *core)
 	}
 
 panic:
-	BUG();
+	dbg_snapshot_emergency_reboot("MFC H/W issue\n");
 }
 
 static void __mfc_dump_info_and_stop_hw_debug(struct mfc_core *core)

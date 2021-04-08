@@ -82,9 +82,6 @@ enum tcpm_transmit_type {
  *		automatically if a connection is established.
  * @try_role:	Optional; called to set a preferred role
  * @pd_transmit:Called to transmit PD message
- * @set_pd_capable:
- *		Optional; Called to notify that pd capable partner has been
- *		detected.
  * @mux:	Pointer to multiplexer data
  * @set_bist_data: Turn on/off bist data mode for compliance testing
  * @enable_frs:
@@ -149,7 +146,6 @@ struct tcpc_dev {
 	int (*pd_transmit)(struct tcpc_dev *dev, enum tcpm_transmit_type type,
 			   const struct pd_message *msg, unsigned int negotiated_rev);
 	int (*set_bist_data)(struct tcpc_dev *dev, bool on);
-	void (*set_pd_capable)(struct tcpc_dev *dev, bool capable);
 	int (*enable_frs)(struct tcpc_dev *dev, bool enable);
 	void (*frs_sourcing_vbus)(struct tcpc_dev *dev);
 	int (*enable_auto_vbus_discharge)(struct tcpc_dev *dev, bool enable);
@@ -181,7 +177,5 @@ void tcpm_pd_hard_reset(struct tcpm_port *port);
 void tcpm_tcpc_reset(struct tcpm_port *port);
 bool tcpm_is_debouncing(struct tcpm_port *tcpm);
 bool tcpm_is_toggling(struct tcpm_port *port);
-int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **pdo);
-void tcpm_put_partner_src_caps(u32 **pdo);
 
 #endif /* __LINUX_USB_TCPM_H */

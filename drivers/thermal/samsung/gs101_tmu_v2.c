@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <uapi/linux/sched/types.h>
+#include <soc/google/bcl.h>
 #include <soc/google/tmu.h>
 #include <soc/google/ect_parser.h>
 #include <soc/google/isp_cooling.h>
@@ -39,6 +40,7 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_exynos.h>
+#include <trace/events/power.h>
 
 #define EXYNOS_GPU_TMU_GRP_ID		(3)
 
@@ -47,6 +49,212 @@
 #define frac_to_int(x) ((x) >> FRAC_BITS)
 
 #define INVALID_TRIP -1
+
+enum tmu_grp_idx_t {
+	TZ_BIG = 0,
+	TZ_MID = 1,
+	TZ_LIT = 2,
+	TZ_GPU = 3,
+	TZ_ISP = 4,
+	TZ_TPU = 5,
+	TZ_END = 6,
+};
+
+#define TZ_BIG_SENSOR_MASK (TMU_P0_SENSOR_MASK | \
+			    TMU_P6_SENSOR_MASK | \
+			    TMU_P7_SENSOR_MASK | \
+			    TMU_P8_SENSOR_MASK | \
+			    TMU_P9_SENSOR_MASK)
+#define TZ_MID_SENSOR_MASK (TMU_P4_SENSOR_MASK | \
+			    TMU_P5_SENSOR_MASK)
+#define TZ_LIT_SENSOR_MASK (TMU_P1_SENSOR_MASK | \
+			    TMU_P2_SENSOR_MASK)
+#define TZ_GPU_SENSOR_MASK (TMU_P1_SENSOR_MASK | \
+			    TMU_P2_SENSOR_MASK | \
+			    TMU_P3_SENSOR_MASK | \
+			    TMU_P4_SENSOR_MASK | \
+			    TMU_P5_SENSOR_MASK | \
+			    TMU_P6_SENSOR_MASK | \
+			    TMU_P7_SENSOR_MASK)
+#define TZ_ISP_SENSOR_MASK (TMU_P14_SENSOR_MASK)
+#define TZ_TPU_SENSOR_MASK (TMU_P8_SENSOR_MASK | \
+			    TMU_P9_SENSOR_MASK | \
+			    TMU_P10_SENSOR_MASK | \
+			    TMU_P11_SENSOR_MASK)
+
+static struct thermal_zone_data tz_config[] = {
+	[TZ_BIG] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_BIG_SENSOR_MASK,
+	},
+	[TZ_MID] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_MID_SENSOR_MASK,
+	},
+	[TZ_LIT] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_LIT_SENSOR_MASK,
+	},
+	[TZ_GPU] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_GPU_SENSOR_MASK,
+	},
+	[TZ_ISP] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_ISP_SENSOR_MASK,
+	},
+	[TZ_TPU] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_TPU_SENSOR_MASK,
+	},
+};
+
+static int gs101_tmu_tz_config_init(struct platform_device *pdev)
+{
+	struct gs101_tmu_data *pdata = platform_get_drvdata(pdev);
+	struct thermal_zone_data *tz_config_p;
+	enum trim_type_t tmu_trim_type[TMU_END];
+	u16 cnt;
+	u32 val;
+	enum tmu_zone_t tmu_zone_id;
+	enum tmu_grp_idx_t tmu_grp_idx;
+	enum tmu_sensor_t probe_id;
+
+	for (tmu_zone_id = 0; tmu_zone_id < TMU_END; tmu_zone_id++) {
+		val = readl(pdata->base + TMU_TRIMINFO_CONFIG_REG);
+		tmu_trim_type[tmu_zone_id] = (val &
+			TMU_TRIMINFO_CONFIG_CALIB_SEL_MASK);
+	}
+
+	for (tmu_grp_idx = 0; tmu_grp_idx < TZ_END; tmu_grp_idx++) {
+		tz_config_p = &tz_config[tmu_grp_idx];
+		if (tz_config_p->tmu_zone_id >= TMU_END) {
+			dev_err(&pdev->dev,
+				"Invalid tmu zone id %d for tz id %d\n",
+				tz_config_p->tmu_zone_id, tmu_grp_idx);
+			return -EINVAL;
+			break;
+		}
+		tz_config_p->trim_type =
+			tmu_trim_type[tz_config_p->tmu_zone_id];
+
+		cnt = 0;
+		for (probe_id = 0; probe_id < TMU_SENSOR_PROBE_NUM; probe_id++) {
+			if ((1 << probe_id) & tz_config_p->sensors_mask) {
+				tz_config_p->sensors[cnt].probe_id = probe_id;
+				val = readl(pdata->base +
+					    TMU_TRIMINFO_REG(probe_id));
+				tz_config_p->sensors[cnt].trim_info_25 =
+					(val & TMU_TRIMINFO_25_85_MASK);
+				tz_config_p->sensors[cnt].trim_info_85 =
+					((val >> TMU_TRIMINFO_85_SHIFT) &
+					 TMU_TRIMINFO_25_85_MASK);
+				cnt++;
+			}
+		}
+		tz_config_p->sensor_cnt = cnt;
+	}
+
+	return 0;
+}
+
+static int gs101_tmu_get_sensor_temp(struct gs101_tmu_data *pdata,
+				     enum trim_type_t trim_type,
+				     struct sensor_data *sensor_data_p,
+				     int *temp)
+{
+	enum tmu_sensor_t probe_id = sensor_data_p->probe_id;
+	u32 temp_code;
+
+	temp_code = readl(pdata->base + TMU_CURRENT_TEMP_REG(probe_id));
+	temp_code = ((temp_code >> TMU_CURRENT_TEMP_SHIFT(probe_id)) &
+		     TMU_CURRENT_TEMP_MASK);
+
+	switch (trim_type) {
+	case ONE_POINT_TRIMMING:
+		*temp = (temp_code - sensor_data_p->trim_info_25) +
+			TMU_1P_TRIM_TEMP_25;
+	case TWO_POINT_TRIMMING:
+		*temp = (temp_code - sensor_data_p->trim_info_25) *
+			(TMU_2P_TRIM_TEMP_85 - TMU_1P_TRIM_TEMP_25) /
+			(sensor_data_p->trim_info_85 -
+			 sensor_data_p->trim_info_25) +
+			TMU_1P_TRIM_TEMP_25;
+	}
+
+	if (*temp > TMU_MAX_TEMP) {
+		*temp = TMU_MAX_TEMP;
+	} else if (*temp < TMU_MIN_TEMP) {
+		*temp = TMU_MIN_TEMP;
+	}
+
+	return 0;
+}
+
+static int gs101_tmu_get_tz_temp(struct gs101_tmu_data *pdata, int *temp)
+{
+	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
+	struct thermal_zone_device *tz = pdata->tzd;
+	int sensor_temp = TMU_UNKNOWN_TEMP;
+	int max_sensor_temp = TMU_UNKNOWN_TEMP;
+	u16 cnt;
+	char name[40];
+
+	for (cnt = 0; cnt < tz_config_p->sensor_cnt; cnt++) {
+		gs101_tmu_get_sensor_temp(pdata,
+					  tz_config_p->trim_type,
+					  &(tz_config_p->sensors[cnt]),
+					  &sensor_temp);
+
+		dev_dbg_ratelimited(&tz->device, "tz %d temp %d:%d",
+				    pdata->id, cnt, sensor_temp);
+		scnprintf(name, sizeof(name), "TMU%d_%d", pdata->id, cnt);
+		trace_clock_set_rate(name, sensor_temp, raw_smp_processor_id());
+
+		if (sensor_temp > max_sensor_temp)
+			max_sensor_temp = sensor_temp;
+	}
+
+	*temp = max_sensor_temp;
+	return 0;
+}
+
+static int gs101_tmu_clear_tz_irq(struct gs101_tmu_data *pdata)
+{
+	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
+	u32 val;
+	u16 cnt;
+	enum tmu_sensor_t probe_id;
+
+	mutex_lock(&pdata->lock);
+	for (cnt = 0; cnt < tz_config_p->sensor_cnt; cnt++) {
+		probe_id = tz_config_p->sensors[cnt].probe_id;
+		val = readl(pdata->base + TMU_INTPEND_REG(probe_id));
+		exynos_acpm_tmu_set_ipc_blocked(true);
+		writel(val, pdata->base + TMU_INTPEND_REG(probe_id));
+		exynos_acpm_tmu_set_ipc_blocked(false);
+	}
+	mutex_unlock(&pdata->lock);
+
+	return 0;
+}
+
+static bool has_tz_pending_irq(struct gs101_tmu_data *pdata)
+{
+	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
+	u32 val;
+	u16 cnt;
+	enum tmu_sensor_t probe_id;
+
+	for (cnt = 0; cnt < tz_config_p->sensor_cnt; cnt++) {
+		probe_id = tz_config_p->sensors[cnt].probe_id;
+		val = readl(pdata->base + TMU_INTPEND_REG(probe_id));
+		if (val)
+			return true;
+	}
+
+	return false;
+}
 
 /**
  * mul_frac() - multiply two fixed-point numbers
@@ -133,6 +341,13 @@ static int gs101_tmu_initialize(struct platform_device *pdev)
 
 		hysteresis[i] = (unsigned char)(temp / MCELSIUS);
 	}
+
+	ret = gs101_tmu_tz_config_init(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to initialize tmu tz config\n");
+		goto out;
+	}
+
 	exynos_acpm_tmu_set_threshold(data->id, threshold);
 	exynos_acpm_tmu_set_hysteresis(data->id, hysteresis);
 	exynos_acpm_tmu_set_interrupt_enable(data->id, inten);
@@ -165,16 +380,15 @@ static int gs101_get_temp(void *p, int *temp)
 	unsigned int mcinfo_temp = 0;
 	unsigned int i;
 #endif
-	int acpm_temp = 0, stat = 0;
+	int tz_temp = 0;
 
 	if (!data || !data->enabled)
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
 
-	exynos_acpm_tmu_set_read_temp(data->id, &acpm_temp, &stat);
-
-	*temp = acpm_temp * MCELSIUS;
+	gs101_tmu_get_tz_temp(data, &tz_temp);
+	*temp = tz_temp * MCELSIUS;
 
 	if (data->limited_frequency) {
 		if (!data->limited) {
@@ -201,12 +415,26 @@ static int gs101_get_temp(void *p, int *temp)
 		  data->temperature >= data->hotplug_out_threshold)))
 		kthread_queue_work(&data->pause_worker, &data->hotplug_work);
 
+	if (data->cpu_hw_throttling_enable &&
+	    ((data->is_cpu_hw_throttled &&
+	      data->temperature < data->cpu_hw_throttling_clr_threshold) ||
+	     (!data->is_cpu_hw_throttled &&
+	      data->temperature >= data->cpu_hw_throttling_trigger_threshold)))
+		kthread_queue_work(&data->cpu_hw_throttle_worker, &data->cpu_hw_throttle_work);
+
 	if (data->pause_enable &&
 	    ((data->is_cpu_paused &&
 	      data->temperature < data->resume_threshold) ||
 	     (!data->is_cpu_paused &&
 	      data->temperature >= data->pause_threshold)))
 		kthread_queue_work(&data->pause_worker, &data->cpu_pause_work);
+
+	if (data->hardlimit_enable &&
+	    ((data->is_cpu_hardlimited &&
+	      data->temperature < data->hardlimit_clr_threshold) ||
+	     (!data->is_cpu_hardlimited &&
+	      data->temperature >= data->hardlimit_threshold)))
+		kthread_queue_work(&data->hardlimit_worker, &data->cpu_hardlimit_work);
 
 	mutex_unlock(&data->lock);
 
@@ -353,13 +581,18 @@ static void allow_maximum_power(struct gs101_tmu_data *data)
 		if (instance->trip != control_temp ||
 		    (!cdev_is_power_actor(instance->cdev)))
 			continue;
+		if (data->hardlimit_enable && data->is_cpu_hardlimited)
+			instance->target = data->max_cdev;
+		else
+			instance->target = 0;
 
-		instance->target = 0;
+		data->max_cdev = instance->target;
 		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false;
 		mutex_unlock(&instance->cdev->lock);
 		thermal_cdev_update(instance->cdev);
 	}
+
 	mutex_unlock(&tz->lock);
 	mutex_lock(&data->lock);
 }
@@ -454,6 +687,9 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	if (ret)
 		return ret;
 
+	if (data->hardlimit_enable && data->is_cpu_hardlimited)
+		state = max(state, data->max_cdev);
+
 	// TODO: refactor locking
 	mutex_unlock(&data->lock);
 	mutex_lock(&tz->lock);
@@ -464,6 +700,7 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	thermal_cdev_update(cdev);
 	mutex_unlock(&tz->lock);
 	mutex_lock(&data->lock);
+	data->max_cdev = state;
 
 	trace_thermal_exynos_power_allocator(tz, power_range,
 					     max_power, tz->temperature,
@@ -548,28 +785,16 @@ static void gs101_tmu_work(struct kthread_work *work)
 	struct gs101_tmu_data *data = container_of(work,
 			struct gs101_tmu_data, irq_work);
 	struct thermal_zone_device *tz = data->tzd;
-	struct gs101_pi_param *params = data->pi_param;
 
 	gs101_report_trigger(data);
-	mutex_lock(&data->lock);
 
-	exynos_acpm_tmu_clear_tz_irq(data->id);
+	gs101_tmu_clear_tz_irq(data);
 
 	dev_dbg_ratelimited(&tz->device, "IRQ handled: tz:%s, temp:%d\n",
 			    tz->type, tz->temperature);
 
-	mutex_unlock(&data->lock);
-
-	if (data->use_pi_thermal) {
-		if (params->switched_on)
-			/*
-			 * handle hotplug and limited_threshold but do
-			 * not trigger polling if it is already on
-			 */
-			thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
-		else
+	if (data->use_pi_thermal)
 			gs101_pi_thermal(data);
-	}
 
 	enable_irq(data->irq);
 }
@@ -579,9 +804,126 @@ static irqreturn_t gs101_tmu_irq(int irq, void *id)
 	struct gs101_tmu_data *data = id;
 
 	disable_irq_nosync(irq);
-	kthread_queue_work(&data->thermal_worker, &data->irq_work);
+	if (has_tz_pending_irq(data)) {
+		kthread_queue_work(&data->thermal_worker, &data->irq_work);
+		goto irq_handler_exit;
+	}
+	enable_irq(data->irq);
 
+irq_handler_exit:
 	return IRQ_HANDLED;
+}
+
+static void init_bcl_dev(struct kthread_work *work)
+{
+	struct gs101_tmu_data *data = container_of(work,
+						   struct gs101_tmu_data,
+						   cpu_hw_throttle_init_work.work);
+	int ret = 0;
+
+	mutex_lock(&data->lock);
+	data->bcl_dev = gs101_retrieve_bcl_handle();
+
+	if (!data->bcl_dev) {
+		pr_warn_ratelimited("%s: failed to retrieve bcl_dev. Retry.\n", data->tmu_name);
+		kthread_mod_delayed_work(&data->cpu_hw_throttle_worker,
+					 &data->cpu_hw_throttle_init_work,
+					 msecs_to_jiffies(500));
+		goto init_exit;
+	}
+
+	if (!data->ppm_clr_throttle_level)
+		data->ppm_clr_throttle_level = gs101_get_ppm(data->bcl_dev);
+
+	if (!data->mpmm_clr_throttle_level)
+		data->mpmm_clr_throttle_level = gs101_get_mpmm(data->bcl_dev);
+
+	if (data->ppm_clr_throttle_level < 0)
+		ret = data->ppm_clr_throttle_level;
+
+	if (data->mpmm_clr_throttle_level < 0)
+		ret = data->mpmm_clr_throttle_level;
+
+	if (ret < 0) {
+		pr_err_ratelimited("%s: failed to get ppm(0x%x)/mpmm(0x%x) setting, ret = %d\n",
+				   data->tmu_name,
+				   data->ppm_clr_throttle_level,
+				   data->mpmm_clr_throttle_level, ret);
+		goto init_exit;
+	}
+
+	pr_info("%s: pasring default setting ppm: 0x%x, mpmm: 0x%x\n", data->tmu_name,
+		data->ppm_clr_throttle_level, data->mpmm_clr_throttle_level);
+
+init_exit:
+	mutex_unlock(&data->lock);
+}
+
+static void gs101_throttle_arm(struct kthread_work *work)
+{
+	struct gs101_tmu_data *data = container_of(work,
+						   struct gs101_tmu_data, cpu_hw_throttle_work);
+
+	int ret = 0;
+
+	if (!data->bcl_dev) {
+		pr_err_ratelimited("Failed to retrieve bcl_dev, ppm/mpmm throttling failed\n");
+		return;
+	}
+
+	mutex_lock(&data->lock);
+
+	if (data->is_cpu_hw_throttled) {
+		if (data->temperature < data->cpu_hw_throttling_clr_threshold) {
+			pr_info_ratelimited("ppm/mpmm thermal throttling disable!\n");
+
+			ret = gs101_set_ppm(data->bcl_dev, data->ppm_clr_throttle_level);
+			if (ret) {
+				pr_err_ratelimited("Failed to clr ppm throttle to 0x%x, ret = %d",
+						   data->ppm_clr_throttle_level, ret);
+				return;
+			}
+			pr_info_ratelimited("Set ppm throttle to 0x%x\n",
+					    data->ppm_clr_throttle_level);
+
+			ret = gs101_set_mpmm(data->bcl_dev, data->mpmm_clr_throttle_level);
+			if (ret) {
+				pr_err_ratelimited("Failed to clr mpmm throttle to 0x%x, ret = %d",
+						   data->mpmm_clr_throttle_level, ret);
+				return;
+			}
+			pr_info_ratelimited("Set mpmm throttle to 0x%x\n",
+					    data->mpmm_clr_throttle_level);
+
+			data->is_cpu_hw_throttled = false;
+		}
+	} else {
+		if (data->temperature >= data->cpu_hw_throttling_trigger_threshold) {
+			pr_info_ratelimited("ppm/mpmm thermal throttling enable!\n");
+
+			ret = gs101_set_ppm(data->bcl_dev, data->ppm_throttle_level);
+			if (ret) {
+				pr_err_ratelimited("Failed to set ppm throttle to 0x%x, ret = %d",
+						   data->ppm_throttle_level, ret);
+				return;
+			}
+			pr_info_ratelimited("Set ppm throttle to 0x%x\n",
+					    data->ppm_throttle_level);
+
+			ret = gs101_set_mpmm(data->bcl_dev, data->mpmm_throttle_level);
+			if (ret) {
+				pr_err_ratelimited("Failed to set mpmm throttle to 0x%x, ret = %d",
+						   data->mpmm_throttle_level, ret);
+				return;
+			}
+			pr_info_ratelimited("Set mpmm throttle to 0x%x\n",
+					    data->mpmm_throttle_level);
+
+			data->is_cpu_hw_throttled = true;
+		}
+	}
+
+	mutex_unlock(&data->lock);
 }
 
 static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
@@ -666,6 +1008,85 @@ static void gs101_throttle_cpu_pause(struct kthread_work *work)
 				pr_info_ratelimited("%s pause cpus: %*pbl\n",
 					data->tmu_name, cpumask_pr_args(&mask));
 			}
+		}
+	}
+	mutex_unlock(&data->lock);
+}
+
+static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
+{
+	struct gs101_tmu_data *data = container_of(work,
+						   struct gs101_tmu_data, cpu_hardlimit_work);
+	struct cpumask mask;
+	struct thermal_zone_device *tz = data->tzd;
+	struct thermal_instance *instance;
+	struct thermal_cooling_device *cdev = NULL;
+	unsigned long state;
+
+	mutex_lock(&tz->lock);
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		if (!strncmp(data->tmu_name, instance->tz->type, THERMAL_NAME_LENGTH)) {
+			cdev = instance->cdev;
+			break;
+		}
+	}
+	mutex_unlock(&tz->lock);
+
+	if (!cdev) {
+		pr_err_ratelimited("%s: cannot find cdev, cpu hard limit throttling failed\n",
+				   data->tmu_name);
+		return;
+	}
+
+	mutex_lock(&data->lock);
+	cpumask_and(&mask, cpu_possible_mask, &data->hardlimit_cpus);
+
+	if (data->is_cpu_hardlimited) {
+		if (data->temperature < data->hardlimit_clr_threshold) {
+			pr_info_ratelimited("%s cpus: %*pbl, clear hard limit\n",
+					    data->tmu_name, cpumask_pr_args(&mask));
+			if (data->use_pi_thermal && data->pi_param->switched_on) {
+				state = data->max_cdev;
+			} else {
+				state = 0;
+			}
+			data->max_cdev = state;
+			mutex_unlock(&data->lock);
+
+			// TODO: refactor locking
+			mutex_lock(&tz->lock);
+			mutex_lock(&cdev->lock);
+			cdev->updated = false;
+			mutex_unlock(&cdev->lock);
+			instance->target = state;
+			thermal_cdev_update(cdev);
+			mutex_unlock(&tz->lock);
+
+			mutex_lock(&data->lock);
+			data->is_cpu_hardlimited = false;
+			pr_info_ratelimited("%s set cur_state to %d\n", cdev->type, state);
+		}
+	} else {
+		if (data->temperature >= data->hardlimit_threshold) {
+			pr_info_ratelimited("%s cpus: %*pbl, enable hard limit\n",
+					    data->tmu_name, cpumask_pr_args(&mask));
+			state = max((unsigned long)data->hardlimit_cooling_state,
+					       data->max_cdev);
+			data->max_cdev = state;
+			mutex_unlock(&data->lock);
+
+			// TODO: refactor locking
+			mutex_lock(&tz->lock);
+			mutex_lock(&cdev->lock);
+			cdev->updated = false;
+			mutex_unlock(&cdev->lock);
+			instance->target = state;
+			thermal_cdev_update(cdev);
+			mutex_unlock(&tz->lock);
+
+			mutex_lock(&data->lock);
+			data->is_cpu_hardlimited = true;
+			pr_info_ratelimited("%s set cur_state to %d\n", cdev->type, state);
 		}
 	}
 	mutex_unlock(&data->lock);
@@ -771,6 +1192,50 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 		wake_up_process(thread);
 	}
 
+	if (data->cpu_hw_throttling_enable) {
+		kthread_init_work(&data->cpu_hw_throttle_work, gs101_throttle_arm);
+		kthread_init_worker(&data->cpu_hw_throttle_worker);
+
+		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_hw_throttle", data->tmu_name);
+		thread = kthread_create(kthread_worker_fn, &data->cpu_hw_throttle_worker,
+					kworker_name);
+
+		cpumask_and(&mask, cpu_possible_mask, &data->tmu_work_affinity);
+		set_cpus_allowed_ptr(thread, &mask);
+
+		ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
+		if (ret) {
+			kthread_stop(thread);
+			dev_warn(&pdev->dev, "cpu_hw_throttling failed to set SCHED_FIFO\n");
+			return ret;
+		}
+		wake_up_process(thread);
+
+		kthread_init_delayed_work(&data->cpu_hw_throttle_init_work, init_bcl_dev);
+		kthread_mod_delayed_work(&data->cpu_hw_throttle_worker,
+					 &data->cpu_hw_throttle_init_work,
+					 msecs_to_jiffies(0));
+	}
+
+	if (data->hardlimit_enable) {
+		kthread_init_work(&data->cpu_hardlimit_work, gs101_throttle_cpu_hard_limit);
+		kthread_init_worker(&data->hardlimit_worker);
+
+		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_hardlimit", data->tmu_name);
+		thread = kthread_create(kthread_worker_fn, &data->hardlimit_worker, kworker_name);
+
+		cpumask_and(&mask, cpu_possible_mask, &data->tmu_work_affinity);
+		set_cpus_allowed_ptr(thread, &mask);
+
+		ret = sched_setscheduler_nocheck(thread, SCHED_FIFO, &param);
+		if (ret) {
+			kthread_stop(thread);
+			dev_warn(&pdev->dev, "hardlimit failed to set SCHED_FIFO\n");
+			return ret;
+		}
+		wake_up_process(thread);
+	}
+
 	return ret;
 }
 
@@ -834,6 +1299,34 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 			cpulist_parse(buf, &data->pause_cpus);
 	}
 
+	data->hardlimit_enable = of_property_read_bool(pdev->dev.of_node,
+							    "hardlimit_enable");
+	if (data->hardlimit_enable) {
+		dev_info(&pdev->dev, "thermal zone use hardlimit function\n");
+		of_property_read_u32(pdev->dev.of_node, "hardlimit_threshold",
+				     &data->hardlimit_threshold);
+
+		if (!data->hardlimit_threshold)
+			dev_err(&pdev->dev, "No input hardlimit_threshold\n");
+
+		of_property_read_u32(pdev->dev.of_node, "hardlimit_clr_threshold",
+				     &data->hardlimit_clr_threshold);
+
+		if (!data->hardlimit_clr_threshold)
+			dev_err(&pdev->dev, "No input hardlimit_clr_threshold\n");
+
+		ret = of_property_read_string(pdev->dev.of_node, "hardlimit_cpus", &buf);
+		if (!ret)
+			cpulist_parse(buf, &data->hardlimit_cpus);
+
+		of_property_read_u32(pdev->dev.of_node, "hardlimit_cooling_state",
+				     &data->hardlimit_cooling_state);
+
+		if (!data->hardlimit_cooling_state)
+			dev_err(&pdev->dev, "No input hardlimit_cooling_state\n");
+
+	}
+
 #if IS_ENABLED(CONFIG_EXYNOS_CPUHP)
 	data->hotplug_enable = of_property_read_bool(pdev->dev.of_node, "hotplug_enable");
 	if (data->hotplug_enable) {
@@ -855,6 +1348,37 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 		ret = of_property_read_string(pdev->dev.of_node, "hotplug_work_affinity", &buf);
 		if (!ret)
 			cpulist_parse(buf, &data->hotplug_work_affinity);
+	}
+#endif
+
+#if IS_ENABLED(CONFIG_GOOGLE_BCL)
+	data->cpu_hw_throttling_enable = of_property_read_bool(pdev->dev.of_node,
+							       "cpu_hw_throttling_enable");
+	if (data->cpu_hw_throttling_enable) {
+		dev_info(&pdev->dev, "thermal zone use cpu hw throttling function\n");
+		of_property_read_u32(pdev->dev.of_node, "cpu_hw_throttling_trigger_threshold",
+				     &data->cpu_hw_throttling_trigger_threshold);
+
+		if (!data->cpu_hw_throttling_trigger_threshold)
+			dev_err(&pdev->dev, "No input cpu_hw_throttling_trigger_threshold\n");
+
+		of_property_read_u32(pdev->dev.of_node, "cpu_hw_throttling_clr_threshold",
+				     &data->cpu_hw_throttling_clr_threshold);
+
+		if (!data->cpu_hw_throttling_clr_threshold)
+			dev_err(&pdev->dev, "No input cpu_hw_throttling_clr_threshold\n");
+
+		of_property_read_u32(pdev->dev.of_node, "ppm_level",
+				     &data->ppm_throttle_level);
+
+		if (!data->ppm_throttle_level)
+			dev_err(&pdev->dev, "No input ppm_level\n");
+
+		of_property_read_u32(pdev->dev.of_node, "mpmm_level",
+				     &data->mpmm_throttle_level);
+
+		if (!data->mpmm_throttle_level)
+			dev_err(&pdev->dev, "No input mpmm_level\n");
 	}
 #endif
 
@@ -937,6 +1461,70 @@ static const struct thermal_zone_of_device_ops gs101_sensor_ops = {
 };
 
 static ssize_t
+cpu_hw_throttling_trigger_temp_show(struct device *dev, struct device_attribute *devattr,
+				 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", data->cpu_hw_throttling_trigger_threshold);
+}
+
+static ssize_t
+cpu_hw_throttling_trigger_temp_store(struct device *dev, struct device_attribute *devattr,
+				  const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	int cpu_hw_throttling_trigger = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &cpu_hw_throttling_trigger)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->cpu_hw_throttling_trigger_threshold = cpu_hw_throttling_trigger;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
+cpu_hw_throttling_clr_temp_show(struct device *dev, struct device_attribute *devattr,
+						 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", data->cpu_hw_throttling_clr_threshold);
+}
+
+static ssize_t
+cpu_hw_throttling_clr_temp_store(struct device *dev, struct device_attribute *devattr,
+			      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	int cpu_hw_throttling_clear = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &cpu_hw_throttling_clear)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->cpu_hw_throttling_clr_threshold = cpu_hw_throttling_clear;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
 hotplug_out_temp_show(struct device *dev, struct device_attribute *devattr,
 		      char *buf)
 {
@@ -994,6 +1582,70 @@ hotplug_in_temp_store(struct device *dev, struct device_attribute *devattr,
 	}
 
 	data->hotplug_in_threshold = hotplug_in;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
+hardlimit_temp_show(struct device *dev, struct device_attribute *devattr,
+			    char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", data->hardlimit_threshold);
+}
+
+static ssize_t
+hardlimit_temp_store(struct device *dev, struct device_attribute *devattr,
+			     const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	int hardlimit_throttling_trigger = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &hardlimit_throttling_trigger)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->hardlimit_threshold = hardlimit_throttling_trigger;
+
+	mutex_unlock(&data->lock);
+
+	return count;
+}
+
+static ssize_t
+hardlimit_clr_temp_show(struct device *dev, struct device_attribute *devattr,
+			     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", data->hardlimit_clr_threshold);
+}
+
+static ssize_t
+hardlimit_clr_temp_store(struct device *dev, struct device_attribute *devattr,
+			      const char *buf, size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	int hardlimit_clr_threshold = 0;
+
+	mutex_lock(&data->lock);
+
+	if (kstrtos32(buf, 10, &hardlimit_clr_threshold)) {
+		mutex_unlock(&data->lock);
+		return -EINVAL;
+	}
+
+	data->hardlimit_clr_threshold = hardlimit_clr_threshold;
 
 	mutex_unlock(&data->lock);
 
@@ -1202,8 +1854,12 @@ polling_delay_off_store(struct device *dev, struct device_attribute *devattr,
 
 static DEVICE_ATTR_RW(pause_cpus_temp);
 static DEVICE_ATTR_RW(resume_cpus_temp);
+static DEVICE_ATTR_RW(hardlimit_temp);
+static DEVICE_ATTR_RW(hardlimit_clr_temp);
 static DEVICE_ATTR_RW(hotplug_out_temp);
 static DEVICE_ATTR_RW(hotplug_in_temp);
+static DEVICE_ATTR_RW(cpu_hw_throttling_clr_temp);
+static DEVICE_ATTR_RW(cpu_hw_throttling_trigger_temp);
 static DEVICE_ATTR_RW(sustainable_power);
 static DEVICE_ATTR_RW(polling_delay_off);
 static DEVICE_ATTR_RW(polling_delay_on);
@@ -1216,10 +1872,14 @@ create_s32_param_attr(integral_cutoff);
 static struct attribute *gs101_tmu_attrs[] = {
 	&dev_attr_pause_cpus_temp.attr,
 	&dev_attr_resume_cpus_temp.attr,
+	&dev_attr_hardlimit_temp.attr,
+	&dev_attr_hardlimit_clr_temp.attr,
 	&dev_attr_polling_delay_off.attr,
 	&dev_attr_polling_delay_on.attr,
 	&dev_attr_hotplug_out_temp.attr,
 	&dev_attr_hotplug_in_temp.attr,
+	&dev_attr_cpu_hw_throttling_clr_temp.attr,
+	&dev_attr_cpu_hw_throttling_trigger_temp.attr,
 	&dev_attr_sustainable_power.attr,
 	&dev_attr_k_po.attr,
 	&dev_attr_k_pu.attr,
@@ -1746,17 +2406,11 @@ static int gs101_tmu_resume(struct device *dev)
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
 	struct cpumask mask;
-	int temp, stat;
 
 	if (suspended_count == num_of_devices)
 		exynos_acpm_tmu_set_resume();
 
 	gs101_tmu_control(pdev, true);
-
-	exynos_acpm_tmu_set_read_temp(data->id, &temp, &stat);
-
-	pr_info("%s: thermal zone %d temp %d stat %d\n",
-		__func__, data->tzd->id, temp, stat);
 
 	enable_irq(data->irq);
 	suspended_count--;

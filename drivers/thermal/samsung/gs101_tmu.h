@@ -56,9 +56,21 @@ struct gs101_tmu_data {
 	bool pause_enable;
 	int pause_threshold;
 	int resume_threshold;
+	bool hardlimit_enable;
+	int hardlimit_threshold;
+	int hardlimit_clr_threshold;
+	int hardlimit_cooling_state;
+	unsigned long max_cdev;
 	bool hotplug_enable;
 	int hotplug_in_threshold;
 	int hotplug_out_threshold;
+	bool cpu_hw_throttling_enable;
+	int cpu_hw_throttling_trigger_threshold;
+	int cpu_hw_throttling_clr_threshold;
+	int ppm_clr_throttle_level;
+	int ppm_throttle_level;
+	int mpmm_clr_throttle_level;
+	int mpmm_throttle_level;
 	int limited_frequency;
 	int limited_threshold;
 	int limited_threshold_release;
@@ -66,13 +78,19 @@ struct gs101_tmu_data {
 	bool limited;
 	void __iomem *base;
 	int irq;
+	struct kthread_worker hardlimit_worker;
 	struct kthread_worker thermal_worker;
 	struct kthread_worker pause_worker;
+	struct kthread_worker cpu_hw_throttle_worker;
 	struct kthread_work irq_work;
 	struct kthread_work cpu_pause_work;
+	struct kthread_work cpu_hardlimit_work;
 	struct kthread_work hotplug_work;
+	struct kthread_work cpu_hw_throttle_work;
+	struct kthread_delayed_work cpu_hw_throttle_init_work;
 	struct mutex lock;			/* lock to protect gs101 tmu */
 	struct thermal_zone_device *tzd;
+	struct gs101_bcl_dev *bcl_dev;
 	unsigned int ntrip;
 	bool enabled;
 	struct thermal_cooling_device *cool_dev;
@@ -80,16 +98,104 @@ struct gs101_tmu_data {
 	char tmu_name[THERMAL_NAME_LENGTH + 1];
 	struct device_node *np;
 	bool is_cpu_paused;
+	bool is_cpu_hardlimited;
 	bool is_cpu_hotplugged_out;
+	bool is_cpu_hw_throttled;
 	int temperature;
 	bool use_pi_thermal;
 	struct kthread_delayed_work pi_work;
 	struct gs101_pi_param *pi_param;
 	struct cpumask pause_cpus;
+	struct cpumask hardlimit_cpus;
 	struct cpumask hotplug_cpus;
 	struct cpumask tmu_work_affinity;
 	struct cpumask hotplug_work_affinity;
 	char cpuhp_name[CPUHP_USER_NAME_LEN + 1];
+};
+
+#define TMU_TRIMINFO_CONFIG_REG			0
+#define TMU_TRIMINFO_CONFIG_CALIB_SEL_MASK	1
+
+#define TMU_TRIMINFO0				0x0010
+#define TMU_TRIMINFO_REG(i)			(TMU_TRIMINFO0 + 0x4 * (i))
+#define TMU_TRIMINFO_85_SHIFT			9
+#define TMU_TRIMINFO_25_85_MASK			0x1ff
+
+#define TMU_CURRENT_TEMP_P1_P0			0x0084
+#define TMU_CURRENT_TEMP_REG(i)			(TMU_CURRENT_TEMP_P1_P0 + 0x4 * ((i) / 2))
+#define TMU_CURRENT_TEMP_SHIFT(i)		(((i) % 2) * 16)
+#define TMU_CURRENT_TEMP_MASK			0x1ff
+
+#define TMU_INTPEND_P0				0x00F8
+#define TMU_INTPEND_REG(i)			(TMU_INTPEND_P0 + 0x50 * (i))
+
+#define TMU_1P_TRIM_TEMP_25 25
+#define TMU_2P_TRIM_TEMP_85 85
+
+#define TMU_UNKNOWN_TEMP 0
+#define TMU_MAX_TEMP 125
+#define TMU_MIN_TEMP 10
+#define TMU_SENSOR_PROBE_NUM 16
+
+enum tmu_zone_t {
+	TMU_TOP = 0,
+	TMU_SUB = 1,
+	TMU_END = 2,
+};
+
+enum tmu_sensor_t {
+	TMU_P0_SENSOR = 0,
+	TMU_P1_SENSOR = 1,
+	TMU_P2_SENSOR = 2,
+	TMU_P3_SENSOR = 3,
+	TMU_P4_SENSOR = 4,
+	TMU_P5_SENSOR = 5,
+	TMU_P6_SENSOR = 6,
+	TMU_P7_SENSOR = 7,
+	TMU_P8_SENSOR = 8,
+	TMU_P9_SENSOR = 9,
+	TMU_P10_SENSOR = 10,
+	TMU_P11_SENSOR = 11,
+	TMU_P12_SENSOR = 12,
+	TMU_P13_SENSOR = 13,
+	TMU_P14_SENSOR = 14,
+	TMU_P15_SENSOR = 15,
+};
+
+#define TMU_P0_SENSOR_MASK (1 << TMU_P0_SENSOR)
+#define TMU_P1_SENSOR_MASK (1 << TMU_P1_SENSOR)
+#define TMU_P2_SENSOR_MASK (1 << TMU_P2_SENSOR)
+#define TMU_P3_SENSOR_MASK (1 << TMU_P3_SENSOR)
+#define TMU_P4_SENSOR_MASK (1 << TMU_P4_SENSOR)
+#define TMU_P5_SENSOR_MASK (1 << TMU_P5_SENSOR)
+#define TMU_P6_SENSOR_MASK (1 << TMU_P6_SENSOR)
+#define TMU_P7_SENSOR_MASK (1 << TMU_P7_SENSOR)
+#define TMU_P8_SENSOR_MASK (1 << TMU_P8_SENSOR)
+#define TMU_P9_SENSOR_MASK (1 << TMU_P9_SENSOR)
+#define TMU_P10_SENSOR_MASK (1 << TMU_P10_SENSOR)
+#define TMU_P11_SENSOR_MASK (1 << TMU_P11_SENSOR)
+#define TMU_P12_SENSOR_MASK (1 << TMU_P12_SENSOR)
+#define TMU_P13_SENSOR_MASK (1 << TMU_P13_SENSOR)
+#define TMU_P14_SENSOR_MASK (1 << TMU_P14_SENSOR)
+#define TMU_P15_SENSOR_MASK (1 << TMU_P15_SENSOR)
+
+struct sensor_data {
+	enum tmu_sensor_t probe_id;
+	u16 trim_info_25;
+	u16 trim_info_85;
+};
+
+enum trim_type_t {
+	ONE_POINT_TRIMMING = 0,
+	TWO_POINT_TRIMMING = 1,
+};
+
+struct thermal_zone_data {
+	enum tmu_zone_t tmu_zone_id;
+	enum trim_type_t trim_type;
+	u16 sensors_mask;
+	struct sensor_data sensors[TMU_SENSOR_PROBE_NUM];
+	u16 sensor_cnt;
 };
 
 #endif /* _GS101_TMU_H */

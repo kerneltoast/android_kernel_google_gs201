@@ -30,6 +30,8 @@
 		 * uic-io = <0x1>;
 		 */
 		ls = <&slg_pld>;
+		conn = <&usb_con>;
+		orientation-switch;
 
 		usb_con: connector {
 			compatible = "usb-c-connector";
@@ -39,6 +41,7 @@
 			try-power-role = "sink";
 			self-powered;
 			op-sink-microwatt = <2600000>;
+			usb-role-switch;
 			source-pdos = <PDO_FIXED(5000, 900,
 						 PDO_FIXED_SUSPEND |
 						 PDO_FIXED_USB_COMM |
@@ -49,6 +52,32 @@
 					       PDO_FIXED_DATA_SWAP |
 					       PDO_FIXED_DUAL_ROLE)
 				     PDO_FIXED(9000, 2000, 0)>;
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				in_role: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&out_role>;
+				};
+				in_or_sw: endpoint@1 {
+					reg = <0>;
+					remote-endpoint = <&out_or_sw>;
+				};
+			};
+		};
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			out_role: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&in_role>;
+			};
+			out_or_sw: endpoint@1 {
+				reg = <0>;
+				remote-endpoint = <&in_or_sw>;
+			};
 		};
 	};
 
@@ -88,8 +117,10 @@
 		chg-psy-name = "gcpm";
 		in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
 		max20339,ovp = <&max20339_ovp>;
+		conn = <&conn>;
+		orientation-switch;
 
-		connector {
+		conn: connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
 			data-role = "dual";
@@ -98,6 +129,7 @@
 			self-powered;
 			op-sink-microwatt = <2600000>;
 			frs-typec-current = <FRS_5V_1P5A>;
+			usb-role-switch;
 			/*
 			 * b/174044466: Extboost can only do ~1A.
 			 * However, max77759 operating in reverse boost
@@ -117,6 +149,35 @@
 					       PDO_FIXED_DUAL_ROLE)
 				     PDO_FIXED(9000, 2200, 0)
 				     PDO_PPS_APDO(5000, 11000, 3000)>;
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				in_role_sw: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&out_role_sw>;
+				};
+
+				in_orientation_sw: endpoint@1 {
+					reg = <0>;
+					remote-endpoint = <&out_orientation_sw>;
+				};
+			};
+		};
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			out_role_sw: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&in_role_sw>;
+			};
+
+			out_orientation_sw: endpoint@1 {
+				reg = <0>;
+				remote-endpoint = <&in_orientation_sw>;
+			};
+
 		};
 
 		/* EXT_BST_EN exposed as GPIO */

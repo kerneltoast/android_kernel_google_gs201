@@ -23,6 +23,9 @@
 /* TODO: needs to be 100mA when SDP_CONFIGURED is voted */
 #define SDP_ICL_UA	500000
 
+/* Defer vote for pSnkStby */
+#define BC_VOTE_DELAY_MS	3000
+
 /* At least get one more try to meet sub state sync requirement */
 #define ERR_RETRY_DELAY_MS 20
 #define ERR_RETRY_COUNT    3
@@ -64,6 +67,7 @@ struct usb_psy_data {
 	 */
 	struct kthread_worker *wq;
 	struct kthread_delayed_work icl_work;
+	struct kthread_delayed_work bc_icl_work;
 	atomic_t retry_count;
 
 	/* sink connected state from Type-C */
@@ -264,7 +268,6 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 				 const union power_supply_propval *val)
 {
 	struct usb_psy_data *usb = power_supply_get_drvdata(psy);
-	int ret;
 	struct usb_psy_ops *ops = usb->psy_ops;
 	struct i2c_client *client = usb->tcpc_client;
 
@@ -272,7 +275,7 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		usb->current_max_cache = val->intval;
 		atomic_set(&usb->retry_count, ERR_RETRY_COUNT);
-		ret = kthread_mod_delayed_work(usb->wq, &usb->icl_work, 0);
+		kthread_mod_delayed_work(usb->wq, &usb->icl_work, 0);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		/* Enough to trigger just the uevent */
@@ -280,8 +283,9 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		usb->usb_type = val->intval;
 		ops->tcpc_set_port_data_capable(client, usb->usb_type);
-		set_bc_current_limit(usb->usb_icl_proto_el, usb->usb_type,
-				     usb->log);
+		kthread_mod_delayed_work(usb->wq, &usb->bc_icl_work,
+					 usb->usb_type != POWER_SUPPLY_USB_TYPE_UNKNOWN ?
+					 msecs_to_jiffies(BC_VOTE_DELAY_MS) : 0);
 		break;
 	default:
 		break;
@@ -450,6 +454,15 @@ static void icl_work_item(struct kthread_work *work)
 					 msecs_to_jiffies(ERR_RETRY_DELAY_MS));
 }
 
+static void bc_icl_work_item(struct kthread_work *work)
+{
+	struct usb_psy_data *usb =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct usb_psy_data, bc_icl_work);
+
+	set_bc_current_limit(usb->usb_icl_proto_el, usb->usb_type, usb->log);
+}
+
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 		    struct usb_psy_ops *ops)
 {
@@ -556,6 +569,7 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	}
 
 	kthread_init_delayed_work(&usb->icl_work, icl_work_item);
+	kthread_init_delayed_work(&usb->bc_icl_work, bc_icl_work_item);
 
 	return usb;
 

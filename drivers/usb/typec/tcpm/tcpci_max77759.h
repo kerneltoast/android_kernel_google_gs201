@@ -8,9 +8,12 @@
 #define __TCPCI_MAX77759_H
 
 #include <linux/interrupt.h>
+#include <linux/kthread.h>
 #include <linux/usb/tcpm.h>
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
+#include <linux/usb/role.h>
+#include <linux/usb/typec_mux.h>
 
 #include "usb_psy.h"
 
@@ -88,6 +91,18 @@ struct max77759_plat {
 	bool toggle_disable_status;
 	/* Cached role ctrl setting */
 	u8 role_ctrl_cache;
+
+	struct notifier_block psy_notifier;
+	int online;
+	int usb_type;
+	int typec_current_max;
+	struct kthread_worker *wq;
+	struct kthread_delayed_work icl_work;
+
+	/* Notifier for data role */
+	struct usb_role_switch *usb_sw;
+	/* Notifier for orientation */
+	struct typec_switch *typec_sw;
 
 	/* EXT_BST_EN exposed as GPIO */
 #ifdef CONFIG_GPIOLIB
