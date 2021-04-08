@@ -206,8 +206,8 @@
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_RPS>;
 						tpmon,idx = <0>;
-						tpmon,threshold = <300>;	/* Mbps */
-						tpmon,values = <0x03 0xC0>;
+						tpmon,threshold = <250 1600>;	/* Mbps */
+						tpmon,values = <0x03 0x30 0xC0>;
 					};
 					tpmon_gro_flush_time {
 						tpmon,enable = <1>;
@@ -293,7 +293,7 @@
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_IRQ_DIT>;
 						tpmon,idx = <0>;
-						tpmon,threshold = <300>;	/* Mbps */
+						tpmon,threshold = <250>;	/* Mbps */
 						tpmon,values = <2 5>;
 					};
 				};
