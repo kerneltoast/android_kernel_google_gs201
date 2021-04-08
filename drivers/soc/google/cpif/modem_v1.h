@@ -114,6 +114,8 @@ struct modem_mbox {
 /* AP capability[0] index */
 enum ap_capability_0_bits {
 	AP_CAP_0_PKTPROC_UL_BIT = 0,
+	AP_CAP_0_CH_EXTENSION_BIT,
+	AP_CAP_0_PKTPROC_36BIT_ADDR_BIT,
 	AP_CAP_0_MAX = AP_CP_CAP_BIT_MAX
 };
 

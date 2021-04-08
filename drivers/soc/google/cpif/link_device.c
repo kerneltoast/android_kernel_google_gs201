@@ -543,6 +543,10 @@ static void set_ap_capabilities(struct mem_link_device *mld)
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 	cpif_set_bit(mld->ap_capability[0], AP_CAP_0_PKTPROC_UL_BIT);
 #endif
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+	cpif_set_bit(mld->ap_capability[0], AP_CAP_0_CH_EXTENSION_BIT);
+#endif
+	cpif_set_bit(mld->ap_capability[0], AP_CAP_0_PKTPROC_36BIT_ADDR_BIT);
 
 	for (part = 0; part < AP_CP_CAP_PARTS; part++) {
 		iowrite32(mld->ap_capability[part], mld->ap_capability_offset[part]);
@@ -574,6 +578,10 @@ static int init_ap_capabilities(struct mem_link_device *mld, int part)
 				if (ret)
 					mif_err("pktproc_init_ul() ret:%d\n", ret);
 #endif
+				break;
+			case AP_CAP_0_CH_EXTENSION_BIT:
+			case AP_CAP_0_PKTPROC_36BIT_ADDR_BIT:
+				ret = 0;
 				break;
 			default:
 				mif_err("unsupported capability part:%d cap:%d\n", part, cap);
