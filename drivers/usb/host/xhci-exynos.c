@@ -29,9 +29,9 @@
 #include "xhci-plat.h"
 #include "xhci-mvebu.h"
 #include "xhci-rcar.h"
+#include "xhci-exynos.h"
 #include "../dwc3/dwc3-exynos.h"
-
-#define PORTSC_OFFSET		0x430
+#include <soc/google/exynos-cpupm.h>
 
 static struct hc_driver xhci_exynos_hc_driver;
 
@@ -39,14 +39,81 @@ static int xhci_exynos_setup(struct usb_hcd *hcd);
 static int xhci_exynos_start(struct usb_hcd *hcd);
 
 static const struct xhci_driver_overrides xhci_exynos_overrides __initconst = {
-	.extra_priv_size = sizeof(struct xhci_plat_priv),
+	.extra_priv_size = sizeof(struct xhci_exynos_priv),
 	.reset = xhci_exynos_setup,
 	.start = xhci_exynos_start,
+	.address_device = xhci_exynos_address_device,
+	.bus_suspend = xhci_exynos_bus_suspend,
+	.bus_resume = xhci_exynos_bus_resume,
 };
+
+int xhci_exynos_address_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct xhci_exynos_priv *priv = hcd_to_xhci_exynos_priv(hcd);
+	struct xhci_hcd_exynos *xhci_exynos = priv->xhci_exynos;
+	int ret;
+
+	ret = xhci_address_device(hcd, udev);
+	udev->dev.platform_data  = xhci_exynos;
+
+	return ret;
+}
+
+int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
+{
+	struct xhci_exynos_priv *priv = hcd_to_xhci_exynos_priv(hcd);
+	struct xhci_hcd_exynos *xhci_exynos = priv->xhci_exynos;
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	int ret, ret_phy, main_hcd;
+
+	if (hcd == xhci->main_hcd)
+		main_hcd = 1;
+	else
+		main_hcd = 0;
+
+	ret = xhci_bus_suspend(hcd);
+
+	if (hcd == xhci->main_hcd &&
+	    xhci_exynos->port_state == PORT_USB2) {
+		ret_phy = exynos_usbdrd_phy_vendor_set(xhci_exynos->phy_usb2, 1, 0);
+		if (ret_phy)
+			dev_info(xhci_exynos->dev, "phy vendor set fail\n");
+	}
+
+	xhci_exynos_wake_lock(xhci_exynos, main_hcd, 0);
+
+	return ret;
+}
+
+int xhci_exynos_bus_resume(struct usb_hcd *hcd)
+{
+	struct xhci_exynos_priv *priv = hcd_to_xhci_exynos_priv(hcd);
+	struct xhci_hcd_exynos *xhci_exynos = priv->xhci_exynos;
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	int ret, main_hcd;
+
+	if (hcd == xhci->main_hcd)
+		main_hcd = 1;
+	else
+		main_hcd = 0;
+
+	if (hcd == xhci->main_hcd &&
+	    xhci_exynos->port_state == PORT_USB2) {
+		ret = exynos_usbdrd_phy_vendor_set(xhci_exynos->phy_usb2, 1, 1);
+		if (ret)
+			dev_info(xhci_exynos->dev, "phy vendor set fail\n");
+	}
+
+	ret = xhci_bus_resume(hcd);
+
+	xhci_exynos_wake_lock(xhci_exynos, main_hcd, 1);
+
+	return ret;
+}
 
 static void xhci_priv_exynos_start(struct usb_hcd *hcd)
 {
-	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
+	struct xhci_exynos_priv *priv = hcd_to_xhci_exynos_priv(hcd);
 
 	if (priv->plat_start)
 		priv->plat_start(hcd);
@@ -54,7 +121,7 @@ static void xhci_priv_exynos_start(struct usb_hcd *hcd)
 
 static int xhci_priv_init_quirk(struct usb_hcd *hcd)
 {
-	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
+	struct xhci_exynos_priv *priv = hcd_to_xhci_exynos_priv(hcd);
 
 	if (!priv->init_quirk)
 		return 0;
@@ -64,7 +131,7 @@ static int xhci_priv_init_quirk(struct usb_hcd *hcd)
 
 static int xhci_priv_resume_quirk(struct usb_hcd *hcd)
 {
-	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
+	struct xhci_exynos_priv *priv = hcd_to_xhci_exynos_priv(hcd);
 
 	if (!priv->resume_quirk)
 		return 0;
@@ -74,7 +141,7 @@ static int xhci_priv_resume_quirk(struct usb_hcd *hcd)
 
 static void xhci_exynos_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
-	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
+	struct xhci_exynos_priv *priv = xhci_to_exynos_priv(xhci);
 
 	/*
 	 * As of now platform drivers don't provide MSI support so we ensure
@@ -104,12 +171,231 @@ static int xhci_exynos_start(struct usb_hcd *hcd)
 	return xhci_run(hcd);
 }
 
+void xhci_exynos_portsc_power_off(struct xhci_hcd_exynos *exynos, u32 on, u32 prt)
+{
+	struct xhci_hcd_exynos	*xhci_exynos = exynos;
+	void __iomem *portsc = xhci_exynos->usb3_portsc;
+
+	u32 reg;
+
+	spin_lock(&xhci_exynos->xhcioff_lock);
+
+	if (xhci_exynos->portsc_control_priority > prt) {
+		spin_unlock(&xhci_exynos->xhcioff_lock);
+		return;
+	}
+
+	xhci_exynos->portsc_control_priority = prt;
+
+	if (on && !xhci_exynos->port_off_done) {
+		dev_info(xhci_exynos->dev, "%s, Do not switch-on port\n", __func__);
+		spin_unlock(&xhci_exynos->xhcioff_lock);
+		return;
+	}
+
+	reg = readl(portsc);
+
+	if (on)
+		reg |= PORT_POWER;
+	else
+		reg &= ~PORT_POWER;
+
+	writel(reg, portsc);
+
+	reg = readl(phycon_base_addr + 0x70);
+	if (on)
+		reg &= ~DIS_RX_DETECT;
+	else
+		reg |= DIS_RX_DETECT;
+
+	writel(reg, phycon_base_addr + 0x70);
+
+	if (on)
+		xhci_exynos->port_off_done = 0;
+	else
+		xhci_exynos->port_off_done = 1;
+
+	spin_unlock(&xhci_exynos->xhcioff_lock);
+}
+
+int xhci_exynos_port_power_set(struct xhci_hcd_exynos *exynos, u32 on, u32 prt)
+{
+	struct xhci_hcd_exynos	*xhci_exynos = exynos;
+
+	if (xhci_exynos->usb3_portsc) {
+		xhci_exynos_portsc_power_off(xhci_exynos, on, prt);
+		return 0;
+	}
+
+	dev_info(xhci_exynos->dev, "%s, usb3_portsc is NULL\n", __func__);
+	return -EIO;
+}
+EXPORT_SYMBOL_GPL(xhci_exynos_port_power_set);
+
+static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_device *dev, bool on)
+{
+	struct usb_device *hdev;
+	struct usb_device *udev = dev;
+	struct device *ddev = &udev->dev;
+	struct xhci_hcd_exynos	*xhci_exynos = exynos;
+	enum usb_port_state pre_state;
+	int usb3_hub_detect = 0;
+	int usb2_detect = 0;
+	int port;
+	int bInterfaceClass = 0;
+
+	if (udev->bus->root_hub == udev) {
+		dev_dbg(ddev, "this dev is a root hub\n");
+		goto skip;
+	}
+
+	pre_state = xhci_exynos->port_state;
+
+	/* Find root hub */
+	hdev = udev->parent;
+	if (!hdev)
+		goto skip;
+
+	hdev = dev->bus->root_hub;
+	if (!hdev)
+		goto skip;
+	dev_dbg(ddev, "root hub maxchild = %d\n", hdev->maxchild);
+
+	/* check all ports */
+	usb_hub_for_each_child(hdev, port, udev) {
+		dev_dbg(ddev, "%s, class = %d, speed = %d\n",
+			__func__, udev->descriptor.bDeviceClass,
+						udev->speed);
+		dev_dbg(ddev, "udev = 0x%8x, state = %d\n", udev, udev->state);
+		if (udev && udev->state == USB_STATE_CONFIGURED) {
+			if (!dev->config->interface[0])
+				continue;
+
+			bInterfaceClass	= udev->config->interface[0]
+					->cur_altsetting->desc.bInterfaceClass;
+			if (on) {
+				if (bInterfaceClass == USB_CLASS_HID ||
+				    bInterfaceClass == USB_CLASS_AUDIO) {
+					udev->do_remote_wakeup =
+						(udev->config->desc.bmAttributes &
+							USB_CONFIG_ATT_WAKEUP) ? 1 : 0;
+					if (udev->do_remote_wakeup == 1) {
+						device_init_wakeup(ddev, 1);
+						usb_enable_autosuspend(dev);
+					}
+					dev_dbg(ddev, "%s, remote_wakeup = %d\n",
+						__func__, udev->do_remote_wakeup);
+				}
+			}
+			if (bInterfaceClass == USB_CLASS_HUB) {
+				xhci_exynos->port_state = PORT_HUB;
+				usb3_hub_detect = 1;
+				break;
+			} else if (bInterfaceClass == USB_CLASS_BILLBOARD) {
+				xhci_exynos->port_state = PORT_DP;
+				usb3_hub_detect = 1;
+				break;
+			}
+
+			if (udev->speed >= USB_SPEED_SUPER) {
+				xhci_exynos->port_state = PORT_USB3;
+				usb3_hub_detect = 1;
+				break;
+			} else {
+				xhci_exynos->port_state = PORT_USB2;
+				usb2_detect = 1;
+			}
+		} else {
+			dev_dbg(ddev, "not configured, state = %d\n", udev->state);
+		}
+	}
+
+	if (!usb3_hub_detect && !usb2_detect)
+		xhci_exynos->port_state = PORT_EMPTY;
+
+	dev_dbg(ddev, "%s %s state pre=%d now=%d\n", __func__,
+		on ? "on" : "off", pre_state, xhci_exynos->port_state);
+
+	return xhci_exynos->port_state;
+
+skip:
+	return -EINVAL;
+}
+
+static void xhci_exynos_set_port(struct usb_device *dev, bool on)
+{
+	struct xhci_hcd_exynos *xhci_exynos = dev_get_platdata(&dev->dev);
+	struct device *ddev = &dev->dev;
+	int check_port;
+
+	check_port = xhci_exynos_check_port(xhci_exynos, dev, on);
+	if (check_port < 0)
+		return;
+
+	switch (check_port) {
+	case PORT_EMPTY:
+		dev_dbg(ddev, "Port check empty\n");
+		xhci_exynos->is_otg_only = 1;
+		xhci_exynos_port_power_set(xhci_exynos, 1, 1);
+		break;
+	case PORT_USB2:
+		dev_dbg(ddev, "Port check usb2\n");
+		xhci_exynos->is_otg_only = 0;
+		xhci_exynos_port_power_set(xhci_exynos, 0, 1);
+		break;
+	case PORT_USB3:
+		xhci_exynos->is_otg_only = 0;
+		dev_dbg(ddev, "Port check usb3\n");
+		break;
+	case PORT_HUB:
+		dev_dbg(ddev, "Port check hub\n");
+		xhci_exynos->is_otg_only = 0;
+		break;
+	case PORT_DP:
+		dev_dbg(ddev, "Port check DP\n");
+		xhci_exynos->is_otg_only = 0;
+		break;
+	default:
+		break;
+	}
+}
+
+static int xhci_exynos_power_notify(struct notifier_block *self,
+			    unsigned long action, void *dev)
+{
+	switch (action) {
+	case USB_DEVICE_ADD:
+		xhci_exynos_set_port(dev, 1);
+		break;
+	case USB_DEVICE_REMOVE:
+		xhci_exynos_set_port(dev, 0);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block dev_nb = {
+	.notifier_call = xhci_exynos_power_notify,
+};
+
+void xhci_exynos_register_notify(void)
+{
+	usb_register_notify(&dev_nb);
+}
+
+void xhci_exynos_unregister_notify(void)
+{
+	usb_unregister_notify(&dev_nb);
+}
+
 static ssize_t
 xhci_exynos_ss_compliance_show(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct xhci_hcd_exynos *xhci_exynos = dev_get_drvdata(dev);
+	struct usb_hcd	*hcd = xhci_exynos->hcd;
+
 	u32			reg;
 	void __iomem *reg_base;
 
@@ -124,7 +410,8 @@ xhci_exynos_ss_compliance_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t n)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct xhci_hcd_exynos *xhci_exynos = dev_get_drvdata(dev);
+	struct usb_hcd	*hcd = xhci_exynos->hcd;
 	int		value;
 	u32			reg;
 	void __iomem *reg_base;
@@ -207,7 +494,7 @@ EXPORT_SYMBOL_GPL(xhci_exynos_register_vendor_ops);
 static int xhci_vendor_init(struct xhci_hcd *xhci)
 {
 	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
-	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
+	struct xhci_exynos_priv *priv = xhci_to_exynos_priv(xhci);
 
 	if (xhci_plat_vendor_overwrite.vendor_ops)
 		ops = priv->vendor_ops = xhci_plat_vendor_overwrite.vendor_ops;
@@ -221,7 +508,7 @@ static int xhci_vendor_init(struct xhci_hcd *xhci)
 static void xhci_vendor_cleanup(struct xhci_hcd *xhci)
 {
 	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
-	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
+	struct xhci_exynos_priv *priv = xhci_to_exynos_priv(xhci);
 
 	if (ops && ops->vendor_cleanup)
 		ops->vendor_cleanup(xhci);
@@ -229,16 +516,63 @@ static void xhci_vendor_cleanup(struct xhci_hcd *xhci)
 	priv->vendor_ops = NULL;
 }
 
+int xhci_exynos_wake_lock(struct xhci_hcd_exynos *xhci_exynos,
+				   int is_main_hcd, int is_lock)
+{
+	struct usb_hcd	*hcd = xhci_exynos->hcd;
+	int idle_ip_index;
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+	dev_dbg(xhci_exynos->dev, "%s\n", __func__);
+
+	if (xhci->xhc_state & XHCI_STATE_REMOVING) {
+		dev_info(xhci_exynos->dev, "%s - Host removing return!\n",
+				__func__);
+		return -ESHUTDOWN;
+	}
+
+	if (is_lock) {
+		if (is_main_hcd) {
+			dev_info(xhci_exynos->dev, "%s: Main HCD WAKE LOCK\n", __func__);
+			__pm_stay_awake(xhci_exynos->main_wakelock);
+		} else {
+			dev_info(xhci_exynos->dev, "%s: Shared HCD WAKE LOCK\n", __func__);
+			__pm_stay_awake(xhci_exynos->shared_wakelock);
+		}
+		/* Add a routine for disable IDLEIP (IP idle) */
+		dev_info(xhci_exynos->dev, "IDLEIP(SICD) disable.\n");
+		idle_ip_index = dwc3_otg_get_idle_ip_index();
+		exynos_update_ip_idle_status(idle_ip_index, 0);
+	} else {
+		if (is_main_hcd) {
+			dev_info(xhci_exynos->dev, "%s: Main HCD WAKE UNLOCK\n", __func__);
+			__pm_relax(xhci_exynos->main_wakelock);
+		} else {
+			dev_info(xhci_exynos->dev, "%s: Shared HCD WAKE UNLOCK\n", __func__);
+			__pm_relax(xhci_exynos->shared_wakelock);
+		}
+
+		/* Add a routine for enable IDLEIP (IP idle) */
+		idle_ip_index = dwc3_otg_get_idle_ip_index();
+		exynos_update_ip_idle_status(idle_ip_index, 1);
+	}
+
+	return 0;
+}
+
 static int xhci_exynos_probe(struct platform_device *pdev)
 {
-	const struct xhci_plat_priv *priv_match;
+	struct device		*parent = pdev->dev.parent;
 	const struct hc_driver	*driver;
 	struct device		*sysdev, *tmpdev;
 	struct xhci_hcd		*xhci;
+	struct xhci_hcd_exynos	*xhci_exynos;
+	struct xhci_exynos_priv *priv;
 	struct resource         *res;
 	struct usb_hcd		*hcd;
 	int			ret;
 	int			irq;
+	struct wakeup_source	*main_wakelock, *shared_wakelock;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -280,6 +614,13 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+	main_wakelock = wakeup_source_register(&pdev->dev, dev_name(&pdev->dev));
+	__pm_stay_awake(main_wakelock);
+
+	/* Initialization shared wakelock for SS HCD */
+	shared_wakelock = wakeup_source_register(&pdev->dev, dev_name(&pdev->dev));
+	__pm_stay_awake(shared_wakelock);
+
 	xhci_exynos_pm_runtime_init(&pdev->dev);
 
 	pm_runtime_set_active(&pdev->dev);
@@ -305,6 +646,19 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	hcd->rsrc_len = resource_size(res);
 
 	xhci = hcd_to_xhci(hcd);
+	xhci_exynos = devm_kzalloc(&pdev->dev, sizeof(struct xhci_hcd_exynos), GFP_KERNEL);
+	xhci_exynos->dev = &pdev->dev;
+
+	xhci_exynos->hcd = (struct usb_hcd *)platform_get_drvdata(pdev);
+	platform_set_drvdata(pdev, xhci_exynos);
+
+	spin_lock_init(&xhci_exynos->xhcioff_lock);
+
+	xhci_exynos->usb3_portsc = hcd->regs + PORTSC_OFFSET;
+	xhci_exynos->is_otg_only = 1;
+	xhci_exynos->port_state = PORT_EMPTY;
+
+	xhci_exynos_register_notify();
 
 	/*
 	 * Not all platforms have clks so it is not an error if the
@@ -330,14 +684,8 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_reg_clk;
 
-	priv_match = of_device_get_match_data(&pdev->dev);
-	if (priv_match) {
-		struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
-
-		/* Just copy data for now */
-		if (priv_match)
-			*priv = *priv_match;
-	}
+	priv = hcd_to_xhci_exynos_priv(hcd);
+	priv->xhci_exynos = xhci_exynos;
 
 	device_wakeup_enable(hcd->self.controller);
 
@@ -349,6 +697,8 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 	xhci->shared_hcd->skip_phy_initialization = 1;
+
+	xhci_exynos->shared_hcd = xhci->shared_hcd;
 
 	/* imod_interval is the interrupt moderation value in nanoseconds. */
 	xhci->imod_interval = 40000;
@@ -381,9 +731,22 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 			goto put_usb3_hcd;
 	}
 
+	/* Get USB2.0 PHY for main hcd */
+	if (parent) {
+		xhci_exynos->phy_usb2 = devm_phy_get(parent, "usb2-phy");
+		if (IS_ERR_OR_NULL(xhci_exynos->phy_usb2)) {
+			xhci_exynos->phy_usb2 = NULL;
+			dev_err(&pdev->dev,
+				"%s: failed to get phy\n", __func__);
+		}
+	}
+
 	ret = xhci_vendor_init(xhci);
 	if (ret)
 		goto disable_usb_phy;
+
+	xhci_exynos->main_wakelock = main_wakelock;
+	xhci_exynos->shared_wakelock = shared_wakelock;
 
 	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_node);
 	xhci->shared_hcd->tpl_support = hcd->tpl_support;
@@ -440,7 +803,8 @@ disable_runtime:
 
 static int xhci_exynos_remove(struct platform_device *dev)
 {
-	struct usb_hcd	*hcd = platform_get_drvdata(dev);
+	struct xhci_hcd_exynos *xhci_exynos = platform_get_drvdata(dev);
+	struct usb_hcd	*hcd = xhci_exynos->hcd;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct clk *clk = xhci->clk;
 	struct clk *reg_clk = xhci->reg_clk;
@@ -450,6 +814,14 @@ static int xhci_exynos_remove(struct platform_device *dev)
 
 	pm_runtime_get_sync(&dev->dev);
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
+
+	__pm_relax(xhci_exynos->main_wakelock);
+	wakeup_source_unregister(xhci_exynos->main_wakelock);
+
+	__pm_relax(xhci_exynos->shared_wakelock);
+	wakeup_source_unregister(xhci_exynos->shared_wakelock);
+
+	xhci_exynos_unregister_notify();
 
 	if (!rhdev || !srhdev)
 		goto remove_hcd;
@@ -479,7 +851,8 @@ remove_hcd:
 extern u32 dwc3_otg_is_connect(void);
 static int __maybe_unused xhci_exynos_suspend(struct device *dev)
 {
-	struct usb_hcd	*hcd = dev_get_drvdata(dev);
+	struct xhci_hcd_exynos *xhci_exynos = dev_get_drvdata(dev);
+	struct usb_hcd	*hcd = xhci_exynos->hcd;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret;
 
@@ -501,7 +874,8 @@ static int __maybe_unused xhci_exynos_suspend(struct device *dev)
 
 static int __maybe_unused xhci_exynos_resume(struct device *dev)
 {
-	struct usb_hcd	*hcd = dev_get_drvdata(dev);
+	struct xhci_hcd_exynos *xhci_exynos = dev_get_drvdata(dev);
+	struct usb_hcd	*hcd = xhci_exynos->hcd;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret;
 
