@@ -430,11 +430,11 @@ static int gs101_get_temp(void *p, int *temp)
 		kthread_queue_work(&data->pause_worker, &data->cpu_pause_work);
 
 	if (data->hardlimit_enable &&
-	    ((data->is_cpu_hardlimited &&
+	    ((data->is_hardlimited &&
 	      data->temperature < data->hardlimit_clr_threshold) ||
-	     (!data->is_cpu_hardlimited &&
+	     (!data->is_hardlimited &&
 	      data->temperature >= data->hardlimit_threshold)))
-		kthread_queue_work(&data->hardlimit_worker, &data->cpu_hardlimit_work);
+		kthread_queue_work(&data->hardlimit_worker, &data->hardlimit_work);
 
 	mutex_unlock(&data->lock);
 
@@ -581,7 +581,7 @@ static void allow_maximum_power(struct gs101_tmu_data *data)
 		if (instance->trip != control_temp ||
 		    (!cdev_is_power_actor(instance->cdev)))
 			continue;
-		if (data->hardlimit_enable && data->is_cpu_hardlimited)
+		if (data->hardlimit_enable && data->is_hardlimited)
 			instance->target = data->max_cdev;
 		else
 			instance->target = 0;
@@ -687,7 +687,7 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	if (ret)
 		return ret;
 
-	if (data->hardlimit_enable && data->is_cpu_hardlimited)
+	if (data->hardlimit_enable && data->is_hardlimited)
 		state = max(state, data->max_cdev);
 
 	// TODO: refactor locking
@@ -1013,15 +1013,14 @@ static void gs101_throttle_cpu_pause(struct kthread_work *work)
 	mutex_unlock(&data->lock);
 }
 
-static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
+static void gs101_throttle_hard_limit(struct kthread_work *work)
 {
 	struct gs101_tmu_data *data = container_of(work,
-						   struct gs101_tmu_data, cpu_hardlimit_work);
-	struct cpumask mask;
+						   struct gs101_tmu_data, hardlimit_work);
 	struct thermal_zone_device *tz = data->tzd;
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev = NULL;
-	unsigned long state;
+	unsigned long state, max_state;
 
 	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
@@ -1033,18 +1032,15 @@ static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
 	mutex_unlock(&tz->lock);
 
 	if (!cdev) {
-		pr_err_ratelimited("%s: cannot find cdev, cpu hard limit throttling failed\n",
+		pr_err_ratelimited("%s: cannot find cdev, hard limit throttling failed\n",
 				   data->tmu_name);
 		return;
 	}
 
 	mutex_lock(&data->lock);
-	cpumask_and(&mask, cpu_possible_mask, &data->hardlimit_cpus);
 
-	if (data->is_cpu_hardlimited) {
+	if (data->is_hardlimited) {
 		if (data->temperature < data->hardlimit_clr_threshold) {
-			pr_info_ratelimited("%s cpus: %*pbl, clear hard limit\n",
-					    data->tmu_name, cpumask_pr_args(&mask));
 			if (data->use_pi_thermal && data->pi_param->switched_on) {
 				state = data->max_cdev;
 			} else {
@@ -1063,13 +1059,22 @@ static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
 			mutex_unlock(&tz->lock);
 
 			mutex_lock(&data->lock);
-			data->is_cpu_hardlimited = false;
-			pr_info_ratelimited("%s set cur_state to %d\n", cdev->type, state);
+			data->is_hardlimited = false;
+			pr_info_ratelimited("%s: clear hard limit, is_hardlimited = %d\n",
+					    data->tmu_name, data->is_hardlimited);
 		}
 	} else {
 		if (data->temperature >= data->hardlimit_threshold) {
-			pr_info_ratelimited("%s cpus: %*pbl, enable hard limit\n",
-					    data->tmu_name, cpumask_pr_args(&mask));
+			pr_info_ratelimited("%s: enable hard limit\n", data->tmu_name);
+			if (data->hardlimit_cooling_state == THERMAL_NO_LIMIT) {
+				if (cdev->ops->get_max_state(cdev, &max_state)) {
+					pr_err_ratelimited("%s: %s failed to get_max_cdev, hard limit throttling failed\n",
+							   cdev->type, data->tmu_name);
+					goto err_exit;
+				}
+				data->hardlimit_cooling_state = (unsigned int)max_state;
+			}
+
 			state = max((unsigned long)data->hardlimit_cooling_state,
 					       data->max_cdev);
 			data->max_cdev = state;
@@ -1085,10 +1090,14 @@ static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
 			mutex_unlock(&tz->lock);
 
 			mutex_lock(&data->lock);
-			data->is_cpu_hardlimited = true;
-			pr_info_ratelimited("%s set cur_state to %d\n", cdev->type, state);
+			data->is_hardlimited = true;
+			pr_info_ratelimited("%s: %s set cur_state to hardlimit cooling state %d, is_hardlimited = %d\n",
+					    data->tmu_name, cdev->type,
+					    data->hardlimit_cooling_state, data->is_hardlimited);
 		}
 	}
+
+err_exit:
 	mutex_unlock(&data->lock);
 }
 
@@ -1218,7 +1227,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	}
 
 	if (data->hardlimit_enable) {
-		kthread_init_work(&data->cpu_hardlimit_work, gs101_throttle_cpu_hard_limit);
+		kthread_init_work(&data->hardlimit_work, gs101_throttle_hard_limit);
 		kthread_init_worker(&data->hardlimit_worker);
 
 		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_hardlimit", data->tmu_name);
@@ -1314,10 +1323,6 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 
 		if (!data->hardlimit_clr_threshold)
 			dev_err(&pdev->dev, "No input hardlimit_clr_threshold\n");
-
-		ret = of_property_read_string(pdev->dev.of_node, "hardlimit_cpus", &buf);
-		if (!ret)
-			cpulist_parse(buf, &data->hardlimit_cpus);
 
 		of_property_read_u32(pdev->dev.of_node, "hardlimit_cooling_state",
 				     &data->hardlimit_cooling_state);
