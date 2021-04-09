@@ -151,3 +151,5 @@ per-file usb/typec/tcpm/usb_psy.*=*
 per-file video/backlight/lp855x_bl.c=*
 
 per-file watchdog/s3c2410_wdt.c=*
+# include OWNERS from the authoritative android-mainline branch
+include kernel/common:android-mainline:/drivers/OWNERS

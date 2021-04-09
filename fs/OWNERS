@@ -1,3 +1,5 @@
 per-file crypto/**=ebiggers@google.com
 per-file f2fs/**=jaegeuk@google.com
 per-file verity/**=ebiggers@google.com
+# include OWNERS from the authoritative android-mainline branch
+include kernel/common:android-mainline:/fs/OWNERS
