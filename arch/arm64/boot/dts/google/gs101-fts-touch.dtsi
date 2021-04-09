@@ -7,6 +7,13 @@
 
 #include "gs101-common-touch.dtsi"
 
+&ts_spi_cs_active {
+	samsung,pins = "gpp23-3";
+	samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+};
+
 &spitouch {
 	status = "ok";
 	compatible = "st,fts";
@@ -21,7 +28,9 @@
 	 * in the product touch dtsi */
 
 	controller-data {
+		cs-gpio = <&gpp23 3 0>;
 		samsung,spi-feedback-delay = <1>;
 		samsung,spi-chip-select-mode = <0>;
+		cs-clock-delay = <2>;
 	};
 };
