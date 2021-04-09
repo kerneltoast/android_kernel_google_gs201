@@ -228,11 +228,12 @@ static ssize_t uclamp_stats_show(struct kobject *kobj, struct kobj_attribute *at
 	struct uclamp_stats *stats;
 	ssize_t len = 0;
 
-	len += scnprintf(buf + len, PAGE_SIZE - len, "V, T(ms), %\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "V, T(ms), %%\n");
 	for (i = 0; i < CONFIG_VH_SCHED_CPU_NR; i++) {
 		stats = &per_cpu(uclamp_stats, i);
-
-		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d - uclamp.min\n", i);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d - total time: %llu ms\n",
+				 i, stats->total_time / NSEC_PER_MSEC);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "uclamp.min\n");
 		if (len >= PAGE_SIZE)
 			break;
 		for (j = 0, index = 0; j < UCLAMP_STATS_SLOTS; j++, index += UCLAMP_STATS_STEP) {
@@ -243,7 +244,7 @@ static ssize_t uclamp_stats_show(struct kobject *kobj, struct kobj_attribute *at
 				break;
 		}
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d - uclamp.max\n", i);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "uclamp.max\n");
 		if (len >= PAGE_SIZE)
 			break;
 		for (j = 0, index = 0; j < UCLAMP_STATS_SLOTS; j++, index += UCLAMP_STATS_STEP) {
@@ -267,11 +268,12 @@ static ssize_t uclamp_effective_stats_show(struct kobject *kobj, struct kobj_att
 	struct uclamp_stats *stats;
 	ssize_t len = 0;
 
-	len += scnprintf(buf + len, PAGE_SIZE - len, "V, T(ms), %\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "V, T(ms), %%(Based on T in uclamp_stats)\n");
 	for (i = 0; i < CONFIG_VH_SCHED_CPU_NR; i++) {
 		stats = &per_cpu(uclamp_stats, i);
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d - uclamp.min\n", i);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d\n", i);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "uclamp.min\n");
 		if (len >= PAGE_SIZE)
 			break;
 		for (j = 0, index = 0; j < UCLAMP_STATS_SLOTS; j++, index += UCLAMP_STATS_STEP) {
@@ -283,7 +285,7 @@ static ssize_t uclamp_effective_stats_show(struct kobject *kobj, struct kobj_att
 				break;
 		}
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d - uclamp.max\n", i);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "uclamp.max\n");
 		if (len >= PAGE_SIZE)
 			break;
 		for (j = 0, index = 0; j < UCLAMP_STATS_SLOTS; j++, index += UCLAMP_STATS_STEP) {
@@ -308,10 +310,12 @@ static ssize_t uclamp_util_diff_stats_show(struct kobject *kobj, struct kobj_att
 	struct uclamp_stats *stats;
 	ssize_t len = 0;
 
-	len += scnprintf(buf + len, PAGE_SIZE - len, "V, T(ms), %\n");
+	len += scnprintf(buf + len, PAGE_SIZE - len, "V, T(ms), %%\n");
 	for (i = 0; i < CONFIG_VH_SCHED_CPU_NR; i++) {
 		stats = &per_cpu(uclamp_stats, i);
-		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d - util_diff_min\n", i);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d - total time: %llu ms\n",
+				 i, stats->total_time / NSEC_PER_MSEC);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "util_diff_min\n");
 		if (len >= PAGE_SIZE)
 			break;
 		for (j = 0, index = 0; j < UCLAMP_STATS_SLOTS; j++, index += UCLAMP_STATS_STEP) {
@@ -322,7 +326,7 @@ static ssize_t uclamp_util_diff_stats_show(struct kobject *kobj, struct kobj_att
 				break;
 		}
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "CPU %d - util_diff_max\n", i);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "util_diff_max\n");
 		if (len >= PAGE_SIZE)
 			break;
 		for (j = 0, index = 0; j < UCLAMP_STATS_SLOTS; j++, index -= UCLAMP_STATS_STEP) {
