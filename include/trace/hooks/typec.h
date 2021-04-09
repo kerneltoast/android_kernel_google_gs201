@@ -44,14 +44,14 @@ DECLARE_RESTRICTED_HOOK(android_rvh_typec_tcpci_get_vbus,
 	TP_PROTO(struct tcpci *tcpci, struct tcpci_data *data, int *vbus, int *bypass),
 	TP_ARGS(tcpci, data, vbus, bypass), 1);
 
+DECLARE_HOOK(android_vh_typec_tcpm_get_timer,
+	TP_PROTO(const char *state, enum typec_timer timer, unsigned int *msecs),
+	TP_ARGS(state, timer, msecs));
+
 DECLARE_HOOK(android_vh_typec_store_partner_src_caps,
 	TP_PROTO(struct tcpm_port *port, unsigned int *nr_source_caps,
 		 u32 (*source_caps)[PDO_MAX_OBJECTS]),
 	TP_ARGS(port, nr_source_caps, source_caps));
-
-DECLARE_HOOK(android_vh_typec_tcpm_get_timer,
-	TP_PROTO(const char *state, enum typec_timer timer, unsigned int *msecs),
-	TP_ARGS(state, timer, msecs));
 
 DECLARE_HOOK(android_vh_typec_tcpm_adj_current_limit,
 	TP_PROTO(const char *state, u32 port_current_limit, u32 port_voltage, bool pd_capable,
