@@ -22,7 +22,7 @@ bool __read_mostly vendor_sched_enable_prefer_high_cap;
 bool __read_mostly vendor_sched_task_spreading_enable;
 unsigned int __read_mostly vendor_sched_uclamp_threshold;
 unsigned int __read_mostly vendor_sched_util_threshold = DEF_UTIL_THRESHOLD;
-unsigned int __read_mostly vendor_sched_high_capacity_start_cpu = HIGH_CAPACITY_CPU;
+unsigned int __read_mostly vendor_sched_high_capacity_start_cpu = MAX_CAPACITY_CPU;
 static struct kobject *vendor_sched_kobj;
 
 extern void update_sched_capacity_margin(unsigned int util_threshold);
@@ -374,7 +374,7 @@ static ssize_t high_capacity_start_cpu_store(struct kobject *kobj,
 	if (kstrtouint(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < MID_CAPACITY_CPU || val >= CPU_NUM)
+	if (val != MID_CAPACITY_CPU && val != MAX_CAPACITY_CPU)
 		return -EINVAL;
 
 	vendor_sched_high_capacity_start_cpu = val;
