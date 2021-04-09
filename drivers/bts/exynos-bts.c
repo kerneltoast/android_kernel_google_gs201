@@ -157,11 +157,14 @@ static void bts_update_stats(unsigned int index)
 	if (total_prev_idx < 0 && peak_prev_idx < 0)
 		return;
 
-	btsdev->bts_bw[index].stats.total.count[total_prev_idx]++;
-	btsdev->bts_bw[index].stats.total.total_time[total_prev_idx] += duration;
-	btsdev->bts_bw[index].stats.peak.count[peak_prev_idx]++;
-	btsdev->bts_bw[index].stats.peak.total_time[peak_prev_idx] += duration;
-
+	if (total_prev_idx >= 0) {
+		btsdev->bts_bw[index].stats.total.count[total_prev_idx]++;
+		btsdev->bts_bw[index].stats.total.total_time[total_prev_idx] += duration;
+	}
+	if (peak_prev_idx >= 0) {
+		btsdev->bts_bw[index].stats.peak.count[peak_prev_idx]++;
+		btsdev->bts_bw[index].stats.peak.total_time[peak_prev_idx] += duration;
+	}
 	return;
 }
 
