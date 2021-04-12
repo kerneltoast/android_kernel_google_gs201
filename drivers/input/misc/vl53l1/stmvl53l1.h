@@ -121,7 +121,7 @@ struct stmvl53l1_data {
 	int distance_mode;	/*!< distance mode of the device */
 	int crosstalk_enable;	/*!< is crosstalk compensation is enable */
 	int output_mode;	/*!< output mode of the device */
-	bool force_device_on_en;/*!< keep device active when stopped */
+	bool force_device_on_enable;/*!< keep device active when stopped */
 	VL53L1_Error last_error;/*!< last device internal error */
 	int offset_correction_mode;/*!< offset correction mode to apply */
 	FixPoint1616_t dmax_reflectance;/*!< reflectance use for dmax calc */

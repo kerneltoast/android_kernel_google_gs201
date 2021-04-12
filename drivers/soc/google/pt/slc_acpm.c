@@ -82,6 +82,8 @@ struct slc_acpm_driver_data {
 	/* Asynchronous notification from ACPM */
 	unsigned int async_id; /* ACPM FVP_PT_ASYNC channel id */
 	unsigned int async_size; /* ACPM VPT_PT_ASYNC channel queue sizes */
+
+	spinlock_t sl;
 };
 
 /*
@@ -209,6 +211,7 @@ static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
 	int ret;
 	ptid_t ptid;
 	int size4kB;
+	unsigned long flags;
 
 	while ((ret = slc_acpm(driver_data, PT_CHECK, 0, 0, NULL)) > 0) {
 		pt_ptid_data_decode(ret, &ptid, &size4kB);
@@ -231,9 +234,12 @@ static void slc_acpm_check(struct slc_acpm_driver_data *driver_data)
 				  ptid, 4 * size4kB);
 			continue;
 		}
-		driver_data->ptids[ptid].resize(
+		spin_lock_irqsave(&driver_data->sl, flags);
+		if (driver_data->ptids[ptid].resize)
+			driver_data->ptids[ptid].resize(
 				driver_data->ptids[ptid].data,
 				size4kB * 4096);
+		spin_unlock_irqrestore(&driver_data->sl, flags);
 	}
 }
 
@@ -308,6 +314,7 @@ static ptid_t slc_acpm_alloc(void *data, int property_index, void *resize_data,
 	int ret;
 	ptid_t ptid;
 	int retnb;
+	unsigned long flags;
 
 	if (!slc_version_check(driver_data))
 		return PT_PTID_INVALID;
@@ -334,11 +341,14 @@ static ptid_t slc_acpm_alloc(void *data, int property_index, void *resize_data,
 
 	pt_ptid_data_decode(ret, &ptid, &retnb);
 
+
+	spin_lock_irqsave(&driver_data->sl, flags);
 	driver_data->ptids[ptid].vptid = vptid;
 	driver_data->ptids[ptid].size_bits = size_bits;
 	driver_data->ptids[ptid].data = resize_data;
 	driver_data->ptids[ptid].pbha = pbha;
 	driver_data->ptids[ptid].resize = resize;
+	spin_unlock_irqrestore(&driver_data->sl, flags);
 
 	slc_acpm_check(driver_data);
 
@@ -395,6 +405,7 @@ static void slc_acpm_free(void *data, ptid_t ptid)
 	struct slc_acpm_driver_data *driver_data =
 		(struct slc_acpm_driver_data *)data;
 	unsigned int arg;
+	unsigned long flags;
 
 	if (!slc_version_check(driver_data))
 		return;
@@ -402,7 +413,9 @@ static void slc_acpm_free(void *data, ptid_t ptid)
 	WARN_ON(slc_acpm(driver_data, PT_DISABLE, arg, 0 /* unused */, NULL) <
 		0);
 	slc_acpm_check(driver_data);
+	spin_lock_irqsave(&driver_data->sl, flags);
 	memset(&driver_data->ptids[ptid], 0, sizeof(driver_data->ptids[ptid]));
+	spin_unlock_irqrestore(&driver_data->sl, flags);
 }
 
 static void slc_acpm_enable(void *data, ptid_t ptid)
@@ -436,6 +449,7 @@ static int slc_acpm_probe(struct platform_device *pdev)
 	if (driver_data == NULL)
 		return -ENOMEM;
 	memset(driver_data, 0, sizeof(struct slc_acpm_driver_data));
+	spin_lock_init(&driver_data->sl);
 	platform_set_drvdata(pdev, driver_data);
 	driver_data->pdev = pdev;
 	slc_version_check(driver_data);

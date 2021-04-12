@@ -21,9 +21,7 @@
 	 * in the product touch dtsi */
 
 	controller-data {
-		cs-gpio = <&gpp23 3 0>;
 		samsung,spi-feedback-delay = <1>;
 		samsung,spi-chip-select-mode = <0>;
-		cs-clock-delay = <1>;
 	};
 };

@@ -104,6 +104,7 @@
   amba_request_regions
   android_debug_per_cpu_symbol
   android_debug_symbol
+  android_rvh_probe_register
   anon_inode_getfd
   anon_inode_getfd_secure
   anon_inode_getfile
@@ -1477,6 +1478,7 @@
   default_llseek
   default_qdisc_ops
   default_wake_function
+  deferred_free
   __delay
   delayacct_on
   delayed_work_timer_fn
@@ -2078,6 +2080,10 @@
   dma_buf_map_attachment
   dma_buf_mmap
   dma_buf_move_notify
+  dmabuf_page_pool_alloc
+  dmabuf_page_pool_create
+  dmabuf_page_pool_destroy
+  dmabuf_page_pool_free
   dma_buf_pin
   dma_buf_put
   dma_buf_unmap_attachment
@@ -2120,6 +2126,8 @@
   dma_fence_remove_callback
   dma_fence_signal
   dma_fence_signal_locked
+  dma_fence_signal_timestamp
+  dma_fence_signal_timestamp_locked
   dma_fence_wait_any_timeout
   dma_fence_wait_timeout
   dma_find_channel
@@ -3061,6 +3069,7 @@
   drm_self_refresh_helper_update_avg_times
   drm_send_event
   drm_send_event_locked
+  drm_send_event_timestamp_locked
   drm_set_preferred_mode
   drm_simple_display_pipe_attach_bridge
   drm_simple_display_pipe_init
@@ -3107,6 +3116,9 @@
   d_set_fallthru
   d_splice_alias
   dst_alloc
+  dst_blackhole_mtu
+  dst_blackhole_redirect
+  dst_blackhole_update_pmtu
   dst_cache_destroy
   dst_cache_get
   dst_cache_get_ip4
@@ -9028,6 +9040,7 @@
   __SCK__tp_func_android_rvh_new_task_stats
   __SCK__tp_func_android_rvh_pick_next_entity
   __SCK__tp_func_android_rvh_place_entity
+  __SCK__tp_func_android_rvh_post_init_entity_util_avg
   __SCK__tp_func_android_rvh_preempt_disable
   __SCK__tp_func_android_rvh_preempt_enable
   __SCK__tp_func_android_rvh_prepare_prio_fork
@@ -9095,6 +9108,8 @@
   __SCK__tp_func_android_vh_cpu_idle_enter
   __SCK__tp_func_android_vh_cpu_idle_exit
   __SCK__tp_func_android_vh_cpu_up
+  __SCK__tp_func_android_vh_create_worker
+  __SCK__tp_func_android_vh_do_send_sig_info
   __SCK__tp_func_android_vh_do_wake_up_sync
   __SCK__tp_func_android_vh_dump_throttled_rt_tasks
   __SCK__tp_func_android_vh_em_cpu_energy
@@ -9196,6 +9211,9 @@
   __SCK__tp_func_dma_fence_emit
   __SCK__tp_func_dma_fence_enable_signal
   __SCK__tp_func_dma_fence_signaled
+  __SCK__tp_func_dwc3_ep_queue
+  __SCK__tp_func_dwc3_readl
+  __SCK__tp_func_dwc3_writel
   __SCK__tp_func_error_report_end
   __SCK__tp_func_fdb_delete
   __SCK__tp_func_fib6_table_lookup
@@ -11043,6 +11061,7 @@
   __traceiter_android_rvh_new_task_stats
   __traceiter_android_rvh_pick_next_entity
   __traceiter_android_rvh_place_entity
+  __traceiter_android_rvh_post_init_entity_util_avg
   __traceiter_android_rvh_preempt_disable
   __traceiter_android_rvh_preempt_enable
   __traceiter_android_rvh_prepare_prio_fork
@@ -11110,6 +11129,8 @@
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpu_up
+  __traceiter_android_vh_create_worker
+  __traceiter_android_vh_do_send_sig_info
   __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_em_cpu_energy
@@ -11211,6 +11232,9 @@
   __traceiter_dma_fence_emit
   __traceiter_dma_fence_enable_signal
   __traceiter_dma_fence_signaled
+  __traceiter_dwc3_ep_queue
+  __traceiter_dwc3_readl
+  __traceiter_dwc3_writel
   __traceiter_error_report_end
   __traceiter_fdb_delete
   __traceiter_fib6_table_lookup
@@ -11318,6 +11342,7 @@
   __tracepoint_android_rvh_new_task_stats
   __tracepoint_android_rvh_pick_next_entity
   __tracepoint_android_rvh_place_entity
+  __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_preempt_disable
   __tracepoint_android_rvh_preempt_enable
   __tracepoint_android_rvh_prepare_prio_fork
@@ -11385,6 +11410,8 @@
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpu_up
+  __tracepoint_android_vh_create_worker
+  __tracepoint_android_vh_do_send_sig_info
   __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_em_cpu_energy
@@ -11486,6 +11513,9 @@
   __tracepoint_dma_fence_emit
   __tracepoint_dma_fence_enable_signal
   __tracepoint_dma_fence_signaled
+  __tracepoint_dwc3_ep_queue
+  __tracepoint_dwc3_readl
+  __tracepoint_dwc3_writel
   __tracepoint_error_report_end
   __tracepoint_fdb_delete
   __tracepoint_fib6_table_lookup
@@ -12757,7 +12787,6 @@
   vfs_dup_fs_context
   vfs_fadvise
   vfs_fallocate
-  vfs_fstatat
   vfs_fsync
   vfs_fsync_range
   vfs_getattr
@@ -13288,20 +13317,27 @@
   xfrm_unregister_type_offload
   xfrm_user_policy
   xhci_add_endpoint
+  xhci_address_device
   xhci_alloc_command
   xhci_alloc_erst
+  xhci_bus_resume
+  xhci_bus_suspend
   xhci_check_bandwidth
+  xhci_check_trb_in_td_math
   xhci_dbg_trace
   xhci_drop_endpoint
   xhci_ext_cap_init
   xhci_free_command
   xhci_free_erst
   xhci_gen_setup
+  xhci_get_endpoint_address
   xhci_get_endpoint_index
   xhci_get_ep_ctx
   xhci_get_slot_ctx
   xhci_handle_event
   xhci_init_driver
+  xhci_initialize_ring_info
+  xhci_link_segments
   xhci_plat_register_vendor_ops
   xhci_queue_stop_endpoint
   xhci_reset_bandwidth
@@ -13310,6 +13346,7 @@
   xhci_ring_cmd_db
   xhci_ring_free
   xhci_run
+  xhci_segment_free
   xhci_shutdown
   xhci_suspend
   xhci_trb_virt_to_dma
@@ -13380,7 +13417,6 @@
   xt_request_find_match
   xt_request_find_table_lock
   xt_request_find_target
-  xt_table_get_private_protected
   xt_table_unlock
   xt_target_to_user
   xt_tee_enabled

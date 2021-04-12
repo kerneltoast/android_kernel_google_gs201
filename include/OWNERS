@@ -44,3 +44,5 @@ per-file trace/events/thermal_exynos.h=*
 per-file trace/events/ufs_exynos_perf.h=*
 per-file trace/events/ufs_pixel.h=*
 per-file trace/events/zram.h=*
+# include OWNERS from the authoritative android-mainline branch
+include kernel/common:android-mainline:/include/OWNERS

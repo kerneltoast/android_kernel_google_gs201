@@ -211,3 +211,8 @@
 		};
 	};
 };
+
+/* GSA controls MIC power on this platform */
+&m_ldo20_reg {
+	regulator-initial-mode = <1>;  /* GPIO_CONTROL */
+};
