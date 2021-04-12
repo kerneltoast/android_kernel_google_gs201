@@ -52,6 +52,7 @@ VENDOR_RAMDISK_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdi
 KERNEL_VENDOR_CMDLINE="earlycon=exynos4210,0x10A00000 console=ttySAC0,115200 androidboot.console=ttySAC0"
 KERNEL_VENDOR_CMDLINE+=" printk.devkmsg=on androidboot.boot_devices=14700000.ufs"
 KERNEL_VENDOR_CMDLINE+=" at24.write_timeout=100 buildvariant=userdebug"
+KERNEL_VENDOR_CMDLINE+=" log_buf_len=1024K"
 
 VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
 function modify_vendor_ramdisk() {
