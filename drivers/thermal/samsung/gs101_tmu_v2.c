@@ -290,6 +290,65 @@ static unsigned int num_of_devices, suspended_count;
 /* list of multiple instance for each thermal sensor */
 static LIST_HEAD(dtm_dev_list);
 
+static void update_time_in_state(struct throttling_stats *stats)
+{
+	ktime_t now = ktime_get(), delta;
+
+	delta = ktime_sub(now, stats->last_time);
+	if (stats->stats_type == DISABLE_STATS) {
+		stats->disable_time_in_state[stats->disable_state] =
+				ktime_add(stats->disable_time_in_state[stats->disable_state],
+					  delta);
+	}
+
+	if (stats->stats_type == HARDLIMIT_STATS) {
+		stats->hardlimit_time_in_state[stats->hardlimit_state] =
+				ktime_add(stats->hardlimit_time_in_state[stats->hardlimit_state],
+					  delta);
+	}
+	stats->last_time = now;
+}
+
+static void hard_limit_stats_update(struct throttling_stats *stats,
+					int new_state)
+{
+	if (!stats)
+		return;
+
+	spin_lock(&stats->lock);
+
+	if (stats->hardlimit_state == new_state)
+		goto unlock;
+
+	update_time_in_state(stats);
+	stats->hardlimit_state = new_state;
+	if (new_state)
+		stats->hardlimit_total_count++;
+
+unlock:
+	spin_unlock(&stats->lock);
+}
+
+static void disable_stats_update(struct throttling_stats *stats,
+				 int new_state)
+{
+	if (!stats)
+		return;
+
+	spin_lock(&stats->lock);
+
+	if (stats->disable_state == new_state)
+		goto unlock;
+
+	update_time_in_state(stats);
+	stats->disable_state = new_state;
+	if (new_state)
+		stats->disable_total_count++;
+
+unlock:
+	spin_unlock(&stats->lock);
+}
+
 static void gs101_report_trigger(struct gs101_tmu_data *p)
 {
 	struct thermal_zone_device *tz = p->tzd;
@@ -968,6 +1027,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			}
 		}
 	}
+	disable_stats_update(data->disable_stats, data->is_cpu_hotplugged_out);
 
 	mutex_unlock(&data->lock);
 }
@@ -1010,6 +1070,8 @@ static void gs101_throttle_cpu_pause(struct kthread_work *work)
 			}
 		}
 	}
+	disable_stats_update(data->disable_stats, data->is_cpu_paused);
+
 	mutex_unlock(&data->lock);
 }
 
@@ -1096,6 +1158,7 @@ static void gs101_throttle_hard_limit(struct kthread_work *work)
 					    data->hardlimit_cooling_state, data->is_hardlimited);
 		}
 	}
+	hard_limit_stats_update(data->hardlimit_stats, data->is_hardlimited);
 
 err_exit:
 	mutex_unlock(&data->lock);
@@ -1823,6 +1886,144 @@ polling_delay_off_store(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
+static ssize_t
+hardlimit_total_count_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->hardlimit_stats;
+	int ret = 0;
+
+	if (!data->hardlimit_enable)
+		return ret;
+
+	spin_lock(&stats->lock);
+	ret = sysfs_emit(buf, "%u\n", stats->hardlimit_total_count);
+	spin_unlock(&stats->lock);
+
+	return ret;
+}
+
+static const char *switch_stats[] = {"disabled", " enabled"};
+
+static ssize_t
+hardlimit_time_in_state_ms_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->hardlimit_stats;
+	ssize_t len = 0;
+	int i;
+
+	if (!data->hardlimit_enable)
+		return len;
+
+	spin_lock(&stats->lock);
+	update_time_in_state(stats);
+
+	for (i = 0; i < ARRAY_SIZE(switch_stats); i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s\t%llu\n", switch_stats[i],
+				 ktime_to_ms(stats->hardlimit_time_in_state[i]));
+	}
+	spin_unlock(&stats->lock);
+
+	return len;
+}
+
+static ssize_t
+hardlimit_reset_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		      size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->hardlimit_stats;
+	int i;
+
+	if (!data->hardlimit_enable)
+		return count;
+
+	spin_lock(&stats->lock);
+	stats->hardlimit_total_count = 0;
+	stats->last_time = ktime_get();
+
+	for (i = 0; i < ARRAY_SIZE(switch_stats); i++)
+		stats->hardlimit_time_in_state[i] = ktime_set(0, 0);
+
+	spin_unlock(&stats->lock);
+
+	return count;
+}
+
+static ssize_t
+cpu_disable_total_count_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->disable_stats;
+	int ret = 0;
+
+	if (!data->hotplug_enable && !data->pause_enable)
+		return ret;
+
+	spin_lock(&stats->lock);
+	ret = sysfs_emit(buf, "%u\n", stats->disable_total_count);
+	spin_unlock(&stats->lock);
+
+	return ret;
+}
+
+static ssize_t
+cpu_disable_time_in_state_ms_show(struct device *dev, struct device_attribute *attr,
+				  char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->disable_stats;
+	ssize_t len = 0;
+	int i;
+
+	if (!data->hotplug_enable && !data->pause_enable)
+		return len;
+
+	spin_lock(&stats->lock);
+	update_time_in_state(stats);
+
+	for (i = 0; i < ARRAY_SIZE(switch_stats); i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s\t%llu\n", switch_stats[i],
+				 ktime_to_ms(stats->disable_time_in_state[i]));
+	}
+	spin_unlock(&stats->lock);
+
+	return len;
+}
+
+static ssize_t
+cpu_disable_reset_store(struct device *dev, struct device_attribute *attr, const char *buf,
+			size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->disable_stats;
+	int i;
+
+	if (!data->hotplug_enable && !data->pause_enable)
+		return count;
+
+	spin_lock(&stats->lock);
+	stats->disable_total_count = 0;
+	stats->last_time = ktime_get();
+
+	for (i = 0; i < ARRAY_SIZE(switch_stats); i++)
+		stats->disable_time_in_state[i] = ktime_set(0, 0);
+
+	spin_unlock(&stats->lock);
+
+	return count;
+}
+
 #define create_s32_param_attr(name)						\
 	static ssize_t								\
 	name##_show(struct device *dev, struct device_attribute *devattr,	\
@@ -1868,6 +2069,12 @@ static DEVICE_ATTR_RW(cpu_hw_throttling_trigger_temp);
 static DEVICE_ATTR_RW(sustainable_power);
 static DEVICE_ATTR_RW(polling_delay_off);
 static DEVICE_ATTR_RW(polling_delay_on);
+static DEVICE_ATTR_RO(cpu_disable_time_in_state_ms);
+static DEVICE_ATTR_RO(cpu_disable_total_count);
+static DEVICE_ATTR_WO(cpu_disable_reset);
+static DEVICE_ATTR_RO(hardlimit_time_in_state_ms);
+static DEVICE_ATTR_RO(hardlimit_total_count);
+static DEVICE_ATTR_WO(hardlimit_reset);
 create_s32_param_attr(k_po);
 create_s32_param_attr(k_pu);
 create_s32_param_attr(k_i);
@@ -1891,12 +2098,59 @@ static struct attribute *gs101_tmu_attrs[] = {
 	&dev_attr_k_i.attr,
 	&dev_attr_i_max.attr,
 	&dev_attr_integral_cutoff.attr,
+	&dev_attr_cpu_disable_time_in_state_ms.attr,
+	&dev_attr_cpu_disable_total_count.attr,
+	&dev_attr_cpu_disable_reset.attr,
+	&dev_attr_hardlimit_time_in_state_ms.attr,
+	&dev_attr_hardlimit_total_count.attr,
+	&dev_attr_hardlimit_reset.attr,
 	NULL,
 };
 
 static const struct attribute_group gs101_tmu_attr_group = {
 	.attrs = gs101_tmu_attrs,
 };
+
+static void hard_limit_stats_setup(struct gs101_tmu_data *data)
+{
+	struct throttling_stats *stats;
+	int var;
+
+	var = sizeof(*stats);
+	var += sizeof(*stats->hardlimit_time_in_state) * ARRAY_SIZE(switch_stats);
+
+	stats = kzalloc(var, GFP_KERNEL);
+	if (!stats)
+		return;
+
+	stats->stats_type = HARDLIMIT_STATS;
+	stats->hardlimit_time_in_state = (ktime_t *)(stats + 1);
+	mutex_lock(&data->lock);
+	data->hardlimit_stats = stats;
+	mutex_unlock(&data->lock);
+	stats->last_time = ktime_get();
+	spin_lock_init(&stats->lock);
+}
+
+static void cpu_disable_stats_setup(struct gs101_tmu_data *data)
+{
+	struct throttling_stats *stats;
+	int var;
+
+	var = sizeof(*stats);
+	var += sizeof(*stats->disable_time_in_state) * ARRAY_SIZE(switch_stats);
+	stats = kzalloc(var, GFP_KERNEL);
+	if (!stats)
+		return;
+
+	stats->stats_type = DISABLE_STATS;
+	stats->disable_time_in_state = (ktime_t *)(stats + 1);
+	mutex_lock(&data->lock);
+	data->disable_stats = stats;
+	mutex_unlock(&data->lock);
+	stats->last_time = ktime_get();
+	spin_lock_init(&stats->lock);
+}
 
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 static void exynos_acpm_tmu_test_cp_call(bool mode)
@@ -2316,6 +2570,12 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 		kthread_init_delayed_work(&data->pi_work, gs101_pi_polling);
 
 	gs101_tmu_control(pdev, true);
+
+	if (data->hotplug_enable || data->pause_enable)
+		cpu_disable_stats_setup(data);
+
+	if (data->hardlimit_enable)
+		hard_limit_stats_setup(data);
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &gs101_tmu_attr_group);
 	if (ret)

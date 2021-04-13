@@ -110,6 +110,25 @@ struct gs101_tmu_data {
 	struct cpumask tmu_work_affinity;
 	struct cpumask hotplug_work_affinity;
 	char cpuhp_name[CPUHP_USER_NAME_LEN + 1];
+	void *disable_stats;
+	void *hardlimit_stats;
+};
+
+enum throttling_stats_type {
+	DISABLE_STATS = 0,
+	HARDLIMIT_STATS,
+};
+
+struct throttling_stats {
+	spinlock_t lock;
+	int stats_type;
+	unsigned int disable_total_count;
+	unsigned int disable_state;
+	unsigned int hardlimit_total_count;
+	unsigned int hardlimit_state;
+	ktime_t last_time;
+	ktime_t *disable_time_in_state;
+	ktime_t *hardlimit_time_in_state;
 };
 
 #define TMU_TRIMINFO_CONFIG_REG			0
