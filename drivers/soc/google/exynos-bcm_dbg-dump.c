@@ -171,13 +171,13 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 			return IS_ERR(fp);
 		}
 
-		str_size = snprintf(result, PAGE_SIZE,
+		str_size = snprintf(result, BCM_DUMP_MAX_STR,
 				    "last kernel time, %llu\n", last_ktime);
 		vfs_write(fp, result, str_size, &fp->f_pos);
 	}
 #endif
 
-	str_size = snprintf(result, PAGE_SIZE,
+	str_size = snprintf(result, BCM_DUMP_MAX_STR,
 	    "seq_no, ip_index, define_event, time, ccnt, pmcnt0, pmcnt1, pmcnt2, pmcnt3, pmcnt4, pmcnt5, pmcnt6, pmcnt7\n");
 
 #if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
@@ -195,7 +195,7 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 		out_data = (struct exynos_bcm_out_data *)((u8 *)dump_info
 				+ sizeof(struct exynos_bcm_dump_info));
 
-		str_size = snprintf(result, PAGE_SIZE,
+		str_size = snprintf(result, BCM_DUMP_MAX_STR,
 				"%u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u\n",
 				dump_info->dump_seq_no, ip_index, defined_event,
 				out_data->measure_time, out_data->ccnt,
@@ -227,5 +227,90 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_bcm_dbg_buffer_dump);
+
+int exynos_bcm_dbg_dump(struct exynos_bcm_dbg_data *data, char *buff, size_t buff_size, loff_t off)
+{
+	void __iomem *ktime_ptr;
+	struct exynos_bcm_dump_entry *dump_start, *dump_end, *dump_entry;
+	u32 defined_event, ip_index;
+
+	u64 last_ktime;
+	char *line;
+	size_t full_size, buffered_size, line_start_off;
+	size_t line_size, line_done_size, line_todo_size;
+
+	if (!data->dump_addr.p_addr) {
+		BCM_ERR("%s: No memory region for dump\n", __func__);
+		return -ENOMEM;
+	}
+
+	if (buff == NULL) {
+		BCM_ERR("%s: Out buff is NULL\n", __func__);
+		return -ENOMEM;
+	}
+
+	line = kzalloc(sizeof(char) * BCM_DUMP_MAX_LINE_SIZE, GFP_KERNEL);
+	if (line == NULL) {
+		return -ENOMEM;
+	}
+
+	ktime_ptr = data->dump_addr.v_addr;
+	dump_start = (struct exynos_bcm_dump_entry *)(ktime_ptr + EXYNOS_BCM_KTIME_SIZE);
+	dump_end = dump_start + data->dump_addr.buff_size / sizeof(struct exynos_bcm_dump_entry);
+
+	full_size = 0;
+	buffered_size = 0;
+
+	/* Start with the meta data [time stamp] & heading */
+	last_ktime = __raw_readq(ktime_ptr);
+
+	line_size = scnprintf(line, BCM_DUMP_MAX_LINE_SIZE, "last kernel time, %llu\n"
+			"seq_no, ip_index, define_event, time, ccnt, pmcnt0, pmcnt1, pmcnt2, "
+			"pmcnt3, pmcnt4, pmcnt5, pmcnt6, pmcnt7\n", last_ktime);
+	line_start_off = full_size;
+	full_size += line_size;
+
+	if (full_size > off) {
+		line_done_size = max((int)(off - line_start_off), 0);
+		line_todo_size = min(line_size - line_done_size, buff_size - buffered_size);
+		memcpy(buff + buffered_size, line + line_done_size, line_todo_size);
+		buffered_size += line_todo_size;
+		if (buffered_size == buff_size)
+			goto exit;
+	}
+
+	for (dump_entry = dump_start; dump_entry < dump_end; dump_entry++) {
+		defined_event = BCM_CMD_GET(dump_entry->dump_info.dump_header,
+			BCM_EVT_PRE_DEFINE_MASK, BCM_DUMP_PRE_DEFINE_SHIFT);
+		ip_index = BCM_CMD_GET(dump_entry->dump_info.dump_header, BCM_IP_MASK, 0);
+
+		line_size = scnprintf(line, BCM_DUMP_MAX_LINE_SIZE,
+			"%u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u, %u\n",
+			dump_entry->dump_info.dump_seq_no, ip_index, defined_event,
+			dump_entry->dump_data.measure_time, dump_entry->dump_data.ccnt,
+			dump_entry->dump_data.pmcnt[0], dump_entry->dump_data.pmcnt[1],
+			dump_entry->dump_data.pmcnt[2], dump_entry->dump_data.pmcnt[3],
+			dump_entry->dump_data.pmcnt[4], dump_entry->dump_data.pmcnt[5],
+			dump_entry->dump_data.pmcnt[6], dump_entry->dump_data.pmcnt[7]);
+		line_start_off = full_size;
+		full_size += line_size;
+
+		if (full_size > off) {
+			line_done_size = max((int)(off - line_start_off), 0);
+			line_todo_size = min(line_size - line_done_size, buff_size - buffered_size);
+			memcpy(buff + buffered_size, line + line_done_size, line_todo_size);
+			buffered_size += line_todo_size;
+			if (buffered_size == buff_size)
+				break;
+		}
+	}
+
+exit:
+
+	kfree(line);
+
+	return buffered_size;
+}
+EXPORT_SYMBOL_GPL(exynos_bcm_dbg_dump);
 
 MODULE_LICENSE("GPL");

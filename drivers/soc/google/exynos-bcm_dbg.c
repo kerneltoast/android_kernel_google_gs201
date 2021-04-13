@@ -3056,6 +3056,18 @@ static ssize_t store_dump_addr_info(struct file *fp, struct kobject *kobj,
 }
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP)
+static ssize_t bcm_dump_read(struct file *fp, struct kobject *kobj,
+		struct bin_attribute *battr, char *buf, loff_t off, size_t size)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct exynos_bcm_dbg_data *data = platform_get_drvdata(pdev);
+
+	return exynos_bcm_dbg_dump(data, buf, size, off);
+}
+#endif
+
 static ssize_t show_enable_dump_klog(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *battr, char *buf, loff_t off, size_t size)
 {
@@ -3286,6 +3298,9 @@ static BIN_ATTR(ip_ctrl, 0640, show_ip_ctrl, store_ip_ctrl, 0);
 static BIN_ATTR(dump_addr_info, 0640, show_dump_addr_info,
 		store_dump_addr_info, 0);
 #endif
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP)
+static BIN_ATTR_RO(bcm_dump, 0);
+#endif
 static BIN_ATTR(enable_dump_klog, 0640, show_enable_dump_klog,
 		store_enable_dump_klog, 0);
 #if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
@@ -3331,6 +3346,9 @@ static struct bin_attribute *exynos_bcm_dbg_sysfs_entries[] = {
 	&bin_attr_ip_ctrl,
 #if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 	&bin_attr_dump_addr_info,
+#endif
+#if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP)
+	&bin_attr_bcm_dump,
 #endif
 	&bin_attr_enable_dump_klog,
 #if IS_ENABLED(CONFIG_EXYNOS_BCM_DBG_DUMP_FILE)
