@@ -948,6 +948,8 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 		chip->first_toggle = false;
 	}
 
+	/* Re-enable retry */
+	bc12_reset_retry(chip->bc12);
 	if (chip->contaminant_detection)
 		update_contaminant_detection_locked(chip, chip->contaminant_detection);
 	else
