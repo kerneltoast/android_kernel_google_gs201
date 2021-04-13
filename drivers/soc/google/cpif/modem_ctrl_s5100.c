@@ -513,17 +513,18 @@ static int init_control_messages(struct modem_ctl *mc)
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	int ds_det;
 
+	if (modem->offset_cmsg_offset)
+		iowrite32(modem->cmsg_offset, mld->cmsg_offset);
 	if (modem->offset_srinfo_offset)
 		iowrite32(modem->srinfo_offset, mld->srinfo_offset);
+	if (ld->capability_check && modem->offset_capability_offset)
+		iowrite32(modem->capability_offset, mld->capability_offset);
 
 	set_ctrl_msg(&mld->ap2cp_united_status, 0);
 	set_ctrl_msg(&mld->cp2ap_united_status, 0);
 
 	if (ld->capability_check) {
 		int part;
-
-		if (modem->offset_capability_offset)
-			iowrite32(modem->capability_offset, mld->capability_offset);
 
 		for (part = 0; part < AP_CP_CAP_PARTS; part++) {
 			iowrite32(0, mld->ap_capability_offset[part]);
