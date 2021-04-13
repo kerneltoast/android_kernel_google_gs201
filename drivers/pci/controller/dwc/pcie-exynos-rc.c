@@ -718,6 +718,9 @@ static int exynos_pcie_rc_rd_own_conf(struct pcie_port *pp, int where, int size,
 	int is_linked = 0;
 	int ret = 0;
 	u32 __maybe_unused reg_val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
 
 	if (exynos_pcie->state == STATE_LINK_UP)
 		is_linked = 1;
@@ -743,6 +746,7 @@ static int exynos_pcie_rc_rd_own_conf(struct pcie_port *pp, int where, int size,
 		exynos_pcie_rc_phy_clock_enable(pp, PCIE_DISABLE_CLOCK);
 		exynos_pcie_rc_clock_enable(pp, PCIE_DISABLE_CLOCK);
 	}
+	spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags);
 
 	return ret;
 }
@@ -754,7 +758,9 @@ static int exynos_pcie_rc_wr_own_conf(struct pcie_port *pp, int where, int size,
 	int is_linked = 0;
 	int ret = 0;
 	u32 __maybe_unused reg_val;
+	unsigned long flags;
 
+	spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
 	if (exynos_pcie->state == STATE_LINK_UP)
 		is_linked = 1;
 
@@ -780,6 +786,7 @@ static int exynos_pcie_rc_wr_own_conf(struct pcie_port *pp, int where, int size,
 		exynos_pcie_rc_clock_enable(pp, PCIE_DISABLE_CLOCK);
 	}
 
+	spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags);
 	return ret;
 }
 
@@ -2457,6 +2464,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	u32 val, vendor_id, device_id;
 	int ret;
 	struct irq_desc *exynos_pcie_desc;
+	unsigned long flags;
 
 	if (!exynos_pcie) {
 		pr_err("%s: ch#%d PCIe device is not loaded\n", __func__, ch_num);
@@ -2523,7 +2531,9 @@ int exynos_pcie_rc_poweron(int ch_num)
 		 * writel(0x0C, exynos_pcie->phy_pcs_base + 0x0180);
 		 */
 
+		spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
 		exynos_pcie->state = STATE_LINK_UP_TRY;
+		spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags);
 
 		if ((exynos_pcie_desc) && (exynos_pcie_desc->depth > 0))
 			enable_irq(pp->irq);
@@ -2546,7 +2556,10 @@ int exynos_pcie_rc_poweron(int ch_num)
 		val |= HISTORY_BUFFER_ENABLE;
 		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
 
+		spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
 		exynos_pcie->state = STATE_LINK_UP;
+		spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags);
+
 		power_stats_update_up(exynos_pcie);
 
 		dev_dbg(dev, "[%s] exynos_pcie->probe_ok : %d\n", __func__, exynos_pcie->probe_ok);
@@ -2620,7 +2633,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 	struct dw_pcie *pci;
 	struct pcie_port *pp;
 	struct device *dev;
-	unsigned long flags;
+	unsigned long flags, flags1;
 	u32 val;
 
 	if (!exynos_pcie) {
@@ -2636,7 +2649,9 @@ void exynos_pcie_rc_poweroff(int ch_num)
 
 	if (exynos_pcie->state == STATE_LINK_UP ||
 	    exynos_pcie->state == STATE_LINK_DOWN_TRY) {
+		spin_lock_irqsave(&exynos_pcie->reg_lock, flags1);
 		exynos_pcie->state = STATE_LINK_DOWN_TRY;
+		spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags1);
 
 		disable_irq(pp->irq);
 
@@ -3562,6 +3577,8 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
 	spin_lock_init(&exynos_pcie->conf_lock);
 	spin_lock_init(&exynos_pcie->power_stats_lock);
+	spin_lock_init(&exynos_pcie->reg_lock);
+
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to dw pcie host init\n");
