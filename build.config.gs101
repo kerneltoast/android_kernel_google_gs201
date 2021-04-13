@@ -23,6 +23,7 @@ ABI_DEFINITION=android/abi_gki_aarch64_generic.xml
 KMI_ENFORCED=1
 KMI_SYMBOL_LIST=android/abi_gki_aarch64_generic
 ADDITIONAL_KMI_SYMBOL_LISTS="
+android/abi_gki_aarch64_core
 "
 KMI_SYMBOL_LIST_MODULE_GROUPING=0
 
