@@ -2488,7 +2488,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
-			dev_dbg(dev, "ip idle status: %d, index: %d\n",
+			dev_info(dev, "ip idle status: %d, index: %d\n",
 				PCIE_IS_ACTIVE, exynos_pcie->idle_ip_index);
 			exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_ACTIVE);
 		}
@@ -2719,7 +2719,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 #endif
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
-			dev_dbg(dev, "%s, ip idle status: %d, idle_ip_index: %d\n",
+			dev_info(dev, "%s, ip idle status: %d, idle_ip_index: %d\n",
 				__func__, PCIE_IS_IDLE, exynos_pcie->idle_ip_index);
 			exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_IDLE);
 		}
