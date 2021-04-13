@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Oriole touch device tree source
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+&spitouch1 {
+	status = "ok";
+	compatible = "sec,sec_ts";
+
+	spi-max-frequency = <10000000>;
+	spi-cpol;
+	spi-cpha;
+
+	pinctrl-names = "on_state", "off_state";
+
+	sec,panel_map = <&samsung_s6e3hc2_fhd 0>;
+	sec,irq_gpio = <&gpa9 0 0>;
+	sec,reset_gpio = <&gpp26 0 0>;
+	sec,firmware_name = "s6sy79x.bin";
+	sec,mis_cal_check = <1>;
+	sec,heatmap_mode = <1>;
+
+	sec,max_coords = <1080 2340>;
+
+	controller-data {
+		samsung,spi-feedback-delay = <0>;
+		samsung,spi-chip-select-mode = <1>;
+	};
+};
