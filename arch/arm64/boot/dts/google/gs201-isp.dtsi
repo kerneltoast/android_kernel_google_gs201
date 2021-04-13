@@ -692,23 +692,32 @@
 		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
 
 		interrupts =
+			<0 INTREQ_ITP_0_ITP IRQ_TYPE_LEVEL_HIGH>,
+			<0 INTREQ_ITP_0_ITP IRQ_TYPE_LEVEL_HIGH>,
 			<0 IRQ_DNS_0_DNS IRQ_TYPE_LEVEL_HIGH>,
 			<0 IRQ_DNS_1_DNS IRQ_TYPE_LEVEL_HIGH>,
-			<0 IRQ_ITSC_OTF0_MCSC IRQ_TYPE_LEVEL_HIGH>,
 			<0 IRQ_DNS_0_DNS IRQ_TYPE_LEVEL_HIGH>,
-			<0 IRQ_DNS_1_DNS IRQ_TYPE_LEVEL_HIGH>;
+			<0 IRQ_ITSC_0_MCSC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_ITSC_1_MCSC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_ITSC_0_MCSC IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names =
-			"itp-int1",
-			"itp-int2",
-			"itsc-int",
-			"itp-fro-int1",
-			"itp-fro-int2";
+			"itp-itp-int0",
+			"itp-itp-cmdq-int",
+			"itp-dns-int0",
+			"itp-dns-int1",
+			"itp-dns-cmdq-int",
+			"itp-itsc-int0",
+			"itp-itsc-int1",
+			"itp-itsc-cmdq-int";
 		interrupt-event-infos =
-			<&itp_int1>,
-			<&itp_int2>,
-			<&itp_scaler_int>,
-			<&itp_fro_int1>,
-			<&itp_fro_int2>;
+			<&itp_itp_int0>,
+			<&itp_itp_cmdq_int>,
+			<&itp_dns_int0>,
+			<&itp_dns_int1>,
+			<&itp_dns_cmdq_int>,
+			<&itp_itsc_int0>,
+			<&itp_itsc_int1>,
+			<&itp_itsc_cmdq_int>;
 
 		iommus =
 			<&sysmmu_dns>,
