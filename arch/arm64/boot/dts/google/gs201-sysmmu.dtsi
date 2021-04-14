@@ -41,6 +41,10 @@
 		compatible = "samsung,sysmmu-group";
 	};
 
+	iommu_group_aur: iommu_group_aur {
+		compatible = "samsung,sysmmu-group";
+	};
+
 	sysmmu_asoc: sysmmu@1A090000 {
 		compatible = "samsung,sysmmu-v8";
 		reg = <0x0 0x1A090000 0x10000>;
@@ -632,6 +636,38 @@
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0xC)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW   SYSMMU_ID_MASK(0x8, 0xC)>,
 				      <3 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW   SYSMMU_ID_MASK(0xC, 0xC)>;
+		sysmmu,async-fault;
+	};
+
+	/* Often referred to as "sysmmu_aur0" in documentation */
+	sysmmu_aur_idma: sysmmu@25A50000 {
+		compatible = "samsung,sysmmu-v8";
+		reg = <0x0 0x25A50000 0x10000>;
+		interrupts = <0 IRQ_SYSMMU_S1_NS_AUR0_AUR IRQ_TYPE_LEVEL_HIGH>,
+			     <0 IRQ_SYSMMU_S1_S_AUR0_AUR  IRQ_TYPE_LEVEL_HIGH>;
+		qos = <15>;
+		sysmmu,secure-irq;
+		sysmmu,secure_base = <0x25A60000>;
+		port-name = "AUR_IDMA";
+		#iommu-cells = <0>;
+		power-domains = <&pd_aur>;
+		sysmmu,no-s2pf;
+		sysmmu,async-fault;
+	};
+
+	/* Often referred to as "sysmmu_aur1" in documentation */
+	sysmmu_aur_inst_data: sysmmu@25A80000 {
+		compatible = "samsung,sysmmu-v8";
+		reg = <0x0 0x25A80000 0x10000>;
+		interrupts = <0 IRQ_SYSMMU_S1_NS_AUR1_AUR IRQ_TYPE_LEVEL_HIGH>,
+			     <0 IRQ_SYSMMU_S1_S_AUR1_AUR  IRQ_TYPE_LEVEL_HIGH>;
+		qos = <15>;
+		sysmmu,secure-irq;
+		sysmmu,secure_base = <0x25A90000>;
+		port-name = "AUR_INST_DATA";
+		#iommu-cells = <0>;
+		power-domains = <&pd_aur>;
+		sysmmu,no-s2pf;
 		sysmmu,async-fault;
 	};
 };

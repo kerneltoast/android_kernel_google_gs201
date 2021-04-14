@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GXP device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include <dt-bindings/interrupt-controller/gs201.h>
+
+/ {
+	/* GXP */
+	gxp: gxp@25C00000 {
+		compatible = "google,gxp";
+		/*
+		 * DMA buffers are expected in the last 512 MiB of 32-bit space,
+		 * Addresses > 0xF1C00000 are for debug dumpbuffer/firmware
+		 */
+		#dma-address-cells = <1>;
+		#dma-size-cells = <1>;
+		dma-window = <0xE0000000 0x11C00000>;
+		reg = <0x0 0x25C00000 0x01400000
+		       /* Mailboxes */
+		       0x0 0x18380000 0x00001000
+		       0x0 0x183A0000 0x00001000
+		       0x0 0x183C0000 0x00001000
+		       0x0 0x183E0000 0x00001000
+		       /* SSMTs */
+		       0x0 0x25AD0000 0x00010000
+		       0x0 0x25AE0000 0x00010000>;
+		reg-names = "aur",
+			    "mailbox0", "mailbox1", "mailbox2", "mailbox3",
+			    "ssmt_idma", "ssmt_inst_data";
+		interrupts = <GIC_SPI IRQ_MAILBOX_AUR02AP_ALIVE IRQ_TYPE_EDGE_RISING
+			      GIC_SPI IRQ_MAILBOX_AUR12AP_ALIVE IRQ_TYPE_EDGE_RISING
+			      GIC_SPI IRQ_MAILBOX_AUR22AP_ALIVE IRQ_TYPE_EDGE_RISING
+			      GIC_SPI IRQ_MAILBOX_AUR32AP_ALIVE IRQ_TYPE_EDGE_RISING
+			      GIC_SPI IRQ_AUR_WDOG_CPU_IRQ_AUR IRQ_TYPE_EDGE_RISING>;
+		iommus = <&sysmmu_aur_idma>, <&sysmmu_aur_inst_data>;
+		samsung,iommu-group = <&iommu_group_aur>;
+		gxp-fw-region = <&gxp_fw_reserved>;
+		gxp-debug-dump-region = <&gxp_debug_dump_reserved>;
+		gxp-scratchpad-region = <&gxp_scratchpad_reserved>;
+	};
+};
