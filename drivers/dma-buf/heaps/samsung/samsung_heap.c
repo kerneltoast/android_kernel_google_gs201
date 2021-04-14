@@ -15,6 +15,7 @@
 #include <linux/samsung-dma-heap.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/trusty/trusty.h>
 #include <linux/of.h>
 
 #define CREATE_TRACE_POINTS
@@ -265,6 +266,52 @@ struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigne
 	return dmabuf;
 }
 EXPORT_SYMBOL_GPL(samsung_export_dmabuf);
+
+#ifdef CONFIG_TRUSTY_DMA_BUF_FFA_TAG
+static struct buffer_prot_info *samsung_dma_buf_prot_info(struct dma_buf
+							  *dma_buf)
+{
+	struct samsung_dma_buffer *buffer;
+
+	/*
+	 * Check if this is a samsung_dma_buf. If it's not, it's not
+	 * protected, so we can return NULL.
+	 */
+	if (dma_buf->ops != &samsung_dma_buf_ops)
+		return NULL;
+
+	buffer = dma_buf->priv;
+	/*
+	 * If the buffer is not protected, priv may not point at
+	 * a valid protdesc.
+	 */
+	if (!dma_heap_flags_protected(buffer->flags))
+		return NULL;
+
+	return buffer->priv;
+}
+
+static u64 pack_tag(u32 prot_id, u32 dma_va)
+{
+	u64 tag = prot_id;
+
+	tag |= ((u64)dma_va) << 32;
+	return tag;
+}
+
+u64 trusty_dma_buf_get_ffa_tag(struct dma_buf *dma_buf)
+{
+	struct buffer_prot_info *prot_info = samsung_dma_buf_prot_info(dma_buf);
+	/*
+	 * If there's no info_desc, return 0; it's unprotected.
+	 */
+	if (!prot_info)
+		return 0;
+
+	return pack_tag(prot_info->flags, prot_info->dma_addr);
+}
+EXPORT_SYMBOL_GPL(trusty_dma_buf_get_ffa_tag);
+#endif
 
 static int __init samsung_dma_heap_init(void)
 {
