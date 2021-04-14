@@ -302,7 +302,7 @@ void mfc_bufcon_put_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf, int plan
 
 	for (i = 0; i < mfc_buf->num_valid_bufs; i++) {
 		if (mfc_buf->addr[i][plane]) {
-			mfc_debug(4, "[BUFCON] put batch buf addr[%d][%d]: %pad\n",
+			mfc_debug(4, "[BUFCON] put batch buf addr[%d][%d]: 0x%08llx\n",
 					i, plane, mfc_buf->addr[i][plane]);
 		}
 		if (mfc_buf->attachments[i][plane])
@@ -345,20 +345,16 @@ int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 
 		mfc_buf->dmabufs[j][plane] = dmabuf_container_get_buffer(bufcon_dmabuf, i);
 		if (IS_ERR(mfc_buf->dmabufs[i][plane])) {
-			snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
-				"[BUFCON] Failed to get dma_buf (err %ld)",
-				PTR_ERR(mfc_buf->dmabufs[i][plane]));
-			mfc_ctx_err("%s", dev->dev_crash_info);
+			mfc_ctx_err("[BUFCON] Failed to get dma_buf (err %ld)",
+					PTR_ERR(mfc_buf->dmabufs[i][plane]));
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
 		}
 
 		mfc_buf->attachments[j][plane] = dma_buf_attach(mfc_buf->dmabufs[i][plane], dev->device);
 		if (IS_ERR(mfc_buf->attachments[i][plane])) {
-			snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
-				"[BUFCON] Failed to get dma_buf_attach (err %ld)",
-				PTR_ERR(mfc_buf->attachments[i][plane]));
-			mfc_ctx_err("%s", dev->dev_crash_info);
+			mfc_ctx_err("[BUFCON] Failed to get dma_buf_attach (err %ld)",
+					PTR_ERR(mfc_buf->attachments[i][plane]));
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
 		}
@@ -366,15 +362,13 @@ int mfc_bufcon_get_daddr(struct mfc_ctx *ctx, struct mfc_buf *mfc_buf,
 		mfc_buf->addr[j][plane] = ion_iovmm_map(mfc_buf->attachments[i][plane], 0,
 				raw->plane_size[plane], DMA_BIDIRECTIONAL, 0);
 		if (IS_ERR_VALUE(mfc_buf->addr[i][plane])) {
-			snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
-				"[BUFCON] Failed to allocate iova (err %pa)",
-				&mfc_buf->addr[i][plane]);
-			mfc_ctx_err("%s", dev->dev_crash_info);
+			mfc_ctx_err("[BUFCON] Failed to allocate iova (err %pa)",
+					&mfc_buf->addr[i][plane]);
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 			goto err_get_daddr;
 		}
 
-		mfc_debug(4, "[BUFCON] get batch buf addr[%d][%d]: %pad, size: %d\n",
+		mfc_debug(4, "[BUFCON] get batch buf addr[%d][%d]: 0x%08llx, size: %d\n",
 				j, plane, mfc_buf->addr[j][plane], raw->plane_size[plane]);
 		j++;
 	}
@@ -395,7 +389,7 @@ void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, i
 	struct mfc_dev *dev = ctx->dev;
 	int i;
 
-	MFC_TRACE_CTX("DPB[%d] fd: %d addr: %pad put(%d)\n",
+	MFC_TRACE_CTX("DPB[%d] fd: %d addr: %#llx put(%d)\n",
 			index, dpb[index].fd[0], dpb[index].addr[0], dpb[index].mapcnt);
 
 	for (i = 0; i < num_planes; i++) {
@@ -407,7 +401,7 @@ void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, i
 #endif
 
 		if (dpb[index].addr[i])
-			mfc_debug(2, "[IOVMM] index %d buf[%d] fd: %d addr: %pad\n",
+			mfc_debug(2, "[IOVMM] index %d buf[%d] fd: %d addr: %#llx\n",
 					index, i, dpb[index].fd[i], dpb[index].addr[i]);
 		if (dpb[index].sgt[i])
 			dma_buf_unmap_attachment(dpb[index].attach[i], dpb[index].sgt[i],
@@ -428,10 +422,8 @@ void mfc_put_iovmm(struct mfc_ctx *ctx, struct dpb_table *dpb, int num_planes, i
 	mfc_debug(2, "[IOVMM] index %d mapcnt %d\n", index, dpb[index].mapcnt);
 
 	if (dpb[index].mapcnt != 0) {
-		snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
-			"[IOVMM] DPB[%d] %pad invalid mapcnt %d\n",
-			index, dpb[index].addr[0], dpb[index].mapcnt);
-		mfc_ctx_err("%s", dev->dev_crash_info);
+		mfc_ctx_err("[IOVMM] DPB[%d] %#llx invalid mapcnt %d\n",
+				index, dpb[index].addr[0], dpb[index].mapcnt);
 		call_dop(dev, dump_and_stop_debug_mode, dev);
 	}
 }
@@ -444,10 +436,8 @@ void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb, struct dpb_table 
 	int index = mfc_buf->dpb_index;
 
 	if (dpb[index].mapcnt != 0) {
-		snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
-			"[IOVMM] DPB[%d] %pad invalid mapcnt %d\n",
-			index, dpb[index].addr[0], dpb[index].mapcnt);
-		mfc_ctx_err("%s", dev->dev_crash_info);
+		mfc_ctx_err("[IOVMM] DPB[%d] %#llx invalid mapcnt %d\n",
+				index, dpb[index].addr[0], dpb[index].mapcnt);
 		call_dop(dev, dump_and_stop_debug_mode, dev);
 	}
 
@@ -489,18 +479,18 @@ void mfc_get_iovmm(struct mfc_ctx *ctx, struct vb2_buffer *vb, struct dpb_table 
 			goto err_iovmm;
 		}
 
-		mfc_debug(2, "[IOVMM] index %d buf[%d] fd: %d addr: %pad\n",
+		mfc_debug(2, "[IOVMM] index %d buf[%d] fd: %d addr: %#llx\n",
 				index, i, dpb[index].fd[i], dpb[index].addr[i]);
 	}
 
 	dpb[index].paddr = page_to_phys(sg_page(dpb[index].sgt[0]->sgl));
-	mfc_debug(2, "[DPB] dpb index [%d][%d] paddr %pa[p] daddr %pad\n",
+	mfc_debug(2, "[DPB] dpb index [%d][%d] paddr %#llx daddr %#llx\n",
 			mfc_buf->vb.vb2_buf.index,
 			index, dpb[index].paddr, dpb[index].addr[0]);
 
 	dpb[index].mapcnt++;
 	mfc_debug(2, "[IOVMM] index %d mapcnt %d\n", index, dpb[index].mapcnt);
-	MFC_TRACE_CTX("DPB[%d] fd: %d addr: %pad get(%d)\n",
+	MFC_TRACE_CTX("DPB[%d] fd: %d addr: %#llx get(%d)\n",
 			index, dpb[index].fd[0], dpb[index].addr[0], dpb[index].mapcnt);
 
 	return;
@@ -542,11 +532,10 @@ void mfc_cleanup_iovmm(struct mfc_ctx *ctx)
 		} else if (dec->dpb[i].mapcnt == 1) {
 			mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
 		} else {
-			snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN,
-					"[IOVMM] DPB[%d] %pad invalid mapcnt %d\n",
+			mfc_ctx_err("[IOVMM] DPB[%d] %#llx invalid mapcnt %d\n",
 					i, dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
-			mfc_ctx_err("%s", dev->dev_crash_info);
-			MFC_TRACE_CTX("%s", dev->dev_crash_info);
+			MFC_TRACE_CTX("DPB[%d] %#llx invalid mapcnt %d\n",
+					i, dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
 			call_dop(dev, dump_and_stop_debug_mode, dev);
 		}
 	}
@@ -568,9 +557,9 @@ void mfc_cleanup_iovmm_except_used(struct mfc_ctx *ctx)
 			dec->dpb_table_used &= ~(1UL << i);
 			mfc_put_iovmm(ctx, dec->dpb, ctx->dst_fmt->mem_planes, i);
 		} else {
-			mfc_ctx_err("[IOVMM] DPB[%d] %pad invalid mapcnt %d\n",
+			mfc_ctx_err("[IOVMM] DPB[%d] %#llx invalid mapcnt %d\n",
 					i, dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
-			MFC_TRACE_CTX("DPB[%d] %pad invalid mapcnt %d\n",
+			MFC_TRACE_CTX("DPB[%d] %#llx invalid mapcnt %d\n",
 					i, dec->dpb[i].addr[0], dec->dpb[i].mapcnt);
 		}
 	}
@@ -636,14 +625,14 @@ int mfc_iommu_map_sfr(struct mfc_core *core)
 		reserved_size = of_read_number(prop + i + n_addr_cells, n_size_cells);
 		if (reserved_base == core->core_pdata->gdc_votf_base) {
 			core->has_gdc_votf = 1;
-			mfc_core_info("iommu mapped at GDC vOTF SFR %pad ++ %#zx\n",
+			mfc_core_info("iommu mapped at GDC vOTF SFR %#llx ++ %#zx\n",
 					reserved_base, reserved_size);
 		} else if (reserved_base == core->core_pdata->dpu_votf_base) {
 			core->has_dpu_votf = 1;
-			mfc_core_info("iommu mapped at DPU vOTF SFR %pad ++ %#zx\n",
+			mfc_core_info("iommu mapped at DPU vOTF SFR %#llx ++ %#zx\n",
 					reserved_base, reserved_size);
 		} else {
-			mfc_core_err("iommu mapped at unknown SFR %pad ++ %#zx\n",
+			mfc_core_err("iommu mapped at unknown SFR %#llx ++ %#zx\n",
 					reserved_base, reserved_size);
 			return -EINVAL;
 		}

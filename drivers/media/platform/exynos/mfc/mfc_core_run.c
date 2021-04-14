@@ -230,10 +230,8 @@ int mfc_core_run_sleep(struct mfc_core *core)
 	core->int_condition = 0;
 	if (core->int_err != 0 || core->int_reason != MFC_REG_R2H_CMD_SLEEP_RET) {
 		/* Failure. */
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-			"Failed to sleep - error: %d, int: %d\n",
+		mfc_core_err("Failed to sleep - error: %d, int: %d\n",
 				core->int_err, core->int_reason);
-		mfc_core_err("%s", core->crash_info);
 		call_dop(core, dump_and_stop_debug_mode, core);
 		return -EBUSY;
 	}
@@ -306,10 +304,8 @@ int mfc_core_run_wakeup(struct mfc_core *core)
 	core->int_condition = 0;
 	if (core->int_err != 0 || core->int_reason != MFC_REG_R2H_CMD_WAKEUP_RET) {
 		/* Failure. */
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-			"Failed to wakeup - error: %d, int: %d\n",
+		mfc_core_err("Failed to wakeup - error: %d, int: %d\n",
 				core->int_err, core->int_reason);
-		mfc_core_err("%s", core->crash_info);
 		call_dop(core, dump_and_stop_debug_mode, core);
 	}
 

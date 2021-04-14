@@ -136,8 +136,7 @@ int mfc_wait_for_done_ctx_migrate(struct mfc_dev *dev, struct mfc_ctx *ctx)
 			(ctx->is_migration == 0),
 			msecs_to_jiffies(timeout));
 	if (ret == 0) {
-		snprintf(dev->dev_crash_info, MFC_CRASH_INFO_LEN, "migration timed out\n");
-		mfc_ctx_err("%s", dev->dev_crash_info);
+		mfc_ctx_err("migration timed out\n");
 		call_dop(dev, dump_and_stop_debug_mode, dev);
 		return 1;
 	}
@@ -186,9 +185,6 @@ int mfc_wait_for_done_core(struct mfc_core *core, int command)
 				goto wait_done;
 			}
 		}
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-					"Interrupt (core->int_reason:%d, command:%d) timed out\n",
-							core->int_reason, command);
 		call_dop(core, dump_and_stop_debug_mode, core);
 		return 1;
 	}
@@ -244,9 +240,6 @@ int mfc_wait_for_done_core_ctx(struct mfc_core_ctx *core_ctx, int command)
 				goto wait_done;
 			}
 		}
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-					"Interrupt (core_ctx->int_reason:%d, command:%d) timed out\n",
-						core_ctx->int_reason, command);
 		call_dop(core, dump_and_stop_debug_mode, core);
 		return 1;
 	}

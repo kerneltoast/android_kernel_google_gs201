@@ -509,9 +509,7 @@ static void __mfc_handle_released_buf(struct mfc_core *core, struct mfc_ctx *ctx
 		if (dec->dynamic_used & (1UL << i)) {
 			dec->dpb[i].ref = 1;
 			if (dec->dpb[i].mapcnt == 0) {
-				snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-					"[DPB] %d index is no dpb table\n", i);
-				mfc_ctx_err("%s", core->crash_info);
+				mfc_ctx_err("[DPB] %d index is no dpb table\n", i);
 				call_dop(core, dump_and_stop_debug_mode, core);
 			}
 		}
@@ -1017,11 +1015,8 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 		mfc_core_dec_save_regression_result(core);
 
 #ifdef CONFIG_MFC_USE_COREDUMP
-	if (sscd_report && (ctx->frame_cnt == 200)) {
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-			"Manual trgger MFC SSR in decoding.\n");
+	if (sscd_report && (ctx->frame_cnt == 200))
 		call_dop(core, dump_and_stop_debug_mode, core);
-	}
 #endif
 
 leave_handle_frame:
@@ -1875,8 +1870,7 @@ irqreturn_t mfc_core_irq(int irq, void *priv)
 	mfc_core_debug_enter();
 
 	if (mfc_core_pm_get_pwr_ref_cnt(core) == 0) {
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN, "no mfc power on\n");
-		mfc_core_err("%s", core->crash_info);
+		mfc_core_err("no mfc power on\n");
 		call_dop(core, dump_and_stop_debug_mode, core);
 		goto irq_end;
 	}
@@ -1901,11 +1895,8 @@ irqreturn_t mfc_core_irq(int irq, void *priv)
 			(err && (reason != MFC_REG_R2H_CMD_ERR_RET)))
 		call_dop(core, dump_regs, core);
 
-	if (__mfc_core_is_err_condition(err)) {
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-			"MFC is in err:%d, so calling SSR\n", err);
+	if (__mfc_core_is_err_condition(err))
 		call_dop(core, dump_and_stop_debug_mode, core);
-	}
 
 	if (core->nal_q_handle) {
 		ret = __mfc_nal_q_irq(core, reason, err);

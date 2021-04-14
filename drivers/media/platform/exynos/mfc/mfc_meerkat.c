@@ -40,7 +40,6 @@ static void __mfc_dump_info_and_stop_hw_debug(struct mfc_dev *dev)
 	if (!dev->pdata->debug_mode && !debug_mode_en)
 		return;
 
-	strlcpy(core->crash_info, dev->dev_crash_info, sizeof(core->crash_info));
 	call_dop(core, dump_and_stop_debug_mode, core);
 }
 

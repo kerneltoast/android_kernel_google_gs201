@@ -1944,9 +1944,7 @@ static void __mfc_core_nal_q_handle_released_buf(struct mfc_core *core, struct m
 		if (dec->dynamic_used & (1UL << i)) {
 			dec->dpb[i].ref = 1;
 			if (dec->dpb[i].mapcnt == 0) {
-				snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-					"[NALQ][DPB] %d index is no dpb table\n", i);
-				mfc_ctx_err("%s", core->crash_info);
+				mfc_ctx_err("[NALQ][DPB] %d index is no dpb table\n", i);
 				call_dop(core, dump_and_stop_debug_mode, core);
 			}
 		}
@@ -2309,10 +2307,8 @@ void __mfc_core_nal_q_handle_frame(struct mfc_core *core, struct mfc_core_ctx *c
 				dec->is_dpb_full);
 
 #ifdef CONFIG_MFC_USE_COREDUMP
-	if (sscd_report && (ctx->frame_cnt == 200)) {
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN, "Manual trgger MFC SSR\n");
+	if (sscd_report && (ctx->frame_cnt == 200))
 		call_dop(core, dump_and_stop_debug_mode, core);
-	}
 #endif
 
 leave_handle_frame:
