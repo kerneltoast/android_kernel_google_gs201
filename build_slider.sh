@@ -35,4 +35,8 @@ OUT_DIR=${BASE_OUT}/device-kernel/
 # build the whitefin/slider Kernel
 BUILD_CONFIG=private/gs-google/build.config.slider \
   build/build.sh KCFLAGS=-Werror "$@"
-
+error_code=$?
+if [ $error_code -ne 0 ]; then
+  echo "ERROR: Failed to compile device-kernel. (ret=$error_code)" >&2
+  exit "$error_code"
+fi
