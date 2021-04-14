@@ -837,13 +837,6 @@
   ieee80211_channel_to_freq_khz
   ieee80211_freq_khz_to_channel
   ieee80211_get_channel_khz
-  ieee802154_alloc_hw
-  ieee802154_free_hw
-  ieee802154_register_hw
-  ieee802154_rx_irqsafe
-  ieee802154_unregister_hw
-  ieee802154_wake_queue
-  ieee802154_xmit_complete
   iio_device_unregister
   import_iovec
   in6_pton
