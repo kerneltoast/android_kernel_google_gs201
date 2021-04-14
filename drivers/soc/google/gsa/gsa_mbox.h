@@ -44,6 +44,11 @@ enum gsa_mbox_cmd {
 	GSA_MB_CMD_KDN_PROGRAM_KEY = 73,
 	GSA_MB_CMD_KDN_RESTORE_KEYS = 74,
 	GSA_MB_CMD_KDN_SET_OP_MODE = 75,
+
+	/* AOC management */
+	GSA_MB_CMD_LOAD_AOC_FW_IMG = 90,
+	GSA_MB_CMD_AOC_CMD = 91,
+	GSA_MB_CMD_UNLOAD_AOC_FW_IMG = 92,
 };
 
 /**
@@ -58,6 +63,7 @@ enum gsa_mbox_cmd {
  *     %GSA_MB_CMD_AUTH_IMG
  *     %GSA_MB_CMD_LOAD_FW_IMG
  *     %GSA_MB_CMD_LOAD_TPU_FW_IMG
+ *     %GSA_MB_CMD_LOAD_AOC_FW_IMG
  */
 enum img_loader_args {
 	IMG_LOADER_HEADER_ADDR_LO_IDX = 0,

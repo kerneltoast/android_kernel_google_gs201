@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <linux/gsa/gsa_aoc.h>
 #include <linux/gsa/gsa_kdn.h>
 #include <linux/gsa/gsa_tpu.h>
 #include "gsa_mbox.h"
@@ -27,6 +28,7 @@ struct gsa_dev_state {
 	void *bb_va;
 	size_t bb_sz;
 	struct mutex bb_lock; /* protects access to bounce buffer */
+	struct gsa_tz_chan_ctx aoc_srv;
 	struct gsa_tz_chan_ctx tpu_srv;
 };
 
@@ -138,6 +140,36 @@ static int gsa_tz_send_hwmgr_unload_fw_image_cmd(struct gsa_tz_chan_ctx *ctx)
 
 	return 0;
 }
+
+/*
+ *  External AOC interface
+ */
+int gsa_load_aoc_fw_image(struct device *gsa,
+			  dma_addr_t img_meta,
+			  phys_addr_t img_body)
+{
+	return gsa_send_load_img_cmd(gsa, GSA_MB_CMD_LOAD_AOC_FW_IMG,
+				     img_meta, img_body);
+}
+EXPORT_SYMBOL_GPL(gsa_load_aoc_fw_image);
+
+int gsa_unload_aoc_fw_image(struct device *gsa)
+{
+	struct platform_device *pdev = to_platform_device(gsa);
+	struct gsa_dev_state *s = platform_get_drvdata(pdev);
+
+	return gsa_tz_send_hwmgr_unload_fw_image_cmd(&s->aoc_srv);
+}
+EXPORT_SYMBOL_GPL(gsa_unload_aoc_fw_image);
+
+int gsa_send_aoc_cmd(struct device *gsa, enum gsa_aoc_cmd arg)
+{
+	struct platform_device *pdev = to_platform_device(gsa);
+	struct gsa_dev_state *s = platform_get_drvdata(pdev);
+
+	return gsa_tz_send_hwmgr_state_cmd(&s->aoc_srv, arg);
+}
+EXPORT_SYMBOL_GPL(gsa_send_aoc_cmd);
 
 /*
  *  External TPU interface
@@ -354,6 +386,7 @@ static int gsa_probe(struct platform_device *pdev)
 	s->bb_sz = PAGE_SIZE;
 
 	/* Initialize TZ serice link to HWMGR */
+	gsa_tz_chan_ctx_init(&s->aoc_srv, HWMGR_AOC_PORT, dev);
 	gsa_tz_chan_ctx_init(&s->tpu_srv, HWMGR_TPU_PORT, dev);
 
 	dev_info(dev, "Initialized\n");
@@ -366,6 +399,7 @@ static int gsa_remove(struct platform_device *pdev)
 	struct gsa_dev_state *s = platform_get_drvdata(pdev);
 
 	/* close connection to tz services */
+	gsa_tz_chan_close(&s->aoc_srv);
 	gsa_tz_chan_close(&s->tpu_srv);
 
 	return 0;
