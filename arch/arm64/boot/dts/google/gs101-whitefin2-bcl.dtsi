@@ -197,7 +197,7 @@
 
 		trips {
 			soft_ocp_cpu2:soft-ocp-cpu2 {
-				temperature = <12000>;
+				temperature = <9000>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -225,7 +225,7 @@
 
 		trips {
 			soft_ocp_tpu:soft-ocp-tpu {
-				temperature = <10500>;
+				temperature = <8500>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -253,7 +253,7 @@
 
 		trips {
 			soft_ocp_gpu:soft-ocp-gpu {
-				temperature = <12000>;
+				temperature = <9000>;
 				hysteresis = <100>;
 				type = "passive";
 			};
