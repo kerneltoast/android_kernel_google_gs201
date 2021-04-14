@@ -243,6 +243,25 @@ struct modem_data {
 	struct cp_btl btl;	/* CP background trace log */
 };
 
+enum cp_gpio_type {
+	CP_GPIO_AP2CP_CP_PWR,
+	CP_GPIO_AP2CP_NRESET,
+	CP_GPIO_AP2CP_WAKEUP,
+	CP_GPIO_AP2CP_DUMP_NOTI,
+	CP_GPIO_AP2CP_AP_ACTIVE,
+	CP_GPIO_CP2AP_PS_HOLD,
+	CP_GPIO_CP2AP_WAKEUP,
+	CP_GPIO_CP2AP_CP_ACTIVE,
+	CP_GPIO_MAX
+};
+
+enum cp_gpio_irq_type {
+	CP_GPIO_IRQ_NONE,
+	CP_GPIO_IRQ_CP2AP_WAKEUP,
+	CP_GPIO_IRQ_CP2AP_CP_ACTIVE,
+	CP_GPIO_IRQ_MAX
+};
+
 struct modem_irq {
 	spinlock_t lock;
 	unsigned int num;
@@ -254,8 +273,13 @@ struct modem_irq {
 };
 
 struct cpif_gpio {
+	bool valid;
 	int num;
+	enum cp_gpio_irq_type irq_type;
 	const char *label;
+	const char *node_name;
+	void (*set_gpio_value)(unsigned int gpio, int value);
+	int (*get_gpio_value)(unsigned int gpio);
 };
 
 #if IS_ENABLED(CONFIG_OF)

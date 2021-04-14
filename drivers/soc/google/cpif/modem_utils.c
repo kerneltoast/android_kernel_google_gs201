@@ -28,7 +28,6 @@
 #include <linux/mutex.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <soc/google/exynos-modem-ctrl.h>
@@ -1028,16 +1027,16 @@ bool mif_gpio_set_value(struct cpif_gpio *gpio, int value, unsigned int delay_ms
 {
 	int dup = 0;
 
-	if (!gpio_is_valid(gpio->num)) {
-		mif_err("SET GPIO %d is failed\n", gpio->num);
+	if (!gpio->valid) {
+		mif_err("GET GPIO %d is not valid\n", gpio->num);
 		return false;
 	}
 
-	if (gpio_get_value(gpio->num) == value)
+	if (gpio->get_gpio_value(gpio->num) == value)
 		dup = 1;
 
 	/* set gpio even if it is set already */
-	gpio_set_value(gpio->num, value);
+	gpio->set_gpio_value(gpio->num, value);
 
 	mif_debug("SET GPIO %s = %d (wait %dms, dup %d)\n", gpio->label, value, delay_ms, dup);
 
@@ -1052,23 +1051,25 @@ bool mif_gpio_set_value(struct cpif_gpio *gpio, int value, unsigned int delay_ms
 
 	return (!dup);
 }
+EXPORT_SYMBOL(mif_gpio_set_value);
 
 int mif_gpio_get_value(struct cpif_gpio *gpio, bool log_print)
 {
 	int value;
 
-	if (!gpio_is_valid(gpio->num)) {
-		mif_err("GET GPIO %d is failed\n", gpio->num);
+	if (!gpio->valid) {
+		mif_err("GET GPIO %d is not valid\n", gpio->num);
 		return -EINVAL;
 	}
 
-	value = gpio_get_value(gpio->num);
+	value = gpio->get_gpio_value(gpio->num);
 
 	if (log_print)
 		mif_debug("GET GPIO %s = %d\n", gpio->label, value);
 
 	return value;
 }
+EXPORT_SYMBOL(mif_gpio_get_value);
 
 int mif_gpio_toggle_value(struct cpif_gpio *gpio, int delay_ms)
 {
@@ -1080,6 +1081,7 @@ int mif_gpio_toggle_value(struct cpif_gpio *gpio, int delay_ms)
 
 	return value;
 }
+EXPORT_SYMBOL(mif_gpio_toggle_value);
 
 int board_gpio_export(struct device *dev,
 		unsigned int gpio, bool dir, const char *name)

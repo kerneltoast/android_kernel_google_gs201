@@ -723,17 +723,8 @@ struct modem_ctl {
 	atomic_t dump_toggle_issued;
 #endif
 
-	struct cpif_gpio s5100_gpio_cp_pwr;
-	struct cpif_gpio s5100_gpio_cp_reset;
-	struct cpif_gpio s5100_gpio_cp_ps_hold;
-	struct cpif_gpio s5100_gpio_cp_wakeup;
-	struct cpif_gpio s5100_gpio_cp_dump_noti;
-	struct cpif_gpio s5100_gpio_ap_status;
-	struct cpif_gpio s5100_gpio_ap_wakeup;
-	struct cpif_gpio s5100_gpio_phone_active;
-
-	struct modem_irq s5100_irq_ap_wakeup;
-	struct modem_irq s5100_irq_phone_active;
+	struct cpif_gpio cp_gpio[CP_GPIO_MAX];
+	struct modem_irq cp_gpio_irq[CP_GPIO_IRQ_MAX];
 
 	bool s5100_cp_reset_required;
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
