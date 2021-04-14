@@ -1,14 +1,4 @@
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
-. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
-
-DEFCONFIG=slider_gki_defconfig
-PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/slider_gki.fragment"
-POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
-
-LIBUFDT_PREBUILTS_BIN=prebuilts-master/misc/linux-x86/libufdt
-DTC_OVERLAY_TEST_EXT=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/bin/ufdt_apply_overlay
-
-KERNEL_BINARY=Image.lz4
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gs101
 
 MAKE_GOALS="
 ${KERNEL_BINARY}
@@ -20,39 +10,13 @@ google/gs101-dpm-eng.dtbo
 google/gs101-dpm-user.dtbo
 "
 
-FILES="
+FILES="$FILES
 arch/arm64/boot/dts/google/gs101-a0.dtb
 arch/arm64/boot/dts/google/gs101-b0.dtb
 arch/arm64/boot/dts/google/dtbo.img
 arch/arm64/boot/dts/google/gs101-dpm-eng.dtbo
 arch/arm64/boot/dts/google/gs101-dpm-user.dtbo
 "
-
-if [ -z "$MIXED_BUILD" ]; then
-FILES="$FILES
-.config
-vmlinux
-System.map
-arch/arm64/boot/${KERNEL_BINARY}
-"
-fi
-
-ABI_DEFINITION=android/abi_gki_aarch64_generic.xml
-KMI_ENFORCED=1
-KMI_SYMBOL_LIST=android/abi_gki_aarch64_generic
-ADDITIONAL_KMI_SYMBOL_LISTS="
-"
-KMI_SYMBOL_LIST_MODULE_GROUPING=0
-
-BUILD_INITRAMFS=1
-LZ4_RAMDISK=1
-BUILD_BOOT_IMG=1
-GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-aosp_arm64.img
-VENDOR_RAMDISK_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-oriole.img
-KERNEL_VENDOR_CMDLINE="earlycon=exynos4210,0x10A00000 console=ttySAC0,115200 androidboot.console=ttySAC0"
-KERNEL_VENDOR_CMDLINE+=" printk.devkmsg=on androidboot.boot_devices=14700000.ufs"
-KERNEL_VENDOR_CMDLINE+=" at24.write_timeout=100 buildvariant=userdebug"
-KERNEL_VENDOR_CMDLINE+=" log_buf_len=1024K"
 
 VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
 function modify_vendor_ramdisk() {
@@ -61,11 +25,6 @@ function modify_vendor_ramdisk() {
   ln -f init.recovery.gs101.rc init.recovery.oriole.rc
   ln -f init.recovery.gs101.rc init.recovery.raven.rc
 }
-
-AVB_SIGN_BOOT_IMG=1
-AVB_BOOT_PARTITION_SIZE=0x04000000
-AVB_BOOT_KEY=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/share/avb/testkey_rsa2048.pem
-AVB_BOOT_ALGORITHM=SHA256_RSA2048
 
 EXT_MODULES="
 private/google-modules/display/samsung
@@ -90,12 +49,3 @@ private/google-modules/power/reset
 private/google-modules/bluetooth/broadcom
 private/google-modules/nfc
 "
-
-UWB_MODULE="private/google-modules/uwb/kernel"
-if [ -d "${ROOT_DIR}/${UWB_MODULE}" ]; then
-EXT_MODULES+=${UWB_MODULE}
-fi
-
-if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
-source ${GKI_DEFCONFIG_FRAGMENT}
-fi
