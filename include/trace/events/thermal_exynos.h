@@ -113,11 +113,10 @@ TRACE_EVENT(thermal_exynos_power_gpu_limit,
 );
 
 TRACE_EVENT(thermal_exynos_power_allocator,
-	TP_PROTO(struct thermal_zone_device *tz,
-		 u32 power_range, u32 max_allocatable_power,
-		 int current_temp, s32 delta_temp, unsigned long cdev_state),
+	TP_PROTO(struct thermal_zone_device *tz, u32 power_range, u32 max_allocatable_power,
+		 int current_temp, s32 delta_temp, unsigned long cdev_state, bool is_hardlimited),
 	TP_ARGS(tz, power_range, max_allocatable_power,
-		current_temp, delta_temp, cdev_state),
+		current_temp, delta_temp, cdev_state, is_hardlimited),
 	TP_STRUCT__entry(
 		__field(int, tz_id)
 		__field(u32, power_range)
@@ -125,6 +124,7 @@ TRACE_EVENT(thermal_exynos_power_allocator,
 		__field(int, current_temp)
 		__field(s32, delta_temp)
 		__field(unsigned long, cdev_state)
+		__field(bool, is_hardlimited)
 	),
 	TP_fast_assign(
 		__entry->tz_id = tz->id;
@@ -133,12 +133,13 @@ TRACE_EVENT(thermal_exynos_power_allocator,
 		__entry->current_temp = current_temp;
 		__entry->delta_temp = delta_temp;
 		__entry->cdev_state = cdev_state;
+		__entry->is_hardlimited = is_hardlimited;
 	),
 
-	TP_printk("thermal_zone_id=%d power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d cdev_state=%lu",
-		  __entry->tz_id,
-		  __entry->power_range, __entry->max_allocatable_power,
-		  __entry->current_temp, __entry->delta_temp, __entry->cdev_state)
+	TP_printk("thermal_zone_id=%d power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d cdev_state=%lu is_hardlimited=%d",
+		  __entry->tz_id, __entry->power_range, __entry->max_allocatable_power,
+		  __entry->current_temp, __entry->delta_temp,
+		  __entry->cdev_state, __entry->is_hardlimited)
 );
 
 TRACE_EVENT(thermal_exynos_power_allocator_pid,
@@ -205,6 +206,91 @@ TRACE_EVENT(vendor_cdev_update,
 	TP_printk("cdev:%s sysfs_req=%lu, state=%lu", __entry->cdev_type,
 					__entry->sysfs_req, __entry->state)
 );
+
+TRACE_EVENT(thermal_exynos_hard_limit_cdev_update,
+	TP_PROTO(const char *tmu_name, const char *cdev_type, bool is_hardlimited,
+		 bool pid_switch_on, unsigned long prev_max_state, unsigned long state),
+
+	TP_ARGS(tmu_name, cdev_type, is_hardlimited, pid_switch_on, prev_max_state, state),
+
+	TP_STRUCT__entry(
+		__field(const char *, tmu_name)
+		__field(const char *, cdev_type)
+		__field(bool, is_hardlimited)
+		__field(bool, pid_switch_on)
+		__field(unsigned long, prev_max_state)
+		__field(unsigned long, state)
+	),
+
+	TP_fast_assign(
+		__entry->tmu_name = tmu_name;
+		__entry->cdev_type = cdev_type;
+		__entry->is_hardlimited = is_hardlimited;
+		__entry->pid_switch_on = pid_switch_on;
+		__entry->prev_max_state = prev_max_state;
+		__entry->state = state;
+	),
+
+	TP_printk("tmu_name:%s cdev:%s, is_hardlimited=%d, pid_switch_on=%d, prev_max_state=%lu, state=%lu",
+					__entry->tmu_name, __entry->cdev_type,
+					__entry->is_hardlimited, __entry->pid_switch_on,
+					__entry->prev_max_state, __entry->state)
+);
+
+TRACE_EVENT(thermal_exynos_cpu_pause,
+	TP_PROTO(const char *tmu_name, const struct cpumask *cpus, bool is_cpu_paused),
+
+	TP_ARGS(tmu_name, cpus, is_cpu_paused),
+
+	TP_STRUCT__entry(
+		__field(const char *, tmu_name)
+		__bitmask(cpumask, num_possible_cpus())
+		__field(bool, is_cpu_paused)
+	),
+
+	TP_fast_assign(
+		__entry->tmu_name = tmu_name;
+		__assign_bitmask(cpumask, cpumask_bits(cpus),
+				 num_possible_cpus());
+		__entry->is_cpu_paused = is_cpu_paused;
+	),
+
+	TP_printk("tmu_name:%s cpus=%s, is_cpu_paused=%d", __entry->tmu_name,
+					__get_bitmask(cpumask), __entry->is_cpu_paused)
+);
+
+TRACE_EVENT(thermal_exynos_arm_update,
+	TP_PROTO(const char *tmu_name, bool is_cpu_hw_throttled,
+		 int ppm_throttle_level, int ppm_clr_level,
+		 int mpmm_throttle_level, int mpmm_clr_level),
+
+	TP_ARGS(tmu_name, is_cpu_hw_throttled, ppm_throttle_level, ppm_clr_level,
+		mpmm_throttle_level, mpmm_clr_level),
+
+	TP_STRUCT__entry(
+		__field(const char *, tmu_name)
+		__field(bool, is_cpu_hw_throttled)
+		__field(int, ppm_throttle_level)
+		__field(int, ppm_clr_level)
+		__field(int, mpmm_throttle_level)
+		__field(int, mpmm_clr_level)
+	),
+
+	TP_fast_assign(
+		__entry->tmu_name = tmu_name;
+		__entry->is_cpu_hw_throttled = is_cpu_hw_throttled;
+		__entry->ppm_throttle_level = ppm_throttle_level;
+		__entry->ppm_clr_level = ppm_clr_level;
+		__entry->mpmm_throttle_level = mpmm_throttle_level;
+		__entry->mpmm_clr_level = mpmm_clr_level;
+	),
+
+	TP_printk("tmu_name:%s is_cpu_hw_throttled=%d, ppm_throttle_lvl=0x%x, ppm_clr_lvl=0x%x, mpmm_throttle_lvl=0x%x, mpmm_clr_lvl=0x%x",
+					__entry->tmu_name, __entry->is_cpu_hw_throttled,
+					__entry->ppm_throttle_level, __entry->ppm_clr_level,
+					__entry->mpmm_throttle_level, __entry->mpmm_clr_level)
+);
+
 #endif /* _TRACE_THERMAL_EXYNOS_H */
 
 /* This part must be outside protection */
