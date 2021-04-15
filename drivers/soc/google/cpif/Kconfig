@@ -109,7 +109,7 @@ config MODEM_IF_LEGACY_QOS
 	  This enables QoS for legacy buffer model
 
 config SUSPEND_DURING_VOICE_CALL
-	tristate "control wake_lock by voice call start/end notification"
+	bool "control wake_lock by voice call start/end notification"
 	depends on LINK_DEVICE_PCIE
 	default n
 	help
@@ -145,11 +145,18 @@ config CP_LCD_NOTIFIER
 	  This enables LCD notifier for CP
 
 config LINK_DEVICE_PCIE_GPIO_WA
-	tristate "Workaround for discarded GPIOs"
+	bool "Workaround for discarded GPIOs"
 	depends on LINK_DEVICE_PCIE
 	default n
 	help
 	  Use a GPIO for the other purpose instead
+
+config CP_WRESET_WA
+	bool "CP warm reset WA due to WRSTBI disabled"
+	depends on LINK_DEVICE_PCIE
+	default n
+	help
+	  CP warm reset WA
 
 config EXYNOS_DIT
 	tristate "Enable DIT"
@@ -163,13 +170,6 @@ config EXYNOS_DIT_VERSION
 	default 0x02010000
 	help
 	  DIT version
-
-config CP_WRESET_WA
-    tristate "CP warm reset WA due to WRSTBI disabled"
-    depends on LINK_DEVICE_PCIE
-    default n
-    help
-      CP warm reset WA
 
 config CPIF_DIRECT_DM
 	tristate "Enable direct dm path"
