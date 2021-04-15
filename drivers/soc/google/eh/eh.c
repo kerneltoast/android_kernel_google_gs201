@@ -66,6 +66,27 @@ static DEFINE_IDA(eh_dev_ida);
 static LIST_HEAD(eh_dev_list);
 static DEFINE_SPINLOCK(eh_dev_list_lock);
 
+static DECLARE_WAIT_QUEUE_HEAD(eh_compress_wait);
+
+static long eh_congestion_wait(long timeout)
+{
+	long ret;
+	DEFINE_WAIT(wait);
+	wait_queue_head_t *wqh = &eh_compress_wait;
+
+	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+	ret = io_schedule_timeout(timeout);
+	finish_wait(wqh, &wait);
+
+	return ret;
+}
+
+static void clear_eh_congested(void)
+{
+	if (waitqueue_active(&eh_compress_wait))
+		wake_up(&eh_compress_wait);
+}
+
 #ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
 static void eh_update_latency(struct eh_device *eh_dev, unsigned long start,
 			      unsigned long event_count,
@@ -1142,6 +1163,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	/* set the descriptor back to IDLE */
 	desc->u1.s1.status = EH_CDESC_IDLE;
 	atomic_dec(&eh_dev->nr_request);
+	clear_eh_congested();
 
 	return ret;
 }
@@ -1200,7 +1222,6 @@ int eh_compress_pages(struct eh_device *eh_dev, struct page **pages,
 	unsigned int complete_index;
 	unsigned int new_write_index;
 	unsigned int new_pending_count;
-	unsigned int retry_count = 100000;
 	unsigned int masked_w_index;
 	struct eh_completion *cmpl;
 
@@ -1222,19 +1243,9 @@ try_again:
 		(new_write_index - complete_index) & eh_dev->fifo_color_mask;
 
 	if (new_pending_count > eh_dev->fifo_size) {
-		if (retry_count == 0) {
-			pr_info("%s: %s: FIFO is full\n", eh_dev->name,
-				__func__);
-			pr_info("%s: %s: cindex=%u nwindex=%u npcount=%u\n",
-				eh_dev->name, __func__, complete_index,
-				new_write_index, new_pending_count);
-			eh_dump_regs(eh_dev);
-			spin_unlock(&eh_dev->fifo_prod_lock);
-			return -EBUSY;
-		}
-		--retry_count;
 		spin_unlock(&eh_dev->fifo_prod_lock);
-		usleep_range(10, 20);
+		cond_resched();
+		eh_congestion_wait(HZ/10);
 		goto try_again;
 	}
 
