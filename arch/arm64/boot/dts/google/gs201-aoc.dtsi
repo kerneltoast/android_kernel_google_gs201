@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * AoC device tree source
+ *
+ * Copyright 2019 Google,LLC.
+ */
+
+/ {
+	mbox_aoc: mbox@176a0000 {
+		compatible = "google,mailbox-whitechapel";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0x0 0x176a0000 0x1000>;
+		interrupts = <GIC_SPI IRQ_MAILBOX_AOCA322AP_ALIVE
+			IRQ_TYPE_LEVEL_HIGH>;
+		mbox-name = "aoc2ap";
+		#mbox-cells = <1>;
+	};
+
+	aoc: aoc@19000000 {
+		compatible = "google,aoc";
+
+		reg = <0x0 0x19000000 0x01000000>,
+		      <0x0 0x175D0000 0x00001000>,
+		      <0x0 0x1A0B0000 0x00001000>,
+		      <0x0 0x1A060000 0x00005000>;
+
+		reg-names = "blk_aoc", "aoc_req", "aoc_s2mpu", "ssmt_aoc";
+
+		interrupts = <GIC_SPI IRQ_AOC_Watchdog_CPU_AOC
+			IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "watchdog";
+
+		iommus = <&sysmmu_asoc>;
+		memory-region = <&aoc_reserve>;
+		samsung,iommu-group = <&iommu_group_aoc>;
+
+		mbox-names = "aoc2ap";
+		mboxes = <&mbox_aoc 0
+		&mbox_aoc 1
+		&mbox_aoc 2
+		&mbox_aoc 3
+		&mbox_aoc 4
+		&mbox_aoc 5
+		&mbox_aoc 6
+		&mbox_aoc 7
+		&mbox_aoc 8
+		&mbox_aoc 9
+		&mbox_aoc 10
+		&mbox_aoc 11
+		&mbox_aoc 12
+		&mbox_aoc 13
+		&mbox_aoc 14
+		&mbox_aoc 15
+		>;
+
+		acpm-ipc-channel = <13>;
+
+		force-vnom = <0>;
+	};
+};
