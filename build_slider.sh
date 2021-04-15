@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
 if [ -n "${BUILD_CONFIG}" ]; then
@@ -9,32 +9,25 @@ if [ -n "${BUILD_CONFIG}" ]; then
   exit 1
 fi
 
-export MIXED_BUILD=1
+function copy_gki_prebuilts {
+  DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
+  GKI_PREBUILTS_DIR=${GKI_PREBUILTS_DIR:-$(pwd)/prebuilts/boot-artifacts/kernel}
 
-BASE_OUT=${OUT_DIR:-out}/mixed/
-BUILD_SCRIPT="build/build.sh"
-if [ -n "${BUILD_ABI}" ]; then
-  BUILD_SCRIPT="build/build_abi.sh --update"
-  export MIXED_BUILD=
-fi
+  mkdir -p ${DIST_DIR}
+  echo "Copying GKI prebuilts from ${GKI_PREBUILTS_DIR} to ${DIST_DIR}."
+  cp ${GKI_PREBUILTS_DIR}/* ${DIST_DIR}/
+}
 
-if [ ${LTO} == "none" ]; then
-    ENABLE_STRICT_KMI=0
-else
-    ENABLE_STRICT_KMI=1
-fi
-
-if [ -z "${BUILD_ABI}" ]; then
-  if [ -n "${EXPERIMENTAL_BUILD}" ]; then
+function build_gki {
+  if [ "${EXPERIMENTAL_BUILD}" = "1" ]; then
     KERNEL_OUT_DIR=android12-5.10-staging
     KERNEL_BUILD_CONFIG=common/build.config.gki.aarch64
+    # The -staging branch does not trim, so cannot have strict KMI.
+    ENABLE_STRICT_KMI=0
   else
     KERNEL_OUT_DIR=android12-5.10
     KERNEL_BUILD_CONFIG=aosp/build.config.gki.aarch64
   fi
-
-  # build with LTO=thin by default
-  export LTO=${LTO:-thin}
 
   # Now build the GKI kernel
   SKIP_CP_KERNEL_HDR=1 \
@@ -47,6 +40,48 @@ if [ -z "${BUILD_ABI}" ]; then
   if [ $error_code -ne 0 ]; then
     echo "ERROR: Failed to compile ${KERNEL_OUT_DIR}. (ret=$error_code)" >&2
     exit "$error_code"
+  fi
+}
+
+export MIXED_BUILD=1
+# build with LTO=thin by default
+export LTO=${LTO:-thin}
+
+BASE_OUT=${OUT_DIR:-out}/mixed/
+BUILD_SCRIPT="build/build.sh"
+if [ "${BUILD_ABI}" = "1" ]; then
+  BUILD_SCRIPT="build/build_abi.sh --update"
+  # ABI update always needs to use full LTO
+  export LTO=full
+  export MIXED_BUILD=
+fi
+
+if [ -z "${BUILD_KERNEL}" ]; then
+  if [ "${EXPERIMENTAL_BUILD}" = "1" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
+    BUILD_KERNEL=1
+  else
+    BUILD_KERNEL=0
+  fi
+fi
+
+if [ "${LTO}" = "none" ]; then
+  if [ "${BUILD_KERNEL}" != "1" -a "${EXPERIMENTAL_BUILD}" != "1" ]; then
+    echo "LTO=none is only supported with BUILD_KERNEL=1 or EXPERIMENTAL_BUILD=1"
+    exit 1
+  fi
+  ENABLE_STRICT_KMI=0
+else
+  ENABLE_STRICT_KMI=1
+fi
+
+if [ "${BUILD_ABI}" != "1" ]; then
+  if [ "${BUILD_KERNEL}" = "0" -a "${EXPERIMENTAL_BUILD}" = "1" ]; then
+    echo "BUILD_KERNEL=0 is incompatible with EXPERIMENTAL_BUILD=1."
+    exit 1
+  elif [ "${BUILD_KERNEL}" = "1" ]; then
+    build_gki
+  else
+    copy_gki_prebuilts
   fi
 fi
 
@@ -61,7 +96,7 @@ if [ $error_code -ne 0 ]; then
   exit "$error_code"
 fi
 
-if [ -n "${BUILD_ABI}" ]; then
+if [ "${BUILD_ABI}" = "1" ]; then
   # Strip the core ABI symbols from the pixel symbol list
   grep "^ " private/gs-google/android/abi_gki_aarch64_core | while read l; do
     sed -i "/\<$l\>/d" private/gs-google/android/abi_gki_aarch64_generic
