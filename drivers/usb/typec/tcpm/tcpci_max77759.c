@@ -1030,7 +1030,7 @@ static int max77759_vote_icl(struct max77759_plat *chip, u32 max_ua)
 	 */
 	mutex_lock(&chip->icl_proto_el_lock);
 	if ((chip->usb_type != POWER_SUPPLY_USB_TYPE_PD && max_ua == 0 && chip->online) ||
-	    chip->usb_type == POWER_SUPPLY_USB_TYPE_PD_PPS)
+	    chip->online == TCPM_PSY_PROG_ONLINE)
 		goto exit;
 
 	init_vote(&vote, proto_voter_reason[USB_ICL_PD], USB_ICL_PD, max_ua);
