@@ -25,30 +25,32 @@ struct vb2_mem_ops *mfc_mem_ops(void)
 }
 
 int mfc_mem_get_user_shared_handle(struct mfc_ctx *ctx,
-	struct mfc_user_shared_handle *handle)
+	struct mfc_user_shared_handle *handle, char *name)
 {
 	int ret = 0;
 
 	handle->dma_buf = dma_buf_get(handle->fd);
 	if (IS_ERR(handle->dma_buf)) {
-		mfc_ctx_err("Failed to import fd\n");
+		mfc_ctx_err("[MEMINFO][SH][%s] Failed to import fd\n", name);
 		ret = PTR_ERR(handle->dma_buf);
 		goto import_dma_fail;
 	}
 
 	if (handle->dma_buf->size < handle->data_size) {
-		mfc_ctx_err("User-provided dma_buf size(%ld) is smaller than required size(%ld)\n",
-				handle->dma_buf->size, handle->data_size);
+		mfc_ctx_err("[MEMINFO][SH][%s] User-provided dma_buf size(%ld) is smaller than required size(%ld)\n",
+				name, handle->dma_buf->size, handle->data_size);
 		ret = -EINVAL;
 		goto dma_buf_size_fail;
 	}
-
 	handle->vaddr = dma_buf_vmap(handle->dma_buf);
 	if (handle->vaddr == NULL) {
-		mfc_ctx_err("Failed to get kernel virtual address\n");
+		mfc_ctx_err("[MEMINFO][SH][%s] Failed to get kernel virtual address\n", name);
 		ret = -EINVAL;
 		goto map_kernel_fail;
 	}
+
+	mfc_debug(2, "[MEMINFO][SH][%s] shared handle fd: %d, vaddr: %pK, buf size: %zu, data size: %zu\n",
+			name, handle->fd, handle->vaddr, handle->dma_buf->size, handle->data_size);
 
 	return 0;
 

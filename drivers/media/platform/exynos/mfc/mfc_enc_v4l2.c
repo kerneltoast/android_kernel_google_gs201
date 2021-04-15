@@ -1242,11 +1242,8 @@ static int __mfc_enc_get_roi(struct mfc_ctx *ctx, int value)
 
 	if (enc->sh_handle_roi.fd == -1) {
 		enc->sh_handle_roi.fd = value;
-		if (mfc_mem_get_user_shared_handle(ctx, &enc->sh_handle_roi))
+		if (mfc_mem_get_user_shared_handle(ctx, &enc->sh_handle_roi, "ROI"))
 			return -EINVAL;
-		mfc_debug(2, "[MEMINFO][ROI] shared handle fd: %d, vaddr: 0x%p\n",
-				enc->sh_handle_roi.fd,
-				enc->sh_handle_roi.vaddr);
 	}
 	index = enc->roi_index;
 
@@ -1994,13 +1991,8 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 	case V4L2_CID_MPEG_MFC_HDR_USER_SHARED_HANDLE:
 		if (enc->sh_handle_hdr.fd == -1) {
 			enc->sh_handle_hdr.fd = ctrl->value;
-			if (mfc_mem_get_user_shared_handle(ctx, &enc->sh_handle_hdr)) {
+			if (mfc_mem_get_user_shared_handle(ctx, &enc->sh_handle_hdr, "HDR10+"))
 				enc->sh_handle_hdr.fd = -1;
-				return -EINVAL;
-			}
-			mfc_debug(2, "[MEMINFO][HDR+] shared handle fd: %d, vaddr: 0x%p\n",
-					enc->sh_handle_hdr.fd,
-					enc->sh_handle_hdr.vaddr);
 		}
 		break;
 	case V4L2_CID_MPEG_VIDEO_GDC_VOTF:
@@ -2152,11 +2144,8 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 					if (enc->sh_handle_svc.fd == -1) {
 						enc->sh_handle_svc.fd = ctrl->value;
 						if (mfc_mem_get_user_shared_handle(ctx,
-									&enc->sh_handle_svc))
+									&enc->sh_handle_svc, "SVC"))
 							return -EINVAL;
-						mfc_debug(2, "[MEMINFO][HIERARCHICAL] shared handle fd: %d, vaddr: 0x%p\n",
-								enc->sh_handle_svc.fd,
-								enc->sh_handle_svc.vaddr);
 					}
 				}
 				if (ctx_ctrl->id == V4L2_CID_MPEG_MFC51_VIDEO_I_PERIOD_CH &&

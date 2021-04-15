@@ -154,7 +154,7 @@ struct vb2_mem_ops *mfc_mem_ops(void);
 
 void mfc_mem_set_cacheable(bool cacheable);
 int mfc_mem_get_user_shared_handle(struct mfc_ctx *ctx,
-		struct mfc_user_shared_handle *handle);
+	struct mfc_user_shared_handle *handle, char *name);
 void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,
 		struct mfc_user_shared_handle *handle);
 
