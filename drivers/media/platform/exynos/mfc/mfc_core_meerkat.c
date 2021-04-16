@@ -1036,31 +1036,38 @@ static int __mfc_store_dump_regs(struct mfc_core *core, int idx)
 	}
 
 	/* dump COMMON context */
-	buf_size = core->common_ctx_buf.size;
-	__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC common ctx-----------\n");
-	__mfc_store_dump_hex(buf, &idx, core->common_ctx_buf.vaddr, buf_size);
-	__mfc_store_dump_buf(buf, &idx, 5, "...\n");
+	if (core->common_ctx_buf.vaddr) {
+		buf_size = core->common_ctx_buf.size;
+		__mfc_store_dump_buf(buf, &idx, 50,
+				     "\n-----------dumping MFC common ctx-----------\n");
+		__mfc_store_dump_hex(buf, &idx, core->common_ctx_buf.vaddr, buf_size);
+		__mfc_store_dump_buf(buf, &idx, 5, "...\n");
+	}
 
 	/* dump INSTANCE context */
 	curr_ctx = __mfc_get_curr_ctx(core);
 	if (curr_ctx < 0)
 		goto nal_q;
 	core_ctx = core->core_ctx[curr_ctx];
-	buf_size = core_ctx->instance_ctx_buf.size;
-	__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC inst ctx-----------\n");
-	__mfc_store_dump_hex(buf, &idx, core_ctx->instance_ctx_buf.vaddr, buf_size);
-	__mfc_store_dump_buf(buf, &idx, 5, "...\n");
+	if (core_ctx->instance_ctx_buf.vaddr) {
+		buf_size = core_ctx->instance_ctx_buf.size;
+		__mfc_store_dump_buf(buf, &idx, 50,
+				     "\n-----------dumping MFC inst ctx-----------\n");
+		__mfc_store_dump_hex(buf, &idx, core_ctx->instance_ctx_buf.vaddr, buf_size);
+		__mfc_store_dump_buf(buf, &idx, 5, "...\n");
+	}
 
 nal_q:
 	if (nal_q_handle) {
-		if (nal_q_handle->nal_q_in_handle) {
+		if (nal_q_handle->nal_q_in_handle && nal_q_handle->nal_q_in_handle->in_buf.vaddr) {
 			buf_size = nal_q_handle->nal_q_in_handle->in_buf.size;
 			__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC NALQ in----------\n");
 			__mfc_store_dump_hex(buf, &idx,
 					nal_q_handle->nal_q_in_handle->in_buf.vaddr, buf_size);
 			__mfc_store_dump_buf(buf, &idx, 5, "...\n");
 		}
-		if (nal_q_handle->nal_q_out_handle) {
+		if (nal_q_handle->nal_q_out_handle &&
+		    nal_q_handle->nal_q_out_handle->out_buf.vaddr) {
 			buf_size = nal_q_handle->nal_q_out_handle->out_buf.size;
 			__mfc_store_dump_buf(buf, &idx, 50, "\n-----------dumping MFC NALQ out----------\n");
 			__mfc_store_dump_hex(buf, &idx,
