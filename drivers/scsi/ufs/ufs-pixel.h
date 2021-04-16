@@ -117,6 +117,10 @@ static inline char *parse_opcode(u8 opcode)
 		return "WRITE_16";
 	case UNMAP:
 		return "UNMAP";
+	case ZBC_IN:
+		return "ZBC_IN";
+	case ZBC_OUT:
+		return "ZBC_OUT";
 	case SYNCHRONIZE_CACHE:
 		return "SYNC_CACHE";
 	}
@@ -212,11 +216,15 @@ enum pixel_command_type {
 	/* scsi cmd */
 	CMD_SCSI_WRITE_10,
 	CMD_SCSI_READ_10,
+	CMD_SCSI_WRITE_16,
+	CMD_SCSI_READ_16,
 	CMD_SCSI_SYNC,
 	CMD_SCSI_UNMAP,
 	CMD_SCSI_SSU,
 	CMD_SCSI_PROTOCOL_IN,
 	CMD_SCSI_PROTOCOL_OUT,
+	CMD_SCSI_ZBC_IN,
+	CMD_SCSI_ZBC_OUT,
 	/* query cmd */
 	CMD_TYPE_MAX,
 };

@@ -374,6 +374,10 @@ static int pixel_ufs_init_cmd_log(struct ufs_hba *hba)
 		MAX_EVENT_STR_LEN);
 	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_READ_10], "read_10",
 		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_WRITE_16], "write_16",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_READ_16], "read_16",
+		MAX_EVENT_STR_LEN);
 	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_SYNC], "sync",
 		MAX_EVENT_STR_LEN);
 	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_UNMAP], "unmap",
@@ -383,6 +387,10 @@ static int pixel_ufs_init_cmd_log(struct ufs_hba *hba)
 	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_PROTOCOL_IN], "protocol_in",
 		MAX_EVENT_STR_LEN);
 	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_PROTOCOL_OUT], "protocol_out",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_ZBC_IN], "zbc_in: report_zone",
+		MAX_EVENT_STR_LEN);
+	strncpy(ufs->cmd_log.cmd_str[CMD_SCSI_ZBC_OUT], "zbc_out: zone_reset",
 		MAX_EVENT_STR_LEN);
 
 	ufs->enable_cmd_log = 1;
@@ -445,6 +453,10 @@ static void __set_cmd_log_str(struct ufs_hba *hba, u8 event, u8 opcode,
 			cmd_type = CMD_SCSI_READ_10; break;
 		case 0x2a:
 			cmd_type = CMD_SCSI_WRITE_10; break;
+		case 0x88:
+			cmd_type = CMD_SCSI_READ_16; break;
+		case 0x8a:
+			cmd_type = CMD_SCSI_WRITE_16; break;
 		case 0x35:
 			cmd_type = CMD_SCSI_SYNC; break;
 		case 0x42:
@@ -453,6 +465,10 @@ static void __set_cmd_log_str(struct ufs_hba *hba, u8 event, u8 opcode,
 			cmd_type = CMD_SCSI_PROTOCOL_IN; break;
 		case 0xb5:
 			cmd_type = CMD_SCSI_PROTOCOL_OUT; break;
+		case 0x95:
+			cmd_type = CMD_SCSI_ZBC_IN; break;
+		case 0x94:
+			cmd_type = CMD_SCSI_ZBC_OUT; break;
 		}
 		break;
 	}
@@ -495,33 +511,23 @@ static void __store_cmd_log(struct ufs_hba *hba, u8 event, u8 lun,
 static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 		struct ufshcd_lrb *lrbp, bool is_start)
 {
-	u8 event = 0;
-	u8 lun = 0;
-	u8 opcode = 0;
-	u8 idn = 0;
+	u8 event = 0, lun = 0, opcode = 0, idn = 0, tag = 0, group_id = 0;
 	u64 lba = 0;
 	int transfer_len = 0;
-	u8 tag = 0;
-	u8 group_id = 0;
 
 	lun = lrbp->lun;
 	tag = lrbp->task_tag;
 
 	if (lrbp->cmd) {
 		event = (is_start) ? EVENT_SCSI_SEND : EVENT_SCSI_COMPL;
-		opcode = (u8)(*lrbp->cmd->cmnd);
+		opcode = lrbp->cmd->cmnd[0];
+		lba = scsi_get_lba(lrbp->cmd);
 
-		switch (opcode) {
-		case WRITE_10:
-			group_id = lrbp->cmd->cmnd[6];
-		case READ_10:
-			transfer_len = be32_to_cpu(
-				lrbp->ucd_req_ptr->sc.exp_data_transfer_len);
-		default:
-			if (lrbp->cmd->request && lrbp->cmd->request->bio)
-				lba = lrbp->cmd->request->bio->bi_iter.bi_sector;
-			break;
-		}
+		transfer_len = blk_rq_bytes(lrbp->cmd->request);
+		if (opcode == WRITE_10 || opcode == READ_10)
+			group_id = lrbp->cmd->cmnd[6] & 0x3f;
+		else if (opcode == WRITE_16 || opcode == READ_16)
+			group_id = lrbp->cmd->cmnd[14] & 0x3f;
 	} else {
 		if (hba->dev_cmd.type == DEV_CMD_TYPE_NOP)
 			event = (is_start) ? EVENT_NOP_OUT : EVENT_NOP_IN;
