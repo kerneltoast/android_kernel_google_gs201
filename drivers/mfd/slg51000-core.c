@@ -206,20 +206,15 @@ static int slg51000_init_regs(struct slg51000_dev *chip)
 
 	ret = of_property_read_u32(chip->dev->of_node,
 			"dlg,reg-init-cells", &num_cells);
-	if (ret) {
-		dev_err(chip->dev, "Need dlg,reg-init-cells in device tree\n");
+	if (ret)
 		return -EINVAL;
-	}
 
-	if (num_cells != 2) {
-		dev_err(chip->dev, "Invalid value of dlg,reg-init-cells\n");
+	if (num_cells != 2)
 		return -EINVAL;
-	}
 
-	if (!of_get_property(chip->dev->of_node, "dlg,reg-init", &tmp)) {
-		dev_err(chip->dev, "Error parsing dlg,reg-init\n");
+	if (!of_get_property(chip->dev->of_node, "dlg,reg-init", &tmp))
 		return -EINVAL;
-	}
+
 	num_output = tmp / (sizeof(u32) * num_cells);
 
 	regs = kcalloc(num_output, sizeof(struct slg51000_register_setting),
@@ -316,7 +311,7 @@ static int slg51000_config_tuning(struct slg51000_dev *chip)
 	/* Initialize register settings */
 	ret = slg51000_init_regs(chip);
 	if (ret < 0)
-		return ret;
+		dev_info(chip->dev, "No init registers are overridden\n");
 
 	ret = slg51000_exit_sw_test_mode(chip->i2c_regmap);
 	if (ret < 0)
