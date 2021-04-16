@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to oriole
+ *
+ * Copyright 2021 Google,LLC
+ *
+ */
+
+
+&pca9468_dc {
+	pca9468,charging-current = <4520000>; /* 4.5A */
+	pca9468,input-current-limit = <3000000>; /* 3.0A */
+};
