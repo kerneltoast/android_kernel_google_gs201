@@ -24,11 +24,6 @@
 #include <linux/time.h>
 #include <linux/timer.h>
 
-#if IS_ENABLED(CONFIG_MUIC_NOTIFIER)
-#include <linux/muic/muic.h>
-#include <linux/muic/muic_notifier.h>
-#endif
-
 #include <linux/exynos-pci-ctrl.h>
 #include <soc/google/modem_notifier.h>
 #include <soc/google/shm_ipc.h>
@@ -39,10 +34,6 @@
 #include "link_device.h"
 #include "link_device_memory.h"
 #include "s51xx_pcie.h"
-
-#if IS_ENABLED(CONFIG_EXYNOS_BUSMONITOR)
-#include <linux/exynos-busmon.h>
-#endif
 
 #if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
 #include <sound/google/abox.h>
@@ -68,20 +59,6 @@ static struct modem_ctl *g_mc;
 
 static int register_phone_active_interrupt(struct modem_ctl *mc);
 static int register_cp2ap_wakeup_interrupt(struct modem_ctl *mc);
-
-#if defined(MODULE)
-/* GKI TODO */
-#else /* MODULE */
-static int sys_rev;
-static int __init console_setup(char *str)
-{
-	get_option(&str, &sys_rev);
-	mif_info("board_rev : %d\n", sys_rev);
-
-	return 0;
-}
-__setup("androidboot.revision=", console_setup);
-#endif /* MODULE */
 
 static int s5100_reboot_handler(struct notifier_block *nb,
 				    unsigned long l, void *p)
@@ -1532,26 +1509,6 @@ static int send_panic_to_cp_notifier(struct notifier_block *nb,
 
 	return NOTIFY_DONE;
 }
-
-#if IS_ENABLED(CONFIG_EXYNOS_BUSMONITOR)
-static int s5100_busmon_notifier(struct notifier_block *nb,
-						unsigned long event, void *data)
-{
-	struct busmon_notifier *info = (struct busmon_notifier *)data;
-	char *init_desc = info->init_desc;
-
-	if (init_desc != NULL &&
-		(strncmp(init_desc, "CP", strlen(init_desc)) == 0 ||
-		strncmp(init_desc, "APB_CORE_CP", strlen(init_desc)) == 0 ||
-		strncmp(init_desc, "MIF_CP", strlen(init_desc)) == 0)) {
-		struct modem_ctl *mc =
-			container_of(nb, struct modem_ctl, busmon_nfb);
-
-		mc->ops.trigger_cp_crash(mc);
-	}
-	return 0;
-}
-#endif
 
 #if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
 static int s5100_abox_call_state_notifier(struct notifier_block *nb,

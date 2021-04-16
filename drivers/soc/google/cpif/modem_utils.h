@@ -519,11 +519,6 @@ struct file *mif_open_file(const char *path);
 void mif_save_file(struct file *fp, const char *buff, size_t size);
 void mif_close_file(struct file *fp);
 
-int board_gpio_export(struct device *dev,
-		unsigned int gpio, bool dir, const char *name);
-
-void make_gpio_floating(unsigned int gpio, bool floating);
-
 #if IS_ENABLED(CONFIG_ARGOS)
 /* kernel team needs to provide argos header file. !!!
  * As of now, there's nothing to use.

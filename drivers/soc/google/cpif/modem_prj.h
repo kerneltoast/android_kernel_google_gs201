@@ -741,16 +741,6 @@ struct modem_ctl {
 
 	struct notifier_block send_panic_nb;
 
-#if IS_ENABLED(CONFIG_EXYNOS_BUSMONITOR)
-	struct notifier_block busmon_nfb;
-#endif
-
-#if IS_ENABLED(CONFIG_MUIC_NOTIFIER)
-	struct notifier_block uart_notifier;
-#endif
-	bool uart_connect;
-	bool uart_dir;
-
 	struct modemctl_ops ops;
 	struct io_device *iod;
 	struct io_device *bootd;

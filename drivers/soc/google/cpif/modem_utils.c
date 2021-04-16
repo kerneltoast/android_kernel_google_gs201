@@ -1083,41 +1083,6 @@ int mif_gpio_toggle_value(struct cpif_gpio *gpio, int delay_ms)
 }
 EXPORT_SYMBOL(mif_gpio_toggle_value);
 
-int board_gpio_export(struct device *dev,
-		unsigned int gpio, bool dir, const char *name)
-{
-	int ret = 0;
-
-	if (!gpio_is_valid(gpio)) {
-		mif_err("invalid gpio pins - %s\n", name);
-		return -EINVAL;
-	}
-
-	ret = gpio_export(gpio, dir);
-	if (ret) {
-		mif_err("%s: failed to export gpio (%d)\n", name, ret);
-		return ret;
-	}
-
-	ret = gpio_export_link(dev, name, gpio);
-	if (ret) {
-		mif_err("%s: failed to export link_gpio (%d)\n", name, ret);
-		return ret;
-	}
-
-	mif_info("%s exported\n", name);
-
-	return 0;
-}
-
-void make_gpio_floating(unsigned int gpio, bool floating)
-{
-	if (floating)
-		gpio_direction_input(gpio);
-	else
-		gpio_direction_output(gpio, 0);
-}
-
 int __ref register_cp_crash_notifier(struct notifier_block *nb)
 {
 	return raw_notifier_chain_register(&cp_crash_notifier, nb);
