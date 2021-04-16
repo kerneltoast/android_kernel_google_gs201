@@ -8,9 +8,14 @@ POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG
 LIBUFDT_PREBUILTS_BIN=prebuilts-master/misc/linux-x86/libufdt
 DTC_OVERLAY_TEST_EXT=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/bin/ufdt_apply_overlay
 
+MAKE_GOALS=
 KERNEL_BINARY=Image.lz4
 
 if [ -z "$MIXED_BUILD" ]; then
+MAKE_GOALS="
+${KERNEL_BINARY}
+"
+
 DEVICE_KERNEL_FILES="
 .config
 vmlinux

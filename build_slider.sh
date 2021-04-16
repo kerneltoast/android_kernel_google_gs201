@@ -85,10 +85,18 @@ if [ "${BUILD_ABI}" != "1" ]; then
   fi
 fi
 
+DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
+
+if [ "${BUILD_ABI}" = "1" -o "${EXPERIMENTAL_BUILD}" = "1" ]; then
+  GKI_BINARIES_DIR=
+else
+  GKI_BINARIES_DIR=$(readlink -m ${DIST_DIR})
+fi
 # build the whitefin/slider Kernel
 BUILD_CONFIG=private/gs-google/build.config.slider \
   OUT_DIR=${BASE_OUT}/device-kernel/ \
-  DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/} \
+  DIST_DIR=${DIST_DIR} \
+  KBUILD_MIXED_TREE=${GKI_BINARIES_DIR} \
   ${BUILD_SCRIPT} KCFLAGS=-Werror "$@"
 error_code=$?
 if [ $error_code -ne 0 ]; then

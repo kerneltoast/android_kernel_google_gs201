@@ -1,7 +1,6 @@
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.gs101
 
-MAKE_GOALS="
-${KERNEL_BINARY}
+MAKE_GOALS="$MAKE_GOALS
 modules
 google/gs101-a0.dtb
 google/gs101-b0.dtb
