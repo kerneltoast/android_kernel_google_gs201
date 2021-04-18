@@ -29,6 +29,5 @@
 &m_ldo28_reg {
 	regulator-min-microvolt = <1200000>;
 	regulator-max-microvolt = <1200000>;
-	/delete-property/ regulator-always-on;
 };
 
