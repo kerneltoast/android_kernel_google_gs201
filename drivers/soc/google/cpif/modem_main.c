@@ -25,9 +25,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/proc_fs.h>
-#if IS_ENABLED(CONFIG_OF)
 #include <linux/of_gpio.h>
-#endif
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_reserved_mem.h>
@@ -283,7 +281,6 @@ static int attach_devices(struct io_device *iod, struct device *dev)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_OF)
 static int parse_dt_common_pdata(struct device_node *np,
 				 struct modem_data *pdata)
 {
@@ -573,12 +570,6 @@ static const struct of_device_id cpif_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, cpif_dt_match);
-#else
-static struct modem_data *modem_if_parse_dt_pdata(struct device *dev)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 enum mif_sim_mode {
 	MIF_SIM_NONE = 0,

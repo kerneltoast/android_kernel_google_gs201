@@ -305,10 +305,6 @@ static int power_on_cp(struct modem_ctl *mc)
 
 	mc->receive_first_ipc = 0;
 
-#if !IS_ENABLED(CONFIG_CP_SECURE_BOOT)
-	exynos_cp_init();
-#endif
-
 	change_modem_state(mc, STATE_OFFLINE);
 
 	if (cal_cp_status() == 0) {
@@ -608,35 +604,8 @@ static int trigger_cp_crash(struct modem_ctl *mc)
 	struct link_device *ld = get_current_link(mc->bootd);
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	u32 crash_type = ld->crash_reason.type;
-#if IS_ENABLED(CONFIG_SOC_EXYNOS9630)
-	unsigned int val = 0; /* value used for PMU registers */
-#endif
-	mif_info("+++\n");
 
-#if IS_ENABLED(CONFIG_SOC_EXYNOS9630)
-	exynos_pmu_read(0x3200, &val); /* CP_CONFIGURATION */
-	mif_info("CP_CONFIGURATION: 0x%08X\n", val);
-	exynos_pmu_read(0x3204, &val); /* CP_STATUS */
-	mif_info("CP_STATUS: 0x%08X\n", val);
-	exynos_pmu_read(0x3208, &val); /* CP_STATES */
-	mif_info("CP_STATES: 0x%08X\n", val);
-	exynos_pmu_read(0x320C, &val); /* CP_OPTION */
-	mif_info("CP_OPTION: 0x%08X\n", val);
-	exynos_pmu_read(0x3210, &val); /* CP_CTRL_NS */
-	mif_info("CP_CTRL_NS: 0x%08X\n", val);
-	exynos_pmu_read(0x3220, &val); /* CP_OUT */
-	mif_info("CP_OUT: 0x%08X\n", val);
-	exynos_pmu_read(0x3224, &val); /* CP_IN */
-	mif_info("CP_IN: 0x%08X\n", val);
-	exynos_pmu_read(0x3240, &val); /* CP_INT_IN */
-	mif_info("CP_INT_IN: 0x%08X\n", val);
-	exynos_pmu_read(0x3244, &val); /* CP_INT_EN */
-	mif_info("CP_INT_EN: 0x%08X\n", val);
-	exynos_pmu_read(0x3248, &val); /* CP_INT_TYPE */
-	mif_info("CP_INT_TYPE: 0x%08X\n", val);
-	exynos_pmu_read(0x324c, &val); /* CP_INT_DIR */
-	mif_info("CP_INT_DIR: 0x%08X\n", val);
-#endif
+	mif_info("+++\n");
 
 	if (ld->protocol == PROTOCOL_SIT &&
 			crash_type == CRASH_REASON_RIL_TRIGGER_CP_CRASH)
@@ -672,82 +641,6 @@ EXPORT_SYMBOL(modem_force_crash_exit_ext);
 
 #if IS_ENABLED(CONFIG_CP_UART_NOTI)
 #if IS_ENABLED(CONFIG_PMU_UART_SWITCH)
-#if IS_ENABLED(CONFIG_SOC_EXYNOS9630)
-static void __iomem *uart_txd_addr; /* SEL_TXD_GPIO_UART_DEBUG */
-static void __iomem *uart_rxd_addr; /* SEL_RXD_CP_UART */
-void change_to_cp_uart(void)
-{
-	if (uart_txd_addr == NULL) {
-		uart_txd_addr = devm_ioremap(g_mc->dev, 0x10E2062C, SZ_64);
-		if (uart_txd_addr == NULL) {
-			mif_err("Err: failed to ioremap UART TXD!\n");
-			return;
-		}
-	}
-	if (uart_rxd_addr == NULL) {
-		uart_rxd_addr = devm_ioremap(g_mc->dev, 0x10E20650, SZ_64);
-		if (uart_rxd_addr == NULL) {
-			mif_err("Err: failed to ioremap UART RXD!\n");
-			return;
-		}
-	}
-	mif_info("CHANGE TO CP UART\n");
-	__raw_writel(0x2, uart_txd_addr);
-	mif_info("SEL_TXD_GPIO_UART_DEBUG val: %08X\n", __raw_readl(uart_txd_addr));
-	__raw_writel(0x1, uart_rxd_addr);
-	mif_info("SEL_RXD_CP_UART val: %08X\n", __raw_readl(uart_rxd_addr));
-}
-
-void change_to_ap_uart(void)
-{
-	if (uart_txd_addr == NULL) {
-		uart_txd_addr = devm_ioremap(g_mc->dev, 0x10E2062C, SZ_64);
-		if (uart_txd_addr == NULL) {
-			mif_err("Err: failed to ioremap UART TXD!\n");
-			return;
-		}
-	}
-	if (uart_rxd_addr == NULL) {
-		uart_rxd_addr = devm_ioremap(g_mc->dev, 0x10E20650, SZ_64);
-		if (uart_rxd_addr == NULL) {
-			mif_err("Err: failed to ioremap UART RXD!\n");
-			return;
-		}
-	}
-	mif_info("CHANGE TO CP UART\n");
-	__raw_writel(0x0, uart_txd_addr);
-	mif_info("SEL_TXD_GPIO_UART_DEBUG val: %08X\n", __raw_readl(uart_txd_addr));
-	__raw_writel(0x0, uart_rxd_addr);
-	mif_info("SEL_RXD_CP_UART val: %08X\n", __raw_readl(uart_rxd_addr));
-}
-#elif IS_ENABLED(CONFIG_SOC_EXYNOS3830)
-void change_to_cp_uart(void)
-{
-	int ret = 0;
-
-	ret = exynos_pmu_write(0x0760, 0x11002000);
-	if (ret < 0) {
-		mif_err("ERR(%d) set CP UART_IO_SHARE_CTRL\n", ret);
-		return;
-	}
-
-	mif_info("CHANGE TO CP UART\n");
-}
-
-void change_to_ap_uart(void)
-{
-	int ret = 0;
-
-	ret = exynos_pmu_write(0x0760, 0x00120000);
-	if (ret < 0) {
-		mif_err("ERR(%d) set AP UART_IO_SHARE_CTRL\n", ret);
-		return;
-	}
-
-	mif_info("CHANGE TO AP UART\n");
-}
-#endif /* CONFIG_SOC_EXYNOSxxxx */
-
 void send_uart_noti_to_modem(int val)
 {
 	struct modem_data *modem;

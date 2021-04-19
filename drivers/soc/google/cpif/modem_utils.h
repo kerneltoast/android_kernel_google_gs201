@@ -411,11 +411,7 @@ void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop);
 __be32 ipv4str_to_be32(const char *ipv4str, size_t count);
 
 void mif_add_timer(struct timer_list *timer, unsigned long expire,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 				void (*function)(struct timer_list *));
-#else
-				void (*function)(unsigned long), unsigned long data);
-#endif
 
 /* debug helper functions for sipc4, sipc5 */
 void mif_print_data(const u8 *data, int len);
@@ -518,23 +514,6 @@ int mif_gpio_toggle_value(struct cpif_gpio *gpio, int delay_ms);
 struct file *mif_open_file(const char *path);
 void mif_save_file(struct file *fp, const char *buff, size_t size);
 void mif_close_file(struct file *fp);
-
-#if IS_ENABLED(CONFIG_ARGOS)
-/* kernel team needs to provide argos header file. !!!
- * As of now, there's nothing to use.
- */
-#if IS_ENABLED(CONFIG_SCHED_HMP)
-extern struct cpumask hmp_slow_cpu_mask;
-extern struct cpumask hmp_fast_cpu_mask;
-#endif
-
-int argos_irq_affinity_setup_label(unsigned int irq, const char *label,
-		struct cpumask *affinity_cpu_mask,
-		struct cpumask *default_cpu_mask);
-int argos_task_affinity_setup_label(struct task_struct *p, const char *label,
-		struct cpumask *affinity_cpu_mask,
-		struct cpumask *default_cpu_mask);
-#endif
 
 void mif_stop_logging(void);
 void set_wakeup_packet_log(bool enable);

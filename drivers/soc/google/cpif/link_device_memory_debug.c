@@ -61,7 +61,6 @@ void print_res_ack(struct mem_link_device *mld, struct mem_snapshot *mst,
 
 void print_mem_snapshot(struct mem_link_device *mld, struct mem_snapshot *mst)
 {
-#ifdef DEBUG_MODEM_IF
 	struct link_device *ld = &mld->link_dev;
 
 	mif_err("%s: [%s] ACC{%X %d} FMT{TI:%u TO:%u RI:%u RO:%u} RAW{TI:%u TO:%u RI:%u RO:%u} INTR{RX:0x%X TX:0x%X}\n",
@@ -71,13 +70,11 @@ void print_mem_snapshot(struct mem_link_device *mld, struct mem_snapshot *mst)
 		mst->head[IPC_MAP_NORM_RAW][TX], mst->tail[IPC_MAP_NORM_RAW][TX],
 		mst->head[IPC_MAP_NORM_RAW][RX], mst->tail[IPC_MAP_NORM_RAW][RX],
 		mst->int2ap, mst->int2cp);
-#endif
 }
 
 void print_dev_snapshot(struct mem_link_device *mld, struct mem_snapshot *mst,
 			struct legacy_ipc_device *dev)
 {
-#ifdef DEBUG_MODEM_IF
 	struct link_device *ld = &mld->link_dev;
 	enum legacy_ipc_map id = dev->id;
 
@@ -89,5 +86,4 @@ void print_dev_snapshot(struct mem_link_device *mld, struct mem_snapshot *mst,
 		mst->head[id][TX], mst->tail[id][TX],
 		mst->head[id][RX], mst->tail[id][RX],
 		(mst->dir == RX) ? mst->int2ap : mst->int2cp);
-#endif
 }

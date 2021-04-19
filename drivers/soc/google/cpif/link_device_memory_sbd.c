@@ -19,7 +19,6 @@
 
 static void print_sbd_config(struct sbd_link_device *sl)
 {
-#ifdef DEBUG_MODEM_IF
 	int i, dir;
 	struct sbd_rb_channel *rb_ch;
 	struct sbd_rb_desc *rbd;
@@ -43,7 +42,6 @@ static void print_sbd_config(struct sbd_link_device *sl)
 				rbd->buff_size, rbd->payload_offset);
 		}
 	}
-#endif
 }
 
 /* sysfs */

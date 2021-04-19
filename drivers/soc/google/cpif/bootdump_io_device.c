@@ -442,14 +442,10 @@ static ssize_t bootdump_write(struct file *filp, const char __user *data,
 	unsigned int alloc_size;
 	/* 64bit prevent */
 	unsigned int cnt = (unsigned int)count;
-#ifdef DEBUG_MODEM_IF
 	struct timespec64 ts;
-#endif
 
-#ifdef DEBUG_MODEM_IF
 	/* Record the timestamp */
 	ktime_get_ts64(&ts);
-#endif
 
 	if (iod->format <= IPC_RFS && iod->ch == 0)
 		return -EINVAL;
@@ -526,10 +522,8 @@ static ssize_t bootdump_write(struct file *filp, const char __user *data,
 		skbpriv(skb)->lnk_hdr = iod->link_header;
 		skbpriv(skb)->sipc_ch = iod->ch;
 
-#ifdef DEBUG_MODEM_IF
 		/* Copy the timestamp to the skb */
 		skbpriv(skb)->ts = ts;
-#endif
 #ifdef DEBUG_MODEM_IF_IODEV_TX
 		mif_pkt(iod->ch, "IOD-TX", skb);
 #endif

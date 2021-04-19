@@ -69,7 +69,6 @@ struct modem_io_t {
 	u32 link_type;
 	u32 attrs;
 	char *option_region;
-	/*IS_ENABLED(CONFIG_LINK_DEVICE_MEMORY_SBD)*/
 	unsigned int ul_num_buffers;
 	unsigned int ul_buffer_size;
 	unsigned int dl_num_buffers;
@@ -284,7 +283,6 @@ struct cpif_gpio {
 	int (*get_gpio_value)(unsigned int gpio);
 };
 
-#if IS_ENABLED(CONFIG_OF)
 #define mif_dt_read_enum(np, prop, dest) \
 	do { \
 		u32 val; \
@@ -347,7 +345,6 @@ struct cpif_gpio {
 		if (!of_property_read_u64(np, prop, &val)) \
 			dest = val; \
 	} while (0)
-#endif
 
 #define cpif_set_bit(data, offset)	((data) |= BIT(offset))
 #define cpif_clear_bit(data, offset)	((data) &= ~BIT(offset))

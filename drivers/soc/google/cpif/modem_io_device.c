@@ -62,9 +62,7 @@ static ssize_t waketime_store(struct device *dev,
 	}
 
 	iod->waketime = msecs_to_jiffies(msec);
-#ifdef DEBUG_MODEM_IF
 	mif_err("%s: waketime = %lu ms\n", iod->name, msec);
-#endif
 
 	if (iod->format == IPC_MULTI_RAW) {
 		struct modem_shared *msd = iod->msd;
@@ -78,10 +76,8 @@ static ssize_t waketime_store(struct device *dev,
 			iod = get_iod_with_channel(msd, i);
 			if (iod) {
 				iod->waketime = msecs_to_jiffies(msec);
-#ifdef DEBUG_MODEM_IF
 				mif_err("%s: waketime = %lu ms\n",
 					iod->name, msec);
-#endif
 			}
 		}
 	}
@@ -219,7 +215,6 @@ static int gather_multi_frame(struct sipc5_link_header *hdr,
 	struct sk_buff_head *multi_q = &iod->sk_multi_q[ctrl.id];
 	int len = skb->len;
 
-#ifdef DEBUG_MODEM_IF
 	/* If there has been no multiple frame with this ID, ... */
 	if (skb_queue_empty(multi_q)) {
 		struct sipc_fmt_hdr *fh = (struct sipc_fmt_hdr *)skb->data;
@@ -227,7 +222,6 @@ static int gather_multi_frame(struct sipc5_link_header *hdr,
 		mif_err("%s<-%s: start of multi-frame (ID:%d len:%d)\n",
 			iod->name, mc->name, ctrl.id, fh->len);
 	}
-#endif
 	skb_queue_tail(multi_q, skb);
 
 	if (ctrl.more) {

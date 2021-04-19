@@ -38,13 +38,8 @@ struct s51xx_pcie {
 
 //extern struct s51xx_pcie s5100pcie;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 extern int exynos_pcie_rc_chk_link_status(int ch_num);
 extern int exynos_pcie_rc_l1ss_ctrl(int enable, int id, int ch_num);
-#else
-extern int exynos_check_pcie_link_status(int ch_num);
-extern int exynos_pcie_host_v1_l1ss_ctrl(int enable, int id);
-#endif
 
 extern int exynos_pcie_poweron(int ch_num);
 extern int exynos_pcie_poweroff(int ch_num);

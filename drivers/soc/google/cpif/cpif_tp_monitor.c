@@ -419,17 +419,10 @@ static ssize_t tpmon_store_rps_map(struct netdev_rx_queue *queue,
 					    mutex_is_locked(&rps_map_mutex));
 	rcu_assign_pointer(queue->rps_map, map);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	if (map)
 		static_branch_inc(&rps_needed);
 	if (old_map)
 		static_branch_dec(&rps_needed);
-#else
-	if (map)
-		static_key_slow_inc(&rps_needed);
-	if (old_map)
-		static_key_slow_dec(&rps_needed);
-#endif
 
 	mutex_unlock(&rps_map_mutex);
 

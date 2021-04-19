@@ -476,24 +476,13 @@ __be32 ipv4str_to_be32(const char *ipv4str, size_t count)
 }
 
 void mif_add_timer(struct timer_list *timer, unsigned long expire,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 			void (*function)(struct timer_list *))
-#else
-			void (*function)(unsigned long), unsigned long data)
-#endif
 {
 	if (timer_pending(timer))
 		return;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 	timer_setup(timer, function, 0);
 	timer->expires = get_jiffies_64() + expire;
-#else
-	init_timer(timer);
-	timer->expires = jiffies + expire;
-	timer->function = function;
-	timer->data = data;
-#endif
 
 	add_timer(timer);
 }

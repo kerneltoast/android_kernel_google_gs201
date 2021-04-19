@@ -116,14 +116,10 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned int headroom;
 	unsigned int tailroom;
 	unsigned int tx_bytes;
-#ifdef DEBUG_MODEM_IF
 	struct timespec64 ts;
-#endif
 
-#ifdef DEBUG_MODEM_IF
 	/* Record the timestamp */
 	ktime_get_ts64(&ts);
-#endif
 
 	if (unlikely(!cp_online(mc))) {
 		if (!netif_queue_stopped(ndev))
@@ -182,10 +178,8 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	skbpriv(skb_new)->lnk_hdr = iod->link_header;
 	skbpriv(skb_new)->sipc_ch = iod->ch;
 
-#ifdef DEBUG_MODEM_IF
 	/* Copy the timestamp to the skb */
 	skbpriv(skb_new)->ts = ts;
-#endif
 #if defined(DEBUG_MODEM_IF_IODEV_TX) && defined(DEBUG_MODEM_IF_PS_DATA)
 	mif_pkt(iod->ch, "IOD-TX", skb_new);
 #endif
@@ -322,16 +316,8 @@ static inline bool is_tcp_ack(struct sk_buff *skb)
 }
 
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS) || IS_ENABLED(CONFIG_MODEM_IF_QOS)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 		struct net_device *sb_dev)
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
-static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
-		struct net_device *sb_dev, select_queue_fallback_t fallback)
-#else
-static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
-		void *accel_priv, select_queue_fallback_t fallback)
-#endif
 {
 #if IS_ENABLED(CONFIG_MODEM_IF_QOS)
 	return (skb && is_tcp_ack(skb)) ? 1 : 0;

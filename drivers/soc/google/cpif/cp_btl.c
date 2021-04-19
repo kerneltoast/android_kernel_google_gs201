@@ -372,9 +372,7 @@ create_exit:
 	if (btl->mem.v_base)
 		vunmap(btl->mem.v_base);
 
-#if !IS_ENABLED(CONFIG_SOC_EXYNOS9820)
 	cp_shmem_release_rmem(btl->id, SHMEM_BTL);
-#endif
 
 	return ret;
 }

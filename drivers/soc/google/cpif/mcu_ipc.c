@@ -18,8 +18,6 @@
 #include "mcu_ipc_priv.h"
 #include "modem_utils.h"
 
-#define	USE_FIXED_AFFINITY
-
 /* IRQ handler */
 static irqreturn_t cp_mbox_irq_handler(int irq, void *data)
 {
@@ -433,23 +431,7 @@ int cp_mbox_set_affinity(u32 idx, int affinity)
 	mif_debug("idx:%d affinity:0x%x\n", idx, affinity);
 	irq_data->affinity = affinity;
 
-#if IS_ENABLED(CONFIG_ARGOS)
-#ifdef USE_FIXED_AFFINITY
 	return irq_set_affinity_hint(irq_data->irq, cpumask_of(affinity));
-#else
-	if (!zalloc_cpumask_var(&irq_data->dmask, GFP_KERNEL))
-		return -ENOMEM;
-	if (!zalloc_cpumask_var(&irq_data->imask, GFP_KERNEL))
-		return -ENOMEM;
-
-	cpumask_or(irq_data->imask, irq_data->imask, cpumask_of(mask));
-	cpumask_copy(irq_data->dmask, get_default_cpu_mask());
-
-	return argos_irq_affinity_setup_label(irq, "IPC", irq_data->imask, irq_data->dmask);
-#endif
-#else /* CONFIG_ARGOS */
-	return irq_set_affinity_hint(irq_data->irq, cpumask_of(affinity));
-#endif /* CONFIG_ARGOS */
 }
 EXPORT_SYMBOL(cp_mbox_set_affinity);
 

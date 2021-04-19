@@ -250,10 +250,6 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 			shmem_index = SHMEM_IPC;
 		else if (!strncmp((const char *)&name, "SSV\0", sizeof(name)))
 			shmem_index = SHMEM_VSS;
-#if IS_ENABLED(CONFIG_SOC_EXYNOS9820)
-		else if (!strncmp((const char *)&name, "APV\0", sizeof(name)))
-			shmem_index = SHMEM_VPA;
-#endif
 		else if (!strncmp((const char *)&name, "GOL\0", sizeof(name)))
 			shmem_index = SHMEM_BTL;
 		else if (!strncmp((const char *)&name, "B2L\0", sizeof(name)))
@@ -301,23 +297,7 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
  */
 unsigned long shm_get_msi_base(void)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	return cp_shmem_get_base(0, SHMEM_MSI);
-#else
-	int i;
-
-	for (i = 0; i < MAX_CP_RMEM; i++) {
-		if (!_cp_rmem[i].name)
-			continue;
-
-		if (strncmp(_cp_rmem[i].name, "cp_msi_rmem", strlen("cp_msi_rmem")) == 0) {
-			mif_info("p_base:0x%08lx\n", _cp_rmem[i].p_base);
-			return _cp_rmem[i].p_base;
-		}
-	}
-
-	return 0;
-#endif
 }
 EXPORT_SYMBOL(shm_get_msi_base);
 

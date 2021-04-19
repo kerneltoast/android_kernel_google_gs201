@@ -51,14 +51,6 @@ struct cp_mbox_irq_data {
 	unsigned long unmasked_irq;
 
 	struct cp_mbox_handler hd[MAX_CP_MBOX_HANDLER];
-
-#if IS_ENABLED(CONFIG_ARGOS)
-	/**
-	 * irq affinity cpu mask
-	 */
-	cpumask_var_t dmask;	/* default cpu mask */
-	cpumask_var_t imask;	/* irq affinity cpu mask */
-#endif
 };
 
 struct cp_mbox_drv_data {
@@ -89,32 +81,5 @@ static inline u32 mcu_ipc_read(u32 reg)
 {
 	return readl(mbox_data.ioaddr + reg);
 }
-
-#if IS_ENABLED(CONFIG_ARGOS)
-/* kernel team needs to provide argos header file. !!!
- * As of now, there's nothing to use.
- */
-#if IS_ENABLED(CONFIG_SCHED_HMP)
-extern struct cpumask hmp_slow_cpu_mask;
-extern struct cpumask hmp_fast_cpu_mask;
-
-static inline struct cpumask *get_default_cpu_mask(void)
-{
-	return &hmp_slow_cpu_mask;
-}
-#else
-static inline struct cpumask *get_default_cpu_mask(void)
-{
-	return cpu_all_mask;
-}
-#endif
-
-int argos_irq_affinity_setup_label(unsigned int irq, const char *label,
-		struct cpumask *affinity_cpu_mask,
-		struct cpumask *default_cpu_mask);
-int argos_task_affinity_setup_label(struct task_struct *p, const char *label,
-		struct cpumask *affinity_cpu_mask,
-		struct cpumask *default_cpu_mask);
-#endif
 
 #endif /* __MCU_IPC_PRIV_H__ */

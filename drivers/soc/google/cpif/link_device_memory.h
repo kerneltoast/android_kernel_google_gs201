@@ -222,13 +222,6 @@ struct mem_link_device {
 	 */
 	u32 cp_binary_size;
 
-	/**
-	 * (u32 *) syscp_alive[0] = Magic Code, Version
-	 * (u32 *) syscp_alive[1] = CP Reserved Size
-	 * (u32 *) syscp_alive[2] = Shared Mem Size
-	 */
-	struct resource *syscp_info;
-
 	/* Boot link device */
 	struct legacy_link_device legacy_link_dev;
 
@@ -309,12 +302,6 @@ struct mem_link_device {
 	void (*debug_info)(void);
 	void (*cmd_handler)(struct mem_link_device *mld, u16 cmd);
 
-#ifdef DEBUG_MODEM_IF
-	/* for logging MEMORY dump */
-	struct work_struct dump_work;
-	char dump_path[MIF_MAX_PATH_LEN];
-#endif
-
 	unsigned int tx_period_ms;
 	unsigned int force_use_memcpy;
 	unsigned int memcpy_packet_count;
@@ -335,11 +322,7 @@ struct mem_link_device {
 	unsigned int rx_int_count;
 	unsigned int rx_poll_count;
 	unsigned long long rx_int_disabled_time;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	struct timespec64 flush_time;
-#else
-	struct timespec flush_time;
-#endif
 
 	/* Doorbell interrupt value to separate interrupt */
 	unsigned int intval_ap2cp_msg;

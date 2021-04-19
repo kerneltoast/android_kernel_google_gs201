@@ -268,20 +268,12 @@ void s51xx_pcie_restore_state(struct pci_dev *pdev)
 
 int s51xx_check_pcie_link_status(int ch_num)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	return exynos_pcie_rc_chk_link_status(ch_num);
-#else
-	return exynos_check_pcie_link_status(ch_num);
-#endif
 }
 
 void s51xx_pcie_l1ss_ctrl(int enable, int ch_num)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	exynos_pcie_rc_l1ss_ctrl(enable, PCIE_L1SS_CTRL_MODEM_IF, ch_num);
-#else
-	exynos_pcie_host_v1_l1ss_ctrl(enable, PCIE_L1SS_CTRL_MODEM_IF);
-#endif
 }
 
 void disable_msi_int(struct pci_dev *pdev)
@@ -306,15 +298,7 @@ int s51xx_pcie_request_msi_int(struct pci_dev *pdev, int int_num)
 		return -EFAULT;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
-	/* old kernel(KC+S359):
-	 * err = __pci_enable_msi_range(s51xx_pcie.s51xx_pdev, int_num, int_num);
-	 */
 	err = pci_alloc_irq_vectors_affinity(pdev, int_num, int_num, PCI_IRQ_MSI, NULL);
-#else
-	err = pci_enable_msi_block(pdev, int_num);
-#endif
-
 	if (err <= 0) {
 		pr_err("Can't get msi IRQ!!!!!\n");
 		return -EFAULT;

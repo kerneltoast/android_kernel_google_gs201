@@ -39,8 +39,6 @@
 #include "include/sipc5.h"
 #include "include/exynos_ipc.h"
 
-#define DEBUG_MODEM_IF
-#ifdef DEBUG_MODEM_IF
 /* #define DEBUG_MODEM_IF_LINK_TX */
 /* #define DEBUG_MODEM_IF_LINK_RX */
 
@@ -51,7 +49,6 @@
 
 /* #define DEBUG_MODEM_IF_PS_DATA */
 /* #define DEBUG_MODEM_IF_IP_DATA */
-#endif
 
 /*
  * IOCTL commands
@@ -513,11 +510,7 @@ struct link_device {
 	void (*stop_timers)(struct mem_link_device *mld);
 
 	void (*gro_flush)(struct link_device *ld, struct napi_struct *napi);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	struct timespec64 (*update_flush_time)(struct timespec64 org_flush_time);
-#else
-	struct timespec (*update_flush_time)(struct timespec org_flush_time);
-#endif
 
 	int (*handover_block_info)(struct link_device *ld, unsigned long arg);
 
