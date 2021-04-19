@@ -467,6 +467,8 @@
   dma_map_resource
   dma_map_sg_attrs
   dma_mmap_attrs
+  dma_pool_alloc
+  dma_pool_free
   dma_release_channel
   dma_request_chan
   dma_set_coherent_mask
