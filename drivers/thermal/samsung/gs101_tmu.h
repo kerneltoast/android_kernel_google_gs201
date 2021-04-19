@@ -59,7 +59,7 @@ struct gs101_tmu_data {
 	bool hardlimit_enable;
 	int hardlimit_threshold;
 	int hardlimit_clr_threshold;
-	int hardlimit_cooling_state;
+	unsigned int hardlimit_cooling_state;
 	unsigned long max_cdev;
 	bool hotplug_enable;
 	int hotplug_in_threshold;
@@ -84,7 +84,7 @@ struct gs101_tmu_data {
 	struct kthread_worker cpu_hw_throttle_worker;
 	struct kthread_work irq_work;
 	struct kthread_work cpu_pause_work;
-	struct kthread_work cpu_hardlimit_work;
+	struct kthread_work hardlimit_work;
 	struct kthread_work hotplug_work;
 	struct kthread_work cpu_hw_throttle_work;
 	struct kthread_delayed_work cpu_hw_throttle_init_work;
@@ -98,7 +98,7 @@ struct gs101_tmu_data {
 	char tmu_name[THERMAL_NAME_LENGTH + 1];
 	struct device_node *np;
 	bool is_cpu_paused;
-	bool is_cpu_hardlimited;
+	bool is_hardlimited;
 	bool is_cpu_hotplugged_out;
 	bool is_cpu_hw_throttled;
 	int temperature;
@@ -106,11 +106,29 @@ struct gs101_tmu_data {
 	struct kthread_delayed_work pi_work;
 	struct gs101_pi_param *pi_param;
 	struct cpumask pause_cpus;
-	struct cpumask hardlimit_cpus;
 	struct cpumask hotplug_cpus;
 	struct cpumask tmu_work_affinity;
 	struct cpumask hotplug_work_affinity;
 	char cpuhp_name[CPUHP_USER_NAME_LEN + 1];
+	void *disable_stats;
+	void *hardlimit_stats;
+};
+
+enum throttling_stats_type {
+	DISABLE_STATS = 0,
+	HARDLIMIT_STATS,
+};
+
+struct throttling_stats {
+	spinlock_t lock;
+	int stats_type;
+	unsigned int disable_total_count;
+	unsigned int disable_state;
+	unsigned int hardlimit_total_count;
+	unsigned int hardlimit_state;
+	ktime_t last_time;
+	ktime_t *disable_time_in_state;
+	ktime_t *hardlimit_time_in_state;
 };
 
 #define TMU_TRIMINFO_CONFIG_REG			0

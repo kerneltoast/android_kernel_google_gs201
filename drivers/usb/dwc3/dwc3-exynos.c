@@ -1102,9 +1102,9 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	 * To avoid missing notification in kernel booting check extcon
 	 * state to run state machine.
 	 */
-	if (extcon_get_state(exynos->edev, EXTCON_USB))
+	if (extcon_get_state(exynos->edev, EXTCON_USB) > 0)
 		dwc3_exynos_vbus_event(exynos->dev, 1);
-	else if (extcon_get_state(exynos->edev, EXTCON_USB_HOST))
+	else if (extcon_get_state(exynos->edev, EXTCON_USB_HOST) > 0)
 		dwc3_exynos_id_event(exynos->dev, 0);
 
 	return 0;
@@ -1215,6 +1215,22 @@ out:
 }
 EXPORT_SYMBOL_GPL(dwc3_gadget_ep_custom_transfer);
 
+static void dwc3_exynos_shutdown(struct platform_device *pdev)
+{
+	struct dwc3_exynos *exynos = platform_get_drvdata(pdev);
+
+	/*
+	 * According to extcon state, turn off USB gadget or USB host
+	 * during the shutdown process.
+	 */
+	if (extcon_get_state(exynos->edev, EXTCON_USB) > 0)
+		dwc3_exynos_vbus_event(exynos->dev, 0);
+	else if (extcon_get_state(exynos->edev, EXTCON_USB_HOST) > 0)
+		dwc3_exynos_id_event(exynos->dev, 1);
+
+	return;
+}
+
 #ifdef CONFIG_PM
 static int dwc3_exynos_runtime_suspend(struct device *dev)
 {
@@ -1303,6 +1319,7 @@ static const struct dev_pm_ops dwc3_exynos_dev_pm_ops = {
 static struct platform_driver dwc3_exynos_driver = {
 	.probe		= dwc3_exynos_probe,
 	.remove		= dwc3_exynos_remove,
+	.shutdown	= dwc3_exynos_shutdown,
 	.driver		= {
 		.name	= "exynos-dwc3",
 		.of_match_table = exynos_dwc3_match,

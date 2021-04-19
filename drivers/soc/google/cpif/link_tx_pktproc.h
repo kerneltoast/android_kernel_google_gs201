@@ -15,6 +15,16 @@
 #define PKTPROC_NORM_UL		1
 #define PKTPROC_MAX_QUEUE_UL	2
 
+/*
+ * Descriptor structure mode
+ * 0: End bit is set by AP
+ * 1: End bit is set by CP
+ */
+enum pktproc_end_bit_owner {
+	END_BIT_AP,
+	END_BIT_CP
+};
+
 /* Padding required by CP */
 #define CP_PADDING		76
 
@@ -29,7 +39,7 @@ struct pktproc_q_info_ul {
 
 /* info for pktproc UL */
 struct pktproc_info_ul {
-	u32 num_queues:4, mode:4, max_packet_size:16, reserve1:8;
+	u32 num_queues:4, mode:4, max_packet_size:16, end_bit_owner:1, reserve1:7;
 	u32 cp_quota:16, reserve2:16;
 	struct pktproc_q_info_ul q_info[PKTPROC_MAX_QUEUE_UL];
 } __packed;
@@ -108,7 +118,8 @@ struct pktproc_adaptor_ul {
 
 	u32 num_queue;		/* Number of queue */
 	u32 max_packet_size;	/* packet size pktproc UL can hold */
-	u32 cp_quota;	/* max number of buffers cp allows us to transfer */
+	enum pktproc_end_bit_owner end_bit_owner;	/* owner to set end bit. AP:0, CP:1 */
+	u32 cp_quota;		/* max number of buffers cp allows us to transfer */
 	bool use_hw_iocc;	/* H/W IO cache coherency */
 	bool info_desc_rgn_cached;
 	bool buff_rgn_cached;

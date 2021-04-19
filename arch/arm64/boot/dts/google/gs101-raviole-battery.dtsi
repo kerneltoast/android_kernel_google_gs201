@@ -142,6 +142,9 @@
 		maxim,batt-id-range-pct = <0>;
 
 		maxim,psy-type-unknown;
+		maxim,fg-data {
+			#include "gs101-fake-battery-data.dtsi"
+		};
 	};
 
 	max77759_chg:max77759chrg@0x69 {

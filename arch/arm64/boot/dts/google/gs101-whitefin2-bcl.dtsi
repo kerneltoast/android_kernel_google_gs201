@@ -19,7 +19,7 @@
 				google,main-power = <&s2mpg10mfd>;
 				google,sub-power = <&s2mpg11mfd>;
 				ppm_settings = <0>;
-				mpmm_settings = <0x1f>;
+				mpmm_settings = <0x1a>;
 				tpu_con_heavy = <0xf041c3>;
 				tpu_con_light = <0xf041c5>;
 				tpu_clkdivstep = <0x1>;
@@ -197,7 +197,7 @@
 
 		trips {
 			soft_ocp_cpu2:soft-ocp-cpu2 {
-				temperature = <12000>;
+				temperature = <9000>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -225,7 +225,7 @@
 
 		trips {
 			soft_ocp_tpu:soft-ocp-tpu {
-				temperature = <10500>;
+				temperature = <8500>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -253,7 +253,7 @@
 
 		trips {
 			soft_ocp_gpu:soft-ocp-gpu {
-				temperature = <12000>;
+				temperature = <9000>;
 				hysteresis = <100>;
 				type = "passive";
 			};

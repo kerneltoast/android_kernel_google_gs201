@@ -20,18 +20,6 @@
 	sdmode-gpios = <&gpp8 3 0>;
 };
 
-&dai_be_i2s0_rx {
-};
-
-&dai_be_i2s0_tx {
-};
-
-&dai_be_tdm1_rx {
-};
-
-&dai_be_tdm1_tx {
-};
-
 &dai_be_tdm0_rx {
 	codec {
 		sound-dai = <&cs35l41_l 0>,
@@ -48,39 +36,7 @@
 
 &aoc_snd_card {
 	clks {
-		pll {
-			pll@rt5682 {
-				comp = <&headphone_amp>;
-				src = "BCLK";
-				/* clk id */
-				id = <0>;
-				/* 64*48000 */
-				fixclk = <3072000>;
-				/* clk source: RT5682_SCLK_S_PLL1 */
-				srcid = <1>;
-				/* in clk multiple */
-				in_mul = <1>;
-				/* out clk multiple */
-				out_mul = <8>;
-			};
-		};
-
 		sys {
-			sys@rt5682 {
-				comp = <&headphone_amp>;
-				src = "PLL";
-				/* clk id: RT5682_SCLK_S_PLL1 */
-				id = <1>;
-				/* 64*48000*8 */
-				fixclk = <24576000>;
-				/* clk source */
-				srcid = <0>;
-				/* in clk multiple */
-				in_mul = <1>;
-				/* out clk multiple */
-				out_mul = <1>;
-			};
-
 			sys@cs35l41_l {
 				comp = <&cs35l41_l>;
 				src = "BCLK";
@@ -107,11 +63,6 @@
 				out_mul = <1>;
 			};
 		};
-	};
-
-	hs_jack {
-		be_id = <TDM_1_RX>;
-		codec = <&headphone_amp>;
 	};
 };
 
@@ -239,7 +190,7 @@
 		realtek,dmic1-data-pin = <0>;
 		realtek,jd-src = <2>;
 
-		status = "okay";
+		status = "disabled";
 	};
 };
 

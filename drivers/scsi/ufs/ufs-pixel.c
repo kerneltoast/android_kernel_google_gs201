@@ -1323,24 +1323,23 @@ static ssize_t _name##_show(struct device *dev,				\
 		struct device_attribute *attr, char *buf)		\
 {									\
 	struct ufs_hba *hba = dev_get_drvdata(dev);			\
-	struct ufs_err_reg_hist *err_hist = &hba->ufs_stats._err_name;	\
+	struct ufs_event_hist *e = &hba->ufs_stats.event[_err_name];	\
 	unsigned long flags;						\
 	u64 val = 0;							\
 	int i, p;							\
 	spin_lock_irqsave(hba->host->host_lock, flags);			\
 	switch (_type) {						\
 	case PIXEL_ERR_COUNT:						\
-		for (i = 0; i < UFS_ERR_REG_HIST_LENGTH; i++) {		\
-			p = (i + err_hist->pos) %			\
-				UFS_ERR_REG_HIST_LENGTH;		\
-			if (err_hist->tstamp[p] != 0)			\
+		for (i = 0; i < UFS_EVENT_HIST_LENGTH; i++) {		\
+			p = (i + e->pos) % UFS_EVENT_HIST_LENGTH;	\
+			if (e->tstamp[p] != 0)				\
 				val++;					\
 		}							\
 		break;							\
 	case PIXEL_ERR_TIME:						\
-		p = (err_hist->pos + UFS_ERR_REG_HIST_LENGTH - 1) %	\
-			UFS_ERR_REG_HIST_LENGTH;			\
-		val = ktime_to_us(err_hist->tstamp[p]);			\
+		p = (e->pos + UFS_EVENT_HIST_LENGTH - 1) %		\
+				UFS_EVENT_HIST_LENGTH;			\
+		val = ktime_to_us(e->tstamp[p]);			\
 		break;							\
 	}								\
 	spin_unlock_irqrestore(hba->host->host_lock, flags);		\
@@ -1359,58 +1358,46 @@ static ssize_t reset_err_status_store(struct device *dev,
 		const char *buf, size_t count)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
-	struct ufs_stats *stats = &hba->ufs_stats;
 	unsigned long flags;
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
-	memset(&stats->pa_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->dl_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->nl_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->tl_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->dme_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->auto_hibern8_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->fatal_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->link_startup_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->resume_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->suspend_err, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->dev_reset, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->host_reset, 0, sizeof(struct ufs_err_reg_hist));
-	memset(&stats->task_abort, 0, sizeof(struct ufs_err_reg_hist));
+	memset(hba->ufs_stats.event, 0,
+			sizeof(struct ufs_event_hist) * UFS_EVT_CNT);
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	return count;
 }
 
-PIXEL_ERR_STATS_ATTR(pa_err_count, pa_err, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(pa_err_lasttime, pa_err, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(dl_err_count, dl_err, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(dl_err_lasttime, dl_err, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(nl_err_count, nl_err, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(nl_err_lasttime, nl_err, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(tl_err_count, tl_err, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(tl_err_lasttime, tl_err, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(dme_err_count, dme_err, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(dme_err_lasttime, dme_err, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(auto_hibern8_err_count, auto_hibern8_err,
+PIXEL_ERR_STATS_ATTR(pa_err_count, UFS_EVT_PA_ERR, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(pa_err_lasttime, UFS_EVT_PA_ERR, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(dl_err_count, UFS_EVT_DL_ERR, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(dl_err_lasttime, UFS_EVT_DL_ERR, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(nl_err_count, UFS_EVT_NL_ERR, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(nl_err_lasttime, UFS_EVT_NL_ERR, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(tl_err_count, UFS_EVT_TL_ERR, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(tl_err_lasttime, UFS_EVT_TL_ERR, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(dme_err_count, UFS_EVT_DME_ERR, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(dme_err_lasttime, UFS_EVT_DME_ERR, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(auto_hibern8_err_count, UFS_EVT_AUTO_HIBERN8_ERR,
 		PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(auto_hibern8_err_lasttime, auto_hibern8_err,
+PIXEL_ERR_STATS_ATTR(auto_hibern8_err_lasttime, UFS_EVT_AUTO_HIBERN8_ERR,
 		PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(fatal_err_count, fatal_err, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(fatal_err_lasttime, fatal_err, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(link_startup_err_count, link_startup_err,
+PIXEL_ERR_STATS_ATTR(fatal_err_count, UFS_EVT_FATAL_ERR, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(fatal_err_lasttime, UFS_EVT_FATAL_ERR, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(link_startup_err_count, UFS_EVT_LINK_STARTUP_FAIL,
 		PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(link_startup_err_lasttime, link_startup_err,
+PIXEL_ERR_STATS_ATTR(link_startup_err_lasttime, UFS_EVT_LINK_STARTUP_FAIL,
 		PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(resume_err_count, resume_err, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(resume_err_lasttime, resume_err, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(suspend_err_count, suspend_err, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(suspend_err_lasttime, suspend_err, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(dev_reset_count, dev_reset, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(dev_reset_lasttime, dev_reset, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(host_reset_count, host_reset, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(host_reset_lasttime, host_reset, PIXEL_ERR_TIME);
-PIXEL_ERR_STATS_ATTR(task_abort_count, task_abort, PIXEL_ERR_COUNT);
-PIXEL_ERR_STATS_ATTR(task_abort_lasttime, task_abort, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(resume_err_count, UFS_EVT_RESUME_ERR, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(resume_err_lasttime, UFS_EVT_RESUME_ERR, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(suspend_err_count, UFS_EVT_SUSPEND_ERR, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(suspend_err_lasttime, UFS_EVT_SUSPEND_ERR, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(dev_reset_count, UFS_EVT_DEV_RESET, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(dev_reset_lasttime, UFS_EVT_DEV_RESET, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(host_reset_count, UFS_EVT_HOST_RESET, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(host_reset_lasttime, UFS_EVT_HOST_RESET, PIXEL_ERR_TIME);
+PIXEL_ERR_STATS_ATTR(task_abort_count, UFS_EVT_ABORT, PIXEL_ERR_COUNT);
+PIXEL_ERR_STATS_ATTR(task_abort_lasttime, UFS_EVT_ABORT, PIXEL_ERR_TIME);
 DEVICE_ATTR_RW(reset_err_status);
 
 static struct attribute *ufs_sysfs_err_stats[] = {
