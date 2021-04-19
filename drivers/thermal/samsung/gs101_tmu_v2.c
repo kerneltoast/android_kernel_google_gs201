@@ -1173,11 +1173,12 @@ static int gs101_tmu_pm_notify(struct notifier_block *nb,
 	case PM_HIBERNATION_PREPARE:
 	case PM_RESTORE_PREPARE:
 	case PM_SUSPEND_PREPARE:
+		atomic_set(&gs101_tmu_in_suspend, 1);
 		list_for_each_entry(data, &dtm_dev_list, node) {
 			if (data->use_pi_thermal)
-				kthread_cancel_delayed_work_sync(&data->pi_work);
+				kthread_mod_delayed_work(&data->thermal_worker, &data->pi_work,
+							 msecs_to_jiffies(0));
 		}
-		atomic_set(&gs101_tmu_in_suspend, 1);
 		break;
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
