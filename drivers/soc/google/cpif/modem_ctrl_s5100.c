@@ -25,12 +25,12 @@
 #include <linux/timer.h>
 
 #include <linux/exynos-pci-ctrl.h>
-#include <soc/google/modem_notifier.h>
 #include <soc/google/shm_ipc.h>
 
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_ctrl.h"
+#include "modem_notifier.h"
 #include "link_device.h"
 #include "link_device_memory.h"
 #include "s51xx_pcie.h"
@@ -206,7 +206,7 @@ static void voice_call_on_work(struct work_struct *work)
 			cpif_wake_unlock(mc->ws);
 	}
 
-	modem_voice_call_notify_event(MODEM_VOICE_CALL_ON, NULL);
+	modem_voice_call_notify_event(MODEM_VOICE_CALL_ON);
 
 exit:
 	mif_info("wakelock active = %d, voice status = %d\n",
@@ -228,7 +228,7 @@ static void voice_call_off_work(struct work_struct *work)
 			cpif_wake_lock(mc->ws);
 	}
 
-	modem_voice_call_notify_event(MODEM_VOICE_CALL_OFF, NULL);
+	modem_voice_call_notify_event(MODEM_VOICE_CALL_OFF);
 
 exit:
 	mif_info("wakelock active = %d, voice status = %d\n",

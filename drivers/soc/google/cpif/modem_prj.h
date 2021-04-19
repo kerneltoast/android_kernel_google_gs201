@@ -716,7 +716,6 @@ struct modem_ctl {
 	bool pcie_voice_call_on;
 	struct work_struct call_on_work;
 	struct work_struct call_off_work;
-	struct notifier_block abox_call_state_nb;
 #endif
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_GPIO_WA)
@@ -740,6 +739,7 @@ struct modem_ctl {
 #endif
 
 	struct notifier_block send_panic_nb;
+	struct notifier_block abox_call_state_nb;
 
 	struct modemctl_ops ops;
 	struct io_device *iod;

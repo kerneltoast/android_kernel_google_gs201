@@ -14,7 +14,6 @@
 #include <linux/of_gpio.h>
 #include <soc/google/mcu_ipc.h>
 #include <soc/google/shm_ipc.h>
-#include <soc/google/modem_notifier.h>
 #include <soc/google/cal-if.h>
 #include <soc/google/exynos-modem-ctrl.h>
 #if IS_ENABLED(CONFIG_EXYNOS_PMU_IF)
@@ -25,6 +24,7 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_ctrl.h"
+#include "modem_notifier.h"
 #include "link_device_memory.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
