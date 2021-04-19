@@ -166,13 +166,6 @@ static void setup_link_attr(struct sbd_link_attr *link_attr, u16 id, u16 ch,
 	link_attr->rb_len[DL] = io_dev->dl_num_buffers;
 	link_attr->buff_size[DL] = io_dev->dl_buffer_size;
 
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY)
-	if (io_dev->attrs & IO_ATTR_ZEROCOPY)
-		link_attr->zerocopy = true;
-	else
-		link_attr->zerocopy = false;
-#endif
-
 }
 
 /*
@@ -323,15 +316,6 @@ int init_sbd_link(struct sbd_link_device *sl)
 			rb->rb_ch->buff_pos_array_offset =
 				calc_offset(rb->buff_pos_array, sl->shmem);
 		}
-
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY)
-		/*
-		 * Setup zerocopy_adaptor if zerocopy ipc_dev
-		 */
-		ret = setup_zerocopy_adaptor(ipc_dev);
-		if (ret < 0)
-			return ret;
-#endif
 	}
 
 	print_sbd_config(sl);
@@ -485,14 +469,6 @@ int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
 		mif_err("sysfs_create_group() sbd_group error %d\n", ret);
 		return ret;
 	}
-
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY)
-	ret = sysfs_create_group(&sl->ld->dev->kobj, &zerocopy_group);
-	if (ret != 0) {
-		mif_err("sysfs_create_group() zerocopy_group error %d\n", ret);
-		return ret;
-	}
-#endif
 
 	mif_info("Complete!!\n");
 

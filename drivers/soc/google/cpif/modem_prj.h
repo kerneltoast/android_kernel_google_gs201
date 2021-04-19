@@ -460,8 +460,8 @@ struct link_device {
 
 	struct workqueue_struct *rx_wq;
 
-	/* MIF buffer management */
-	struct mif_buff_mng *mif_buff_mng;
+	/* CP interface network rx management */
+	struct cpif_netrx_mng *cpif_netrx_mng;
 
 	/* Save reason of forced crash */
 	struct crash_reason crash_reason;

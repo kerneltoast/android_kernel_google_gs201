@@ -47,10 +47,6 @@ config LINK_DEVICE_WITH_SBD_ARCH
 	tristate "Link device with the SBD architecture from MIPI-LLI"
 	default n
 
-config CP_ZEROCOPY
-	tristate "Support zero memory copy"
-	default n
-
 config CP_PKTPROC
 	tristate "Support packet processor"
 	default n

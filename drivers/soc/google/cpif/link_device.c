@@ -111,6 +111,10 @@ static char *smc_err_string[32] = {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
+#define SYSMMU_BAAW_SIZE	0x8000000
+#endif
+
 /*============================================================================*/
 static inline bool ipc_active(struct mem_link_device *mld)
 {
@@ -1304,39 +1308,6 @@ exit:
 		return 1;
 }
 
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY)
-enum hrtimer_restart datalloc_timer_func(struct hrtimer *timer)
-{
-	struct zerocopy_adaptor *zdptr =
-		container_of(timer, struct zerocopy_adaptor, datalloc_timer);
-	struct sbd_ring_buffer *rb = zdptr->rb;
-	struct link_device *ld = rb->ld;
-	struct mem_link_device *mld = ld_to_mem_link_device(ld);
-	struct modem_ctl *mc = ld->mc;
-	bool need_schedule = false;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mc->lock, flags);
-	if (unlikely(!ipc_active(mld))) {
-		spin_unlock_irqrestore(&mc->lock, flags);
-		goto exit;
-	}
-	spin_unlock_irqrestore(&mc->lock, flags);
-
-	if (-ENOMEM == allocate_data_in_advance(zdptr))
-		need_schedule = true;
-
-	if (need_schedule) {
-		ktime_t ktime = ktime_set(0, ms2ns(DATALLOC_PERIOD_MS));
-
-		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
-	}
-exit:
-
-	return HRTIMER_NORESTART;
-}
-#endif
-
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 {
@@ -1688,64 +1659,6 @@ static int pass_skb_to_net(struct mem_link_device *mld, struct sk_buff *skb)
 	return ret;
 }
 
-#define FREE_RB_BUF_COUNT 200
-static int rx_net_frames_from_zerocopy_adaptor(struct sbd_ring_buffer *rb,
-		int budget, int *work_done)
-{
-	int rcvd = 0;
-	struct link_device *ld = rb->ld;
-	struct mem_link_device *mld = ld_to_mem_link_device(ld);
-	struct zerocopy_adaptor *zdptr = rb->zdptr;
-	unsigned int num_frames;
-	int use_memcpy = 0;
-	int ret = 0;
-
-	num_frames = min_t(unsigned int, rb_usage(rb), budget);
-
-	ld->mif_buff_mng->enable_sw_zerocopy ?
-		(mld->force_use_memcpy = 0) : (mld->force_use_memcpy = 1);
-
-	if (mld->force_use_memcpy || (num_frames > ld->mif_buff_mng->free_cell_count)
-		|| (circ_get_space(zdptr->len, *(zdptr->rp), *(zdptr->wp)) < FREE_RB_BUF_COUNT)) {
-		use_memcpy = 1;
-		mld->memcpy_packet_count++;
-	} else {
-		use_memcpy = 0;
-		mld->zeromemcpy_packet_count++;
-	}
-
-	while (rcvd < num_frames) {
-		struct sk_buff *skb;
-
-		skb = sbd_pio_rx_zerocopy_adaptor(rb, use_memcpy);
-		if (!skb)
-			break;
-
-		/* The $rcvd must be accumulated here, because $skb can be freed
-		 * in pass_skb_to_net().
-		 */
-		rcvd++;
-
-		ret = pass_skb_to_net(mld, skb);
-		if (ret < 0)
-			break;
-	}
-
-	if (ret != -EBUSY && rcvd < num_frames) {
-		struct io_device *iod = rb->iod;
-		struct link_device *ld = rb->ld;
-		struct modem_ctl *mc = ld->mc;
-
-		mif_err_limited("%s: %s<-%s: WARN! rcvd %d < num_frames %d\n",
-			ld->name, iod->name, mc->name, rcvd, num_frames);
-	}
-
-	*work_done = rcvd;
-	allocate_data_in_advance(zdptr);
-
-	return ret;
-}
-
 static int rx_net_frames_from_rb(struct sbd_ring_buffer *rb, int budget,
 		int *work_done)
 {
@@ -1845,10 +1758,7 @@ static int sbd_ipc_rx_func_napi(struct link_device *ld, struct io_device *iod,
 	int rcvd = 0;
 	int ret;
 
-	if (rb->zerocopy)
-		ret = rx_net_frames_from_zerocopy_adaptor(rb, budget, &rcvd);
-	else
-		ret = rx_net_frames_from_rb(rb, budget, &rcvd);
+	ret = rx_net_frames_from_rb(rb, budget, &rcvd);
 
 	if (IS_ERR_VALUE((unsigned long)ret) && (ret != -EBUSY))
 		mif_err_limited("RX error (%d)\n", ret);
@@ -2371,6 +2281,9 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 #endif
 	u32 cp_num = ld->mdm_data->cp_num;
 	struct mem_link_device *mld = ld->mdm_data->mld;
+#if IS_ENABLED(CONFIG_CP_PKTPROC) && IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+#endif
 
 	err = copy_from_user(&msr, (const void __user *)arg, sizeof(msr));
 	if (err) {
@@ -2424,10 +2337,14 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 				cp_shmem_get_size(cp_num, SHMEM_PKTPROC));
 
 		exynos_smc(SMC_ID_CLK, SSS_CLK_ENABLE, 0, 0);
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
+		err = (int)exynos_smc(SMC_ID, CP_BOOT_EXT_BAAW,
+			ppa->cp_base, SYSMMU_BAAW_SIZE);
+#else
 		err = (int)exynos_smc(SMC_ID, CP_BOOT_EXT_BAAW,
 			(unsigned long)cp_shmem_get_base(cp_num, SHMEM_PKTPROC),
 			(unsigned long)cp_shmem_get_size(cp_num, SHMEM_PKTPROC));
-
+#endif
 		exynos_smc(SMC_ID_CLK, SSS_CLK_DISABLE, 0, 0);
 		if (err)
 			mif_err("ERROR: SMC call failure:%d\n", err);

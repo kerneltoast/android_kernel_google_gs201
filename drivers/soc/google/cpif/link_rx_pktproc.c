@@ -249,14 +249,13 @@ rx_error:
 static int pktproc_clear_data_addr(struct pktproc_queue *q)
 {
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
-	u8 *src;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
 		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
 		return -EINVAL;
 	}
 
-	if (!q->ppa->use_buff_mng) {
+	if (!q->ppa->use_netrx_mng) {
 		mif_err_limited("Buffer manager is not set\n");
 		return -EPERM;
 	}
@@ -266,14 +265,11 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc &&
 			q->dma_addr[q->done_ptr])
 			dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[q->done_ptr],
-							q->manager->cell_size, DMA_FROM_DEVICE, 0);
-
-		src = desc[q->done_ptr].cp_data_paddr - q->cp_buff_pbase +
-				q->q_buff_vbase - q->ppa->skb_padding_size;
-
-		if (src)
-			free_mif_buff(q->manager, src);
-
+							q->manager->max_packet_size,
+							DMA_FROM_DEVICE, 0);
+		cpif_unmap_rx_buf(q->manager, desc[q->done_ptr].cp_data_paddr -
+					q->ppa->skb_padding_size, true);
+		desc[q->done_ptr].cp_data_paddr = 0;
 		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 	}
 	memset(desc, 0, q->desc_size);
@@ -291,7 +287,7 @@ static int pktproc_clear_data_addr_without_bm(struct pktproc_queue *q)
 		return -EINVAL;
 	}
 
-	if (q->ppa->use_buff_mng) {
+	if (q->ppa->use_netrx_mng) {
 		mif_err_limited("Buffer manager is set\n");
 		return -EPERM;
 	}
@@ -311,18 +307,18 @@ static int pktproc_clear_data_addr_without_bm(struct pktproc_queue *q)
 static int pktproc_fill_data_addr(struct pktproc_queue *q)
 {
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
-	u8 *dst_vaddr = NULL;
+	struct pktproc_adaptor *ppa = q->ppa;
 	u32 space;
 	u32 fore;
 	int i;
 	unsigned long flags;
 
-	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
-		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
+	if (ppa->desc_mode != DESC_MODE_SKTBUF) {
+		mif_err_limited("Invalid desc_mode %d\n", ppa->desc_mode);
 		return -EINVAL;
 	}
 
-	if (!q->ppa->use_buff_mng) {
+	if (!ppa->use_netrx_mng) {
 		mif_err_limited("Buffer manager is not set\n");
 		return -EPERM;
 	}
@@ -330,38 +326,33 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 	spin_lock_irqsave(&q->lock, flags);
 
 	space = circ_get_space(q->num_desc, *q->fore_ptr, q->done_ptr);
-	pp_debug("Q%d:%d/%d/%d Space:%d BM:%d/%d/%d\n",
-		q->q_idx, *q->fore_ptr, *q->rear_ptr, q->done_ptr, space,
-		q->manager->cell_count, q->manager->used_cell_count, q->manager->free_cell_count);
+	pp_debug("Q%d:%d/%d/%d Space:%d\n",
+		q->q_idx, *q->fore_ptr, *q->rear_ptr, q->done_ptr, space);
 
 	fore = *q->fore_ptr;
 	for (i = 0; i < space; i++) {
-		dst_vaddr = alloc_mif_buff(q->manager);
-		if (!dst_vaddr) {
-			mif_err_limited("alloc error for space: %d Q%d:%d/%d/%d BM:%d/%d/%d\n",
-				space, q->q_idx, *q->fore_ptr, *q->rear_ptr, q->done_ptr,
-				q->manager->cell_count, q->manager->used_cell_count,
-				q->manager->free_cell_count);
-
+		struct cpif_addr_pair addrpair = cpif_map_rx_buf(q->manager,
+							ppa->skb_padding_size);
+		if (addrpair.cp_addr == 0) {
+			mif_err_limited("skb alloc error due to no memory\n");
 			q->stat.err_bm_nomem++;
 			spin_unlock_irqrestore(&q->lock, flags);
 			return -ENOMEM;
 		}
 
-		pp_debug("Q:%d fore_ptr:%d dst_vaddr:%pK\n", q->q_idx, *q->fore_ptr, dst_vaddr);
-
-		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
-			q->dma_addr[fore] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
-					q->manager->cell_size, DMA_FROM_DEVICE, 0);
-			if (dma_mapping_error(q->ppa->dev, q->dma_addr[fore])) {
+		if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
+			q->dma_addr[fore] = dma_map_single_attrs(ppa->dev,
+					addrpair.ap_addr,
+					q->manager->max_packet_size,
+					DMA_FROM_DEVICE, 0);
+			if (dma_mapping_error(ppa->dev, q->dma_addr[fore])) {
 				mif_err_limited("dma_map_single_attrs() failed\n");
 				spin_unlock_irqrestore(&q->lock, flags);
 				return -ENOMEM;
 			}
 		}
 
-		desc[fore].cp_data_paddr = (dst_vaddr - q->q_buff_vbase) +
-				q->cp_buff_pbase + q->ppa->skb_padding_size;
+		desc[fore].cp_data_paddr = addrpair.cp_addr;
 
 		if (fore == 0)
 			desc[fore].control |= (1 << 7);	/* HEAD */
@@ -395,7 +386,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 		return -EINVAL;
 	}
 
-	if (q->ppa->use_buff_mng) {
+	if (q->ppa->use_netrx_mng) {
 		mif_err_limited("Buffer manager is set\n");
 		return -EPERM;
 	}
@@ -475,25 +466,26 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	u8 ch_id;
 	u8 *src;
 	unsigned long src_paddr;
+	struct pktproc_adaptor *ppa = q->ppa;
 	struct sk_buff *skb = NULL;
 	struct pktproc_desc_sktbuf desc_done_ptr = q->desc_sktbuf[q->done_ptr];
 	struct link_device *ld = &q->mld->link_dev;
 	u32 packet_size = 0;
 	bool csum = false;
 
-	if (!pktproc_check_active(q->ppa, q->q_idx)) {
+	if (!pktproc_check_active(ppa, q->q_idx)) {
 		mif_err_limited("Queue %d not activated\n", q->q_idx);
 		return -EACCES;
 	}
 
-	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
-		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
+	if (ppa->desc_mode != DESC_MODE_SKTBUF) {
+		mif_err_limited("Invalid desc_mode %d\n", ppa->desc_mode);
 		return -EINVAL;
 	}
 
 	/* Get data */
 	len = desc_done_ptr.length;
-	if (len > q->ppa->max_packet_size) {
+	if (len > ppa->max_packet_size) {
 		mif_err_limited("Length is invalid:%d\n", len);
 		q->stat.err_len++;
 		ret = -EPERM;
@@ -508,26 +500,35 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		goto rx_error_on_desc;
 	}
 
-	src_paddr = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
-			q->q_buff_pbase - q->ppa->skb_padding_size;
-	src = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
-			q->q_buff_vbase - q->ppa->skb_padding_size;
+	if (q->manager) {
+		src = (u8 *)cpif_unmap_rx_buf(q->manager,
+				q->desc_sktbuf[q->done_ptr].cp_data_paddr -
+				ppa->skb_padding_size, false);
+		if (!src) {
+			mif_info("invalid data address. null given\n");
+			return -EINVAL;
+			goto rx_error_on_desc;
+		}
+	} else {
+		src_paddr = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
+				q->q_buff_pbase - q->ppa->skb_padding_size;
+		src = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
+				q->q_buff_vbase - q->ppa->skb_padding_size;
 
-	if ((src < q->q_buff_vbase) || (src > q->q_buff_vbase + q->q_buff_size)) {
-		mif_err_limited("Data address is invalid:%pK data:%pK size:0x%08x\n",
+		if ((src < q->q_buff_vbase) || (src > q->q_buff_vbase + q->q_buff_size)) {
+			mif_err_limited("Data address is invalid:%pK data:%pK size:0x%08x\n",
 					src, q->q_buff_vbase, q->q_buff_size);
-		q->stat.err_addr++;
-		ret = -EINVAL;
-		goto rx_error_on_desc;
+			q->stat.err_addr++;
+			ret = -EINVAL;
+			goto rx_error_on_desc;
+		}
 	}
 
-	if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
-		if (q->manager)
-			packet_size = q->manager->cell_size;
-		else
-			packet_size = q->ppa->max_packet_size;
 
-		dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[q->done_ptr],
+	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
+		packet_size = ppa->max_packet_size;
+
+		dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
 					packet_size, DMA_FROM_DEVICE, 0);
 	}
 
@@ -535,8 +536,8 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	if (!csum)
 		q->stat.err_csum++;
 
-	if (unlikely(q->ppa->pktgen_gro)) {
-		pktproc_set_pktgen_checksum(q, src);
+	if (unlikely(ppa->pktgen_gro)) {
+		pktproc_set_pktgen_checksum(q, src + ppa->skb_padding_size);
 		csum = true;
 	}
 
@@ -565,8 +566,27 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	}
 
 	/* Build skb */
-	if (q->use_memcpy) {
-		if (q->ppa->use_napi)
+	if (q->manager) {
+		if (!ppa->use_napi) {
+			mif_err_limited("napi should be used for buff mng\n");
+			q->stat.err_nomem++;
+			ret = -ENOMEM;
+			goto rx_error;
+		}
+		tmp_len = SKB_DATA_ALIGN(len + ppa->skb_padding_size);
+		tmp_len += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+		skb = build_skb(src, tmp_len);
+		if (unlikely(!skb)) {
+			mif_err_limited("build_skb() error\n");
+			q->stat.err_nomem++;
+			ret = -EINVAL;
+			goto rx_error;
+		}
+		skb->head_frag = 0;
+		skb_reserve(skb, ppa->skb_padding_size);
+		skb_put(skb, len);
+	} else { /* use memcpy */
+		if (ppa->use_napi)
 			skb = napi_alloc_skb(q->napi_ptr, len);
 		else
 			skb = dev_alloc_skb(len);
@@ -577,23 +597,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 			goto rx_error;
 		}
 		skb_put(skb, len);
-		skb_copy_to_linear_data(skb, src + q->ppa->skb_padding_size, len);
-		if (q->manager)
-			free_mif_buff(q->manager, src);
-		q->stat.use_memcpy_cnt++;
-	} else {
-		tmp_len = SKB_DATA_ALIGN(len + q->ppa->skb_padding_size);
-		tmp_len += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-		skb = build_skb(src, tmp_len);
-		if (unlikely(!skb)) {
-			mif_err_limited("build_skb() error\n");
-			q->stat.err_nomem++;
-			ret = -ENOMEM;
-			goto rx_error;
-		}
-		skb->head_frag = 0;
-		skb_reserve(skb, q->ppa->skb_padding_size);
-		skb_put(skb, len);
+		skb_copy_to_linear_data(skb, src + ppa->skb_padding_size, len);
 	}
 
 	if (csum)
@@ -604,7 +608,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	skbpriv(skb)->sipc_ch = ch_id;
 	skbpriv(skb)->iod = link_get_iod_with_channel(ld, ch_id);
 	skbpriv(skb)->ld = ld;
-	if (q->ppa->use_napi)
+	if (ppa->use_napi)
 		skbpriv(skb)->napi = q->napi_ptr;
 	else
 		skbpriv(skb)->napi = NULL;
@@ -668,26 +672,6 @@ int pktproc_get_usage_fore_rear(struct pktproc_queue *q)
 	return usage;
 }
 
-static bool pktproc_check_memcpy_mode(struct pktproc_queue *q, u32 budget)
-{
-	if (q->ppa->desc_mode != DESC_MODE_SKTBUF)
-		return true;
-
-	if (!q->manager)
-		return true;
-
-	if (!q->manager->enable_sw_zerocopy)
-		return true;
-
-	if (q->manager->free_cell_count < budget)
-		return true;
-
-	if (circ_get_space(q->num_desc, *q->rear_ptr, *q->fore_ptr) < budget)
-		return true;
-
-	return false;
-}
-
 static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_done)
 {
 	int ret = 0;
@@ -705,10 +689,8 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 	if (!num_frames)
 		return 0;
 
-	q->use_memcpy = pktproc_check_memcpy_mode(q, budget);
-
-	pp_debug("Q%d num_frames:%d memcpy:%d %d/%d/%d\n",
-			q->q_idx, num_frames, q->use_memcpy,
+	pp_debug("Q%d num_frames:%d fore/rear/done: %d/%d/%d\n",
+			q->q_idx, num_frames,
 			*q->fore_ptr, *q->rear_ptr, q->done_ptr);
 
 	while (rcvd_total < num_frames) {
@@ -744,13 +726,12 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 	if (rcvd_total - rcvd_dit > 0)
 		tpmon_start();
 #endif
-	if (q->ppa->manager) {
+	if (q->manager) {
 		ret = q->alloc_rx_buf(q);
 		if (ret)
 			mif_err_limited("alloc_rx_buf() error %d Q%d\n", ret, q->q_idx);
-	} else {
+	} else
 		q->update_fore_ptr(q, rcvd_total - rcvd_dit);
-	}
 
 out:
 	if (q->ppa->use_napi)
@@ -1079,8 +1060,8 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08lx\n", ppa->cp_base);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Descriptor mode:%d\n", ppa->desc_mode);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Num of queue:%d\n", ppa->num_queue);
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "Buffer manager:%d\n",
-		ppa->use_buff_mng);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "NetRX manager:%d\n",
+		ppa->use_netrx_mng);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "NAPI:%d\n", ppa->use_napi);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Exclusive interrupt:%d\n",
 		ppa->use_exclusive_irq);
@@ -1096,19 +1077,6 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 		ppa->info_desc_rgn_cached ? "C" : "NC",
 		ppa->buff_rgn_cached ? "C" : "NC");
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
-
-	if (ppa->manager) {
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "Buffer manager\n");
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "  buffer size:0x%08x\n",
-			ppa->manager->buffer_size);
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "  total cell count:%d\n",
-			ppa->manager->cell_count);
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "  cell size:%d\n",
-			ppa->manager->cell_size);
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "  enable sw zerocopy:%d\n",
-			ppa->manager->enable_sw_zerocopy);
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
-	}
 
 	for (i = 0; i < ppa->num_queue; i++) {
 		struct pktproc_queue *q = ppa->q[i];
@@ -1132,6 +1100,18 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 			q->q_buff_size);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  DIT:%d\n",
 			dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx));
+
+		if (q->manager) {
+			count += scnprintf(&buf[count], PAGE_SIZE - count,
+					"Buffer manager\n");
+			count += scnprintf(&buf[count], PAGE_SIZE - count,
+					"  total number of packets:%d\n",
+				q->manager->num_packet);
+			count += scnprintf(&buf[count], PAGE_SIZE - count,
+					"  max packet size:%d\n",
+				q->manager->max_packet_size);
+			count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
+		}
 	}
 
 	return count;
@@ -1145,14 +1125,6 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 	ssize_t count = 0;
 	int i;
-
-	if (ppa->manager) {
-		count += scnprintf(&buf[count], PAGE_SIZE - count,
-			"Buffer manager total/use/free:%d/%d/%d\n",
-			ppa->manager->cell_count, ppa->manager->used_cell_count,
-			ppa->manager->free_cell_count);
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
-	}
 
 	for (i = 0; i < ppa->num_queue; i++) {
 		struct pktproc_queue *q = ppa->q[i];
@@ -1182,10 +1154,6 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 				circ_get_usage(q->num_desc, *q->fore_ptr, *q->rear_ptr),
 				circ_get_usage(q->num_desc, *q->rear_ptr, q->done_ptr),
 				circ_get_usage(q->num_desc, *q->rear_ptr, *q->fore_ptr));
-			if (!dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx))
-				count += scnprintf(&buf[count], PAGE_SIZE - count,
-					"  use memcpy:%d count:%lld\n",
-					q->use_memcpy, q->stat.use_memcpy_cnt);
 			break;
 		default:
 			break;
@@ -1246,11 +1214,6 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 		ppa->use_exclusive_irq, ppa->use_napi,
 		ppa->use_hw_iocc, ppa->max_packet_size);
 
-	if (ppa->manager)
-		mif_info("buffer_size:0x%08x cell_count:%d cell_size:%d sw_zeocopy:%d\n",
-			ppa->manager->buffer_size, ppa->manager->cell_count,
-			ppa->manager->cell_size, ppa->manager->enable_sw_zerocopy);
-
 	for (i = 0; i < ppa->num_queue; i++) {
 		struct pktproc_queue *q = ppa->q[i];
 
@@ -1263,6 +1226,10 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 		case DESC_MODE_SKTBUF:
 			if (pktproc_check_active(q->ppa, q->q_idx))
 				q->clear_data_addr(q);
+			if (q->manager)
+				mif_info("num packets:%d max packet size:%d\n",
+					q->manager->num_packet,
+					q->manager->max_packet_size);
 			break;
 		default:
 			break;
@@ -1307,28 +1274,48 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 /*
  * Create PktProc
  */
-static int pktproc_create_buffer_manager(struct pktproc_adaptor *ppa, u32 buff_size)
+static int pktproc_create_buffer_manager(struct pktproc_queue *q, u64 ap_desc_pbase)
 {
+	struct pktproc_adaptor *ppa;
+	unsigned int desc_total_size = 0;
+	struct cpif_addr_pair desc_addr_pair;
+	u64 total_packet_size = 0;
+
+	if (!q) {
+		mif_err("q is null\n");
+		return -EINVAL;
+	}
+
+	desc_total_size = q->num_desc * sizeof(struct pktproc_desc_sktbuf);
+	ppa = q->ppa;
 	if (!ppa) {
 		mif_err("ppa is null\n");
 		return -EINVAL;
 	}
 
-	if (!ppa->use_buff_mng) {
-		mif_err("use_buff_mng is not set\n");
+	if (!ppa->use_netrx_mng) {
+		mif_err("use_netrx_mng is not set\n");
 		return -EINVAL;
 	}
 
-	if (ppa->manager != NULL) {
+	if (q->manager != NULL) {
 		mif_info("buffer manager is already initialized\n");
 		return 0;
 	}
 
-	/* Use only one buffer manager for all queues */
-	ppa->manager = init_mif_buff_mng(ppa->buff_vbase, buff_size,
-					ppa->max_packet_size + MIF_BUFF_CELL_PADDING_SIZE);
-	if (!ppa->manager) {
-		mif_err("init_mif_buff_mng() error\n");
+	desc_addr_pair.cp_addr = q->cp_desc_pbase;
+	desc_addr_pair.ap_addr = phys_to_virt(ap_desc_pbase);
+	total_packet_size = ppa->max_packet_size + ppa->skb_padding_size +
+				sizeof(struct skb_shared_info);
+	mif_info("about to init netrx mng: cp_addr: 0x%lX ap_addr: 0x%lX psize: %d\n",
+			q->cp_desc_pbase, q->desc_sktbuf, total_packet_size);
+	mif_info("desc_total_size:%d cp_buff_pbase: 0x%lX num_desc: %d\n",
+			desc_total_size, q->cp_buff_pbase, q->num_desc);
+	q->manager = cpif_create_netrx_mng(&desc_addr_pair, desc_total_size,
+					q->cp_buff_pbase, total_packet_size,
+					q->num_desc);
+	if (!q->manager) {
+		mif_err("cpif_create_netrx_mng() error\n");
 		return -ENOMEM;
 	}
 
@@ -1350,8 +1337,12 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	case PKTPROC_V2:
 		mif_dt_read_u32(np, "pktproc_desc_mode", ppa->desc_mode);
 		mif_dt_read_u32(np, "pktproc_num_queue", ppa->num_queue);
-		mif_dt_read_u32(np, "pktproc_use_buff_mng", ppa->use_buff_mng);
-		mif_dt_read_u32(np, "pktproc_desc_num_ratio_percent", ppa->desc_num_ratio_percent);
+		mif_dt_read_u32(np, "pktproc_use_netrx_mng", ppa->use_netrx_mng);
+		if (ppa->use_netrx_mng)
+			mif_dt_read_u32(np, "pktproc_netrx_capacity",
+					ppa->netrx_capacity);
+		else
+			ppa->netrx_capacity = 0;
 		mif_dt_read_u32(np, "pktproc_use_exclusive_irq", ppa->use_exclusive_irq);
 		if (ppa->use_exclusive_irq) {
 			ret = of_property_read_u32_array(np, "pktproc_exclusive_irq_idx",
@@ -1370,8 +1361,9 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 
 	mif_info("version:%d cp_base:0x%08lx mode:%d num_queue:%d\n",
 		ppa->version, ppa->cp_base, ppa->desc_mode, ppa->num_queue);
-	mif_info("use_buff_mng:%d use_napi:%d exclusive_irq:%d\n",
-		ppa->use_buff_mng, ppa->use_napi, ppa->use_exclusive_irq);
+	mif_info("use_netrx_mng:%d netrx_capacity:%d use_napi:%d exclusive_irq:%d\n",
+		ppa->use_netrx_mng, ppa->netrx_capacity, ppa->use_napi,
+		ppa->use_exclusive_irq);
 
 	mif_dt_read_u32(np, "pktproc_use_hw_iocc", ppa->use_hw_iocc);
 	mif_dt_read_u32(np, "pktproc_max_packet_size", ppa->max_packet_size);
@@ -1392,6 +1384,10 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	mif_dt_read_u32(np, "pktproc_info_desc_rgn_cached", ppa->info_desc_rgn_cached);
 	mif_dt_read_u32(np, "pktproc_buff_rgn_cached", ppa->buff_rgn_cached);
 	mif_info("cached:%d/%d\n", ppa->info_desc_rgn_cached, ppa->buff_rgn_cached);
+	if (ppa->use_netrx_mng && !ppa->buff_rgn_cached) {
+		mif_err("Buffer manager requires cached buff region\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1401,7 +1397,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct pktproc_adaptor *ppa = &mld->pktproc;
-	u32 buff_size, buff_size_by_q;
+	u32 buff_size, buff_size_by_q, accum_buff_size;
 	int i;
 	int ret = 0;
 
@@ -1432,7 +1428,8 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 	/* Get base addr */
 	mif_info("memaddr:0x%lx memsize:0x%08x\n", memaddr, memsize);
 	if (ppa->info_desc_rgn_cached) {
-		ppa->info_vbase = phys_to_virt(memaddr + ppa->info_rgn_offset);
+		ppa->info_vbase = cp_shmem_get_nc_region(memaddr + ppa->info_rgn_offset,
+				ppa->info_rgn_size);
 		ppa->desc_vbase = phys_to_virt(memaddr + ppa->desc_rgn_offset);
 	} else {
 		ppa->info_vbase = cp_shmem_get_nc_region(memaddr + ppa->info_rgn_offset,
@@ -1443,32 +1440,27 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		}
 		ppa->desc_vbase = ppa->info_vbase + ppa->info_rgn_size;
 	}
-	memset(ppa->info_vbase, 0, ppa->info_rgn_size + ppa->desc_rgn_size);
+	memset(ppa->info_vbase, 0, ppa->info_rgn_size);
+	memset(ppa->desc_vbase, 0, ppa->desc_rgn_size);
 	mif_info("info + desc size:0x%08x\n", ppa->info_rgn_size + ppa->desc_rgn_size);
 
-	buff_size = memsize - (ppa->info_rgn_size + ppa->desc_rgn_size);
-	buff_size_by_q = buff_size / ppa->num_queue;
-	ppa->buff_pbase = memaddr + ppa->buff_rgn_offset;
-	if (ppa->buff_rgn_cached)
-		ppa->buff_vbase = phys_to_virt(ppa->buff_pbase);
-	else
-		ppa->buff_vbase = cp_shmem_get_nc_region(ppa->buff_pbase, buff_size);
-	mif_info("Total buff buffer size:0x%08x Queue:%d Size by queue:0x%08x\n",
+	if (!ppa->use_netrx_mng) {
+		buff_size = memsize - (ppa->info_rgn_size + ppa->desc_rgn_size);
+		buff_size_by_q = buff_size / ppa->num_queue;
+		ppa->buff_pbase = memaddr + ppa->buff_rgn_offset;
+		if (ppa->buff_rgn_cached)
+			ppa->buff_vbase = phys_to_virt(ppa->buff_pbase);
+		else
+			ppa->buff_vbase = cp_shmem_get_nc_region(ppa->buff_pbase, buff_size);
+		mif_info("Total buff buffer size:0x%08x Queue:%d Size by queue:0x%08x\n",
 					buff_size, ppa->num_queue, buff_size_by_q);
+	} else
+		accum_buff_size = 0;
 
-	/* Create buffer manager */
-	if (ppa->use_buff_mng) {
-		mif_info("create buffer manager\n");
-		ret = pktproc_create_buffer_manager(ppa, buff_size);
-		if (ret < 0) {
-			mif_err("pktproc_create_buffer_manager() error:%d\n", ret);
-			goto create_error;
-		}
+	if (ppa->use_netrx_mng)
 		ppa->skb_padding_size = NET_SKB_PAD + NET_IP_ALIGN;
-	} else {
-		ppa->manager = NULL;
+	else
 		ppa->skb_padding_size = 0;
-	}
 
 	/* Create queue */
 	for (i = 0; i < ppa->num_queue; i++) {
@@ -1483,6 +1475,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			goto create_error;
 		}
 		q = ppa->q[i];
+		q->ppa = ppa;
 
 		atomic_set(&q->active, 0);
 		atomic_set(&q->stop_napi_poll, 0);
@@ -1517,8 +1510,8 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				(i * buff_size_by_q);
 			q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase >> 4;
 			q->q_buff_size = buff_size_by_q;
-			if (q->ppa->buff_rgn_cached && !ppa->use_hw_iocc)
-				dma_sync_single_for_device(q->ppa->dev,
+			if (ppa->buff_rgn_cached && !ppa->use_hw_iocc)
+				dma_sync_single_for_device(ppa->dev,
 						q->q_buff_pbase, q->q_buff_size, DMA_FROM_DEVICE);
 
 			q->num_desc = buff_size_by_q / ppa->max_packet_size;
@@ -1537,16 +1530,13 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			q->irq_handler = pktproc_irq_handler;
 			break;
 		case DESC_MODE_SKTBUF:
-			q->manager = ppa->manager;
-			if (q->manager) {
-				q->q_buff_pbase = ppa->buff_pbase;
-				q->q_buff_vbase = ppa->buff_vbase;
-				q->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset;
-				q->q_buff_size = buff_size;
-				q->num_desc = (buff_size_by_q / q->manager->cell_size) *
-						ppa->desc_num_ratio_percent / 100;
+			if (ppa->use_netrx_mng) {
+				q->num_desc = ppa->netrx_capacity;
 				q->alloc_rx_buf = pktproc_fill_data_addr;
 				q->clear_data_addr = pktproc_clear_data_addr;
+				q->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset
+							+ accum_buff_size;
+
 			} else {
 				q->q_buff_pbase = ppa->buff_pbase + (i * buff_size_by_q);
 				q->q_buff_vbase = ppa->buff_vbase + (i * buff_size_by_q);
@@ -1556,6 +1546,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				q->num_desc = buff_size_by_q / ppa->max_packet_size;
 				q->alloc_rx_buf = pktproc_fill_data_addr_without_bm;
 				q->clear_data_addr = pktproc_clear_data_addr_without_bm;
+
 			}
 			q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase >> 4;
 			q->q_info_ptr->num_desc = q->num_desc;
@@ -1579,6 +1570,21 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				goto create_error;
 			}
 
+			if (ppa->use_netrx_mng) {
+				/* to make phys_to_virt macro operable */
+				u64 ap_desc_pbase = memaddr + ppa->desc_rgn_offset +
+						(i * sizeof(struct pktproc_desc_sktbuf)
+						 * q->num_desc);
+				mif_info("create buffer manager\n");
+				ret = pktproc_create_buffer_manager(q, ap_desc_pbase);
+				if (ret < 0) {
+					mif_err("failed to create netrx mng:%d\n", ret);
+					goto create_error;
+				}
+				accum_buff_size += q->manager->total_buf_size;
+			} else
+				q->manager = NULL;
+
 			q->get_packet = pktproc_get_pkt_from_sktbuf_mode;
 			q->irq_handler = pktproc_irq_handler;
 			q->update_fore_ptr = pktproc_update_fore_ptr;
@@ -1589,8 +1595,9 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			goto create_error;
 		}
 
-		if ((q->cp_desc_pbase + q->desc_size) > q->cp_buff_pbase) {
-			mif_err("Descriptor overflow:0x%08lx 0x%08x 0x%08lx\n",
+		if ((!q->manager) &&
+				(q->cp_desc_pbase + q->desc_size) > q->cp_buff_pbase) {
+			mif_err("Descriptor overflow:0x%08x 0x%08x 0x%08x\n",
 				q->cp_desc_pbase, q->desc_size, q->cp_buff_pbase);
 			ret = -EINVAL;
 			goto create_error;
@@ -1602,7 +1609,6 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 		q->q_idx = i;
 		q->mld = mld;
-		q->ppa = ppa;
 
 		/* NAPI */
 		if (ppa->use_napi) {
@@ -1644,8 +1650,9 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 		mif_info("num_desc:%d cp_desc_pbase:0x%08lx desc_size:0x%08x\n",
 			q->num_desc, q->cp_desc_pbase, q->desc_size);
-		mif_info("cp_buff_pbase:0x%08lx buff_size:0x%08x\n",
-			q->cp_buff_pbase, q->q_buff_size);
+		if (!q->manager)
+			mif_info("cp_buff_pbase:0x%08lx buff_size:0x%08x\n",
+				q->cp_buff_pbase, q->q_buff_size);
 	}
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
@@ -1670,12 +1677,11 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 create_error:
 	for (i = 0; i < ppa->num_queue; i++) {
+		if (ppa->q[i]->manager)
+			cpif_exit_netrx_mng(ppa->q[i]->manager);
 		kfree(ppa->q[i]->dma_addr);
 		kfree(ppa->q[i]);
 	}
-
-	if (ppa->manager)
-		exit_mif_buff_mng(ppa->manager);
 
 	if (!ppa->buff_rgn_cached && ppa->buff_vbase)
 		vunmap(ppa->buff_vbase);

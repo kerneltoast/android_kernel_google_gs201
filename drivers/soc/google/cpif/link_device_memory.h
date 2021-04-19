@@ -27,7 +27,6 @@
 
 #include <soc/google/mcu_ipc.h>
 #include "modem_prj.h"
-#include "modem_utils.h"
 #include "include/circ_queue.h"
 #include "include/sbd.h"
 #include "include/sipc5.h"

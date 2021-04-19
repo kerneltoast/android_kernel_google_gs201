@@ -7,6 +7,8 @@
 #ifndef __LINK_RX_PKTPROC_H__
 #define __LINK_RX_PKTPROC_H__
 
+#include "cpif_netrx_mng.h"
+
 /* Debug */
 /* #define PKTPROC_DEBUG */
 /* #define PKTPROC_DEBUG_PKT */
@@ -99,7 +101,6 @@ struct pktproc_statistics {
 	u64 err_nomem;
 	u64 err_bm_nomem;
 	u64 err_csum;
-	u64 use_memcpy_cnt;
 	u64 err_enqueue_dit;
 };
 
@@ -151,10 +152,9 @@ struct pktproc_queue {
 	unsigned long q_buff_pbase;
 	u32 q_buff_size;
 
-	/* Buffer manager */
-	struct mif_buff_mng *manager;	/* Pointer to buffer manager */
+	/* CP interface network rx manager */
+	struct cpif_netrx_mng *manager;	/* Pointer to rx manager */
 	dma_addr_t *dma_addr;
-	bool use_memcpy;	/* memcpy mode on sktbuf mode */
 
 	/* IRQ */
 	int irq;
@@ -257,8 +257,8 @@ struct pktproc_adaptor {
 	struct device *dev;
 
 	bool use_napi;
-	bool use_buff_mng;
-	struct mif_buff_mng *manager;	/* Buffer manager */
+	bool use_netrx_mng;
+	u32 netrx_capacity;
 	u32 skb_padding_size;
 
 	void __iomem *info_vbase;	/* I/O region for information */

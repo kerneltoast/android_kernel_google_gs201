@@ -486,18 +486,4 @@ struct sk_buff *sbd_pio_rx(struct sbd_ring_buffer *rb);
 
 #define SBD_UL_LIMIT		16	/* Uplink burst limit */
 
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY)
-extern const struct attribute_group zerocopy_group;
-
-struct sk_buff *sbd_pio_rx_zerocopy_adaptor(struct sbd_ring_buffer *rb, int use_memcpy);
-int allocate_data_in_advance(struct zerocopy_adaptor *zdptr);
-int setup_zerocopy_adaptor(struct sbd_ipc_device *ipc_dev);
-extern enum hrtimer_restart datalloc_timer_func(struct hrtimer *timer);
-#else
-static inline struct sk_buff *sbd_pio_rx_zerocopy_adaptor(struct sbd_ring_buffer *rb,
-		int use_memcpy) { return NULL; }
-static inline int allocate_data_in_advance(struct zerocopy_adaptor *zdptr) { return 0; }
-static inline int setup_zerocopy_adaptor(struct sbd_ipc_device *ipc_dev) { return 0; }
-#endif
-
 #endif

@@ -31,19 +31,6 @@
 #include "cpif_qos_info.h"
 #endif
 
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY) || IS_ENABLED(CONFIG_CP_PKTPROC)
-static int vnet_init(struct net_device *ndev)
-{
-	struct vnet *vnet = netdev_priv(ndev);
-
-	vnet->free_head = __skb_free_head_cp_zerocopy;
-	if (vnet->enable_zerocopy)
-		cpif_enable_sw_zerocopy();
-
-	return 0;
-}
-#endif
-
 static int vnet_open(struct net_device *ndev)
 {
 	struct vnet *vnet = netdev_priv(ndev);
@@ -329,9 +316,6 @@ static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 #endif
 
 static const struct net_device_ops vnet_ops = {
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY) || IS_ENABLED(CONFIG_CP_PKTPROC)
-	.ndo_init = vnet_init,
-#endif
 	.ndo_open = vnet_open,
 	.ndo_stop = vnet_stop,
 	.ndo_start_xmit = vnet_xmit,

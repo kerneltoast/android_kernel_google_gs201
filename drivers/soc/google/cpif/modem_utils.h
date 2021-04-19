@@ -528,64 +528,13 @@ void set_wakeup_packet_log(bool enable);
  * sizeof(struct skb_shared_info): 512
  * 2048 + 512 = 2560 (0xA00)
  */
-#define MIF_BUFF_DEFAULT_PACKET_SIZE	(2048)
-#define MIF_BUFF_CELL_PADDING_SIZE	(512)
-#define MIF_BUFF_DEFAULT_CELL_SIZE	(MIF_BUFF_DEFAULT_PACKET_SIZE+MIF_BUFF_CELL_PADDING_SIZE)
-#define MIF_BUFF_MAP_CELL_SIZE	(sizeof(uint64_t))
-#define MIF_BITS_FOR_BYTE	(8)
-#define MIF_BITS_FOR_MAP_CELL	(MIF_BUFF_MAP_CELL_SIZE * MIF_BITS_FOR_BYTE)
-#define MIF_64BIT_FIRST_BIT	(0x8000000000000000ULL)
+#define MIF_BUFF_DEFAULT_PACKET_SIZE   (2048)
+#define MIF_BUFF_CELL_PADDING_SIZE     (512)
+#define MIF_BUFF_DEFAULT_CELL_SIZE     (MIF_BUFF_DEFAULT_PACKET_SIZE+MIF_BUFF_CELL_PADDING_SIZE)
 
-struct mif_buff_mng {
-	unsigned char *buffer_start;
-	unsigned char *buffer_end;
-	unsigned int buffer_size;
-	unsigned int cell_size;
-
-	unsigned int cell_count;
-	unsigned int used_cell_count;
-	unsigned int free_cell_count;
-
-	spinlock_t lock;
-
-	uint64_t *buffer_map;
-	unsigned int buffer_map_size;
-	int current_map_index;
-
-	struct list_head node;
-
-	bool enable_sw_zerocopy;
-};
-
-struct mif_buff_mng *init_mif_buff_mng(unsigned char *buffer_start,
-	unsigned int buffer_size, unsigned int cell_size);
-void exit_mif_buff_mng(struct mif_buff_mng *bm);
-void *alloc_mif_buff(struct mif_buff_mng *bm);
-int free_mif_buff(struct mif_buff_mng *bm, void *buffer);
-
-static inline unsigned int get_mif_buff_free_count(struct mif_buff_mng *bm)
-{
-	if (bm)
-		return bm->free_cell_count;
-	else
-		return 0;
-}
-
-static inline unsigned int get_mif_buff_used_count(struct mif_buff_mng *bm)
-{
-	if (bm)
-		return bm->used_cell_count;
-	else
-		return 0;
-}
-
-extern struct mif_buff_mng *g_mif_buff_mng;
 void set_dflags(unsigned long flag);
 
 const char *get_cpif_driver_version(void);
-
-extern bool __skb_free_head_cp_zerocopy(struct sk_buff *skb);
-extern void cpif_enable_sw_zerocopy(void);
 
 static inline struct wakeup_source *cpif_wake_lock_register(struct device *dev, const char *name)
 {
