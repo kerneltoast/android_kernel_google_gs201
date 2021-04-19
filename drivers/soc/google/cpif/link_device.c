@@ -3717,149 +3717,8 @@ static enum hrtimer_restart sbd_print(struct hrtimer *timer)
 	return HRTIMER_RESTART;
 }
 
-struct link_device *create_link_device(struct platform_device *pdev, u32 link_type)
+static int set_protocol_attr(struct link_device *ld)
 {
-	struct modem_data *modem;
-	struct mem_link_device *mld;
-	struct link_device *ld;
-	int err;
-	u32 cp_num;
-	struct device_node *np_acpm = NULL;
-	u32 acpm_addr;
-	u8 __iomem *cmsg_base;
-	int part;
-
-	mif_err("+++\n");
-
-	/**
-	 * Get the modem (platform) data
-	 */
-	modem = (struct modem_data *)pdev->dev.platform_data;
-	if (!modem) {
-		mif_err("ERR! modem == NULL\n");
-		return NULL;
-	}
-
-	if (!modem->mbx) {
-		mif_err("%s: ERR! mbx == NULL\n", modem->link_name);
-		return NULL;
-	}
-
-	if (modem->ipc_version < SIPC_VER_50) {
-		mif_err("%s<->%s: ERR! IPC version %d < SIPC_VER_50\n",
-			modem->link_name, modem->name, modem->ipc_version);
-		return NULL;
-	}
-
-	mif_err("MODEM:%s LINK:%s\n", modem->name, modem->link_name);
-
-	/*
-	 * Alloc an instance of mem_link_device structure
-	 */
-	mld = kzalloc(sizeof(struct mem_link_device), GFP_KERNEL);
-	if (!mld) {
-		mif_err("%s<->%s: ERR! mld kzalloc fail\n",
-			modem->link_name, modem->name);
-		return NULL;
-	}
-
-	/*
-	 * Retrieve modem-specific attributes value
-	 */
-	mld->attrs = modem->link_attrs;
-	mif_info("link_attrs:0x%08x\n", mld->attrs);
-
-	/*====================================================================
-	 *	Initialize "memory snapshot buffer (MSB)" framework
-	 *====================================================================
-	 */
-	if (msb_init() < 0) {
-		mif_err("%s<->%s: ERR! msb_init() fail\n",
-			modem->link_name, modem->name);
-		goto error;
-	}
-
-	/*====================================================================
-	 *	Set attributes as a "link_device"
-	 *====================================================================
-	 */
-	ld = &mld->link_dev;
-
-	ld->name = modem->link_name;
-
-	if (mld->attrs & LINK_ATTR_SBD_IPC) {
-		mif_err("%s<->%s: LINK_ATTR_SBD_IPC\n", ld->name, modem->name);
-		ld->sbd_ipc = true;
-	}
-
-	if (mld->attrs & LINK_ATTR_IPC_ALIGNED) {
-		mif_err("%s<->%s: LINK_ATTR_IPC_ALIGNED\n",
-			ld->name, modem->name);
-		ld->aligned = true;
-	}
-
-	ld->ipc_version = modem->ipc_version;
-	ld->interrupt_types = modem->interrupt_types;
-
-	ld->mdm_data = modem;
-
-	ld->dev = &pdev->dev;
-
-	/*
-	 * Set up link device methods
-	 */
-	ld->ioctl = shmem_ioctl;
-
-	ld->init_comm = shmem_init_comm;
-	ld->terminate_comm = NULL;
-	ld->send = shmem_send;
-	ld->reset_zerocopy = NULL;
-
-	ld->link_prepare_normal_boot = link_prepare_normal_boot;
-	ld->link_trigger_cp_crash = link_trigger_cp_crash;
-
-	do {
-		if (!(mld->attrs & LINK_ATTR_MEM_BOOT))
-			break;
-
-		ld->link_start_normal_boot = link_start_normal_boot;
-		if (link_type == LINKDEV_SHMEM)
-			ld->security_req = shmem_security_request;
-
-		if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR))
-			break;
-
-		ld->load_cp_image = link_load_cp_image;
-		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_SPI) {
-			ld->load_cp_image = cpboot_spi_load_cp_image;
-
-			mld->spi_bus_num = -1;
-			mif_dt_read_u32_noerr(pdev->dev.of_node, "cpboot_spi_bus_num",
-					      mld->spi_bus_num);
-			if (mld->spi_bus_num < 0) {
-				mif_err("cpboot_spi_bus_num error\n");
-				goto error;
-			}
-		}
-	} while (0);
-
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-	if (link_type == LINKDEV_PCIE)
-		ld->register_pcie = shmem_register_pcie;
-#endif
-
-	if (mld->attrs & LINK_ATTR_MEM_DUMP)
-		ld->link_start_dump_boot = link_start_dump_boot;
-
-	ld->close_tx = shmem_close_tx;
-	ld->get_cp_crash_reason = get_cp_crash_reason;
-
-	ld->gro_flush = gro_flush_timer;
-	ld->update_flush_time = update_flush_time;
-
-	ld->protocol = modem->protocol;
-	ld->capability_check = modem->capability_check;
-
 	switch (ld->protocol) {
 	case PROTOCOL_SIPC:
 		ld->chid_fmt_0 = SIPC5_CH_ID_FMT_0;
@@ -3931,8 +3790,97 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 		break;
 	default:
 		mif_err("protocol error %d\n", ld->protocol);
-		goto error;
+		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int set_ld_attr(struct platform_device *pdev,
+	u32 link_type, struct modem_data *modem,
+	struct mem_link_device *mld, struct link_device *ld)
+{
+	int err = 0;
+
+	ld->name = modem->link_name;
+
+	if (mld->attrs & LINK_ATTR_SBD_IPC) {
+		mif_err("%s<->%s: LINK_ATTR_SBD_IPC\n", ld->name, modem->name);
+		ld->sbd_ipc = true;
+	}
+
+	if (mld->attrs & LINK_ATTR_IPC_ALIGNED) {
+		mif_err("%s<->%s: LINK_ATTR_IPC_ALIGNED\n",
+			ld->name, modem->name);
+		ld->aligned = true;
+	}
+
+	ld->ipc_version = modem->ipc_version;
+	ld->interrupt_types = modem->interrupt_types;
+
+	ld->mdm_data = modem;
+
+	ld->dev = &pdev->dev;
+
+	/*
+	 * Set up link device methods
+	 */
+	ld->ioctl = shmem_ioctl;
+
+	ld->init_comm = shmem_init_comm;
+	ld->terminate_comm = NULL;
+	ld->send = shmem_send;
+	ld->reset_zerocopy = NULL;
+
+	ld->link_prepare_normal_boot = link_prepare_normal_boot;
+	ld->link_trigger_cp_crash = link_trigger_cp_crash;
+
+	do {
+		if (!(mld->attrs & LINK_ATTR_MEM_BOOT))
+			break;
+
+		ld->link_start_normal_boot = link_start_normal_boot;
+		if (link_type == LINKDEV_SHMEM)
+			ld->security_req = shmem_security_request;
+
+		if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR))
+			break;
+
+		ld->load_cp_image = link_load_cp_image;
+		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_SPI) {
+			ld->load_cp_image = cpboot_spi_load_cp_image;
+
+			mld->spi_bus_num = -1;
+			mif_dt_read_u32_noerr(pdev->dev.of_node, "cpboot_spi_bus_num",
+					      mld->spi_bus_num);
+			if (mld->spi_bus_num < 0) {
+				mif_err("cpboot_spi_bus_num error\n");
+				err = -ENODEV;
+				goto error;
+			}
+		}
+	} while (0);
+
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+	if (link_type == LINKDEV_PCIE)
+		ld->register_pcie = shmem_register_pcie;
+#endif
+
+	if (mld->attrs & LINK_ATTR_MEM_DUMP)
+		ld->link_start_dump_boot = link_start_dump_boot;
+
+	ld->close_tx = shmem_close_tx;
+	ld->get_cp_crash_reason = get_cp_crash_reason;
+
+	ld->gro_flush = gro_flush_timer;
+	ld->update_flush_time = update_flush_time;
+
+	ld->protocol = modem->protocol;
+	ld->capability_check = modem->capability_check;
+
+	err = set_protocol_attr(ld);
+	if (err)
+		goto error;
 
 	ld->enable_rx_int = shmem_enable_rx_int;
 	ld->disable_rx_int = shmem_disable_rx_int;
@@ -3941,6 +3889,387 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	ld->stop_timers = shmem_stop_timers;
 
 	ld->handover_block_info = update_handover_block_info;
+
+	return 0;
+
+error:
+	mif_err("xxx\n");
+	return err;
+}
+
+static int init_shmem_maps(u32 link_type, struct modem_data *modem,
+	struct mem_link_device *mld, struct link_device *ld, u32 cp_num)
+{
+	int err = 0;
+	struct device_node *np_acpm = NULL;
+	u32 acpm_addr;
+
+#if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM)
+	if (link_type == LINKDEV_SHMEM) {
+		mld->boot_size = cp_shmem_get_size(cp_num, SHMEM_CP) +
+			cp_shmem_get_size(cp_num, SHMEM_VSS);
+		mld->boot_base = NULL;
+		mif_err("boot_base=NULL, boot_size=%lu\n",
+			(unsigned long)mld->boot_size);
+	}
+#endif
+
+	/*
+	 * Initialize SHMEM maps for IPC (physical map -> logical map)
+	 */
+	mld->size = cp_shmem_get_size(cp_num, SHMEM_IPC);
+#if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
+	mld->base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC), SZ_2M);
+#else
+	mld->base = cp_shmem_get_region(cp_num, SHMEM_IPC);
+#endif
+
+#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
+	mld->hiprio_base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC)
+			+ modem->legacy_raw_qos_buffer_offset, modem->legacy_raw_qos_txq_size
+			+ modem->legacy_raw_qos_rxq_size);
+#endif
+	if (!mld->base) {
+		mif_err("Failed to vmap ipc_region\n");
+		err = -ENOMEM;
+		goto error;
+	}
+	mif_err("ipc_base=%pK, ipc_size=%lu\n",
+		mld->base, (unsigned long)mld->size);
+
+	switch (link_type) {
+	case LINKDEV_SHMEM:
+		/*
+		 * Initialize SHMEM maps for VSS (physical map -> logical map)
+		 */
+		mld->vss_base = cp_shmem_get_region(cp_num, SHMEM_VSS);
+		if (!mld->vss_base) {
+			mif_err("Failed to vmap vss_region\n");
+			err = -ENOMEM;
+			goto error;
+		}
+		mif_err("vss_base=%pK\n", mld->vss_base);
+
+		/*
+		 * Initialize memory maps for ACPM (physical map -> logical map)
+		 */
+		np_acpm = of_find_node_by_name(NULL, "acpm_ipc");
+		if (!np_acpm)
+			break;
+
+		of_property_read_u32(np_acpm, "dump-size", &mld->acpm_size);
+		of_property_read_u32(np_acpm, "dump-base", &acpm_addr);
+		mld->acpm_base = cp_shmem_get_nc_region(acpm_addr, mld->acpm_size);
+		if (!mld->acpm_base) {
+			mif_err("Failed to vmap acpm_region\n");
+			err = -ENOMEM;
+			goto error;
+		}
+		mif_err("acpm_base=%pK acpm_size:0x%X\n", mld->acpm_base,
+				mld->acpm_size);
+		break;
+	default:
+		break;
+	}
+
+	ld->link_type = link_type;
+	create_legacy_link_device(mld);
+
+	if (ld->sbd_ipc) {
+		hrtimer_init(&mld->sbd_tx_timer,
+				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		mld->sbd_tx_timer.function = sbd_tx_timer_func;
+
+		hrtimer_init(&mld->sbd_print_timer,
+				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		mld->sbd_print_timer.function = sbd_print;
+
+		err = create_sbd_link_device(ld,
+				&mld->sbd_link_dev, mld->base, mld->size);
+		if (err < 0)
+			goto error;
+	}
+
+	return 0;
+
+error:
+	mif_err("xxx\n");
+	return err;
+}
+
+static int init_info_region(struct modem_data *modem,
+	struct mem_link_device *mld, struct link_device *ld)
+{
+	u8 __iomem *cmsg_base;
+	int part;
+
+	if (modem->offset_ap_version)
+		mld->ap_version = (u32 __iomem *)(mld->base + modem->offset_ap_version);
+	if (modem->offset_cp_version)
+		mld->cp_version = (u32 __iomem *)(mld->base + modem->offset_cp_version);
+	if (modem->offset_cmsg_offset) {
+		mld->cmsg_offset = (u32 __iomem *)(mld->base + modem->offset_cmsg_offset);
+		cmsg_base = mld->base + modem->cmsg_offset;
+		iowrite32(modem->cmsg_offset, mld->cmsg_offset);
+	} else {
+		cmsg_base = mld->base;
+	}
+
+	if (modem->offset_srinfo_offset) {
+		mld->srinfo_offset = (u32 __iomem *)(mld->base + modem->offset_srinfo_offset);
+		iowrite32(modem->srinfo_offset, mld->srinfo_offset);
+	}
+	if (modem->offset_clk_table_offset) {
+		mld->clk_table_offset = (u32 __iomem *)(mld->base + modem->offset_clk_table_offset);
+		iowrite32(modem->clk_table_offset, mld->clk_table_offset);
+	}
+	if (modem->offset_buff_desc_offset) {
+		mld->buff_desc_offset = (u32 __iomem *)(mld->base + modem->offset_buff_desc_offset);
+		iowrite32(modem->buff_desc_offset, mld->buff_desc_offset);
+	}
+
+	mld->srinfo_base = (u32 __iomem *)(mld->base + modem->srinfo_offset);
+	mld->srinfo_size = modem->srinfo_size;
+	mld->clk_table = (u32 __iomem *)(mld->base + modem->clk_table_offset);
+
+	if (ld->capability_check) {
+		u8 __iomem *offset;
+
+		/* AP/CP capability */
+		offset = mld->base + modem->offset_capability_offset;
+		mld->capability_offset = (u32 __iomem *)(offset);
+		iowrite32(modem->capability_offset, mld->capability_offset);
+
+		offset = mld->base + modem->capability_offset;
+		for (part = 0; part < AP_CP_CAP_PARTS; part++) {
+			mld->ap_capability_offset[part] =
+				(u32 __iomem *)(offset + (AP_CP_CAP_PART_LEN * 2 * part));
+			mld->cp_capability_offset[part] =
+				(u32 __iomem *)(offset + (AP_CP_CAP_PART_LEN * 2 * part) +
+				AP_CP_CAP_PART_LEN);
+
+			/* Initial values */
+			iowrite32(0, mld->ap_capability_offset[part]);
+			iowrite32(0, mld->cp_capability_offset[part]);
+		}
+	}
+
+	construct_ctrl_msg(&mld->cp2ap_msg, modem->cp2ap_msg, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_msg, modem->ap2cp_msg, cmsg_base);
+	construct_ctrl_msg(&mld->cp2ap_united_status, modem->cp2ap_united_status, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_united_status, modem->ap2cp_united_status, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_kerneltime, modem->ap2cp_kerneltime, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_kerneltime_sec, modem->ap2cp_kerneltime_sec, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_kerneltime_usec, modem->ap2cp_kerneltime_usec, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_handover_block_info,
+				modem->ap2cp_handover_block_info, cmsg_base);
+
+	for (part = 0; part < AP_CP_CAP_PARTS; part++)
+		mld->ap_capability[part] = modem->ap_capability[part];
+
+	return 0;
+}
+
+static int register_irq_handler(struct modem_data *modem,
+	struct mem_link_device *mld, struct link_device *ld)
+{
+	int err = 0;
+
+#if IS_ENABLED(CONFIG_MCU_IPC)
+	if (ld->interrupt_types == INTERRUPT_MAILBOX) {
+		err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_msg,
+				shmem_irq_handler, mld);
+		if (err) {
+			mif_err("%s: ERR! cp_mbox_register_handler(MBOX_IRQ_IDX_0, %u) fail (%d)\n",
+				ld->name, mld->irq_cp2ap_msg, err);
+			goto error;
+		}
+	}
+#endif
+
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+	/* Set doorbell interrupt value for separating interrupts */
+	mld->intval_ap2cp_msg = modem->mbx->int_ap2cp_msg + DOORBELL_INT_ADD;
+	mld->intval_ap2cp_status = modem->mbx->int_ap2cp_status
+				+ DOORBELL_INT_ADD;
+	mld->intval_ap2cp_active = modem->mbx->int_ap2cp_active
+				+ DOORBELL_INT_ADD;
+#endif
+
+	/**
+	 * Retrieve SHMEM MBOX# and IRQ# for wakelock
+	 */
+	mld->irq_cp2ap_wakelock = modem->mbx->irq_cp2ap_wakelock;
+
+	mld->ws = cpif_wake_lock_register(ld->dev, ld->name);
+	if (mld->ws == NULL) {
+		mif_err("%s: wakeup_source_register fail\n", ld->name);
+		err = -EINVAL;
+		goto error;
+	}
+
+#if IS_ENABLED(CONFIG_MCU_IPC)
+	if (ld->interrupt_types == INTERRUPT_MAILBOX) {
+		err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_wakelock,
+				shmem_cp2ap_wakelock_handler, mld);
+		if (err) {
+			mif_err("%s: ERR! cp_mbox_register_handler(MBOX_IRQ_IDX_0, %u) fail (%d)\n",
+				ld->name, mld->irq_cp2ap_wakelock, err);
+			goto error;
+		}
+	}
+#endif
+
+	/**
+	 * Retrieve SHMEM MBOX# and IRQ# for RAT_MODE
+	 */
+#if IS_ENABLED(CONFIG_MCU_IPC) && IS_ENABLED(CONFIG_PCI_EXYNOS)
+	mld->irq_cp2ap_rat_mode = modem->mbx->irq_cp2ap_rat_mode;
+
+	err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_rat_mode,
+			shmem_cp2ap_rat_mode_handler, mld);
+	if (err) {
+		mif_err("%s: ERR! cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, %u) fail (%d)\n",
+			ld->name, mld->irq_cp2ap_rat_mode, err);
+		goto error;
+	}
+#endif
+
+#if IS_ENABLED(CONFIG_MCU_IPC)
+	if (ld->interrupt_types == INTERRUPT_MAILBOX) {
+		err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_status,
+					shmem_tx_state_handler, mld);
+		if (err) {
+			mif_err("%s: ERR! cp_mbox_register_handler(MBOX_IRQ_IDX_0, %u) fail (%d)\n",
+				ld->name, mld->irq_cp2ap_status, err);
+			goto error;
+		}
+	}
+#endif
+
+	return 0;
+
+error:
+	mif_err("xxx\n");
+	return err;
+}
+
+static int parse_ect_tables(struct platform_device *pdev,
+	struct mem_link_device *mld)
+{
+	int err = 0;
+
+	err = of_property_read_u32(pdev->dev.of_node,
+		"devfreq_use_dfs_max_freq", &mld->mif_table.use_dfs_max_freq);
+	if (err) {
+		mif_err("devfreq_use_dfs_max_freq error:%d\n", err);
+		return err;
+	}
+
+	if (mld->mif_table.use_dfs_max_freq) {
+		err = of_property_read_u32(pdev->dev.of_node,
+			"devfreq_cal_id_mif", &mld->mif_table.cal_id_mif);
+		if (err) {
+			mif_err("devfreq_cal_id_mif error:%d\n", err);
+			return err;
+		}
+	}
+
+	/* Parsing devfreq, cpufreq table from ECT */
+	mif_info("Parsing MIF frequency table...\n");
+	err = parse_ect(mld, "MIF");
+	if (err < 0)
+		mif_err("Can't get MIF frequency table!!!!!\n");
+
+	mif_info("Parsing CP_CPU frequency table...\n");
+	err = parse_ect(mld, "CP_CPU");
+	if (err < 0)
+		mif_err("Can't get CP_CPU frequency table!!!!!\n");
+
+	mif_info("Parsing CP frequency table...\n");
+	err = parse_ect(mld, "CP");
+	if (err < 0)
+		mif_err("Can't get CP frequency table!!!!!\n");
+
+	mif_info("Parsing CP_EM frequency table...\n");
+	err = parse_ect(mld, "CP_EM");
+	if (err < 0)
+		mif_err("Can't get CP_EM frequency table!!!!!\n");
+
+	mif_info("Parsing CP_MCW frequency table...\n");
+	err = parse_ect(mld, "CP_MCW");
+	if (err < 0)
+		mif_err("Can't get CP_MCW frequency table!!!!!\n");
+
+	return 0;
+}
+
+struct link_device *create_link_device(struct platform_device *pdev, u32 link_type)
+{
+	struct modem_data *modem;
+	struct mem_link_device *mld;
+	struct link_device *ld;
+	int err;
+	u32 cp_num;
+
+	mif_err("+++\n");
+
+	/**
+	 * Get the modem (platform) data
+	 */
+	modem = (struct modem_data *)pdev->dev.platform_data;
+	if (!modem) {
+		mif_err("ERR! modem == NULL\n");
+		return NULL;
+	}
+
+	if (!modem->mbx) {
+		mif_err("%s: ERR! mbx == NULL\n", modem->link_name);
+		return NULL;
+	}
+
+	if (modem->ipc_version < SIPC_VER_50) {
+		mif_err("%s<->%s: ERR! IPC version %d < SIPC_VER_50\n",
+			modem->link_name, modem->name, modem->ipc_version);
+		return NULL;
+	}
+
+	mif_err("MODEM:%s LINK:%s\n", modem->name, modem->link_name);
+
+	/*
+	 * Alloc an instance of mem_link_device structure
+	 */
+	mld = kzalloc(sizeof(struct mem_link_device), GFP_KERNEL);
+	if (!mld) {
+		mif_err("%s<->%s: ERR! mld kzalloc fail\n",
+			modem->link_name, modem->name);
+		return NULL;
+	}
+
+	/*
+	 * Retrieve modem-specific attributes value
+	 */
+	mld->attrs = modem->link_attrs;
+	mif_info("link_attrs:0x%08x\n", mld->attrs);
+
+	/*====================================================================
+	 *	Initialize "memory snapshot buffer (MSB)" framework
+	 *====================================================================
+	 */
+	if (msb_init() < 0) {
+		mif_err("%s<->%s: ERR! msb_init() fail\n",
+			modem->link_name, modem->name);
+		goto error;
+	}
+
+	/*====================================================================
+	 *	Set attributes as a "link_device"
+	 *====================================================================
+	 */
+	ld = &mld->link_dev;
+	err = set_ld_attr(pdev, link_type, modem, mld, ld);
+	if (err)
+		goto error;
 
 	init_dummy_netdev(&mld->dummy_net);
 	netif_napi_add(&mld->dummy_net, &mld->mld_napi, mld_rx_int_poll, NAPI_POLL_WEIGHT);
@@ -4021,150 +4350,16 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	 * Initialize SHMEM maps for BOOT (physical map -> logical map)
 	 */
 	cp_num = ld->mdm_data->cp_num;
-#if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM)
-	if (link_type == LINKDEV_SHMEM) {
-		mld->boot_size = cp_shmem_get_size(cp_num, SHMEM_CP) +
-			cp_shmem_get_size(cp_num, SHMEM_VSS);
-		mld->boot_base = NULL;
-		mif_err("boot_base=NULL, boot_size=%lu\n",
-			(unsigned long)mld->boot_size);
-	}
-#endif
-
-	/*
-	 * Initialize SHMEM maps for IPC (physical map -> logical map)
-	 */
-	mld->size = cp_shmem_get_size(cp_num, SHMEM_IPC);
-#if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
-	mld->base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC), SZ_2M);
-#else
-	mld->base = cp_shmem_get_region(cp_num, SHMEM_IPC);
-#endif
-
-#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
-	mld->hiprio_base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC)
-			+ modem->legacy_raw_qos_buffer_offset, modem->legacy_raw_qos_txq_size
-			+ modem->legacy_raw_qos_rxq_size);
-#endif
-	if (!mld->base) {
-		mif_err("Failed to vmap ipc_region\n");
+	err = init_shmem_maps(link_type, modem, mld, ld, cp_num);
+	if (err)
 		goto error;
-	}
-	mif_err("ipc_base=%pK, ipc_size=%lu\n",
-		mld->base, (unsigned long)mld->size);
-
-	switch (link_type) {
-	case LINKDEV_SHMEM:
-		/*
-		 * Initialize SHMEM maps for VSS (physical map -> logical map)
-		 */
-		mld->vss_base = cp_shmem_get_region(cp_num, SHMEM_VSS);
-		if (!mld->vss_base) {
-			mif_err("Failed to vmap vss_region\n");
-			goto error;
-		}
-		mif_err("vss_base=%pK\n", mld->vss_base);
-
-		/*
-		 * Initialize memory maps for ACPM (physical map -> logical map)
-		 */
-		np_acpm = of_find_node_by_name(NULL, "acpm_ipc");
-		if (!np_acpm)
-			break;
-
-		of_property_read_u32(np_acpm, "dump-size", &mld->acpm_size);
-		of_property_read_u32(np_acpm, "dump-base", &acpm_addr);
-		mld->acpm_base = cp_shmem_get_nc_region(acpm_addr, mld->acpm_size);
-		if (!mld->acpm_base) {
-			mif_err("Failed to vmap acpm_region\n");
-			goto error;
-		}
-		mif_err("acpm_base=%pK acpm_size:0x%X\n", mld->acpm_base,
-				mld->acpm_size);
-		break;
-	default:
-		break;
-	}
-
-	ld->link_type = link_type;
-	create_legacy_link_device(mld);
-
-	if (ld->sbd_ipc) {
-		hrtimer_init(&mld->sbd_tx_timer,
-				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		mld->sbd_tx_timer.function = sbd_tx_timer_func;
-
-		hrtimer_init(&mld->sbd_print_timer,
-				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		mld->sbd_print_timer.function = sbd_print;
-
-		err = create_sbd_link_device(ld,
-				&mld->sbd_link_dev, mld->base, mld->size);
-		if (err < 0)
-			goto error;
-	}
 
 	/*
 	 * Info region
 	 */
-	if (modem->offset_ap_version)
-		mld->ap_version = (u32 __iomem *)(mld->base + modem->offset_ap_version);
-	if (modem->offset_cp_version)
-		mld->cp_version = (u32 __iomem *)(mld->base + modem->offset_cp_version);
-	if (modem->offset_cmsg_offset) {
-		mld->cmsg_offset = (u32 __iomem *)(mld->base + modem->offset_cmsg_offset);
-		cmsg_base = mld->base + modem->cmsg_offset;
-		iowrite32(modem->cmsg_offset, mld->cmsg_offset);
-	} else {
-		cmsg_base = mld->base;
-	}
-
-	if (modem->offset_srinfo_offset) {
-		mld->srinfo_offset = (u32 __iomem *)(mld->base + modem->offset_srinfo_offset);
-		iowrite32(modem->srinfo_offset, mld->srinfo_offset);
-	}
-	if (modem->offset_clk_table_offset) {
-		mld->clk_table_offset = (u32 __iomem *)(mld->base + modem->offset_clk_table_offset);
-		iowrite32(modem->clk_table_offset, mld->clk_table_offset);
-	}
-	if (modem->offset_buff_desc_offset) {
-		mld->buff_desc_offset = (u32 __iomem *)(mld->base + modem->offset_buff_desc_offset);
-		iowrite32(modem->buff_desc_offset, mld->buff_desc_offset);
-	}
-
-	mld->srinfo_base = (u32 __iomem *)(mld->base + modem->srinfo_offset);
-	mld->srinfo_size = modem->srinfo_size;
-	mld->clk_table = (u32 __iomem *)(mld->base + modem->clk_table_offset);
-
-	if (ld->capability_check) {
-		u8 __iomem *offset;
-
-		/* AP/CP capability */
-		offset = mld->base + modem->offset_capability_offset;
-		mld->capability_offset = (u32 __iomem *)(offset);
-		iowrite32(modem->capability_offset, mld->capability_offset);
-
-		offset = mld->base + modem->capability_offset;
-		for (part = 0; part < AP_CP_CAP_PARTS; part++) {
-			mld->ap_capability_offset[part] =
-				(u32 __iomem *)(offset + (AP_CP_CAP_PART_LEN * 2 * part));
-			mld->cp_capability_offset[part] =
-				(u32 __iomem *)(offset + (AP_CP_CAP_PART_LEN * 2 * part) +
-				AP_CP_CAP_PART_LEN);
-
-			/* Initial values */
-			iowrite32(0, mld->ap_capability_offset[part]);
-			iowrite32(0, mld->cp_capability_offset[part]);
-		}
-	}
-
-	construct_ctrl_msg(&mld->cp2ap_msg, modem->cp2ap_msg, cmsg_base);
-	construct_ctrl_msg(&mld->ap2cp_msg, modem->ap2cp_msg, cmsg_base);
-	construct_ctrl_msg(&mld->cp2ap_united_status, modem->cp2ap_united_status, cmsg_base);
-	construct_ctrl_msg(&mld->ap2cp_united_status, modem->ap2cp_united_status, cmsg_base);
-	construct_ctrl_msg(&mld->ap2cp_kerneltime, modem->ap2cp_kerneltime, cmsg_base);
-	construct_ctrl_msg(&mld->ap2cp_kerneltime_sec, modem->ap2cp_kerneltime_sec, cmsg_base);
-	construct_ctrl_msg(&mld->ap2cp_kerneltime_usec, modem->ap2cp_kerneltime_usec, cmsg_base);
+	err = init_info_region(modem, mld, ld);
+	if (err)
+		goto error;
 
 	/*
 	 * Retrieve SHMEM MBOX#, IRQ#, etc.
@@ -4179,135 +4374,11 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	mld->sbi_cp_rat_mode_mask = modem->sbi_cp2ap_rat_mode_mask;
 	mld->sbi_cp_rat_mode_pos = modem->sbi_cp2ap_rat_mode_pos;
 
-	for (part = 0; part < AP_CP_CAP_PARTS; part++)
-		mld->ap_capability[part] = modem->ap_capability[part];
-
-	/*
-	 * Register interrupt handlers
-	 */
-#if IS_ENABLED(CONFIG_MCU_IPC)
-	if (ld->interrupt_types == INTERRUPT_MAILBOX) {
-		err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_msg,
-				shmem_irq_handler, mld);
-		if (err) {
-			mif_err("%s: ERR! cp_mbox_register_handler(MBOX_IRQ_IDX_0, %u) fail (%d)\n",
-				ld->name, mld->irq_cp2ap_msg, err);
-			goto error;
-		}
-	}
-#endif
-
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-	/* Set doorbell interrupt value for separating interrupts */
-	mld->intval_ap2cp_msg = modem->mbx->int_ap2cp_msg + DOORBELL_INT_ADD;
-	mld->intval_ap2cp_status = modem->mbx->int_ap2cp_status
-				+ DOORBELL_INT_ADD;
-	mld->intval_ap2cp_active = modem->mbx->int_ap2cp_active
-				+ DOORBELL_INT_ADD;
-#endif
-
-	/**
-	 * Retrieve SHMEM MBOX# and IRQ# for wakelock
-	 */
-	mld->irq_cp2ap_wakelock = modem->mbx->irq_cp2ap_wakelock;
-
-	mld->ws = cpif_wake_lock_register(ld->dev, ld->name);
-	if (mld->ws == NULL) {
-		mif_err("%s: wakeup_source_register fail\n", ld->name);
-		goto error;
-	}
-
-#if IS_ENABLED(CONFIG_MCU_IPC)
-	if (ld->interrupt_types == INTERRUPT_MAILBOX) {
-		err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_wakelock,
-				shmem_cp2ap_wakelock_handler, mld);
-		if (err) {
-			mif_err("%s: ERR! cp_mbox_register_handler(MBOX_IRQ_IDX_0, %u) fail (%d)\n",
-				ld->name, mld->irq_cp2ap_wakelock, err);
-			goto error;
-		}
-	}
-#endif
-
-	/**
-	 * Retrieve SHMEM MBOX# and IRQ# for RAT_MODE
-	 */
-#if IS_ENABLED(CONFIG_MCU_IPC) && IS_ENABLED(CONFIG_PCI_EXYNOS)
-	mld->irq_cp2ap_rat_mode = modem->mbx->irq_cp2ap_rat_mode;
-
-	err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_rat_mode,
-			shmem_cp2ap_rat_mode_handler, mld);
-	if (err) {
-		mif_err("%s: ERR! cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, %u) fail (%d)\n",
-			ld->name, mld->irq_cp2ap_rat_mode, err);
-		goto error;
-	}
-#endif
-
-	if (ld->link_type == LINKDEV_SHMEM) {
-		err = of_property_read_u32(pdev->dev.of_node, "devfreq_use_dfs_max_freq",
-				&mld->mif_table.use_dfs_max_freq);
-		if (err) {
-			mif_err("devfreq_use_dfs_max_freq error:%d\n", err);
-			goto error;
-		}
-
-		if (mld->mif_table.use_dfs_max_freq) {
-			err = of_property_read_u32(pdev->dev.of_node,
-				"devfreq_cal_id_mif", &mld->mif_table.cal_id_mif);
-			if (err) {
-				mif_err("devfreq_cal_id_mif error:%d\n", err);
-				goto error;
-			}
-		}
-
-		/* Parsing devfreq, cpufreq table from ECT */
-		mif_info("Parsing MIF frequency table...\n");
-		err = parse_ect(mld, "MIF");
-		if (err < 0)
-			mif_err("Can't get MIF frequency table!!!!!\n");
-
-		mif_info("Parsing CP_CPU frequency table...\n");
-		err = parse_ect(mld, "CP_CPU");
-		if (err < 0)
-			mif_err("Can't get CP_CPU frequency table!!!!!\n");
-
-		mif_info("Parsing CP frequency table...\n");
-		err = parse_ect(mld, "CP");
-		if (err < 0)
-			mif_err("Can't get CP frequency table!!!!!\n");
-
-		mif_info("Parsing CP_EM frequency table...\n");
-		err = parse_ect(mld, "CP_EM");
-		if (err < 0)
-			mif_err("Can't get CP_EM frequency table!!!!!\n");
-
-		mif_info("Parsing CP_MCW frequency table...\n");
-		err = parse_ect(mld, "CP_MCW");
-		if (err < 0)
-			mif_err("Can't get CP_MCW frequency table!!!!!\n");
-	}
-
 	/**
 	 * For TX Flow-control command from CP
 	 */
-	construct_ctrl_msg(&mld->ap2cp_handover_block_info,
-			modem->ap2cp_handover_block_info, cmsg_base);
-
 	mld->irq_cp2ap_status = modem->mbx->irq_cp2ap_status;
 	mld->tx_flowctrl_cmd = 0;
-
-#if IS_ENABLED(CONFIG_MCU_IPC)
-	if (ld->interrupt_types == INTERRUPT_MAILBOX) {
-		err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_status,
-					shmem_tx_state_handler, mld);
-		if (err) {
-			mif_err("%s: ERR! cp_mbox_register_handler(MBOX_IRQ_IDX_0, %u) fail (%d)\n",
-				ld->name, mld->irq_cp2ap_status, err);
-			goto error;
-		}
-	}
-#endif
 
 	/* Link mem_link_device to modem_data */
 	modem->mld = mld;
@@ -4316,6 +4387,19 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 
 	mld->pass_skb_to_net = pass_skb_to_net;
 	mld->pass_skb_to_demux = pass_skb_to_demux;
+
+	/*
+	 * Register interrupt handlers
+	 */
+	err = register_irq_handler(modem, mld, ld);
+	if (err)
+		goto error;
+
+	if (ld->link_type == LINKDEV_SHMEM) {
+		err = parse_ect_tables(pdev, mld);
+		if (err)
+			goto error;
+	}
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	err = pktproc_create(pdev, mld, cp_shmem_get_base(cp_num, SHMEM_PKTPROC),
@@ -4356,8 +4440,6 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	return ld;
 
 error:
-	//shm_release_regions();
-
 	kfree(mld);
 	mif_err("xxx\n");
 	return NULL;
