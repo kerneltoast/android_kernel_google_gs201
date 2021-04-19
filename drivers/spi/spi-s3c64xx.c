@@ -455,17 +455,23 @@ static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
 	/* Free DMA channels */
-	if (sci->dma_mode == DMA_MODE) {
+	if (sci->dma_mode == DMA_MODE && sdd->is_probed && sdd->ops) {
 #ifdef CONFIG_ARM64
-		sdd->ops->release((unsigned long)sdd->rx_dma.ch,
-					&s3c64xx_spi_dma_client);
-		sdd->ops->release((unsigned long)sdd->tx_dma.ch,
-						&s3c64xx_spi_dma_client);
+		if (sdd->rx_dma.ch)
+			sdd->ops->release((unsigned long)sdd->rx_dma.ch,
+				&s3c64xx_spi_dma_client);
+
+		if (sdd->tx_dma.ch)
+			sdd->ops->release((unsigned long)sdd->tx_dma.ch,
+				&s3c64xx_spi_dma_client);
 #else
-		sdd->ops->release((enum dma_ch)sdd->rx_dma.ch,
-						&s3c64xx_spi_dma_client);
-		sdd->ops->release((enum dma_ch)sdd->tx_dma.ch,
-						&s3c64xx_spi_dma_client);
+		if (sdd->rx_dma.ch)
+			sdd->ops->release((enum dma_ch)sdd->rx_dma.ch,
+				&s3c64xx_spi_dma_client);
+
+		if (sdd->tx_dma.ch)
+			sdd->ops->release((enum dma_ch)sdd->tx_dma.ch,
+				&s3c64xx_spi_dma_client);
 #endif
 		sdd->rx_dma.ch = NULL;
 		sdd->tx_dma.ch = NULL;
@@ -1902,15 +1908,21 @@ static int s3c64xx_spi_runtime_suspend(struct device *dev)
 	/* Free DMA channels */
 	if (sci->dma_mode == DMA_MODE && sdd->is_probed && sdd->ops) {
 #ifdef CONFIG_ARM64
-		sdd->ops->release((unsigned long)sdd->rx_dma.ch,
-					&s3c64xx_spi_dma_client);
-		sdd->ops->release((unsigned long)sdd->tx_dma.ch,
-						&s3c64xx_spi_dma_client);
+		if (sdd->rx_dma.ch)
+			sdd->ops->release((unsigned long)sdd->rx_dma.ch,
+				&s3c64xx_spi_dma_client);
+
+		if (sdd->tx_dma.ch)
+			sdd->ops->release((unsigned long)sdd->tx_dma.ch,
+				&s3c64xx_spi_dma_client);
 #else
-		sdd->ops->release((enum dma_ch)sdd->rx_dma.ch,
-						&s3c64xx_spi_dma_client);
-		sdd->ops->release((enum dma_ch)sdd->tx_dma.ch,
-						&s3c64xx_spi_dma_client);
+		if (sdd->rx_dma.ch)
+			sdd->ops->release((enum dma_ch)sdd->rx_dma.ch,
+				&s3c64xx_spi_dma_client);
+
+		if (sdd->tx_dma.ch)
+			sdd->ops->release((enum dma_ch)sdd->tx_dma.ch,
+				&s3c64xx_spi_dma_client);
 #endif
 		sdd->rx_dma.ch = NULL;
 		sdd->tx_dma.ch = NULL;
