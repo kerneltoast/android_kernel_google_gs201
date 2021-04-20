@@ -74,10 +74,4 @@ int s51xx_check_pcie_link_status(int ch_num);
 void s51xx_pcie_l1ss_ctrl(int enable, int ch_num);
 void disable_msi_int(struct pci_dev *pdev);
 void print_msi_register(struct pci_dev *pdev);
-int s5100_force_crash_exit_ext(void);
-int s5100_poweron_pcie(struct modem_ctl *mc);
-int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off);
-int s5100_try_gpio_cp_wakeup(struct modem_ctl *mc);
-int s5100_send_panic_noti_ext(void);
-int s5100_set_outbound_atu(struct modem_ctl *mc, struct cp_btl *btl, loff_t *pos, u32 map_size);
 #endif /* __S51xx_PCIE_H__ */

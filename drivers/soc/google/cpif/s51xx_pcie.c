@@ -36,6 +36,7 @@
 
 #include "modem_prj.h"
 #include "modem_utils.h"
+#include "modem_ctrl.h"
 #include "s51xx_pcie.h"
 
 static int s51xx_pcie_read_procmem(struct seq_file *m, void *v)

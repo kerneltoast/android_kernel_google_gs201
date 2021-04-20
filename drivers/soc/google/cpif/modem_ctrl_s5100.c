@@ -57,8 +57,7 @@ static int s5100_lcd_notifier(struct notifier_block *notifier,
 
 static struct modem_ctl *g_mc;
 
-static int register_phone_active_interrupt(struct modem_ctl *mc);
-static int register_cp2ap_wakeup_interrupt(struct modem_ctl *mc);
+static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off);
 
 static int s5100_reboot_handler(struct notifier_block *nb,
 				    unsigned long l, void *p)
@@ -1004,7 +1003,7 @@ static int start_dump_boot(struct modem_ctl *mc)
 	return err;
 }
 
-int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
+static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 {
 	struct link_device *ld = get_current_link(mc->iod);
 	struct mem_link_device *mld = to_mem_link_device(ld);

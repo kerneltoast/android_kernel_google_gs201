@@ -21,6 +21,7 @@
 #include <soc/google/exynos-smc.h>
 
 #include "modem_utils.h"
+#include "modem_ctrl.h"
 #include "cp_btl.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
