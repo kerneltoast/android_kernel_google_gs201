@@ -45,6 +45,10 @@
 				google,cv-tier-ov-cnt = <10>;
 				google,cv-tier-switch-cnt = <3>;
 
+				/* rest charging */
+				google,chg-rest-rate = <8>;
+				google,chg-rest-soc = <80>;
+
 				#thermal-sensor-cells = <0>;
 				#cooling-cells = <2>;
 			};
