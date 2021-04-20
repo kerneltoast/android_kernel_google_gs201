@@ -623,9 +623,8 @@ static void reset_pi_trips(struct gs101_tmu_data *data)
 
 static void reset_pi_params(struct gs101_tmu_data *data)
 {
-	s64 i = int_to_frac(data->pi_param->i_max);
-
-	data->pi_param->err_integral = div_frac(i, data->pi_param->k_i);
+	data->pi_param->err_integral = 0;
+	data->pi_param->prev_err = 0;
 }
 
 static void allow_maximum_power(struct gs101_tmu_data *data)
@@ -661,7 +660,7 @@ static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
 {
 	struct thermal_zone_device *tz = data->tzd;
 	struct gs101_pi_param *params = data->pi_param;
-	s64 p, i, power_range;
+	s64 p, i, d, power_range;
 	s32 err, max_power_frac;
 
 	max_power_frac = int_to_frac(max_allocatable_power);
@@ -682,21 +681,25 @@ static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
 
 	if (err < int_to_frac(params->integral_cutoff)) {
 		s64 i_next = i + mul_frac(params->k_i, err);
-		s64 i_windup = int_to_frac(-1 * (s64)params->sustainable_power);
 
-		if (i_next > int_to_frac((s64)params->i_max)) {
-			i = int_to_frac((s64)params->i_max);
-			params->err_integral = div_frac(i, params->k_i);
-		} else if (i_next <= i_windup) {
-			i = i_windup;
-			params->err_integral = div_frac(i, params->k_i);
-		} else {
+		if (abs(i_next) < max_power_frac) {
 			i = i_next;
 			params->err_integral += err;
 		}
 	}
 
-	power_range = p + i;
+	/*
+	 * Calculate the derivative term
+	 *
+	 * We do err - prev_err, so with a positive k_d, a decreasing
+	 * error (i.e. driving closer to the line) results in less
+	 * power being applied, slowing down the controller)
+	 */
+	d = mul_frac(params->k_d, err - params->prev_err);
+	d = div_frac(d, params->polling_delay_on);
+	params->prev_err = err;
+
+	power_range = p + i + d;
 
 	power_range = params->sustainable_power + frac_to_int(power_range);
 
@@ -705,7 +708,7 @@ static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
 	trace_thermal_exynos_power_allocator_pid(tz, frac_to_int(err),
 						 frac_to_int(params->err_integral),
 						 frac_to_int(p), frac_to_int(i),
-						 power_range);
+						 frac_to_int(d), power_range);
 
 	return power_range;
 }
@@ -1494,12 +1497,12 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 		else
 			params->k_i = int_to_frac(value);
 
-		ret = of_property_read_u32(pdev->dev.of_node, "i_max",
+		ret = of_property_read_u32(pdev->dev.of_node, "k_d",
 					   &value);
 		if (ret < 0)
-			dev_err(&pdev->dev, "No input i_max\n");
+			dev_err(&pdev->dev, "No input k_d\n");
 		else
-			params->i_max = int_to_frac(value);
+			params->k_d = int_to_frac(value);
 
 		ret = of_property_read_u32(pdev->dev.of_node, "integral_cutoff",
 					   &value);
@@ -2079,7 +2082,7 @@ static DEVICE_ATTR_WO(hardlimit_reset);
 create_s32_param_attr(k_po);
 create_s32_param_attr(k_pu);
 create_s32_param_attr(k_i);
-create_s32_param_attr(i_max);
+create_s32_param_attr(k_d);
 create_s32_param_attr(integral_cutoff);
 
 static struct attribute *gs101_tmu_attrs[] = {
@@ -2097,7 +2100,7 @@ static struct attribute *gs101_tmu_attrs[] = {
 	&dev_attr_k_po.attr,
 	&dev_attr_k_pu.attr,
 	&dev_attr_k_i.attr,
-	&dev_attr_i_max.attr,
+	&dev_attr_k_d.attr,
 	&dev_attr_integral_cutoff.attr,
 	&dev_attr_cpu_disable_time_in_state_ms.attr,
 	&dev_attr_cpu_disable_total_count.attr,
@@ -2423,14 +2426,6 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			params->k_i = int_to_frac(value);
 		} else {
 			pr_err("Fail to parse k_i parameter\n");
-		}
-
-		value = gs101_tmu_ect_get_param(pidtm_block, "i_max");
-		if (value != -1) {
-			pr_info("Parse from ECT i_max: %d\n", value);
-			params->i_max = value;
-		} else {
-			pr_err("Fail to parse i_max parameter\n");
 		}
 
 		value = gs101_tmu_ect_get_param(pidtm_block, "integral_cutoff");

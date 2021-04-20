@@ -16,6 +16,7 @@
 
 struct gs101_pi_param {
 	s64 err_integral;
+	s32 prev_err;
 	int trip_switch_on;
 	int trip_control_temp;
 
@@ -23,7 +24,7 @@ struct gs101_pi_param {
 	s32 k_po;
 	s32 k_pu;
 	s32 k_i;
-	s32 i_max;
+	s32 k_d;
 	s32 integral_cutoff;
 
 	int polling_delay_on;
