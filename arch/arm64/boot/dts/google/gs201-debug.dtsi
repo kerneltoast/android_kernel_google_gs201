@@ -93,6 +93,14 @@
 		memory-region = <&debug_kinfo_reserved>;
 	};
 
+	boot-metrics {
+		compatible = "google,boot-metrics";
+
+		reg = <0x0 0x02038000 0x00001000>;
+		reg-names = "ns_sram_base";
+		offset = <0x880>;
+	};
+
 	gs201-itmon {
 		compatible = "google,gs201-itmon";
 		interrupts =
