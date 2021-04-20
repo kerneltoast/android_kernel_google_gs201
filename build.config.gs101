@@ -11,7 +11,7 @@ DTC_OVERLAY_TEST_EXT=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/bin/ufdt
 KERNEL_BINARY=Image.lz4
 
 if [ -z "$MIXED_BUILD" ]; then
-FILES="
+DEVICE_KERNEL_FILES="
 .config
 vmlinux
 System.map
