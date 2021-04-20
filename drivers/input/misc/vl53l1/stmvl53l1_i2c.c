@@ -17,6 +17,8 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 
+#define WRITE_MULTIPLE_CHUNK_MAX	32
+
 static inline void st_gettimeofday(struct timespec64 *tv)
 {
 	struct timespec64 now;
@@ -52,8 +54,9 @@ static uint32_t tv_elapsed_us(struct timespec64 *tv)
 #define cci_access_over(...) (void)0
 #endif
 
-VL53L1_Error VL53L1_GetTickCount(uint32_t *ptime_ms)
+VL53L1_Error VL53L1_GetTickCount(VL53L1_Dev_t *pdev, uint32_t *ptime_ms)
 {
+	(void)pdev;
 	(void)ptime_ms;
 	WARN_ON(1);
 	return 0;
@@ -238,13 +241,25 @@ VL53L1_Error VL53L1_WriteMulti(VL53L1_DEV pdev, uint16_t index,
 		uint8_t *pdata, uint32_t count)
 {
 	struct stmvl53l1_data *dev;
+	uint32_t chunk_size = WRITE_MULTIPLE_CHUNK_MAX;
+	VL53L1_Error status;
+	uint32_t i;
+	uint16_t hostaddr = index;
 
 	dev = (struct stmvl53l1_data *)container_of(pdev,
 			struct stmvl53l1_data,
 			stdev);
 
-	return cci_write(dev, index, pdata, count) ?
-		VL53L1_ERROR_CONTROL_INTERFACE : VL53L1_ERROR_NONE;
+	for (i = 0; i < count; i += chunk_size) {
+		status = (cci_write(dev, hostaddr, &pdata[i],
+			min(chunk_size, (count - i))) ?
+			VL53L1_ERROR_CONTROL_INTERFACE : VL53L1_ERROR_NONE);
+		if (status != VL53L1_ERROR_NONE)
+			break;
+		hostaddr += chunk_size;
+	}
+
+	return status;
 }
 
 VL53L1_Error VL53L1_ReadMulti(VL53L1_DEV pdev, uint16_t index,

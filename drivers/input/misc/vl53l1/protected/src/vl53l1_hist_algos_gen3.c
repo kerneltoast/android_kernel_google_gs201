@@ -606,18 +606,17 @@ VL53L1_Error VL53L1_f_030(
 		else
 			i = lb % (int16_t)VL53L1_p_031;
 
-		VL53L1_p_008 =
-			(int64_t)pbins->bin_data[i] -
-			(int64_t)pbins->VL53L1_p_004;
+		if ((i >= 0) && (i < VL53L1_HISTOGRAM_BUFFER_SIZE)) {
+			VL53L1_p_008 =
+				(int64_t)pbins->bin_data[i] -
+				(int64_t)pbins->VL53L1_p_004;
 
-
-		if (clip_events > 0 && VL53L1_p_008 < 0)
-			VL53L1_p_008 = 0;
-
-		event_sum += VL53L1_p_008;
-
-		weighted_sum +=
-			(VL53L1_p_008 * (1024 + (2048*(int64_t)lb)));
+			if (clip_events > 0 && VL53L1_p_008 < 0)
+				VL53L1_p_008 = 0;
+			event_sum += VL53L1_p_008;
+			weighted_sum +=
+				(VL53L1_p_008 * (1024 + (2048*(int64_t)lb)));
+		}
 
 		trace_print(
 			VL53L1_TRACE_LEVEL_INFO,

@@ -440,11 +440,16 @@ VL53L1_Error VL53L1_GetPalState(VL53L1_DEV Dev, VL53L1_State *pPalState)
 VL53L1_Error VL53L1_SetDeviceAddress(VL53L1_DEV Dev, uint8_t DeviceAddress)
 {
 	VL53L1_Error Status = VL53L1_ERROR_NONE;
+	struct VL53L1_LLDriverData_t *pdev =
+		VL53L1DevStructGetLLDriverHandle(Dev);
+	struct VL53L1_static_nvm_managed_t *pdata = &(pdev->stat_nvm);
 
 	LOG_FUNCTION_START("");
 
 	Status = VL53L1_WrByte(Dev, VL53L1_I2C_SLAVE__DEVICE_ADDRESS,
 			DeviceAddress / 2);
+
+	pdata->i2c_slave__device_address = (DeviceAddress / 2) & 0x7F;
 
 	LOG_FUNCTION_END(Status);
 	return Status;
@@ -477,11 +482,8 @@ VL53L1_Error VL53L1_DataInit(VL53L1_DEV Dev)
 				sizeof(pdev->per_vcsel_cal_data));
 	}
 
-	if (Status == VL53L1_ERROR_NONE) {
+	if (Status == VL53L1_ERROR_NONE)
 		VL53L1DevDataSet(Dev, PalState, VL53L1_STATE_WAIT_STATICINIT);
-		VL53L1DevDataSet(Dev, CurrentParameters.PresetMode,
-				VL53L1_PRESETMODE_RANGING);
-	}
 
 
 	for (i = 0; i < VL53L1_CHECKENABLE_NUMBER_OF_CHECKS; i++) {
@@ -516,10 +518,15 @@ VL53L1_Error VL53L1_StaticInit(VL53L1_DEV Dev)
 	measurement_mode = VL53L1_DEVICEMEASUREMENTMODE_BACKTOBACK;
 	VL53L1DevDataSet(Dev, LLData.measurement_mode, measurement_mode);
 
-	VL53L1DevDataSet(Dev, CurrentParameters.DistanceMode,
-			VL53L1_DISTANCEMODE_LONG);
+	Status = VL53L1_SetPresetMode(Dev,
+			VL53L1_PRESETMODE_RANGING);
+	VL53L1_SetDistanceMode(Dev,
+			VL53L1_DISTANCEMODE_MEDIUM);
 	VL53L1DevDataSet(Dev, CurrentParameters.OutputMode,
 			VL53L1_OUTPUTMODE_NEAREST);
+	VL53L1_SmudgeCorrectionEnable(Dev,
+			VL53L1_SMUDGE_CORRECTION_NONE);
+
 	LOG_FUNCTION_END(Status);
 	return Status;
 }
@@ -2293,7 +2300,7 @@ static VL53L1_Error SetTargetData(VL53L1_DEV Dev,
 			&ExtendedRangeEnabled);
 
 	sequency = streamcount % 2;
-	uwr_status = 1;
+	uwr_status = 0;
 	RangeMillimeterInit = pRangeData->RangeMilliMeter;
 	AddOffset = 0;
 
@@ -2318,6 +2325,7 @@ static VL53L1_Error SetTargetData(VL53L1_DEV Dev,
 			RangeDiff = pRangeData->RangeMilliMeter -
 				pdev->PreviousRangeMilliMeter[iteration];
 
+			uwr_status = 1;
 			switch (pdev->preset_mode) {
 			case VL53L1_DEVICEPRESETMODE_HISTOGRAM_SHORT_RANGE:
 
@@ -2441,7 +2449,6 @@ static VL53L1_Error SetTargetData(VL53L1_DEV Dev,
 	pdev->PreviousRangeMilliMeter[iteration] = RangeMillimeterInit;
 	pdev->PreviousRangeStatus[iteration] = pRangeData->RangeStatus;
 	pdev->PreviousExtendedRange[iteration] = pRangeData->ExtendedRange;
-	pdev->PreviousStreamCount = pdev->hist_data.result__stream_count;
 
 	return Status;
 }
@@ -2575,6 +2582,7 @@ static VL53L1_Error SetMeasurementData(VL53L1_DEV Dev,
 			Furthest_idx = i;
 		}
 	}
+	pdev->PreviousStreamCount = pdev->hist_data.result__stream_count;
 	for (i = iteration; i < VL53L1_MAX_RANGE_RESULTS; i++) {
 		pdev->PreviousRangeMilliMeter[i] = 0;
 		pdev->PreviousRangeStatus[i] = 255;

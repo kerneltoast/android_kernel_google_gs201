@@ -33,9 +33,9 @@
 /** VL53L1 IMPLEMENTATION minor version */
 #define VL53L1_IMPLEMENTATION_VER_MINOR       6
 /** VL53L1 IMPLEMENTATION sub version */
-#define VL53L1_IMPLEMENTATION_VER_SUB         4
+#define VL53L1_IMPLEMENTATION_VER_SUB         5
 /** VL53L1 IMPLEMENTATION sub version */
-#define VL53L1_IMPLEMENTATION_VER_REVISION  2462
+#define VL53L1_IMPLEMENTATION_VER_REVISION  2496
 
 /****************************************
  * PRIVATE define do not edit
