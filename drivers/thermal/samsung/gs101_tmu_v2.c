@@ -940,7 +940,7 @@ static void gs101_throttle_arm(struct kthread_work *work)
 			if (ret) {
 				pr_err_ratelimited("Failed to clr ppm throttle to 0x%x, ret = %d",
 						   data->ppm_clr_throttle_level, ret);
-				return;
+				goto unlock;
 			}
 			pr_info_ratelimited("Set ppm throttle to 0x%x\n",
 					    data->ppm_clr_throttle_level);
@@ -949,7 +949,7 @@ static void gs101_throttle_arm(struct kthread_work *work)
 			if (ret) {
 				pr_err_ratelimited("Failed to clr mpmm throttle to 0x%x, ret = %d",
 						   data->mpmm_clr_throttle_level, ret);
-				return;
+				goto unlock;
 			}
 			pr_info_ratelimited("Set mpmm throttle to 0x%x\n",
 					    data->mpmm_clr_throttle_level);
@@ -964,7 +964,7 @@ static void gs101_throttle_arm(struct kthread_work *work)
 			if (ret) {
 				pr_err_ratelimited("Failed to set ppm throttle to 0x%x, ret = %d",
 						   data->ppm_throttle_level, ret);
-				return;
+				goto unlock;
 			}
 			pr_info_ratelimited("Set ppm throttle to 0x%x\n",
 					    data->ppm_throttle_level);
@@ -973,7 +973,7 @@ static void gs101_throttle_arm(struct kthread_work *work)
 			if (ret) {
 				pr_err_ratelimited("Failed to set mpmm throttle to 0x%x, ret = %d",
 						   data->mpmm_throttle_level, ret);
-				return;
+				goto unlock;
 			}
 			pr_info_ratelimited("Set mpmm throttle to 0x%x\n",
 					    data->mpmm_throttle_level);
@@ -982,6 +982,7 @@ static void gs101_throttle_arm(struct kthread_work *work)
 		}
 	}
 
+unlock:
 	mutex_unlock(&data->lock);
 }
 
@@ -1176,8 +1177,7 @@ static int gs101_tmu_pm_notify(struct notifier_block *nb,
 		atomic_set(&gs101_tmu_in_suspend, 1);
 		list_for_each_entry(data, &dtm_dev_list, node) {
 			if (data->use_pi_thermal)
-				kthread_mod_delayed_work(&data->thermal_worker, &data->pi_work,
-							 msecs_to_jiffies(0));
+				kthread_cancel_delayed_work_sync(&data->pi_work);
 		}
 		break;
 	case PM_POST_HIBERNATION:
