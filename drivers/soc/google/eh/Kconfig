@@ -22,8 +22,3 @@ config GOOGLE_EH_LATENCY_STAT
         bool "Enable latency stat for Google Emerald Hill driver"
         depends on GOOGLE_EH
         default n
-
-config GOOGLE_EH_TEST
-        tristate "Google Emerald Hill compression engine test module"
-        depends on GOOGLE_EH
-        default n
