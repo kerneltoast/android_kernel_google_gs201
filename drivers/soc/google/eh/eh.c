@@ -254,28 +254,6 @@ static int eh_comp_thread(void *data)
 	return 0;
 }
 
-static void eh_complete_decompression(struct eh_device *eh_dev, int index)
-{
-	struct eh_completion *cmpl;
-	unsigned long status;
-
-	cmpl = &eh_dev->decompr_completions[index];
-	eh_update_latency(eh_dev, get_submit_ts(cmpl), 1, EH_DECOMPRESS);
-
-	status = eh_read_dcmd_status(eh_dev, index);
-
-	pr_devel("%s: dcmd [%u] status = %u\n", eh_dev->name, index, status);
-
-	if (status != EH_DCMD_DECOMPRESSED) {
-		pr_err("%s: dcmd [%u] bad status %u\n", eh_dev->name, index,
-		       status);
-		eh_dump_regs(eh_dev);
-	}
-
-	(*eh_dev->decomp_callback)(status, NULL, 0, cmpl->priv);
-	eh_dev->decompr_busy[index] = false;
-}
-
 static irqreturn_t eh_error_irq(int irq, void *data)
 {
 	struct eh_device *eh_dev = data;
@@ -292,35 +270,6 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 		pr_err("%s: error interrupt was active\n", eh_dev->name);
 		eh_dump_regs(eh_dev);
 		eh_write_register(eh_dev, EH_REG_INTRP_STS_ERROR, error);
-	}
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t eh_decompress_irq(int irq, void *data)
-{
-	struct eh_device *eh_dev = data;
-	unsigned long decompr;
-	int i;
-
-	decompr = eh_read_register(eh_dev, EH_REG_INTRP_STS_DCMP);
-
-	pr_devel("[%s] %s: irq %d decompr status 0x%llx\n", current->comm,
-		 __func__, irq, (unsigned long long)decompr);
-
-	if (decompr) {
-		for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-			/*
-			 * in the dedicated irq handler we only want to complete
-			 * the command associated with this interrupt
-			 */
-			if (decompr & (1 << i) &&
-			    eh_dev->decompr_irqs[i] == irq) {
-				eh_write_register(eh_dev, EH_REG_INTRP_STS_DCMP,
-						  1 << i);
-				eh_complete_decompression(eh_dev, i);
-			}
-		}
 	}
 
 	return IRQ_HANDLED;
@@ -569,54 +518,6 @@ static ssize_t reset_latency_store(struct device *dev,
 }
 DEVICE_ATTR_WO(reset_latency);
 
-static ssize_t comp_poll_show(struct device *dev,
-			      struct device_attribute *dev_attr, char *buf)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct eh_device *eh_dev = platform_get_drvdata(pdev);
-	int poll_mode;
-	int written = 0;
-
-	spin_lock(&eh_dev->fifo_prod_lock);
-	poll_mode = eh_dev->comp_poll;
-	spin_unlock(&eh_dev->fifo_prod_lock);
-
-	written += scnprintf(buf + written, PAGE_SIZE - written, "%d\n",
-			     poll_mode);
-	return written;
-}
-
-static ssize_t comp_poll_store(struct device *dev,
-			       struct device_attribute *dev_attr,
-			       const char *buf, size_t count)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct eh_device *eh_dev = platform_get_drvdata(pdev);
-	int nr_pend, ret = count;
-
-	/*
-	 * Only when driver supports IRQ and there is no pending request,
-	 * toggle the mode
-	 * */
-	spin_lock(&eh_dev->fifo_prod_lock);
-	if (!eh_dev->irq_count) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	nr_pend = (eh_dev->write_index - eh_dev->complete_index) &
-		  eh_dev->fifo_color_mask;
-	if (nr_pend) {
-		ret = -EBUSY;
-		goto out;
-	}
-	eh_dev->comp_poll = !eh_dev->comp_poll;
-out:
-	spin_unlock(&eh_dev->fifo_prod_lock);
-	return ret;
-}
-DEVICE_ATTR_RW(comp_poll);
-
 static ssize_t queued_comp_show(struct device *dev,
 				struct device_attribute *dev_attr, char *buf)
 {
@@ -641,7 +542,6 @@ static struct attribute *eh_dev_attrs[] = {
 	&dev_attr_max_latency.attr,
 	&dev_attr_min_latency.attr,
 	&dev_attr_reset_latency.attr,
-	&dev_attr_comp_poll.attr,
 	&dev_attr_queued_comp.attr,
 	NULL
 };
@@ -815,13 +715,12 @@ out_cleanup:
 	return ret;
 }
 
-static struct eh_device *__eh_init(struct eh_device *eh_dev, unsigned short fifo_size,
-				   int *irqs, int irq_count)
+static struct eh_device *__eh_init(struct eh_device *eh_dev,
+				   unsigned short fifo_size,
+				   int error_irq)
 {
-	int ret, i;
+	int ret;
 	unsigned long hwid, hwfeatures, hwfeatures2;
-	int expected_irq_count = 1;
-	int irq_index = 0;
 
 	atomic_set(&eh_dev->nr_request, 0);
 	init_waitqueue_head(&eh_dev->comp_wq);
@@ -848,55 +747,27 @@ static struct eh_device *__eh_init(struct eh_device *eh_dev, unsigned short fifo
 			goto out_cleanup;
 	}
 
-	/*
-	 * this is how many interrupts we should have, if each resource has a
-	 * dedicated irq, with one for errors, one for fifo
-	 */
-	expected_irq_count += (1 + eh_dev->decompr_cmd_count);
-
-	pr_info("%s: max_bufs %u decompress_cmd_sets %u irq_count %d\n",
+	pr_info("%s: max_bufs %u decompress_cmd_sets %u\n",
 		eh_dev->name, eh_dev->max_buffer_count,
-		eh_dev->decompr_cmd_count, irq_count);
+		eh_dev->decompr_cmd_count);
 
-	if (irq_count != expected_irq_count) {
-		pr_info("%s: EH operating in polling mode\n");
-	} else {
-		/* first the error interrupt */
-		ret = devm_request_threaded_irq(eh_dev->dev, irqs[irq_index],
-						NULL, eh_error_irq,
-						IRQF_ONESHOT, EH_ERR_IRQ,
-						eh_dev);
-		if (ret) {
-			pr_err("%s: unable to request irq %u ret %d\n",
-			       eh_dev->name, irqs[irq_index], ret);
-			ret = -EINVAL;
-			goto out_cleanup;
-		}
-		eh_dev->error_irq = irqs[irq_index];
-		irq_index++;
-
-		eh_dev->comp_thread = kthread_run(eh_comp_thread, eh_dev, "eh_comp_thread");
-		if (IS_ERR(eh_dev->comp_thread))
-			goto out_cleanup;
-
-		/* then one for each decompression engine */
-		for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-			ret = devm_request_threaded_irq(eh_dev->dev,
-							irqs[irq_index], NULL,
-							eh_decompress_irq,
-							IRQF_ONESHOT,
-							eh_dev->name, eh_dev);
-			if (ret) {
-				pr_err("%s: unable to request "
-				       "irq %u ret %d\n",
-				       eh_dev->name, irqs[irq_index], ret);
-				ret = -EINVAL;
-				goto out_cleanup;
-			}
-			eh_dev->decompr_irqs[i] = irqs[irq_index];
-			irq_index++;
-		}
+	/* the error interrupt */
+	ret = devm_request_threaded_irq(eh_dev->dev, error_irq,
+					NULL, eh_error_irq,
+					IRQF_ONESHOT, EH_ERR_IRQ,
+					eh_dev);
+	if (ret) {
+		pr_err("%s: unable to request irq %u ret %d\n",
+		       eh_dev->name, error_irq, ret);
+		ret = -EINVAL;
+		goto out_cleanup;
 	}
+	eh_dev->error_irq = error_irq;
+
+	eh_dev->comp_thread = kthread_run(eh_comp_thread, eh_dev, "eh_comp_thread");
+	if (IS_ERR(eh_dev->comp_thread))
+		goto out_cleanup;
+
 
 	/* reset the block */
 	eh_reset(eh_dev);
@@ -908,8 +779,6 @@ static struct eh_device *__eh_init(struct eh_device *eh_dev, unsigned short fifo
 
 	/* enable all the interrupts */
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, 0);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, 0);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0);
 
 	return eh_dev;
 
@@ -923,22 +792,15 @@ out_cleanup:
 	if (eh_dev->comp_thread)
 		kthread_stop(eh_dev->comp_thread);
 
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-		if (eh_dev->decompr_irqs[i])
-			devm_free_irq(eh_dev->dev, eh_dev->decompr_irqs[i],
-				      eh_dev);
-	}
-
 	return ERR_PTR(ret);
 }
 
 /*
  * initialize hardware block - mostly meant to be used by hardware probe
- * functions.  If there is only one interrupt, it should be passed through
- * error_irq and the rest of the interrupt arguments should be zero.
+ * functions.
  */
 struct eh_device *eh_init(struct device *dev, unsigned short fifo_size,
-			  phys_addr_t regs, int *irqs, int irq_count,
+			  phys_addr_t regs, int error_irq,
 			  unsigned short quirks)
 {
 	struct eh_device *ret;
@@ -989,15 +851,10 @@ struct eh_device *eh_init(struct device *dev, unsigned short fifo_size,
 	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
 	spin_unlock(&eh_dev_list_lock);
 
-	ret = __eh_init(eh_dev, fifo_size, irqs, irq_count);
+	ret = __eh_init(eh_dev, fifo_size, error_irq);
 	if (IS_ERR(ret)) {
 		goto out_free_stats;
 	}
-
-	/* save these for possible re-initialization later */
-	eh_dev->irq_count = irq_count;
-	eh_dev->comp_poll = !irq_count;
-	memcpy(eh_dev->irqs_copy, irqs, sizeof(int) * irq_count);
 
 	return eh_dev;
 
@@ -1018,8 +875,6 @@ out_free:
 
 static void __eh_destroy(struct eh_device *eh_dev)
 {
-	int i;
-
 	__eh_compr_destroy(eh_dev);
 	__eh_decompr_destroy(eh_dev);
 
@@ -1028,12 +883,6 @@ static void __eh_destroy(struct eh_device *eh_dev)
 
 	if (eh_dev->comp_thread)
 		kthread_stop(eh_dev->comp_thread);
-
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-		if (eh_dev->decompr_irqs[i])
-			devm_free_irq(eh_dev->dev, eh_dev->decompr_irqs[i],
-				      eh_dev);
-	}
 }
 
 void eh_remove(struct eh_device *eh_dev)
@@ -1046,7 +895,7 @@ void eh_remove(struct eh_device *eh_dev)
 }
 
 static void eh_setup_desc_0(struct eh_device *eh_dev, struct page *src_page,
-			    unsigned int masked_w_index, bool use_irq)
+			    unsigned int masked_w_index)
 {
 	struct eh_compr_desc_0 *desc;
 	phys_addr_t src_paddr;
@@ -1059,7 +908,6 @@ static void eh_setup_desc_0(struct eh_device *eh_dev, struct page *src_page,
 				EH_ENCODED_ADDR_TO_PHYS(desc->dst_addr[0]));
 
 	desc->u1.src_addr = src_paddr;
-	desc->u1.s1.intr_request = (use_irq == true);
 	/* mark it as pend for hardware */
 	desc->u1.s1.status = EH_CDESC_PENDING;
 	/*
@@ -1225,8 +1073,6 @@ int eh_compress_pages(struct eh_device *eh_dev, struct page **pages,
 	unsigned int masked_w_index;
 	struct eh_completion *cmpl;
 
-	if (eh_dev->comp_poll)
-		return eh_compress_pages_sync(eh_dev, pages, page_cnt, priv);
 try_again:
 	spin_lock(&eh_dev->fifo_prod_lock);
 
@@ -1256,7 +1102,7 @@ try_again:
 		masked_w_index =
 			(eh_dev->write_index + i) & eh_dev->fifo_index_mask;
 		/* set up the descriptor (use IRQ) */
-		eh_setup_desc_0(eh_dev, pages[i], masked_w_index, false);
+		eh_setup_desc_0(eh_dev, pages[i], masked_w_index);
 
 		cmpl = &eh_dev->completions[masked_w_index];
 		cmpl->priv = priv;
@@ -1276,125 +1122,9 @@ try_again:
 }
 EXPORT_SYMBOL(eh_compress_pages);
 
-/*
- * eh_compress_pages_sync
- *
- * Compress n pages synchronously. Uses polling for completion.
- *
- * Polls for the nth page to be complete, and then calls optional callback
- * routine for each compressed page.
- */
-int eh_compress_pages_sync(struct eh_device *eh_dev, struct page **pages,
-			   unsigned int page_cnt, void *priv)
-{
-	int i, ret = 0;
-	unsigned int complete_index;
-	unsigned int new_write_index;
-	unsigned int new_pending_count;
-	unsigned int masked_w_index;
-	unsigned int masked_c_index;
-	volatile struct eh_compr_desc_0 *desc;
-	unsigned long timeout;
-#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-	unsigned long submit_ts, complete_ts, time_us;
-#endif
-	unsigned int compr_status;
-	unsigned int compr_size;
-	unsigned int compr_bufsel;
-	unsigned int offset;
-	void *compr_data;
-
-	spin_lock(&eh_dev->fifo_prod_lock);
-
-	if (eh_dev->suspended) {
-		WARN(1, "compress request when EH is suspended\n");
-		spin_unlock(&eh_dev->fifo_prod_lock);
-		return -EBUSY;
-	}
-
-	complete_index = READ_ONCE(eh_dev->complete_index);
-	new_write_index =
-		(eh_dev->write_index + page_cnt) & eh_dev->fifo_color_mask;
-	new_pending_count =
-		(new_write_index - complete_index) & eh_dev->fifo_color_mask;
-
-	if (new_pending_count != page_cnt) {
-		pr_err("%s: %s: FIFO not empty\n", eh_dev->name, __func__);
-		spin_unlock(&eh_dev->fifo_prod_lock);
-		return -EINVAL;
-	}
-
-	if (new_pending_count > eh_dev->fifo_size) {
-		pr_err("%s: %s: FIFO too small for %u pages\n", eh_dev->name,
-		       __func__, page_cnt);
-		spin_unlock(&eh_dev->fifo_prod_lock);
-		return -EINVAL;
-	}
-
-	pr_devel("[%s] %s: submit %u pages starting at descriptor %u\n",
-		 current->comm, __func__, page_cnt, eh_dev->write_index);
-
-	for (i = 0; i < page_cnt; i++) {
-		masked_w_index =
-			(eh_dev->write_index + i) & eh_dev->fifo_index_mask;
-		/* set up the descriptor (no IRQ) */
-		eh_setup_desc_0(eh_dev, pages[i], masked_w_index, false);
-	}
-
-	/* write barrier to force writes to be visible everywhere */
-	wmb();
-#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-	submit_ts = ktime_get_ns();
-#endif
-	eh_dev->write_index = new_write_index;
-	eh_write_register(eh_dev, EH_REG_CDESC_WRIDX, new_write_index);
-
-	/* start polling the last submitted descriptor */
-	desc = eh_dev->fifo + EH_COMPR_DESC_0_SIZE * masked_w_index;
-	timeout = jiffies + msecs_to_jiffies(EH_POLL_DELAY_MS);
-	do {
-		cpu_relax();
-		if (time_after(jiffies, timeout)) {
-			pr_err("%s: poll timeout on compression\n", __func__);
-			eh_dump_regs(eh_dev);
-			ret = -ETIME;
-			goto out;
-		}
-	} while (desc->u1.s1.status == EH_CDESC_PENDING);
-
-#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-	eh_update_latency(eh_dev, submit_ts, page_cnt, EH_COMPRESS_POLL);
-	complete_ts = ktime_get_ns();
-#endif
-
-	/* process all completed pages */
-	for (i = 0; i < page_cnt; i++) {
-		masked_c_index =
-			(eh_dev->complete_index + i) & eh_dev->fifo_index_mask;
-		desc = eh_dev->fifo + EH_COMPR_DESC_0_SIZE * masked_c_index;
-		compr_status = desc->u1.s1.status;
-		compr_size = desc->compr_len;
-		compr_bufsel = desc->buf_sel;
-		offset = (compr_bufsel == 2) ? PAGE_SIZE / 2 : 0;
-		compr_data = eh_dev->compr_buffers[masked_c_index] + offset;
-		(*eh_dev->comp_callback)(compr_status, compr_data, compr_size, priv);
-	}
-
-#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-	time_us = (complete_ts - submit_ts) / 1000;
-	pr_devel("%s: done: %u pages | %llu usec | bw %llu MB/s\n", __func__,
-		 page_cnt, time_us, page_cnt * PAGE_SIZE / time_us);
-#endif
-out:
-	eh_dev->complete_index = eh_dev->write_index;
-	spin_unlock(&eh_dev->fifo_prod_lock);
-	return ret;
-}
-EXPORT_SYMBOL(eh_compress_pages_sync);
-
 static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 			void *compr_data, unsigned int compr_size,
-			struct page *dst_page, bool use_irq, unsigned long *ts)
+			struct page *dst_page, unsigned long *ts)
 {
 	void *src_vaddr;
 	phys_addr_t src_paddr;
@@ -1453,8 +1183,6 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	dst_data = page_to_phys(dst_page);
 	dst_data |= ((unsigned long)EH_DCMD_PENDING)
 		    << EH_DCMD_DEST_STATUS_SHIFT;
-	if (use_irq)
-		dst_data |= 1UL << EH_DCMD_DEST_INTR_SHIFT;
 #ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
 	*ts = ktime_get_ns();
 #endif
@@ -1462,13 +1190,13 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 }
 
 /*
- * eh_decompress_page_sync
+ * eh_decompress_page
  *
  * Decompress a page synchronously. Uses polling for completion.
  *
  * Holds a spinlock for the entire operation, so that nothing can interrupt it.
  */
-int eh_decompress_page_sync(struct eh_device *eh_dev, void *compr_data,
+int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 			    unsigned int compr_size, struct page *page)
 {
 	int ret = 0;
@@ -1500,8 +1228,7 @@ int eh_decompress_page_sync(struct eh_device *eh_dev, void *compr_data,
 		 compr_size);
 
 	/* program decompress register (no IRQ) */
-	eh_setup_dcmd(eh_dev, index, compr_data, compr_size, page,
-				  false, &submit_ts);
+	eh_setup_dcmd(eh_dev, index, compr_data, compr_size, page, &submit_ts);
 
 	timeout = jiffies + msecs_to_jiffies(EH_POLL_DELAY_MS);
 	do {
@@ -1530,57 +1257,6 @@ out:
 	spin_unlock_irqrestore(&eh_dev->decompr_lock[index], flags);
 	return ret;
 }
-EXPORT_SYMBOL(eh_decompress_page_sync);
-
-/*
- * eh_decompress_page
- *
- * Decompress a page asynchronously. Uses IRQ for completion.
- */
-int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
-		       unsigned int compr_size, struct page *page,
-		       void *priv)
-{
-	int ret = 0;
-	unsigned long flags;
-	unsigned int index;
-	struct eh_completion *cmpl;
-	unsigned long submit_ts;
-
-	/* make a static mapping of cpu to decompression command set */
-	index = smp_processor_id() % eh_dev->decompr_cmd_count;
-
-	spin_lock_irqsave(&eh_dev->decompr_lock[index], flags);
-
-	if (eh_dev->suspended) {
-		WARN(1, "decompress request when EH is suspended\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (eh_dev->decompr_busy[index]) {
-		/* previous decompress request still pending */
-		ret = -EBUSY;
-		goto out;
-	}
-
-	pr_devel("[%s] %s: submit: cpu %u dcmd_set %u compr_size %u\n",
-		 current->comm, __func__, smp_processor_id(), index,
-		 compr_size);
-
-	eh_dev->decompr_busy[index] = true;
-	cmpl = &eh_dev->decompr_completions[index];
-	cmpl->priv = priv;
-
-	/* program decompress register (use IRQ) */
-	eh_setup_dcmd(eh_dev, index, compr_data, compr_size,
-					page, true, &submit_ts);
-	set_submit_ts(cmpl, submit_ts);
-
-out:
-	spin_unlock_irqrestore(&eh_dev->decompr_lock[index], flags);
-	return ret;
-}
 EXPORT_SYMBOL(eh_decompress_page);
 
 static unsigned int eh_default_fifo_size = 256;
@@ -1590,11 +1266,10 @@ static int eh_of_probe(struct platform_device *pdev)
 {
 	struct eh_device *eh_dev;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	int irqs[EH_MAX_IRQS];
-	int i, irq_count = 0;
+	int ret;
+	int error_irq = 0;
 	unsigned short quirks = 0;
 	struct clk *clk;
-	int ret;
 
 	pr_devel("%s starting\n", __func__);
 
@@ -1605,17 +1280,11 @@ static int eh_of_probe(struct platform_device *pdev)
 		goto err_pm_rt_get;
 	}
 
-	memset(irqs, 0, sizeof(irqs));
-
-	for (i = 0; i < ARRAY_SIZE(irqs); i++) {
-		unsigned int tmp = irq_of_parse_and_map(pdev->dev.of_node, i);
-
-		if (tmp == 0)
-			break;
-
-		pr_info("%s: got irq %d\n", __func__, tmp);
-		irqs[irq_count] = tmp;
-		irq_count++;
+	error_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	if (!error_irq) {
+		pr_err("Fail to get error irq\n");
+		ret = -EINVAL;
+		goto err_clk_get;
 	}
 
 	clk = of_clk_get_by_name(pdev->dev.of_node, "eh-clock");
@@ -1631,15 +1300,12 @@ static int eh_of_probe(struct platform_device *pdev)
 		goto err_clk_en;
 	}
 
-	if (of_get_property(pdev->dev.of_node, "google,eh,poll-irqs", NULL))
-		irq_count = 0;
-
 	if (of_get_property(pdev->dev.of_node, "google,eh,ignore-gctrl-reset",
 			    NULL))
 		quirks |= EH_QUIRK_IGNORE_GCTRL_RESET;
 
-	eh_dev = eh_init(&pdev->dev, eh_default_fifo_size, mem->start, irqs,
-			 irq_count, quirks);
+	eh_dev = eh_init(&pdev->dev, eh_default_fifo_size, mem->start,
+			 error_irq, quirks);
 	if (IS_ERR(eh_dev)) {
 		ret = -EINVAL;
 		goto err_eh_init;

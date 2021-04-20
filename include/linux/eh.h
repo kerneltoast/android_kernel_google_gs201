@@ -45,8 +45,7 @@ struct eh_completion {
 };
 
 #define EH_MAX_NAME 8
-#define EH_MAX_DCMD 32
-#define EH_MAX_IRQS (EH_MAX_DCMD + 2)
+#define EH_MAX_DCMD 8
 
 #define EH_QUIRK_IGNORE_GCTRL_RESET BIT(0)
 
@@ -131,14 +130,7 @@ struct eh_device {
 	/* PM suspend status */
 	bool suspended;
 
-	/*
-	 * interrupts:
-	 * one for errors
-	 * one for compression
-	 * one for each decompression command set
-	 */
 	int error_irq;
-	int decompr_irqs[EH_MAX_DCMD];
 
 	/*
 	 * no interrupts, need to use a polling
@@ -146,16 +138,7 @@ struct eh_device {
 	 */
 #define EH_POLL_DELAY_MS 500
 
-	/*
-	 * copy of initialization paramters so we can tear down run some raw
-	 * tests and re-init later
-	 */
-	int irq_count;
-	int irqs_copy[EH_MAX_DCMD * 2];
-
 	unsigned short quirks;
-	/* indicate whether compression mode is poll or irq */
-	bool comp_poll;
 
 	struct task_struct *comp_thread;
 	wait_queue_head_t comp_wq;
@@ -186,15 +169,9 @@ static inline int eh_compress_page(struct eh_device *eh_dev, struct page *page,
 	return eh_compress_pages(eh_dev, &page, 1, priv);
 }
 
-int eh_compress_pages_sync(struct eh_device *eh_dev, struct page **pages,
-			   unsigned int page_cnt,  void *priv);
-
 int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
-		       unsigned int compr_size, struct page *page,
-		       void *priv);
+                       unsigned int compr_size, struct page *page);
 
-int eh_decompress_page_sync(struct eh_device *eh_dev, void *compr_data,
-			    unsigned int compr_size, struct page *page);
 
 /* returns the currently set fifo size */
 static inline unsigned short eh_get_fifo_size(struct eh_device *eh_dev)

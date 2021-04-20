@@ -150,16 +150,7 @@
 	eh: eh@17100000 {
 		compatible = "google,eh";
 		reg = <0x0 0x17100000 0x1000>;
-		interrupts = <GIC_SPI IRQ_EH_0_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_1_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_2_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_3_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_4_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_5_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_6_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_7_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_8_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_9_EH IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI IRQ_EH_0_EH IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock DOUT_CLK_EH_BUSP>;
 		clock-names = "eh-clock";
 		power-domains = <&pd_eh>;
