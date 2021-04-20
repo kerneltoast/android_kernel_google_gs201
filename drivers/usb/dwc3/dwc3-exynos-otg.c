@@ -23,6 +23,7 @@
 #include <linux/usb/composite.h>
 #include <linux/reboot.h>
 #include "dwc3-exynos.h"
+#include "dwc3-exynos-ldo.h"
 
 #define OTG_NO_CONNECT		0
 #define OTG_CONNECT_ONLY	1
@@ -561,7 +562,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		 * we can extra work corresponding each functions by
 		 * the following function.
 		 */
-		if (exynos->config.is_not_vbus_pad)
+		if (exynos->config.is_not_vbus_pad && exynos_usbdrd_get_ldo_status())
 			dwc3_exynos_gadget_disconnect_proc(dwc);
 
 		/* Wait until gadget stop */
