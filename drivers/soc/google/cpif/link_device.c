@@ -3975,33 +3975,32 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	ld->reset_zerocopy = NULL;
 
 	ld->link_prepare_normal_boot = link_prepare_normal_boot;
-	if (mld->attrs & LINK_ATTR_MEM_BOOT) {
-		if (mld->attrs & LINK_ATTR_XMIT_BTDLR) {
-			if (mld->attrs & LINK_ATTR_XMIT_BTDLR_SPI) {
-				u32 bus_num = 0;
+	ld->link_trigger_cp_crash = link_trigger_cp_crash;
 
-				err = of_property_read_u32(pdev->dev.of_node, "cpboot_spi_bus_num",
-						&bus_num);
-				if (err) {
-					mif_err("cpboot_spi_bus_num error:%d\n", err);
-					goto error;
-				}
-				mld->boot_spi = cpboot_spi_get_device(bus_num);
-				if (!mld->boot_spi) {
-					mif_err("boot_spi is null\n");
-					goto error;
-				}
-				ld->load_cp_image = cpboot_spi_load_cp_image;
-			} else {
-				ld->load_cp_image = link_load_cp_image;
-			}
-		}
+	do {
+		if (!(mld->attrs & LINK_ATTR_MEM_BOOT))
+			break;
+
 		ld->link_start_normal_boot = link_start_normal_boot;
 		if (link_type == LINKDEV_SHMEM)
 			ld->security_req = shmem_security_request;
-	}
 
-	ld->link_trigger_cp_crash = link_trigger_cp_crash;
+		if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR))
+			break;
+
+		ld->load_cp_image = link_load_cp_image;
+		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_SPI) {
+			ld->load_cp_image = cpboot_spi_load_cp_image;
+
+			mld->spi_bus_num = -1;
+			mif_dt_read_u32_noerr(pdev->dev.of_node, "cpboot_spi_bus_num",
+					      mld->spi_bus_num);
+			if (mld->spi_bus_num < 0) {
+				mif_err("cpboot_spi_bus_num error\n");
+				goto error;
+			}
+		}
+	} while (0);
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	if (link_type == LINKDEV_PCIE)

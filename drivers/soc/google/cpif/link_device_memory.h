@@ -389,7 +389,7 @@ struct mem_link_device {
 	struct pktproc_adaptor_ul pktproc_ul;
 #endif
 
-	struct cpboot_spi *boot_spi;
+	int spi_bus_num;
 
 	struct cpif_tpmon *tpmon;
 };
