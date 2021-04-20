@@ -1143,7 +1143,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <50>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <0>;
 		sustainable_power = <2000>;
 
@@ -1174,7 +1174,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <20>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <20>;
 		sustainable_power = <1000>;
 
@@ -1197,7 +1197,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <20>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
 
@@ -1223,7 +1223,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <20>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
 
@@ -1261,7 +1261,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <20>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
 
