@@ -131,7 +131,7 @@
 			try-power-role = "sink";
 			self-powered;
 			op-sink-microwatt = <2600000>;
-			frs-typec-current = <FRS_5V_1P5A>;
+			new-source-frs-typec-current = <FRS_5V_1P5A>;
 			usb-role-switch;
 			/*
 			 * b/174044466: Extboost can only do ~1A.
