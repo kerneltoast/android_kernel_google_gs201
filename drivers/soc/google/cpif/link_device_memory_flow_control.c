@@ -42,7 +42,7 @@ void pktproc_ul_q_stop(struct pktproc_queue_ul *q)
 			 * command from AP. So, we'll skip this scheme.
 			 */
 			/* send_req_ack(mld, dev); */
-			mif_err_limited("PKTPROC UL QUEUE %d tx_flowctrl=0x%04lx\n",
+			mif_info_limited("PKTPROC UL QUEUE %d tx_flowctrl=0x%04lx\n",
 				q->q_idx, ld->tx_flowctrl_mask);
 		}
 	}
@@ -63,7 +63,7 @@ void pktproc_ul_q_start(struct pktproc_queue_ul *q)
 
 			if (ld->tx_flowctrl_mask == 0) {
 				resume_net_ifaces(ld);
-				mif_err_limited("PKTPROC UL QUEUE %d,\n"
+				mif_info_limited("PKTPROC UL QUEUE %d,\n"
 						"tx_flowctrl=0x%04lx\n",
 					q->q_idx, ld->tx_flowctrl_mask);
 			}
@@ -131,7 +131,7 @@ void sbd_txq_stop(struct sbd_ring_buffer *rb)
 			 * command from AP. So, we'll skip this scheme.
 			 */
 			/* send_req_ack(mld, dev); */
-			mif_err_limited("%s, tx_flowctrl=0x%04lx\n",
+			mif_info_limited("%s, tx_flowctrl=0x%04lx\n",
 				rb->iod->name, ld->tx_flowctrl_mask);
 		}
 	}
@@ -152,7 +152,7 @@ void sbd_txq_start(struct sbd_ring_buffer *rb)
 
 			if (ld->tx_flowctrl_mask == 0) {
 				resume_net_ifaces(ld);
-				mif_err_limited("%s, tx_flowctrl=0x%04lx\n",
+				mif_info_limited("%s, tx_flowctrl=0x%04lx\n",
 					rb->iod->name, ld->tx_flowctrl_mask);
 			}
 
@@ -218,7 +218,7 @@ void txq_stop(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 			spin_unlock_irqrestore(&dev->txq.lock, flags);
 
 			send_req_ack(mld, dev);
-			mif_err_limited("%s: %s TXQ BUSY, tx_flowctrl_mask=0x%04lx\n",
+			mif_info_limited("%s: %s TXQ BUSY, tx_flowctrl_mask=0x%04lx\n",
 				ld->name, dev->name, ld->tx_flowctrl_mask);
 		}
 	}
@@ -243,7 +243,7 @@ void tx_flowctrl_suspend(struct mem_link_device *mld)
 
 		spin_unlock_irqrestore(&dev->txq.lock, flags);
 
-		mif_err_limited("%s: %s TX suspended, tx_flowctrl_mask=0x%04lx\n",
+		mif_info_limited("%s: %s TX suspended, tx_flowctrl_mask=0x%04lx\n",
 			ld->name, dev->name, ld->tx_flowctrl_mask);
 	}
 }
@@ -267,7 +267,7 @@ void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 
 			if (ld->tx_flowctrl_mask == 0) {
 				resume_net_ifaces(&mld->link_dev);
-				mif_err_limited("%s:%s TXQ restart, tx_flowctrl_mask=0x%04lx\n",
+				mif_info_limited("%s:%s TXQ restart, tx_flowctrl_mask=0x%04lx\n",
 					ld->name, dev->name, ld->tx_flowctrl_mask);
 			}
 
@@ -294,7 +294,7 @@ void tx_flowctrl_resume(struct mem_link_device *mld)
 
 		if (ld->tx_flowctrl_mask == 0) {
 			resume_net_ifaces(&mld->link_dev);
-			mif_err_limited("%s:%s TX resumed, tx_flowctrl_mask=0x%04lx\n",
+			mif_info_limited("%s:%s TX resumed, tx_flowctrl_mask=0x%04lx\n",
 				ld->name, dev->name, ld->tx_flowctrl_mask);
 		}
 
