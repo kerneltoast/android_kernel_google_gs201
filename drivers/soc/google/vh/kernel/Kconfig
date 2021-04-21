@@ -60,6 +60,11 @@ config VH_CGROUP
         depends on VH_KERNEL
         default m
 
+config VH_I2C
+	tristate "Vendor hooks for i2c subsystems"
+	depends on VH_KERNEL
+	default m
+
 config UCLAMP_STATS
         bool "Uclamp stats"
         depends on VH_KERNEL
