@@ -49,6 +49,7 @@ struct ocpsmpl_stats {
 
 struct gs101_bcl_dev {
 	struct device *device;
+	struct device *mitigation_dev;
 	struct dentry *debug_entry;
 	void __iomem *base_mem[5];
 	void __iomem *sysreg_cpucl0;
