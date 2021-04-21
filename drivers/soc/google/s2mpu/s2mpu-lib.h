@@ -7,7 +7,13 @@
 
 #define WHI_MAX_GB_GRANULES 64
 
-#define S2MPU_TEST
+/* The following flag is used to put S2MPU in test mode.
+ * In test mode, S2MPU is disabled by default and needs to be
+ * enable via debugfs.
+ * Commenting this out, enables S2MPU on power up
+ */
+
+//#define S2MPU_TEST
 
 struct s2pt {
 	u32 l1entry_attrs[WHI_MAX_GB_GRANULES];
