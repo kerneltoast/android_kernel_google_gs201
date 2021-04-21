@@ -1,0 +1,6 @@
+vmlinux
+System.map
+vmlinux.symvers
+modules.builtin
+modules.builtin.modinfo
+Image.lz4
