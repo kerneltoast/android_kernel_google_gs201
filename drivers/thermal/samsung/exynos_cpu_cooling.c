@@ -456,6 +456,9 @@ static int get_static_power(struct exynos_cpu_cooling_device *cpufreq_cdev,
 	if (!dev || !cpu_online(policy->cpu) || !cpufreq_cdev->has_static)
 		return 0;
 
+	if (!tz)
+		return -EAGAIN;
+
 	opp = dev_pm_opp_find_freq_exact(dev, freq_hz, true);
 	if (IS_ERR(opp)) {
 		dev_warn_ratelimited(dev, "Failed to find OPP for frequency %lu: %ld\n",
@@ -620,6 +623,10 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 		return 0;
 	}
 
+	/* Hack: Driver hasn't finished loading */
+	if (!tz)
+		return -EAGAIN;
+
 	if (trace_thermal_exynos_power_cpu_get_power_enabled()) {
 		ncpus = cpumask_weight(policy->related_cpus);
 		load_cpu = kcalloc(ncpus, sizeof(*load_cpu), GFP_KERNEL);
@@ -736,6 +743,10 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 	/* None of our cpus are online */
 	if (cpu >= nr_cpu_ids)
 		return -ENODEV;
+
+	/* Hack: Driver hasn't finished loading */
+	if (!tz)
+		return -EAGAIN;
 
 	cur_freq = cpufreq_quick_get(policy->cpu);
 	ret = get_static_power(cpufreq_cdev, cur_freq, &static_power);
@@ -1003,6 +1014,8 @@ __exynos_cpu_cooling_register(struct device_node *np,
 		thermal_cooling_device_unregister(cdev);
 		goto remove_qos_req;
 	}
+
+	/* This needs to be done before thermal_of_cooling_device_register ... */
 	cpufreq_cdev->tzd = parse_ect_cooling_level(cdev, cooling_name);
 
 	mutex_lock(&cooling_list_lock);
