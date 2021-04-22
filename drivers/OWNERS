@@ -46,6 +46,7 @@ per-file iio/power/odpm.c=*
 per-file input/fingerprint/**=*
 per-file input/keycombo.c=*
 per-file input/keydebug-*=*
+per-file input/misc/vl53l1/**=*
 per-file input/touchscreen/heatmap.c=*
 per-file input/touchscreen/sec_ts/**=*
 per-file input/touchscreen/stm/**=*
