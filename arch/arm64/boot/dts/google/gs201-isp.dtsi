@@ -748,9 +748,18 @@
 
 		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
 
-		interrupts = <0 IRQ_MCSC_OTF0_MCSC IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "mcsc-int0";
-		interrupt-event-infos = <&mcsc_scaler_interrupt0>;
+		interrupts =
+			<0 IRQ_MCSC_0_MCSC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_MCSC_1_MCSC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_MCSC_0_MCSC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"mcsc-int0",
+			"mcsc-int1",
+			"mcsc-cmdq-int";
+		interrupt-event-infos =
+			<&mcsc_int0>,
+			<&mcsc_int1>,
+			<&mcsc_cmdq_int>;
 
 		iommus =
 			<&sysmmu_mcsc1>,
@@ -759,7 +768,7 @@
 		samsung,tzmp = "true";
 	};
 
-	lwis_scsc: lwis_scsc@1BA80000 {
+	lwis_scsc: lwis_scsc@1D080000 {
 		compatible = "google,lwis-ioreg-device";
 
 		/* Device node name */
@@ -767,11 +776,11 @@
 
 		/* Register space */
 		reg =
-			<0x0 0x1BA80000 0x10000>, /* SCSC */
-			<0x0 0x1BB50000 0x10000>; /* SSMT SCSC */
+			<0x0 0x1D080000 0x10000>, /* SCSC */
+			<0x0 0x1D200000 0x10000>; /* SSMT SCSC */
 		reg-names =
 			"scsc",
-			"ssmt_d_scsc";
+			"ssmt_d0_scsc";
 
 		clocks = <&clock UMUX_CLKCMU_GDC_SCSC>;
 		clock-names = "UMUX_CLKCMU_GDC_SCSC";
@@ -779,16 +788,25 @@
 
 		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
 
-		interrupts = <0 IRQ_SCSC_IRQ_GDC IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "scsc-int0";
-		interrupt-event-infos = <&scsc_scaler_interrupt0>;
+		interrupts =
+			<0 IRQ_SCSC_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_SCSC_IRQ_1_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_SCSC_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"scsc-int0",
+			"scsc-int1",
+			"scsc-cmdq-int";
+		interrupt-event-infos =
+			<&scsc_int0>,
+			<&scsc_int1>,
+			<&scsc_cmdq_int>;
 
 		iommus = <&sysmmu_gdc2>;
 		samsung,iommu-group = <&iommu_group_isp>;
 		samsung,tzmp = "true";
 	};
 
-	lwis_gdc0: lwis_gdc@1BA40000 {
+	lwis_gdc0: lwis_gdc@1D040000 {
 		compatible = "google,lwis-ioreg-device";
 
 		/* Device node name */
@@ -796,8 +814,8 @@
 
 		/* Register space */
 		reg =
-			<0x0 0x1BA40000 0x10000>,	/* GDC0 */
-			<0x0 0x1BB30000 0x10000>;	/* GDC0 SSMT */
+			<0x0 0x1D040000 0x10000>,	/* GDC0 */
+			<0x0 0x1D130000 0x10000>;	/* GDC0 SSMT */
 		reg-names =
 			"gdc",
 			"gdc_ssmt";
@@ -808,16 +826,25 @@
 
 		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
 
-		interrupts = <0 IRQ_GDC0_IRQ_GDC IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "gdc-int";
-		interrupt-event-infos = <&gdc_int>;
+		interrupts =
+			<0 IRQ_GDC0_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_GDC0_IRQ_1_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_GDC0_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"gdc-int0",
+			"gdc-int1",
+			"gdc-cmdq-int";
+		interrupt-event-infos =
+			<&gdc_int0>,
+			<&gdc_int1>,
+			<&gdc_cmdq_int>;
 
 		iommus = <&sysmmu_gdc0>;
 		samsung,iommu-group = <&iommu_group_isp>;
 		samsung,tzmp = "true";
 	};
 
-	lwis_gdc1: lwis_gdc@1BA60000 {
+	lwis_gdc1: lwis_gdc@1D060000 {
 		compatible = "google,lwis-ioreg-device";
 
 		/* Device node name */
@@ -825,8 +852,8 @@
 
 		/* Register space */
 		reg =
-			<0x0 0x1BA60000 0x10000>,  /* GDC1 */
-			<0x0 0x1BB40000 0x10000>;  /* GDC1 SSMT */
+			<0x0 0x1D060000 0x10000>,  /* GDC1 */
+			<0x0 0x1D140000 0x10000>;  /* GDC1 SSMT */
 		reg-names =
 			"gdc",
 			"gdc_ssmt";
@@ -834,12 +861,20 @@
 		clocks = <&clock UMUX_CLKCMU_GDC_GDC1>;
 		clock-names = "UMUX_CLKCMU_GDC_GDC1";
 		clock-rates = <0>;
-
 		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
 
-		interrupts = <0 IRQ_GDC1_IRQ_GDC IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "gdc-int";
-		interrupt-event-infos = <&gdc_int>;
+		interrupts =
+			<0 IRQ_GDC1_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_GDC1_IRQ_1_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_GDC1_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"gdc-int0",
+			"gdc-int1",
+			"gdc-cmdq-int";
+		interrupt-event-infos =
+			<&gdc_int0>,
+			<&gdc_int1>,
+			<&gdc_cmdq_int>;
 
 		iommus = <&sysmmu_gdc1>;
 		samsung,iommu-group = <&iommu_group_isp>;
