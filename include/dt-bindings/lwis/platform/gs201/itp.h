@@ -10,7 +10,7 @@
 
 #include <dt-bindings/lwis/platform/common.h>
 
-// clang-format off
+/* clang-format off */
 
 #define ITP_ITP_INT0_BASE (HW_EVENT_MASK + 0)
 
@@ -133,7 +133,7 @@
 #define ITP_ITSC_CMDQ_INT_PRELOAD_FLUSH 1
 #define ITP_ITSC_CMDQ_INT_QUE0_OVERFLOW 2
 
-// clang-format on
+/* clang-format on */
 
 #define LWIS_PLATFORM_EVENT_ID_ITP_FRAME_START \
 	EVENT_ID(ITP_ITP_INT0_BASE, \
