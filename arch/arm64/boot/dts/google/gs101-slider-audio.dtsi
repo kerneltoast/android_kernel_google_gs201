@@ -226,6 +226,7 @@
 	cs40l25a_haptics: cs40l25a@43 {
 		compatible = "cirrus,cs40l25a";
 		reg = <0x43>;
+		dev-name = "cs40l25a";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&hapt_amp_irq &hapt_amp_rst &hapt_amp_trig>;
