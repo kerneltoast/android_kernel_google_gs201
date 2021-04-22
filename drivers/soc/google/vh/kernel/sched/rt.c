@@ -40,6 +40,27 @@ static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
 	return cpu_cap >= min(min_cap, max_cap);
 }
 
+#if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
+static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,
+					bool sync)
+{
+	/*
+	 * If the waker is CFS, then an RT sync wakeup would preempt the waker
+	 * and force it to run for a likely small time after the RT wakee is
+	 * done. So, only honor RT sync wakeups from RT wakers.
+	 */
+	return sync && task_has_rt_policy(rq->curr) &&
+		p->prio <= rq->rt.highest_prio.next &&
+		rq->rt.rt_nr_running <= 2;
+}
+#else
+static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,
+					bool sync)
+{
+	return 0;
+}
+#endif
+
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
@@ -194,7 +215,10 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 {
 	struct task_struct *curr, *tgt_task;
 	struct rq *rq;
+	struct rq *this_cpu_rq;
 	int target;
+	bool sync = !!(wake_flags & WF_SYNC);
+	int this_cpu;
 
 	*new_cpu = prev_cpu;
 
@@ -205,6 +229,17 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 
 	rcu_read_lock();
 	curr = READ_ONCE(rq->curr);
+	this_cpu = smp_processor_id();
+	this_cpu_rq = cpu_rq(this_cpu);
+
+	/*
+	 * Respect the sync flag as long as the task can run on this CPU.
+	 */
+	if (should_honor_rt_sync(this_cpu_rq, p, sync) &&
+	    cpumask_test_cpu(this_cpu, p->cpus_ptr)) {
+		*new_cpu = this_cpu;
+		goto out_unlock;
+	}
 
 	target = find_lowest_rq(p);
 
@@ -220,6 +255,7 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 		*new_cpu = target;
 	}
 
+out_unlock:
 	rcu_read_unlock();
 out:
 	return;
