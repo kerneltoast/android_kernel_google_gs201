@@ -71,6 +71,7 @@ WC_BUS {
 
 	p9412@3c {
 		status = "ok";
+		dev-name = "p9412";
 		compatible = "idt,p9412";
 		reg = <0x3c>;
 
