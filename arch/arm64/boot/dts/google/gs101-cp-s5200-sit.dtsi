@@ -239,14 +239,14 @@
 						tpmon,check_udp = <1>;
 					};
 					tpmon_cpu_cl1 {
-						tpmon,enable = <0>;
+						tpmon,enable = <1>;
 						tpmon,name = "CL1";
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_CPU_CL1>;
 						tpmon,idx = <4>;
-						tpmon,threshold = <500 700 1500>;	/* Mbps */
-						tpmon,values = <0 832000 1248000 1560000>;
-						tpmon,check_udp = <1>;
+						tpmon,threshold = <2000>;	/* Mbps */
+						tpmon,values = <0 1663000>;
+						tpmon,check_udp = <0>;
 					};
 					tpmon_pcie_low_power {
 						tpmon,enable = <1>;
