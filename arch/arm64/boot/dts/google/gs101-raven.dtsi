@@ -16,7 +16,6 @@
 #include "gs101-raven-uwb.dtsi"
 #endif /* ORIOLE_EVT_WINGBOARD */
 
-#include "gs101-raven-pmic.dtsi"
 #include "gs101-raven-wcharger.dtsi"
 #include "gs101-raviole-charging.dtsi"
 #include "gs101-raviole-usecases.dtsi"
