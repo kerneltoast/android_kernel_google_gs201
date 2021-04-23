@@ -82,9 +82,9 @@ struct pktproc_queue_ul {
 	u32 *rear_ptr; /* indicates the last desc read by CP */
 
 	/* Store */
-	u32 cp_desc_pbase;
+	u64 cp_desc_pbase;
 	u32 num_desc;
-	u32 cp_buff_pbase;
+	u64 cp_buff_pbase;
 
 	struct pktproc_info_ul *ul_info;
 	struct pktproc_q_info_ul *q_info;	/* Pointer to q_info of info_v */
@@ -109,7 +109,7 @@ struct pktproc_queue_ul {
 struct pktproc_adaptor_ul {
 	bool support;	/* Is support PktProc feature? */
 
-	unsigned long cp_base;		/* CP base address for pktproc */
+	unsigned long long cp_base;	/* CP base address for pktproc */
 	unsigned long info_rgn_offset;	/* Offset of info region */
 	unsigned long info_rgn_size;	/* Size of info region */
 	unsigned long desc_rgn_offset;	/* Offset of descriptor region */

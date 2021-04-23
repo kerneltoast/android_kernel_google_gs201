@@ -166,7 +166,7 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr,
 	ssize_t count = 0;
 	int i;
 
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08x\n", ppa_ul->cp_base);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08lx\n", ppa_ul->cp_base);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Num of queue:%d\n", ppa_ul->num_queue);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "HW cache coherency:%d\n",
 			ppa_ul->use_hw_iocc);
@@ -314,7 +314,7 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 		struct device_node *np)
 {
-	mif_dt_read_u32(np, "pktproc_ul_cp_base", ppa_ul->cp_base);
+	mif_dt_read_u64(np, "pktproc_ul_cp_base", ppa_ul->cp_base);
 	mif_dt_read_u32(np, "pktproc_ul_num_queue", ppa_ul->num_queue);
 	mif_dt_read_u32(np, "pktproc_ul_max_packet_size",
 			ppa_ul->max_packet_size);
@@ -323,7 +323,7 @@ static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 	mif_dt_read_u32(np, "pktproc_ul_buff_rgn_cached", ppa_ul->buff_rgn_cached);
 	mif_dt_read_u32(np, "pktproc_ul_padding_required",
 			ppa_ul->padding_required);
-	mif_info("cp_base:0x%08x num_queue:%d max_packet_size:%d iocc:%d\n",
+	mif_info("cp_base:0x%08lx num_queue:%d max_packet_size:%d iocc:%d\n",
 		ppa_ul->cp_base, ppa_ul->num_queue, ppa_ul->max_packet_size, ppa_ul->use_hw_iocc);
 	mif_info("info/desc rgn cache: %d buff rgn cache: %d padding_required:%d\n",
 		ppa_ul->info_desc_rgn_cached, ppa_ul->buff_rgn_cached, ppa_ul->padding_required);
