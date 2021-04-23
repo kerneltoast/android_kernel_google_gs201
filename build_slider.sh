@@ -29,7 +29,7 @@ function build_gki {
 function build_abi {
   echo "Building device kernel for ABI..."
   # LTO=full is required for building ABI, and we must build the full kernel.
-  BUILD_CONFIG=private/gs-google/build.config.slider \
+  BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
     OUT_DIR=${BASE_OUT}/device-kernel/ \
     DIST_DIR=${DIST_DIR} \
     LTO=full \
@@ -46,7 +46,7 @@ function build_abi {
 
 function build_pixel {
   echo "Building device kernel..."
-  BUILD_CONFIG=private/gs-google/build.config.slider \
+  BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
     OUT_DIR=${BASE_OUT}/device-kernel/ \
     DIST_DIR=${DIST_DIR} \
     LTO=${LTO} \
@@ -63,6 +63,8 @@ DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
 LTO=${LTO:-thin}
 GKI_BINARIES_DIR=$(readlink -m ${DIST_DIR})
 GKI_PREBUILTS_DIR=$(readlink -m "prebuilts/boot-artifacts/kernel/")
+DEFAULT_CONFIG="private/gs-google/build.config.slider"
+DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG:-${DEFAULT_CONFIG}}
 if [ -z "${BUILD_KERNEL}" ]; then
   if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
     BUILD_KERNEL=1
