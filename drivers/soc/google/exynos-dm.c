@@ -16,6 +16,8 @@
 #if IS_ENABLED(CONFIG_GS_ACPM)
 #include "acpm/acpm.h"
 #include "acpm/acpm_ipc.h"
+#include "cal-if/acpm_dvfs.h"
+#include "cal-if/cmucal.h"
 #endif
 
 #include <soc/google/exynos-dm.h>
@@ -693,8 +695,6 @@ EXPORT_SYMBOL_GPL(unregister_exynos_dm_freq_scaler);
  * and check dependent domains whether update is necessary.
  */
 
-#define POLICY_REQ	4
-
 /* DM Algorithm */
 static int update_constraint_min(struct exynos_dm_constraint *constraint, u32 driver_min)
 {
@@ -809,7 +809,7 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 		}
 		config.cmd = cmd;
 		config.response = true;
-		config.cmd[0] = dm->cal_id;
+		config.cmd[0] = GET_IDX(dm->cal_id);
 		config.cmd[1] = max_freq;
 		config.cmd[2] = POLICY_REQ;
 
