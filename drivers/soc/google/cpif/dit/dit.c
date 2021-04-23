@@ -1638,9 +1638,10 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "hw_ver:0x%08X reg_ver:0x%X\n",
 		dc->hw_version, dc->reg_version);
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "use tx:%d rx:%d(stop:%d) clat:%d\n",
+	count += scnprintf(&buf[count], PAGE_SIZE - count,
+		"use tx:%d rx:%d(stop:%d) clat:%d(hal_ready:%d)\n",
 		dc->use_dir[DIT_DIR_TX], dc->use_dir[DIT_DIR_RX], dc->stop_enqueue[DIT_DIR_RX],
-		dc->use_clat);
+		dc->use_clat, dc->clat_hal_ready);
 
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
 		desc_info = &dc->desc_info[dir];
@@ -1901,6 +1902,26 @@ static ssize_t debug_use_clat_show(struct device *dev, struct device_attribute *
 {
 	return scnprintf(buf, PAGE_SIZE, "use_clat: %d\n", dc->use_clat);
 }
+
+static ssize_t debug_hal_support_store(struct device *dev, struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	unsigned int flag;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &flag);
+	if (ret)
+		return -EINVAL;
+
+	dc->hal_support = (flag > 0 ? true : false);
+	return count;
+}
+
+static ssize_t debug_hal_support_show(struct device *dev, struct device_attribute *attr,
+				      char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "hal_support: %d\n", dc->hal_support);
+}
 #endif
 
 #if defined(DIT_DEBUG_LOW)
@@ -1961,6 +1982,7 @@ static DEVICE_ATTR_WO(debug_reset_usage);
 static DEVICE_ATTR_RW(debug_use_tx);
 static DEVICE_ATTR_RW(debug_use_rx);
 static DEVICE_ATTR_RW(debug_use_clat);
+static DEVICE_ATTR_RW(debug_hal_support);
 #endif
 #if defined(DIT_DEBUG_LOW)
 static DEVICE_ATTR_RW(debug_pktgen_ch);
@@ -1977,6 +1999,7 @@ static struct attribute *dit_attrs[] = {
 	&dev_attr_debug_use_tx.attr,
 	&dev_attr_debug_use_rx.attr,
 	&dev_attr_debug_use_clat.attr,
+	&dev_attr_debug_hal_support.attr,
 #endif
 #if defined(DIT_DEBUG_LOW)
 	&dev_attr_debug_pktgen_ch.attr,
