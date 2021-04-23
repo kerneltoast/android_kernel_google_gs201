@@ -765,7 +765,7 @@ static ssize_t clk_ratio_show(struct device *dev,
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
 	int len = 0, i;
-	unsigned int reg[8];
+	unsigned int reg;
 	void __iomem *addr;
 
 	len = scnprintf(buf, PAGE_SIZE, "%-10s\t%-10s\t%-10s\t%-10s\t%-10s\t%-10s\n",
@@ -774,16 +774,17 @@ static ssize_t clk_ratio_show(struct device *dev,
 
 	for (i = 0; i < 9; i++) {
 		addr = get_addr_by_rail(bcl_dev, clk_ratio_source[i]);
-		if (addr != NULL) {
-			reg[i] = __raw_readl(addr);
-			len += scnprintf(buf + len, PAGE_SIZE - len,
-					 "%-15s\t0x%-15x\t0x%-15x\t0x%-15x\t0x%-10x\t0x%-10x\n",
-					 clk_ratio_source[i], reg[i], (reg[i] >> 20) & 0xFF,
-					 (reg[i] >> 14) & 0x3F, (reg[i] >> 6) & 0x3F,
-					 reg[i] & 0x3F);
-		} else
+		if (addr == NULL) {
 			len += scnprintf(buf + len, PAGE_SIZE - len, "%-15s\t is off\n",
 					 clk_ratio_source[i]);
+			continue;
+		}
+		reg = __raw_readl(addr);
+		len += scnprintf(buf + len, PAGE_SIZE - len,
+				 "%-15s\t0x%-15x\t0x%-15x\t0x%-15x\t0x%-10x\t0x%-10x\n",
+				 clk_ratio_source[i], reg, (reg >> 20) & 0xFF,
+				 (reg >> 14) & 0x3F, (reg >> 6) & 0x3F,
+				 reg & 0x3F);
 	}
 	len += scnprintf(buf + len, PAGE_SIZE - len, "echo (source) (data) > clk_ratio\n");
 	len += scnprintf(buf + len, PAGE_SIZE - len,
@@ -864,7 +865,7 @@ static ssize_t clk_stats_show(struct device *dev,
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
 	int len = 0, i;
-	unsigned int reg[5];
+	unsigned int reg;
 	void __iomem *addr;
 
 
@@ -877,9 +878,9 @@ static ssize_t clk_stats_show(struct device *dev,
 					 clk_stats_source[i]);
 			continue;
 		}
-		reg[i] = __raw_readl(addr);
+		reg = __raw_readl(addr);
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%-15s\t0x%-15x\n",
-				 clk_stats_source[i], reg[i]);
+				 clk_stats_source[i], reg);
 	}
 
 	len += scnprintf(buf + len, PAGE_SIZE - len, "\nStatistics:\n");
@@ -895,12 +896,12 @@ static ssize_t clk_stats_show(struct device *dev,
 					 clk_stats_source[i]);
 			continue;
 		}
-		reg[i] = __raw_readl(addr);
+		reg = __raw_readl(addr);
 		len += scnprintf(buf + len, PAGE_SIZE - len,
 				 "%-15s\t0x%-15x\t0x%-10x\t0x%-10x\t0x%-10x\t0x%-10x\t0x%-10x\n",
-				 clk_stats_source[i], reg[i], (reg[i] >> 31) & 0x1,
-				 (reg[i] >> 29) & 0x1, (reg[i] >> 16) & 0xFFF,
-				 (reg[i] >> 8) & 0x3F, reg[i] & 0xF);
+				 clk_stats_source[i], reg, (reg >> 31) & 0x1,
+				 (reg >> 29) & 0x1, (reg >> 16) & 0xFFF,
+				 (reg >> 8) & 0x3F, reg & 0xF);
 	}
 
 	len += scnprintf(buf + len, PAGE_SIZE - len, "echo (source) (data) > clk_stats\n");

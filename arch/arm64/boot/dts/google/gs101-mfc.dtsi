@@ -142,6 +142,14 @@
 		sbwc_bw_dec_vp9_10bit	= <17787 15582 14413>;
 		sbwc_bw_dec_mpeg4	= <18924 15221 9462>;
 
+		/* BW <peak, read, write> : KB/UHD frame. For recon DPB only SBWC format */
+		/* It is valid when only support_sbwc = <1> */
+		dpb_sbwc_bw_enc_h264		= <36230 36791 7065>;
+		dpb_sbwc_bw_enc_hevc		= <28662 32144 5888>;
+		dpb_sbwc_bw_enc_hevc_10bit	= <46613 51541 8841>;
+		dpb_sbwc_bw_enc_vp9		= <26747 31502 8702>;
+		dpb_sbwc_bw_enc_vp9_10bit	= <42302 55063 14052>;
+
 		/* QoS bitrate */
 		num_mfc_freq = <5>;
 		mfc_freqs = <134000 267000 400000 534000 666000>;

@@ -116,8 +116,11 @@ static int pktproc_ul_update_fore_ptr(struct pktproc_queue_ul *q, u32 count)
 	last_ptr = q->q_info->fore_ptr;
 	fore_ptr = circ_new_ptr(q->num_desc, last_ptr, count);
 
-	if (count < offset)
+	if (q->ppa_ul->end_bit_owner == END_BIT_CP)
 		goto set_fore;
+
+	if (count < offset)
+		goto set_last;
 
 	for (i = 0; i < count - offset; i += offset) {
 		last_ptr = circ_new_ptr(q->num_desc, last_ptr, offset);
@@ -128,12 +131,14 @@ static int pktproc_ul_update_fore_ptr(struct pktproc_queue_ul *q, u32 count)
 		}
 	}
 
-set_fore:
+set_last:
 	ret = pktproc_set_end(q, fore_ptr, 1);
 	if (ret) {
 		mif_err_limited("set end failed. q_idx:%d, ret:%d\n", q->q_idx, ret);
 		goto error;
 	}
+
+set_fore:
 	q->q_info->fore_ptr = fore_ptr;
 
 	/* ensure the fore_ptr ordering */
@@ -165,6 +170,8 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr,
 			ppa_ul->use_hw_iocc);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
 
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "End bit owner:%d\n",
+			info_ul->end_bit_owner);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP quota:%d\n", info_ul->cp_quota);
 
 	for (i = 0; i < ppa_ul->num_queue; i++) {
@@ -257,12 +264,13 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 
 	info = (struct pktproc_info_ul *)ppa_ul->info_vbase;
 
-	if (info->cp_quota <= 0) {
+	if (info->end_bit_owner == END_BIT_AP && info->cp_quota <= 0) {
 		mif_err("invalid cp quota: %d\n", info->cp_quota);
 		return -EINVAL;
 	}
 
 	ppa_ul->cp_quota = info->cp_quota;
+	ppa_ul->end_bit_owner = info->end_bit_owner;
 	mif_info("CP quota set to %d\n", ppa_ul->cp_quota);
 
 	if (!pktproc_check_support_ul(ppa_ul))

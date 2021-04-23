@@ -136,18 +136,94 @@ static inline unsigned long capacity_of(int cpu)
 	return cpu_rq(cpu)->cpu_capacity;
 }
 
+static void sync_entity_load_avg(struct sched_entity *se)
+{
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+	u64 last_update_time;
+
+	last_update_time = cfs_rq_last_update_time(cfs_rq);
+	__update_load_avg_blocked_se(last_update_time, se);
+}
+
+static unsigned long capacity_curr_of(int cpu)
+{
+	unsigned long max_cap = cpu_rq(cpu)->cpu_capacity_orig;
+
+	return cap_scale(max_cap, scale_freq[cpu]);
+}
+
+/* Runqueue only has SCHED_IDLE tasks enqueued */
+static int sched_idle_rq(struct rq *rq)
+{
+	return unlikely(rq->nr_running == rq->cfs.idle_h_nr_running &&
+			rq->nr_running);
+}
+
+#ifdef CONFIG_SMP
+int sched_cpu_idle(int cpu)
+{
+	return sched_idle_rq(cpu_rq(cpu));
+}
+#endif
+
+static inline bool within_margin(int value, int margin)
+{
+	return ((unsigned int)(value + margin - 1) < (2 * margin - 1));
+}
+
+/*****************************************************************************/
+/*                       New Code Section                                    */
+/*****************************************************************************/
+/*
+ * This part of code is new for this kernel, which are mostly helper functions.
+ */
+
+#if defined(CONFIG_UCLAMP_TASK) && defined(CONFIG_FAIR_GROUP_SCHED)
+static inline unsigned long cpu_util_cfs_group_mod_no_est(struct rq *rq)
+{
+	struct cfs_rq *cfs_rq, *pos;
+	unsigned long util = 0, unclamped_util = 0;
+	struct task_group *tg;
+
+	// cpu_util_cfs = root_util - subgroup_util_sum + throttled_subgroup_util_sum
+	for_each_leaf_cfs_rq_safe(rq, cfs_rq, pos) {
+		if (&rq->cfs != cfs_rq) {
+			tg = cfs_rq->tg;
+			unclamped_util += cfs_rq->avg.util_avg;
+			util += min_t(unsigned long, READ_ONCE(cfs_rq->avg.util_avg),
+				tg->uclamp_req[UCLAMP_MAX].value);
+		}
+	}
+
+	util += max_t(int, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util, 0);
+
+	return util;
+}
+
+unsigned long cpu_util_cfs_group_mod(struct rq *rq)
+{
+	unsigned long util = cpu_util_cfs_group_mod_no_est(rq);
+
+	if (sched_feat(UTIL_EST)) {
+		// TODO: right now the limit of util_est is per task
+		// consider to make it per group.
+		util = max_t(unsigned long, util,
+			     READ_ONCE(rq->cfs.avg.util_est.enqueued));
+	}
+
+	return util;
+}
+#else
+#define cpu_util_cfs_group_mod cpu_util_cfs
+#endif
+
 unsigned long cpu_util(int cpu)
 {
-	struct cfs_rq *cfs_rq;
-	unsigned int util;
+       struct rq *rq = cpu_rq(cpu);
 
-	cfs_rq = &cpu_rq(cpu)->cfs;
-	util = READ_ONCE(cfs_rq->avg.util_avg);
+       unsigned long util = cpu_util_cfs_group_mod(rq);
 
-	if (sched_feat(UTIL_EST))
-		util = max(util, READ_ONCE(cfs_rq->avg.util_est.enqueued));
-
-	return min_t(unsigned long, util, capacity_of(cpu));
+       return min_t(unsigned long, util, capacity_of(cpu));
 }
 
 static unsigned long cpu_util_without(int cpu, struct task_struct *p)
@@ -160,7 +236,7 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 		return cpu_util(cpu);
 
 	cfs_rq = &cpu_rq(cpu)->cfs;
-	util = READ_ONCE(cfs_rq->avg.util_avg);
+	util = cpu_util_cfs_group_mod_no_est(cpu_rq(cpu));
 
 	/* Discount task's util from CPU's util */
 	lsub_positive(&util, task_util(p));
@@ -226,47 +302,6 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	return min_t(unsigned long, util, capacity_of(cpu));
 }
 
-static void sync_entity_load_avg(struct sched_entity *se)
-{
-	struct cfs_rq *cfs_rq = cfs_rq_of(se);
-	u64 last_update_time;
-
-	last_update_time = cfs_rq_last_update_time(cfs_rq);
-	__update_load_avg_blocked_se(last_update_time, se);
-}
-
-static unsigned long capacity_curr_of(int cpu)
-{
-	unsigned long max_cap = cpu_rq(cpu)->cpu_capacity_orig;
-
-	return cap_scale(max_cap, scale_freq[cpu]);
-}
-
-/* Runqueue only has SCHED_IDLE tasks enqueued */
-static int sched_idle_rq(struct rq *rq)
-{
-	return unlikely(rq->nr_running == rq->cfs.idle_h_nr_running &&
-			rq->nr_running);
-}
-
-#ifdef CONFIG_SMP
-int sched_cpu_idle(int cpu)
-{
-	return sched_idle_rq(cpu_rq(cpu));
-}
-#endif
-
-static inline bool within_margin(int value, int margin)
-{
-	return ((unsigned int)(value + margin - 1) < (2 * margin - 1));
-}
-
-/*****************************************************************************/
-/*                       New Code Section                                    */
-/*****************************************************************************/
-/*
- * This part of code is new for this kernel, which are mostly helper functions.
- */
 static inline bool get_prefer_high_cap(struct task_struct *p)
 {
 	return vendor_sched_enable_prefer_high_cap && get_vendor_task_struct(p)->prefer_high_cap;

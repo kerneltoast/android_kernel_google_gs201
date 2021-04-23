@@ -290,6 +290,65 @@ static unsigned int num_of_devices, suspended_count;
 /* list of multiple instance for each thermal sensor */
 static LIST_HEAD(dtm_dev_list);
 
+static void update_time_in_state(struct throttling_stats *stats)
+{
+	ktime_t now = ktime_get(), delta;
+
+	delta = ktime_sub(now, stats->last_time);
+	if (stats->stats_type == DISABLE_STATS) {
+		stats->disable_time_in_state[stats->disable_state] =
+				ktime_add(stats->disable_time_in_state[stats->disable_state],
+					  delta);
+	}
+
+	if (stats->stats_type == HARDLIMIT_STATS) {
+		stats->hardlimit_time_in_state[stats->hardlimit_state] =
+				ktime_add(stats->hardlimit_time_in_state[stats->hardlimit_state],
+					  delta);
+	}
+	stats->last_time = now;
+}
+
+static void hard_limit_stats_update(struct throttling_stats *stats,
+					int new_state)
+{
+	if (!stats)
+		return;
+
+	spin_lock(&stats->lock);
+
+	if (stats->hardlimit_state == new_state)
+		goto unlock;
+
+	update_time_in_state(stats);
+	stats->hardlimit_state = new_state;
+	if (new_state)
+		stats->hardlimit_total_count++;
+
+unlock:
+	spin_unlock(&stats->lock);
+}
+
+static void disable_stats_update(struct throttling_stats *stats,
+				 int new_state)
+{
+	if (!stats)
+		return;
+
+	spin_lock(&stats->lock);
+
+	if (stats->disable_state == new_state)
+		goto unlock;
+
+	update_time_in_state(stats);
+	stats->disable_state = new_state;
+	if (new_state)
+		stats->disable_total_count++;
+
+unlock:
+	spin_unlock(&stats->lock);
+}
+
 static void gs101_report_trigger(struct gs101_tmu_data *p)
 {
 	struct thermal_zone_device *tz = p->tzd;
@@ -430,11 +489,11 @@ static int gs101_get_temp(void *p, int *temp)
 		kthread_queue_work(&data->pause_worker, &data->cpu_pause_work);
 
 	if (data->hardlimit_enable &&
-	    ((data->is_cpu_hardlimited &&
+	    ((data->is_hardlimited &&
 	      data->temperature < data->hardlimit_clr_threshold) ||
-	     (!data->is_cpu_hardlimited &&
+	     (!data->is_hardlimited &&
 	      data->temperature >= data->hardlimit_threshold)))
-		kthread_queue_work(&data->hardlimit_worker, &data->cpu_hardlimit_work);
+		kthread_queue_work(&data->hardlimit_worker, &data->hardlimit_work);
 
 	mutex_unlock(&data->lock);
 
@@ -581,7 +640,7 @@ static void allow_maximum_power(struct gs101_tmu_data *data)
 		if (instance->trip != control_temp ||
 		    (!cdev_is_power_actor(instance->cdev)))
 			continue;
-		if (data->hardlimit_enable && data->is_cpu_hardlimited)
+		if (data->hardlimit_enable && data->is_hardlimited)
 			instance->target = data->max_cdev;
 		else
 			instance->target = 0;
@@ -687,7 +746,7 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	if (ret)
 		return ret;
 
-	if (data->hardlimit_enable && data->is_cpu_hardlimited)
+	if (data->hardlimit_enable && data->is_hardlimited)
 		state = max(state, data->max_cdev);
 
 	// TODO: refactor locking
@@ -968,6 +1027,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			}
 		}
 	}
+	disable_stats_update(data->disable_stats, data->is_cpu_hotplugged_out);
 
 	mutex_unlock(&data->lock);
 }
@@ -1010,18 +1070,19 @@ static void gs101_throttle_cpu_pause(struct kthread_work *work)
 			}
 		}
 	}
+	disable_stats_update(data->disable_stats, data->is_cpu_paused);
+
 	mutex_unlock(&data->lock);
 }
 
-static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
+static void gs101_throttle_hard_limit(struct kthread_work *work)
 {
 	struct gs101_tmu_data *data = container_of(work,
-						   struct gs101_tmu_data, cpu_hardlimit_work);
-	struct cpumask mask;
+						   struct gs101_tmu_data, hardlimit_work);
 	struct thermal_zone_device *tz = data->tzd;
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev = NULL;
-	unsigned long state;
+	unsigned long state, max_state;
 
 	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
@@ -1033,18 +1094,15 @@ static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
 	mutex_unlock(&tz->lock);
 
 	if (!cdev) {
-		pr_err_ratelimited("%s: cannot find cdev, cpu hard limit throttling failed\n",
+		pr_err_ratelimited("%s: cannot find cdev, hard limit throttling failed\n",
 				   data->tmu_name);
 		return;
 	}
 
 	mutex_lock(&data->lock);
-	cpumask_and(&mask, cpu_possible_mask, &data->hardlimit_cpus);
 
-	if (data->is_cpu_hardlimited) {
+	if (data->is_hardlimited) {
 		if (data->temperature < data->hardlimit_clr_threshold) {
-			pr_info_ratelimited("%s cpus: %*pbl, clear hard limit\n",
-					    data->tmu_name, cpumask_pr_args(&mask));
 			if (data->use_pi_thermal && data->pi_param->switched_on) {
 				state = data->max_cdev;
 			} else {
@@ -1063,13 +1121,22 @@ static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
 			mutex_unlock(&tz->lock);
 
 			mutex_lock(&data->lock);
-			data->is_cpu_hardlimited = false;
-			pr_info_ratelimited("%s set cur_state to %d\n", cdev->type, state);
+			data->is_hardlimited = false;
+			pr_info_ratelimited("%s: clear hard limit, is_hardlimited = %d\n",
+					    data->tmu_name, data->is_hardlimited);
 		}
 	} else {
 		if (data->temperature >= data->hardlimit_threshold) {
-			pr_info_ratelimited("%s cpus: %*pbl, enable hard limit\n",
-					    data->tmu_name, cpumask_pr_args(&mask));
+			pr_info_ratelimited("%s: enable hard limit\n", data->tmu_name);
+			if (data->hardlimit_cooling_state == THERMAL_NO_LIMIT) {
+				if (cdev->ops->get_max_state(cdev, &max_state)) {
+					pr_err_ratelimited("%s: %s failed to get_max_cdev, hard limit throttling failed\n",
+							   cdev->type, data->tmu_name);
+					goto err_exit;
+				}
+				data->hardlimit_cooling_state = (unsigned int)max_state;
+			}
+
 			state = max((unsigned long)data->hardlimit_cooling_state,
 					       data->max_cdev);
 			data->max_cdev = state;
@@ -1085,10 +1152,15 @@ static void gs101_throttle_cpu_hard_limit(struct kthread_work *work)
 			mutex_unlock(&tz->lock);
 
 			mutex_lock(&data->lock);
-			data->is_cpu_hardlimited = true;
-			pr_info_ratelimited("%s set cur_state to %d\n", cdev->type, state);
+			data->is_hardlimited = true;
+			pr_info_ratelimited("%s: %s set cur_state to hardlimit cooling state %d, is_hardlimited = %d\n",
+					    data->tmu_name, cdev->type,
+					    data->hardlimit_cooling_state, data->is_hardlimited);
 		}
 	}
+	hard_limit_stats_update(data->hardlimit_stats, data->is_hardlimited);
+
+err_exit:
 	mutex_unlock(&data->lock);
 }
 
@@ -1218,7 +1290,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	}
 
 	if (data->hardlimit_enable) {
-		kthread_init_work(&data->cpu_hardlimit_work, gs101_throttle_cpu_hard_limit);
+		kthread_init_work(&data->hardlimit_work, gs101_throttle_hard_limit);
 		kthread_init_worker(&data->hardlimit_worker);
 
 		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_hardlimit", data->tmu_name);
@@ -1314,10 +1386,6 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 
 		if (!data->hardlimit_clr_threshold)
 			dev_err(&pdev->dev, "No input hardlimit_clr_threshold\n");
-
-		ret = of_property_read_string(pdev->dev.of_node, "hardlimit_cpus", &buf);
-		if (!ret)
-			cpulist_parse(buf, &data->hardlimit_cpus);
 
 		of_property_read_u32(pdev->dev.of_node, "hardlimit_cooling_state",
 				     &data->hardlimit_cooling_state);
@@ -1818,6 +1886,144 @@ polling_delay_off_store(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
+static ssize_t
+hardlimit_total_count_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->hardlimit_stats;
+	int ret = 0;
+
+	if (!data->hardlimit_enable)
+		return ret;
+
+	spin_lock(&stats->lock);
+	ret = sysfs_emit(buf, "%u\n", stats->hardlimit_total_count);
+	spin_unlock(&stats->lock);
+
+	return ret;
+}
+
+static const char *switch_stats[] = {"disabled", " enabled"};
+
+static ssize_t
+hardlimit_time_in_state_ms_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->hardlimit_stats;
+	ssize_t len = 0;
+	int i;
+
+	if (!data->hardlimit_enable)
+		return len;
+
+	spin_lock(&stats->lock);
+	update_time_in_state(stats);
+
+	for (i = 0; i < ARRAY_SIZE(switch_stats); i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s\t%llu\n", switch_stats[i],
+				 ktime_to_ms(stats->hardlimit_time_in_state[i]));
+	}
+	spin_unlock(&stats->lock);
+
+	return len;
+}
+
+static ssize_t
+hardlimit_reset_store(struct device *dev, struct device_attribute *attr, const char *buf,
+		      size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->hardlimit_stats;
+	int i;
+
+	if (!data->hardlimit_enable)
+		return count;
+
+	spin_lock(&stats->lock);
+	stats->hardlimit_total_count = 0;
+	stats->last_time = ktime_get();
+
+	for (i = 0; i < ARRAY_SIZE(switch_stats); i++)
+		stats->hardlimit_time_in_state[i] = ktime_set(0, 0);
+
+	spin_unlock(&stats->lock);
+
+	return count;
+}
+
+static ssize_t
+cpu_disable_total_count_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->disable_stats;
+	int ret = 0;
+
+	if (!data->hotplug_enable && !data->pause_enable)
+		return ret;
+
+	spin_lock(&stats->lock);
+	ret = sysfs_emit(buf, "%u\n", stats->disable_total_count);
+	spin_unlock(&stats->lock);
+
+	return ret;
+}
+
+static ssize_t
+cpu_disable_time_in_state_ms_show(struct device *dev, struct device_attribute *attr,
+				  char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->disable_stats;
+	ssize_t len = 0;
+	int i;
+
+	if (!data->hotplug_enable && !data->pause_enable)
+		return len;
+
+	spin_lock(&stats->lock);
+	update_time_in_state(stats);
+
+	for (i = 0; i < ARRAY_SIZE(switch_stats); i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s\t%llu\n", switch_stats[i],
+				 ktime_to_ms(stats->disable_time_in_state[i]));
+	}
+	spin_unlock(&stats->lock);
+
+	return len;
+}
+
+static ssize_t
+cpu_disable_reset_store(struct device *dev, struct device_attribute *attr, const char *buf,
+			size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct throttling_stats *stats = data->disable_stats;
+	int i;
+
+	if (!data->hotplug_enable && !data->pause_enable)
+		return count;
+
+	spin_lock(&stats->lock);
+	stats->disable_total_count = 0;
+	stats->last_time = ktime_get();
+
+	for (i = 0; i < ARRAY_SIZE(switch_stats); i++)
+		stats->disable_time_in_state[i] = ktime_set(0, 0);
+
+	spin_unlock(&stats->lock);
+
+	return count;
+}
+
 #define create_s32_param_attr(name)						\
 	static ssize_t								\
 	name##_show(struct device *dev, struct device_attribute *devattr,	\
@@ -1863,6 +2069,12 @@ static DEVICE_ATTR_RW(cpu_hw_throttling_trigger_temp);
 static DEVICE_ATTR_RW(sustainable_power);
 static DEVICE_ATTR_RW(polling_delay_off);
 static DEVICE_ATTR_RW(polling_delay_on);
+static DEVICE_ATTR_RO(cpu_disable_time_in_state_ms);
+static DEVICE_ATTR_RO(cpu_disable_total_count);
+static DEVICE_ATTR_WO(cpu_disable_reset);
+static DEVICE_ATTR_RO(hardlimit_time_in_state_ms);
+static DEVICE_ATTR_RO(hardlimit_total_count);
+static DEVICE_ATTR_WO(hardlimit_reset);
 create_s32_param_attr(k_po);
 create_s32_param_attr(k_pu);
 create_s32_param_attr(k_i);
@@ -1886,12 +2098,59 @@ static struct attribute *gs101_tmu_attrs[] = {
 	&dev_attr_k_i.attr,
 	&dev_attr_i_max.attr,
 	&dev_attr_integral_cutoff.attr,
+	&dev_attr_cpu_disable_time_in_state_ms.attr,
+	&dev_attr_cpu_disable_total_count.attr,
+	&dev_attr_cpu_disable_reset.attr,
+	&dev_attr_hardlimit_time_in_state_ms.attr,
+	&dev_attr_hardlimit_total_count.attr,
+	&dev_attr_hardlimit_reset.attr,
 	NULL,
 };
 
 static const struct attribute_group gs101_tmu_attr_group = {
 	.attrs = gs101_tmu_attrs,
 };
+
+static void hard_limit_stats_setup(struct gs101_tmu_data *data)
+{
+	struct throttling_stats *stats;
+	int var;
+
+	var = sizeof(*stats);
+	var += sizeof(*stats->hardlimit_time_in_state) * ARRAY_SIZE(switch_stats);
+
+	stats = kzalloc(var, GFP_KERNEL);
+	if (!stats)
+		return;
+
+	stats->stats_type = HARDLIMIT_STATS;
+	stats->hardlimit_time_in_state = (ktime_t *)(stats + 1);
+	mutex_lock(&data->lock);
+	data->hardlimit_stats = stats;
+	mutex_unlock(&data->lock);
+	stats->last_time = ktime_get();
+	spin_lock_init(&stats->lock);
+}
+
+static void cpu_disable_stats_setup(struct gs101_tmu_data *data)
+{
+	struct throttling_stats *stats;
+	int var;
+
+	var = sizeof(*stats);
+	var += sizeof(*stats->disable_time_in_state) * ARRAY_SIZE(switch_stats);
+	stats = kzalloc(var, GFP_KERNEL);
+	if (!stats)
+		return;
+
+	stats->stats_type = DISABLE_STATS;
+	stats->disable_time_in_state = (ktime_t *)(stats + 1);
+	mutex_lock(&data->lock);
+	data->disable_stats = stats;
+	mutex_unlock(&data->lock);
+	stats->last_time = ktime_get();
+	spin_lock_init(&stats->lock);
+}
 
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 static void exynos_acpm_tmu_test_cp_call(bool mode)
@@ -2311,6 +2570,12 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 		kthread_init_delayed_work(&data->pi_work, gs101_pi_polling);
 
 	gs101_tmu_control(pdev, true);
+
+	if (data->hotplug_enable || data->pause_enable)
+		cpu_disable_stats_setup(data);
+
+	if (data->hardlimit_enable)
+		hard_limit_stats_setup(data);
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &gs101_tmu_attr_group);
 	if (ret)

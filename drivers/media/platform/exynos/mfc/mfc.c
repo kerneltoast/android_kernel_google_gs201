@@ -877,6 +877,17 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 			&pdata->mfc_bw_info_sbwc.bw_dec_vp9_10bit.peak, 3);
 		of_property_read_u32_array(np, "sbwc_bw_dec_mpeg4",
 			&pdata->mfc_bw_info_sbwc.bw_dec_mpeg4.peak, 3);
+
+		of_property_read_u32_array(np, "dpb_sbwc_bw_enc_h264",
+			&pdata->mfc_bw_info_dpb_sbwc.bw_enc_h264.peak, 3);
+		of_property_read_u32_array(np, "dpb_sbwc_bw_enc_hevc",
+			&pdata->mfc_bw_info_dpb_sbwc.bw_enc_hevc.peak, 3);
+		of_property_read_u32_array(np, "dpb_sbwc_bw_enc_hevc_10bit",
+			&pdata->mfc_bw_info_dpb_sbwc.bw_enc_hevc_10bit.peak, 3);
+		of_property_read_u32_array(np, "dpb_sbwc_bw_enc_vp9",
+			&pdata->mfc_bw_info_dpb_sbwc.bw_enc_vp9.peak, 3);
+		of_property_read_u32_array(np, "dpb_sbwc_bw_enc_vp9_10bit",
+			&pdata->mfc_bw_info_dpb_sbwc.bw_enc_vp9_10bit.peak, 3);
 	}
 
 	/* QoS weight */

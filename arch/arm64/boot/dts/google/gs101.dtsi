@@ -1135,8 +1135,7 @@
 		hardlimit_enable;
 		hardlimit_clr_threshold = <93>;
 		hardlimit_threshold = <98>;
-		hardlimit_cooling_state = <14>;
-		hardlimit_cpus = "6-7";
+		hardlimit_cooling_state = <THERMAL_NO_LIMIT>;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1167,8 +1166,7 @@
 		hardlimit_enable;
 		hardlimit_clr_threshold = <93>;
 		hardlimit_threshold = <98>;
-		hardlimit_cooling_state = <13>;
-		hardlimit_cpus = "4-5";
+		hardlimit_cooling_state = <THERMAL_NO_LIMIT>;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1214,6 +1212,10 @@
 		tmu_name = "G3D";
 		id = <3>;
 		ect_nouse;
+		hardlimit_enable;
+		hardlimit_clr_threshold = <93>;
+		hardlimit_threshold = <98>;
+		hardlimit_cooling_state = <THERMAL_NO_LIMIT>;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1248,6 +1250,10 @@
 		tmu_name = "TPU";
 		id = <5>;
 		ect_nouse;
+		hardlimit_enable;
+		hardlimit_clr_threshold = <102>;
+		hardlimit_threshold = <107>;
+		hardlimit_cooling_state = <THERMAL_NO_LIMIT>;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1442,12 +1448,12 @@
 					type = "active";
 				};
 				gpu_switch_on: gpu-switch-on {
-					temperature = <60000>; /* millicelsius */
+					temperature = <70000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "active";
 				};
 				gpu_control_temp: gpu-control-temp {
-					temperature = <80000>; /* millicelsius */
+					temperature = <90000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "passive";
 				};
@@ -1456,8 +1462,8 @@
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
-				gpu_alert1: gpu-alert1 {
-					temperature = <100000>; /* millicelsius */
+				gpu_hardlimit: gpu-hardlimit {
+					temperature = <98000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
@@ -1572,7 +1578,7 @@
 					hysteresis = <4000>; /* millicelsius */
 					type = "active";
 				};
-				tpu_alert3: tpu-alert3 {
+				tpu_hardlimit: tpu-hardlimit {
 					temperature = <107000>; /* millicelsius */
 					hysteresis = <3000>; /* millicelsius */
 					type = "active";
@@ -1601,7 +1607,7 @@
 					cooling-device = <&tpu_cooling 2 3>;
 				};
 				map4 {
-					trip = <&tpu_alert3>;
+					trip = <&tpu_hardlimit>;
 					cooling-device = <&tpu_cooling 3 3>;
 				};
 			};

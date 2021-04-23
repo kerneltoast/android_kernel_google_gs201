@@ -117,14 +117,15 @@ static void bts_calc_bw(void)
 
 static void bts_update_stats(unsigned int index)
 {
+	struct bts_bw *bw = btsdev->bts_bw;
 	int i;
 	int total_prev_idx, peak_prev_idx;
 	int total_bin_idx, peak_bin_idx;
 	unsigned int total_bw, peak_bw;
 	u64 curr, duration;
 
-	total_bw = btsdev->bts_bw[index].read + btsdev->bts_bw[index].write;
-	peak_bw = btsdev->bts_bw[index].peak;
+	total_bw = bw[index].read + bw[index].write;
+	peak_bw = bw[index].peak;
 
 	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
 		if (total_bw < bw_trip[i])
@@ -139,31 +140,31 @@ static void bts_update_stats(unsigned int index)
 	peak_bin_idx = peak_bw ? i : -1;
 
 	curr = ktime_get_ns();
-	if (!btsdev->bts_bw[index].stats.start_time) {
+	if (!bw[index].stats.start_time) {
 		if (total_bin_idx < 0 && peak_bin_idx < 0)
 			return;
-		btsdev->bts_bw[index].stats.start_time = curr;
-		btsdev->bts_bw[index].stats.total.hist_idx = total_bin_idx;
-		btsdev->bts_bw[index].stats.peak.hist_idx = peak_bin_idx;
+		bw[index].stats.start_time = curr;
+		bw[index].stats.total.hist_idx = total_bin_idx;
+		bw[index].stats.peak.hist_idx = peak_bin_idx;
 		return;
 	}
 
-	total_prev_idx = btsdev->bts_bw[index].stats.total.hist_idx;
-	peak_prev_idx = btsdev->bts_bw[index].stats.peak.hist_idx;
-	btsdev->bts_bw[index].stats.total.hist_idx = total_bin_idx;
-	btsdev->bts_bw[index].stats.peak.hist_idx = peak_bin_idx;
-	duration = curr - btsdev->bts_bw[index].stats.start_time;
-	btsdev->bts_bw[index].stats.start_time = curr;
+	total_prev_idx = bw[index].stats.total.hist_idx;
+	peak_prev_idx = bw[index].stats.peak.hist_idx;
+	bw[index].stats.total.hist_idx = total_bin_idx;
+	bw[index].stats.peak.hist_idx = peak_bin_idx;
+	duration = curr - bw[index].stats.start_time;
+	bw[index].stats.start_time = curr;
 	if (total_prev_idx < 0 && peak_prev_idx < 0)
 		return;
 
 	if (total_prev_idx >= 0) {
-		btsdev->bts_bw[index].stats.total.count[total_prev_idx]++;
-		btsdev->bts_bw[index].stats.total.total_time[total_prev_idx] += duration;
+		bw[index].stats.total.count[total_prev_idx]++;
+		bw[index].stats.total.total_time[total_prev_idx] += duration;
 	}
 	if (peak_prev_idx >= 0) {
-		btsdev->bts_bw[index].stats.peak.count[peak_prev_idx]++;
-		btsdev->bts_bw[index].stats.peak.total_time[peak_prev_idx] += duration;
+		bw[index].stats.peak.count[peak_prev_idx]++;
+		bw[index].stats.peak.total_time[peak_prev_idx] += duration;
 	}
 	return;
 }
@@ -271,27 +272,41 @@ EXPORT_SYMBOL_GPL(bts_get_scenindex);
 
 int bts_update_bw(unsigned int index, struct bts_bw bw)
 {
+	struct bts_bw *bts_bw = btsdev->bts_bw;
+	unsigned int total_bw;
+
 	if (index >= btsdev->num_bts) {
 		dev_err(btsdev->dev,
 			"Invalid index! Should be smaller than %u(index=%u)\n",
 			btsdev->num_bts, index);
-		return -EINVAL;
+		goto err;
+	}
+
+	total_bw = bw.read + bw.write;
+	/* Valid votes for total & peak BW should be both either non-zero or zero */
+	if (!total_bw != !bw.peak) {
+		dev_err(btsdev->dev, "%s has invalid votes R: %.8u W: %.8u P: %.8u\n",
+				bts_bw[index].name, bw.read, bw.write, bw.peak);
+		goto err;
 	}
 
 	spin_lock(&btsdev->lock);
-	btsdev->bts_bw[index].peak = bw.peak;
-	btsdev->bts_bw[index].read = bw.read;
-	btsdev->bts_bw[index].write = bw.write;
+	bts_bw[index].peak = bw.peak;
+	bts_bw[index].read = bw.read;
+	bts_bw[index].write = bw.write;
 	spin_unlock(&btsdev->lock);
 
 	BTSDBG_LOG(btsdev->dev,
 		   "%s R: %.8u W: %.8u P: %.8u\n",
-		   btsdev->bts_bw[index].name, bw.read, bw.write, bw.peak);
+		   bts_bw[index].name, bw.read, bw.write, bw.peak);
 
 	bts_calc_bw();
 	bts_update_stats(index);
 
 	return 0;
+
+err:
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(bts_update_bw);
 
