@@ -82,14 +82,17 @@ if [ -n "${BUILD_CONFIG}" ]; then
   exit_if_error 1 "BUILD_CONFIG is not supported for $0"
 fi
 
-if [ "${BUILD_KERNEL}" = "0" -a "${EXPERIMENTAL_BUILD}" != "0" ]; then
-  exit_if_error 1 "BUILD_KERNEL=0 is incompatible with EXPERIMENTAL_BUILD"
+if [ "${BUILD_KERNEL}" = "0" ]; then
+  if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
+    echo "BUILD_KERNEL=0 is incompatible with EXPERIMENTAL_BUILD=1 and"
+    echo "  GKI_DEFCONFIG_FRAGMENT."
+    exit_if_error 1 "Flags incompatible with BUILD_KERNEL=0 detected"
+  elif [ "${LTO}" = "none" ]; then
+    echo "LTO=none requires BUILD_KERNEL=1, EXPERIMENTAL_BUILD=1, or"
+    echo "  GKI_DEFCONFIG_FRAGMENT to be set."
+    exit_if_error 1 "LTO=none requires building the kernel"
+  fi
 fi
-
-if [ "${LTO}" = "none" -a "${BUILD_KERNEL}" = "0" ]; then
-  exit_if_error 1 "LTO=none requires BUILD_KERNEL=1 or EXPERIMENTAL_BUILD=1"
-fi
-
 
 if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
   pushd aosp/ > /dev/null
