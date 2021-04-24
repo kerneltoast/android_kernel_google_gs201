@@ -67,6 +67,7 @@ int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size);
 void exynos_acpm_reboot(void);
 void acpm_stop_log_and_dumpram(void);
 u64 get_frc_time(void);
+bool is_acpm_ipc_busy(void);
 #else
 
 static inline int acpm_ipc_request_channel(struct device_node *np,
@@ -121,6 +122,11 @@ static inline void acpm_stop_log_and_dumpram(void)
 static u64 get_frc_time(void)
 {
 	return 0;
+}
+
+static bool is_acpm_ipc_busy(void)
+{
+	return false;
 }
 #endif
 

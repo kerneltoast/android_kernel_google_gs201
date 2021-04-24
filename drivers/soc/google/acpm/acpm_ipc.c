@@ -87,6 +87,21 @@ u64 get_frc_time(void)
 }
 EXPORT_SYMBOL_GPL(get_frc_time);
 
+#define IPC_AP_FVP_CAL	0
+bool is_acpm_ipc_busy(void)
+{
+	struct acpm_ipc_ch *channel;
+	unsigned int channel_id = IPC_AP_FVP_CAL;
+	unsigned int tx_front, rx_front;
+
+	channel = &acpm_ipc->channel[channel_id];
+	tx_front = __raw_readl(channel->tx_ch.front);
+	rx_front = __raw_readl(channel->rx_ch.front);
+
+	return (tx_front != rx_front);
+}
+EXPORT_SYMBOL_GPL(is_acpm_ipc_busy);
+
 static int plugins_init(struct device_node *node)
 {
 	struct plugin *plugins;
