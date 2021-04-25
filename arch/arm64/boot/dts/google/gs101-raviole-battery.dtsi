@@ -6,6 +6,8 @@
  *
  */
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	fragment@battery {
 		target-path = "/";
@@ -126,6 +128,11 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			ngpios = <6>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <5 IRQ_TYPE_NONE>,
+				     <6 IRQ_TYPE_NONE>;
 		};
 	};
 
