@@ -96,6 +96,9 @@
 		compatible = "max20339ovp";
 		reg = <0x35>;
 
+		/* OVP interrupt on MW pmic GPIO6 */
+		max20339,irq-gpio = <&max777x9_gpio 5 GPIO_ACTIVE_LOW>;
+
 		/* LoadSwitch 1 and LoadSwitch 2 mapped as gpios.  */
 		max20339_gpio: max20339_gpio {
 			gpio-controller;
