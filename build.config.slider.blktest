@@ -1,0 +1,15 @@
+TRIM_NONLISTED_KMI=0
+KMI_SYMBOL_LIST_STRICT_MODE=0
+MODULES_ORDER=
+
+POST_DEFCONFIG_CMDS="${POST_DEFCONFIG_CMDS} && update_blktest_config"
+function update_blktest_config() {
+  ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
+    -m BLK_DEV_NULL_BLK \
+    -m SCSI_DEBUG \
+    -e FAULT_INJECTION \
+    -e BLK_DEV_NULL_BLK_FAULT_INJECTION \
+    -e BLK_DEV_IO_TRACE
+  (cd ${OUT_DIR} && \
+   make O=${OUT_DIR} "${TOOL_ARGS[@]}" ${MAKE_ARGS} olddefconfig)
+}
