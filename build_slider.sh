@@ -50,10 +50,12 @@ GKI_PREBUILTS_DIR=$(readlink -m "prebuilts/boot-artifacts/kernel/")
 DEFAULT_CONFIG="private/gs-google/build.config.slider"
 DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG:-${DEFAULT_CONFIG}}
 TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
+CHECK_DIRTY_AOSP=0
 if [ -z "${BUILD_KERNEL}" ]; then
   if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
     BUILD_KERNEL=1
   else
+    CHECK_DIRTY_AOSP=1
     BUILD_KERNEL=0
   fi
 fi
@@ -92,6 +94,26 @@ if [ "${BUILD_KERNEL}" = "0" ]; then
     echo "  GKI_DEFCONFIG_FRAGMENT to be set."
     exit_if_error 1 "LTO=none requires building the kernel"
   fi
+fi
+
+# If BUILD_KERNEL is not explicitly set, be sure that there are no aosp/
+# changes not present in the prebuilt.
+if [ "${CHECK_DIRTY_AOSP}" != "0" ]; then
+  PREBUILTS_SHA=$(strings ${GKI_PREBUILTS_DIR}/vmlinux |
+		      grep "Linux version 5.10" |
+		      sed -n "s/^.*-g\([0-9a-f]\{12\}\)-.*/\1/p")
+  pushd aosp/ > /dev/null
+    # The AOSP sha can sometimes be longer than 12 characters; fix its length.
+    AOSP_SHA=$(git log -1 --abbrev=12 --pretty="format:%h")
+    if [ "${PREBUILTS_SHA}" != "${AOSP_SHA}" -o -n \
+         "$(git --no-optional-locks status -uno --porcelain ||
+            git diff-index --name-only HEAD)" ]; then
+      echo "There are changes in aosp/ which are not in the prebuilts."
+      echo "  Please set BUILD_KERNEL=1 if you wish to build these changes, or"
+      echo "  BUILD_KERNEL=0 if you wish to disregard them and use prebuilts."
+      exit_if_error 1 "aosp/ changes detected without BUILD_KERNEL set"
+    fi
+  popd > /dev/null
 fi
 
 if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
