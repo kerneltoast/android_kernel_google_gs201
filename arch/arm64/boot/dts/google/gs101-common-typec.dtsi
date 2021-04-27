@@ -133,6 +133,7 @@
 			op-sink-microwatt = <2600000>;
 			new-source-frs-typec-current = <FRS_5V_1P5A>;
 			usb-role-switch;
+			slow-charger-loop;
 			/*
 			 * b/174044466: Extboost can only do ~1A.
 			 * However, max77759 operating in reverse boost
