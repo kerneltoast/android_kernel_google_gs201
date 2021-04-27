@@ -73,6 +73,10 @@ enum gbms_charger_modes {
 #define TCPM_RESTART_TOGGLING		0
 #define CONTAMINANT_HANDLES_TOGGLING	1
 
+static bool modparam_conf_sbu;
+module_param_named(conf_sbu, modparam_conf_sbu, bool, 0644);
+MODULE_PARM_DESC(conf_sbu, "Configure sbu pins");
+
 static bool hooks_installed;
 
 static u32 partner_src_caps[PDO_MAX_OBJECTS];
@@ -591,7 +595,7 @@ static void process_power_status(struct max77759_plat *chip)
 		mutex_unlock(&chip->data_path_lock);
 		logbuffer_log(log, "Debug accessory %s", chip->debug_acc_connected ? "connected" :
 			      "disconnected");
-		if (!chip->debug_acc_connected) {
+		if (!chip->debug_acc_connected && modparam_conf_sbu) {
 			ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_SBUSW_CTRL,
 					      SBUSW_SERIAL_UART);
 			logbuffer_log(log, "SBU switch enable %s", ret < 0 ? "fail" : "success");
@@ -1770,6 +1774,11 @@ static int max77759_probe(struct i2c_client *client,
 		if (ret < 0)
 			dev_err(&client->dev, "TCPCI: Unable to create device attr[%d] ret:%d:", i,
 				ret);
+	}
+
+	if (!modparam_conf_sbu) {
+		ret = max77759_write8(chip->data.regmap, TCPC_VENDOR_SBUSW_CTRL, 0);
+		logbuffer_log(chip->log, "SBU switch disable %s", ret < 0 ? "fail" : "success");
 	}
 
 #ifdef CONFIG_DEBUG_FS
