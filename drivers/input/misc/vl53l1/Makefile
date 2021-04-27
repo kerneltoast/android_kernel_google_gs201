@@ -2,9 +2,6 @@
 # Kbuild for the vl53L1 drivers.
 #
 
-# Define VL53L3 for module type id 0xAA.
-ccflags-y	+= -DVL53L3
-
 obj-$(CONFIG_INPUT_STMVL53L1)	+= stmvl53l1.o
 stmvl53l1-objs		:= stmvl53l1_module.o stmvl53l1_module-i2c.o
 stmvl53l1-objs		+= vl53l1_platform_ipp.o

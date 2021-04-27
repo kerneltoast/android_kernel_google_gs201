@@ -8,9 +8,14 @@ POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG
 LIBUFDT_PREBUILTS_BIN=prebuilts-master/misc/linux-x86/libufdt
 DTC_OVERLAY_TEST_EXT=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/bin/ufdt_apply_overlay
 
+MAKE_GOALS=
 KERNEL_BINARY=Image.lz4
 
 if [ -z "$MIXED_BUILD" ]; then
+MAKE_GOALS="
+${KERNEL_BINARY}
+"
+
 DEVICE_KERNEL_FILES="
 .config
 vmlinux
@@ -30,6 +35,7 @@ KMI_SYMBOL_LIST_MODULE_GROUPING=0
 BUILD_INITRAMFS=1
 LZ4_RAMDISK=1
 BUILD_BOOT_IMG=1
+VENDOR_DLKM_MODULES_LIST=${KERNEL_DIR}/vendor_dlkm_modules.slider
 GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-aosp_arm64.img
 VENDOR_RAMDISK_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-oriole.img
 KERNEL_VENDOR_CMDLINE="earlycon=exynos4210,0x10A00000 console=ttySAC0,115200 androidboot.console=ttySAC0"

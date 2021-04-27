@@ -26,7 +26,6 @@
 #include "gs101-aoc.dtsi"
 #include "gs101-audio.dtsi"
 #include "gs101-gsa.dtsi"
-#include "gs101-ion.dtsi"
 #include "gs101-dma-heap.dtsi"
 #include "gs101-mfc.dtsi"
 #include "gs101-pcie.dtsi"
@@ -72,26 +71,6 @@
 	chipid@10000000 {
 		compatible = "google,gs101-chipid";
 		reg = <0x0 0x10000000 0xD000>;
-	};
-
-	memory@80000000 {
-		device_type = "memory";
-		reg = <0x0 0x80000000 0x80000000>;
-	};
-
-	memory@880000000 {
-		device_type = "memory";
-		reg = <0x00000008 0x80000000 0x80000000>;
-	};
-
-	memory@900000000 {
-		device_type = "memory";
-		reg = <0x00000009 0x00000000 0x80000000>;
-	};
-
-	memory@980000000 {
-		device_type = "memory";
-		reg = <0x00000009 0x80000000 0x80000000>;
 	};
 
 	chosen {
@@ -1144,7 +1123,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <50>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <0>;
 		sustainable_power = <2000>;
 
@@ -1175,7 +1154,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <20>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <20>;
 		sustainable_power = <1000>;
 
@@ -1198,7 +1177,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <20>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
 
@@ -1224,7 +1203,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <20>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
 
@@ -1262,7 +1241,7 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <20>;
-		i_max = <5>;
+		k_d = <0>;
 		integral_cutoff = <20>;
 		sustainable_power = <200>;
 

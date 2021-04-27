@@ -418,6 +418,22 @@
 				};
 			};
 
+			dai_fe_raw_rx: fe_raw_rx {
+				dai-name = "audio_raw";
+				stream-name = "audio_raw";
+				id = <IDX_RAW_RX>;
+				dynamic;
+				playback;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_RAW_RX>;
+				};
+				platform {
+					rx1 {
+						of_drv = <&aoc_pcm_ep>;
+					};
+				};
+			};
+
 			dai_be_i2s0_rx: be_i2s0_rx {
 				dai-name = "I2S_0_RX Playback";
 				stream-name = "I2S_0_RX Playback";

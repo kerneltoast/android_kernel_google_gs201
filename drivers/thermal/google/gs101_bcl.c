@@ -621,18 +621,17 @@ static int gs101_bcl_set_soc(void *data, int low, int high)
 static int gs101_bcl_read_soc(void *data, int *val)
 {
 	struct gs101_bcl_dev *bcl_dev = data;
-	static struct power_supply *batt_psy;
 	union power_supply_propval ret = {
 		0,
 	};
 	int err = 0;
 
 	*val = 100;
-	if (!batt_psy)
-		batt_psy = power_supply_get_by_name("battery");
-	if (batt_psy) {
-		err = power_supply_get_property(
-			batt_psy, POWER_SUPPLY_PROP_CAPACITY, &ret);
+	if (!bcl_dev->batt_psy)
+		bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
+	if (bcl_dev->batt_psy) {
+		err = power_supply_get_property(bcl_dev->batt_psy,
+						POWER_SUPPLY_PROP_CAPACITY, &ret);
 		if (err) {
 			dev_err(bcl_dev->device, "battery percentage read error:%d\n", err);
 			return err;
@@ -647,25 +646,33 @@ static int gs101_bcl_read_soc(void *data, int *val)
 static void gs101_bcl_evaluate_soc(struct work_struct *work)
 {
 	int battery_percentage_reverse;
-	struct gs101_bcl_dev *gs101_bcl_device =
+	struct gs101_bcl_dev *bcl_dev =
 	    container_of(work, struct gs101_bcl_dev, soc_eval_work.work);
 
-	if (gs101_bcl_read_soc(gs101_bcl_device, &battery_percentage_reverse))
+	if (gs101_bcl_read_soc(bcl_dev, &battery_percentage_reverse))
 		return;
 
-	mutex_lock(&gs101_bcl_device->state_trans_lock);
-	if ((battery_percentage_reverse < gs101_bcl_device->trip_high_temp) &&
-		(battery_percentage_reverse > gs101_bcl_device->trip_low_temp))
+	mutex_lock(&bcl_dev->state_trans_lock);
+	if ((battery_percentage_reverse < bcl_dev->trip_high_temp) &&
+		(battery_percentage_reverse > bcl_dev->trip_low_temp))
 		goto eval_exit;
 
-	gs101_bcl_device->trip_val = battery_percentage_reverse;
-	mutex_unlock(&gs101_bcl_device->state_trans_lock);
-	thermal_zone_device_update(gs101_bcl_device->soc_tzd,
-				   THERMAL_EVENT_UNSPECIFIED);
-
+	bcl_dev->trip_val = battery_percentage_reverse;
+	mutex_unlock(&bcl_dev->state_trans_lock);
+	if (!bcl_dev->soc_tzd) {
+		bcl_dev->soc_tzd = thermal_zone_of_sensor_register(bcl_dev->device, PMIC_SOC,
+								   bcl_dev, &bcl_dev->soc_ops);
+		if (IS_ERR(bcl_dev->soc_tzd)) {
+			dev_err(bcl_dev->device, "soc TZ register failed. err:%ld\n",
+				PTR_ERR(bcl_dev->soc_tzd));
+			return;
+		}
+	}
+	if (!IS_ERR(bcl_dev->soc_tzd))
+		thermal_zone_device_update(bcl_dev->soc_tzd, THERMAL_EVENT_UNSPECIFIED);
 	return;
 eval_exit:
-	mutex_unlock(&gs101_bcl_device->state_trans_lock);
+	mutex_unlock(&bcl_dev->state_trans_lock);
 }
 
 static int battery_supply_callback(struct notifier_block *nb,
@@ -674,8 +681,17 @@ static int battery_supply_callback(struct notifier_block *nb,
 	struct power_supply *psy = data;
 	struct gs101_bcl_dev *gs101_bcl_device =
 			container_of(nb, struct gs101_bcl_dev, psy_nb);
+	struct power_supply *bcl_psy;
 
-	if (strcmp(psy->desc->name, "battery") == 0)
+	if (!gs101_bcl_device)
+		return NOTIFY_OK;
+
+	bcl_psy = gs101_bcl_device->batt_psy;
+
+	if (!bcl_psy)
+		return NOTIFY_OK;
+
+	if (strcmp(psy->desc->name, bcl_psy->desc->name) == 0)
 		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
 
 	return NOTIFY_OK;
@@ -1900,23 +1916,18 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	bcl_dev->iodev = dev_get_drvdata(pdev->dev.parent);
 	platform_set_drvdata(pdev, bcl_dev);
 	np = bcl_dev->device->of_node;
+	bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
 	bcl_dev->psy_nb.notifier_call = battery_supply_callback;
 	ret = power_supply_reg_notifier(&bcl_dev->psy_nb);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(bcl_dev->device, "soc notifier registration error. defer. err:%d\n", ret);
-		ret = -EPROBE_DEFER;
-		goto bcl_soc_probe_exit;
-	}
-	bcl_dev->soc_tzd = thermal_zone_of_sensor_register(
-		bcl_dev->device, PMIC_SOC, bcl_dev,
-		&bcl_dev->soc_ops);
+	bcl_dev->soc_tzd = thermal_zone_of_sensor_register(bcl_dev->device, PMIC_SOC, bcl_dev,
+							   &bcl_dev->soc_ops);
 	if (IS_ERR(bcl_dev->soc_tzd)) {
 		dev_err(bcl_dev->device, "soc TZ register failed. err:%ld\n",
 			PTR_ERR(bcl_dev->soc_tzd));
 		ret = PTR_ERR(bcl_dev->soc_tzd);
 		bcl_dev->soc_tzd = NULL;
-		ret = -EPROBE_DEFER;
-		goto bcl_soc_probe_exit;
 	}
 	INIT_DELAYED_WORK(&bcl_dev->soc_eval_work, gs101_bcl_evaluate_soc);
 	INIT_DELAYED_WORK(&bcl_dev->s2mpg10_irq_work[IRQ_SMPL_WARN], gs101_smpl_warn_work);
@@ -1981,7 +1992,6 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		goto bcl_soc_probe_exit;
 	}
 
-
 	mutex_lock(&sysreg_lock);
 	reg = __raw_readl(bcl_dev->sysreg_cpucl0 + CLUSTER0_GENERAL_CTRL_64);
 	reg |= MPMMEN_MASK;
@@ -2005,9 +2015,10 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		atomic_set(&bcl_dev->s2mpg11_cnt[i], 0);
 		mutex_init(&bcl_dev->s2mpg11_irq_lock[i]);
 	}
-	thermal_zone_device_update(bcl_dev->soc_tzd, THERMAL_DEVICE_UP);
-	schedule_delayed_work(&bcl_dev->soc_eval_work, 0);
-	bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
+	if (!IS_ERR(bcl_dev->soc_tzd)) {
+		thermal_zone_device_update(bcl_dev->soc_tzd, THERMAL_DEVICE_UP);
+		schedule_delayed_work(&bcl_dev->soc_eval_work, 2000);
+	}
 	google_gs101_set_throttling(bcl_dev);
 	google_gs101_set_main_pmic(bcl_dev);
 	google_gs101_set_sub_pmic(bcl_dev);

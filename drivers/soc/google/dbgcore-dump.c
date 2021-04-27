@@ -19,9 +19,9 @@
 
 #include <asm/cacheflush.h>
 
-#define DBGCORE_LOG_OFFSET      0x3000
+#define DBGCORE_LOG_OFFSET      0x3100
 #define DBGCORE_VERSION_LENGTH  48
-#define DBGCORE_LOG_LENGTH      1024
+#define DBGCORE_LOG_LENGTH      0x1400
 #define DBGCORE_LOG_STR_SZ      8
 
 enum dbgcore_plugin_id {
@@ -59,13 +59,17 @@ static ssize_t dbgcore_version_read(struct file *file, char __user *ubuf,
 				    size_t count, loff_t *ppos)
 {
 	uintptr_t dump_base = dbg_snapshot_get_item_vaddr("header");
+	char buf[DBGCORE_VERSION_LENGTH + 2];
+	int len;
 
 	if (dump_base == 0)
 		return -ENODEV;
 
 	dump_base += DBGCORE_LOG_OFFSET;
-	return simple_read_from_buffer(ubuf, count, ppos, (void *)dump_base,
-				       DBGCORE_VERSION_LENGTH);
+
+	len = scnprintf(buf, sizeof(buf), "%.*s\n", DBGCORE_VERSION_LENGTH, (char *)dump_base);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
 }
 
 static ssize_t dbgcore_logdump_read(struct file *file, char __user *ubuf,

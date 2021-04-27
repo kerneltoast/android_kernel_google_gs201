@@ -436,10 +436,11 @@
 				awqos = <0xC>;
 				rmo = <0xFFFF>;
 				wmo = <0x40>;
-				qurgent_on = <1>;
+				qurgent_on = <0>;
 				qurgent_th_r = <0x10>;
 				qurgent_th_w = <0x10>;
 				blocking_on = <0>;
+				ex_qurgent_on = <1>;
 			};
 		};
 		bts_csis1 {
@@ -453,10 +454,11 @@
 				awqos = <0xC>;
 				rmo = <0xFFFF>;
 				wmo = <0x40>;
-				qurgent_on = <1>;
+				qurgent_on = <0>;
 				qurgent_th_r = <0x10>;
 				qurgent_th_w = <0x10>;
 				blocking_on = <0>;
+				ex_qurgent_on = <1>;
 			};
 		};
 		bts_g3aa {

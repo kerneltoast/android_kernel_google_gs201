@@ -8,3 +8,6 @@ vh_sched-y += fair.o init.o sysfs_node.o rt.o cpufreq_gov.o
 
 # vendor sched tracing module
 obj-$(CONFIG_VH_SCHED) += sched_tp.o
+
+obj-$(CONFIG_VH_PREEMPTIRQ_TRACEPOINTS) += vh_preemptirq_long.o
+vh_preemptirq_long-y = init_preemptirq_long.o preemptirq_long.o

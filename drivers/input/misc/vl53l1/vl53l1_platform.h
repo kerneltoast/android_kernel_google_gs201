@@ -372,6 +372,7 @@ VL53L1_Error  VL53L1_GpioInterruptDisable(void);
 /**
  * @brief Gets current system tick count in [ms]
  *
+ * @param[in]   pdev          : pointer to device structure (device handle)
  * @return  time_ms : current time in [ms]
  *
  * @return  VL53L1_ERROR_NONE     Success
@@ -379,6 +380,7 @@ VL53L1_Error  VL53L1_GpioInterruptDisable(void);
  */
 
 VL53L1_Error VL53L1_GetTickCount(
+	VL53L1_Dev_t *pdev,
 	uint32_t *ptime_ms);
 
 

@@ -2487,6 +2487,9 @@
 		irq-reset-reg = <0x0 0xd8>;
 		irq-mask-reg = <0x0 0xd4>;
 
+		critical-irq-events =
+			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF0_FULL>;
+
 		irq-events =
 			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF0_FULL>,
 			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF0_FAKE_FRAME_DONE>;
@@ -2500,6 +2503,9 @@
 		irq-src-reg = <0x0 0xd0>;
 		irq-reset-reg = <0x0 0xd8>;
 		irq-mask-reg = <0x0 0xd4>;
+
+		critical-irq-events =
+			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF1_FULL>;
 
 		irq-events =
 			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF1_FULL>,
@@ -2515,6 +2521,9 @@
 		irq-reset-reg = <0x0 0xd8>;
 		irq-mask-reg = <0x0 0xd4>;
 
+		critical-irq-events =
+			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF2_FULL>;
+
 		irq-events =
 			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF2_FULL>,
 			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF2_FAKE_FRAME_DONE>;
@@ -2528,6 +2537,9 @@
 		irq-src-reg = <0x0 0xd0>;
 		irq-reset-reg = <0x0 0xd8>;
 		irq-mask-reg = <0x0 0xd4>;
+
+		critical-irq-events =
+			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF3_FULL>;
 
 		irq-events =
 			<LWIS_PLATFORM_EVENT_ID_CSI_EBUF_EBUF3_FULL>,

@@ -45,6 +45,10 @@
 				google,cv-tier-ov-cnt = <10>;
 				google,cv-tier-switch-cnt = <3>;
 
+				/* rest charging */
+				google,chg-rest-rate = <8>;
+				google,chg-rest-soc = <80>;
+
 				#thermal-sensor-cells = <0>;
 				#cooling-cells = <2>;
 			};
@@ -157,6 +161,8 @@
 
 		max77759,max_m5 = <&max77759_fg>;
 		max77759,pmic = <&max77729_pmic>;
+
+		max77759,chg-term-voltage = <4400>;
 
 		#thermal-sensor-cells = <1>;
 	};

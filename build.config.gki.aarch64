@@ -17,6 +17,7 @@ android/abi_gki_aarch64_qcom
 android/abi_gki_aarch64_virtual_device
 android/abi_gki_aarch64_hikey960
 android/abi_gki_aarch64_generic
+android/abi_gki_aarch64_exynos
 "
 
 FILES="${FILES}
@@ -27,8 +28,11 @@ KERNEL_BINARY=Image.lz4
 SKIP_VENDOR_BOOT=1
 GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-aosp_arm64.img
 
+TRIM_NONLISTED_KMI=1
+KMI_SYMBOL_LIST_STRICT_MODE=${KMI_SYMBOL_LIST_STRICT_MODE:-1}
+MODULES_ORDER=android/gki_aarch64_modules
+KMI_ENFORCED=1
+
 if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
 source ${GKI_DEFCONFIG_FRAGMENT}
 fi
-
-MODULES_ORDER=android/gki_aarch64_modules

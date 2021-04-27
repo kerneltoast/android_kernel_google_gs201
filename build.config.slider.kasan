@@ -1,3 +1,6 @@
+TRIM_NONLISTED_KMI=0
+KMI_SYMBOL_LIST_STRICT_MODE=0
+
 POST_DEFCONFIG_CMDS="${POST_DEFCONFIG_CMDS} && update_kasan_config"
 
 function update_kasan_config() {

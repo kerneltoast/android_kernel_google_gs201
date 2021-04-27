@@ -141,14 +141,15 @@ TRACE_EVENT(thermal_exynos_power_allocator,
 
 TRACE_EVENT(thermal_exynos_power_allocator_pid,
 	TP_PROTO(struct thermal_zone_device *tz, s32 err, s32 err_integral,
-		 s64 p, s64 i, s32 output),
-	TP_ARGS(tz, err, err_integral, p, i, output),
+		 s64 p, s64 i, s64 d, s32 output),
+	TP_ARGS(tz, err, err_integral, p, i, d, output),
 	TP_STRUCT__entry(
 		__field(int, tz_id)
 		__field(s32, err)
 		__field(s32, err_integral)
 		__field(s64, p)
 		__field(s64, i)
+		__field(s64, d)
 		__field(s32, output)
 	),
 	TP_fast_assign(
@@ -157,12 +158,13 @@ TRACE_EVENT(thermal_exynos_power_allocator_pid,
 		__entry->err_integral = err_integral;
 		__entry->p = p;
 		__entry->i = i;
+		__entry->d = d;
 		__entry->output = output;
 	),
 
-	TP_printk("thermal_zone_id=%d err=%d err_integral=%d p=%lld i=%lld output=%d",
+	TP_printk("thermal_zone_id=%d err=%d err_integral=%d p=%lld i=%lld d=%lld output=%d",
 		  __entry->tz_id, __entry->err, __entry->err_integral,
-		  __entry->p, __entry->i, __entry->output)
+		  __entry->p, __entry->i, __entry->d, __entry->output)
 );
 
 TRACE_EVENT(thermal_cpu_pressure,

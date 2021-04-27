@@ -56,7 +56,6 @@ struct gs101_bcl_dev {
 
 	struct notifier_block psy_nb;
 	struct delayed_work soc_eval_work;
-	struct delayed_work mfd_init;
 
 	void *iodev;
 

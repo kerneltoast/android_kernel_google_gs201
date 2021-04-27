@@ -1089,7 +1089,7 @@ static int __mfc_do_sscoredump(struct mfc_core *core)
 	seg.flags = 0;
 
 	ret = sscd_platdata->sscd_report(core->sscd_dev, &seg, 1,
-		SSCD_FLAGS_ELFARM64HDR, "MFC crash\n");
+		SSCD_FLAGS_ELFARM64HDR, core->crash_info);
 
 	return ret;
 #else

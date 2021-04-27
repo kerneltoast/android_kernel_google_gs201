@@ -147,4 +147,10 @@ bool is_contaminant_detected(struct max77759_plat *chip);
 #define VBUS_HI_HEADROOM_MV		500
 #define VBUS_LO_MV			4500
 
+enum tcpm_psy_online_states {
+	TCPM_PSY_OFFLINE = 0,
+	TCPM_PSY_FIXED_ONLINE,
+	TCPM_PSY_PROG_ONLINE,
+};
+
 #endif /* __TCPCI_MAX77759_H */

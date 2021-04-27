@@ -41,7 +41,7 @@
  */
 /* define CFG_STMVL53L1_HAVE_REGULATOR */
 
-#define DRIVER_VERSION "14.0.6"
+#define DRIVER_VERSION "14.0.7"
 
 /** @ingroup vl53l1_config
  * @{
