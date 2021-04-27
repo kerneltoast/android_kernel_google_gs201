@@ -54,6 +54,22 @@ static struct exynos_coresight_info *ecs_info;
 extern struct atomic_notifier_head hardlockup_notifier_list;
 #endif
 
+static inline void sys_os_lock(void)
+{
+	u64 val = 0x1;
+
+	SYS_WRITE(OSLAR_EL1, val);
+	isb();
+}
+
+static inline void sys_os_unlock(void)
+{
+	u64 val = 0x0;
+
+	isb();
+	SYS_WRITE(OSLAR_EL1, val);
+}
+
 static inline void dbg_os_lock(void __iomem *base)
 {
 	__raw_writel(0x1, base + DBGOSLAR);
@@ -321,8 +337,7 @@ static int exynos_cs_suspend_cpu(unsigned int cpu)
 	pr_debug("%s: cpu %d\n", __func__, cpu);
 	base = ecs_info->dbg_base[cpu];
 
-	DBG_UNLOCK(base);
-	dbg_os_lock(base);
+	sys_os_lock();
 	SYS_READ(DBGBVR0_EL1, ecs_info->bw_reg[idx++]); /* DBGBVR */
 	SYS_READ(DBGBVR1_EL1, ecs_info->bw_reg[idx++]);
 	SYS_READ(DBGBVR2_EL1, ecs_info->bw_reg[idx++]);
@@ -352,8 +367,7 @@ static int exynos_cs_suspend_cpu(unsigned int cpu)
 	SYS_READ(OSDTRRX_EL1, ecs_info->dbg_reg[cpu][idx++]);
 	SYS_READ(DBGCLAIMCLR_EL1, ecs_info->dbg_reg[cpu][idx++]);
 
-	dbg_os_unlock(base);
-	DBG_LOCK(base);
+	sys_os_unlock();
 
 	pr_debug("%s: cpu %d done\n", __func__, cpu);
 
@@ -371,8 +385,7 @@ static int exynos_cs_resume_cpu(unsigned int cpu)
 	base = ecs_info->dbg_base[cpu];
 	pr_debug("%s: cpu %d\n", __func__, cpu);
 
-	DBG_UNLOCK(base);
-	dbg_os_lock(base);
+	sys_os_lock();
 
 	SYS_WRITE(MDSCR_EL1, ecs_info->dbg_reg[cpu][idx++]);
 	SYS_WRITE(OSECCR_EL1, ecs_info->dbg_reg[cpu][idx++]);
@@ -403,8 +416,7 @@ static int exynos_cs_resume_cpu(unsigned int cpu)
 	SYS_WRITE(DBGWCR2_EL1, ecs_info->bw_reg[idx++]);
 	SYS_WRITE(DBGWCR3_EL1, ecs_info->bw_reg[idx++]);
 
-	dbg_os_unlock(base);
-	DBG_LOCK(base);
+	sys_os_unlock();
 
 	pr_debug("%s: %d done\n", __func__, cpu);
 	return 0;
