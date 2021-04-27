@@ -66,7 +66,7 @@ u64 get_frc_time(void)
 	 * ALIVE_FRC timer needs 3 24.576MHz cycles = 122ns
 	 * to detect rising edge of CAPTURE signal
 	 */
-	udelay(122);
+	ndelay(122);
 
 	/*
 	 * Read ALIVE_FRC counter values. Need to read MSB
