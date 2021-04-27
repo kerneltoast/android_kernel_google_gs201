@@ -41,6 +41,8 @@
 
 &spi_10 {
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
 	dw3xxx_prod@0 {
 		compatible = "decawave,dw3000";
 		reg = <0>;
