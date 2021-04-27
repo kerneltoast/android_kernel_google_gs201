@@ -7,7 +7,7 @@ set -e
 # Add a trap to remove the temporary vmlinux in case of an error occurs before
 # we finish.
 cleanup_trap() {
-  rm -f "${VMLINUX_TMP}"
+  rm -f ${VMLINUX_TMP} ${TMP_LIST}
   exit $1
 }
 trap 'cleanup_trap' EXIT
@@ -35,8 +35,15 @@ function extract_pixel_symbols {
     sed -i "/\<$l\>/d" ${pixel_symbol_list}
   done
 
+  # Remove blank lines and comments. Then sort
+  TMP_LIST=$(mktemp -t symbol_list.XXXX)
+  cp -f ${pixel_symbol_list} ${TMP_LIST}
+  sed -i '/^$/d' ${TMP_LIST}
+  sed -i '/^#/d' ${TMP_LIST}
+  sort -u ${TMP_LIST} > ${pixel_symbol_list}
+
   # Clean up
-  rm -f ${VMLINUX_TMP}
+  rm -f ${VMLINUX_TMP} ${TMP_LIST}
 }
 
 BASE_OUT=${OUT_DIR:-out}/mixed/
