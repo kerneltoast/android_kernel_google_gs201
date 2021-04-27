@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Oriole EVT 1.0 Device Tree
+ * Includes Oriole EVT device tree + changes for EVT1 devices.
+ * Copyright 2021 Google,LLC
+ */
+
+#include "gs101-oriole.dtsi"
+#include "gs101-raviole-thermal-evt.dtsi"
+

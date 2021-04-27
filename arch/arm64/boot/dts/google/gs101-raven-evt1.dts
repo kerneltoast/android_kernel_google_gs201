@@ -8,7 +8,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "gs101-raven.dtsi"
+#include "gs101-raven-evt1.dtsi"
 / {
 	board_id = <0x20203>;
 	board_rev = <0x010000>;
