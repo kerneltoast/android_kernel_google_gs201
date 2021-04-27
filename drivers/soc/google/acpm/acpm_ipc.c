@@ -637,7 +637,6 @@ retry:
 
 		while (check_response(channel, cfg)) {
 			now = sched_clock();
-			frc = get_frc_time();
 			if (timeout < now) {
 				if (retry_cnt > IPC_NB_RETRIES) {
 					timeout_flag = true;
@@ -645,8 +644,7 @@ retry:
 				} else if (retry_cnt > 0) {
 					unsigned int saved_debug_log_level =
 					    acpm_debug->debug_log_level;
-					/* in case AP -> ACPM was lost, ask APM to check again */
-					apm_interrupt_gen(channel->id);
+					frc = get_frc_time();
 					pr_err("acpm_ipc retry %d, now = %llu, frc = %llu, timeout = %llu",
 					       retry_cnt, now, frc, timeout);
 					pr_err("I:0x%x %u s:%2d RX r:%u f:%u TX r:%u f:%u\n",
