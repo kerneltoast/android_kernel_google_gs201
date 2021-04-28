@@ -34,7 +34,6 @@ static int acpm_tmu_log;
 static int acpm_dvfs_log;
 static struct acpm_mbox_test *mbox;
 static struct acpm_dvfs_test *dvfs_test;
-static int init_done;
 
 #define CHIP_REV_TYPE_A0          0
 #define CPU_NUM_NO_HERA           6
@@ -42,25 +41,37 @@ static int init_done;
 static unsigned int get_random_for_type(int type)
 {
 	unsigned int random;
+	int ret;
 
 	random = get_random_int();
 
-	if (DELAY_MS == type) {
-		return random % 100;
-	} else if (TERMAL_ZONE_ID == type) {
-		return random % TZ_END;
-	} else if (CPU_ID == type) {
+	switch (type) {
+	case DELAY_MS:
+		ret = random % 100;
+		break;
+	case TERMAL_ZONE_ID:
+		ret = random % TZ_END;
+		break;
+	case CPU_ID:
 		if (CHIP_REV_TYPE_A0 == gs_chipid_get_type() &&
 				CHIP_REV_TYPE_A0 == gs_chipid_get_revision()) {
 			/* chipid: A0 */
-			return random % CPU_NUM_NO_HERA;
+			ret = random % CPU_NUM_NO_HERA;
 		} else {
 			/* chipid: A1/B0/... */
-			return random % CPU_NUM_WITH_HERA;
+			ret = random % CPU_NUM_WITH_HERA;
 		}
+		break;
+	case DVFS_DOMAIN_ID:
+		ret = random % NUM_OF_DVFS_DOMAINS;
+		break;
+	default:
+		pr_err("%s, type: %d not support\n", __func__, type);
+		ret =  -EINVAL;
+		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 #define acpm_ipc_latency_check() \
@@ -220,7 +231,35 @@ static void acpm_debug_tmu_rd_tmp_concur(struct work_struct *work)
 			__func__, tzid, temp, stat);
 }
 
-#define TMU_READ_TEMP_TRIGGER_DELAY      300
+static void acpm_mbox_dvfs_rate_random_change(struct work_struct *work)
+{
+	u32 domain, set_rate;
+
+	domain = get_random_for_type(DVFS_DOMAIN_ID);
+	set_rate = get_random_rate(domain);
+
+	if (domain >= DVFS_CPUCL0)
+		acpm_dvfs_set_cpufreq(domain, set_rate, -1);
+	else
+		acpm_dvfs_set_devfreq(domain, set_rate, -1);
+}
+
+static void acpm_dvfs_mbox_stress_trigger(struct work_struct *work)
+{
+	int i;
+
+	for (i = 0; i < NUM_OF_WQ; i++) {
+		queue_delayed_work_on(get_random_for_type(CPU_ID),
+			mbox->dvfs->rate_change_wq[i],
+			&mbox->dvfs->rate_change_wk[i],
+			msecs_to_jiffies(get_random_for_type(DELAY_MS)));
+	}
+	queue_delayed_work_on(get_random_for_type(CPU_ID),
+		mbox->dvfs->mbox_stress_trigger_wq,
+		&mbox->dvfs->mbox_stress_trigger_wk,
+		msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
+}
+
 static void acpm_debug_tmu_rd_tmp_stress_trigger(struct work_struct *work)
 {
 	int i;
@@ -275,12 +314,12 @@ static void acpm_debug_tmu_resume(struct work_struct *work)
 		&mbox->tmu->suspend_work, msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
 }
 
-static void acpm_mbox_test_tmu_init(void)
+static void acpm_mbox_test_init(void)
 {
 	int i;
 	char buf[32];
 
-	if (!mbox->tmu->wq_init_done) {
+	if (!mbox->wq_init_done) {
 		pr_info("%s\n", __func__);
 
 		for (i = 0; i < NUM_OF_WQ; i++) {
@@ -292,10 +331,17 @@ static void acpm_mbox_test_tmu_init(void)
 			mbox->tmu->rd_tmp_concur_wq[i] = alloc_workqueue("%s",
 					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
 					1, buf);
+			snprintf(buf, sizeof(buf), "acpm_dvfs_req_wq%d", i);
+			mbox->dvfs->rate_change_wq[i] = alloc_workqueue("%s",
+					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
+					1, buf);
 		}
 		mbox->tmu->rd_tmp_stress_trigger_wq = alloc_workqueue("%s",
 				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
 				1, "acpm_tmu_rd_tmp_trigger_wq");
+		mbox->dvfs->mbox_stress_trigger_wq = alloc_workqueue("%s",
+				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
+				1, "acpm_dvfs_mbox_trigger_wq");
 		mbox->tmu->suspend_wq = alloc_workqueue("%s",
 				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
 				1, "acpm_tmu_mbox_suspend_wq");
@@ -308,21 +354,56 @@ static void acpm_mbox_test_tmu_init(void)
 				acpm_debug_tmu_rd_tmp_random);
 			INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_concur_wk[i],
 				acpm_debug_tmu_rd_tmp_concur);
+			INIT_DELAYED_WORK(&mbox->dvfs->rate_change_wk[i],
+				acpm_mbox_dvfs_rate_random_change);
 		}
 		INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_stress_trigger_wk,
 				acpm_debug_tmu_rd_tmp_stress_trigger);
+		INIT_DELAYED_WORK(&mbox->dvfs->mbox_stress_trigger_wk,
+				acpm_dvfs_mbox_stress_trigger);
 		INIT_DELAYED_WORK(&mbox->tmu->suspend_work, acpm_debug_tmu_suspend);
 		INIT_DELAYED_WORK(&mbox->tmu->resume_work, acpm_debug_tmu_resume);
 
-		mbox->tmu->wq_init_done = true;
+		mbox->wq_init_done = true;
+
+		dvfs_freq_table_init();
 		pr_info("%s done\n", __func__);
 	}
+}
+
+static int dvfs_freq_table_init(void)
+{
+	int cal_id, dm_id, ret;
+	int index, i;
+
+	if (!dvfs_test->init_done) {
+		for (cal_id = ACPM_DVFS_MIF, dm_id = DVFS_MIF;
+				cal_id <= ACPM_DVFS_CPUCL2; cal_id++, dm_id++) {
+			ret = init_domain_freq_table(dvfs_test, cal_id, dm_id);
+			if (ret < 0) {
+				pr_err("%s failed, ret = %d\n", __func__, ret);
+				return ret;
+			}
+		}
+		if (acpm_dvfs_log) {
+			for (i = DVFS_MIF; i < NUM_OF_DVFS_DOMAINS; i++) {
+				for (index = 0; index < dvfs_test->dm[i]->size; index++)
+					pr_info("%s: dvfs_test->dm[%d]->table[%d] = %d Hz\n",
+						__func__, i, index,
+						dvfs_test->dm[i]->table[index].freq);
+			}
+		}
+		dvfs_test->init_done = true;
+	}
+
+	return 0;
 }
 
 static void acpm_framework_mbox_test(bool start)
 {
 	if (start) {
-		acpm_mbox_test_tmu_init();
+		acpm_mbox_test_init();
+
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
 				mbox->tmu->suspend_wq,
 				&mbox->tmu->suspend_work,
@@ -331,10 +412,15 @@ static void acpm_framework_mbox_test(bool start)
 				mbox->tmu->rd_tmp_stress_trigger_wq,
 				&mbox->tmu->rd_tmp_stress_trigger_wk,
 				msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
+		queue_delayed_work_on(get_random_for_type(CPU_ID),
+				mbox->dvfs->mbox_stress_trigger_wq,
+				&mbox->dvfs->mbox_stress_trigger_wk,
+				msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
 	} else {
 		cancel_delayed_work_sync(&mbox->tmu->suspend_work);
 		cancel_delayed_work_sync(&mbox->tmu->resume_work);
 		cancel_delayed_work_sync(&mbox->tmu->rd_tmp_stress_trigger_wk);
+		cancel_delayed_work_sync(&mbox->dvfs->mbox_stress_trigger_wk);
 	}
 }
 
@@ -417,7 +503,7 @@ static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate, int cycl
 	if (ret < 0)
 		pr_err("%s, ret=%d\n", ret);
 
-	mdelay(100);
+	mdelay(10);
 
 	get_rate = acpm_dvfs_get_devfreq(dm_id);
 	if (cycle >= 0) {
@@ -468,7 +554,7 @@ static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate, int cycl
 	after = sched_clock();
 	latency = after - before;
 
-	mdelay(100);
+	mdelay(10);
 
 	if (cycle >= 0) {
 		dvfs_test->dm[dm_id]->stats[cycle].latency = latency /*ns*/;
@@ -578,14 +664,12 @@ static void acpm_dvfs_stats_dump(void)
 	}
 }
 
-static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int dm_id);
 static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 {
 	unsigned int domain = (unsigned int)subcmd;
 	static unsigned int pre_set_rate;
 	unsigned int set_rate;
-	int cycle = 0, cal_id, dm_id;
-	int index, i;
+	int cycle = 0;
 
 	if (!dvfs_test) {
 		pr_err("%s, dvfs_test is NULL\n", __func__);
@@ -597,20 +681,7 @@ static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 		return -EINVAL;
 	}
 
-	if (!init_done) {
-		for (cal_id = ACPM_DVFS_MIF, dm_id = DVFS_MIF;
-				cal_id <= ACPM_DVFS_CPUCL2; cal_id++, dm_id++)
-			init_domain_freq_table(dvfs_test, cal_id, dm_id);
-		if (acpm_dvfs_log) {
-			for (i = DVFS_MIF; i < NUM_OF_DVFS_DOMAINS; i++) {
-				for (index = 0; index < dvfs_test->dm[i]->size; index++)
-					pr_info("%s: dvfs_test->dm[%d]->table[%d] = %d Hz\n",
-						__func__, i, index,
-						dvfs_test->dm[i]->table[index].freq);
-			}
-		}
-		init_done = true;
-	}
+	dvfs_freq_table_init();
 
 	switch (domain) {
 	case ACPM_DVFS_TEST_MIF:
@@ -833,30 +904,41 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 {
 	struct acpm_mbox_test *mbox_test;
 	struct acpm_tmu_validity *tmu_validity;
+	struct acpm_dvfs_validity *dvfs_validity;
 	struct acpm_dvfs_test *dvfs;
+	int ret = 0;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
 	mbox_test = devm_kzalloc(&pdev->dev, sizeof(struct acpm_mbox_test), GFP_KERNEL);
-	if (IS_ERR(mbox_test))
-		return PTR_ERR(mbox_test);
-	if (!mbox_test)
-		return -ENOMEM;
-
-	tmu_validity = kmalloc(sizeof(*tmu_validity), GFP_KERNEL);
-	if (!tmu_validity) {
-		pr_err("%s, tmu_validity alloc failed\n", __func__);
+	if (!mbox_test) {
+		dev_err(&pdev->dev, "mbox_test alloc failed\n");
 		return -ENOMEM;
 	}
 
+	tmu_validity = kmalloc(sizeof(*tmu_validity), GFP_KERNEL);
+	if (!tmu_validity) {
+		dev_err(&pdev->dev, "tmu_validity alloc failed\n");
+		ret = -ENOMEM;
+		goto err_tmu;
+	}
+
+	dvfs_validity = kmalloc(sizeof(*dvfs_validity), GFP_KERNEL);
+	if (!dvfs_validity) {
+		dev_err(&pdev->dev, "dvfs_validity alloc failed\n");
+		ret = -ENOMEM;
+		goto err_dvfs;
+	}
+
 	mbox_test->tmu = tmu_validity;
+	mbox_test->dvfs = dvfs_validity;
 
 	dvfs = devm_kzalloc(&pdev->dev, sizeof(struct acpm_dvfs_test), GFP_KERNEL);
-
-	if (IS_ERR(dvfs))
-		return PTR_ERR(dvfs);
-	if (!dvfs)
-		return -ENOMEM;
+	if (!dvfs) {
+		dev_err(&pdev->dev, "dvfs alloc failed\n");
+		ret = -ENOMEM;
+		goto err_dvfs_latency;
+	}
 
 	acpm_test_debugfs_init(mbox_test);
 
@@ -865,6 +947,14 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s done\n", __func__);
 	return 0;
+
+err_dvfs_latency:
+	kfree(dvfs_validity);
+err_dvfs:
+	kfree(tmu_validity);
+err_tmu:
+	kfree(mbox_test);
+	return ret;
 }
 
 static int acpm_mbox_test_remove(struct platform_device *pdev)
@@ -872,19 +962,23 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 	int i;
 
 	flush_workqueue(mbox->tmu->rd_tmp_stress_trigger_wq);
+	flush_workqueue(mbox->dvfs->mbox_stress_trigger_wq);
 	flush_workqueue(mbox->tmu->suspend_wq);
 	flush_workqueue(mbox->tmu->resume_wq);
 	for (i = 0; i < NUM_OF_WQ; i++) {
 		flush_workqueue(mbox->tmu->rd_tmp_random_wq[i]);
 		flush_workqueue(mbox->tmu->rd_tmp_concur_wq[i]);
+		flush_workqueue(mbox->dvfs->rate_change_wq[i]);
 	}
 
 	destroy_workqueue(mbox->tmu->rd_tmp_stress_trigger_wq);
+	destroy_workqueue(mbox->dvfs->mbox_stress_trigger_wq);
 	destroy_workqueue(mbox->tmu->suspend_wq);
 	destroy_workqueue(mbox->tmu->resume_wq);
 	for (i = 0; i < NUM_OF_WQ; i++) {
 		destroy_workqueue(mbox->tmu->rd_tmp_random_wq[i]);
 		destroy_workqueue(mbox->tmu->rd_tmp_concur_wq[i]);
+		destroy_workqueue(mbox->dvfs->rate_change_wq[i]);
 	}
 
 	kfree(mbox);

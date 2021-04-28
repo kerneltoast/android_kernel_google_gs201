@@ -20,6 +20,7 @@ enum random_output {
 	CPU_ID = 0,
 	DELAY_MS,
 	TERMAL_ZONE_ID,
+	DVFS_DOMAIN_ID,
 	END,
 };
 
@@ -73,8 +74,9 @@ enum cpu_cluster_id {
 
 #define DVFS_TEST_CYCLE         20
 
+#define TMU_READ_TEMP_TRIGGER_DELAY      300
+
 struct acpm_tmu_validity {
-	bool wq_init_done;
 	struct delayed_work rd_tmp_concur_wk[NUM_OF_WQ];
 	struct delayed_work rd_tmp_random_wk[NUM_OF_WQ];
 	struct delayed_work rd_tmp_stress_trigger_wk;
@@ -87,9 +89,18 @@ struct acpm_tmu_validity {
 	struct workqueue_struct *resume_wq;
 };
 
+struct acpm_dvfs_validity {
+	struct delayed_work rate_change_wk[NUM_OF_WQ];
+	struct delayed_work mbox_stress_trigger_wk;
+	struct workqueue_struct *rate_change_wq[NUM_OF_WQ];
+	struct workqueue_struct *mbox_stress_trigger_wq;
+};
+
 struct acpm_mbox_test {
+	bool wq_init_done;
 	struct device *device;
 	struct acpm_tmu_validity *tmu;
+	struct acpm_dvfs_validity *dvfs;
 };
 
 struct acpm_dvfs_test_stats {
@@ -152,6 +163,7 @@ struct acpm_dvfs_test {
 	unsigned int max_freq;
 	unsigned int min_freq;
 	unsigned int size;
+	int init_done;
 
 	struct acpm_dvfs_dm *dm[NUM_OF_DVFS_DOMAINS];
 };
@@ -195,5 +207,10 @@ union tmu_ipc_message {
 
 extern u32 gs_chipid_get_type(void);
 extern u32 gs_chipid_get_revision(void);
+static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate, int cycle);
+static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate, int cycle);
+static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int dm_id);
+static unsigned int get_random_rate(unsigned int dm_id);
+static int dvfs_freq_table_init(void);
 
 #endif
