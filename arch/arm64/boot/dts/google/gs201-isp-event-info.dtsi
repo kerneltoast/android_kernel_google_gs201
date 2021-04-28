@@ -2543,9 +2543,9 @@
 
 	g3aa_ctx0_interrupts: g3aa-event-info@0 {
 		irq-reg-space = "g3aa";
-		irq-src-reg = <0x0 0x8e>;
-		irq-reset-reg = <0x0 0x90>;
-		irq-mask-reg = <0x0 0x8c>;
+		irq-src-reg = <0x0 0x5c>;
+		irq-reset-reg = <0x0 0x60>;
+		irq-mask-reg = <0x0 0x58>;
 		irq-reg-bitwidth = <16>;
 		irq-events =
 			<LWIS_PLATFORM_EVENT_ID_G3AA_CTX0_BAYER_START_OF_FRAME>,
@@ -2585,9 +2585,9 @@
 
 	g3aa_ctx1_interrupts: g3aa-event-info@1 {
 		irq-reg-space = "g3aa";
-		irq-src-reg = <0x0 0x96>;
-		irq-reset-reg = <0x0 0x98>;
-		irq-mask-reg = <0x0 0x94>;
+		irq-src-reg = <0x0 0x6c>;
+		irq-reset-reg = <0x0 0x70>;
+		irq-mask-reg = <0x0 0x68>;
 		irq-reg-bitwidth = <16>;
 		irq-events =
 			<LWIS_PLATFORM_EVENT_ID_G3AA_CTX1_BAYER_START_OF_FRAME>,
@@ -2627,9 +2627,9 @@
 
 	g3aa_ctx2_interrupts: g3aa-event-info@2 {
 		irq-reg-space = "g3aa";
-		irq-src-reg = <0x0 0x9e>;
-		irq-reset-reg = <0x0 0xa0>;
-		irq-mask-reg = <0x0 0x9c>;
+		irq-src-reg = <0x0 0x7c>;
+		irq-reset-reg = <0x0 0x80>;
+		irq-mask-reg = <0x0 0x78>;
 		irq-reg-bitwidth = <16>;
 		irq-events =
 			<LWIS_PLATFORM_EVENT_ID_G3AA_CTX2_BAYER_START_OF_FRAME>,
