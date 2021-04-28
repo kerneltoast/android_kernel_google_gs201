@@ -50,6 +50,7 @@
   bio_endio
   bio_init
   bio_put
+  __bitmap_clear
   bitmap_from_arr32
   bitmap_parse
   bitmap_parselist
@@ -80,7 +81,7 @@
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
   bpf_trace_run10
-  bpf_trace_run11
+  bpf_trace_run12
   bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
@@ -88,7 +89,6 @@
   bpf_trace_run5
   bpf_trace_run6
   bpf_trace_run7
-  bpf_trace_run9
   build_skb
   bus_find_device
   bus_for_each_dev
@@ -758,6 +758,7 @@
   get_unused_fd_flags
   get_user_pages
   get_user_pages_fast
+  get_user_pages_remote
   get_vaddr_frames
   gic_nonsecure_priorities
   glob_match
@@ -794,6 +795,7 @@
   handle_edge_irq
   handle_level_irq
   handle_nested_irq
+  handle_simple_irq
   handle_sysrq
   have_governor_per_policy
   hex_dump_to_buffer
@@ -943,6 +945,7 @@
   kernel_restart
   kern_mount
   kern_unmount
+  __kfifo_alloc
   __kfifo_free
   __kfifo_in
   __kfifo_init
@@ -1184,6 +1187,7 @@
   of_property_read_string_helper
   of_property_read_u32_index
   of_property_read_u64
+  of_property_read_u64_index
   of_property_read_variable_u16_array
   of_property_read_variable_u32_array
   of_property_read_variable_u64_array
@@ -1269,7 +1273,6 @@
   pinctrl_select_state
   pin_get_name
   pin_user_pages_fast
-  pin_user_pages_remote
   pktgen_xfrm_outer_mode_output
   platform_bus_type
   platform_device_add
@@ -1328,13 +1331,16 @@
   prandom_u32
   preempt_schedule
   preempt_schedule_notrace
+  prepare_to_wait
   prepare_to_wait_event
   print_hex_dump
   printk
+  printk_deferred
   proc_create
   proc_create_data
   proc_dointvec
   proc_dostring
+  proc_douintvec_minmax
   proc_mkdir
   proc_mkdir_data
   proc_remove
@@ -1406,6 +1412,7 @@
   register_restart_handler
   register_shrinker
   register_syscore_ops
+  register_sysctl
   register_sysctl_table
   register_virtio_device
   register_virtio_driver
@@ -1431,6 +1438,7 @@
   regulator_get
   regulator_get_optional
   regulator_get_voltage_sel_regmap
+  regulator_is_enabled
   regulator_is_enabled_regmap
   regulator_list_voltage_linear
   regulator_map_voltage_linear
@@ -1773,6 +1781,10 @@
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_find_energy_efficient_cpu
+  __tracepoint_android_rvh_irqs_disable
+  __tracepoint_android_rvh_irqs_enable
+  __tracepoint_android_rvh_preempt_disable
+  __tracepoint_android_rvh_preempt_enable
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_iowait
   __tracepoint_android_rvh_typec_tcpci_chk_contaminant
@@ -1821,6 +1833,7 @@
   __tracepoint_rwmmio_write
   __tracepoint_sched_cpu_capacity_tp
   __tracepoint_sched_overutilized_tp
+  __tracepoint_sched_switch
   __tracepoint_sched_util_est_cfs_tp
   __tracepoint_sched_util_est_se_tp
   __tracepoint_suspend_resume
@@ -2052,3 +2065,8 @@
   xhci_suspend
   xhci_update_erst_dequeue
   xhci_vendor_get_ops
+
+# preserved by --additions-only
+  bpf_trace_run11
+  bpf_trace_run9
+  pin_user_pages_remote
