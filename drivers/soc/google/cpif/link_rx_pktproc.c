@@ -1337,12 +1337,13 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	case PKTPROC_V2:
 		mif_dt_read_u32(np, "pktproc_desc_mode", ppa->desc_mode);
 		mif_dt_read_u32(np, "pktproc_num_queue", ppa->num_queue);
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
 		mif_dt_read_u32(np, "pktproc_use_netrx_mng", ppa->use_netrx_mng);
-		if (ppa->use_netrx_mng)
-			mif_dt_read_u32(np, "pktproc_netrx_capacity",
-					ppa->netrx_capacity);
-		else
-			ppa->netrx_capacity = 0;
+		mif_dt_read_u32(np, "pktproc_netrx_capacity", ppa->netrx_capacity);
+#else
+		ppa->use_netrx_mng = 0;
+		ppa->netrx_capacity = 0;
+#endif
 		mif_dt_read_u32(np, "pktproc_use_exclusive_irq", ppa->use_exclusive_irq);
 		if (ppa->use_exclusive_irq) {
 			ret = of_property_read_u32_array(np, "pktproc_exclusive_irq_idx",
