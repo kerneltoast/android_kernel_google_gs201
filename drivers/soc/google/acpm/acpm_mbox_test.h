@@ -21,6 +21,8 @@ enum random_output {
 	DELAY_MS,
 	TERMAL_ZONE_ID,
 	DVFS_DOMAIN_ID,
+	GRANVILLE_M_REG,
+	GRANVILLE_S_REG,
 	END,
 };
 
@@ -74,7 +76,7 @@ enum cpu_cluster_id {
 
 #define DVFS_TEST_CYCLE         20
 
-#define TMU_READ_TEMP_TRIGGER_DELAY      300
+#define STRESS_TRIGGER_DELAY    300
 
 struct acpm_tmu_validity {
 	struct delayed_work rd_tmp_concur_wk[NUM_OF_WQ];
@@ -96,11 +98,37 @@ struct acpm_dvfs_validity {
 	struct workqueue_struct *mbox_stress_trigger_wq;
 };
 
+#define PMIC_RANDOM_ADDR_RANGE  0x1FF
+
+/* Set 365 days as a year */
+#define SECS_PER_YEAR   977616000
+/* Set 31 days as a month */
+#define SECS_PER_MONTH  2678400
+#define SECS_PER_DAY    86400
+#define SECS_PER_HR     3600
+#define SECS_PER_MIN    60
+
+struct acpm_mfd_validity {
+	struct i2c_client *s2mpg10_pmic;
+	struct i2c_client *s2mpg11_pmic;
+	struct i2c_client *rtc;
+	struct delayed_work s2mpg10_mfd_read_wk[NUM_OF_WQ];
+	struct delayed_work s2mpg11_mfd_read_wk[NUM_OF_WQ];
+	struct delayed_work mbox_stress_trigger_wk;
+	struct workqueue_struct *s2mpg10_mfd_read_wq[NUM_OF_WQ];
+	struct workqueue_struct *s2mpg11_mfd_read_wq[NUM_OF_WQ];
+	struct workqueue_struct *mbox_stress_trigger_wq;
+	u8 update_reg;
+	/* mutex for RTC */
+	struct mutex lock;
+};
+
 struct acpm_mbox_test {
 	bool wq_init_done;
 	struct device *device;
 	struct acpm_tmu_validity *tmu;
 	struct acpm_dvfs_validity *dvfs;
+	struct acpm_mfd_validity *mfd;
 };
 
 struct acpm_dvfs_test_stats {

@@ -29,11 +29,15 @@
 #include <dt-bindings/clock/gs101.h>
 #include <soc/google/exynos-devfreq.h>
 #include "../../../soc/google/cal-if/acpm_dvfs.h"
+#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg11.h>
+#include <linux/mfd/samsung/rtc-s2mpg10.h>
 
 static int acpm_tmu_log;
 static int acpm_dvfs_log;
 static struct acpm_mbox_test *mbox;
 static struct acpm_dvfs_test *dvfs_test;
+static u8 aged[NR_RTC_CNT_REGS];
 
 #define CHIP_REV_TYPE_A0          0
 #define CPU_NUM_NO_HERA           6
@@ -64,6 +68,10 @@ static unsigned int get_random_for_type(int type)
 		break;
 	case DVFS_DOMAIN_ID:
 		ret = random % NUM_OF_DVFS_DOMAINS;
+		break;
+	case GRANVILLE_M_REG:
+	case GRANVILLE_S_REG:
+		ret = random % PMIC_RANDOM_ADDR_RANGE;
 		break;
 	default:
 		pr_err("%s, type: %d not support\n", __func__, type);
@@ -229,12 +237,17 @@ static void acpm_mbox_dvfs_rate_random_change(struct work_struct *work)
 	u32 domain, set_rate;
 
 	domain = get_random_for_type(DVFS_DOMAIN_ID);
-	set_rate = get_random_rate(domain);
 
-	if (domain >= DVFS_CPUCL0)
-		acpm_dvfs_set_cpufreq(domain, set_rate, -1);
-	else
-		acpm_dvfs_set_devfreq(domain, set_rate, -1);
+	if (!dvfs_test->dm[domain]) {
+		cancel_delayed_work_sync(&mbox->dvfs->mbox_stress_trigger_wk);
+	} else {
+		set_rate = get_random_rate(domain);
+
+		if (domain >= DVFS_CPUCL0)
+			acpm_dvfs_set_cpufreq(domain, set_rate, -1);
+		else
+			acpm_dvfs_set_devfreq(domain, set_rate, -1);
+	}
 }
 
 static void acpm_dvfs_mbox_stress_trigger(struct work_struct *work)
@@ -251,7 +264,176 @@ static void acpm_dvfs_mbox_stress_trigger(struct work_struct *work)
 	queue_delayed_work_on(get_random_for_type(CPU_ID),
 			      mbox->dvfs->mbox_stress_trigger_wq,
 			      &mbox->dvfs->mbox_stress_trigger_wk,
-			      msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
+			      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
+}
+
+static int acpm_mfd_rtc_update(void)
+{
+	u8 data, reg;
+	int ret;
+
+	ret = s2mpg10_read_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, &data);
+	if (ret < 0) {
+		pr_err("%s: fail to read update ret(%d,%u)\n",
+		       __func__, ret, data);
+		return ret;
+	}
+
+	data |= mbox->mfd->update_reg;
+
+	reg = BIT(RTC_RUDR_SHIFT);
+
+	data &= ~reg;
+	ret = s2mpg10_write_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, data);
+	if (ret < 0) {
+		pr_err("%s: fail to write update ret(%d,%u)\n",
+		       __func__, ret, data);
+		return ret;
+	}
+
+	usleep_range(50, 51);
+
+	data |= reg;
+	ret = s2mpg10_write_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, data);
+	if (ret < 0)
+		pr_err("%s: fail to write update ret(%d,%u)\n",
+		       __func__, ret, data);
+	else
+		usleep_range(1000, 1001);
+
+	return ret;
+}
+
+static int acpm_rtc_monotonic_chk(u8 *now, u8 *old)
+{
+	u64 now_time_secs = 0, old_time_secs = 0;
+
+	/* Use the simplified format to switch the RTC time to secs */
+	now_time_secs = ((u64)now[RTC_YEAR] * SECS_PER_YEAR) +
+	    ((u64)now[RTC_MONTH] * SECS_PER_MONTH) +
+	    ((u64)now[RTC_DATE] * SECS_PER_DAY) +
+	    (((u64)now[RTC_HOUR] & 0x1f) * SECS_PER_HR) +
+	    ((u64)now[RTC_MIN] * SECS_PER_MIN) + (u64)now[RTC_SEC];
+
+	old_time_secs = ((u64)old[RTC_YEAR] * SECS_PER_YEAR) +
+	    ((u64)old[RTC_MONTH] * SECS_PER_MONTH) +
+	    ((u64)old[RTC_DATE] * SECS_PER_DAY) +
+	    (((u64)old[RTC_HOUR] & 0x1f) * SECS_PER_HR) +
+	    ((u64)old[RTC_MIN] * SECS_PER_MIN) + (u64)old[RTC_SEC];
+
+	if (now_time_secs >= old_time_secs) {
+		return true;
+	} else {
+		pr_err("%s: [Aged]%d-%02d-%02d %02d:%02d:%02d(0x%02x)%s, "
+			"now: %llus, old: %llus\n",
+			__func__, old[RTC_YEAR] + 2000, old[RTC_MONTH],
+			old[RTC_DATE], old[RTC_HOUR] & 0x1f, old[RTC_MIN],
+			old[RTC_SEC], old[RTC_WEEKDAY],
+			old[RTC_HOUR] & BIT(HOUR_PM_SHIFT) ? "PM" : "AM",
+			now_time_secs, old_time_secs);
+		return false;
+	}
+}
+
+static int acpm_mfd_rtc_read_time(void)
+{
+	u8 now[NR_RTC_CNT_REGS];
+	int ret;
+
+	mutex_lock(&mbox->mfd->lock);
+	ret = acpm_mfd_rtc_update();
+	if (ret < 0) {
+		pr_err("%s: rtc update failed, ret: %d\n", __func__, ret);
+		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
+		goto out;
+	}
+
+	ret = s2mpg10_bulk_read(mbox->mfd->rtc, S2MPG10_RTC_SEC, NR_RTC_CNT_REGS,
+			      now);
+	if (ret < 0) {
+		pr_err("%s: fail to read time reg(%d)\n", __func__, ret);
+		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
+		goto out;
+	}
+
+	if (acpm_rtc_monotonic_chk(now, aged)) {
+		memcpy(aged, now, sizeof(now));
+	} else {
+		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
+		pr_err("%s: RTC abnormal, cancel mfd stress\n", __func__);
+	}
+
+	pr_info("%s: %d-%02d-%02d %02d:%02d:%02d(0x%02x)%s\n",
+		__func__, now[RTC_YEAR] + 2000, now[RTC_MONTH],
+		now[RTC_DATE], now[RTC_HOUR] & 0x1f, now[RTC_MIN],
+		now[RTC_SEC], now[RTC_WEEKDAY],
+		now[RTC_HOUR] & BIT(HOUR_PM_SHIFT) ? "PM" : "AM");
+
+out:
+	mutex_unlock(&mbox->mfd->lock);
+	return ret;
+}
+
+static void acpm_mbox_mfd_s2mpg10_random_read(struct work_struct *work)
+{
+	u32 addr;
+	u8 val = 0;
+
+	addr = get_random_for_type(GRANVILLE_M_REG);
+
+	if (s2mpg10_read_reg(mbox->mfd->s2mpg10_pmic, addr, &val)) {
+		pr_err("%s: Failed to read S2MPG10\n", __func__);
+		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
+	} else
+		pr_info("%s: [S2MPG10]addr: 0x%X, val: 0x%X\n", __func__, addr,
+			val);
+
+	acpm_mfd_rtc_read_time();
+}
+
+static void acpm_mbox_mfd_s2mpg11_random_read(struct work_struct *work)
+{
+	u32 addr;
+	u8 val = 0;
+
+	addr = get_random_for_type(GRANVILLE_S_REG);
+
+	if (s2mpg11_read_reg(mbox->mfd->s2mpg11_pmic, addr, &val)) {
+		pr_err("%s: Failed to read S2MPG11\n", __func__);
+		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
+	} else
+		pr_info("%s: [S2MPG11]addr: 0x%X, val: 0x%X\n", __func__, addr,
+			val);
+}
+
+static void acpm_mfd_mbox_stress_trigger(struct work_struct *work)
+{
+	int i;
+
+	if ((!mbox->mfd->s2mpg10_pmic)
+		|| (!mbox->mfd->s2mpg11_pmic)) {
+		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
+	} else {
+		for (i = 0; i < NUM_OF_WQ; i++) {
+			queue_delayed_work_on(get_random_for_type(CPU_ID),
+					      mbox->mfd->s2mpg10_mfd_read_wq[i],
+					      &mbox->mfd->
+					      s2mpg10_mfd_read_wk[i],
+					      msecs_to_jiffies
+					      (get_random_for_type(DELAY_MS)));
+
+			queue_delayed_work_on(get_random_for_type(CPU_ID),
+					      mbox->mfd->s2mpg11_mfd_read_wq[i],
+					      &mbox->mfd->
+					      s2mpg11_mfd_read_wk[i],
+					      msecs_to_jiffies
+					      (get_random_for_type(DELAY_MS)));
+		}
+		queue_delayed_work_on(get_random_for_type(CPU_ID),
+				      mbox->mfd->mbox_stress_trigger_wq,
+				      &mbox->mfd->mbox_stress_trigger_wk,
+				      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
+	}
 }
 
 static void acpm_debug_tmu_rd_tmp_stress_trigger(struct work_struct *work)
@@ -272,7 +454,7 @@ static void acpm_debug_tmu_rd_tmp_stress_trigger(struct work_struct *work)
 	queue_delayed_work_on(get_random_for_type(CPU_ID),
 			      mbox->tmu->rd_tmp_stress_trigger_wq,
 			      &mbox->tmu->rd_tmp_stress_trigger_wk,
-			      msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
+			      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
 }
 
 #define TMU_SUSPEND_RESUME_DELAY      100
@@ -312,9 +494,79 @@ static void acpm_debug_tmu_resume(struct work_struct *work)
 			      msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
 }
 
+static int acpm_mfd_set_pmic(void)
+{
+	struct device_node *p_np;
+	struct device_node *np = mbox->device->of_node;
+	struct s2mpg10_dev *s2mpg10 = NULL;
+	struct s2mpg11_dev *s2mpg11 = NULL;
+	struct i2c_client *i2c_main;
+	struct i2c_client *i2c_sub;
+	u8 update_val;
+	int ret;
+
+	/* Configure for main pmic */
+	p_np = of_parse_phandle(np, "main-pmic", 0);
+	if (p_np) {
+		i2c_main = of_find_i2c_device_by_node(p_np);
+		if (!i2c_main) {
+			pr_err("%s: Cannot find main-pmic i2c\n", __func__);
+			return -ENODEV;
+		}
+		s2mpg10 = i2c_get_clientdata(i2c_main);
+	} else
+		pr_err("%s: Cannot find main-pmic\n", __func__);
+
+	of_node_put(p_np);
+
+	if (!s2mpg10) {
+		pr_err("%s: S2MPG10 device not found\n", __func__);
+		return -ENODEV;
+	}
+
+	i2c_set_clientdata(s2mpg10->pmic, s2mpg10);
+	mbox->mfd->s2mpg10_pmic = s2mpg10->pmic;
+	i2c_set_clientdata(s2mpg10->rtc, s2mpg10);
+	mbox->mfd->rtc = s2mpg10->rtc;
+
+	/* Configure for RTC bulk_read */
+	ret = s2mpg10_read_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, &update_val);
+	if (ret < 0) {
+		pr_err("%s: Fail to read RTC_UPDATE ret: %d\n", __func__, ret);
+		return ret;
+	}
+
+	mbox->mfd->update_reg = update_val & ~(BIT(RTC_FREEZE_SHIFT) |
+					       BIT(RTC_RUDR_SHIFT));
+
+	/* Configure for sub pmic */
+	p_np = of_parse_phandle(np, "sub-pmic", 0);
+	if (p_np) {
+		i2c_sub = of_find_i2c_device_by_node(p_np);
+		if (!i2c_sub) {
+			pr_err("%s: Cannot find sub-pmic i2c\n", __func__);
+			return -ENODEV;
+		}
+		s2mpg11 = i2c_get_clientdata(i2c_sub);
+	} else
+		pr_err("%s: Cannot find sub-pmic\n", __func__);
+
+	of_node_put(p_np);
+
+	if (!s2mpg11) {
+		pr_err("%s: S2MPG11 device not found\n", __func__);
+		return -ENODEV;
+	}
+
+	i2c_set_clientdata(s2mpg11->pmic, s2mpg11);
+	mbox->mfd->s2mpg11_pmic = s2mpg11->pmic;
+
+	return 0;
+}
+
 static void acpm_mbox_test_init(void)
 {
-	int i;
+	int i, ret = 0;
 	char buf[32];
 
 	if (!mbox->wq_init_done) {
@@ -324,44 +576,33 @@ static void acpm_mbox_test_init(void)
 			snprintf(buf, sizeof(buf),
 				 "acpm_tmu_rd_tmp_random_wq%d", i);
 			mbox->tmu->rd_tmp_random_wq[i] =
-			    alloc_workqueue("%s",
-					    __WQ_LEGACY | WQ_MEM_RECLAIM |
-					    WQ_UNBOUND, 1, buf);
+			    create_freezable_workqueue(buf);
 			snprintf(buf, sizeof(buf),
 				 "acpm_tmu_rd_tmp_concur_wq%d", i);
 			mbox->tmu->rd_tmp_concur_wq[i] =
-			    alloc_workqueue("%s",
-					    __WQ_LEGACY | WQ_MEM_RECLAIM |
-					    WQ_UNBOUND, 1, buf);
+			    create_freezable_workqueue(buf);
 			snprintf(buf, sizeof(buf), "acpm_dvfs_req_wq%d", i);
-			mbox->dvfs->rate_change_wq[i] = alloc_workqueue("%s",
-									__WQ_LEGACY
-									|
-									WQ_MEM_RECLAIM
-									|
-									WQ_UNBOUND,
-									1, buf);
+			mbox->dvfs->rate_change_wq[i] =
+			    create_freezable_workqueue(buf);
+			snprintf(buf, sizeof(buf), "acpm_s2mpg10_mfd_rd_wq%d",
+				 i);
+			mbox->mfd->s2mpg10_mfd_read_wq[i] =
+			    create_freezable_workqueue(buf);
+			snprintf(buf, sizeof(buf), "acpm_s2mpg11_mfd_rd_wq%d",
+				 i);
+			mbox->mfd->s2mpg11_mfd_read_wq[i] =
+			    create_freezable_workqueue(buf);
 		}
-		mbox->tmu->rd_tmp_stress_trigger_wq = alloc_workqueue("%s",
-								      __WQ_LEGACY
-								      |
-								      WQ_MEM_RECLAIM
-								      |
-								      WQ_UNBOUND,
-								      1,
-								      "acpm_tmu_rd_tmp_trigger_wq");
+		mbox->tmu->rd_tmp_stress_trigger_wq =
+		    create_freezable_workqueue("acpm_tmu_rd_tmp_trigger_wq");
 		mbox->dvfs->mbox_stress_trigger_wq =
-		    alloc_workqueue("%s",
-				    __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-				    1, "acpm_dvfs_mbox_trigger_wq");
+		    create_freezable_workqueue("acpm_dvfs_mbox_trigger_wq");
+		mbox->mfd->mbox_stress_trigger_wq =
+		    create_freezable_workqueue("acpm_mfd_mbox_trigger_wq");
 		mbox->tmu->suspend_wq =
-		    alloc_workqueue("%s",
-				    __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-				    1, "acpm_tmu_mbox_suspend_wq");
+		    create_freezable_workqueue("acpm_tmu_mbox_suspend_wq");
 		mbox->tmu->resume_wq =
-		    alloc_workqueue("%s",
-				    __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-				    1, "acpm_tmu_mbox_resume_wq");
+		    create_freezable_workqueue("acpm_tmu_mbox_resume_wq");
 
 		for (i = 0; i < NUM_OF_WQ; i++) {
 			INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_random_wk[i],
@@ -370,19 +611,33 @@ static void acpm_mbox_test_init(void)
 					  acpm_debug_tmu_rd_tmp_concur);
 			INIT_DELAYED_WORK(&mbox->dvfs->rate_change_wk[i],
 					  acpm_mbox_dvfs_rate_random_change);
+			INIT_DELAYED_WORK(&mbox->mfd->s2mpg10_mfd_read_wk[i],
+					  acpm_mbox_mfd_s2mpg10_random_read);
+			INIT_DELAYED_WORK(&mbox->mfd->s2mpg11_mfd_read_wk[i],
+					  acpm_mbox_mfd_s2mpg11_random_read);
 		}
 		INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_stress_trigger_wk,
 				  acpm_debug_tmu_rd_tmp_stress_trigger);
 		INIT_DELAYED_WORK(&mbox->dvfs->mbox_stress_trigger_wk,
 				  acpm_dvfs_mbox_stress_trigger);
+		INIT_DELAYED_WORK(&mbox->mfd->mbox_stress_trigger_wk,
+				  acpm_mfd_mbox_stress_trigger);
 		INIT_DELAYED_WORK(&mbox->tmu->suspend_work,
 				  acpm_debug_tmu_suspend);
 		INIT_DELAYED_WORK(&mbox->tmu->resume_work,
 				  acpm_debug_tmu_resume);
 
+		ret = dvfs_freq_table_init();
+		if (ret < 0)
+			pr_err("%s: table init failed, ret: %d\n", __func__,
+			       ret);
+
+		ret = acpm_mfd_set_pmic();
+		if (ret < 0)
+			pr_err("%s: set pmic failed, ret: %d\n", __func__, ret);
+
 		mbox->wq_init_done = true;
 
-		dvfs_freq_table_init();
 		pr_info("%s done\n", __func__);
 	}
 }
@@ -430,18 +685,21 @@ static void acpm_framework_mbox_test(bool start)
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
 				      mbox->tmu->rd_tmp_stress_trigger_wq,
 				      &mbox->tmu->rd_tmp_stress_trigger_wk,
-				      msecs_to_jiffies
-				      (TMU_READ_TEMP_TRIGGER_DELAY));
+				      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
 				      mbox->dvfs->mbox_stress_trigger_wq,
 				      &mbox->dvfs->mbox_stress_trigger_wk,
-				      msecs_to_jiffies
-				      (TMU_READ_TEMP_TRIGGER_DELAY));
+				      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
+		queue_delayed_work_on(get_random_for_type(CPU_ID),
+				      mbox->mfd->mbox_stress_trigger_wq,
+				      &mbox->mfd->mbox_stress_trigger_wk,
+				      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
 	} else {
 		cancel_delayed_work_sync(&mbox->tmu->suspend_work);
 		cancel_delayed_work_sync(&mbox->tmu->resume_work);
 		cancel_delayed_work_sync(&mbox->tmu->rd_tmp_stress_trigger_wk);
 		cancel_delayed_work_sync(&mbox->dvfs->mbox_stress_trigger_wk);
+		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 	}
 }
 
@@ -954,6 +1212,7 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 	struct acpm_mbox_test *mbox_test;
 	struct acpm_tmu_validity *tmu_validity;
 	struct acpm_dvfs_validity *dvfs_validity;
+	struct acpm_mfd_validity *mfd_validity;
 	struct acpm_dvfs_test *dvfs;
 	int ret = 0;
 
@@ -965,6 +1224,10 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "mbox_test alloc failed\n");
 		return -ENOMEM;
 	}
+
+	mbox_test->device = &pdev->dev;
+	platform_set_drvdata(pdev, mbox_test);
+	mbox_test->device->of_node = pdev->dev.of_node;
 
 	tmu_validity = kmalloc(sizeof(*tmu_validity), GFP_KERNEL);
 	if (!tmu_validity) {
@@ -980,8 +1243,16 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 		goto err_dvfs;
 	}
 
+	mfd_validity = kmalloc(sizeof(*mfd_validity), GFP_KERNEL);
+	if (!mfd_validity) {
+		pr_err("%s, mfd_validity alloc failed\n", __func__);
+		ret = -ENOMEM;
+		goto err_mfd;
+	}
+
 	mbox_test->tmu = tmu_validity;
 	mbox_test->dvfs = dvfs_validity;
+	mbox_test->mfd = mfd_validity;
 
 	dvfs =
 	    devm_kzalloc(&pdev->dev, sizeof(struct acpm_dvfs_test), GFP_KERNEL);
@@ -993,6 +1264,8 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 
 	acpm_test_debugfs_init(mbox_test);
 
+	mutex_init(&mbox_test->mfd->lock);
+
 	mbox = mbox_test;
 	dvfs_test = dvfs;
 
@@ -1000,6 +1273,8 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 	return 0;
 
 err_dvfs_latency:
+	kfree(mfd_validity);
+err_mfd:
 	kfree(dvfs_validity);
 err_dvfs:
 	kfree(tmu_validity);
@@ -1014,23 +1289,31 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 
 	flush_workqueue(mbox->tmu->rd_tmp_stress_trigger_wq);
 	flush_workqueue(mbox->dvfs->mbox_stress_trigger_wq);
+	flush_workqueue(mbox->mfd->mbox_stress_trigger_wq);
 	flush_workqueue(mbox->tmu->suspend_wq);
 	flush_workqueue(mbox->tmu->resume_wq);
 	for (i = 0; i < NUM_OF_WQ; i++) {
 		flush_workqueue(mbox->tmu->rd_tmp_random_wq[i]);
 		flush_workqueue(mbox->tmu->rd_tmp_concur_wq[i]);
 		flush_workqueue(mbox->dvfs->rate_change_wq[i]);
+		flush_workqueue(mbox->mfd->s2mpg10_mfd_read_wq[i]);
+		flush_workqueue(mbox->mfd->s2mpg11_mfd_read_wq[i]);
 	}
 
 	destroy_workqueue(mbox->tmu->rd_tmp_stress_trigger_wq);
 	destroy_workqueue(mbox->dvfs->mbox_stress_trigger_wq);
+	destroy_workqueue(mbox->mfd->mbox_stress_trigger_wq);
 	destroy_workqueue(mbox->tmu->suspend_wq);
 	destroy_workqueue(mbox->tmu->resume_wq);
 	for (i = 0; i < NUM_OF_WQ; i++) {
 		destroy_workqueue(mbox->tmu->rd_tmp_random_wq[i]);
 		destroy_workqueue(mbox->tmu->rd_tmp_concur_wq[i]);
 		destroy_workqueue(mbox->dvfs->rate_change_wq[i]);
+		destroy_workqueue(mbox->mfd->s2mpg10_mfd_read_wq[i]);
+		destroy_workqueue(mbox->mfd->s2mpg11_mfd_read_wq[i]);
 	}
+
+	mutex_destroy(&mbox->mfd->lock);
 
 	kfree(mbox);
 	pr_info("%s done.\n", __func__);
