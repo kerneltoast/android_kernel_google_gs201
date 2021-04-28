@@ -247,12 +247,6 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 		};
-		gph3: gph3 {
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupt-cells = <3>;
-		};
 		gph4: gph4 {
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -314,21 +308,6 @@
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <GS101_PIN_DRV_10_MA>;
-		};
-		ufs_rst_n: ufs-rst-n {
-			samsung,pins = "gph3-1";
-			samsung,pin-function = <2>;
-			samsung,pin-pud = <0>;
-			samsung,pin-con-pdn = <3>;
-			samsung,pin-pud-pdn = <0>;
-		};
-
-		ufs_refclk_out: ufs-refclk-out {
-			samsung,pins = "gph3-0";
-			samsung,pin-function = <2>;
-			samsung,pin-pud = <0>;
-			samsung,pin-con-pdn = <3>;
-			samsung,pin-pud-pdn = <0>;
 		};
 		pcie1_clkreq: pcie1_clkreq {
 			samsung,pins = "gph2-1";
@@ -1095,6 +1074,29 @@
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+	};
+	/* GPIO_HSI2UFS */
+	pinctrl@14460000 {
+		gph3: gph3 {
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+		};
+		ufs_rst_n: ufs-rst-n {
+			samsung,pins = "gph3-1";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-con-pdn = <3>;
+			samsung,pin-pud-pdn = <0>;
+		};
+		ufs_refclk_out: ufs-refclk-out {
+			samsung,pins = "gph3-0";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-con-pdn = <3>;
+			samsung,pin-pud-pdn = <0>;
 		};
 	};
 };
