@@ -73,11 +73,11 @@ static struct samsung_pin_bank_data gs201_pin_alive[] = {
 	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x0, "gpa0", 0x00, 0x00),
 	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 7, 0x20, "gpa1", 0x04, 0x08),
 	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x40, "gpa2", 0x08, 0x10),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x60, "gpa3", 0x0c, 0x18),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x80, "gpa4", 0x10, 0x1c),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 7, 0xa0, "gpa5", 0x14, 0x20),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0xc0, "gpa9", 0x18, 0x28),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 2, 0xe0, "gpa10", 0x1c, 0x30),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x60, "gpa3", 0x0c, 0x14),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x80, "gpa4", 0x10, 0x18),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 7, 0xa0, "gpa5", 0x14, 0x1c),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0xc0, "gpa9", 0x18, 0x24),
+	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 2, 0xe0, "gpa10", 0x1c, 0x2c),
 };
 
 /* pin banks of gs201 pin-controller (FAR_ALIVE) */
@@ -145,8 +145,12 @@ static struct samsung_pin_bank_data gs201_pin_hsi1[] = {
 /* pin banks of gs201 pin-controller (HSI2) */
 static struct samsung_pin_bank_data gs201_pin_hsi2[] = {
 	EXYNOS9_PIN_BANK_EINTG(bank_type_6, 6, 0x0, "gph2", 0x00, 0x00),
-	EXYNOS9_PIN_BANK_EINTG(bank_type_6, 2, 0x20, "gph3", 0x04, 0x08),
-	EXYNOS9_PIN_BANK_EINTG(bank_type_6, 6, 0x40, "gph4", 0x08, 0x0c),
+	EXYNOS9_PIN_BANK_EINTG(bank_type_6, 6, 0x20, "gph4", 0x04, 0x08),
+};
+
+/* pin banks of gs201 pin-controller (HSI2UFS) */
+static struct samsung_pin_bank_data gs201_pin_hsi2ufs[] = {
+	EXYNOS9_PIN_BANK_EINTG(bank_type_6, 2, 0x0, "gph3", 0x00, 0x00),
 };
 
 static const struct samsung_pin_ctrl gs201_pin_ctrl[] __initconst = {
@@ -201,6 +205,13 @@ static const struct samsung_pin_ctrl gs201_pin_ctrl[] __initconst = {
 		/* pin banks of gs201 pin-controller (HSI2) */
 		.pin_banks	= gs201_pin_hsi2,
 		.nr_banks	= ARRAY_SIZE(gs201_pin_hsi2),
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+	}, {
+		/* pin banks of gs201 pin-controller (HSI2UFS) */
+		.pin_banks	= gs201_pin_hsi2ufs,
+		.nr_banks	= ARRAY_SIZE(gs201_pin_hsi2ufs),
 		.eint_gpio_init = exynos_eint_gpio_init,
 		.suspend	= exynos_pinctrl_suspend,
 		.resume		= exynos_pinctrl_resume,
