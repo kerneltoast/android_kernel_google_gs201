@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Raven EVT Wingboard device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+/dts-v1/;
+/plugin/;
+
+/* Raven EVT wingboard does not have the EVT1.1 thermistor. */
+
+#include "gs101-raven.dtsi"
+#include "gs101-raviole-thermal-evt.dtsi"
+/ {
+	board_id = <0x20203>;
+	board_rev = <0x010001>;
+	fragment@boardbase {
+		target-path="/";
+		__overlay__ {
+			model = "Raven EVT Wingboard";
+			compatible = "google,GS101 Raven", "google,GS101";
+		};
+	};
+};

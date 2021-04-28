@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Oriole EVT Wingboard Device Tree
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+/dts-v1/;
+/plugin/;
+
+/* Oriole wingboard is based on Raven MLB.
+ * It does not have the EVT1.1 thermistor change.
+ */
+#define ORIOLE_EVT_WINGBOARD 1
+#include "gs101-raven.dtsi"
+#include "gs101-raviole-thermal-evt.dtsi"
+#include "gs101-oriole-display.dtsi"
+#include "gs101-oriole-touch.dtsi"
+
+/ {
+	board_id = <0x20303>;
+	board_rev = <0x10002>;
+	fragment@boardbase {
+		target-path="/";
+		__overlay__ {
+			model = "Oriole EVT Wingboard";
+			compatible = "google,GS101 Oriole", "google,GS101";
+		};
+	};
+};

@@ -17,10 +17,12 @@ dtbo-$(CONFIG_BOARD_SLIDER) += \
 	gs101-whitefin2.dtbo \
 	gs101-whitefin2v2.dtbo \
 	gs101-oriole.dtbo \
+	gs101-oriole-evt-wingboard.dtbo \
 	gs101-oriole-evt1.dtbo \
 	gs101-oriole-proto1.dtbo \
 	gs101-oriole-proto1_1.dtbo \
 	gs101-raven.dtbo \
+	gs101-raven-evt-wingboard.dtbo \
 	gs101-raven-evt1.dtbo \
 	gs101-raven-proto1.dtbo \
 	gs101-raven-proto1_1.dtbo
@@ -32,10 +34,12 @@ gs101-whitefin.dtbo-base := gs101-a0.dtb
 gs101-whitefin2.dtbo-base := gs101-a0.dtb
 gs101-whitefin2v2.dtbo-base := gs101-a0.dtb
 gs101-oriole.dtbo-base := gs101-b0.dtb
+gs101-oriole-evt-wingboard.dtbo-base := gs101-b0.dtb
 gs101-oriole-evt1.dtbo-base := gs101-b0.dtb
 gs101-oriole-proto1.dtbo-base := gs101-a0.dtb
 gs101-oriole-proto1_1.dtbo-base := gs101-a0.dtb
 gs101-raven.dtbo-base := gs101-b0.dtb
+gs101-raven-evt-wingboard.dtbo-base := gs101-b0.dtb
 gs101-raven-evt1.dtbo-base := gs101-b0.dtb
 gs101-raven-proto1.dtbo-base := gs101-b0.dtb
 gs101-raven-proto1_1.dtbo-base := gs101-b0.dtb
