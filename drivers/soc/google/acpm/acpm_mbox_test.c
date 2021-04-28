@@ -32,7 +32,7 @@
 
 static int acpm_tmu_log;
 static int acpm_dvfs_log;
-static struct acpm_tmu_mbox_test *tmu_test;
+static struct acpm_mbox_test *mbox;
 static struct acpm_dvfs_test *dvfs_test;
 static int init_done;
 
@@ -227,17 +227,17 @@ static void acpm_debug_tmu_rd_tmp_stress_trigger(struct work_struct *work)
 
 	for (i = 0; i < NUM_OF_WQ; i++) {
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-			tmu_test->rd_tmp_random_wq[i],
-			&tmu_test->rd_tmp_random_wk[i],
+			mbox->tmu->rd_tmp_random_wq[i],
+			&mbox->tmu->rd_tmp_random_wk[i],
 			msecs_to_jiffies(get_random_for_type(DELAY_MS)));
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-			tmu_test->rd_tmp_concur_wq[i],
-			&tmu_test->rd_tmp_concur_wk[i],
+			mbox->tmu->rd_tmp_concur_wq[i],
+			&mbox->tmu->rd_tmp_concur_wk[i],
 			msecs_to_jiffies(0));
 	}
 	queue_delayed_work_on(get_random_for_type(CPU_ID),
-		tmu_test->rd_tmp_stress_trigger_wq,
-		&tmu_test->rd_tmp_stress_trigger_wk,
+		mbox->tmu->rd_tmp_stress_trigger_wq,
+		&mbox->tmu->rd_tmp_stress_trigger_wk,
 		msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
 }
 
@@ -252,8 +252,8 @@ static void acpm_debug_tmu_suspend(struct work_struct *work)
 	acpm_tmu_set_suspend(false);
 	pr_info("%s\n", __func__);
 
-	queue_delayed_work_on(get_random_for_type(CPU_ID), tmu_test->resume_wq,
-		&tmu_test->resume_work, msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
+	queue_delayed_work_on(get_random_for_type(CPU_ID), mbox->tmu->resume_wq,
+		&mbox->tmu->resume_work, msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
 }
 static void acpm_debug_tmu_resume(struct work_struct *work)
 {
@@ -271,92 +271,92 @@ static void acpm_debug_tmu_resume(struct work_struct *work)
 	}
 	pr_info("%s\n", __func__);
 
-	queue_delayed_work_on(get_random_for_type(CPU_ID), tmu_test->suspend_wq,
-		&tmu_test->suspend_work, msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
+	queue_delayed_work_on(get_random_for_type(CPU_ID), mbox->tmu->suspend_wq,
+		&mbox->tmu->suspend_work, msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
 }
 
-static void acpm_tmu_mbox_test_init(void)
+static void acpm_mbox_test_tmu_init(void)
 {
 	int i;
 	char buf[32];
 
-	if (!tmu_test->wq_init_done) {
+	if (!mbox->tmu->wq_init_done) {
 		pr_info("%s\n", __func__);
 
 		for (i = 0; i < NUM_OF_WQ; i++) {
 			snprintf(buf, sizeof(buf), "acpm_tmu_rd_tmp_random_wq%d", i);
-			tmu_test->rd_tmp_random_wq[i] = alloc_workqueue("%s",
+			mbox->tmu->rd_tmp_random_wq[i] = alloc_workqueue("%s",
 					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
 					1, buf);
 			snprintf(buf, sizeof(buf), "acpm_tmu_rd_tmp_concur_wq%d", i);
-			tmu_test->rd_tmp_concur_wq[i] = alloc_workqueue("%s",
+			mbox->tmu->rd_tmp_concur_wq[i] = alloc_workqueue("%s",
 					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
 					1, buf);
 		}
-		tmu_test->rd_tmp_stress_trigger_wq = alloc_workqueue("%s",
+		mbox->tmu->rd_tmp_stress_trigger_wq = alloc_workqueue("%s",
 				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
 				1, "acpm_tmu_rd_tmp_trigger_wq");
-		tmu_test->suspend_wq = alloc_workqueue("%s",
+		mbox->tmu->suspend_wq = alloc_workqueue("%s",
 				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
 				1, "acpm_tmu_mbox_suspend_wq");
-		tmu_test->resume_wq = alloc_workqueue("%s",
+		mbox->tmu->resume_wq = alloc_workqueue("%s",
 				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
 				1, "acpm_tmu_mbox_resume_wq");
 
 		for (i = 0; i < NUM_OF_WQ; i++) {
-			INIT_DELAYED_WORK(&tmu_test->rd_tmp_random_wk[i],
+			INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_random_wk[i],
 				acpm_debug_tmu_rd_tmp_random);
-			INIT_DELAYED_WORK(&tmu_test->rd_tmp_concur_wk[i],
+			INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_concur_wk[i],
 				acpm_debug_tmu_rd_tmp_concur);
 		}
-		INIT_DELAYED_WORK(&tmu_test->rd_tmp_stress_trigger_wk,
+		INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_stress_trigger_wk,
 				acpm_debug_tmu_rd_tmp_stress_trigger);
-		INIT_DELAYED_WORK(&tmu_test->suspend_work, acpm_debug_tmu_suspend);
-		INIT_DELAYED_WORK(&tmu_test->resume_work, acpm_debug_tmu_resume);
+		INIT_DELAYED_WORK(&mbox->tmu->suspend_work, acpm_debug_tmu_suspend);
+		INIT_DELAYED_WORK(&mbox->tmu->resume_work, acpm_debug_tmu_resume);
 
-		tmu_test->wq_init_done = true;
+		mbox->tmu->wq_init_done = true;
 		pr_info("%s done\n", __func__);
 	}
 }
 
-static void acpm_framework_tmu_mbox_test(bool start)
+static void acpm_framework_mbox_test(bool start)
 {
 	if (start) {
-		acpm_tmu_mbox_test_init();
+		acpm_mbox_test_tmu_init();
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-				tmu_test->suspend_wq,
-				&tmu_test->suspend_work,
+				mbox->tmu->suspend_wq,
+				&mbox->tmu->suspend_work,
 				msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-				tmu_test->rd_tmp_stress_trigger_wq,
-				&tmu_test->rd_tmp_stress_trigger_wk,
+				mbox->tmu->rd_tmp_stress_trigger_wq,
+				&mbox->tmu->rd_tmp_stress_trigger_wk,
 				msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
 	} else {
-		cancel_delayed_work_sync(&tmu_test->suspend_work);
-		cancel_delayed_work_sync(&tmu_test->resume_work);
-		cancel_delayed_work_sync(&tmu_test->rd_tmp_stress_trigger_wk);
+		cancel_delayed_work_sync(&mbox->tmu->suspend_work);
+		cancel_delayed_work_sync(&mbox->tmu->resume_work);
+		cancel_delayed_work_sync(&mbox->tmu->rd_tmp_stress_trigger_wk);
 	}
 }
 
-static int acpm_tmu_mbox_test_setting(struct acpm_info *acpm, u64 subcmd)
+static int acpm_mbox_test_setting(struct acpm_info *acpm, u64 subcmd)
 {
-	if (subcmd >= ACPM_MBOX_TMU_CMD_MAX) {
+	if (subcmd >= ACPM_MBOX_TEST_CMD_MAX) {
 		pr_err("%s, sub-cmd:%d, out of range!\n", __func__, subcmd);
 		return -EINVAL;
-	} else if (ACPM_MBOX_TMU_TEST_START == subcmd) {
-		acpm_framework_tmu_mbox_test(true);
-	} else if (ACPM_MBOX_TMU_TEST_STOP == subcmd) {
-		acpm_framework_tmu_mbox_test(false);
+	} else if (ACPM_MBOX_TEST_START == subcmd) {
+		acpm_framework_mbox_test(true);
+	} else if (ACPM_MBOX_TEST_STOP == subcmd) {
+		acpm_framework_mbox_test(false);
 	}
 
 	return 0;
 }
 
-static int debug_acpm_tmu_mbox_test_set(void *data, u64 val)
+static int debug_acpm_mbox_test_set(void *data, u64 val)
 {
 	struct acpm_info *acpm = (struct acpm_info *)data;
 
-	return acpm_tmu_mbox_test_setting(acpm, val);
+	return acpm_mbox_test_setting(acpm, val);
 }
 
 static int get_cpu_policy_num(unsigned int dm_id)
@@ -668,19 +668,19 @@ static int debug_acpm_dvfs_test_set(void *data, u64 val)
 	return acpm_dvfs_test_setting(acpm, val);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_tmu_mbox_test_fops,
-			NULL, debug_acpm_tmu_mbox_test_set, "0x%016llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_mbox_test_fops,
+			NULL, debug_acpm_mbox_test_set, "0x%016llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_dvfs_test_fops,
 			NULL, debug_acpm_dvfs_test_set, "0x%016llx\n");
 
-static void acpm_test_debugfs_init(struct acpm_tmu_mbox_test *tmu)
+static void acpm_test_debugfs_init(struct acpm_mbox_test *mbox)
 {
-	struct dentry *den_tmu;
+	struct dentry *den_mbox;
 
-	den_tmu = debugfs_lookup("acpm_framework", NULL);
-	debugfs_create_file("acpm_mbox_tmu_test", 0644, den_tmu, tmu,
-			    &debug_acpm_tmu_mbox_test_fops);
-	debugfs_create_file("acpm_dvfs_test", 0644, den_tmu, tmu,
+	den_mbox = debugfs_lookup("acpm_framework", NULL);
+	debugfs_create_file("acpm_mbox_test", 0644, den_mbox, mbox,
+			    &debug_acpm_mbox_test_fops);
+	debugfs_create_file("acpm_dvfs_test", 0644, den_mbox, mbox,
 			    &debug_acpm_dvfs_test_fops);
 }
 
@@ -831,16 +831,25 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int d
 
 static int acpm_mbox_test_probe(struct platform_device *pdev)
 {
-	struct acpm_tmu_mbox_test *tmu;
+	struct acpm_mbox_test *mbox_test;
+	struct acpm_tmu_validity *tmu_validity;
 	struct acpm_dvfs_test *dvfs;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
-	tmu = devm_kzalloc(&pdev->dev, sizeof(struct acpm_tmu_mbox_test), GFP_KERNEL);
-	if (IS_ERR(tmu))
-		return PTR_ERR(tmu);
-	if (!tmu)
+	mbox_test = devm_kzalloc(&pdev->dev, sizeof(struct acpm_mbox_test), GFP_KERNEL);
+	if (IS_ERR(mbox_test))
+		return PTR_ERR(mbox_test);
+	if (!mbox_test)
 		return -ENOMEM;
+
+	tmu_validity = kmalloc(sizeof(*tmu_validity), GFP_KERNEL);
+	if (!tmu_validity) {
+		pr_err("%s, tmu_validity alloc failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	mbox_test->tmu = tmu_validity;
 
 	dvfs = devm_kzalloc(&pdev->dev, sizeof(struct acpm_dvfs_test), GFP_KERNEL);
 
@@ -849,9 +858,9 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 	if (!dvfs)
 		return -ENOMEM;
 
-	acpm_test_debugfs_init(tmu);
+	acpm_test_debugfs_init(mbox_test);
 
-	tmu_test = tmu;
+	mbox = mbox_test;
 	dvfs_test = dvfs;
 
 	dev_info(&pdev->dev, "%s done\n", __func__);
@@ -862,23 +871,23 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 {
 	int i;
 
-	flush_workqueue(tmu_test->rd_tmp_stress_trigger_wq);
-	flush_workqueue(tmu_test->suspend_wq);
-	flush_workqueue(tmu_test->resume_wq);
+	flush_workqueue(mbox->tmu->rd_tmp_stress_trigger_wq);
+	flush_workqueue(mbox->tmu->suspend_wq);
+	flush_workqueue(mbox->tmu->resume_wq);
 	for (i = 0; i < NUM_OF_WQ; i++) {
-		flush_workqueue(tmu_test->rd_tmp_random_wq[i]);
-		flush_workqueue(tmu_test->rd_tmp_concur_wq[i]);
+		flush_workqueue(mbox->tmu->rd_tmp_random_wq[i]);
+		flush_workqueue(mbox->tmu->rd_tmp_concur_wq[i]);
 	}
 
-	destroy_workqueue(tmu_test->rd_tmp_stress_trigger_wq);
-	destroy_workqueue(tmu_test->suspend_wq);
-	destroy_workqueue(tmu_test->resume_wq);
+	destroy_workqueue(mbox->tmu->rd_tmp_stress_trigger_wq);
+	destroy_workqueue(mbox->tmu->suspend_wq);
+	destroy_workqueue(mbox->tmu->resume_wq);
 	for (i = 0; i < NUM_OF_WQ; i++) {
-		destroy_workqueue(tmu_test->rd_tmp_random_wq[i]);
-		destroy_workqueue(tmu_test->rd_tmp_concur_wq[i]);
+		destroy_workqueue(mbox->tmu->rd_tmp_random_wq[i]);
+		destroy_workqueue(mbox->tmu->rd_tmp_concur_wq[i]);
 	}
 
-	kfree(tmu_test);
+	kfree(mbox);
 	pr_info("%s done.\n", __func__);
 	return 0;
 }

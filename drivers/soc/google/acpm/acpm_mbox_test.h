@@ -23,10 +23,10 @@ enum random_output {
 	END,
 };
 
-enum acpm_mbox_tmu_test_commands {
-	ACPM_MBOX_TMU_TEST_STOP,
-	ACPM_MBOX_TMU_TEST_START,
-	ACPM_MBOX_TMU_CMD_MAX,
+enum acpm_mbox_test_commands {
+	ACPM_MBOX_TEST_STOP,
+	ACPM_MBOX_TEST_START,
+	ACPM_MBOX_TEST_CMD_MAX,
 };
 
 enum acpm_dvfs_test_commands {
@@ -73,7 +73,7 @@ enum cpu_cluster_id {
 
 #define DVFS_TEST_CYCLE         20
 
-struct acpm_tmu_mbox_test {
+struct acpm_tmu_validity {
 	bool wq_init_done;
 	struct delayed_work rd_tmp_concur_wk[NUM_OF_WQ];
 	struct delayed_work rd_tmp_random_wk[NUM_OF_WQ];
@@ -85,6 +85,11 @@ struct acpm_tmu_mbox_test {
 	struct workqueue_struct *rd_tmp_stress_trigger_wq;
 	struct workqueue_struct *suspend_wq;
 	struct workqueue_struct *resume_wq;
+};
+
+struct acpm_mbox_test {
+	struct device *device;
+	struct acpm_tmu_validity *tmu;
 };
 
 struct acpm_dvfs_test_stats {
