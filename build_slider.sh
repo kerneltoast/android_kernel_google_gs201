@@ -21,6 +21,7 @@ function build_gki {
     DIST_DIR=${DIST_DIR} \
     LTO=${LTO} \
     KMI_SYMBOL_LIST_STRICT_MODE=${ENABLE_STRICT_KMI} \
+    TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI} \
     BUILD_CONFIG=${KERNEL_BUILD_CONFIG} \
     build/build.sh KCFLAGS=-Werror "$@"
   exit_if_error $? "Failed to compile ${KERNEL_OUT_DIR}"
@@ -52,6 +53,8 @@ function build_pixel {
     LTO=${LTO} \
     MIXED_BUILD=1 \
     KBUILD_MIXED_TREE=${GKI_BINARIES_DIR} \
+    KMI_SYMBOL_LIST_STRICT_MODE=${ENABLE_STRICT_KMI} \
+    TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI} \
     build/build.sh KCFLAGS=-Werror "$@"
   exit_if_error $? "Failed to compile device kernel"
 }
@@ -65,6 +68,7 @@ GKI_BINARIES_DIR=$(readlink -m ${DIST_DIR})
 GKI_PREBUILTS_DIR=$(readlink -m "prebuilts/boot-artifacts/kernel/")
 DEFAULT_CONFIG="private/gs-google/build.config.slider"
 DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG:-${DEFAULT_CONFIG}}
+TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
 if [ -z "${BUILD_KERNEL}" ]; then
   if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
     BUILD_KERNEL=1
@@ -76,7 +80,7 @@ fi
 if [ "${LTO}" = "none" ]; then
   ENABLE_STRICT_KMI=0
 else
-  ENABLE_STRICT_KMI=1
+  ENABLE_STRICT_KMI=${ENABLE_STRICT_KMI:-1}
 fi
 
 if [ "${EXPERIMENTAL_BUILD}" != "0" ]; then
