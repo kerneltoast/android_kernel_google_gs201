@@ -479,8 +479,6 @@
 		dma-names = "tx", "rx";
 		clocks = <&clock VDOUT_CLK_PERIC0_USI6_USI>, <&clock GATE_PERIC0_TOP0_USI6_USI>;
 		clock-names = "ipclk_spi", "gate_spi_clk";
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi6_bus>;
 		interrupts = <GIC_SPI IRQ_USI6_USI_PERIC0 ITLH>;
 		samsung,usi-phandle = <&sysreg_peric0>;
 		samsung,usi-offset = <0x00000014>;
