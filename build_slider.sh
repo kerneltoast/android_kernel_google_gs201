@@ -79,10 +79,7 @@ if [ -n "${BUILD_ABI}" ]; then
 fi
 
 if [ -n "${BUILD_CONFIG}" ]; then
-  err_msg="setting BUILD_CONFIG is not supported for $0
-  usage: $0
-  See build.sh for supported configs"
-  exit_if_error 1 "${err_msg}"
+  exit_if_error 1 "BUILD_CONFIG is not supported for $0"
 fi
 
 if [ "${BUILD_KERNEL}" = "0" -a "${EXPERIMENTAL_BUILD}" != "0" ]; then
