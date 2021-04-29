@@ -27,24 +27,6 @@ function build_gki {
   exit_if_error $? "Failed to compile ${KERNEL_OUT_DIR}"
 }
 
-function build_abi {
-  echo "Building device kernel for ABI..."
-  # LTO=full is required for building ABI, and we must build the full kernel.
-  BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
-    OUT_DIR=${BASE_OUT}/device-kernel/ \
-    DIST_DIR=${DIST_DIR} \
-    LTO=full \
-    MIXED_BUILD= \
-    KBUILD_MIXED_TREE= \
-    build/build_abi.sh --update KCFLAGS=-Werror "$@"
-  exit_if_error $? "Failed to compile device kernel"
-
-  # Strip symbols from the _core symbol list
-  grep "^ " private/gs-google/android/abi_gki_aarch64_core | while read l; do
-    sed -i "/\<$l\>/d" private/gs-google/android/abi_gki_aarch64_generic
-  done
-}
-
 function build_pixel {
   echo "Building device kernel..."
   BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
@@ -60,7 +42,6 @@ function build_pixel {
 }
 
 EXPERIMENTAL_BUILD=${EXPERIMENTAL_BUILD:-0}
-BUILD_ABI=${BUILD_ABI:-0}
 BASE_OUT=${OUT_DIR:-out}/mixed/
 DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
 LTO=${LTO:-thin}
@@ -91,6 +72,12 @@ else
   KERNEL_BUILD_CONFIG=aosp/build.config.gki.aarch64
 fi
 
+if [ -n "${BUILD_ABI}" ]; then
+  echo "The ABI update workflow has changed. Please read go/gki-p21-workflow"
+  echo "  for instructions on updating ABI/symbol list."
+  exit_if_error 1 "BUILD_ABI is deprecated"
+fi
+
 if [ -n "${BUILD_CONFIG}" ]; then
   err_msg="setting BUILD_CONFIG is not supported for $0
   usage: $0
@@ -107,13 +94,9 @@ if [ "${LTO}" = "none" -a "${BUILD_KERNEL}" = "0" ]; then
 fi
 
 
-if [ "${BUILD_ABI}" != "0" ]; then
-  build_abi
+if [ "${BUILD_KERNEL}" != "0" -o "${EXPERIMENTAL_BUILD}" != "0" ]; then
+  build_gki
 else
-  if [ "${BUILD_KERNEL}" != "0" -o "${EXPERIMENTAL_BUILD}" != "0" ]; then
-    build_gki
-  else
-    copy_gki_prebuilts
-  fi
-  build_pixel
+  copy_gki_prebuilts
 fi
+build_pixel
