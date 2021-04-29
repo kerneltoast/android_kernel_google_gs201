@@ -8,6 +8,7 @@
 #include <soc/google/acpm_ipc_ctrl.h>
 #include <soc/google/exynos-devfreq.h>
 #include <linux/module.h>
+#include <dt-bindings/clock/gs101.h>
 
 #include "acpm_dvfs.h"
 #include "cmucal.h"
@@ -28,7 +29,12 @@ int exynos_acpm_set_rate(unsigned int id, unsigned long rate)
 	int ret;
 
 	config.cmd = cmd;
-	config.response = true;
+	if (id == GET_IDX(ACPM_DVFS_MIF) || id == GET_IDX(ACPM_DVFS_INT) ||
+		id == GET_IDX(ACPM_DVFS_CPUCL0) || id == GET_IDX(ACPM_DVFS_CPUCL1) ||
+		id == GET_IDX(ACPM_DVFS_CPUCL2))
+		config.response = false;
+	else
+		config.response = true;
 	config.cmd[0] = id;
 	config.cmd[1] = (unsigned int)rate;
 	config.cmd[2] = FREQ_REQ;
