@@ -23,6 +23,7 @@ bool __read_mostly vendor_sched_task_spreading_enable;
 unsigned int __read_mostly vendor_sched_uclamp_threshold;
 unsigned int __read_mostly vendor_sched_util_threshold = DEF_UTIL_THRESHOLD;
 unsigned int __read_mostly vendor_sched_high_capacity_start_cpu = MAX_CAPACITY_CPU;
+unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
 static struct kobject *vendor_sched_kobj;
 
 extern void update_sched_capacity_margin(unsigned int util_threshold);
@@ -388,6 +389,32 @@ static ssize_t high_capacity_start_cpu_store(struct kobject *kobj,
 
 static struct kobj_attribute high_capacity_start_cpu_attribute = __ATTR_RW(high_capacity_start_cpu);
 
+static ssize_t util_post_init_scale_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_util_post_init_scale);
+}
+
+static ssize_t util_post_init_scale_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val))
+		return -EINVAL;
+
+	if (val > 1024)
+		return -EINVAL;
+
+	vendor_sched_util_post_init_scale = val;
+
+	return count;
+}
+
+static struct kobj_attribute util_post_init_scale_attribute = __ATTR_RW(util_post_init_scale);
+
 static struct attribute *attrs[] = {
 	&set_prefer_high_cap_attribute.attr,
 	&clear_prefer_high_cap_attribute.attr,
@@ -404,6 +431,7 @@ static struct attribute *attrs[] = {
 	&uclamp_threshold_attribute.attr,
 	&util_threshold_attribute.attr,
 	&high_capacity_start_cpu_attribute.attr,
+	&util_post_init_scale_attribute.attr,
 	NULL,
 };
 
