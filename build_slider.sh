@@ -94,6 +94,21 @@ if [ "${LTO}" = "none" -a "${BUILD_KERNEL}" = "0" ]; then
 fi
 
 
+if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
+  pushd aosp/ > /dev/null
+    # Booting AOSP ToT does not always work; throw a warning to prevent this.
+    REPO_SHA=$(git log -1 --pretty="format:%H" m/s-dev-gs-pixel-5.10)
+    LOCAL_MERGE_BASE=$(git merge-base HEAD aosp/android12-5.10)
+    if [ "${REPO_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
+      echo "Your aosp/ directory appears to be synced to a point beyond the"
+      echo "  latest AOSP merge point. This is not supported, currently, as"
+      echo "  it is prone to errors. Please base any changes on"
+      echo "  m/s-dev-gs-pixel-5.10."
+      exit_if_error 1 "aosp/ is not based on m/s-dev-gs-pixel-5.10"
+    fi
+  popd > /dev/null
+fi
+
 if [ "${BUILD_KERNEL}" != "0" -o "${EXPERIMENTAL_BUILD}" != "0" ]; then
   build_gki
 else
