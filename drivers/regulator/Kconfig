@@ -980,7 +980,6 @@ config REGULATOR_S2MPS11
 
 config DRV_SAMSUNG_PMIC
         tristate "Samsung PMIC sysfs system"
-	depends on MFD_S2MPG10 || MFD_S2MPG11
         help
          This driver supports a Samsung PMIC sysfs.
 	 The sysfs directory made by this config includes directories of
@@ -1026,6 +1025,22 @@ config POWERMETER_S2MPG11
 	 channels for saving current and voltage data of each regulator.
 	 The sysfs files in the sysfs directory created by the config
 	 DRV_SAMSUNG_PMIC is are made by this driver for debugging.
+
+config REGULATOR_S2MPG12
+	tristate "Samsung S2MPG12 voltage regulator"
+	depends on MFD_S2MPG12
+	help
+	  This driver supports a Samsung S2MPG12 voltage output regulator
+	  via I2C bus. S2MPG12 is comprised of high efficient Buck converters
+	  including Dual-Phase Buck converter, Buck-Boost converter, various LDOs.
+
+config REGULATOR_S2MPG13
+	tristate "Samsung S2MPG13 voltage regulator"
+	depends on MFD_S2MPG13
+	help
+	  This driver supports a Samsung S2MPG13 voltage output regulator
+	  via I2C bus. S2MPG13 is comprised of high efficient Buck converters
+	  including Dual-Phase Buck converter, Buck-Boost converter, various LDOs.
 
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
