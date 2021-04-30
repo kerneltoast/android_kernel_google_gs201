@@ -13,7 +13,7 @@
  * Commenting this out, enables S2MPU on power up
  */
 
-//#define S2MPU_TEST
+#define S2MPU_TEST
 
 struct s2pt {
 	u32 l1entry_attrs[WHI_MAX_GB_GRANULES];
