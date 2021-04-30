@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Cloudripper device tree source
+ *
+ * Copyright 2021 Google Inc.
+ *
+ */
+
+/* Touch is connected to spi_0, pins:
+ *   CLK=GPP20[0], MOSI=GPP20[1], MISO=GPP20[2], CS=GPP20[3]
+ * TS_RESET_L = C26 = XAPC_USI11_RTSN_DI = GPP23[2] = <&gpp23 2 0>
+ * TS_INT_L = AT22 = XEINT_8 = GPA7[0] = <&gpa7 0 0>
+ *
+ * DVDD = PP1800_L25M_TSP_DVDD = ??? = VLDO25M = "PP1800_L25M_TSP"?
+ * AVDD = PP3300_L26M_TS_AVDD  = ??? = VLDO26M = "PP3300_L26M_TSP"?
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+
+&pinctrl_1 {
+	sec_ts_irq: sec_ts-irq {
+		samsung,pins = "gpa7-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_5 {
+	sec_ts_reset: sec_ts-reset {
+		samsung,pins = "gpp23-2";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	spi0_bus: spi0-bus {
+		samsung,pins = "gpp20-0", "gpp20-1", "gpp20-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+
+	spi0_cs: spi0-cs {
+		samsung,pins = "gpp20-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+
+	spi0_cs_func: spi0-cs-func {
+		samsung,pins = "gpp20-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+};
+
+&spi_0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_bus &spi0_cs_func>;
+
+	spitouch: touchscreen@0 {
+		status = "ok";
+		compatible = "sec,sec_ts";
+
+		spi-max-frequency = <1000000>; // Whitefin/R3 set to 16000000
+		spi-cpol;
+		spi-cpha;
+
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sec_ts_irq &sec_ts_reset>;
+
+		sec,irq_gpio = <&gpa7 0 0>;
+		sec,reset_gpio = <&gpp23 2 0>;
+		sec,firmware_name = "s6sy79x.bin";
+		sec,mis_cal_check = <1>;
+		sec,heatmap_mode = <1>;
+
+		sec,max_coords = <1080 2340>;
+
+		vdd-supply = <&m_ldo25_reg>; /* VIO 1.8V */
+		avdd-supply = <&m_ldo26_reg>; /* AVDD 3.3V */
+
+		controller-data {
+			samsung,spi-feedback-delay = <0>;
+			samsung,spi-chip-select-mode = <1>;
+		};
+	};
+};
