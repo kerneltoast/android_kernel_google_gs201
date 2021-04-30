@@ -6,10 +6,11 @@
  *
  */
 
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/gs201.h>
 #include <dt-bindings/power/google-power.h>
 #include "gs201-pinctrl.dtsi"
 #include "gs201.dtsi"
-
 
 &pinctrl_0 {
 	smpl_warn: smpl-warn {
@@ -30,8 +31,8 @@
 		acpm-ipc-channel = <2>;
 		s2mpg12,wakeup = "enabled";
 		reg = <0x1f>;
-//		interrupts = <1 0 0>;
-//		interrupt-parent = <&gpa0>;
+		interrupts = <GIC_SPI IRQ_INTCOMB_VGPIO2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&smpl_warn>;
 		gpios = <&gpa5 0 0>, // SMPL_WARN
