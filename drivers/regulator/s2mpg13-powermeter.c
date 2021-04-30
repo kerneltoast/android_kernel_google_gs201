@@ -377,6 +377,14 @@ static void s2mpg13_meter_read_acc_data_reg(struct s2mpg13_meter *s2mpg13,
 
 		reg += S2MPG1X_METER_ACC_BUF;
 	}
+
+	/* b/184356774 accumulation read failure W/A */
+	s2mpg13_update_reg(s2mpg13->iodev->mt_trim, S2MPG13_MT_TRIM_COMMON2,
+			0, S2MPG13_PMETER_MRST_MASK);
+	s2mpg13_update_reg(s2mpg13->iodev->mt_trim, S2MPG13_MT_TRIM_COMMON2,
+			S2MPG13_PMETER_MRST_MASK, S2MPG13_PMETER_MRST_MASK);
+	s2mpg13_usleep(2);
+	s2mpg13_meter_onoff(s2mpg13, true);
 }
 
 static void s2mpg13_meter_read_acc_count(struct s2mpg13_meter *s2mpg13,
