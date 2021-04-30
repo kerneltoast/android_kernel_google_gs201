@@ -115,8 +115,6 @@ static int bigo_of_parse_opp_table(struct bigo_core *core)
 			kfree(opp);
 			goto err_entry;
 		}
-		if (!core->pm.min_freq)
-			core->pm.min_freq = opp->freq_khz;
 
 		list_add_tail(&opp->list, &core->pm.opps);
 	}

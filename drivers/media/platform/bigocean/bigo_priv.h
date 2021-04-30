@@ -57,7 +57,6 @@ struct power_manager {
 	struct list_head opps;
 	struct list_head bw;
 	u32 max_load;
-	u32 min_freq;
 };
 
 struct slc_manager {

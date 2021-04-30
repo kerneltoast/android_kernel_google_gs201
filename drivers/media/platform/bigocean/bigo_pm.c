@@ -44,16 +44,12 @@ static inline u32 bigo_get_total_load(struct bigo_core *core)
 static inline u32 bigo_get_target_freq(struct bigo_core *core, u32 load)
 {
 	struct bigo_opp *opp;
-	u32 freq = core->pm.min_freq;
 
 	list_for_each_entry(opp, &core->pm.opps, list) {
-		if (opp->load_pps >= load) {
-			freq = opp->freq_khz;
+		if (opp->load_pps >= load)
 			break;
-		}
 	}
-	freq = max(freq, core->pm.min_freq);
-	return freq;
+	return opp->freq_khz;
 }
 
 static inline struct bigo_bw *bigo_get_target_bw(struct bigo_core *core, u32 load)
