@@ -11,23 +11,23 @@
 #define __LINUX_MFD_S2MPG1X_H
 
 #include <linux/i2c.h>
-#include <linux/mfd/samsung/s2mpg10.h>
-#include <linux/mfd/samsung/s2mpg11.h>
+#include <linux/mfd/samsung/s2mpg12.h>
+#include <linux/mfd/samsung/s2mpg13.h>
 
 enum s2mpg1x_id {
-	ID_S2MPG10,
-	ID_S2MPG11,
+	ID_S2MPG12,
+	ID_S2MPG13,
 	ID_COUNT,
 };
 
 #define SWITCH_ID_FUNC(id, func, args...)                                      \
 	do {                                                                   \
 		switch (id) {                                                  \
-		case ID_S2MPG10:                                               \
-			ret = s2mpg10_##func(args);                            \
+		case ID_S2MPG12:                                               \
+			ret = s2mpg12_##func(args);                            \
 			break;                                                 \
-		case ID_S2MPG11:                                               \
-			ret = s2mpg11_##func(args);                            \
+		case ID_S2MPG13:                                               \
+			ret = s2mpg13_##func(args);                            \
 			break;                                                 \
 		default:                                                       \
 			break;                                                 \

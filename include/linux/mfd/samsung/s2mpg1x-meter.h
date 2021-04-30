@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * include/linux/mfd/samsung/s2mpg1x-meter.h
+ * s2mpg1x-meter.h
  *
  * Copyright (C) 2015 Samsung Electronics
  *
@@ -13,9 +13,8 @@
 #include <linux/i2c.h>
 #include <linux/mfd/samsung/s2mpg1x.h>
 #include "s2mpg1x-register.h"
-#include <linux/mfd/samsung/s2mpg1x-meter.h>
-#include <linux/mfd/samsung/s2mpg10-register.h>
-#include <linux/mfd/samsung/s2mpg11-register.h>
+#include <linux/mfd/samsung/s2mpg12-register.h>
+#include <linux/mfd/samsung/s2mpg13-register.h>
 #include <linux/fs.h>
 
 typedef enum {
@@ -26,16 +25,16 @@ typedef enum {
 } address_t;
 
 const int COMMON_ADDRESS[ADDRESS_COUNT][ID_COUNT] = {
-	[ADDRESS_CTRL1] = { S2MPG10_METER_CTRL1, S2MPG11_METER_CTRL1 },
-	[ADDRESS_CTRL2] = { S2MPG10_METER_CTRL2, S2MPG11_METER_CTRL2 },
-	[ADDRESS_BUCKEN1] = { S2MPG10_METER_BUCKEN1, S2MPG11_METER_BUCKEN1 },
+	[ADDRESS_CTRL1] = { S2MPG12_METER_CTRL1, S2MPG13_METER_CTRL1 },
+	[ADDRESS_CTRL2] = { S2MPG12_METER_CTRL2, S2MPG13_METER_CTRL2 },
+	[ADDRESS_BUCKEN1] = { S2MPG12_METER_BUCKEN1, S2MPG13_METER_BUCKEN1 },
 };
 
 const u32 s2mpg1x_int_sample_rate_uhz[S2MPG1X_INT_FREQ_COUNT] = {
 	[INT_7P_8125HZ] = 7812500, [INT_15P_625HZ] = 15625000,
 	[INT_31P_25HZ] = 31250000, [INT_62P_5HZ] = 62500000,
 	[INT_125HZ] = 125000000,   [INT_250HZ] = 250000000,
-	[INT_500HZ] = 500000000,   [INT_1000HZ] = 1000000000,
+	[INT_1000HZ] = 1000000000,
 };
 
 const u32 s2mpg1x_ext_sample_rate_uhz[S2MPG1X_EXT_FREQ_COUNT] = {

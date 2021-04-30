@@ -24,20 +24,21 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/mfd/samsung/s2mpg10.h>
-#include <linux/mfd/samsung/s2mpg11.h>
+#include <linux/mfd/samsung/s2mpg12.h>
+#include <linux/mfd/samsung/s2mpg13.h>
 #include <linux/mfd/samsung/s2mpg1x.h>
 
-const struct pinctrl_pin_desc s2mpg10_pins[] = {
+const struct pinctrl_pin_desc s2mpg12_pins[] = {
 	PINCTRL_PIN(0, "gpio0"), PINCTRL_PIN(1, "gpio1"),
 	PINCTRL_PIN(2, "gpio2"), PINCTRL_PIN(3, "gpio3"),
 	PINCTRL_PIN(4, "gpio4"), PINCTRL_PIN(5, "gpio5"),
 };
 
-const struct pinctrl_pin_desc s2mpg11_pins[] = {
+const struct pinctrl_pin_desc s2mpg13_pins[] = {
 	PINCTRL_PIN(0, "gpio6"),  PINCTRL_PIN(1, "gpio7"),
 	PINCTRL_PIN(2, "gpio8"),  PINCTRL_PIN(3, "gpio9"),
 	PINCTRL_PIN(4, "gpio10"), PINCTRL_PIN(5, "gpio11"),
+	PINCTRL_PIN(6, "gpio12"), PINCTRL_PIN(7, "gpio13"),
 };
 
 struct s2mpg1x_gpio {
@@ -50,29 +51,51 @@ struct s2mpg1x_gpio {
 	struct i2c_client *i2c;
 };
 
-int GPIO_CTRL_BASE[] = { S2MPG10_PM_GPIO_CTRL1, S2MPG11_PM_GPIO_CTRL1 };
+int GPIO_STATUS[] = { S2MPG12_GPIO_STATUS, S2MPG13_GPIO_STATUS };
+int GPIO_CTRL_BASE[] = { S2MPG12_GPIO_0_SET, S2MPG13_GPIO_0_SET };
 
-#define GPIO_CTRL1_OFFSET 0 /* input data */
-#define GPIO_CTRL2_OFFSET 1 /* output data */
-#define GPIO_CTRL3_OFFSET 2 /* output enabled */
-#define GPIO_CTRL4_OFFSET 3 /* Pull-Down enable */
-#define GPIO_CTRL5_OFFSET 4 /* Pull-Up enable */
-#define GPIO_CTRL6_OFFSET 5 /* Drive strength selection (x2 when 1) */
-#define GPIO_CTRL7_OFFSET 6 /* Remote GPIO */
+#define GPIO_MODE_SHIFT 0		/* Remote GPIO BIT */
+#define GPIO_DRV_STR_SHIFT 2	/* Drive strength selection (x2 when 1) BIT */
+#define GPIO_PD_SHIFT 3			/* Pull-Down enable BIT */
+#define GPIO_PU_SHIFT 4			/* Pull-Up enable BIT */
+#define GPIO_OUT_SHIFT 5		/* output data BIT */
+#define GPIO_OEN_SHIFT 6		/* output enabled BIT */
+
+#define GPIO_MODE_MASK (3 << GPIO_MODE_SHIFT)		/* Remote GPIO */
+#define GPIO_DRV_STR_MASK BIT(GPIO_DRV_STR_SHIFT)	/* Drive strength selection (x2 when 1) */
+#define GPIO_PD_MASK BIT(GPIO_PD_SHIFT)		/* Pull-Down enable */
+#define GPIO_PU_MASK BIT(GPIO_PU_SHIFT)		/* Pull-Up enable */
+#define GPIO_OUT_MASK BIT(GPIO_OUT_SHIFT)		/* output data */
+#define GPIO_OEN_MASK BIT(GPIO_OEN_SHIFT)		/* output enabled */
+#define GPIO_RSV_MASK BIT(GPIO_RSV_SHIFT)		/* reserved */
 
 static int s2mpg1x_read_gpio_ctrl_reg(struct s2mpg1x_gpio *gc,
-				      unsigned int offset,
-				      unsigned int ctrl_offset)
+				      unsigned int offset)
 {
 	int ret;
 	u8 val;
 
 	ret = s2mpg1x_read_reg(gc->id, gc->i2c,
-			       GPIO_CTRL_BASE[gc->id] + ctrl_offset, &val);
+			       GPIO_CTRL_BASE[gc->id] + offset, &val);
 
 	if (ret < 0) {
-		pr_err("Error: %s %s %d %d", __func__, gc->gc.label, offset,
-		       ctrl_offset);
+		dev_err(&gc->i2c->dev, "Error: %s %d", gc->gc.label, offset);
+		return ret;
+	}
+
+	return val;
+}
+
+static int s2mpg1x_read_gpio_status_reg(struct s2mpg1x_gpio *gc)
+{
+	int ret;
+	u8 val;
+
+	ret = s2mpg1x_read_reg(gc->id, gc->i2c,
+			       GPIO_STATUS[gc->id], &val);
+
+	if (ret < 0) {
+		dev_err(&gc->i2c->dev, "Error: %s", gc->gc.label);
 		return ret;
 	}
 
@@ -81,37 +104,31 @@ static int s2mpg1x_read_gpio_ctrl_reg(struct s2mpg1x_gpio *gc,
 
 static int s2mpg1x_read_gpio_ctrl_bit(struct s2mpg1x_gpio *gc,
 				      unsigned int offset,
-				      unsigned int ctrl_offset)
+				      unsigned int bit_mask)
 {
-	return (s2mpg1x_read_gpio_ctrl_reg(gc, offset, ctrl_offset) >> offset) &
-	       0x1;
+	return s2mpg1x_read_gpio_ctrl_reg(gc, offset) & bit_mask;
 }
 
 static int s2mpg1x_update_gpio_ctrl_reg(struct s2mpg1x_gpio *gc,
-					unsigned int offset,
-					unsigned int ctrl_offset, u8 val,
-					u8 mask)
+					unsigned int offset, u8 val, u8 mask)
 {
 	int ret;
 
 	ret = s2mpg1x_update_reg(gc->id, gc->i2c,
-				 GPIO_CTRL_BASE[gc->id] + ctrl_offset, val,
+				 GPIO_CTRL_BASE[gc->id] + offset, val,
 				 mask);
 
-	if (ret < 0) {
-		pr_err("Error: %s %s %d %d", __func__, gc->gc.label,
-		       ctrl_offset, offset);
-	}
+	if (ret < 0)
+		dev_err(&gc->i2c->dev, "Error: %s %d", gc->gc.label, offset);
 
 	return ret;
 }
 
 static int s2mpg1x_write_gpio_ctrl_bit(struct s2mpg1x_gpio *gc,
 				       unsigned int offset,
-				       unsigned int ctrl_offset, int value)
+				       unsigned int bit_mask, int value)
 {
-	return s2mpg1x_update_gpio_ctrl_reg(gc, offset, ctrl_offset,
-				(value & 0x1) << offset, 0x1 << offset);
+	return s2mpg1x_update_gpio_ctrl_reg(gc, offset, value, bit_mask);
 }
 
 static int s2mpg1x_gpio_get_direction(struct gpio_chip *chip,
@@ -119,7 +136,7 @@ static int s2mpg1x_gpio_get_direction(struct gpio_chip *chip,
 {
 	struct s2mpg1x_gpio *data = gpiochip_get_data(chip);
 
-	return !s2mpg1x_read_gpio_ctrl_bit(data, offset, GPIO_CTRL3_OFFSET);
+	return !s2mpg1x_read_gpio_ctrl_bit(data, offset, GPIO_OEN_MASK);
 }
 
 static int s2mpg1x_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -127,11 +144,10 @@ static int s2mpg1x_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	struct s2mpg1x_gpio *data = gpiochip_get_data(chip);
 
 	if (s2mpg1x_gpio_get_direction(chip, offset))
-		return s2mpg1x_read_gpio_ctrl_bit(data, offset,
-						  GPIO_CTRL1_OFFSET);
+		return (s2mpg1x_read_gpio_status_reg(data) >> offset) & 0x1;
 	else
 		return s2mpg1x_read_gpio_ctrl_bit(data, offset,
-						  GPIO_CTRL2_OFFSET);
+						GPIO_OUT_MASK);
 }
 
 static void s2mpg1x_gpio_set(struct gpio_chip *chip, unsigned int offset,
@@ -140,8 +156,8 @@ static void s2mpg1x_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	struct s2mpg1x_gpio *data = gpiochip_get_data(chip);
 
 	if (!s2mpg1x_gpio_get_direction(chip, offset))
-		s2mpg1x_write_gpio_ctrl_bit(data, offset, GPIO_CTRL2_OFFSET,
-					    value);
+		s2mpg1x_write_gpio_ctrl_bit(data, offset, GPIO_OUT_MASK,
+					    (value & 0x1) << GPIO_OUT_SHIFT);
 }
 
 static int s2mpg1x_gpio_direction_input(struct gpio_chip *chip,
@@ -149,7 +165,8 @@ static int s2mpg1x_gpio_direction_input(struct gpio_chip *chip,
 {
 	struct s2mpg1x_gpio *data = gpiochip_get_data(chip);
 
-	return s2mpg1x_write_gpio_ctrl_bit(data, offset, GPIO_CTRL3_OFFSET, 0);
+	return s2mpg1x_write_gpio_ctrl_bit(data, offset, GPIO_OEN_MASK,
+					0 << GPIO_OEN_SHIFT);
 }
 
 static int s2mpg1x_gpio_direction_output(struct gpio_chip *chip,
@@ -158,11 +175,11 @@ static int s2mpg1x_gpio_direction_output(struct gpio_chip *chip,
 	struct s2mpg1x_gpio *data = gpiochip_get_data(chip);
 	int ret;
 
-	ret = s2mpg1x_write_gpio_ctrl_bit(data, offset,
-					  GPIO_CTRL2_OFFSET, value);
+	ret = s2mpg1x_write_gpio_ctrl_bit(data, offset, GPIO_OUT_MASK,
+					  (value & 0x1) << GPIO_OUT_SHIFT);
 	if (ret == 0)
-		ret = s2mpg1x_write_gpio_ctrl_bit(data, offset,
-						  GPIO_CTRL3_OFFSET, 1);
+		ret = s2mpg1x_write_gpio_ctrl_bit(data, offset, GPIO_OEN_MASK,
+						  1 << GPIO_OEN_SHIFT);
 
 	return ret;
 }
@@ -172,7 +189,6 @@ static int s2mpg1x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 {
 	struct s2mpg1x_gpio *gc = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param = pinconf_to_config_param(*config);
-	u8 mask = BIT(pin);
 	u8 data;
 	u32 argument = 0;
 	int ret;
@@ -180,40 +196,36 @@ static int s2mpg1x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 		ret = s2mpg1x_read_reg(gc->id, gc->i2c,
-				       GPIO_CTRL_BASE[gc->id] +
-				       GPIO_CTRL4_OFFSET,
+				       GPIO_CTRL_BASE[gc->id] + pin,
 				       &data);
 		if (ret)
 			return ret;
-		if (data & mask)
+		if (data & GPIO_PD_MASK)
 			return -EINVAL;
 		ret = s2mpg1x_read_reg(gc->id, gc->i2c,
-				       GPIO_CTRL_BASE[gc->id] +
-				       GPIO_CTRL5_OFFSET,
+				       GPIO_CTRL_BASE[gc->id] + pin,
 				       &data);
 		if (ret)
 			return ret;
-		if (data & mask)
+		if (data & GPIO_PU_MASK)
 			return -EINVAL;
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		ret = s2mpg1x_read_reg(gc->id, gc->i2c,
-				       GPIO_CTRL_BASE[gc->id] +
-				       GPIO_CTRL4_OFFSET,
+				       GPIO_CTRL_BASE[gc->id] + pin,
 				       &data);
 		if (ret)
 			return ret;
-		if (!(data & mask))
+		if (!(data & GPIO_PD_MASK))
 			return -EINVAL;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		ret = s2mpg1x_read_reg(gc->id, gc->i2c,
-				       GPIO_CTRL_BASE[gc->id] +
-				       GPIO_CTRL5_OFFSET,
+				       GPIO_CTRL_BASE[gc->id] + pin,
 				       &data);
 		if (ret)
 			return ret;
-		if (!(data & mask))
+		if (!(data & GPIO_PU_MASK))
 			return -EINVAL;
 		break;
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
@@ -221,33 +233,30 @@ static int s2mpg1x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		ret = s2mpg1x_read_reg(gc->id, gc->i2c,
-				       GPIO_CTRL_BASE[gc->id] +
-				       GPIO_CTRL6_OFFSET,
+				       GPIO_CTRL_BASE[gc->id] + pin,
 				       &data);
 		if (ret)
 			return ret;
-		argument = (data & mask) ? 4 : 2;
+		argument = (data & GPIO_DRV_STR_MASK) ? 4 : 2;
 		break;
 	case PIN_CONFIG_INPUT_ENABLE:
 		// do nothing
 		break;
 	case PIN_CONFIG_OUTPUT:
 		ret = s2mpg1x_read_reg(gc->id, gc->i2c,
-				       GPIO_CTRL_BASE[gc->id] +
-				       GPIO_CTRL2_OFFSET,
+				       GPIO_CTRL_BASE[gc->id] + pin,
 				       &data);
 		if (ret)
 			return ret;
-		argument = !!(data & mask);
+		argument = !!(data & GPIO_OUT_MASK);
 		break;
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		ret = s2mpg1x_read_reg(gc->id, gc->i2c,
-				       GPIO_CTRL_BASE[gc->id] +
-				       GPIO_CTRL3_OFFSET,
+				       GPIO_CTRL_BASE[gc->id] + pin,
 				       &data);
 		if (ret)
 			return ret;
-		if (!(data & mask))
+		if (!(data & GPIO_OEN_MASK))
 			return -EINVAL;
 		break;
 	default:
@@ -263,7 +272,6 @@ static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			       unsigned long *configs, unsigned int num_configs)
 {
 	struct s2mpg1x_gpio *gc = pinctrl_dev_get_drvdata(pctldev);
-	u8 mask = BIT(pin);
 	u8 data;
 	unsigned int i;
 	int ret;
@@ -277,31 +285,27 @@ static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
 			ret = s2mpg1x_update_reg(gc->id, gc->i2c,
-						 GPIO_CTRL_BASE[gc->id] +
-							 GPIO_CTRL4_OFFSET,
-						 0, mask);
+						 GPIO_CTRL_BASE[gc->id] + pin,
+						 0, GPIO_PD_MASK);
 			if (ret)
 				return ret;
 			ret = s2mpg1x_update_reg(gc->id, gc->i2c,
-						 GPIO_CTRL_BASE[gc->id] +
-							 GPIO_CTRL5_OFFSET,
-						 0, mask);
+						 GPIO_CTRL_BASE[gc->id] + pin,
+						 0, GPIO_PU_MASK);
 			if (ret)
 				return ret;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			ret = s2mpg1x_update_reg(gc->id, gc->i2c,
-						 GPIO_CTRL_BASE[gc->id] +
-							 GPIO_CTRL4_OFFSET,
-						 mask, mask);
+						 GPIO_CTRL_BASE[gc->id] + pin,
+						 GPIO_PD_MASK, GPIO_PD_MASK);
 			if (ret)
 				return ret;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			ret = s2mpg1x_update_reg(gc->id, gc->i2c,
-						 GPIO_CTRL_BASE[gc->id] +
-							 GPIO_CTRL5_OFFSET,
-						 mask, mask);
+						 GPIO_CTRL_BASE[gc->id] + pin,
+						 GPIO_PU_MASK, GPIO_PU_MASK);
 			if (ret)
 				return ret;
 			break;
@@ -314,7 +318,7 @@ static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				data = 0;
 				break;
 			case 4:
-				data = BIT(pin);
+				data = GPIO_DRV_STR_MASK;
 				break;
 			default:
 				pr_err("Drive-strength %umA not supported\n",
@@ -322,9 +326,8 @@ static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return -ENOTSUPP;
 			}
 			ret = s2mpg1x_update_reg(gc->id, gc->i2c,
-						 GPIO_CTRL_BASE[gc->id] +
-							 GPIO_CTRL6_OFFSET,
-						 data, mask);
+						 GPIO_CTRL_BASE[gc->id] + pin,
+						 data, GPIO_DRV_STR_MASK);
 			if (ret)
 				return ret;
 			break;
@@ -333,21 +336,19 @@ static int s2mpg1x_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return -EINVAL;
 			break;
 		case PIN_CONFIG_OUTPUT:
-			data = argument ? BIT(pin) : 0;
+			data = argument ? GPIO_OUT_MASK : 0;
 			ret = s2mpg1x_update_reg(gc->id, gc->i2c,
-						 GPIO_CTRL_BASE[gc->id] +
-							 GPIO_CTRL2_OFFSET,
-						 data, mask);
+						 GPIO_CTRL_BASE[gc->id] + pin,
+						 data, GPIO_OUT_MASK);
 			if (ret)
 				return ret;
 			argument = 1;
 			fallthrough;
 		case PIN_CONFIG_OUTPUT_ENABLE:
-			data = argument ? BIT(pin) : 0;
+			data = argument ? GPIO_OEN_MASK : 0;
 			ret = s2mpg1x_update_reg(gc->id, gc->i2c,
-						 GPIO_CTRL_BASE[gc->id] +
-							 GPIO_CTRL3_OFFSET,
-						 data, mask);
+						 GPIO_CTRL_BASE[gc->id] + pin,
+						 data, GPIO_OEN_MASK);
 			if (ret)
 				return ret;
 			break;
@@ -420,17 +421,17 @@ static int s2mpg1x_gpio_probe(struct platform_device *pdev)
 
 	s2mpg1x_gpio->id = pdev->id_entry->driver_data;
 	switch (s2mpg1x_gpio->id) {
-	case ID_S2MPG10:
-		s2mpg1x_gpio->i2c = ((struct s2mpg10_dev *)kbdev_parent)->pmic;
-		pinctrl_of_name = "s2mpg10_pinctrl";
-		s2mpg1x_gpio->pctrl.pins = s2mpg10_pins;
-		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpg10_pins);
+	case ID_S2MPG12:
+		s2mpg1x_gpio->i2c = ((struct s2mpg12_dev *)kbdev_parent)->gpio;
+		pinctrl_of_name = "s2mpg12_pinctrl";
+		s2mpg1x_gpio->pctrl.pins = s2mpg12_pins;
+		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpg12_pins);
 		break;
-	case ID_S2MPG11:
-		s2mpg1x_gpio->i2c = ((struct s2mpg11_dev *)kbdev_parent)->pmic;
-		pinctrl_of_name = "s2mpg11_pinctrl";
-		s2mpg1x_gpio->pctrl.pins = s2mpg11_pins;
-		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpg11_pins);
+	case ID_S2MPG13:
+		s2mpg1x_gpio->i2c = ((struct s2mpg13_dev *)kbdev_parent)->gpio;
+		pinctrl_of_name = "s2mpg13_pinctrl";
+		s2mpg1x_gpio->pctrl.pins = s2mpg13_pins;
+		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpg13_pins);
 		break;
 	default:
 		return -EINVAL;
@@ -526,8 +527,8 @@ static int s2mpg1x_gpio_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id s2mpg1x_gpio_id[] = {
-	{ "s2mpg10_gpio", ID_S2MPG10 },
-	{ "s2mpg11_gpio", ID_S2MPG11 },
+	{ "s2mpg12_gpio", ID_S2MPG12 },
+	{ "s2mpg13_gpio", ID_S2MPG13 },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, s2mpg1x_gpio_id);
@@ -554,6 +555,6 @@ static void __exit s2mpg1x_gpio_exit(void)
 }
 module_exit(s2mpg1x_gpio_exit);
 
-MODULE_DESCRIPTION("S2MPG10 S2MPG11 GPIO Driver");
+MODULE_DESCRIPTION("S2MPG12 S2MPG13 GPIO Driver");
 MODULE_AUTHOR("Thierry Strudel <tstrudel@google.com>");
 MODULE_LICENSE("GPL");
