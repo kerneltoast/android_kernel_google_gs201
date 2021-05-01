@@ -32,6 +32,8 @@ struct bc12_status {
 	struct mutex lock;
 	struct power_supply *usb_psy;
 	bool retry_done;
+	/* Tracks whether BC12 is enabled */
+	bool enable;
 };
 
 struct bc12_update {
@@ -79,7 +81,7 @@ static void vendor_bc12_alert(struct work_struct *work)
 		 */
 		if (update->vendor_bc_status1 & DCDTMO) {
 			logbuffer_log(plat->log, "BC12: DCD timeout occurred.");
-			if (!bc12->retry_done) {
+			if (!bc12->retry_done && bc12->enable) {
 				ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL1, CHGDETMAN,
 							    CHGDETMAN);
 				logbuffer_log(plat->log, "BC12: Manual detection triggered: %d",
@@ -159,6 +161,25 @@ void bc12_reset_retry(struct bc12_status *bc12)
 	bc12->retry_done = false;
 }
 EXPORT_SYMBOL_GPL(bc12_reset_retry);
+
+void bc12_enable(struct bc12_status *bc12, bool enable)
+{
+	int ret;
+	struct max77759_plat *plat = bc12->chip;
+	struct regmap *regmap = plat->data.regmap;
+
+	ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL1, CHGDETEN, CHGDETEN);
+	logbuffer_log(plat->log, "BC12: %s ret: %d", enable ? "enabled" : "disabled", ret);
+	if (!ret)
+		bc12->enable = enable;
+}
+EXPORT_SYMBOL_GPL(bc12_enable);
+
+bool bc12_get_status(struct bc12_status *bc12)
+{
+	return bc12->enable;
+}
+EXPORT_SYMBOL_GPL(bc12_get_status);
 
 /*
  * Call during disconnect to clear the chg_typ

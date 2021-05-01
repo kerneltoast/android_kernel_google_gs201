@@ -41,6 +41,8 @@ struct bc12_status *bc12_init(struct max77759_plat *plat);
 void process_bc12_alert(struct bc12_status *bc12, u8 vendor_alert1_status);
 void bc12_reset_retry(struct bc12_status *bc12);
 void bc12_teardown(struct bc12_status *bc12);
+void bc12_enable(struct bc12_status *bc12, bool enable);
+bool bc12_get_status(struct bc12_status *bc12);
 
 #endif /*__BC_MAX77759_H */
 
