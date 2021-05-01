@@ -125,6 +125,14 @@ static ssize_t auto_discharge_show(struct device *dev, struct device_attribute *
 };
 static DEVICE_ATTR_RO(auto_discharge);
 
+static ssize_t bc12_enabled_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bc12_get_status(chip->bc12) ? 1 : 0);
+};
+static DEVICE_ATTR_RO(bc12_enabled);
+
 static ssize_t contaminant_detection_show(struct device *dev, struct device_attribute *attr,
 					  char *buf)
 {
@@ -211,6 +219,7 @@ static DEVICE_ATTR_RO(contaminant_detection_status);
 
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
+	&dev_attr_bc12_enabled,
 	&dev_attr_auto_discharge,
 	&dev_attr_contaminant_detection,
 	&dev_attr_contaminant_detection_status,
@@ -463,6 +472,9 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 			logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
 				      "success");
 		}
+		/* Disable BC1.2 to prevent BC1.2 detection during PR_SWAP */
+		bc12_enable(chip->bc12, false);
+
 		ret = extcon_set_state_sync(chip->extcon, chip->data_role == TYPEC_HOST ?
 					    EXTCON_USB_HOST : EXTCON_USB, 1);
 		logbuffer_log(chip->log, "%s turning on %s", ret < 0 ? "Failed" : "Succeeded",
@@ -951,6 +963,9 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 		gpio_set_value_cansleep(chip->in_switch_gpio, 1);
 		chip->first_toggle = false;
 	}
+
+	/* Renable BC1.2*/
+	bc12_enable(chip->bc12, true);
 
 	/* Re-enable retry */
 	bc12_reset_retry(chip->bc12);
