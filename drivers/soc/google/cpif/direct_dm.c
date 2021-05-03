@@ -230,7 +230,7 @@ static void direct_dm_usb_completion_noti(void *addr, int length, void *arg)
 	dc->stat.usb_complete_cnt++;
 
 	paddr = virt_to_phys(addr);
-	if (paddr - dc->buff_pbase < 0) {
+	if (paddr < dc->buff_pbase) {
 		mif_err_limited("addr error:0x%lx 0x%lx 0x%lx 0x%x\n",
 			addr, paddr, dc->buff_pbase, dc->buff_rgn_offset);
 		dc->stat.err_usb_complete++;
