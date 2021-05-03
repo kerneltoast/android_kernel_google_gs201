@@ -27,6 +27,7 @@
 #define TCPC_EXTENDED_STATUS_VSAFE0V            BIT(0)
 
 #define TCPC_VENDOR_ALERT                       0x80
+#define TCPC_VENDOR_ALERT2			0x81
 #define TCPC_VENDOR_ALERT_MASK			0x82
 
 #define TCPC_VENDOR_ALERT_MASK2			0x83

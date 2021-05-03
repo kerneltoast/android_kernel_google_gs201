@@ -21,27 +21,10 @@ function build_gki {
     DIST_DIR=${DIST_DIR} \
     LTO=${LTO} \
     KMI_SYMBOL_LIST_STRICT_MODE=${ENABLE_STRICT_KMI} \
+    TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI} \
     BUILD_CONFIG=${KERNEL_BUILD_CONFIG} \
     build/build.sh KCFLAGS=-Werror "$@"
   exit_if_error $? "Failed to compile ${KERNEL_OUT_DIR}"
-}
-
-function build_abi {
-  echo "Building device kernel for ABI..."
-  # LTO=full is required for building ABI, and we must build the full kernel.
-  BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
-    OUT_DIR=${BASE_OUT}/device-kernel/ \
-    DIST_DIR=${DIST_DIR} \
-    LTO=full \
-    MIXED_BUILD= \
-    KBUILD_MIXED_TREE= \
-    build/build_abi.sh --update KCFLAGS=-Werror "$@"
-  exit_if_error $? "Failed to compile device kernel"
-
-  # Strip symbols from the _core symbol list
-  grep "^ " private/gs-google/android/abi_gki_aarch64_core | while read l; do
-    sed -i "/\<$l\>/d" private/gs-google/android/abi_gki_aarch64_generic
-  done
 }
 
 function build_pixel {
@@ -52,12 +35,13 @@ function build_pixel {
     LTO=${LTO} \
     MIXED_BUILD=1 \
     KBUILD_MIXED_TREE=${GKI_BINARIES_DIR} \
+    KMI_SYMBOL_LIST_STRICT_MODE=${ENABLE_STRICT_KMI} \
+    TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI} \
     build/build.sh KCFLAGS=-Werror "$@"
   exit_if_error $? "Failed to compile device kernel"
 }
 
 EXPERIMENTAL_BUILD=${EXPERIMENTAL_BUILD:-0}
-BUILD_ABI=${BUILD_ABI:-0}
 BASE_OUT=${OUT_DIR:-out}/mixed/
 DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
 LTO=${LTO:-thin}
@@ -65,6 +49,7 @@ GKI_BINARIES_DIR=$(readlink -m ${DIST_DIR})
 GKI_PREBUILTS_DIR=$(readlink -m "prebuilts/boot-artifacts/kernel/")
 DEFAULT_CONFIG="private/gs-google/build.config.slider"
 DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG:-${DEFAULT_CONFIG}}
+TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
 if [ -z "${BUILD_KERNEL}" ]; then
   if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
     BUILD_KERNEL=1
@@ -76,7 +61,7 @@ fi
 if [ "${LTO}" = "none" ]; then
   ENABLE_STRICT_KMI=0
 else
-  ENABLE_STRICT_KMI=1
+  ENABLE_STRICT_KMI=${ENABLE_STRICT_KMI:-1}
 fi
 
 if [ "${EXPERIMENTAL_BUILD}" != "0" ]; then
@@ -87,29 +72,46 @@ else
   KERNEL_BUILD_CONFIG=aosp/build.config.gki.aarch64
 fi
 
+if [ -n "${BUILD_ABI}" ]; then
+  echo "The ABI update workflow has changed. Please read go/gki-p21-workflow"
+  echo "  for instructions on updating ABI/symbol list."
+  exit_if_error 1 "BUILD_ABI is deprecated"
+fi
+
 if [ -n "${BUILD_CONFIG}" ]; then
-  err_msg="setting BUILD_CONFIG is not supported for $0
-  usage: $0
-  See build.sh for supported configs"
-  exit_if_error 1 "${err_msg}"
+  exit_if_error 1 "BUILD_CONFIG is not supported for $0"
 fi
 
-if [ "${BUILD_KERNEL}" = "0" -a "${EXPERIMENTAL_BUILD}" != "0" ]; then
-  exit_if_error 1 "BUILD_KERNEL=0 is incompatible with EXPERIMENTAL_BUILD"
-fi
-
-if [ "${LTO}" = "none" -a "${BUILD_KERNEL}" = "0" ]; then
-  exit_if_error 1 "LTO=none requires BUILD_KERNEL=1 or EXPERIMENTAL_BUILD=1"
-fi
-
-
-if [ "${BUILD_ABI}" != "0" ]; then
-  build_abi
-else
-  if [ "${BUILD_KERNEL}" != "0" -o "${EXPERIMENTAL_BUILD}" != "0" ]; then
-    build_gki
-  else
-    copy_gki_prebuilts
+if [ "${BUILD_KERNEL}" = "0" ]; then
+  if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
+    echo "BUILD_KERNEL=0 is incompatible with EXPERIMENTAL_BUILD=1 and"
+    echo "  GKI_DEFCONFIG_FRAGMENT."
+    exit_if_error 1 "Flags incompatible with BUILD_KERNEL=0 detected"
+  elif [ "${LTO}" = "none" ]; then
+    echo "LTO=none requires BUILD_KERNEL=1, EXPERIMENTAL_BUILD=1, or"
+    echo "  GKI_DEFCONFIG_FRAGMENT to be set."
+    exit_if_error 1 "LTO=none requires building the kernel"
   fi
-  build_pixel
 fi
+
+if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
+  pushd aosp/ > /dev/null
+    # Booting AOSP ToT does not always work; throw a warning to prevent this.
+    REPO_SHA=$(git log -1 --pretty="format:%H" m/s-dev-gs-pixel-5.10)
+    LOCAL_MERGE_BASE=$(git merge-base HEAD aosp/android12-5.10)
+    if [ "${REPO_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
+      echo "Your aosp/ directory appears to be synced to a point beyond the"
+      echo "  latest AOSP merge point. This is not supported, currently, as"
+      echo "  it is prone to errors. Please base any changes on"
+      echo "  m/s-dev-gs-pixel-5.10."
+      exit_if_error 1 "aosp/ is not based on m/s-dev-gs-pixel-5.10"
+    fi
+  popd > /dev/null
+fi
+
+if [ "${BUILD_KERNEL}" != "0" -o "${EXPERIMENTAL_BUILD}" != "0" ]; then
+  build_gki
+else
+  copy_gki_prebuilts
+fi
+build_pixel

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Thermal differences between Raviole EVT1.1 and Raviole EVT.
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+&gs101_tm1 {
+	/* Disable usb_pwr_therm. */
+	adc_chan_en = /bits/ 8 <0xb7>;
+};
+
+&pca9468_dc {
+	/* USBC thermal zone */
+	google,usb-port-tz-name = "usbc-therm-adc";
+};

@@ -38,9 +38,10 @@
 #endif
 #include <soc/google/exynos-cpuhp.h>
 
+#include <trace/events/power.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_exynos.h>
-#include <trace/events/power.h>
 
 #define EXYNOS_GPU_TMU_GRP_ID		(3)
 

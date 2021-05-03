@@ -688,10 +688,10 @@ static int battery_supply_callback(struct notifier_block *nb,
 
 	bcl_psy = gs101_bcl_device->batt_psy;
 
-	if (!bcl_psy)
+	if (!bcl_psy || event != PSY_EVENT_PROP_CHANGED)
 		return NOTIFY_OK;
 
-	if (strcmp(psy->desc->name, bcl_psy->desc->name) == 0)
+	if (!strcmp(psy->desc->name, bcl_psy->desc->name))
 		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
 
 	return NOTIFY_OK;
@@ -1914,13 +1914,8 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	bcl_dev->device = &pdev->dev;
 	bcl_dev->iodev = dev_get_drvdata(pdev->dev.parent);
-	platform_set_drvdata(pdev, bcl_dev);
 	np = bcl_dev->device->of_node;
 	bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
-	bcl_dev->psy_nb.notifier_call = battery_supply_callback;
-	ret = power_supply_reg_notifier(&bcl_dev->psy_nb);
-	if (ret < 0)
-		dev_err(bcl_dev->device, "soc notifier registration error. defer. err:%d\n", ret);
 	bcl_dev->soc_tzd = thermal_zone_of_sensor_register(bcl_dev->device, PMIC_SOC, bcl_dev,
 							   &bcl_dev->soc_ops);
 	if (IS_ERR(bcl_dev->soc_tzd)) {
@@ -1946,6 +1941,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&bcl_dev->s2mpg11_irq_work[IRQ_OCP_WARN_GPU], gs101_gpu_warn_work);
 	INIT_DELAYED_WORK(&bcl_dev->s2mpg11_irq_work[IRQ_SOFT_OCP_WARN_GPU],
 			  gs101_soft_gpu_warn_work);
+	platform_set_drvdata(pdev, bcl_dev);
 	root = debugfs_lookup("gs101-bcl", NULL);
 	if (!root) {
 		bcl_dev->debug_entry = debugfs_create_dir("gs101-bcl", 0);
@@ -2016,36 +2012,40 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		mutex_init(&bcl_dev->s2mpg11_irq_lock[i]);
 	}
 	if (!IS_ERR(bcl_dev->soc_tzd)) {
+		bcl_dev->psy_nb.notifier_call = battery_supply_callback;
+		ret = power_supply_reg_notifier(&bcl_dev->psy_nb);
+		if (ret < 0)
+			dev_err(bcl_dev->device,
+				"soc notifier registration error. defer. err:%d\n", ret);
 		thermal_zone_device_update(bcl_dev->soc_tzd, THERMAL_DEVICE_UP);
-		schedule_delayed_work(&bcl_dev->soc_eval_work, 2000);
 	}
 	google_gs101_set_throttling(bcl_dev);
 	google_gs101_set_main_pmic(bcl_dev);
 	google_gs101_set_sub_pmic(bcl_dev);
-	bcl_dev->device = pmic_device_create(bcl_dev, "mitigation");
-	ret = device_create_file(bcl_dev->device, &dev_attr_triggered_stats);
+	bcl_dev->mitigation_dev = pmic_device_create(bcl_dev, "mitigation");
+	ret = device_create_file(bcl_dev->mitigation_dev, &dev_attr_triggered_stats);
 	if (ret) {
-		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+		dev_err(bcl_dev->mitigation_dev, "gs101_bcl: failed to create device file, %s\n",
 			dev_attr_triggered_stats.attr.name);
 	}
-	ret = device_create_file(bcl_dev->device, &dev_attr_mpmm_settings);
+	ret = device_create_file(bcl_dev->mitigation_dev, &dev_attr_mpmm_settings);
 	if (ret) {
-		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+		dev_err(bcl_dev->mitigation_dev, "gs101_bcl: failed to create device file, %s\n",
 			dev_attr_mpmm_settings.attr.name);
 	}
-	ret = device_create_file(bcl_dev->device, &dev_attr_ppm_settings);
+	ret = device_create_file(bcl_dev->mitigation_dev, &dev_attr_ppm_settings);
 	if (ret) {
-		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+		dev_err(bcl_dev->mitigation_dev, "gs101_bcl: failed to create device file, %s\n",
 			dev_attr_ppm_settings.attr.name);
 	}
-	ret = device_create_file(bcl_dev->device, &dev_attr_clk_ratio);
+	ret = device_create_file(bcl_dev->mitigation_dev, &dev_attr_clk_ratio);
 	if (ret) {
-		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+		dev_err(bcl_dev->mitigation_dev, "gs101_bcl: failed to create device file, %s\n",
 			dev_attr_clk_ratio.attr.name);
 	}
-	ret = device_create_file(bcl_dev->device, &dev_attr_clk_stats);
+	ret = device_create_file(bcl_dev->mitigation_dev, &dev_attr_clk_stats);
 	if (ret) {
-		dev_err(bcl_dev->device, "gs101_bcl: failed to create device file, %s\n",
+		dev_err(bcl_dev->mitigation_dev, "gs101_bcl: failed to create device file, %s\n",
 			dev_attr_clk_stats.attr.name);
 	}
 	ret = of_property_read_u32(np, "tpu_con_heavy", &val);

@@ -55,6 +55,9 @@
 #include "pcie-exynos-rc.h"
 #include "pcie-exynos-dbg.h"
 
+#include <linux/dma-map-ops.h>
+#include <soc/google/s2mpu.h>
+
 struct exynos_pcie g_pcie_rc[MAX_RC_NUM];
 int pcie_is_linkup;	/* checkpatch: do not initialise globals to 0 */
 /* currnet_cnt & current_cnt2 for EOM test */
@@ -65,6 +68,204 @@ static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp);
 
 #if IS_ENABLED(CONFIG_PM_DEVFREQ)
 static struct exynos_pm_qos_request exynos_pcie_int_qos[MAX_RC_NUM];
+#endif
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+static const struct dma_map_ops gs101_pcie_dma_ops;
+static struct device fake_dma_dev;
+static unsigned char *s2mpu_refcnt_array;
+
+#define WIFI_CH_NUM     1
+#define ALIGN_SIZE	0x1000UL
+#define MEM1_START_ADDR	0x80000000UL
+#define MEM1_END_ADDR	0xffffffffUL
+#define MEM2_START_ADDR	0x880000000UL
+#define MEM2_END_ADDR	0x9ffffffffUL
+#define MEM2_INDEX_START ((MEM1_END_ADDR + 1 - MEM1_START_ADDR) / ALIGN_SIZE)
+#define REF_COUNT_UNDERFLOW 255
+#endif
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+
+int s2mpu_get_refcnt_index(phys_addr_t addr)
+{
+	int index = -1;
+
+	if (addr >= MEM1_START_ADDR && addr <= MEM1_END_ADDR) {
+		index = (addr - MEM1_START_ADDR) / ALIGN_SIZE;
+	} else if ((addr >= MEM2_START_ADDR) && (addr <= MEM2_END_ADDR)) {
+		index = MEM2_INDEX_START
+			+ ((addr - MEM2_START_ADDR) / ALIGN_SIZE);
+	}
+
+	return index;
+}
+
+void s2mpu_get_alignment(dma_addr_t addr, size_t size,
+			 phys_addr_t *align_addr, size_t *align_size)
+{
+	*align_addr = ALIGN_DOWN(addr, ALIGN_SIZE);
+	*align_size = ALIGN(addr - *align_addr + size, ALIGN_SIZE);
+}
+
+unsigned char s2mpu_get_and_modify(struct exynos_pcie *exynos_pcie,
+				   unsigned char *refcnt_ptr,
+				   bool inc)
+{
+	unsigned char val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&exynos_pcie->s2mpu_refcnt_lock, flags);
+	val = (*refcnt_ptr);
+	if (inc) {
+		val++;
+		*refcnt_ptr = val;
+	} else {
+		// Check for underflow. Should never happen.
+		if (val == 0) {
+			val = REF_COUNT_UNDERFLOW;
+		} else {
+			val--;
+			*refcnt_ptr = val;
+		}
+	}
+	spin_unlock_irqrestore(&exynos_pcie->s2mpu_refcnt_lock, flags);
+	return val;
+}
+
+void s2mpu_update_refcnt(struct device *dev,
+			 dma_addr_t dma_addr, size_t size, bool incr)
+{
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[WIFI_CH_NUM];
+	phys_addr_t align_addr;
+	size_t align_size;
+	unsigned char *refcnt_ptr;
+	int index;
+	int ret;
+	unsigned char refcnt;
+
+	/* Align to 4K as required by S2MPU */
+	s2mpu_get_alignment(dma_addr, size, &align_addr, &align_size);
+
+	/* Get the index into the ref count array used to keep track of
+	 * the number of map and unmap calls for 4K blocks
+	 * needed by the S2MPU.
+	 * This is needed because there may be a few skbs within one 4K
+	 * aligned block and we need to ensure that we don't prematurely
+	 * disable access to this skb by calling s2mpu_close.
+	 */
+	index = s2mpu_get_refcnt_index(align_addr);
+
+	if (index < 0) {
+		dev_err(dev,
+			"index failed  addr=%pad, size=%zx\n",
+			&dma_addr, size);
+		return;
+	}
+
+	refcnt_ptr = s2mpu_refcnt_array + index;
+
+	while (align_size != 0) {
+		if (incr) {
+			refcnt = s2mpu_get_and_modify(exynos_pcie, refcnt_ptr,
+						      true);
+			if (refcnt == 1) {
+				ret = s2mpu_open(exynos_pcie->s2mpu,
+						 align_addr,
+						 ALIGN_SIZE);
+				if (ret) {
+					dev_err(dev,
+						"s2mpu_open failed addr=%pad, size=%zx\n",
+						&dma_addr, size);
+				}
+			}
+		} else {
+			refcnt = s2mpu_get_and_modify(exynos_pcie, refcnt_ptr,
+						      false);
+			if (refcnt == REF_COUNT_UNDERFLOW) {
+				dev_err(dev, "Error underflow in refcount\n");
+				return;
+			}
+			if (refcnt == 0) {
+				ret = s2mpu_close(exynos_pcie->s2mpu,
+						  align_addr,
+						  ALIGN_SIZE);
+				if (ret) {
+					dev_err(dev,
+						"s2mpu_close failed addr=%pad, size=%zx\n",
+						&dma_addr, size);
+				}
+			}
+		}
+
+		align_addr += ALIGN_SIZE;
+		align_size -= ALIGN_SIZE;
+		refcnt_ptr++;
+	}
+}
+
+static void *gs101_pcie_dma_alloc_attrs(struct device *dev, size_t size,
+					dma_addr_t *dma_handle, gfp_t flag,
+					unsigned long attrs)
+{
+	void *cpu_addr;
+
+	cpu_addr = dma_alloc_attrs(&fake_dma_dev, size,
+				   dma_handle, flag, attrs);
+	s2mpu_update_refcnt(dev, *dma_handle, size, true);
+	return cpu_addr;
+}
+
+static void gs101_pcie_dma_free_attrs(struct device *dev, size_t size,
+				      void *cpu_addr, dma_addr_t dma_addr,
+				      unsigned long attrs)
+{
+	dma_free_attrs(&fake_dma_dev, size, cpu_addr, dma_addr, attrs);
+	s2mpu_update_refcnt(dev, dma_addr, size, false);
+}
+
+static dma_addr_t gs101_pcie_dma_map_page(struct device *dev, struct page *page,
+					  size_t offset, size_t size,
+					  enum dma_data_direction dir,
+					  unsigned long attrs)
+{
+	dma_addr_t dma_addr;
+
+	dma_addr = dma_map_page_attrs(&fake_dma_dev, page, offset,
+				      size, dir, attrs);
+	s2mpu_update_refcnt(dev, dma_addr, size, true);
+	return dma_addr;
+}
+
+static void gs101_pcie_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
+				      size_t size, enum dma_data_direction dir,
+				      unsigned long attrs)
+{
+	dma_unmap_page_attrs(&fake_dma_dev, dma_addr, size, dir, attrs);
+	s2mpu_update_refcnt(dev, dma_addr, size, false);
+}
+
+static const struct dma_map_ops gs101_pcie_dma_ops = {
+	.alloc = gs101_pcie_dma_alloc_attrs,
+	.free = gs101_pcie_dma_free_attrs,
+	.mmap = NULL,
+	.get_sgtable = NULL,
+	.map_page = gs101_pcie_dma_map_page,
+	.unmap_page = gs101_pcie_dma_unmap_page,
+	.map_sg = NULL,
+	.unmap_sg = NULL,
+	.map_resource = NULL,
+	.unmap_resource = NULL,
+	.sync_single_for_cpu = NULL,
+	.sync_single_for_device = NULL,
+	.sync_sg_for_cpu = NULL,
+	.sync_sg_for_device = NULL,
+	.cache_sync = NULL,
+	.dma_supported = NULL,
+	.get_required_mask = NULL,
+	.max_mapping_size = NULL,
+	.get_merge_boundary = NULL,
+};
 #endif
 
 static int exynos_pcie_rc_get_phy_vreg_resource(struct exynos_pcie *exynos_pcie)
@@ -2594,6 +2795,15 @@ int exynos_pcie_rc_poweron(int ch_num)
 			}
 			exynos_pcie->pci_saved_configs =
 				pci_store_saved_state(exynos_pcie->pci_dev);
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+			if (exynos_pcie->s2mpu) {
+				exynos_pcie->ep_pci_dev = exynos_pcie_get_pci_dev(&pci->pp);
+				set_dma_ops(&exynos_pcie->ep_pci_dev->dev, &gs101_pcie_dma_ops);
+				dev_info(dev, "Wifi DMA operations are changed\n");
+			}
+#endif
+
 			exynos_pcie->probe_ok = 1;
 		} else if (exynos_pcie->probe_ok) {
 			if (exynos_pcie->use_msi) {
@@ -3578,6 +3788,7 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 	spin_lock_init(&exynos_pcie->conf_lock);
 	spin_lock_init(&exynos_pcie->power_stats_lock);
 	spin_lock_init(&exynos_pcie->reg_lock);
+	spin_lock_init(&exynos_pcie->s2mpu_refcnt_lock);
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
@@ -3678,6 +3889,11 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 	int ch_num;
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	struct device_node *s2mpu_dn;
+	phys_addr_t addr;
+	int gb_indx;
+#endif
 
 	dev_info(&pdev->dev, "## PCIe RC PROBE start\n");
 
@@ -3726,6 +3942,46 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
 	platform_set_drvdata(pdev, exynos_pcie);
 	power_stats_init(exynos_pcie);
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	s2mpu_dn = of_parse_phandle(np, "s2mpu", 0);
+	if (s2mpu_dn) {
+		s2mpu_refcnt_array = devm_kzalloc(&pdev->dev,
+						  8 * (SZ_1G / SZ_4K),
+						  GFP_KERNEL);
+
+		memcpy(&fake_dma_dev, &pdev->dev, sizeof(fake_dma_dev));
+		fake_dma_dev.dma_ops = NULL;
+
+		exynos_pcie->s2mpu = s2mpu_fwnode_to_info(&s2mpu_dn->fwnode);
+		if (!exynos_pcie->s2mpu) {
+			dev_err(&pdev->dev, "Failed to get S2MPU\n");
+			return -EPROBE_DEFER;
+		}
+
+		/* The following code is done to optimize S2MPU operation.
+		 * Changing s2mpu csr's at runtime, which would require a
+		 * spinlock and hence cause contention.
+		 * Performance cost of allocating new page tables at runtime.
+		 * TODO: Cleanup this implementation. b/186022538
+		 */
+
+		for (gb_indx = 0; gb_indx < 50; gb_indx++) {
+			if (gb_indx > 1 && gb_indx < 32) {
+				//Skip this region
+				continue;
+			}
+			addr = MEM1_START_ADDR + gb_indx * SZ_1G;
+			ret = s2mpu_close(exynos_pcie->s2mpu, addr, ALIGN_SIZE);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"Initial s2mpu_close failed addr = 0x%pad\n",
+					&addr);
+			}
+		}
+		dev_err(&pdev->dev, "successfully bound to S2MPU\n");
+	}
+#endif
 
 	/* parsing pcie dts data for exynos */
 	ret = exynos_pcie_rc_parse_dt(&pdev->dev, exynos_pcie);

@@ -38,7 +38,6 @@
 		clock-names = "nfc_ref_clk";
 		clocks = <&clock CLKOUT0>;
 		pmu_clk_pad = <0x3e80>;
-		st,clk_pinctrl;
 		status = "ok";
 	};
 };

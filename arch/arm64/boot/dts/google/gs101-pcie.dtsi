@@ -88,6 +88,7 @@
 		use-l1ss = "false";
 		pmu-offset = <0x3ec4>;
 		max-link-speed = <LINK_SPEED_GEN3>;
+		s2mpu = <&s2mpu_hsi2>;
 		status = "disabled";
 	};
 };

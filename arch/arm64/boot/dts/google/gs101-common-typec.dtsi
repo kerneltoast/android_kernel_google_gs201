@@ -96,6 +96,9 @@
 		compatible = "max20339ovp";
 		reg = <0x35>;
 
+		/* OVP interrupt on MW pmic GPIO6 */
+		max20339,irq-gpio = <&max777x9_gpio 5 GPIO_ACTIVE_LOW>;
+
 		/* LoadSwitch 1 and LoadSwitch 2 mapped as gpios.  */
 		max20339_gpio: max20339_gpio {
 			gpio-controller;
@@ -128,8 +131,9 @@
 			try-power-role = "sink";
 			self-powered;
 			op-sink-microwatt = <2600000>;
-			frs-typec-current = <FRS_5V_1P5A>;
+			new-source-frs-typec-current = <FRS_5V_1P5A>;
 			usb-role-switch;
+			slow-charger-loop;
 			/*
 			 * b/174044466: Extboost can only do ~1A.
 			 * However, max77759 operating in reverse boost

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Raven Proto 1.1 device tree source
+ * Raven Proto 1.1 device tree source overrides vs evt1
  *
  * Copyright 2021 Google,LLC
  */
@@ -8,7 +8,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "gs101-raven.dtsi"
+#include "gs101-raven-evt1.dtsi"
 #include "gs101-raviole-nfc-proto.dtsi"
 
 / {
