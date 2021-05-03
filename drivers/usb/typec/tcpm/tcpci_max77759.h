@@ -104,6 +104,9 @@ struct max77759_plat {
 	/* Notifier for orientation */
 	struct typec_switch *typec_sw;
 
+	/* Reflects whether BC1.2 is still running */
+	bool bc12_running;
+
 	/* EXT_BST_EN exposed as GPIO */
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio;

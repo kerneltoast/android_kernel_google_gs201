@@ -453,18 +453,19 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 	}
 
 	logbuffer_log(chip->log,
-		      "%s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
+		      "%s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u bc12_running:%u",
 		      __func__, chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
 		      chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
-		      chip->debug_acc_connected);
+		      chip->debug_acc_connected, chip->bc12_running ? 1 : 0);
 	dev_info(chip->dev,
-		 "TCPM_DEBUG %s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
+		 "TCPM_DEBUG %s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u bc12_running:%u",
 		 __func__, chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
 		 chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
-		 chip->debug_acc_connected);
+		 chip->debug_acc_connected, chip->bc12_running ? 1 : 0);
 
-	enable_data = chip->pd_data_capable || chip->no_bc_12 || chip->bc12_data_capable ||
-		chip->data_role == TYPEC_HOST || chip->debug_acc_connected;
+	enable_data = (chip->pd_data_capable || chip->no_bc_12 || chip->bc12_data_capable ||
+		       chip->data_role == TYPEC_HOST || chip->debug_acc_connected) &&
+		!chip->bc12_running;
 
 	if (chip->attached && enable_data && !chip->data_active) {
 		if (chip->data_role == TYPEC_HOST) {
@@ -1288,6 +1289,17 @@ void tcpm_put_partner_src_caps(u32 **src_pdo)
 }
 EXPORT_SYMBOL_GPL(tcpm_put_partner_src_caps);
 
+void max77759_bc12_is_running(struct max77759_plat *chip, bool running)
+{
+	if (chip) {
+		mutex_lock(&chip->data_path_lock);
+		chip->bc12_running = running;
+		if (!running)
+			enable_data_path_locked(chip);
+		mutex_unlock(&chip->data_path_lock);
+	}
+}
+
 static void max77759_set_port_data_capable(struct i2c_client *tcpc_client,
 					   enum power_supply_usb_type
 					   usb_type)
@@ -1704,7 +1716,7 @@ static int max77759_probe(struct i2c_client *client,
 	}
 
 	/* Defered probe returned until usb power supply showup.*/
-	chip->bc12 = bc12_init(chip);
+	chip->bc12 = bc12_init(chip, max77759_bc12_is_running);
 	if (IS_ERR_OR_NULL(chip->bc12)) {
 		ret = PTR_ERR(chip->bc12);
 		goto unreg_psy;
