@@ -1293,7 +1293,7 @@ static int eh_of_probe(struct platform_device *pdev)
 	eh_dev = eh_init(&pdev->dev, eh_default_fifo_size, mem->start,
 			 error_irq, quirks);
 	if (IS_ERR(eh_dev)) {
-		ret = -EINVAL;
+		ret = ERR_PTR(eh_dev);
 		goto err_eh_init;
 	}
 
