@@ -11,3 +11,6 @@ obj-$(CONFIG_VH_THERMAL)  += thermal/
 
 # vh/kernel/fs
 obj-$(CONFIG_VH_FS)	+= fs/
+
+# vh/kernel/cgroup
+obj-$(CONFIG_VH_CGROUP)	+= cgroup/
