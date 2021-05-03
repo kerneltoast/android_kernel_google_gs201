@@ -28,7 +28,7 @@
 		csr-phys = <0x17690000>;
 		csr-size = <0x10000>;
 		gsa-device = <&gsa>;
-		tpu_dvfs_table_size = <3 2>; /*<row col>*/
+		tpu_dvfs_table_size = <5 2>; /*<row col>*/
 		/* DVFS values calculated from average power with real-world workloads
 		* on B0
 		*/
@@ -37,9 +37,11 @@
 		 *    freq    power(mW)
 		 *----------------------------------
 		 */
-		   1066000    5452
-		    800000    3314
-		    500000    1507
+			1066000    5452
+			 800000    3314
+			 500000    1507
+			 226000     761
+			      0       0
 		>;
 		samsung,tzmp;
 	};
