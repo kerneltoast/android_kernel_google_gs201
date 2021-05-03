@@ -949,10 +949,8 @@ int direct_dm_create(struct platform_device *pdev)
 	return 0;
 
 error:
-	if (dc) {
-		devm_kfree(dev, dc);
-		dc = NULL;
-	}
+	devm_kfree(dev, dc);
+	dc = NULL;
 
 	mif_err("xxx\n");
 
