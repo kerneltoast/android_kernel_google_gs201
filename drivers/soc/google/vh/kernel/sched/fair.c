@@ -274,6 +274,7 @@ static inline unsigned long cpu_util_cfs_group_mod_no_est(struct rq *rq)
 	struct cfs_rq *cfs_rq, *pos;
 	unsigned long util = 0, unclamped_util = 0;
 	struct task_group *tg;
+	unsigned long scale_cpu = arch_scale_cpu_capacity(rq->cpu);
 
 	// cpu_util_cfs = root_util - subgroup_util_sum + throttled_subgroup_util_sum
 	for_each_leaf_cfs_rq_safe(rq, cfs_rq, pos) {
@@ -281,7 +282,7 @@ static inline unsigned long cpu_util_cfs_group_mod_no_est(struct rq *rq)
 			tg = cfs_rq->tg;
 			unclamped_util += cfs_rq->avg.util_avg;
 			util += min_t(unsigned long, READ_ONCE(cfs_rq->avg.util_avg),
-				tg->uclamp_req[UCLAMP_MAX].value);
+				cap_scale(tg->uclamp_req[UCLAMP_MAX].value, scale_cpu));
 		}
 	}
 
@@ -481,6 +482,7 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 	struct task_group *tg;
 	int delta = 0;
 	struct rq *rq = cpu_rq(cpu);
+	unsigned long scale_cpu = arch_scale_cpu_capacity(cpu);
 
 	if (task_cpu(p) == cpu && dst_cpu != cpu)
 		delta = -task_util(p);
@@ -499,7 +501,8 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 				group_util = READ_ONCE(cfs_rq->avg.util_avg);
 
 			unclamped_util += READ_ONCE(cfs_rq->avg.util_avg);
-			util += min_t(unsigned long, group_util, tg->uclamp_req[UCLAMP_MAX].value);
+			util += min_t(unsigned long, group_util,
+				cap_scale(tg->uclamp_req[UCLAMP_MAX].value, scale_cpu));
 		}
 	}
 
