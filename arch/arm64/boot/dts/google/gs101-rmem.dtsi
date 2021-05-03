@@ -86,10 +86,16 @@
 			rmem_index = <1>;
 		};
 
+		cp_rmem_1: cp_rmem_1 {
+			compatible = "exynos,modem_if";
+			reg = <0x0 0xE8000000 0x01C00000>;
+			rmem_index = <2>;
+		};
+
 		cp_rmem_2: cp_rmem_2 {
 			compatible = "exynos,modem_if";
-			reg = <0x0 0xE8000000 0x08000000>;
-			rmem_index = <2>;
+			reg = <0x0 0xEE000000 0x00400000>;
+			rmem_index = <3>;
 		};
 
 		debug_snapshot {
