@@ -155,7 +155,7 @@
 							  PCIE_CP_IRQ_IDX_4 PCIE_CP_IRQ_IDX_5>;
 				pktproc_use_buff_mng = <0>;
 				pktproc_desc_num_ratio_percent = <100>;
-				pktproc_use_napi = <0>;
+				pktproc_use_napi = <1>;
 				/* H/W IO cache coherency */
 				pktproc_use_hw_iocc = <1>;
 				pktproc_max_packet_size = <2048>;
