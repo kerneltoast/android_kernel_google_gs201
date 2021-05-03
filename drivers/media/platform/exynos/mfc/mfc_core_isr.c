@@ -849,6 +849,7 @@ static void __mfc_handle_frame_input(struct mfc_core *core,
 		mfc_err("failed in core_recover_buf_ctrls_val\n");
 
 	dec->consumed = 0;
+	dec->has_multiframe = 0;
 	dec->remained_size = 0;
 
 	mfc_clear_mb_flag(src_mb);
