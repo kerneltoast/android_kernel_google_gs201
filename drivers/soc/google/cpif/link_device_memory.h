@@ -391,7 +391,7 @@ struct mem_link_device {
 #define MAX_TABLE_COUNT 8
 
 struct clock_table_info {
-	char table_name[4];
+	char table_name[5];
 	u32 table_count;
 };
 
