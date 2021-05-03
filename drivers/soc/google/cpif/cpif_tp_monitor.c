@@ -1433,6 +1433,76 @@ static void tpmon_parse_protocol(struct tpmon_data *data)
 	}
 }
 
+static int tpmon_parse_cpufreq(struct tpmon_data *data)
+{
+#if IS_ENABLED(CONFIG_CPU_FREQ)
+	struct cpif_tpmon *tpmon = data->tpmon;
+	struct cpufreq_policy *policy;
+	int qos_type;
+
+	switch (data->target) {
+	case TPMON_TARGET_CPU_CL0:
+		data->extra_data = (void *)&tpmon->qos_req_cpu_cl0;
+		data->set_data = tpmon_set_cpu_freq;
+		qos_type = FREQ_QOS_MIN;
+		break;
+	case TPMON_TARGET_CPU_CL0_MAX:
+		data->extra_data = (void *)&tpmon->qos_req_cpu_cl0_max;
+		data->set_data = tpmon_set_cpu_freq;
+		qos_type = FREQ_QOS_MAX;
+		break;
+	case TPMON_TARGET_CPU_CL1:
+		data->extra_data = (void *)&tpmon->qos_req_cpu_cl1;
+		data->set_data = tpmon_set_cpu_freq;
+		qos_type = FREQ_QOS_MIN;
+		break;
+	case TPMON_TARGET_CPU_CL1_MAX:
+		data->extra_data = (void *)&tpmon->qos_req_cpu_cl1_max;
+		data->set_data = tpmon_set_cpu_freq;
+		qos_type = FREQ_QOS_MAX;
+		break;
+	case TPMON_TARGET_CPU_CL2:
+		data->extra_data = (void *)&tpmon->qos_req_cpu_cl2;
+		data->set_data = tpmon_set_cpu_freq;
+		qos_type = FREQ_QOS_MIN;
+		break;
+	case TPMON_TARGET_CPU_CL2_MAX:
+		data->extra_data = (void *)&tpmon->qos_req_cpu_cl2_max;
+		data->set_data = tpmon_set_cpu_freq;
+		qos_type = FREQ_QOS_MAX;
+		break;
+	default:
+		mif_err_limited("no target\n");
+		return -EINVAL;
+	}
+
+	if (tpmon->cpufreq_nb.notifier_call) {
+		mif_info("notifier_call is registered\n");
+		return 0;
+	}
+
+	policy = cpufreq_cpu_get(data->extra_idx);
+	if (!policy) {
+		mif_err_limited("cpufreq_cpu_get() error\n");
+		return -EINVAL;
+	}
+
+	if (policy->cpu == data->extra_idx) {
+		mif_info("freq_qos_add_request for cpu%d %d\n",
+			policy->cpu, qos_type);
+#if IS_ENABLED(CONFIG_ARM_FREQ_QOS_TRACER)
+		freq_qos_tracer_add_request(&policy->constraints,
+			data->extra_data, qos_type, PM_QOS_DEFAULT_VALUE);
+#else
+		freq_qos_add_request(&policy->constraints,
+			data->extra_data, qos_type, PM_QOS_DEFAULT_VALUE);
+#endif
+	}
+#endif /* CONFIG_CPU_FREQ */
+
+	return 0;
+}
+
 static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 {
 	struct device_node *tpmon_np = NULL;
@@ -1485,6 +1555,8 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 		data = &tpmon->data[count];
 		memset(data, 0, sizeof(struct tpmon_data));
 
+		data->tpmon = tpmon;
+
 		/* name */
 		ret = of_property_read_string(child_np, "tpmon,name",
 						(const char **)&data->name);
@@ -1499,6 +1571,16 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			mif_info("%s is not enabled:%d %d\n",
 					data->name, ret, data->enable);
 			continue;
+		}
+
+		/* extra_idx */
+		ret = of_property_read_u32(child_np, "tpmon,idx",
+				&data->extra_idx);
+		if (ret) {
+			mif_info("can not get tpmon,extra_idx:%s, %d %d %d %d\n",
+					data->name, data->measure, data->target,
+					ret, data->extra_idx);
+			return ret;
 		}
 
 		/* measure */
@@ -1600,43 +1682,20 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 
 #if IS_ENABLED(CONFIG_CPU_FREQ)
 		case TPMON_TARGET_CPU_CL0:
-			data->extra_data = (void *)&tpmon->qos_req_cpu_cl0;
-			data->set_data = tpmon_set_cpu_freq;
-			break;
 		case TPMON_TARGET_CPU_CL0_MAX:
-			data->extra_data = (void *)&tpmon->qos_req_cpu_cl0_max;
-			data->set_data = tpmon_set_cpu_freq;
-			break;
 		case TPMON_TARGET_CPU_CL1:
-			data->extra_data = (void *)&tpmon->qos_req_cpu_cl1;
-			data->set_data = tpmon_set_cpu_freq;
-			break;
 		case TPMON_TARGET_CPU_CL1_MAX:
-			data->extra_data = (void *)&tpmon->qos_req_cpu_cl1_max;
-			data->set_data = tpmon_set_cpu_freq;
-			break;
 		case TPMON_TARGET_CPU_CL2:
-			data->extra_data = (void *)&tpmon->qos_req_cpu_cl2;
-			data->set_data = tpmon_set_cpu_freq;
-			break;
 		case TPMON_TARGET_CPU_CL2_MAX:
-			data->extra_data = (void *)&tpmon->qos_req_cpu_cl2_max;
-			data->set_data = tpmon_set_cpu_freq;
+			ret = tpmon_parse_cpufreq(data);
+			if (ret)
+				continue;
 			break;
 #endif
+
 		default:
 			mif_err("%s target error:%d %d\n", data->name, count, data->target);
 			continue;
-		}
-
-		/* extra_idx */
-		ret = of_property_read_u32(child_np, "tpmon,idx",
-				&data->extra_idx);
-		if (ret) {
-			mif_info("can not get tpmon,extra_idx:%s, %d %d %d %d\n",
-					data->name, data->measure, data->target,
-					ret, data->extra_idx);
-			return ret;
 		}
 
 		/* threshold */
@@ -1688,8 +1747,6 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 		/* urgent */
 		of_property_read_u32(child_np, "tpmon,urgent", &data->urgent);
 
-		data->tpmon = tpmon;
-
 		spin_lock_irqsave(&tpmon->lock, flags);
 		list_add_tail(&data->data_node, &tpmon->data_list);
 		if (data->urgent)
@@ -1713,6 +1770,9 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 	struct cpif_tpmon *tpmon = &_tpmon;
 	struct mem_link_device *mld = ld_to_mem_link_device(ld);
 	int ret = 0;
+#if IS_ENABLED(CONFIG_CPU_FREQ)
+	struct cpufreq_policy pol;
+#endif
 
 	if (!np) {
 		mif_err("np is null\n");
@@ -1736,6 +1796,14 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 	INIT_LIST_HEAD(&tpmon->data_list);
 	INIT_LIST_HEAD(&tpmon->urgent_data_list);
 
+#if IS_ENABLED(CONFIG_CPU_FREQ)
+	if (cpufreq_get_policy(&pol, 0) != 0) {
+		mif_info("register cpufreq notifier\n");
+		tpmon->cpufreq_nb.notifier_call = tpmon_cpufreq_nb;
+		cpufreq_register_notifier(&tpmon->cpufreq_nb, CPUFREQ_POLICY_NOTIFIER);
+	}
+#endif
+
 	ret = tpmon_parse_dt(np, tpmon);
 	if (ret) {
 		mif_err("tpmon_parse_dt() error:%d\n", ret);
@@ -1751,11 +1819,6 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 	exynos_pm_qos_add_request(&tpmon->qos_req_int, PM_QOS_DEVICE_THROUGHPUT, 0);
 	exynos_pm_qos_add_request(&tpmon->qos_req_int_max, PM_QOS_DEVICE_THROUGHPUT_MAX,
 			PM_QOS_DEVICE_THROUGHPUT_MAX_DEFAULT_VALUE);
-#endif
-
-#if IS_ENABLED(CONFIG_CPU_FREQ)
-	tpmon->cpufreq_nb.notifier_call = tpmon_cpufreq_nb;
-	cpufreq_register_notifier(&tpmon->cpufreq_nb, CPUFREQ_POLICY_NOTIFIER);
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)
