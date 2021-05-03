@@ -449,6 +449,11 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 			mfc_debug(2, "[QoS] framerate changed\n");
 		}
 
+		if (dec->has_multiframe) {
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_MULTIFRAME);
+			mfc_debug(2, "[MULTIFRAME] multiframe detected\n");
+		}
+
 		if (ctx->dst_fmt->mem_planes == 1) {
 			vb2_set_plane_payload(&dst_mb->vb.vb2_buf, 0,
 					raw->total_plane_size);
@@ -460,6 +465,7 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 						raw->plane_size[i]);
 			}
 		}
+
 		dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 					V4L2_BUF_FLAG_PFRAME |
 					V4L2_BUF_FLAG_BFRAME |
@@ -1032,6 +1038,10 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 		__mfc_handle_frame_copy_timestamp(core_ctx,
 				mfc_core_get_dec_y_addr());
 
+	/* Mark source buffer as complete */
+	if (dst_frame_status != MFC_REG_DEC_STATUS_DISPLAY_ONLY)
+		__mfc_handle_frame_input(core, ctx, err);
+
 	/* A frame has been decoded and is in the buffer  */
 	if (mfc_dec_status_display(dst_frame_status))
 		mfc_buf = __mfc_handle_frame_output(core, ctx, err);
@@ -1061,10 +1071,6 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 			mfc_debug(2, "[REFINFO] Released FD = %d will update with display buffer\n",
 					dec->ref_buf[i].fd[0]);
 	}
-
-	/* Mark source buffer as complete */
-	if (dst_frame_status != MFC_REG_DEC_STATUS_DISPLAY_ONLY)
-		__mfc_handle_frame_input(core, ctx, err);
 
 	if (regression_option & MFC_TEST_DEC_PER_FRAME)
 		mfc_core_dec_save_regression_result(core);

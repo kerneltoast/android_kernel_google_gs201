@@ -1895,6 +1895,11 @@ static struct mfc_buf *__mfc_core_nal_q_handle_frame_output_del(struct mfc_core 
 			mfc_debug(2, "[NALQ][QoS] framerate changed\n");
 		}
 
+		if (dec->has_multiframe) {
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_MULTIFRAME);
+			mfc_debug(2, "[MULTIFRAME] multiframe detected\n");
+		}
+
 		for (i = 0; i < raw->num_planes; i++)
 			vb2_set_plane_payload(&dst_mb->vb.vb2_buf, i,
 					raw->plane_size[i]);
@@ -2347,6 +2352,13 @@ void __mfc_core_nal_q_handle_frame(struct mfc_core *core, struct mfc_core_ctx *c
 		break;
 	}
 
+	/* Mark source buffer as complete */
+	if (dst_frame_status != MFC_REG_DEC_STATUS_DISPLAY_ONLY)
+		__mfc_core_nal_q_handle_frame_input(core, ctx, err, pOutStr);
+	else
+		mfc_debug(2, "[NALQ][DPB] can't support display only in NAL-Q, is_dpb_full: %d\n",
+				dec->is_dpb_full);
+
 	/* A frame has been decoded and is in the buffer  */
 	if (mfc_dec_status_display(dst_frame_status))
 		mfc_buf = __mfc_core_nal_q_handle_frame_output(core, ctx, pOutStr);
@@ -2376,13 +2388,6 @@ void __mfc_core_nal_q_handle_frame(struct mfc_core *core, struct mfc_core_ctx *c
 			mfc_debug(2, "[NALQ][REFINFO] Released FD = %d will update with display buffer\n",
 					dec->ref_buf[i].fd[0]);
 	}
-
-	/* Mark source buffer as complete */
-	if (dst_frame_status != MFC_REG_DEC_STATUS_DISPLAY_ONLY)
-		__mfc_core_nal_q_handle_frame_input(core, ctx, err, pOutStr);
-	else
-		mfc_debug(2, "[NALQ][DPB] can't support display only in NAL-Q, is_dpb_full: %d\n",
-				dec->is_dpb_full);
 
 #ifdef CONFIG_MFC_USE_COREDUMP
 	if (sscd_report && (ctx->frame_cnt == 200)) {

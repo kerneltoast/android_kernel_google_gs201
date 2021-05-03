@@ -260,6 +260,7 @@ enum mfc_mb_flag {
 	MFC_FLAG_FRAMERATE_CH		= 9,
 	MFC_FLAG_SYNC_FRAME		= 10,
 	MFC_FLAG_AV1_FILM_GRAIN		= 11,
+	MFC_FLAG_MULTIFRAME		= 12,
 	/* Driver set to user when SRC DQbuf */
 	MFC_FLAG_CONSUMED_ONLY		= 15,
 	/* User set to driver when SRC Qbuf */
