@@ -23,7 +23,7 @@ function exit_if_error {
   fi
 }
 
-# Cat the symbol lists together, sort them, and output to $1
+# Cat the symbol lists together, sort and update them to all match
 # $1 The final symbol list (included in the list to sort)
 # $@ The symbol lists to sort and merge together
 function merge_and_sort_symbol_lists {
@@ -33,6 +33,14 @@ function merge_and_sort_symbol_lists {
   sed -i '/^$/d' ${TMP_LIST}
   sed -i '/^#/d' ${TMP_LIST}
   sort -u ${TMP_LIST} > $1
+
+  # Need to have the AOSP and pixel symbol lists match to avoid the ksymtab
+  # vs symbol list comparison check.
+  if [ $# -gt 1 ]; then
+    for (( i=2; i<=$#; i++ )); do
+      cp -f "$1" "${!i}"
+    done
+  fi
 
   rm -f ${TMP_LIST}
 }
