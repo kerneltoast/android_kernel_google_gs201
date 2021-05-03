@@ -66,7 +66,6 @@ struct eh_stats {
 
 struct eh_device {
 	char name[EH_MAX_NAME];
-	int id;
 	struct list_head eh_dev_list;
 
 	/* hardware characteristics */

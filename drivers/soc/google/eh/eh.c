@@ -59,9 +59,6 @@
 #define EH_ERR_IRQ	"eh_error"
 #define EH_COMP_IRQ	"eh_comp"
 
-/* global ID number for EH devices */
-static DEFINE_IDA(eh_dev_ida);
-
 /* list of all unclaimed EH devices */
 static LIST_HEAD(eh_dev_list);
 static DEFINE_SPINLOCK(eh_dev_list_lock);
@@ -827,23 +824,16 @@ struct eh_device *eh_init(struct device *dev, unsigned short fifo_size,
 		goto out_free;
 	}
 	eh_dev->quirks = quirks;
-	eh_dev->id = ida_simple_get(&eh_dev_ida, 0, 0, GFP_KERNEL);
-	if (eh_dev->id < 0) {
-		pr_err("unable to get id\n");
-		ret = ERR_PTR(-ENOMEM);
-		goto out_free_regs;
-	}
-
 	eh_dev->stats = devm_alloc_percpu(eh_dev->dev, struct eh_stats);
 	if (!eh_dev->stats) {
 		ret = ERR_PTR(-ENOMEM);
-		goto out_free_id;
+		goto out_free_regs;
 	}
 	for_each_possible_cpu (cpu)
 		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
 			per_cpu_ptr(eh_dev->stats, cpu)->min_lat[i] = -1UL;
 
-	snprintf(eh_dev->name, EH_MAX_NAME, "eh%u", eh_dev->id);
+	snprintf(eh_dev->name, EH_MAX_NAME, "eh%u", 0);
 	pr_devel("%s: probing EH device\n", eh_dev->name);
 
 	INIT_LIST_HEAD(&eh_dev->eh_dev_list);
@@ -860,9 +850,6 @@ struct eh_device *eh_init(struct device *dev, unsigned short fifo_size,
 
 out_free_stats:
 	devm_free_percpu(dev, eh_dev->stats);
-
-out_free_id:
-	ida_simple_remove(&eh_dev_ida, eh_dev->id);
 
 out_free_regs:
 	devm_iounmap(dev, eh_dev->regs);
@@ -889,7 +876,6 @@ void eh_remove(struct eh_device *eh_dev)
 {
 	__eh_destroy(eh_dev);
 	devm_free_percpu(eh_dev->dev, eh_dev->stats);
-	ida_simple_remove(&eh_dev_ida, eh_dev->id);
 	devm_iounmap(eh_dev->dev, eh_dev->regs);
 	devm_kfree(eh_dev->dev, eh_dev);
 }
