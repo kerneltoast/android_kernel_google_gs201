@@ -34,6 +34,8 @@ struct bc12_status {
 	bool retry_done;
 	/* Tracks whether BC12 is enabled */
 	bool enable;
+	/* Status callback */
+	bc12_status_callback bc12_callback;
 };
 
 struct bc12_update {
@@ -128,6 +130,8 @@ static void vendor_bc12_alert(struct work_struct *work)
 			      "running" : "not running", bc12->running ?
 			      "running" : "not running");
 		bc12->running = update->vendor_bc_status1 & CHGTYPRUN;
+		if (bc12->bc12_callback)
+			bc12->bc12_callback(bc12->chip, bc12->running);
 	}
 	mutex_unlock(&bc12->lock);
 	devm_kfree(plat->dev, update);
@@ -198,7 +202,7 @@ void bc12_teardown(struct bc12_status *bc12)
 }
 EXPORT_SYMBOL_GPL(bc12_teardown);
 
-struct bc12_status *bc12_init(struct max77759_plat *plat)
+struct bc12_status *bc12_init(struct max77759_plat *plat, bc12_status_callback callback)
 {
 	struct bc12_status *bc12;
 	struct device *dev = plat->dev;
@@ -232,6 +236,7 @@ struct bc12_status *bc12_init(struct max77759_plat *plat)
 		goto power_supply_put;
 	}
 
+	bc12->bc12_callback = callback;
 	bc12->chip = plat;
 	mutex_init(&bc12->lock);
 	bc12->usb_psy = usb_psy;
