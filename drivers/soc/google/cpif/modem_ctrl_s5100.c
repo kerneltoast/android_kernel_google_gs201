@@ -42,9 +42,6 @@
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
 #include <soc/google/exynos-s2mpu.h>
 #endif
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_SUB_GPIO_S2MPS26)
-#include <linux/mfd/samsung/s2mps26-regulator.h>
-#endif
 #if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 #include "../../../video/fbdev/exynos/dpu30/decon.h"
 static int s5100_lcd_notifier(struct notifier_block *notifier,
@@ -1376,27 +1373,10 @@ static void s5100_get_ops(struct modem_ctl *mc)
 	mc->ops.resume = resume_cp;
 }
 
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_SUB_GPIO_S2MPS26)
-void sub_gpio_set_value_s2mps26(unsigned int gpio, int value)
-{
-	s2mps26_write_gpio_config((u8)gpio, (u8)value);
-}
-
-int sub_gpio_get_value_s2mps26(unsigned int gpio)
-{
-	u8 value = 0;
-
-	s2mps26_read_gpio_config(gpio, &value);
-
-	return (int)value;
-}
-#endif
-
 static int s5100_get_pdata(struct modem_ctl *mc, struct modem_data *pdata)
 {
 	struct platform_device *pdev = to_platform_device(mc->dev);
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child_np = NULL;
 	unsigned int i;
 
 	/* label */
@@ -1424,20 +1404,14 @@ static int s5100_get_pdata(struct modem_ctl *mc, struct modem_data *pdata)
 	mc->cp_gpio[CP_GPIO_CP2AP_CP_ACTIVE].irq_type = CP_GPIO_IRQ_CP2AP_CP_ACTIVE;
 
 	/* gpio */
-	child_np = of_get_child_by_name(np, "cpif_gpio");
-	if (!child_np)
-		goto sub;
-
 	for (i = 0; i < CP_GPIO_MAX; i++) {
 		mc->cp_gpio[i].num =
-			of_get_named_gpio(child_np, mc->cp_gpio[i].node_name, 0);
+			of_get_named_gpio(np, mc->cp_gpio[i].node_name, 0);
 
 		if (!gpio_is_valid(mc->cp_gpio[i].num))
 			continue;
 
 		mc->cp_gpio[i].valid = true;
-		mc->cp_gpio[i].set_gpio_value = gpio_set_value;
-		mc->cp_gpio[i].get_gpio_value = gpio_get_value;
 
 		gpio_request(mc->cp_gpio[i].num, mc->cp_gpio[i].label);
 		if (!strncmp(mc->cp_gpio[i].label, "AP2CP", 5))
@@ -1456,26 +1430,7 @@ static int s5100_get_pdata(struct modem_ctl *mc, struct modem_data *pdata)
 		}
 	}
 
-sub:
-	/* sub gpio */
-	child_np = of_get_child_by_name(np, "cpif_sub_gpio");
-	if (!child_np)
-		goto out;
-
-	for (i = 0; i < CP_GPIO_MAX; i++) {
-		if (mc->cp_gpio[i].valid)
-			continue;
-
-		mif_dt_read_u32(child_np, mc->cp_gpio[i].node_name, mc->cp_gpio[i].num);
-
-		mc->cp_gpio[i].valid = true;
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_SUB_GPIO_S2MPS26)
-		mc->cp_gpio[i].set_gpio_value = sub_gpio_set_value_s2mps26;
-		mc->cp_gpio[i].get_gpio_value = sub_gpio_get_value_s2mps26;
-#endif
-	}
-
-out:
+	/* validate */
 	for (i = 0; i < CP_GPIO_MAX; i++) {
 		if (!mc->cp_gpio[i].valid) {
 			mif_err("Missing some of GPIOs\n");

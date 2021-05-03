@@ -279,8 +279,6 @@ struct cpif_gpio {
 	enum cp_gpio_irq_type irq_type;
 	const char *label;
 	const char *node_name;
-	void (*set_gpio_value)(unsigned int gpio, int value);
-	int (*get_gpio_value)(unsigned int gpio);
 };
 
 #define mif_dt_read_enum(np, prop, dest) \

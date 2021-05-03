@@ -1019,11 +1019,11 @@ bool mif_gpio_set_value(struct cpif_gpio *gpio, int value, unsigned int delay_ms
 		return false;
 	}
 
-	if (gpio->get_gpio_value(gpio->num) == value)
+	if (gpio_get_value(gpio->num) == value)
 		dup = 1;
 
 	/* set gpio even if it is set already */
-	gpio->set_gpio_value(gpio->num, value);
+	gpio_set_value(gpio->num, value);
 
 	mif_debug("SET GPIO %s = %d (wait %dms, dup %d)\n", gpio->label, value, delay_ms, dup);
 
@@ -1049,7 +1049,7 @@ int mif_gpio_get_value(struct cpif_gpio *gpio, bool log_print)
 		return -EINVAL;
 	}
 
-	value = gpio->get_gpio_value(gpio->num);
+	value = gpio_get_value(gpio->num);
 
 	if (log_print)
 		mif_debug("GET GPIO %s = %d\n", gpio->label, value);

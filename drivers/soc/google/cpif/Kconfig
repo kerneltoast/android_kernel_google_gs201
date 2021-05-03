@@ -147,14 +147,6 @@ config LINK_DEVICE_PCIE_GPIO_WA
 	help
 	  Use a GPIO for the other purpose instead
 
-config LINK_DEVICE_PCIE_SUB_GPIO_S2MPS26
-	bool "Control sub GPIOs on PMIC S2MPS26"
-	depends on LINK_DEVICE_PCIE
-	default n
-	help
-	  Not every GPIOs are connected to SoC. This enables sub GPIOs
-	  control of S2MPS26 PMIC.
-
 config CP_WRESET_WA
 	bool "CP warm reset WA due to WRSTBI disabled"
 	depends on LINK_DEVICE_PCIE
