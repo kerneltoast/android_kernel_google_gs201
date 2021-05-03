@@ -555,14 +555,14 @@ static void __eh_compr_destroy(struct eh_device *eh_dev)
 				free_pages(
 					(unsigned long)eh_dev->compr_buffers[i],
 					0);
-		devm_kfree(eh_dev->dev, eh_dev->compr_buffers);
+		kfree(eh_dev->compr_buffers);
 	}
 
 	if (eh_dev->completions)
-		devm_kfree(eh_dev->dev, eh_dev->completions);
+		kfree(eh_dev->completions);
 
 	if (eh_dev->fifo_alloc)
-		devm_kfree(eh_dev->dev, eh_dev->fifo_alloc);
+		kfree(eh_dev->fifo_alloc);
 }
 
 /* Set up constant parts of descriptors */
@@ -608,10 +608,8 @@ static int __eh_compr_init(struct eh_device *eh_dev, unsigned short fifo_size)
 	eh_dev->fifo_color_mask = (fifo_size << 1) - 1;
 	eh_dev->write_index = eh_dev->complete_index = 0;
 
-	eh_dev->completions =
-		devm_kzalloc(eh_dev->dev,
-			     fifo_size * sizeof(struct eh_completion),
-			     GFP_KERNEL);
+	eh_dev->completions = kzalloc(fifo_size * sizeof(struct eh_completion),
+				      GFP_KERNEL);
 	if (!eh_dev->completions) {
 		pr_err("unable to allocate completions array\n");
 		return -ENOMEM;
@@ -620,8 +618,8 @@ static int __eh_compr_init(struct eh_device *eh_dev, unsigned short fifo_size)
 	desc_size = EH_COMPR_DESC_0_SIZE;
 
 	/* driver allocates fifo in regular memory - dma coherent case */
-	eh_dev->fifo_alloc = devm_kzalloc(
-		eh_dev->dev, fifo_size * (desc_size + 1), GFP_KERNEL | GFP_DMA);
+	eh_dev->fifo_alloc = kzalloc(fifo_size * (desc_size + 1),
+				     GFP_KERNEL | GFP_DMA);
 	if (!eh_dev->fifo_alloc) {
 		pr_err("%s: unable to allocate fifo\n", eh_dev->name);
 		ret = -ENOMEM;
@@ -635,8 +633,8 @@ static int __eh_compr_init(struct eh_device *eh_dev, unsigned short fifo_size)
 			eh_dev->fifo, &pfifo);
 	}
 
-	eh_dev->compr_buffers = devm_kzalloc(
-		eh_dev->dev, fifo_size * sizeof(void *), GFP_KERNEL);
+	eh_dev->compr_buffers = kzalloc(fifo_size * sizeof(void *),
+					GFP_KERNEL);
 	if (!eh_dev->compr_buffers) {
 		pr_err("unable to allocate compr buffers array\n");
 		ret = -ENOMEM;
@@ -672,17 +670,16 @@ static void __eh_decompr_destroy(struct eh_device *eh_dev)
 				   0);
 
 	if (eh_dev->decompr_cmd_used)
-		devm_kfree(eh_dev->dev, eh_dev->decompr_cmd_used);
+		kfree(eh_dev->decompr_cmd_used);
 }
 
 static int __eh_decompr_init(struct eh_device *eh_dev)
 {
 	int i, ret = 0;
 
-	eh_dev->decompr_cmd_used =
-		devm_kzalloc(eh_dev->dev,
-			     sizeof(atomic_t) * eh_dev->decompr_cmd_count,
-			     GFP_KERNEL);
+	eh_dev->decompr_cmd_used = kzalloc(sizeof(atomic_t) *
+					   eh_dev->decompr_cmd_count,
+					   GFP_KERNEL);
 	if (!eh_dev->decompr_cmd_used) {
 		pr_err("%s unable to allocate memory for decompression\n",
 		       eh_dev->name);
@@ -749,10 +746,8 @@ static struct eh_device *__eh_init(struct eh_device *eh_dev,
 		eh_dev->decompr_cmd_count);
 
 	/* the error interrupt */
-	ret = devm_request_threaded_irq(eh_dev->dev, error_irq,
-					NULL, eh_error_irq,
-					IRQF_ONESHOT, EH_ERR_IRQ,
-					eh_dev);
+	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
+				   EH_ERR_IRQ, eh_dev);
 	if (ret) {
 		pr_err("%s: unable to request irq %u ret %d\n",
 		       eh_dev->name, error_irq, ret);
@@ -784,7 +779,7 @@ out_cleanup:
 	__eh_decompr_destroy(eh_dev);
 
 	if (eh_dev->error_irq)
-		devm_free_irq(eh_dev->dev, eh_dev->error_irq, eh_dev);
+		free_irq(eh_dev->error_irq, eh_dev);
 
 	if (eh_dev->comp_thread)
 		kthread_stop(eh_dev->comp_thread);
@@ -811,20 +806,20 @@ struct eh_device *eh_init(struct device *dev, unsigned short fifo_size,
 		return ERR_PTR(-EINVAL);
 	}
 
-	eh_dev = devm_kzalloc(dev, sizeof(*eh_dev), GFP_KERNEL);
+	eh_dev = kzalloc(sizeof(*eh_dev), GFP_KERNEL);
 	if (!eh_dev) {
 		pr_err("unable to allocate eh_device object\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	eh_dev->dev = dev;
-	eh_dev->regs = devm_ioremap(eh_dev->dev, regs, EH_REGS_SIZE);
+	eh_dev->regs = ioremap(regs, EH_REGS_SIZE);
 	if (!eh_dev->regs) {
 		pr_err("%s: ioremap failed\n", eh_dev->name);
 		ret = ERR_PTR(-EINVAL);
 		goto out_free;
 	}
 	eh_dev->quirks = quirks;
-	eh_dev->stats = devm_alloc_percpu(eh_dev->dev, struct eh_stats);
+	eh_dev->stats = alloc_percpu(struct eh_stats);
 	if (!eh_dev->stats) {
 		ret = ERR_PTR(-ENOMEM);
 		goto out_free_regs;
@@ -849,13 +844,13 @@ struct eh_device *eh_init(struct device *dev, unsigned short fifo_size,
 	return eh_dev;
 
 out_free_stats:
-	devm_free_percpu(dev, eh_dev->stats);
+	free_percpu(eh_dev->stats);
 
 out_free_regs:
-	devm_iounmap(dev, eh_dev->regs);
+	iounmap(eh_dev->regs);
 
 out_free:
-	devm_kfree(dev, eh_dev);
+	kfree(eh_dev);
 
 	return ret;
 }
@@ -866,7 +861,7 @@ static void __eh_destroy(struct eh_device *eh_dev)
 	__eh_decompr_destroy(eh_dev);
 
 	if (eh_dev->error_irq)
-		devm_free_irq(eh_dev->dev, eh_dev->error_irq, eh_dev);
+		free_irq(eh_dev->error_irq, eh_dev);
 
 	if (eh_dev->comp_thread)
 		kthread_stop(eh_dev->comp_thread);
@@ -875,9 +870,9 @@ static void __eh_destroy(struct eh_device *eh_dev)
 void eh_remove(struct eh_device *eh_dev)
 {
 	__eh_destroy(eh_dev);
-	devm_free_percpu(eh_dev->dev, eh_dev->stats);
-	devm_iounmap(eh_dev->dev, eh_dev->regs);
-	devm_kfree(eh_dev->dev, eh_dev);
+	free_percpu(eh_dev->stats);
+	iounmap(eh_dev->regs);
+	kfree(eh_dev);
 }
 
 static void eh_setup_desc_0(struct eh_device *eh_dev, struct page *src_page,
