@@ -126,7 +126,6 @@
 #define TPMON_PROTO_TCP		1
 #define TPMON_PROTO_UDP		2
 #define TPMON_PROTO_OTHERS	3
-#define MAX_TPMON_PROTO		4
 
 /* Link device attr */
 #define LINK_ATTR_SBD_IPC		(0x1 << 0) /* IPC over SBD (from MIPI-LLI) */

@@ -346,6 +346,28 @@ struct cpif_gpio {
 			dest = val; \
 	} while (0)
 
+#define mif_dt_count_u32_elems(np, prop, dest) \
+	do { \
+		u32 val; \
+		val = of_property_count_u32_elems(np, prop); \
+		if (val < 0) { \
+			mif_err("can not get %s\n", prop); \
+			return -EINVAL; \
+		} \
+		dest = val; \
+	} while (0)
+
+#define mif_dt_count_u32_array(np, prop, dest, size) \
+	do { \
+		u32 val; \
+		val = of_property_read_u32_array(np, prop, dest, size); \
+		if (val < 0) { \
+			mif_err("can not get %s %d\n", prop, size); \
+			return -EINVAL; \
+		} \
+	} while (0)
+
+
 #define cpif_set_bit(data, offset)	((data) |= BIT(offset))
 #define cpif_clear_bit(data, offset)	((data) &= ~BIT(offset))
 #define cpif_check_bit(data, offset)	((data) & BIT(offset))

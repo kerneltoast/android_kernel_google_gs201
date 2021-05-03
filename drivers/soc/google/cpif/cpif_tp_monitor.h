@@ -21,7 +21,7 @@
 
 #define MAX_TPMON_DATA	16
 #define MAX_TPMON_THRESHOLD	10
-#define MAX_TPMON_VALUES	(MAX_TPMON_THRESHOLD+1)
+#define MAX_TPMON_LEVEL	(MAX_TPMON_THRESHOLD+1)
 #define MAX_RPS_STRING	8
 #define MAX_IRQ_AFFINITY_DATA	5
 #define MAX_IRQ_AFFINITY_STRING	8
@@ -31,46 +31,44 @@ struct tpmon_data {
 	struct cpif_tpmon *tpmon;
 
 	struct list_head data_node;
+	struct list_head tp_node;
+	struct list_head q_status_node;
 
 	char *name;
-	u32 measure;
 	u32 target;
-	u32 enable;
-	u32 extra_idx;
-	u32 proto;
-	u32 check_udp;
 
-	struct list_head urgent_data_node;
-	u32 urgent;
+	u32 num_level;
+	u32 level[MAX_TPMON_LEVEL];
+	u32 curr_level_pos;
+	u32 prev_level_pos;
+	u32 user_level;
+
+	u32 enable;
+	u32 measure;
+	u32 proto;
+	u32 extra_idx;
 
 	u32 num_threshold;
 	u32 threshold[MAX_TPMON_THRESHOLD];
 	u32 curr_threshold_pos;
 	u32 prev_threshold_pos;
 
-	u32 num_values;
-	u32 values[MAX_TPMON_VALUES];
-	u32 curr_value_pos;
-	u32 prev_value_pos;
-	u32 user_value;
+	u32 unboost_threshold_mbps[MAX_TPMON_THRESHOLD];
+	ktime_t prev_unboost_time;
 
-	u32 unboost_tp_mbps[MAX_TPMON_THRESHOLD];
-	u64 jiffies_to_unboost;
-	bool forced_unboost;
+	bool need_boost;
 
 	void *extra_data;
 
-	void (*set_data)(struct tpmon_data *data);
 	u32 (*get_data)(struct tpmon_data *data);
+	void (*set_data)(struct tpmon_data *data);
 };
 
 struct cpif_rx_data {
 	unsigned long rx_bytes;
 	unsigned long rx_mbps;
-	unsigned long rx_kbps;
-	unsigned long rx_sum;
-	unsigned long rx_bytes_data[MAX_RX_BYTES_COUNT];
-	u32 rx_bytes_idx;
+
+	ktime_t prev_time;
 };
 
 struct cpif_tpmon {
@@ -79,9 +77,6 @@ struct cpif_tpmon {
 	atomic_t need_init;
 	atomic_t active;
 	spinlock_t lock;
-
-	struct list_head data_list;
-	struct list_head net_node_list;
 
 	u32 trigger_mbps;
 	u32 trigger_msec_min;
@@ -92,28 +87,36 @@ struct cpif_tpmon {
 	u32 monitor_stop_mbps;
 
 	u32 boost_hold_msec;
-	u32 unboost_tp_percent;
 
-	u64 jiffies_to_trigger;
+	struct list_head all_data_list;
+	struct list_head tp_node_list;
+	struct list_head q_status_list;
+	struct list_head net_node_list;
 
-	atomic_t need_urgent;
-	struct list_head urgent_data_list;
-	bool urgent_active;
-
+	ktime_t prev_monitor_time;
 	struct workqueue_struct *monitor_wq;
 	struct delayed_work monitor_dwork;
+
+	atomic_t boost_active;
+	struct workqueue_struct *boost_wq;
+	struct delayed_work boost_dwork;
 
 	struct cpif_rx_data rx_total;
 	struct cpif_rx_data rx_tcp;
 	struct cpif_rx_data rx_udp;
 	struct cpif_rx_data rx_others;
 
-	u32 pktproc_queue_status;
-	u32 netdev_backlog_queue_status;
-	u32 dit_src_queue_status;
+	struct cpif_rx_data rx_total_stat;
+	struct cpif_rx_data rx_tcp_stat;
+	struct cpif_rx_data rx_udp_stat;
+	struct cpif_rx_data rx_others_stat;
+
+	u32 q_status_pktproc_dl;
+	u32 q_status_netdev_backlog;
+	u32 q_status_dit_src;
 	u32 legacy_packet_count;
 
-	u32 use_user_value;
+	u32 use_user_level;
 	u32 debug_print;
 
 	struct tpmon_data data[MAX_TPMON_DATA];
@@ -146,6 +149,15 @@ struct cpif_tpmon {
 	int (*check_active)(void);
 	void (*reset_data)(char *name);
 };
+
+static inline u32 tpmon_get_curr_level(struct tpmon_data *data)
+{
+	if (!data->enable)
+		return 0;
+
+	return data->tpmon->use_user_level ?
+		data->user_level : data->level[data->curr_level_pos];
+}
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 extern int tpmon_create(struct platform_device *pdev, struct link_device *ld);
