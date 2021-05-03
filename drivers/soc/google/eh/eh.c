@@ -276,7 +276,7 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 #define EH_RESET_WAIT_TIME 10
 #define EH_MAX_RESET_WAIT 100
 
-static int __eh_reset(struct eh_device *eh_dev, unsigned int offset)
+static int eh_reset(struct eh_device *eh_dev)
 {
 	unsigned long tmp = (unsigned long)-1UL;
 	unsigned int count = 0;
@@ -284,32 +284,20 @@ static int __eh_reset(struct eh_device *eh_dev, unsigned int offset)
 	if (eh_dev->quirks & EH_QUIRK_IGNORE_GCTRL_RESET)
 		return 0;
 
-	eh_write_register(eh_dev, EH_REG_GCTRL + offset, tmp);
+	eh_write_register(eh_dev, EH_REG_GCTRL, tmp);
 	while (count < EH_MAX_RESET_WAIT &&
-	       eh_read_register(eh_dev, EH_REG_GCTRL + offset)) {
+	       eh_read_register(eh_dev, EH_REG_GCTRL)) {
 		usleep_range(EH_RESET_WAIT_TIME, EH_RESET_WAIT_TIME * 2);
 		count++;
 	}
 
 	if (count == EH_MAX_RESET_WAIT) {
-		pr_warn("%s: timeout waiting for reset offset (%u)\n",
-			eh_dev->name, offset);
+		pr_warn("%s: timeout waiting for reset\n",
+			eh_dev->name);
 		return 1;
 	}
 
 	return 0;
-}
-
-static int eh_reset(struct eh_device *eh_dev)
-{
-	int ret = __eh_reset(eh_dev, 0);
-
-	return ret;
-}
-
-static void eh_platform_init(struct eh_device *eh_dev, unsigned int vendor,
-			     unsigned int device)
-{
 }
 
 static void eh_compr_fifo_init(struct eh_device *eh_dev)
@@ -544,27 +532,6 @@ static struct attribute *eh_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(eh_dev);
 
-/* cleanup compression related stuff */
-static void __eh_compr_destroy(struct eh_device *eh_dev)
-{
-	int i;
-
-	if (eh_dev->compr_buffers) {
-		for (i = 0; i < eh_dev->fifo_size; i++)
-			if (eh_dev->compr_buffers[i])
-				free_pages(
-					(unsigned long)eh_dev->compr_buffers[i],
-					0);
-		kfree(eh_dev->compr_buffers);
-	}
-
-	if (eh_dev->completions)
-		kfree(eh_dev->completions);
-
-	if (eh_dev->fifo_alloc)
-		kfree(eh_dev->fifo_alloc);
-}
-
 /* Set up constant parts of descriptors */
 static void init_desc_0(struct eh_device *eh_dev)
 {
@@ -595,11 +562,38 @@ static void init_desc_0(struct eh_device *eh_dev)
 	}
 }
 
-/* initialize compression fifo and related stuff */
-static int __eh_compr_init(struct eh_device *eh_dev, unsigned short fifo_size)
+/* cleanup compression related stuff */
+static void eh_deinit_compression(struct eh_device *eh_dev)
 {
-	unsigned int desc_size;
+	if (eh_dev->compr_buffers) {
+		int i;
+
+		for (i = 0; i < eh_dev->fifo_size; i++) {
+			if (eh_dev->compr_buffers[i]) {
+				free_pages((unsigned long)eh_dev->compr_buffers[i], 0);
+				eh_dev->compr_buffers[i] = NULL;
+			}
+		}
+		kfree(eh_dev->compr_buffers);
+		eh_dev->compr_buffers = NULL;
+	}
+
+	if (eh_dev->completions) {
+		kfree(eh_dev->completions);
+		eh_dev->completions = NULL;
+	}
+
+	if (eh_dev->fifo_alloc) {
+		kfree(eh_dev->fifo_alloc);
+		eh_dev->fifo_alloc = NULL;
+	}
+}
+
+/* initialize compression fifo and related stuff */
+static int eh_init_compression(struct eh_device *eh_dev, unsigned short fifo_size)
+{
 	int i, ret = 0;
+	unsigned int desc_size = EH_COMPR_DESC_0_SIZE;
 
 	spin_lock_init(&eh_dev->fifo_prod_lock);
 
@@ -614,8 +608,6 @@ static int __eh_compr_init(struct eh_device *eh_dev, unsigned short fifo_size)
 		pr_err("unable to allocate completions array\n");
 		return -ENOMEM;
 	}
-
-	desc_size = EH_COMPR_DESC_0_SIZE;
 
 	/* driver allocates fifo in regular memory - dma coherent case */
 	eh_dev->fifo_alloc = kzalloc(fifo_size * (desc_size + 1),
@@ -655,25 +647,30 @@ static int __eh_compr_init(struct eh_device *eh_dev, unsigned short fifo_size)
 	return ret;
 
 out_cleanup:
-	__eh_compr_destroy(eh_dev);
+	eh_deinit_compression(eh_dev);
 
 	return ret;
 }
 
-static void __eh_decompr_destroy(struct eh_device *eh_dev)
+static void eh_deinit_decompression(struct eh_device *eh_dev)
 {
 	int i;
 
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++)
-		if (eh_dev->decompr_buffers[i])
+	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
+		if (eh_dev->decompr_buffers[i]) {
 			free_pages((unsigned long)eh_dev->decompr_buffers[i],
 				   0);
+			eh_dev->decompr_buffers[i] = NULL;
+		}
+	}
 
-	if (eh_dev->decompr_cmd_used)
+	if (eh_dev->decompr_cmd_used) {
 		kfree(eh_dev->decompr_cmd_used);
+		eh_dev->decompr_cmd_used = NULL;
+	}
 }
 
-static int __eh_decompr_init(struct eh_device *eh_dev)
+static int eh_init_decompression(struct eh_device *eh_dev)
 {
 	int i, ret = 0;
 
@@ -704,67 +701,78 @@ static int __eh_decompr_init(struct eh_device *eh_dev)
 	return ret;
 
 out_cleanup:
-	__eh_decompr_destroy(eh_dev);
+	eh_deinit_decompression(eh_dev);
 
 	return ret;
 }
 
-static struct eh_device *__eh_init(struct eh_device *eh_dev,
-				   unsigned short fifo_size,
-				   int error_irq)
+static void eh_hw_deinit(struct eh_device *eh_dev)
+{
+	eh_deinit_decompression(eh_dev);
+	eh_deinit_compression(eh_dev);
+	iounmap(eh_dev->regs);
+	eh_dev->regs = NULL;
+}
+
+static void eh_sw_deinit(struct eh_device *eh_dev)
+{
+	if (eh_dev->error_irq) {
+		free_irq(eh_dev->error_irq, eh_dev);
+		eh_dev->error_irq = 0;
+	}
+	if (eh_dev->comp_thread) {
+		kthread_stop(eh_dev->comp_thread);
+		eh_dev->comp_thread = NULL;
+	}
+
+	if (eh_dev->stats) {
+		free_percpu(eh_dev->stats);
+		eh_dev->stats = NULL;
+	}
+}
+
+/* Initialize HW related stuff */
+static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
+		      phys_addr_t regs, unsigned short quirks)
 {
 	int ret;
-	unsigned long hwid, hwfeatures, hwfeatures2;
+	unsigned long feature;
 
-	atomic_set(&eh_dev->nr_request, 0);
-	init_waitqueue_head(&eh_dev->comp_wq);
-	hwid = eh_read_register(eh_dev, EH_REG_HWID);
-	hwfeatures = eh_read_register(eh_dev, EH_REG_HWFEATURES);
-	hwfeatures2 = eh_read_register(eh_dev, EH_REG_HWFEATURES2);
+	eh_dev->quirks = quirks;
 
-	eh_dev->max_buffer_count = EH_FEATURES2_BUF_MAX(hwfeatures2);
-	eh_dev->decompr_cmd_count = EH_FEATURES2_DECOMPR_CMDS(hwfeatures2);
+	eh_dev->regs = ioremap(regs, EH_REGS_SIZE);
+	if (!eh_dev->regs)
+		return -ENOMEM;
 
-	if (!eh_dev->max_buffer_count) {
-		pr_err("%s: max buffer count is 0!\n", eh_dev->name);
-		ret = -ENODEV;
-		goto out_cleanup;
-	}
+	feature = eh_read_register(eh_dev, EH_REG_HWFEATURES2);
+	eh_dev->max_buffer_count = EH_FEATURES2_BUF_MAX(feature);
+	eh_dev->decompr_cmd_count = EH_FEATURES2_DECOMPR_CMDS(feature);
 
-	ret = __eh_compr_init(eh_dev, fifo_size);
-	if (ret)
-		goto out_cleanup;
-
-	if (eh_dev->decompr_cmd_count) {
-		ret = __eh_decompr_init(eh_dev);
-		if (ret)
-			goto out_cleanup;
-	}
-
-	pr_info("%s: max_bufs %u decompress_cmd_sets %u\n",
-		eh_dev->name, eh_dev->max_buffer_count,
-		eh_dev->decompr_cmd_count);
-
-	/* the error interrupt */
-	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
-				   EH_ERR_IRQ, eh_dev);
-	if (ret) {
-		pr_err("%s: unable to request irq %u ret %d\n",
-		       eh_dev->name, error_irq, ret);
+	if (eh_dev->max_buffer_count == 0 || eh_dev->decompr_cmd_count == 0) {
+		pr_err("%s: max_buffer_count %d decompr_cmd_count %d\n",
+			eh_dev->max_buffer_count, eh_dev->decompr_cmd_count);
 		ret = -EINVAL;
-		goto out_cleanup;
+		goto iounmap;
 	}
-	eh_dev->error_irq = error_irq;
 
-	eh_dev->comp_thread = kthread_run(eh_comp_thread, eh_dev, "eh_comp_thread");
-	if (IS_ERR(eh_dev->comp_thread))
-		goto out_cleanup;
+	if (eh_init_compression(eh_dev, fifo_size)) {
+		ret = -EINVAL;
+		goto iounmap;
+	}
 
+	if (eh_init_decompression(eh_dev)) {
+		ret = -EINVAL;
+		goto deinit_compr;
+	}
+
+	pr_info("%s: max_bufs %u decompress_cmd_sets %u\n", eh_dev->name,
+		 eh_dev->max_buffer_count, eh_dev->decompr_cmd_count);
 
 	/* reset the block */
-	eh_reset(eh_dev);
-
-	eh_platform_init(eh_dev, EH_HWID_VENDOR(hwid), EH_HWID_DEVICE(hwid));
+	if (eh_reset(eh_dev)) {
+		ret = -ETIMEDOUT;
+		goto deinit_decompr;
+	}
 
 	/* set up the fifo and enable */
 	eh_compr_fifo_init(eh_dev);
@@ -772,106 +780,110 @@ static struct eh_device *__eh_init(struct eh_device *eh_dev,
 	/* enable all the interrupts */
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, 0);
 
-	return eh_dev;
+	return 0;
 
-out_cleanup:
-	__eh_compr_destroy(eh_dev);
-	__eh_decompr_destroy(eh_dev);
+deinit_decompr:
+	eh_deinit_decompression(eh_dev);
+deinit_compr:
+	eh_deinit_compression(eh_dev);
+iounmap:
+	iounmap(eh_dev->regs);
 
-	if (eh_dev->error_irq)
-		free_irq(eh_dev->error_irq, eh_dev);
-
-	if (eh_dev->comp_thread)
-		kthread_stop(eh_dev->comp_thread);
-
-	return ERR_PTR(ret);
+	return ret;
 }
 
-/*
- * initialize hardware block - mostly meant to be used by hardware probe
- * functions.
- */
-struct eh_device *eh_init(struct device *dev, unsigned short fifo_size,
-			  phys_addr_t regs, int error_irq,
-			  unsigned short quirks)
+/* Initialize SW related stuff */
+static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 {
-	struct eh_device *ret;
-	struct eh_device *eh_dev;
-	int i, cpu;
+	int ret, cpu;
+
+	/* the error interrupt */
+	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
+				   EH_ERR_IRQ, eh_dev);
+	if (ret) {
+		pr_err("%s: unable to request irq %u ret %d\n", eh_dev->name,
+		       error_irq, ret);
+		return ret;
+	}
+	eh_dev->error_irq = error_irq;
+
+	eh_dev->comp_thread = kthread_run(eh_comp_thread, eh_dev, "eh_comp_thread");
+	if (IS_ERR(eh_dev->comp_thread)) {
+		ret = PTR_ERR(eh_dev->comp_thread);
+		goto free_irq;
+	}
+
+	eh_dev->stats = alloc_percpu(struct eh_stats);
+	if (!eh_dev->stats) {
+		ret = -ENOMEM;
+		goto free_thread;
+	}
+
+	for_each_possible_cpu (cpu) {
+		int i;
+
+		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
+			per_cpu_ptr(eh_dev->stats, cpu)->min_lat[i] = -1UL;
+	}
+
+	spin_lock(&eh_dev_list_lock);
+	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
+	spin_unlock(&eh_dev_list_lock);
+
+	atomic_set(&eh_dev->nr_request, 0);
+	init_waitqueue_head(&eh_dev->comp_wq);
+
+	return 0;
+
+free_thread:
+	kthread_stop(eh_dev->comp_thread);
+	eh_dev->comp_thread = NULL;
+free_irq:
+	free_irq(eh_dev->error_irq, eh_dev);
+	eh_dev->error_irq = 0;
+
+	return ret;
+}
+
+/* EmeraldHill initialization entry */
+static int eh_init(struct device *device, struct eh_device *eh_dev,
+		   unsigned short fifo_size, phys_addr_t regs, int error_irq,
+		   unsigned short quirks)
+{
+	int ret;
 
 	/* verify fifo_size is a power of two and less than 32k */
 	if (!fifo_size || __ffs(fifo_size) != __fls(fifo_size) ||
 	    (fifo_size > EH_MAX_FIFO_SIZE)) {
 		pr_err("invalid fifo size %u\n", fifo_size);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-
-	eh_dev = kzalloc(sizeof(*eh_dev), GFP_KERNEL);
-	if (!eh_dev) {
-		pr_err("unable to allocate eh_device object\n");
-		return ERR_PTR(-ENOMEM);
-	}
-	eh_dev->dev = dev;
-	eh_dev->regs = ioremap(regs, EH_REGS_SIZE);
-	if (!eh_dev->regs) {
-		pr_err("%s: ioremap failed\n", eh_dev->name);
-		ret = ERR_PTR(-EINVAL);
-		goto out_free;
-	}
-	eh_dev->quirks = quirks;
-	eh_dev->stats = alloc_percpu(struct eh_stats);
-	if (!eh_dev->stats) {
-		ret = ERR_PTR(-ENOMEM);
-		goto out_free_regs;
-	}
-	for_each_possible_cpu (cpu)
-		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
-			per_cpu_ptr(eh_dev->stats, cpu)->min_lat[i] = -1UL;
 
 	snprintf(eh_dev->name, EH_MAX_NAME, "eh%u", 0);
 	pr_devel("%s: probing EH device\n", eh_dev->name);
 
-	INIT_LIST_HEAD(&eh_dev->eh_dev_list);
-	spin_lock(&eh_dev_list_lock);
-	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
-	spin_unlock(&eh_dev_list_lock);
+	ret = eh_hw_init(eh_dev, fifo_size, regs, quirks);
+	if (ret)
+		return ret;
 
-	ret = __eh_init(eh_dev, fifo_size, error_irq);
-	if (IS_ERR(ret)) {
-		goto out_free_stats;
+	ret = eh_sw_init(eh_dev, error_irq);
+	if (ret) {
+		eh_hw_deinit(eh_dev);
+		return ret;
 	}
 
-	return eh_dev;
-
-out_free_stats:
-	free_percpu(eh_dev->stats);
-
-out_free_regs:
-	iounmap(eh_dev->regs);
-
-out_free:
-	kfree(eh_dev);
-
-	return ret;
+	return 0;
 }
 
-static void __eh_destroy(struct eh_device *eh_dev)
+static void eh_deinit(struct eh_device *eh_dev)
 {
-	__eh_compr_destroy(eh_dev);
-	__eh_decompr_destroy(eh_dev);
-
-	if (eh_dev->error_irq)
-		free_irq(eh_dev->error_irq, eh_dev);
-
-	if (eh_dev->comp_thread)
-		kthread_stop(eh_dev->comp_thread);
+	eh_hw_deinit(eh_dev);
+	eh_sw_deinit(eh_dev);
 }
 
 void eh_remove(struct eh_device *eh_dev)
 {
-	__eh_destroy(eh_dev);
-	free_percpu(eh_dev->stats);
-	iounmap(eh_dev->regs);
+	eh_deinit(eh_dev);
 	kfree(eh_dev);
 }
 
@@ -1258,39 +1270,43 @@ static int eh_of_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "pm_runtime_get_sync returned %d\n", ret);
-		goto err_pm_rt_get;
+		goto disable_pm_runtime;
 	}
 
 	error_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	if (!error_irq) {
+	if (error_irq == 0) {
 		pr_err("Fail to get error irq\n");
 		ret = -EINVAL;
-		goto err_clk_get;
+		goto put_pm_runtime;
 	}
 
 	clk = of_clk_get_by_name(pdev->dev.of_node, "eh-clock");
 	if (IS_ERR(clk)) {
 		pr_err("%s: of_clk_get_by_name() failed\n", __func__);
 		ret = PTR_ERR(clk);
-		goto err_clk_get;
+		goto put_pm_runtime;
 	}
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
 		pr_err("%s: clk_prepare_enable() failed\n", __func__);
-		goto err_clk_en;
+		goto put_clk;
 	}
 
 	if (of_get_property(pdev->dev.of_node, "google,eh,ignore-gctrl-reset",
 			    NULL))
 		quirks |= EH_QUIRK_IGNORE_GCTRL_RESET;
 
-	eh_dev = eh_init(&pdev->dev, eh_default_fifo_size, mem->start,
-			 error_irq, quirks);
-	if (IS_ERR(eh_dev)) {
-		ret = ERR_PTR(eh_dev);
-		goto err_eh_init;
+	eh_dev = kzalloc(sizeof(*eh_dev), GFP_KERNEL);
+	if (!eh_dev) {
+		ret = -ENOMEM;
+		goto put_disable_clk;
 	}
+
+	ret = eh_init(&pdev->dev, eh_dev, eh_default_fifo_size, mem->start,
+			 error_irq, quirks);
+	if (ret)
+		goto free_ehdev;
 
 	eh_dev->clk = clk;
 	platform_set_drvdata(pdev, eh_dev);
@@ -1298,17 +1314,22 @@ static int eh_of_probe(struct platform_device *pdev)
 	ret = device_add_groups(&pdev->dev, eh_dev_groups);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to create sysfs entries\n");
+		goto eh_deinit;
 	}
 
 	return 0;
 
-err_eh_init:
+eh_deinit:
+	eh_deinit(eh_dev);
+free_ehdev:
+	kfree(eh_dev);
+put_disable_clk:
 	clk_disable_unprepare(clk);
-err_clk_en:
+put_clk:
 	clk_put(clk);
-err_clk_get:
+put_pm_runtime:
 	pm_runtime_put_sync(&pdev->dev);
-err_pm_rt_get:
+disable_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
 
 	return ret;

@@ -74,7 +74,7 @@ struct eh_device {
 	 * implementations can specify how many buffers are used to store
 	 * compressed data
 	 */
-	unsigned char max_buffer_count;
+	unsigned int max_buffer_count;
 
 	/* how many decompression command sets are implemented */
 	unsigned int decompr_cmd_count;
