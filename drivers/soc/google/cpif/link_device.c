@@ -2334,7 +2334,12 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 	if ((mode == CP_BOOT_RE_INIT) && mld->pktproc.use_dedicated_baaw) {
 		mif_info("memaddr:0x%lx memsize:0x%08x\n",
 				cp_shmem_get_base(cp_num, SHMEM_PKTPROC),
-				cp_shmem_get_size(cp_num, SHMEM_PKTPROC));
+				cp_shmem_get_size(cp_num, SHMEM_PKTPROC)
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+				+ cp_shmem_get_size(cp_num, SHMEM_PKTPROC_UL));
+#else
+				);
+#endif
 
 		exynos_smc(SMC_ID_CLK, SSS_CLK_ENABLE, 0, 0);
 #if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
@@ -2343,8 +2348,14 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 #else
 		err = (int)exynos_smc(SMC_ID, CP_BOOT_EXT_BAAW,
 			(unsigned long)cp_shmem_get_base(cp_num, SHMEM_PKTPROC),
-			(unsigned long)cp_shmem_get_size(cp_num, SHMEM_PKTPROC));
+			(unsigned long)cp_shmem_get_size(cp_num, SHMEM_PKTPROC)
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+			+ (unsigned long)cp_shmem_get_size(cp_num, SHMEM_PKTPROC_UL));
+#else
+			);
 #endif
+#endif
+
 		exynos_smc(SMC_ID_CLK, SSS_CLK_DISABLE, 0, 0);
 		if (err)
 			mif_err("ERROR: SMC call failure:%d\n", err);
