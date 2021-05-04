@@ -469,49 +469,6 @@ static void dwc3_otg_retry_configuration(struct timer_list *t)
 	dev_dbg(exynos->dev, "retry done\n");
 }
 
-static int dwc3_check_extra_work(struct dwc3 *dwc)
-{
-	struct usb_gadget *gadget = dwc->gadget;
-	struct usb_composite_dev *cdev;
-	struct usb_function *f;
-	struct device *dev = dwc->dev;
-	int i, ret = 0;
-
-	if (gadget == NULL) {
-		dev_err(dev, "%s : Can't check extra work. gadget is NULL\n", __func__);
-		return 0;
-	}
-
-	cdev = get_gadget_data(gadget);
-
-	if (cdev == NULL) {
-		dev_err(dev, "%s : Can't check extra work. cdev is NULL\n", __func__);
-		return 0;
-	}
-
-	for (i = 0; i < MAX_CONFIG_INTERFACES; i++) {
-		if (cdev->config == NULL)
-			break;
-
-		f = cdev->config->interface[i];
-		if (f == NULL)
-			break;
-
-		/* Exynos specific function need extra delay */
-		if (strncmp(f->name, "dm", sizeof("dm")) == 0) {
-			dev_dbg(dev, "found dm function...\n");
-			/* f->disable(f); */
-			ret = 1;
-		} else if (strncmp(f->name, "acm", sizeof("acm")) == 0) {
-			dev_dbg(dev, "found acm function...\n");
-			/* f->disable(f); */
-			ret = 1;
-		}
-	}
-
-	return ret;
-}
-
 static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg	*otg = fsm->otg;
@@ -520,7 +477,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 	struct dwc3_exynos *exynos = dotg->exynos;
 	struct device	*dev = dotg->dwc->dev;
 	int ret = 0;
-	int wait_counter = 0, extra_delay = 0;
+	int wait_counter = 0;
 
 	if (!otg->gadget) {
 		dev_err(dev, "%s does not have any gadget\n", __func__);
@@ -557,7 +514,6 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		exynos->vbus_state = false;
 		del_timer_sync(&exynos->usb_connect_timer);
 
-		extra_delay = dwc3_check_extra_work(dwc);
 		/*
 		 * we can extra work corresponding each functions by
 		 * the following function.
@@ -580,7 +536,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		 * We can block udc core operation by the following flags.
 		 *  - gadget->connected and gadget->deactivated
 		 */
-		if (extra_delay)
+		if (exynos->extra_delay)
 			msleep(100);
 
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
