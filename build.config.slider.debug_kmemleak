@@ -1,0 +1,13 @@
+TRIM_NONLISTED_KMI=0
+KMI_SYMBOL_LIST_STRICT_MODE=0
+
+POST_DEFCONFIG_CMDS="${POST_DEFCONFIG_CMDS} && update_debug_config"
+
+function update_debug_config() {
+  ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
+    -e CONFIG_DEBUG_KMEMLEAK \
+    -e CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=4000
+
+  (cd ${OUT_DIR} && \
+   make O=${OUT_DIR} "${TOOL_ARGS[@]}" ${MAKE_ARGS} olddefconfig)
+}
