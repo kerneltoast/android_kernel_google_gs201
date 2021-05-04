@@ -17,12 +17,13 @@
 
 #define PROTO_VOTER(S)	{		\
 	S(BC12_SDP),			\
+	S(USB_SUSPEND_UNCFG),		\
 	S(DEAD_BATTERY),		\
 	S(USB_CONFIGURED),		\
+	S(USB_SUSPEND),			\
 	S(BC12_CDP_DCP),		\
 	S(USB_ICL_TYPEC),		\
-	S(USB_ICL_PD),			\
-	S(USB_DATA_SUSPEND) }
+	S(USB_ICL_PD) }
 
 #define GENERATE_ENUM(e)	e
 #define GENERATE_STRING(s)	#s

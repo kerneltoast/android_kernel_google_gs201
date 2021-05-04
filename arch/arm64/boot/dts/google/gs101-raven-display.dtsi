@@ -32,6 +32,3 @@
 	/delete-property/ regulator-always-on;
 };
 
-&m_ldo31_reg {
-	/delete-property/ regulator-always-on;
-};

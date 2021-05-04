@@ -16,6 +16,7 @@
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>
 #include <linux/platform_data/sscoredump.h>
+#include <linux/soc/samsung/exynos-smc.h>
 
 #include "bigo_io.h"
 #include "bigo_iommu.h"
@@ -31,16 +32,7 @@
 #define DEFAULT_WIDTH 3840
 #define DEFAULT_HEIGHT 2160
 #define DEFAULT_FPS 60
-
-inline void set_curr_inst(struct bigo_core *core, struct bigo_inst *inst)
-{
-	core->curr_inst = inst;
-}
-
-inline struct bigo_inst *get_curr_inst(struct bigo_core *core)
-{
-	return core->curr_inst;
-}
+#define BIGO_SMC_ID 0xd
 
 static struct sscd_platform_data bigo_sscd_platdata;
 
@@ -78,13 +70,26 @@ static void bigo_coredump(struct bigo_core *core, const char *crash_info)
 		SSCD_FLAGS_ELFARM64HDR, crash_info);
 }
 
-static inline void on_first_instance_open(struct bigo_core *core)
+static inline int on_first_instance_open(struct bigo_core *core)
 {
-	bigo_pt_client_enable(core);
+	int rc = bigo_pt_client_enable(core);
+
+	if (rc)
+		pr_info("failed to enable SLC");
+#if IS_ENABLED(CONFIG_PM)
+	rc = pm_runtime_get_sync(core->dev);
+	if (rc)
+		pr_err("failed to resume: %d\n", rc);
+#endif
+	return rc;
 }
 
 static inline void on_last_inst_close(struct bigo_core *core)
 {
+#if IS_ENABLED(CONFIG_PM)
+	if (pm_runtime_put_sync_suspend(core->dev))
+		pr_warn("failed to suspend\n");
+#endif
 	bigo_pt_client_disable(core);
 	kfree(core->job.regs);
 	core->job.regs = NULL;
@@ -111,10 +116,17 @@ static int bigo_open(struct inode *inode, struct file *file)
 	inst->fps = DEFAULT_FPS;
 	inst->core = core;
 	mutex_lock(&core->lock);
-	if (list_empty(&core->instances))
-		on_first_instance_open(core);
+	if (list_empty(&core->instances)) {
+		rc = on_first_instance_open(core);
+		if (rc) {
+			pr_err("failed to setup first instance");
+			mutex_unlock(&core->lock);
+			goto err;
+		}
+	}
 	list_add_tail(&inst->list, &core->instances);
 	mutex_unlock(&core->lock);
+	bigo_update_qos(core);
 	pr_info("opened bigocean instance\n");
 
 err:
@@ -138,29 +150,9 @@ static int bigo_release(struct inode *inode, struct file *file)
 	if (list_empty(&core->instances))
 		on_last_inst_close(core);
 	mutex_unlock(&core->lock);
+	bigo_update_qos(core);
 	pr_info("closed bigocean instance\n");
 	return 0;
-}
-
-static void bigo_update_stats(struct bigo_core *core, void *regs)
-{
-	struct bigo_inst *inst = get_curr_inst(core);
-
-	if (!inst) {
-		pr_warn("%s called on NULL instance\n", __func__);
-		return;
-	}
-	inst->avg_bw[inst->job_cnt % AVG_CNT].rd_bw =
-		*(u32 *)(regs + BIGO_REG_RD_BW);
-	inst->avg_bw[inst->job_cnt % AVG_CNT].wr_bw =
-		*(u32 *)(regs + BIGO_REG_WR_BW);
-	inst->pk_bw[inst->job_cnt % PEAK_CNT].rd_bw =
-		*(u32 *)(regs + BIGO_REG_RD_BW);
-	inst->pk_bw[inst->job_cnt % PEAK_CNT].wr_bw =
-		*(u32 *)(regs + BIGO_REG_WR_BW);
-	inst->hw_cycles[inst->job_cnt % AVG_CNT] =
-		*(u32 *)(regs + BIGO_REG_HW_CYCLES);
-	inst->job_cnt++;
 }
 
 static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
@@ -168,13 +160,6 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 	long ret = 0;
 	int rc = 0;
 
-#if IS_ENABLED(CONFIG_PM)
-	rc = pm_runtime_get_sync(core->dev);
-	if (rc) {
-		pr_err("failed to resume: %d\n", rc);
-		return rc;
-	}
-#endif
 	bigo_bypass_ssmt_pid(core);
 	bigo_push_regs(core, job->regs);
 	bigo_core_enable(core);
@@ -199,16 +184,10 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 
 	bigo_pull_regs(core, job->regs);
 	*(u32 *)(job->regs + BIGO_REG_STAT) = core->stat_with_irq;
-	bigo_update_stats(core, job->regs);
-#if IS_ENABLED(CONFIG_PM)
-	if (pm_runtime_put_sync_suspend(core->dev))
-		pr_warn("failed to suspend\n");
-#endif
 	return rc;
 }
 
-static int bigo_process(struct bigo_inst *inst, struct bigo_core *core,
-			struct bigo_ioc_regs *desc)
+static int bigo_process(struct bigo_core *core, struct bigo_ioc_regs *desc)
 {
 	int rc = 0;
 	struct bigo_job *job = &core->job;
@@ -240,9 +219,7 @@ static int bigo_process(struct bigo_inst *inst, struct bigo_core *core,
 	}
 
 	/*TODO(vinaykalia@): Replace this with EDF scheduler.*/
-	set_curr_inst(core, inst);
 	rc = bigo_run_job(core, job);
-	set_curr_inst(core, NULL);
 	if (rc) {
 		pr_err("Error running job\n");
 		goto unlock;
@@ -264,6 +241,7 @@ inline void bigo_config_frmrate(struct bigo_inst *inst, __u32 frmrate)
 	mutex_lock(&inst->lock);
 	inst->fps = frmrate;
 	mutex_unlock(&inst->lock);
+	bigo_update_qos(inst->core);
 }
 
 inline void bigo_config_frmsize(struct bigo_inst *inst,
@@ -273,6 +251,7 @@ inline void bigo_config_frmsize(struct bigo_inst *inst,
 	inst->height = frmsize->height;
 	inst->width = frmsize->width;
 	mutex_unlock(&inst->lock);
+	bigo_update_qos(inst->core);
 }
 
 inline void bigo_config_secure(struct bigo_inst *inst, __u32 is_secure)
@@ -314,9 +293,25 @@ static long bigo_unlocked_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 		}
 
-		rc = bigo_process(inst, core, &desc);
+		if (inst->is_secure) {
+			rc = exynos_smc(SMC_PROTECTION_SET, 0, BIGO_SMC_ID,
+					SMC_PROTECTION_ENABLE);
+			if (rc) {
+				pr_err("failed to enable SMC_PROTECTION_SET: %d\n", rc);
+				break;
+			}
+		}
+
+		rc = bigo_process(core, &desc);
 		if (rc)
 			pr_err("Error processing data: %d\n", rc);
+
+		if (inst->is_secure) {
+			rc = exynos_smc(SMC_PROTECTION_SET, 0, BIGO_SMC_ID,
+					SMC_PROTECTION_DISABLE);
+			if (rc)
+				pr_err("failed to disable SMC_PROTECTION_SET: %d\n", rc);
+		}
 		break;
 	case BIGO_IOCX_MAP:
 		if (copy_from_user(&mapping, user_desc, sizeof(mapping))) {
@@ -473,6 +468,7 @@ static int bigo_probe(struct platform_device *pdev)
 	mutex_init(&core->lock);
 	INIT_LIST_HEAD(&core->instances);
 	INIT_LIST_HEAD(&core->pm.opps);
+	INIT_LIST_HEAD(&core->pm.bw);
 	init_completion(&core->frame_done);
 	core->dev = &pdev->dev;
 	platform_set_drvdata(pdev, core);

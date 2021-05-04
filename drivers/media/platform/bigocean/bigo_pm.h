@@ -20,5 +20,6 @@ int bigo_pm_init(struct bigo_core *core);
 int bigo_runtime_suspend(struct device *dev);
 int bigo_runtime_resume(struct device *dev);
 #endif
+void bigo_update_qos(struct bigo_core *core);
 
 #endif //_BIGO_PM_H_
