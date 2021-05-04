@@ -83,8 +83,7 @@ void eh_remove(struct eh_device *eh_dev);
  * the compression is completed and returns the size, status, and
  * the memory used to store the compressed data.
  */
-int eh_compress_pages(struct eh_device *eh_dev, struct page **pages,
-		      unsigned int page_cnt, void *priv);
+int eh_compress_page(struct eh_device *eh_dev, struct page *page, void *priv);
 int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
                        unsigned int compr_size, struct page *page);
 

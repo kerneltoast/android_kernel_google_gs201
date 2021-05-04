@@ -833,18 +833,8 @@ static int eh_update_complete_index(struct eh_device *eh_dev,
 	return ret;
 }
 
-/*
- * eh_compress_pages
- *
- * Compress n pages asynchronously. Uses compression IRQ for completion.
- *
- * Each FIFO entry is marked with "IRQ enable", so the interrupts will
- * start arriving as soon as the first page has been compressed.
- */
-int eh_compress_pages(struct eh_device *eh_dev, struct page **pages,
-		      unsigned int page_cnt, void *priv)
+int eh_compress_page(struct eh_device *eh_dev, struct page *page, void *priv)
 {
-	int i;
 	unsigned int complete_index;
 	unsigned int new_write_index;
 	unsigned int new_pending_count;
@@ -861,8 +851,7 @@ try_again:
 	}
 
 	complete_index = READ_ONCE(eh_dev->complete_index);
-	new_write_index =
-		(eh_dev->write_index + page_cnt) & eh_dev->fifo_color_mask;
+	new_write_index = (eh_dev->write_index + 1) & eh_dev->fifo_color_mask;
 	new_pending_count =
 		(new_write_index - complete_index) & eh_dev->fifo_color_mask;
 
@@ -874,18 +863,16 @@ try_again:
 	}
 
 	pr_devel("[%s] %s: submit %u pages starting at descriptor %u\n",
-		 current->comm, __func__, page_cnt, eh_dev->write_index);
+		 current->comm, __func__, 1, eh_dev->write_index);
 
-	for (i = 0; i < page_cnt; i++) {
-		masked_w_index =
-			(eh_dev->write_index + i) & eh_dev->fifo_index_mask;
-		/* set up the descriptor (use IRQ) */
-		eh_setup_descriptor(eh_dev, pages[i], masked_w_index);
+	masked_w_index = eh_dev->write_index & eh_dev->fifo_index_mask;
 
-		cmpl = &eh_dev->completions[masked_w_index];
-		cmpl->priv = priv;
-		set_submit_ts(cmpl, ktime_get_ns());
-	}
+	/* set up the descriptor (use IRQ) */
+	eh_setup_descriptor(eh_dev, page, masked_w_index);
+
+	cmpl = &eh_dev->completions[masked_w_index];
+	cmpl->priv = priv;
+	set_submit_ts(cmpl, ktime_get_ns());
 
 	atomic_inc(&eh_dev->nr_request);
 	wake_up(&eh_dev->comp_wq);
@@ -898,7 +885,7 @@ try_again:
 
 	return 0;
 }
-EXPORT_SYMBOL(eh_compress_pages);
+EXPORT_SYMBOL(eh_compress_page);
 
 static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 			void *compr_data, unsigned int compr_size,
