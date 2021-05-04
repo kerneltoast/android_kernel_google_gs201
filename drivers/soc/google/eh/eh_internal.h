@@ -125,6 +125,26 @@ struct eh_device {
 	struct eh_stats __percpu *stats;
 };
 
+#ifdef CONFIG_SYSFS
+int eh_sysfs_init(struct device *device);
+#else
+static inline int eh_sysfs_init(struct device *device) { return 0;};
+#endif
 
+#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
+void eh_update_latency(struct eh_device *eh_dev, unsigned long start,
+			      unsigned long event_count,
+			      enum eh_stat_event type);
+
+void set_submit_ts(struct eh_completion *cmpl, unsigned long ts);
+unsigned long get_submit_ts(struct eh_completion *cmpl);
+#else
+static inline void eh_update_latency(struct eh_device *eh_dev, unsigned long start,
+			      unsigned long event_count,
+			      enum eh_stat_event type) {};
+
+static inline void set_submit_ts(struct eh_completion *cmpl, unsigned long ts) {};
+static inline unsigned long get_submit_ts(struct eh_completion *cmpl) { return 0; };
+#endif
 
 #endif
