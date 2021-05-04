@@ -59,31 +59,20 @@
 #define EH_ERR_IRQ	"eh_error"
 #define EH_COMP_IRQ	"eh_comp"
 
+/* wait up to a millisecond for reset */
+#define EH_RESET_WAIT_TIME 10
+#define EH_MAX_RESET_WAIT 100
+
 /* list of all unclaimed EH devices */
 static LIST_HEAD(eh_dev_list);
 static DEFINE_SPINLOCK(eh_dev_list_lock);
 
 static DECLARE_WAIT_QUEUE_HEAD(eh_compress_wait);
+static unsigned int eh_default_fifo_size = 256;
 
-static long eh_congestion_wait(long timeout)
-{
-	long ret;
-	DEFINE_WAIT(wait);
-	wait_queue_head_t *wqh = &eh_compress_wait;
-
-	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
-	ret = io_schedule_timeout(timeout);
-	finish_wait(wqh, &wait);
-
-	return ret;
-}
-
-static void clear_eh_congested(void)
-{
-	if (waitqueue_active(&eh_compress_wait))
-		wake_up(&eh_compress_wait);
-}
-
+/*
+ * - Primitive functions for Emerald Hill HW
+ */
 static inline void eh_write_register(struct eh_device *eh_dev,
 				     unsigned int offset, unsigned long val)
 {
@@ -132,8 +121,301 @@ static void eh_dump_regs(struct eh_device *eh_dev)
 				atomic_read(&eh_dev->nr_request));
 }
 
+static inline unsigned long eh_read_dcmd_status(struct eh_device *eh_dev,
+						int index)
+{
+	unsigned long status;
+
+#ifdef CONFIG_GOOGLE_EH_DCMD_STATUS_IN_MEMORY
+	status = READ_ONCE(eh_dev->decompr_status[index]);
+#else
+	status = eh_read_register(eh_dev, EH_REG_DCMD_DEST(index));
+#endif
+	return EH_DCMD_DEST_STATUS(status);
+}
+
+static int eh_reset(struct eh_device *eh_dev)
+{
+	unsigned long tmp = (unsigned long)-1UL;
+	unsigned int count = 0;
+
+	if (eh_dev->quirks & EH_QUIRK_IGNORE_GCTRL_RESET)
+		return 0;
+
+	eh_write_register(eh_dev, EH_REG_GCTRL, tmp);
+	while (count < EH_MAX_RESET_WAIT &&
+	       eh_read_register(eh_dev, EH_REG_GCTRL)) {
+		usleep_range(EH_RESET_WAIT_TIME, EH_RESET_WAIT_TIME * 2);
+		count++;
+	}
+
+	if (count == EH_MAX_RESET_WAIT) {
+		pr_warn("%s: timeout waiting for reset\n",
+			eh_dev->name);
+		return 1;
+	}
+
+	return 0;
+}
+
+static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
+			    unsigned int masked_w_index)
+{
+	struct eh_compress_desc *desc;
+	phys_addr_t src_paddr;
+
+	desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * masked_w_index;
+	src_paddr = page_to_phys(src_page);
+
+	pr_devel("%s: %s: desc = %px src = %pa[p] dst = %pa[p]\n", eh_dev->name,
+				__func__, desc, &src_paddr,
+				EH_ENCODED_ADDR_TO_PHYS(desc->dst_addr[0]));
+
+	desc->u1.src_addr = src_paddr;
+	/* mark it as pend for hardware */
+	desc->u1.s1.status = EH_CDESC_PENDING;
+	/*
+	 * Skip setting other fields of the descriptor for the performance
+	 * reason. It's doable since they are never changed once they are
+	 * initialized. Look at init_compression_descriptor.
+	 */
+}
+
+static void eh_compr_fifo_init(struct eh_device *eh_dev)
+{
+	unsigned long data;
+
+	/* FIFO reset: reset hardware write/read/complete index registers */
+	data = 1UL << EH_CDESC_CTRL_FIFO_RESET;
+	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
+	do {
+		udelay(1);
+		data = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
+	} while (data & (1UL << EH_CDESC_CTRL_FIFO_RESET));
+
+	/* reset software copies of index registers */
+	eh_dev->write_index = 0;
+	eh_dev->complete_index = 0;
+
+	/* program FIFO memory location and size */
+	data = (unsigned long)virt_to_phys(eh_dev->fifo) | __ffs(eh_dev->fifo_size);
+	eh_write_register(eh_dev, EH_REG_CDESC_LOC, data);
+
+	/* enable compression */
+	data = 1UL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT;
+	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
+}
+
+/* Set up constant parts of descriptors */
+static void init_compression_descriptor(struct eh_device *eh_dev)
+{
+	int i;
+	struct eh_compress_desc *desc;
+
+	for (i = 0; i < eh_dev->fifo_size; i++ ) {
+		phys_addr_t dst_paddr;
+		int j;
+
+		desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * i;
+		dst_paddr = virt_to_phys(eh_dev->compr_buffers[i]);
+#ifdef CONFIG_GOOGLE_EH_CFIFO_DST_BUFFER_3KB
+		desc->u1.s1.max_buf = 2;
+		/* buffer 1: top 2KB of compression buffer (page) */
+		desc->dst_addr[0] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr, PAGE_SIZE / 2);
+
+		/* buffer 2: next 1KB right after buffer 1 */
+		desc->dst_addr[1] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr + PAGE_SIZE / 2,
+				PAGE_SIZE / 4);
+#else
+		desc->u1.s1.max_buf = 1;
+		desc->dst_addr[0] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr, PAGE_SIZE);
+		desc->dst_addr[1] = 0;
+#endif
+		for (j = 2; j < EH_NUM_OF_FREE_BLOCKS; j++)
+			desc->dst_addr[j] = 0;
+	}
+}
+
+/*
+ * - Primitive functions for Emerald Hill SW
+ */
+static long eh_congestion_wait(long timeout)
+{
+	long ret;
+	DEFINE_WAIT(wait);
+	wait_queue_head_t *wqh = &eh_compress_wait;
+
+	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+	ret = io_schedule_timeout(timeout);
+	finish_wait(wqh, &wait);
+
+	return ret;
+}
+
+static void clear_eh_congested(void)
+{
+	if (waitqueue_active(&eh_compress_wait))
+		wake_up(&eh_compress_wait);
+}
+
+static irqreturn_t eh_error_irq(int irq, void *data)
+{
+	struct eh_device *eh_dev = data;
+	unsigned long compr, decompr, error;
+
+	compr = eh_read_register(eh_dev, EH_REG_INTRP_STS_CMP);
+	decompr = eh_read_register(eh_dev, EH_REG_INTRP_STS_DCMP);
+	error = eh_read_register(eh_dev, EH_REG_INTRP_STS_ERROR);
+
+	pr_err("%s: %s: irq %d error 0x%llx compr 0x%llx decompr 0x%llx\n",
+	       eh_dev->name, __func__, irq, error, compr, decompr);
+
+	if (error) {
+		pr_err("%s: error interrupt was active\n", eh_dev->name);
+		eh_dump_regs(eh_dev);
+		eh_write_register(eh_dev, EH_REG_INTRP_STS_ERROR, error);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int eh_process_completed_descriptor(struct eh_device *eh_dev,
+					   unsigned short fifo_index,
+					   struct eh_completion *cmpl)
+{
+	struct eh_compress_desc *desc;
+	unsigned int compr_status;
+	unsigned int compr_size;
+	unsigned int compr_bufsel;
+	unsigned int offset;
+	void *compr_data = NULL;
+	int ret = 0;
+
+	eh_update_latency(eh_dev, get_submit_ts(cmpl), 1, EH_COMPRESS);
+
+	desc = eh_dev->fifo + (fifo_index * EH_COMPRESS_DESC_SIZE);
+
+	pr_devel("%s: desc 0x%x status 0x%x len %u src 0x%pap\n", eh_dev->name,
+		 fifo_index, desc->u1.s1.status, desc->compr_len,
+		 &desc->u1.src_addr);
+
+	compr_status = desc->u1.s1.status;
+	compr_size = desc->compr_len;
+	compr_bufsel = desc->buf_sel;
+	offset = (compr_bufsel == 2) ? PAGE_SIZE / 2 : 0;
+
+	switch (compr_status) {
+	/* normal case, page copied */
+	case EH_CDESC_COPIED:
+		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
+		pr_devel("%s: COPIED desc 0x%x buf %px\n", eh_dev->name,
+			 fifo_index, compr_data);
+		break;
+
+	/* normal case, compression completed successfully */
+	case EH_CDESC_COMPRESSED:
+		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
+		pr_devel("%s: COMPRESSED desc 0x%x buf %px\n", eh_dev->name,
+			 fifo_index, compr_data);
+		break;
+
+	/* normal case, hardware detected page of all zeros */
+	case EH_CDESC_ZERO:
+		pr_devel("%s: ZERO desc 0x%x\n", eh_dev->name, fifo_index);
+		break;
+
+	/* normal case, incompressible page, did not fit into 3K buffer */
+	case EH_CDESC_ABORT:
+		pr_devel("%s: ABORT desc 0x%x\n", eh_dev->name, fifo_index);
+		break;
+
+	/* an error occurred, but hardware is still progressing */
+	case EH_CDESC_ERROR_CONTINUE:
+		pr_err("%s: got error on descriptor 0x%x\n", eh_dev->name,
+		       fifo_index);
+		break;
+
+	/* a fairly bad error occurred, need to reset the fifo */
+	case EH_CDESC_ERROR_HALTED:
+		pr_err("%s: got fifo error on descriptor 0x%x\n", eh_dev->name,
+		       fifo_index);
+		ret = 1;
+		break;
+
+	/*
+	 * this shouldn't normally happen -- hardware indicated completed but
+	 * descriptor is still in PEND or IDLE.
+	 */
+	case EH_CDESC_IDLE:
+	case EH_CDESC_PENDING:
+		eh_dump_regs(eh_dev);
+		pr_err("%s: descriptor 0x%x pend or idle 0x%x: ", eh_dev->name,
+		       fifo_index, compr_status);
+		{
+			int i;
+			unsigned int *p = (unsigned int *)(eh_dev->fifo +
+							   (fifo_index *
+							    EH_COMPRESS_DESC_SIZE));
+			for (i = 0;
+			     i < (EH_COMPRESS_DESC_SIZE / sizeof(unsigned int));
+			     i++) {
+				pr_cont("%08X ", p[i]);
+			}
+			pr_cont("\n");
+		}
+		BUG_ON(1);
+		break;
+	};
+
+	/* do the callback */
+	(*eh_dev->comp_callback)(compr_status, compr_data, compr_size, cmpl->priv);
+
+	/* set the descriptor back to IDLE */
+	desc->u1.s1.status = EH_CDESC_IDLE;
+	atomic_dec(&eh_dev->nr_request);
+	clear_eh_congested();
+
+	return ret;
+}
+
+static int eh_process_completions(struct eh_device *eh_dev, unsigned int start,
+				   unsigned int end)
+{
+	int ret = 0;
+	unsigned int i;
+	unsigned int index;
+	struct eh_completion *cmpl;
+
+	pr_devel("%s: %s: process from %u to %u\n", eh_dev->name, __func__,
+		 start, end);
+
+	for (i = start; i != end; i = (i + 1) & eh_dev->fifo_color_mask) {
+		index = i & eh_dev->fifo_index_mask;
+		cmpl = &eh_dev->completions[index];
+		ret = eh_process_completed_descriptor(eh_dev, index, cmpl);
+		cmpl->priv = NULL;
+		smp_store_release(&eh_dev->complete_index,
+				  (eh_dev->complete_index + 1) &
+					  eh_dev->fifo_color_mask);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 static int eh_update_complete_index(struct eh_device *eh_dev,
-				     bool update_int_idx);
+				     bool update_int_idx)
+{
+	int ret = 0;
+	unsigned long raw = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
+	unsigned int new_complete_index = raw & EH_CDESC_CTRL_COMPLETE_IDX_MASK;
+
+	if (new_complete_index != eh_dev->complete_index)
+		ret = eh_process_completions(eh_dev, eh_dev->complete_index,
+				       new_complete_index);
+	return ret;
+}
 
 static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev)
 {
@@ -153,19 +435,6 @@ static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev)
 					  cmpl->priv);
 		cmpl->priv = NULL;
 	}
-}
-
-static inline unsigned long eh_read_dcmd_status(struct eh_device *eh_dev,
-						int index)
-{
-	unsigned long status;
-
-#ifdef CONFIG_GOOGLE_EH_DCMD_STATUS_IN_MEMORY
-	status = READ_ONCE(eh_dev->decompr_status[index]);
-#else
-	status = eh_read_register(eh_dev, EH_REG_DCMD_DEST(index));
-#endif
-	return EH_DCMD_DEST_STATUS(status);
 }
 
 static int eh_comp_thread(void *data)
@@ -200,151 +469,56 @@ static int eh_comp_thread(void *data)
 	return 0;
 }
 
-static irqreturn_t eh_error_irq(int irq, void *data)
+/* Initialize SW related stuff */
+static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 {
-	struct eh_device *eh_dev = data;
-	unsigned long compr, decompr, error;
+	int ret, cpu;
 
-	compr = eh_read_register(eh_dev, EH_REG_INTRP_STS_CMP);
-	decompr = eh_read_register(eh_dev, EH_REG_INTRP_STS_DCMP);
-	error = eh_read_register(eh_dev, EH_REG_INTRP_STS_ERROR);
+	/* the error interrupt */
+	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
+				   EH_ERR_IRQ, eh_dev);
+	if (ret) {
+		pr_err("%s: unable to request irq %u ret %d\n", eh_dev->name,
+		       error_irq, ret);
+		return ret;
+	}
+	eh_dev->error_irq = error_irq;
 
-	pr_err("%s: %s: irq %d error 0x%llx compr 0x%llx decompr 0x%llx\n",
-	       eh_dev->name, __func__, irq, error, compr, decompr);
+	atomic_set(&eh_dev->nr_request, 0);
+	init_waitqueue_head(&eh_dev->comp_wq);
 
-	if (error) {
-		pr_err("%s: error interrupt was active\n", eh_dev->name);
-		eh_dump_regs(eh_dev);
-		eh_write_register(eh_dev, EH_REG_INTRP_STS_ERROR, error);
+	eh_dev->comp_thread = kthread_run(eh_comp_thread, eh_dev, "eh_comp_thread");
+	if (IS_ERR(eh_dev->comp_thread)) {
+		ret = PTR_ERR(eh_dev->comp_thread);
+		goto free_irq;
 	}
 
-	return IRQ_HANDLED;
-}
-
-/* wait up to a millisecond for reset */
-#define EH_RESET_WAIT_TIME 10
-#define EH_MAX_RESET_WAIT 100
-
-static int eh_reset(struct eh_device *eh_dev)
-{
-	unsigned long tmp = (unsigned long)-1UL;
-	unsigned int count = 0;
-
-	if (eh_dev->quirks & EH_QUIRK_IGNORE_GCTRL_RESET)
-		return 0;
-
-	eh_write_register(eh_dev, EH_REG_GCTRL, tmp);
-	while (count < EH_MAX_RESET_WAIT &&
-	       eh_read_register(eh_dev, EH_REG_GCTRL)) {
-		usleep_range(EH_RESET_WAIT_TIME, EH_RESET_WAIT_TIME * 2);
-		count++;
+	eh_dev->stats = alloc_percpu(struct eh_stats);
+	if (!eh_dev->stats) {
+		ret = -ENOMEM;
+		goto free_thread;
 	}
 
-	if (count == EH_MAX_RESET_WAIT) {
-		pr_warn("%s: timeout waiting for reset\n",
-			eh_dev->name);
-		return 1;
+	for_each_possible_cpu (cpu) {
+		int i;
+
+		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
+			per_cpu_ptr(eh_dev->stats, cpu)->min_lat[i] = -1UL;
 	}
+
+	spin_lock(&eh_dev_list_lock);
+	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
+	spin_unlock(&eh_dev_list_lock);
+
 
 	return 0;
-}
 
-static void eh_compr_fifo_init(struct eh_device *eh_dev)
-{
-	unsigned long data;
-
-	/* FIFO reset: reset hardware write/read/complete index registers */
-	data = 1UL << EH_CDESC_CTRL_FIFO_RESET;
-	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
-	do {
-		udelay(1);
-		data = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
-	} while (data & (1UL << EH_CDESC_CTRL_FIFO_RESET));
-
-	/* reset software copies of index registers */
-	eh_dev->write_index = 0;
-	eh_dev->complete_index = 0;
-
-	/* program FIFO memory location and size */
-	data = (unsigned long)virt_to_phys(eh_dev->fifo) | __ffs(eh_dev->fifo_size);
-	eh_write_register(eh_dev, EH_REG_CDESC_LOC, data);
-
-	/* enable compression */
-	data = 1UL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT;
-	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
-}
-
-struct eh_device *eh_create(eh_cb_fn comp, eh_cb_fn decomp)
-{
-	unsigned long flags;
-	struct eh_device *ret = NULL;
-	struct list_head *cur;
-
-	spin_lock_irqsave(&eh_dev_list_lock, flags);
-	list_for_each (cur, &eh_dev_list) {
-		struct eh_device *impl;
-		impl = list_entry(cur, struct eh_device, eh_dev_list);
-		pr_devel("%s: testing %s\n", __func__, impl->name);
-		ret = impl;
-		list_del(cur);
-		pr_devel("%s: found EH device %s\n", __func__, ret->name);
-		if (ret)
-			break;
-	}
-	spin_unlock_irqrestore(&eh_dev_list_lock, flags);
-
-	if (ret) {
-		ret->comp_callback = comp;
-		ret->decomp_callback = decomp;
-	} else {
-		pr_info("%s: unable to find desired implementation\n",
-			__func__);
-		ret = ERR_PTR(-ENODEV);
-	}
+free_thread:
+	kthread_stop(eh_dev->comp_thread);
+free_irq:
+	free_irq(eh_dev->error_irq, eh_dev);
 
 	return ret;
-}
-EXPORT_SYMBOL(eh_create);
-
-void eh_destroy(struct eh_device *eh_dev)
-{
-	unsigned long flags;
-
-	eh_dev->comp_callback = eh_dev->decomp_callback = NULL;
-	spin_lock_irqsave(&eh_dev_list_lock, flags);
-	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
-	spin_unlock_irqrestore(&eh_dev_list_lock, flags);
-}
-EXPORT_SYMBOL(eh_destroy);
-
-/* Set up constant parts of descriptors */
-static void init_compression_descriptor(struct eh_device *eh_dev)
-{
-	int i;
-	struct eh_compress_desc *desc;
-
-	for (i = 0; i < eh_dev->fifo_size; i++ ) {
-		phys_addr_t dst_paddr;
-		int j;
-
-		desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * i;
-		dst_paddr = virt_to_phys(eh_dev->compr_buffers[i]);
-#ifdef CONFIG_GOOGLE_EH_CFIFO_DST_BUFFER_3KB
-		desc->u1.s1.max_buf = 2;
-		/* buffer 1: top 2KB of compression buffer (page) */
-		desc->dst_addr[0] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr, PAGE_SIZE / 2);
-
-		/* buffer 2: next 1KB right after buffer 1 */
-		desc->dst_addr[1] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr + PAGE_SIZE / 2,
-				PAGE_SIZE / 4);
-#else
-		desc->u1.s1.max_buf = 1;
-		desc->dst_addr[0] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr, PAGE_SIZE);
-		desc->dst_addr[1] = 0;
-#endif
-		for (j = 2; j < EH_NUM_OF_FREE_BLOCKS; j++)
-			desc->dst_addr[j] = 0;
-	}
 }
 
 /* cleanup compression related stuff */
@@ -491,29 +665,14 @@ out_cleanup:
 	return ret;
 }
 
+
+
 static void eh_hw_deinit(struct eh_device *eh_dev)
 {
 	eh_deinit_decompression(eh_dev);
 	eh_deinit_compression(eh_dev);
 	iounmap(eh_dev->regs);
 	eh_dev->regs = NULL;
-}
-
-static void eh_sw_deinit(struct eh_device *eh_dev)
-{
-	if (eh_dev->error_irq) {
-		free_irq(eh_dev->error_irq, eh_dev);
-		eh_dev->error_irq = 0;
-	}
-	if (eh_dev->comp_thread) {
-		kthread_stop(eh_dev->comp_thread);
-		eh_dev->comp_thread = NULL;
-	}
-
-	if (eh_dev->stats) {
-		free_percpu(eh_dev->stats);
-		eh_dev->stats = NULL;
-	}
 }
 
 /* Initialize HW related stuff */
@@ -577,57 +736,14 @@ iounmap:
 	return ret;
 }
 
-/* Initialize SW related stuff */
-static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
+static void eh_deinit(struct eh_device *eh_dev)
 {
-	int ret, cpu;
-
-	/* the error interrupt */
-	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
-				   EH_ERR_IRQ, eh_dev);
-	if (ret) {
-		pr_err("%s: unable to request irq %u ret %d\n", eh_dev->name,
-		       error_irq, ret);
-		return ret;
-	}
-	eh_dev->error_irq = error_irq;
-
-	eh_dev->comp_thread = kthread_run(eh_comp_thread, eh_dev, "eh_comp_thread");
-	if (IS_ERR(eh_dev->comp_thread)) {
-		ret = PTR_ERR(eh_dev->comp_thread);
-		goto free_irq;
-	}
-
-	eh_dev->stats = alloc_percpu(struct eh_stats);
-	if (!eh_dev->stats) {
-		ret = -ENOMEM;
-		goto free_thread;
-	}
-
-	for_each_possible_cpu (cpu) {
-		int i;
-
-		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
-			per_cpu_ptr(eh_dev->stats, cpu)->min_lat[i] = -1UL;
-	}
-
-	spin_lock(&eh_dev_list_lock);
-	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
-	spin_unlock(&eh_dev_list_lock);
-
-	atomic_set(&eh_dev->nr_request, 0);
-	init_waitqueue_head(&eh_dev->comp_wq);
-
-	return 0;
-
-free_thread:
-	kthread_stop(eh_dev->comp_thread);
-	eh_dev->comp_thread = NULL;
-free_irq:
+	eh_deinit_compression(eh_dev);
+	eh_deinit_decompression(eh_dev);
 	free_irq(eh_dev->error_irq, eh_dev);
-	eh_dev->error_irq = 0;
-
-	return ret;
+	kthread_stop(eh_dev->comp_thread);
+	free_percpu(eh_dev->stats);
+	iounmap(eh_dev->regs);
 }
 
 /* EmeraldHill initialization entry */
@@ -659,233 +775,6 @@ static int eh_init(struct device *device, struct eh_device *eh_dev,
 
 	return 0;
 }
-
-static void eh_deinit(struct eh_device *eh_dev)
-{
-	eh_hw_deinit(eh_dev);
-	eh_sw_deinit(eh_dev);
-}
-
-void eh_remove(struct eh_device *eh_dev)
-{
-	eh_deinit(eh_dev);
-	kfree(eh_dev);
-}
-
-static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
-			    unsigned int masked_w_index)
-{
-	struct eh_compress_desc *desc;
-	phys_addr_t src_paddr;
-
-	desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * masked_w_index;
-	src_paddr = page_to_phys(src_page);
-
-	pr_devel("%s: %s: desc = %px src = %pa[p] dst = %pa[p]\n", eh_dev->name,
-				__func__, desc, &src_paddr,
-				EH_ENCODED_ADDR_TO_PHYS(desc->dst_addr[0]));
-
-	desc->u1.src_addr = src_paddr;
-	/* mark it as pend for hardware */
-	desc->u1.s1.status = EH_CDESC_PENDING;
-	/*
-	 * Skip setting other fields of the descriptor for the performance
-	 * reason. It's doable since they are never changed once they are
-	 * initialized. Look at init_compression_descriptor.
-	 */
-}
-
-static int eh_process_completed_descriptor(struct eh_device *eh_dev,
-					   unsigned short fifo_index,
-					   struct eh_completion *cmpl)
-{
-	struct eh_compress_desc *desc;
-	unsigned int compr_status;
-	unsigned int compr_size;
-	unsigned int compr_bufsel;
-	unsigned int offset;
-	void *compr_data = NULL;
-	int ret = 0;
-
-	eh_update_latency(eh_dev, get_submit_ts(cmpl), 1, EH_COMPRESS);
-
-	desc = eh_dev->fifo + (fifo_index * EH_COMPRESS_DESC_SIZE);
-
-	pr_devel("%s: desc 0x%x status 0x%x len %u src 0x%pap\n", eh_dev->name,
-		 fifo_index, desc->u1.s1.status, desc->compr_len,
-		 &desc->u1.src_addr);
-
-	compr_status = desc->u1.s1.status;
-	compr_size = desc->compr_len;
-	compr_bufsel = desc->buf_sel;
-	offset = (compr_bufsel == 2) ? PAGE_SIZE / 2 : 0;
-
-	switch (compr_status) {
-	/* normal case, page copied */
-	case EH_CDESC_COPIED:
-		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
-		pr_devel("%s: COPIED desc 0x%x buf %px\n", eh_dev->name,
-			 fifo_index, compr_data);
-		break;
-
-	/* normal case, compression completed successfully */
-	case EH_CDESC_COMPRESSED:
-		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
-		pr_devel("%s: COMPRESSED desc 0x%x buf %px\n", eh_dev->name,
-			 fifo_index, compr_data);
-		break;
-
-	/* normal case, hardware detected page of all zeros */
-	case EH_CDESC_ZERO:
-		pr_devel("%s: ZERO desc 0x%x\n", eh_dev->name, fifo_index);
-		break;
-
-	/* normal case, incompressible page, did not fit into 3K buffer */
-	case EH_CDESC_ABORT:
-		pr_devel("%s: ABORT desc 0x%x\n", eh_dev->name, fifo_index);
-		break;
-
-	/* an error occurred, but hardware is still progressing */
-	case EH_CDESC_ERROR_CONTINUE:
-		pr_err("%s: got error on descriptor 0x%x\n", eh_dev->name,
-		       fifo_index);
-		break;
-
-	/* a fairly bad error occurred, need to reset the fifo */
-	case EH_CDESC_ERROR_HALTED:
-		pr_err("%s: got fifo error on descriptor 0x%x\n", eh_dev->name,
-		       fifo_index);
-		ret = 1;
-		break;
-
-	/*
-	 * this shouldn't normally happen -- hardware indicated completed but
-	 * descriptor is still in PEND or IDLE.
-	 */
-	case EH_CDESC_IDLE:
-	case EH_CDESC_PENDING:
-		eh_dump_regs(eh_dev);
-		pr_err("%s: descriptor 0x%x pend or idle 0x%x: ", eh_dev->name,
-		       fifo_index, compr_status);
-		{
-			int i;
-			unsigned int *p = (unsigned int *)(eh_dev->fifo +
-							   (fifo_index *
-							    EH_COMPRESS_DESC_SIZE));
-			for (i = 0;
-			     i < (EH_COMPRESS_DESC_SIZE / sizeof(unsigned int));
-			     i++) {
-				pr_cont("%08X ", p[i]);
-			}
-			pr_cont("\n");
-		}
-		BUG_ON(1);
-		break;
-	};
-
-	/* do the callback */
-	(*eh_dev->comp_callback)(compr_status, compr_data, compr_size, cmpl->priv);
-
-	/* set the descriptor back to IDLE */
-	desc->u1.s1.status = EH_CDESC_IDLE;
-	atomic_dec(&eh_dev->nr_request);
-	clear_eh_congested();
-
-	return ret;
-}
-
-static int eh_process_completions(struct eh_device *eh_dev, unsigned int start,
-				   unsigned int end)
-{
-	int ret = 0;
-	unsigned int i;
-	unsigned int index;
-	struct eh_completion *cmpl;
-
-	pr_devel("%s: %s: process from %u to %u\n", eh_dev->name, __func__,
-		 start, end);
-
-	for (i = start; i != end; i = (i + 1) & eh_dev->fifo_color_mask) {
-		index = i & eh_dev->fifo_index_mask;
-		cmpl = &eh_dev->completions[index];
-		ret = eh_process_completed_descriptor(eh_dev, index, cmpl);
-		cmpl->priv = NULL;
-		smp_store_release(&eh_dev->complete_index,
-				  (eh_dev->complete_index + 1) &
-					  eh_dev->fifo_color_mask);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
-static int eh_update_complete_index(struct eh_device *eh_dev,
-				     bool update_int_idx)
-{
-	int ret = 0;
-	unsigned long raw = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
-	unsigned int new_complete_index = raw & EH_CDESC_CTRL_COMPLETE_IDX_MASK;
-
-	if (new_complete_index != eh_dev->complete_index)
-		ret = eh_process_completions(eh_dev, eh_dev->complete_index,
-				       new_complete_index);
-	return ret;
-}
-
-int eh_compress_page(struct eh_device *eh_dev, struct page *page, void *priv)
-{
-	unsigned int complete_index;
-	unsigned int new_write_index;
-	unsigned int new_pending_count;
-	unsigned int masked_w_index;
-	struct eh_completion *cmpl;
-
-try_again:
-	spin_lock(&eh_dev->fifo_prod_lock);
-
-	if (eh_dev->suspended) {
-		WARN(1, "compress request when EH is suspended\n");
-		spin_unlock(&eh_dev->fifo_prod_lock);
-		return -EBUSY;
-	}
-
-	complete_index = READ_ONCE(eh_dev->complete_index);
-	new_write_index = (eh_dev->write_index + 1) & eh_dev->fifo_color_mask;
-	new_pending_count =
-		(new_write_index - complete_index) & eh_dev->fifo_color_mask;
-
-	if (new_pending_count > eh_dev->fifo_size) {
-		spin_unlock(&eh_dev->fifo_prod_lock);
-		cond_resched();
-		eh_congestion_wait(HZ/10);
-		goto try_again;
-	}
-
-	pr_devel("[%s] %s: submit %u pages starting at descriptor %u\n",
-		 current->comm, __func__, 1, eh_dev->write_index);
-
-	masked_w_index = eh_dev->write_index & eh_dev->fifo_index_mask;
-
-	/* set up the descriptor (use IRQ) */
-	eh_setup_descriptor(eh_dev, page, masked_w_index);
-
-	cmpl = &eh_dev->completions[masked_w_index];
-	cmpl->priv = priv;
-	set_submit_ts(cmpl, ktime_get_ns());
-
-	atomic_inc(&eh_dev->nr_request);
-	wake_up(&eh_dev->comp_wq);
-
-	/* write barrier to force writes to be visible everywhere */
-	wmb();
-	eh_dev->write_index = new_write_index;
-	eh_write_register(eh_dev, EH_REG_CDESC_WRIDX, new_write_index);
-	spin_unlock(&eh_dev->fifo_prod_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(eh_compress_page);
 
 static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 			void *compr_data, unsigned int compr_size,
@@ -953,6 +842,60 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 #endif
 	eh_write_register(eh_dev, EH_REG_DCMD_DEST(index), dst_data);
 }
+
+int eh_compress_page(struct eh_device *eh_dev, struct page *page, void *priv)
+{
+	unsigned int complete_index;
+	unsigned int new_write_index;
+	unsigned int new_pending_count;
+	unsigned int masked_w_index;
+	struct eh_completion *cmpl;
+
+try_again:
+	spin_lock(&eh_dev->fifo_prod_lock);
+
+	if (eh_dev->suspended) {
+		WARN(1, "compress request when EH is suspended\n");
+		spin_unlock(&eh_dev->fifo_prod_lock);
+		return -EBUSY;
+	}
+
+	complete_index = READ_ONCE(eh_dev->complete_index);
+	new_write_index = (eh_dev->write_index + 1) & eh_dev->fifo_color_mask;
+	new_pending_count =
+		(new_write_index - complete_index) & eh_dev->fifo_color_mask;
+
+	if (new_pending_count > eh_dev->fifo_size) {
+		spin_unlock(&eh_dev->fifo_prod_lock);
+		cond_resched();
+		eh_congestion_wait(HZ/10);
+		goto try_again;
+	}
+
+	pr_devel("[%s] %s: submit %u pages starting at descriptor %u\n",
+		 current->comm, __func__, 1, eh_dev->write_index);
+
+	masked_w_index = eh_dev->write_index & eh_dev->fifo_index_mask;
+
+	/* set up the descriptor (use IRQ) */
+	eh_setup_descriptor(eh_dev, page, masked_w_index);
+
+	cmpl = &eh_dev->completions[masked_w_index];
+	cmpl->priv = priv;
+	set_submit_ts(cmpl, ktime_get_ns());
+
+	atomic_inc(&eh_dev->nr_request);
+	wake_up(&eh_dev->comp_wq);
+
+	/* write barrier to force writes to be visible everywhere */
+	wmb();
+	eh_dev->write_index = new_write_index;
+	eh_write_register(eh_dev, EH_REG_CDESC_WRIDX, new_write_index);
+	spin_unlock(&eh_dev->fifo_prod_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(eh_compress_page);
 
 /*
  * eh_decompress_page
@@ -1024,7 +967,48 @@ out:
 }
 EXPORT_SYMBOL(eh_decompress_page);
 
-static unsigned int eh_default_fifo_size = 256;
+struct eh_device *eh_create(eh_cb_fn comp, eh_cb_fn decomp)
+{
+	unsigned long flags;
+	struct eh_device *ret = NULL;
+	struct list_head *cur;
+
+	spin_lock_irqsave(&eh_dev_list_lock, flags);
+	list_for_each (cur, &eh_dev_list) {
+		struct eh_device *impl;
+		impl = list_entry(cur, struct eh_device, eh_dev_list);
+		pr_devel("%s: testing %s\n", __func__, impl->name);
+		ret = impl;
+		list_del(cur);
+		pr_devel("%s: found EH device %s\n", __func__, ret->name);
+		if (ret)
+			break;
+	}
+	spin_unlock_irqrestore(&eh_dev_list_lock, flags);
+
+	if (ret) {
+		ret->comp_callback = comp;
+		ret->decomp_callback = decomp;
+	} else {
+		pr_info("%s: unable to find desired implementation\n",
+			__func__);
+		ret = ERR_PTR(-ENODEV);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(eh_create);
+
+void eh_destroy(struct eh_device *eh_dev)
+{
+	unsigned long flags;
+
+	eh_dev->comp_callback = eh_dev->decomp_callback = NULL;
+	spin_lock_irqsave(&eh_dev_list_lock, flags);
+	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
+	spin_unlock_irqrestore(&eh_dev_list_lock, flags);
+}
+EXPORT_SYMBOL(eh_destroy);
 
 #ifdef CONFIG_OF
 static int eh_of_probe(struct platform_device *pdev)
@@ -1105,6 +1089,12 @@ disable_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
 
 	return ret;
+}
+
+void eh_remove(struct eh_device *eh_dev)
+{
+	eh_deinit(eh_dev);
+	kfree(eh_dev);
 }
 
 static int eh_of_remove(struct platform_device *pdev)
