@@ -99,7 +99,7 @@ if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
     # Booting AOSP ToT does not always work; throw a warning to prevent this.
     REPO_SHA=$(git log -1 --pretty="format:%H" m/s-dev-gs-pixel-5.10)
     LOCAL_MERGE_BASE=$(git merge-base HEAD aosp/android12-5.10)
-    if [ "${REPO_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
+    if [ -n "${LOCAL_MERGE_BASE}" -a "${REPO_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
       echo "Your aosp/ directory appears to be synced to a point beyond the"
       echo "  latest AOSP merge point. This is not supported, currently, as"
       echo "  it is prone to errors. Please base any changes on"
