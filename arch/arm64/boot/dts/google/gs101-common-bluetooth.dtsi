@@ -44,7 +44,7 @@
 };
 
 &odm {
-	btbcm {
+	btbcm: btbcm {
 		compatible = "goog,nitrous";
 		pinctrl-0 = <&bt_reg_on &bt_dev_wake &bt_host_wake>;
 		pinctrl-names = "default";

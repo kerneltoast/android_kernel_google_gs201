@@ -50,6 +50,7 @@
   bio_endio
   bio_init
   bio_put
+  __bitmap_clear
   bitmap_from_arr32
   bitmap_parse
   bitmap_parselist
@@ -79,9 +80,10 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run11
-  bpf_trace_run1
+  bpf_trace_run12
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -374,6 +376,7 @@
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
   devm_power_supply_register
+  devm_pwm_get
   __devm_regmap_init
   __devm_regmap_init_i2c
   __devm_regmap_init_spi
@@ -758,6 +761,7 @@
   get_unused_fd_flags
   get_user_pages
   get_user_pages_fast
+  get_user_pages_remote
   get_vaddr_frames
   gic_nonsecure_priorities
   glob_match
@@ -794,10 +798,17 @@
   handle_edge_irq
   handle_level_irq
   handle_nested_irq
+  handle_simple_irq
   handle_sysrq
   have_governor_per_policy
   hex_dump_to_buffer
   hex_to_bin
+  hid_add_device
+  hid_allocate_device
+  hid_debug
+  hid_destroy_device
+  hid_input_report
+  hid_parse_report
   hrtimer_active
   hrtimer_cancel
   hrtimer_forward
@@ -931,8 +942,8 @@
   irq_work_queue
   irq_work_sync
   is_vmalloc_addr
-  jiffies64_to_msecs
   jiffies
+  jiffies64_to_msecs
   jiffies_to_msecs
   jiffies_to_usecs
   kasan_flag_enabled
@@ -943,6 +954,7 @@
   kernel_restart
   kern_mount
   kern_unmount
+  __kfifo_alloc
   __kfifo_free
   __kfifo_in
   __kfifo_init
@@ -1045,8 +1057,8 @@
   memmove
   memparse
   memremap
-  memset64
   memset
+  memset64
   memstart_addr
   memunmap
   mfd_add_devices
@@ -1108,8 +1120,8 @@
   nla_append
   nla_memcpy
   __nla_parse
-  nla_put_64bit
   nla_put
+  nla_put_64bit
   nla_put_nohdr
   nla_reserve
   nla_strlcpy
@@ -1184,6 +1196,7 @@
   of_property_read_string_helper
   of_property_read_u32_index
   of_property_read_u64
+  of_property_read_u64_index
   of_property_read_variable_u16_array
   of_property_read_variable_u32_array
   of_property_read_variable_u64_array
@@ -1328,13 +1341,16 @@
   prandom_u32
   preempt_schedule
   preempt_schedule_notrace
+  prepare_to_wait
   prepare_to_wait_event
   print_hex_dump
   printk
+  printk_deferred
   proc_create
   proc_create_data
   proc_dointvec
   proc_dostring
+  proc_douintvec_minmax
   proc_mkdir
   proc_mkdir_data
   proc_remove
@@ -1406,6 +1422,7 @@
   register_restart_handler
   register_shrinker
   register_syscore_ops
+  register_sysctl
   register_sysctl_table
   register_virtio_device
   register_virtio_driver
@@ -1431,6 +1448,7 @@
   regulator_get
   regulator_get_optional
   regulator_get_voltage_sel_regmap
+  regulator_is_enabled
   regulator_is_enabled_regmap
   regulator_list_voltage_linear
   regulator_map_voltage_linear
@@ -1624,6 +1642,7 @@
   snd_soc_of_get_dai_name
   snd_soc_of_parse_card_name
   snd_soc_of_parse_daifmt
+  snd_soc_params_to_bclk
   snd_soc_params_to_frame_size
   snd_soc_put_enum_double
   snd_soc_put_volsw
@@ -1763,16 +1782,66 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __traceiter_android_rvh_cpu_overutilized
+  __traceiter_android_rvh_dequeue_task
+  __traceiter_android_rvh_find_energy_efficient_cpu
+  __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_rvh_set_iowait
+  __traceiter_android_rvh_typec_tcpci_chk_contaminant
+  __traceiter_android_rvh_typec_tcpci_get_vbus
+  __traceiter_android_rvh_uclamp_eff_get
+  __traceiter_android_rvh_util_est_update
+  __traceiter_android_vh_arch_set_freq_scale
+  __traceiter_android_vh_cma_alloc_finish
+  __traceiter_android_vh_cma_alloc_start
+  __traceiter_android_vh_cpu_idle_enter
+  __traceiter_android_vh_cpu_idle_exit
+  __traceiter_android_vh_enable_thermal_genl_check
+  __traceiter_android_vh_ep_create_wakeup_source
+  __traceiter_android_vh_ipi_stop
+  __traceiter_android_vh_pagecache_get_page
+  __traceiter_android_vh_rmqueue
+  __traceiter_android_vh_timerfd_create
+  __traceiter_android_vh_typec_store_partner_src_caps
+  __traceiter_android_vh_typec_tcpci_override_toggling
+  __traceiter_android_vh_typec_tcpm_adj_current_limit
+  __traceiter_android_vh_typec_tcpm_get_timer
+  __traceiter_android_vh_ufs_check_int_errors
+  __traceiter_android_vh_ufs_compl_command
+  __traceiter_android_vh_ufs_fill_prdt
+  __traceiter_android_vh_ufs_prepare_command
+  __traceiter_android_vh_ufs_send_command
+  __traceiter_android_vh_ufs_send_tm_command
+  __traceiter_android_vh_ufs_send_uic_command
+  __traceiter_android_vh_ufs_update_sysfs
   __traceiter_clock_set_rate
   __traceiter_cpu_frequency
+  __traceiter_device_pm_callback_end
+  __traceiter_device_pm_callback_start
   __traceiter_dwc3_readl
   __traceiter_dwc3_writel
   __traceiter_gpu_mem_total
+  __traceiter_pelt_cfs_tp
+  __traceiter_pelt_dl_tp
+  __traceiter_pelt_irq_tp
+  __traceiter_pelt_rt_tp
+  __traceiter_pelt_se_tp
+  __traceiter_rwmmio_post_read
+  __traceiter_rwmmio_read
+  __traceiter_rwmmio_write
+  __traceiter_sched_cpu_capacity_tp
+  __traceiter_sched_overutilized_tp
+  __traceiter_sched_util_est_cfs_tp
   __traceiter_sched_util_est_se_tp
+  __traceiter_suspend_resume
   trace_output_call
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_find_energy_efficient_cpu
+  __tracepoint_android_rvh_irqs_disable
+  __tracepoint_android_rvh_irqs_enable
+  __tracepoint_android_rvh_preempt_disable
+  __tracepoint_android_rvh_preempt_enable
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_iowait
   __tracepoint_android_rvh_typec_tcpci_chk_contaminant
@@ -1821,6 +1890,7 @@
   __tracepoint_rwmmio_write
   __tracepoint_sched_cpu_capacity_tp
   __tracepoint_sched_overutilized_tp
+  __tracepoint_sched_switch
   __tracepoint_sched_util_est_cfs_tp
   __tracepoint_sched_util_est_se_tp
   __tracepoint_suspend_resume

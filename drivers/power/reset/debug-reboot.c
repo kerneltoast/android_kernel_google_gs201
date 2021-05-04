@@ -17,10 +17,11 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
-#include <linux/stop_machine.h>
-#include <linux/time.h>
 #include <linux/sched/debug.h>
+#include <linux/stop_machine.h>
 #include <linux/sysrq.h>
+#include <linux/time.h>
+#include <generated/utsrelease.h>
 
 #define PANIC_REBOOT_CMD "debug-reboot-panic"
 #define WDOG_REBOOT_CMD "debug-reboot-watchdog"
@@ -40,6 +41,9 @@ MODULE_PARM_DESC(enable, "Enable/disable debug reboot commands");
 static bool stop_cpus = true;
 module_param(stop_cpus, bool, 0644);
 MODULE_PARM_DESC(stop_cpus, "Stop other cpus during watchdog (default: Y)");
+
+static const char __build_info[] __attribute__((used)) =
+	"vendor-build-info: UTS_RELEASE=" UTS_RELEASE;
 
 static void debug_reboot_panic(void)
 {

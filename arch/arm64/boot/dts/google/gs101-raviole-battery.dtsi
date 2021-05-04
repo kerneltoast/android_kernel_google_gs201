@@ -6,6 +6,8 @@
  *
  */
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	fragment@battery {
 		target-path = "/";
@@ -48,6 +50,10 @@
 				/* rest charging */
 				google,chg-rest-rate = <8>;
 				google,chg-rest-soc = <80>;
+				/* TRICKLE-DEFEND threshold */
+				google,bd-trickle-recharge-soc = <80>;
+				/* Enable TRICKLE-DEFEND */
+				google,bd-trickle-enable;
 
 				#thermal-sensor-cells = <0>;
 				#cooling-cells = <2>;
@@ -126,6 +132,11 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			ngpios = <6>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <5 IRQ_TYPE_NONE>,
+				     <6 IRQ_TYPE_NONE>;
 		};
 	};
 

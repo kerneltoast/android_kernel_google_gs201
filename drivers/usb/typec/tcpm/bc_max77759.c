@@ -31,6 +31,7 @@ struct bc12_status {
 	/* Protects changes to this structure. */
 	struct mutex lock;
 	struct power_supply *usb_psy;
+	bool retry_done;
 };
 
 struct bc12_update {
@@ -57,7 +58,7 @@ static void vendor_bc12_alert(struct work_struct *work)
 	struct max77759_plat *plat = bc12->chip;
 	struct regmap *regmap = plat->data.regmap;
 	union power_supply_propval val;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&bc12->lock);
 	logbuffer_log(plat->log,
@@ -77,10 +78,14 @@ static void vendor_bc12_alert(struct work_struct *work)
 		 * attach
 		 */
 		if (update->vendor_bc_status1 & DCDTMO) {
-			ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL1, CHGDETMAN, CHGDETMAN);
-			logbuffer_log(plat->log,
-				      "BC12: DCD timeout occurred. Manual detection triggered: %d",
-				      ret);
+			logbuffer_log(plat->log, "BC12: DCD timeout occurred.");
+			if (!bc12->retry_done) {
+				ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL1, CHGDETMAN,
+							    CHGDETMAN);
+				logbuffer_log(plat->log, "BC12: Manual detection triggered: %d",
+					      ret);
+				bc12->retry_done = true;
+			}
 		}
 	} else if (update->vendor_alert1_status & CHGTYPINT) {
 		switch (update->vendor_bc_status1 & CHGTYP) {
@@ -148,6 +153,12 @@ void process_bc12_alert(struct bc12_status *bc12, u8 vendor_alert1_status)
 	queue_work(bc12->wq, &update->bc12_work);
 }
 EXPORT_SYMBOL_GPL(process_bc12_alert);
+
+void bc12_reset_retry(struct bc12_status *bc12)
+{
+	bc12->retry_done = false;
+}
+EXPORT_SYMBOL_GPL(bc12_reset_retry);
 
 /*
  * Call during disconnect to clear the chg_typ

@@ -73,6 +73,10 @@ enum gbms_charger_modes {
 #define TCPM_RESTART_TOGGLING		0
 #define CONTAMINANT_HANDLES_TOGGLING	1
 
+static bool modparam_conf_sbu;
+module_param_named(conf_sbu, modparam_conf_sbu, bool, 0644);
+MODULE_PARM_DESC(conf_sbu, "Configure sbu pins");
+
 static bool hooks_installed;
 
 static u32 partner_src_caps[PDO_MAX_OBJECTS];
@@ -591,7 +595,7 @@ static void process_power_status(struct max77759_plat *chip)
 		mutex_unlock(&chip->data_path_lock);
 		logbuffer_log(log, "Debug accessory %s", chip->debug_acc_connected ? "connected" :
 			      "disconnected");
-		if (!chip->debug_acc_connected) {
+		if (!chip->debug_acc_connected && modparam_conf_sbu) {
 			ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_SBUSW_CTRL,
 					      SBUSW_SERIAL_UART);
 			logbuffer_log(log, "SBU switch enable %s", ret < 0 ? "fail" : "success");
@@ -621,7 +625,7 @@ static void process_tx(struct tcpci *tcpci, u16 status, struct logbuffer *log)
 static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				 struct logbuffer *log)
 {
-	u16 vendor_status = 0, raw;
+	u16 vendor_status = 0, vendor_status2 = 0, raw;
 	struct tcpci *tcpci = chip->tcpci;
 	int ret;
 	const u16 mask = status & TCPC_ALERT_RX_BUF_OVF ? status &
@@ -682,7 +686,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 			return ret;
 
 		ret = max77759_write8(tcpci->regmap,
-				      TCPC_VENDOR_ALERT_MASK2, 0x1);
+				      TCPC_VENDOR_ALERT_MASK2, 0x0);
 		if (ret < 0)
 			return ret;
 
@@ -691,10 +695,18 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				      &vendor_status);
 		if (ret < 0)
 			return ret;
+		logbuffer_log(log, "TCPC_VENDOR_ALERT 0x%x", vendor_status);
 
 		process_bc12_alert(chip->bc12, vendor_status);
 		ret = max77759_write16(tcpci->regmap, TCPC_VENDOR_ALERT,
 				       vendor_status);
+
+		ret = max77759_read16(tcpci->regmap, TCPC_VENDOR_ALERT2, &vendor_status2);
+		if (ret < 0)
+			return ret;
+		logbuffer_log(log, "TCPC_VENDOR_ALERT2 0x%x", vendor_status2);
+
+		ret = max77759_write16(tcpci->regmap, TCPC_VENDOR_ALERT2, vendor_status2);
 		if (ret < 0)
 			return ret;
 	}
@@ -776,7 +788,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		if (ret < 0)
 			return ret;
 		ret = max77759_write8(tcpci->regmap,
-				      TCPC_VENDOR_ALERT_MASK2, 0xfe);
+				      TCPC_VENDOR_ALERT_MASK2, 0xff);
 		if (ret < 0)
 			return ret;
 	}
@@ -940,6 +952,8 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 		chip->first_toggle = false;
 	}
 
+	/* Re-enable retry */
+	bc12_reset_retry(chip->bc12);
 	if (chip->contaminant_detection)
 		update_contaminant_detection_locked(chip, chip->contaminant_detection);
 	else
@@ -1760,6 +1774,11 @@ static int max77759_probe(struct i2c_client *client,
 		if (ret < 0)
 			dev_err(&client->dev, "TCPCI: Unable to create device attr[%d] ret:%d:", i,
 				ret);
+	}
+
+	if (!modparam_conf_sbu) {
+		ret = max77759_write8(chip->data.regmap, TCPC_VENDOR_SBUSW_CTRL, 0);
+		logbuffer_log(chip->log, "SBU switch disable %s", ret < 0 ? "fail" : "success");
 	}
 
 #ifdef CONFIG_DEBUG_FS

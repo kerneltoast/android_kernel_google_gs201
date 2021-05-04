@@ -13,7 +13,7 @@
 		gs101_tm1: gs101_spmic_tm1 {
 			compatible = "google,gs101-spmic-thermal";
 			#thermal-sensor-cells = <1>;
-			adc_chan_en = /bits/ 8 <0xb7>;
+			adc_chan_en = /bits/ 8 <0xf7>;
 		};
 	};
 };
@@ -111,7 +111,7 @@
 			};
 		};
 	};
-	therm_6 {
+	usb_pwr_therm: usb_pwr_therm {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";

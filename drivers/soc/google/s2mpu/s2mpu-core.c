@@ -15,7 +15,6 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 

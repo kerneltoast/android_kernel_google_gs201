@@ -53,6 +53,9 @@ struct uclamp_stats {
 	u64 effect_time_in_state_max[UCLAMP_STATS_SLOTS];
 };
 
+unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
+				      unsigned long cap);
+
 static inline struct vendor_task_struct *get_vendor_task_struct(struct task_struct *p)
 {
 	return (struct vendor_task_struct *)p->android_vendor_data1;
