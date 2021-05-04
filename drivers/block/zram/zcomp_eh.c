@@ -28,7 +28,7 @@ static void zcomp_eh_compress_done(unsigned int status, void *buffer, unsigned i
 static int zcomp_eh_compress(struct zcomp *comp, struct page *page,
 				struct zcomp_cookie *cookie)
 {
-	return eh_compress_page(comp->private, page, cookie);
+	return eh_compress_pages(comp->private, &page, 1, cookie);
 }
 
 static int zcomp_eh_decompress(struct zcomp *comp, void *src,
