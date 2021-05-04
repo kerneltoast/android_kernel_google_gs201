@@ -153,3 +153,10 @@ config PIXEL_BOOT_METRICS
 	help
 	  Say m or y here to add support for attributes that can get boot
 	  metrics information.
+
+config GS_SJTAG
+        tristate "GS SJTAG driver"
+        default n
+	help
+	  This driver implements the driver to the AP & GSA SJTAG HW blocks
+	  in the GS SoC.
