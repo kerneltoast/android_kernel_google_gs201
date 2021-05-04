@@ -94,7 +94,7 @@ enum eh_cdesc_status {
 };
 
 /* a type 0 compression descriptor */
-struct eh_compr_desc_0 {
+struct eh_compress_desc {
 	/* word 0 */
 	/* 6 bits indicating which of the 6 buffers were used */
 	unsigned int buf_sel : 6;
@@ -140,7 +140,7 @@ struct eh_compr_desc_0 {
 	unsigned long dst_addr[EH_NUM_OF_FREE_BLOCKS];
 };
 
-#define EH_COMPR_DESC_0_SIZE sizeof(struct eh_compr_desc_0)
+#define EH_COMPRESS_DESC_SIZE sizeof(struct eh_compress_desc)
 
 /*
  * We're using a scheme for encoding the size of an aligned buffer

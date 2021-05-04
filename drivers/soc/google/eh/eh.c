@@ -533,16 +533,16 @@ static struct attribute *eh_dev_attrs[] = {
 ATTRIBUTE_GROUPS(eh_dev);
 
 /* Set up constant parts of descriptors */
-static void init_desc_0(struct eh_device *eh_dev)
+static void init_compression_descriptor(struct eh_device *eh_dev)
 {
 	int i;
-	struct eh_compr_desc_0 *desc;
+	struct eh_compress_desc *desc;
 
 	for (i = 0; i < eh_dev->fifo_size; i++ ) {
 		phys_addr_t dst_paddr;
 		int j;
 
-		desc = eh_dev->fifo + EH_COMPR_DESC_0_SIZE * i;
+		desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * i;
 		dst_paddr = virt_to_phys(eh_dev->compr_buffers[i]);
 #ifdef CONFIG_GOOGLE_EH_CFIFO_DST_BUFFER_3KB
 		desc->u1.s1.max_buf = 2;
@@ -593,7 +593,7 @@ static void eh_deinit_compression(struct eh_device *eh_dev)
 static int eh_init_compression(struct eh_device *eh_dev, unsigned short fifo_size)
 {
 	int i, ret = 0;
-	unsigned int desc_size = EH_COMPR_DESC_0_SIZE;
+	unsigned int desc_size = EH_COMPRESS_DESC_SIZE;
 
 	spin_lock_init(&eh_dev->fifo_prod_lock);
 
@@ -643,7 +643,7 @@ static int eh_init_compression(struct eh_device *eh_dev, unsigned short fifo_siz
 		eh_dev->compr_buffers[i] = buf;
 	}
 
-	init_desc_0(eh_dev);
+	init_compression_descriptor(eh_dev);
 	return ret;
 
 out_cleanup:
@@ -887,13 +887,13 @@ void eh_remove(struct eh_device *eh_dev)
 	kfree(eh_dev);
 }
 
-static void eh_setup_desc_0(struct eh_device *eh_dev, struct page *src_page,
+static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
 			    unsigned int masked_w_index)
 {
-	struct eh_compr_desc_0 *desc;
+	struct eh_compress_desc *desc;
 	phys_addr_t src_paddr;
 
-	desc = eh_dev->fifo + EH_COMPR_DESC_0_SIZE * masked_w_index;
+	desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * masked_w_index;
 	src_paddr = page_to_phys(src_page);
 
 	pr_devel("%s: %s: desc = %px src = %pa[p] dst = %pa[p]\n", eh_dev->name,
@@ -906,7 +906,7 @@ static void eh_setup_desc_0(struct eh_device *eh_dev, struct page *src_page,
 	/*
 	 * Skip setting other fields of the descriptor for the performance
 	 * reason. It's doable since they are never changed once they are
-	 * initialized. Look at init_desc_0.
+	 * initialized. Look at init_compression_descriptor.
 	 */
 }
 
@@ -914,7 +914,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 					   unsigned short fifo_index,
 					   struct eh_completion *cmpl)
 {
-	struct eh_compr_desc_0 *desc;
+	struct eh_compress_desc *desc;
 	unsigned int compr_status;
 	unsigned int compr_size;
 	unsigned int compr_bufsel;
@@ -924,7 +924,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 
 	eh_update_latency(eh_dev, get_submit_ts(cmpl), 1, EH_COMPRESS);
 
-	desc = eh_dev->fifo + (fifo_index * EH_COMPR_DESC_0_SIZE);
+	desc = eh_dev->fifo + (fifo_index * EH_COMPRESS_DESC_SIZE);
 
 	pr_devel("%s: desc 0x%x status 0x%x len %u src 0x%pap\n", eh_dev->name,
 		 fifo_index, desc->u1.s1.status, desc->compr_len,
@@ -986,9 +986,9 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 			int i;
 			unsigned int *p = (unsigned int *)(eh_dev->fifo +
 							   (fifo_index *
-							    EH_COMPR_DESC_0_SIZE));
+							    EH_COMPRESS_DESC_SIZE));
 			for (i = 0;
-			     i < (EH_COMPR_DESC_0_SIZE / sizeof(unsigned int));
+			     i < (EH_COMPRESS_DESC_SIZE / sizeof(unsigned int));
 			     i++) {
 				pr_cont("%08X ", p[i]);
 			}
@@ -1095,7 +1095,7 @@ try_again:
 		masked_w_index =
 			(eh_dev->write_index + i) & eh_dev->fifo_index_mask;
 		/* set up the descriptor (use IRQ) */
-		eh_setup_desc_0(eh_dev, pages[i], masked_w_index);
+		eh_setup_descriptor(eh_dev, pages[i], masked_w_index);
 
 		cmpl = &eh_dev->completions[masked_w_index];
 		cmpl->priv = priv;
