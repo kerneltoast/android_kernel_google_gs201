@@ -664,10 +664,9 @@ static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
 		return -ENOMEM;
 
 	feature = eh_read_register(eh_dev, EH_REG_HWFEATURES2);
-	eh_dev->max_buffer_count = EH_FEATURES2_BUF_MAX(feature);
 	eh_dev->decompr_cmd_count = EH_FEATURES2_DECOMPR_CMDS(feature);
 
-	if (eh_dev->max_buffer_count == 0 || eh_dev->decompr_cmd_count == 0) {
+	if (eh_dev->decompr_cmd_count == 0) {
 		ret = -EINVAL;
 		goto iounmap;
 	}

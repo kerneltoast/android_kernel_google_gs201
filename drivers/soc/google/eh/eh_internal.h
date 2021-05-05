@@ -44,12 +44,6 @@ struct eh_device {
 
 	/* hardware characteristics */
 
-	/*
-	 * implementations can specify how many buffers are used to store
-	 * compressed data
-	 */
-	unsigned int max_buffer_count;
-
 	/* how many decompression command sets are implemented */
 	unsigned int decompr_cmd_count;
 
