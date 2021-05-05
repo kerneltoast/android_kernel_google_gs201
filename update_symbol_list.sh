@@ -2,10 +2,11 @@
 #!/bin/bash
 
 function usage {
-  echo "USAGE: $0 [-p|--prepare-aosp-abi [-c|--continue]]"
+  echo "USAGE: $0 [-p|--prepare-aosp-abi BUG_NUMBER [-c|--continue]]"
   echo
-  echo "  -p | --prepare-aosp-abi Update the AOSP ABI representation and symbol list in aosp/"
-  echo "  -c | --continue         Continue after the rebase failure"
+  echo "  -p | --prepare-aosp-abi BUG_NUMBER   Update the AOSP ABI xml and symbol list in aosp/ and"
+  echo "                                       create a commit with the provide BUG_NUMBER."
+  echo "  -c | --continue                      Continue after the rebase failure"
 }
 
 # Add a trap to remove the temporary vmlinux in case of an error occurs before
@@ -95,7 +96,7 @@ function update_aosp_abi {
       echo "and run: git rebase --continue. Then resume this script" >&2
       echo "using the command:" >&2
       echo >&2
-      echo "  $0 --prepare-aosp-abi --continue" >&2
+      echo "  $0 --prepare-aosp-abi ${BUG} --continue" >&2
       echo >&2
       echo "To return to your original tree in aosp/ after finishing the" >&2
       echo "ABI update, run this git command:" >&2
@@ -147,7 +148,7 @@ function update_aosp_abi {
     echo "Update the generic symbol list." >> ${COMMIT_TEXT}
   fi
   echo >> ${COMMIT_TEXT}
-  echo "Bug: XXX" >> ${COMMIT_TEXT}
+  echo "Bug: ${BUG}" >> ${COMMIT_TEXT}
   git -C aosp commit -s -F ${COMMIT_TEXT} -- android/
   err=$?
   echo "========================================================"
@@ -240,6 +241,11 @@ while [[ $# -gt 0 ]]; do
   case ${next} in
     -p|--prepare-aosp-abi)
       PREPARE_AOSP_ABI=1
+      BUG="$2"
+      if ! [[ "${BUG}" =~ ^[0-9]+$ ]]; then
+        exit_if_error 1 "Bug numbers should be digits."
+      fi
+      shift
       ;;
     -c|--continue)
       CONTINUE_AFTER_REBASE=1
