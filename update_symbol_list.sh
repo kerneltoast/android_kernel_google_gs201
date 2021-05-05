@@ -1,11 +1,11 @@
-#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
+#!/bin/bash
 
 function usage {
-  echo "USAGE: $0 [-p|--prepare-aosp-abi] [-cbr|--current-branch]"
+  echo "USAGE: $0 [-p|--prepare-aosp-abi [-c|--continue]]"
   echo
-  echo "  -p   | --prepare-aosp-abi    Update the AOSP ABI representation and symbol list in aosp/"
-  echo "  -cbr | --current-branch      Use the current AOSP branch for updating the AOSP ABI"
+  echo "  -p | --prepare-aosp-abi Update the AOSP ABI representation and symbol list in aosp/"
+  echo "  -c | --continue         Continue after the rebase failure"
 }
 
 # Add a trap to remove the temporary vmlinux in case of an error occurs before
@@ -45,24 +45,64 @@ function merge_and_sort_symbol_lists {
   rm -f ${TMP_LIST}
 }
 
+function verify_aosp_tree {
+  if [ "${PREPARE_AOSP_ABI}" = "0" ]; then
+    return
+  fi
+
+  pushd aosp >/dev/null
+    if ! git diff --quiet HEAD; then
+      exit_if_error 1 \
+        "Found uncommitted changes in aosp/. Commit your changes before updating the ABI"
+    fi
+
+    if [ "${CONTINUE_AFTER_REBASE}" = "0" ]; then
+      if git branch | grep "\<${FOR_AOSP_PUSH_BRANCH}\>" 2>&1 >/dev/null; then
+        echo "The branch '${FOR_AOSP_PUSH_BRANCH}' already exists in aosp/. Please delete" >&2
+        echo "this branch (git branch -D ${FOR_AOSP_PUSH_BRANCH}) before continuing." >&2
+        exit 1
+      fi
+
+      AOSP_CUR_BRANCH_OR_SHA1=$(git branch --show-current)
+      if [ -z "${AOSP_CUR_BRANCH_OR_SHA1}" ]; then
+        AOSP_CUR_BRANCH_OR_SHA1=$(git log -1 --pretty="format:%H")
+      fi
+    else
+      # Make sure they didn't switch branches when addressing the rebase conflict
+      if [ "${FOR_AOSP_PUSH_BRANCH}" != "$(git branch --show-current)" ]; then
+        exit_if_error 1 "For --continue, you need to be on the branch ${FOR_AOSP_PUSH_BRANCH}"
+      fi
+    fi
+  popd >/dev/null
+}
+
 function update_aosp_abi {
   echo "========================================================"
   echo " Extracting symbols and updating the AOSP ABI"
   local out_dir="out_aosp_abi"
   local pixel_symbol_list="android/abi_gki_aarch64_generic"
 
+  # Rebase to aosp/android12-5.10 ToT before updating the ABI
   pushd aosp/ >/dev/null
-    # Rebase to aosp/android12-5.10 ToT before updating the ABI
-    if [ -n "${AOSP_BACKUP_BRANCH}" ]; then
-      git checkout -b ${AOSP_BACKUP_BRANCH} && git checkout --detach
-      err=$? && exit_if_error ${err} "Failed to create backup branch ${AOSP_BACKUP_BRANCH}!"
+    if [ "${CONTINUE_AFTER_REBASE}" = "0" ]; then
+      git checkout -b ${FOR_AOSP_PUSH_BRANCH}
     fi
     git fetch aosp android12-5.10 && git rebase FETCH_HEAD
-    err=$? && exit_if_error ${err} "Failed to rebase aosp/ to the ToT!"
-
-    if [ -n "${FOR_AOSP_PUSH_BRANCH}" ]; then
-      git checkout -b ${FOR_AOSP_PUSH_BRANCH}
-      err=$? && exit_if_error ${err} "Failed to create the branch ${AOSP_BACKUP_BRANCH}!"
+    err=$?
+    if [ "${err}" != "0" ]; then
+      echo "ERROR: Failed to rebase your aosp/ change(s) to the AOSP ToT." >&2
+      echo "To resolve this, please manually resolve the rebase conflicts" >&2
+      echo "and run: git rebase --continue. Then resume this script" >&2
+      echo "using the command:" >&2
+      echo >&2
+      echo "  $0 --prepare-aosp-abi --continue" >&2
+      echo >&2
+      echo "To return to your original tree in aosp/ after finishing the" >&2
+      echo "ABI update, run this git command:" >&2
+      echo >&2
+      echo "  git checkout ${AOSP_CUR_BRANCH_OR_SHA1}" >&2
+      echo >&2
+      exit 1
     fi
   popd >/dev/null
 
@@ -137,14 +177,10 @@ function update_aosp_abi {
   fi
 
   rm -f ${COMMIT_TEXT}
-  # Rollback to the original commit and remove the backup branch we created
-  pushd aosp >/dev/null
-    if [ -n "${AOSP_BACKUP_BRANCH}" ]; then
-      git checkout ${AOSP_BACKUP_BRANCH}
-      git checkout --detach
-      git branch -D ${AOSP_BACKUP_BRANCH}
-    fi
-  popd >/dev/null
+  # Rollback to the original branch/commit
+  if [ -n "${AOSP_CUR_BRANCH_OR_SHA1}" ]; then
+    git -C aosp checkout ${AOSP_CUR_BRANCH_OR_SHA1}
+  fi
 }
 
 # Extract the kernel module symbols. Additionally, we strip out the core ABI
@@ -175,7 +211,7 @@ function extract_pixel_symbols {
       --skip-module-grouping             \
       ${ADD_ONLY_FLAG}                   \
       ${BASE_OUT}/device-kernel/private
-  err=$? && exit_if_error ${err} "Failed to extract symbols!"
+  exit_if_error $? "Failed to extract symbols!"
 
   # Strip the core ABI symbols from the pixel symbol list
   grep "^ " aosp/android/abi_gki_aarch64_core | while read l; do
@@ -194,9 +230,9 @@ export BASE_OUT=${OUT_DIR:-out}/mixed/
 export DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
 VMLINUX_TMP=${BASE_OUT}/device-kernel/private/vmlinux
 # Use mktemp -u to create a random branch name
-AOSP_BACKUP_BRANCH=$(basename $(mktemp -u -t aosp_backup.XXXX))
 FOR_AOSP_PUSH_BRANCH="update_symbol_list-delete-after-push"
 PREPARE_AOSP_ABI=${PREPARE_AOSP_ABI:-0}
+CONTINUE_AFTER_REBASE=0
 
 ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -205,8 +241,8 @@ while [[ $# -gt 0 ]]; do
     -p|--prepare-aosp-abi)
       PREPARE_AOSP_ABI=1
       ;;
-    -cbr|--current-branch)
-      FOR_AOSP_PUSH_BRANCH=
+    -c|--continue)
+      CONTINUE_AFTER_REBASE=1
       ;;
     -h|--help)
       usage
@@ -220,26 +256,19 @@ while [[ $# -gt 0 ]]; do
 done
 set -- "${ARGS[@]}"
 
-if [ "${PREPARE_AOSP_ABI}" != "0" ]; then
-  if ! git -C aosp diff --quiet HEAD; then
-    exit_if_error 1 \
-      "Found uncommitted changes in aosp/. Commit your changes before updating the ABI"
-  fi
-
-  if [ -n "${FOR_AOSP_PUSH_BRANCH}" ]; then
-    if git -C aosp branch | grep "^\*\{0,1\}\s*\<${FOR_AOSP_PUSH_BRANCH}\>$" 2>&1 >/dev/null; then
-      echo "The branch '${FOR_AOSP_PUSH_BRANCH}' already exists in aosp/. Please delete"
-      echo "this branch (git -D ${FOR_AOSP_PUSH_BRANCH}) before continuing. Alternatively,"
-      echo "you can use \`-cbr|--current-branch\` to use the current aosp/ local branch."
-      exit 1
-    fi
-  else
-    AOSP_BACKUP_BRANCH=
-  fi
+if [ "${CONTINUE_AFTER_REBASE}" = "1" -a "${PREPARE_AOSP_ABI}" = "0" ]; then
+  echo "ERROR: --prepare-aosp-abi is required if --continue is set" >&2
+  usage
+  exit 1
 fi
 
-BUILD_KERNEL=1 TRIM_NONLISTED_KMI=0 ENABLE_STRICT_KMI=0 ./build_slider.sh "$@"
-err=$? && exit_if_error ${err} "Failed to run ./build_slider.sh!"
+# Verify the aosp tree is in a good state before compiling anything
+verify_aosp_tree
+
+if [ "${CONTINUE_AFTER_REBASE}" = "0" ]; then
+  BUILD_KERNEL=1 TRIM_NONLISTED_KMI=0 ENABLE_STRICT_KMI=0 ./build_slider.sh "$@"
+  exit_if_error $? "Failed to run ./build_slider.sh!"
+fi
 
 if [ "${PREPARE_AOSP_ABI}" != "0" ]; then
   update_aosp_abi "$@"
