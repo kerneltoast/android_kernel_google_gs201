@@ -74,17 +74,11 @@ struct eh_device {
 	/* Array of pre-allocated buffers for compression */
 	void **compr_buffers;
 
-	spinlock_t decompr_lock[EH_MAX_DCMD];
-	bool decompr_busy[EH_MAX_DCMD];
-
 #ifdef CONFIG_GOOGLE_EH_DCMD_STATUS_IN_MEMORY
 	unsigned long decompr_status[EH_MAX_DCMD];
 #endif
-
-	/* Array of pre-allocated buffers for decompression */
-	void *decompr_buffers[EH_MAX_DCMD];
-
-	struct eh_completion decompr_completions[EH_MAX_DCMD];
+	/* Array of pre-allocated bounce buffers for decompression */
+	unsigned long __percpu *bounce_buffer;
 
 	/* parent device */
 	struct device *dev;

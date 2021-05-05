@@ -583,31 +583,34 @@ out_cleanup:
 
 static void eh_deinit_decompression(struct eh_device *eh_dev)
 {
-	int i;
-
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-		if (eh_dev->decompr_buffers[i]) {
-			free_pages((unsigned long)eh_dev->decompr_buffers[i],
-				   0);
-			eh_dev->decompr_buffers[i] = NULL;
+	int cpu;
+	unsigned long buf;
+	for_each_possible_cpu(cpu) {
+		buf = *per_cpu_ptr(eh_dev->bounce_buffer, cpu);
+		if (buf) {
+			free_pages(buf, 0);
+			*per_cpu_ptr(eh_dev->bounce_buffer, cpu) = 0;
 		}
 	}
+	free_percpu(eh_dev->bounce_buffer);
+	eh_dev->bounce_buffer = NULL;
 }
 
 static int eh_init_decompression(struct eh_device *eh_dev)
 {
-	int i, ret = 0;
+	int cpu, ret = 0;
 
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++)
-		spin_lock_init(&eh_dev->decompr_lock[i]);
+	eh_dev->bounce_buffer = alloc_percpu(unsigned long);
+	if (!eh_dev->bounce_buffer)
+		return -ENOMEM;
 
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-		void *buf = (void *)__get_free_pages(GFP_KERNEL, 0);
+	for_each_possible_cpu(cpu) {
+		unsigned long buf = __get_free_pages(GFP_KERNEL, 0);
 		if (!buf) {
 			ret = -ENOMEM;
 			goto out_cleanup;
 		}
-		eh_dev->decompr_buffers[i] = buf;
+		*per_cpu_ptr(eh_dev->bounce_buffer, cpu) = buf;
 	}
 
 	return ret;
@@ -617,8 +620,6 @@ out_cleanup:
 
 	return ret;
 }
-
-
 
 static void eh_hw_deinit(struct eh_device *eh_dev)
 {
@@ -644,7 +645,14 @@ static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
 	feature = eh_read_register(eh_dev, EH_REG_HWFEATURES2);
 	eh_dev->decompr_cmd_count = EH_FEATURES2_DECOMPR_CMDS(feature);
 
-	if (eh_dev->decompr_cmd_count == 0) {
+	/*
+	 * Since EH uses per-cpu mapping for decompression bounce buffer, it
+	 * couldn't support if the number of CPUs is greater than the number
+	 * of decompression command register.
+	 */
+	if (eh_dev->decompr_cmd_count > num_possible_cpus()) {
+		pr_err("Too many cpus to support EH decompresion: cpus %d decopmrcmd %d\n",
+		       num_possible_cpus(), eh_dev->decompr_cmd_count);
 		ret = -EINVAL;
 		goto iounmap;
 	}
@@ -746,9 +754,9 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	 */
 	alignment = 1UL << __ffs((unsigned long)compr_data);
 	if (alignment < 64 || compr_size > alignment) {
-		pr_devel("COPY: compr_data %p, compr_size %u, alignment %u\n",
-			 compr_data, compr_size, alignment);
-		src_vaddr = eh_dev->decompr_buffers[index];
+		src_vaddr = (void *)(*per_cpu_ptr(eh_dev->bounce_buffer, index));
+		pr_devel("COPY: compr_data %p, compr_size %u, alignment %u src_vaddr %p\n",
+			 compr_data, compr_size, alignment, src_vaddr);
 		memcpy(src_vaddr, compr_data, compr_size);
 		src_paddr = virt_to_phys(src_vaddr);
 		alignment = PAGE_SIZE;
@@ -853,16 +861,16 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 			    unsigned int compr_size, struct page *page)
 {
 	int ret = 0;
-	unsigned long flags;
-	unsigned int index;
+	int cpu;
 	unsigned long submit_ts;
 	unsigned long timeout;
 	unsigned long status;
 
-	/* make a static mapping of cpu to decompression command set */
-	index = smp_processor_id() % eh_dev->decompr_cmd_count;
-
-	spin_lock_irqsave(&eh_dev->decompr_lock[index], flags);
+	/*
+	 * Since it uses per-cpu bounce buffer, it doesn't allow to be called
+	 * interrupt context.
+	 */
+	WARN_ON(in_interrupt());
 
 	if (eh_dev->suspended) {
 		WARN(1, "decompress request when EH is suspended\n");
@@ -870,18 +878,11 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 		goto out;
 	}
 
-	if (eh_dev->decompr_busy[index]) {
-		/* this should never happen in polling mode */
-		ret = -EBUSY;
-		goto out;
-	}
-
-	pr_devel("[%s]: submit: cpu %u dcmd_set %u compr_size %u\n",
-		 current->comm, smp_processor_id(), index,
-		 compr_size);
+	cpu = get_cpu();
+	pr_devel("[%s]: submit: cpu %u compr_size %u\n", current->comm, cpu, compr_size);
 
 	/* program decompress register (no IRQ) */
-	eh_setup_dcmd(eh_dev, index, compr_data, compr_size, page, &submit_ts);
+	eh_setup_dcmd(eh_dev, cpu, compr_data, compr_size, page, &submit_ts);
 
 	timeout = jiffies + msecs_to_jiffies(EH_POLL_DELAY_MS);
 	do {
@@ -892,21 +893,21 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 			ret = -ETIME;
 			goto out;
 		}
-		status = eh_read_dcmd_status(eh_dev, index);
+		status = eh_read_dcmd_status(eh_dev, cpu);
 	} while (status == EH_DCMD_PENDING);
 
 	eh_update_latency(eh_dev, submit_ts, 1, EH_DECOMPRESS_POLL);
 
-	pr_devel("dcmd [%u] status = %u\n", index, status);
+	pr_devel("dcmd [%u] status = %u\n", cpu, status);
 
 	if (status != EH_DCMD_DECOMPRESSED) {
-		pr_err("dcmd [%u] bad status %u\n", index, status);
+		pr_err("dcmd [%u] bad status %u\n", cpu, status);
 		eh_dump_regs(eh_dev);
 		ret = -EIO;
 	}
 
 out:
-	spin_unlock_irqrestore(&eh_dev->decompr_lock[index], flags);
+	put_cpu();
 	return ret;
 }
 EXPORT_SYMBOL(eh_decompress_page);
@@ -1050,29 +1051,18 @@ static int eh_of_remove(struct platform_device *pdev)
 
 static int eh_suspend(struct device *dev)
 {
-	int i;
 	int ret = 0;
 	unsigned long data;
 	struct eh_device *eh_dev = dev_get_drvdata(dev);
 
 	/* grab all locks */
 	spin_lock(&eh_dev->fifo_prod_lock);
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++)
-		spin_lock(&eh_dev->decompr_lock[i]);
 
 	/* check pending work */
 	if (atomic_read(&eh_dev->nr_request) > 0) {
 		pr_warn("block suspend (compression pending)\n");
 		ret = -EBUSY;
 		goto out;
-	}
-
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-		if (eh_dev->decompr_busy[i]) {
-			pr_warn("block suspend (decompression pending)\n");
-			ret = -EBUSY;
-			goto out;
-		}
 	}
 
 	/* disable all interrupts */
@@ -1092,8 +1082,6 @@ static int eh_suspend(struct device *dev)
 	pr_info("EH suspended\n");
 
 out:
-	for (i = eh_dev->decompr_cmd_count - 1; i >= 0; i--)
-		spin_unlock(&eh_dev->decompr_lock[i]);
 	spin_unlock(&eh_dev->fifo_prod_lock);
 
 	return ret;
