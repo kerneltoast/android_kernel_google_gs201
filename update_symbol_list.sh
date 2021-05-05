@@ -2,11 +2,12 @@
 #!/bin/bash
 
 function usage {
-  echo "USAGE: $0 [-p|--prepare-aosp-abi BUG_NUMBER [-c|--continue]]"
+  echo "USAGE: $0 [-p|--prepare-aosp-abi BUG_NUMBER [-c|--continue] [--change-id CHANGE_ID]]"
   echo
   echo "  -p | --prepare-aosp-abi BUG_NUMBER   Update the AOSP ABI xml and symbol list in aosp/ and"
   echo "                                       create a commit with the provide BUG_NUMBER."
   echo "  -c | --continue                      Continue after the rebase failure"
+  echo "  --change-id CHANGE_ID                Use this Change-Id when creating the AOSP commit"
 }
 
 # Add a trap to remove the temporary vmlinux in case of an error occurs before
@@ -149,6 +150,9 @@ function update_aosp_abi {
   fi
   echo >> ${COMMIT_TEXT}
   echo "Bug: ${BUG}" >> ${COMMIT_TEXT}
+  if [ -n "${CHANGE_ID}" ]; then
+    echo "Change-Id: ${CHANGE_ID}" >> ${COMMIT_TEXT}
+  fi
   git -C aosp commit -s -F ${COMMIT_TEXT} -- android/
   err=$?
   echo "========================================================"
@@ -234,6 +238,7 @@ VMLINUX_TMP=${BASE_OUT}/device-kernel/private/vmlinux
 FOR_AOSP_PUSH_BRANCH="update_symbol_list-delete-after-push"
 PREPARE_AOSP_ABI=${PREPARE_AOSP_ABI:-0}
 CONTINUE_AFTER_REBASE=0
+CHANGE_ID=
 
 ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -249,6 +254,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     -c|--continue)
       CONTINUE_AFTER_REBASE=1
+      ;;
+    --change-id)
+      CHANGE_ID="$2"
+      if ! [[ "${CHANGE_ID}" =~ ^I[0-9a-f]{40}$ ]]; then
+        exit_if_error 1 \
+          "Invalid Change-Id. Make sure it starts with 'I' followed by 40 hex characters"
+      fi
+      shift
       ;;
     -h|--help)
       usage
