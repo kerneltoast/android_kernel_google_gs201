@@ -516,13 +516,6 @@ int dwc3_exynos_rsw_start(struct device *dev)
 	return 0;
 }
 
-int dwc3_exynos_get_idle_ip_index(struct device *dev)
-{
-	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
-
-	return exynos->idle_ip_index;
-}
-
 int dwc3_exynos_set_bus_clock(struct device *dev, int clk_level)
 {
 	struct dwc3_exynos *exynos = dev_get_drvdata(dev);

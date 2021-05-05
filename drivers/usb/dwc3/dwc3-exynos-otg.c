@@ -814,6 +814,19 @@ u32 dwc3_otg_is_connect(void)
 }
 EXPORT_SYMBOL_GPL(dwc3_otg_is_connect);
 
+int dwc3_otg_get_idle_ip_index(void)
+{
+	struct dwc3_exynos *exynos;
+
+	exynos = exynos_dwusb_get_struct();
+
+	if (exynos == NULL)
+		return -ENODEV;
+
+	return exynos->idle_ip_index;
+}
+EXPORT_SYMBOL_GPL(dwc3_otg_get_idle_ip_index);
+
 static void dwc3_otg_recovery_reconnection(struct work_struct *w)
 {
 	struct dwc3_otg *dotg = container_of(w, struct dwc3_otg,
