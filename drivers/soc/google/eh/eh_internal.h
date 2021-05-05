@@ -74,8 +74,6 @@ struct eh_device {
 	/* Array of pre-allocated buffers for compression */
 	void **compr_buffers;
 
-	/* array of atomic variables to keep track of decompression sets*/
-	atomic_t *decompr_cmd_used;
 	spinlock_t decompr_lock[EH_MAX_DCMD];
 	bool decompr_busy[EH_MAX_DCMD];
 

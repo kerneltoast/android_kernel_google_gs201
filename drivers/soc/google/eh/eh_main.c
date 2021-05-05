@@ -601,27 +601,14 @@ static void eh_deinit_decompression(struct eh_device *eh_dev)
 			eh_dev->decompr_buffers[i] = NULL;
 		}
 	}
-
-	if (eh_dev->decompr_cmd_used) {
-		kfree(eh_dev->decompr_cmd_used);
-		eh_dev->decompr_cmd_used = NULL;
-	}
 }
 
 static int eh_init_decompression(struct eh_device *eh_dev)
 {
 	int i, ret = 0;
 
-	eh_dev->decompr_cmd_used = kzalloc(sizeof(atomic_t) *
-					   eh_dev->decompr_cmd_count,
-					   GFP_KERNEL);
-	if (!eh_dev->decompr_cmd_used)
-		return -ENOMEM;
-
-	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-		atomic_set(eh_dev->decompr_cmd_used + i, 0);
+	for (i = 0; i < eh_dev->decompr_cmd_count; i++)
 		spin_lock_init(&eh_dev->decompr_lock[i]);
-	}
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
 		void *buf = (void *)__get_free_pages(GFP_KERNEL, 0);
