@@ -73,10 +73,9 @@ static int tpmon_calc_netdev_backlog_queue_status(struct cpif_tpmon *tpmon)
 static int tpmon_calc_dit_src_queue_status(struct cpif_tpmon *tpmon)
 {
 	u32 usage = 0;
-	int ret = 0;
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
-	ret = dit_get_src_usage(DIT_DIR_RX, &usage);
+	int ret = dit_get_src_usage(DIT_DIR_RX, &usage);
 	if (ret && (ret != -EPERM)) {
 		mif_err_limited("dit_get_src_usage() error:%d\n", ret);
 		return ret;
