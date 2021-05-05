@@ -969,10 +969,34 @@ dwc3_exynos_otg_id_store(struct device *dev,
 
 static DEVICE_ATTR_RW(dwc3_exynos_otg_id);
 
+static ssize_t dwc3_exynos_extra_delay_show(struct device *dev,struct device_attribute *attr,
+					    char *buf)
+{
+	struct dwc3_exynos      *exynos = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", exynos->extra_delay);
+}
+
+static ssize_t dwc3_exynos_extra_delay_store(struct device *dev, struct device_attribute *attr,
+					     const char *buf, size_t n)
+{
+	struct dwc3_exynos	*exynos = dev_get_drvdata(dev);
+	bool			extra_delay;
+
+	if (kstrtobool(buf, &extra_delay))
+		return -EINVAL;
+
+	exynos->extra_delay = extra_delay;
+
+	return n;
+}
+static DEVICE_ATTR_RW(dwc3_exynos_extra_delay);
+
 static struct attribute *dwc3_exynos_otg_attrs[] = {
 	&dev_attr_dwc3_exynos_otg_id.attr,
 	&dev_attr_dwc3_exynos_otg_b_sess.attr,
 	&dev_attr_dwc3_exynos_otg_state.attr,
+	&dev_attr_dwc3_exynos_extra_delay.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(dwc3_exynos_otg);

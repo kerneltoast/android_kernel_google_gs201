@@ -26,3 +26,12 @@ Description:
 		Pls refer to 'usb_otg_state_string' for more detail about
 		usb otg mode.
 
+What:		/sys/devices/platform/*.usb/dwc3_exynos_extra_delay
+Date:		May, 2021
+Contact:	Ray Chi <raychi@google.com>
+Description:
+		For some specific usb drivers, it needs to take more time when USB
+		gadget mode exist. Therefore, this file provides a interface to
+		add the delay time. When userspace enables the specific usb functions,
+		userspace should also write "1" to the file. Otherwise, userspace should
+		write "0" to the file.
