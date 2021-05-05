@@ -20,7 +20,6 @@ struct eh_completion {
 #endif
 };
 
-#define EH_MAX_NAME 8
 #define EH_MAX_DCMD 8
 
 #define EH_QUIRK_IGNORE_GCTRL_RESET BIT(0)
@@ -41,7 +40,6 @@ struct eh_stats {
 };
 
 struct eh_device {
-	char name[EH_MAX_NAME];
 	struct list_head eh_dev_list;
 
 	/* hardware characteristics */

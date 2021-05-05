@@ -25,6 +25,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #ifdef CONFIG_GOOGLE_EH_DEBUG
 #define DEBUG
 #endif
@@ -89,36 +91,34 @@ static void eh_dump_regs(struct eh_device *eh_dev)
 {
 	unsigned int i, offset = 0;
 
-	pr_err("eh_dev %px\n", eh_dev);
-	pr_err("%s: dump_regs: global\n", eh_dev->name);
+	pr_err("dump_regs: global\n");
 	for (offset = EH_REG_HWID; offset <= EH_REG_ERR_MSK; offset += 8)
-		pr_err("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
+		pr_err("0x%03X: 0x%016llX\n", offset,
 			eh_read_register(eh_dev, offset));
 
-	pr_err("%s: dump_regs: compression\n", eh_dev->name);
+	pr_err("dump_regs: compression\n");
 	for (offset = EH_REG_CDESC_LOC; offset <= EH_REG_CINTERP_CTRL;
 	     offset += 8)
-		pr_err("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
+		pr_err("0x%03X: 0x%016llX\n", offset,
 			eh_read_register(eh_dev, offset));
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
-		pr_err("%s: dump_regs: decompression %u\n", eh_dev->name, i);
+		pr_err("dump_regs: decompression %u\n", i);
 		for (offset = EH_REG_DCMD_CSIZE(i);
 		     offset <= EH_REG_DCMD_BUF3(i); offset += 8)
-			pr_err("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
+			pr_err("0x%03X: 0x%016llX\n", offset,
 				eh_read_register(eh_dev, offset));
 	}
 
-	pr_err("%s: dump_regs: vendor\n", eh_dev->name);
+	pr_err("dump_regs: vendor\n");
 	for (offset = EH_REG_BUSCFG; offset <= 0x118; offset += 8)
-		pr_err("%s: 0x%03X: 0x%016llX\n", eh_dev->name, offset,
+		pr_err("0x%03X: 0x%016llX\n", offset,
 			eh_read_register(eh_dev, offset));
 
-	pr_err("%s: driver\n", eh_dev->name);
-	pr_err("%s: write_index %u complete_index %u\n", eh_dev->name,
-				eh_dev->write_index, eh_dev->complete_index);
-	pr_err("%s: pending_compression %lu\n", eh_dev->name,
-				atomic_read(&eh_dev->nr_request));
+	pr_err("driver\n");
+	pr_err("write_index %u complete_index %u\n",
+	       eh_dev->write_index, eh_dev->complete_index);
+	pr_err("pending_compression %lu\n", atomic_read(&eh_dev->nr_request));
 }
 
 static inline unsigned long eh_read_dcmd_status(struct eh_device *eh_dev,
@@ -149,11 +149,8 @@ static int eh_reset(struct eh_device *eh_dev)
 		count++;
 	}
 
-	if (count == EH_MAX_RESET_WAIT) {
-		pr_warn("%s: timeout waiting for reset\n",
-			eh_dev->name);
+	if (count == EH_MAX_RESET_WAIT)
 		return 1;
-	}
 
 	return 0;
 }
@@ -167,9 +164,8 @@ static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
 	desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * masked_w_index;
 	src_paddr = page_to_phys(src_page);
 
-	pr_devel("%s: %s: desc = %px src = %pa[p] dst = %pa[p]\n", eh_dev->name,
-				__func__, desc, &src_paddr,
-				EH_ENCODED_ADDR_TO_PHYS(desc->dst_addr[0]));
+	pr_devel("desc = %p src = %pa[p] dst = %pa[p]\n",
+		 desc, &src_paddr, EH_ENCODED_ADDR_TO_PHYS(desc->dst_addr[0]));
 
 	desc->u1.src_addr = src_paddr;
 	/* mark it as pend for hardware */
@@ -267,11 +263,11 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 	decompr = eh_read_register(eh_dev, EH_REG_INTRP_STS_DCMP);
 	error = eh_read_register(eh_dev, EH_REG_INTRP_STS_ERROR);
 
-	pr_err("%s: %s: irq %d error 0x%llx compr 0x%llx decompr 0x%llx\n",
-	       eh_dev->name, __func__, irq, error, compr, decompr);
+	pr_err("irq %d error 0x%llx compr 0x%llx decompr 0x%llx\n",
+	       irq, error, compr, decompr);
 
 	if (error) {
-		pr_err("%s: error interrupt was active\n", eh_dev->name);
+		pr_err("error interrupt was active\n");
 		eh_dump_regs(eh_dev);
 		eh_write_register(eh_dev, EH_REG_INTRP_STS_ERROR, error);
 	}
@@ -295,7 +291,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 
 	desc = eh_dev->fifo + (fifo_index * EH_COMPRESS_DESC_SIZE);
 
-	pr_devel("%s: desc 0x%x status 0x%x len %u src 0x%pap\n", eh_dev->name,
+	pr_devel("desc 0x%x status 0x%x len %u src 0x%pap\n",
 		 fifo_index, desc->u1.s1.status, desc->compr_len,
 		 &desc->u1.src_addr);
 
@@ -308,37 +304,34 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	/* normal case, page copied */
 	case EH_CDESC_COPIED:
 		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
-		pr_devel("%s: COPIED desc 0x%x buf %px\n", eh_dev->name,
-			 fifo_index, compr_data);
+		pr_devel("COPIED desc 0x%x buf %p\n", fifo_index, compr_data);
 		break;
 
 	/* normal case, compression completed successfully */
 	case EH_CDESC_COMPRESSED:
 		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
-		pr_devel("%s: COMPRESSED desc 0x%x buf %px\n", eh_dev->name,
-			 fifo_index, compr_data);
+		pr_devel("COMPRESSED desc 0x%x buf %p\n", fifo_index,
+			 compr_data);
 		break;
 
 	/* normal case, hardware detected page of all zeros */
 	case EH_CDESC_ZERO:
-		pr_devel("%s: ZERO desc 0x%x\n", eh_dev->name, fifo_index);
+		pr_devel("ZERO desc 0x%x\n", fifo_index);
 		break;
 
 	/* normal case, incompressible page, did not fit into 3K buffer */
 	case EH_CDESC_ABORT:
-		pr_devel("%s: ABORT desc 0x%x\n", eh_dev->name, fifo_index);
+		pr_devel("ABORT desc 0x%x\n", fifo_index);
 		break;
 
 	/* an error occurred, but hardware is still progressing */
 	case EH_CDESC_ERROR_CONTINUE:
-		pr_err("%s: got error on descriptor 0x%x\n", eh_dev->name,
-		       fifo_index);
+		pr_err("got error on descriptor 0x%x\n", fifo_index);
 		break;
 
 	/* a fairly bad error occurred, need to reset the fifo */
 	case EH_CDESC_ERROR_HALTED:
-		pr_err("%s: got fifo error on descriptor 0x%x\n", eh_dev->name,
-		       fifo_index);
+		pr_err("got fifo error on descriptor 0x%x\n", fifo_index);
 		ret = 1;
 		break;
 
@@ -349,7 +342,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	case EH_CDESC_IDLE:
 	case EH_CDESC_PENDING:
 		eh_dump_regs(eh_dev);
-		pr_err("%s: descriptor 0x%x pend or idle 0x%x: ", eh_dev->name,
+		pr_err("descriptor 0x%x pend or idle 0x%x: ",
 		       fifo_index, compr_status);
 		{
 			int i;
@@ -363,7 +356,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 			}
 			pr_cont("\n");
 		}
-		BUG_ON(1);
+		WARN_ON(1);
 		break;
 	};
 
@@ -385,9 +378,6 @@ static int eh_process_completions(struct eh_device *eh_dev, unsigned int start,
 	unsigned int i;
 	unsigned int index;
 	struct eh_completion *cmpl;
-
-	pr_devel("%s: %s: process from %u to %u\n", eh_dev->name, __func__,
-		 start, end);
 
 	for (i = start; i != end; i = (i + 1) & eh_dev->fifo_color_mask) {
 		index = i & eh_dev->fifo_index_mask;
@@ -451,8 +441,8 @@ static int eh_comp_thread(void *data)
 
 			error = eh_read_register(eh_dev, EH_REG_ERR_COND);
 			if (error) {
-				pr_err("%s: error condition interrupt non-zero 0x%llx\n",
-						eh_dev->name, error);
+				pr_err("error condition interrupt non-zero 0x%llx\n",
+				       error);
 				eh_dump_regs(eh_dev);
 				eh_abort_incomplete_descriptors(eh_dev);
 				break;
@@ -478,8 +468,7 @@ static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
 				   EH_ERR_IRQ, eh_dev);
 	if (ret) {
-		pr_err("%s: unable to request irq %u ret %d\n", eh_dev->name,
-		       error_irq, ret);
+		pr_err("unable to request irq %u ret %d\n", error_irq, ret);
 		return ret;
 	}
 	eh_dev->error_irq = error_irq;
@@ -564,7 +553,6 @@ static int eh_init_compression(struct eh_device *eh_dev, unsigned short fifo_siz
 	eh_dev->completions = kzalloc(fifo_size * sizeof(struct eh_completion),
 				      GFP_KERNEL);
 	if (!eh_dev->completions) {
-		pr_err("unable to allocate completions array\n");
 		return -ENOMEM;
 	}
 
@@ -572,22 +560,14 @@ static int eh_init_compression(struct eh_device *eh_dev, unsigned short fifo_siz
 	eh_dev->fifo_alloc = kzalloc(fifo_size * (desc_size + 1),
 				     GFP_KERNEL | GFP_DMA);
 	if (!eh_dev->fifo_alloc) {
-		pr_err("%s: unable to allocate fifo\n", eh_dev->name);
 		ret = -ENOMEM;
 		goto out_cleanup;
 	}
 
 	eh_dev->fifo = PTR_ALIGN(eh_dev->fifo_alloc, desc_size);
-	{
-		phys_addr_t pfifo = virt_to_phys(eh_dev->fifo);
-		pr_info("%s: fifo is %p phys %pap\n", eh_dev->name,
-			eh_dev->fifo, &pfifo);
-	}
-
 	eh_dev->compr_buffers = kzalloc(fifo_size * sizeof(void *),
 					GFP_KERNEL);
 	if (!eh_dev->compr_buffers) {
-		pr_err("unable to allocate compr buffers array\n");
 		ret = -ENOMEM;
 		goto out_cleanup;
 	}
@@ -595,7 +575,6 @@ static int eh_init_compression(struct eh_device *eh_dev, unsigned short fifo_siz
 	for (i = 0; i < fifo_size; i++) {
 		void *buf = (void *)__get_free_pages(GFP_KERNEL, 0);
 		if (!buf) {
-			pr_err("unable to allocate a page for compression\n");
 			ret = -ENOMEM;
 			goto out_cleanup;
 		}
@@ -607,7 +586,7 @@ static int eh_init_compression(struct eh_device *eh_dev, unsigned short fifo_siz
 
 out_cleanup:
 	eh_deinit_compression(eh_dev);
-
+	pr_err("failed to init fifo %d\n", ret);
 	return ret;
 }
 
@@ -636,11 +615,8 @@ static int eh_init_decompression(struct eh_device *eh_dev)
 	eh_dev->decompr_cmd_used = kzalloc(sizeof(atomic_t) *
 					   eh_dev->decompr_cmd_count,
 					   GFP_KERNEL);
-	if (!eh_dev->decompr_cmd_used) {
-		pr_err("%s unable to allocate memory for decompression\n",
-		       eh_dev->name);
+	if (!eh_dev->decompr_cmd_used)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
 		atomic_set(eh_dev->decompr_cmd_used + i, 0);
@@ -650,7 +626,6 @@ static int eh_init_decompression(struct eh_device *eh_dev)
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
 		void *buf = (void *)__get_free_pages(GFP_KERNEL, 0);
 		if (!buf) {
-			pr_err("unable to allocate a page for decompression\n");
 			ret = -ENOMEM;
 			goto out_cleanup;
 		}
@@ -693,8 +668,6 @@ static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
 	eh_dev->decompr_cmd_count = EH_FEATURES2_DECOMPR_CMDS(feature);
 
 	if (eh_dev->max_buffer_count == 0 || eh_dev->decompr_cmd_count == 0) {
-		pr_err("%s: max_buffer_count %d decompr_cmd_count %d\n",
-			eh_dev->max_buffer_count, eh_dev->decompr_cmd_count);
 		ret = -EINVAL;
 		goto iounmap;
 	}
@@ -708,9 +681,6 @@ static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
 		ret = -EINVAL;
 		goto deinit_compr;
 	}
-
-	pr_info("%s: max_bufs %u decompress_cmd_sets %u\n", eh_dev->name,
-		 eh_dev->max_buffer_count, eh_dev->decompr_cmd_count);
 
 	/* reset the block */
 	if (eh_reset(eh_dev)) {
@@ -733,6 +703,7 @@ deinit_compr:
 iounmap:
 	iounmap(eh_dev->regs);
 
+	pr_err("failed to eh_hw_init %d\n", ret);
 	return ret;
 }
 
@@ -759,9 +730,6 @@ static int eh_init(struct device *device, struct eh_device *eh_dev,
 		pr_err("invalid fifo size %u\n", fifo_size);
 		return -EINVAL;
 	}
-
-	snprintf(eh_dev->name, EH_MAX_NAME, "eh%u", 0);
-	pr_devel("%s: probing EH device\n", eh_dev->name);
 
 	ret = eh_hw_init(eh_dev, fifo_size, regs, quirks);
 	if (ret)
@@ -801,7 +769,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	 */
 	alignment = 1UL << __ffs((unsigned long)compr_data);
 	if (alignment < 64 || compr_size > alignment) {
-		pr_devel("COPY: compr_data %px, compr_size %u, alignment %u\n",
+		pr_devel("COPY: compr_data %p, compr_size %u, alignment %u\n",
 			 compr_data, compr_size, alignment);
 		src_vaddr = eh_dev->decompr_buffers[index];
 		memcpy(src_vaddr, compr_data, compr_size);
@@ -809,7 +777,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 		alignment = PAGE_SIZE;
 	} else {
 		pr_devel(
-			"NO COPY: compr_data %px, compr_size %u, alignment %u\n",
+			"NO COPY: compr_data %p, compr_size %u, alignment %u\n",
 			compr_data, compr_size, alignment);
 		src_paddr = virt_to_phys(compr_data);
 		if (alignment > PAGE_SIZE)
@@ -872,8 +840,8 @@ try_again:
 		goto try_again;
 	}
 
-	pr_devel("[%s] %s: submit %u pages starting at descriptor %u\n",
-		 current->comm, __func__, 1, eh_dev->write_index);
+	pr_devel("[%s] submit %u pages starting at descriptor %u\n",
+		 current->comm, 1, eh_dev->write_index);
 
 	masked_w_index = eh_dev->write_index & eh_dev->fifo_index_mask;
 
@@ -931,8 +899,8 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 		goto out;
 	}
 
-	pr_devel("[%s] %s: submit: cpu %u dcmd_set %u compr_size %u\n",
-		 current->comm, __func__, smp_processor_id(), index,
+	pr_devel("[%s]: submit: cpu %u dcmd_set %u compr_size %u\n",
+		 current->comm, smp_processor_id(), index,
 		 compr_size);
 
 	/* program decompress register (no IRQ) */
@@ -942,7 +910,7 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 	do {
 		cpu_relax();
 		if (time_after(jiffies, timeout)) {
-			pr_err("%s: poll timeout on decompression\n", __func__);
+			pr_err("poll timeout on decompression\n");
 			eh_dump_regs(eh_dev);
 			ret = -ETIME;
 			goto out;
@@ -952,11 +920,10 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 
 	eh_update_latency(eh_dev, submit_ts, 1, EH_DECOMPRESS_POLL);
 
-	pr_devel("%s: dcmd [%u] status = %u\n", eh_dev->name, index, status);
+	pr_devel("dcmd [%u] status = %u\n", index, status);
 
 	if (status != EH_DCMD_DECOMPRESSED) {
-		pr_err("%s: dcmd [%u] bad status %u\n", eh_dev->name, index,
-		       status);
+		pr_err("dcmd [%u] bad status %u\n", index, status);
 		eh_dump_regs(eh_dev);
 		ret = -EIO;
 	}
@@ -977,10 +944,8 @@ struct eh_device *eh_create(eh_cb_fn comp, eh_cb_fn decomp)
 	list_for_each (cur, &eh_dev_list) {
 		struct eh_device *impl;
 		impl = list_entry(cur, struct eh_device, eh_dev_list);
-		pr_devel("%s: testing %s\n", __func__, impl->name);
 		ret = impl;
 		list_del(cur);
-		pr_devel("%s: found EH device %s\n", __func__, ret->name);
 		if (ret)
 			break;
 	}
@@ -990,8 +955,7 @@ struct eh_device *eh_create(eh_cb_fn comp, eh_cb_fn decomp)
 		ret->comp_callback = comp;
 		ret->decomp_callback = decomp;
 	} else {
-		pr_info("%s: unable to find desired implementation\n",
-			__func__);
+		pr_info("unable to find desired implementation\n");
 		ret = ERR_PTR(-ENODEV);
 	}
 
@@ -1020,7 +984,7 @@ static int eh_of_probe(struct platform_device *pdev)
 	unsigned short quirks = 0;
 	struct clk *clk;
 
-	pr_devel("%s starting\n", __func__);
+	pr_info("starting probing\n");
 
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -1031,23 +995,19 @@ static int eh_of_probe(struct platform_device *pdev)
 
 	error_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (error_irq == 0) {
-		pr_err("Fail to get error irq\n");
 		ret = -EINVAL;
 		goto put_pm_runtime;
 	}
 
 	clk = of_clk_get_by_name(pdev->dev.of_node, "eh-clock");
 	if (IS_ERR(clk)) {
-		pr_err("%s: of_clk_get_by_name() failed\n", __func__);
 		ret = PTR_ERR(clk);
 		goto put_pm_runtime;
 	}
 
 	ret = clk_prepare_enable(clk);
-	if (ret) {
-		pr_err("%s: clk_prepare_enable() failed\n", __func__);
+	if (ret)
 		goto put_clk;
-	}
 
 	if (of_get_property(pdev->dev.of_node, "google,eh,ignore-gctrl-reset",
 			    NULL))
@@ -1068,11 +1028,10 @@ static int eh_of_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, eh_dev);
 
 	ret = eh_sysfs_init(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to create sysfs entries\n");
+	if (ret)
 		goto eh_deinit;
-	}
 
+	pr_info("starting probing done\n");
 	return 0;
 
 eh_deinit:
@@ -1088,6 +1047,7 @@ put_pm_runtime:
 disable_pm_runtime:
 	pm_runtime_disable(&pdev->dev);
 
+	pr_err("Fail to probe %d\n", ret);
 	return ret;
 }
 
@@ -1125,14 +1085,14 @@ static int eh_suspend(struct device *dev)
 
 	/* check pending work */
 	if (atomic_read(&eh_dev->nr_request) > 0) {
-		pr_info("%s: block suspend (compression pending)\n", __func__);
+		pr_warn("block suspend (compression pending)\n");
 		ret = -EBUSY;
 		goto out;
 	}
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
 		if (eh_dev->decompr_busy[i]) {
-			pr_info("%s: block suspend (decompression pending)\n", __func__);
+			pr_warn("block suspend (decompression pending)\n");
 			ret = -EBUSY;
 			goto out;
 		}
@@ -1152,7 +1112,7 @@ static int eh_suspend(struct device *dev)
 	clk_disable_unprepare(eh_dev->clk);
 
 	eh_dev->suspended = true;
-	pr_info("%s: EH suspended\n", __func__);
+	pr_info("EH suspended\n");
 
 out:
 	for (i = eh_dev->decompr_cmd_count - 1; i >= 0; i--)
@@ -1180,7 +1140,7 @@ static int eh_resume(struct device *dev)
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0);
 
 	eh_dev->suspended = false;
-	pr_info("%s: EH resumed\n", __func__);
+	pr_info("EH resumed\n");
 
 	spin_unlock(&eh_dev->fifo_prod_lock);
 	return 0;
