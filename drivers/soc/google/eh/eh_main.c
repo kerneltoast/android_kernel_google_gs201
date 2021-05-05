@@ -462,7 +462,7 @@ static int eh_comp_thread(void *data)
 /* Initialize SW related stuff */
 static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 {
-	int ret, cpu;
+	int ret;
 
 	/* the error interrupt */
 	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
@@ -482,18 +482,9 @@ static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 		goto free_irq;
 	}
 
-	eh_dev->stats = alloc_percpu(struct eh_stats);
-	if (!eh_dev->stats) {
-		ret = -ENOMEM;
+	ret = eh_init_latency_stat(eh_dev);
+	if (ret)
 		goto free_thread;
-	}
-
-	for_each_possible_cpu (cpu) {
-		int i;
-
-		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
-			per_cpu_ptr(eh_dev->stats, cpu)->min_lat[i] = -1UL;
-	}
 
 	spin_lock(&eh_dev_list_lock);
 	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
@@ -699,7 +690,7 @@ static void eh_deinit(struct eh_device *eh_dev)
 	eh_deinit_decompression(eh_dev);
 	free_irq(eh_dev->error_irq, eh_dev);
 	kthread_stop(eh_dev->comp_thread);
-	free_percpu(eh_dev->stats);
+	eh_deinit_latency_stat(eh_dev);
 	iounmap(eh_dev->regs);
 }
 

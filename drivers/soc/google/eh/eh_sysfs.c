@@ -7,30 +7,6 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 
-static ssize_t cmd_stat_show(struct device *dev,
-			     struct device_attribute *dev_attr, char *buf)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct eh_device *eh_dev = platform_get_drvdata(pdev);
-	int cpu, i;
-	int written = 0;
-	unsigned long x[NR_EH_EVENT_TYPE] = {
-		0,
-	};
-
-	for_each_possible_cpu (cpu)
-		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
-			x[i] += per_cpu_ptr(eh_dev->stats, cpu)->events[i];
-
-	for (i = 0; i < NR_EH_EVENT_TYPE; i++)
-		written += scnprintf(buf + written, PAGE_SIZE - written, "%lu ",
-				     x[i]);
-
-	written += scnprintf(buf + written, PAGE_SIZE - written, "\n");
-	return written;
-}
-DEVICE_ATTR_RO(cmd_stat);
-
 static ssize_t queued_comp_show(struct device *dev,
 				struct device_attribute *dev_attr, char *buf)
 {
@@ -50,6 +26,29 @@ static ssize_t queued_comp_show(struct device *dev,
 DEVICE_ATTR_RO(queued_comp);
 
 #ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
+int eh_init_latency_stat(struct eh_device *eh_dev)
+{
+	int cpu;
+
+	eh_dev->stats = alloc_percpu(struct eh_stats);
+	if (!eh_dev->stats)
+		return -ENOMEM;
+
+	for_each_possible_cpu(cpu) {
+		int i;
+
+		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
+			per_cpu_ptr(eh_dev->stats, cpu)->min_lat[i] = -1UL;
+	}
+
+	return 0;
+}
+
+void eh_deinit_latency_stat(struct eh_device *eh_dev)
+{
+	free_percpu(eh_dev->stats);
+}
+
 void eh_update_latency(struct eh_device *eh_dev, unsigned long start,
 			      unsigned long event_count,
 			      enum eh_stat_event type)
@@ -92,6 +91,30 @@ unsigned long get_submit_ts(struct eh_completion *cmpl)
 {
 	return cmpl->submit_ts;
 }
+
+static ssize_t cmd_stat_show(struct device *dev,
+			     struct device_attribute *dev_attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct eh_device *eh_dev = platform_get_drvdata(pdev);
+	int cpu, i;
+	int written = 0;
+	unsigned long x[NR_EH_EVENT_TYPE] = {
+		0,
+	};
+
+	for_each_possible_cpu (cpu)
+		for (i = 0; i < NR_EH_EVENT_TYPE; i++)
+			x[i] += per_cpu_ptr(eh_dev->stats, cpu)->events[i];
+
+	for (i = 0; i < NR_EH_EVENT_TYPE; i++)
+		written += scnprintf(buf + written, PAGE_SIZE - written, "%lu ",
+				     x[i]);
+
+	written += scnprintf(buf + written, PAGE_SIZE - written, "\n");
+	return written;
+}
+DEVICE_ATTR_RO(cmd_stat);
 
 static ssize_t avg_latency_show(struct device *dev,
 				struct device_attribute *dev_attr, char *buf)
@@ -206,9 +229,9 @@ DEVICE_ATTR_WO(reset_latency);
 #endif
 
 static struct attribute *eh_dev_attrs[] = {
-	&dev_attr_cmd_stat.attr,
 	&dev_attr_queued_comp.attr,
 #ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
+	&dev_attr_cmd_stat.attr,
 	&dev_attr_avg_latency.attr,
 	&dev_attr_max_latency.attr,
 	&dev_attr_min_latency.attr,
