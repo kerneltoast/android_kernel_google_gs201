@@ -130,9 +130,9 @@ per-file trusty/**=*
 
 per-file tty/serial/exynos_tty*=*
 
-per-file usb/dwc3/core_exynos.h=*
-per-file usb/dwc3/dwc3-exynos.*=*
-per-file usb/dwc3/dwc3-exynos-*.c=*
+per-file usb/dwc3/core-exynos.h=*
+per-file usb/dwc3/dwc3-exynos*=*
+per-file usb/dwc3/exynos-otg.h=*
 per-file usb/dwc3/usb_power_notify.*=*
 per-file usb/gadget/function/f_dm.*=*
 per-file usb/gadget/function/f_dm1.*=*
