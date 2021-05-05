@@ -40,10 +40,16 @@ struct ocpsmpl_stats {
 	int voltage;
 };
 
+enum PMIC_SENSOR {
+	VDROOP1,
+	VDROOP2,
+	BATOILO,
+	IFPMIC_SENSOR_MAX,
+};
+
 struct gs101_bcl_dev {
 	struct device *device;
 	struct device *mitigation_dev;
-	struct dentry *debug_entry;
 	void __iomem *base_mem[5];
 	void __iomem *sysreg_cpucl0;
 	struct power_supply *batt_psy;
@@ -69,7 +75,9 @@ struct gs101_bcl_dev {
 	int triggered_counter[IRQ_TRIGGERED_SOURCE_MAX];
 	int triggered_pin[IRQ_TRIGGERED_SOURCE_MAX];
 	atomic_t triggered_cnt[IRQ_TRIGGERED_SOURCE_MAX];
+	atomic_t if_triggered_cnt[IFPMIC_SENSOR_MAX];
 	struct ocpsmpl_stats triggered_stats[IRQ_TRIGGERED_SOURCE_MAX];
+	struct ocpsmpl_stats if_triggered_stats[IFPMIC_SENSOR_MAX];
 
 	struct s2mpg10_dev *s2mpg10;
 	struct s2mpg11_dev *s2mpg11;
