@@ -146,20 +146,41 @@ static void exynos_ufs_update_active_lanes(struct ufs_hba *hba)
 				    active_tx_lane, active_rx_lane);
 }
 
-static void exynos_ufs_update_max_gear(struct ufs_hba *hba)
+static void exynos_ufs_get_caps_after_link(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct uic_pwr_mode *pmd = &ufs->req_pmd_parm;
 	struct ufs_cal_param *p = &ufs->cal_param;
+	struct ufs_vs_handle *handle = &ufs->handle;
 	u32 max_rx_hs_gear = 0;
+	u32 connected_tx_lane = 0;
+	u32 connected_rx_lane = 0;
 
+	connected_tx_lane = unipro_readl(handle, UNIP_PA_CONNECTEDTXDATALANES);
+	connected_rx_lane = unipro_readl(handle, UNIP_PA_CONNECTEDRXDATALANES);
 	max_rx_hs_gear = unipro_readl(&ufs->handle, UNIP_PA_MAXRXHSGEAR);
 
+	/* check connected lanes, not permit asymmetric situations */
+	if (!connected_tx_lane || !connected_rx_lane ||
+	    connected_tx_lane != connected_rx_lane)
+		dev_err(hba->dev, "%s: asymmetric connected lanes. rx=%d, tx=%d\n",
+			__func__, connected_rx_lane, connected_tx_lane);
+
+	/* set variables for CAL */
+	p->connected_tx_lane = (u8)connected_rx_lane;
+	p->connected_rx_lane = (u8)connected_rx_lane;
 	p->max_gear = min_t(u8, max_rx_hs_gear, pmd->gear);
 
+	dev_info(ufs->dev, "PA_ActiveTxDataLanes(%d), PA_ActiveRxDataLanes(%d)\n",
+		connected_tx_lane, connected_rx_lane);
 	if (!hba->clk_gating.is_suspended)
 		dev_info(ufs->dev, "max_gear(%d), PA_MaxRxHSGear(%d)\n",
-			 p->max_gear, max_rx_hs_gear);
+			p->max_gear, max_rx_hs_gear);
+
+	/* set for sysfs */
+	ufs->params[UFS_S_PARAM_EOM_SZ] =
+			EOM_PH_SEL_MAX * EOM_DEF_VREF_MAX *
+			ufs_s_eom_repeat[ufs->cal_param.max_gear];
 }
 
 static inline void exynos_ufs_ctrl_phy_pwr(struct exynos_ufs *ufs, bool en)
@@ -278,7 +299,6 @@ static void exynos_ufs_init_pmc_req(struct ufs_hba *hba,
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct uic_pwr_mode *req_pmd = &ufs->req_pmd_parm;
 	struct uic_pwr_mode *act_pmd = &ufs->act_pmd_parm;
-	struct ufs_cal_param *p = &ufs->cal_param;
 
 	/*
 	 * Exynos driver doesn't consider asymmetric lanes, e.g. rx=2, tx=1
@@ -291,8 +311,6 @@ static void exynos_ufs_init_pmc_req(struct ufs_hba *hba,
 			__func__, pwr_max->lane_rx, pwr_max->lane_tx);
 		WARN_ON(1);
 	}
-	p->connected_rx_lane = pwr_max->lane_rx;
-	p->connected_tx_lane = pwr_max->lane_tx;
 
 	act_pmd->gear = min_t(u8, pwr_max->gear_rx, req_pmd->gear);
 	pwr_req->gear_rx = act_pmd->gear;
@@ -357,6 +375,11 @@ static void exynos_ufs_config_host(struct exynos_ufs *ufs)
 	reg = hci_readl(&ufs->handle, HCI_IOP_ACG_DISABLE);
 	hci_writel(&ufs->handle, reg & (~HCI_IOP_ACG_DISABLE_EN),
 		   HCI_IOP_ACG_DISABLE);
+
+	unipro_writel(&ufs->handle, DBG_SUITE1_ENABLE,
+			UNIP_PA_DBG_OPTION_SUITE_1);
+	unipro_writel(&ufs->handle, DBG_SUITE2_ENABLE,
+			UNIP_PA_DBG_OPTION_SUITE_2);
 }
 
 static int exynos_ufs_config_externals(struct exynos_ufs *ufs)
@@ -418,6 +441,8 @@ out:
 
 static void exynos_ufs_set_features(struct ufs_hba *hba)
 {
+	struct device_node *np = hba->dev->of_node;
+
 	/* caps */
 	hba->caps = UFSHCD_CAP_CLK_GATING |
 			UFSHCD_CAP_HIBERN8_WITH_CLK_GATING |
@@ -430,6 +455,12 @@ static void exynos_ufs_set_features(struct ufs_hba *hba)
 			UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
 			UFSHCI_QUIRK_SKIP_MANUAL_WB_FLUSH_CTRL |
 			UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING;
+
+	if (of_find_property(np, "fixed-prdt-req_list-ocs", NULL))
+		hba->quirks &= ~(UFSHCD_QUIRK_PRDT_BYTE_GRAN |
+				UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
+				UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR) |
+				UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR;
 }
 
 /*
@@ -448,10 +479,6 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	ret = exynos_ufs_config_externals(ufs);
 	if (ret)
 		return ret;
-
-	/* idle ip nofification for SICD, disable by default */
-	ufs->idle_ip_index = exynos_get_idle_ip_index(dev_name(hba->dev));
-	exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
 
 	/* to read standard hci registers */
 	ufs->handle.std = hba->mmio_base;
@@ -517,10 +544,8 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 			exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
 		} else {
 			/* PM Qos hold for stability */
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 			exynos_pm_qos_update_request(&ufs->pm_qos_int,
-						ufs->pm_qos_int_value);
-#endif
+							ufs->pm_qos_int_value);
 			ufs->c_state = C_ON;
 		}
 	} else {
@@ -528,9 +553,7 @@ static int exynos_ufs_setup_clocks(struct ufs_hba *hba, bool on,
 			ufs->c_state = C_OFF;
 
 			/* PM Qos Release for stability */
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 			exynos_pm_qos_update_request(&ufs->pm_qos_int, 0);
-#endif
 		} else {
 			/* Set for SICD */
 			exynos_update_ip_idle_status(ufs->idle_ip_index, 1);
@@ -659,14 +682,14 @@ static int exynos_ufs_link_startup_notify(struct ufs_hba *hba,
 		ret = ufs_call_cal(ufs, 0, ufs_cal_pre_link);
 		break;
 	case POST_CHANGE:
-		/* update max gear after link*/
-		exynos_ufs_update_max_gear(ufs->hba);
+		/*
+		 * Get values updated through capability exchange.
+		 * Those values could be used in CAL.
+		 */
+		exynos_ufs_get_caps_after_link(ufs->hba);
 
 		/* cal */
 		ret = ufs_call_cal(ufs, 0, ufs_cal_post_link);
-
-		/* set for sysfs */
-		ufs->params[UFS_S_PARAM_EOM_SZ] = p->eom_sz;
 
 		/* print link start-up result */
 		if (!hba->clk_gating.is_suspended)
@@ -858,9 +881,7 @@ static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	    ufs->h_state != H_HIBERN8)
 		PRINT_STATES(ufs);
 
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 	exynos_pm_qos_update_request(&ufs->pm_qos_int, 0);
-#endif
 
 	hci_writel(&ufs->handle, 0 << 0, HCI_GPIO_OUT);
 
@@ -1093,7 +1114,7 @@ static int exynos_ufs_populate_dt(struct device *dev,
 	/* UIC specifics */
 	exynos_ufs_get_pwr_mode(np, ufs);
 
-	ufs->cal_param.board = 1;
+	ufs->cal_param.board = BRD_SMDK;
 	of_property_read_u8(np, "brd-for-cal", &ufs->cal_param.board);
 out:
 	dev_info(dev, "evt version : %d, board: %d\n",
@@ -1472,11 +1493,13 @@ static int exynos_ufs_probe(struct platform_device *pdev)
 		return ret;
 	dev_info(dev, "===============================\n");
 
+	/* idle ip nofification for SICD, disable by default */
+	ufs->idle_ip_index = exynos_get_idle_ip_index(dev_name(ufs->dev));
+	exynos_update_ip_idle_status(ufs->idle_ip_index, 0);
+
 	/* register pm qos knobs */
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 	exynos_pm_qos_add_request(&ufs->pm_qos_int,
 				PM_QOS_DEVICE_THROUGHPUT, 0);
-#endif
 
 	/* init dbg */
 	ret = exynos_ufs_init_dbg(&ufs->handle, dev);
@@ -1514,9 +1537,7 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 	disable_irq(hba->irq);
 	ufshcd_remove(hba);
 
-#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 	exynos_pm_qos_remove_request(&ufs->pm_qos_int);
-#endif
 
 	exynos_ufs_ctrl_phy_pwr(ufs, false);
 

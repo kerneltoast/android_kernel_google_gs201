@@ -13,20 +13,10 @@
 #define _UFS_EXYNOS_H_
 
 #include <soc/google/exynos_pm_qos.h>
-#include <ufs-vs-mmio.h>
-#include <ufs-vs-regs.h>
+#include "ufs-vs-mmio.h"
+#include "ufs-vs-regs.h"
 #include "ufs-cal-if.h"
 #include "ufs-pixel.h"
-
-/* Version check */
-#define UFS_EXYNOS_COMPAT_CAL_MMIO_VER 2
-#define UFS_EXYNOS_COMPAT_CAL_IF_VER 4
-#if (UFS_VS_MMIO_VER != UFS_EXYNOS_COMPAT_CAL_MMIO_VER)
-#error "UFS_VS_MMIO_VER and UFS_EXYNOS_COMPAT_CAL_MMIO_VER aren't matched"
-#endif
-#if (UFS_CAL_IF_VER != UFS_EXYNOS_COMPAT_CAL_IF_VER)
-#error "UFS_CAL_IF_VER and UFS_EXYNOS_COMPAT_CAL_IF_VER aren't matched"
-#endif
 
 #define UFS_VER_0004	4
 #define UFS_VER_0005	5
@@ -128,7 +118,9 @@ struct exynos_ufs {
 	int idle_ip_index;
 
 	/* PM QoS for stability, not for performance */
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 	struct exynos_pm_qos_request	pm_qos_int;
+#endif
 	s32			pm_qos_int_value;
 
 	/* cal */
