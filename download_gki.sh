@@ -29,7 +29,7 @@ ${CUR_DIR}/build/gki/download_from_ci ${GKI_BUILD} kernel_aarch64
 exit_and_clean_if_error $? "Could not download prebuilts"
 
 echo "Checking if GKI binaries match the current aosp/ revision..."
-PREBUILTS_SHA=$(strings vmlinux | grep "Linux version 5.10" |
+PREBUILTS_SHA=$(strings vmlinux | grep "Linux version [0-9]\+\.[0-9]\+" |
 		    sed -n "s/^.*-g\([0-9a-fA-F]\{12\}\)-.*/\1/p")
 MANIFEST_SHA=$(cat ${CUR_DIR}/.repo/manifests/default.xml |
 		   grep "path=\"aosp\"" |
