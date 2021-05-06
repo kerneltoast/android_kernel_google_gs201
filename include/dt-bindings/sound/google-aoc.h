@@ -19,7 +19,6 @@
 #define USB_TX			0xC000000E
 #define INCALL_RX		0x8000000F
 #define INCALL_TX		0xC0000010
-#define HAPTIC_RX		0x80000011
 
 #define IDX_EP1_RX		0x0
 #define IDX_EP2_RX		0x1
@@ -29,13 +28,12 @@
 #define IDX_EP6_RX		0x5
 #define IDX_EP7_RX		0x6
 #define IDX_EP8_RX              0x7
-#define IDX_NOHOST1_RX		0x20000008
+#define IDX_NOHOST1_RX		0x8
 #define IDX_RAW_RX              0x9
 #define IDX_VOIP_RX             0xa
 #define IDX_INCALL_PB0_RX       0xb
 #define IDX_INCALL_PB1_RX       0xc
 #define IDX_HIFI_RX             0x10
-#define IDX_HAPTIC_NoHOST_RX	0x20000011
 
 #define IDX_EP1_TX		0x40000000
 #define IDX_EP2_TX		0x40000001
@@ -45,7 +43,7 @@
 #define IDX_EP6_TX		0x40000005
 #define IDX_EP7_TX		0x40000006
 #define IDX_EP8_TX		0x40000007
-#define IDX_NOHOST1_TX		0x60000008
+#define IDX_NOHOST1_TX		0x40000008
 #define IDX_RAW_TX	        0x40000009
 #define IDX_VOIP_TX		0x4000000a
 #define IDX_INCALL_CAP0_TX	0x4000000d
