@@ -18,10 +18,8 @@
 
 		/* reset, power */
 		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
-		/* TODO(b/186552796): Update when regulator support is added */
-		/* need to check with pmic */
-		/* vci-supply = <&m_ldo27_reg>; */
-		/* vddi-supply = <&m_ldo24_reg>; */
+		vci-supply = <&m_ldo27_reg>;
+		vddi-supply = <&m_ldo24_reg>;
 	};
 	panel@1 {
 		compatible = "samsung,emul";
@@ -44,10 +42,8 @@
 
 		/* reset, power */
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
-		/* TODO(b/186552796): Update when regulator support is added */
-		/* need to check with pmic */
-		/* vci-supply = <&m_ldo27_reg>; */
-		/* vddi-supply = <&m_ldo24_reg>; */
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
 	};
 	panel@1 {
 		compatible = "samsung,emul";
@@ -59,8 +55,10 @@
 	};
 };
 
-/* TODO(b/186552796): Update when regulator support is added */
-/* need to check with pmic */
-/* &m_ldo30_reg { */
-/*	regulator-always-on; */
-/* }; */
+/* Keep VDDIs always on */
+&m_ldo24_reg {
+	regulator-always-on;
+};
+&s_bucka_reg {
+	regulator-always-on;
+};
