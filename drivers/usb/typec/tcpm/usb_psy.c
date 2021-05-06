@@ -59,6 +59,8 @@ struct usb_psy_data {
 
 	/* Cached/Request usb ilim to charger psy */
 	int current_max_cache;
+	/* Current limits requested from USB data stack */
+	int sdp_input_current_limit;
 
 	struct usb_psy_ops *psy_ops;
 
@@ -314,8 +316,7 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 		val->intval = ops->tcpc_get_vbus_voltage_mv(client) * 1000;
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
-		/* TODO: return the current limit based on bc12 type.
-		 * if the type is SDP, return the limit set before */
+		val->intval = usb->sdp_input_current_limit;
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = usb->usb_type;
@@ -349,6 +350,7 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		if (usb->usb_type != POWER_SUPPLY_USB_TYPE_SDP)
 			return 0;
 		set_sdp_current_limit(usb, val->intval);
+		usb->sdp_input_current_limit = val->intval;
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		usb->usb_type = val->intval;
