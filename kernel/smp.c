@@ -27,6 +27,7 @@
 #include <linux/jump_label.h>
 
 #include "smpboot.h"
+#include "sched/features.h"
 #include "sched/smp.h"
 
 #define CSD_TYPE(_csd)	((_csd)->node.u_flags & CSD_FLAG_TYPE_MASK)
