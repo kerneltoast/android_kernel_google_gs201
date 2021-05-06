@@ -8,15 +8,16 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/gs201.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 #include <dt-bindings/power/google-power.h>
 #include "gs201-pinctrl.dtsi"
 #include "gs201.dtsi"
 
 &pinctrl_0 {
 	smpl_warn: smpl-warn {
-		samsung,pins = "gpa5-0";
-		samsung,pin-function = <15>;
-		samsung,pin-pud = <0>;
+		samsung,pins = "gpa5-0";	/* SMPL_WARN_R_L */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
@@ -26,7 +27,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	s2mpg12mfd: s2mpg12mfd@00 {
+	s2mpg12mfd: s2mpg12mfd@1f {
 		compatible = "samsung,s2mpg12mfd";
 		acpm-ipc-channel = <2>;
 		s2mpg12,wakeup = "enabled";
@@ -35,13 +36,15 @@
 		interrupt-parent = <&gic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&smpl_warn>;
-		gpios = <&gpa5 0 0>, // SMPL_WARN
-			<&gpa5 1 0>, // OCP_WARN_CPUCL1
-			<&gpa5 2 0>, // OCP_WARN_CPUCL2
-			<&gpa5 3 0>, // SOFT_OCP_WARN_CPUCL1
-			<&gpa5 4 0>, // SOFT_OCP_WARN_CPUCL2
-			<&gpp19 1 0>, // OCP_WARN_TPU
-			<&gpp19 3 0>; // SOFT_OCP_WARN_TPU
+		gpios = <&gpa5 0 0>,		/* SMPL_WARN_R_L */
+			<&gpa5 1 0>,		/* OCP_WARN_CPUCL1_R */
+			<&gpa5 2 0>,		/* OCP_WARN_CPUCL2_R */
+			<&gpa5 3 0>,		/* SOFT_OCP_WARN_CPUCL1_R */
+			<&gpa5 4 0>,		/* SOFT_OCP_WARN_CPUCL2_R */
+			<&gpp19 0 0>,		/* OCP_WARN_GPU_R */
+			<&gpp19 1 0>,		/* OCP_WARN_TPU_R */
+			<&gpp19 2 0>,		/* SOFT_OCP_WARN_GPU_R */
+			<&gpp19 3 0>;		/* SOFT_OCP_WARN_TPU_R */
 		#thermal-sensor-cells = <1>;
 
 		/* SMPL_WARN */
@@ -113,7 +116,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck2_reg: BUCK2M {
@@ -121,7 +124,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck3_reg: BUCK3M {
@@ -129,7 +132,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck4_reg: BUCK4M {
@@ -137,7 +140,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck5_reg: BUCK5M {
@@ -145,15 +148,15 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck6_reg: BUCK6M {
 				regulator-name = "S2MPG12_BUCK6";
 				regulator-min-microvolt = <450000>;
-				regulator-max-microvolt = <1300000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck7_reg: BUCK7M {
@@ -161,7 +164,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck8_reg: BUCK8M {
@@ -169,7 +172,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck9_reg: BUCK9M {
@@ -177,7 +180,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_buck10_reg: BUCK10M {
@@ -185,7 +188,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo1_reg: LDO1M {
@@ -193,7 +196,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo2_reg: LDO2M {
@@ -201,7 +204,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo3_reg: LDO3M {
@@ -209,7 +212,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo4_reg: LDO4M {
@@ -217,7 +220,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo5_reg: LDO5M {
@@ -225,7 +228,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo6_reg: LDO6M {
@@ -233,7 +236,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo7_reg: LDO7M {
@@ -241,28 +244,28 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo8_reg: LDO8M {
 				regulator-name = "S2MPG12_LDO8";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo9_reg: LDO9M {
 				regulator-name = "S2MPG12_LDO9";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo10_reg: LDO10M {
 				regulator-name = "S2MPG12_LDO10";
 				regulator-min-microvolt = <1700000>;
 				regulator-max-microvolt = <3350000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo11_reg: LDO11M {
@@ -270,7 +273,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo12_reg: LDO12M {
@@ -278,7 +281,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo13_reg: LDO13M {
@@ -286,7 +289,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo14_reg: LDO14M {
@@ -294,7 +297,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo15_reg: LDO15M {
@@ -302,28 +305,28 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo16_reg: LDO16M {
 				regulator-name = "S2MPG12_LDO16";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo17_reg: LDO17M {
 				regulator-name = "S2MPG12_LDO17";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo18_reg: LDO18M {
 				regulator-name = "S2MPG12_LDO18";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo19_reg: LDO19M {
@@ -331,7 +334,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo20_reg: LDO20M {
@@ -339,7 +342,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo21_reg: LDO21M {
@@ -347,7 +350,7 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo22_reg: LDO22M {
@@ -355,7 +358,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo23_reg: LDO23M {
@@ -363,7 +366,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo24_reg: LDO24M {
@@ -371,7 +374,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo25_reg: LDO25M {
@@ -379,7 +382,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo26_reg: LDO26M {
@@ -387,7 +390,7 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo27_reg: LDO27M {
@@ -395,7 +398,7 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			m_ldo28_reg: LDO28M {
@@ -403,7 +406,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 		};
 
@@ -516,7 +519,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	s2mpg13mfd: s2mpg13mfd@00 {
+	s2mpg13mfd: s2mpg13mfd@2f {
 		compatible = "samsung,s2mpg13mfd";
 		acpm-ipc-channel = <2>;
 		s2mpg13,wakeup = "enabled";
@@ -548,7 +551,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck2_reg: BUCK2S {
@@ -556,7 +559,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck3_reg: BUCK3S {
@@ -564,7 +567,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck4_reg: BUCK4S {
@@ -572,7 +575,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck5_reg: BUCK5S {
@@ -580,7 +583,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck6_reg: BUCK6S {
@@ -588,7 +591,7 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck7_reg: BUCK7S {
@@ -596,7 +599,7 @@
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <2200000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck8_reg: BUCK8S {
@@ -604,7 +607,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck9_reg: BUCK9S {
@@ -612,7 +615,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buck10_reg: BUCK10S {
@@ -620,15 +623,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
-			};
-
-			s_buckd_reg: BUCKD {
-				regulator-name = "S2MPG13_BUCKD";
-				regulator-min-microvolt = <2400000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_bucka_reg: BUCKA {
@@ -636,15 +631,7 @@
 				regulator-min-microvolt = <1700000>;
 				regulator-max-microvolt = <2100000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
-			};
-
-			s_buckc_reg: BUCKC {
-				regulator-name = "S2MPG13_BUCKC";
-				regulator-min-microvolt = <450000>;
-				regulator-max-microvolt = <1350000>;
-				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_buckboost_reg: BUCKBOOST {
@@ -652,7 +639,23 @@
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+			};
+
+			s_buckc_reg: BUCKC {
+				regulator-name = "S2MPG13_BUCKC";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+			};
+
+			s_buckd_reg: BUCKD {
+				regulator-name = "S2MPG13_BUCKD";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo1_reg: LDO1S {
@@ -660,7 +663,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo2_reg: LDO2S {
@@ -668,7 +671,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo3_reg: LDO3S {
@@ -676,7 +679,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo4_reg: LDO4S {
@@ -684,7 +687,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo5_reg: LDO5S {
@@ -692,7 +695,7 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo6_reg: LDO6S {
@@ -700,7 +703,7 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo7_reg: LDO7S {
@@ -708,7 +711,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo8_reg: LDO8S {
@@ -716,7 +719,7 @@
 				regulator-min-microvolt = <1125000>;
 				regulator-max-microvolt = <1275000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo9_reg: LDO9S {
@@ -724,7 +727,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo10_reg: LDO10S {
@@ -732,7 +735,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo11_reg: LDO11S {
@@ -740,7 +743,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo12_reg: LDO12S {
@@ -748,7 +751,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo13_reg: LDO13S {
@@ -764,7 +767,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo15_reg: LDO15S {
@@ -772,7 +775,7 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo16_reg: LDO16S {
@@ -780,7 +783,7 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo17_reg: LDO17S {
@@ -788,7 +791,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo18_reg: LDO18S {
@@ -796,7 +799,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo19_reg: LDO19S {
@@ -804,7 +807,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo20_reg: LDO20S {
@@ -812,7 +815,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo21_reg: LDO21S {
@@ -820,7 +823,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo22_reg: LDO22S {
@@ -828,7 +831,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo23_reg: LDO23S {
@@ -836,7 +839,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo24_reg: LDO24S {
@@ -844,7 +847,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo25_reg: LDO25S {
@@ -852,7 +855,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo26_reg: LDO26S {
@@ -860,7 +863,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo27_reg: LDO27S {
@@ -868,7 +871,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
 			s_ldo28_reg: LDO28S {
@@ -876,7 +879,7 @@
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
-				regulator-initial-mode = <3>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 		};
 
