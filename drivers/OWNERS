@@ -44,6 +44,7 @@ per-file i2c/busses/i2c-exynos5.h=*
 per-file iio/power/odpm.c=*
 
 per-file input/fingerprint/**=*
+per-file input/keyboard/s2mpg12-key.c=*
 per-file input/keycombo.c=*
 per-file input/keydebug-*=*
 per-file input/misc/vl53l1/**=*
