@@ -118,15 +118,17 @@ int cp_get_log_dump(struct io_device *iod, struct link_device *ld, unsigned long
 		break;
 #endif
 
-	case LOG_IDX_DATABUF:
+	case LOG_IDX_DATABUF_DL:
 		base = phys_to_virt(cp_shmem_get_base(cp_num, SHMEM_PKTPROC));
-#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
-		size = cp_shmem_get_size(cp_num, SHMEM_PKTPROC) +
-			cp_shmem_get_size(cp_num, SHMEM_PKTPROC_UL);
-#else
 		size = cp_shmem_get_size(cp_num, SHMEM_PKTPROC);
-#endif
 		break;
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+	case LOG_IDX_DATABUF_UL:
+		base = phys_to_virt(cp_shmem_get_base(cp_num, SHMEM_PKTPROC_UL));
+		size = cp_shmem_get_size(cp_num, SHMEM_PKTPROC_UL);
+		break;
+#endif
 
 	case LOG_IDX_L2B:
 		base = phys_to_virt(cp_shmem_get_base(cp_num, SHMEM_L2B));
