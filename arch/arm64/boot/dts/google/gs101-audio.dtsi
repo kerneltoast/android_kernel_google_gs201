@@ -434,22 +434,6 @@
 				};
 			};
 
-			dai_fe_haptic_nohost_rx: fe_haptic_nohost_rx {
-				dai-name = "haptic nohost playback";
-				stream-name = "haptic nohost playback";
-				id = <IDX_HAPTIC_NoHOST_RX>;
-				dynamic;
-				playback;
-				cpu {
-					sound-dai = <&aud_aoc_path IDX_HAPTIC_NoHOST_RX>;
-				};
-				platform {
-					rx1 {
-						of_drv = <&aoc_nohost_drv>;
-					};
-				};
-			};
-
 			dai_be_i2s0_rx: be_i2s0_rx {
 				dai-name = "I2S_0_RX Playback";
 				stream-name = "I2S_0_RX Playback";
@@ -702,21 +686,6 @@
 				};
 			};
 
-			dai_be_haptic_rx: be_haptic_rx  {
-				dai-name = "HAPTIC_RX Playback";
-				stream-name = "HAPTIC_RX Playback";
-				id = <HAPTIC_RX>;
-				playback;
-				no-pcm;
-				useops;
-				usefixup;
-				cpu {
-					sound-dai = <&aud_aoc_path HAPTIC_RX>;
-				};
-				daifmt {
-					dai-format = "dsp_a";
-				};
-			};
 		};
 	};
 

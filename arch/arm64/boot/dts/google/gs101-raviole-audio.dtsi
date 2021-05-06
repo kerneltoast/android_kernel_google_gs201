@@ -24,12 +24,6 @@
 	};
 };
 
-&dai_be_haptic_rx {
-	dai_be_haptic_rx_codec: codec {
-		sound-dai = <&cs40l2x_codec 0>;
-	};
-};
-
 &aoc_snd_card {
 	clks {
 		sys {
@@ -48,19 +42,6 @@
 
 			sys@cs35l41_r {
 				comp = <&cs35l41_r>;
-				src = "BCLK";
-				/* clk id */
-				id = <0>;
-				/* clk source */
-				srcid = <0>;
-				/* in clk multiple */
-				in_mul = <1>;
-				/* out clk multiple */
-				out_mul = <1>;
-			};
-
-			cs40l2x_codec_clk: sys@cs40l2x_codec {
-				comp = <&cs40l2x_codec>;
 				src = "BCLK";
 				/* clk id */
 				id = <0>;
@@ -208,12 +189,6 @@
 		cirrus,dcm-disable;  /* disable DCM automatic low power mode */
 
 		status = "okay";
-
-		cs40l2x_codec: cs40l2x_codec@snd {
-			#sound-dai-cells = <1>;
-			compatible = "cs40l2x-codec";
-			status = "okay";
-		};
 	};
 };
 
