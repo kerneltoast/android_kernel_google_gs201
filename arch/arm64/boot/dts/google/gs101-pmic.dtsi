@@ -328,7 +328,6 @@
 				regulator-name = "S2MPG10_LDO7";
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x27>;
 				schematic-name = "L7M_VDD_HSI";
