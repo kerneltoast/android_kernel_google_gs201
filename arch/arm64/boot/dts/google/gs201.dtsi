@@ -24,6 +24,7 @@
 #include "gs201-sysmmu.dtsi"
 #include "gs201-usi.dtsi"
 #include "gs201-s2mpu.dtsi"
+#include "gs201-ufs.dtsi"
 #include "gs201-mmc.dtsi"
 #include "gs201-tpu.dtsi"
 #include "gs101-dma-heap.dtsi"
