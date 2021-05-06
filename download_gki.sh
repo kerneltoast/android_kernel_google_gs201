@@ -51,7 +51,8 @@ exit_and_clean_if_error $? "Unable to copy all files"
 cd ${GKI_PREBUILTS_DIR}
 echo "Update the GKI binaries to ab/${GKI_BUILD}
 
-Update the GKI binaries based on the given build.
+Update the GKI binaries based on the given build. The prebuilts now have
+the following SHA, taken from the vmlinux banner: ${PREBUILTS_SHA}
 " > ${TEMP_DIR}\commit_body
 git add *
 git commit -s -F ${TEMP_DIR}\commit_body
