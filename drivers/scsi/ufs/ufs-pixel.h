@@ -177,6 +177,7 @@ struct pixel_ufs_stats {
 extern int pixel_init(struct ufs_hba *hba);
 extern void pixel_exit(struct ufs_hba *hba);
 extern void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8);
+extern void pixel_print_cmd_log(struct ufs_hba *hba);
 
 enum pixel_event_type {
 	EVENT_UNDEF = 0,

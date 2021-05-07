@@ -1591,6 +1591,28 @@ static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
 				__func__);
 }
 
+void pixel_print_cmd_log(struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct pixel_cmd_log_entry *entry = NULL;
+	int i;
+
+	if (!ufs->enable_cmd_log)
+		return;
+
+	for (i = 1; i <= MAX_CMD_ENTRY_NUM; i++) {
+		entry = &ufs->cmd_log.entry[(ufs->cmd_log.head + i) %
+						MAX_CMD_ENTRY_NUM];
+		if (!entry->seq_num)
+			break;
+		dev_err(hba->dev, "%lu: %s tag: %lu cmd: %s lba: %lu len: %lu DB: 0x%lx outstanding: 0x%lx GID: %u\n",
+			entry->seq_num, entry->event,
+			entry->tag, entry->cmd,
+			entry->lba, entry->transfer_len,
+			entry->doorbell, entry->outstanding_reqs);
+	}
+}
+
 int pixel_init(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
