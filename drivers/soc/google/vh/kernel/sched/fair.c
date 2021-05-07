@@ -541,19 +541,32 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	}
 
 	for_each_cpu_wrap(i, p->cpus_ptr, start_cpu) {
-		unsigned long capacity_curr = capacity_curr_of(i);
-		unsigned long capacity_orig = capacity_orig_of(i);
-		unsigned long capacity = capacity_of(i);
+		unsigned long capacity_curr;
+		unsigned long capacity_orig;
+		unsigned long capacity;
 		unsigned long wake_util, new_util;
 		long spare_cap;
 		struct cpuidle_state *idle = NULL;
-		int next_cpu = cpumask_next_wrap(i, p->cpus_ptr, i, false);
+		int next_cpu;
 		unsigned int exit_lat = UINT_MAX;
-		bool idle_cpu = cpu_is_idle(i);
-		unsigned long task_importance = uclamp_eff_value(p, UCLAMP_MIN) +
-						uclamp_eff_value(p, UCLAMP_MAX);
-		unsigned long cpu_importance = READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MIN].value) +
-				     READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MAX].value);
+		bool idle_cpu;
+		unsigned long task_importance;
+		unsigned long cpu_importance;
+
+		if (i >= CPU_NUM)
+			continue;
+
+		capacity_curr = capacity_curr_of(i);
+		capacity_orig = capacity_orig_of(i);
+		capacity = capacity_of(i);
+		idle_cpu = cpu_is_idle(i);
+		task_importance = uclamp_eff_value(p, UCLAMP_MIN) + uclamp_eff_value(p, UCLAMP_MAX);
+		cpu_importance = READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MIN].value) +
+				 READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MAX].value);
+
+		next_cpu = cpumask_next(i, p->cpus_ptr);
+		if (next_cpu >= CPU_NUM)
+			next_cpu = 0;
 
 		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity, idle_cpu,
 				     task_importance, cpu_importance);
