@@ -23,6 +23,11 @@
 	};
 };
 
+&hsi2c7_bus {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
 &hsi2c_7 {
 	/* XAPC_USI7 */
 	#address-cells = <1>;
