@@ -95,7 +95,7 @@ enum {
  *
  * DO NOT MOVE THIS TO ANYWHERE RANDOMLY !!!
  */
-#include "ufs-cal-gs101.h"
+#include "ufs-cal.h"
 
 /* Version check */
 #if (UFS_CAL_IF_COMPAT_MMIO_VER != UFS_VS_MMIO_VER)

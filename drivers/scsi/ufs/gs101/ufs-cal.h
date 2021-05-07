@@ -11,8 +11,8 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2 of the License, or
 // (at your option) any later version.
-#ifndef _UFS_CAL_TABLE_
-#define _UFS_CAL_TABLE_
+#ifndef _GS101_UFS_CAL_H
+#define _GS101_UFS_CAL_H
 
 /* To display */
 #define UFS_CAL_TABLE_VER 2
@@ -528,4 +528,4 @@ static struct ufs_cal_phy_cfg loopback_set_2_card[] = {
 	/* mib(just to monitor), sfr offset, value, .. */
 	{0, 0, 0, 0, PHY_CFG_NONE, BRD_ALL}
 };
-#endif	/* _UFS_CAL_TABLE_ */
+#endif	/* _GS101_UFS_CAL_H */
