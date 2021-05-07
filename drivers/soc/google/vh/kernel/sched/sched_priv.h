@@ -70,3 +70,6 @@ static inline struct vendor_task_group_struct *get_vendor_task_group_struct(stru
 {
 	return (struct vendor_task_group_struct *)tg->android_vendor_data1;
 }
+
+int acpu_init(void);
+extern struct proc_dir_entry *vendor_sched;

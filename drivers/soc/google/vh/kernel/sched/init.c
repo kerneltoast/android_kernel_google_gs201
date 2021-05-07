@@ -12,6 +12,8 @@
 #include <trace/hooks/sched.h>
 #include <trace/hooks/topology.h>
 
+#include "sched_priv.h"
+
 extern void init_uclamp_stats(void);
 extern int create_sysfs_node(void);
 extern void vh_arch_set_freq_scale_pixel_mod(void *data,
@@ -123,6 +125,10 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = acpu_init();
 	if (ret)
 		return ret;
 

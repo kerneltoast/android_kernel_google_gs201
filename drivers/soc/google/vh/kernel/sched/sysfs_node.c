@@ -24,7 +24,7 @@ DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 unsigned int __read_mostly vendor_sched_uclamp_threshold;
 unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
 static struct kobject *vendor_sched_kobj;
-static struct proc_dir_entry *vendor_sched;
+struct proc_dir_entry *vendor_sched;
 extern unsigned int sched_capacity_margin[CPU_NUM];
 
 extern void initialize_vendor_group_property(void);

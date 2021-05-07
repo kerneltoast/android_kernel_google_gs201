@@ -1,0 +1,11 @@
+What:		/proc/vendor_sched/acpu_stats
+Date:		January 2022
+Contact:	Quentin Perret <qperret@google.com>
+Description:
+		This file provides idle and frequency residency statistics for
+		each CPU in the system as required by the Android Adaptive CPU
+		ML model. It exposes an array of `struct acpu_stats` entries
+		(see include/uapi/linux/acpu.h) in binary format. The number of
+		entries in the array is equal to the number of possible (as
+		opposed to online) CPUs in the system, and is ordered by
+		increasing CPU ids.
