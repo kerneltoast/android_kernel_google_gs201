@@ -155,7 +155,7 @@
 							  PCIE_CP_IRQ_IDX_4 PCIE_CP_IRQ_IDX_5>;
 				pktproc_use_buff_mng = <0>;
 				pktproc_desc_num_ratio_percent = <100>;
-				pktproc_use_napi = <0>;
+				pktproc_use_napi = <1>;
 				/* H/W IO cache coherency */
 				pktproc_use_hw_iocc = <1>;
 				pktproc_max_packet_size = <2048>;
@@ -239,14 +239,14 @@
 						tpmon,check_udp = <1>;
 					};
 					tpmon_cpu_cl1 {
-						tpmon,enable = <0>;
+						tpmon,enable = <1>;
 						tpmon,name = "CL1";
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_CPU_CL1>;
 						tpmon,idx = <4>;
-						tpmon,threshold = <500 700 1500>;	/* Mbps */
-						tpmon,values = <0 832000 1248000 1560000>;
-						tpmon,check_udp = <1>;
+						tpmon,threshold = <2000>;	/* Mbps */
+						tpmon,values = <0 1663000>;
+						tpmon,check_udp = <0>;
 					};
 					tpmon_pcie_low_power {
 						tpmon,enable = <1>;
@@ -531,7 +531,7 @@
 			cp_shmem {
 				compatible = "samsung,exynos-cp-shmem";
 
-				memory-region = <&cp_rmem>, <&cp_msi_rmem>, <&cp_rmem_2>;
+				memory-region = <&cp_rmem>, <&cp_msi_rmem>, <&cp_rmem_1>, <&cp_rmem_2>;
 
 				cp_num = <0>;
 				use_mem_map_on_cp = <0>;
@@ -558,16 +558,16 @@
 						region,index = <SHMEM_PKTPROC>;
 						region,rmem = <2>;
 						region,offset = <0x00000000>;
-						region,size = <0x06000000>;
+						region,size = <0x01C00000>;
 						/* Cached info is defined by pktproc itself */
 					};
 					pktproc_ul {
 						region,name = "PKTPROC_UL";
 						region,index = <SHMEM_PKTPROC_UL>;
-						region,rmem = <2>;
-						region,offset = <0x06000000>;
-						region,size = <0x02000000>;
-						region,cached = <0>;
+						region,rmem = <3>;
+						region,offset = <0x00000000>;
+						region,size = <0x00400000>;
+						/* Cached info is defined by pktproc_ul itself */
 					};
 				};
 			};

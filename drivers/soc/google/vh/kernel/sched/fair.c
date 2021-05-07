@@ -372,7 +372,6 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 	unsigned long util_est;
 	struct task_group *tg;
 	int delta = 0;
-	unsigned long group_util = 0;
 	struct rq *rq = cpu_rq(cpu);
 
 	if (task_cpu(p) == cpu && dst_cpu != cpu)
@@ -383,6 +382,7 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 	// For leaf groups
 	for_each_leaf_cfs_rq_safe(rq, cfs_rq, pos) {
 		if (&rq->cfs != cfs_rq) {
+			unsigned long group_util = 0;
 			tg = cfs_rq->tg;
 
 			if (p->se.cfs_rq->tg == tg)
@@ -390,19 +390,17 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 			else
 				group_util = READ_ONCE(cfs_rq->avg.util_avg);
 
-			unclamped_util += cfs_rq->avg.util_avg;
+			unclamped_util += READ_ONCE(cfs_rq->avg.util_avg);
 			util += min_t(unsigned long, group_util, tg->uclamp_req[UCLAMP_MAX].value);
 		}
 	}
 
 	// For root group
 	if (p->se.cfs_rq->tg == rq->cfs.tg)
-		group_util = max_t(int, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util + delta,
+		util = max_t(long, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util + util + delta,
 				   0);
 	else
-		group_util = max_t(int, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util, 0);
-
-	util += group_util;
+		util = max_t(long, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util + util, 0);
 
 	if (sched_feat(UTIL_EST)) {
 		util_est = READ_ONCE(cfs_rq->avg.util_est.enqueued);

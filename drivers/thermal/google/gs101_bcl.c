@@ -230,7 +230,8 @@ static struct power_supply *google_gs101_get_power_supply(struct gs101_bcl_dev *
 	return batt_psy;
 }
 
-static void ocpsmpl_read_stats(struct ocpsmpl_stats *dst, struct power_supply *psy)
+static void ocpsmpl_read_stats(struct gs101_bcl_dev *bcl_dev,
+			       struct ocpsmpl_stats *dst, struct power_supply *psy)
 {
 	union power_supply_propval ret = {0};
 	int err = 0;
@@ -239,13 +240,17 @@ static void ocpsmpl_read_stats(struct ocpsmpl_stats *dst, struct power_supply *p
 	err = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &ret);
 	if (err < 0)
 		dst->capacity = -1;
-	else
+	else {
 		dst->capacity = ret.intval;
+		bcl_dev->batt_psy_initialized = true;
+	}
 	err = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW, &ret);
 	if (err < 0)
 		dst->voltage = -1;
-	else
+	else {
 		dst->voltage = ret.intval;
+		bcl_dev->batt_psy_initialized = true;
+	}
 
 }
 
@@ -254,9 +259,11 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 	struct gs101_bcl_dev *gs101_bcl_device = data;
 
 	if (pmic == S2MPG10) {
-		atomic_inc(&gs101_bcl_device->s2mpg10_cnt[idx]);
-		ocpsmpl_read_stats(&gs101_bcl_device->s2mpg10_stats[idx],
-				   gs101_bcl_device->batt_psy);
+		if (gs101_bcl_device->batt_psy_initialized) {
+			atomic_inc(&gs101_bcl_device->s2mpg10_cnt[idx]);
+			ocpsmpl_read_stats(gs101_bcl_device, &gs101_bcl_device->s2mpg10_stats[idx],
+					   gs101_bcl_device->batt_psy);
+		}
 		if (gs101_bcl_device->s2mpg10_counter[idx] == 0) {
 			gs101_bcl_device->s2mpg10_counter[idx] += 1;
 			queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg10_irq_work[idx],
@@ -271,9 +278,11 @@ static irqreturn_t irq_handler(int irq, void *data, u8 pmic, u8 idx, u8 active_p
 						THERMAL_EVENT_UNSPECIFIED);
 		}
 	} else {
-		atomic_inc(&gs101_bcl_device->s2mpg11_cnt[idx]);
-		ocpsmpl_read_stats(&gs101_bcl_device->s2mpg11_stats[idx],
-				   gs101_bcl_device->batt_psy);
+		if (gs101_bcl_device->batt_psy_initialized) {
+			atomic_inc(&gs101_bcl_device->s2mpg11_cnt[idx]);
+			ocpsmpl_read_stats(gs101_bcl_device, &gs101_bcl_device->s2mpg11_stats[idx],
+					   gs101_bcl_device->batt_psy);
+		}
 		if (gs101_bcl_device->s2mpg11_counter[idx] == 0) {
 			gs101_bcl_device->s2mpg11_counter[idx] = 1;
 			queue_delayed_work(system_wq, &gs101_bcl_device->s2mpg11_irq_work[idx],
@@ -632,10 +641,11 @@ static int gs101_bcl_read_soc(void *data, int *val)
 	if (bcl_dev->batt_psy) {
 		err = power_supply_get_property(bcl_dev->batt_psy,
 						POWER_SUPPLY_PROP_CAPACITY, &ret);
-		if (err) {
+		if (err < 0) {
 			dev_err(bcl_dev->device, "battery percentage read error:%d\n", err);
 			return err;
 		}
+		bcl_dev->batt_psy_initialized = true;
 		*val = 100 - ret.intval;
 	}
 	pr_debug("soc:%d\n", *val);
@@ -2060,6 +2070,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	bcl_dev->gpu_clkdivstep = ret ? 0 : val;
 	ret = of_property_read_u32(np, "tpu_clkdivstep", &val);
 	bcl_dev->tpu_clkdivstep = ret ? 0 : val;
+	bcl_dev->batt_psy_initialized = false;
 
 	return 0;
 

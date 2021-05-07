@@ -1201,6 +1201,9 @@ static irqreturn_t exynos_serial_tx_chars(int irq, void *id)
 
 	spin_lock_irqsave(&port->lock, flags);
 
+	exynos_set_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
+	wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_TXD_MSK);
+
 	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
 	if (ourport->dma && ourport->dma->tx_chan &&
@@ -1265,7 +1268,9 @@ static irqreturn_t exynos_serial_tx_chars(int irq, void *id)
 		exynos_serial_stop_tx(port);
 
 out:
-	wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_TXD_MSK);
+	if (ourport->tx_enabled)
+		exynos_clear_bit(port, S3C64XX_UINTM_TXD, S3C64XX_UINTM);
+
 	if (ourport->uart_logging && trace_cnt)
 		uart_copy_to_local_buf(0, &ourport->uart_local_buf, trace_buf,
 				       trace_cnt);

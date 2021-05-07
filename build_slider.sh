@@ -50,10 +50,12 @@ GKI_PREBUILTS_DIR=$(readlink -m "prebuilts/boot-artifacts/kernel/")
 DEFAULT_CONFIG="private/gs-google/build.config.slider"
 DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG:-${DEFAULT_CONFIG}}
 TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
+CHECK_DIRTY_AOSP=0
 if [ -z "${BUILD_KERNEL}" ]; then
   if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
     BUILD_KERNEL=1
   else
+    CHECK_DIRTY_AOSP=1
     BUILD_KERNEL=0
   fi
 fi
@@ -95,16 +97,18 @@ if [ "${BUILD_KERNEL}" = "0" ]; then
 fi
 
 if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
+  MANIFEST_SHA=$(cat .repo/manifests/default.xml | grep "path=\"aosp\"" |
+		     sed -n "s/^.*revision=\"\([0-9a-fA-F]*\)\".*/\1/p")
   pushd aosp/ > /dev/null
     # Booting AOSP ToT does not always work; throw a warning to prevent this.
-    REPO_SHA=$(git log -1 --pretty="format:%H" m/s-dev-gs-pixel-5.10)
     LOCAL_MERGE_BASE=$(git merge-base HEAD aosp/android12-5.10)
-    if [ "${REPO_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
+    if [ -n "${LOCAL_MERGE_BASE}" -a \
+	    "${MANIFEST_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
       echo "Your aosp/ directory appears to be synced to a point beyond the"
       echo "  latest AOSP merge point. This is not supported, currently, as"
-      echo "  it is prone to errors. Please base any changes on"
-      echo "  m/s-dev-gs-pixel-5.10."
-      exit_if_error 1 "aosp/ is not based on m/s-dev-gs-pixel-5.10"
+      echo "  it is prone to errors. Please base any changes on the latest"
+      echo "  merge point as specified in the manifest."
+      exit_if_error 1 "aosp/ is not based on latest merge point"
     fi
   popd > /dev/null
 fi
@@ -115,3 +119,26 @@ else
   copy_gki_prebuilts
 fi
 build_pixel
+
+# If BUILD_KERNEL is not explicitly set, be sure that there are no aosp/
+# changes not present in the prebuilt.
+if [ "${CHECK_DIRTY_AOSP}" != "0" ]; then
+  PREBUILTS_SHA=$(strings ${GKI_PREBUILTS_DIR}/vmlinux |
+		      grep "Linux version 5.10" |
+		      sed -n "s/^.*-g\([0-9a-f]\{12\}\)-.*/\1/p")
+  pushd aosp/ > /dev/null
+    # The AOSP sha can sometimes be longer than 12 characters; fix its length.
+    AOSP_SHA=$(git log -1 --abbrev=12 --pretty="format:%h")
+    if [ "${PREBUILTS_SHA}" != "${AOSP_SHA}" -o -n \
+         "$(git --no-optional-locks status -uno --porcelain ||
+            git diff-index --name-only HEAD)" ]; then
+      echo "WARNING: There are aosp/ changes which are not in the prebuilts."
+      echo "  Because you did not specify BUILD_KERNEL=0 or 1, $0"
+      echo "  defaulted to building with the prebuilts. Please be aware that"
+      echo "  your changes to aosp/ will not be present in the final images. If"
+      echo "  you have made changes to aosp/, it is recommended to explicitly"
+      echo "  set BUILD_KERNEL=0 if you wish to use the prebuilts, or to 1 if"
+      echo "  you wish to build any local changes you may have."
+    fi
+  popd > /dev/null
+fi

@@ -12,3 +12,4 @@
 #include "gs101-oriole-wcharger.dtsi"
 #include "gs101-raviole-charging.dtsi"
 #include "gs101-raviole-usecases.dtsi"
+#include "gs101-oriole-charging.dtsi"

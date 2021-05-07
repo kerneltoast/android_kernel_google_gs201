@@ -157,9 +157,11 @@ void s2mpu_update_refcnt(struct device *dev,
 	index = s2mpu_get_refcnt_index(align_addr);
 
 	if (index < 0) {
+		/* TODO: b/187207508: Temporarily disable this log
 		dev_err(dev,
 			"index failed  addr=%pad, size=%zx\n",
 			&dma_addr, size);
+		*/
 		return;
 	}
 

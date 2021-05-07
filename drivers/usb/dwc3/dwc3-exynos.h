@@ -93,6 +93,7 @@ struct dwc3_exynos {
 	struct notifier_block	id_nb;
 
 	bool			usb_data_enabled;
+	bool			extra_delay;
 
 	int			idle_ip_index;
 	unsigned long		bus_clock_rate;
@@ -117,7 +118,6 @@ void dwc3_exynos_rsw_exit(struct device *dev);
 int dwc3_exynos_rsw_start(struct device *dev);
 int dwc3_exynos_id_event(struct device *dev, int state);
 int dwc3_exynos_vbus_event(struct device *dev, bool vbus_active);
-int dwc3_exynos_get_idle_ip_index(struct device *dev);
 extern int dwc3_exynos_set_bus_clock(struct device *dev, int clk_level);
 void dwc3_otg_run_sm(struct otg_fsm *fsm);
 

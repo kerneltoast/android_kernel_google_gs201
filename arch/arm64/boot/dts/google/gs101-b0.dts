@@ -24,10 +24,10 @@
 };
 
 &cpufreq_domain0 {
-	max-freq = <2024000>;
+	max-freq = <1803000>;
 };
 &cpufreq_domain2 {
-	max-freq = <2630000>;
+	max-freq = <2802000>;
 };
 
 &bts_smc0 {

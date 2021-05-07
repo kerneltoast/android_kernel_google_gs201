@@ -125,6 +125,14 @@ static ssize_t auto_discharge_show(struct device *dev, struct device_attribute *
 };
 static DEVICE_ATTR_RO(auto_discharge);
 
+static ssize_t bc12_enabled_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bc12_get_status(chip->bc12) ? 1 : 0);
+};
+static DEVICE_ATTR_RO(bc12_enabled);
+
 static ssize_t contaminant_detection_show(struct device *dev, struct device_attribute *attr,
 					  char *buf)
 {
@@ -211,6 +219,7 @@ static DEVICE_ATTR_RO(contaminant_detection_status);
 
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
+	&dev_attr_bc12_enabled,
 	&dev_attr_auto_discharge,
 	&dev_attr_contaminant_detection,
 	&dev_attr_contaminant_detection_status,
@@ -444,18 +453,19 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 	}
 
 	logbuffer_log(chip->log,
-		      "%s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
+		      "%s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u bc12_running:%u",
 		      __func__, chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
 		      chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
-		      chip->debug_acc_connected);
+		      chip->debug_acc_connected, chip->bc12_running ? 1 : 0);
 	dev_info(chip->dev,
-		 "TCPM_DEBUG %s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u",
+		 "TCPM_DEBUG %s pd_data_capable:%u no_bc_12:%u bc12_data_capable:%u attached:%u debug_acc_conn:%u bc12_running:%u",
 		 __func__, chip->pd_data_capable ? 1 : 0, chip->no_bc_12 ? 1 : 0,
 		 chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
-		 chip->debug_acc_connected);
+		 chip->debug_acc_connected, chip->bc12_running ? 1 : 0);
 
-	enable_data = chip->pd_data_capable || chip->no_bc_12 || chip->bc12_data_capable ||
-		chip->data_role == TYPEC_HOST || chip->debug_acc_connected;
+	enable_data = (chip->pd_data_capable || chip->no_bc_12 || chip->bc12_data_capable ||
+		       chip->data_role == TYPEC_HOST || chip->debug_acc_connected) &&
+		!chip->bc12_running;
 
 	if (chip->attached && enable_data && !chip->data_active) {
 		if (chip->data_role == TYPEC_HOST) {
@@ -463,6 +473,9 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 			logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
 				      "success");
 		}
+		/* Disable BC1.2 to prevent BC1.2 detection during PR_SWAP */
+		bc12_enable(chip->bc12, false);
+
 		ret = extcon_set_state_sync(chip->extcon, chip->data_role == TYPEC_HOST ?
 					    EXTCON_USB_HOST : EXTCON_USB, 1);
 		logbuffer_log(chip->log, "%s turning on %s", ret < 0 ? "Failed" : "Succeeded",
@@ -952,6 +965,9 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 		chip->first_toggle = false;
 	}
 
+	/* Renable BC1.2*/
+	bc12_enable(chip->bc12, true);
+
 	/* Re-enable retry */
 	bc12_reset_retry(chip->bc12);
 	if (chip->contaminant_detection)
@@ -1273,6 +1289,17 @@ void tcpm_put_partner_src_caps(u32 **src_pdo)
 }
 EXPORT_SYMBOL_GPL(tcpm_put_partner_src_caps);
 
+void max77759_bc12_is_running(struct max77759_plat *chip, bool running)
+{
+	if (chip) {
+		mutex_lock(&chip->data_path_lock);
+		chip->bc12_running = running;
+		if (!running)
+			enable_data_path_locked(chip);
+		mutex_unlock(&chip->data_path_lock);
+	}
+}
+
 static void max77759_set_port_data_capable(struct i2c_client *tcpc_client,
 					   enum power_supply_usb_type
 					   usb_type)
@@ -1434,20 +1461,6 @@ static void max77759_get_timer_value(void *unused, const char *state, enum typec
 	}
 }
 
-static void max77759_get_cr_limit(void *unused, const char *state, u32 port_current_limit,
-				  u32 port_voltage, bool pd_capable, u32 *current_limit,
-				  bool *adjust)
-{
-	if (!strncmp(state, "SNK_DISCOVERY", strlen("SNK_DISCOVERY"))) {
-		if (*current_limit) {
-			*adjust = true;
-			*current_limit = 500;
-		}
-	} else if (!strncmp(state, "SNK_READY", strlen("SNK_READY"))) {
-		*adjust = !pd_capable;
-	}
-}
-
 static int max77759_register_vendor_hooks(struct i2c_client *client)
 {
 	int ret;
@@ -1494,14 +1507,6 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 	if (ret) {
 		dev_err(&client->dev,
 			"register_trace_android_vh_typec_tcpm_get_timer failed ret:%d\n", ret);
-		return ret;
-	}
-
-	ret = register_trace_android_vh_typec_tcpm_adj_current_limit(max77759_get_cr_limit, NULL);
-	if (ret) {
-		dev_err(&client->dev,
-			"register_trace_android_vh_typec_tcpm_get_adj_current_limit failed ret",
-			ret);
 		return ret;
 	}
 
@@ -1689,7 +1694,7 @@ static int max77759_probe(struct i2c_client *client,
 	}
 
 	/* Defered probe returned until usb power supply showup.*/
-	chip->bc12 = bc12_init(chip);
+	chip->bc12 = bc12_init(chip, max77759_bc12_is_running);
 	if (IS_ERR_OR_NULL(chip->bc12)) {
 		ret = PTR_ERR(chip->bc12);
 		goto unreg_psy;
