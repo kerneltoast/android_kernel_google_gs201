@@ -54,7 +54,7 @@ static unsigned int get_random_for_type(int type)
 		break;
 	case CPU_ID:
 		if (CHIP_REV_TYPE_A0 == gs_chipid_get_type() &&
-				CHIP_REV_TYPE_A0 == gs_chipid_get_revision()) {
+		    CHIP_REV_TYPE_A0 == gs_chipid_get_revision()) {
 			/* chipid: A0 */
 			ret = random % CPU_NUM_NO_HERA;
 		} else {
@@ -67,7 +67,7 @@ static unsigned int get_random_for_type(int type)
 		break;
 	default:
 		pr_err("%s, type: %d not support\n", __func__, type);
-		ret =  -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
 
@@ -127,9 +127,7 @@ static int acpm_tmu_set_read_temp(int tz, int *temp, int *stat)
 	if (acpm_tmu_log) {
 		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
+			message.data[1], message.data[2], message.data[3]);
 	}
 
 	*temp = message.resp.temp;
@@ -154,9 +152,7 @@ static int acpm_tmu_set_suspend(int flag)
 	if (acpm_tmu_log) {
 		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
+			message.data[1], message.data[2], message.data[3]);
 	}
 
 	return 0;
@@ -177,13 +173,12 @@ static int acpm_tmu_set_resume(void)
 	if (acpm_tmu_log) {
 		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
+			message.data[1], message.data[2], message.data[3]);
 	}
 
 	pr_info("%s: acpm irq %d cold cnt %d stat %d\n",
-		__func__, message.resp.rsvd2, message.resp.rsvd, message.resp.stat);
+		__func__, message.resp.rsvd2, message.resp.rsvd,
+		message.resp.stat);
 
 	return 0;
 }
@@ -201,9 +196,7 @@ static void acpm_tmu_tz_control(int tz, bool enable)
 	if (acpm_tmu_log) {
 		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
 			message.data[0],
-			message.data[1],
-			message.data[2],
-			message.data[3]);
+			message.data[1], message.data[2], message.data[3]);
 	}
 }
 
@@ -216,7 +209,7 @@ static void acpm_debug_tmu_rd_tmp_random(struct work_struct *work)
 
 	acpm_tmu_set_read_temp(tzid, &temp, &stat);
 	pr_info("%s: thermal zone %d temp %d stat %d\n",
-			__func__, tzid, temp, stat);
+		__func__, tzid, temp, stat);
 }
 
 static void acpm_debug_tmu_rd_tmp_concur(struct work_struct *work)
@@ -228,7 +221,7 @@ static void acpm_debug_tmu_rd_tmp_concur(struct work_struct *work)
 
 	acpm_tmu_set_read_temp(tzid, &temp, &stat);
 	pr_info("%s: thermal zone %d temp %d stat %d\n",
-			__func__, tzid, temp, stat);
+		__func__, tzid, temp, stat);
 }
 
 static void acpm_mbox_dvfs_rate_random_change(struct work_struct *work)
@@ -250,14 +243,15 @@ static void acpm_dvfs_mbox_stress_trigger(struct work_struct *work)
 
 	for (i = 0; i < NUM_OF_WQ; i++) {
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-			mbox->dvfs->rate_change_wq[i],
-			&mbox->dvfs->rate_change_wk[i],
-			msecs_to_jiffies(get_random_for_type(DELAY_MS)));
+				      mbox->dvfs->rate_change_wq[i],
+				      &mbox->dvfs->rate_change_wk[i],
+				      msecs_to_jiffies(get_random_for_type
+						       (DELAY_MS)));
 	}
 	queue_delayed_work_on(get_random_for_type(CPU_ID),
-		mbox->dvfs->mbox_stress_trigger_wq,
-		&mbox->dvfs->mbox_stress_trigger_wk,
-		msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
+			      mbox->dvfs->mbox_stress_trigger_wq,
+			      &mbox->dvfs->mbox_stress_trigger_wk,
+			      msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
 }
 
 static void acpm_debug_tmu_rd_tmp_stress_trigger(struct work_struct *work)
@@ -266,18 +260,19 @@ static void acpm_debug_tmu_rd_tmp_stress_trigger(struct work_struct *work)
 
 	for (i = 0; i < NUM_OF_WQ; i++) {
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-			mbox->tmu->rd_tmp_random_wq[i],
-			&mbox->tmu->rd_tmp_random_wk[i],
-			msecs_to_jiffies(get_random_for_type(DELAY_MS)));
+				      mbox->tmu->rd_tmp_random_wq[i],
+				      &mbox->tmu->rd_tmp_random_wk[i],
+				      msecs_to_jiffies(get_random_for_type
+						       (DELAY_MS)));
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-			mbox->tmu->rd_tmp_concur_wq[i],
-			&mbox->tmu->rd_tmp_concur_wk[i],
-			msecs_to_jiffies(0));
+				      mbox->tmu->rd_tmp_concur_wq[i],
+				      &mbox->tmu->rd_tmp_concur_wk[i],
+				      msecs_to_jiffies(0));
 	}
 	queue_delayed_work_on(get_random_for_type(CPU_ID),
-		mbox->tmu->rd_tmp_stress_trigger_wq,
-		&mbox->tmu->rd_tmp_stress_trigger_wk,
-		msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
+			      mbox->tmu->rd_tmp_stress_trigger_wq,
+			      &mbox->tmu->rd_tmp_stress_trigger_wk,
+			      msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
 }
 
 #define TMU_SUSPEND_RESUME_DELAY      100
@@ -292,8 +287,10 @@ static void acpm_debug_tmu_suspend(struct work_struct *work)
 	pr_info("%s\n", __func__);
 
 	queue_delayed_work_on(get_random_for_type(CPU_ID), mbox->tmu->resume_wq,
-		&mbox->tmu->resume_work, msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
+			      &mbox->tmu->resume_work,
+			      msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
 }
+
 static void acpm_debug_tmu_resume(struct work_struct *work)
 {
 	int tzid, temp, stat;
@@ -310,8 +307,9 @@ static void acpm_debug_tmu_resume(struct work_struct *work)
 	}
 	pr_info("%s\n", __func__);
 
-	queue_delayed_work_on(get_random_for_type(CPU_ID), mbox->tmu->suspend_wq,
-		&mbox->tmu->suspend_work, msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
+	queue_delayed_work_on(get_random_for_type(CPU_ID),
+			      mbox->tmu->suspend_wq, &mbox->tmu->suspend_work,
+			      msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
 }
 
 static void acpm_mbox_test_init(void)
@@ -323,46 +321,64 @@ static void acpm_mbox_test_init(void)
 		pr_info("%s\n", __func__);
 
 		for (i = 0; i < NUM_OF_WQ; i++) {
-			snprintf(buf, sizeof(buf), "acpm_tmu_rd_tmp_random_wq%d", i);
-			mbox->tmu->rd_tmp_random_wq[i] = alloc_workqueue("%s",
-					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-					1, buf);
-			snprintf(buf, sizeof(buf), "acpm_tmu_rd_tmp_concur_wq%d", i);
-			mbox->tmu->rd_tmp_concur_wq[i] = alloc_workqueue("%s",
-					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-					1, buf);
+			snprintf(buf, sizeof(buf),
+				 "acpm_tmu_rd_tmp_random_wq%d", i);
+			mbox->tmu->rd_tmp_random_wq[i] =
+			    alloc_workqueue("%s",
+					    __WQ_LEGACY | WQ_MEM_RECLAIM |
+					    WQ_UNBOUND, 1, buf);
+			snprintf(buf, sizeof(buf),
+				 "acpm_tmu_rd_tmp_concur_wq%d", i);
+			mbox->tmu->rd_tmp_concur_wq[i] =
+			    alloc_workqueue("%s",
+					    __WQ_LEGACY | WQ_MEM_RECLAIM |
+					    WQ_UNBOUND, 1, buf);
 			snprintf(buf, sizeof(buf), "acpm_dvfs_req_wq%d", i);
 			mbox->dvfs->rate_change_wq[i] = alloc_workqueue("%s",
-					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-					1, buf);
+									__WQ_LEGACY
+									|
+									WQ_MEM_RECLAIM
+									|
+									WQ_UNBOUND,
+									1, buf);
 		}
 		mbox->tmu->rd_tmp_stress_trigger_wq = alloc_workqueue("%s",
-				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-				1, "acpm_tmu_rd_tmp_trigger_wq");
-		mbox->dvfs->mbox_stress_trigger_wq = alloc_workqueue("%s",
-				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-				1, "acpm_dvfs_mbox_trigger_wq");
-		mbox->tmu->suspend_wq = alloc_workqueue("%s",
-				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-				1, "acpm_tmu_mbox_suspend_wq");
-		mbox->tmu->resume_wq = alloc_workqueue("%s",
-				__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-				1, "acpm_tmu_mbox_resume_wq");
+								      __WQ_LEGACY
+								      |
+								      WQ_MEM_RECLAIM
+								      |
+								      WQ_UNBOUND,
+								      1,
+								      "acpm_tmu_rd_tmp_trigger_wq");
+		mbox->dvfs->mbox_stress_trigger_wq =
+		    alloc_workqueue("%s",
+				    __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
+				    1, "acpm_dvfs_mbox_trigger_wq");
+		mbox->tmu->suspend_wq =
+		    alloc_workqueue("%s",
+				    __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
+				    1, "acpm_tmu_mbox_suspend_wq");
+		mbox->tmu->resume_wq =
+		    alloc_workqueue("%s",
+				    __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
+				    1, "acpm_tmu_mbox_resume_wq");
 
 		for (i = 0; i < NUM_OF_WQ; i++) {
 			INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_random_wk[i],
-				acpm_debug_tmu_rd_tmp_random);
+					  acpm_debug_tmu_rd_tmp_random);
 			INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_concur_wk[i],
-				acpm_debug_tmu_rd_tmp_concur);
+					  acpm_debug_tmu_rd_tmp_concur);
 			INIT_DELAYED_WORK(&mbox->dvfs->rate_change_wk[i],
-				acpm_mbox_dvfs_rate_random_change);
+					  acpm_mbox_dvfs_rate_random_change);
 		}
 		INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_stress_trigger_wk,
-				acpm_debug_tmu_rd_tmp_stress_trigger);
+				  acpm_debug_tmu_rd_tmp_stress_trigger);
 		INIT_DELAYED_WORK(&mbox->dvfs->mbox_stress_trigger_wk,
-				acpm_dvfs_mbox_stress_trigger);
-		INIT_DELAYED_WORK(&mbox->tmu->suspend_work, acpm_debug_tmu_suspend);
-		INIT_DELAYED_WORK(&mbox->tmu->resume_work, acpm_debug_tmu_resume);
+				  acpm_dvfs_mbox_stress_trigger);
+		INIT_DELAYED_WORK(&mbox->tmu->suspend_work,
+				  acpm_debug_tmu_suspend);
+		INIT_DELAYED_WORK(&mbox->tmu->resume_work,
+				  acpm_debug_tmu_resume);
 
 		mbox->wq_init_done = true;
 
@@ -378,7 +394,7 @@ static int dvfs_freq_table_init(void)
 
 	if (!dvfs_test->init_done) {
 		for (cal_id = ACPM_DVFS_MIF, dm_id = DVFS_MIF;
-				cal_id <= ACPM_DVFS_CPUCL2; cal_id++, dm_id++) {
+		     cal_id <= ACPM_DVFS_CPUCL2; cal_id++, dm_id++) {
 			ret = init_domain_freq_table(dvfs_test, cal_id, dm_id);
 			if (ret < 0) {
 				pr_err("%s failed, ret = %d\n", __func__, ret);
@@ -387,10 +403,12 @@ static int dvfs_freq_table_init(void)
 		}
 		if (acpm_dvfs_log) {
 			for (i = DVFS_MIF; i < NUM_OF_DVFS_DOMAINS; i++) {
-				for (index = 0; index < dvfs_test->dm[i]->size; index++)
-					pr_info("%s: dvfs_test->dm[%d]->table[%d] = %d Hz\n",
-						__func__, i, index,
-						dvfs_test->dm[i]->table[index].freq);
+				for (index = 0; index < dvfs_test->dm[i]->size;
+				     index++)
+					pr_info
+					    ("%s: dvfs_test->dm[%d]->table[%d] = %d Hz\n",
+					     __func__, i, index,
+					     dvfs_test->dm[i]->table[index].freq);
 			}
 		}
 		dvfs_test->init_done = true;
@@ -405,17 +423,20 @@ static void acpm_framework_mbox_test(bool start)
 		acpm_mbox_test_init();
 
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-				mbox->tmu->suspend_wq,
-				&mbox->tmu->suspend_work,
-				msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
+				      mbox->tmu->suspend_wq,
+				      &mbox->tmu->suspend_work,
+				      msecs_to_jiffies
+				      (TMU_SUSPEND_RESUME_DELAY));
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-				mbox->tmu->rd_tmp_stress_trigger_wq,
-				&mbox->tmu->rd_tmp_stress_trigger_wk,
-				msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
+				      mbox->tmu->rd_tmp_stress_trigger_wq,
+				      &mbox->tmu->rd_tmp_stress_trigger_wk,
+				      msecs_to_jiffies
+				      (TMU_READ_TEMP_TRIGGER_DELAY));
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
-				mbox->dvfs->mbox_stress_trigger_wq,
-				&mbox->dvfs->mbox_stress_trigger_wk,
-				msecs_to_jiffies(TMU_READ_TEMP_TRIGGER_DELAY));
+				      mbox->dvfs->mbox_stress_trigger_wq,
+				      &mbox->dvfs->mbox_stress_trigger_wk,
+				      msecs_to_jiffies
+				      (TMU_READ_TEMP_TRIGGER_DELAY));
 	} else {
 		cancel_delayed_work_sync(&mbox->tmu->suspend_work);
 		cancel_delayed_work_sync(&mbox->tmu->resume_work);
@@ -454,14 +475,14 @@ static int get_cpu_policy_num(unsigned int dm_id)
 		ret = CPUCL0_POLICY;
 		break;
 	case DVFS_CPUCL1:
-		ret =  CPUCL1_POLICY;
+		ret = CPUCL1_POLICY;
 		break;
 	case DVFS_CPUCL2:
-		ret =  CPUCL2_POLICY;
+		ret = CPUCL2_POLICY;
 		break;
 	default:
 		pr_err("%s, dm_id: %d not support\n", __func__, dm_id);
-		ret =  -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
 
@@ -489,7 +510,8 @@ static unsigned int acpm_dvfs_get_devfreq(unsigned int devfreq_type)
 	return freq;
 }
 
-static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate, int cycle)
+static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate,
+				 int cycle)
 {
 	unsigned long long before, after, latency;
 	unsigned int get_rate;
@@ -507,7 +529,7 @@ static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate, int cycl
 
 	get_rate = acpm_dvfs_get_devfreq(dm_id);
 	if (cycle >= 0) {
-		dvfs_test->dm[dm_id]->stats[cycle].latency = latency /*ns*/;
+		dvfs_test->dm[dm_id]->stats[cycle].latency = latency /*ns */ ;
 		dvfs_test->dm[dm_id]->stats[cycle].set_rate = rate;
 		dvfs_test->dm[dm_id]->stats[cycle].get_rate = get_rate;
 		dvfs_test->dm[dm_id]->total_cycle_cnt++;
@@ -515,7 +537,8 @@ static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate, int cycl
 
 	pr_info("%s: domain[%s]set_rate: %d Hz, "
 		"get_rate: %d Hz, latency: %llu ns, ret: %d\n",
-		__func__, dvfs_test->dm[dm_id]->name, rate, get_rate, latency, ret);
+		__func__, dvfs_test->dm[dm_id]->name, rate, get_rate, latency,
+		ret);
 
 	if (acpm_dvfs_log && cycle >= 0) {
 		pr_info("%s: stats:[%s]set_rate: %d Hz, "
@@ -530,7 +553,8 @@ static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate, int cycl
 	return ret;
 }
 
-static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate, int cycle)
+static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate,
+				 int cycle)
 {
 	struct cpufreq_policy *policy;
 	unsigned long long before, after, latency;
@@ -557,9 +581,10 @@ static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate, int cycl
 	mdelay(10);
 
 	if (cycle >= 0) {
-		dvfs_test->dm[dm_id]->stats[cycle].latency = latency /*ns*/;
+		dvfs_test->dm[dm_id]->stats[cycle].latency = latency /*ns */ ;
 		dvfs_test->dm[dm_id]->stats[cycle].set_rate = rate;
-		dvfs_test->dm[dm_id]->stats[cycle].get_rate = cpufreq_get(policy_id);
+		dvfs_test->dm[dm_id]->stats[cycle].get_rate =
+		    cpufreq_get(policy_id);
 		dvfs_test->dm[dm_id]->total_cycle_cnt++;
 	}
 
@@ -637,29 +662,39 @@ static void acpm_dvfs_stats_dump(void)
 				"40us~20us:%2d%% 20us~10us:%2d%% "
 				"10us~1us:%2d%%, <1us:%2d%%\n",
 				dvfs_test->dm[dm_id]->name,
-				dvfs_test->dm[dm_id]->scales[9].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[8].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[7].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[6].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[5].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[4].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[3].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[2].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[1].count * 100 / cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[0].count * 100 / cycle_cnt);
+				dvfs_test->dm[dm_id]->scales[9].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[8].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[7].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[6].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[5].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[4].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[3].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[2].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[1].count * 100 /
+				cycle_cnt,
+				dvfs_test->dm[dm_id]->scales[0].count * 100 /
+				cycle_cnt);
 
-		pr_info("==================================="
-			"==================================="
-			"==================================="
-			"===================================\n");
-		for (cycle = 0; cycle < DVFS_TEST_CYCLE; cycle++)
-			pr_info("%s: dm_id[%d], set_rate: %d Hz, "
-				"get_rate: %d Hz, latency= %u ns\n",
-				__func__, dm_id,
-				dvfs_test->dm[dm_id]->stats[cycle].set_rate,
-				dvfs_test->dm[dm_id]->stats[cycle].get_rate,
-				dvfs_test->dm[dm_id]->stats[cycle].latency);
-		pr_info("\n");
+			pr_info("==================================="
+				"==================================="
+				"==================================="
+				"===================================\n");
+			for (cycle = 0; cycle < DVFS_TEST_CYCLE; cycle++)
+				pr_info("%s: dm_id[%d], set_rate: %d Hz, "
+					"get_rate: %d Hz, latency= %u ns\n",
+					__func__, dm_id,
+					dvfs_test->dm[dm_id]->stats[cycle].set_rate,
+					dvfs_test->dm[dm_id]->stats[cycle].get_rate,
+					dvfs_test->dm[dm_id]->stats[cycle].latency);
+			pr_info("\n");
 		}
 	}
 }
@@ -689,7 +724,7 @@ static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 		while (cycle < DVFS_TEST_CYCLE) {
 			set_rate = get_random_rate(domain);
 			if (pre_set_rate == set_rate) {
-				/*ignore the stats for duplicated freq request*/
+				/*ignore the stats for duplicated freq request */
 				acpm_dvfs_set_devfreq(domain, set_rate, -1);
 			} else {
 				acpm_dvfs_set_devfreq(domain, set_rate, cycle);
@@ -711,7 +746,7 @@ static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 		while (cycle < DVFS_TEST_CYCLE) {
 			set_rate = get_random_rate(domain);
 			if (pre_set_rate == set_rate) {
-				/*ignore the stats for duplicated freq request*/
+				/*ignore the stats for duplicated freq request */
 				acpm_dvfs_set_cpufreq(domain, set_rate, -1);
 			} else {
 				acpm_dvfs_set_cpufreq(domain, set_rate, cycle);
@@ -755,7 +790,8 @@ static void acpm_test_debugfs_init(struct acpm_mbox_test *mbox)
 			    &debug_acpm_dvfs_test_fops);
 }
 
-static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int dm_id)
+static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
+				  int dm_id)
 {
 	unsigned int orig_table_size;
 	unsigned long *cal_freq_table;
@@ -778,12 +814,15 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int d
 	switch (cal_id) {
 	case ACPM_DVFS_MIF:
 	case ACPM_DVFS_INT:
-		ret = exynos_devfreq_get_boundary(dm_id, &dvfs->max_freq, &dvfs->min_freq);
+		ret =
+		    exynos_devfreq_get_boundary(dm_id, &dvfs->max_freq,
+						&dvfs->min_freq);
 		if (ret < 0) {
 			dvfs->max_freq = cal_dfs_get_max_freq(cal_id);
 			dvfs->min_freq = cal_dfs_get_min_freq(cal_id);
-			pr_warn("%s, cal_id: %d, get boundary failed, ret: %d\n",
-				__func__, cal_id, ret);
+			pr_warn
+			    ("%s, cal_id: %d, get boundary failed, ret: %d\n",
+			     __func__, cal_id, ret);
 		}
 		break;
 	case ACPM_DVFS_CPUCL0:
@@ -819,7 +858,8 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int d
 	 */
 	orig_table_size = cal_dfs_get_lv_num(cal_id);
 
-	cal_freq_table = kcalloc(orig_table_size, sizeof(unsigned long), GFP_KERNEL);
+	cal_freq_table =
+	    kcalloc(orig_table_size, sizeof(unsigned long), GFP_KERNEL);
 
 	if (!cal_freq_table)
 		return -ENOMEM;
@@ -833,21 +873,27 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int d
 	for (index = 0; index < orig_table_size; index++) {
 		if (cal_freq_table[index] > dvfs->max_freq) {
 			if (acpm_dvfs_log)
-				pr_info("%s: cal_freq_table[%d]: %d > max_freq: %d\n",
-					__func__, index, cal_freq_table[index], dvfs->max_freq);
+				pr_info
+				    ("%s: cal_freq_table[%d]: %d > max_freq: %d\n",
+				     __func__, index, cal_freq_table[index],
+				     dvfs->max_freq);
 			continue;
 		}
 		if (cal_freq_table[index] < dvfs->min_freq) {
 			if (acpm_dvfs_log)
-				pr_info("%s: cal_freq_table[%d]: %d < min_freq: %d\n",
-					__func__, index, cal_freq_table[index], dvfs->min_freq);
+				pr_info
+				    ("%s: cal_freq_table[%d]: %d < min_freq: %d\n",
+				     __func__, index, cal_freq_table[index],
+				     dvfs->min_freq);
 			continue;
 		}
 		dvfs->size++;
 
 		if (acpm_dvfs_log)
-			pr_info("%s: cal_freq_table[%d] = %d Hz, table_size = %d\n",
-				__func__, index, cal_freq_table[index], dvfs->size);
+			pr_info
+			    ("%s: cal_freq_table[%d] = %d Hz, table_size = %d\n",
+			     __func__, index, cal_freq_table[index],
+			     dvfs->size);
 	}
 
 	/*
@@ -882,9 +928,12 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int d
 
 	dm->table[index].freq = CPUFREQ_TABLE_END;
 
-	dm->stats = kcalloc(DVFS_TEST_CYCLE, sizeof(struct acpm_dvfs_test_stats), GFP_KERNEL);
+	dm->stats =
+	    kcalloc(DVFS_TEST_CYCLE, sizeof(struct acpm_dvfs_test_stats),
+		    GFP_KERNEL);
 
-	dm->scales = kcalloc(TIME_SCALES, sizeof(struct stats_scale), GFP_KERNEL);
+	dm->scales =
+	    kcalloc(TIME_SCALES, sizeof(struct stats_scale), GFP_KERNEL);
 	memcpy(dm->scales, buckets, TIME_SCALES * sizeof(struct stats_scale));
 
 	cal_id %= NUM_OF_DVFS_DOMAINS;
@@ -910,7 +959,8 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
-	mbox_test = devm_kzalloc(&pdev->dev, sizeof(struct acpm_mbox_test), GFP_KERNEL);
+	mbox_test =
+	    devm_kzalloc(&pdev->dev, sizeof(struct acpm_mbox_test), GFP_KERNEL);
 	if (!mbox_test) {
 		dev_err(&pdev->dev, "mbox_test alloc failed\n");
 		return -ENOMEM;
@@ -933,7 +983,8 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 	mbox_test->tmu = tmu_validity;
 	mbox_test->dvfs = dvfs_validity;
 
-	dvfs = devm_kzalloc(&pdev->dev, sizeof(struct acpm_dvfs_test), GFP_KERNEL);
+	dvfs =
+	    devm_kzalloc(&pdev->dev, sizeof(struct acpm_dvfs_test), GFP_KERNEL);
 	if (!dvfs) {
 		dev_err(&pdev->dev, "dvfs alloc failed\n");
 		ret = -ENOMEM;
@@ -987,19 +1038,20 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id acpm_mbox_test_match[] = {
-	{ .compatible = "google,acpm-mbox-test" },
-	{},
+	{.compatible = "google,acpm-mbox-test" },
+	{ },
 };
+
 MODULE_DEVICE_TABLE(of, acpm_mbox_test_match);
 
 static struct platform_driver acpm_mbox_test_driver = {
-	.probe	= acpm_mbox_test_probe,
-	.remove	= acpm_mbox_test_remove,
-	.driver	= {
-		.name = "acpm-mbox-test",
-		.owner	= THIS_MODULE,
-		.of_match_table	= acpm_mbox_test_match,
-	},
+	.probe = acpm_mbox_test_probe,
+	.remove = acpm_mbox_test_remove,
+	.driver = {
+		   .name = "acpm-mbox-test",
+		   .owner = THIS_MODULE,
+		   .of_match_table = acpm_mbox_test_match,
+		    },
 };
 
 static int __init exynos_acpm_mbox_test_init(void)
@@ -1007,12 +1059,13 @@ static int __init exynos_acpm_mbox_test_init(void)
 	platform_driver_register(&acpm_mbox_test_driver);
 	return 0;
 }
+
 late_initcall_sync(exynos_acpm_mbox_test_init);
 
 static void __exit exynos_acpm_mbox_test_exit(void)
 {
 	platform_driver_unregister(&acpm_mbox_test_driver);
 }
+
 module_exit(exynos_acpm_mbox_test_exit);
 MODULE_LICENSE("GPL");
-

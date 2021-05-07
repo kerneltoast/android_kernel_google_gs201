@@ -104,26 +104,27 @@ struct acpm_mbox_test {
 };
 
 struct acpm_dvfs_test_stats {
-	unsigned int latency; /* nano sec */
+	unsigned int latency;	/* nano sec */
 	unsigned int set_rate;
 	unsigned int get_rate;
 };
 
 struct dvfs_frequency_table {
-	unsigned int freq; /* Hz */
+	unsigned int freq;	/* Hz */
 };
 
 struct stats_scale {
-	int limit;  /* in us */
+	int limit;		/* in us */
 	int count;
 };
 
 #define MICRO_SEC               1000
 #define TIME_SCALES             10
 
-struct stats_scale buckets[TIME_SCALES] = {{0, 0}, {1, 0}, {10, 0},
-					{20, 0}, {40, 0}, {60, 0}, {80, 0},
-					{100, 0}, {1000, 0}, {10000, 0}}; /* in us*/
+struct stats_scale buckets[TIME_SCALES] = { { 0, 0 }, { 1, 0 }, { 10, 0 },
+{ 20, 0 }, { 40, 0 }, { 60, 0 }, { 80, 0 },
+{ 100, 0 }, { 1000, 0 }, { 10000, 0 }
+};				/* in us */
 
 struct acpm_dvfs_domains {
 	char *name;
@@ -131,21 +132,21 @@ struct acpm_dvfs_domains {
 };
 
 static struct acpm_dvfs_domains gs101_dvfs_domains[] = {
-	[DVFS_MIF]	= {
-		.name	= "MIF",
-	},
-	[DVFS_INT]	= {
-		.name	= "INT",
-	},
-	[DVFS_CPUCL0]	= {
-		.name	= "CPUCL0",
-	},
-	[DVFS_CPUCL1]	= {
-		.name	= "CPUCL1",
-	},
-	[DVFS_CPUCL2]	= {
-		.name	= "CPUCL2",
-	},
+	[DVFS_MIF] = {
+		      .name = "MIF",
+		       },
+	[DVFS_INT] = {
+		      .name = "INT",
+		       },
+	[DVFS_CPUCL0] = {
+			 .name = "CPUCL0",
+			  },
+	[DVFS_CPUCL1] = {
+			 .name = "CPUCL1",
+			  },
+	[DVFS_CPUCL2] = {
+			 .name = "CPUCL2",
+			  },
 };
 
 struct acpm_dvfs_dm {
@@ -169,8 +170,8 @@ struct acpm_dvfs_test {
 };
 
 struct tmu_ipc_request {
-	u16 ctx;	/* LSB */
-	u16 fw_use;	/* MSB */
+	u16 ctx;		/* LSB */
+	u16 fw_use;		/* MSB */
 	u8 type;
 	u8 rsvd;
 	u8 tzid;
@@ -186,8 +187,8 @@ struct tmu_ipc_request {
 };
 
 struct tmu_ipc_response {
-	u16 ctx;	/* LSB */
-	u16 fw_use;	/* MSB */
+	u16 ctx;		/* LSB */
+	u16 fw_use;		/* MSB */
 	u8 type;
 	s8 ret;
 	u8 tzid;
@@ -207,9 +208,12 @@ union tmu_ipc_message {
 
 extern u32 gs_chipid_get_type(void);
 extern u32 gs_chipid_get_revision(void);
-static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate, int cycle);
-static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate, int cycle);
-static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id, int dm_id);
+static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate,
+				 int cycle);
+static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate,
+				 int cycle);
+static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
+				  int dm_id);
 static unsigned int get_random_rate(unsigned int dm_id);
 static int dvfs_freq_table_init(void);
 
