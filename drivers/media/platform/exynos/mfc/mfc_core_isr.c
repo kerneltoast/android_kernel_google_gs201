@@ -854,11 +854,17 @@ static void __mfc_handle_frame_input(struct mfc_core *core,
 				&ctx->src_ctrls[index]) < 0)
 		mfc_err("failed in core_recover_buf_ctrls_val\n");
 
+	mfc_clear_mb_flag(src_mb);
+
+	if (dec->has_multiframe &&
+		(mfc_core_get_disp_status() == MFC_REG_DEC_STATUS_DECODING_ONLY)) {
+		mfc_set_mb_flag(src_mb, MFC_FLAG_CONSUMED_ONLY);
+		mfc_debug(2, "[STREAM][MULTIFRAME] last frame is decoding only\n");
+	}
+
 	dec->consumed = 0;
 	dec->has_multiframe = 0;
 	dec->remained_size = 0;
-
-	mfc_clear_mb_flag(src_mb);
 
 	/*
 	 * VP8 decoder has decoding only frame,
