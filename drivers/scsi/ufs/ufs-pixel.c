@@ -72,7 +72,7 @@ static void pixel_ufs_log_slowio(struct ufs_hba *hba,
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	sector_t lba = ULONG_MAX;
-	u32 transfer_len = UINT_MAX;
+	u32 affected_bytes = UINT_MAX;
 	u8 opcode = 0xff;
 	char opcode_str[16];
 	u64 slowio_cnt = 0;
@@ -95,7 +95,7 @@ static void pixel_ufs_log_slowio(struct ufs_hba *hba,
 			optype == PIXEL_SLOWIO_UNMAP) {
 			if (lrbp->cmd->request && lrbp->cmd->request->bio) {
 				lba = scsi_get_lba(lrbp->cmd);
-				transfer_len = blk_rq_bytes(lrbp->cmd->request);
+				affected_bytes = blk_rq_bytes(lrbp->cmd->request);
 			}
 		}
 	}
@@ -103,7 +103,7 @@ static void pixel_ufs_log_slowio(struct ufs_hba *hba,
 	dev_err_ratelimited(hba->dev,
 		"Slow UFS (%lld): time = %lld us, opcode = %16s, lba = %ld, "
 		"len = %u\n",
-		slowio_cnt, iotime_us, opcode_str, lba, transfer_len);
+		slowio_cnt, iotime_us, opcode_str, lba, affected_bytes);
 }
 
 /* classify request type on statistics by scsi command opcode*/
@@ -225,14 +225,14 @@ void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 }
 
 static void __update_io_stats(struct ufs_hba *hba,
-		struct pixel_io_stats *io_stats, u32 transfer_len,
+		struct pixel_io_stats *io_stats, u32 affected_bytes,
 		bool is_start)
 {
 	if (is_start) {
 		u64 diff;
 
 		io_stats->req_count_started++;
-		io_stats->total_bytes_started += transfer_len;
+		io_stats->total_bytes_started += affected_bytes;
 		diff = io_stats->req_count_started -
 			io_stats->req_count_completed;
 		if (diff > io_stats->max_diff_req_count)
@@ -243,7 +243,7 @@ static void __update_io_stats(struct ufs_hba *hba,
 			io_stats->max_diff_total_bytes = diff;
 	} else {
 		io_stats->req_count_completed++;
-		io_stats->total_bytes_completed += transfer_len;
+		io_stats->total_bytes_completed += affected_bytes;
 	}
 }
 
@@ -252,7 +252,7 @@ static void pixel_ufs_update_io_stats(struct ufs_hba *hba,
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct pixel_io_stats *ist;
-	u32 transfer_len;
+	u32 affected_bytes;
 	u8 cmd_type;
 	u64 inflight_req;
 
@@ -262,14 +262,14 @@ static void pixel_ufs_update_io_stats(struct ufs_hba *hba,
 	if (cmd_type != REQ_TYPE_READ && cmd_type != REQ_TYPE_WRITE)
 		return;
 
-	transfer_len = blk_rq_bytes(lrbp->cmd->request);
+	affected_bytes = blk_rq_bytes(lrbp->cmd->request);
 
 	/* Upload I/O amount on statistic */
 	ist = &(ufs->io_stats[IO_TYPE_READ_WRITE]);
-	__update_io_stats(hba, ist, transfer_len, is_start);
+	__update_io_stats(hba, ist, affected_bytes, is_start);
 	ist = &(ufs->io_stats[(cmd_type == REQ_TYPE_READ) ?
 			IO_TYPE_READ : IO_TYPE_WRITE]);
-	__update_io_stats(hba, ist, transfer_len, is_start);
+	__update_io_stats(hba, ist, affected_bytes, is_start);
 
 	inflight_req = ufs->io_stats[IO_TYPE_READ_WRITE].req_count_started
 			- ufs->io_stats[IO_TYPE_READ_WRITE].req_count_completed;
@@ -480,7 +480,7 @@ static void __set_cmd_log_str(struct ufs_hba *hba, u8 event, u8 opcode,
 }
 
 static void __store_cmd_log(struct ufs_hba *hba, u8 event, u8 lun,
-		u8 opcode, u8 idn, u64 lba, int transfer_len, u8 group_id,
+		u8 opcode, u8 idn, u64 lba, int affected_bytes, u8 group_id,
 		int tag, u64 error, u8 queue_eh_work)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
@@ -499,7 +499,7 @@ static void __store_cmd_log(struct ufs_hba *hba, u8 event, u8 lun,
 	entry->opcode = opcode;
 	entry->idn = idn;
 	entry->lba = lba;
-	entry->transfer_len = transfer_len;
+	entry->affected_bytes = affected_bytes;
 	entry->doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
 	entry->outstanding_reqs = hba->outstanding_reqs;
 	entry->tag = tag;
@@ -513,7 +513,7 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 {
 	u8 event = 0, lun = 0, opcode = 0, idn = 0, tag = 0, group_id = 0;
 	u64 lba = 0;
-	int transfer_len = 0;
+	int affected_bytes = 0;
 
 	lun = lrbp->lun;
 	tag = lrbp->task_tag;
@@ -523,7 +523,7 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 		opcode = lrbp->cmd->cmnd[0];
 		lba = scsi_get_lba(lrbp->cmd);
 
-		transfer_len = blk_rq_bytes(lrbp->cmd->request);
+		affected_bytes = blk_rq_bytes(lrbp->cmd->request);
 		if (opcode == WRITE_10 || opcode == READ_10)
 			group_id = lrbp->cmd->cmnd[6] & 0x3f;
 		else if (opcode == WRITE_16 || opcode == READ_16)
@@ -539,7 +539,7 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 	}
 
 	__store_cmd_log(hba, event, lun, opcode, idn, lba,
-		transfer_len, group_id, tag, 0, 0);
+		affected_bytes, group_id, tag, 0, 0);
 }
 
 static void pixel_ufs_send_uic_command(void *data, struct ufs_hba *hba,
@@ -1614,7 +1614,7 @@ void pixel_print_cmd_log(struct ufs_hba *hba)
 		dev_err(hba->dev, "%lu: %s tag: %lu cmd: %s lba: %lu len: %lu DB: 0x%lx outstanding: 0x%lx GID: %u\n",
 			entry->seq_num, entry->event,
 			entry->tag, entry->cmd,
-			entry->lba, entry->transfer_len,
+			entry->lba, entry->affected_bytes,
 			entry->doorbell, entry->outstanding_reqs);
 	}
 }
