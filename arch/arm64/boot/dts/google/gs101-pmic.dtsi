@@ -505,8 +505,6 @@
 				regulator-name = "S2MPG10_LDO24";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x38>;
 				schematic-name = "L24M_DISP_VDD";
 				subsys-name = "Display";
@@ -558,8 +556,6 @@
 				regulator-name = "S2MPG10_LDO29";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3D>;
 				schematic-name = "L29M_DISP";
 				subsys-name = "Spare";
@@ -569,7 +565,6 @@
 				regulator-name = "S2MPG10_LDO30";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3E>;
 				schematic-name = "L30M_DISP_VDDI";
 				subsys-name = "Spare";
@@ -931,8 +926,6 @@
 				regulator-name = "S2MPG11_LDO3";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x23>;
 				schematic-name = "L3S_HS_AMP";
 				subsys-name = "Spare";
@@ -952,8 +945,6 @@
 				regulator-name = "S2MPG11_LDO5";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x25>;
 				schematic-name = "L5S_OSLO";
 				subsys-name = "Spare";
@@ -1029,8 +1020,6 @@
 				regulator-name = "S2MPG11_LDO12";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2C>;
 				schematic-name = "L12S_WLAN";
 				subsys-name = "Spare";
@@ -1061,8 +1050,6 @@
 				regulator-name = "S2MPG11_LDO15";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2F>;
 				schematic-name = "L15S_FPS";
 				subsys-name = "Spare";
