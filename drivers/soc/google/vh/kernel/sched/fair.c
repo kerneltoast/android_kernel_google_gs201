@@ -20,6 +20,7 @@ extern bool vendor_sched_task_spreading_enable;
 extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_util_threshold;
 extern unsigned int vendor_sched_high_capacity_start_cpu;
+extern unsigned int vendor_sched_util_post_init_scale;
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD};
@@ -1166,4 +1167,16 @@ done:
 	WRITE_ONCE(p->se.avg.util_est, ue);
 
 	trace_sched_util_est_se_tp(&p->se);
+}
+
+void rvh_post_init_entity_util_avg_pixel_mod(void *data, struct sched_entity *se)
+{
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+	struct sched_avg *sa = &se->avg;
+	long cpu_scale = arch_scale_cpu_capacity(cpu_of(rq_of(cfs_rq)));
+
+	if (cfs_rq->avg.util_avg == 0) {
+		sa->util_avg = vendor_sched_util_post_init_scale * cpu_scale / 1024;
+		sa->runnable_avg = sa->util_avg;
+	}
 }

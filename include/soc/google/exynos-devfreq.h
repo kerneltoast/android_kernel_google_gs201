@@ -232,12 +232,26 @@ u32 exynos_devfreq_get_devfreq_type(int dm_type);
 #if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type);
 int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data);
+int exynos_devfreq_lock_freq(unsigned int devfreq_type, unsigned int qos_value);
+int exynos_devfreq_get_boundary(unsigned int devfreq_type,
+				unsigned int *max_freq, unsigned int *min_freq);
 #else
 static inline unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type)
 {
 	return 0;
 }
 static inline int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
+{
+	return 0;
+}
+
+static inline int exynos_devfreq_lock_freq(unsigned int devfreq_type, unsigned int qos_value)
+{
+	return 0;
+}
+
+static int exynos_devfreq_get_boundary(unsigned int devfreq_type,
+				       unsigned int *max_freq, unsigned int *min_freq);
 {
 	return 0;
 }

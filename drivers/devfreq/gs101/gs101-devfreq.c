@@ -521,6 +521,49 @@ static int exynos_devfreq_get_freq(struct device *dev, u32 *cur_freq,
 	return 0;
 }
 
+int exynos_devfreq_get_boundary(unsigned int devfreq_type,
+				unsigned int *max_freq, unsigned int *min_freq)
+{
+	struct exynos_devfreq_data *data = NULL;
+
+	if ((devfreq_type >= DEVFREQ_MIF) && (devfreq_type < DEVFREQ_TYPE_END)) {
+		data = devfreq_data[devfreq_type];
+	} else
+		return -EINVAL;
+
+	if (!data) {
+		pr_err("%s, Fail to get exynos_devfreq_data\n", __func__);
+		return -ENOMEM;
+	}
+
+	*max_freq = data->max_freq;
+	*min_freq = data->min_freq;
+
+	return 0;
+}
+EXPORT_SYMBOL(exynos_devfreq_get_boundary);
+
+int exynos_devfreq_lock_freq(unsigned int devfreq_type, unsigned int target_freq)
+{
+	struct exynos_devfreq_data *data = NULL;
+	int ret;
+
+	if ((devfreq_type >= DEVFREQ_MIF) && (devfreq_type < DEVFREQ_TYPE_END)) {
+		data = devfreq_data[devfreq_type];
+	} else
+		return -EINVAL;
+
+	if (!data) {
+		pr_err("%s, Fail to get exynos_devfreq_data\n", __func__);
+		return -ENOMEM;
+	}
+
+	ret = devfreq_frequency_scaler(devfreq_type, data, target_freq, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL(exynos_devfreq_lock_freq);
+
 static int exynos_devfreq_set_freq(struct device *dev, u32 new_freq,
 				   struct clk *clk,
 				   struct exynos_devfreq_data *data)

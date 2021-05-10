@@ -27,6 +27,7 @@
 #include <soc/google/cal-if.h>
 #include <soc/google/exynos-pmu-if.h>
 #include <soc/google/debug-snapshot.h>
+#include <soc/google/acpm_ipc_ctrl.h>
 
 /*
  * State of CPUPM objects
@@ -844,6 +845,10 @@ static void enter_power_mode(int cpu, struct power_mode *mode)
 	case POWERMODE_TYPE_SYSTEM:
 		if (system_disabled)
 			return;
+
+		if (is_acpm_ipc_busy())
+			return;
+
 		if (unlikely(exynos_cpupm_notify(SICD_ENTER, 0)))
 			return;
 

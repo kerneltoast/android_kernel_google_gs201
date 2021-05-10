@@ -25,6 +25,7 @@ struct callback_info {
 	struct list_head list;
 };
 
+#define SEQ_NUM_MAX    64
 struct acpm_ipc_ch {
 	struct buff_info rx_ch;
 	struct buff_info tx_ch;
@@ -37,10 +38,11 @@ struct acpm_ipc_ch {
 	spinlock_t rx_lock;
 	spinlock_t tx_lock;
 	spinlock_t ch_lock;
-	struct semaphore send_sem;
 
 	struct completion wait;
 	bool polling;
+	DECLARE_BITMAP(bitmap_seqnum, SEQ_NUM_MAX - 1);
+	struct ipc_config ch_cfg[SEQ_NUM_MAX];
 };
 
 struct acpm_ipc_info {
