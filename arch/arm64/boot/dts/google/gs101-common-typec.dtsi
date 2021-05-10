@@ -23,7 +23,6 @@
 		interrupt-parent = <&gpa8>;
 		usbpd,usbpd_int = <&gpa8 2 GPIO_ACTIVE_LOW>;
 		usb-psy-name = "usb";
-		chg-psy-name = "gcpm";
 		no-bc-12;
 		/*
 		 * uic = <&max77729_uic>;
@@ -117,7 +116,6 @@
 		interrupt-parent = <&gpa8>;
 		usbpd,usbpd_int = <&gpa8 2 GPIO_ACTIVE_LOW>;
 		usb-psy-name = "usb";
-		chg-psy-name = "gcpm";
 		in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
 		max20339,ovp = <&max20339_ovp>;
 		conn = <&conn>;
