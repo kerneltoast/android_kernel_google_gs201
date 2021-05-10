@@ -71,7 +71,7 @@ static void pixel_ufs_log_slowio(struct ufs_hba *hba,
 		struct ufshcd_lrb *lrbp, s64 iotime_us)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
-	sector_t lba = ULONG_MAX;
+	sector_t sector = ULONG_MAX;
 	u32 affected_bytes = UINT_MAX;
 	u8 opcode = 0xff;
 	char opcode_str[16];
@@ -94,16 +94,16 @@ static void pixel_ufs_log_slowio(struct ufs_hba *hba,
 			optype == PIXEL_SLOWIO_WRITE ||
 			optype == PIXEL_SLOWIO_UNMAP) {
 			if (lrbp->cmd->request && lrbp->cmd->request->bio) {
-				lba = scsi_get_lba(lrbp->cmd);
+				sector = blk_rq_pos(lrbp->cmd->request);
 				affected_bytes = blk_rq_bytes(lrbp->cmd->request);
 			}
 		}
 	}
 	snprintf(opcode_str, 16, "%02x: %s", opcode, parse_opcode(opcode));
 	dev_err_ratelimited(hba->dev,
-		"Slow UFS (%lld): time = %lld us, opcode = %16s, lba = %ld, "
+		"Slow UFS (%lld): time = %lld us, opcode = %16s, sector = %ld, "
 		"len = %u\n",
-		slowio_cnt, iotime_us, opcode_str, lba, affected_bytes);
+		slowio_cnt, iotime_us, opcode_str, sector, affected_bytes);
 }
 
 /* classify request type on statistics by scsi command opcode*/
@@ -480,8 +480,8 @@ static void __set_cmd_log_str(struct ufs_hba *hba, u8 event, u8 opcode,
 }
 
 static void __store_cmd_log(struct ufs_hba *hba, u8 event, u8 lun,
-		u8 opcode, u8 idn, u64 lba, int affected_bytes, u8 group_id,
-		int tag, u64 error, u8 queue_eh_work)
+		u8 opcode, u8 idn, sector_t sector, int affected_bytes,
+		u8 group_id, int tag, u64 error, u8 queue_eh_work)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct pixel_cmd_log_entry *entry;
@@ -498,7 +498,7 @@ static void __store_cmd_log(struct ufs_hba *hba, u8 event, u8 lun,
 	entry->lun = lun;
 	entry->opcode = opcode;
 	entry->idn = idn;
-	entry->lba = lba;
+	entry->sector = sector;
 	entry->affected_bytes = affected_bytes;
 	entry->doorbell = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
 	entry->outstanding_reqs = hba->outstanding_reqs;
@@ -512,7 +512,7 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 		struct ufshcd_lrb *lrbp, bool is_start)
 {
 	u8 event = 0, lun = 0, opcode = 0, idn = 0, tag = 0, group_id = 0;
-	u64 lba = 0;
+	sector_t sector = 0;
 	int affected_bytes = 0;
 
 	lun = lrbp->lun;
@@ -521,7 +521,7 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 	if (lrbp->cmd) {
 		event = (is_start) ? EVENT_SCSI_SEND : EVENT_SCSI_COMPL;
 		opcode = lrbp->cmd->cmnd[0];
-		lba = scsi_get_lba(lrbp->cmd);
+		sector = blk_rq_pos(lrbp->cmd->request);
 
 		affected_bytes = blk_rq_bytes(lrbp->cmd->request);
 		if (opcode == WRITE_10 || opcode == READ_10)
@@ -538,7 +538,7 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 		}
 	}
 
-	__store_cmd_log(hba, event, lun, opcode, idn, lba,
+	__store_cmd_log(hba, event, lun, opcode, idn, sector,
 		affected_bytes, group_id, tag, 0, 0);
 }
 
@@ -1611,10 +1611,10 @@ void pixel_print_cmd_log(struct ufs_hba *hba)
 						MAX_CMD_ENTRY_NUM];
 		if (!entry->seq_num)
 			break;
-		dev_err(hba->dev, "%lu: %s tag: %lu cmd: %s lba: %lu len: %lu DB: 0x%lx outstanding: 0x%lx GID: %u\n",
+		dev_err(hba->dev, "%lu: %s tag: %lu cmd: %s sector: %lu len: %lu DB: 0x%lx outstanding: 0x%lx GID: %u\n",
 			entry->seq_num, entry->event,
 			entry->tag, entry->cmd,
-			entry->lba, entry->affected_bytes,
+			entry->sector, entry->affected_bytes,
 			entry->doorbell, entry->outstanding_reqs);
 	}
 }
