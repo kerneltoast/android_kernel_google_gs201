@@ -54,13 +54,9 @@
 			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				in_role: endpoint@0 {
+				mux_notification_source: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&out_role>;
-				};
-				in_or_sw: endpoint@1 {
-					reg = <0>;
-					remote-endpoint = <&out_or_sw>;
+					remote-endpoint = <&mux_notification_sink>;
 				};
 			};
 		};
@@ -69,13 +65,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			out_role: endpoint@0 {
+			mux_notification_sink: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&in_role>;
-			};
-			out_or_sw: endpoint@1 {
-				reg = <0>;
-				remote-endpoint = <&in_or_sw>;
+				remote-endpoint = <&mux_notification_source>;
 			};
 		};
 	};
@@ -154,15 +146,11 @@
 			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				in_role_sw: endpoint@0 {
+				mux_notification_src: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&out_role_sw>;
+					remote-endpoint = <&mux_notification_snk>;
 				};
 
-				in_orientation_sw: endpoint@1 {
-					reg = <0>;
-					remote-endpoint = <&out_orientation_sw>;
-				};
 			};
 		};
 
@@ -170,16 +158,10 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			out_role_sw: endpoint@0 {
+			mux_notification_snk: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&in_role_sw>;
+				remote-endpoint = <&mux_notification_src>;
 			};
-
-			out_orientation_sw: endpoint@1 {
-				reg = <0>;
-				remote-endpoint = <&in_orientation_sw>;
-			};
-
 		};
 
 		/* EXT_BST_EN exposed as GPIO */
