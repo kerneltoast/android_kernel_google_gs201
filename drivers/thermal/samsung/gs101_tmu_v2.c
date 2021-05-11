@@ -552,7 +552,7 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 
 	trace_thermal_exynos_power_allocator(tz, power_range,
 					     max_power, tz->temperature,
-					     control_temp - tz->temperature);
+					     control_temp - tz->temperature, state);
 
 	return ret;
 }

@@ -115,15 +115,16 @@ TRACE_EVENT(thermal_exynos_power_gpu_limit,
 TRACE_EVENT(thermal_exynos_power_allocator,
 	TP_PROTO(struct thermal_zone_device *tz,
 		 u32 power_range, u32 max_allocatable_power,
-		 int current_temp, s32 delta_temp),
+		 int current_temp, s32 delta_temp, unsigned long cdev_state),
 	TP_ARGS(tz, power_range, max_allocatable_power,
-		current_temp, delta_temp),
+		current_temp, delta_temp, cdev_state),
 	TP_STRUCT__entry(
 		__field(int, tz_id)
 		__field(u32, power_range)
 		__field(u32, max_allocatable_power)
 		__field(int, current_temp)
 		__field(s32, delta_temp)
+		__field(unsigned long, cdev_state)
 	),
 	TP_fast_assign(
 		__entry->tz_id = tz->id;
@@ -131,12 +132,13 @@ TRACE_EVENT(thermal_exynos_power_allocator,
 		__entry->max_allocatable_power = max_allocatable_power;
 		__entry->current_temp = current_temp;
 		__entry->delta_temp = delta_temp;
+		__entry->cdev_state = cdev_state;
 	),
 
-	TP_printk("thermal_zone_id=%d power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d",
+	TP_printk("thermal_zone_id=%d power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d cdev_state=%lu",
 		  __entry->tz_id,
 		  __entry->power_range, __entry->max_allocatable_power,
-		  __entry->current_temp, __entry->delta_temp)
+		  __entry->current_temp, __entry->delta_temp, __entry->cdev_state)
 );
 
 TRACE_EVENT(thermal_exynos_power_allocator_pid,
