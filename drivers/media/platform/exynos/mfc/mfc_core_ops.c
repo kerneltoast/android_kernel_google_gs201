@@ -781,6 +781,13 @@ void mfc_core_instance_dpb_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 		return;
 	}
 
+	if (core_ctx->state == MFCINST_RES_CHANGE_INIT ||
+			core_ctx->state == MFCINST_RES_CHANGE_FLUSH) {
+		mfc_ctx_info("[DRC] DRC is running yet (state: %d)\n", core_ctx->state);
+		mfc_core_release_hwlock_ctx(core_ctx);
+		return;
+	}
+
 	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
 	for (i = 0; i < MFC_MAX_DPBS; i++)
 		dec->dpb[i].queued = 0;
