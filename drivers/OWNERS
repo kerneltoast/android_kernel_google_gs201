@@ -109,8 +109,9 @@ per-file regulator/virtual.c=saravanak@google.com
 
 per-file rtc/rtc-s2mpg*=*
 
-per-file scsi/ufs/ufs-cal-gs101*=*
-per-file scsi/ufs/ufs-cal-if*=*
+per-file scsi/ufs/gs101/**=*
+per-file scsi/ufs/gs201/**=*
+per-file scsi/ufs/ufs-cal*=*
 per-file scsi/ufs/ufs-exynos.c=*
 per-file scsi/ufs/ufs-exynos.h=*
 per-file scsi/ufs/ufs-exynos-*=*
