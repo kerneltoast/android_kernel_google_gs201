@@ -22,7 +22,7 @@ per-file clk/clk-multiplier.c=saravanak@google.com
 per-file clk/clk-mux.c=saravanak@google.com
 per-file clk/Kconfig=saravanak@google.com
 per-file clk/Makefile=saravanak@google.com
-per-file clk/samsung/clk-gs101.c=*
+per-file clk/samsung/clk-gs*=*
 per-file clk/samsung/composite.*=*
 
 per-file clocksource/exynos_mct.c=*
