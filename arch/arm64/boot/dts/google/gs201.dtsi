@@ -13,7 +13,7 @@
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #include <dt-bindings/soc/google/gs101-pm-qos.h>
 #include "gs101-rmem.dtsi"
-#include "gs101-bts.dtsi"
+#include "gs201-bts.dtsi"
 #include "gs101-cpu.dtsi"
 #include "gs201-drm-dpu.dtsi"
 #include "gs101-gpu.dtsi"
