@@ -32,12 +32,15 @@
 #include <linux/mfd/samsung/s2mpg10.h>
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/rtc-s2mpg10.h>
+#include <soc/google/pt.h>
+#include <linux/list.h>
 
 static int acpm_tmu_log;
 static int acpm_dvfs_log;
 static struct acpm_mbox_test *mbox;
 static struct acpm_dvfs_test *dvfs_test;
 static u8 aged[NR_RTC_CNT_REGS];
+static struct list_head *slc_pt_list;
 
 #define CHIP_REV_TYPE_A0          0
 #define CPU_NUM_NO_HERA           6
@@ -72,6 +75,9 @@ static unsigned int get_random_for_type(int type)
 	case GRANVILLE_M_REG:
 	case GRANVILLE_S_REG:
 		ret = random % PMIC_RANDOM_ADDR_RANGE;
+		break;
+	case SLC_REQ_TYPE:
+		ret = random % NUM_OF_SLC_REQ_TYPE;
 		break;
 	default:
 		pr_err("%s, type: %d not support\n", __func__, type);
@@ -436,6 +442,111 @@ static void acpm_mfd_mbox_stress_trigger(struct work_struct *work)
 	}
 }
 
+/*
+ * Send a command to APM and get back the return value.
+ */
+static int acpm_slc_mbox(unsigned int command, unsigned int arg,
+			 unsigned long arg1)
+{
+	struct ipc_config config;
+	unsigned int cmd[8];
+	int ret;
+
+	config.cmd = cmd;
+	config.response = true;
+	config.cmd[0] = 0;
+	config.cmd[1] = arg;
+	config.cmd[2] = command;
+	config.cmd[3] = arg1;
+
+	ret = acpm_ipc_send_data(IPC_AP_SLC, &config);
+	if (ret == 0)
+		ret = config.cmd[1];
+
+	return ret;
+}
+
+static void acpm_mbox_slc_request_send(struct work_struct *work)
+{
+	u32 req_type;
+	int slc_version;
+	int slc_state;
+	int size, pbha, vptid, p_way, s_way;
+	int i, ptid;
+
+	req_type = get_random_for_type(SLC_REQ_TYPE);
+
+	switch (req_type) {
+	case VERSION:
+		slc_version = acpm_slc_mbox(PT_VERSION, 0, 0);
+		pr_info("%s: valid acpm firmware %d.%d.\n",
+			__func__, slc_version >> 16, slc_version & 0xffff);
+		break;
+	case STATE:
+		slc_state = acpm_slc_mbox(SLC_STATE, 0, 0);
+		pr_info("%s: slc_state: 0x%X, sicd: %d, ap_on: %d, "
+			"slc_on: %d, mif_on: %d\n",
+			__func__, slc_state, slc_state & BIT(0),
+			(slc_state & BIT(1)) >> 1,
+			(slc_state & BIT(2)) >> 2,
+			(slc_state & BIT(3)) >> 3);
+		break;
+	case PT_INFO:
+		if (slc_pt_list == NULL) {
+			pr_err("%s, NO slc_pt_list!\n", __func__);
+			break;
+		}
+		for (i = 0; i < mbox->slc->client_cnt; i++) {
+			ptid = mbox->slc->ptid[i];
+			size = acpm_slc_mbox(SLC_PT_INFO, ptid | PT_SIZE, 0);
+			pbha =
+			    acpm_slc_mbox(SLC_PT_INFO, ptid | (PBHA << 8), 0);
+			vptid =
+			    acpm_slc_mbox(SLC_PT_INFO, ptid | (VPTID << 8), 0);
+			p_way =
+			    acpm_slc_mbox(SLC_PT_INFO,
+					  ptid | (PRIMARY_WAYS << 8), 0);
+			s_way =
+			    acpm_slc_mbox(SLC_PT_INFO,
+					  ptid | (SECONDARY_WAYS << 8), 0);
+			pr_info("%s: name: %s, size: %X, pbha: %X, vpid: %X, "
+				"pri_way: %X, sec_way: %X\n",
+				__func__, mbox->slc->client_name[i], size,
+				pbha, vptid, p_way, s_way);
+
+			if (size < 0) {
+				/* Client pt is disabled */
+				cancel_delayed_work_sync(&mbox->slc->mbox_stress_trigger_wk);
+				pr_err
+				    ("%s, No client: %s, cancel slc mbox stress\n",
+				     __func__, mbox->slc->client_name[i]);
+			}
+		}
+		break;
+	default:
+		pr_err("%s, req %d not support\n", __func__, req_type);
+		break;
+	}
+}
+
+static void acpm_slc_mbox_stress_trigger(struct work_struct *work)
+{
+	int i;
+
+	for (i = 0; i < NUM_OF_WQ; i++) {
+		queue_delayed_work_on(get_random_for_type(CPU_ID),
+				      mbox->slc->slc_request_wq[i],
+				      &mbox->slc->slc_request_wk[i],
+				      msecs_to_jiffies(get_random_for_type
+						       (DELAY_MS)));
+	}
+
+	queue_delayed_work_on(get_random_for_type(CPU_ID),
+			      mbox->slc->mbox_stress_trigger_wq,
+			      &mbox->slc->mbox_stress_trigger_wk,
+			      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
+}
+
 static void acpm_debug_tmu_rd_tmp_stress_trigger(struct work_struct *work)
 {
 	int i;
@@ -564,6 +675,41 @@ static int acpm_mfd_set_pmic(void)
 	return 0;
 }
 
+unsigned int acpm_pt_clients_enable(void)
+{
+	struct pt_handle *client = NULL;
+	unsigned int client_cnt = 0;
+
+	list_for_each_entry(client, slc_pt_list, list) {
+		mbox->slc->client_name[client_cnt] = client->node->name;
+		mbox->slc->ptid[client_cnt] = pt_client_enable(client, 0);
+		pr_info("%s: node name: %s, slc-ptid[%d]: %d\n",
+			__func__, client->node->name, client_cnt,
+			mbox->slc->ptid[client_cnt]);
+		client_cnt++;
+	}
+
+	return client_cnt;
+}
+
+void acpm_pt_clients_disable(void)
+{
+	struct pt_handle *client = NULL;
+
+	list_for_each_entry(client, slc_pt_list, list) {
+		pr_info("%s: node name: %s\n", __func__, client->node->name);
+		pt_client_disable(client, 0);
+	}
+	mbox->slc->client_cnt = 0;
+	memset(mbox->slc->ptid, 0, sizeof(u32) * PT_PTID_MAX);
+	memset(mbox->slc->client_name, 0, sizeof(char) * PT_PTID_MAX);
+}
+
+static void acpm_slc_pt_init(void)
+{
+	slc_pt_list = pt_get_handle_list();
+}
+
 static void acpm_mbox_test_init(void)
 {
 	int i, ret = 0;
@@ -592,6 +738,9 @@ static void acpm_mbox_test_init(void)
 				 i);
 			mbox->mfd->s2mpg11_mfd_read_wq[i] =
 			    create_freezable_workqueue(buf);
+			snprintf(buf, sizeof(buf), "acpm_slc_request_wq%d", i);
+			mbox->slc->slc_request_wq[i] =
+			    create_freezable_workqueue(buf);
 		}
 		mbox->tmu->rd_tmp_stress_trigger_wq =
 		    create_freezable_workqueue("acpm_tmu_rd_tmp_trigger_wq");
@@ -599,6 +748,8 @@ static void acpm_mbox_test_init(void)
 		    create_freezable_workqueue("acpm_dvfs_mbox_trigger_wq");
 		mbox->mfd->mbox_stress_trigger_wq =
 		    create_freezable_workqueue("acpm_mfd_mbox_trigger_wq");
+		mbox->slc->mbox_stress_trigger_wq =
+		    create_freezable_workqueue("acpm_slc_mbox_trigger_wq");
 		mbox->tmu->suspend_wq =
 		    create_freezable_workqueue("acpm_tmu_mbox_suspend_wq");
 		mbox->tmu->resume_wq =
@@ -615,6 +766,8 @@ static void acpm_mbox_test_init(void)
 					  acpm_mbox_mfd_s2mpg10_random_read);
 			INIT_DELAYED_WORK(&mbox->mfd->s2mpg11_mfd_read_wk[i],
 					  acpm_mbox_mfd_s2mpg11_random_read);
+			INIT_DELAYED_WORK(&mbox->slc->slc_request_wk[i],
+					  acpm_mbox_slc_request_send);
 		}
 		INIT_DELAYED_WORK(&mbox->tmu->rd_tmp_stress_trigger_wk,
 				  acpm_debug_tmu_rd_tmp_stress_trigger);
@@ -622,6 +775,8 @@ static void acpm_mbox_test_init(void)
 				  acpm_dvfs_mbox_stress_trigger);
 		INIT_DELAYED_WORK(&mbox->mfd->mbox_stress_trigger_wk,
 				  acpm_mfd_mbox_stress_trigger);
+		INIT_DELAYED_WORK(&mbox->slc->mbox_stress_trigger_wk,
+				  acpm_slc_mbox_stress_trigger);
 		INIT_DELAYED_WORK(&mbox->tmu->suspend_work,
 				  acpm_debug_tmu_suspend);
 		INIT_DELAYED_WORK(&mbox->tmu->resume_work,
@@ -635,6 +790,8 @@ static void acpm_mbox_test_init(void)
 		ret = acpm_mfd_set_pmic();
 		if (ret < 0)
 			pr_err("%s: set pmic failed, ret: %d\n", __func__, ret);
+
+		acpm_slc_pt_init();
 
 		mbox->wq_init_done = true;
 
@@ -676,6 +833,7 @@ static void acpm_framework_mbox_test(bool start)
 {
 	if (start) {
 		acpm_mbox_test_init();
+		mbox->slc->client_cnt = acpm_pt_clients_enable();
 
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
 				      mbox->tmu->suspend_wq,
@@ -694,12 +852,18 @@ static void acpm_framework_mbox_test(bool start)
 				      mbox->mfd->mbox_stress_trigger_wq,
 				      &mbox->mfd->mbox_stress_trigger_wk,
 				      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
+		queue_delayed_work_on(get_random_for_type(CPU_ID),
+				      mbox->slc->mbox_stress_trigger_wq,
+				      &mbox->slc->mbox_stress_trigger_wk,
+				      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
 	} else {
 		cancel_delayed_work_sync(&mbox->tmu->suspend_work);
 		cancel_delayed_work_sync(&mbox->tmu->resume_work);
 		cancel_delayed_work_sync(&mbox->tmu->rd_tmp_stress_trigger_wk);
 		cancel_delayed_work_sync(&mbox->dvfs->mbox_stress_trigger_wk);
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
+		cancel_delayed_work_sync(&mbox->slc->mbox_stress_trigger_wk);
+		acpm_pt_clients_disable();
 	}
 }
 
@@ -1213,6 +1377,7 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 	struct acpm_tmu_validity *tmu_validity;
 	struct acpm_dvfs_validity *dvfs_validity;
 	struct acpm_mfd_validity *mfd_validity;
+	struct acpm_slc_validity *slc_validity;
 	struct acpm_dvfs_test *dvfs;
 	int ret = 0;
 
@@ -1250,9 +1415,17 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 		goto err_mfd;
 	}
 
+	slc_validity = kmalloc(sizeof(*slc_validity), GFP_KERNEL);
+	if (!slc_validity) {
+		pr_err("%s, slc_validity alloc failed\n", __func__);
+		ret = -ENOMEM;
+		goto err_slc;
+	}
+
 	mbox_test->tmu = tmu_validity;
 	mbox_test->dvfs = dvfs_validity;
 	mbox_test->mfd = mfd_validity;
+	mbox_test->slc = slc_validity;
 
 	dvfs =
 	    devm_kzalloc(&pdev->dev, sizeof(struct acpm_dvfs_test), GFP_KERNEL);
@@ -1273,6 +1446,8 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 	return 0;
 
 err_dvfs_latency:
+	kfree(slc_validity);
+err_slc:
 	kfree(mfd_validity);
 err_mfd:
 	kfree(dvfs_validity);
@@ -1290,6 +1465,7 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 	flush_workqueue(mbox->tmu->rd_tmp_stress_trigger_wq);
 	flush_workqueue(mbox->dvfs->mbox_stress_trigger_wq);
 	flush_workqueue(mbox->mfd->mbox_stress_trigger_wq);
+	flush_workqueue(mbox->slc->mbox_stress_trigger_wq);
 	flush_workqueue(mbox->tmu->suspend_wq);
 	flush_workqueue(mbox->tmu->resume_wq);
 	for (i = 0; i < NUM_OF_WQ; i++) {
@@ -1298,11 +1474,13 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 		flush_workqueue(mbox->dvfs->rate_change_wq[i]);
 		flush_workqueue(mbox->mfd->s2mpg10_mfd_read_wq[i]);
 		flush_workqueue(mbox->mfd->s2mpg11_mfd_read_wq[i]);
+		flush_workqueue(mbox->slc->slc_request_wq[i]);
 	}
 
 	destroy_workqueue(mbox->tmu->rd_tmp_stress_trigger_wq);
 	destroy_workqueue(mbox->dvfs->mbox_stress_trigger_wq);
 	destroy_workqueue(mbox->mfd->mbox_stress_trigger_wq);
+	destroy_workqueue(mbox->slc->mbox_stress_trigger_wq);
 	destroy_workqueue(mbox->tmu->suspend_wq);
 	destroy_workqueue(mbox->tmu->resume_wq);
 	for (i = 0; i < NUM_OF_WQ; i++) {
@@ -1311,6 +1489,7 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 		destroy_workqueue(mbox->dvfs->rate_change_wq[i]);
 		destroy_workqueue(mbox->mfd->s2mpg10_mfd_read_wq[i]);
 		destroy_workqueue(mbox->mfd->s2mpg11_mfd_read_wq[i]);
+		destroy_workqueue(mbox->slc->slc_request_wq[i]);
 	}
 
 	mutex_destroy(&mbox->mfd->lock);

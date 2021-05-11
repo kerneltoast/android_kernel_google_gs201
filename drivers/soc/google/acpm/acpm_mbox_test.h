@@ -5,6 +5,7 @@
  */
 #ifndef __ACPM_MBOX_TEST_H__
 #define __ACPM_MBOX_TEST_H__
+#include <soc/google/pt.h>
 
 enum tz_id {
 	TZ_BIG = 0,
@@ -23,6 +24,7 @@ enum random_output {
 	DVFS_DOMAIN_ID,
 	GRANVILLE_M_REG,
 	GRANVILLE_S_REG,
+	SLC_REQ_TYPE,
 	END,
 };
 
@@ -63,10 +65,26 @@ enum cpu_cluster_id {
 	CPU_CL2 = 2,
 };
 
+enum slc_req_type {
+	VERSION = 0,
+	STATE,
+	PT_INFO,
+	NUM_OF_SLC_REQ_TYPE,
+};
+
+enum pt_info_t {
+	PT_SIZE = 0,
+	PBHA = 1,
+	VPTID = 2,
+	PRIMARY_WAYS = 3,
+	SECONDARY_WAYS = 4,
+};
+
 #define NUM_OF_WQ               16
 
 /* IPC Mailbox Channel */
 #define IPC_AP_TMU              9
+#define IPC_AP_SLC              10
 
 /* IPC Request Types */
 #define TMU_IPC_READ_TEMP       0x02
@@ -123,12 +141,41 @@ struct acpm_mfd_validity {
 	struct mutex lock;
 };
 
+#define PT_VERSION		0xd005
+#define SLC_STATE		0xd007
+#define SLC_PT_INFO		0xd009
+
+#define PT_PTID_MAX 64
+
+struct pt_handle {		/* one per client */
+	struct mutex mt;	/* serialize write access to the handle */
+	struct list_head list;
+	pt_resize_callback_t resize_callback;
+	int id_cnt;
+	struct pt_pts *pts;	/* client partitions */
+	struct device_node *node;	/* client node */
+	struct ctl_table *sysctl_table;
+	struct ctl_table_header *sysctl_header;
+	void *data;		/* client private data */
+};
+
+struct acpm_slc_validity {
+	struct delayed_work slc_request_wk[NUM_OF_WQ];
+	struct delayed_work mbox_stress_trigger_wk;
+	struct workqueue_struct *slc_request_wq[NUM_OF_WQ];
+	struct workqueue_struct *mbox_stress_trigger_wq;
+	const char *client_name[PT_PTID_MAX];
+	u32 ptid[PT_PTID_MAX];
+	u32 client_cnt;
+};
+
 struct acpm_mbox_test {
 	bool wq_init_done;
 	struct device *device;
 	struct acpm_tmu_validity *tmu;
 	struct acpm_dvfs_validity *dvfs;
 	struct acpm_mfd_validity *mfd;
+	struct acpm_slc_validity *slc;
 };
 
 struct acpm_dvfs_test_stats {

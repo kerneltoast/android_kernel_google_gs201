@@ -458,6 +458,15 @@ static int pt_driver_ioctl3(struct pt_driver *driver, int arg0,
 	return ret;
 }
 
+struct list_head *pt_get_handle_list(void)
+{
+	if (pt_internal_data.sysctl_header)
+		return (&pt_internal_data.handle_list);
+
+	return NULL;
+}
+EXPORT_SYMBOL(pt_get_handle_list);
+
 static struct pt_handle *pt_handle_search(struct device_node *node)
 {
 	struct pt_handle *temp = NULL;
