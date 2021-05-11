@@ -15,12 +15,12 @@
 extern void update_uclamp_stats(int cpu, u64 time);
 #endif
 
+extern bool vendor_sched_enable_prefer_high_cap;
+extern bool vendor_sched_task_spreading_enable;
 extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_util_threshold;
 extern unsigned int vendor_sched_high_capacity_start_cpu;
 extern unsigned int vendor_sched_util_post_init_scale;
-
-static struct vendor_group_property vg[VG_MAX];
 
 static unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD};
@@ -303,32 +303,14 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	return min_t(unsigned long, util, capacity_of(cpu));
 }
 
-/*****************************************************************************/
-/*                       New Code Section                                    */
-/*****************************************************************************/
-/*
- * This part of code is new for this kernel, which are mostly helper functions.
- */
-static inline bool get_prefer_idle(struct task_struct *p)
-{
-	return vg[get_vendor_task_struct(p)->group].prefer_idle;
-}
-
 static inline bool get_prefer_high_cap(struct task_struct *p)
 {
-	return vg[get_vendor_task_struct(p)->group].prefer_high_cap;
+	return vendor_sched_enable_prefer_high_cap && get_vendor_task_struct(p)->prefer_high_cap;
 }
 
 static inline bool get_task_spreading(struct task_struct *p)
 {
-	return vg[get_vendor_task_struct(p)->group].task_spreading;
-}
-
-struct vendor_group_property *get_vendor_group_property(enum vendor_group group)
-{
-	SCHED_WARN_ON(group < VG_DEFAULT || group >= VG_MAX);
-
-	return &(vg[group]);
+	return vendor_sched_task_spreading_enable && get_vendor_task_struct(p)->task_spreading;
 }
 
 bool task_fits_capacity(struct task_struct *p, int cpu)
@@ -1049,9 +1031,6 @@ static inline struct uclamp_se
 uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 {
 	struct uclamp_se uc_req = p->uclamp_req[clamp_id];
-	struct vendor_task_struct *vp = get_vendor_task_struct(p);
-	struct uclamp_se uc_vnd;
-
 #ifdef CONFIG_UCLAMP_TASK_GROUP
 	struct uclamp_se uc_max;
 
@@ -1064,20 +1043,11 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 	if (task_group(p) == &root_task_group)
 		return uc_req;
 
-	// Task group restriction
 	uc_max = task_group(p)->uclamp[clamp_id];
-
 	if ((clamp_id == UCLAMP_MAX && (uc_req.value > uc_max.value || !uc_req.user_defined)) ||
 	    (clamp_id == UCLAMP_MIN && (uc_req.value < uc_max.value || !uc_req.user_defined)))
-		uc_req = uc_max;
+		return uc_max;
 #endif
-
-	// Vendor group restriction
-	uc_vnd = vg[vp->group].uc_req[clamp_id];
-
-	if ((clamp_id == UCLAMP_MAX && (uc_req.value > uc_vnd.value || !uc_req.user_defined)) ||
-	    (clamp_id == UCLAMP_MIN && (uc_req.value < uc_vnd.value || !uc_req.user_defined)))
-		uc_req = uc_vnd;
 
 	return uc_req;
 }
@@ -1115,24 +1085,6 @@ void update_sched_capacity_margin(unsigned int util_threshold)
 
 	for (i = 0; i < CPU_NUM; i++)
 		sched_capacity_margin[i] = util_threshold;
-}
-
-void initialize_vendor_group_property(void)
-{
-	int i;
-	unsigned int val = SCHED_CAPACITY_SCALE;
-
-	for (i = 0; i < VG_MAX; i++) {
-		vg[i].prefer_idle = false;
-		vg[i].prefer_high_cap = false;
-		vg[i].task_spreading = false;
-		vg[i].uc_req[UCLAMP_MIN].value = val;
-		vg[i].uc_req[UCLAMP_MIN].bucket_id = get_bucket_id(val);
-		vg[i].uc_req[UCLAMP_MIN].user_defined = false;
-		vg[i].uc_req[UCLAMP_MAX].value = val;
-		vg[i].uc_req[UCLAMP_MAX].bucket_id = get_bucket_id(val);
-		vg[i].uc_req[UCLAMP_MAX].user_defined = false;
-	}
 }
 
 void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct task_struct *p,
