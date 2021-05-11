@@ -87,9 +87,9 @@ static void bts_calc_bw(void)
 		if (btsdev->peak_bw < btsdev->bts_bw[i].peak)
 			btsdev->peak_bw = btsdev->bts_bw[i].peak;
 
-		/* Calculate total RT BW based on peak BW */
+		/* Calculate total RT BW based on RT clients */
 		if (btsdev->bts_bw[i].is_rt)
-			rt_bw += btsdev->bts_bw[i].peak;
+			rt_bw += btsdev->bts_bw[i].rt;
 
 		total_read += btsdev->bts_bw[i].read;
 		total_write += btsdev->bts_bw[i].write;
@@ -307,11 +307,13 @@ int bts_update_bw(unsigned int index, struct bts_bw bw)
 	bts_bw[index].peak = bw.peak;
 	bts_bw[index].read = bw.read;
 	bts_bw[index].write = bw.write;
+	if (bts_bw[index].is_rt)
+		bts_bw[index].rt = bw.rt;
 	spin_unlock(&btsdev->lock);
 
 	BTSDBG_LOG(btsdev->dev,
-		   "%s R: %.8u W: %.8u P: %.8u\n",
-		   bts_bw[index].name, bw.read, bw.write, bw.peak);
+		   "%s R: %.8u W: %.8u P: %.8u RT: %.8u\n",
+		   bts_bw[index].name, bw.read, bw.write, bw.peak, bts_bw[index].rt);
 
 	bts_calc_bw();
 	bts_update_stats(index);
@@ -470,10 +472,10 @@ static int exynos_bts_bw_open_show(struct seq_file *buf, void *d)
 		(i < btsdev->num_bts); i++) {
 		seq_printf(
 			buf,
-			"%s:\tRead: %.8u Write: %.8u Peak %.8u RT %c\n",
+			"%s:\tRead: %.8u Write: %.8u Peak %.8u RT %.8u\n",
 			btsdev->bts_bw[i].name, btsdev->bts_bw[i].read,
 			btsdev->bts_bw[i].write, btsdev->bts_bw[i].peak,
-			btsdev->bts_bw[i].is_rt? 'Y' : 'N');
+			btsdev->bts_bw[i].rt);
 	}
 	mutex_unlock(&btsdev->mutex_lock);
 	return 0;
