@@ -56,9 +56,10 @@ struct bts_bw_stats {
 /**
  * struct bts_bw - BTS bandwidth information
  * @name:	name of IP
- * @peak:	IP Peak bandwidth
- * @read:	Average read Bandwidth
- * @write:	Average write Bandwidth
+ * @peak:	IP Peak bandwidth over single port
+ * @read:	Average read bandwidth
+ * @write:	Average write bandwidth
+ * @rt: 	IP total RT bandwidth - should be 0 for non-RT clients
  *
  */
 struct bts_bw {
@@ -67,6 +68,7 @@ struct bts_bw {
 	unsigned int peak;
 	unsigned int read;
 	unsigned int write;
+	unsigned int rt;
 	struct bts_bw_stats stats;
 };
 
