@@ -82,7 +82,8 @@
 	};
 
 	chosen: chosen {
-		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 console=ttySAC0,115200n8 clocksource=arch_sys_counter root=/dev/ram0 androidboot.hardware.platform=gs201 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware reserve-fimc=0xffffff90f9fe0000 clk_ignore_unused loop.max_part=7 coherent_pool=4M no_console_suspend nokaslr softlockup_panic=1";
+               bootargs = "earlycon=exynos4210,mmio32,0x10A00000 console=ttySAC0,115200n8 clocksource=arch_sys_counter root=/dev/ram0 rw ramdisk_size=65536 initrd=0x84000000,64M androidboot.hardware.platform=gs201 androidboot.selinux=permissive androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware reserve-fimc=0xffffff90f9fe0000 clk_ignore_unused loop.max_part=7 coherent_pool=4M no_console_suspend nokaslr softlockup_panic=1 maxcpus=1 androidboot.first_stage_console=1 androidboot.force_normal_boot=1";
+
 	};
 
 	odm: odm {
@@ -459,15 +460,17 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		interrupts = <GIC_SPI IRQ_MAILBOX_APM2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
-		reg = <0x0 0x18210000 0x1000>,          /* AP2APM MAILBOX */
-		    <0x0 0x18500000 0x50000>;        /* APM SRAM */
+		reg = <0x0 0x18210000 0x01000>,	/* AP2APM MAILBOX */
+		      <0x0 0x18500000 0x48000>,	/* APM SRAM */
+		      <0x0 0x1802048C 0x00014>;	/* ALIVE_FRC_CTRL */
 		initdata-base = <0xA000>;
 		debug-log-level = <0>;
 		logging-period = <500>;
-		dump-base = <0x203E000>;
-		dump-size = <0x3B000>;                  /* 236KB */
+		dump-base = <0x18505000>;
+		dump-size = <0x43000>;		/* 268KB(= 288 - 20) */
 		acpm-ipc-channel = <12>;
 		fvmap_addr = <0x31000>;
+		panic-action = <GO_WATCHDOG_ID>;
 	};
 
 	acpm_stats {
