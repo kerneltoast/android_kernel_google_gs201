@@ -6,5 +6,6 @@
  */
 
 #include "gs101-oriole.dtsi"
+#include "gs101-raviole-fingerprint-evt.dtsi"
 #include "gs101-raviole-thermal-evt.dtsi"
 
