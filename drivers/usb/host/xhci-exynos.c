@@ -860,6 +860,16 @@ put_hcd:
 	return 0;
 }
 
+static void xhci_exynos_shutdown(struct platform_device *dev)
+{
+	struct xhci_hcd_exynos *xhci_exynos = platform_get_drvdata(dev);
+	struct usb_hcd	*hcd = xhci_exynos->hcd;
+
+	platform_set_drvdata(dev, hcd);
+	usb_hcd_platform_shutdown(dev);
+	platform_set_drvdata(dev, xhci_exynos);
+}
+
 extern u32 dwc3_otg_is_connect(void);
 static int __maybe_unused xhci_exynos_suspend(struct device *dev)
 {
@@ -913,7 +923,7 @@ MODULE_DEVICE_TABLE(acpi, usb_xhci_acpi_match);
 static struct platform_driver usb_xhci_driver = {
 	.probe	= xhci_exynos_probe,
 	.remove	= xhci_exynos_remove,
-	.shutdown = usb_hcd_platform_shutdown,
+	.shutdown = xhci_exynos_shutdown,
 	.driver	= {
 		.name = "xhci-hcd-exynos",
 		.pm = &xhci_exynos_pm_ops,
