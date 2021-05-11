@@ -283,8 +283,7 @@
 			use-em-coeff;
 
 			dm-constraints {
-				list = <&med_ank_perf>,
-					<&med_dsu_skew>;
+				list = <&med_ank_perf>;
 			};
 		};
 
@@ -303,7 +302,7 @@
 			use-em-coeff;
 
 			dm-constraints {
-				list = <&big_dsu_skew>;
+				list = <&big_ank_perf>;
 			};
 		};
 	};
@@ -318,37 +317,46 @@
 			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
 
 				/* CL1    CL0 */
-			table = < 2348000 1197000
-				  2253000 1197000
-				  2130000	0
-				  1999000	0
-				  1836000	0
-				  1663000	0
-				  1491000	0
-				  1328000	0
-				  1197000	0
-				  1024000	0
-				  910000	0
-				  799000	0
-				  696000	0
-				  553000	0
-				  400000	0 >;
+			table = < 2253000	1328000
+				  2130000	1098000
+				  1999000	1098000
+				  1836000	1098000
+				  1663000	1098000
+				  1491000	1098000
+				  1328000	930000
+				  1197000	930000
+				  1024000	738000
+				  910000	574000
+				  799000	574000
+				  696000	574000
+				  553000	574000
+				  400000	300000 >;
 		};
-		med_dsu_skew: dm-table@0004 {
-			guidance;
-			const-type = <CONSTRAINT_MIN>;
-			dm-constraint = <DM_CPU_CL0>;
-			driver-cal-id = <ACPM_DVFS_CPUCL1>;
-			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
-			ect-name = "CPUCL1";
-		};
-		big_dsu_skew: dm-table@0005 {
-			guidance;
+		big_ank_perf: dm-table@0006 {
 			const-type = <CONSTRAINT_MIN>;
 			dm-constraint = <DM_CPU_CL0>;
 			driver-cal-id = <ACPM_DVFS_CPUCL2>;
 			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
-			ect-name = "CPUCL2";
+
+				/* CL2		CL0 */
+			table = < 2850000	1401000
+				  2802000	1401000
+				  2704000	1401000
+				  2630000	1401000
+				  2507000	1328000
+				  2401000	1328000
+				  2252000	1197000
+				  2188000	1197000
+				  2048000	1197000
+				  1826000	1098000
+				  1745000	1098000
+				  1582000	1098000
+				  1426000	930000
+				  1277000	738000
+				  1106000	738000
+				  984000	574000
+				  851000	574000
+				  500000	300000 >;
 		};
 	};
 };
