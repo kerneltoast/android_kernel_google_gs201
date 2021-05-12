@@ -985,11 +985,79 @@ static ssize_t dwc3_exynos_extra_delay_store(struct device *dev, struct device_a
 }
 static DEVICE_ATTR_RW(dwc3_exynos_extra_delay);
 
+static ssize_t usb_data_enabled_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%s\n", exynos->usb_data_enabled ? "enabled" : "disabled");
+}
+
+static ssize_t usb_data_enabled_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t n)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+	bool enabled = true;
+
+	if (kstrtobool(buf, &enabled))
+		return -EINVAL;
+
+	exynos->usb_data_enabled = enabled;
+
+	return n;
+}
+static DEVICE_ATTR_RW(usb_data_enabled);
+
+static ssize_t force_speed_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+	struct dwc3 *dwc = exynos->dwc;
+
+	return sysfs_emit(buf, "%s\n", usb_speed_string(dwc->maximum_speed));
+}
+
+static ssize_t force_speed_store(struct device *dev, struct device_attribute *attr, const char *buf,
+				 size_t n)
+{
+	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+	struct dwc3_otg *dotg = exynos->dotg;
+	struct otg_fsm *fsm = &dotg->fsm;
+	int force_speed = 0;
+	int vbus_state = 0;
+
+	if (sysfs_streq(buf, "super-speed-plus")) {
+		force_speed = USB_SPEED_SUPER_PLUS;
+	} else if (sysfs_streq(buf, "super-speed")) {
+		force_speed = USB_SPEED_SUPER;
+	} else if (sysfs_streq(buf, "high-speed")) {
+		force_speed = USB_SPEED_HIGH;
+	} else {
+		return -EINVAL;
+	}
+
+	if (fsm->b_sess_vld == 1) {
+		vbus_state = fsm->b_sess_vld;
+		fsm->b_sess_vld = 0;
+		dwc3_otg_run_sm(fsm);
+	}
+
+	exynos->dwc->maximum_speed = force_speed;
+
+	if (vbus_state) {
+		fsm->b_sess_vld = vbus_state;
+		dwc3_otg_run_sm(fsm);
+	}
+
+	return n;
+}
+static DEVICE_ATTR_RW(force_speed);
+
 static struct attribute *dwc3_exynos_otg_attrs[] = {
 	&dev_attr_dwc3_exynos_otg_id.attr,
 	&dev_attr_dwc3_exynos_otg_b_sess.attr,
 	&dev_attr_dwc3_exynos_otg_state.attr,
 	&dev_attr_dwc3_exynos_extra_delay.attr,
+	&dev_attr_usb_data_enabled.attr,
+	&dev_attr_force_speed.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(dwc3_exynos_otg);
