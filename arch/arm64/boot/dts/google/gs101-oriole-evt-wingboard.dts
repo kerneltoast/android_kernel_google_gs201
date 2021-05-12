@@ -12,7 +12,7 @@
  * It does not have the EVT1.1 thermistor change.
  */
 #define ORIOLE_EVT_WINGBOARD 1
-#include "gs101-raven.dtsi"
+#include "gs101-raven-evt1_1.dtsi"
 #include "gs101-raviole-fingerprint-evt.dtsi"
 #include "gs101-raviole-thermal-evt.dtsi"
 #include "gs101-oriole-camera.dtsi"

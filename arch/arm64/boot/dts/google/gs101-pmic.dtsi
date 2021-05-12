@@ -403,6 +403,9 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <1>;
+#ifndef RAVIOLE_EVT1_1_AND_OLDER
+				regulator-always-on;
+#endif
 				channel-mux-selection = <0x2E>;
 				schematic-name = "L14M_TCXO";
 				subsys-name = "PLL";
