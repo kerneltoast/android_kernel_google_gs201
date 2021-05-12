@@ -536,7 +536,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	unsigned long best_cpu_importance = ULONG_MAX;
 	long max_importance_spare_cap = LONG_MIN;
 
-	prefer_idle = uclamp_latency_sensitive(p);
+	prefer_idle = get_prefer_idle(p);
 	prefer_high_cap = get_prefer_high_cap(p);
 
 	start_cpu = find_start_cpu(p, prefer_high_cap, sync_boost);
@@ -953,7 +953,7 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 	 * or it is prev cpu, or it is sync_boost, or prev_cpu is overutilized,
 	 */
 	cpu = cpumask_first(candidates);
-	if (weight == 1 && ((uclamp_latency_sensitive(p) && cpu_is_idle(cpu)) ||
+	if (weight == 1 && ((get_prefer_idle(p) && cpu_is_idle(cpu)) ||
 			    (cpu == prev_cpu) || sync_boost ||
 			    cpu_overutilized(cpu_util(prev_cpu), capacity_of(prev_cpu)))) {
 		best_energy_cpu = cpu;
