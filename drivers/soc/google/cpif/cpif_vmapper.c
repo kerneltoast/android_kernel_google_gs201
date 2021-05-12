@@ -43,11 +43,52 @@ EXPORT_SYMBOL(cpif_vmap_create);
 
 void cpif_vmap_free(struct cpif_va_mapper *vmap)
 {
+	struct cpif_vmap_item *temp;
+	int err;
+
 	if (unlikely(!vmap)) {
 		mif_err("no vmap to free\n");
 		return;
 	}
 
+	if (vmap->va_size == vmap->item_size && vmap->out) {
+		/* when va and pa is mapped at once */
+		err = cpif_iommu_unmap(vmap->va_start, vmap->va_size);
+		if (unlikely(err == 0))
+			mif_err("failed to perform iommu unmapping\n");
+		kfree(vmap->out);
+		vmap->out = NULL;
+		kfree(vmap);
+		vmap = NULL;
+		return;
+	}
+
+	if (vmap->in) {
+		err = cpif_iommu_unmap(vmap->in->vaddr_base, vmap->item_size);
+		if (err == 0)
+			mif_err("failed to unmap\n");
+		kfree(vmap->in);
+		vmap->in = NULL;
+	}
+
+	if (vmap->out) {
+		err = cpif_iommu_unmap(vmap->out->vaddr_base, vmap->item_size);
+		if (err == 0)
+			mif_err("failed to unmap\n");
+		kfree(vmap->out);
+		vmap->out = NULL;
+	}
+
+	temp = kzalloc(sizeof(struct cpif_vmap_item), GFP_ATOMIC);
+	while (kfifo_out(&vmap->sequential_table, temp,
+				sizeof(struct cpif_vmap_item)) ==
+				sizeof(struct cpif_vmap_item)) {
+		err = cpif_iommu_unmap(temp->vaddr_base, vmap->item_size);
+		if (err == 0)
+			mif_err("failed to unmap\n");
+	}
+
+	kfree(temp);
 	kfifo_free(&vmap->sequential_table);
 	kfree(vmap);
 	vmap = NULL;
@@ -161,7 +202,7 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 
 		err = cpif_iommu_unmap(vmap->va_start, vmap->va_size);
 		if (unlikely(err == 0)) {
-			mif_err_limited("failed to perform iommu mapping\n");
+			mif_err_limited("failed to perform iommu unmapping\n");
 			return 0;
 		}
 		kfree(vmap->out);

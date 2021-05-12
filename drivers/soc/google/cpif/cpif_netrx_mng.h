@@ -12,8 +12,14 @@
 #include "cpif_vmapper.h"
 
 struct cpif_addr_pair {
-	u64 cp_addr; /* cp address */
-	void *ap_addr; /* ap virtual address */
+	u64	cp_addr; /* cp address */
+	void	*ap_addr; /* ap virtual address */
+};
+
+struct recycling_page {
+	struct page	*page;
+	bool		usable;
+	int		offset;
 };
 
 struct cpif_netrx_mng {
@@ -23,6 +29,11 @@ struct cpif_netrx_mng {
 
 	struct cpif_va_mapper *desc_map;
 	struct cpif_va_mapper *data_map;
+
+	struct recycling_page **rx_page_cache_arr;
+	u32			cache_arr_idx;
+	u32			cache_arr_len;
+	bool			using_tmp_alloc;
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)

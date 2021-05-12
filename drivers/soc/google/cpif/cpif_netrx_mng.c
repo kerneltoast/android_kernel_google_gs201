@@ -11,6 +11,105 @@
 
 #include "cpif_netrx_mng.h"
 
+static void cpif_free_rx_page_cache(struct recycling_page **rpage_arr, u32 num_page)
+{
+	int i;
+
+	for (i = 0; i < num_page; i++) {
+		struct recycling_page *cur = rpage_arr[i];
+
+		if (!cur)
+			continue;
+		if (cur->page) {
+			init_page_count(cur->page);
+			__free_pages(cur->page, PAGE_FRAG_CACHE_MAX_ORDER);
+		}
+		kfree(cur);
+	}
+	kfree(rpage_arr);
+}
+
+static void *cpif_alloc_recycling_page(struct cpif_netrx_mng *cm)
+{
+	u32 idx = cm->cache_arr_idx;
+	struct recycling_page *cur = cm->rx_page_cache_arr[idx];
+	u32 ret;
+
+	if (cur->offset < 0) { /* this page cannot handle next packet */
+		cur->usable = false;
+		cur->offset = 0;
+		if (++idx == cm->cache_arr_len)
+			cm->cache_arr_idx = 0;
+		else
+			cm->cache_arr_idx++;
+
+		idx = cm->cache_arr_idx;
+		cur = cm->rx_page_cache_arr[idx];
+	}
+
+	if (page_ref_count(cur->page) == 1) { /* no one uses this page*/
+		cur->offset = PAGE_FRAG_CACHE_MAX_SIZE - cm->max_packet_size;
+		cur->usable = true;
+		goto assign_page;
+	}
+
+	if (cur->usable == true) /* page is in use, but still has some space left */
+		goto assign_page;
+
+	/* else, the page is not ready to be used */
+	mif_err_limited("cannot use the page: ref: %d usable: %d idx: %d\n",
+			page_ref_count(cur->page), cur->usable, idx);
+
+	return NULL;
+
+assign_page:
+	ret = cur->offset;
+	cur->offset -= cm->max_packet_size;
+	page_ref_inc(cur->page);
+
+	return page_to_virt(cur->page) + ret;
+}
+
+static void *cpif_get_cur_recycling_page_base(struct cpif_netrx_mng *cm)
+{
+	return page_to_virt(cm->rx_page_cache_arr[cm->cache_arr_idx]->page);
+}
+
+static struct recycling_page **cpif_create_rx_page_cache(u32 num_page)
+{
+	int i;
+	struct recycling_page **rpage_arr =
+			kzalloc(sizeof(struct recycling_page *) * num_page, GFP_ATOMIC);
+
+	if (!rpage_arr) {
+		mif_err("failed to alloc rx_page_cache_arr\n");
+		return NULL;
+	}
+
+	for (i = 0; i < num_page; i++) {
+		struct recycling_page *cur = kzalloc(sizeof(struct recycling_page),
+				GFP_ATOMIC);
+		if (unlikely(!cur))
+			goto fail;
+		cur->page = dev_alloc_pages(PAGE_FRAG_CACHE_MAX_ORDER);
+		if (unlikely(!cur->page)) {
+			mif_err("failed to get page\n");
+			cur->usable = false;
+			goto fail;
+		}
+		cur->usable = true;
+		cur->offset = 0;
+		rpage_arr[i] = cur;
+	}
+
+	return rpage_arr;
+
+fail:
+	cpif_free_rx_page_cache(rpage_arr, num_page);
+
+	return NULL;
+}
+
 struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pair,
 						u64 desc_size, u64 databuf_cp_pbase,
 						u64 max_packet_size, u64 num_packet)
@@ -34,7 +133,7 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 
 	cm = kzalloc(sizeof(struct cpif_netrx_mng), GFP_ATOMIC);
 	if (cm == NULL)
-		return NULL;
+		goto fail_cm;
 
 	cm->max_packet_size = max_packet_size;
 	cm->num_packet = num_packet;
@@ -48,18 +147,22 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	cm->data_map = cpif_vmap_create(databuf_cp_pbase, cm->total_buf_size,
 					PAGE_FRAG_CACHE_MAX_SIZE, max_packet_size);
 	if (!cm->desc_map || !cm->data_map) {
-		kfree(cm);
-		return NULL;
+		if (cm->desc_map)
+			cpif_vmap_free(cm->desc_map);
+		goto fail_vmap;
 	}
 
 	/* map descriptor region in advance */
 	temp = cpif_vmap_map_area(cm->desc_map, desc_ap_pbase, 0);
-	if (temp != desc_cp_pbase) {
-		cpif_vmap_free(cm->desc_map);
-		cpif_vmap_free(cm->data_map);
-		kfree(cm);
-		return NULL;
-	}
+	if (temp != desc_cp_pbase)
+		goto fail;
+
+	/* create recycling page array */
+	cm->rx_page_cache_arr = cpif_create_rx_page_cache(total_page_count * 2);
+	if (unlikely(!cm->rx_page_cache_arr))
+		goto fail;
+	cm->cache_arr_idx = 0;
+	cm->cache_arr_len = total_page_count * 2;
 
 	mif_info("netrx mng: num_packet: %d max_packet_size: %d total_buf_size: %d\n",
 			cm->num_packet, cm->max_packet_size, cm->total_buf_size);
@@ -67,14 +170,26 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 		cm->desc_map->va_start, cm->desc_map->va_end, cm->desc_map->va_size);
 	mif_info("data vmap: va_start: 0x%lX va_end: 0x%lX va_size: %d\n",
 		cm->data_map->va_start, cm->data_map->va_end, cm->data_map->va_size);
+	mif_info("recycling rx page cache arr: num_pages: %d\n", cm->cache_arr_len);
 
 	return cm;
+
+fail:
+	cpif_vmap_free(cm->desc_map);
+	cpif_vmap_free(cm->data_map);
+
+fail_vmap:
+	kfree(cm);
+
+fail_cm:
+	return NULL;
 }
 EXPORT_SYMBOL(cpif_create_netrx_mng);
 
 void cpif_exit_netrx_mng(struct cpif_netrx_mng *cm)
 {
 	if (cm) {
+		cpif_free_rx_page_cache(cm->rx_page_cache_arr, cm->cache_arr_len);
 		cpif_vmap_free(cm->desc_map);
 		cpif_vmap_free(cm->data_map);
 		kfree(cm);
@@ -82,38 +197,25 @@ void cpif_exit_netrx_mng(struct cpif_netrx_mng *cm)
 }
 EXPORT_SYMBOL(cpif_exit_netrx_mng);
 
-static DEFINE_PER_CPU(struct page_frag_cache, cpif_alloc_cache);
-
 struct cpif_addr_pair cpif_map_rx_buf(struct cpif_netrx_mng *cm,
 		unsigned int skb_padding_size)
 {
-	void *data;
+	void *data, *page_base;
 	struct cpif_addr_pair ret = {0, 0};
-	struct page_frag_cache *nc = this_cpu_ptr(&cpif_alloc_cache);
-	gfp_t gfp_mask = GFP_ATOMIC;
 
 	if (unlikely(!cm->data_map)) {
 		mif_err_limited("data map is not created yet\n");
 		goto done;
 	}
 
-	if (sk_memalloc_socks())
-		gfp_mask |= __GFP_MEMALLOC;
-
-	data = page_frag_alloc(nc, cm->max_packet_size, gfp_mask);
-	if (unlikely(!data)) {
-		mif_err_limited("page_frag_alloc failed\n");
+	data = cpif_alloc_recycling_page(cm);
+	if (!data) {
+		mif_err_limited("page recycling failed: return\n");
 		goto done;
-	}
+	} else
+		page_base = cpif_get_cur_recycling_page_base(cm);
 
-	if (unlikely(nc->size != PAGE_FRAG_CACHE_MAX_SIZE)) {
-		mif_err_limited("page frag size is not 32KB, cannot control vmap\n");
-		page_frag_free(nc->va);
-		page_frag_free(data);
-		goto done;
-	}
-
-	ret.cp_addr = cpif_vmap_map_area(cm->data_map, virt_to_phys(nc->va),
+	ret.cp_addr = cpif_vmap_map_area(cm->data_map, virt_to_phys(page_base),
 						virt_to_phys(data));
 	if (ret.cp_addr == 0) {  /* cp_addr cannot be allocated */
 		mif_err_limited("failed to vmap and get cp_addr\n");
@@ -142,8 +244,10 @@ void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 		ap_addr = phys_to_virt(ap_paddr);
 	}
 
-	if (ap_addr && free)
-		page_frag_free(ap_addr);
+	if (ap_addr && free) {
+		page_ref_dec(phys_to_page(ap_paddr & ~0x7FFF));
+		ap_addr = NULL;
+	}
 
 	return ap_addr; /* returns NULL or unmapped AP virtual address */
 }
