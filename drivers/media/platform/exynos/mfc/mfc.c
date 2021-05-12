@@ -805,6 +805,9 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	/* security ctrl */
 	of_property_read_u32(np, "security_ctrl", &pdata->security_ctrl);
 
+	/* Encoder min bit count control */
+	of_property_read_u32(np, "enc_min_bit_cnt", &pdata->enc_min_bit_cnt);
+
 	/* Encoder default parameter */
 	of_property_read_u32(np, "enc_param_num", &pdata->enc_param_num);
 	if (pdata->enc_param_num) {

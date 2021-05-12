@@ -51,6 +51,7 @@ static int mfc_transfer_to_rgb_format_ctrl[][2] = {
 	{ MFC_TRANSFER_HLG,		1},
 };
 
+void mfc_core_set_min_bit_count(struct mfc_core *core, struct mfc_ctx *ctx);
 void mfc_core_set_slice_mode(struct mfc_core *core, struct mfc_ctx *ctx);
 void mfc_core_set_aso_slice_order_h264(struct mfc_core *core,
 				struct mfc_ctx *ctx);

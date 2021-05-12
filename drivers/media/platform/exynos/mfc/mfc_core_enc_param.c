@@ -19,6 +19,22 @@
 #define CBR_I_LIMIT_MAX			5
 #define BPG_EXTENSION_TAG_SIZE		5
 
+void mfc_core_set_min_bit_count(struct mfc_core *core, struct mfc_ctx *ctx)
+{
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+	unsigned int reg = 0;
+
+	reg = MFC_CORE_RAW_READL(MFC_REG_E_BIT_COUNT_ENABLE);
+	mfc_clear_set_bits(reg, 0x1, 0, 1);
+	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_BIT_COUNT_ENABLE);
+
+	reg = MFC_CORE_RAW_READL(MFC_REG_E_MIN_BIT_COUNT);
+	if (p->rc_framerate)
+		mfc_clear_set_bits(reg, 0xFFFFFFFF, 0, ((3500 * 30) / p->rc_framerate));
+	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_MIN_BIT_COUNT);
+}
+
 void mfc_core_set_slice_mode(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -351,6 +367,7 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 	mfc_clear_bits(reg, 0x3, 0);
 	mfc_clear_bits(reg, 0x3, 4);
 	mfc_clear_bits(reg, 0xFF, 8);
+	enc->is_cbr_fix = 0;
 	if (p->rc_frame) {
 		if (p->rc_reaction_coeff <= CBR_I_LIMIT_MAX) {
 			mfc_set_bits(reg, 0x3, 0, MFC_REG_E_RC_CBR_I_LIMIT);
@@ -363,6 +380,7 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 				mfc_set_bits(reg, 0xFF, 8, p->ratio_intra);
 		} else if (p->rc_reaction_coeff <= CBR_FIX_MAX) {
 			mfc_set_bits(reg, 0x3, 0, MFC_REG_E_RC_CBR_FIX);
+			enc->is_cbr_fix = 1;
 		} else {
 			mfc_set_bits(reg, 0x3, 0, MFC_REG_E_RC_VBR);
 		}
