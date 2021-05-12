@@ -11,7 +11,7 @@ struct thermal_cooling_device *
 exynos_cpufreq_cooling_register(struct device_node *np, struct cpufreq_policy *policy);
 #else
 static inline struct thermal_cooling_device *
-exynos_cpufreq_cooling_register(struct device_node *np, struct cpufreq_policy *policy);
+exynos_cpufreq_cooling_register(struct device_node *np, struct cpufreq_policy *policy)
 {
 	return NULL;
 }
