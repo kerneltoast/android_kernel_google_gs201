@@ -4339,7 +4339,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 #endif
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
-	err = pktproc_create_ul(pdev, mld, cp_shmem_get_base(cp_num, SHMEM_PKTPROC_UL),
+	err = pktproc_create_ul(pdev, mld, cp_shmem_get_base(cp_num, SHMEM_PKTPROC),
 			cp_shmem_get_size(cp_num, SHMEM_PKTPROC_UL));
 	if (err < 0) {
 		mif_err("pktproc_create_ul() error %d\n", err);

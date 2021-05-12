@@ -115,13 +115,15 @@ struct pktproc_adaptor_ul {
 	unsigned long desc_rgn_offset;	/* Offset of descriptor region */
 	unsigned long desc_rgn_size;	/* Size of descriptor region */
 	unsigned long buff_rgn_offset;	/* Offset of data buffer region */
+	unsigned long buff_rgn_size;	/* Size of data buffer region */
 
 	u32 num_queue;		/* Number of queue */
 	u32 max_packet_size;	/* packet size pktproc UL can hold */
 	enum pktproc_end_bit_owner end_bit_owner;	/* owner to set end bit. AP:0, CP:1 */
 	u32 cp_quota;		/* max number of buffers cp allows us to transfer */
 	bool use_hw_iocc;	/* H/W IO cache coherency */
-	bool info_desc_rgn_cached;
+	bool info_rgn_cached;
+	bool desc_rgn_cached;
 	bool buff_rgn_cached;
 	bool padding_required;	/* requires extra length. (s5123 EVT1 only) */
 

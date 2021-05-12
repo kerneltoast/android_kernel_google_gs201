@@ -241,8 +241,10 @@ struct pktproc_adaptor {
 	u32 desc_rgn_offset;	/* Offset of descriptor region */
 	u32 desc_rgn_size;	/* Size of descriptor region */
 	u32 buff_rgn_offset;	/* Offset of data buffer region */
+	u32 buff_rgn_size;	/* Size of data buffer region */
 
-	bool info_desc_rgn_cached;
+	bool info_rgn_cached;
+	bool desc_rgn_cached;
 	bool buff_rgn_cached;
 
 	enum pktproc_desc_mode desc_mode;	/* Descriptor structure mode */

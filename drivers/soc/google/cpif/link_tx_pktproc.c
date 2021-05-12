@@ -314,19 +314,21 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 		struct device_node *np)
 {
-	mif_dt_read_u64(np, "pktproc_ul_cp_base", ppa_ul->cp_base);
+	mif_dt_read_u64(np, "pktproc_cp_base", ppa_ul->cp_base);
 	mif_dt_read_u32(np, "pktproc_ul_num_queue", ppa_ul->num_queue);
 	mif_dt_read_u32(np, "pktproc_ul_max_packet_size",
 			ppa_ul->max_packet_size);
 	mif_dt_read_u32(np, "pktproc_ul_use_hw_iocc", ppa_ul->use_hw_iocc);
-	mif_dt_read_u32(np, "pktproc_ul_info_desc_rgn_cached", ppa_ul->info_desc_rgn_cached);
+	mif_dt_read_u32(np, "pktproc_ul_info_rgn_cached", ppa_ul->info_rgn_cached);
+	mif_dt_read_u32(np, "pktproc_ul_desc_rgn_cached", ppa_ul->desc_rgn_cached);
 	mif_dt_read_u32(np, "pktproc_ul_buff_rgn_cached", ppa_ul->buff_rgn_cached);
 	mif_dt_read_u32(np, "pktproc_ul_padding_required",
 			ppa_ul->padding_required);
 	mif_info("cp_base:0x%08lx num_queue:%d max_packet_size:%d iocc:%d\n",
 		ppa_ul->cp_base, ppa_ul->num_queue, ppa_ul->max_packet_size, ppa_ul->use_hw_iocc);
-	mif_info("info/desc rgn cache: %d buff rgn cache: %d padding_required:%d\n",
-		ppa_ul->info_desc_rgn_cached, ppa_ul->buff_rgn_cached, ppa_ul->padding_required);
+	mif_info("cached: %d/%d/%d padding_required:%d\n", ppa_ul->info_rgn_cached,
+			ppa_ul->desc_rgn_cached, ppa_ul->buff_rgn_cached,
+			ppa_ul->padding_required);
 
 	mif_dt_read_u32(np, "pktproc_ul_info_rgn_offset",
 			ppa_ul->info_rgn_offset);
@@ -338,9 +340,11 @@ static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 			ppa_ul->desc_rgn_size);
 	mif_dt_read_u32(np, "pktproc_ul_buff_rgn_offset",
 			ppa_ul->buff_rgn_offset);
-	mif_info("info_rgn 0x%08x 0x%08x desc_rgn 0x%08x 0x%08x buff_rgn 0x%08x\n",
+	mif_dt_read_u32(np, "pktproc_ul_buff_rgn_size",
+			ppa_ul->buff_rgn_size);
+	mif_info("info_rgn 0x%08x 0x%08x desc_rgn 0x%08x 0x%08x buff_rgn 0x%08x 0x%08x\n",
 		ppa_ul->info_rgn_offset, ppa_ul->info_rgn_size,	ppa_ul->desc_rgn_offset,
-		ppa_ul->desc_rgn_size, ppa_ul->buff_rgn_offset);
+		ppa_ul->desc_rgn_size, ppa_ul->buff_rgn_offset, ppa_ul->buff_rgn_size);
 
 	return 0;
 }
@@ -364,7 +368,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		return -EINVAL;
 	}
 
-	mif_dt_read_u32_noerr(np, "pktproc_support_ul", ppa_ul->support);
+	mif_dt_read_u32_noerr(np, "pktproc_ul_support", ppa_ul->support);
 	if (!ppa_ul->support) {
 		mif_info("pktproc_support_ul is 0. Just return\n");
 		return 0;
@@ -377,23 +381,53 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		return ret;
 	}
 
+	if (!ppa_ul->use_hw_iocc && ppa_ul->info_rgn_cached) {
+		mif_err("cannot support sw iocc based caching on info region\n");
+		return -EINVAL;
+	}
+
+	if (!ppa_ul->use_hw_iocc && ppa_ul->desc_rgn_cached) {
+		mif_err("cannot support sw iocc based caching on desc region\n");
+		return -EINVAL;
+	}
+
+	if (!ppa_ul->use_hw_iocc && ppa_ul->buff_rgn_cached) {
+		mif_err("cannot support sw iocc based caching on buff region\n");
+		return -EINVAL;
+	}
+
 	/* Get base addr */
 	mif_info("memaddr:0x%lx memsize:0x%08x\n", memaddr, memsize);
-	if (ppa_ul->info_desc_rgn_cached)
-		ppa_ul->info_vbase = phys_to_virt(memaddr);
-	else
-		ppa_ul->info_vbase = cp_shmem_get_nc_region(memaddr,
-				ppa_ul->info_rgn_size + ppa_ul->desc_rgn_size);
-	if (!ppa_ul->info_vbase) {
-		mif_err("ppa->info_vbase error\n");
-		return -ENOMEM;
+
+	if (ppa_ul->info_rgn_cached)
+		ppa_ul->info_vbase = phys_to_virt(memaddr + ppa_ul->info_rgn_offset);
+	else {
+		ppa_ul->info_vbase = cp_shmem_get_nc_region(memaddr +
+				ppa_ul->info_rgn_offset, ppa_ul->info_rgn_size);
+		if (!ppa_ul->info_vbase) {
+			mif_err("ppa->info_vbase error\n");
+			return -ENOMEM;
+		}
 	}
-	ppa_ul->desc_vbase = ppa_ul->info_vbase + ppa_ul->info_rgn_size;
-	memset(ppa_ul->info_vbase, 0,
-			ppa_ul->info_rgn_size + ppa_ul->desc_rgn_size);
+
+	if (ppa_ul->desc_rgn_cached)
+		ppa_ul->desc_vbase = phys_to_virt(memaddr + ppa_ul->desc_rgn_offset);
+	else {
+		ppa_ul->desc_vbase = cp_shmem_get_nc_region(memaddr +
+				ppa_ul->desc_rgn_offset, ppa_ul->desc_rgn_size);
+		if (!ppa_ul->desc_vbase) {
+			mif_err("ppa->desc_vbase error\n");
+			return -ENOMEM;
+		}
+	}
+
+	memset(ppa_ul->info_vbase, 0, ppa_ul->info_rgn_size);
+	memset(ppa_ul->desc_vbase, 0, ppa_ul->desc_rgn_size);
+
 	mif_info("info + desc size:0x%08x\n",
 			ppa_ul->info_rgn_size + ppa_ul->desc_rgn_size);
-	buff_size = memsize - (ppa_ul->info_rgn_size + ppa_ul->desc_rgn_size);
+
+	buff_size = ppa_ul->buff_rgn_size;
 	buff_size_by_q = buff_size / ppa_ul->num_queue;
 	if (ppa_ul->buff_rgn_cached)
 		ppa_ul->buff_vbase =
@@ -504,8 +538,10 @@ create_error:
 	for (i = 0; i < ppa_ul->num_queue; i++)
 		kfree(ppa_ul->q[i]);
 
-	if (!ppa_ul->info_desc_rgn_cached && ppa_ul->info_vbase)
+	if (!ppa_ul->info_rgn_cached && ppa_ul->info_vbase)
 		vunmap(ppa_ul->info_vbase);
+	if (!ppa_ul->desc_rgn_cached && ppa_ul->desc_vbase)
+		vunmap(ppa_ul->desc_vbase);
 	if (!ppa_ul->buff_rgn_cached && ppa_ul->buff_vbase)
 		vunmap(ppa_ul->buff_vbase);
 
