@@ -784,6 +784,7 @@ static void exynos_ufs_set_nexus_t_task_mgmt(struct ufs_hba *hba,
 
 	switch (tm_func) {
 	case UFS_ABORT_TASK:
+		pixel_print_cmd_log(hba);
 	case UFS_QUERY_TASK:
 		type |= (1 << tag);
 		break;

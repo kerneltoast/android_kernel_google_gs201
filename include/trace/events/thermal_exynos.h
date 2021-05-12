@@ -115,15 +115,16 @@ TRACE_EVENT(thermal_exynos_power_gpu_limit,
 TRACE_EVENT(thermal_exynos_power_allocator,
 	TP_PROTO(struct thermal_zone_device *tz,
 		 u32 power_range, u32 max_allocatable_power,
-		 int current_temp, s32 delta_temp),
+		 int current_temp, s32 delta_temp, unsigned long cdev_state),
 	TP_ARGS(tz, power_range, max_allocatable_power,
-		current_temp, delta_temp),
+		current_temp, delta_temp, cdev_state),
 	TP_STRUCT__entry(
 		__field(int, tz_id)
 		__field(u32, power_range)
 		__field(u32, max_allocatable_power)
 		__field(int, current_temp)
 		__field(s32, delta_temp)
+		__field(unsigned long, cdev_state)
 	),
 	TP_fast_assign(
 		__entry->tz_id = tz->id;
@@ -131,25 +132,25 @@ TRACE_EVENT(thermal_exynos_power_allocator,
 		__entry->max_allocatable_power = max_allocatable_power;
 		__entry->current_temp = current_temp;
 		__entry->delta_temp = delta_temp;
+		__entry->cdev_state = cdev_state;
 	),
 
-	TP_printk("thermal_zone_id=%d power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d",
+	TP_printk("thermal_zone_id=%d power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d cdev_state=%lu",
 		  __entry->tz_id,
 		  __entry->power_range, __entry->max_allocatable_power,
-		  __entry->current_temp, __entry->delta_temp)
+		  __entry->current_temp, __entry->delta_temp, __entry->cdev_state)
 );
 
 TRACE_EVENT(thermal_exynos_power_allocator_pid,
 	TP_PROTO(struct thermal_zone_device *tz, s32 err, s32 err_integral,
-		 s64 p, s64 i, s64 d, s32 output),
-	TP_ARGS(tz, err, err_integral, p, i, d, output),
+		 s64 p, s64 i, s32 output),
+	TP_ARGS(tz, err, err_integral, p, i, output),
 	TP_STRUCT__entry(
 		__field(int, tz_id)
 		__field(s32, err)
 		__field(s32, err_integral)
 		__field(s64, p)
 		__field(s64, i)
-		__field(s64, d)
 		__field(s32, output)
 	),
 	TP_fast_assign(
@@ -158,13 +159,12 @@ TRACE_EVENT(thermal_exynos_power_allocator_pid,
 		__entry->err_integral = err_integral;
 		__entry->p = p;
 		__entry->i = i;
-		__entry->d = d;
 		__entry->output = output;
 	),
 
-	TP_printk("thermal_zone_id=%d err=%d err_integral=%d p=%lld i=%lld d=%lld output=%d",
+	TP_printk("thermal_zone_id=%d err=%d err_integral=%d p=%lld i=%lld output=%d",
 		  __entry->tz_id, __entry->err, __entry->err_integral,
-		  __entry->p, __entry->i, __entry->d, __entry->output)
+		  __entry->p, __entry->i, __entry->output)
 );
 
 TRACE_EVENT(thermal_cpu_pressure,

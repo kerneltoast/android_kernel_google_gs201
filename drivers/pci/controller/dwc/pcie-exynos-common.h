@@ -219,6 +219,7 @@ struct exynos_pcie {
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	struct s2mpu_info	*s2mpu;
 	struct pci_dev		*ep_pci_dev;
+	struct list_head	phys_mem_list;
 #endif
 	void __iomem		*elbi_base;
 	void __iomem		*phy_base;

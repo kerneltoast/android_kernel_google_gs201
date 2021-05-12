@@ -71,34 +71,35 @@ static struct exynos_pm_qos_request exynos_pcie_int_qos[MAX_RC_NUM];
 #endif
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
+
+struct phys_mem {
+	struct list_head list;
+	phys_addr_t start;
+	size_t size;
+	unsigned char *refcnt_array;
+};
+
 static const struct dma_map_ops gs101_pcie_dma_ops;
 static struct device fake_dma_dev;
-static unsigned char *s2mpu_refcnt_array;
 
 #define WIFI_CH_NUM     1
 #define ALIGN_SIZE	0x1000UL
-#define MEM1_START_ADDR	0x80000000UL
-#define MEM1_END_ADDR	0xffffffffUL
-#define MEM2_START_ADDR	0x880000000UL
-#define MEM2_END_ADDR	0x9ffffffffUL
-#define MEM2_INDEX_START ((MEM1_END_ADDR + 1 - MEM1_START_ADDR) / ALIGN_SIZE)
 #define REF_COUNT_UNDERFLOW 255
-#endif
 
-#if IS_ENABLED(CONFIG_GS_S2MPU)
-
-int s2mpu_get_refcnt_index(phys_addr_t addr)
+unsigned char *s2mpu_get_refcnt_ptr(struct exynos_pcie *exynos_pcie,
+				    phys_addr_t addr)
 {
-	int index = -1;
+	struct phys_mem *pm;
 
-	if (addr >= MEM1_START_ADDR && addr <= MEM1_END_ADDR) {
-		index = (addr - MEM1_START_ADDR) / ALIGN_SIZE;
-	} else if ((addr >= MEM2_START_ADDR) && (addr <= MEM2_END_ADDR)) {
-		index = MEM2_INDEX_START
-			+ ((addr - MEM2_START_ADDR) / ALIGN_SIZE);
+	/* Find the memory region the address falls into, then determine the
+	 * offset into the corresponding refcnt_array.
+	 */
+	list_for_each_entry(pm, &exynos_pcie->phys_mem_list, list) {
+		if (addr >= pm->start && addr < (pm->start + pm->size))
+			return pm->refcnt_array
+			       + (addr - pm->start) / ALIGN_SIZE;
 	}
-
-	return index;
+	return NULL;
 }
 
 void s2mpu_get_alignment(dma_addr_t addr, size_t size,
@@ -140,32 +141,26 @@ void s2mpu_update_refcnt(struct device *dev,
 	phys_addr_t align_addr;
 	size_t align_size;
 	unsigned char *refcnt_ptr;
-	int index;
 	int ret;
 	unsigned char refcnt;
 
 	/* Align to 4K as required by S2MPU */
 	s2mpu_get_alignment(dma_addr, size, &align_addr, &align_size);
 
-	/* Get the index into the ref count array used to keep track of
+	/* Get the pointer into the ref count array used to keep track of
 	 * the number of map and unmap calls for 4K blocks
 	 * needed by the S2MPU.
 	 * This is needed because there may be a few skbs within one 4K
 	 * aligned block and we need to ensure that we don't prematurely
 	 * disable access to this skb by calling s2mpu_close.
 	 */
-	index = s2mpu_get_refcnt_index(align_addr);
-
-	if (index < 0) {
-		/* TODO: b/187207508: Temporarily disable this log
+	refcnt_ptr = s2mpu_get_refcnt_ptr(exynos_pcie, align_addr);
+	if (!refcnt_ptr) {
 		dev_err(dev,
-			"index failed  addr=%pad, size=%zx\n",
+			"s2mpu refcnt_ptr failed addr=%pad, size=%zx\n",
 			&dma_addr, size);
-		*/
 		return;
 	}
-
-	refcnt_ptr = s2mpu_refcnt_array + index;
 
 	while (align_size != 0) {
 		if (incr) {
@@ -185,7 +180,7 @@ void s2mpu_update_refcnt(struct device *dev,
 			refcnt = s2mpu_get_and_modify(exynos_pcie, refcnt_ptr,
 						      false);
 			if (refcnt == REF_COUNT_UNDERFLOW) {
-				dev_err(dev, "Error underflow in refcount\n");
+				dev_err(dev, "s2mpu error underflow in refcount\n");
 				return;
 			}
 			if (refcnt == 0) {
@@ -199,7 +194,6 @@ void s2mpu_update_refcnt(struct device *dev,
 				}
 			}
 		}
-
 		align_addr += ALIGN_SIZE;
 		align_size -= ALIGN_SIZE;
 		refcnt_ptr++;
@@ -3883,6 +3877,88 @@ u32 pcie_linkup_stat(void)
 }
 EXPORT_SYMBOL_GPL(pcie_linkup_stat);
 
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+static int setup_s2mpu_mem(struct device *dev, struct exynos_pcie *exynos_pcie)
+{
+	struct device_node *np;
+	struct resource res;
+	struct phys_mem *pm;
+	phys_addr_t addr;
+	int ret;
+
+	/* Parse the memory nodes in the device tree to determine which areas
+	 * the s2mpu should protect.
+	 */
+
+	INIT_LIST_HEAD(&exynos_pcie->phys_mem_list);
+
+	for_each_node_by_type(np, "memory") {
+		ret = of_address_to_resource(np, 0, &res);
+		if (ret)
+			continue;
+
+		if (list_empty(&exynos_pcie->phys_mem_list)) {
+			pm = devm_kzalloc(dev, sizeof(*pm), GFP_KERNEL);
+			if (!pm)
+				return -ENOMEM;
+
+			pm->start = res.start;
+			pm->size = resource_size(&res);
+			list_add(&pm->list, &exynos_pcie->phys_mem_list);
+		} else {
+			/* To simplify the code, assume that memory regions
+			 * in the device tree are sorted in the descending
+			 * order. If this is not the case, abort.
+			 */
+			pm = list_last_entry(&exynos_pcie->phys_mem_list,
+					     struct phys_mem, list);
+			if (res.end > pm->start) {
+				dev_err(dev, "s2mpu memory sort invalid end=%pa start=%pa\n",
+					&res.end, &pm->start);
+				dev_err(dev, "This driver expects all DRAM ranges i.e. device tree nodes with device_type=\"memory\" to be defined in descending order in the device tree. Please change your device tree accordingly.\n");
+				return -EINVAL;
+			}
+
+			/* If two memory regions are consecutive, merge them. */
+			if (pm->start - res.end == 1) {
+				pm->start = res.start;
+				pm->size += resource_size(&res);
+			} else {
+				pm = devm_kzalloc(dev, sizeof(*pm), GFP_KERNEL);
+				if (!pm)
+					return -ENOMEM;
+
+				pm->start = res.start;
+				pm->size = resource_size(&res);
+				list_add_tail(&pm->list,
+					      &exynos_pcie->phys_mem_list);
+			}
+		}
+	}
+
+	list_for_each_entry(pm, &exynos_pcie->phys_mem_list, list) {
+		pm->refcnt_array = devm_kzalloc(dev, pm->size / SZ_4K,
+						GFP_KERNEL);
+		if (!pm->refcnt_array)
+			return -ENOMEM;
+
+		/* Optimize s2mpu operation by setting up 1G page tables */
+		addr = pm->start;
+		while (addr <  pm->start + pm->size) {
+			ret = s2mpu_close(exynos_pcie->s2mpu, addr, ALIGN_SIZE);
+			if (ret) {
+				dev_err(dev,
+					"probe s2mpu_close failed addr = 0x%pa\n",
+					&addr);
+			}
+			addr += SZ_1G;
+		}
+	}
+
+	return ret;
+}
+#endif
+
 static int exynos_pcie_rc_probe(struct platform_device *pdev)
 {
 	struct exynos_pcie *exynos_pcie;
@@ -3893,8 +3969,6 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	int ch_num;
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	struct device_node *s2mpu_dn;
-	phys_addr_t addr;
-	int gb_indx;
 #endif
 
 	dev_info(&pdev->dev, "## PCIe RC PROBE start\n");
@@ -3904,7 +3978,6 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(np, "ch-num", &ch_num)) {
 		dev_err(&pdev->dev, "Failed to parse the channel number\n");
-
 		return -EINVAL;
 	}
 
@@ -3948,10 +4021,6 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	s2mpu_dn = of_parse_phandle(np, "s2mpu", 0);
 	if (s2mpu_dn) {
-		s2mpu_refcnt_array = devm_kzalloc(&pdev->dev,
-						  8 * (SZ_1G / SZ_4K),
-						  GFP_KERNEL);
-
 		memcpy(&fake_dma_dev, &pdev->dev, sizeof(fake_dma_dev));
 		fake_dma_dev.dma_ops = NULL;
 
@@ -3961,27 +4030,13 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 			return -EPROBE_DEFER;
 		}
 
-		/* The following code is done to optimize S2MPU operation.
-		 * Changing s2mpu csr's at runtime, which would require a
-		 * spinlock and hence cause contention.
-		 * Performance cost of allocating new page tables at runtime.
-		 * TODO: Cleanup this implementation. b/186022538
-		 */
-
-		for (gb_indx = 0; gb_indx < 50; gb_indx++) {
-			if (gb_indx > 1 && gb_indx < 32) {
-				//Skip this region
-				continue;
-			}
-			addr = MEM1_START_ADDR + gb_indx * SZ_1G;
-			ret = s2mpu_close(exynos_pcie->s2mpu, addr, ALIGN_SIZE);
-			if (ret) {
-				dev_err(&pdev->dev,
-					"Initial s2mpu_close failed addr = 0x%pad\n",
-					&addr);
-			}
+		ret = setup_s2mpu_mem(&pdev->dev, exynos_pcie);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to bind to s2mpu\n");
+			goto probe_fail;
 		}
-		dev_err(&pdev->dev, "successfully bound to S2MPU\n");
+
+		dev_info(&pdev->dev, "successfully bound to S2MPU\n");
 	}
 #endif
 

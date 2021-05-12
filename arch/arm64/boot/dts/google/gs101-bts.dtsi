@@ -45,6 +45,10 @@
 			    "camera_default",
 			    "mfc_uhd_enc60";
 
+		rt-names = "DECON0",
+			   "csi",
+			   "ipp";
+
 		/* TREX_D_CORE */
 		bts_corem0{
 			#address-cells = <2>;

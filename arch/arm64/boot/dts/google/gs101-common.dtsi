@@ -337,6 +337,7 @@
 	ss_tune_param = <&usb_ss_tune>;
 	extcon = <&fusb307b>;
 
+	vdd_hsi-supply = <&m_ldo7_reg>;
 	vdd085-supply = <&m_ldo8_reg>;
 	vdd18-supply = <&m_ldo9_reg>;
 	vdd30-supply = <&m_ldo10_reg>;

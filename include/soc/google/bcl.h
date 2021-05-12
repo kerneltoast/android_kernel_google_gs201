@@ -13,13 +13,10 @@
 
 enum PMIC_THERMAL_SENSOR {
 	PMIC_SOC,
-	PMIC_120C,
-	PMIC_140C,
-	PMIC_OVERHEAT,
-	PMIC_THERMAL_SENSOR_MAX,
+	PMIC_SENSOR_MAX,
 };
 
-enum IRQ_SOURCE_S2MPG10 {
+enum TRIGGERED_SOURCE {
 	IRQ_SMPL_WARN,
 	IRQ_OCP_WARN_CPUCL1,
 	IRQ_OCP_WARN_CPUCL2,
@@ -27,16 +24,12 @@ enum IRQ_SOURCE_S2MPG10 {
 	IRQ_SOFT_OCP_WARN_CPUCL2,
 	IRQ_OCP_WARN_TPU,
 	IRQ_SOFT_OCP_WARN_TPU,
+	IRQ_OCP_WARN_GPU,
+	IRQ_SOFT_OCP_WARN_GPU,
 	IRQ_PMIC_120C,
 	IRQ_PMIC_140C,
 	IRQ_PMIC_OVERHEAT,
-	IRQ_SOURCE_S2MPG10_MAX,
-};
-
-enum IRQ_SOURCE_S2MPG11 {
-	IRQ_OCP_WARN_GPU,
-	IRQ_SOFT_OCP_WARN_GPU,
-	IRQ_SOURCE_S2MPG11_MAX,
+	IRQ_TRIGGERED_SOURCE_MAX,
 };
 
 enum PMIC_REG { S2MPG10, S2MPG11 };
@@ -67,25 +60,16 @@ struct gs101_bcl_dev {
 	struct mutex ratio_lock;
 	struct thermal_zone_device *soc_tzd;
 	struct thermal_zone_of_device_ops soc_ops;
-	struct mutex s2mpg10_irq_lock[IRQ_SOURCE_S2MPG10_MAX];
-	struct mutex s2mpg11_irq_lock[IRQ_SOURCE_S2MPG11_MAX];
-	struct delayed_work s2mpg10_irq_work[IRQ_SOURCE_S2MPG10_MAX];
-	struct delayed_work s2mpg11_irq_work[IRQ_SOURCE_S2MPG11_MAX];
-	struct thermal_zone_device *s2mpg10_tz_irq[IRQ_SOURCE_S2MPG10_MAX];
-	struct thermal_zone_device *s2mpg11_tz_irq[IRQ_SOURCE_S2MPG11_MAX];
+	struct mutex triggered_irq_lock[IRQ_TRIGGERED_SOURCE_MAX];
+	struct delayed_work triggered_irq_work[IRQ_TRIGGERED_SOURCE_MAX];
+	struct thermal_zone_device *triggered_tz_irq[IRQ_TRIGGERED_SOURCE_MAX];
 
-	unsigned int s2mpg10_lvl[IRQ_SOURCE_S2MPG10_MAX];
-	unsigned int s2mpg11_lvl[IRQ_SOURCE_S2MPG11_MAX];
-	unsigned int s2mpg10_irq[IRQ_SOURCE_S2MPG10_MAX];
-	unsigned int s2mpg11_irq[IRQ_SOURCE_S2MPG11_MAX];
-	int s2mpg10_counter[IRQ_SOURCE_S2MPG10_MAX];
-	int s2mpg11_counter[IRQ_SOURCE_S2MPG11_MAX];
-	int s2mpg10_pin[IRQ_SOURCE_S2MPG10_MAX];
-	int s2mpg11_pin[IRQ_SOURCE_S2MPG11_MAX];
-	atomic_t s2mpg10_cnt[IRQ_SOURCE_S2MPG10_MAX];
-	struct ocpsmpl_stats s2mpg10_stats[IRQ_SOURCE_S2MPG10_MAX];
-	atomic_t s2mpg11_cnt[IRQ_SOURCE_S2MPG11_MAX];
-	struct ocpsmpl_stats s2mpg11_stats[IRQ_SOURCE_S2MPG11_MAX];
+	unsigned int triggered_lvl[IRQ_TRIGGERED_SOURCE_MAX];
+	unsigned int triggered_irq[IRQ_TRIGGERED_SOURCE_MAX];
+	int triggered_counter[IRQ_TRIGGERED_SOURCE_MAX];
+	int triggered_pin[IRQ_TRIGGERED_SOURCE_MAX];
+	atomic_t triggered_cnt[IRQ_TRIGGERED_SOURCE_MAX];
+	struct ocpsmpl_stats triggered_stats[IRQ_TRIGGERED_SOURCE_MAX];
 
 	struct s2mpg10_dev *s2mpg10;
 	struct s2mpg11_dev *s2mpg11;

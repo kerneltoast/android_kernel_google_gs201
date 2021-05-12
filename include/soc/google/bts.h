@@ -63,6 +63,7 @@ struct bts_bw_stats {
  */
 struct bts_bw {
 	char *name;
+	bool is_rt;
 	unsigned int peak;
 	unsigned int read;
 	unsigned int write;

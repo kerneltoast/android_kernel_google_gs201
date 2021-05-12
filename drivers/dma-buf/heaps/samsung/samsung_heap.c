@@ -55,6 +55,20 @@ void heap_cache_flush(struct samsung_dma_buffer *buffer)
 	dma_unmap_sgtable(dev, &buffer->sg_table, DMA_FROM_DEVICE, 0);
 }
 
+void heap_sgtable_pages_clean(struct sg_table *sgt)
+{
+	struct sg_page_iter piter;
+	struct page *p;
+	void *vaddr;
+
+	for_each_sgtable_page(sgt, &piter, 0) {
+		p = sg_page_iter_page(&piter);
+		vaddr = kmap_atomic(p);
+		memset(vaddr, 0, PAGE_SIZE);
+		kunmap_atomic(vaddr);
+	}
+}
+
 /*
  * It should be called by physically contiguous buffer.
  */
@@ -317,9 +331,13 @@ static int __init samsung_dma_heap_init(void)
 {
 	int ret;
 
-	ret = cma_dma_heap_init();
+	ret = chunk_dma_heap_init();
 	if (ret)
 		return ret;
+
+	ret = cma_dma_heap_init();
+	if (ret)
+		goto err_cma;
 
 	ret = carveout_dma_heap_init();
 	if (ret)
@@ -334,6 +352,8 @@ err_system:
 	carveout_dma_heap_exit();
 err_carveout:
 	cma_dma_heap_exit();
+err_cma:
+	chunk_dma_heap_exit();
 
 	return ret;
 }
@@ -343,6 +363,7 @@ static void __exit samsung_dma_heap_exit(void)
 	system_dma_heap_exit();
 	carveout_dma_heap_exit();
 	cma_dma_heap_exit();
+	chunk_dma_heap_exit();
 }
 
 module_init(samsung_dma_heap_init);
