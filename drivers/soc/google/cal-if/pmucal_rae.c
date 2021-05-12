@@ -142,8 +142,9 @@ static inline void pmucal_rae_read(struct pmucal_seq *seq)
 
 static void pmucal_write_reg(phys_addr_t base_pa, void __iomem *base_va, u32 offset, u32 val)
 {
-	if ((base_pa >> 16) == 0x1746) {
-		/* TODO: temporary workaround. must remove. see b/169128860 */
+	/* TODO: we should get the base address prefix from device tree instead
+	   of hardcoding here. */
+	if (((base_pa >> 16) == 0x1746) || ((base_pa >> 16) == 0x1806)) {
 		int ret;
 
 		ret = set_priv_reg(base_pa + offset, val);
