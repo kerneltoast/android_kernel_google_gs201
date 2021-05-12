@@ -1207,6 +1207,9 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata
 			cs->cs_delay = 0;
 	}
 
+	cs->cs_init_state = 1;
+	of_property_read_u32(data_np, "cs-init-state", &cs->cs_init_state);
+
 	of_property_read_u32(data_np, "samsung,spi-feedback-delay", &fb_delay);
 	cs->fb_delay = fb_delay;
 
@@ -1257,8 +1260,9 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 	if (!spi_get_ctldata(spi)) {
 		if (cs->line != 0) {
-			err = gpio_request_one(cs->line, GPIOF_OUT_INIT_HIGH,
-					       dev_name(&spi->dev));
+			err = gpio_request_one(cs->line, cs->cs_init_state ?
+					GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
+					dev_name(&spi->dev));
 			if (err) {
 				dev_err(&spi->dev, "Failed to get /CS gpio [%d]: %d\n",
 					cs->line, err);
@@ -1325,8 +1329,8 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 		}
 	}
 
-	disable_cs(sdd, spi);
-
+	if (cs->cs_init_state)
+		disable_cs(sdd, spi);
 #ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&sdd->pdev->dev);
 	pm_runtime_put_autosuspend(&sdd->pdev->dev);
@@ -1344,7 +1348,8 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 setup_exit:
 	/* setup() returns with device de-selected */
-	disable_cs(sdd, spi);
+	if (cs->cs_init_state)
+		disable_cs(sdd, spi);
 
 	gpio_free(cs->line);
 	spi_set_ctldata(spi, NULL);

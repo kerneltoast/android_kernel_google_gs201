@@ -366,6 +366,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 	struct dwc3	*dwc = dotg->dwc;
 	struct device	*dev = dotg->dwc->dev;
 	struct dwc3_exynos *exynos = dotg->exynos;
+	static struct usb_gadget_driver *temp_gadget_driver;
 	int ret = 0;
 	int ret1 = -1;
 	int wait_counter = 0;
@@ -390,6 +391,10 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 				goto err1;
 			}
 		}
+
+		/* To ignore gadget operation, it set gadget_driver to NULL */
+		temp_gadget_driver = dwc->gadget_driver;
+		dwc->gadget_driver = NULL;
 
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
 		if (ret) {
@@ -429,6 +434,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 
 err2:
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
+		dwc->gadget_driver = temp_gadget_driver;
 	}
 err1:
 	return ret;

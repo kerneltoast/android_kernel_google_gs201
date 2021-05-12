@@ -117,6 +117,10 @@ static inline char *parse_opcode(u8 opcode)
 		return "WRITE_16";
 	case UNMAP:
 		return "UNMAP";
+	case ZBC_IN:
+		return "ZBC_IN";
+	case ZBC_OUT:
+		return "ZBC_OUT";
 	case SYNCHRONIZE_CACHE:
 		return "SYNC_CACHE";
 	}
@@ -177,6 +181,7 @@ struct pixel_ufs_stats {
 extern int pixel_init(struct ufs_hba *hba);
 extern void pixel_exit(struct ufs_hba *hba);
 extern void pixel_ufs_record_hibern8(struct ufs_hba *hba, bool is_enter_h8);
+extern void pixel_print_cmd_log(struct ufs_hba *hba);
 
 enum pixel_event_type {
 	EVENT_UNDEF = 0,
@@ -211,11 +216,15 @@ enum pixel_command_type {
 	/* scsi cmd */
 	CMD_SCSI_WRITE_10,
 	CMD_SCSI_READ_10,
+	CMD_SCSI_WRITE_16,
+	CMD_SCSI_READ_16,
 	CMD_SCSI_SYNC,
 	CMD_SCSI_UNMAP,
 	CMD_SCSI_SSU,
 	CMD_SCSI_PROTOCOL_IN,
 	CMD_SCSI_PROTOCOL_OUT,
+	CMD_SCSI_ZBC_IN,
+	CMD_SCSI_ZBC_OUT,
 	/* query cmd */
 	CMD_TYPE_MAX,
 };
@@ -226,8 +235,8 @@ struct pixel_cmd_log_entry {
 	u8  opcode;
 	u8  lun;
 	u8  idn;
-	u64 lba;
-	s32 transfer_len;
+	sector_t sector;
+	s32 affected_bytes;
 	u64 doorbell;
 	u64 outstanding_reqs;
 	u32 seq_num;

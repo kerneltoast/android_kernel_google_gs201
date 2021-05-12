@@ -47,9 +47,11 @@ static int buffer_protect_smc(struct device *dev, struct buffer_prot_info *protd
 		dma_unmap_single(dev, phys_to_dma(dev, virt_to_phys(protdesc)), sizeof(*protdesc),
 				 DMA_TO_DEVICE);
 		secure_iova_free(dma_addr, size);
-		perr("CMD %#x (err=%#lx,va=%#x,len=%#lx,cnt=%u,flg=%u)",
-		     SMC_DRM_PPMP_PROT, ret, protdesc->dma_addr, size,
-		     protdesc->chunk_count, protdesc->flags);
+
+		perr("CMD %#x (err=%#lx,dva=%#x,size=%#lx,cnt=%u,flg=%u,phy=%#lx)",
+		     SMC_DRM_PPMP_PROT, ret, protdesc->dma_addr,
+		     protdesc->chunk_size, protdesc->chunk_count,
+		     protdesc->flags, protdesc->bus_address);
 		return -EACCES;
 	}
 
@@ -68,9 +70,10 @@ static int buffer_unprotect_smc(struct device *dev,
 			 DMA_TO_DEVICE);
 
 	if (ret) {
-		perr("CMD %#x (err=%#lx,va=%#x,len=%#lx,cnt=%u,flg=%u)",
+		perr("CMD %#x (err=%#lx,dva=%#x,size=%#lx,cnt=%u,flg=%u,phy=%#lx)",
 		     SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
-		     size, protdesc->chunk_count, protdesc->flags);
+		     protdesc->chunk_size, protdesc->chunk_count,
+		     protdesc->flags, protdesc->bus_address);
 		return -EACCES;
 	}
 
@@ -84,26 +87,38 @@ static int buffer_unprotect_smc(struct device *dev,
 	return 0;
 }
 
-void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int size,
-				 unsigned long phys)
+void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chunk_size,
+				 unsigned int nr_pages, unsigned long paddr)
 {
+	struct device *dev = dma_heap_get_dev(heap->dma_heap);
 	struct buffer_prot_info *protdesc;
 	unsigned int protalign = heap->alignment;
+	unsigned int array_size = 0;
 	int ret;
 
 	protdesc = kmalloc(sizeof(*protdesc), GFP_KERNEL);
 	if (!protdesc)
 		return ERR_PTR(-ENOMEM);
 
-	protdesc->chunk_count = 1;
+	protdesc->chunk_count = nr_pages;
 	protdesc->flags = heap->protection_id;
-	protdesc->chunk_size = ALIGN(size, protalign);
-	protdesc->bus_address = phys;
+	protdesc->chunk_size = ALIGN(chunk_size, protalign);
+	protdesc->bus_address = paddr;
 
-	ret = buffer_protect_smc(dma_heap_get_dev(heap->dma_heap), protdesc, protalign);
+	if (protdesc->chunk_count > 1) {
+		void *vaddr = phys_to_virt(paddr);
+
+		array_size = sizeof(paddr) * nr_pages;
+
+		kmemleak_ignore(vaddr);
+		dma_map_single(dev, vaddr, array_size, DMA_TO_DEVICE);
+	}
+
+	ret = buffer_protect_smc(dev, protdesc, protalign);
 	if (ret) {
-		perr("protection failure (id%u,len%u,base%#lx,align%#x",
-		     heap->protection_id, size, phys, protalign);
+		if (protdesc->chunk_count > 1)
+			dma_unmap_single(dev, phys_to_dma(dev, paddr), array_size, DMA_TO_DEVICE);
+
 		kfree(protdesc);
 		return ERR_PTR(ret);
 	}
@@ -116,10 +131,15 @@ int samsung_dma_buffer_unprotect(void *priv, struct device *dev)
 	struct buffer_prot_info *protdesc = priv;
 	int ret = 0;
 
-	if (priv) {
-		ret = buffer_unprotect_smc(dev, protdesc);
-		kfree(protdesc);
-	}
+	if (!priv)
+		return 0;
+
+	if (protdesc->chunk_count > 1)
+		dma_unmap_single(dev, phys_to_dma(dev, protdesc->bus_address),
+				 sizeof(unsigned long) * protdesc->chunk_count, DMA_TO_DEVICE);
+
+	ret = buffer_unprotect_smc(dev, protdesc);
+	kfree(protdesc);
 
 	return ret;
 }

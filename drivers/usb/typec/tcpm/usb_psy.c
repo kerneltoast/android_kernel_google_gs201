@@ -24,6 +24,7 @@
 #define ONLINE_THRESHOLD_UA 125000
 
 #define CDP_DCP_ICL_UA 1500000
+#define SDP_DISCONNECT 0
 #define SDP_SUSPEND_UA 2500
 #define SDP_HS_CONN_UA 100000
 #define SDP_HS_CONFIG_UA 500000
@@ -177,6 +178,11 @@ static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
 			init_vote(&vote, proto_voter_reason[USB_SUSPEND_UNCFG],
 				  USB_SUSPEND_UNCFG, ua);
 		}
+		break;
+	case SDP_DISCONNECT:
+		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_CONFIGURED) | BIT(USB_SUSPEND);
+		/* Set to SDP_HS_CONN_UA for USB Gadget Reset */
+		init_vote(&vote, proto_voter_reason[BC12_SDP], BC12_SDP, SDP_HS_CONN_UA);
 		break;
 	case SDP_HS_CONN_UA:
 	case SDP_SS_CONN_UA:

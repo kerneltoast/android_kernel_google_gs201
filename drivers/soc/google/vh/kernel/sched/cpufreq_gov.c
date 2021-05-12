@@ -22,6 +22,7 @@ struct sugov_tunables {
 	struct gov_attr_set	attr_set;
 	unsigned int		up_rate_limit_us;
 	unsigned int		down_rate_limit_us;
+	unsigned int		down_rate_limit_scale_pow;
 };
 
 struct sugov_policy {
@@ -35,6 +36,7 @@ struct sugov_policy {
 	s64			min_rate_limit_ns;
 	s64			up_rate_delay_ns;
 	s64			down_rate_delay_ns;
+	unsigned int		down_rate_limit_scale_pow;
 	unsigned int		next_freq;
 	unsigned int		cached_raw_freq;
 	unsigned int		prev_cached_raw_freq;
@@ -226,6 +228,8 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 				     unsigned int next_freq)
 {
 	s64 delta_ns;
+	unsigned long comp;
+	int i;
 
 	delta_ns = time - sg_policy->last_freq_update_time;
 
@@ -238,10 +242,15 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 	 * Here consider the ratio of freq change e.g. selecting larger rate limit
 	 * when freq changed dramatically and smaller rate limit for the opposite.
 	 * here for simple, rate_limit = down_rate_delay_ns * new_freq / old_freq
+	 * Also we are not going to update update_min_rate_limit_ns, so the minimal
+	 * rate limit is still the min(down_rate_delay_ns, up_rate_delay_ns).
 	 */
-	if (next_freq < sg_policy->next_freq &&
-		delta_ns * sg_policy->next_freq < sg_policy->down_rate_delay_ns * next_freq)
-			return true;
+	comp = sg_policy->down_rate_delay_ns * next_freq;
+	for (i = 0; i < sg_policy->down_rate_limit_scale_pow - 1; i++) {
+		comp = comp / sg_policy->next_freq * next_freq;
+	}
+	if (next_freq < sg_policy->next_freq && delta_ns * sg_policy->next_freq < comp)
+		return true;
 
 	return false;
 }
@@ -830,9 +839,41 @@ static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set, const cha
 
 static struct governor_attr down_rate_limit_us = __ATTR_RW(down_rate_limit_us);
 
+static ssize_t down_rate_limit_scale_pow_show(struct gov_attr_set *attr_set, char *buf)
+{
+	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", tunables->down_rate_limit_scale_pow);
+}
+
+static ssize_t down_rate_limit_scale_pow_store(struct gov_attr_set *attr_set, const char *buf,
+					size_t count)
+{
+	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
+	struct sugov_policy *sg_policy;
+	unsigned int down_rate_limit_scale_pow;
+
+	if (kstrtouint(buf, 10, &down_rate_limit_scale_pow))
+		return -EINVAL;
+
+	if (!down_rate_limit_scale_pow)
+		return -EINVAL;
+
+	tunables->down_rate_limit_scale_pow = down_rate_limit_scale_pow;
+
+	list_for_each_entry(sg_policy, &attr_set->policy_list, tunables_hook) {
+		sg_policy->down_rate_limit_scale_pow = down_rate_limit_scale_pow;
+	}
+
+	return count;
+}
+
+static struct governor_attr down_rate_limit_scale_pow = __ATTR_RW(down_rate_limit_scale_pow);
+
 static struct attribute *sugov_attrs[] = {
 	&up_rate_limit_us.attr,
 	&down_rate_limit_us.attr,
+	&down_rate_limit_scale_pow.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(sugov);
@@ -985,6 +1026,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 
 	tunables->up_rate_limit_us = cpufreq_policy_transition_delay_us(policy);
 	tunables->down_rate_limit_us = cpufreq_policy_transition_delay_us(policy);
+	tunables->down_rate_limit_scale_pow = 1;
 
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
@@ -1054,6 +1096,8 @@ static int sugov_start(struct cpufreq_policy *policy)
 	sg_policy->down_rate_delay_ns =
 		sg_policy->tunables->down_rate_limit_us * NSEC_PER_USEC;
 	update_min_rate_limit_ns(sg_policy);
+	sg_policy->down_rate_limit_scale_pow =
+		sg_policy->tunables->down_rate_limit_scale_pow;
 	sg_policy->last_freq_update_time	= 0;
 	sg_policy->next_freq			= 0;
 	sg_policy->work_in_progress		= false;

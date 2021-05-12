@@ -28,6 +28,7 @@
 #define BUS_WIDTH 16
 #define MIF_UTIL 65
 #define INT_UTIL 65
+#define RT_UTIL 40
 
 #define DEFAULT_QOS 0x4
 #define MAX_QOS 0xF
@@ -72,12 +73,14 @@ struct bts_device {
 	unsigned int num_bts;
 	unsigned int num_scen;
 	unsigned int top_scen;
+	unsigned int num_rts;
 
 	struct bts_info *bts_list;
 	struct bts_scen *scen_list;
 	struct list_head scen_node;
 
 	struct bts_bw *bts_bw;
+	const char **rt_names;
 	unsigned int peak_bw;
 	unsigned int total_bw;
 	struct bus1_int_map *bus1_int_tbl;

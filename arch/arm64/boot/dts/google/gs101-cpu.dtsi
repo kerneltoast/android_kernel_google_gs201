@@ -283,8 +283,7 @@
 			use-em-coeff;
 
 			dm-constraints {
-				list = <&med_mif_perf>,
-					<&med_ank_perf>,
+				list = <&med_ank_perf>,
 					<&med_dsu_skew>;
 			};
 		};
@@ -304,85 +303,13 @@
 			use-em-coeff;
 
 			dm-constraints {
-				list = <&big_mif_perf>,
-					<&big_dsu_skew>;
+				list = <&big_dsu_skew>;
 			};
 		};
 	};
 
 	dm-tables {
 		lit_mif_perf: dm-table@0000 {
-			const-type = <CONSTRAINT_MIN>;
-			dm-constraint = <DM_MIF>;
-			driver-cal-id = <ACPM_DVFS_CPUCL0>;
-			constraint-cal-id = <ACPM_DVFS_MIF>;
-
-				/* CL0    MIF */
-			table = < 2024000 1539000
-				  1950000 1539000
-				  1803000 1539000
-				  1704000 1539000
-				  1598000 1539000
-				  1459000 1539000
-				  1328000 1352000
-				  1197000 1352000
-				  1098000 1014000
-				  889000  845000
-				  738000  546000
-				  574000  546000
-				  300000  421000 >;
-		};
-		med_mif_perf: dm-table@0001 {
-			const-type = <CONSTRAINT_MIN>;
-			dm-constraint = <DM_MIF>;
-			driver-cal-id = <ACPM_DVFS_CPUCL1>;
-			constraint-cal-id = <ACPM_DVFS_MIF>;
-
-				/* CL1    MIF */
-			table = < 2348000 1716000
-				  2253000 1716000
-				  2130000 1716000
-				  1999000 1716000
-				  1836000 1716000
-				  1663000 1716000
-				  1491000 1539000
-				  1328000 1539000
-				  1197000 1352000
-				  1024000 1352000
-				  910000  1014000
-				  799000  845000
-				  696000  546000
-				  553000  546000
-				  400000  421000 >;
-		};
-		big_mif_perf: dm-table@0002 {
-			const-type = <CONSTRAINT_MIN>;
-			dm-constraint = <DM_MIF>;
-			driver-cal-id = <ACPM_DVFS_CPUCL2>;
-			constraint-cal-id = <ACPM_DVFS_MIF>;
-
-				/* CL2    MIF */
-			table = < 3195000 2730000
-				  3097000 2730000
-				  2999000 2730000
-				  2900000 2730000
-				  2802000 2730000
-				  2704000 2730000
-				  2630000 2730000
-				  2507000 2730000
-				  2401000 2535000
-				  2302000 2535000
-				  2188000 2288000
-				  2048000 2288000
-				  1901000 2028000
-				  1745000 1716000
-				  1582000 1716000
-				  1426000 1539000
-				  1237000 1352000
-				  1106000 1352000
-				  984000  1014000
-				  848000  845000
-				  500000  546000 >;
 		};
 		med_ank_perf: dm-table@0003 {
 			const-type = <CONSTRAINT_MIN>;

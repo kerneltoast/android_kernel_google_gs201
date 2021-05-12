@@ -206,7 +206,7 @@
 				power-down-seq-delays-us =
 					<1000
 					 1000
-					 1000
+					 2000
 					 1000
 					 1000>;
 			};
@@ -497,7 +497,7 @@
 					"regulator",
 					"regulator";
 				power-down-seq-delays-us =
-					<1000
+					<2000
 					 1000
 					 1000>;
 			};
@@ -675,7 +675,7 @@
 					"regulator",
 					"regulator";
 				power-down-seq-delays-us =
-					<1000
+					<2000
 					 1000
 					 1000>;
 			};
@@ -777,7 +777,7 @@
 					"regulator",
 					"regulator";
 				power-down-seq-delays-us =
-					<1000
+					<2000
 					 1000
 					 1000>;
 			};

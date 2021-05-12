@@ -54,6 +54,7 @@ extern const struct dma_buf_ops samsung_dma_buf_ops;
 	struct dma_buf_export_info name = { .exp_name = heap_name, \
 					 .owner = THIS_MODULE }
 
+void heap_sgtable_pages_clean(struct sg_table *sgt);
 void heap_cache_flush(struct samsung_dma_buffer *buffer);
 void heap_page_clean(struct page *pages, unsigned long size);
 struct samsung_dma_buffer *samsung_dma_buffer_alloc(struct samsung_dma_heap *samsung_dma_heap,
@@ -121,12 +122,13 @@ struct buffer_prot_info {
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
-				 unsigned int size, unsigned long phys);
+void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chunk_size,
+				 unsigned int nr_pages, unsigned long paddr);
 int samsung_dma_buffer_unprotect(void *priv, struct device *dev);
 #else
 static inline void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
-					       unsigned int size, unsigned long phys)
+					       unsigned int chunk_size, unsigned int nr_pages,
+					       unsigned long paddr)
 {
 	return NULL;
 }
@@ -171,6 +173,18 @@ static inline int __init carveout_dma_heap_init(void)
 }
 
 #define carveout_dma_heap_exit() do { } while (0)
+#endif
+
+#if defined(CONFIG_DMABUF_HEAPS_SAMSUNG_CHUNK)
+int __init chunk_dma_heap_init(void);
+void chunk_dma_heap_exit(void);
+#else
+static inline int __init chunk_dma_heap_init(void)
+{
+	return 0;
+}
+
+#define chunk_dma_heap_exit() do { } while (0)
 #endif
 
 #define DMAHEAP_PREFIX "[Exynos][DMA-HEAP] "

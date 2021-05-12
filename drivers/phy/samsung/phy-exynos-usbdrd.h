@@ -172,6 +172,7 @@ struct exynos_usbdrd_phy {
 	bool use_phy_umux;
 	struct clk *ref_clk;
 	struct regulator *vbus;
+	struct regulator *vdd_hsi;
 	struct regulator *vdd085;
 	struct regulator *vdd18;
 	struct regulator *vdd30;
