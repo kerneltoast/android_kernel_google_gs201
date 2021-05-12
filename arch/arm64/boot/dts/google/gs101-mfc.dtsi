@@ -94,6 +94,9 @@
 		/* FW base security ctrl */
 		/* security_ctrl is set in gs101-a0.dts and gs101-b0.dts */
 
+		/* Encoder min bit count control */
+		enc_min_bit_cnt = <1>;
+
 		/* Encoder default parameter: max number is 100 */
 		enc_param_num = <25>;
 		enc_param_addr = <0xF7B4 0xF7B8 0xF7B0 0xF798 0xFA2C
