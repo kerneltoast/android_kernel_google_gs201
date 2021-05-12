@@ -35,7 +35,6 @@ struct cpif_va_mapper *cpif_vmap_create(u64 va_start, u64 va_size, u64 item_size
 	}
 
 skip_kfifo:
-	cpif_sysmmu_all_buff_free();
 	cpif_sysmmu_enable();
 
 	return vmap;

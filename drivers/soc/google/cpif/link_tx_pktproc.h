@@ -9,6 +9,9 @@
 
 #include <linux/skbuff.h>
 #include "link_device_memory.h"
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
+#include "cpif_vmapper.h"
+#endif
 
 /* Numbers */
 #define PKTPROC_HIPRIO_UL	0
@@ -126,7 +129,10 @@ struct pktproc_adaptor_ul {
 	bool desc_rgn_cached;
 	bool buff_rgn_cached;
 	bool padding_required;	/* requires extra length. (s5123 EVT1 only) */
-
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
+	struct cpif_va_mapper *desc_map;
+	struct cpif_va_mapper *buff_map;
+#endif
 	void __iomem *info_vbase;	/* I/O region for information */
 	void __iomem *desc_vbase;	/* I/O region for descriptor */
 	void __iomem *buff_vbase;	/* I/O region for data buffer */
