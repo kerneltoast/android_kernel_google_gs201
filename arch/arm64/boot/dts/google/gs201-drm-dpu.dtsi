@@ -170,8 +170,6 @@
 	};
 
 	drmdsim0: drmdsim@0x1C2C0000 {
-		status = "disabled";
-
 		compatible = "samsung,exynos-dsim";
 		reg = <0x0 0x1C2C0000 0x300>,	/* DSI */
 		      <0x0 0x1C2E0100 0x700>,	/* M4M4S0 PHY */
@@ -203,6 +201,8 @@
 	};
 
 	drmdsim1: drmdsim@0x1C2D0000 {
+		status = "disabled";
+
 		compatible = "samsung,exynos-dsim";
 		reg = <0x0 0x1C2D0000 0x300>,	/* DSI */
 		      <0x0 0x1C2E0900 0x700>,	/* M4M4S0 PHY */
@@ -301,7 +301,7 @@
 		 */
 		connector = <0x1 0x2 0x8>;
 
-		hibernation;
+		/* hibernation; */
 	};
 
 	drmdecon1: drmdecon@0x1C241000 {
@@ -373,7 +373,7 @@
 		 */
 		connector = <0x1 0x2 0x8>;
 
-		hibernation;
+		/* hibernation; */
 	};
 
 	drmdecon2: drmdecon@0x1C242000 {

@@ -11,3 +11,4 @@
 };
 
 #include "gs201.dtsi"
+#include "gs201-cloudripper-display.dtsi"

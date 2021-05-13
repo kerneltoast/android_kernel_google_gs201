@@ -11,10 +11,10 @@
 	#size-cells = <0>;
 
 	panel@0 {
-		compatible = "samsung,s6e3hc2";
-		label = "samsung-s6e3hc2";
+		compatible = "samsung,s6e3hc2-fhd";
+		label = "samsung-s6e3hc2-fhd";
 		channel = <0>;
-		touch = <&spitouch>;
+		/* touch = <&spitouch>; */
 
 		/* reset, power */
 		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
@@ -43,7 +43,7 @@
 		channel = <0>;
 
 		/* reset, power */
-		reset-gpios = <&gpa23 0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
 		/* TODO(b/186552796): Update when regulator support is added */
 		/* need to check with pmic */
 		/* vci-supply = <&m_ldo27_reg>; */
@@ -55,7 +55,7 @@
 		channel = <0>;
 
 		/* reset, power */
-		reset-gpios = <&gpa23 0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
 	};
 };
 
