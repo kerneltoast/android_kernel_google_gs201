@@ -51,7 +51,17 @@ config VH_THERMAL
         default m
 
 config VH_FS
-	tristate "Vendor hooks for filesystem"
+        tristate "Vendor hooks for filesystem"
+        depends on VH_KERNEL
+        default m
+
+config VH_CGROUP
+        tristate "Vendor hooks for cgroup"
+        depends on VH_KERNEL
+        default m
+
+config VH_I2C
+	tristate "Vendor hooks for i2c subsystems"
 	depends on VH_KERNEL
 	default m
 

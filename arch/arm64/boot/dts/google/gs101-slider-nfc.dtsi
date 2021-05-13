@@ -25,6 +25,7 @@
 	st21nfc@08 {
 		compatible = "st,st21nfc";
 		reg = <0x08>;
+		dev-name = "st21nfc";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&nfc_rst>;

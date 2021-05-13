@@ -177,7 +177,7 @@ int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
 
 	snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
 		"MFC-%d SysMMU PAGE FAULT at %pK (AxID: %#x)\n",
-		core->id, (unsigned int)(fault->event.addr), trans_info);
+		core->id, (unsigned int)(fault->event.addr), core->logging_data->fault_trans_info);
 	mfc_core_err("%s", core->crash_info);
 	MFC_TRACE_CORE("%s", core->crash_info);
 

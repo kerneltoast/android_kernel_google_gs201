@@ -954,6 +954,7 @@
 		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
+		samsung,uart-logging;
 		#address-cells = <0x00000001>;
 		#size-cells = <0x00000000>;
 		pinctrl-names = "default";

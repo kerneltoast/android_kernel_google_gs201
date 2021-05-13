@@ -7,5 +7,6 @@
  */
 
 #include "gs101-raven.dtsi"
+#include "gs101-raviole-fingerprint-evt.dtsi"
 #include "gs101-raviole-thermal-evt.dtsi"
 
