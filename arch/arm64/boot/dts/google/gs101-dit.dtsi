@@ -33,9 +33,11 @@
 		dit_use_tx = <1>;
 		dit_use_rx = <1>;
 		dit_use_clat = <0>;
-		dit_hal_linked = <1>;
-		dit_rx_extra_desc_ring_len = <2048>;
 
+		dit_hal_support = <1>;
+		dit_hal_enqueue_rx = <0>;
+
+		dit_rx_extra_desc_ring_len = <2048>;
 		dit_irq_affinity = <2>;
 	};
 };
