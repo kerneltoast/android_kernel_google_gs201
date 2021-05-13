@@ -127,7 +127,7 @@ typedef u32 sysmmu_pte_t;
 
 #define SPAGES_PER_LPAGE	(LPAGE_SIZE / SPAGE_SIZE)
 
-#define NUM_LV1ENTRIES	4096
+#define NUM_LV1ENTRIES	65536
 #define NUM_LV2ENTRIES (SECT_SIZE / SPAGE_SIZE)
 #define LV1TABLE_SIZE (NUM_LV1ENTRIES * sizeof(sysmmu_pte_t))
 #define LV2TABLE_SIZE (NUM_LV2ENTRIES * sizeof(sysmmu_pte_t))
