@@ -18,6 +18,6 @@
 	max77759,lsw1-is_closed = <&max20339_gpio 6 GPIO_ACTIVE_HIGH>;
 	max77759,vin-is_valid =  <&max20339_gpio 3 GPIO_ACTIVE_HIGH>;
 
-	max77759,cpout-en =  <&p9412_gpio 1 GPIO_ACTIVE_HIGH>;
-	max77759,cpout-ctl =  <&p9412_gpio 3 GPIO_ACTIVE_HIGH>;
+	max77759,cpout-en =  <&p9xxx_gpio 1 GPIO_ACTIVE_HIGH>;
+	max77759,cpout-ctl =  <&p9xxx_gpio 3 GPIO_ACTIVE_HIGH>;
 };

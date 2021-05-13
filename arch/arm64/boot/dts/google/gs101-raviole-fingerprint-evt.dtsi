@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Goodix fps differences between Raviole EVT1.1 and Raviole EVT.
+ *
+ * Copyright 2021 Google,LLC.
+ */
+
+&goodixfp {
+	interrupt-parent = <&gpa6>;
+	interrupts = <7 0>;
+	fp-gpio-irq = <&gpa6 7 GPIO_ACTIVE_HIGH>;
+};

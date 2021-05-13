@@ -505,10 +505,6 @@ void exynos_etm_trace_start(void)
 {
 	char *buf;
 
-	buf = devm_kzalloc(ee_info->dev, PAGE_SIZE, GFP_KERNEL);
-	if (!buf)
-		return;
-
 	if (!ee_info->enabled || ee_info->status)
 		return;
 
@@ -516,6 +512,10 @@ void exynos_etm_trace_start(void)
 		dev_err(ee_info->dev, "SJTAG enabled\n");
 		return;
 	}
+
+	buf = devm_kzalloc(ee_info->dev, PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return;
 
 	ee_info->status = true;
 
@@ -535,10 +535,6 @@ void exynos_etm_trace_stop(void)
 {
 	char *buf;
 
-	buf = devm_kzalloc(ee_info->dev, PAGE_SIZE, GFP_KERNEL);
-	if (!buf)
-		return;
-
 	if (!ee_info->status)
 		return;
 
@@ -546,6 +542,10 @@ void exynos_etm_trace_stop(void)
 		dev_err(ee_info->dev, "SJTAG enabled\n");
 		return;
 	}
+
+	buf = devm_kzalloc(ee_info->dev, PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return;
 
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 	exynos_etm_etr_disable();

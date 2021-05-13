@@ -13,6 +13,7 @@
  */
 #define ORIOLE_EVT_WINGBOARD 1
 #include "gs101-raven.dtsi"
+#include "gs101-raviole-fingerprint-evt.dtsi"
 #include "gs101-raviole-thermal-evt.dtsi"
 #include "gs101-oriole-camera.dtsi"
 #include "gs101-oriole-camera-pmic.dtsi"

@@ -130,7 +130,6 @@ struct odpm_chip {
 	s2mpg1x_ext_samp_rate ext_config_sampling_rate_i;
 
 	/* Data */
-	u64 acc_timestamp_offset;
 	u64 acc_timestamp;
 	s2mpg1x_int_samp_rate int_sampling_rate_i;
 	s2mpg1x_ext_samp_rate ext_sampling_rate_i;
@@ -189,16 +188,6 @@ static void odpm_print_new_sampling_rate(struct odpm_info *info, int ret,
 static u64 odpm_get_timestamp_now_ms(void)
 {
 	return ktime_get_boottime_ns() / 1000000;
-}
-
-static u64 odpm_get_timestamp_offset_ms(struct odpm_info *info)
-{
-	u64 time_ms_raw = odpm_get_timestamp_now_ms();
-
-	if (time_ms_raw >= info->chip.acc_timestamp_offset)
-		return time_ms_raw - info->chip.acc_timestamp_offset;
-	else
-		return 0;
 }
 
 static int odpm_io_set_channel(struct odpm_info *info, int channel)
@@ -345,10 +334,20 @@ int odpm_configure_start_measurement(struct odpm_info *info)
 
 	info->jiffies_last_poll = jiffies_capture;
 
-	/* This timestamp becomes the offset (to match measurement start ms) */
-	info->chip.acc_timestamp_offset = odpm_get_timestamp_now_ms();
+	pr_info("odpm: Starting at timestamp (ms): %ld\n",
+		odpm_get_timestamp_now_ms());
 
-	/* Initialize boot measurement time to 0 */
+	/* Initialize boot measurement time to 0. This means that there will be
+	 * some amount of time from boot where power measurements are not
+	 * accounted for, because the driver needs to load and wait for the
+	 * HAL to initialize (and send "CONFIG_COMPLETE"). Therefore, the true
+	 * measurement duration will be incorrect at boot (duration = boot
+	 * timestamp - start time), since we don't start truly measuring power
+	 * until the HAL starts.
+	 *
+	 * The approximate unaccounted time was measured to be ~ 15s when this
+	 * commit was created.
+	 */
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
 		if (info->channels[ch].enabled)
 			info->channels[ch].measurement_start_ms = 0;
@@ -846,7 +845,7 @@ static int odpm_refresh_registers(struct odpm_info *info)
 	SWITCH_METER_FUNC(info, meter_load_measurement, S2MPG1X_METER_POWER,
 			  acc_data, &acc_count,
 			  &jiffies_after_async);
-	measurement_timestamp_ms = odpm_get_timestamp_offset_ms(info);
+	measurement_timestamp_ms = odpm_get_timestamp_now_ms();
 
 	if (ret < 0) {
 		pr_err("odpm: %s: i2c error; count not measure interval\n",
@@ -1284,7 +1283,7 @@ static ssize_t enabled_rails_store(struct device *dev,
 
 		/* Record measurement start time / reset stop time */
 		info->channels[channel].measurement_start_ms =
-			odpm_get_timestamp_offset_ms(info);
+			odpm_get_timestamp_now_ms();
 		info->chip.rails[new_rail].measurement_stop_ms = 0;
 
 enabled_rails_store_exit:

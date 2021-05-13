@@ -14,6 +14,11 @@
 	list_for_each_entry_safe(cfs_rq, pos, &rq->leaf_cfs_rq_list,	\
 				 leaf_cfs_rq_list)
 
+#define get_bucket_id(__val)								      \
+		min_t(unsigned int,							      \
+		      __val / DIV_ROUND_CLOSEST(SCHED_CAPACITY_SCALE, UCLAMP_BUCKETS),	      \
+		      UCLAMP_BUCKETS - 1)
+
 #define cpu_overutilized(cap, max)	\
 		((cap) * vendor_sched_util_threshold > (max) << SCHED_CAPACITY_SHIFT)
 
@@ -30,11 +35,35 @@
 			       __stringify(_new) );
 
 // Maximum size: u64[2] for ANDROID_VENDOR_DATA_ARRAY(1, 2) in task_struct
+
+enum vendor_group {
+	VG_DEFAULT=0,
+	VG_TOPAPP,
+	VG_FOREGROUND,
+	VG_SYSTEM,
+	VG_CAMERA,
+	VG_BACKGROUND,
+	VG_SYSTEM_BACKGROUND,
+	VG_NNAPI_HAL,
+	VG_MAX,
+};
+
+enum vendor_task_attribute {
+	VTA_GROUP,
+};
+
 struct vendor_task_struct {
+	enum vendor_group group;
+};
+
+ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[64], struct vendor_task_struct t);
+
+struct vendor_group_property {
+	bool prefer_idle;
 	bool prefer_high_cap;
 	bool task_spreading;
+	struct uclamp_se uc_req[UCLAMP_CNT];
 };
-ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[2], struct vendor_task_struct t);
 
 struct uclamp_stats {
 	spinlock_t lock;

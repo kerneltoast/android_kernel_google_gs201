@@ -23,7 +23,6 @@
 		interrupt-parent = <&gpa8>;
 		usbpd,usbpd_int = <&gpa8 2 GPIO_ACTIVE_LOW>;
 		usb-psy-name = "usb";
-		chg-psy-name = "gcpm";
 		no-bc-12;
 		/*
 		 * uic = <&max77729_uic>;
@@ -55,13 +54,9 @@
 			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				in_role: endpoint@0 {
+				mux_notification_source: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&out_role>;
-				};
-				in_or_sw: endpoint@1 {
-					reg = <0>;
-					remote-endpoint = <&out_or_sw>;
+					remote-endpoint = <&mux_notification_sink>;
 				};
 			};
 		};
@@ -70,13 +65,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			out_role: endpoint@0 {
+			mux_notification_sink: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&in_role>;
-			};
-			out_or_sw: endpoint@1 {
-				reg = <0>;
-				remote-endpoint = <&in_or_sw>;
+				remote-endpoint = <&mux_notification_source>;
 			};
 		};
 	};
@@ -109,6 +100,7 @@
 
 	max77759tcpc: max77759tcpc@25 {
 		status = "okay";
+		dev-name = "max77759tcpc";
 		compatible = "max77759tcpc";
 		/* 52 on reworked maran */
 		reg = <0x25>;
@@ -117,7 +109,6 @@
 		interrupt-parent = <&gpa8>;
 		usbpd,usbpd_int = <&gpa8 2 GPIO_ACTIVE_LOW>;
 		usb-psy-name = "usb";
-		chg-psy-name = "gcpm";
 		in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
 		max20339,ovp = <&max20339_ovp>;
 		conn = <&conn>;
@@ -156,15 +147,11 @@
 			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				in_role_sw: endpoint@0 {
+				mux_notification_src: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&out_role_sw>;
+					remote-endpoint = <&mux_notification_snk>;
 				};
 
-				in_orientation_sw: endpoint@1 {
-					reg = <0>;
-					remote-endpoint = <&out_orientation_sw>;
-				};
 			};
 		};
 
@@ -172,16 +159,10 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			out_role_sw: endpoint@0 {
+			mux_notification_snk: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&in_role_sw>;
+				remote-endpoint = <&mux_notification_src>;
 			};
-
-			out_orientation_sw: endpoint@1 {
-				reg = <0>;
-				remote-endpoint = <&in_orientation_sw>;
-			};
-
 		};
 
 		/* EXT_BST_EN exposed as GPIO */

@@ -11,3 +11,9 @@ obj-$(CONFIG_VH_THERMAL)  += thermal/
 
 # vh/kernel/fs
 obj-$(CONFIG_VH_FS)	+= fs/
+
+# vh/kernel/cgroup
+obj-$(CONFIG_VH_CGROUP)	+= cgroup/
+
+# vh/kernel/i2c
+obj-$(CONFIG_VH_I2C)     += i2c/
