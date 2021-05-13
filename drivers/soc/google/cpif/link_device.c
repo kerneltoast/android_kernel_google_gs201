@@ -399,19 +399,19 @@ static void write_clk_table_to_shmem(struct mem_link_device *mld)
 	strcpy(clk_tb->parser_version, "CT1");
 	clk_tb->total_table_count = mld->total_freq_table_count;
 
-	strcpy(clk_tb->table_info[0].table_name, "MIF\0");
+	memcpy(clk_tb->table_info[0].table_name, "MIF\0", 4);
 	clk_tb->table_info[0].table_count = mld->mif_table.num_of_table;
 
-	strcpy(clk_tb->table_info[1].table_name, "CP_C");
+	memcpy(clk_tb->table_info[1].table_name, "CP_C", 4);
 	clk_tb->table_info[1].table_count = mld->cp_cpu_table.num_of_table;
 
-	strcpy(clk_tb->table_info[2].table_name, "CP\0");
+	memcpy(clk_tb->table_info[2].table_name, "CP\0", 4);
 	clk_tb->table_info[2].table_count = mld->cp_table.num_of_table;
 
-	strcpy(clk_tb->table_info[3].table_name, "CP_E");
+	memcpy(clk_tb->table_info[3].table_name, "CP_E", 4);
 	clk_tb->table_info[3].table_count = mld->cp_em_table.num_of_table;
 
-	strcpy(clk_tb->table_info[4].table_name, "CP_M");
+	memcpy(clk_tb->table_info[4].table_name, "CP_M", 4);
 	clk_tb->table_info[4].table_count = mld->cp_mcw_table.num_of_table;
 
 
