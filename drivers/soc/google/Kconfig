@@ -21,6 +21,11 @@ config BOARD_SLIDER
 	depends on SOC_GS101
 	select OF_GENERATE_SYMBOLS
 
+config BOARD_CLOUDRIPPER
+	bool "Google Cloudripper Board"
+	depends on SOC_GS201
+	select OF_GENERATE_SYMBOLS
+
 config GS_CHIPID
 	tristate "GS Chipid controller driver"
 	depends on ARM64
