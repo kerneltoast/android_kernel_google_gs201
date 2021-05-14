@@ -86,6 +86,7 @@ static int dwc3_exynos_clk_get(struct dwc3_exynos *exynos)
 		 * Check Bus clock to get clk node from DT.
 		 * CAUTION : Bus clock SHOULD be defiend at the last.
 		 */
+#if 0
 		if (!strncmp(clk_ids[i], "bus", 3)) {
 			exynos->bus_clock = devm_clk_get(exynos->dev, clk_ids[i]);
 			if (IS_ERR_OR_NULL(exynos->bus_clock))
@@ -93,6 +94,7 @@ static int dwc3_exynos_clk_get(struct dwc3_exynos *exynos)
 			else
 				clk_count--;
 		}
+#endif
 	}
 	clk_ids[clk_count] = NULL;
 
@@ -776,6 +778,7 @@ void dwc3_exynos_host_exit(struct dwc3_exynos *exynos)
 }
 EXPORT_SYMBOL_GPL(dwc3_exynos_host_exit);
 
+#if 0
 static int dwc3_exynos_vbus_notifier(struct notifier_block *nb,
 				     unsigned long action, void *dev)
 {
@@ -832,7 +835,7 @@ static int dwc3_exynos_extcon_register(struct dwc3_exynos *exynos)
 
 	return ret;
 }
-
+#endif
 static int dwc3_exynos_get_properties(struct dwc3_exynos *exynos)
 {
 	struct device *dev = exynos->dev;
@@ -1107,14 +1110,14 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		dwc3_exynos_clk_unprepare(exynos);
 		return ret;
 	}
-
+#if 0
 	ret = dwc3_exynos_extcon_register(exynos);
 	if (ret < 0) {
 		dev_err(dev, "failed to register extcon\n");
 		ret = -EPROBE_DEFER;
 		goto vdd33_err;
 	}
-
+#endif
 	ret = dwc3_exynos_register_phys(exynos);
 	if (ret) {
 		dev_err(dev, "couldn't register PHYs\n");
