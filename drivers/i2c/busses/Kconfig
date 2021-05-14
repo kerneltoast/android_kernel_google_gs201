@@ -1421,7 +1421,7 @@ config I2C_FSI
 
   config I2C_ACPM
 	tristate "I2C_ACPM driver"
-	depends on SOC_GS101
+	depends on SOC_GS101 || SOC_GS201
 	help
 	  I2C ACPM driver on GS SoCs.
 
