@@ -104,14 +104,9 @@ enum mem_iface_type {
 /*============================================================================*/
 #define SHMEM_SRINFO_DATA_STR	64
 
-#if !IS_ENABLED(CONFIG_SBD_BOOTLOG)
 #define SHMEM_BOOTLOG_BASE		0xC00
 #define SHMEM_BOOTLOG_BUFF		0x1FF
 #define SHMEM_BOOTLOG_OFFSET		0x4
-#else
-#define SHMEM_BOOTSBDLOG_SIZE		0x1000 /* 4KB */
-#define SHMEM_BOOTSBDLOG_MAIN_BASE	0x400
-#endif
 
 /*============================================================================*/
 struct __packed mem_snapshot {

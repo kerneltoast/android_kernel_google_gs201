@@ -804,10 +804,6 @@ static int cpif_probe(struct platform_device *pdev)
 		mif_err("failed to initialize hiprio list(%d)\n", err);
 #endif
 
-	err = mif_init_argos_notifier();
-	if (err < 0)
-		mif_err("failed to initialize argos_notifier(%d)\n", err);
-
 	mif_err("%s: done ---\n", pdev->name);
 	return 0;
 

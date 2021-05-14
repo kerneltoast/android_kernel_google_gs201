@@ -619,16 +619,6 @@ static void tpmon_set_irq_affinity_dit(struct tpmon_data *data)
 
 	mif_info("%s (CPU:%d)\n", data->name, cpu_num);
 
-#if IS_ENABLED(CONFIG_MCPS)
-	if (mcps_enable) {
-		char mask[MAX_IRQ_AFFINITY_STRING];
-
-		snprintf(mask, MAX_IRQ_AFFINITY_STRING, "%x", 1 << cpu_num);
-		mif_info("set %s to mcps\n", mask);
-		set_mcps_cp_irq_mask(mask);
-	}
-#endif
-
 	dit_set_irq_affinity(cpu_num);
 }
 #endif
@@ -791,18 +781,6 @@ static void tpmon_monitor_work(struct work_struct *ws)
 	}
 
 	list_for_each_entry(data, &tpmon->data_list, data_node) {
-#if IS_ENABLED(CONFIG_MCPS)
-		if (mcps_enable) {
-			switch (data->target) {
-			case TPMON_TARGET_RPS:
-			case TPMON_TARGET_GRO:
-				continue;
-			default:
-				break;
-			}
-		}
-#endif
-
 		if (!data->set_data) {
 			mif_err_limited("set_data is null:%s\n", data->name);
 			continue;

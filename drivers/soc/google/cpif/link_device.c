@@ -2784,33 +2784,6 @@ struct shmem_srinfo {
 	char buf[0];
 };
 
-#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
-static void shmem_clr_sbdcplog(struct mem_link_device *mld)
-{
-	u8 __iomem *base = mld->base + mld->size - SHMEM_BOOTSBDLOG_SIZE;
-
-	memset(base, 0, SHMEM_BOOTSBDLOG_SIZE);
-}
-
-void shmem_pr_sbdcplog(struct timer_list *t)
-{
-	struct link_device *ld = from_timer(ld, t, cplog_timer);
-	struct mem_link_device *mld = ld_to_mem_link_device(ld);
-	u8 __iomem *base = mld->base + mld->size - SHMEM_BOOTSBDLOG_SIZE;
-	u8 __iomem *offset;
-	int i;
-
-	mif_info("dump cp logs: size: 0x%x, base: %pK\n", (unsigned int)mld->size, base);
-
-	for (i = 0; i * 32 < SHMEM_BOOTSBDLOG_SIZE; i++) {
-		offset = base + i * 32;
-		mif_info("%6X: %*ph\n", (unsigned int)(offset - mld->base), 32, offset);
-	}
-
-	shmem_clr_sbdcplog(mld);
-}
-#endif
-
 /* not in use */
 static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
 		       unsigned int cmd, unsigned long arg)
@@ -2857,7 +2830,6 @@ static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
 
 	case IOCTL_GET_CP_BOOTLOG:
 	{
-#if !IS_ENABLED(CONFIG_SBD_BOOTLOG)
 		u8 __iomem *base = mld->base + SHMEM_BOOTLOG_BASE;
 		char str[SHMEM_BOOTLOG_BUFF];
 		unsigned int size = base[0]        + (base[1] << 8)
@@ -2870,20 +2842,15 @@ static int shmem_ioctl(struct link_device *ld, struct io_device *iod,
 
 		strncpy(str, base + SHMEM_BOOTLOG_OFFSET, size);
 		mif_info("CP boot log[%d] : %s\n", size, str);
-#else
-		mif_add_timer(&ld->cplog_timer, 0, shmem_pr_sbdcplog);
-#endif
 		break;
 	}
 
 	case IOCTL_CLR_CP_BOOTLOG:
 	{
-#if !IS_ENABLED(CONFIG_SBD_BOOTLOG)
 		u8 __iomem *base = mld->base + SHMEM_BOOTLOG_BASE;
 
 		mif_info("Clear CP boot log\n");
 		memset(base, 0, SHMEM_BOOTLOG_BUFF);
-#endif
 		break;
 	}
 

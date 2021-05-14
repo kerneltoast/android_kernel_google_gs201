@@ -29,9 +29,6 @@
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
 #endif
-#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
-#include "link_device.h"
-#endif
 #if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 #include "../../../video/fbdev/exynos/dpu30/decon.h"
 static int s5000ap_lcd_notifier(struct notifier_block *notifier,
@@ -544,9 +541,6 @@ static int complete_normal_boot(struct modem_ctl *mc)
 	struct modem_data *modem = mc->mdm_data;
 	struct mem_link_device *mld = modem->mld;
 #endif
-#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
-	struct link_device *ld = get_current_link(mc->bootd);
-#endif
 
 	mif_info("+++\n");
 
@@ -590,9 +584,6 @@ static int complete_normal_boot(struct modem_ctl *mc)
 			mc->sbi_lcd_status_pos);
 #endif /* CONFIG_CP_LCD_NOTIFIER */
 
-#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
-	mif_add_timer(&ld->cplog_timer, (10 * HZ), shmem_pr_sbdcplog);
-#endif
 	mif_info("---\n");
 
 exit:
