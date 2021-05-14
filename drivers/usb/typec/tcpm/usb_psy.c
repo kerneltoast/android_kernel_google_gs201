@@ -128,6 +128,10 @@ static int usb_set_current_max_ma(struct usb_psy_data *usb,
 	struct i2c_client *client = usb->tcpc_client;
 
 	if (!usb->chg_psy) {
+		if (!usb->chg_psy_name) {
+			dev_err(&client->dev, "chg_psy_name not found\n");
+			return 0;
+		}
 		usb->chg_psy = power_supply_get_by_name(usb->chg_psy_name);
 		if (IS_ERR_OR_NULL(usb->chg_psy)) {
 			dev_err(&client->dev, "chg psy not up\n");
