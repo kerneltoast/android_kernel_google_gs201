@@ -83,14 +83,6 @@
 	max77759,psy-name = "main-charger";
 };
 
-&fusb307b {
-	chg-psy-name = "gcpm";
-};
-
-&max77759tcpc {
-	chg-psy-name = "gcpm";
-};
-
 &hsi2c_12 {
 
 	#address-cells = <1>;
