@@ -433,10 +433,10 @@ static int s2mpg11_resume(struct device *dev)
 	pr_info("%s:%s\n", S2MPG11_MFD_DEV_NAME, __func__);
 #endif /* CONFIG_SAMSUNG_PRODUCT_SHIP */
 
+	enable_irq(s2mpg11->irq);
+
 	if (device_may_wakeup(dev))
 		disable_irq_wake(s2mpg11->irq);
-
-	enable_irq(s2mpg11->irq);
 
 	return 0;
 }
@@ -446,8 +446,8 @@ static int s2mpg11_resume(struct device *dev)
 #endif /* CONFIG_PM */
 
 const struct dev_pm_ops s2mpg11_pm = {
-	.suspend_late = s2mpg11_suspend,
-	.resume_early = s2mpg11_resume,
+	.suspend = s2mpg11_suspend,
+	.resume = s2mpg11_resume,
 };
 
 static struct i2c_driver s2mpg11_i2c_driver = {
