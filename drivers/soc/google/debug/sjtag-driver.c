@@ -22,7 +22,7 @@
 #define SJTAG_WORKBUFF_SIZE		512
 #define SJTAG_FILEOP_STR_SIZE		40
 
-#define SJTAG_PRODUCT_ID_SIZE		4
+#define SJTAG_PRODUCT_ID_SIZE		2
 #define SJTAG_PKHASH_SIZE		64
 #define SJTAG_STATUS_SIZE		4
 #define SJTAG_CHIP_ID_SIZE		8
@@ -303,6 +303,13 @@ static ssize_t sjtag_simple_read_from_hw(struct file *file, char __user *ubuf, s
 	ipc_rc = sjtag_ipc_cmd(st, cmd_code, exchange_buff, byte_size, file_op);
 	if (ipc_rc < 0)
 		return ipc_rc;
+
+	/* A slight deviation for product_id, as per the format expected by the server backend */
+	if (cmd_code == SJTAG_GET_PRODUCT_ID) {
+		u32 bare_product_id = (*(u32 *)exchange_buff >> 12) & 0xffff;
+		*exchange_buff = bare_product_id >> 8;
+		*(exchange_buff + 1) = bare_product_id;
+	}
 
 	bin2hex(wbuff, exchange_buff, byte_size);
 
