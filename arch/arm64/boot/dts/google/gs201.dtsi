@@ -7,7 +7,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/gs201.h>
-#include <dt-bindings/clock/gs101.h>
+#include <dt-bindings/clock/gs201.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/soc/google/gs101-dm.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>
@@ -186,7 +186,7 @@
 			     <GIC_SPI IRQ_EH_7_EH IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI IRQ_EH_8_EH IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI IRQ_EH_9_EH IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clock DOUT_CLK_EH_BUSP>;
+		clocks = <&clock DOUT_CLK_EH_NOCP>;
 		clock-names = "eh-clock";
 		power-domains = <&pd_eh>;
 		google,eh,ignore-gctrl-reset;
@@ -273,7 +273,7 @@
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0x10110000 0x1000>;
 			interrupts = <GIC_SPI IRQ_PDMA0_MISC IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clock GATE_PDMA>;
+			clocks = <&clock GATE_PDMA0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
 			#dma-channels = <8>;
@@ -444,7 +444,7 @@
 	};
 
 	clock: clock-controller@0x1e080000 {
-		compatible = "samsung,gs101-clock";
+		compatible = "samsung,gs201-clock";
 		reg = <0x0 0x1e080000 0x8000>;
 		#clock-cells = <1>;
 		acpm-ipc-channel = <0>;
