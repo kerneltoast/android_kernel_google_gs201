@@ -606,8 +606,12 @@ extern void (*cal_set_cmu_ocp_warn)(void);
 extern char *(*cal_get_pd_name_by_cmu)(unsigned int addr);
 #if defined(CONFIG_DEBUG_FS) && IS_ENABLED(CONFIG_CMUCAL_DEBUG)
 extern void cmucal_dbg_set_cmu_top_base(u32 base_addr);
+extern void cmucal_dbg_mux_dbg_offset(u32 offset);
 #else
 static inline void cmucal_dbg_set_cmu_top_base(u32 base_addr)
+{
+}
+static inline void cmucal_dbg_mux_dbg_offset(u32 offset)
 {
 }
 #endif

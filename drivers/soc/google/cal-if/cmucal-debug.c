@@ -28,10 +28,12 @@ static struct vclk *dvfs_domain;
 static u32 cmu_id;
 static enum clk_info_type cur_info_type = NONE_INFO;
 
+static void *(*cal_pd_lookup_cmu_id)(u32 cmu_id);
 static unsigned int margin;
 static unsigned int debug_freq;
 
 extern unsigned int dbg_offset;
+static unsigned int mux_dbg_offset = 0;
 static unsigned int cmu_top_base;
 
 static int clk_store(char *buf, int r, struct cmucal_clk *clk, u32 val,
@@ -48,53 +50,23 @@ static int clk_store(char *buf, int r, struct cmucal_clk *clk, u32 val,
 	return r;
 }
 
-static struct exynos_pm_domain *exynos_pd_lookup(const char *domain_name)
-{
-	struct device_node *np;
-
-	if (IS_ERR_OR_NULL(domain_name))
-		return NULL;
-
-	for_each_compatible_node(np, NULL, "samsung,exynos-pd") {
-		struct platform_device *pdev;
-		struct exynos_pm_domain *pd;
-
-		if (!of_device_is_available(np))
-			continue;
-
-		pdev = of_find_device_by_node(np);
-		if (!pdev)
-			continue;
-
-		pd = platform_get_drvdata(pdev);
-		if (!strcmp(pd->name, domain_name))
-			return pd;
-	}
-
-	return NULL;
-}
-
-static bool cal_cmublk_acquire(unsigned int addr,
+static bool cal_cmublk_acquire(unsigned int cmu_id,
 			       struct exynos_pm_domain **p_pd)
 {
-	struct exynos_pm_domain *pd = NULL;
-	char *p = NULL;
+	struct exynos_pm_domain *pd;
 
-	if (!cal_get_pd_name_by_cmu)
+	if (!cal_pd_lookup_cmu_id)
 		return true;
 
-	p = cal_get_pd_name_by_cmu(addr & 0xFFFF0000);
-	if (!p)
-		return true;
+	pd = (struct exynos_pm_domain *)cal_pd_lookup_cmu_id(cmu_id & 0xFFFF0000);
+	if (pd) {
+		*p_pd = pd;
+		mutex_lock(&pd->access_lock);
+		if (!cal_pd_status(pd->cal_pdid))
+			return false;
+	}
 
-	pd = exynos_pd_lookup(p);
-	if (!pd)
-		return true;
-
-	*p_pd = pd;
-	mutex_lock(&pd->access_lock);
-
-	return cal_pd_status(pd->cal_pdid) == 1;
+	return true;
 }
 
 static void cal_cmublk_release(struct exynos_pm_domain *pd)
@@ -166,7 +138,10 @@ static int top_cmu_info(char *buf)
 		clk = cmucal_get_node(i | MUX_TYPE);
 		if (!clk || (clk->paddr & 0xFFFF0000) != cmu_top_base)
 			continue;
-		reg = readl(clk->offset + dbg_offset);
+		if (mux_dbg_offset)
+			reg = readl(clk->offset + mux_dbg_offset);
+		else
+			reg = readl(clk->offset + dbg_offset);
 		r = clk_store(buf, r, clk, reg, (reg & 0x70) != 0x30);
 	}
 
@@ -551,19 +526,19 @@ static int vclk_debug_create_one(struct vclk *vclk, struct dentry *pdentry)
 
 	vclk->dentry = d;
 
-	debugfs_create_x32("vclk_id", 0400, vclk->dentry,
+	debugfs_create_x32("vclk_id", S_IRUSR, vclk->dentry,
 			(u32 *)&vclk->id);
 
-	debugfs_create_u32("vclk_rate", 0400, vclk->dentry,
+	debugfs_create_u32("vclk_rate", S_IRUSR, vclk->dentry,
 			(u32 *)&vclk->vrate);
 
-	debugfs_create_u32("vclk_num_rates", 0400, vclk->dentry,
+	debugfs_create_u32("vclk_num_rates", S_IRUSR, vclk->dentry,
 			(u32 *)&vclk->num_rates);
 
-	debugfs_create_u32("vclk_num_list", 0400, vclk->dentry,
+	debugfs_create_u32("vclk_num_list", S_IRUSR, vclk->dentry,
 			(u32 *)&vclk->num_list);
 
-	d = debugfs_create_file("vclk_table", 0400, vclk->dentry, vclk,
+	d = debugfs_create_file("vclk_table", S_IRUSR, vclk->dentry, vclk,
 				&vclk_table_fops);
 	if (!d)
 		goto err_out;
@@ -615,6 +590,18 @@ void cmucal_dbg_set_cmu_top_base(u32 base_addr)
 }
 EXPORT_SYMBOL_GPL(cmucal_dbg_set_cmu_top_base);
 
+void cmucal_dbg_mux_dbg_offset(u32 offset)
+{
+	mux_dbg_offset = offset;
+	pr_info("cmu_top_mux_dbg_offset : 0x%x\n", offset);
+}
+EXPORT_SYMBOL_GPL(cmucal_dbg_mux_dbg_offset);
+
+void cal_register_pd_lookup_cmu_id(void *(*func)(u32 cmu_id))
+{
+	cal_pd_lookup_cmu_id = func;
+}
+EXPORT_SYMBOL_GPL(cal_register_pd_lookup_cmu_id);
 /**
  * vclk_debug_init - lazily create the debugfs clk tree visualization
  */
