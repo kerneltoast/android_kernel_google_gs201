@@ -11,4 +11,5 @@
 };
 
 #include "gs201.dtsi"
+#include "gs201-pmic.dtsi"
 #include "gs201-cloudripper-display.dtsi"
