@@ -23,9 +23,19 @@
 #define NONE		(-1)
 #define ARR_SZ		(2)
 #define FUNNEL_PORT_MAX	(8)
+#define BUS_ADDR_MAX	(0xFFFFFFFFFULL)
 
 #define etm_writel(base, val, off)	__raw_writel((val), (base) + (off))
 #define etm_readl(base, off)		__raw_readl((base) + (off))
+
+#define BDU_ENABLE 0x0
+#define BDU_MUX_CTRL 0x4
+#define BDU_ATID 0x8
+#define BDU_AMATCH0 0x10
+#define BDU_AMASK0 0x14
+#define BDU_AMATCH1 0x18
+#define BDU_AMASK1 0x1C
+#define BDU_AMATCH_CTRL 0x20
 
 static inline void soft_lock(void __iomem *base)
 {
@@ -49,10 +59,10 @@ struct etm_info {
 };
 
 struct funnel_info {
-	void __iomem	*base;
-	u32		port_status;
-	u32 		manual_port_status;
-	struct device	device_funnel;
+	void __iomem		*base;
+	u32			port_status;
+	u32			manual_port_status;
+	struct platform_device	pdevice_funnel;
 };
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETF
 struct etf_info {
@@ -73,6 +83,24 @@ struct etr_info {
 	bool		hwacg;
 };
 #endif
+struct bdu_info {
+	void __iomem	*base;
+	u32		f_port[ARR_SZ];
+	struct etf_info	etf;
+	u64		filter_addr_match;
+	u64		filter_addr_mask;
+	bool		filter_rdwr_match;
+	bool		filter_rdwr_mask;
+	u32		filter_arpath_match;
+	u32		filter_arpath_mask;
+	u32		mux_ctrl;
+};
+struct trex_info {
+	void __iomem		*dbgtrace_addr;
+	u32			dbgtrace_val;
+	u32			mux_ctrl_val;
+	struct platform_device 	pdevice_trex;
+};
 struct exynos_etm_info {
 	struct etm_info		*cpu;
 	spinlock_t		trace_lock;
@@ -92,6 +120,10 @@ struct exynos_etm_info {
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 	struct etr_info		etr;
 #endif
+	struct bdu_info		bdu;
+	u32			trex_num;
+	u32			trex_trace_format;
+	struct trex_info	*trex;
 };
 
 static struct exynos_etm_info *ee_info;
@@ -262,11 +294,62 @@ static void exynos_etm_etr_disable(void)
 		writel_relaxed(0x0, etr->sfr_base + etr->qch_offset);
 }
 
+static void bdu_etr_enable(void)
+{
+	struct etr_info *etr = &ee_info->etr;
+	dma_addr_t buf_addr;
+	u64 buf_pointer;
+	u64 etr_buf_size;
+
+	if (etr->aux_buf_addr) {
+		buf_addr = etr->aux_buf_addr;
+		etr_buf_size = ee_info->etr_aux_buf_size;
+		buf_pointer = 0;
+	} else {
+		buf_addr = etr->buf_addr;
+		etr_buf_size = ee_info->etr_buf_size;
+		buf_pointer = etr->buf_pointer;
+	}
+
+	if (etr->hwacg)
+		writel_relaxed(0x1, etr->sfr_base + etr->qch_offset);
+
+	soft_unlock(etr->base);
+	etm_writel(etr->base, 0x0, TMCCTL);
+	etm_writel(etr->base, etr_buf_size / 4, TMCRSZ);
+	etm_writel(etr->base, 0x0, TMCTGR);
+	etm_writel(etr->base, 0x108, TMCAXICTL);
+	etm_writel(etr->base, lower_32_bits(buf_addr), TMCDBALO);
+	etm_writel(etr->base, upper_32_bits(buf_addr), TMCDBAHI);
+	etm_writel(etr->base, 0x0, TMCRWP);
+	etm_writel(etr->base, 0x0, TMCRWPHI);
+	etm_writel(etr->base, 0x0, TMCMODE);
+	etm_writel(etr->base, 0x0, TMCFFCR);
+	etm_writel(etr->base, 0x1, TMCCTL);
+	soft_lock(etr->base);
+}
+
+static void bdu_etr_disable(void)
+{
+	struct etr_info *etr;
+
+	etr = &ee_info->etr;
+
+	if (etr->hwacg)
+		writel_relaxed(0x0, etr->sfr_base + etr->qch_offset);
+
+	soft_unlock(etr->base);
+	etm_writel(etr->base, 0x0, TMCCTL);
+	soft_lock(etr->base);
+}
+
 static void exynos_etm_smp_enable(void *ununsed);
 void exynos_etm_trace_start(void);
 int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 {
 	struct etr_info *etr = &ee_info->etr;
+	struct bdu_info *bdu = &ee_info->bdu;
+	bool bdu_enable = etm_readl(bdu->base, BDU_ENABLE) & 0x1;
 	unsigned int i;
 
 	if (ee_info->enabled)
@@ -280,17 +363,25 @@ int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 	etr->aux_buf_addr = buf_addr;
 	ee_info->etr_aux_buf_size = buf_size;
 
-	for_each_possible_cpu(i) {
-		ee_info->cpu[i].enabled = true;
-	}
+	if (!bdu_enable) {
+		for_each_possible_cpu(i) {
+			ee_info->cpu[i].enabled = true;
+		}
 
-	for_each_online_cpu(i) {
-		smp_call_function_single(i, exynos_etm_smp_enable, NULL, 1);
-	}
+		for_each_online_cpu(i) {
+			smp_call_function_single(i, exynos_etm_smp_enable, NULL,
+						 1);
+		}
 
-	ee_info->enabled = true;
-	exynos_etm_trace_stop();
-	exynos_etm_trace_start();
+		ee_info->enabled = true;
+		exynos_etm_trace_stop();
+		exynos_etm_trace_start();
+	} else {
+#ifdef CONFIG_EXYNOS_CORESIGHT_ETR
+		bdu_etr_disable();
+		bdu_etr_enable();
+#endif
+	}
 
 	return 0;
 }
@@ -299,6 +390,8 @@ EXPORT_SYMBOL_GPL(gs_coresight_etm_external_etr_on);
 int gs_coresight_etm_external_etr_off(void)
 {
 	struct etr_info *etr = &ee_info->etr;
+	struct bdu_info *bdu = &ee_info->bdu;
+	bool bdu_enable = etm_readl(bdu->base, BDU_ENABLE) & 0x1;
 	unsigned int i;
 
 	if (!ee_info->etr_aux_buf_size)
@@ -312,15 +405,22 @@ int gs_coresight_etm_external_etr_off(void)
 	etr->aux_buf_addr = 0;
 	ee_info->etr_aux_buf_size = 0;
 
-	ee_info->enabled = false;
-	exynos_etm_trace_stop();
+	if (!bdu_enable) {
+		ee_info->enabled = false;
+		exynos_etm_trace_stop();
 
-	for_each_possible_cpu(i) {
-		ee_info->cpu[i].enabled = false;
-	}
+		for_each_possible_cpu(i) {
+			ee_info->cpu[i].enabled = false;
+		}
 
-	for_each_online_cpu(i) {
-		smp_call_function_single(i, exynos_etm_smp_enable, NULL, 1);
+		for_each_online_cpu(i) {
+			smp_call_function_single(i, exynos_etm_smp_enable, NULL,
+						 1);
+		}
+	} else {
+#ifdef CONFIG_EXYNOS_CORESIGHT_ETR
+		bdu_etr_disable();
+#endif
 	}
 
 	return 0;
@@ -806,6 +906,418 @@ static struct attribute *funnel_attrs[] = {
 
 ATTRIBUTE_GROUPS(funnel);
 
+static ssize_t bdu_filter_addr_match_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct bdu_info *bdu;
+	u64 filter_addr_match;
+
+	if (kstrtou64(buf, 0, &filter_addr_match))
+		return -EINVAL;
+
+	if (filter_addr_match > BUS_ADDR_MAX)
+		return -EINVAL;
+
+	bdu = &ee_info->bdu;
+	bdu->filter_addr_match = filter_addr_match;
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(bdu_filter_addr_match);
+
+static ssize_t bdu_filter_addr_mask_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct bdu_info *bdu;
+	u64 filter_addr_mask;
+
+	if (kstrtou64(buf, 0, &filter_addr_mask))
+		return -EINVAL;
+
+	if (filter_addr_mask > BUS_ADDR_MAX)
+		return -EINVAL;
+
+	bdu = &ee_info->bdu;
+	bdu->filter_addr_mask = filter_addr_mask;
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(bdu_filter_addr_mask);
+
+static ssize_t bdu_filter_rdwr_match_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct bdu_info *bdu;
+	u32 filter_rdwr_match;
+
+	if (kstrtou32(buf, 0, &filter_rdwr_match))
+		return -EINVAL;
+
+	if (filter_rdwr_match > 1)
+		return -EINVAL;
+
+	bdu = &ee_info->bdu;
+	bdu->filter_rdwr_match = filter_rdwr_match;
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(bdu_filter_rdwr_match);
+
+static ssize_t bdu_filter_rdwr_mask_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct bdu_info *bdu;
+	u32 filter_rdwr_mask;
+
+	if (kstrtou32(buf, 0, &filter_rdwr_mask))
+		return -EINVAL;
+
+	if (filter_rdwr_mask > 1)
+		return -EINVAL;
+
+	bdu = &ee_info->bdu;
+	bdu->filter_rdwr_mask = filter_rdwr_mask;
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(bdu_filter_rdwr_mask);
+
+static ssize_t bdu_filter_arpath_match_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct bdu_info *bdu;
+	u32 filter_arpath_match;
+
+	if (kstrtou32(buf, 0, &filter_arpath_match))
+		return -EINVAL;
+
+	if (filter_arpath_match > 0xFF)
+		return -EINVAL;
+
+	bdu = &ee_info->bdu;
+	bdu->filter_arpath_match = filter_arpath_match;
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(bdu_filter_arpath_match);
+
+static ssize_t bdu_filter_arpath_mask_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct bdu_info *bdu;
+	u32 filter_arpath_mask;
+
+	if (kstrtou32(buf, 0, &filter_arpath_mask))
+		return -EINVAL;
+
+	if (filter_arpath_mask > 0xFF)
+		return -EINVAL;
+
+	bdu = &ee_info->bdu;
+	bdu->filter_arpath_mask = filter_arpath_mask;
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(bdu_filter_arpath_mask);
+
+static ssize_t bdu_filter_status_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	ssize_t count = 0;
+	struct bdu_info *bdu;
+	bdu = &ee_info->bdu;
+
+	count += scnprintf(buf + count, PAGE_SIZE - count, "Filter Values:\n");
+	count += scnprintf(buf + count, PAGE_SIZE - count, "Address Match: 0x%x\n",
+			   bdu->filter_addr_match);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "Address Mask: 0x%x\n",
+			   bdu->filter_addr_mask);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "Read/Write Match: 0x%x\n",
+			   bdu->filter_rdwr_match);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "Read/Write Mask: 0x%x\n",
+			   bdu->filter_rdwr_mask);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "ARPATH Match: 0x%x\n",
+			   bdu->filter_arpath_match);
+	count += scnprintf(buf + count, PAGE_SIZE - count, "ARPATH Mask: 0x%x\n",
+			   bdu->filter_arpath_mask);
+	return count;
+}
+
+static DEVICE_ATTR_RO(bdu_filter_status);
+
+static ssize_t bdu_status_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct funnel_info *funnel;
+	struct bdu_info *bdu;
+	struct etf_info *etf;
+	unsigned long ctl, sts;
+	int i, size = 0;
+	u32 enable, mux_ctrl, atid, amatch0, amask0, amatch1, amask1,
+		amatch_ctrl;
+	u64 read_p;
+
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			  "---------------------------------------\n");
+	size += scnprintf(buf + size, PAGE_SIZE - size, "Funnel Registers\n");
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			  "---------------------------------------\n");
+	for (i = 0; i < ee_info->funnel_num; i++) {
+		funnel = &ee_info->funnel[i];
+		soft_unlock(funnel->base);
+		ctl = etm_readl(funnel->base, FUNCTRL);
+		soft_lock(funnel->base);
+		size += scnprintf(buf + size, PAGE_SIZE - size, "FUNNEL%d Status : 0x%lx\n",
+				  i, ctl);
+	}
+
+	bdu = &ee_info->bdu;
+	spin_lock(&ee_info->trace_lock);
+	enable = etm_readl(bdu->base, BDU_ENABLE);
+	mux_ctrl = etm_readl(bdu->base, BDU_MUX_CTRL);
+	atid = etm_readl(bdu->base, BDU_ATID);
+	amatch0 = etm_readl(bdu->base, BDU_AMATCH0);
+	amask0 = etm_readl(bdu->base, BDU_AMASK0);
+	amatch1 = etm_readl(bdu->base, BDU_AMATCH1);
+	amask1 = etm_readl(bdu->base, BDU_AMASK1);
+	amatch_ctrl = etm_readl(bdu->base, BDU_AMATCH_CTRL);
+	spin_unlock(&ee_info->trace_lock);
+
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			  "---------------------------------------\n");
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU Registers\n");
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			  "---------------------------------------\n");
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU Enable : 0x%lx\n", enable);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU Mux Ctrl : 0x%lx\n", mux_ctrl);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU ATID : 0x%lx\n", atid);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch0 : 0x%lx\n", amatch0);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMask0 : 0x%lx\n", amask0);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch1 : 0x%lx\n", amatch1);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMask1 : 0x%lx\n", amask1);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch Ctrl : 0x%lx\n", amatch_ctrl);
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			  "---------------------------------------\n");
+
+	etf = &bdu->etf;
+	soft_unlock(etf->base);
+	ctl = etm_readl(etf->base, TMCCTL);
+	sts = etm_readl(etf->base, TMCSTS);
+	read_p = etm_readl(etf->base, TMCRWP);
+	soft_lock(etf->base);
+
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			  "---------------------------------------\n");
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU ETF Registers\n");
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			  "---------------------------------------\n");
+	size += scnprintf(buf + size, PAGE_SIZE - size, "ETF Control : %3sabled\n",
+			  ctl & 0x1 ? "en" : "dis");
+	size += scnprintf(buf + size, PAGE_SIZE - size, "ETF Status : 0x%lx\n", sts);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "ETF RWP Reg : 0x%llx\n", read_p);
+	size += scnprintf(buf + size, PAGE_SIZE - size,
+			  "---------------------------------------\n");
+
+	return size;
+}
+
+static DEVICE_ATTR_RO(bdu_status);
+
+static ssize_t trex_format_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	u32 trace_format;
+
+	if (kstrtou32(buf, 0, &trace_format))
+		return -EINVAL;
+
+	if (trace_format > 1)
+		return -EINVAL;
+
+	ee_info->trex_trace_format = trace_format;
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(trex_format);
+
+
+static ssize_t trex_bus_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct bdu_info *bdu;
+	struct trex_info *trex;
+	u32 format, val, trace_point;
+
+	if (kstrtou32(buf, 0, &trace_point))
+		return -EINVAL;
+
+	if (trace_point > 6)
+		return -EINVAL;
+
+	bdu = &ee_info->bdu;
+	trex = dev_get_drvdata(dev);
+	format = ee_info->trex_trace_format;
+
+	bdu->mux_ctrl = trex->mux_ctrl_val;
+	val = 0;
+	if (trace_point != 0)
+		val = ((trex->dbgtrace_val + trace_point) << 16) | (format << 8) | 0x1;
+
+	writel_relaxed(val, trex->dbgtrace_addr);
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(trex_bus);
+
+static void bdu_etf_enable(void)
+{
+	struct bdu_info *bdu;
+
+	bdu = &ee_info->bdu;
+
+	soft_unlock(bdu->etf.base);
+	etm_writel(bdu->etf.base, 0x0, TMCCTL);
+	etm_writel(bdu->etf.base, 0x2, TMCMODE);
+	etm_writel(bdu->etf.base, 0x0, TMCFFCR);
+	etm_writel(bdu->etf.base, 0x100, TMCBUFWM);
+	etm_writel(bdu->etf.base, 0x1, TMCCTL);
+	soft_lock(bdu->etf.base);
+}
+
+static void bdu_setup(void)
+{
+	struct bdu_info *bdu;
+	u32 mask0 = 0xFFFFFFFF;
+	u32 mask1 = 0xFFFFFFFF;
+	u32 match0 = 0;
+	u32 match1 = 0;
+
+	bdu = &ee_info->bdu;
+
+	switch(ee_info->trex_trace_format) {
+	case 0:
+		match1 |= (bdu->filter_arpath_match << 17);
+		mask1 &= (0xFE01FFFF) | (bdu->filter_arpath_mask << 17);
+		match0 |= (bdu->filter_rdwr_match << 30);
+		mask0 &= (0xBFFFFFFF) | (bdu->filter_rdwr_mask << 30);
+		match0 |= (bdu->filter_addr_match >> 6);
+		mask0 &= (0xC0000000) | (bdu->filter_addr_mask >> 6);
+		match1 |= (bdu->filter_addr_match & 0x3F);
+		mask1 &= (0xFFFFFFC0) | (bdu->filter_addr_mask & 0x3F);
+		break;
+
+	case 1:
+		match0 |= (bdu->filter_arpath_match << 8);
+		mask0 &= (0xFFFF00FF | (bdu->filter_arpath_mask << 8));
+		match0 |= (bdu->filter_rdwr_match << 24);
+		mask0 &= (0xFEFFFFFF) | (bdu->filter_rdwr_mask << 24);
+		break;
+	}
+
+	etm_writel(bdu->base, 0x50, BDU_ATID);
+	etm_writel(bdu->base, bdu->mux_ctrl, BDU_MUX_CTRL);
+	etm_writel(bdu->base, match0, BDU_AMATCH0);
+	etm_writel(bdu->base, mask0, BDU_AMASK0);
+	etm_writel(bdu->base, match1, BDU_AMATCH1);
+	etm_writel(bdu->base, mask1, BDU_AMASK1);
+	etm_writel(bdu->base, 0x550F, BDU_AMATCH_CTRL);
+	etm_writel(bdu->base, 0x1, BDU_ENABLE);
+}
+
+static void bdu_disable(void)
+{
+	struct bdu_info *bdu;
+
+	bdu = &ee_info->bdu;
+
+	etm_writel(bdu->base, 0x201, BDU_ENABLE);
+	etm_writel(bdu->base, 0x0, BDU_ENABLE);
+}
+
+static ssize_t bdu_trace_en_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct bdu_info *bdu;
+	struct etf_info *etf;
+	bool en;
+	unsigned int i;
+
+	if (kstrtobool(buf, &en))
+		return -EINVAL;
+
+	bdu = &ee_info->bdu;
+	etf = &ee_info->etf[1];
+
+	if (en) {
+		/* Disable all other funnels except for BDU */
+		spin_lock(&ee_info->trace_lock);
+		for (i = 0; i < ee_info->funnel_num; i++) {
+			ee_info->funnel[i].port_status = 0x300;
+		}
+		ee_info->funnel[bdu->f_port[CHANNEL]].port_status |= BIT(bdu->f_port[PORT]);
+		ee_info->funnel[etf->f_port[CHANNEL]].port_status |= BIT(etf->f_port[PORT]);
+		for (i = 0; i < ee_info->funnel_num; i++) {
+			soft_unlock(ee_info->funnel[i].base);
+			etm_writel(ee_info->funnel[i].base, ee_info->funnel[i].port_status,
+				   FUNCTRL);
+			soft_lock(ee_info->funnel[i].base);
+		}
+		spin_unlock(&ee_info->trace_lock);
+
+		/* Set up ETF */
+#ifdef CONFIG_EXYNOS_CORESIGHT_ETF
+		exynos_etm_etf_enable();
+#endif
+
+		/* Set up ETR */
+#ifdef CONFIG_EXYNOS_CORESIGHT_ETR
+		bdu_etr_enable();
+#endif
+
+		/* Set up BDU ETF */
+		bdu_etf_enable();
+
+		/* Set up BDU */
+		bdu_setup();
+	} else {
+		/* Disable BDU */
+		bdu_disable();
+
+		/* Disable ETF */
+#ifdef CONFIG_EXYNOS_CORESIGHT_ETF
+		exynos_etm_etf_disable();
+#endif
+
+		/* Disable ETR */
+#ifdef CONFIG_EXYNOS_CORESIGHT_ETR
+		bdu_etr_disable();
+#endif
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(bdu_trace_en);
+
 static struct attribute *exynos_etm_sysfs_attrs[] = {
 	&dev_attr_etm_on.attr,
 	&dev_attr_trace_on.attr,
@@ -818,11 +1330,38 @@ static struct attribute_group exynos_etm_sysfs_group = {
 	NULL,
 };
 
+static struct attribute *bdu_sysfs_attrs[] = {
+	&dev_attr_bdu_filter_addr_match.attr,
+	&dev_attr_bdu_filter_addr_mask.attr,
+	&dev_attr_bdu_filter_rdwr_match.attr,
+	&dev_attr_bdu_filter_rdwr_mask.attr,
+	&dev_attr_bdu_filter_arpath_match.attr,
+	&dev_attr_bdu_filter_arpath_mask.attr,
+	&dev_attr_bdu_filter_status.attr,
+	&dev_attr_bdu_status.attr,
+	&dev_attr_bdu_trace_en.attr,
+	NULL,
+};
+
+static const struct attribute_group bdu_sysfs_group = {
+	.attrs = bdu_sysfs_attrs,
+	NULL,
+};
+
+static struct attribute *trex_sysfs_attrs[] = {
+	&dev_attr_trex_bus.attr,
+	&dev_attr_trex_format.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(trex_sysfs);
+
 static const struct attribute_group *exynos_coresight_sysfs_groups[] = {
 	&exynos_etm_sysfs_group,
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 	&exynos_etr_sysfs_group,
 #endif
+	&bdu_sysfs_group,
 	NULL,
 };
 
@@ -834,6 +1373,7 @@ static int exynos_etm_cs_etm_init_dt(struct device *dev)
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 	u32 reg[2];
 #endif
+
 	ee_info = devm_kzalloc(dev, sizeof(struct exynos_etm_info),
 			GFP_KERNEL);
 	if (!ee_info)
@@ -864,8 +1404,7 @@ static int exynos_etm_cs_etm_init_dt(struct device *dev)
 	if (of_property_read_u32(etm_np, "cs_base", &cs_base))
 		return -EINVAL;
 
-	np = etm_np;
-	while ((np = of_find_node_by_type(np, "etm"))) {
+	for_each_node_by_type(np, "etm") {
 		if (of_property_read_u32(np, "offset", &offset))
 			return -EINVAL;
 
@@ -881,8 +1420,7 @@ static int exynos_etm_cs_etm_init_dt(struct device *dev)
 	}
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETF
 	i = 0;
-	np = etm_np;
-	while ((np = of_find_node_by_type(np, "etf"))) {
+	for_each_node_by_type(np, "etf") {
 		if (of_property_read_u32(np, "offset", &offset))
 			return -EINVAL;
 
@@ -898,8 +1436,7 @@ static int exynos_etm_cs_etm_init_dt(struct device *dev)
 	}
 #endif
 	i = 0;
-	np = etm_np;
-	while ((np = of_find_node_by_type(np, "funnel"))) {
+	for_each_node_by_type(np, "funnel") {
 		if (of_property_read_u32(np, "offset", &offset))
 			return -EINVAL;
 
@@ -943,9 +1480,52 @@ static int exynos_etm_cs_etm_init_dt(struct device *dev)
 
 	ee_info->etr.hwacg = true;
 #endif
+	np = of_find_node_by_type(etm_np, "bdu");
+	if (!np)
+		return -EINVAL;
+	if (of_property_read_u32(np, "offset", &offset)) {
+		return -EINVAL;
+	}
+	ee_info->bdu.base = ioremap(cs_base + offset, SZ_4K);
+	if (!ee_info->bdu.base) {
+		return -ENOMEM;
+	}
+	if (of_property_read_u32_array(np, "funnel-port",
+				       ee_info->bdu.f_port, 2))
+		ee_info->bdu.f_port[CHANNEL] = NONE;
+	np = of_find_node_by_type(etm_np, "bdu_etf");
+	if (!np)
+		return -EINVAL;
+	if (of_property_read_u32(np, "offset", &offset)) {
+		return -EINVAL;
+	}
+	ee_info->bdu.etf.base = ioremap(cs_base + offset, SZ_4K);
+	if (!ee_info->bdu.etf.base) {
+		return -ENOMEM;
+	}
+	ee_info->bdu.filter_addr_mask = 0xFFFFFFFFF;
+	ee_info->bdu.filter_rdwr_mask = 0x1;
+	ee_info->bdu.filter_arpath_mask = 0xFF;
+	if (of_property_read_u32(etm_np, "trex-num", &ee_info->trex_num))
+		return -EINVAL;
+	ee_info->trex = devm_kcalloc(dev, ee_info->trex_num, sizeof(struct trex_info), GFP_KERNEL);
+	if (!ee_info->trex)
+		return -ENOMEM;
+	i = 0;
+	for_each_node_by_type(np, "trex") {
+		if (of_property_read_u32(np, "mux_ctrl", &ee_info->trex[i].mux_ctrl_val))
+			return -EINVAL;
+		if (of_property_read_u32(np, "dbg_trace_val", &ee_info->trex[i].dbgtrace_val))
+			return -EINVAL;
+		if (of_property_read_u32(np, "dbg_trace_addr", &offset))
+			return -EINVAL;
+		ee_info->trex[i].dbgtrace_addr = devm_ioremap(dev, offset, SZ_4);
+		if (!ee_info->trex[i].dbgtrace_addr)
+			return -ENOMEM;
+		i++;
+	}
 	if (of_property_read_u32(etm_np, "boot-start", &ee_info->boot_start))
 		return 0;
-
 	return 0;
 }
 
@@ -957,13 +1537,13 @@ static int exynos_etm_manual_funnel_setup(struct device *dev)
 
 	for (i = 0; i < ee_info->funnel_num; i++) {
 		funnel = &ee_info->funnel[i];
-		dev_info(dev, "register funnel device %d\n", i);
-		funnel->device_funnel.id = i;
-		funnel->device_funnel.bus = dev->bus;
-		funnel->device_funnel.groups = funnel_groups;
-		dev_set_name(&funnel->device_funnel, "cs_funnel%d", i);
-		dev_set_drvdata(&funnel->device_funnel, funnel);
-		ret = device_register(&funnel->device_funnel);
+		funnel->pdevice_funnel.dev.id = i;
+		funnel->pdevice_funnel.dev.bus = dev->bus;
+		funnel->pdevice_funnel.dev.groups = funnel_groups;
+		funnel->pdevice_funnel.name = "cs_funnel";
+		dev_set_name(&funnel->pdevice_funnel.dev, "cs_funnel%d", i);
+		dev_set_drvdata(&funnel->pdevice_funnel.dev, funnel);
+		ret = device_register(&funnel->pdevice_funnel.dev);
 		if (ret) {
 			dev_err(dev, "fail to register funnel device %d\n", i);
 			i--;
@@ -975,7 +1555,38 @@ static int exynos_etm_manual_funnel_setup(struct device *dev)
 err:
 	for (; i >= 0; i--) {
 		funnel = &ee_info->funnel[i];
-		device_unregister(&funnel->device_funnel);
+		device_unregister(&funnel->pdevice_funnel.dev);
+	}
+	return ret;
+}
+
+static int trex_setup(struct device *dev)
+{
+	int ret = 0;
+	int i;
+	struct trex_info *trex;
+
+	for (i = 0; i < ee_info->trex_num; i++) {
+		trex = &ee_info->trex[i];
+		trex->pdevice_trex.dev.id = i;
+		trex->pdevice_trex.dev.bus = dev->bus;
+		trex->pdevice_trex.dev.groups = trex_sysfs_groups;
+		trex->pdevice_trex.name = "cs_trex";
+		dev_set_name(&trex->pdevice_trex.dev, "cs_trex%d", i);
+		dev_set_drvdata(&trex->pdevice_trex.dev, trex);
+		ret = device_register(&trex->pdevice_trex.dev);
+		if (ret) {
+			dev_err(dev, "fail to register trex device %d\n", i);
+			i--;
+			goto err;
+		}
+	}
+
+	return ret;
+err:
+	for (; i >= 0; i--) {
+		trex = &ee_info->trex[i];
+		device_unregister(&trex->pdevice_trex.dev);
 	}
 	return ret;
 }
@@ -1018,6 +1629,7 @@ static int exynos_etm_probe(struct platform_device *pdev)
 	}
 
 	exynos_etm_manual_funnel_setup(&pdev->dev);
+	trex_setup(&pdev->dev);
 
 	dev_info(&pdev->dev, "%s successful\n", __func__);
 	return 0;

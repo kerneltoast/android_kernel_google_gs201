@@ -73,9 +73,6 @@ enum exynos_pm_qos_flags_status {
 #define PM_QOS_GPU_FREQ_MIN_DEFAULT_VALUE	0
 #define PM_QOS_GPU_FREQ_MAX_DEFAULT_VALUE	INT_MAX
 
-#define exynos_pm_qos_add_request(arg...)					\
-	exynos_pm_qos_add_request_trace(__func__, __LINE__, ##arg)
-
 struct exynos_pm_qos_request {
 	struct plist_node node;
 	int exynos_pm_qos_class;
@@ -123,6 +120,10 @@ enum exynos_pm_qos_req_action {
 	EXYNOS_PM_QOS_REMOVE_REQ	/* Remove an existing request */
 };
 
+#if IS_ENABLED(CONFIG_EXYNOS_PM_QOS) || IS_ENABLED(CONFIG_EXYNOS_PM_QOS_MODULE)
+#define exynos_pm_qos_add_request(arg...)					\
+	exynos_pm_qos_add_request_trace(__func__, __LINE__, ##arg)
+
 int exynos_pm_qos_update_target(struct exynos_pm_qos_constraints *c, struct plist_node *node,
 				enum exynos_pm_qos_req_action action, int value);
 bool exynos_pm_qos_update_flags(struct exynos_pm_qos_flags *pqf,
@@ -144,4 +145,9 @@ int exynos_pm_qos_remove_notifier(int exynos_pm_qos_class, struct notifier_block
 int exynos_pm_qos_request_active(struct exynos_pm_qos_request *req);
 s32 exynos_pm_qos_read_value(struct exynos_pm_qos_constraints *c);
 int exynos_pm_qos_read_req_value(int pm_qos_class, struct exynos_pm_qos_request *req);
+#else
+#define exynos_pm_qos_add_request(arg...)
+#define exynos_pm_qos_remove_request(a)
+#define exynos_pm_qos_update_request(a, b)
+#endif
 #endif

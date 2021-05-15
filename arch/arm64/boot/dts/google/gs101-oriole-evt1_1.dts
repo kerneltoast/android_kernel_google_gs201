@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Oriole EVT 1.1 Device Tree
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "gs101-oriole-evt1_1.dtsi"
+
+/ {
+	board_id = <0x20303>;
+	board_rev = <0x10100>;
+	fragment@boardbase {
+		target-path="/";
+		__overlay__ {
+			model = "Oriole EVT 1.1";
+			compatible = "google,GS101 Oriole", "google,GS101";
+		};
+	};
+};

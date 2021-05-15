@@ -20,8 +20,8 @@
 #include <linux/module.h>
 
 #include "ufshcd.h"
-#include <ufs-vs-mmio.h>
-#include <ufs-vs-regs.h>
+#include "ufs-vs-mmio.h"
+#include "ufs-vs-regs.h"
 
 enum {
 	LOG_STD_HCI_SFR = 0xFFFFFFF0,

@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Raven EVT 1.1 device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "gs101-raven-evt1_1.dtsi"
+/ {
+	board_id = <0x20203>;
+	board_rev = <0x010100>;
+	fragment@boardbase {
+		target-path="/";
+		__overlay__ {
+			model = "Raven EVT 1.1";
+			compatible = "google,GS101 Raven", "google,GS101";
+		};
+	};
+};

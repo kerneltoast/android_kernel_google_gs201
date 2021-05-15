@@ -1483,7 +1483,8 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *bcl_dev,
 								bcl_dev, ops);
 	else
 		bcl_dev->triggered_tz_irq[id] =
-				thermal_zone_of_sensor_register(dev, id - IRQ_PMIC_120C,
+				thermal_zone_of_sensor_register(bcl_dev->device,
+								id - IRQ_PMIC_120C + 1,
 								bcl_dev, ops);
 	if (IS_ERR(bcl_dev->triggered_tz_irq[id])) {
 		dev_err(bcl_dev->device, "TZ register failed. %d, err:%ld\n", id,

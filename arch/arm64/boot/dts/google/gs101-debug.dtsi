@@ -171,6 +171,7 @@
 		boot-start = <0>;
 		funnel-num = <3>;
 		etf-num = <2>;
+		trex-num = <4>;
 		/* funnel-port = <(funnel num) (port num)>; */
 		etm0 {
 			device_type = "etm";
@@ -240,6 +241,39 @@
 			qch-offset = <0x2c>;
 			offset = <0xA000>;
 			buf-size = <0x100000>;
+		};
+		bdu@10000 {
+			device_type = "bdu";
+			offset = <0x10000>;
+			funnel-port = <1 5>;
+		};
+		bdu_etf@11000 {
+			device_type = "bdu_etf";
+			offset = <0x11000>;
+		};
+		trex0 {
+			device_type = "trex";
+			mux_ctrl = <0x66>;
+			dbg_trace_addr = <0x1ea83010>;
+			dbg_trace_val = <5>;
+		};
+		trex1 {
+			device_type = "trex";
+			mux_ctrl = <0x77>;
+			dbg_trace_addr = <0x1f603010>;
+			dbg_trace_val = <26>;
+		};
+		trex2 {
+			device_type = "trex";
+			mux_ctrl = <0x88>;
+			dbg_trace_addr = <0x204e3010>;
+			dbg_trace_val = <8>;
+		};
+		trex3 {
+			device_type = "trex";
+			mux_ctrl = <0x55>;
+			dbg_trace_addr = <0x1e503010>;
+			dbg_trace_val = <8>;
 		};
 	};
 

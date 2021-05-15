@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Raviole EVT1 device tree source
+ * Includes Raviole EVT device tree + changes for EVT1 devices.
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#define RAVIOLE_EVT1_1_AND_OLDER 1
+#include "gs101-raven.dtsi"

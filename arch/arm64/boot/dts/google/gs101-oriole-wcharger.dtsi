@@ -9,7 +9,8 @@
 
 &hsi2c_8 {
 	p9412@3c {
-		fod = [c0 24 ac 1b 98 0d 94 0e 92 0a 92 0a];
-		fod_epp = [a4 46 94 46 94 10 8c 20 8c 0c 8c 06];
+		fod = [97 36 91 2e 97 10 9b 05 9f f3 9f ee 19 06 01 3c];
+		fod_epp = [8a 6d 86 56 8e 3b 8b 3e 8c 33 91 0b 20 13 01 50];
+		google,q_value = <67>;
 	};
 };
