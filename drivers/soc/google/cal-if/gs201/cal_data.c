@@ -62,6 +62,8 @@ void gs201_cal_data_init(void)
 		fin_hz_var = FIN_HZ_26M;
 	else
 		fin_hz_var = 24576000;
+
+	cmucal_dbg_mux_dbg_offset(0x4004);
 }
 
 void (*cal_data_init)(void) = gs201_cal_data_init;
