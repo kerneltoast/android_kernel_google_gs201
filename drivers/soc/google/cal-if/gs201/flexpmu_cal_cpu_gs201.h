@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ */
+
 struct cpu_inform pmucal_cpuinform_list[] = {
 	PMUCAL_CPU_INFORM(0, 0x18060000, 0x860),
 	PMUCAL_CPU_INFORM(1, 0x18060000, 0x864),

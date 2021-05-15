@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ */
+
 #include "clkout_gs201.h"
 
 #define CLKOUT0_OFFSET		(0x3e80)

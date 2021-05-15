@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ */
+
 #ifndef ACPM_FRAMEWORK
 /* common sequence descriptor for lpm init. - exposed to common logic */
 struct pmucal_seq pmucal_lpm_init[] = {
@@ -2440,7 +2445,7 @@ struct pmucal_seq early_stop[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_CLEAR_PEND, "GRP4_INTR_BID_CLEAR", 0x18070000, 0x040c, (0x1 << 0), (0x1 << 0), 0x18070000, 0x0408, (0x1 << 0), (0x1 << 0) | (0x1 << 0)),
 };
 /* global array for supported low power modes - exposed to common logic */
- struct pmucal_lpm pmucal_lpm_list[NUM_SYS_POWERDOWN] = {
+struct pmucal_lpm pmucal_lpm_list[NUM_SYS_POWERDOWN] = {
 	[SYS_SICD] = {
 		.id = SYS_SICD,
 		.enter = enter_sicd,

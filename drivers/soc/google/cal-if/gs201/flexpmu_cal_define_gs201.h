@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ */
+
 #define CPU_INFORM_C1			(0)
 #define CPU_INFORM_C2			(1)
 #define CPU_INFORM_CPD			(2)

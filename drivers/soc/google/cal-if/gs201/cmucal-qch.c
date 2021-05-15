@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ */
+
 #include "../cmucal.h"
 #include "cmucal-sfr.h"
 #include "cmucal-qch.h"

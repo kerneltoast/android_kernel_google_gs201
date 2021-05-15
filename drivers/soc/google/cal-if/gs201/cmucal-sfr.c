@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ */
+
 #include "../cmucal.h"
 #include "cmucal-sfr.h"
 
@@ -17427,4 +17432,3 @@ struct sfr_access cmucal_sfr_access_list[] = {
 	SFR_ACCESS(TPU_CMU_TPU_CONTROLLER_OPTION_ENABLE_POWER_MANAGEMENT, 29, 1, TPU_CMU_TPU_CONTROLLER_OPTION),
 	SFR_ACCESS(TPU_CMU_TPU_CONTROLLER_OPTION_ENABLE_AUTOMATIC_CLKGATING, 28, 1, TPU_CMU_TPU_CONTROLLER_OPTION),
 };
-

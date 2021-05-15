@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ */
+
 struct p2v_map pmucal_p2v_list[] = {
 	DEFINE_PHY(0x1C800000),
 	DEFINE_PHY(0x1CA20000),

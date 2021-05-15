@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Defines CMU_PMU mapping table.
  *
- * Copyright (c) 2020 Samsung Electronics Co., Ltd.
+ * Copyright (c) 2020-2021 Samsung Electronics Co., Ltd.
  */
 
 #ifndef __CMU_PMU_MAP_H__

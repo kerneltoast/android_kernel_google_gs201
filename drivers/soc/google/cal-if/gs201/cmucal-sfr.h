@@ -1,3 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ */
+
 #ifndef __CMUCAL_SFR_H__
 #define __CMUCAL_SFR_H__
 
