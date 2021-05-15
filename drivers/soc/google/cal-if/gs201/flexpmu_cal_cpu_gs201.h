@@ -327,7 +327,7 @@ enum pmucal_opsnum {
 
 struct pmucal_cpu pmucal_pmu_ops_list[] = {};
 
-unsigned int pmucal_option_list_size = 0;
+unsigned int pmucal_option_list_size = ARRAY_SIZE(pmucal_pmu_ops_list);
 
 #else
 
