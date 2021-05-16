@@ -10,8 +10,7 @@
 #include <dt-bindings/interrupt-controller/gs201.h>
 #include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 #include <dt-bindings/power/google-power.h>
-#include "gs201-pinctrl.dtsi"
-#include "gs201.dtsi"
+#include <dt-bindings/pinctrl/samsung.h>
 
 &pinctrl_0 {
 	smpl_warn: smpl-warn {
@@ -21,7 +20,6 @@
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
-
 
 &acpm_mfd_bus0 {
 	#address-cells = <1>;
