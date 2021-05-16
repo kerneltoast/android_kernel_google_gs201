@@ -29,7 +29,7 @@ struct tlb_props {
 };
 
 struct sysmmu_drvdata {
-	struct list_head list;
+	struct list_head list[MAX_VIDS];
 	struct iommu_device iommu;
 	struct device *dev;
 	struct iommu_group *group;
@@ -40,7 +40,7 @@ struct sysmmu_drvdata {
 	u32 version;
 	unsigned int num_tlb;
 	int qos;
-	int attached_count;
+	int attached_count[MAX_VIDS];
 	int secure_irq;
 	unsigned int secure_base;
 	const unsigned int *reg_set;
@@ -56,6 +56,13 @@ struct sysmmu_clientdata {
 	struct sysmmu_drvdata **sysmmus;
 	struct device_link **dev_link;
 	unsigned int sysmmu_count;
+};
+
+struct sysmmu_groupdata {
+	struct list_head sysmmu_list[MAX_VIDS];
+	spinlock_t sysmmu_list_lock[MAX_VIDS]; /* Protects .sysmmu_list */
+	unsigned long vid_map;
+	bool has_vcr;
 };
 
 
