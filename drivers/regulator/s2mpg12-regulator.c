@@ -879,6 +879,7 @@ static int s2mpg12_pmic_probe(struct platform_device *pdev)
 
 	s2mpg12->iodev = iodev;
 	s2mpg12->i2c = iodev->pmic;
+	s2mpg12->dev = &pdev->dev;
 
 	mutex_init(&s2mpg12->lock);
 	platform_set_drvdata(pdev, s2mpg12);

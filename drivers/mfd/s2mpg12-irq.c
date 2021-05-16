@@ -390,7 +390,7 @@ int s2mpg12_irq_init(struct s2mpg12_dev *s2mpg12)
 
 	s2mpg12->irq = irq_of_parse_and_map(s2mpg12->dev->of_node, 0);
 	ret = request_threaded_irq(s2mpg12->irq, NULL, s2mpg12_irq_thread,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				   IRQF_ONESHOT,
 				   "s2mpg12-irq", s2mpg12);
 
 	if (ret) {

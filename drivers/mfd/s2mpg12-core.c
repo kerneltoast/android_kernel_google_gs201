@@ -390,7 +390,7 @@ static int s2mpg12_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(s2mpg12->mt_trim, s2mpg12);
 	i2c_set_clientdata(s2mpg12->trim, s2mpg12);
 
-	pr_info("%s device found: rev.0x%2x\n", __func__, s2mpg12->pmic_rev);
+	pr_info("%s device found: rev.0x%02x\n", __func__, s2mpg12->pmic_rev);
 
 	ret = s2mpg12_irq_init(s2mpg12);
 	if (ret < 0)

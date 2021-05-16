@@ -671,7 +671,6 @@ static int s2mpg13_pmic_probe(struct platform_device *pdev)
 	struct s2mpg13_platform_data *pdata = iodev->pdata;
 	struct regulator_config config = {};
 	struct s2mpg13_pmic *s2mpg13;
-	int irq_base;
 	int i, ret;
 
 	if (iodev->dev->of_node) {
@@ -690,12 +689,6 @@ static int s2mpg13_pmic_probe(struct platform_device *pdev)
 	if (!s2mpg13)
 		return -ENOMEM;
 
-	irq_base = pdata->irq_base;
-	if (!irq_base) {
-		dev_err(&pdev->dev, "Failed to get irq base %d\n", irq_base);
-		return -ENODEV;
-	}
-
 	s2mpg13->rdev = devm_kzalloc(&pdev->dev,
 				     sizeof(struct regulator_dev *) *
 					     S2MPG13_REGULATOR_MAX,
@@ -712,6 +705,7 @@ static int s2mpg13_pmic_probe(struct platform_device *pdev)
 
 	s2mpg13->iodev = iodev;
 	s2mpg13->i2c = iodev->pmic;
+	s2mpg13->dev = &pdev->dev;
 
 	mutex_init(&s2mpg13->lock);
 	platform_set_drvdata(pdev, s2mpg13);

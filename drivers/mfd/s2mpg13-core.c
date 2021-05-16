@@ -245,7 +245,7 @@ static int s2mpg13_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(s2mpg13->mt_trim, s2mpg13);
 	i2c_set_clientdata(s2mpg13->trim, s2mpg13);
 
-	dev_info(s2mpg13->dev, "device found: rev.0x%2x\n", s2mpg13->pmic_rev);
+	dev_info(s2mpg13->dev, "device found: rev.0x%02x\n", s2mpg13->pmic_rev);
 
 	ret = s2mpg13_notifier_init(s2mpg13);
 	if (ret < 0)
