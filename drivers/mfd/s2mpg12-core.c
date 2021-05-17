@@ -54,6 +54,9 @@ static struct mfd_cell s2mpg12_devs[] = {
 	{
 		.name = "s2mpg12_gpio",
 	},
+	{
+		.name = "s2mpg12-power-keys",
+	},
 };
 
 static u8 s2mpg12_pmic_rev;

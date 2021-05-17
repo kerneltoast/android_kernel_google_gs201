@@ -250,13 +250,13 @@ err_out:
 }
 
 static const struct of_device_id power_keys_of_match[] = {
-	{ .compatible = "s2mpu13-power-keys", },
+	{ .compatible = "s2mpg12-power-keys", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, power_keys_of_match);
 #else
 static inline struct power_keys_platform_data *
-power_keys_get_devtree_pdata(struct s2mpu13_dev *iodev)
+power_keys_get_devtree_pdata(struct s2mpg12_dev *iodev)
 {
 	return ERR_PTR(-ENODEV);
 }
