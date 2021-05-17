@@ -737,7 +737,16 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 			/* spare_cap == max_importance_spare_cap for all below */
 			if (best_importance_cpu != prev_cpu)
 				best_importance_cpu = i;
-		} while(false);
+		} while (false);
+
+		/*
+		 * If a task does not prefer idle cpu, check if it fits in this cpu.
+		 * For tasks that prefer idle cpu, we don't do this check so that if
+		 * it starts from high capacity cpu and cound not find a candidate cpu
+		 * there, it could loop back to little cores to find candidates.
+		 */
+		if (!prefer_idle && !task_fits_capacity(p, i))
+			goto check;
 
 		/*
 		 * Skip the cpu if the cpu is full, however,
@@ -788,27 +797,30 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 			 */
 			if (idle_cpu) {
 				/*
-				 * Minimise value of idle state: skip
-				 * deeper idle states and pick the
-				 * shallowest. If idle state is the same,
-				 * pick the least utilized cpu.
+				 * If capacity are the same, skip CPUs in deeper idle state.
+				 * If idle state is the same, pick the least utilized cpu.
 				 */
-				if (sched_cpu_idle(i))
-					exit_lat = 0;
-				else if (idle)
-					exit_lat = idle->exit_latency;
+				if (best_idle_cpu != -1 &&
+				    capacity_orig == capacity_orig_of(best_idle_cpu)) {
 
-				if (exit_lat > min_exit_lat ||
-				    (exit_lat == min_exit_lat &&
-				     (best_idle_cpu == prev_cpu ||
-				     (i != prev_cpu && best_idle_util <= new_util))))
-					goto check;
+					if (sched_cpu_idle(i))
+						exit_lat = 0;
+					else if (idle)
+						exit_lat = idle->exit_latency;
+
+					if (exit_lat > min_exit_lat ||
+					    (exit_lat == min_exit_lat &&
+					     (best_idle_cpu == prev_cpu ||
+					     (i != prev_cpu && best_idle_util <= new_util))))
+						goto check;
+				}
 
 				min_exit_lat = exit_lat;
 				best_idle_util = new_util;
 				best_idle_cpu = i;
 				goto check;
 			}
+
 			if (best_idle_cpu != -1)
 				goto check;
 
@@ -848,20 +860,31 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * consumptions without affecting performance.
 		 */
 		if (idle_cpu) {
-			/*
-			 * Skip CPUs in deeper idle state.
-			 * If idle state is the same, pick the least utilized cpu.
-			 */
-			if (sched_cpu_idle(i))
-				exit_lat = 0;
-			else if (idle)
-				exit_lat = idle->exit_latency;
+			if (best_idle_cpu != -1) {
+				/*
+				 * If capacity are the same, skip CPUs in deeper idle state.
+				 * If idle state is the same, pick the least utilized cpu.
+				 */
+				if (capacity_orig == capacity_orig_of(best_idle_cpu)) {
+					if (sched_cpu_idle(i))
+						exit_lat = 0;
+					else if (idle)
+						exit_lat = idle->exit_latency;
 
-			if (exit_lat > min_exit_lat ||
-			    (exit_lat == min_exit_lat &&
-			     (best_idle_cpu == prev_cpu ||
-			     (i != prev_cpu && best_idle_util <= new_util))))
-				goto check;
+					if (exit_lat > min_exit_lat ||
+					    (exit_lat == min_exit_lat &&
+					     (best_idle_cpu == prev_cpu ||
+					     (i != prev_cpu && best_idle_util <= new_util))))
+						goto check;
+				/*
+				 * If capacity are different, keep the first idle cpu
+				 * that starts from start_cpu
+				 */
+				} else if (capacity_orig_of(best_idle_cpu) >=
+					   capacity_orig_of(start_cpu)) {
+					goto check;
+				}
+			}
 
 			min_exit_lat = exit_lat;
 			best_idle_util = new_util;
@@ -916,10 +939,14 @@ check:
 		if (capacity_orig == capacity_orig_of(next_cpu))
 			continue;
 
+		/*
+		 *  TODO(b/179454592): we probably want to do a deeper search and compare energy
+		 *  arcoss different candidates.
+		 */
 		if ((prefer_idle && best_idle_cpu != -1) ||
-		    (!prefer_idle && target_cpu != -1 )) {
+		    (!prefer_idle && target_cpu != -1)) {
 			if (start_cpu >= HIGH_CAPACITY_CPU) {
-				if (capacity_orig_of(next_cpu) < capacity_orig)
+				if (capacity_orig_of(HIGH_CAPACITY_CPU) <= capacity_orig)
 					break;
 			} else {
 				if (capacity_orig_of(next_cpu) > capacity_orig)
