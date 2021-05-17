@@ -1,0 +1,353 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GS201 SoC CPU device tree source
+ *
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ *             http://www.samsung.com
+ *
+ * GS201 SoC CPU device nodes are listed in this file.
+ * GS201 based board files should include this file.
+ *
+ */
+
+/ {
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		#define CPU_CL0 "0-3"
+		#define CPU_CL1 "4-5"
+		#define CPU_CL2 "6-7"
+		#define CPU_ALL "0-7"
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+				core1 {
+					cpu = <&cpu1>;
+				};
+				core2 {
+					cpu = <&cpu2>;
+				};
+				core3 {
+					cpu = <&cpu3>;
+				};
+			};
+			cluster1 {
+				core0 {
+					cpu = <&cpu4>;
+				};
+				core1 {
+					cpu = <&cpu5>;
+				};
+			};
+			cluster2 {
+				core0 {
+					cpu = <&cpu6>;
+				};
+				core1 {
+					cpu = <&cpu7>;
+				};
+			};
+		};
+
+		cpu0: cpu@0000 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0000>;
+			enable-method = "psci";
+			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
+			capacity-dmips-mhz = <260>;
+			dynamic-power-coefficient = <89>;
+		};
+		cpu1: cpu@0100 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0100>;
+			enable-method = "psci";
+			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
+			capacity-dmips-mhz = <260>;
+			dynamic-power-coefficient = <89>;
+		};
+		cpu2: cpu@0200 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0200>;
+			enable-method = "psci";
+			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
+			capacity-dmips-mhz = <260>;
+			dynamic-power-coefficient = <89>;
+		};
+		cpu3: cpu@0300 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0300>;
+			enable-method = "psci";
+			cpu-idle-states =  <&ANANKE_CPU_SLEEP>;
+			capacity-dmips-mhz = <260>;
+			dynamic-power-coefficient = <89>;
+		};
+		cpu4: cpu@0400 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0400>;
+			enable-method = "psci";
+			cpu-idle-states =  <&HERCULES_CPU_SLEEP>;
+			capacity-dmips-mhz = <880>;
+			dynamic-power-coefficient = <513>;
+		};
+		cpu5: cpu@0500 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0500>;
+			enable-method = "psci";
+			cpu-idle-states =  <&HERCULES_CPU_SLEEP>;
+			capacity-dmips-mhz = <880>;
+			dynamic-power-coefficient = <513>;
+		};
+		cpu6: cpu@0600 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0600>;
+			enable-method = "psci";
+			cpu-idle-states =  <&HERA_CPU_SLEEP>;
+			capacity-dmips-mhz = <997>;
+			dynamic-power-coefficient = <757>;
+		};
+		cpu7: cpu@0700 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0x0 0x0700>;
+			enable-method = "psci";
+			cpu-idle-states =  <&HERA_CPU_SLEEP>;
+			capacity-dmips-mhz = <997>;
+			dynamic-power-coefficient = <757>;
+		};
+
+		idle-states {
+			entry-method = "arm,psci";
+
+			ANANKE_CPU_SLEEP: ananke-cpu-sleep {
+				idle-state-name = "c2";
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <70>;
+				exit-latency-us = <160>;
+				min-residency-us = <2000>;
+				status = "okay";
+			};
+
+			HERCULES_CPU_SLEEP: hercules-cpu-sleep {
+				idle-state-name = "c2";
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <150>;
+				exit-latency-us = <190>;
+				min-residency-us = <2500>;
+				status = "okay";
+			};
+
+			HERA_CPU_SLEEP: hera-cpu-sleep {
+				idle-state-name = "c2";
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <235>;
+				exit-latency-us = <220>;
+				min-residency-us = <3500>;
+				status = "okay";
+			};
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	exynos-cpuphp {
+		compatible = "samsung,exynos-cpuhp";
+		status = "okay";
+	};
+
+	cpupm {
+		#define POWERMODE_TYPE_CLUSTER  0
+		#define POWERMODE_TYPE_SYSTEM   1
+
+		compatible = "samsung,exynos-cpupm";
+		status = "okay";
+
+		cpd_cl0 {
+			device_type = "cpupm";
+			target-residency = <10000>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			cal-id = <0>;
+			siblings = CPU_CL0;
+		};
+
+		cpd_cl1 {
+			device_type = "cpupm";
+			target-residency = <10000>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			cal-id = <1>;
+			siblings = CPU_CL1;
+			entry-allowed = CPU_CL1;
+		};
+
+		cpd_cl2 {
+			device_type = "cpupm";
+			target-residency = <10000>;
+			type = <POWERMODE_TYPE_CLUSTER>;
+			cal-id = <2>;
+			siblings = CPU_CL2;
+			entry-allowed = CPU_CL2;
+		};
+
+		sicd {
+			device_type = "cpupm";
+			target-residency = <10000>;
+			type = <POWERMODE_TYPE_SYSTEM>;
+			siblings = CPU_ALL;
+		};
+
+		wakeup-mask {
+			wakeup-masks {
+				wakeup-mask {
+					mask-reg-offset = <0x3944>;
+					stat-reg-offset = <0x3950>;
+					mask = <0x0ff00000>;
+				};
+				wakeup-mask2 {
+					mask-reg-offset = <0x3964>;
+					stat-reg-offset = <0x3970>;
+					mask = <0x00>;
+				};
+			};
+
+			eint-wakeup-masks {
+				eint-wakeup-mask {
+					mask-reg-offset = <0x3a80>;
+				};
+				eint-wakeup-mask2 {
+					mask-reg-offset = <0x3a84>;
+				};
+				eint-wakeup-mask3 {
+					mask-reg-offset = <0x3a88>;
+				};
+			};
+		};
+
+		idle-ip {
+			extern-idle-ip =
+				"dbg_core";
+		};
+	};
+
+	exynos-acme {
+		compatible = "samsung,exynos-acme";
+		status = "okay";
+
+		cpufreq_domain0: domain@0 {
+			sibling-cpus = CPU_CL0;
+			cal-id = <ACPM_DVFS_CPUCL0>;
+			dm-type = <DM_CPU_CL0>;
+
+			max-freq = <2024000>;
+			min-freq = <300000>;
+
+			#cooling-cells = <2>; /* min followed by max */
+			ect-coeff-index = <2>;
+			tz-cooling-name = "LITTLE";
+			skip-boot-pmqos;
+			use-em-coeff;
+
+			dm-constraints {
+				list = <&lit_mif_perf>;
+			};
+		};
+
+		cpufreq_domain1: domain@1 {
+			sibling-cpus = CPU_CL1;
+			cal-id = <ACPM_DVFS_CPUCL1>;
+			dm-type = <DM_CPU_CL1>;
+
+			max-freq = <2253000>;
+			min-freq = <400000>;
+
+			#cooling-cells = <2>; /* min followed by max */
+			ect-coeff-index = <1>;
+			tz-cooling-name = "MID";
+			skip-boot-pmqos;
+			use-em-coeff;
+
+			dm-constraints {
+				list = <&med_ank_perf>,
+					<&med_dsu_skew>;
+			};
+		};
+
+		cpufreq_domain2: domain@2 {
+			sibling-cpus = CPU_CL2;
+			cal-id = <ACPM_DVFS_CPUCL2>;
+			dm-type = <DM_CPU_CL2>;
+
+			max-freq = <2850000>;
+			min-freq = <500000>;
+
+			#cooling-cells = <2>; /* min followed by max */
+			ect-coeff-index = <0>;
+			tz-cooling-name = "BIG";
+			skip-boot-pmqos;
+			use-em-coeff;
+
+			dm-constraints {
+				list = <&big_dsu_skew>;
+			};
+		};
+	};
+
+	dm-tables {
+		lit_mif_perf: dm-table@0000 {
+		};
+		med_ank_perf: dm-table@0003 {
+			const-type = <CONSTRAINT_MIN>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL1>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
+
+				/* CL1    CL0 */
+			table = < 2348000 1197000
+				  2253000 1197000
+				  2130000	0
+				  1999000	0
+				  1836000	0
+				  1663000	0
+				  1491000	0
+				  1328000	0
+				  1197000	0
+				  1024000	0
+				  910000	0
+				  799000	0
+				  696000	0
+				  553000	0
+				  400000	0 >;
+		};
+		med_dsu_skew: dm-table@0004 {
+			guidance;
+			const-type = <CONSTRAINT_MIN>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL1>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
+			ect-name = "CPUCL1";
+		};
+		big_dsu_skew: dm-table@0005 {
+			guidance;
+			const-type = <CONSTRAINT_MIN>;
+			dm-constraint = <DM_CPU_CL0>;
+			driver-cal-id = <ACPM_DVFS_CPUCL2>;
+			constraint-cal-id = <ACPM_DVFS_CPUCL0>;
+			ect-name = "CPUCL2";
+		};
+	};
+};
