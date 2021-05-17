@@ -1264,7 +1264,7 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	domain->resume_freq = cal_dfs_get_resume_freq(domain->cal_id);
 	domain->old = get_freq(domain);
 	if (domain->old < domain->min_freq || domain->max_freq < domain->old) {
-		WARN(1, "Out-of-range freq(%dkhz) returned for domain%d in init time\n",
+		pr_info("Out-of-range freq(%dkhz) returned for domain%d in init time\n",
 		     domain->old, domain->id);
 		domain->old = domain->boot_freq;
 	}
