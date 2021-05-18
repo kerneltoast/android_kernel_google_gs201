@@ -35,14 +35,31 @@ struct device *pmic_device_create(void *drvdata, const char *fmt)
 
 	return dev;
 }
-EXPORT_SYMBOL(pmic_device_create);
+EXPORT_SYMBOL_GPL(pmic_device_create);
+
+struct device *pmic_subdevice_create(struct device *parent, const struct attribute_group **groups,
+				     void *drvdata, const char *fmt)
+{
+	struct device *dev;
+
+	dev = device_create_with_groups(pmic_class, parent, atomic_inc_return(&pmic_dev),
+					drvdata, groups, fmt);
+	if (IS_ERR(dev)) {
+		dev_err(dev, "Failed to create device %s %ld\n", fmt, PTR_ERR(dev));
+		return NULL;
+	}
+	pr_debug("%s : %s : %d\n", __func__, fmt, dev->devt);
+
+	return dev;
+}
+EXPORT_SYMBOL_GPL(pmic_subdevice_create);
+
 
 void pmic_device_destroy(dev_t devt)
 {
-	pr_info("%s : %d\n", __func__, devt);
 	device_destroy(pmic_class, devt);
 }
-EXPORT_SYMBOL(pmic_device_destroy);
+EXPORT_SYMBOL_GPL(pmic_device_destroy);
 
 static int __init pmic_class_create(void)
 {

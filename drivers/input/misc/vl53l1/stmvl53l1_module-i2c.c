@@ -648,6 +648,9 @@ int stmvl53l1_power_down_i2c(void *i2c_object)
 			dev_err(dev, "reg disable vio failed. rc=%d\n", rc);
 	}
 
+	/* Disable I2C */
+	stmvl53l1_pinctrl_set_state(dev, data->state_pinctrl, "off_i2c_ldaf");
+
 	if (data->vl53l1_data != NULL) {
 		data->vl53l1_data->is_power_up = false;
 		dev_info(dev, "Power down successfully\n");

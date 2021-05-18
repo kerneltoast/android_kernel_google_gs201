@@ -999,7 +999,10 @@ fail:
 	rcu_read_unlock();
 	*new_cpu = -1;
 out:
-	trace_sched_find_energy_efficient_cpu(p, sync_wakeup, *new_cpu, best_energy_cpu, prev_cpu);
+	trace_sched_find_energy_efficient_cpu(p, sync_wakeup, *new_cpu, best_energy_cpu, prev_cpu,
+					      get_vendor_task_struct(p)->group,
+					      uclamp_eff_value(p, UCLAMP_MIN),
+					      uclamp_eff_value(p, UCLAMP_MAX));
 }
 
 void vh_arch_set_freq_scale_pixel_mod(void *data, const struct cpumask *cpus,

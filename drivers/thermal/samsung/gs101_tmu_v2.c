@@ -552,7 +552,8 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 
 	trace_thermal_exynos_power_allocator(tz, power_range,
 					     max_power, tz->temperature,
-					     control_temp - tz->temperature, state);
+					     control_temp - tz->temperature,
+					     state, data->is_hardlimited);
 
 	return ret;
 }
@@ -707,7 +708,7 @@ static void init_bcl_dev(struct kthread_work *work)
 		goto init_exit;
 	}
 
-	pr_info("%s: pasring default setting ppm: 0x%x, mpmm: 0x%x\n", data->tmu_name,
+	pr_info("%s: parsing default setting ppm: 0x%x, mpmm: 0x%x\n", data->tmu_name,
 		data->ppm_clr_throttle_level, data->mpmm_clr_throttle_level);
 
 init_exit:
@@ -777,6 +778,9 @@ static void gs101_throttle_arm(struct kthread_work *work)
 			data->is_cpu_hw_throttled = true;
 		}
 	}
+	trace_thermal_exynos_arm_update(data->tmu_name, data->is_cpu_hw_throttled,
+					data->ppm_throttle_level, data->ppm_clr_throttle_level,
+					data->mpmm_throttle_level, data->mpmm_clr_throttle_level);
 
 unlock:
 	mutex_unlock(&data->lock);
@@ -867,6 +871,8 @@ static void gs101_throttle_cpu_pause(struct kthread_work *work)
 			}
 		}
 	}
+	trace_thermal_exynos_cpu_pause(data->tmu_name, &mask, data->is_cpu_paused);
+
 	disable_stats_update(data->disable_stats, data->is_cpu_paused);
 
 	mutex_unlock(&data->lock);
@@ -879,7 +885,7 @@ static void gs101_throttle_hard_limit(struct kthread_work *work)
 	struct thermal_zone_device *tz = data->tzd;
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev = NULL;
-	unsigned long state, max_state;
+	unsigned long state, max_state, prev_max_state;
 
 	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
@@ -905,6 +911,7 @@ static void gs101_throttle_hard_limit(struct kthread_work *work)
 			} else {
 				state = 0;
 			}
+			prev_max_state = data->max_cdev;
 			data->max_cdev = state;
 			mutex_unlock(&data->lock);
 
@@ -919,8 +926,13 @@ static void gs101_throttle_hard_limit(struct kthread_work *work)
 
 			mutex_lock(&data->lock);
 			data->is_hardlimited = false;
-			pr_info_ratelimited("%s: clear hard limit, is_hardlimited = %d\n",
-					    data->tmu_name, data->is_hardlimited);
+			pr_info_ratelimited("%s: clear hard limit, is_hardlimited = %d, pid swithed_on = %d\n",
+					    data->tmu_name, data->is_hardlimited,
+					    data->pi_param->switched_on);
+			trace_thermal_exynos_hard_limit_cdev_update(data->tmu_name, cdev->type,
+								    data->is_hardlimited,
+								    data->pi_param->switched_on,
+								    prev_max_state, state);
 		}
 	} else {
 		if (data->temperature >= data->hardlimit_threshold) {
@@ -936,6 +948,7 @@ static void gs101_throttle_hard_limit(struct kthread_work *work)
 
 			state = max((unsigned long)data->hardlimit_cooling_state,
 					       data->max_cdev);
+			prev_max_state = data->max_cdev;
 			data->max_cdev = state;
 			mutex_unlock(&data->lock);
 
@@ -950,9 +963,14 @@ static void gs101_throttle_hard_limit(struct kthread_work *work)
 
 			mutex_lock(&data->lock);
 			data->is_hardlimited = true;
-			pr_info_ratelimited("%s: %s set cur_state to hardlimit cooling state %d, is_hardlimited = %d\n",
+			pr_info_ratelimited("%s: %s set cur_state to hardlimit cooling state %d, is_hardlimited = %d, pid swithed_on = %d\n",
 					    data->tmu_name, cdev->type,
-					    data->hardlimit_cooling_state, data->is_hardlimited);
+					    data->hardlimit_cooling_state, data->is_hardlimited,
+					    data->pi_param->switched_on);
+			trace_thermal_exynos_hard_limit_cdev_update(data->tmu_name, cdev->type,
+								    data->is_hardlimited,
+								    data->pi_param->switched_on,
+								    prev_max_state, state);
 		}
 	}
 	hard_limit_stats_update(data->hardlimit_stats, data->is_hardlimited);

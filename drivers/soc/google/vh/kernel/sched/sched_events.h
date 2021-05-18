@@ -277,9 +277,11 @@ TRACE_EVENT(sched_find_best_target,
 TRACE_EVENT(sched_find_energy_efficient_cpu,
 
 	TP_PROTO(struct task_struct *tsk, bool sync_wakeup,
-		 int new_cpu, int best_energy_cpu, int prev_cpu),
+		 int new_cpu, int best_energy_cpu, int prev_cpu,
+		 int group, int uclamp_min, int uclamp_max),
 
-	TP_ARGS(tsk, sync_wakeup, new_cpu, best_energy_cpu, prev_cpu),
+	TP_ARGS(tsk, sync_wakeup, new_cpu, best_energy_cpu, prev_cpu,
+		group, uclamp_min, uclamp_max),
 
 	TP_STRUCT__entry(
 		__array(char,		comm, TASK_COMM_LEN)
@@ -288,6 +290,9 @@ TRACE_EVENT(sched_find_energy_efficient_cpu,
 		__field(int,		new_cpu)
 		__field(int,		best_energy_cpu)
 		__field(int,		prev_cpu)
+		__field(int,		group)
+		__field(int,		uclamp_min)
+		__field(int,		uclamp_max)
 		),
 
 	TP_fast_assign(
@@ -297,11 +302,16 @@ TRACE_EVENT(sched_find_energy_efficient_cpu,
 		__entry->new_cpu         = new_cpu;
 		__entry->best_energy_cpu = best_energy_cpu;
 		__entry->prev_cpu        = prev_cpu;
+		__entry->group           = group;
+		__entry->uclamp_min      = uclamp_min;
+		__entry->uclamp_max      = uclamp_max;
 		),
 
-	TP_printk("pid=%d comm=%s sync_wakeup=%d new_cpu=%d best_energy_cpu=%d prev_cpu=%d",
+	TP_printk("pid=%d comm=%s sync_wakeup=%d new_cpu=%d best_energy_cpu=%d prev_cpu=%d " \
+		  "group=%d uclamp.min=%d uclamp.max=%d",
 		  __entry->pid, __entry->comm, __entry->sync_wakeup, __entry->new_cpu,
-		  __entry->best_energy_cpu, __entry->prev_cpu)
+		  __entry->best_energy_cpu, __entry->prev_cpu,
+		  __entry->group, __entry->uclamp_min, __entry->uclamp_max)
 );
 
 TRACE_EVENT(sched_cpu_util,
