@@ -155,7 +155,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -166,7 +166,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -177,7 +177,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -188,7 +188,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -199,7 +199,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -210,7 +210,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0xC>;
 				qurgent_th_w = <0x6>;
 				blocking_on = <0>;
@@ -247,7 +247,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				qurgent_th_w = <0x20>;
 				blocking_on = <0>;
@@ -259,7 +259,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -270,7 +270,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -281,7 +281,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -292,7 +292,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -303,7 +303,7 @@
 				arqos = <0x8>;
 				awqos = <0x8>;
 				rmo = <0x40>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0xC>;
 				qurgent_th_w = <0x6>;
 				blocking_on = <0>;
@@ -341,7 +341,7 @@
 				awqos = <0x8>;
 				rmo = <0x40>;
 				wmo = <0x20>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -353,7 +353,7 @@
 				awqos = <0x8>;
 				rmo = <0x40>;
 				wmo = <0x20>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -365,7 +365,7 @@
 				awqos = <0x8>;
 				rmo = <0x40>;
 				wmo = <0x20>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -377,7 +377,7 @@
 				awqos = <0x8>;
 				rmo = <0x40>;
 				wmo = <0x20>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -389,7 +389,7 @@
 				awqos = <0x8>;
 				rmo = <0x40>;
 				wmo = <0x20>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0x20>;
 				blocking_on = <0>;
 				ex_qurgent_on = <0>;
@@ -401,7 +401,7 @@
 				awqos = <0x8>;
 				rmo = <0x40>;
 				wmo = <0x20>;
-				qurgent_on = <0>;
+				qurgent_on = <1>;
 				qurgent_th_r = <0xC>;
 				qurgent_th_w = <0x6>;
 				blocking_on = <0>;
