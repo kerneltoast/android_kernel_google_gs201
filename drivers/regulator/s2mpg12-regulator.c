@@ -221,7 +221,7 @@ static struct regulator_desc regulators[S2MPG12_REGULATOR_MAX] = {
 		 _REG(_L3M_CTRL), _MASK(_7), _TIME(_LDO)),
 	REG_DESC("LDO4M", _LDO(4), 4, _REG(_L4M_CTRL), _N_VOLTAGES(64),
 		 _REG(_L4M_CTRL), _MASK(_7_6), _TIME(_LDO)),
-	REG_DESC("LDO5M", _LDO(5), 3, _REG(_L5M_CTRL), _N_VOLTAGES(64),
+	REG_DESC("LDO5M", _LDO(5), 2, _REG(_L5M_CTRL), _N_VOLTAGES(64),
 		 _REG(_L5M_CTRL), _MASK(_7_6), _TIME(_LDO)),
 	REG_DESC("LDO6M", _LDO(6), 3, _REG(_L6M_CTRL), _N_VOLTAGES(64),
 		 _REG(_L6M_CTRL), _MASK(_7_6), _TIME(_LDO)),
