@@ -46,7 +46,10 @@ int eh_init_latency_stat(struct eh_device *eh_dev)
 
 void eh_deinit_latency_stat(struct eh_device *eh_dev)
 {
-	free_percpu(eh_dev->stats);
+	if (eh_dev->stats) {
+		free_percpu(eh_dev->stats);
+		eh_dev->stats = NULL;
+	}
 }
 
 void eh_update_latency(struct eh_device *eh_dev, unsigned long start,

@@ -629,6 +629,20 @@ static void eh_hw_deinit(struct eh_device *eh_dev)
 	eh_dev->regs = NULL;
 }
 
+static void eh_sw_deinit(struct eh_device *eh_dev)
+{
+	if (eh_dev->error_irq) {
+		free_irq(eh_dev->error_irq, eh_dev);
+		eh_dev->error_irq = 0;
+	}
+
+	if (eh_dev->comp_thread) {
+		kthread_stop(eh_dev->comp_thread);
+		eh_dev->comp_thread = NULL;
+	}
+	eh_deinit_latency_stat(eh_dev);
+}
+
 /* Initialize HW related stuff */
 static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
 		      phys_addr_t regs, unsigned short quirks)
@@ -687,6 +701,7 @@ deinit_compr:
 	eh_deinit_compression(eh_dev);
 iounmap:
 	iounmap(eh_dev->regs);
+	eh_dev->regs = NULL;
 
 	pr_err("failed to eh_hw_init %d\n", ret);
 	return ret;
@@ -694,12 +709,8 @@ iounmap:
 
 static void eh_deinit(struct eh_device *eh_dev)
 {
-	eh_deinit_compression(eh_dev);
-	eh_deinit_decompression(eh_dev);
-	free_irq(eh_dev->error_irq, eh_dev);
-	kthread_stop(eh_dev->comp_thread);
-	eh_deinit_latency_stat(eh_dev);
-	iounmap(eh_dev->regs);
+	eh_hw_deinit(eh_dev);
+	eh_sw_deinit(eh_dev);
 }
 
 /* EmeraldHill initialization entry */
@@ -1039,13 +1050,12 @@ static int eh_of_remove(struct platform_device *pdev)
 {
 	struct eh_device *eh_dev = platform_get_drvdata(pdev);
 
-	eh_remove(eh_dev);
-
 	clk_disable_unprepare(eh_dev->clk);
 	clk_put(eh_dev->clk);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+	eh_remove(eh_dev);
 	return 0;
 }
 
