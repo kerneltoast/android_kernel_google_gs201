@@ -145,7 +145,7 @@
 	faceauth_tpu: faceauth_tpu {
 		compatible = "shared-dma-pool";
 		reusable;
-		size = <0xC00000>;
+		size = <0x2000000>;
 		alignment = <0x0 0x00010000>;
 	};
 
