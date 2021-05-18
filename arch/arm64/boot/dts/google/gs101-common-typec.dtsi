@@ -146,6 +146,23 @@
 					       PDO_FIXED_DUAL_ROLE)
 				     PDO_FIXED(9000, 2200, 0)
 				     PDO_PPS_APDO(5000, 11000, 3000)>;
+			sink-vdos = <VDO_IDH(/* usbh */ 1, /* usbd */ 1, IDH_PTYPE_PERIPH,
+					     /* is_modal */ 0, IDH_PTYPE_DFP_HOST, /* conn */ 2,
+					     0x18D1)
+				     VDO_CERT(0x0)
+				     VDO_PRODUCT(0x4EE1, 0x0)
+				     VDO_UFP(UFP_VDO_VER1_2, DEV_USB2_CAPABLE | DEV_USB3_CAPABLE,
+					     UFP_RECEPTACLE, /* rsvd */ 0, AMA_VCONN_NOT_REQ,
+					     /* rsvd */ 0, UFP_ALTMODE_NOT_SUPP, UFP_USB32_GEN1)
+				     /* padding */ 0
+				     VDO_DFP(DFP_VDO_VER1_1, HOST_USB2_CAPABLE | HOST_USB3_CAPABLE,
+					     DFP_RECEPTACLE, /* pnum */ 0)>;
+			sink-vdos-v1 = <VDO_IDH(/* usbh */ 1, /* usbd */ 1, IDH_PTYPE_PERIPH,
+						/* is_modal */ 0, /* rsvd */ 0, /* rsvd */ 0,
+						0x18D1)
+					VDO_CERT(0x0)
+					VDO_PRODUCT(0x4EE1, 0x0)>;
+
 			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
