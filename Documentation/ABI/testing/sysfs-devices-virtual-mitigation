@@ -1,0 +1,62 @@
+What:		/sys/devices/virtual/pmic/mitigation/triggered_lvl/<SUBSYSTEM>
+Date:		May, 2021
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_lvl, ocp_cpu1_lvl, ocp_cpu2_lvl, ocp_tpu_lvl,
+		soft_ocp_cpu1_lvl, soft_ocp_cpu2_lvl, soft_ocp_tpu_lvl, ocp_gpu_lvl,
+		soft_ocp_gpu_lvl.
+		The reported value is the readback of the corresponding threshold.
+
+What:		/sys/devices/virtual/pmic/mitigation/clock_stats/<SUBSYSTEM>
+Date:		May, 2021
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from cpu0_clk_stats, cpu1_clk_stats, cpu2_clk_stats,
+		tpu_clk_stats, gpu_clk_stats.
+		The reported value is the readback of the corresponding register.
+
+What:		/sys/devices/virtual/pmic/mitigation/clock_ratio/<SUBSYSTEM>
+Date:		May, 2021
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from cpu0_clk_ratio, cpu1_heavy_clk_ratio,
+		cpu2_heavy_clk_ratio, tpu_heavy_clk_ratio, gpu_heavy_clk_ratio,
+		cpu1_light_clk_ratio, cpu2_light_clk_ratio, tpu_light_clk_ratio,
+		gpu_light_clk_ratio.
+		The reported value is the readback of the corresponding register.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_count/<SUBSYSTEM>
+Date:		May, 2021
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_warn_count, ocp_cpu1_count, ocp_cpu2_count,
+		ocp_tpu_count, soft_ocp_cpu1_count, soft_ocp_cpu2_count, soft_ocp_tpu_count,
+		ocp_gpu_count, soft_ocp_gpu_count, vdroop1_count, vdroop2_count, batoilo_count.
+		The reported value is the count of IRQ triggering.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_timestamp/<SUBSYSTEM>
+Date:		May, 2021
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_warn_time, ocp_cpu1_time, ocp_cpu2_time,
+		ocp_tpu_time, soft_ocp_cpu1_time, soft_ocp_cpu2_time, soft_ocp_tpu_time,
+		ocp_gpu_time, soft_ocp_gpu_time, vdroop1_time, vdroop2_time, batoilo_time.
+		The reported value is the last triggered timestamp.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_capacity/<SUBSYSTEM>
+Date:		May, 2021
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_warn_cap, ocp_cpu1_cap, ocp_cpu2_cap,
+		ocp_tpu_cap, soft_ocp_cpu1_cap, soft_ocp_cpu2_cap, soft_ocp_tpu_cap,
+		ocp_gpu_cap, soft_ocp_gpu_cap, vdroop1_cap, vdroop2_cap, batoilo_cap.
+		The reported value is the last triggered battery capacity.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_voltage/<SUBSYSTEM>
+Date:		May, 2021
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_warn_volt, ocp_cpu1_volt, ocp_cpu2_volt,
+		ocp_tpu_volt, soft_ocp_cpu1_volt, soft_ocp_cpu2_volt, soft_ocp_tpu_volt,
+		ocp_gpu_volt, soft_ocp_gpu_volt, vdroop1_volt, vdroop2_volt, batoilo_volt.
+		The reported value is the last triggered battery voltage.

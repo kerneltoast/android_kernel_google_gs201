@@ -10,6 +10,8 @@
 
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 struct device *pmic_device_create(void *drvdata, const char *fmt);
+struct device *pmic_subdevice_create(struct device *parent, const struct attribute_group **groups,
+				     void *drvdata, const char *fmt);
 void pmic_device_destroy(dev_t devt);
 #else
 #define pmic_device_create(a, b) (-1)

@@ -103,12 +103,16 @@ static int bigo_scale_bw(struct bigo_core *core)
 
 void bigo_update_qos(struct bigo_core *core)
 {
-	int rc = bigo_scale_bw(core);
+	int rc;
+
+	mutex_lock(&core->lock);
+	rc = bigo_scale_bw(core);
 
 	if (rc)
 		pr_warn("%s: failed to scale bandwidth: %d\n", __func__, rc);
 
 	bigo_scale_freq(core);
+	mutex_unlock(&core->lock);
 }
 
 /*
