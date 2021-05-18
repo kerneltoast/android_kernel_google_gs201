@@ -287,8 +287,6 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	void *compr_data = NULL;
 	int ret = 0;
 
-	eh_update_latency(eh_dev, get_submit_ts(cmpl), 1, EH_COMPRESS);
-
 	desc = eh_dev->fifo + (fifo_index * EH_COMPRESS_DESC_SIZE);
 
 	pr_devel("desc 0x%x status 0x%x len %u src 0x%pap\n",
@@ -482,19 +480,12 @@ static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 		goto free_irq;
 	}
 
-	ret = eh_init_latency_stat(eh_dev);
-	if (ret)
-		goto free_thread;
-
 	spin_lock(&eh_dev_list_lock);
 	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
 	spin_unlock(&eh_dev_list_lock);
 
-
 	return 0;
 
-free_thread:
-	kthread_stop(eh_dev->comp_thread);
 free_irq:
 	free_irq(eh_dev->error_irq, eh_dev);
 
@@ -640,7 +631,6 @@ static void eh_sw_deinit(struct eh_device *eh_dev)
 		kthread_stop(eh_dev->comp_thread);
 		eh_dev->comp_thread = NULL;
 	}
-	eh_deinit_latency_stat(eh_dev);
 }
 
 /* Initialize HW related stuff */
@@ -742,7 +732,7 @@ static int eh_init(struct device *device, struct eh_device *eh_dev,
 
 static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 			void *compr_data, unsigned int compr_size,
-			struct page *dst_page, unsigned long *ts)
+			struct page *dst_page)
 {
 	void *src_vaddr;
 	phys_addr_t src_paddr;
@@ -801,9 +791,6 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	dst_data = page_to_phys(dst_page);
 	dst_data |= ((unsigned long)EH_DCMD_PENDING)
 		    << EH_DCMD_DEST_STATUS_SHIFT;
-#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-	*ts = ktime_get_ns();
-#endif
 	eh_write_register(eh_dev, EH_REG_DCMD_DEST(index), dst_data);
 }
 
@@ -846,7 +833,6 @@ try_again:
 
 	cmpl = &eh_dev->completions[masked_w_index];
 	cmpl->priv = priv;
-	set_submit_ts(cmpl, ktime_get_ns());
 
 	atomic_inc(&eh_dev->nr_request);
 	wake_up(&eh_dev->comp_wq);
@@ -873,7 +859,6 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 {
 	int ret = 0;
 	int cpu;
-	unsigned long submit_ts;
 	unsigned long timeout;
 	unsigned long status;
 
@@ -893,7 +878,7 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 	pr_devel("[%s]: submit: cpu %u compr_size %u\n", current->comm, cpu, compr_size);
 
 	/* program decompress register (no IRQ) */
-	eh_setup_dcmd(eh_dev, cpu, compr_data, compr_size, page, &submit_ts);
+	eh_setup_dcmd(eh_dev, cpu, compr_data, compr_size, page);
 
 	timeout = jiffies + msecs_to_jiffies(EH_POLL_DELAY_MS);
 	do {
@@ -906,8 +891,6 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 		}
 		status = eh_read_dcmd_status(eh_dev, cpu);
 	} while (status == EH_DCMD_PENDING);
-
-	eh_update_latency(eh_dev, submit_ts, 1, EH_DECOMPRESS_POLL);
 
 	pr_devel("dcmd [%u] status = %u\n", cpu, status);
 
@@ -1016,15 +999,9 @@ static int eh_of_probe(struct platform_device *pdev)
 	eh_dev->clk = clk;
 	platform_set_drvdata(pdev, eh_dev);
 
-	ret = eh_sysfs_init(&pdev->dev);
-	if (ret)
-		goto eh_deinit;
-
 	pr_info("starting probing done\n");
 	return 0;
 
-eh_deinit:
-	eh_deinit(eh_dev);
 free_ehdev:
 	kfree(eh_dev);
 put_disable_clk:

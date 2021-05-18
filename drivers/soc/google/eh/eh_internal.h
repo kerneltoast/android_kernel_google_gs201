@@ -15,9 +15,6 @@
 
 struct eh_completion {
 	void *priv;
-#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-	unsigned long submit_ts;
-#endif
 };
 
 #define EH_MAX_DCMD 8
@@ -105,38 +102,5 @@ struct eh_device {
 
 	eh_cb_fn comp_callback;
 	eh_cb_fn decomp_callback;
-#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-	/* latency stats */
-	struct eh_stats __percpu *stats;
-#endif
 };
-
-#ifdef CONFIG_SYSFS
-int eh_sysfs_init(struct device *device);
-#else
-static inline int eh_sysfs_init(struct device *device) { return 0;};
-#endif
-
-#ifdef CONFIG_GOOGLE_EH_LATENCY_STAT
-int eh_init_latency_stat(struct eh_device *eh_dev);
-void eh_deinit_latency_stat(struct eh_device *eh_dev);
-
-void eh_update_latency(struct eh_device *eh_dev, unsigned long start,
-			      unsigned long event_count,
-			      enum eh_stat_event type);
-
-void set_submit_ts(struct eh_completion *cmpl, unsigned long ts);
-unsigned long get_submit_ts(struct eh_completion *cmpl);
-#else
-static inline int eh_init_latency_stat(struct eh_device *eh_dev) { return 0; };
-static inline void eh_deinit_latency_stat(struct eh_device *eh_dev) {};
-
-static inline void eh_update_latency(struct eh_device *eh_dev, unsigned long start,
-			      unsigned long event_count,
-			      enum eh_stat_event type) {};
-
-static inline void set_submit_ts(struct eh_completion *cmpl, unsigned long ts) {};
-static inline unsigned long get_submit_ts(struct eh_completion *cmpl) { return 0; };
-#endif
-
 #endif

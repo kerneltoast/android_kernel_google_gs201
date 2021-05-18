@@ -5,4 +5,3 @@
 obj-$(CONFIG_GOOGLE_EH) += eh.o
 
 eh-y                    := eh_main.o
-eh-$(CONFIG_SYSFS)      += eh_sysfs.o
