@@ -945,6 +945,7 @@ __exynos_cpu_cooling_register(struct device_node *np,
 	struct device *dev;
 	int ret;
 	struct thermal_cooling_device_ops *cooling_ops = &exynos_cpu_cooling_ops;
+	u32 power;
 
 	dev = get_cpu_device(policy->cpu);
 	if (unlikely(!dev)) {
@@ -1055,6 +1056,13 @@ __exynos_cpu_cooling_register(struct device_node *np,
 		policy->cpu, capacitance,
 		cooling_ops == &exynos_cpu_power_cooling_ops ? "true" : "false",
 		cpufreq_cdev->has_static ? "true" : "false");
+
+	for (i = 0; i <= cpufreq_cdev->max_level; i++) {
+		cpufreq_state2power(cdev, i, &power);
+		pr_debug("cpu_cooling %d: state:%u power:%u\n", policy->cpu,
+			i, power);
+	}
+
 	return cdev;
 
 remove_qos_req:

@@ -1036,6 +1036,8 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 	char dev_name[THERMAL_NAME_LENGTH];
 	struct thermal_cooling_device_ops *cooling_ops = &gpufreq_cooling_ops;
 	int ret = 0;
+	int num_level, i;
+	u32 power;
 
 	gpufreq_cdev = kzalloc(sizeof(*gpufreq_cdev),
 			       GFP_KERNEL);
@@ -1097,6 +1099,14 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 	pr_info("gpu cooling registered for %s, capacitance: %d, power_callback: %s\n",
 		dev_name, capacitance,
 		cooling_ops == &gpufreq_power_cooling_ops ? "true" : "false");
+
+	num_level = gpufreq_cdev->gpu_fns->get_num_levels(gpufreq_cdev->gpu_drv_data);
+	for (i = 0; i < num_level; i++) {
+		gpufreq_state2power(cool_dev, i, &power);
+		pr_debug("[GPU cooling] index:%d: state:%d power:%u\n",
+			gpufreq_cdev->id, i, power);
+	}
+
 	return cool_dev;
 
 free_cool_dev:
