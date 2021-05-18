@@ -2,7 +2,7 @@
 #include "cmucal-sfr.h"
 
 unsigned int cmucal_sfr_block_size = 38;
-struct sfr_block cmucal_sfr_block_list[] __initdata = {
+struct sfr_block cmucal_sfr_block_list[] = {
 	SFR_BLOCK(CMU_AUR, 0x25a00000, 0x8000),
 	SFR_BLOCK(CMU_TOP, 0x1e080000, 0x8000),
 	SFR_BLOCK(CMU_CPUCL0, 0x20c00000, 0x8000),
@@ -45,7 +45,7 @@ struct sfr_block cmucal_sfr_block_list[] __initdata = {
 
 unsigned int dbg_offset = 0x4000;
 unsigned int cmucal_sfr_size = 4140;
-struct sfr cmucal_sfr_list[] __initdata = {
+struct sfr cmucal_sfr_list[] = {
 	SFR(PLL_LOCKTIME_PLL_AUR, 0x0, CMU_AUR),
 	SFR(PLL_CON3_PLL_AUR, 0x10c, CMU_AUR),
 	SFR(PLL_CON4_PLL_AUR, 0x110, CMU_AUR),
@@ -4189,7 +4189,7 @@ struct sfr cmucal_sfr_list[] __initdata = {
 };
 
 unsigned int cmucal_sfr_access_size = 13236;
-struct sfr_access cmucal_sfr_access_list[] __initdata = {
+struct sfr_access cmucal_sfr_access_list[] = {
 	SFR_ACCESS(PLL_LOCKTIME_PLL_AUR_PLL_LOCK_TIME, 0, 20, PLL_LOCKTIME_PLL_AUR),
 	SFR_ACCESS(PLL_CON3_PLL_AUR_ENABLE, 31, 1, PLL_CON3_PLL_AUR),
 	SFR_ACCESS(PLL_CON3_PLL_AUR_STABLE, 29, 1, PLL_CON3_PLL_AUR),
