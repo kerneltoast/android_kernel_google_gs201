@@ -391,12 +391,14 @@
 			<0x0 0x1AA40000 0x10000>, /* PDP CORE0 */
 			<0x0 0x1AA50000 0x10000>, /* PDP CORE1 */
 			<0x0 0x1AA60000 0x10000>, /* PDP CORE2 */
-			<0x0 0x1AA20000 0x10000>; /* SYSREG PDP */
+			<0x0 0x1AA20000 0x10000>, /* SYSREG PDP */
+			<0x0 0x1A820400 0x4>;     /* SYSREG G3AA */
 		reg-names =
 			"pdp-core0",
 			"pdp-core1",
 			"pdp-core2",
-			"sysreg-pdp";
+			"sysreg-pdp",
+			"sysreg-g3aa";
 
 		clocks =
 			<&clock UMUX_CLKCMU_PDP_BUS>,
