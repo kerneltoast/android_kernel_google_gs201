@@ -1227,71 +1227,11 @@ static ssize_t enabled_rails_store(struct device *dev,
 	int channel = -1;
 	bool channel_valid = false;
 	int rail_i;
-	int scan_result =
-		sscanf(buf, "CH%d=%" xstr(ODPM_RAIL_NAME_STR_LEN_MAX) "s",
-		       &channel, rail_name);
+	int scan_result;
+	int current_rail;
+	int new_rail;
 
-	if (scan_result == 2 && channel >= 0 && channel < ODPM_CHANNEL_MAX) {
-		for (rail_i = 0; rail_i < info->chip.num_rails; rail_i++) {
-			if (strcmp(info->chip.rails[rail_i].name, rail_name) ==
-			    0) {
-				channel_valid = true;
-				break;
-			}
-		}
-	}
-
-	if (channel_valid) {
-		int current_rail;
-		int new_rail = rail_i;
-
-		mutex_lock(&info->lock);
-		current_rail = info->channels[channel].rail_i;
-
-		if (new_rail == current_rail) {
-			/* Do not apply rail selection if the same rail is being
-			 * replaced.
-			 */
-			goto enabled_rails_store_exit;
-		}
-
-		/* Send a refresh and store values for old rails */
-		if (odpm_take_snapshot_locked(info) < 0) {
-			pr_err("odpm: cannot refresh values to swap rails\n");
-			goto enabled_rails_store_exit;
-		}
-
-		/* Capture measurement time for current rail */
-		info->chip.rails[current_rail].measurement_start_ms_cached =
-			info->channels[channel].measurement_start_ms;
-		info->chip.rails[current_rail].measurement_stop_ms =
-			info->chip.acc_timestamp;
-
-		/* Reset stored energy for channel */
-		info->chip.rails[current_rail].acc_power_uW_sec_cached =
-			info->channels[channel].acc_power_uW_sec;
-		info->channels[channel].acc_power_uW_sec = 0;
-
-		/* Assign new rail to channel */
-		info->channels[channel].rail_i = new_rail;
-
-		/* Rail is swapped, update en bits */
-		odpm_io_update_bucken_enable_bits(info);
-
-		/* Update rail muxsel */
-		odpm_io_set_channel(info, channel);
-
-		/* Record measurement start time / reset stop time */
-		info->channels[channel].measurement_start_ms =
-			odpm_get_timestamp_now_ms();
-		info->chip.rails[new_rail].measurement_stop_ms = 0;
-
-enabled_rails_store_exit:
-		mutex_unlock(&info->lock);
-
-		return count;
-
-	} else if (strcmp(buf, "CONFIG_COMPLETE") == 0) {
+	if (strcmp(buf, "CONFIG_COMPLETE") == 0) {
 		/**
 		 * External configuration applied, so reset the timestamps and
 		 * measurements. This can only be done once from boot.
@@ -1312,8 +1252,67 @@ enabled_rails_store_exit:
 		return count;
 	}
 
-	/* The buffer syntax was invalid if this is reached. */
-	return -EINVAL;
+	scan_result = sscanf(buf, "CH%d=%" xstr(ODPM_RAIL_NAME_STR_LEN_MAX) "s",
+			     &channel, rail_name);
+	if (scan_result == 2 && channel >= 0 && channel < ODPM_CHANNEL_MAX) {
+		for (rail_i = 0; rail_i < info->chip.num_rails; rail_i++) {
+			if (strcmp(info->chip.rails[rail_i].name, rail_name) ==
+			    0) {
+				channel_valid = true;
+				break;
+			}
+		}
+	}
+
+	if (!channel_valid)
+		return -EINVAL; /* The buffer syntax was invalid */
+
+	mutex_lock(&info->lock);
+	new_rail = rail_i;
+	current_rail = info->channels[channel].rail_i;
+
+	if (new_rail == current_rail) {
+		/* Do not apply rail selection if the same rail is being
+		 * replaced.
+		 */
+		goto enabled_rails_store_exit;
+	}
+
+	/* Send a refresh and store values for old rails */
+	if (odpm_take_snapshot_locked(info) < 0) {
+		pr_err("odpm: cannot refresh values to swap rails\n");
+		goto enabled_rails_store_exit;
+	}
+
+	/* Capture measurement time for current rail */
+	info->chip.rails[current_rail].measurement_start_ms_cached =
+		info->channels[channel].measurement_start_ms;
+	info->chip.rails[current_rail].measurement_stop_ms =
+		info->chip.acc_timestamp;
+
+	/* Reset stored energy for channel */
+	info->chip.rails[current_rail].acc_power_uW_sec_cached =
+		info->channels[channel].acc_power_uW_sec;
+	info->channels[channel].acc_power_uW_sec = 0;
+
+	/* Assign new rail to channel */
+	info->channels[channel].rail_i = new_rail;
+
+	/* Rail is swapped, update en bits */
+	odpm_io_update_bucken_enable_bits(info);
+
+	/* Update rail muxsel */
+	odpm_io_set_channel(info, channel);
+
+	/* Record measurement start time / reset stop time */
+	info->channels[channel].measurement_start_ms =
+		odpm_get_timestamp_now_ms();
+	info->chip.rails[new_rail].measurement_stop_ms = 0;
+
+enabled_rails_store_exit:
+	mutex_unlock(&info->lock);
+
+	return count;
 }
 
 static ssize_t measurement_start_show(struct device *dev,
