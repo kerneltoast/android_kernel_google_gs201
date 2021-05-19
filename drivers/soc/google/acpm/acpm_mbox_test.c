@@ -291,7 +291,7 @@ static int acpm_mfd_rtc_update(void)
 
 	data &= ~reg;
 	ret = s2mpg10_write_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, data);
-	if (ret < 0) {
+	if (ret) {
 		pr_err("%s: fail to write update ret(%d,%u)\n",
 		       __func__, ret, data);
 		return ret;
@@ -301,7 +301,7 @@ static int acpm_mfd_rtc_update(void)
 
 	data |= reg;
 	ret = s2mpg10_write_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, data);
-	if (ret < 0)
+	if (ret)
 		pr_err("%s: fail to write update ret(%d,%u)\n",
 		       __func__, ret, data);
 	else
@@ -410,6 +410,62 @@ static void acpm_mbox_mfd_s2mpg11_random_read(struct work_struct *work)
 	} else
 		pr_info("%s: [S2MPG11]addr: 0x%X, val: 0x%X\n", __func__, addr,
 			val);
+}
+
+static int acpm_pmic_ctrlist_stress(void)
+{
+	int ret, i, err_result = 0;
+	u16 addr;
+	u8 value;
+
+	for (i = 0; i < sizeof(def_lck_regs_m) / sizeof(u16); i++) {
+		addr = def_lck_regs_m[i];
+
+		ret = s2mpg10_read_reg(mbox->mfd->s2mpg10_pmic, addr, &value);
+		if (ret) {
+			pr_err("%s: fail to read ret: %d\n", __func__, ret);
+			return ret;
+		}
+
+		/* Verify PMIC ctrlist by writing the same setting */
+		ret = s2mpg10_write_reg(mbox->mfd->s2mpg10_pmic, addr, value);
+		if (ret == 0) {
+			pr_err("%s: ctrlist protection failed, ret: %d\n",
+			       __func__, ret);
+			err_result |= 1 << i;
+		}
+
+		pr_info("%s: addr: 0x%X, value: 0x%X, err_result: 0x%X\n",
+			__func__, addr, value, err_result);
+	}
+
+	for (i = 0; i < sizeof(def_lck_regs_s) / sizeof(u16); i++) {
+		addr = def_lck_regs_s[i];
+
+		ret = s2mpg11_read_reg(mbox->mfd->s2mpg11_pmic, addr, &value);
+		if (ret) {
+			pr_err("%s: fail to read ret: %d\n", __func__, ret);
+			return ret;
+		}
+
+		/* Verify PMIC ctrlist by writing the same setting */
+		ret = s2mpg11_write_reg(mbox->mfd->s2mpg11_pmic, addr, value);
+		if (ret == 0) {
+			pr_err("%s: ctrlist protection failed, ret: %d\n",
+			       __func__, ret);
+			err_result |= (1 << i) << 16;
+		}
+
+		pr_info("%s: addr: 0x%X, value: 0x%X, err_result: 0x%X\n",
+			__func__, addr, value, err_result);
+	}
+
+	if (err_result != 0)
+		mbox->mfd->ctrlist_err_result = err_result;
+	else
+		mbox->mfd->ctrlist_err_result = 1;
+
+	return 0;
 }
 
 static void acpm_mfd_mbox_stress_trigger(struct work_struct *work)
@@ -616,6 +672,10 @@ static int acpm_mfd_set_pmic(void)
 	u8 update_val;
 	int ret;
 
+	if (mbox->mfd->init_done) {
+		return 0;
+	}
+
 	/* Configure for main pmic */
 	p_np = of_parse_phandle(np, "main-pmic", 0);
 	if (p_np) {
@@ -671,6 +731,8 @@ static int acpm_mfd_set_pmic(void)
 
 	i2c_set_clientdata(s2mpg11->pmic, s2mpg11);
 	mbox->mfd->s2mpg11_pmic = s2mpg11->pmic;
+
+	mbox->mfd->init_done = 1;
 
 	return 0;
 }
@@ -869,6 +931,8 @@ static void acpm_framework_mbox_test(bool start)
 
 static int acpm_mbox_test_setting(struct acpm_info *acpm, u64 subcmd)
 {
+	int ret = 0;
+
 	if (subcmd >= ACPM_MBOX_TEST_CMD_MAX) {
 		pr_err("%s, sub-cmd:%d, out of range!\n", __func__, subcmd);
 		return -EINVAL;
@@ -876,7 +940,23 @@ static int acpm_mbox_test_setting(struct acpm_info *acpm, u64 subcmd)
 		acpm_framework_mbox_test(true);
 	} else if (ACPM_MBOX_TEST_STOP == subcmd) {
 		acpm_framework_mbox_test(false);
+	} else if (ACPM_MBOX_CTRLIST == subcmd) {
+		ret = acpm_mfd_set_pmic();
+		if (ret < 0)
+			pr_err("%s: set pmic failed, ret: %d\n", __func__, ret);
+		else
+			acpm_pmic_ctrlist_stress();
 	}
+
+	return 0;
+}
+
+static int debug_acpm_mbox_test_get(void *data, unsigned long long *val)
+{
+	if (mbox->mfd->ctrlist_err_result)
+		*val = mbox->mfd->ctrlist_err_result;
+	else
+		*val = 0;
 
 	return 0;
 }
@@ -1197,9 +1277,10 @@ static int debug_acpm_dvfs_test_set(void *data, u64 val)
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_mbox_test_fops,
-			NULL, debug_acpm_mbox_test_set, "0x%016llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_dvfs_test_fops,
-			NULL, debug_acpm_dvfs_test_set, "0x%016llx\n");
+			debug_acpm_mbox_test_get, debug_acpm_mbox_test_set,
+			"0x%016llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_dvfs_test_fops, NULL,
+			debug_acpm_dvfs_test_set, "0x%016llx\n");
 
 static void acpm_test_debugfs_init(struct acpm_mbox_test *mbox)
 {

@@ -31,6 +31,7 @@ enum random_output {
 enum acpm_mbox_test_commands {
 	ACPM_MBOX_TEST_STOP,
 	ACPM_MBOX_TEST_START,
+	ACPM_MBOX_CTRLIST,
 	ACPM_MBOX_TEST_CMD_MAX,
 };
 
@@ -80,6 +81,30 @@ enum pt_info_t {
 	SECONDARY_WAYS = 4,
 };
 
+enum pmic_id {
+	BUCK1M_MIF = 0,
+	BUCK2M_CPUCL2,
+	BUCK3M_CPUCL1,
+	BUCK4M_CPUCL0,
+	BUCK5M_INT,
+	BUCK6M_CPUCL2_M,
+	BUCK7M_INT_M,
+	BUCK10M_TPU,
+	LDO12M_CPUCL0_M,
+	LDO13M_TPU_M,
+	LDO15M_SLC_M,
+	NUM_OF_PMIC_MASTER,
+	BUCK1S_CAM = NUM_OF_PMIC_MASTER,
+	BUCK2S_G3D,
+	BUCK3S_LLDO1,
+	BUCK4S_VDD2H,
+	BUCK5S_VDDQ,
+	BUCK8S_G3DL2,
+	BUCK9S_AOC,
+	LDO2S_AOC_RET,
+	NUM_OF_PMIC_ID,
+};
+
 #define NUM_OF_WQ               16
 
 /* IPC Mailbox Channel */
@@ -126,6 +151,38 @@ struct acpm_dvfs_validity {
 #define SECS_PER_HR     3600
 #define SECS_PER_MIN    60
 
+#define BUCK1M_OUT1     (0x119)
+#define BUCK2M_OUT1     (0x11C)
+#define BUCK3M_OUT1     (0x11F)
+#define BUCK4M_OUT1     (0x122)
+#define BUCK5M_OUT1     (0x125)
+#define BUCK6M_OUT1     (0x128)
+#define BUCK7M_OUT1     (0x12B)
+#define BUCK10M_OUT1    (0x134)
+#define LDO12M_CTRL1    (0x14C)
+#define LDO13M_CTRL1    (0x14E)
+#define LDO15M_CTRL1    (0x151)
+
+#define BUCK1S_OUT1     (0x113)
+#define BUCK2S_OUT1     (0x116)
+#define BUCK3S_OUT1     (0x119)
+#define BUCK4S_OUT      (0x11C)
+#define BUCK5S_OUT      (0x11E)
+#define BUCK8S_OUT1     (0x126)
+#define BUCK9S_OUT1     (0x129)
+#define LDO2S_CTRL1     (0x143)
+
+static u16 def_lck_regs_m[NUM_OF_PMIC_MASTER] = {
+	BUCK1M_OUT1, BUCK2M_OUT1, BUCK3M_OUT1, BUCK4M_OUT1,
+	BUCK5M_OUT1, BUCK6M_OUT1, BUCK7M_OUT1, BUCK10M_OUT1,
+	LDO12M_CTRL1, LDO13M_CTRL1, LDO15M_CTRL1
+};
+
+static u16 def_lck_regs_s[NUM_OF_PMIC_ID - NUM_OF_PMIC_MASTER] = {
+	BUCK1S_OUT1, BUCK2S_OUT1, BUCK3S_OUT1, BUCK4S_OUT,
+	BUCK5S_OUT, BUCK8S_OUT1, BUCK9S_OUT1, LDO2S_CTRL1
+};
+
 struct acpm_mfd_validity {
 	struct i2c_client *s2mpg10_pmic;
 	struct i2c_client *s2mpg11_pmic;
@@ -139,6 +196,8 @@ struct acpm_mfd_validity {
 	u8 update_reg;
 	/* mutex for RTC */
 	struct mutex lock;
+	int ctrlist_err_result;
+	int init_done;
 };
 
 #define PT_VERSION		0xd005
@@ -291,5 +350,6 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
 				  int dm_id);
 static unsigned int get_random_rate(unsigned int dm_id);
 static int dvfs_freq_table_init(void);
+static int acpm_pmic_ctrlist_stress(void);
 
 #endif
