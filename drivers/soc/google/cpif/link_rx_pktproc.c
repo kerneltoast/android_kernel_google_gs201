@@ -383,6 +383,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 	u32 fore;
 	int i;
 	unsigned long flags;
+	u32 space;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
 		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
@@ -394,13 +395,18 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 		return -EPERM;
 	}
 
-	mif_info("Q%d:%d/%d/%d\n",
+	pp_debug("Q%d:%d/%d/%d\n",
 			q->q_idx, *q->fore_ptr, *q->rear_ptr, q->done_ptr);
 
 	spin_lock_irqsave(&q->lock, flags);
 
+	if (q->ppa->buff_rgn_cached)
+		space = circ_get_space(q->num_desc, *q->fore_ptr, q->done_ptr);
+	else
+		space = q->num_desc;
+
 	fore = *q->fore_ptr;
-	for (i = 0; i < q->num_desc; i++) {
+	for (i = 0; i < space; i++) {
 		dst_paddr = q->q_buff_pbase + (q->ppa->max_packet_size * fore);
 		if (dst_paddr > (q->q_buff_pbase + q->q_buff_size))
 			mif_err_limited("dst_paddr:0x%lx is over 0x%lx\n",
@@ -410,7 +416,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 			q->q_idx, *q->fore_ptr, dst_paddr);
 
 		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
-			dst_vaddr = q->q_buff_vbase + (q->ppa->max_packet_size * i);
+			dst_vaddr = q->q_buff_vbase + (q->ppa->max_packet_size * fore);
 			if (dst_vaddr > (q->q_buff_vbase + q->q_buff_size))
 				mif_err_limited("dst_vaddr:0x%lx is over 0x%lx\n",
 						dst_vaddr, q->q_buff_vbase + q->q_buff_size);
@@ -433,14 +439,15 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 		if (fore == (q->num_desc - 1)) {
 			desc[fore].control |= (1 << 3);	/* RINGEND */
-			continue;
+			if (!q->ppa->buff_rgn_cached)
+				continue;
 		}
 
 		*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, 1);
 		fore = circ_new_ptr(q->num_desc, fore, 1);
 	}
 
-	mif_info("Q:%d fore/rear/done:%d/%d/%d\n",
+	pp_debug("Q:%d fore/rear/done:%d/%d/%d\n",
 			q->q_idx, *q->fore_ptr, *q->rear_ptr, q->done_ptr);
 
 	spin_unlock_irqrestore(&q->lock, flags);
@@ -450,16 +457,23 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 static int pktproc_update_fore_ptr(struct pktproc_queue *q, u32 count)
 {
+	int ret = 0;
 	unsigned long flags;
 
 	if (!count)
 		return 0;
 
-	spin_lock_irqsave(&q->lock, flags);
-	*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, count);
-	spin_unlock_irqrestore(&q->lock, flags);
+	if (q->ppa->buff_rgn_cached) {
+		ret = q->alloc_rx_buf(q);
+		if (ret)
+			mif_err_limited("alloc_rx_buf() error %d Q%d\n", ret, q->q_idx);
+	} else {
+		spin_lock_irqsave(&q->lock, flags);
+		*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, count);
+		spin_unlock_irqrestore(&q->lock, flags);
+	}
 
-	return 0;
+	return ret;
 }
 
 static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_buff **new_skb)
@@ -729,12 +743,8 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 	if (rcvd_total - rcvd_dit > 0)
 		tpmon_start();
 #endif
-	if (q->manager) {
-		ret = q->alloc_rx_buf(q);
-		if (ret)
-			mif_err_limited("alloc_rx_buf() error %d Q%d\n", ret, q->q_idx);
-	} else
-		q->update_fore_ptr(q, rcvd_total - rcvd_dit);
+
+	q->update_fore_ptr(q, rcvd_total - rcvd_dit);
 
 out:
 	if (q->ppa->use_napi)
