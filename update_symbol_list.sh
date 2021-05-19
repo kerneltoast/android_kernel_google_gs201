@@ -154,19 +154,23 @@ function update_aosp_abi {
     echo "Change-Id: ${CHANGE_ID}" >> ${COMMIT_TEXT}
   fi
   git -C aosp commit -s -F ${COMMIT_TEXT} -- android/
-  err=$?
+  commit_ret=$?
+
   echo "========================================================"
-  if [ "${err}" = "0" ]; then
-    if [ -n "${FOR_AOSP_PUSH_BRANCH}" ]; then
-      echo " An ABI commit in aosp/ was created for you on the branch ${FOR_AOSP_PUSH_BRANCH}."
+  if ! git -C aosp diff --quiet aosp/android12-5.10..HEAD; then
+    if [ "${commit_ret}" = "0" ]; then
+      if [ -n "${FOR_AOSP_PUSH_BRANCH}" ]; then
+        echo " An ABI commit in aosp/ was created for you on the branch ${FOR_AOSP_PUSH_BRANCH}."
+      else
+        echo " An ABI commit in aosp/ was created for you on the current branch."
+      fi
     else
-      echo " An ABI commit in aosp/ was created for you on the current branch."
+      echo " The ABI xml and symbol list is up-to-date."
     fi
-    echo " Please verify the commit before pushing. Leave the rest of the commit text as-is."
-    echo " Here are the steps to perform:"
+    echo " Please verify your commit(s) before pushing. Here are the steps to perform:"
     echo
     echo "   cd aosp"
-    echo "   git show ${FOR_AOSP_PUSH_BRANCH}"
+    echo "   git log --oneline ${FOR_AOSP_PUSH_BRANCH}"
     echo "   git push aosp ${FOR_AOSP_PUSH_BRANCH:-HEAD}:refs/for/android12-5.10"
     echo
     if [ -n "${FOR_AOSP_PUSH_BRANCH}" ]; then
@@ -178,7 +182,7 @@ function update_aosp_abi {
       echo
     fi
   else
-    echo " No changes were detected after running build_abi.sh."
+    echo " No changes were detected after rebasing to the tip of tree."
   fi
 
   rm -f ${COMMIT_TEXT}
