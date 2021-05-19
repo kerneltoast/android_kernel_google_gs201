@@ -26,6 +26,7 @@ unsigned int __read_mostly vendor_sched_util_threshold = DEF_UTIL_THRESHOLD;
 unsigned int __read_mostly vendor_sched_high_capacity_start_cpu = MAX_CAPACITY_CPU;
 unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
 static struct kobject *vendor_sched_kobj;
+static struct proc_dir_entry *vendor_sched;
 
 extern void update_sched_capacity_margin(unsigned int util_threshold);
 extern void initialize_vendor_group_property(void);
@@ -98,6 +99,16 @@ static struct uclamp_se uclamp_default[UCLAMP_CNT];
 		}									      \
 		static struct kobj_attribute __grp##_##__attr##_##attribute =		      \
 							__ATTR_RW(__grp##_##__attr);
+
+#define DUMP_TASK_GROUP_SHOW(__grp, __vg)						      \
+		static int dump_task_group_##__grp##_show(struct seq_file *m, void *v)	      \
+		{									      \
+			return dump_vendor_group_task(m, v, __vg);	      \
+		}
+
+#define CREATE_DUMP_FILE(__grp)	\
+		proc_create_single("dump_task_group_"#__grp,	\
+				   0, vendor_sched, dump_task_group_##__grp##_show)
 
 /// ******************************************************************************** ///
 /// ********************* Create vendor group sysfs nodes*************************** ///
@@ -467,6 +478,25 @@ static int update_vendor_task_attribute(const char *buf,
 	return 0;
 }
 
+static int dump_vendor_group_task(struct seq_file *m, void *v, unsigned int val)
+{
+	struct task_struct *p, *t;
+	struct vendor_task_struct *vp;
+
+	rcu_read_lock();
+
+	for_each_process_thread(p, t) {
+		vp = get_vendor_task_struct(t);
+		if (vp->group == val) {
+			seq_printf(m, "%u\n", t->pid);
+		}
+	}
+
+	rcu_read_unlock();
+
+	return 0;
+}
+
 SET_TASK_GROUP_STORE(ta, VG_TOPAPP);
 SET_TASK_GROUP_STORE(fg, VG_FOREGROUND);
 SET_TASK_GROUP_STORE(sys, VG_SYSTEM);
@@ -474,6 +504,14 @@ SET_TASK_GROUP_STORE(cam, VG_CAMERA);
 SET_TASK_GROUP_STORE(bg, VG_BACKGROUND);
 SET_TASK_GROUP_STORE(sysbg, VG_SYSTEM_BACKGROUND);
 SET_TASK_GROUP_STORE(nnapi, VG_NNAPI_HAL);
+
+DUMP_TASK_GROUP_SHOW(ta, VG_TOPAPP);
+DUMP_TASK_GROUP_SHOW(fg, VG_FOREGROUND);
+DUMP_TASK_GROUP_SHOW(sys, VG_SYSTEM);
+DUMP_TASK_GROUP_SHOW(cam, VG_CAMERA);
+DUMP_TASK_GROUP_SHOW(bg, VG_BACKGROUND);
+DUMP_TASK_GROUP_SHOW(sysbg, VG_SYSTEM_BACKGROUND);
+DUMP_TASK_GROUP_SHOW(nnapi, VG_NNAPI_HAL);
 
 static ssize_t clear_group_store(struct kobject *kobj,
 				 struct kobj_attribute *attr,
@@ -798,6 +836,49 @@ static struct attribute_group attr_group = {
 	.attrs = attrs,
 };
 
+
+static int create_procfs_node(void)
+{
+	vendor_sched = proc_mkdir("vendor_sched", NULL);
+
+	if (!vendor_sched)
+		return -ENOMEM;
+
+	if (!CREATE_DUMP_FILE(ta)) {
+		goto out;
+	}
+
+	if (!CREATE_DUMP_FILE(fg)) {
+		goto out;
+	}
+
+	if (!CREATE_DUMP_FILE(sys)) {
+		goto out;
+	}
+
+	if (!CREATE_DUMP_FILE(cam)) {
+		goto out;
+	}
+
+	if (!CREATE_DUMP_FILE(bg)) {
+		goto out;
+	}
+
+	if (!CREATE_DUMP_FILE(sysbg)) {
+		goto out;
+	}
+
+	if (!CREATE_DUMP_FILE(nnapi)) {
+		goto out;
+	}
+
+	return 0;
+
+out:
+	remove_proc_entry("vendor_sched", NULL);
+	return -ENOMEM;
+}
+
 int create_sysfs_node(void)
 {
 	int ret;
@@ -809,6 +890,14 @@ int create_sysfs_node(void)
 	if (!vendor_sched_kobj)
 		return -ENOMEM;
 
+	ret = sysfs_create_group(vendor_sched_kobj, &attr_group);
+	if (ret)
+		goto out;
+
+	ret = create_procfs_node();
+	if (ret)
+		goto out;
+
 	uc_max.value = uclamp_none(UCLAMP_MAX);
 	uc_max.bucket_id = get_bucket_id(uc_max.value);
 	uc_max.user_defined = false;
@@ -816,12 +905,11 @@ int create_sysfs_node(void)
 		uclamp_default[clamp_id] = uc_max;
 	}
 
-	ret = sysfs_create_group(vendor_sched_kobj, &attr_group);
-
-	if (ret)
-		kobject_put(vendor_sched_kobj);
-
 	initialize_vendor_group_property();
 
 	return ret;
+
+out:
+	kobject_put(vendor_sched_kobj);
+	return -ENOMEM;
 }
