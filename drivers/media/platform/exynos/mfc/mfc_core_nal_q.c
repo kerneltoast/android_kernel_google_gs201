@@ -1682,6 +1682,8 @@ static void __mfc_core_nal_q_handle_frame_copy_timestamp(struct mfc_ctx *ctx,
 	}
 
 	dst_mb = mfc_find_buf(ctx, &ctx->dst_buf_nal_queue, dec_y_addr);
+	if (!dst_mb)
+		dst_mb = mfc_find_buf(ctx, &ctx->dst_buf_queue, dec_y_addr);
 	if (dst_mb)
 		dst_mb->vb.vb2_buf.timestamp = src_mb->vb.vb2_buf.timestamp;
 
