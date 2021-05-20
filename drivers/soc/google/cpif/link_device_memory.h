@@ -610,6 +610,8 @@ static inline int construct_ctrl_msg(struct ctrl_msg *cmsg, u32 *arr_from_dt,
 	case DRAM_V2:
 		cmsg->addr = (u32 __iomem *)(base + arr_from_dt[1]);
 		break;
+	case CMSG_TYPE_NONE:
+		break;
 	default:
 		mif_err("ERR! wrong type for ctrl msg\n");
 		return -EINVAL;
