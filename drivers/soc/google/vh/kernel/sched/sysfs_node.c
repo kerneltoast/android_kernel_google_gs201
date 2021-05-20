@@ -414,15 +414,15 @@ uclamp_update_active(struct task_struct *p, enum uclamp_id clamp_id)
 
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id)
 {
-	struct task_struct *p;
+	struct task_struct *p, *t;
 	struct vendor_task_struct *vp;
 
 	rcu_read_lock();
 
-	for_each_process(p) {
-		vp = get_vendor_task_struct(p);
-		if(p->on_rq && vp->group == group) {
-			uclamp_update_active(p, clamp_id);
+	for_each_process_thread(p, t) {
+		vp = get_vendor_task_struct(t);
+		if (t->on_rq && vp->group == group) {
+			uclamp_update_active(t, clamp_id);
 		}
 	}
 
