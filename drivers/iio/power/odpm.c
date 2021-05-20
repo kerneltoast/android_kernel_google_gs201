@@ -34,13 +34,25 @@
 
 #define ODPM_PRINT_ESTIMATED_CLOCK_SKEW 0
 
-/* Cache accumulated values to prevent too frequent updates,
- * allow a refresh only every X ms. There have been requests to
- * get snapshots at 10 Hz, so set the timeout at < 100 ms (50 ms).
- * Note: s2mpg1x chips can take on average between 1-2 ms
- * for a refresh.
+/* Cache accumulated values to prevent too frequent updates, allow a refresh
+ * only every X ms.
+ *
+ * In order to prevent quantization error, we need a minimum count per time
+ * interval to accurately estimate the frequency of the ADC polling. If we
+ * could rely on the accuracy of the PMIC clock, then we would assume the
+ * configured frequency, and this wouldn't be a consideration.
+ *
+ * At 20 counts, the quantization error may be +-(1/20)/2 = +-0.025 = +-2.5%.
+ * At max frequency (1 KHz), the minimum refresh time is 20 ms.
+ * At min frequency (7.628125 Hz), the minimum refresh time is ~2.62 s.
+ *
+ * Note 1: The ODPM will be refreshed regardless of minimum interval if an
+ *         instantaneous refresh is called (odpm_take_snapshot_instant_locked)
+ * Note 2: s2mpg1x chips can take on average between 1-2 ms for a refresh.
  */
-#define ODPM_MIN_POLLING_TIME_NS ((u64)50 * NSEC_PER_MSEC)
+#define ODPM_MIN_INTERVAL_ACC_COUNT 20 /* accumulator counts */
+
+#define UHZ_PER_HZ 1000000
 
 #define str(val) #val
 #define xstr(s) str(s)
@@ -160,7 +172,7 @@ struct odpm_info {
 	struct work_struct work_refresh;
 	struct timer_list timer_refresh;
 
-	u64 timestamp_last_poll_kboot_ns;
+	u64 last_poll_ktime_boot_ns;
 };
 
 /**
@@ -333,7 +345,7 @@ int odpm_configure_start_measurement(struct odpm_info *info)
 	/* For s2mpg1x chips, clear ACC registers */
 	int ret = odpm_io_send_blank_async(info, &timestamp_capture_ns);
 
-	info->timestamp_last_poll_kboot_ns = timestamp_capture_ns;
+	info->last_poll_ktime_boot_ns = timestamp_capture_ns;
 
 	pr_info("odpm: Starting at timestamp (ms): %ld\n",
 		to_ms(timestamp_capture_ns));
@@ -730,7 +742,8 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 
 	/* Maintain as much precision as possible computing period in ms */
 	sampling_period_ms_iq30 =
-		_IQ30(u64, (u64)(1000 * 1000000)) / int_sampling_frequency_uhz;
+		_IQ30(u64, (u64)(MSEC_PER_SEC * UHZ_PER_HZ)) /
+		int_sampling_frequency_uhz;
 
 	/* Allocate 10-bits in u32 for sample rate in ms (max: 1023 ms) */
 	sampling_period_ms_iq22 = _IQ30_to_IQ22(sampling_period_ms_iq30);
@@ -747,9 +760,10 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 static void odpm_print_clock_skew(struct odpm_info *info, u64 elapsed_ms,
 				  u32 acc_count)
 {
-	u64 uHz_estimated = ((u64)acc_count * 1000 * 1000000) / elapsed_ms;
-	u64 uHz =
-		info->chip.sampling_rate_int_uhz[info->chip.int_sampling_rate_i];
+	u64 uHz_estimated = ((u64)acc_count * (MSEC_PER_SEC * UHZ_PER_HZ)) /
+		elapsed_ms;
+	int i = info->chip.int_sampling_rate_i;
+	u64 uHz = info->chip.sampling_rate_int_uhz[i];
 
 	u64 ratio_u = (1000000 * uHz_estimated) / uHz;
 	s64 pct_u = (((s64)ratio_u - (1 * 1000000)) * 100);
@@ -773,11 +787,18 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 
 	u64 sampling_frequency_estimated_uhz;
 
-	int sampling_rate_i = info->chip.int_sampling_rate_i;
-	u64 sampling_frequency_table_uhz =
-		info->chip.sampling_rate_int_uhz[sampling_rate_i];
+	int i = info->chip.int_sampling_rate_i;
+	u64 sampling_frequency_table_uhz = info->chip.sampling_rate_int_uhz[i];
 	u64 freq_lower_bound;
 	u64 freq_upper_bound;
+
+	/* Don't bother calculating frequency when there aren't enough samples,
+	 * otherwise we'd accumulate large quantization error. This may occur
+	 * nominally if two instantaneous requests are followed back-to-back.
+	 */
+	if (acc_count < ODPM_MIN_INTERVAL_ACC_COUNT) {
+		return sampling_frequency_table_uhz;
+	}
 
 	if (elapsed_ms == 0) {
 		pr_err("odpm: %s: elapsed time is 0 ms\n", info->chip.name);
@@ -792,7 +813,7 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 
 	/* Estimate sampling rate based on acc_count */
 	sampling_frequency_estimated_uhz =
-		((u64)acc_count * 1000 * 1000000) / elapsed_ms;
+		((u64)acc_count * (MSEC_PER_SEC * UHZ_PER_HZ)) / elapsed_ms;
 
 	/**
 	 * 100 ms check on register refresh...
@@ -808,10 +829,13 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 		return sampling_frequency_table_uhz;
 	}
 
-	/* +-50% error bounds check */
-	freq_lower_bound = sampling_frequency_table_uhz / 2;
-	freq_upper_bound =
-		sampling_frequency_table_uhz + sampling_frequency_table_uhz / 2;
+	/* +-12.5% error bounds check, per the datasheets, to ensure that our
+	 * calculations are no worse than is expected from the configured
+	 * frequency. This also ensures the new frequency fits in a u32 (max
+	 * 1000 000 000 uHz * 1.125).
+	 */
+	freq_lower_bound = sampling_frequency_table_uhz * 7 / 8;
+	freq_upper_bound = sampling_frequency_table_uhz * 9 / 8;
 	if (sampling_frequency_estimated_uhz < freq_lower_bound ||
 	    sampling_frequency_estimated_uhz > freq_upper_bound) {
 		pr_err("odpm: %s: clock error too large! fsel: %d, fest: %ld, elapsed_ms: %d, acc_count: %d\n",
@@ -835,7 +859,7 @@ static int odpm_refresh_registers(struct odpm_info *info)
 	u32 acc_count = 0;
 	u32 sampling_frequency_uhz;
 
-	u64 timestamp_previous_sample = info->timestamp_last_poll_kboot_ns;
+	u64 timestamp_previous_sample = info->last_poll_ktime_boot_ns;
 	u64 timestamp_before_async;
 	u64 timestamp_after_async;
 
@@ -854,7 +878,7 @@ static int odpm_refresh_registers(struct odpm_info *info)
 	}
 
 	/* Store timestamps - the rest of the function will succeed */
-	info->timestamp_last_poll_kboot_ns = timestamp_after_async;
+	info->last_poll_ktime_boot_ns = timestamp_after_async;
 	info->chip.acc_timestamp_ms = to_ms(timestamp_after_async);
 
 	elapsed_ms = to_ms(timestamp_after_async - timestamp_previous_sample);
@@ -911,10 +935,14 @@ static int odpm_take_snapshot_locked(struct odpm_info *info)
 	/* check if the minimal elapsed time has passed and if so,
 	 * re-read the chip, otherwise the cached info is just fine
 	 */
-	u64 now_ns = ktime_get_boottime_ns();
-	u64 min_time_ns = ODPM_MIN_POLLING_TIME_NS;
 
-	if (now_ns > info->timestamp_last_poll_kboot_ns + min_time_ns)
+	int i = info->chip.int_sampling_rate_i;
+	u32 freq = info->chip.sampling_rate_int_uhz[i];
+	u64 min_time_ns = (u64)ODPM_MIN_INTERVAL_ACC_COUNT * NSEC_PER_SEC *
+		UHZ_PER_HZ / freq;
+	u64 now_ns = ktime_get_boottime_ns();
+
+	if (now_ns > info->last_poll_ktime_boot_ns + min_time_ns)
 		return odpm_take_snapshot_instant_locked(info);
 
 	return 0; /* Refresh skipped for min elapsed time */
@@ -978,19 +1006,20 @@ static int odpm_sampling_rate_verify(const char *buf)
 			decimal_uHz *= 10;
 	}
 
-	return 1000000 * hz + decimal_uHz;
+	return UHZ_PER_HZ * hz + decimal_uHz;
 }
 
-static ssize_t scnprintf_sampling_rate(char *buf, size_t size, u32 val)
+static ssize_t scnprintf_sampling_rate(char *buf, size_t size, u32 freq)
 {
-	return scnprintf(buf, size, "%d.%06d\n", val / 1000000, val % 1000000);
+	return scnprintf(buf, size, "%d.%06d\n", freq / UHZ_PER_HZ,
+		freq % UHZ_PER_HZ);
 }
 
 static void odpm_print_new_sampling_rate(struct odpm_info *info, int ret,
 					 enum odpm_sampling_rate_type type)
 {
 	char buf[ODPM_SAMPLING_FREQ_CHAR_LEN_MAX];
-	u32 val = 0;
+	u32 freq = 0;
 
 	if (ret < 0) {
 		pr_warn("odpm: cannot apply sampling frequency type: %d\n",
@@ -1001,18 +1030,18 @@ static void odpm_print_new_sampling_rate(struct odpm_info *info, int ret,
 	if (type == ODPM_SAMPLING_RATE_INTERNAL) {
 		int i = info->chip.int_sampling_rate_i;
 
-		val = info->chip.sampling_rate_int_uhz[i];
+		freq = info->chip.sampling_rate_int_uhz[i];
 	} else if (type == ODPM_SAMPLING_RATE_EXTERNAL) {
 		int i = info->chip.ext_sampling_rate_i;
 
-		val = info->chip.sampling_rate_ext_uhz[i];
+		freq = info->chip.sampling_rate_ext_uhz[i];
 	} else {
 		pr_warn("odpm: unsupported frequency type: %d\n", type);
 		return;
 	}
 
 	/* Returns with a new line */
-	scnprintf_sampling_rate(buf, ODPM_SAMPLING_FREQ_CHAR_LEN_MAX, val);
+	scnprintf_sampling_rate(buf, ODPM_SAMPLING_FREQ_CHAR_LEN_MAX, freq);
 	pr_info("odpm: %s: Applied new sampling frequency (type %d) in Hz: %s",
 		info->chip.name, type, buf);
 }
@@ -1042,7 +1071,7 @@ static void odpm_set_sampling_rate(struct odpm_info *info,
 	}
 
 	/* Send blank ASYNC, ignoring the latest set of data */
-	if (odpm_io_send_blank_async(info, &info->timestamp_last_poll_kboot_ns) < 0)
+	if (odpm_io_send_blank_async(info, &info->last_poll_ktime_boot_ns) < 0)
 		pr_err("odpm: Could not send blank async when applying sampling rate\n");
 
 sampling_rate_store_exit:
@@ -1054,9 +1083,10 @@ static ssize_t sampling_rate_show(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct odpm_info *info = iio_priv(indio_dev);
+	int i = info->chip.int_sampling_rate_i;
+	u32 freq = info->chip.sampling_rate_int_uhz[i];
 
-	return scnprintf_sampling_rate(buf, PAGE_SIZE,
-		info->chip.sampling_rate_int_uhz[info->chip.int_sampling_rate_i]);
+	return scnprintf_sampling_rate(buf, PAGE_SIZE, freq);
 }
 
 static ssize_t sampling_rate_store(struct device *dev,
@@ -1093,9 +1123,10 @@ static ssize_t ext_sampling_rate_show(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct odpm_info *info = iio_priv(indio_dev);
+	int i = info->chip.ext_sampling_rate_i;
+	u32 freq = info->chip.sampling_rate_ext_uhz[i];
 
-	return scnprintf_sampling_rate(buf, PAGE_SIZE,
-		info->chip.sampling_rate_ext_uhz[info->chip.ext_sampling_rate_i]);
+	return scnprintf_sampling_rate(buf, PAGE_SIZE, freq);
 }
 
 static ssize_t ext_sampling_rate_store(struct device *dev,
