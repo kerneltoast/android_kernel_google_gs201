@@ -17,6 +17,7 @@
 #include <linux/compat.h>
 #include <linux/sched/task.h>
 #include <linux/dma-map-ops.h>
+#include <soc/google/exynos-itmon.h>
 
 #include "g2d.h"
 #include "g2d_regs.h"
@@ -828,7 +829,7 @@ static int g2d_parse_dt(struct g2d_device *g2d_dev)
 	return 0;
 }
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 
 #define MAX_ITMON_STRATTR 4
 
@@ -893,7 +894,6 @@ int g2d_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
 		g2d_dump_info(g2d_dev, task);
-		exynos_sysmmu_show_status(g2d_dev->dev);
 	}
 
 	return NOTIFY_DONE;
@@ -1090,7 +1090,7 @@ static int g2d_probe(struct platform_device *pdev)
 	spin_lock_init(&g2d_dev->fence_lock);
 	g2d_dev->fence_context = dma_fence_context_alloc(1);
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	g2d_dev->itmon_nb.notifier_call = g2d_itmon_notifier;
 	itmon_notifier_chain_register(&g2d_dev->itmon_nb);
 #endif

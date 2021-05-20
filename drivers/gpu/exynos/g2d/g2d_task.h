@@ -121,7 +121,7 @@ struct g2d_task {
 	 * fence_timeout_lock is required not to refer to a freed fence.
 	 */
 	spinlock_t		fence_timeout_lock;
-#ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	struct g2d_buffer_prot_info prot_info;
 #endif
 	/* inherit device qos when task allocates */
