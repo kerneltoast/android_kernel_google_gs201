@@ -32,8 +32,8 @@
 #define IPC_RAW		1
 #define IPC_RFS		2
 #define IPC_MULTI_RAW	3
-#define IPC_BOOT		4
-#define IPC_DUMP		5
+#define IPC_BOOT	4
+#define IPC_DUMP	5
 #define IPC_CMD		6
 #define IPC_DEBUG	7
 #define MAX_DEV_FORMAT	8
@@ -51,8 +51,8 @@
 
 /* Control msg type */
 #define MAILBOX_SR		1
-#define DRAM_V1		2
-#define DRAM_V2		3
+#define DRAM_V1			2
+#define DRAM_V2			3
 #define GPIO			4
 #define MAX_CMSG_TYPE		5
 
@@ -95,37 +95,37 @@
 #define MAX_CP_SHMEM		12
 
 /* TPMON measure */
-#define TPMON_MEASURE_TP	0
-#define TPMON_MEASURE_NETDEV_Q	1
+#define TPMON_MEASURE_TP		0
+#define TPMON_MEASURE_NETDEV_Q		1
 #define TPMON_MEASURE_PKTPROC_DL_Q	2
-#define TPMON_MEASURE_DIT_SRC_Q	3
+#define TPMON_MEASURE_DIT_SRC_Q		3
 
 /* TPMON target */
-#define TPMON_TARGET_RPS	0
-#define TPMON_TARGET_GRO	1
-#define TPMON_TARGET_MIF	2
+#define TPMON_TARGET_RPS		0
+#define TPMON_TARGET_GRO		1
+#define TPMON_TARGET_MIF		2
 #define TPMON_TARGET_PCIE_LOW_POWER	3
-#define TPMON_TARGET_IRQ_MBOX	4
-#define TPMON_TARGET_IRQ_PCIE	5
-#define TPMON_TARGET_IRQ_DIT	6
-#define TPMON_TARGET_INT_FREQ	7
-#define TPMON_TARGET_BTS 8
-#define TPMON_TARGET_CPU_CL0	9
-#define TPMON_TARGET_CPU_CL1	10
-#define TPMON_TARGET_CPU_CL2	11
-#define TPMON_TARGET_MIF_MAX	12
+#define TPMON_TARGET_IRQ_MBOX		4
+#define TPMON_TARGET_IRQ_PCIE		5
+#define TPMON_TARGET_IRQ_DIT		6
+#define TPMON_TARGET_INT_FREQ		7
+#define TPMON_TARGET_BTS		8
+#define TPMON_TARGET_CPU_CL0		9
+#define TPMON_TARGET_CPU_CL1		10
+#define TPMON_TARGET_CPU_CL2		11
+#define TPMON_TARGET_MIF_MAX		12
 #define TPMON_TARGET_INT_FREQ_MAX	13
 #define TPMON_TARGET_CPU_CL0_MAX	14
 #define TPMON_TARGET_CPU_CL1_MAX	15
 #define TPMON_TARGET_CPU_CL2_MAX	16
-#define MAX_TPMON_TARGET	17
+#define MAX_TPMON_TARGET		17
 
 /* Protocol for TPMON */
-#define TPMON_PROTO_ALL	0
-#define TPMON_PROTO_TCP	1
-#define TPMON_PROTO_UDP	2
+#define TPMON_PROTO_ALL		0
+#define TPMON_PROTO_TCP		1
+#define TPMON_PROTO_UDP		2
 #define TPMON_PROTO_OTHERS	3
-#define MAX_TPMON_PROTO	4
+#define MAX_TPMON_PROTO		4
 
 /* Link device attr */
 #define LINK_ATTR_SBD_IPC		(0x1 << 0) /* IPC over SBD (from MIPI-LLI) */
@@ -144,15 +144,15 @@
 /* IO device attr */
 #define IO_ATTR_SIPC4			(0x1 << 0)
 #define IO_ATTR_SIPC5			(0x1 << 1)
-#define IO_ATTR_CDC_NCM		(0x1 << 2)
+#define IO_ATTR_CDC_NCM			(0x1 << 2)
 #define IO_ATTR_MULTIFMT		(0x1 << 3)
 #define IO_ATTR_HANDOVER		(0x1 << 4)
 #define IO_ATTR_LEGACY_RFS		(0x1 << 5)
 #define IO_ATTR_RX_FRAGMENT		(0x1 << 6)
-#define IO_ATTR_SBD_IPC		(0x1 << 7) /* IPC using SBD designed from MIPI-LLI */
+#define IO_ATTR_SBD_IPC			(0x1 << 7) /* IPC using SBD designed from MIPI-LLI */
 #define IO_ATTR_NO_LINK_HEADER		(0x1 << 8) /* Link-layer header is not needed */
 #define IO_ATTR_NO_CHECK_MAXQ		(0x1 << 9) /* no need to check rxq overflow condition */
-#define IO_ATTR_DUALSIM		(0x1 << 10) /* support Dual SIM */
+#define IO_ATTR_DUALSIM			(0x1 << 10) /* support Dual SIM */
 #define IO_ATTR_OPTION_REGION		(0x1 << 11) /* region & operator info */
 #define IO_ATTR_ZEROCOPY		(0x1 << 12) /* support SW zerocopy on SBD */
 #define IO_ATTR_MULTI_CH		(0x1 << 13) /* Multi channel IO device */
@@ -192,9 +192,14 @@
 #define SIPC_CH_ID_LOOPBACK1	30
 #define SIPC_CH_ID_LOOPBACK2	31
 
-#define SIPC_CH_ID_SMD4	33
+#define SIPC_CH_ID_SMD4		33
 
-#define SIPC_CH_ID_CASS	35
+#define SIPC_CH_ID_CASS		35
+
+/* 0 ... 30 */
+#define SIPC_CH_EX_ID_PDP_0	181
+#define SIPC_CH_EX_ID_PDP_30	(SIPC_CH_EX_ID_PDP_0 + 30)
+#define SIPC_CH_EX_ID_PDP_MAX	SIPC_CH_EX_ID_PDP_30
 
 #define SIPC5_CH_ID_BOOT_0	215
 #define SIPC5_CH_ID_BOOT_1	216
@@ -240,7 +245,7 @@
 #define SIPC5_CH_ID_RFS_8	253
 #define SIPC5_CH_ID_RFS_9	254
 
-#define SIPC5_CH_ID_MAX	255
+#define SIPC5_CH_ID_MAX		255
 
 /* SIT channel ID */
 #define EXYNOS_CH_ID_MULTIPDP	0
@@ -296,6 +301,11 @@
 #define EXYNOS_CH_ID_OEM_5	134 /* oem_ipc5 */
 #define EXYNOS_CH_ID_OEM_6	135 /* oem_ipc6 */
 #define EXYNOS_CH_ID_OEM_7	136 /* oem_ipc7 */
+
+/* 0 ... 30 */
+#define EXYNOS_CH_EX_ID_PDP_0	181
+#define EXYNOS_CH_EX_ID_PDP_30	(EXYNOS_CH_EX_ID_PDP_0 + 30)
+#define EXYNOS_CH_EX_ID_PDP_MAX	EXYNOS_CH_EX_ID_PDP_30
 
 #define EXYNOS_CH_ID_BOOT	241
 #define EXYNOS_CH_ID_DUMP	242
