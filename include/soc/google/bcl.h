@@ -93,6 +93,7 @@ struct gs101_bcl_dev {
 	unsigned int gpu_clkdivstep;
 
 	bool batt_psy_initialized;
+	bool enabled;
 };
 
 extern int gs101_set_mpmm(struct gs101_bcl_dev *data, unsigned int value);
