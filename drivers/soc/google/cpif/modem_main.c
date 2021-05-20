@@ -252,7 +252,13 @@ static int attach_devices(struct io_device *iod, struct device *dev)
 		iod->waketime = RAW_WAKE_TIME;
 		break;
 
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+	case SIPC_CH_EX_ID_PDP_0 ... SIPC_CH_EX_ID_PDP_MAX:
+	case SIPC_CH_ID_BT_DUN ... SIPC_CH_ID_CIQ_DATA:
+	case SIPC_CH_ID_CPLOG1 ... SIPC_CH_ID_LOOPBACK2:
+#else
 	case SIPC_CH_ID_PDP_0 ... SIPC_CH_ID_LOOPBACK2:
+#endif
 		iod->waketime = NET_WAKE_TIME;
 		break;
 

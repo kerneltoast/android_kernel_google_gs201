@@ -203,7 +203,11 @@ static inline bool sipc5_ipc_ch(u8 ch)
 
 static inline bool sipc_ps_ch(u8 ch)
 {
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+	return (ch >= SIPC_CH_EX_ID_PDP_0 && ch <= SIPC_CH_EX_ID_PDP_MAX) ?
+#else
 	return (ch >= SIPC_CH_ID_PDP_0 && ch <= SIPC_CH_ID_PDP_14) ?
+#endif
 		true : false;
 }
 

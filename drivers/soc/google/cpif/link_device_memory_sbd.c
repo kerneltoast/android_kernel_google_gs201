@@ -287,7 +287,11 @@ int init_sbd_link(struct sbd_link_device *sl)
 			 * Initialize an SBD RB instance in the kernel space.
 			 */
 			rb->id = link_attr->id;
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+			rb->ch = link_attr->ch ?: SIPC_CH_EX_ID_PDP_0;
+#else
 			rb->ch = link_attr->ch ?: SIPC_CH_ID_PDP_0;
+#endif
 			rb->dir = dir;
 			rb->len = link_attr->rb_len[dir];
 			rb->buff_size = link_attr->buff_size[dir];

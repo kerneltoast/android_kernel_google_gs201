@@ -70,7 +70,11 @@ static ssize_t waketime_store(struct device *dev,
 		struct modem_shared *msd = iod->msd;
 		unsigned int i;
 
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+		for (i = SIPC_CH_EX_ID_PDP_0; i <= SIPC_CH_EX_ID_PDP_MAX; i++) {
+#else
 		for (i = SIPC_CH_ID_PDP_0; i < SIPC_CH_ID_BT_DUN; i++) {
+#endif
 			iod = get_iod_with_channel(msd, i);
 			if (iod) {
 				iod->waketime = msecs_to_jiffies(msec);
@@ -483,7 +487,11 @@ static int rx_demux(struct link_device *ld, struct sk_buff *skb)
 
 	/* IP loopback */
 	if (ch == DATA_LOOPBACK_CHANNEL && ld->msd->loopback_ipaddr)
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+		ch = SIPC_CH_EX_ID_PDP_0;
+#else
 		ch = SIPC_CH_ID_PDP_0;
+#endif
 
 	iod = link_get_iod_with_channel(ld, ch);
 	if (unlikely(!iod)) {

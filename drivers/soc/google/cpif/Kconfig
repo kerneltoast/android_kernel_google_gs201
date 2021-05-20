@@ -185,6 +185,12 @@ config CPIF_DIRECT_DM
 	help
 	  This enables direct dm path
 
+config CH_EXTENSION
+	tristate "Enable Channel Extension"
+	default n
+	help
+	  Enable Channel Extension
+
 config CP_THERMAL
     tristate "Enable CP thermal zones"
     depends on THERMAL
