@@ -47,8 +47,8 @@
 
 #define BUFF_RGN_OFFSET	(CMD_DESC_RGN_SIZE)
 
-#define MAX_SBD_SIPC_CHANNELS	256	/* 2 ^ 8	*/
-#define MAX_SBD_LINK_IDS	32	/* up to 32 ids	*/
+#define MAX_SBD_SIPC_CHANNELS	IOD_CH_ID_MAX	/* 2 ^ 8	*/
+#define MAX_SBD_LINK_IDS	64		/* up to 64 ids	*/
 
 /*
  * @brief	Priority for QoS(Quality of Service)
