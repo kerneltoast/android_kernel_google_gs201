@@ -108,19 +108,19 @@
 				   <GIC_SPI IRQ_ALIVE_EINT44 ITLH>;
 		};
 
-		uart15_bus: uart15-bus {
+		uart17_bus: uart17-bus {
 		       samsung,pins = "gpa2-3", "gpa2-4";
 		       samsung,pin-function = <2>;
 		       samsung,pin-pud = <0>;
 		};
 
-		uart16_bus: uart16-bus {
+		uart18_bus: uart18-bus {
 		       samsung,pins = "gpa3-0", "gpa3-1", "gpa3-2", "gpa3-3";
 		       samsung,pin-function = <2>;
 		       samsung,pin-pud = <0>;
 		};
 
-		uart17_bus: uart17-bus {
+		uart19_bus: uart19-bus {
 		       samsung,pins = "gpa4-0", "gpa4-1", "gpa4-2", "gpa4-3";
 		       samsung,pin-function = <2>;
 		       samsung,pin-pud = <0>;
@@ -888,6 +888,66 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
+		};
+		hsi2c16_bus: hsi2c16-bus {
+			samsung,pins = "gpp26-0", "gpp26-1";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+		uart16_bus_single: uart16-bus {
+		       samsung,pins = "gpp26-0", "gpp26-1",
+			   "gpp26-2", "gpp26-3";
+		       samsung,pin-function = <2>;
+		       samsung,pin-pud = <0>;
+		};
+		spi16_bus: spi16-bus {
+			samsung,pins = "gpp26-0", "gpp26-1", "gpp26-2";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+		spi16_cs: spi16-cs {
+			samsung,pins = "gpp26-3";
+			samsung,pin-function = <1>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+		spi16_cs_func: spi16-cs-func {
+			samsung,pins = "gpp26-3";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+		hsi2c15_bus: hsi2c15-bus {
+			samsung,pins = "gpp24-0", "gpp24-1";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+		uart15_bus_single: uart15-bus {
+		       samsung,pins = "gpp24-0", "gpp24-1",
+			   "gpp24-2", "gpp24-3";
+		       samsung,pin-function = <2>;
+		       samsung,pin-pud = <0>;
+		};
+		spi15_bus: spi15-bus {
+			samsung,pins = "gpp24-0", "gpp24-1", "gpp24-2";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+		spi15_cs: spi15-cs {
+			samsung,pins = "gpp24-3";
+			samsung,pin-function = <1>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		};
+		spi15_cs_func: spi15-cs-func {
+			samsung,pins = "gpp24-3";
+			samsung,pin-function = <2>;
+			samsung,pin-pud = <0>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 		};
 		hsi2c13_bus: hsi2c13-bus {
 			samsung,pins = "gpp25-0", "gpp25-1";
