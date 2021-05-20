@@ -647,15 +647,18 @@
 		interrupts =
 			<0 IRQ_G3AA_G3AA IRQ_TYPE_LEVEL_HIGH>,
 			<0 IRQ_G3AA_G3AA IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_G3AA_G3AA IRQ_TYPE_LEVEL_HIGH>,
 			<0 IRQ_G3AA_G3AA IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names =
 			"g3aa-ctx0-int",
 			"g3aa-ctx1-int",
-			"g3aa-ctx2-int";
+			"g3aa-ctx2-int",
+			"g3aa-err-int";
 		interrupt-event-infos =
 			<&g3aa_ctx0_interrupts>,
 			<&g3aa_ctx1_interrupts>,
-			<&g3aa_ctx2_interrupts>;
+			<&g3aa_ctx2_interrupts>,
+			<&g3aa_error_interrupts>;
 
 		iommus = <&sysmmu_g3aa>;
 		samsung,iommu-group = <&iommu_group_isp>;
