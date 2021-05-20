@@ -50,6 +50,7 @@
 #define INTERRUPT_MAX		2
 
 /* Control msg type */
+#define CMSG_TYPE_NONE		0
 #define MAILBOX_SR		1
 #define DRAM_V1			2
 #define DRAM_V2			3
