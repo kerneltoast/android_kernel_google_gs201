@@ -439,7 +439,6 @@ EXPORT_SYMBOL(cp_mbox_set_affinity);
 static int cp_mbox_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res = NULL;
 	struct device_node *irq_np = NULL;
 	struct device_node *irq_child_np = NULL;
 	u32 count = 0;
@@ -462,8 +461,7 @@ static int cp_mbox_probe(struct platform_device *pdev)
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	/* Region */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mbox_data.ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	mbox_data.ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mbox_data.ioaddr)) {
 		mif_err("failed to request memory resource\n");
 		return PTR_ERR(mbox_data.ioaddr);

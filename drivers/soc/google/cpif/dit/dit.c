@@ -2247,7 +2247,6 @@ int dit_create(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct resource *res;
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	struct notifier_block *itmon_nb = NULL;
 #endif
@@ -2266,16 +2265,14 @@ int dit_create(struct platform_device *pdev)
 
 	dc->dev = dev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dit");
-	dc->register_base = devm_ioremap_resource(dev, res);
+	dc->register_base = devm_platform_ioremap_resource_byname(pdev, "dit");
 	if (!dc->register_base) {
 		mif_err("register devm_ioremap error\n");
 		ret = -EFAULT;
 		goto error;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sysreg");
-	dc->sharability_base = devm_ioremap_resource(dev, res);
+	dc->sharability_base = devm_platform_ioremap_resource_byname(pdev, "sysreg");
 	if (!dc->sharability_base) {
 		mif_err("sharability devm_ioremap error\n");
 		ret = -EFAULT;
