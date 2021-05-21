@@ -16,7 +16,7 @@ struct cpif_addr_pair {
 	void	*ap_addr; /* ap virtual address */
 };
 
-struct recycling_page {
+struct netrx_page {
 	struct page	*page;
 	bool		usable;
 	int		offset;
@@ -30,9 +30,10 @@ struct cpif_netrx_mng {
 	struct cpif_va_mapper *desc_map;
 	struct cpif_va_mapper *data_map;
 
-	struct recycling_page **rx_page_cache_arr;
-	u32			cache_arr_idx;
-	u32			cache_arr_len;
+	struct netrx_page	**recycling_page_arr;
+	struct netrx_page	*tmp_page;
+	u32			rpage_arr_idx;
+	u32			rpage_arr_len;
 	bool			using_tmp_alloc;
 };
 

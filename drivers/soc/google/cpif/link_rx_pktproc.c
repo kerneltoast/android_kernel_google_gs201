@@ -272,6 +272,10 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 		desc[q->done_ptr].cp_data_paddr = 0;
 		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 	}
+	/* clean up manager's tmp page */
+	q->manager->tmp_page->usable = false;
+	q->manager->tmp_page->offset = 0;
+
 	memset(desc, 0, q->desc_size);
 
 	return 0;

@@ -11,12 +11,41 @@
 
 #include "cpif_netrx_mng.h"
 
-static void cpif_free_rx_page_cache(struct recycling_page **rpage_arr, u32 num_page)
+static void *cpif_alloc_tmp_page(struct cpif_netrx_mng *cm)
+{
+	struct netrx_page *tmp = cm->tmp_page;
+	int ret;
+
+	if (tmp->usable) {
+		page_ref_inc(tmp->page);
+	} else {
+		/* new page is required */
+		tmp->page = dev_alloc_pages(PAGE_FRAG_CACHE_MAX_ORDER);
+		if (unlikely(!tmp->page)) {
+			mif_err("failed to get page\n");
+			return NULL;
+		}
+		cm->using_tmp_alloc = true;
+		tmp->usable = true;
+		tmp->offset = PAGE_FRAG_CACHE_MAX_SIZE - cm->max_packet_size;
+	}
+
+	ret = tmp->offset;
+	tmp->offset -= cm->max_packet_size;
+	if (tmp->offset < 0) { /* drained page, let netrx try recycle page next time */
+		cm->using_tmp_alloc = false;
+		tmp->usable = false;
+	}
+
+	return page_to_virt(tmp->page) + ret;
+}
+
+static void cpif_free_recycling_page_arr(struct netrx_page **rpage_arr, u32 num_page)
 {
 	int i;
 
 	for (i = 0; i < num_page; i++) {
-		struct recycling_page *cur = rpage_arr[i];
+		struct netrx_page *cur = rpage_arr[i];
 
 		if (!cur)
 			continue;
@@ -31,20 +60,20 @@ static void cpif_free_rx_page_cache(struct recycling_page **rpage_arr, u32 num_p
 
 static void *cpif_alloc_recycling_page(struct cpif_netrx_mng *cm)
 {
-	u32 idx = cm->cache_arr_idx;
-	struct recycling_page *cur = cm->rx_page_cache_arr[idx];
+	u32 idx = cm->rpage_arr_idx;
+	struct netrx_page *cur = cm->recycling_page_arr[idx];
 	u32 ret;
 
 	if (cur->offset < 0) { /* this page cannot handle next packet */
 		cur->usable = false;
 		cur->offset = 0;
-		if (++idx == cm->cache_arr_len)
-			cm->cache_arr_idx = 0;
+		if (++idx == cm->rpage_arr_len)
+			cm->rpage_arr_idx = 0;
 		else
-			cm->cache_arr_idx++;
+			cm->rpage_arr_idx++;
 
-		idx = cm->cache_arr_idx;
-		cur = cm->rx_page_cache_arr[idx];
+		idx = cm->rpage_arr_idx;
+		cur = cm->recycling_page_arr[idx];
 	}
 
 	if (page_ref_count(cur->page) == 1) { /* no one uses this page*/
@@ -57,7 +86,7 @@ static void *cpif_alloc_recycling_page(struct cpif_netrx_mng *cm)
 		goto assign_page;
 
 	/* else, the page is not ready to be used */
-	mif_err_limited("cannot use the page: ref: %d usable: %d idx: %d\n",
+	mif_debug("cannot use the page: ref: %d usable: %d idx: %d\n",
 			page_ref_count(cur->page), cur->usable, idx);
 
 	return NULL;
@@ -72,22 +101,22 @@ assign_page:
 
 static void *cpif_get_cur_recycling_page_base(struct cpif_netrx_mng *cm)
 {
-	return page_to_virt(cm->rx_page_cache_arr[cm->cache_arr_idx]->page);
+	return page_to_virt(cm->recycling_page_arr[cm->rpage_arr_idx]->page);
 }
 
-static struct recycling_page **cpif_create_rx_page_cache(u32 num_page)
+static struct netrx_page **cpif_create_recycling_page_arr(u32 num_page)
 {
 	int i;
-	struct recycling_page **rpage_arr =
-			kzalloc(sizeof(struct recycling_page *) * num_page, GFP_ATOMIC);
+	struct netrx_page **rpage_arr =
+			kzalloc(sizeof(struct netrx_page *) * num_page, GFP_ATOMIC);
 
 	if (!rpage_arr) {
-		mif_err("failed to alloc rx_page_cache_arr\n");
+		mif_err("failed to alloc recycling_page_arr\n");
 		return NULL;
 	}
 
 	for (i = 0; i < num_page; i++) {
-		struct recycling_page *cur = kzalloc(sizeof(struct recycling_page),
+		struct netrx_page *cur = kzalloc(sizeof(struct netrx_page),
 				GFP_ATOMIC);
 		if (unlikely(!cur))
 			goto fail;
@@ -105,7 +134,7 @@ static struct recycling_page **cpif_create_rx_page_cache(u32 num_page)
 	return rpage_arr;
 
 fail:
-	cpif_free_rx_page_cache(rpage_arr, num_page);
+	cpif_free_recycling_page_arr(rpage_arr, num_page);
 
 	return NULL;
 }
@@ -158,11 +187,18 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 		goto fail;
 
 	/* create recycling page array */
-	cm->rx_page_cache_arr = cpif_create_rx_page_cache(total_page_count * 2);
-	if (unlikely(!cm->rx_page_cache_arr))
+	cm->recycling_page_arr = cpif_create_recycling_page_arr(total_page_count * 2);
+	if (unlikely(!cm->recycling_page_arr))
 		goto fail;
-	cm->cache_arr_idx = 0;
-	cm->cache_arr_len = total_page_count * 2;
+	cm->rpage_arr_idx = 0;
+	cm->rpage_arr_len = total_page_count * 2;
+
+	/* create netrx page for temporary page allocation */
+	cm->tmp_page = kzalloc(sizeof(struct netrx_page), GFP_ATOMIC);
+	if (unlikely(!cm->tmp_page))
+		goto fail;
+	cm->tmp_page->offset = 0;
+	cm->tmp_page->usable = false;
 
 	mif_info("netrx mng: num_packet: %d max_packet_size: %d total_buf_size: %d\n",
 			cm->num_packet, cm->max_packet_size, cm->total_buf_size);
@@ -170,7 +206,7 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 		cm->desc_map->va_start, cm->desc_map->va_end, cm->desc_map->va_size);
 	mif_info("data vmap: va_start: 0x%lX va_end: 0x%lX va_size: %d\n",
 		cm->data_map->va_start, cm->data_map->va_end, cm->data_map->va_size);
-	mif_info("recycling rx page cache arr: num_pages: %d\n", cm->cache_arr_len);
+	mif_info("recycling page arr: num_pages: %d\n", cm->rpage_arr_len);
 
 	return cm;
 
@@ -189,7 +225,7 @@ EXPORT_SYMBOL(cpif_create_netrx_mng);
 void cpif_exit_netrx_mng(struct cpif_netrx_mng *cm)
 {
 	if (cm) {
-		cpif_free_rx_page_cache(cm->rx_page_cache_arr, cm->cache_arr_len);
+		cpif_free_recycling_page_arr(cm->recycling_page_arr, cm->rpage_arr_len);
 		cpif_vmap_free(cm->desc_map);
 		cpif_vmap_free(cm->data_map);
 		kfree(cm);
@@ -208,13 +244,22 @@ struct cpif_addr_pair cpif_map_rx_buf(struct cpif_netrx_mng *cm,
 		goto done;
 	}
 
-	data = cpif_alloc_recycling_page(cm);
-	if (!data) {
-		mif_err_limited("page recycling failed: return\n");
-		goto done;
-	} else
-		page_base = cpif_get_cur_recycling_page_base(cm);
+	if (!cm->using_tmp_alloc) {
+		data = cpif_alloc_recycling_page(cm);
+		if (data) {
+			page_base = cpif_get_cur_recycling_page_base(cm);
+			goto do_vmap;
+		}
+	}
 
+	data = cpif_alloc_tmp_page(cm);
+	if (!data) {
+		mif_err_limited("failed to tmp page alloc: return\n");
+		goto done;
+	}
+	page_base = page_to_virt(cm->tmp_page->page);
+
+do_vmap:
 	ret.cp_addr = cpif_vmap_map_area(cm->data_map, virt_to_phys(page_base),
 						virt_to_phys(data));
 	if (ret.cp_addr == 0) {  /* cp_addr cannot be allocated */
@@ -225,6 +270,7 @@ struct cpif_addr_pair cpif_map_rx_buf(struct cpif_netrx_mng *cm,
 	/* returns addr that cp is allowed to write */
 	ret.cp_addr += skb_padding_size;
 	ret.ap_addr = (u8 *)data + skb_padding_size;
+
 done:
 	return ret;
 }
