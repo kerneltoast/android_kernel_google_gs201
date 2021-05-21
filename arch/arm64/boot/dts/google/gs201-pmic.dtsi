@@ -152,7 +152,7 @@
 			m_buck6_reg: BUCK6M {
 				regulator-name = "S2MPG12_BUCK6";
 				regulator-min-microvolt = <450000>;
-				regulator-max-microvolt = <1350000>;
+				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
@@ -231,7 +231,7 @@
 
 			m_ldo6_reg: LDO6M {
 				regulator-name = "S2MPG12_LDO6";
-				regulator-min-microvolt = <700000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
@@ -247,7 +247,7 @@
 
 			m_ldo8_reg: LDO8M {
 				regulator-name = "S2MPG12_LDO8";
-				regulator-min-microvolt = <700000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
@@ -261,7 +261,7 @@
 
 			m_ldo10_reg: LDO10M {
 				regulator-name = "S2MPG12_LDO10";
-				regulator-min-microvolt = <1700000>;
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3350000>;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
@@ -308,7 +308,7 @@
 
 			m_ldo16_reg: LDO16M {
 				regulator-name = "S2MPG12_LDO16";
-				regulator-min-microvolt = <700000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
@@ -401,7 +401,7 @@
 
 			m_ldo28_reg: LDO28M {
 				regulator-name = "S2MPG12_LDO28";
-				regulator-min-microvolt = <700000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
@@ -666,7 +666,7 @@
 
 			s_ldo2_reg: LDO2S {
 				regulator-name = "S2MPG13_LDO2";
-				regulator-min-microvolt = <700000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
@@ -674,7 +674,7 @@
 
 			s_ldo3_reg: LDO3S {
 				regulator-name = "S2MPG13_LDO3";
-				regulator-min-microvolt = <700000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
@@ -722,7 +722,7 @@
 
 			s_ldo9_reg: LDO9S {
 				regulator-name = "S2MPG13_LDO9";
-				regulator-min-microvolt = <700000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
@@ -754,7 +754,7 @@
 
 			s_ldo13_reg: LDO13S {
 				regulator-name = "S2MPG13_LDO13";
-				regulator-min-microvolt = <1700000>;
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3350000>;
 				regulator-always-on;
 				regulator-initial-mode = <1>;
@@ -818,7 +818,7 @@
 
 			s_ldo21_reg: LDO21S {
 				regulator-name = "S2MPG13_LDO21";
-				regulator-min-microvolt = <700000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
