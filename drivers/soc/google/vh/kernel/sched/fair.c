@@ -415,7 +415,7 @@ static inline bool get_task_spreading(struct task_struct *p)
 
 struct vendor_group_property *get_vendor_group_property(enum vendor_group group)
 {
-	SCHED_WARN_ON(group < VG_DEFAULT || group >= VG_MAX);
+	SCHED_WARN_ON(group < VG_SYSTEM || group >= VG_MAX);
 
 	return &(vg[group]);
 }

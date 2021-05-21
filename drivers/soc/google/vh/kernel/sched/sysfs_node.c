@@ -479,7 +479,7 @@ static ssize_t clear_group_store(struct kobject *kobj,
 				 struct kobj_attribute *attr,
 				 const char *buf, size_t count)
 {
-	int ret = update_vendor_task_attribute(buf, VTA_GROUP, VG_DEFAULT);
+	int ret = update_vendor_task_attribute(buf, VTA_GROUP, VG_SYSTEM);
 
 	return ret ?: count;
 }
