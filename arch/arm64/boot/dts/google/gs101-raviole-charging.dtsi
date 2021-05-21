@@ -21,7 +21,7 @@
 				google,dc-en = <&s2mpg10_gpio 1 0>;
 				/* DC enabled by default */
 				google,dc-en-value = <1>;
-				google,dc_limit-demand = <8600000>;
+				google,dc_limit-demand = <560000>;
 				google,dc_limit-vbatt = <4350000>;
 				google,dc_limit-vbatt_min = <3400000>;
 
@@ -44,6 +44,8 @@
 				google,thermal-mitigation = <4000000 3000000
 							2000000 1000000 500000>;
 				google,wlc-thermal-mitigation = <1100000 500000 250000 110000>;
+				google,wlc-fcc-thermal-limits = <4000000 3000000
+							2000000 1000000 500000>;
 
 				/* b/170700459 thresholds */
 				google,bd-resume-abs-temp = <280>;
