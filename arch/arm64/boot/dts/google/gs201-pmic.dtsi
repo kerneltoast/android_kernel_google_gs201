@@ -108,6 +108,14 @@
 		sel_vgpio = <0xC2 0x0B 0x22 0xA2 0x2D 0x2F 0x55 0x55
 			0xDB 0x7D 0x30 0x3C 0x80 0x80>;
 
+		s2mpg12-keys {
+			button@1 {
+				label = "pmic-keys: KEY_POWER";
+				linux,code = <116>;
+				wakeup = <1>;
+			};
+		};
+
 		regulators {
 			m_buck1_reg: BUCK1M {
 				regulator-name = "S2MPG12_BUCK1";
