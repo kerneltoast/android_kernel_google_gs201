@@ -13,7 +13,7 @@
 #include "acpm_dvfs.h"
 #include "cmucal.h"
 
-#ifndef CONFIG_ARM_EXYNOS_DEVFREQ
+#if !IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 #define PM_QOS_BUS_THROUGHPUT (11)
 #endif
 
