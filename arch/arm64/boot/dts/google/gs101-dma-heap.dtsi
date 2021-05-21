@@ -17,12 +17,6 @@
 		dma-heap,video_aligned;
 	};
 
-	crypto_dma_heap {
-		compatible = "samsung,dma-heap-cma";
-		memory-region = <&crypto>;
-		dma-heap,name = "crypto";
-	};
-
 	video_stream_dma_heap {
 		compatible = "samsung,dma-heap-chunk";
 		memory-region = <&vstream>;
@@ -109,13 +103,6 @@
 &reserved_memory {
 	#address-cells = <2>;
 	#size-cells = <1>;
-
-	crypto: crypto {
-		compatible = "shared-dma-pool";
-		reusable;
-		size = <0x1800000>;
-		alignment = <0x0 0x00010000>;
-	};
 
 	vstream: vstream {
 		compatible = "shared-dma-pool";
