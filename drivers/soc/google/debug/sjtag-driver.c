@@ -459,18 +459,14 @@ static ssize_t auth_store(struct device *dev, struct device_attribute *dev_attr,
 
 	/*
 	 * Assemble the signed auth token from the access parameters maintained by the kernel
-	 * & the signature of the auth token (The sig is in a format that requires  parsing &
-	 * processing. No length or character check - using metadata in payload for validation)
+	 * & the signature of the auth token. (The sig is in a format that requires  parsing &
+	 * processing.)
 	 */
 
 	sig_auth_tok = (struct sig_auth_tok_t *)exchange_buff;
-
-	/* Get the sig payload */
-	if (count > 2 * SJTAG_MAX_SIGFILE_SIZE) {
-		dev_err(dev, "%s: Invalid sig payload size\n", file_op);
-		return -EINVAL;
-	}
-	len = count / 2;
+	if (count > 2 * SJTAG_MAX_SIGFILE_SIZE + 1)	/* +1: Newline character */
+		dev_warn(dev, "%s: Larger-than-expected sig payload size\n", file_op);
+	len = min((int)count / 2, SJTAG_MAX_SIGFILE_SIZE);
 
 	/* Convert hexdump to raw binary */
 	if (hex2bin(wbuff, buf, len)) {
@@ -528,7 +524,7 @@ static ssize_t auth_store(struct device *dev, struct device_attribute *dev_attr,
 	if (ipc_rc < 0)
 		return ipc_rc;
 
-	dev_info(dev, "%s session started\n", dev_attr->attr.name);
+	dev_info(dev, "Authenticated session started\n");
 
 	return count;
 }
@@ -548,7 +544,7 @@ static ssize_t end_store(struct device *dev, struct device_attribute *dev_attr,
 	if (ipc_rc < 0)
 		return ipc_rc;
 
-	dev_info(dev, "%s session ended\n", dev_attr->attr.name);
+	dev_info(dev, "Authenticated session ended\n");
 
 	return count;
 }
