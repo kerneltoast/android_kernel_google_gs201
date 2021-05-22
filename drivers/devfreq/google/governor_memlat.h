@@ -9,6 +9,13 @@
 #include <linux/kernel.h>
 #include <linux/devfreq.h>
 
+enum common_ev_idx {
+	INST_IDX,
+	CYC_IDX,
+	STALL_IDX,
+	NUM_COMMON_EVS
+};
+
 /**
  * struct dev_stats - Device stats
  * @inst_count:			Number of instructions executed.
