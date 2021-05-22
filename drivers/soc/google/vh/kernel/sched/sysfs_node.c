@@ -36,6 +36,9 @@ extern struct vendor_group_property *get_vendor_group_property(enum vendor_group
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id);
 
 static struct uclamp_se uclamp_default[UCLAMP_CNT];
+unsigned int pmu_poll_time_ms = 10;
+extern void pmu_poll_enable(void);
+extern void pmu_poll_disable(void);
 
 #define SET_VENDOR_GROUP_STORE(__grp, __vg)						      \
 		static ssize_t set_task_group_##__grp##_store (struct kobject *kobj,	      \
@@ -885,6 +888,51 @@ static ssize_t util_post_init_scale_store(struct kobject *kobj,
 
 static struct kobj_attribute util_post_init_scale_attribute = __ATTR_RW(util_post_init_scale);
 
+static ssize_t pmu_poll_time_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return sysfs_emit(buf, "%u\n", pmu_poll_time_ms);
+}
+
+static ssize_t pmu_poll_time_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val))
+		return -EINVAL;
+
+	if (val < 10 || val > 1000000)
+		return -EINVAL;
+
+	pmu_poll_time_ms = val;
+
+	return count;
+}
+
+static struct kobj_attribute pmu_poll_time_attribute = __ATTR_RW(pmu_poll_time);
+
+static ssize_t pmu_poll_enable_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	bool enable;
+
+	if (kstrtobool(buf, &enable))
+		return -EINVAL;
+
+	if (enable)
+		pmu_poll_enable();
+	else
+		pmu_poll_disable();
+
+	return count;
+}
+
+static struct kobj_attribute pmu_poll_enable_attribute = __ATTR_WO(pmu_poll_enable);
+
 static ssize_t uclamp_fork_reset_set_store(struct kobject *kobj,
 					      struct kobj_attribute *attr,
 					      const char *buf, size_t count)
@@ -1058,6 +1106,10 @@ static struct attribute *attrs[] = {
 	&util_post_init_scale_attribute.attr,
 	&uclamp_fork_reset_set_attribute.attr,
 	&uclamp_fork_reset_clear_attribute.attr,
+
+	&pmu_poll_time_attribute.attr,
+	&pmu_poll_enable_attribute.attr,
+
 	NULL,
 };
 

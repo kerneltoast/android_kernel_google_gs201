@@ -47,15 +47,25 @@ extern void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p,
 					      int sd_flag, int wake_flags, int *target_cpu);
 extern struct cpufreq_governor sched_pixel_gov;
 
+extern int pmu_poll_init(void);
+
 static int vh_sched_init(void)
 {
 	int ret;
+
+	ret = pmu_poll_init();
+
+	if (ret) {
+		pr_err("pmu poll init failed\n");
+		return ret;
+	}
 
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	init_uclamp_stats();
 #endif
 
 	ret = create_sysfs_node();
+
 	if (ret)
 		return ret;
 
