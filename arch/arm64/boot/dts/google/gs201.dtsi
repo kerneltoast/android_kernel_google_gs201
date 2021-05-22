@@ -16,7 +16,7 @@
 #include "gs201-bts.dtsi"
 #include "gs101-cpu.dtsi"
 #include "gs201-drm-dpu.dtsi"
-#include "gs101-gpu.dtsi"
+#include "gs201-gpu.dtsi"
 #include "gs201-aoc.dtsi"
 #include "gs101-audio.dtsi"
 #include "gs201-pinctrl.dtsi"
