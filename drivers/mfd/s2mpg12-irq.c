@@ -249,7 +249,8 @@ static irqreturn_t s2mpg12_irq_thread(int irq, void *data)
 	int i, ret;
 
 	/* Clear interrupt pending bit */
-//	s2mpg12_pending_clear();
+	val = readl(s2mpg12->sysreg_pending);
+	writel(val, s2mpg12->sysreg_pending);
 
 	/* Read VGPIO_RX_MONITOR */
 	val = readl(s2mpg12->mem_base);
@@ -294,7 +295,6 @@ static irqreturn_t s2mpg12_irq_thread(int irq, void *data)
 
 	/* notify SUB PMIC */
 	if (ibi_src[0] & S2MPG12_PMIC_S_MASK) {
-		dev_info(s2mpg12->dev, "IBI from sub pmic\n");
 		s2mpg13_call_notifier();
 	}
 
@@ -314,13 +314,6 @@ static int s2mpg12_set_wqueue(struct s2mpg12_dev *s2mpg12)
 	return 0;
 }
 
-static void s2mpg12_set_vgpio_monitor(struct s2mpg12_dev *s2mpg12)
-{
-	s2mpg12->mem_base = ioremap(VGPIO_I3C_BASE + VGPIO_MONITOR_ADDR, SZ_32);
-	if (!s2mpg12->mem_base)
-		pr_info("%s: fail to allocate memory\n", __func__);
-}
-
 int s2mpg12_irq_init(struct s2mpg12_dev *s2mpg12)
 {
 	int i;
@@ -336,7 +329,14 @@ int s2mpg12_irq_init(struct s2mpg12_dev *s2mpg12)
 	mutex_init(&s2mpg12->irqlock);
 
 	/* Set VGPIO Monitor */
-	s2mpg12_set_vgpio_monitor(s2mpg12);
+	s2mpg12->mem_base = ioremap(VGPIO_I3C_BASE + VGPIO_MONITOR_ADDR, SZ_32);
+	if (!s2mpg12->mem_base)
+		pr_err("%s: fail to allocate VGPIO_MONITOR memory\n", __func__);
+
+	/* Set VGPIO Monitor */
+	s2mpg12->sysreg_pending = ioremap(SYSREG_VGPIO2AP + INTC0_IPEND, SZ_32);
+	if (!s2mpg12->sysreg_pending)
+		pr_err("%s: fail to allocate INTC0_IPEND memory\n", __func__);
 
 	/* Set workqueue */
 	s2mpg12_set_wqueue(s2mpg12);

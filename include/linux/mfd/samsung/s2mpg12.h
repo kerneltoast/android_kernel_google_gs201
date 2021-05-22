@@ -212,6 +212,9 @@ struct s2mpg12_dev {
 	/* VGPIO_RX_MONITOR */
 	void __iomem *mem_base;
 
+	/* VGPIO_INTC0_IPEND */
+	void __iomem *sysreg_pending;
+
 	/* mutex for s2mpg12 irq handling */
 	struct mutex irqlock;
 	int irq_masks_cur[S2MPG12_IRQ_GROUP_NR];
