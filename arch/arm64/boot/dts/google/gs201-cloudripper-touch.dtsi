@@ -30,27 +30,6 @@
 		samsung,pins = "gpp23-2";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
-
-	spi0_bus: spi0-bus {
-		samsung,pins = "gpp20-0", "gpp20-1", "gpp20-2";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
-	};
-
-	spi0_cs: spi0-cs {
-		samsung,pins = "gpp20-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
-	};
-
-	spi0_cs_func: spi0-cs-func {
-		samsung,pins = "gpp20-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
-	};
 };
 
 &spi_0 {
@@ -64,7 +43,7 @@
 		status = "ok";
 		compatible = "sec,sec_ts";
 
-		spi-max-frequency = <1000000>; // Whitefin/R3 set to 16000000
+		spi-max-frequency = <16000000>; // Whitefin/R3 set to 16000000
 		spi-cpol;
 		spi-cpha;
 
@@ -72,6 +51,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sec_ts_irq &sec_ts_reset>;
 
+		sec,spi_cs_gpio = <&gpp20 3 0>;
 		sec,irq_gpio = <&gpa7 0 0>;
 		sec,reset_gpio = <&gpp23 2 0>;
 		sec,firmware_name = "s6sy79x.bin";
