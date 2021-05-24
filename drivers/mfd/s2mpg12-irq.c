@@ -295,6 +295,7 @@ static irqreturn_t s2mpg12_irq_thread(int irq, void *data)
 
 	/* notify SUB PMIC */
 	if (ibi_src[0] & S2MPG12_PMIC_S_MASK) {
+		usleep_range(1000, 1000); /* TODO REMOVE b/189132610 */
 		s2mpg13_call_notifier();
 	}
 
