@@ -47,7 +47,8 @@
 
 		rt-names = "DECON0",
 			   "csi",
-			   "ipp";
+			   "ipp",
+			   "g3aa";
 
 		/* TREX_D_CORE */
 		bts_corem0{
