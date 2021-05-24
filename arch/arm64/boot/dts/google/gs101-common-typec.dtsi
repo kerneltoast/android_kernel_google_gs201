@@ -189,3 +189,19 @@
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 };
+
+/ {
+	fragment@typec {
+		target-path = "/";
+		__overlay__ {
+			google,usbc_port_cooling_dev {
+				extcon = <&max77759tcpc>;
+				compatible = "google,usbc_port_cooling_dev";
+				google,usb-cd-polling-interval-ms = <5000>;
+				google,usb-cd-connected-interval-ms = <700>;
+				google,usb-cd-unplug-interval-sec = <2>;
+				#cooling-cells = <2>;
+			};
+		};
+	};
+};
