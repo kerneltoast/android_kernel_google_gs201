@@ -20,8 +20,6 @@
  * "pmureg" has the mapped base address of PMU(Power Management Unit)
  */
 static struct regmap *pmureg;
-/* TODO: remove pmu_alive va as part of b/169128860 */
-static void __iomem *pmu_alive;
 static phys_addr_t pmu_alive_pa;
 static spinlock_t update_lock;
 
@@ -32,38 +30,18 @@ static spinlock_t update_lock;
 static inline void exynos_pmu_set_bit_atomic(unsigned int offset,
 						unsigned int val)
 {
-	int ret;
-
-	ret = set_priv_reg(pmu_alive_pa + (offset | 0xc000), val);
-
-	/* TODO: remove following as part of b/169128860 */
-	if (ret)
-		__raw_writel(val, pmu_alive + (offset | 0xc000));
+	set_priv_reg(pmu_alive_pa + (offset | 0xc000), val);
 }
 
 static inline void exynos_pmu_clr_bit_atomic(unsigned int offset,
 						unsigned int val)
 {
-	int ret;
-
-	ret = set_priv_reg(pmu_alive_pa + (offset | 0x8000), val);
-
-	/* TODO: remove following as part of b/169128860 */
-	if (ret)
-		__raw_writel(val, pmu_alive + (offset | 0x8000));
+	set_priv_reg(pmu_alive_pa + (offset | 0x8000), val);
 }
 
 static int exynos_pmu_update_bits(unsigned int offset, unsigned int mask, unsigned int val)
 {
-	int ret;
-
-	ret = rmw_priv_reg(pmu_alive_pa + offset, mask, val);
-
-	/* TODO: remove following as part of b/169128860 */
-	if (ret)
-		ret = regmap_update_bits(pmureg, offset, mask, val);
-
-	return ret;
+	return rmw_priv_reg(pmu_alive_pa + offset, mask, val);
 }
 
 /**
@@ -77,15 +55,7 @@ EXPORT_SYMBOL(exynos_pmu_read);
 
 int exynos_pmu_write(unsigned int offset, unsigned int val)
 {
-	int ret;
-
-	ret = set_priv_reg(pmu_alive_pa + offset, val);
-
-	/* TODO: remove following as part of b/169128860 */
-	if (ret)
-		ret = regmap_write(pmureg, offset, val);
-
-	return ret;
+	return set_priv_reg(pmu_alive_pa + offset, val);
 }
 EXPORT_SYMBOL(exynos_pmu_write);
 
@@ -334,12 +304,6 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pmu_alive");
-	pmu_alive = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pmu_alive)) {
-		pr_err("Failed to get address of PMU_ALIVE\n");
-		return PTR_ERR(pmu_alive);
-	}
-
 	pmu_alive_pa = res->start;
 	spin_lock_init(&update_lock);
 

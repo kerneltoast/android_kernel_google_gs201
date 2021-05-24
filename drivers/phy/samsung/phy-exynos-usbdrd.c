@@ -599,44 +599,31 @@ static void exynos_usbdrd_pipe3_phy_isol(struct phy_usb_instance *inst,
 					 unsigned int on, unsigned int mask)
 {
 	unsigned int val;
-	int ret;
 
 	if (!inst->reg_pmu)
 		return;
 
 	val = on ? 0 : mask;
-	ret = rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset_dp, mask, val);
-	/* TODO: remove following as part of b/169128860 */
-	if (ret)
-		regmap_update_bits(inst->reg_pmu, inst->pmu_offset_dp,
-				   mask, val);
+	rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset_dp, mask, val);
 }
 
 static void exynos_usbdrd_utmi_phy_isol(struct phy_usb_instance *inst,
 					unsigned int on, unsigned int mask)
 {
 	unsigned int val;
-	int ret;
 
 	if (!inst->reg_pmu)
 		return;
 
 	val = on ? 0 : mask;
-	ret = rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset, mask, val);
-	/* TODO: remove following as part of b/169128860 */
-	if (ret)
-		regmap_update_bits(inst->reg_pmu, inst->pmu_offset,
-				   mask, val);
+	rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset, mask, val);
 
 	/* Control TCXO_BUF */
 	if (inst->pmu_mask_tcxobuf != 0) {
 		val = on ? 0 : inst->pmu_mask_tcxobuf;
-		ret = rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset_tcxobuf,
-				   inst->pmu_mask_tcxobuf, val);
-		/* TODO: remove following as part of b/169128860 */
-		if (ret)
-			regmap_update_bits(inst->reg_pmu, inst->pmu_offset_tcxobuf,
-					   inst->pmu_mask_tcxobuf, val);
+		rmw_priv_reg(inst->pmu_alive_pa + inst->pmu_offset_tcxobuf,
+			     inst->pmu_mask_tcxobuf, val);
+
 	}
 }
 

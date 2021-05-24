@@ -2132,12 +2132,8 @@ void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
 	/* 1. PCIe PHY VREG On */
 	exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
 	/* 2. PMU: PCIe PHY input isolation bypassed - 1 (0: isolation) */
-	ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
-			   PCIE_PHY_CONTROL_MASK, 1);
-	/* TODO: remove following as part of b/169128860 */
-	if (ret)
-		regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
-				   PCIE_PHY_CONTROL_MASK, 1);
+	rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
+		     PCIE_PHY_CONTROL_MASK, 1);
 
 	exynos_pcie_rc_assert_phy_reset(pp);
 
@@ -2712,12 +2708,8 @@ int exynos_pcie_rc_poweron(int ch_num)
 			/* 1. PCIe PHY VREG On */
 			exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
 			/* 2. PMU: PCIe PHY input isolation bypassed - 1(0: isolated) */
-			ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
-					   PCIE_PHY_CONTROL_MASK, 1);
-			/* TODO: remove following as part of b/169128860 */
-			if (ret)
-				regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
-						   PCIE_PHY_CONTROL_MASK, 1);
+			rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
+				     PCIE_PHY_CONTROL_MASK, 1);
 			dev_dbg(dev, "[%s]# PCIe PMU regmap update: 1(BYPASS) #\n", __func__);
 		}
 
@@ -4167,17 +4159,12 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
-	int ret;
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		/* 1. PMU: PCIe PHY input isolation - 0: isolated (1: bypassed) */
 		dev_dbg(dev, "[%s] # PCIe PMU ISOLATION #\n", __func__);
-		ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
-				   PCIE_PHY_CONTROL_MASK, 0);
-		/* TODO: remove following as part of b/169128860 */
-		if (ret)
-			regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
-					   PCIE_PHY_CONTROL_MASK, 0);
+		rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
+			     PCIE_PHY_CONTROL_MASK, 0);
 
 		/*  2. PCIe PHY VREG off */
 		dev_dbg(dev, "[%s] # VREG OFF: vreg_control(PHY_VREG_OFF) #\n", __func__);

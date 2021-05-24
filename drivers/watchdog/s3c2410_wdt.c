@@ -445,14 +445,10 @@ static int s3c2410wdt_mask_wdt_reset(struct s3c2410_wdt *wdt, bool mask)
 		val = mask_val;
 
 	ret = rmw_priv_reg(wdt->pmu_alive_pa + wdt->drv_data->mask_reset_reg, mask_val, val);
-	/* TODO: remove following as part of b/169128860 */
-	if (ret) {
-		ret = regmap_update_bits(wdt->pmureg, wdt->drv_data->mask_reset_reg, mask_val, val);
 
-		if (ret < 0) {
-			dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
-			return ret;
-		}
+	if (ret < 0) {
+		dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
+		return ret;
 	}
 
 	ret = regmap_read(wdt->pmureg, wdt->drv_data->mask_reset_reg, &mask_reset_reg_val);
@@ -493,13 +489,9 @@ static int s3c2410wdt_automatic_disable_wdt(struct s3c2410_wdt *wdt, bool mask)
 		val = mask_val;
 
 	ret = rmw_priv_reg(wdt->pmu_alive_pa + wdt->drv_data->disable_reg, mask_val, val);
-	/* TODO: remove following as part of b/169128860 */
-	if (ret) {
-		ret = regmap_update_bits(wdt->pmureg, wdt->drv_data->disable_reg, mask_val, val);
-		if (ret < 0) {
-			dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
-			return ret;
-		}
+	if (ret < 0) {
+		dev_err(wdt->dev, "failed to update reg(%d)\n", ret);
+		return ret;
 	}
 
 	ret = regmap_read(wdt->pmureg, wdt->drv_data->mask_reset_reg, &mask_reset_reg_val);

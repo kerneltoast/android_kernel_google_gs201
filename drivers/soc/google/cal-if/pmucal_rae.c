@@ -2,9 +2,6 @@
 #include "pmucal_common.h"
 #include "pmucal_rae.h"
 
-/* TODO: temporary workaround. must remove. see b/169128860  */
-#include <linux/smc.h>
-
 #define A_FEW_USECS 10		/* see Documentation/timers/timers-howto.rst */
 
 /**
@@ -142,16 +139,10 @@ static inline void pmucal_rae_read(struct pmucal_seq *seq)
 
 static void pmucal_write_reg(phys_addr_t base_pa, void __iomem *base_va, u32 offset, u32 val)
 {
-	if ((base_pa >> 16) == 0x1746) {
-		/* TODO: temporary workaround. must remove. see b/169128860 */
-		int ret;
-
-		ret = set_priv_reg(base_pa + offset, val);
-		if (ret == SMC_CMD_PRIV_REG || ret == -EINVAL)
-			writel(val, base_va + offset);
-	} else {
+	if ((base_pa >> 16) == 0x1746)
+		set_priv_reg(base_pa + offset, val);
+	else
 		writel(val, base_va + offset);
-	}
 }
 
 static inline void pmucal_rae_write(struct pmucal_seq *seq)
