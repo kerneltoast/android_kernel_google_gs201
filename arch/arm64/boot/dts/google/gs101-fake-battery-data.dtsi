@@ -10,7 +10,8 @@ maxim,config {
 	/* for fake battery: 0xAA */
 	maxim,default-fake-batt {
 		maxim,batt-id-kohm = <170>;
-		maxim,model-version = <1>;
+		maxim,model-version = <2>;
+		maxim,force-reset-model-data;
 		maxim,fg-model = /bits/ 16 <
 			0x9760 0xa510 0xb100 0xb600 0xb7a0 0xb900 0xba70 0xbc70
 			0xbde0 0xbfc0 0xc250 0xc510 0xc990 0xcea0 0xd040 0xd750
