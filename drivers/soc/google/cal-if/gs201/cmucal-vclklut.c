@@ -332,6 +332,42 @@ unsigned int div_clk_slc3_dclk_uud_lut_params[] = {
 unsigned int div_clk_peric0_usi6_usi_uud_lut_params[] = {
 	0,
 };
+unsigned int div_clk_peric_400_lut_params[] = {
+	0, 1,
+};
+unsigned int div_clk_peric_200_lut_params[] = {
+	1, 1,
+};
+unsigned int div_clk_peric_133_lut_params[] = {
+	2, 1,
+};
+unsigned int div_clk_peric_100_lut_params[] = {
+	3, 1,
+};
+unsigned int div_clk_peric_66_lut_params[] = {
+	5, 1,
+};
+unsigned int div_clk_peric_50_lut_params[] = {
+	7, 1,
+};
+unsigned int div_clk_peric_40_lut_params[] = {
+	9, 1,
+};
+unsigned int div_clk_peric_24_lut_params[] = {
+	0, 0,
+};
+unsigned int div_clk_peric_12_lut_params[] = {
+	1, 0,
+};
+unsigned int div_clk_peric_8_lut_params[] = {
+	2, 0,
+};
+unsigned int div_clk_peric_6_lut_params[] = {
+	3, 0,
+};
+unsigned int div_clk_peric_4_lut_params[] = {
+	5, 0,
+};
 unsigned int mux_clkcmu_peric0_ip_uud_lut_params[] = {
 	1,
 };
