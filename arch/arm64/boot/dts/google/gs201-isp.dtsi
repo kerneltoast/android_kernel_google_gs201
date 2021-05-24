@@ -5,9 +5,9 @@
  * Copyright 2021 Google LLC.
  */
 
-#include <dt-bindings/clock/gs101.h>
+#include <dt-bindings/clock/gs201.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/interrupt-controller/gs101.h>
+#include <dt-bindings/interrupt-controller/gs201.h>
 #include "gs201-isp-event-info.dtsi"
 
 / {
@@ -171,7 +171,7 @@
 
 		/* Clocks */
 		clocks =
-			<&clock UMUX_CLKCMU_CSIS_BUS>,
+			<&clock UMUX_CLKCMU_CSIS_NOC>,
 			<&clock GATE_DFTMUX_CMU_CIS_CLK0>,
 			<&clock GATE_DFTMUX_CMU_CIS_CLK1>,
 			<&clock GATE_DFTMUX_CMU_CIS_CLK2>,
@@ -189,7 +189,7 @@
 			<&clock CIS_CLK6>,
 			<&clock CIS_CLK7>;
 		clock-names =
-			"UMUX_CLKCMU_CSIS_BUS",
+			"UMUX_CLKCMU_CSIS_NOC",
 			"GATE_DFTMUX_CMU_CIS_CLK0",
 			"GATE_DFTMUX_CMU_CIS_CLK1",
 			"GATE_DFTMUX_CMU_CIS_CLK2",
@@ -401,10 +401,10 @@
 			"sysreg-g3aa";
 
 		clocks =
-			<&clock UMUX_CLKCMU_PDP_BUS>,
+			<&clock UMUX_CLKCMU_PDP_NOC>,
 			<&clock UMUX_CLKCMU_PDP_VRA>;
 		clock-names =
-			"UMUX_CLKCMU_PDP_BUS",
+			"UMUX_CLKCMU_PDP_NOC",
 			"UMUX_CLKCMU_PDP_VRA";
 		clock-rates = <0>;
 
@@ -473,8 +473,8 @@
 			"gp-l5",
 			"gp-stat";
 
-		clocks = <&clock UMUX_CLKCMU_IPP_BUS>;
-		clock-names = "UMUX_CLKCMU_IPP_BUS";
+		clocks = <&clock UMUX_CLKCMU_IPP_NOC>;
+		clock-names = "UMUX_CLKCMU_IPP_NOC";
 		clock-rates = <0>;
 		clock-family = <CAMERA_CLOCK_FAMILY_CAM>;
 
@@ -541,11 +541,11 @@
 			"tnr_align_m4";
 
 		clocks =
-			<&clock UMUX_CLKCMU_IPP_BUS>,
-			<&clock UMUX_CLKCMU_DNS_BUS>;
+			<&clock UMUX_CLKCMU_IPP_NOC>,
+			<&clock UMUX_CLKCMU_DNS_NOC>;
 		clock-names =
-			"UMUX_CLKCMU_IPP_BUS",
-			"UMUX_CLKCMU_DNS_BUS";
+			"UMUX_CLKCMU_IPP_NOC",
+			"UMUX_CLKCMU_DNS_NOC";
 		clock-rates = <0>;
 		clock-family = <CAMERA_CLOCK_FAMILY_CAM>;
 
@@ -595,8 +595,8 @@
 			"tnr_ssmt_d7",
 			"tnr_qch";
 
-		clocks = <&clock UMUX_CLKCMU_TNR_BUS>;
-		clock-names = "UMUX_CLKCMU_TNR_BUS";
+		clocks = <&clock UMUX_CLKCMU_TNR_NOC>;
+		clock-names = "UMUX_CLKCMU_TNR_NOC";
 		clock-rates = <0>;
 
 		clock-family = <CAMERA_CLOCK_FAMILY_TNR>;
@@ -685,12 +685,12 @@
 			"ssmt_d1_itsc";
 
 		clocks =
-			<&clock UMUX_CLKCMU_ITP_BUS>,
-			<&clock UMUX_CLKCMU_DNS_BUS>,
+			<&clock UMUX_CLKCMU_ITP_NOC>,
+			<&clock UMUX_CLKCMU_DNS_NOC>,
 			<&clock UMUX_CLKCMU_MCSC_ITSC>;
 		clock-names =
-			"UMUX_CLKCMU_ITP_BUS",
-			"UMUX_CLKCMU_DNS_BUS",
+			"UMUX_CLKCMU_ITP_NOC",
+			"UMUX_CLKCMU_DNS_NOC",
 			"UMUX_CLKCMU_MCSC_ITSC";
 		clock-rates = <0>;
 
@@ -915,22 +915,22 @@
 			"scsc-c2serv";
 
 		clocks =
-			<&clock UMUX_CLKCMU_CSIS_BUS>,
-			<&clock UMUX_CLKCMU_PDP_BUS>,
-			<&clock UMUX_CLKCMU_DNS_BUS>,
-			<&clock UMUX_CLKCMU_TNR_BUS>,
-			<&clock UMUX_CLKCMU_ITP_BUS>,
+			<&clock UMUX_CLKCMU_CSIS_NOC>,
+			<&clock UMUX_CLKCMU_PDP_NOC>,
+			<&clock UMUX_CLKCMU_DNS_NOC>,
+			<&clock UMUX_CLKCMU_TNR_NOC>,
+			<&clock UMUX_CLKCMU_ITP_NOC>,
 			<&clock UMUX_CLKCMU_MCSC_ITSC>,
 			<&clock UMUX_CLKCMU_GDC_GDC0>,
 			<&clock UMUX_CLKCMU_GDC_GDC1>,
 			<&clock UMUX_CLKCMU_GDC_SCSC>;
 		clock-names =
-			"UMUX_CLKCMU_CSIS_BUS",
-			"UMUX_CLKCMU_PDP_BUS",
-			"UMUX_CLKCMU_DNS_BUS",
-			"UMUX_CLKCMU_TNR_BUS",
-			"UMUX_CLKCMU_ITP_BUS",
-			"UMUX_CLKCMU_MCSC_BUS",
+			"UMUX_CLKCMU_CSIS_NOC",
+			"UMUX_CLKCMU_PDP_NOC",
+			"UMUX_CLKCMU_DNS_NOC",
+			"UMUX_CLKCMU_TNR_NOC",
+			"UMUX_CLKCMU_ITP_NOC",
+			"UMUX_CLKCMU_MCSC_NOC",
 			"UMUX_CLKCMU_GDC_GDC0",
 			"UMUX_CLKCMU_GDC_GDC1",
 			"UMUX_CLKCMU_GDC_SCSC";
