@@ -231,7 +231,7 @@ static struct cpumask cpuhp_get_req_online_cpus(void)
 	struct cpuhp_user *user;
 	char buf[10];
 
-	cpumask_setall(&mask);
+	cpumask_copy(&mask, cpu_possible_mask);
 
 	list_for_each_entry(user, &cpuhp.users, list)
 		cpumask_and(&mask, &mask, &user->online_cpus);
