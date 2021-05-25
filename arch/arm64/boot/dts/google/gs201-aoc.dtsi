@@ -10,7 +10,7 @@
 		compatible = "google,mailbox-whitechapel";
 		#address-cells = <2>;
 		#size-cells = <1>;
-		reg = <0x0 0x176a0000 0x1000>;
+		reg = <0x0 0x18300000 0x1000>;
 		interrupts = <GIC_SPI IRQ_MAILBOX_AOCA322AP_ALIVE
 			IRQ_TYPE_LEVEL_HIGH>;
 		mbox-name = "aoc2ap";
