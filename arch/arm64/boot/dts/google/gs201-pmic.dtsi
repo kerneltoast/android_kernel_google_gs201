@@ -328,6 +328,7 @@
 				regulator-name = "S2MPG12_LDO17";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 			};
 
