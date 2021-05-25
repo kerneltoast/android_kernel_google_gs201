@@ -84,8 +84,8 @@ void eh_remove(struct eh_device *eh_dev);
  * the memory used to store the compressed data.
  */
 int eh_compress_page(struct eh_device *eh_dev, struct page *page, void *priv);
-int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
-                       unsigned int compr_size, struct page *page);
+int eh_decompress_page(struct eh_device *eh_dev, void *src,
+                       unsigned int slen, struct page *page);
 
 /* create eh_device for user */
 struct eh_device *eh_create(eh_cb_fn comp, eh_cb_fn decomp);

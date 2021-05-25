@@ -761,8 +761,7 @@ static int eh_init(struct device *device, struct eh_device *eh_dev,
 }
 
 static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
-			void *compr_data, unsigned int compr_size,
-			struct page *dst_page)
+			  void *src, unsigned int slen, struct page *dst_page)
 {
 	void *src_vaddr;
 	phys_addr_t src_paddr;
@@ -783,24 +782,19 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	 * 2048B aligned, max 2048B of data
 	 * 4096B aligned, max 4096B of data
 	 */
-	alignment = 1UL << __ffs((unsigned long)compr_data);
-	if (alignment < 64 || compr_size > alignment) {
+	alignment = 1UL << __ffs((unsigned long)src);
+	if (alignment < 64 || slen > alignment) {
 		src_vaddr = (void *)(*per_cpu_ptr(eh_dev->bounce_buffer, index));
-		pr_devel("COPY: compr_data %p, compr_size %u, alignment %u src_vaddr %p\n",
-			 compr_data, compr_size, alignment, src_vaddr);
-		memcpy(src_vaddr, compr_data, compr_size);
+		memcpy(src_vaddr, src, slen);
 		src_paddr = virt_to_phys(src_vaddr);
 		alignment = PAGE_SIZE;
 	} else {
-		pr_devel(
-			"NO COPY: compr_data %p, compr_size %u, alignment %u\n",
-			compr_data, compr_size, alignment);
-		src_paddr = virt_to_phys(compr_data);
+		src_paddr = virt_to_phys(src);
 		if (alignment > PAGE_SIZE)
 			alignment = PAGE_SIZE;
 	}
 
-	csize_data = compr_size << EH_DCMD_CSIZE_SIZE_SHIFT;
+	csize_data = slen << EH_DCMD_CSIZE_SIZE_SHIFT;
 	eh_write_register(eh_dev, EH_REG_DCMD_CSIZE(index), csize_data);
 
 #ifdef CONFIG_GOOGLE_EH_DCMD_STATUS_IN_MEMORY
@@ -874,11 +868,11 @@ EXPORT_SYMBOL(eh_compress_page);
  *
  * Holds a spinlock for the entire operation, so that nothing can interrupt it.
  */
-int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
-			    unsigned int compr_size, struct page *page)
+int eh_decompress_page(struct eh_device *eh_dev, void *src,
+		       unsigned int slen, struct page *page)
 {
 	int ret = 0;
-	int cpu;
+	int index;
 	unsigned long timeout;
 	unsigned long status;
 
@@ -894,11 +888,11 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 		goto out;
 	}
 
-	cpu = get_cpu();
-	pr_devel("[%s]: submit: cpu %u compr_size %u\n", current->comm, cpu, compr_size);
+	index = get_cpu();
+	pr_devel("[%s]: submit: cpu %u slen %u\n", current->comm, index, slen);
 
 	/* program decompress register (no IRQ) */
-	eh_setup_dcmd(eh_dev, cpu, compr_data, compr_size, page);
+	eh_setup_dcmd(eh_dev, index, src, slen, page);
 
 	timeout = jiffies + msecs_to_jiffies(EH_POLL_DELAY_MS);
 	do {
@@ -909,13 +903,13 @@ int eh_decompress_page(struct eh_device *eh_dev, void *compr_data,
 			ret = -ETIME;
 			goto out;
 		}
-		status = eh_read_dcmd_status(eh_dev, cpu);
+		status = eh_read_dcmd_status(eh_dev, index);
 	} while (status == EH_DCMD_PENDING);
 
-	pr_devel("dcmd [%u] status = %u\n", cpu, status);
+	pr_devel("dcmd [%u] status = %u\n", index, status);
 
 	if (status != EH_DCMD_DECOMPRESSED) {
-		pr_err("dcmd [%u] bad status %u\n", cpu, status);
+		pr_err("dcmd [%u] bad status %u\n", index, status);
 		eh_dump_regs(eh_dev);
 		ret = -EIO;
 	}
