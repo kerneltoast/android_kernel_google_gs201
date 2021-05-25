@@ -342,31 +342,29 @@
 //	vdd30-supply = <&m_ldo10_reg>;  /* PP3000_L10M_USB: AVDD33_USB20 */
 //};
 
-//&pcie_0 {	/* pcie ch0 used for the connection with CP */
-//	status = "okay";
-//	use-cache-coherency = "true";
-//	use-msi = "true";
-//	use-sicd = "true";
-//	use-ia = "true";
-//	use-l1ss = "true";
-//	phy-power-off = "false";
-//	use-pcieon-sleep = "true";
-//	ep-device-type = <EP_SAMSUNG_MODEM>;
-//	vreg1-supply = <&m_ldo16_reg>;  /* PP0850_L16M_PCIE0: AVDD085_PCIE_GEN4_0 */
-//	vreg2-supply = <&m_ldo18_reg>;  /* PP1800_L18M_PCIE0: AVDD18_PCIE_GEN4_0 */
-//};
-//
-//&pcie_1 {	/* pcie ch1 used for the connection with WiFi */
-//	status = "okay";
-//	num-lanes = <1>;
-//	use-sicd = "true";
-//	use-ia = "true";
-//	use-l1ss = "true";
-//	max-link-speed = <LINK_SPEED_GEN2>;
-//	ep-device-type = <EP_BCM_WIFI>;
-//	pcie,wlan-gpio = <&gph2 4 0x1 /* WLAN_EN */ >;  /* WLAN_REG_ON */
-//	vreg1-supply = <&s_ldo3_reg>;  /* PP0850_L3S_PCIE1: AVDD085_PCIE_GEN4_1 */
-//	vreg2-supply = <&s_ldo18_reg>; /* PP1800_L18S_PCIE1: AVDD18_PCIE_GEN4_1 */
-//};
-//
-//
+&pcie_0 {	/* pcie ch0 used for the connection with CP */
+	status = "okay";
+	use-cache-coherency = "true";
+	use-msi = "true";
+	use-sicd = "true";
+	use-ia = "true";
+	use-l1ss = "true";
+	phy-power-off = "false";
+	use-pcieon-sleep = "true";
+	ep-device-type = <EP_SAMSUNG_MODEM>;
+	vreg1-supply = <&m_ldo16_reg>;  /* PP0850_L16M_PCIE0: AVDD085_PCIE_GEN4_0 */
+	vreg2-supply = <&m_ldo18_reg>;  /* PP1800_L18M_PCIE0: AVDD18_PCIE_GEN4_0 */
+};
+
+&pcie_1 {	/* pcie ch1 used for the connection with WiFi */
+	status = "okay";
+	num-lanes = <1>;
+	use-sicd = "true";
+	use-ia = "true";
+	use-l1ss = "true";
+	max-link-speed = <LINK_SPEED_GEN2>;
+	ep-device-type = <EP_BCM_WIFI>;
+	pcie,wlan-gpio = <&gph2 4 0x1 /* WLAN_EN */ >;  /* WLAN_REG_ON */
+	vreg1-supply = <&s_ldo3_reg>;  /* PP0850_L3S_PCIE1: AVDD085_PCIE_GEN4_1 */
+	vreg2-supply = <&s_ldo18_reg>; /* PP1800_L18S_PCIE1: AVDD18_PCIE_GEN4_1 */
+};

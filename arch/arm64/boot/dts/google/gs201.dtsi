@@ -30,6 +30,7 @@
 #include "gs101-dma-heap.dtsi"
 #include "gs201-isp.dtsi"
 #include "gs201-debug.dtsi"
+#include "gs201-pcie.dtsi"
 
 / {
 	compatible = "google,gs201";
