@@ -265,12 +265,15 @@ static ssize_t simple_read_from_hw(struct device *dev, struct device_attribute *
 	if (ipc_rc < 0)
 		return ipc_rc;
 
-	/* A slight deviation for product_id, as per the format expected by the server backend */
-	if (ipc_cmd_code == SJTAG_GET_PRODUCT_ID) {
-		u32 bare_product_id = (*(u32 *)exchange_buff >> 12) & 0xffff;
-		*exchange_buff = bare_product_id >> 8;
-		*(exchange_buff + 1) = bare_product_id;
+	/* Handle the exceptions */
+	if (ipc_cmd_code == SJTAG_GET_PRODUCT_ID) {	/* Only bits 27:12 are kept */
+		u32 *bare_product_id = (u32 *)exchange_buff;
+		*bare_product_id = (*bare_product_id >> 12) & 0xffff;
 	}
+
+	/* Reverse byte order (exception: public key) */
+	if (ipc_cmd_code != SJTAG_GET_PUBKEY)
+		reverse_bytes(exchange_buff, byte_size);
 
 	bin2hex(buf, exchange_buff, byte_size);
 
@@ -568,11 +571,18 @@ static ssize_t read_configurable_param(struct device *dev, struct device_attribu
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sjtag_dev_state *st = platform_get_drvdata(pdev);
+	char *wbuff = st->workbuff;
 
 	if (2 * byte_size > PAGE_SIZE)
 		return -EFAULT;
 
-	bin2hex(buf, st->cfg_params[param_id], byte_size);
+	memcpy(wbuff, st->cfg_params[param_id], byte_size);
+
+	/* Reverse byte order from little-endian to human-readable (exception: public key) */
+	if (param_id != sjtag_cfg_param_id_pubkey)
+		reverse_bytes(wbuff, byte_size);
+
+	bin2hex(buf, wbuff, byte_size);
 
 	return 2 * byte_size;
 }
@@ -600,6 +610,10 @@ static ssize_t write_configurable_param(struct device *dev, struct device_attrib
 		dev_err(dev, "%s: Invalid payload\n", file_op);
 		return -EINVAL;
 	}
+
+	/* Reverse byte order from human-readable to little-endian (exception: public key) */
+	if (param_id != sjtag_cfg_param_id_pubkey)
+		reverse_bytes(wbuff, byte_size);
 
 	memcpy(st->cfg_params[param_id], wbuff, byte_size);
 
