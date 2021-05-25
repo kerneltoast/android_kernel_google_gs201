@@ -121,6 +121,55 @@ static void eh_dump_regs(struct eh_device *eh_dev)
 	pr_err("pending_compression %lu\n", atomic_read(&eh_dev->nr_request));
 }
 
+static inline unsigned int fifo_write_index(struct eh_device *eh_dev)
+{
+	return eh_dev->write_index & eh_dev->fifo_index_mask;
+}
+
+static inline unsigned int fifo_complete_index(struct eh_device *eh_dev)
+{
+	return eh_dev->complete_index & eh_dev->fifo_index_mask;
+}
+
+static inline void update_fifo_write_index(struct eh_device *eh_dev)
+{
+	unsigned int next_write_idx = (eh_dev->write_index + 1) &
+				       eh_dev->fifo_color_mask;
+
+	eh_dev->write_index = next_write_idx;
+	eh_write_register(eh_dev, EH_REG_CDESC_WRIDX, next_write_idx);
+}
+
+static inline void update_fifo_complete_index(struct eh_device *eh_dev)
+{
+	smp_store_release(&eh_dev->complete_index,
+			  (eh_dev->complete_index + 1) &
+			  eh_dev->fifo_color_mask);
+}
+
+static bool fifo_full(struct eh_device *eh_dev)
+{
+	unsigned int write_idx = fifo_write_index(eh_dev);
+	unsigned int complete_idx = fifo_complete_index(eh_dev);
+
+	if (write_idx != complete_idx)
+		return false;
+	return  eh_dev->write_index != eh_dev->complete_index;
+}
+
+/* index of the next descriptor to be completed by hardware */
+static unsigned int fifo_next_complete_index(struct eh_device *eh_dev)
+{
+	return eh_read_register(eh_dev, EH_REG_CDESC_CTRL) &
+				EH_CDESC_CTRL_COMPLETE_IDX_MASK;
+}
+
+static struct eh_compress_desc *eh_descriptor(struct eh_device *eh_dev,
+						   unsigned int index)
+{
+	return eh_dev->fifo + index * EH_COMPRESS_DESC_SIZE;
+}
+
 static inline unsigned long eh_read_dcmd_status(struct eh_device *eh_dev,
 						int index)
 {
@@ -156,12 +205,12 @@ static int eh_reset(struct eh_device *eh_dev)
 }
 
 static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
-			    unsigned int masked_w_index)
+				unsigned int index)
 {
 	struct eh_compress_desc *desc;
 	phys_addr_t src_paddr;
 
-	desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * masked_w_index;
+	desc = eh_descriptor(eh_dev, index);
 	src_paddr = page_to_phys(src_page);
 
 	pr_devel("desc = %p src = %pa[p] dst = %pa[p]\n",
@@ -212,7 +261,7 @@ static void init_compression_descriptor(struct eh_device *eh_dev)
 		phys_addr_t dst_paddr;
 		int j;
 
-		desc = eh_dev->fifo + EH_COMPRESS_DESC_SIZE * i;
+		desc = eh_descriptor(eh_dev, i);
 		dst_paddr = virt_to_phys(eh_dev->compr_buffers[i]);
 #ifdef CONFIG_GOOGLE_EH_CFIFO_DST_BUFFER_3KB
 		desc->u1.s1.max_buf = 2;
@@ -276,8 +325,7 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 }
 
 static int eh_process_completed_descriptor(struct eh_device *eh_dev,
-					   unsigned short fifo_index,
-					   struct eh_completion *cmpl)
+					   unsigned short fifo_index)
 {
 	struct eh_compress_desc *desc;
 	unsigned int compr_status;
@@ -286,8 +334,9 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	unsigned int offset;
 	void *compr_data = NULL;
 	int ret = 0;
+	struct eh_completion *compl = &eh_dev->completions[fifo_index];
 
-	desc = eh_dev->fifo + (fifo_index * EH_COMPRESS_DESC_SIZE);
+	desc = eh_descriptor(eh_dev, fifo_index);
 
 	pr_devel("desc 0x%x status 0x%x len %u src 0x%pap\n",
 		 fifo_index, desc->u1.s1.status, desc->compr_len,
@@ -359,49 +408,31 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	};
 
 	/* do the callback */
-	(*eh_dev->comp_callback)(compr_status, compr_data, compr_size, cmpl->priv);
+	(*eh_dev->comp_callback)(compr_status, compr_data, compr_size, compl->priv);
 
 	/* set the descriptor back to IDLE */
 	desc->u1.s1.status = EH_CDESC_IDLE;
 	atomic_dec(&eh_dev->nr_request);
 	clear_eh_congested();
 
+	update_fifo_complete_index(eh_dev);
 	return ret;
 }
 
-static int eh_process_completions(struct eh_device *eh_dev, unsigned int start,
-				   unsigned int end)
+static int eh_process_compress(struct eh_device *eh_dev)
 {
 	int ret = 0;
-	unsigned int i;
-	unsigned int index;
-	struct eh_completion *cmpl;
+	unsigned int start = eh_dev->complete_index;
+	unsigned int end = fifo_next_complete_index(eh_dev);
+	unsigned int i, index;
 
 	for (i = start; i != end; i = (i + 1) & eh_dev->fifo_color_mask) {
 		index = i & eh_dev->fifo_index_mask;
-		cmpl = &eh_dev->completions[index];
-		ret = eh_process_completed_descriptor(eh_dev, index, cmpl);
-		cmpl->priv = NULL;
-		smp_store_release(&eh_dev->complete_index,
-				  (eh_dev->complete_index + 1) &
-					  eh_dev->fifo_color_mask);
+		ret = eh_process_completed_descriptor(eh_dev, index);
 		if (ret)
 			break;
 	}
 
-	return ret;
-}
-
-static int eh_update_complete_index(struct eh_device *eh_dev,
-				     bool update_int_idx)
-{
-	int ret = 0;
-	unsigned long raw = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
-	unsigned int new_complete_index = raw & EH_CDESC_CTRL_COMPLETE_IDX_MASK;
-
-	if (new_complete_index != eh_dev->complete_index)
-		ret = eh_process_completions(eh_dev, eh_dev->complete_index,
-				       new_complete_index);
 	return ret;
 }
 
@@ -411,17 +442,16 @@ static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev)
 	int i;
 
 	masked_write_index = eh_dev->write_index & eh_dev->fifo_index_mask;
-	new_complete_index = (eh_read_register(eh_dev, EH_REG_CDESC_CTRL) &
-			      EH_CDESC_CTRL_COMPLETE_IDX_MASK) &
-			     eh_dev->fifo_index_mask;
+	new_complete_index = fifo_next_complete_index(eh_dev) &
+						 eh_dev->fifo_index_mask;
 
 	for (i = new_complete_index; i != masked_write_index;
 	     i = (i + 1) & eh_dev->fifo_index_mask) {
-		struct eh_completion *cmpl = &eh_dev->completions[i];
+		struct eh_completion *compl = &eh_dev->completions[i];
 
 		(*eh_dev->comp_callback)(EH_CDESC_ERROR_HALTED, NULL, 0,
-					  cmpl->priv);
-		cmpl->priv = NULL;
+					  compl->priv);
+		compl->priv = NULL;
 	}
 }
 
@@ -434,7 +464,7 @@ static int eh_comp_thread(void *data)
 	while (!kthread_should_stop()) {
 		wait_event_freezable(eh_dev->comp_wq,
 				atomic_read(&eh_dev->nr_request) > 0);
-		if (unlikely(eh_update_complete_index(eh_dev, false))) {
+		if (unlikely(eh_process_compress(eh_dev))) {
 			unsigned long error;
 
 			error = eh_read_register(eh_dev, EH_REG_ERR_COND);
@@ -796,11 +826,8 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 
 int eh_compress_page(struct eh_device *eh_dev, struct page *page, void *priv)
 {
-	unsigned int complete_index;
-	unsigned int new_write_index;
-	unsigned int new_pending_count;
-	unsigned int masked_w_index;
-	struct eh_completion *cmpl;
+	unsigned int write_idx;
+	struct eh_completion *compl;
 
 try_again:
 	spin_lock(&eh_dev->fifo_prod_lock);
@@ -811,12 +838,7 @@ try_again:
 		return -EBUSY;
 	}
 
-	complete_index = READ_ONCE(eh_dev->complete_index);
-	new_write_index = (eh_dev->write_index + 1) & eh_dev->fifo_color_mask;
-	new_pending_count =
-		(new_write_index - complete_index) & eh_dev->fifo_color_mask;
-
-	if (new_pending_count > eh_dev->fifo_size) {
+	if (fifo_full(eh_dev)) {
 		spin_unlock(&eh_dev->fifo_prod_lock);
 		cond_resched();
 		eh_congestion_wait(HZ/10);
@@ -826,21 +848,19 @@ try_again:
 	pr_devel("[%s] submit %u pages starting at descriptor %u\n",
 		 current->comm, 1, eh_dev->write_index);
 
-	masked_w_index = eh_dev->write_index & eh_dev->fifo_index_mask;
+	write_idx = fifo_write_index(eh_dev);
 
-	/* set up the descriptor (use IRQ) */
-	eh_setup_descriptor(eh_dev, page, masked_w_index);
+	eh_setup_descriptor(eh_dev, page, write_idx);
 
-	cmpl = &eh_dev->completions[masked_w_index];
-	cmpl->priv = priv;
+	compl = &eh_dev->completions[write_idx];
+	compl->priv = priv;
 
 	atomic_inc(&eh_dev->nr_request);
 	wake_up(&eh_dev->comp_wq);
 
 	/* write barrier to force writes to be visible everywhere */
 	wmb();
-	eh_dev->write_index = new_write_index;
-	eh_write_register(eh_dev, EH_REG_CDESC_WRIDX, new_write_index);
+	update_fifo_write_index(eh_dev);
 	spin_unlock(&eh_dev->fifo_prod_lock);
 
 	return 0;
