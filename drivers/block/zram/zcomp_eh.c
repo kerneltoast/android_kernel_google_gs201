@@ -45,7 +45,7 @@ static void zcomp_eh_destroy(struct zcomp *comp)
 
 static int zcomp_eh_create(struct zcomp *comp, const char *name)
 {
-	struct eh_device *eh_dev = eh_create(zcomp_eh_compress_done, NULL);
+	struct eh_device *eh_dev = eh_create(zcomp_eh_compress_done);
 
 	if (IS_ERR(eh_dev))
 		return -ENODEV;

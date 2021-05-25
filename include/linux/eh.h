@@ -88,7 +88,7 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
                        unsigned int slen, struct page *page);
 
 /* create eh_device for user */
-struct eh_device *eh_create(eh_cb_fn comp, eh_cb_fn decomp);
+struct eh_device *eh_create(eh_cb_fn comp);
 
 /* destroty eh_device */
 void eh_destroy(struct eh_device *eh_dev);

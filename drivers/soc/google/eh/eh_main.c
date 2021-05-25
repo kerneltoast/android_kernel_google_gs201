@@ -511,7 +511,7 @@ static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 	}
 
 	spin_lock(&eh_dev_list_lock);
-	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
+	list_add(&eh_dev->eh_dev_list, &eh_dev_list);
 	spin_unlock(&eh_dev_list_lock);
 
 	return 0;
@@ -920,30 +920,21 @@ out:
 }
 EXPORT_SYMBOL(eh_decompress_page);
 
-struct eh_device *eh_create(eh_cb_fn comp, eh_cb_fn decomp)
+struct eh_device *eh_create(eh_cb_fn comp)
 {
-	unsigned long flags;
-	struct eh_device *ret = NULL;
-	struct list_head *cur;
+	struct eh_device *ret = ERR_PTR(-ENODEV);
 
-	spin_lock_irqsave(&eh_dev_list_lock, flags);
-	list_for_each (cur, &eh_dev_list) {
-		struct eh_device *impl;
-		impl = list_entry(cur, struct eh_device, eh_dev_list);
-		ret = impl;
-		list_del(cur);
-		if (ret)
-			break;
+	spin_lock(&eh_dev_list_lock);
+	if (!list_empty(&eh_dev_list)) {
+		ret = list_first_entry(&eh_dev_list, struct eh_device,
+				       eh_dev_list);
+		list_del(&ret->eh_dev_list);
 	}
-	spin_unlock_irqrestore(&eh_dev_list_lock, flags);
+	spin_unlock(&eh_dev_list_lock);
+	if (IS_ERR(ret))
+		return ret;
 
-	if (ret) {
-		ret->comp_callback = comp;
-		ret->decomp_callback = decomp;
-	} else {
-		pr_info("unable to find desired implementation\n");
-		ret = ERR_PTR(-ENODEV);
-	}
+	ret->comp_callback = comp;
 
 	return ret;
 }
@@ -951,12 +942,10 @@ EXPORT_SYMBOL(eh_create);
 
 void eh_destroy(struct eh_device *eh_dev)
 {
-	unsigned long flags;
-
-	eh_dev->comp_callback = eh_dev->decomp_callback = NULL;
-	spin_lock_irqsave(&eh_dev_list_lock, flags);
-	list_add_tail(&eh_dev->eh_dev_list, &eh_dev_list);
-	spin_unlock_irqrestore(&eh_dev_list_lock, flags);
+	eh_dev->comp_callback = NULL;
+	spin_lock(&eh_dev_list_lock);
+	list_add(&eh_dev->eh_dev_list, &eh_dev_list);
+	spin_unlock(&eh_dev_list_lock);
 }
 EXPORT_SYMBOL(eh_destroy);
 

@@ -101,6 +101,5 @@ struct eh_device {
 	atomic_t nr_request;
 
 	eh_cb_fn comp_callback;
-	eh_cb_fn decomp_callback;
 };
 #endif
