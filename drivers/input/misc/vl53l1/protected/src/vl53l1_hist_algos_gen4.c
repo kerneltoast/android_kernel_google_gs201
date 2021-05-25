@@ -93,6 +93,8 @@ VL53L1_Error VL53L1_f_033(
 
 	uint8_t p = 0;
 	struct VL53L1_histogram_bin_data_t *pB = &(palgo3->VL53L1_p_010);
+	uint16_t enabled_spads_ninety_percent;
+	int32_t amb_threshold_sigma;
 
 	LOG_FUNCTION_START("");
 
@@ -148,9 +150,16 @@ VL53L1_Error VL53L1_f_033(
 				&(palgo3->VL53L1_p_038));
 
 
+	amb_threshold_sigma = ppost_cfg->ambient_thresh_sigma1;
+	enabled_spads_ninety_percent =
+		presults->fmt_total_enabled_spads * 230;
+	if ((pbins_input->result__dss_actual_effective_spads <
+	     enabled_spads_ninety_percent) &&
+	    (presults->VL53L1_p_002[0].ambient_count_rate_mcps < (5 * 128))) {
+		amb_threshold_sigma *= histo_merge_nb;
+	}
 
-	pdmax_cfg->ambient_thresh_sigma =
-		ppost_cfg->ambient_thresh_sigma1;
+	pdmax_cfg->ambient_thresh_sigma = amb_threshold_sigma;
 
 	for (p = 0; p < VL53L1_MAX_AMBIENT_DMAX_VALUES; p++) {
 		if (status == VL53L1_ERROR_NONE) {
@@ -173,7 +182,7 @@ VL53L1_Error VL53L1_f_033(
 		status =
 			VL53L1_f_018(
 			ppost_cfg->ambient_thresh_events_scaler,
-			(int32_t)ppost_cfg->ambient_thresh_sigma1,
+			(int32_t)amb_threshold_sigma,
 			(int32_t)ppost_cfg->min_ambient_thresh_events,
 			ppost_cfg->algo__crosstalk_compensation_enable,
 			&(palgo3->VL53L1_p_010),

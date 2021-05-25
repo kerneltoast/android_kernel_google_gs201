@@ -1220,7 +1220,10 @@ uint32_t VL53L1_calc_timeout_mclks(
 
 	LOG_FUNCTION_START("");
 
-	timeout_mclks =
+	if (macro_period_us == 0)
+		timeout_mclks = 0;
+	else
+		timeout_mclks =
 			((timeout_us << 12) + (macro_period_us>>1)) /
 			macro_period_us;
 
@@ -2393,27 +2396,33 @@ VL53L1_Error VL53L1_hist_xtalk_extract_calc_rate_per_spad(
 
 
 
-	if (pxtalk_data->signal_events_sum > 0) {
+	tmp64_1 =
+		(uint64_t)pxtalk_data->effective_spad_count_sum *
+		(uint64_t)pxtalk_data->peak_duration_us_sum;
+
+	if (pxtalk_data->signal_events_sum < 0) {
+		pxtalk_data->signal_events_sum = 0;
+
 		tmp64_0 =
-			((uint64_t)pxtalk_data->signal_events_sum *
-			 (uint64_t)pxtalk_data->sample_count *
+			((uint64_t)pxtalk_data->sample_count *
 			 (uint64_t)pxtalk_data->event_scaler_avg * 256U) << 9U;
-		tmp64_1 =
-			(uint64_t)pxtalk_data->effective_spad_count_sum *
-			(uint64_t)pxtalk_data->peak_duration_us_sum;
-
-
-
-		if (tmp64_1 > 0U) {
-
-			tmp64_0 = tmp64_0 + (tmp64_1 >> 1U);
-			xtalk_per_spad = do_division_u(tmp64_0, tmp64_1);
-		} else {
-			xtalk_per_spad = (uint64_t)tmp64_0;
+		if (tmp64_0 > 0) {
+			pxtalk_data->signal_events_sum = (int32_t)
+				do_division_u((50U * tmp64_1), tmp64_0);
 		}
+	}
+	tmp64_0 =
+		((uint64_t)pxtalk_data->signal_events_sum *
+		 (uint64_t)pxtalk_data->sample_count *
+		 (uint64_t)pxtalk_data->event_scaler_avg * 256U) << 9U;
 
+
+
+	if (tmp64_1 > 0U) {
+		tmp64_0 = tmp64_0 + (tmp64_1 >> 1U);
+		xtalk_per_spad = do_division_u(tmp64_0, tmp64_1);
 	} else {
-		status = VL53L1_ERROR_XTALK_EXTRACTION_SIGMA_LIMIT_FAIL;
+		xtalk_per_spad = (uint64_t)tmp64_0;
 	}
 
 	pxtalk_data->xtalk_rate_kcps_per_spad = (uint32_t)xtalk_per_spad;
@@ -3621,6 +3630,8 @@ VL53L1_Error VL53L1_set_ref_spad_char_config(
 			fast_osc_frequency,
 			vcsel_period_a);
 
+	if (macro_period_us == 0)
+		macro_period_us = 1;
 
 
 	timeout_mclks = phasecal_timeout_us << 12;

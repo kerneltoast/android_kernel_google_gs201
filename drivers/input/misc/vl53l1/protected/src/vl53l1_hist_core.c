@@ -377,7 +377,9 @@ int8_t  VL53L1_f_038(
 	period = 2048 *
 		(uint32_t)VL53L1_decode_vcsel_period(pdata1->VL53L1_p_009);
 
-	remapped_phase = (uint32_t)pdata2->zero_distance_phase % period;
+	if (period != 0)
+		remapped_phase =
+			(uint32_t)pdata2->zero_distance_phase % period;
 
 
 	phase_delta = (int32_t)pdata1->zero_distance_phase
