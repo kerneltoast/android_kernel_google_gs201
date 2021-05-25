@@ -60,7 +60,7 @@
 #define ODPM_FREQ_DECIMAL_UHZ_STR_LEN_MAX 6
 #define ODPM_SAMPLING_FREQ_CHAR_LEN_MAX 20
 
-#define SWITCH_CHIP_FUNC(infop, func, args...)                                 \
+#define SWITCH_CHIP_FUNC(infop, ret, func, args...)                            \
 	do {                                                                   \
 		switch ((infop)->chip.id) {                                    \
 		case ODPM_CHIP_S2MPG10:                                        \
@@ -74,8 +74,8 @@
 		}                                                              \
 	} while (0)
 
-#define SWITCH_METER_FUNC(infop, func, args...)                                \
-	SWITCH_CHIP_FUNC(infop, func, info->meter, args)
+#define SWITCH_METER_FUNC(infop, ret, func, args...) \
+	SWITCH_CHIP_FUNC(infop, ret, func, info->meter, args)
 
 /* At this moment, this driver supports a static 8 channels */
 #define ODPM_CHANNEL_MAX S2MPG1X_METER_CHANNEL_MAX
@@ -120,6 +120,8 @@ struct odpm_rail_data {
 	u64 acc_power_uW_sec_cached;
 	u64 measurement_stop_ms;
 	u64 measurement_start_ms_cached;
+
+	bool disable_in_sleep;
 };
 
 struct odpm_chip {
@@ -173,6 +175,7 @@ struct odpm_info {
 	struct timer_list timer_refresh;
 
 	u64 last_poll_ktime_boot_ns;
+	bool sleeping;
 };
 
 /**
@@ -193,7 +196,8 @@ static const struct iio_chan_spec s2mpg1x_single_channel[ODPM_CHANNEL_MAX] = {
 
 static int odpm_take_snapshot(struct odpm_info *info);
 static int odpm_take_snapshot_locked(struct odpm_info *info);
-static int odpm_take_snapshot_instant_locked(struct odpm_info *info);
+static int odpm_take_snapshot_instant_locked(struct odpm_info *info,
+					     bool resume);
 
 static void odpm_print_new_sampling_rate(struct odpm_info *info, int ret,
 					 enum odpm_sampling_rate_type type);
@@ -208,7 +212,10 @@ static int odpm_io_set_channel(struct odpm_info *info, int channel)
 	int ret = -1;
 	int rail_i = info->channels[channel].rail_i;
 
-	SWITCH_METER_FUNC(info, meter_set_muxsel, channel,
+	pr_info("odpm: %s: CH%d=%s\n", info->chip.name, channel,
+		info->chip.rails[rail_i].schematic_name);
+
+	SWITCH_METER_FUNC(info, ret, meter_set_muxsel, channel,
 			  info->chip.rails[rail_i].mux_select);
 	return ret;
 }
@@ -237,7 +244,7 @@ static int odpm_io_set_meter_on(struct odpm_info *info, bool is_on)
 {
 	int ret = -1;
 
-	SWITCH_METER_FUNC(info, meter_onoff, is_on);
+	SWITCH_METER_FUNC(info, ret, meter_onoff, is_on);
 	return ret;
 }
 
@@ -245,7 +252,7 @@ static int odpm_io_set_ext_meter_on(struct odpm_info *info, bool is_on)
 {
 	int ret = -1;
 
-	SWITCH_METER_FUNC(info, ext_meter_onoff, is_on);
+	SWITCH_METER_FUNC(info, ret, ext_meter_onoff, is_on);
 	return ret;
 }
 
@@ -282,7 +289,8 @@ static int odpm_io_update_ext_enable_bits(struct odpm_info *info)
 	return odpm_io_set_ext_channels_en(info, EXT_METER_CHANNEL_EN_ALL);
 }
 
-static int odpm_io_update_bucken_enable_bits(struct odpm_info *info)
+static int odpm_io_update_bucken_enable_bits(struct odpm_info *info,
+					     bool on_sleep)
 {
 	u8 buck_channels_en[ODPM_BUCK_EN_BYTES] = { 0 };
 	int ch;
@@ -295,6 +303,10 @@ static int odpm_io_update_bucken_enable_bits(struct odpm_info *info)
 		int channel_offset_byte = rail->channel_en_byte_offset;
 
 		if (!info->channels[ch].enabled)
+			continue;
+
+		/* Skip the enable bit if bucks should be disabled in sleep */
+		if (on_sleep && rail->disable_in_sleep)
 			continue;
 
 		if (rail->type == ODPM_RAIL_TYPE_REGULATOR_BUCK &&
@@ -326,7 +338,7 @@ int odpm_configure_chip(struct odpm_info *info)
 			odpm_io_set_channel(info, ch);
 	}
 
-	odpm_io_update_bucken_enable_bits(info);
+	odpm_io_update_bucken_enable_bits(info, false /* on_sleep */);
 
 	odpm_io_set_ext_meter_on(info, false);
 	odpm_io_update_ext_enable_bits(info);
@@ -471,6 +483,9 @@ static int odpm_parse_dt_rail(struct odpm_rail_data *rail_data,
 		pr_err("odpm: cannot read channel-mux-selection\n");
 		return -EINVAL;
 	}
+
+	rail_data->disable_in_sleep =
+		of_property_read_bool(node, "odpm_disable_in_sleep");
 
 	switch (rail_data->type) {
 	case ODPM_RAIL_TYPE_SHUNT: {
@@ -718,7 +733,7 @@ static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
 	case ODPM_RAIL_TYPE_REGULATOR_BUCK:
 	case ODPM_RAIL_TYPE_REGULATOR_LDO:
 	default: {
-		SWITCH_CHIP_FUNC(info, muxsel_to_power_resolution,
+		SWITCH_CHIP_FUNC(info, ret, muxsel_to_power_resolution,
 				 info->chip.rails[rail_i].mux_select);
 
 	} break;
@@ -850,7 +865,7 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 	return sampling_frequency_estimated_uhz;
 }
 
-static int odpm_refresh_registers(struct odpm_info *info)
+static int odpm_refresh_registers(struct odpm_info *info, bool resume)
 {
 	int ch;
 	int ret = 0;
@@ -868,8 +883,9 @@ static int odpm_refresh_registers(struct odpm_info *info)
 
 	timestamp_before_async = ktime_get_boottime_ns();
 
-	SWITCH_METER_FUNC(info, meter_load_measurement, S2MPG1X_METER_POWER,
-			  acc_data, &acc_count, &timestamp_after_async);
+	SWITCH_METER_FUNC(info, ret, meter_load_measurement,
+			  S2MPG1X_METER_POWER, acc_data, &acc_count,
+			  &timestamp_after_async);
 
 	if (ret < 0) {
 		pr_err("odpm: %s: i2c error; count not measure interval\n",
@@ -893,9 +909,15 @@ static int odpm_refresh_registers(struct odpm_info *info)
 
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
 		const int rail_i = info->channels[ch].rail_i;
-		const u64 uW_sec =
-			odpm_calculate_uW_sec(info, rail_i, acc_data[ch],
-					      (u32)sampling_frequency_uhz);
+		struct odpm_rail_data *rail = &info->chip.rails[rail_i];
+		u64 uW_sec;
+
+		/* Do not add energy on rails that were disabled during sleep */
+		if (resume && rail->disable_in_sleep)
+			continue;
+
+		uW_sec = odpm_calculate_uW_sec(info, rail_i, acc_data[ch],
+					       (u32)sampling_frequency_uhz);
 
 		info->channels[ch].acc_power_uW_sec += uW_sec;
 	}
@@ -943,17 +965,24 @@ static int odpm_take_snapshot_locked(struct odpm_info *info)
 	u64 now_ns = ktime_get_boottime_ns();
 
 	if (now_ns > info->last_poll_ktime_boot_ns + min_time_ns)
-		return odpm_take_snapshot_instant_locked(info);
+		return odpm_take_snapshot_instant_locked(info, false);
 
 	return 0; /* Refresh skipped for min elapsed time */
 }
 
-static int odpm_take_snapshot_instant_locked(struct odpm_info *info)
+static int odpm_take_snapshot_instant_locked(struct odpm_info *info,
+					     bool resume)
 {
+	int ret_refresh;
 	int ret_timer = odpm_reset_timer(info);
 
+	if (info->sleeping) {
+		pr_err("odpm: tried to refresh registers while sleeping!\n");
+		return -1;
+	}
+
 	/* we need to re-read the chip values */
-	int ret_refresh = odpm_refresh_registers(info);
+	ret_refresh = odpm_refresh_registers(info, resume);
 
 	if (ret_refresh < 0) {
 		pr_err("odpm: could not refresh registers!\n");
@@ -961,6 +990,70 @@ static int odpm_take_snapshot_instant_locked(struct odpm_info *info)
 	}
 
 	return ret_timer;
+}
+
+static void odpm_suspend_resume_operations(struct odpm_info *info, bool suspend)
+{
+	int ch;
+	int ret;
+
+	mutex_lock(&info->lock);
+
+	if (suspend) {
+		/* Send a refresh and store values */
+		if (odpm_take_snapshot_instant_locked(info, false) < 0) {
+			pr_err("odpm: cannot capture snapshot for suspend\n");
+			goto suspend_resume_exit;
+		}
+
+		/* In case it saves on power, we set the muxsels for these bucks
+		 * to 0x00.
+		 */
+		for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
+			const int rail_i = info->channels[ch].rail_i;
+			struct odpm_rail_data *rail = &info->chip.rails[rail_i];
+
+			if (info->channels[ch].enabled &&
+			    rail->disable_in_sleep)
+				SWITCH_METER_FUNC(info, ret, meter_set_muxsel,
+						  ch, MUXSEL_NONE);
+		}
+
+		/* Disable the powermeter for the bucks with disable_in_sleep */
+		odpm_io_update_bucken_enable_bits(info, true /* on_sleep */);
+
+		/* Prevents any external device from refreshing registers */
+		info->sleeping = true;
+
+	} else { /* resume: opposite operations */
+		info->sleeping = false;
+
+		/* Re-enable the bucks */
+		odpm_io_update_bucken_enable_bits(info, false /* on_sleep */);
+
+		/* Re-select the muxsel for the bucks */
+		for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
+			const int rail_i = info->channels[ch].rail_i;
+			struct odpm_rail_data *rail = &info->chip.rails[rail_i];
+
+			if (info->channels[ch].enabled &&
+			    rail->disable_in_sleep)
+				SWITCH_METER_FUNC(info, ret, meter_set_muxsel,
+						  ch, rail->mux_select);
+		}
+
+		/* This refresh will erase the last data interval for specific
+		 * bucks that have disable_in_sleep.
+		 */
+		if (odpm_take_snapshot_instant_locked(info, true /* resume */)
+			< 0) {
+			pr_err("odpm: cannot capture snapshot for resume\n");
+			goto suspend_resume_exit;
+		}
+	}
+
+suspend_resume_exit:
+	mutex_unlock(&info->lock);
 }
 
 /**
@@ -1056,7 +1149,7 @@ static void odpm_set_sampling_rate(struct odpm_info *info,
 	mutex_lock(&info->lock);
 
 	/* Send a refresh and store values */
-	if (odpm_take_snapshot_instant_locked(info) < 0) {
+	if (odpm_take_snapshot_instant_locked(info, false) < 0) {
 		pr_err("odpm: cannot refresh to apply new sampling rate\n");
 		goto sampling_rate_store_exit;
 	}
@@ -1332,7 +1425,7 @@ static ssize_t enabled_rails_store(struct device *dev,
 	info->channels[channel].rail_i = new_rail;
 
 	/* Rail is swapped, update en bits */
-	odpm_io_update_bucken_enable_bits(info);
+	odpm_io_update_bucken_enable_bits(info, false /* on_sleep */);
 
 	/* Update rail muxsel */
 	odpm_io_set_channel(info, channel);
@@ -1647,11 +1740,21 @@ static int odpm_probe(struct platform_device *pdev)
 
 static int odpm_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct iio_dev *indio_dev = dev_get_drvdata(&pdev->dev);
+	struct odpm_info *info = iio_priv(indio_dev);
+
+	odpm_suspend_resume_operations(info, true /* suspend */);
+
 	return 0;
 }
 
 static int odpm_resume(struct platform_device *pdev)
 {
+	struct iio_dev *indio_dev = dev_get_drvdata(&pdev->dev);
+	struct odpm_info *info = iio_priv(indio_dev);
+
+	odpm_suspend_resume_operations(info, false /* suspend */);
+
 	return 0;
 }
 

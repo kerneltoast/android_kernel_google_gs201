@@ -75,6 +75,11 @@ EXPORT_SYMBOL_GPL(s2mpg11_meter_load_measurement);
 static u64 muxsel_to_current_resolution(s2mpg11_meter_muxsel m)
 {
 	switch (m) {
+	case NONES:
+	case VSEN_C4: /* Requires shunt value */
+	case VSEN_C5: /* Requires shunt value */
+	case VSEN_C6: /* Requires shunt value */
+		return INVALID_RESOLUTION;
 	case BUCK3S:
 	case BUCK4S:
 	case BUCK5S:
@@ -124,6 +129,11 @@ static u64 muxsel_to_current_resolution(s2mpg11_meter_muxsel m)
 u32 s2mpg11_muxsel_to_power_resolution(s2mpg11_meter_muxsel m)
 {
 	switch (m) {
+	case NONES:
+	case VSEN_C4: /* Requires shunt value */
+	case VSEN_C5: /* Requires shunt value */
+	case VSEN_C6: /* Requires shunt value */
+		return INVALID_RESOLUTION;
 	case BUCK3S:
 	case BUCK4S:
 	case BUCK5S:
@@ -176,6 +186,7 @@ static const char *muxsel_to_str(s2mpg11_meter_muxsel m)
 	char *ret;
 
 	switch (m) {
+		ENUM_STR(NONES, ret);
 		ENUM_STR(BUCK1S, ret);
 		ENUM_STR(BUCK2S, ret);
 		ENUM_STR(BUCK3S, ret);
@@ -265,7 +276,7 @@ int s2mpg11_meter_set_muxsel(struct s2mpg11_meter *s2mpg11, int channel,
 		return ret;
 	}
 
-	pr_info("%s: CH%d, %s\n", __func__, channel, muxsel_to_str(m));
+	pr_debug("%s: CH%d, %s\n", __func__, channel, muxsel_to_str(m));
 
 	reg += channel;
 

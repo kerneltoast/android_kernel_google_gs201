@@ -49,6 +49,7 @@ typedef enum {
 
 /* MUXSEL0~7 */
 #define MUXSEL_MASK 0x7F
+#define MUXSEL_NONE 0x0
 
 #define S2MPG1X_METER_LPF 0
 #define S2MPG1X_METER_ACC 1

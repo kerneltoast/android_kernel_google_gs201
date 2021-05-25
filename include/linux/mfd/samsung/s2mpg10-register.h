@@ -404,6 +404,7 @@ enum s2mpg10_irq {
 };
 
 typedef enum {
+	NONEM = MUXSEL_NONE, /* 0x0 */
 	BUCK1M = 0x1,
 	BUCK2M = 0x2,
 	BUCK3M = 0x3,
