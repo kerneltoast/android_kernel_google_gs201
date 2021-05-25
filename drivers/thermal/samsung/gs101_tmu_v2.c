@@ -442,6 +442,54 @@ static int gs101_get_trend(void *p, int trip, enum thermal_trend *trend)
 	return 0;
 }
 
+static int gs1010_tmu_set_trip_temp(void *drv_data, int trip, int temp)
+{
+	struct gs101_tmu_data *data = drv_data;
+	struct thermal_zone_device *tz = data->tzd;
+	enum thermal_trip_type type;
+	int i, trip_temp, ret = 0;
+	unsigned char threshold[8] = {0, };
+
+	ret = tz->ops->get_trip_type(tz, trip, &type);
+	if (ret) {
+		pr_err("Failed to get trip type(%d)\n", trip);
+		return ret;
+	}
+
+	if (type == THERMAL_TRIP_PASSIVE)
+		return ret;
+
+	for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
+		ret = tz->ops->get_trip_type(tz, i, &type);
+		if (ret) {
+			pr_err("Failed to get trip type(%d)\n", i);
+			return ret;
+		}
+
+		if (type == THERMAL_TRIP_PASSIVE)
+			continue;
+
+		ret = tz->ops->get_trip_temp(tz, i, &trip_temp);
+		if (ret) {
+			pr_err("Failed to get trip temp(%d)\n", i);
+			return ret;
+		}
+		if (i == trip)
+			threshold[trip] = (unsigned char)(temp / MCELSIUS);
+		else
+			threshold[i] = (unsigned char)(trip_temp / MCELSIUS);
+	}
+	mutex_lock(&data->lock);
+	exynos_acpm_tmu_tz_control(data->id, false);
+	data->enabled = false;
+	exynos_acpm_tmu_set_threshold(data->id, threshold);
+	exynos_acpm_tmu_tz_control(data->id, true);
+	data->enabled = true;
+	mutex_unlock(&data->lock);
+
+	return ret;
+}
+
 #if IS_ENABLED(CONFIG_THERMAL_EMULATION)
 static int gs101_tmu_set_emulation(void *drv_data, int temp)
 {
@@ -1452,6 +1500,7 @@ static const struct thermal_zone_of_device_ops gs101_sensor_ops = {
 	.get_temp = gs101_get_temp,
 	.set_emul_temp = gs101_tmu_set_emulation,
 	.get_trend = gs101_get_trend,
+	.set_trip_temp = gs1010_tmu_set_trip_temp,
 };
 
 static ssize_t
