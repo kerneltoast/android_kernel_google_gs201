@@ -550,6 +550,8 @@ static void allow_maximum_power(struct gs101_tmu_data *data)
 		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false;
 		mutex_unlock(&instance->cdev->lock);
+		trace_thermal_exynos_allow_max_power(data->tmu_name, data->is_hardlimited,
+						     instance->cdev->type, instance->target);
 		thermal_cdev_update(instance->cdev);
 	}
 
