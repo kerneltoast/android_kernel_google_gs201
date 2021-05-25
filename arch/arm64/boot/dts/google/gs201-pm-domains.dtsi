@@ -227,7 +227,7 @@
 		cal_id = <0xB1380018>;
 		need_smc = <0x1CC10204>;
 		cmu_id = <0x1CC00000>;
-		status = "disabled";
+		status = "okay";
 		#power-domain-cells = <0>;
 	};
 
