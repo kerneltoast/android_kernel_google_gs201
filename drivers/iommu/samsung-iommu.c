@@ -545,7 +545,7 @@ static sysmmu_pte_t *alloc_lv2entry(struct samsung_sysmmu_domain *domain,
 	return page_entry(sent, iova);
 }
 
-static inline void clear_lv2_page_table(sysmmu_pte_t *ent, unsigned int n)
+static inline void clear_page_table(sysmmu_pte_t *ent, unsigned int n)
 {
 	memset(ent, 0, sizeof(*ent) * n);
 }
@@ -600,20 +600,18 @@ static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr,
 			return -EADDRINUSE;
 
 		*pent = make_sysmmu_pte(paddr, SPAGE_FLAG, attr);
-		pgtable_flush(pent, pent + 1);
 		atomic_inc(pgcnt);
 	} else {	/* size == LPAGE_SIZE */
 		unsigned int i;
 
 		for (i = 0; i < SPAGES_PER_LPAGE; i++, pent++) {
 			if (WARN_ON(!lv2ent_unmapped(pent))) {
-				clear_lv2_page_table(pent - i, i);
+				clear_page_table(pent - i, i);
 				return -EADDRINUSE;
 			}
 
 			*pent = make_sysmmu_pte(paddr, LPAGE_FLAG, attr);
 		}
-		pgtable_flush(pent - SPAGES_PER_LPAGE, pent);
 		atomic_add(SPAGES_PER_LPAGE, pgcnt);
 	}
 
@@ -709,7 +707,7 @@ static size_t samsung_sysmmu_unmap(struct iommu_domain *dom,
 		goto err;
 	}
 
-	clear_lv2_page_table(pent, SPAGES_PER_LPAGE);
+	clear_page_table(pent, SPAGES_PER_LPAGE);
 	pgtable_flush(pent, pent + SPAGES_PER_LPAGE);
 	size = LPAGE_SIZE;
 	atomic_sub(SPAGES_PER_LPAGE, lv2entcnt);
@@ -724,6 +722,57 @@ err:
 	       size, iova, err_pgsize);
 
 	return 0;
+}
+
+static inline void clear_and_flush_pgtable(sysmmu_pte_t *ent, int count, atomic_t *lv2entcnt)
+{
+	clear_page_table(ent, count);
+	pgtable_flush(ent, ent + count);
+	if (lv2entcnt)
+		atomic_sub(count, lv2entcnt);
+}
+
+size_t samsung_sysmmu_unmap_pages(struct iommu_domain *dom, unsigned long iova_org,
+				  size_t pgsize, size_t pgcount,
+				  struct iommu_iotlb_gather *gather)
+{
+	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
+	unsigned long iova = iova_org;
+	atomic_t *lv2entcnt;
+	sysmmu_pte_t *sent, *pent;
+	size_t size = pgsize * pgcount;
+	unsigned long section_end, end = iova + size;
+	int nent;
+
+	sent = section_entry(domain->page_table, iova);
+	if (pgsize == SECT_SIZE) {
+		clear_and_flush_pgtable(sent, pgcount, NULL);
+		goto out;
+	}
+
+	/* SLPT unmapping begins */
+	while (iova < end) {
+		section_end = (iova + SECT_SIZE) & SECT_MASK;
+		if (end < section_end)
+			section_end = end;
+
+		if (WARN_ON(!lv1ent_page(sent)))
+			goto next_section;
+
+		pent = page_entry(sent, iova);
+		lv2entcnt = &domain->lv2entcnt[lv1ent_offset(iova)];
+		nent = (section_end - iova) >> SPAGE_ORDER;
+		clear_and_flush_pgtable(pent, nent, lv2entcnt);
+
+next_section:
+		iova = section_end;
+		sent++;
+	}
+
+out:
+	iommu_iotlb_gather_add_page(dom, gather, iova_org, size);
+
+	return size;
 }
 
 static void samsung_sysmmu_flush_iotlb_all(struct iommu_domain *dom)
@@ -753,6 +802,34 @@ static void samsung_sysmmu_flush_iotlb_all(struct iommu_domain *dom)
 				__sysmmu_tlb_invalidate_all(drvdata, 0);
 			spin_unlock_irqrestore(&drvdata->lock, flags);
 		}
+	}
+}
+
+static void samsung_sysmmu_iotlb_sync_map(struct iommu_domain *dom,
+					  unsigned long iova, size_t size)
+{
+	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
+	sysmmu_pte_t *sent, *pent;
+	unsigned long section_end, end = iova + size;
+	int idx_count;
+
+	sent = section_entry(domain->page_table, iova);
+
+	while (iova < end) {
+		section_end = (iova + SECT_SIZE) & SECT_MASK;
+		if (end < section_end)
+			section_end = end;
+
+		if (lv1ent_section(sent))
+			goto next_section;
+
+		pent = page_entry(sent, iova);
+		idx_count = (section_end - iova) >> SPAGE_ORDER;
+		pgtable_flush(pent, pent + idx_count);
+
+next_section:
+		iova = section_end;
+		sent++;
 	}
 }
 
@@ -1169,7 +1246,9 @@ static struct iommu_ops samsung_sysmmu_ops = {
 	.detach_dev		= samsung_sysmmu_detach_dev,
 	.map			= samsung_sysmmu_map,
 	.unmap			= samsung_sysmmu_unmap,
+	.unmap_pages		= samsung_sysmmu_unmap_pages,
 	.flush_iotlb_all	= samsung_sysmmu_flush_iotlb_all,
+	.iotlb_sync_map		= samsung_sysmmu_iotlb_sync_map,
 	.iotlb_sync		= samsung_sysmmu_iotlb_sync,
 	.iova_to_phys		= samsung_sysmmu_iova_to_phys,
 	.probe_device		= samsung_sysmmu_probe_device,
