@@ -306,7 +306,7 @@ static void exynos_pcie_vreg_control(struct exynos_pcie *exynos_pcie, bool on)
 	int ret1 = 0;
 	int ret2 = 0;
 
-	dev_dbg(dev, "[%s] PCIe ch%d - PHY VREG Turn %s\n", __func__,
+	dev_info(dev, "[%s] PCIe ch%d - PHY VREG Turn %s\n", __func__,
 		exynos_pcie->ch_num, on ? "On" : "Off");
 
 	r_vreg1 = exynos_pcie->vreg1;
@@ -320,7 +320,7 @@ static void exynos_pcie_vreg_control(struct exynos_pcie *exynos_pcie, bool on)
 		else
 			exynos_pcie->vreg_enable = true;
 
-		dev_dbg(dev, "[%s] regulator_enable()\n", __func__);
+		dev_info(dev, "[%s] regulator_enable()\n", __func__);
 	} else {
 		ret1 = regulator_disable(r_vreg1);
 		ret2 = regulator_disable(r_vreg2);
@@ -329,7 +329,7 @@ static void exynos_pcie_vreg_control(struct exynos_pcie *exynos_pcie, bool on)
 		else
 			exynos_pcie->vreg_enable = false;
 
-		dev_dbg(dev, "[%s] regulator_disable()\n", __func__);
+		dev_info(dev, "[%s] regulator_disable()\n", __func__);
 	}
 }
 
@@ -2466,7 +2466,7 @@ retry:
 		count++;
 	}
 	if (count >= 1000)
-		dev_err(dev, "OC failed\n");
+		dev_err(dev, "[%s]OC failed\n", __func__);
 
 	dev_info(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
 			exynos_phy_read(exynos_pcie, 0x760),
@@ -2494,7 +2494,7 @@ retry:
 	/* set #PERST high */
 	gpio_set_value(exynos_pcie->perst_gpio, 1);
 
-	dev_dbg(dev, "%s: Set PERST to HIGH, gpio val = %d\n",
+	dev_info(dev, "%s: Set PERST to HIGH, gpio val = %d\n",
 		__func__, gpio_get_value(exynos_pcie->perst_gpio));
 	if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
 		usleep_range(20000, 22000);
@@ -2530,7 +2530,7 @@ retry:
 	if (exynos_pcie->use_cache_coherency)
 		exynos_pcie_rc_set_iocc(pp, 1);
 
-	dev_dbg(dev, "D state: %x, %x\n",
+	dev_info(dev, "D state: %x, %x\n",
 		exynos_elbi_read(exynos_pcie, PCIE_PM_DSTATE) & 0x7,
 		exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP));
 
@@ -2564,7 +2564,7 @@ retry:
 
 		if (try_cnt < 10) {
 			gpio_set_value(exynos_pcie->perst_gpio, 0);
-			dev_dbg(dev, "%s: Set PERST to LOW, gpio val = %d\n", __func__,
+			dev_info(dev, "%s: Set PERST to LOW, gpio val = %d\n", __func__,
 				gpio_get_value(exynos_pcie->perst_gpio));
 			/* LTSSM disable */
 			exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE,
@@ -2583,7 +2583,7 @@ retry:
 		}
 	} else {
 		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0xff;
-		dev_dbg(dev, "%s: %s(0x%x)\n", __func__, LINK_STATE_DISP(val), val);
+		dev_info(dev, "%s: %s(0x%x)\n", __func__, LINK_STATE_DISP(val), val);
 
 		dev_dbg(dev, "(phy+0xC08=0x%x)(phy+0x1408=0x%x)(phy+0xC6C=0x%x)(phy+0x146C=0x%x)\n",
 			__func__, exynos_phy_read(exynos_pcie, 0xC08),
@@ -2596,17 +2596,17 @@ retry:
 
 		exynos_pcie_rc_rd_own_conf(pp, PCIE_LINK_CTRL_STAT, 4, &val);
 		val = (val >> 16) & 0xf;
-		dev_dbg(dev, "Current Link Speed is GEN%d (MAX GEN%d)\n",
+		dev_info(dev, "Current Link Speed is GEN%d (MAX GEN%d)\n",
 			val, exynos_pcie->max_link_speed);
 
 		/* check link training result(speed) */
 		if (exynos_pcie->ip_ver >= 0x982000 && val < exynos_pcie->max_link_speed) {
 			try_cnt++;
-			dev_err(dev, "%s: Link is up. But not max speed, try count: %d\n",
+			dev_info(dev, "%s: Link is up. But not max speed, try count: %d\n",
 				__func__, try_cnt);
 			if (try_cnt < 10) {
 				gpio_set_value(exynos_pcie->perst_gpio, 0);
-				dev_dbg(dev, "Set PERST LOW, gpio val = %d\n",
+				dev_info(dev, "Set PERST LOW, gpio val = %d\n",
 					gpio_get_value(exynos_pcie->perst_gpio));
 				/* LTSSM disable */
 				exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE,
@@ -2622,7 +2622,7 @@ retry:
 
 		/* check L0 state one more time after link recovery */
 		count = 0;
-		dev_dbg(dev, "check L0 state after link recovery\n");
+		dev_info(dev, "check L0 state after link recovery\n");
 		while (count < MAX_TIMEOUT) {
 			val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
 			if (val == 0x11)
@@ -2716,7 +2716,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 			if (ret)
 				regmap_update_bits(exynos_pcie->pmureg, exynos_pcie->pmu_offset,
 						   PCIE_PHY_CONTROL_MASK, 1);
-			dev_dbg(dev, "[%s]# PCIe PMU regmap update: 1(BYPASS) #\n", __func__);
+			dev_info(dev, "[%s]# PCIe PMU regmap update: 1(BYPASS) #\n", __func__);
 		}
 
 		/* phy all power down clear */
@@ -2759,7 +2759,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 		power_stats_update_up(exynos_pcie);
 
-		dev_dbg(dev, "[%s] exynos_pcie->probe_ok : %d\n", __func__, exynos_pcie->probe_ok);
+		dev_info(dev, "[%s] exynos_pcie->probe_ok : %d\n", __func__, exynos_pcie->probe_ok);
 		if (!exynos_pcie->probe_ok) {
 			exynos_pcie_rc_rd_own_conf(pp, PCI_VENDOR_ID, 4, &val);
 			vendor_id = val & ID_MASK;
@@ -4169,7 +4169,7 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		/* 1. PMU: PCIe PHY input isolation - 0: isolated (1: bypassed) */
-		dev_dbg(dev, "[%s] # PCIe PMU ISOLATION #\n", __func__);
+		dev_info(dev, "[%s] # PCIe PMU ISOLATION #\n", __func__);
 		ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
 				   PCIE_PHY_CONTROL_MASK, 0);
 		/* TODO: remove following as part of b/169128860 */
@@ -4178,7 +4178,7 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 					   PCIE_PHY_CONTROL_MASK, 0);
 
 		/*  2. PCIe PHY VREG off */
-		dev_dbg(dev, "[%s] # VREG OFF: vreg_control(PHY_VREG_OFF) #\n", __func__);
+		dev_info(dev, "[%s] # VREG OFF: vreg_control(PHY_VREG_OFF) #\n", __func__);
 		exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_OFF);
 	}
 
