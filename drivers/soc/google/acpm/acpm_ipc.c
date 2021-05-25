@@ -974,6 +974,8 @@ int acpm_ipc_probe(struct platform_device *pdev)
 
 	acpm_ipc->dev = &pdev->dev;
 
+	channel_init();
+
 	ret = devm_request_threaded_irq(&pdev->dev, acpm_ipc->irq,
 					acpm_ipc_irq_handler,
 					acpm_ipc_irq_handler_thread,
@@ -986,8 +988,6 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	}
 
 	log_buffer_init(&pdev->dev, node);
-
-	channel_init();
 
 	update_log_wq = create_workqueue("acpm_log");
 	if (!update_log_wq) {
