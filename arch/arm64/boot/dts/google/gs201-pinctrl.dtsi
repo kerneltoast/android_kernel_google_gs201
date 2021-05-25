@@ -109,7 +109,7 @@
 		};
 
 		uart17_bus: uart17-bus {
-		       samsung,pins = "gpa2-3", "gpa2-4";
+		       samsung,pins = "gpa2-2", "gpa2-3";
 		       samsung,pin-function = <2>;
 		       samsung,pin-pud = <0>;
 		};
