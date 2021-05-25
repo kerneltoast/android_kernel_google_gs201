@@ -90,6 +90,13 @@ config PCI_EXYNOS
 	select PCIEPORTBUS
 	select PCIE_DW_HOST
 
+config PCI_EXYNOS_CAL_GS201
+	tristate "Samsung Exynos PCIe PHY CAL for GS201"
+	depends on PCI
+	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+
 config PCI_EXYNOS_CAL_GS101
 	tristate "Samsung Exynos PCIe PHY CAL for GS101"
 	depends on PCI

@@ -7,6 +7,7 @@ obj-$(CONFIG_PCI_DRA7XX) += pci-dra7xx.o
 obj-$(CONFIG_PCI_EXYNOS) += pcie-exynos-core.o
 pcie-exynos-core-objs += pcie-exynos-rc.o pcie-exynos-dbg.o
 obj-$(CONFIG_PCI_EXYNOS_CAL_GS101) += pcie-exynos-gs101-rc-cal.o
+obj-$(CONFIG_PCI_EXYNOS_CAL_GS201) += pcie-exynos-gs201-rc-cal.o
 obj-$(CONFIG_PCI_IMX6) += pci-imx6.o
 obj-$(CONFIG_PCIE_SPEAR13XX) += pcie-spear13xx.o
 obj-$(CONFIG_PCI_KEYSTONE) += pci-keystone.o
