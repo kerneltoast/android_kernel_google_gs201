@@ -1647,22 +1647,11 @@ static int odpm_probe(struct platform_device *pdev)
 
 static int odpm_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(&pdev->dev);
-	struct odpm_info *info = iio_priv(indio_dev);
-
-	odpm_set_sampling_rate(info, ODPM_SAMPLING_RATE_ALL, INT_7P_8125HZ,
-			       EXT_7P_628125HZ);
 	return 0;
 }
 
 static int odpm_resume(struct platform_device *pdev)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(&pdev->dev);
-	struct odpm_info *info = iio_priv(indio_dev);
-
-	odpm_set_sampling_rate(info, ODPM_SAMPLING_RATE_ALL,
-			       info->chip.int_config_sampling_rate_i,
-			       info->chip.ext_config_sampling_rate_i);
 	return 0;
 }
 
