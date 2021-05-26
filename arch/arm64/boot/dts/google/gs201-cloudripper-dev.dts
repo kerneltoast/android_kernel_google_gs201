@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cloudripper DEV device tree source
+ *
+ * Copyright 2020 Google,LLC
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "gs201-cloudripper.dtsi"
+
+/ {
+	board_id = <0x30101>;
+	board_rev = <0x000000>;
+	fragment@boardbase {
+		target-path="/";
+		__overlay__ {
+			model = "GS201 Cloudripper DEV based on GS201";
+			compatible = "google,GS201 CLOUDRIPPER", "google,GS201";
+		};
+	};
+};
+
+&serial_0 {
+	status = "okay";
+};
+
+/* [TEMP] Temporarily disable dpu SysMMU power-domains until android homescreen bring up
+ *
+ */
+
+&sysmmu_dpu0 {
+	power-domains;
+};
+
+&sysmmu_dpu1 {
+	power-domains;
+};
+
+&sysmmu_dpu2 {
+	power-domains;
+};
