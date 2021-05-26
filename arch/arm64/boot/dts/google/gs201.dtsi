@@ -15,6 +15,7 @@
 #include "gs201-rmem.dtsi"
 #include "gs201-bts.dtsi"
 #include "gs201-cpu.dtsi"
+#include "gs201-dit.dtsi"
 #include "gs201-drm-dpu.dtsi"
 #include "gs201-gpu.dtsi"
 #include "gs201-aoc.dtsi"
