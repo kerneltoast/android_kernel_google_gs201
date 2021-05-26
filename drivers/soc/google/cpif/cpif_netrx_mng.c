@@ -108,7 +108,7 @@ static struct netrx_page **cpif_create_recycling_page_arr(u32 num_page)
 {
 	int i;
 	struct netrx_page **rpage_arr =
-			kzalloc(sizeof(struct netrx_page *) * num_page, GFP_ATOMIC);
+			kvzalloc(sizeof(struct netrx_page *) * num_page, GFP_KERNEL);
 
 	if (!rpage_arr) {
 		mif_err("failed to alloc recycling_page_arr\n");
@@ -116,8 +116,8 @@ static struct netrx_page **cpif_create_recycling_page_arr(u32 num_page)
 	}
 
 	for (i = 0; i < num_page; i++) {
-		struct netrx_page *cur = kzalloc(sizeof(struct netrx_page),
-				GFP_ATOMIC);
+		struct netrx_page *cur = kvzalloc(sizeof(struct netrx_page),
+				GFP_KERNEL);
 		if (unlikely(!cur))
 			goto fail;
 		cur->page = dev_alloc_pages(PAGE_FRAG_CACHE_MAX_ORDER);
@@ -160,7 +160,7 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 		return NULL;
 	}
 
-	cm = kzalloc(sizeof(struct cpif_netrx_mng), GFP_ATOMIC);
+	cm = kvzalloc(sizeof(struct cpif_netrx_mng), GFP_KERNEL);
 	if (cm == NULL)
 		goto fail_cm;
 
@@ -194,7 +194,7 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	cm->rpage_arr_len = total_page_count * 2;
 
 	/* create netrx page for temporary page allocation */
-	cm->tmp_page = kzalloc(sizeof(struct netrx_page), GFP_ATOMIC);
+	cm->tmp_page = kvzalloc(sizeof(struct netrx_page), GFP_KERNEL);
 	if (unlikely(!cm->tmp_page))
 		goto fail;
 	cm->tmp_page->offset = 0;

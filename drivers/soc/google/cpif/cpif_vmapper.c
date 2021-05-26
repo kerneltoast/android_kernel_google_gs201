@@ -80,6 +80,10 @@ void cpif_vmap_free(struct cpif_va_mapper *vmap)
 	}
 
 	temp = kzalloc(sizeof(struct cpif_vmap_item), GFP_ATOMIC);
+	if (unlikely(!temp)) {
+		mif_err("failed to alloc vmap item for temporary use\n");
+		goto end;
+	}
 	while (kfifo_out(&vmap->sequential_table, temp,
 				sizeof(struct cpif_vmap_item)) ==
 				sizeof(struct cpif_vmap_item)) {
@@ -89,6 +93,8 @@ void cpif_vmap_free(struct cpif_va_mapper *vmap)
 	}
 
 	kfree(temp);
+
+end:
 	kfifo_free(&vmap->sequential_table);
 	kfree(vmap);
 	vmap = NULL;
