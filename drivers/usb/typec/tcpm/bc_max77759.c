@@ -27,7 +27,6 @@ struct bc12_status {
 	 * Set after ChgTypRun
 	 */
 	enum power_supply_usb_type usb_type;
-	bool running;
 	/* Protects changes to this structure. */
 	struct mutex lock;
 	struct power_supply *usb_psy;
@@ -119,20 +118,19 @@ static void vendor_bc12_alert(struct work_struct *work)
 					      POWER_SUPPLY_PROP_USB_TYPE,
 					      &val))
 			logbuffer_log(plat->log, "BC12: usb_psy update failed");
-	} else if (update->vendor_alert1_status & (CHGTYPRUNRINT | CHGTYPRUNFINT
-						   )) {
-		/*
-		 * ChgTypRun triggered both when the bc1.2 detection starts and
-		 * ends.
-		 */
-		logbuffer_log(plat->log, "BC12: current:%s prev:%s"
-			      , update->vendor_bc_status1 & CHGTYPRUN ?
-			      "running" : "not running", bc12->running ?
-			      "running" : "not running");
-		bc12->running = update->vendor_bc_status1 & CHGTYPRUN;
-		if (bc12->bc12_callback)
-			bc12->bc12_callback(bc12->chip, bc12->running);
 	}
+
+	if (update->vendor_alert1_status & CHGTYPRUNRINT) {
+		logbuffer_log(plat->log, "BC12: running");
+		if (bc12->bc12_callback)
+			bc12->bc12_callback(bc12->chip, true);
+	}
+	if (update->vendor_alert1_status & CHGTYPRUNFINT) {
+		logbuffer_log(plat->log, "BC12: not running");
+		if (bc12->bc12_callback)
+			bc12->bc12_callback(bc12->chip, false);
+	}
+
 	mutex_unlock(&bc12->lock);
 	devm_kfree(plat->dev, update);
 }
