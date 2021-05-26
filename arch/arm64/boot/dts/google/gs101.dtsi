@@ -1030,24 +1030,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		mif_cl0_mem_lat: devfreq_mif_cl0_memlat@17000010 {
-			compatible = "memlat-devfreq";
-			devfreq_type = <DEVFREQ_MIF>;
-			devfreq_domain_name = "MIF";
-			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
-			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
-			dm-index = <DM_MIF>;
-			clock-names = "DEVFREQ";
-			polling_ms = <10>;
-
-			/* governor data */
-			governor = <MEM_LATENCY>;
-			dfs_id = <ACPM_DVFS_MIF>;
-
-
-		 };
-
-		mif_cl1_mem_lat: devfreq_mif_cl1_memlat@17000010 {
+		mif_cpu0_mem_lat: devfreq_mif_cpu0_memlat@17000010 {
 			compatible = "memlat-devfreq";
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
@@ -1063,8 +1046,104 @@
 
 		 };
 
+		mif_cpu1_mem_lat: devfreq_mif_cpu1_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
 
-		mif_cl2_mem_lat: devfreq_mif_cl2_memlat@17000010 {
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+		 };
+
+		mif_cpu2_mem_lat: devfreq_mif_cpu2_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
+
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+		 };
+
+		mif_cpu3_mem_lat: devfreq_mif_cpu3_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
+
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+		 };
+
+
+		mif_cpu4_mem_lat: devfreq_mif_cpu4_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
+
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+		 };
+
+		mif_cpu5_mem_lat: devfreq_mif_cpu5_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
+
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+		 };
+
+		mif_cpu6_mem_lat: devfreq_mif_cpu6_memlat@17000010 {
+			compatible = "memlat-devfreq";
+			devfreq_type = <DEVFREQ_MIF>;
+			devfreq_domain_name = "MIF";
+			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
+			pm_qos_class_max = <PM_QOS_BUS_THROUGHPUT_MAX>;
+			dm-index = <DM_MIF>;
+			clock-names = "DEVFREQ";
+			polling_ms = <10>;
+
+			/* governor data */
+			governor = <MEM_LATENCY>;
+			dfs_id = <ACPM_DVFS_MIF>;
+
+		 };
+
+		mif_cpu7_mem_lat: devfreq_mif_cpu7_memlat@17000010 {
 			compatible = "memlat-devfreq";
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
@@ -1081,14 +1160,14 @@
 		 };
 	 };
 
-	cl0_memlat_cpugrp: cl0-cpugrp {
+	cpu0_memlat_cpugrp: cpu0-cpugrp {
 		compatible = "arm-memlat-cpugrp";
-		cpulist = <&cpu0 &cpu1 &cpu2 &cpu3>;
+		cpulist = <&cpu0>;
 
-		cl0_cpu_mif_latmon: cpu0-cpu-mif-latmon {
+		cpu0_cpu_mif_latmon: cpu0-cpu-mif-latmon {
 			compatible = "arm-memlat-mon";
-			cpulist = <&cpu0 &cpu1 &cpu2 &cpu3>;
-			target-dev = <&mif_cl0_mem_lat>;
+			cpulist = <&cpu0>;
+			target-dev = <&mif_cpu0_mem_lat>;
 			cachemiss-ev = <0x2A>;
 			core-dev-table =
 				<   10000  421000 >,
@@ -1103,14 +1182,81 @@
 		};
 	};
 
-	cl1_memlat_cpugrp: cl1-cpugrp {
+	cpu1_memlat_cpugrp: cpu1-cpugrp {
 		compatible = "arm-memlat-cpugrp";
-		cpulist = <&cpu4 &cpu5>;
+		cpulist = <&cpu1>;
 
-		cl1_cpu_mif_latmon: cpu1-cpu-mif-latmon {
+		cpu1_cpu_mif_latmon: cpu1-cpu-mif-latmon {
 			compatible = "arm-memlat-mon";
-			cpulist = <&cpu4 &cpu5>;
-			target-dev = <&mif_cl1_mem_lat>;
+			cpulist = <&cpu1>;
+			target-dev = <&mif_cpu1_mem_lat>;
+			cachemiss-ev = <0x2A>;
+			core-dev-table =
+				<   10000  421000 >,
+				<  100000  676000 >,
+				<  300000  845000 >,
+				<  930000 1014000 >,
+				< 1197000 1352000 >,
+				< 1328000 1539000 >,
+				< 1598000 1716000 >,
+				< 1803000 2028000 >,
+				< 2024000 2535000 >;
+		};
+	};
+
+	cpu2_memlat_cpugrp: cpu2-cpugrp {
+		compatible = "arm-memlat-cpugrp";
+		cpulist = <&cpu2>;
+
+		cpu2_cpu_mif_latmon: cpu2-cpu-mif-latmon {
+			compatible = "arm-memlat-mon";
+			cpulist = <&cpu2>;
+			target-dev = <&mif_cpu2_mem_lat>;
+			cachemiss-ev = <0x2A>;
+			core-dev-table =
+				<   10000  421000 >,
+				<  100000  676000 >,
+				<  300000  845000 >,
+				<  930000 1014000 >,
+				< 1197000 1352000 >,
+				< 1328000 1539000 >,
+				< 1598000 1716000 >,
+				< 1803000 2028000 >,
+				< 2024000 2535000 >;
+		};
+	};
+
+	cpu3_memlat_cpugrp: cpu3-cpugrp {
+		compatible = "arm-memlat-cpugrp";
+		cpulist = <&cpu3>;
+
+		cpu3_cpu_mif_latmon: cpu3-cpu-mif-latmon {
+			compatible = "arm-memlat-mon";
+			cpulist = <&cpu3>;
+			target-dev = <&mif_cpu3_mem_lat>;
+			cachemiss-ev = <0x2A>;
+			core-dev-table =
+				<   10000  421000 >,
+				<  100000  676000 >,
+				<  300000  845000 >,
+				<  930000 1014000 >,
+				< 1197000 1352000 >,
+				< 1328000 1539000 >,
+				< 1598000 1716000 >,
+				< 1803000 2028000 >,
+				< 2024000 2535000 >;
+		};
+	};
+
+
+	cpu4_memlat_cpugrp: cpu4-cpugrp {
+		compatible = "arm-memlat-cpugrp";
+		cpulist = <&cpu4>;
+
+		cpu4_cpu_mif_latmon: cpu4-cpu-mif-latmon {
+			compatible = "arm-memlat-mon";
+			cpulist = <&cpu4>;
+			target-dev = <&mif_cpu4_mem_lat>;
 			cachemiss-ev = <0x2A>;
 			core-dev-table =
 				<   10000  421000 >,
@@ -1125,14 +1271,59 @@
 		};
 	};
 
-	cl2_memlat_cpugrp: cl2-cpugrp {
+	cpu5_memlat_cpugrp: cpu5-cpugrp {
 		compatible = "arm-memlat-cpugrp";
-		cpulist = <&cpu6 &cpu7>;
+		cpulist = <&cpu5>;
 
-		cl2_cpu_mif_latmon: cpu2-cpu-mif-latmon {
+		cpu5_cpu_mif_latmon: cpu5-cpu-mif-latmon {
 			compatible = "arm-memlat-mon";
-			cpulist = <&cpu6 &cpu7>;
-			target-dev = <&mif_cl2_mem_lat>;
+			cpulist = <&cpu5>;
+			target-dev = <&mif_cpu5_mem_lat>;
+			cachemiss-ev = <0x2A>;
+			core-dev-table =
+				<   10000  421000 >,
+				<  100000  676000 >,
+				<  400000  845000 >,
+				<  799000 1352000 >,
+				< 1024000 1539000 >,
+				< 1491000 1716000 >,
+				< 1836000 2028000 >,
+				< 2130000 2288000 >,
+				< 2253000 2730000 >;
+		};
+	};
+
+	cpu6_memlat_cpugrp: cpu6-cpugrp {
+		compatible = "arm-memlat-cpugrp";
+		cpulist = <&cpu6>;
+
+		cpu6_cpu_mif_latmon: cpu6-cpu-mif-latmon {
+			compatible = "arm-memlat-mon";
+			cpulist = <&cpu6>;
+			target-dev = <&mif_cpu6_mem_lat>;
+			cachemiss-ev = <0x2A>;
+			core-dev-table =
+				<   10000  421000 >,
+				<  100000  845000 >,
+				<  851000 1014000 >,
+				< 1106000 1352000 >,
+				< 1237000 1539000 >,
+				< 1582000 1716000 >,
+				< 1901000 2028000 >,
+				< 2048000 2288000 >,
+				< 2225200 2730000 >,
+				< 2507000 3172000 >;
+		};
+	};
+
+	cpu7_memlat_cpugrp: cpu7-cpugrp {
+		compatible = "arm-memlat-cpugrp";
+		cpulist = <&cpu7>;
+
+		cpu7_cpu_mif_latmon: cpu7-cpu-mif-latmon {
+			compatible = "arm-memlat-mon";
+			cpulist = <&cpu7>;
+			target-dev = <&mif_cpu7_mem_lat>;
 			cachemiss-ev = <0x2A>;
 			core-dev-table =
 				<   10000  421000 >,
