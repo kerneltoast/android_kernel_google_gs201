@@ -29,7 +29,7 @@ per-file clocksource/exynos_mct.c=*
 
 per-file cpufreq/exynos-*=*
 
-per-file devfreq/gs101/**=*
+per-file devfreq/google/**=*
 
 per-file dma/pl330.c=*
 per-file dma/samsung-*=*

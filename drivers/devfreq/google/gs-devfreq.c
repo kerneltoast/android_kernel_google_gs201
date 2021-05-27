@@ -49,7 +49,7 @@
 
 #include "../governor.h"
 
-#include "gs101-ppc.h"
+#include "gs-ppc.h"
 #include "../../soc/google/vh/kernel/systrace.h"
 #include "../../thermal/thermal_core.h"
 
