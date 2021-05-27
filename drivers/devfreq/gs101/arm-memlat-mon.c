@@ -363,6 +363,9 @@ static int memlat_cpuhp_up(unsigned int cpu)
 	struct event_data *common_evs;
 	struct perf_event_attr *attr = alloc_attr();
 
+	if (!attr)
+		return -ENOMEM;
+
 	list_for_each_entry(cpu_grp, &cpu_grp_list, node) {
 		if (!cpu_grp->initialized)
 			continue;
@@ -371,8 +374,10 @@ static int memlat_cpuhp_up(unsigned int cpu)
 			break;
 	}
 
-	if (!cpu_grp)
+	if (!cpu_grp) {
+		kfree(attr);
 		return -EINVAL;
+	}
 
 	mutex_lock(&cpu_grp->mons_lock);
 	if (!cpu_grp->num_active_mons)
@@ -411,6 +416,7 @@ static int memlat_cpuhp_up(unsigned int cpu)
 	per_cpu(is_on, cpu) = true;
 unlock_out:
 	mutex_unlock(&cpu_grp->mons_lock);
+	kfree(attr);
 	return ret;
 }
 static int memlat_cpuhp_down(unsigned int cpu)
