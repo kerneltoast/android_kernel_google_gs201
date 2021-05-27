@@ -250,8 +250,8 @@ static inline int exynos_devfreq_lock_freq(unsigned int devfreq_type, unsigned i
 	return 0;
 }
 
-static int exynos_devfreq_get_boundary(unsigned int devfreq_type,
-				       unsigned int *max_freq, unsigned int *min_freq);
+static inline int exynos_devfreq_get_boundary(unsigned int devfreq_type,
+				       unsigned int *max_freq, unsigned int *min_freq)
 {
 	return 0;
 }
