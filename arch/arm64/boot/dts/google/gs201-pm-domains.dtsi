@@ -82,7 +82,7 @@
 		cal_id = <0xB138000A>;
 		need_smc = <0x1C010204>;
 		cmu_id = <0x1C000000>;
-		status = "disabled";
+		status = "okay";
 		power-domains = <&pd_disp>;
 		#power-domain-cells = <0>;
 		skip-idle-ip;
@@ -94,7 +94,7 @@
 		cal_id = <0xB138000B>;
 		need_smc = <0x1C210204>;
 		cmu_id = <0x1C200000>;
-		status = "disabled";
+		status = "okay";
 		#power-domain-cells = <0>;
 		skip-idle-ip;
 	};

@@ -25,19 +25,3 @@
 &serial_0 {
 	status = "okay";
 };
-
-/* [TEMP] Temporarily disable dpu SysMMU power-domains until android homescreen bring up
- *
- */
-
-&sysmmu_dpu0 {
-	power-domains;
-};
-
-&sysmmu_dpu1 {
-	power-domains;
-};
-
-&sysmmu_dpu2 {
-	power-domains;
-};
