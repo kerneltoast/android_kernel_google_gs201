@@ -8,6 +8,7 @@
 #include "gs201-common.dtsi"
 #include "gs201-camera-pmic-av5.dtsi"
 #include "gs201-cloudripper-nfc.dtsi"
+#include "gs201-camera-cloudripper-av5.dtsi"
 
 /*
 #include "gs101-whitefin-battery.dtsi"
