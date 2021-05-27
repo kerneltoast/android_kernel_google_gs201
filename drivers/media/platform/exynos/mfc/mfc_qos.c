@@ -330,7 +330,13 @@ void mfc_qos_update_framerate(struct mfc_ctx *ctx, u32 bytesused)
 		return;
 	}
 
-	/* 3) framerate is updated */
+	/* 3) check non-real-time */
+	if ((ctx->rt == MFC_NON_RT) && (ctx->framerate < DEC_DEFAULT_FPS)) {
+		mfc_debug(2, "[QoS] max operating fps %ld\n", DEC_DEFAULT_FPS);
+		ctx->framerate = DEC_DEFAULT_FPS;
+	}
+
+	/* 4) framerate is updated */
 	if (ctx->last_framerate != 0 && ctx->last_framerate != ctx->framerate) {
 		mfc_debug(2, "[QoS] fps changed: %ld -> %ld, qos ratio: %d\n",
 				ctx->framerate, ctx->last_framerate, ctx->qos_ratio);

@@ -293,6 +293,7 @@ static int mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct mfc_ctx *ctx = q->drv_priv;
 	struct mfc_dev *dev = ctx->dev;
 
+	mfc_rm_update_real_time(ctx);
 	mfc_rm_request_work(dev, MFC_WORK_TRY, ctx);
 
 	return 0;

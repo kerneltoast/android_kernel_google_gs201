@@ -83,4 +83,5 @@ void mfc_rm_qos_control(struct mfc_ctx *ctx, enum mfc_qos_control qos_control);
 int mfc_rm_query_state(struct mfc_ctx *ctx, enum mfc_inst_state_query query,
 			enum mfc_inst_state state);
 
+void mfc_rm_update_real_time(struct mfc_ctx *ctx);
 #endif /* __MFC_RM_H */

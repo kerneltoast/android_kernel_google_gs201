@@ -388,6 +388,18 @@ enum mfc_op_mode {
 	MFC_OP_SWITCH_BUT_MODE2		= 5,
 };
 
+enum mfc_real_time {
+	/* real-time */
+	MFC_RT			= 0,
+	/* low-priority real-time */
+	MFC_RT_LOW		= 1,
+	/* constrained real-time */
+	MFC_RT_CON		= 2,
+	/* non real-time */
+	MFC_NON_RT		= 3,
+	MFC_RT_UNDEFINED	= 4,
+};
+
 /* Secure Protection */
 #define EXYNOS_SECBUF_VIDEO_FW_PROT_ID	2
 #define EXYNOS_SECBUF_PROT_ALIGNMENTS	0x10000
@@ -2107,6 +2119,8 @@ struct mfc_ctx {
 	struct _otf_handle *otf_handle;
 
 	int num;
+	int prio;
+	enum mfc_real_time rt;
 
 	struct mfc_fmt *src_fmt;
 	struct mfc_fmt *dst_fmt;
