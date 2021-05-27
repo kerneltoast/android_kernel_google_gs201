@@ -377,9 +377,12 @@ static void dbg_snapshot_fixmap(void)
 		}
 	}
 
-	dss_log = (struct dbg_snapshot_log *)(dss_items[DSS_ITEM_KEVENTS_ID].entry.vaddr);
-	dss_itmon = (struct itmon_logs *)(dss_items[DSS_ITEM_ITMON_ID].entry.vaddr);
-	dss_itmon->magic = DSS_ITMON_MAGIC_INITIALIZED;
+	if (dss_items[DSS_ITEM_KEVENTS_ID].entry.enabled)
+		dss_log = (struct dbg_snapshot_log *)(dss_items[DSS_ITEM_KEVENTS_ID].entry.vaddr);
+	if (dss_items[DSS_ITEM_ITMON_ID].entry.enabled) {
+		dss_itmon = (struct itmon_logs *)(dss_items[DSS_ITEM_ITMON_ID].entry.vaddr);
+		dss_itmon->magic = DSS_ITMON_MAGIC_INITIALIZED;
+	}
 
 	/*  set fake translation to virtual address to debug trace */
 	dss_info.info_event = dss_log;
