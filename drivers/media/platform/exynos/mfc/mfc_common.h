@@ -261,6 +261,7 @@
 #define DEC_SET_FRAME_ERR_TYPE		(1 << 7)
 #define DEC_SET_OPERATING_FPS		(1 << 8)
 #define DEC_SET_BUF_FLAG_CTRL		(1 << 16)
+#define DEC_SET_PRIORITY		(1 << 23)
 
 /* Extra information for Encoder */
 #define	ENC_SET_RGB_INPUT		(1 << 0)
@@ -285,6 +286,7 @@
 #define ENC_SET_AVERAGE_QP		(1 << 19)
 #define ENC_SET_MV_SEARCH_MODE		(1 << 20)
 #define ENC_SET_GOP_CTRL		(1 << 21)
+#define ENC_SET_PRIORITY		(1 << 23)
 
 #define MFC_FEATURE_SUPPORT(dev, f)	((f).support && ((dev)->fw_date >= (f).version))
 

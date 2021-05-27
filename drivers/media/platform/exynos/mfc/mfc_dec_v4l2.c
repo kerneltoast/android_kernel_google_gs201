@@ -1061,6 +1061,7 @@ static int __mfc_dec_ext_info(struct mfc_ctx *ctx)
 	val |= DEC_SET_BUF_FLAG_CTRL;
 	val |= DEC_SET_FRAME_ERR_TYPE;
 	val |= DEC_SET_OPERATING_FPS;
+	val |= DEC_SET_PRIORITY;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->skype))
 		val |= DEC_SET_SKYPE_FLAG;

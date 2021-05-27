@@ -1025,6 +1025,7 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	val |= ENC_SET_BUF_FLAG_CTRL;
 	val |= ENC_SET_OPERATING_FPS;
 	val |= ENC_SET_GOP_CTRL;
+	val |= ENC_SET_PRIORITY;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc))
 		val |= ENC_SET_COLOR_ASPECT;
