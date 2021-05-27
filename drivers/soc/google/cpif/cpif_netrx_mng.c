@@ -53,9 +53,9 @@ static void cpif_free_recycling_page_arr(struct netrx_page **rpage_arr, u32 num_
 			init_page_count(cur->page);
 			__free_pages(cur->page, PAGE_FRAG_CACHE_MAX_ORDER);
 		}
-		kfree(cur);
+		kvfree(cur);
 	}
-	kfree(rpage_arr);
+	kvfree(rpage_arr);
 }
 
 static void *cpif_alloc_recycling_page(struct cpif_netrx_mng *cm)
@@ -215,7 +215,7 @@ fail:
 	cpif_vmap_free(cm->data_map);
 
 fail_vmap:
-	kfree(cm);
+	kvfree(cm);
 
 fail_cm:
 	return NULL;
@@ -228,7 +228,8 @@ void cpif_exit_netrx_mng(struct cpif_netrx_mng *cm)
 		cpif_free_recycling_page_arr(cm->recycling_page_arr, cm->rpage_arr_len);
 		cpif_vmap_free(cm->desc_map);
 		cpif_vmap_free(cm->data_map);
-		kfree(cm);
+		kvfree(cm->tmp_page);
+		kvfree(cm);
 	}
 }
 EXPORT_SYMBOL(cpif_exit_netrx_mng);
