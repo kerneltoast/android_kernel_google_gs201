@@ -26,6 +26,7 @@ $DEVICE_KERNEL_FILES
 fi
 
 EXT_MODULES+="
+private/google-modules/amplifiers/cs35l45
 private/google-modules/aoc
 private/google-modules/aoc/alsa
 private/google-modules/display/samsung
