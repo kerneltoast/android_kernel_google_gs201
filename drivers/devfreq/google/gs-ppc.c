@@ -24,7 +24,7 @@
 #define CREATE_TRACE_POINTS
 #include "dvfs_events.h"
 
-#include "gs101-ppc.h"
+#include "gs-ppc.h"
 
 #define PMNC 0x0004
 #define CNTENS 0x0008
