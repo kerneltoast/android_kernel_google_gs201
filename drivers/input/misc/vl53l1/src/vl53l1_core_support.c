@@ -178,7 +178,10 @@ void VL53L1_hist_calc_zero_distance_phase(
 	VL53L1_p_017 += (2048 * (uint32_t)pdata->phasecal_result__vcsel_start);
 	VL53L1_p_017 -= (2048 * (uint32_t)pdata->cal_config__vcsel_start);
 
-	VL53L1_p_017 = VL53L1_p_017 % period;
+	if (period != 0)
+		VL53L1_p_017 = VL53L1_p_017 % period;
+	else
+		VL53L1_p_017 = 0;
 
 	pdata->zero_distance_phase = (uint16_t)VL53L1_p_017;
 

@@ -548,7 +548,6 @@
 				regulator-name = "S2MPG10_LDO28";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3C>;
 				schematic-name = "L28M_SENTONS";

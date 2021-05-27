@@ -72,6 +72,8 @@ static VL53L1_Error select_offset_per_vcsel(struct VL53L1_LLDriverData_t *pdev,
 		tB = pdev->per_vcsel_cal_data.long_b_offset_mm;
 		break;
 	default:
+		tA = pdev->per_vcsel_cal_data.long_a_offset_mm;
+		tB = pdev->per_vcsel_cal_data.long_b_offset_mm;
 		status = VL53L1_ERROR_INVALID_PARAMS;
 		*poffset = 0;
 		break;
@@ -615,8 +617,11 @@ VL53L1_Error VL53L1_read_p2p_data(
 	struct VL53L1_additional_offset_cal_data_t *pCD = &(pdev->add_off_cal_data);
 
 	struct VL53L1_decoded_nvm_fmt_range_data_t fmt_rrd;
+	uint8_t i, VL53L1_p_001, count;
 
 	LOG_FUNCTION_START("");
+
+	pdev->fmt_total_enabled_spads = 256;
 
 	if (status == VL53L1_ERROR_NONE)
 		status = VL53L1_get_static_nvm_managed(
@@ -635,10 +640,21 @@ VL53L1_Error VL53L1_read_p2p_data(
 						&(pdev->nvm_copy_data));
 
 
-		if (status == VL53L1_ERROR_NONE)
+		if (status == VL53L1_ERROR_NONE) {
 			VL53L1_copy_rtn_good_spads_to_buffer(
 					&(pdev->nvm_copy_data),
 					&(pdev->rtn_good_spads[0]));
+			pdev->fmt_total_enabled_spads = 0;
+			for (i = 0; i < 32; i++) {
+				VL53L1_p_001 = pdev->rtn_good_spads[i];
+				count = 0;
+				while(VL53L1_p_001) {
+					count += VL53L1_p_001 & 1;
+					VL53L1_p_001 = VL53L1_p_001 >> 1;
+				}
+				pdev->fmt_total_enabled_spads += count;
+			}
+		}
 	}
 
 
@@ -3681,6 +3697,7 @@ VL53L1_Error VL53L1_get_device_results(
 		(VL53L1DevDataGet(Dev, CurrentParameters.PresetMode) ==
 		 VL53L1_PRESETMODE_RANGING);
 
+	presults->fmt_total_enabled_spads = pdev->fmt_total_enabled_spads;
 
 	if ((pdev->sys_ctrl.system__mode_start &
 		 VL53L1_DEVICESCHEDULERMODE_HISTOGRAM) ==

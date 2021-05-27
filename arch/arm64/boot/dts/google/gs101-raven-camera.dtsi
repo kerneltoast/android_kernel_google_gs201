@@ -64,13 +64,10 @@
 	clock-frequency = <1000000>;
 	samsung,reset-before-trans;
 
-	/* Remain off_i2c here for lwis but actually do nothing. And append
-	   off_i2c_ldaf for ldaf to off the shared i2c. */
-	pinctrl-names = "default","on_i2c","off_i2c","off_i2c_ldaf";
+	pinctrl-names = "default","on_i2c","off_i2c";
 	pinctrl-0 = <&hsi2c1_bus_in>;
 	pinctrl-1 = <&hsi2c1_bus>;
 	pinctrl-2 = <&hsi2c1_bus>;
-	pinctrl-3 = <&hsi2c1_bus_in>;
 };
 
 &hsi2c_2 {
@@ -120,7 +117,7 @@
 	#size-cells = <0>;
 	gpios = <&gpp14 0 GPIO_ACTIVE_HIGH &gpp14 1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
-	clock-frequency = <400000>;
+	clock-frequency = <370000>;
 
 	pinctrl-names = "default","on_i2c","off_i2c";
 	pinctrl-0 = <&hsi2c7_bus>;

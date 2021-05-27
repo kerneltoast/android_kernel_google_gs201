@@ -467,6 +467,7 @@ struct VL53L1_range_results_t {
 	struct VL53L1_range_data_t VL53L1_p_002[VL53L1_MAX_RANGE_RESULTS];
 	struct VL53L1_range_data_t xmonitor;
 	struct VL53L1_smudge_corrector_data_t smudge_corrector_data;
+	uint16_t fmt_total_enabled_spads;
 };
 
 
@@ -830,6 +831,7 @@ struct VL53L1_LLDriverData_t {
 	uint8_t PreviousRangeStatus[VL53L1_MAX_RANGE_RESULTS];
 	uint8_t PreviousExtendedRange[VL53L1_MAX_RANGE_RESULTS];
 	uint8_t PreviousStreamCount;
+	uint16_t fmt_total_enabled_spads;
 };
 
 

@@ -31,6 +31,10 @@ extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p,
 extern void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct task_struct *p,
 					   bool task_sleep, int *ret);
 extern void rvh_post_init_entity_util_avg_pixel_mod(void *data, struct sched_entity *se);
+extern void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
+			bool *preempt, bool *nopreempt, int wake_flags, struct sched_entity *se,
+			struct sched_entity *pse, int next_buddy_marked, unsigned int granularity);
+
 extern struct cpufreq_governor sched_pixel_gov;
 
 static int vh_sched_init(void)
@@ -76,6 +80,11 @@ static int vh_sched_init(void)
 
 	ret = register_trace_android_rvh_post_init_entity_util_avg(
 		rvh_post_init_entity_util_avg_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_check_preempt_wakeup(
+		rvh_check_preempt_wakeup_pixel_mod, NULL);
 	if (ret)
 		return ret;
 

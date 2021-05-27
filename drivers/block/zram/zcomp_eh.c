@@ -34,7 +34,7 @@ static int zcomp_eh_compress(struct zcomp *comp, struct page *page,
 static int zcomp_eh_decompress(struct zcomp *comp, void *src,
 			unsigned int src_len, struct page *page)
 {
-	return eh_decompress_page_sync(comp->private, src, src_len, page);
+	return eh_decompress_page(comp->private, src, src_len, page);
 }
 
 static void zcomp_eh_destroy(struct zcomp *comp)

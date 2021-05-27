@@ -14,13 +14,25 @@
 		samsung,pins = "gpp24-2";
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_UP>;
 	};
+
+	nfc_pidle: nfc-pidle {
+		samsung,pins = "gpp26-2";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	};
+};
+
+&hsi2c7_bus {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 };
 
 &hsi2c_7 {
 	/* XAPC_USI7 */
 	#address-cells = <1>;
 	#size-cells = <0>;
-	clock-frequency = <400000>;
+	clock-frequency = <370000>;
 	status = "okay";
 	st21nfc@08 {
 		compatible = "st,st21nfc";
@@ -28,7 +40,7 @@
 		dev-name = "st21nfc";
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&nfc_rst>;
+		pinctrl-0 = <&nfc_rst &nfc_pidle>;
 
 		interrupt-parent = <&gpa8>;
 		interrupts = <0 0 0>;
@@ -36,6 +48,7 @@
 		irq-gpios = <&gpa8 0 0>;
 		clkreq-gpios = <&gpp26 4 0>;
 		pidle-gpios = <&gpp26 2 0>;
+		st,pidle_active_low;
 		clock-names = "nfc_ref_clk";
 		clocks = <&clock CLKOUT0>;
 		pmu_clk_pad = <0x3e80>;

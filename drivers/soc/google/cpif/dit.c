@@ -744,10 +744,12 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 
 	dit_set_src_desc_filter_bypass(src_desc, filter_bypass);
 
-	/* ensure the src_wp ordering */
-	smp_mb();
+	barrier();
 
 	desc_info->src_wp = circ_new_ptr(desc_info->src_desc_ring_len, src_wp, 1);
+
+	/* ensure the src_wp ordering */
+	smp_mb();
 
 #if defined(DIT_DEBUG_LOW)
 	usage = circ_get_usage(desc_info->src_desc_ring_len, desc_info->src_wp, desc_info->src_rp);

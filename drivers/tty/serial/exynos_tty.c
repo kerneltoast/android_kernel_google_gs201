@@ -57,10 +57,6 @@
 /* Debug logging */
 #define DATA_BYTES_PER_LINE     (16)
 
-#ifdef CONFIG_PM_DEVFREQ
-#include <linux/pm_qos.h>
-#endif
-
 #include <soc/google/exynos-cpupm.h>
 
 #define EXYNOS_UART_PORT_LPM			0x5
@@ -155,10 +151,7 @@ struct exynos_uart_port {
 	struct exynos_serial_drv_data	*drv_data;
 
 	u32				uart_irq_affinity;
-	s32				mif_qos_val;
-	s32				cpu_qos_val;
 	u32				use_default_irq;
-	unsigned long			qos_timeout;
 	unsigned int			usi_v2;
 	unsigned int			uart_panic_log;
 	struct pinctrl_state	*uart_pinctrl_rts;
@@ -176,10 +169,6 @@ struct exynos_uart_port {
 	struct exynos_uart_dma		*dma;
 
 	struct platform_device		*pdev;
-
-	struct pm_qos_request		exynos_uart_mif_qos;
-	struct pm_qos_request		exynos_uart_cpu_qos;
-	struct delayed_work		qos_work;
 
 	unsigned int			in_band_wakeup;
 	unsigned int dbg_mode;
@@ -1296,42 +1285,12 @@ out:
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_ARM_EXYNOS_DEVFREQ
-static void s3c64xx_serial_qos_func(struct work_struct *work)
-{
-	struct exynos_uart_port *ourport =
-		container_of(work, struct exynos_uart_port, qos_work.work);
-	struct uart_port *port = &ourport->port;
-
-	if (ourport->mif_qos_val)
-		pm_qos_update_request_timeout(&ourport->exynos_uart_mif_qos,
-					      ourport->mif_qos_val,
-					      ourport->qos_timeout);
-
-	if (ourport->cpu_qos_val)
-		pm_qos_update_request_timeout(&ourport->exynos_uart_cpu_qos,
-					      ourport->cpu_qos_val,
-					      ourport->qos_timeout);
-
-	if (ourport->uart_irq_affinity)
-		irq_set_affinity(port->irq,
-				 cpumask_of(ourport->uart_irq_affinity));
-}
-#endif
-
 /* interrupt handler for s3c64xx and later SoC's.*/
 static irqreturn_t s3c64xx_serial_handle_irq(int irq, void *id)
 {
 	struct exynos_uart_port *ourport = id;
 	struct uart_port *port = &ourport->port;
 	irqreturn_t ret = IRQ_HANDLED;
-
-#ifdef CONFIG_PM_DEVFREQ
-	if ((ourport->mif_qos_val || ourport->cpu_qos_val) &&
-	    ourport->qos_timeout)
-		schedule_delayed_work(&ourport->qos_work,
-				      msecs_to_jiffies(100));
-#endif
 
 	if (rd_regl(port, S3C64XX_UINTP) & S3C64XX_UINTM_RXD_MSK)
 		ret = exynos_serial_rx_chars(irq, id);
@@ -2676,36 +2635,6 @@ static int exynos_serial_probe(struct platform_device *pdev)
 
 	pr_debug("%s: initialising port %p...\n", __func__, ourport);
 
-#ifdef CONFIG_ARM_EXYNOS_DEVFREQ
-	if (of_property_read_u32(pdev->dev.of_node, "mif_qos_val",
-				 &ourport->mif_qos_val))
-		ourport->mif_qos_val = 0;
-
-	if (of_property_read_u32(pdev->dev.of_node, "cpu_qos_val",
-				 &ourport->cpu_qos_val))
-		ourport->cpu_qos_val = 0;
-
-	if (of_property_read_u32(pdev->dev.of_node, "irq_affinity",
-				 &ourport->uart_irq_affinity))
-		ourport->uart_irq_affinity = 0;
-
-	if (of_property_read_u64(pdev->dev.of_node, "qos_timeout",
-				 (u64 *)&ourport->qos_timeout))
-		ourport->qos_timeout = 0;
-
-	if ((ourport->mif_qos_val || ourport->cpu_qos_val) &&
-	    ourport->qos_timeout) {
-		INIT_DELAYED_WORK(&ourport->qos_work, s3c64xx_serial_qos_func);
-		/* request pm qos */
-		if (ourport->mif_qos_val)
-			pm_qos_add_request(&ourport->exynos_uart_mif_qos,
-					   PM_QOS_BUS_THROUGHPUT, 0);
-
-		if (ourport->cpu_qos_val)
-			pm_qos_add_request(&ourport->exynos_uart_cpu_qos,
-					   PM_QOS_CLUSTER1_FREQ_MIN, 0);
-	}
-#endif
 	if (of_get_property(pdev->dev.of_node, "samsung,in-band-wakeup", NULL))
 		ourport->in_band_wakeup = 1;
 	else
@@ -2784,14 +2713,6 @@ static int exynos_serial_remove(struct platform_device *dev)
 	struct uart_port *port = exynos_dev_to_port(&dev->dev);
 
 	struct exynos_uart_port *ourport = to_ourport(port);
-
-#ifdef CONFIG_PM_DEVFREQ
-	if (ourport->mif_qos_val && ourport->qos_timeout)
-		cpu_latency_qos_remove_request(&ourport->exynos_uart_mif_qos);
-
-	if (ourport->cpu_qos_val && ourport->qos_timeout)
-		cpu_latency_qos_remove_request(&ourport->exynos_uart_cpu_qos);
-#endif
 
 	if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log)) {
 		logbuffer_unregister(ourport->log);

@@ -37,10 +37,9 @@
 // Maximum size: u64[2] for ANDROID_VENDOR_DATA_ARRAY(1, 2) in task_struct
 
 enum vendor_group {
-	VG_DEFAULT=0,
+	VG_SYSTEM=0,
 	VG_TOPAPP,
 	VG_FOREGROUND,
-	VG_SYSTEM,
 	VG_CAMERA,
 	VG_BACKGROUND,
 	VG_SYSTEM_BACKGROUND,

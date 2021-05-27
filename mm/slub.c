@@ -37,6 +37,7 @@
 #include <linux/random.h>
 
 #include <trace/events/kmem.h>
+#include <trace/hooks/mm.h>
 
 #include "internal.h"
 
@@ -277,6 +278,7 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
 	if (!debug_pagealloc_enabled_static())
 		return get_freepointer(s, object);
 
+	object = kasan_reset_tag(object);
 	freepointer_addr = (unsigned long)object + s->offset;
 	copy_from_kernel_nofault(&p, (void **)freepointer_addr, sizeof(p));
 	return freelist_ptr(s, p, freepointer_addr);
@@ -609,6 +611,7 @@ static void set_track(struct kmem_cache *s, void *object,
 
 		if (nr_entries < TRACK_ADDRS_COUNT)
 			p->addrs[nr_entries] = 0;
+		trace_android_vh_save_track_hash((unsigned long)p);
 #endif
 		p->addr = addr;
 		p->cpu = smp_processor_id();

@@ -1454,7 +1454,8 @@ static int xmit_ipc_to_pktproc(struct mem_link_device *mld, struct sk_buff *skb)
 	struct pktproc_adaptor_ul *ppa_ul = &mld->pktproc_ul;
 	struct pktproc_queue_ul *q;
 	int len;
-	int ret;
+	int ret = -EBUSY;
+	unsigned long flags;
 
 	if (skb->queue_mapping == 1)
 		q = ppa_ul->q[PKTPROC_HIPRIO_UL];
@@ -1473,7 +1474,11 @@ static int xmit_ipc_to_pktproc(struct mem_link_device *mld, struct sk_buff *skb)
 		return -EINVAL;
 	}
 
-	ret = q->send_packet(q, skb);
+	if (spin_trylock_irqsave(&q->lock, flags)) {
+		ret = q->send_packet(q, skb);
+		spin_unlock_irqrestore(&q->lock, flags);
+	}
+
 	if (unlikely(ret < 0)) {
 		if ((ret != -EBUSY) && (ret != -ENOSPC)) {
 			link_trigger_cp_crash(mld, CRASH_REASON_MIF_TX_ERR,

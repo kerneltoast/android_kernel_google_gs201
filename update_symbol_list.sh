@@ -124,23 +124,27 @@ function update_aosp_abi {
   merge_and_sort_symbol_lists "aosp/${pixel_symbol_list}" \
     "private/gs-google/${pixel_symbol_list}"
 
-  # Update the AOSP ABI xml now
-  rm -rf ${out_dir}
-  OUT_DIR=${out_dir} \
-    BUILD_CONFIG=aosp/build.config.gki.aarch64 \
-    SKIP_CP_KERNEL_HDR=1 \
-    LTO=full \
-    DIST_DIR= \
-    KBUILD_MIXED_TREE= \
-    SKIP_MRPROPER= \
-    build/build_abi.sh --update "$@"
+  # Check if the added symbols are included in another symbol list
+  verify_new_symbols_require_abi_update "${pixel_symbol_list}"
 
-  # TODO: How do I know if the build failed or the ABI xml was updated??
+  if [ "${ABI_XML_UPDATE_REQUIRED}" != "0" ]; then
+    # Update the AOSP ABI xml now
+    rm -rf ${out_dir}
+    OUT_DIR=${out_dir} \
+      BUILD_CONFIG=aosp/build.config.gki.aarch64 \
+      SKIP_CP_KERNEL_HDR=1 \
+      LTO=full \
+      DIST_DIR= \
+      KBUILD_MIXED_TREE= \
+      SKIP_MRPROPER= \
+      build/build_abi.sh --update "$@"
+    # TODO: How do I know if the build failed or the ABI xml was updated??
+  fi
 
   # Create the git commit for aosp/android12-5.10
   COMMIT_TEXT=$(mktemp -t abi_commit_text.XXXXX)
-  if [ -f "${out_dir}/dist/abi.report.short" ]; then
-    echo "ANDROID: Update the ABI xml and symbol list" > ${COMMIT_TEXT}
+  if [ "${ABI_XML_UPDATE_REQUIRED}" != "0" -a -f "${out_dir}/dist/abi.report.short" ]; then
+    echo "ANDROID: Update the ABI representation" > ${COMMIT_TEXT}
     echo >> ${COMMIT_TEXT}
     cat ${out_dir}/dist/abi.report.short >> ${COMMIT_TEXT}
   else
@@ -154,19 +158,23 @@ function update_aosp_abi {
     echo "Change-Id: ${CHANGE_ID}" >> ${COMMIT_TEXT}
   fi
   git -C aosp commit -s -F ${COMMIT_TEXT} -- android/
-  err=$?
+  commit_ret=$?
+
   echo "========================================================"
-  if [ "${err}" = "0" ]; then
-    if [ -n "${FOR_AOSP_PUSH_BRANCH}" ]; then
-      echo " An ABI commit in aosp/ was created for you on the branch ${FOR_AOSP_PUSH_BRANCH}."
+  if ! git -C aosp diff --quiet aosp/android12-5.10..HEAD; then
+    if [ "${commit_ret}" = "0" ]; then
+      if [ -n "${FOR_AOSP_PUSH_BRANCH}" ]; then
+        echo " An ABI commit in aosp/ was created for you on the branch ${FOR_AOSP_PUSH_BRANCH}."
+      else
+        echo " An ABI commit in aosp/ was created for you on the current branch."
+      fi
     else
-      echo " An ABI commit in aosp/ was created for you on the current branch."
+      echo " The ABI xml and symbol list is up-to-date."
     fi
-    echo " Please verify the commit before pushing. Leave the rest of the commit text as-is."
-    echo " Here are the steps to perform:"
+    echo " Please verify your commit(s) before pushing. Here are the steps to perform:"
     echo
     echo "   cd aosp"
-    echo "   git show ${FOR_AOSP_PUSH_BRANCH}"
+    echo "   git log --oneline ${FOR_AOSP_PUSH_BRANCH}"
     echo "   git push aosp ${FOR_AOSP_PUSH_BRANCH:-HEAD}:refs/for/android12-5.10"
     echo
     if [ -n "${FOR_AOSP_PUSH_BRANCH}" ]; then
@@ -178,7 +186,7 @@ function update_aosp_abi {
       echo
     fi
   else
-    echo " No changes were detected after running build_abi.sh."
+    echo " No changes were detected after rebasing to the tip of tree."
   fi
 
   rm -f ${COMMIT_TEXT}
@@ -230,6 +238,36 @@ function extract_pixel_symbols {
   rm -f ${VMLINUX_TMP}
 }
 
+# $1 The symbol list to verify
+function verify_new_symbols_require_abi_update {
+  local pixel_symbol_list=$1
+
+  pushd aosp/ >/dev/null
+    git diff --name-only aosp/android12-5.10..HEAD | grep -v "\<${pixel_symbol_list}\>"
+    err=$?
+    if [ "${err}" = "0" ]; then
+      # Found other files beside the pixel symbol list
+      ABI_XML_UPDATE_REQUIRED=1
+      popd >/dev/null
+      return
+    fi
+
+    local added_symbols=$(git diff aosp/android12-5.10..HEAD "${pixel_symbol_list}" \
+      | sed -n 's/^+  \([a-zA-Z_0-9]\+\)/\1/p')
+    for s in ${added_symbols}; do
+      grep "^  $s\>" --exclude=abi_gki_aarch64.xml \
+        --exclude="${pixel_symbol_list}" android/abi_gki_aarch64*
+      err=$?
+      if [ "${err}" = "1" ]; then
+        # Didn't find this symbol in any other symbol list
+        ABI_XML_UPDATE_REQUIRED=1
+        popd >/dev/null
+        return
+      fi
+    done
+  popd >/dev/null
+}
+
 export SKIP_MRPROPER=1
 export BASE_OUT=${OUT_DIR:-out}/mixed/
 export DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
@@ -239,6 +277,7 @@ FOR_AOSP_PUSH_BRANCH="update_symbol_list-delete-after-push"
 PREPARE_AOSP_ABI=${PREPARE_AOSP_ABI:-0}
 CONTINUE_AFTER_REBASE=0
 CHANGE_ID=
+ABI_XML_UPDATE_REQUIRED=0
 
 ARGS=()
 while [[ $# -gt 0 ]]; do

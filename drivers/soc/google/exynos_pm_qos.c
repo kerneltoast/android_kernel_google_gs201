@@ -570,12 +570,15 @@ int exynos_pm_qos_read_req_value(int pm_qos_class, struct exynos_pm_qos_request 
 
 	read_lock_irqsave(&exynos_pm_qos_lock, flags);
 
+	spin_lock(&exynos_pm_qos_array[pm_qos_class]->constraints->lock);
 	plist_for_each(p, &exynos_pm_qos_array[pm_qos_class]->constraints->list) {
 		if (req == container_of(p, struct exynos_pm_qos_request, node)) {
+			spin_unlock(&exynos_pm_qos_array[pm_qos_class]->constraints->lock);
 			read_unlock_irqrestore(&exynos_pm_qos_lock, flags);
 			return p->prio;
 		}
 	}
+	spin_unlock(&exynos_pm_qos_array[pm_qos_class]->constraints->lock);
 
 	read_unlock_irqrestore(&exynos_pm_qos_lock, flags);
 
