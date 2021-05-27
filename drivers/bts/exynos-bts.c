@@ -369,18 +369,18 @@ int bts_del_scenario(unsigned int index)
 		return -EINVAL;
 	}
 
+	if (index == ID_DEFAULT && scen[index].usage_count == 1) {
+		dev_notice(btsdev->dev,
+			   "Default scenario cannot be deleted!\n");
+		spin_unlock(&btsdev->lock);
+		return 0;
+	}
+
 	scen[index].usage_count--;
 
 	if (scen[index].usage_count < 0) {
 		dev_warn(btsdev->dev, "Usage count is below 0!\n");
 		scen[index].usage_count = 0;
-		spin_unlock(&btsdev->lock);
-		return 0;
-	}
-
-	if (index == ID_DEFAULT) {
-		dev_notice(btsdev->dev,
-			   "Default scenario cannot be deleted!\n");
 		spin_unlock(&btsdev->lock);
 		return 0;
 	}

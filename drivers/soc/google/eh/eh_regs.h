@@ -56,45 +56,8 @@
 /* Max number of buffers used */
 #define EH_MAX_BUFFERS_USED 4
 
-/* These are the possible values for the status field from the specification */
-enum eh_cdesc_status {
-	/* descriptor not in use */
-	EH_CDESC_IDLE = 0x0,
-
-	/* descriptor completed with compressed bytes written to target */
-	EH_CDESC_COMPRESSED = 0x1,
-
-	/*
-	 * descriptor completed, incompressible page, uncompressed bytes written
-	 * to target
-	 */
-	EH_CDESC_COPIED = 0x2,
-
-	/* descriptor completed, incompressible page, nothing written to target
-	 */
-	EH_CDESC_ABORT = 0x3,
-
-	/* descriptor completed, page was all zero, nothing written to target */
-	EH_CDESC_ZERO = 0x4,
-
-	/*
-	 * descriptor count not be completed dut to an error.
-	 * queue operation continued to next descriptor
-	 */
-	EH_CDESC_ERROR_CONTINUE = 0x5,
-
-	/*
-	 * descriptor count not be completed dut to an error.
-	 * queue operation halted
-	 */
-	EH_CDESC_ERROR_HALTED = 0x6,
-
-	/* descriptor in queue or being processed by hardware */
-	EH_CDESC_PENDING = 0x7,
-};
-
 /* a type 0 compression descriptor */
-struct eh_compr_desc_0 {
+struct eh_compress_desc {
 	/* word 0 */
 	/* 6 bits indicating which of the 6 buffers were used */
 	unsigned int buf_sel : 6;
@@ -140,7 +103,7 @@ struct eh_compr_desc_0 {
 	unsigned long dst_addr[EH_NUM_OF_FREE_BLOCKS];
 };
 
-#define EH_COMPR_DESC_0_SIZE sizeof(struct eh_compr_desc_0)
+#define EH_COMPRESS_DESC_SIZE sizeof(struct eh_compress_desc)
 
 /*
  * We're using a scheme for encoding the size of an aligned buffer

@@ -33,9 +33,9 @@
 /** VL53L1 IMPLEMENTATION minor version */
 #define VL53L1_IMPLEMENTATION_VER_MINOR       6
 /** VL53L1 IMPLEMENTATION sub version */
-#define VL53L1_IMPLEMENTATION_VER_SUB         5
+#define VL53L1_IMPLEMENTATION_VER_SUB         6
 /** VL53L1 IMPLEMENTATION sub version */
-#define VL53L1_IMPLEMENTATION_VER_REVISION  2496
+#define VL53L1_IMPLEMENTATION_VER_REVISION  2522
 
 /****************************************
  * PRIVATE define do not edit
@@ -338,7 +338,7 @@ typedef uint8_t VL53L1_State;
 typedef uint8_t VL53L1_SmudgeCorrectionModes;
 
 #define VL53L1_SMUDGE_CORRECTION_NONE       ((VL53L1_SmudgeCorrectionModes)  0)
-	/*!< Smudge correction is applied continuously across the rangings */
+	/*!< Smudge correction is disabled */
 #define VL53L1_SMUDGE_CORRECTION_CONTINUOUS ((VL53L1_SmudgeCorrectionModes)  1)
 	/*!< Smudge correction is applied continuously across the rangings */
 #define VL53L1_SMUDGE_CORRECTION_SINGLE     ((VL53L1_SmudgeCorrectionModes)  2)
@@ -372,13 +372,13 @@ struct VL53L1_RangingMeasurementData_t {
 	FixPoint1616_t SignalRateRtnMegaCps;
 		/*!< Return signal rate (MCPS)\n these is a 16.16 fix point
 		 *  value, which is effectively a measure of target
-		 *   reflectance.
+		 *  reflectance.
 		 */
 
 	FixPoint1616_t AmbientRateRtnMegaCps;
 		/*!< Return ambient rate (MCPS)\n these is a 16.16 fix point
-		 *  value, which is effectively a measure of the ambien
-		 *  t light.
+		 *  value, which is effectively a measure of the ambient
+		 *  light.
 		 */
 
 	uint16_t EffectiveSpadRtnCount;

@@ -558,6 +558,18 @@ void mfc_core_nal_q_cleanup_queue(struct mfc_core *core)
 	return;
 }
 
+static void __mfc_core_nal_q_set_min_bit_count(struct mfc_ctx *ctx, EncoderInputStr *pInStr)
+{
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+
+	pInStr->BitCountEnable &= ~0x1;
+	pInStr->BitCountEnable |= 0x1;
+
+	if (p->rc_framerate)
+		pInStr->MinBitCount = (3500 * 30) / p->rc_framerate;
+}
+
 static void __mfc_core_nal_q_set_slice_mode(struct mfc_ctx *ctx, EncoderInputStr *pInStr)
 {
 	struct mfc_enc *enc = ctx->enc_priv;
@@ -1124,6 +1136,8 @@ static int __mfc_core_nal_q_run_in_buf_enc(struct mfc_core *core, struct mfc_cor
 	mfc_debug(2, "[NALQ] input queue, dst_buf_queue -> dst_buf_nal_queue, index:%d\n",
 			dst_mb->vb.vb2_buf.index);
 
+	if (enc->is_cbr_fix && dev->pdata->enc_min_bit_cnt)
+		__mfc_core_nal_q_set_min_bit_count(ctx, pInStr);
 	__mfc_core_nal_q_set_slice_mode(ctx, pInStr);
 	__mfc_core_nal_q_set_enc_config_qp(ctx, pInStr);
 

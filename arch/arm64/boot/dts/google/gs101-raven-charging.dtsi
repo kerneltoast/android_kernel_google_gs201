@@ -8,6 +8,5 @@
 
 
 &pca9468_dc {
-	pca9468,charging-current = <5000000>; /* 5.0A */
 	pca9468,input-current-limit = <3000000>; /* 3.0A */
 };

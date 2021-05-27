@@ -637,10 +637,10 @@ static VL53L1_Error SetPresetMode(VL53L1_DEV Dev,
 	VL53L1_Error Status = VL53L1_ERROR_NONE;
 	VL53L1_DevicePresetModes device_preset_mode;
 	uint8_t measurement_mode;
-	uint16_t dss_config__target_total_rate_mcps;
-	uint32_t phasecal_config_timeout_us;
-	uint32_t mm_config_timeout_us;
-	uint32_t lld_range_config_timeout_us;
+	uint16_t dss_config__target_total_rate_mcps = 0;
+	uint32_t phasecal_config_timeout_us = 0;
+	uint32_t mm_config_timeout_us = 0;
+	uint32_t lld_range_config_timeout_us = 0;
 
 	LOG_FUNCTION_START("%d", (int)PresetMode);
 
@@ -745,9 +745,9 @@ VL53L1_Error VL53L1_SetDistanceMode(VL53L1_DEV Dev,
 	VL53L1_Error Status = VL53L1_ERROR_NONE;
 	VL53L1_PresetModes PresetMode;
 	uint32_t inter_measurement_period_ms;
-	uint32_t TimingBudget;
-	uint32_t MmTimeoutUs;
-	uint32_t PhaseCalTimeoutUs;
+	uint32_t TimingBudget = 0;
+	uint32_t MmTimeoutUs = 0;
+	uint32_t PhaseCalTimeoutUs = 0;
 	struct VL53L1_zone_config_t zone_config;
 
 	LOG_FUNCTION_START("%d", (int)DistanceMode);
@@ -850,14 +850,14 @@ VL53L1_Error VL53L1_SetMeasurementTimingBudgetMicroSeconds(VL53L1_DEV Dev,
 	uint32_t MeasurementTimingBudgetMicroSeconds)
 {
 	VL53L1_Error Status = VL53L1_ERROR_NONE;
-	uint8_t Mm1Enabled;
-	uint8_t Mm2Enabled;
+	uint8_t Mm1Enabled = 0;
+	uint8_t Mm2Enabled = 0;
 	uint32_t TimingGuard;
 	uint32_t divisor;
-	uint32_t TimingBudget;
-	uint32_t MmTimeoutUs;
+	uint32_t TimingBudget = 0;
+	uint32_t MmTimeoutUs = 0;
 	VL53L1_PresetModes PresetMode;
-	uint32_t PhaseCalTimeoutUs;
+	uint32_t PhaseCalTimeoutUs = 0;
 	uint32_t vhv;
 	int32_t vhv_loops;
 	uint32_t FDAMaxTimingBudgetUs = FDA_MAX_TIMING_BUDGET_US;
@@ -1170,6 +1170,7 @@ VL53L1_Error VL53L1_SetDmaxMode(VL53L1_DEV Dev,
 		dmax_mode = VL53L1_DEVICEDMAXMODE__PER_ZONE_CAL_DATA;
 		break;
 	default:
+		dmax_mode = VL53L1_DEVICEDMAXMODE__CUST_CAL_DATA;
 		Status = VL53L1_ERROR_INVALID_PARAMS;
 		break;
 	}
@@ -1387,7 +1388,7 @@ VL53L1_Error VL53L1_GetLimitCheckValue(VL53L1_DEV Dev, uint16_t LimitCheckId,
 {
 	VL53L1_Error Status = VL53L1_ERROR_NONE;
 	uint16_t MinCountRate;
-	FixPoint1616_t TempFix1616;
+	FixPoint1616_t TempFix1616 = 0;
 	uint16_t SigmaThresh;
 
 	LOG_FUNCTION_START("");
@@ -2763,10 +2764,7 @@ VL53L1_Error VL53L1_PerformRefSpadManagement(VL53L1_DEV Dev)
 			pc->ref_spad_man__ref_location = numloc[1];
 		}
 
-		if (Status == VL53L1_ERROR_NONE)
-			commbuf = &dcrbuffer[16];
-
-
+		commbuf = &dcrbuffer[16];
 
 		if (Status == VL53L1_ERROR_NONE)
 			Status = VL53L1_WriteMulti(Dev,
@@ -2970,6 +2968,9 @@ VL53L1_Error VL53L1_SetOffsetCalibrationMode(VL53L1_DEV Dev,
 
 	LOG_FUNCTION_START("");
 
+	offset_cal_mode =
+		VL53L1_OFFSETCALIBRATIONMODE__MM1_MM2__STANDARD;
+
 	if (OffsetCalibrationMode == VL53L1_OFFSETCALIBRATIONMODE_STANDARD) {
 		offset_cal_mode =
 			VL53L1_OFFSETCALIBRATIONMODE__MM1_MM2__STANDARD;
@@ -3001,17 +3002,19 @@ VL53L1_Error VL53L1_SetOffsetCorrectionMode(VL53L1_DEV Dev,
 
 	LOG_FUNCTION_START("");
 
+	offset_cor_mode =
+		VL53L1_OFFSETCORRECTIONMODE__MM1_MM2_OFFSETS;
 	if (OffsetCorrectionMode == VL53L1_OFFSETCORRECTIONMODE_STANDARD) {
 		offset_cor_mode =
-				VL53L1_OFFSETCORRECTIONMODE__MM1_MM2_OFFSETS;
+			VL53L1_OFFSETCORRECTIONMODE__MM1_MM2_OFFSETS;
 	} else if (OffsetCorrectionMode ==
 			VL53L1_OFFSETCORRECTIONMODE_PERZONE) {
 		offset_cor_mode =
-				VL53L1_OFFSETCORRECTIONMODE__PER_ZONE_OFFSETS;
+			VL53L1_OFFSETCORRECTIONMODE__PER_ZONE_OFFSETS;
 	} else if (OffsetCorrectionMode ==
 			VL53L1_OFFSETCORRECTIONMODE_PERVCSEL) {
 		offset_cor_mode =
-				VL53L1_OFFSETCORRECTIONMODE__PER_VCSEL_OFFSETS;
+			VL53L1_OFFSETCORRECTIONMODE__PER_VCSEL_OFFSETS;
 	} else {
 		Status = VL53L1_ERROR_INVALID_PARAMS;
 	}
@@ -3042,9 +3045,7 @@ VL53L1_Error VL53L1_PerformOffsetCalibration(VL53L1_DEV Dev,
 	CalReflectancePercent_int =
 			VL53L1_FIXPOINT1616TOFIXPOINT72(CalReflectancePercent);
 
-	if (Status == VL53L1_ERROR_NONE)
-		Status = VL53L1_get_offset_calibration_mode(Dev,
-				&offset_cal_mode);
+	Status = VL53L1_get_offset_calibration_mode(Dev, &offset_cal_mode);
 
 	if (Status != VL53L1_ERROR_NONE) {
 		LOG_FUNCTION_END(Status);

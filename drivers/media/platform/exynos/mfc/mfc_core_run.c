@@ -594,6 +594,8 @@ int mfc_core_run_enc_frame(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	mfc_clean_core_ctx_int_flags(core_ctx);
 
+	if (enc->is_cbr_fix && dev->pdata->enc_min_bit_cnt)
+		mfc_core_set_min_bit_count(core, ctx);
 	if (IS_H264_ENC(ctx))
 		mfc_core_set_aso_slice_order_h264(core, ctx);
 	if (!reg_test)

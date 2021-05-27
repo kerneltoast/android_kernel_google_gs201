@@ -131,4 +131,62 @@ struct throttling_stats {
 	ktime_t *hardlimit_time_in_state;
 };
 
+#define TMU_INTPEND_P0				0x00F8
+#define TMU_INTPEND_REG(i)			(TMU_INTPEND_P0 + 0x50 * (i))
+
+#define TMU_SENSOR_PROBE_NUM 16
+
+enum tmu_zone_t {
+	TMU_TOP = 0,
+	TMU_SUB = 1,
+	TMU_END = 2,
+};
+
+enum tmu_sensor_t {
+	TMU_P0_SENSOR = 0,
+	TMU_P1_SENSOR = 1,
+	TMU_P2_SENSOR = 2,
+	TMU_P3_SENSOR = 3,
+	TMU_P4_SENSOR = 4,
+	TMU_P5_SENSOR = 5,
+	TMU_P6_SENSOR = 6,
+	TMU_P7_SENSOR = 7,
+	TMU_P8_SENSOR = 8,
+	TMU_P9_SENSOR = 9,
+	TMU_P10_SENSOR = 10,
+	TMU_P11_SENSOR = 11,
+	TMU_P12_SENSOR = 12,
+	TMU_P13_SENSOR = 13,
+	TMU_P14_SENSOR = 14,
+	TMU_P15_SENSOR = 15,
+};
+
+#define TMU_P0_SENSOR_MASK (1 << TMU_P0_SENSOR)
+#define TMU_P1_SENSOR_MASK (1 << TMU_P1_SENSOR)
+#define TMU_P2_SENSOR_MASK (1 << TMU_P2_SENSOR)
+#define TMU_P3_SENSOR_MASK (1 << TMU_P3_SENSOR)
+#define TMU_P4_SENSOR_MASK (1 << TMU_P4_SENSOR)
+#define TMU_P5_SENSOR_MASK (1 << TMU_P5_SENSOR)
+#define TMU_P6_SENSOR_MASK (1 << TMU_P6_SENSOR)
+#define TMU_P7_SENSOR_MASK (1 << TMU_P7_SENSOR)
+#define TMU_P8_SENSOR_MASK (1 << TMU_P8_SENSOR)
+#define TMU_P9_SENSOR_MASK (1 << TMU_P9_SENSOR)
+#define TMU_P10_SENSOR_MASK (1 << TMU_P10_SENSOR)
+#define TMU_P11_SENSOR_MASK (1 << TMU_P11_SENSOR)
+#define TMU_P12_SENSOR_MASK (1 << TMU_P12_SENSOR)
+#define TMU_P13_SENSOR_MASK (1 << TMU_P13_SENSOR)
+#define TMU_P14_SENSOR_MASK (1 << TMU_P14_SENSOR)
+#define TMU_P15_SENSOR_MASK (1 << TMU_P15_SENSOR)
+
+struct sensor_data {
+	enum tmu_sensor_t probe_id;
+};
+
+struct thermal_zone_data {
+	enum tmu_zone_t tmu_zone_id;
+	u16 sensors_mask;
+	struct sensor_data sensors[TMU_SENSOR_PROBE_NUM];
+	u16 sensor_cnt;
+};
+
 #endif /* _GS101_TMU_H */

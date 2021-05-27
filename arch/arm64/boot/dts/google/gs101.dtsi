@@ -74,7 +74,7 @@
 	};
 
 	chosen {
-		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 console=ttySAC0,115200n8 clocksource=arch_sys_counter root=/dev/ram0 androidboot.hardware.platform=gs101 androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware reserve-fimc=0xffffff90f9fe0000 clk_ignore_unused loop.max_part=7 coherent_pool=4M no_console_suspend nokaslr softlockup_panic=1 sysrq_always_enabled";
+		bootargs = "rcupdate.rcu_expedited=1 rcu_nocbs=0-7 earlycon=exynos4210,mmio32,0x10A00000 console=ttySAC0,115200n8 clocksource=arch_sys_counter root=/dev/ram0 androidboot.hardware.platform=gs101 androidboot.debug_level=0x4948 firmware_class.path=/vendor/firmware reserve-fimc=0xffffff90f9fe0000 clk_ignore_unused loop.max_part=7 coherent_pool=4M no_console_suspend nokaslr softlockup_panic=1 sysrq_always_enabled";
 	};
 
 	odm: odm {
@@ -150,16 +150,7 @@
 	eh: eh@17100000 {
 		compatible = "google,eh";
 		reg = <0x0 0x17100000 0x1000>;
-		interrupts = <GIC_SPI IRQ_EH_0_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_1_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_2_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_3_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_4_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_5_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_6_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_7_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_8_EH IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI IRQ_EH_9_EH IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI IRQ_EH_0_EH IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock DOUT_CLK_EH_BUSP>;
 		clock-names = "eh-clock";
 		power-domains = <&pd_eh>;

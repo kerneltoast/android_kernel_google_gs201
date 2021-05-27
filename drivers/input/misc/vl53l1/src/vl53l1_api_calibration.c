@@ -1300,7 +1300,12 @@ VL53L1_Error VL53L1_run_phasecal_average(
 			VL53L1_p_017 -= (2048 *
 			(uint32_t)pdev->hist_data.cal_config__vcsel_start);
 
-			VL53L1_p_017 = VL53L1_p_017 % period;
+			if (period != 0) {
+				VL53L1_p_017 = VL53L1_p_017 % period;
+			} else {
+				status = VL53L1_ERROR_DIVISION_BY_ZERO;
+				VL53L1_p_017 = 0;
+			}
 
 			phasecal_result__reference_phase += (uint32_t)(
 			pdev->hist_data.phasecal_result__reference_phase);
@@ -2080,23 +2085,21 @@ VL53L1_Error VL53L1_run_hist_xtalk_extraction(
 				status =
 				VL53L1_clear_interrupt_and_enable_next_range(
 					Dev, measurement_mode);
+		}
 
 
-			if (status == VL53L1_ERROR_NONE)
-				status =
-				VL53L1_hist_xtalk_extract_fini(
+		if (status == VL53L1_ERROR_NONE)
+			status = VL53L1_hist_xtalk_extract_fini(
 					&(pdev->hist_data),
 					&(pdev->xtalk_extract),
 					&(pdev->xtalk_cal),
 					&(pdev->xtalk_shapes.xtalk_shape));
-			if (status != VL53L1_ERROR_NONE)
-				goto LOOPOUT;
+		if (status == VL53L1_ERROR_NONE) {
 			pXC->algo__xtalk_cpo_HistoMerge_kcps[k * MaxId] =
 			pXC->algo__crosstalk_compensation_plane_offset_kcps;
 		}
 	}
 
-LOOPOUT:
 
 	VL53L1_stop_range(Dev);
 

@@ -818,6 +818,9 @@ struct mfc_platdata {
 	unsigned int enc_param_addr[MFC_MAX_DEFAULT_PARAM];
 	unsigned int enc_param_val[MFC_MAX_DEFAULT_PARAM];
 
+	/* Encoder min bit count control */
+	unsigned int enc_min_bit_cnt;
+
 	struct mfc_bw_info mfc_bw_info;
 	struct mfc_bw_info mfc_bw_info_sbwc;
 	struct mfc_bw_info mfc_bw_info_dpb_sbwc;
@@ -2070,6 +2073,7 @@ struct mfc_enc {
 
 	int stored_tag;
 	int roi_index;
+	int is_cbr_fix;
 	struct mfc_special_buf roi_buf[MFC_MAX_EXTRA_BUF];
 	struct mfc_enc_roi_info roi_info[MFC_MAX_EXTRA_BUF];
 

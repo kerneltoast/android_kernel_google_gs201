@@ -598,6 +598,9 @@ VL53L1_Error VL53L1_f_030(
 
 	*pphase = VL53L1_MAX_ALLOWED_PHASE;
 
+	if (VL53L1_p_031 == 0)
+		return VL53L1_ERROR_DIVISION_BY_ZERO;
+
 	for (lb = VL53L1_p_022; lb <= VL53L1_p_026; lb++) {
 
 
@@ -716,7 +719,10 @@ VL53L1_Error VL53L1_f_026(
 	int32_t cx = 0;
 
 
-
+	if (VL53L1_p_031 == 0) {
+		*psigma_est = 0xFFFF;
+		return VL53L1_ERROR_DIVISION_BY_ZERO;
+	}
 	i = bin % VL53L1_p_031;
 
 

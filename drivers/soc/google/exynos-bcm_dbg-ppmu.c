@@ -587,7 +587,10 @@ static int platform_pmu_add(struct perf_event *event, int evflags)
 	atomic_inc(&ppmu_dbg_core->active);
 	ppmu->active++;
 	hwc->idx = idx;
-	hw_config->events[idx] = event;
+
+	if (idx < PPMU_NUM_CNT)
+		hw_config->events[idx] = event;
+
 	raw_spin_unlock_irqrestore(&ppmu->pmu_lock, flags);
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
@@ -612,7 +615,10 @@ static void platform_pmu_del(struct perf_event *event, int evflags)
 	raw_spin_lock_irqsave(&ppmu->pmu_lock, flags);
 	atomic_dec(&ppmu_dbg_core->active);
 	ppmu->active--;
-	hw_config->events[idx] = NULL;
+
+	if (idx < PPMU_NUM_CNT)
+		hw_config->events[idx] = NULL;
+
 	clear_bit(idx, hw_config->used_mask);
 	raw_spin_unlock_irqrestore(&ppmu->pmu_lock, flags);
 

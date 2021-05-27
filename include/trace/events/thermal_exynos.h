@@ -291,6 +291,30 @@ TRACE_EVENT(thermal_exynos_arm_update,
 					__entry->mpmm_throttle_level, __entry->mpmm_clr_level)
 );
 
+TRACE_EVENT(thermal_exynos_allow_max_power,
+	TP_PROTO(const char *tmu_name, bool is_hardlimited, char *cdev_type, unsigned long state),
+
+	TP_ARGS(tmu_name, is_hardlimited, cdev_type, state),
+
+	TP_STRUCT__entry(
+		__field(const char *, tmu_name)
+		__field(bool, is_hardlimited)
+		__field(const char *, cdev_type)
+		__field(unsigned long, state)
+	),
+
+	TP_fast_assign(
+		__entry->tmu_name = tmu_name;
+		__entry->is_hardlimited = is_hardlimited;
+		__entry->cdev_type = cdev_type;
+		__entry->state = state;
+	),
+
+	TP_printk("tmu_name:%s, is_hardlimited=%d, cdev:%s, target=%lu",
+					__entry->tmu_name, __entry->is_hardlimited,
+					__entry->cdev_type, __entry->state)
+);
+
 #endif /* _TRACE_THERMAL_EXYNOS_H */
 
 /* This part must be outside protection */

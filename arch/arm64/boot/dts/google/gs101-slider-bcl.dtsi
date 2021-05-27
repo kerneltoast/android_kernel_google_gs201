@@ -123,14 +123,6 @@
 				type = "passive";
 			};
 		};
-		cooling-maps {
-			cpu2-map {
-				trip = <&soc_trip>;
-				cooling-device = <&cpufreq_domain2
-						THERMAL_NO_LIMIT
-						THERMAL_NO_LIMIT>;
-			};
-		};
 	};
 
 	smpl_gm {

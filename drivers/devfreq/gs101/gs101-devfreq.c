@@ -2103,14 +2103,14 @@ static int exynos_devfreq_suspend(struct device *dev)
 	if (!data->use_acpm && exynos_pm_qos_request_active(&data->default_pm_qos_min))
 		exynos_pm_qos_update_request(&data->default_pm_qos_min,
 					     data->suspend_freq);
-	if (exynos_devfreq_get_freq(data->dev, &get_freq, data->clk, data))
-		dev_err(data->dev, "failed get freq\n");
 
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	exynos_devfreq_um_exit(data);
 #endif
 
-	dev_info(data->dev, "Suspend_frequency is %u\n", get_freq);
+	dev_dbg(data->dev, "Suspend frequency is %u\n",
+		exynos_devfreq_get_freq(data->dev, &get_freq, data->clk, data) ?
+		0 : get_freq);
 
 	return ret;
 }
@@ -2130,8 +2130,10 @@ static int exynos_devfreq_resume(struct device *dev)
 	int ret = 0;
 	u32 cur_freq;
 
-	if (!exynos_devfreq_get_freq(data->dev, &cur_freq, data->clk, data))
-		dev_info(data->dev, "Resume frequency is %u\n", cur_freq);
+	dev_dbg(data->dev, "Resume_frequency is %u\n",
+		exynos_devfreq_get_freq(data->dev, &cur_freq, data->clk, data) ?
+		0 : cur_freq);
+
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 	if (data->use_acpm) {
 		mutex_lock(&data->devfreq->lock);
