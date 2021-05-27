@@ -301,7 +301,7 @@
 		 */
 		connector = <0x1 0x2 0x8>;
 
-		/* hibernation; */
+		hibernation;
 	};
 
 	drmdecon1: drmdecon@0x1C241000 {
@@ -373,7 +373,7 @@
 		 */
 		connector = <0x1 0x2 0x8>;
 
-		/* hibernation; */
+		hibernation;
 	};
 
 	drmdecon2: drmdecon@0x1C242000 {
