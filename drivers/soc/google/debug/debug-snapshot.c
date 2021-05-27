@@ -307,9 +307,9 @@ void dbg_snapshot_output(void)
 	for (i = 0; i < ARRAY_SIZE(dss_items); i++) {
 		if (!dss_items[i].entry.enabled)
 			continue;
-		pr_info("%-16s: phys:0x%pK / virt:0x%pK / size:0x%zx / en:%d\n",
+		pr_info("%-16s: phys:0x%pa / virt:0x%pK / size:0x%zx / en:%d\n",
 				dss_items[i].name,
-				dss_items[i].entry.paddr,
+				&dss_items[i].entry.paddr,
 				dss_items[i].entry.vaddr,
 				dss_items[i].entry.size,
 				dss_items[i].entry.enabled);
