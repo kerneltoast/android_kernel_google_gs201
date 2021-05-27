@@ -1099,8 +1099,23 @@ static DEVICE_ATTR_RW(_name)
 
 PIXEL_ATTRIBUTE_RW(boot_lun_enabled, _BOOT_LU_EN);
 
+static ssize_t print_cmd_log_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	u32 value;
+
+	if (kstrtouint(buf, 0, &value))
+		return -EINVAL;
+	if (value == 1)
+		pixel_print_cmd_log(hba);
+	return count;
+}
+static DEVICE_ATTR_WO(print_cmd_log);
+
 static struct attribute *pixel_sysfs_pixel_attrs[] = {
 	&dev_attr_boot_lun_enabled.attr,
+	&dev_attr_print_cmd_log.attr,
 	NULL,
 };
 
