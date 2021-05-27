@@ -252,7 +252,10 @@ static int gather_multi_frame_sit(struct exynos_link_header *hdr, struct sk_buff
 	struct io_device *iod = skbpriv(skb)->iod;
 	struct modem_ctl *mc = iod->mc;
 	struct sk_buff_head *multi_q = &iod->sk_multi_q[exynos_multi_packet_index(ctrl)];
-	int len = skb->len;
+	struct sk_buff_head *rxq = &iod->sk_rx_q;
+	struct sk_buff *skb_new, *skb_cur, *tmp;
+	int total_len = 0;
+	int ret = skb->len;
 
 #ifdef DEBUG_MODEM_IF_LINK_RX
 	/* If there has been no multiple frame with this ID, ... */
@@ -264,52 +267,51 @@ static int gather_multi_frame_sit(struct exynos_link_header *hdr, struct sk_buff
 #endif
 	skb_queue_tail(multi_q, skb);
 
+	/* The last frame has not arrived yet. */
 	if (!exynos_multi_last(ctrl)) {
-		/* It is the last frame because the "more" bit is 0. */
 		mif_err("%s<-%s: recv of multi-frame (CH_ID:0x%02x rcvd:%d)\n",
 			iod->name, mc->name, hdr->ch_id, skb->len);
-	} else {
-		struct sk_buff_head *rxq = &iod->sk_rx_q;
-		struct sk_buff *skb_new;
-		struct sk_buff *skb_tmp;
-		int total_len = 0;
 
-		/* The last frame has not arrived yet. */
-		mif_err("%s<-%s: end multi-frame (CH_ID:0x%02x rcvd:%d)\n",
-			iod->name, mc->name, hdr->ch_id, skb->len);
+		return ret;
+	}
 
-		/* check totoal multi packet size */
-		skb_tmp = skb_peek(multi_q);
+	/* It is the last frame because the "more" bit is 0. */
+	mif_err("%s<-%s: end multi-frame (CH_ID:0x%02x rcvd:%d)\n",
+		iod->name, mc->name, hdr->ch_id, skb->len);
 
-		while (skb_tmp != NULL) {
-			total_len += skb_tmp->len;
-			skb_tmp = skb_peek_next(skb_tmp, multi_q);
-		}
-		mif_info("Total multi-frame packet size is %d\n", total_len);
+	/* check totoal multi packet size */
+	skb_queue_walk(multi_q, skb_cur)
+		total_len += skb_cur->len;
 
-		skb_new = alloc_skb(total_len, GFP_ATOMIC);
-		if (unlikely(skb_new == NULL)) {
-			mif_err("ERR - alloc_skb fail\n");
-			skb_dequeue_tail(multi_q);
-			skb_queue_purge(multi_q);
-			return -ENOMEM;
-		}
+	mif_info("Total multi-frame packet size is %d\n", total_len);
 
-		while (!skb_queue_empty(multi_q)) {
-			skb_tmp = skb_dequeue(multi_q);
-			memcpy(skb_put(skb_new, skb_tmp->len), skb_tmp->data, skb_tmp->len);
-		}
+	skb_new = dev_alloc_skb(total_len);
+	if (unlikely(!skb_new)) {
+		mif_err("ERR - alloc_skb fail\n");
+		skb_dequeue_tail(multi_q);
+		ret = -ENOMEM;
 
+		goto out;
+	}
+
+	skb_queue_walk_safe(multi_q, skb_cur, tmp) {
+		__skb_unlink(skb_cur, multi_q);
+		memcpy(skb_put(skb_new, skb_cur->len), skb_cur->data, skb_cur->len);
+		dev_consume_skb_any(skb_cur);
+	}
+
+out:
+	skb_queue_purge(multi_q);
+	skb_queue_head_init(multi_q);
+
+	if (skb_new) {
 		skb_trim(skb_new, skb_new->len);
 		skb_queue_tail(rxq, skb_new);
-
-		skb_queue_purge(multi_q);
-		skb_queue_head_init(multi_q);
 
 		wake_up(&iod->wq);
 	}
 
-	return len;
+	return ret;
 }
 
 static inline int rx_frame_with_link_header(struct sk_buff *skb)
