@@ -59,12 +59,6 @@
 		gpios = <&gpa8 5 0xf>;
 		wakeup-source;
 	};
-	button@3 {
-		label = "gpio-keys: KEY_POWER";
-		linux,code = <116>;
-		gpios = <&gpa10 0 0xf>;
-		wakeup-source;
-	};
 };
 
 //&udc {
