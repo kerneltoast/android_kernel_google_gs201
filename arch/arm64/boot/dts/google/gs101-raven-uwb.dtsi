@@ -71,6 +71,7 @@
 
 &spi10_bus {
 	samsung,pin-drv = <GS101_PIN_DRV_10_MA>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 };
 
 &spi10_cs {
