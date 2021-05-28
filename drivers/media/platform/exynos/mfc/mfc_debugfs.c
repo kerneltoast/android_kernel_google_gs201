@@ -140,8 +140,9 @@ static int __mfc_info_show(struct seq_file *s, void *unused)
 				ctx->operating_framerate,
 				ctx->crop_width, ctx->crop_height,
 				ctx->crop_left, ctx->crop_top);
-			seq_printf(s, "        main core-%d, op_mode: %d, queue(src: %d, dst: %d, src_nal: %d, dst_nal: %d, ref: %d)\n",
+			seq_printf(s, "        main core-%d, op_mode: %d, prio %d, rt %d, queue(src: %d, dst: %d, src_nal: %d, dst_nal: %d, ref: %d)\n",
 				ctx->op_core_num[MFC_CORE_MAIN], ctx->op_mode,
+				ctx->prio, ctx->rt,
 				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_ready_queue),
 				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue),
 				mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_nal_queue),

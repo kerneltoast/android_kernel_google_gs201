@@ -357,9 +357,10 @@ void mfc_dump_state(struct mfc_dev *dev)
 				dev->ctx[i]->operating_framerate,
 				dev->ctx[i]->crop_width, dev->ctx[i]->crop_height,
 				dev->ctx[i]->crop_left, dev->ctx[i]->crop_top);
-			dev_err(dev->device, "\tmain core-%d, op_mode: %d, queue_cnt(src:%d, dst:%d, ref:%d, qsrc:%d, qdst:%d)\n",
+			dev_err(dev->device, "\tmain core-%d, op_mode: %d, prio %d, rt %d, queue_cnt(src:%d, dst:%d, ref:%d, qsrc:%d, qdst:%d)\n",
 				dev->ctx[i]->op_core_num[MFC_CORE_MAIN],
 				dev->ctx[i]->op_mode,
+				dev->ctx[i]->prio, dev->ctx[i]->rt,
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->src_buf_ready_queue),
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->dst_buf_queue),
 				mfc_get_queue_count(&dev->ctx[i]->buf_queue_lock, &dev->ctx[i]->ref_buf_queue),
