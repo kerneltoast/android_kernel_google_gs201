@@ -1066,7 +1066,7 @@ static int eh_suspend(struct device *dev)
 	clk_disable_unprepare(eh_dev->clk);
 
 	eh_dev->suspended = true;
-	pr_info("EH suspended\n");
+	dev_dbg(dev, "EH suspended\n");
 
 out:
 	spin_unlock(&eh_dev->fifo_prod_lock);
@@ -1092,7 +1092,7 @@ static int eh_resume(struct device *dev)
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0);
 
 	eh_dev->suspended = false;
-	pr_info("EH resumed\n");
+	dev_dbg(dev, "EH resumed\n");
 
 	spin_unlock(&eh_dev->fifo_prod_lock);
 	return 0;
