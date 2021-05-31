@@ -40,6 +40,7 @@ private/google-modules/lwis
 private/google-modules/power/reset
 private/google-modules/touch/common
 private/google-modules/touch/sec
+private/google-modules/bluetooth/broadcom
 private/google-modules/nfc
 private/google-modules/wlan/bcmdhd4389
 "
