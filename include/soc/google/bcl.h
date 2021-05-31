@@ -128,11 +128,11 @@ static struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
 {
 	return NULL;
 }
-static int gs101_init_gpu_ratio(struct gs101_bcl_dev *data)
+static inline int gs101_init_gpu_ratio(struct gs101_bcl_dev *data)
 {
 	return 0;
 }
-static int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
+static inline int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
 {
 	return 0;
 }
