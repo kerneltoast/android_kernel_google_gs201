@@ -21,21 +21,6 @@ struct eh_completion {
 
 #define EH_QUIRK_IGNORE_GCTRL_RESET BIT(0)
 
-enum eh_stat_event {
-	EH_COMPRESS,
-	EH_DECOMPRESS,
-	EH_COMPRESS_POLL,
-	EH_DECOMPRESS_POLL,
-	NR_EH_EVENT_TYPE,
-};
-
-struct eh_stats {
-	unsigned long events[NR_EH_EVENT_TYPE];
-	unsigned long avg_lat[NR_EH_EVENT_TYPE];
-	unsigned long max_lat[NR_EH_EVENT_TYPE];
-	unsigned long min_lat[NR_EH_EVENT_TYPE];
-};
-
 struct eh_device {
 	struct list_head eh_dev_list;
 
