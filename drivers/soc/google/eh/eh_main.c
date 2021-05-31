@@ -213,9 +213,6 @@ static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
 	desc = eh_descriptor(eh_dev, index);
 	src_paddr = page_to_phys(src_page);
 
-	pr_devel("desc = %p src = %pa[p] dst = %pa[p]\n",
-		 desc, &src_paddr, EH_ENCODED_ADDR_TO_PHYS(desc->dst_addr[0]));
-
 	desc->src_addr = src_paddr;
 	/* mark it as pend for hardware */
 	desc->status = EH_CDESC_PENDING;
@@ -338,10 +335,6 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 
 	desc = eh_descriptor(eh_dev, fifo_index);
 
-	pr_devel("desc 0x%x status 0x%x len %u src 0x%pap\n",
-		 fifo_index, desc->status, desc->compr_len,
-		 &desc->src_addr);
-
 	compr_status = desc->status;
 	compr_size = desc->compr_len;
 	compr_bufsel = desc->buf_sel;
@@ -351,24 +344,19 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	/* normal case, page copied */
 	case EH_CDESC_COPIED:
 		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
-		pr_devel("COPIED desc 0x%x buf %p\n", fifo_index, compr_data);
 		break;
 
 	/* normal case, compression completed successfully */
 	case EH_CDESC_COMPRESSED:
 		compr_data = eh_dev->compr_buffers[fifo_index] + offset;
-		pr_devel("COMPRESSED desc 0x%x buf %p\n", fifo_index,
-			 compr_data);
 		break;
 
 	/* normal case, hardware detected page of all zeros */
 	case EH_CDESC_ZERO:
-		pr_devel("ZERO desc 0x%x\n", fifo_index);
 		break;
 
 	/* normal case, incompressible page, did not fit into 3K buffer */
 	case EH_CDESC_ABORT:
-		pr_devel("ABORT desc 0x%x\n", fifo_index);
 		break;
 
 	/* an error occurred, but hardware is still progressing */
@@ -838,9 +826,6 @@ try_again:
 		eh_congestion_wait(HZ/10);
 		goto try_again;
 	}
-
-	pr_devel("[%s] submit %u pages starting at descriptor %u\n",
-		 current->comm, 1, eh_dev->write_index);
 
 	write_idx = fifo_write_index(eh_dev);
 
