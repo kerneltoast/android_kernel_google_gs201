@@ -145,6 +145,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck3_reg: BUCK3M {
@@ -159,6 +160,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x4>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck4_reg: BUCK4M {
@@ -173,6 +175,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x8>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck5_reg: BUCK5M {
@@ -187,6 +190,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x10>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck6_reg: BUCK6M {
@@ -201,6 +205,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x20>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck7_reg: BUCK7M {
@@ -215,6 +220,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x40>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck8_reg: BUCK8M {
@@ -257,6 +263,7 @@
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
 			};
 
 			m_ldo1_reg: LDO1M {
@@ -733,6 +740,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x1>;
+				odpm_disable_in_sleep;
 			};
 
 			s_buck2_reg: BUCK2S {
@@ -747,6 +755,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
 			};
 
 			s_buck3_reg: BUCK3S {
@@ -831,6 +840,7 @@
 				buck_rail;
 				channel-en-byte-offset = <0>;
 				channel-en-index = <0x80>;
+				odpm_disable_in_sleep;
 			};
 
 			s_buck9_reg: BUCK9S {
@@ -873,6 +883,7 @@
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x4>;
+				odpm_disable_in_sleep;
 			};
 
 			s_bucka_reg: BUCKA {

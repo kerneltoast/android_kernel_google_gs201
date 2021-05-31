@@ -46,7 +46,7 @@ const u32 s2mpg1x_ext_sample_rate_uhz[S2MPG1X_EXT_FREQ_COUNT] = {
 #define ACQUISITION_TIME_US (40 * S2MPG1X_METER_CHANNEL_MAX)
 static inline int s2mpg1x_meter_set_async_blocking(enum s2mpg1x_id id,
 						   struct i2c_client *i2c,
-						   unsigned long *jiffies_capture)
+						   u64 *timestamp_capture)
 {
 	u8 val = 0xFF;
 	int ret;
@@ -60,8 +60,8 @@ static inline int s2mpg1x_meter_set_async_blocking(enum s2mpg1x_id id,
 		return ret;
 	}
 
-	if (jiffies_capture)
-		*jiffies_capture = jiffies;
+	if (timestamp_capture)
+		*timestamp_capture = ktime_get_boottime_ns();
 
 	/* Based on the s2mpg1x datasheets, (40 us * channel count) is the
 	 * maximum time required for acquisition of all samples across all
