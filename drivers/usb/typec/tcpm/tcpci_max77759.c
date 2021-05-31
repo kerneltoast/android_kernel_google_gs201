@@ -78,6 +78,8 @@ enum gbms_charger_modes {
 #define VOLTAGE_ALARM_LOW_EN_MV		1500
 #define VOLTAGE_ALARM_LOW_DIS_MV	0
 
+static struct logbuffer *tcpm_log;
+
 static bool modparam_conf_sbu;
 module_param_named(conf_sbu, modparam_conf_sbu, bool, 0644);
 MODULE_PARM_DESC(conf_sbu, "Configure sbu pins");
@@ -1496,6 +1498,14 @@ static void max77759_get_timer_value(void *unused, const char *state, enum typec
 	}
 }
 
+static void max77759_tcpm_log(void *unused, const char *log, bool *bypass)
+{
+	if (tcpm_log)
+		logbuffer_log(tcpm_log, "%s", log);
+
+	*bypass = true;
+}
+
 static int max77759_register_vendor_hooks(struct i2c_client *client)
 {
 	int ret;
@@ -1542,6 +1552,13 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 	if (ret) {
 		dev_err(&client->dev,
 			"register_trace_android_vh_typec_tcpm_get_timer failed ret:%d\n", ret);
+		return ret;
+	}
+
+	ret = register_trace_android_vh_typec_tcpm_log(max77759_tcpm_log, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_tcpm_log failed ret:%d\n", ret);
 		return ret;
 	}
 
@@ -1934,7 +1951,22 @@ static struct i2c_driver max77759_i2c_driver = {
 	.id_table = max77759_id,
 	.shutdown = max77759_shutdown,
 };
-module_i2c_driver(max77759_i2c_driver);
+
+static int __init max77759_i2c_driver_init(void)
+{
+	tcpm_log = logbuffer_register("tcpm");
+	if (IS_ERR_OR_NULL(tcpm_log))
+		return -EAGAIN;
+
+	return i2c_add_driver(&max77759_i2c_driver);
+}
+module_init(max77759_i2c_driver_init);
+
+static void __exit max77759_i2c_driver_exit(void)
+{
+	i2c_del_driver(&max77759_i2c_driver);
+}
+module_exit(max77759_i2c_driver_exit);
 
 MODULE_AUTHOR("Badhri Jagan Sridharan <badhri@google.com>");
 MODULE_DESCRIPTION("MAX77759 USB Type-C Port Controller Interface Driver");
