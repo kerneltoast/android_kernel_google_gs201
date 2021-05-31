@@ -11,6 +11,7 @@
 #include "gs201-camera-cloudripper-av5.dtsi"
 #include "gs201-cloudripper-bluetooth.dtsi"
 #include "gs201-cloudripper-cp-s5300-sit.dtsi"
+#include "gs201-cloudripper-ese.dtsi"
 
 /*
 #include "gs101-whitefin-battery.dtsi"

@@ -40,6 +40,7 @@
 		spi14 = &spi_14;
 		spi15 = &spi_15;
 		spi16 = &spi_16;
+		spi17 = &spi_17;
 		uart1 = &serial_1;
 		uart2 = &serial_2;
 		uart3 = &serial_3;
@@ -1098,6 +1099,22 @@
 		pinctrl-0 = <&uart19_bus>; /* or _bus_dual */
 		clocks = <&clock MUX_APM_FUNC>, <&clock DOUT_CLK_APM_USI0_USI>;
 		clock-names = "gate_uart_clk19", "ipclk_uart19";
+		interrupts = <GIC_SPI IRQ_APM_USI0_USI_ALIVE ITLH>;
+		samsung,usi-phandle = <&sysreg_apm>;
+		samsung,usi-offset = <0x00000008>;
+		reg = <0x00000000 0x181c0000 0x00001000>;
+		status = "disabled";
+	};
+	/* BLK_ALIVE APM_USI0_USI */
+	spi_17: spi@181C0000 {
+		compatible = "samsung,exynos-spi";
+		samsung,spi-fifosize = <64>;
+		swap-mode;
+		#address-cells = <0x00000001>;
+		#size-cells = <0x00000000>;
+		dma-names = "tx", "rx";
+		clocks = <&clock MUX_APM_FUNC>, <&clock DOUT_CLK_APM_USI0_USI>;
+		clock-names = "ipclk_spi", "gate_spi_clk";
 		interrupts = <GIC_SPI IRQ_APM_USI0_USI_ALIVE ITLH>;
 		samsung,usi-phandle = <&sysreg_apm>;
 		samsung,usi-offset = <0x00000008>;
