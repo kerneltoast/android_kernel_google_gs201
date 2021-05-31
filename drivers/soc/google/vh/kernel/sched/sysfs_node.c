@@ -56,7 +56,7 @@ static struct uclamp_se uclamp_default[UCLAMP_CNT];
 						       struct kobj_attribute *attr,char *buf) \
 		{									      \
 			struct vendor_group_property *gp = get_vendor_group_property(__vg);   \
-			return snprintf(buf, PAGE_SIZE, "%s\n",				      \
+			return scnprintf(buf, PAGE_SIZE, "%s\n",			\
 					gp->__attr==true? "true":"false");		      \
 		}									      \
 		static ssize_t __grp##_##__attr##_store (struct kobject *kobj,		      \
@@ -73,6 +73,26 @@ static struct uclamp_se uclamp_default[UCLAMP_CNT];
 		static struct kobj_attribute __grp##_##__attr##_##attribute =		      \
 							__ATTR_RW(__grp##_##__attr);
 
+#define VENDOR_GROUP_UINT_ATTRIBUTE(__grp, __attr, __vg)				      \
+		static ssize_t __grp##_##__attr##_show(struct kobject *kobj,		      \
+						       struct kobj_attribute *attr,char *buf) \
+		{									      \
+			struct vendor_group_property *gp = get_vendor_group_property(__vg);   \
+			return scnprintf(buf, PAGE_SIZE, "%u\n",	gp->__attr);	\
+		}									      \
+		static ssize_t __grp##_##__attr##_store (struct kobject *kobj,		      \
+							 struct kobj_attribute *attr,	      \
+							 const char *buf, size_t count)	      \
+		{									      \
+			unsigned int val;					\
+			struct vendor_group_property *gp = get_vendor_group_property(__vg);   \
+			if (kstrtouint(buf, 10, &val))					      \
+				return -EINVAL;						      \
+			gp->__attr = val;						      \
+			return count;							      \
+		}									      \
+		static struct kobj_attribute __grp##_##__attr##_##attribute =		      \
+							__ATTR_RW(__grp##_##__attr);
 
 #define VENDOR_GROUP_UCLAMP_ATTRIBUTE(__grp, __attr, __vg, __cid)			      \
 		static ssize_t __grp##_##__attr##_show(struct kobject *kobj,		      \
@@ -117,44 +137,58 @@ static struct uclamp_se uclamp_default[UCLAMP_CNT];
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, prefer_idle, VG_TOPAPP);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, prefer_high_cap, VG_TOPAPP);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, task_spreading, VG_TOPAPP);
+VENDOR_GROUP_UINT_ATTRIBUTE(ta, group_throttle, VG_TOPAPP);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(ta, uclamp_min, VG_TOPAPP, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(ta, uclamp_max, VG_TOPAPP, UCLAMP_MAX);
 
 VENDOR_GROUP_BOOL_ATTRIBUTE(fg, prefer_idle, VG_FOREGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(fg, prefer_high_cap, VG_FOREGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(fg, task_spreading, VG_FOREGROUND);
+VENDOR_GROUP_UINT_ATTRIBUTE(fg, group_throttle, VG_FOREGROUND);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(fg, uclamp_min, VG_FOREGROUND, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(fg, uclamp_max, VG_FOREGROUND, UCLAMP_MAX);
 
 VENDOR_GROUP_BOOL_ATTRIBUTE(sys, prefer_idle, VG_SYSTEM);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sys, prefer_high_cap, VG_SYSTEM);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sys, task_spreading, VG_SYSTEM);
+VENDOR_GROUP_UINT_ATTRIBUTE(sys, group_throttle, VG_SYSTEM);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sys, uclamp_min, VG_SYSTEM, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sys, uclamp_max, VG_SYSTEM, UCLAMP_MAX);
 
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam, prefer_idle, VG_CAMERA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam, prefer_high_cap, VG_CAMERA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam, task_spreading, VG_CAMERA);
+VENDOR_GROUP_UINT_ATTRIBUTE(cam, group_throttle, VG_CAMERA);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam, uclamp_min, VG_CAMERA, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam, uclamp_max, VG_CAMERA, UCLAMP_MAX);
 
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, prefer_idle, VG_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, prefer_high_cap, VG_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, task_spreading, VG_BACKGROUND);
+VENDOR_GROUP_UINT_ATTRIBUTE(bg, group_throttle, VG_BACKGROUND);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(bg, uclamp_min, VG_BACKGROUND, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(bg, uclamp_max, VG_BACKGROUND, UCLAMP_MAX);
 
 VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, prefer_idle, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, prefer_high_cap, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, task_spreading, VG_SYSTEM_BACKGROUND);
+VENDOR_GROUP_UINT_ATTRIBUTE(sysbg, group_throttle, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sysbg, uclamp_min, VG_SYSTEM_BACKGROUND, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sysbg, uclamp_max, VG_SYSTEM_BACKGROUND, UCLAMP_MAX);
 
 VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, prefer_idle, VG_NNAPI_HAL);
 VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, prefer_high_cap, VG_NNAPI_HAL);
 VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, task_spreading, VG_NNAPI_HAL);
+VENDOR_GROUP_UINT_ATTRIBUTE(nnapi, group_throttle, VG_NNAPI_HAL);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(nnapi, uclamp_min, VG_NNAPI_HAL, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(nnapi, uclamp_max, VG_NNAPI_HAL, UCLAMP_MAX);
+
+VENDOR_GROUP_BOOL_ATTRIBUTE(rt, prefer_idle, VG_RT);
+VENDOR_GROUP_BOOL_ATTRIBUTE(rt, prefer_high_cap, VG_RT);
+VENDOR_GROUP_BOOL_ATTRIBUTE(rt, task_spreading, VG_RT);
+VENDOR_GROUP_UINT_ATTRIBUTE(rt, group_throttle, VG_RT);
+VENDOR_GROUP_UCLAMP_ATTRIBUTE(rt, uclamp_min, VG_RT, UCLAMP_MIN);
+VENDOR_GROUP_UCLAMP_ATTRIBUTE(rt, uclamp_max, VG_RT, UCLAMP_MAX);
 
 /// ******************************************************************************** ///
 /// ********************* From upstream code for uclamp **************************** ///
@@ -507,6 +541,7 @@ SET_TASK_GROUP_STORE(cam, VG_CAMERA);
 SET_TASK_GROUP_STORE(bg, VG_BACKGROUND);
 SET_TASK_GROUP_STORE(sysbg, VG_SYSTEM_BACKGROUND);
 SET_TASK_GROUP_STORE(nnapi, VG_NNAPI_HAL);
+SET_TASK_GROUP_STORE(rt, VG_RT);
 
 DUMP_TASK_GROUP_SHOW(ta, VG_TOPAPP);
 DUMP_TASK_GROUP_SHOW(fg, VG_FOREGROUND);
@@ -515,6 +550,7 @@ DUMP_TASK_GROUP_SHOW(cam, VG_CAMERA);
 DUMP_TASK_GROUP_SHOW(bg, VG_BACKGROUND);
 DUMP_TASK_GROUP_SHOW(sysbg, VG_SYSTEM_BACKGROUND);
 DUMP_TASK_GROUP_SHOW(nnapi, VG_NNAPI_HAL);
+DUMP_TASK_GROUP_SHOW(rt, VG_RT);
 
 static ssize_t clear_group_store(struct kobject *kobj,
 				 struct kobj_attribute *attr,
@@ -774,44 +810,58 @@ static struct attribute *attrs[] = {
 	&ta_prefer_idle_attribute.attr,
 	&ta_prefer_high_cap_attribute.attr,
 	&ta_task_spreading_attribute.attr,
+	&ta_group_throttle_attribute.attr,
 	&ta_uclamp_min_attribute.attr,
 	&ta_uclamp_max_attribute.attr,
 	// Foreground group attributes
 	&fg_prefer_idle_attribute.attr,
 	&fg_prefer_high_cap_attribute.attr,
 	&fg_task_spreading_attribute.attr,
+	&fg_group_throttle_attribute.attr,
 	&fg_uclamp_min_attribute.attr,
 	&fg_uclamp_max_attribute.attr,
 	// System group attributes
 	&sys_prefer_idle_attribute.attr,
 	&sys_prefer_high_cap_attribute.attr,
 	&sys_task_spreading_attribute.attr,
+	&sys_group_throttle_attribute.attr,
 	&sys_uclamp_min_attribute.attr,
 	&sys_uclamp_max_attribute.attr,
 	// Camera group attributes
 	&cam_prefer_idle_attribute.attr,
 	&cam_prefer_high_cap_attribute.attr,
 	&cam_task_spreading_attribute.attr,
+	&cam_group_throttle_attribute.attr,
 	&cam_uclamp_min_attribute.attr,
 	&cam_uclamp_max_attribute.attr,
 	// Background group attributes
 	&bg_prefer_idle_attribute.attr,
 	&bg_prefer_high_cap_attribute.attr,
 	&bg_task_spreading_attribute.attr,
+	&bg_group_throttle_attribute.attr,
 	&bg_uclamp_min_attribute.attr,
 	&bg_uclamp_max_attribute.attr,
 	// System Background group attributes
 	&sysbg_prefer_idle_attribute.attr,
 	&sysbg_prefer_high_cap_attribute.attr,
 	&sysbg_task_spreading_attribute.attr,
+	&sysbg_group_throttle_attribute.attr,
 	&sysbg_uclamp_min_attribute.attr,
 	&sysbg_uclamp_max_attribute.attr,
 	// Nnapi-HAL group attributes
 	&nnapi_prefer_idle_attribute.attr,
 	&nnapi_prefer_high_cap_attribute.attr,
 	&nnapi_task_spreading_attribute.attr,
+	&nnapi_group_throttle_attribute.attr,
 	&nnapi_uclamp_min_attribute.attr,
 	&nnapi_uclamp_max_attribute.attr,
+	// RT group attributes
+	&rt_prefer_idle_attribute.attr,
+	&rt_prefer_high_cap_attribute.attr,
+	&rt_task_spreading_attribute.attr,
+	&rt_group_throttle_attribute.attr,
+	&rt_uclamp_min_attribute.attr,
+	&rt_uclamp_max_attribute.attr,
 	// Vendor task attributes
 	&set_task_group_ta_attribute.attr,
 	&set_task_group_fg_attribute.attr,
@@ -820,6 +870,7 @@ static struct attribute *attrs[] = {
 	&set_task_group_bg_attribute.attr,
 	&set_task_group_sysbg_attribute.attr,
 	&set_task_group_nnapi_attribute.attr,
+	&set_task_group_rt_attribute.attr,
 	&clear_group_attribute.attr,
 	// Uclamp stats
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
@@ -872,6 +923,10 @@ static int create_procfs_node(void)
 	}
 
 	if (!CREATE_DUMP_FILE(nnapi)) {
+		goto out;
+	}
+
+	if (!CREATE_DUMP_FILE(rt)) {
 		goto out;
 	}
 
