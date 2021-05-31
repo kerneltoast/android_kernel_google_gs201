@@ -311,4 +311,47 @@
 			   "TPU", "TPUCORE", "SLC0", "SLC1", "SLC2", "SLC3";
 		status = "ok";
 	};
+
+	exynos-ehld {
+		compatible = "google,exynos-ehld";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		cs_base = <0x2b000000>;
+
+		dbgc {
+			/* IPC */
+			plugin-len = <4>;
+			plugin-name = "ELD";
+
+			support = <1>;
+			interval = <50>;
+			warn-count = <20>;
+			use-tick-timer = <1>;
+		};
+
+		cpu0 {
+			dbg-offset = <0x810000>;
+		};
+		cpu1 {
+			dbg-offset = <0x910000>;
+		};
+		cpu2 {
+			dbg-offset = <0xa10000>;
+		};
+		cpu3 {
+			dbg-offset = <0xb10000>;
+		};
+		cpu4 {
+			dbg-offset = <0xc10000>;
+		};
+		cpu5 {
+			dbg-offset = <0xd10000>;
+		};
+		cpu6 {
+			dbg-offset = <0xe10000>;
+		};
+		cpu7 {
+			dbg-offset = <0xf10000>;
+		};
+	};
 };
