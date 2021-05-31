@@ -322,7 +322,7 @@
 					<3000
 					 1000
 					 1000
-					 12000>;
+					 10000>;
 
 				/* Power down sequence */
 				power-down-seqs =
