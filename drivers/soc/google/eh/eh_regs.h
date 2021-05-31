@@ -94,10 +94,9 @@ struct eh_compress_desc {
 
 			/* pad out the rest of the word */
 			unsigned long padding : 54;
-		} s1;
-#define EH_COMPR_DESC_0_SRC_MASK ~(0xFUL)
+		};
 		unsigned long src_addr;
-	} u1;
+	};
 
 	/* words 2 - 5, destination buffers */
 	unsigned long dst_addr[EH_NUM_OF_FREE_BLOCKS];

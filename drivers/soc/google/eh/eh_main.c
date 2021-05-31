@@ -216,9 +216,9 @@ static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
 	pr_devel("desc = %p src = %pa[p] dst = %pa[p]\n",
 		 desc, &src_paddr, EH_ENCODED_ADDR_TO_PHYS(desc->dst_addr[0]));
 
-	desc->u1.src_addr = src_paddr;
+	desc->src_addr = src_paddr;
 	/* mark it as pend for hardware */
-	desc->u1.s1.status = EH_CDESC_PENDING;
+	desc->status = EH_CDESC_PENDING;
 	/*
 	 * Skip setting other fields of the descriptor for the performance
 	 * reason. It's doable since they are never changed once they are
@@ -264,7 +264,7 @@ static void init_compression_descriptor(struct eh_device *eh_dev)
 		desc = eh_descriptor(eh_dev, i);
 		dst_paddr = virt_to_phys(eh_dev->compr_buffers[i]);
 #ifdef CONFIG_GOOGLE_EH_CFIFO_DST_BUFFER_3KB
-		desc->u1.s1.max_buf = 2;
+		desc->max_buf = 2;
 		/* buffer 1: top 2KB of compression buffer (page) */
 		desc->dst_addr[0] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr, PAGE_SIZE / 2);
 
@@ -272,7 +272,7 @@ static void init_compression_descriptor(struct eh_device *eh_dev)
 		desc->dst_addr[1] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr + PAGE_SIZE / 2,
 				PAGE_SIZE / 4);
 #else
-		desc->u1.s1.max_buf = 1;
+		desc->max_buf = 1;
 		desc->dst_addr[0] = EH_PHYS_ADDR_TO_ENCODED(dst_paddr, PAGE_SIZE);
 		desc->dst_addr[1] = 0;
 #endif
@@ -339,10 +339,10 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	desc = eh_descriptor(eh_dev, fifo_index);
 
 	pr_devel("desc 0x%x status 0x%x len %u src 0x%pap\n",
-		 fifo_index, desc->u1.s1.status, desc->compr_len,
-		 &desc->u1.src_addr);
+		 fifo_index, desc->status, desc->compr_len,
+		 &desc->src_addr);
 
-	compr_status = desc->u1.s1.status;
+	compr_status = desc->status;
 	compr_size = desc->compr_len;
 	compr_bufsel = desc->buf_sel;
 	offset = (compr_bufsel == 2) ? PAGE_SIZE / 2 : 0;
@@ -411,7 +411,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	(*eh_dev->comp_callback)(compr_status, compr_data, compr_size, compl->priv);
 
 	/* set the descriptor back to IDLE */
-	desc->u1.s1.status = EH_CDESC_IDLE;
+	desc->status = EH_CDESC_IDLE;
 	atomic_dec(&eh_dev->nr_request);
 	clear_eh_congested();
 
