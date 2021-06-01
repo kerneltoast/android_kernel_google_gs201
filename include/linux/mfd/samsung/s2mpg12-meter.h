@@ -28,7 +28,7 @@ struct s2mpg12_meter {
 /* Public s2mpg12 Meter functions */
 void s2mpg12_meter_load_measurement(struct s2mpg12_meter *s2mpg12,
 				    s2mpg1x_meter_mode mode, u64 *data,
-				   u32 *count, unsigned long *jiffies_capture);
+				   u32 *count, u64 *timestamp_capture);
 int s2mpg12_meter_set_muxsel(struct s2mpg12_meter *s2mpg12, int channel,
 			     s2mpg12_meter_muxsel m);
 

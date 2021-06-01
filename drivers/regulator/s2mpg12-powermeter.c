@@ -51,14 +51,14 @@ static struct mfd_cell s2mpg12_meter_devs[] = {
  */
 void s2mpg12_meter_load_measurement(struct s2mpg12_meter *s2mpg12,
 				    s2mpg1x_meter_mode mode, u64 *data,
-				   u32 *count, unsigned long *jiffies_capture)
+				   u32 *count, u64 *timestamp_capture)
 {
 	mutex_lock(&s2mpg12->meter_lock);
 
 	s2mpg12_meter_set_acc_mode(s2mpg12, mode);
 
 	s2mpg1x_meter_set_async_blocking(ID_S2MPG12, s2mpg12->i2c,
-					 jiffies_capture);
+					 timestamp_capture);
 
 	if (data)
 		s2mpg12_meter_read_acc_data_reg(s2mpg12, data);
