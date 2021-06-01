@@ -33,44 +33,7 @@
 
 struct eh_device;
 
-/* These are the possible values for the status field from the specification */
-enum eh_cdesc_status {
-	/* descriptor not in use */
-	EH_CDESC_IDLE = 0x0,
-
-	/* descriptor completed with compressed bytes written to target */
-	EH_CDESC_COMPRESSED = 0x1,
-
-	/*
-	 * descriptor completed, incompressible page, uncompressed bytes written
-	 * to target
-	 */
-	EH_CDESC_COPIED = 0x2,
-
-	/* descriptor completed, incompressible page, nothing written to target
-	 */
-	EH_CDESC_ABORT = 0x3,
-
-	/* descriptor completed, page was all zero, nothing written to target */
-	EH_CDESC_ZERO = 0x4,
-
-	/*
-	 * descriptor count not be completed dut to an error.
-	 * queue operation continued to next descriptor
-	 */
-	EH_CDESC_ERROR_CONTINUE = 0x5,
-
-	/*
-	 * descriptor count not be completed dut to an error.
-	 * queue operation halted
-	 */
-	EH_CDESC_ERROR_HALTED = 0x6,
-
-	/* descriptor in queue or being processed by hardware */
-	EH_CDESC_PENDING = 0x7,
-};
-
-typedef void (*eh_cb_fn)(unsigned int status, void *data, unsigned int size,
+typedef void (*eh_cb_fn)(int compr_result, void *data, unsigned int size,
 			 void *priv);
 
 /* tear down hardware block, mostly done when eh_device is unloaded */

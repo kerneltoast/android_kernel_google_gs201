@@ -404,7 +404,8 @@ struct zcomp *zcomp_create(const char *algo_name, struct zram *zram)
  * @comp_len: compressed object size
  * @cookie: the one we got when comopress function is called
  */
-int zcomp_copy_buffer(int err, void *buffer, int comp_len, struct zcomp_cookie *cookie)
+int zcomp_copy_buffer(int err, void *buffer, int comp_len,
+		      struct zcomp_cookie *cookie)
 {
 	void *dst_addr;
 	unsigned long handle;

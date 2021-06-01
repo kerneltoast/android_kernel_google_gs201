@@ -5,24 +5,10 @@
 #include "zcomp.h"
 #include <linux/eh.h>
 
-static void zcomp_eh_compress_done(unsigned int status, void *buffer, unsigned int size,
-					void *priv)
+static void zcomp_eh_compress_done(int compr_ret, void *buffer,
+				   unsigned int size, void *priv)
 {
-	int err = 0;
-
-	if (status == EH_CDESC_ZERO ||
-			(status != EH_CDESC_COMPRESSED &&
-			status != EH_CDESC_ABORT &&
-			status != EH_CDESC_COPIED)) {
-		err = -EIO;
-		/* zcomp already fiter out same elements pages */
-		WARN_ON(status == EH_CDESC_ZERO);
-	}
-
-	if (status == EH_CDESC_ABORT || status == EH_CDESC_COPIED)
-		size = PAGE_SIZE;
-
-	zcomp_copy_buffer(err, buffer, size, priv);
+	zcomp_copy_buffer(compr_ret ? -EIO : 0, buffer, size, priv);
 }
 
 static int zcomp_eh_compress(struct zcomp *comp, struct page *page,
