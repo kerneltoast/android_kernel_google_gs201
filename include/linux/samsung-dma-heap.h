@@ -90,20 +90,32 @@ void samsung_track_buffer_destroyed(struct samsung_dma_buffer *buffer);
 #define DMA_HEAP_FLAG_UNCACHED  BIT(0)
 #define DMA_HEAP_FLAG_PROTECTED BIT(1)
 #define DMA_HEAP_FLAG_VIDEO_ALIGNED BIT(2)
+#define DMA_HEAP_FLAG_DYNAMIC_PROTECTED BIT(3)
 
 static inline bool dma_heap_flags_uncached(unsigned long flags)
 {
 	return !!(flags & DMA_HEAP_FLAG_UNCACHED);
 }
 
-static inline bool dma_heap_flags_protected(unsigned long flags)
+static inline bool dma_heap_flags_static_protected(unsigned long flags)
 {
 	return !!(flags & DMA_HEAP_FLAG_PROTECTED);
 }
 
+static inline bool dma_heap_flags_dynamic_protected(unsigned long flags)
+{
+	return !!(flags & DMA_HEAP_FLAG_DYNAMIC_PROTECTED);
+}
+
+static inline bool dma_heap_flags_protected(unsigned long flags)
+{
+	return dma_heap_flags_static_protected(flags) ||
+		dma_heap_flags_dynamic_protected(flags);
+}
+
 static inline bool dma_heap_skip_cache_ops(unsigned long flags)
 {
-	return dma_heap_flags_protected(flags) || dma_heap_flags_uncached(flags);
+	return dma_heap_flags_static_protected(flags) || dma_heap_flags_uncached(flags);
 }
 
 static inline bool dma_heap_flags_video_aligned(unsigned long flags)
@@ -116,7 +128,7 @@ static inline bool dma_heap_flags_video_aligned(unsigned long flags)
  */
 static inline bool dma_heap_tzmp_buffer(struct device *dev, unsigned long flags)
 {
-	return dma_heap_flags_protected(flags) && !!dev_iommu_fwspec_get(dev);
+	return dma_heap_flags_static_protected(flags) && !!dev_iommu_fwspec_get(dev);
 }
 
 /*
@@ -142,7 +154,7 @@ struct buffer_prot_info {
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chunk_size,
 				 unsigned int nr_pages, unsigned long paddr);
-int samsung_dma_buffer_unprotect(void *priv, struct device *dev);
+int samsung_dma_buffer_unprotect(void *priv, struct samsung_dma_heap *heap);
 #else
 static inline void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
 					       unsigned int chunk_size, unsigned int nr_pages,
@@ -151,7 +163,7 @@ static inline void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
 	return NULL;
 }
 
-static inline int samsung_dma_buffer_unprotect(void *priv, struct device *dev)
+static inline int samsung_dma_buffer_unprotect(void *priv, struct samsung_dma_heap *heap)
 {
 	return 0;
 }

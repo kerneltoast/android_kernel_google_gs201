@@ -31,22 +31,13 @@ static inline unsigned long ppmp_smc(unsigned long cmd, unsigned long arg0,
 static int buffer_protect_smc(struct device *dev, struct buffer_prot_info *protdesc,
 			      unsigned int protalign)
 {
-	unsigned long size = protdesc->chunk_count * protdesc->chunk_size;
-	unsigned long ret, dma_addr = 0;
-
-	dma_addr = secure_iova_alloc(size, max_t(u32, protalign, PAGE_SIZE));
-	if (!dma_addr)
-		return -ENOMEM;
-
-	protdesc->dma_addr = (unsigned int)dma_addr;
+	unsigned long ret;
 
 	dma_map_single(dev, protdesc, sizeof(*protdesc), DMA_TO_DEVICE);
-
 	ret = ppmp_smc(SMC_DRM_PPMP_PROT, virt_to_phys(protdesc), 0, 0);
 	if (ret) {
 		dma_unmap_single(dev, phys_to_dma(dev, virt_to_phys(protdesc)), sizeof(*protdesc),
 				 DMA_TO_DEVICE);
-		secure_iova_free(dma_addr, size);
 
 		perr("CMD %#x (err=%#lx,dva=%#x,size=%#lx,cnt=%u,flg=%u,phy=%#lx)",
 		     SMC_DRM_PPMP_PROT, ret, protdesc->dma_addr,
@@ -61,7 +52,6 @@ static int buffer_protect_smc(struct device *dev, struct buffer_prot_info *protd
 static int buffer_unprotect_smc(struct device *dev,
 				struct buffer_prot_info *protdesc)
 {
-	unsigned long size = protdesc->chunk_count * protdesc->chunk_size;
 	unsigned long ret;
 
 	ret = ppmp_smc(SMC_DRM_PPMP_UNPROT, virt_to_phys(protdesc), 0, 0);
@@ -77,13 +67,6 @@ static int buffer_unprotect_smc(struct device *dev,
 		return -EACCES;
 	}
 
-	/*
-	 * retain the secure device address if unprotection to its area fails.
-	 * It might be unusable forever since we do not know the state of the
-	 * secure world before returning error from ppmp_smc() above.
-	 */
-	secure_iova_free(protdesc->dma_addr, size);
-
 	return 0;
 }
 
@@ -94,6 +77,8 @@ void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chu
 	struct buffer_prot_info *protdesc;
 	unsigned int protalign = heap->alignment;
 	unsigned int array_size = 0;
+	unsigned long buf_size;
+	unsigned long dma_addr;
 	int ret;
 
 	protdesc = kmalloc(sizeof(*protdesc), GFP_KERNEL);
@@ -114,11 +99,25 @@ void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chu
 		dma_map_single(dev, vaddr, array_size, DMA_TO_DEVICE);
 	}
 
+	buf_size = protdesc->chunk_count * protdesc->chunk_size;
+
+	dma_addr = secure_iova_alloc(buf_size, max_t(u32, protalign, PAGE_SIZE));
+	if (!dma_addr) {
+		kfree(protdesc);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	protdesc->dma_addr = (unsigned int)dma_addr;
+
+	if (dma_heap_flags_dynamic_protected(heap->flags))
+		return protdesc;
+
 	ret = buffer_protect_smc(dev, protdesc, protalign);
 	if (ret) {
 		if (protdesc->chunk_count > 1)
 			dma_unmap_single(dev, phys_to_dma(dev, paddr), array_size, DMA_TO_DEVICE);
 
+		secure_iova_free(dma_addr, buf_size);
 		kfree(protdesc);
 		return ERR_PTR(ret);
 	}
@@ -126,19 +125,33 @@ void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chu
 	return protdesc;
 }
 
-int samsung_dma_buffer_unprotect(void *priv, struct device *dev)
+int samsung_dma_buffer_unprotect(void *priv, struct samsung_dma_heap *heap)
 {
 	struct buffer_prot_info *protdesc = priv;
+	struct device *dev;
+	unsigned long buf_size = protdesc->chunk_count * protdesc->chunk_size;
 	int ret = 0;
 
-	if (!priv)
+	if (!priv || !heap)
 		return 0;
+
+	dev = dma_heap_get_dev(heap->dma_heap);
 
 	if (protdesc->chunk_count > 1)
 		dma_unmap_single(dev, phys_to_dma(dev, protdesc->bus_address),
 				 sizeof(unsigned long) * protdesc->chunk_count, DMA_TO_DEVICE);
 
-	ret = buffer_unprotect_smc(dev, protdesc);
+	if (!dma_heap_flags_dynamic_protected(heap->flags))
+		ret = buffer_unprotect_smc(dev, protdesc);
+
+	/*
+	 * retain the secure device address if unprotection to its area fails.
+	 * It might be unusable forever since we do not know the state of the
+	 * secure world before returning error from ppmp_smc() above.
+	 */
+	if (!ret)
+		secure_iova_free(protdesc->dma_addr, buf_size);
+
 	kfree(protdesc);
 
 	return ret;

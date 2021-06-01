@@ -346,7 +346,7 @@ static int samsung_heap_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	struct sg_page_iter piter;
 	int ret;
 
-	if (dma_heap_flags_protected(buffer->flags)) {
+	if (dma_heap_flags_static_protected(buffer->flags)) {
 		perr("mmap() to protected buffer is not allowed");
 		return -EACCES;
 	}
@@ -381,7 +381,7 @@ static void *samsung_heap_do_vmap(struct samsung_dma_buffer *buffer)
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
-	if (dma_heap_flags_protected(buffer->flags)) {
+	if (dma_heap_flags_static_protected(buffer->flags)) {
 		perr("vmap() to protected buffer is not allowed");
 		return ERR_PTR(-EACCES);
 	}

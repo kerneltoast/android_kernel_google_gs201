@@ -77,7 +77,7 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap, unsigned lo
 	return dmabuf;
 
 free_export:
-	protret = samsung_dma_buffer_unprotect(buffer->priv, dma_heap_get_dev(heap));
+	protret = samsung_dma_buffer_unprotect(buffer->priv, samsung_dma_heap);
 free_prot:
 	if (!protret)
 		gen_pool_free(carveout_heap->pool, paddr, size);
@@ -93,9 +93,8 @@ static void carveout_heap_release(struct samsung_dma_buffer *buffer)
 	struct carveout_heap *carveout_heap = samsung_dma_heap->priv;
 	int ret = 0;
 
-	if (dma_heap_flags_protected(buffer->flags))
-		ret = samsung_dma_buffer_unprotect(buffer->priv,
-						   dma_heap_get_dev(samsung_dma_heap->dma_heap));
+	if (dma_heap_flags_protected(samsung_dma_heap->flags))
+		ret = samsung_dma_buffer_unprotect(buffer->priv, samsung_dma_heap);
 
 	if (!ret)
 		gen_pool_free(carveout_heap->pool, sg_phys(buffer->sg_table.sgl), buffer->len);

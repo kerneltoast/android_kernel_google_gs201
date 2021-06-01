@@ -130,7 +130,7 @@ static int chunk_heap_unprotect(struct samsung_dma_heap *samsung_dma_heap, void 
 	if (protdesc->chunk_count > 1)
 		paddr_array = phys_to_virt(protdesc->bus_address);
 
-	ret = samsung_dma_buffer_unprotect(priv, dma_heap_get_dev(samsung_dma_heap->dma_heap));
+	ret = samsung_dma_buffer_unprotect(priv, samsung_dma_heap);
 
 	kfree(paddr_array);
 
@@ -197,7 +197,7 @@ static struct dma_buf *chunk_heap_allocate(struct dma_heap *heap, unsigned long 
 	return dmabuf;
 
 err_export:
-	protret = chunk_heap_unprotect(buffer->priv, dma_heap_get_dev(heap));
+	protret = chunk_heap_unprotect(samsung_dma_heap, buffer->priv);
 err_prot:
 	samsung_dma_buffer_free(buffer);
 err_buffer:

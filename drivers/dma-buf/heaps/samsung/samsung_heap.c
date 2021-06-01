@@ -209,6 +209,12 @@ static const unsigned int secure_heap_type[] = {
 
 #define num_secure_heaps ARRAY_SIZE(secure_heap_type)
 
+static const unsigned int dynamic_secure_heap_type[] = {
+	DMA_HEAP_FLAG_DYNAMIC_PROTECTED,
+};
+
+#define num_dynamic_secure_heaps ARRAY_SIZE(dynamic_secure_heap_type)
+
 /*
  * Maximum heap types is defined by cachable heap types
  * because prot heap type is always only 1.
@@ -235,6 +241,9 @@ int samsung_heap_add(struct device *dev, void *priv,
 	if (of_property_read_bool(dev->of_node, "dma-heap,secure")) {
 		count = num_secure_heaps;
 		types = secure_heap_type;
+	} else if (of_property_read_bool(dev->of_node, "dma-heap,dynamic-secure")) {
+		count = num_dynamic_secure_heaps;
+		types = dynamic_secure_heap_type;
 	} else {
 		count = num_nonsecure_heaps;
 		types = nonsecure_heap_type;
