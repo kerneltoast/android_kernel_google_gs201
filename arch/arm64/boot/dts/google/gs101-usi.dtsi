@@ -996,8 +996,6 @@
 		dma-names = "tx", "rx";
 		clocks = <&clock MUX_APM_FUNC>, <&clock DOUT_CLK_APM_USI0_USI>;
 		clock-names = "gate_spi_clk", "ipclk_spi";
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi15_bus>;
 		interrupts = <GIC_SPI IRQ_APM_USI0_USI_ALIVE ITLH>;
 		samsung,usi-phandle = <&sysreg_apm>;
 		samsung,usi-offset = <0x00000008>;
