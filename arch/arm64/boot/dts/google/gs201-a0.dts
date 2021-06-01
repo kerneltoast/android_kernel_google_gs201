@@ -15,3 +15,16 @@
 #include "gs201-cloudripper-display.dtsi"
 #include "gs201-cloudripper-touch.dtsi"
 #include "gs201-cloudripper-typec.dtsi"
+
+&bts_smc0 {
+	reg = <0x0 0x2084F258 0x4>;
+};
+&bts_smc1 {
+	reg = <0x0 0x2094F258 0x4>;
+};
+&bts_smc2 {
+	reg = <0x0 0x20A4F258 0x4>;
+};
+&bts_smc3 {
+	reg = <0x0 0x20B4F258 0x4>;
+};
