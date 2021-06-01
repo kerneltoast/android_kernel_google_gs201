@@ -265,8 +265,8 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc &&
 			q->dma_addr[q->done_ptr])
 			dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[q->done_ptr],
-							q->manager->max_packet_size,
-							DMA_FROM_DEVICE, 0);
+					q->manager->max_packet_size - q->ppa->skb_padding_size,
+					DMA_FROM_DEVICE, 0);
 		cpif_unmap_rx_buf(q->manager, desc[q->done_ptr].cp_data_paddr -
 					q->ppa->skb_padding_size, true);
 		desc[q->done_ptr].cp_data_paddr = 0;
@@ -347,7 +347,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 		if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
 			q->dma_addr[fore] = dma_map_single_attrs(ppa->dev,
 					addrpair.ap_addr,
-					q->manager->max_packet_size,
+					q->manager->max_packet_size - ppa->skb_padding_size,
 					DMA_FROM_DEVICE, 0);
 			if (dma_mapping_error(ppa->dev, q->dma_addr[fore])) {
 				mif_err_limited("dma_map_single_attrs() failed\n");
@@ -530,7 +530,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 
 
 	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
-		packet_size = ppa->max_packet_size;
+		packet_size = ppa->max_packet_size - ppa->skb_padding_size;
 
 		dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
 					packet_size, DMA_FROM_DEVICE, 0);
