@@ -1611,11 +1611,12 @@ void pixel_print_cmd_log(struct ufs_hba *hba)
 						MAX_CMD_ENTRY_NUM];
 		if (!entry->seq_num)
 			break;
-		dev_err(hba->dev, "%lu: %s tag: %lu cmd: %s sector: %lu len: %lu DB: 0x%lx outstanding: 0x%lx GID: %u\n",
+		dev_err(hba->dev, "%lu: %s tag: %lu cmd: %s sector: %lu len: 0x%lx DB: 0x%lx outstanding: 0x%lx GID: 0x%x\n",
 			entry->seq_num, entry->event,
 			entry->tag, entry->cmd,
 			entry->sector, entry->affected_bytes,
-			entry->doorbell, entry->outstanding_reqs);
+			entry->doorbell, entry->outstanding_reqs,
+			entry->group_id);
 	}
 }
 
