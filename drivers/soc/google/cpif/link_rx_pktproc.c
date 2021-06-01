@@ -1409,6 +1409,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 	struct device_node *np = pdev->dev.of_node;
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 	u32 buff_size, buff_size_by_q, accum_buff_size;
+	u32 alloc_size;
 	int i;
 	int ret = 0;
 
@@ -1593,7 +1594,8 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 			q->desc_size = sizeof(struct pktproc_desc_sktbuf) * q->num_desc;
 
-			q->dma_addr = kzalloc(q->desc_size, GFP_KERNEL);
+			alloc_size = sizeof(dma_addr_t) * q->num_desc;
+			q->dma_addr = kzalloc(alloc_size, GFP_KERNEL);
 			if (!q->dma_addr) {
 				mif_err("kzalloc() dma_addr failed\n");
 				ret = -ENOMEM;
