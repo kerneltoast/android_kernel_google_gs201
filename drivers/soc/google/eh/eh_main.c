@@ -100,8 +100,8 @@ enum eh_cdesc_status {
 #define EH_COMP_IRQ	"eh_comp"
 
 /* wait up to a millisecond for reset */
-#define EH_RESET_WAIT_TIME 10
-#define EH_MAX_RESET_WAIT 100
+#define EH_RESET_DELAY_US	10
+#define EH_RESET_MAX_TRIAL	100
 
 /* list of all unclaimed EH devices */
 static LIST_HEAD(eh_dev_list);
@@ -223,23 +223,19 @@ static inline unsigned long eh_read_dcmd_status(struct eh_device *eh_dev,
 
 static int eh_reset(struct eh_device *eh_dev)
 {
-	unsigned long tmp = (unsigned long)-1UL;
-	unsigned int count = 0;
+	int trial;
 
 	if (eh_dev->quirks & EH_QUIRK_IGNORE_GCTRL_RESET)
 		return 0;
 
-	eh_write_register(eh_dev, EH_REG_GCTRL, tmp);
-	while (count < EH_MAX_RESET_WAIT &&
-	       eh_read_register(eh_dev, EH_REG_GCTRL)) {
-		usleep_range(EH_RESET_WAIT_TIME, EH_RESET_WAIT_TIME * 2);
-		count++;
+	eh_write_register(eh_dev, EH_REG_GCTRL, -1);
+	for (trial = 0; trial < EH_RESET_MAX_TRIAL; trial++) {
+		if (!eh_read_register(eh_dev, EH_REG_GCTRL))
+			return 0;
+		udelay(EH_RESET_DELAY_US);
 	}
 
-	if (count == EH_MAX_RESET_WAIT)
-		return 1;
-
-	return 0;
+	return 1;
 }
 
 static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
