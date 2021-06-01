@@ -11,6 +11,16 @@
 };
 
 #include "gs201.dtsi"
+
+&mfc {
+	ip_ver = <0x15060000>;
+	/* FW base security ctrl */
+	security_ctrl = <1>;
+};
+&mfc_core0 {
+	ip_ver = <0x15060000>;
+};
+
 #include "gs201-pmic.dtsi"
 #include "gs201-cloudripper-display.dtsi"
 #include "gs201-cloudripper-touch.dtsi"

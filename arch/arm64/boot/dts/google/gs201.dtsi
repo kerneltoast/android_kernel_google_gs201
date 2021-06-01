@@ -33,6 +33,7 @@
 #include "gs201-debug.dtsi"
 #include "gs201-pcie.dtsi"
 #include "gs201-bigo.dtsi"
+#include "gs201-mfc.dtsi"
 
 / {
 	compatible = "google,gs201";
