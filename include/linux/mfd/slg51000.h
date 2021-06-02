@@ -641,6 +641,7 @@ struct slg51000_dev {
 	int chip_pu_pin;
 	int chip_id;
 	u32 op_mode;
+	bool chip_always_on;
 
 	bool is_power_on;
 	struct timer_list timer;
