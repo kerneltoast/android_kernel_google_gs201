@@ -61,40 +61,35 @@ int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb)
 	return 0;
 }
 
-static int __mfc_calc_plane(int width, int height, int is_tiled)
-{
-	int mbX, mbY;
-
-	mbX = (width + 15)/16;
-	mbY = (height + 15)/16;
-
-	/* Alignment for interlaced processing */
-	if (is_tiled)
-		mbY = (mbY + 1) / 2 * 2;
-
-	return (mbX * 16) * (mbY * 16);
-}
-
 void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 {
 	struct mfc_raw_info *raw;
-	int i;
+	int stride_align, stride, stride_type;
 
 	raw = &ctx->raw_buf;
+	if (ctx->type == MFCINST_DECODER) {
+		stride_align = ctx->dev->pdata->stride_align;
+		stride = ALIGN(ctx->img_width, stride_align);
+		stride_type = ctx->dev->pdata->stride_type;
+	} else {
+		/* Encoder stride uses the user stride */
+		stride_align = 16;
+		stride_type = 0;
+		stride = ctx->buf_stride;
+		if (stride % stride_align != 0) {
+			mfc_ctx_err("[FRAME] MFC needs multiple of %dByte alignment for stride (%d)\n",
+					stride_align, stride);
+			stride = ALIGN(ctx->img_width, stride_align);
+		}
+	}
 
 	switch (fmt->fourcc) {
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YUV420N:
 	case V4L2_PIX_FMT_YVU420M:
-		raw->stride[0] = ALIGN(ctx->img_width, 16);
-		if ((ctx->buf_stride > raw->stride[0]) &&
-				(ctx->buf_stride % 16 == 0)) {
-			mfc_debug(2, "[FRAME] using user stride(%d) not HW stride(%d)\n",
-					ctx->buf_stride, raw->stride[0]);
-			raw->stride[0] = ctx->buf_stride;
-		}
-		raw->stride[1] = ALIGN(raw->stride[0] >> 1, 16);
-		raw->stride[2] = ALIGN(raw->stride[0] >> 1, 16);
+		raw->stride[0] = stride;
+		raw->stride[1] = ALIGN(stride >> 1, 16);
+		raw->stride[2] = ALIGN(stride >> 1, 16);
 		break;
 	case V4L2_PIX_FMT_NV12MT_16X16:
 	case V4L2_PIX_FMT_NV12MT:
@@ -103,8 +98,8 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	case V4L2_PIX_FMT_NV21M:
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
-		raw->stride[0] = ALIGN(ctx->img_width, 16);
-		raw->stride[1] = ALIGN(ctx->img_width, 16);
+		raw->stride[0] = stride;
+		raw->stride[1] = stride;
 		raw->stride[2] = 0;
 		break;
 	case V4L2_PIX_FMT_NV12M_S10B:
@@ -123,8 +118,13 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	case V4L2_PIX_FMT_NV21M_P010:
 	case V4L2_PIX_FMT_NV61M_P210:
 	case V4L2_PIX_FMT_NV16M_P210:
-		raw->stride[0] = ALIGN(ctx->img_width, 16) * 2;
-		raw->stride[1] = ALIGN(ctx->img_width, 16) * 2;
+		if (ctx->dev->pdata->stride_type) {
+			raw->stride[0] = ALIGN(ctx->img_width * 2, stride_align);
+			raw->stride[1] = ALIGN(ctx->img_width * 2, stride_align);
+		} else {
+			raw->stride[0] = stride * 2;
+			raw->stride[1] = stride * 2;
+		}
 		raw->stride[2] = 0;
 		raw->stride_2bits[0] = 0;
 		raw->stride_2bits[1] = 0;
@@ -132,13 +132,13 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 		break;
 	case V4L2_PIX_FMT_RGB24:
 		ctx->rgb_bpp = 24;
-		raw->stride[0] = ALIGN(ctx->img_width, 16) * (ctx->rgb_bpp / 8);
+		raw->stride[0] = stride * (ctx->rgb_bpp / 8);
 		raw->stride[1] = 0;
 		raw->stride[2] = 0;
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		ctx->rgb_bpp = 16;
-		raw->stride[0] = ALIGN(ctx->img_width, 16) * (ctx->rgb_bpp / 8);
+		raw->stride[0] = stride * (ctx->rgb_bpp / 8);
 		raw->stride[1] = 0;
 		raw->stride[2] = 0;
 		break;
@@ -147,7 +147,7 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	case V4L2_PIX_FMT_ARGB32:
 	case V4L2_PIX_FMT_RGB32:
 		ctx->rgb_bpp = 32;
-		raw->stride[0] = ALIGN(ctx->img_width, 16) * (ctx->rgb_bpp / 8);
+		raw->stride[0] = stride * (ctx->rgb_bpp / 8);
 		raw->stride[1] = 0;
 		raw->stride[2] = 0;
 		break;
@@ -199,13 +199,6 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 		mfc_ctx_err("Invalid pixelformat : %s\n", fmt->name);
 		break;
 	}
-
-	/* Decoder needs multiple of 16 alignment for stride */
-	if (ctx->type == MFCINST_DECODER) {
-		for (i = 0; i < 3; i++)
-			raw->stride[i] =
-				ALIGN(raw->stride[i], 16);
-	}
 }
 
 void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
@@ -234,13 +227,13 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 		break;
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
-		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
-		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) / 2 + extra;
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16) + extra;
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) / 2 + extra;
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV21M_P010:
-		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
-		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16) + extra;
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) / 2 + extra;
 		break;
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YVU420M:
@@ -257,13 +250,13 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
-		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
-		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) + extra;
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16) + extra;
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) + extra;
 		break;
 	case V4L2_PIX_FMT_NV16M_P210:
 	case V4L2_PIX_FMT_NV61M_P210:
-		raw->plane_size[0] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
-		raw->plane_size[1] = __mfc_calc_plane(ctx->img_width, ctx->img_height, 0) * 2 + extra;
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16) + extra;
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) + extra;
 		break;
 	/* non-contiguous single fd format */
 	case V4L2_PIX_FMT_NV12N_10B:
@@ -359,17 +352,13 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 {
 	struct mfc_raw_info *raw;
-	unsigned int mb_width, mb_height, default_size;
 	int i, extra;
 
 	mfc_set_linear_stride_size(ctx, ctx->src_fmt);
 
 	raw = &ctx->raw_buf;
 	raw->total_plane_size = 0;
-	mb_width = WIDTH_MB(ctx->img_width);
-	mb_height = HEIGHT_MB(ctx->img_height);
 	extra = MFC_LINEAR_BUF_SIZE;
-	default_size = mb_width * mb_height * 256;
 
 	for (i = 0; i < raw->num_planes; i++) {
 		raw->plane_size[i] = 0;
@@ -398,13 +387,13 @@ void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 	case V4L2_PIX_FMT_NV12MT_16X16:
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
-		raw->plane_size[0] = ALIGN(default_size, 256) + extra;
-		raw->plane_size[1] = ALIGN(default_size / 2, 256) + extra;
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16) + extra;
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) / 2 + extra;
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
 	case V4L2_PIX_FMT_NV21M_P010:
-		raw->plane_size[0] = ALIGN(default_size, 256) * 2 + extra;
-		raw->plane_size[1] = ALIGN(default_size, 256) + extra;
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16) + extra;
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) / 2 + extra;
 		break;
 	case V4L2_PIX_FMT_NV16M_S10B:
 	case V4L2_PIX_FMT_NV61M_S10B:
@@ -415,13 +404,13 @@ void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
-		raw->plane_size[0] = ALIGN(default_size, 256) + extra;
-		raw->plane_size[1] = ALIGN(default_size, 256) + extra;
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16) + extra;
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) + extra;
 		break;
 	case V4L2_PIX_FMT_NV16M_P210:
 	case V4L2_PIX_FMT_NV61M_P210:
-		raw->plane_size[0] = ALIGN(default_size, 256) * 2 + extra;
-		raw->plane_size[1] = ALIGN(default_size, 256) * 2 + extra;
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16) + extra;
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) + extra;
 		break;
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_RGB565:

@@ -77,7 +77,7 @@ static int mfc_dec_queue_setup(struct vb2_queue *vq,
 			alloc_devs[0] = dev->device;
 		} else {
 			for (i = 0; i < ctx->dst_fmt->num_planes; i++) {
-				psize[i] = raw->plane_size[i];
+				psize[i] = ctx->min_dpb_size[i];
 				alloc_devs[i] = dev->device;
 			}
 		}

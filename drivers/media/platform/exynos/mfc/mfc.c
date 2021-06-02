@@ -781,6 +781,8 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	/* Default 10bit format for decoding and dithering for display */
 	of_property_read_u32(np, "P010_decoding", &pdata->P010_decoding);
 	of_property_read_u32(np, "dithering_enable", &pdata->dithering_enable);
+	of_property_read_u32(np, "stride_align", &pdata->stride_align);
+	of_property_read_u32(np, "stride_type", &pdata->stride_type);
 
 	/* Formats */
 	of_property_read_u32(np, "support_10bit", &pdata->support_10bit);
