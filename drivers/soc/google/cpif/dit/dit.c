@@ -1004,6 +1004,8 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 
 			dst_desc->packet_info = 0;
 			dst_desc->control = 0;
+			if (desc_info->dst_rp[ring_num] == desc_info->dst_desc_ring_len - 1)
+				cpif_set_bit(dst_desc->control, DIT_DESC_C_RINGEND);
 			dst_desc->status = 0;
 
 			ret = dit_pass_to_net(ring_num, skb);
