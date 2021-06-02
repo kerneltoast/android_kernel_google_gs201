@@ -1767,7 +1767,6 @@ static void exynos_usbdrd_utmi_tune(struct exynos_usbdrd_phy *phy_drd,
 	struct exynos_usb_tune_param *hs_tune_param = phy_drd->usbphy_info.tune_param;
 	int i;
 
-	return;
 	dev_info(phy_drd->dev, "%s\n", __func__);
 
 	if (phy_state >= OTG_STATE_A_IDLE) {
