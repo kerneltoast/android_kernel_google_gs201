@@ -1801,7 +1801,6 @@ EXPORT_SYMBOL_GPL(exynos_usbdrd_phy_tune);
 
 void exynos_usbdrd_ldo_control(struct exynos_usbdrd_phy *phy_drd, int on)
 {
-#if 0
 	int ret1, ret2, ret3;
 
 	if (phy_drd->vdd085 == NULL ||
@@ -1848,7 +1847,6 @@ void exynos_usbdrd_ldo_control(struct exynos_usbdrd_phy *phy_drd, int on)
 				ret1, ret2, ret3);
 		}
 	}
-#endif
 }
 
 void exynos_usbdrd_l7m_control(struct exynos_usbdrd_phy *phy_drd, int on)
@@ -2068,7 +2066,6 @@ static int exynos_usbdrd_phy_power_off(struct phy *phy)
 
 int exynos_usbdrd_ldo_manual_control(bool on)
 {
-#if 0
 	struct exynos_usbdrd_phy *phy_drd;
 
 	pr_info("%s ldo = %d\n", __func__, on);
@@ -2080,7 +2077,7 @@ int exynos_usbdrd_ldo_manual_control(bool on)
 		return -ENODEV;
 	}
 	exynos_usbdrd_ldo_control(phy_drd, on);
-#endif
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_ldo_manual_control);
@@ -2103,7 +2100,6 @@ EXPORT_SYMBOL_GPL(exynos_usbdrd_vdd_hsi_manual_control);
 
 bool exynos_usbdrd_get_ldo_status(void)
 {
-#if 0
 	struct exynos_usbdrd_phy *phy_drd;
 	bool status = false;
 
@@ -2119,8 +2115,6 @@ bool exynos_usbdrd_get_ldo_status(void)
 	}
 
 	return status;
-#endif
-	return true;
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_get_ldo_status);
 
@@ -2526,8 +2520,6 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 	spin_lock_init(&phy_drd->lock);
 
 	dev_info(dev, "Get USB LDO!\n");
-	dev_info(dev, "SKIP USB LDO!\n");
-#if 0
 	phy_drd->vdd085 = devm_regulator_get(dev, "vdd085");
 	if (IS_ERR(phy_drd->vdd085)) {
 		dev_err(dev, "%s - vdd085 regulator_get fail: %d\n",
@@ -2555,7 +2547,7 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 			__func__, PTR_ERR(phy_drd->vdd_hsi));
 		return PTR_ERR(phy_drd->vdd_hsi);
 	}
-#endif
+
 	phy_drd->is_irq_enabled = 0;
 	phy_drd->is_usb3_rewa_enabled = 0;
 	pm_runtime_enable(dev);
