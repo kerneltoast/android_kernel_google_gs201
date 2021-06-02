@@ -140,7 +140,8 @@ enum SUBSYSTEM_SOURCE {
 	CPU1,
 	CPU2,
 	TPU,
-	GPU
+	GPU,
+	SUBSYSTEM_SOURCE_MAX,
 };
 
 static const unsigned int subsystem_pmu[] = {
@@ -1263,7 +1264,7 @@ static const struct attribute_group triggered_voltage_group = {
 };
 
 static void __iomem *get_addr_by_subsystem(struct gs101_bcl_dev *bcl_dev,
-					   const char *subsystem, bool is_store)
+					   const char *subsystem)
 {
 	int i = 0;
 
@@ -1271,9 +1272,7 @@ static void __iomem *get_addr_by_subsystem(struct gs101_bcl_dev *bcl_dev,
 		if (strcmp(subsystem, clk_stats_source[i]) == 0) {
 			if (!is_subsystem_on(subsystem_pmu[i]))
 				return NULL;
-			if (is_store)
-				return bcl_dev->base_mem[i] + CLKDIVSTEP;
-			return bcl_dev->base_mem[i] + clk_stats_offset[i];
+			return bcl_dev->base_mem[i] + CLKDIVSTEP;
 		}
 	}
 	return NULL;
@@ -1284,7 +1283,7 @@ static ssize_t clk_stats_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
 	unsigned int reg;
 	void __iomem *addr;
 
-	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx], true);
+	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
 	if (addr == NULL)
 		return sysfs_emit(buf, "off\n");
 	reg = __raw_readl(bcl_dev->base_mem[idx] + clk_stats_offset[idx]);
@@ -1303,7 +1302,7 @@ static ssize_t clk_stats_store(struct gs101_bcl_dev *bcl_dev, int idx,
 	if (ret != 1)
 		return -EINVAL;
 
-	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx], true);
+	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
 
 	if (addr == NULL) {
 		dev_err(bcl_dev->device, "Address is NULL\n");
@@ -2113,6 +2112,58 @@ static const struct attribute_group triggered_lvl_group = {
 	.name = "triggered_lvl",
 };
 
+static ssize_t enable_mitigation_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", bcl_dev->enabled);
+}
+
+static ssize_t enable_mitigation_store(struct device *dev, struct device_attribute *attr,
+				       const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	bool value;
+	int ret, i;
+	void __iomem *addr;
+	unsigned int reg;
+
+	ret = kstrtobool(buf, &value);
+	if (ret)
+		return ret;
+
+	if (bcl_dev->enabled == value)
+		return size;
+
+	bcl_dev->enabled = value;
+	if (bcl_dev->enabled) {
+		bcl_dev->gpu_clkdivstep |= 0x1;
+		bcl_dev->tpu_clkdivstep |= 0x1;
+		for (i = 0; i < TPU; i++) {
+			addr = bcl_dev->base_mem[i] + CLKDIVSTEP;
+			mutex_lock(&bcl_dev->ratio_lock);
+			reg = __raw_readl(addr);
+			__raw_writel(reg | 0x1, addr);
+			mutex_unlock(&bcl_dev->ratio_lock);
+		}
+	} else {
+		bcl_dev->gpu_clkdivstep &= ~(1 << 0);
+		bcl_dev->tpu_clkdivstep &= ~(1 << 0);
+		for (i = 0; i < TPU; i++) {
+			addr = bcl_dev->base_mem[i] + CLKDIVSTEP;
+			mutex_lock(&bcl_dev->ratio_lock);
+			reg = __raw_readl(addr);
+			__raw_writel(reg & ~(1 << 0), addr);
+			mutex_unlock(&bcl_dev->ratio_lock);
+		}
+	}
+	return size;
+}
+
+static DEVICE_ATTR_RW(enable_mitigation);
+
 struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
 {
 	struct device_node *np;
@@ -2350,6 +2401,7 @@ static DEVICE_ATTR_RW(ppm_settings);
 static struct attribute *instr_attrs[] = {
 	&dev_attr_mpmm_settings.attr,
 	&dev_attr_ppm_settings.attr,
+	&dev_attr_enable_mitigation.attr,
 	NULL,
 };
 
@@ -2816,6 +2868,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	ret = google_gs101_init_fs(bcl_dev);
 	if (ret < 0)
 		goto bcl_soc_probe_exit;
+	bcl_dev->enabled = true;
 	return 0;
 
 bcl_soc_probe_exit:

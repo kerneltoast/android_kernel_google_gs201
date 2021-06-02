@@ -15,7 +15,16 @@
 #include <asm/page.h>
 #include "trusty-log.h"
 
-#define TRUSTY_LOG_SIZE (PAGE_SIZE * 2)
+/*
+ * Rationale for the chosen log buffer size:
+ *  - the log buffer shall contain unthrottled trusty crash dump.
+ *    Testing identifies that the logbuffer size shall be
+ *    (~96Bytes * 100) i.e. ~2^13
+ *  - specifying twice as much as the crash dump minimum allows to have
+ *    ~100 lines of context prior to the crash.
+ *  - conclusion: logbuffer = 2^14 is comfortable, half is minimal.
+ */
+#define TRUSTY_LOG_SIZE (PAGE_SIZE * 5)
 #define TRUSTY_LINE_BUFFER_SIZE 256
 
 /*
@@ -39,6 +48,8 @@ struct trusty_log_state {
 	spinlock_t lock;
 	struct log_rb *log;
 	u32 get;
+	/* index for the next line after the last successful get */
+	u32 last_successful_next;
 
 	struct page *log_pages;
 	struct scatterlist sg;
@@ -70,6 +81,7 @@ static void trusty_dump_logs(struct trusty_log_state *s)
 	struct log_rb *log = s->log;
 	u32 get, put, alloc;
 	int read_chars;
+	bool trusty_panicked = trusty_get_panic_status(s->trusty_dev);
 
 	if (WARN_ON(!is_power_of_2(log->sz)))
 		return;
@@ -81,7 +93,7 @@ static void trusty_dump_logs(struct trusty_log_state *s)
 	 * that the above condition is maintained. A read barrier is needed
 	 * to make sure the hardware and compiler keep the reads ordered.
 	 */
-	get = s->get;
+	get = trusty_panicked ? s->last_successful_next : s->get;
 	while ((put = log->put) != get) {
 		/* Make sure that the read of put occurs before the read of log data */
 		rmb();
@@ -102,11 +114,13 @@ static void trusty_dump_logs(struct trusty_log_state *s)
 			get = alloc - log->sz;
 			continue;
 		}
-
-		if (__ratelimit(&trusty_log_rate_limit))
-			dev_info(s->dev, "%s", s->line_buffer);
-
+		/* compute next line index */
 		get += read_chars;
+		if (trusty_panicked || __ratelimit(&trusty_log_rate_limit)) {
+			dev_info(s->dev, "%s", s->line_buffer);
+			/* next line after last successful get */
+			s->last_successful_next = get;
+		}
 	}
 	s->get = get;
 }
