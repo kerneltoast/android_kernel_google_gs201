@@ -192,6 +192,9 @@ void s51xx_pcie_save_state(struct pci_dev *pdev)
 
 	pci_clear_master(pdev);
 
+	if (s51xx_pcie->pci_saved_configs)
+		kfree(s51xx_pcie->pci_saved_configs);
+
 	pci_save_state(pdev);
 
 	s51xx_pcie->pci_saved_configs = pci_store_saved_state(pdev);
@@ -466,7 +469,12 @@ void print_msi_register(struct pci_dev *pdev)
 
 static void s51xx_pcie_remove(struct pci_dev *pdev)
 {
+	struct s51xx_pcie *s51xx_pcie = pci_get_drvdata(pdev);
+
 	pr_err("s51xx PCIe Remove!!!\n");
+
+	if (s51xx_pcie->pci_saved_configs)
+		kfree(s51xx_pcie->pci_saved_configs);
 
 	pci_release_regions(pdev);
 }
