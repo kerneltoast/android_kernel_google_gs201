@@ -32,10 +32,10 @@ bool g2d_validate_source_commands(struct g2d_device *g2d_dev,
 bool g2d_validate_target_commands(struct g2d_device *g2d_dev,
 				  struct g2d_task *task);
 size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
-		       u32 flags, unsigned long caps);
+		       u32 flags, unsigned long caps, bool dst);
 unsigned int g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 				   unsigned int idx, unsigned int buffer_count,
-				   unsigned long caps, u32 flags);
+				   unsigned long caps, u32 flags, bool dst);
 bool g2d_prepare_source(struct g2d_task *task,
 			struct g2d_layer *layer, int index);
 bool g2d_prepare_target(struct g2d_task *task);
