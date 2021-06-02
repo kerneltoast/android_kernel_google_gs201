@@ -1,0 +1,280 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS201 Cloudripper-specific audio device tree source
+ *
+ * Copyright (c) 2021 Google, LLC
+ *		https://www.google.com
+ *
+*/
+
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/sound/google-aoc.h>
+
+&dai_be_tdm0_rx {
+	codec {
+		sound-dai = <&cs35l45_1 0>,
+			<&cs35l45_2 0>;
+	};
+};
+
+&dai_be_tdm0_tx {
+	codec {
+		sound-dai = <&cs35l45_1 0>,
+			<&cs35l45_2 0>;
+	};
+};
+
+&aoc_snd_card {
+	clks {
+		sys {
+			sys@cs35l45_1 {
+				comp = <&cs35l45_1>;
+				src = "BCLK";
+				/* clk id */
+				id = <0>;
+				/* clk source */
+				srcid = <0>;
+				/* in clk multiple */
+				in_mul = <1>;
+				/* out clk multiple */
+				out_mul = <1>;
+			};
+			sys@cs35l45_2 {
+				comp = <&cs35l45_2>;
+				src = "BCLK";
+				/* clk id */
+				id = <0>;
+				/* clk source */
+				srcid = <0>;
+				/* in clk multiple */
+				in_mul = <1>;
+				/* out clk multiple */
+				out_mul = <1>;
+			};
+			sys@cs35l45_3 {
+				comp = <&cs35l45_3>;
+				src = "BCLK";
+				/* clk id */
+				id = <0>;
+				/* clk source */
+				srcid = <0>;
+				/* in clk multiple */
+				in_mul = <1>;
+				/* out clk multiple */
+				out_mul = <1>;
+			};
+		};
+	};
+};
+
+/* GPIO_FAR_ALIVE */
+&pinctrl_1 {
+	cs35l45_1_irq: cs35l45-1-irq {
+		samsung,pins = "gpa6-3"; /* XEINT_3 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	cs35l45_2_irq: cs35l45-2-irq {
+		samsung,pins = "gpa8-6"; /* XEINT_26 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	cs35l45_3_irq: cs35l45-3-irq {
+		samsung,pins = "gpa6-2"; /* XEINT_2 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+/* GPIO_PERIC0 */
+&pinctrl_4 {
+	cs35l45_1_rst: cs35l45-1-rst {
+		samsung,pins = "gpp17-1"; /* XAPC_VSYNC8 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	cs35l45_miso: cs35l45-miso {
+		samsung,pins = "gpp14-2";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+	};
+
+	cs35l45_mosi: cs35l45-mosi {
+		samsung,pins = "gpp14-1";
+		samsung,pin-drv = <GS101_PIN_DRV_10_MA>;
+	};
+
+	cs35l45_clk: cs35l45-clk {
+		samsung,pins = "gpp14-0";
+		samsung,pin-drv = <GS101_PIN_DRV_10_MA>;
+	};
+};
+
+&spi7_cs_func {
+	samsung,pins = "gpp14-3";
+	samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+};
+
+/* GPIO_PERIC1 */
+&pinctrl_5 {
+	cs35l45_2_rst: cs35l45-2-rst {
+		samsung,pins = "gpp25-2"; /* XAPC_USI13_RTSN_DI */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	cs35l45_cs2: cs35l45-cs2 {
+		samsung,pins = "gpp22-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+
+	cs35l45_cs3: cs35l45-cs3 {
+		samsung,pins = "gpp26-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+};
+
+&s2mpg13_pinctrl {
+	cs35l45_3_rst: cs35l45-3-rst {
+	};
+};
+
+
+&spi_7 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi7_bus &spi7_cs_func &cs35l45_cs2 &cs35l45_cs3
+		     &cs35l45_miso &cs35l45_mosi &cs35l45_clk>;
+	cs-gpios = <&gpp14 3 GPIO_ACTIVE_HIGH>, <&gpp22 1 GPIO_ACTIVE_HIGH>,
+		   <&gpp26 4 GPIO_ACTIVE_HIGH>;
+
+	cs35l45_1: cs35l45@0 {
+		#sound-dai-cells = <1>;
+		compatible = "cirrus,cs35l45";
+		spi-max-frequency = <16000000>;
+		reg = <0>;
+
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cs35l45_1_irq &cs35l45_1_rst>;
+
+		interrupt-parent = <&gpa6>;
+		interrupts = <3 0 0>;
+
+		reset-gpios = <&gpp17 1 0>;
+
+		VA-supply = <&s_bucka_reg>;
+		VP-supply = <&V_SYS_dummy>;
+
+		cirrus,use-tdm-slots;
+		cirrus,asp-sdout-hiz-ctrl = <3>;
+		/* cirrus,tuning-has-prefix;
+		cirrus,left-channel-amp; */
+
+		cirrus,gpio-ctrl2 {
+			gpio-ctrl = <0x5>;
+			gpio-invert = <1>;
+		};
+
+		controller-data {
+			cs-gpio = <&gpp14 3 GPIO_ACTIVE_HIGH>;
+			samsung,spi-feedback-delay = <1>;
+			/* SET SPI CS CONTROL TO AUTOMATIC */
+			samsung,spi-chip-select-mode = <1>;
+		};
+	};
+
+	cs35l45_2: cs35l45@1 {
+		#sound-dai-cells = <1>;
+		sound-name-prefix = "R";
+		compatible = "cirrus,cs35l45";
+		spi-max-frequency = <16000000>;
+		reg = <1>;
+
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cs35l45_2_irq &cs35l45_2_rst>;
+
+		interrupt-parent = <&gpa8>;
+		interrupts = <6 0 0>;
+
+		reset-gpios = <&gpp25 2 0>;
+
+		VA-supply = <&s_bucka_reg>;
+		VP-supply = <&V_SYS_dummy>;
+
+		cirrus,asp-sdout-hiz-ctrl = <3>;
+		/*cirrus,tuning-has-prefix;
+		cirrus,right-channel-amp;*/
+
+		cirrus,gpio-ctrl2 {
+			gpio-ctrl = <0x5>;
+			gpio-invert = <1>;
+		};
+
+		controller-data {
+			cs-gpio =<&gpp22 1 GPIO_ACTIVE_HIGH>;
+			samsung,spi-feedback-delay = <1>;
+			/* SET SPI CS CONTROL TO AUTOMATIC */
+			samsung,spi-chip-select-mode = <1>;
+		};
+	};
+
+	cs35l45_3: cs35l45@2 {
+		#sound-dai-cells = <1>;
+		sound-name-prefix = "E";
+		compatible = "cirrus,cs35l45";
+		spi-max-frequency = <16000000>;
+		reg = <2>;
+
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cs35l45_3_irq>;
+
+		interrupt-parent = <&gpa6>;
+		interrupts = <2 0 0>;
+
+		/* TODO: it is wrong, need to correct after pmic driver ready */
+		reset-gpios = <&s2mpg13_gpio 13 0>;
+
+		VA-supply = <&s_bucka_reg>;
+		VP-supply = <&V_SYS_dummy>;
+
+		cirrus,asp-sdout-hiz-ctrl = <3>;
+		/*cirrus,tuning-has-prefix;
+		cirrus,right-channel-amp;*/
+
+		cirrus,gpio-ctrl2 {
+			gpio-ctrl = <0x5>;
+			gpio-invert = <1>;
+		};
+
+		controller-data {
+			cs-gpio =<&gpp26 4 GPIO_ACTIVE_HIGH>;
+			samsung,spi-feedback-delay = <1>;
+			/* SET SPI CS CONTROL TO AUTOMATIC */
+			samsung,spi-chip-select-mode = <1>;
+		};
+	};
+};
+
+&aoc {
+	aoc-board-cfg = "cr";
+};
