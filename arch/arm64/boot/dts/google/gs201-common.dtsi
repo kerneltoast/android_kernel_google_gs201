@@ -61,81 +61,81 @@
 	};
 };
 
-//&udc {
-//	usb3-lpm-capable;
-//	adj-sof-accuracy = <1>;
-//	samsung,no-extra-delay;
-//	usb_host_device_timeout = <0x7ff>; /* Max value */
-//	//extcon = <&fusb307b>;
-//
-//	u1u2_exitfail_quirk;
-//	/* ux_exit_in_px should be defined in MK, LT */
-//	ux_exit_in_px_quirk;
-//	/* elastic_buf_mode_quirk should be defined in MK */
-//	elastic_buf_mode_quirk;
-//	xhci_l2_support = <1>;
-//
-//	usbdrd_dwc3: dwc3 {
-//		dr_mode = "peripheral";
-//		maximum-speed = "super-speed-plus";
-//		usb3-lpm-capable;
-//		usb-psy-name = "usb";
-//		snps,quirk-frame-length-adjustment = <0x20>;
-//
-//		snps,usb3_lpm_capable;
-//		snps,has-lpm-erratum;
-//		snps,lpm-nyet-threshold = <0>;
-//
-//		/*
-//		 * dis-u2-freeclk-exists-quirk, dis_u2_susphy_quirk are alternative.
-//		 * One of them should be selected
-//		 */
-//		snps,dis-u2-freeclk-exists-quirk;
-//		/*snps,dis_u2_susphy_quirk;*/
-//
-//		/* http://b/171478776 : disabling U1/U2 speed up NCM tethering by >2x */
-//		snps,dis-u1-entry-quirk;
-//		snps,dis-u2-entry-quirk;
-//		xhci_l2_support = <1>;
-//	};
-//};
-//
-//&usbdrd_phy0 {
-//	usb_hs_tune:hs_tune {
-//		status = "disabled";
-//		hs_tune_cnt = <6>;
-//		/* value = <device host> */
-//		hs_tune1 {
-//			tune_name = "tx_pre_emp";
-//			tune_value = <0x3 0x3>;
-//		};
-//
-//		hs_tune2 {
-//			tune_name = "tx_vref";
-//			tune_value = <0xf 0xf>;
-//		};
-//
-//		hs_tune3 {
-//			tune_name = "rx_sqrx";
-//			tune_value = <0x5 0x5>;
-//		};
-//
-//		hs_tune4 {
-//			tune_name = "utmi_clk";
-//			tune_value = <0x1 0x1>;
-//		};
-//
-//		hs_tune5 {
-//			tune_name = "compdis";
-//			tune_value = <0x7 0x7>;
-//		};
-//
-//		hs_tune6 {
-//			tune_name = "tx_res";
-//			tune_value = <0x3 0x3>;
-//		};
-//	};
-//
+&udc {
+	usb3-lpm-capable;
+	adj-sof-accuracy = <1>;
+	samsung,no-extra-delay;
+	usb_host_device_timeout = <0x7ff>; /* Max value */
+	extcon = <&max77759tcpc>;
+
+	u1u2_exitfail_quirk;
+	/* ux_exit_in_px should be defined in MK, LT */
+	ux_exit_in_px_quirk;
+	/* elastic_buf_mode_quirk should be defined in MK */
+	elastic_buf_mode_quirk;
+	xhci_l2_support = <1>;
+
+	usbdrd_dwc3: dwc3 {
+		dr_mode = "peripheral";
+		maximum-speed = "high-speed";
+		usb3-lpm-capable;
+		usb-psy-name = "usb";
+		snps,quirk-frame-length-adjustment = <0x20>;
+
+		snps,usb3_lpm_capable;
+		snps,has-lpm-erratum;
+		snps,lpm-nyet-threshold = <0>;
+
+		/*
+		 * dis-u2-freeclk-exists-quirk, dis_u2_susphy_quirk are alternative.
+		 * One of them should be selected
+		 */
+		snps,dis-u2-freeclk-exists-quirk;
+		/*snps,dis_u2_susphy_quirk;*/
+
+		/* http://b/171478776 : disabling U1/U2 speed up NCM tethering by >2x */
+		snps,dis-u1-entry-quirk;
+		snps,dis-u2-entry-quirk;
+		xhci_l2_support = <1>;
+	};
+};
+
+&usbdrd_phy0 {
+	usb_hs_tune:hs_tune {
+		status = "disabled";
+		hs_tune_cnt = <6>;
+		/* value = <device host> */
+		hs_tune1 {
+			tune_name = "tx_pre_emp";
+			tune_value = <0x3 0x3>;
+		};
+
+		hs_tune2 {
+			tune_name = "tx_vref";
+			tune_value = <0xf 0xf>;
+		};
+
+		hs_tune3 {
+			tune_name = "rx_sqrx";
+			tune_value = <0x5 0x5>;
+		};
+
+		hs_tune4 {
+			tune_name = "utmi_clk";
+			tune_value = <0x1 0x1>;
+		};
+
+		hs_tune5 {
+			tune_name = "compdis";
+			tune_value = <0x7 0x7>;
+		};
+
+		hs_tune6 {
+			tune_name = "tx_res";
+			tune_value = <0x3 0x3>;
+		};
+	};
+
 //	usb_ss_tune:ss_tune {
 //		status = "disabled";
 //		ss_tune_cnt = <36>;
@@ -321,19 +321,23 @@
 //			tune_value = <0xffffffff 0xffffffff>;
 //		};
 //	};
-//};
-//
-//&usbdrd_phy0 {
-//	status = "okay";
-//
-//	hs_tune_param = <&usb_hs_tune>;
-//	ss_tune_param = <&usb_ss_tune>;
-//	//extcon = <&fusb307b>;
-//
-//	vdd085-supply = <&m_ldo8_reg>;  /* PP0850_L8M_USB: AVDD_PLL_USB, AVDD085_USB20, AVDD085_USBDP */
-//	vdd18-supply = <&m_ldo9_reg>;   /* PP1800_L9M_USB: AVDD18_USB20, AVDD18_USBDP */
-//	vdd30-supply = <&m_ldo10_reg>;  /* PP3000_L10M_USB: AVDD33_USB20 */
-//};
+};
+
+&usbdrd_phy0 {
+	status = "okay";
+
+	hs_tune_param = <&usb_hs_tune>;
+	//ss_tune_param = <&usb_ss_tune>;
+	extcon = <&max77759tcpc>;
+
+	vdd_hsi-supply = <&m_ldo7_reg>;
+	/* PP0850_L8M_USB: AVDD_PLL_USB, AVDD085_USB20, AVDD085_USBDP */
+	/* PP1800_L9M_USB: AVDD18_USB20, AVDD18_USBDP */
+	/* PP3000_L10M_USB: AVDD33_USB20 */
+	vdd085-supply = <&m_ldo8_reg>;
+	vdd18-supply = <&m_ldo9_reg>;
+	vdd30-supply = <&m_ldo10_reg>;
+};
 
 &pcie_0 {	/* pcie ch0 used for the connection with CP */
 	status = "okay";

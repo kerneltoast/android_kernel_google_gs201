@@ -581,10 +581,10 @@
 	udc: usb@11210000 {
 		compatible = "samsung,exynos9-dwusb";
 		clocks = <&clock GATE_USB31DRD_SLV_LINK>,
-			<&clock MUX_HSI0_USB20_REF>;
-			//<&clock VDOUT_CLK_TOP_HSI0_BUS>;
-		clock-names = "aclk", "sclk";
-		//clock-names = "aclk", "sclk", "bus";
+			<&clock MUX_HSI0_USB20_REF>,
+			<&clock VDOUT_CLK_TOP_HSI0_NOC>;
+		//clock-names = "aclk", "sclk";
+		clock-names = "aclk", "sclk", "bus";
 		reg = <0x0 0x11210000 0x10000>;
 		#address-cells = <2>;
 		#size-cells = <1>;
@@ -594,7 +594,7 @@
 
 		interrupts = <GIC_SPI IRQ_USB31DRD_GIC_0_HSI0 IRQ_TYPE_LEVEL_HIGH>;
 		tx-fifo-resize = <0>;
-		adj-sof-accuracy = <1>;
+		adj-sof-accuracy = <0>;
 		is_not_vbus_pad = <1>;
 		enable_sprs_transfer = <1>;
 		phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
