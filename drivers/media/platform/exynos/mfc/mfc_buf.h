@@ -15,6 +15,8 @@
 
 #include "mfc_common.h"
 
+#define MFC_SECURE_FW_BASE	0x40000000
+
 /* Memory allocation */
 int mfc_alloc_common_context(struct mfc_core *core);
 void mfc_release_common_context(struct mfc_core *core);

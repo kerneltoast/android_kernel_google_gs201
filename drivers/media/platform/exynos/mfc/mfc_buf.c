@@ -29,16 +29,19 @@ static int __mfc_alloc_common_context(struct mfc_core *core,
 	struct mfc_dev *dev = core->dev;
 	struct mfc_special_buf *ctx_buf;
 	struct mfc_ctx_buf_size *buf_size;
+	dma_addr_t fw_daddr;
 
 	mfc_core_debug_enter();
 
 	ctx_buf = &core->common_ctx_buf;
 	ctx_buf->buftype = MFCBUF_NORMAL;
+	fw_daddr = core->fw_buf.daddr;
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	if (buf_type == MFCBUF_DRM) {
 		ctx_buf = &core->drm_common_ctx_buf;
 		ctx_buf->buftype = MFCBUF_DRM;
+		fw_daddr = core->drm_fw_buf.daddr;
 	}
 #endif
 
@@ -48,6 +51,16 @@ static int __mfc_alloc_common_context(struct mfc_core *core,
 	if (mfc_mem_special_buf_alloc(dev, ctx_buf)) {
 		mfc_core_err("Allocating %s context buffer failed\n",
 				buf_type == MFCBUF_DRM ? "secure" : "normal");
+		return -ENOMEM;
+	}
+
+	if (ctx_buf->daddr < fw_daddr) {
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+				"Lower common ctx(%pad) than MFC FW base(%pad)\n",
+				&ctx_buf->daddr, &fw_daddr);
+		mfc_core_err("%s", core->crash_info);
+		MFC_TRACE_CORE("%s", core->crash_info);
+		call_dop(core, dump_and_stop_debug_mode, core);
 		return -ENOMEM;
 	}
 
@@ -713,7 +726,8 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	if (mfc_iommu_map_firmware(core, fw_buf))
 		goto err_reserve_iova;
 
-	mfc_core_info("[MEMINFO][F/W] MFC-%d FW normal: %pad(vaddr: %p, paddr:%pap), size: %08zu\n",
+	MFC_TRACE_CORE("Normal F/W base %pad\n", &core->fw_buf.daddr);
+	mfc_core_info("[MEMINFO][F/W] MFC-%d FW normal: %pad(vaddr: %pK, paddr:%pap), size: %08zu\n",
 			core->id, &core->fw_buf.daddr, core->fw_buf.vaddr, &core->fw_buf.paddr,
 			core->fw_buf.size);
 
@@ -732,9 +746,21 @@ int mfc_alloc_firmware(struct mfc_core *core)
 		goto err_reserve_iova_secure;
 	}
 
+	MFC_TRACE_CORE("DRM F/W base %pad\n", &secure_daddr);
+	if (secure_daddr != MFC_SECURE_FW_BASE) {
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+				"DRM F/W buffer(%pad) should be the lowest addr\n",
+				&secure_daddr);
+		mfc_core_err("%s", core->crash_info);
+		MFC_TRACE_CORE("%s", core->crash_info);
+		secure_iova_free(secure_daddr, core->drm_fw_buf.size);
+		call_dop(core, dump_and_stop_debug_mode, core);
+		goto err_reserve_iova_secure;
+	}
+
 	core->drm_fw_buf.daddr = (dma_addr_t)secure_daddr;
 
-	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad(vaddr: %p paddr:%pap), size: %08zu\n",
+	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad(vaddr: %pK paddr:%pap), size: %08zu\n",
 			core->id, &core->drm_fw_buf.daddr,
 			core->drm_fw_buf.vaddr, &core->drm_fw_buf.paddr,
 			core->drm_fw_buf.size);
