@@ -53,6 +53,7 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap, unsigned long le
 		goto free_cma;
 	}
 
+	dma_heap_inc_inuse(nr_pages);
 	sg_set_page(buffer->sg_table.sgl, pages, size, 0);
 	heap_page_clean(pages, size);
 	heap_cache_flush(buffer);
@@ -77,8 +78,10 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap, unsigned long le
 free_export:
 	protret = samsung_dma_buffer_unprotect(buffer->priv, dma_heap_get_dev(heap));
 free_prot:
-	if (!protret)
+	if (!protret) {
 		cma_release(cma_heap->cma, pages, nr_pages);
+		dma_heap_dec_inuse(nr_pages);
+	}
 free_cma:
 	samsung_dma_buffer_free(buffer);
 
@@ -96,8 +99,10 @@ static void cma_heap_release(struct samsung_dma_buffer *buffer)
 		ret = samsung_dma_buffer_unprotect(buffer->priv,
 						   dma_heap_get_dev(dma_heap->dma_heap));
 
-	if (!ret)
+	if (!ret) {
 		cma_release(cma_heap->cma, sg_page(buffer->sg_table.sgl), nr_pages);
+		dma_heap_dec_inuse(nr_pages);
+	}
 	samsung_dma_buffer_free(buffer);
 }
 
