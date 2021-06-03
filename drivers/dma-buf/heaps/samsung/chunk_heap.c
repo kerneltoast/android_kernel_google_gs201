@@ -68,6 +68,7 @@ static int chunk_heap_buffer_allocate(struct cma *cma, unsigned int need_count,
 			continue;
 		}
 
+		dma_heap_inc_inuse(1 << alloc_order);
 		for (i = 0; i < nr_chunks_per_alloc; i++, alloc_count++) {
 			pages[alloc_count] = page;
 			page += 1 << chunk_order;
@@ -75,8 +76,10 @@ static int chunk_heap_buffer_allocate(struct cma *cma, unsigned int need_count,
 	}
 
 	if (alloc_count < need_count) {
-		for (i = 0; i < alloc_count; i++)
+		for (i = 0; i < alloc_count; i++) {
 			cma_release(cma, pages[i], 1 << chunk_order);
+			dma_heap_dec_inuse(1 << chunk_order);
+		}
 		return -ENOMEM;
 	}
 
