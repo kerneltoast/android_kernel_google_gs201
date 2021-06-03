@@ -57,6 +57,7 @@ static struct page *alloc_largest_available(unsigned long size,
 		page = dmabuf_page_pool_alloc(pools[i]);
 		if (!page)
 			continue;
+		dma_heap_inc_inuse(1 << pools[i]->order);
 		return page;
 	}
 	return NULL;
@@ -86,6 +87,7 @@ static void free_dma_heap_page(struct page *page, bool discard)
 		}
 		dmabuf_page_pool_free(pools[pool_idx], page);
 	}
+	dma_heap_dec_inuse(1 << order);
 }
 
 static struct dma_buf *system_heap_allocate(struct dma_heap *heap, unsigned long len,

@@ -23,6 +23,21 @@
 
 #include "../../drivers/dma-buf/heaps/deferred-free-helper.h"
 
+/* the number of pages that allocated from heaps and currently used */
+static atomic64_t inuse_pages = ATOMIC_INIT(0);
+
+static inline void dma_heap_inc_inuse(unsigned long pages)
+{
+	atomic64_add(pages, &inuse_pages);
+}
+
+static inline void dma_heap_dec_inuse(unsigned long pages)
+{
+	WARN_ON_ONCE(pages > atomic64_read(&inuse_pages));
+
+	atomic64_sub(pages, &inuse_pages);
+}
+
 struct samsung_dma_buffer {
 	struct samsung_dma_heap *heap;
 	struct list_head attachments;
