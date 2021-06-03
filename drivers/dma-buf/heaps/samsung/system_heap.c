@@ -62,6 +62,32 @@ static struct page *alloc_largest_available(unsigned long size,
 	return NULL;
 }
 
+/*
+ * free @page directly without caching it to page pool if @discard is true
+ * since it's not likely to be reused since the pool is draining now(e.g.,
+ * memory pressure) so page zeroing is pointess.
+ */
+static void free_dma_heap_page(struct page *page, bool discard)
+{
+	unsigned int order = compound_order(page);
+
+	if (discard) {
+		__free_pages(page, order);
+	} else {
+		int pool_idx;
+		int i, numpages = 1 << order;
+
+		for (i = 0; i < numpages; i++)
+			clear_highpage(page + i);
+
+		for (pool_idx = 0; pool_idx < NUM_ORDERS; pool_idx++) {
+			if (order == orders[pool_idx])
+				break;
+		}
+		dmabuf_page_pool_free(pools[pool_idx], page);
+	}
+}
+
 static struct dma_buf *system_heap_allocate(struct dma_heap *heap, unsigned long len,
 					    unsigned long fd_flags, unsigned long heap_flags)
 {
@@ -126,15 +152,12 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap, unsigned long
 	return dmabuf;
 
 free_export:
-	for_each_sgtable_sg(&buffer->sg_table, sg, i) {
-		struct page *p = sg_page(sg);
-
-		__free_pages(p, compound_order(p));
-	}
+	for_each_sgtable_sg(&buffer->sg_table, sg, i)
+		free_dma_heap_page(sg_page(sg), false);
 	samsung_dma_buffer_free(buffer);
 free_buffer:
 	list_for_each_entry_safe(page, tmp_page, &pages, lru)
-		__free_pages(page, compound_order(page));
+		free_dma_heap_page(page, false);
 
 	return ERR_PTR(ret);
 }
@@ -165,46 +188,17 @@ static const struct dma_heap_ops system_heap_ops = {
 	.get_pool_size = system_heap_get_pool_size,
 };
 
-static void system_heap_zero_buffer(struct samsung_dma_buffer *buffer)
-{
-	struct sg_table *sgt = &buffer->sg_table;
-	struct sg_page_iter piter;
-	struct page *p;
-	void *vaddr;
-
-	for_each_sgtable_page(sgt, &piter, 0) {
-		p = sg_page_iter_page(&piter);
-		vaddr = kmap_atomic(p);
-		memset(vaddr, 0, PAGE_SIZE);
-		kunmap_atomic(vaddr);
-	}
-}
-
 static void system_heap_free(struct deferred_freelist_item *item, enum df_reason reason)
 {
 	struct samsung_dma_buffer *buffer;
 	struct sg_table *table;
 	struct scatterlist *sg;
-	int i, j;
+	int i;
 
 	buffer = container_of(item, struct samsung_dma_buffer, deferred_free);
-	if (reason == DF_NORMAL)
-		system_heap_zero_buffer(buffer);
-
 	table = &buffer->sg_table;
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		struct page *page = sg_page(sg);
-
-		if (reason == DF_UNDER_PRESSURE) {
-			__free_pages(page, compound_order(page));
-		} else {
-			for (j = 0; j < NUM_ORDERS; j++) {
-				if (compound_order(page) == orders[j])
-					break;
-			}
-			dmabuf_page_pool_free(pools[j], page);
-		}
-	}
+	for_each_sg(table->sgl, sg, table->nents, i)
+		free_dma_heap_page(sg_page(sg), reason != DF_NORMAL);
 	samsung_dma_buffer_free(buffer);
 }
 
