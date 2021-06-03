@@ -810,6 +810,12 @@ static int cpif_probe(struct platform_device *pdev)
 		mif_err("failed to initialize hiprio list(%d)\n", err);
 #endif
 
+#if IS_ENABLED(CONFIG_CPIF_VENDOR_HOOK)
+	err = hook_init();
+	if (err)
+		mif_err("failed to register vendor hook\n");
+#endif
+
 	mif_err("%s: done ---\n", pdev->name);
 	return 0;
 

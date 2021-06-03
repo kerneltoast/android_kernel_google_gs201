@@ -803,4 +803,8 @@ const struct file_operations *get_ipc_io_fops(void);
 int sipc5_init_io_device(struct io_device *iod);
 void sipc5_deinit_io_device(struct io_device *iod);
 
+#if IS_ENABLED(CONFIG_CPIF_VENDOR_HOOK)
+int hook_init(void);
+#endif
+
 #endif
