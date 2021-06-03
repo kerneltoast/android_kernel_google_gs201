@@ -61,6 +61,7 @@ enum tmu_grp_idx_t {
 	TZ_END = 6,
 };
 
+#if defined(CONFIG_SOC_GS101)
 #define TZ_BIG_SENSOR_MASK (TMU_P0_SENSOR_MASK | \
 			    TMU_P6_SENSOR_MASK | \
 			    TMU_P7_SENSOR_MASK | \
@@ -109,7 +110,58 @@ static struct thermal_zone_data tz_config[] = {
 		.sensors_mask = TZ_TPU_SENSOR_MASK,
 	},
 };
+#elif defined(CONFIG_SOC_GS201)
+#define TZ_BIG_SENSOR_MASK (TMU_P0_SENSOR_MASK | \
+			    TMU_P1_SENSOR_MASK | \
+			    TMU_P2_SENSOR_MASK | \
+			    TMU_P3_SENSOR_MASK | \
+			    TMU_P4_SENSOR_MASK)
+#define TZ_MID_SENSOR_MASK (TMU_P6_SENSOR_MASK | \
+			    TMU_P7_SENSOR_MASK)
+#define TZ_LIT_SENSOR_MASK (TMU_P9_SENSOR_MASK | \
+			    TMU_P10_SENSOR_MASK)
+#define TZ_GPU_SENSOR_MASK (TMU_P0_SENSOR_MASK | \
+			    TMU_P8_SENSOR_MASK | \
+			    TMU_P9_SENSOR_MASK | \
+			    TMU_P10_SENSOR_MASK | \
+			    TMU_P11_SENSOR_MASK | \
+			    TMU_P12_SENSOR_MASK | \
+			    TMU_P13_SENSOR_MASK)
+#define TZ_ISP_SENSOR_MASK (TMU_P13_SENSOR_MASK | \
+			    TMU_P14_SENSOR_MASK | \
+			    TMU_P15_SENSOR_MASK)
+#define TZ_TPU_SENSOR_MASK (TMU_P2_SENSOR_MASK | \
+			    TMU_P3_SENSOR_MASK | \
+			    TMU_P4_SENSOR_MASK | \
+			    TMU_P5_SENSOR_MASK)
 
+static struct thermal_zone_data tz_config[] = {
+	[TZ_BIG] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_BIG_SENSOR_MASK,
+	},
+	[TZ_MID] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_MID_SENSOR_MASK,
+	},
+	[TZ_LIT] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_LIT_SENSOR_MASK,
+	},
+	[TZ_GPU] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_GPU_SENSOR_MASK,
+	},
+	[TZ_ISP] = {
+		.tmu_zone_id = TMU_TOP,
+		.sensors_mask = TZ_ISP_SENSOR_MASK,
+	},
+	[TZ_TPU] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_TPU_SENSOR_MASK,
+	},
+};
+#endif
 /**
  * mul_frac() - multiply two fixed-point numbers
  * @x:	first multiplicand
