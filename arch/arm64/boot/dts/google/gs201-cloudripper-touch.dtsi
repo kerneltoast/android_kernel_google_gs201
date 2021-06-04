@@ -17,6 +17,20 @@
 
 #include <dt-bindings/pinctrl/samsung.h>
 
+/*
+ * AP2AOC: XHSI1_GPIO2 - GPH1[0] -> XAOC_GPIO13 - gpio_in[87]
+ * AOC2AP: XAOC_GPIO2 - gpio_in[39] -> XEINT_22 - GPA9[2]
+ */
+/ {
+	tbn: tbn {
+		compatible = "touch_bus_negotiator";
+		/* Low: AP, High: AOC */
+		/* Note: The following GPIO flags are not used by the driver. */
+		tbn,aoc2ap_gpio = <&gpa9 2 GPIO_ACTIVE_LOW>;
+		tbn,ap2aoc_gpio = <&gph1 0 GPIO_ACTIVE_LOW>;
+	};
+};
+
 &pinctrl_1 {
 	sec_ts_irq: sec_ts-irq {
 		samsung,pins = "gpa7-0";
