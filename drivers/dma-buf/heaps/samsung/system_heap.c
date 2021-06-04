@@ -48,6 +48,18 @@ unsigned long dma_heap_inuse_pages(void)
 }
 EXPORT_SYMBOL_GPL(dma_heap_inuse_pages);
 
+unsigned long dma_heap_pool_pages(void)
+{
+	int i;
+	unsigned long pages = 0;
+
+	for (i = 0; i < NUM_ORDERS; i++)
+		pages += (pools[i]->count[POOL_LOWPAGE] +
+			  pools[i]->count[POOL_HIGHPAGE]) << pools[i]->order;
+	return pages;
+}
+EXPORT_SYMBOL_GPL(dma_heap_pool_pages);
+
 static struct page *alloc_largest_available(unsigned long size,
 					    unsigned int max_order)
 {
@@ -173,8 +185,6 @@ free_buffer:
 static long system_heap_get_pool_size(struct dma_heap *heap)
 {
 	const char *name = dma_heap_get_name(heap);
-	long count = 0;
-	int i;
 
 	/*
 	 * All system heaps share the page pool. We only calculate
@@ -184,11 +194,7 @@ static long system_heap_get_pool_size(struct dma_heap *heap)
 	if (strcmp(name, "system"))
 		return 0;
 
-	for (i = 0; i < NUM_ORDERS; i++)
-		count += (pools[i]->count[POOL_LOWPAGE] +
-			  pools[i]->count[POOL_HIGHPAGE]) << pools[i]->order;
-
-	return count << PAGE_SHIFT;
+	return dma_heap_pool_pages() << PAGE_SHIFT;
 }
 
 static const struct dma_heap_ops system_heap_ops = {

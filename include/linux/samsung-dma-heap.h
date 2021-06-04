@@ -39,6 +39,7 @@ static inline void dma_heap_dec_inuse(unsigned long pages)
 }
 
 unsigned long dma_heap_inuse_pages(void);
+unsigned long dma_heap_pool_pages(void);
 
 struct samsung_dma_buffer {
 	struct samsung_dma_heap *heap;
