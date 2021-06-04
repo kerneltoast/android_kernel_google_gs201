@@ -424,8 +424,8 @@
 						region,index = <SHMEM_IPC>;
 						region,rmem = <0>;
 						region,offset = <0x00000000>;
-						region,size = <0x00400000>;
-						region,cached = <1>;
+						region,size = <0x00800000>;
+						region,cached = <0>;
 					};
 					msi {
 						region,name = "MSI";
