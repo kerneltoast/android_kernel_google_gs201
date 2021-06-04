@@ -45,6 +45,11 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(sched_util_est_cfs_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_util_est_se_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_update_nr_running_tp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_switch);
+#ifdef CONFIG_SCHEDSTATS
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_wait);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_iowait);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_stat_blocked);
+#endif
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 EXPORT_SYMBOL_GPL(runqueues);
@@ -3049,6 +3054,19 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	if (!(p->state & state))
 		goto unlock;
 
+#ifdef CONFIG_FREEZER
+	/*
+	 * If we're going to wake up a thread which may be frozen, then
+	 * we can only do so if we have an active CPU which is capable of
+	 * running it. This may not be the case when resuming from suspend,
+	 * as the secondary CPUs may not yet be back online. See __thaw_task()
+	 * for the actual wakeup.
+	 */
+	if (unlikely(frozen_or_skipped(p)) &&
+	    !cpumask_intersects(cpu_active_mask, task_cpu_possible_mask(p)))
+		goto unlock;
+#endif
+
 	trace_sched_waking(p);
 
 	/* We're going to change ->state: */
@@ -5008,7 +5026,7 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
 int default_wake_function(wait_queue_entry_t *curr, unsigned mode, int wake_flags,
 			  void *key)
 {
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_SCHED_DEBUG) && wake_flags & ~WF_SYNC);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_SCHED_DEBUG) && wake_flags & ~(WF_SYNC | WF_ANDROID_VENDOR));
 	return try_to_wake_up(curr->private, mode, wake_flags);
 }
 EXPORT_SYMBOL(default_wake_function);
