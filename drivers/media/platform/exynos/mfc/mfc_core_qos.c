@@ -780,7 +780,7 @@ void mfc_core_qos_off(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	/* get the hw macroblock */
 	list_for_each_entry(qos_core_ctx, &core->qos_queue, qos_list) {
-		if (qos_core_ctx == core->core_ctx[ctx->num]) {
+		if ((qos_core_ctx == core->core_ctx[ctx->num]) && !ON_RES_CHANGE(qos_core_ctx)) {
 			found = 1;
 			continue;
 		}
