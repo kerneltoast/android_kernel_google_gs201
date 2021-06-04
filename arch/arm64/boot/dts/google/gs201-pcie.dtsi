@@ -30,7 +30,7 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		/* non-prefetchable memory */
-		ranges = <0x82000000 0 0x40000000 0 0x40000000 0 0xFF0000>;
+		ranges = <0x82000000 0 0x14E00000 0 0x40000000 0 0xFF0000>;
 		ip-ver = <0x984500>;	/* gs101 */
 		num-lanes = <2>;
 		ch-num = <0>;
