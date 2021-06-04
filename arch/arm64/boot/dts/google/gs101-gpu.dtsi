@@ -35,7 +35,8 @@
 
 		/* Memory */
 		physical-memory-group-manager = <&mali_mgm>;
-		system-coherency = <0>; /* ACE_LITE */
+		/* Disabling temporarily (b/190182621)
+		system-coherency = <0>; */ /* ACE_LITE */
 
 		/* Priority control */
 		priority-control-manager = <&mali_pcm>;
