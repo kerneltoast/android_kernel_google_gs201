@@ -38,6 +38,8 @@ static inline void dma_heap_dec_inuse(unsigned long pages)
 	atomic64_sub(pages, &inuse_pages);
 }
 
+unsigned long dma_heap_inuse_pages(void);
+
 struct samsung_dma_buffer {
 	struct samsung_dma_heap *heap;
 	struct list_head attachments;

@@ -42,6 +42,12 @@ static const unsigned int orders[] = {9, 8, 4, 0};
 #define NUM_ORDERS ARRAY_SIZE(orders)
 struct dmabuf_page_pool *pools[NUM_ORDERS];
 
+unsigned long dma_heap_inuse_pages(void)
+{
+	return atomic64_read(&inuse_pages);
+}
+EXPORT_SYMBOL_GPL(dma_heap_inuse_pages);
+
 static struct page *alloc_largest_available(unsigned long size,
 					    unsigned int max_order)
 {
