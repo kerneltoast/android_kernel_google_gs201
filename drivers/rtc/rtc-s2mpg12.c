@@ -551,18 +551,10 @@ static void s2m_rtc_disable_wtsr_smpl(struct s2m_rtc_info *info,
 	if (ret < 0)
 		dev_err(info->dev, "fail to update SMPL reg(%d)\n", ret);
 
-	if (info->iodev->pmic_rev == S2MPG12_EVT0) {
-		dev_info(info->dev, "disable COLDRST only, WTSR time as 250msec\n");
-		ret = s2mpg12_update_reg(info->i2c, S2MPG12_RTC_WTSR, 0,
-					 WTSRT_MASK | COLDRST_EN_MASK);
-		if (ret < 0)
-			dev_err(info->dev, "fail to update WTSR reg(%d)\n", ret);
-	} else {
-		ret = s2mpg12_update_reg(info->i2c, S2MPG12_RTC_WTSR, 0,
-					 WTSR_EN_MASK | COLDRST_EN_MASK);
-		if (ret < 0)
-			dev_err(info->dev, "fail to update SMPL reg(%d)\n", ret);
-	}
+	ret = s2mpg12_update_reg(info->i2c, S2MPG12_RTC_WTSR, 0,
+				 WTSR_EN_MASK | COLDRST_EN_MASK);
+	if (ret < 0)
+		dev_err(info->dev, "fail to update SMPL reg(%d)\n", ret);
 }
 
 static int s2m_rtc_init_reg(struct s2m_rtc_info *info,
@@ -758,19 +750,11 @@ static void s2m_rtc_shutdown(struct platform_device *pdev)
 	if (info->wtsr_en || info->smpl_en || info->coldrst_en)
 		s2m_rtc_disable_wtsr_smpl(info, pdata);
 
-	/* w/a for WTSR_EN */
-	/* 0x204[3] == 1 -> shutdown, 0x204[3] == 0 -> not shutdown */
-	if (system_state == SYSTEM_POWER_OFF) {
-		if (info->iodev->pmic_rev == S2MPG12_EVT0)
-			s2mpg12_update_reg(info->i2c, S2MPG12_RTC_CAPSEL, 0x08, 0x08);
-	} else if (system_state == SYSTEM_RESTART) {
-		if (info->iodev->pmic_rev != S2MPG12_EVT0) {
-			s2mpg12_update_reg(info->i2c, S2MPG12_RTC_WTSR,
-					   COLDRST_TIMER_MASK | COLDRST_EN_MASK |
-					   WTSRT_MASK | WTSR_EN_MASK,
-				GENMASK(6, 0));
-			s2mpg12_update_reg(info->i2c, S2MPG12_RTC_CAPSEL, 0x00, 0x08);
-		}
+	if (system_state == SYSTEM_RESTART) {
+		s2mpg12_update_reg(info->i2c, S2MPG12_RTC_WTSR,
+				   COLDRST_TIMER_MASK | COLDRST_EN_MASK |
+				   WTSRT_MASK | WTSR_EN_MASK,
+				   GENMASK(6, 0));
 	}
 }
 
