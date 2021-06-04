@@ -1439,7 +1439,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 	u32 count_total = 0;
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 	struct devfreq_alt_dvfs_data *alt_data;
-	u32 *of_data_int_array;
+	u32 *of_data_int_array = NULL;
 	int map_cnt;
 #endif
 	unsigned int i;
@@ -1789,7 +1789,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 			if (map_cnt <= 0 || map_cnt % NUM_COLS) {
 				dev_info(data->dev,
 					 "No valid mif_int_map available\n");
-				goto out;
+				goto err_map;
 			}
 			of_data_int_array = kcalloc(map_cnt, sizeof(u32), GFP_KERNEL);
 			if (!of_data_int_array) {
@@ -1819,6 +1819,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 				alt_data->mif_int_tbl[i].int_freq =
 					of_data_int_array[i * NUM_COLS + 1];
 			}
+err_map:
 			kfree(of_data_int_array);
 		} else {
 			dev_info(data->dev,
@@ -1831,7 +1832,6 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 		return -EINVAL;
 	}
 
-out:
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 	if (of_property_read_u32(np, "dm-index", &data->dm_type)) {
 		dev_err(data->dev, "not support dvfs manager\n");
