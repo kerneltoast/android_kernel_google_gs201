@@ -80,7 +80,8 @@ static unsigned int get_random_for_type(int type)
 		ret = random % NUM_OF_SLC_REQ_TYPE;
 		break;
 	default:
-		pr_err("%s, type: %d not support\n", __func__, type);
+		dev_err(mbox->device, "%s, type: %d not support\n", __func__,
+			type);
 		ret = -EINVAL;
 		break;
 	}
@@ -91,7 +92,7 @@ static unsigned int get_random_for_type(int type)
 #define acpm_ipc_latency_check() \
 	do { \
 		if (acpm_tmu_log) { \
-			pr_info("[acpm_tmu] type 0x%02x latency %llu ns ret %d\n", \
+			dev_info(mbox->device, "[acpm_tmu] type 0x%02x latency %llu ns ret %d\n", \
 					message->req.type, latency, ret); \
 		} \
 	} while (0)
@@ -99,7 +100,7 @@ static unsigned int get_random_for_type(int type)
 #define acpm_ipc_err_check() \
 	do { \
 		if (ret < 0) { \
-			pr_warn("[acpm_tmu] IPC error! type 0x%02x latency %llu ns ret %d\n", \
+			dev_warn(mbox->device, "[acpm_tmu] IPC error! type 0x%02x latency %llu ns ret %d\n", \
 					message->req.type, latency, ret); \
 		} \
 	} while (0)
@@ -139,9 +140,10 @@ static int acpm_tmu_set_read_temp(int tz, int *temp, int *stat)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1], message.data[2], message.data[3]);
+		dev_info(mbox->device,
+			 "[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+			 message.data[0], message.data[1], message.data[2],
+			 message.data[3]);
 	}
 
 	*temp = message.resp.temp;
@@ -164,9 +166,10 @@ static int acpm_tmu_set_suspend(int flag)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1], message.data[2], message.data[3]);
+		dev_info(mbox->device,
+			 "[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+			 message.data[0], message.data[1], message.data[2],
+			 message.data[3]);
 	}
 
 	return 0;
@@ -185,14 +188,15 @@ static int acpm_tmu_set_resume(void)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1], message.data[2], message.data[3]);
+		dev_info(mbox->device,
+			 "[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+			 message.data[0], message.data[1], message.data[2],
+			 message.data[3]);
 	}
 
-	pr_info("%s: acpm irq %d cold cnt %d stat %d\n",
-		__func__, message.resp.rsvd2, message.resp.rsvd,
-		message.resp.stat);
+	dev_info(mbox->device, "%s: acpm irq %d cold cnt %d stat %d\n",
+		 __func__, message.resp.rsvd2, message.resp.rsvd,
+		 message.resp.stat);
 
 	return 0;
 }
@@ -208,9 +212,10 @@ static void acpm_tmu_tz_control(int tz, bool enable)
 
 	exynos_acpm_tmu_ipc_send_data(&message);
 	if (acpm_tmu_log) {
-		pr_info("[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
-			message.data[0],
-			message.data[1], message.data[2], message.data[3]);
+		dev_info(mbox->device,
+			 "[acpm_tmu] data 0:0x%08x 1:0x%08x 2:0x%08x 3:0x%08x\n",
+			 message.data[0], message.data[1], message.data[2],
+			 message.data[3]);
 	}
 }
 
@@ -222,8 +227,8 @@ static void acpm_debug_tmu_rd_tmp_random(struct work_struct *work)
 	tzid = get_random_for_type(TERMAL_ZONE_ID);
 
 	acpm_tmu_set_read_temp(tzid, &temp, &stat);
-	pr_info("%s: thermal zone %d temp %d stat %d\n",
-		__func__, tzid, temp, stat);
+	dev_info(mbox->device, "%s: thermal zone %d temp %d stat %d\n",
+		 __func__, tzid, temp, stat);
 }
 
 static void acpm_debug_tmu_rd_tmp_concur(struct work_struct *work)
@@ -234,8 +239,8 @@ static void acpm_debug_tmu_rd_tmp_concur(struct work_struct *work)
 	tzid = get_random_for_type(TERMAL_ZONE_ID);
 
 	acpm_tmu_set_read_temp(tzid, &temp, &stat);
-	pr_info("%s: thermal zone %d temp %d stat %d\n",
-		__func__, tzid, temp, stat);
+	dev_info(mbox->device, "%s: thermal zone %d temp %d stat %d\n",
+		 __func__, tzid, temp, stat);
 }
 
 static void acpm_mbox_dvfs_rate_random_change(struct work_struct *work)
@@ -280,8 +285,8 @@ static int acpm_mfd_rtc_update(void)
 
 	ret = s2mpg10_read_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, &data);
 	if (ret < 0) {
-		pr_err("%s: fail to read update ret(%d,%u)\n",
-		       __func__, ret, data);
+		dev_err(mbox->device, "%s: fail to read update ret(%d,%u)\n",
+			__func__, ret, data);
 		return ret;
 	}
 
@@ -292,8 +297,8 @@ static int acpm_mfd_rtc_update(void)
 	data &= ~reg;
 	ret = s2mpg10_write_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, data);
 	if (ret) {
-		pr_err("%s: fail to write update ret(%d,%u)\n",
-		       __func__, ret, data);
+		dev_err(mbox->device, "%s: fail to write update ret(%d,%u)\n",
+			__func__, ret, data);
 		return ret;
 	}
 
@@ -302,8 +307,8 @@ static int acpm_mfd_rtc_update(void)
 	data |= reg;
 	ret = s2mpg10_write_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, data);
 	if (ret)
-		pr_err("%s: fail to write update ret(%d,%u)\n",
-		       __func__, ret, data);
+		dev_err(mbox->device, "%s: fail to write update ret(%d,%u)\n",
+			__func__, ret, data);
 	else
 		usleep_range(1000, 1001);
 
@@ -315,26 +320,27 @@ static int acpm_rtc_monotonic_chk(u8 *now, u8 *old)
 	u64 now_time_secs = 0, old_time_secs = 0;
 
 	/* Use the simplified format to switch the RTC time to secs */
-	now_time_secs = ((u64)now[RTC_YEAR] * SECS_PER_YEAR) +
-	    ((u64)now[RTC_MONTH] * SECS_PER_MONTH) +
-	    ((u64)now[RTC_DATE] * SECS_PER_DAY) +
-	    (((u64)now[RTC_HOUR] & 0x1f) * SECS_PER_HR) +
-	    ((u64)now[RTC_MIN] * SECS_PER_MIN) + (u64)now[RTC_SEC];
+	now_time_secs = ((u64) now[RTC_YEAR] * SECS_PER_YEAR) +
+	    ((u64) now[RTC_MONTH] * SECS_PER_MONTH) +
+	    ((u64) now[RTC_DATE] * SECS_PER_DAY) +
+	    (((u64) now[RTC_HOUR] & 0x1f) * SECS_PER_HR) +
+	    ((u64) now[RTC_MIN] * SECS_PER_MIN) + (u64) now[RTC_SEC];
 
-	old_time_secs = ((u64)old[RTC_YEAR] * SECS_PER_YEAR) +
-	    ((u64)old[RTC_MONTH] * SECS_PER_MONTH) +
-	    ((u64)old[RTC_DATE] * SECS_PER_DAY) +
-	    (((u64)old[RTC_HOUR] & 0x1f) * SECS_PER_HR) +
-	    ((u64)old[RTC_MIN] * SECS_PER_MIN) + (u64)old[RTC_SEC];
+	old_time_secs = ((u64) old[RTC_YEAR] * SECS_PER_YEAR) +
+	    ((u64) old[RTC_MONTH] * SECS_PER_MONTH) +
+	    ((u64) old[RTC_DATE] * SECS_PER_DAY) +
+	    (((u64) old[RTC_HOUR] & 0x1f) * SECS_PER_HR) +
+	    ((u64) old[RTC_MIN] * SECS_PER_MIN) + (u64) old[RTC_SEC];
 
 	if (now_time_secs >= old_time_secs) {
 		return true;
 	} else {
-		pr_err("%s: [Aged]%d-%02d-%02d %02d:%02d:%02d(0x%02x)%s, "
-			"now: %llus, old: %llus\n",
-			__func__, old[RTC_YEAR] + 2000, old[RTC_MONTH],
-			old[RTC_DATE], old[RTC_HOUR] & 0x1f, old[RTC_MIN],
-			old[RTC_SEC], old[RTC_WEEKDAY],
+		dev_err(mbox->device,
+			"%s: [Aged]%d-%02d-%02d %02d:%02d:%02d(0x%02x)%s, "
+			"now: %llus, old: %llus\n", __func__,
+			old[RTC_YEAR] + 2000, old[RTC_MONTH], old[RTC_DATE],
+			old[RTC_HOUR] & 0x1f, old[RTC_MIN], old[RTC_SEC],
+			old[RTC_WEEKDAY],
 			old[RTC_HOUR] & BIT(HOUR_PM_SHIFT) ? "PM" : "AM",
 			now_time_secs, old_time_secs);
 		return false;
@@ -349,7 +355,8 @@ static int acpm_mfd_rtc_read_time(void)
 	mutex_lock(&mbox->mfd->lock);
 	ret = acpm_mfd_rtc_update();
 	if (ret < 0) {
-		pr_err("%s: rtc update failed, ret: %d\n", __func__, ret);
+		dev_err(mbox->device, "%s: rtc update failed, ret: %d\n",
+			__func__, ret);
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 		goto out;
 	}
@@ -357,7 +364,8 @@ static int acpm_mfd_rtc_read_time(void)
 	ret = s2mpg10_bulk_read(mbox->mfd->rtc, S2MPG10_RTC_SEC, NR_RTC_CNT_REGS,
 			      now);
 	if (ret < 0) {
-		pr_err("%s: fail to read time reg(%d)\n", __func__, ret);
+		dev_err(mbox->device, "%s: fail to read time reg(%d)\n",
+			__func__, ret);
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 		goto out;
 	}
@@ -366,14 +374,15 @@ static int acpm_mfd_rtc_read_time(void)
 		memcpy(aged, now, sizeof(now));
 	} else {
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
-		pr_err("%s: RTC abnormal, cancel mfd stress\n", __func__);
+		dev_err(mbox->device, "%s: RTC abnormal, cancel mfd stress\n",
+			__func__);
 	}
 
-	pr_info("%s: %d-%02d-%02d %02d:%02d:%02d(0x%02x)%s\n",
-		__func__, now[RTC_YEAR] + 2000, now[RTC_MONTH],
-		now[RTC_DATE], now[RTC_HOUR] & 0x1f, now[RTC_MIN],
-		now[RTC_SEC], now[RTC_WEEKDAY],
-		now[RTC_HOUR] & BIT(HOUR_PM_SHIFT) ? "PM" : "AM");
+	dev_info(mbox->device, "%s: %d-%02d-%02d %02d:%02d:%02d(0x%02x)%s\n",
+		 __func__, now[RTC_YEAR] + 2000, now[RTC_MONTH],
+		 now[RTC_DATE], now[RTC_HOUR] & 0x1f, now[RTC_MIN],
+		 now[RTC_SEC], now[RTC_WEEKDAY],
+		 now[RTC_HOUR] & BIT(HOUR_PM_SHIFT) ? "PM" : "AM");
 
 out:
 	mutex_unlock(&mbox->mfd->lock);
@@ -388,11 +397,11 @@ static void acpm_mbox_mfd_s2mpg10_random_read(struct work_struct *work)
 	addr = get_random_for_type(GRANVILLE_M_REG);
 
 	if (s2mpg10_read_reg(mbox->mfd->s2mpg10_pmic, addr, &val)) {
-		pr_err("%s: Failed to read S2MPG10\n", __func__);
+		dev_err(mbox->device, "%s: Failed to read S2MPG10\n", __func__);
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 	} else
-		pr_info("%s: [S2MPG10]addr: 0x%X, val: 0x%X\n", __func__, addr,
-			val);
+		dev_info(mbox->device, "%s: [S2MPG10]addr: 0x%X, val: 0x%X\n",
+			 __func__, addr, val);
 
 	acpm_mfd_rtc_read_time();
 }
@@ -405,11 +414,11 @@ static void acpm_mbox_mfd_s2mpg11_random_read(struct work_struct *work)
 	addr = get_random_for_type(GRANVILLE_S_REG);
 
 	if (s2mpg11_read_reg(mbox->mfd->s2mpg11_pmic, addr, &val)) {
-		pr_err("%s: Failed to read S2MPG11\n", __func__);
+		dev_err(mbox->device, "%s: Failed to read S2MPG11\n", __func__);
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 	} else
-		pr_info("%s: [S2MPG11]addr: 0x%X, val: 0x%X\n", __func__, addr,
-			val);
+		dev_info(mbox->device, "%s: [S2MPG11]addr: 0x%X, val: 0x%X\n",
+			 __func__, addr, val);
 }
 
 static int acpm_pmic_ctrlist_stress(void)
@@ -423,20 +432,23 @@ static int acpm_pmic_ctrlist_stress(void)
 
 		ret = s2mpg10_read_reg(mbox->mfd->s2mpg10_pmic, addr, &value);
 		if (ret) {
-			pr_err("%s: fail to read ret: %d\n", __func__, ret);
+			dev_err(mbox->device, "%s: fail to read ret: %d\n",
+				__func__, ret);
 			return ret;
 		}
 
 		/* Verify PMIC ctrlist by writing the same setting */
 		ret = s2mpg10_write_reg(mbox->mfd->s2mpg10_pmic, addr, value);
 		if (ret == 0) {
-			pr_err("%s: ctrlist protection failed, ret: %d\n",
-			       __func__, ret);
+			dev_err(mbox->device,
+				"%s: ctrlist protection failed, ret: %d\n",
+				__func__, ret);
 			err_result |= 1 << i;
 		}
 
-		pr_info("%s: addr: 0x%X, value: 0x%X, err_result: 0x%X\n",
-			__func__, addr, value, err_result);
+		dev_info(mbox->device,
+			 "%s: addr: 0x%X, value: 0x%X, err_result: 0x%X\n",
+			 __func__, addr, value, err_result);
 	}
 
 	for (i = 0; i < sizeof(def_lck_regs_s) / sizeof(u16); i++) {
@@ -444,20 +456,23 @@ static int acpm_pmic_ctrlist_stress(void)
 
 		ret = s2mpg11_read_reg(mbox->mfd->s2mpg11_pmic, addr, &value);
 		if (ret) {
-			pr_err("%s: fail to read ret: %d\n", __func__, ret);
+			dev_err(mbox->device, "%s: fail to read ret: %d\n",
+				__func__, ret);
 			return ret;
 		}
 
 		/* Verify PMIC ctrlist by writing the same setting */
 		ret = s2mpg11_write_reg(mbox->mfd->s2mpg11_pmic, addr, value);
 		if (ret == 0) {
-			pr_err("%s: ctrlist protection failed, ret: %d\n",
-			       __func__, ret);
+			dev_err(mbox->device,
+				"%s: ctrlist protection failed, ret: %d\n",
+				__func__, ret);
 			err_result |= (1 << i) << 16;
 		}
 
-		pr_info("%s: addr: 0x%X, value: 0x%X, err_result: 0x%X\n",
-			__func__, addr, value, err_result);
+		dev_info(mbox->device,
+			 "%s: addr: 0x%X, value: 0x%X, err_result: 0x%X\n",
+			 __func__, addr, value, err_result);
 	}
 
 	if (err_result != 0)
@@ -473,21 +488,21 @@ static void acpm_mfd_mbox_stress_trigger(struct work_struct *work)
 	int i;
 
 	if ((!mbox->mfd->s2mpg10_pmic)
-		|| (!mbox->mfd->s2mpg11_pmic)) {
+	    || (!mbox->mfd->s2mpg11_pmic)) {
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 	} else {
 		for (i = 0; i < NUM_OF_WQ; i++) {
 			queue_delayed_work_on(get_random_for_type(CPU_ID),
 					      mbox->mfd->s2mpg10_mfd_read_wq[i],
-					      &mbox->mfd->
-					      s2mpg10_mfd_read_wk[i],
+					      &mbox->
+					      mfd->s2mpg10_mfd_read_wk[i],
 					      msecs_to_jiffies
 					      (get_random_for_type(DELAY_MS)));
 
 			queue_delayed_work_on(get_random_for_type(CPU_ID),
 					      mbox->mfd->s2mpg11_mfd_read_wq[i],
-					      &mbox->mfd->
-					      s2mpg11_mfd_read_wk[i],
+					      &mbox->
+					      mfd->s2mpg11_mfd_read_wk[i],
 					      msecs_to_jiffies
 					      (get_random_for_type(DELAY_MS)));
 		}
@@ -535,21 +550,21 @@ static void acpm_mbox_slc_request_send(struct work_struct *work)
 	switch (req_type) {
 	case VERSION:
 		slc_version = acpm_slc_mbox(PT_VERSION, 0, 0);
-		pr_info("%s: valid acpm firmware %d.%d.\n",
-			__func__, slc_version >> 16, slc_version & 0xffff);
+		dev_info(mbox->device, "%s: valid acpm firmware %d.%d.\n",
+			 __func__, slc_version >> 16, slc_version & 0xffff);
 		break;
 	case STATE:
 		slc_state = acpm_slc_mbox(SLC_STATE, 0, 0);
-		pr_info("%s: slc_state: 0x%X, sicd: %d, ap_on: %d, "
-			"slc_on: %d, mif_on: %d\n",
-			__func__, slc_state, slc_state & BIT(0),
-			(slc_state & BIT(1)) >> 1,
-			(slc_state & BIT(2)) >> 2,
-			(slc_state & BIT(3)) >> 3);
+		dev_info(mbox->device,
+			 "%s: slc_state: 0x%X, sicd: %d, ap_on: %d, "
+			 "slc_on: %d, mif_on: %d\n", __func__, slc_state,
+			 slc_state & BIT(0), (slc_state & BIT(1)) >> 1,
+			 (slc_state & BIT(2)) >> 2, (slc_state & BIT(3)) >> 3);
 		break;
 	case PT_INFO:
 		if (slc_pt_list == NULL) {
-			pr_err("%s, NO slc_pt_list!\n", __func__);
+			dev_err(mbox->device, "%s, NO slc_pt_list!\n",
+				__func__);
 			break;
 		}
 		for (i = 0; i < mbox->slc->client_cnt; i++) {
@@ -565,22 +580,24 @@ static void acpm_mbox_slc_request_send(struct work_struct *work)
 			s_way =
 			    acpm_slc_mbox(SLC_PT_INFO,
 					  ptid | (SECONDARY_WAYS << 8), 0);
-			pr_info("%s: name: %s, size: %X, pbha: %X, vpid: %X, "
-				"pri_way: %X, sec_way: %X\n",
-				__func__, mbox->slc->client_name[i], size,
-				pbha, vptid, p_way, s_way);
+			dev_info(mbox->device,
+				 "%s: name: %s, size: %X, pbha: %X, vpid: %X, "
+				 "pri_way: %X, sec_way: %X\n", __func__,
+				 mbox->slc->client_name[i], size, pbha, vptid,
+				 p_way, s_way);
 
 			if (size < 0) {
 				/* Client pt is disabled */
 				cancel_delayed_work_sync(&mbox->slc->mbox_stress_trigger_wk);
-				pr_err
-				    ("%s, No client: %s, cancel slc mbox stress\n",
-				     __func__, mbox->slc->client_name[i]);
+				dev_err(mbox->device,
+					"%s, No client: %s, cancel slc mbox stress\n",
+					__func__, mbox->slc->client_name[i]);
 			}
 		}
 		break;
 	default:
-		pr_err("%s, req %d not support\n", __func__, req_type);
+		dev_err(mbox->device, "%s, req %d not support\n", __func__,
+			req_type);
 		break;
 	}
 }
@@ -633,7 +650,7 @@ static void acpm_debug_tmu_suspend(struct work_struct *work)
 		acpm_tmu_tz_control(tzid, false);
 
 	acpm_tmu_set_suspend(false);
-	pr_info("%s\n", __func__);
+	dev_info(mbox->device, "%s\n", __func__);
 
 	queue_delayed_work_on(get_random_for_type(CPU_ID), mbox->tmu->resume_wq,
 			      &mbox->tmu->resume_work,
@@ -651,10 +668,10 @@ static void acpm_debug_tmu_resume(struct work_struct *work)
 
 	for (tzid = 0; tzid < TZ_END; tzid++) {
 		acpm_tmu_set_read_temp(tzid, &temp, &stat);
-		pr_info("%s: thermal zone %d temp %d stat %d\n",
-			__func__, tzid, temp, stat);
+		dev_info(mbox->device, "%s: thermal zone %d temp %d stat %d\n",
+			 __func__, tzid, temp, stat);
 	}
-	pr_info("%s\n", __func__);
+	dev_info(mbox->device, "%s\n", __func__);
 
 	queue_delayed_work_on(get_random_for_type(CPU_ID),
 			      mbox->tmu->suspend_wq, &mbox->tmu->suspend_work,
@@ -681,17 +698,19 @@ static int acpm_mfd_set_pmic(void)
 	if (p_np) {
 		i2c_main = of_find_i2c_device_by_node(p_np);
 		if (!i2c_main) {
-			pr_err("%s: Cannot find main-pmic i2c\n", __func__);
+			dev_err(mbox->device, "%s: Cannot find main-pmic i2c\n",
+				__func__);
 			return -ENODEV;
 		}
 		s2mpg10 = i2c_get_clientdata(i2c_main);
 	} else
-		pr_err("%s: Cannot find main-pmic\n", __func__);
+		dev_err(mbox->device, "%s: Cannot find main-pmic\n", __func__);
 
 	of_node_put(p_np);
 
 	if (!s2mpg10) {
-		pr_err("%s: S2MPG10 device not found\n", __func__);
+		dev_err(mbox->device, "%s: S2MPG10 device not found\n",
+			__func__);
 		return -ENODEV;
 	}
 
@@ -703,7 +722,8 @@ static int acpm_mfd_set_pmic(void)
 	/* Configure for RTC bulk_read */
 	ret = s2mpg10_read_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, &update_val);
 	if (ret < 0) {
-		pr_err("%s: Fail to read RTC_UPDATE ret: %d\n", __func__, ret);
+		dev_err(mbox->device, "%s: Fail to read RTC_UPDATE ret: %d\n",
+			__func__, ret);
 		return ret;
 	}
 
@@ -715,17 +735,19 @@ static int acpm_mfd_set_pmic(void)
 	if (p_np) {
 		i2c_sub = of_find_i2c_device_by_node(p_np);
 		if (!i2c_sub) {
-			pr_err("%s: Cannot find sub-pmic i2c\n", __func__);
+			dev_err(mbox->device, "%s: Cannot find sub-pmic i2c\n",
+				__func__);
 			return -ENODEV;
 		}
 		s2mpg11 = i2c_get_clientdata(i2c_sub);
 	} else
-		pr_err("%s: Cannot find sub-pmic\n", __func__);
+		dev_err(mbox->device, "%s: Cannot find sub-pmic\n", __func__);
 
 	of_node_put(p_np);
 
 	if (!s2mpg11) {
-		pr_err("%s: S2MPG11 device not found\n", __func__);
+		dev_err(mbox->device, "%s: S2MPG11 device not found\n",
+			__func__);
 		return -ENODEV;
 	}
 
@@ -745,9 +767,9 @@ unsigned int acpm_pt_clients_enable(void)
 	list_for_each_entry(client, slc_pt_list, list) {
 		mbox->slc->client_name[client_cnt] = client->node->name;
 		mbox->slc->ptid[client_cnt] = pt_client_enable(client, 0);
-		pr_info("%s: node name: %s, slc-ptid[%d]: %d\n",
-			__func__, client->node->name, client_cnt,
-			mbox->slc->ptid[client_cnt]);
+		dev_info(mbox->device, "%s: node name: %s, slc-ptid[%d]: %d\n",
+			 __func__, client->node->name, client_cnt,
+			 mbox->slc->ptid[client_cnt]);
 		client_cnt++;
 	}
 
@@ -759,7 +781,8 @@ void acpm_pt_clients_disable(void)
 	struct pt_handle *client = NULL;
 
 	list_for_each_entry(client, slc_pt_list, list) {
-		pr_info("%s: node name: %s\n", __func__, client->node->name);
+		dev_info(mbox->device, "%s: node name: %s\n", __func__,
+			 client->node->name);
 		pt_client_disable(client, 0);
 	}
 	mbox->slc->client_cnt = 0;
@@ -778,7 +801,7 @@ static void acpm_mbox_test_init(void)
 	char buf[32];
 
 	if (!mbox->wq_init_done) {
-		pr_info("%s\n", __func__);
+		dev_info(mbox->device, "%s\n", __func__);
 
 		for (i = 0; i < NUM_OF_WQ; i++) {
 			snprintf(buf, sizeof(buf),
@@ -846,18 +869,20 @@ static void acpm_mbox_test_init(void)
 
 		ret = dvfs_freq_table_init();
 		if (ret < 0)
-			pr_err("%s: table init failed, ret: %d\n", __func__,
-			       ret);
+			dev_err(mbox->device,
+				"%s: table init failed, ret: %d\n", __func__,
+				ret);
 
 		ret = acpm_mfd_set_pmic();
 		if (ret < 0)
-			pr_err("%s: set pmic failed, ret: %d\n", __func__, ret);
+			dev_err(mbox->device, "%s: set pmic failed, ret: %d\n",
+				__func__, ret);
 
 		acpm_slc_pt_init();
 
 		mbox->wq_init_done = true;
 
-		pr_info("%s done\n", __func__);
+		dev_info(mbox->device, "%s done!\n", __func__);
 	}
 }
 
@@ -871,7 +896,8 @@ static int dvfs_freq_table_init(void)
 		     cal_id <= ACPM_DVFS_CPUCL2; cal_id++, dm_id++) {
 			ret = init_domain_freq_table(dvfs_test, cal_id, dm_id);
 			if (ret < 0) {
-				pr_err("%s failed, ret = %d\n", __func__, ret);
+				dev_err(mbox->device, "%s failed, ret = %d\n",
+					__func__, ret);
 				return ret;
 			}
 		}
@@ -879,10 +905,11 @@ static int dvfs_freq_table_init(void)
 			for (i = DVFS_MIF; i < NUM_OF_DVFS_DOMAINS; i++) {
 				for (index = 0; index < dvfs_test->dm[i]->size;
 				     index++)
-					pr_info
-					    ("%s: dvfs_test->dm[%d]->table[%d] = %d Hz\n",
-					     __func__, i, index,
-					     dvfs_test->dm[i]->table[index].freq);
+					dev_info(mbox->device,
+						 "%s: dvfs_test->dm[%d]->table[%d] = %d Hz\n",
+						 __func__, i, index,
+						 dvfs_test->dm[i]->table[index].
+						 freq);
 			}
 		}
 		dvfs_test->init_done = true;
@@ -919,13 +946,15 @@ static void acpm_framework_mbox_test(bool start)
 				      &mbox->slc->mbox_stress_trigger_wk,
 				      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
 	} else {
-		cancel_delayed_work_sync(&mbox->tmu->suspend_work);
-		cancel_delayed_work_sync(&mbox->tmu->resume_work);
-		cancel_delayed_work_sync(&mbox->tmu->rd_tmp_stress_trigger_wk);
-		cancel_delayed_work_sync(&mbox->dvfs->mbox_stress_trigger_wk);
-		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
-		cancel_delayed_work_sync(&mbox->slc->mbox_stress_trigger_wk);
-		acpm_pt_clients_disable();
+		if (mbox->wq_init_done) {
+			cancel_delayed_work_sync(&mbox->tmu->suspend_work);
+			cancel_delayed_work_sync(&mbox->tmu->resume_work);
+			cancel_delayed_work_sync(&mbox->tmu->rd_tmp_stress_trigger_wk);
+			cancel_delayed_work_sync(&mbox->dvfs->mbox_stress_trigger_wk);
+			cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
+			cancel_delayed_work_sync(&mbox->slc->mbox_stress_trigger_wk);
+			acpm_pt_clients_disable();
+		}
 	}
 }
 
@@ -934,7 +963,8 @@ static int acpm_mbox_test_setting(struct acpm_info *acpm, u64 subcmd)
 	int ret = 0;
 
 	if (subcmd >= ACPM_MBOX_TEST_CMD_MAX) {
-		pr_err("%s, sub-cmd:%d, out of range!\n", __func__, subcmd);
+		dev_err(mbox->device, "%s, sub-cmd:%d, out of range!\n",
+			__func__, subcmd);
 		return -EINVAL;
 	} else if (ACPM_MBOX_TEST_START == subcmd) {
 		acpm_framework_mbox_test(true);
@@ -943,7 +973,8 @@ static int acpm_mbox_test_setting(struct acpm_info *acpm, u64 subcmd)
 	} else if (ACPM_MBOX_CTRLIST == subcmd) {
 		ret = acpm_mfd_set_pmic();
 		if (ret < 0)
-			pr_err("%s: set pmic failed, ret: %d\n", __func__, ret);
+			dev_err(mbox->device, "%s: set pmic failed, ret: %d\n",
+				__func__, ret);
 		else
 			acpm_pmic_ctrlist_stress();
 	}
@@ -983,7 +1014,8 @@ static int get_cpu_policy_num(unsigned int dm_id)
 		ret = CPUCL2_POLICY;
 		break;
 	default:
-		pr_err("%s, dm_id: %d not support\n", __func__, dm_id);
+		dev_err(mbox->device, "%s, dm_id: %d not support\n", __func__,
+			dm_id);
 		ret = -EINVAL;
 		break;
 	}
@@ -1007,7 +1039,7 @@ static unsigned int acpm_dvfs_get_devfreq(unsigned int devfreq_type)
 	freq = exynos_devfreq_get_domain_freq(devfreq_type);
 
 	if (freq == 0)
-		pr_err("%s: Failed get frequency\n", __func__);
+		dev_err(mbox->device, "%s: Failed get frequency\n", __func__);
 
 	return freq;
 }
@@ -1025,7 +1057,7 @@ static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate,
 	latency = after - before;
 
 	if (ret < 0)
-		pr_err("%s, ret=%d\n", ret);
+		dev_err(mbox->device, "%s, ret=%d\n", ret);
 
 	mdelay(10);
 
@@ -1037,19 +1069,19 @@ static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate,
 		dvfs_test->dm[dm_id]->total_cycle_cnt++;
 	}
 
-	pr_info("%s: domain[%s]set_rate: %d Hz, "
-		"get_rate: %d Hz, latency: %llu ns, ret: %d\n",
-		__func__, dvfs_test->dm[dm_id]->name, rate, get_rate, latency,
-		ret);
+	dev_info(mbox->device, "%s: domain[%s]set_rate: %d Hz, "
+		 "get_rate: %d Hz, latency: %llu ns, ret: %d\n",
+		 __func__, dvfs_test->dm[dm_id]->name, rate, get_rate, latency,
+		 ret);
 
 	if (acpm_dvfs_log && cycle >= 0) {
-		pr_info("%s: stats:[%s]set_rate: %d Hz, "
-			"get_rate: %d Hz, latency: %llu ns, total_cnt:%d\n",
-			__func__, dvfs_test->dm[dm_id]->name,
-			dvfs_test->dm[dm_id]->stats[cycle].set_rate,
-			dvfs_test->dm[dm_id]->stats[cycle].get_rate,
-			dvfs_test->dm[dm_id]->stats[cycle].latency,
-			dvfs_test->dm[dm_id]->total_cycle_cnt);
+		dev_info(mbox->device, "%s: stats:[%s]set_rate: %d Hz, "
+			 "get_rate: %d Hz, latency: %llu ns, total_cnt:%d\n",
+			 __func__, dvfs_test->dm[dm_id]->name,
+			 dvfs_test->dm[dm_id]->stats[cycle].set_rate,
+			 dvfs_test->dm[dm_id]->stats[cycle].get_rate,
+			 dvfs_test->dm[dm_id]->stats[cycle].latency,
+			 dvfs_test->dm[dm_id]->total_cycle_cnt);
 	}
 
 	return ret;
@@ -1075,7 +1107,8 @@ static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate,
 
 	ret = cpufreq_driver_target(policy, rate, CPUFREQ_RELATION_C);
 	if (ret < 0)
-		pr_err("%s, cpufreq target failed, ret: %d\n", ret);
+		dev_err(mbox->device, "%s, cpufreq target failed, ret: %d\n",
+			ret);
 
 	after = sched_clock();
 	latency = after - before;
@@ -1093,19 +1126,19 @@ static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate,
 	cl0freq = cpufreq_get(CPUCL0_POLICY);
 	cl1freq = cpufreq_get(CPUCL1_POLICY);
 	cl2freq = cpufreq_get(CPUCL2_POLICY);
-	pr_info("%s: domain[%s]set_rate: %d Hz, CL0: %d Hz, "
-		"CL1: %d Hz, CL2: %d Hz, latency: %llu ns, ret: %d\n",
-		__func__, dvfs_test->dm[dm_id]->name, rate,
-		cl0freq, cl1freq, cl2freq, latency, ret);
+	dev_info(mbox->device, "%s: domain[%s]set_rate: %d Hz, CL0: %d Hz, "
+		 "CL1: %d Hz, CL2: %d Hz, latency: %llu ns, ret: %d\n",
+		 __func__, dvfs_test->dm[dm_id]->name, rate,
+		 cl0freq, cl1freq, cl2freq, latency, ret);
 
 	if (acpm_dvfs_log && cycle >= 0) {
-		pr_info("%s: stats:[%s]set_rate: %d Hz, "
-			"get_rate: %d Hz, latency: %llu ns, total_cnt: %d\n",
-			__func__, dvfs_test->dm[dm_id]->name,
-			dvfs_test->dm[dm_id]->stats[cycle].set_rate,
-			dvfs_test->dm[dm_id]->stats[cycle].get_rate,
-			dvfs_test->dm[dm_id]->stats[cycle].latency,
-			dvfs_test->dm[dm_id]->total_cycle_cnt);
+		dev_info(mbox->device, "%s: stats:[%s]set_rate: %d Hz, "
+			 "get_rate: %d Hz, latency: %llu ns, total_cnt: %d\n",
+			 __func__, dvfs_test->dm[dm_id]->name,
+			 dvfs_test->dm[dm_id]->stats[cycle].set_rate,
+			 dvfs_test->dm[dm_id]->stats[cycle].get_rate,
+			 dvfs_test->dm[dm_id]->stats[cycle].latency,
+			 dvfs_test->dm[dm_id]->total_cycle_cnt);
 	}
 
 	return 0;
@@ -1136,67 +1169,75 @@ static void acpm_dvfs_stats_dump(void)
 
 	for (dm_id = 0; dm_id < NUM_OF_DVFS_DOMAINS; dm_id++) {
 		if (dvfs_test->dm[dm_id]->total_cycle_cnt) {
-			pr_info("==================================="
-				"==================================="
-				"==================================="
-				"===================================\n");
+			dev_info(mbox->device,
+				 "==================================="
+				 "==================================="
+				 "==================================="
+				 "===================================\n");
 			cycle_cnt = dvfs_test->dm[dm_id]->total_cycle_cnt;
 
-			pr_info("dm[%s] >10ms:%2d, 10ms~1ms:%2d, "
-				"1ms~100us:%2d, 100us~80us:%2d, "
-				"80us~60us:%2d, 60us~40us:%2d, "
-				"40us~20us:%2d, 20us~10us:%2d, "
-				"10us~1us:%2d, <1us:%2d\n",
-				dvfs_test->dm[dm_id]->name,
-				dvfs_test->dm[dm_id]->scales[9].count,
-				dvfs_test->dm[dm_id]->scales[8].count,
-				dvfs_test->dm[dm_id]->scales[7].count,
-				dvfs_test->dm[dm_id]->scales[6].count,
-				dvfs_test->dm[dm_id]->scales[5].count,
-				dvfs_test->dm[dm_id]->scales[4].count,
-				dvfs_test->dm[dm_id]->scales[3].count,
-				dvfs_test->dm[dm_id]->scales[2].count,
-				dvfs_test->dm[dm_id]->scales[1].count,
-				dvfs_test->dm[dm_id]->scales[0].count);
-			pr_info("dm[%s] >10ms:%2d%% 10ms~1ms:%2d%% "
-				"1ms~100us:%2d%% 100us~80us:%2d%% "
-				"80us~60us:%2d%% 60us~40us:%2d%% "
-				"40us~20us:%2d%% 20us~10us:%2d%% "
-				"10us~1us:%2d%%, <1us:%2d%%\n",
-				dvfs_test->dm[dm_id]->name,
-				dvfs_test->dm[dm_id]->scales[9].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[8].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[7].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[6].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[5].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[4].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[3].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[2].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[1].count * 100 /
-				cycle_cnt,
-				dvfs_test->dm[dm_id]->scales[0].count * 100 /
-				cycle_cnt);
+			dev_info(mbox->device,
+				 "dm[%s] >10ms:%2d, 10ms~1ms:%2d, "
+				 "1ms~100us:%2d, 100us~80us:%2d, "
+				 "80us~60us:%2d, 60us~40us:%2d, "
+				 "40us~20us:%2d, 20us~10us:%2d, "
+				 "10us~1us:%2d, <1us:%2d\n",
+				 dvfs_test->dm[dm_id]->name,
+				 dvfs_test->dm[dm_id]->scales[9].count,
+				 dvfs_test->dm[dm_id]->scales[8].count,
+				 dvfs_test->dm[dm_id]->scales[7].count,
+				 dvfs_test->dm[dm_id]->scales[6].count,
+				 dvfs_test->dm[dm_id]->scales[5].count,
+				 dvfs_test->dm[dm_id]->scales[4].count,
+				 dvfs_test->dm[dm_id]->scales[3].count,
+				 dvfs_test->dm[dm_id]->scales[2].count,
+				 dvfs_test->dm[dm_id]->scales[1].count,
+				 dvfs_test->dm[dm_id]->scales[0].count);
+			dev_info(mbox->device,
+				 "dm[%s] >10ms:%2d%% 10ms~1ms:%2d%% "
+				 "1ms~100us:%2d%% 100us~80us:%2d%% "
+				 "80us~60us:%2d%% 60us~40us:%2d%% "
+				 "40us~20us:%2d%% 20us~10us:%2d%% "
+				 "10us~1us:%2d%%, <1us:%2d%%\n",
+				 dvfs_test->dm[dm_id]->name,
+				 dvfs_test->dm[dm_id]->scales[9].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[8].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[7].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[6].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[5].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[4].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[3].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[2].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[1].count * 100 /
+				 cycle_cnt,
+				 dvfs_test->dm[dm_id]->scales[0].count * 100 /
+				 cycle_cnt);
 
-			pr_info("==================================="
-				"==================================="
-				"==================================="
-				"===================================\n");
+			dev_info(mbox->device,
+				 "==================================="
+				 "==================================="
+				 "==================================="
+				 "===================================\n");
 			for (cycle = 0; cycle < DVFS_TEST_CYCLE; cycle++)
-				pr_info("%s: dm_id[%d], set_rate: %d Hz, "
-					"get_rate: %d Hz, latency= %u ns\n",
-					__func__, dm_id,
-					dvfs_test->dm[dm_id]->stats[cycle].set_rate,
-					dvfs_test->dm[dm_id]->stats[cycle].get_rate,
-					dvfs_test->dm[dm_id]->stats[cycle].latency);
-			pr_info("\n");
+				dev_info(mbox->device,
+					 "%s: dm_id[%d], set_rate: %d Hz, "
+					 "get_rate: %d Hz, latency= %u ns\n",
+					 __func__, dm_id,
+					 dvfs_test->dm[dm_id]->stats[cycle].
+					 set_rate,
+					 dvfs_test->dm[dm_id]->stats[cycle].
+					 get_rate,
+					 dvfs_test->dm[dm_id]->stats[cycle].
+					 latency);
+			dev_info(mbox->device, "\n");
 		}
 	}
 }
@@ -1209,12 +1250,13 @@ static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 	int cycle = 0;
 
 	if (!dvfs_test) {
-		pr_err("%s, dvfs_test is NULL\n", __func__);
+		dev_err(mbox->device, "%s, dvfs_test is NULL\n", __func__);
 		return -ENOMEM;
 	}
 
 	if (subcmd >= ACPM_DVFS_CMD_MAX) {
-		pr_err("%s, sub-cmd:%d, out of range!\n", __func__, subcmd);
+		dev_err(mbox->device, "%s, sub-cmd:%d, out of range!\n",
+			__func__, subcmd);
 		return -EINVAL;
 	}
 
@@ -1262,7 +1304,8 @@ static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 		acpm_dvfs_stats_dump();
 		break;
 	default:
-		pr_err("%s, subcmd: %d not support\n", __func__, subcmd);
+		dev_err(mbox->device, "%s, subcmd: %d not support\n", __func__,
+			subcmd);
 		return -EINVAL;
 	}
 
@@ -1304,7 +1347,7 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
 
 	dm = kmalloc(sizeof(*dm), GFP_KERNEL);
 	if (!dm) {
-		pr_err("%s, dm alloc failed\n", __func__);
+		dev_err(mbox->device, "%s, dm alloc failed\n", __func__);
 		return -ENOMEM;
 	}
 	/*
@@ -1323,9 +1366,9 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
 		if (ret < 0) {
 			dvfs->max_freq = cal_dfs_get_max_freq(cal_id);
 			dvfs->min_freq = cal_dfs_get_min_freq(cal_id);
-			pr_warn
-			    ("%s, cal_id: %d, get boundary failed, ret: %d\n",
-			     __func__, cal_id, ret);
+			dev_warn(mbox->device,
+				 "%s, cal_id: %d, get boundary failed, ret: %d\n",
+				 __func__, cal_id, ret);
 		}
 		break;
 	case ACPM_DVFS_CPUCL0:
@@ -1342,18 +1385,20 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
 		} else {
 			dvfs->max_freq = cal_dfs_get_max_freq(cal_id);
 			dvfs->min_freq = cal_dfs_get_min_freq(cal_id);
-			pr_warn("%s, cal_id: %d, get boundary failed\n",
-				__func__, cal_id);
+			dev_warn(mbox->device,
+				 "%s, cal_id: %d, get boundary failed\n",
+				 __func__, cal_id);
 		}
 		break;
 	default:
-		pr_err("%s, cal_id: %d not support\n", __func__, cal_id);
+		dev_err(mbox->device, "%s, cal_id: %d not support\n", __func__,
+			cal_id);
 		return -EINVAL;
 	}
 
 	if (acpm_dvfs_log)
-		pr_info("%s: max_freq = %d, min_freq = %d\n",
-			__func__, dvfs->max_freq, dvfs->min_freq);
+		dev_info(mbox->device, "%s: max_freq = %d, min_freq = %d\n",
+			 __func__, dvfs->max_freq, dvfs->min_freq);
 
 	/*
 	 * Allocate temporary frequency and voltage tables
@@ -1376,27 +1421,27 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
 	for (index = 0; index < orig_table_size; index++) {
 		if (cal_freq_table[index] > dvfs->max_freq) {
 			if (acpm_dvfs_log)
-				pr_info
-				    ("%s: cal_freq_table[%d]: %d > max_freq: %d\n",
-				     __func__, index, cal_freq_table[index],
-				     dvfs->max_freq);
+				dev_info(mbox->device,
+					 "%s: cal_freq_table[%d]: %d > max_freq: %d\n",
+					 __func__, index, cal_freq_table[index],
+					 dvfs->max_freq);
 			continue;
 		}
 		if (cal_freq_table[index] < dvfs->min_freq) {
 			if (acpm_dvfs_log)
-				pr_info
-				    ("%s: cal_freq_table[%d]: %d < min_freq: %d\n",
-				     __func__, index, cal_freq_table[index],
-				     dvfs->min_freq);
+				dev_info(mbox->device,
+					 "%s: cal_freq_table[%d]: %d < min_freq: %d\n",
+					 __func__, index, cal_freq_table[index],
+					 dvfs->min_freq);
 			continue;
 		}
 		dvfs->size++;
 
 		if (acpm_dvfs_log)
-			pr_info
-			    ("%s: cal_freq_table[%d] = %d Hz, table_size = %d\n",
-			     __func__, index, cal_freq_table[index],
-			     dvfs->size);
+			dev_info(mbox->device,
+				 "%s: cal_freq_table[%d] = %d Hz, table_size = %d\n",
+				 __func__, index, cal_freq_table[index],
+				 dvfs->size);
 	}
 
 	/*
@@ -1491,14 +1536,16 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 
 	mfd_validity = kmalloc(sizeof(*mfd_validity), GFP_KERNEL);
 	if (!mfd_validity) {
-		pr_err("%s, mfd_validity alloc failed\n", __func__);
+		dev_err(mbox->device, "%s, mfd_validity alloc failed\n",
+			__func__);
 		ret = -ENOMEM;
 		goto err_mfd;
 	}
 
 	slc_validity = kmalloc(sizeof(*slc_validity), GFP_KERNEL);
 	if (!slc_validity) {
-		pr_err("%s, slc_validity alloc failed\n", __func__);
+		dev_err(mbox->device, "%s, slc_validity alloc failed\n",
+			__func__);
 		ret = -ENOMEM;
 		goto err_slc;
 	}
@@ -1576,7 +1623,7 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 	mutex_destroy(&mbox->mfd->lock);
 
 	kfree(mbox);
-	pr_info("%s done.\n", __func__);
+	dev_info(mbox->device, "%s done.\n", __func__);
 	return 0;
 }
 
@@ -1591,7 +1638,7 @@ static struct platform_driver acpm_mbox_test_driver = {
 	.probe = acpm_mbox_test_probe,
 	.remove = acpm_mbox_test_remove,
 	.driver = {
-		   .name = "acpm-mbox-test",
+		   .name = "acpm-stress",
 		   .owner = THIS_MODULE,
 		   .of_match_table = acpm_mbox_test_match,
 		    },
