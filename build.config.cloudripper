@@ -26,11 +26,6 @@ $DEVICE_KERNEL_FILES
 "
 fi
 
-VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
-function modify_vendor_ramdisk() {
-  ln -f init.recovery.gs101.rc init.recovery.cloudripper.rc
-}
-
 EXT_MODULES+="
 private/google-modules/aoc
 private/google-modules/aoc/alsa
