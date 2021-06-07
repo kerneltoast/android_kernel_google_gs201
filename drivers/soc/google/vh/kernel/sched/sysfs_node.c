@@ -414,6 +414,9 @@ uclamp_update_active(struct task_struct *p, enum uclamp_id clamp_id)
 	if (p->uclamp[clamp_id].active) {
 		uclamp_rq_dec_id(rq, p, clamp_id);
 		uclamp_rq_inc_id(rq, p, clamp_id);
+
+		if (rq->uclamp_flags & UCLAMP_FLAG_IDLE)
+			rq->uclamp_flags &= ~UCLAMP_FLAG_IDLE;
 	}
 
 	task_rq_unlock(rq, p, &rf);
