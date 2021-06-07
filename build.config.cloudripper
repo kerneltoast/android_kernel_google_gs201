@@ -31,6 +31,7 @@ private/google-modules/aoc
 private/google-modules/aoc/alsa
 private/google-modules/display/samsung
 private/google-modules/gpu/mali_kbase
+private/google-modules/gpu/mali_pixel
 private/google-modules/lwis
 private/google-modules/power/reset
 private/google-modules/touch/common
