@@ -9,7 +9,7 @@
 / {
 	mali: mali@28000000 {
 		compatible = "arm,malit6xx";
-		reg = <0x0 0x28000000 0x5000>;
+		reg = <0x0 0x28000000 0x1000000>;
 		interrupts =
 			<GIC_SPI IRQ_G3D_IRQJOB_G3D IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI IRQ_G3D_IRQMMU_G3D IRQ_TYPE_LEVEL_HIGH>,
