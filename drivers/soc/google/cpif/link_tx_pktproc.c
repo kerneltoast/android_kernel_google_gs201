@@ -402,14 +402,15 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 	/* Get base addr */
 	mif_info("memaddr:0x%lx memsize:0x%08x\n", memaddr, memsize);
 
-	if (ppa_ul->info_rgn_cached)
+	if (ppa_ul->info_rgn_cached) {
 		ppa_ul->info_vbase = phys_to_virt(memaddr + ppa_ul->info_rgn_offset);
-	else {
+	} else {
 		ppa_ul->info_vbase = cp_shmem_get_nc_region(memaddr +
 				ppa_ul->info_rgn_offset, ppa_ul->info_rgn_size);
 		if (!ppa_ul->info_vbase) {
 			mif_err("ppa->info_vbase error\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto create_error;
 		}
 	}
 
@@ -418,7 +419,8 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 			ppa_ul->desc_rgn_size, ppa_ul->desc_rgn_size, 0);
 	if (unlikely(!ppa_ul->desc_map)) {
 		mif_err("failed to create desc map for pktproc ul\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto create_error;
 	}
 
 	ppa_ul->buff_map = cpif_vmap_create(ppa_ul->cp_base + ppa_ul->buff_rgn_offset,
@@ -426,31 +428,35 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 	if (unlikely(!ppa_ul->buff_map)) {
 		mif_err("failed to create buff map for pktproc ul\n");
 		cpif_vmap_free(ppa_ul->desc_map);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto create_error;
 	}
 
 	temp = cpif_vmap_map_area(ppa_ul->desc_map, memaddr + ppa_ul->desc_rgn_offset, 0);
 	if (temp != ppa_ul->cp_base + ppa_ul->desc_rgn_offset) {
 		cpif_vmap_free(ppa_ul->desc_map);
 		cpif_vmap_free(ppa_ul->buff_map);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto create_error;
 	}
 
 	temp = cpif_vmap_map_area(ppa_ul->buff_map, memaddr + ppa_ul->buff_rgn_offset, 0);
 	if (temp != ppa_ul->cp_base + ppa_ul->buff_rgn_offset) {
 		cpif_vmap_free(ppa_ul->desc_map);
 		cpif_vmap_free(ppa_ul->buff_map);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto create_error;
 	}
 #endif
-	if (ppa_ul->desc_rgn_cached)
+	if (ppa_ul->desc_rgn_cached) {
 		ppa_ul->desc_vbase = phys_to_virt(memaddr + ppa_ul->desc_rgn_offset);
-	else {
+	} else {
 		ppa_ul->desc_vbase = cp_shmem_get_nc_region(memaddr +
 				ppa_ul->desc_rgn_offset, ppa_ul->desc_rgn_size);
 		if (!ppa_ul->desc_vbase) {
 			mif_err("ppa->desc_vbase error\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto create_error;
 		}
 	}
 
@@ -462,13 +468,17 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 
 	buff_size = ppa_ul->buff_rgn_size;
 	buff_size_by_q = buff_size / ppa_ul->num_queue;
-	if (ppa_ul->buff_rgn_cached)
-		ppa_ul->buff_vbase =
-			phys_to_virt(memaddr + ppa_ul->buff_rgn_offset);
-	else
-		ppa_ul->buff_vbase =
-			cp_shmem_get_nc_region(memaddr +
-					ppa_ul->buff_rgn_offset, buff_size);
+	if (ppa_ul->buff_rgn_cached) {
+		ppa_ul->buff_vbase = phys_to_virt(memaddr + ppa_ul->buff_rgn_offset);
+	} else {
+		ppa_ul->buff_vbase = cp_shmem_get_nc_region(memaddr +
+				ppa_ul->buff_rgn_offset, buff_size);
+		if (!ppa_ul->buff_vbase) {
+			mif_err("ppa->buff_vbase error\n");
+			ret = -ENOMEM;
+			goto create_error;
+		}
+	}
 
 	mif_info("Total buffer size:0x%08x Queue:%d Size by queue:0x%08x\n",
 					buff_size, ppa_ul->num_queue,
