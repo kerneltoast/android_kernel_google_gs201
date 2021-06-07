@@ -2108,6 +2108,7 @@ static int exynos_devfreq_suspend(struct device *dev)
 	exynos_devfreq_um_exit(data);
 #endif
 
+	dev->power.must_resume = true;
 	dev_dbg(data->dev, "Suspend frequency is %u\n",
 		exynos_devfreq_get_freq(data->dev, &get_freq, data->clk, data) ?
 		0 : get_freq);
