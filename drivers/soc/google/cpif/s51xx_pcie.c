@@ -250,12 +250,11 @@ void s51xx_pcie_restore_state(struct pci_dev *pdev)
 
 	/* BAR0 value correction  */
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &val);
-	dev_dbg(&pdev->dev, "[%s]restored:PCI_BASE_ADDRESS_0 = 0x%x\n", __func__, val);
-	if ((val & 0xfffffff0) != 0x40000000) {
-		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, 0x40000000);
+	dev_dbg(&pdev->dev, "restored:PCI_BASE_ADDRESS_0 = 0x%x\n", val);
+	if (val != s51xx_pcie->dbaddr_base) {
+		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, s51xx_pcie->dbaddr_base);
 		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_1, 0x0);
-		mif_info("write BAR0 value: 0x40000000\n");
-		dev_info(&pdev->dev, "[%s]:VALUE CHECK\n", __func__);
+		mif_info("write BAR0 value:  0x%x\n", s51xx_pcie->dbaddr_base);
 		s51xx_pcie_chk_ep_conf(pdev);
 	}
 
