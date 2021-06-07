@@ -56,7 +56,7 @@
 	pinctrl-names = "default","on_i2c","off_i2c";
 	pinctrl-0 = <&hsi2c1_bus_in>;
 	pinctrl-1 = <&hsi2c1_bus>;
-	pinctrl-2 = <&hsi2c1_bus>;
+	pinctrl-2 = <&hsi2c1_bus_in>;
 };
 
 &hsi2c_2 {
