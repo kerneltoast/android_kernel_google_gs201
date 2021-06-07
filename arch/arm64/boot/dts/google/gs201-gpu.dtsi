@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * GS101 Mali GPU  device tree source
+ * GS201 Mali GPU  device tree source
  *
- * Copyright 2020 Google LLC
+ * Copyright 2021 Google LLC
  *
  */
 
 / {
+	mali_mgm: physical-memory-group-manager {
+		compatible = "arm,physical-memory-group-manager";
+		pt_id = "GPU";
+	};
+
+	mali_pcm: priority-control-manager {
+		compatible = "arm,priority-control-manager";
+	};
+
 	mali: mali@28000000 {
 		compatible = "arm,malit6xx";
 		reg = <0x0 0x28000000 0x1000000>;
@@ -17,8 +26,64 @@
 		interrupt-names = "JOB", "MMU", "GPU";
 
 		/* Power */
-		power-domains;
+		power-domains /*= <&pd_embedded_g3d>*/;
+		g3d_genpd_name = "pd-embedded_g3d";
+		gpu_pmu_status_reg_offset = <0x2004>;
+		gpu_pmu_status_local_pwr_mask = <0x1>; /*0x1 << 0*/
+		gpu_pm_autosuspend_delay = <50>;
+		power_policy = "adaptive";
 
+		/* Memory */
+		/*physical-memory-group-manager = <&mali_mgm>;*/
+		system-coherency = <0>; /* ACE_LITE */
+
+		/* Priority control */
+		/*priority-control-manager = <&mali_pcm>;*/
+
+		/* Clocks */
+		gpu0_cmu_cal_id = <ACPM_DVFS_G3DL2>;
+		gpu1_cmu_cal_id = <ACPM_DVFS_G3D>;
+
+		/* DVFS */
+		gpu_dvfs_governor = "quickstep";
+		gpu_dvfs_clockdown_hysteresis = <50>;
+
+		/* DVFS v1 operating points */
+		gpu_dvfs_table_size = <1 10>; /*<row col>*/
+		gpu_dvfs_table = <
+			/*
+			 *gpu0    gpu1   down     up    hys      int      mif   little  middle   big
+			 * clk     clk   util   util  ticks      min      min      min     min   max
+			 *--------------------------------------------------------------------------
+			 */
+			/*
+			996000  848000     78    100      1        0        0        0       0     0
+			996000  762000     78     99      1        0        0        0       0     0
+			885000  701000     73     98      1        0        0        0       0     0
+			750000  572000     78     96      2        0        0        0       0     0
+			750000  510000     78     95      3        0        0        0       0     0
+			603000  471000     75     95      5        0        0        0       0     0
+			603000  400000     72     92      4        0        0        0       0     0
+			603000  351000     70     90      4        0        0        0       0     0
+			434000  302000     60     90      3        0        0        0       0     0
+			434000  251000     50     80      2        0        0        0       0     0
+			302000  202000     45     67      1        0        0        0       0     0
+			*/
+			302000  151000      0     70      1        0        0        0       0     0
+		>;
+
+		/* DVFS Level locks */
+		gpu_dvfs_max_freq = <800000>;
+		gpu_dvfs_min_freq = <0>;
+		gpu_dvfs_min_freq_compute = <151000>; /* When compute work detected */
+
+		/* QOS */
+		gpu_dvfs_qos_bts_scenario = "g3d_performance";
+		gpu_dvfs_qos_bts_threshold = <400000>;
+
+		/* Thermal */
+		#cooling-cells = <2>;
+		gpu_power_coeff = <625>;
+		ect-coeff-index = <3>;
 	};
-
 };
