@@ -53,6 +53,68 @@
 #define VDD_VOLTAGE_MIN 2800000
 #define VDD_VOLTAGE_MAX 2800000
 
+
+static struct shared_i2c_data *shared_i2c_data;
+static DEFINE_MUTEX(shared_i2c_mutex);
+
+bool is_shared_i2c_with_stmvl53l1(struct pinctrl *pinctrl)
+{
+	/* The global shared_i2c_data can be NULL when allocate memory failed.
+	 * And shared_i2c_data->pinctrl will be NULL if no stmvl53l1 module in
+	 * device tree or stmvl53l1 probes failed. We don't need to care about
+	 * the shared i2c in these two cases.
+	 */
+	if (shared_i2c_data == NULL || shared_i2c_data->pinctrl == NULL)
+		return false;
+
+	return (shared_i2c_data->pinctrl == pinctrl);
+}
+EXPORT_SYMBOL_GPL(is_shared_i2c_with_stmvl53l1);
+
+void shared_i2c_data_release(struct kref *ref)
+{
+	struct shared_i2c_data *data =
+		container_of(ref, struct shared_i2c_data, refcount);
+	kfree(data);
+}
+
+int shared_i2c_set_state(struct device *dev, struct pinctrl *pinctrl,
+			 const char *state_str)
+{
+	struct pinctrl_state *state;
+	int ret;
+
+	state = pinctrl_lookup_state(pinctrl, state_str);
+	if (IS_ERR(state)) {
+		return -EINVAL;
+	}
+
+	mutex_lock(&shared_i2c_mutex);
+	if (strcmp(state_str, "on_i2c") == 0)
+		kref_get(&shared_i2c_data->refcount);
+
+	if (strcmp(state_str, "off_i2c") == 0) {
+		kref_put(&shared_i2c_data->refcount, shared_i2c_data_release);
+		if (kref_read(&shared_i2c_data->refcount) != 1) {
+			mutex_unlock(&shared_i2c_mutex);
+			return 0;
+		}
+	}
+
+	ret = pinctrl_select_state(pinctrl, state);
+	mutex_unlock(&shared_i2c_mutex);
+
+	if (ret) {
+		dev_err(dev, "Error selecting state %s (%d)\n",
+			 state_str, ret);
+		return ret;
+	}
+
+	dev_info(dev, "Shared i2c pinctrl state %s\n", state_str);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(shared_i2c_set_state);
+
 /*
  * mutex to handle device i2c address changes. It allow to avoid multiple
  * device active with same i2c addresses at the same time. Note that we don't
@@ -399,9 +461,12 @@ static int stmvl53l1_parse_tree(struct device *dev, struct i2c_data *i2c_data)
 		goto no_intr;
 
 	/* configure pinctrl */
-	i2c_data->state_pinctrl = devm_pinctrl_get(dev->parent->parent);
-	if (IS_ERR(i2c_data->state_pinctrl))
-		dev_warn(dev, "Unable to config pinctrl\n");
+	shared_i2c_data->pinctrl = devm_pinctrl_get(dev->parent->parent);
+	if (IS_ERR(shared_i2c_data->pinctrl)) {
+		dev_err(dev, "Unable to config pinctrl\n");
+		rc = PTR_ERR(shared_i2c_data->pinctrl);
+		goto no_intr;
+	}
 
 	return rc;
 
@@ -463,10 +528,15 @@ static int stmvl53l1_probe(struct i2c_client *client,
 	i2c_data->vl53l1_data = vl53l1_data;
 	i2c_data->irq = -1; /* init to no irq */
 
+	shared_i2c_data = kzalloc(sizeof(struct shared_i2c_data), GFP_KERNEL);
+	if (!shared_i2c_data)
+		goto done_freemem;
+	kref_init(&shared_i2c_data->refcount);
+
 	/* parse and configure hardware */
 	rc = stmvl53l1_parse_tree(&i2c_data->client->dev, i2c_data);
 	if (rc)
-		goto done_freemem;
+		goto parse_fail;
 
 	/* setup client data */
 	i2c_set_clientdata(client, vl53l1_data);
@@ -482,13 +552,14 @@ static int stmvl53l1_probe(struct i2c_client *client,
 
 release_gpios:
 	stmvl53l1_release_gpios(i2c_data);
-
+parse_fail:
+	/* Set pinctrl NULL either parse tree failed or probe failed. */
+	shared_i2c_data->pinctrl = NULL;
 done_freemem:
 	/* kfree safe against NULL */
 	kfree(vl53l1_data);
 	kfree(i2c_data);
-
-	return -1;
+	return -EPERM;
 }
 
 static int stmvl53l1_remove(struct i2c_client *client)
@@ -506,6 +577,7 @@ static int stmvl53l1_remove(struct i2c_client *client)
 	mutex_unlock(&data->work_mutex);
 
 	stmvl53l1_put(data->client_object);
+	kref_put(&shared_i2c_data->refcount, shared_i2c_data_release);
 
 	return 0;
 }
@@ -607,8 +679,12 @@ int stmvl53l1_power_up_i2c(void *object)
 	} else
 		dev_warn(dev, "no power control\n");
 
-	/* Enable I2C */
-	stmvl53l1_pinctrl_set_state(dev, data->state_pinctrl, "on_i2c");
+	/* Enable shared I2C */
+	rc = shared_i2c_set_state(dev, shared_i2c_data->pinctrl, "on_i2c");
+	if (rc) {
+		dev_err(dev, "Error enabling i2c bus %d\n", rc);
+		return rc;
+	}
 
 	if (data->vl53l1_data != NULL) {
 		data->vl53l1_data->is_power_up = true;
@@ -646,6 +722,13 @@ int stmvl53l1_power_down_i2c(void *i2c_object)
 		rc = regulator_disable(data->vio);
 		if (rc)
 			dev_err(dev, "reg disable vio failed. rc=%d\n", rc);
+	}
+
+	/* Disable shared I2C */
+	rc = shared_i2c_set_state(dev, shared_i2c_data->pinctrl, "off_i2c");
+	if (rc) {
+		dev_err(dev, "Error disabling i2c bus %d\n", rc);
+		return rc;
 	}
 
 	if (data->vl53l1_data != NULL) {
