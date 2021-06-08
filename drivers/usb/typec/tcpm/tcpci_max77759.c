@@ -90,6 +90,8 @@ static u32 partner_src_caps[PDO_MAX_OBJECTS];
 static unsigned int nr_partner_src_caps;
 spinlock_t g_caps_lock;
 
+static unsigned int sink_discovery_delay_ms;
+
 struct tcpci {
 	struct device *dev;
 	struct tcpm_port *port;
@@ -1482,7 +1484,7 @@ static void max77759_get_timer_value(void *unused, const char *state, enum typec
 {
 	switch (timer) {
 	case SINK_DISCOVERY_BC12:
-		*val = 500;
+		*val = sink_discovery_delay_ms;
 		break;
 	case SINK_WAIT_CAP:
 		*val = 450;
@@ -1760,6 +1762,7 @@ static int max77759_probe(struct i2c_client *client,
 	}
 
 	chip->no_bc_12 = of_property_read_bool(dn, "no-bc-12");
+	of_property_read_u32(dn, "sink-discovery-delay-ms", &sink_discovery_delay_ms);
 
 	chip->usb_psy = power_supply_get_by_name(usb_psy_name);
 	if (IS_ERR_OR_NULL(chip->usb_psy) || !chip->usb_psy) {
