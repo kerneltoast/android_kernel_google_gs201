@@ -262,10 +262,10 @@
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
-					<6000
+					<1000
 					 1000
 					 1000
-					 11000>;
+					 8000>;
 
 				/* Power down sequence */
 				power-down-seqs =
@@ -281,7 +281,7 @@
 				power-down-seq-delays-us =
 					<1000
 					 1000
-					 6000
+					 1000
 					 1000>;
 			};
 
