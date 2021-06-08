@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <asm/barrier.h>
 #include <soc/google/debug-snapshot.h>
+#include <soc/google/sjtag-driver.h>
 
 #include "core_regs.h"
 
@@ -355,8 +356,8 @@ int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 	if (ee_info->enabled)
 		return -EINVAL;
 
-	if (dbg_snapshot_get_sjtag_status()) {
-		dev_err(ee_info->dev, "SJTAG enabled\n");
+	if (sjtag_is_locked()) {
+		dev_err(ee_info->dev, "Coresight requires SJTAG auth\n");
 		return -EACCES;
 	}
 
@@ -397,8 +398,8 @@ int gs_coresight_etm_external_etr_off(void)
 	if (!ee_info->etr_aux_buf_size)
 		return -EINVAL;
 
-	if (dbg_snapshot_get_sjtag_status()) {
-		dev_err(ee_info->dev, "SJTAG enabled\n");
+	if (sjtag_is_locked()) {
+		dev_err(ee_info->dev, "Coresight requires SJTAG auth\n");
 		return -EACCES;
 	}
 
@@ -517,7 +518,7 @@ static void exynos_etm_smp_enable(void *ununsed)
 	unsigned int cpu = raw_smp_processor_id();
 	struct etm_info *info = &ee_info->cpu[cpu];
 
-	if (dbg_snapshot_get_sjtag_status())
+	if (sjtag_is_locked())
 		return;
 
 	if (info->enabled)
@@ -537,8 +538,8 @@ static ssize_t exynos_etm_print_info(char *buf)
 	unsigned long ctrl, sts, port_status, read_p;
 	int i, channel, port, size = 0;
 
-	if (dbg_snapshot_get_sjtag_status()) {
-		size = scnprintf(buf, PAGE_SIZE, "SJTAG enabled\n");
+	if (sjtag_is_locked()) {
+		size = scnprintf(buf, PAGE_SIZE, "Coresight requires SJTAG auth\n");
 		return size;
 	}
 
@@ -608,8 +609,8 @@ void exynos_etm_trace_start(void)
 	if (!ee_info->enabled || ee_info->status)
 		return;
 
-	if (dbg_snapshot_get_sjtag_status()) {
-		dev_err(ee_info->dev, "SJTAG enabled\n");
+	if (sjtag_is_locked()) {
+		dev_err(ee_info->dev, "Coresight requires SJTAG auth\n");
 		return;
 	}
 
@@ -638,8 +639,8 @@ void exynos_etm_trace_stop(void)
 	if (!ee_info->status)
 		return;
 
-	if (dbg_snapshot_get_sjtag_status()) {
-		dev_err(ee_info->dev, "SJTAG enabled\n");
+	if (sjtag_is_locked()) {
+		dev_err(ee_info->dev, "Coresight requires SJTAG auth\n");
 		return;
 	}
 
@@ -665,9 +666,6 @@ static int exynos_etm_c2_pm_notifier(struct notifier_block *self,
 				     unsigned long action, void *v)
 {
 	int cpu = raw_smp_processor_id();
-
-	if (dbg_snapshot_get_sjtag_status())
-		return NOTIFY_OK;
 
 	switch (action) {
 	case CPU_PM_ENTER:
@@ -716,7 +714,7 @@ static ssize_t etm_on_store(struct device *dev,
 	bool on;
 	int ret;
 
-	if (dbg_snapshot_get_sjtag_status())
+	if (sjtag_is_locked())
 		return -EACCES;
 
 	ret = kstrtobool(buf, &on);
@@ -743,7 +741,7 @@ static ssize_t trace_on_store(struct device *dev,
 	bool on;
 	int ret;
 
-	if (dbg_snapshot_get_sjtag_status())
+	if (sjtag_is_locked())
 		return -EACCES;
 
 	ret = kstrtobool(buf, &on);
@@ -776,7 +774,7 @@ static ssize_t manual_port_on_store(struct device *dev,
 	struct funnel_info *funnel;
 	unsigned int port;
 
-	if (dbg_snapshot_get_sjtag_status())
+	if (sjtag_is_locked())
 		return -EACCES;
 
 	if (kstrtouint(buf, 0, &port))
@@ -808,7 +806,7 @@ static ssize_t manual_port_off_store(struct device *dev,
 	struct funnel_info *funnel;
 	unsigned int port;
 
-	if (dbg_snapshot_get_sjtag_status())
+	if (sjtag_is_locked())
 		return -EACCES;
 
 	if (kstrtouint(buf, 0, &port))
