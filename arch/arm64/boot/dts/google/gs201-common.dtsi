@@ -341,7 +341,7 @@
 	use-msi = "true";
 	use-sicd = "true";
 	use-ia = "true";
-	use-l1ss = "true";
+	use-l1ss = "false";
 	phy-power-off = "false";
 	use-pcieon-sleep = "true";
 	ep-device-type = <EP_SAMSUNG_MODEM>;
