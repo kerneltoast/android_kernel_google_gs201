@@ -859,6 +859,26 @@ skip_ect:
 }
 
 ssize_t
+state2power_table_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct exynos_cpu_cooling_device *cpufreq_cdev = cdev->devdata;
+	int i, count = 0;
+	u32 power;
+
+	if (!cpufreq_cdev)
+		return -ENODEV;
+
+	for (i = 0; i <= cpufreq_cdev->max_level; i++) {
+		cpufreq_state2power(cdev, i, &power);
+		count += sysfs_emit_at(buf, count, "%u ", power);
+	}
+	count += sysfs_emit_at(buf, count, "\n");
+
+	return count;
+}
+
+ssize_t
 user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -897,6 +917,7 @@ ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR_RW(user_vote);
+static DEVICE_ATTR_RO(state2power_table);
 
 /**
  * __exynos_cpu_cooling_register - helper function to create cpufreq cooling device
@@ -1012,6 +1033,12 @@ __exynos_cpu_cooling_register(struct device_node *np,
 		goto remove_qos_req;
 
 	ret = device_create_file(&cdev->device, &dev_attr_user_vote);
+	if (ret) {
+		thermal_cooling_device_unregister(cdev);
+		goto remove_qos_req;
+	}
+
+	ret = device_create_file(&cdev->device, &dev_attr_state2power_table);
 	if (ret) {
 		thermal_cooling_device_unregister(cdev);
 		goto remove_qos_req;

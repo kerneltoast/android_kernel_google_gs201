@@ -942,6 +942,31 @@ static int gpu_cooling_table_init(struct gpufreq_cooling_device *gpufreq_cdev)
 }
 
 ssize_t
+state2power_table_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct gpufreq_cooling_device *gpufreq_cdev = cdev->devdata;
+	int ret, i, count = 0;
+	unsigned int max_state = 0;
+	u32 power;
+
+	if (!gpufreq_cdev)
+		return -ENODEV;
+
+	ret = get_property(gpufreq_cdev, 0, &max_state, GET_MAXL);
+	if (ret)
+		return ret;
+
+	for (i = 0; i <= max_state; i++) {
+		gpufreq_state2power(cdev, i, &power);
+		count += sysfs_emit_at(buf, count, "%u ", power);
+	}
+	count += sysfs_emit_at(buf, count, "\n");
+
+	return count;
+}
+
+ssize_t
 user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -985,6 +1010,7 @@ ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR_RW(user_vote);
+static DEVICE_ATTR_RO(state2power_table);
 
 /**
  * __gpufreq_cooling_register - helper function to create gpufreq cooling device
@@ -1052,6 +1078,12 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 	}
 
 	ret = device_create_file(&cool_dev->device, &dev_attr_user_vote);
+	if (ret) {
+		thermal_cooling_device_unregister(cool_dev);
+		goto free_cool_dev;
+	}
+
+	ret = device_create_file(&cool_dev->device, &dev_attr_state2power_table);
 	if (ret) {
 		thermal_cooling_device_unregister(cool_dev);
 		goto free_cool_dev;
