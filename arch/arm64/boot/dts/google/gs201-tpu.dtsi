@@ -10,6 +10,10 @@
 	/* TPU */
 	edgetpu: janeiro@1CE00000 {
 		compatible = "google,darwinn";
+		#dma-address-cells = <1>;
+		#dma-size-cells = <1>;
+		/* TPU uses regions under 0x18000000 for special purpose */
+		dma-window = <0x18000000 0xE7FFF000>;
 		reg = <0x0 0x1CE00000 0x200000
 		       0x0 0x1CCF0000 0x10000>;
 		interrupts = <0 IRQ_MAILBOX_TPU2AP_NS_TPU_0_TPU IRQ_TYPE_LEVEL_HIGH>,
