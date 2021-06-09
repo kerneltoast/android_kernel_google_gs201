@@ -888,7 +888,7 @@ static void init_bcl_dev(struct kthread_work *work)
 	int ret = 0;
 
 	mutex_lock(&data->lock);
-	data->bcl_dev = gs101_retrieve_bcl_handle();
+	data->bcl_dev = google_retrieve_bcl_handle();
 
 	if (!data->bcl_dev) {
 		pr_warn_ratelimited("%s: failed to retrieve bcl_dev. Retry.\n", data->tmu_name);
@@ -899,10 +899,10 @@ static void init_bcl_dev(struct kthread_work *work)
 	}
 
 	if (!data->ppm_clr_throttle_level)
-		data->ppm_clr_throttle_level = gs101_get_ppm(data->bcl_dev);
+		data->ppm_clr_throttle_level = google_get_ppm(data->bcl_dev);
 
 	if (!data->mpmm_clr_throttle_level)
-		data->mpmm_clr_throttle_level = gs101_get_mpmm(data->bcl_dev);
+		data->mpmm_clr_throttle_level = google_get_mpmm(data->bcl_dev);
 
 	if (data->ppm_clr_throttle_level < 0)
 		ret = data->ppm_clr_throttle_level;
@@ -943,7 +943,7 @@ static void gs_throttle_arm(struct kthread_work *work)
 		if (data->temperature < data->cpu_hw_throttling_clr_threshold) {
 			pr_info_ratelimited("ppm/mpmm thermal throttling disable!\n");
 
-			ret = gs101_set_ppm(data->bcl_dev, data->ppm_clr_throttle_level);
+			ret = google_set_ppm(data->bcl_dev, data->ppm_clr_throttle_level);
 			if (ret) {
 				pr_err_ratelimited("Failed to clr ppm throttle to 0x%x, ret = %d",
 						   data->ppm_clr_throttle_level, ret);
@@ -952,7 +952,7 @@ static void gs_throttle_arm(struct kthread_work *work)
 			pr_info_ratelimited("Set ppm throttle to 0x%x\n",
 					    data->ppm_clr_throttle_level);
 
-			ret = gs101_set_mpmm(data->bcl_dev, data->mpmm_clr_throttle_level);
+			ret = google_set_mpmm(data->bcl_dev, data->mpmm_clr_throttle_level);
 			if (ret) {
 				pr_err_ratelimited("Failed to clr mpmm throttle to 0x%x, ret = %d",
 						   data->mpmm_clr_throttle_level, ret);
@@ -967,7 +967,7 @@ static void gs_throttle_arm(struct kthread_work *work)
 		if (data->temperature >= data->cpu_hw_throttling_trigger_threshold) {
 			pr_info_ratelimited("ppm/mpmm thermal throttling enable!\n");
 
-			ret = gs101_set_ppm(data->bcl_dev, data->ppm_throttle_level);
+			ret = google_set_ppm(data->bcl_dev, data->ppm_throttle_level);
 			if (ret) {
 				pr_err_ratelimited("Failed to set ppm throttle to 0x%x, ret = %d",
 						   data->ppm_throttle_level, ret);
@@ -976,7 +976,7 @@ static void gs_throttle_arm(struct kthread_work *work)
 			pr_info_ratelimited("Set ppm throttle to 0x%x\n",
 					    data->ppm_throttle_level);
 
-			ret = gs101_set_mpmm(data->bcl_dev, data->mpmm_throttle_level);
+			ret = google_set_mpmm(data->bcl_dev, data->mpmm_throttle_level);
 			if (ret) {
 				pr_err_ratelimited("Failed to set mpmm throttle to 0x%x, ret = %d",
 						   data->mpmm_throttle_level, ret);
