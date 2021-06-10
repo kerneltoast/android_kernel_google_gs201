@@ -77,7 +77,7 @@
 
 	usbdrd_dwc3: dwc3 {
 		dr_mode = "peripheral";
-		maximum-speed = "high-speed";
+		maximum-speed = "super-speed-plus";
 		usb3-lpm-capable;
 		usb-psy-name = "usb";
 		snps,quirk-frame-length-adjustment = <0x20>;
@@ -136,198 +136,198 @@
 		};
 	};
 
-//	usb_ss_tune:ss_tune {
-//		status = "disabled";
-//		ss_tune_cnt = <36>;
-//		/* value = <device host> */
-//		/* 0xffffffff means using default value */
-//		ss_tune1 {
-//			tune_name = "ssrx_sqhs_th_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune2 {
-//			tune_name = "ssrx_sqhs_th_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune3 {
-//			tune_name = "ssrx_lfps_th";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune4 {
-//			tune_name = "ssrx_adap_coef_sel";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune5 {
-//			tune_name = "ssrx_mf_eq_psel_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune6 {
-//			tune_name = "ssrx_mf_eq_psel_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune7 {
-//			tune_name = "ssrx_mf_eq_zsel_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune8 {
-//			tune_name = "ssrx_mf_eq_zsel_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune9 {
-//			tune_name = "ssrx_hf_eq_rsel_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune10 {
-//			tune_name = "ssrx_hf_eq_rsel_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune11 {
-//			tune_name = "ssrx_hf_eq_csel_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune12 {
-//			tune_name = "ssrx_hf_eq_csel_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune13 {
-//			tune_name = "ssrx_dfe_1tap_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune14 {
-//			tune_name = "ssrx_dfe_1tap_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune15 {
-//			tune_name = "ssrx_dfe_2tap_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune16 {
-//			tune_name = "ssrx_dfe_2tap_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune17 {
-//			tune_name = "ssrx_dfe_3tap_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune18 {
-//			tune_name = "ssrx_dfe_3tap_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune19 {
-//			tune_name = "ssrx_dfe_4tap_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune20 {
-//			tune_name = "ssrx_dfe_4tap_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune21 {
-//			tune_name = "ssrx_dfe_5tap_ctrl_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune22 {
-//			tune_name = "ssrx_dfe_5tap_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune23 {
-//			tune_name = "ssrx_term_cal";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune24 {
-//			tune_name = "sstx_amp_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune25 {
-//			tune_name = "sstx_deemp_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune26 {
-//			tune_name = "sstx_pre_shoot_ss";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune27 {
-//			tune_name = "sstx_amp_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune28 {
-//			tune_name = "sstx_deemp_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune29 {
-//			tune_name = "sstx_pre_shoot_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune30 {
-//			tune_name = "sstx_idrv_up";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune31 {
-//			tune_name = "sstx_lfps_idrv_up";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune32 {
-//			tune_name = "sstx_up_term";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune33 {
-//			tune_name = "sstx_dn_term";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune34 {
-//			tune_name = "rext_ovrd";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune35 {
-//			tune_name = "ssrx_cdr_fbb_fine_ctrl_sp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//
-//		ss_tune36 {
-//			tune_name = "ssrx_cdr_fbb_fine_ctrl_ssp";
-//			tune_value = <0xffffffff 0xffffffff>;
-//		};
-//	};
+	usb_ss_tune:ss_tune {
+		status = "disabled";
+		ss_tune_cnt = <36>;
+		/* value = <device host> */
+		/* 0xffffffff means using default value */
+		ss_tune1 {
+			tune_name = "ssrx_sqhs_th_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune2 {
+			tune_name = "ssrx_sqhs_th_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune3 {
+			tune_name = "ssrx_lfps_th";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune4 {
+			tune_name = "ssrx_adap_coef_sel";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune5 {
+			tune_name = "ssrx_mf_eq_psel_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune6 {
+			tune_name = "ssrx_mf_eq_psel_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune7 {
+			tune_name = "ssrx_mf_eq_zsel_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune8 {
+			tune_name = "ssrx_mf_eq_zsel_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune9 {
+			tune_name = "ssrx_hf_eq_rsel_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune10 {
+			tune_name = "ssrx_hf_eq_rsel_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune11 {
+			tune_name = "ssrx_hf_eq_csel_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune12 {
+			tune_name = "ssrx_hf_eq_csel_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune13 {
+			tune_name = "ssrx_dfe_1tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune14 {
+			tune_name = "ssrx_dfe_1tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune15 {
+			tune_name = "ssrx_dfe_2tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune16 {
+			tune_name = "ssrx_dfe_2tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune17 {
+			tune_name = "ssrx_dfe_3tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune18 {
+			tune_name = "ssrx_dfe_3tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune19 {
+			tune_name = "ssrx_dfe_4tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune20 {
+			tune_name = "ssrx_dfe_4tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune21 {
+			tune_name = "ssrx_dfe_5tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune22 {
+			tune_name = "ssrx_dfe_5tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune23 {
+			tune_name = "ssrx_term_cal";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune24 {
+			tune_name = "sstx_amp_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune25 {
+			tune_name = "sstx_deemp_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune26 {
+			tune_name = "sstx_pre_shoot_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune27 {
+			tune_name = "sstx_amp_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune28 {
+			tune_name = "sstx_deemp_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune29 {
+			tune_name = "sstx_pre_shoot_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune30 {
+			tune_name = "sstx_idrv_up";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune31 {
+			tune_name = "sstx_lfps_idrv_up";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune32 {
+			tune_name = "sstx_up_term";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune33 {
+			tune_name = "sstx_dn_term";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune34 {
+			tune_name = "rext_ovrd";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune35 {
+			tune_name = "ssrx_cdr_fbb_fine_ctrl_sp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune36 {
+			tune_name = "ssrx_cdr_fbb_fine_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+	};
 };
 
 &usbdrd_phy0 {
 	status = "okay";
 
 	hs_tune_param = <&usb_hs_tune>;
-	//ss_tune_param = <&usb_ss_tune>;
+	ss_tune_param = <&usb_ss_tune>;
 	extcon = <&max77759tcpc>;
 
 	vdd_hsi-supply = <&m_ldo7_reg>;

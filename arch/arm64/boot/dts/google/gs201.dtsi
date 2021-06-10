@@ -709,7 +709,6 @@
 
 		usbdrd_dwc3: dwc3 {
 			compatible = "synopsys,dwc3";
-			maximum-speed = "high-speed";
 			clocks = <&clock GATE_USB31DRD_SLV_LINK>,
 				<&clock MUX_HSI0_USB20_REF>;
 			clock-names = "aclk", "sclk";
