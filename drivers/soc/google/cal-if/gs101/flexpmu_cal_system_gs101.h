@@ -19,7 +19,7 @@ struct pmucal_seq pmucal_lpm_init[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CPUCL0_CLKDIVSTEP", 0x20C00000, 0x0830, (0x1 << 0), (0x1 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CPUCL1_CLKDIVSTEP_SMPL_FLT", 0x20C10000, 0x083C, (0xffffffff << 0), (0x8000FFFF << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CPUCL1_CLKDIVSTEP", 0x20C10000, 0x0830, (0xffffffff << 0),
-			(0x3FC00001 << 0), 0, 0, 0xffffffff, 0),
+			(0x3FC00000 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CPUCL2_CLKDIVSTEP_SMPL_FLT", 0x20C20000, 0x083C, (0xffffffff << 0), (0x8000FFFF << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CPUCL2_CLKDIVSTEP", 0x20C20000, 0x0830, (0xffffffff << 0),
 			(0x3FC00001 << 0), 0, 0, 0xffffffff, 0),
