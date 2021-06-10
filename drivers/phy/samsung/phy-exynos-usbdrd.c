@@ -598,7 +598,6 @@ static unsigned int exynos_rate_to_clk(struct exynos_usbdrd_phy *phy_drd)
 static void exynos_usbdrd_pipe3_phy_isol(struct phy_usb_instance *inst,
 					 unsigned int on, unsigned int mask)
 {
-#if defined(CONFIG_PHY_SAMSUNG_USB_GEN2)
 	unsigned int val;
 	int ret;
 
@@ -611,7 +610,6 @@ static void exynos_usbdrd_pipe3_phy_isol(struct phy_usb_instance *inst,
 	if (ret)
 		regmap_update_bits(inst->reg_pmu, inst->pmu_offset_dp,
 				   mask, val);
-#endif
 }
 
 static void exynos_usbdrd_utmi_phy_isol(struct phy_usb_instance *inst,
@@ -650,7 +648,6 @@ static void exynos_usbdrd_utmi_phy_isol(struct phy_usb_instance *inst,
 static unsigned int
 exynos_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
 {
-#if defined(CONFIG_PHY_SAMSUNG_USB_GEN2)
 	static u32 reg;
 	struct exynos_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
@@ -692,8 +689,6 @@ exynos_usbdrd_pipe3_set_refclk(struct phy_usb_instance *inst)
 	}
 
 	return reg;
-#endif
-	return 0;
 }
 
 /*
@@ -1732,7 +1727,6 @@ static int exynos_usbdrd_utmi_vendor_set(struct exynos_usbdrd_phy *phy_drd,
 static void exynos_usbdrd_pipe3_tune(struct exynos_usbdrd_phy *phy_drd,
 				     int phy_state)
 {
-#if defined(CONFIG_PHY_SAMSUNG_USB_GEN2)
 	struct exynos_usb_tune_param *ss_tune_param = phy_drd->usbphy_sub_info.tune_param;
 	int i;
 
@@ -1757,7 +1751,6 @@ static void exynos_usbdrd_pipe3_tune(struct exynos_usbdrd_phy *phy_drd,
 	phy_exynos_usbdp_g2_v4_tune(&phy_drd->usbphy_sub_info);
 #elif defined(CONFIG_PHY_SAMSUNG_USB_GEN2)
 	phy_exynos_g2_usbdp_tune(&phy_drd->usbphy_sub_info);
-#endif
 #endif
 }
 
@@ -2119,28 +2112,24 @@ EXPORT_SYMBOL_GPL(exynos_usbdrd_get_ldo_status);
 
 int exynos_usbdrd_pipe3_enable(struct phy *phy)
 {
-#if defined(CONFIG_PHY_SAMSUNG_USB_GEN2)
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
 	struct exynos_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	phy_exynos_usb_v3p1_g2_pma_ready(&phy_drd->usbphy_info);
 	phy_exynos_usbdp_g2_v4_enable(&phy_drd->usbphy_sub_info);
 
-#endif
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_pipe3_enable);
 
 int exynos_usbdrd_pipe3_disable(struct phy *phy)
 {
-#if defined(CONFIG_PHY_SAMSUNG_USB_GEN2)
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
 	struct exynos_usbdrd_phy *phy_drd = to_usbdrd_phy(inst);
 
 	/* phy_exynos_usb_v3p1_pipe_ovrd(&phy_drd->usbphy_info); */
 	phy_exynos_usbdp_g2_v4_disable(&phy_drd->usbphy_sub_info);
 
-#endif
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_pipe3_disable);
