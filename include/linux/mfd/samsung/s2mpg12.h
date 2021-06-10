@@ -260,5 +260,6 @@ int s2mpg12_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask);
 void s2mpg12_usleep(unsigned int u_sec);
 
 u8 s2mpg12_get_rev_id(void);
+int pmic_read_pwrkey_status(void);
 
 #endif /* __S2MPG12_MFD_H__ */

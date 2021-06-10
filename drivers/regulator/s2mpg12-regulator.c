@@ -31,6 +31,7 @@
 #define TEST_DBG 0
 #endif
 
+static struct s2mpg12_pmic *s2mpg12_st_pmic;
 static struct regulator_desc regulators[S2MPG12_REGULATOR_MAX];
 
 static unsigned int s2mpg12_of_map_mode(unsigned int val)
@@ -178,6 +179,22 @@ static int s2m_set_voltage_time_sel(struct regulator_dev *rdev,
 		return DIV_ROUND_UP(new_volt - old_volt, ramp_delay);
 	return DIV_ROUND_UP(old_volt - new_volt, ramp_delay);
 }
+
+int pmic_read_pwrkey_status(void)
+{
+	struct s2mpg12_pmic *s2mpg12 = s2mpg12_st_pmic;
+	u8 val, ret;
+
+	if (!s2mpg12)
+		return -ENODEV;
+
+	ret = s2mpg12_read_reg(s2mpg12->i2c, S2MPG12_PM_STATUS1, &val);
+	if (ret)
+		return ret;
+
+	return (val & S2MPG12_STATUS1_PWRON);
+}
+EXPORT_SYMBOL_GPL(pmic_read_pwrkey_status);
 
 static struct regulator_ops s2mpg12_regulator_ops = {
 	.list_voltage = regulator_list_voltage_linear,
@@ -882,6 +899,9 @@ static int s2mpg12_pmic_probe(struct platform_device *pdev)
 	s2mpg12->dev = &pdev->dev;
 
 	mutex_init(&s2mpg12->lock);
+
+	s2mpg12_st_pmic = s2mpg12;
+
 	platform_set_drvdata(pdev, s2mpg12);
 
 	for (i = 0; i < pdata->num_regulators; i++) {

@@ -578,10 +578,10 @@ typedef enum {
  * _STEP(group) S2MPG13_REG_STEP##group
  */
 
-/* BUCK1S~6S, BUCK8S~10S ## group: 1 */
+/* BUCK1S~6S, BUCK8S~10S, BUCKC ## group: 1 */
 #define S2MPG13_REG_MIN1	200000
 #define S2MPG13_REG_STEP1	6250
-/* BUCK7S,D,A,C ## group: 2 */
+/* BUCK7S,D,A ## group: 2 */
 #define S2MPG13_REG_MIN2	600000
 #define S2MPG13_REG_STEP2	12500
 /* BUCKBOOST ## group: 3 */

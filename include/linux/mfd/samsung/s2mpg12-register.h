@@ -598,10 +598,10 @@ typedef enum {
 /* BUCK 1M~10M ## group: 1 */
 #define S2MPG12_REG_MIN1	200000
 #define S2MPG12_REG_STEP1	6250
-/* LDO 1M,3M,7M,11M~13M,15M,17M,19M,22M ## group: 2 */
+/* LDO 1M,3M,5M,7M,11M~13M,15M,17M,19M,22M ## group: 2 */
 #define S2MPG12_REG_MIN2	300000
 #define S2MPG12_REG_STEP2	12500
-/* LDO 5M,6M,8M,16M,28M ## group: 3 */
+/* LDO 6M,8M,16M,28M ## group: 3 */
 #define S2MPG12_REG_MIN3	725000
 #define S2MPG12_REG_STEP3	12500
 /* LDO 2M,4M,9M,14M,18M,20M,23M,24M,25M ## group: 4 */
