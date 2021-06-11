@@ -35,6 +35,7 @@ android/abi_gki_aarch64_hikey960
 android/abi_gki_aarch64_exynos
 android/abi_gki_aarch64_mtk
 android/abi_gki_aarch64_xiaomi
+android/abi_gki_aarch64_fips140
 android/abi_gki_aarch64
 "
 TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
