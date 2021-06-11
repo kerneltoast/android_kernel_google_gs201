@@ -1419,7 +1419,7 @@ static void __mfc_core_nal_q_handle_stream_output(struct mfc_ctx *ctx, int slice
 				unsigned int strm_size, EncoderOutputStr *pOutStr)
 {
 	struct mfc_buf *dst_mb;
-	unsigned int index;
+	unsigned int index, idr_flag;
 
 	if (strm_size == 0) {
 		mfc_debug(3, "[NALQ] no encoded dst (reuse)\n");
@@ -1447,6 +1447,10 @@ static void __mfc_core_nal_q_handle_stream_output(struct mfc_ctx *ctx, int slice
 	mfc_debug(2, "[NALQ][BUFINFO] ctx[%d] get dst addr: 0x%08llx\n",
 			ctx->num, dst_mb->addr[0][0]);
 
+	idr_flag = ((pOutStr->NalDoneInfo >> MFC_REG_E_NAL_DONE_INFO_IDR_SHIFT)
+			& MFC_REG_E_NAL_DONE_INFO_IDR_MASK);
+
+	mfc_clear_mb_flag(dst_mb);
 	dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 				V4L2_BUF_FLAG_PFRAME |
 				V4L2_BUF_FLAG_BFRAME);
@@ -1454,6 +1458,10 @@ static void __mfc_core_nal_q_handle_stream_output(struct mfc_ctx *ctx, int slice
 	switch (slice_type) {
 	case MFC_REG_E_SLICE_TYPE_I:
 		dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
+		if (idr_flag) {
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_IDR);
+			mfc_debug(2, "[NALQ][STREAM] keyframe IDR\n");
+		}
 		break;
 	case MFC_REG_E_SLICE_TYPE_P:
 		dst_mb->vb.flags |= V4L2_BUF_FLAG_PFRAME;
@@ -1489,7 +1497,7 @@ static void __mfc_core_nal_q_handle_stream(struct mfc_core *core, struct mfc_cor
 
 	mfc_debug_enter();
 
-	slice_type = pOutStr->SliceType;
+	slice_type = (pOutStr->SliceType & MFC_REG_E_SLICE_TYPE_MASK);
 	strm_size = pOutStr->StreamSize;
 	pic_count = pOutStr->EncCnt;
 

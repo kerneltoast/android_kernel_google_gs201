@@ -1231,7 +1231,7 @@ static void __mfc_handle_stream_output(struct mfc_core *core,
 {
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_buf *dst_mb;
-	unsigned int index;
+	unsigned int index, idr_flag;
 
 	if (strm_size == 0) {
 		mfc_debug(3, "no encoded dst (reuse)\n");
@@ -1248,12 +1248,19 @@ static void __mfc_handle_stream_output(struct mfc_core *core,
 	mfc_debug(2, "[BUFINFO] ctx[%d] get dst addr: 0x%08llx\n",
 			ctx->num, dst_mb->addr[0][0]);
 
+	idr_flag = mfc_core_get_enc_idr_flag();
+
+	mfc_clear_mb_flag(dst_mb);
 	dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 				V4L2_BUF_FLAG_PFRAME |
 				V4L2_BUF_FLAG_BFRAME);
 	switch (slice_type) {
 	case MFC_REG_E_SLICE_TYPE_I:
 		dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
+		if (idr_flag) {
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_IDR);
+			mfc_debug(2, "[STREAM] keyframe IDR\n");
+		}
 		break;
 	case MFC_REG_E_SLICE_TYPE_P:
 		dst_mb->vb.flags |= V4L2_BUF_FLAG_PFRAME;
