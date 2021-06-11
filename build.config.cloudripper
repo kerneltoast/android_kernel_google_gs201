@@ -30,6 +30,7 @@ EXT_MODULES+="
 private/google-modules/aoc
 private/google-modules/aoc/alsa
 private/google-modules/display/samsung
+private/google-modules/edgetpu/drivers/edgetpu
 private/google-modules/gpu/mali_kbase
 private/google-modules/gpu/mali_pixel
 private/google-modules/lwis
