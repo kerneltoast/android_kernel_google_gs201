@@ -310,6 +310,18 @@
 		};
 	};
 
+	pixel-em {
+		compatible = "google,pixel-em";
+		profile = "
+			cpu0 {
+			}
+			cpu4 {
+			}
+			cpu6 {
+			}
+			";
+	};
+
 	dm-tables {
 		lit_mif_perf: dm-table@0000 {
 		};
