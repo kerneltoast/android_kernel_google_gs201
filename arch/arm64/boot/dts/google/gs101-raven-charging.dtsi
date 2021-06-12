@@ -8,7 +8,7 @@
 
 
 &pca9468_dc {
-	pca9468,input-current-limit = <3000000>; /* 3.0A */
+	pca9468,input-current-limit = <2450000>;
 };
 
 &google_charger {
