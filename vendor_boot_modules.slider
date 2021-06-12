@@ -131,6 +131,7 @@ phy-exynos-usbdrd-super.ko
 pinctrl-samsung-core.ko
 pixel-boot-metrics.ko
 pixel-debug-test.ko
+pixel_em.ko
 pixel_stat_mm.ko
 pixel_stat_sysfs.ko
 pl330.ko
