@@ -177,6 +177,13 @@ config VH_KERNEL
 	help
 	Modules for vendor kernel hooks.
 
+config PIXEL_EM
+	tristate "Enable Pixel Energy Model driver"
+	depends on VH_KERNEL
+	default n
+	help
+	Support Pixel Energy Model.
+
 config PIXEL_STAT
 	tristate "Enable Pixel statistics"
 	default n
