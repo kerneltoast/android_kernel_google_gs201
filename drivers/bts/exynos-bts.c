@@ -21,7 +21,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/suspend.h>
 #include <soc/google/cal-if.h>
-#include <dt-bindings/soc/google/gs101-bts.h>
+#include <dt-bindings/soc/google/gs-bts.h>
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 #include <soc/google/exynos_pm_qos.h>
 #else
