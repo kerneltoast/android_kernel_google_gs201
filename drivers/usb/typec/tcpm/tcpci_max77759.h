@@ -72,6 +72,8 @@ struct max77759_plat {
 
 	/* Runtime flags */
 	int frs;
+	bool in_frs;
+
 	/*
 	 * Current status of contaminant detection.
 	 * 0 - Disabled

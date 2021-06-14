@@ -596,6 +596,21 @@ static void process_power_status(struct max77759_plat *chip)
 	if (pwr_status & TCPC_POWER_STATUS_SOURCING_VBUS) {
 		chip->sourcing_vbus = 1;
 		tcpm_sourcing_vbus(tcpci->port);
+		chip->in_frs = false;
+	}
+
+	if (chip->in_frs) {
+		chip->in_frs = false;
+		/*
+		 * While in FRS transition consider vbus present as a signal for
+		 * sourcing vbus as controller would have reversed the direction
+		 * here. This signal could arrive before or after
+		 * TCPC_POWER_STATUS_SOURCING_VBUS
+		 */
+		if (pwr_status & TCPC_POWER_STATUS_VBUS_PRES) {
+			chip->sourcing_vbus = 1;
+			tcpm_sourcing_vbus(tcpci->port);
+		}
 	}
 
 	if (pwr_status & TCPC_POWER_STATUS_VBUS_PRES)
@@ -753,6 +768,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 
 		if (reg_status & TCPC_SINK_FAST_ROLE_SWAP) {
 			logbuffer_log(log, "FRS Signal");
+			chip->in_frs = true;
 			tcpm_sink_frs(tcpci->port);
 		}
 	}
