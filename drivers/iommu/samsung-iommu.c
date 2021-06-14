@@ -127,7 +127,7 @@ static inline void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *data, unsigned
 					   dma_addr_t start, dma_addr_t end)
 {
 	writel_relaxed(ALIGN_DOWN(start, SPAGE_SIZE), MMU_VM_REG(data, IDX_RANGE_INV_START, vid));
-	writel_relaxed(ALIGN_DOWN(end - 1, SPAGE_SIZE), MMU_VM_REG(data, IDX_RANGE_INV_END, vid));
+	writel_relaxed(ALIGN_DOWN(end, SPAGE_SIZE), MMU_VM_REG(data, IDX_RANGE_INV_END, vid));
 	writel(0x1, MMU_VM_REG(data, IDX_RANGE_INV, vid));
 }
 
@@ -558,7 +558,7 @@ static int lv1set_section(struct samsung_sysmmu_domain *domain,
 	if (pent_to_free) {
 		struct iommu_iotlb_gather gather = {
 			.start = iova,
-			.end = iova + SECT_SIZE,
+			.end = iova + SECT_SIZE - 1,
 		};
 
 		iommu_iotlb_sync(&domain->domain, &gather);
