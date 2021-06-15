@@ -258,7 +258,7 @@ enum mfc_mb_flag {
 	MFC_FLAG_DISP_RES_CHANGE	= 7,
 	MFC_FLAG_UNCOMP			= 8,
 	MFC_FLAG_FRAMERATE_CH		= 9,
-	MFC_FLAG_IDR			= 10,
+	MFC_FLAG_SYNC_FRAME		= 10,
 	MFC_FLAG_AV1_FILM_GRAIN		= 11,
 	/* Driver set to user when SRC DQbuf */
 	MFC_FLAG_CONSUMED_ONLY		= 15,
@@ -810,6 +810,7 @@ struct mfc_platdata {
 	struct mfc_feature sbwc_enc_src_ctrl;
 	struct mfc_feature average_qp;
 	struct mfc_feature mv_search_mode;
+	struct mfc_feature enc_idr_flag;
 
 	/* AV1 Decoder */
 	unsigned int support_av1_dec;

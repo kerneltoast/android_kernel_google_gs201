@@ -181,6 +181,8 @@
 #define IS_NO_ERROR(err)	((err) == 0 ||		\
 				(mfc_get_warn(err)	\
 				 == MFC_REG_ERR_SYNC_POINT_NOT_RECEIVED))
+#define CODEC_HAS_IDR(ctx)	(IS_H264_DEC(ctx) || IS_H264_MVC_DEC(ctx) || IS_HEVC_DEC(ctx) ||  \
+				IS_H264_ENC(ctx) || IS_HEVC_ENC(ctx))
 
 #define IS_BUFFER_BATCH_MODE(ctx)	((ctx)->batch_mode == 1)
 #define IS_NO_HEADER_GENERATE(ctx, p)			\

@@ -771,6 +771,8 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 			&pdata->average_qp.support, 2);
 	of_property_read_u32_array(np, "mv_search_mode",
 			&pdata->mv_search_mode.support, 2);
+	of_property_read_u32_array(np, "enc_idr_flag",
+			&pdata->enc_idr_flag.support, 2);
 
 	/* Determine whether to enable AV1 decoder */
 	of_property_read_u32(np, "support_av1_dec", &pdata->support_av1_dec);
