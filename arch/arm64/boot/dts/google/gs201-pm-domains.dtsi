@@ -39,7 +39,7 @@
 		compatible = "samsung,exynos-pd";
 		reg = <0x0 0x18062000 0x20>;
 		cal_id = <0xB1380006>;
-		status = "disabled";
+		status = "okay";
 		power-domains = <&pd_g3d>;
 		#power-domain-cells = <0>;
 	};
@@ -50,7 +50,7 @@
 		cal_id = <0xB1380007>;
 		need_smc = <0x27F10204>;
 		cmu_id = <0x27F00000>;
-		status = "disabled";
+		status = "okay";
 		#power-domain-cells = <0>;
 	};
 
