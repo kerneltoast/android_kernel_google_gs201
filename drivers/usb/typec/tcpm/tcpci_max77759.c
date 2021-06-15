@@ -512,6 +512,36 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 	}
 }
 
+static void enable_vbus_work(struct kthread_work *work)
+{
+	struct max77759_plat *chip  =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct max77759_plat, enable_vbus_work);
+	enum gbms_charger_modes vote = 0xff;
+	int ret;
+
+	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
+		chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
+		if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
+			logbuffer_log(chip->log, "ERR: GBMS_MODE_VOTABLE lazy get failed",
+				      PTR_ERR(chip->charger_mode_votable));
+			return;
+		}
+	}
+
+	ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+				 (void *)GBMS_USB_OTG_ON, true);
+
+	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE voting source vote:%u ret:%d",
+		      ret < 0 ? "Error" : "Success", (unsigned int)vote, ret);
+
+	if (ret < 0)
+		return;
+
+	if (!chip->sourcing_vbus)
+		chip->sourcing_vbus = 1;
+}
+
 static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool source, bool sink)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
@@ -532,9 +562,11 @@ static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool
 		}
 	}
 
+	kthread_flush_work(&chip->enable_vbus_work.work);
+
 	if (source && !sink) {
-		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
-					 (void *)GBMS_USB_OTG_ON, true);
+		kthread_mod_delayed_work(chip->wq, &chip->enable_vbus_work, 0);
+		return 0;
 	} else if (sink && !source) {
 		ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
 					 (void *)GBMS_USB_BUCK_ON, true);
@@ -551,9 +583,7 @@ static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool
 	if (ret < 0)
 		return ret;
 
-	if (source && !chip->sourcing_vbus) {
-		chip->sourcing_vbus = 1;
-	} else if (!source && chip->sourcing_vbus) {
+	if (!source && chip->sourcing_vbus) {
 		chip->sourcing_vbus = 0;
 		chip->vbus_present = 0;
 		logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
@@ -568,6 +598,7 @@ static void max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *t
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
 	int ret;
 
+	kthread_flush_work(&chip->enable_vbus_work.work);
 	ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
 				 (void *)GBMS_USB_OTG_FRS_ON, true);
 	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE ret:%d", __func__, ret);
@@ -1815,6 +1846,7 @@ static int max77759_probe(struct i2c_client *client,
 	}
 
 	kthread_init_delayed_work(&chip->icl_work, icl_work_item);
+	kthread_init_delayed_work(&chip->enable_vbus_work, enable_vbus_work);
 
 	chip->psy_notifier.notifier_call = psy_changed;
 	ret = power_supply_reg_notifier(&chip->psy_notifier);
