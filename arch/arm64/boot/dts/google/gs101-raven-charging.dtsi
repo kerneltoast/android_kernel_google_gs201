@@ -12,7 +12,6 @@
 };
 
 &google_charger {
-	google,thermal-mitigation = <4905000 4000000
-				2500000 1250000 500000>;
-	google,wlc-fcc-thermal-mitigation = <4905000 2500000 1250000 625000>;
+	google,thermal-mitigation = <5000000 4000000 2500000 1000000>;
+	google,wlc-fcc-thermal-mitigation = <5000000 2500000 1000000>;
 };
