@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs101 pmic EVT1 (and older) device tree source
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+&s_ext4_rail {
+	schematic-name = "VSEN_C4_NC";
+	subsys-name = "Spare";
+};

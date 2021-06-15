@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Raven proto1.0/1.1 common devicetree
+ * Raven DVT common devicetree
  *
  * Copyright 2021 Google,LLC
  */

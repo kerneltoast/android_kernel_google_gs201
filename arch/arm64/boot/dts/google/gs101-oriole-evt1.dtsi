@@ -7,6 +7,7 @@
 
 #define RAVIOLE_EVT1_AND_OLDER 1
 #include "gs101-oriole-evt1_1.dtsi"
+#include "gs101-oriole-pmic-evt1.dtsi"
 #include "gs101-raviole-fingerprint-evt.dtsi"
+#include "gs101-raviole-pmic-evt1.dtsi"
 #include "gs101-raviole-thermal-evt.dtsi"
-

@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs101 odpm device tree source
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+&m_ext1_rail {
+	shunt-res-uohms = <10000>;
+	schematic-name = "PPVAR_VSYS_PWR_DISP";
+	subsys-name = "Display";
+};
+
+&ch1 {
+	rail-name = "VSEN_C1";
+};
+
+&ch16 {
+	rail-name = "LDO9S";
+};

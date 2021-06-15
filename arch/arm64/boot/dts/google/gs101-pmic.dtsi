@@ -609,7 +609,7 @@
 
 			channels {
 				ch1: channel@0 {
-					rail-name = "VSEN_C1";
+					rail-name = "BUCK10M";
 					channel_enabled;
 				};
 
@@ -655,16 +655,16 @@
 				/* Additional rails */
 				/* Note; VSEN_P is not supported */
 
-				m_ext4_rail: VSEN_C1 {
+				m_ext1_rail: VSEN_C1 {
 					external_rail;
 					channel-en-index = <1>;
 					channel-mux-selection = <0x5C>;
 					shunt-res-uohms = <10000>;
-					schematic-name = "PPVAR_VSYS_PWR_DISP";
-					subsys-name = "Display";
+					schematic-name = "VSEN_C1_NC";
+					subsys-name = "Spare";
 				};
 
-				m_ext5_rail: VSEN_C2 {
+				m_ext2_rail: VSEN_C2 {
 					external_rail;
 					channel-en-index = <2>;
 					channel-mux-selection = <0x5D>;
@@ -673,7 +673,7 @@
 					subsys-name = "Modem";
 				};
 
-				m_ext6_rail: VSEN_C3 {
+				m_ext3_rail: VSEN_C3 {
 					external_rail;
 					channel-en-index = <4>;
 					channel-mux-selection = <0x5E>;
@@ -1088,7 +1088,7 @@
 
 			channels {
 				ch9: channel@0 {
-					rail-name = "VSEN_C4";
+					rail-name = "VSEN_C6";
 					channel_enabled;
 				};
 
@@ -1123,7 +1123,7 @@
 				};
 
 				ch16: channel@7 {
-					rail-name = "LDO9S";
+					rail-name = "VSEN_C4";
 					channel_enabled;
 				};
 			};
@@ -1139,16 +1139,17 @@
 					channel-en-index = <1>;
 					channel-mux-selection = <0x5C>;
 					shunt-res-uohms = <10000>;
-					schematic-name = "VSYS_PWR_WLAN_BT";
-					subsys-name = "WLAN-BT";
+					schematic-name = "VSYS_PWR_DISPLAY";
+					subsys-name = "Display";
 				};
 
+				/* WLAN-BT on O6 */
 				s_ext5_rail: VSEN_C5 {
 					external_rail;
 					channel-en-index = <2>;
 					channel-mux-selection = <0x5D>;
 					shunt-res-uohms = <10000>;
-					schematic-name = "P5_GRAS";
+					schematic-name = "VSEN_C5_NC";
 					subsys-name = "Spare";
 				};
 

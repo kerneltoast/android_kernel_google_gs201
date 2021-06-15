@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs101 pmic EVT1 (and older) device tree source
+ *
+ * Copyright 2020 Google LLC.
+ *
+ */
+
+&s_ext4_rail {
+	shunt-res-uohms = <10000>;
+	schematic-name = "VSYS_PWR_WLAN_BT";
+	subsys-name = "WLAN-BT";
+};
+
+&ch9 {
+	rail-name = "VSEN_C4";
+};
