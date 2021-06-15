@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Display nodes for slider-related boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+&drmdsim0 {
+	panel@0 {
+		compatible = "samsung,s6e3hc2-fhd";
+		label = "samsung-s6e3hc2-fhd";
+
+		vci-supply = <&m_ldo27_reg>;
+		vddd-supply = <&m_ldo28_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
+};
+
+&s_bucka_reg {
+	regulator-always-on;
+};

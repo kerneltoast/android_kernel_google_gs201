@@ -8,7 +8,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "gs201-cloudripper.dtsi"
+#include "gs201-ravenclaw-common.dtsi"
 
 / {
 	board_id = <0x30201>;
