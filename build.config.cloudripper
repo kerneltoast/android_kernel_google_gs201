@@ -11,7 +11,6 @@ POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG
 MAKE_GOALS="$MAKE_GOALS
 modules
 google/gs201-a0.dtb
-google/gs201-cloudripper-dev.dtb
 google/dtbo.img
 "
 

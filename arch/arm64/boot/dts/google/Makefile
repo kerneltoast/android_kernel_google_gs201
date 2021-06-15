@@ -56,7 +56,9 @@ dtb-$(CONFIG_SOC_GS201) += \
         gs201-a0.dtb \
 
 dtbo-$(CONFIG_BOARD_CLOUDRIPPER) += \
-        gs201-cloudripper-dev.dtbo
+        gs201-cloudripper-dev.dtbo \
+        gs201-ravenclaw-dev1_0.dtbo \
+        gs201-ravenclaw-dev1_1.dtbo
 
 dtbo-$(CONFIG_BOARD_GS201_EMULATOR) += \
         gs201-emulator.dtbo
@@ -65,6 +67,8 @@ dtbo-$(CONFIG_BOARD_GS201_HYBRID) += \
         gs201-hybrid.dtbo
 
 gs201-cloudripper-dev.dtbo-base := gs201-a0.dtb
+gs201-ravenclaw-dev1_0.dtbo-base := gs201-a0.dtb
+gs201-ravenclaw-dev1_1.dtbo-base := gs201-a0.dtb
 gs201-emulator.dtbo-base := gs201-a0.dtb
 gs201-hybrid.dtbo-base := gs201-a0.dtb
 
