@@ -72,53 +72,53 @@ int s2mpg11_meter_load_measurement(struct s2mpg11_meter *s2mpg11,
 }
 EXPORT_SYMBOL_GPL(s2mpg11_meter_load_measurement);
 
-static u64 muxsel_to_current_resolution(s2mpg11_meter_muxsel m)
+static u64 muxsel_to_current_resolution(s2mpg1x_meter_muxsel m)
 {
 	switch (m) {
-	case NONES:
+	case MUXSEL_NONE:
 	case VSEN_C4: /* Requires shunt value */
 	case VSEN_C5: /* Requires shunt value */
 	case VSEN_C6: /* Requires shunt value */
 		return INVALID_RESOLUTION;
-	case BUCK3S:
-	case BUCK4S:
-	case BUCK5S:
-	case BUCK6S:
-	case BUCK8S:
-	case BUCK9S:
-	case BUCK10S:
+	case BUCK3:
+	case BUCK4:
+	case BUCK5:
+	case BUCK6:
+	case BUCK8:
+	case BUCK9:
+	case BUCK10:
 		return CMS_BUCK_CURRENT;
-	case BUCK1S:
+	case BUCK1:
 		return CMD_BUCK_CURRENT;
-	case BUCK2S:
+	case BUCK2:
 		return CMT_BUCK_CURRENT;
-	case BUCK7S:
+	case BUCK7:
 	case BUCKD:
 	case BUCKA:
 		return VM_CURRENT;
-	case BUCKBOOST:
+	case BUCKBOOST_0D:
 		return BB_CURRENT;
-	case LDO2S:
+	case LDO2:
 		return DVS_NLDO_CURRENT_150mA;
-	case LDO9S:
+	case LDO9:
 		return NLDO_CURRENT_150mA;
-	case LDO3S:
-	case LDO4S:
-	case LDO7S:
-	case LDO11S:
-	case LDO13S:
-	case LDO15S:
+	case LDO3:
+	case LDO4:
+	case LDO7:
+	case LDO11:
+	case LDO13:
+	case LDO15:
 		return PLDO_CURRENT_150mA;
-	case LDO6S:
-	case LDO10S:
-	case LDO12S:
-	case LDO14S:
+	case LDO6:
+	case LDO10:
+	case LDO12:
+	case LDO14:
 		return PLDO_CURRENT_300mA;
-	case LDO5S:
+	case LDO5:
 		return NLDO_CURRENT_450mA;
-	case LDO1S:
+	case LDO1:
 		return DVS_NLDO_CURRENT_800mA;
-	case LDO8S:
+	case LDO8:
 		return NLDO_CURRENT_1000mA;
 	default:
 		pr_err("%s: wrong muxsel\n", __func__);
@@ -126,53 +126,53 @@ static u64 muxsel_to_current_resolution(s2mpg11_meter_muxsel m)
 	}
 }
 
-u32 s2mpg11_muxsel_to_power_resolution(s2mpg11_meter_muxsel m)
+u32 s2mpg11_muxsel_to_power_resolution(s2mpg1x_meter_muxsel m)
 {
 	switch (m) {
-	case NONES:
+	case MUXSEL_NONE:
 	case VSEN_C4: /* Requires shunt value */
 	case VSEN_C5: /* Requires shunt value */
 	case VSEN_C6: /* Requires shunt value */
 		return INVALID_RESOLUTION;
-	case BUCK3S:
-	case BUCK4S:
-	case BUCK5S:
-	case BUCK6S:
-	case BUCK8S:
-	case BUCK9S:
-	case BUCK10S:
+	case BUCK3:
+	case BUCK4:
+	case BUCK5:
+	case BUCK6:
+	case BUCK8:
+	case BUCK9:
+	case BUCK10:
 		return CMS_BUCK_POWER;
-	case BUCK1S:
+	case BUCK1:
 		return CMD_BUCK_POWER;
-	case BUCK2S:
+	case BUCK2:
 		return CMT_BUCK_POWER;
-	case BUCK7S:
+	case BUCK7:
 	case BUCKD:
 	case BUCKA:
 		return VM_POWER;
-	case BUCKBOOST:
+	case BUCKBOOST_0D:
 		return BB_POWER;
-	case LDO2S:
+	case LDO2:
 		return DVS_NLDO_POWER_150mA;
-	case LDO9S:
+	case LDO9:
 		return NLDO_POWER_150mA;
-	case LDO3S:
-	case LDO4S:
-	case LDO7S:
-	case LDO11S:
-	case LDO13S:
-	case LDO15S:
+	case LDO3:
+	case LDO4:
+	case LDO7:
+	case LDO11:
+	case LDO13:
+	case LDO15:
 		return PLDO_POWER_150mA;
-	case LDO6S:
-	case LDO10S:
-	case LDO12S:
-	case LDO14S:
+	case LDO6:
+	case LDO10:
+	case LDO12:
+	case LDO14:
 		return PLDO_POWER_300mA;
-	case LDO5S:
+	case LDO5:
 		return NLDO_POWER_450mA;
-	case LDO1S:
+	case LDO1:
 		return DVS_NLDO_POWER_800mA;
-	case LDO8S:
+	case LDO8:
 		return NLDO_POWER_1000mA;
 	default:
 		pr_err("%s: wrong muxsel\n", __func__);
@@ -181,46 +181,46 @@ u32 s2mpg11_muxsel_to_power_resolution(s2mpg11_meter_muxsel m)
 }
 EXPORT_SYMBOL_GPL(s2mpg11_muxsel_to_power_resolution);
 
-static const char *muxsel_to_str(s2mpg11_meter_muxsel m)
+static const char *muxsel_to_str(s2mpg1x_meter_muxsel m)
 {
 	char *ret;
 
 	switch (m) {
-		ENUM_STR(NONES, ret);
-		ENUM_STR(BUCK1S, ret);
-		ENUM_STR(BUCK2S, ret);
-		ENUM_STR(BUCK3S, ret);
-		ENUM_STR(BUCK4S, ret);
-		ENUM_STR(BUCK5S, ret);
-		ENUM_STR(BUCK6S, ret);
-		ENUM_STR(BUCK7S, ret);
-		ENUM_STR(BUCK8S, ret);
-		ENUM_STR(BUCK9S, ret);
-		ENUM_STR(BUCK10S, ret);
-		ENUM_STR(BUCKD, ret);
-		ENUM_STR(BUCKA, ret);
-		ENUM_STR(BUCKBOOST, ret);
-		ENUM_STR(VSEN_P4, ret);
-		ENUM_STR(VSEN_P5, ret);
-		ENUM_STR(VSEN_P6, ret);
-		ENUM_STR(LDO1S, ret);
-		ENUM_STR(LDO2S, ret);
-		ENUM_STR(LDO3S, ret);
-		ENUM_STR(LDO4S, ret);
-		ENUM_STR(LDO5S, ret);
-		ENUM_STR(LDO6S, ret);
-		ENUM_STR(LDO7S, ret);
-		ENUM_STR(LDO8S, ret);
-		ENUM_STR(LDO9S, ret);
-		ENUM_STR(LDO10S, ret);
-		ENUM_STR(LDO11S, ret);
-		ENUM_STR(LDO12S, ret);
-		ENUM_STR(LDO13S, ret);
-		ENUM_STR(LDO14S, ret);
-		ENUM_STR(LDO15S, ret);
-		ENUM_STR(VSEN_C4, ret);
-		ENUM_STR(VSEN_C5, ret);
-		ENUM_STR(VSEN_C6, ret);
+		ENUM_STR(MUXSEL_NONE, "S", ret);
+		ENUM_STR(BUCK1, "S", ret);
+		ENUM_STR(BUCK2, "S", ret);
+		ENUM_STR(BUCK3, "S", ret);
+		ENUM_STR(BUCK4, "S", ret);
+		ENUM_STR(BUCK5, "S", ret);
+		ENUM_STR(BUCK6, "S", ret);
+		ENUM_STR(BUCK7, "S", ret);
+		ENUM_STR(BUCK8, "S", ret);
+		ENUM_STR(BUCK9, "S", ret);
+		ENUM_STR(BUCK10, "S", ret);
+		ENUM_STR(BUCKD, "", ret);
+		ENUM_STR(BUCKA, "", ret);
+		ENUM_STR(BUCKBOOST_0D, "", ret);
+		ENUM_STR(VSEN_P4, "", ret);
+		ENUM_STR(VSEN_P5, "", ret);
+		ENUM_STR(VSEN_P6, "", ret);
+		ENUM_STR(LDO1, "S", ret);
+		ENUM_STR(LDO2, "S", ret);
+		ENUM_STR(LDO3, "S", ret);
+		ENUM_STR(LDO4, "S", ret);
+		ENUM_STR(LDO5, "S", ret);
+		ENUM_STR(LDO6, "S", ret);
+		ENUM_STR(LDO7, "S", ret);
+		ENUM_STR(LDO8, "S", ret);
+		ENUM_STR(LDO9, "S", ret);
+		ENUM_STR(LDO10, "S", ret);
+		ENUM_STR(LDO11, "S", ret);
+		ENUM_STR(LDO12, "S", ret);
+		ENUM_STR(LDO13, "S", ret);
+		ENUM_STR(LDO14, "S", ret);
+		ENUM_STR(LDO15, "S", ret);
+		ENUM_STR(VSEN_C4, "", ret);
+		ENUM_STR(VSEN_C5, "", ret);
+		ENUM_STR(VSEN_C6, "", ret);
 	default:
 		return "invalid";
 	}
@@ -266,7 +266,7 @@ int s2mpg11_ext_meter_onoff(struct s2mpg11_meter *s2mpg11, bool onoff)
 EXPORT_SYMBOL_GPL(s2mpg11_ext_meter_onoff);
 
 int s2mpg11_meter_set_muxsel(struct s2mpg11_meter *s2mpg11, int channel,
-			     s2mpg11_meter_muxsel m)
+			     s2mpg1x_meter_muxsel m)
 {
 	int reg = S2MPG11_METER_MUXSEL0;
 	int ret = -EPERM;
@@ -368,18 +368,20 @@ static ssize_t s2mpg11_muxsel_table_show(struct device *dev,
 					 char *buf)
 {
 	int muxsel_cnt = 0;
-	int muxsel = BUCK1S;
+	int muxsel = BUCK1;
 	size_t count = 0;
 
 	while (muxsel <= VSEN_C6) {
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 			"%s : 0x%x , ",  muxsel_to_str(muxsel), muxsel);
 
-		if (muxsel == BUCKBOOST)
+		if (muxsel == BUCKC)
+			muxsel = BUCKBOOST_0D;
+		else if (muxsel == BUCKBOOST_0D)
 			muxsel = VSEN_P4;
 		else if (muxsel == VSEN_P6)
-			muxsel = LDO1S;
-		else if (muxsel == LDO15S)
+			muxsel = LDO1;
+		else if (muxsel == LDO15)
 			muxsel = VSEN_C4;
 		else if (muxsel == VSEN_C6)
 			break;
@@ -419,9 +421,9 @@ static ssize_t s2mpg11_channel_muxsel_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	if ((muxsel >= BUCK1S && muxsel <= BUCKBOOST) ||
+	if ((muxsel >= BUCK1 && muxsel <= BUCKBOOST_0D) ||
 	    (muxsel >= VSEN_P4 && muxsel <= VSEN_P6) ||
-	    (muxsel >= LDO1S && muxsel <= LDO15S) ||
+	    (muxsel >= LDO1 && muxsel <= LDO15) ||
 	    (muxsel >= VSEN_C4 && muxsel <= VSEN_C6)) {
 		s2mpg11_meter_set_muxsel(s2mpg11, channel, muxsel);
 	} else {
@@ -465,7 +467,7 @@ static ssize_t s2mpg11_lpf_current_show(struct device *dev,
 	s2mpg11_meter_read_lpf_data_reg(s2mpg11);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg11_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
+		s2mpg1x_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 						      muxsel_to_str(muxsel),
@@ -491,7 +493,7 @@ static ssize_t s2mpg11_lpf_power_show(struct device *dev,
 	s2mpg11_meter_read_lpf_data_reg(s2mpg11);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg11_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
+		s2mpg1x_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mW)",
@@ -517,7 +519,7 @@ static ssize_t s2mpg11_acc_current_show(struct device *dev,
 				       &acc_count, NULL);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg11_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
+		s2mpg1x_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mA)",
@@ -542,7 +544,7 @@ static ssize_t s2mpg11_acc_power_show(struct device *dev,
 				       &acc_count, NULL);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg11_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
+		s2mpg1x_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mW)",
@@ -646,14 +648,14 @@ static int s2mpg11_meter_probe(struct platform_device *pdev)
 	/* any necessary settings can be added */
 	s2mpg1x_meter_set_int_samp_rate(ID_S2MPG11, s2mpg11->i2c, INT_500HZ);
 
-	s2mpg11_meter_set_muxsel(s2mpg11, 0, BUCK1S);
-	s2mpg11_meter_set_muxsel(s2mpg11, 1, BUCK2S);
-	s2mpg11_meter_set_muxsel(s2mpg11, 2, BUCK3S);
-	s2mpg11_meter_set_muxsel(s2mpg11, 3, BUCK4S);
-	s2mpg11_meter_set_muxsel(s2mpg11, 4, BUCK5S);
-	s2mpg11_meter_set_muxsel(s2mpg11, 5, BUCK6S);
-	s2mpg11_meter_set_muxsel(s2mpg11, 6, BUCK7S);
-	s2mpg11_meter_set_muxsel(s2mpg11, 7, BUCK8S);
+	s2mpg11_meter_set_muxsel(s2mpg11, 0, BUCK1);
+	s2mpg11_meter_set_muxsel(s2mpg11, 1, BUCK2);
+	s2mpg11_meter_set_muxsel(s2mpg11, 2, BUCK3);
+	s2mpg11_meter_set_muxsel(s2mpg11, 3, BUCK4);
+	s2mpg11_meter_set_muxsel(s2mpg11, 4, BUCK5);
+	s2mpg11_meter_set_muxsel(s2mpg11, 5, BUCK6);
+	s2mpg11_meter_set_muxsel(s2mpg11, 6, BUCK7);
+	s2mpg11_meter_set_muxsel(s2mpg11, 7, BUCK8);
 
 	s2mpg11_meter_onoff(s2mpg11, true);
 	s2mpg11_ext_meter_onoff(s2mpg11, false);

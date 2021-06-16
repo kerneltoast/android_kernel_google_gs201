@@ -10,13 +10,122 @@
 #ifndef __LINUX_MFD_S2MPG1X_REGISTER_H
 #define __LINUX_MFD_S2MPG1X_REGISTER_H
 
+#include <linux/bits.h>
+
+#if defined(CONFIG_SOC_GS101)
+#define S2MPG1X_METER_CHANNEL_MAX 8
+#endif
+#define MASK(width, shift) GENMASK(shift + width - 1, shift)
+
+typedef enum {
+	MUXSEL_NONE,
+
+	BUCK1 = 0x1,
+	BUCK2 = 0x2,
+	BUCK3 = 0x3,
+	BUCK4 = 0x4,
+	BUCK5 = 0x5,
+	BUCK6 = 0x6,
+	BUCK7 = 0x7,
+	BUCK8 = 0x8,
+	BUCK9 = 0x9,
+	BUCK10 = 0xA,
+
+	BUCKD = 0xB,
+	BUCKA = 0xC,
+	BUCKC = 0xD,
+
+	BUCKBOOST_0D = 0xD,
+	BUCKBOOST_10 = 0x10,
+
+	VSEN_V1 = 0x1C,
+	VSEN_V2 = 0x1D,
+	VSEN_V3 = 0x1E,
+
+	VSEN_P4 = 0x1C,
+	VSEN_P5 = 0x1D,
+	VSEN_P6 = 0x1E,
+
+	VBAT = 0x1F,
+
+	LDO1 = 0x21,
+	LDO2 = 0x22,
+	LDO3 = 0x23,
+	LDO4 = 0x24,
+	LDO5 = 0x25,
+	LDO6 = 0x26,
+	LDO7 = 0x27,
+	LDO8 = 0x28,
+	LDO9 = 0x29,
+	LDO10 = 0x2A,
+	LDO11 = 0x2B,
+	LDO12 = 0x2C,
+	LDO13 = 0x2D,
+	LDO14 = 0x2E,
+	LDO15 = 0x2F,
+	LDO16 = 0x30,
+	LDO17 = 0x31,
+	LDO18 = 0x32,
+	LDO19 = 0x33,
+	LDO20 = 0x34,
+	LDO21 = 0x35,
+	LDO22 = 0x36,
+	LDO23 = 0x37,
+	LDO24 = 0x38,
+	LDO25 = 0x39,
+	LDO26 = 0x3A,
+	LDO27 = 0x3B,
+	LDO28 = 0x3C,
+	LDO29 = 0x3D,
+	LDO30 = 0x3E,
+	LDO31 = 0x3F,
+
+	VSEN_C1 = 0x5C,
+	VSEN_C2 = 0x5D,
+	VSEN_C3 = 0x5E,
+
+	VSEN_C4 = 0x5C,
+	VSEN_C5 = 0x5D,
+	VSEN_C6 = 0x5E
+} s2mpg1x_meter_muxsel;
+
+/**
+ * sec_opmode_data - regulator operation mode data
+ * @id: regulator id
+ * @mode: regulator operation mode
+ */
+struct sec_opmode_data {
+	int id;
+	unsigned int mode;
+};
+
+/**
+ * struct sec_wtsr_smpl - settings for WTSR/SMPL
+ * @wtsr_en:		WTSR Function Enable Control
+ * @smpl_en:		SMPL Function Enable Control
+ * @wtsr_timer_val:	Set the WTSR timer Threshold
+ * @smpl_timer_val:	Set the SMPL timer Threshold
+ * @check_jigon:	if this value is true, do not enable SMPL function when
+ *			JIGONB is low(JIG cable is attached)
+ */
+struct sec_wtsr_smpl {
+	bool wtsr_en;
+	bool coldrst_en;
+	bool smpl_en;
+	bool sub_smpl_en;
+	int wtsr_timer_val;
+	int coldrst_timer_val;
+	int smpl_timer_val;
+	bool check_jigon;
+};
+
 #define REG_VAL(val, offset, mask) (((val) << (offset)) & (mask))
 
-#define ENUM_STR(x, r)                                                    \
-	{                                                                 \
-	case x:                                                           \
-		r = #x;                                                   \
-		break;                                                    \
+#define ENUM_STR(x, s, r)		\
+	{				\
+		case x:			\
+			r = #x s;	\
+			break;		\
 	}
 
 typedef enum {
@@ -26,7 +135,9 @@ typedef enum {
 	INT_62P_5HZ,
 	INT_125HZ,
 	INT_250HZ,
+#if defined(CONFIG_SOC_GS101)
 	INT_500HZ,
+#endif
 	INT_1000HZ,
 	S2MPG1X_INT_FREQ_COUNT,
 	S2MPG1X_INT_FREQ_NONE,
@@ -49,12 +160,10 @@ typedef enum {
 
 /* MUXSEL0~7 */
 #define MUXSEL_MASK 0x7F
-#define MUXSEL_NONE 0x0
 
 #define S2MPG1X_METER_LPF 0
 #define S2MPG1X_METER_ACC 1
 
-#define S2MPG1X_METER_CHANNEL_MAX 8
 #define S2MPG1X_METER_LPF_BUF 3 /* 21-bit */
 #define S2MPG1X_METER_ACC_BUF 6 /* 41-bit */
 #define S2MPG1X_METER_COUNT_BUF 3 /* 20-bit */
@@ -65,6 +174,18 @@ typedef enum {
 #define EXT_METER_EN_MASK BIT(1)
 #define INT_SAMP_RATE_SHIFT 2
 #define INT_SAMP_RATE_MASK (0x7 << INT_SAMP_RATE_SHIFT)
+#define NTC_SAMP_RATE_SHIFT 5
+#define NTC_SAMP_RATE_MASK (0x7 << NTC_SAMP_RATE_SHIFT)
+
+typedef enum {
+	NTC_0P15625HZ = 1,
+	NTC_0P3125HZ,
+	NTC_0P625HZ,
+	NTC_1P25HZ,
+	NTC_2P5HZ,
+	NTC_5HZ,
+	NTC_10HZ,
+} s2mpg1x_ntc_samp_rate;
 
 /* S2MPG1x_METER_CTRL2 */
 #define ASYNC_RD_MASK BIT(7)

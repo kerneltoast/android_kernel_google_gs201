@@ -9,10 +9,12 @@
 
 #ifndef __S2MPG10_MFD_H__
 #define __S2MPG10_MFD_H__
+
 #include <linux/platform_device.h>
 #include <linux/thermal.h>
 #include <linux/regmap.h>
 
+#include "s2mpg1x-register.h"
 #include "s2mpg10-meter.h"
 
 #define S2MPG10_MFD_DEV_NAME "s2mpg10"
@@ -28,37 +30,6 @@ struct s2mpg10_regulator_data {
 	struct device_node *reg_node;
 };
 
-#ifndef __S2MPG1X_MFD_SEC_OPMODE__
-#define __S2MPG1X_MFD_SEC_OPMODE__
-/*
- * sec_opmode_data - regulator operation mode data
- * @id: regulator id
- * @mode: regulator operation mode
- */
-struct sec_opmode_data {
-	int id;
-	unsigned int mode;
-};
-
-/*
- * samsung regulator operation mode
- * SEC_OPMODE_OFF	Regulator always OFF
- * SEC_OPMODE_ON	Regulator always ON
- * SEC_OPMODE_LOWPOWER  Regulator is on in low-power mode
- * SEC_OPMODE_SUSPEND   Regulator is changed by PWREN pin
- *			If PWREN is high, regulator is on
- *			If PWREN is low, regulator is off
- */
-enum sec_opmode {
-	SEC_OPMODE_OFF,
-	SEC_OPMODE_SUSPEND,
-	SEC_OPMODE_LOWPOWER,
-	SEC_OPMODE_ON,
-	SEC_OPMODE_TCXO = 0x2,
-	SEC_OPMODE_MIF = 0x2,
-};
-#endif
-
 enum s2mpg10_irq_source {
 	S2MPG10_PMIC_INT1 = 0,
 	S2MPG10_PMIC_INT2,
@@ -71,40 +42,6 @@ enum s2mpg10_irq_source {
 };
 
 #define S2MPG10_NUM_IRQ_PMIC_REGS 6
-
-/**
- * struct sec_wtsr_smpl - settings for WTSR/SMPL
- * @wtsr_en:		WTSR Function Enable Control
- * @smpl_en:		SMPL Function Enable Control
- * @wtsr_timer_val:	Set the WTSR timer Threshold
- * @smpl_timer_val:	Set the SMPL timer Threshold
- * @check_jigon:	if this value is true, do not enable SMPL function when
- *			JIGONB is low(JIG cable is attached)
- */
-struct sec_wtsr_smpl {
-	bool wtsr_en;
-	bool coldrst_en;
-	bool smpl_en;
-	bool sub_smpl_en;
-	int wtsr_timer_val;
-	int coldrst_timer_val;
-	int smpl_timer_val;
-	bool check_jigon;
-};
-
-/**
- * struct sec_ocp_warn - settings for OCP_WARN and SOFT_OCP_WARN
- * @ocp_warn_en:	OCP_WARN Function Enable Control
- * @ocp_warn_cnt:	OCP_WARN Reset Timing Control
- * @ocp_warn_dvs_mask:	Enable OCP_WARN in case of DVS
- * @ocp_warn_lvl:	OCP_WARN Level
- */
-struct sec_ocp_warn {
-	bool ocp_warn_en;
-	unsigned int ocp_warn_cnt;
-	bool ocp_warn_dvs_mask;
-	unsigned int ocp_warn_lvl;
-};
 
 enum s2mpg10_device_type {
 	S2MPG10X,
