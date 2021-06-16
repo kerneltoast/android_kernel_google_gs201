@@ -27,6 +27,9 @@
 	/* Either st,panel_map or st,max-coords should be used
 	 * in the product touch dtsi */
 
+	st,grip_area = /bits/ 8 <15>; /* Left and right grip rejection
+					 area. Unit: pixels */
+
 	controller-data {
 		cs-gpio = <&gpp23 3 0>;
 		samsung,spi-feedback-delay = <1>;
