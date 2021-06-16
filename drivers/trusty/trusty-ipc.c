@@ -1098,6 +1098,7 @@ static int dn_connect_ioctl(struct tipc_dn_chan *dn, char __user *usr_name)
 }
 
 static int dn_share_fd(struct tipc_dn_chan *dn, int fd,
+		       bool lend,
 		       struct tipc_shared_handle **out)
 {
 	int ret = 0;
@@ -1165,7 +1166,7 @@ static int dn_share_fd(struct tipc_dn_chan *dn, int fd,
 				     &shared_handle->tipc.obj_id,
 				     shared_handle->sgt->sgl,
 				     shared_handle->sgt->orig_nents, prot,
-				     tag);
+				     tag, lend);
 
 	if (ret < 0) {
 		dev_dbg(dev, "Transferring memory failed: %d\n", ret);
@@ -1248,6 +1249,7 @@ static long filp_send_ioctl(struct file *filp,
 	long ret = 0;
 	ssize_t data_len = 0;
 	ssize_t shm_len = 0;
+	bool lend = false;
 
 	if (copy_from_user(&req, arg, sizeof(req)))
 		return -EFAULT;
@@ -1282,17 +1284,22 @@ static long filp_send_ioctl(struct file *filp,
 	for (shm_idx = 0; shm_idx < req.shm_cnt; shm_idx++) {
 		switch (shm[shm_idx].transfer) {
 		case TRUSTY_SHARE:
-			ret = dn_share_fd(dn, shm[shm_idx].fd,
-					  &shm_handles[shm_idx]);
-			if (ret) {
-				dev_dbg(dev, "Forwarding shared memory failed\n"
-					);
-				goto shm_share_failed;
-			}
+			lend = false;
+			break;
+		case TRUSTY_LEND:
+			lend = true;
 			break;
 		default:
 			dev_err(dev, "Unknown transfer type: 0x%x\n",
 				shm[shm_idx].transfer);
+			goto shm_share_failed;
+		}
+		ret = dn_share_fd(dn, shm[shm_idx].fd,
+				  lend,
+				  &shm_handles[shm_idx]);
+		if (ret) {
+			dev_dbg(dev, "Forwarding memory failed\n"
+				);
 			goto shm_share_failed;
 		}
 	}
@@ -1301,6 +1308,12 @@ static long filp_send_ioctl(struct file *filp,
 		timeout = 0;
 
 	txbuf = tipc_chan_get_txbuf_timeout(dn->chan, timeout);
+	if (IS_ERR(txbuf)) {
+		dev_dbg(dev, "Failed to get txbuffer\n");
+		ret = PTR_ERR(txbuf);
+		goto get_txbuf_failed;
+	}
+
 	data_len = txbuf_write_iter(txbuf, &iter);
 	if (data_len < 0) {
 		ret = data_len;
@@ -1344,6 +1357,7 @@ queue_failed:
 					shm_handles[release_idx]->tipc.obj_id);
 txbuf_write_failed:
 	tipc_chan_put_txbuf(dn->chan, txbuf);
+get_txbuf_failed:
 shm_share_failed:
 	for (shm_idx--; shm_idx >= 0; shm_idx--)
 		tipc_shared_handle_drop(shm_handles[shm_idx]);
