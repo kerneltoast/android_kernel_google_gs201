@@ -27,6 +27,7 @@
 #include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/pmic_class.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 
 static struct regulator_desc regulators[S2MPG11_REGULATOR_MAX];
 

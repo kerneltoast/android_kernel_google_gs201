@@ -399,58 +399,6 @@ enum s2mpg11_irq {
 	S2MPG11_IRQ_NR,
 };
 
-typedef enum {
-	NONES = MUXSEL_NONE, /* 0x0 */
-	BUCK1S = 0x1,
-	BUCK2S = 0x2,
-	BUCK3S = 0x3,
-	BUCK4S = 0x4,
-	BUCK5S = 0x5,
-	BUCK6S = 0x6,
-	BUCK7S = 0x7,
-	BUCK8S = 0x8,
-	BUCK9S = 0x9,
-	BUCK10S = 0xA,
-	BUCKD = 0xB,
-	BUCKA = 0xC,
-	BUCKBOOST = 0xD,
-	VSEN_P4 = 0x1C,
-	VSEN_P5 = 0x1D,
-	VSEN_P6 = 0x1E,
-	LDO1S = 0x21,
-	LDO2S = 0x22,
-	LDO3S = 0x23,
-	LDO4S = 0x24,
-	LDO5S = 0x25,
-	LDO6S = 0x26,
-	LDO7S = 0x27,
-	LDO8S = 0x28,
-	LDO9S = 0x29,
-	LDO10S = 0x2A,
-	LDO11S = 0x2B,
-	LDO12S = 0x2C,
-	LDO13S = 0x2D,
-	LDO14S = 0x2E,
-	LDO15S = 0x2F,
-	VSEN_C4 = 0x5C,
-	VSEN_C5 = 0x5D,
-	VSEN_C6 = 0x5E,
-} s2mpg11_meter_muxsel;
-
-/* S2MPG11_METER_CTRL1 */
-#define NTC_SAMP_RATE_SHIFT	5
-#define NTC_SAMP_RATE_MASK	(0x7 << NTC_SAMP_RATE_SHIFT)
-
-typedef enum {
-	NTC_0P15625HZ = 1,
-	NTC_0P3125HZ,
-	NTC_0P625HZ,
-	NTC_1P25HZ,
-	NTC_2P5HZ,
-	NTC_5HZ,
-	NTC_10HZ,
-} s2mpg11_ntc_samp_rate;
-
 #define S2MPG11_METER_NTC_BUF 2 /* 12-bit */
 
 #endif /* __LINUX_MFD_S2MPG11_REGISTER_H */

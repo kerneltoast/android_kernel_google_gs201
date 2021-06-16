@@ -28,37 +28,6 @@ struct s2mpg11_regulator_data {
 	struct device_node *reg_node;
 };
 
-#ifndef __S2MPG1X_MFD_SEC_OPMODE__
-#define __S2MPG1X_MFD_SEC_OPMODE__
-/*
- * sec_opmode_data - regulator operation mode data
- * @id: regulator id
- * @mode: regulator operation mode
- */
-struct sec_opmode_data {
-	int id;
-	unsigned int mode;
-};
-
-/*
- * samsung regulator operation mode
- * SEC_OPMODE_OFF	Regulator always OFF
- * SEC_OPMODE_ON	Regulator always ON
- * SEC_OPMODE_LOWPOWER  Regulator is on in low-power mode
- * SEC_OPMODE_SUSPEND   Regulator is changed by PWREN pin
- *			If PWREN is high, regulator is on
- *			If PWREN is low, regulator is off
- */
-enum sec_opmode {
-	SEC_OPMODE_OFF,
-	SEC_OPMODE_SUSPEND,
-	SEC_OPMODE_LOWPOWER,
-	SEC_OPMODE_ON,
-	SEC_OPMODE_TCXO = 0x2,
-	SEC_OPMODE_MIF = 0x2,
-};
-#endif
-
 enum s2mpg11_irq_source {
 	S2MPG11_PMIC_INT1 = 0,
 	S2MPG11_PMIC_INT2,

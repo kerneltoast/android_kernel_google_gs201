@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * include/linux/mfd/samsung/s2mpg1x-meter.h
- *
- * Copyright (C) 2015 Samsung Electronics
+ * Copyright (C) 2021 Samsung Electronics
  *
  * header file including shared functions of s2mpg1x
  */
@@ -10,16 +8,15 @@
 #ifndef __LINUX_MFD_S2MPG1X_H
 #define __LINUX_MFD_S2MPG1X_H
 
-#include <linux/i2c.h>
-#include <linux/mfd/samsung/s2mpg12.h>
-#include <linux/mfd/samsung/s2mpg13.h>
-
 enum s2mpg1x_id {
-	ID_S2MPG12,
-	ID_S2MPG13,
+#if defined(CONFIG_SOC_GS101)
+	ID_S2MPG10,
+	ID_S2MPG11,
+#endif
 	ID_COUNT,
 };
 
+#if defined(CONFIG_SOC_GS101)
 #define SWITCH_ID_FUNC(id, func, args...)                                      \
 	do {                                                                   \
 		switch (id) {                                                  \
@@ -34,6 +31,9 @@ enum s2mpg1x_id {
 		}                                                              \
 	} while (0)
 
+#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg11.h>
+#endif
 static inline int s2mpg1x_update_reg(enum s2mpg1x_id id, struct i2c_client *i2c,
 				     u8 reg, u8 val, u8 mask)
 {
