@@ -439,6 +439,10 @@ static int parse_dt_ipc_region_pdata(struct device *dev, struct device_node *np,
 	mif_dt_read_u32_noerr(np, "sbi_ap2cp_kerneltime_usec_pos",
 			pdata->sbi_ap2cp_kerneltime_usec_pos);
 
+	/* Check pktproc use 36bit addr */
+	mif_dt_read_u32(np, "pktproc_use_36bit_addr",
+			pdata->pktproc_use_36bit_addr);
+
 	return ret;
 }
 

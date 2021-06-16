@@ -242,6 +242,8 @@ struct modem_data {
 	u32 legacy_raw_qos_rxq_size; /* unused for now */
 #endif
 	struct cp_btl btl;	/* CP background trace log */
+
+	u32 pktproc_use_36bit_addr; /* Check pktproc use 36bit addr */
 };
 
 enum cp_gpio_type {

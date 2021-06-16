@@ -478,7 +478,8 @@ static void set_ap_capabilities(struct mem_link_device *mld)
 #if IS_ENABLED(CONFIG_CH_EXTENSION)
 	cpif_set_bit(mld->ap_capability[0], AP_CAP_0_CH_EXTENSION_BIT);
 #endif
-	cpif_set_bit(mld->ap_capability[0], AP_CAP_0_PKTPROC_36BIT_ADDR_BIT);
+	if (mld->pktproc_use_36bit_addr)
+		cpif_set_bit(mld->ap_capability[0], AP_CAP_0_PKTPROC_36BIT_ADDR_BIT);
 
 	for (part = 0; part < AP_CP_CAP_PARTS; part++) {
 		iowrite32(mld->ap_capability[part], mld->ap_capability_offset[part]);
@@ -4272,6 +4273,8 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	mld->sbi_cp2ap_wakelock_pos = modem->sbi_cp2ap_wakelock_pos;
 	mld->sbi_cp_rat_mode_mask = modem->sbi_cp2ap_rat_mode_mask;
 	mld->sbi_cp_rat_mode_pos = modem->sbi_cp2ap_rat_mode_pos;
+
+	mld->pktproc_use_36bit_addr = modem->pktproc_use_36bit_addr;
 
 	/**
 	 * For TX Flow-control command from CP

@@ -257,7 +257,10 @@ static const struct attribute_group pktproc_ul_group = {
 int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 {
 	int i;
+	struct mem_link_device *mld;
 	struct pktproc_info_ul *info;
+
+	mld = container_of(ppa_ul, struct mem_link_device, pktproc_ul);
 
 	if (!ppa_ul) {
 		mif_err("ppa_ul is null\n");
@@ -288,9 +291,15 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 		q->done_ptr = 0;
 		*q->rear_ptr = 0; /* sets q_info->rear_ptr to 0 */
 
-		q->q_info->cp_desc_pbase = q->cp_desc_pbase >> 4;
+		if (mld->pktproc_use_36bit_addr) {
+			q->q_info->cp_desc_pbase = q->cp_desc_pbase >> 4;
+			q->q_info->cp_buff_pbase = q->cp_buff_pbase >> 4;
+		} else {
+			q->q_info->cp_desc_pbase = q->cp_desc_pbase;
+			q->q_info->cp_buff_pbase = q->cp_buff_pbase;
+		}
+
 		q->q_info->num_desc = q->num_desc;
-		q->q_info->cp_buff_pbase = q->cp_buff_pbase >> 4;
 
 		if (dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx))
 			dit_reset_dst_wp_rp(DIT_DIR_TX);
@@ -511,7 +520,10 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->q_buff_vbase = ppa_ul->buff_vbase + (i * buff_size_by_q);
 		q->cp_buff_pbase = ppa_ul->cp_base +
 			ppa_ul->buff_rgn_offset + (i * buff_size_by_q);
-		q->q_info->cp_buff_pbase = q->cp_buff_pbase >> 4;
+		if (mld->pktproc_use_36bit_addr)
+			q->q_info->cp_buff_pbase = q->cp_buff_pbase >> 4;
+		else
+			q->q_info->cp_buff_pbase = q->cp_buff_pbase;
 		q->q_buff_size = buff_size_by_q;
 		q->num_desc = buff_size_by_q / ppa_ul->max_packet_size;
 		q->q_info->num_desc = q->num_desc;
@@ -520,7 +532,10 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->cp_desc_pbase = ppa_ul->cp_base +
 			ppa_ul->desc_rgn_offset +
 			(i * sizeof(struct pktproc_desc_ul) * q->num_desc);
-		q->q_info->cp_desc_pbase = q->cp_desc_pbase >> 4;
+		if (mld->pktproc_use_36bit_addr)
+			q->q_info->cp_desc_pbase = q->cp_desc_pbase >> 4;
+		else
+			q->q_info->cp_desc_pbase = q->cp_desc_pbase;
 		q->desc_size = sizeof(struct pktproc_desc_ul) * q->num_desc;
 		q->buff_addr_cp = ppa_ul->cp_base + ppa_ul->buff_rgn_offset +
 			(i * buff_size_by_q);

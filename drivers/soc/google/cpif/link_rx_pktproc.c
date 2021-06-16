@@ -1204,6 +1204,7 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 {
 	int i;
 	int ret = 0;
+	struct mem_link_device *mld;
 
 	if (!ppa) {
 		mif_err("ppa is null\n");
@@ -1212,6 +1213,8 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 
 	if (!pktproc_check_support(ppa))
 		return 0;
+
+	mld = container_of(ppa, struct mem_link_device, pktproc);
 
 	mif_info("version:%d cp_base:0x%08lx desc_mode:%d num_queue:%d\n",
 		ppa->version, ppa->cp_base, ppa->desc_mode, ppa->num_queue);
@@ -1244,9 +1247,16 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 		*q->rear_ptr = 0;
 		q->done_ptr = 0;
 
-		q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase >> 4;
+		if (mld->pktproc_use_36bit_addr) {
+			q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase >> 4;
+			q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase >> 4;
+		} else {
+			q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase;
+			q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
+		}
+
 		q->q_info_ptr->num_desc = q->num_desc;
-		q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase >> 4;
+
 
 		memset(&q->stat, 0, sizeof(struct pktproc_statistics));
 
@@ -1539,7 +1549,10 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			q->q_buff_vbase = ppa->buff_vbase + (i * buff_size_by_q);
 			q->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset +
 				(i * buff_size_by_q);
-			q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase >> 4;
+			if (mld->pktproc_use_36bit_addr)
+				q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase >> 4;
+			else
+				q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
 			q->q_buff_size = buff_size_by_q;
 			if (ppa->buff_rgn_cached && !ppa->use_hw_iocc)
 				dma_sync_single_for_device(ppa->dev,
@@ -1554,7 +1567,10 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			q->cp_desc_pbase = ppa->cp_base + ppa->desc_rgn_offset +
 					(i * sizeof(struct pktproc_desc_ringbuf) *
 					 q->num_desc);
-			q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase >> 4;
+			if (mld->pktproc_use_36bit_addr)
+				q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase >> 4;
+			else
+				q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase;
 			q->desc_size = sizeof(struct pktproc_desc_ringbuf) * q->num_desc;
 
 			q->get_packet = pktproc_get_pkt_from_ringbuf_mode;
@@ -1579,7 +1595,12 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				q->clear_data_addr = pktproc_clear_data_addr_without_bm;
 
 			}
-			q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase >> 4;
+
+			if (mld->pktproc_use_36bit_addr)
+				q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase >> 4;
+			else
+				q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
+
 			q->q_info_ptr->num_desc = q->num_desc;
 
 			q->desc_sktbuf = ppa->desc_vbase +
@@ -1588,7 +1609,11 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			q->cp_desc_pbase = ppa->cp_base + ppa->desc_rgn_offset +
 					(i * sizeof(struct pktproc_desc_sktbuf) *
 					 q->num_desc);
-			q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase >> 4;
+			if (mld->pktproc_use_36bit_addr)
+				q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase >> 4;
+			else
+				q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase;
+
 			mif_info("cp_desc_pbase - 36bit addr: 0x%08lx, 32bit addr: 0x%08x\n",
 				q->cp_desc_pbase, q->q_info_ptr->cp_desc_pbase);
 

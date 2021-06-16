@@ -368,6 +368,8 @@ struct mem_link_device {
 	struct pktproc_adaptor_ul pktproc_ul;
 #endif
 
+	int pktproc_use_36bit_addr;
+
 	int spi_bus_num;
 
 	struct cpif_tpmon *tpmon;
