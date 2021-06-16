@@ -9,16 +9,12 @@
 
 #ifndef __LINUX_MFD_S2MPG12_REGISTER_H
 #define __LINUX_MFD_S2MPG12_REGISTER_H
+
 #include <linux/i2c.h>
 #include "s2mpg1x-register.h"
 
 #define S2MPG12_REG_INVALID	(0xFF)
 #define S2MPG12_EVT0	0
-
-/*
- * Helper macros for creating bitmasks
- */
-#define MASK(width, shift)	(((0x1 << (width)) - 1) << (shift))
 
 /* Common(0x0) Registers */
 enum S2MPG12_COMMON_REG {
@@ -529,53 +525,6 @@ enum s2mpg12_irq {
 	S2MPG12_IRQ_NR,
 };
 
-typedef enum {
-	BUCK1M = 0x1,
-	BUCK2M = 0x2,
-	BUCK3M = 0x3,
-	BUCK4M = 0x4,
-	BUCK5M = 0x5,
-	BUCK6M = 0x6,
-	BUCK7M = 0x7,
-	BUCK8M = 0x8,
-	BUCK9M = 0x9,
-	BUCK10M = 0xA,
-	VSEN_V1 = 0x1C,
-	VSEN_V2 = 0x1D,
-	VSEN_V3 = 0x1E,
-	LDO1M = 0x21,
-	LDO2M = 0x22,
-	LDO3M = 0x23,
-	LDO4M = 0x24,
-	LDO5M = 0x25,
-	LDO6M = 0x26,
-	LDO7M = 0x27,
-	LDO8M = 0x28,
-	LDO9M = 0x29,
-	LDO10M = 0x2A,
-	LDO11M = 0x2B,
-	LDO12M = 0x2C,
-	LDO13M = 0x2D,
-	LDO14M = 0x2E,
-	LDO15M = 0x2F,
-	LDO16M = 0x30,
-	LDO17M = 0x31,
-	LDO18M = 0x32,
-	LDO19M = 0x33,
-	LDO20M = 0x34,
-	LDO21M = 0x35,
-	LDO22M = 0x36,
-	LDO23M = 0x37,
-	LDO24M = 0x38,
-	LDO25M = 0x39,
-	LDO26M = 0x3A,
-	LDO27M = 0x3B,
-	LDO28M = 0x3C,
-	VSEN_C1 = 0x5C,
-	VSEN_C2 = 0x5D,
-	VSEN_C3 = 0x5E,
-} s2mpg12_meter_muxsel;
-
 /* Common(0x0) MASK */
 /* S2MPG12_COMMON_IBI0 */
 #define S2MPG12_PMIC_M_MASK		BIT(0)
@@ -630,16 +579,16 @@ typedef enum {
 #define S2MPG12_ENABLE_TIME_BUCK	130
 
 /* S2MPG12_PM_DCTRLSEL1 ~ 9 */
-#define DCTRLSEL_VOUT1				0x0
-#define DCTRLSEL_PWREN				0x1
-#define DCTRLSEL_PWREN_TRG			0x2
-#define DCTRLSEL_PWREN_MIF			0x3
-#define DCTRLSEL_PWREN_MIF_TRG		0x4
-#define DCTRLSEL_AP_ACTIVE_N		0x5
-#define DCTRLSEL_AP_ACTIVE_N_TRG	0x6
-#define DCTRLSEL_PWREN_MIF_ACTIVE_N	0x7
-#define DCTRLSEL_AOC_RET			0x8
-#define DCTRLSEL_TPU_EN				0x9
+#define S2MPG12_DCTRLSEL_VOUT1			0x0
+#define S2MPG12_DCTRLSEL_PWREN			0x1
+#define S2MPG12_DCTRLSEL_PWREN_TRG		0x2
+#define S2MPG12_DCTRLSEL_PWREN_MIF		0x3
+#define S2MPG12_DCTRLSEL_PWREN_MIF_TRG		0x4
+#define S2MPG12_DCTRLSEL_AP_ACTIVE_N		0x5
+#define S2MPG12_DCTRLSEL_AP_ACTIVE_N_TRG	0x6
+#define S2MPG12_DCTRLSEL_PWREN_MIF_ACTIVE_N	0x7
+#define S2MPG12_DCTRLSEL_AOC_RET		0x8
+#define S2MPG12_DCTRLSEL_TPU_EN			0x9
 
 /* VGPIO_RX_MONITOR ADDR. */
 #define VGPIO_I3C_BASE			0x18100000
@@ -647,12 +596,12 @@ typedef enum {
 
 /* VGPIO_PENDING_CLEAR */
 #define SYSREG_VGPIO2AP			0x182F0000
-#define INTC0_IPEND				0x0290
+#define INTC0_IPEND			0x0290
 
 /* POWER-KEY MASK */
 #define S2MPG12_STATUS1_PWRON		BIT(0)
 #define S2MPG12_FALLING_EDGE		BIT(1)	/* INT1 reg */
-#define S2MPG12_RISING_EDGE			BIT(0)	/* INT1 reg */
+#define S2MPG12_RISING_EDGE		BIT(0)	/* INT1 reg */
 
 /* S2MPG12_PM_SMPL_WARN_CTRL(0x16) */
 #define S2MPG12_SMPL_WARN_LBDT_SHIFT	0

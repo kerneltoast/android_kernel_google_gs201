@@ -13,10 +13,33 @@ enum s2mpg1x_id {
 	ID_S2MPG10,
 	ID_S2MPG11,
 #endif
+#if defined(CONFIG_SOC_GS201)
+	ID_S2MPG12,
+	ID_S2MPG13,
+#endif
 	ID_COUNT,
 };
 
 #if defined(CONFIG_SOC_GS101)
+#define SWITCH_ID_FUNC(id, func, args...)                                      \
+	do {                                                                   \
+		switch (id) {                                                  \
+		case ID_S2MPG10:                                               \
+			ret = s2mpg10_##func(args);                            \
+			break;                                                 \
+		case ID_S2MPG11:                                               \
+			ret = s2mpg11_##func(args);                            \
+			break;                                                 \
+		default:                                                       \
+			break;                                                 \
+		}                                                              \
+	} while (0)
+
+#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg11.h>
+#endif
+
+#if defined(CONFIG_SOC_GS201)
 #define SWITCH_ID_FUNC(id, func, args...)                                      \
 	do {                                                                   \
 		switch (id) {                                                  \
@@ -30,10 +53,10 @@ enum s2mpg1x_id {
 			break;                                                 \
 		}                                                              \
 	} while (0)
-
-#include <linux/mfd/samsung/s2mpg10.h>
-#include <linux/mfd/samsung/s2mpg11.h>
+#include <linux/mfd/samsung/s2mpg12.h>
+#include <linux/mfd/samsung/s2mpg13.h>
 #endif
+
 static inline int s2mpg1x_update_reg(enum s2mpg1x_id id, struct i2c_client *i2c,
 				     u8 reg, u8 val, u8 mask)
 {

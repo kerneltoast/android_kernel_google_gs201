@@ -26,6 +26,7 @@
 #include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/pmic_class.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 
 #ifndef TEST_DBG
 #define TEST_DBG 0

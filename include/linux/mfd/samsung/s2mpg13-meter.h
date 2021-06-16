@@ -32,10 +32,10 @@ int s2mpg13_meter_load_measurement(struct s2mpg13_meter *s2mpg13,
 				   s2mpg1x_meter_mode mode, u64 *data,
 				   u32 *count, u64 *timestamp_capture);
 int s2mpg13_meter_set_muxsel(struct s2mpg13_meter *s2mpg13, int channel,
-			     s2mpg13_meter_muxsel m);
+			     s2mpg1x_meter_muxsel m);
 
 int s2mpg13_meter_onoff(struct s2mpg13_meter *s2mpg13, bool onoff);
 int s2mpg13_ext_meter_onoff(struct s2mpg13_meter *s2mpg13, bool onoff);
-u32 s2mpg13_muxsel_to_power_resolution(s2mpg13_meter_muxsel m);
+u32 s2mpg13_muxsel_to_power_resolution(s2mpg1x_meter_muxsel m);
 
 #endif /* __LINUX_MFD_S2MPG13_METER_H */

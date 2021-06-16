@@ -12,9 +12,7 @@
 
 #include <linux/i2c.h>
 #include <linux/mfd/samsung/s2mpg1x.h>
-#include "s2mpg1x-register.h"
-#include <linux/mfd/samsung/s2mpg12-register.h>
-#include <linux/mfd/samsung/s2mpg13-register.h>
+#include <linux/mfd/samsung/s2mpg1x-register.h>
 #include <linux/fs.h>
 
 typedef enum {

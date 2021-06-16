@@ -72,61 +72,61 @@ int s2mpg13_meter_load_measurement(struct s2mpg13_meter *s2mpg13,
 }
 EXPORT_SYMBOL_GPL(s2mpg13_meter_load_measurement);
 
-static u64 muxsel_to_current_resolution(s2mpg13_meter_muxsel m)
+static u64 muxsel_to_current_resolution(s2mpg1x_meter_muxsel m)
 {
 	switch (m) {
-	case BUCK3S:
-	case BUCK4S:
-	case BUCK5S:
-	case BUCK6S:
-	case BUCK8S:
-	case BUCK9S:
-	case BUCK10S:
+	case BUCK3:
+	case BUCK4:
+	case BUCK5:
+	case BUCK6:
+	case BUCK8:
+	case BUCK9:
+	case BUCK10:
 	case BUCKC:
 		return CMS_BUCK_CURRENT;
-	case BUCK1S:
-	case BUCK2S:
+	case BUCK1:
+	case BUCK2:
 		return CMT_BUCK_CURRENT;
-	case BUCK7S:
+	case BUCK7:
 	case BUCKD:
 	case BUCKA:
 		return VM_CURRENT;
-	case BUCKBOOST:
+	case BUCKBOOST_10:
 		return BB_CURRENT;
-	case LDO9S:
+	case LDO9:
 		return DVS_NLDO_CURRENT_150mA;
-	case LDO4S:
-	case LDO5S:
-	case LDO6S:
-	case LDO7S:
-	case LDO10S:
-	case LDO11S:
-	case LDO13S:
-	case LDO15S:
-	case LDO16S:
-	case LDO17S:
-	case LDO18S:
-	case LDO19S:
-	case LDO20S:
-	case LDO22S:
-	case LDO28S:
+	case LDO4:
+	case LDO5:
+	case LDO6:
+	case LDO7:
+	case LDO10:
+	case LDO11:
+	case LDO13:
+	case LDO15:
+	case LDO16:
+	case LDO17:
+	case LDO18:
+	case LDO19:
+	case LDO20:
+	case LDO22:
+	case LDO28:
 		return PLDO_CURRENT_150mA;
-	case LDO26S:
+	case LDO26:
 		return NLDO_CURRENT_300mA;
-	case LDO12S:
-	case LDO14S:
-	case LDO27S:
+	case LDO12:
+	case LDO14:
+	case LDO27:
 		return PLDO_CURRENT_300mA;
-	case LDO1S:
-	case LDO23S:
-	case LDO24S:
-	case LDO25S:
+	case LDO1:
+	case LDO23:
+	case LDO24:
+	case LDO25:
 		return DVS_NLDO_CURRENT_800mA;
-	case LDO2S:
-	case LDO3S:
-	case LDO21S:
+	case LDO2:
+	case LDO3:
+	case LDO21:
 		return NLDO_CURRENT_800mA;
-	case LDO8S:
+	case LDO8:
 		return NLDO_CURRENT_1200mA;
 	default:
 		pr_err("%s: wrong muxsel\n", __func__);
@@ -134,61 +134,61 @@ static u64 muxsel_to_current_resolution(s2mpg13_meter_muxsel m)
 	}
 }
 
-u32 s2mpg13_muxsel_to_power_resolution(s2mpg13_meter_muxsel m)
+u32 s2mpg13_muxsel_to_power_resolution(s2mpg1x_meter_muxsel m)
 {
 	switch (m) {
-	case BUCK3S:
-	case BUCK4S:
-	case BUCK5S:
-	case BUCK6S:
-	case BUCK8S:
-	case BUCK9S:
-	case BUCK10S:
+	case BUCK3:
+	case BUCK4:
+	case BUCK5:
+	case BUCK6:
+	case BUCK8:
+	case BUCK9:
+	case BUCK10:
 	case BUCKC:
 		return CMS_BUCK_POWER;
-	case BUCK1S:
-	case BUCK2S:
+	case BUCK1:
+	case BUCK2:
 		return CMT_BUCK_POWER;
-	case BUCK7S:
+	case BUCK7:
 	case BUCKD:
 	case BUCKA:
 		return VM_POWER;
-	case BUCKBOOST:
+	case BUCKBOOST_10:
 		return BB_POWER;
-	case LDO9S:
+	case LDO9:
 		return DVS_NLDO_POWER_150mA;
-	case LDO4S:
-	case LDO5S:
-	case LDO6S:
-	case LDO7S:
-	case LDO10S:
-	case LDO11S:
-	case LDO13S:
-	case LDO15S:
-	case LDO16S:
-	case LDO17S:
-	case LDO18S:
-	case LDO19S:
-	case LDO20S:
-	case LDO22S:
-	case LDO28S:
+	case LDO4:
+	case LDO5:
+	case LDO6:
+	case LDO7:
+	case LDO10:
+	case LDO11:
+	case LDO13:
+	case LDO15:
+	case LDO16:
+	case LDO17:
+	case LDO18:
+	case LDO19:
+	case LDO20:
+	case LDO22:
+	case LDO28:
 		return PLDO_POWER_150mA;
-	case LDO26S:
+	case LDO26:
 		return NLDO_POWER_300mA;
-	case LDO12S:
-	case LDO14S:
-	case LDO27S:
+	case LDO12:
+	case LDO14:
+	case LDO27:
 		return PLDO_POWER_300mA;
-	case LDO1S:
-	case LDO23S:
-	case LDO24S:
-	case LDO25S:
+	case LDO1:
+	case LDO23:
+	case LDO24:
+	case LDO25:
 		return DVS_NLDO_POWER_800mA;
-	case LDO2S:
-	case LDO3S:
-	case LDO21S:
+	case LDO2:
+	case LDO3:
+	case LDO21:
 		return NLDO_POWER_800mA;
-	case LDO8S:
+	case LDO8:
 		return NLDO_POWER_1200mA;
 	default:
 		pr_err("%s: wrong muxsel\n", __func__);
@@ -197,59 +197,59 @@ u32 s2mpg13_muxsel_to_power_resolution(s2mpg13_meter_muxsel m)
 }
 EXPORT_SYMBOL_GPL(s2mpg13_muxsel_to_power_resolution);
 
-static const char *muxsel_to_str(s2mpg13_meter_muxsel m)
+static const char *muxsel_to_str(s2mpg1x_meter_muxsel m)
 {
 	char *ret;
 
 	switch (m) {
-		ENUM_STR(BUCK1S, ret);
-		ENUM_STR(BUCK2S, ret);
-		ENUM_STR(BUCK3S, ret);
-		ENUM_STR(BUCK4S, ret);
-		ENUM_STR(BUCK5S, ret);
-		ENUM_STR(BUCK6S, ret);
-		ENUM_STR(BUCK7S, ret);
-		ENUM_STR(BUCK8S, ret);
-		ENUM_STR(BUCK9S, ret);
-		ENUM_STR(BUCK10S, ret);
-		ENUM_STR(BUCKD, ret);
-		ENUM_STR(BUCKA, ret);
-		ENUM_STR(BUCKC, ret);
-		ENUM_STR(BUCKBOOST, ret);
-		ENUM_STR(VSEN_P4, ret);
-		ENUM_STR(VSEN_P5, ret);
-		ENUM_STR(VSEN_P6, ret);
-		ENUM_STR(LDO1S, ret);
-		ENUM_STR(LDO2S, ret);
-		ENUM_STR(LDO3S, ret);
-		ENUM_STR(LDO4S, ret);
-		ENUM_STR(LDO5S, ret);
-		ENUM_STR(LDO6S, ret);
-		ENUM_STR(LDO7S, ret);
-		ENUM_STR(LDO8S, ret);
-		ENUM_STR(LDO9S, ret);
-		ENUM_STR(LDO10S, ret);
-		ENUM_STR(LDO11S, ret);
-		ENUM_STR(LDO12S, ret);
-		ENUM_STR(LDO13S, ret);
-		ENUM_STR(LDO14S, ret);
-		ENUM_STR(LDO15S, ret);
-		ENUM_STR(LDO16S, ret);
-		ENUM_STR(LDO17S, ret);
-		ENUM_STR(LDO18S, ret);
-		ENUM_STR(LDO19S, ret);
-		ENUM_STR(LDO20S, ret);
-		ENUM_STR(LDO21S, ret);
-		ENUM_STR(LDO22S, ret);
-		ENUM_STR(LDO23S, ret);
-		ENUM_STR(LDO24S, ret);
-		ENUM_STR(LDO25S, ret);
-		ENUM_STR(LDO26S, ret);
-		ENUM_STR(LDO27S, ret);
-		ENUM_STR(LDO28S, ret);
-		ENUM_STR(VSEN_C4, ret);
-		ENUM_STR(VSEN_C5, ret);
-		ENUM_STR(VSEN_C6, ret);
+		ENUM_STR(BUCK1, "S", ret);
+		ENUM_STR(BUCK2, "S", ret);
+		ENUM_STR(BUCK3, "S", ret);
+		ENUM_STR(BUCK4, "S", ret);
+		ENUM_STR(BUCK5, "S", ret);
+		ENUM_STR(BUCK6, "S", ret);
+		ENUM_STR(BUCK7, "S", ret);
+		ENUM_STR(BUCK8, "S", ret);
+		ENUM_STR(BUCK9, "S", ret);
+		ENUM_STR(BUCK10, "S", ret);
+		ENUM_STR(BUCKD, "", ret);
+		ENUM_STR(BUCKA, "", ret);
+		ENUM_STR(BUCKC, "", ret);
+		ENUM_STR(BUCKBOOST_10, "", ret);
+		ENUM_STR(VSEN_P4, "", ret);
+		ENUM_STR(VSEN_P5, "", ret);
+		ENUM_STR(VSEN_P6, "", ret);
+		ENUM_STR(LDO1, "S", ret);
+		ENUM_STR(LDO2, "S", ret);
+		ENUM_STR(LDO3, "S", ret);
+		ENUM_STR(LDO4, "S", ret);
+		ENUM_STR(LDO5, "S", ret);
+		ENUM_STR(LDO6, "S", ret);
+		ENUM_STR(LDO7, "S", ret);
+		ENUM_STR(LDO8, "S", ret);
+		ENUM_STR(LDO9, "S", ret);
+		ENUM_STR(LDO10, "S", ret);
+		ENUM_STR(LDO11, "S", ret);
+		ENUM_STR(LDO12, "S", ret);
+		ENUM_STR(LDO13, "S", ret);
+		ENUM_STR(LDO14, "S", ret);
+		ENUM_STR(LDO15, "S", ret);
+		ENUM_STR(LDO16, "S", ret);
+		ENUM_STR(LDO17, "S", ret);
+		ENUM_STR(LDO18, "S", ret);
+		ENUM_STR(LDO19, "S", ret);
+		ENUM_STR(LDO20, "S", ret);
+		ENUM_STR(LDO21, "S", ret);
+		ENUM_STR(LDO22, "S", ret);
+		ENUM_STR(LDO23, "S", ret);
+		ENUM_STR(LDO24, "S", ret);
+		ENUM_STR(LDO25, "S", ret);
+		ENUM_STR(LDO26, "S", ret);
+		ENUM_STR(LDO27, "S", ret);
+		ENUM_STR(LDO28, "S", ret);
+		ENUM_STR(VSEN_C4, "", ret);
+		ENUM_STR(VSEN_C5, "", ret);
+		ENUM_STR(VSEN_C6, "", ret);
 	default:
 		return "invalid";
 	}
@@ -290,7 +290,7 @@ int s2mpg13_ext_meter_onoff(struct s2mpg13_meter *s2mpg13, bool onoff)
 EXPORT_SYMBOL_GPL(s2mpg13_ext_meter_onoff);
 
 int s2mpg13_meter_set_muxsel(struct s2mpg13_meter *s2mpg13, int channel,
-			     s2mpg13_meter_muxsel m)
+			     s2mpg1x_meter_muxsel m)
 {
 	int reg = S2MPG13_METER_MUXSEL0;
 	int ret = -EPERM;
@@ -404,7 +404,7 @@ static ssize_t s2mpg13_muxsel_table_show(struct device *dev,
 					 char *buf)
 {
 	int muxsel_cnt = 0;
-	int muxsel = BUCK1S;
+	int muxsel = BUCK1;
 	size_t count = 0;
 
 	while (muxsel <= VSEN_C6) {
@@ -414,12 +414,12 @@ static ssize_t s2mpg13_muxsel_table_show(struct device *dev,
 			break;
 
 		if (muxsel == BUCKC)
-			muxsel = BUCKBOOST;
-		else if (muxsel == BUCKBOOST)
+			muxsel = BUCKBOOST_10;
+		else if (muxsel == BUCKBOOST_10)
 			muxsel = VSEN_P4;
 		else if (muxsel == VSEN_P6)
-			muxsel = LDO1S;
-		else if (muxsel == LDO28S)
+			muxsel = LDO1;
+		else if (muxsel == LDO28)
 			muxsel = VSEN_C4;
 		else
 			muxsel++;
@@ -457,10 +457,10 @@ static ssize_t s2mpg13_channel_muxsel_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	if ((muxsel >= BUCK1S && muxsel <= BUCKC) ||
-	    muxsel == BUCKBOOST ||
+	if ((muxsel >= BUCK1 && muxsel <= BUCKC) ||
+	    muxsel == BUCKBOOST_10 ||
 	    (muxsel >= VSEN_P4 && muxsel <= VSEN_P6) ||
-	    (muxsel >= LDO1S && muxsel <= LDO28S) ||
+	    (muxsel >= LDO1 && muxsel <= LDO28) ||
 	    (muxsel >= VSEN_C4 && muxsel <= VSEN_C6)) {
 		s2mpg13_meter_set_muxsel(s2mpg13, channel, muxsel);
 	} else {
@@ -504,7 +504,7 @@ static ssize_t s2mpg13_lpf_current_show(struct device *dev,
 	s2mpg13_meter_read_lpf_data_reg(s2mpg13);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg13_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
+		s2mpg1x_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 						      muxsel_to_str(muxsel),
@@ -530,7 +530,7 @@ static ssize_t s2mpg13_lpf_power_show(struct device *dev,
 	s2mpg13_meter_read_lpf_data_reg(s2mpg13);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg13_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
+		s2mpg1x_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mW)",
@@ -556,7 +556,7 @@ static ssize_t s2mpg13_acc_current_show(struct device *dev,
 				       &acc_count, NULL);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg13_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
+		s2mpg1x_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mA)",
@@ -581,7 +581,7 @@ static ssize_t s2mpg13_acc_power_show(struct device *dev,
 				       &acc_count, NULL);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg13_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
+		s2mpg1x_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mW)",
@@ -689,16 +689,16 @@ static int s2mpg13_meter_probe(struct platform_device *pdev)
 	/* any necessary settings can be added */
 	s2mpg1x_meter_set_int_samp_rate(ID_S2MPG13, s2mpg13->i2c, INT_62P_5HZ);
 
-	s2mpg13_meter_set_muxsel(s2mpg13, 0, BUCK1S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 1, BUCK2S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 2, BUCK3S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 3, BUCK4S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 4, BUCK5S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 5, BUCK6S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 6, BUCK7S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 7, BUCK8S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 8, BUCK9S);
-	s2mpg13_meter_set_muxsel(s2mpg13, 9, BUCK10S);
+	s2mpg13_meter_set_muxsel(s2mpg13, 0, BUCK1);
+	s2mpg13_meter_set_muxsel(s2mpg13, 1, BUCK2);
+	s2mpg13_meter_set_muxsel(s2mpg13, 2, BUCK3);
+	s2mpg13_meter_set_muxsel(s2mpg13, 3, BUCK4);
+	s2mpg13_meter_set_muxsel(s2mpg13, 4, BUCK5);
+	s2mpg13_meter_set_muxsel(s2mpg13, 5, BUCK6);
+	s2mpg13_meter_set_muxsel(s2mpg13, 6, BUCK7);
+	s2mpg13_meter_set_muxsel(s2mpg13, 7, BUCK8);
+	s2mpg13_meter_set_muxsel(s2mpg13, 8, BUCK9);
+	s2mpg13_meter_set_muxsel(s2mpg13, 9, BUCK10);
 	s2mpg13_meter_set_muxsel(s2mpg13, 10, BUCKD);
 	s2mpg13_meter_set_muxsel(s2mpg13, 11, BUCKA);
 

@@ -26,14 +26,14 @@ struct s2mpg12_meter {
 };
 
 /* Public s2mpg12 Meter functions */
-void s2mpg12_meter_load_measurement(struct s2mpg12_meter *s2mpg12,
-				    s2mpg1x_meter_mode mode, u64 *data,
+int s2mpg12_meter_load_measurement(struct s2mpg12_meter *s2mpg12,
+                                   s2mpg1x_meter_mode mode, u64 *data,
 				   u32 *count, u64 *timestamp_capture);
 int s2mpg12_meter_set_muxsel(struct s2mpg12_meter *s2mpg12, int channel,
-			     s2mpg12_meter_muxsel m);
+			     s2mpg1x_meter_muxsel m);
 
 int s2mpg12_meter_onoff(struct s2mpg12_meter *s2mpg12, bool onoff);
 int s2mpg12_ext_meter_onoff(struct s2mpg12_meter *s2mpg12, bool onoff);
-u32 s2mpg12_muxsel_to_power_resolution(s2mpg12_meter_muxsel m);
+u32 s2mpg12_muxsel_to_power_resolution(s2mpg1x_meter_muxsel m);
 
 #endif /* __LINUX_MFD_S2MPG12_METER_H */

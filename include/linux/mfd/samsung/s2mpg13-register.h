@@ -9,16 +9,12 @@
 
 #ifndef __LINUX_MFD_S2MPG13_REGISTER_H
 #define __LINUX_MFD_S2MPG13_REGISTER_H
+
 #include <linux/i2c.h>
 #include "s2mpg1x-register.h"
 
 #define S2MPG13_REG_INVALID	(0xFF)
 #define S2MPG13_EVT0	0
-
-/*
- * Helper macros for creating bitmasks
- */
-#define MASK(width, shift)	(((0x1 << (width)) - 1) << (shift))
 
 /* Common(0x0) Registers */
 enum S2MPG13_COMMON_REG {
@@ -473,69 +469,6 @@ enum s2mpg13_irq {
 	S2MPG13_IRQ_NR,
 };
 
-typedef enum {
-	BUCK1S = 0x1,
-	BUCK2S = 0x2,
-	BUCK3S = 0x3,
-	BUCK4S = 0x4,
-	BUCK5S = 0x5,
-	BUCK6S = 0x6,
-	BUCK7S = 0x7,
-	BUCK8S = 0x8,
-	BUCK9S = 0x9,
-	BUCK10S = 0xA,
-	BUCKD = 0xB,
-	BUCKA = 0xC,
-	BUCKC = 0xD,
-	BUCKBOOST = 0x10,
-	VSEN_P4 = 0x1C,
-	VSEN_P5 = 0x1D,
-	VSEN_P6 = 0x1E,
-	VBAT = 0x1F,
-	LDO1S = 0x21,
-	LDO2S = 0x22,
-	LDO3S = 0x23,
-	LDO4S = 0x24,
-	LDO5S = 0x25,
-	LDO6S = 0x26,
-	LDO7S = 0x27,
-	LDO8S = 0x28,
-	LDO9S = 0x29,
-	LDO10S = 0x2A,
-	LDO11S = 0x2B,
-	LDO12S = 0x2C,
-	LDO13S = 0x2D,
-	LDO14S = 0x2E,
-	LDO15S = 0x2F,
-	LDO16S = 0x30,
-	LDO17S = 0x31,
-	LDO18S = 0x32,
-	LDO19S = 0x33,
-	LDO20S = 0x34,
-	LDO21S = 0x35,
-	LDO22S = 0x36,
-	LDO23S = 0x37,
-	LDO24S = 0x38,
-	LDO25S = 0x39,
-	LDO26S = 0x3A,
-	LDO27S = 0x3B,
-	LDO28S = 0x3C,
-	VSEN_C4 = 0x5C,
-	VSEN_C5 = 0x5D,
-	VSEN_C6 = 0x5E,
-} s2mpg13_meter_muxsel;
-
-typedef enum {
-	NTC_0P078125HZ = 1,
-	NTC_0P15625HZ,
-	NTC_0P3125HZ,
-	NTC_0P625HZ,
-	NTC_1P25HZ,
-	NTC_2P5HZ,
-	NTC_5HZ,
-	NTC_10HZ,
-} s2mpg13_ntc_samp_rate;
-
 /* Common(0x0) MASK */
 /* S2MPG13_COMMON_IBIM1 */
 #define S2MPG13_IRQSRC_MASK	BIT(0)
@@ -633,12 +566,6 @@ typedef enum {
 #define S2MPG13_OCP_WARN_CNT_SHIFT		6
 #define S2MPG13_OCP_WARN_DVS_MASK_SHIFT	5
 #define S2MPG13_OCP_WARN_LVL_SHIFT		0
-
-/* Meter(0xA) MASK */
-/* S2MPG13_METER_CTRL1 */
-#define NTC_SAMP_RATE_SHIFT		5
-#define NTC_SAMP_RATE_WIDTH		3
-#define NTC_SAMP_RATE_MASK		MASK(NTC_SAMP_RATE_WIDTH, NTC_SAMP_RATE_SHIFT)
 
 #define S2MPG13_METER_NTC_BUF 2 /* 12-bit */
 
