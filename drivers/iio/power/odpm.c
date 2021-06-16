@@ -27,10 +27,19 @@
 #include <linux/iio/sysfs.h>
 
 #include <linux/mfd/samsung/s2mpg1x-meter.h>
+
+#if defined(CONFIG_SOC_GS101)
 #include <linux/mfd/samsung/s2mpg10-meter.h>
 #include <linux/mfd/samsung/s2mpg11-meter.h>
 #include <linux/mfd/samsung/s2mpg10.h>
 #include <linux/mfd/samsung/s2mpg11.h>
+#endif
+#if defined(CONFIG_SOC_GS201)
+#include <linux/mfd/samsung/s2mpg12-meter.h>
+#include <linux/mfd/samsung/s2mpg13-meter.h>
+#include <linux/mfd/samsung/s2mpg12.h>
+#include <linux/mfd/samsung/s2mpg13.h>
+#endif
 
 #define ODPM_PRINT_ESTIMATED_CLOCK_SKEW 0
 
@@ -60,32 +69,43 @@
 #define ODPM_FREQ_DECIMAL_UHZ_STR_LEN_MAX 6
 #define ODPM_SAMPLING_FREQ_CHAR_LEN_MAX 20
 
-#define SWITCH_CHIP_FUNC(infop, ret, func, args...)                            \
-	do {                                                                   \
-		switch ((infop)->chip.id) {                                    \
-		case ODPM_CHIP_S2MPG10:                                        \
-			ret = s2mpg10_##func(args);                            \
-			break;                                                 \
-		case ODPM_CHIP_S2MPG11:                                        \
-			ret = s2mpg11_##func(args);                            \
-			break;                                                 \
-		case ODPM_CHIP_COUNT:                                          \
-			break;                                                 \
-		}                                                              \
+#if defined(CONFIG_SOC_GS101)
+#define SWITCH_CHIP_FUNC(infop, ret, func, args...)	\
+	do {						\
+		switch ((infop)->chip.hw_id) {		\
+		case ID_S2MPG10:			\
+			ret = s2mpg10_##func(args);	\
+			break;				\
+		case ID_S2MPG11:			\
+			ret = s2mpg11_##func(args);	\
+			break;				\
+		case ID_COUNT:				\
+			break;				\
+		}					\
 	} while (0)
+#endif
+
+#if defined(CONFIG_SOC_GS201)
+#define SWITCH_CHIP_FUNC(infop, ret, func, args...)	\
+	do {						\
+		switch ((infop)->chip.hw_id) {		\
+		case ID_S2MPG12:			\
+			ret = s2mpg12_##func(args);	\
+			break;				\
+		case ID_S2MPG13:			\
+			ret = s2mpg13_##func(args);	\
+			break;				\
+		case ID_COUNT:				\
+			break;				\
+		}					\
+	} while (0)
+#endif
 
 #define SWITCH_METER_FUNC(infop, ret, func, args...) \
-	SWITCH_CHIP_FUNC(infop, ret, func, info->meter, args)
+	SWITCH_CHIP_FUNC(infop, ret, func, (infop)->meter, args)
 
-/* At this moment, this driver supports a static 8 channels */
 #define ODPM_CHANNEL_MAX S2MPG1X_METER_CHANNEL_MAX
 #define ODPM_BUCK_EN_BYTES S2MPG1X_METER_BUCKEN_BUF
-
-enum odpm_chip_id {
-	ODPM_CHIP_S2MPG10,
-	ODPM_CHIP_S2MPG11,
-	ODPM_CHIP_COUNT,
-};
 
 enum odpm_rail_type {
 	ODPM_RAIL_TYPE_REGULATOR_LDO,
@@ -127,7 +147,6 @@ struct odpm_rail_data {
 struct odpm_chip {
 	/* Config */
 	const char *name;
-	enum odpm_chip_id id;
 	enum s2mpg1x_id hw_id;
 	int hw_rev;
 	u32 max_refresh_time_ms;
@@ -189,9 +208,14 @@ struct odpm_info {
 	}
 
 static const struct iio_chan_spec s2mpg1x_single_channel[ODPM_CHANNEL_MAX] = {
-	ODPM_ACC_CHANNEL(0), ODPM_ACC_CHANNEL(1), ODPM_ACC_CHANNEL(2),
-	ODPM_ACC_CHANNEL(3), ODPM_ACC_CHANNEL(4), ODPM_ACC_CHANNEL(5),
+	ODPM_ACC_CHANNEL(0), ODPM_ACC_CHANNEL(1),
+	ODPM_ACC_CHANNEL(2), ODPM_ACC_CHANNEL(3),
+	ODPM_ACC_CHANNEL(4), ODPM_ACC_CHANNEL(5),
 	ODPM_ACC_CHANNEL(6), ODPM_ACC_CHANNEL(7),
+#if defined(CONFIG_SOC_GS201)
+	ODPM_ACC_CHANNEL(8), ODPM_ACC_CHANNEL(9),
+	ODPM_ACC_CHANNEL(10), ODPM_ACC_CHANNEL(11),
+#endif
 };
 
 static int odpm_take_snapshot(struct odpm_info *info);
@@ -265,11 +289,13 @@ static int odpm_io_set_ext_channels_en(struct odpm_info *info, u8 channels)
 static int odpm_io_set_buck_channels_en(struct odpm_info *info, u8 *channels,
 					int num_bytes)
 {
+#if defined(CONFIG_SOC_GS101)
 	/* Disable BUCK5M if necessary (A0-specific) */
 	if (info->chip.hw_id == ID_S2MPG10 &&
 	    info->chip.hw_rev == S2MPG10_EVT0) {
 		channels[0] &= ~0x10;
 	}
+#endif
 
 	return s2mpg1x_meter_set_buck_channel_en(info->chip.hw_id, info->i2c,
 						 channels, num_bytes);
@@ -1602,38 +1628,48 @@ static int odpm_remove(struct platform_device *pdev)
 
 static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 {
-	/* s2mpg1x specific data */
-	switch (id) {
-	case ODPM_CHIP_S2MPG10:
-	case ODPM_CHIP_S2MPG11:
-		info->chip.id = id;
+	info->chip.hw_id = id;
 
-		info->chip.sampling_rate_int_uhz =
-			s2mpg1x_meter_get_int_samping_rate_table();
-		info->chip.sampling_rate_int_count = S2MPG1X_INT_FREQ_COUNT;
-		info->chip.sampling_rate_ext_uhz =
-			s2mpg1x_meter_get_ext_samping_rate_table();
-		info->chip.sampling_rate_ext_count = S2MPG1X_EXT_FREQ_COUNT;
-		break;
-	}
+	info->chip.sampling_rate_int_uhz =
+	    s2mpg1x_meter_get_int_samping_rate_table();
+	info->chip.sampling_rate_int_count = S2MPG1X_INT_FREQ_COUNT;
+	info->chip.sampling_rate_ext_uhz =
+	    s2mpg1x_meter_get_ext_samping_rate_table();
+	info->chip.sampling_rate_ext_count = S2MPG1X_EXT_FREQ_COUNT;
 
 	switch (id) {
-	case ODPM_CHIP_S2MPG10: {
+#if defined(CONFIG_SOC_GS101)
+	case ID_S2MPG10: {
 		struct s2mpg10_meter *meter = info->meter;
 		struct s2mpg10_dev *pmic = dev_get_drvdata(meter->dev->parent);
 
-		info->chip.hw_id = ID_S2MPG10;
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
 	} break;
-	case ODPM_CHIP_S2MPG11: {
+	case ID_S2MPG11: {
 		struct s2mpg11_meter *meter = info->meter;
 		struct s2mpg11_dev *pmic = dev_get_drvdata(meter->dev->parent);
 
-		info->chip.hw_id = ID_S2MPG11;
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
 	} break;
+#endif
+#if defined(CONFIG_SOC_GS201)
+	case ID_S2MPG12: {
+		struct s2mpg12_meter *meter = info->meter;
+		struct s2mpg12_dev *pmic = dev_get_drvdata(meter->dev->parent);
+
+		info->chip.hw_rev = pmic->pmic_rev;
+		info->i2c = meter->i2c;
+	} break;
+	case ID_S2MPG13: {
+		struct s2mpg13_meter *meter = info->meter;
+		struct s2mpg13_dev *pmic = dev_get_drvdata(meter->dev->parent);
+
+		info->chip.hw_rev = pmic->pmic_rev;
+		info->i2c = meter->i2c;
+	} break;
+#endif
 	}
 
 	info->chip.rx_ext_config_confirmation = false;
@@ -1676,7 +1712,7 @@ static int odpm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (pdev->id_entry->driver_data >= ODPM_CHIP_COUNT) {
+	if (pdev->id_entry->driver_data >= ID_COUNT) {
 		pr_err("odpm: Could not identify driver!\n");
 		odpm_remove(pdev);
 		return -ENODEV;
@@ -1759,8 +1795,14 @@ static int odpm_resume(struct platform_device *pdev)
 }
 
 static const struct platform_device_id odpm_id[] = {
-	{ "s2mpg10-odpm", ODPM_CHIP_S2MPG10 },
-	{ "s2mpg11-odpm", ODPM_CHIP_S2MPG11 },
+#if defined(CONFIG_SOC_GS101)
+	{ "s2mpg10-odpm", ID_S2MPG10 },
+	{ "s2mpg11-odpm", ID_S2MPG11 },
+#endif
+#if defined(CONFIG_SOC_GS201)
+	{ "s2mpg12-odpm", ID_S2MPG12 },
+	{ "s2mpg13-odpm", ID_S2MPG13 },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(platform, odpm_id);

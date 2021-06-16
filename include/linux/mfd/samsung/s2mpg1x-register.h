@@ -2,9 +2,9 @@
 /*
  * include/linux/mfd/samsung/s2mpg1x-register.h
  *
- * Copyright (C) 2015 Samsung Electronics
+ * Copyright (C) 2021 Samsung Electronics
  *
- * header file including common register information of s2mpg12, s2mpg13
+ * header file including common register information of s2mpg10, s2mpg11, 2mpg12, s2mpg13
  */
 
 #ifndef __LINUX_MFD_S2MPG1X_REGISTER_H
@@ -15,6 +15,10 @@
 #if defined(CONFIG_SOC_GS101)
 #define S2MPG1X_METER_CHANNEL_MAX 8
 #endif
+#if defined(CONFIG_SOC_GS201)
+#define S2MPG1X_METER_CHANNEL_MAX 12
+#endif
+
 #define MASK(width, shift) GENMASK(shift + width - 1, shift)
 
 typedef enum {
@@ -140,6 +144,7 @@ typedef enum {
 #endif
 	INT_1000HZ,
 	S2MPG1X_INT_FREQ_COUNT,
+	S2MPG1X_INT_FREQ_NONE,
 } s2mpg1x_int_samp_rate;
 
 typedef enum {
@@ -149,6 +154,7 @@ typedef enum {
 	EXT_61P_025HZ,
 	EXT_122P_05HZ,
 	S2MPG1X_EXT_FREQ_COUNT,
+	S2MPG1X_EXT_FREQ_NONE,
 } s2mpg1x_ext_samp_rate;
 
 typedef enum {
@@ -188,6 +194,7 @@ typedef enum {
 /* S2MPG1x_METER_CTRL2 */
 #define ASYNC_RD_MASK BIT(7)
 #define ONESHOT_RD_MASK BIT(6)
+#define EXT_METER_CHANNEL_EN_ALL 0x7
 #define EXT_METER_CHANNEL_EN_OFFSET 3
 #define EXT_METER_CHANNEL_EN_MASK (0x7 << EXT_METER_CHANNEL_EN_OFFSET)
 #define EXT_SAMP_RATE_MASK (0x7 << 0)
@@ -217,14 +224,18 @@ typedef enum {
 #define VM_POWER _IQ30(u32, 0.012210012)
 #define BB_CURRENT _IQ30(u32, 0.879120879)
 #define BB_POWER _IQ30(u32, 0.010989011)
-#define DVS_NLDO_CURRENT_150mA _IQ30(u32, 0.0366300366300366)
-#define DVS_NLDO_POWER_150mA _IQ30(u32, 0.000457875)
-#define PLDO_CURRENT_150mA _IQ30(u32, 0.0366300366300366)
+#define DVS_NLDO_CURRENT_150mA _IQ30(u32, 0.036630037)
+#define DVS_NLDO_POWER_150mA _IQ30(u32, 0.000228938)
+#define NLDO_CURRENT_150mA _IQ30(u32, 0.036630037)
+#define NLDO_POWER_150mA _IQ30(u32, 0.000457875)
+#define PLDO_CURRENT_150mA _IQ30(u32, 0.036630037)
 #define PLDO_POWER_150mA _IQ30(u32, 0.000915751)
 #define NLDO_CURRENT_300mA _IQ30(u32, 0.073260073)
 #define NLDO_POWER_300mA _IQ30(u32, 0.000915751)
 #define PLDO_CURRENT_300mA _IQ30(u32, 0.073260073)
 #define PLDO_POWER_300mA _IQ30(u32, 0.001831502)
+#define DVS_NLDO_CURRENT_450mA _IQ30(u32, 0.10989011)
+#define DVS_NLDO_POWER_450mA _IQ30(u32, 0.000686813)
 #define NLDO_CURRENT_450mA _IQ30(u32, 0.10989011)
 #define NLDO_POWER_450mA _IQ30(u32, 0.001373626)
 #define PLDO_CURRENT_600mA _IQ30(u32, 0.146520147)
@@ -235,6 +246,8 @@ typedef enum {
 #define NLDO_POWER_800mA _IQ30(u32, 0.002442002)
 #define PLDO_CURRENT_800mA _IQ30(u32, 0.195360195)
 #define PLDO_POWER_800mA _IQ30(u32, 0.004884005)
+#define NLDO_CURRENT_1000mA _IQ30(u32, 0.244200244)
+#define NLDO_POWER_1000mA _IQ30(u32, 0.001418251)
 #define NLDO_CURRENT_1200mA _IQ30(u32, 0.244200244)
 #define NLDO_POWER_1200mA _IQ30(u32, 0.001418251)
 #define EXTERNAL_RESOLUTION_VRAIL _IQ30(u32, 1.3186813)
