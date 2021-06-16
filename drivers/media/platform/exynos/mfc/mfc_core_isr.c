@@ -449,7 +449,7 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 			mfc_debug(2, "[QoS] framerate changed\n");
 		}
 
-		if (dec->has_multiframe) {
+		if ((IS_VP9_DEC(ctx) || IS_AV1_DEC(ctx)) && dec->has_multiframe) {
 			mfc_set_mb_flag(dst_mb, MFC_FLAG_MULTIFRAME);
 			mfc_debug(2, "[MULTIFRAME] multiframe detected\n");
 		}
@@ -856,15 +856,11 @@ static void __mfc_handle_frame_input(struct mfc_core *core,
 
 	mfc_clear_mb_flag(src_mb);
 
-	if (dec->has_multiframe &&
+	if ((IS_VP9_DEC(ctx) || IS_AV1_DEC(ctx)) && dec->has_multiframe &&
 		(mfc_core_get_disp_status() == MFC_REG_DEC_STATUS_DECODING_ONLY)) {
 		mfc_set_mb_flag(src_mb, MFC_FLAG_CONSUMED_ONLY);
 		mfc_debug(2, "[STREAM][MULTIFRAME] last frame is decoding only\n");
 	}
-
-	dec->consumed = 0;
-	dec->has_multiframe = 0;
-	dec->remained_size = 0;
 
 	/*
 	 * VP8 decoder has decoding only frame,
@@ -909,6 +905,10 @@ static void __mfc_handle_frame_input(struct mfc_core *core,
 	if (call_cop(ctx, core_get_buf_ctrls_val, core, ctx,
 				&ctx->src_ctrls[index]) < 0)
 		mfc_err("failed in core_get_buf_ctrls_val\n");
+
+	dec->consumed = 0;
+	dec->has_multiframe = 0;
+	dec->remained_size = 0;
 
 	vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }

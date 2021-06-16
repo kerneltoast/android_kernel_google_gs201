@@ -1895,7 +1895,7 @@ static struct mfc_buf *__mfc_core_nal_q_handle_frame_output_del(struct mfc_core 
 			mfc_debug(2, "[NALQ][QoS] framerate changed\n");
 		}
 
-		if (dec->has_multiframe) {
+		if ((IS_VP9_DEC(ctx) || IS_AV1_DEC(ctx)) && dec->has_multiframe) {
 			mfc_set_mb_flag(dst_mb, MFC_FLAG_MULTIFRAME);
 			mfc_debug(2, "[MULTIFRAME] multiframe detected\n");
 		}
@@ -2165,13 +2165,20 @@ static void __mfc_core_nal_q_handle_frame_input(struct mfc_core *core, struct mf
 
 	mfc_clear_mb_flag(src_mb);
 
+	dst_frame_status = pOutStr->DisplayStatus
+		& MFC_REG_DISP_STATUS_DISPLAY_STATUS_MASK;
+
+	if ((IS_VP9_DEC(ctx) || IS_AV1_DEC(ctx)) && dec->has_multiframe &&
+		(dst_frame_status == MFC_REG_DEC_STATUS_DECODING_ONLY)) {
+		mfc_set_mb_flag(src_mb, MFC_FLAG_CONSUMED_ONLY);
+		mfc_debug(2, "[NALQ][STREAM][MULTIFRAME] last frame is decoding only\n");
+	}
+
 	/*
 	 * VP8/VP9 decoder has decoding only frame,
 	 * it will be used for reference frame only not displayed.
 	 * So, driver inform to user this input has no destination.
 	 */
-	dst_frame_status = pOutStr->DisplayStatus
-		& MFC_REG_DISP_STATUS_DISPLAY_STATUS_MASK;
 	if ((IS_VP8_DEC(ctx) || IS_VP9_DEC(ctx)) &&
 		(dst_frame_status == MFC_REG_DEC_STATUS_DECODING_ONLY)) {
 		mfc_set_mb_flag(src_mb, MFC_FLAG_CONSUMED_ONLY);
@@ -2211,6 +2218,7 @@ static void __mfc_core_nal_q_handle_frame_input(struct mfc_core *core, struct mf
 		mfc_ctx_err("[NALQ] failed in get_buf_ctrls_val\n");
 
 	dec->consumed = 0;
+	dec->has_multiframe = 0;
 	dec->remained_size = 0;
 
 	vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
