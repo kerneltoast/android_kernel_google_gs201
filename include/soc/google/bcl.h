@@ -134,10 +134,6 @@ static int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
 {
 	return 0;
 }
-static struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
-{
-	return NULL;
-}
 #endif /* IS_ENABLED(CONFIG_GOOGLE_BCL) */
 
 #endif /* __BCL_H */
