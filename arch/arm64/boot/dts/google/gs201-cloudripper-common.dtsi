@@ -14,6 +14,10 @@
 #include "gs201-cloudripper-ese.dtsi"
 #include "gs201-cloudripper-ldaf.dtsi"
 #include "gs201-cloudripper-gsa-gsc.dtsi"
+#include "gs201-cloudripper-battery.dtsi"
+#include "gs201-cloudripper-charging.dtsi"
+// #include "gs201-cloudripper-wcharger.dtsi"
+#include "gs201-cloudripper-usecases.dtsi"
 
 /*
 #include "gs101-whitefin-battery.dtsi"
