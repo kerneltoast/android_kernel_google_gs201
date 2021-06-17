@@ -23,6 +23,8 @@ $DEVICE_KERNEL_FILES
 "
 fi
 
+MODULES_LIST=${KERNEL_DIR}/vendor_boot_modules.slider
+
 VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
 function modify_vendor_ramdisk() {
   ln -f init.recovery.gs101.rc init.recovery.slider.rc

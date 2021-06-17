@@ -91,6 +91,8 @@ struct gs101_bcl_dev {
 	unsigned int gpu_con_light;
 	unsigned int tpu_clkdivstep;
 	unsigned int gpu_clkdivstep;
+	unsigned int gpu_clk_stats;
+	unsigned int tpu_clk_stats;
 
 	bool batt_psy_initialized;
 	bool enabled;

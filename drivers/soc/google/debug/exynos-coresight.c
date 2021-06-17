@@ -18,6 +18,8 @@
 
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-pmu-if.h>
+#include <soc/google/sjtag-driver.h>
+
 #include "core_regs.h"
 
 #define SYS_READ(reg, val)	asm volatile("mrs %0, " #reg : "=r" (val))
@@ -193,8 +195,8 @@ static int exynos_cs_lockup_handler(struct notifier_block *nb,
 		return 0;
 	}
 
-	if (dbg_snapshot_get_sjtag_status()) {
-		dev_err(ecs_info->dev, "SJTAG enabled\n");
+	if (sjtag_is_locked()) {
+		dev_err(ecs_info->dev, "Coresight requires SJTAG auth\n");
 		return 0;
 	}
 
@@ -234,8 +236,8 @@ static int exynos_cs_panic_handler(struct notifier_block *np,
 	if (num_online_cpus() <= 1)
 		return 0;
 
-	if (dbg_snapshot_get_sjtag_status()) {
-		dev_err(ecs_info->dev, "SJTAG enabled\n");
+	if (sjtag_is_locked()) {
+		dev_err(ecs_info->dev, "Coresight requires SJTAG auth\n");
 		return 0;
 	}
 
@@ -427,9 +429,6 @@ static int exynos_cs_c2_notifier(struct notifier_block *self,
 {
 	int cpu = raw_smp_processor_id();
 
-	if (dbg_snapshot_get_sjtag_status())
-		return 0;
-
 	switch (cmd) {
 	case CPU_PM_ENTER:
 		exynos_cs_suspend_cpu(cpu);
@@ -607,7 +606,7 @@ static int exynos_coresight_probe(struct platform_device *pdev)
 	cpus_read_lock();
 	if (ecs_info->halt_enabled || ecs_info->retention_enabled) {
 		if (ecs_info->halt_enabled) {
-			if (!dbg_snapshot_get_sjtag_status()) {
+			if (!sjtag_is_locked()) {
 				for_each_online_cpu(cpu) {
 					exynos_cs_halt_enable(cpu);
 				}

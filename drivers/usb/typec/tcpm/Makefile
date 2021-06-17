@@ -12,3 +12,4 @@ obj-$(CONFIG_TYPEC_MAX77759)		+= bc_max77759.o
 obj-$(CONFIG_TYPEC_MAX77759)		+= max77759_contaminant.o
 obj-$(CONFIG_TYPEC_MT6360)		+= tcpci_mt6360.o
 obj-$(CONFIG_TYPEC_TCPCI_MAXIM)		+= tcpci_maxim.o
+obj-$(CONFIG_TYPEC_COOLING_DEV)		+= usbc_cooling_dev.o

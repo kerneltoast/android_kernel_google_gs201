@@ -1598,9 +1598,9 @@
 			default {
 				stat_on = <1>;
 				bypass = <0>;
-				arqos = <0x9>;
-				awqos = <0x9>;
-				qurgent_on = <1>;
+				arqos = <0x4>;
+				awqos = <0x4>;
+				qurgent_on = <0>;
 				qurgent_th_r = <0xF>;
 				qurgent_th_w = <0xF>;
 				blocking_on = <0>;

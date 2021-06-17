@@ -771,6 +771,8 @@ struct mfc_platdata {
 	/* Default 10bit format for decoding and dithering for display */
 	unsigned int P010_decoding;
 	unsigned int dithering_enable;
+	unsigned int stride_align;
+	unsigned int stride_type;
 	/* Formats */
 	unsigned int support_10bit;
 	unsigned int support_422;

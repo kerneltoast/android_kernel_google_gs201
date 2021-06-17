@@ -44,6 +44,7 @@ enum vendor_group {
 	VG_BACKGROUND,
 	VG_SYSTEM_BACKGROUND,
 	VG_NNAPI_HAL,
+	VG_RT,
 	VG_MAX,
 };
 
@@ -57,10 +58,17 @@ struct vendor_task_struct {
 
 ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[64], struct vendor_task_struct t);
 
+struct vendor_task_group_struct {
+	enum vendor_group group;
+};
+
+ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[4], struct vendor_task_group_struct t);
+
 struct vendor_group_property {
 	bool prefer_idle;
 	bool prefer_high_cap;
 	bool task_spreading;
+	unsigned int group_throttle;
 	struct uclamp_se uc_req[UCLAMP_CNT];
 };
 
@@ -88,4 +96,10 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 static inline struct vendor_task_struct *get_vendor_task_struct(struct task_struct *p)
 {
 	return (struct vendor_task_struct *)p->android_vendor_data1;
+}
+
+
+static inline struct vendor_task_group_struct *get_vendor_task_group_struct(struct task_group *tg)
+{
+	return (struct vendor_task_group_struct *)tg->android_vendor_data1;
 }

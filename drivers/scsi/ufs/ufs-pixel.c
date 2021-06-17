@@ -660,16 +660,9 @@ static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 	else
 		asc = sense_buffer + 12;
 
-	if (*asc == 0x29) {
-		u8 opcode = (u8)(*lrbp->cmd->cmnd);
-		char opcode_str[16];
-
-		snprintf(opcode_str, 16, "%02x: %s",
-					opcode, parse_opcode(opcode));
-		dev_err_ratelimited(hba->dev,
-			"Ignore SCSI reset on opcode = %16s", opcode_str);
+	/*  Ignore piggybacked SCSI reset, since it prevents system suspend. */
+	if (*asc == 0x29)
 		*asc = 0;
-	}
 }
 
 static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,

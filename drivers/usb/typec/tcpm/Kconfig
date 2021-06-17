@@ -14,6 +14,14 @@ if TYPEC_TCPM
 config USB_PSY
 	tristate
 
+config TYPEC_COOLING_DEV
+	tristate "USB TYPE-C port cooling device"
+	depends on EXTCON
+	select THERMAL
+	select GOOGLE_VOTABLE
+	help
+	  Type-C port passive cooling device to throttle when the port is hot.
+
 config TYPEC_TCPCI
 	tristate "Type-C Port Controller Interface driver"
 	depends on I2C

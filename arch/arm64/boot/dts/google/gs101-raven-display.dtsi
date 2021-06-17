@@ -14,6 +14,8 @@
 		touch = <&spitouch>;
 
 		vddd-supply = <&m_ldo28_reg>;
+		vddd-normal-microvolt = <1200000>;
+		vddd-lp-microvolt     = <1050000>;
 		/* vddi is from PP1850_SA which is always on */
 		/delete-node/ vddi-supply;
 	};
@@ -27,7 +29,7 @@
 
 /* vddd-supply voltage */
 &m_ldo28_reg {
-	regulator-min-microvolt = <1200000>;
+	regulator-min-microvolt = <1050000>;
 	regulator-max-microvolt = <1200000>;
 };
 

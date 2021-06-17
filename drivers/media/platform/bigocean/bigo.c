@@ -159,6 +159,7 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 {
 	long ret = 0;
 	int rc = 0;
+	u32 status = 0;
 
 	bigo_bypass_ssmt_pid(core);
 	bigo_push_regs(core, job->regs);
@@ -173,17 +174,17 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 		rc = (ret > 0) ? 0 : ret;
 	}
 
-	bigo_check_status(core);
+	status = bigo_check_status(core);
 	rc = bigo_wait_disabled(core, BIGO_DISABLE_TIMEOUT_MS);
 	if (rc || core->debugfs.trigger_ssr) {
 		if(core->debugfs.trigger_ssr)
 			rc = -EFAULT;
-		pr_err("Failed to disable hw: %d\n", rc);
+		pr_err("Failed to disable hw: %d, status: 0x%x\n", rc, status);
 		bigo_coredump(core, "bigo_timeout");
 	}
 
 	bigo_pull_regs(core, job->regs);
-	*(u32 *)(job->regs + BIGO_REG_STAT) = core->stat_with_irq;
+	*(u32 *)(job->regs + BIGO_REG_STAT) = status;
 	return rc;
 }
 
@@ -374,13 +375,16 @@ static irqreturn_t bigo_isr(int irq, void *arg)
 {
 	struct bigo_core *core = (struct bigo_core *)arg;
 	u32 bigo_stat;
+	unsigned long flags;
 
 	bigo_stat = bigo_core_readl(core, BIGO_REG_STAT);
 
 	if (!(bigo_stat & BIGO_STAT_IRQ))
 		return IRQ_NONE;
 
+	spin_lock_irqsave(&core->status_lock, flags);
 	core->stat_with_irq = bigo_stat;
+	spin_unlock_irqrestore(&core->status_lock, flags);
 	bigo_stat &= ~BIGO_STAT_IRQMASK;
 	bigo_core_writel(core, BIGO_REG_STAT, bigo_stat);
 	complete(&core->frame_done);
@@ -469,6 +473,7 @@ static int bigo_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&core->instances);
 	INIT_LIST_HEAD(&core->pm.opps);
 	INIT_LIST_HEAD(&core->pm.bw);
+	spin_lock_init(&core->status_lock);
 	init_completion(&core->frame_done);
 	core->dev = &pdev->dev;
 	platform_set_drvdata(pdev, core);

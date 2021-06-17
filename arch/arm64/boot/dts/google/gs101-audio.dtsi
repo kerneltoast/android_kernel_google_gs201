@@ -481,6 +481,21 @@
 				};
 			};
 
+			dai_fe_android_aec_tx: fe_android_aec_tx {
+				dai-name = "audio_android_aec";
+				stream-name = "audio_android_aec";
+				id = <IDX_ANDROID_AEC_TX>;
+				capture;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_ANDROID_AEC_TX>;
+				};
+				platform {
+					tx1 {
+						of_drv = <&aoc_incall_ep>;
+					};
+				};
+			};
+
 			dai_be_i2s0_rx: be_i2s0_rx {
 				dai-name = "I2S_0_RX Playback";
 				stream-name = "I2S_0_RX Playback";

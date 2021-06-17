@@ -1149,8 +1149,7 @@ static int gs101_tmu_pm_notify(struct notifier_block *nb,
 		atomic_set(&gs101_tmu_in_suspend, 1);
 		list_for_each_entry(data, &dtm_dev_list, node) {
 			if (data->use_pi_thermal)
-				kthread_mod_delayed_work(&data->thermal_worker, &data->pi_work,
-							 msecs_to_jiffies(0));
+				kthread_cancel_delayed_work_sync(&data->pi_work);
 		}
 		break;
 	case PM_POST_HIBERNATION:
@@ -1820,8 +1819,17 @@ polling_delay_on_store(struct device *dev, struct device_attribute *devattr,
 
 	data->pi_param->polling_delay_on = polling_delay_on;
 
-	if (data->use_pi_thermal)
+	/*
+	 * This sysfs node is mainly used for debugging and could race with
+	 * suspend/resume path as we don't use a lock to avoid it. The race
+	 * could cause pi-polling work re-queued after suspend so the pid
+	 * sample time might not run as our expectation. Please do NOT use
+	 * this for the production line.
+	 */
+	if (data->use_pi_thermal) {
+		WARN(1, "%s could potentially race with suspend/resume path!", __func__);
 		start_pi_polling(data, 0);
+	}
 
 	return count;
 }
@@ -1855,8 +1863,17 @@ polling_delay_off_store(struct device *dev, struct device_attribute *devattr,
 
 	data->pi_param->polling_delay_off = polling_delay_off;
 
-	if (data->use_pi_thermal)
+	/*
+	 * This sysfs node is mainly used for debugging and could race with
+	 * suspend/resume path as we don't use a lock to avoid it. The race
+	 * could cause pi-polling work re-queued after suspend so the pid
+	 * sample time might not run as our expectation. Please do NOT use
+	 * this for the production line.
+	 */
+	if (data->use_pi_thermal) {
+		WARN(1, "%s could potentially race with suspend/resume path!", __func__);
 		start_pi_polling(data, 0);
+	}
 
 	return count;
 }

@@ -154,6 +154,7 @@ struct exynos_uart_port {
 	u32				use_default_irq;
 	unsigned int			usi_v2;
 	unsigned int			uart_panic_log;
+	struct pinctrl_state	*uart_pinctrl_tx_dat;
 	struct pinctrl_state	*uart_pinctrl_rts;
 	struct pinctrl_state	*uart_pinctrl_default;
 	struct pinctrl *pinctrl;
@@ -348,18 +349,29 @@ static void change_uart_gpio(int value, struct exynos_uart_port *ourport)
 	int status = 0;
 
 	if (value) {
+		if (!IS_ERR(ourport->uart_pinctrl_tx_dat)) {
+			status = pinctrl_select_state(ourport->pinctrl,
+						      ourport->uart_pinctrl_tx_dat);
+			if (status)
+				dev_err(ourport->port.dev,
+					"Can't set TXD uart pins!!!\n");
+			else
+				udelay(10);
+		}
 		if (!IS_ERR(ourport->uart_pinctrl_rts)) {
 			status = pinctrl_select_state(ourport->pinctrl,
 						      ourport->uart_pinctrl_rts);
 			if (status)
-				dev_err(ourport->port.dev, "Can't set RTS uart pins!!!\n");
+				dev_err(ourport->port.dev,
+					"Can't set RTS uart pins!!!\n");
 		}
 	} else {
 		if (!IS_ERR(ourport->uart_pinctrl_default)) {
 			status = pinctrl_select_state(ourport->pinctrl,
 						      ourport->uart_pinctrl_default);
 			if (status)
-				dev_err(ourport->port.dev, "Can't set default uart pins!!!\n");
+				dev_err(ourport->port.dev,
+					"Can't set default uart pins!!!\n");
 		}
 	}
 }
@@ -1109,6 +1121,9 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 		if (unlikely(uerstat & S3C2410_UERSTAT_ANY)) {
 			pr_debug("rxerr: port ch=0x%02x, rxs=0x%08x\n",
 				 ch, uerstat);
+			if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
+				logbuffer_log(ourport->log, "rxerr: port ch=0x%02x, rxs=0x%08x\n",
+					      ch, uerstat);
 
 			uart_sfr_dump(ourport);
 
@@ -2583,6 +2598,12 @@ static int exynos_serial_probe(struct platform_device *pdev)
 			if (IS_ERR(ourport->uart_pinctrl_rts))
 				dev_err(&pdev->dev,
 					"Can't get RTS pinstate!!!\n");
+
+			ourport->uart_pinctrl_tx_dat =
+				pinctrl_lookup_state(ourport->pinctrl, "tx_dat");
+			if (IS_ERR(ourport->uart_pinctrl_tx_dat))
+				dev_err(&pdev->dev,
+					"Can't get TX_DAT pinstate!!!\n");
 
 			ourport->uart_pinctrl_default =
 				pinctrl_lookup_state(ourport->pinctrl,

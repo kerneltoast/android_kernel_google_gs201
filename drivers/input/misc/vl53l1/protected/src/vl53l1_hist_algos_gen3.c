@@ -307,8 +307,9 @@ VL53L1_Error VL53L1_f_021(
 	LOG_FUNCTION_START("");
 
 
-
-	max_filter_half_width = palgo->VL53L1_p_031 - 1;
+	/* add boundary check for uint8_t VL53L1_p_031 */
+	if (palgo->VL53L1_p_031 > 0)
+		max_filter_half_width = palgo->VL53L1_p_031 - 1;
 	max_filter_half_width = max_filter_half_width >> 1;
 
 	for (blb = palgo->VL53L1_p_049;
@@ -316,7 +317,8 @@ VL53L1_Error VL53L1_f_021(
 		palgo->VL53L1_p_031);
 		blb++) {
 
-
+		if (palgo->VL53L1_p_031 > VL53L1_HISTOGRAM_BUFFER_SIZE)
+			return VL53L1_ERROR_INVALID_PARAMS;
 
 		i = blb % palgo->VL53L1_p_031;
 		j = (blb + 1) % palgo->VL53L1_p_031;
@@ -332,9 +334,14 @@ VL53L1_Error VL53L1_f_021(
 					palgo->VL53L1_p_047[j] > 0) {
 
 				pulse_no = palgo->VL53L1_p_047[j] - 1;
-				pdata = &(palgo->VL53L1_p_002[pulse_no]);
+
+				if (palgo->VL53L1_p_050 > VL53L1_D_001)
+					return VL53L1_ERROR_INVALID_PARAMS;
 
 				if (pulse_no < palgo->VL53L1_p_050) {
+					pdata =
+					    &(palgo->VL53L1_p_002[pulse_no]);
+
 					pdata->VL53L1_p_015 = blb;
 					pdata->VL53L1_p_022 = blb + 1;
 					pdata->VL53L1_p_025 = 0xFF;
@@ -349,19 +356,32 @@ VL53L1_Error VL53L1_f_021(
 				&& palgo->VL53L1_p_047[j] == 0) {
 
 				pulse_no = palgo->VL53L1_p_047[i] - 1;
-				pdata = &(palgo->VL53L1_p_002[pulse_no]);
+
+				if (palgo->VL53L1_p_050 > VL53L1_D_001)
+					return VL53L1_ERROR_INVALID_PARAMS;
 
 				if (pulse_no < palgo->VL53L1_p_050) {
+					pdata =
+					    &(palgo->VL53L1_p_002[pulse_no]);
 
 					pdata->VL53L1_p_026 = blb;
 					pdata->VL53L1_p_016 = blb + 1;
-
-					pdata->VL53L1_p_027 =
-						(pdata->VL53L1_p_026 + 1) -
-						pdata->VL53L1_p_022;
-					pdata->VL53L1_p_055 =
-						(pdata->VL53L1_p_016 + 1) -
-						pdata->VL53L1_p_015;
+					/* add overflow protector */
+					if (pdata->VL53L1_p_022 >
+					    (pdata->VL53L1_p_026 + 1))
+						pdata->VL53L1_p_027 = 0;
+					else
+						pdata->VL53L1_p_027 =
+						    (pdata->VL53L1_p_026 + 1) -
+						    pdata->VL53L1_p_022;
+					/* add overflow protector */
+					if (pdata->VL53L1_p_015 >
+					    (pdata->VL53L1_p_016 + 1))
+						pdata->VL53L1_p_055 = 0;
+					else
+						pdata->VL53L1_p_055 =
+						    (pdata->VL53L1_p_016 + 1) -
+						    pdata->VL53L1_p_015;
 
 					if (pdata->VL53L1_p_055 >
 						max_filter_half_width)

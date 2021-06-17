@@ -18,6 +18,7 @@
 
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-adv-tracer.h>
+#include <soc/google/sjtag-driver.h>
 
 #define SJTAG_WORKBUFF_SIZE		512
 #define SJTAG_FILEOP_STR_SIZE		20
@@ -52,6 +53,11 @@ enum sjtag_status_field_mask {
 	SJTAG_STATUS_STATE_MASK = 0x7,
 	SJTAG_STATUS_MSG_MASK = 0x7,
 	SJTAG_STATUS_ERRCODE_MASK = 0x7
+};
+
+enum sjtag_status_bit {
+	SJTAG_STATUS_SOFT_LOCK = 4,
+	SJTAG_STATUS_AUTH_PASS = 8
 };
 
 enum sjtag_driver_error_code {
@@ -789,6 +795,29 @@ static void __exit sjtag_driver_exit(void)
 {
 	platform_driver_unregister(&sjtag_driver);
 }
+
+int sjtag_is_locked(void)
+{
+	int ipc_status;
+	u32 cmd_status;
+
+	struct adv_tracer_ipc_cmd cmd = {
+		.cmd_raw = {
+			.cmd = sjtag_ipc_cmd_lut[SJTAG_GET_STATUS].ap_id,
+			.size = 1,
+		},
+	};
+
+	ipc_status = adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd);
+	if (ipc_status < 0)
+		return -EIO;
+
+	cmd_status = cmd.buffer[1];
+
+	return (cmd_status & BIT(SJTAG_STATUS_SOFT_LOCK)) &&
+			!(cmd_status & BIT(SJTAG_STATUS_AUTH_PASS));
+}
+EXPORT_SYMBOL_GPL(sjtag_is_locked);
 
 MODULE_DESCRIPTION("Google SJTAG platform driver");
 MODULE_LICENSE("GPL v2");

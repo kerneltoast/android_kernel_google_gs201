@@ -35,8 +35,8 @@
 #include "link_device_memory.h"
 #include "s51xx_pcie.h"
 
-#if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
-#include <sound/google/abox.h>
+#if IS_ENABLED(CONFIG_EXYNOS_BUSMONITOR)
+#include <linux/exynos-busmon.h>
 #endif
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
@@ -198,11 +198,11 @@ static void voice_call_on_work(struct work_struct *work)
 
 	if (mc->pcie_powered_on &&
 			(s51xx_check_pcie_link_status(mc->pcie_ch_num) != 0)) {
-		if (cpif_wake_lock_active(mc->ws))
+		if (cpif_wake_lock_active(mc->ws)) {
+			mif_info("voice call on release wakelock\n");
 			cpif_wake_unlock(mc->ws);
+		}
 	}
-
-	modem_voice_call_notify_event(MODEM_VOICE_CALL_ON);
 
 exit:
 	mif_info("wakelock active = %d, voice status = %d\n",
@@ -220,11 +220,11 @@ static void voice_call_off_work(struct work_struct *work)
 
 	if (mc->pcie_powered_on &&
 			(s51xx_check_pcie_link_status(mc->pcie_ch_num) != 0)) {
-		if (!cpif_wake_lock_active(mc->ws))
+		if (!cpif_wake_lock_active(mc->ws)) {
+			mif_info("voice call off acquire wakelock\n");
 			cpif_wake_lock(mc->ws);
+		}
 	}
-
-	modem_voice_call_notify_event(MODEM_VOICE_CALL_OFF);
 
 exit:
 	mif_info("wakelock active = %d, voice status = %d\n",
@@ -1465,20 +1465,19 @@ static int send_panic_to_cp_notifier(struct notifier_block *nb,
 }
 
 #if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
-static int s5100_abox_call_state_notifier(struct notifier_block *nb,
+static int s5100_call_state_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
-	struct modem_ctl *mc = container_of(nb, struct modem_ctl, abox_call_state_nb);
+	struct modem_ctl *mc = container_of(nb, struct modem_ctl, call_state_nb);
 
 	mif_info("call event = %lu\n", action);
-
 	switch (action) {
-	case ABOX_CALL_EVENT_OFF:
+	case MODEM_VOICE_CALL_OFF:
 		mc->pcie_voice_call_on = false;
 		queue_work_on(RUNTIME_PM_AFFINITY_CORE, mc->wakeup_wq,
 			&mc->call_off_work);
 		break;
-	case ABOX_CALL_EVENT_ON:
+	case MODEM_VOICE_CALL_ON:
 		mc->pcie_voice_call_on = true;
 		queue_work_on(RUNTIME_PM_AFFINITY_CORE, mc->wakeup_wq,
 			&mc->call_on_work);
@@ -1594,8 +1593,8 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 	INIT_WORK(&mc->call_on_work, voice_call_on_work);
 	INIT_WORK(&mc->call_off_work, voice_call_off_work);
 
-	mc->abox_call_state_nb.notifier_call = s5100_abox_call_state_notifier;
-	register_abox_call_event_notifier(&mc->abox_call_state_nb);
+	mc->call_state_nb.notifier_call = s5100_call_state_notifier;
+	register_modem_voice_call_event_notifier(&mc->call_state_nb);
 #endif
 
 	if (sysfs_create_group(&pdev->dev.kobj, &sim_group))
