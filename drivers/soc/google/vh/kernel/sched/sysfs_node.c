@@ -22,13 +22,12 @@ DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 #endif
 
 unsigned int __read_mostly vendor_sched_uclamp_threshold;
-unsigned int __read_mostly vendor_sched_util_threshold = DEF_UTIL_THRESHOLD;
 unsigned int __read_mostly vendor_sched_high_capacity_start_cpu = MAX_CAPACITY_CPU;
 unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
 static struct kobject *vendor_sched_kobj;
 static struct proc_dir_entry *vendor_sched;
+extern unsigned int sched_capacity_margin[CPU_NUM];
 
-extern void update_sched_capacity_margin(unsigned int util_threshold);
 extern void initialize_vendor_group_property(void);
 extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
 					 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff,
@@ -460,6 +459,63 @@ uclamp_update_active(struct task_struct *p, enum uclamp_id clamp_id)
 /// ********************* New code section ***************************************** ///
 /// ******************************************************************************** ///
 
+static int update_sched_capacity_margin(const char *buf, int count)
+{
+	char *tok, *str1, *str2;
+	unsigned int val, tmp[CPU_NUM];
+	int index = 0;
+
+	str1 = kstrndup(buf, count, GFP_KERNEL);
+	str2 = str1;
+
+	if (!str2)
+		return -EINVAL;
+
+	while (1) {
+		tok = strsep(&str2, " ");
+
+		if (tok == NULL)
+			break;
+
+		if (kstrtouint(tok, 0, &val))
+			goto fail;
+
+		if (val > DEF_UTIL_THRESHOLD || val < SCHED_CAPACITY_SCALE)
+			goto fail;
+
+		tmp[index] = val;
+		index++;
+
+		if (index == CPU_NUM)
+			break;
+	}
+
+	if (index == 1) {
+		for (index = 0; index < CPU_NUM; index++) {
+			sched_capacity_margin[index] = tmp[0];
+		}
+	} else if (index == CLUSTER_NUM) {
+		for (index = MIN_CAPACITY_CPU; index < MID_CAPACITY_CPU; index++)
+			sched_capacity_margin[index] = tmp[0];
+
+		for (index = MID_CAPACITY_CPU; index < MAX_CAPACITY_CPU; index++)
+			sched_capacity_margin[index] = tmp[1];
+
+		for (index = MAX_CAPACITY_CPU; index < CPU_NUM; index++)
+			sched_capacity_margin[index] = tmp[2];
+	} else if (index == CPU_NUM) {
+		memcpy(sched_capacity_margin, tmp, sizeof(sched_capacity_margin));
+	} else {
+		goto fail;
+	}
+
+	kfree(str1);
+	return count;
+fail:
+	kfree(str1);
+	return -EINVAL;
+}
+
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id)
 {
 	struct task_struct *p, *t;
@@ -592,22 +648,22 @@ static ssize_t util_threshold_show(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_util_threshold);
+	int i, len = 0;
+
+	for (i = 0; i < CPU_NUM; i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%u ", sched_capacity_margin[i]);
+	}
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "\n");
+
+	return len;
 }
 
 static ssize_t util_threshold_store(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					const char *buf, size_t count)
 {
-	unsigned int val;
-
-	if (kstrtouint(buf, 0, &val))
-		return -EINVAL;
-
-	vendor_sched_util_threshold = val;
-	update_sched_capacity_margin(val);
-
-	return count;
+	return update_sched_capacity_margin(buf, count);
 }
 
 static struct kobj_attribute util_threshold_attribute = __ATTR_RW(util_threshold);

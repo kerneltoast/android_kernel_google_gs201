@@ -9,13 +9,12 @@
 
 #include "sched.h"
 
-extern unsigned int vendor_sched_util_threshold;
-
 extern unsigned long cpu_util(int cpu);
 extern unsigned long task_util(struct task_struct *p);
 extern bool task_may_not_preempt(struct task_struct *task, int cpu);
 extern int cpu_is_idle(int cpu);
 extern int sched_cpu_idle(int cpu);
+extern unsigned int sched_capacity_margin[CPU_NUM];
 
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
@@ -99,7 +98,7 @@ redo:
 		}
 
 		if (check_cpu_overutilized &&
-		    cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util, p), capacity))
+		    cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util, p), capacity, cpu))
 			continue;
 
 		/* Always prefer the least loaded cpu. */

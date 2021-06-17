@@ -16,13 +16,12 @@ extern void update_uclamp_stats(int cpu, u64 time);
 #endif
 
 extern unsigned int vendor_sched_uclamp_threshold;
-extern unsigned int vendor_sched_util_threshold;
 extern unsigned int vendor_sched_high_capacity_start_cpu;
 extern unsigned int vendor_sched_util_post_init_scale;
 
 static struct vendor_group_property vg[VG_MAX];
 
-static unsigned int sched_capacity_margin[CPU_NUM] = {
+unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD};
 static unsigned long scale_freq[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
@@ -541,7 +540,7 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 	cpu = cpumask_first(to_cpumask(pd->cpus));
 	scale_cpu = arch_scale_cpu_capacity(cpu);
 	ps = &pd->table[pd->nr_perf_states - 1];
-	freq = map_util_freq_pixel_mod(max_util, ps->frequency, scale_cpu);
+	freq = map_util_freq_pixel_mod(max_util, ps->frequency, scale_cpu, cpu);
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
 		ps = &pd->table[i];
@@ -924,7 +923,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * will not incur cpu freq increase.
 		 */
 		if (capacity_curr >=
-		    (((new_util + cpu_util_rt(cpu_rq(i))) * vendor_sched_util_threshold)
+		    (((new_util + cpu_util_rt(cpu_rq(i))) * sched_capacity_margin[i])
 		     >> SCHED_CAPACITY_SHIFT) &&
 		    spare_cap > target_max_curr_spare_cap) {
 			target_max_curr_spare_cap = spare_cap;
@@ -1104,7 +1103,8 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 	cpu = cpumask_first(candidates);
 	if (weight == 1 && ((get_prefer_idle(p) && cpu_is_idle(cpu)) ||
 			    (cpu == prev_cpu) || sync_boost ||
-			    cpu_overutilized(cpu_util(prev_cpu), capacity_of(prev_cpu)))) {
+			    cpu_overutilized(cpu_util(prev_cpu), capacity_of(prev_cpu),
+				prev_cpu))) {
 		best_energy_cpu = cpu;
 		goto unlock;
 	}
@@ -1171,13 +1171,13 @@ void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iow
 
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 {
-	*overutilized = cpu_overutilized(cpu_util(cpu), capacity_of(cpu));
+	*overutilized = cpu_overutilized(cpu_util(cpu), capacity_of(cpu), cpu);
 }
 
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
-				      unsigned long cap)
+				      unsigned long cap, int cpu)
 {
-	return (freq * vendor_sched_util_threshold >> SCHED_CAPACITY_SHIFT) * util / cap;
+	return (freq * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT) * util / cap;
 }
 
 void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
@@ -1261,14 +1261,6 @@ void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp
 
 	*uclamp_eff = uc_req;
 	return;
-}
-
-void update_sched_capacity_margin(unsigned int util_threshold)
-{
-	int i;
-
-	for (i = 0; i < CPU_NUM; i++)
-		sched_capacity_margin[i] = util_threshold;
 }
 
 void initialize_vendor_group_property(void)

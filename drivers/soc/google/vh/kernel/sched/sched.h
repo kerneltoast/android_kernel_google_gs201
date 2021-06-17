@@ -4,6 +4,7 @@
 #define MAX_CAPACITY_CPU    CONFIG_VH_MAX_CAPACITY_CPU
 #define HIGH_CAPACITY_CPU   CONFIG_VH_HIGH_CAPACITY_CPU
 #define CPU_NUM             CONFIG_VH_SCHED_CPU_NR
+#define CLUSTER_NUM         3
 #define UCLAMP_STATS_SLOTS  21
 #define UCLAMP_STATS_STEP   (100 / (UCLAMP_STATS_SLOTS - 1))
 #define DEF_UTIL_THRESHOLD  1280
@@ -19,8 +20,8 @@
 		      __val / DIV_ROUND_CLOSEST(SCHED_CAPACITY_SCALE, UCLAMP_BUCKETS),	      \
 		      UCLAMP_BUCKETS - 1)
 
-#define cpu_overutilized(cap, max)	\
-		((cap) * vendor_sched_util_threshold > (max) << SCHED_CAPACITY_SHIFT)
+#define cpu_overutilized(cap, max, cpu)	\
+		((cap) * sched_capacity_margin[cpu] > (max) << SCHED_CAPACITY_SHIFT)
 
 #define ANDROID_VENDOR_CHECK_SIZE_ALIGN(_orig, _new)				\
 		static_assert(sizeof(struct{_new;}) <= sizeof(struct{_orig;}),	\
@@ -91,7 +92,7 @@ struct uclamp_stats {
 };
 
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
-				      unsigned long cap);
+				      unsigned long cap, int cpu);
 
 static inline struct vendor_task_struct *get_vendor_task_struct(struct task_struct *p)
 {
