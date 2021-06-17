@@ -72,7 +72,7 @@
 		>;
 
 		/* DVFS Level locks */
-		gpu_dvfs_max_freq = <800000>;
+		gpu_dvfs_max_freq = <500000>;
 		gpu_dvfs_min_freq = <0>;
 
 		/* QOS */
