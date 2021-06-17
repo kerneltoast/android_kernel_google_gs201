@@ -34,6 +34,11 @@
 #define READ_TRANS_OFFSET	10
 
 /* -------------------------------------------------------------------------- */
+static int dwc3_otg_reboot_notify(struct notifier_block *nb, unsigned long event, void *buf);
+static struct notifier_block dwc3_otg_reboot_notifier = {
+	.notifier_call = dwc3_otg_reboot_notify,
+};
+
 static int dwc3_otg_statemachine(struct otg_fsm *fsm)
 {
 	struct usb_otg *otg = fsm->otg;
@@ -524,7 +529,8 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		 * we can extra work corresponding each functions by
 		 * the following function.
 		 */
-		if (exynos->config.is_not_vbus_pad && exynos_usbdrd_get_ldo_status())
+		if (exynos->config.is_not_vbus_pad && exynos_usbdrd_get_ldo_status() &&
+				!dotg->in_shutdown)
 			dwc3_exynos_gadget_disconnect_proc(dwc);
 
 		/* Wait until gadget stop */
@@ -801,6 +807,28 @@ static struct dwc3_exynos *exynos_dwusb_get_struct(void)
 	return NULL;
 }
 
+static int dwc3_otg_reboot_notify(struct notifier_block *nb, unsigned long event, void *buf)
+{
+	struct dwc3_exynos *exynos;
+	struct dwc3_otg *dotg;
+
+	exynos = exynos_dwusb_get_struct();
+	if (!exynos)
+		return -ENODEV;
+
+	dotg = exynos->dotg;
+
+	switch (event) {
+	case SYS_RESTART:
+	case SYS_POWER_OFF:
+		exynos->dwc->current_dr_role = DWC3_EXYNOS_IGNORE_CORE_OPS;
+		dotg->in_shutdown = true;
+		break;
+	}
+
+	return 0;
+}
+
 u32 dwc3_otg_is_connect(void)
 {
 	struct dwc3_exynos *exynos;
@@ -950,6 +978,7 @@ int dwc3_exynos_otg_init(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 	dotg->otg.set_host = NULL;
 
 	dotg->otg.state = OTG_STATE_UNDEFINED;
+	dotg->in_shutdown = false;
 
 	mutex_init(&dotg->fsm.lock);
 	dotg->fsm.ops = &dwc3_otg_fsm_ops;
@@ -978,6 +1007,10 @@ int dwc3_exynos_otg_init(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 	dotg->dwc3_suspended = 0;
 	dotg->pm_nb.notifier_call = dwc3_otg_pm_notifier;
 	register_pm_notifier(&dotg->pm_nb);
+
+	ret = register_reboot_notifier(&dwc3_otg_reboot_notifier);
+	if (ret)
+		dev_err(dwc->dev, "failed register reboot notifier\n");
 
 	dev_dbg(dwc->dev, "otg_init done\n");
 

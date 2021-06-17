@@ -62,6 +62,7 @@ struct dwc3_otg {
 	struct completion	resume_cmpl;
 	int			dwc3_suspended;
 	int			fsm_reset;
+	int			in_shutdown;
 
 	struct mutex lock;
 	u16 combo_phy_control;
