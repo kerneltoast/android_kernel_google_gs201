@@ -261,12 +261,36 @@ static void set_next_buddy(struct sched_entity *se)
 	}
 }
 
+static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
+{
+	return css ? container_of(css, struct task_group, css) : NULL;
+}
+
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
+static inline bool get_prefer_idle(struct task_struct *p)
+{
+	return vg[get_vendor_task_struct(p)->group].prefer_idle;
+}
+
+static inline bool get_prefer_high_cap(struct task_struct *p)
+{
+	return vg[get_vendor_task_struct(p)->group].prefer_high_cap;
+}
+
+static inline bool get_task_spreading(struct task_struct *p)
+{
+	return vg[get_vendor_task_struct(p)->group].task_spreading;
+}
+
+static inline unsigned int get_group_throttle(struct task_group *tg)
+{
+	return vg[get_vendor_task_group_struct(tg)->group].group_throttle;
+}
 
 #if defined(CONFIG_UCLAMP_TASK) && defined(CONFIG_FAIR_GROUP_SCHED)
 static inline unsigned long cpu_util_cfs_group_mod_no_est(struct rq *rq)
@@ -274,6 +298,7 @@ static inline unsigned long cpu_util_cfs_group_mod_no_est(struct rq *rq)
 	struct cfs_rq *cfs_rq, *pos;
 	unsigned long util = 0, unclamped_util = 0;
 	struct task_group *tg;
+	unsigned long scale_cpu = arch_scale_cpu_capacity(rq->cpu);
 
 	// cpu_util_cfs = root_util - subgroup_util_sum + throttled_subgroup_util_sum
 	for_each_leaf_cfs_rq_safe(rq, cfs_rq, pos) {
@@ -281,7 +306,7 @@ static inline unsigned long cpu_util_cfs_group_mod_no_est(struct rq *rq)
 			tg = cfs_rq->tg;
 			unclamped_util += cfs_rq->avg.util_avg;
 			util += min_t(unsigned long, READ_ONCE(cfs_rq->avg.util_avg),
-				tg->uclamp_req[UCLAMP_MAX].value);
+				cap_scale(get_group_throttle(tg), scale_cpu));
 		}
 	}
 
@@ -392,27 +417,6 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	return min_t(unsigned long, util, capacity_of(cpu));
 }
 
-/*****************************************************************************/
-/*                       New Code Section                                    */
-/*****************************************************************************/
-/*
- * This part of code is new for this kernel, which are mostly helper functions.
- */
-static inline bool get_prefer_idle(struct task_struct *p)
-{
-	return vg[get_vendor_task_struct(p)->group].prefer_idle;
-}
-
-static inline bool get_prefer_high_cap(struct task_struct *p)
-{
-	return vg[get_vendor_task_struct(p)->group].prefer_high_cap;
-}
-
-static inline bool get_task_spreading(struct task_struct *p)
-{
-	return vg[get_vendor_task_struct(p)->group].task_spreading;
-}
-
 struct vendor_group_property *get_vendor_group_property(enum vendor_group group)
 {
 	SCHED_WARN_ON(group < VG_SYSTEM || group >= VG_MAX);
@@ -481,6 +485,7 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 	struct task_group *tg;
 	int delta = 0;
 	struct rq *rq = cpu_rq(cpu);
+	unsigned long scale_cpu = arch_scale_cpu_capacity(cpu);
 
 	if (task_cpu(p) == cpu && dst_cpu != cpu)
 		delta = -task_util(p);
@@ -499,7 +504,8 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 				group_util = READ_ONCE(cfs_rq->avg.util_avg);
 
 			unclamped_util += READ_ONCE(cfs_rq->avg.util_avg);
-			util += min_t(unsigned long, group_util, tg->uclamp_req[UCLAMP_MAX].value);
+			util += min_t(unsigned long, group_util,
+				cap_scale(get_group_throttle(tg), scale_cpu));
 		}
 	}
 
@@ -1275,6 +1281,7 @@ void initialize_vendor_group_property(void)
 		vg[i].prefer_idle = false;
 		vg[i].prefer_high_cap = false;
 		vg[i].task_spreading = false;
+		vg[i].group_throttle = max_val;
 		vg[i].uc_req[UCLAMP_MIN].value = min_val;
 		vg[i].uc_req[UCLAMP_MIN].bucket_id = get_bucket_id(min_val);
 		vg[i].uc_req[UCLAMP_MIN].user_defined = false;
@@ -1412,5 +1419,33 @@ void rvh_post_init_entity_util_avg_pixel_mod(void *data, struct sched_entity *se
 	if (cfs_rq->avg.util_avg == 0) {
 		sa->util_avg = vendor_sched_util_post_init_scale * cpu_scale / 1024;
 		sa->runnable_avg = sa->util_avg;
+	}
+}
+
+void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css)
+{
+	struct vendor_task_group_struct *vtg;
+	const char *name = css_tg(css)->css.cgroup->kn->name;
+
+	vtg = get_vendor_task_group_struct(css_tg(css));
+
+	if (strcmp(name, "system") == 0) {
+		vtg->group = VG_SYSTEM;
+	} else if (strcmp(name, "top-app") == 0) {
+		vtg->group = VG_TOPAPP;
+	} else if (strcmp(name, "foreground") == 0) {
+		vtg->group = VG_FOREGROUND;
+	} else if (strcmp(name, "camera-daemon") == 0) {
+		vtg->group = VG_CAMERA;
+	} else if (strcmp(name, "background") == 0) {
+		vtg->group = VG_BACKGROUND;
+	} else if (strcmp(name, "system-background") == 0) {
+		vtg->group = VG_SYSTEM_BACKGROUND;
+	} else if (strcmp(name, "nnapi-hal") == 0) {
+		vtg->group = VG_NNAPI_HAL;
+	} else if (strcmp(name, "rt") == 0) {
+		vtg->group = VG_RT;
+	} else {
+		vtg->group = VG_SYSTEM;
 	}
 }

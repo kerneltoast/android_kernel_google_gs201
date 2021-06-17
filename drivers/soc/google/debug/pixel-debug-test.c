@@ -442,7 +442,7 @@ static struct debug_trigger soc_test_trigger;
 
 void debug_trigger_register(struct debug_trigger *soc_trigger, char *arch_name)
 {
-	pr_crit("DEBUG TEST: [%s] test triggers are registered!", arch_name);
+	pr_info("DEBUG TEST: [%s] test triggers are registered!", arch_name);
 	soc_test_trigger.hard_lockup = soc_trigger->hard_lockup;
 	soc_test_trigger.cold_reset = soc_trigger->cold_reset;
 	soc_test_trigger.watchdog_emergency_reset =

@@ -73,6 +73,13 @@ enum gbms_charger_modes {
 #define TCPM_RESTART_TOGGLING		0
 #define CONTAMINANT_HANDLES_TOGGLING	1
 
+#define VOLTAGE_ALARM_HI_EN_MV		3000
+#define VOLTAGE_ALARM_HI_DIS_MV		21000
+#define VOLTAGE_ALARM_LOW_EN_MV		1500
+#define VOLTAGE_ALARM_LOW_DIS_MV	0
+
+static struct logbuffer *tcpm_log;
+
 static bool modparam_conf_sbu;
 module_param_named(conf_sbu, modparam_conf_sbu, bool, 0644);
 MODULE_PARM_DESC(conf_sbu, "Configure sbu pins");
@@ -82,6 +89,8 @@ static bool hooks_installed;
 static u32 partner_src_caps[PDO_MAX_OBJECTS];
 static unsigned int nr_partner_src_caps;
 spinlock_t g_caps_lock;
+
+static unsigned int sink_discovery_delay_ms;
 
 struct tcpci {
 	struct device *dev;
@@ -468,11 +477,14 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 		!chip->bc12_running;
 
 	if (chip->attached && enable_data && !chip->data_active) {
-		if (chip->data_role == TYPEC_HOST) {
-			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
-			logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
-				      "success");
-		}
+		/*
+		 * b/188614064: While swapping from host to device switches will not be configured
+		 * by HW. So always enable the switches here.
+		 */
+		ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
+		logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
+			      "success");
+
 		/* Disable BC1.2 to prevent BC1.2 detection during PR_SWAP */
 		bc12_enable(chip->bc12, false);
 
@@ -532,12 +544,12 @@ static int max77759_set_vbus(struct tcpci *tcpci, struct tcpci_data *tdata, bool
 					 (void *)GBMS_USB_BUCK_ON, false);
 	}
 
-	if (ret < 0)
-		return ret;
-
 	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE voting source:%c sink:%c vote:%u ret:%d",
 		      ret < 0 ? "Error" : "Success", source ? 'y' : 'n', sink ? 'y' : 'n',
 		      (unsigned int)vote, ret);
+
+	if (ret < 0)
+		return ret;
 
 	if (source && !chip->sourcing_vbus) {
 		chip->sourcing_vbus = 1;
@@ -633,6 +645,68 @@ static void process_tx(struct tcpci *tcpci, u16 status, struct logbuffer *log)
 	if ((status & TCPC_ALERT_TX_SUCCESS) && (status &
 						 TCPC_ALERT_TX_FAILED))
 		max77759_init_regs(tcpci->regmap, log);
+}
+
+static int max77759_enable_voltage_alarm(struct max77759_plat *chip, bool enable, bool high)
+{
+	int ret;
+
+	if (!enable) {
+		ret = max77759_update_bits8(chip->tcpci->regmap, TCPC_POWER_CTRL,
+					    TCPC_DIS_VOLT_ALRM, TCPC_DIS_VOLT_ALRM);
+		if (ret < 0)
+			logbuffer_log(chip->log, "Unable to disable voltage alarm, ret = %d",
+				      ret);
+		return ret;
+	}
+
+	/* Set voltage alarm */
+	ret = max77759_update_bits16(chip->tcpci->regmap, TCPC_VBUS_VOLTAGE_ALARM_HI_CFG,
+				     TCPC_VBUS_VOLTAGE_MASK,
+				     (high ? VOLTAGE_ALARM_HI_EN_MV : VOLTAGE_ALARM_HI_DIS_MV) /
+				     TCPC_VBUS_VOLTAGE_LSB_MV);
+	if (ret < 0) {
+		logbuffer_log(chip->log, "Unable to config VOLTAGE_ALARM_HI_CFG, ret = %d", ret);
+		return ret;
+	}
+
+	ret = max77759_update_bits16(chip->tcpci->regmap, TCPC_VBUS_VOLTAGE_ALARM_LO_CFG,
+				     TCPC_VBUS_VOLTAGE_MASK,
+				     (!high ? VOLTAGE_ALARM_LOW_EN_MV : VOLTAGE_ALARM_LOW_DIS_MV) /
+				     TCPC_VBUS_VOLTAGE_LSB_MV);
+	if (ret < 0) {
+		logbuffer_log(chip->log, "Unable to config VOLTAGE_ALARM_LO_CFG, ret = %d", ret);
+		return ret;
+	}
+
+	ret = max77759_update_bits8(chip->tcpci->regmap, TCPC_POWER_CTRL, TCPC_DIS_VOLT_ALRM, 0);
+	if (ret < 0) {
+		logbuffer_log(chip->log, "Unable to enable voltage alarm, ret = %d", ret);
+		return ret;
+	}
+
+	ret = max77759_update_bits16(chip->tcpci->regmap, TCPC_ALERT_MASK,
+				     TCPC_ALERT_V_ALARM_LO | TCPC_ALERT_V_ALARM_HI,
+				     high ? TCPC_ALERT_V_ALARM_HI : TCPC_ALERT_V_ALARM_LO);
+	if (ret < 0)
+		logbuffer_log(chip->log, "Unable to unmask voltage alarm interrupt, ret = %d", ret);
+
+	return ret;
+}
+
+static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
+{
+	u16 raw;
+	int ret;
+	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
+
+	if (!chip || !chip->tcpci || !chip->tcpci->regmap)
+		return -EAGAIN;
+
+	/* TCPC_POWER_CTRL_VBUS_VOLT_MON enabled in init_regs */
+	ret = max77759_read16(chip->tcpci->regmap, TCPC_VBUS_VOLTAGE, &raw);
+
+	return ret ? 0 : ((raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV);
 }
 
 static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
@@ -754,27 +828,33 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		process_power_status(chip);
 
 	if (status & TCPC_ALERT_V_ALARM_LO) {
-		ret = max77759_read16(tcpci->regmap,
-				      TCPC_VBUS_VOLTAGE_ALARM_LO_CFG,
-				      &raw);
+		ret = max77759_read16(tcpci->regmap, TCPC_VBUS_VOLTAGE_ALARM_LO_CFG, &raw);
 		if (ret < 0)
 			return ret;
 
-		logbuffer_log(log, "VBUS LOW ALARM triggered: %u", (raw &
-			      TCPC_VBUS_VOLTAGE_MASK) *
-			      TCPC_VBUS_VOLTAGE_LSB_MV);
+		logbuffer_log(log, "VBUS LOW ALARM triggered: thresh:%umv vbus:%umv",
+			      (raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV,
+			      max77759_get_vbus_voltage_mv(chip->client));
+		max77759_enable_voltage_alarm(chip, true, true);
+
+		ret = extcon_set_state_sync(chip->extcon, EXTCON_MECHANICAL, 0);
+		logbuffer_log(chip->log, "%s turning off connected, ret=%d", __func__, ret < 0 ?
+			      "Failed" : "Succeeded", ret);
 	}
 
 	if (status & TCPC_ALERT_V_ALARM_HI) {
-		ret = max77759_read16(tcpci->regmap,
-				      TCPC_VBUS_VOLTAGE_ALARM_HI_CFG, &raw)
-			;
+		ret = max77759_read16(tcpci->regmap, TCPC_VBUS_VOLTAGE_ALARM_HI_CFG, &raw);
 		if (ret < 0)
 			return ret;
 
-		logbuffer_log(log, "VBUS HIGH ALARM triggered: %u", (raw &
-			      TCPC_VBUS_VOLTAGE_MASK) *
-			      TCPC_VBUS_VOLTAGE_LSB_MV);
+		logbuffer_log(log, "VBUS HIGH ALARM triggered: thresh:%umv vbus:%umv",
+			      (raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV,
+			      max77759_get_vbus_voltage_mv(chip->client));
+		max77759_enable_voltage_alarm(chip, true, false);
+
+		ret = extcon_set_state_sync(chip->extcon, EXTCON_MECHANICAL, 1);
+		logbuffer_log(chip->log, "%s: %s turning on connected, ret=%d", __func__, ret < 0 ?
+			      "Failed" : "Succeeded", ret);
 	}
 
 	if (status & TCPC_ALERT_RX_HARD_RST) {
@@ -981,22 +1061,6 @@ unlock:
 	return 0;
 }
 
-static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
-{
-	u16 raw;
-	int ret;
-	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
-
-	if (!chip || !chip->tcpci || !chip->tcpci->regmap)
-		return -EAGAIN;
-
-	/* TCPC_POWER_CTRL_VBUS_VOLT_MON enabled in init_regs */
-	ret = max77759_read16(chip->tcpci->regmap, TCPC_VBUS_VOLTAGE,
-			      &raw);
-	return ret ? 0 : ((raw & TCPC_VBUS_VOLTAGE_MASK) *
-		TCPC_VBUS_VOLTAGE_LSB_MV);
-}
-
 static void max77759_check_contaminant(void *unused, struct tcpci *tcpci, struct tcpci_data *tdata,
 				       int *ret)
 {
@@ -1123,19 +1187,9 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 
 static int max77759_get_vbus_voltage_max_mv(struct i2c_client *tcpc_client)
 {
-	u16 raw;
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
-	int ret;
 
-	if (!chip || !chip->tcpci || !chip->tcpci->regmap || !chip->set_voltage_alarm)
-		return chip->vbus_mv;
-
-	ret = max77759_read16(chip->tcpci->regmap,
-			      TCPC_VBUS_VOLTAGE_ALARM_HI_CFG, &raw);
-	if (ret < 0)
-		return chip->vbus_mv;
-
-	return raw * TCPC_VBUS_VOLTAGE_ALARM_HI_CFG - VBUS_HI_HEADROOM_MV;
+	return chip ? chip->vbus_mv : 0;
 }
 
 static int max77759_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
@@ -1143,25 +1197,9 @@ static int max77759_set_vbus_voltage_max_mv(struct i2c_client *tcpc_client,
 {
 	struct max77759_plat *chip = i2c_get_clientdata(tcpc_client);
 
-	chip->vbus_mv = mv;
-	if (!chip->set_voltage_alarm)
-		return 0;
+	if (chip)
+		chip->vbus_mv = mv;
 
-	/* Set voltage alarm */
-	max77759_update_bits16(chip->tcpci->regmap,
-			       TCPC_VBUS_VOLTAGE_ALARM_HI_CFG,
-			       TCPC_VBUS_VOLTAGE_MASK,
-			       (mv + VBUS_HI_HEADROOM_MV) /
-			       TCPC_VBUS_VOLTAGE_LSB_MV);
-	max77759_update_bits16(chip->tcpci->regmap,
-			       TCPC_VBUS_VOLTAGE_ALARM_LO_CFG,
-			       TCPC_VBUS_VOLTAGE_MASK,
-			       VBUS_LO_MV / TCPC_VBUS_VOLTAGE_LSB_MV);
-	max77759_update_bits8(chip->tcpci->regmap, TCPC_POWER_CTRL,
-			      TCPC_DIS_VOLT_ALRM, (u8)~TCPC_DIS_VOLT_ALRM);
-	max77759_update_bits16(chip->tcpci->regmap, TCPC_ALERT_MASK,
-			       TCPC_ALERT_V_ALARM_LO | TCPC_ALERT_V_ALARM_HI,
-			       TCPC_ALERT_V_ALARM_LO | TCPC_ALERT_V_ALARM_HI);
 	return 0;
 }
 
@@ -1325,6 +1363,7 @@ static const unsigned int usbpd_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
 	EXTCON_DISP_DP,
+	EXTCON_MECHANICAL,
 	EXTCON_NONE,
 };
 
@@ -1445,7 +1484,7 @@ static void max77759_get_timer_value(void *unused, const char *state, enum typec
 {
 	switch (timer) {
 	case SINK_DISCOVERY_BC12:
-		*val = 500;
+		*val = sink_discovery_delay_ms;
 		break;
 	case SINK_WAIT_CAP:
 		*val = 450;
@@ -1459,6 +1498,14 @@ static void max77759_get_timer_value(void *unused, const char *state, enum typec
 	default:
 		break;
 	}
+}
+
+static void max77759_tcpm_log(void *unused, const char *log, bool *bypass)
+{
+	if (tcpm_log)
+		logbuffer_log(tcpm_log, "%s", log);
+
+	*bypass = true;
 }
 
 static int max77759_register_vendor_hooks(struct i2c_client *client)
@@ -1507,6 +1554,13 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 	if (ret) {
 		dev_err(&client->dev,
 			"register_trace_android_vh_typec_tcpm_get_timer failed ret:%d\n", ret);
+		return ret;
+	}
+
+	ret = register_trace_android_vh_typec_tcpm_log(max77759_tcpm_log, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_tcpm_log failed ret:%d\n", ret);
 		return ret;
 	}
 
@@ -1713,6 +1767,7 @@ static int max77759_probe(struct i2c_client *client,
 	}
 
 	chip->no_bc_12 = of_property_read_bool(dn, "no-bc-12");
+	of_property_read_u32(dn, "sink-discovery-delay-ms", &sink_discovery_delay_ms);
 
 	chip->usb_psy = power_supply_get_by_name(usb_psy_name);
 	if (IS_ERR_OR_NULL(chip->usb_psy) || !chip->usb_psy) {
@@ -1772,6 +1827,8 @@ static int max77759_probe(struct i2c_client *client,
 		goto unreg_notifier;
 	}
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
+
+	max77759_enable_voltage_alarm(chip, true, true);
 
 	ret = max77759_init_alert(chip, client);
 	if (ret < 0)
@@ -1902,7 +1959,22 @@ static struct i2c_driver max77759_i2c_driver = {
 	.id_table = max77759_id,
 	.shutdown = max77759_shutdown,
 };
-module_i2c_driver(max77759_i2c_driver);
+
+static int __init max77759_i2c_driver_init(void)
+{
+	tcpm_log = logbuffer_register("tcpm");
+	if (IS_ERR_OR_NULL(tcpm_log))
+		return -EAGAIN;
+
+	return i2c_add_driver(&max77759_i2c_driver);
+}
+module_init(max77759_i2c_driver_init);
+
+static void __exit max77759_i2c_driver_exit(void)
+{
+	i2c_del_driver(&max77759_i2c_driver);
+}
+module_exit(max77759_i2c_driver_exit);
 
 MODULE_AUTHOR("Badhri Jagan Sridharan <badhri@google.com>");
 MODULE_DESCRIPTION("MAX77759 USB Type-C Port Controller Interface Driver");

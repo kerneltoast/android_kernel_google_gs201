@@ -88,9 +88,14 @@ inline int bigo_wait_disabled(struct bigo_core *core, int timeout_ms)
 	return 0;
 }
 
-void bigo_check_status(struct bigo_core *core)
+u32 bigo_check_status(struct bigo_core *core)
 {
-	u32 status = bigo_core_readl(core, BIGO_REG_STAT);
+	u32 status;
+	unsigned long flags;
+
+	spin_lock_irqsave(&core->status_lock, flags);
+	status = core->stat_with_irq;
+	spin_unlock_irqrestore(&core->status_lock, flags);
 
 	if (status & BIGO_STAT_IRQ_TIMEOUT)
 		pr_err("hw timedout: 0x%x\n", status);
@@ -110,6 +115,8 @@ void bigo_check_status(struct bigo_core *core)
 		pr_err("axi read pending: 0x%x\n", status);
 	if (status & BIGO_STAT_AXI_WR_PENDING)
 		pr_err("axi write pending: 0x%x\n", status);
+
+	return status;
 }
 
 MODULE_LICENSE("GPL");

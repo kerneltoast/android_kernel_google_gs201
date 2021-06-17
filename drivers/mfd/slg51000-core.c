@@ -147,53 +147,6 @@ static const struct regmap_access_table slg51000_volatile_table = {
 	.n_yes_ranges	= ARRAY_SIZE(slg51000_volatile_ranges),
 };
 
-static int read_chip_id(struct slg51000_dev *chip)
-{
-	int ret;
-	uint8_t val[SLG51000_CHIP_ID_LEN];
-
-	if (chip == NULL) {
-		pr_err("[%s] Invalid arguments\n", __func__);
-		return -EINVAL;
-	}
-
-	ret = regmap_bulk_read(chip->regmap,
-			SLG51000_SYSCTL_PATN_ID_B0, val, ARRAY_SIZE(val));
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to read chip id registers(%d)\n",
-			ret);
-		return ret;
-	}
-
-	/* Format chip id */
-	chip->chip_id = ((val[2] << 16) | (val[1] << 8) | val[0]);
-	pr_info("%s: chip_id:  0x%x\n", __func__, chip->chip_id);
-
-	return ret;
-}
-
-static ssize_t chip_id_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct slg51000_dev *chip;
-
-	chip = dev_get_drvdata(dev);
-	if (chip == NULL)
-		return -EINVAL;
-
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", chip->chip_id);
-}
-static DEVICE_ATTR_RO(chip_id);
-
-static struct attribute *attrs[] = {
-	&dev_attr_chip_id.attr,
-	NULL,
-};
-
-static struct attribute_group attr_group = {
-	.attrs = attrs,
-};
-
 static int slg51000_init_regs(struct slg51000_dev *chip)
 {
 	int ret;
@@ -396,7 +349,7 @@ static int slg51000_power_off(struct slg51000_dev *chip)
 		return -EINVAL;
 
 	mutex_lock(&chip->pwr_lock);
-	if (!chip->is_power_on) {
+	if (!chip->is_power_on || chip->chip_always_on) {
 		ret = 0;
 		goto out;
 	}
@@ -496,6 +449,91 @@ static int slg51000_reg_write(void *context, unsigned int reg, unsigned int val)
 	mod_timer(&slg51000->timer, jiffies + TIMER_EXPIRED_SEC);
 	return ret;
 }
+
+static int read_chip_id(struct slg51000_dev *chip)
+{
+	int ret;
+	uint8_t val[SLG51000_CHIP_ID_LEN];
+
+	if (chip == NULL)
+		return -EINVAL;
+
+	ret = regmap_bulk_read(chip->regmap,
+			SLG51000_SYSCTL_PATN_ID_B0, val, ARRAY_SIZE(val));
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to read chip id registers(%d)\n",
+			ret);
+		return ret;
+	}
+
+	/* Format chip id */
+	chip->chip_id = ((val[2] << 16) | (val[1] << 8) | val[0]);
+	dev_info(chip->dev, "chip_id: 0x%x\n", chip->chip_id);
+
+	return ret;
+}
+
+static ssize_t chip_id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct slg51000_dev *chip;
+
+	chip = dev_get_drvdata(dev);
+	if (chip == NULL)
+		return -EINVAL;
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", chip->chip_id);
+}
+static DEVICE_ATTR_RO(chip_id);
+
+static ssize_t chip_always_on_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct slg51000_dev *chip;
+
+	chip = dev_get_drvdata(dev);
+	if (chip == NULL)
+		return -EINVAL;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->chip_always_on);
+}
+
+static ssize_t chip_always_on_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct slg51000_dev *chip;
+	unsigned long val;
+	int ret;
+
+	chip = dev_get_drvdata(dev);
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	chip->chip_always_on = val;
+	dev_info(dev, "Set %s to %d\n", attr->attr.name, chip->chip_always_on);
+
+	if (chip->chip_always_on) {
+		slg51000_power_on(chip);
+	} else {
+		slg51000_power_off(chip);
+	}
+
+	return count;
+}
+static DEVICE_ATTR_RW(chip_always_on);
+
+static struct attribute *attrs[] = {
+	&dev_attr_chip_id.attr,
+	&dev_attr_chip_always_on.attr,
+	NULL,
+};
+
+static struct attribute_group attr_group = {
+	.attrs = attrs,
+};
 
 static const struct regmap_config slg51000_i2c_regmap_config = {
 	.name = "i2c",
@@ -612,6 +650,7 @@ static int slg51000_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, slg51000);
 
+	slg51000->chip_always_on = false;
 	slg51000->is_power_on = true;
 	INIT_WORK(&slg51000->timeout_work, slg51000_timeout_work);
 	timer_setup(&slg51000->timer, slg51000_timer_trigger, 0);

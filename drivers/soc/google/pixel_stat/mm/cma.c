@@ -11,8 +11,8 @@
 #include <linux/kobject.h>
 #include <linux/slab.h>
 
-#define DEF_LATENCY_MID_BOUND_MS 1500000
-#define DEF_LATENCY_LOW_BOUND_MS 500000
+#define DEF_LATENCY_MID_BOUND_MS 1500
+#define DEF_LATENCY_LOW_BOUND_MS 500
 
 enum LATENCY_LEVEL {
 	LATENCY_LOW = 0,
@@ -49,7 +49,7 @@ static struct cma_pixel_stat *stats[MAX_CMA_AREAS];
 
 void vh_cma_alloc_start(void *data, s64 *ts)
 {
-	*ts = ktime_to_ms(ktime_get_boottime());
+	*ts = ktime_to_ms(ktime_get());
 }
 
 struct cma *cma;
@@ -76,7 +76,7 @@ void vh_cma_alloc_finish(void *data, struct cma *cma, struct page *page,
 		.target = cma,
 	};
 
-	s64 delta = ktime_to_ms(ktime_get_boottime()) - ts;
+	s64 delta = ktime_to_ms(ktime_get()) - ts;
 
 	WARN_ON_ONCE(delta < 0);
 

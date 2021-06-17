@@ -100,6 +100,7 @@ struct bigo_core {
 	struct bigo_inst *curr_inst;
 	phys_addr_t paddr;
 	struct bigo_debugfs debugfs;
+	spinlock_t status_lock;
 };
 
 struct bigo_inst {

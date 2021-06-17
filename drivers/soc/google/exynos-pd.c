@@ -378,6 +378,8 @@ static int exynos_pd_suspend_late(struct device *dev)
 	pr_debug("%s: %s is %s\n", __func__, pd->name,
 		 exynos_pd_status(pd) ? "on" : "off");
 
+	dev->power.must_resume = true;
+
 	return 0;
 }
 

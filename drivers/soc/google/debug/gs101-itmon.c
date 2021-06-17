@@ -513,7 +513,10 @@ const static struct itmon_clientinfo clientinfo[] = {
 
 	{"AOC",		0x1, /*XXXX01*/		"SYSMMU_S2_AOC",	0x3},
 	{"AOC",		0x2, /*XXXX10*/		"SYSMMU_S1_AOC",	0x3},
-	{"AOC",		0x0, /*XXXX00*/		"AOC",			0x3},
+	{"AOC",		0x0, /*XXXX00*/		"A32",			0x1F},
+	{"AOC",		0x4, /*X00100*/		"HF0",			0x1F},
+	{"AOC",		0x8, /*X01000*/		"HF1",			0x1F},
+	{"AOC",		0xc, /*X01100*/		"F1",			0x1F},
 
 	{"DPU0",	0x1, /*XXXX01*/		"SYSMMU_S2_DPU0",	0x3},
 	{"DPU0",	0x2, /*XXXX10*/		"SYSMMU_S1_DPU0",	0x3},
@@ -679,15 +682,15 @@ const static struct itmon_clientinfo clientinfo[] = {
 	{"TPU",		0x0, /*XXXX00*/		"TPU",			0x3},
 
 	/* Cannot differentiate which cpu */
-	{"CPU0",	0x2000000, /*bit 25*/	"CPU",			0x2000000},
-	{"CPU1",	0x2000000, /*bit 25*/	"CPU",			0x2000000},
-	{"CPU2",	0x2000000, /*bit 25*/	"CPU",			0x2000000},
-	{"CPU3",	0x2000000, /*bit 25*/	"CPU",			0x2000000},
+	{"CPU0",	0x40, /*bit 25*/	"CPU",			0x40},
+	{"CPU1",	0x40, /*bit 25*/	"CPU",			0x40},
+	{"CPU2",	0x40, /*bit 25*/	"CPU",			0x40},
+	{"CPU3",	0x40, /*bit 25*/	"CPU",			0x40},
 	/* Cannot differentiate others */
-	{"CPU0",	0x0, /*bit 25*/		"NOT CPU",		0x2000000},
-	{"CPU1",	0x0, /*bit 25*/		"NOT CPU",		0x2000000},
-	{"CPU2",	0x0, /*bit 25*/		"NOT CPU",		0x2000000},
-	{"CPU3",	0x0, /*bit 25*/		"NOT CPU",		0x2000000},
+	{"CPU0",	0x0, /*bit 25*/		"NOT CPU",		0x40},
+	{"CPU1",	0x0, /*bit 25*/		"NOT CPU",		0x40},
+	{"CPU2",	0x0, /*bit 25*/		"NOT CPU",		0x40},
+	{"CPU3",	0x0, /*bit 25*/		"NOT CPU",		0x40},
 
 };
 
@@ -946,6 +949,9 @@ static const struct itmon_clientinfo *itmon_get_clientinfo(struct itmon_dev *itm
 
 	if (!port_name)
 		return NULL;
+
+	/* shift directly to SID bits */
+	user >>= 19;
 
 	for (i = 0; i < (int)ARRAY_SIZE(clientinfo); i++) {
 		if (!strcmp(pdata->clientinfo[i].port_name, port_name)) {

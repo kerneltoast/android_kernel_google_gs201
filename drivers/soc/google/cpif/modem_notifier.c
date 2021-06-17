@@ -14,16 +14,39 @@
 #include "modem_utils.h"
 #include "modem_notifier.h"
 
-void modem_notify_event(enum modem_event evt, struct modem_ctl *mc)
+static struct raw_notifier_head modem_event_notifier;
+#if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
+static struct raw_notifier_head modem_voice_call_event_notifier;
+#endif
+
+int register_modem_event_notifier(struct notifier_block *nb)
+{
+	if (!nb)
+		return -ENOENT;
+
+	return raw_notifier_chain_register(&modem_event_notifier, nb);
+}
+EXPORT_SYMBOL(register_modem_event_notifier);
+
+void modem_notify_event(enum modem_event evt, void *mc)
 {
 	/* ToDo */
 }
 EXPORT_SYMBOL(modem_notify_event);
 
 #if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
-void modem_voice_call_notify_event(enum modem_voice_call_event evt)
+int register_modem_voice_call_event_notifier(struct notifier_block *nb)
 {
-	/* ToDo */
+	if (!nb)
+		return -ENOENT;
+	return raw_notifier_chain_register(&modem_voice_call_event_notifier, nb);
+}
+
+void modem_voice_call_notify_event(enum modem_voice_call_event evt, void *data)
+{
+	mif_err("voice call event notify (%d) ++\n", evt);
+	raw_notifier_call_chain(&modem_voice_call_event_notifier, evt, data);
+	mif_err("voice call event notify (%d) --\n", evt);
 }
 EXPORT_SYMBOL(modem_voice_call_notify_event);
 #endif

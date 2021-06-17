@@ -1278,10 +1278,33 @@ static void __iomem *get_addr_by_subsystem(struct gs101_bcl_dev *bcl_dev,
 	return NULL;
 }
 
+static ssize_t clk_div_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
+{
+	unsigned int reg;
+	void __iomem *addr;
+
+	if (idx == TPU)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_clkdivstep);
+	else if (idx == GPU)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->gpu_clkdivstep);
+
+	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
+	if (addr == NULL)
+		return sysfs_emit(buf, "off\n");
+	reg = __raw_readl(addr);
+
+	return sysfs_emit(buf, "0x%x\n", reg);
+}
+
 static ssize_t clk_stats_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
 {
 	unsigned int reg;
 	void __iomem *addr;
+
+	if (idx == TPU)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_clk_stats);
+	else if (idx == GPU)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->gpu_clk_stats);
 
 	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
 	if (addr == NULL)
@@ -1291,8 +1314,8 @@ static ssize_t clk_stats_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
 	return sysfs_emit(buf, "0x%x\n", reg);
 }
 
-static ssize_t clk_stats_store(struct gs101_bcl_dev *bcl_dev, int idx,
-			       const char *buf, size_t size)
+static ssize_t clk_div_store(struct gs101_bcl_dev *bcl_dev, int idx,
+			     const char *buf, size_t size)
 {
 	void __iomem *addr;
 	unsigned int value;
@@ -1309,12 +1332,127 @@ static ssize_t clk_stats_store(struct gs101_bcl_dev *bcl_dev, int idx,
 		return -EIO;
 	}
 
-	mutex_lock(&bcl_dev->ratio_lock);
-	__raw_writel(value, addr);
-	mutex_unlock(&bcl_dev->ratio_lock);
+	if (idx == TPU)
+		bcl_dev->tpu_clkdivstep = value;
+	else if (idx == GPU)
+		bcl_dev->gpu_clkdivstep = value;
+	else {
+		mutex_lock(&bcl_dev->ratio_lock);
+		__raw_writel(value, addr);
+		mutex_unlock(&bcl_dev->ratio_lock);
+	}
 
 	return size;
 }
+
+static ssize_t cpu0_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_show(bcl_dev, CPU0, buf);
+}
+
+static ssize_t cpu0_clk_div_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_store(bcl_dev, CPU0, buf, size);
+}
+
+static DEVICE_ATTR_RW(cpu0_clk_div);
+
+static ssize_t cpu1_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_show(bcl_dev, CPU1, buf);
+}
+
+static ssize_t cpu1_clk_div_store(struct device *dev, struct device_attribute *attr,
+				  const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_store(bcl_dev, CPU1, buf, size);
+}
+
+static DEVICE_ATTR_RW(cpu1_clk_div);
+
+static ssize_t cpu2_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_show(bcl_dev, CPU2, buf);
+}
+
+static ssize_t cpu2_clk_div_store(struct device *dev, struct device_attribute *attr,
+				  const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_store(bcl_dev, CPU2, buf, size);
+}
+
+static DEVICE_ATTR_RW(cpu2_clk_div);
+
+static ssize_t tpu_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_show(bcl_dev, TPU, buf);
+}
+
+static ssize_t tpu_clk_div_store(struct device *dev, struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_store(bcl_dev, TPU, buf, size);
+}
+
+static DEVICE_ATTR_RW(tpu_clk_div);
+
+static ssize_t gpu_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_show(bcl_dev, GPU, buf);
+}
+
+static ssize_t gpu_clk_div_store(struct device *dev, struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+
+	return clk_div_store(bcl_dev, GPU, buf, size);
+}
+
+static DEVICE_ATTR_RW(gpu_clk_div);
+
+static struct attribute *clock_div_attrs[] = {
+	&dev_attr_cpu0_clk_div.attr,
+	&dev_attr_cpu1_clk_div.attr,
+	&dev_attr_cpu2_clk_div.attr,
+	&dev_attr_tpu_clk_div.attr,
+	&dev_attr_gpu_clk_div.attr,
+	NULL,
+};
+
+static const struct attribute_group clock_div_group = {
+	.attrs = clock_div_attrs,
+	.name = "clock_div",
+};
 
 static ssize_t cpu0_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1324,16 +1462,7 @@ static ssize_t cpu0_clk_stats_show(struct device *dev, struct device_attribute *
 	return clk_stats_show(bcl_dev, CPU0, buf);
 }
 
-static ssize_t cpu0_clk_stats_store(struct device *dev, struct device_attribute *attr,
-				    const char *buf, size_t size)
-{
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-
-	return clk_stats_store(bcl_dev, CPU0, buf, size);
-}
-
-static DEVICE_ATTR_RW(cpu0_clk_stats);
+static DEVICE_ATTR_RO(cpu0_clk_stats);
 
 static ssize_t cpu1_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1343,16 +1472,7 @@ static ssize_t cpu1_clk_stats_show(struct device *dev, struct device_attribute *
 	return clk_stats_show(bcl_dev, CPU1, buf);
 }
 
-static ssize_t cpu1_clk_stats_store(struct device *dev, struct device_attribute *attr,
-				    const char *buf, size_t size)
-{
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-
-	return clk_stats_store(bcl_dev, CPU1, buf, size);
-}
-
-static DEVICE_ATTR_RW(cpu1_clk_stats);
+static DEVICE_ATTR_RO(cpu1_clk_stats);
 
 static ssize_t cpu2_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1362,16 +1482,7 @@ static ssize_t cpu2_clk_stats_show(struct device *dev, struct device_attribute *
 	return clk_stats_show(bcl_dev, CPU2, buf);
 }
 
-static ssize_t cpu2_clk_stats_store(struct device *dev, struct device_attribute *attr,
-				    const char *buf, size_t size)
-{
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-
-	return clk_stats_store(bcl_dev, CPU2, buf, size);
-}
-
-static DEVICE_ATTR_RW(cpu2_clk_stats);
+static DEVICE_ATTR_RO(cpu2_clk_stats);
 
 static ssize_t tpu_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1381,16 +1492,7 @@ static ssize_t tpu_clk_stats_show(struct device *dev, struct device_attribute *a
 	return clk_stats_show(bcl_dev, TPU, buf);
 }
 
-static ssize_t tpu_clk_stats_store(struct device *dev, struct device_attribute *attr,
-				   const char *buf, size_t size)
-{
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-
-	return clk_stats_store(bcl_dev, TPU, buf, size);
-}
-
-static DEVICE_ATTR_RW(tpu_clk_stats);
+static DEVICE_ATTR_RO(tpu_clk_stats);
 
 static ssize_t gpu_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1400,16 +1502,7 @@ static ssize_t gpu_clk_stats_show(struct device *dev, struct device_attribute *a
 	return clk_stats_show(bcl_dev, GPU, buf);
 }
 
-static ssize_t gpu_clk_stats_store(struct device *dev, struct device_attribute *attr,
-				   const char *buf, size_t size)
-{
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
-
-	return clk_stats_store(bcl_dev, GPU, buf, size);
-}
-
-static DEVICE_ATTR_RW(gpu_clk_stats);
+static DEVICE_ATTR_RO(gpu_clk_stats);
 
 static struct attribute *clock_stats_attrs[] = {
 	&dev_attr_cpu0_clk_stats.attr,
@@ -1454,6 +1547,15 @@ static ssize_t clk_ratio_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
 	unsigned int reg;
 	void __iomem *addr;
 
+	if (idx == TPU_HEAVY)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_con_heavy);
+	else if (idx == TPU_LIGHT)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_con_light);
+	else if (idx == GPU_LIGHT)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->gpu_con_light);
+	else if (idx == GPU_HEAVY)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->gpu_con_heavy);
+
 	addr = get_addr_by_rail(bcl_dev, clk_ratio_source[idx]);
 	if (addr == NULL)
 		return sysfs_emit(buf, "off\n");
@@ -1478,9 +1580,19 @@ static ssize_t clk_ratio_store(struct gs101_bcl_dev *bcl_dev, int idx,
 		dev_err(bcl_dev->device, "Address is NULL\n");
 		return -EIO;
 	}
-	mutex_lock(&bcl_dev->ratio_lock);
-	__raw_writel(value, addr);
-	mutex_unlock(&bcl_dev->ratio_lock);
+	if (idx == TPU_HEAVY)
+		bcl_dev->tpu_con_heavy = value;
+	else if (idx == GPU_HEAVY)
+		bcl_dev->gpu_con_heavy = value;
+	else if (idx == TPU_LIGHT)
+		bcl_dev->tpu_con_light = value;
+	else if (idx == GPU_LIGHT)
+		bcl_dev->gpu_con_light = value;
+	else {
+		mutex_lock(&bcl_dev->ratio_lock);
+		__raw_writel(value, addr);
+		mutex_unlock(&bcl_dev->ratio_lock);
+	}
 
 	return size;
 }
@@ -2204,6 +2316,7 @@ int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
 	__raw_writel(data->tpu_con_light, addr);
 	addr = data->base_mem[TPU] + CLKDIVSTEP;
 	__raw_writel(data->tpu_clkdivstep, addr);
+	data->tpu_clk_stats = __raw_readl(data->base_mem[TPU] + clk_stats_offset[TPU]);
 	mutex_unlock(&data->ratio_lock);
 
 	return 0;
@@ -2230,6 +2343,7 @@ int gs101_init_gpu_ratio(struct gs101_bcl_dev *data)
 	__raw_writel(data->gpu_con_light, addr);
 	addr = data->base_mem[GPU] + CLKDIVSTEP;
 	__raw_writel(data->gpu_clkdivstep, addr);
+	data->gpu_clk_stats = __raw_readl(data->base_mem[GPU] + clk_stats_offset[GPU]);
 	mutex_unlock(&data->ratio_lock);
 
 	return 0;
@@ -2721,6 +2835,7 @@ static int google_gs101_set_main_pmic(struct gs101_bcl_dev *bcl_dev)
 const struct attribute_group *mitigation_groups[] = {
 	&instr_group,
 	&triggered_lvl_group,
+	&clock_div_group,
 	&clock_ratio_group,
 	&clock_stats_group,
 	&triggered_count_group,

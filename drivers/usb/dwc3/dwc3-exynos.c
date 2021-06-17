@@ -1317,6 +1317,10 @@ static void dwc3_exynos_shutdown(struct platform_device *pdev)
 	else if (extcon_get_state(exynos->edev, EXTCON_USB_HOST) > 0)
 		dwc3_exynos_id_event(exynos->dev, 1);
 
+	/* unregister the notifiers for USB and USB_HOST*/
+	extcon_unregister_notifier(exynos->edev, EXTCON_USB, &exynos->vbus_nb);
+	extcon_unregister_notifier(exynos->edev, EXTCON_USB_HOST, &exynos->id_nb);
+
 	return;
 }
 

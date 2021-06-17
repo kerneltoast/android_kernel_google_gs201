@@ -223,7 +223,7 @@
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_MIF>;
 						tpmon,idx = <0>;
-						tpmon,threshold = <700>;	/* Mbps */
+						tpmon,threshold = <1100>;	/* Mbps */
 						tpmon,values = <0 1014000>;
 						tpmon,check_udp = <1>;
 					};

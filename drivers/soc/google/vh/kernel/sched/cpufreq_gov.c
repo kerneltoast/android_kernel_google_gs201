@@ -155,10 +155,10 @@ void reset_uclamp_stats(void)
 		struct rq_flags rf;
 		struct uclamp_stats *stats = &per_cpu(uclamp_stats, i);
 
-		rq_lock(cpu_rq(i), &rf);
+		rq_lock_irqsave(cpu_rq(i), &rf);
 		update_rq_clock(cpu_rq(i));
 		time = rq_clock(cpu_rq(i));
-		rq_unlock(cpu_rq(i), &rf);
+		rq_unlock_irqrestore(cpu_rq(i), &rf);
 
 		spin_lock_irqsave(&stats->lock, flags);
 		stats->last_min_in_effect = false;

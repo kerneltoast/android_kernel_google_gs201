@@ -20,7 +20,7 @@ enum modem_voice_call_event {
 	MODEM_VOICE_CALL_ON	= 1,
 };
 
-void modem_notify_event(enum modem_event evt, struct modem_ctl *mc);
+void modem_notify_event(enum modem_event evt, void *mc);
 
 #if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
 void modem_voice_call_notify_event(enum modem_voice_call_event evt);

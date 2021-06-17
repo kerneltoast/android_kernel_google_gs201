@@ -119,8 +119,25 @@
 
 		uart16_bus: uart16-bus {
 		       samsung,pins = "gpa3-0", "gpa3-1", "gpa3-2", "gpa3-3";
-		       samsung,pin-function = <2>;
-		       samsung,pin-pud = <0>;
+		       samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		       samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		};
+
+		uart16_bus_rts: uart1-bus-rts {
+			samsung,pins = "gpa3-2";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-val = <1>;
+		};
+
+		uart16_bus_tx_dat: uart1-bus-tx-dat {
+			samsung,pins = "gpa3-1";
+			samsung,pin-val = <1>;
+		};
+
+		uart16_bus_tx_con: uart1-bus-tx-con {
+			samsung,pins = "gpa3-1";
+			samsung,pin-function = <1>;
 		};
 
 		uart17_bus: uart17-bus {

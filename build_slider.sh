@@ -8,48 +8,15 @@ function exit_if_error {
   fi
 }
 
-function copy_gki_prebuilts {
-  mkdir -p ${DIST_DIR}
-  echo "Copying GKI prebuilts from ${GKI_PREBUILTS_DIR} to ${DIST_DIR}."
-  cp ${GKI_PREBUILTS_DIR}/* ${DIST_DIR}/
-}
-
-function build_gki {
-  echo "Building GKI kernel using ${KERNEL_BUILD_CONFIG}..."
-  SKIP_CP_KERNEL_HDR=1 \
-    OUT_DIR=${BASE_OUT}/${KERNEL_OUT_DIR} \
-    DIST_DIR=${DIST_DIR} \
-    LTO=${LTO} \
-    KMI_SYMBOL_LIST_STRICT_MODE=${ENABLE_STRICT_KMI} \
-    TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI} \
-    BUILD_CONFIG=${KERNEL_BUILD_CONFIG} \
-    build/build.sh KCFLAGS=-Werror "$@"
-  exit_if_error $? "Failed to compile ${KERNEL_OUT_DIR}"
-}
-
-function build_pixel {
-  echo "Building device kernel..."
-  BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
-    OUT_DIR=${BASE_OUT}/device-kernel/ \
-    DIST_DIR=${DIST_DIR} \
-    LTO=${LTO} \
-    MIXED_BUILD=1 \
-    KBUILD_MIXED_TREE=${GKI_BINARIES_DIR} \
-    KMI_SYMBOL_LIST_STRICT_MODE=${ENABLE_STRICT_KMI} \
-    TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI} \
-    build/build.sh KCFLAGS=-Werror "$@"
-  exit_if_error $? "Failed to compile device kernel"
-}
-
 EXPERIMENTAL_BUILD=${EXPERIMENTAL_BUILD:-0}
-BASE_OUT=${OUT_DIR:-out}/mixed/
-DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
+TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
 LTO=${LTO:-thin}
-GKI_BINARIES_DIR=$(readlink -m ${DIST_DIR})
-GKI_PREBUILTS_DIR=$(readlink -m "prebuilts/boot-artifacts/kernel/")
+KMI_SYMBOL_LIST_STRICT_MODE=${ENABLE_STRICT_KMI:-1}
 DEFAULT_CONFIG="private/gs-google/build.config.slider"
 DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG:-${DEFAULT_CONFIG}}
-TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
+GKI_KERNEL_PREBUILTS_DIR=
+GKI_KERNEL_BUILD_CONFIG=
+GKI_KERNEL_OUT_DIR=
 CHECK_DIRTY_AOSP=0
 if [ -z "${BUILD_KERNEL}" ]; then
   if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
@@ -60,18 +27,21 @@ if [ -z "${BUILD_KERNEL}" ]; then
   fi
 fi
 
-if [ "${LTO}" = "none" ]; then
-  ENABLE_STRICT_KMI=0
+if [ "${BUILD_KERNEL}" = "0" ]; then
+  GKI_KERNEL_PREBUILTS_DIR=$(readlink -m "prebuilts/boot-artifacts/kernel/")
 else
-  ENABLE_STRICT_KMI=${ENABLE_STRICT_KMI:-1}
+  if [ "${EXPERIMENTAL_BUILD}" != "0" ]; then
+    GKI_KERNEL_OUT_DIR=android12-5.10-staging
+    GKI_KERNEL_BUILD_CONFIG=common/build.config.gki.aarch64
+  else
+    GKI_KERNEL_OUT_DIR=android12-5.10
+    GKI_KERNEL_BUILD_CONFIG=aosp/build.config.gki.aarch64
+  fi
 fi
 
-if [ "${EXPERIMENTAL_BUILD}" != "0" ]; then
-  KERNEL_OUT_DIR=android12-5.10-staging
-  KERNEL_BUILD_CONFIG=common/build.config.gki.aarch64
-else
-  KERNEL_OUT_DIR=android12-5.10
-  KERNEL_BUILD_CONFIG=aosp/build.config.gki.aarch64
+if [ "${LTO}" = "none" ]; then
+  echo "LTO=none requires disabling KMI_SYMBOL_STRICT_MODE. Setting to 0..."
+  KMI_SYMBOL_LIST_STRICT_MODE=0
 fi
 
 if [ -n "${BUILD_ABI}" ]; then
@@ -80,19 +50,16 @@ if [ -n "${BUILD_ABI}" ]; then
   exit_if_error 1 "BUILD_ABI is deprecated"
 fi
 
-if [ -n "${BUILD_CONFIG}" ]; then
-  exit_if_error 1 "BUILD_CONFIG is not supported for $0"
-fi
-
 if [ "${BUILD_KERNEL}" = "0" ]; then
-  if [ "${EXPERIMENTAL_BUILD}" != "0" -o -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
-    echo "BUILD_KERNEL=0 is incompatible with EXPERIMENTAL_BUILD=1 and"
-    echo "  GKI_DEFCONFIG_FRAGMENT."
-    exit_if_error 1 "Flags incompatible with BUILD_KERNEL=0 detected"
-  elif [ "${LTO}" = "none" ]; then
+  if [ "${LTO}" = "none" ]; then
     echo "LTO=none requires BUILD_KERNEL=1, EXPERIMENTAL_BUILD=1, or"
     echo "  GKI_DEFCONFIG_FRAGMENT to be set."
     exit_if_error 1 "LTO=none requires building the kernel"
+  elif [ -n "${GKI_DEFCONFIG_FRAGMENT}" -o \
+            "${EXPERIMENTAL_BUILD}" != "0" ]; then
+    echo "BUILD_KERNEL=0 is incompatible with EXPERIMENTAL_BUILD and"
+    echo "  GKI_DEFCONFIG_FRAGMENT."
+    exit_if_error 1 "Flags incompatible with BUILD_KERNEL detected"
   fi
 fi
 
@@ -103,7 +70,7 @@ if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
     # Booting AOSP ToT does not always work; throw a warning to prevent this.
     LOCAL_MERGE_BASE=$(git merge-base HEAD aosp/android12-5.10)
     if [ -n "${LOCAL_MERGE_BASE}" -a \
-	    "${MANIFEST_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
+            "${MANIFEST_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
       echo "Your aosp/ directory appears to be synced to a point beyond the"
       echo "  latest AOSP merge point. This is not supported, currently, as"
       echo "  it is prone to errors. Please base any changes on the latest"
@@ -113,19 +80,26 @@ if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
   popd > /dev/null
 fi
 
-if [ "${BUILD_KERNEL}" != "0" -o "${EXPERIMENTAL_BUILD}" != "0" ]; then
-  build_gki
-else
-  copy_gki_prebuilts
-fi
-build_pixel
+# These are for build.sh, so they should be exported.
+export LTO
+export KMI_SYMBOL_LIST_STRICT_MODE
+export TRIM_NONLISTED_KMI
+export BASE_OUT=${OUT_DIR:-out}/mixed/
+export DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
+
+DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
+  GKI_KERNEL_BUILD_CONFIG=${GKI_KERNEL_BUILD_CONFIG} \
+  GKI_KERNEL_OUT_DIR=${GKI_KERNEL_OUT_DIR} \
+  GKI_KERNEL_PREBUILTS_DIR=${GKI_KERNEL_PREBUILTS_DIR} \
+  GKI_DEFCONFIG_FRAGMENT=${GKI_DEFCONFIG_FRAGMENT} \
+  ./build_mixed.sh
 
 # If BUILD_KERNEL is not explicitly set, be sure that there are no aosp/
 # changes not present in the prebuilt.
 if [ "${CHECK_DIRTY_AOSP}" != "0" ]; then
-  PREBUILTS_SHA=$(strings ${GKI_PREBUILTS_DIR}/vmlinux |
-		      grep "Linux version 5.10" |
-		      sed -n "s/^.*-g\([0-9a-f]\{12\}\)-.*/\1/p")
+  PREBUILTS_SHA=$(strings ${GKI_KERNEL_PREBUILTS_DIR}/vmlinux |
+                     grep "Linux version 5.10" |
+                     sed -n "s/^.*-g\([0-9a-f]\{12\}\)-.*/\1/p")
   pushd aosp/ > /dev/null
     # The AOSP sha can sometimes be longer than 12 characters; fix its length.
     AOSP_SHA=$(git log -1 --abbrev=12 --pretty="format:%h")
