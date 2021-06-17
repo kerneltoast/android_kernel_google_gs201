@@ -23,7 +23,7 @@
 
 	hardlockup-debugger {
 		compatible = "google,hardlockup-debug";
-		use_multistage_wdt_irq = <798>;
+		use_multistage_wdt_irq = <830>; /* IRQ_WDT_CLUSTER1_MISC + 32 */
 	};
 
 	hardlockup-watchdog {
