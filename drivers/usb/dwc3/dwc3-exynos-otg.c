@@ -801,6 +801,27 @@ static struct dwc3_exynos *exynos_dwusb_get_struct(void)
 	return NULL;
 }
 
+int dwc3_otg_host_enable(bool enabled)
+{
+	struct dwc3_exynos *exynos;
+	struct otg_fsm  *fsm;
+
+	exynos = exynos_dwusb_get_struct();
+	if (!exynos) {
+		pr_err("%s: error exynos_dwusb_get_struct\n", __func__);
+		return -ENODEV;
+	}
+
+	fsm = &exynos->dotg->fsm;
+	fsm->id = !enabled;
+
+	dev_dbg(exynos->dev, "%s: %s host\n", __func__, enabled ? "enable" : "disable");
+	dwc3_otg_run_sm(fsm);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dwc3_otg_host_enable);
+
 u32 dwc3_otg_is_connect(void)
 {
 	struct dwc3_exynos *exynos;
