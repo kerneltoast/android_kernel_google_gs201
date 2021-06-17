@@ -2465,8 +2465,10 @@ retry:
 			break;
 		count++;
 	}
-	if (count >= 1000)
-		dev_err(dev, "OC failed\n");
+	if (count >= 1000) {
+		dev_err(dev, "OC failed - Dump Registers.\n");
+		exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
+	}
 
 	dev_info(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
 			exynos_phy_read(exynos_pcie, 0x760),
