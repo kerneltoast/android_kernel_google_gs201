@@ -1,20 +1,20 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  *
- * gs101_tmu.h - Samsung GS101 TMU (Thermal Management Unit)
+ * gs_tmu.h - Samsung GS TMU (Thermal Management Unit)
  *
  *  Copyright (C) 2019 Samsung Electronics
  *  Hyeonseong Gil <hs.gill@samsung.com>
  */
 
-#ifndef _GS101_TMU_H
-#define _GS101_TMU_H
+#ifndef _GS_TMU_H
+#define _GS_TMU_H
 #include <linux/kthread.h>
 #include <soc/google/exynos_pm_qos.h>
 #include <soc/google/exynos-cpuhp.h>
 
 #define MCELSIUS        1000
 
-struct gs101_pi_param {
+struct gs_pi_param {
 	s64 err_integral;
 	int trip_switch_on;
 	int trip_control_temp;
@@ -33,7 +33,7 @@ struct gs101_pi_param {
 };
 
 /**
- * struct gs101_tmu_data : A structure to hold the private data of the TMU
+ * struct gs_tmu_data : A structure to hold the private data of the TMU
 	driver
  * @id: identifier of the one instance of the TMU controller.
  * @base: base address of the single instance of the TMU controller.
@@ -50,7 +50,7 @@ struct gs101_pi_param {
  * @tmu_set_emulation: SoC specific TMU emulation setting method
  * @tmu_clear_irqs: SoC specific TMU interrupts clearing method
  */
-struct gs101_tmu_data {
+struct gs_tmu_data {
 	int id;
 	/* Throttle hotplug related variables */
 	bool pause_enable;
@@ -88,7 +88,7 @@ struct gs101_tmu_data {
 	struct kthread_work hotplug_work;
 	struct kthread_work cpu_hw_throttle_work;
 	struct kthread_delayed_work cpu_hw_throttle_init_work;
-	struct mutex lock;			/* lock to protect gs101 tmu */
+	struct mutex lock;			/* lock to protect gs tmu */
 	struct thermal_zone_device *tzd;
 	struct gs101_bcl_dev *bcl_dev;
 	unsigned int ntrip;
@@ -104,7 +104,7 @@ struct gs101_tmu_data {
 	int temperature;
 	bool use_pi_thermal;
 	struct kthread_delayed_work pi_work;
-	struct gs101_pi_param *pi_param;
+	struct gs_pi_param *pi_param;
 	struct cpumask pause_cpus;
 	struct cpumask hotplug_cpus;
 	struct cpumask tmu_work_affinity;
@@ -189,4 +189,4 @@ struct thermal_zone_data {
 	u16 sensor_cnt;
 };
 
-#endif /* _GS101_TMU_H */
+#endif /* _GS_TMU_H */

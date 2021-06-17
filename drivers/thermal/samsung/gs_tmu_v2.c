@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * gs101_tmu_v2.c - Samsung GS101 TMU (Thermal Management Unit)
+ * gs_tmu_v2.c - Samsung GS TMU (Thermal Management Unit)
  *
  *  Copyright (C) 2019 Samsung Electronics
  *  Hyeonseong Gil <hs.gil@samsung.com>
@@ -31,7 +31,7 @@
 #include <soc/google/exynos-mcinfo.h>
 #endif
 
-#include "gs101_tmu.h"
+#include "gs_tmu.h"
 #include "../thermal_core.h"
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 #include "exynos_acpm_tmu.h"
@@ -136,7 +136,7 @@ static inline s64 div_frac(s64 x, s64 y)
 	return div_s64(x << FRAC_BITS, y);
 }
 
-static atomic_t gs101_tmu_in_suspend;
+static atomic_t gs_tmu_in_suspend;
 
 static struct acpm_tmu_cap cap;
 static unsigned int num_of_devices, suspended_count;
@@ -203,7 +203,7 @@ unlock:
 	spin_unlock(&stats->lock);
 }
 
-static int gs101_tmu_tz_config_init(struct platform_device *pdev)
+static int gs_tmu_tz_config_init(struct platform_device *pdev)
 {
 	struct thermal_zone_data *tz_config_p;
 	u16 cnt;
@@ -232,7 +232,7 @@ static int gs101_tmu_tz_config_init(struct platform_device *pdev)
 	return 0;
 }
 
-static bool has_tz_pending_irq(struct gs101_tmu_data *pdata)
+static bool has_tz_pending_irq(struct gs_tmu_data *pdata)
 {
 	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
 	u32 val;
@@ -249,7 +249,7 @@ static bool has_tz_pending_irq(struct gs101_tmu_data *pdata)
 	return false;
 }
 
-static void gs101_report_trigger(struct gs101_tmu_data *p)
+static void gs_report_trigger(struct gs_tmu_data *p)
 {
 	struct thermal_zone_device *tz = p->tzd;
 
@@ -261,9 +261,9 @@ static void gs101_report_trigger(struct gs101_tmu_data *p)
 	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 }
 
-static int gs101_tmu_initialize(struct platform_device *pdev)
+static int gs_tmu_initialize(struct platform_device *pdev)
 {
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tz = data->tzd;
 	enum thermal_trip_type type;
 	int i, temp, ret = 0;
@@ -301,7 +301,7 @@ static int gs101_tmu_initialize(struct platform_device *pdev)
 		hysteresis[i] = (unsigned char)(temp / MCELSIUS);
 	}
 
-	ret = gs101_tmu_tz_config_init(pdev);
+	ret = gs_tmu_tz_config_init(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize tmu tz config\n");
 		goto out;
@@ -317,9 +317,9 @@ out:
 	return ret;
 }
 
-static void gs101_tmu_control(struct platform_device *pdev, bool on)
+static void gs_tmu_control(struct platform_device *pdev, bool on)
 {
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	mutex_lock(&data->lock);
 	exynos_acpm_tmu_tz_control(data->id, on);
@@ -329,9 +329,9 @@ static void gs101_tmu_control(struct platform_device *pdev, bool on)
 
 #define MCINFO_LOG_THRESHOLD	(4)
 
-static int gs101_get_temp(void *p, int *temp)
+static int gs_get_temp(void *p, int *temp)
 {
-	struct gs101_tmu_data *data = p;
+	struct gs_tmu_data *data = p;
 #if IS_ENABLED(CONFIG_EXYNOS_MCINFO)
 	unsigned int mcinfo_count;
 	unsigned int mcinfo_result[4] = {0, 0, 0, 0};
@@ -417,9 +417,9 @@ static int gs101_get_temp(void *p, int *temp)
 	return 0;
 }
 
-static int gs101_get_trend(void *p, int trip, enum thermal_trend *trend)
+static int gs_get_trend(void *p, int trip, enum thermal_trend *trend)
 {
-	struct gs101_tmu_data *data = p;
+	struct gs_tmu_data *data = p;
 	struct thermal_zone_device *tz = data->tzd;
 	int trip_temp, ret = 0;
 
@@ -442,9 +442,9 @@ static int gs101_get_trend(void *p, int trip, enum thermal_trend *trend)
 	return 0;
 }
 
-static int gs1010_tmu_set_trip_temp(void *drv_data, int trip, int temp)
+static int gs_tmu_set_trip_temp(void *drv_data, int trip, int temp)
 {
-	struct gs101_tmu_data *data = drv_data;
+	struct gs_tmu_data *data = drv_data;
 	struct thermal_zone_device *tz = data->tzd;
 	enum thermal_trip_type type;
 	int i, trip_temp, ret = 0;
@@ -491,9 +491,9 @@ static int gs1010_tmu_set_trip_temp(void *drv_data, int trip, int temp)
 }
 
 #if IS_ENABLED(CONFIG_THERMAL_EMULATION)
-static int gs101_tmu_set_emulation(void *drv_data, int temp)
+static int gs_tmu_set_emulation(void *drv_data, int temp)
 {
-	struct gs101_tmu_data *data = drv_data;
+	struct gs_tmu_data *data = drv_data;
 	int ret = -EINVAL;
 	unsigned char emul_temp;
 
@@ -509,22 +509,22 @@ out:
 	return ret;
 }
 #else
-static int gs101_tmu_set_emulation(void *drv_data, int temp)
+static int gs_tmu_set_emulation(void *drv_data, int temp)
 {
 	return -EINVAL;
 }
 #endif /* CONFIG_THERMAL_EMULATION */
 
-static void start_pi_polling(struct gs101_tmu_data *data, int delay)
+static void start_pi_polling(struct gs_tmu_data *data, int delay)
 {
 	kthread_mod_delayed_work(&data->thermal_worker, &data->pi_work,
 				 msecs_to_jiffies(delay));
 }
 
-static void reset_pi_trips(struct gs101_tmu_data *data)
+static void reset_pi_trips(struct gs_tmu_data *data)
 {
 	struct thermal_zone_device *tz = data->tzd;
-	struct gs101_pi_param *params = data->pi_param;
+	struct gs_pi_param *params = data->pi_param;
 	int i, last_active, last_passive;
 	bool found_first_passive;
 
@@ -570,14 +570,14 @@ static void reset_pi_trips(struct gs101_tmu_data *data)
 	}
 }
 
-static void reset_pi_params(struct gs101_tmu_data *data)
+static void reset_pi_params(struct gs_tmu_data *data)
 {
 	s64 i = int_to_frac(data->pi_param->i_max);
 
 	data->pi_param->err_integral = div_frac(i, data->pi_param->k_i);
 }
 
-static void allow_maximum_power(struct gs101_tmu_data *data)
+static void allow_maximum_power(struct gs_tmu_data *data)
 {
 	struct thermal_instance *instance;
 	struct thermal_zone_device *tz = data->tzd;
@@ -607,11 +607,11 @@ static void allow_maximum_power(struct gs101_tmu_data *data)
 	mutex_lock(&data->lock);
 }
 
-static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
+static u32 pi_calculate(struct gs_tmu_data *data, int control_temp,
 			u32 max_allocatable_power)
 {
 	struct thermal_zone_device *tz = data->tzd;
-	struct gs101_pi_param *params = data->pi_param;
+	struct gs_pi_param *params = data->pi_param;
 	s64 p, i, power_range;
 	s32 err, max_power_frac;
 
@@ -661,10 +661,10 @@ static u32 pi_calculate(struct gs101_tmu_data *data, int control_temp,
 	return power_range;
 }
 
-static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
+static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 {
 	struct thermal_zone_device *tz = data->tzd;
-	struct gs101_pi_param *params = data->pi_param;
+	struct gs_pi_param *params = data->pi_param;
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev;
 	int ret = 0;
@@ -720,14 +720,14 @@ static int gs101_pi_controller(struct gs101_tmu_data *data, int control_temp)
 	return ret;
 }
 
-static void gs101_pi_thermal(struct gs101_tmu_data *data)
+static void gs_pi_thermal(struct gs_tmu_data *data)
 {
 	struct thermal_zone_device *tz = data->tzd;
-	struct gs101_pi_param *params = data->pi_param;
+	struct gs_pi_param *params = data->pi_param;
 	int ret = 0;
 	int switch_on_temp, control_temp, delay;
 
-	if (atomic_read(&gs101_tmu_in_suspend))
+	if (atomic_read(&gs_tmu_in_suspend))
 		return;
 
 	if (tz) {
@@ -763,7 +763,7 @@ static void gs101_pi_thermal(struct gs101_tmu_data *data)
 		goto polling;
 	}
 
-	ret = gs101_pi_controller(data, control_temp);
+	ret = gs_pi_controller(data, control_temp);
 
 	if (ret) {
 		pr_debug("Failed to calculate pi controller: %d\n",
@@ -783,21 +783,21 @@ polling:
 	mutex_unlock(&data->lock);
 }
 
-static void gs101_pi_polling(struct kthread_work *work)
+static void gs_pi_polling(struct kthread_work *work)
 {
-	struct gs101_tmu_data *data =
-			container_of(work, struct gs101_tmu_data, pi_work.work);
+	struct gs_tmu_data *data =
+			container_of(work, struct gs_tmu_data, pi_work.work);
 
-	gs101_pi_thermal(data);
+	gs_pi_thermal(data);
 }
 
-static void gs101_tmu_work(struct kthread_work *work)
+static void gs_tmu_work(struct kthread_work *work)
 {
-	struct gs101_tmu_data *data = container_of(work,
-			struct gs101_tmu_data, irq_work);
+	struct gs_tmu_data *data = container_of(work,
+			struct gs_tmu_data, irq_work);
 	struct thermal_zone_device *tz = data->tzd;
 
-	gs101_report_trigger(data);
+	gs_report_trigger(data);
 	mutex_lock(&data->lock);
 
 	exynos_acpm_tmu_clear_tz_irq(data->id);
@@ -808,14 +808,14 @@ static void gs101_tmu_work(struct kthread_work *work)
 	mutex_unlock(&data->lock);
 
 	if (data->use_pi_thermal)
-			gs101_pi_thermal(data);
+		gs_pi_thermal(data);
 
 	enable_irq(data->irq);
 }
 
-static irqreturn_t gs101_tmu_irq(int irq, void *id)
+static irqreturn_t gs_tmu_irq(int irq, void *id)
 {
-	struct gs101_tmu_data *data = id;
+	struct gs_tmu_data *data = id;
 
 	disable_irq_nosync(irq);
 	if (has_tz_pending_irq(data)) {
@@ -830,8 +830,8 @@ irq_handler_exit:
 
 static void init_bcl_dev(struct kthread_work *work)
 {
-	struct gs101_tmu_data *data = container_of(work,
-						   struct gs101_tmu_data,
+	struct gs_tmu_data *data = container_of(work,
+						   struct gs_tmu_data,
 						   cpu_hw_throttle_init_work.work);
 	int ret = 0;
 
@@ -873,10 +873,10 @@ init_exit:
 	mutex_unlock(&data->lock);
 }
 
-static void gs101_throttle_arm(struct kthread_work *work)
+static void gs_throttle_arm(struct kthread_work *work)
 {
-	struct gs101_tmu_data *data = container_of(work,
-						   struct gs101_tmu_data, cpu_hw_throttle_work);
+	struct gs_tmu_data *data = container_of(work,
+						   struct gs_tmu_data, cpu_hw_throttle_work);
 
 	int ret = 0;
 
@@ -944,10 +944,10 @@ unlock:
 	mutex_unlock(&data->lock);
 }
 
-static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
+static void gs_throttle_cpu_hotplug(struct kthread_work *work)
 {
-	struct gs101_tmu_data *data = container_of(work,
-						   struct gs101_tmu_data, hotplug_work);
+	struct gs_tmu_data *data = container_of(work,
+						   struct gs_tmu_data, hotplug_work);
 	struct cpumask mask;
 
 	mutex_lock(&data->lock);
@@ -961,7 +961,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			if (exynos_cpuhp_request(data->cpuhp_name, *cpu_possible_mask)) {
 				// queue the work again in case failure
 				// also do not queue again when prepare to suspend
-				if (!atomic_read(&gs101_tmu_in_suspend))
+				if (!atomic_read(&gs_tmu_in_suspend))
 					kthread_queue_work(&data->pause_worker,
 							   &data->hotplug_work);
 			} else {
@@ -978,7 +978,7 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 			if (exynos_cpuhp_request(data->cpuhp_name, mask)) {
 				// queue the work again in case of failure
 				// also do not queue again when prepare to suspend
-				if (!atomic_read(&gs101_tmu_in_suspend))
+				if (!atomic_read(&gs_tmu_in_suspend))
 					kthread_queue_work(&data->pause_worker,
 							   &data->hotplug_work);
 			} else {
@@ -991,10 +991,10 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 	mutex_unlock(&data->lock);
 }
 
-static void gs101_throttle_cpu_pause(struct kthread_work *work)
+static void gs_throttle_cpu_pause(struct kthread_work *work)
 {
-	struct gs101_tmu_data *data = container_of(work,
-						   struct gs101_tmu_data, cpu_pause_work);
+	struct gs_tmu_data *data = container_of(work,
+						   struct gs_tmu_data, cpu_pause_work);
 	struct cpumask mask;
 
 	mutex_lock(&data->lock);
@@ -1005,7 +1005,7 @@ static void gs101_throttle_cpu_pause(struct kthread_work *work)
 			if (resume_cpus(&mask)) {
 				// queue the work again in case failure
 				// also do not queue again when prepare to suspend
-				if (!atomic_read(&gs101_tmu_in_suspend))
+				if (!atomic_read(&gs_tmu_in_suspend))
 					kthread_queue_work(&data->pause_worker,
 							   &data->cpu_pause_work);
 			} else {
@@ -1019,7 +1019,7 @@ static void gs101_throttle_cpu_pause(struct kthread_work *work)
 			if (pause_cpus(&mask)) {
 				// queue the work again in case of failure
 				// also do not queue again when prepare to suspend
-				if (!atomic_read(&gs101_tmu_in_suspend))
+				if (!atomic_read(&gs_tmu_in_suspend))
 					kthread_queue_work(&data->pause_worker,
 							   &data->cpu_pause_work);
 			} else {
@@ -1036,10 +1036,10 @@ static void gs101_throttle_cpu_pause(struct kthread_work *work)
 	mutex_unlock(&data->lock);
 }
 
-static void gs101_throttle_hard_limit(struct kthread_work *work)
+static void gs_throttle_hard_limit(struct kthread_work *work)
 {
-	struct gs101_tmu_data *data = container_of(work,
-						   struct gs101_tmu_data, hardlimit_work);
+	struct gs_tmu_data *data = container_of(work,
+						   struct gs_tmu_data, hardlimit_work);
 	struct thermal_zone_device *tz = data->tzd;
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev = NULL;
@@ -1137,16 +1137,16 @@ err_exit:
 	mutex_unlock(&data->lock);
 }
 
-static int gs101_tmu_pm_notify(struct notifier_block *nb,
-			       unsigned long mode, void *_unused)
+static int gs_tmu_pm_notify(struct notifier_block *nb,
+			    unsigned long mode, void *_unused)
 {
-	struct gs101_tmu_data *data;
+	struct gs_tmu_data *data;
 
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_RESTORE_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		atomic_set(&gs101_tmu_in_suspend, 1);
+		atomic_set(&gs_tmu_in_suspend, 1);
 		list_for_each_entry(data, &dtm_dev_list, node) {
 			if (data->use_pi_thermal)
 				kthread_cancel_delayed_work_sync(&data->pi_work);
@@ -1155,7 +1155,7 @@ static int gs101_tmu_pm_notify(struct notifier_block *nb,
 	case PM_POST_HIBERNATION:
 	case PM_POST_RESTORE:
 	case PM_POST_SUSPEND:
-		atomic_set(&gs101_tmu_in_suspend, 0);
+		atomic_set(&gs_tmu_in_suspend, 0);
 		list_for_each_entry(data, &dtm_dev_list, node) {
 			if (data->use_pi_thermal)
 				start_pi_polling(data, 0);
@@ -1167,19 +1167,20 @@ static int gs101_tmu_pm_notify(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block gs101_tmu_pm_nb = {
-	.notifier_call = gs101_tmu_pm_notify,
+static struct notifier_block gs_tmu_pm_nb = {
+	.notifier_call = gs_tmu_pm_notify,
 };
 
-static const struct of_device_id gs101_tmu_match[] = {
+static const struct of_device_id gs_tmu_match[] = {
 	{ .compatible = "samsung,gs101-tmu-v2", },
+	{ .compatible = "samsung,gs201-tmu-v2", },
 	{ /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, gs101_tmu_match);
+MODULE_DEVICE_TABLE(of, gs_tmu_match);
 
-static int gs101_tmu_irq_work_init(struct platform_device *pdev)
+static int gs_tmu_irq_work_init(struct platform_device *pdev)
 {
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct cpumask mask;
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 4 - 1 };
 	struct task_struct *thread;
@@ -1205,7 +1206,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 		return ret;
 	}
 
-	kthread_init_work(&data->irq_work, gs101_tmu_work);
+	kthread_init_work(&data->irq_work, gs_tmu_work);
 
 	wake_up_process(thread);
 
@@ -1213,11 +1214,11 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 		if (data->hotplug_enable) {
 			scnprintf(data->cpuhp_name, CPUHP_USER_NAME_LEN, "DTM_%s", data->tmu_name);
 			exynos_cpuhp_register(data->cpuhp_name, *cpu_online_mask);
-			kthread_init_work(&data->hotplug_work, gs101_throttle_cpu_hotplug);
+			kthread_init_work(&data->hotplug_work, gs_throttle_cpu_hotplug);
 		}
 
 		if (data->pause_enable) {
-			kthread_init_work(&data->cpu_pause_work, gs101_throttle_cpu_pause);
+			kthread_init_work(&data->cpu_pause_work, gs_throttle_cpu_pause);
 		}
 
 		kthread_init_worker(&data->pause_worker);
@@ -1238,7 +1239,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	}
 
 	if (data->cpu_hw_throttling_enable) {
-		kthread_init_work(&data->cpu_hw_throttle_work, gs101_throttle_arm);
+		kthread_init_work(&data->cpu_hw_throttle_work, gs_throttle_arm);
 		kthread_init_worker(&data->cpu_hw_throttle_worker);
 
 		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_hw_throttle", data->tmu_name);
@@ -1263,7 +1264,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	}
 
 	if (data->hardlimit_enable) {
-		kthread_init_work(&data->hardlimit_work, gs101_throttle_hard_limit);
+		kthread_init_work(&data->hardlimit_work, gs_throttle_hard_limit);
 		kthread_init_worker(&data->hardlimit_worker);
 
 		scnprintf(kworker_name, CPUHP_USER_NAME_LEN, "%s_hardlimit", data->tmu_name);
@@ -1284,9 +1285,9 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 	return ret;
 }
 
-static int gs101_map_dt_data(struct platform_device *pdev)
+static int gs_map_dt_data(struct platform_device *pdev)
 {
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct resource res;
 	const char *tmu_name, *buf;
 	int ret;
@@ -1428,7 +1429,7 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 		cpulist_parse(buf, &data->tmu_work_affinity);
 
 	if (of_property_read_bool(pdev->dev.of_node, "use-pi-thermal")) {
-		struct gs101_pi_param *params;
+		struct gs_pi_param *params;
 		u32 value;
 
 		data->use_pi_thermal = true;
@@ -1495,11 +1496,11 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct thermal_zone_of_device_ops gs101_sensor_ops = {
-	.get_temp = gs101_get_temp,
-	.set_emul_temp = gs101_tmu_set_emulation,
-	.get_trend = gs101_get_trend,
-	.set_trip_temp = gs1010_tmu_set_trip_temp,
+static const struct thermal_zone_of_device_ops gs_sensor_ops = {
+	.get_temp = gs_get_temp,
+	.set_emul_temp = gs_tmu_set_emulation,
+	.get_trend = gs_get_trend,
+	.set_trip_temp = gs_tmu_set_trip_temp,
 };
 
 static ssize_t
@@ -1507,7 +1508,7 @@ cpu_hw_throttling_trigger_temp_show(struct device *dev, struct device_attribute 
 				 char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", data->cpu_hw_throttling_trigger_threshold);
 }
@@ -1517,7 +1518,7 @@ cpu_hw_throttling_trigger_temp_store(struct device *dev, struct device_attribute
 				  const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	int cpu_hw_throttling_trigger = 0;
 
 	mutex_lock(&data->lock);
@@ -1539,7 +1540,7 @@ cpu_hw_throttling_clr_temp_show(struct device *dev, struct device_attribute *dev
 						 char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", data->cpu_hw_throttling_clr_threshold);
 }
@@ -1549,7 +1550,7 @@ cpu_hw_throttling_clr_temp_store(struct device *dev, struct device_attribute *de
 			      const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	int cpu_hw_throttling_clear = 0;
 
 	mutex_lock(&data->lock);
@@ -1571,7 +1572,7 @@ hotplug_out_temp_show(struct device *dev, struct device_attribute *devattr,
 		      char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", data->hotplug_out_threshold);
 }
@@ -1581,7 +1582,7 @@ hotplug_out_temp_store(struct device *dev, struct device_attribute *devattr,
 		       const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	int hotplug_out = 0;
 
 	mutex_lock(&data->lock);
@@ -1603,7 +1604,7 @@ hotplug_in_temp_show(struct device *dev, struct device_attribute *devattr,
 		     char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", data->hotplug_in_threshold);
 }
@@ -1613,7 +1614,7 @@ hotplug_in_temp_store(struct device *dev, struct device_attribute *devattr,
 		      const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	int hotplug_in = 0;
 
 	mutex_lock(&data->lock);
@@ -1635,7 +1636,7 @@ hardlimit_temp_show(struct device *dev, struct device_attribute *devattr,
 			    char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", data->hardlimit_threshold);
 }
@@ -1645,7 +1646,7 @@ hardlimit_temp_store(struct device *dev, struct device_attribute *devattr,
 			     const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	int hardlimit_throttling_trigger = 0;
 
 	mutex_lock(&data->lock);
@@ -1667,7 +1668,7 @@ hardlimit_clr_temp_show(struct device *dev, struct device_attribute *devattr,
 			     char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", data->hardlimit_clr_threshold);
 }
@@ -1677,7 +1678,7 @@ hardlimit_clr_temp_store(struct device *dev, struct device_attribute *devattr,
 			      const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	int hardlimit_clr_threshold = 0;
 
 	mutex_lock(&data->lock);
@@ -1699,7 +1700,7 @@ pause_cpus_temp_show(struct device *dev, struct device_attribute *devattr,
 			    char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", data->pause_threshold);
 }
@@ -1709,7 +1710,7 @@ pause_cpus_temp_store(struct device *dev, struct device_attribute *devattr,
 			     const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	int pause_throttling_trigger = 0;
 
 	mutex_lock(&data->lock);
@@ -1731,7 +1732,7 @@ resume_cpus_temp_show(struct device *dev, struct device_attribute *devattr,
 			     char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", data->resume_threshold);
 }
@@ -1741,7 +1742,7 @@ resume_cpus_temp_store(struct device *dev, struct device_attribute *devattr,
 			      const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	int resume_threshold = 0;
 
 	mutex_lock(&data->lock);
@@ -1763,7 +1764,7 @@ sustainable_power_show(struct device *dev, struct device_attribute *devattr,
 		       char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	if (data->pi_param)
 		return sprintf(buf, "%u\n", data->pi_param->sustainable_power);
@@ -1776,7 +1777,7 @@ sustainable_power_store(struct device *dev, struct device_attribute *devattr,
 			const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	u32 sustainable_power;
 
 	if (!data->pi_param)
@@ -1795,7 +1796,7 @@ polling_delay_on_show(struct device *dev, struct device_attribute *devattr,
 		       char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	if (data->pi_param)
 		return sprintf(buf, "%u\n", data->pi_param->polling_delay_on);
@@ -1808,7 +1809,7 @@ polling_delay_on_store(struct device *dev, struct device_attribute *devattr,
 			const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	u32 polling_delay_on;
 
 	if (!data->pi_param)
@@ -1839,7 +1840,7 @@ polling_delay_off_show(struct device *dev, struct device_attribute *devattr,
 		       char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	if (data->pi_param)
 		return sprintf(buf, "%u\n", data->pi_param->polling_delay_off);
@@ -1852,7 +1853,7 @@ polling_delay_off_store(struct device *dev, struct device_attribute *devattr,
 			const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	u32 polling_delay_off;
 
 	if (!data->pi_param)
@@ -1883,7 +1884,7 @@ hardlimit_total_count_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct throttling_stats *stats = data->hardlimit_stats;
 	int ret = 0;
 
@@ -1904,7 +1905,7 @@ hardlimit_time_in_state_ms_show(struct device *dev, struct device_attribute *att
 				char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct throttling_stats *stats = data->hardlimit_stats;
 	ssize_t len = 0;
 	int i;
@@ -1929,7 +1930,7 @@ hardlimit_reset_store(struct device *dev, struct device_attribute *attr, const c
 		      size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct throttling_stats *stats = data->hardlimit_stats;
 	int i;
 
@@ -1953,7 +1954,7 @@ cpu_disable_total_count_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct throttling_stats *stats = data->disable_stats;
 	int ret = 0;
 
@@ -1972,7 +1973,7 @@ cpu_disable_time_in_state_ms_show(struct device *dev, struct device_attribute *a
 				  char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct throttling_stats *stats = data->disable_stats;
 	ssize_t len = 0;
 	int i;
@@ -1997,7 +1998,7 @@ cpu_disable_reset_store(struct device *dev, struct device_attribute *attr, const
 			size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct throttling_stats *stats = data->disable_stats;
 	int i;
 
@@ -2022,7 +2023,7 @@ cpu_disable_reset_store(struct device *dev, struct device_attribute *attr, const
 		    char *buf)							\
 	{									\
 	struct platform_device *pdev = to_platform_device(dev);			\
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);		\
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);		\
 										\
 	if (data->pi_param)							\
 		return sprintf(buf, "%d\n", data->pi_param->name);		\
@@ -2035,7 +2036,7 @@ cpu_disable_reset_store(struct device *dev, struct device_attribute *attr, const
 		     const char *buf, size_t count)				\
 	{									\
 		struct platform_device *pdev = to_platform_device(dev);		\
-		struct gs101_tmu_data *data = platform_get_drvdata(pdev);	\
+		struct gs_tmu_data *data = platform_get_drvdata(pdev);	\
 		s32 value;							\
 										\
 		if (!data->pi_param)						\
@@ -2073,7 +2074,7 @@ create_s32_param_attr(k_i);
 create_s32_param_attr(i_max);
 create_s32_param_attr(integral_cutoff);
 
-static struct attribute *gs101_tmu_attrs[] = {
+static struct attribute *gs_tmu_attrs[] = {
 	&dev_attr_pause_cpus_temp.attr,
 	&dev_attr_resume_cpus_temp.attr,
 	&dev_attr_hardlimit_temp.attr,
@@ -2099,11 +2100,11 @@ static struct attribute *gs101_tmu_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group gs101_tmu_attr_group = {
-	.attrs = gs101_tmu_attrs,
+static const struct attribute_group gs_tmu_attr_group = {
+	.attrs = gs_tmu_attrs,
 };
 
-static void hard_limit_stats_setup(struct gs101_tmu_data *data)
+static void hard_limit_stats_setup(struct gs_tmu_data *data)
 {
 	struct throttling_stats *stats;
 	int var;
@@ -2124,7 +2125,7 @@ static void hard_limit_stats_setup(struct gs101_tmu_data *data)
 	spin_lock_init(&stats->lock);
 }
 
-static void cpu_disable_stats_setup(struct gs101_tmu_data *data)
+static void cpu_disable_stats_setup(struct gs_tmu_data *data)
 {
 	struct throttling_stats *stats;
 	int var;
@@ -2147,7 +2148,7 @@ static void cpu_disable_stats_setup(struct gs101_tmu_data *data)
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 static void exynos_acpm_tmu_test_cp_call(bool mode)
 {
-	struct gs101_tmu_data *devnode;
+	struct gs_tmu_data *devnode;
 
 	if (mode) {
 		list_for_each_entry(devnode, &dtm_dev_list, node) {
@@ -2248,11 +2249,11 @@ static const struct file_operations ipc_dump2_fops = {
 
 static struct dentry *debugfs_root;
 
-static int gs101_thermal_create_debugfs(void)
+static int gs_thermal_create_debugfs(void)
 {
-	debugfs_root = debugfs_create_dir("gs101-thermal", NULL);
+	debugfs_root = debugfs_create_dir("gs-thermal", NULL);
 	if (!debugfs_root) {
-		pr_err("Failed to create gs101 thermal debugfs\n");
+		pr_err("Failed to create gs thermal debugfs\n");
 		return 0;
 	}
 
@@ -2268,7 +2269,7 @@ static int gs101_thermal_create_debugfs(void)
 #define PARAM_NAME_LENGTH	25
 
 #if IS_ENABLED(CONFIG_ECT)
-static int gs101_tmu_ect_get_param(struct ect_pidtm_block *pidtm_block, char *name)
+static int gs_tmu_ect_get_param(struct ect_pidtm_block *pidtm_block, char *name)
 {
 	int i;
 	int param_value = -1;
@@ -2283,7 +2284,7 @@ static int gs101_tmu_ect_get_param(struct ect_pidtm_block *pidtm_block, char *na
 	return param_value;
 }
 
-static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
+static int gs_tmu_parse_ect(struct gs_tmu_data *data)
 {
 	struct thermal_zone_device *tz = data->tzd;
 	int ntrips = 0;
@@ -2359,7 +2360,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 	} else {
 		void *block;
 		struct ect_pidtm_block *pidtm_block;
-		struct gs101_pi_param *params;
+		struct gs_pi_param *params;
 		int i, temperature, value;
 		int hotplug_out_threshold = 0, hotplug_in_threshold = 0, limited_frequency = 0;
 		int limited_threshold = 0, limited_threshold_release = 0;
@@ -2392,7 +2393,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 
 		params = data->pi_param;
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "k_po");
+		value = gs_tmu_ect_get_param(pidtm_block, "k_po");
 		if (value != -1) {
 			pr_info("Parse from ECT k_po: %d\n", value);
 			params->k_po = int_to_frac(value);
@@ -2400,7 +2401,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			pr_err("Fail to parse k_po parameter\n");
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "k_pu");
+		value = gs_tmu_ect_get_param(pidtm_block, "k_pu");
 		if (value != -1) {
 			pr_info("Parse from ECT k_pu: %d\n", value);
 			params->k_pu = int_to_frac(value);
@@ -2408,7 +2409,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			pr_err("Fail to parse k_pu parameter\n");
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "k_i");
+		value = gs_tmu_ect_get_param(pidtm_block, "k_i");
 		if (value != -1) {
 			pr_info("Parse from ECT k_i: %d\n", value);
 			params->k_i = int_to_frac(value);
@@ -2416,7 +2417,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			pr_err("Fail to parse k_i parameter\n");
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "i_max");
+		value = gs_tmu_ect_get_param(pidtm_block, "i_max");
 		if (value != -1) {
 			pr_info("Parse from ECT i_max: %d\n", value);
 			params->i_max = value;
@@ -2424,7 +2425,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			pr_err("Fail to parse i_max parameter\n");
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "integral_cutoff");
+		value = gs_tmu_ect_get_param(pidtm_block, "integral_cutoff");
 		if (value != -1) {
 			pr_info("Parse from ECT integral_cutoff: %d\n", value);
 			params->integral_cutoff = value;
@@ -2432,7 +2433,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			pr_err("Fail to parse integral_cutoff parameter\n");
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "p_control_t");
+		value = gs_tmu_ect_get_param(pidtm_block, "p_control_t");
 		if (value != -1) {
 			pr_info("Parse from ECT p_control_t: %d\n", value);
 			params->sustainable_power = value;
@@ -2440,25 +2441,25 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			pr_err("Fail to parse p_control_t parameter\n");
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "hotplug_out_threshold");
+		value = gs_tmu_ect_get_param(pidtm_block, "hotplug_out_threshold");
 		if (value != -1) {
 			pr_info("Parse from ECT hotplug_out_threshold: %d\n", value);
 			hotplug_out_threshold = value;
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "hotplug_in_threshold");
+		value = gs_tmu_ect_get_param(pidtm_block, "hotplug_in_threshold");
 		if (value != -1) {
 			pr_info("Parse from ECT hotplug_in_threshold: %d\n", value);
 			hotplug_in_threshold = value;
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "limited_frequency");
+		value = gs_tmu_ect_get_param(pidtm_block, "limited_frequency");
 		if (value != -1) {
 			pr_info("Parse from ECT limited_frequency: %d\n", value);
 			limited_frequency = value;
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "limited_threshold");
+		value = gs_tmu_ect_get_param(pidtm_block, "limited_threshold");
 		if (value != -1) {
 			pr_info("Parse from ECT limited_threshold: %d\n", value);
 			limited_threshold = value * MCELSIUS;
@@ -2466,7 +2467,7 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 			data->limited_threshold = value;
 		}
 
-		value = gs101_tmu_ect_get_param(pidtm_block, "limited_threshold_release");
+		value = gs_tmu_ect_get_param(pidtm_block, "limited_threshold_release");
 		if (value != -1) {
 			pr_info("Parse from ECT limited_threshold_release: %d\n", value);
 			limited_threshold_release = value * MCELSIUS;
@@ -2491,24 +2492,24 @@ static int gs101_tmu_parse_ect(struct gs101_tmu_data *data)
 #endif
 
 #if IS_ENABLED(CONFIG_MALI_DEBUG_KERNEL_SYSFS)
-struct gs101_tmu_data *gpu_thermal_data;
+struct gs_tmu_data *gpu_thermal_data;
 #endif
 
 extern void register_tz_id_ignore_genl(int tz_id);
 
-static int gs101_tmu_probe(struct platform_device *pdev)
+static int gs_tmu_probe(struct platform_device *pdev)
 {
-	struct gs101_tmu_data *data;
+	struct gs_tmu_data *data;
 	int ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct gs101_tmu_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct gs_tmu_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, data);
 	mutex_init(&data->lock);
 
-	ret = gs101_map_dt_data(pdev);
+	ret = gs_map_dt_data(pdev);
 	if (ret)
 		goto err_sensor;
 
@@ -2519,7 +2520,7 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 #endif
 	}
 
-	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data, &gs101_sensor_ops);
+	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data, &gs_sensor_ops);
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
 		dev_err(&pdev->dev, "Failed to register sensor: %d\n", ret);
@@ -2530,7 +2531,7 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 
 #if IS_ENABLED(CONFIG_ECT)
 	if (!of_property_read_bool(pdev->dev.of_node, "ect_nouse"))
-		gs101_tmu_parse_ect(data);
+		gs_tmu_parse_ect(data);
 
 	if (data->limited_frequency) {
 		exynos_pm_qos_add_request(&data->thermal_limit_request,
@@ -2539,29 +2540,29 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	}
 #endif
 
-	ret = gs101_tmu_initialize(pdev);
+	ret = gs_tmu_initialize(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize TMU\n");
 		goto err_thermal;
 	}
 
-	ret = devm_request_irq(&pdev->dev, data->irq, gs101_tmu_irq,
+	ret = devm_request_irq(&pdev->dev, data->irq, gs_tmu_irq,
 			       IRQF_SHARED, dev_name(&pdev->dev), data);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
 		goto err_thermal;
 	}
 
-	ret = gs101_tmu_irq_work_init(pdev);
+	ret = gs_tmu_irq_work_init(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot gs101 interrupt work initialize\n");
+		dev_err(&pdev->dev, "cannot gs interrupt work initialize\n");
 		goto err_thermal;
 	}
 
 	if (data->use_pi_thermal)
-		kthread_init_delayed_work(&data->pi_work, gs101_pi_polling);
+		kthread_init_delayed_work(&data->pi_work, gs_pi_polling);
 
-	gs101_tmu_control(pdev, true);
+	gs_tmu_control(pdev, true);
 
 	if (data->hotplug_enable || data->pause_enable)
 		cpu_disable_stats_setup(data);
@@ -2569,9 +2570,9 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	if (data->hardlimit_enable)
 		hard_limit_stats_setup(data);
 
-	ret = sysfs_create_group(&pdev->dev.kobj, &gs101_tmu_attr_group);
+	ret = sysfs_create_group(&pdev->dev.kobj, &gs_tmu_attr_group);
 	if (ret)
-		dev_err(&pdev->dev, "cannot create gs101 tmu attr group");
+		dev_err(&pdev->dev, "cannot create gs tmu attr group");
 
 	mutex_lock(&data->lock);
 	list_add_tail(&data->node, &dtm_dev_list);
@@ -2587,8 +2588,8 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	thermal_zone_device_enable(data->tzd);
 
 	if (list_is_singular(&dtm_dev_list)) {
-		gs101_thermal_create_debugfs();
-		register_pm_notifier(&gs101_tmu_pm_nb);
+		gs_thermal_create_debugfs();
+		register_pm_notifier(&gs_tmu_pm_nb);
 	}
 
 #if IS_ENABLED(CONFIG_MALI_DEBUG_KERNEL_SYSFS)
@@ -2610,14 +2611,14 @@ err_sensor:
 	return ret;
 }
 
-static int gs101_tmu_remove(struct platform_device *pdev)
+static int gs_tmu_remove(struct platform_device *pdev)
 {
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tzd = data->tzd;
-	struct gs101_tmu_data *devnode;
+	struct gs_tmu_data *devnode;
 
 	thermal_zone_of_sensor_unregister(&pdev->dev, tzd);
-	gs101_tmu_control(pdev, false);
+	gs_tmu_control(pdev, false);
 
 	mutex_lock(&data->lock);
 	list_for_each_entry(devnode, &dtm_dev_list, node) {
@@ -2633,11 +2634,11 @@ static int gs101_tmu_remove(struct platform_device *pdev)
 }
 
 #if IS_ENABLED(CONFIG_PM_SLEEP)
-static int gs101_tmu_suspend(struct device *dev)
+static int gs_tmu_suspend(struct device *dev)
 {
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 	struct platform_device *pdev = to_platform_device(dev);
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 
 	suspended_count++;
 	disable_irq(data->irq);
@@ -2648,7 +2649,7 @@ static int gs101_tmu_suspend(struct device *dev)
 		kthread_flush_work(&data->cpu_pause_work);
 	kthread_flush_work(&data->irq_work);
 
-	gs101_tmu_control(pdev, false);
+	gs_tmu_control(pdev, false);
 	if (suspended_count == num_of_devices) {
 		exynos_acpm_tmu_set_suspend(false);
 		pr_info("%s: TMU suspend\n", __func__);
@@ -2657,18 +2658,18 @@ static int gs101_tmu_suspend(struct device *dev)
 	return 0;
 }
 
-static int gs101_tmu_resume(struct device *dev)
+static int gs_tmu_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
-	struct gs101_tmu_data *data = platform_get_drvdata(pdev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct cpumask mask;
 	int temp, stat;
 
 	if (suspended_count == num_of_devices)
 		exynos_acpm_tmu_set_resume();
 
-	gs101_tmu_control(pdev, true);
+	gs_tmu_control(pdev, true);
 
 	exynos_acpm_tmu_set_read_temp(data->id, &temp, &stat);
 
@@ -2688,27 +2689,27 @@ static int gs101_tmu_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(gs101_tmu_pm,
-			 gs101_tmu_suspend, gs101_tmu_resume);
-#define EXYNOS_TMU_PM	(&gs101_tmu_pm)
+static SIMPLE_DEV_PM_OPS(gs_tmu_pm,
+			 gs_tmu_suspend, gs_tmu_resume);
+#define EXYNOS_TMU_PM	(&gs_tmu_pm)
 #else
 #define EXYNOS_TMU_PM	NULL
 #endif
 
-static struct platform_driver gs101_tmu_driver = {
+static struct platform_driver gs_tmu_driver = {
 	.driver = {
-		.name   = "gs101-tmu",
+		.name   = "gs-tmu",
 		.pm     = EXYNOS_TMU_PM,
-		.of_match_table = gs101_tmu_match,
+		.of_match_table = gs_tmu_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe = gs101_tmu_probe,
-	.remove	= gs101_tmu_remove,
+	.probe = gs_tmu_probe,
+	.remove	= gs_tmu_remove,
 };
 
-module_platform_driver(gs101_tmu_driver);
+module_platform_driver(gs_tmu_driver);
 
-MODULE_DESCRIPTION("GS101 TMU Driver");
+MODULE_DESCRIPTION("GS TMU Driver");
 MODULE_AUTHOR("Hyeonseong Gil <hs.gil@samsung.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:gs101-tmu");
+MODULE_ALIAS("platform:gs-tmu");
