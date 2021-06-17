@@ -7,3 +7,4 @@
 
 #include "gs201-cloudripper-common.dtsi"
 #include "gs201-ravenclaw-display.dtsi"
+#include "gs201-ravenclaw-touch.dtsi"
