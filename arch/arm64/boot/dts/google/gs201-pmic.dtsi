@@ -123,6 +123,12 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x1>;
+				schematic-name = "S1M_VDD_MIF";
+				subsys-name = "MIF";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x1>;
 			};
 
 			m_buck2_reg: BUCK2M {
@@ -131,6 +137,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x2>;
+				schematic-name = "S2M_VDD_CPUCL2";
+				subsys-name = "CPU(BIG)";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck3_reg: BUCK3M {
@@ -139,6 +152,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x3>;
+				schematic-name = "S3M_VDD_CPUCL1";
+				subsys-name = "CPU(MID)";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x4>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck4_reg: BUCK4M {
@@ -147,6 +167,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x4>;
+				schematic-name = "S4M_VDD_CPUCL0";
+				subsys-name = "CPU(LITTLE)";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x8>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck5_reg: BUCK5M {
@@ -155,6 +182,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x5>;
+				schematic-name = "S5M_VDD_INT";
+				subsys-name = "INT";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x10>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck6_reg: BUCK6M {
@@ -163,6 +197,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x6>;
+				schematic-name = "S6M_LLDO1";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x20>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck7_reg: BUCK7M {
@@ -171,6 +212,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x7>;
+				schematic-name = "S7M_VDD_INT";
+				subsys-name = "INT";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x40>;
+				odpm_disable_in_sleep;
 			};
 
 			m_buck8_reg: BUCK8M {
@@ -179,6 +227,12 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x8>;
+				schematic-name = "S8M_LLDO2";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x80>;
 			};
 
 			m_buck9_reg: BUCK9M {
@@ -187,6 +241,12 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x9>;
+				schematic-name = "S9M_LLDO3";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x1>;
 			};
 
 			m_buck10_reg: BUCK10M {
@@ -195,6 +255,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0xA>;
+				schematic-name = "S10M_VDD_TPU";
+				subsys-name = "TPU";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
 			};
 
 			m_ldo1_reg: LDO1M {
@@ -203,6 +270,9 @@
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x21>;
+				schematic-name = "L1M_VDD_ALIVE";
+				subsys-name = "Alive";
 			};
 
 			m_ldo2_reg: LDO2M {
@@ -211,6 +281,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x22>;
+				schematic-name = "L2M_PERI";
+				subsys-name = "Peri";
 			};
 
 			m_ldo3_reg: LDO3M {
@@ -219,6 +292,9 @@
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x23>;
+				schematic-name = "L3M_VDD_AOC_RET";
+				subsys-name = "AOC";
 			};
 
 			m_ldo4_reg: LDO4M {
@@ -227,6 +303,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x24>;
+				schematic-name = "L4M_HSI";
+				subsys-name = "IO";
 			};
 
 			m_ldo5_reg: LDO5M {
@@ -235,6 +314,9 @@
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x25>;
+				schematic-name = "L5M_TCXO";
+				subsys-name = "PLL";
 			};
 
 			m_ldo6_reg: LDO6M {
@@ -243,6 +325,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x26>;
+				schematic-name = "L6M_PLL";
+				subsys-name = "PLL";
 			};
 
 			m_ldo7_reg: LDO7M {
@@ -251,6 +336,9 @@
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x27>;
+				schematic-name = "L7M_VDD_HSI";
+				subsys-name = "IO";
 			};
 
 			m_ldo8_reg: LDO8M {
@@ -259,6 +347,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				regulator-always-on;
+				channel-mux-selection = <0x28>;
+				schematic-name = "L8M_USB";
+				subsys-name = "USB";
 			};
 
 			m_ldo9_reg: LDO9M {
@@ -267,6 +358,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				regulator-always-on;
+				channel-mux-selection = <0x29>;
+				schematic-name = "L9M_USB";
+				subsys-name = "USB";
 			};
 
 			m_ldo10_reg: LDO10M {
@@ -275,6 +369,9 @@
 				regulator-max-microvolt = <3350000>;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				regulator-always-on;
+				channel-mux-selection = <0x2A>;
+				schematic-name = "L10M_USB";
+				subsys-name = "USB";
 			};
 
 			m_ldo11_reg: LDO11M {
@@ -283,6 +380,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2B>;
+				schematic-name = "L11M_VDD_CPUCL1_M";
+				subsys-name = "CPU(MID)";
 			};
 
 			m_ldo12_reg: LDO12M {
@@ -291,6 +391,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2C>;
+				schematic-name = "L12M_VDD_CPUCL0_M";
+				subsys-name = "CPU(LITTLE)";
 			};
 
 			m_ldo13_reg: LDO13M {
@@ -299,6 +402,9 @@
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2D>;
+				schematic-name = "L13M_VDD_TPU_M";
+				subsys-name = "TPU";
 			};
 
 			m_ldo14_reg: LDO14M {
@@ -307,6 +413,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2E>;
+				schematic-name = "L14M_TCXO";
+				subsys-name = "PLL";
 			};
 
 			m_ldo15_reg: LDO15M {
@@ -315,13 +424,20 @@
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2F>;
+				schematic-name = "L15M_VDD_SLC_M";
+				subsys-name = "SLC";
 			};
 
 			m_ldo16_reg: LDO16M {
 				regulator-name = "S2MPG12_LDO16";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x30>;
+				schematic-name = "L16M_PCIE0";
+				subsys-name = "PCIE";
 			};
 
 			m_ldo17_reg: LDO17M {
@@ -330,6 +446,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x31>;
+				schematic-name = "L17M_VDD_CPUCL2_M";
+				subsys-name = "";
 			};
 
 			m_ldo18_reg: LDO18M {
@@ -337,6 +456,9 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x32>;
+				schematic-name = "L18M_PCIE0";
+				subsys-name = "PCIE";
 			};
 
 			m_ldo19_reg: LDO19M {
@@ -345,6 +467,9 @@
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x33>;
+				schematic-name = "L19M_SPARE";
+				subsys-name = "Spare";
 			};
 
 			m_ldo20_reg: LDO20M {
@@ -353,6 +478,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x34>;
+				schematic-name = "L20M_DMIC1";
+				subsys-name = "DMIC";
 			};
 
 			m_ldo21_reg: LDO21M {
@@ -361,6 +489,9 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x35>;
+				schematic-name = "L21M_GSC";
+				subsys-name = "GSC";
 			};
 
 			m_ldo22_reg: LDO22M {
@@ -369,6 +500,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x36>;
+				schematic-name = "L22M_SPARE";
+				subsys-name = "Spare";
 			};
 
 			m_ldo23_reg: LDO23M {
@@ -377,6 +511,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x37>;
+				schematic-name = "L23M_DMIC2";
+				subsys-name = "DMIC";
 			};
 
 			m_ldo24_reg: LDO24M {
@@ -385,6 +522,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x38>;
+				schematic-name = "L24M_DISP";
+				subsys-name = "Display";
 			};
 
 			m_ldo25_reg: LDO25M {
@@ -393,6 +533,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x39>;
+				schematic-name = "L25M_TSP_DVDD";
+				subsys-name = "TSP";
 			};
 
 			m_ldo26_reg: LDO26M {
@@ -401,6 +544,9 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3A>;
+				schematic-name = "L26M_TS_AVDD";
+				subsys-name = "TS";
 			};
 
 			m_ldo27_reg: LDO27M {
@@ -409,6 +555,9 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3B>;
+				schematic-name = "L27M_DISP";
+				subsys-name = "Display";
 			};
 
 			m_ldo28_reg: LDO28M {
@@ -417,101 +566,124 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3C>;
+				schematic-name = "L28M_DISP";
+				subsys-name = "Display";
 			};
 		};
 
-//		odpm {
-//			chip-name = "S2MPG12";
-//			sample-rate-uhz = <500000000>;
-//			sample-rate-external-uhz = <30512500>;
-//
-//			/* 15 minutes was selected as the spec
-//			 * for the maximum sample rate (1ksps)
-//			 *
-//			 * Note, this can be verified based on the
-//			 * number of bits in the ACC registers.
-//			 * ACC_COUNT is 21 bits. Thus,
-//			 * 2^21 - 1 = 1048575 ==> 1048.575 seconds
-//			 * ==> 17.47625 minutes
-//			 */
-//			max-refresh-time-ms = <(15 * 60 * 1000)>;
-//
-//			channels {
-//				ch1: channel@0 {
-//					rail-name = "VSEN_C1";
-//					channel_enabled;
-//				};
-//
-//				ch2: channel@1 {
-//					rail-name = "VSEN_C2";
-//					channel_enabled;
-//				};
-//
-//				ch3: channel@2 {
-//					rail-name = "VSEN_C3";
-//					channel_enabled;
-//				};
-//
-//				ch4: channel@3 {
-//					rail-name = "BUCK2M";
-//					channel_enabled;
-//				};
-//
-//				ch5: channel@4 {
-//					rail-name = "BUCK3M";
-//					channel_enabled;
-//				};
-//
-//				ch6: channel@5 {
-//					rail-name = "BUCK4M";
-//					channel_enabled;
-//				};
-//
-//				ch7: channel@6 {
-//					rail-name = "BUCK5M";
-//					channel_enabled;
-//				};
-//
-//				ch8: channel@7 {
-//					rail-name = "BUCK1M";
-//					channel_enabled;
-//				};
-//			};
-//
-//			rails {
-//				use-regulators-as-rails;
-//
-//				/* Additional rails */
-//				/* Note; VSEN_P is not supported */
-//
-//				m_ext4_rail: VSEN_C1 {
-//					external_rail;
-//					channel-en-index = <1>;
-//					channel-mux-selection = <0x5C>;
-//					shunt-res-uohms = <10000>;
-//					schematic-name = "PPVAR_VSYS_PWR_DISP";
-//					subsys-name = "Display";
-//				};
-//
-//				m_ext5_rail: VSEN_C2 {
-//					external_rail;
-//					channel-en-index = <2>;
-//					channel-mux-selection = <0x5D>;
-//					shunt-res-uohms = <5000>;
-//					schematic-name = "VSYS_PWR_MODEM";
-//					subsys-name = "Modem";
-//				};
-//
-//				m_ext6_rail: VSEN_C3 {
-//					external_rail;
-//					channel-en-index = <4>;
-//					channel-mux-selection = <0x5E>;
-//					shunt-res-uohms = <5000>;
-//					schematic-name = "VSYS_PWR_RFFE";
-//					subsys-name = "Cellular";
-//				};
-//			};
-//		};
+		odpm {
+			chip-name = "S2MPG12";
+			sample-rate-uhz = <125000000>;
+			sample-rate-external-uhz = <30512500>;
+
+			/* 15 minutes was selected as the spec
+			 * for the maximum sample rate (1ksps)
+			 *
+			 * Note, this can be verified based on the
+			 * number of bits in the ACC registers.
+			 * ACC_COUNT is 21 bits. Thus,
+			 * 2^21 - 1 = 1048575 ==> 1048.575 seconds
+			 * ==> 17.47625 minutes
+			 */
+			max-refresh-time-ms = <(15 * 60 * 1000)>;
+
+			channels {
+				ch1: channel@0 {
+					rail-name = "VSEN_C1";
+					channel_enabled;
+				};
+
+				ch2: channel@1 {
+					rail-name = "VSEN_C2";
+					channel_enabled;
+				};
+
+				ch3: channel@2 {
+					rail-name = "VSEN_C3";
+					channel_enabled;
+				};
+
+				ch4: channel@3 {
+					rail-name = "BUCK1M";
+					channel_enabled;
+				};
+
+				ch5: channel@4 {
+					rail-name = "BUCK2M";
+					channel_enabled;
+				};
+
+				ch6: channel@5 {
+					rail-name = "BUCK3M";
+					channel_enabled;
+				};
+
+				ch7: channel@6 {
+					rail-name = "BUCK4M";
+					channel_enabled;
+				};
+
+				ch8: channel@7 {
+					rail-name = "BUCK5M";
+					channel_enabled;
+				};
+
+				ch9: channel@8 {
+					rail-name = "BUCK6M";
+					channel_enabled;
+				};
+
+				ch10: channel@9 {
+					rail-name = "BUCK7M";
+					channel_enabled;
+				};
+
+				ch11: channel@10 {
+					rail-name = "BUCK10M";
+					channel_enabled;
+				};
+
+				ch12: channel@11 {
+					rail-name = "LDO1M";
+					channel_enabled;
+				};
+			};
+
+			rails {
+				use-regulators-as-rails;
+
+				/* Additional rails */
+				/* Note; VSEN_P is not supported */
+
+				m_ext4_rail: VSEN_C1 {
+					external_rail;
+					channel-en-index = <1>;
+					channel-mux-selection = <0x5C>;
+					shunt-res-uohms = <10000>;
+					schematic-name = "PPVAR_VSYS_PWR_DISP";
+					subsys-name = "Display";
+				};
+
+				m_ext5_rail: VSEN_C2 {
+					external_rail;
+					channel-en-index = <2>;
+					channel-mux-selection = <0x5D>;
+					shunt-res-uohms = <5000>;
+					schematic-name = "VSYS_PWR_MODEM";
+					subsys-name = "Modem";
+				};
+
+				m_ext6_rail: VSEN_C3 {
+					external_rail;
+					channel-en-index = <4>;
+					channel-mux-selection = <0x5E>;
+					shunt-res-uohms = <5000>;
+					schematic-name = "VSYS_PWR_RFFE";
+					subsys-name = "Cellular";
+				};
+			};
+		};
 
 		s2mpg12_gpio: s2mpg12_gpio {
 			gpio-controller;
@@ -562,6 +734,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x1>;
+				schematic-name = "S1S_VDD_CAM";
+				subsys-name = "Multimedia";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x1>;
+				odpm_disable_in_sleep;
 			};
 
 			s_buck2_reg: BUCK2S {
@@ -570,6 +749,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2>;
+				schematic-name = "S2S_VDD_G3D";
+				subsys-name = "GPU";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
 			};
 
 			s_buck3_reg: BUCK3S {
@@ -578,6 +764,12 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3>;
+				schematic-name = "S3S_LLDO1";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x4>;
 			};
 
 			s_buck4_reg: BUCK4S {
@@ -586,6 +778,12 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x4>;
+				schematic-name = "S4S_VDD2H_MEM";
+				subsys-name = "DDR";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x8>;
 			};
 
 			s_buck5_reg: BUCK5S {
@@ -594,6 +792,12 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x5>;
+				schematic-name = "S5S_VDDQ_MEM";
+				subsys-name = "DDR";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x10>;
 			};
 
 			s_buck6_reg: BUCK6S {
@@ -602,6 +806,12 @@
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x6>;
+				schematic-name = "S6S_LLDO4";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x20>;
 			};
 
 			s_buck7_reg: BUCK7S {
@@ -610,6 +820,12 @@
 				regulator-max-microvolt = <2200000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x7>;
+				schematic-name = "S7S_MLDO";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x40>;
 			};
 
 			s_buck8_reg: BUCK8S {
@@ -618,6 +834,13 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x8>;
+				schematic-name = "S8S_VDD_G3D_L2";
+				subsys-name = "GPU";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x80>;
+				odpm_disable_in_sleep;
 			};
 
 			s_buck9_reg: BUCK9S {
@@ -626,6 +849,12 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x9>;
+				schematic-name = "S9S_VDD_AOC";
+				subsys-name = "AOC";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x1>;
 			};
 
 			s_buck10_reg: BUCK10S {
@@ -634,6 +863,12 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0xA>;
+				schematic-name = "S10S_VDD2L";
+				subsys-name = "DDR";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x2>;
 			};
 
 			s_bucka_reg: BUCKA {
@@ -642,6 +877,12 @@
 				regulator-max-microvolt = <2100000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0xC>;
+				schematic-name = "SA";
+				subsys-name = "IO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x8>;
 			};
 
 			s_buckboost_reg: BUCKBOOST {
@@ -650,6 +891,12 @@
 				regulator-max-microvolt = <3600000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x10>;
+				schematic-name = "BB_HLDO";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x10>;
 			};
 
 			s_buckc_reg: BUCKC {
@@ -658,6 +905,12 @@
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0xD>;
+				schematic-name = "VDD_BUCKC";
+				subsys-name = "IO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x8>;
 			};
 
 			s_buckd_reg: BUCKD {
@@ -666,6 +919,12 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0xB>;
+				schematic-name = "VDD_BUCKD";
+				subsys-name = "IO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x4>;
 			};
 
 			s_ldo1_reg: LDO1S {
@@ -674,6 +933,9 @@
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x21>;
+				schematic-name = "L1S_VDD_G3D_M";
+				subsys-name = "GPU";
 			};
 
 			s_ldo2_reg: LDO2S {
@@ -682,6 +944,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x22>;
+				schematic-name = "L2S_PLL";
+				subsys-name = "PLL";
 			};
 
 			s_ldo3_reg: LDO3S {
@@ -690,6 +955,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x23>;
+				schematic-name = "L3S_PCIE1";
+				subsys-name = "PCIE";
 			};
 
 			s_ldo4_reg: LDO4S {
@@ -698,6 +966,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x24>;
+				schematic-name = "L4S_HS_AMP";
+				subsys-name = "Audio";
 			};
 
 			s_ldo5_reg: LDO5S {
@@ -706,6 +977,9 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x25>;
+				schematic-name = "L5S_PROX";
+				subsys-name = "Prox";
 			};
 
 			s_ldo6_reg: LDO6S {
@@ -714,6 +988,9 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x26>;
+				schematic-name = "L6S_DISP2_VCI";
+				subsys-name = "Display";
 			};
 
 			s_ldo7_reg: LDO7S {
@@ -722,6 +999,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x27>;
+				schematic-name = "L7S_SENSORS";
+				subsys-name = "Sensors";
 			};
 
 			s_ldo8_reg: LDO8S {
@@ -730,6 +1010,9 @@
 				regulator-max-microvolt = <1275000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x28>;
+				schematic-name = "L8S_UFS_VCCQ";
+				subsys-name = "UFS";
 			};
 
 			s_ldo9_reg: LDO9S {
@@ -738,6 +1021,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x29>;
+				schematic-name = "L9S_GNSS_CORE";
+				subsys-name = "GPS";
 			};
 
 			s_ldo10_reg: LDO10S {
@@ -746,6 +1032,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2A>;
+				schematic-name = "L10S_GNSS_RF";
+				subsys-name = "GPS";
 			};
 
 			s_ldo11_reg: LDO11S {
@@ -754,6 +1043,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2B>;
+				schematic-name = "L11S_GNSS_AUX";
+				subsys-name = "GPS";
 			};
 
 			s_ldo12_reg: LDO12S {
@@ -762,6 +1054,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2C>;
+				schematic-name = "L12S_TS2_DVDD";
+				subsys-name = "Touch";
 			};
 
 			s_ldo13_reg: LDO13S {
@@ -770,6 +1065,9 @@
 				regulator-max-microvolt = <3350000>;
 				regulator-always-on;
 				regulator-initial-mode = <1>;
+				channel-mux-selection = <0x2D>;
+				schematic-name = "L13S_DPAUX";
+				subsys-name = "Display";
 			};
 
 			s_ldo14_reg: LDO14S {
@@ -778,6 +1076,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2E>;
+				schematic-name = "L14S_NFC";
+				subsys-name = "NFC";
 			};
 
 			s_ldo15_reg: LDO15S {
@@ -786,6 +1087,9 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2F>;
+				schematic-name = "L15S_FPS";
+				subsys-name = "FPS";
 			};
 
 			s_ldo16_reg: LDO16S {
@@ -794,6 +1098,9 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x30>;
+				schematic-name = "L16S_UWB";
+				subsys-name = "UWB";
 			};
 
 			s_ldo17_reg: LDO17S {
@@ -802,6 +1109,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x31>;
+				schematic-name = "L17S_UWB";
+				subsys-name = "UWB";
 			};
 
 			s_ldo18_reg: LDO18S {
@@ -810,6 +1120,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x32>;
+				schematic-name = "L18S_PCIE1";
+				subsys-name = "PCIE";
 			};
 
 			s_ldo19_reg: LDO19S {
@@ -818,6 +1131,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x33>;
+				schematic-name = "L19S_DMIC3";
+				subsys-name = "DMIC";
 			};
 
 			s_ldo20_reg: LDO20S {
@@ -826,6 +1142,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x34>;
+				schematic-name = "L20S_DMIC45";
+				subsys-name = "DMIC";
 			};
 
 			s_ldo21_reg: LDO21S {
@@ -834,6 +1153,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x35>;
+				schematic-name = "";
+				subsys-name = "";
 			};
 
 			s_ldo22_reg: LDO22S {
@@ -842,6 +1164,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x36>;
+				schematic-name = "L21S_VDD2L_MEM";
+				subsys-name = "MEM";
 			};
 
 			s_ldo23_reg: LDO23S {
@@ -850,6 +1175,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x37>;
+				schematic-name = "L23S_SPARE";
+				subsys-name = "Spare";
 			};
 
 			s_ldo24_reg: LDO24S {
@@ -858,6 +1186,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x38>;
+				schematic-name = "L24S_SPARE";
+				subsys-name = "Spare";
 			};
 
 			s_ldo25_reg: LDO25S {
@@ -866,6 +1197,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x39>;
+				schematic-name = "L25S_SPARE";
+				subsys-name = "Spare";
 			};
 
 			s_ldo26_reg: LDO26S {
@@ -874,6 +1208,9 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3A>;
+				schematic-name = "26S_S5910";
+				subsys-name = "S5910";
 			};
 
 			s_ldo27_reg: LDO27S {
@@ -882,6 +1219,9 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3B>;
+				schematic-name = "27S_S5910";
+				subsys-name = "S5910";
 			};
 
 			s_ldo28_reg: LDO28S {
@@ -890,101 +1230,124 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3C>;
+				schematic-name = "L28S_HS_AMP";
+				subsys-name = "Audio";
 			};
 		};
 
-//		odpm {
-//			chip-name = "S2MPG13";
-//			sample-rate-uhz = <500000000>;
-//			sample-rate-external-uhz = <30512500>;
-//
-//			/* 15 minutes was selected as the spec
-//			 * for the maximum sample rate (1ksps)
-//			 *
-//			 * Note, this can be verified based on the
-//			 * number of bits in the ACC registers.
-//			 * ACC_COUNT is 21 bits. Thus,
-//			 * 2^21 - 1 = 1048575 ==> 1048.575 seconds
-//			 * ==> 17.47625 minutes
-//			 */
-//			max-refresh-time-ms = <(15 * 60 * 1000)>;
-//
-//			channels {
-//				ch9: channel@0 {
-//					rail-name = "VSEN_C4";
-//					channel_enabled;
-//				};
-//
-//				ch10: channel@1 {
-//					rail-name = "LDO2S";
-//					channel_enabled;
-//				};
-//
-//				ch11: channel@2 {
-//					rail-name = "BUCK9S";
-//					channel_enabled;
-//				};
-//
-//				ch12: channel@3 {
-//					rail-name = "BUCK5S";
-//					channel_enabled;
-//				};
-//
-//				ch13: channel@4 {
-//					rail-name = "BUCK10S";
-//					channel_enabled;
-//				};
-//
-//				ch14: channel@5 {
-//					rail-name = "BUCK4S";
-//					channel_enabled;
-//				};
-//
-//				ch15: channel@6 {
-//					rail-name = "BUCK2S";
-//					channel_enabled;
-//				};
-//
-//				ch16: channel@7 {
-//					rail-name = "LDO9S";
-//					channel_enabled;
-//				};
-//			};
-//
-//			rails {
-//				use-regulators-as-rails;
-//
-//				/* Additional rails */
-//				/* Note; VSEN_P is not supported */
-//
-//				s_ext4_rail: VSEN_C4 {
-//					external_rail;
-//					channel-en-index = <1>;
-//					channel-mux-selection = <0x5C>;
-//					shunt-res-uohms = <10000>;
-//					schematic-name = "VSYS_PWR_WLAN_BT";
-//					subsys-name = "WLAN-BT";
-//				};
-//
-//				s_ext5_rail: VSEN_C5 {
-//					external_rail;
-//					channel-en-index = <2>;
-//					channel-mux-selection = <0x5D>;
-//					shunt-res-uohms = <5000>;
-//					schematic-name = "P5_GRAS";
-//					subsys-name = "Spare";
-//				};
-//
-//				s_ext6_rail: VSEN_C6 {
-//					external_rail;
-//					channel-en-index = <4>;
-//					channel-mux-selection = <0x5E>;
-//					shunt-res-uohms = <5000>;
-//					schematic-name = "P6_GRAS";
-//					subsys-name = "Cellular";
-//				};
-//			};
-//		};
+		odpm {
+			chip-name = "S2MPG13";
+			sample-rate-uhz = <125000000>;
+			sample-rate-external-uhz = <30512500>;
+
+			/* 15 minutes was selected as the spec
+			 * for the maximum sample rate (1ksps)
+			 *
+			 * Note, this can be verified based on the
+			 * number of bits in the ACC registers.
+			 * ACC_COUNT is 21 bits. Thus,
+			 * 2^21 - 1 = 1048575 ==> 1048.575 seconds
+			 * ==> 17.47625 minutes
+			 */
+			max-refresh-time-ms = <(15 * 60 * 1000)>;
+
+			channels {
+				ch13: channel@0 {
+					rail-name = "BUCK1S";
+					channel_enabled;
+				};
+
+				ch14: channel@1 {
+					rail-name = "BUCK2S";
+					channel_enabled;
+				};
+
+				ch15: channel@2 {
+					rail-name = "BUCK3S";
+					channel_enabled;
+				};
+
+				ch16: channel@3 {
+					rail-name = "BUCK4S";
+					channel_enabled;
+				};
+
+				ch17: channel@4 {
+					rail-name = "BUCK5S";
+					channel_enabled;
+				};
+
+				ch18: channel@5 {
+					rail-name = "BUCK6S";
+					channel_enabled;
+				};
+
+				ch19: channel@6 {
+					rail-name = "BUCK7S";
+					channel_enabled;
+				};
+
+				ch20: channel@7 {
+					rail-name = "BUCK8S";
+					channel_enabled;
+				};
+
+				ch21: channel@8 {
+					rail-name = "BUCK9S";
+					channel_enabled;
+				};
+
+				ch22: channel@9 {
+					rail-name = "BUCK10S";
+					channel_enabled;
+				};
+
+				ch23: channel@10 {
+					rail-name = "LDO9S";
+					channel_enabled;
+				};
+
+				ch24: channel@11 {
+					rail-name = "LDO22S";
+					channel_enabled;
+				};
+			};
+
+			rails {
+				use-regulators-as-rails;
+
+				/* Additional rails */
+				/* Note; VSEN_P is not supported */
+
+				s_ext4_rail: VSEN_C4 {
+					external_rail;
+					channel-en-index = <1>;
+					channel-mux-selection = <0x5C>;
+					shunt-res-uohms = <10000>;
+					schematic-name = "VSYS_PWR_WLAN_BT";
+					subsys-name = "WLAN-BT";
+				};
+
+				s_ext5_rail: VSEN_C5 {
+					external_rail;
+					channel-en-index = <2>;
+					channel-mux-selection = <0x5D>;
+					shunt-res-uohms = <5000>;
+					schematic-name = "P5_GRAS";
+					subsys-name = "Spare";
+				};
+
+				s_ext6_rail: VSEN_C6 {
+					external_rail;
+					channel-en-index = <4>;
+					channel-mux-selection = <0x5E>;
+					shunt-res-uohms = <5000>;
+					schematic-name = "P6_GRAS";
+					subsys-name = "Cellular";
+				};
+			};
+		};
 
 		s2mpg13_gpio: s2mpg13_gpio {
 			gpio-controller;
