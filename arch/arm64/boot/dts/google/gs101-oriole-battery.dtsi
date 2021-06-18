@@ -23,9 +23,9 @@
 			google_battery: google,battery {
 				google,ttf-temp-idx= <2>;
 				google,ttf-adapter = <3000>;
-				google,ttf-soc-table =  <48 62 68 81 87 91  96 100>;
-				google,ttf-elap-table = <38 48 55 68 76 101 158 311>;
-				google,ttf-tier-table = <0 64 82>;
+				google,ttf-soc-table =  <51 60 74 85 88 91  95  100>;
+				google,ttf-elap-table = <41 50 65 82 99 134 204 320>;
+				google,ttf-tier-table = <0 62 73>;
 			};
 
 			google_bms {
