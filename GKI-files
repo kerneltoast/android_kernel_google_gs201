@@ -1,6 +1,5 @@
-vmlinux
 System.map
 vmlinux.symvers
 modules.builtin
 modules.builtin.modinfo
-Image.lz4
+boot-5.10-lz4.img
