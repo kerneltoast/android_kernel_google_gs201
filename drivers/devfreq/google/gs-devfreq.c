@@ -94,18 +94,6 @@ static int init_alt_notifier_list(void)
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
-static unsigned int
-ect_find_constraint_freq(struct ect_minlock_domain *ect_domain,
-			 unsigned int freq)
-{
-	unsigned int i;
-
-	for (i = 0; i < ect_domain->num_of_level; i++)
-		if (ect_domain->level[i].main_frequencies == freq)
-			break;
-
-	return ect_domain->level[i].sub_frequencies;
-}
 
 static int exynos_devfreq_dm_call(struct device *parent,
 				  unsigned long *target_freq, u32 flags)
@@ -256,116 +244,6 @@ err_out:
 	return err;
 }
 #endif
-
-static int exynos_constraint_parse(struct exynos_devfreq_data *data,
-				   unsigned int min_freq, unsigned int max_freq)
-{
-	struct device_node *np, *child;
-	u32 num_child, constraint_dm_type, constraint_type;
-	const char *devfreq_domain_name;
-	int i = 0, j, const_flag = 1;
-	void *min_block, *dvfs_block;
-	struct ect_dvfs_domain *dvfs_domain;
-	struct ect_minlock_domain *ect_domain;
-#if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
-	struct exynos_dm_freq *const_table;
-#endif
-	np = of_find_node_by_name(data->dev->of_node, "skew");
-	if (!np)
-		return 0;
-	num_child = of_get_child_count(np);
-#if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
-	data->nr_constraint = num_child;
-	data->constraint =
-		kcalloc(num_child, sizeof(struct exynos_dm_constraint *), GFP_KERNEL);
-#endif
-	if (of_property_read_string(data->dev->of_node, "devfreq_domain_name",
-				    &devfreq_domain_name))
-		return -ENODEV;
-
-	dvfs_block = ect_get_block(BLOCK_DVFS);
-	if (!dvfs_block)
-		return -ENODEV;
-
-	dvfs_domain =
-		ect_dvfs_get_domain(dvfs_block, (char *)devfreq_domain_name);
-	if (!dvfs_domain)
-		return -ENODEV;
-
-	/* Although there is not any constraint, MIF table should be sent to FVP */
-	min_block = ect_get_block(BLOCK_MINLOCK);
-	if (!min_block) {
-		dev_info(data->dev, "There is not a min block in ECT\n");
-		const_flag = 0;
-		data->nr_constraint = 0;
-	}
-
-	ect_domain =
-		ect_minlock_get_domain(min_block, (char *)devfreq_domain_name);
-	if (!ect_domain) {
-		dev_info(data->dev, "There is not a domain in min block\n");
-		const_flag = 0;
-		data->nr_constraint = 0;
-	}
-
-	for_each_available_child_of_node(np, child) {
-		int use_level = 0;
-
-		if (of_property_read_u32(child, "constraint_dm_type",
-					 &constraint_dm_type))
-			return -ENODEV;
-		if (of_property_read_u32(child, "constraint_type",
-					 &constraint_type))
-			return -ENODEV;
-#if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
-		if (const_flag) {
-			data->constraint[i] =
-				kzalloc(sizeof(struct exynos_dm_constraint),
-					GFP_KERNEL);
-			if (!data->constraint[i]) {
-				dev_err(data->dev,
-					"failed to allocate constraint\n");
-				return -ENOMEM;
-			}
-
-			const_table = kcalloc(ect_domain->num_of_level,
-					      sizeof(struct exynos_dm_freq),
-					      GFP_KERNEL);
-			if (!const_table) {
-				dev_err(data->dev,
-					"failed to allocate constraint\n");
-				kfree(data->constraint[i]);
-				return -ENOMEM;
-			}
-
-			data->constraint[i]->guidance = true;
-			data->constraint[i]->constraint_type = constraint_type;
-			data->constraint[i]->dm_constraint = constraint_dm_type;
-			data->constraint[i]->table_length =
-				ect_domain->num_of_level;
-			data->constraint[i]->freq_table = const_table;
-		}
-#endif
-		for (j = 0; j < dvfs_domain->num_of_level; j++) {
-			if (data->opp_list[j].freq > max_freq ||
-			    data->opp_list[j].freq < min_freq)
-				continue;
-
-#if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
-			if (const_flag) {
-				const_table[use_level].driver_freq =
-					data->opp_list[j].freq;
-				const_table[use_level].constraint_freq =
-					ect_find_constraint_freq(ect_domain,
-								 data->opp_list[j].freq);
-			}
-#endif
-			use_level++;
-		}
-		i++;
-	}
-	return 0;
-}
 
 static int exynos_devfreq_update_fvp(struct exynos_devfreq_data *data,
 				     u32 min_freq, u32 max_freq)
@@ -697,12 +575,6 @@ int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
 	dev_info(data->dev, "initial_freq: %uKhz, suspend_freq: %uKhz\n",
 		 data->devfreq_profile.initial_freq,
 		 data->suspend_freq);
-
-	ret = exynos_constraint_parse(data, min_freq, max_freq);
-	if (ret) {
-		dev_err(data->dev, "failed to parse constraint table\n");
-		return -EINVAL;
-	}
 
 	if (data->update_fvp)
 		exynos_devfreq_update_fvp(data, min_freq, max_freq);

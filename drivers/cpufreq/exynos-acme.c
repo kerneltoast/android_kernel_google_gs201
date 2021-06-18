@@ -663,55 +663,6 @@ EXPORT_SYMBOL_GPL(exynos_cpufreq_ready_list_add);
 /*********************************************************************
  *                      SUPPORT for DVFS MANAGER                     *
  *********************************************************************/
-static int init_constraint_table_ect(struct exynos_cpufreq_dm *dm,
-				     struct device_node *dn)
-{
-	void *block;
-	struct ect_minlock_domain *ect_domain;
-	const char *ect_name;
-	unsigned int index, c_index;
-	bool valid_row = false;
-	int ret;
-
-	ret = of_property_read_string(dn, "ect-name", &ect_name);
-	if (ret)
-		return ret;
-
-	block = ect_get_block(BLOCK_MINLOCK);
-	if (!block)
-		return -ENODEV;
-
-	ect_domain = ect_minlock_get_domain(block, (char *)ect_name);
-	if (!ect_domain)
-		return -ENODEV;
-
-	for (index = 0; index < dm->c.table_length; index++) {
-		unsigned int freq = dm->c.freq_table[index].driver_freq;
-
-		for (c_index = 0; c_index < ect_domain->num_of_level; c_index++) {
-			/* find row same as frequency */
-			if (freq == ect_domain->level[c_index].main_frequencies) {
-				dm->c.freq_table[index].constraint_freq =
-					ect_domain->level[c_index].sub_frequencies;
-				valid_row = true;
-				break;
-			}
-		}
-
-		/*
-		 * Due to higher levels of constraint_freq should not be NULL,
-		 * they should be filled with highest value of sub_frequencies
-		 * of ect until finding first(highest) domain frequency fit with
-		 * main_frequeucy of ect.
-		 */
-		if (!valid_row)
-			dm->c.freq_table[index].constraint_freq =
-				ect_domain->level[0].sub_frequencies;
-	}
-
-	return 0;
-}
-
 static void
 validate_dm_constraint_table(struct exynos_dm_freq *table, int table_size,
 			     int driver_cal_id, int constraint_cal_id)
@@ -912,14 +863,8 @@ static int init_dm(struct exynos_cpufreq_domain *domain,
 		}
 
 		/* fill constraint freq */
-		if (of_property_read_bool(iter.node, "guidance")) {
-			dm->c.guidance = true;
-			if (init_constraint_table_ect(dm, iter.node))
-				continue;
-		} else {
-			if (init_constraint_table_dt(dm, iter.node))
-				continue;
-		}
+		if (init_constraint_table_dt(dm, iter.node))
+			continue;
 
 		/* register DM constraint */
 		ret = register_exynos_dm_constraint_table(domain->dm_type, &dm->c);
