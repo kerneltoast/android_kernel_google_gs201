@@ -1948,9 +1948,8 @@ void exynos_pcie_rc_cpl_timeout_work(struct work_struct *work)
 	count = 0;
 	while (count < LNKRCVYWAIT_TIMEOUT) {
 		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-		if (val == 0x11) {/* LTSSM == 0x11 (L0) link ok */
-			dev_info(dev, "LTSSM == 0x11(L0) Link OK\n", __func__);
-
+		if (val >= 0x11 && val <= 0x14) {
+			dev_info(dev, "LTSSM == 0x%x Link OK\n", val);
 			return;
 		}
 
@@ -2623,7 +2622,7 @@ retry:
 		dev_dbg(dev, "check L0 state after link recovery\n");
 		while (count < MAX_TIMEOUT) {
 			val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-			if (val == 0x11)
+			if (val >= 0x11 && val <= 0x14)
 				break;
 
 			count++;
@@ -3499,7 +3498,7 @@ int exynos_pcie_rc_change_link_speed(int ch_num, int target_speed)
 	for (i = 0; i < MAX_TIMEOUT_SPEEDCHANGE; i++) {
 		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
 
-		if (val == 0x11)
+		if (val >= 0x11 && val <= 0x14)
 			break;
 
 		usleep_range(80, 100);
