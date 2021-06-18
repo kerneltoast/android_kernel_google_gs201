@@ -700,9 +700,6 @@ int mfc_alloc_firmware(struct mfc_core *core)
 	struct mfc_dev *dev = core->dev;
 	struct mfc_ctx_buf_size *buf_size;
 	struct mfc_special_buf *fw_buf;
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	unsigned long secure_daddr = 0;
-#endif
 
 	mfc_core_debug_enter();
 
@@ -739,26 +736,27 @@ int mfc_alloc_firmware(struct mfc_core *core)
 		goto err_reserve_iova;
 	}
 
-	/* allocate Secure-DVA region */
-	secure_daddr = secure_iova_alloc(core->drm_fw_buf.size, EXYNOS_SECBUF_PROT_ALIGNMENTS);
-	if (!secure_daddr) {
-		mfc_core_err("DRM F/W buffer can not get IOVA!\n");
-		goto err_reserve_iova_secure;
+	if (!core->drm_fw_buf.daddr) {
+		core->drm_fw_buf.daddr = secure_iova_alloc(core->drm_fw_buf.size,
+				EXYNOS_SECBUF_PROT_ALIGNMENTS);
+		if (!core->drm_fw_buf.daddr) {
+			mfc_core_err("DRM F/W buffer can not get IOVA!\n");
+			goto err_reserve_iova_secure;
+		}
 	}
 
-	MFC_TRACE_CORE("DRM F/W base %pad\n", &secure_daddr);
-	if (secure_daddr != MFC_SECURE_FW_BASE) {
+	MFC_TRACE_CORE("DRM F/W base %pad\n", &core->drm_fw_buf.daddr);
+	if (core->drm_fw_buf.daddr != MFC_SECURE_FW_BASE) {
 		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
 				"DRM F/W buffer(%pad) should be the lowest addr\n",
-				&secure_daddr);
+				&core->drm_fw_buf.daddr);
 		mfc_core_err("%s", core->crash_info);
 		MFC_TRACE_CORE("%s", core->crash_info);
-		secure_iova_free(secure_daddr, core->drm_fw_buf.size);
+		secure_iova_free(core->drm_fw_buf.daddr, core->drm_fw_buf.size);
+		core->drm_fw_buf.daddr = 0;
 		call_dop(core, dump_and_stop_debug_mode, core);
 		goto err_reserve_iova_secure;
 	}
-
-	core->drm_fw_buf.daddr = (dma_addr_t)secure_daddr;
 
 	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad(vaddr: %pK paddr:%pap), size: %08zu\n",
 			core->id, &core->drm_fw_buf.daddr,
