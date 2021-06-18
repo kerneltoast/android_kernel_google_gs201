@@ -86,8 +86,11 @@
 		writel(value, dc->register_base + offset)
 #define READ_REG_VALUE(dc, offset) \
 		readl(dc->register_base + offset)
-#define WRITE_SHR_VALUE(dc, value) \
-		writel(value, dc->sharability_base + dc->sharability_offset)
+#define WRITE_SHR_VALUE(dc, value)							\
+	({										\
+		if (!IS_ERR_OR_NULL(dc->sharability_base))				\
+			writel(value, dc->sharability_base + dc->sharability_offset);	\
+	})
 #define BACKUP_REG_VALUE(dc, dst, offset, size) \
 		memcpy_fromio(dst, dc->register_base + offset, size)
 #define RESTORE_REG_VALUE(dc, src, offset, size) \
@@ -201,6 +204,11 @@ struct dit_desc_info {
 	unsigned int dst_desc_ring_len;
 	struct dit_dst_desc *dst_desc_ring[DIT_DST_DESC_RING_MAX];
 	struct sk_buff **dst_skb_buf[DIT_DST_DESC_RING_MAX];
+
+	/* use_dma_map */
+	dma_addr_t src_desc_ring_daddr;
+	dma_addr_t dst_desc_ring_daddr[DIT_DST_DESC_RING_MAX];
+	dma_addr_t *dst_skb_buf_daddr[DIT_DST_DESC_RING_MAX];
 };
 
 struct dit_ctrl_t {
@@ -219,6 +227,7 @@ struct dit_ctrl_t {
 	void __iomem *sharability_base;
 	u32 sharability_offset;
 	u32 sharability_value;
+	bool use_dma_map;
 
 	u32 hw_version;
 	u32 reg_version;
@@ -273,6 +282,7 @@ struct dit_snapshot_t {
 
 	u32 max_usage;
 	u32 alloc_skbs;
+	u32 dma_maps;
 };
 
 struct dit_reg_value_item {

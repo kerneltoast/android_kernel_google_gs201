@@ -130,7 +130,7 @@ static int dit_do_init_desc(enum dit_direction dir)
 		return 0;
 
 	desc_info = &dc->desc_info[DIT_DIR_RX];
-	p_desc = virt_to_phys(desc_info->dst_desc_ring[DIT_DST_DESC_RING_0]);
+	p_desc = desc_info->dst_desc_ring_daddr[DIT_DST_DESC_RING_0];
 
 	offset_len = ARRAY_SIZE(offset_lo);
 	for (i = 0; i < offset_len; i++) {

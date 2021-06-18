@@ -573,7 +573,7 @@ static void dit_set_src_desc_kick_range(enum dit_direction dir, unsigned int src
 	head = src_rp;
 	src_desc = &desc_info->src_desc_ring[head];
 	cpif_set_bit(src_desc->control, DIT_DESC_C_HEAD);
-	p_desc = virt_to_phys(src_desc);
+	p_desc = desc_info->src_desc_ring_daddr + (sizeof(struct dit_src_desc) * head);
 
 	if (dir == DIT_DIR_TX) {
 		offset_lo = DIT_REG_NAT_TX_DESC_ADDR_0_SRC;
@@ -612,7 +612,8 @@ static void dit_set_dst_desc_int_range(enum dit_direction dir,
 
 	dst_desc = desc_info->dst_desc_ring[ring_num];
 	dst_wp_pos = desc_info->dst_wp[ring_num];
-	p_desc = virt_to_phys(&dst_desc[dst_wp_pos]);
+	p_desc = desc_info->dst_desc_ring_daddr[ring_num] +
+		(sizeof(struct dit_dst_desc) * dst_wp_pos);
 
 	switch (ring_num) {
 	case DIT_DST_DESC_RING_0:
@@ -789,7 +790,6 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 	struct dit_desc_info *desc_info;
 	struct dit_dst_desc *dst_desc;
 	struct sk_buff **dst_skb;
-	unsigned int buf_size;
 	unsigned int dst_rp_pos;
 	gfp_t gfp_mask;
 	int i;
@@ -806,7 +806,8 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 		return 0;
 
 	if (unlikely(!desc_info->dst_skb_buf[ring_num])) {
-		buf_size = sizeof(struct sk_buff *) * desc_info->dst_desc_ring_len;
+		unsigned int buf_size = sizeof(struct sk_buff *) * desc_info->dst_desc_ring_len;
+
 		desc_info->dst_skb_buf[ring_num] = kvzalloc(buf_size, GFP_KERNEL);
 		if (!desc_info->dst_skb_buf[ring_num]) {
 			mif_err("dit dst[%d] skb container alloc failed\n", ring_num);
@@ -814,10 +815,19 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 		}
 	}
 
+	if (dc->use_dma_map && unlikely(!desc_info->dst_skb_buf_daddr[ring_num])) {
+		unsigned int buf_size = sizeof(dma_addr_t) * desc_info->dst_desc_ring_len;
+
+		desc_info->dst_skb_buf_daddr[ring_num] = kvzalloc(buf_size, GFP_KERNEL);
+		if (!desc_info->dst_skb_buf_daddr[ring_num]) {
+			mif_err("dit dst[%d] skb dma addr container alloc failed\n", ring_num);
+			return -ENOMEM;
+		}
+	}
+
 	dst_desc = desc_info->dst_desc_ring[ring_num];
 	dst_skb = desc_info->dst_skb_buf[ring_num];
 	dst_rp_pos = desc_info->dst_rp[ring_num];
-	buf_size = desc_info->buf_size;
 
 	/* fill free space */
 	for (i = 0; i < read; i++) {
@@ -825,7 +835,7 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 			goto next;
 
 		if (unlikely(dst_skb[dst_rp_pos]))
-			goto next;
+			goto dma_map;
 
 		if (initial) {
 			gfp_mask = GFP_KERNEL;
@@ -833,9 +843,10 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 				gfp_mask = GFP_ATOMIC;
 
 			dst_skb[dst_rp_pos] = __netdev_alloc_skb_ip_align(dc->netdev,
-									  buf_size, gfp_mask);
+									  desc_info->buf_size,
+									  gfp_mask);
 		} else
-			dst_skb[dst_rp_pos] = napi_alloc_skb(&dc->napi, buf_size);
+			dst_skb[dst_rp_pos] = napi_alloc_skb(&dc->napi, desc_info->buf_size);
 
 		if (unlikely(!dst_skb[dst_rp_pos])) {
 			mif_err("dit dst[%d] skb[%d] build failed\n", ring_num, dst_rp_pos);
@@ -846,6 +857,24 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 		snapshot[DIT_DIR_RX][ring_num].alloc_skbs++;
 #endif
 		dst_desc[dst_rp_pos].dst_addr = virt_to_phys(dst_skb[dst_rp_pos]->data);
+
+dma_map:
+		if (dc->use_dma_map && !desc_info->dst_skb_buf_daddr[ring_num][dst_rp_pos]) {
+			dma_addr_t daddr;
+
+			daddr = dma_map_single(dc->dev, dst_skb[dst_rp_pos]->data,
+					       desc_info->buf_size, DMA_FROM_DEVICE);
+			if (dma_mapping_error(dc->dev, daddr)) {
+				mif_err("dit dst[%d] skb[%d] dma_map_single failed\n",
+					ring_num, dst_rp_pos);
+				return -ENOMEM;
+			}
+
+			desc_info->dst_skb_buf_daddr[ring_num][dst_rp_pos] = daddr;
+#if defined(DIT_DEBUG_LOW)
+			snapshot[DIT_DIR_RX][ring_num].dma_maps++;
+#endif
+		}
 
 next:
 		dst_rp_pos = circ_new_ptr(desc_info->dst_desc_ring_len, dst_rp_pos, 1);
@@ -886,6 +915,16 @@ static int dit_free_dst_data_buffer(enum dit_direction dir, enum dit_desc_ring r
 
 	for (i = 0; i < desc_info->dst_desc_ring_len; i++) {
 		if (dst_skb[i]) {
+			if (dc->use_dma_map && desc_info->dst_skb_buf_daddr[ring_num] &&
+			    desc_info->dst_skb_buf_daddr[ring_num][i]) {
+#if defined(DIT_DEBUG_LOW)
+				snapshot[DIT_DIR_RX][ring_num].dma_maps--;
+#endif
+				dma_unmap_single(dc->dev,
+						 desc_info->dst_skb_buf_daddr[ring_num][i],
+						 desc_info->buf_size, DMA_FROM_DEVICE);
+			}
+
 #if defined(DIT_DEBUG_LOW)
 			snapshot[dir][ring_num].alloc_skbs--;
 #endif
@@ -895,6 +934,12 @@ static int dit_free_dst_data_buffer(enum dit_direction dir, enum dit_desc_ring r
 	}
 
 	mif_info("free dst[%d] skb buffers\n", ring_num);
+
+	if (dc->use_dma_map) {
+		kvfree(desc_info->dst_skb_buf_daddr[ring_num]);
+		desc_info->dst_skb_buf_daddr[ring_num] = NULL;
+	}
+
 	kvfree(dst_skb);
 	desc_info->dst_skb_buf[ring_num] = NULL;
 
@@ -954,6 +999,7 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 	struct sk_buff *skb;
 	unsigned int rcvd_total = 0;
 	unsigned int usage;
+	unsigned int dst_rp_pos;
 	unsigned int ring_num;
 	int i, ret;
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
@@ -968,15 +1014,32 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 			if (rcvd_total >= budget)
 				break;
 
+			dst_rp_pos = desc_info->dst_rp[ring_num];
+
 			/* get dst desc and skb */
-			dst_desc = &desc_info->dst_desc_ring[ring_num][desc_info->dst_rp[ring_num]];
-			skb = desc_info->dst_skb_buf[ring_num][desc_info->dst_rp[ring_num]];
+			dst_desc = &desc_info->dst_desc_ring[ring_num][dst_rp_pos];
+
+			if (dc->use_dma_map) {
+				dma_addr_t daddr =
+					desc_info->dst_skb_buf_daddr[ring_num][dst_rp_pos];
+
+				if (daddr) {
+#if defined(DIT_DEBUG_LOW)
+					snapshot[DIT_DIR_RX][ring_num].dma_maps--;
+#endif
+					dma_unmap_single(dc->dev, daddr, desc_info->buf_size,
+							 DMA_FROM_DEVICE);
+					desc_info->dst_skb_buf_daddr[ring_num][dst_rp_pos] = 0;
+				}
+			}
+
+			skb = desc_info->dst_skb_buf[ring_num][dst_rp_pos];
 
 			/* try to fill dst data buffers */
-			desc_info->dst_skb_buf[ring_num][desc_info->dst_rp[ring_num]] = NULL;
+			desc_info->dst_skb_buf[ring_num][dst_rp_pos] = NULL;
 			ret = dit_fill_rx_dst_data_buffer(ring_num, 1, false);
 			if (ret) {
-				desc_info->dst_skb_buf[ring_num][desc_info->dst_rp[ring_num]] = skb;
+				desc_info->dst_skb_buf[ring_num][dst_rp_pos] = skb;
 				break;
 			}
 
@@ -1004,7 +1067,7 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 
 			dst_desc->packet_info = 0;
 			dst_desc->control = 0;
-			if (desc_info->dst_rp[ring_num] == desc_info->dst_desc_ring_len - 1)
+			if (dst_rp_pos == desc_info->dst_desc_ring_len - 1)
 				cpif_set_bit(dst_desc->control, DIT_DESC_C_RINGEND);
 			dst_desc->status = 0;
 
@@ -1012,7 +1075,7 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 
 			/* update dst rp after dit_pass_to_net */
 			desc_info->dst_rp[ring_num] = circ_new_ptr(desc_info->dst_desc_ring_len,
-				desc_info->dst_rp[ring_num], 1);
+								   dst_rp_pos, 1);
 			rcvd_total++;
 #if defined(DIT_DEBUG_LOW)
 			snapshot[DIT_DIR_RX][ring_num].alloc_skbs--;
@@ -1400,15 +1463,24 @@ static int dit_init_desc(enum dit_direction dir)
 	if (!desc_info->src_desc_ring) {
 		buf_size = sizeof(struct dit_src_desc) *
 			(desc_info->src_desc_ring_len + DIT_SRC_DESC_RING_LEN_PADDING);
-		buf = devm_kzalloc(dc->dev, buf_size, GFP_KERNEL);
+
+		if (dc->use_dma_map) {
+			buf = dma_alloc_coherent(dc->dev, buf_size, &desc_info->src_desc_ring_daddr,
+						 GFP_KERNEL);
+		} else {
+			buf = devm_kzalloc(dc->dev, buf_size, GFP_KERNEL);
+		}
 		if (!buf) {
 			mif_err("dit dir[%d] src desc alloc failed\n", dir);
 			return -ENOMEM;
 		}
+
 		desc_info->src_desc_ring = buf;
+		if (!dc->use_dma_map)
+			desc_info->src_desc_ring_daddr = virt_to_phys(buf);
 	}
 
-	p_desc = virt_to_phys(desc_info->src_desc_ring);
+	p_desc = desc_info->src_desc_ring_daddr;
 	if (dir == DIT_DIR_TX) {
 		offset_lo = DIT_REG_TX_RING_START_ADDR_0_SRC;
 		offset_hi = DIT_REG_TX_RING_START_ADDR_1_SRC;
@@ -1435,15 +1507,25 @@ static int dit_init_desc(enum dit_direction dir)
 
 		if (!desc_info->dst_desc_ring[ring_num]) {
 			buf_size = sizeof(struct dit_dst_desc) * desc_info->dst_desc_ring_len;
-			buf = devm_kzalloc(dc->dev, buf_size, GFP_KERNEL);
+
+			if (dc->use_dma_map) {
+				buf = dma_alloc_coherent(dc->dev, buf_size,
+							 &desc_info->dst_desc_ring_daddr[ring_num],
+							 GFP_KERNEL);
+			} else {
+				buf = devm_kzalloc(dc->dev, buf_size, GFP_KERNEL);
+			}
 			if (!buf) {
 				mif_err("dit dir[%d] dst desc[%d] alloc failed\n", dir, ring_num);
 				return -ENOMEM;
 			}
+
 			desc_info->dst_desc_ring[ring_num] = buf;
+			if (!dc->use_dma_map)
+				desc_info->dst_desc_ring_daddr[ring_num] = virt_to_phys(buf);
 		}
 
-		p_desc = virt_to_phys(desc_info->dst_desc_ring[ring_num]);
+		p_desc = desc_info->dst_desc_ring_daddr[ring_num];
 		switch (ring_num) {
 		case DIT_DST_DESC_RING_0:
 			if (dir == DIT_DIR_TX) {
@@ -1659,10 +1741,12 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			}
 
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"%s max_usage(d)/alloc(d)/total: %u/%u/%u\n",
+				"%s max_usage(d)/alloc(d)/map(d)/total: %u/%u/%u/%u\n",
 				snapshot[dir][ring_num].name,
 				snapshot[dir][ring_num].max_usage,
-				snapshot[dir][ring_num].alloc_skbs, desc_len);
+				snapshot[dir][ring_num].alloc_skbs,
+				snapshot[dir][ring_num].dma_maps,
+				desc_len);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
 				"  wp: %u, rp: %u\n", wp, rp);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
@@ -2223,8 +2307,10 @@ static void dit_set_hw_specific(void)
 
 static int dit_read_dt(struct device_node *np)
 {
-	mif_dt_read_u32(np, "dit_sharability_offset", dc->sharability_offset);
-	mif_dt_read_u32(np, "dit_sharability_value", dc->sharability_value);
+	if (!IS_ERR_OR_NULL(dc->sharability_base)) {
+		mif_dt_read_u32(np, "dit_sharability_offset", dc->sharability_offset);
+		mif_dt_read_u32(np, "dit_sharability_value", dc->sharability_value);
+	}
 
 	mif_dt_read_u32(np, "dit_hw_capabilities", dc->hw_capabilities);
 
@@ -2268,17 +2354,16 @@ int dit_create(struct platform_device *pdev)
 	dc->dev = dev;
 
 	dc->register_base = devm_platform_ioremap_resource_byname(pdev, "dit");
-	if (!dc->register_base) {
+	if (IS_ERR_OR_NULL(dc->register_base)) {
 		mif_err("register devm_ioremap error\n");
 		ret = -EFAULT;
 		goto error;
 	}
 
 	dc->sharability_base = devm_platform_ioremap_resource_byname(pdev, "sysreg");
-	if (!dc->sharability_base) {
-		mif_err("sharability devm_ioremap error\n");
-		ret = -EFAULT;
-		goto error;
+	if (IS_ERR_OR_NULL(dc->sharability_base)) {
+		mif_err("sharability devm_ioremap error. use dma map.\n");
+		dc->use_dma_map = true;
 	}
 
 	ret = dit_read_dt(np);
@@ -2352,10 +2437,10 @@ int dit_create(struct platform_device *pdev)
 	return 0;
 
 error:
-	if (dc->sharability_base)
+	if (!IS_ERR_OR_NULL(dc->sharability_base))
 		devm_iounmap(dev, dc->sharability_base);
 
-	if (dc->register_base)
+	if (!IS_ERR_OR_NULL(dc->register_base))
 		devm_iounmap(dev, dc->register_base);
 
 	if (dc) {
