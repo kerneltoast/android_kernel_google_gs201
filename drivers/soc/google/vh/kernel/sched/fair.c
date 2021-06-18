@@ -17,6 +17,11 @@
 extern void update_uclamp_stats(int cpu, u64 time);
 #endif
 
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+struct em_perf_domain **vendor_sched_cpu_to_em_pd;
+EXPORT_SYMBOL_GPL(vendor_sched_cpu_to_em_pd);
+#endif
+
 extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_util_post_init_scale;
 extern bool vendor_sched_npi_packing;
@@ -757,6 +762,14 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 		return 0;
 
 	cpu = cpumask_first(to_cpumask(pd->cpus));
+
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+	{
+		struct em_perf_domain **cpu_to_em_pd = READ_ONCE(vendor_sched_cpu_to_em_pd);
+		if (cpu_to_em_pd)
+			pd = cpu_to_em_pd[cpu];
+	}
+#endif
 
 	scale_cpu = arch_scale_cpu_capacity(cpu);
 	ps = &pd->table[pd->nr_perf_states - 1];
