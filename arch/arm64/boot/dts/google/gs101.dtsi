@@ -1552,8 +1552,8 @@
 		id = <5>;
 		ect_nouse;
 		hardlimit_enable;
-		hardlimit_clr_threshold = <102>;
-		hardlimit_threshold = <107>;
+		hardlimit_clr_threshold = <93>;
+		hardlimit_threshold = <98>;
 		hardlimit_cooling_state = <THERMAL_NO_LIMIT>;
 		#thermal-sensor-cells = <0>;
 
@@ -1855,12 +1855,12 @@
 					type = "active";
 				};
 				tpu_switch_on: tpu-switch-on {
-					temperature = <60000>; /* millicelsius */
+					temperature = <70000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "active";
 				};
 				tpu_control_temp: tpu-control-temp {
-					temperature = <80000>; /* millicelsius */
+					temperature = <90000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "passive";
 				};
@@ -1869,17 +1869,17 @@
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
-				tpu_alert1: tpu-alert1 {
-					temperature = <100000>; /* millicelsius */
+				tpu_hardlimit: tpu-hardlimit {
+					temperature = <98000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
-				tpu_alert2: tpu-alert2 {
+				tpu_alert1: tpu-alert1 {
 					temperature = <104000>; /* millicelsius */
 					hysteresis = <4000>; /* millicelsius */
 					type = "active";
 				};
-				tpu_hardlimit: tpu-hardlimit {
+				tpu_alert2: tpu-alert2 {
 					temperature = <107000>; /* millicelsius */
 					hysteresis = <3000>; /* millicelsius */
 					type = "active";
@@ -1893,23 +1893,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&tpu_control_temp>;
-					cooling-device = <&tpu_cooling 0 1>;
-				};
-				map1 {
-					trip = <&tpu_alert0>;
-					cooling-device = <&tpu_cooling 1 1>;
-				};
-				map2 {
-					trip = <&tpu_alert1>;
-					cooling-device = <&tpu_cooling 1 2>;
-				};
-				map3 {
-					trip = <&tpu_alert2>;
-					cooling-device = <&tpu_cooling 2 3>;
-				};
-				map4 {
-					trip = <&tpu_hardlimit>;
-					cooling-device = <&tpu_cooling 3 3>;
+					cooling-device = <&tpu_cooling 0 0>;
 				};
 			};
 		};
