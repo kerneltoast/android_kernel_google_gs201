@@ -24,6 +24,10 @@
 extern struct em_perf_domain **vendor_sched_cpu_to_em_pd;
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
+extern struct em_perf_domain **exynos_cpu_cooling_cpu_to_em_pd;
+#endif
+
 static int pixel_em_max_cpu;
 static int pixel_em_num_cpu_pds;
 
@@ -429,6 +433,11 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 #if IS_ENABLED(CONFIG_VH_SCHED)
 	pr_info("Publishing PDs to vh_sched!\n");
 	WRITE_ONCE(vendor_sched_cpu_to_em_pd, cpu_to_em_pd);
+#endif
+
+#if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
+	pr_info("Publishing PDs to exynos_cpu_cooling!\n");
+	WRITE_ONCE(exynos_cpu_cooling_cpu_to_em_pd, cpu_to_em_pd);
 #endif
 
 	return res;

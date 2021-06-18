@@ -28,6 +28,12 @@
 
 #include <trace/events/power.h>
 #include <trace/events/thermal_exynos.h>
+
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+struct em_perf_domain **exynos_cpu_cooling_cpu_to_em_pd;
+EXPORT_SYMBOL_GPL(exynos_cpu_cooling_cpu_to_em_pd);
+#endif
+
 /*
  * Cooling state <-> CPUFreq frequency
  *
@@ -371,7 +377,25 @@ static u32 cpu_freq_to_power(struct exynos_cpu_cooling_device *cpufreq_cdev,
 			     u32 freq)
 {
 	int i;
-	struct freq_table *freq_table = cpufreq_cdev->freq_table;
+	struct freq_table *freq_table;
+
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+	{
+		struct em_perf_domain **cpu_to_em_pd = READ_ONCE(exynos_cpu_cooling_cpu_to_em_pd);
+		if (cpu_to_em_pd) {
+			int first_cpu = cpumask_first(cpufreq_cdev->policy->related_cpus);
+			struct em_perf_domain *pd = cpu_to_em_pd[first_cpu];
+
+			for (i = 1; i < pd->nr_perf_states; i++)
+				if (freq > pd->table[i].frequency)
+					break;
+
+			return pd->table[i - 1].power;
+		}
+	}
+#endif
+
+	freq_table = cpufreq_cdev->freq_table;
 
 	for (i = 1; i <= cpufreq_cdev->max_level; i++)
 		if (freq > freq_table[i].frequency)
@@ -384,7 +408,25 @@ static u32 cpu_power_to_freq(struct exynos_cpu_cooling_device *cpufreq_cdev,
 			     u32 power)
 {
 	int i;
-	struct freq_table *freq_table = cpufreq_cdev->freq_table;
+	struct freq_table *freq_table;
+
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+	{
+		struct em_perf_domain **cpu_to_em_pd = READ_ONCE(exynos_cpu_cooling_cpu_to_em_pd);
+		if (cpu_to_em_pd) {
+			int first_cpu = cpumask_first(cpufreq_cdev->policy->related_cpus);
+			struct em_perf_domain *pd = cpu_to_em_pd[first_cpu];
+
+			for (i = 1; i < pd->nr_perf_states; i++)
+				if (power > pd->table[i].power)
+					break;
+
+			return pd->table[i - 1].frequency;
+		}
+	}
+#endif
+
+	freq_table = cpufreq_cdev->freq_table;
 
 	for (i = 1; i <= cpufreq_cdev->max_level; i++)
 		if (power > freq_table[i].power)
