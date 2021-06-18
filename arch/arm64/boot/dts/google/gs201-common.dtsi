@@ -107,7 +107,7 @@
 		/* value = <device host> */
 		hs_tune1 {
 			tune_name = "tx_pre_emp";
-			tune_value = <0x3 0x3>;
+			tune_value = <0x1 0x1>;
 		};
 
 		hs_tune2 {
