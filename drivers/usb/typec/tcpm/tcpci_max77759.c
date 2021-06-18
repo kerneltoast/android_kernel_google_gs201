@@ -477,6 +477,9 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 		!chip->bc12_running;
 
 	if (chip->attached && enable_data && !chip->data_active) {
+		/* Disable BC1.2 to prevent BC1.2 detection during PR_SWAP */
+		bc12_enable(chip->bc12, false);
+
 		/*
 		 * b/188614064: While swapping from host to device switches will not be configured
 		 * by HW. So always enable the switches here.
@@ -484,9 +487,6 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 		ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
 		logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
 			      "success");
-
-		/* Disable BC1.2 to prevent BC1.2 detection during PR_SWAP */
-		bc12_enable(chip->bc12, false);
 
 		ret = extcon_set_state_sync(chip->extcon, chip->data_role == TYPEC_HOST ?
 					    EXTCON_USB_HOST : EXTCON_USB, 1);
