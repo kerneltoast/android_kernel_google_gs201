@@ -2,7 +2,7 @@
 /*
  * gs201 pmic device tree source
  *
- * Copyright 2020 Google LLC.
+ * Copyright 2021 Google LLC.
  *
  */
 
@@ -465,8 +465,7 @@
 				regulator-name = "S2MPG12_LDO19";
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x33>;
 				schematic-name = "L19M_SPARE";
 				subsys-name = "Spare";
@@ -498,8 +497,7 @@
 				regulator-name = "S2MPG12_LDO22";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x36>;
 				schematic-name = "L22M_SPARE";
 				subsys-name = "Spare";
@@ -1173,8 +1171,7 @@
 				regulator-name = "S2MPG13_LDO23";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x37>;
 				schematic-name = "L23S_SPARE";
 				subsys-name = "Spare";
@@ -1184,8 +1181,7 @@
 				regulator-name = "S2MPG13_LDO24";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x38>;
 				schematic-name = "L24S_SPARE";
 				subsys-name = "Spare";
@@ -1195,8 +1191,7 @@
 				regulator-name = "S2MPG13_LDO25";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x39>;
 				schematic-name = "L25S_SPARE";
 				subsys-name = "Spare";
