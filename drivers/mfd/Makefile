@@ -280,3 +280,4 @@ obj-$(CONFIG_MFD_SIMPLE_MFD_I2C)	+= simple-mfd-i2c.o
 obj-$(CONFIG_MFD_INTEL_M10_BMC)   += intel-m10-bmc.o
 
 obj-$(CONFIG_MFD_SLG51000)	+= slg51000-core.o
+obj-$(CONFIG_MFD_SLG51002)	+= slg51002-core.o

@@ -1,0 +1,12 @@
+What:		/sys/bus/i2c/devices/.../chip_id
+Date:		June 2021
+KernelVersion:	5.10
+Contact:	CY Tseng <cytseng@google.com>
+Description:	Reports the chip identifier as a hexadecimal number.
+
+What:		/sys/bus/i2c/devices/.../chip_always_on
+Date:		June 2021
+KernelVersion:	5.10
+Contact:	CY Tseng <cytseng@google.com>
+Description:	Sets the power state of the device. 0 sets the device into
+		power saving mode. 1 sets the device into power always-on mode.
