@@ -630,6 +630,7 @@
 			clock-names = "aclk", "sclk";
 			reg = <0x0 0x11110000 0x10000>;
 			interrupts = <GIC_SPI IRQ_USB31DRD_GIC_0_HSI0 IRQ_TYPE_LEVEL_HIGH>;
+			memory-region = <&xhci_dma>;
 			dr_mode = "peripheral";
 			phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
 			phy-names = "usb2-phy", "usb3-phy";
