@@ -73,7 +73,7 @@
 	adj-sof-accuracy = <1>;
 	samsung,no-extra-delay;
 	usb_host_device_timeout = <0x7ff>; /* Max value */
-	extcon = <&fusb307b>;
+	extcon = <&max77759tcpc>;
 
 	u1u2_exitfail_quirk;
 	/* ux_exit_in_px should be defined in MK, LT */
@@ -335,7 +335,7 @@
 
 	hs_tune_param = <&usb_hs_tune>;
 	ss_tune_param = <&usb_ss_tune>;
-	extcon = <&fusb307b>;
+	extcon = <&max77759tcpc>;
 
 	vdd_hsi-supply = <&m_ldo7_reg>;
 	vdd085-supply = <&m_ldo8_reg>;

@@ -14,7 +14,7 @@
 	status = "okay";
 
 	fusb307b: fusb307b@50 {
-		status = "okay";
+		status = "disabled";
 		compatible = "fusb307b";
 		/* 52 on reworked maran */
 		reg = <0x50>;
@@ -74,7 +74,7 @@
 	};
 
 	slg_pld:slg46826@8 {
-		status = "okay";
+		status = "disabled";
 		compatible = "slg46826";
 		reg = <0x8>;
 	};
@@ -84,7 +84,7 @@
 		 * Enabling in bootloader instead of disabling so that
 		 * kernel changes can be merged independently.
 		 */
-		status = "disabled";
+		status = "okay";
 		compatible = "max20339ovp";
 		reg = <0x35>;
 
