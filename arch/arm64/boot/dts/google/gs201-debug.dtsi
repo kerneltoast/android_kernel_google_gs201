@@ -269,9 +269,9 @@
 		};
 	};
 
-	etr-miu@11090000 {
+	etr-miu@110B0000 {
 		compatible = "google,gs101-etr-miu";
-		reg = <0x0 0x11090000 0x100>;
+		reg = <0x0 0x110B0000 0x100>;
 		tmc_buf_addr = <0x00000010 0x00000000>;
 		tmc_buf_size = <0x80000000>;
 	};
