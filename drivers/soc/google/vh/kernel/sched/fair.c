@@ -629,6 +629,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	unsigned long best_idle_util = ULONG_MAX;
 	unsigned long best_cpu_importance = ULONG_MAX;
 	long max_importance_spare_cap = LONG_MIN;
+	unsigned long task_importance = uclamp_eff_value(p, UCLAMP_MIN) +
+					uclamp_eff_value(p, UCLAMP_MAX);
 
 	prefer_idle = get_prefer_idle(p);
 	prefer_high_cap = get_prefer_high_cap(p);
@@ -662,7 +664,6 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		int next_cpu;
 		unsigned int exit_lat = UINT_MAX;
 		bool idle_cpu;
-		unsigned long task_importance;
 		unsigned long cpu_importance;
 
 		if (i >= CPU_NUM)
@@ -672,7 +673,6 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		capacity_orig = capacity_orig_of(i);
 		capacity = capacity_of(i);
 		idle_cpu = cpu_is_idle(i);
-		task_importance = uclamp_eff_value(p, UCLAMP_MIN) + uclamp_eff_value(p, UCLAMP_MAX);
 		cpu_importance = READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MIN].value) +
 				 READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MAX].value);
 

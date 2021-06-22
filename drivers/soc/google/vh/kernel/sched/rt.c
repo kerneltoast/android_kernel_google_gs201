@@ -8,6 +8,7 @@
 #include <kernel/sched/sched.h>
 
 #include "sched.h"
+#include "sched_events.h"
 
 extern unsigned long cpu_util(int cpu);
 extern unsigned long task_util(struct task_struct *p);
@@ -74,6 +75,7 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 	unsigned long min_cpu_capacity = ULONG_MAX;
 	unsigned int min_exit_lat = UINT_MAX;
 	bool check_cpu_overutilized = true;
+	int prev_cpu = task_cpu(p);
 
 	rcu_read_lock();
 
@@ -83,6 +85,8 @@ redo:
 		unsigned long util;
 		unsigned int exit_lat = 0;
 		unsigned long capacity = capacity_orig_of(cpu);
+		unsigned long cpu_importance = READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value) +
+					       READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MAX].value);
 
 		if (cpu_is_idle(cpu)) {
 			util = 0;
@@ -96,6 +100,8 @@ redo:
 		} else {
 			util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
 		}
+
+		trace_sched_rt_cpu_util(cpu, capacity, util, exit_lat, cpu_importance);
 
 		if (check_cpu_overutilized &&
 		    cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util, p), capacity, cpu))
@@ -116,7 +122,7 @@ redo:
 				if (capacity > min_cpu_capacity )
 					continue;
 				/* If capacity is the same, prefer prev cpu */
-				if (best_cpu == task_cpu(p))
+				if (best_cpu == prev_cpu)
 					continue;
 			}
 		}
@@ -133,6 +139,13 @@ redo:
 	}
 
 	rcu_read_unlock();
+
+	trace_sched_find_least_loaded_cpu(p, get_vendor_task_struct(p)->group,
+					  uclamp_eff_value(p, UCLAMP_MIN),
+					  uclamp_eff_value(p, UCLAMP_MAX),
+					  check_cpu_overutilized, min_cpu_util,
+					  min_cpu_capacity, min_exit_lat,
+					  prev_cpu, best_cpu);
 
 	return best_cpu;
 }
@@ -215,9 +228,10 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	struct task_struct *curr, *tgt_task;
 	struct rq *rq;
 	struct rq *this_cpu_rq;
-	int target;
+	int target = -1;
 	bool sync = !!(wake_flags & WF_SYNC);
 	int this_cpu;
+	bool sync_wakeup = false;
 
 	*new_cpu = prev_cpu;
 
@@ -237,6 +251,7 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	if (should_honor_rt_sync(this_cpu_rq, p, sync) &&
 	    cpumask_test_cpu(this_cpu, p->cpus_ptr)) {
 		*new_cpu = this_cpu;
+		sync_wakeup = true;
 		goto out_unlock;
 	}
 
@@ -257,5 +272,7 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 out_unlock:
 	rcu_read_unlock();
 out:
+	trace_sched_select_task_rq_rt(p, prev_cpu, target, *new_cpu, sync_wakeup);
+
 	return;
 }
