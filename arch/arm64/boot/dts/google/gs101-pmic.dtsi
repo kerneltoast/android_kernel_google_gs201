@@ -544,7 +544,6 @@
 				regulator-name = "S2MPG10_LDO27";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3B>;
 				schematic-name = "L27M_UDFPS_AVDD";
