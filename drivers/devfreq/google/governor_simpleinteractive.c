@@ -173,8 +173,8 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 	struct exynos_profile_data *profile_data = (struct exynos_profile_data *)stat->private_data;
 	struct exynos_devfreq_data *exynos_df =
 		container_of(data, struct exynos_devfreq_data, simple_interactive_data);
-	unsigned long freq, cal_freq;
-	unsigned int int_freq;
+	unsigned long freq, cal_freq, bus2_freq = 0;
+	unsigned int int_freq = 0;
 	int i, idx = 0;
 
 	freq = 0;
@@ -185,6 +185,11 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 					  profile_data->delta_time,
 					  profile_data->ppc_val[i].ccnt,
 					  profile_data->ppc_val[i].pmcnt1);
+		if (i == PPC_BUS2_ID) {
+			bus2_freq = cal_freq;
+			bus2_freq = min(bus2_freq, stat->current_frequency << 1);
+			bus2_freq = max(bus2_freq, stat->current_frequency >> 1);
+		}
 		if (freq < cal_freq) {
 			freq = cal_freq;
 			idx = i;
@@ -200,13 +205,12 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 		freq = alt_data->hispeed_freq;
 
 	/* Only vote for INT freq from PPC BUS2 */
-	if (idx == PPC_BUS2_ID &&
-		exynos_pm_qos_request_active(&exynos_df->bus_pm_qos_min)) {
-		int_freq = mif_to_int_freq(alt_data, freq);
+	if (exynos_pm_qos_request_active(&exynos_df->bus_pm_qos_min)) {
+		int_freq = mif_to_int_freq(alt_data, bus2_freq);
 		exynos_pm_qos_update_request(&exynos_df->bus_pm_qos_min,
 					     int_freq);
 	}
-	trace_dvfs_update_load(freq, alt_data, idx);
+	trace_dvfs_update_load(freq, alt_data, idx, int_freq);
 
 	data->governor_freq = freq;
 
