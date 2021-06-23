@@ -881,11 +881,12 @@ static int cp_itmon_notifier(struct notifier_block *nb,
 	if (IS_ERR_OR_NULL(itmon_data))
 		return NOTIFY_DONE;
 
-	if (itmon_data->port && (strncmp("CP_", itmon_data->port,
-					sizeof("CP_") - 1) == 0)) {
-		modem_force_crash_exit_ext();
+	if (itmon_data->port &&
+	(strncmp("CP_", itmon_data->port, sizeof("CP_") - 1) == 0 ||
+	strncmp("MODEM", itmon_data->port, sizeof("MODEM") - 1) == 0) &&
+	itmon_data->errcode == 1) {	/* force cp crash when decode error */
 		mif_info("CP itmon notifier: cp crash request complete\n");
-		return NOTIFY_OK;
+		modem_force_crash_exit_ext();
 	}
 
 	return NOTIFY_DONE;
