@@ -7,7 +7,7 @@
  */
 #include <kernel/sched/sched.h>
 
-#include "sched.h"
+#include "sched_priv.h"
 #include "sched_events.h"
 
 extern unsigned long cpu_util(int cpu);

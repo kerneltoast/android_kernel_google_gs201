@@ -8,7 +8,7 @@
 #include <kernel/sched/sched.h>
 #include <kernel/sched/pelt.h>
 
-#include "sched.h"
+#include "sched_priv.h"
 #include "sched_events.h"
 
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)

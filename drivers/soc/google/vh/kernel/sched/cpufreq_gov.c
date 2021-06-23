@@ -14,7 +14,7 @@
 #include <trace/events/power.h>
 
 #include "sched_events.h"
-#include "sched.h"
+#include "sched_priv.h"
 
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 

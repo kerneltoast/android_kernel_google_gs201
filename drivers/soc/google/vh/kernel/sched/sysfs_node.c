@@ -14,7 +14,7 @@
 #include <linux/lockdep.h>
 #include <kernel/sched/sched.h>
 
-#include "sched.h"
+#include "sched_priv.h"
 
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 extern void reset_uclamp_stats(void);
