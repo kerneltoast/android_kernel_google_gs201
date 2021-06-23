@@ -10,6 +10,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include "cma.h"
+#include "vmscan.h"
 
 DEFINE_PER_CPU(unsigned long, pgalloc_costly_order);
 DEFINE_PER_CPU(unsigned long, pgcache_miss);
@@ -63,11 +64,17 @@ int pixel_mm_sysfs(void)
 	if (ret)
 		goto put_mm_kobj;
 
-	ret = pixel_mm_cma_sysfs(pixel_stat_mm_kobj);
+	ret = create_vmscan_sysfs(pixel_stat_mm_kobj);
 	if (ret)
 		goto remove_stat_sysfs;
 
+	ret = pixel_mm_cma_sysfs(pixel_stat_mm_kobj);
+	if (ret)
+		goto remove_vmscan_sysfs;
+
 	return ret;
+remove_vmscan_sysfs:
+	remove_vmscan_sysfs();
 remove_stat_sysfs:
 	sysfs_remove_group(pixel_stat_mm_kobj, &attr_group);
 put_mm_kobj:

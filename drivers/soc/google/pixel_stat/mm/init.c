@@ -10,6 +10,7 @@
 #include <trace/hooks/mm.h>
 #include "cma.h"
 #include "meminfo.h"
+#include "vmscan.h"
 
 extern void vh_rmqueue_mod(void *data, struct zone *preferred_zone,
 		struct zone *zone, unsigned int order, gfp_t gfp_flags,
@@ -41,6 +42,14 @@ static int pixel_stat_mm_init(void)
 		return ret;
 
 	ret = register_trace_android_vh_meminfo_proc_show(vh_meminfo_proc_show, NULL);
+
+	ret = register_trace_mm_vmscan_direct_reclaim_begin(vh_direct_reclaim_begin, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_mm_vmscan_direct_reclaim_end(vh_direct_reclaim_end, NULL);
+	if (ret)
+		return ret;
 
 	ret = pixel_mm_sysfs();
 	if (ret)
