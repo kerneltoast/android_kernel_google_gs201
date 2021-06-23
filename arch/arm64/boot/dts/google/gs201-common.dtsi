@@ -112,7 +112,7 @@
 
 		hs_tune2 {
 			tune_name = "tx_vref";
-			tune_value = <0xf 0xf>;
+			tune_value = <0x8 0x8>;
 		};
 
 		hs_tune3 {
