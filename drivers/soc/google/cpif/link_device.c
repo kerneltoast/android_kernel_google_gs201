@@ -3478,7 +3478,8 @@ static int shmem_register_pcie(struct link_device *ld)
 		if (cp_shmem_get_base(cp_num, shmem_idx)) {
 			ret =  s2mpu_open(mc->s2mpu,
 					  cp_shmem_get_base(cp_num, shmem_idx),
-					  cp_shmem_get_size(cp_num, shmem_idx));
+					  cp_shmem_get_size(cp_num, shmem_idx),
+					  DMA_BIDIRECTIONAL);
 			if (ret) {
 				mif_err("S2MPU open failed error=%d\n", ret);
 				return -EINVAL;
@@ -3488,7 +3489,8 @@ static int shmem_register_pcie(struct link_device *ld)
 
 	/* Also setup AoC window for voice calls */
 	ret =  s2mpu_open(mc->s2mpu,
-			  AOC_PCIE_WINDOW_START, AOC_PCIE_WINDOW_SIZE);
+			  AOC_PCIE_WINDOW_START, AOC_PCIE_WINDOW_SIZE,
+			  DMA_BIDIRECTIONAL);
 
 	if (ret) {
 		mif_err("S2MPU AoC open failed error=%d\n", ret);
