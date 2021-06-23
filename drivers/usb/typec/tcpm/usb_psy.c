@@ -30,6 +30,7 @@
 #define SDP_HS_CONFIG_UA 500000
 #define SDP_SS_CONN_UA 150000
 #define SDP_SS_CONFIG_UA 900000
+#define DEAD_BATTERY_UA 500000
 
 /* Defer vote for pSnkStby */
 #define BC_VOTE_DELAY_MS	3000
@@ -56,6 +57,8 @@ struct usb_psy_data {
 	 * such as PD, BC1.2, TYPE, DATA stack.
 	 */
 	struct gvotable_election *usb_icl_proto_el;
+	/* Casts 1/0 on Dead Battery condition */
+	struct gvotable_election *dead_battery_el;
 
 	/* Cached/Request usb ilim to charger psy */
 	int current_max_cache;
@@ -169,6 +172,7 @@ static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
 	struct logbuffer *log = usb->log;
 	unsigned int voter_map = 0;
 	struct usb_vote vote;
+	bool configured;
 	int ret;
 
 	if (ua < 0)
@@ -176,6 +180,8 @@ static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
 
 	switch (ua) {
 	case SDP_SUSPEND_UA:
+		/* no need to change the usb_configured flag when entering SUSPEND */
+		configured = usb->usb_configured;
 		if (usb->usb_configured) {
 			voter_map = BIT(USB_CONFIGURED);
 			init_vote(&vote, proto_voter_reason[USB_SUSPEND], USB_SUSPEND, ua);
@@ -186,18 +192,20 @@ static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
 		}
 		break;
 	case SDP_DISCONNECT:
+		configured = false;
 		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_CONFIGURED) | BIT(USB_SUSPEND);
 		/* Set to SDP_HS_CONN_UA for USB Gadget Reset */
 		init_vote(&vote, proto_voter_reason[BC12_SDP], BC12_SDP, SDP_HS_CONN_UA);
 		break;
 	case SDP_HS_CONN_UA:
 	case SDP_SS_CONN_UA:
+		configured = false;
 		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_CONFIGURED) | BIT(USB_SUSPEND);
 		init_vote(&vote, proto_voter_reason[BC12_SDP], BC12_SDP, ua);
 		break;
 	case SDP_HS_CONFIG_UA:
 	case SDP_SS_CONFIG_UA:
-		usb->usb_configured = true;
+		configured = true;
 		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_SUSPEND);
 		init_vote(&vote, proto_voter_reason[USB_CONFIGURED], USB_CONFIGURED, ua);
 		break;
@@ -207,10 +215,17 @@ static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
 	}
 
 	ret = gvotable_cast_vote(usb_icl_proto_el, vote.reason, &vote, true);
-
 	logbuffer_log(log, "%s: %s voting usb proto_el: %d by %s",
 		      __func__, ret < 0 ? "error" : "",  vote.val,
 		      vote.reason);
+
+	/* vote 0 to disable DEAD_BATTERY condition while entering CONFIGURED State */
+	if (configured && !usb->usb_configured) {
+		ret = gvotable_cast_vote(usb->dead_battery_el, USB_CFG_VOTER, 0, true);
+		logbuffer_log(log, "%s: %svoting dead_battery_el: %u by %s", __func__,
+			      ret < 0 ? "error " : "", 0, USB_CFG_VOTER);
+	}
+	usb->usb_configured = configured;
 
 	if (voter_map)
 		disable_proto_votes(usb_icl_proto_el, log, voter_map);
@@ -509,6 +524,32 @@ static inline int usb_icl_proto_comp(void *vote1, void *vote2)
 	return vote_comp(vote1, vote2);
 }
 
+/*
+ * MIN vote:
+ * result 0 means to clear DEAD_BATTERY vote to usb_icl_proto_el
+ * result 1 means to vote DEAD_BATTERY_UA to usb_icl_proto_el
+ */
+static void dead_battery_callback(struct gvotable_election *el, const char *reason, void *result)
+{
+	struct usb_psy_data *usb = gvotable_get_data(el);
+	unsigned long vote_result = (unsigned long)result;
+	struct usb_vote vote;
+	int ret;
+
+	if (vote_result) {
+		init_vote(&vote, proto_voter_reason[DEAD_BATTERY], DEAD_BATTERY, DEAD_BATTERY_UA);
+		ret = gvotable_cast_vote(usb->usb_icl_proto_el, vote.reason, &vote, true);
+	} else {
+		init_vote(&vote, proto_voter_reason[DEAD_BATTERY], DEAD_BATTERY, 0);
+		ret = gvotable_cast_vote(usb->usb_icl_proto_el, vote.reason, &vote, false);
+	}
+
+	logbuffer_log(usb->log, "%s: %s:%d %s usb_icl_proto_el: %lu by %s",
+		      __func__, ret < 0 ? "error" : "success", ret,
+		      vote_result ? "voting" : "clearing", vote.val,
+		      proto_voter_reason[DEAD_BATTERY]);
+}
+
 static int debug_print_vote(char *str,  size_t len, const void *vote)
 {
 	struct usb_vote *usb_vote = (struct usb_vote *)vote;
@@ -640,17 +681,41 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	}
 	gvotable_set_vote2str(usb->usb_icl_proto_el, debug_print_vote);
 
+	/*
+	 * MIN VOTE: will have two voters
+	 * 1. MSC_BATT
+	 * 2. USB_CFG_VOTER
+	 *
+	 * Vote 1 to enable Dead Battery condition
+	 * Vote 0 to disable Dead Battery condition
+	 * Default: 1
+	 */
+	usb->dead_battery_el = gvotable_create_int_election(DEAD_BATTERY_EL,
+							    gvotable_comparator_int_min,
+							    dead_battery_callback, usb);
+	if (IS_ERR_OR_NULL(usb->dead_battery_el)) {
+		ret = usb->dead_battery_el;
+		goto unreg_icl_proto_el;
+	}
+	gvotable_set_vote2str(usb->dead_battery_el, gvotable_v2s_uint);
+	gvotable_set_default(usb->dead_battery_el, (void *)1);
+
 	usb->wq = kthread_create_worker(0, "wq-tcpm-usb-psy");
 	if (IS_ERR_OR_NULL(usb->wq)) {
 		ret = usb->wq;
-		goto unreg_icl_proto_el;
+		goto unreg_dead_battery_el;
 	}
 
 	kthread_init_delayed_work(&usb->icl_work, icl_work_item);
 	kthread_init_delayed_work(&usb->bc_icl_work, bc_icl_work_item);
 
+	/* vote default value after icl_work is initialized */
+	gvotable_use_default(usb->dead_battery_el, true);
+
 	return usb;
 
+unreg_dead_battery_el:
+	gvotable_destroy_election(usb->dead_battery_el);
 unreg_icl_proto_el:
 	gvotable_destroy_election(usb->usb_icl_proto_el);
 unreg_icl_combined_el:
@@ -675,6 +740,7 @@ void usb_psy_teardown(void *usb_data)
 	struct usb_psy_data *usb = (struct usb_psy_data *)usb_data;
 
 	kthread_destroy_worker(usb->wq);
+	gvotable_destroy_election(usb->dead_battery_el);
 	gvotable_destroy_election(usb->usb_icl_proto_el);
 	gvotable_destroy_election(usb->usb_icl_combined_el);
 	gvotable_destroy_election(usb->usb_icl_el);
