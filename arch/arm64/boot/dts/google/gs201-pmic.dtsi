@@ -229,7 +229,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x7>;
-				schematic-name = "S7M_VDD_INT";
+				schematic-name = "S7M_VDD_INT_M";
 				subsys-name = "INT";
 				buck_rail;
 				channel-en-byte-offset = <0>;
@@ -287,7 +287,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x21>;
-				schematic-name = "L1M_VDD_ALIVE";
+				schematic-name = "L1M_ALIVE";
 				subsys-name = "Alive";
 			};
 
@@ -298,8 +298,8 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x22>;
-				schematic-name = "L2M_PERI";
-				subsys-name = "Peri";
+				schematic-name = "L2M_ALIVE";
+				subsys-name = "Alive";
 			};
 
 			m_ldo3_reg: LDO3M {
@@ -459,7 +459,7 @@
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x31>;
 				schematic-name = "L17M_VDD_CPUCL2_M";
-				subsys-name = "";
+				subsys-name = "CPU(BIG)";
 			};
 
 			m_ldo18_reg: LDO18M {
@@ -530,7 +530,7 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x38>;
-				schematic-name = "L24M_DISP";
+				schematic-name = "L24M_DISP_VDDI";
 				subsys-name = "Display";
 			};
 
@@ -562,7 +562,7 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x3B>;
-				schematic-name = "L27M_DISP";
+				schematic-name = "L27M_DISP_VCI";
 				subsys-name = "Display";
 			};
 
@@ -824,7 +824,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x6>;
-				schematic-name = "S6S_LLDO4";
+				schematic-name = "S6S_LLDO2";
 				subsys-name = "LDO";
 				buck_rail;
 				channel-en-byte-offset = <0>;
@@ -881,7 +881,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0xA>;
-				schematic-name = "S10S_VDD2L";
+				schematic-name = "S10S_LLDO3";
 				subsys-name = "DDR";
 				buck_rail;
 				channel-en-byte-offset = <1>;
@@ -923,7 +923,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0xD>;
-				schematic-name = "VDD_BUCKC";
+				schematic-name = "SC";
 				subsys-name = "IO";
 				buck_rail;
 				channel-en-byte-offset = <1>;
@@ -937,7 +937,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0xB>;
-				schematic-name = "VDD_BUCKD";
+				schematic-name = "SD";
 				subsys-name = "IO";
 				buck_rail;
 				channel-en-byte-offset = <1>;
@@ -962,7 +962,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x22>;
-				schematic-name = "L2S_PLL";
+				schematic-name = "L2S_PLL_MIPI_UFS";
 				subsys-name = "PLL";
 			};
 
@@ -1014,7 +1014,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x27>;
-				schematic-name = "L7S_SENSORS";
+				schematic-name = "L7S_SENSORS_FPS";
 				subsys-name = "Sensors";
 			};
 
@@ -1100,7 +1100,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x2F>;
-				schematic-name = "L15S_FPS";
+				schematic-name = "L15S_UDFPS";
 				subsys-name = "FPS";
 			};
 
@@ -1173,8 +1173,8 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x36>;
-				schematic-name = "L21S_VDD2L_MEM";
-				subsys-name = "MEM";
+				schematic-name = "L22S_UDFPS";
+				subsys-name = "FPS";
 			};
 
 			s_ldo23_reg: LDO23S {
@@ -1213,7 +1213,7 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x3A>;
-				schematic-name = "26S_S5910";
+				schematic-name = "L26S_S5910";
 				subsys-name = "S5910";
 			};
 
@@ -1223,7 +1223,7 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x3B>;
-				schematic-name = "27S_S5910";
+				schematic-name = "L27S_S5910";
 				subsys-name = "S5910";
 			};
 
