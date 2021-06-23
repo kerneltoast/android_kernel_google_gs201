@@ -1178,4 +1178,5 @@
 &acpm_mbox_test {
 	main-pmic = <&s2mpg10mfd>;
 	sub-pmic = <&s2mpg11mfd>;
+	acpm-ipc-channel = <2>;
 };
