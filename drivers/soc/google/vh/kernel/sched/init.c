@@ -6,6 +6,7 @@
  * Copyright 2020 Google LLC
  */
 
+#include <kernel/sched/sched.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <trace/hooks/sched.h>
@@ -98,6 +99,10 @@ static int vh_sched_init(void)
 	ret = cpufreq_register_governor(&sched_pixel_gov);
 	if (ret)
 		return ret;
+
+	// Disable TTWU_QUEUE.
+	sysctl_sched_features &= ~(1UL << __SCHED_FEAT_TTWU_QUEUE);
+	static_key_disable(&sched_feat_keys[__SCHED_FEAT_TTWU_QUEUE]);
 
 	return 0;
 }
