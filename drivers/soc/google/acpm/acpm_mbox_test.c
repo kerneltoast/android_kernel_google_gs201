@@ -29,9 +29,16 @@
 #include <dt-bindings/clock/gs101.h>
 #include <soc/google/exynos-devfreq.h>
 #include "../../../soc/google/cal-if/acpm_dvfs.h"
+#if defined(CONFIG_SOC_GS101)
 #include <linux/mfd/samsung/s2mpg10.h>
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/rtc-s2mpg10.h>
+#elif defined(CONFIG_SOC_GS201)
+#include <linux/mfd/samsung/s2mpg12.h>
+#include <linux/mfd/samsung/s2mpg13.h>
+#include <linux/mfd/samsung/rtc-s2mpg12.h>
+#endif
+#include <soc/google/acpm_mfd.h>
 #include <soc/google/pt.h>
 #include <linux/list.h>
 
@@ -41,6 +48,7 @@ static struct acpm_mbox_test *mbox;
 static struct acpm_dvfs_test *dvfs_test;
 static u8 aged[NR_RTC_CNT_REGS];
 static struct list_head *slc_pt_list;
+static struct device_node *dt_node;
 
 #define CHIP_REV_TYPE_A0          0
 #define CPU_NUM_NO_HERA           6
@@ -278,13 +286,91 @@ static void acpm_dvfs_mbox_stress_trigger(struct work_struct *work)
 			      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
 }
 
+static int acpm_main_pm_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
+{
+	u8 channel = mbox->mfd->main_channel;
+	int ret;
+
+	mutex_lock(&mbox->mfd->main_pm_lock);
+	ret = exynos_acpm_read_reg(dt_node, channel, i2c->addr, reg, dest);
+	mutex_unlock(&mbox->mfd->main_pm_lock);
+	if (ret) {
+		dev_err(mbox->device, "%s acpm ipc fail, ret: %d\n",
+			__func__, ret);
+		return ret;
+	}
+	return 0;
+}
+
+static int acpm_main_pm_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
+{
+	u8 channel = mbox->mfd->main_channel;
+	int ret;
+
+	mutex_lock(&mbox->mfd->main_pm_lock);
+	ret = exynos_acpm_write_reg(dt_node, channel, i2c->addr, reg, value);
+	mutex_unlock(&mbox->mfd->main_pm_lock);
+	if (ret) {
+		dev_err(mbox->device, "%s acpm ipc fail, ret: %d\n",
+			__func__, ret);
+		return ret;
+	}
+	return ret;
+}
+
+static int acpm_main_pm_bulk_read(struct i2c_client *i2c, u8 reg, int count,
+				  u8 *buf)
+{
+	u8 channel = mbox->mfd->main_channel;
+	int ret;
+
+	mutex_lock(&mbox->mfd->main_pm_lock);
+	ret = exynos_acpm_bulk_read(dt_node, channel, i2c->addr,
+				    reg, count, buf);
+	mutex_unlock(&mbox->mfd->main_pm_lock);
+	if (ret) {
+		dev_err(mbox->device, "%s acpm ipc fail, ret: %d\n",
+			__func__, ret);
+		return ret;
+	}
+	return 0;
+}
+
+static int acpm_sub_pm_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
+{
+	u8 channel = mbox->mfd->sub_channel;
+	int ret;
+
+	mutex_lock(&mbox->mfd->sub_pm_lock);
+	ret = exynos_acpm_read_reg(dt_node, channel, i2c->addr, reg, dest);
+	mutex_unlock(&mbox->mfd->sub_pm_lock);
+	if (ret)
+		dev_err(mbox->device, "%s acpm ipc fail, ret: %d\n",
+			__func__, ret);
+	return ret;
+}
+
+static int acpm_sub_pm_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
+{
+	u8 channel = mbox->mfd->sub_channel;
+	int ret;
+
+	mutex_lock(&mbox->mfd->sub_pm_lock);
+	ret = exynos_acpm_write_reg(dt_node, channel, i2c->addr, reg, value);
+	mutex_unlock(&mbox->mfd->sub_pm_lock);
+	if (ret)
+		dev_err(mbox->device, "%s acpm ipc fail, ret: %d\n",
+			__func__, ret);
+	return ret;
+}
+
 static int acpm_mfd_rtc_update(void)
 {
 	u8 data, reg;
 	int ret;
 
-	ret = s2mpg10_read_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, &data);
-	if (ret < 0) {
+	ret = acpm_main_pm_read_reg(mbox->mfd->rtc, RTC_REG_UPDATE, &data);
+	if (ret) {
 		dev_err(mbox->device, "%s: fail to read update ret(%d,%u)\n",
 			__func__, ret, data);
 		return ret;
@@ -295,7 +381,7 @@ static int acpm_mfd_rtc_update(void)
 	reg = BIT(RTC_RUDR_SHIFT);
 
 	data &= ~reg;
-	ret = s2mpg10_write_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, data);
+	ret = acpm_main_pm_write_reg(mbox->mfd->rtc, RTC_REG_UPDATE, data);
 	if (ret) {
 		dev_err(mbox->device, "%s: fail to write update ret(%d,%u)\n",
 			__func__, ret, data);
@@ -305,7 +391,7 @@ static int acpm_mfd_rtc_update(void)
 	usleep_range(50, 51);
 
 	data |= reg;
-	ret = s2mpg10_write_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, data);
+	ret = acpm_main_pm_write_reg(mbox->mfd->rtc, RTC_REG_UPDATE, data);
 	if (ret)
 		dev_err(mbox->device, "%s: fail to write update ret(%d,%u)\n",
 			__func__, ret, data);
@@ -352,7 +438,7 @@ static int acpm_mfd_rtc_read_time(void)
 	u8 now[NR_RTC_CNT_REGS];
 	int ret;
 
-	mutex_lock(&mbox->mfd->lock);
+	mutex_lock(&mbox->mfd->rtc_lock);
 	ret = acpm_mfd_rtc_update();
 	if (ret < 0) {
 		dev_err(mbox->device, "%s: rtc update failed, ret: %d\n",
@@ -361,9 +447,9 @@ static int acpm_mfd_rtc_read_time(void)
 		goto out;
 	}
 
-	ret = s2mpg10_bulk_read(mbox->mfd->rtc, S2MPG10_RTC_SEC, NR_RTC_CNT_REGS,
-			      now);
-	if (ret < 0) {
+	ret = acpm_main_pm_bulk_read(mbox->mfd->rtc, RTC_REG_SEC,
+				   NR_RTC_CNT_REGS, now);
+	if (ret) {
 		dev_err(mbox->device, "%s: fail to read time reg(%d)\n",
 			__func__, ret);
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
@@ -385,39 +471,42 @@ static int acpm_mfd_rtc_read_time(void)
 		 now[RTC_HOUR] & BIT(HOUR_PM_SHIFT) ? "PM" : "AM");
 
 out:
-	mutex_unlock(&mbox->mfd->lock);
+	mutex_unlock(&mbox->mfd->rtc_lock);
 	return ret;
 }
 
-static void acpm_mbox_mfd_s2mpg10_random_read(struct work_struct *work)
+static void acpm_mbox_mfd_main_pm_random_read(struct work_struct *work)
 {
 	u32 addr;
 	u8 val = 0;
 
 	addr = get_random_for_type(GRANVILLE_M_REG);
 
-	if (s2mpg10_read_reg(mbox->mfd->s2mpg10_pmic, addr, &val)) {
-		dev_err(mbox->device, "%s: Failed to read S2MPG10\n", __func__);
+	if (acpm_main_pm_read_reg(mbox->mfd->main_pmic, addr, &val)) {
+		dev_err(mbox->device, "%s: Failed to read S2MPG-Main\n",
+			__func__);
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 	} else
-		dev_info(mbox->device, "%s: [S2MPG10]addr: 0x%X, val: 0x%X\n",
-			 __func__, addr, val);
+		dev_info(mbox->device,
+			 "%s: [S2MPG-Main]addr: 0x%X, val: 0x%X\n", __func__,
+			 addr, val);
 
 	acpm_mfd_rtc_read_time();
 }
 
-static void acpm_mbox_mfd_s2mpg11_random_read(struct work_struct *work)
+static void acpm_mbox_mfd_sub_pm_random_read(struct work_struct *work)
 {
 	u32 addr;
 	u8 val = 0;
 
 	addr = get_random_for_type(GRANVILLE_S_REG);
 
-	if (s2mpg11_read_reg(mbox->mfd->s2mpg11_pmic, addr, &val)) {
-		dev_err(mbox->device, "%s: Failed to read S2MPG11\n", __func__);
+	if (acpm_sub_pm_read_reg(mbox->mfd->sub_pmic, addr, &val)) {
+		dev_err(mbox->device, "%s: Failed to read S2MPG-Sub\n",
+			__func__);
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 	} else
-		dev_info(mbox->device, "%s: [S2MPG11]addr: 0x%X, val: 0x%X\n",
+		dev_info(mbox->device, "%s: [S2MPG-Sub]addr: 0x%X, val: 0x%X\n",
 			 __func__, addr, val);
 }
 
@@ -430,7 +519,7 @@ static int acpm_pmic_ctrlist_stress(void)
 	for (i = 0; i < sizeof(def_lck_regs_m) / sizeof(u16); i++) {
 		addr = def_lck_regs_m[i];
 
-		ret = s2mpg10_read_reg(mbox->mfd->s2mpg10_pmic, addr, &value);
+		ret = acpm_main_pm_read_reg(mbox->mfd->main_pmic, addr, &value);
 		if (ret) {
 			dev_err(mbox->device, "%s: fail to read ret: %d\n",
 				__func__, ret);
@@ -438,7 +527,7 @@ static int acpm_pmic_ctrlist_stress(void)
 		}
 
 		/* Verify PMIC ctrlist by writing the same setting */
-		ret = s2mpg10_write_reg(mbox->mfd->s2mpg10_pmic, addr, value);
+		ret = acpm_main_pm_write_reg(mbox->mfd->main_pmic, addr, value);
 		if (ret == 0) {
 			dev_err(mbox->device,
 				"%s: ctrlist protection failed, ret: %d\n",
@@ -454,7 +543,7 @@ static int acpm_pmic_ctrlist_stress(void)
 	for (i = 0; i < sizeof(def_lck_regs_s) / sizeof(u16); i++) {
 		addr = def_lck_regs_s[i];
 
-		ret = s2mpg11_read_reg(mbox->mfd->s2mpg11_pmic, addr, &value);
+		ret = acpm_sub_pm_read_reg(mbox->mfd->sub_pmic, addr, &value);
 		if (ret) {
 			dev_err(mbox->device, "%s: fail to read ret: %d\n",
 				__func__, ret);
@@ -462,7 +551,7 @@ static int acpm_pmic_ctrlist_stress(void)
 		}
 
 		/* Verify PMIC ctrlist by writing the same setting */
-		ret = s2mpg11_write_reg(mbox->mfd->s2mpg11_pmic, addr, value);
+		ret = acpm_sub_pm_write_reg(mbox->mfd->sub_pmic, addr, value);
 		if (ret == 0) {
 			dev_err(mbox->device,
 				"%s: ctrlist protection failed, ret: %d\n",
@@ -487,22 +576,20 @@ static void acpm_mfd_mbox_stress_trigger(struct work_struct *work)
 {
 	int i;
 
-	if ((!mbox->mfd->s2mpg10_pmic)
-	    || (!mbox->mfd->s2mpg11_pmic)) {
+	if ((!mbox->mfd->main_pmic)
+	    || (!mbox->mfd->sub_pmic)) {
 		cancel_delayed_work_sync(&mbox->mfd->mbox_stress_trigger_wk);
 	} else {
 		for (i = 0; i < NUM_OF_WQ; i++) {
 			queue_delayed_work_on(get_random_for_type(CPU_ID),
-					      mbox->mfd->s2mpg10_mfd_read_wq[i],
-					      &mbox->
-					      mfd->s2mpg10_mfd_read_wk[i],
+					      mbox->mfd->main_pm_mfd_read_wq[i],
+					      &mbox->mfd->main_pm_mfd_read_wk[i],
 					      msecs_to_jiffies
 					      (get_random_for_type(DELAY_MS)));
 
 			queue_delayed_work_on(get_random_for_type(CPU_ID),
-					      mbox->mfd->s2mpg11_mfd_read_wq[i],
-					      &mbox->
-					      mfd->s2mpg11_mfd_read_wk[i],
+					      mbox->mfd->sub_pm_mfd_read_wq[i],
+					      &mbox->mfd->sub_pm_mfd_read_wk[i],
 					      msecs_to_jiffies
 					      (get_random_for_type(DELAY_MS)));
 		}
@@ -682,8 +769,6 @@ static int acpm_mfd_set_pmic(void)
 {
 	struct device_node *p_np;
 	struct device_node *np = mbox->device->of_node;
-	struct s2mpg10_dev *s2mpg10 = NULL;
-	struct s2mpg11_dev *s2mpg11 = NULL;
 	struct i2c_client *i2c_main;
 	struct i2c_client *i2c_sub;
 	u8 update_val;
@@ -692,6 +777,8 @@ static int acpm_mfd_set_pmic(void)
 	if (mbox->mfd->init_done) {
 		return 0;
 	}
+
+	dt_node = np;
 
 	/* Configure for main pmic */
 	p_np = of_parse_phandle(np, "main-pmic", 0);
@@ -702,26 +789,29 @@ static int acpm_mfd_set_pmic(void)
 				__func__);
 			return -ENODEV;
 		}
-		s2mpg10 = i2c_get_clientdata(i2c_main);
+		mbox->mfd->s2mpg_main = i2c_get_clientdata(i2c_main);
 	} else
 		dev_err(mbox->device, "%s: Cannot find main-pmic\n", __func__);
 
 	of_node_put(p_np);
 
-	if (!s2mpg10) {
-		dev_err(mbox->device, "%s: S2MPG10 device not found\n",
+	if (!mbox->mfd->s2mpg_main) {
+		dev_err(mbox->device, "%s: S2MPG-Main device not found\n",
 			__func__);
 		return -ENODEV;
 	}
 
-	i2c_set_clientdata(s2mpg10->pmic, s2mpg10);
-	mbox->mfd->s2mpg10_pmic = s2mpg10->pmic;
-	i2c_set_clientdata(s2mpg10->rtc, s2mpg10);
-	mbox->mfd->rtc = s2mpg10->rtc;
+	i2c_set_clientdata(mbox->mfd->s2mpg_main->pmic, mbox->mfd->s2mpg_main);
+	mbox->mfd->main_pmic = mbox->mfd->s2mpg_main->pmic;
+	mbox->mfd->main_channel = 0;
+
+	i2c_set_clientdata(mbox->mfd->s2mpg_main->rtc, mbox->mfd->s2mpg_main);
+	mbox->mfd->rtc = mbox->mfd->s2mpg_main->rtc;
 
 	/* Configure for RTC bulk_read */
-	ret = s2mpg10_read_reg(mbox->mfd->rtc, S2MPG10_RTC_UPDATE, &update_val);
-	if (ret < 0) {
+	ret =
+	    acpm_main_pm_read_reg(mbox->mfd->rtc, RTC_REG_UPDATE, &update_val);
+	if (ret) {
 		dev_err(mbox->device, "%s: Fail to read RTC_UPDATE ret: %d\n",
 			__func__, ret);
 		return ret;
@@ -739,20 +829,21 @@ static int acpm_mfd_set_pmic(void)
 				__func__);
 			return -ENODEV;
 		}
-		s2mpg11 = i2c_get_clientdata(i2c_sub);
+		mbox->mfd->s2mpg_sub = i2c_get_clientdata(i2c_sub);
 	} else
 		dev_err(mbox->device, "%s: Cannot find sub-pmic\n", __func__);
 
 	of_node_put(p_np);
 
-	if (!s2mpg11) {
-		dev_err(mbox->device, "%s: S2MPG11 device not found\n",
+	if (!mbox->mfd->s2mpg_sub) {
+		dev_err(mbox->device, "%s: S2MPG-Sub device not found\n",
 			__func__);
 		return -ENODEV;
 	}
 
-	i2c_set_clientdata(s2mpg11->pmic, s2mpg11);
-	mbox->mfd->s2mpg11_pmic = s2mpg11->pmic;
+	i2c_set_clientdata(mbox->mfd->s2mpg_sub->pmic, mbox->mfd->s2mpg_sub);
+	mbox->mfd->sub_pmic = mbox->mfd->s2mpg_sub->pmic;
+	mbox->mfd->sub_channel = 1;
 
 	mbox->mfd->init_done = 1;
 
@@ -815,13 +906,13 @@ static void acpm_mbox_test_init(void)
 			snprintf(buf, sizeof(buf), "acpm_dvfs_req_wq%d", i);
 			mbox->dvfs->rate_change_wq[i] =
 			    create_freezable_workqueue(buf);
-			snprintf(buf, sizeof(buf), "acpm_s2mpg10_mfd_rd_wq%d",
-				 i);
-			mbox->mfd->s2mpg10_mfd_read_wq[i] =
+			snprintf(buf, sizeof(buf),
+				 "acpm_s2mpg_main_mfd_rd_wq%d", i);
+			mbox->mfd->main_pm_mfd_read_wq[i] =
 			    create_freezable_workqueue(buf);
-			snprintf(buf, sizeof(buf), "acpm_s2mpg11_mfd_rd_wq%d",
+			snprintf(buf, sizeof(buf), "acpm_s2mpg_sub_mfd_rd_wq%d",
 				 i);
-			mbox->mfd->s2mpg11_mfd_read_wq[i] =
+			mbox->mfd->sub_pm_mfd_read_wq[i] =
 			    create_freezable_workqueue(buf);
 			snprintf(buf, sizeof(buf), "acpm_slc_request_wq%d", i);
 			mbox->slc->slc_request_wq[i] =
@@ -847,10 +938,10 @@ static void acpm_mbox_test_init(void)
 					  acpm_debug_tmu_rd_tmp_concur);
 			INIT_DELAYED_WORK(&mbox->dvfs->rate_change_wk[i],
 					  acpm_mbox_dvfs_rate_random_change);
-			INIT_DELAYED_WORK(&mbox->mfd->s2mpg10_mfd_read_wk[i],
-					  acpm_mbox_mfd_s2mpg10_random_read);
-			INIT_DELAYED_WORK(&mbox->mfd->s2mpg11_mfd_read_wk[i],
-					  acpm_mbox_mfd_s2mpg11_random_read);
+			INIT_DELAYED_WORK(&mbox->mfd->main_pm_mfd_read_wk[i],
+					  acpm_mbox_mfd_main_pm_random_read);
+			INIT_DELAYED_WORK(&mbox->mfd->sub_pm_mfd_read_wk[i],
+					  acpm_mbox_mfd_sub_pm_random_read);
 			INIT_DELAYED_WORK(&mbox->slc->slc_request_wk[i],
 					  acpm_mbox_slc_request_send);
 		}
@@ -908,8 +999,7 @@ static int dvfs_freq_table_init(void)
 					dev_info(mbox->device,
 						 "%s: dvfs_test->dm[%d]->table[%d] = %d Hz\n",
 						 __func__, i, index,
-						 dvfs_test->dm[i]->table[index].
-						 freq);
+						 dvfs_test->dm[i]->table[index].freq);
 			}
 		}
 		dvfs_test->init_done = true;
@@ -927,8 +1017,7 @@ static void acpm_framework_mbox_test(bool start)
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
 				      mbox->tmu->suspend_wq,
 				      &mbox->tmu->suspend_work,
-				      msecs_to_jiffies
-				      (TMU_SUSPEND_RESUME_DELAY));
+				      msecs_to_jiffies(TMU_SUSPEND_RESUME_DELAY));
 		queue_delayed_work_on(get_random_for_type(CPU_ID),
 				      mbox->tmu->rd_tmp_stress_trigger_wq,
 				      &mbox->tmu->rd_tmp_stress_trigger_wk,
@@ -1231,12 +1320,9 @@ static void acpm_dvfs_stats_dump(void)
 					 "%s: dm_id[%d], set_rate: %d Hz, "
 					 "get_rate: %d Hz, latency= %u ns\n",
 					 __func__, dm_id,
-					 dvfs_test->dm[dm_id]->stats[cycle].
-					 set_rate,
-					 dvfs_test->dm[dm_id]->stats[cycle].
-					 get_rate,
-					 dvfs_test->dm[dm_id]->stats[cycle].
-					 latency);
+					 dvfs_test->dm[dm_id]->stats[cycle].set_rate,
+					 dvfs_test->dm[dm_id]->stats[cycle].get_rate,
+					 dvfs_test->dm[dm_id]->stats[cycle].latency);
 			dev_info(mbox->device, "\n");
 		}
 	}
@@ -1565,7 +1651,9 @@ static int acpm_mbox_test_probe(struct platform_device *pdev)
 
 	acpm_test_debugfs_init(mbox_test);
 
-	mutex_init(&mbox_test->mfd->lock);
+	mutex_init(&mbox_test->mfd->rtc_lock);
+	mutex_init(&mbox_test->mfd->main_pm_lock);
+	mutex_init(&mbox_test->mfd->sub_pm_lock);
 
 	mbox = mbox_test;
 	dvfs_test = dvfs;
@@ -1600,8 +1688,8 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 		flush_workqueue(mbox->tmu->rd_tmp_random_wq[i]);
 		flush_workqueue(mbox->tmu->rd_tmp_concur_wq[i]);
 		flush_workqueue(mbox->dvfs->rate_change_wq[i]);
-		flush_workqueue(mbox->mfd->s2mpg10_mfd_read_wq[i]);
-		flush_workqueue(mbox->mfd->s2mpg11_mfd_read_wq[i]);
+		flush_workqueue(mbox->mfd->main_pm_mfd_read_wq[i]);
+		flush_workqueue(mbox->mfd->sub_pm_mfd_read_wq[i]);
 		flush_workqueue(mbox->slc->slc_request_wq[i]);
 	}
 
@@ -1615,12 +1703,14 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 		destroy_workqueue(mbox->tmu->rd_tmp_random_wq[i]);
 		destroy_workqueue(mbox->tmu->rd_tmp_concur_wq[i]);
 		destroy_workqueue(mbox->dvfs->rate_change_wq[i]);
-		destroy_workqueue(mbox->mfd->s2mpg10_mfd_read_wq[i]);
-		destroy_workqueue(mbox->mfd->s2mpg11_mfd_read_wq[i]);
+		destroy_workqueue(mbox->mfd->main_pm_mfd_read_wq[i]);
+		destroy_workqueue(mbox->mfd->sub_pm_mfd_read_wq[i]);
 		destroy_workqueue(mbox->slc->slc_request_wq[i]);
 	}
 
-	mutex_destroy(&mbox->mfd->lock);
+	mutex_destroy(&mbox->mfd->rtc_lock);
+	mutex_destroy(&mbox->mfd->main_pm_lock);
+	mutex_destroy(&mbox->mfd->sub_pm_lock);
 
 	kfree(mbox);
 	dev_info(mbox->device, "%s done.\n", __func__);
