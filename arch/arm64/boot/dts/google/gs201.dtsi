@@ -537,7 +537,7 @@
 		compatible = "google,acpm-flexpmu-dbg";
 	};
 
-	acpm_mbox_test {
+	acpm_mbox_test: mbox {
 		compatible = "google,acpm-mbox-test";
 	};
 
