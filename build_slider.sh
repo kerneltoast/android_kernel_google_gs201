@@ -94,6 +94,8 @@ DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
   GKI_DEFCONFIG_FRAGMENT=${GKI_DEFCONFIG_FRAGMENT} \
   ./build_mixed.sh
 
+exit_if_error $? "Failed to create mixed build"
+
 # If BUILD_KERNEL is not explicitly set, be sure that there are no aosp/
 # changes not present in the prebuilt.
 if [ "${CHECK_DIRTY_AOSP}" != "0" ]; then
