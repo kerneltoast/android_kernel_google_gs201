@@ -85,7 +85,7 @@
 		compatible = "samsung,dma-heap-carveout";
 		memory-region = <&famodel>;
 		dma-heap,name = "famodel";
-		dma-heap,secure;
+		dma-heap,dynamic-secure;
 		dma-heap,protection_id = <19>;
 		dma-heap,alignment = <0x10000>;
 	};
