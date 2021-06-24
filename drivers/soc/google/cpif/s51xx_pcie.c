@@ -353,7 +353,7 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	struct pci_bus *bus = pdev->bus;
 	struct pci_dev *bus_self = bus->self;
 	struct resource *tmp_rsc;
-	int resno = 8;
+	int resno = PCI_BRIDGE_MEM_WINDOW;
 	u32 val, db_addr;
 
 	dev_info(dev, "%s EP driver Probe(%s), chNum: %d\n",
