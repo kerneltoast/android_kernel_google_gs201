@@ -25,6 +25,8 @@ $DEVICE_KERNEL_FILES
 "
 fi
 
+MODULES_LIST=${KERNEL_DIR}/vendor_boot_modules.cloudripper
+
 EXT_MODULES+="
 private/google-modules/amplifiers/cs35l45
 private/google-modules/aoc
