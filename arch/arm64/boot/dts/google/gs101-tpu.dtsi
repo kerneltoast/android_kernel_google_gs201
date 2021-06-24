@@ -9,7 +9,7 @@
 / {
 	/* TPU */
 	edgetpu: abrolhos@1CE00000 {
-		compatible = "google,darwinn";
+		compatible = "google,edgetpu-gs101";
 		#dma-address-cells = <1>;
 		#dma-size-cells = <1>;
 		/* TPU uses regions under 0x18000000 for special purpose */
