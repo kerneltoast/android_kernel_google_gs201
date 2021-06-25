@@ -16,6 +16,7 @@ per-file linux/keydebug.h=*
 per-file linux/mcu_ipc.h=*
 per-file linux/mfd/samsung/*=*
 per-file linux/mfd/slg51000.h=*
+per-file linux/mfd/slg51002.h=*
 per-file linux/modem_notifier.h=*
 per-file linux/platform_data/lp855x.h=*
 per-file linux/platform_data/spi-s3c64xx.h=*

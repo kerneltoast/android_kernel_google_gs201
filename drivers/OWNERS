@@ -60,6 +60,7 @@ per-file media/platform/exynos/**=*
 
 per-file mfd/s2mpg*=*
 per-file mfd/slg51000-core.c=*
+per-file mfd/slg51002-core.c=*
 
 per-file misc/access_ramoops.c=*
 per-file misc/bbdpl/**=*
@@ -81,6 +82,7 @@ per-file pci/controller/dwc/pcie-exynos*=*
 per-file phy/samsung/**=*
 
 per-file pinctrl/pinctrl-slg51000.c=*
+per-file pinctrl/pinctrl-slg51002.c=*
 per-file pinctrl/samsung/pinctrl-exynos*=*
 per-file pinctrl/samsung/pinctrl-gs*=*
 per-file pinctrl/samsung/pinctrl-samsung.*=*
@@ -104,6 +106,7 @@ per-file regulator/of_regulator.c=saravanak@google.com
 per-file regulator/pmic_class.c=*
 per-file regulator/s2mpg*=*
 per-file regulator/slg51000-regulator.c=*
+per-file regulator/slg51002-regulator.c=*
 per-file regulator/userspace-consumer.c=saravanak@google.com
 per-file regulator/virtual.c=saravanak@google.com
 
