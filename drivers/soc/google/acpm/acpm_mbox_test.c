@@ -48,7 +48,6 @@ static struct acpm_mbox_test *mbox;
 static struct acpm_dvfs_test *dvfs_test;
 static u8 aged[NR_RTC_CNT_REGS];
 static struct list_head *slc_pt_list;
-static struct device_node *dt_node;
 
 #define CHIP_REV_TYPE_A0          0
 #define CPU_NUM_NO_HERA           6
@@ -288,6 +287,7 @@ static void acpm_dvfs_mbox_stress_trigger(struct work_struct *work)
 
 static int acpm_main_pm_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 {
+	struct device_node *dt_node = mbox->device->of_node;
 	u8 channel = mbox->mfd->main_channel;
 	int ret;
 
@@ -304,6 +304,7 @@ static int acpm_main_pm_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 
 static int acpm_main_pm_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
 {
+	struct device_node *dt_node = mbox->device->of_node;
 	u8 channel = mbox->mfd->main_channel;
 	int ret;
 
@@ -321,6 +322,7 @@ static int acpm_main_pm_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
 static int acpm_main_pm_bulk_read(struct i2c_client *i2c, u8 reg, int count,
 				  u8 *buf)
 {
+	struct device_node *dt_node = mbox->device->of_node;
 	u8 channel = mbox->mfd->main_channel;
 	int ret;
 
@@ -338,6 +340,7 @@ static int acpm_main_pm_bulk_read(struct i2c_client *i2c, u8 reg, int count,
 
 static int acpm_sub_pm_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 {
+	struct device_node *dt_node = mbox->device->of_node;
 	u8 channel = mbox->mfd->sub_channel;
 	int ret;
 
@@ -352,6 +355,7 @@ static int acpm_sub_pm_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 
 static int acpm_sub_pm_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
 {
+	struct device_node *dt_node = mbox->device->of_node;
 	u8 channel = mbox->mfd->sub_channel;
 	int ret;
 
@@ -516,8 +520,8 @@ static int acpm_pmic_ctrlist_stress(void)
 	u16 addr;
 	u8 value;
 
-	for (i = 0; i < sizeof(def_lck_regs_m) / sizeof(u16); i++) {
-		addr = def_lck_regs_m[i];
+	for (i = 0; i < mbox->mfd->num_of_main_regulator_regs; i++) {
+		addr = mbox->mfd->regulator_lst_main[i];
 
 		ret = acpm_main_pm_read_reg(mbox->mfd->main_pmic, addr, &value);
 		if (ret) {
@@ -540,8 +544,8 @@ static int acpm_pmic_ctrlist_stress(void)
 			 __func__, addr, value, err_result);
 	}
 
-	for (i = 0; i < sizeof(def_lck_regs_s) / sizeof(u16); i++) {
-		addr = def_lck_regs_s[i];
+	for (i = 0; i < mbox->mfd->num_of_sub_regulator_regs; i++) {
+		addr = mbox->mfd->regulator_lst_sub[i];
 
 		ret = acpm_sub_pm_read_reg(mbox->mfd->sub_pmic, addr, &value);
 		if (ret) {
@@ -772,13 +776,12 @@ static int acpm_mfd_set_pmic(void)
 	struct i2c_client *i2c_main;
 	struct i2c_client *i2c_sub;
 	u8 update_val;
-	int ret;
+	int ret, len, i;
+	u32 *regulator_list;
 
 	if (mbox->mfd->init_done) {
 		return 0;
 	}
-
-	dt_node = np;
 
 	/* Configure for main pmic */
 	p_np = of_parse_phandle(np, "main-pmic", 0);
@@ -844,6 +847,46 @@ static int acpm_mfd_set_pmic(void)
 	i2c_set_clientdata(mbox->mfd->s2mpg_sub->pmic, mbox->mfd->s2mpg_sub);
 	mbox->mfd->sub_pmic = mbox->mfd->s2mpg_sub->pmic;
 	mbox->mfd->sub_channel = 1;
+
+	len = of_property_count_u32_elems(np, "mfd-regulator-list-main");
+	if (len <= 0) {
+		dev_err(mbox->device,
+			"%s: main regulator list not found, len: %d\n",
+			__func__, len);
+	} else {
+		mbox->mfd->num_of_main_regulator_regs = len;
+
+		regulator_list = kcalloc(len, sizeof(unsigned int), GFP_KERNEL);
+
+		of_property_read_u32_array(np, "mfd-regulator-list-main",
+					   regulator_list, len);
+
+		mbox->mfd->regulator_lst_main = regulator_list;
+
+		for (i = 0; i < len; i++)
+			dev_dbg(mbox->device, "%s: main regulator_lst: 0x%X\n",
+				 __func__, mbox->mfd->regulator_lst_main[i]);
+	}
+
+	len = of_property_count_u32_elems(np, "mfd-regulator-list-sub");
+	if (len <= 0) {
+		dev_err(mbox->device,
+			"%s: sub regulator list not found, len: %d\n",
+			__func__, len);
+	} else {
+		mbox->mfd->num_of_sub_regulator_regs = len;
+
+		regulator_list = kcalloc(len, sizeof(unsigned int), GFP_KERNEL);
+
+		of_property_read_u32_array(np, "mfd-regulator-list-sub",
+					   regulator_list, len);
+
+		mbox->mfd->regulator_lst_sub = regulator_list;
+
+		for (i = 0; i < len; i++)
+			dev_dbg(mbox->device, "%s: sub regulator_lst: 0x%X\n",
+				 __func__, mbox->mfd->regulator_lst_sub[i]);
+	}
 
 	mbox->mfd->init_done = 1;
 

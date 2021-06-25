@@ -217,38 +217,6 @@ struct acpm_dvfs_validity {
 #define SECS_PER_HR     3600
 #define SECS_PER_MIN    60
 
-#define BUCK1M_OUT1     (0x119)
-#define BUCK2M_OUT1     (0x11C)
-#define BUCK3M_OUT1     (0x11F)
-#define BUCK4M_OUT1     (0x122)
-#define BUCK5M_OUT1     (0x125)
-#define BUCK6M_OUT1     (0x128)
-#define BUCK7M_OUT1     (0x12B)
-#define BUCK10M_OUT1    (0x134)
-#define LDO12M_CTRL1    (0x14C)
-#define LDO13M_CTRL1    (0x14E)
-#define LDO15M_CTRL1    (0x151)
-
-#define BUCK1S_OUT1     (0x113)
-#define BUCK2S_OUT1     (0x116)
-#define BUCK3S_OUT1     (0x119)
-#define BUCK4S_OUT      (0x11C)
-#define BUCK5S_OUT      (0x11E)
-#define BUCK8S_OUT1     (0x126)
-#define BUCK9S_OUT1     (0x129)
-#define LDO2S_CTRL1     (0x143)
-
-static u16 def_lck_regs_m[NUM_OF_PMIC_MASTER] = {
-	BUCK1M_OUT1, BUCK2M_OUT1, BUCK3M_OUT1, BUCK4M_OUT1,
-	BUCK5M_OUT1, BUCK6M_OUT1, BUCK7M_OUT1, BUCK10M_OUT1,
-	LDO12M_CTRL1, LDO13M_CTRL1, LDO15M_CTRL1
-};
-
-static u16 def_lck_regs_s[NUM_OF_PMIC_ID - NUM_OF_PMIC_MASTER] = {
-	BUCK1S_OUT1, BUCK2S_OUT1, BUCK3S_OUT1, BUCK4S_OUT,
-	BUCK5S_OUT, BUCK8S_OUT1, BUCK9S_OUT1, LDO2S_CTRL1
-};
-
 struct acpm_mfd_validity {
 #if defined(CONFIG_SOC_GS101)
 	struct s2mpg10_dev *s2mpg_main;
@@ -276,6 +244,10 @@ struct acpm_mfd_validity {
 	struct mutex sub_pm_lock;
 	int ctrlist_err_result;
 	int init_done;
+	int *regulator_lst_main;
+	int *regulator_lst_sub;
+	int num_of_main_regulator_regs;
+	int num_of_sub_regulator_regs;
 };
 
 #define PT_VERSION		0xd005
