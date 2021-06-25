@@ -215,7 +215,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x7>;
-				schematic-name = "S7M_VDD_INT";
+				schematic-name = "S7M_VDD_INT_M";
 				subsys-name = "INT";
 				buck_rail;
 				channel-en-byte-offset = <0>;
@@ -414,7 +414,7 @@
 				regulator-always-on;
 #endif
 				channel-mux-selection = <0x2E>;
-				schematic-name = "L14M_TCXO";
+				schematic-name = "L14M_AVDD_TCXO"; /* DVT+ */
 				subsys-name = "PLL";
 			};
 
@@ -507,8 +507,8 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x37>;
-				schematic-name = "L23M_UNUSED";
-				subsys-name = "Spare";
+				schematic-name = "L23M_DISP_VDDI"; /* O6-only */
+				subsys-name = "Display";
 			};
 
 			m_ldo24_reg: LDO24M {
@@ -516,8 +516,8 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				channel-mux-selection = <0x38>;
-				schematic-name = "L24M_DISP_VDD";
-				subsys-name = "Display";
+				schematic-name = "L24M_UNUSED";
+				subsys-name = "Spare";
 			};
 
 			m_ldo25_reg: LDO25M {
@@ -547,7 +547,7 @@
 				regulator-always-on;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3B>;
-				schematic-name = "L27M_SENTONS";
+				schematic-name = "L27M_UDFPS_AVDD";
 				subsys-name = "UDFPS";
 			};
 
@@ -557,7 +557,7 @@
 				regulator-max-microvolt = <1300000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3C>;
-				schematic-name = "L28M_SENTONS";
+				schematic-name = "L28M_DISP_VDDD"; /* R4-only */
 				subsys-name = "Display";
 			};
 
@@ -566,7 +566,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				channel-mux-selection = <0x3D>;
-				schematic-name = "L29M_DISP";
+				schematic-name = "L29M_UNUSED";
 				subsys-name = "Spare";
 			};
 
@@ -575,7 +575,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				channel-mux-selection = <0x3E>;
-				schematic-name = "L30M_DISP_VDDI";
+				schematic-name = "L30M_UNUSED";
 				subsys-name = "Spare";
 			};
 
@@ -585,8 +585,8 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x3F>;
-				schematic-name = "L31M_UNUSED";
-				subsys-name = "Spare";
+				schematic-name = "L31M_NFC";
+				subsys-name = "NFC";
 				regulator-always-on;
 			};
 		};
@@ -941,7 +941,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				channel-mux-selection = <0x23>;
-				schematic-name = "L3S_HS_AMP";
+				schematic-name = "L3S_UNUSED";
 				subsys-name = "Spare";
 			};
 
@@ -951,7 +951,7 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x24>;
-				schematic-name = "L4S_OSLO";
+				schematic-name = "L4S_UWB"; /* R4-only */
 				subsys-name = "UWB";
 			};
 
@@ -960,7 +960,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				channel-mux-selection = <0x25>;
-				schematic-name = "L5S_OSLO";
+				schematic-name = "L5S_UNUSED";
 				subsys-name = "Spare";
 			};
 
@@ -1035,7 +1035,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				channel-mux-selection = <0x2C>;
-				schematic-name = "L12S_WLAN";
+				schematic-name = "L12S_UNUSED";
 				subsys-name = "Spare";
 			};
 
@@ -1046,8 +1046,8 @@
 				regulator-always-on;
 				regulator-initial-mode = <1>;
 				channel-mux-selection = <0x2D>;
-				schematic-name = "L13S_MMC_CARD";
-				subsys-name = "MMC";
+				schematic-name = "L13S_DPAUX";
+				subsys-name = "Display";
 			};
 
 			s_ldo14_reg: LDO14S {
@@ -1056,7 +1056,7 @@
 				regulator-max-microvolt = <1950000>;
 				regulator-initial-mode = <3>;
 				channel-mux-selection = <0x2E>;
-				schematic-name = "L14S_NFC";
+				schematic-name = "L14S_UWB"; /* R4-only */
 				subsys-name = "UWB";
 			};
 
@@ -1065,7 +1065,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				channel-mux-selection = <0x2F>;
-				schematic-name = "L15S_FPS";
+				schematic-name = "L15S_UNUSED";
 				subsys-name = "Spare";
 			};
 		};
