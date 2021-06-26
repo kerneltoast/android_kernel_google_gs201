@@ -52,6 +52,10 @@ exynos_mfc.ko
 exynos_pm_qos.ko
 exynos_tty.ko
 g2d.ko
+google-battery.ko
+google-bms.ko
+google-charger.ko
+google-cpm.ko
 gs-chipid.ko
 gs_acpm.ko
 gs_thermal.ko
@@ -72,6 +76,10 @@ logbuffer.ko
 lzo-rle.ko
 lzo.ko
 mailbox-wc.ko
+max1720x-battery.ko
+max77729-pmic.ko
+max77729_uic.ko
+max77759_charger.ko
 max77759_contaminant.ko
 max77759_helper.ko
 mcps802154.ko
@@ -80,12 +88,14 @@ mcps802154_region_nfcc_coex.ko
 memlat-devfreq.ko
 nitrous.ko
 odpm.ko
+p9221.ko
 panel-samsung-drv.ko
 panel-samsung-emul.ko
 panel-samsung-s6e3fc3.ko
 panel-samsung-s6e3hc2.ko
 panel-samsung-s6e3hc3.ko
 panel-samsung-sofef01.ko
+pca9468.ko
 pcie-exynos-core.ko
 pcie-exynos-gs201-rc-cal.ko
 phy-exynos-mipi-dsim.ko
