@@ -26,6 +26,7 @@
 #include <soc/google/exynos_cpu_cooling.h>
 #include "../thermal_core.h"
 
+#include <trace/events/power.h>
 #include <trace/events/thermal_exynos.h>
 /*
  * Cooling state <-> CPUFreq frequency
@@ -576,6 +577,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	if (ret == 1) {
 		ret = 0;
+		trace_clock_set_rate(cdev->type, cpufreq_cdev->sysfs_req, raw_smp_processor_id());
 		trace_vendor_cdev_update(cdev->type, cpufreq_cdev->sysfs_req, state);
 	}
 

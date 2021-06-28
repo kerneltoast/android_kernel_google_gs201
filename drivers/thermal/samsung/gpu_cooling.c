@@ -20,6 +20,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_exynos_gpu.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/events/power.h>
 
 /**
  * struct power_table - Stores a frequency to power translation
@@ -598,6 +600,7 @@ static int gpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	blocking_notifier_call_chain(&gpu_notifier, GPU_THROTTLING, &nd);
 	trace_vendor_cdev_update(cdev->type, gpufreq_cdev->sysfs_req, state);
+	trace_clock_set_rate(cdev->type, gpufreq_cdev->sysfs_req, raw_smp_processor_id());
 
 	return 0;
 }
