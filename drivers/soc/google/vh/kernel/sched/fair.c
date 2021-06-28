@@ -10,6 +10,7 @@
 
 #include "sched_priv.h"
 #include "sched_events.h"
+#include "../systrace.h"
 
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 extern void update_uclamp_stats(int cpu, u64 time);
@@ -1440,4 +1441,11 @@ void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css
 	} else {
 		vtg->group = VG_SYSTEM;
 	}
+}
+
+void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk, int clamp_id,
+					    unsigned int value)
+{
+	trace_sched_setscheduler_uclamp(tsk, clamp_id, value);
+	__ATRACE_INT_PID(tsk->pid, clamp_id  == UCLAMP_MIN ? "UCLAMP_MIN" : "UCLAMP_MAX", value);
 }

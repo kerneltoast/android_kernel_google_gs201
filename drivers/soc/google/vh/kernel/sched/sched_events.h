@@ -222,6 +222,30 @@ TRACE_EVENT(sched_util_est_cfs,
 		 __entry->ewma, __entry->util)
 );
 
+TRACE_EVENT(sched_setscheduler_uclamp,
+
+	TP_PROTO(struct task_struct *tsk, int clamp_id, unsigned int value),
+
+	TP_ARGS(tsk, clamp_id, value),
+
+	TP_STRUCT__entry(
+		__array(char, comm, TASK_COMM_LEN)
+		__field(pid_t,	pid)
+		__field(int,	clamp_id)
+		__field(unsigned int,	value)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid             = tsk->pid;
+		__entry->clamp_id        = clamp_id;
+		__entry->value           = value;
+	),
+
+	TP_printk("pid=%d comm=%s clamp_id=%d, value=%u",
+		__entry->pid, __entry->comm, __entry->clamp_id, __entry->value)
+);
+
 TRACE_EVENT(sched_find_best_target,
 
 	TP_PROTO(struct task_struct *tsk, bool prefer_idle,
@@ -539,6 +563,7 @@ TRACE_EVENT(sched_select_task_rq_rt,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE sched_events
 #include <trace/define_trace.h>

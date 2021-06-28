@@ -12,6 +12,8 @@
 #include <trace/hooks/sched.h>
 #include <trace/hooks/topology.h>
 
+extern void init_uclamp_stats(void);
+extern int create_sysfs_node(void);
 extern void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 						    int sync, int *new_cpu);
 extern void vh_arch_set_freq_scale_pixel_mod(void *data,
@@ -21,7 +23,6 @@ extern void vh_arch_set_freq_scale_pixel_mod(void *data,
 					     unsigned long *scale);
 extern void vh_set_sugov_sched_attr_pixel_mod(void *data, struct sched_attr *attr);
 extern void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost);
-extern int create_sysfs_node(void);
 extern void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 					    int sd_flag, int wake_flags, int *new_cpu);
 extern void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized);
@@ -35,9 +36,9 @@ extern void rvh_post_init_entity_util_avg_pixel_mod(void *data, struct sched_ent
 extern void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
 			bool *preempt, bool *nopreempt, int wake_flags, struct sched_entity *se,
 			struct sched_entity *pse, int next_buddy_marked, unsigned int granularity);
-
 extern void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css);
-extern void init_uclamp_stats(void);
+extern void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk,
+						   int clamp_id, unsigned int value);
 
 extern struct cpufreq_governor sched_pixel_gov;
 
@@ -98,6 +99,11 @@ static int vh_sched_init(void)
 
 	ret = register_trace_android_rvh_cpu_cgroup_online(
 		rvh_cpu_cgroup_online_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_setscheduler_uclamp(
+		vh_sched_setscheduler_uclamp_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
