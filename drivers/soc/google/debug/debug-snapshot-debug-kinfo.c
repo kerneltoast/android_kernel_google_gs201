@@ -11,23 +11,56 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
+#include <generated/utsrelease.h>
 #include <soc/google/debug-snapshot.h>
 #include "../../../../drivers/staging/android/debug_kinfo.h"
+
+struct vendor_kernel_info {
+	/* For linux banner */
+	__u8 uts_release[__NEW_UTS_LEN];
+} __packed;
+
+struct vendor_kernel_all_info {
+	__u32 magic_number;
+	__u32 combined_checksum;
+	struct vendor_kernel_info info;
+} __packed;
+
+static void update_vendor_kernel_all_info(struct vendor_kernel_all_info *all_info)
+{
+	int index;
+	struct vendor_kernel_info *info;
+	u32 *vendor_checksum_info;
+
+	all_info->magic_number = DEBUG_KINFO_MAGIC;
+	all_info->combined_checksum = 0;
+
+	info = &all_info->info;
+	vendor_checksum_info = (u32 *)info;
+	for (index = 0; index < sizeof(*info) / sizeof(u32); index++)
+		all_info->combined_checksum ^= vendor_checksum_info[index];
+}
 
 static int debug_snapshot_debug_kinfo_probe(struct platform_device *pdev)
 {
 	int i;
 	struct reserved_mem *rmem;
 	struct device_node *mem_region;
-	phys_addr_t base, size;
+	phys_addr_t base, size, offset;
 	unsigned int num_pages;
 	unsigned long flags = VM_NO_GUARD | VM_MAP;
 	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
 	struct page **pages;
 	void *vaddr;
+	struct vendor_kernel_all_info *all_info;
+	struct vendor_kernel_info *info;
 
+	/* Introduce DPM to disable the feature for production */
 	if (!dbg_snapshot_get_dpm_status())
 		return -EPROBE_DEFER;
+
+	if (!dbg_snapshot_get_enabled_debug_kinfo())
+		return 0;
 
 	mem_region = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
 	if (!mem_region) {
@@ -44,8 +77,10 @@ static int debug_snapshot_debug_kinfo_probe(struct platform_device *pdev)
 
 	base = rmem->base;
 	size = rmem->size;
+	offset = size / 2;
 
-	if (!base || !size || size < sizeof(struct kernel_all_info)) {
+	if (!base || !size || offset < sizeof(struct kernel_all_info) ||
+	    (size - offset) < sizeof(struct vendor_kernel_all_info)) {
 		dev_err(&pdev->dev, "unexpected reserved memory\n");
 		return 0;
 	}
@@ -68,12 +103,15 @@ static int debug_snapshot_debug_kinfo_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	/* Introduce DPM to disable the feature for production */
-	if (dbg_snapshot_get_enabled_debug_kinfo()) {
-		rmem->priv = vaddr;
-	} else {
-		vunmap(vaddr);
-	}
+	/* Prepare for AOSP kernel info. backup */
+	rmem->priv = vaddr;
+
+	/* Backup vendor kernel info. */
+	all_info = (struct vendor_kernel_all_info *)(vaddr + offset);
+	memset(all_info, 0, sizeof(*all_info));
+	info = &all_info->info;
+	strscpy(info->uts_release, UTS_RELEASE, sizeof(info->uts_release));
+	update_vendor_kernel_all_info(all_info);
 
 	return 0;
 }
