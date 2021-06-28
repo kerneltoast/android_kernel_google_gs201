@@ -1686,7 +1686,7 @@ static int max77759_probe(struct i2c_client *client,
 {
 	int ret, i;
 	struct max77759_plat *chip;
-	char *usb_psy_name;
+	char *usb_psy_name, *chg_psy_name;
 	struct device_node *dn, *ovp_dn;
 	u8 power_status;
 	u16 device_id;
@@ -1713,7 +1713,12 @@ static int max77759_probe(struct i2c_client *client,
 	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
 		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed",
 			PTR_ERR(chip->charger_mode_votable));
-		return -EPROBE_DEFER;
+		chg_psy_name = (char *)of_get_property(dn, "chg-psy-name", NULL);
+		/*
+		 * Defer when chg psy is set. This implies mode votable should be present as well.
+		 */
+		if (chg_psy_name)
+			return -EPROBE_DEFER;
 	}
 
 	dn = dev_of_node(&client->dev);

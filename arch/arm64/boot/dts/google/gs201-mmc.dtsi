@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Samsung's SoC MMC device tree source
+ *
+ * Copyright (C) 2020 Samsung Electronics Co., Ltd
+ *
+ */
+
+/{
+	aliases {
+		mshc2 = &dwmmc_2;
+	};
+
+	dwmmc_2: dwmmc2@14620000 {
+		compatible = "samsung,exynos-dw-mshc";
+		reg = <0x0 0x14620000 0x2000>;
+		reg-names = "dw_mmc";
+		interrupts = <GIC_SPI IRQ_MMC_CARD_HSI2 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		/*
+		 * clocks = <&clock MMC_CARD>, <&clock GATE_MMC_CARD>;
+		 * clock-names = "ciu", "ciu_gate";
+		 */
+		status = "disabled";
+		num-slots = <1>;
+		fixed_voltage;
+		non-removable;
+		supports-4bit;
+		supports-cmd23;
+		supports-erase;
+		supports-highspeed;
+		bypass-for-allpass;
+		use-fine-tuning;
+		/*
+		 * card-init-hwacg-ctrl;
+		 */
+		fifo-depth = <0x40>;
+		desc-size = <4>;
+		card-detect-delay = <200>;
+		samsung,dw-mshc-ciu-div = <3>;
+		clock-frequency = <800000000>;
+		samsung,dw-mshc-sdr-timing = <3 0 2 0>;
+		samsung,dw-mshc-ddr-timing = <3 0 2 1>;
+		num-ref-clks = <9>;
+		ciu_clkin = <25 50 50 25 50 100 200 50 50>;
+		/* Swapping clock drive strength */
+		clk-drive-number = <6>;
+		slot@0 {
+			reg = <0>;
+			bus-width = <4>;
+			disable-wp;
+		};
+	 };
+};

@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Ravenclaw device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include "gs201-cloudripper-common.dtsi"
+#include "gs201-ravenclaw-display.dtsi"
+#include "gs201-ravenclaw-touch.dtsi"

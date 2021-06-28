@@ -445,8 +445,7 @@ static void exynos_ufs_set_features(struct ufs_hba *hba)
 
 	/* caps */
 	hba->caps = UFSHCD_CAP_CLK_GATING |
-			UFSHCD_CAP_HIBERN8_WITH_CLK_GATING |
-			UFSHCD_CAP_INTR_AGGR;
+			UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
 
 	/* quirks of common driver */
 	hba->quirks = UFSHCD_QUIRK_PRDT_BYTE_GRAN |
@@ -459,8 +458,8 @@ static void exynos_ufs_set_features(struct ufs_hba *hba)
 	if (of_find_property(np, "fixed-prdt-req_list-ocs", NULL))
 		hba->quirks &= ~(UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
-				UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR) |
-				UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR;
+				UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR |
+				UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR);
 }
 
 /*

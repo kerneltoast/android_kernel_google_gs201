@@ -2,9 +2,9 @@
 /*
  * include/linux/mfd/samsung/s2mpg1x-register.h
  *
- * Copyright (C) 2015 Samsung Electronics
+ * Copyright (C) 2021 Samsung Electronics
  *
- * header file including common register information of s2mpg10, s2mpg11
+ * header file including common register information of s2mpg10, s2mpg11, 2mpg12, s2mpg13
  */
 
 #ifndef __LINUX_MFD_S2MPG1X_REGISTER_H
@@ -15,6 +15,10 @@
 #if defined(CONFIG_SOC_GS101)
 #define S2MPG1X_METER_CHANNEL_MAX 8
 #endif
+#if defined(CONFIG_SOC_GS201)
+#define S2MPG1X_METER_CHANNEL_MAX 12
+#endif
+
 #define MASK(width, shift) GENMASK(shift + width - 1, shift)
 
 typedef enum {
@@ -234,6 +238,8 @@ typedef enum {
 #define DVS_NLDO_POWER_450mA _IQ30(u32, 0.000686813)
 #define NLDO_CURRENT_450mA _IQ30(u32, 0.10989011)
 #define NLDO_POWER_450mA _IQ30(u32, 0.001373626)
+#define PLDO_CURRENT_600mA _IQ30(u32, 0.146520147)
+#define PLDO_POWER_600mA _IQ30(u32, 0.003663004)
 #define DVS_NLDO_CURRENT_800mA _IQ30(u32, 0.195360195)
 #define DVS_NLDO_POWER_800mA _IQ30(u32, 0.001221001)
 #define NLDO_CURRENT_800mA _IQ30(u32, 0.195360195)
@@ -242,6 +248,8 @@ typedef enum {
 #define PLDO_POWER_800mA _IQ30(u32, 0.004884005)
 #define NLDO_CURRENT_1000mA _IQ30(u32, 0.244200244)
 #define NLDO_POWER_1000mA _IQ30(u32, 0.001418251)
+#define NLDO_CURRENT_1200mA _IQ30(u32, 0.244200244)
+#define NLDO_POWER_1200mA _IQ30(u32, 0.001418251)
 #define EXTERNAL_RESOLUTION_VRAIL _IQ30(u32, 1.3186813)
 #define EXTERNAL_RESOLUTION_VSHUNT _IQ30(u32, 0.0079356982)
 #define EXTERNAL_RESOLUTION_TRIM BIT(3) // 3 bits

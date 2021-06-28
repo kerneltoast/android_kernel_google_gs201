@@ -7,6 +7,8 @@
 #ifndef __LINK_RX_PKTPROC_H__
 #define __LINK_RX_PKTPROC_H__
 
+#include "cpif_netrx_mng.h"
+
 /* Debug */
 /* #define PKTPROC_DEBUG */
 /* #define PKTPROC_DEBUG_PKT */
@@ -99,7 +101,6 @@ struct pktproc_statistics {
 	u64 err_nomem;
 	u64 err_bm_nomem;
 	u64 err_csum;
-	u64 use_memcpy_cnt;
 	u64 err_enqueue_dit;
 };
 
@@ -120,9 +121,9 @@ struct pktproc_queue {
 	u32 done_ptr;
 
 	/* Store */
-	u32 cp_desc_pbase;
+	u64 cp_desc_pbase;
 	u32 num_desc;
-	u32 cp_buff_pbase;
+	u64 cp_buff_pbase;
 
 	/* Pointer to info region by version */
 	union {
@@ -151,10 +152,9 @@ struct pktproc_queue {
 	unsigned long q_buff_pbase;
 	u32 q_buff_size;
 
-	/* Buffer manager */
-	struct mif_buff_mng *manager;	/* Pointer to buffer manager */
+	/* CP interface network rx manager */
+	struct cpif_netrx_mng *manager;	/* Pointer to rx manager */
 	dma_addr_t *dma_addr;
-	bool use_memcpy;	/* memcpy mode on sktbuf mode */
 
 	/* IRQ */
 	int irq;
@@ -165,11 +165,7 @@ struct pktproc_queue {
 	struct napi_struct napi;
 	struct napi_struct *napi_ptr;
 	atomic_t stop_napi_poll;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	struct timespec64 flush_time;
-#else
-	struct timespec flush_time;
-#endif
 
 	/* Statistics */
 	struct pktproc_statistics stat;
@@ -239,14 +235,16 @@ struct pktproc_adaptor {
 	bool support;	/* Is support PktProc feature? */
 	enum pktproc_version version;	/* Version */
 
-	u32 cp_base;		/* CP base address for pktproc */
+	u64 cp_base;		/* CP base address for pktproc */
 	u32 info_rgn_offset;	/* Offset of info region */
 	u32 info_rgn_size;	/* Size of info region */
 	u32 desc_rgn_offset;	/* Offset of descriptor region */
 	u32 desc_rgn_size;	/* Size of descriptor region */
 	u32 buff_rgn_offset;	/* Offset of data buffer region */
+	u32 buff_rgn_size;	/* Size of data buffer region */
 
-	bool info_desc_rgn_cached;
+	bool info_rgn_cached;
+	bool desc_rgn_cached;
 	bool buff_rgn_cached;
 
 	enum pktproc_desc_mode desc_mode;	/* Descriptor structure mode */
@@ -257,13 +255,12 @@ struct pktproc_adaptor {
 	bool use_hw_iocc;	/* H/W IO cache coherency */
 	u32 max_packet_size;	/* Max packet size */
 	bool use_dedicated_baaw;	/* BAAW for 36bit address */
-	bool use_36bit_data_addr;	/* Data is located to 36bit address range */
 
 	struct device *dev;
 
 	bool use_napi;
-	bool use_buff_mng;
-	struct mif_buff_mng *manager;	/* Buffer manager */
+	bool use_netrx_mng;
+	u32 netrx_capacity;
 	u32 skb_padding_size;
 
 	void __iomem *info_vbase;	/* I/O region for information */

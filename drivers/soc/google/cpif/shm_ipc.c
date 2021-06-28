@@ -11,9 +11,9 @@
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/shm_ipc.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/of_fdt.h>
+#include <soc/google/shm_ipc.h>
 
 #include "modem_utils.h"
 
@@ -250,14 +250,16 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 			shmem_index = SHMEM_IPC;
 		else if (!strncmp((const char *)&name, "SSV\0", sizeof(name)))
 			shmem_index = SHMEM_VSS;
-#if IS_ENABLED(CONFIG_SOC_EXYNOS9820)
-		else if (!strncmp((const char *)&name, "APV\0", sizeof(name)))
-			shmem_index = SHMEM_VPA;
-#endif
 		else if (!strncmp((const char *)&name, "GOL\0", sizeof(name)))
 			shmem_index = SHMEM_BTL;
 		else if (!strncmp((const char *)&name, "B2L\0", sizeof(name)))
 			shmem_index = SHMEM_L2B;
+		else if (!strncmp((const char *)&name, "PKP\0", sizeof(name)))
+			shmem_index = SHMEM_PKTPROC;
+		else if (!strncmp((const char *)&name, "UKP\0", sizeof(name)))
+			shmem_index = SHMEM_PKTPROC_UL;
+		else if (!strncmp((const char *)&name, "MDD\0", sizeof(name)))
+			shmem_index = SHMEM_DDM;
 		else
 			continue;
 
@@ -274,7 +276,7 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 
 		if ((_cp_shmem[cp_num][shmem_index].p_base + _cp_shmem[cp_num][shmem_index].size) >
 			(_cp_rmem[rmem_index].p_base + _cp_rmem[rmem_index].size)) {
-			mif_err("%d %d size error 0x%08lx 0x%08x 0x%08lx 0x%08x\n",
+			mif_err("rmem:%d shmem_index:%d size error 0x%08lx 0x%08x 0x%08lx 0x%08x\n",
 				rmem_index, shmem_index,
 				_cp_shmem[cp_num][shmem_index].p_base,
 				_cp_shmem[cp_num][shmem_index].size,
@@ -282,8 +284,8 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 			return -ENOMEM;
 		}
 
-		mif_info("index:%d/%d base:0x%08lx offset:0x%08x size:0x%08x\n",
-				shmem_index, rmem_index, _cp_rmem[rmem_index].p_base,
+		mif_info("rmem:%d shmem_index:%d base:0x%08lx offset:0x%08x size:0x%08x\n",
+				rmem_index, shmem_index, _cp_rmem[rmem_index].p_base,
 				map.ns_map[i].offset, map.ns_map[i].size);
 	}
 
@@ -295,23 +297,7 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
  */
 unsigned long shm_get_msi_base(void)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	return cp_shmem_get_base(0, SHMEM_MSI);
-#else
-	int i;
-
-	for (i = 0; i < MAX_CP_RMEM; i++) {
-		if (!_cp_rmem[i].name)
-			continue;
-
-		if (strncmp(_cp_rmem[i].name, "cp_msi_rmem", strlen("cp_msi_rmem")) == 0) {
-			mif_info("p_base:0x%08lx\n", _cp_rmem[i].p_base);
-			return _cp_rmem[i].p_base;
-		}
-	}
-
-	return 0;
-#endif
 }
 EXPORT_SYMBOL(shm_get_msi_base);
 
@@ -362,28 +348,31 @@ int cp_shmem_get_mem_map_on_cp_flag(u32 cp_num)
 }
 EXPORT_SYMBOL(cp_shmem_get_mem_map_on_cp_flag);
 
-static struct page *nc_region_pages[SZ_64K];
 void __iomem *cp_shmem_get_nc_region(unsigned long base, u32 size)
 {
-	int i;
-	unsigned int num_pages = (size >> PAGE_SHIFT);
+	unsigned int num_pages = (unsigned int)DIV_ROUND_UP(size, PAGE_SIZE);
 	pgprot_t prot = pgprot_writecombine(PAGE_KERNEL);
+	struct page **pages;
 	void *v_addr;
+	unsigned int i;
 
 	if (!base)
 		return NULL;
 
-	if (size > (num_pages << PAGE_SHIFT))
-		num_pages++;
+	pages = kvcalloc(num_pages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return NULL;
 
 	for (i = 0; i < num_pages; i++) {
-		nc_region_pages[i] = phys_to_page(base);
+		pages[i] = phys_to_page(base);
 		base += PAGE_SIZE;
 	}
 
-	v_addr = vmap(nc_region_pages, num_pages, VM_MAP, prot);
-	if (v_addr == NULL)
-		mif_err("%s: Failed to vmap pages\n", __func__);
+	v_addr = vmap(pages, num_pages, VM_MAP, prot);
+	if (!v_addr)
+		mif_err("Failed to vmap pages\n");
+
+	kvfree(pages);
 
 	return (void __iomem *)v_addr;
 }
@@ -486,7 +475,7 @@ static int cp_shmem_probe(struct platform_device *pdev)
 			if (!_cp_shmem[i][j].name)
 				continue;
 
-			mif_info("%d %d %d %s 0x%08lx 0x%08x %d\n",
+			mif_info("cp_num:%d rmem:%d index:%d %s 0x%08lx 0x%08x %d\n",
 					_cp_shmem[i][j].cp_num, _cp_shmem[i][j].rmem,
 					_cp_shmem[i][j].index, _cp_shmem[i][j].name,
 					_cp_shmem[i][j].p_base, _cp_shmem[i][j].size,

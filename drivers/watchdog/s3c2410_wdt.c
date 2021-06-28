@@ -307,6 +307,32 @@ static const struct s3c2410_wdt_variant drv_data_gs101_cl1 = {
 		  QUIRK_HAS_DBGACK_BIT | QUIRK_HAS_WTMINCNT_REG,
 };
 
+static const struct s3c2410_wdt_variant drv_data_gs201_cl0 = {
+	.noncpu_int_en = EXYNOS_CLUSTER0_NONCPU_INT_EN,
+	.noncpu_out = EXYNOS_CLUSTER0_NONCPU_OUT,
+	.mask_bit = 2,
+	.cnt_en_bit = 8,
+	.rst_stat_reg = EXYNOS_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = 0,      /* CLUSTER0 WDTRESET */
+	.pmu_reset_func = s3c2410wdt_noncpu_int_en,
+	.pmu_count_en_func = s3c2410wdt_noncpu_out,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT | QUIRK_HAS_WTCLRINT_REG |
+		  QUIRK_HAS_DBGACK_BIT | QUIRK_HAS_WTMINCNT_REG,
+};
+
+static const struct s3c2410_wdt_variant drv_data_gs201_cl1 = {
+	.noncpu_int_en = EXYNOS_CLUSTER1_NONCPU_INT_EN,
+	.noncpu_out = EXYNOS_CLUSTER1_NONCPU_OUT,
+	.mask_bit = 2,
+	.cnt_en_bit = 7,
+	.rst_stat_reg = EXYNOS_RST_STAT_REG_OFFSET,
+	.rst_stat_bit = 1,      /* CLUSTER1 WDTRESET */
+	.pmu_reset_func = s3c2410wdt_noncpu_int_en,
+	.pmu_count_en_func = s3c2410wdt_noncpu_out,
+	.quirks = QUIRK_HAS_PMU_CONFIG | QUIRK_HAS_RST_STAT | QUIRK_HAS_WTCLRINT_REG |
+		  QUIRK_HAS_DBGACK_BIT | QUIRK_HAS_WTMINCNT_REG,
+};
+
 static const struct of_device_id s3c2410_wdt_match[] = {
 	{ .compatible = "samsung,s3c2410-wdt",
 	  .data = &drv_data_s3c2410 },
@@ -332,6 +358,10 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 	  .data = &drv_data_gs101_cl0 },
 	{ .compatible = "google,gs101-cl1-wdt",
 	  .data = &drv_data_gs101_cl1 },
+	{ .compatible = "google,gs201-cl0-wdt",
+	  .data = &drv_data_gs201_cl0 },
+	{ .compatible = "google,gs201-cl1-wdt",
+	  .data = &drv_data_gs201_cl1 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);

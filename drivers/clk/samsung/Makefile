@@ -24,5 +24,6 @@ obj-$(CONFIG_S3C2443_COMMON_CLK)+= clk-s3c2443.o
 obj-$(CONFIG_ARCH_S3C64XX)	+= clk-s3c64xx.o
 obj-$(CONFIG_ARCH_S5PV210)	+= clk-s5pv210.o clk-s5pv210-audss.o
 obj-$(CONFIG_COMPOSITE_CLK_SAMSUNG)	+= clk_exynos.o
-clk_exynos-$(CONFIG_COMPOSITE_CLK_SAMSUNG)	+= clk-gs101.o
+clk_exynos-$(CONFIG_SOC_GS101)	+= clk-gs101.o
+clk_exynos-$(CONFIG_SOC_GS201)	+= clk-gs201.o
 clk_exynos-$(CONFIG_COMPOSITE_CLK_SAMSUNG)	+= composite.o

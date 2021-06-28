@@ -21,6 +21,7 @@
 #include <soc/google/exynos-smc.h>
 
 #include "modem_utils.h"
+#include "modem_ctrl.h"
 #include "cp_btl.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
@@ -371,9 +372,7 @@ create_exit:
 	if (btl->mem.v_base)
 		vunmap(btl->mem.v_base);
 
-#if !IS_ENABLED(CONFIG_SOC_EXYNOS9820)
 	cp_shmem_release_rmem(btl->id, SHMEM_BTL);
-#endif
 
 	return ret;
 }

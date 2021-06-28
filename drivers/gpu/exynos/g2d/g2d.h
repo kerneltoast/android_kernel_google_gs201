@@ -100,6 +100,8 @@ struct g2d_qos {
 #define G2D_DEVICE_CAPS_HDR10			BIT(7)
 /* Support HDR conversion for HDR10+ */
 #define G2D_DEVICE_CAPS_HDR10PLUS		BIT(8)
+/*Support SBWC Lossy format */
+#define G2D_DEVICE_CAPS_SBWC_LOSSY              BIT(9)
 
 struct g2d_device {
 	unsigned long		state;

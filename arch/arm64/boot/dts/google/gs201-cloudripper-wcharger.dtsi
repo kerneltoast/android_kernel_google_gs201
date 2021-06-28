@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Wireless Charger device tree entries.
+ *
+ * Copyright 2020 Google Inc.
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#include "gs101-whitefin2-wcharger.dtsi"
+
+/ {
+	fragment@wlc {
+		target-path = "/";
+		__overlay__ {
+			google,cpm {
+				google,wlc_dc-power-supply = "wireless";
+			}
+		};
+	};
+};
+
+&hsi2c_8 {
+	p9412@3c {
+		dev-name = "p9412";
+		idt,has_rtx = <1>;
+		idt,gpio_extben = <&gpp1 3 GPIO_ACTIVE_HIGH>;
+
+		/* WLCDC */
+		//idt,gpio_dc_switch = <&s2mpg10_gpio 0 GPIO_ACTIVE_HIGH>;
+		idt,max_vout_mv = <19500>;
+		idt,has_wlc_dc = <1>;
+
+		//idt,gpio_qi_vbus_en = <&s2mpg10_gpio 2 GPIO_ACTIVE_HIGH>;
+
+		p9xxx_gpio: p9xxx_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <5>;
+		};
+
+	};
+};

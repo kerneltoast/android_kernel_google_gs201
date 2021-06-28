@@ -105,6 +105,72 @@ enum pmic_id {
 	NUM_OF_PMIC_ID,
 };
 
+#if defined(CONFIG_SOC_GS101)
+/* RTC(0x2) Registers */
+enum GS101_S2MPG10_RTC_REG {
+	RTC_REG_CTRL = 0x0,
+	RTC_REG_UPDATE = 0x1,
+	RTC_REG_SMPL = 0x2,
+	RTC_REG_WTSR = 0x3,
+	RTC_REG_CAPSEL = 0x4,
+	RTC_REG_MSEC = 0x5,
+	RTC_REG_SEC = 0x6,
+	RTC_REG_MIN = 0x7,
+	RTC_REG_HOUR = 0x8,
+	RTC_REG_WEEK = 0x9,
+	RTC_REG_DAY = 0xA,
+	RTC_REG_MON = 0xB,
+	RTC_REG_YEAR = 0xC,
+	RTC_REG_A0SEC = 0xD,
+	RTC_REG_A0MIN = 0xE,
+	RTC_REG_A0HOUR = 0xF,
+	RTC_REG_A0WEEK = 0x10,
+	RTC_REG_A0DAY = 0x11,
+	RTC_REG_A0MON = 0x12,
+	RTC_REG_A0YEAR = 0x13,
+	RTC_REG_A1SEC = 0x14,
+	RTC_REG_A1MIN = 0x15,
+	RTC_REG_A1HOUR = 0x16,
+	RTC_REG_A1WEEK = 0x17,
+	RTC_REG_A1DAY = 0x18,
+	RTC_REG_A1MON = 0x19,
+	RTC_REG_A1YEAR = 0x1A,
+	RTC_REG_OSCCTRL = 0x1B,
+};
+#elif defined(CONFIG_SOC_GS201)
+/* RTC(0x2) Registers */
+enum GS201_S2MPG12_RTC_REG {
+	RTC_REG_CTRL = 0x0,
+	RTC_REG_UPDATE = 0x1,
+	RTC_REG_SMPL = 0x2,
+	RTC_REG_WTSR = 0x3,
+	RTC_REG_CAPSEL = 0x4,
+	RTC_REG_MSEC = 0x5,
+	RTC_REG_SEC = 0x6,
+	RTC_REG_MIN = 0x7,
+	RTC_REG_HOUR = 0x8,
+	RTC_REG_WEEK = 0x9,
+	RTC_REG_DAY = 0xA,
+	RTC_REG_MON = 0xB,
+	RTC_REG_YEAR = 0xC,
+	RTC_REG_A0SEC = 0xD,
+	RTC_REG_A0MIN = 0xE,
+	RTC_REG_A0HOUR = 0xF,
+	RTC_REG_A0WEEK = 0x10,
+	RTC_REG_A0DAY = 0x11,
+	RTC_REG_A0MON = 0x12,
+	RTC_REG_A0YEAR = 0x13,
+	RTC_REG_A1SEC = 0x14,
+	RTC_REG_A1MIN = 0x15,
+	RTC_REG_A1HOUR = 0x16,
+	RTC_REG_A1WEEK = 0x17,
+	RTC_REG_A1DAY = 0x18,
+	RTC_REG_A1MON = 0x19,
+	RTC_REG_A1YEAR = 0x1A,
+	RTC_REG_OSCCTRL = 0x1B,
+};
+#endif
+
 #define NUM_OF_WQ               16
 
 /* IPC Mailbox Channel */
@@ -184,18 +250,30 @@ static u16 def_lck_regs_s[NUM_OF_PMIC_ID - NUM_OF_PMIC_MASTER] = {
 };
 
 struct acpm_mfd_validity {
-	struct i2c_client *s2mpg10_pmic;
-	struct i2c_client *s2mpg11_pmic;
+#if defined(CONFIG_SOC_GS101)
+	struct s2mpg10_dev *s2mpg_main;
+	struct s2mpg11_dev *s2mpg_sub;
+#elif defined(CONFIG_SOC_GS201)
+	struct s2mpg12_dev *s2mpg_main;
+	struct s2mpg13_dev *s2mpg_sub;
+#endif
+	struct i2c_client *main_pmic;
+	struct i2c_client *sub_pmic;
 	struct i2c_client *rtc;
-	struct delayed_work s2mpg10_mfd_read_wk[NUM_OF_WQ];
-	struct delayed_work s2mpg11_mfd_read_wk[NUM_OF_WQ];
+	struct delayed_work main_pm_mfd_read_wk[NUM_OF_WQ];
+	struct delayed_work sub_pm_mfd_read_wk[NUM_OF_WQ];
 	struct delayed_work mbox_stress_trigger_wk;
-	struct workqueue_struct *s2mpg10_mfd_read_wq[NUM_OF_WQ];
-	struct workqueue_struct *s2mpg11_mfd_read_wq[NUM_OF_WQ];
+	struct workqueue_struct *main_pm_mfd_read_wq[NUM_OF_WQ];
+	struct workqueue_struct *sub_pm_mfd_read_wq[NUM_OF_WQ];
 	struct workqueue_struct *mbox_stress_trigger_wq;
 	u8 update_reg;
+	u8 main_channel;
+	u8 sub_channel;
 	/* mutex for RTC */
-	struct mutex lock;
+	struct mutex rtc_lock;
+	/* mutex for Main/Sub PMIC */
+	struct mutex main_pm_lock;
+	struct mutex sub_pm_lock;
 	int ctrlist_err_result;
 	int init_done;
 };

@@ -494,6 +494,9 @@ static inline bool is_afbc_aligned(u32 width, u32 height, bool dst,
 #define SBWC_HEADER_ALIGN 16
 #define SBWC_PAYLOAD_ALIGN 32
 
+#define IS_SBWCL(sbwc) ((sbwc) & 1)
+#define SBWCL_BLOCK_SIZE(sbwc) ((((sbwc) >> 4) & 0xF) << 5)
+
 static u32 get_sbwc_stride(unsigned long caps, u32 stride, u32 align)
 {
 	if (caps_has_align64(caps))
@@ -517,6 +520,49 @@ static u32 get_sbwc_stride_payload(unsigned long caps, u32 width, u32 bitdepth)
 
 	return get_sbwc_stride(caps, stride, SBWC_PAYLOAD_ALIGN);
 }
+
+static u32 get_sbwc_lossy_stride_payload(unsigned long caps, u32 width, u32 blocksize)
+{
+	u32 stride = (width / SBWC_BLOCK_WIDTH) * blocksize;
+
+	return ALIGN(stride, SBWC_PAYLOAD_ALIGN);
+}
+
+static u32 get_sbwc_lossy_payload_y_basis(unsigned long caps, u32 colormode,
+		u32 width, u32 height, u32 blocksize)
+{
+	u32 size = get_sbwc_lossy_stride_payload(caps, width, blocksize);
+
+	return size * height / SBWC_BLOCK_HEIGHT;
+}
+
+static u32 get_sbwc_lossy_payload_c_basis(unsigned long caps, u32 colormode,
+		u32 width, u32 height, u32 blocksize)
+{
+	u32 size = get_sbwc_lossy_stride_payload(caps, width, blocksize);
+
+	if (IS_YUV420(colormode))
+		height = ALIGN(height, 8);
+	return size * height / SBWC_BLOCK_HEIGHT;
+}
+
+static u32 get_sbwc_lossy_y_size(unsigned long caps, u32 colormode,
+		u32 width, u32 height, u32 blocksize)
+{
+	u32 size = get_sbwc_lossy_payload_y_basis(caps, colormode, width, height, blocksize);
+	return size;
+}
+
+static u32 get_sbwc_lossy_c_size(unsigned long caps, u32 colormode,
+		u32 width, u32 height, u32 blocksize)
+{
+	u32 size = get_sbwc_lossy_payload_c_basis(caps, colormode, width, height, blocksize);
+
+	if (IS_YUV420(colormode))
+		size = size / 2;
+	return size;
+}
+
 
 /*
  * Buffer stride alignment and padding restriction of MFC
@@ -618,7 +664,7 @@ static u32 get_sbwc_c_size(unsigned long caps, u32 colormode,
 
 unsigned int g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 				   unsigned int idx, unsigned int buffer_count,
-				   unsigned long caps, u32 flags)
+				   unsigned long caps, u32 flags, bool dst)
 {
 	u32 width = cmd[G2DSFR_IMG_WIDTH].value;
 	u32 height = cmd[G2DSFR_IMG_BOTTOM].value;
@@ -628,8 +674,18 @@ unsigned int g2d_get_payload_index(struct g2d_reg cmd[], const struct g2d_fmt *f
 
 	if (IS_SBWC(colormode)) {
 		unsigned int dep = IS_YUV_P10(colormode,
-			       caps & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
+				caps & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
+		u32 sbwc = dst ? cmd[G2DSFR_DST_SBWCINFO].value :
+			cmd[G2DSFR_SRC_SBWCINFO].value;
+		unsigned int blocksize = SBWCL_BLOCK_SIZE(sbwc);
 
+		if (IS_SBWCL(sbwc)) {
+			if (idx == 0)
+				return get_sbwc_lossy_y_size(caps, colormode,
+						width, height, blocksize);
+			return get_sbwc_lossy_c_size(caps, colormode, width,
+					height, blocksize);
+		}
 		if (idx == 0)
 			return get_sbwc_y_size(caps, colormode,
 					       width, height, dep);
@@ -671,7 +727,7 @@ static size_t g2d_get_ycbcr_payload(const struct g2d_fmt *fmt, u32 flags,
 }
 
 size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
-		       u32 flags, unsigned long cap)
+		       u32 flags, unsigned long cap, bool dst)
 {
 	size_t payload = 0;
 	u32 mode = cmd[G2DSFR_IMG_COLORMODE].value;
@@ -681,7 +737,16 @@ size_t g2d_get_payload(struct g2d_reg cmd[], const struct g2d_fmt *fmt,
 	if (IS_SBWC(mode)) {
 		unsigned int dep = IS_YUV_P10(mode,
 				cap & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
+		u32 sbwc = dst ? cmd[G2DSFR_DST_SBWCINFO].value :
+			cmd[G2DSFR_SRC_SBWCINFO].value;
+		unsigned int blocksize = SBWCL_BLOCK_SIZE(sbwc);
 
+		if (IS_SBWCL(sbwc)) {
+			return get_sbwc_lossy_y_size(cap, mode,
+					width, height, blocksize) +
+				get_sbwc_lossy_c_size(cap, mode, width,
+						 height, blocksize);
+		}
 		return get_sbwc_y_size(cap, mode, width, height, dep) +
 		       get_sbwc_c_size(cap, mode, width, height, dep);
 	} else if (IS_AFBC(mode)) {
@@ -825,6 +890,7 @@ static struct command_checker source_command_checker[G2DSFR_SRC_FIELD_COUNT] = {
 	{"YPAYLOADSTRIDE", 0x00A4, 0x0000FFFF, NULL,},
 	{"CHEADERSTRIDE",  0x00A8, 0x00003FFF, NULL,},
 	{"CPAYLOADSTRIDE", 0x00AC, 0x0000FFFF, NULL,},
+	{"SBWCINFO",    0x00B0, 0x000100F1, NULL,},
 };
 
 static struct command_checker target_command_checker[G2DSFR_DST_FIELD_COUNT] = {
@@ -843,6 +909,7 @@ static struct command_checker target_command_checker[G2DSFR_DST_FIELD_COUNT] = {
 	{"YPAYLOADSTRIDE", 0x0074, 0x0000FFFF, NULL,},
 	{"CHEADERSTRIDE",  0x0078, 0x00003FFF, NULL,},
 	{"CPAYLOADSTRIDE", 0x007C, 0x0000FFFF, NULL,},
+	{"SBWCINFO",    0x0090, 0x000100F1, NULL,},
 };
 
 #define TARGET_OFFSET		0x120
@@ -1021,24 +1088,46 @@ static bool g2d_validate_image_format(struct g2d_device *g2d_dev, struct g2d_tas
 	if (IS_SBWC(mode)) {
 		int dep = IS_YUV_P10(mode, g2d_dev->caps & G2D_DEVICE_CAPS_YUV_BITDEPTH) ? 10 : 8;
 		u32 offset = dst ? G2DSFR_DST_Y_HEADER_STRIDE : G2DSFR_SRC_Y_HEADER_STRIDE;
-		u32 hdr_strd = get_sbwc_stride_header(g2d_dev->caps, width);
-		u32 pld_strd = get_sbwc_stride_payload(g2d_dev->caps, width, dep);
 		int i;
+		u32 sbwc = dst ? commands[G2DSFR_DST_SBWCINFO].value :
+			commands[G2DSFR_SRC_SBWCINFO].value;
+		u32 hdr_strd;
+		u32 pld_strd;
+		unsigned int blocksize = SBWCL_BLOCK_SIZE(sbwc);
 
+		if (IS_SBWCL(sbwc)) {
+			hdr_strd = 0;
+			pld_strd = get_sbwc_lossy_stride_payload(g2d_dev->caps, width, blocksize);
+		} else {
+			hdr_strd = get_sbwc_stride_header(g2d_dev->caps, width);
+			pld_strd = get_sbwc_stride_payload(g2d_dev->caps, width, dep);
+		}
 		/* Stride is in the order : header, payload, header, payload */
 		for (i = 0; i < 4; i += 2) {
 			if (commands[offset + i].value != hdr_strd ||
 			    commands[offset + i + 1].value != pld_strd) {
 				perrfndev(g2d_dev,
-					  "Bad stride %u, %u for w %u mode %x",
-					  commands[offset + i].value,
-					  commands[offset + i + 1].value,
-					  width, mode);
+					"Bad stride %u, %u for w %u mode %x",
+					commands[offset + i].value,
+					commands[offset + i + 1].value,
+					width, mode);
 
 				return false;
 			}
 		}
-
+		if (IS_SBWCL(sbwc)) {
+			if ((dep == 8) && (blocksize == 128)) {
+				perrfndev(g2d_dev,
+						"Bad SBWC Lossy (mode %x, info %x)",
+						mode, sbwc);
+				return false;
+			}
+			if (!(g2d_dev->caps & G2D_DEVICE_CAPS_SBWC_LOSSY)) {
+				perrfndev(g2d_dev,
+						"SBWC Lossy is not supported");
+				return false;
+			}
+		}
 		if (!(g2d_dev->caps & G2D_DEVICE_CAPS_SBWC)) {
 			perrfndev(g2d_dev, "SBWC format is not supported");
 			return false;
@@ -1373,6 +1462,18 @@ static u32 get_sbwc_c_base(unsigned long caps, struct g2d_layer *layer,
 		get_sbwc_header_y_size(caps, mode, width, height);
 }
 
+static u32 get_sbwc_lossy_c_base(unsigned long caps, struct g2d_layer *layer,
+		u32 blocksize, u32 mode)
+{
+	u32 width = layer_width(layer);
+	u32 height = layer_height(layer);
+
+	if (layer->num_buffers == 2)
+		return layer->buffer[1].dma_addr;
+	return layer->buffer[0].dma_addr +
+		get_sbwc_lossy_y_size(caps, mode, width, height, blocksize);
+}
+
 /*
  * SBWC buffer layout:
  * Single buffer: luma payload, luma header, chroma payload, chroma header
@@ -1386,6 +1487,11 @@ static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 	struct g2d_reg *reg = (struct g2d_reg *)page_address(task->cmd_page);
 	unsigned char *offsets = (base == TARGET_OFFSET) ?
 				dst_sbwc_reg_offset : src_sbwc_reg_offset;
+	unsigned int sbwc = (base == TARGET_OFFSET) ?
+		layer->commands[G2DSFR_DST_SBWCINFO].value :
+		layer->commands[G2DSFR_SRC_SBWCINFO].value;
+	unsigned int blocksize = SBWCL_BLOCK_SIZE(sbwc);
+
 	u32 w = layer_width(layer);
 	u32 h = layer_height(layer);
 	u32 align = 32;
@@ -1414,18 +1520,29 @@ static unsigned int g2d_set_sbwc_buffer(struct g2d_task *task,
 	reg[cmd_cnt + 0].offset = BASE_REG_OFFSET(base, offsets, 0);
 	reg[cmd_cnt + 0].value = layer->buffer[0].dma_addr;
 
-	reg[cmd_cnt + 1].offset = BASE_REG_OFFSET(base, offsets, 1);
-	reg[cmd_cnt + 1].value = reg[cmd_cnt + 0].value +
-				 get_sbwc_payload_y_size(caps, colormode,
-							 w, h, dep);
+	if (IS_SBWCL(sbwc)) {
+		reg[cmd_cnt + 1].offset = BASE_REG_OFFSET(base, offsets, 1);
+		reg[cmd_cnt + 1].value = reg[cmd_cnt + 0].value + 0;
 
-	reg[cmd_cnt + 2].offset = BASE_REG_OFFSET(base, offsets, 2);
-	reg[cmd_cnt + 2].value = get_sbwc_c_base(caps, layer, dep, colormode);
+		reg[cmd_cnt + 2].offset = BASE_REG_OFFSET(base, offsets, 2);
+		reg[cmd_cnt + 2].value = get_sbwc_lossy_c_base(caps, layer, blocksize, colormode);
 
-	reg[cmd_cnt + 3].offset = BASE_REG_OFFSET(base, offsets, 3);
-	reg[cmd_cnt + 3].value = reg[cmd_cnt + 2].value +
-				 get_sbwc_payload_c_size(caps, colormode,
-							 w, h, dep);
+		reg[cmd_cnt + 3].offset = BASE_REG_OFFSET(base, offsets, 3);
+		reg[cmd_cnt + 3].value = reg[cmd_cnt + 2].value + 0;
+	} else {
+		reg[cmd_cnt + 1].offset = BASE_REG_OFFSET(base, offsets, 1);
+		reg[cmd_cnt + 1].value = reg[cmd_cnt + 0].value +
+			get_sbwc_payload_y_size(caps, colormode,
+					w, h, dep);
+
+		reg[cmd_cnt + 2].offset = BASE_REG_OFFSET(base, offsets, 2);
+		reg[cmd_cnt + 2].value = get_sbwc_c_base(caps, layer, dep, colormode);
+
+		reg[cmd_cnt + 3].offset = BASE_REG_OFFSET(base, offsets, 3);
+		reg[cmd_cnt + 3].value = reg[cmd_cnt + 2].value +
+			get_sbwc_payload_c_size(caps, colormode,
+					w, h, dep);
+	}
 	return cmd_cnt + 4;
 }
 

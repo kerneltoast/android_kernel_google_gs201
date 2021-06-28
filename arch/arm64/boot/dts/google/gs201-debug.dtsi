@@ -1,0 +1,306 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * debug device tree source code for gs201 SoC
+ *
+ * Copyright (C) 2020 Samsung Electronics Co., Ltd.
+ *              http://www.samsung.com
+ */
+
+#include <dt-bindings/interrupt-controller/gs201.h>
+#include "gs101-dpm.dtsi"
+#include "gs101-ppmu.dtsi"
+/ {
+	dss: dss {
+		compatible = "google,debug-snapshot";
+		freq_names = "LIT", "MID", "BIG", "INT", "MIF", "ISP",
+				"DISP", "INTCAM", "TPU", "TNR", "MFC",
+				"BO";
+		memory-region = <&header>, <&log_kevents>, <&log_bcm>, <&log_s2d>,
+				<&log_arrdumpreset>, <&log_arrdumppanic>,
+				<&log_slcdump>, <&log_preslcdump>,
+				<&log_itmon>;
+		panic-action = <GO_DEFAULT_ID>;
+	};
+
+	hardlockup-debugger {
+		compatible = "google,hardlockup-debug";
+		use_multistage_wdt_irq = <830>; /* IRQ_WDT_CLUSTER1_MISC + 32 */
+	};
+
+	hardlockup-watchdog {
+		compatible = "google,hardlockup-watchdog";
+		sampling_time = <4>;
+		opportunity_count = <3>;
+		panic = <1>;
+	};
+
+	dss-built {
+		compatible = "google,debug-snapshot-built";
+		memory-region = <&header>;
+	};
+
+	dss-qdump {
+		compatible = "google,debug-snapshot-qdump";
+	};
+
+	dss-sfrdump {
+		compatible = "google,debug-snapshot-sfrdump";
+		/*
+		 * -----------<< Example >>-------------------
+		 * dump-info {
+		 *	#address-cells = <1>;
+		 *	#size-cells = <1>;
+		 *
+		 *	gic-setenable {
+		 *		reg = <0x11f01100 0x100>;
+		 *	};
+		 *	gic-setpend {
+		 *		reg = <0x11f01200 0x100>;
+		 *	};
+		 *	gic-setactive {
+		 *		reg = <0x11f01300 0x100>;
+		 *	};
+		 *};
+		 */
+	};
+
+	dss-debug-kinfo {
+		compatible = "google,debug-snapshot-debug-kinfo";
+		memory-region = <&debug_kinfo_reserved>;
+	};
+
+	exynos-debug-test {
+		compatible = "google,exynos-debug-test";
+		ps_hold_control_offset = <0x3e9c>;
+		nr_cpu = <0x8>;
+		nr_little_cpu = <0x4>;
+		nr_mid_cpu = <0x2>;
+		nr_big_cpu = <0x2>;
+		little_cpu_start = <0x0>;
+		mid_cpu_start = <0x4>;
+		big_cpu_start = <0x6>;
+	};
+
+	keydebug {
+		compatible = "keydebug";
+		key_down_delay = <6000>;
+		keys_down = <116>;
+		dbg_fn_delay = <2000>;
+	};
+
+	debug-kinfo {
+		compatible = "google,debug-kinfo";
+		memory-region = <&debug_kinfo_reserved>;
+	};
+
+	gs201-itmon {
+		compatible = "google,gs201-itmon";
+		interrupts =
+			<GIC_SPI IRQ_TREX_D_NOCL1B_debugInterrupt_NOCL1B
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D_NOCL2A_debugInterrupt_NOCL2A
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D_NOCL1A_debugInterrupt_NOCL1A
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D_NOCL0_debugInterrupt_NOCL0
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_NOCL0_debugInterrupt_NOCL0
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_NOCL1B_debugInterrupt_NOCL1B
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_NOCL2A_debugInterrupt_NOCL2A
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_NOCL1A_debugInterrupt_NOCL1A
+							IRQ_TYPE_LEVEL_HIGH>;
+		panic_count = <0>;
+		err_fatal = <GO_S2D_ID>;
+		err_drex_tmout = <GO_S2D_ID>;
+		err_ip = <GO_DEFAULT_ID>;
+		err_cpu = <GO_S2D_ID>;
+		err_unhandled = <GO_PANIC_ID>;
+	};
+
+	coresight@2b000000 {
+		compatible = "google,exynos-coresight";
+		dbg_base = <0x2b810000>, <0x2b910000>, <0x2ba10000>, <0x2bb10000>,
+			   <0x2bc10000>, <0x2bd10000>, <0x2be10000>, <0x2bf10000>;
+		cti_base = <0x2b820000>, <0x2b920000>, <0x2ba20000>, <0x2bb20000>,
+			   <0x2bc20000>, <0x2bd20000>, <0x2be20000>, <0x2bf20000>;
+		pmu_base = <0x2b830000>, <0x2b930000>, <0x2ba30000>, <0x2bb30000>,
+			   <0x2bc30000>, <0x2bd30000>, <0x2be30000>, <0x2bf30000>;
+		gpr_base = <0x2b001000>;
+		dbgack-mask = <0xff00000>;
+		halt = <1>;
+		retention = <1>;
+	};
+
+	ecc-handler {
+		compatible = "google,exynos-ecc-handler";
+		interrupts = <GIC_SPI IRQ_CPUCL0_ERRIRQ_0_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* DSU */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_1_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE0 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_2_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE1 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_3_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE2 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_4_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE3 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_5_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE4 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_6_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE5 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_7_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE6 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_8_CPUCL0 IRQ_TYPE_LEVEL_HIGH>; /* CORE7 */
+
+		interrupt-names ="DSU, L3 DATA or TAG or Snoop filter RAM",
+				"CORE0, L1,L2 DATA or TAG RAM",
+				"CORE1, L1,L2 DATA or TAG RAM",
+				"CORE2, L1,L2 DATA or TAG RAM",
+				"CORE3, L1,L2 DATA or TAG RAM",
+				"CORE4, L1,L2 DATA or TAG RAM",
+				"CORE5, L1,L2 DATA or TAG RAM",
+				"CORE6, L1,L2 DATA or TAG RAM",
+				"CORE7, L1,L2 DATA or TAG RAM";
+	};
+
+	exynos-etm {
+		compatible = "google,exynos-etm";
+		cs_base = <0x2b000000>;
+		boot-start = <0>;
+		funnel-num = <3>;
+		etf-num = <2>;
+		trex-num = <4>;
+		/* funnel-port = <(funnel num) (port num)>; */
+		etm0 {
+			device_type = "etm";
+			offset = <0x840000>;
+			funnel-port = <0 0>;
+		};
+		etm1 {
+			device_type = "etm";
+			offset = <0x940000>;
+			funnel-port = <0 1>;
+		};
+		etm2 {
+			device_type = "etm";
+			offset = <0xa40000>;
+			funnel-port = <1 0>;
+		};
+		etm3 {
+			device_type = "etm";
+			offset = <0xb40000>;
+			funnel-port = <1 1>;
+		};
+		etm4 {
+			device_type = "etm";
+			offset = <0xc40000>;
+			funnel-port = <1 2>;
+		};
+		etm5 {
+			device_type = "etm";
+			offset = <0xd40000>;
+			funnel-port = <1 3>;
+		};
+		etm6 {
+			device_type = "etm";
+			offset = <0xe40000>;
+			funnel-port = <0 2>;
+		};
+		etm7 {
+			device_type = "etm";
+			offset = <0xf40000>;
+			funnel-port = <0 3>;
+		};
+		etf0@4000 {
+			device_type = "etf";
+			offset = <0x4000>;
+			funnel-port = <2 0>;
+		};
+		etf1@5000 {
+			device_type = "etf";
+			offset = <0x5000>;
+			funnel-port = <2 1>;
+		};
+		funnel0@7000 {
+			device_type = "funnel";
+			offset = <0x7000>;
+		};
+		funnel1@8000 {
+			device_type = "funnel";
+			offset = <0x8000>;
+		};
+		funnel2@9000 {
+			device_type = "funnel";
+			offset = <0x9000>;
+		};
+		etr@A000 {
+			device_type = "etr";
+			sfr_base = <0x2b00c000 0x100>;
+			qch-offset = <0x2c>;
+			offset = <0xA000>;
+			buf-size = <0x100000>;
+		};
+		bdu@10000 {
+			device_type = "bdu";
+			offset = <0x10000>;
+			funnel-port = <1 5>;
+		};
+		bdu_etf@11000 {
+			device_type = "bdu_etf";
+			offset = <0x11000>;
+		};
+		trex0 {
+			device_type = "trex";
+			mux_ctrl = <0x66>;
+			dbg_trace_addr = <0x1ea83010>;
+			dbg_trace_val = <5>;
+		};
+		trex1 {
+			device_type = "trex";
+			mux_ctrl = <0x77>;
+			dbg_trace_addr = <0x1f603010>;
+			dbg_trace_val = <26>;
+		};
+		trex2 {
+			device_type = "trex";
+			mux_ctrl = <0x88>;
+			dbg_trace_addr = <0x204e3010>;
+			dbg_trace_val = <8>;
+		};
+		trex3 {
+			device_type = "trex";
+			mux_ctrl = <0x55>;
+			dbg_trace_addr = <0x1e503010>;
+			dbg_trace_val = <8>;
+		};
+	};
+
+	etr-miu@110B0000 {
+		compatible = "google,gs101-etr-miu";
+		reg = <0x0 0x110B0000 0x100>;
+		tmc_buf_addr = <0x00000010 0x00000000>;
+		tmc_buf_size = <0x80000000>;
+	};
+
+	exynos-adv_tracer {
+		compatible = "google,exynos-adv-tracer";
+		reg = <0x0 0x18360000 0x1000>;
+		reg-names = "mailbox";
+		interrupts = <GIC_SPI IRQ_MAILBOX_DBGCORE2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
+		pmu-dbgcore-config = <0x3080>;
+		pmu-dbgcore-status = <0x3084>;
+		intr-bitoffset = <0>;
+		status = "ok";
+	};
+
+	exynos_adv_tracer_s2d {
+		compatible = "google,exynos-adv-tracer-s2d";
+		plugin-len = <3>;
+		plugin-name = "S2D";
+		pmu-burnin-ctrl = <0x3cd0>;
+		sel-scanmode-bit = <25>;
+		dbgsel-sw-bit = <4>;
+		blk-list = "AOC", "AOCCORE", "BO", "BOCORE", "BUS0", "BUS1",
+			   "BUS2", "CMU", "CORE", "CPUCL0", "CLUSTER0", "CSIS",
+			   "DISP", "DNS", "DPU", "EH", "G2D", "G3AA",
+			   "G3D", "GPU", "GDC", "GSA", "HSI0", "HSI1",
+			   "HSI2", "IPP", "ITP", "MCSC", "MFC", "MIF1",
+			   "MIF2", "MIF3", "PDP", "PERIC0", "PERIC1", "TNR",
+			   "TPU", "TPUCORE", "SLC0", "SLC1", "SLC2", "SLC3";
+		status = "ok";
+	};
+};

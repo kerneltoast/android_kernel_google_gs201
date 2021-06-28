@@ -17,14 +17,6 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#define GROUP_CIRC_QUEUE
-
-#ifdef GROUP_CIRC_QUEUE
-/*
- * @defgroup group_circ_queue	Circular Queue
- * @{
- */
-
 /*
  * @brief	the structure for a circular queue in a memory-type interface
  */
@@ -286,11 +278,5 @@ static inline void circ_write(u8 *dst, u8 *src, unsigned int qsize,
 			memcpy(dst, (src + space), (len - space));
 	}
 }
-
-/*
- * End of GROUP_CIRC_QUEUE
- * @}
- */
-#endif
 
 #endif

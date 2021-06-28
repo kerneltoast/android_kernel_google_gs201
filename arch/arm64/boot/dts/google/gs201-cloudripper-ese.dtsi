@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google GS101 Board device tree source
+ *
+ * Copyright (c) 2021 Google, LLC
+ *		https://www.google.com
+ *
+*/
+
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/gpio/gpio.h>
+
+&pinctrl_6 {
+	ese1_spi_rst: ese1-spi-rst {
+		samsung,pins ="gph1-4";
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	ese2_spi_rst: ese2-spi-rst {
+		samsung,pins ="gph0-4";
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&spi10_bus {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&spi10_cs {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&spi_17 {
+	/* XAPM_USI0 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	cs-gpios = <&gpa4 3 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi17_bus &spi17_cs &ese2_spi_rst>;
+
+	ese2: ese@0 {
+		compatible = "st,st33spi";
+		reg = <0>;
+		spi-max-frequency = <8000000>;
+		esereset-gpio = <&gph0 4 GPIO_ACTIVE_HIGH>;
+		power_mode = "ST33";
+
+		controller-data {
+			cs-gpio = <&gpa4 3 GPIO_ACTIVE_HIGH>;
+			cs-clock-delay = <10>;
+			samsung,spi-chip-select-mode = <0>;
+		};
+	};
+};
+
+&spi_10 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi10_bus &spi10_cs &ese1_spi_rst>;
+	cs-gpios = <&gpp21 3 GPIO_ACTIVE_HIGH>;
+
+	ese1: ese@0 {
+		compatible = "st,st54spi";
+		reg = <0>;
+		spi-max-frequency = <8000000>;
+		esereset-gpio = <&gph1 4 GPIO_ACTIVE_HIGH>;
+		power_mode = "ST54J";
+
+		controller-data {
+			cs-gpio = <&gpp21 3 GPIO_ACTIVE_HIGH>;
+			cs-clock-delay = <10>;
+			samsung,spi-chip-select-mode = <0>;
+		};
+	};
+};
+

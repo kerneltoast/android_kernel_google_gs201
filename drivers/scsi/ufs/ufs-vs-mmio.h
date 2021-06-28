@@ -8,6 +8,8 @@
 
 #ifdef CONFIG_SOC_GS101
 #include "gs101/ufs-vs-mmio.h"
+#elif CONFIG_SOC_GS201
+#include "gs201/ufs-vs-mmio.h"
 #endif
 
 #endif /*_UFS_VS_MMIO_H */

@@ -167,9 +167,4 @@ static inline void tpmon_add_net_node(struct list_head *node) { return; }
 static inline int tpmon_check_active(void) { return 0; }
 #endif
 
-#if IS_ENABLED(CONFIG_MCPS)
-extern int mcps_enable;
-extern int set_mcps_cp_irq_mask(const char *buf);
-#endif
-
 #endif /* __CPIF_TP_MONITOR_H__ */

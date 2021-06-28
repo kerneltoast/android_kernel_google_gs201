@@ -393,10 +393,8 @@ struct sk_buff *recv_from_legacy_link(struct mem_link_device *mld,
 	/* Finish reading data before incrementing tail */
 	smp_mb();
 
-#ifdef DEBUG_MODEM_IF
 	/* Record the time-stamp */
 	ktime_get_ts64(&skbpriv(skb)->ts);
-#endif
 
 	return skb;
 

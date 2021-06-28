@@ -20,7 +20,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <dt-bindings/soc/google/gs101-bts.h>
+#include <dt-bindings/soc/google/gs-bts.h>
 #include <soc/google/exynos-pd.h>
 #include <soc/google/bts.h>
 

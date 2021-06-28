@@ -26,13 +26,13 @@ int cpboot_spi_load_cp_image(struct link_device *ld, struct io_device *iod, unsi
 {
 	int ret = 0;
 	struct mem_link_device *mld = ld_to_mem_link_device(ld);
-	struct cpboot_spi *cpboot = mld->boot_spi;
+	struct cpboot_spi *cpboot = cpboot_spi_get_device(mld->spi_bus_num);
 	struct cp_image img;
 	char *buff = NULL;
 	struct spi_message msg;
 	struct spi_transfer xfer;
 
-	if (!cpboot->spi) {
+	if (!cpboot || !cpboot->spi) {
 		mif_err("spi is null\n");
 		return -EPERM;
 	}

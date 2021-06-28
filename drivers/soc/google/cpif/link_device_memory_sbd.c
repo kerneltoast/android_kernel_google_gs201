@@ -11,15 +11,14 @@
  */
 
 #include <soc/google/exynos-modem-ctrl.h>
+#include <soc/google/shm_ipc.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "link_device_memory.h"
 #include "include/sbd.h"
-#include <linux/shm_ipc.h>
 
 static void print_sbd_config(struct sbd_link_device *sl)
 {
-#ifdef DEBUG_MODEM_IF
 	int i, dir;
 	struct sbd_rb_channel *rb_ch;
 	struct sbd_rb_desc *rbd;
@@ -43,7 +42,6 @@ static void print_sbd_config(struct sbd_link_device *sl)
 				rbd->buff_size, rbd->payload_offset);
 		}
 	}
-#endif
 }
 
 /* sysfs */
@@ -168,22 +166,15 @@ static void setup_link_attr(struct sbd_link_attr *link_attr, u16 id, u16 ch,
 	link_attr->rb_len[DL] = io_dev->dl_num_buffers;
 	link_attr->buff_size[DL] = io_dev->dl_buffer_size;
 
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY)
-	if (io_dev->attrs & IO_ATTR_ZEROCOPY)
-		link_attr->zerocopy = true;
-	else
-		link_attr->zerocopy = false;
-#endif
-
 }
 
 /*
  * @return		the number of actual link channels
  */
-static unsigned int init_ctrl_tables(struct sbd_link_device *sl, int num_iodevs,
-				     struct modem_io_t iodevs[])
+static unsigned int init_ctrl_tables(struct sbd_link_device *sl)
 {
-	int i, ch;
+	struct modem_io_t **iodevs = sl->ld->mdm_data->iodevs;
+	unsigned int i, ch;
 	int multi_raw_count = 0;
 	unsigned int id = 0;
 
@@ -194,21 +185,21 @@ static unsigned int init_ctrl_tables(struct sbd_link_device *sl, int num_iodevs,
 	for (i = 0; i < MAX_SBD_SIPC_CHANNELS; i++)
 		sl->ch2id[i] = MAX_SBD_LINK_IDS;
 
-	for (i = 0; i < num_iodevs; i++) {
-		ch = iodevs[i].ch;
+	for (i = 0; i < sl->ld->mdm_data->num_iodevs; i++) {
+		ch = iodevs[i]->ch;
 
 		/* Skip non-IPC or PS ch but allow IPC_MULTI_RAW */
 		if ((!sipc5_ipc_ch(ch) || sipc_ps_ch(ch)) &&
-		    (iodevs[i].format != IPC_MULTI_RAW))
+		    (iodevs[i]->format != IPC_MULTI_RAW))
 			continue;
 
 		/* Skip making rb if mismatch region info */
-		if ((iodevs[i].attrs & IO_ATTR_OPTION_REGION) &&
-		    strcmp(iodevs[i].option_region, CONFIG_OPTION_REGION))
+		if ((iodevs[i]->attrs & IO_ATTR_OPTION_REGION) &&
+		    strcmp(iodevs[i]->option_region, CONFIG_OPTION_REGION))
 			continue;
 
 		/* Change channel to QoS priority */
-		if (iodevs[i].format == IPC_MULTI_RAW) {
+		if (iodevs[i]->format == IPC_MULTI_RAW) {
 			ch = QOS_HIPRIO + multi_raw_count;
 			multi_raw_count++;
 			if (ch >= QOS_MAX_PRIO) {
@@ -224,14 +215,14 @@ static unsigned int init_ctrl_tables(struct sbd_link_device *sl, int num_iodevs,
 		sl->ch2id[ch] = id;
 
 		/* Set up the attribute table entry of a LinkID. */
-		setup_link_attr(&sl->link_attr[id], id, ch, &iodevs[i]);
+		setup_link_attr(&sl->link_attr[id], id, ch, iodevs[i]);
 
 		id++;
 	}
 
 #if !IS_ENABLED(CONFIG_MODEM_IF_QOS)
-	for (i = 0; i < num_iodevs; i++) {
-		int ch = iodevs[i].ch;
+	for (i = 0; i < sl->ld->mdm_data->num_iodevs; i++) {
+		int ch = iodevs[i]->ch;
 
 		if (sipc_ps_ch(ch))
 			sl->ch2id[ch] = sl->ch2id[QOS_HIPRIO];
@@ -268,7 +259,6 @@ int init_sbd_link(struct sbd_link_device *sl)
 
 		ipc_dev->id = link_attr->id;
 		ipc_dev->ch = link_attr->ch;
-		atomic_set(&ipc_dev->config_done, 0);
 		ipc_dev->zerocopy = link_attr->zerocopy;
 
 		for (dir = 0; dir < ULDL; dir++) {
@@ -288,7 +278,11 @@ int init_sbd_link(struct sbd_link_device *sl)
 			 * Initialize an SBD RB instance in the kernel space.
 			 */
 			rb->id = link_attr->id;
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+			rb->ch = link_attr->ch ?: SIPC_CH_EX_ID_PDP_0;
+#else
 			rb->ch = link_attr->ch ?: SIPC_CH_ID_PDP_0;
+#endif
 			rb->dir = dir;
 			rb->len = link_attr->rb_len[dir];
 			rb->buff_size = link_attr->buff_size[dir];
@@ -322,15 +316,6 @@ int init_sbd_link(struct sbd_link_device *sl)
 			rb->rb_ch->buff_pos_array_offset =
 				calc_offset(rb->buff_pos_array, sl->shmem);
 		}
-
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY)
-		/*
-		 * Setup zerocopy_adaptor if zerocopy ipc_dev
-		 */
-		ret = setup_zerocopy_adaptor(ipc_dev);
-		if (ret < 0)
-			return ret;
-#endif
 	}
 
 	print_sbd_config(sl);
@@ -407,14 +392,6 @@ int create_sbd_mem_map(struct sbd_link_device *sl)
 				i, sbd_id2ch(sl, i), udl_str(dir), rb->buff_rgn,
 				calc_offset(rb->buff_rgn, sl->shmem), (rb_len * rb_buff_size));
 
-#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
-			if (rb->buff_rgn + (rb_len * rb_buff_size) >=
-				sl->shmem + sl->shmem_size - SHMEM_BOOTSBDLOG_SIZE) {
-				mif_err("sbd buffer break boot log area\n");
-				return -ENOMEM;
-			}
-#endif
-
 			rb->rp = &sl->rp[dir][i];
 			rb->wp = &sl->wp[dir][i];
 
@@ -439,17 +416,12 @@ int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
 			   u8 *shmem_base, unsigned int shmem_size)
 {
 	int ret;
-	int num_iodevs;
-	struct modem_io_t *iodevs;
 
 	if (!ld || !sl || !shmem_base)
 		return -EINVAL;
 
 	if (!ld->mdm_data)
 		return -EINVAL;
-
-	num_iodevs = ld->mdm_data->num_iodevs;
-	iodevs = ld->mdm_data->iodevs;
 
 	sl->ld = ld;
 
@@ -459,7 +431,7 @@ int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
 	sl->shmem_size = shmem_size;
 	sl->zmb_offset = shmem_size;
 
-	sl->num_channels = init_ctrl_tables(sl, num_iodevs, iodevs);
+	sl->num_channels = init_ctrl_tables(sl);
 	sl->reset_zerocopy_done = 1;
 
 	ret = create_sbd_mem_map(sl);
@@ -489,14 +461,6 @@ int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
 		mif_err("sysfs_create_group() sbd_group error %d\n", ret);
 		return ret;
 	}
-
-#if IS_ENABLED(CONFIG_CP_ZEROCOPY)
-	ret = sysfs_create_group(&sl->ld->dev->kobj, &zerocopy_group);
-	if (ret != 0) {
-		mif_err("sysfs_create_group() zerocopy_group error %d\n", ret);
-		return ret;
-	}
-#endif
 
 	mif_info("Complete!!\n");
 

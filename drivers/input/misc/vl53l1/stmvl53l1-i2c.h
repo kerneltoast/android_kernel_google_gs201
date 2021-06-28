@@ -58,9 +58,6 @@ struct i2c_data {
 	 */
 	int boot_reg;
 
-	/*!< pin control */
-	struct pinctrl *state_pinctrl;
-
 	/*!< is set if above irq gpio got acquired */
 	struct i2d_data_flags_t {
 		unsigned pwr_owned:1; /*!< set if pwren gpio is owned*/
@@ -78,6 +75,12 @@ struct i2c_data {
 	struct msgtctrl_t {
 		unsigned unhandled_irq_vec:1;
 	} msg_flag;
+};
+
+struct shared_i2c_data {
+	struct kref refcount;
+	/* pin control */
+	struct pinctrl *pinctrl;
 };
 
 int stmvl53l1_init_i2c(void);

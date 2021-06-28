@@ -34,7 +34,7 @@ enum sys_powerdown {
 	SYS_FAPO,
 	SYS_SLEEP_USBL2,
 	SYS_SLEEP_HSI1ON,
-#if defined(CONFIG_SOC_GS101)
+#if defined(CONFIG_SOC_GS101) || defined(CONFIG_SOC_GS201)
 	SYS_SLEEP_SLCMON,
 #endif
 	NUM_SYS_POWERDOWN,

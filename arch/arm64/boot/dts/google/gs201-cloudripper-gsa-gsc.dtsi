@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/* Setup GSA_GSC proxy driver to talk to GSC over GSA */
+&gsa {
+	gsa_gsc@0 {
+		compatible = "google,gs101-gsa-gsc-v1";
+
+		interrupt-parent = <&gpa0>;
+		interrupts = <5 0 0>;
+		gsc,ctdl_ap_irq = <&gpa0 0 0>; // XPCIE0_WAKEN0
+	};
+};

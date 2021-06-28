@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/shm_ipc.h>
+#include <soc/google/shm_ipc.h>
 
 #include "modem_prj.h"
 #include "modem_utils.h"
@@ -133,6 +133,11 @@ int cp_get_log_dump(struct io_device *iod, struct link_device *ld, unsigned long
 	case LOG_IDX_L2B:
 		base = phys_to_virt(cp_shmem_get_base(cp_num, SHMEM_L2B));
 		size = cp_shmem_get_size(cp_num, SHMEM_L2B);
+		break;
+
+	case LOG_IDX_DDM:
+		base = phys_to_virt(cp_shmem_get_base(cp_num, SHMEM_DDM));
+		size = cp_shmem_get_size(cp_num, SHMEM_DDM);
 		break;
 
 	default:

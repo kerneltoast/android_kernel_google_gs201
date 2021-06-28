@@ -22,8 +22,8 @@ per-file clk/clk-multiplier.c=saravanak@google.com
 per-file clk/clk-mux.c=saravanak@google.com
 per-file clk/Kconfig=saravanak@google.com
 per-file clk/Makefile=saravanak@google.com
-per-file clk/samsung/clk-gs101.c=*
-per-file clk/samsung/composite.*=*
+
+per-file clk/samsung/**=*
 
 per-file clocksource/exynos_mct.c=*
 
@@ -44,6 +44,7 @@ per-file i2c/busses/i2c-exynos5.h=*
 per-file iio/power/odpm.c=*
 
 per-file input/fingerprint/**=*
+per-file input/keyboard/s2mpg12-key.c=*
 per-file input/keycombo.c=*
 per-file input/keydebug-*=*
 per-file input/misc/vl53l1/**=*
@@ -59,6 +60,7 @@ per-file media/platform/exynos/**=*
 
 per-file mfd/s2mpg*=*
 per-file mfd/slg51000-core.c=*
+per-file mfd/slg51002-core.c=*
 
 per-file misc/access_ramoops.c=*
 per-file misc/bbdpl/**=*
@@ -80,6 +82,7 @@ per-file pci/controller/dwc/pcie-exynos*=*
 per-file phy/samsung/**=*
 
 per-file pinctrl/pinctrl-slg51000.c=*
+per-file pinctrl/pinctrl-slg51002.c=*
 per-file pinctrl/samsung/pinctrl-exynos*=*
 per-file pinctrl/samsung/pinctrl-gs*=*
 per-file pinctrl/samsung/pinctrl-samsung.*=*
@@ -103,12 +106,14 @@ per-file regulator/of_regulator.c=saravanak@google.com
 per-file regulator/pmic_class.c=*
 per-file regulator/s2mpg*=*
 per-file regulator/slg51000-regulator.c=*
+per-file regulator/slg51002-regulator.c=*
 per-file regulator/userspace-consumer.c=saravanak@google.com
 per-file regulator/virtual.c=saravanak@google.com
 
 per-file rtc/rtc-s2mpg*=*
 
 per-file scsi/ufs/gs101/**=*
+per-file scsi/ufs/gs201/**=*
 per-file scsi/ufs/ufs-cal*=*
 per-file scsi/ufs/ufs-exynos.c=*
 per-file scsi/ufs/ufs-exynos.h=*

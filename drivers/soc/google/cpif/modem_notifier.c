@@ -9,10 +9,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
-#include <linux/modem_notifier.h>
 
 #include "modem_prj.h"
 #include "modem_utils.h"
+#include "modem_notifier.h"
 
 static struct raw_notifier_head modem_event_notifier;
 #if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
@@ -30,8 +30,7 @@ EXPORT_SYMBOL(register_modem_event_notifier);
 
 void modem_notify_event(enum modem_event evt, void *mc)
 {
-	mif_info("event notify (%d)\n", evt);
-	raw_notifier_call_chain(&modem_event_notifier, evt, mc);
+	/* ToDo */
 }
 EXPORT_SYMBOL(modem_notify_event);
 

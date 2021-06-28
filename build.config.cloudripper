@@ -1,0 +1,46 @@
+KERNEL_DIR=private/gs-google
+
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gs101
+
+VENDOR_RAMDISK_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-cloudripper.img
+
+DEFCONFIG=cloudripper_gki_defconfig
+PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/private/gs-google/arch/arm64/configs/cloudripper_gki.fragment"
+POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+
+MAKE_GOALS="$MAKE_GOALS
+modules
+google/gs201-a0.dtb
+google/dtbo.img
+"
+
+FILES="
+arch/arm64/boot/dts/google/gs201-a0.dtb
+arch/arm64/boot/dts/google/dtbo.img
+"
+
+if [ -z "$MIXED_BUILD" ]; then
+FILES="$FILES
+$DEVICE_KERNEL_FILES
+"
+fi
+
+MODULES_LIST=${KERNEL_DIR}/vendor_boot_modules.cloudripper
+
+EXT_MODULES+="
+private/google-modules/amplifiers/cs35l45
+private/google-modules/aoc
+private/google-modules/aoc/alsa
+private/google-modules/display/samsung
+private/google-modules/edgetpu/drivers/edgetpu
+private/google-modules/bms
+private/google-modules/gpu/mali_kbase
+private/google-modules/gpu/mali_pixel
+private/google-modules/lwis
+private/google-modules/power/reset
+private/google-modules/touch/common
+private/google-modules/touch/sec
+private/google-modules/bluetooth/broadcom
+private/google-modules/nfc
+private/google-modules/wlan/bcmdhd4389
+"

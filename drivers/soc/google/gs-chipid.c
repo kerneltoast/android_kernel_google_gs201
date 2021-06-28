@@ -51,6 +51,7 @@ struct gs_chipid_info {
 };
 
 #define GS101_SOC_ID		0x09845000
+#define GS201_SOC_ID		0x09855000
 #define SOC_MASK		0xFFFFF000
 #define SOC_MASK_V2		0x00FFFFFF
 #define SOC_TYPE_MASK		0x0000000F
@@ -72,6 +73,9 @@ static const char *product_id_to_name(unsigned int product_id)
 	switch (soc_id) {
 	case GS101_SOC_ID:
 		soc_name = "GS101";
+		break;
+	case GS201_SOC_ID:
+		soc_name = "GS201";
 		break;
 	default:
 		soc_name = "UNKNOWN";
@@ -337,6 +341,10 @@ static const struct of_device_id of_gs_chipid_ids[] = {
 	 .compatible = "google,gs101-chipid",
 	 .data = &drv_data_gs101,
 	 },
+	{
+	 .compatible = "google,gs201-chipid",
+	 .data = &drv_data_gs101,
+	},
 	{},
 };
 

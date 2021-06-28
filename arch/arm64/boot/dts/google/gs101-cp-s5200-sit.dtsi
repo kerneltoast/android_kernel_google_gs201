@@ -140,49 +140,48 @@
 				sbi_ap2cp_kerneltime_usec_pos = <0>;
 
 				/* Packet processor */
-				pktproc_support = <1>;
-				pktproc_version = <2>;
+				pktproc_cp_base = <0x0 0x20000000>;
 
-				pktproc_cp_base = <0x20000000>;
-				pktproc_info_rgn_offset = <0x00000000>;
-				pktproc_info_rgn_size = <0x00000100>;
-				pktproc_desc_rgn_offset = <0x00000100>;
-				pktproc_desc_rgn_size = <0x000FFF00>;
-				pktproc_buff_rgn_offset = <0x00100000>;
+				pktproc_dl_support = <1>;
+				pktproc_dl_version = <2>;
+
+				pktproc_dl_info_rgn_offset = <0x00000000>;
+				pktproc_dl_info_rgn_size = <0x00001000>;
+				pktproc_dl_desc_rgn_offset = <0x00001000>;
+				pktproc_dl_desc_rgn_size = <0x000FF000>;
+				pktproc_dl_buff_rgn_offset = <0x00100000>;
+				pktproc_dl_buff_rgn_size = <0x01B00000>;
 				/* Size of data region is defined
 				 * by reserved mem size
 				 */
 
-				pktproc_info_desc_rgn_cached = <1>;
-				pktproc_buff_rgn_cached = <1>;
+				pktproc_dl_info_rgn_cached = <1>;
+				pktproc_dl_desc_rgn_cached = <1>;
+				pktproc_dl_buff_rgn_cached = <1>;
 
 				/* 0:ringbuf mode, 1:sktbuf mode */
-				pktproc_desc_mode = <1>;
-				pktproc_num_queue = <1>;
-				pktproc_use_exclusive_irq = <0>;
-				pktproc_exclusive_irq_idx = <PCIE_CP_IRQ_IDX_2 PCIE_CP_IRQ_IDX_3
-							  PCIE_CP_IRQ_IDX_4 PCIE_CP_IRQ_IDX_5>;
-				pktproc_use_buff_mng = <0>;
-				pktproc_desc_num_ratio_percent = <100>;
-				pktproc_use_napi = <1>;
+				pktproc_dl_desc_mode = <1>;
+				pktproc_dl_num_queue = <1>;
+				pktproc_dl_use_exclusive_irq = <0>;
+				pktproc_dl_use_napi = <1>;
 				/* H/W IO cache coherency */
-				pktproc_use_hw_iocc = <1>;
-				pktproc_max_packet_size = <2048>;
-				pktproc_use_dedicated_baaw = <1>;
-				pktproc_use_36bit_data_addr = <0>;
+				pktproc_dl_use_hw_iocc = <1>;
+				pktproc_dl_max_packet_size = <2048>;
+				pktproc_dl_use_dedicated_baaw = <0>;
 
 				/* Packet processor for UL */
-				pktproc_support_ul = <1>;
-				pktproc_ul_cp_base = <0x26000000>;
-				pktproc_ul_info_rgn_offset = <0x00000000>;
-				pktproc_ul_info_rgn_size = <0x00000100>;
-				pktproc_ul_desc_rgn_offset = <0x00000100>;
-				pktproc_ul_desc_rgn_size = <0x000FFF00>;
-				pktproc_ul_buff_rgn_offset = <0x00100000>;
+				pktproc_ul_support = <1>;
+				pktproc_ul_info_rgn_offset = <0x06000000>;
+				pktproc_ul_info_rgn_size = <0x00001000>;
+				pktproc_ul_desc_rgn_offset = <0x06001000>;
+				pktproc_ul_desc_rgn_size = <0x00020000>;
+				pktproc_ul_buff_rgn_offset = <0x06021000>;
+				pktproc_ul_buff_rgn_size = <0x003DF000>;
 				pktproc_ul_padding_required = <1>; /* for s5123 EVT1 only */
 				pktproc_ul_num_queue = <2>;
 				pktproc_ul_max_packet_size = <2048>;
-				pktproc_ul_info_desc_rgn_cached = <1>;
+				pktproc_ul_info_rgn_cached = <1>;
+				pktproc_ul_desc_rgn_cached = <1>;
 				pktproc_ul_buff_rgn_cached = <1>;
 				pktproc_ul_use_hw_iocc = <1>; /* H/W IO cache coherency */
 
@@ -310,22 +309,15 @@
 				/* IO devices */
 				iodevs {
 					io_device_0 {
-						iod,name = "umts_ipc0";
+						iod,name = "umts_ipc";
 						iod,ch = <EXYNOS_CH_ID_FMT_0>;
 						iod,format = <IPC_FMT>;
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
+						iod,attrs = <(IO_ATTR_MULTI_CH)>;
+						iod,ch_count = <2>;
 					};
 					io_device_1 {
-						iod,name = "umts_ipc1";
-						iod,ch = <EXYNOS_CH_ID_FMT_1>;
-						iod,format = <IPC_FMT>;
-						iod,io_type = <IODEV_IPC>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_2 {
 						iod,name = "umts_rfs0";
 						iod,ch = <EXYNOS_CH_ID_RFS_0>;
 						iod,format = <IPC_RAW>;
@@ -333,7 +325,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_3 {
+					io_device_2 {
 						iod,name = "umts_router";
 						iod,ch = <EXYNOS_CH_ID_BT_DUN>;
 						iod,format = <IPC_RAW>;
@@ -341,7 +333,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_4 {
+					io_device_3 {
 						iod,name = "umts_dm0";
 						iod,ch = <EXYNOS_CH_ID_CPLOG>;
 						iod,format = <IPC_RAW>;
@@ -349,7 +341,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_5 {
+					io_device_4 {
 						iod,name = "umts_loopback";
 						iod,ch = <EXYNOS_CH_ID_LOOPBACK>;
 						iod,format = <IPC_RAW>;
@@ -357,71 +349,16 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_6 {
-						iod,name = "rmnet0";
+					io_device_5 {
+						iod,name = "rmnet";
 						iod,ch = <EXYNOS_CH_ID_PDP_0>;
 						iod,format = <IPC_RAW>;
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
+						iod,attrs = <(IO_ATTR_MULTI_CH)>;
+						iod,ch_count = <8>;
 					};
-					io_device_7 {
-						iod,name = "rmnet1";
-						iod,ch = <EXYNOS_CH_ID_PDP_1>;
-						iod,format = <IPC_RAW>;
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_8 {
-						iod,name = "rmnet2";
-						iod,ch = <EXYNOS_CH_ID_PDP_2>;
-						iod,format = <IPC_RAW>;
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_9 {
-						iod,name = "rmnet3";
-						iod,ch = <EXYNOS_CH_ID_PDP_3>;
-						iod,format = <IPC_RAW>;
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_10 {
-						iod,name = "rmnet4";
-						iod,ch = <EXYNOS_CH_ID_PDP_4>;
-						iod,format = <IPC_RAW>;
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_11 {
-						iod,name = "rmnet5";
-						iod,ch = <EXYNOS_CH_ID_PDP_5>;
-						iod,format = <IPC_RAW>;
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_12 {
-						iod,name = "rmnet6";
-						iod,ch = <EXYNOS_CH_ID_PDP_6>;
-						iod,format = <IPC_RAW>;
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_13 {
-						iod,name = "rmnet7";
-						iod,ch = <EXYNOS_CH_ID_PDP_7>;
-						iod,format = <IPC_RAW>;
-						iod,io_type = <IODEV_NET>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_14 {
+					io_device_6 {
 						iod,name = "multipdp";
 						iod,ch = <EXYNOS_CH_ID_MULTIPDP>;
 						iod,format = <IPC_MULTI_RAW>;
@@ -429,7 +366,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_15 {
+					io_device_7 {
 						iod,name = "umts_boot0";
 						iod,ch = <EXYNOS_CH_ID_BOOT>;
 						iod,format = <IPC_BOOT>;
@@ -437,7 +374,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(IO_ATTR_NO_CHECK_MAXQ)>;
 					};
-					io_device_16 {
+					io_device_8 {
 						iod,name = "umts_rcs0";
 						iod,ch = <EXYNOS_CH_ID_RCS_0>;
 						iod,format = <IPC_FMT>;
@@ -445,7 +382,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_17 {
+					io_device_9 {
 						iod,name = "umts_rcs1";
 						iod,ch = <EXYNOS_CH_ID_RCS_1>;
 						iod,format = <IPC_RAW>;
@@ -453,7 +390,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_18 {
+					io_device_10 {
 						iod,name = "umts_wfc0";
 						iod,ch = <EXYNOS_CH_ID_WFS_0>;
 						iod,format = <IPC_FMT>;
@@ -461,7 +398,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_19 {
+					io_device_11 {
 						iod,name = "umts_wfc1";
 						iod,ch = <EXYNOS_CH_ID_WFS_1>;
 						iod,format = <IPC_RAW>;
@@ -469,69 +406,14 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_20 {
-						iod,name = "oem_ipc0";
+					io_device_12 {
+						iod,name = "oem_ipc";
 						iod,ch = <129>;
 						iod,format = <IPC_FMT>;
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_21 {
-						iod,name = "oem_ipc1";
-						iod,ch = <130>;
-						iod,format = <IPC_FMT>;
-						iod,io_type = <IODEV_IPC>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_22 {
-						iod,name = "oem_ipc2";
-						iod,ch = <131>;
-						iod,format = <IPC_FMT>;
-						iod,io_type = <IODEV_IPC>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_23 {
-						iod,name = "oem_ipc3";
-						iod,ch = <132>;
-						iod,format = <IPC_FMT>;
-						iod,io_type = <IODEV_IPC>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_24 {
-						iod,name = "oem_ipc4";
-						iod,ch = <133>;
-						iod,format = <IPC_FMT>;
-						iod,io_type = <IODEV_IPC>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_25 {
-						iod,name = "oem_ipc5";
-						iod,ch = <134>;
-						iod,format = <IPC_FMT>;
-						iod,io_type = <IODEV_IPC>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_26 {
-						iod,name = "oem_ipc6";
-						iod,ch = <135>;
-						iod,format = <IPC_FMT>;
-						iod,io_type = <IODEV_IPC>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
-					};
-					io_device_27 {
-						iod,name = "oem_ipc7";
-						iod,ch = <136>;
-						iod,format = <IPC_FMT>;
-						iod,io_type = <IODEV_IPC>;
-						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
+						iod,attrs = <(IO_ATTR_MULTI_CH)>;
+						iod,ch_count = <8>;
 					};
 				};
 			};

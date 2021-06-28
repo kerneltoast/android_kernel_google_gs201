@@ -36,6 +36,7 @@
 
 #include "modem_prj.h"
 #include "modem_utils.h"
+#include "modem_ctrl.h"
 #include "s51xx_pcie.h"
 
 static int s51xx_pcie_read_procmem(struct seq_file *m, void *v)
@@ -252,12 +253,11 @@ void s51xx_pcie_restore_state(struct pci_dev *pdev)
 
 	/* BAR0 value correction  */
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &val);
-	dev_dbg(&pdev->dev, "[%s]restored:PCI_BASE_ADDRESS_0 = 0x%x\n", __func__, val);
-	if ((val & 0xfffffff0) != 0x40000000) {
-		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, 0x40000000);
+	dev_dbg(&pdev->dev, "restored:PCI_BASE_ADDRESS_0 = 0x%x\n", val);
+	if (val != s51xx_pcie->dbaddr_base) {
+		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, s51xx_pcie->dbaddr_base);
 		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_1, 0x0);
-		mif_info("write BAR0 value: 0x40000000\n");
-		dev_info(&pdev->dev, "[%s]:VALUE CHECK\n", __func__);
+		mif_info("write BAR0 value:  0x%x\n", s51xx_pcie->dbaddr_base);
 		s51xx_pcie_chk_ep_conf(pdev);
 	}
 
@@ -270,20 +270,12 @@ void s51xx_pcie_restore_state(struct pci_dev *pdev)
 
 int s51xx_check_pcie_link_status(int ch_num)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	return exynos_pcie_rc_chk_link_status(ch_num);
-#else
-	return exynos_check_pcie_link_status(ch_num);
-#endif
 }
 
 void s51xx_pcie_l1ss_ctrl(int enable, int ch_num)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	exynos_pcie_rc_l1ss_ctrl(enable, PCIE_L1SS_CTRL_MODEM_IF, ch_num);
-#else
-	exynos_pcie_host_v1_l1ss_ctrl(enable, PCIE_L1SS_CTRL_MODEM_IF);
-#endif
 }
 
 void disable_msi_int(struct pci_dev *pdev)
@@ -308,15 +300,7 @@ int s51xx_pcie_request_msi_int(struct pci_dev *pdev, int int_num)
 		return -EFAULT;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
-	/* old kernel(KC+S359):
-	 * err = __pci_enable_msi_range(s51xx_pcie.s51xx_pdev, int_num, int_num);
-	 */
 	err = pci_alloc_irq_vectors_affinity(pdev, int_num, int_num, PCI_IRQ_MSI, NULL);
-#else
-	err = pci_enable_msi_block(pdev, int_num);
-#endif
-
 	if (err <= 0) {
 		pr_err("Can't get msi IRQ!!!!!\n");
 		return -EFAULT;

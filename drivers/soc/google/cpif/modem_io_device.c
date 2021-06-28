@@ -25,6 +25,7 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_dump.h"
+#include "dit.h"
 
 static ssize_t waketime_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -61,22 +62,22 @@ static ssize_t waketime_store(struct device *dev,
 	}
 
 	iod->waketime = msecs_to_jiffies(msec);
-#ifdef DEBUG_MODEM_IF
 	mif_err("%s: waketime = %lu ms\n", iod->name, msec);
-#endif
 
 	if (iod->format == IPC_MULTI_RAW) {
 		struct modem_shared *msd = iod->msd;
 		unsigned int i;
 
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+		for (i = SIPC_CH_EX_ID_PDP_0; i <= SIPC_CH_EX_ID_PDP_MAX; i++) {
+#else
 		for (i = SIPC_CH_ID_PDP_0; i < SIPC_CH_ID_BT_DUN; i++) {
+#endif
 			iod = get_iod_with_channel(msd, i);
 			if (iod) {
 				iod->waketime = msecs_to_jiffies(msec);
-#ifdef DEBUG_MODEM_IF
 				mif_err("%s: waketime = %lu ms\n",
 					iod->name, msec);
-#endif
 			}
 		}
 	}
@@ -147,12 +148,13 @@ static struct device_attribute attr_txlink =
 	__ATTR_RW(txlink);
 
 enum gro_opt {
-	GRO_FULL_SUPPORT,
+	GRO_TCP_UDP,
 	GRO_TCP_ONLY,
 	GRO_NONE,
 	MAX_GRO_OPTION
 };
-static enum gro_opt gro_support = GRO_FULL_SUPPORT;
+
+static enum gro_opt gro_support = GRO_TCP_UDP;
 
 static ssize_t gro_option_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -213,7 +215,6 @@ static int gather_multi_frame(struct sipc5_link_header *hdr,
 	struct sk_buff_head *multi_q = &iod->sk_multi_q[ctrl.id];
 	int len = skb->len;
 
-#ifdef DEBUG_MODEM_IF
 	/* If there has been no multiple frame with this ID, ... */
 	if (skb_queue_empty(multi_q)) {
 		struct sipc_fmt_hdr *fh = (struct sipc_fmt_hdr *)skb->data;
@@ -221,7 +222,6 @@ static int gather_multi_frame(struct sipc5_link_header *hdr,
 		mif_err("%s<-%s: start of multi-frame (ID:%d len:%d)\n",
 			iod->name, mc->name, ctrl.id, fh->len);
 	}
-#endif
 	skb_queue_tail(multi_q, skb);
 
 	if (ctrl.more) {
@@ -369,27 +369,44 @@ static int rx_raw_misc(struct sk_buff *skb)
 	return queue_skb_to_iod(skb, iod);
 }
 
-static int check_gro_support(struct sk_buff *skb)
+static bool check_hw_support_clat(void)
 {
+	return dit_support_clat();
+}
+
+static bool check_gro_support(struct sk_buff *skb)
+{
+	u8 proto;
 
 	if (gro_support == GRO_NONE)
-		return 0;
+		return false;
 
 	switch (skb->data[0] & 0xF0) {
 	case 0x40:
-		return (gro_support == GRO_FULL_SUPPORT) ?
-			((ip_hdr(skb)->protocol == IPPROTO_TCP) ||
-				(ip_hdr(skb)->protocol == IPPROTO_UDP)) :
-			(ip_hdr(skb)->protocol == IPPROTO_TCP);
-
+		proto = ip_hdr(skb)->protocol;
+		break;
 	case 0x60:
-		return (gro_support == GRO_FULL_SUPPORT) ?
-			((ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP) ||
-				(ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP)) :
-			(ipv6_hdr(skb)->nexthdr == NEXTHDR_TCP);
+		proto = ipv6_hdr(skb)->nexthdr;
+		break;
+	default:
+		return false;
 	}
 
-	return 0;
+	switch (gro_support) {
+	case GRO_TCP_UDP:
+		/* bpf_skb_proto_6_to_4 on the eBPF clat call path
+		 * does not support UDP GROed skb.
+		 * allow UDP GRO only when hw clat supported.
+		 */
+		return proto == IPPROTO_TCP ||
+		       (proto == IPPROTO_UDP && check_hw_support_clat());
+	case GRO_TCP_ONLY:
+		return proto == IPPROTO_TCP;
+	default:
+		break;
+	}
+
+	return false;
 }
 
 static int rx_multi_pdp(struct sk_buff *skb)
@@ -466,7 +483,11 @@ static int rx_demux(struct link_device *ld, struct sk_buff *skb)
 
 	/* IP loopback */
 	if (ch == DATA_LOOPBACK_CHANNEL && ld->msd->loopback_ipaddr)
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+		ch = SIPC_CH_EX_ID_PDP_0;
+#else
 		ch = SIPC_CH_ID_PDP_0;
+#endif
 
 	iod = link_get_iod_with_channel(ld, ch);
 	if (unlikely(!iod)) {

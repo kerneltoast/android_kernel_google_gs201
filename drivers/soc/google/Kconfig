@@ -12,9 +12,18 @@ config SOC_GS101
 	bool "Google GS101"
 	depends on SOC_GOOGLE
 
+config SOC_GS201
+	bool "Google GS201"
+	depends on SOC_GOOGLE
+
 config BOARD_SLIDER
 	bool "Google Slider Board"
 	depends on SOC_GS101
+	select OF_GENERATE_SYMBOLS
+
+config BOARD_CLOUDRIPPER
+	bool "Google Cloudripper Board"
+	depends on SOC_GS201
 	select OF_GENERATE_SYMBOLS
 
 config GS_CHIPID
@@ -115,9 +124,9 @@ config EXYNOS_PM
 
 config EXYNOS_CPUPM
 	tristate "CPU Power Management driver"
-	depends on SOC_GS101 && PMUCAL
+	depends on (SOC_GS101 || SOC_GS201) && PMUCAL
 	help
-	Support CPU Power Control for GS101 SoC.
+	Support CPU Power Control for GS SoC.
 
 source "drivers/soc/google/acpm/Kconfig"
 
@@ -176,6 +185,24 @@ config VH_KERNEL
 	default y
 	help
 	Modules for vendor kernel hooks.
+
+config BOARD_EMULATOR
+	bool "EMULATOR platform"
+	select OF_GENERATE_SYMBOLS
+
+config BOARD_GS201_EMULATOR
+	bool "EMULATOR Platform for GS201"
+	depends on SOC_GS201 && BOARD_EMULATOR
+	select OF_GENERATE_SYMBOLS
+	help
+	GS201 Zebu Emulator System
+
+config BOARD_GS201_HYBRID
+	bool "HYBRID EMULATOR Platform for GS201"
+	depends on SOC_GS201 && BOARD_EMULATOR
+	select OF_GENERATE_SYMBOLS
+	help
+	GS201 Hybrid Zebu Emulator System, it is support for Android Platform
 
 config PIXEL_STAT
 	tristate "Enable Pixel statistics"

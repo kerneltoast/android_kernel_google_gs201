@@ -45,6 +45,31 @@ struct exynos_pm_domain *exynos_pd_lookup_name(const char *domain_name)
 }
 EXPORT_SYMBOL(exynos_pd_lookup_name);
 
+void *exynos_pd_lookup_cmu_id(u32 cmu_id)
+{
+	struct exynos_pm_domain *exypd = NULL;
+	struct device_node *np;
+
+	for_each_compatible_node(np, NULL, "samsung,exynos-pd") {
+		struct platform_device *pdev;
+		struct exynos_pm_domain *pd;
+
+		if (!of_device_is_available(np))
+			continue;
+
+		pdev = of_find_device_by_node(np);
+		if (!pdev)
+			continue;
+		pd = platform_get_drvdata(pdev);
+		if (pd->cmu_id == cmu_id) {
+			exypd = pd;
+			break;
+		}
+	}
+	return exypd;
+}
+EXPORT_SYMBOL(exynos_pd_lookup_cmu_id);
+
 int exynos_pd_status(struct exynos_pm_domain *pd)
 {
 	int status;
@@ -424,6 +449,14 @@ static int exynos_pd_probe(struct platform_device *pdev)
 		dev_dbg(dev, "read need_smc 0x%x successfully.!\n",
 			pd->need_smc);
 	}
+
+	ret = of_property_read_u32(np, "cmu_id", (u32 *)&pd->cmu_id);
+	if (ret) {
+		pd->cmu_id = 0x0;
+	} else {
+		dev_dbg(dev, "%s read cmu_id 0x%x successfully.!\n",
+			pd->name, pd->cmu_id);
+	}
 	initial_state = cal_pd_status(pd->cal_pdid);
 	if (initial_state == -1) {
 		dev_err(dev, "%s is in unknown state\n", pd->name);
@@ -490,6 +523,7 @@ static int exynos_pd_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
+	cal_register_pd_lookup_cmu_id(exynos_pd_lookup_cmu_id);
 	dev_dbg(dev, "PM Domain Initialized\n");
 	return ret;
 }

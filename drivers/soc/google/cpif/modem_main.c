@@ -25,9 +25,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/proc_fs.h>
-#if IS_ENABLED(CONFIG_OF)
 #include <linux/of_gpio.h>
-#endif
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_reserved_mem.h>
@@ -37,8 +35,8 @@
 #include <net/ipv6.h>
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM)
-#include <linux/shm_ipc.h>
-#include <linux/mcu_ipc.h>
+#include <soc/google/shm_ipc.h>
+#include <soc/google/mcu_ipc.h>
 #endif
 
 #include <soc/google/exynos-modem-ctrl.h>
@@ -151,7 +149,6 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	}
 
 	INIT_LIST_HEAD(&iod->list);
-	RB_CLEAR_NODE(&iod->node_chan);
 	RB_CLEAR_NODE(&iod->node_fmt);
 
 	iod->name = io_t->name;
@@ -161,7 +158,6 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	iod->link_type = io_t->link_type;
 	iod->attrs = io_t->attrs;
 	iod->max_tx_size = io_t->ul_buffer_size;
-	iod->net_typ = pdata->modem_net;
 	iod->ipc_version = pdata->ipc_version;
 	atomic_set(&iod->opened, 0);
 	spin_lock_init(&iod->info_id_lock);
@@ -254,7 +250,13 @@ static int attach_devices(struct io_device *iod, struct device *dev)
 		iod->waketime = RAW_WAKE_TIME;
 		break;
 
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+	case SIPC_CH_EX_ID_PDP_0 ... SIPC_CH_EX_ID_PDP_MAX:
+	case SIPC_CH_ID_BT_DUN ... SIPC_CH_ID_CIQ_DATA:
+	case SIPC_CH_ID_CPLOG1 ... SIPC_CH_ID_LOOPBACK2:
+#else
 	case SIPC_CH_ID_PDP_0 ... SIPC_CH_ID_LOOPBACK2:
+#endif
 		iod->waketime = NET_WAKE_TIME;
 		break;
 
@@ -279,12 +281,9 @@ static int attach_devices(struct io_device *iod, struct device *dev)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_OF)
 static int parse_dt_common_pdata(struct device_node *np,
 				 struct modem_data *pdata)
 {
-	struct device_node *iodevs = NULL;
-
 	mif_dt_read_string(np, "mif,name", pdata->name);
 	mif_dt_read_u32(np, "mif,cp_num", pdata->cp_num);
 
@@ -298,18 +297,6 @@ static int parse_dt_common_pdata(struct device_node *np,
 	mif_dt_read_string(np, "mif,link_name", pdata->link_name);
 	mif_dt_read_u32(np, "mif,link_attrs", pdata->link_attrs);
 	mif_dt_read_u32(np, "mif,interrupt_types", pdata->interrupt_types);
-
-	iodevs = of_get_child_by_name(np, "iodevs");
-	if (!iodevs) {
-		mif_err("can not get iodevs\n");
-		return -ENODEV;
-	}
-	pdata->num_iodevs = of_get_child_count(iodevs);
-	if (!pdata->num_iodevs) {
-		mif_err("can not get num_iodevs\n");
-		return -ENODEV;
-	}
-	mif_info("num_iodevs:%d\n", pdata->num_iodevs);
 
 	mif_dt_read_u32_noerr(np, "mif,capability_check", pdata->capability_check);
 	mif_info("capability_check:%d\n", pdata->capability_check);
@@ -405,8 +392,8 @@ static int parse_dt_ipc_region_pdata(struct device *dev, struct device_node *np,
 	/* offset setting for capability */
 	if (pdata->capability_check) {
 		mif_dt_read_u32(np, "capability_offset", pdata->capability_offset);
-		mif_dt_read_u32(np, "ap_capability_0", pdata->ap_capability_0);
-		mif_dt_read_u32(np, "ap_capability_1", pdata->ap_capability_1);
+		mif_dt_read_u32(np, "ap_capability_0", pdata->ap_capability[0]);
+		mif_dt_read_u32(np, "ap_capability_1", pdata->ap_capability[1]);
 	}
 
 	of_property_read_u32_array(np, "ap2cp_msg", pdata->ap2cp_msg, 2);
@@ -458,45 +445,66 @@ static int parse_dt_iodevs_pdata(struct device *dev, struct device_node *np,
 				 struct modem_data *pdata)
 {
 	struct device_node *child = NULL;
-	size_t size = sizeof(struct modem_io_t) * pdata->num_iodevs;
-	int i = 0;
-
-	pdata->iodevs = devm_kzalloc(dev, size, GFP_KERNEL);
-	if (!pdata->iodevs) {
-		mif_err("iodevs: failed to alloc memory\n");
-		return -ENOMEM;
-	}
 
 	for_each_child_of_node(np, child) {
+		struct modem_io_t *p_iod = NULL;
 		struct modem_io_t *iod;
+		unsigned int ch_count = 0;
+		char *name;
 
-		iod = &pdata->iodevs[i];
+		do {
+			iod = devm_kzalloc(dev, sizeof(struct modem_io_t), GFP_KERNEL);
+			if (!iod) {
+				mif_err("failed to alloc iodev\n");
+				return -ENOMEM;
+			}
 
-		mif_dt_read_string(child, "iod,name", iod->name);
-		mif_dt_read_u32(child, "iod,ch", iod->ch);
-		mif_dt_read_enum(child, "iod,format", iod->format);
-		mif_dt_read_enum(child, "iod,io_type", iod->io_type);
-		mif_dt_read_u32(child, "iod,link_type", iod->link_type);
-		mif_dt_read_u32(child, "iod,attrs", iod->attrs);
-		mif_dt_read_u32_noerr(child, "iod,max_tx_size",
-				iod->ul_buffer_size);
-		if (iod->attrs & IO_ATTR_SBD_IPC) {
-			mif_dt_read_u32(child, "iod,ul_num_buffers",
-					iod->ul_num_buffers);
-			mif_dt_read_u32(child, "iod,ul_buffer_size",
-					iod->ul_buffer_size);
-			mif_dt_read_u32(child, "iod,dl_num_buffers",
-					iod->dl_num_buffers);
-			mif_dt_read_u32(child, "iod,dl_buffer_size",
-					iod->dl_buffer_size);
-		}
+			if (!p_iod) {
+				mif_dt_read_string(child, "iod,name", name);
+				mif_dt_read_u32(child, "iod,ch", iod->ch);
+				mif_dt_read_enum(child, "iod,format", iod->format);
+				mif_dt_read_enum(child, "iod,io_type", iod->io_type);
+				mif_dt_read_u32(child, "iod,link_type", iod->link_type);
+				mif_dt_read_u32(child, "iod,attrs", iod->attrs);
+				mif_dt_read_u32_noerr(child, "iod,max_tx_size",
+						      iod->ul_buffer_size);
 
-		if (iod->attrs & IO_ATTR_OPTION_REGION)
-			mif_dt_read_string(child, "iod,option_region",
-					iod->option_region);
+				if (iod->attrs & IO_ATTR_SBD_IPC) {
+					mif_dt_read_u32(child, "iod,ul_num_buffers",
+							iod->ul_num_buffers);
+					mif_dt_read_u32(child, "iod,ul_buffer_size",
+							iod->ul_buffer_size);
+					mif_dt_read_u32(child, "iod,dl_num_buffers",
+							iod->dl_num_buffers);
+					mif_dt_read_u32(child, "iod,dl_buffer_size",
+							iod->dl_buffer_size);
+				}
 
-		i++;
+				if (iod->attrs & IO_ATTR_OPTION_REGION)
+					mif_dt_read_string(child, "iod,option_region",
+							   iod->option_region);
+
+				if (iod->attrs & IO_ATTR_MULTI_CH)
+					mif_dt_read_u32(child, "iod,ch_count", iod->ch_count);
+
+				p_iod = iod;
+			} else {
+				memcpy(iod, p_iod, sizeof(struct modem_io_t));
+			}
+
+			if (ch_count < iod->ch_count) {
+				snprintf(iod->name, sizeof(iod->name), "%s%d", name, ch_count);
+				iod->ch = p_iod->ch + ch_count;
+			} else {
+				snprintf(iod->name, sizeof(iod->name), "%s", name);
+			}
+
+			pdata->iodevs[pdata->num_iodevs] = iod;
+			pdata->num_iodevs++;
+		} while (++ch_count < iod->ch_count);
 	}
+
+	mif_info("num_iodevs:%d\n", pdata->num_iodevs);
 
 	return 0;
 }
@@ -504,7 +512,7 @@ static int parse_dt_iodevs_pdata(struct device *dev, struct device_node *np,
 static struct modem_data *modem_if_parse_dt_pdata(struct device *dev)
 {
 	struct modem_data *pdata;
-	struct device_node *iodevs = NULL;
+	struct device_node *iodevs_node = NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(struct modem_data), GFP_KERNEL);
 	if (!pdata) {
@@ -527,25 +535,31 @@ static struct modem_data *modem_if_parse_dt_pdata(struct device *dev)
 		goto error;
 	}
 
-	iodevs = of_get_child_by_name(dev->of_node, "iodevs");
-	if (!iodevs) {
+	iodevs_node = of_get_child_by_name(dev->of_node, "iodevs");
+	if (!iodevs_node) {
 		mif_err("DT error: failed to get child node\n");
 		goto error;
 	}
 
-	if (parse_dt_iodevs_pdata(dev, iodevs, pdata)) {
+	if (parse_dt_iodevs_pdata(dev, iodevs_node, pdata)) {
 		mif_err("DT error: failed to parse iodevs\n");
 		goto error;
 	}
 
 	dev->platform_data = pdata;
 	mif_info("DT parse complete!\n");
+
 	return pdata;
 
 error:
 	if (pdata) {
-		if (pdata->iodevs)
-			devm_kfree(dev, pdata->iodevs);
+		unsigned int id;
+
+		for (id = 0; id < ARRAY_SIZE(pdata->iodevs); id++) {
+			if (pdata->iodevs[id])
+				devm_kfree(dev, pdata->iodevs[id]);
+		}
+
 		devm_kfree(dev, pdata);
 	}
 	return ERR_PTR(-EINVAL);
@@ -556,12 +570,6 @@ static const struct of_device_id cpif_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, cpif_dt_match);
-#else
-static struct modem_data *modem_if_parse_dt_pdata(struct device *dev)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 enum mif_sim_mode {
 	MIF_SIM_NONE = 0,
@@ -760,15 +768,14 @@ static int cpif_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pdata->num_iodevs; i++) {
 		if (sim_mode < MIF_SIM_DUAL &&
-			pdata->iodevs[i].attrs & IO_ATTR_DUALSIM)
+			pdata->iodevs[i]->attrs & IO_ATTR_DUALSIM)
 			continue;
 
-		if (pdata->iodevs[i].attrs & IO_ATTR_OPTION_REGION
-				&& strcmp(pdata->iodevs[i].option_region,
-					CONFIG_OPTION_REGION))
+		if (pdata->iodevs[i]->attrs & IO_ATTR_OPTION_REGION &&
+		    strcmp(pdata->iodevs[i]->option_region, CONFIG_OPTION_REGION))
 			continue;
 
-		iod[i] = create_io_device(pdev, &pdata->iodevs[i], msd,
+		iod[i] = create_io_device(pdev, pdata->iodevs[i], msd,
 					  modemctl, pdata);
 		if (!iod[i]) {
 			mif_err("%s: iod[%d] == NULL\n", pdata->name, i);
@@ -796,10 +803,6 @@ static int cpif_probe(struct platform_device *pdev)
 	if (err < 0)
 		mif_err("failed to initialize hiprio list(%d)\n", err);
 #endif
-
-	err = mif_init_argos_notifier();
-	if (err < 0)
-		mif_err("failed to initialize argos_notifier(%d)\n", err);
 
 	mif_err("%s: done ---\n", pdev->name);
 	return 0;
@@ -848,7 +851,6 @@ static int modem_suspend(struct device *pdev)
 	if (mc->ops.suspend)
 		mc->ops.suspend(mc);
 
-	mif_err("%s\n", mc->name);
 	set_wakeup_packet_log(true);
 
 	return 0;
@@ -862,8 +864,6 @@ static int modem_resume(struct device *pdev)
 
 	if (mc->ops.resume)
 		mc->ops.resume(mc);
-
-	mif_err("%s\n", mc->name);
 
 	return 0;
 }

@@ -6,7 +6,7 @@
 /* Number of MAX_POWER_DOMAIN */
 #if defined(CONFIG_SOC_EXYNOS9820)
 #define PMUCAL_NUM_PDS	20
-#elif defined(CONFIG_SOC_GS101)
+#elif defined(CONFIG_SOC_GS101) || defined(CONFIG_SOC_GS201)
 #define PMUCAL_NUM_PDS	30
 #else
 #error "Unknown CONFIG_SOC"

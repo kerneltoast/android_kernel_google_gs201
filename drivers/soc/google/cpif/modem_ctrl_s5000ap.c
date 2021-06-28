@@ -12,9 +12,8 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/mcu_ipc.h>
-#include <linux/shm_ipc.h>
-#include <linux/modem_notifier.h>
+#include <soc/google/mcu_ipc.h>
+#include <soc/google/shm_ipc.h>
 #include <soc/google/cal-if.h>
 #include <soc/google/exynos-modem-ctrl.h>
 #if IS_ENABLED(CONFIG_EXYNOS_PMU_IF)
@@ -25,12 +24,10 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_ctrl.h"
+#include "modem_notifier.h"
 #include "link_device_memory.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
-#endif
-#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
-#include "link_device.h"
 #endif
 #if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 #include "../../../video/fbdev/exynos/dpu30/decon.h"
@@ -86,7 +83,7 @@ static irqreturn_t cp_active_handler(int irq, void *arg)
 
 	if (!cp_active) {
 		if (cp_on > 0) {
-			new_state = STATE_OFFLINE;
+			new_state = STATE_INIT;
 			complete_all(&mc->off_cmpl);
 		} else {
 			mif_info("don't care!!!\n");
@@ -250,10 +247,12 @@ static int init_control_messages(struct modem_ctl *mc)
 	set_ctrl_msg(&mld->cp2ap_msg, 0);
 
 	if (ld->capability_check) {
-		iowrite32(0, mld->ap_capability_0_offset);
-		iowrite32(0, mld->cp_capability_0_offset);
-		iowrite32(0, mld->ap_capability_1_offset);
-		iowrite32(0, mld->cp_capability_1_offset);
+		int part;
+
+		for (part = 0; part < AP_CP_CAP_PARTS; part++) {
+			iowrite32(0, mld->ap_capability_offset[part]);
+			iowrite32(0, mld->cp_capability_offset[part]);
+		}
 	}
 
 	if (!np) {
@@ -303,10 +302,6 @@ static int power_on_cp(struct modem_ctl *mc)
 
 	mc->receive_first_ipc = 0;
 
-#if !IS_ENABLED(CONFIG_CP_SECURE_BOOT)
-	exynos_cp_init();
-#endif
-
 	change_modem_state(mc, STATE_OFFLINE);
 
 	if (cal_cp_status() == 0) {
@@ -351,7 +346,7 @@ static int power_shutdown_cp(struct modem_ctl *mc)
 	reinit_completion(&mc->off_cmpl);
 	remain = wait_for_completion_timeout(&mc->off_cmpl, timeout);
 	if (remain == 0)
-		change_modem_state(mc, STATE_OFFLINE);
+		change_modem_state(mc, STATE_INIT);
 
 exit:
 	cp_mbox_set_interrupt(CP_MBOX_IRQ_IDX_0, mc->int_cp_wakeup);
@@ -546,9 +541,6 @@ static int complete_normal_boot(struct modem_ctl *mc)
 	struct modem_data *modem = mc->mdm_data;
 	struct mem_link_device *mld = modem->mld;
 #endif
-#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
-	struct link_device *ld = get_current_link(mc->bootd);
-#endif
 
 	mif_info("+++\n");
 
@@ -582,7 +574,7 @@ static int complete_normal_boot(struct modem_ctl *mc)
 		mc->lcd_notifier.notifier_call = s5000ap_lcd_notifier;
 		ret = register_lcd_status_notifier(&mc->lcd_notifier);
 		if (ret) {
-			mif_err("failed to register LCD notifier");
+			mif_err("failed to register LCD notifier\n");
 			return ret;
 		}
 	}
@@ -592,9 +584,6 @@ static int complete_normal_boot(struct modem_ctl *mc)
 			mc->sbi_lcd_status_pos);
 #endif /* CONFIG_CP_LCD_NOTIFIER */
 
-#if IS_ENABLED(CONFIG_SBD_BOOTLOG)
-	mif_add_timer(&ld->cplog_timer, (10 * HZ), shmem_pr_sbdcplog);
-#endif
 	mif_info("---\n");
 
 exit:
@@ -606,35 +595,8 @@ static int trigger_cp_crash(struct modem_ctl *mc)
 	struct link_device *ld = get_current_link(mc->bootd);
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	u32 crash_type = ld->crash_reason.type;
-#if IS_ENABLED(CONFIG_SOC_EXYNOS9630)
-	unsigned int val = 0; /* value used for PMU registers */
-#endif
-	mif_info("+++\n");
 
-#if IS_ENABLED(CONFIG_SOC_EXYNOS9630)
-	exynos_pmu_read(0x3200, &val); /* CP_CONFIGURATION */
-	mif_info("CP_CONFIGURATION: 0x%08X\n", val);
-	exynos_pmu_read(0x3204, &val); /* CP_STATUS */
-	mif_info("CP_STATUS: 0x%08X\n", val);
-	exynos_pmu_read(0x3208, &val); /* CP_STATES */
-	mif_info("CP_STATES: 0x%08X\n", val);
-	exynos_pmu_read(0x320C, &val); /* CP_OPTION */
-	mif_info("CP_OPTION: 0x%08X\n", val);
-	exynos_pmu_read(0x3210, &val); /* CP_CTRL_NS */
-	mif_info("CP_CTRL_NS: 0x%08X\n", val);
-	exynos_pmu_read(0x3220, &val); /* CP_OUT */
-	mif_info("CP_OUT: 0x%08X\n", val);
-	exynos_pmu_read(0x3224, &val); /* CP_IN */
-	mif_info("CP_IN: 0x%08X\n", val);
-	exynos_pmu_read(0x3240, &val); /* CP_INT_IN */
-	mif_info("CP_INT_IN: 0x%08X\n", val);
-	exynos_pmu_read(0x3244, &val); /* CP_INT_EN */
-	mif_info("CP_INT_EN: 0x%08X\n", val);
-	exynos_pmu_read(0x3248, &val); /* CP_INT_TYPE */
-	mif_info("CP_INT_TYPE: 0x%08X\n", val);
-	exynos_pmu_read(0x324c, &val); /* CP_INT_DIR */
-	mif_info("CP_INT_DIR: 0x%08X\n", val);
-#endif
+	mif_info("+++\n");
 
 	if (ld->protocol == PROTOCOL_SIT &&
 			crash_type == CRASH_REASON_RIL_TRIGGER_CP_CRASH)
@@ -670,82 +632,6 @@ EXPORT_SYMBOL(modem_force_crash_exit_ext);
 
 #if IS_ENABLED(CONFIG_CP_UART_NOTI)
 #if IS_ENABLED(CONFIG_PMU_UART_SWITCH)
-#if IS_ENABLED(CONFIG_SOC_EXYNOS9630)
-static void __iomem *uart_txd_addr; /* SEL_TXD_GPIO_UART_DEBUG */
-static void __iomem *uart_rxd_addr; /* SEL_RXD_CP_UART */
-void change_to_cp_uart(void)
-{
-	if (uart_txd_addr == NULL) {
-		uart_txd_addr = devm_ioremap(g_mc->dev, 0x10E2062C, SZ_64);
-		if (uart_txd_addr == NULL) {
-			mif_err("Err: failed to ioremap UART TXD!\n");
-			return;
-		}
-	}
-	if (uart_rxd_addr == NULL) {
-		uart_rxd_addr = devm_ioremap(g_mc->dev, 0x10E20650, SZ_64);
-		if (uart_rxd_addr == NULL) {
-			mif_err("Err: failed to ioremap UART RXD!\n");
-			return;
-		}
-	}
-	mif_info("CHANGE TO CP UART\n");
-	__raw_writel(0x2, uart_txd_addr);
-	mif_info("SEL_TXD_GPIO_UART_DEBUG val: %08X\n", __raw_readl(uart_txd_addr));
-	__raw_writel(0x1, uart_rxd_addr);
-	mif_info("SEL_RXD_CP_UART val: %08X\n", __raw_readl(uart_rxd_addr));
-}
-
-void change_to_ap_uart(void)
-{
-	if (uart_txd_addr == NULL) {
-		uart_txd_addr = devm_ioremap(g_mc->dev, 0x10E2062C, SZ_64);
-		if (uart_txd_addr == NULL) {
-			mif_err("Err: failed to ioremap UART TXD!\n");
-			return;
-		}
-	}
-	if (uart_rxd_addr == NULL) {
-		uart_rxd_addr = devm_ioremap(g_mc->dev, 0x10E20650, SZ_64);
-		if (uart_rxd_addr == NULL) {
-			mif_err("Err: failed to ioremap UART RXD!\n");
-			return;
-		}
-	}
-	mif_info("CHANGE TO CP UART\n");
-	__raw_writel(0x0, uart_txd_addr);
-	mif_info("SEL_TXD_GPIO_UART_DEBUG val: %08X\n", __raw_readl(uart_txd_addr));
-	__raw_writel(0x0, uart_rxd_addr);
-	mif_info("SEL_RXD_CP_UART val: %08X\n", __raw_readl(uart_rxd_addr));
-}
-#elif IS_ENABLED(CONFIG_SOC_EXYNOS3830)
-void change_to_cp_uart(void)
-{
-	int ret = 0;
-
-	ret = exynos_pmu_write(0x0760, 0x11002000);
-	if (ret < 0) {
-		mif_err("ERR(%d) set CP UART_IO_SHARE_CTRL\n", ret);
-		return;
-	}
-
-	mif_info("CHANGE TO CP UART\n");
-}
-
-void change_to_ap_uart(void)
-{
-	int ret = 0;
-
-	ret = exynos_pmu_write(0x0760, 0x00120000);
-	if (ret < 0) {
-		mif_err("ERR(%d) set AP UART_IO_SHARE_CTRL\n", ret);
-		return;
-	}
-
-	mif_info("CHANGE TO AP UART\n");
-}
-#endif /* CONFIG_SOC_EXYNOSxxxx */
-
 void send_uart_noti_to_modem(int val)
 {
 	struct modem_data *modem;
@@ -871,6 +757,8 @@ static int suspend_cp(struct modem_ctl *mc)
 	struct modem_data *modem = mc->mdm_data;
 	struct mem_link_device *mld = modem->mld;
 
+	mld->link_dev.stop_timers(mld);
+
 	modem_ctrl_set_kerneltime(mc);
 
 	mif_info("%s: pda_active:0\n", mc->name);
@@ -896,6 +784,8 @@ static int resume_cp(struct modem_ctl *mc)
 			mc->sbi_pda_active_pos);
 
 	cp_mbox_set_interrupt(CP_MBOX_IRQ_IDX_0, mc->int_pda_active);
+
+	mld->link_dev.start_timers(mld);
 
 	return 0;
 }
@@ -991,8 +881,8 @@ static int cp_itmon_notifier(struct notifier_block *nb,
 	if (IS_ERR_OR_NULL(itmon_data))
 		return NOTIFY_DONE;
 
-	if (itmon_data->port && (strncmp("MODEM", itmon_data->port,
-					sizeof("MODEM") - 1) == 0)) {
+	if (itmon_data->port && (strncmp("CP_", itmon_data->port,
+					sizeof("CP_") - 1) == 0)) {
 		modem_force_crash_exit_ext();
 		mif_info("CP itmon notifier: cp crash request complete\n");
 		return NOTIFY_OK;

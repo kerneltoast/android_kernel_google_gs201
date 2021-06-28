@@ -782,6 +782,11 @@ config KEYBOARD_BCM
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm-keypad.
 
+config KEYBOARD_S2MPG12
+	tristate "Samsung Electronics S2MPG12 Powerkey Controller"
+	depends on I2C
+	depends on MFD_S2MPG12
+
 config KEYBOARD_MTK_PMIC
 	tristate "MediaTek PMIC keys support"
 	depends on MFD_MT6397

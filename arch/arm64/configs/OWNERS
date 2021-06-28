@@ -1,4 +1,6 @@
 per-file slider_gki.fragment = *
+per-file cloudripper_gki.fragment = *
+per-file gs201_*.fragment = *
 per-file db845c_gki.fragment = file:/OWNERS_core
 per-file defconfig = file:/OWNERS_core
 per-file gki_defconfig = file:/OWNERS_core

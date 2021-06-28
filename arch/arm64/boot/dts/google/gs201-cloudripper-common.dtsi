@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cloudripper device tree source
+ *
+ * Copyright 2020 Google,LLC
+ */
+
+#include "gs201-common.dtsi"
+#include "gs201-cloudripper-camera-pmic-av5.dtsi"
+#include "gs201-cloudripper-nfc.dtsi"
+#include "gs201-cloudripper-camera-av5.dtsi"
+#include "gs201-cloudripper-bluetooth.dtsi"
+#include "gs201-cloudripper-cp-s5300-sit.dtsi"
+#include "gs201-cloudripper-ese.dtsi"
+#include "gs201-cloudripper-ldaf.dtsi"
+#include "gs201-cloudripper-gsa-gsc.dtsi"
+#include "gs201-cloudripper-battery.dtsi"
+#include "gs201-cloudripper-charging.dtsi"
+// #include "gs201-cloudripper-wcharger.dtsi"
+#include "gs201-cloudripper-usecases.dtsi"
+
+/*
+#include "gs101-whitefin-battery.dtsi"
+#include "gs101-whitefin2-battery.dtsi"
+#include "gs101-whitefin-display.dtsi"
+#include "gs101-whitefin-nfc.dtsi"
+#include "gs101-slider2-gps.dtsi"
+#include "gs101-whitefin2-pmic.dtsi"
+#include "gs101-whitefin2-thermal.dtsi"
+#include "gs101-whitefin2-bcl.dtsi"
+#include "gs101-whitefin2-wcharger.dtsi"
+#include "gs101-whitefin2v2-wcharger.dtsi"
+*/
