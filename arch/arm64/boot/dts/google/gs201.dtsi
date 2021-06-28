@@ -1079,14 +1079,16 @@
 		samsung,tzmp;
 		hw_ppc =
 			/* sc_up none x1 x1/4 x1/9 x1/16 */
-			<3400 3100 2200 3600 5100 7000 /* rgb32 non-rotated */
-			3300 2700 2000 3000 5200 6500 /* rgb32 rotated */
-			3000 2900 2600 3400 5100 11900 /* yuv2p non-rotated */
-			3200 2000 1900 3300 5200 7000 /* yuv2p rotated */
-			2400 1900 1900 2700 3100 4100 /* 8+2 non-rotated */
-			2500 900 900 2200 2900 3700 /* 8+2 rotated */
-			2800 3000 1600 1600 2400 3200 /* afbc non-rotated */
-			2800 3000 1600 1600 2400 3200 /* afbc rotated */
+			<3800 3200 2100 2600 3300 3600 /* rgb32 non-rotated */
+			3500 3600 2100 2700 3300 3800 /* rgb32 rotated */
+			3700 3500 3600 4300 4300 3500 /* yuv2p non-rotated */
+			2600 2800 3200 3900 4300 3600 /* yuv2p rotated */
+			3600 2600 1400 900 1000 1000 /* sbwc non-rotated */
+			2600 2600 1400 900 1000 1000 /* sbwc rotated */
+			1600 3400 300 500 800 700 /*rgb afbc non-rotated*/
+			1400 3600 300 800 900 900 /*rgb afbc rotated*/
+			2900 2000 800 300 300 400 /*yuv afbc non-rotated*/
+			2600 2000 800 300 300 400 /*yuv afbc rotated*/
 			2800>; /* colorfill */
 
 		g2d_dvfs_table = <533000 711000
