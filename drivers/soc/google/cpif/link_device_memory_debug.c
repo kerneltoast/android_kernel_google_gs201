@@ -78,7 +78,7 @@ void print_dev_snapshot(struct mem_link_device *mld, struct mem_snapshot *mst,
 	struct link_device *ld = &mld->link_dev;
 	enum legacy_ipc_map id = dev->id;
 
-	if (id >= MAX_SIPC_MAP)
+	if (id >= IPC_MAP_MAX)
 		return;
 
 	mif_err("%s: [%s] %s | TXQ{in:%u out:%u} RXQ{in:%u out:%u} | INTR{0x%02X}\n",

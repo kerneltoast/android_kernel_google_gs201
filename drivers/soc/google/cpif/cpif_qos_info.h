@@ -20,10 +20,6 @@ struct hiprio_uid {
 };
 
 int cpif_qos_init_list(void);
-struct hiprio_uid_list *cpif_qos_get_list(void);
 struct hiprio_uid *cpif_qos_get_node(u32 uid);
-bool cpif_qos_add_uid(u32 uid);
-bool cpif_qos_remove_uid(u32 uid);
-
 
 #endif /* __CPIF_QOS_INFO_H__ */

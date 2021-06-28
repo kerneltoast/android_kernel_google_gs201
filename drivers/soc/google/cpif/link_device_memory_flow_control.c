@@ -199,28 +199,25 @@ int sbd_check_tx_flow_ctrl(struct sbd_ring_buffer *rb)
 
 void txq_stop(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 {
-#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
-	if (dev->id == IPC_MAP_HPRIO_RAW && atomic_read(&dev->txq.busy) == 0) {
-#else
-	if (dev->id == IPC_MAP_NORM_RAW && atomic_read(&dev->txq.busy) == 0) {
-#endif
-		struct link_device *ld = &mld->link_dev;
+	struct link_device *ld = &mld->link_dev;
 
-		if (!test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
-			unsigned long flags;
+	if (dev->id != IPC_MAP_NORM_RAW || atomic_read(&dev->txq.busy) != 0)
+		return;
 
-			spin_lock_irqsave(&dev->txq.lock, flags);
+	if (!test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
+		unsigned long flags;
 
-			atomic_set(&dev->txq.busy, 1);
-			set_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
-			stop_net_ifaces(&mld->link_dev);
+		spin_lock_irqsave(&dev->txq.lock, flags);
 
-			spin_unlock_irqrestore(&dev->txq.lock, flags);
+		atomic_set(&dev->txq.busy, 1);
+		set_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
+		stop_net_ifaces(&mld->link_dev);
 
-			send_req_ack(mld, dev);
-			mif_info_limited("%s: %s TXQ BUSY, tx_flowctrl_mask=0x%04lx\n",
-				ld->name, dev->name, ld->tx_flowctrl_mask);
-		}
+		spin_unlock_irqrestore(&dev->txq.lock, flags);
+
+		send_req_ack(mld, dev);
+		mif_info_limited("%s: %s TXQ BUSY, tx_flowctrl_mask=0x%04lx\n",
+				 ld->name, dev->name, ld->tx_flowctrl_mask);
 	}
 }
 
@@ -230,11 +227,7 @@ void tx_flowctrl_suspend(struct mem_link_device *mld)
 
 	if (!test_bit(TX_SUSPEND_MASK, &ld->tx_flowctrl_mask)) {
 		unsigned long flags;
-#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
-		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[IPC_MAP_HPRIO_RAW];
-#else
 		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[IPC_MAP_NORM_RAW];
-#endif
 
 		spin_lock_irqsave(&dev->txq.lock, flags);
 
@@ -250,29 +243,26 @@ void tx_flowctrl_suspend(struct mem_link_device *mld)
 
 void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 {
-#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
-	if (dev->id == IPC_MAP_HPRIO_RAW && atomic_read(&dev->txq.busy) > 0) {
-#else
-	if (dev->id == IPC_MAP_NORM_RAW && atomic_read(&dev->txq.busy) > 0) {
-#endif
-		struct link_device *ld = &mld->link_dev;
+	struct link_device *ld = &mld->link_dev;
 
-		if (test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
-			unsigned long flags;
+	if (dev->id != IPC_MAP_NORM_RAW || atomic_read(&dev->txq.busy) == 0)
+		return;
 
-			spin_lock_irqsave(&dev->txq.lock, flags);
+	if (test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
+		unsigned long flags;
 
-			atomic_set(&dev->txq.busy, 0);
-			clear_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
+		spin_lock_irqsave(&dev->txq.lock, flags);
 
-			if (ld->tx_flowctrl_mask == 0) {
-				resume_net_ifaces(&mld->link_dev);
-				mif_info_limited("%s:%s TXQ restart, tx_flowctrl_mask=0x%04lx\n",
-					ld->name, dev->name, ld->tx_flowctrl_mask);
-			}
+		atomic_set(&dev->txq.busy, 0);
+		clear_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
 
-			spin_unlock_irqrestore(&dev->txq.lock, flags);
+		if (ld->tx_flowctrl_mask == 0) {
+			resume_net_ifaces(&mld->link_dev);
+			mif_info_limited("%s:%s TXQ restart, tx_flowctrl_mask=0x%04lx\n",
+					 ld->name, dev->name, ld->tx_flowctrl_mask);
 		}
+
+		spin_unlock_irqrestore(&dev->txq.lock, flags);
 	}
 }
 
@@ -282,11 +272,7 @@ void tx_flowctrl_resume(struct mem_link_device *mld)
 
 	if (test_bit(TX_SUSPEND_MASK, &ld->tx_flowctrl_mask)) {
 		unsigned long flags;
-#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
-		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[IPC_MAP_HPRIO_RAW];
-#else
 		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[IPC_MAP_NORM_RAW];
-#endif
 
 		spin_lock_irqsave(&dev->txq.lock, flags);
 

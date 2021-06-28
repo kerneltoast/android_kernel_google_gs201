@@ -53,7 +53,7 @@ static ssize_t status_show(struct device *dev,
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "magic:0x%08X mem_access:0x%08X\n",
 				ioread32(bl->magic), ioread32(bl->mem_access));
 
-	for (i = 0; i < MAX_SIPC_MAP; i++) {
+	for (i = 0; i < IPC_MAP_MAX; i++) {
 		ipc_dev = bl->dev[i];
 
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
@@ -234,7 +234,7 @@ int init_legacy_link(struct legacy_link_device *bl)
 	iowrite32(0, bl->magic);
 	iowrite32(0, bl->mem_access);
 
-	for (i = 0; i < MAX_SIPC_MAP; i++) {
+	for (i = 0; i < IPC_MAP_MAX; i++) {
 		struct legacy_ipc_device *dev = bl->dev[i];
 		/* initialize circ_queues */
 		iowrite32(0, dev->txq.head);
@@ -424,7 +424,7 @@ bool check_legacy_tx_pending(struct mem_link_device *mld)
 	unsigned int head, tail;
 	struct legacy_ipc_device *dev;
 
-	for (i = IPC_MAP_FMT ; i < MAX_SIPC_MAP ; i++) {
+	for (i = IPC_MAP_FMT ; i < IPC_MAP_MAX ; i++) {
 		dev = mld->legacy_link_dev.dev[i];
 		head = get_txq_head(dev);
 		tail = get_txq_tail(dev);

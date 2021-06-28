@@ -120,8 +120,8 @@ struct __packed mem_snapshot {
 	unsigned int magic;
 	unsigned int access;
 
-	unsigned int head[MAX_SIPC_MAP][MAX_DIR];
-	unsigned int tail[MAX_SIPC_MAP][MAX_DIR];
+	unsigned int head[IPC_MAP_MAX][MAX_DIR];
+	unsigned int tail[IPC_MAP_MAX][MAX_DIR];
 
 	u16 int2ap;
 	u16 int2cp;
@@ -198,7 +198,9 @@ struct mem_link_device {
 	size_t size;
 	struct page **pages;		/* pointer to the page table for vmap */
 	u8 __iomem *base;		/* virtual address of ipc mem start */
+#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
 	u8 __iomem *hiprio_base;	/* virtual address of priority queue start */
+#endif
 
 	/**
 	 * vss region for dump

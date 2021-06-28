@@ -257,7 +257,7 @@ struct __packed sipc_fmt_hdr {
 #define sipc5_is_not_reserved_channel(ch) \
 	((ch) != 0 && (ch) != 5 && (ch) != 6 && (ch) != 27 && (ch) != 255)
 
-#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS) || IS_ENABLED(CONFIG_MODEM_IF_QOS)
+#if IS_ENABLED(CONFIG_MODEM_IF_QOS)
 #define MAX_NDEV_TX_Q 2
 #else
 #define MAX_NDEV_TX_Q 1

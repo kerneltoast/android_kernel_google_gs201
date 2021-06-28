@@ -192,7 +192,7 @@ static void __take_mem_status(struct mem_link_device *mld, enum direction dir,
 	mst->magic = ioread32(mld->legacy_link_dev.magic);
 	mst->access = ioread32(mld->legacy_link_dev.mem_access);
 
-	for (i = 0; i < MAX_SIPC_MAP; i++) {
+	for (i = 0; i < IPC_MAP_MAX; i++) {
 		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[i];
 
 		mst->head[i][TX] = get_txq_head(dev);

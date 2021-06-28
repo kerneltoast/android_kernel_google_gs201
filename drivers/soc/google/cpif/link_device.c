@@ -167,7 +167,7 @@ static inline void purge_txq(struct mem_link_device *mld)
 	/* Purge the skb_txq in every IPC device
 	 * (IPC_MAP_FMT, IPC_MAP_NORM_RAW, etc.)
 	 */
-	for (i = 0; i < MAX_SIPC_MAP; i++) {
+	for (i = 0; i < IPC_MAP_MAX; i++) {
 		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[i];
 
 		skb_queue_purge(dev->skb_txq);
@@ -913,7 +913,7 @@ static enum hrtimer_restart tx_timer_func(struct hrtimer *timer)
 	if (unlikely(!ipc_active(mld)))
 		goto exit;
 
-	for (i = 0; i < MAX_SIPC_MAP; i++) {
+	for (i = 0; i < IPC_MAP_MAX; i++) {
 		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[i];
 		int ret;
 
@@ -1570,12 +1570,12 @@ static int xmit_to_cp(struct mem_link_device *mld, struct io_device *iod,
 	} else {
 		if (ld->is_fmt_ch(ch) || (ld->is_wfs0_ch != NULL && ld->is_wfs0_ch(ch)))
 			return xmit_ipc_to_dev(mld, ch, skb, IPC_MAP_FMT);
+
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
-		return xmit_ipc_to_dev(mld, ch, skb,
-			(skb->queue_mapping == 1) ? IPC_MAP_HPRIO_RAW : IPC_MAP_NORM_RAW);
-#else
-		return xmit_ipc_to_dev(mld, ch, skb, IPC_MAP_NORM_RAW);
+		if (skb->queue_mapping == 1)
+			return xmit_ipc_to_dev(mld, ch, skb, IPC_MAP_HPRIO_RAW);
 #endif
+		return xmit_ipc_to_dev(mld, ch, skb, IPC_MAP_NORM_RAW);
 	}
 }
 
@@ -2443,7 +2443,7 @@ static int legacy_link_rx_func_napi(struct mem_link_device *mld, int budget, int
 	int i = 0;
 	int ret = 0;
 
-	for (i = 0; i < MAX_SIPC_MAP; i++) {
+	for (i = 0; i < IPC_MAP_MAX; i++) {
 		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[i];
 		int ps_rcvd = 0;
 

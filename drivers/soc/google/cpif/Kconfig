@@ -93,13 +93,14 @@ config HW_REV_DETECT
 	default n
 
 config MODEM_IF_QOS
-	tristate "Implement QoS for sbd"
+	tristate "Implement QoS"
 	default n
 	help
-	  This enables QoS for SBD model
+	  This enables QoS
 
 config MODEM_IF_LEGACY_QOS
 	tristate "Implement QoS for legacy buffer"
+	select MODEM_IF_QOS
 	default n
 	help
 	  This enables QoS for legacy buffer model

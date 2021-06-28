@@ -302,16 +302,22 @@ static inline bool is_tcp_ack(struct sk_buff *skb)
 	return false;
 }
 
-#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS) || IS_ENABLED(CONFIG_MODEM_IF_QOS)
+#if IS_ENABLED(CONFIG_MODEM_IF_QOS)
 static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 		struct net_device *sb_dev)
 {
-#if IS_ENABLED(CONFIG_MODEM_IF_QOS)
-	return (skb && is_tcp_ack(skb)) ? 1 : 0;
-#elif IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
-	return ((skb && skb->truesize == 2) ||
-			(skb && skb->sk && cpif_qos_get_node(skb->sk->sk_uid.val))) ? 1 : 0;
+	if (!skb)
+		return 0;
+
+	if (is_tcp_ack(skb))
+		return 1;
+
+#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
+	if (skb->sk && cpif_qos_get_node(skb->sk->sk_uid.val))
+		return 1;
 #endif
+
+	return 0;
 }
 #endif
 
@@ -319,7 +325,7 @@ static const struct net_device_ops vnet_ops = {
 	.ndo_open = vnet_open,
 	.ndo_stop = vnet_stop,
 	.ndo_start_xmit = vnet_xmit,
-#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS) || IS_ENABLED(CONFIG_MODEM_IF_QOS)
+#if IS_ENABLED(CONFIG_MODEM_IF_QOS)
 	.ndo_select_queue = vnet_select_queue,
 #endif
 };
