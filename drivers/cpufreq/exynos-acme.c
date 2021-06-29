@@ -372,7 +372,8 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 
 	mutex_lock(&domain->lock);
 	freq = cpufreq_driver_resolve_freq(policy, target_freq);
-	if (!freq || domain->old == freq) {
+	// Always go to DM_CALL even with `domain->old == freq` to update dm->governor_freq
+	if (!freq) {
 		mutex_unlock(&domain->lock);
 		goto out;
 	}
@@ -491,7 +492,8 @@ static struct notifier_block exynos_cpufreq_pm = {
 
 static struct cpufreq_driver exynos_driver = {
 	.name		= "exynos_cpufreq",
-	.flags		= CPUFREQ_STICKY | CPUFREQ_HAVE_GOVERNOR_PER_POLICY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
+				CPUFREQ_NEED_UPDATE_LIMITS, // force update dm->governor_freq
 	.init		= exynos_cpufreq_init,
 	.verify		= exynos_cpufreq_verify,
 	.target		= exynos_cpufreq_target,

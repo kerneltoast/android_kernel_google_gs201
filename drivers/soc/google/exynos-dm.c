@@ -936,6 +936,8 @@ int DM_CALL(int dm_type, unsigned long *target_freq)
 	target_dm = &exynos_dm->dm_data[dm_type];
 
 	target_dm->governor_freq = *target_freq;
+	// trace governor voted freq
+	__ATRACE_INT_PID(1, target_dm->dm_type_name, target_dm->governor_freq);
 
 	/* Determine min/max frequency */
 	max_freq = min(target_dm->const_max, target_dm->policy_max);
