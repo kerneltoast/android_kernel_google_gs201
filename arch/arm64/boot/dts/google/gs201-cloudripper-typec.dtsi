@@ -24,7 +24,7 @@
 		usbpd,usbpd_int = <&gpa9 7 GPIO_ACTIVE_LOW>;
 		usb-psy-name = "usb";
 		/* Enable when BMS is up */
-		//chg-psy-name = "gcpm";
+		chg-psy-name = "gcpm";
 		//in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
 		//max20339,ovp = <&max20339_ovp>;
 		conn = <&conn>;
