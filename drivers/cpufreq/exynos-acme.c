@@ -32,8 +32,6 @@
 
 #include "exynos-acme.h"
 #include "../soc/google/vh/kernel/systrace.h"
-#include "../soc/google/vh/kernel/sched/cpufreq_gov.h"
-
 /*
  * list head of cpufreq domain
  */
@@ -777,7 +775,6 @@ static int dm_scaler(int dm_type, void *devdata, unsigned int target_freq,
 {
 	struct exynos_cpufreq_domain *domain = devdata;
 	struct cpufreq_policy *policy;
-	struct sugov_policy *sg_policy;
 	struct cpumask mask;
 	int ret;
 
@@ -787,11 +784,6 @@ static int dm_scaler(int dm_type, void *devdata, unsigned int target_freq,
 		return -ENODEV;
 
 	policy = cpufreq_cpu_get(cpumask_first(&mask));
-	if (!strcmp(policy->governor->name, PIXEL_GOV_NAME)) {
-		// Do not go lower than the governor voted value.
-		sg_policy = policy->governor_data;
-		target_freq = max(target_freq, sg_policy->next_freq);
-	}
 	if (!policy) {
 		pr_err("%s: failed get cpufreq policy\n", __func__);
 		return -ENODEV;
