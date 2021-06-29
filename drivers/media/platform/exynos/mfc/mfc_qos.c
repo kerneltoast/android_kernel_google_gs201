@@ -318,7 +318,7 @@ void mfc_qos_update_framerate(struct mfc_ctx *ctx, u32 bytesused)
 		ctx->update_bitrate = true;
 	}
 
-	/* 2) There is operating framearate */
+	/* 2) There is operating framerate */
 	if (ctx->operating_framerate) {
 		if ((ctx->ts_is_full && (ctx->operating_framerate != ctx->framerate)) ||
 			(!ctx->ts_is_full && (ctx->operating_framerate > ctx->framerate))) {
@@ -331,9 +331,14 @@ void mfc_qos_update_framerate(struct mfc_ctx *ctx, u32 bytesused)
 	}
 
 	/* 3) check non-real-time */
-	if ((ctx->rt == MFC_NON_RT) && (ctx->framerate < DEC_DEFAULT_FPS)) {
-		mfc_debug(2, "[QoS] max operating fps %ld\n", DEC_DEFAULT_FPS);
-		ctx->framerate = DEC_DEFAULT_FPS;
+	if (ctx->rt == MFC_NON_RT) {
+		if (ctx->framerate < DEC_DEFAULT_FPS) {
+			mfc_debug(2, "[QoS][PRIO] non real time fps changed: %ld -> %ld\n",
+					ctx->framerate, DEC_DEFAULT_FPS);
+			ctx->framerate = DEC_DEFAULT_FPS;
+			ctx->update_framerate = true;
+		}
+		return;
 	}
 
 	/* 4) framerate is updated */
