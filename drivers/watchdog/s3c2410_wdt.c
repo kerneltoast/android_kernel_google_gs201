@@ -549,8 +549,8 @@ static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 	spin_unlock_irqrestore(&wdt->lock, flags);
 
 	wtcnt = readl(wdt->reg_base + S3C2410_WTCNT);
-	dev_info(wdt->dev, "Watchdog cluster %u keepalive!, old_wtcnt = %lx, wtcnt = %lx\n",
-		 wdt->cluster, old_wtcnt, wtcnt);
+	dev_dbg(wdt->dev, "Watchdog cluster %u keepalive!, old_wtcnt = %lx, wtcnt = %lx\n",
+		wdt->cluster, old_wtcnt, wtcnt);
 
 	preempt_enable();
 
