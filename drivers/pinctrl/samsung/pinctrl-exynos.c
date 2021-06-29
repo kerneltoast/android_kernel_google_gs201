@@ -50,21 +50,37 @@ static inline struct exynos_irq_chip *to_exynos_irq_chip(struct irq_chip *chip)
 	return container_of(chip, struct exynos_irq_chip, chip);
 }
 
-static void exynos_irq_mask(struct irq_data *irqd)
+static void _exynos_irq_mask(struct irq_data *irqd, struct samsung_pin_bank *bank)
 {
 	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
 	struct exynos_irq_chip *our_chip = to_exynos_irq_chip(chip);
-	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
 	unsigned long reg_mask = our_chip->eint_mask + bank->eint_offset;
 	unsigned int mask;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bank->slock, flags);
 
 	mask = readl(bank->eint_base + reg_mask);
 	mask |= 1 << irqd->hwirq;
 	writel(mask, bank->eint_base + reg_mask);
 
+}
+
+static void exynos_irq_mask(struct irq_data *irqd)
+{
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	unsigned long flags;
+
+	spin_lock_irqsave(&bank->slock, flags);
+	_exynos_irq_mask(irqd, bank);
+	spin_unlock_irqrestore(&bank->slock, flags);
+}
+
+static void exynos_irq_disable(struct irq_data *irqd)
+{
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	unsigned long flags;
+
+	spin_lock_irqsave(&bank->slock, flags);
+	_exynos_irq_mask(irqd, bank);
+	set_bit(irqd->hwirq, &bank->eint_disabled);
 	spin_unlock_irqrestore(&bank->slock, flags);
 }
 
@@ -97,6 +113,10 @@ static void exynos_irq_unmask(struct irq_data *irqd)
 	 */
 	if (irqd_get_trigger_type(irqd) & IRQ_TYPE_LEVEL_MASK)
 		exynos_irq_ack(irqd);
+	else if (test_bit(irqd->hwirq, &bank->eint_disabled)) {
+		clear_bit(irqd->hwirq, &bank->eint_disabled);
+		exynos_irq_ack(irqd);
+	}
 
 	spin_lock_irqsave(&bank->slock, flags);
 
@@ -217,7 +237,7 @@ static const struct exynos_irq_chip exynos_gpio_irq_chip __initconst = {
 		.name = "exynos_gpio_irq_chip",
 		.irq_enable = exynos_irq_unmask,
 		.irq_unmask = exynos_irq_unmask,
-		.irq_disable = exynos_irq_mask,
+		.irq_disable = exynos_irq_disable,
 		.irq_mask = exynos_irq_mask,
 		.irq_ack = exynos_irq_ack,
 		.irq_set_type = exynos_irq_set_type,
