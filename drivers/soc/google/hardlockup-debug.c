@@ -16,6 +16,10 @@
 #include <linux/soc/samsung/exynos-smc.h>
 #include <linux/slab.h>
 
+#include <linux/suspend.h>
+#include <linux/sched/task.h>
+#include <trace/hooks/cpuidle.h>
+
 #include <asm/debug-monitors.h>
 #include <asm/ptrace.h>
 #include <asm/memory.h>
@@ -30,12 +34,28 @@
 
 #define HARDLOCKUP_DEBUG_MAGIC		(0xDEADBEEF)
 #define BUG_BRK_IMM_HARDLOCKUP		(0x801)
-#define HARDLOCKUP_DEBUG_SPIN_INSTS	(0x17FFFFFFD503207F)
+#define FIQ_PENDING_INST_INDEX		(ARRAY_SIZE(hardlockup_debug_cpu_resume_insts) - 1)
+
+#define FIQINFO_CLUSTER_SHIFT		(0)
+#define FIQINFO_CLUSTER_MASK		(0xff)
+#define FIQINFO_CPU_ID_SHIFT		(8)
+#define FIQINFO_CPU_ID_MASK		(0xff)
+
+#define CLUSTER_0_CORE_NR		(6)
+
+unsigned int hardlockup_debug_cpu_resume_insts[] = {
+	0x100000a2, //    adr     x2, 14 <__fiq_pending>
+	0xd53800a1, //    mrs     x1, mpidr_el1
+	0xb2703c21, //    orr     x1, x1, #0xffff0000
+	0xb9000041, //    str     w1, [x2]
+	0xd61f0000, //    br      x0
+	0x00000000, //    [FIQ_PENDING_INST_INDEX] = __fiq_pending:
+};
 
 struct hardlockup_param_type {
 	unsigned long last_pc_addr;
 	unsigned long spin_pc_addr;
-	unsigned long spin_func;
+	unsigned int spin_func[FIQ_PENDING_INST_INDEX + 1];
 };
 
 static struct hardlockup_param_type *hardlockup_param;
@@ -48,6 +68,9 @@ static int allcorelockup_detected;
 static unsigned long hardlockup_core_mask;
 static unsigned long hardlockup_core_handled_mask;
 
+static struct task_struct *pm_suspend_task;
+static DEFINE_SPINLOCK(pm_suspend_task_lock);
+
 static void hardlockup_debug_bug_func(void)
 {
 	do {
@@ -56,6 +79,25 @@ static void hardlockup_debug_bug_func(void)
 				brk	BUG_BRK_IMM_HARDLOCKUP));
 		unreachable();
 	} while (0);
+}
+
+static int get_pending_fiq_cpu_id(void)
+{
+	int fiq_info;
+	int cluster_id;
+	int cpu_id;
+
+	fiq_info = hardlockup_param->spin_func[FIQ_PENDING_INST_INDEX];
+	cluster_id = (fiq_info >> FIQINFO_CLUSTER_SHIFT) & FIQINFO_CLUSTER_MASK;
+	cpu_id = (fiq_info >> FIQINFO_CPU_ID_SHIFT) & FIQINFO_CPU_ID_MASK;
+
+	return fiq_info ? (cluster_id * CLUSTER_0_CORE_NR + cpu_id) : -1;
+}
+
+static void vh_bug_on_wdt_fiq_pending(void *data, int state, struct cpuidle_device *dev)
+{
+	if (get_pending_fiq_cpu_id() == raw_smp_processor_id())
+		hardlockup_debug_bug_func();
 }
 
 static void hardlockup_debug_disable_fiq(void)
@@ -104,6 +146,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 {
 	int cpu = raw_smp_processor_id();
 	unsigned int val;
+	unsigned long flags;
 	int ret;
 
 	hardlockup_debug_disable_fiq();
@@ -138,7 +181,8 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 
 		/* Replace real pc value even if it is invalid */
 		last_pc = dbg_snapshot_get_last_pc(cpu);
-		regs->pc = last_pc;
+		if (get_pending_fiq_cpu_id() != cpu)
+			regs->pc = last_pc;
 
 		ret = hardlockup_debug_try_lock_timeout(&hardlockup_log_lock,
 							5 * USEC_PER_SEC);
@@ -163,6 +207,16 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 			exynos_acpm_reboot();
 #endif
 		}
+
+		spin_lock_irqsave(&pm_suspend_task_lock, flags);
+		if (pm_suspend_task) {
+			pr_emerg("pm_suspend_task '%s' %d hung (state=%d)",
+					pm_suspend_task->comm, pm_suspend_task->pid,
+					pm_suspend_task->state);
+			sched_show_task(pm_suspend_task);
+			panic("PM suspend timeout");
+		}
+		spin_unlock_irqrestore(&pm_suspend_task_lock, flags);
 
 		/* If cpu is locked, wait for WDT reset without executing
 		 * code anymore.
@@ -232,6 +286,33 @@ static struct notifier_block hardlockup_debug_panic_nb = {
 	.notifier_call = hardlockup_debug_panic_handler,
 };
 
+static int hardlockup_debugger_pm_notifier(struct notifier_block *notifier,
+				  unsigned long pm_event, void *v)
+{
+	unsigned long flags;
+
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		spin_lock_irqsave(&pm_suspend_task_lock, flags);
+		pm_suspend_task = get_task_struct(current);
+		spin_unlock_irqrestore(&pm_suspend_task_lock, flags);
+		break;
+	case PM_POST_SUSPEND:
+		spin_lock_irqsave(&pm_suspend_task_lock, flags);
+		put_task_struct(pm_suspend_task);
+		pm_suspend_task = NULL;
+		spin_unlock_irqrestore(&pm_suspend_task_lock, flags);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block hardlockup_debugger_pm_nb = {
+	.notifier_call = hardlockup_debugger_pm_notifier,
+	.priority = 0,
+};
+
 static int hardlockup_debugger_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -262,7 +343,11 @@ static int hardlockup_debugger_probe(struct platform_device *pdev)
 	}
 
 	hardlockup_param->last_pc_addr = dbg_snapshot_get_last_pc_paddr();
-	hardlockup_param->spin_func = HARDLOCKUP_DEBUG_SPIN_INSTS;
+	BUILD_BUG_ON(sizeof(hardlockup_debug_cpu_resume_insts) >
+			sizeof(hardlockup_param->spin_func));
+	memcpy(hardlockup_param->spin_func,
+			hardlockup_debug_cpu_resume_insts,
+			sizeof(hardlockup_param->spin_func));
 	hardlockup_param->spin_pc_addr =
 				(unsigned long)hardlockup_param_paddr +
 				(unsigned long)offsetof(
@@ -292,6 +377,11 @@ static int hardlockup_debugger_probe(struct platform_device *pdev)
 				       &hardlockup_debug_panic_nb);
 
 	register_kernel_break_hook(&hardlockup_debug_break_hook);
+
+	register_pm_notifier(&hardlockup_debugger_pm_nb);
+
+	WARN_ON(register_trace_android_vh_cpu_idle_exit(
+				vh_bug_on_wdt_fiq_pending, NULL));
 
 	dev_info(&pdev->dev,
 			"Initialized hardlockup debug dump successfully.\n");
