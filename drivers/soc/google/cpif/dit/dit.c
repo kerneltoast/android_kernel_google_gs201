@@ -1506,7 +1506,8 @@ static int dit_init_desc(enum dit_direction dir)
 		offset_hi = 0;
 
 		if (!desc_info->dst_desc_ring[ring_num]) {
-			buf_size = sizeof(struct dit_dst_desc) * desc_info->dst_desc_ring_len;
+			buf_size = sizeof(struct dit_dst_desc) *
+				(desc_info->dst_desc_ring_len + DIT_DST_DESC_RING_LEN_PADDING);
 
 			if (dc->use_dma_map) {
 				buf = dma_alloc_coherent(dc->dev, buf_size,

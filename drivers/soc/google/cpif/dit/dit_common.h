@@ -318,6 +318,9 @@ enum dit_idle_ip {
  */
 #define DIT_SRC_DESC_RING_LEN_PADDING	(2)
 
+/* prevent zero size alloc */
+#define DIT_DST_DESC_RING_LEN_PADDING	(1)
+
 bool dit_is_kicked_any(void);
 int dit_check_dst_ready(enum dit_direction dir, enum dit_desc_ring ring_num);
 int dit_enqueue_reg_value_with_ext_lock(u32 value, u32 offset);
