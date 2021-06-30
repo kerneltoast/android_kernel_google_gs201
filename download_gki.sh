@@ -29,6 +29,8 @@ for file in $(cat ${FILES_LIST}); do
   if grep -q "boot.*\.img" <<< ${file} ; then
     BOOT_IMG_NAME=${file}
     file="gsi_arm64-img-${GKI_BUILD}.zip"
+  else
+    file="kernel/5.10/${file}"
   fi
   /google/data/ro/projects/android/fetch_artifact \
       --bid ${GKI_BUILD} \
