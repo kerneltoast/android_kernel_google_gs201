@@ -48,6 +48,17 @@
 		max-link-speed = <LINK_SPEED_GEN3>;
 		status = "disabled";
 	};
+	sysmmu_hsi1: sysmmu@11080000 {
+		compatible = "samsung,pcie-sysmmu";
+		reg = <0x0 0x11860000 0x10000>;
+		interrupts = <0 IRQ_SYSMMU_HSI1_S1_NS_HSI1 IRQ_TYPE_LEVEL_HIGH>;
+		qos = <15>;
+		port-name = "PCIe_CH0";
+		hsi-block-num = <1>;
+		pcie-vid-num = <0>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
 
 	/* HSI2 GEN4_1 */
 	pcie_1:	pcie@14520000 {
@@ -90,5 +101,17 @@
 		max-link-speed = <LINK_SPEED_GEN3>;
 		//s2mpu = <&s2mpu_hsi2>;
 		status = "disabled";
+	};
+
+	sysmmu_hsi2: sysmmu@11080000 {
+		compatible = "samsung,pcie-sysmmu";
+		reg = <0x0 0x145C0000 0x10000>;
+		interrupts = <0 IRQ_SYSMMU_HSI2_S1_NS_HSI2 IRQ_TYPE_LEVEL_HIGH>;
+		qos = <15>;
+		port-name = "PCIe_CH1";
+		hsi-block-num = <2>;
+		pcie-vid-num = <1>;
+		#iommu-cells = <0>;
+		status = "okay";
 	};
 };

@@ -359,6 +359,7 @@
 	use-sicd = "true";
 	use-ia = "true";
 	use-l1ss = "true";
+	use-sysmmu = "true";
 	max-link-speed = <LINK_SPEED_GEN2>;
 	ep-device-type = <EP_BCM_WIFI>;
 	pcie,wlan-gpio = <&gph2 4 0x1 /* WLAN_EN */ >;  /* WLAN_REG_ON */
