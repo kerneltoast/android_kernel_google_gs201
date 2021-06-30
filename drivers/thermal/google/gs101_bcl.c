@@ -2532,13 +2532,13 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *bcl_dev,
 {
 	int ret = 0;
 
-	ret = devm_request_threaded_irq(bcl_dev->device,
+	ret = devm_request_threaded_irq(dev,
 					bcl_dev->triggered_irq[id],
 					NULL, thread_fn,
 					intr_flag | IRQF_ONESHOT,
 					devname, bcl_dev);
 	if (ret < 0) {
-		dev_err(bcl_dev->device, "Failed to request IRQ: %d: %d\n",
+		dev_err(dev, "Failed to request IRQ: %d: %d\n",
 			bcl_dev->triggered_irq[id], ret);
 		return ret;
 	}
