@@ -2,6 +2,7 @@
 # Sort order defined by
 # LC_ALL=C sort
 acpm_flexpmu_dbg.ko
+acpm_mbox_test.ko
 aoc_alsa_dev.ko
 aoc_alsa_dev_util.ko
 aoc_channel_dev.ko
