@@ -254,6 +254,26 @@ config EXYNOS_IOMMU_DEBUG
 
 	  Say N unless you need kernel log message for IOMMU debugging.
 
+config EXYNOS_PCIE_IOMMU
+	tristate "Enable Exynos PCIe IOMMU"
+	depends on PCI_EXYNOS
+	help
+	  Support for IOMMU feature for Exynos PCIe. Memory shared between the
+	  PCIe Root Complex and the Endpoints is susceptible to attacks by
+	  malicious firmware loaded into the Endpoints. Enabling this provides
+	  secure access of memory shared between PCIe RC and the EPs.
+
+config PCIE_IOMMU_HISTORY_LOG
+	bool "Enable Exynos PCIe IOMMU Map/Unmap History"
+	depends on EXYNOS_PCIE_IOMMU
+	help
+	  Support for saving map and unmap history of shared memory between the
+	  Root Complex and Endpoints of the Exynos PCIe interface. This history
+	  can be used for debugging purposes.
+
+	  Say Y to enable this feature.
+
+
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"
 	depends on ARCH_RENESAS || (COMPILE_TEST && !GENERIC_ATOMIC64)
