@@ -57,6 +57,7 @@
 
 #include <linux/dma-map-ops.h>
 #include <soc/google/s2mpu.h>
+#include "../../../iommu/exynos-pcie-iommu-exp.h"
 
 struct exynos_pcie g_pcie_rc[MAX_RC_NUM];
 int pcie_is_linkup;	/* checkpatch: do not initialise globals to 0 */
@@ -70,17 +71,22 @@ static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp);
 static struct exynos_pm_qos_request exynos_pcie_int_qos[MAX_RC_NUM];
 #endif
 
+/*
+ * PCIe channel0 is in the HSI1 block.
+ * PCIe channel1 is in the HSI2 block.
+ */
+#define pcie_ch_to_hsi(ch_num)	((ch_num) + 1)
+#if IS_ENABLED(CONFIG_GS_S2MPU) || IS_ENABLED(CONFIG_EXYNOS_PCIE_IOMMU)
+static const struct dma_map_ops pcie_dma_ops;
+static struct device fake_dma_dev;
+#define to_pci_dev_from_dev(dev) container_of((dev), struct pci_dev, dev)
 #if IS_ENABLED(CONFIG_GS_S2MPU)
-
 struct phys_mem {
 	struct list_head list;
 	phys_addr_t start;
 	size_t size;
 	unsigned char *refcnt_array;
 };
-
-static const struct dma_map_ops gs101_pcie_dma_ops;
-static struct device fake_dma_dev;
 
 #define WIFI_CH_NUM     1
 #define ALIGN_SIZE	0x1000UL
@@ -199,55 +205,99 @@ void s2mpu_update_refcnt(struct device *dev,
 		refcnt_ptr++;
 	}
 }
-
-static void *gs101_pcie_dma_alloc_attrs(struct device *dev, size_t size,
-					dma_addr_t *dma_handle, gfp_t flag,
-					unsigned long attrs)
+#endif
+static void *pcie_dma_alloc_attrs(struct device *dev, size_t size,
+				  dma_addr_t *dma_handle, gfp_t flag,
+				  unsigned long attrs)
 {
 	void *cpu_addr;
+	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
+	int ch_num = pci_domain_nr(epdev->bus);
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	int ret;
 
 	cpu_addr = dma_alloc_attrs(&fake_dma_dev, size,
 				   dma_handle, flag, attrs);
-	s2mpu_update_refcnt(dev, *dma_handle, size, true);
+	if (exynos_pcie->s2mpu) {
+		s2mpu_update_refcnt(dev, *dma_handle, size, true);
+	} else if (exynos_pcie->use_sysmmu) {
+		ret = pcie_iommu_map(*dma_handle, *dma_handle, size,
+				     DMA_BIDIRECTIONAL, pcie_ch_to_hsi(ch_num));
+		if (ret != 0) {
+			pr_err("Can't map PCIe SysMMU table!\n");
+			dma_free_attrs(&fake_dma_dev, size,
+				       cpu_addr, *dma_handle, attrs);
+			return NULL;
+		}
+	}
+
 	return cpu_addr;
 }
 
-static void gs101_pcie_dma_free_attrs(struct device *dev, size_t size,
-				      void *cpu_addr, dma_addr_t dma_addr,
-				      unsigned long attrs)
+static void pcie_dma_free_attrs(struct device *dev, size_t size,
+				void *cpu_addr, dma_addr_t dma_addr,
+				unsigned long attrs)
 {
+	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
+	int ch_num = pci_domain_nr(epdev->bus);
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+
 	dma_free_attrs(&fake_dma_dev, size, cpu_addr, dma_addr, attrs);
-	s2mpu_update_refcnt(dev, dma_addr, size, false);
+	if (exynos_pcie->s2mpu)
+		s2mpu_update_refcnt(dev, dma_addr, size, false);
+	else if (exynos_pcie->use_sysmmu)
+		pcie_iommu_unmap(dma_addr, size, pcie_ch_to_hsi(ch_num));
 }
 
-static dma_addr_t gs101_pcie_dma_map_page(struct device *dev, struct page *page,
-					  size_t offset, size_t size,
-					  enum dma_data_direction dir,
-					  unsigned long attrs)
+static dma_addr_t pcie_dma_map_page(struct device *dev, struct page *page,
+				    size_t offset, size_t size,
+				    enum dma_data_direction dir,
+				    unsigned long attrs)
 {
+	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
+	int ch_num = pci_domain_nr(epdev->bus);
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 	dma_addr_t dma_addr;
+	int ret;
 
 	dma_addr = dma_map_page_attrs(&fake_dma_dev, page, offset,
 				      size, dir, attrs);
-	s2mpu_update_refcnt(dev, dma_addr, size, true);
+	if (exynos_pcie->s2mpu) {
+		s2mpu_update_refcnt(dev, dma_addr, size, true);
+	} else if (exynos_pcie->use_sysmmu) {
+		ret = pcie_iommu_map(dma_addr, dma_addr, size,
+				     dir, pcie_ch_to_hsi(ch_num));
+		if (ret != 0) {
+			pr_err("DMA map - Can't map PCIe SysMMU table!!!\n");
+			return 0;
+		}
+	}
 	return dma_addr;
 }
 
-static void gs101_pcie_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
-				      size_t size, enum dma_data_direction dir,
-				      unsigned long attrs)
+static void pcie_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
+				size_t size, enum dma_data_direction dir,
+				unsigned long attrs)
 {
+	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
+	int ch_num = pci_domain_nr(epdev->bus);
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+
 	dma_unmap_page_attrs(&fake_dma_dev, dma_addr, size, dir, attrs);
-	s2mpu_update_refcnt(dev, dma_addr, size, false);
+
+	if (exynos_pcie->s2mpu)
+		s2mpu_update_refcnt(dev, dma_addr, size, false);
+	else if (exynos_pcie->use_sysmmu)
+		pcie_iommu_unmap(dma_addr, size, pcie_ch_to_hsi(ch_num));
 }
 
-static const struct dma_map_ops gs101_pcie_dma_ops = {
-	.alloc = gs101_pcie_dma_alloc_attrs,
-	.free = gs101_pcie_dma_free_attrs,
+static const struct dma_map_ops pcie_dma_ops = {
+	.alloc = pcie_dma_alloc_attrs,
+	.free = pcie_dma_free_attrs,
 	.mmap = NULL,
 	.get_sgtable = NULL,
-	.map_page = gs101_pcie_dma_map_page,
-	.unmap_page = gs101_pcie_dma_unmap_page,
+	.map_page = pcie_dma_map_page,
+	.unmap_page = pcie_dma_unmap_page,
 	.map_sg = NULL,
 	.unmap_sg = NULL,
 	.map_resource = NULL,
@@ -2774,7 +2824,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 #endif
 		/* Enable SysMMU */
 		if (exynos_pcie->use_sysmmu)
-			pcie_sysmmu_enable(ch_num);
+			pcie_sysmmu_enable(pcie_ch_to_hsi(ch_num));
 
 		pinctrl_select_state(exynos_pcie->pcie_pinctrl,
 				     exynos_pcie->pin_state[PCIE_PIN_ACTIVE]);
@@ -2857,11 +2907,13 @@ int exynos_pcie_rc_poweron(int ch_num)
 			exynos_pcie->pci_saved_configs =
 				pci_store_saved_state(exynos_pcie->pci_dev);
 
-#if IS_ENABLED(CONFIG_GS_S2MPU)
-			if (exynos_pcie->s2mpu) {
+#if IS_ENABLED(CONFIG_GS_S2MPU) || IS_ENABLED(CONFIG_EXYNOS_PCIE_IOMMU)
+			if (exynos_pcie->s2mpu || exynos_pcie->use_sysmmu) {
 				exynos_pcie->ep_pci_dev = exynos_pcie_get_pci_dev(&pci->pp);
-				set_dma_ops(&exynos_pcie->ep_pci_dev->dev, &gs101_pcie_dma_ops);
+				set_dma_ops(&exynos_pcie->ep_pci_dev->dev, &pcie_dma_ops);
 				dev_info(dev, "Wifi DMA operations are changed\n");
+				memcpy(&fake_dma_dev, exynos_pcie->pci->dev,
+				       sizeof(fake_dma_dev));
 			}
 #endif
 
@@ -2945,7 +2997,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 
 		/* Disable SysMMU */
 		if (exynos_pcie->use_sysmmu)
-			pcie_sysmmu_disable(ch_num);
+			pcie_sysmmu_disable(pcie_ch_to_hsi(ch_num));
 
 		/* Disable history buffer */
 		val = exynos_elbi_read(exynos_pcie, PCIE_STATE_HISTORY_CHECK);

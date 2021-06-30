@@ -220,10 +220,10 @@ struct exynos_pcie_ops {
 struct exynos_pcie {
 	struct dw_pcie		*pci;
 #if IS_ENABLED(CONFIG_GS_S2MPU)
-	struct s2mpu_info	*s2mpu;
-	struct pci_dev		*ep_pci_dev;
 	struct list_head	phys_mem_list;
 #endif
+	struct s2mpu_info	*s2mpu;
+	struct pci_dev		*ep_pci_dev;
 	void __iomem		*elbi_base;
 	void __iomem		*phy_base;
 	void __iomem		*sysreg_base;
