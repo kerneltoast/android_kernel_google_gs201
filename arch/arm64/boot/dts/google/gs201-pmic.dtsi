@@ -122,7 +122,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x1>;
 				schematic-name = "S1M_VDD_MIF";
 				subsys-name = "MIF";
@@ -181,7 +181,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x5>;
 				schematic-name = "S5M_VDD_INT";
 				subsys-name = "INT";
@@ -196,7 +196,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x6>;
 				schematic-name = "S6M_LLDO1";
 				subsys-name = "LDO";
@@ -211,7 +211,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x7>;
 				schematic-name = "S7M_VDD_INT";
 				subsys-name = "INT";
@@ -254,7 +254,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0xA>;
 				schematic-name = "S10M_VDD_TPU";
 				subsys-name = "TPU";
@@ -731,7 +731,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x1>;
 				schematic-name = "S1S_VDD_CAM";
 				subsys-name = "Multimedia";
@@ -789,7 +789,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x5>;
 				schematic-name = "S5S_VDDQ_MEM";
 				subsys-name = "DDR";
@@ -1007,7 +1007,7 @@
 				regulator-min-microvolt = <1125000>;
 				regulator-max-microvolt = <1275000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x28>;
 				schematic-name = "L8S_UFS_VCCQ";
 				subsys-name = "UFS";
