@@ -40,6 +40,7 @@ exynos-debug-test.ko
 exynos-dm.ko
 exynos-drm.ko
 exynos-ecc-handler.ko
+exynos-pcie-iommu.ko
 exynos-pd-dbg.ko
 exynos-pd.ko
 exynos-pd_el3.ko
