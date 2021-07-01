@@ -25,7 +25,7 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_dump.h"
-#include "dit.h"
+#include "modem_toe_device.h"
 
 static ssize_t waketime_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -369,11 +369,6 @@ static int rx_raw_misc(struct sk_buff *skb)
 	return queue_skb_to_iod(skb, iod);
 }
 
-static bool check_hw_support_clat(void)
-{
-	return dit_support_clat();
-}
-
 static bool check_gro_support(struct sk_buff *skb)
 {
 	u8 proto;
@@ -399,7 +394,7 @@ static bool check_gro_support(struct sk_buff *skb)
 		 * allow UDP GRO only when hw clat supported.
 		 */
 		return proto == IPPROTO_TCP ||
-		       (proto == IPPROTO_UDP && check_hw_support_clat());
+		       (proto == IPPROTO_UDP && toe_check_6_to_4_ready());
 	case GRO_TCP_ONLY:
 		return proto == IPPROTO_TCP;
 	default:

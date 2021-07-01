@@ -14,7 +14,7 @@ obj-$(CONFIG_CPIF_DIRECT_DM) += direct_dm.o
 
 obj-$(CONFIG_EXYNOS_MODEM_IF) += cpif.o
 cpif-y += modem_main.o modem_variation.o
-cpif-y += modem_io_device.o net_io_device.o bootdump_io_device.o ipc_io_device.o
+cpif-y += modem_io_device.o net_io_device.o bootdump_io_device.o ipc_io_device.o modem_toe_device.o
 cpif-y += modem_utils.o modem_dump.o
 
 cpif-y += link_device.o link_device_memory_flow_control.o

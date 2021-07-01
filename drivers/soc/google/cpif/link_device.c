@@ -567,6 +567,8 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 	tpmon_init();
 #endif
 
+	toe_dev_init();
+
 	if (ld->capability_check)
 		set_ap_capabilities(mld);
 

@@ -43,6 +43,7 @@
 #include "modem_prj.h"
 #include "modem_variation.h"
 #include "modem_utils.h"
+#include "modem_toe_device.h"
 
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
 #include "cpif_qos_info.h"
@@ -735,6 +736,11 @@ static int cpif_probe(struct platform_device *pdev)
 		mif_err("%s: modemctl == NULL\n", pdata->name);
 		devm_kfree(dev, msd);
 		return -ENOMEM;
+	}
+
+	if (toe_dev_create(pdev)) {
+		mif_err("%s: toe dev not created\n", pdata->name);
+		goto free_mc;
 	}
 
 	/* create link device */

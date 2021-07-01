@@ -1724,9 +1724,9 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "hw_ver:0x%08X reg_ver:0x%X\n",
 		dc->hw_version, dc->reg_version);
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
-		"use tx:%d rx:%d(stop:%d) clat:%d(hal_ready:%d)\n",
+		"use tx:%d rx:%d(stop:%d) clat:%d\n",
 		dc->use_dir[DIT_DIR_TX], dc->use_dir[DIT_DIR_RX], dc->stop_enqueue[DIT_DIR_RX],
-		dc->use_clat, dc->clat_hal_ready);
+		dc->use_clat);
 
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
 		desc_info = &dc->desc_info[dir];
@@ -2267,7 +2267,7 @@ bool dit_support_clat(void)
 	if (!dc)
 		return false;
 
-	return dc->use_clat && dc->clat_hal_ready;
+	return dc->use_clat;
 }
 EXPORT_SYMBOL(dit_support_clat);
 

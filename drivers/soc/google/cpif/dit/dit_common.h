@@ -257,8 +257,6 @@ struct dit_ctrl_t {
 	int force_bypass;
 #endif
 
-	bool clat_hal_ready;
-
 	/* every functions should return int for DIT_INDIRECT_CALL */
 	int (*get_reg_version)(u32 *version);
 	int (*set_reg_upstream)(struct net_device *netdev);

@@ -11,6 +11,7 @@
 #define __DIT_H__
 
 #include "modem_utils.h"
+#include "modem_toe_device.h"
 
 enum dit_direction {
 	DIT_DIR_TX,
@@ -47,6 +48,7 @@ bool dit_check_dir_use_queue(enum dit_direction dir, unsigned int queue_num);
 int dit_reset_dst_wp_rp(enum dit_direction dir);
 struct net_device *dit_get_netdev(void);
 bool dit_support_clat(void);
+bool dit_hal_set_clat_info(struct clat_info *clat);
 #else
 static inline int dit_enqueue_src_desc_ring(
 	enum dit_direction dir, u8 *src, unsigned long src_paddr,
@@ -59,6 +61,7 @@ static inline bool dit_check_dir_use_queue(
 static inline int dit_reset_dst_wp_rp(enum dit_direction dir) { return -1; }
 static inline struct net_device *dit_get_netdev(void) { return NULL; }
 static inline bool dit_support_clat(void) { return false; }
+static inline bool dit_hal_set_clat_info(struct clat_info *clat) { return false; }
 #endif
 
 #endif /* __DIT_H__ */
