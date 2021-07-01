@@ -128,6 +128,7 @@ slc_acpm.ko
 slc_dummy.ko
 slc_pmon.ko
 slc_pt.ko
+smfc.ko
 snd-soc-cs35l45-i2c.ko
 snd-soc-cs35l45-spi.ko
 snd-soc-cs35l45.ko
