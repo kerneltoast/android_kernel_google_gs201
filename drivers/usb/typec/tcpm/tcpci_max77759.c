@@ -615,7 +615,7 @@ static void process_power_status(struct max77759_plat *chip)
 	int ret;
 
 	ret = regmap_read(tcpci->regmap, TCPC_POWER_STATUS, &pwr_status);
-	logbuffer_log(log, "TCPC_ALERT_POWER_STATUS status:%d", pwr_status);
+	logbuffer_log(log, "TCPC_ALERT_POWER_STATUS status:0x%x", pwr_status);
 	if (ret < 0)
 		return;
 
@@ -625,9 +625,19 @@ static void process_power_status(struct max77759_plat *chip)
 	}
 
 	if (pwr_status & TCPC_POWER_STATUS_SOURCING_VBUS) {
-		chip->sourcing_vbus = 1;
-		tcpm_sourcing_vbus(tcpci->port);
-		chip->in_frs = false;
+		if (!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES)) {
+			/*
+			 * Sourcing vbus might be set before vbus present is
+			 * set. This implies vbus has not reached VSAFE5V yet
+			 * (or) TCPC_POWER_STATUS_VBUS_PRES is arriving late.
+			 * Hold back signalling sourcing vbus here.
+			 */
+			logbuffer_log(log, "Discard sourcing vbus. Vbus present not set");
+		} else {
+			chip->sourcing_vbus = 1;
+			tcpm_sourcing_vbus(tcpci->port);
+			chip->in_frs = false;
+		}
 	}
 
 	if (chip->in_frs) {
