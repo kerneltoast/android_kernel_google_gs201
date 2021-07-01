@@ -72,14 +72,19 @@ cd ${GKI_PREBUILTS_DIR}
 if [ -n "${BOOT_IMG_NAME}" -a -f "${BOOT_IMG_NAME}" ]; then
   echo "Renaming ${BOOT_IMG_NAME} to boot.img for convenience."
   mv ${BOOT_IMG_NAME} boot.img
+  echo "Unpacking boot.img and retrieving Image.lz4."
+  ${CUR_DIR}/tools/mkbootimg/unpack_bootimg.py --boot_img boot.img \
+            --out ${TEMP_DIR}/boot_img_unpacked/
+  exit_and_clean_if_error $? "Unable to unpack boot.img"
+  mv ${TEMP_DIR}/boot_img_unpacked/kernel ./Image.lz4
 fi
 echo "Update the GKI binaries to ab/${GKI_BUILD}
 
 Update the GKI binaries based on the given build. The prebuilts now have
 the following SHA, taken from the ${SHA_FILE} banner: ${PREBUILTS_SHA}
-" > ${TEMP_DIR}\commit_body
+" > ${TEMP_DIR}/commit_body
 git add *
-git commit -s -F ${TEMP_DIR}\commit_body
+git commit -s -F ${TEMP_DIR}/commit_body
 
 cd ${CUR_DIR}
 rm -rf ${TEMP_DIR}
