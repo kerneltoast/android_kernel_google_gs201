@@ -907,7 +907,8 @@ static void __mfc_handle_frame_input(struct mfc_core *core,
 		mfc_err("failed in core_get_buf_ctrls_val\n");
 
 	dec->consumed = 0;
-	dec->has_multiframe = 0;
+	if (IS_VP9_DEC(ctx) || IS_AV1_DEC(ctx))
+		dec->has_multiframe = 0;
 	dec->remained_size = 0;
 
 	vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
