@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * gs101_bcl.c gsoc101 bcl driver
+ * google_bcl.c Google bcl driver
  *
  * Copyright (c) 2020, Google LLC. All rights reserved.
  *
@@ -152,7 +152,7 @@ static const unsigned int subsystem_pmu[] = {
 	PMU_ALIVE_GPU_OUT
 };
 
-static const struct platform_device_id google_gs101_id_table[] = {
+static const struct platform_device_id google_id_table[] = {
 	{.name = "google_mitigation",},
 	{},
 };
@@ -172,21 +172,21 @@ static bool is_subsystem_on(unsigned int addr)
 
 static int triggered_read_level(void *data, int *val, int id)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
+	struct bcl_device *bcl_dev = data;
 
-	if ((gs101_bcl_device->triggered_counter[id] != 0) &&
-	    (gs101_bcl_device->triggered_counter[id] < THERMAL_IRQ_COUNTER_LIMIT)) {
-		*val = gs101_bcl_device->triggered_lvl[id] +
+	if ((bcl_dev->triggered_counter[id] != 0) &&
+	    (bcl_dev->triggered_counter[id] < THERMAL_IRQ_COUNTER_LIMIT)) {
+		*val = bcl_dev->triggered_lvl[id] +
 				THERMAL_HYST_LEVEL;
-		gs101_bcl_device->triggered_counter[id] += 1;
+		bcl_dev->triggered_counter[id] += 1;
 	} else {
-		*val = gs101_bcl_device->triggered_lvl[id];
-		gs101_bcl_device->triggered_counter[id] = 0;
+		*val = bcl_dev->triggered_lvl[id];
+		bcl_dev->triggered_counter[id] = 0;
 	}
 	return 0;
 }
 
-static struct power_supply *google_gs101_get_power_supply(struct gs101_bcl_dev *bcl_dev)
+static struct power_supply *google_get_power_supply(struct bcl_device *bcl_dev)
 {
 	static struct power_supply *psy[2];
 	static struct power_supply *batt_psy;
@@ -201,7 +201,7 @@ static struct power_supply *google_gs101_get_power_supply(struct gs101_bcl_dev *
 	return batt_psy;
 }
 
-static void ocpsmpl_read_stats(struct gs101_bcl_dev *bcl_dev,
+static void ocpsmpl_read_stats(struct bcl_device *bcl_dev,
 			       struct ocpsmpl_stats *dst, struct power_supply *psy)
 {
 	union power_supply_propval ret = {0};
@@ -227,7 +227,7 @@ static void ocpsmpl_read_stats(struct gs101_bcl_dev *bcl_dev,
 
 static irqreturn_t irq_handler(int irq, void *data, u8 idx)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
+	struct bcl_device *bcl_dev = data;
 
 	if (bcl_dev->batt_psy_initialized) {
 		atomic_inc(&bcl_dev->triggered_cnt[idx]);
@@ -248,7 +248,7 @@ static irqreturn_t irq_handler(int irq, void *data, u8 idx)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t gs101_smpl_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_smpl_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -256,12 +256,12 @@ static irqreturn_t gs101_smpl_warn_irq_handler(int irq, void *data)
 	return irq_handler(irq, data, IRQ_SMPL_WARN);
 }
 
-static void gs101_smpl_warn_work(struct work_struct *work)
+static void google_smpl_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-	    container_of(work, struct gs101_bcl_dev, triggered_irq_work[IRQ_SMPL_WARN].work);
+	struct bcl_device *bcl_dev =
+	    container_of(work, struct bcl_device, triggered_irq_work[IRQ_SMPL_WARN].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_SMPL_WARN] = 0;
+	bcl_dev->triggered_counter[IRQ_SMPL_WARN] = 0;
 }
 
 static int smpl_warn_read_voltage(void *data, int *val)
@@ -269,20 +269,20 @@ static int smpl_warn_read_voltage(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_SMPL_WARN);
 }
 
-static const struct thermal_zone_of_device_ops gs101_smpl_warn_ops = {
+static const struct thermal_zone_of_device_ops google_smpl_warn_ops = {
 	.get_temp = smpl_warn_read_voltage,
 };
 
-static void gs101_cpu1_warn_work(struct work_struct *work)
+static void google_cpu1_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_OCP_WARN_CPUCL1].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_OCP_WARN_CPUCL1] = 0;
+	bcl_dev->triggered_counter[IRQ_OCP_WARN_CPUCL1] = 0;
 }
 
-static irqreturn_t gs101_cpu1_ocp_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_cpu1_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -295,20 +295,20 @@ static int ocp_cpu1_read_current(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_OCP_WARN_CPUCL1);
 }
 
-static const struct thermal_zone_of_device_ops gs101_ocp_cpu1_ops = {
+static const struct thermal_zone_of_device_ops google_ocp_cpu1_ops = {
 	.get_temp = ocp_cpu1_read_current,
 };
 
-static void gs101_cpu2_warn_work(struct work_struct *work)
+static void google_cpu2_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_device =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_OCP_WARN_CPUCL2].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_OCP_WARN_CPUCL2] = 0;
+	bcl_device->triggered_counter[IRQ_OCP_WARN_CPUCL2] = 0;
 }
 
-static irqreturn_t gs101_cpu2_ocp_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_cpu2_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -321,20 +321,20 @@ static int ocp_cpu2_read_current(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_OCP_WARN_CPUCL2);
 }
 
-static const struct thermal_zone_of_device_ops gs101_ocp_cpu2_ops = {
+static const struct thermal_zone_of_device_ops google_ocp_cpu2_ops = {
 	.get_temp = ocp_cpu2_read_current,
 };
 
-static void gs101_soft_cpu1_warn_work(struct work_struct *work)
+static void google_soft_cpu1_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_SOFT_OCP_WARN_CPUCL1].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_SOFT_OCP_WARN_CPUCL1] = 0;
+	bcl_dev->triggered_counter[IRQ_SOFT_OCP_WARN_CPUCL1] = 0;
 }
 
-static irqreturn_t gs101_soft_cpu1_ocp_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_soft_cpu1_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -347,20 +347,20 @@ static int soft_ocp_cpu1_read_current(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_SOFT_OCP_WARN_CPUCL1);
 }
 
-static const struct thermal_zone_of_device_ops gs101_soft_ocp_cpu1_ops = {
+static const struct thermal_zone_of_device_ops google_soft_ocp_cpu1_ops = {
 	.get_temp = soft_ocp_cpu1_read_current,
 };
 
-static void gs101_soft_cpu2_warn_work(struct work_struct *work)
+static void google_soft_cpu2_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_SOFT_OCP_WARN_CPUCL2].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_SOFT_OCP_WARN_CPUCL2] = 0;
+	bcl_dev->triggered_counter[IRQ_SOFT_OCP_WARN_CPUCL2] = 0;
 }
 
-static irqreturn_t gs101_soft_cpu2_ocp_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_soft_cpu2_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -373,20 +373,20 @@ static int soft_ocp_cpu2_read_current(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_SOFT_OCP_WARN_CPUCL2);
 }
 
-static const struct thermal_zone_of_device_ops gs101_soft_ocp_cpu2_ops = {
+static const struct thermal_zone_of_device_ops google_soft_ocp_cpu2_ops = {
 	.get_temp = soft_ocp_cpu2_read_current,
 };
 
-static void gs101_tpu_warn_work(struct work_struct *work)
+static void google_tpu_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_OCP_WARN_TPU].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_OCP_WARN_TPU] = 0;
+	bcl_dev->triggered_counter[IRQ_OCP_WARN_TPU] = 0;
 }
 
-static irqreturn_t gs101_tpu_ocp_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_tpu_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -399,20 +399,20 @@ static int ocp_tpu_read_current(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_OCP_WARN_TPU);
 }
 
-static const struct thermal_zone_of_device_ops gs101_ocp_tpu_ops = {
+static const struct thermal_zone_of_device_ops google_ocp_tpu_ops = {
 	.get_temp = ocp_tpu_read_current,
 };
 
-static void gs101_soft_tpu_warn_work(struct work_struct *work)
+static void google_soft_tpu_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_SOFT_OCP_WARN_TPU].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_SOFT_OCP_WARN_TPU] = 0;
+	bcl_dev->triggered_counter[IRQ_SOFT_OCP_WARN_TPU] = 0;
 }
 
-static irqreturn_t gs101_soft_tpu_ocp_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_soft_tpu_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -425,20 +425,20 @@ static int soft_ocp_tpu_read_current(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_SOFT_OCP_WARN_TPU);
 }
 
-static const struct thermal_zone_of_device_ops gs101_soft_ocp_tpu_ops = {
+static const struct thermal_zone_of_device_ops google_soft_ocp_tpu_ops = {
 	.get_temp = soft_ocp_tpu_read_current,
 };
 
-static void gs101_gpu_warn_work(struct work_struct *work)
+static void google_gpu_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_OCP_WARN_GPU].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_OCP_WARN_GPU] = 0;
+	bcl_dev->triggered_counter[IRQ_OCP_WARN_GPU] = 0;
 }
 
-static irqreturn_t gs101_gpu_ocp_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_gpu_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -451,20 +451,20 @@ static int ocp_gpu_read_current(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_OCP_WARN_GPU);
 }
 
-static const struct thermal_zone_of_device_ops gs101_ocp_gpu_ops = {
+static const struct thermal_zone_of_device_ops google_ocp_gpu_ops = {
 	.get_temp = ocp_gpu_read_current,
 };
 
-static void gs101_soft_gpu_warn_work(struct work_struct *work)
+static void google_soft_gpu_warn_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_SOFT_OCP_WARN_GPU].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_SOFT_OCP_WARN_GPU] = 0;
+	bcl_dev->triggered_counter[IRQ_SOFT_OCP_WARN_GPU] = 0;
 }
 
-static irqreturn_t gs101_soft_gpu_ocp_warn_irq_handler(int irq, void *data)
+static irqreturn_t google_soft_gpu_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -477,20 +477,20 @@ static int soft_ocp_gpu_read_current(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_SOFT_OCP_WARN_GPU);
 }
 
-static const struct thermal_zone_of_device_ops gs101_soft_ocp_gpu_ops = {
+static const struct thermal_zone_of_device_ops google_soft_ocp_gpu_ops = {
 	.get_temp = soft_ocp_gpu_read_current,
 };
 
-static void gs101_pmic_120c_work(struct work_struct *work)
+static void google_pmic_120c_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_PMIC_120C].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_PMIC_120C] = 0;
+	bcl_dev->triggered_counter[IRQ_PMIC_120C] = 0;
 }
 
-static irqreturn_t gs101_pmic_120c_irq_handler(int irq, void *data)
+static irqreturn_t google_pmic_120c_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -503,20 +503,20 @@ static int pmic_120c_read_temp(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_PMIC_120C);
 }
 
-static const struct thermal_zone_of_device_ops gs101_pmic_120c_ops = {
+static const struct thermal_zone_of_device_ops google_pmic_120c_ops = {
 	.get_temp = pmic_120c_read_temp,
 };
 
-static void gs101_pmic_140c_work(struct work_struct *work)
+static void google_pmic_140c_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_PMIC_140C].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_PMIC_140C] = 0;
+	bcl_dev->triggered_counter[IRQ_PMIC_140C] = 0;
 }
 
-static irqreturn_t gs101_pmic_140c_irq_handler(int irq, void *data)
+static irqreturn_t google_pmic_140c_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -529,20 +529,20 @@ static int pmic_140c_read_temp(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_PMIC_140C);
 }
 
-static const struct thermal_zone_of_device_ops gs101_pmic_140c_ops = {
+static const struct thermal_zone_of_device_ops google_pmic_140c_ops = {
 	.get_temp = pmic_140c_read_temp,
 };
 
-static void gs101_pmic_overheat_work(struct work_struct *work)
+static void google_pmic_overheat_work(struct work_struct *work)
 {
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(work, struct gs101_bcl_dev,
+	struct bcl_device *bcl_dev =
+			container_of(work, struct bcl_device,
 		   triggered_irq_work[IRQ_PMIC_OVERHEAT].work);
 
-	gs101_bcl_device->triggered_counter[IRQ_PMIC_OVERHEAT] = 0;
+	bcl_dev->triggered_counter[IRQ_PMIC_OVERHEAT] = 0;
 }
 
-static irqreturn_t gs101_tsd_overheat_irq_handler(int irq, void *data)
+static irqreturn_t google_tsd_overheat_irq_handler(int irq, void *data)
 {
 	if (!data)
 		return IRQ_HANDLED;
@@ -555,29 +555,29 @@ static int tsd_overheat_read_temp(void *data, int *val)
 	return triggered_read_level(data, val, IRQ_PMIC_OVERHEAT);
 }
 
-static const struct thermal_zone_of_device_ops gs101_pmic_overheat_ops = {
+static const struct thermal_zone_of_device_ops google_pmic_overheat_ops = {
 	.get_temp = tsd_overheat_read_temp,
 };
 
-static int gs101_bcl_set_soc(void *data, int low, int high)
+static int google_bcl_set_soc(void *data, int low, int high)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = data;
+	struct bcl_device *bcl_dev = data;
 
-	if (high == gs101_bcl_device->trip_high_temp)
+	if (high == bcl_dev->trip_high_temp)
 		return 0;
 
-	mutex_lock(&gs101_bcl_device->state_trans_lock);
-	gs101_bcl_device->trip_low_temp = low;
-	gs101_bcl_device->trip_high_temp = high;
-	schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
+	mutex_lock(&bcl_dev->state_trans_lock);
+	bcl_dev->trip_low_temp = low;
+	bcl_dev->trip_high_temp = high;
+	schedule_delayed_work(&bcl_dev->soc_eval_work, 0);
 
-	mutex_unlock(&gs101_bcl_device->state_trans_lock);
+	mutex_unlock(&bcl_dev->state_trans_lock);
 	return 0;
 }
 
-static int gs101_bcl_read_soc(void *data, int *val)
+static int google_bcl_read_soc(void *data, int *val)
 {
-	struct gs101_bcl_dev *bcl_dev = data;
+	struct bcl_device *bcl_dev = data;
 	union power_supply_propval ret = {
 		0,
 	};
@@ -585,7 +585,7 @@ static int gs101_bcl_read_soc(void *data, int *val)
 
 	*val = 100;
 	if (!bcl_dev->batt_psy)
-		bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
+		bcl_dev->batt_psy = google_get_power_supply(bcl_dev);
 	if (bcl_dev->batt_psy) {
 		err = power_supply_get_property(bcl_dev->batt_psy,
 						POWER_SUPPLY_PROP_CAPACITY, &ret);
@@ -601,13 +601,13 @@ static int gs101_bcl_read_soc(void *data, int *val)
 	return err;
 }
 
-static void gs101_bcl_evaluate_soc(struct work_struct *work)
+static void google_bcl_evaluate_soc(struct work_struct *work)
 {
 	int battery_percentage_reverse;
-	struct gs101_bcl_dev *bcl_dev =
-	    container_of(work, struct gs101_bcl_dev, soc_eval_work.work);
+	struct bcl_device *bcl_dev =
+	    container_of(work, struct bcl_device, soc_eval_work.work);
 
-	if (gs101_bcl_read_soc(bcl_dev, &battery_percentage_reverse))
+	if (google_bcl_read_soc(bcl_dev, &battery_percentage_reverse))
 		return;
 
 	mutex_lock(&bcl_dev->state_trans_lock);
@@ -637,25 +637,25 @@ static int battery_supply_callback(struct notifier_block *nb,
 				   unsigned long event, void *data)
 {
 	struct power_supply *psy = data;
-	struct gs101_bcl_dev *gs101_bcl_device =
-			container_of(nb, struct gs101_bcl_dev, psy_nb);
+	struct bcl_device *bcl_dev =
+			container_of(nb, struct bcl_device, psy_nb);
 	struct power_supply *bcl_psy;
 
-	if (!gs101_bcl_device)
+	if (!bcl_dev)
 		return NOTIFY_OK;
 
-	bcl_psy = gs101_bcl_device->batt_psy;
+	bcl_psy = bcl_dev->batt_psy;
 
 	if (!bcl_psy || event != PSY_EVENT_PROP_CHANGED)
 		return NOTIFY_OK;
 
 	if (!strcmp(psy->desc->name, bcl_psy->desc->name))
-		schedule_delayed_work(&gs101_bcl_device->soc_eval_work, 0);
+		schedule_delayed_work(&bcl_dev->soc_eval_work, 0);
 
 	return NOTIFY_OK;
 }
 
-static int gs101_bcl_remove(struct gs101_bcl_dev *bcl_dev)
+static int google_bcl_remove_thermal(struct bcl_device *bcl_dev)
 {
 	int i = 0;
 
@@ -674,7 +674,7 @@ static int gs101_bcl_remove(struct gs101_bcl_dev *bcl_dev)
 static ssize_t batoilo_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", atomic_read(&bcl_dev->if_triggered_cnt[BATOILO]));
 }
@@ -684,7 +684,7 @@ static DEVICE_ATTR_RO(batoilo_count);
 static ssize_t vdroop2_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", atomic_read(&bcl_dev->if_triggered_cnt[VDROOP2]));
 }
@@ -694,7 +694,7 @@ static DEVICE_ATTR_RO(vdroop2_count);
 static ssize_t vdroop1_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", atomic_read(&bcl_dev->if_triggered_cnt[VDROOP1]));
 }
@@ -704,7 +704,7 @@ static DEVICE_ATTR_RO(vdroop1_count);
 static ssize_t smpl_warn_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", atomic_read(&bcl_dev->triggered_cnt[IRQ_SMPL_WARN]));
 }
@@ -714,7 +714,7 @@ static DEVICE_ATTR_RO(smpl_warn_count);
 static ssize_t ocp_cpu1_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", atomic_read(&bcl_dev->triggered_cnt[IRQ_OCP_WARN_CPUCL1]));
 }
@@ -724,7 +724,7 @@ static DEVICE_ATTR_RO(ocp_cpu1_count);
 static ssize_t ocp_cpu2_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", atomic_read(&bcl_dev->triggered_cnt[IRQ_OCP_WARN_CPUCL2]));
 }
@@ -734,7 +734,7 @@ static DEVICE_ATTR_RO(ocp_cpu2_count);
 static ssize_t ocp_tpu_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", atomic_read(&bcl_dev->triggered_cnt[IRQ_OCP_WARN_TPU]));
 }
@@ -744,7 +744,7 @@ static DEVICE_ATTR_RO(ocp_tpu_count);
 static ssize_t ocp_gpu_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", atomic_read(&bcl_dev->triggered_cnt[IRQ_OCP_WARN_GPU]));
 }
@@ -755,7 +755,7 @@ static ssize_t soft_ocp_cpu1_count_show(struct device *dev, struct device_attrib
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  atomic_read(&bcl_dev->triggered_cnt[IRQ_SOFT_OCP_WARN_CPUCL1]));
@@ -767,7 +767,7 @@ static ssize_t soft_ocp_cpu2_count_show(struct device *dev, struct device_attrib
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  atomic_read(&bcl_dev->triggered_cnt[IRQ_SOFT_OCP_WARN_CPUCL2]));
@@ -779,7 +779,7 @@ static ssize_t soft_ocp_tpu_count_show(struct device *dev, struct device_attribu
 				       char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  atomic_read(&bcl_dev->triggered_cnt[IRQ_SOFT_OCP_WARN_TPU]));
@@ -790,7 +790,7 @@ static DEVICE_ATTR_RO(soft_ocp_tpu_count);
 static ssize_t soft_ocp_gpu_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  atomic_read(&bcl_dev->triggered_cnt[IRQ_SOFT_OCP_WARN_GPU]));
@@ -817,7 +817,7 @@ static struct attribute *triggered_count_attrs[] = {
 static ssize_t batoilo_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[BATOILO].capacity);
 }
@@ -827,7 +827,7 @@ static DEVICE_ATTR_RO(batoilo_cap);
 static ssize_t vdroop2_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[VDROOP2].capacity);
 }
@@ -837,7 +837,7 @@ static DEVICE_ATTR_RO(vdroop2_cap);
 static ssize_t vdroop1_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[VDROOP1].capacity);
 }
@@ -847,7 +847,7 @@ static DEVICE_ATTR_RO(vdroop1_cap);
 static ssize_t smpl_warn_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_SMPL_WARN].capacity);
 }
@@ -857,7 +857,7 @@ static DEVICE_ATTR_RO(smpl_warn_cap);
 static ssize_t ocp_cpu1_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL1].capacity);
 }
@@ -867,7 +867,7 @@ static DEVICE_ATTR_RO(ocp_cpu1_cap);
 static ssize_t ocp_cpu2_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL2].capacity);
 }
@@ -877,7 +877,7 @@ static DEVICE_ATTR_RO(ocp_cpu2_cap);
 static ssize_t ocp_tpu_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_TPU].capacity);
 }
@@ -887,7 +887,7 @@ static DEVICE_ATTR_RO(ocp_tpu_cap);
 static ssize_t ocp_gpu_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_GPU].capacity);
 }
@@ -898,7 +898,7 @@ static ssize_t soft_ocp_cpu1_cap_show(struct device *dev, struct device_attribut
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_CPUCL1].capacity);
@@ -910,7 +910,7 @@ static ssize_t soft_ocp_cpu2_cap_show(struct device *dev, struct device_attribut
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_CPUCL2].capacity);
@@ -922,7 +922,7 @@ static ssize_t soft_ocp_tpu_cap_show(struct device *dev, struct device_attribute
 				       char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_TPU].capacity);
@@ -933,7 +933,7 @@ static DEVICE_ATTR_RO(soft_ocp_tpu_cap);
 static ssize_t soft_ocp_gpu_cap_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_GPU].capacity);
@@ -960,7 +960,7 @@ static struct attribute *triggered_cap_attrs[] = {
 static ssize_t batoilo_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[BATOILO].voltage);
 }
@@ -970,7 +970,7 @@ static DEVICE_ATTR_RO(batoilo_volt);
 static ssize_t vdroop2_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[VDROOP2].voltage);
 }
@@ -980,7 +980,7 @@ static DEVICE_ATTR_RO(vdroop2_volt);
 static ssize_t vdroop1_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[VDROOP1].voltage);
 }
@@ -990,7 +990,7 @@ static DEVICE_ATTR_RO(vdroop1_volt);
 static ssize_t smpl_warn_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_SMPL_WARN].voltage);
 }
@@ -1000,7 +1000,7 @@ static DEVICE_ATTR_RO(smpl_warn_volt);
 static ssize_t ocp_cpu1_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL1].voltage);
 }
@@ -1010,7 +1010,7 @@ static DEVICE_ATTR_RO(ocp_cpu1_volt);
 static ssize_t ocp_cpu2_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL2].voltage);
 }
@@ -1020,7 +1020,7 @@ static DEVICE_ATTR_RO(ocp_cpu2_volt);
 static ssize_t ocp_tpu_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_TPU].voltage);
 }
@@ -1030,7 +1030,7 @@ static DEVICE_ATTR_RO(ocp_tpu_volt);
 static ssize_t ocp_gpu_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_GPU].voltage);
 }
@@ -1041,7 +1041,7 @@ static ssize_t soft_ocp_cpu1_volt_show(struct device *dev, struct device_attribu
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_CPUCL1].voltage);
@@ -1053,7 +1053,7 @@ static ssize_t soft_ocp_cpu2_volt_show(struct device *dev, struct device_attribu
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_CPUCL2].voltage);
@@ -1065,7 +1065,7 @@ static ssize_t soft_ocp_tpu_volt_show(struct device *dev, struct device_attribut
 				       char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_TPU].voltage);
@@ -1076,7 +1076,7 @@ static DEVICE_ATTR_RO(soft_ocp_tpu_volt);
 static ssize_t soft_ocp_gpu_volt_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_GPU].voltage);
@@ -1103,7 +1103,7 @@ static struct attribute *triggered_volt_attrs[] = {
 static ssize_t batoilo_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[BATOILO]._time);
 }
@@ -1113,7 +1113,7 @@ static DEVICE_ATTR_RO(batoilo_time);
 static ssize_t vdroop2_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[VDROOP2]._time);
 }
@@ -1123,7 +1123,7 @@ static DEVICE_ATTR_RO(vdroop2_time);
 static ssize_t vdroop1_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[VDROOP1]._time);
 }
@@ -1133,7 +1133,7 @@ static DEVICE_ATTR_RO(vdroop1_time);
 static ssize_t smpl_warn_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_SMPL_WARN]._time);
 }
@@ -1143,7 +1143,7 @@ static DEVICE_ATTR_RO(smpl_warn_time);
 static ssize_t ocp_cpu1_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL1]._time);
 }
@@ -1153,7 +1153,7 @@ static DEVICE_ATTR_RO(ocp_cpu1_time);
 static ssize_t ocp_cpu2_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL2]._time);
 }
@@ -1163,7 +1163,7 @@ static DEVICE_ATTR_RO(ocp_cpu2_time);
 static ssize_t ocp_tpu_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_TPU]._time);
 }
@@ -1173,7 +1173,7 @@ static DEVICE_ATTR_RO(ocp_tpu_time);
 static ssize_t ocp_gpu_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_GPU]._time);
 }
@@ -1184,7 +1184,7 @@ static ssize_t soft_ocp_cpu1_time_show(struct device *dev, struct device_attribu
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_CPUCL1]._time);
@@ -1196,7 +1196,7 @@ static ssize_t soft_ocp_cpu2_time_show(struct device *dev, struct device_attribu
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_CPUCL2]._time);
@@ -1208,7 +1208,7 @@ static ssize_t soft_ocp_tpu_time_show(struct device *dev, struct device_attribut
 				       char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_TPU]._time);
@@ -1219,7 +1219,7 @@ static DEVICE_ATTR_RO(soft_ocp_tpu_time);
 static ssize_t soft_ocp_gpu_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_GPU]._time);
@@ -1263,7 +1263,7 @@ static const struct attribute_group triggered_voltage_group = {
 	.name = "last_triggered_voltage",
 };
 
-static void __iomem *get_addr_by_subsystem(struct gs101_bcl_dev *bcl_dev,
+static void __iomem *get_addr_by_subsystem(struct bcl_device *bcl_dev,
 					   const char *subsystem)
 {
 	int i = 0;
@@ -1278,7 +1278,7 @@ static void __iomem *get_addr_by_subsystem(struct gs101_bcl_dev *bcl_dev,
 	return NULL;
 }
 
-static ssize_t clk_div_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
+static ssize_t clk_div_show(struct bcl_device *bcl_dev, int idx, char *buf)
 {
 	unsigned int reg;
 	void __iomem *addr;
@@ -1296,7 +1296,7 @@ static ssize_t clk_div_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
 	return sysfs_emit(buf, "0x%x\n", reg);
 }
 
-static ssize_t clk_stats_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
+static ssize_t clk_stats_show(struct bcl_device *bcl_dev, int idx, char *buf)
 {
 	unsigned int reg;
 	void __iomem *addr;
@@ -1314,7 +1314,7 @@ static ssize_t clk_stats_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
 	return sysfs_emit(buf, "0x%x\n", reg);
 }
 
-static ssize_t clk_div_store(struct gs101_bcl_dev *bcl_dev, int idx,
+static ssize_t clk_div_store(struct bcl_device *bcl_dev, int idx,
 			     const char *buf, size_t size)
 {
 	void __iomem *addr;
@@ -1348,7 +1348,7 @@ static ssize_t clk_div_store(struct gs101_bcl_dev *bcl_dev, int idx,
 static ssize_t cpu0_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_show(bcl_dev, CPU0, buf);
 }
@@ -1357,7 +1357,7 @@ static ssize_t cpu0_clk_div_store(struct device *dev, struct device_attribute *a
 				    const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_store(bcl_dev, CPU0, buf, size);
 }
@@ -1367,7 +1367,7 @@ static DEVICE_ATTR_RW(cpu0_clk_div);
 static ssize_t cpu1_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_show(bcl_dev, CPU1, buf);
 }
@@ -1376,7 +1376,7 @@ static ssize_t cpu1_clk_div_store(struct device *dev, struct device_attribute *a
 				  const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_store(bcl_dev, CPU1, buf, size);
 }
@@ -1386,7 +1386,7 @@ static DEVICE_ATTR_RW(cpu1_clk_div);
 static ssize_t cpu2_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_show(bcl_dev, CPU2, buf);
 }
@@ -1395,7 +1395,7 @@ static ssize_t cpu2_clk_div_store(struct device *dev, struct device_attribute *a
 				  const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_store(bcl_dev, CPU2, buf, size);
 }
@@ -1405,7 +1405,7 @@ static DEVICE_ATTR_RW(cpu2_clk_div);
 static ssize_t tpu_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_show(bcl_dev, TPU, buf);
 }
@@ -1414,7 +1414,7 @@ static ssize_t tpu_clk_div_store(struct device *dev, struct device_attribute *at
 				 const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_store(bcl_dev, TPU, buf, size);
 }
@@ -1424,7 +1424,7 @@ static DEVICE_ATTR_RW(tpu_clk_div);
 static ssize_t gpu_clk_div_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_show(bcl_dev, GPU, buf);
 }
@@ -1433,7 +1433,7 @@ static ssize_t gpu_clk_div_store(struct device *dev, struct device_attribute *at
 				 const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_div_store(bcl_dev, GPU, buf, size);
 }
@@ -1457,7 +1457,7 @@ static const struct attribute_group clock_div_group = {
 static ssize_t cpu0_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_stats_show(bcl_dev, CPU0, buf);
 }
@@ -1467,7 +1467,7 @@ static DEVICE_ATTR_RO(cpu0_clk_stats);
 static ssize_t cpu1_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_stats_show(bcl_dev, CPU1, buf);
 }
@@ -1477,7 +1477,7 @@ static DEVICE_ATTR_RO(cpu1_clk_stats);
 static ssize_t cpu2_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_stats_show(bcl_dev, CPU2, buf);
 }
@@ -1487,7 +1487,7 @@ static DEVICE_ATTR_RO(cpu2_clk_stats);
 static ssize_t tpu_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_stats_show(bcl_dev, TPU, buf);
 }
@@ -1497,7 +1497,7 @@ static DEVICE_ATTR_RO(tpu_clk_stats);
 static ssize_t gpu_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_stats_show(bcl_dev, GPU, buf);
 }
@@ -1518,7 +1518,7 @@ static const struct attribute_group clock_stats_group = {
 	.name = "clock_stats",
 };
 
-static void __iomem *get_addr_by_rail(struct gs101_bcl_dev *bcl_dev, const char *rail_name)
+static void __iomem *get_addr_by_rail(struct bcl_device *bcl_dev, const char *rail_name)
 {
 	int i = 0, idx;
 
@@ -1542,7 +1542,7 @@ static void __iomem *get_addr_by_rail(struct gs101_bcl_dev *bcl_dev, const char 
 	return NULL;
 }
 
-static ssize_t clk_ratio_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
+static ssize_t clk_ratio_show(struct bcl_device *bcl_dev, int idx, char *buf)
 {
 	unsigned int reg;
 	void __iomem *addr;
@@ -1564,7 +1564,7 @@ static ssize_t clk_ratio_show(struct gs101_bcl_dev *bcl_dev, int idx, char *buf)
 	return sysfs_emit(buf, "0x%x\n", reg);
 }
 
-static ssize_t clk_ratio_store(struct gs101_bcl_dev *bcl_dev, int idx,
+static ssize_t clk_ratio_store(struct bcl_device *bcl_dev, int idx,
 			       const char *buf, size_t size)
 {
 	void __iomem *addr;
@@ -1600,7 +1600,7 @@ static ssize_t clk_ratio_store(struct gs101_bcl_dev *bcl_dev, int idx,
 static ssize_t cpu0_clk_ratio_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, CPU0_CON, buf);
 }
@@ -1609,7 +1609,7 @@ static ssize_t cpu0_clk_ratio_store(struct device *dev, struct device_attribute 
 				    const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, CPU0_CON, buf, size);
 }
@@ -1620,7 +1620,7 @@ static ssize_t cpu1_heavy_clk_ratio_show(struct device *dev, struct device_attri
 					 char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, CPU1_HEAVY, buf);
 }
@@ -1629,7 +1629,7 @@ static ssize_t cpu1_heavy_clk_ratio_store(struct device *dev, struct device_attr
 					  const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, CPU1_HEAVY, buf, size);
 }
@@ -1640,7 +1640,7 @@ static ssize_t cpu2_heavy_clk_ratio_show(struct device *dev, struct device_attri
 					 char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, CPU2_HEAVY, buf);
 }
@@ -1649,7 +1649,7 @@ static ssize_t cpu2_heavy_clk_ratio_store(struct device *dev, struct device_attr
 					  const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, CPU2_HEAVY, buf, size);
 }
@@ -1660,7 +1660,7 @@ static ssize_t tpu_heavy_clk_ratio_show(struct device *dev, struct device_attrib
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, TPU_HEAVY, buf);
 }
@@ -1669,7 +1669,7 @@ static ssize_t tpu_heavy_clk_ratio_store(struct device *dev, struct device_attri
 					 const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, TPU_HEAVY, buf, size);
 }
@@ -1680,7 +1680,7 @@ static ssize_t gpu_heavy_clk_ratio_show(struct device *dev, struct device_attrib
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, GPU_HEAVY, buf);
 }
@@ -1689,7 +1689,7 @@ static ssize_t gpu_heavy_clk_ratio_store(struct device *dev, struct device_attri
 					 const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, GPU_HEAVY, buf, size);
 }
@@ -1700,7 +1700,7 @@ static ssize_t cpu1_light_clk_ratio_show(struct device *dev, struct device_attri
 					 char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, CPU1_LIGHT, buf);
 }
@@ -1709,7 +1709,7 @@ static ssize_t cpu1_light_clk_ratio_store(struct device *dev, struct device_attr
 					  const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, CPU1_LIGHT, buf, size);
 }
@@ -1720,7 +1720,7 @@ static ssize_t cpu2_light_clk_ratio_show(struct device *dev, struct device_attri
 					 char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, CPU2_LIGHT, buf);
 }
@@ -1729,7 +1729,7 @@ static ssize_t cpu2_light_clk_ratio_store(struct device *dev, struct device_attr
 					  const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, CPU2_LIGHT, buf, size);
 }
@@ -1740,7 +1740,7 @@ static ssize_t tpu_light_clk_ratio_show(struct device *dev, struct device_attrib
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, TPU_LIGHT, buf);
 }
@@ -1749,7 +1749,7 @@ static ssize_t tpu_light_clk_ratio_store(struct device *dev, struct device_attri
 					 const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, TPU_LIGHT, buf, size);
 }
@@ -1760,7 +1760,7 @@ static ssize_t gpu_light_clk_ratio_show(struct device *dev, struct device_attrib
 					char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_show(bcl_dev, GPU_LIGHT, buf);
 }
@@ -1769,7 +1769,7 @@ static ssize_t gpu_light_clk_ratio_store(struct device *dev, struct device_attri
 					 const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return clk_ratio_store(bcl_dev, GPU_LIGHT, buf, size);
 }
@@ -1797,7 +1797,7 @@ static const struct attribute_group clock_ratio_group = {
 static ssize_t smpl_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u8 value = 0;
 	unsigned int smpl_warn_lvl;
 
@@ -1817,7 +1817,7 @@ static ssize_t smpl_lvl_store(struct device *dev,
 			      struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int val;
 	u8 value;
 	int ret;
@@ -1861,7 +1861,7 @@ static ssize_t smpl_lvl_store(struct device *dev,
 
 static DEVICE_ATTR_RW(smpl_lvl);
 
-static int get_ocp_lvl(struct gs101_bcl_dev *bcl_dev, u64 *val, u8 addr,
+static int get_ocp_lvl(struct bcl_device *bcl_dev, u64 *val, u8 addr,
 		       u8 pmic, u8 mask, u16 limit,
 		       u8 step)
 {
@@ -1885,7 +1885,7 @@ static int get_ocp_lvl(struct gs101_bcl_dev *bcl_dev, u64 *val, u8 addr,
 	return 0;
 }
 
-static int set_ocp_lvl(struct gs101_bcl_dev *bcl_dev, u64 val, u8 addr, u8 pmic, u8 mask,
+static int set_ocp_lvl(struct bcl_device *bcl_dev, u64 val, u8 addr, u8 pmic, u8 mask,
 		       u16 llimit, u16 ulimit, u8 step, u8 id)
 {
 	u8 value;
@@ -1945,7 +1945,7 @@ static int set_ocp_lvl(struct gs101_bcl_dev *bcl_dev, u64 val, u8 addr, u8 pmic,
 static ssize_t ocp_cpu1_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u64 val;
 
 	if (get_ocp_lvl(bcl_dev, &val, S2MPG10_PM_B3M_OCP_WARN, S2MPG10,
@@ -1959,7 +1959,7 @@ static ssize_t ocp_cpu1_lvl_store(struct device *dev,
 				  struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int value;
 	int ret;
 
@@ -1978,7 +1978,7 @@ static DEVICE_ATTR_RW(ocp_cpu1_lvl);
 static ssize_t ocp_cpu2_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u64 val;
 
 	if (get_ocp_lvl(bcl_dev, &val, S2MPG10_PM_B2M_OCP_WARN, S2MPG10,
@@ -1992,7 +1992,7 @@ static ssize_t ocp_cpu2_lvl_store(struct device *dev,
 				  struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int value;
 	int ret;
 
@@ -2011,7 +2011,7 @@ static DEVICE_ATTR_RW(ocp_cpu2_lvl);
 static ssize_t ocp_tpu_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u64 val;
 
 	if (get_ocp_lvl(bcl_dev, &val, S2MPG10_PM_B10M_OCP_WARN, S2MPG10,
@@ -2025,7 +2025,7 @@ static ssize_t ocp_tpu_lvl_store(struct device *dev, struct device_attribute *at
 				 const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int value;
 	int ret;
 
@@ -2044,7 +2044,7 @@ static DEVICE_ATTR_RW(ocp_tpu_lvl);
 static ssize_t ocp_gpu_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u64 val;
 
 	if (get_ocp_lvl(bcl_dev, &val, S2MPG11_PM_B2S_OCP_WARN, S2MPG11,
@@ -2058,7 +2058,7 @@ static ssize_t ocp_gpu_lvl_store(struct device *dev, struct device_attribute *at
 				 const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int value;
 	int ret;
 
@@ -2077,7 +2077,7 @@ static DEVICE_ATTR_RW(ocp_gpu_lvl);
 static ssize_t soft_ocp_cpu1_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u64 val;
 
 	if (get_ocp_lvl(bcl_dev, &val, S2MPG10_PM_B3M_SOFT_OCP_WARN, S2MPG10,
@@ -2091,7 +2091,7 @@ static ssize_t soft_ocp_cpu1_lvl_store(struct device *dev, struct device_attribu
 				       const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int value;
 	int ret;
 
@@ -2110,7 +2110,7 @@ static DEVICE_ATTR_RW(soft_ocp_cpu1_lvl);
 static ssize_t soft_ocp_cpu2_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u64 val;
 
 	if (get_ocp_lvl(bcl_dev, &val, S2MPG10_PM_B2M_SOFT_OCP_WARN, S2MPG10,
@@ -2124,7 +2124,7 @@ static ssize_t soft_ocp_cpu2_lvl_store(struct device *dev, struct device_attribu
 				       const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int value;
 	int ret;
 
@@ -2143,7 +2143,7 @@ static DEVICE_ATTR_RW(soft_ocp_cpu2_lvl);
 static ssize_t soft_ocp_tpu_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u64 val;
 
 	if (get_ocp_lvl(bcl_dev, &val, S2MPG10_PM_B10M_SOFT_OCP_WARN, S2MPG10,
@@ -2157,7 +2157,7 @@ static ssize_t soft_ocp_tpu_lvl_store(struct device *dev, struct device_attribut
 				      const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int value;
 	int ret;
 
@@ -2176,7 +2176,7 @@ static DEVICE_ATTR_RW(soft_ocp_tpu_lvl);
 static ssize_t soft_ocp_gpu_lvl_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	u64 val;
 
 	if (get_ocp_lvl(bcl_dev, &val, S2MPG11_PM_B2S_SOFT_OCP_WARN, S2MPG11,
@@ -2190,7 +2190,7 @@ static ssize_t soft_ocp_gpu_lvl_store(struct device *dev, struct device_attribut
 				      const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int value;
 	int ret;
 
@@ -2227,7 +2227,7 @@ static const struct attribute_group triggered_lvl_group = {
 static ssize_t enable_mitigation_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	return sysfs_emit(buf, "%d\n", bcl_dev->enabled);
 }
@@ -2236,7 +2236,7 @@ static ssize_t enable_mitigation_store(struct device *dev, struct device_attribu
 				       const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	bool value;
 	int ret, i;
 	void __iomem *addr;
@@ -2276,11 +2276,11 @@ static ssize_t enable_mitigation_store(struct device *dev, struct device_attribu
 
 static DEVICE_ATTR_RW(enable_mitigation);
 
-struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
+struct bcl_device *google_retrieve_bcl_handle(void)
 {
 	struct device_node *np;
 	struct platform_device *pdev;
-	struct gs101_bcl_dev *bcl_dev;
+	struct bcl_device *bcl_dev;
 
 	np = of_find_node_by_name(NULL, "google,mitigation");
 	if (!np)
@@ -2294,9 +2294,9 @@ struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
 
 	return bcl_dev;
 }
-EXPORT_SYMBOL_GPL(gs101_retrieve_bcl_handle);
+EXPORT_SYMBOL_GPL(google_retrieve_bcl_handle);
 
-int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
+int google_init_tpu_ratio(struct bcl_device *data)
 {
 	void __iomem *addr;
 
@@ -2321,9 +2321,9 @@ int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gs101_init_tpu_ratio);
+EXPORT_SYMBOL_GPL(google_init_tpu_ratio);
 
-int gs101_init_gpu_ratio(struct gs101_bcl_dev *data)
+int google_init_gpu_ratio(struct bcl_device *data)
 {
 	void __iomem *addr;
 
@@ -2348,9 +2348,9 @@ int gs101_init_gpu_ratio(struct gs101_bcl_dev *data)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gs101_init_gpu_ratio);
+EXPORT_SYMBOL_GPL(google_init_gpu_ratio);
 
-unsigned int gs101_get_ppm(struct gs101_bcl_dev *data)
+unsigned int google_get_ppm(struct bcl_device *data)
 {
 	void __iomem *addr;
 	unsigned int reg;
@@ -2369,9 +2369,9 @@ unsigned int gs101_get_ppm(struct gs101_bcl_dev *data)
 
 	return reg;
 }
-EXPORT_SYMBOL_GPL(gs101_get_ppm);
+EXPORT_SYMBOL_GPL(google_get_ppm);
 
-unsigned int gs101_get_mpmm(struct gs101_bcl_dev *data)
+unsigned int google_get_mpmm(struct bcl_device *data)
 {
 	void __iomem *addr;
 	unsigned int reg;
@@ -2390,9 +2390,9 @@ unsigned int gs101_get_mpmm(struct gs101_bcl_dev *data)
 
 	return reg;
 }
-EXPORT_SYMBOL_GPL(gs101_get_mpmm);
+EXPORT_SYMBOL_GPL(google_get_mpmm);
 
-int gs101_set_ppm(struct gs101_bcl_dev *data, unsigned int value)
+int google_set_ppm(struct bcl_device *data, unsigned int value)
 {
 	void __iomem *addr;
 
@@ -2410,9 +2410,9 @@ int gs101_set_ppm(struct gs101_bcl_dev *data, unsigned int value)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gs101_set_ppm);
+EXPORT_SYMBOL_GPL(google_set_ppm);
 
-int gs101_set_mpmm(struct gs101_bcl_dev *data, unsigned int value)
+int google_set_mpmm(struct bcl_device *data, unsigned int value)
 {
 	void __iomem *addr;
 
@@ -2430,13 +2430,13 @@ int gs101_set_mpmm(struct gs101_bcl_dev *data, unsigned int value)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gs101_set_mpmm);
+EXPORT_SYMBOL_GPL(google_set_mpmm);
 
 static ssize_t mpmm_settings_store(struct device *dev,
 				   struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	void __iomem *addr;
 	int value;
 	int ret;
@@ -2456,7 +2456,7 @@ static ssize_t mpmm_settings_store(struct device *dev,
 static ssize_t mpmm_settings_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int reg = 0;
 	void __iomem *addr;
 
@@ -2476,7 +2476,7 @@ static ssize_t ppm_settings_store(struct device *dev,
 				  struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	void __iomem *addr;
 	int value;
 	int ret;
@@ -2496,7 +2496,7 @@ static ssize_t ppm_settings_store(struct device *dev,
 static ssize_t ppm_settings_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
-	struct gs101_bcl_dev *bcl_dev = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int reg = 0;
 	void __iomem *addr;
 
@@ -2524,7 +2524,7 @@ static const struct attribute_group instr_group = {
 	.name = "instruction",
 };
 
-static int gs101_bcl_register_irq(struct gs101_bcl_dev *bcl_dev,
+static int google_bcl_register_irq(struct bcl_device *bcl_dev,
 				  int id, irq_handler_t thread_fn,
 				  struct device *dev,
 				  const struct thermal_zone_of_device_ops *ops,
@@ -2568,7 +2568,7 @@ static int gs101_bcl_register_irq(struct gs101_bcl_dev *bcl_dev,
 	return ret;
 }
 
-static void google_gs101_set_throttling(struct gs101_bcl_dev *bcl_dev)
+static void google_set_throttling(struct bcl_device *bcl_dev)
 {
 	struct device_node *np = bcl_dev->device->of_node;
 	int ret;
@@ -2594,7 +2594,7 @@ static void google_gs101_set_throttling(struct gs101_bcl_dev *bcl_dev)
 
 }
 
-static int google_gs101_set_sub_pmic(struct gs101_bcl_dev *bcl_dev)
+static int google_set_sub_pmic(struct bcl_device *bcl_dev)
 {
 	struct s2mpg11_platform_data *pdata_s2mpg11;
 	struct device_node *p_np;
@@ -2633,20 +2633,20 @@ static int google_gs101_set_sub_pmic(struct gs101_bcl_dev *bcl_dev)
 		dev_err(bcl_dev->device, "Failed to read S2MPG11 chipid.\n");
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_OCP_WARN_GPU,
-				     gs101_gpu_ocp_warn_irq_handler,
+				     google_gpu_ocp_warn_irq_handler,
 				     s2mpg11->dev,
-				     &gs101_ocp_gpu_ops, "GPU_OCP_IRQ", IRQF_TRIGGER_RISING);
+				     &google_ocp_gpu_ops, "GPU_OCP_IRQ", IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_OCP_WARN_GPU);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_SOFT_OCP_WARN_GPU,
-				     gs101_soft_gpu_ocp_warn_irq_handler,
+				     google_soft_gpu_ocp_warn_irq_handler,
 				     s2mpg11->dev,
-				     &gs101_soft_ocp_gpu_ops, "SOFT_GPU_OCP_IRQ",
+				     &google_soft_ocp_gpu_ops, "SOFT_GPU_OCP_IRQ",
 				     IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_GPU);
@@ -2655,7 +2655,7 @@ static int google_gs101_set_sub_pmic(struct gs101_bcl_dev *bcl_dev)
 	return 0;
 }
 
-static int google_gs101_set_main_pmic(struct gs101_bcl_dev *bcl_dev)
+static int google_set_main_pmic(struct bcl_device *bcl_dev)
 {
 	struct s2mpg10_platform_data *pdata_s2mpg10;
 	struct device_node *p_np;
@@ -2731,97 +2731,97 @@ static int google_gs101_set_main_pmic(struct gs101_bcl_dev *bcl_dev)
 		return -ENODEV;
 	}
 	if (!bypass_smpl_warn) {
-		ret = gs101_bcl_register_irq(bcl_dev,
+		ret = google_bcl_register_irq(bcl_dev,
 					     IRQ_SMPL_WARN,
-					     gs101_smpl_warn_irq_handler,
+					     google_smpl_warn_irq_handler,
 					     s2mpg10->dev,
-					     &gs101_smpl_warn_ops,
+					     &google_smpl_warn_ops,
 					     "SMPL_WARN_IRQ", IRQF_TRIGGER_FALLING);
 		if (ret < 0) {
 			dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SMPL_WARN);
 			return -ENODEV;
 		}
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_OCP_WARN_CPUCL1,
-				     gs101_cpu1_ocp_warn_irq_handler,
+				     google_cpu1_ocp_warn_irq_handler,
 				     s2mpg10->dev,
-				     &gs101_ocp_cpu1_ops, "CPU1_OCP_IRQ", IRQF_TRIGGER_RISING);
+				     &google_ocp_cpu1_ops, "CPU1_OCP_IRQ", IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_OCP_WARN_CPUCL1);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_OCP_WARN_CPUCL2,
-				     gs101_cpu2_ocp_warn_irq_handler,
+				     google_cpu2_ocp_warn_irq_handler,
 				     s2mpg10->dev,
-				     &gs101_ocp_cpu2_ops, "CPU2_OCP_IRQ", IRQF_TRIGGER_RISING);
+				     &google_ocp_cpu2_ops, "CPU2_OCP_IRQ", IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_OCP_WARN_CPUCL2);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_SOFT_OCP_WARN_CPUCL1,
-				     gs101_soft_cpu1_ocp_warn_irq_handler,
+				     google_soft_cpu1_ocp_warn_irq_handler,
 				     s2mpg10->dev,
-				     &gs101_soft_ocp_cpu1_ops, "SOFT_CPU1_OCP_IRQ",
+				     &google_soft_ocp_cpu1_ops, "SOFT_CPU1_OCP_IRQ",
 				     IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_CPUCL1);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_SOFT_OCP_WARN_CPUCL2,
-				     gs101_soft_cpu2_ocp_warn_irq_handler,
+				     google_soft_cpu2_ocp_warn_irq_handler,
 				     s2mpg10->dev,
-				     &gs101_soft_ocp_cpu2_ops, "SOFT_CPU2_OCP_IRQ",
+				     &google_soft_ocp_cpu2_ops, "SOFT_CPU2_OCP_IRQ",
 				     IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_CPUCL2);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_OCP_WARN_TPU,
-				     gs101_tpu_ocp_warn_irq_handler,
+				     google_tpu_ocp_warn_irq_handler,
 				     s2mpg10->dev,
-				     &gs101_ocp_tpu_ops, "TPU_OCP_IRQ", IRQF_TRIGGER_RISING);
+				     &google_ocp_tpu_ops, "TPU_OCP_IRQ", IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_OCP_WARN_TPU);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_SOFT_OCP_WARN_TPU,
-				     gs101_soft_tpu_ocp_warn_irq_handler,
+				     google_soft_tpu_ocp_warn_irq_handler,
 				     s2mpg10->dev,
-				     &gs101_soft_ocp_tpu_ops, "SOFT_TPU_OCP_IRQ",
+				     &google_soft_ocp_tpu_ops, "SOFT_TPU_OCP_IRQ",
 				     IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_register fail:%d\n", IRQ_SOFT_OCP_WARN_TPU);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_PMIC_120C,
-				     gs101_pmic_120c_irq_handler,
+				     google_pmic_120c_irq_handler,
 				     bcl_dev->device,
-				     &gs101_pmic_120c_ops, "PMIC_120C", IRQF_TRIGGER_RISING);
+				     &google_pmic_120c_ops, "PMIC_120C", IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_pmic_register fail:%d\n", IRQ_PMIC_120C);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_PMIC_140C,
-				     gs101_pmic_140c_irq_handler,
+				     google_pmic_140c_irq_handler,
 				     bcl_dev->device,
-				     &gs101_pmic_140c_ops, "PMIC_140C", IRQF_TRIGGER_RISING);
+				     &google_pmic_140c_ops, "PMIC_140C", IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_pmic_register fail:%d\n", IRQ_PMIC_140C);
 		return -ENODEV;
 	}
-	ret = gs101_bcl_register_irq(bcl_dev,
+	ret = google_bcl_register_irq(bcl_dev,
 				     IRQ_PMIC_OVERHEAT,
-				     gs101_tsd_overheat_irq_handler,
+				     google_tsd_overheat_irq_handler,
 				     bcl_dev->device,
-				     &gs101_pmic_overheat_ops, "THERMAL_OVERHEAT",
+				     &google_pmic_overheat_ops, "THERMAL_OVERHEAT",
 				     IRQF_TRIGGER_RISING);
 	if (ret < 0) {
 		dev_err(bcl_dev->device, "bcl_pmic_register fail:%d\n", IRQ_PMIC_OVERHEAT);
@@ -2845,7 +2845,7 @@ const struct attribute_group *mitigation_groups[] = {
 	NULL,
 };
 
-static int google_gs101_init_fs(struct gs101_bcl_dev *bcl_dev)
+static int google_init_fs(struct bcl_device *bcl_dev)
 {
 	bcl_dev->mitigation_dev = pmic_subdevice_create(NULL, mitigation_groups,
 							bcl_dev, "mitigation");
@@ -2855,11 +2855,11 @@ static int google_gs101_init_fs(struct gs101_bcl_dev *bcl_dev)
 	return 0;
 }
 
-static int google_gs101_bcl_probe(struct platform_device *pdev)
+static int google_bcl_probe(struct platform_device *pdev)
 {
 	unsigned int reg;
 	int ret = 0, i;
-	struct gs101_bcl_dev *bcl_dev;
+	struct bcl_device *bcl_dev;
 	u32 val;
 	struct device_node *np;
 
@@ -2869,7 +2869,7 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	bcl_dev->device = &pdev->dev;
 	bcl_dev->iodev = dev_get_drvdata(pdev->dev.parent);
 	np = bcl_dev->device->of_node;
-	bcl_dev->batt_psy = google_gs101_get_power_supply(bcl_dev);
+	bcl_dev->batt_psy = google_get_power_supply(bcl_dev);
 	bcl_dev->soc_tzd = thermal_zone_of_sensor_register(bcl_dev->device, PMIC_SOC, bcl_dev,
 							   &bcl_dev->soc_ops);
 	if (IS_ERR(bcl_dev->soc_tzd)) {
@@ -2878,24 +2878,24 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 		ret = PTR_ERR(bcl_dev->soc_tzd);
 		bcl_dev->soc_tzd = NULL;
 	}
-	INIT_DELAYED_WORK(&bcl_dev->soc_eval_work, gs101_bcl_evaluate_soc);
-	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_SMPL_WARN], gs101_smpl_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_OCP_WARN_CPUCL1], gs101_cpu1_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->soc_eval_work, google_bcl_evaluate_soc);
+	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_SMPL_WARN], google_smpl_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_OCP_WARN_CPUCL1], google_cpu1_warn_work);
 	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_SOFT_OCP_WARN_CPUCL1],
-			  gs101_soft_cpu1_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_OCP_WARN_CPUCL2], gs101_cpu2_warn_work);
+			  google_soft_cpu1_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_OCP_WARN_CPUCL2], google_cpu2_warn_work);
 	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_SOFT_OCP_WARN_CPUCL2],
-			  gs101_soft_cpu2_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_OCP_WARN_TPU], gs101_tpu_warn_work);
+			  google_soft_cpu2_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_OCP_WARN_TPU], google_tpu_warn_work);
 	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_SOFT_OCP_WARN_TPU],
-			  gs101_soft_tpu_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_PMIC_120C], gs101_pmic_120c_work);
-	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_PMIC_140C], gs101_pmic_140c_work);
+			  google_soft_tpu_warn_work);
+	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_PMIC_120C], google_pmic_120c_work);
+	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_PMIC_140C], google_pmic_140c_work);
 	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_PMIC_OVERHEAT],
-			  gs101_pmic_overheat_work);
-	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_OCP_WARN_GPU], gs101_gpu_warn_work);
+			  google_pmic_overheat_work);
+	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_OCP_WARN_GPU], google_gpu_warn_work);
 	INIT_DELAYED_WORK(&bcl_dev->triggered_irq_work[IRQ_SOFT_OCP_WARN_GPU],
-			  gs101_soft_gpu_warn_work);
+			  google_soft_gpu_warn_work);
 	platform_set_drvdata(pdev, bcl_dev);
 	bcl_dev->base_mem[CPU0] = devm_ioremap(bcl_dev->device, CPUCL0_BASE, SZ_8K);
 	if (!bcl_dev->base_mem[CPU0]) {
@@ -2945,8 +2945,8 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	mutex_unlock(&sysreg_lock);
 	mutex_init(&bcl_dev->state_trans_lock);
 	mutex_init(&bcl_dev->ratio_lock);
-	bcl_dev->soc_ops.get_temp = gs101_bcl_read_soc;
-	bcl_dev->soc_ops.set_trips = gs101_bcl_set_soc;
+	bcl_dev->soc_ops.get_temp = google_bcl_read_soc;
+	bcl_dev->soc_ops.set_trips = google_bcl_set_soc;
 	for (i = 0; i < IFPMIC_SENSOR_MAX; i++) {
 		atomic_set(&bcl_dev->if_triggered_cnt[i], 0);
 	}
@@ -2963,9 +2963,9 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 				"soc notifier registration error. defer. err:%d\n", ret);
 		thermal_zone_device_update(bcl_dev->soc_tzd, THERMAL_DEVICE_UP);
 	}
-	google_gs101_set_throttling(bcl_dev);
-	google_gs101_set_main_pmic(bcl_dev);
-	google_gs101_set_sub_pmic(bcl_dev);
+	google_set_throttling(bcl_dev);
+	google_set_main_pmic(bcl_dev);
+	google_set_sub_pmic(bcl_dev);
 	ret = of_property_read_u32(np, "tpu_con_heavy", &val);
 	bcl_dev->tpu_con_heavy = ret ? 0 : val;
 	ret = of_property_read_u32(np, "tpu_con_light", &val);
@@ -2980,36 +2980,36 @@ static int google_gs101_bcl_probe(struct platform_device *pdev)
 	bcl_dev->tpu_clkdivstep = ret ? 0 : val;
 	bcl_dev->batt_psy_initialized = false;
 
-	ret = google_gs101_init_fs(bcl_dev);
+	ret = google_init_fs(bcl_dev);
 	if (ret < 0)
 		goto bcl_soc_probe_exit;
 	bcl_dev->enabled = true;
 	return 0;
 
 bcl_soc_probe_exit:
-	gs101_bcl_remove(bcl_dev);
+	google_bcl_remove_thermal(bcl_dev);
 	return ret;
 }
 
-static int google_gs101_bcl_remove(struct platform_device *pdev)
+static int google_bcl_remove(struct platform_device *pdev)
 {
-	struct gs101_bcl_dev *gs101_bcl_device = platform_get_drvdata(pdev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	pmic_device_destroy(gs101_bcl_device->mitigation_dev->devt);
-	gs101_bcl_remove(gs101_bcl_device);
+	pmic_device_destroy(bcl_dev->mitigation_dev->devt);
+	google_bcl_remove_thermal(bcl_dev);
 
 	return 0;
 }
 
 static const struct of_device_id match_table[] = {
-	{ .compatible = "google,gs101-bcl"},
+	{ .compatible = "google,google-bcl"},
 	{},
 };
 
-static struct platform_driver gs101_bcl_driver = {
-	.probe  = google_gs101_bcl_probe,
-	.remove = google_gs101_bcl_remove,
-	.id_table = google_gs101_id_table,
+static struct platform_driver google_bcl_driver = {
+	.probe  = google_bcl_probe,
+	.remove = google_bcl_remove,
+	.id_table = google_id_table,
 	.driver = {
 		.name           = "google_mitigation",
 		.owner          = THIS_MODULE,
@@ -3017,7 +3017,7 @@ static struct platform_driver gs101_bcl_driver = {
 	},
 };
 
-module_platform_driver(gs101_bcl_driver);
+module_platform_driver(google_bcl_driver);
 MODULE_DESCRIPTION("Google Battery Current Limiter");
 MODULE_AUTHOR("George Lee <geolee@google.com>");
 MODULE_LICENSE("GPL");

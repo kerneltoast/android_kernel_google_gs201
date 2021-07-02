@@ -47,7 +47,7 @@ enum PMIC_SENSOR {
 	IFPMIC_SENSOR_MAX,
 };
 
-struct gs101_bcl_dev {
+struct bcl_device {
 	struct device *device;
 	struct device *mitigation_dev;
 	void __iomem *base_mem[5];
@@ -98,43 +98,35 @@ struct gs101_bcl_dev {
 	bool enabled;
 };
 
-extern int gs101_set_mpmm(struct gs101_bcl_dev *data, unsigned int value);
-extern int gs101_set_ppm(struct gs101_bcl_dev *data, unsigned int value);
-extern unsigned int gs101_get_mpmm(struct gs101_bcl_dev *data);
-extern unsigned int gs101_get_ppm(struct gs101_bcl_dev *data);
-extern struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void);
-extern int gs101_init_gpu_ratio(struct gs101_bcl_dev *data);
-extern int gs101_init_tpu_ratio(struct gs101_bcl_dev *data);
+extern int google_set_mpmm(struct bcl_device *data, unsigned int value);
+extern int google_set_ppm(struct bcl_device *data, unsigned int value);
+extern unsigned int google_get_mpmm(struct bcl_device *data);
+extern unsigned int google_get_ppm(struct bcl_device *data);
+extern struct bcl_device *google_retrieve_bcl_handle(void);
+extern int google_init_gpu_ratio(struct bcl_device *data);
+extern int google_init_tpu_ratio(struct bcl_device *data);
 #else
-struct gs101_bcl_dev;
+struct bcl_device;
 
-static unsigned int gs101_get_mpmm(struct gs101_bcl_dev *data)
+static unsigned int google_get_mpmm(struct bcl_device *data)
 {
 	return 0;
 }
-static unsigned int gs101_get_ppm(struct gs101_bcl_dev *data)
+static unsigned int google_get_ppm(struct bcl_device *data)
 {
 	return 0;
 }
-static inline int gs101_set_ppm(struct gs101_bcl_dev *data, unsigned int value)
+static inline int google_set_ppm(struct bcl_device *data, unsigned int value)
 {
 	return 0;
 }
-static inline int gs101_set_mpmm(struct gs101_bcl_dev *data, unsigned int value)
+static inline int google_set_mpmm(struct bcl_device *data, unsigned int value)
 {
 	return 0;
 }
-static struct gs101_bcl_dev *gs101_retrieve_bcl_handle(void)
+static struct google_bcl_dev *google_retrieve_bcl_handle(void)
 {
 	return NULL;
-}
-static int gs101_init_gpu_ratio(struct gs101_bcl_dev *data)
-{
-	return 0;
-}
-static int gs101_init_tpu_ratio(struct gs101_bcl_dev *data)
-{
-	return 0;
 }
 #endif /* IS_ENABLED(CONFIG_GOOGLE_BCL) */
 

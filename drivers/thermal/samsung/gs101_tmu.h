@@ -90,7 +90,7 @@ struct gs101_tmu_data {
 	struct kthread_delayed_work cpu_hw_throttle_init_work;
 	struct mutex lock;			/* lock to protect gs101 tmu */
 	struct thermal_zone_device *tzd;
-	struct gs101_bcl_dev *bcl_dev;
+	struct bcl_device *bcl_dev;
 	unsigned int ntrip;
 	bool enabled;
 	struct thermal_cooling_device *cool_dev;
