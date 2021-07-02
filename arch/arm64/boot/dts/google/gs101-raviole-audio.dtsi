@@ -257,7 +257,6 @@
 		cirrus,tuning-has-prefix;
 		cirrus,left-channel-amp;
 		cirrus,hw-noise-gate-select = <63>;
-		cirrus,hibernate-enable;
 
 		cirrus,gpio-config2 {
 			cirrus,gpio-src-select = <0x5>;
@@ -301,7 +300,6 @@
 		cirrus,tuning-has-prefix;
 		cirrus,left-channel-amp;
 		cirrus,hw-noise-gate-select = <63>;
-		cirrus,hibernate-enable;
 
 		cirrus,gpio-config2 {
 			cirrus,gpio-src-select = <0x5>;
