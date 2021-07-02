@@ -13,6 +13,16 @@
 #include <dt-bindings/pinctrl/samsung.h>
 
 &pinctrl_0 {
+	m_pmic_irq: m-pmic-irq {
+		samsung,pins = "gpa0-6";
+		samsung,pin-pud = <0>;
+	};
+
+	s_pmic_irq: s-pmic-irq {
+		samsung,pins = "gpa0-7";
+		samsung,pin-pud = <0>;
+	};
+
 	smpl_warn: smpl-warn {
 		samsung,pins = "gpa5-0";	/* SMPL_WARN_R_L */
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
@@ -33,15 +43,13 @@
 		interrupts = <GIC_SPI IRQ_INTCOMB_VGPIO2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&smpl_warn>;
+		pinctrl-0 = <&m_pmic_irq &smpl_warn>;
 		gpios = <&gpa5 0 0>,		/* SMPL_WARN_R_L */
 			<&gpa5 1 0>,		/* OCP_WARN_CPUCL1_R */
 			<&gpa5 2 0>,		/* OCP_WARN_CPUCL2_R */
 			<&gpa5 3 0>,		/* SOFT_OCP_WARN_CPUCL1_R */
 			<&gpa5 4 0>,		/* SOFT_OCP_WARN_CPUCL2_R */
-			<&gpp19 0 0>,		/* OCP_WARN_GPU_R */
 			<&gpp19 1 0>,		/* OCP_WARN_TPU_R */
-			<&gpp19 2 0>,		/* SOFT_OCP_WARN_GPU_R */
 			<&gpp19 3 0>;		/* SOFT_OCP_WARN_TPU_R */
 		#thermal-sensor-cells = <1>;
 
@@ -704,11 +712,13 @@
 		acpm-ipc-channel = <2>;
 		s2mpg13,wakeup = "enabled";
 		reg = <0x2f>;
-//		interrupts = <1 0 0>, // OCP_WARN_GPU
-//			     <1 0 1>; // SOFT_OCP_WARN_GPU
-//		interrupt-parent = <&gpa0>;
-//		gpios = <&gpp19 0 0>,
-//			<&gpp19 2 0>;
+		interrupts = <1 0 0>, // OCP_WARN_GPU
+			     <1 0 1>; // SOFT_OCP_WARN_GPU
+		interrupt-parent = <&gpa0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&s_pmic_irq>;
+		gpios = <&gpp19 0 0>,
+			<&gpp19 2 0>;
 		#thermal-sensor-cells = <1>;
 
 		b2_ocp_warn_en = <1>;		/* 1 : enable, 0 : disable */

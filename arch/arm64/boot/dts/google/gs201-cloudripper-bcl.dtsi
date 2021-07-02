@@ -1,0 +1,254 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google GS201 Cloudripper-specific bcl device tree source
+ *
+ * Copyright (c) 2021 Google, LLC
+ *		https://www.google.com
+ */
+
+#include <dt-bindings/thermal/thermal.h>
+
+/ {
+	fragment@battery {
+		target-path = "/";
+		__overlay__ {
+			google_mitigation: google,mitigation {
+				compatible = "google,google-bcl";
+				#thermal-sensor-cells = <1>;
+				google,power-supply = <&google_battery>;
+				google,main-power = <&s2mpg12mfd>;
+				google,sub-power = <&s2mpg13mfd>;
+				ppm_settings = <0>;
+				mpmm_settings = <0x1a>;
+				tpu_con_heavy = <0xf041c3>;
+				tpu_con_light = <0xf041c5>;
+				tpu_clkdivstep = <0x1>;
+				gpu_con_heavy = <0xf04385>;
+				gpu_con_light = <0>;
+				gpu_clkdivstep = <0x1>;
+			};
+		};
+	};
+};
+
+/* Thermal Zones */
+&thermal_zones {
+	vdroop1 {
+		zone_name  = "VDROOP1";
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&max77759_chg 0>;
+		trips {
+			vdroop1: vdroop1{
+				temperature = <1200>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
+	vdroop2 {
+		zone_name  = "VDROOP2";
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&max77759_chg 1>;
+		trips {
+			vdroop2: vdroop2{
+				temperature = <1400>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
+	battery_cycle {
+		zone_name  = "BATTERY_CYCLE";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&google_battery>;
+	};
+
+	pmic_120c {
+		zone_name  = "PMIC_120C";
+		polling-delay-passive = <1000>;
+		polling-delay = <0>;
+		thermal-sensors = <&google_mitigation 1>;
+		trips {
+			pmic_120c: pmic-120c {
+				temperature = <1200>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
+	pmic_140c {
+		zone_name  = "PMIC_140C";
+		polling-delay-passive = <1000>;
+		polling-delay = <0>;
+		thermal-sensors = <&google_mitigation 2>;
+		trips {
+			pmic_140c: pmic-140c {
+				temperature = <1400>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
+	pmic_overheat {
+		zone_name  = "PMIC_OVERHEAT";
+		polling-delay-passive = <1000>;
+		polling-delay = <0>;
+		thermal-sensors = <&google_mitigation 3>;
+		trips {
+			pmic_overheat: pmic-overheat{
+				temperature = <2000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
+	soc {
+		zone_name  = "BATT_SOC_MOD";
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&google_mitigation 0>;
+
+		trips {
+			soc_trip:soc-trip {
+				temperature = <90>;
+				hysteresis = <0>;
+				type = "passive";
+			};
+		};
+	};
+
+	smpl_gm {
+		zone_name  = "SMPL_GM";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg12mfd 0>;
+
+		trips {
+			smpl:smpl_0 {
+				temperature = <1400>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	ocp_cpu1 {
+		zone_name  = "OCP_CPU1";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg12mfd 1>;
+
+		trips {
+			ocp_cpu1:ocp-cpu1 {
+				temperature = <7000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	ocp_cpu2 {
+		zone_name  = "OCP_CPU2";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg12mfd 2>;
+
+		trips {
+			ocp_cpu2:ocp-cpu2 {
+				temperature = <12000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	soft_ocp_cpu1 {
+		zone_name  = "SOFT_OCP_CPU1";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg12mfd 3>;
+
+		trips {
+			soft_ocp_cpu1:soft-ocp-cpu1 {
+				temperature = <7000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	soft_ocp_cpu2 {
+		zone_name  = "SOFT_OCP_CPU2";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg12mfd 4>;
+
+		trips {
+			soft_ocp_cpu2:soft-ocp-cpu2 {
+				temperature = <9000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	ocp_tpu {
+		zone_name  = "OCP_TPU";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg12mfd 5>;
+
+		trips {
+			ocp_tpu:ocp-tpu{
+				temperature = <10500>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	soft_ocp_tpu {
+		zone_name  = "SOFT_OCP_TPU";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg12mfd 6>;
+
+		trips {
+			soft_ocp_tpu:soft-ocp-tpu {
+				temperature = <8500>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	ocp_gpu {
+		zone_name  = "OCP_GPU";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg13mfd 0>;
+
+		trips {
+			ocp_gpu:ocp-gpu{
+				temperature = <12000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+	soft_ocp_gpu {
+		zone_name  = "SOFT_OCP_GPU";
+		polling-delay-passive = <100>;
+		polling-delay = <0>;
+		thermal-sensors = <&s2mpg13mfd 1>;
+
+		trips {
+			soft_ocp_gpu:soft-ocp-gpu {
+				temperature = <9000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+};
