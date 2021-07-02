@@ -76,7 +76,7 @@ governor_memlat.ko
 gpu_cooling.ko
 gs-chipid.ko
 gs101-itmon.ko
-gs101_bcl.ko
+google_bcl.ko
 gs101_spmic_thermal.ko
 gs101_thermal.ko
 gs_acpm.ko
