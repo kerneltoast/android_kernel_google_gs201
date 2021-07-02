@@ -1025,6 +1025,12 @@ static void phy_exynos_usbdp_g2_v4_set_pcs(struct exynos_usbphy_info *info)
 
 	/* Gen2 U1 exit LFPS duration : 900ns ~ 1.2us */
 	writel(0x1000, regs_base + EXYNOS_USBDP_PCS_PM_TIMEOUT_3);
+
+	/* set skp_remove_th 0x2 -> 0x7 for avoiding retry problem. */
+	reg = readl(regs_base + EXYNOS_USBDP_PCS_RX_EBUF_PARAM);
+	reg &= USBDP_PCS_RX_EBUF_PARAM_SKP_REMOVE_TH_EMPTY_MODE_CLR;
+	reg |= USBDP_PCS_RX_EBUF_PARAM_SKP_REMOVE_TH_EMPTY_MODE_SET(0x7);
+	writel(reg, regs_base + EXYNOS_USBDP_PCS_RX_EBUF_PARAM);
 }
 
 static inline void
