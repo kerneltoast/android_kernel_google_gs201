@@ -119,7 +119,7 @@ static struct thermal_zone_data tz_config[] = {
 #define TZ_MID_SENSOR_MASK (TMU_P4_SENSOR_MASK | \
 			    TMU_P6_SENSOR_MASK)
 #define TZ_LIT_SENSOR_MASK (TMU_P1_SENSOR_MASK | \
-			    TMU_P2_SENSOR_MASK)
+			    TMU_P3_SENSOR_MASK)
 #define TZ_GPU_SENSOR_MASK (TMU_P0_SENSOR_MASK | \
 			    TMU_P8_SENSOR_MASK | \
 			    TMU_P9_SENSOR_MASK | \
