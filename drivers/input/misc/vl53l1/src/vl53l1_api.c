@@ -2544,7 +2544,9 @@ static VL53L1_Error SetMeasurementData(VL53L1_DEV Dev,
 	pMultiRangingData->NumberOfObjectsFound = presults->active_results;
 	pMultiRangingData->RoiNumber = presults->zone_id;
 	pMultiRangingData->HasXtalkValueChanged =
-			presults->smudge_corrector_data.new_xtalk_applied_flag;
+		presults->smudge_corrector_data.new_xtalk_applied_flag;
+	pMultiRangingData->NewXtalkCompensationOffsetkcps =
+		presults->smudge_corrector_data.algo__crosstalk_compensation_plane_offset_kcps;
 	dmax_min = MIN(presults->wrap_dmax_mm,
 			presults->VL53L1_p_007[DMAX_REFLECTANCE_IDX]);
 	pMultiRangingData->DmaxMilliMeter = dmax_min;
