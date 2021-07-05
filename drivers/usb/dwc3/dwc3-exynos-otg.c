@@ -533,13 +533,13 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 				!dotg->in_shutdown)
 			dwc3_exynos_gadget_disconnect_proc(dwc);
 
-		/* Wait until gadget stop */
-		while (dwc->gadget_driver != NULL) {
+		/* Wait until dwc connected is off */
+		while (dwc->connected) {
 			wait_counter++;
-			usleep_range(100, 200);
+			msleep(20);
 
-			if (wait_counter > 500) {
-				dev_err(dev, "Can't wait gadget stop!\n");
+			if (wait_counter > 20) {
+				dev_err(dev, "Can't wait dwc disconnect!\n");
 				break;
 			}
 		}
