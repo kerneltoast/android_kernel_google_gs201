@@ -1332,6 +1332,9 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 	if (!exynos)
 		return 0;
 
+	if (pm_runtime_suspended(dev))
+		return 0;
+
 	dwc3_exynos_clk_disable(exynos);
 
 	/* inform what USB state is idle to IDLE_IP */
@@ -1352,6 +1355,9 @@ static int dwc3_exynos_runtime_resume(struct device *dev)
 
 	if (!exynos)
 		return 0;
+
+	if (exynos->need_dr_role)
+		exynos->dwc->current_dr_role = DWC3_GCTL_PRTCAP_DEVICE;
 
 	/* inform what USB state is not idle to IDLE_IP */
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 0);

@@ -407,7 +407,9 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 		temp_gadget_driver = dwc->gadget_driver;
 		dwc->gadget_driver = NULL;
 
+		exynos->need_dr_role = 1;
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
+		exynos->need_dr_role = 0;
 		if (ret) {
 			dev_err(dwc->dev, "%s: failed to reinitialize core\n",
 					__func__);
@@ -515,7 +517,9 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			}
 		}
 
+		exynos->need_dr_role = 1;
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
+		exynos->need_dr_role = 0;
 		if (ret) {
 			dev_err(dev, "%s: failed to reinitialize core\n",
 					__func__);
