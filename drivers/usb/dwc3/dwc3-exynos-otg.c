@@ -376,6 +376,8 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 	int ret1 = -1;
 	int wait_counter = 0;
 
+	__pm_stay_awake(dotg->wakelock);
+
 	if (on) {
 		dotg->otg_connection = 1;
 
@@ -442,6 +444,7 @@ err2:
 		dwc->gadget_driver = temp_gadget_driver;
 	}
 err1:
+	__pm_relax(dotg->wakelock);
 	return ret;
 }
 
