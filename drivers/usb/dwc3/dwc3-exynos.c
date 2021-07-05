@@ -1328,10 +1328,14 @@ static void dwc3_exynos_shutdown(struct platform_device *pdev)
 static int dwc3_exynos_runtime_suspend(struct device *dev)
 {
 	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+	struct dwc3 *dwc;
+	unsigned long flags;
 
 	if (!exynos)
 		return 0;
 
+	dwc = exynos->dwc;
+	spin_lock_irqsave(&dwc->lock, flags);
 	if (pm_runtime_suspended(dev))
 		return 0;
 
@@ -1344,6 +1348,7 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 	 * dwc3_suspend/resume in core.c
 	 */
 	exynos->dwc->current_dr_role = DWC3_EXYNOS_IGNORE_CORE_OPS;
+	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
 }
