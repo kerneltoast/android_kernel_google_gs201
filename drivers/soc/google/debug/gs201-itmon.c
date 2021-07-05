@@ -246,6 +246,8 @@ struct itmon_dev {
 	void __iomem *regs;
 	spinlock_t ctrl_lock;
 	struct itmon_notifier notifier_info;
+	char itmon_pattern[SZ_32];
+	atomic_t itmon_pattern_cnt;
 };
 
 struct itmon_panic_block {
@@ -941,6 +943,24 @@ static struct itmon_dev *g_itmon;
 /* declare notifier_list */
 ATOMIC_NOTIFIER_HEAD(itmon_notifier_list);
 
+static void itmon_pattern_reset(struct itmon_dev *itmon)
+{
+	atomic_set(&itmon->itmon_pattern_cnt, 0);
+}
+
+static void itmon_pattern_set(struct itmon_dev *itmon, const char *fmt, ...)
+{
+	va_list args;
+
+	/* only take the first pattern even there could be multiple paths */
+	if (atomic_inc_return(&itmon->itmon_pattern_cnt) > 1)
+		return;
+
+	va_start(args, fmt);
+	vsnprintf(itmon->itmon_pattern, sizeof(itmon->itmon_pattern), fmt, args);
+	va_end(args);
+}
+
 static const struct itmon_rpathinfo *itmon_get_rpathinfo(struct itmon_dev *itmon,
 							unsigned int id,
 							char *dest_name)
@@ -1360,6 +1380,7 @@ static void itmon_report_prot_chk_rawdata(struct itmon_dev *itmon,
 		    prot_chk_ctl,
 		    prot_chk_info,
 		    prot_chk_int_id);
+	itmon_pattern_set(itmon, "from %s", node->name);
 }
 
 static void itmon_report_rawdata(struct itmon_dev *itmon,
@@ -1409,6 +1430,10 @@ static void itmon_report_traceinfo(struct itmon_dev *itmon,
 		    info->baaw_prot ? "(BAAW Remapped address)" : "",
 		    trans_type == TRANS_TYPE_READ ? "READ" : "WRITE",
 		    itmon_errcode[info->errcode]);
+
+	itmon_pattern_set(itmon, "from %s %s to %s",
+			  info->port, info->client ? info->client : "",
+			  info->dest ? info->dest : NOT_AVAILABLE_STR);
 
 	log_dev_err(itmon->dev,
 		    "\n------------------------------------------------------------\n"
@@ -1862,7 +1887,8 @@ static void itmon_do_dpm_policy(struct itmon_dev *itmon)
 		if (!pdata->policy[i].error)
 			continue;
 
-		scnprintf(buf, sizeof(buf), "itmon triggering %s", pdata->policy[i].name);
+		scnprintf(buf, sizeof(buf), "itmon triggering %s %s",
+			  pdata->policy[i].name, itmon->itmon_pattern);
 		dbg_snapshot_do_dpm_policy(pdata->policy[i].policy, buf);
 		pdata->policy[i].error = false;
 	}
@@ -1878,6 +1904,7 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 	bool ret;
 	int i;
 
+	itmon_pattern_reset(itmon);
 	dbg_snapshot_itmon_irq_received();
 
 	/* Search itmon group */
@@ -2236,6 +2263,7 @@ static int itmon_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, itmon);
 	itmon_init(itmon, true);
+	itmon_pattern_reset(itmon);
 	g_itmon = itmon;
 
 	ret = subsys_system_register(&itmon_subsys, itmon_sysfs_groups);
