@@ -625,9 +625,6 @@
 
 		usbdrd_dwc3: dwc3 {
 			compatible = "synopsys,dwc3";
-			clocks = <&clock GATE_USB31DRD_SLV_LINK>,
-				<&clock MUX_HSI0_USB20_REF>;
-			clock-names = "aclk", "sclk";
 			reg = <0x0 0x11110000 0x10000>;
 			interrupts = <GIC_SPI IRQ_USB31DRD_GIC_0_HSI0 IRQ_TYPE_LEVEL_HIGH>;
 			memory-region = <&xhci_dma>;
