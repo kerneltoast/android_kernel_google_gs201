@@ -511,6 +511,9 @@ struct VL53L1_MultiRangingData_t {
 		/*!< suggestion for a better distance mode choice to improve
 		 *  range accuracy.
 		 */
+
+	uint32_t NewXtalkCompensationOffsetkcps;
+		/*!< Indicate the new xtalk value while applied. */
 };
 
 
