@@ -30,6 +30,16 @@
 #define PKTPROC_STATUS_IPCS	0x40
 #define PKTPROC_STATUS_PFD	0x80
 
+/* LRO bit field */
+#define LRO_LAST_SEG		0x01
+#define LRO_MID_SEG		0x02
+#define LRO_FIRST_SEG		0x04
+#define LRO_PACKET		0x08
+#define LRO_MODE_ON		0x10
+
+/* padding for LRO packet */
+#define LRO_MAX_HEADLEN		100 /* TCP (max 60byte) + IPv6 (40byte) */
+
 /*
  * PktProc info region
  */
@@ -96,6 +106,7 @@ struct pktproc_desc_sktbuf {
 /* Statistics */
 struct pktproc_statistics {
 	u64 pass_cnt;
+	u64 lro_cnt;
 	u64 err_len;
 	u64 err_chid;
 	u64 err_addr;

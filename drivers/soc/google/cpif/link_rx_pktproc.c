@@ -5,9 +5,11 @@
  */
 
 #include <asm/cacheflush.h>
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/udp.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
+#include <net/ip6_checksum.h>
+#include <net/udp.h>
+#include <net/tcp.h>
 #include <soc/google/shm_ipc.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
@@ -499,18 +501,248 @@ static int pktproc_update_fore_ptr(struct pktproc_queue *q, u32 count)
 	return ret;
 }
 
+static bool is_desc_valid(struct pktproc_queue *q, struct pktproc_desc_sktbuf *desc)
+{
+	if (desc->length > q->ppa->max_packet_size) {
+		mif_err_limited("Length is invalid:%d\n", desc->length);
+		q->stat.err_len++;
+		return false;
+	}
+
+	if (desc->channel_id == SIPC5_CH_ID_MAX) {
+		mif_err_limited("Channel ID is invalid:%d\n", desc->channel_id);
+		q->stat.err_chid++;
+		return false;
+	}
+
+	return true;
+}
+
+static u8 *get_packet_vaddr(struct pktproc_queue *q, struct pktproc_desc_sktbuf *desc)
+{
+	u8 *ret;
+	struct pktproc_adaptor *ppa = q->ppa;
+
+	if (q->manager) {
+		ret = (u8 *)cpif_unmap_rx_buf(q->manager,
+				desc->cp_data_paddr -
+				ppa->skb_padding_size, false);
+		if (!ret) {
+			mif_err_limited("invalid data address. null given\n");
+			q->stat.err_addr++;
+			return NULL;
+		}
+	} else {
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		unsigned long src_paddr = desc->cp_data_paddr - q->cp_buff_pbase +
+				q->q_buff_pbase - ppa->skb_padding_size;
+
+		ret = (u8 *)q->ioc.pf_buf[q->done_ptr];
+		cpif_pcie_iommu_try_ummap_va(q, src_paddr, ret, q->done_ptr);
+#else
+		ret = desc->cp_data_paddr - q->cp_buff_pbase +
+				q->q_buff_vbase - ppa->skb_padding_size;
+
+		if ((ret < q->q_buff_vbase) || (ret > q->q_buff_vbase + q->q_buff_size)) {
+			mif_err_limited("Data address is invalid:%pK data:%pK size:0x%08x\n",
+					ret, q->q_buff_vbase, q->q_buff_size);
+			q->stat.err_addr++;
+			return NULL;
+		}
+#endif
+	}
+
+	ret += ppa->skb_padding_size;
+
+	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc)
+		dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
+					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
+
+	return ret;
+}
+
+static u32 cpif_prepare_lro_and_get_headlen(struct sk_buff *skb, bool *is_udp)
+{
+	u32 headlen = 0;
+	struct iphdr *iph = (struct iphdr *)skb->data;
+
+	if (iph->version == 6) {
+		struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb->data;
+
+		headlen += sizeof(struct ipv6hdr);
+		if (ipv6h->nexthdr == NEXTHDR_TCP) {
+			struct tcphdr *th = (struct tcphdr *)(skb->data + headlen);
+
+			headlen += th->doff * 4;
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV6;
+		} else {
+			struct udphdr *uh = (struct udphdr *)(skb->data + headlen);
+			__be16 backup_len = uh->len;
+
+			uh->check = 0;
+			uh->len = htons(skb->len - headlen);
+			uh->check = csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
+						ntohs(uh->len), IPPROTO_UDP,
+						csum_partial(uh, ntohs(uh->len), 0));
+			uh->len = backup_len;
+			headlen += sizeof(struct udphdr);
+			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4 | SKB_GSO_FRAGLIST;
+			*is_udp = true;
+		}
+	} else { /* ipv4 */
+		headlen += sizeof(struct iphdr);
+		if (iph->protocol == IPPROTO_TCP) {
+			struct tcphdr *th = (struct tcphdr *)(skb->data + headlen);
+
+			headlen += th->doff * 4;
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
+		} else {
+			headlen += sizeof(struct udphdr);
+			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4 | SKB_GSO_FRAGLIST;
+			*is_udp = true;
+		}
+	}
+
+	return headlen;
+}
+
+static struct sk_buff *cpif_build_skb_single(struct pktproc_queue *q, u8 *src, u16 len,
+		u16 front_pad_size, u16 rear_pad_size, int *buffer_count)
+{
+	struct sk_buff *skb;
+	u16 total_len;
+
+	total_len = SKB_DATA_ALIGN(len + front_pad_size);
+	total_len += SKB_DATA_ALIGN(rear_pad_size);
+	skb = build_skb(src - front_pad_size, total_len);
+	if (unlikely(!skb)) {
+		mif_err_limited("build_skb() error\n");
+		q->stat.err_nomem++;
+		if (!q->manager->already_retrieved)
+			q->manager->already_retrieved = src;
+		return NULL;
+	}
+	skb_reserve(skb, front_pad_size);
+	skb_put(skb, len);
+	*buffer_count = *buffer_count + 1;
+
+	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
+	return skb;
+}
+
+static struct sk_buff *cpif_build_skb_gro(struct pktproc_queue *q, u8 *src, u16 len,
+		int *buffer_count)
+{
+	struct sk_buff *skb_head, *skb, *last;
+	struct pktproc_desc_sktbuf *desc;
+	struct iphdr *iph;
+	struct ipv6hdr *ipv6h;
+	struct udphdr *uh;
+	u32 hdr_len;
+	bool is_udp = false;
+
+	skb_head = cpif_build_skb_single(q, src, len, q->ppa->skb_padding_size,
+					sizeof(struct skb_shared_info), buffer_count);
+	if (unlikely(!skb_head))
+		goto gro_fail;
+
+	hdr_len = cpif_prepare_lro_and_get_headlen(skb_head, &is_udp);
+	skb_shinfo(skb_head)->gso_size = skb_head->len - hdr_len;
+	skb_shinfo(skb_head)->gso_segs = 1;
+	skb_frag_list_init(skb_head);
+	skb_head->csum_level = 1;
+
+	last = NULL;
+	while (q->desc_sktbuf[q->done_ptr].lro & (LRO_MID_SEG | LRO_LAST_SEG)) {
+		u8 *tmp_src;
+		u16 tmp_len;
+		bool last_seg = (q->desc_sktbuf[q->done_ptr].lro & LRO_LAST_SEG) ?
+					true : false;
+
+		desc = &q->desc_sktbuf[q->done_ptr];
+
+		if (!is_desc_valid(q, desc)) {
+			mif_err_limited("Err! invalid desc. HW GRO failed\n");
+			goto gro_fail;
+		}
+
+		tmp_src = get_packet_vaddr(q, desc);
+		if (!tmp_src) {
+			mif_err_limited("Err! invalid packet vaddr. HW GRO failed\n");
+			goto gro_fail;
+		}
+
+		tmp_len = desc->length;
+		skb = cpif_build_skb_single(q, tmp_src, tmp_len, q->ppa->skb_padding_size,
+					sizeof(struct skb_shared_info), buffer_count);
+		if (unlikely(!skb))
+			goto gro_fail;
+		skb->transport_header = q->ppa->skb_padding_size - hdr_len;
+		skb->network_header = q->ppa->skb_padding_size - hdr_len;
+		skb->mac_header = q->ppa->skb_padding_size - hdr_len;
+
+		if (is_udp) { /* need to generate header including checksum */
+			u8 *hdr_start = skb->data - hdr_len;
+
+			skb_copy_from_linear_data(skb_head, hdr_start, hdr_len);
+			iph = (struct iphdr *)hdr_start;
+			if (iph->version == 4) {
+				uh = (struct udphdr *)(hdr_start + sizeof(struct iphdr));
+				iph->tot_len = htons(tmp_len + hdr_len);
+				iph->check = ip_fast_csum((unsigned char *)iph,
+								iph->ihl);
+			} else { /* ipv6 */
+				uh = (struct udphdr *)(hdr_start + sizeof(struct ipv6hdr));
+				ipv6h = (struct ipv6hdr *)hdr_start;
+				ipv6h->payload_len = htons(tmp_len + sizeof(struct udphdr));
+			}
+
+			uh->len = htons(tmp_len + sizeof(struct udphdr));
+			if (iph->version == 6) { /* checksum required for udp v6 only */
+				uh->check = 0;
+				uh->check = csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
+						ntohs(uh->len), IPPROTO_UDP,
+						csum_partial(uh, ntohs(uh->len), 0));
+			}
+		}
+
+		if (last)
+			last->next = skb;
+		else
+			skb_shinfo(skb_head)->frag_list = skb;
+		last = skb;
+		skb_head->data_len += skb->len;
+		skb_head->truesize += skb->truesize;
+		skb_head->len += skb->len;
+		skb_shinfo(skb_head)->gso_segs += 1;
+
+		if (last_seg)
+			break;
+	}
+
+	iph = (struct iphdr *)skb_head->data;
+	if (iph->version == 4)
+		iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+
+	return skb_head;
+
+gro_fail:
+	if (skb_head)
+		dev_kfree_skb_any(skb_head);
+	return NULL;
+}
+
 static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_buff **new_skb)
 {
 	int ret = 0;
-	u16 len, tmp_len;
+	int buffer_count = 0;
+	u16 len;
 	u8 ch_id;
 	u8 *src;
-	unsigned long src_paddr;
 	struct pktproc_adaptor *ppa = q->ppa;
 	struct sk_buff *skb = NULL;
 	struct pktproc_desc_sktbuf desc_done_ptr = q->desc_sktbuf[q->done_ptr];
 	struct link_device *ld = &q->mld->link_dev;
-	u32 packet_size = 0;
 	bool csum = false;
 
 	if (!pktproc_check_active(ppa, q->q_idx)) {
@@ -523,68 +755,27 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		return -EINVAL;
 	}
 
-	/* Get data */
-	len = desc_done_ptr.length;
-	if (len > ppa->max_packet_size) {
-		mif_err_limited("Length is invalid:%d\n", len);
-		q->stat.err_len++;
+	if (!is_desc_valid(q, &desc_done_ptr)) {
 		ret = -EPERM;
 		goto rx_error_on_desc;
 	}
 
-	ch_id = desc_done_ptr.channel_id;
-	if (ch_id == SIPC5_CH_ID_MAX) {
-		mif_err_limited("Channel ID is invalid:%d\n", ch_id);
-		q->stat.err_chid++;
-		ret = -EPERM;
-		goto rx_error_on_desc;
-	}
-
-	if (q->manager) {
-		src = (u8 *)cpif_unmap_rx_buf(q->manager,
-				q->desc_sktbuf[q->done_ptr].cp_data_paddr -
-				ppa->skb_padding_size, false);
-		if (!src) {
-			ret = -EINVAL;
+	src = get_packet_vaddr(q, &desc_done_ptr);
+	if (!src) {
+		ret = -EINVAL;
+		if (q->manager)
 			ld->link_trigger_cp_crash(q->mld, CRASH_REASON_MIF_RX_BAD_DATA,
 					"invalid data address. null given");
-			goto rx_error_on_desc;
-		}
-	} else {
-		src_paddr = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
-				q->q_buff_pbase - q->ppa->skb_padding_size;
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-		src = (u8 *)q->ioc.pf_buf[q->done_ptr];
-		cpif_pcie_iommu_try_ummap_va(q, src_paddr, src, q->done_ptr);
-		/* src_paddr is not a physical addr of src, reset the value */
-		src_paddr = 0;
-#else
-		src = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
-				q->q_buff_vbase - q->ppa->skb_padding_size;
-
-		if ((src < q->q_buff_vbase) || (src > q->q_buff_vbase + q->q_buff_size)) {
-			mif_err_limited("Data address is invalid:%pK data:%pK size:0x%08x\n",
-					src, q->q_buff_vbase, q->q_buff_size);
-			q->stat.err_addr++;
-			ret = -EINVAL;
-			goto rx_error_on_desc;
-		}
-#endif
+		goto rx_error_on_desc;
 	}
 
-	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
-		packet_size = ppa->max_packet_size;
-
-		dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
-					packet_size, DMA_FROM_DEVICE, 0);
-	}
-
+	len = desc_done_ptr.length;
+	ch_id = desc_done_ptr.channel_id;
 	csum = pktproc_check_hw_checksum(desc_done_ptr.status);
 	if (!csum)
 		q->stat.err_csum++;
-
 	if (unlikely(ppa->pktgen_gro)) {
-		pktproc_set_pktgen_checksum(q, src + ppa->skb_padding_size);
+		pktproc_set_pktgen_checksum(q, src);
 		csum = true;
 	}
 
@@ -596,8 +787,15 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 #endif
 
 	if (dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx)) {
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		unsigned long src_paddr = 0;
+#else
+		unsigned long src_paddr = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
+				q->q_buff_pbase;
+#endif
+
 		ret = dit_enqueue_src_desc_ring(DIT_DIR_RX,
-			src + ppa->skb_padding_size, src_paddr, len, ch_id, csum);
+			src, src_paddr, len, ch_id, csum);
 		if (ret < 0) {
 			mif_err_limited("Enqueue failed at fore/rear/done:%d/%d/%d, ret: %d\n",
 				*q->fore_ptr, *q->rear_ptr, q->done_ptr, ret);
@@ -609,33 +807,33 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		q->stat.pass_cnt++;
 		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
-		return 0;
+		return 1; /* dit cannot support HW GRO packets */
 	}
 
 	/* Build skb */
 	if (q->manager) {
-		if (!ppa->use_napi) {
-			mif_err_limited("napi should be used for buff mng\n");
-			q->stat.err_nomem++;
-			ret = -ENOMEM;
-			goto rx_error;
+		/* guaranteed that only TCP/IP, UDP/IP in this case */
+		if (desc_done_ptr.lro == (LRO_MODE_ON | LRO_FIRST_SEG)) {
+			if (!csum)
+				mif_info("CSUM error on LRO: 0x%lX\n",
+						desc_done_ptr.status);
+			skb = cpif_build_skb_gro(q, src, len, &buffer_count);
+			if (unlikely(!skb)) {
+				ret = -EINVAL;
+				goto rx_error_on_desc;
+			}
+			q->stat.lro_cnt++;
+		} else {
+			skb = cpif_build_skb_single(q, src, len, ppa->skb_padding_size,
+					sizeof(struct skb_shared_info), &buffer_count);
+			if (unlikely(!skb)) {
+				ret = -ENOMEM;
+				goto rx_error;
+			}
 		}
-		tmp_len = SKB_DATA_ALIGN(len + ppa->skb_padding_size);
-		tmp_len += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-		skb = build_skb(src, tmp_len);
-		if (unlikely(!skb)) {
-			mif_err_limited("build_skb() error\n");
-			q->stat.err_nomem++;
-			ret = -ENOMEM;
-			if (!q->manager->already_retrieved)
-				q->manager->already_retrieved = src;
-			goto rx_error;
-		}
-		skb_reserve(skb, ppa->skb_padding_size);
-		skb_put(skb, len);
-	} else { /* use memcpy */
+	} else { /* use memcpy or pcie iommu */
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-		skb = build_skb(src, ppa->max_packet_size);
+		skb = build_skb(src - ppa->skb_padding_size, ppa->max_packet_size);
 #else
 		if (ppa->use_napi)
 			skb = napi_alloc_skb(q->napi_ptr, len);
@@ -651,9 +849,11 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 		skb_reserve(skb, ppa->skb_padding_size);
 #else
-		skb_copy_to_linear_data(skb, src + ppa->skb_padding_size, len);
+		skb_copy_to_linear_data(skb, src, len);
 #endif
 		skb_put(skb, len);
+		buffer_count++;
+		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 	}
 
 	if (csum)
@@ -677,10 +877,9 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 
 	*new_skb = skb;
 
-	q->stat.pass_cnt++;
-	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
+	q->stat.pass_cnt += buffer_count;
 
-	return 0;
+	return buffer_count;
 
 rx_error_on_desc:
 	mif_err_limited("Skip invalid descriptor at %d\n", q->done_ptr);
@@ -739,14 +938,12 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 	int ret = 0;
 	u32 num_frames = 0;
 	u32 rcvd_total = 0, rcvd_dit = 0;
+	u32 budget_used = 0;
 
 	if (!pktproc_check_active(q->ppa, q->q_idx))
 		return -EACCES;
 
-	if (q->ppa->use_napi)
-		num_frames = min_t(unsigned int, pktproc_get_usage(q), budget);
-	else
-		num_frames = pktproc_get_usage(q);
+	num_frames = pktproc_get_usage(q);
 
 	if (!num_frames)
 		return 0;
@@ -755,7 +952,7 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 			q->q_idx, num_frames,
 			*q->fore_ptr, *q->rear_ptr, q->done_ptr);
 
-	while (rcvd_total < num_frames) {
+	while (rcvd_total < num_frames && budget_used < budget) {
 		struct sk_buff *skb = NULL;
 
 		ret = q->get_packet(q, &skb);
@@ -763,11 +960,11 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 			mif_err_limited("get_packet() error %d\n", ret);
 			break;
 		}
-
-		rcvd_total++;
+		rcvd_total += ret;
+		budget_used++;
 		/* skb will be null if dit fills the skb */
 		if (!skb) {
-			rcvd_dit++;
+			rcvd_dit += ret; /* ret will be always 1 */
 			continue;
 		}
 
@@ -1226,8 +1423,8 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			break;
 		}
 
-		count += scnprintf(&buf[count], PAGE_SIZE - count, "  pass:%lld\n",
-			q->stat.pass_cnt);
+		count += scnprintf(&buf[count], PAGE_SIZE - count, "  pass:%lld lro:%lld\n",
+			q->stat.pass_cnt, q->stat.lro_cnt);
 		count += scnprintf(&buf[count], PAGE_SIZE - count,
 			"  fail:len%lld chid%lld addr%lld nomem%lld bmnomem%lld csum%lld\n",
 			q->stat.err_len, q->stat.err_chid, q->stat.err_addr,
@@ -1585,9 +1782,9 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 	} else
 		accum_buff_size = 0;
 
-	if (ppa->use_netrx_mng) {
-		ppa->skb_padding_size = NET_SKB_PAD + NET_IP_ALIGN;
-	} else {
+	if (ppa->use_netrx_mng)
+		ppa->skb_padding_size = max(NET_SKB_PAD + NET_IP_ALIGN, LRO_MAX_HEADLEN);
+	else {
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 		ppa->skb_padding_size = NET_SKB_PAD + NET_IP_ALIGN;
 #else
