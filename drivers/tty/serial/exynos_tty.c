@@ -1880,7 +1880,7 @@ static void exynos_serial_set_termios(struct uart_port *port,
 	port->status &= ~UPSTAT_AUTOCTS;
 
 	umcon = rd_regl(port, S3C2410_UMCON);
-	if (termios->c_cflag & CRTSCTS) {
+	if ((termios->c_cflag & CRTSCTS) && (!ourport->dbg_uart_ch)) {
 		umcon |= S3C2410_UMCOM_AFC;
 		port->status = UPSTAT_AUTOCTS;
 		if (ourport->uart_logging && !IS_ERR_OR_NULL(ourport->log))
@@ -2455,10 +2455,12 @@ static int exynos_serial_notifier(struct notifier_block *self,
 
 			spin_lock_irqsave(&port->lock, flags);
 
-			/* enable auto flow control */
-			umcon = rd_regl(port, S3C2410_UMCON);
-			umcon |= S3C2410_UMCOM_AFC;
-			wr_regl(port, S3C2410_UMCON, umcon);
+			if (!ourport->dbg_uart_ch) {
+				/* enable auto flow control */
+				umcon = rd_regl(port, S3C2410_UMCON);
+				umcon |= S3C2410_UMCOM_AFC;
+				wr_regl(port, S3C2410_UMCON, umcon);
+			}
 
 			spin_unlock_irqrestore(&port->lock, flags);
 
