@@ -296,7 +296,11 @@ int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on)
 			 * dwc3_otg_phy_enable function enables
 			 * both combo phy and usb2 phy
 			 */
-			pm_runtime_get_sync(dev);
+			ret = pm_runtime_get_sync(dev);
+			if (ret < 0) {
+				dev_err(dev, "failed to resume exynos device\n");
+				goto err;
+			}
 
 			exynos_usbdrd_phy_tune(dwc->usb2_generic_phy,
 							dotg->otg.state);
