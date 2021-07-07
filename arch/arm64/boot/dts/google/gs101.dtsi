@@ -38,6 +38,7 @@
 #include "gs101-isp.dtsi"
 #include "gs101-debug.dtsi"
 #include "gs101-s2mpu.dtsi"
+#include "gs101-pwm.dtsi"
 
 / {
 	compatible = "google,gs101";
