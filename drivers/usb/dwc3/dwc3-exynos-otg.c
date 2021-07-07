@@ -384,7 +384,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 
 	if (on) {
 		dotg->otg_connection = 1;
-
+		exynos->need_dr_role = 1;
 		while (dwc->gadget_driver == NULL) {
 			wait_counter++;
 			msleep(20);
@@ -398,6 +398,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 		if (!dwc->xhci) {
 			ret = dwc3_exynos_host_init(exynos);
 			if (ret) {
+				exynos->need_dr_role = 0;
 				dev_err(dev, "%s: failed to init dwc3 host\n", __func__);
 				goto err1;
 			}
@@ -407,7 +408,6 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 		temp_gadget_driver = dwc->gadget_driver;
 		dwc->gadget_driver = NULL;
 
-		exynos->need_dr_role = 1;
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
 		exynos->need_dr_role = 0;
 		if (ret) {
