@@ -1584,14 +1584,6 @@ static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
 {
 	int err;
 
-	err = sysfs_create_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
-	if (err) {
-		dev_err(hba->dev,
-			"%s: sysfs groups creation failed (err = %d)\n",
-			__func__, err);
-		return;
-	}
-
 	err = sysfs_update_group(&hba->dev->kobj,
 				&pixel_sysfs_health_descriptor_group);
 	if (err)
@@ -1640,6 +1632,18 @@ int pixel_init(struct ufs_hba *hba)
 				pixel_ufs_prepare_command, NULL);
 	if (ret)
 		return ret;
+
+	/*
+	 * We cannot call sysfs_create_groups in pixel_ufs_update_sysfs, since
+	 * vendor hooks do not allow using sleeping function. Let's create here.
+	 */
+	ret = sysfs_create_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
+	if (ret) {
+		dev_err(hba->dev,
+			"%s: sysfs groups creation failed (err = %d)\n",
+			__func__, ret);
+		return ret;
+	}
 
 	ret = register_trace_android_vh_ufs_update_sysfs(
 				pixel_ufs_update_sysfs, NULL);
