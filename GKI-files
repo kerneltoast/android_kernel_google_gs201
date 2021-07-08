@@ -1,4 +1,5 @@
 System.map
+vmlinux
 vmlinux.symvers
 modules.builtin
 modules.builtin.modinfo
