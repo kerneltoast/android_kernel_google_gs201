@@ -1074,11 +1074,14 @@
 		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
+		samsung,rts-gpio-control;
 		samsung,uart-logging;
 		#address-cells = <0x00000001>;
 		#size-cells = <0x00000000>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "rts", "tx_dat";
 		pinctrl-0 = <&uart18_bus>; /* or _bus_dual */
+		pinctrl-1 = <&uart18_bus_rts &uart18_bus_tx_con>;
+		pinctrl-2 = <&uart18_bus_tx_dat>;
 		clocks = <&clock MUX_APM_FUNC>, <&clock DOUT_CLK_APM_USI1_UART>;
 		clock-names = "gate_uart_clk18", "ipclk_uart18";
 		interrupts = <GIC_SPI IRQ_APM_USI1_UART_ALIVE ITLH>;
