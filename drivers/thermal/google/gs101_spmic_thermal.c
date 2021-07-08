@@ -265,6 +265,19 @@ static struct thermal_zone_of_device_ops gs101_spmic_thermal_ops = {
 	.set_emul_temp = gs101_spmic_thermal_set_emul_temp,
 };
 
+static ssize_t channel_temp_show(struct kobject *kobj,
+			 struct kobj_attribute *attr, char *buf)
+{
+	struct thermal_zone_device *tzd = to_thermal_zone(kobj_to_dev(
+			kobj->parent));
+
+	thermal_zone_device_update(tzd, THERMAL_EVENT_UNSPECIFIED);
+
+	return sysfs_emit(buf, "%d\n", tzd->temperature);
+}
+
+static struct kobj_attribute channel_temp_attr = __ATTR_RO(channel_temp);
+
 /*
  * Register thermal zones.
  */
@@ -274,6 +287,7 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 	struct thermal_zone_device *tzd;
 	struct device *dev = gs101_spmic_thermal->dev;
 	u8 mask = 0x1;
+	struct kobject *kobj;
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
 		dev_info(dev, "Registering %d sensor\n", i);
@@ -292,6 +306,8 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 			thermal_zone_device_enable(tzd);
 		else
 			thermal_zone_device_disable(tzd);
+		kobj = kobject_create_and_add("adc_channel", &tzd->device.kobj);
+		sysfs_create_file(kobj, &channel_temp_attr.attr);
 	}
 	return 0;
 }
