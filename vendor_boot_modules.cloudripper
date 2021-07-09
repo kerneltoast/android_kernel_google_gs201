@@ -11,6 +11,7 @@ aoc_control_dev.ko
 aoc_core.ko
 aoc_uwb_platform_drv.ko
 aoc_uwb_service_dev.ko
+at24.ko
 bbd.ko
 bc_max77759.ko
 bcm47765.ko
