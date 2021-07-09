@@ -234,7 +234,7 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 
 	/* ACPM Log data dequeue & print */
 	front = __raw_readl(buffer->log_buff_front);
-	rear = __raw_readl(buffer->log_buff_rear);
+	rear = buffer->rear_index;
 
 	while (rear != front) {
 		head = __raw_readl(buffer->log_buff_base +
@@ -253,7 +253,7 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 		else
 			rear++;
 
-		__raw_writel(rear, buffer->log_buff_rear);
+		buffer->rear_index = rear;
 		front = __raw_readl(buffer->log_buff_front);
 	}
 
