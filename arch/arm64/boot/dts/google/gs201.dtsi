@@ -636,9 +636,9 @@
 			/* vptid 4, size 2048KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x4 0x00040001 0x0 0x0 >;
 		};
-		CAMERA8WAY1 {
-			/* vptid 4, size 2048KB, priority 0 (highest), pbha 0 */
-			id_size_priority = < 0x4 0x00040001 0x0 0x0 >;
+		CAMERA12WAY0 {
+			/* vptid 4, size 3072KB, priority 0 (highest), pbha 0 */
+			id_size_priority = < 0x4 0x00080001 0x0 0x0 >;
 		};
 		bigocean {
 			/* vptid 3, 1536-256KB size, priority 0, pbha 0 */
