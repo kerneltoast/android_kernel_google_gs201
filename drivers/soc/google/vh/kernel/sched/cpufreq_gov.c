@@ -179,7 +179,7 @@ void reset_uclamp_stats(void)
 	}
 }
 
-static void init_uclamp_stats(void)
+void init_uclamp_stats(void)
 {
 	int i;
 
@@ -984,9 +984,6 @@ static int sugov_init(struct cpufreq_policy *policy)
 	struct sugov_policy *sg_policy;
 	struct sugov_tunables *tunables;
 	int ret = 0;
-#if IS_ENABLED(CONFIG_UCLAMP_STATS)
-	static bool uclamp_stats_need_init = true;
-#endif
 
 	/* State should be equivalent to EXIT */
 	if (policy->governor_data)
@@ -1039,12 +1036,6 @@ static int sugov_init(struct cpufreq_policy *policy)
 
 out:
 	mutex_unlock(&global_tunables_lock);
-#if IS_ENABLED(CONFIG_UCLAMP_STATS)
-	if (uclamp_stats_need_init) {
-		uclamp_stats_need_init = false;
-		init_uclamp_stats();
-	}
-#endif
 	return 0;
 
 fail:

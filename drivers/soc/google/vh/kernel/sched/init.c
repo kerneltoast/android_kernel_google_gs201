@@ -37,12 +37,21 @@ extern void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct
 			struct sched_entity *pse, int next_buddy_marked, unsigned int granularity);
 
 extern void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css);
+extern void init_uclamp_stats(void);
 
 extern struct cpufreq_governor sched_pixel_gov;
 
 static int vh_sched_init(void)
 {
 	int ret;
+
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
+	init_uclamp_stats();
+#endif
+
+	ret = create_sysfs_node();
+	if (ret)
+		return ret;
 
 	ret = register_trace_android_rvh_find_energy_efficient_cpu(
 						rvh_find_energy_efficient_cpu_pixel_mod, NULL);
@@ -54,10 +63,6 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_rvh_set_iowait(rvh_set_iowait_pixel_mod, NULL);
-	if (ret)
-		return ret;
-
-	ret = create_sysfs_node();
 	if (ret)
 		return ret;
 
