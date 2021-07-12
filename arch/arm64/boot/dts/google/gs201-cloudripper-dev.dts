@@ -9,6 +9,7 @@
 /plugin/;
 
 #include "gs201-cloudripper-common.dtsi"
+#include "gs201-cloudripper-audio.dtsi"
 
 / {
 	board_id = <0x30101>;

@@ -25,7 +25,6 @@
 #include "gs201-cloudripper-display.dtsi"
 #include "gs201-cloudripper-touch.dtsi"
 #include "gs201-cloudripper-typec.dtsi"
-#include "gs201-cloudripper-audio.dtsi"
 
 &bts_smc0 {
 	reg = <0x0 0x2084F258 0x4>;
