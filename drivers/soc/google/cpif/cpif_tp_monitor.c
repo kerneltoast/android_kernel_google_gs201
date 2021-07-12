@@ -436,14 +436,10 @@ static ssize_t tpmon_store_rps_map(struct netdev_rx_queue *queue,
 static void tpmon_set_rps(struct tpmon_data *data)
 {
 	struct io_device *iod;
-	struct mem_link_device *mld;
-	struct pktproc_adaptor *ppa;
 	unsigned long flags;
 	int ret = 0;
 	char mask[MAX_RPS_STRING];
 	u32 rps_value;
-	int q_stat;
-	int i;
 
 	if (!data->enable)
 		return;
@@ -451,27 +447,6 @@ static void tpmon_set_rps(struct tpmon_data *data)
 	rps_value = data->tpmon->use_user_value ?
 			data->user_value : data->values[data->curr_value_pos];
 	snprintf(mask, MAX_RPS_STRING, "%x", rps_value);
-
-	mld = to_mem_link_device(data->tpmon->ld);
-	ppa = &mld->pktproc;
-	if (ppa->use_exclusive_irq) {
-		for (i = 0; i < ppa->num_queue; i++) {
-			ppa->q[i]->disable_irq(ppa->q[i]);
-			if (ppa->use_napi)
-				napi_disable(&ppa->q[i]->napi);
-		}
-	}
-
-	for (i = 0; i < 1000; i++) {
-		tpmon_calc_netdev_backlog_queue_status(data->tpmon);
-		q_stat = data->tpmon->netdev_backlog_queue_status;
-		if (q_stat == 0)
-			break;
-
-		udelay(100);
-	}
-	if (q_stat)
-		mif_info("can not clear q_stat:%d\n", q_stat);
 
 	list_for_each_entry(iod, &data->tpmon->net_node_list, node_all_ndev) {
 		if (!iod->name)
@@ -501,14 +476,6 @@ static void tpmon_set_rps(struct tpmon_data *data)
 		if (ret < 0) {
 			mif_err("tpmon_store_rps_map() clat error:%d\n", ret);
 			break;
-		}
-	}
-
-	if (ppa->use_exclusive_irq) {
-		for (i = 0; i < ppa->num_queue; i++) {
-			if (ppa->use_napi)
-				napi_enable(&ppa->q[i]->napi);
-			ppa->q[i]->enable_irq(ppa->q[i]);
 		}
 	}
 
