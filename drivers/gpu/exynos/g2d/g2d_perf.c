@@ -145,7 +145,7 @@ u32 g2d_calc_device_frequency(struct g2d_device *g2d_dev,
 	 * Finally, the ip clock is multiplied by 10% weight to ensure
 	 * sufficient performance.
 	 */
-	ip_clock = (cycle / (1000 / (frame_rate + 10))) * 1100;
+	ip_clock = (cycle * (frame_rate + 10) * 11) / 10;
 
 	for (i = 0; i < g2d_dev->dvfs_table_cnt; i++) {
 		if (ip_clock > g2d_dev->dvfs_table[i].freq) {
