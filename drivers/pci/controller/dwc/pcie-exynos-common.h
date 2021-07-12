@@ -48,6 +48,9 @@
 #define PCI_EXT_CAP_ID_PHYLYR16		0x26
 #define PCI_EXT_CAP_ID_MRGN_EXT		0x27
 
+#define PCIE_PHY_ISOLATION	(0)
+#define PCIE_PHY_BYPASS		(1)
+
 /*
  * these defines are exported in a sysfs for user space functions to
  * have common values for link states.
@@ -306,6 +309,9 @@ struct exynos_pcie {
 	u32 btl_target_addr;
 	u32 btl_offset;
 	u32 btl_size;
+
+	bool use_phy_isol_con;
+	int phy_control;
 };
 
 #define PCIE_EXYNOS_OP_READ(base, type)						\

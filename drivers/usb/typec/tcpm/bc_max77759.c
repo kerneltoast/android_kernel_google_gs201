@@ -65,10 +65,12 @@ static void vendor_bc12_alert(struct work_struct *work)
 
 	mutex_lock(&bc12->lock);
 	logbuffer_log(plat->log,
-		      "VENDOR_ALERT1: %#x bc_stat1: %#x bc_stat2: %#x"
+		      "VENDOR_ALERT1: %#x bc_stat1: %#x bc_stat2: %#x bc12_enable:%c"
 		      , update->vendor_alert1_status, update->vendor_bc_status1,
-		      update->vendor_bc_status2);
+		      update->vendor_bc_status2, bc12->enable ? 'y' : 'n');
 
+	if (!bc12->enable)
+		goto exit;
 	/*
 	 * If Data contact Detect timeout interrupt is detected,
 	 * detection could report erroneous charger type,
@@ -131,6 +133,7 @@ static void vendor_bc12_alert(struct work_struct *work)
 			bc12->bc12_callback(bc12->chip, false);
 	}
 
+exit:
 	mutex_unlock(&bc12->lock);
 	devm_kfree(plat->dev, update);
 }
@@ -170,7 +173,7 @@ void bc12_enable(struct bc12_status *bc12, bool enable)
 	struct max77759_plat *plat = bc12->chip;
 	struct regmap *regmap = plat->data.regmap;
 
-	ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL1, CHGDETEN, CHGDETEN);
+	ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL1, CHGDETEN, enable ? CHGDETEN : 0);
 	logbuffer_log(plat->log, "BC12: %s ret: %d", enable ? "enabled" : "disabled", ret);
 	if (!ret)
 		bc12->enable = enable;
@@ -234,6 +237,8 @@ struct bc12_status *bc12_init(struct max77759_plat *plat, bc12_status_callback c
 		goto power_supply_put;
 	}
 
+	/* Enabled by default in hardware */
+	bc12->enable = true;
 	bc12->bc12_callback = callback;
 	bc12->chip = plat;
 	mutex_init(&bc12->lock);

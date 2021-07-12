@@ -298,6 +298,21 @@ static int exynos_pcie_rc_get_phy_vreg_resource(struct exynos_pcie *exynos_pcie)
 	return 0;
 }
 
+static void exynos_pcie_phy_isolation(struct exynos_pcie *exynos_pcie, int val)
+{
+	struct device *dev = exynos_pcie->pci->dev;
+	int ret;
+
+	dev_info(dev, "PCIe PHY ISOLATION = %d\n", val);
+	exynos_pcie->phy_control = val;
+	ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa +
+			   exynos_pcie->pmu_offset, PCIE_PHY_CONTROL_MASK, val);
+	if (ret)
+		regmap_update_bits(exynos_pcie->pmureg,
+				   exynos_pcie->pmu_offset,
+				   PCIE_PHY_CONTROL_MASK, val);
+}
+
 static void exynos_pcie_vreg_control(struct exynos_pcie *exynos_pcie, bool on)
 {
 	struct dw_pcie *pci = exynos_pcie->pci;
@@ -917,6 +932,11 @@ static int exynos_pcie_rc_rd_own_conf(struct pcie_port *pp, int where, int size,
 	u32 __maybe_unused reg_val;
 	unsigned long flags;
 
+	if (exynos_pcie->phy_control == PCIE_PHY_ISOLATION) {
+		*val = 0xffffffff;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
 	spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
 
 	if (exynos_pcie->state == STATE_LINK_UP)
@@ -957,7 +977,11 @@ static int exynos_pcie_rc_wr_own_conf(struct pcie_port *pp, int where, int size,
 	u32 __maybe_unused reg_val;
 	unsigned long flags;
 
+	if (exynos_pcie->phy_control == PCIE_PHY_ISOLATION)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
 	spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
+
 	if (exynos_pcie->state == STATE_LINK_UP)
 		is_linked = 1;
 
@@ -1182,9 +1206,40 @@ static int exynos_pcie_rc_wr_other_conf_new(struct pci_bus *bus,
 	return ret;
 }
 
+static int exynos_pcie_rc_rd_own_conf_new(struct pci_bus *bus,
+					  unsigned int devfn,
+					  int where, int size, u32 *val)
+{
+	struct pcie_port *pp = bus->sysdata;
+
+	if (PCI_SLOT(devfn) > 0) {
+		*val = ~0;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
+	return exynos_pcie_rc_rd_own_conf(pp, where, size, val);
+}
+
+static int exynos_pcie_rc_wr_own_conf_new(struct pci_bus *bus,
+					  unsigned int devfn,
+					  int where, int size, u32 val)
+{
+	struct pcie_port *pp = bus->sysdata;
+
+	if (PCI_SLOT(devfn) > 0)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	return exynos_pcie_rc_wr_own_conf(pp, where, size, val);
+}
+
 static struct pci_ops exynos_pcie_rc_child_ops = {
 	.read = exynos_pcie_rc_rd_other_conf_new,
 	.write = exynos_pcie_rc_wr_other_conf_new
+};
+
+static struct pci_ops exynos_pcie_rc_root_ops = {
+	.read = exynos_pcie_rc_rd_own_conf_new,
+	.write = exynos_pcie_rc_wr_own_conf_new
 };
 
 u32 exynos_pcie_rc_read_dbi(struct dw_pcie *pci, void __iomem *base, u32 reg, size_t size)
@@ -1299,6 +1354,7 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	const char *use_l1ss;
 	const char *use_nclkoff_en;
 	const char *use_pcieon_sleep;
+	const char *use_phy_isol_con;
 
 	if (of_property_read_u32(np, "ip-ver", &exynos_pcie->ip_ver)) {
 		dev_err(dev, "Failed to parse the number of ip-ver\n");
@@ -1465,6 +1521,25 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	} else {
 		exynos_pcie->use_nclkoff_en = false;
 	}
+
+	if (!of_property_read_string(np, "use-phy-isol-en", &use_phy_isol_con)) {
+		if (!strcmp(use_phy_isol_con, "true")) {
+			dev_info(dev, "PCIe DYNAMIC PHY ISOLATION is Enabled.\n");
+			exynos_pcie->use_phy_isol_con = true;
+		} else if (!strcmp(use_phy_isol_con, "false")) {
+			dev_info(dev, "PCIe DYNAMIC PHY ISOLATION is Disabled.\n");
+			exynos_pcie->use_phy_isol_con = false;
+		} else {
+			dev_err(dev, "Invalid use-phy-isol-en value(set to default -> false)\n");
+			exynos_pcie->use_phy_isol_con = false;
+		}
+	} else {
+		exynos_pcie->use_phy_isol_con = false;
+	}
+
+	if (!exynos_pcie->use_phy_isol_con)
+		exynos_pcie->phy_control = PCIE_PHY_BYPASS;
+
 #if IS_ENABLED(CONFIG_PM_DEVFREQ)
 	if (of_property_read_u32(np, "pcie-pm-qos-int", &exynos_pcie->int_min_lock))
 		exynos_pcie->int_min_lock = 0;
@@ -2122,21 +2197,15 @@ void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	int ret;
 
-	/* phy all power down during suspend/resume */
 	ret = exynos_pcie_rc_clock_enable(pp, PCIE_ENABLE_CLOCK);
 	dev_dbg(dev, "pcie clk enable, ret value = %d\n", ret);
 
 	exynos_pcie_rc_enable_interrupts(pp, 0);
-	/* PCIe PHY VREG on/off in L2 */
-	/* 1. PCIe PHY VREG On */
 	exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
-	/* 2. PMU: PCIe PHY input isolation bypassed - 1 (0: isolation) */
-	rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
-		     PCIE_PHY_CONTROL_MASK, 1);
+	exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
 
 	exynos_pcie_rc_assert_phy_reset(pp);
 
-	/* phy all power down */
 	if (exynos_pcie->phy_ops.phy_all_pwrdn)
 		exynos_pcie->phy_ops.phy_all_pwrdn(exynos_pcie, exynos_pcie->ch_num);
 
@@ -2218,7 +2287,12 @@ static void exynos_pcie_setup_rc(struct pcie_port *pp)
 
 static int exynos_pcie_rc_init(struct pcie_port *pp)
 {
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+
 	/* Setup RC to avoid initialization faile in PCIe stack */
+	if (exynos_pcie->use_phy_isol_con)
+		pp->bridge->ops = &exynos_pcie_rc_root_ops;
 	pp->bridge->child_ops = &exynos_pcie_rc_child_ops;
 	dw_pcie_setup_rc(pp);
 
@@ -2673,6 +2747,9 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 	dev_info(dev, "start poweron, state: %d\n", exynos_pcie->state);
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
+		if (exynos_pcie->use_phy_isol_con)
+			exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
+
 		if (exynos_pcie->use_pcieon_sleep) {
 			dev_dbg(dev, "%s, pcie_is_linkup 1\n", __func__);
 			pcie_is_linkup = 1;
@@ -2703,13 +2780,8 @@ int exynos_pcie_rc_poweron(int ch_num)
 				     exynos_pcie->pin_state[PCIE_PIN_ACTIVE]);
 
 		if (!exynos_pcie->vreg_enable) {
-			/* PCIe PHY VREG on/off in L2 */
-			/* 1. PCIe PHY VREG On */
 			exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
-			/* 2. PMU: PCIe PHY input isolation bypassed - 1(0: isolated) */
-			rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
-				     PCIE_PHY_CONTROL_MASK, 1);
-			dev_info(dev, "[%s]# PCIe PMU regmap update: 1(BYPASS) #\n", __func__);
+			exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
 		}
 
 		/* phy all power down clear */
@@ -2923,6 +2995,9 @@ void exynos_pcie_rc_poweroff(int ch_num)
 			exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_IDLE);
 		}
 #endif
+		if (exynos_pcie->use_phy_isol_con)
+			exynos_pcie_phy_isolation(exynos_pcie,
+						  PCIE_PHY_ISOLATION);
 	}
 
 	if (exynos_pcie->use_pcieon_sleep) {
@@ -3725,6 +3800,9 @@ int exynos_pcie_rc_itmon_notifier(struct notifier_block *nb, unsigned long actio
 	if (IS_ERR_OR_NULL(itmon_info))
 		return NOTIFY_DONE;
 
+	if (exynos_pcie->phy_control == PCIE_PHY_ISOLATION)
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
+
 	/* only for 9830 HSI2 block */
 	if (exynos_pcie->ip_ver == 0x983000) {
 		if ((itmon_info->port && !strcmp(itmon_info->port, "HSI2")) ||
@@ -4138,6 +4216,8 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, exynos_pcie);
 
 probe_fail:
+	if (exynos_pcie->use_phy_isol_con)
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
 
 	if (ret)
 		dev_err(&pdev->dev, "## %s: PCIe probe failed\n", __func__);
@@ -4160,13 +4240,9 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
-		/* 1. PMU: PCIe PHY input isolation - 0: isolated (1: bypassed) */
-		dev_info(dev, "[%s] # PCIe PMU ISOLATION #\n", __func__);
-		rmw_priv_reg(exynos_pcie->pmu_alive_pa + exynos_pcie->pmu_offset,
-			     PCIE_PHY_CONTROL_MASK, 0);
-
-		/*  2. PCIe PHY VREG off */
-		dev_info(dev, "[%s] # VREG OFF: vreg_control(PHY_VREG_OFF) #\n", __func__);
+		dev_info(dev, "PCIe PMU ISOLATION\n");
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
+		dev_info(dev, "VREG OFF\n");
 		exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_OFF);
 	}
 
@@ -4187,11 +4263,33 @@ static int exynos_pcie_rc_resume_noirq(struct device *dev)
 
 	return 0;
 }
+
+static int exynos_pcie_suspend_prepare(struct device *dev)
+{
+	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+
+	if (exynos_pcie->use_phy_isol_con)
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
+
+	return 0;
+}
+
+static void exynos_pcie_resume_complete(struct device *dev)
+{
+	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+
+	if (exynos_pcie->use_phy_isol_con &&
+	    exynos_pcie->state == STATE_LINK_DOWN)
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
+}
+
 #endif
 
 static const struct dev_pm_ops exynos_pcie_rc_pm_ops = {
 	.suspend_noirq	= exynos_pcie_rc_suspend_noirq,
 	.resume_noirq	= exynos_pcie_rc_resume_noirq,
+	.prepare	= exynos_pcie_suspend_prepare,
+	.complete	= exynos_pcie_resume_complete,
 };
 
 static const struct of_device_id exynos_pcie_rc_of_match[] = {

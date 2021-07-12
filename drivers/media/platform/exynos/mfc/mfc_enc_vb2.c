@@ -366,6 +366,7 @@ static int mfc_enc_start_streaming(struct vb2_queue *q, unsigned int count)
 				core_ctx->state);
 	}
 
+	mfc_rm_update_real_time(ctx);
 	mfc_rm_request_work(dev, MFC_WORK_TRY, ctx);
 
 	return 0;

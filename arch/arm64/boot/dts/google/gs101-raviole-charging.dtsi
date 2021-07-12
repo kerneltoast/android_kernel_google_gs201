@@ -42,6 +42,7 @@
 				google,fv-max-uv = <4450000>;
 
 				google,wlc-thermal-mitigation = <1100000 500000 250000>;
+				google,therm-wlc-overrides-fcc;
 
 				/* b/170700459 thresholds, updated in b/191070950 */
 				google,bd-resume-abs-temp = <280>;
@@ -106,7 +107,7 @@
 
 		pca9468,float-voltage = <4300000>; /* 4.3V */
 
-		pca9468,input-itopoff = <500000>; /* 500mA */
+		pca9468,input-itopoff = <600000>; /* 600mA */
 		pca9468,sense-resistance = <0>; /* 5mOhm */
 		pca9468,switching-frequency = <3>; /* 980KHz */
 

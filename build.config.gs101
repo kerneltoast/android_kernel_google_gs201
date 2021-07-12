@@ -13,6 +13,8 @@ MAKE_GOALS=
 KERNEL_BINARY=Image.lz4
 
 if [ -z "$MIXED_BUILD" ]; then
+USING_PREBUILTS=
+
 MAKE_GOALS="
 ${KERNEL_BINARY}
 "
@@ -23,6 +25,12 @@ vmlinux
 System.map
 arch/arm64/boot/${KERNEL_BINARY}
 "
+fi
+
+if [ -n "${USING_PREBUILTS}" ]; then
+BUILD_VENDOR_BOOT_IMG=1
+else
+BUILD_BOOT_IMG=1
 fi
 
 ABI_DEFINITION=android/abi_gki_aarch64_generic.xml
@@ -37,6 +45,8 @@ android/abi_gki_aarch64_exynos
 android/abi_gki_aarch64_mtk
 android/abi_gki_aarch64_xiaomi
 android/abi_gki_aarch64_fips140
+android/abi_gki_aarch64_exynosauto
+android/abi_gki_aarch64_vivo
 android/abi_gki_aarch64
 "
 TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
@@ -47,7 +57,6 @@ KMI_SYMBOL_LIST_MODULE_GROUPING=0
 BUILD_INITRAMFS=1
 INITRAMFS_VENDOR_RAMDISK_FRAGMENT_NAME=dlkm
 LZ4_RAMDISK=1
-BUILD_BOOT_IMG=1
 BOOT_IMAGE_HEADER_VERSION=4
 VENDOR_DLKM_MODULES_LIST=${KERNEL_DIR}/vendor_dlkm_modules.slider
 VENDOR_DLKM_PROPS=${KERNEL_DIR}/vendor_dlkm.props.slider

@@ -26,6 +26,7 @@
 #include <soc/google/exynos_cpu_cooling.h>
 #include "../thermal_core.h"
 
+#include <trace/events/power.h>
 #include <trace/events/thermal_exynos.h>
 /*
  * Cooling state <-> CPUFreq frequency
@@ -576,6 +577,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	if (ret == 1) {
 		ret = 0;
+		trace_clock_set_rate(cdev->type, cpufreq_cdev->sysfs_req, raw_smp_processor_id());
 		trace_vendor_cdev_update(cdev->type, cpufreq_cdev->sysfs_req, state);
 	}
 
@@ -857,6 +859,26 @@ skip_ect:
 }
 
 ssize_t
+state2power_table_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct exynos_cpu_cooling_device *cpufreq_cdev = cdev->devdata;
+	int i, count = 0;
+	u32 power;
+
+	if (!cpufreq_cdev)
+		return -ENODEV;
+
+	for (i = 0; i <= cpufreq_cdev->max_level; i++) {
+		cpufreq_state2power(cdev, i, &power);
+		count += sysfs_emit_at(buf, count, "%u ", power);
+	}
+	count += sysfs_emit_at(buf, count, "\n");
+
+	return count;
+}
+
+ssize_t
 user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -895,6 +917,7 @@ ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR_RW(user_vote);
+static DEVICE_ATTR_RO(state2power_table);
 
 /**
  * __exynos_cpu_cooling_register - helper function to create cpufreq cooling device
@@ -922,6 +945,7 @@ __exynos_cpu_cooling_register(struct device_node *np,
 	struct device *dev;
 	int ret;
 	struct thermal_cooling_device_ops *cooling_ops = &exynos_cpu_cooling_ops;
+	u32 power;
 
 	dev = get_cpu_device(policy->cpu);
 	if (unlikely(!dev)) {
@@ -1015,6 +1039,12 @@ __exynos_cpu_cooling_register(struct device_node *np,
 		goto remove_qos_req;
 	}
 
+	ret = device_create_file(&cdev->device, &dev_attr_state2power_table);
+	if (ret) {
+		thermal_cooling_device_unregister(cdev);
+		goto remove_qos_req;
+	}
+
 	/* This needs to be done before thermal_of_cooling_device_register ... */
 	cpufreq_cdev->tzd = parse_ect_cooling_level(cdev, cooling_name);
 
@@ -1026,6 +1056,13 @@ __exynos_cpu_cooling_register(struct device_node *np,
 		policy->cpu, capacitance,
 		cooling_ops == &exynos_cpu_power_cooling_ops ? "true" : "false",
 		cpufreq_cdev->has_static ? "true" : "false");
+
+	for (i = 0; i <= cpufreq_cdev->max_level; i++) {
+		cpufreq_state2power(cdev, i, &power);
+		pr_debug("cpu_cooling %d: state:%u power:%u\n", policy->cpu,
+			i, power);
+	}
+
 	return cdev;
 
 remove_qos_req:

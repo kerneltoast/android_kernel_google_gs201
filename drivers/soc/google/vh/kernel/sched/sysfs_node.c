@@ -179,6 +179,20 @@ VENDOR_GROUP_UINT_ATTRIBUTE(rt, group_throttle, VG_RT);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(rt, uclamp_min, VG_RT, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(rt, uclamp_max, VG_RT, UCLAMP_MAX);
 
+VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, prefer_idle, VG_DEX2OAT);
+VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, prefer_high_cap, VG_DEX2OAT);
+VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, task_spreading, VG_DEX2OAT);
+VENDOR_GROUP_UINT_ATTRIBUTE(dex2oat, group_throttle, VG_DEX2OAT);
+VENDOR_GROUP_UCLAMP_ATTRIBUTE(dex2oat, uclamp_min, VG_DEX2OAT, UCLAMP_MIN);
+VENDOR_GROUP_UCLAMP_ATTRIBUTE(dex2oat, uclamp_max, VG_DEX2OAT, UCLAMP_MAX);
+
+VENDOR_GROUP_BOOL_ATTRIBUTE(sf, prefer_idle, VG_SF);
+VENDOR_GROUP_BOOL_ATTRIBUTE(sf, prefer_high_cap, VG_SF);
+VENDOR_GROUP_BOOL_ATTRIBUTE(sf, task_spreading, VG_SF);
+VENDOR_GROUP_UINT_ATTRIBUTE(sf, group_throttle, VG_SF);
+VENDOR_GROUP_UCLAMP_ATTRIBUTE(sf, uclamp_min, VG_SF, UCLAMP_MIN);
+VENDOR_GROUP_UCLAMP_ATTRIBUTE(sf, uclamp_max, VG_SF, UCLAMP_MAX);
+
 /// ******************************************************************************** ///
 /// ********************* From upstream code for uclamp **************************** ///
 /// ******************************************************************************** ///
@@ -569,8 +583,11 @@ SET_TASK_GROUP_STORE(bg, VG_BACKGROUND);
 SET_TASK_GROUP_STORE(sysbg, VG_SYSTEM_BACKGROUND);
 SET_TASK_GROUP_STORE(nnapi, VG_NNAPI_HAL);
 SET_TASK_GROUP_STORE(rt, VG_RT);
+SET_TASK_GROUP_STORE(dex2oat, VG_DEX2OAT);
+SET_TASK_GROUP_STORE(sf, VG_SF);
 
-static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "bg", "sys_bg", "nnapi", "rt"};
+static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "bg", "sys_bg", "nnapi", "rt",
+				       "dex2oat", "sf"};
 
 static int dump_task_show(struct seq_file *m, void *v)
 {									      \
@@ -914,6 +931,20 @@ static struct attribute *attrs[] = {
 	&rt_group_throttle_attribute.attr,
 	&rt_uclamp_min_attribute.attr,
 	&rt_uclamp_max_attribute.attr,
+	// DEX2OAT group attributes
+	&dex2oat_prefer_idle_attribute.attr,
+	&dex2oat_prefer_high_cap_attribute.attr,
+	&dex2oat_task_spreading_attribute.attr,
+	&dex2oat_group_throttle_attribute.attr,
+	&dex2oat_uclamp_min_attribute.attr,
+	&dex2oat_uclamp_max_attribute.attr,
+	// SF group attributes
+	&sf_prefer_idle_attribute.attr,
+	&sf_prefer_high_cap_attribute.attr,
+	&sf_task_spreading_attribute.attr,
+	&sf_group_throttle_attribute.attr,
+	&sf_uclamp_min_attribute.attr,
+	&sf_uclamp_max_attribute.attr,
 	// Vendor task attributes
 	&set_task_group_ta_attribute.attr,
 	&set_task_group_fg_attribute.attr,
@@ -923,6 +954,8 @@ static struct attribute *attrs[] = {
 	&set_task_group_sysbg_attribute.attr,
 	&set_task_group_nnapi_attribute.attr,
 	&set_task_group_rt_attribute.attr,
+	&set_task_group_dex2oat_attribute.attr,
+	&set_task_group_sf_attribute.attr,
 	&clear_group_attribute.attr,
 	// Uclamp stats
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)

@@ -110,6 +110,9 @@ struct dwc3_exynos {
 	int			retry_cnt;
 
 	struct delayed_work	usb_qos_lock_delayed_work;
+
+	/* Flag for setting current_dr_role peripheral */
+	int			need_dr_role;
 };
 
 bool dwc3_exynos_rsw_available(struct device *dev);

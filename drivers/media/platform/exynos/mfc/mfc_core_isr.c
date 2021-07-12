@@ -468,9 +468,9 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 		switch (frame_type) {
 			case MFC_REG_DISPLAY_FRAME_I:
 				dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
-				if (idr_flag) {
-					mfc_set_mb_flag(dst_mb, MFC_FLAG_IDR);
-					mfc_debug(2, "[FRAME] keyframe IDR\n");
+				if (!(CODEC_HAS_IDR(ctx) && !idr_flag)) {
+					mfc_set_mb_flag(dst_mb, MFC_FLAG_SYNC_FRAME);
+					mfc_debug(2, "[FRAME] syncframe IDR\n");
 				}
 				break;
 			case MFC_REG_DISPLAY_FRAME_P:
@@ -1006,6 +1006,7 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 			ctx->ts_is_full = 0;
 			mfc_qos_reset_last_framerate(ctx);
 			mfc_qos_set_framerate(ctx, DEC_DEFAULT_FPS);
+			mfc_core_qos_on(core, ctx);
 
 			goto leave_handle_frame;
 		} else {
@@ -1229,9 +1230,10 @@ move_buf:
 static void __mfc_handle_stream_output(struct mfc_core *core,
 		struct mfc_ctx *ctx, int slice_type, unsigned int strm_size)
 {
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_buf *dst_mb;
-	unsigned int index;
+	unsigned int index, idr_flag = 1;
 
 	if (strm_size == 0) {
 		mfc_debug(3, "no encoded dst (reuse)\n");
@@ -1248,12 +1250,20 @@ static void __mfc_handle_stream_output(struct mfc_core *core,
 	mfc_debug(2, "[BUFINFO] ctx[%d] get dst addr: 0x%08llx\n",
 			ctx->num, dst_mb->addr[0][0]);
 
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->enc_idr_flag))
+		idr_flag = mfc_core_get_enc_idr_flag();
+
+	mfc_clear_mb_flag(dst_mb);
 	dst_mb->vb.flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
 				V4L2_BUF_FLAG_PFRAME |
 				V4L2_BUF_FLAG_BFRAME);
 	switch (slice_type) {
 	case MFC_REG_E_SLICE_TYPE_I:
 		dst_mb->vb.flags |= V4L2_BUF_FLAG_KEYFRAME;
+		if (!(CODEC_HAS_IDR(ctx) && !idr_flag)) {
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_SYNC_FRAME);
+			mfc_debug(2, "[STREAM] syncframe IDR\n");
+		}
 		break;
 	case MFC_REG_E_SLICE_TYPE_P:
 		dst_mb->vb.flags |= V4L2_BUF_FLAG_PFRAME;

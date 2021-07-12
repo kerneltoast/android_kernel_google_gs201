@@ -37,11 +37,15 @@ static const struct spi_device dummy_spi = {
 };
 #endif
 
-#ifdef CONFIG_BCM_GPS_SPI_DRIVER
-extern bool ssi_dbg;
-extern bool ssi_dbg_pzc;
-extern bool ssi_dbg_rng;
-#endif
+#if IS_ENABLED(CONFIG_BCM_GPS_SPI_DRIVER)
+bool ssi_dbg;
+EXPORT_SYMBOL_GPL(ssi_dbg);
+bool ssi_dbg_pzc = true; /* SHOULD BE TRUE */
+EXPORT_SYMBOL_GPL(ssi_dbg_pzc);
+bool ssi_dbg_rng;
+EXPORT_SYMBOL_GPL(ssi_dbg_rng);
+#endif /* IS_ENABLED(CONFIG_BCM_GPS_SPI_DRIVER) */
+
 
 #ifdef BBD_PWR_STATUS
 struct gnss_pwrstats {
@@ -287,7 +291,7 @@ ssize_t bbd_control(const char *buf, ssize_t len)
 		ssp_dbg = false;
 		ssp_pkt_dbg = false;
 #endif
-#ifdef CONFIG_BCM_GPS_SPI_DRIVER
+#if IS_ENABLED(CONFIG_BCM_GPS_SPI_DRIVER)
 	} else if (!strcmp(buf, SSI_DEBUG_ON)) {
 		ssi_dbg = true;
 	} else if (!strcmp(buf, SSI_DEBUG_OFF)) {
@@ -300,7 +304,7 @@ ssize_t bbd_control(const char *buf, ssize_t len)
 		ssi_dbg_rng = true;
 	} else if (!strcmp(buf, RNG_DEBUG_OFF)) {
 		ssi_dbg_rng = false;
-#endif
+#endif /* IS_ENABLED(CONFIG_BCM_GPS_SPI_DRIVER) */
 #ifdef BBD_PWR_STATUS
 	} else if (!strcmp(buf, GPSD_CORE_ON)) {
 		u64 now = ktime_to_us(ktime_get_boottime());

@@ -25,6 +25,8 @@ enum vendor_group {
 	VG_SYSTEM_BACKGROUND,
 	VG_NNAPI_HAL,
 	VG_RT,
+	VG_DEX2OAT,
+	VG_SF,
 	VG_MAX,
 };
 

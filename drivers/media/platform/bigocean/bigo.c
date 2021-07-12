@@ -164,27 +164,30 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 	bigo_bypass_ssmt_pid(core);
 	bigo_push_regs(core, job->regs);
 	bigo_core_enable(core);
-	ret = wait_for_completion_interruptible_timeout(&core->frame_done,
-							msecs_to_jiffies(JOB_COMPLETE_TIMEOUT_MS));
+	ret = wait_for_completion_timeout(&core->frame_done,
+			msecs_to_jiffies(JOB_COMPLETE_TIMEOUT_MS));
 	if (!ret) {
-		pr_err("timed out waiting for HW: %d\n", rc);
+		pr_err("timed out waiting for HW\n");
 		bigo_core_disable(core);
 		rc = -ETIMEDOUT;
 	} else {
-		rc = (ret > 0) ? 0 : ret;
+		rc = 0;
 	}
 
 	status = bigo_check_status(core);
-	rc = bigo_wait_disabled(core, BIGO_DISABLE_TIMEOUT_MS);
-	if (rc || core->debugfs.trigger_ssr) {
+	ret = bigo_wait_disabled(core, BIGO_DISABLE_TIMEOUT_MS);
+	if (rc || ret || core->debugfs.trigger_ssr) {
 		if(core->debugfs.trigger_ssr)
 			rc = -EFAULT;
-		pr_err("Failed to disable hw: %d, status: 0x%x\n", rc, status);
+		pr_err("timed out or failed to disable hw: %d, %ld, status: 0x%x\n",
+				rc, ret, status);
 		bigo_coredump(core, "bigo_timeout");
 	}
 
 	bigo_pull_regs(core, job->regs);
 	*(u32 *)(job->regs + BIGO_REG_STAT) = status;
+	if (rc || ret)
+		rc = -ETIMEDOUT;
 	return rc;
 }
 

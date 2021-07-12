@@ -814,8 +814,8 @@ static struct iommu_device *samsung_sysmmu_probe_device(struct device *dev)
 				device_link_del(client->dev_link[i]);
 			return ERR_PTR(-EINVAL);
 		}
-		dev_info(dev, "device link to %s\n",
-			 dev_name(client->sysmmus[i]->dev));
+		dev_dbg(dev, "device link to %s\n",
+			dev_name(client->sysmmus[i]->dev));
 	}
 
 	return &client->sysmmus[0]->iommu;
@@ -1322,7 +1322,6 @@ static int __sysmmu_secure_irq_init(struct device *sysmmu,
 		dev_err(sysmmu, "failed to get secure base\n");
 		return ret;
 	}
-	dev_info(sysmmu, "secure base = %#x\n", data->secure_base);
 
 	return ret;
 }
@@ -1429,7 +1428,6 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 
 	data->clk = devm_clk_get(dev, "gate");
 	if (PTR_ERR(data->clk) == -ENOENT) {
-		dev_info(dev, "no gate clock exists. it's okay.\n");
 		data->clk = NULL;
 	} else if (IS_ERR(data->clk)) {
 		dev_err(dev, "failed to get clock!\n");
@@ -1478,10 +1476,11 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	dev_info(dev, "initialized IOMMU. Ver %d.%d.%d\n",
+	dev_info(dev, "initialized IOMMU. Ver %d.%d.%d, %sgate clock\n",
 		 MMU_MAJ_VER(data->version),
 		 MMU_MIN_VER(data->version),
-		 MMU_REV_VER(data->version));
+		 MMU_REV_VER(data->version),
+		 data->clk ? "" : "no ");
 	return 0;
 
 err_global_init:

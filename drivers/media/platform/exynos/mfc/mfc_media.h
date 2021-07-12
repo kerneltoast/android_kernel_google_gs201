@@ -203,6 +203,8 @@ enum v4l2_mpeg_mfc51_video_frame_type {
 					(V4L2_CID_MPEG_MFC_BASE + 34)
 #define V4L2_CID_MPEG_VIDEO_GOP_CTRL			\
 					(V4L2_CID_MPEG_MFC_BASE + 35)
+#define V4L2_CID_MPEG_VIDEO_PRIORITY			\
+					(V4L2_CID_MPEG_MFC_BASE + 36)
 
 #define V4L2_CID_MPEG_VIDEO_CHROMA_QP_OFFSET_CB		\
 					(V4L2_CID_MPEG_MFC_BASE + 38)

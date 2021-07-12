@@ -167,6 +167,7 @@ struct samsung_pin_bank {
 	u32		eint_offset;
 	u32		eint_num;
 	u32		fltcon_offset;
+	unsigned long	eint_disabled;
 	const char	*name;
 
 	u32		pin_base;

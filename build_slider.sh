@@ -28,8 +28,10 @@ if [ -z "${BUILD_KERNEL}" ]; then
 fi
 
 if [ "${BUILD_KERNEL}" = "0" ]; then
+  USING_PREBUILTS=1
   GKI_KERNEL_PREBUILTS_DIR=$(readlink -m "prebuilts/boot-artifacts/kernel/")
 else
+  USING_PREBUILTS=
   if [ "${EXPERIMENTAL_BUILD}" != "0" ]; then
     GKI_KERNEL_OUT_DIR=android12-5.10-staging
     GKI_KERNEL_BUILD_CONFIG=common/build.config.gki.aarch64
@@ -86,6 +88,7 @@ export KMI_SYMBOL_LIST_STRICT_MODE
 export TRIM_NONLISTED_KMI
 export BASE_OUT=${OUT_DIR:-out}/mixed/
 export DIST_DIR=${DIST_DIR:-${BASE_OUT}/dist/}
+export USING_PREBUILTS
 
 DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
   GKI_KERNEL_BUILD_CONFIG=${GKI_KERNEL_BUILD_CONFIG} \
@@ -96,10 +99,16 @@ DEVICE_KERNEL_BUILD_CONFIG=${DEVICE_KERNEL_BUILD_CONFIG} \
 
 exit_if_error $? "Failed to create mixed build"
 
+if [ -f ${GKI_KERNEL_PREBUILTS_DIR}/vmlinux ]; then
+  SHA_FILE=vmlinux
+else
+  SHA_FILE=boot.img
+fi
+
 # If BUILD_KERNEL is not explicitly set, be sure that there are no aosp/
 # changes not present in the prebuilt.
 if [ "${CHECK_DIRTY_AOSP}" != "0" ]; then
-  PREBUILTS_SHA=$(strings ${GKI_KERNEL_PREBUILTS_DIR}/vmlinux |
+  PREBUILTS_SHA=$(strings ${GKI_KERNEL_PREBUILTS_DIR}/${SHA_FILE} |
                      grep "Linux version 5.10" |
                      sed -n "s/^.*-g\([0-9a-f]\{12\}\)-.*/\1/p")
   pushd aosp/ > /dev/null

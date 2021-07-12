@@ -296,7 +296,11 @@ int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on)
 			 * dwc3_otg_phy_enable function enables
 			 * both combo phy and usb2 phy
 			 */
-			pm_runtime_get_sync(dev);
+			ret = pm_runtime_get_sync(dev);
+			if (ret < 0) {
+				dev_err(dev, "failed to resume exynos device\n");
+				goto err;
+			}
 
 			exynos_usbdrd_phy_tune(dwc->usb2_generic_phy,
 							dotg->otg.state);
@@ -376,9 +380,11 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 	int ret1 = -1;
 	int wait_counter = 0;
 
+	__pm_stay_awake(dotg->wakelock);
+
 	if (on) {
 		dotg->otg_connection = 1;
-
+		exynos->need_dr_role = 1;
 		while (dwc->gadget_driver == NULL) {
 			wait_counter++;
 			msleep(20);
@@ -392,6 +398,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 		if (!dwc->xhci) {
 			ret = dwc3_exynos_host_init(exynos);
 			if (ret) {
+				exynos->need_dr_role = 0;
 				dev_err(dev, "%s: failed to init dwc3 host\n", __func__);
 				goto err1;
 			}
@@ -402,6 +409,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 		dwc->gadget_driver = NULL;
 
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
+		exynos->need_dr_role = 0;
 		if (ret) {
 			dev_err(dwc->dev, "%s: failed to reinitialize core\n",
 					__func__);
@@ -442,6 +450,7 @@ err2:
 		dwc->gadget_driver = temp_gadget_driver;
 	}
 err1:
+	__pm_relax(dotg->wakelock);
 	return ret;
 }
 
@@ -508,7 +517,9 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			}
 		}
 
+		exynos->need_dr_role = 1;
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
+		exynos->need_dr_role = 0;
 		if (ret) {
 			dev_err(dev, "%s: failed to reinitialize core\n",
 					__func__);
@@ -533,13 +544,13 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 				!dotg->in_shutdown)
 			dwc3_exynos_gadget_disconnect_proc(dwc);
 
-		/* Wait until gadget stop */
-		while (dwc->gadget_driver != NULL) {
+		/* Wait until dwc connected is off */
+		while (dwc->connected) {
 			wait_counter++;
-			usleep_range(100, 200);
+			msleep(20);
 
-			if (wait_counter > 500) {
-				dev_err(dev, "Can't wait gadget stop!\n");
+			if (wait_counter > 20) {
+				dev_err(dev, "Can't wait dwc disconnect!\n");
 				break;
 			}
 		}

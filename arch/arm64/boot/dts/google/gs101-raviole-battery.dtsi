@@ -42,7 +42,7 @@
 				google,fv-uv-margin-dpct = <1025>;
 				/* tier switch */
 				google,cv-range-accuracy = <20000>;
-				google,cv-otv-margin = <12000>;
+				google,cv-otv-margin = <25000>;
 				google,cv-debounce-cnt = <3>;
 				google,cv-tier-ov-cnt = <10>;
 				google,cv-tier-switch-cnt = <3>;
