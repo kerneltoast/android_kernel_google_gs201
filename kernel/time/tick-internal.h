@@ -175,3 +175,5 @@ void timer_clear_idle(void);
 
 void clock_was_set(unsigned int bases);
 void clock_was_set_delayed(void);
+
+void hrtimers_resume_local(void);
