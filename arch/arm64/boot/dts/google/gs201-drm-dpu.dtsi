@@ -238,10 +238,13 @@
 		      <0x0 0x1C250000 0x6000>,	/* DECON_WIN */
 		      <0x0 0x1C260000 0x10000>,	/* DECON_SUB */
 		      <0x0 0x1C270000 0x6000>,	/* DECON0_WINCON */
-		      <0x0 0x1C2A0000 0xF000>;	/* DQE0 */
-		reg-names = "main", "win", "sub", "wincon", "dqe";
+		      <0x0 0x1C2A0000 0xF000>,	/* DQE0 */
+		      <0x0 0x1C0BE000 0x1000>;	/* CGC_DMA */
+
+		reg-names = "main", "win", "sub", "wincon", "dqe", "cgc-dma";
 
 		decon,id = <0>;
+		cgc-dma,id = <9>;
 
 		interrupts = <GIC_SPI IRQ_DISP_DECON0_FRAME_START_DISP
 				IRQ_TYPE_LEVEL_HIGH>,
@@ -252,9 +255,11 @@
 			     <GIC_SPI IRQ_DISP_DECON0_DQE_DIMMING_START_DISP
 				IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI IRQ_DISP_DECON0_DQE_DIMMING_END_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DPU_DMA_CGC0_DPU
 				IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "frame_start", "frame_done", "extra",
-				"dimming_start", "dimming_end";
+				"dimming_start", "dimming_end", "cgc-dma";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
 		samsung,tzmp;
@@ -311,10 +316,12 @@
 		      <0x0 0x1C250000 0x6000>,	/* DECON_WIN */
 		      <0x0 0x1C260000 0x10000>,	/* DECON_SUB */
 		      <0x0 0x1C280000 0x6000>,	/* DECON1_WINCON */
-		      <0x0 0x1C2B0000 0xF000>;	/* DQE1 */
-		reg-names = "main", "win", "sub", "wincon", "dqe";
+		      <0x0 0x1C2B0000 0xF000>,	/* DQE1 */
+		      <0x0 0x1C0BF000 0x1000>;	/* CGC_DMA */
+		reg-names = "main", "win", "sub", "wincon", "dqe", "cgc-dma";
 
 		decon,id = <1>;
+		cgc-dma,id = <10>;
 
 		interrupts = <GIC_SPI IRQ_DISP_DECON1_FRAME_START_DISP
 				IRQ_TYPE_LEVEL_HIGH>,
@@ -325,9 +332,11 @@
 			     <GIC_SPI IRQ_DISP_DECON1_DQE_DIMMING_START_DISP
 				IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI IRQ_DISP_DECON1_DQE_DIMMING_END_DISP
+				IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI IRQ_DPU_DMA_CGC1_DPU
 				IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "frame_start", "frame_done", "extra",
-				"dimming_start", "dimming_end";
+				"dimming_start", "dimming_end", "cgc-dma";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
 		samsung,tzmp;
