@@ -154,7 +154,7 @@ extern struct itmon_logs *dss_itmon;
 #define DSS_OFFSET_GPR_POWER_STAT	(0x480)
 #define DSS_OFFSET_PANIC_STAT		(0x500)
 #define DSS_OFFSET_CORE_LAST_PC		(0x600)
-#define DSS_OFFSET_QD_ENTRY		(0x660)
+#define DSS_OFFSET_QD_ENTRY		(0x680)
 #define DSS_OFFSET_PANIC_STRING		(0xC00)
 
 #define ARM_CPU_PART_CORTEX_A78		0xD41
