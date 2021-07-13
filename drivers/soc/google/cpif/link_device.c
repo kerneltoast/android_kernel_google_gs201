@@ -27,6 +27,7 @@
 #include <soc/google/shm_ipc.h>
 #include <soc/google/mcu_ipc.h>
 #include <soc/google/cal-if.h>
+#include <linux/modem_notifier.h>
 #include <linux/soc/samsung/exynos-smc.h>
 #include <trace/events/napi.h>
 #include "modem_prj.h"
@@ -34,7 +35,6 @@
 #include "link_device.h"
 #include "modem_dump.h"
 #include "modem_ctrl.h"
-#include "modem_notifier.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
 #if IS_ENABLED(CONFIG_GS_S2MPU)

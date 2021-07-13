@@ -26,11 +26,11 @@
 
 #include <linux/exynos-pci-ctrl.h>
 #include <soc/google/shm_ipc.h>
+#include <linux/modem_notifier.h>
 
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_ctrl.h"
-#include "modem_notifier.h"
 #include "link_device.h"
 #include "link_device_memory.h"
 #include "s51xx_pcie.h"

@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/modem_notifier.h>
 #include <soc/google/mcu_ipc.h>
 #include <soc/google/shm_ipc.h>
 #include <soc/google/cal-if.h>
@@ -24,7 +25,6 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "modem_ctrl.h"
-#include "modem_notifier.h"
 #include "link_device_memory.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
