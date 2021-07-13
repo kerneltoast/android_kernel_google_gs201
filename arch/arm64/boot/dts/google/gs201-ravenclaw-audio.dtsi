@@ -30,14 +30,6 @@
 	};
 };
 
-/*
-&dai_be_haptic_rx {
-	dai_be_haptic_rx_codec: codec {
-		sound-dai = <&cs40l2x_codec 0>;
-	};
-};
-*/
-
 &aoc_snd_card {
 	clks {
 		sys {
@@ -56,19 +48,6 @@
 
 			sys@cs35l41_r {
 				comp = <&cs35l41_r>;
-				src = "BCLK";
-				/* clk id */
-				id = <0>;
-				/* clk source */
-				srcid = <0>;
-				/* in clk multiple */
-				in_mul = <1>;
-				/* out clk multiple */
-				out_mul = <1>;
-			};
-
-			cs40l2x_codec_clk: sys@cs40l2x_codec {
-				comp = <&cs40l2x_codec>;
 				src = "BCLK";
 				/* clk id */
 				id = <0>;
@@ -191,42 +170,8 @@
 
 		reset-gpios = <&gpp24 3 0>; /* XAPC_USI15_CTSn_CSn - HAPTICS_RESET_L */
 
-		async-suspend;
-		cirrus,fw-id-remap = <0x1400CB>;
-		cirrus,boost-ind-nanohenry = <1000>;
-		cirrus,boost-cap-microfarad = <4>;
-		cirrus,boost-ipk-milliamp = <4500>;
-		cirrus,boost-ctl-millivolt = <7500>; /* 7.5V */
-		cirrus,boost-clab-millivolt = <7500>; /* 7.5V */
-		cirrus,boost-ovp-millivolt = <12000>; /* 12V */
-		cirrus,f0-default = <2514000>; /* 153 Hz */
-		cirrus,f0-min = <2293760>; /* 140 Hz */
-		cirrus,f0-max = <2703360>; /* 165 Hz */
-		cirrus,redc-comp-disable = <1>; /* disabling ReDC clk comp */
-		cirrus,redc-default = <327728>; /* 14.6446 Ohm */
-		cirrus,redc-min = <223786>; /* 10 Ohm */
-		cirrus,redc-max = <335680>; /* 15 Ohm */
-		cirrus,gpio1-rise-index = <2>; /* 100% HEAVY_CLICK */
-		cirrus,gpio1-fall-index = <1>; /* 75% HEAVY_CLICK */
-		cirrus,gpio1-fall-timeout = <47278>; /* 985 ms */
-		cirrus,gpio1-mode = <2>; /* enabled only in suspend mode */
-		cirrus,hiber-enable; /* enable hibernation mode in suspend mode */
-		cirrus,refclk-gpio2 = <1>; /* set GPIO2 as REFCLK */
-		cirrus,asp-bclk-freq-hz = <6144000>;
-		cirrus,asp-bclk-inv;
-		cirrus,asp-fmt = <0>;
-		cirrus,asp-slot-num = <2>;
-		cirrus,asp-slot-width = <32>;
-		cirrus,asp-samp-width = <24>;
-		cirrus,dcm-disable;  /* disable DCM automatic low power mode */
-
+		cirrus,bst-dcm-en = <0>;
 		status = "okay";
-
-		cs40l2x_codec: cs40l2x_codec@snd {
-			#sound-dai-cells = <1>;
-			compatible = "cs40l2x-codec";
-			status = "okay";
-		};
 	};
 };
 
