@@ -303,7 +303,7 @@ static void exynos_pcie_phy_isolation(struct exynos_pcie *exynos_pcie, int val)
 	struct device *dev = exynos_pcie->pci->dev;
 	int ret;
 
-	dev_info(dev, "PCIe PHY ISOLATION = %d\n", val);
+	dev_dbg(dev, "PCIe PHY ISOLATION = %d\n", val);
 	exynos_pcie->phy_control = val;
 	ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa +
 			   exynos_pcie->pmu_offset, PCIE_PHY_CONTROL_MASK, val);
@@ -2539,11 +2539,11 @@ retry:
 		exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
 	}
 
-	dev_info(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
-			exynos_phy_read(exynos_pcie, 0x760),
-			exynos_phy_read(exynos_pcie, 0xE0C),
-			exynos_phy_read(exynos_pcie, 0x3F0),
-			exynos_phy_read(exynos_pcie, 0xFC0));
+	dev_dbg(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
+		exynos_phy_read(exynos_pcie, 0x760),
+		exynos_phy_read(exynos_pcie, 0xE0C),
+		exynos_phy_read(exynos_pcie, 0x3F0),
+		exynos_phy_read(exynos_pcie, 0xFC0));
 
 	/* Device Type (Sub Controller: DEVICE_TYPE offset: 0x80  */
 	exynos_elbi_write(exynos_pcie, 0x04, 0x80);
@@ -2745,7 +2745,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	dev = pci->dev;
 	exynos_pcie_desc = irq_to_desc(pp->irq);
 
-	dev_info(dev, "start poweron, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "start poweron, state: %d\n", exynos_pcie->state);
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		if (exynos_pcie->use_phy_isol_con)
 			exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
@@ -2759,7 +2759,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
-			dev_info(dev, "ip idle status: %d, index: %d\n",
+			dev_dbg(dev, "ip idle status: %d, index: %d\n",
 				PCIE_IS_ACTIVE, exynos_pcie->idle_ip_index);
 			exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_ACTIVE);
 		}
@@ -2887,7 +2887,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 		}
 	}
 
-	dev_info(dev, "end poweron, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "end poweron, state: %d\n", exynos_pcie->state);
 
 	return 0;
 
@@ -2916,7 +2916,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 	pp = &pci->pp;
 	dev = pci->dev;
 
-	dev_info(dev, "start poweroff, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "start poweroff, state: %d\n", exynos_pcie->state);
 
 	if (exynos_pcie->state == STATE_LINK_UP ||
 	    exynos_pcie->state == STATE_LINK_DOWN_TRY) {
@@ -2990,7 +2990,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 #endif
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
-			dev_info(dev, "%s, ip idle status: %d, idle_ip_index: %d\n",
+			dev_dbg(dev, "%s, ip idle status: %d, idle_ip_index: %d\n",
 				__func__, PCIE_IS_IDLE, exynos_pcie->idle_ip_index);
 			exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_IDLE);
 		}
@@ -3005,7 +3005,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		pcie_is_linkup = 0;
 	}
 
-	dev_info(dev, "end poweroff, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "end poweroff, state: %d\n", exynos_pcie->state);
 }
 
 void exynos_pcie_pm_suspend(int ch_num)
