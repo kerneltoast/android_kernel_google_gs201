@@ -942,7 +942,7 @@ static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base,
  * in the tick, which obviously might be stopped, so this has to bring out
  * the remote CPU which might sleep in idle to get this sorted.
  */
-void clock_was_set(void)
+void clock_was_set(unsigned int bases)
 {
 	cpumask_var_t mask;
 	int cpu;
@@ -981,7 +981,7 @@ out_timerfd:
 
 static void clock_was_set_work(struct work_struct *work)
 {
-	clock_was_set();
+	clock_was_set(CLOCK_SET_WALL);
 }
 
 static DECLARE_WORK(hrtimer_work, clock_was_set_work);
