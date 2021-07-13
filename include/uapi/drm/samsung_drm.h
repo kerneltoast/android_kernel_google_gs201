@@ -117,6 +117,23 @@ struct cgc_lut {
 	__u32 b_values[DRM_SAMSUNG_CGC_LUT_REG_CNT];
 };
 
+#define DRM_SAMSUNG_CGC_DMA_LUT_ENTRY_CNT 4913
+/**
+ * struct cgc_dma_lut - color gammut control format for cgc dma to set by user-space
+ *
+ * @r_value: value for red color
+ * @g_value: value for green color
+ * @b_value: value for blue color
+ *
+ * A cgc_dma_lut represents a format to support cgc dma. cgc coefficients should be
+ * located in dram according to this format.
+ */
+struct cgc_dma_lut {
+	__u16 r_value;
+	__u16 g_value;
+	__u16 b_value;
+};
+
 #define DRM_SAMSUNG_MATRIX_DIMENS	3
 
 /**
