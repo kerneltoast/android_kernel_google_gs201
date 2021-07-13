@@ -131,9 +131,10 @@ slc_dummy.ko
 slc_pmon.ko
 slc_pt.ko
 smfc.ko
-snd-soc-cs35l45-i2c.ko
 snd-soc-cs35l45-spi.ko
 snd-soc-cs35l45.ko
+snd-soc-cs35l41-spi.ko
+snd-soc-cs35l41.ko
 snd-soc-wm-adsp.ko
 spi-s3c64xx.ko
 spidev.ko
