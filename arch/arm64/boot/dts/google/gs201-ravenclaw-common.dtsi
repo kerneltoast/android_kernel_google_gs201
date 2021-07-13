@@ -9,3 +9,4 @@
 #include "gs201-ravenclaw-audio.dtsi"
 #include "gs201-ravenclaw-display.dtsi"
 #include "gs201-ravenclaw-touch.dtsi"
+#include "gs201-ravenclaw-usecases.dtsi"

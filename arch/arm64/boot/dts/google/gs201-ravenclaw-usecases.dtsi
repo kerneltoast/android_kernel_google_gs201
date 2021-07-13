@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Usecases specific to the gs201 platform
+ *
+ * Copyright 2021 Google,LLC
+ *
+ */
+
+/* system use cases */
+&max77759_chg {
+};
