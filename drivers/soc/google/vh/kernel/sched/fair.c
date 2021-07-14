@@ -287,6 +287,11 @@ static inline bool get_task_spreading(struct task_struct *p)
 	return vg[get_vendor_task_struct(p)->group].task_spreading;
 }
 
+static inline unsigned int get_task_group_throttle(struct task_struct *p)
+{
+	return vg[get_vendor_task_struct(p)->group].group_throttle;
+}
+
 static inline unsigned int get_group_throttle(struct task_group *tg)
 {
 	return vg[get_vendor_task_group_struct(tg)->group].group_throttle;
@@ -339,6 +344,28 @@ unsigned long cpu_util(int cpu)
        unsigned long util = cpu_util_cfs_group_mod(rq);
 
        return min_t(unsigned long, util, capacity_of(cpu));
+}
+
+/* Similar to cpu_util_without but only count the task's group util contribution */
+static unsigned long group_util_without(int cpu, struct task_struct *p)
+{
+	struct cfs_rq *cfs_rq;
+	unsigned int util;
+	unsigned long scale_cpu = arch_scale_cpu_capacity(cpu);
+
+	util = READ_ONCE(task_group(p)->cfs_rq[cpu]->avg.util_avg);
+
+	if (cpu != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
+		goto out;
+
+	cfs_rq = &cpu_rq(cpu)->cfs;
+
+	lsub_positive(&util, task_util(p));
+
+out:
+	return min_t(unsigned long, util,
+				cap_scale(get_group_throttle(task_group(p)), scale_cpu));
+
 }
 
 static unsigned long cpu_util_without(int cpu, struct task_struct *p)
@@ -432,8 +459,11 @@ bool task_fits_capacity(struct task_struct *p, int cpu)
 		return true;
 
 	task_util = get_task_spreading(p) ? task_util_est(p) : uclamp_task_util(p);
+	/* clamp task utilization against its per-cpu group limit */
+	task_util = min_t(unsigned long, task_util, cap_scale(get_task_group_throttle(p),
+							arch_scale_cpu_capacity(cpu)));
 
-	return capacity_of(cpu) * 1024 > task_util * sched_capacity_margin[cpu];
+	return capacity_of(cpu) * SCHED_CAPACITY_SCALE > task_util * sched_capacity_margin[cpu];
 }
 
 static inline int find_start_cpu(struct task_struct *p, bool prefer_high_cap, bool sync_boost)
@@ -611,6 +641,15 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 	return energy;
 }
 
+/* If a task_group is over its group limit on a particular CPU with margin considered */
+static inline bool group_overutilized(int cpu, struct task_group *tg)
+{
+	unsigned long group_capacity = cap_scale(get_group_throttle(tg),
+					arch_scale_cpu_capacity(cpu));
+	unsigned long group_util = READ_ONCE(tg->cfs_rq[cpu]->avg.util_avg);
+	return cpu_overutilized(group_util, group_capacity, cpu);
+}
+
 static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cpu, bool sync_boost,
 			     int cpu)
 {
@@ -639,7 +678,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 	start_cpu = find_start_cpu(p, prefer_high_cap, sync_boost);
 
 	/* prefer prev cpu */
-	if (cpu_active(prev_cpu) && cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu)) {
+	if (cpu_active(prev_cpu) && cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu)
+				&& !group_overutilized(cpu, task_group(p))) {
 		struct cpuidle_state *idle = idle_get_state(cpu_rq(prev_cpu));
 		unsigned int exit_lat = UINT_MAX;
 
@@ -659,6 +699,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		unsigned long capacity_curr;
 		unsigned long capacity_orig;
 		unsigned long capacity;
+		unsigned long group_capacity;
 		unsigned long wake_util, new_util;
 		long spare_cap;
 		struct cpuidle_state *idle = NULL;
@@ -673,6 +714,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		capacity_curr = capacity_curr_of(i);
 		capacity_orig = capacity_orig_of(i);
 		capacity = capacity_of(i);
+		group_capacity = cap_scale(get_task_group_throttle(p),
+				arch_scale_cpu_capacity(i));
 		idle_cpu = cpu_is_idle(i);
 		cpu_importance = READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MIN].value) +
 				 READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MAX].value);
@@ -699,8 +742,10 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * Pre-compute the maximum possible capacity we expect
 		 * to have available on this CPU before the task is
 		 * enqueued here.
+		 * We use the minimal of spare cpu capacity and spare
+		 * group capacity.
 		 */
-		spare_cap = capacity - wake_util;
+		spare_cap = min(capacity - wake_util, group_capacity - group_util_without(i, p));
 
 		do {
 			if (!(prefer_idle && task_importance > cpu_importance)) {
@@ -925,8 +970,8 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 */
 		if (capacity_curr >=
 		    (((new_util + cpu_util_rt(cpu_rq(i))) * sched_capacity_margin[i])
-		     >> SCHED_CAPACITY_SHIFT) &&
-		    spare_cap > target_max_curr_spare_cap) {
+		     >> SCHED_CAPACITY_SHIFT) && spare_cap > target_max_curr_spare_cap &&
+		     !group_overutilized(i, task_group(p))) {
 			target_max_curr_spare_cap = spare_cap;
 			target_cpu = i;
 			goto check;
@@ -1093,24 +1138,29 @@ void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, 
 
 	find_best_target(candidates, p, prev_cpu, sync_boost, cpu);
 
-	/* Bail out if no candidate was found. */
+	/* Bail out if no candidate was found.
+	 * Do not go to prev_cpu by going unlock, go to fail fallback path
+	 */
 	weight = cpumask_weight(candidates);
 	if (!weight)
-		goto unlock;
+		goto fail;
 
 	/* If there is only one candidate, select it if it is lantency sensitive and cpu is idle,
-	 * or it is prev cpu, or it is sync_boost, or prev_cpu is overutilized,
+	 * or it is prev cpu, or it is sync_boost, or prev_cpu is overutilized or
+	 * group overutilized.
 	 */
 	cpu = cpumask_first(candidates);
 	if (weight == 1 && ((get_prefer_idle(p) && cpu_is_idle(cpu)) ||
 			    (cpu == prev_cpu) || sync_boost ||
 			    cpu_overutilized(cpu_util(prev_cpu), capacity_of(prev_cpu),
-				prev_cpu))) {
+				prev_cpu) || group_overutilized(prev_cpu, task_group(p)))) {
 		best_energy_cpu = cpu;
 		goto unlock;
 	}
 
-	if (cpumask_test_cpu(prev_cpu, p->cpus_ptr))
+	/* Skip prev_cpu if it is no longer allowed or it is over group budget. */
+	if (cpumask_test_cpu(prev_cpu, p->cpus_ptr) &&
+			!group_overutilized(prev_cpu, task_group(p)))
 		prev_energy = best_energy = compute_energy(p, prev_cpu, pd);
 	else
 		prev_energy = best_energy = ULONG_MAX;
@@ -1314,6 +1364,7 @@ void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct tas
 	long last_ewma_diff;
 	struct util_est ue;
 	int cpu;
+	unsigned long scale_cpu;
 
 	*ret = 1;
 
@@ -1341,6 +1392,8 @@ void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct tas
 	 */
 	ue.enqueued = (task_util(p) | UTIL_AVG_UNCHANGED);
 
+	cpu = cpu_of(rq_of(cfs_rq));
+	scale_cpu = arch_scale_cpu_capacity(cpu);
 	// TODO: make util_est to sub cfs-rq and aggregate.
 #ifdef CONFIG_UCLAMP_TASK
 	// Currently util_est is done only in the root group
@@ -1349,6 +1402,8 @@ void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct tas
 	// 1) over grow by the group limit
 	// 2) out of sync when task migrated between cgroups (cfs_rq)
 	ue.enqueued = min((unsigned long)ue.enqueued, uclamp_eff_value(p, UCLAMP_MAX));
+	ue.enqueued = min_t(unsigned long, ue.enqueued,
+			cap_scale(get_group_throttle(task_group(p)), scale_cpu));
 #endif
 
 	if (sched_feat(UTIL_EST_FASTUP)) {
@@ -1370,7 +1425,7 @@ void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct tas
 	 * To avoid overestimation of actual task utilization, skip updates if
 	 * we cannot grant there is idle time in this CPU.
 	 */
-	cpu = cpu_of(rq_of(cfs_rq));
+
 	if (task_util(p) > capacity_orig_of(cpu))
 		return;
 
@@ -1395,7 +1450,9 @@ void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct tas
 	ue.ewma  += last_ewma_diff;
 	ue.ewma >>= UTIL_EST_WEIGHT_SHIFT;
 #ifdef CONFIG_UCLAMP_TASK
-	ue.ewma = min((unsigned long)ue.enqueued, uclamp_eff_value(p, UCLAMP_MAX));
+	ue.ewma = min((unsigned long)ue.ewma, uclamp_eff_value(p, UCLAMP_MAX));
+	ue.ewma = min_t(unsigned long, ue.ewma,
+			cap_scale(get_group_throttle(task_group(p)), scale_cpu));
 #endif
 done:
 	WRITE_ONCE(p->se.avg.util_est, ue);
@@ -1410,7 +1467,7 @@ void rvh_post_init_entity_util_avg_pixel_mod(void *data, struct sched_entity *se
 	long cpu_scale = arch_scale_cpu_capacity(cpu_of(rq_of(cfs_rq)));
 
 	if (cfs_rq->avg.util_avg == 0) {
-		sa->util_avg = vendor_sched_util_post_init_scale * cpu_scale / 1024;
+		sa->util_avg = vendor_sched_util_post_init_scale * cpu_scale / SCHED_CAPACITY_SCALE;
 		sa->runnable_avg = sa->util_avg;
 	}
 }
