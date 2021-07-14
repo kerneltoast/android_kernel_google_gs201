@@ -1545,3 +1545,30 @@ err_query_state:
 
 	return ret;
 }
+
+void mfc_rm_update_real_time(struct mfc_ctx *ctx)
+{
+	if (ctx->operating_framerate > 0) {
+		if (ctx->prio == 0)
+			ctx->rt = MFC_RT;
+		else if (ctx->prio >= 1)
+			ctx->rt = MFC_RT_CON;
+		else
+			ctx->rt = MFC_RT_LOW;
+	} else {
+		if ((ctx->prio == 0) && (ctx->type == MFCINST_ENCODER)) {
+			if (ctx->enc_priv->params.rc_framerate)
+				ctx->rt = MFC_RT;
+			else
+				ctx->rt = MFC_NON_RT;
+		} else if (ctx->prio >= 1) {
+			ctx->rt = MFC_NON_RT;
+		} else {
+			ctx->rt = MFC_RT_UNDEFINED;
+		}
+	}
+
+	mfc_debug(2, "[PRIO] update real time: %d, operating frame rate: %d, prio: %d\n",
+			ctx->rt, ctx->operating_framerate, ctx->prio);
+
+}

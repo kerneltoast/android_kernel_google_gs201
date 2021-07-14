@@ -3210,11 +3210,7 @@ static int google_bcl_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id match_table[] = {
-#if IS_ENABLED(CONFIG_SOC_GS201)
 	{ .compatible = "google,google-bcl"},
-#else
-	{ .compatible = "google,gs101-bcl"},
-#endif
 	{},
 };
 

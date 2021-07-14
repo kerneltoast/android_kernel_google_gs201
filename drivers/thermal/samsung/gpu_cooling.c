@@ -20,6 +20,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_exynos_gpu.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/events/power.h>
 
 /**
  * struct power_table - Stores a frequency to power translation
@@ -598,6 +600,7 @@ static int gpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	blocking_notifier_call_chain(&gpu_notifier, GPU_THROTTLING, &nd);
 	trace_vendor_cdev_update(cdev->type, gpufreq_cdev->sysfs_req, state);
+	trace_clock_set_rate(cdev->type, gpufreq_cdev->sysfs_req, raw_smp_processor_id());
 
 	return 0;
 }
@@ -939,6 +942,31 @@ static int gpu_cooling_table_init(struct gpufreq_cooling_device *gpufreq_cdev)
 }
 
 ssize_t
+state2power_table_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct thermal_cooling_device *cdev = to_cooling_device(dev);
+	struct gpufreq_cooling_device *gpufreq_cdev = cdev->devdata;
+	int ret, i, count = 0;
+	unsigned int max_state = 0;
+	u32 power;
+
+	if (!gpufreq_cdev)
+		return -ENODEV;
+
+	ret = get_property(gpufreq_cdev, 0, &max_state, GET_MAXL);
+	if (ret)
+		return ret;
+
+	for (i = 0; i <= max_state; i++) {
+		gpufreq_state2power(cdev, i, &power);
+		count += sysfs_emit_at(buf, count, "%u ", power);
+	}
+	count += sysfs_emit_at(buf, count, "\n");
+
+	return count;
+}
+
+ssize_t
 user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -982,6 +1010,7 @@ ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR_RW(user_vote);
+static DEVICE_ATTR_RO(state2power_table);
 
 /**
  * __gpufreq_cooling_register - helper function to create gpufreq cooling device
@@ -1007,6 +1036,8 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 	char dev_name[THERMAL_NAME_LENGTH];
 	struct thermal_cooling_device_ops *cooling_ops = &gpufreq_cooling_ops;
 	int ret = 0;
+	int num_level, i;
+	u32 power;
 
 	gpufreq_cdev = kzalloc(sizeof(*gpufreq_cdev),
 			       GFP_KERNEL);
@@ -1054,6 +1085,12 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 		goto free_cool_dev;
 	}
 
+	ret = device_create_file(&cool_dev->device, &dev_attr_state2power_table);
+	if (ret) {
+		thermal_cooling_device_unregister(cool_dev);
+		goto free_cool_dev;
+	}
+
 	gpufreq_cdev->tzd = parse_ect_cooling_level(cool_dev, "G3D");
 
 	gpufreq_cdev->cool_dev = cool_dev;
@@ -1062,6 +1099,14 @@ static struct thermal_cooling_device *__gpufreq_cooling_register(struct device_n
 	pr_info("gpu cooling registered for %s, capacitance: %d, power_callback: %s\n",
 		dev_name, capacitance,
 		cooling_ops == &gpufreq_power_cooling_ops ? "true" : "false");
+
+	num_level = gpufreq_cdev->gpu_fns->get_num_levels(gpufreq_cdev->gpu_drv_data);
+	for (i = 0; i < num_level; i++) {
+		gpufreq_state2power(cool_dev, i, &power);
+		pr_debug("[GPU cooling] index:%d: state:%d power:%u\n",
+			gpufreq_cdev->id, i, power);
+	}
+
 	return cool_dev;
 
 free_cool_dev:

@@ -11,6 +11,7 @@
 	p9412@3c {
 		fod = [92 3e 91 2f 97 0c 9a 05 9f ed 9f e5 19 06 01 3c];
 		fod_epp = [8b 70 88 60 8c 3c 88 4d 89 42 8e 1b 3c 14 28 50];
+		fod_hpp = [8D 7F 8A 6E 8E 4B 8A 4D 8B 42 90 1B];
 		google,q_value = <60>;
 	};
 };

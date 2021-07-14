@@ -477,6 +477,9 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 		!chip->bc12_running;
 
 	if (chip->attached && enable_data && !chip->data_active) {
+		/* Disable BC1.2 to prevent BC1.2 detection during PR_SWAP */
+		bc12_enable(chip->bc12, false);
+
 		/*
 		 * b/188614064: While swapping from host to device switches will not be configured
 		 * by HW. So always enable the switches here.
@@ -484,9 +487,6 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 		ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
 		logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
 			      "success");
-
-		/* Disable BC1.2 to prevent BC1.2 detection during PR_SWAP */
-		bc12_enable(chip->bc12, false);
 
 		ret = extcon_set_state_sync(chip->extcon, chip->data_role == TYPEC_HOST ?
 					    EXTCON_USB_HOST : EXTCON_USB, 1);
@@ -615,7 +615,7 @@ static void process_power_status(struct max77759_plat *chip)
 	int ret;
 
 	ret = regmap_read(tcpci->regmap, TCPC_POWER_STATUS, &pwr_status);
-	logbuffer_log(log, "TCPC_ALERT_POWER_STATUS status:%d", pwr_status);
+	logbuffer_log(log, "TCPC_ALERT_POWER_STATUS status:0x%x", pwr_status);
 	if (ret < 0)
 		return;
 
@@ -625,9 +625,19 @@ static void process_power_status(struct max77759_plat *chip)
 	}
 
 	if (pwr_status & TCPC_POWER_STATUS_SOURCING_VBUS) {
-		chip->sourcing_vbus = 1;
-		tcpm_sourcing_vbus(tcpci->port);
-		chip->in_frs = false;
+		if (!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES)) {
+			/*
+			 * Sourcing vbus might be set before vbus present is
+			 * set. This implies vbus has not reached VSAFE5V yet
+			 * (or) TCPC_POWER_STATUS_VBUS_PRES is arriving late.
+			 * Hold back signalling sourcing vbus here.
+			 */
+			logbuffer_log(log, "Discard sourcing vbus. Vbus present not set");
+		} else {
+			chip->sourcing_vbus = 1;
+			tcpm_sourcing_vbus(tcpci->port);
+			chip->in_frs = false;
+		}
 	}
 
 	if (chip->in_frs) {

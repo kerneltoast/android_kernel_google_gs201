@@ -1025,6 +1025,7 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	val |= ENC_SET_BUF_FLAG_CTRL;
 	val |= ENC_SET_OPERATING_FPS;
 	val |= ENC_SET_GOP_CTRL;
+	val |= ENC_SET_PRIORITY;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc))
 		val |= ENC_SET_COLOR_ASPECT;
@@ -1265,6 +1266,11 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_QOS_RATIO:
 		ctx->qos_ratio = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_PRIORITY:
+		ctx->prio = ctrl->value;
+		mfc_rm_update_real_time(ctx);
+		mfc_debug(2, "[PRIO] user set priority: %d\n", ctrl->value);
 		break;
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
 		p->gop_size = ctrl->value;
@@ -1993,6 +1999,7 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE:
 		ctx->operating_framerate = ctrl->value;
+		mfc_rm_update_real_time(ctx);
 		mfc_debug(2, "[QoS] user set the operating frame rate: %d\n", ctrl->value);
 		break;
 	case V4L2_CID_MPEG_VIDEO_MV_SEARCH_MODE:

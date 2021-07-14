@@ -32,8 +32,6 @@
 
 #include "exynos-acme.h"
 #include "../soc/google/vh/kernel/systrace.h"
-#include "../soc/google/vh/kernel/sched/cpufreq_gov.h"
-
 /*
  * list head of cpufreq domain
  */
@@ -335,10 +333,6 @@ static int __exynos_cpufreq_target(struct cpufreq_policy *policy,
 		goto out;
 	}
 
-	if (domain->old != get_freq(domain))
-		pr_debug("Inconsistency between domain->old:%d, real clk:%d\n",
-		       domain->old, get_freq(domain));
-
 	/* Target is same as current, skip scaling */
 	if (domain->old == target_freq)
 		goto out;
@@ -374,7 +368,8 @@ static int exynos_cpufreq_target(struct cpufreq_policy *policy,
 
 	mutex_lock(&domain->lock);
 	freq = cpufreq_driver_resolve_freq(policy, target_freq);
-	if (!freq || domain->old == freq) {
+	// Always go to DM_CALL even with `domain->old == freq` to update dm->governor_freq
+	if (!freq) {
 		mutex_unlock(&domain->lock);
 		goto out;
 	}
@@ -493,7 +488,8 @@ static struct notifier_block exynos_cpufreq_pm = {
 
 static struct cpufreq_driver exynos_driver = {
 	.name		= "exynos_cpufreq",
-	.flags		= CPUFREQ_STICKY | CPUFREQ_HAVE_GOVERNOR_PER_POLICY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_HAVE_GOVERNOR_PER_POLICY |
+				CPUFREQ_NEED_UPDATE_LIMITS, // force update dm->governor_freq
 	.init		= exynos_cpufreq_init,
 	.verify		= exynos_cpufreq_verify,
 	.target		= exynos_cpufreq_target,
@@ -777,7 +773,6 @@ static int dm_scaler(int dm_type, void *devdata, unsigned int target_freq,
 {
 	struct exynos_cpufreq_domain *domain = devdata;
 	struct cpufreq_policy *policy;
-	struct sugov_policy *sg_policy;
 	struct cpumask mask;
 	int ret;
 
@@ -787,11 +782,6 @@ static int dm_scaler(int dm_type, void *devdata, unsigned int target_freq,
 		return -ENODEV;
 
 	policy = cpufreq_cpu_get(cpumask_first(&mask));
-	if (!strcmp(policy->governor->name, PIXEL_GOV_NAME)) {
-		// Do not go lower than the governor voted value.
-		sg_policy = policy->governor_data;
-		target_freq = max(target_freq, sg_policy->next_freq);
-	}
 	if (!policy) {
 		pr_err("%s: failed get cpufreq policy\n", __func__);
 		return -ENODEV;

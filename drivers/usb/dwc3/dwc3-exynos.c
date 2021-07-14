@@ -1328,8 +1328,15 @@ static void dwc3_exynos_shutdown(struct platform_device *pdev)
 static int dwc3_exynos_runtime_suspend(struct device *dev)
 {
 	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
+	struct dwc3 *dwc;
+	unsigned long flags;
 
 	if (!exynos)
+		return 0;
+
+	dwc = exynos->dwc;
+	spin_lock_irqsave(&dwc->lock, flags);
+	if (pm_runtime_suspended(dev))
 		return 0;
 
 	dwc3_exynos_clk_disable(exynos);
@@ -1341,6 +1348,7 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 	 * dwc3_suspend/resume in core.c
 	 */
 	exynos->dwc->current_dr_role = DWC3_EXYNOS_IGNORE_CORE_OPS;
+	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
 }
@@ -1352,6 +1360,9 @@ static int dwc3_exynos_runtime_resume(struct device *dev)
 
 	if (!exynos)
 		return 0;
+
+	if (exynos->need_dr_role)
+		exynos->dwc->current_dr_role = DWC3_GCTL_PRTCAP_DEVICE;
 
 	/* inform what USB state is not idle to IDLE_IP */
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 0);

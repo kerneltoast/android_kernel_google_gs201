@@ -137,7 +137,8 @@
 #define mfc_core_get_enc_luma_size()		MFC_CORE_READL(MFC_REG_E_MIN_LUMA_DPB_SIZE)
 #define mfc_core_get_enc_chroma_size()		MFC_CORE_READL(MFC_REG_E_MIN_CHROMA_DPB_SIZE)
 #define mfc_core_get_enc_strm_size()		MFC_CORE_READL(MFC_REG_E_STREAM_SIZE)
-#define mfc_core_get_enc_slice_type()		MFC_CORE_READL(MFC_REG_E_SLICE_TYPE)
+#define mfc_core_get_enc_slice_type()		(MFC_CORE_READL(MFC_REG_E_SLICE_TYPE)		\
+						& MFC_REG_E_SLICE_TYPE_MASK)
 #define mfc_core_get_enc_pic_count()		MFC_CORE_READL(MFC_REG_E_PICTURE_COUNT)
 #define mfc_core_get_sei_avail()			MFC_CORE_READL(MFC_REG_D_SEI_AVAIL)
 #define mfc_core_get_sei_content_light()		MFC_CORE_READL(MFC_REG_D_CONTENT_LIGHT_LEVEL_INFO_SEI)
@@ -212,7 +213,10 @@
 	& MFC_REG_D_TWO_MFC_MODE_MASK)
 #define mfc_core_get_dec_used_flag()		(((unsigned long)(MFC_CORE_READL(MFC_REG_D_USED_DPB_FLAG_UPPER)) << 32) |	\
 						MFC_CORE_READL(MFC_REG_D_USED_DPB_FLAG_LOWER))
-#define mfc_core_get_enc_nal_done_info()		((MFC_CORE_READL(MFC_REG_E_NAL_DONE_INFO) & (0x3 << 4)) >> 4)
+#define mfc_core_get_enc_idr_flag()				\
+	((MFC_CORE_READL(MFC_REG_E_NAL_DONE_INFO)		\
+	>> MFC_REG_E_NAL_DONE_INFO_IDR_SHIFT)			\
+	& MFC_REG_E_NAL_DONE_INFO_IDR_MASK)
 #define mfc_core_get_chroma_format()		(MFC_CORE_READL(MFC_REG_D_CHROMA_FORMAT)		\
 						& MFC_REG_D_CHROMA_FORMAT_MASK)
 #define mfc_core_get_color_range()		((MFC_CORE_READL(MFC_REG_D_CHROMA_FORMAT)	\

@@ -45,9 +45,9 @@ extern void bbd_parse_asic_data(unsigned char *pucData, unsigned short usLen,
 			void *priv), void *priv);
 
 /* TODO remove global variables */
-bool ssi_dbg;
-bool ssi_dbg_pzc = true; /* SHOULD BE TRUE */
-bool ssi_dbg_rng;
+extern bool ssi_dbg;
+extern bool ssi_dbg_pzc;
+extern bool ssi_dbg_rng;
 
 /* SPI Streaming Protocol Control */
 int g_bcm_bitrate = 12000;
