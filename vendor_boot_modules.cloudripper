@@ -104,6 +104,7 @@ phy-exynos-mipi-dsim.ko
 phy-exynos-mipi.ko
 phy-exynos-usbdrd-super.ko
 pinctrl-samsung-core.ko
+pixel-boot-metrics.ko
 pixel-debug-test.ko
 pl330.ko
 pmic_class.ko
