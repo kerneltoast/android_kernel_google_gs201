@@ -2,8 +2,19 @@
 #include "pmucal_rae.h"
 #include "pmucal_powermode.h"
 #include <soc/google/debug-snapshot.h>
+#include "cmucal.h"
+#include "acpm_dvfs.h"
+#include <dt-bindings/clock/gs101.h>
 
 unsigned int pmucal_sys_powermode[NUM_SYS_POWERDOWN] = {0xffffffff, };
+static bool tcxo_req = true;
+
+void pmucal_tcxo_demand(bool tcxo_demand)
+{
+	tcxo_req = tcxo_demand;
+	pr_info("%s, tcxo_req: %d\n", __func__, tcxo_req);
+}
+EXPORT_SYMBOL(pmucal_tcxo_demand);
 
 /**
  *  pmucal_system_enter - prepares to enter a system power mode.
@@ -19,6 +30,9 @@ int pmucal_system_enter(int mode)
 	char err_msg[128];
 
 	err_msg[0] = '\0';
+	if (mode == SYS_SLEEP && !tcxo_req)
+		ret = exynos_acpm_set_rate(GET_IDX(ACPM_DVFS_HSI0_TCXO), 0);
+
 	if (mode != SYS_SICD)
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_IN);
 
@@ -82,6 +96,9 @@ int pmucal_system_exit(int mode)
 	char err_msg[128];
 
 	err_msg[0] = '\0';
+	if (mode == SYS_SLEEP)
+		tcxo_req = true;
+
 	if (mode != SYS_SICD)
 		dbg_snapshot_pmu(mode, __func__, DSS_FLAG_IN);
 
