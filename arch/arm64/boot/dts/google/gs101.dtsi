@@ -1435,8 +1435,8 @@
 		k_po = <60>;
 		k_pu = <60>;
 		k_i = <50>;
-		i_max = <5>;
-		integral_cutoff = <0>;
+		i_max = <2>;
+		integral_cutoff = <10>;
 		sustainable_power = <2000>;
 
 		tmu_work_affinity = "0-7";
