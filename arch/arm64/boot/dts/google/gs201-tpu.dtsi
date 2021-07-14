@@ -29,5 +29,6 @@
 		samsung,iommu-group = <&iommu_group_tpu>;
 		status = "okay";
 		memory-region = <&tpu_fw_reserved>;
+		edgetpu,shareability = <0x1cc20000>;
 	};
 };
