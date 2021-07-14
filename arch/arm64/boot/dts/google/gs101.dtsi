@@ -1875,7 +1875,7 @@
 					type = "active";
 				};
 				tpu_hot: tpu-hot {
-					temperature = <110000>; /* millicelsius */
+					temperature = <115000>; /* millicelsius */
 					hysteresis = <3000>; /* millicelsius */
 					type = "hot";
 				};
