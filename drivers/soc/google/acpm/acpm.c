@@ -142,7 +142,7 @@ static int acpm_framework_debug_cmd_setting(struct acpm_info *acpm,
 	unsigned int channel_num, size;
 
 	if (subcmd >= ACPM_FRAMEWORK_COMMAND_DEBUG_MAX) {
-		pr_err("%s, sub-cmd:%d, out of range!\n", __func__, subcmd);
+		pr_err("%s, sub-cmd:%llu, out of range!\n", __func__, subcmd);
 		return 0;
 	}
 
@@ -160,7 +160,7 @@ static int acpm_framework_debug_cmd_setting(struct acpm_info *acpm,
 
 	config.response = true;
 
-	pr_info("%s, command:0x%X, sub-cmd:0x%X\n", __func__, config.cmd[0], subcmd);
+	pr_info("%s, command:0x%X, sub-cmd:0x%llX\n", __func__, config.cmd[0], subcmd);
 
 	ret = acpm_ipc_send_data(channel_num, &config);
 

@@ -712,7 +712,7 @@ retry:
 		} while (true);
 
 		if (timeout_flag) {
-			pr_err("%s Timeout error! now = %llu timeout = %llu ch:%u s:%u bitmap:%llx\n",
+			pr_err("%s Timeout error! now = %llu timeout = %llu ch:%u s:%u bitmap:%lx\n",
 			       __func__, now, timeout, channel->id, seq_num,
 			       channel->bitmap_seqnum[0]);
 
@@ -904,7 +904,7 @@ static int debug_acpm_ipc_panic_action_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_ipc_panic_action_fops,
 			debug_acpm_ipc_panic_action_get,
 			debug_acpm_ipc_panic_action_set,
-			"%d\n");
+			"%llu\n");
 
 static void acpm_ipc_debugfs_init(struct acpm_ipc_info *acpm_ipc)
 {

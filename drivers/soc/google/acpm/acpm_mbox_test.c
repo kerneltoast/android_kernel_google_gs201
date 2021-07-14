@@ -1057,7 +1057,7 @@ static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate,
 	latency = after - before;
 
 	if (ret < 0)
-		dev_err(mbox->device, "%s, ret=%d\n", ret);
+		dev_err(mbox->device, "exynos_devfreq_lock_freq ret=%d\n", ret);
 
 	mdelay(10);
 
@@ -1107,7 +1107,7 @@ static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate,
 
 	ret = cpufreq_driver_target(policy, rate, CPUFREQ_RELATION_C);
 	if (ret < 0)
-		dev_err(mbox->device, "%s, cpufreq target failed, ret: %d\n",
+		dev_err(mbox->device, "cpufreq target failed, ret: %d\n",
 			ret);
 
 	after = sched_clock();
