@@ -97,6 +97,13 @@ static void *exynos_seclog_request_region(unsigned long addr,
 	return v_addr;
 }
 
+static bool exynos_seclog_is_valid_region(uintptr_t v_log_addr, unsigned int log_length,
+					    unsigned int cpu)
+{
+	return ((unsigned long)sec_log[cpu] + SECLOG_LOG_BUF_SIZE) >
+	       (v_log_addr + sizeof(struct log_header_info) + log_length);
+}
+
 static void exynos_seclog_worker(struct work_struct *work)
 {
 	struct log_header_info *v_log_h = NULL;
@@ -145,6 +152,14 @@ static void exynos_seclog_worker(struct work_struct *work)
 			pr_debug("[SECLOG_DEBUG C%d] log_len = %d\n",
 				 cpu, v_log_h->log_len);
 
+			/* Disable seclog if context is invalid */
+			if (v_log_h->log_len > SEC_PRINT_BUFFER_SIZE ||
+			    !exynos_seclog_is_valid_region(v_log_addr, v_log_h->log_len, cpu)) {
+				pr_info("[SECLOG] Disable seclog due to invalid log length or out of memory region, log_len =%d\n",
+					 v_log_h->log_len);
+				slog_ctx.enabled = false;
+				break;
+			}
 			/* Print logs from SWd */
 			pr_info("[SECLOG C%d] [%06d.%06d] %s",
 				cpu,
