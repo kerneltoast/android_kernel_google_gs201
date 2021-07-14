@@ -2376,22 +2376,41 @@ static void gro_flush_timer(struct link_device *ld, struct napi_struct *napi)
 {
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	struct timespec64 curr, diff;
+	struct timespec64 *flush_time;
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	struct pktproc_queue *q;
+#endif
 
 	if (!gro_flush_time) {
 		napi_gro_flush(napi, false);
 		return;
 	}
 
-	if (unlikely(mld->flush_time.tv_sec == 0)) {
-		ktime_get_real_ts64(&mld->flush_time);
-	} else {
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (pktproc_check_support(&mld->pktproc) &&
+			mld->pktproc.use_exclusive_irq &&
+			mld->pktproc.use_napi) {
+		q = container_of(napi, struct pktproc_queue, napi);
+		flush_time = &q->flush_time;
+	} else
+#endif
+		flush_time = &mld->flush_time;
+
+	if (unlikely(flush_time->tv_sec == 0))
+		goto refresh;
+	else {
 		ktime_get_real_ts64(&(curr));
-		diff = timespec64_sub(curr, mld->flush_time);
+		diff = timespec64_sub(curr, *flush_time);
 		if ((diff.tv_sec > 0) || (diff.tv_nsec > gro_flush_time)) {
 			napi_gro_flush(napi, false);
-			ktime_get_real_ts64(&mld->flush_time);
+			goto refresh;
 		}
 	}
+
+	return;
+
+refresh:
+	ktime_get_real_ts64(flush_time);
 }
 
 static struct timespec64 update_flush_time(struct timespec64 org_flush_time)
