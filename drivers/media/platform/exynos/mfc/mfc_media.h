@@ -479,6 +479,8 @@ enum v4l2_mpeg_mfc51_video_frame_type {
 					(V4L2_CID_MPEG_MFC_BASE + 184)
 #define V4L2_CID_MPEG_VIDEO_SKIP_LAZY_UNMAP				\
 					(V4L2_CID_MPEG_MFC_BASE + 185)
+#define V4L2_CID_MPEG_VIDEO_MIN_QUALITY				\
+					(V4L2_CID_MPEG_MFC_BASE + 186)
 
 /* CIDs for new common interface */
 #define V4L2_CID_MPEG_VIDEO_ROI_CONTROL				\
