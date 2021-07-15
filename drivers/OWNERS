@@ -52,6 +52,7 @@ per-file input/touchscreen/heatmap.c=*
 per-file input/touchscreen/sec_ts/**=*
 per-file input/touchscreen/stm/**=*
 
+per-file iommu/exynos-pcie-iommu*=*
 per-file iommu/samsung-iommu*=*
 per-file iommu/samsung-secure-iova.c=*
 
