@@ -28,6 +28,9 @@
 				regulator-voltages =
 					<2850000 2900000
 					 1800000>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo4-supply = <&slg51000_ldo4>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -100,6 +103,7 @@
 					<&slg51000_ldo7>;
 				regulator-voltages =
 					<1800000>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -145,6 +149,9 @@
 				regulator-voltages =
 					<2850000 1150000
 					 1800000>;
+				ldo2-supply = <&slg51000_ldo2>;
+				ldo5-supply = <&slg51000_ldo5>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -200,6 +207,9 @@
 				regulator-voltages =
 					<2850000 1150000
 					 1800000>;
+				ldo3-supply = <&slg51000_ldo3>;
+				ldo6-supply = <&slg51000_ldo6>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -265,6 +275,8 @@
 				/* Power supplies */
 				regulators = <&slg51000_ldo4 &slg51000_ldo7>;
 				regulator-voltages = <2900000 1800000>;
+				ldo4-supply = <&slg51000_ldo4>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -309,6 +321,7 @@
 				/* Power supplies */
 				regulators = <&slg51000_ldo7>;
 				regulator-voltages = <1800000>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -332,6 +345,7 @@
 				/* Power supplies */
 				regulators = <&slg51000_ldo7>;
 				regulator-voltages = <1800000>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -359,6 +373,8 @@
 				/* Power supplies */
 				regulators = <&slg51000_ldo3 &slg51000_ldo7>;
 				regulator-voltages = <2850000 1800000>;
+				ldo3-supply = <&slg51000_ldo3>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -394,6 +410,8 @@
 				/* Power supplies */
 				regulators = <&slg51000_ldo4 &slg51000_ldo7>;
 				regulator-voltages = <2900000 1800000>;
+				ldo4-supply = <&slg51000_ldo4>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -427,6 +445,8 @@
 				/* Power supplies */
 				regulators = <&slg51000_ldo3 &slg51000_ldo7>;
 				regulator-voltages = <2850000 1800000>;
+				ldo3-supply = <&slg51000_ldo3>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -468,6 +488,8 @@
 				/* Power supplies */
 				regulators = <&slg51000_ldo4 &slg51000_ldo7>;
 				regulator-voltages = <2900000 1800000>;
+				ldo4-supply = <&slg51000_ldo4>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -513,6 +535,8 @@
 				/* Power supplies */
 				regulators = <&slg51000_ldo3 &slg51000_ldo7>;
 				regulator-voltages = <2850000 1800000>;
+				ldo3-supply = <&slg51000_ldo3>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				/* Power up sequence */
 				power-up-seqs =
