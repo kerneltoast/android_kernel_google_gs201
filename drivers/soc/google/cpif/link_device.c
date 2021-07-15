@@ -2377,7 +2377,7 @@ static void gro_flush_timer(struct link_device *ld, struct napi_struct *napi)
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	struct timespec64 curr, diff;
 	struct timespec64 *flush_time;
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
+#if !IS_ENABLED(CONFIG_EXYNOS_DIT)
 	struct pktproc_queue *q;
 #endif
 
@@ -2386,7 +2386,7 @@ static void gro_flush_timer(struct link_device *ld, struct napi_struct *napi)
 		return;
 	}
 
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
+#if !IS_ENABLED(CONFIG_EXYNOS_DIT)
 	if (pktproc_check_support(&mld->pktproc) &&
 			mld->pktproc.use_exclusive_irq &&
 			mld->pktproc.use_napi) {
