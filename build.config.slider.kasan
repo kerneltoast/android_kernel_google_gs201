@@ -7,13 +7,11 @@ function update_kasan_config() {
   ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
     -e CONFIG_KASAN \
     -e CONFIG_KASAN_SW_TAGS \
-    -e CONFIG_KASAN_OUTLINE \
+    -d CONFIG_KASAN_HW_TAGS \
     -e CONFIG_KCOV \
     -e CONFIG_DEBUG_INFO \
     -d CONFIG_RANDOMIZE_BASE \
-    -d CONFIG_KASAN_HW_TAGS \
-    --set-val CONFIG_FRAME_WARN 0 \
-    -d SHADOW_CALL_STACK
+    --set-val CONFIG_FRAME_WARN 0
   (cd ${OUT_DIR} && \
    make O=${OUT_DIR} "${TOOL_ARGS[@]}" ${MAKE_ARGS} olddefconfig)
 }
