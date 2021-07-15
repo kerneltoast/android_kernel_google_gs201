@@ -104,6 +104,9 @@
 #define PCIE_MSTR_PEND_SEL_NAK		0x474
 #define NACK_ENABLE			0x1
 
+#define PCIE_DBI_L1_EXIT_DISABLE	0x1078
+#define DBI_L1_EXIT_DISABLE		0x1
+
 /* PCIe PMU registers */
 #define IDLE_IP3_STATE			0x3EC
 #define IDLE_IP_RC1_SHIFT		(31)

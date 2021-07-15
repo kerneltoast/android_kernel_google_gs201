@@ -2580,6 +2580,11 @@ retry:
 	dev_dbg(dev, "%s: NACK option enable: 0x%x\n", __func__,
 		exynos_elbi_read(exynos_pcie, PCIE_MSTR_PEND_SEL_NAK));
 
+	/* DBI L1 exit disable(use aux_clk in L1.2) */
+	exynos_elbi_write(exynos_pcie, DBI_L1_EXIT_DISABLE, PCIE_DBI_L1_EXIT_DISABLE);
+	dev_dbg(dev, "%s: DBI L1 exit disable option enable: 0x%x\n", __func__,
+		exynos_elbi_read(exynos_pcie, PCIE_DBI_L1_EXIT_DISABLE));
+
 	/* setup root complex */
 	dw_pcie_setup_rc(pp);
 	exynos_pcie_setup_rc(pp);
