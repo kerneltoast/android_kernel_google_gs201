@@ -57,5 +57,7 @@
 		acpm-ipc-channel = <13>;
 
 		force-vnom = <0>;
+
+		gsa-device = <&gsa>;
 	};
 };
