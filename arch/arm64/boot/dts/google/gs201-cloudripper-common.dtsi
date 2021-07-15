@@ -16,7 +16,7 @@
 #include "gs201-cloudripper-gsa-gsc.dtsi"
 #include "gs201-cloudripper-battery.dtsi"
 #include "gs201-cloudripper-charging.dtsi"
-// #include "gs201-cloudripper-wcharger.dtsi"
+#include "gs201-cloudripper-wcharger.dtsi"
 #include "gs201-cloudripper-bcl.dtsi"
 
 /*
