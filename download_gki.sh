@@ -25,6 +25,16 @@ TEMP_DIR=$(mktemp -d)
 
 cd ${TEMP_DIR}
 echo "Downloading GKI binaries from build ab/${GKI_BUILD} via fetch_artifact..."
+if grep -q "boot.*\.img" <<< $(cat ${FILES_LIST}); then
+  echo "Downloading -user variant boot.img..."
+  /google/data/ro/projects/android/fetch_artifact \
+      --bid ${GKI_BUILD} \
+      --target gsi_arm64_with_kernel-user "gsi_arm64-img-${GKI_BUILD}.zip"
+  exit_and_clean_if_error $? "Unable to download -user boot image"
+  mv gsi_arm64-img-${GKI_BUILD}.zip gsi_arm64-img-${GKI_BUILD}-user.zip
+fi
+
+echo "Downloading -userdebug prebuilts..."
 for file in $(cat ${FILES_LIST}); do
   if grep -q "boot.*\.img" <<< ${file} ; then
     BOOT_IMG_NAME=${file}
@@ -39,7 +49,12 @@ for file in $(cat ${FILES_LIST}); do
 done
 
 for file in $(ls ./*.zip); do
-  unzip ${file}
+  if grep -q "user" <<< ${file} ; then
+    mkdir ./user_images
+    unzip ${file} -d ./user_images/
+  else
+    unzip ${file}
+  fi
 done
 
 if [ -f "${BOOT_IMG_NAME}" ]; then
@@ -69,12 +84,16 @@ fi
 echo "Copying files listed in ${FILES_LIST} to ${GKI_PREBUILTS_DIR}..."
 mv $(cat ${FILES_LIST}) ${GKI_PREBUILTS_DIR}
 exit_and_clean_if_error $? "Unable to copy all files"
+if [ -f ${TEMP_DIR}/user_images/${BOOT_IMG_NAME} ]; then
+  mv ${TEMP_DIR}/user_images/${BOOT_IMG_NAME} ${GKI_PREBUILTS_DIR}/boot-user.img
+  echo "Copied user variant ${BOOT_IMG_NAME} to boot-user.img."
+fi
 
 cd ${GKI_PREBUILTS_DIR}
 if [ -n "${BOOT_IMG_NAME}" -a -f "${BOOT_IMG_NAME}" ]; then
-  echo "Renaming ${BOOT_IMG_NAME} to boot.img for convenience."
+  echo "Copied userdebug variant ${BOOT_IMG_NAME} to boot.img."
   mv ${BOOT_IMG_NAME} boot.img
-  echo "Unpacking boot.img and retrieving Image.lz4."
+  echo "Unpacking userdebug boot.img and retrieving Image.lz4."
   ${CUR_DIR}/tools/mkbootimg/unpack_bootimg.py --boot_img boot.img \
             --out ${TEMP_DIR}/boot_img_unpacked/
   exit_and_clean_if_error $? "Unable to unpack boot.img"
