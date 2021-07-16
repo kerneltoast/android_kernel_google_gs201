@@ -16,6 +16,7 @@
 #include "gs201-cloudripper-touch.dtsi"
 #include "gs201-max20339-ovp.dtsi"
 #include "gs201-cloudripper-usecases.dtsi"
+#include "gs201-cloudripper-wcharger.dtsi"
 
 / {
 	board_id = <0x30101>;
