@@ -23,28 +23,6 @@
 
 #include "mfc_mem.h"
 
-/*
- * typedef struct {
- *     ....
- *     // 0x0400
- *     ImageSubHeader SubHeader;
- *     ....
- * } ImageHeader;
- * ...
- * typedef struct {
- *     uint32_t Magic;
- *     uint32_t Generation;
- *     ...
- * } ImageSubHeader;
- */
-
-#define HEADER_MAGIC_OFFSET	0x0400U
-#define HEADER_MAGIC_MFC	0x0043464DU /* 'MFC' */
-#define HEADER_GENERATION	1U
-
-#define SKIP_HEADER_OFFSET	4096U
-#define DRM_EXTRA_SIZE		65536U
-
 static int __mfc_alloc_common_context(struct mfc_core *core,
 			enum mfc_buf_usage_type buf_type)
 {
@@ -752,7 +730,7 @@ int mfc_alloc_firmware(struct mfc_core *core)
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	core->drm_fw_buf.buftype = MFCBUF_DRM_FW;
-	core->drm_fw_buf.size = core->fw_buf.size + DRM_EXTRA_SIZE;
+	core->drm_fw_buf.size = core->fw_buf.size;
 	if (mfc_mem_special_buf_alloc(dev, &core->drm_fw_buf)) {
 		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
 		goto err_reserve_iova;
@@ -803,11 +781,6 @@ err_reserve_iova:
 /* Load firmware to MFC */
 int mfc_load_firmware(struct mfc_core *core, const u8 *fw_data, size_t fw_size)
 {
-	const u32 *signed_header = (const u32 *)(fw_data + HEADER_MAGIC_OFFSET);
-	const u8 *normal_fw_data;
-	u32 normal_size;
-	u32 skip_offset = 0;
-
 	mfc_core_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n", fw_size);
 
 	if (fw_size > core->fw_buf.size) {
@@ -823,18 +796,10 @@ int mfc_load_firmware(struct mfc_core *core, const u8 *fw_data, size_t fw_size)
 		return -EINVAL;
 	}
 
-	if (signed_header[0] == HEADER_MAGIC_MFC && signed_header[1] == HEADER_GENERATION) {
-		skip_offset = SKIP_HEADER_OFFSET;
-	}
-
-	normal_fw_data = fw_data + skip_offset;
-	normal_size = fw_size - skip_offset;
-
 	/*  This adds to clear with '0' for firmware memory except code region. */
 	mfc_core_debug(4, "[F/W] memset before memcpy for normal fw\n");
-	/* We skip the 4KB signed header for normal MFC mode */
-	memset((core->fw_buf.vaddr + normal_size), 0, (core->fw_buf.size - normal_size));
-	memcpy(core->fw_buf.vaddr, normal_fw_data, normal_size);
+	memset((core->fw_buf.vaddr + fw_size), 0, (core->fw_buf.size - fw_size));
+	memcpy(core->fw_buf.vaddr, fw_data, fw_size);
 
 	/* cache flush for memcpy by CPU */
 	dma_sync_sgtable_for_device(core->device, core->fw_buf.sgt, DMA_TO_DEVICE);
