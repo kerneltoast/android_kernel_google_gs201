@@ -119,7 +119,7 @@ redo:
 		trace_sched_rt_cpu_util(cpu, capacity, util, exit_lat, cpu_importance);
 
 		/* select non-idle cpus without important tasks first */
-		if (exit_lat == 0 && cpu_importance <= DEFAULT_IMPRATANCE_THRESHOLD) {
+		if (exit_lat == 0 && cpu_importance < DEFAULT_IMPRATANCE_THRESHOLD) {
 			cpumask_set_cpu(cpu, backup_mask);
 
 			/* Always prefer the least important cpu. */
