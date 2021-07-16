@@ -202,7 +202,7 @@
 			m_buck6_reg: BUCK6M {
 				regulator-name = "S2MPG12_BUCK6";
 				regulator-min-microvolt = <450000>;
-				regulator-max-microvolt = <1300000>;
+				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x6>;
