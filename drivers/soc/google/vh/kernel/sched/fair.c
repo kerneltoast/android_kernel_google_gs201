@@ -700,6 +700,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		unsigned long capacity_orig;
 		unsigned long capacity;
 		unsigned long group_capacity;
+		unsigned long wake_group_util;
 		unsigned long wake_util, new_util;
 		long spare_cap;
 		struct cpuidle_state *idle = NULL;
@@ -716,6 +717,7 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		capacity = capacity_of(i);
 		group_capacity = cap_scale(get_task_group_throttle(p),
 				arch_scale_cpu_capacity(i));
+		wake_group_util = group_util_without(i, p);
 		idle_cpu = cpu_is_idle(i);
 		cpu_importance = READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MIN].value) +
 				 READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MAX].value);
@@ -723,9 +725,6 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		next_cpu = cpumask_next(i, p->cpus_ptr);
 		if (next_cpu >= CPU_NUM)
 			next_cpu = 0;
-
-		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity, idle_cpu,
-				     task_importance, cpu_importance);
 
 		if (!cpu_active(i))
 			goto check;
@@ -745,7 +744,12 @@ static void find_best_target(cpumask_t *cpus, struct task_struct *p, int prev_cp
 		 * We use the minimal of spare cpu capacity and spare
 		 * group capacity.
 		 */
-		spare_cap = min(capacity - wake_util, group_capacity - group_util_without(i, p));
+		spare_cap = min(capacity - wake_util, group_capacity - wake_group_util);
+
+		trace_sched_cpu_util(i, cpu_util(i), capacity_curr, capacity, wake_util, idle_cpu,
+				     cpu_importance, group_capacity, wake_group_util, spare_cap,
+					 READ_ONCE(task_group(p)->cfs_rq[i]->avg.util_avg),
+					 group_overutilized(i, task_group(p)));
 
 		do {
 			if (!(prefer_idle && task_importance > cpu_importance)) {

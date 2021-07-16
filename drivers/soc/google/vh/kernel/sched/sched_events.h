@@ -341,10 +341,14 @@ TRACE_EVENT(sched_find_energy_efficient_cpu,
 TRACE_EVENT(sched_cpu_util,
 
 	TP_PROTO(int cpu, unsigned long cpu_util, unsigned long capacity_curr,
-		 unsigned long capacity, bool idle_cpu, unsigned long task_importance,
-		 unsigned long cpu_importance),
+		 unsigned long capacity, unsigned long wake_util, bool idle_cpu,
+		 unsigned long cpu_importance,
+		 unsigned long group_capacity, unsigned long wake_group_util,
+		 long spare_cap, unsigned long group_util, bool grp_overutilized),
 
-	TP_ARGS(cpu, cpu_util, capacity_curr, capacity, idle_cpu, task_importance, cpu_importance),
+	TP_ARGS(cpu, cpu_util, capacity_curr, capacity, wake_util, idle_cpu,
+		cpu_importance, group_capacity, wake_group_util, spare_cap, group_util,
+		grp_overutilized),
 
 	TP_STRUCT__entry(
 		__field(unsigned int,	cpu)
@@ -352,11 +356,16 @@ TRACE_EVENT(sched_cpu_util,
 		__field(unsigned long,	cpu_util)
 		__field(unsigned long,	capacity_curr)
 		__field(unsigned long,	capacity)
+		__field(unsigned long,	wake_util)
 		__field(unsigned long,	capacity_orig)
 		__field(int,		    active)
 		__field(bool,		    idle_cpu)
-		__field(unsigned long,	task_importance)
 		__field(unsigned long,	cpu_importance)
+		__field(unsigned long,	group_capacity)
+		__field(unsigned long,	wake_group_util)
+		__field(long,			spare_cap)
+		__field(unsigned long,  group_util)
+		__field(bool,           grp_overutilized)
 	),
 
 	TP_fast_assign(
@@ -365,18 +374,27 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->cpu_util           = cpu_util;
 		__entry->capacity_curr      = capacity_curr;
 		__entry->capacity           = capacity;
+		__entry->wake_util          = wake_util;
 		__entry->capacity_orig      = capacity_orig_of(cpu);
 		__entry->active             = cpu_active(cpu);
 		__entry->idle_cpu           = idle_cpu;
-		__entry->task_importance    = task_importance;
 		__entry->cpu_importance     = cpu_importance;
+		__entry->group_capacity     = group_capacity;
+		__entry->wake_group_util    = wake_group_util;
+		__entry->spare_cap          = spare_cap;
+		__entry->group_util         = group_util;
+		__entry->grp_overutilized   = grp_overutilized;
 	),
 
-	TP_printk("cpu=%d nr_running=%d cpu_util=%ld capacity_curr=%u capacity=%u " \
-		  "capacity_orig=%u active=%u idle_cpu=%d task_importance=%llu cpu_importance=%llu",
+	TP_printk("cpu=%d nr_running=%d cpu_util=%llu capacity_curr=%llu capacity=%llu " \
+		  "wake_util=%llu capacity_orig=%u active=%u idle_cpu=%d " \
+		  "cpu_importance=%llu group_capacity=%llu wake_group_util=%llu spare_cap=%ld " \
+		  "group_util=%lu grp_overutilized=%d",
 		__entry->cpu, __entry->nr_running, __entry->cpu_util, __entry->capacity_curr,
-		__entry->capacity, __entry->capacity_orig, __entry->active, __entry->idle_cpu,
-		__entry->task_importance, __entry->cpu_importance)
+		__entry->capacity, __entry->wake_util, __entry->capacity_orig, __entry->active,
+		__entry->idle_cpu, __entry->cpu_importance,
+		__entry->group_capacity, __entry->wake_group_util, __entry->spare_cap,
+		__entry->group_util, __entry->grp_overutilized)
 );
 
 TRACE_EVENT(sugov_util_update,
