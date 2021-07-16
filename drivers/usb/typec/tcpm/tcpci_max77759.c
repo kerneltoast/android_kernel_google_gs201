@@ -1719,9 +1719,15 @@ static int max77759_probe(struct i2c_client *client,
 		return PTR_ERR(chip->data.regmap);
 	}
 
+	dn = dev_of_node(&client->dev);
+	if (!dn) {
+		dev_err(&client->dev, "of node not found\n");
+		return -EINVAL;
+	}
+
 	chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
 	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
-		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed",
+		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed: %d\n",
 			PTR_ERR(chip->charger_mode_votable));
 		chg_psy_name = (char *)of_get_property(dn, "chg-psy-name", NULL);
 		/*
@@ -1729,12 +1735,6 @@ static int max77759_probe(struct i2c_client *client,
 		 */
 		if (chg_psy_name)
 			return -EPROBE_DEFER;
-	}
-
-	dn = dev_of_node(&client->dev);
-	if (!dn) {
-		dev_err(&client->dev, "of node not found\n");
-		return -EINVAL;
 	}
 
 	if (!of_property_read_u32(dn, "max20339,ovp", &ovp_handle)) {
