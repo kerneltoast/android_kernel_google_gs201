@@ -3813,8 +3813,6 @@ int exynos_pcie_rc_itmon_notifier(struct notifier_block *nb, unsigned long actio
 
 static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_port *pp)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	struct irq_domain *msi_domain;
 	struct msi_domain_info *msi_domain_info;
 	int ret;
@@ -3833,12 +3831,6 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 	}
 
 	exynos_pcie_setup_rc(pp);
-
-	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
-	spin_lock_init(&exynos_pcie->conf_lock);
-	spin_lock_init(&exynos_pcie->power_stats_lock);
-	spin_lock_init(&exynos_pcie->reg_lock);
-	spin_lock_init(&exynos_pcie->s2mpu_refcnt_lock);
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
@@ -4052,6 +4044,12 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	pp = &pci->pp;
 	pp->ops = &exynos_pcie_rc_ops;
+
+	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
+	spin_lock_init(&exynos_pcie->conf_lock);
+	spin_lock_init(&exynos_pcie->power_stats_lock);
+	spin_lock_init(&exynos_pcie->reg_lock);
+	spin_lock_init(&exynos_pcie->s2mpu_refcnt_lock);
 
 	exynos_pcie->ch_num = ch_num;
 	exynos_pcie->l1ss_enable = 1;
