@@ -222,6 +222,30 @@ TRACE_EVENT(sched_util_est_cfs,
 		 __entry->ewma, __entry->util)
 );
 
+TRACE_EVENT(sched_compute_energy,
+
+	TP_PROTO(struct task_struct *tsk, int dst_cpu, unsigned long energy),
+
+	TP_ARGS(tsk, dst_cpu, energy),
+
+	TP_STRUCT__entry(
+		__array(char, comm, TASK_COMM_LEN)
+		__field(pid_t,	pid)
+		__field(int,	dst_cpu)
+		__field(unsigned long,	energy)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid             = tsk->pid;
+		__entry->dst_cpu         = dst_cpu;
+		__entry->energy          = energy;
+	),
+
+	TP_printk("pid=%d comm=%s dst_cpu=%d, energy=%lu",
+		__entry->pid, __entry->comm, __entry->dst_cpu, __entry->energy)
+);
+
 TRACE_EVENT(sched_setscheduler_uclamp,
 
 	TP_PROTO(struct task_struct *tsk, int clamp_id, unsigned int value),
