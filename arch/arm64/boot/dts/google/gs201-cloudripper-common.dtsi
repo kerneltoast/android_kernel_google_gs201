@@ -21,15 +21,8 @@
 #include "gs201-cloudripper-touch.dtsi"
 #include "gs201-cloudripper-wcharger.dtsi"
 
-/*
-#include "gs101-whitefin-battery.dtsi"
-#include "gs101-whitefin2-battery.dtsi"
-#include "gs101-whitefin-display.dtsi"
-#include "gs101-whitefin-nfc.dtsi"
-#include "gs101-slider2-gps.dtsi"
-#include "gs101-whitefin2-pmic.dtsi"
-#include "gs101-whitefin2-thermal.dtsi"
-#include "gs101-whitefin2-bcl.dtsi"
-#include "gs101-whitefin2-wcharger.dtsi"
-#include "gs101-whitefin2v2-wcharger.dtsi"
-*/
+/* S5910 */
+&s_ldo26_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};

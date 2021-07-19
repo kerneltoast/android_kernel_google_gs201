@@ -58,7 +58,16 @@
 /* Keep VDDIs always on */
 &m_ldo24_reg {
 	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
 };
+
 &s_bucka_reg {
 	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* R4 VCI */
+&s_ldo6_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
 };

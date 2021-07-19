@@ -515,8 +515,7 @@
 				regulator-name = "S2MPG12_LDO23";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x37>;
 				schematic-name = "L23M_DMIC2";
 				subsys-name = "DMIC";
@@ -526,8 +525,7 @@
 				regulator-name = "S2MPG12_LDO24";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x38>;
 				schematic-name = "L24M_DISP";
 				subsys-name = "Display";
@@ -972,8 +970,7 @@
 				regulator-name = "S2MPG13_LDO4";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x24>;
 				schematic-name = "L4S_HS_AMP";
 				subsys-name = "Audio";
@@ -994,8 +991,7 @@
 				regulator-name = "S2MPG13_LDO6";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x26>;
 				schematic-name = "L6S_DISP2_VCI";
 				subsys-name = "Display";
@@ -1016,8 +1012,7 @@
 				regulator-name = "S2MPG13_LDO8";
 				regulator-min-microvolt = <1125000>;
 				regulator-max-microvolt = <1275000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x28>;
 				schematic-name = "L8S_UFS_VCCQ";
 				subsys-name = "UFS";
@@ -1060,8 +1055,7 @@
 				regulator-name = "S2MPG13_LDO12";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x2C>;
 				schematic-name = "L12S_TS2_DVDD";
 				subsys-name = "Touch";
@@ -1104,8 +1098,7 @@
 				regulator-name = "S2MPG13_LDO16";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x30>;
 				schematic-name = "L16S_UWB";
 				subsys-name = "UWB";
@@ -1115,8 +1108,7 @@
 				regulator-name = "S2MPG13_LDO17";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x31>;
 				schematic-name = "L17S_UWB";
 				subsys-name = "UWB";
@@ -1170,8 +1162,7 @@
 				regulator-name = "S2MPG13_LDO22";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x36>;
 				schematic-name = "L21S_VDD2L_MEM";
 				subsys-name = "MEM";
@@ -1211,8 +1202,7 @@
 				regulator-name = "S2MPG13_LDO26";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x3A>;
 				schematic-name = "26S_S5910";
 				subsys-name = "S5910";
@@ -1233,8 +1223,7 @@
 				regulator-name = "S2MPG13_LDO28";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x3C>;
 				schematic-name = "L28S_HS_AMP";
 				subsys-name = "Audio";

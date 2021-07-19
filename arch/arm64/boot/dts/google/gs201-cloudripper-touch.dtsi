@@ -43,3 +43,9 @@
 		samsung,spi-chip-select-mode = <1>;
 	};
 };
+
+/* R4 TS_DVDD */
+&s_ldo12_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
