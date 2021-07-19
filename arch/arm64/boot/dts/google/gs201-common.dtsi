@@ -6,11 +6,12 @@
  *
  */
 #include <dt-bindings/gpio/gpio.h>
+#include "gs101-common-trusty.dtsi"
 #include "gs201-common-bluetooth.dtsi"
 #include "gs201-common-gps.dtsi"
-#include "gs101-common-trusty.dtsi"
-#include "gs201-common-wlan.dtsi"
+#include "gs201-common-touch.dtsi"
 #include "gs201-common-typec.dtsi"
+#include "gs201-common-wlan.dtsi"
 #include "gs201-pmic.dtsi"
 
 #include <dt-bindings/pci/pci.h>

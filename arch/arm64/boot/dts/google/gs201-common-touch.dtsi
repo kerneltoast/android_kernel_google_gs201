@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Cloudripper device tree source
+ *
+ * Copyright 2021 Google Inc.
+ *
+ */
+
+/* Touch is connected to spi_0, pins:
+ *   CLK=GPP20[0], MOSI=GPP20[1], MISO=GPP20[2], CS=GPP20[3]
+ * TS_RESET_L = C26 = XAPC_USI11_RTSN_DI = GPP23[2] = <&gpp23 2 0>
+ * TS_INT_L = AT22 = XEINT_8 = GPA7[0] = <&gpa7 0 0>
+ *
+ * DVDD = PP1800_L25M_TSP_DVDD = ??? = VLDO25M = "PP1800_L25M_TSP"?
+ * AVDD = PP3300_L26M_TS_AVDD  = ??? = VLDO26M = "PP3300_L26M_TSP"?
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+
+/ {
+	fragment@touch_bus_negotiator {
+		target-path = "/";
+		__overlay__ {
+			tbn: tbn {
+				compatible = "touch_bus_negotiator";
+
+				/* Low: AP, High: AOC */
+				/* Note: The following GPIO flags are not used by the driver. */
+				tbn,aoc2ap_gpio = <&gpa9 2 GPIO_ACTIVE_LOW>;
+				tbn,ap2aoc_gpio = <&gph1 0 GPIO_ACTIVE_LOW>;
+			};
+		};
+	};
+};
+
+&pinctrl_1 {
+	sec_ts_irq: sec_ts-irq {
+		samsung,pins = "gpa7-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_5 {
+	sec_ts_reset: sec_ts-reset {
+		samsung,pins = "gpp23-2";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&spi_0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_bus &spi0_cs_func>;
+
+	spitouch: touchscreen@0 {
+		status = "disabled";
+		reg = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sec_ts_irq &sec_ts_reset>;
+
+		vdd-supply = <&m_ldo25_reg>; /* VIO 1.8V */
+		avdd-supply = <&m_ldo26_reg>; /* AVDD 3.3V */
+	};
+};
