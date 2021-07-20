@@ -17,6 +17,7 @@ android/abi_gki_aarch64_db845c
 android/abi_gki_aarch64_qcom
 android/abi_gki_aarch64_virtual_device
 android/abi_gki_aarch64_hikey960
+android/abi_gki_aarch64_galaxy
 android/abi_gki_aarch64_generic
 android/abi_gki_aarch64_exynos
 android/abi_gki_aarch64_exynosauto
@@ -24,6 +25,7 @@ android/abi_gki_aarch64_mtk
 android/abi_gki_aarch64_xiaomi
 android/abi_gki_aarch64_fips140
 android/abi_gki_aarch64_vivo
+android/abi_gki_aarch64_oplus
 "
 
 FILES="${FILES}
