@@ -605,6 +605,13 @@ static void max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *t
 
 	if (!ret)
 		chip->sourcing_vbus = 1;
+
+	/*
+	 * TODO: move this line to max77759_set_vbus after the change in TCPM gets upstreamed and
+	 * cherry-picked to Pixel codebase.
+	 * Be sure to ensure that this will only be called during FR_SWAP.
+	 */
+	usb_psy_set_sink_state(chip->usb_psy_data, false);
 }
 
 static void process_power_status(struct max77759_plat *chip)
