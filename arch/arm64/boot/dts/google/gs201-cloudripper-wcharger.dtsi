@@ -41,6 +41,9 @@
 };
 
 &hsi2c_15 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
 	p9412@3c {
 		dev-name = "p9412";
 		compatible = "idt,p9412";

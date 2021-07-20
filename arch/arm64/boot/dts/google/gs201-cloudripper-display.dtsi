@@ -6,6 +6,8 @@
  *
  */
 
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+
 &drmdsim0 {
 	#address-cells = <1>;
 	#size-cells = <0>;

@@ -8,6 +8,9 @@
 #include <dt-bindings/pinctrl/samsung.h>
 
 &hsi2c_13{
+	#address-cells = <1>;
+	#size-cells = <0>;
+
 	max20339_ovp: max20339ovp@35 {
 		status = "okay";
 		compatible = "max20339ovp";

@@ -5,10 +5,14 @@
  * Copyright 2021 Google,LLC
  */
 
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+
 #include "gs201-cloudripper-common.dtsi"
+
 #include "gs201-ravenclaw-audio.dtsi"
 #include "gs201-ravenclaw-display.dtsi"
 #include "gs201-ravenclaw-touch.dtsi"
+
 #include "gs201-ravenclaw-usecases.dtsi"
 
 /* UWB */

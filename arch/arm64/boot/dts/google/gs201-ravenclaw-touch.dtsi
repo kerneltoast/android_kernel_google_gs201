@@ -26,6 +26,9 @@
 };
 
 &spitouch {
+	status = "okay";
+	compatible = "sec,sec_ts";
+
 	sec,panel_map = <&samsung_s6e3hc3 0>;
 
 	sec,touch_offload_id = /bits/ 8 <'0' '0' 'r' '4'>;

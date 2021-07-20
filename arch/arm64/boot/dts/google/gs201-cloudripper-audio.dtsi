@@ -7,8 +7,9 @@
  *
 */
 
-#include <dt-bindings/pinctrl/samsung.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 #include <dt-bindings/sound/google-aoc.h>
 
 &dai_be_tdm0_rx {
