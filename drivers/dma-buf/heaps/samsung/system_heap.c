@@ -123,6 +123,13 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap, unsigned long
 
 	if (dma_heap_flags_video_aligned(samsung_dma_heap->flags))
 		len = dma_heap_add_video_padding(len);
+
+	if (len / PAGE_SIZE > totalram_pages() / 2) {
+		pr_err("pid %d requested too large allocation of size %lu from system heap\n",
+		       current->pid, len);
+		return ERR_PTR(ret);
+	}
+
 	size_remaining = len;
 
 	INIT_LIST_HEAD(&pages);
