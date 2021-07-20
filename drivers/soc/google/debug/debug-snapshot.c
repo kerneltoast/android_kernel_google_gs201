@@ -344,8 +344,8 @@ static void dbg_snapshot_init_desc(struct device *dev)
 	/* initialize dss_desc */
 	memset((void *)&dss_desc, 0, sizeof(struct dbg_snapshot_desc));
 	raw_spin_lock_init(&dss_desc.ctrl_lock);
-	dbg_snapshot_set_sjtag_status();
 	dss_desc.dev = dev;
+	dbg_snapshot_set_sjtag_status();
 
 	if (of_property_read_u32(dev->of_node, "panic-action",
 			&dss_desc.panic_action))
