@@ -472,13 +472,18 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 		 chip->bc12_data_capable ? 1 : 0, chip->attached ? 1 : 0,
 		 chip->debug_acc_connected, chip->bc12_running ? 1 : 0);
 
-	enable_data = (chip->pd_data_capable || chip->no_bc_12 || chip->bc12_data_capable ||
-		       chip->data_role == TYPEC_HOST || chip->debug_acc_connected) &&
-		!chip->bc12_running;
+	enable_data = ((chip->pd_data_capable || chip->no_bc_12 || chip->bc12_data_capable ||
+		       chip->debug_acc_connected) && !chip->bc12_running) ||
+		       chip->data_role == TYPEC_HOST;
 
 	if (chip->attached && enable_data && !chip->data_active) {
 		/* Disable BC1.2 to prevent BC1.2 detection during PR_SWAP */
 		bc12_enable(chip->bc12, false);
+		/*
+		 * Clear running flag here as PD might have configured data
+		 * before BC12 started to run.
+		 */
+		chip->bc12_running = false;
 
 		/*
 		 * b/188614064: While swapping from host to device switches will not be configured
