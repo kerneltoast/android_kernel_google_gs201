@@ -59,6 +59,7 @@
 		average_qp = <1 0x201030>;
 		mv_search_mode = <1 0x201118>;
 		enc_idr_flag = <1 0x210614>;
+		min_quality_mode = <1 0x210629>;
 
 		/* AV1 Decoder */
 		support_av1_dec = <0>;

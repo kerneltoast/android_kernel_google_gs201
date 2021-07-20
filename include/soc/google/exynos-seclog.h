@@ -35,6 +35,9 @@
 /* Secure log buffer information */
 #define SECLOG_LOG_BUF_SIZE			(0x10000)
 
+/* Message buffer information */
+#define SEC_PRINT_BUFFER_SIZE			(128)
+
 /* Alignment with 4 bytes */
 #define FOUR_BYTES_SHIFT			(2)
 #define FOUR_BYTES_MASK				((1 << FOUR_BYTES_SHIFT) - 1)

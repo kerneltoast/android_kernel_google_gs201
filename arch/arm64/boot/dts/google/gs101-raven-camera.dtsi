@@ -154,6 +154,9 @@
 					 &slg51000_ldo3>;
 				regulator-voltages =
 					<0 0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo2-supply = <&slg51000_ldo2>;
+				ldo3-supply = <&slg51000_ldo3>;
 
 				clocks =
 					<&clock CIS_CLK3>,
@@ -234,6 +237,8 @@
 					<&slg51000_ldo1 &slg51000_ldo7>;
 				regulator-voltages =
 					<0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo7-supply = <&slg51000_ldo7>;
 
 				clocks =
 					<&clock CIS_CLK1>,
@@ -308,6 +313,8 @@
 					<&slg51000_ldo1 &slg51000_ldo4>;
 				regulator-voltages =
 					<0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo4-supply = <&slg51000_ldo4>;
 
 				clocks =
 					<&clock CIS_CLK0>,
@@ -384,6 +391,9 @@
 					 &slg51000_ldo6>;
 				regulator-voltages =
 					<0 0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo5-supply = <&slg51000_ldo5>;
+				ldo6-supply = <&slg51000_ldo6>;
 
 				/* RTCAM_EN_S2MPG11 GPIO8 */
 				enable-gpios =
@@ -472,6 +482,9 @@
 					 &slg51000_ldo3>;
 				regulator-voltages =
 					<0 0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo2-supply = <&slg51000_ldo2>;
+				ldo3-supply = <&slg51000_ldo3>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -522,6 +535,7 @@
 					<&slg51000_ldo1>;
 				regulator-voltages =
 					<0>;
+				ldo1-supply = <&slg51000_ldo1>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -560,6 +574,7 @@
 					<&slg51000_ldo1>;
 				regulator-voltages =
 					<0>;
+				ldo1-supply = <&slg51000_ldo1>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -599,6 +614,9 @@
 					 &slg51000_ldo6>;
 				regulator-voltages =
 					<0 0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo5-supply = <&slg51000_ldo5>;
+				ldo6-supply = <&slg51000_ldo6>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -650,6 +668,9 @@
 					 &slg51000_ldo3>;
 				regulator-voltages =
 					<0 0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo2-supply = <&slg51000_ldo2>;
+				ldo3-supply = <&slg51000_ldo3>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -701,6 +722,9 @@
 					 &slg51000_ldo6>;
 				regulator-voltages =
 					<0 0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo5-supply = <&slg51000_ldo5>;
+				ldo6-supply = <&slg51000_ldo6>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -752,6 +776,9 @@
 					 &slg51000_ldo3>;
 				regulator-voltages =
 					<0 0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo2-supply = <&slg51000_ldo2>;
+				ldo3-supply = <&slg51000_ldo3>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -803,6 +830,9 @@
 					 &slg51000_ldo6>;
 				regulator-voltages =
 					<0 0 0>;
+				ldo1-supply = <&slg51000_ldo1>;
+				ldo5-supply = <&slg51000_ldo5>;
+				ldo6-supply = <&slg51000_ldo6>;
 
 				/* Power up sequence */
 				power-up-seqs =

@@ -144,6 +144,7 @@ struct exynos_ufs {
 
 	/* sysfs */
 	struct kobject sysfs_kobj;
+	struct work_struct update_sysfs_work;
 
 	/* manual_gc */
 	struct ufs_manual_gc manual_gc;

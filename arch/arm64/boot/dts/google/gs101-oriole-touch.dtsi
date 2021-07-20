@@ -20,6 +20,7 @@
 	 * fetched.
 	 */
 	st,max-coords = <1079 2399>;
+	st,udfps-coords = <540 1769>;
 
 	st,touch_offload_id = /bits/ 8 <'0' '0' 'o' '6'>;
 	st,firmware_names = "ftm5_fw_o6.ftb";

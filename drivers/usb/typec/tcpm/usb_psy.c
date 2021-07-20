@@ -81,6 +81,7 @@ struct usb_psy_data {
 	struct kthread_worker *wq;
 	struct kthread_delayed_work icl_work;
 	struct kthread_delayed_work bc_icl_work;
+	struct kthread_delayed_work sdp_icl_work;
 	atomic_t retry_count;
 
 	/* sink connected state from Type-C */
@@ -368,8 +369,8 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		/* Handle SDP current only */
 		if (usb->usb_type != POWER_SUPPLY_USB_TYPE_SDP)
 			return 0;
-		set_sdp_current_limit(usb, val->intval);
 		usb->sdp_input_current_limit = val->intval;
+		kthread_mod_delayed_work(usb->wq, &usb->sdp_icl_work, 0);
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		usb->usb_type = val->intval;
@@ -582,6 +583,15 @@ static void bc_icl_work_item(struct kthread_work *work)
 	set_bc_current_limit(usb->usb_icl_proto_el, usb->usb_type, usb->log);
 }
 
+static void sdp_icl_work_item(struct kthread_work *work)
+{
+	struct kthread_delayed_work *sdp_work = container_of(work, struct kthread_delayed_work,
+							     work);
+	struct usb_psy_data *usb = container_of(sdp_work, struct usb_psy_data, sdp_icl_work);
+
+	set_sdp_current_limit(usb, usb->sdp_input_current_limit);
+}
+
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 		    struct usb_psy_ops *ops)
 {
@@ -708,6 +718,7 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 
 	kthread_init_delayed_work(&usb->icl_work, icl_work_item);
 	kthread_init_delayed_work(&usb->bc_icl_work, bc_icl_work_item);
+	kthread_init_delayed_work(&usb->sdp_icl_work, sdp_icl_work_item);
 
 	/* vote default value after icl_work is initialized */
 	gvotable_use_default(usb->dead_battery_el, true);

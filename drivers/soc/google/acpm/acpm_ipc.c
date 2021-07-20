@@ -234,7 +234,7 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 
 	/* ACPM Log data dequeue & print */
 	front = __raw_readl(buffer->log_buff_front);
-	rear = __raw_readl(buffer->log_buff_rear);
+	rear = buffer->rear_index;
 
 	while (rear != front) {
 		head = __raw_readl(buffer->log_buff_base +
@@ -253,7 +253,7 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 		else
 			rear++;
 
-		__raw_writel(rear, buffer->log_buff_rear);
+		buffer->rear_index = rear;
 		front = __raw_readl(buffer->log_buff_front);
 	}
 
@@ -712,7 +712,7 @@ retry:
 		} while (true);
 
 		if (timeout_flag) {
-			pr_err("%s Timeout error! now = %llu timeout = %llu ch:%u s:%u bitmap:%llx\n",
+			pr_err("%s Timeout error! now = %llu timeout = %llu ch:%u s:%u bitmap:%lx\n",
 			       __func__, now, timeout, channel->id, seq_num,
 			       channel->bitmap_seqnum[0]);
 
@@ -904,7 +904,7 @@ static int debug_acpm_ipc_panic_action_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_ipc_panic_action_fops,
 			debug_acpm_ipc_panic_action_get,
 			debug_acpm_ipc_panic_action_set,
-			"%d\n");
+			"%llu\n");
 
 static void acpm_ipc_debugfs_init(struct acpm_ipc_info *acpm_ipc)
 {

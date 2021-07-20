@@ -388,6 +388,12 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 		if (p->rc_mb)
 			mfc_set_bits(reg, 0x3, 4, p->rc_pvc);
 	}
+
+	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->min_quality_mode) && p->min_quality_mode) {
+		mfc_set_bits(reg, 0x1, 7, p->min_quality_mode);
+		mfc_debug(2, "MIN quality mode is enabled\n");
+	}
+
 	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_RC_MODE);
 
 	/* extended encoder ctrl */

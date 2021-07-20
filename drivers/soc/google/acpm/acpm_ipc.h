@@ -65,6 +65,7 @@ struct acpm_log_buff {
     void __iomem *log_buff_base;
     unsigned int log_buff_len;
     unsigned int log_buff_size;
+    unsigned int rear_index;
 };
 
 struct acpm_debug_info {

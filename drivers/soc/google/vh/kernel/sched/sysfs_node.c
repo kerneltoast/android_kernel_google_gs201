@@ -597,6 +597,7 @@ static int dump_task_show(struct seq_file *m, void *v)
 	unsigned int uclamp_min, uclamp_max, uclamp_eff_min, uclamp_eff_max;
 	enum vendor_group group;
 	const char *grp_name = "unknown";
+	bool uclamp_fork_reset;
 
 	rcu_read_lock();
 
@@ -611,9 +612,10 @@ static int dump_task_show(struct seq_file *m, void *v)
 		uclamp_eff_min = uclamp_eff_value(t, UCLAMP_MIN);
 		uclamp_eff_max = uclamp_eff_value(t, UCLAMP_MAX);
 		pid = t->pid;
+		uclamp_fork_reset = vp->uclamp_fork_reset;
 		put_task_struct(t);
-		seq_printf(m, "%u %s %u %u %u %u\n", pid, grp_name, uclamp_min, uclamp_max,
-			uclamp_eff_min, uclamp_eff_max);
+		seq_printf(m, "%u %s %u %u %u %u %d\n", pid, grp_name, uclamp_min, uclamp_max,
+			uclamp_eff_min, uclamp_eff_max, uclamp_fork_reset);
 	}
 
 	rcu_read_unlock();
@@ -874,6 +876,57 @@ static ssize_t util_post_init_scale_store(struct kobject *kobj,
 
 static struct kobj_attribute util_post_init_scale_attribute = __ATTR_RW(util_post_init_scale);
 
+static ssize_t uclamp_fork_reset_set_store(struct kobject *kobj,
+					      struct kobj_attribute *attr,
+					      const char *buf, size_t count)
+{
+	struct vendor_task_struct *vp;
+	struct task_struct *p;
+	pid_t pid;
+
+	if (kstrtoint(buf, 0, &pid) || pid <= 0)
+		return -EINVAL;
+
+	rcu_read_lock();
+	p = find_task_by_vpid(pid);
+	if (!p) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+
+	vp = get_vendor_task_struct(p);
+	vp->uclamp_fork_reset = true;
+	rcu_read_unlock();
+	return count;
+}
+static struct kobj_attribute uclamp_fork_reset_set_attribute =
+	__ATTR_WO(uclamp_fork_reset_set);
+
+static ssize_t uclamp_fork_reset_clear_store(struct kobject *kobj,
+					     struct kobj_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct vendor_task_struct *vp;
+	struct task_struct *p;
+	pid_t pid;
+
+	if (kstrtoint(buf, 0, &pid) || pid <= 0)
+		return -EINVAL;
+
+	rcu_read_lock();
+	p = find_task_by_vpid(pid);
+	if (!p) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+
+	vp = get_vendor_task_struct(p);
+	vp->uclamp_fork_reset = false;
+	rcu_read_unlock();
+	return count;
+}
+static struct kobj_attribute uclamp_fork_reset_clear_attribute = __ATTR_WO(uclamp_fork_reset_clear);
+
 static struct attribute *attrs[] = {
 	// Topapp group attributes
 	&ta_prefer_idle_attribute.attr,
@@ -968,6 +1021,8 @@ static struct attribute *attrs[] = {
 	&util_threshold_attribute.attr,
 	&high_capacity_start_cpu_attribute.attr,
 	&util_post_init_scale_attribute.attr,
+	&uclamp_fork_reset_set_attribute.attr,
+	&uclamp_fork_reset_clear_attribute.attr,
 	NULL,
 };
 
