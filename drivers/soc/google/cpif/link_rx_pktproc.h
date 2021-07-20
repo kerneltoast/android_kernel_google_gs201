@@ -165,7 +165,6 @@ struct pktproc_queue {
 	struct napi_struct napi;
 	struct napi_struct *napi_ptr;
 	atomic_t stop_napi_poll;
-	struct timespec64 flush_time;
 
 	/* Statistics */
 	struct pktproc_statistics stat;

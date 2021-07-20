@@ -2369,68 +2369,6 @@ exit:
 	return err;
 }
 
-long gro_flush_time = 10000;
-module_param(gro_flush_time, long, 0644);
-
-static void gro_flush_timer(struct link_device *ld, struct napi_struct *napi)
-{
-	struct mem_link_device *mld = to_mem_link_device(ld);
-	struct timespec64 curr, diff;
-	struct timespec64 *flush_time;
-#if !IS_ENABLED(CONFIG_EXYNOS_DIT)
-	struct pktproc_queue *q;
-#endif
-
-	if (!gro_flush_time) {
-		napi_gro_flush(napi, false);
-		return;
-	}
-
-#if !IS_ENABLED(CONFIG_EXYNOS_DIT)
-	if (pktproc_check_support(&mld->pktproc) &&
-			mld->pktproc.use_exclusive_irq &&
-			mld->pktproc.use_napi) {
-		q = container_of(napi, struct pktproc_queue, napi);
-		flush_time = &q->flush_time;
-	} else
-#endif
-		flush_time = &mld->flush_time;
-
-	if (unlikely(flush_time->tv_sec == 0))
-		goto refresh;
-	else {
-		ktime_get_real_ts64(&(curr));
-		diff = timespec64_sub(curr, *flush_time);
-		if ((diff.tv_sec > 0) || (diff.tv_nsec > gro_flush_time)) {
-			napi_gro_flush(napi, false);
-			goto refresh;
-		}
-	}
-
-	return;
-
-refresh:
-	ktime_get_real_ts64(flush_time);
-}
-
-static struct timespec64 update_flush_time(struct timespec64 org_flush_time)
-{
-	struct timespec64 curr, diff, ret;
-
-	ktime_get_real_ts64(&curr);
-	if (unlikely(org_flush_time.tv_sec == 0)) {
-		ktime_get_real_ts64(&ret);
-		return ret;
-	}
-	diff = timespec64_sub(curr, org_flush_time);
-	if (diff.tv_nsec > gro_flush_time)
-		ktime_get_real_ts64(&ret);
-	else
-		ret = org_flush_time;
-
-	return ret;
-}
-
 static int sbd_link_rx_func_napi(struct sbd_link_device *sl, struct link_device *ld, int budget,
 		int *work_done)
 {
@@ -2961,7 +2899,6 @@ static irqreturn_t shmem_irq_handler(int irq, void *data)
 		struct link_device *ld = &mld->link_dev;
 
 		ld->disable_rx_int(ld);
-		mld->flush_time = ld->update_flush_time(mld->flush_time);
 		__napi_schedule(&mld->mld_napi);
 	}
 
@@ -3790,9 +3727,6 @@ static int set_ld_attr(struct platform_device *pdev,
 
 	ld->close_tx = shmem_close_tx;
 	ld->get_cp_crash_reason = get_cp_crash_reason;
-
-	ld->gro_flush = gro_flush_timer;
-	ld->update_flush_time = update_flush_time;
 
 	ld->protocol = modem->protocol;
 	ld->capability_check = modem->capability_check;

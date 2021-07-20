@@ -318,7 +318,6 @@ struct mem_link_device {
 	unsigned int rx_int_count;
 	unsigned int rx_poll_count;
 	unsigned long long rx_int_disabled_time;
-	struct timespec64 flush_time;
 
 	/* Doorbell interrupt value to separate interrupt */
 	unsigned int intval_ap2cp_msg;

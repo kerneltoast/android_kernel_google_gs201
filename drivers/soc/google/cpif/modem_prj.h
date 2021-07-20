@@ -509,17 +509,12 @@ struct link_device {
 	void (*start_timers)(struct mem_link_device *mld);
 	void (*stop_timers)(struct mem_link_device *mld);
 
-	void (*gro_flush)(struct link_device *ld, struct napi_struct *napi);
-	struct timespec64 (*update_flush_time)(struct timespec64 org_flush_time);
-
 	int (*handover_block_info)(struct link_device *ld, unsigned long arg);
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	int (*register_pcie)(struct link_device *ld);
 #endif
 };
-
-extern long gro_flush_time;
 
 static inline struct sk_buff *rx_alloc_skb(unsigned int length,
 		struct io_device *iod, struct link_device *ld)
