@@ -2339,6 +2339,9 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 		val_irq2 = exynos_elbi_read(exynos_pcie, PCIE_IRQ2);
 		dev_info(dev, "check irq22 pending clear: irq2_state = 0x%x\n", val_irq2);
+
+		exynos_pcie->state = STATE_LINK_DOWN_TRY;
+		queue_work(exynos_pcie->pcie_wq, &exynos_pcie->cpl_timeout_work.work);
 	}
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
