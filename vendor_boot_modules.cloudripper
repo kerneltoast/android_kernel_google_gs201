@@ -86,6 +86,7 @@ max77729_uic.ko
 max77759_charger.ko
 max77759_contaminant.ko
 max77759_helper.ko
+max20339.ko
 mcps802154.ko
 mcps802154_region_fira.ko
 mcps802154_region_nfcc_coex.ko
