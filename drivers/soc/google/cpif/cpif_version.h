@@ -7,5 +7,5 @@
 #ifndef __CPIF_VERSION_H__
 #define __CPIF_VERSION_H__
 
-static const char cpif_driver_version[] = "CPIF-20210629R1";
+static const char cpif_driver_version[] = "CPIF-20210721R1";
 #endif /* __CPIF_VERSION_H__ */
