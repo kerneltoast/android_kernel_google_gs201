@@ -24,17 +24,11 @@ struct cpif_va_mapper *cpif_vmap_create(u64 va_start, u64 va_size, u64 item_size
 	vmap->item_size = item_size;
 	vmap->instance_size = instance_size;
 
-	if (va_size == item_size) /* no need to use kfifo */
-		goto skip_kfifo;
-	if (kfifo_alloc(&vmap->sequential_table, va_size / item_size *
-			sizeof(struct cpif_vmap_item), GFP_ATOMIC)) {
-		mif_err("error on creating sequential table\n");
-		kfree(vmap);
-		vmap = NULL;
-		return NULL;
-	}
+	if (va_size == item_size) /* no need to use item list */
+		goto skip_item_list;
+	INIT_LIST_HEAD(&vmap->item_list);
 
-skip_kfifo:
+skip_item_list:
 	cpif_sysmmu_set_use_iocc();
 	cpif_sysmmu_enable();
 
@@ -44,7 +38,7 @@ EXPORT_SYMBOL(cpif_vmap_create);
 
 void cpif_vmap_free(struct cpif_va_mapper *vmap)
 {
-	struct cpif_vmap_item *temp;
+	struct cpif_vmap_item *temp, *temp2;
 	int err;
 
 	if (unlikely(!vmap)) {
@@ -80,23 +74,14 @@ void cpif_vmap_free(struct cpif_va_mapper *vmap)
 		vmap->out = NULL;
 	}
 
-	temp = kzalloc(sizeof(struct cpif_vmap_item), GFP_ATOMIC);
-	if (unlikely(!temp)) {
-		mif_err("failed to alloc vmap item for temporary use\n");
-		goto end;
-	}
-	while (kfifo_out(&vmap->sequential_table, temp,
-				sizeof(struct cpif_vmap_item)) ==
-				sizeof(struct cpif_vmap_item)) {
+	list_for_each_entry_safe(temp, temp2, &vmap->item_list, item) {
 		err = cpif_iommu_unmap(temp->vaddr_base, vmap->item_size);
 		if (err == 0)
 			mif_err("failed to unmap\n");
+		list_del(&temp->item);
+		kfree(temp);
 	}
 
-	kfree(temp);
-
-end:
-	kfifo_free(&vmap->sequential_table);
 	kfree(vmap);
 	vmap = NULL;
 }
@@ -179,9 +164,7 @@ u64 cpif_vmap_map_area(struct cpif_va_mapper *vmap, u64 item_paddr, u64 instance
 		temp->paddr_base = item_paddr;
 		atomic_set(&temp->ref, 1);
 
-		kfifo_in(&vmap->sequential_table, vmap->in,
-				sizeof(struct cpif_vmap_item));
-		kfree(vmap->in);
+		list_add_tail(&vmap->in->item, &vmap->item_list);
 		vmap->in = temp;
 
 		mif_debug("normal map: CP addr: 0x%lX AP addr: 0x%lX size: 0x%lX\n",
@@ -219,19 +202,14 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 	}
 
 	if (unlikely(!vmap->out)) { /* first time to unmap */
-		temp = kzalloc(sizeof(struct cpif_vmap_item), GFP_ATOMIC);
+		temp = list_first_entry_or_null(&vmap->item_list,
+						struct cpif_vmap_item, item);
 		if (unlikely(!temp)) {
-			mif_err_limited("failed to kzalloc for kfifo_out\n");
-			return 0;
-		}
-		if (kfifo_out(&vmap->sequential_table, temp,
-				sizeof(struct cpif_vmap_item)) !=
-				sizeof(struct cpif_vmap_item)) {
-			mif_err("kfifo_out fails\n");
-			kfree(temp);
+			mif_err_limited("failed to get item from list\n");
 			return 0;
 		}
 		vmap->out = temp;
+		list_del(&temp->item);
 	}
 
 	target = vmap->out;
@@ -260,14 +238,10 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 		}
 		kfree(vmap->out);
 		/* update vmap->out to the next item to be unmapped */
-		temp = kzalloc(sizeof(struct cpif_vmap_item), GFP_ATOMIC);
-		if (unlikely(!temp))
-			return 0;
-		if (kfifo_out(&vmap->sequential_table, temp,
-				sizeof(struct cpif_vmap_item)) !=
-				sizeof(struct cpif_vmap_item)) {
-			mif_err_limited("kfifo_out fails: fifo might be empty\n");
-			kfree(temp);
+		temp = list_first_entry_or_null(&vmap->item_list,
+						struct cpif_vmap_item, item);
+		if (unlikely(!temp)) {
+			mif_err_limited("item list is empty\n");
 			if (vmap->in) {
 				/* drain out rest, next map will start from beginning */
 				mif_info("drain out vmap->in\n");
@@ -279,6 +253,7 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 			return ret;
 		}
 		vmap->out = temp;
+		list_del(&temp->item);
 	}
 
 	return ret;

@@ -8,13 +8,12 @@
 #define __CPIF_VMAPPER_H__
 
 #include <linux/types.h>
-#include <linux/kfifo.h>
 #include <linux/slab.h>
 
 struct cpif_vmap_item {
 	u64			vaddr_base;	/* cp address */
 	u64			paddr_base;	/* ap physical address */
-
+	struct list_head	item;
 	atomic_t		ref; /* if zero, this item will be unmapped */
 };
 
@@ -30,9 +29,9 @@ struct cpif_va_mapper {
 	u64			instance_size; /* size of instance in the item */
 
 	/* vmap table guaranteed to be mapped/unmapped sequentially */
-	struct kfifo		sequential_table;
-	struct cpif_vmap_item	*out; /* item to be unmapped, after kfifo_out */
-	struct cpif_vmap_item	*in;  /* item mapped recently, before kfifo_in */
+	struct list_head	item_list;
+	struct cpif_vmap_item	*out; /* item to be unmapped, after list out */
+	struct cpif_vmap_item	*in;  /* item mapped recently, before list in */
 };
 
 struct cpif_va_mapper *cpif_vmap_create(u64 va_start, u64 va_size, u64 item_size,
