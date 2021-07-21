@@ -153,6 +153,9 @@ static int dit_do_suspend(void)
 {
 	int ret;
 
+	if (unlikely(!dc) || unlikely(!dc->ld))
+		return 0;
+
 	ret = dit_reg_backup_restore(true);
 	if (ret) {
 		mif_err("reg backup failed ret:%d\n", ret);
@@ -172,6 +175,9 @@ static int dit_do_resume(void)
 {
 	unsigned int dir;
 	int ret;
+
+	if (unlikely(!dc) || unlikely(!dc->ld))
+		return 0;
 
 	ret = dit_init(NULL, DIT_INIT_NORMAL);
 	if (ret) {
