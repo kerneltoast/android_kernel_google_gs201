@@ -69,10 +69,10 @@
 	};
 };
 
-&pinctrl_1 {
+&pinctrl_0 {
 
 	dc_charger_irq: dc-charger-irq {
-		samsung,pins = "gpa6-0"; /* XEINT_0 (PLC_INT_L) */
+		samsung,pins = "gpa9-0"; /* XEINT_20 (PLC_INT_L) */
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
@@ -97,8 +97,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&dc_charger_irq>;
 
-		interrupt-parent = <&gpa6>;
-		pca9468,irq-gpio = <&gpa6 0 GPIO_ACTIVE_LOW>; /* PLC_INT_L */
+		interrupt-parent = <&gpa9>;
+		pca9468,irq-gpio = <&gpa9 0 GPIO_ACTIVE_LOW>; /* PLC_INT_L */
 
 		pca9468,float-voltage = <4300000>; /* 4.3V */
 
