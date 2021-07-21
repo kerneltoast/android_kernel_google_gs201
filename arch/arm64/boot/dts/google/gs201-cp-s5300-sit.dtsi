@@ -216,7 +216,7 @@
 						tpmon,target = <TPMON_TARGET_GRO>;
 						tpmon,idx = <0>;
 						tpmon,threshold = <100 200>;	/* Mbps */
-						tpmon,values = <10000 50000 100000>;
+						tpmon,values = <2000000 2000000 2000000>;
 					};
 					tpmon_mif {
 						tpmon,enable = <1>;
