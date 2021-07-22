@@ -36,6 +36,7 @@
 &drmdsim1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
+	status = "okay";
 
 	panel@0 {
 		compatible = "samsung,s6e3hc3";
@@ -46,6 +47,7 @@
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
 		vci-supply = <&s_ldo6_reg>;
 		vddi-supply = <&s_bucka_reg>;
+		is_secondary;
 	};
 	panel@1 {
 		compatible = "samsung,emul";
@@ -54,6 +56,7 @@
 
 		/* reset, power */
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		is_secondary;
 	};
 };
 
