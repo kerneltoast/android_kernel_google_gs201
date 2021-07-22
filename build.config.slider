@@ -50,7 +50,7 @@ private/google-modules/aoc
 private/google-modules/aoc/alsa
 private/google-modules/aoc/usb
 private/google-modules/touch/common
-private/google-modules/touch/fts
+private/google-modules/touch/fts/ftm5
 private/google-modules/touch/sec
 private/google-modules/power/reset
 private/google-modules/bluetooth/broadcom

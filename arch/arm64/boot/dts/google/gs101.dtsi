@@ -343,10 +343,10 @@
 		compatible = "samsung,exynos-pm";
 		reg = <0x0 0x174D0000 0x1000>,
 			<0x0 0x174E0000 0x1000>,
-			<0x0 0x10400204 0x100>;
-		reg-names = "gpio_alive_base",
-			"gpio_far_alive_base",
-			"gicd_ispendrn_base";
+			<0x0 0x10400204 0x100>,
+			<0x0 0x176A0000 0x100>;
+		reg-names = "gpio_alive_base", "gpio_far_alive_base",
+			"gicd_ispendrn_base", "mailbox_ap_aoc_host";
 		num-eint = <64>;	/* EINT_0 ~ 44 */
 		num-eint-far = <32>;	/* EINT_45 ~ 66 */
 		gpa-use = <8>, <7>, <5>, <4>, <4>, <7>, <8>, <2>, <8>, <4>, <8>, <2>;
@@ -1875,7 +1875,7 @@
 					type = "active";
 				};
 				tpu_hot: tpu-hot {
-					temperature = <110000>; /* millicelsius */
+					temperature = <115000>; /* millicelsius */
 					hysteresis = <3000>; /* millicelsius */
 					type = "hot";
 				};

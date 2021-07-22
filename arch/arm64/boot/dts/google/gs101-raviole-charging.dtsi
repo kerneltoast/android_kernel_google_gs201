@@ -41,7 +41,7 @@
 
 				google,fv-max-uv = <4450000>;
 
-				google,wlc-thermal-mitigation = <1100000 500000 250000>;
+				google,wlc-thermal-mitigation = <1100000 500000 250000 100000>;
 				google,therm-wlc-overrides-fcc;
 
 				/* b/170700459 thresholds, updated in b/191070950 */

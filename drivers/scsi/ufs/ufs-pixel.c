@@ -24,6 +24,8 @@ enum {
 #define ufshcd_eh_in_progress(h) \
 	((h)->eh_flags & UFSHCD_EH_IN_PROGRESS)
 
+extern struct workqueue_struct *system_highpri_wq;
+
 static void pixel_ufs_update_slowio_min_us(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
@@ -1580,9 +1582,18 @@ static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	NULL,
 };
 
-static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
+static void pixel_ufs_update_sysfs_work(struct work_struct *work)
 {
+	struct exynos_ufs *ufs = container_of(work, struct exynos_ufs,
+						update_sysfs_work);
+	struct ufs_hba *hba = ufs->hba;
 	int err;
+
+	err = sysfs_create_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
+	if (err)
+		dev_err(hba->dev,
+			"%s: sysfs groups creation failed (err = %d)\n",
+			__func__, err);
 
 	err = sysfs_update_group(&hba->dev->kobj,
 				&pixel_sysfs_health_descriptor_group);
@@ -1595,6 +1606,13 @@ static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
 	if (err)
 		dev_err(hba->dev, "%s: Failed to add a pixel group\n",
 				__func__);
+}
+
+static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	queue_work(system_highpri_wq, &ufs->update_sysfs_work);
 }
 
 void pixel_print_cmd_log(struct ufs_hba *hba)
@@ -1633,18 +1651,6 @@ int pixel_init(struct ufs_hba *hba)
 	if (ret)
 		return ret;
 
-	/*
-	 * We cannot call sysfs_create_groups in pixel_ufs_update_sysfs, since
-	 * vendor hooks do not allow using sleeping function. Let's create here.
-	 */
-	ret = sysfs_create_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
-	if (ret) {
-		dev_err(hba->dev,
-			"%s: sysfs groups creation failed (err = %d)\n",
-			__func__, ret);
-		return ret;
-	}
-
 	ret = register_trace_android_vh_ufs_update_sysfs(
 				pixel_ufs_update_sysfs, NULL);
 	if (ret)
@@ -1676,6 +1682,8 @@ int pixel_init(struct ufs_hba *hba)
 		return ret;
 
 	pixel_ufs_init_cmd_log(hba);
+
+	INIT_WORK(&ufs->update_sysfs_work, pixel_ufs_update_sysfs_work);
 	return 0;
 }
 

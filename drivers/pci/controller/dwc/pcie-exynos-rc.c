@@ -141,7 +141,8 @@ unsigned char s2mpu_get_and_modify(struct exynos_pcie *exynos_pcie,
 }
 
 void s2mpu_update_refcnt(struct device *dev,
-			 dma_addr_t dma_addr, size_t size, bool incr)
+			 dma_addr_t dma_addr, size_t size, bool incr,
+			 enum dma_data_direction dir)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[WIFI_CH_NUM];
 	phys_addr_t align_addr;
@@ -172,10 +173,13 @@ void s2mpu_update_refcnt(struct device *dev,
 		if (incr) {
 			refcnt = s2mpu_get_and_modify(exynos_pcie, refcnt_ptr,
 						      true);
+			/* Note that this will open the memory with read/write
+			 * permissions based on the first invocation. Subsequent
+			 * read/write permissions will be ignored.
+			 */
 			if (refcnt == 1) {
 				ret = s2mpu_open(exynos_pcie->s2mpu,
-						 align_addr,
-						 ALIGN_SIZE);
+						 align_addr, ALIGN_SIZE, dir);
 				if (ret) {
 					dev_err(dev,
 						"s2mpu_open failed addr=%pad, size=%zx\n",
@@ -191,8 +195,7 @@ void s2mpu_update_refcnt(struct device *dev,
 			}
 			if (refcnt == 0) {
 				ret = s2mpu_close(exynos_pcie->s2mpu,
-						  align_addr,
-						  ALIGN_SIZE);
+						  align_addr, ALIGN_SIZE, dir);
 				if (ret) {
 					dev_err(dev,
 						"s2mpu_close failed addr=%pad, size=%zx\n",
@@ -337,7 +340,7 @@ static int exynos_pcie_rc_get_phy_vreg_resource(struct exynos_pcie *exynos_pcie)
 
 			return -EPROBE_DEFER;
 		}
-		dev_dbg(dev, "[%s]ch%d: exynos_pcie->vreg1 & 2 = 0x%x & 0x%x\n", __func__,
+		dev_dbg(dev, "[%s]ch%d: exynos_pcie->vreg1 & 2 = %pK & %pK\n", __func__,
 			exynos_pcie->ch_num, exynos_pcie->vreg1, exynos_pcie->vreg2);
 	} else {
 		dev_err(dev, "[%s]wrong ch# info(ch_num=%d)\n", __func__, exynos_pcie->ch_num);
@@ -353,7 +356,7 @@ static void exynos_pcie_phy_isolation(struct exynos_pcie *exynos_pcie, int val)
 	struct device *dev = exynos_pcie->pci->dev;
 	int ret;
 
-	dev_info(dev, "PCIe PHY ISOLATION = %d\n", val);
+	dev_dbg(dev, "PCIe PHY ISOLATION = %d\n", val);
 	exynos_pcie->phy_control = val;
 	ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa +
 			   exynos_pcie->pmu_offset, PCIE_PHY_CONTROL_MASK, val);
@@ -2086,7 +2089,7 @@ void exynos_pcie_rc_cpl_timeout_work(struct work_struct *work)
 	exynos_pcie->state = STATE_LINK_DOWN_TRY;
 	exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
 	exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
-	dev_info(dev, "printed DUMP STATE after CPL Timeout IRQ\n", __func__);
+	dev_info(dev, "printed DUMP STATE after CPL Timeout IRQ\n");
 
 	if (exynos_pcie->use_pcieon_sleep) {
 		dev_info(dev, "[%s] pcie_is_linkup = 0\n", __func__);
@@ -2434,7 +2437,7 @@ static int exynos_pcie_rc_msi_init(struct pcie_port *pp)
 			msi_addr_from_dt = shm_get_msi_base();
 
 			if (msi_addr_from_dt) {
-				dev_dbg(dev, "MSI target addr. from DT: 0x%pK\n", msi_addr_from_dt);
+				dev_dbg(dev, "MSI target addr. from DT: %#lx\n", msi_addr_from_dt);
 				pp->msi_data = msi_addr_from_dt;
 				goto program_msi_data;
 			} else {
@@ -2450,7 +2453,7 @@ static int exynos_pcie_rc_msi_init(struct pcie_port *pp)
 
 			if ((pp->msi_data >> 32) != 0)
 				dev_info(dev, "MSI memory is allocated over 32bit boundary\n");
-			dev_dbg(dev, "msi_data : 0x%pK\n", pp->msi_data);
+			dev_dbg(dev, "msi_data : %pad\n", &pp->msi_data);
 		}
 	}
 
@@ -2575,26 +2578,6 @@ retry:
 	val |= SOFT_PWR_RESET;
 	exynos_elbi_write(exynos_pcie, val, PCIE_SOFT_RESET);
 
-	/* Check if OC (CDR Offset Calibration) is done */
-	count = 0;
-	while (count < 1000) {
-		usleep_range(10, 12);
-		val = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
-		if (val != 0)
-			break;
-		count++;
-	}
-	if (count >= 1000) {
-		dev_err(dev, "OC failed - Dump Registers.\n");
-		exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
-	}
-
-	dev_info(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
-			exynos_phy_read(exynos_pcie, 0x760),
-			exynos_phy_read(exynos_pcie, 0xE0C),
-			exynos_phy_read(exynos_pcie, 0x3F0),
-			exynos_phy_read(exynos_pcie, 0xFC0));
-
 	/* Device Type (Sub Controller: DEVICE_TYPE offset: 0x80  */
 	exynos_elbi_write(exynos_pcie, 0x04, 0x80);
 
@@ -2707,7 +2690,7 @@ retry:
 		dev_info(dev, "%s: %s(0x%x)\n", __func__, LINK_STATE_DISP(val), val);
 
 		dev_dbg(dev, "(phy+0xC08=0x%x)(phy+0x1408=0x%x)(phy+0xC6C=0x%x)(phy+0x146C=0x%x)\n",
-			__func__, exynos_phy_read(exynos_pcie, 0xC08),
+			exynos_phy_read(exynos_pcie, 0xC08),
 			exynos_phy_read(exynos_pcie, 0x1408),
 			exynos_phy_read(exynos_pcie, 0xC6C),
 			exynos_phy_read(exynos_pcie, 0x146C));
@@ -2795,7 +2778,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	dev = pci->dev;
 	exynos_pcie_desc = irq_to_desc(pp->irq);
 
-	dev_info(dev, "start poweron, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "start poweron, state: %d\n", exynos_pcie->state);
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		if (exynos_pcie->use_phy_isol_con)
 			exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
@@ -2809,7 +2792,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
-			dev_info(dev, "ip idle status: %d, index: %d\n",
+			dev_dbg(dev, "ip idle status: %d, index: %d\n",
 				PCIE_IS_ACTIVE, exynos_pcie->idle_ip_index);
 			exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_ACTIVE);
 		}
@@ -2939,7 +2922,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 		}
 	}
 
-	dev_info(dev, "end poweron, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "end poweron, state: %d\n", exynos_pcie->state);
 
 	return 0;
 
@@ -2968,7 +2951,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 	pp = &pci->pp;
 	dev = pci->dev;
 
-	dev_info(dev, "start poweroff, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "start poweroff, state: %d\n", exynos_pcie->state);
 
 	if (exynos_pcie->state == STATE_LINK_UP ||
 	    exynos_pcie->state == STATE_LINK_DOWN_TRY) {
@@ -3042,7 +3025,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 #endif
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
-			dev_info(dev, "%s, ip idle status: %d, idle_ip_index: %d\n",
+			dev_dbg(dev, "%s, ip idle status: %d, idle_ip_index: %d\n",
 				__func__, PCIE_IS_IDLE, exynos_pcie->idle_ip_index);
 			exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_IDLE);
 		}
@@ -3057,7 +3040,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		pcie_is_linkup = 0;
 	}
 
-	dev_info(dev, "end poweroff, state: %d\n", exynos_pcie->state);
+	dev_dbg(dev, "end poweroff, state: %d\n", exynos_pcie->state);
 }
 
 void exynos_pcie_pm_suspend(int ch_num)
@@ -3186,7 +3169,7 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 
 	dev_dbg(dev, "%s:L1SS_START: l1ss_ctrl_id_state = 0x%x\n",
 		__func__, exynos_pcie->l1ss_ctrl_id_state);
-	dev_dbg(dev, "%s:\tid = 0x%x, enable=%d, exynos_pcie=0x%x\n",
+	dev_dbg(dev, "%s:\tid = 0x%x, enable=%d, exynos_pcie=%pK\n",
 		__func__, id, enable, exynos_pcie);
 
 	if (exynos_pcie->state != STATE_LINK_UP || exynos_pcie->atu_ok == 0) {
@@ -3208,7 +3191,7 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 	/* get the domain_num & ep_pci_bus of EP device */
 	domain_num = exynos_pcie->pci_dev->bus->domain_nr;
 	ep_pci_bus = pci_find_bus(domain_num, 1);
-	dev_dbg(dev, "%s:[DBG] domain_num = %d, ep_pci_bus = 0x%x\n",
+	dev_dbg(dev, "%s:[DBG] domain_num = %d, ep_pci_bus = %pK\n",
 		__func__, domain_num, ep_pci_bus);
 
 	spin_lock_irqsave(&exynos_pcie->conf_lock, flags);
@@ -4068,7 +4051,8 @@ static int setup_s2mpu_mem(struct device *dev, struct exynos_pcie *exynos_pcie)
 		/* Optimize s2mpu operation by setting up 1G page tables */
 		addr = pm->start;
 		while (addr <  pm->start + pm->size) {
-			ret = s2mpu_close(exynos_pcie->s2mpu, addr, ALIGN_SIZE);
+			ret = s2mpu_close(exynos_pcie->s2mpu, addr, ALIGN_SIZE,
+					  DMA_BIDIRECTIONAL);
 			if (ret) {
 				dev_err(dev,
 					"probe s2mpu_close failed addr = 0x%pa\n",

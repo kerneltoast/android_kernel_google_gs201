@@ -642,6 +642,9 @@ int stmvl53l1_power_up_i2c(void *object)
 	struct i2c_data *data = (struct i2c_data *)object;
 	struct device *dev = &data->client->dev;
 
+	if (data->vl53l1_data->is_power_up)
+		return rc;
+
 	/* turn on power */
 	if (data->vio_gpio != -1) {
 		rc = get_vio(dev, data);
@@ -705,6 +708,9 @@ int stmvl53l1_power_down_i2c(void *i2c_object)
 	int rc = 0;
 	struct i2c_data *data = (struct i2c_data *)i2c_object;
 	struct device *dev = &data->client->dev;
+
+	if (!data->vl53l1_data->is_power_up)
+		return rc;
 
 	/* turn off power */
 	if (data->pwren_gpio != -1)

@@ -10,3 +10,7 @@
 	interrupts = <7 0>;
 	fp-gpio-irq = <&gpa6 7 GPIO_ACTIVE_HIGH>;
 };
+
+&m_ldo27_reg {
+	regulator-always-on;
+};

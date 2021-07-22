@@ -23,6 +23,28 @@
 
 #include "mfc_mem.h"
 
+/*
+ * typedef struct {
+ *     ....
+ *     // 0x0400
+ *     ImageSubHeader SubHeader;
+ *     ....
+ * } ImageHeader;
+ * ...
+ * typedef struct {
+ *     uint32_t Magic;
+ *     uint32_t Generation;
+ *     ...
+ * } ImageSubHeader;
+ */
+
+#define HEADER_MAGIC_OFFSET	0x0400U
+#define HEADER_MAGIC_MFC	0x0043464DU /* 'MFC' */
+#define HEADER_GENERATION	1U
+
+#define SKIP_HEADER_OFFSET	4096U
+#define DRM_EXTRA_SIZE		65536U
+
 static int __mfc_alloc_common_context(struct mfc_core *core,
 			enum mfc_buf_usage_type buf_type)
 {
@@ -105,7 +127,7 @@ static void __mfc_release_common_context(struct mfc_core *core,
 		ctx_buf = &core->drm_common_ctx_buf;
 #endif
 
-	mfc_mem_special_buf_free(ctx_buf);
+	mfc_mem_special_buf_free(core->dev, ctx_buf);
 	mfc_core_debug(2, "[MEMINFO] Release %s common context buffer\n",
 			buf_type == MFCBUF_DRM ? "secure" : "normal");
 
@@ -201,7 +223,7 @@ void mfc_release_instance_context(struct mfc_core_ctx *core_ctx)
 
 	mfc_core_debug_enter();
 
-	mfc_mem_special_buf_free(&core_ctx->instance_ctx_buf);
+	mfc_mem_special_buf_free(core->dev, &core_ctx->instance_ctx_buf);
 	mfc_core_debug(2, "[MEMINFO] Release the instance buffer ctx[%d]\n",
 			core_ctx->num);
 
@@ -461,12 +483,12 @@ void mfc_release_codec_buffers(struct mfc_core_ctx *core_ctx)
 	struct mfc_ctx *ctx = core_ctx->ctx;
 
 	if (core_ctx->codec_buffer_allocated) {
-		mfc_mem_special_buf_free(&core_ctx->codec_buf);
+		mfc_mem_special_buf_free(ctx->dev, &core_ctx->codec_buf);
 		core_ctx->codec_buffer_allocated = 0;
 	}
 
 	if (ctx->mv_buffer_allocated) {
-		mfc_mem_special_buf_free(&ctx->mv_buf);
+		mfc_mem_special_buf_free(ctx->dev, &ctx->mv_buf);
 		ctx->mv_buffer_allocated = 0;
 	}
 
@@ -484,7 +506,7 @@ int mfc_alloc_scratch_buffer(struct mfc_core_ctx *core_ctx)
 	mfc_debug_enter();
 
 	if (core_ctx->scratch_buffer_allocated) {
-		mfc_mem_special_buf_free(&core_ctx->scratch_buf);
+		mfc_mem_special_buf_free(dev, &core_ctx->scratch_buf);
 		core_ctx->scratch_buffer_allocated = 0;
 		mfc_debug(2, "[MEMINFO] Release the scratch buffer ctx[%d]\n",
 				core_ctx->num);
@@ -519,7 +541,7 @@ void mfc_release_scratch_buffer(struct mfc_core_ctx *core_ctx)
 
 	mfc_debug_enter();
 	if (core_ctx->scratch_buffer_allocated) {
-		mfc_mem_special_buf_free(&core_ctx->scratch_buf);
+		mfc_mem_special_buf_free(ctx->dev, &core_ctx->scratch_buf);
 		core_ctx->scratch_buffer_allocated = 0;
 		mfc_debug(2, "[MEMINFO] Release the scratch buffer ctx[%d]\n",
 				core_ctx->num);
@@ -554,7 +576,7 @@ void mfc_release_dbg_info_buffer(struct mfc_core *core)
 	if (!core->dbg_info_buf.dma_buf)
 		mfc_core_debug(2, "debug info buffer is already freed\n");
 
-	mfc_mem_special_buf_free(&core->dbg_info_buf);
+	mfc_mem_special_buf_free(core->dev, &core->dbg_info_buf);
 	mfc_core_debug(2, "[MEMINFO] Release the debug info buffer\n");
 }
 
@@ -641,7 +663,7 @@ void mfc_release_enc_roi_buffer(struct mfc_core_ctx *core_ctx)
 
 	for (i = 0; i < MFC_MAX_EXTRA_BUF; i++)
 		if (enc->roi_buf[i].dma_buf)
-			mfc_mem_special_buf_free(&enc->roi_buf[i]);
+			mfc_mem_special_buf_free(ctx->dev, &enc->roi_buf[i]);
 
 	mfc_debug(2, "[MEMINFO][ROI] Release the ROI buffer\n");
 }
@@ -687,7 +709,7 @@ void mfc_otf_release_stream_buf(struct mfc_ctx *ctx)
 	for (i = 0; i < OTF_MAX_BUF; i++) {
 		buf = &debug->stream_buf[i];
 		if (buf->dma_buf)
-			mfc_mem_special_buf_free(buf);
+			mfc_mem_special_buf_free(ctx->dev, buf);
 	}
 
 	mfc_debug(2, "[OTF][MEMINFO] Release the OTF stream buffer\n");
@@ -730,7 +752,7 @@ int mfc_alloc_firmware(struct mfc_core *core)
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	core->drm_fw_buf.buftype = MFCBUF_DRM_FW;
-	core->drm_fw_buf.size = core->fw_buf.size;
+	core->drm_fw_buf.size = core->fw_buf.size + DRM_EXTRA_SIZE;
 	if (mfc_mem_special_buf_alloc(dev, &core->drm_fw_buf)) {
 		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
 		goto err_reserve_iova;
@@ -770,17 +792,22 @@ int mfc_alloc_firmware(struct mfc_core *core)
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 err_reserve_iova_secure:
-	mfc_mem_special_buf_free(&core->drm_fw_buf);
+	mfc_mem_special_buf_free(dev, &core->drm_fw_buf);
 #endif
 err_reserve_iova:
 	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
-	mfc_mem_special_buf_free(&core->fw_buf);
+	mfc_mem_special_buf_free(dev, &core->fw_buf);
 	return -ENOMEM;
 }
 
 /* Load firmware to MFC */
 int mfc_load_firmware(struct mfc_core *core, const u8 *fw_data, size_t fw_size)
 {
+	const u32 *signed_header = (const u32 *)(fw_data + HEADER_MAGIC_OFFSET);
+	const u8 *normal_fw_data;
+	u32 normal_size;
+	u32 skip_offset = 0;
+
 	mfc_core_debug(2, "[MEMINFO][F/W] loaded F/W Size: %zu\n", fw_size);
 
 	if (fw_size > core->fw_buf.size) {
@@ -796,10 +823,18 @@ int mfc_load_firmware(struct mfc_core *core, const u8 *fw_data, size_t fw_size)
 		return -EINVAL;
 	}
 
+	if (signed_header[0] == HEADER_MAGIC_MFC && signed_header[1] == HEADER_GENERATION) {
+		skip_offset = SKIP_HEADER_OFFSET;
+	}
+
+	normal_fw_data = fw_data + skip_offset;
+	normal_size = fw_size - skip_offset;
+
 	/*  This adds to clear with '0' for firmware memory except code region. */
 	mfc_core_debug(4, "[F/W] memset before memcpy for normal fw\n");
-	memset((core->fw_buf.vaddr + fw_size), 0, (core->fw_buf.size - fw_size));
-	memcpy(core->fw_buf.vaddr, fw_data, fw_size);
+	/* We skip the 4KB signed header for normal MFC mode */
+	memset((core->fw_buf.vaddr + normal_size), 0, (core->fw_buf.size - normal_size));
+	memcpy(core->fw_buf.vaddr, normal_fw_data, normal_size);
 
 	/* cache flush for memcpy by CPU */
 	dma_sync_sgtable_for_device(core->device, core->fw_buf.sgt, DMA_TO_DEVICE);
@@ -877,10 +912,10 @@ int mfc_release_firmware(struct mfc_core *core)
 	if (core->drm_fw_buf.daddr)
 		secure_iova_free(core->drm_fw_buf.daddr, core->drm_fw_buf.size);
 	core->drm_fw_buf.daddr = 0;
-	mfc_mem_special_buf_free(&core->drm_fw_buf);
+	mfc_mem_special_buf_free(core->dev, &core->drm_fw_buf);
 #endif
 
-	mfc_mem_special_buf_free(&core->fw_buf);
+	mfc_mem_special_buf_free(core->dev, &core->fw_buf);
 
 	return 0;
 }

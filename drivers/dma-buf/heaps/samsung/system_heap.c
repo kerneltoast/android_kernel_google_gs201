@@ -211,7 +211,7 @@ static void system_heap_free(struct deferred_freelist_item *item, enum df_reason
 
 	buffer = container_of(item, struct samsung_dma_buffer, deferred_free);
 	table = &buffer->sg_table;
-	for_each_sg(table->sgl, sg, table->nents, i)
+	for_each_sgtable_sg(table, sg, i)
 		free_dma_heap_page(sg_page(sg), reason != DF_NORMAL);
 	samsung_dma_buffer_free(buffer);
 }

@@ -17,6 +17,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(schedutil_cpu_util_clamp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_rt_cpu_util);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_find_least_loaded_cpu);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_select_task_rq_rt);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_setscheduler_uclamp);
 static inline struct cfs_rq *get_group_cfs_rq(struct sched_entity *se)
 {
 #ifdef CONFIG_FAIR_GROUP_SCHED

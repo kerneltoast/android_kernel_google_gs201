@@ -17,6 +17,7 @@
 #include <soc/google/cal-if.h>
 
 #define EXYNOS_EINT_PEND(b, x)      ((b) + 0xA00 + (((x) >> 3) * 4))
+#define SHARED_SR0 0x80
 
 static struct exynos_pm_info *pm_info;
 static struct exynos_pm_dbg *pm_dbg;
@@ -103,17 +104,30 @@ static void exynos_show_wakeup_reason_sysint(unsigned int stat,
 {
 	int bit;
 	unsigned long lstat = stat;
-	const char *name;
+	char wake_reason[MAX_SUSPEND_ABORT_LEN];
+	int str_idx = 0;
+	u32 aoc_id;
 
 	for_each_set_bit(bit, &lstat, 32) {
-		name = ws_names->name[bit];
-
-		if (!name)
+		if (!ws_names->name[bit])
 			continue;
-#ifdef CONFIG_SUSPEND
-		log_abnormal_wakeup_reason(name);
-#endif
+		if (str_idx) {
+			str_idx += strscpy(wake_reason + str_idx, ",",
+					   MAX_SUSPEND_ABORT_LEN - str_idx);
+		}
+		str_idx += strscpy(wake_reason + str_idx, ws_names->name[bit],
+				   MAX_SUSPEND_ABORT_LEN - str_idx);
+		if (bit == 7) {	/* MAILBOX_AOC2AP */
+			aoc_id = __raw_readl(pm_info->mbox_aoc + SHARED_SR0);
+			str_idx += scnprintf(wake_reason + str_idx,
+					     MAX_SUSPEND_ABORT_LEN - str_idx,
+					     "%d", aoc_id);
+		}
 	}
+#ifdef CONFIG_SUSPEND
+	if (str_idx)
+		log_abnormal_wakeup_reason(wake_reason);
+#endif
 }
 
 static void exynos_show_wakeup_reason_detail(unsigned int wakeup_stat)
@@ -447,6 +461,11 @@ static int exynos_pm_drvinit(struct platform_device *pdev)
 	pm_info->gic_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pm_info->gic_base))
 		return PTR_ERR(pm_info->gic_base);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	pm_info->mbox_aoc = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pm_info->mbox_aoc))
+		return PTR_ERR(pm_info->mbox_aoc);
 
 	ret = of_property_read_u32(np, "num-eint", &pm_info->num_eint);
 	if (ret) {

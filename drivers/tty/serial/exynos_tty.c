@@ -289,6 +289,13 @@ static LIST_HEAD(drvdata_list);
 #define USI_SW_CONF_MASK	(0x7 << 0)
 #define USI_UART_SW_CONF	BIT(0)
 
+#define RTS_CTRL_SUPPORT	(0x1 << 0)
+#define RTS_CTRL_CHK_MASK	(0xF << 16)
+#define RTS_CTRL_CHK_EN		(0x1 << 16)
+#define RTS_CTRL_CHK_DIS	(0x0 << 16)
+#define RTS_CTRL_ENABLE		(RTS_CTRL_CHK_EN | RTS_CTRL_SUPPORT)
+#define RTS_CTRL_DISABLE	(RTS_CTRL_CHK_DIS | RTS_CTRL_SUPPORT)
+
 struct exynos_uart_port *panic_port;
 
 static int exynos_uart_panic_handler(struct notifier_block *nb,
@@ -347,33 +354,47 @@ static void uart_sfr_dump(struct exynos_uart_port *ourport)
 static void change_uart_gpio(int value, struct exynos_uart_port *ourport)
 {
 	int status = 0;
+	struct uart_port *port = &ourport->port;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
 
 	if (value) {
-		if (!IS_ERR(ourport->uart_pinctrl_tx_dat)) {
-			status = pinctrl_select_state(ourport->pinctrl,
+		/* Disabled or default pin states	*/
+		if (!(ourport->rts_control & RTS_CTRL_CHK_EN)) {
+			if (!IS_ERR(ourport->uart_pinctrl_tx_dat)) {
+				status = pinctrl_select_state(ourport->pinctrl,
 						      ourport->uart_pinctrl_tx_dat);
-			if (status)
-				dev_err(ourport->port.dev,
-					"Can't set TXD uart pins!!!\n");
+				if (status)
+					dev_err(ourport->port.dev,
+						"Can't set TXD uart pins!!!\n");
 			else
 				udelay(10);
-		}
-		if (!IS_ERR(ourport->uart_pinctrl_rts)) {
-			status = pinctrl_select_state(ourport->pinctrl,
+			}
+			if (!IS_ERR(ourport->uart_pinctrl_rts)) {
+				status = pinctrl_select_state(ourport->pinctrl,
 						      ourport->uart_pinctrl_rts);
-			if (status)
-				dev_err(ourport->port.dev,
-					"Can't set RTS uart pins!!!\n");
+				if (status)
+					dev_err(ourport->port.dev,
+						"Can't set RTS uart pins!!!\n");
+			}
+			ourport->rts_control = RTS_CTRL_ENABLE;
 		}
 	} else {
-		if (!IS_ERR(ourport->uart_pinctrl_default)) {
-			status = pinctrl_select_state(ourport->pinctrl,
+		/* Enabled pin state	*/
+		if ((ourport->rts_control & RTS_CTRL_CHK_EN)) {
+			if (!IS_ERR(ourport->uart_pinctrl_default)) {
+				status = pinctrl_select_state(ourport->pinctrl,
 						      ourport->uart_pinctrl_default);
-			if (status)
-				dev_err(ourport->port.dev,
+				if (status)
+					dev_err(ourport->port.dev,
 					"Can't set default uart pins!!!\n");
+			}
+			ourport->rts_control = RTS_CTRL_DISABLE;
 		}
 	}
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void print_uart_mode(struct uart_port *port, struct ktermios *termios,
@@ -2590,7 +2611,7 @@ static int exynos_serial_probe(struct platform_device *pdev)
 
 	if (of_get_property(pdev->dev.of_node, "samsung,rts-gpio-control",
 			    NULL)) {
-		ourport->rts_control = 1;
+		ourport->rts_control = RTS_CTRL_SUPPORT;
 		ourport->pinctrl = devm_pinctrl_get(&pdev->dev);
 		if (IS_ERR(ourport->pinctrl)) {
 			dev_err(&pdev->dev, "Can't get uart pinctrl!!!\n");

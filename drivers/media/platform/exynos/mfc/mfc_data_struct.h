@@ -823,6 +823,7 @@ struct mfc_platdata {
 	struct mfc_feature average_qp;
 	struct mfc_feature mv_search_mode;
 	struct mfc_feature enc_idr_flag;
+	struct mfc_feature min_quality_mode;
 
 	/* AV1 Decoder */
 	unsigned int support_av1_dec;
@@ -1681,6 +1682,7 @@ struct mfc_enc_params {
 	u8 roi_enable;
 	u8 ivf_header_disable;	/* VP8, VP9 */
 	u8 fixed_target_bit;
+	u8 min_quality_mode;	/* H.264, HEVC when RC_MODE is 2(VBR) */
 
 	u32 check_color_range;
 	u32 color_range;

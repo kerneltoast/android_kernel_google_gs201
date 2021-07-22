@@ -4,6 +4,7 @@
 
 #include <linux/irq.h>
 #include <linux/spinlock.h>
+#include <linux/dma-map-ops.h>
 
 #define WHI_MAX_GB_GRANULES 64
 
@@ -56,7 +57,7 @@ struct s2mpu_info *s2mpu_lib_init(struct device *dev, void __iomem *base,
 				  unsigned int sidcount);
 void s2mpu_lib_deinit(struct s2mpu_info *info);
 int s2mpu_lib_open_close(struct s2mpu_info *info, u64 start, size_t len,
-			 bool open);
+			 bool open, enum dma_data_direction dir);
 int s2mpu_lib_restore(struct s2mpu_info *info);
 irqreturn_t s2mpu_lib_irq_handler(int irq, void *data);
 #ifdef S2MPU_TEST
