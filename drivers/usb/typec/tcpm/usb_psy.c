@@ -21,7 +21,11 @@
 #define CHAR_BIT 8
 #endif
 
-#define ONLINE_THRESHOLD_UA 125000
+/*
+ * Greater than SDP_SUSPEND_UA for remaining in parity with in-market pixels.
+ * Lesser than SDP_HS_CONN_UA for preventing.
+ */
+#define ONLINE_THRESHOLD_UA 50000
 
 #define CDP_DCP_ICL_UA 1500000
 #define SDP_DISCONNECT 0
