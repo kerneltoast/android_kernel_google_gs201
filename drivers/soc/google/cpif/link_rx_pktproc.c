@@ -335,9 +335,9 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 
 	fore = *q->fore_ptr;
 	for (i = 0; i < space; i++) {
-		struct cpif_addr_pair addrpair = cpif_map_rx_buf(q->manager,
+		struct cpif_addr_pair *addrpair = cpif_map_rx_buf(q->manager,
 							ppa->skb_padding_size);
-		if (addrpair.cp_addr == 0) {
+		if (unlikely(!addrpair)) {
 			mif_err_limited("skb alloc error due to no memory\n");
 			q->stat.err_bm_nomem++;
 			spin_unlock_irqrestore(&q->lock, flags);
@@ -346,7 +346,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 
 		if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
 			q->dma_addr[fore] = dma_map_single_attrs(ppa->dev,
-					addrpair.ap_addr,
+					addrpair->ap_addr,
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 			if (dma_mapping_error(ppa->dev, q->dma_addr[fore])) {
 				mif_err_limited("dma_map_single_attrs() failed\n");
@@ -355,7 +355,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 			}
 		}
 
-		desc[fore].cp_data_paddr = addrpair.cp_addr;
+		desc[fore].cp_data_paddr = addrpair->cp_addr;
 
 		if (fore == 0)
 			desc[fore].control |= (1 << 7);	/* HEAD */

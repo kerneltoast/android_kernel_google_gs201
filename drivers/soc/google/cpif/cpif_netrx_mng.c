@@ -200,6 +200,9 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	cm->tmp_page->offset = 0;
 	cm->tmp_page->usable = false;
 
+	/* initialize data address list */
+	INIT_LIST_HEAD(&cm->data_addr_list);
+
 	mif_info("netrx mng: num_packet: %d max_packet_size: %d total_buf_size: %d\n",
 			cm->num_packet, cm->max_packet_size, cm->total_buf_size);
 	mif_info("desc vmap: va_start: 0x%lX va_end: 0x%lX va_size: %d\n",
@@ -225,20 +228,26 @@ EXPORT_SYMBOL(cpif_create_netrx_mng);
 void cpif_exit_netrx_mng(struct cpif_netrx_mng *cm)
 {
 	if (cm) {
+		struct cpif_addr_pair *temp, *temp2;
+
 		cpif_free_recycling_page_arr(cm->recycling_page_arr, cm->rpage_arr_len);
 		cpif_vmap_free(cm->desc_map);
 		cpif_vmap_free(cm->data_map);
+		list_for_each_entry_safe(temp, temp2, &cm->data_addr_list, addr_item) {
+			list_del(&temp->addr_item);
+			kfree(temp);
+		}
 		kvfree(cm->tmp_page);
 		kvfree(cm);
 	}
 }
 EXPORT_SYMBOL(cpif_exit_netrx_mng);
 
-struct cpif_addr_pair cpif_map_rx_buf(struct cpif_netrx_mng *cm,
+struct cpif_addr_pair *cpif_map_rx_buf(struct cpif_netrx_mng *cm,
 		unsigned int skb_padding_size)
 {
 	void *data, *page_base;
-	struct cpif_addr_pair ret = {0, 0};
+	struct cpif_addr_pair *ret = NULL;
 
 	if (unlikely(!cm->data_map)) {
 		mif_err_limited("data map is not created yet\n");
@@ -261,17 +270,20 @@ struct cpif_addr_pair cpif_map_rx_buf(struct cpif_netrx_mng *cm,
 	page_base = page_to_virt(cm->tmp_page->page);
 
 do_vmap:
-	ret.cp_addr = cpif_vmap_map_area(cm->data_map, virt_to_phys(page_base),
+	ret = kzalloc(sizeof(struct cpif_addr_pair), GFP_ATOMIC);
+	if (!ret)
+		return NULL;
+	ret->cp_addr = cpif_vmap_map_area(cm->data_map, virt_to_phys(page_base),
 						virt_to_phys(data));
-	if (ret.cp_addr == 0) {  /* cp_addr cannot be allocated */
+	if (ret->cp_addr == 0) {  /* cp_addr cannot be allocated */
 		mif_err_limited("failed to vmap and get cp_addr\n");
 		goto done;
 	}
 
 	/* returns addr that cp is allowed to write */
-	ret.cp_addr += skb_padding_size;
-	ret.ap_addr = (u8 *)data + skb_padding_size;
-
+	ret->cp_addr += skb_padding_size;
+	ret->ap_addr = (u8 *)data + skb_padding_size;
+	list_add_tail(&ret->addr_item, &cm->data_addr_list);
 done:
 	return ret;
 }
@@ -281,6 +293,7 @@ void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 {
 	u64 ap_paddr = 0;
 	void *ap_addr = NULL;
+	struct cpif_addr_pair *apair;
 
 	if (cm->data_map) {
 		ap_paddr = cpif_vmap_unmap_area(cm->data_map, cp_addr);
@@ -294,6 +307,15 @@ void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 	if (ap_addr && free) {
 		page_ref_dec(phys_to_page(ap_paddr & ~0x7FFF));
 		ap_addr = NULL;
+	}
+
+	apair = list_first_entry_or_null(&cm->data_addr_list, struct cpif_addr_pair,
+						addr_item);
+	if (unlikely(!apair))
+		mif_err_limited("failed to get addr pair from data addr list\n");
+	else {
+		list_del(&apair->addr_item);
+		kfree(apair);
 	}
 
 	return ap_addr; /* returns NULL or unmapped AP virtual address */
