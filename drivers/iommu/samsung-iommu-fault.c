@@ -500,6 +500,9 @@ irqreturn_t samsung_sysmmu_irq(int irq, void *dev_id)
 	struct sysmmu_drvdata *drvdata = dev_id;
 	bool is_secure = (irq == drvdata->secure_irq);
 
+	if (drvdata->hide_page_fault)
+		return IRQ_WAKE_THREAD;
+
 	dev_info(drvdata->dev, "[%s] interrupt (%d) happened\n",
 		 is_secure ? "Secure" : "Non-secure", irq);
 
@@ -574,10 +577,12 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 				       samsung_sysmmu_fault_notifier);
 	if (ret == -EAGAIN) {
 		if (is_secure) {
-			if (drvdata->async_fault_mode)
+			if (drvdata->async_fault_mode && !drvdata->hide_page_fault)
 				sysmmu_show_secure_fault_information(drvdata, itype, addr);
 			ret = sysmmu_clear_interrupt(drvdata, true);
 			if (ret) {
+				if (drvdata->hide_page_fault)
+					sysmmu_show_secure_fault_information(drvdata, itype, addr);
 				dev_err(drvdata->dev, "Failed to clear secure fault (%d)\n", ret);
 				goto out;
 			}
@@ -586,14 +591,15 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 
 			pgtable = readl_relaxed(MMU_VM_REG(drvdata, IDX_FLPT_BASE, vid));
 			pgtable <<= PAGE_SHIFT;
-			sysmmu_show_fault_info_simple(drvdata, itype, vid, addr, &pgtable);
+			if (!drvdata->hide_page_fault)
+				sysmmu_show_fault_info_simple(drvdata, itype, vid, addr, &pgtable);
 			sysmmu_clear_interrupt(drvdata, false);
 		}
 		pm_runtime_put(drvdata->dev);
 		return IRQ_HANDLED;
 	}
 
-	if (drvdata->async_fault_mode) {
+	if (drvdata->async_fault_mode || drvdata->hide_page_fault) {
 		if (is_secure)
 			sysmmu_show_secure_fault_information(drvdata, itype, addr);
 		else
