@@ -29,7 +29,7 @@ if grep -q "boot.*\.img" <<< $(cat ${FILES_LIST}); then
   echo "Downloading -user variant boot.img..."
   /google/data/ro/projects/android/fetch_artifact \
       --bid ${GKI_BUILD} \
-      --target gsi_arm64_with_kernel-user "gsi_arm64-img-${GKI_BUILD}.zip"
+      --target gsi_arm64-user "gsi_arm64-img-${GKI_BUILD}.zip"
   exit_and_clean_if_error $? "Unable to download -user boot image"
   mv gsi_arm64-img-${GKI_BUILD}.zip gsi_arm64-img-${GKI_BUILD}-user.zip
 fi
@@ -44,7 +44,7 @@ for file in $(cat ${FILES_LIST}); do
   fi
   /google/data/ro/projects/android/fetch_artifact \
       --bid ${GKI_BUILD} \
-      --target gsi_arm64_with_kernel-userdebug ${file}
+      --target gsi_arm64-userdebug ${file}
   exit_and_clean_if_error $? "Error downloading ${file}"
 done
 
