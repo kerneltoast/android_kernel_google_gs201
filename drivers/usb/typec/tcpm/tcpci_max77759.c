@@ -683,6 +683,12 @@ static void process_power_status(struct max77759_plat *chip)
 		mutex_lock(&chip->data_path_lock);
 		chip->debug_acc_connected = pwr_status & TCPC_POWER_STATUS_DBG_ACC_CON ? 1 : 0;
 		chip->data_role = TYPEC_DEVICE;
+		/*
+		 * Renable BC1.2 upon disconnect if disabled. Needed for
+		 * sink-only mode such as fastbootd/Recovery.
+		 */
+		if (chip->attached && !chip->debug_acc_connected && !bc12_get_status(chip->bc12))
+			bc12_enable(chip->bc12, true);
 		chip->attached = chip->debug_acc_connected;
 		enable_data_path_locked(chip);
 		mutex_unlock(&chip->data_path_lock);
@@ -1116,7 +1122,8 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 	}
 
 	/* Renable BC1.2*/
-	bc12_enable(chip->bc12, true);
+	if (!bc12_get_status(chip->bc12))
+		bc12_enable(chip->bc12, true);
 
 	/* Re-enable retry */
 	bc12_reset_retry(chip->bc12);
@@ -1327,6 +1334,9 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 		}
 	}
 
+	/* Renable BC1.2 */
+	if (chip->attached && !attached && !bc12_get_status(chip->bc12))
+		bc12_enable(chip->bc12, true);
 	/*
 	 * To prevent data stack enumeration failure, previously there
 	 * was a 300msec delay here
@@ -1337,6 +1347,13 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 	enable_data_path_locked(chip);
 	mutex_unlock(&chip->data_path_lock);
 	usb_psy_set_attached_state(chip->usb_psy_data, chip->attached);
+
+	/*
+	 * Renable BC1.2 upon disconnect if disabled. Needed for sink-only mode such as
+	 * fastbootd/Recovery.
+	 */
+	if (chip->attached && !attached && !bc12_get_status(chip->bc12))
+		bc12_enable(chip->bc12, true);
 
 	return 0;
 }
