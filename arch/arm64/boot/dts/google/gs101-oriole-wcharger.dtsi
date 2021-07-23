@@ -13,5 +13,11 @@
 		fod_epp = [8a 6d 86 56 8e 3b 8b 3e 8c 33 91 0b 20 13 01 50];
 		fod_hpp = [91 9D 8D 86 8B 6B 88 5C 89 51 8E 29];
 		google,q_value = <67>;
+
+		google,alignment_scalar_low_current = <200>;
+		google,alignment_scalar_high_current = <100>;
+		google,alignment_offset_low_current = <127000>;
+		google,alignment_offset_high_current = <137000>;
+		google,alignment_current_threshold = <500>;
 	};
 };
