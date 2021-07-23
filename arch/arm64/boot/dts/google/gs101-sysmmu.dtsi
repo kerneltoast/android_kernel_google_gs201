@@ -648,6 +648,7 @@
 		#iommu-cells = <0>;
 		power-domains = <&pd_tpu>;
 		sysmmu,no-s2pf;
+		sysmmu,hide-page-fault;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0xC)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW   SYSMMU_ID_MASK(0x8, 0xC)>,
