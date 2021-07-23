@@ -7,6 +7,7 @@ google/gs101-b0.dtb
 google/dtbo.img
 google/gs101-dpm-eng.dtbo
 google/gs101-dpm-user.dtbo
+google/gs101-dpm-userdebug.dtbo
 "
 
 FILES="
@@ -15,6 +16,7 @@ arch/arm64/boot/dts/google/gs101-b0.dtb
 arch/arm64/boot/dts/google/dtbo.img
 arch/arm64/boot/dts/google/gs101-dpm-eng.dtbo
 arch/arm64/boot/dts/google/gs101-dpm-user.dtbo
+arch/arm64/boot/dts/google/gs101-dpm-userdebug.dtbo
 "
 
 if [ -z "$MIXED_BUILD" ]; then
