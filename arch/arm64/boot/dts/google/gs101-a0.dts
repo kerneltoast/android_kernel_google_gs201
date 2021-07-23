@@ -28,7 +28,7 @@
 	max-volt = <1000000>;
 };
 &cpufreq_domain2 {
-	max-freq = <2630000>;
+	max-freq = <2302000>;
 };
 
 &bts_smc0 {
