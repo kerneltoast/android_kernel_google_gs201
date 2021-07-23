@@ -16,8 +16,8 @@
 	};
 
 	abl {
-		ramdump_mode		= <0>;
-		ramdump2usb		= <0>;
+		ramdump_mode		= <DPM_ENABLE>;
+		ramdump2usb		= <PRIVILEGED_ENABLE>;
 	};
 
 	feature {
