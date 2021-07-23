@@ -24,6 +24,19 @@ mkdir -p ${GKI_PREBUILTS_DIR}
 TEMP_DIR=$(mktemp -d)
 
 cd ${TEMP_DIR}
+echo "Checking build manifest.xml of ${GKI_BUILD}..."
+/google/data/ro/projects/android/fetch_artifact \
+    --bid ${GKI_BUILD} \
+    --target gsi_arm64-userdebug "manifest_${GKI_BUILD}.xml"
+exit_and_clean_if_error $? "Unable to download manifest_${GKI_BUILD}.xml"
+
+if ! cat manifest_${GKI_BUILD}.xml | \
+	grep -q "default.*revision=\"sc-gsi-release\"" ; then
+  exit_and_clean_if_error 1 "${GKI_BUILD} is not an sc-gsi-release build"
+else
+  echo "${GKI_BUILD} is a release build; continuing."
+fi
+
 echo "Downloading GKI binaries from build ab/${GKI_BUILD} via fetch_artifact..."
 if grep -q "boot.*\.img" <<< $(cat ${FILES_LIST}); then
   echo "Downloading -user variant boot.img..."
