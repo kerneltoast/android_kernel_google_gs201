@@ -9,11 +9,13 @@
 /* system use cases */
 &max77759_chg {
 	/* external boost */
-	max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;
-	max77759,bst-sel = <&p9xxx_gpio 3 GPIO_ACTIVE_HIGH>;
+	max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>; /* MW: OTG_BOOST_EN */
+	/* TBD: need to implement in p9221 for p9421_GPIO3 */
+	max77759,bst-sel = <&p9xxx_gpio 11 GPIO_ACTIVE_HIGH>;
 	max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
 	max77759,extbst-mode = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;
 
 	/* WLC_TX_SW_EN */
-	max77759,ls2-en = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;
+	max77759,ls1-en = <&max777x9_gpio 5 GPIO_ACTIVE_HIGH>; /* MW: OTG_MUX1_EN_INPUT */
+	max77759,ls2-en = <&s2mpg12_gpio 3 GPIO_ACTIVE_HIGH>;  /* GRA-M: WLC_TX_SW_EN */
 };

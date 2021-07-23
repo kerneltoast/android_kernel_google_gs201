@@ -49,12 +49,12 @@
 
 		idt,has_rtx = <1>;
 		/* Granvilla GPIO 2~4 */
-		idt,gpio_ben = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;
-		idt,gpio_switch = <&p9xxx_gpio 3 GPIO_ACTIVE_HIGH>;
-		idt,gpio_extben = <&s2mpg12_gpio 2 GPIO_ACTIVE_HIGH>;
+		idt,gpio_ben = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;  /* EXT_BST_MODE */
+		/* idt,gpio_switch = <&p9xxx_gpio 3 GPIO_ACTIVE_HIGH>; */ /* EXT_BST_VTRX */
+		idt,gpio_extben = <&s2mpg12_gpio 2 GPIO_ACTIVE_HIGH>; /* AP2QI_EXTBST_EN */
 
 		/* WLCDC */
-		idt,gpio_dc_switch = <&s2mpg12_gpio 0 GPIO_ACTIVE_HIGH>;
+		idt,gpio_dc_switch = <&s2mpg12_gpio 0 GPIO_ACTIVE_HIGH>; /* WLC_RX_SW_EN */
 		idt,max_vout_mv = <19500>;
 		idt,has_wlc_dc = <0>;
 
