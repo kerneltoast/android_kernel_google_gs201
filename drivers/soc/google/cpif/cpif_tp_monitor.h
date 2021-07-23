@@ -107,6 +107,9 @@ struct cpif_tpmon {
 	struct cpif_rx_data rx_tcp;
 	struct cpif_rx_data rx_udp;
 	struct cpif_rx_data rx_others;
+	unsigned int rx_bytes_len;
+	u32 rx_bytes_valid_cnt;
+	bool rx_bytes_skip_add;
 
 	u32 pktproc_queue_status;
 	u32 netdev_backlog_queue_status;
