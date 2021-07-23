@@ -1776,7 +1776,8 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 	tpmon->bts_scen_index = bts_get_scenindex("cp_throughput");
 #endif
 
-	tpmon->monitor_wq = create_workqueue("cpif_tpmon_monitor_wq");
+	tpmon->monitor_wq = alloc_workqueue("cpif_tpmon_monitor_wq",
+					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!tpmon->monitor_wq) {
 		mif_err("create_workqueue() error\n");
 		ret = -EINVAL;
