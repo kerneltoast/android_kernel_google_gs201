@@ -1286,6 +1286,8 @@ static int sysmmu_parse_dt(struct device *sysmmu, struct sysmmu_drvdata *data)
 		}
 	}
 
+	data->hide_page_fault = of_property_read_bool(sysmmu->of_node,
+						      "sysmmu,hide-page-fault");
 	/* use async fault mode */
 	data->async_fault_mode = of_property_read_bool(sysmmu->of_node,
 						       "sysmmu,async-fault");

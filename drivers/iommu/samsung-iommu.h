@@ -50,6 +50,7 @@ struct sysmmu_drvdata {
 	bool no_s2pf;		/* Disable stage 2 prefetch */
 	bool rpm_resume;	/* true if .runtime_resume() is called */
 	bool async_fault_mode;
+	bool hide_page_fault;
 };
 
 struct sysmmu_clientdata {
