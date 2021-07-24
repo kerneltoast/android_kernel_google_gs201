@@ -63,3 +63,11 @@
 		};
 	};
 }; /* end of dpm */
+
+&log_preslcdump {
+	status = "disabled";
+};
+
+&log_slcdump {
+	status = "disabled";
+};
