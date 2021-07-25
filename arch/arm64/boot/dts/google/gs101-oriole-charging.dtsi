@@ -9,7 +9,6 @@
 
 &pca9468_dc {
 	pca9468,input-current-limit = <2300000>; /* 4.6A max */
-	pca9468,iin-max-offset = <50000>;
 };
 
 &google_charger {
