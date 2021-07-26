@@ -1232,10 +1232,10 @@
 		tmu_work_affinity = "0-7";
 	};
 
-	tmuctrl_4: ISP@100B0000 {
+	tmuctrl_4: ISP@100A0000 {
 		compatible = "samsung,gs201-tmu-v2";
-		reg = <0x0 0x100B0000 0x800>;
-		interrupts = <GIC_SPI IRQ_TMU_TMU_SUB_MISC IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0x100A0000 0x800>;
+		interrupts = <GIC_SPI IRQ_TMU_TMU_TOP_MISC IRQ_TYPE_LEVEL_HIGH>;
 		tmu_name = "ISP";
 		id = <4>;
 		ect_nouse;
