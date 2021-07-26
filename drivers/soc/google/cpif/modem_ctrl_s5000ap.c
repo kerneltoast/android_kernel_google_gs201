@@ -38,14 +38,33 @@ static int s5000ap_lcd_notifier(struct notifier_block *notifier,
 /*
  * CP_WDT interrupt handler
  */
+#if IS_ENABLED(CONFIG_SOC_S5E9925) && IS_ENABLED(CONFIG_SOC_S5E9925_EVT0)
+#define PMU_CP_INT_IN		0x3940
+#define CP_SCANDUMP_MASK	(0x1 << 7)
+#elif IS_ENABLED(CONFIG_SOC_S5E9925)
+#define PMU_CP_INT_IN		0x3930
+#define CP_SCANDUMP_MASK	(0x1 << 7)
+#endif
 static irqreturn_t cp_wdt_handler(int irq, void *arg)
 {
 	struct modem_ctl *mc = (struct modem_ctl *)arg;
 	enum modem_state new_state;
 	struct link_device *ld = get_current_link(mc->bootd);
+#if IS_ENABLED(CONFIG_SOC_S5E9925)
+	u32	val;
+#endif
 
-	mif_disable_irq(&mc->irq_cp_wdt);
 	mif_info("%s: CP_WDT occurred\n", mc->name);
+	mif_disable_irq(&mc->irq_cp_wdt);
+
+#if IS_ENABLED(CONFIG_SOC_S5E9925)
+	exynos_pmu_read(PMU_CP_INT_IN, &val);
+	if (val & CP_SCANDUMP_MASK) {
+		mif_info("cp scandump request detected\n");
+		dbg_snapshot_expire_watchdog();
+		return IRQ_HANDLED;
+	}
+#endif
 
 	if (mc->phone_state == STATE_ONLINE)
 		modem_notify_event(MODEM_EVENT_WATCHDOG, mc);
