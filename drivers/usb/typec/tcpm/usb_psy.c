@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/alarmtimer.h>
 #include <linux/i2c.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
@@ -42,6 +43,12 @@
 /* At least get one more try to meet sub state sync requirement */
 #define ERR_RETRY_DELAY_MS 20
 #define ERR_RETRY_COUNT    3
+
+/* Fall back to DCP when neither SDP_*_CONN_UA nor SDP_*_CONFIG_UA is signalled */
+#define SDP_ENUMERATION_TIMEOUT_MS	60000
+
+/* Signal wakeup event to allow userspace to process the update */
+#define DCP_UPDATE_MS			10000
 
 struct usb_psy_data {
 	struct logbuffer *log;
@@ -98,6 +105,11 @@ struct usb_psy_data {
 	bool attached;
 
 	bool usb_configured;
+
+	/* Alarm for forcing to DCP port on enumeration timeout */
+	struct alarm sdp_timeout_alarm;
+	/* Bottom half for sdp alarm */
+	struct kthread_work sdp_timeout_work;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -210,12 +222,14 @@ static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
 		break;
 	case SDP_HS_CONN_UA:
 	case SDP_SS_CONN_UA:
+		alarm_cancel(&usb->sdp_timeout_alarm);
 		configured = false;
 		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_CONFIGURED) | BIT(USB_SUSPEND);
 		init_vote(&vote, proto_voter_reason[BC12_SDP], BC12_SDP, ua);
 		break;
 	case SDP_HS_CONFIG_UA:
 	case SDP_SS_CONFIG_UA:
+		alarm_cancel(&usb->sdp_timeout_alarm);
 		configured = true;
 		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_SUSPEND);
 		init_vote(&vote, proto_voter_reason[USB_CONFIGURED], USB_CONFIGURED, ua);
@@ -376,6 +390,8 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		/* Enough to trigger just the uevent */
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		logbuffer_log(usb->log, "POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT lim:%d type:%d",
+			      val->intval, usb->usb_type);
 		/* Handle SDP current only */
 		if (usb->usb_type != POWER_SUPPLY_USB_TYPE_SDP)
 			return 0;
@@ -386,6 +402,11 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		usb->usb_type = val->intval;
 		usb->usb_configured = false;
 		ops->tcpc_set_port_data_capable(client, usb->usb_type);
+
+		if (usb->usb_type == POWER_SUPPLY_USB_TYPE_SDP)
+			alarm_start_relative(&usb->sdp_timeout_alarm,
+					     ms_to_ktime(SDP_ENUMERATION_TIMEOUT_MS));
+
 		kthread_mod_delayed_work(usb->wq, &usb->bc_icl_work,
 					 usb->usb_type != POWER_SUPPLY_USB_TYPE_UNKNOWN ?
 					 msecs_to_jiffies(BC_VOTE_DELAY_MS) : 0);
@@ -432,6 +453,9 @@ void usb_psy_set_attached_state(void *usb_psy, bool attached)
 	if (usb->attached & !attached) {
 		kthread_queue_work(usb->wq, &usb->bc_reset_work);
 		kthread_flush_work(&usb->bc_reset_work);
+
+		/* Cancel sdp alarm if scheduled */
+		alarm_cancel(&usb->sdp_timeout_alarm);
 	}
 
 	usb->attached = attached;
@@ -631,6 +655,27 @@ static void sdp_icl_work_item(struct kthread_work *work)
 	set_sdp_current_limit(usb, usb->sdp_input_current_limit);
 }
 
+static void sdp_timeout_work_item(struct kthread_work *work)
+{
+	struct usb_psy_data *usb = container_of(work, struct usb_psy_data, sdp_timeout_work);
+	union power_supply_propval val = {.intval = POWER_SUPPLY_USB_TYPE_DCP};
+	int ret;
+
+	ret = power_supply_set_property(usb->usb_psy, POWER_SUPPLY_PROP_USB_TYPE, &val);
+	logbuffer_log(usb->log, "%s: Falling back to DCP %s:%d", __func__, ret < 0 ? "error" :
+		      "success", ret);
+}
+
+static enum alarmtimer_restart sdp_timeout_alarm_cb(struct alarm *alarm, ktime_t now)
+{
+	struct usb_psy_data *usb = container_of(alarm, struct usb_psy_data, sdp_timeout_alarm);
+
+	pm_wakeup_event(&usb->tcpc_client->dev, DCP_UPDATE_MS);
+	kthread_queue_work(usb->wq, &usb->sdp_timeout_work);
+
+	return ALARMTIMER_NORESTART;
+}
+
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 		    struct usb_psy_ops *ops)
 {
@@ -657,6 +702,8 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	usb->log = log;
 	usb->psy_ops = ops;
 
+	alarm_init(&usb->sdp_timeout_alarm, ALARM_BOOTTIME, sdp_timeout_alarm_cb);
+	kthread_init_work(&usb->sdp_timeout_work, sdp_timeout_work_item);
 	kthread_init_work(&usb->bc_reset_work, bc_reset_work_item);
 
 	dn = dev_of_node(dev);
