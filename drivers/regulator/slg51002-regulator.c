@@ -23,8 +23,6 @@
 
 #define SLG51002_SCTL_EVT               7
 #define SLG51002_MAX_EVT_REGISTER       8
-#define SLG51002_LDOHP_LV_MIN           1200000
-#define SLG51002_LDOHP_HV_MIN           2200000
 
 struct slg51002_evt_sta {
 	unsigned int ereg;
@@ -142,34 +140,29 @@ static int slg51002_of_parse_cb(struct device_node *np,
 	}
 
 static struct regulator_desc regls_desc[SLG51002_MAX_REGULATORS] = {
-	SLG51002_REGL_DESC(LDO1, ldo1, NULL,   2200000,  5000),
-	SLG51002_REGL_DESC(LDO2, ldo2, NULL,   2200000,  5000),
+	SLG51002_REGL_DESC(LDO1, ldo1, "vin1_2", 1200000, 10000),
+	SLG51002_REGL_DESC(LDO2, ldo2, "vin1_2", 1200000, 10000),
 	SLG51002_REGL_DESC(LDO3, ldo3, "vin3", 1200000, 10000),
 	SLG51002_REGL_DESC(LDO4, ldo4, "vin4", 1200000, 10000),
-	SLG51002_REGL_DESC(LDO5, ldo5, "vin5",  400000,  5000),
-	SLG51002_REGL_DESC(LDO6, ldo6, "vin6",  400000,  5000),
-	SLG51002_REGL_DESC(LDO7, ldo7, "vin7", 1200000, 10000),
-	SLG51002_REGL_DESC(LDO_DUMMY, ldo_dummy, NULL, 1200000, 10000),
+	SLG51002_REGL_DESC(LDO5, ldo5, "vin5", 1200000, 10000),
+	SLG51002_REGL_DESC(LDO6, ldo6, "vin6", 400000,  5000),
+	SLG51002_REGL_DESC(LDO7, ldo7, "vin7", 400000, 5000),
+	SLG51002_REGL_DESC(LDO8, ldo8, "vin8", 400000, 5000),
 };
 
 static int slg51002_regulator_register(struct slg51002_dev *chip)
 {
 	struct regulator_config config = { };
 	struct regulator_desc *rdesc;
-	unsigned int reg, val;
 	u8 vsel_range[2];
 	int id, ret = 0;
 	const unsigned int min_regs[SLG51002_MAX_REGULATORS] = {
 		SLG51002_LDO1_MINV, SLG51002_LDO2_MINV, SLG51002_LDO3_MINV,
 		SLG51002_LDO4_MINV, SLG51002_LDO5_MINV, SLG51002_LDO6_MINV,
-		SLG51002_LDO7_MINV, SLG51002_LDO_DUMMY_MINV,
+		SLG51002_LDO7_MINV, SLG51002_LDO8_MINV,
 	};
 
 	for (id = 0; id < SLG51002_MAX_REGULATORS; id++) {
-		if (chip->op_mode != SLG51002_OP_MODE_CONTROL_REG &&
-			id == SLG51002_REGULATOR_LDO_DUMMY)
-			continue;
-
 		chip->rdesc[id] = &regls_desc[id];
 		rdesc = chip->rdesc[id];
 		config.regmap = chip->regmap;
@@ -184,65 +177,10 @@ static int slg51002_regulator_register(struct slg51002_dev *chip)
 			return ret;
 		}
 
-		switch (id) {
-		case SLG51002_REGULATOR_LDO1:
-		case SLG51002_REGULATOR_LDO2:
-			if (id == SLG51002_REGULATOR_LDO1)
-				reg = SLG51002_LDO1_MISC1;
-			else
-				reg = SLG51002_LDO2_MISC1;
-
-			ret = regmap_read(chip->regmap, reg, &val);
-			if (ret < 0) {
-				dev_err(chip->dev,
-					"Failed to read voltage range of ldo%d\n",
-					id + 1);
-				return ret;
-			}
-
-			rdesc->linear_min_sel = vsel_range[0];
-			rdesc->n_voltages = vsel_range[1] + 1;
-			if (val & SLG51002_SEL_VRANGE_MASK)
-				rdesc->min_uV = SLG51002_LDOHP_HV_MIN
-						+ (vsel_range[0]
-						   * rdesc->uV_step);
-			else
-				rdesc->min_uV = SLG51002_LDOHP_LV_MIN
-						+ (vsel_range[0]
-						   * rdesc->uV_step);
-			break;
-
-		case SLG51002_REGULATOR_LDO5:
-		case SLG51002_REGULATOR_LDO6:
-			if (id == SLG51002_REGULATOR_LDO5)
-				reg = SLG51002_LDO5_TRIM2;
-			else
-				reg = SLG51002_LDO6_TRIM2;
-
-			ret = regmap_read(chip->regmap, reg, &val);
-			if (ret < 0) {
-				dev_err(chip->dev,
-					"Failed to read LDO mode register\n");
-				return ret;
-			}
-
-			if (val & SLG51002_SEL_BYP_MODE_MASK) {
-				rdesc->ops = &slg51002_switch_ops;
-				rdesc->n_voltages = 0;
-				rdesc->min_uV = 0;
-				rdesc->uV_step = 0;
-				rdesc->linear_min_sel = 0;
-				break;
-			}
-			fallthrough;	/* to the check below */
-
-		default:
-			rdesc->linear_min_sel = vsel_range[0];
+		rdesc->linear_min_sel = vsel_range[0];
 			rdesc->n_voltages = vsel_range[1] + 1;
 			rdesc->min_uV = rdesc->min_uV +
 					(vsel_range[0] * rdesc->uV_step);
-			break;
-		}
 
 		chip->rdev[id] = devm_regulator_register(
 				chip->dev, rdesc, &config);

@@ -31,7 +31,10 @@
 #define SLG51002_SW_TEST_MODE_2                 0x111b
 #define SLG51002_SW_TEST_MODE_3                 0x111c
 #define SLG51002_SW_TEST_MODE_4                 0x111d
+#define SLG51002_SYSCTL_DIG_VOUT_FLAG_MUX_SEL0  0x1131
+#define SLG51002_SYSCTL_MEM_STATUS              0x1132
 #define SLG51002_LDO_HP_STARTUP_ILIM            0x1133
+#define SLG51002_I2C_ADDR_SEL                   0x113f
 #define SLG51002_IO_GPIO1_CONF                  0x1500
 #define SLG51002_IO_GPIO2_CONF                  0x1501
 #define SLG51002_IO_GPIO3_CONF                  0x1502
@@ -39,6 +42,11 @@
 #define SLG51002_IO_GPIO5_CONF                  0x1504
 #define SLG51002_IO_GPIO6_CONF                  0x1505
 #define SLG51002_IO_GPIO_STATUS                 0x1506
+#define SLG51002_IO_GPIO1_MODE                  0x1507
+#define SLG51002_IO_GPIO2_MODE                  0x1508
+#define SLG51002_IO_GPIO3_MODE                  0x1509
+#define SLG51002_IO_GPIO4_MODE                  0x150a
+#define SLG51002_IO_GPIO_QCHG                   0x150b
 #define SLG51002_LUTARRAY_LUT_VAL_0             0x1600
 #define SLG51002_LUTARRAY_LUT_VAL_1             0x1601
 #define SLG51002_LUTARRAY_LUT_VAL_2             0x1602
@@ -142,8 +150,10 @@
 #define SLG51002_LDO1_MINV                      0x2060
 #define SLG51002_LDO1_MAXV                      0x2061
 #define SLG51002_LDO1_TRIM2                     0x2063
-#define SLG51002_LDO1_MISC1                     0x2064
-#define SLG51002_LDO1_VSEL_ACTUAL               0x2065
+#define SLG51002_LDO1_CONF1                     0x2064
+#define SLG51002_LDO1_CONF2                     0x2065
+#define SLG51002_LDO1_VSEL_ACTUAL               0x2066
+#define SLG51002_LDO1_CONF3                     0x2067
 #define SLG51002_LDO1_EVENT                     0x20c0
 #define SLG51002_LDO1_STATUS                    0x20c1
 #define SLG51002_LDO1_IRQ_MASK                  0x20c2
@@ -151,8 +161,10 @@
 #define SLG51002_LDO2_MINV                      0x2260
 #define SLG51002_LDO2_MAXV                      0x2261
 #define SLG51002_LDO2_TRIM2                     0x2263
-#define SLG51002_LDO2_MISC1                     0x2264
-#define SLG51002_LDO2_VSEL_ACTUAL               0x2265
+#define SLG51002_LDO2_CONF1                     0x2264
+#define SLG51002_LDO2_CONF2                     0x2265
+#define SLG51002_LDO2_VSEL_ACTUAL               0x2266
+#define SLG51002_LDO2_CONF3                     0x2267
 #define SLG51002_LDO2_EVENT                     0x22c0
 #define SLG51002_LDO2_STATUS                    0x22c1
 #define SLG51002_LDO2_IRQ_MASK                  0x22c2
@@ -163,6 +175,7 @@
 #define SLG51002_LDO3_CONF1                     0x2364
 #define SLG51002_LDO3_CONF2                     0x2365
 #define SLG51002_LDO3_VSEL_ACTUAL               0x2366
+#define SLG51002_LDO3_CONF3                     0x2367
 #define SLG51002_LDO3_EVENT                     0x23c0
 #define SLG51002_LDO3_STATUS                    0x23c1
 #define SLG51002_LDO3_IRQ_MASK                  0x23c2
@@ -173,6 +186,8 @@
 #define SLG51002_LDO4_CONF1                     0x2564
 #define SLG51002_LDO4_CONF2                     0x2565
 #define SLG51002_LDO4_VSEL_ACTUAL               0x2566
+#define SLG51002_LDO4_CONF3                     0x2567
+#define SLG51002_LDO4_CONF4                     0x2568
 #define SLG51002_LDO4_EVENT                     0x25c0
 #define SLG51002_LDO4_STATUS                    0x25c1
 #define SLG51002_LDO4_IRQ_MASK                  0x25c2
@@ -180,10 +195,11 @@
 #define SLG51002_LDO5_MINV                      0x2760
 #define SLG51002_LDO5_MAXV                      0x2761
 #define SLG51002_LDO5_TRIM2                     0x2763
-#define SLG51002_LDO5_TRIM3                     0x2764
-#define SLG51002_LDO5_CONF1                     0x2765
-#define SLG51002_LDO5_CONF2                     0x2766
-#define SLG51002_LDO5_VSEL_ACTUAL               0x2767
+#define SLG51002_LDO5_CONF1                     0x2764
+#define SLG51002_LDO5_CONF2                     0x2765
+#define SLG51002_LDO5_VSEL_ACTUAL               0x2766
+#define SLG51002_LDO5_CONF3                     0x2767
+#define SLG51002_LDO5_CONF4                     0x2768
 #define SLG51002_LDO5_EVENT                     0x27c0
 #define SLG51002_LDO5_STATUS                    0x27c1
 #define SLG51002_LDO5_IRQ_MASK                  0x27c2
@@ -195,6 +211,7 @@
 #define SLG51002_LDO6_CONF1                     0x2965
 #define SLG51002_LDO6_CONF2                     0x2966
 #define SLG51002_LDO6_VSEL_ACTUAL               0x2967
+#define SLG51002_LDO6_CONF3                     0x2968
 #define SLG51002_LDO6_EVENT                     0x29c0
 #define SLG51002_LDO6_STATUS                    0x29c1
 #define SLG51002_LDO6_IRQ_MASK                  0x29c2
@@ -202,19 +219,32 @@
 #define SLG51002_LDO7_MINV                      0x3160
 #define SLG51002_LDO7_MAXV                      0x3161
 #define SLG51002_LDO7_TRIM2                     0x3163
-#define SLG51002_LDO7_CONF1                     0x3164
-#define SLG51002_LDO7_CONF2                     0x3165
-#define SLG51002_LDO7_VSEL_ACTUAL               0x3166
+#define SLG51002_LDO7_TRIM3                     0x3164
+#define SLG51002_LDO7_CONF1                     0x3165
+#define SLG51002_LDO7_CONF2                     0x3166
+#define SLG51002_LDO7_VSEL_ACTUAL               0x3167
+#define SLG51002_LDO7_CONF3                     0x3168
 #define SLG51002_LDO7_EVENT                     0x31c0
 #define SLG51002_LDO7_STATUS                    0x31c1
 #define SLG51002_LDO7_IRQ_MASK                  0x31c2
-#define SLG51002_LDO_DUMMY_VSEL                 0x3100
-#define SLG51002_LDO_DUMMY_MINV                 0x3160
+#define SLG51002_LDO8_VSEL                      0x3200
+#define SLG51002_LDO8_MINV                      0x3260
+#define SLG51002_LDO8_MAXV                      0x3261
+#define SLG51002_LDO8_TRIM2                     0x3263
+#define SLG51002_LDO8_TRIM3                     0x3264
+#define SLG51002_LDO8_CONF1                     0x3265
+#define SLG51002_LDO8_CONF2                     0x3266
+#define SLG51002_LDO8_VSEL_ACTUAL               0x3267
+#define SLG51002_LDO8_CONF3                     0x3268
+#define SLG51002_LDO8_EVENT                     0x32c0
+#define SLG51002_LDO8_STATUS                    0x32c1
+#define SLG51002_LDO8_IRQ_MASK                  0x32c2
 #define SLG51002_OTP_EVENT                      0x782b
 #define SLG51002_OTP_IRQ_MASK                   0x782d
 #define SLG51002_OTP_LOCK_OTP_PROG              0x78fe
 #define SLG51002_OTP_LOCK_CTRL                  0x78ff
 #define SLG51002_LOCK_GLOBAL_LOCK_CTRL1         0x8000
+#define SLG51002_LOCK_GLOBAL_LOCK_CTRL2         0x8001
 
 /* Register Bit Fields */
 
@@ -581,7 +611,7 @@ enum slg51002_regulators {
 	SLG51002_REGULATOR_LDO5,
 	SLG51002_REGULATOR_LDO6,
 	SLG51002_REGULATOR_LDO7,
-	SLG51002_REGULATOR_LDO_DUMMY,
+	SLG51002_REGULATOR_LDO8,
 	SLG51002_MAX_REGULATORS,
 };
 
@@ -616,11 +646,11 @@ enum {
 
 /* Operation mode */
 enum {
-	SLG51002_OP_MODE_LDO_ONLY,
 	SLG51002_OP_MODE_LDO_GPIO,
+	SLG51002_OP_MODE_CONTROL_REG,
+	SLG51002_OP_MODE_LDO_ONLY,
 	SLG51002_OP_MODE_SEQ_GPIO,
 	SLG51002_OP_MODE_SEQ_GENERIC,
-	SLG51002_OP_MODE_CONTROL_REG,
 };
 
 struct slg51002_dev {
