@@ -221,6 +221,8 @@ struct dit_ctrl_t {
 	int *irq_buf;
 	int irq_len;
 	int irq_affinity;
+	int irq_num_tx;
+	int irq_affinity_tx;
 	int idle_ip_index;
 
 	void __iomem *register_base;
