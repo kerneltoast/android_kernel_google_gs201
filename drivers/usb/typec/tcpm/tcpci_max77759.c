@@ -693,6 +693,7 @@ static void process_power_status(struct max77759_plat *chip)
 					      SBUSW_SERIAL_UART);
 			logbuffer_log(log, "SBU switch enable %s", ret < 0 ? "fail" : "success");
 		}
+		usb_psy_set_attached_state(chip->usb_psy_data, chip->attached);
 	}
 }
 
@@ -1335,6 +1336,7 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 	chip->data_role = typec_data_role;
 	enable_data_path_locked(chip);
 	mutex_unlock(&chip->data_path_lock);
+	usb_psy_set_attached_state(chip->usb_psy_data, chip->attached);
 
 	return 0;
 }
@@ -1421,7 +1423,13 @@ static void max77759_set_port_data_capable(struct i2c_client *tcpc_client,
 		enable_data_path_locked(chip);
 		mutex_unlock(&chip->data_path_lock);
 		break;
+	case POWER_SUPPLY_USB_TYPE_DCP:
 	case POWER_SUPPLY_USB_TYPE_UNKNOWN:
+		mutex_lock(&chip->data_path_lock);
+		chip->bc12_data_capable = false;
+		enable_data_path_locked(chip);
+		mutex_unlock(&chip->data_path_lock);
+		break;
 	default:
 		chip->bc12_data_capable = false;
 		break;

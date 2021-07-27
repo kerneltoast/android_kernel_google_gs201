@@ -88,8 +88,14 @@ struct usb_psy_data {
 	struct kthread_delayed_work sdp_icl_work;
 	atomic_t retry_count;
 
+	/* Reset usb_type upon disconnect */
+	struct kthread_work bc_reset_work;
+
 	/* sink connected state from Type-C */
 	bool sink_enabled;
+
+	/* Tracks attached state from Type-C */
+	bool attached;
 
 	bool usb_configured;
 };
@@ -404,6 +410,35 @@ void usb_psy_set_sink_state(void *usb_psy, bool enabled)
 }
 EXPORT_SYMBOL_GPL(usb_psy_set_sink_state);
 
+static void bc_reset_work_item(struct kthread_work *work)
+{
+	struct usb_psy_data *usb = container_of(work, struct usb_psy_data, bc_reset_work);
+	union power_supply_propval val = {.intval = POWER_SUPPLY_USB_TYPE_UNKNOWN};
+	int ret;
+
+	ret = power_supply_set_property(usb->usb_psy, POWER_SUPPLY_PROP_USB_TYPE, &val);
+	logbuffer_log(usb->log, "%s: Resetting usb_type %s:%d", __func__, ret < 0 ? "error" :
+		      "success", ret);
+}
+
+void usb_psy_set_attached_state(void *usb_psy, bool attached)
+{
+	struct usb_psy_data *usb = usb_psy;
+
+	if (!usb || !usb->usb_psy)
+		return;
+
+	/* Reset upon disconnect as BC1.2 gets disabled before enabling data */
+	if (usb->attached & !attached) {
+		kthread_queue_work(usb->wq, &usb->bc_reset_work);
+		kthread_flush_work(&usb->bc_reset_work);
+	}
+
+	usb->attached = attached;
+	power_supply_changed(usb->usb_psy);
+}
+EXPORT_SYMBOL_GPL(usb_psy_set_attached_state);
+
 //todo: Expose settled ICL limit
 static enum power_supply_property usb_psy_data_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
@@ -621,6 +656,8 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	usb->tcpc_client = client;
 	usb->log = log;
 	usb->psy_ops = ops;
+
+	kthread_init_work(&usb->bc_reset_work, bc_reset_work_item);
 
 	dn = dev_of_node(dev);
 	if (!dn) {
