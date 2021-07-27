@@ -511,7 +511,5 @@ int s51xx_pcie_init(struct modem_ctl *mc)
 	/* Create PROC fs */
 	proc_create("driver/s51xx_pcie_proc", 0, NULL, &s51xx_pcie_proc_fops);
 
-	device_disable_async_suspend(&mc->s51xx_pdev->dev);
-
 	return 0;
 }
