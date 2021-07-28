@@ -2281,6 +2281,9 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 		goto err_devfreq;
 	}
 
+	lockdep_register_key(&data->devfreq_lock_key);
+	lockdep_set_class(&data->devfreq->lock, &data->devfreq_lock_key);
+
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 	err = find_exynos_devfreq_dm_type(data->dev, &dm_type);
 	if (err)
@@ -2456,6 +2459,7 @@ err_um_nb:
 err_dm_scaler:
 err_dm_type:
 #endif
+	lockdep_unregister_key(&data->devfreq_lock_key);
 err_devfreq:
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 	for (; nr_constraint >= 0; nr_constraint--) {
@@ -2508,6 +2512,7 @@ static int exynos_devfreq_remove(struct platform_device *pdev)
 	exynos_alt_unregister_notifier(&data->um_nb->nb);
 	exynos_devfreq_um_exit(data);
 #endif
+	lockdep_unregister_key(&data->devfreq_lock_key);
 	devfreq_remove_device(data->devfreq);
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 	for (nr_constraint = 0; nr_constraint < data->nr_constraint;
