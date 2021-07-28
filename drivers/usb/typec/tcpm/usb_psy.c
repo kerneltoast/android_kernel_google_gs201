@@ -403,10 +403,6 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		usb->usb_configured = false;
 		ops->tcpc_set_port_data_capable(client, usb->usb_type);
 
-		if (usb->usb_type == POWER_SUPPLY_USB_TYPE_SDP)
-			alarm_start_relative(&usb->sdp_timeout_alarm,
-					     ms_to_ktime(SDP_ENUMERATION_TIMEOUT_MS));
-
 		kthread_mod_delayed_work(usb->wq, &usb->bc_icl_work,
 					 usb->usb_type != POWER_SUPPLY_USB_TYPE_UNKNOWN ?
 					 msecs_to_jiffies(BC_VOTE_DELAY_MS) : 0);
@@ -418,6 +414,19 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 
 	return 0;
 }
+
+void usb_psy_start_sdp_timeout(void *usb_psy)
+{
+	struct usb_psy_data *usb = usb_psy;
+
+	if (!usb)
+		return;
+
+	if (usb->usb_type == POWER_SUPPLY_USB_TYPE_SDP)
+		alarm_start_relative(&usb->sdp_timeout_alarm,
+				     ms_to_ktime(SDP_ENUMERATION_TIMEOUT_MS));
+}
+EXPORT_SYMBOL_GPL(usb_psy_start_sdp_timeout);
 
 void usb_psy_set_sink_state(void *usb_psy, bool enabled)
 {
