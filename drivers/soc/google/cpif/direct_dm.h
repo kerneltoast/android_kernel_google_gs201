@@ -96,6 +96,8 @@ struct direct_dm_ctrl {
 	struct hrtimer rx_timer;
 	u32 rx_timer_period_msec;
 
+	bool usb_active;
+
 	struct direct_dm_statistics stat;
 
 	bool enable_debug;

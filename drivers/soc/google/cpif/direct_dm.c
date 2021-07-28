@@ -156,10 +156,15 @@ static void direct_dm_rx_task(unsigned long arg)
 
 			dc->desc_rgn[dc->curr_desc_pos].status &= ~BIT(DDM_DESC_S_DONE);
 		} else {
+			if (!dc->usb_active) {
+				mif_info_limited("usb is not activated\n");
+				break;
+			}
+
 			dc->stat.usb_req_cnt++;
 			ret = usb_dm_request(addr, curr_desc.length);
 			if (ret) {
-				mif_err_limited("usb_dm_request() error:%d pos:%d\n",
+				mif_info_limited("usb_dm_request() ret:%d pos:%d\n",
 					ret, dc->curr_desc_pos);
 
 				dc->stat.err_usb_req++;
@@ -207,12 +212,43 @@ static irqreturn_t direct_dm_irq_handler(int irq, void *arg)
 /* Callback from USB driver */
 static void direct_dm_usb_active_noti(void *arg)
 {
-	mif_info("+++\n");
+	struct direct_dm_ctrl *dc = (struct direct_dm_ctrl *)arg;
+	unsigned long flags;
+
+	if (!dc) {
+		mif_err_limited("dc is null\n");
+		return;
+	}
+
+	spin_lock_irqsave(&dc->rx_lock, flags);
+
+	mif_info("usb is activated\n");
+	dc->usb_active = true;
+
+	spin_unlock_irqrestore(&dc->rx_lock, flags);
+
+	if (dc->use_rx_task)
+		tasklet_hi_schedule(&dc->rx_task);
+	else
+		direct_dm_rx_task((unsigned long)dc);
 }
 
 static void direct_dm_usb_disable_noti(void *arg)
 {
-	mif_info("+++\n");
+	struct direct_dm_ctrl *dc = (struct direct_dm_ctrl *)arg;
+	unsigned long flags;
+
+	if (!dc) {
+		mif_err_limited("dc is null\n");
+		return;
+	}
+
+	spin_lock_irqsave(&dc->rx_lock, flags);
+
+	mif_info("usb is deactivated\n");
+	dc->usb_active = false;
+
+	spin_unlock_irqrestore(&dc->rx_lock, flags);
 }
 
 static void direct_dm_usb_completion_noti(void *addr, int length, void *arg)
