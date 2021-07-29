@@ -142,8 +142,8 @@ send_doorbell_again:
 			if (!in_interrupt())
 				udelay(1000); /* 1ms */
 			else {
-				mif_err_limited("Can't send doorbell in interrupt mode (0x%08X)\n"
-						, reg);
+				mif_err_limited("Can't send doorbell in interrupt mode (0x%08X)\n",
+						reg);
 				return 0;
 			}
 

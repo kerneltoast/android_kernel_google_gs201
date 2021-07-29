@@ -234,40 +234,4 @@ static inline bool sipc_misc_ch(u8 ch)
 	return (ch == SIPC_CH_ID_CASS) ? true : false;
 }
 
-#define STD_UDL_STEP_MASK	0x0000000F
-#define STD_UDL_SEND		0x1
-#define STD_UDL_CRC		0xC
-
-struct std_dload_info {
-	u32 size;
-	u32 mtu;
-	u32 num_frames;
-} __packed;
-
-
-/*
- * @brief	get BOOT/DUMP command
- * @param frm	the pointer to an SIPC5 link frame
- * @return	the standard BOOT/DUMP command in an SIPC5 BOOT/DUMP frame
- */
-static inline u32 std_bootdump_get_cmd(u8 *frm)
-{
-	u8 *cmd = frm + sipc5_get_hdr_len(frm);
-
-	return *((u32 *)cmd);
-}
-
-/*
- * @brief		check whether or not a command came with a payload
- * @param cmd		the standard BOOT/DUMP command
- * @retval "true"	if the STD_UDL command has a payload
- * @retval "false"	otherwise
- */
-static inline bool std_bootdump_with_payload(u32 cmd)
-{
-	u32 mask = cmd & STD_UDL_STEP_MASK;
-
-	return (mask && mask < STD_UDL_CRC) ? true : false;
-}
-
 #endif

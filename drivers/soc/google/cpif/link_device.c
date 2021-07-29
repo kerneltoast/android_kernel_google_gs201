@@ -1395,8 +1395,7 @@ static int xmit_ipc_to_pktproc(struct mem_link_device *mld, struct sk_buff *skb)
 		len = skb->len;
 
 	if (len > ppa_ul->max_packet_size) {
-		mif_err_limited("ERR! PKTPROC UL QUEUE %d\n"
-				"skb len %d too large\n",
+		mif_err_limited("ERR! PKTPROC UL QUEUE %d, skb len %d too large\n",
 				q->q_idx, len);
 		return -EINVAL;
 	}
@@ -2324,10 +2323,8 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 
 	exynos_smc(SMC_ID_CLK, SSS_CLK_DISABLE, 0, 0);
 
-	if (try_cnt >= MAX_TRY_CNT) {
-		mif_info("%s: it fails to check signature of main binary.\n"
-								, ld->name);
-	}
+	if (try_cnt >= MAX_TRY_CNT)
+		mif_info("%s: it fails to check signature of main binary.\n", ld->name);
 
 	mif_info("%s: return_value=0x%08x(%s)\n", ld->name, err,
 			err < sizeof(smc_err_string) ? smc_err_string[err] : "NULL");

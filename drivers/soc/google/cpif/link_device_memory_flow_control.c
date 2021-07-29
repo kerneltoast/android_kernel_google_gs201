@@ -63,9 +63,8 @@ void pktproc_ul_q_start(struct pktproc_queue_ul *q)
 
 			if (ld->tx_flowctrl_mask == 0) {
 				resume_net_ifaces(ld);
-				mif_info_limited("PKTPROC UL QUEUE %d,\n"
-						"tx_flowctrl=0x%04lx\n",
-					q->q_idx, ld->tx_flowctrl_mask);
+				mif_info_limited("PKTPROC UL QUEUE %d tx_flowctrl=0x%04lx\n",
+						 q->q_idx, ld->tx_flowctrl_mask);
 			}
 
 			spin_unlock_irqrestore(&q->lock, flags);
@@ -90,8 +89,7 @@ int pktproc_check_ul_flow_ctrl(struct pktproc_queue_ul *q)
 		spin_unlock_irqrestore(&q->lock, flags);
 #ifdef DEBUG_MODEM_IF_FLOW_CTRL
 		if (cp_online(mc)) {
-			mif_err("PKTPROC UL Queue %d: No RES_ACK,\n"
-					"but EMPTY (busy_cnt %d)\n",
+			mif_err("PKTPROC UL Queue %d: No RES_ACK, but EMPTY (busy_cnt %d)\n",
 				q->q_idx, busy_count);
 		}
 #endif

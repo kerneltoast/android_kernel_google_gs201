@@ -279,7 +279,6 @@ struct mem_link_device {
 	 * Member variables for CP booting and crash dump
 	 */
 	struct delayed_work bootdump_rx_dwork;
-	struct std_dload_info img_info;	/* Information of each binary image */
 	atomic_t cp_boot_done;
 
 	/**
