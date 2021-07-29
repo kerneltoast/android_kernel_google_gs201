@@ -135,7 +135,8 @@ unsigned char s2mpu_get_and_modify(struct exynos_pcie *exynos_pcie,
 }
 
 void s2mpu_update_refcnt(struct device *dev,
-			 dma_addr_t dma_addr, size_t size, bool incr)
+			 dma_addr_t dma_addr, size_t size, bool incr,
+			 enum dma_data_direction dir)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[WIFI_CH_NUM];
 	phys_addr_t align_addr;
@@ -166,10 +167,13 @@ void s2mpu_update_refcnt(struct device *dev,
 		if (incr) {
 			refcnt = s2mpu_get_and_modify(exynos_pcie, refcnt_ptr,
 						      true);
+			/* Note that this will open the memory with read/write
+			 * permissions based on the first invocation. Subsequent
+			 * read/write permissions will be ignored.
+			 */
 			if (refcnt == 1) {
 				ret = s2mpu_open(exynos_pcie->s2mpu,
-						 align_addr,
-						 ALIGN_SIZE);
+						 align_addr, ALIGN_SIZE, dir);
 				if (ret) {
 					dev_err(dev,
 						"s2mpu_open failed addr=%pad, size=%zx\n",
@@ -185,8 +189,7 @@ void s2mpu_update_refcnt(struct device *dev,
 			}
 			if (refcnt == 0) {
 				ret = s2mpu_close(exynos_pcie->s2mpu,
-						  align_addr,
-						  ALIGN_SIZE);
+						  align_addr, ALIGN_SIZE, dir);
 				if (ret) {
 					dev_err(dev,
 						"s2mpu_close failed addr=%pad, size=%zx\n",
@@ -208,7 +211,7 @@ static void *gs101_pcie_dma_alloc_attrs(struct device *dev, size_t size,
 
 	cpu_addr = dma_alloc_attrs(&fake_dma_dev, size,
 				   dma_handle, flag, attrs);
-	s2mpu_update_refcnt(dev, *dma_handle, size, true);
+	s2mpu_update_refcnt(dev, *dma_handle, size, true, DMA_BIDIRECTIONAL);
 	return cpu_addr;
 }
 
@@ -217,7 +220,7 @@ static void gs101_pcie_dma_free_attrs(struct device *dev, size_t size,
 				      unsigned long attrs)
 {
 	dma_free_attrs(&fake_dma_dev, size, cpu_addr, dma_addr, attrs);
-	s2mpu_update_refcnt(dev, dma_addr, size, false);
+	s2mpu_update_refcnt(dev, dma_addr, size, false, DMA_BIDIRECTIONAL);
 }
 
 static dma_addr_t gs101_pcie_dma_map_page(struct device *dev, struct page *page,
@@ -229,7 +232,7 @@ static dma_addr_t gs101_pcie_dma_map_page(struct device *dev, struct page *page,
 
 	dma_addr = dma_map_page_attrs(&fake_dma_dev, page, offset,
 				      size, dir, attrs);
-	s2mpu_update_refcnt(dev, dma_addr, size, true);
+	s2mpu_update_refcnt(dev, dma_addr, size, true, dir);
 	return dma_addr;
 }
 
@@ -238,7 +241,7 @@ static void gs101_pcie_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 				      unsigned long attrs)
 {
 	dma_unmap_page_attrs(&fake_dma_dev, dma_addr, size, dir, attrs);
-	s2mpu_update_refcnt(dev, dma_addr, size, false);
+	s2mpu_update_refcnt(dev, dma_addr, size, false, dir);
 }
 
 static const struct dma_map_ops gs101_pcie_dma_ops = {
@@ -3991,7 +3994,8 @@ static int setup_s2mpu_mem(struct device *dev, struct exynos_pcie *exynos_pcie)
 		/* Optimize s2mpu operation by setting up 1G page tables */
 		addr = pm->start;
 		while (addr <  pm->start + pm->size) {
-			ret = s2mpu_close(exynos_pcie->s2mpu, addr, ALIGN_SIZE);
+			ret = s2mpu_close(exynos_pcie->s2mpu, addr, ALIGN_SIZE,
+					  DMA_BIDIRECTIONAL);
 			if (ret) {
 				dev_err(dev,
 					"probe s2mpu_close failed addr = 0x%pa\n",
