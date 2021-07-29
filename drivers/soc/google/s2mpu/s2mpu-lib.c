@@ -43,6 +43,13 @@ enum s2_gran {
 	S2_GRAN_1GB = 3,
 };
 
+enum dir_mask {
+	DIR_NONE,
+	DIR_READ = 1,
+	DIR_WRITE,
+	DIR_BIDRECTIONAL
+};
+
 const u32 gran_shift[] = {
 	[S2_GRAN_4KB] = 12,
 	[S2_GRAN_64KB] = 16,
@@ -542,15 +549,26 @@ static void decompose(struct s2mpu_info *info, u32 gb_index, enum s2_gran curr_g
 
 static void open_close_granules(struct s2mpu_info *info, u64 start,
 				enum s2_gran win_gran, size_t gcount,
-				bool open);
+				bool open, enum dma_data_direction dir);
 
 static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum s2_gran g,
-			       bool open)
+			       bool open, enum dma_data_direction dir)
 {
 	u32 gb_index = start >> gran_shift[S2_GRAN_1GB];
 	enum s2_gran eg;
 	u32 l1_entry;
 	unsigned long flags;
+	enum dir_mask dm;
+
+	if (WARN_ON(dir == DMA_NONE))
+		return;
+
+	if (dir == DMA_BIDIRECTIONAL)
+		dm = DIR_BIDRECTIONAL;
+	else if (dir == DMA_TO_DEVICE)
+		dm = DIR_READ;
+	else if (dir == DMA_FROM_DEVICE)
+		dm = DIR_WRITE;
 
 	if (WARN_ON(gb_index >= 64))
 		return;
@@ -559,12 +577,12 @@ static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum 
 	eg = l1_existing_granularity(l1_entry);
 	if (eg == g) {
 		if (eg == S2_GRAN_1GB) {
-			u32 one_gb_rw = 3 << S2MPU_L1ENTRY_ATTR_RD_ACCESS_SHIFT;
+			u32 one_gb_rw = dm << S2MPU_L1ENTRY_ATTR_RD_ACCESS_SHIFT;
 
 			if (open)
 				l1_entry = l1_entry | one_gb_rw;
 			else
-				l1_entry = l1_entry & ~one_gb_rw;
+				l1_entry = l1_entry & ~(3U << S2MPU_L1ENTRY_ATTR_RD_ACCESS_SHIFT);
 			__raw_writel(l1_entry, S2MPU_L1ENTRY_ATTR(info->base, info->vid, gb_index));
 			/* invalidate S2MPU cache */
 			range_invalidate_mptc_vid_specific(info->base, info->vid, start, eg);
@@ -591,7 +609,7 @@ static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum 
 			spin_lock_irqsave(&info->lock, flags);
 			b = smpt[byte_offset];
 			if (open)
-				b = b | (3 << bit_offset);
+				b = b | (dm << bit_offset);
 			else
 				b = b & ~(3 << bit_offset);
 			smpt[byte_offset] = b;
@@ -617,23 +635,23 @@ static void open_close_granule(struct s2mpu_info *info, phys_addr_t start, enum 
 			/* divide window_granularity by existing_granularity */
 			size_t gcount = 1 << (gran_shift[g] - gran_shift[eg]);
 
-			open_close_granules(info, start, eg, gcount, open);
+			open_close_granules(info, start, eg, gcount, open, dir);
 		} else {
 			/* break existing granularity to match win gran */
 			decompose(info, gb_index, eg, g);
-			open_close_granule(info, start, g, open);
+			open_close_granule(info, start, g, open, dir);
 		}
 	}
 }
 
 static void open_close_granules(struct s2mpu_info *info, phys_addr_t start,
 				enum s2_gran win_gran, size_t gcount,
-				bool open)
+				bool open, enum dma_data_direction dir)
 {
 	size_t i;
 
 	for (i = 0; i < gcount; i++) {
-		open_close_granule(info, start, win_gran, open);
+		open_close_granule(info, start, win_gran, open, dir);
 		start += (1 << gran_shift[win_gran]);
 	}
 }
@@ -691,7 +709,8 @@ static int validate(struct device *dev, phys_addr_t pa, size_t len)
 	return 0;
 }
 
-int s2mpu_lib_open_close(struct s2mpu_info *info, phys_addr_t start, size_t len, bool open)
+int s2mpu_lib_open_close(struct s2mpu_info *info, phys_addr_t start, size_t len,
+			 bool open, enum dma_data_direction dir)
 {
 	/* ag = alignment granularity, lg = length granularity */
 	enum s2_gran ag, lg, winnerg;
@@ -720,7 +739,7 @@ int s2mpu_lib_open_close(struct s2mpu_info *info, phys_addr_t start, size_t len,
 	winnerg = ag < lg ? ag : lg;
 	gcount = len >> gran_shift[winnerg];
 
-	open_close_granules(info, start, winnerg, gcount, open);
+	open_close_granules(info, start, winnerg, gcount, open, dir);
 out:
 	return ret;
 }

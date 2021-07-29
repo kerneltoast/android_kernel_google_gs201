@@ -75,7 +75,7 @@ static ssize_t s2mpu_win_open_write(struct file *file, const char __user *ubuf,
 	len = end - start;
 	info = file->f_inode->i_private;
 
-	s2mpu_lib_open_close(info, start, len, true);
+	s2mpu_lib_open_close(info, start, len, true, DMA_BIDIRECTIONAL);
 
 	*ppos = count;
 	ret = count;
@@ -107,7 +107,7 @@ static ssize_t s2mpu_win_close_write(struct file *file, const char __user *ubuf,
 
 	len = end - start;
 	info = file->f_inode->i_private;
-	s2mpu_lib_open_close(info, start, len, false);
+	s2mpu_lib_open_close(info, start, len, false, DMA_BIDIRECTIONAL);
 
 	*ppos = count;
 	ret = count;
@@ -188,21 +188,23 @@ err_out:
 }
 #endif
 
-int s2mpu_open(struct s2mpu_info *info, phys_addr_t start_pa, size_t len)
+int s2mpu_open(struct s2mpu_info *info, phys_addr_t start_pa, size_t len,
+	       enum dma_data_direction dir)
 {
 	if (!info)
 		return -EINVAL;
 
-	return s2mpu_lib_open_close(info, start_pa, len, true);
+	return s2mpu_lib_open_close(info, start_pa, len, true, dir);
 }
 EXPORT_SYMBOL_GPL(s2mpu_open);
 
-int s2mpu_close(struct s2mpu_info *info, phys_addr_t start_pa, size_t len)
+int s2mpu_close(struct s2mpu_info *info, phys_addr_t start_pa, size_t len,
+		enum dma_data_direction dir)
 {
 	if (!info)
 		return -EINVAL;
 
-	return s2mpu_lib_open_close(info, start_pa, len, false);
+	return s2mpu_lib_open_close(info, start_pa, len, false, dir);
 }
 EXPORT_SYMBOL_GPL(s2mpu_close);
 
