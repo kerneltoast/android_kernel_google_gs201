@@ -61,6 +61,8 @@ struct exynos5_i2c {
 	int			stop_after_trans;
 	unsigned int		transfer_delay;
 
+	/*Disable the lose arbitration.*/
+	int			is_no_arbitration;
 	int			idle_ip_index;
 	int			reset_before_trans;
 	unsigned int		runtime_resumed;
