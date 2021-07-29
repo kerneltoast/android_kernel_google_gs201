@@ -1,9 +1,29 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Pixel-specific UFS inline encryption support using FMP (Flash Memory
- * Protector) and the KDN (Key Distribution Network)
+ * Pixel UFS inline encryption support
  *
  * Copyright 2020 Google LLC
+ *
+ * UFS inline encryption support using FMP (Flash Memory Protector).
+ * Two operating modes are supported:
+ *
+ * - Hardware keys mode, also called KDN mode.  In this mode, there are a
+ *   certain number of keyslots, like there are in the UFS standard crypto.
+ *   However, unlike the UFS standard crypto, all keys are hardware-wrapped keys
+ *   rather than raw keys.  The keys are delivered to FMP indirectly via the KDN
+ *   (Key Distribution Network) and GSA (Google Security Anchor) rather than via
+ *   writes to UFS registers.  The way the keyslot and IV of each request are
+ *   passed to the UFS controller also differs from the UFS standard.
+ *
+ * - Software keys mode, also called the traditional FMP mode or legacy FMP
+ *   mode.  In this mode, software specifies the raw keys to use, similar to the
+ *   UFS standard crypto.  However, the way the keys and IVs are passed to the
+ *   UFS controller still differs from the UFS standard.
+ *
+ * These two modes are not compatible with each other, and the mode to use is
+ * set at module load time by the "use_kdn" module parameter.  Upper layers in
+ * the storage stack must be configured to use the appropriate type of keys when
+ * the mode is changed; otherwise inline encryption won't be able to be used.
  */
 
 #include <linux/gsa/gsa_kdn.h>
@@ -20,6 +40,10 @@
 
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/ufshcd.h>
+
+static bool use_kdn = true;
+module_param(use_kdn, bool, 0444);
+MODULE_PARM_DESC(use_kdn, "Use hardware keys mode (KDN mode) for inline crypto");
 
 static void pixel_ufs_crypto_restore_keys(void *unused, struct ufs_hba *hba,
 					  int *err);
@@ -322,8 +346,7 @@ static int pixel_ufs_crypto_configure_hw(struct exynos_ufs *ufs)
 	return 0;
 }
 
-/* Initialize UFS inline encryption support. */
-int pixel_ufs_crypto_init(struct ufs_hba *hba)
+static int pixel_ufs_crypto_init_hw_keys_mode(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	int err;
@@ -403,6 +426,15 @@ disable:
 	dev_warn(hba->dev, "disabling inline encryption support\n");
 	hba->caps &= ~UFSHCD_CAP_CRYPTO;
 	return 0;
+}
+
+/* Initialize UFS inline encryption support. */
+int pixel_ufs_crypto_init(struct ufs_hba *hba)
+{
+	if (use_kdn)
+		return pixel_ufs_crypto_init_hw_keys_mode(hba);
+	else
+		return pixel_ufs_crypto_init_sw_keys_mode(hba);
 }
 
 static void pixel_ufs_crypto_restore_keys(void *unused, struct ufs_hba *hba,
