@@ -504,6 +504,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 	struct device	*dev = dotg->dwc->dev;
 	int ret = 0;
 	int wait_counter = 0;
+	u32 evt_count;
 
 	if (!otg->gadget) {
 		dev_err(dev, "%s does not have any gadget\n", __func__);
@@ -551,7 +552,9 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			dwc3_exynos_gadget_disconnect_proc(dwc);
 
 		/* Wait until dwc connected is off */
-		while (dwc->connected) {
+		evt_count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
+		evt_count &= DWC3_GEVNTCOUNT_MASK;
+		while (dwc->connected || evt_count) {
 			wait_counter++;
 			msleep(20);
 
@@ -559,6 +562,9 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 				dev_err(dev, "Can't wait dwc disconnect!\n");
 				break;
 			}
+			evt_count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
+			evt_count &= DWC3_GEVNTCOUNT_MASK;
+			dev_dbg(dev, "%s: evt = %d\n", __func__, evt_count);
 		}
 
 		/*
