@@ -4,6 +4,7 @@
 
 &dpm {
 	version = <101>;
+	variant = "user";
 
 	security {
 		cp_mem_not_clear	= <0>;
