@@ -73,6 +73,7 @@
 #define HSI2C_MASTER				BIT(3)
 #define HSI2C_RXCHON				BIT(6)
 #define HSI2C_TXCHON				BIT(7)
+#define HSI2C_NO_LOSE_ARBITRATION		BIT(22)
 #define HSI2C_EXT_MSB				BIT(29)
 #define HSI2C_EXT_ADDR				BIT(30)
 #define HSI2C_SW_RST				BIT(31)
@@ -810,6 +811,9 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	else
 		i2c_auto_conf &= ~HSI2C_STOP_AFTER_TRANS;
 
+	if (i2c->is_no_arbitration)
+		i2c_ctl |= HSI2C_NO_LOSE_ARBITRATION;
+
 	i2c_addr = readl(i2c->regs + HSI2C_ADDR);
 	i2c_addr &= ~(0x3ff << 10);
 	i2c_addr &= ~(0x3ff << 0);
@@ -1206,6 +1210,11 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 		i2c->nack_restart = 1;
 	else
 		i2c->nack_restart = 0;
+
+	if (of_get_property(np, "samsung,no_lose_arbitration", NULL))
+		i2c->is_no_arbitration = 1;
+	else
+		i2c->is_no_arbitration = 0;
 
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 
