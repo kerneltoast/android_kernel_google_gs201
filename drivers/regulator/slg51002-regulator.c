@@ -73,20 +73,58 @@ static int slg51002_get_status(struct regulator_dev *rdev)
 
 	return REGULATOR_STATUS_ERROR;
 }
+static int slg51002_regulator_enable_regmap(struct regulator_dev *rdev)
+{
+	struct slg51002_dev *chip = rdev_get_drvdata(rdev);
+	int ret;
+	if (rdev->desc->id >= SLG51002_REGULATOR_GPIO1) {
+		if (chip->enter_sw_test_mode)
+			chip->enter_sw_test_mode(chip->regmap);
+
+		ret = regulator_enable_regmap(rdev);
+
+		if (chip->exit_sw_test_mode)
+			chip->exit_sw_test_mode(chip->regmap);
+
+	} else {
+		ret =  regulator_enable_regmap(rdev);
+	}
+	return ret;
+}
+
+static int slg51002_regulator_disable_regmap(struct regulator_dev *rdev)
+{
+	struct slg51002_dev *chip = rdev_get_drvdata(rdev);
+	int ret;
+	if (rdev->desc->id >= SLG51002_REGULATOR_GPIO1) {
+		if (chip->enter_sw_test_mode)
+			chip->enter_sw_test_mode(chip->regmap);
+
+		ret = regulator_disable_regmap(rdev);
+
+		if (chip->exit_sw_test_mode)
+			chip->exit_sw_test_mode(chip->regmap);
+
+	} else {
+		ret =  regulator_disable_regmap(rdev);
+	}
+	return ret;
+}
 
 static int slg51002_regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned int sel)
 {
 	struct slg51002_dev *chip = rdev_get_drvdata(rdev);
 
-	if (chip->op_mode == SLG51002_OP_MODE_CONTROL_REG)
+	if (chip->op_mode == SLG51002_OP_MODE_CONTROL_REG ||
+		rdev->desc->id >= SLG51002_REGULATOR_GPIO1)
 		return 0;
 
 	return regulator_set_voltage_sel_regmap(rdev, sel);
 }
 
 static const struct regulator_ops slg51002_regl_ops = {
-	.enable = regulator_enable_regmap,
-	.disable = regulator_disable_regmap,
+	.enable = slg51002_regulator_enable_regmap,
+	.disable = slg51002_regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
@@ -139,6 +177,27 @@ static int slg51002_of_parse_cb(struct device_node *np,
 		.owner = THIS_MODULE,                              \
 	}
 
+#define SLG51002_GPIO_DESC(_id, _name, _s_name, _min, _step) \
+	[SLG51002_REGULATOR_##_id] = {                             \
+		.name = #_name,                                    \
+		.supply_name = _s_name,                            \
+		.id = SLG51002_REGULATOR_##_id,                    \
+		.of_match = of_match_ptr(#_name),                  \
+		.of_parse_cb = slg51002_of_parse_cb,               \
+		.ops = &slg51002_regl_ops,                         \
+		.regulators_node = of_match_ptr("regulators"),     \
+		.n_voltages = 256,                                 \
+		.min_uV = _min,                                    \
+		.uV_step = _step,                                  \
+		.linear_min_sel = 0,                               \
+		.vsel_mask = SLG51002_VSEL_MASK,                   \
+		.vsel_reg = SLG51000_LDO_DUMMY_VSEL,               \
+		.enable_reg = _id##_CTRL,       \
+		.enable_mask = BIT(0),      \
+		.type = REGULATOR_VOLTAGE,                         \
+		.owner = THIS_MODULE,                              \
+	}
+
 static struct regulator_desc regls_desc[SLG51002_MAX_REGULATORS] = {
 	SLG51002_REGL_DESC(LDO1, ldo1, "vin1_2", 1200000, 10000),
 	SLG51002_REGL_DESC(LDO2, ldo2, "vin1_2", 1200000, 10000),
@@ -148,6 +207,10 @@ static struct regulator_desc regls_desc[SLG51002_MAX_REGULATORS] = {
 	SLG51002_REGL_DESC(LDO6, ldo6, "vin6", 400000,  5000),
 	SLG51002_REGL_DESC(LDO7, ldo7, "vin7", 400000, 5000),
 	SLG51002_REGL_DESC(LDO8, ldo8, "vin8", 400000, 5000),
+	SLG51002_GPIO_DESC(GPIO1, gpio1, NULL, 400000, 5000),
+	SLG51002_GPIO_DESC(GPIO2, gpio2, NULL, 400000, 5000),
+	SLG51002_GPIO_DESC(GPIO3, gpio3, NULL, 400000, 5000),
+	SLG51002_GPIO_DESC(GPIO4, gpio4, NULL, 400000, 5000),
 };
 
 static int slg51002_regulator_register(struct slg51002_dev *chip)
@@ -160,6 +223,8 @@ static int slg51002_regulator_register(struct slg51002_dev *chip)
 		SLG51002_LDO1_MINV, SLG51002_LDO2_MINV, SLG51002_LDO3_MINV,
 		SLG51002_LDO4_MINV, SLG51002_LDO5_MINV, SLG51002_LDO6_MINV,
 		SLG51002_LDO7_MINV, SLG51002_LDO8_MINV,
+		SLG51000_LDO_DUMMY_MINV, SLG51000_LDO_DUMMY_MINV,
+		SLG51000_LDO_DUMMY_MINV, SLG51000_LDO_DUMMY_MINV,
 	};
 
 	for (id = 0; id < SLG51002_MAX_REGULATORS; id++) {
