@@ -267,14 +267,11 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 			q->dma_addr[q->done_ptr])
 			dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
-		cpif_unmap_rx_buf(q->manager, desc[q->done_ptr].cp_data_paddr -
-					ppa->skb_padding_size, true);
 		desc[q->done_ptr].cp_data_paddr = 0;
 		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 	}
-	/* clean up manager's tmp page */
-	q->manager->tmp_page->usable = false;
-	q->manager->tmp_page->offset = 0;
+
+	cpif_init_netrx_mng(q->manager);
 
 	memset(desc, 0, q->desc_size);
 
@@ -335,8 +332,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 
 	fore = *q->fore_ptr;
 	for (i = 0; i < space; i++) {
-		struct cpif_addr_pair *addrpair = cpif_map_rx_buf(q->manager,
-							ppa->skb_padding_size);
+		struct cpif_addr_pair *addrpair = cpif_map_rx_buf(q->manager);
 		if (unlikely(!addrpair)) {
 			mif_err_limited("skb alloc error due to no memory\n");
 			q->stat.err_bm_nomem++;
@@ -346,7 +342,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 
 		if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
 			q->dma_addr[fore] = dma_map_single_attrs(ppa->dev,
-					addrpair->ap_addr,
+					(u8 *)addrpair->ap_addr + ppa->skb_padding_size,
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 			if (dma_mapping_error(ppa->dev, q->dma_addr[fore])) {
 				mif_err_limited("dma_map_single_attrs() failed\n");
@@ -355,7 +351,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 			}
 		}
 
-		desc[fore].cp_data_paddr = addrpair->cp_addr;
+		desc[fore].cp_data_paddr = addrpair->cp_addr + ppa->skb_padding_size;
 
 		if (fore == 0)
 			desc[fore].control |= (1 << 7);	/* HEAD */

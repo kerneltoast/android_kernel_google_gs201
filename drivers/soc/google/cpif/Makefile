@@ -21,7 +21,7 @@ cpif-y += modem_utils.o modem_dump.o
 
 cpif-y += link_device.o link_device_memory_flow_control.o
 cpif-y += link_device_memory_debug.o modem_notifier.o
-cpif-y += link_device_memory_snapshot.o link_device_memory_sbd.o link_device_memory_legacy.o
+cpif-y += link_device_memory_snapshot.o link_device_memory_sbd.o link_device_memory_legacy.o cpif_page.o
 cpif-$(CONFIG_EXYNOS_CPIF_IOMMU) += cpif_netrx_mng.o cpif_vmapper.o
 
 cpif-$(CONFIG_LINK_DEVICE_PCIE) += s51xx_pcie.o
