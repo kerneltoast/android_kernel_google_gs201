@@ -1695,7 +1695,6 @@ fd_install
 fget
 file_path
 filp_close
-filp_open
 filp_open_block
 find_get_pid
 find_last_bit
@@ -2153,12 +2152,10 @@ kernel_cpustat
 kernel_getsockname
 kernel_kobj
 kernel_power_off
-kernel_read
 kernel_recvmsg
 kernel_restart
 kernel_sendmsg
 kernel_sigaction
-kernel_write
 kernfs_find_and_get_ns
 kernfs_notify
 kernfs_put
