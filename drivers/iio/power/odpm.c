@@ -1730,6 +1730,7 @@ static int odpm_probe(struct platform_device *pdev)
 		odpm_remove(pdev);
 		return ret;
 	}
+	device_enable_async_suspend(&pdev->dev);
 
 	mutex_init(&odpm_info->lock);
 
