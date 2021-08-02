@@ -1927,6 +1927,10 @@ void exynos_pcie_rc_register_dump(int ch_num)
 	}
 	pr_err("PHY 0x17C0 : 0x%08x\n",
 		exynos_phy_read(exynos_pcie, 0xFC0 + 0x800));
+
+	pr_err("PHY 0x760 : %#08x, 0x764 : %#08x\n",
+				exynos_phy_read(exynos_pcie, 0x760),
+				exynos_phy_read(exynos_pcie, 0x764));
 	pr_err("\n");
 
 	/* ---------------------- */

@@ -150,6 +150,8 @@ send_doorbell_again:
 			goto send_doorbell_again;
 		}
 		mif_err("[Need to CHECK] Can't send doorbell int (0x%x)\n", reg);
+		pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &reg);
+		mif_err("Check BAR0 register : %#x\n", reg);
 		exynos_pcie_rc_register_dump(s51xx_pcie->pcie_channel_num);
 
 		return -EAGAIN;
@@ -253,11 +255,12 @@ void s51xx_pcie_restore_state(struct pci_dev *pdev)
 
 	/* BAR0 value correction  */
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &val);
-	dev_dbg(&pdev->dev, "restored:PCI_BASE_ADDRESS_0 = 0x%x\n", val);
-	if (val != s51xx_pcie->dbaddr_base) {
-		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, s51xx_pcie->dbaddr_base);
+	dev_dbg(&pdev->dev, "restored:PCI_BASE_ADDRESS_0 = %#x\n", val);
+	if ((val & PCI_BASE_ADDRESS_MEM_MASK) != s51xx_pcie->dbaddr_changed_base) {
+		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0,
+					s51xx_pcie->dbaddr_changed_base);
 		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_1, 0x0);
-		mif_info("write BAR0 value:  0x%x\n", s51xx_pcie->dbaddr_base);
+		mif_info("write BAR0 value: %#x\n", s51xx_pcie->dbaddr_changed_base);
 		s51xx_pcie_chk_ep_conf(pdev);
 	}
 
@@ -360,6 +363,7 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &val);
 	val &= PCI_BASE_ADDRESS_MEM_MASK;
 	s51xx_pcie->dbaddr_offset = db_addr - val;
+	s51xx_pcie->dbaddr_changed_base = val;
 	dev_info(dev, "db_addr : 0x%x , val : 0x%x, offset : 0x%x\n",
 			db_addr, val, (unsigned int)s51xx_pcie->dbaddr_offset);
 
