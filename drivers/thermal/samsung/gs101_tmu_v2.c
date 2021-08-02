@@ -24,6 +24,7 @@
 #include <linux/debugfs.h>
 #include <uapi/linux/sched/types.h>
 #include <soc/google/bcl.h>
+#include <soc/google/gs101_tmu.h>
 #include <soc/google/tmu.h>
 #include <soc/google/ect_parser.h>
 #include <soc/google/isp_cooling.h>
@@ -31,7 +32,6 @@
 #include <soc/google/exynos-mcinfo.h>
 #endif
 
-#include "gs101_tmu.h"
 #include "../thermal_core.h"
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 #include "exynos_acpm_tmu.h"
@@ -50,6 +50,14 @@
 #define frac_to_int(x) ((x) >> FRAC_BITS)
 
 #define INVALID_TRIP -1
+
+enum tmu_type_t {
+	TMU_TYPE_CPU = 0,
+	TMU_TYPE_GPU = 1,
+	TMU_TYPE_ISP = 2,
+	TMU_TYPE_TPU = 3,
+	TMU_TYPE_END = 4,
+};
 
 enum tmu_grp_idx_t {
 	TZ_BIG = 0,
@@ -383,11 +391,11 @@ static int gs101_get_temp(void *p, int *temp)
 		kthread_queue_work(&data->cpu_hw_throttle_worker, &data->cpu_hw_throttle_work);
 
 	if (data->pause_enable &&
-	    ((data->is_cpu_paused &&
+	    ((data->is_paused &&
 	      data->temperature < data->resume_threshold) ||
-	     (!data->is_cpu_paused &&
+	     (!data->is_paused &&
 	      data->temperature >= data->pause_threshold)))
-		kthread_queue_work(&data->pause_worker, &data->cpu_pause_work);
+		kthread_queue_work(&data->pause_worker, &data->pause_work);
 
 	if (data->hardlimit_enable &&
 	    ((data->is_hardlimited &&
@@ -991,48 +999,115 @@ static void gs101_throttle_cpu_hotplug(struct kthread_work *work)
 	mutex_unlock(&data->lock);
 }
 
-static void gs101_throttle_cpu_pause(struct kthread_work *work)
+static tpu_pause_cb tpu_thermal_pause_cb;
+static void *tpu_data;
+void register_tpu_thermal_pause_cb(tpu_pause_cb tpu_cb, void *data)
+{
+	if (!tpu_cb || !data) {
+		pr_err("Failed to register tpu_thermal_pause_cb\n");
+		return;
+	}
+
+	tpu_data = data;
+	/* Ensure tpu_data is assigned and has been committed. */
+	smp_wmb();
+	tpu_thermal_pause_cb = tpu_cb;
+}
+EXPORT_SYMBOL(register_tpu_thermal_pause_cb);
+
+static void gs101_throttle_pause(struct kthread_work *work)
 {
 	struct gs101_tmu_data *data = container_of(work,
-						   struct gs101_tmu_data, cpu_pause_work);
+						   struct gs101_tmu_data, pause_work);
 	struct cpumask mask;
+	int cpu_pause_mask, ret;
 
 	mutex_lock(&data->lock);
-	cpumask_and(&mask, cpu_possible_mask, &data->pause_cpus);
 
-	if (data->is_cpu_paused) {
+	switch (data->tmu_type) {
+	case TMU_TYPE_CPU:
+		cpu_pause_mask = cpumask_and(&mask, cpu_possible_mask, &data->pause_cpus);
+		break;
+	case TMU_TYPE_TPU:
+		// tpu_data has been assigned and ensure it's not NULL.
+		// So, just need to ensure tpu_thermal_pause_cb is not NULL.
+		// This is the pair of read side register_tpu_thermal_pause_cb().
+		smp_rmb();
+		if (!tpu_thermal_pause_cb) {
+			pr_err_ratelimited("%s: TPU pause callback not registered\n",
+					   data->tmu_name);
+			goto unlock;
+		}
+		break;
+	case TMU_TYPE_GPU:
+	case TMU_TYPE_ISP:
+	default:
+		pr_warn_ratelimited("%s: %s unsupported type for pause function\n",
+				    data->tmu_name, data->tmu_type);
+		goto unlock;
+	}
+
+	if (data->is_paused) {
 		if (data->temperature < data->resume_threshold) {
-			if (resume_cpus(&mask)) {
-				// queue the work again in case failure
-				// also do not queue again when prepare to suspend
-				if (!atomic_read(&gs101_tmu_in_suspend))
-					kthread_queue_work(&data->pause_worker,
-							   &data->cpu_pause_work);
-			} else {
-				data->is_cpu_paused = false;
-				pr_info_ratelimited("%s resume cpus: %*pbl\n",
-					data->tmu_name, cpumask_pr_args(&mask));
+			if (data->tmu_type == TMU_TYPE_CPU) {
+				if (resume_cpus(&mask)) {
+					// queue the work again in case failure
+					// also do not queue again when prepare to suspend
+					if (!atomic_read(&gs101_tmu_in_suspend))
+						kthread_queue_work(&data->pause_worker,
+								   &data->pause_work);
+				} else {
+					data->is_paused = false;
+					pr_info_ratelimited("%s thermal resume cpus: %*pbl\n",
+						data->tmu_name, cpumask_pr_args(&mask));
+				}
+			} else if (data->tmu_type == TMU_TYPE_TPU) {
+				ret = tpu_thermal_pause_cb(THERMAL_RESUME, tpu_data);
+				if (!ret) {
+					data->is_paused = false;
+					pr_info_ratelimited("%s thermal resumed\n", data->tmu_name);
+				} else {
+					if (!atomic_read(&gs101_tmu_in_suspend))
+						kthread_queue_work(&data->pause_worker,
+								   &data->pause_work);
+				}
 			}
 		}
 	} else {
 		if (data->temperature >= data->pause_threshold) {
-			if (pause_cpus(&mask)) {
-				// queue the work again in case of failure
-				// also do not queue again when prepare to suspend
-				if (!atomic_read(&gs101_tmu_in_suspend))
-					kthread_queue_work(&data->pause_worker,
-							   &data->cpu_pause_work);
-			} else {
-				data->is_cpu_paused = true;
-				pr_info_ratelimited("%s pause cpus: %*pbl\n",
-					data->tmu_name, cpumask_pr_args(&mask));
+			if (data->tmu_type == TMU_TYPE_CPU) {
+				if (pause_cpus(&mask)) {
+					// queue the work again in case of failure
+					// also do not queue again when prepare to suspend
+					if (!atomic_read(&gs101_tmu_in_suspend))
+						kthread_queue_work(&data->pause_worker,
+								   &data->pause_work);
+				} else {
+					data->is_paused = true;
+					pr_info_ratelimited("%s thermal pause cpus: %*pbl\n",
+						data->tmu_name, cpumask_pr_args(&mask));
+				}
+			} else if (data->tmu_type == TMU_TYPE_TPU) {
+				/* This is the pair of read side register_tpu_thermal_pause_cb() */
+				smp_rmb();
+				ret = tpu_thermal_pause_cb(THERMAL_SUSPEND, tpu_data);
+				if (!ret) {
+					data->is_paused = true;
+					pr_info_ratelimited("%s thermal paused\n", data->tmu_name);
+				} else {
+					if (!atomic_read(&gs101_tmu_in_suspend))
+						kthread_queue_work(&data->pause_worker,
+								   &data->pause_work);
+				}
 			}
 		}
 	}
-	trace_thermal_exynos_cpu_pause(data->tmu_name, &mask, data->is_cpu_paused);
+	if (data->tmu_type == TMU_TYPE_CPU)
+		trace_thermal_exynos_cpu_pause(data->tmu_name, &mask, data->is_paused);
 
-	disable_stats_update(data->disable_stats, data->is_cpu_paused);
+	disable_stats_update(data->disable_stats, data->is_paused);
 
+unlock:
 	mutex_unlock(&data->lock);
 }
 
@@ -1217,7 +1292,7 @@ static int gs101_tmu_irq_work_init(struct platform_device *pdev)
 		}
 
 		if (data->pause_enable) {
-			kthread_init_work(&data->cpu_pause_work, gs101_throttle_cpu_pause);
+			kthread_init_work(&data->pause_work, gs101_throttle_pause);
 		}
 
 		kthread_init_worker(&data->pause_worker);
@@ -1323,10 +1398,20 @@ static int gs101_map_dt_data(struct platform_device *pdev)
 	else
 		strncpy(data->tmu_name, tmu_name, THERMAL_NAME_LENGTH);
 
+	data->tmu_type = TMU_TYPE_CPU;
+	if (of_property_read_u32(pdev->dev.of_node, "tmu_type", &data->tmu_type))
+		dev_warn(&pdev->dev, "Failed to get TMU type\n");
+
+	if (data->tmu_type >= TMU_TYPE_END)
+		dev_warn(&pdev->dev, "Invalid tmu type %d\n", data->tmu_type);
+
+	dev_info(&pdev->dev, "tmu type: %d \n", data->tmu_type);
+
 	data->pause_enable = of_property_read_bool(pdev->dev.of_node,
-							    "pause_enable");
+						   "pause_enable");
 	if (data->pause_enable) {
-		dev_info(&pdev->dev, "thermal zone use cpu_pause function\n");
+		dev_info(&pdev->dev, "thermal zone use pause function\n");
+
 		of_property_read_u32(pdev->dev.of_node, "pause_threshold",
 				     &data->pause_threshold);
 
@@ -1948,8 +2033,10 @@ hardlimit_reset_store(struct device *dev, struct device_attribute *attr, const c
 	return count;
 }
 
+static const char *pause_switch_stats[] = {"resumed ", "suspended"};
+
 static ssize_t
-cpu_disable_total_count_show(struct device *dev, struct device_attribute *attr,
+pause_total_count_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1968,7 +2055,7 @@ cpu_disable_total_count_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-cpu_disable_time_in_state_ms_show(struct device *dev, struct device_attribute *attr,
+pause_time_in_state_ms_show(struct device *dev, struct device_attribute *attr,
 				  char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1983,8 +2070,8 @@ cpu_disable_time_in_state_ms_show(struct device *dev, struct device_attribute *a
 	spin_lock(&stats->lock);
 	update_time_in_state(stats);
 
-	for (i = 0; i < ARRAY_SIZE(switch_stats); i++) {
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%s\t%llu\n", switch_stats[i],
+	for (i = 0; i < ARRAY_SIZE(pause_switch_stats); i++) {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s\t%llu\n", pause_switch_stats[i],
 				 ktime_to_ms(stats->disable_time_in_state[i]));
 	}
 	spin_unlock(&stats->lock);
@@ -1993,7 +2080,7 @@ cpu_disable_time_in_state_ms_show(struct device *dev, struct device_attribute *a
 }
 
 static ssize_t
-cpu_disable_reset_store(struct device *dev, struct device_attribute *attr, const char *buf,
+pause_reset_store(struct device *dev, struct device_attribute *attr, const char *buf,
 			size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -2008,7 +2095,7 @@ cpu_disable_reset_store(struct device *dev, struct device_attribute *attr, const
 	stats->disable_total_count = 0;
 	stats->last_time = ktime_get();
 
-	for (i = 0; i < ARRAY_SIZE(switch_stats); i++)
+	for (i = 0; i < ARRAY_SIZE(pause_switch_stats); i++)
 		stats->disable_time_in_state[i] = ktime_set(0, 0);
 
 	spin_unlock(&stats->lock);
@@ -2061,9 +2148,9 @@ static DEVICE_ATTR_RW(cpu_hw_throttling_trigger_temp);
 static DEVICE_ATTR_RW(sustainable_power);
 static DEVICE_ATTR_RW(polling_delay_off);
 static DEVICE_ATTR_RW(polling_delay_on);
-static DEVICE_ATTR_RO(cpu_disable_time_in_state_ms);
-static DEVICE_ATTR_RO(cpu_disable_total_count);
-static DEVICE_ATTR_WO(cpu_disable_reset);
+static DEVICE_ATTR_RO(pause_time_in_state_ms);
+static DEVICE_ATTR_RO(pause_total_count);
+static DEVICE_ATTR_WO(pause_reset);
 static DEVICE_ATTR_RO(hardlimit_time_in_state_ms);
 static DEVICE_ATTR_RO(hardlimit_total_count);
 static DEVICE_ATTR_WO(hardlimit_reset);
@@ -2090,9 +2177,9 @@ static struct attribute *gs101_tmu_attrs[] = {
 	&dev_attr_k_i.attr,
 	&dev_attr_i_max.attr,
 	&dev_attr_integral_cutoff.attr,
-	&dev_attr_cpu_disable_time_in_state_ms.attr,
-	&dev_attr_cpu_disable_total_count.attr,
-	&dev_attr_cpu_disable_reset.attr,
+	&dev_attr_pause_time_in_state_ms.attr,
+	&dev_attr_pause_total_count.attr,
+	&dev_attr_pause_reset.attr,
 	&dev_attr_hardlimit_time_in_state_ms.attr,
 	&dev_attr_hardlimit_total_count.attr,
 	&dev_attr_hardlimit_reset.attr,
@@ -2124,7 +2211,7 @@ static void hard_limit_stats_setup(struct gs101_tmu_data *data)
 	spin_lock_init(&stats->lock);
 }
 
-static void cpu_disable_stats_setup(struct gs101_tmu_data *data)
+static void pause_stats_setup(struct gs101_tmu_data *data)
 {
 	struct throttling_stats *stats;
 	int var;
@@ -2564,7 +2651,7 @@ static int gs101_tmu_probe(struct platform_device *pdev)
 	gs101_tmu_control(pdev, true);
 
 	if (data->hotplug_enable || data->pause_enable)
-		cpu_disable_stats_setup(data);
+		pause_stats_setup(data);
 
 	if (data->hardlimit_enable)
 		hard_limit_stats_setup(data);
@@ -2645,7 +2732,7 @@ static int gs101_tmu_suspend(struct device *dev)
 	if (data->hotplug_enable)
 		kthread_flush_work(&data->hotplug_work);
 	if (data->pause_enable)
-		kthread_flush_work(&data->cpu_pause_work);
+		kthread_flush_work(&data->pause_work);
 	kthread_flush_work(&data->irq_work);
 
 	gs101_tmu_control(pdev, false);

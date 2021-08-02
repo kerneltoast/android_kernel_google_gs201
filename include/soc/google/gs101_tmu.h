@@ -54,6 +54,7 @@ struct gs101_tmu_data {
 	int id;
 	/* Throttle hotplug related variables */
 	bool pause_enable;
+	unsigned int tmu_type;
 	int pause_threshold;
 	int resume_threshold;
 	bool hardlimit_enable;
@@ -83,7 +84,7 @@ struct gs101_tmu_data {
 	struct kthread_worker pause_worker;
 	struct kthread_worker cpu_hw_throttle_worker;
 	struct kthread_work irq_work;
-	struct kthread_work cpu_pause_work;
+	struct kthread_work pause_work;
 	struct kthread_work hardlimit_work;
 	struct kthread_work hotplug_work;
 	struct kthread_work cpu_hw_throttle_work;
@@ -97,7 +98,7 @@ struct gs101_tmu_data {
 	struct list_head node;
 	char tmu_name[THERMAL_NAME_LENGTH + 1];
 	struct device_node *np;
-	bool is_cpu_paused;
+	bool is_paused;
 	bool is_hardlimited;
 	bool is_cpu_hotplugged_out;
 	bool is_cpu_hw_throttled;
@@ -188,5 +189,14 @@ struct thermal_zone_data {
 	struct sensor_data sensors[TMU_SENSOR_PROBE_NUM];
 	u16 sensor_cnt;
 };
+
+enum thermal_pause_state {
+	THERMAL_RESUME = 0,
+	THERMAL_SUSPEND,
+};
+
+typedef int (*tpu_pause_cb)(enum thermal_pause_state action, void *data);
+
+void register_tpu_thermal_pause_cb(tpu_pause_cb tpu_cb, void *data);
 
 #endif /* _GS101_TMU_H */
