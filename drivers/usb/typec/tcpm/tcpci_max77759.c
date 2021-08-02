@@ -535,6 +535,7 @@ static void enable_vbus_work(struct kthread_work *work)
 	}
 
 	ret = gvotable_cast_vote(chip->charger_mode_votable, TCPCI_MODE_VOTER,
+				 chip->no_external_boost ? (void *)GBMS_USB_OTG_FRS_ON :
 				 (void *)GBMS_USB_OTG_ON, true);
 
 	logbuffer_log(chip->log, "%s: GBMS_MODE_VOTABLE voting source vote:%u ret:%d",
@@ -1856,6 +1857,7 @@ static int max77759_probe(struct i2c_client *client,
 	}
 
 	chip->no_bc_12 = of_property_read_bool(dn, "no-bc-12");
+	chip->no_external_boost = of_property_read_bool(dn, "no-external-boost");
 	of_property_read_u32(dn, "sink-discovery-delay-ms", &sink_discovery_delay_ms);
 
 	chip->usb_psy = power_supply_get_by_name(usb_psy_name);
