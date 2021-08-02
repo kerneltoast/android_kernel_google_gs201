@@ -57,6 +57,7 @@
 				google,bd-recharge-soc = <79>;
 				/* Enable TEMP-DEFEND */
 				google,bd-temp-enable;
+				google,bd-temp-dry-run;
 			};
 
 			google_bms {
@@ -116,6 +117,9 @@
 
 		/* USBC thermal zone */
 		google,usb-port-tz-name = "usbc-therm-adc";
+
+		/* irdrop */
+		google,irdrop-limits = <105000 75000 0>;
 
 		pca9468,google_cpm = <&google_cpm>;
 	};

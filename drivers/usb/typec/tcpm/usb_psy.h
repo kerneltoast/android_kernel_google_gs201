@@ -21,7 +21,9 @@ struct usb_psy_ops {
 };
 
 void usb_psy_set_sink_state(void *usb_psy, bool enabled);
+void usb_psy_set_attached_state(void *usb_psy, bool attached);
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 		    struct usb_psy_ops *ops);
 void usb_psy_teardown(void *usb_data);
+void usb_psy_start_sdp_timeout(void *usb_psy);
 #endif

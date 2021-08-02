@@ -57,6 +57,8 @@ struct max77759_plat {
 	/* USB Data notification */
 	struct extcon_dev *extcon;
 	bool no_bc_12;
+	/* Platform does not support external boost */
+	bool no_external_boost;
 	struct tcpm_port *port;
 	struct usb_psy_ops psy_ops;
 	/* toggle in_switch to kick debug accessory statemachine when already connected */

@@ -11,6 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/debugfs.h>
 #include <linux/smp.h>
+#include <linux/rtc.h>
 
 #include <soc/google/exynos-pm.h>
 #include <soc/google/exynos-pmu-if.h>
@@ -395,6 +396,38 @@ static void exynos_pm_debugfs_init(void)
 }
 #endif
 
+static void exynos_pm_suspend_marker(char *annotation)
+{
+	struct timespec64 ts;
+	struct rtc_time tm;
+
+	ktime_get_real_ts64(&ts);
+	rtc_time64_to_tm(ts.tv_sec, &tm);
+	pr_info("PM: suspend %s %d-%02d-%02d %02d:%02d:%02d.%09lu UTC\n",
+		annotation, tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec);
+}
+
+static int exynos_pm_notification_handler(struct notifier_block *notifier,
+		unsigned long pm_event, void *unused)
+{
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		exynos_pm_suspend_marker("entry");
+		break;
+	case PM_POST_SUSPEND:
+		exynos_pm_suspend_marker("exit");
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block exynos_pm_notifier_block = {
+	.notifier_call = exynos_pm_notification_handler,
+};
+
 static void parse_dt_wakeup_stat_names(struct device *dev, struct device_node *np)
 {
 	struct device_node *root, *child;
@@ -598,6 +631,7 @@ static int exynos_pm_drvinit(struct platform_device *pdev)
 	parse_dt_wakeup_stat_names(dev, np);
 
 	register_syscore_ops(&exynos_pm_syscore_ops);
+	register_pm_notifier(&exynos_pm_notifier_block);
 #ifdef CONFIG_DEBUG_FS
 	exynos_pm_debugfs_init();
 #endif

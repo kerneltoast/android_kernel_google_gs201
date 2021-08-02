@@ -3,7 +3,8 @@
 #include <dt-bindings/soc/google/debug-snapshot-def.h>
 
 &dpm {
-	version = <100>;
+	version = <101>;
+	variant = "user";
 
 	security {
 		cp_mem_not_clear	= <0>;
@@ -13,6 +14,11 @@
 		seclog_enable		= <0>;
 		harxlog_enable		= <0>;
 		sdm_enable		= <0>;
+	};
+
+	abl {
+		ramdump_mode		= <0>;
+		ramdump2usb		= <0>;
 	};
 
 	feature {
@@ -58,3 +64,15 @@
 		};
 	};
 }; /* end of dpm */
+
+&log_arrdumppanic {
+	status = "disabled";
+};
+
+&log_preslcdump {
+	status = "disabled";
+};
+
+&log_slcdump {
+	status = "disabled";
+};

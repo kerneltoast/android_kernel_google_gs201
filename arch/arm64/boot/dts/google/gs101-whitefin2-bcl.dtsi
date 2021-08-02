@@ -33,6 +33,20 @@
 
 /* Thermal Zones */
 &thermal_zones {
+	batoilo {
+		zone_name  = "BATOILO";
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&max77759_chg 2>;
+		trips {
+			batoilo: batoilo{
+				temperature = <5000>;
+				hysteresis = <100>;
+				type = "passive";
+			};
+		};
+	};
+
 	vdroop1 {
 		zone_name  = "VDROOP1";
 		polling-delay-passive = <0>;
@@ -40,7 +54,7 @@
 		thermal-sensors = <&max77759_chg 0>;
 		trips {
 			vdroop1: vdroop1{
-				temperature = <1200>;
+				temperature = <1150>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -54,7 +68,7 @@
 		thermal-sensors = <&max77759_chg 1>;
 		trips {
 			vdroop2: vdroop2{
-				temperature = <1400>;
+				temperature = <1350>;
 				hysteresis = <100>;
 				type = "passive";
 			};

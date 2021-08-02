@@ -21,6 +21,9 @@
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/ufshcd.h>
 
+static void pixel_ufs_crypto_restore_keys(void *unused, struct ufs_hba *hba,
+					  int *err);
+
 static void pixel_ufs_crypto_fill_prdt(void *unused, struct ufs_hba *hba,
 				       struct ufshcd_lrb *lrbp,
 				       unsigned int segments, int *err);
@@ -342,6 +345,11 @@ int pixel_ufs_crypto_init(struct ufs_hba *hba)
 	if (err)
 		return err;
 
+	err = register_trace_android_rvh_ufs_reprogram_all_keys(
+				pixel_ufs_crypto_restore_keys, NULL);
+	if (err)
+		return err;
+
 	/* Advertise crypto support to ufshcd-core. */
 	hba->caps |= UFSHCD_CAP_CRYPTO;
 
@@ -397,11 +405,30 @@ disable:
 	return 0;
 }
 
+static void pixel_ufs_crypto_restore_keys(void *unused, struct ufs_hba *hba,
+					  int *err)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	/*
+	 * GSA provides a function to restore all keys which is faster than
+	 * programming all keys individually, so use it in order to avoid
+	 * unnecessary resume latency.
+	 *
+	 * GSA also relies on this function being called in order to configure
+	 * some hardening against power analysis attacks.
+	 */
+	dev_info(ufs->dev, "kdn: restoring keys\n");
+	*err = gsa_kdn_restore_keys(ufs->gsa_dev);
+	if (*err)
+		dev_err(ufs->dev, "kdn: failed to restore keys; err=%d\n",
+			*err);
+}
+
 void pixel_ufs_crypto_resume(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	unsigned long ret;
-	int err;
 
 	if (!(hba->caps & UFSHCD_CAP_CRYPTO))
 		return;
@@ -416,11 +443,6 @@ void pixel_ufs_crypto_resume(struct ufs_hba *hba)
 	if (ret)
 		dev_err(ufs->dev, "SMC_CMD_FMP_SMU_RESUME failed; ret=%lu\n",
 			ret);
-
-	dev_info(ufs->dev, "kdn: restoring keys\n");
-	err = gsa_kdn_restore_keys(ufs->gsa_dev);
-	if (err)
-		dev_err(ufs->dev, "kdn: failed to restore keys; err=%d\n", err);
 }
 
 /* Configure inline encryption (or decryption) on requests that require it. */

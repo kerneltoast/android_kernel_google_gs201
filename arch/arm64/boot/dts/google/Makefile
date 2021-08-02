@@ -5,9 +5,11 @@ dtb-$(CONFIG_SOC_GS101) += \
 soc-dtbo-$(CONFIG_SOC_GS101) += \
 	gs101-dpm-eng.dtbo \
 	gs101-dpm-user.dtbo \
+	gs101-dpm-userdebug.dtbo \
 
 DTC_FLAGS_gs101-dpm-eng += -a 4096
 DTC_FLAGS_gs101-dpm-user += -a 4096
+DTC_FLAGS_gs101-dpm-userdebug += -a 4096
 
 dtbo-$(CONFIG_BOARD_SLIDER) += \
 	gs101-slider.dtbo \
@@ -50,6 +52,7 @@ gs101-raven-proto1_1.dtbo-base := gs101-b0.dtb
 
 gs101-dpm-eng.dtbo-base := gs101-b0.dtb
 gs101-dpm-user.dtbo-base := gs101-b0.dtb
+gs101-dpm-userdebug.dtbo-base := gs101-b0.dtb
 
 
 dtb-$(CONFIG_SOC_GS201) += \

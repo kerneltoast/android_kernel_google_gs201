@@ -117,4 +117,9 @@
 #define DPM_P_EL1_SP_PC		"el1_sp_pc"
 #define DPM_P_EL1_INV		"el1_inv"
 #define DPM_P_EL1_SERROR	"el1_serror"
+
+/* Enable by DPM */
+#define DPM_ENABLE			1
+/* Enable by Privileged Debug */
+#define PRIVILEGED_ENABLE		2
 #endif
