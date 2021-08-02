@@ -217,9 +217,11 @@ resv_iova:
 			lo = iova_pfn(iovad, start);
 			hi = iova_pfn(iovad, end);
 			reserve_iova(iovad, lo, hi);
-		} else {
+		} else if (end < start) {
 			/* dma_ranges list should be sorted */
-			dev_err(&dev->dev, "Failed to reserve IOVA\n");
+			dev_err(&dev->dev,
+				"Failed to reserve IOVA [%pa-%pa]\n",
+				&start, &end);
 			return -EINVAL;
 		}
 
@@ -397,7 +399,7 @@ int iommu_dma_reserve_iova(struct device *dev, dma_addr_t base,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iommu_dma_reserve_iova);
+EXPORT_SYMBOL(iommu_dma_reserve_iova);
 
 /*
  * Should be called prior to using dma-apis.

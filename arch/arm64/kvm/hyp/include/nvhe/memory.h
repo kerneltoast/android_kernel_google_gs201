@@ -2,23 +2,20 @@
 #ifndef __KVM_HYP_MEMORY_H
 #define __KVM_HYP_MEMORY_H
 
+#include <asm/kvm_mmu.h>
 #include <asm/page.h>
 
 #include <linux/types.h>
 
-struct hyp_pool;
 struct hyp_page {
-	unsigned int refcount;
-	unsigned int order;
-	struct hyp_pool *pool;
-	struct list_head node;
+	unsigned short refcount;
+	unsigned short order;
 };
 
 extern s64 hyp_physvirt_offset;
 extern u64 __hyp_vmemmap;
 #define hyp_vmemmap ((struct hyp_page *)__hyp_vmemmap)
 
-#define __hyp_pa(virt)	((phys_addr_t)(virt) + hyp_physvirt_offset)
 #define __hyp_va(phys)	((void *)((phys_addr_t)(phys) - hyp_physvirt_offset))
 
 static inline void *hyp_phys_to_virt(phys_addr_t phys)
