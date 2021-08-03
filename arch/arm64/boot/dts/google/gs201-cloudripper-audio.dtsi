@@ -88,6 +88,11 @@
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
+	hapt_amp2_irq: hapt-amp2-irq {
+		samsung,pins = "gpa8-0"; /* XEINT_12 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
 };
 
 /* GPIO_PERIC0 */
@@ -113,6 +118,13 @@
 	cs35l45_clk: cs35l45-clk {
 		samsung,pins = "gpp14-0";
 		samsung,pin-drv = <GS101_PIN_DRV_10_MA>;
+	};
+	hapt_amp2_rst: hapt-amp2-rst {
+		samsung,pins = "gpp18-2"; /* XAPC_USI14_RTSn_DI */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
 
@@ -296,4 +308,39 @@
 &s_ldo4_reg {
 	regulator-always-on;
 	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+&cs40l26a_haptics {
+	pinctrl-0 = <&hapt_amp2_irq &hapt_amp2_rst &hapt_amp_trig>;
+
+	interrupt-parent = <&gpa8>;
+	interrupts = <0 0 0>;
+
+	reset-gpios = <&gpp18 2 0>;
+
+	status = "okay";
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	cs40l26a_haptics_2: cs40l26a@42 {
+		compatible = "cirrus,cs40l26a";
+		reg = <0x42>;
+		dev-name = "cs40l26a-dual";     /* sysfs folder name */
+		input-device-name = "cs40l26_dual_input";    /* input device name */
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&hapt_amp_irq &hapt_amp_rst>;
+
+		interrupt-parent = <&gpa8>;
+		interrupts = <1 0 0>;
+
+		reset-gpios = <&gpp24 3 0>;
+
+		/* TODO (b/185767279): check the trigger & refclk pin usage. */
+
+		status = "okay";
+	};
 };

@@ -69,11 +69,6 @@
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
-	hapt_amp_irq: hapt-amp-irq {
-		samsung,pins = "gpa8-1"; /* XEINT_13 - HAPTICS_ALERT_L */
-		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-	};
 
 	cs35l41_r_irq: cs35l41-r-irq {
 		samsung,pins = "gpa8-6"; /* XEINT_18 - AMP2_IRQ_L */
@@ -122,56 +117,12 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	hapt_amp_trig: hapt-amp-trig {
-		samsung,pins = "gpp24-2"; /* XAPC_USI15_RTSn_DI - HAPTICS_TRIG */
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
-		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
-	};
-
-	hapt_amp_rst: hapt-amp-rst {
-		samsung,pins = "gpp24-3"; /* XAPC_USI15_CTSn_CSn - HAPTICS_RESET_L */
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
-		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
-	};
-
 	cs35l41_r_rst: cs35l41-r-rst {
 		samsung,pins = "gpp25-2"; /* XAPC_USI13_RTSn_DI - AMP2_RESET_L */
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
-	};
-};
-
-&hsi2c_8 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	status = "okay";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&hsi2c8_bus>;
-
-	clock-frequency = <400000>;
-
-	cs40l26a_haptics: cs40l26a@43 {
-		compatible = "cirrus,cs40l26a";
-		reg = <0x43>;
-		dev-name = "cs40l26a";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&hapt_amp_irq &hapt_amp_rst &hapt_amp_trig>;
-
-		interrupt-parent = <&gpa8>;
-		interrupts = <1 0 0>;
-
-		reset-gpios = <&gpp24 3 0>; /* XAPC_USI15_CTSn_CSn - HAPTICS_RESET_L */
-
-		cirrus,bst-dcm-en = <0>;
-		status = "okay";
 	};
 };
 
