@@ -96,6 +96,9 @@ struct bcl_device {
 
 	bool batt_psy_initialized;
 	bool enabled;
+
+	unsigned int offsrc;
+	unsigned int pwronsrc;
 };
 
 extern int google_set_mpmm(struct bcl_device *data, unsigned int value);
