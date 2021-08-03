@@ -123,6 +123,30 @@ out:
 	return 0;
 }
 
+static int dit_set_src_desc_tail(enum dit_direction dir, struct dit_desc_info *desc_info,
+				 unsigned int tail)
+{
+	phys_addr_t p_desc;
+	u32 offset_lo = 0, offset_hi = 0, offset_en = 0;
+
+	p_desc = desc_info->src_desc_ring_daddr + (sizeof(struct dit_src_desc) * tail);
+	if (dir == DIT_DIR_TX) {
+		offset_lo = DIT_REG_TX_SRC_A_TAIL_ADDR_0_TEMP;
+		offset_hi = DIT_REG_TX_SRC_A_TAIL_ADDR_1_TEMP;
+		offset_en = DIT_REG_TX_SRC_A_TAIL_VALID;
+	} else {
+		offset_lo = DIT_REG_RX_SRC_A_TAIL_ADDR_0_TEMP;
+		offset_hi = DIT_REG_RX_SRC_A_TAIL_ADDR_1_TEMP;
+		offset_en = DIT_REG_RX_SRC_A_TAIL_VALID;
+	}
+
+	WRITE_REG_PADDR_LO(dc, p_desc, offset_lo);
+	WRITE_REG_PADDR_HI(dc, p_desc, offset_hi);
+	WRITE_REG_VALUE(dc, 0x1, offset_en);
+
+	return 0;
+}
+
 static int dit_do_init_desc(enum dit_direction dir)
 {
 	struct dit_desc_info *desc_info;
@@ -160,6 +184,8 @@ static int dit_do_init_desc(enum dit_direction dir)
 static int dit_do_init_hw(void)
 {
 	WRITE_REG_VALUE(dc, BIT(RX_TTLDEC_EN_BIT), DIT_REG_NAT_TTLDEC_EN);
+	WRITE_REG_VALUE(dc, BIT(TX_DST_DESC_RESET_BIT), DIT_REG_DST_DESC_RESET);
+	WRITE_REG_VALUE(dc, BIT(RX_DST_DESC_RESET_BIT), DIT_REG_DST_DESC_RESET);
 	dit_set_reg_upstream(NULL);
 
 	return 0;
@@ -191,6 +217,7 @@ int dit_ver_create(struct dit_ctrl_t *dc_ptr)
 	dc->get_reg_version = dit_get_reg_version;
 	dc->set_reg_upstream = dit_set_reg_upstream;
 	dc->set_desc_filter_bypass = dit_set_desc_filter_bypass;
+	dc->set_src_desc_tail = dit_set_src_desc_tail;
 	dc->do_init_desc = dit_do_init_desc;
 	dc->do_init_hw = dit_do_init_hw;
 	dc->do_suspend = dit_do_suspend;

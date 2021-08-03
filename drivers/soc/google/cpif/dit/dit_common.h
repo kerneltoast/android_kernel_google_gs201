@@ -264,6 +264,8 @@ struct dit_ctrl_t {
 	int (*set_reg_upstream)(struct net_device *netdev);
 	int (*set_desc_filter_bypass)(enum dit_direction dir, struct dit_src_desc *src_desc,
 				      u8 *src, bool *is_upstream_pkt);
+	int (*set_src_desc_tail)(enum dit_direction dir, struct dit_desc_info *desc_info,
+				 unsigned int tail);
 	int (*do_init_hw)(void);
 	int (*do_init_desc)(enum dit_direction dir);
 	int (*do_suspend)(void);

@@ -593,6 +593,7 @@ static void dit_set_src_desc_kick_range(enum dit_direction dir, unsigned int src
 	src_desc = &desc_info->src_desc_ring[tail];
 	cpif_set_bit(src_desc->control, DIT_DESC_C_TAIL);
 	cpif_set_bit(src_desc->control, DIT_DESC_C_INT);
+	DIT_INDIRECT_CALL(dc, set_src_desc_tail, dir, desc_info, tail);
 
 	src_desc = &desc_info->src_desc_ring[desc_info->src_desc_ring_len - 1];
 	cpif_set_bit(src_desc->control, DIT_DESC_C_RINGEND);

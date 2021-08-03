@@ -61,6 +61,15 @@
 #define DIT_REG_RX_RING_START_ADDR_0_DST03	0x0288
 #define DIT_REG_RX_RING_START_ADDR_1_DST03	0x028C
 
+/* tail for 2.2.1 */
+#define DIT_REG_TX_SRC_A_TAIL_ADDR_0_TEMP	0x0290
+#define DIT_REG_TX_SRC_A_TAIL_ADDR_1_TEMP	0x0294
+#define DIT_REG_RX_SRC_A_TAIL_ADDR_0_TEMP	0x0308
+#define DIT_REG_RX_SRC_A_TAIL_ADDR_1_TEMP	0x030C
+#define DIT_REG_TX_SRC_A_TAIL_VALID		0x0320
+#define DIT_REG_RX_SRC_A_TAIL_VALID		0x032C
+#define DIT_REG_DST_DESC_RESET			0x0338
+
 /* address for Tx desc */
 #define DIT_REG_NAT_TX_DESC_ADDR_0_SRC		0x4000	/* SRC_A, 32 bit */
 #define DIT_REG_NAT_TX_DESC_ADDR_1_SRC		0x4004	/* 4 bit */
@@ -107,6 +116,11 @@
 enum dit_nat_ttldec_en_bits {
 	TX_TTLDEC_EN_BIT,
 	RX_TTLDEC_EN_BIT,
+};
+
+enum dit_dst_desc_reset_bits {
+	TX_DST_DESC_RESET_BIT,
+	RX_DST_DESC_RESET_BIT,
 };
 
 struct dit_src_desc {
