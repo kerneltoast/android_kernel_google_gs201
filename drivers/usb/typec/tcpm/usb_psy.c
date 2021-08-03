@@ -95,6 +95,8 @@ struct usb_psy_data {
 	struct kthread_delayed_work sdp_icl_work;
 	atomic_t retry_count;
 
+	/* Wq for scheduling work items setting POWER_SUPPLY_PROP_USB_TYPE */
+	struct kthread_worker *usb_type_wq;
 	/* Reset usb_type upon disconnect */
 	struct kthread_work bc_reset_work;
 
@@ -460,7 +462,7 @@ void usb_psy_set_attached_state(void *usb_psy, bool attached)
 
 	/* Reset upon disconnect as BC1.2 gets disabled before enabling data */
 	if (usb->attached & !attached) {
-		kthread_queue_work(usb->wq, &usb->bc_reset_work);
+		kthread_queue_work(usb->usb_type_wq, &usb->bc_reset_work);
 		kthread_flush_work(&usb->bc_reset_work);
 
 		/* Cancel sdp alarm if scheduled */
@@ -680,7 +682,7 @@ static enum alarmtimer_restart sdp_timeout_alarm_cb(struct alarm *alarm, ktime_t
 	struct usb_psy_data *usb = container_of(alarm, struct usb_psy_data, sdp_timeout_alarm);
 
 	pm_wakeup_event(&usb->tcpc_client->dev, DCP_UPDATE_MS);
-	kthread_queue_work(usb->wq, &usb->sdp_timeout_work);
+	kthread_queue_work(usb->usb_type_wq, &usb->sdp_timeout_work);
 
 	return ALARMTIMER_NORESTART;
 }
@@ -711,6 +713,12 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	usb->log = log;
 	usb->psy_ops = ops;
 
+	usb->usb_type_wq = kthread_create_worker(0, "wq-tcpm-usb-psy-usb-type");
+	if (IS_ERR_OR_NULL(usb->usb_type_wq)) {
+		dev_err(&client->dev, "wq-tcpm-usb-psy-usb-type failed to create\n");
+		return usb->usb_type_wq;
+	}
+
 	alarm_init(&usb->sdp_timeout_alarm, ALARM_BOOTTIME, sdp_timeout_alarm_cb);
 	kthread_init_work(&usb->sdp_timeout_work, sdp_timeout_work_item);
 	kthread_init_work(&usb->bc_reset_work, bc_reset_work_item);
@@ -718,7 +726,8 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	dn = dev_of_node(dev);
 	if (!dn) {
 		dev_err(&client->dev, "of node not found\n");
-		return ERR_PTR(-EINVAL);
+		ret = ERR_PTR(-EINVAL);
+		goto unreg_usb_type_wq;
 	}
 
 	usb->chg_psy_name = (char *)of_get_property(dn, "chg-psy-name", NULL);
@@ -838,7 +847,8 @@ usb_psy_unreg:
 chg_psy_put:
 	if (!IS_ERR_OR_NULL(usb->chg_psy))
 		power_supply_put(usb->chg_psy);
-
+unreg_usb_type_wq:
+	kthread_destroy_worker(usb->usb_type_wq);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_psy_setup);
@@ -858,6 +868,7 @@ void usb_psy_teardown(void *usb_data)
 		power_supply_put(usb->main_chg_psy);
 	if (!IS_ERR_OR_NULL(usb->usb_psy))
 		power_supply_unregister(usb->usb_psy);
+	kthread_destroy_worker(usb->usb_type_wq);
 }
 EXPORT_SYMBOL_GPL(usb_psy_teardown);
 
