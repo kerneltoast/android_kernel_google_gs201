@@ -717,6 +717,17 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 	if (is_upstream_pkt)
 		dit_set_src_desc_udp_csum_zero(src_desc, src);
 
+	if (dc->use_dma_map && dir == DIT_DIR_TX) {
+		dma_addr_t daddr;
+
+		daddr = dma_map_single(dc->dev, src, len, DMA_TO_DEVICE);
+		if (dma_mapping_error(dc->dev, daddr)) {
+			mif_err("dit dir[%d] src skb[%d] dma_map_single failed\n", dir, src_wp);
+			return -ENOMEM;
+		}
+		dma_unmap_single(dc->dev, daddr, len, DMA_TO_DEVICE);
+	}
+
 	barrier();
 
 	desc_info->src_wp = circ_new_ptr(desc_info->src_desc_ring_len, src_wp, 1);
