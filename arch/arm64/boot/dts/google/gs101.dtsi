@@ -614,7 +614,7 @@
 		interrupts = <GIC_SPI IRQ_USB31DRD_GIC_0_HSI0 IRQ_TYPE_LEVEL_HIGH>;
 		tx-fifo-resize = <0>;
 		adj-sof-accuracy = <0>;
-		is_not_vbus_pad = <0>;
+		is_not_vbus_pad = <1>;
 		enable_sprs_transfer = <1>;
 		phys = <&usbdrd_phy0 0>, <&usbdrd_phy0 1>;
 		phy-names = "usb2-phy", "usb3-phy";
