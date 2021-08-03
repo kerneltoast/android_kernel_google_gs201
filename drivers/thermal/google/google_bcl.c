@@ -2224,6 +2224,26 @@ static const struct attribute_group triggered_lvl_group = {
 	.name = "triggered_lvl",
 };
 
+static ssize_t offsrc_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%#x\n", bcl_dev->offsrc);
+}
+
+static DEVICE_ATTR_RO(offsrc);
+
+static ssize_t pwronsrc_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%#x\n", bcl_dev->pwronsrc);
+}
+
+static DEVICE_ATTR_RO(pwronsrc);
+
 static ssize_t enable_mitigation_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
@@ -2516,6 +2536,8 @@ static struct attribute *instr_attrs[] = {
 	&dev_attr_mpmm_settings.attr,
 	&dev_attr_ppm_settings.attr,
 	&dev_attr_enable_mitigation.attr,
+	&dev_attr_offsrc.attr,
+	&dev_attr_pwronsrc.attr,
 	NULL,
 };
 
@@ -2688,6 +2710,16 @@ static int google_set_main_pmic(struct bcl_device *bcl_dev)
 		bypass_smpl_warn = true;
 	}
 	bcl_dev->s2mpg10_i2c = s2mpg10->pmic;
+	/* clear S2MPG_10 information every boot */
+	/* see b/166671802#comment34 and b/195455000 */
+	s2mpg10_read_reg(bcl_dev->s2mpg10_i2c, S2MPG10_PM_OFFSRC, &val);
+	pr_info("S2MPG10 OFFSRC : %#x\n", val);
+	bcl_dev->offsrc = val;
+	s2mpg10_read_reg(bcl_dev->s2mpg10_i2c, S2MPG10_PM_PWRONSRC, &val);
+	pr_info("S2MPG10 PWRONSRC: %#x\n", val);
+	bcl_dev->pwronsrc = val;
+	s2mpg10_write_reg(bcl_dev->s2mpg10_i2c, S2MPG10_PM_OFFSRC, 0);
+	s2mpg10_write_reg(bcl_dev->s2mpg10_i2c, S2MPG10_PM_PWRONSRC, 0);
 	bcl_dev->triggered_irq[IRQ_SMPL_WARN] = gpio_to_irq(pdata_s2mpg10->smpl_warn_pin);
 	irq_set_status_flags(bcl_dev->triggered_irq[IRQ_SMPL_WARN], IRQ_DISABLE_UNLAZY);
 	bcl_dev->triggered_pin[IRQ_SMPL_WARN] = pdata_s2mpg10->smpl_warn_pin;
