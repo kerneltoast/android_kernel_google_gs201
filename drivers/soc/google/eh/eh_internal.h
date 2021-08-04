@@ -68,9 +68,6 @@ struct eh_device {
 	/* EH clock */
 	struct clk *clk;
 
-	/* PM suspend status */
-	bool suspended;
-
 	int error_irq;
 
 	/*
