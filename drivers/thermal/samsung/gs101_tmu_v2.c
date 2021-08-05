@@ -1104,6 +1104,8 @@ static void gs101_throttle_pause(struct kthread_work *work)
 	}
 	if (data->tmu_type == TMU_TYPE_CPU)
 		trace_thermal_exynos_cpu_pause(data->tmu_name, &mask, data->is_paused);
+	else if (data->tmu_type == TMU_TYPE_TPU)
+		trace_thermal_exynos_tpu_pause(data->tmu_name, data->is_paused);
 
 	disable_stats_update(data->disable_stats, data->is_paused);
 
