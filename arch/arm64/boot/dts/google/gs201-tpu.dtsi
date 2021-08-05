@@ -24,7 +24,7 @@
 			<0 IRQ_MAILBOX_TPU2AP_NS_TPU_5_TPU IRQ_TYPE_LEVEL_HIGH>,
 			<0 IRQ_MAILBOX_TPU2AP_NS_TPU_6_TPU IRQ_TYPE_LEVEL_HIGH>,
 			<0 IRQ_MAILBOX_TPU2AP_NS_TPU_7_TPU IRQ_TYPE_LEVEL_HIGH>;
-		dma-coherent;
+		/* TODO(b/195608852): Enable coherency */
 		iommus = <&sysmmu_tpu>;
 		samsung,iommu-group = <&iommu_group_tpu>;
 		status = "okay";
