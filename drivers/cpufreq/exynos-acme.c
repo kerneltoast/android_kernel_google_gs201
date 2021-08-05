@@ -1056,6 +1056,7 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	const char *buf;
 	struct device *cpu_dev;
 	int ret;
+	unsigned int resume_freq = 0;
 
 	/* Get CAL ID */
 	ret = of_property_read_u32(dn, "cal-id", &domain->cal_id);
@@ -1076,6 +1077,8 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 		domain->max_freq = min(domain->max_freq, val);
 	if (!of_property_read_u32(dn, "min-freq", &val))
 		domain->min_freq = max(domain->min_freq, val);
+	if (!of_property_read_u32(dn, "resume-freq", &val))
+		resume_freq = max(domain->min_freq, val);
 
 	domain->max_freq_qos = domain->max_freq;
 	domain->min_freq_qos = domain->min_freq;
@@ -1112,6 +1115,8 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 		domain->max_freq = min(domain->max_freq, (unsigned int)freq_table[index]);
 		domain->max_freq_qos = domain->max_freq;
 	}
+
+	resume_freq = min(resume_freq, domain->max_freq);
 
 	/*
 	 * Set frequency table size.
@@ -1204,7 +1209,8 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 		domain->need_awake = true;
 
 	domain->boot_freq = cal_dfs_get_boot_freq(domain->cal_id);
-	domain->resume_freq = cal_dfs_get_resume_freq(domain->cal_id);
+	domain->resume_freq = resume_freq ? resume_freq :
+					    cal_dfs_get_resume_freq(domain->cal_id);
 	domain->old = get_freq(domain);
 	if (domain->old < domain->min_freq || domain->max_freq < domain->old) {
 		WARN(1, "Out-of-range freq(%dkhz) returned for domain%d in init time\n",
