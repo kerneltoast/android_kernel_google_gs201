@@ -2155,6 +2155,11 @@ static int itmon_probe(struct platform_device *pdev)
 				sizeof(struct itmon_platdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
+	pdata->cp_crash_in_progress = false;
+	for (i = 0; i < TRANS_TYPE_NUM; i++) {
+		INIT_LIST_HEAD(&pdata->datalist[i]);
+		INIT_LIST_HEAD(&pdata->infolist[i]);
+	}
 
 	itmon->pdata = pdata;
 	itmon->pdata->clientinfo = clientinfo;
@@ -2213,23 +2218,14 @@ static int itmon_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, itmon);
-
-	pdata->cp_crash_in_progress = false;
-
 	itmon_init(itmon, true);
-
 	g_itmon = itmon;
-	pdata->probed = true;
-
-	for (i = 0; i < TRANS_TYPE_NUM; i++) {
-		INIT_LIST_HEAD(&pdata->datalist[i]);
-		INIT_LIST_HEAD(&pdata->infolist[i]);
-	}
 
 	ret = subsys_system_register(&itmon_subsys, itmon_sysfs_groups);
 	if (ret)
 		log_dev_err(g_itmon->dev, "fail to register itmon subsys\n");
 
+	pdata->probed = true;
 	log_dev_info(&pdev->dev, "success to probe gs201 ITMON driver\n");
 
 	return 0;
