@@ -863,6 +863,7 @@ static int dwc3_otg_reboot_notify(struct notifier_block *nb, unsigned long event
 	dotg = exynos->dotg;
 
 	switch (event) {
+	case SYS_HALT:
 	case SYS_RESTART:
 	case SYS_POWER_OFF:
 		exynos->dwc->current_dr_role = DWC3_EXYNOS_IGNORE_CORE_OPS;
