@@ -169,6 +169,9 @@ struct exynos_ufs {
 	/* ufs command logging */
 	u8 enable_cmd_log;
 	struct pixel_cmd_log cmd_log;
+
+	/* security_out write counter */
+	u32 security_out_wc;
 };
 
 static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)
