@@ -65,22 +65,6 @@ static int dit_set_reg_upstream(struct net_device *netdev)
 	return 0;
 }
 
-static int dit_do_suspend(void)
-{
-	unsigned long flags;
-	int ret = 0;
-
-	if (unlikely(!dc) || unlikely(!dc->ld))
-		return 0;
-
-	spin_lock_irqsave(&dc->src_lock, flags);
-	if (dit_is_kicked_any() || atomic_read(&dc->init_running))
-		ret = -EBUSY;
-	spin_unlock_irqrestore(&dc->src_lock, flags);
-
-	return ret;
-}
-
 static int dit_set_desc_filter_bypass(enum dit_direction dir, struct dit_src_desc *src_desc,
 				      u8 *src, bool *is_upstream_pkt)
 {
@@ -239,8 +223,6 @@ int dit_ver_create(struct dit_ctrl_t *dc_ptr)
 	dc->set_src_desc_tail = dit_set_src_desc_tail;
 	dc->do_init_desc = dit_do_init_desc;
 	dc->do_init_hw = dit_do_init_hw;
-	dc->do_suspend = dit_do_suspend;
-	dc->do_resume = dit_dummy;
 
 	return 0;
 }

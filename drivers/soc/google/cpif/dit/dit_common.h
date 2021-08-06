@@ -268,8 +268,6 @@ struct dit_ctrl_t {
 				 unsigned int tail);
 	int (*do_init_hw)(void);
 	int (*do_init_desc)(enum dit_direction dir);
-	int (*do_suspend)(void);
-	int (*do_resume)(void);
 };
 
 struct dit_snapshot_t {
@@ -332,7 +330,6 @@ int dit_manage_rx_dst_data_buffers(bool fill);
 bool dit_is_busy(enum dit_direction dir);
 int dit_stop_napi_poll(void);
 
-static inline int dit_dummy(void) { return 0; }
 int dit_ver_create(struct dit_ctrl_t *dc_ptr);
 
 #endif /* __DIT_COMMON_H__ */
