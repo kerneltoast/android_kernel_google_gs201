@@ -153,26 +153,45 @@ static int dit_do_init_desc(enum dit_direction dir)
 	phys_addr_t p_desc;
 
 	/* dst01-dst03 is not used but hw checks the registers */
-	u32 offset_lo[] = {
+	u32 tx_offset_lo[] = {
+		DIT_REG_TX_RING_START_ADDR_0_DST01, DIT_REG_TX_RING_START_ADDR_0_DST02,
+		DIT_REG_TX_RING_START_ADDR_0_DST03,
+		DIT_REG_NAT_TX_DESC_ADDR_0_DST01, DIT_REG_NAT_TX_DESC_ADDR_0_DST02,
+		DIT_REG_NAT_TX_DESC_ADDR_0_DST03};
+	u32 tx_offset_hi[] = {
+		DIT_REG_TX_RING_START_ADDR_1_DST01, DIT_REG_TX_RING_START_ADDR_1_DST02,
+		DIT_REG_TX_RING_START_ADDR_1_DST03,
+		DIT_REG_NAT_TX_DESC_ADDR_1_DST01, DIT_REG_NAT_TX_DESC_ADDR_1_DST02,
+		DIT_REG_NAT_TX_DESC_ADDR_1_DST03};
+	u32 rx_offset_lo[] = {
 		DIT_REG_RX_RING_START_ADDR_0_DST01, DIT_REG_RX_RING_START_ADDR_0_DST02,
 		DIT_REG_RX_RING_START_ADDR_0_DST03,
 		DIT_REG_NAT_RX_DESC_ADDR_0_DST01, DIT_REG_NAT_RX_DESC_ADDR_0_DST02,
 		DIT_REG_NAT_RX_DESC_ADDR_0_DST03};
-	u32 offset_hi[] = {
+	u32 rx_offset_hi[] = {
 		DIT_REG_RX_RING_START_ADDR_1_DST01, DIT_REG_RX_RING_START_ADDR_1_DST02,
 		DIT_REG_RX_RING_START_ADDR_1_DST03,
 		DIT_REG_NAT_RX_DESC_ADDR_1_DST01, DIT_REG_NAT_RX_DESC_ADDR_1_DST02,
 		DIT_REG_NAT_RX_DESC_ADDR_1_DST03};
+
+	u32 *offset_lo;
+	u32 *offset_hi;
 	unsigned int offset_len;
 	unsigned int i;
 
-	if (dir == DIT_DIR_TX)
-		return 0;
+	if (dir == DIT_DIR_TX) {
+		offset_lo = tx_offset_lo;
+		offset_hi = tx_offset_hi;
+		offset_len = ARRAY_SIZE(tx_offset_lo);
+	} else {
+		offset_lo = rx_offset_lo;
+		offset_hi = rx_offset_hi;
+		offset_len = ARRAY_SIZE(rx_offset_lo);
+	}
 
-	desc_info = &dc->desc_info[DIT_DIR_RX];
+	desc_info = &dc->desc_info[dir];
 	p_desc = desc_info->dst_desc_ring_daddr[DIT_DST_DESC_RING_0];
 
-	offset_len = ARRAY_SIZE(offset_lo);
 	for (i = 0; i < offset_len; i++) {
 		WRITE_REG_PADDR_LO(dc, p_desc, offset_lo[i]);
 		WRITE_REG_PADDR_HI(dc, p_desc, offset_hi[i]);
