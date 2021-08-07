@@ -6,6 +6,7 @@
  * Copyright 2020 Google LLC
  */
 #include <kernel/sched/sched.h>
+#include <kernel/sched/pelt.h>
 
 #include "sched_priv.h"
 #include "sched_events.h"
@@ -31,20 +32,6 @@ extern unsigned int sched_capacity_margin[CPU_NUM];
  * Any change for these functions in upstream GKI would require extensive review
  * to make proper adjustment in vendor hook.
  */
-
-static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
-{
-	unsigned int min_cap;
-	unsigned int max_cap;
-	unsigned int cpu_cap;
-
-	min_cap = uclamp_eff_value(p, UCLAMP_MIN);
-	max_cap = uclamp_eff_value(p, UCLAMP_MAX);
-
-	cpu_cap = capacity_orig_of(cpu);
-
-	return cpu_cap >= min(min_cap, max_cap);
-}
 
 #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
 static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,
@@ -97,7 +84,7 @@ redo:
 		struct cpuidle_state *idle;
 		unsigned long util;
 		unsigned int exit_lat = 0;
-		unsigned long capacity = capacity_orig_of(cpu);
+		unsigned long capacity = capacity_orig_of(cpu) - thermal_load_avg(cpu_rq(cpu));
 		unsigned long cpu_importance = READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value) +
 					       READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MAX].value);
 
@@ -207,6 +194,21 @@ redo:
  * This part of code is vendor hook functions, which modify or extend the original
  * functions.
  */
+
+static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
+{
+	unsigned int min_cap;
+	unsigned int max_cap;
+	unsigned int cpu_cap;
+	struct rq *rq = cpu_rq(cpu);
+
+	min_cap = uclamp_eff_value(p, UCLAMP_MIN);
+	max_cap = uclamp_eff_value(p, UCLAMP_MAX);
+
+	cpu_cap = capacity_orig_of(cpu) - thermal_load_avg(rq);
+
+	return cpu_cap >= min(min_cap, max_cap);
+}
 
 static int find_lowest_rq(struct task_struct *p, struct cpumask *backup_mask)
 {
