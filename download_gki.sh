@@ -66,7 +66,13 @@ for file in $(ls ./*.zip); do
 done
 
 if [ -f "${BOOT_IMG_NAME}" ]; then
-  SHA_FILE="${BOOT_IMG_NAME}"
+  UNPACKED_BOOT_DIR=${TEMP_DIR}/boot_img_unpacked/
+  ${CUR_DIR}/tools/mkbootimg/unpack_bootimg.py --boot_img ${BOOT_IMG_NAME} \
+            --out ${UNPACKED_BOOT_DIR}
+  exit_and_clean_if_error $? "Unable to unpack ${BOOT_IMG_NAME}"
+  mv ${UNPACKED_BOOT_DIR}/kernel ./Image.lz4
+  lz4 -d ./Image.lz4 ./Image
+  SHA_FILE="Image"
 elif [ -f "vmlinux" ]; then
   SHA_FILE="vmlinux"
 else
@@ -99,13 +105,10 @@ fi
 
 cd ${GKI_PREBUILTS_DIR}
 if [ -n "${BOOT_IMG_NAME}" -a -f "${BOOT_IMG_NAME}" ]; then
-  echo "Copied userdebug variant ${BOOT_IMG_NAME} to boot.img."
   mv ${BOOT_IMG_NAME} boot.img
-  echo "Unpacking userdebug boot.img and retrieving Image.lz4."
-  ${CUR_DIR}/tools/mkbootimg/unpack_bootimg.py --boot_img boot.img \
-            --out ${TEMP_DIR}/boot_img_unpacked/
-  exit_and_clean_if_error $? "Unable to unpack boot.img"
-  mv ${TEMP_DIR}/boot_img_unpacked/kernel ./Image.lz4
+  echo "Copied userdebug variant ${BOOT_IMG_NAME} to boot.img."
+  mv ${TEMP_DIR}/Image.lz4 ./
+  echo "Copied Image.lz4 unpacked from ${BOOT_IMG_NAME}."
 fi
 echo "Update the GKI binaries to ab/${GKI_BUILD}
 
