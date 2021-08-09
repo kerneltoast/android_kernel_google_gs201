@@ -14,6 +14,7 @@ FILES_LIST=${CUR_DIR}/private/gs-google/GKI-files
 GKI_PREBUILTS_DIR=${2:-${CUR_DIR}/prebuilts/boot-artifacts/kernel/}
 GKI_BUILD=$1
 ALLOW_PREBUILTS_MISMATCH=${ALLOW_PREBUILTS_MISMATCH:-0}
+USE_UNSIGNED_USER_IMG=${USE_UNSIGNED_USER_IMG:-0}
 
 if [ -z "${GKI_BUILD}" ]; then
   echo "No GKI build number provided."
@@ -25,13 +26,20 @@ TEMP_DIR=$(mktemp -d)
 
 cd ${TEMP_DIR}
 echo "Downloading GKI binaries from build ab/${GKI_BUILD} via fetch_artifact..."
+if [ "${USE_UNSIGNED_USER_IMG}" = "0" ]; then
+  file="signed/signed-gsi_arm64-img-${GKI_BUILD}.zip"
+  echo "Taking signed user image."
+else
+  file="gsi_arm64-img-${GKI_BUILD}.zip"
+  echo "Taking unsigned user image."
+fi
 if grep -q "boot.*\.img" <<< $(cat ${FILES_LIST}); then
   echo "Downloading -user variant boot.img..."
   /google/data/ro/projects/android/fetch_artifact \
       --bid ${GKI_BUILD} \
-      --target gsi_arm64-user "gsi_arm64-img-${GKI_BUILD}.zip"
+      --target gsi_arm64-user ${file}
   exit_and_clean_if_error $? "Unable to download -user boot image"
-  mv gsi_arm64-img-${GKI_BUILD}.zip gsi_arm64-img-${GKI_BUILD}-user.zip
+  mv *gsi_arm64-img-${GKI_BUILD}.zip gsi_arm64-img-${GKI_BUILD}-user.zip
 fi
 
 echo "Downloading -userdebug prebuilts..."
