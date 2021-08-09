@@ -10,11 +10,21 @@ function exit_and_clean_if_error {
 }
 
 CUR_DIR=$(pwd)
-FILES_LIST=${CUR_DIR}/private/gs-google/GKI-files
+GKI_FILES=(
+  System.map
+  vmlinux
+  vmlinux.symvers
+  modules.builtin
+  modules.builtin.modinfo
+  boot-5.10-lz4.img
+)
 GKI_PREBUILTS_DIR=${2:-${CUR_DIR}/prebuilts/boot-artifacts/kernel/}
 GKI_BUILD=$1
 ALLOW_PREBUILTS_MISMATCH=${ALLOW_PREBUILTS_MISMATCH:-0}
 USE_UNSIGNED_USER_IMG=${USE_UNSIGNED_USER_IMG:-0}
+BASE_TARGET="gsi_arm64"
+FETCH_ARTIFACT_CMD="/google/data/ro/projects/android/fetch_artifact"
+IMG_ZIP_BASE="${BASE_TARGET}-img-${GKI_BUILD}"
 
 if [ -z "${GKI_BUILD}" ]; then
   echo "No GKI build number provided."
@@ -27,41 +37,40 @@ TEMP_DIR=$(mktemp -d)
 cd ${TEMP_DIR}
 echo "Downloading GKI binaries from build ab/${GKI_BUILD} via fetch_artifact..."
 if [ "${USE_UNSIGNED_USER_IMG}" = "0" ]; then
-  file="signed/signed-gsi_arm64-img-${GKI_BUILD}.zip"
+  file="signed/signed-${IMG_ZIP_BASE}.zip"
   echo "Taking signed user image."
 else
-  file="gsi_arm64-img-${GKI_BUILD}.zip"
+  file="${IMG_ZIP_BASE}.zip"
   echo "Taking unsigned user image."
 fi
-if grep -q "boot.*\.img" <<< $(cat ${FILES_LIST}); then
-  echo "Downloading -user variant boot.img..."
-  /google/data/ro/projects/android/fetch_artifact \
-      --bid ${GKI_BUILD} \
-      --target gsi_arm64-user ${file}
-  exit_and_clean_if_error $? "Unable to download -user boot image"
-  mv *gsi_arm64-img-${GKI_BUILD}.zip gsi_arm64-img-${GKI_BUILD}-user.zip
-fi
+echo "Downloading -user variant boot.img..."
+${FETCH_ARTIFACT_CMD} \
+    --bid ${GKI_BUILD} \
+    --target ${BASE_TARGET}-user ${file}
+exit_and_clean_if_error $? "Unable to download -user boot image"
+mv *${IMG_ZIP_BASE}.zip ${IMG_ZIP_BASE}-user.zip
 
 echo "Downloading -userdebug prebuilts..."
-for file in $(cat ${FILES_LIST}); do
+for file in "${GKI_FILES[@]}"; do
   if grep -q "boot.*\.img" <<< ${file} ; then
     BOOT_IMG_NAME=${file}
-    file="gsi_arm64-img-${GKI_BUILD}.zip"
+    file="${IMG_ZIP_BASE}.zip"
   else
     file="kernel/5.10/${file}"
   fi
-  /google/data/ro/projects/android/fetch_artifact \
+  ${FETCH_ARTIFACT_CMD} \
       --bid ${GKI_BUILD} \
-      --target gsi_arm64-userdebug ${file}
+      --target ${BASE_TARGET}-userdebug ${file}
   exit_and_clean_if_error $? "Error downloading ${file}"
 done
 
 for file in $(ls ./*.zip); do
   if grep -q "user" <<< ${file} ; then
-    mkdir ./user_images
-    unzip ${file} -d ./user_images/
+    USER_IMG_DIR=${TEMP_DIR}/user_images/
+    mkdir ${USER_IMG_DIR}
+    unzip ${file} ${BOOT_IMG_NAME} -d ${USER_IMG_DIR}
   else
-    unzip ${file}
+    unzip ${file} ${BOOT_IMG_NAME}
   fi
 done
 
@@ -95,11 +104,11 @@ if [ "${PREBUILTS_SHA}" != "${MANIFEST_SHA}" -a \
     exit_and_clean_if_error 1 "Mismatch between manifest and prebuilts"
 fi
 
-echo "Copying files listed in ${FILES_LIST} to ${GKI_PREBUILTS_DIR}..."
-mv $(cat ${FILES_LIST}) ${GKI_PREBUILTS_DIR}
+echo "Copying GKI files to ${GKI_PREBUILTS_DIR}..."
+mv -v ${GKI_FILES[@]} ${GKI_PREBUILTS_DIR}
 exit_and_clean_if_error $? "Unable to copy all files"
-if [ -f ${TEMP_DIR}/user_images/${BOOT_IMG_NAME} ]; then
-  mv ${TEMP_DIR}/user_images/${BOOT_IMG_NAME} ${GKI_PREBUILTS_DIR}/boot-user.img
+if [ -f ${USER_IMG_DIR}/${BOOT_IMG_NAME} ]; then
+  mv ${USER_IMG_DIR}/${BOOT_IMG_NAME} ${GKI_PREBUILTS_DIR}/boot-user.img
   echo "Copied user variant ${BOOT_IMG_NAME} to boot-user.img."
 fi
 
