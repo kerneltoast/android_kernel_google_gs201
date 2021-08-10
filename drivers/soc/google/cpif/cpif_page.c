@@ -39,6 +39,7 @@ void cpif_page_pool_delete(struct cpif_page_pool *pool)
 	kvfree(pool);
 	pool = NULL;
 }
+EXPORT_SYMBOL(cpif_page_pool_delete);
 
 void cpif_page_init_tmp_page(struct cpif_page_pool *pool)
 {
@@ -48,7 +49,9 @@ void cpif_page_init_tmp_page(struct cpif_page_pool *pool)
 		/* do not free the page since it can be in use by kernel */
 	}
 }
+EXPORT_SYMBOL(cpif_page_init_tmp_page);
 
+#define EXTRA_PAGE_COUNT	100
 struct cpif_page_pool *cpif_page_pool_create(u64 num_page)
 {
 	int i;
@@ -62,6 +65,7 @@ struct cpif_page_pool *cpif_page_pool_create(u64 num_page)
 		return NULL;
 	}
 
+	num_page += EXTRA_PAGE_COUNT;
 	rpage_arr = kvzalloc(sizeof(struct cpif_page *) * num_page, GFP_KERNEL);
 	if (unlikely(!rpage_arr)) {
 		mif_err("failed to alloc recycling_page_arr\n");
@@ -105,6 +109,7 @@ fail:
 	cpif_page_pool_delete(pool);
 	return NULL;
 }
+EXPORT_SYMBOL(cpif_page_pool_create);
 
 void *cpif_cur_page_base(struct cpif_page_pool *pool, bool used_tmp_alloc)
 {
@@ -113,6 +118,7 @@ void *cpif_cur_page_base(struct cpif_page_pool *pool, bool used_tmp_alloc)
 	else
 		return page_to_virt(pool->tmp_page->page);
 }
+EXPORT_SYMBOL(cpif_cur_page_base);
 
 static void *cpif_alloc_recycling_page(struct cpif_page_pool *pool, u64 alloc_size)
 {
@@ -206,3 +212,7 @@ void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size, bool *used_tm
 done:
 	return ret;
 }
+EXPORT_SYMBOL(cpif_page_alloc);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Samsung Page Recycling driver");

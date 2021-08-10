@@ -23,9 +23,20 @@ struct cpif_page_pool {
 	bool			using_tmp_alloc;
 };
 
+#if IS_ENABLED(CONFIG_CPIF_PAGE_RECYCLING)
 void cpif_page_pool_delete(struct cpif_page_pool *pool);
 void cpif_page_init_tmp_page(struct cpif_page_pool *pool);
 struct cpif_page_pool *cpif_page_pool_create(u64 num_page);
 void *cpif_cur_page_base(struct cpif_page_pool *pool, bool used_tmp_alloc);
 void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size, bool *used_tmp_alloc);
+#else
+static inline void cpif_page_pool_delete(struct cpif_page_pool *pool) { return; }
+static inline void cpif_page_init_tmp_page(struct cpif_page_pool *pool) { return; }
+static inline struct cpif_page_pool *cpif_page_pool_create(u64 num_page) { return NULL; }
+static inline void *cpif_cur_page_base(struct cpif_page_pool *pool,
+				       bool used_tmp_alloc) { return NULL; }
+static inline void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size,
+				    bool *used_tmp_alloc) { return NULL; }
+#endif
+
 #endif /* __CPIF_RX_PAGE_H__ */

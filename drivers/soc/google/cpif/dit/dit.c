@@ -849,7 +849,24 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 		if (unlikely(dst_skb[dst_rp_pos]))
 			goto dma_map;
 
-		if (initial) {
+		if (desc_info->dst_page_pool[ring_num]) {
+			void *data;
+			bool used_tmp_alloc;
+			u16 len = SKB_DATA_ALIGN(dc->desc_info[DIT_DIR_RX].buf_size);
+
+			len += SKB_DATA_ALIGN(dc->page_recycling_skb_padding);
+			len += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+
+			data = cpif_page_alloc(desc_info->dst_page_pool[ring_num], len,
+					       &used_tmp_alloc);
+			if (!data) {
+				mif_err("dit dst[%d] skb[%d] recycle pg alloc failed\n",
+					ring_num, dst_rp_pos);
+				return -ENOMEM;
+			}
+
+			dst_skb[dst_rp_pos] = build_skb(data, len);
+		} else if (initial) {
 			gfp_mask = GFP_KERNEL;
 			if (ring_num == DIT_DST_DESC_RING_0)
 				gfp_mask = GFP_ATOMIC;
@@ -857,12 +874,18 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 			dst_skb[dst_rp_pos] = __netdev_alloc_skb_ip_align(dc->netdev,
 									  desc_info->buf_size,
 									  gfp_mask);
-		} else
+		} else {
 			dst_skb[dst_rp_pos] = napi_alloc_skb(&dc->napi, desc_info->buf_size);
+		}
 
 		if (unlikely(!dst_skb[dst_rp_pos])) {
 			mif_err("dit dst[%d] skb[%d] build failed\n", ring_num, dst_rp_pos);
 			return -ENOMEM;
+		}
+
+		if (desc_info->dst_page_pool[ring_num]) {
+			dst_skb[dst_rp_pos]->head_frag = 0;
+			skb_reserve(dst_skb[dst_rp_pos], dc->page_recycling_skb_padding);
 		}
 
 #if defined(DIT_DEBUG_LOW)
@@ -1530,6 +1553,38 @@ error:
 	return ret;
 }
 
+static int dit_init_page_pool(enum dit_direction dir, enum dit_desc_ring ring_num)
+{
+	struct dit_desc_info *desc_info;
+	u64 total_page_count;
+	u64 num_pkt_per_page;
+	u64 max_pkt_size;
+
+	if (!dc->use_page_recycling_rx)
+		return 0;
+
+	/* Support Rx DST0 only */
+	if (dir != DIT_DIR_RX || ring_num != DIT_DST_DESC_RING_0)
+		return 0;
+
+	desc_info = &dc->desc_info[dir];
+	if (desc_info->dst_page_pool[ring_num])
+		return 0;
+
+	max_pkt_size = desc_info->buf_size + dc->page_recycling_skb_padding +
+		sizeof(struct skb_shared_info);
+	num_pkt_per_page = PAGE_FRAG_CACHE_MAX_SIZE / max_pkt_size;
+	total_page_count = desc_info->dst_desc_ring_len / num_pkt_per_page;
+
+	desc_info->dst_page_pool[ring_num] = cpif_page_pool_create(total_page_count);
+	if (unlikely(!desc_info->dst_page_pool[ring_num]))
+		return -ENOMEM;
+
+	cpif_page_init_tmp_page(desc_info->dst_page_pool[ring_num]);
+
+	return 0;
+}
+
 static int dit_init_hw(void)
 {
 	unsigned int dir;
@@ -1673,6 +1728,12 @@ static int dit_init_desc(enum dit_direction dir)
 			desc_info->dst_desc_ring[ring_num] = buf;
 			if (!dc->use_dma_map)
 				desc_info->dst_desc_ring_daddr[ring_num] = virt_to_phys(buf);
+		}
+
+		ret = dit_init_page_pool(dir, ring_num);
+		if (ret) {
+			mif_err("dit dir[%d] dst desc[%d] page pool init failed\n", dir, ring_num);
+			return -ENOMEM;
 		}
 
 		p_desc = desc_info->dst_desc_ring_daddr[ring_num];
@@ -1876,9 +1937,9 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "hw_ver:0x%08X reg_ver:0x%X\n",
 		dc->hw_version, dc->reg_version);
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
-		"use tx:%d rx:%d(stop:%d) clat:%d\n",
+		"use tx:%d rx:%d(stop:%d) clat:%d page_recycle:%d\n",
 		dc->use_dir[DIT_DIR_TX], dc->use_dir[DIT_DIR_RX], dc->stop_enqueue[DIT_DIR_RX],
-		dc->use_clat);
+		dc->use_clat, dc->use_page_recycling_rx);
 
 	for (dir = 0; dir < DIT_DIR_MAX; dir++) {
 		desc_info = &dc->desc_info[dir];
@@ -2475,6 +2536,7 @@ static int dit_read_dt(struct device_node *np)
 	mif_dt_read_bool(np, "dit_use_tx", dc->use_dir[DIT_DIR_TX]);
 	mif_dt_read_bool(np, "dit_use_rx", dc->use_dir[DIT_DIR_RX]);
 	mif_dt_read_bool(np, "dit_use_clat", dc->use_clat);
+	mif_dt_read_bool(np, "dit_use_recycling", dc->use_page_recycling_rx);
 
 	mif_dt_read_bool(np, "dit_hal_support", dc->hal_support);
 	if (dc->hal_support) {
@@ -2589,9 +2651,13 @@ int dit_create(struct platform_device *pdev)
 		goto error;
 	}
 
-	mif_info("dit created. hw_ver:0x%08X, tx:%d, rx:%d, clat:%d, hal:%d, ext_len:%d, irq:%d\n",
-		dc->hw_version, dc->use_dir[DIT_DIR_TX], dc->use_dir[DIT_DIR_RX], dc->use_clat,
-		dc->hal_support, dc->rx_extra_desc_ring_len, dc->irq_affinity);
+	if (dc->use_page_recycling_rx)
+		dc->page_recycling_skb_padding = NET_SKB_PAD + NET_IP_ALIGN;
+
+	mif_info("dit created. hw_ver:0x%08X tx:%d rx:%d clat:%d hal:%d ext:%d irq:%d pg_r:%d\n",
+		 dc->hw_version, dc->use_dir[DIT_DIR_TX], dc->use_dir[DIT_DIR_RX], dc->use_clat,
+		 dc->hal_support, dc->rx_extra_desc_ring_len, dc->irq_affinity,
+		 dc->use_page_recycling_rx);
 
 	return 0;
 

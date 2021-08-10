@@ -14,12 +14,14 @@ config SEC_MODEM_S5000AP
 	select MCU_IPC
 	select SHM_IPC
 	select CP_PMUCAL
+	select CPIF_PAGE_RECYCLING
 	default n
 
 config SEC_MODEM_S5100
 	tristate "Exynos S51xx"
 	select BOOT_DEVICE_SPI
 	select LINK_DEVICE_PCIE
+	select CPIF_PAGE_RECYCLING
 	default n
 
 menu "Configuration Description"
@@ -179,6 +181,12 @@ config CH_EXTENSION
 	default n
 	help
 	  Enable Channel Extension
+
+config CPIF_PAGE_RECYCLING
+	tristate "Enable page recycling"
+	default n
+	help
+	  This enables page recycling to improve alloc overhead
 
 config CP_THERMAL
     tristate "Enable CP thermal zones"

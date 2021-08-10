@@ -19,6 +19,7 @@
 #endif
 
 #include "dit.h"
+#include "cpif_page.h"
 
 #define DIT_VERSION(x, y, z) \
 	((((x) & 0xFF) << 24) | (((y) & 0xFF) << 16) | (((z) & 0xFF) << 8))
@@ -209,6 +210,9 @@ struct dit_desc_info {
 	dma_addr_t src_desc_ring_daddr;
 	dma_addr_t dst_desc_ring_daddr[DIT_DST_DESC_RING_MAX];
 	dma_addr_t *dst_skb_buf_daddr[DIT_DST_DESC_RING_MAX];
+
+	/* page pool */
+	struct cpif_page_pool *dst_page_pool[DIT_DST_DESC_RING_MAX];
 };
 
 struct dit_ctrl_t {
@@ -253,6 +257,9 @@ struct dit_ctrl_t {
 
 	atomic_t init_running;
 	atomic_t stop_napi_poll;
+
+	bool use_page_recycling_rx;
+	u32 page_recycling_skb_padding;
 
 #if defined(DIT_DEBUG_LOW)
 	int pktgen_ch;
