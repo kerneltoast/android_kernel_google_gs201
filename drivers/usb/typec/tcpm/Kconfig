@@ -11,17 +11,6 @@ config TYPEC_TCPM
 
 if TYPEC_TCPM
 
-config USB_PSY
-	tristate
-
-config TYPEC_COOLING_DEV
-	tristate "USB TYPE-C port cooling device"
-	depends on EXTCON
-	select THERMAL
-	select GOOGLE_VOTABLE
-	help
-	  Type-C port passive cooling device to throttle when the port is hot.
-
 config TYPEC_TCPCI
 	tristate "Type-C Port Controller Interface driver"
 	depends on I2C
@@ -37,20 +26,6 @@ config TYPEC_RT1711H
 	  Richtek RT1711H Type-C chip driver that works with
 	  Type-C Port Controller Manager to provide USB PD and USB
 	  Type-C functionalities.
-
-config TYPEC_FUSB307
-	tristate "Fairchild FUSB307B Type-C chip driver"
-	select USB_PSY
-	help
-	  The Fairchild FUSB307 Type-C chip driver that works with
-	  Type-C Port Controller Manager to provide USB PD and USB
-	  Type-C functionalities.
-
-config TYPEC_MAX77759
-	tristate "Maxim MAX77759 Type-C driver"
-	select USB_PSY
-	help
-	  MAX77759 TCPCI driver to interface with TCPM.
 
 config TYPEC_MT6360
 	tristate "Mediatek MT6360 Type-C driver"
@@ -92,3 +67,5 @@ config TYPEC_WCOVE
 	  called typec_wcove.ko
 
 endif # TYPEC_TCPM
+
+source "drivers/usb/typec/tcpm/google/Kconfig"

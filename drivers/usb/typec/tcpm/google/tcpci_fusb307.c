@@ -24,7 +24,7 @@
 #include <misc/logbuffer.h>
 
 #include "tcpci_otg_helper.h"
-#include "tcpci.h"
+#include "../tcpci.h"
 #include "usb_icl_voter.h"
 #include "usb_psy.h"
 

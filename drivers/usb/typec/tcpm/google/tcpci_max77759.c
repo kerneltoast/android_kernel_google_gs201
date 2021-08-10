@@ -28,7 +28,7 @@
 #include "bc_max77759.h"
 #include "max77759_export.h"
 #include "max77759_helper.h"
-#include "tcpci.h"
+#include "../tcpci.h"
 #include "tcpci_max77759.h"
 #include "tcpci_max77759_vendor_reg.h"
 #include "usb_icl_voter.h"
