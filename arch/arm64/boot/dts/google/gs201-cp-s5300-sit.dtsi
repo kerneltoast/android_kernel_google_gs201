@@ -72,6 +72,15 @@
 				legacy_raw_txq_size = <0x1FD000>;
 				legacy_raw_rxq_size = <0x200000>;
 
+				/*
+				 * Legacy Priority Queue
+				 * (available only if CONFIG_MODEM_IF_LEGACY_QOS used)
+				 */
+				legacy_raw_qos_head_tail_offset = <0x30>;
+				legacy_raw_qos_buffer_offset = <0x400000>;
+				legacy_raw_qos_txq_size = <0x100000>;
+				legacy_raw_qos_rxq_size = <0x100000>;
+
 				offset_srinfo_offset = <0x64>;
 				offset_capability_offset = <0x70>;
 
