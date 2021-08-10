@@ -33,6 +33,7 @@
 #define DEFAULT_HEIGHT 2160
 #define DEFAULT_FPS 60
 #define BIGO_SMC_ID 0xd
+#define BIGO_MAX_INST_NUM 16
 
 static struct sscd_platform_data bigo_sscd_platdata;
 
@@ -95,6 +96,21 @@ static inline void on_last_inst_close(struct bigo_core *core)
 	core->job.regs = NULL;
 }
 
+static inline int bigo_add_inst(struct bigo_inst *inst, struct bigo_core *core)
+{
+	int count = 0;
+	struct list_head *pos;
+
+	list_for_each(pos, &core->instances)
+		count++;
+
+	if (count >= BIGO_MAX_INST_NUM)
+		return -ENOMEM;
+
+	list_add_tail(&inst->list, &core->instances);
+	return 0;
+}
+
 static int bigo_open(struct inode *inode, struct file *file)
 {
 	int rc = 0;
@@ -105,7 +121,7 @@ static int bigo_open(struct inode *inode, struct file *file)
 	if (!inst) {
 		rc = -ENOMEM;
 		pr_err("Failed to create instance\n");
-		goto err;
+		return rc;
 	}
 	INIT_LIST_HEAD(&inst->list);
 	INIT_LIST_HEAD(&inst->buffers);
@@ -120,16 +136,22 @@ static int bigo_open(struct inode *inode, struct file *file)
 		rc = on_first_instance_open(core);
 		if (rc) {
 			pr_err("failed to setup first instance");
-			mutex_unlock(&core->lock);
 			goto err;
 		}
 	}
-	list_add_tail(&inst->list, &core->instances);
+	rc = bigo_add_inst(inst, core);
+	if (rc) {
+		pr_err("Reaches max number of supported instances\n");
+		goto err;
+	}
 	mutex_unlock(&core->lock);
 	bigo_update_qos(core);
 	pr_info("opened bigocean instance\n");
 
+	return 0;
 err:
+	mutex_unlock(&core->lock);
+	kfree(inst);
 	return rc;
 }
 
