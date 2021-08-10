@@ -13,7 +13,7 @@
 #include <misc/logbuffer.h>
 
 #include "max77759_helper.h"
-#include "tcpci.h"
+#include "../tcpci.h"
 #include "tcpci_max77759.h"
 #include "tcpci_max77759_vendor_reg.h"
 
