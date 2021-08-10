@@ -188,122 +188,150 @@
 
 				/* TPMON: CP throughput monitor */
 				cpif_tpmon {
-					tpmon_trigger_mbps = <30>;
-					tpmon_trigger_msec_min = <100>;
-					tpmon_trigger_msec_max = <500>;
+					trigger_mbps = <30>;
+					trigger_msec_min = <100>;
+					trigger_msec_max = <300>;
 
-					tpmon_monitor_interval_msec = <100>;
-					tpmon_monitor_hold_msec = <3000>;
-					tpmon_monitor_stop_mbps = <15>;
+					monitor_interval_msec = <1000>;
+					monitor_hold_msec = <3000>;
+					monitor_stop_mbps = <15>;
 
-					tpmon_boost_hold_msec = <6000>;
-					tpmon_unboost_tp_percent = <40>;
+					boost_hold_msec = <6000>;
 
-					tpmon_rps_q {
-						tpmon,enable = <0>;
-						tpmon,name = "RPS_Q";
-						tpmon,measure = <TPMON_MEASURE_NETDEV_Q>;
-						tpmon,target = <TPMON_TARGET_RPS>;
-						tpmon,idx = <0>;
-						/* Netdev backlog queue */
-						tpmon,threshold = <3000>;
-						tpmon,values = <0x03 0xC0>;
+					tpmon_rps {
+						boost_name = "RPS";
+						target = <TPMON_TARGET_RPS>;
+						extra_idx = <0>;
+						level = <0x03 0x30 0xC0>;
+
+						boost0 {
+							enable = <1>;
+							measure = <TPMON_MEASURE_TP>;
+							proto = <TPMON_PROTO_ALL>;
+							boost_threshold = <250 1600>;
+							unboost_threshold_mbps = <100 600>;
+						};
 					};
-					tpmon_rps_tp {
-						tpmon,enable = <1>;
-						tpmon,name = "RPS_TP";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_RPS>;
-						tpmon,idx = <0>;
-						tpmon,threshold = <250 1600>;	/* Mbps */
-						tpmon,values = <0x03 0x30 0xC0>;
-					};
+
 					tpmon_gro_flush_time {
-						tpmon,enable = <1>;
-						tpmon,name = "GRO";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_GRO>;
-						tpmon,idx = <0>;
-						tpmon,threshold = <100 200>;	/* Mbps */
-						tpmon,values = <2000000 2000000 2000000>;
+						boost_name = "GRO";
+						target = <TPMON_TARGET_GRO>;
+						extra_idx = <0>;
+						level = <2000000 2000000 2000000>;
+
+						boost0 {
+							enable = <1>;
+							measure = <TPMON_MEASURE_TP>;
+							proto = <TPMON_PROTO_ALL>;
+							boost_threshold = <100 200>;
+							unboost_threshold_mbps = <50 120>;
+						};
 					};
+
 					tpmon_mif {
-						tpmon,enable = <1>;
-						tpmon,name = "MIF";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_MIF>;
-						tpmon,idx = <0>;
-						tpmon,threshold = <700>;	/* Mbps */
-						tpmon,values = <0 1014000>;
-						tpmon,check_udp = <1>;
+						boost_name = "MIF";
+						target = <TPMON_TARGET_MIF>;
+						extra_idx = <0>;
+						level = <0 1014000>;
+
+						boost0 {
+							enable = <1>;
+							measure = <TPMON_MEASURE_TP>;
+							proto = <TPMON_PROTO_TCP>;
+							boost_threshold = <1100>;
+							unboost_threshold_mbps = <400>;
+						};
 					};
+
 					tpmon_cpu_cl0 {
-						tpmon,enable = <0>;
-						tpmon,name = "CL0";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_CPU_CL0>;
-						tpmon,idx = <0>;
-						tpmon,threshold = <100 300>;	/* Mbps */
-						tpmon,values = <0 1066000 1274000>;
-						tpmon,check_udp = <1>;
+						boost_name = "CL0";
+						target = <TPMON_TARGET_CPU_CL0>;
+						extra_idx = <0>;
+						level = <0 1066000 1274000>;
+
+						boost0 {
+							enable = <0>;
+							measure = <TPMON_MEASURE_TP>;
+							proto = <TPMON_PROTO_TCP>;
+							boost_threshold = <100 300>;
+							unboost_threshold_mbps = <40 120>;
+						};
 					};
+
 					tpmon_cpu_cl1 {
-						tpmon,enable = <1>;
-						tpmon,name = "CL1";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_CPU_CL1>;
-						tpmon,idx = <4>;
-						tpmon,threshold = <2000>;	/* Mbps */
-						tpmon,values = <0 1663000>;
-						tpmon,check_udp = <0>;
+						boost_name = "CL1";
+						target = <TPMON_TARGET_CPU_CL1>;
+						extra_idx = <4>;
+						level = <0 1663000>;
+
+						boost0 {
+							enable = <1>;
+							measure = <TPMON_MEASURE_TP>;
+							proto = <TPMON_PROTO_ALL>;
+							boost_threshold = <2000>;
+							unboost_threshold_mbps = <800>;
+						};
 					};
+
 					tpmon_pcie_low_power {
-						tpmon,enable = <1>;
-						tpmon,name = "PCIE_LP";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_PCIE_LOW_POWER>;
-						tpmon,idx = <0>;
-						tpmon,threshold = <3000>;	/* Mbps */
-						tpmon,values = <1 0>;
+						boost_name = "PCIE_LP";
+						target = <TPMON_TARGET_PCIE_LOW_POWER>;
+						extra_idx = <0>;
+						level = <1 0>;
+
+						boost0 {
+							enable = <1>;
+							measure = <TPMON_MEASURE_TP>;
+							proto = <TPMON_PROTO_ALL>;
+							boost_threshold = <3000>;
+							unboost_threshold_mbps = <1200>;
+						};
 					};
+
 					tpmon_irq_affinity_0 {
-						tpmon,enable = <0>;
-						tpmon,name = "IRQ_0";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_IRQ_PCIE>;
-						tpmon,idx = <PCIE_CP_IRQ_IDX_0>;
-						tpmon,threshold = <500>;	/* Mbps */
-						tpmon,values = <0 5>;
+						boost_name = "IRQ_0";
+						target = <TPMON_TARGET_IRQ_PCIE>;
+						extra_idx = <0>;
+						level = <0 5>;
+
+						boost0 {
+							enable = <0>;
+							measure = <TPMON_MEASURE_TP>;
+							proto = <TPMON_PROTO_ALL>;
+							boost_threshold = <500>;
+							unboost_threshold_mbps = <200>;
+						};
 					};
-					tpmon_irq_affinity_dit_pktproc_q {
-						tpmon,enable = <1>;
-						tpmon,name = "IRQ_DIT_PKTPROC_Q";
-						tpmon,measure = <TPMON_MEASURE_PKTPROC_DL_Q>;
-						tpmon,target = <TPMON_TARGET_IRQ_DIT>;
-						tpmon,idx = <0>;
-						/* PktProc rear~fore usage */
-						tpmon,threshold = <6000>;
-						tpmon,values = <2 5>;
-						tpmon,urgent = <1>;
-					};
-					tpmon_irq_affinity_dit_q {
-						tpmon,enable = <1>;
-						tpmon,name = "IRQ_DIT_Q";
-						tpmon,measure = <TPMON_MEASURE_DIT_SRC_Q>;
-						tpmon,target = <TPMON_TARGET_IRQ_DIT>;
-						tpmon,idx = <0>;
-						tpmon,threshold = <7000>;	/* DIT src queue */
-						tpmon,values = <2 5>;
-						tpmon,urgent = <1>;
-					};
-					tpmon_irq_affinity_dit {
-						tpmon,enable = <1>;
-						tpmon,name = "IRQ_DIT";
-						tpmon,measure = <TPMON_MEASURE_TP>;
-						tpmon,target = <TPMON_TARGET_IRQ_DIT>;
-						tpmon,idx = <0>;
-						tpmon,threshold = <250>;	/* Mbps */
-						tpmon,values = <2 5>;
+
+					tpmon_irq_dit {
+						boost_name = "IRQ_DIT";
+						target = <TPMON_TARGET_IRQ_DIT>;
+						extra_idx = <0>;
+						level = <2 5>;
+
+						boost0 {
+							enable = <1>;
+							measure = <TPMON_MEASURE_TP>;
+							proto = <TPMON_PROTO_ALL>;
+							boost_threshold = <250>;
+							unboost_threshold_mbps = <100>;
+						};
+
+						boost1 {
+							enable = <1>;
+							measure = <TPMON_MEASURE_PKTPROC_DL_Q>;
+							proto = <TPMON_PROTO_ALL>;
+							boost_threshold = <6000>;
+							unboost_threshold_mbps = <2000>;
+						};
+
+						boost2 {
+							enable = <1>;
+							measure = <TPMON_MEASURE_DIT_SRC_Q>;
+							proto = <TPMON_PROTO_ALL>;
+							boost_threshold = <7000>;
+							unboost_threshold_mbps = <2000>;
+						};
 					};
 				};
 
