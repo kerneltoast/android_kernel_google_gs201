@@ -1088,8 +1088,6 @@ static void gs101_throttle_pause(struct kthread_work *work)
 						data->tmu_name, cpumask_pr_args(&mask));
 				}
 			} else if (data->tmu_type == TMU_TYPE_TPU) {
-				/* This is the pair of read side register_tpu_thermal_pause_cb() */
-				smp_rmb();
 				ret = tpu_thermal_pause_cb(THERMAL_SUSPEND, tpu_data);
 				if (!ret) {
 					data->is_paused = true;
