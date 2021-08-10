@@ -12,6 +12,7 @@
 #include <dt-bindings/clock/gs101.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/soc/google/gs101-dm.h>
+#include <dt-bindings/soc/google/gs101-tmu.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #include <dt-bindings/soc/google/gs101-pm-qos.h>
 #include <dt-bindings/soc/google/debug-snapshot-def.h>
@@ -1421,6 +1422,7 @@
 		mpmm_level = <0x10>; /* Gear 0 for BIG7 and BIG6 */
 		/* Gear 0: 80% throttle percentage with 30% trigger threshold */
 		pause_enable;
+		tmu_type = <TMU_TYPE_CPU>;
 		resume_threshold = <103>;
 		pause_threshold = <108>;
 		pause_cpus = "6-7";
@@ -1452,6 +1454,7 @@
 		id = <1>;
 		ect_nouse;
 		pause_enable;
+		tmu_type = <TMU_TYPE_CPU>;
 		resume_threshold = <103>;
 		pause_threshold = <108>;
 		pause_cpus = "4-5";
@@ -1482,6 +1485,7 @@
 		tmu_name = "LITTLE";
 		id = <2>;
 		ect_nouse;
+		tmu_type = <TMU_TYPE_CPU>;
 		#thermal-sensor-cells = <0>;
 
 		use-pi-thermal;
@@ -1504,6 +1508,7 @@
 		tmu_name = "G3D";
 		id = <3>;
 		ect_nouse;
+		tmu_type = <TMU_TYPE_GPU>;
 		hardlimit_enable;
 		hardlimit_clr_threshold = <93>;
 		hardlimit_threshold = <98>;
@@ -1530,6 +1535,7 @@
 		tmu_name = "ISP";
 		id = <4>;
 		ect_nouse;
+		tmu_type = <TMU_TYPE_ISP>;
 		#thermal-sensor-cells = <0>;
 
 		tmu_work_affinity = "0-7";
@@ -1542,6 +1548,10 @@
 		tmu_name = "TPU";
 		id = <5>;
 		ect_nouse;
+		pause_enable;
+		tmu_type = <TMU_TYPE_TPU>;
+		resume_threshold = <103>;
+		pause_threshold = <108>;
 		hardlimit_enable;
 		hardlimit_clr_threshold = <93>;
 		hardlimit_threshold = <98>;
@@ -1870,9 +1880,9 @@
 					hysteresis = <4000>; /* millicelsius */
 					type = "active";
 				};
-				tpu_alert2: tpu-alert2 {
-					temperature = <107000>; /* millicelsius */
-					hysteresis = <3000>; /* millicelsius */
+				tpu_pause: tpu-pause {
+					temperature = <108000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
 				tpu_hot: tpu-hot {
