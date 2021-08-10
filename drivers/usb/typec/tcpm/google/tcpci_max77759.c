@@ -450,7 +450,7 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	tcpm_pd_receive(chip->port, &msg);
 }
 
-static void enable_data_path_locked(struct max77759_plat *chip)
+void enable_data_path_locked(struct max77759_plat *chip)
 {
 	int ret;
 	bool enable_data = false;
@@ -458,6 +458,11 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 
 	if (chip->force_device_mode_on) {
 		logbuffer_log(chip->log, "%s skipping as force_device_mode_on is set", __func__);
+		return;
+	}
+
+	if (chip->alt_path_active) {
+		logbuffer_log(chip->log, "%s skipping as alt path is active", __func__);
 		return;
 	}
 
@@ -516,6 +521,13 @@ static void enable_data_path_locked(struct max77759_plat *chip)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(enable_data_path_locked);
+
+void data_alt_path_active(struct max77759_plat *chip, bool active)
+{
+	chip->alt_path_active = active;
+}
+EXPORT_SYMBOL_GPL(data_alt_path_active);
 
 static void enable_vbus_work(struct kthread_work *work)
 {
