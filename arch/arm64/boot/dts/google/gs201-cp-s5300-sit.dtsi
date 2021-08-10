@@ -140,7 +140,7 @@
 				sbi_ap2cp_kerneltime_usec_pos = <0>;
 
 				/* Packet processor */
-				pktproc_use_36bit_addr = <1>;
+				pktproc_use_36bit_addr = <0>;
 				pktproc_cp_base = <0x0 0x20000000>;
 
 				pktproc_dl_support = <1>;
