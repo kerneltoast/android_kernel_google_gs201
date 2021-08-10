@@ -1521,6 +1521,13 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			mif_dt_count_u32_array(boost_np, "unboost_threshold_mbps",
 				data->unboost_threshold_mbps, data->num_threshold);
 
+			/* target */
+			ret = tpmon_set_target(data);
+			if (ret) {
+				mif_err("tpmon_set_target() error:%d\n", ret);
+				continue;
+			}
+
 			/* measure */
 			mif_dt_read_u32(boost_np, "enable", data->enable);
 			mif_dt_read_u32(boost_np, "proto", data->proto);
@@ -1545,18 +1552,6 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			}
 			list_add_tail(&data->data_node, &tpmon->all_data_list);
 			spin_unlock_irqrestore(&tpmon->lock, flags);
-
-			mif_info("name:%s measure:%d target:%d enable:%d\n",
-				data->name, data->measure, data->target, data->enable);
-			mif_info("extra_idx:%d level:%d/%d proto:%d\n",
-				data->extra_idx, data->num_threshold, data->num_level, data->proto);
-
-			/* target */
-			ret = tpmon_set_target(data);
-			if (ret) {
-				mif_err("tpmon_parse_target() error:%d\n", ret);
-				continue;
-			}
 
 			mif_info("name:%s measure:%d target:%d enable:%d\n",
 				data->name, data->measure, data->target, data->enable);
