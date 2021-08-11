@@ -125,6 +125,7 @@ s2mpg1x-gpio.ko
 s3c2410_wdt.ko
 samsung-dma.ko
 samsung-iommu-group.ko
+samsung-secure-iova.ko
 samsung_dma_heap.ko
 samsung_iommu.ko
 sched_tp.ko
