@@ -222,7 +222,7 @@ static void *pcie_dma_alloc_attrs(struct device *dev, size_t size,
 	cpu_addr = dma_alloc_attrs(&fake_dma_dev, size,
 				   dma_handle, flag, attrs);
 	if (exynos_pcie->s2mpu) {
-		s2mpu_update_refcnt(dev, *dma_handle, size, true);
+		s2mpu_update_refcnt(dev, *dma_handle, size, true, DMA_BIDIRECTIONAL);
 	} else if (exynos_pcie->use_sysmmu) {
 		ret = pcie_iommu_map(*dma_handle, *dma_handle, size,
 				     DMA_BIDIRECTIONAL, pcie_ch_to_hsi(ch_num));
@@ -247,7 +247,7 @@ static void pcie_dma_free_attrs(struct device *dev, size_t size,
 
 	dma_free_attrs(&fake_dma_dev, size, cpu_addr, dma_addr, attrs);
 	if (exynos_pcie->s2mpu)
-		s2mpu_update_refcnt(dev, dma_addr, size, false);
+		s2mpu_update_refcnt(dev, dma_addr, size, false, DMA_BIDIRECTIONAL);
 	else if (exynos_pcie->use_sysmmu)
 		pcie_iommu_unmap(dma_addr, size, pcie_ch_to_hsi(ch_num));
 }
@@ -266,7 +266,7 @@ static dma_addr_t pcie_dma_map_page(struct device *dev, struct page *page,
 	dma_addr = dma_map_page_attrs(&fake_dma_dev, page, offset,
 				      size, dir, attrs);
 	if (exynos_pcie->s2mpu) {
-		s2mpu_update_refcnt(dev, dma_addr, size, true);
+		s2mpu_update_refcnt(dev, dma_addr, size, true, dir);
 	} else if (exynos_pcie->use_sysmmu) {
 		ret = pcie_iommu_map(dma_addr, dma_addr, size,
 				     dir, pcie_ch_to_hsi(ch_num));
@@ -289,7 +289,7 @@ static void pcie_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	dma_unmap_page_attrs(&fake_dma_dev, dma_addr, size, dir, attrs);
 
 	if (exynos_pcie->s2mpu)
-		s2mpu_update_refcnt(dev, dma_addr, size, false);
+		s2mpu_update_refcnt(dev, dma_addr, size, false, dir);
 	else if (exynos_pcie->use_sysmmu)
 		pcie_iommu_unmap(dma_addr, size, pcie_ch_to_hsi(ch_num));
 }

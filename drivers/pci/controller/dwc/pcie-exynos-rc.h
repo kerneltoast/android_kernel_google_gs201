@@ -365,7 +365,7 @@ static void __maybe_unused pcie_iommu_unmap(unsigned long iova, size_t size,
 #if !IS_ENABLED(CONFIG_GS_S2MPU)
 static void __maybe_unused s2mpu_update_refcnt(struct device *dev,
 					       dma_addr_t dma_addr, size_t size,
-					       bool incr)
+					       bool incr, enum dma_data_direction dir)
 {
 	pr_err("PCIe S2MPU is NOT Enabled!!!\n");
 }
