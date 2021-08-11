@@ -63,6 +63,7 @@ int pcie_is_linkup;	/* checkpatch: do not initialise globals to 0 */
 /* currnet_cnt & current_cnt2 for EOM test */
 static int current_cnt;
 static int current_cnt2;
+static bool is_vhook_registered;
 
 static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp);
 
@@ -4021,6 +4022,7 @@ static void exynos_d3_sleep_hook(void *unused, struct pci_dev *dev,
 				 unsigned int delay, int *err)
 {
 	usleep_range(delay * 1000, delay * 1000);
+	*err = 0;
 }
 
 static int exynos_pcie_rc_probe(struct platform_device *pdev)
@@ -4045,11 +4047,15 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = register_trace_android_rvh_pci_d3_sleep(exynos_d3_sleep_hook,
-						      NULL);
-	if (ret) {
-		dev_err(&pdev->dev, "PCI sleep hook failed\n");
-		return ret;
+	if (!is_vhook_registered) {
+		dev_info(&pdev->dev, "register PCI sleep hook\n");
+		ret = register_trace_android_rvh_pci_d3_sleep(exynos_d3_sleep_hook,
+							      NULL);
+		if (ret) {
+			dev_err(&pdev->dev, "PCI sleep hook failed\n");
+			return ret;
+		}
+		is_vhook_registered = true;
 	}
 
 	dev_info(&pdev->dev, "## PCIe ch %d ##\n", ch_num);
