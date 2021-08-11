@@ -82,12 +82,12 @@ lzo-rle.ko
 lzo.ko
 mailbox-wc.ko
 max1720x-battery.ko
+max20339.ko
 max77729-pmic.ko
 max77729_uic.ko
 max77759_charger.ko
 max77759_contaminant.ko
 max77759_helper.ko
-max20339.ko
 mcps802154.ko
 mcps802154_region_fira.ko
 mcps802154_region_nfcc_coex.ko
@@ -136,10 +136,10 @@ slc_dummy.ko
 slc_pmon.ko
 slc_pt.ko
 smfc.ko
-snd-soc-cs35l45-spi.ko
-snd-soc-cs35l45.ko
 snd-soc-cs35l41-spi.ko
 snd-soc-cs35l41.ko
+snd-soc-cs35l45-spi.ko
+snd-soc-cs35l45.ko
 snd-soc-wm-adsp.ko
 spi-s3c64xx.ko
 spidev.ko
