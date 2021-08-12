@@ -29,6 +29,26 @@ enum sbbm_signal_id {
 	SBB_SIG_KERNEL_GP1, /* Kernel general purpose area of interest. */
 	SBB_SIG_KERNEL_GP2, /* Kernel general purpose area of interest. */
 	SBB_SIG_KERNEL_GP3, /* Kernel general purpose area of interest. */
+	SBB_SIG_APP_MISC0, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC1, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC2, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC3, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC4, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC5, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC6, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC7, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC8, /* Miscellaneous app area of interest. */
+	SBB_SIG_APP_MISC9, /* Miscellaneous app area of interest. */
+	SBB_SIG_CAMERA_MISC0, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC1, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC2, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC3, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC4, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC5, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC6, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC7, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC8, /* Miscellaneous camera area of interest. */
+	SBB_SIG_CAMERA_MISC9, /* Miscellaneous camera area of interest. */
 	SBB_SIG_NUM_SIGNALS /* The total number of signals. Has to be last. */
 };
 
