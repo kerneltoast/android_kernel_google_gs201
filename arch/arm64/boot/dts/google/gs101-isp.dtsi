@@ -440,6 +440,7 @@
 
 		iommus =
 			<&sysmmu_csis1>,
+			<&sysmmu_ipp>,
 			<&sysmmu_g3aa>;
 		power-domains = <&pd_pdp>;
 		samsung,iommu-group = <&iommu_group_isp>;
