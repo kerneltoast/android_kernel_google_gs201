@@ -83,6 +83,4 @@ obj-y					+= sunxi/
 
 obj-$(CONFIG_VIDEO_EXYNOS)		+= exynos/
 
-obj-$(CONFIG_BIGOCEAN)                  += bigocean/
-
 obj-$(CONFIG_VIDEO_EXYNOS_SMFC)		+= exynos/smfc/

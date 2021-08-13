@@ -22,6 +22,7 @@ ext_modules += power/reset
 ext_modules += touch/common
 ext_modules += touch/sec
 ext_modules += wlan/bcmdhd4389
+ext_modules += video/gchips
 
 ifneq ($(wildcard $(KERNEL_SRC)/$(rel_path)/uwb/kernel),)
 ext_modules += uwb/kernel

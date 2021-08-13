@@ -16,7 +16,6 @@ at24.ko
 bbd.ko
 bc_max77759.ko
 bcm47765.ko
-bigocean.ko
 boot_device_spi.ko
 bts.ko
 clk_exynos.ko
