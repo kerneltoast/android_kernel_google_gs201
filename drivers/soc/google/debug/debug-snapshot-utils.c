@@ -514,8 +514,6 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	char kernel_panic_msg[DSS_PANIC_LOG_SIZE] = "Kernel Panic";
 	unsigned long cpu;
 
-	dss_desc.in_panic = true;
-
 	if (!dbg_snapshot_get_enable())
 		return 0;
 
