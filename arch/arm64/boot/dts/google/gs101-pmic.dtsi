@@ -100,6 +100,13 @@
 						  /* 1 : masked	    */
 		b10_soft_ocp_warn_lvl = <0x0>; /* step : -250mA */
 
+		/* BUCK OCP Detection */
+		buck_ocp_ctrl1 = <0xB0>;
+		buck_ocp_ctrl2 = <0xBB>;
+		buck_ocp_ctrl3 = <0x0>;
+		buck_ocp_ctrl4 = <0x0>;
+		buck_ocp_ctrl5 = <0xB0>;
+
 		/* RTC: wtsr/smpl */
 		wtsr_en = "enabled"; /* enable */
 		coldrst_en = "disabled";
