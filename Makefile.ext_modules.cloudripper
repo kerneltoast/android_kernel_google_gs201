@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+rel_path := ../google-modules
+
+ext_modules :=
+ext_modules += amplifiers/cs35l41
+ext_modules += amplifiers/cs35l45
+ext_modules += amplifiers/cs40l26
+ext_modules += amplifiers/drv2624
+ext_modules += aoc
+ext_modules += aoc/alsa
+ext_modules += aoc/usb
+ext_modules += bluetooth/broadcom
+ext_modules += bms
+ext_modules += display/samsung
+ext_modules += edgetpu/drivers/edgetpu
+ext_modules += gpu/mali_kbase
+ext_modules += gpu/mali_pixel
+ext_modules += lwis
+ext_modules += nfc
+ext_modules += power/reset
+ext_modules += touch/common
+ext_modules += touch/sec
+ext_modules += wlan/bcmdhd4389
+
+ifneq ($(wildcard $(KERNEL_SRC)/$(rel_path)/uwb/kernel),)
+ext_modules += uwb/kernel
+endif
+
+.PHONY: $(ext_modules) depmod allmodules
+
+allmodules: $(ext_modules) depmod
+
+touch/sec: | touch/common
+
+aoc/alsa: | aoc
+
+aoc/usb: | aoc
+
+power/reset: | bms
+
+# amplifiers/cs35l45 and amplifiers/cs35l41 both build identical version of
+# snd-soc-wm-adsp.ko. To make sure the makefiles don't step on each other,
+# create this fake order only dependency
+# TODO(b/198105924): Identically named kernel modules: snd-soc-wm-adsp.ko
+amplifiers/cs35l45: | amplifiers/cs35l41
+
+include $(KERNEL_SRC)/Makefile.ext_modules.include

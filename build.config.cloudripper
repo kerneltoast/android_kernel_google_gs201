@@ -23,24 +23,8 @@ fi
 
 MODULES_LIST=${KERNEL_DIR}/vendor_boot_modules.cloudripper
 
-EXT_MODULES+="
-private/google-modules/amplifiers/cs35l41
-private/google-modules/amplifiers/cs35l45
-private/google-modules/amplifiers/cs40l26
-private/google-modules/amplifiers/drv2624
-private/google-modules/aoc
-private/google-modules/aoc/alsa
-private/google-modules/aoc/usb
-private/google-modules/display/samsung
-private/google-modules/edgetpu/drivers/edgetpu
-private/google-modules/bms
-private/google-modules/gpu/mali_kbase
-private/google-modules/gpu/mali_pixel
-private/google-modules/lwis
-private/google-modules/power/reset
-private/google-modules/touch/common
-private/google-modules/touch/sec
-private/google-modules/bluetooth/broadcom
-private/google-modules/nfc
-private/google-modules/wlan/bcmdhd4389
-"
+EXT_MODULES_MAKEFILE=${KERNEL_DIR}/Makefile.ext_modules.cloudripper
+# Explicitly clear EXT_MODULES because build.config.gs101 might set it to
+# "private/google-modules/uwb/kernel" which we don't want because uwb/kernel is
+# already built by Makefile.ext_modules.cloudripper
+EXT_MODULES=""
