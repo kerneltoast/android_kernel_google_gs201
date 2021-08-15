@@ -2926,6 +2926,22 @@ static void ttwu_queue(struct task_struct *p, int cpu, int wake_flags)
 }
 
 /*
+ * Invoked from try_to_wake_up() to check whether the task can be woken up.
+ *
+ * The caller holds p::pi_lock if p != current or has preemption
+ * disabled when p == current.
+ */
+static __always_inline
+bool ttwu_state_match(struct task_struct *p, unsigned int state, int *success)
+{
+	if (p->state & state) {
+		*success = 1;
+		return true;
+	}
+	return false;
+}
+
+/*
  * Notes on Program-Order guarantees on SMP systems.
  *
  *  MIGRATION
@@ -3064,10 +3080,9 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 		 *  - we're serialized against set_special_state() by virtue of
 		 *    it disabling IRQs (this allows not taking ->pi_lock).
 		 */
-		if (!(p->state & state))
+		if (!ttwu_state_match(p, state, &success))
 			goto out;
 
-		success = 1;
 		trace_sched_waking(p);
 		p->state = TASK_RUNNING;
 		trace_sched_wakeup(p);
@@ -3082,7 +3097,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 	 */
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	smp_mb__after_spinlock();
-	if (!(p->state & state))
+	if (!ttwu_state_match(p, state, &success))
 		goto unlock;
 
 #ifdef CONFIG_FREEZER
@@ -3099,9 +3114,6 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 #endif
 
 	trace_sched_waking(p);
-
-	/* We're going to change ->state: */
-	success = 1;
 
 	/*
 	 * Ensure we load p->on_rq _after_ p->state, otherwise it would
