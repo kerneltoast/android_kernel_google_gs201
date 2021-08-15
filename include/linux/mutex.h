@@ -21,9 +21,6 @@
 #include <linux/debug_locks.h>
 #include <linux/android_vendor.h>
 
-struct ww_class;
-struct ww_acquire_ctx;
-
 /*
  * Simple, straightforward mutexes with strict semantics:
  *
@@ -66,14 +63,6 @@ struct mutex {
 	struct lockdep_map	dep_map;
 #endif
 	ANDROID_OEM_DATA_ARRAY(1, 2);
-};
-
-struct ww_mutex {
-	struct mutex base;
-	struct ww_acquire_ctx *ctx;
-#ifdef CONFIG_DEBUG_MUTEXES
-	struct ww_class *ww_class;
-#endif
 };
 
 #ifdef CONFIG_DEBUG_MUTEXES
