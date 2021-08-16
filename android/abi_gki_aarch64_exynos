@@ -1781,7 +1781,6 @@
   subsys_system_register
   __sw_hweight32
   __sw_hweight64
-  swiotlb_nr_tbl
   __sync_dirty_buffer
   sync_file_create
   sync_file_get_fence

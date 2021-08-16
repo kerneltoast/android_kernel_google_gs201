@@ -899,7 +899,6 @@
   firmware_request_nowarn
   flush_dcache_page
   flush_delayed_work
-  __flush_icache_range
   flush_work
   flush_workqueue
   fput
