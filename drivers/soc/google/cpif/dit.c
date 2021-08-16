@@ -349,7 +349,7 @@ int dit_enqueue_reg_value_with_ext_lock(u32 value, u32 offset)
 	struct dit_reg_value_item *reg_item;
 
 	if (dit_is_kicked_any() || !dc->init_done || !list_empty(&dc->reg_value_q)) {
-		reg_item = kvzalloc(sizeof(struct dit_reg_value_item), GFP_ATOMIC);
+		reg_item = devm_kzalloc(dc->dev, sizeof(struct dit_reg_value_item), GFP_ATOMIC);
 		if (!reg_item) {
 			mif_err("set reg value 0x%08X at 0x%08X enqueue failed\n", value, offset);
 			return -ENOMEM;
@@ -389,7 +389,7 @@ static void dit_clean_reg_value_with_ext_lock(void)
 		if (dit_is_reg_value_valid(reg_item->value, reg_item->offset))
 			WRITE_REG_VALUE(dc, reg_item->value, reg_item->offset);
 		list_del(&reg_item->list);
-		kvfree(reg_item);
+		devm_kfree(dc->dev, reg_item);
 	}
 }
 
@@ -835,7 +835,7 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 
 	if (unlikely(!desc_info->dst_skb_buf[ring_num])) {
 		buf_size = sizeof(struct sk_buff *) * desc_info->dst_desc_ring_len;
-		desc_info->dst_skb_buf[ring_num] = kvzalloc(buf_size, GFP_KERNEL);
+		desc_info->dst_skb_buf[ring_num] = devm_kzalloc(dc->dev, buf_size, GFP_KERNEL);
 		if (!desc_info->dst_skb_buf[ring_num]) {
 			mif_err("dit dst[%d] skb container alloc failed\n", ring_num);
 			return -ENOMEM;
@@ -922,7 +922,7 @@ static int dit_free_dst_data_buffer(enum dit_direction dir, enum dit_desc_ring r
 	}
 
 	mif_info("free dst[%d] skb buffers\n", ring_num);
-	kvfree(dst_skb);
+	devm_kfree(dc->dev, dst_skb);
 	desc_info->dst_skb_buf[ring_num] = NULL;
 
 	return 0;
@@ -1372,7 +1372,7 @@ static int dit_reg_backup_restore_internal(bool backup, const u16 *offset,
 
 	for (i = 0; i < arr_len; i++) {
 		if (!buf[i]) {
-			buf[i] = kvzalloc(size[i], GFP_KERNEL);
+			buf[i] = devm_kzalloc(dc->dev, size[i], GFP_KERNEL);
 			if (!buf[i]) {
 				ret = -ENOMEM;
 				goto exit;
@@ -1560,7 +1560,7 @@ static int dit_init_desc(enum dit_direction dir)
 
 	if (!desc_info->src_skb_buf) {
 		buf_size = sizeof(struct sk_buff *) * desc_info->src_desc_ring_len;
-		buf = kvzalloc(buf_size, GFP_KERNEL);
+		buf = devm_kzalloc(dc->dev, buf_size, GFP_KERNEL);
 		if (!buf) {
 			mif_err("dit dir[%d] src skb container alloc failed\n", dir);
 			return -ENOMEM;

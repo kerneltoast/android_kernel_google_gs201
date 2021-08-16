@@ -302,7 +302,8 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	 * Respect the sync flag as long as the task can run on this CPU.
 	 */
 	if (should_honor_rt_sync(this_cpu_rq, p, sync) &&
-	    cpumask_test_cpu(this_cpu, p->cpus_ptr)) {
+	    cpumask_test_cpu(this_cpu, p->cpus_ptr) &&
+	    rt_task_fits_capacity(p, this_cpu)) {
 		*new_cpu = this_cpu;
 		sync_wakeup = true;
 		goto out_unlock;

@@ -1032,12 +1032,12 @@ static void gs101_throttle_pause(struct kthread_work *work)
 		// tpu_data has been assigned and ensure it's not NULL.
 		// So, just need to ensure tpu_thermal_pause_cb is not NULL.
 		// This is the pair of read side register_tpu_thermal_pause_cb().
-		smp_rmb();
 		if (!tpu_thermal_pause_cb) {
 			pr_err_ratelimited("%s: TPU pause callback not registered\n",
 					   data->tmu_name);
 			goto unlock;
 		}
+		smp_rmb();
 		break;
 	case TMU_TYPE_GPU:
 	case TMU_TYPE_ISP:
