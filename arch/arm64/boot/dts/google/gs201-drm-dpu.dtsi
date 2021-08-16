@@ -305,7 +305,6 @@
 	};
 
 	drmdecon1: drmdecon@0x1C241000 {
-		status = "disabled";
 		compatible = "samsung,exynos-decon";
 		reg = <0x0 0x1C241000 0x6000>,	/* DECON1_MAIN */
 		      <0x0 0x1C250000 0x6000>,	/* DECON_WIN */
