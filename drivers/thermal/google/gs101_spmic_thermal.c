@@ -142,6 +142,7 @@ static int gs101_spmic_thermal_get_temp(void *data, int *temp)
 	u8 data_buf[S2MPG11_METER_NTC_BUF];
 	u8 reg = S2MPG11_METER_LPF_DATA_NTC0_1 +
 		 S2MPG11_METER_NTC_BUF * s->adc_chan;
+	u8 mask = 0x1;
 
 	emul_temp = s->emul_temperature;
 	if (emul_temp) {
@@ -149,9 +150,17 @@ static int gs101_spmic_thermal_get_temp(void *data, int *temp)
 		return 0;
 	}
 
+	if (!(gs101_spmic_thermal->adc_chan_en & (mask << s->adc_chan)))
+		return -EIO;
+
 	ret = s2mpg11_bulk_read(gs101_spmic_thermal->i2c, reg,
 				S2MPG11_METER_NTC_BUF, data_buf);
 	raw = data_buf[0] + ((data_buf[1] & 0xf) << 8);
+
+	// All 0 usually means the NTC is not ready.
+	if (!ret && !raw)
+		return -EBUSY;
+
 	*temp = gs101_map_volt_temp(raw);
 
 	return ret;
@@ -290,7 +299,7 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 	struct kobject *kobj;
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
-		dev_info(dev, "Registering %d sensor\n", i);
+		dev_info(dev, "Registering channel %d\n", i);
 		tzd = devm_thermal_zone_of_sensor_register(gs101_spmic_thermal->dev, i,
 							   &gs101_spmic_thermal->sensor[i],
 							   &gs101_spmic_thermal_ops);
