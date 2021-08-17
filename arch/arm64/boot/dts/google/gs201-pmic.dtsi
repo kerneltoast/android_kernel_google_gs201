@@ -754,7 +754,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x2>;
 				schematic-name = "S2S_VDD_G3D";
 				subsys-name = "GPU";
@@ -839,7 +839,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x8>;
 				schematic-name = "S8S_VDD_G3D_L2";
 				subsys-name = "GPU";
@@ -938,7 +938,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x21>;
 				schematic-name = "L1S_VDD_G3D_M";
 				subsys-name = "GPU";
