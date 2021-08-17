@@ -310,6 +310,7 @@ struct dit_desc_info {
 	unsigned int dst_desc_ring_len;
 	struct dit_dst_desc *dst_desc_ring[DIT_DST_DESC_RING_MAX];
 	struct sk_buff **dst_skb_buf[DIT_DST_DESC_RING_MAX];
+	bool dst_skb_buf_filled[DIT_DST_DESC_RING_MAX];
 };
 
 struct dit_ctrl_t {

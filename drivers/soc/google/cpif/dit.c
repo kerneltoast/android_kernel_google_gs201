@@ -830,7 +830,7 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 
 	desc_info = &dc->desc_info[DIT_DIR_RX];
 
-	if (initial && desc_info->dst_skb_buf[ring_num])
+	if (initial && desc_info->dst_skb_buf_filled[ring_num])
 		return 0;
 
 	if (unlikely(!desc_info->dst_skb_buf[ring_num])) {
@@ -878,6 +878,9 @@ next:
 		dst_rp_pos = circ_new_ptr(desc_info->dst_desc_ring_len, dst_rp_pos, 1);
 	}
 
+	if (initial)
+		desc_info->dst_skb_buf_filled[ring_num] = true;
+
 	return 0;
 }
 
@@ -924,6 +927,7 @@ static int dit_free_dst_data_buffer(enum dit_direction dir, enum dit_desc_ring r
 	mif_info("free dst[%d] skb buffers\n", ring_num);
 	devm_kfree(dc->dev, dst_skb);
 	desc_info->dst_skb_buf[ring_num] = NULL;
+	desc_info->dst_skb_buf_filled[ring_num] = false;
 
 	return 0;
 }
