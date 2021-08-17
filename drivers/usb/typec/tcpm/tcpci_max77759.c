@@ -1080,7 +1080,8 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 				   enum typec_cc_status cc)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
-	u8 reg = TCPC_ROLE_CTRL_DRP;
+	u8 reg = TCPC_ROLE_CTRL_DRP, pwr_ctrl;
+	int ret;
 
 	switch (cc) {
 	case TYPEC_CC_RP_DEF:
@@ -1128,6 +1129,18 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 
 	/* Re-enable retry */
 	bc12_reset_retry(chip->bc12);
+
+	/* Disable Auto disacharge before enabling toggling */
+	ret = max77759_read8(tcpci->regmap, TCPC_POWER_CTRL, &pwr_ctrl);
+	logbuffer_log(chip->log, "TCPC_POWER_CTRL:0x%x ret:%d", pwr_ctrl, ret);
+	if (pwr_ctrl & TCPC_POWER_CTRL_AUTO_DISCHARGE) {
+		logbuffer_log(chip->log, "TCPC_POWER_CTRL_AUTO_DISCHARGE not cleared");
+		ret = regmap_update_bits(tcpci->regmap, TCPC_POWER_CTRL,
+					 TCPC_POWER_CTRL_AUTO_DISCHARGE, 0);
+		if (ret < 0)
+			logbuffer_log(chip->log, "[%s]: Disabling auto discharge failed", __func__);
+	}
+
 	if (chip->contaminant_detection)
 		update_contaminant_detection_locked(chip, chip->contaminant_detection);
 	else
