@@ -147,6 +147,40 @@ static void dbg_snapshot_set_core_panic_stat(unsigned int val, unsigned int cpu)
 		__raw_writel(val, header + DSS_OFFSET_PANIC_STAT + cpu * 4);
 }
 
+void dbg_snapshot_set_core_pmu_val(unsigned int val, unsigned int cpu)
+{
+	void __iomem *header = dbg_snapshot_get_header_vaddr();
+
+	if (header)
+		 __raw_writel(val, header + DSS_OFFSET_CORE_PMU_VAL + cpu * 4);
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_set_core_pmu_val);
+
+unsigned int dbg_snapshot_get_core_pmu_val(unsigned int cpu)
+{
+	void __iomem *header = dbg_snapshot_get_header_vaddr();
+
+	return header ? __raw_readl(header + DSS_OFFSET_CORE_PMU_VAL + cpu * 4) : 0;
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_get_core_pmu_val);
+
+void dbg_snapshot_set_core_ehld_stat(unsigned int val, unsigned int cpu)
+{
+	void __iomem *header = dbg_snapshot_get_header_vaddr();
+
+	if (header)
+		 __raw_writel(val, header + DSS_OFFSET_CORE_EHLD_STAT + cpu * 4);
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_set_core_ehld_stat);
+
+unsigned int dbg_snapshot_get_core_ehld_stat(unsigned int cpu)
+{
+	void __iomem *header = dbg_snapshot_get_header_vaddr();
+
+	return header ? __raw_readl(header + DSS_OFFSET_CORE_EHLD_STAT + cpu * 4) : 0;
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_get_core_ehld_stat);
+
 static void dbg_snapshot_report_reason(unsigned int val)
 {
 	void __iomem *header = dbg_snapshot_get_header_vaddr();
@@ -234,7 +268,7 @@ static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_mai
 	unsigned char idx = 0;
 	unsigned long state, pc = 0;
 
-	if ((!tsk) || !try_get_task_stack(tsk) ||
+	if ((!tsk) || !try_get_task_stack(tsk) || (tsk->flags & PF_FROZEN) ||
 			!(tsk->state == TASK_RUNNING ||
 				tsk->state == TASK_UNINTERRUPTIBLE ||
 				tsk->state == TASK_KILLABLE))

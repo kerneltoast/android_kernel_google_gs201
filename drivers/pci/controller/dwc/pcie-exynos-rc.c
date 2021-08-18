@@ -1927,6 +1927,10 @@ void exynos_pcie_rc_register_dump(int ch_num)
 	}
 	pr_err("PHY 0x17C0 : 0x%08x\n",
 		exynos_phy_read(exynos_pcie, 0xFC0 + 0x800));
+
+	pr_err("PHY 0x760 : %#08x, 0x764 : %#08x\n",
+				exynos_phy_read(exynos_pcie, 0x760),
+				exynos_phy_read(exynos_pcie, 0x764));
 	pr_err("\n");
 
 	/* ---------------------- */
@@ -2392,6 +2396,9 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 		val_irq2 = exynos_elbi_read(exynos_pcie, PCIE_IRQ2);
 		dev_info(dev, "check irq22 pending clear: irq2_state = 0x%x\n", val_irq2);
+
+		exynos_pcie->state = STATE_LINK_DOWN_TRY;
+		queue_work(exynos_pcie->pcie_wq, &exynos_pcie->cpl_timeout_work.work);
 	}
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
@@ -3865,8 +3872,6 @@ int exynos_pcie_rc_itmon_notifier(struct notifier_block *nb, unsigned long actio
 
 static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_port *pp)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	struct irq_domain *msi_domain;
 	struct msi_domain_info *msi_domain_info;
 	int ret;
@@ -3885,12 +3890,6 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 	}
 
 	exynos_pcie_setup_rc(pp);
-
-	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
-	spin_lock_init(&exynos_pcie->conf_lock);
-	spin_lock_init(&exynos_pcie->power_stats_lock);
-	spin_lock_init(&exynos_pcie->reg_lock);
-	spin_lock_init(&exynos_pcie->s2mpu_refcnt_lock);
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
@@ -4105,6 +4104,12 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	pp = &pci->pp;
 	pp->ops = &exynos_pcie_rc_ops;
+
+	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
+	spin_lock_init(&exynos_pcie->conf_lock);
+	spin_lock_init(&exynos_pcie->power_stats_lock);
+	spin_lock_init(&exynos_pcie->reg_lock);
+	spin_lock_init(&exynos_pcie->s2mpu_refcnt_lock);
 
 	exynos_pcie->ch_num = ch_num;
 	exynos_pcie->l1ss_enable = 1;

@@ -151,6 +151,13 @@ VENDOR_GROUP_UINT_ATTRIBUTE(cam, group_throttle, VG_CAMERA);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam, uclamp_min, VG_CAMERA, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam, uclamp_max, VG_CAMERA, UCLAMP_MAX);
 
+VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, prefer_idle, VG_CAMERA_POWER);
+VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, prefer_high_cap, VG_CAMERA_POWER);
+VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, task_spreading, VG_CAMERA_POWER);
+VENDOR_GROUP_UINT_ATTRIBUTE(cam_power, group_throttle, VG_CAMERA_POWER);
+VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam_power, uclamp_min, VG_CAMERA_POWER, UCLAMP_MIN);
+VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam_power, uclamp_max, VG_CAMERA_POWER, UCLAMP_MAX);
+
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, prefer_idle, VG_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, prefer_high_cap, VG_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, task_spreading, VG_BACKGROUND);
@@ -579,6 +586,7 @@ SET_TASK_GROUP_STORE(ta, VG_TOPAPP);
 SET_TASK_GROUP_STORE(fg, VG_FOREGROUND);
 SET_TASK_GROUP_STORE(sys, VG_SYSTEM);
 SET_TASK_GROUP_STORE(cam, VG_CAMERA);
+SET_TASK_GROUP_STORE(cam_power, VG_CAMERA_POWER);
 SET_TASK_GROUP_STORE(bg, VG_BACKGROUND);
 SET_TASK_GROUP_STORE(sysbg, VG_SYSTEM_BACKGROUND);
 SET_TASK_GROUP_STORE(nnapi, VG_NNAPI_HAL);
@@ -586,8 +594,8 @@ SET_TASK_GROUP_STORE(rt, VG_RT);
 SET_TASK_GROUP_STORE(dex2oat, VG_DEX2OAT);
 SET_TASK_GROUP_STORE(sf, VG_SF);
 
-static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "bg", "sys_bg", "nnapi", "rt",
-				       "dex2oat", "sf"};
+static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "bg", "sys_bg",
+				       "nnapi", "rt", "dex2oat", "sf"};
 
 static int dump_task_show(struct seq_file *m, void *v)
 {									      \
@@ -956,6 +964,13 @@ static struct attribute *attrs[] = {
 	&cam_group_throttle_attribute.attr,
 	&cam_uclamp_min_attribute.attr,
 	&cam_uclamp_max_attribute.attr,
+	// Camera_power group attributes
+	&cam_power_prefer_idle_attribute.attr,
+	&cam_power_prefer_high_cap_attribute.attr,
+	&cam_power_task_spreading_attribute.attr,
+	&cam_power_group_throttle_attribute.attr,
+	&cam_power_uclamp_min_attribute.attr,
+	&cam_power_uclamp_max_attribute.attr,
 	// Background group attributes
 	&bg_prefer_idle_attribute.attr,
 	&bg_prefer_high_cap_attribute.attr,
@@ -1003,6 +1018,7 @@ static struct attribute *attrs[] = {
 	&set_task_group_fg_attribute.attr,
 	&set_task_group_sys_attribute.attr,
 	&set_task_group_cam_attribute.attr,
+	&set_task_group_cam_power_attribute.attr,
 	&set_task_group_bg_attribute.attr,
 	&set_task_group_sysbg_attribute.attr,
 	&set_task_group_nnapi_attribute.attr,

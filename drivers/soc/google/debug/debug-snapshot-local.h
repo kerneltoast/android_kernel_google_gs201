@@ -150,6 +150,7 @@ extern struct itmon_logs *dss_itmon;
 #define DSS_OFFSET_DUMP_GPR_WAIT	(0x380)
 #define DSS_OFFSET_WAKEUP_WAIT		(0x390)
 #define DSS_OFFSET_CORE_POWER_STAT	(0x400)
+#define DSS_OFFSET_CORE_PMU_VAL		(0x440)
 #define DSS_OFFSET_CORE_EHLD_STAT	(0x460)
 #define DSS_OFFSET_GPR_POWER_STAT	(0x480)
 #define DSS_OFFSET_PANIC_STAT		(0x500)

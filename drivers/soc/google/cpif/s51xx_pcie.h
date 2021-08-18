@@ -28,6 +28,7 @@ struct s51xx_pcie {
 	u32 __iomem *reg_base;
 	u64 dbaddr_base;
 	u32 dbaddr_offset;
+	u32 dbaddr_changed_base;
 
 	u32 link_status;
 	bool suspend_try;

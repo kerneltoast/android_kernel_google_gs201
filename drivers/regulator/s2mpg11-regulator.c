@@ -76,6 +76,10 @@ static int s2m_set_mode(struct regulator_dev *rdev, unsigned int mode)
 static int s2m_enable(struct regulator_dev *rdev)
 {
 	struct s2mpg11_pmic *s2mpg11 = rdev_get_drvdata(rdev);
+	int id = rdev_get_id(rdev);
+
+	if (atomic_read(&s2mpg11->need_sync[id]) > 0)
+		s2mpg11->turn_off_on_sync[id] = false;
 
 	return s2mpg11_update_reg(s2mpg11->i2c, rdev->desc->enable_reg,
 				  s2mpg11->opmode[rdev_get_id(rdev)],
@@ -86,6 +90,12 @@ static int s2m_disable(struct regulator_dev *rdev)
 {
 	struct s2mpg11_pmic *s2mpg11 = rdev_get_drvdata(rdev);
 	unsigned int val;
+	int id = rdev_get_id(rdev);
+
+	if (atomic_read(&s2mpg11->need_sync[id]) > 0) {
+		s2mpg11->turn_off_on_sync[id] = true;
+		return 0;
+	}
 
 	if (rdev->desc->enable_is_inverted)
 		val = rdev->desc->enable_mask;
@@ -620,6 +630,12 @@ static int s2mpg11_pmic_probe(struct platform_device *pdev)
 				     sizeof(struct regulator_dev *) *
 					     S2MPG11_REGULATOR_MAX,
 				     GFP_KERNEL);
+	s2mpg11->need_sync = devm_kzalloc(&pdev->dev,
+					  sizeof(atomic_t) * S2MPG11_REGULATOR_MAX,
+					  GFP_KERNEL);
+	s2mpg11->turn_off_on_sync = devm_kzalloc(&pdev->dev,
+						 sizeof(bool) * S2MPG11_REGULATOR_MAX,
+						 GFP_KERNEL);
 	s2mpg11->opmode =
 		devm_kzalloc(&pdev->dev,
 			     sizeof(unsigned int) * S2MPG11_REGULATOR_MAX,
@@ -646,6 +662,10 @@ static int s2mpg11_pmic_probe(struct platform_device *pdev)
 		s2mpg11->opmode[id] = regulators[id].enable_mask;
 
 		s2mpg11->rdev[i] = regulator_register(&regulators[id], &config);
+		if (s2m_is_enabled(s2mpg11->rdev[i]))
+			atomic_set(&s2mpg11->need_sync[id], 1);
+		else
+			atomic_set(&s2mpg11->need_sync[id], 0);
 		if (IS_ERR(s2mpg11->rdev[i])) {
 			ret = PTR_ERR(s2mpg11->rdev[i]);
 			dev_err(&pdev->dev, "regulator init failed for %d\n",
@@ -709,6 +729,35 @@ static int s2mpg11_pmic_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void s2mpg11_sync_state(struct s2mpg11_pmic *s2mpg11)
+{
+	int i;
+
+	mutex_lock(&s2mpg11->lock);
+	for (i = 0; i < s2mpg11->num_regulators; i++) {
+		int need_sync;
+		int id = rdev_get_id(s2mpg11->rdev[i]);
+
+		need_sync = atomic_dec_return(&s2mpg11->need_sync[id]);
+		if (need_sync < 0)
+			continue;
+
+		if (need_sync == 0 && s2mpg11->turn_off_on_sync[id])
+			s2m_disable(s2mpg11->rdev[i]);
+	}
+
+	mutex_unlock(&s2mpg11->lock);
+}
+
+
+static void dev_sync_state(struct device *dev)
+{
+	struct s2mpg11_pmic *s2mpg11;
+
+	s2mpg11 = platform_get_drvdata(to_platform_device(dev));
+	s2mpg11_sync_state(s2mpg11);
+}
+
 static void s2mpg11_pmic_shutdown(struct platform_device *pdev)
 {
 }
@@ -758,6 +807,7 @@ static struct platform_driver s2mpg11_pmic_driver = {
 	.driver = {
 		   .name = "s2mpg11-regulator",
 		   .owner = THIS_MODULE,
+		   .sync_state = dev_sync_state,
 #if IS_ENABLED(CONFIG_PM)
 		   .pm = &s2mpg11_pmic_pm,
 #endif

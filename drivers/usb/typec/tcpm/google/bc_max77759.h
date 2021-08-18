@@ -10,6 +10,7 @@
 #define VENDOR_ALERT1           0x80
 #define CHGTYPINT               BIT(0)
 #define DCDTMOINT               BIT(1)
+#define PRCHGTYPINT             BIT(2)
 #define CHGTYPRUNRINT           BIT(3)
 #define CHGTYPRUNFINT           BIT(4)
 #define DNVDATREFINT            BIT(5)

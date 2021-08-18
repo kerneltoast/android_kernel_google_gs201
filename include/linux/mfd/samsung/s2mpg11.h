@@ -119,6 +119,8 @@ struct s2mpg11_pmic {
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 	struct device *dev;
 	u16 read_addr;
+	atomic_t *need_sync;
+	int *turn_off_on_sync;
 #endif
 };
 

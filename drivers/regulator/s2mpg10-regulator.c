@@ -75,6 +75,10 @@ static int s2m_set_mode(struct regulator_dev *rdev, unsigned int mode)
 static int s2m_enable(struct regulator_dev *rdev)
 {
 	struct s2mpg10_pmic *s2mpg10 = rdev_get_drvdata(rdev);
+	int id = rdev_get_id(rdev);
+
+	if (atomic_read(&s2mpg10->need_sync[id]) > 0)
+		s2mpg10->turn_off_on_sync[id] = false;
 
 	return s2mpg10_update_reg(s2mpg10->i2c, rdev->desc->enable_reg,
 				  s2mpg10->opmode[rdev_get_id(rdev)],
@@ -85,6 +89,12 @@ static int s2m_disable(struct regulator_dev *rdev)
 {
 	struct s2mpg10_pmic *s2mpg10 = rdev_get_drvdata(rdev);
 	unsigned int val;
+	int id = rdev_get_id(rdev);
+
+	if (atomic_read(&s2mpg10->need_sync[id]) > 0) {
+		s2mpg10->turn_off_on_sync[id] = true;
+		return 0;
+	}
 
 	if (rdev->desc->enable_is_inverted)
 		val = rdev->desc->enable_mask;
@@ -802,6 +812,13 @@ static int s2mpg10_pmic_probe(struct platform_device *pdev)
 				     sizeof(struct regulator_dev *) *
 					     S2MPG10_REGULATOR_MAX,
 				     GFP_KERNEL);
+	s2mpg10->need_sync = devm_kzalloc(&pdev->dev,
+					      sizeof(atomic_t) * S2MPG10_REGULATOR_MAX,
+					      GFP_KERNEL);
+	s2mpg10->turn_off_on_sync =
+		devm_kzalloc(&pdev->dev,
+			     sizeof(bool) * S2MPG10_REGULATOR_MAX,
+			     GFP_KERNEL);
 	s2mpg10->opmode =
 		devm_kzalloc(&pdev->dev,
 			     sizeof(unsigned int) * S2MPG10_REGULATOR_MAX,
@@ -825,6 +842,12 @@ static int s2mpg10_pmic_probe(struct platform_device *pdev)
 		s2mpg10->opmode[id] = regulators[id].enable_mask;
 
 		s2mpg10->rdev[i] = regulator_register(&regulators[id], &config);
+		if (s2m_is_enabled(s2mpg10->rdev[i]))
+			atomic_set(&s2mpg10->need_sync[id], 1);
+		else
+			atomic_set(&s2mpg10->need_sync[id], 0);
+
+
 		if (IS_ERR(s2mpg10->rdev[i])) {
 			ret = PTR_ERR(s2mpg10->rdev[i]);
 			dev_err(&pdev->dev, "regulator init failed for %d\n",
@@ -889,6 +912,35 @@ static int s2mpg10_pmic_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void s2mpg10_sync_state(struct s2mpg10_pmic *s2mpg10)
+{
+	int i;
+
+	mutex_lock(&s2mpg10->lock);
+
+	for (i = 0; i < s2mpg10->num_regulators; i++) {
+		int need_sync;
+		int id = rdev_get_id(s2mpg10->rdev[i]);
+
+		need_sync = atomic_dec_return(&s2mpg10->need_sync[id]);
+		if (need_sync < 0)
+			continue;
+
+		if (need_sync == 0 && s2mpg10->turn_off_on_sync[id])
+			s2m_disable(s2mpg10->rdev[i]);
+	}
+
+	mutex_unlock(&s2mpg10->lock);
+}
+
+static void dev_sync_state(struct device *dev)
+{
+	struct s2mpg10_pmic *s2mpg10;
+
+	s2mpg10 = platform_get_drvdata(to_platform_device(dev));
+	s2mpg10_sync_state(s2mpg10);
+}
+
 static void s2mpg10_pmic_shutdown(struct platform_device *pdev)
 {
 }
@@ -938,6 +990,7 @@ static struct platform_driver s2mpg10_pmic_driver = {
 	.driver = {
 		   .name = "s2mpg10-regulator",
 		   .owner = THIS_MODULE,
+		   .sync_state = dev_sync_state,
 #if IS_ENABLED(CONFIG_PM)
 		   .pm = &s2mpg10_pmic_pm,
 #endif

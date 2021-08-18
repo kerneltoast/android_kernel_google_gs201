@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Display nodes for cloudripper-related boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+
+&drmdsim0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "samsung,s6e3hc3";
+		label = "samsung-s6e3hc3";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo27_reg>;
+		vddi-supply = <&s_bucka_reg>;
+		vddd-supply = <&m_ldo28_reg>;
+		vddd-normal-microvolt = <1200000>;
+		vddd-lp-microvolt = <1050000>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+/* Keep VDDIs always on */
+&s_bucka_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* R4 VCI */
+&m_ldo27_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};

@@ -106,7 +106,7 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	u32 i;
 	u32 pll_lock, cdr_lock, oc_done;
 
-	dev_info(exynos_pcie->pci->dev, "[CAL: %s] CAL ver 210525\n", __func__);
+	dev_info(exynos_pcie->pci->dev, "[CAL: %s] CAL ver 210802\n", __func__);
 
 	/* init. input clk path */
 	writel(0x28, phy_base_regs + 0xD8);
@@ -237,23 +237,48 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 		writel(0x2F, phy_base_regs + 0xDB4);
 
 		/* RX tuning */
+		writel(0x80, phy_base_regs + 0x8FC);
 		writel(0xF4, phy_base_regs + 0x914);
+		writel(0xD3, phy_base_regs + 0x91C);
 		writel(0xCA, phy_base_regs + 0x920);
 		writel(0x3D, phy_base_regs + 0x928);
 		writel(0xB8, phy_base_regs + 0x92C);
+		writel(0x41, phy_base_regs + 0x930);
 		writel(0x17, phy_base_regs + 0x934);
 		writel(0x4C, phy_base_regs + 0x93C);
 		writel(0x73, phy_base_regs + 0x948);
+		writel(0xFC, phy_base_regs + 0x94C);
 		writel(0x55, phy_base_regs + 0x96C);
 		writel(0x78, phy_base_regs + 0x988);
 		writel(0x3B, phy_base_regs + 0x994);
+		writel(0xF6, phy_base_regs + 0x9B4);
 		writel(0xFF, phy_base_regs + 0x9C4);
 		writel(0x20, phy_base_regs + 0x9C8);
 		writel(0x2F, phy_base_regs + 0xA08);
 		writel(0x3F, phy_base_regs + 0xB9C);
-		writel(0x05, phy_base_regs + 0xC08);
-		writel(0x04, phy_base_regs + 0xC3C);
+
+		/* for GEN4 TX termination resistor? */
+		writel(0x00, phy_base_regs + 0x9CC);
+		writel(0xFF, phy_base_regs + 0xCD8);
+		writel(0x6E, phy_base_regs + 0xCDC);
+
+		/* TX idrv for termination resistor */
+		writel(0x0F, phy_base_regs + 0x82C);
+		writel(0x60, phy_base_regs + 0x830);
+		writel(0x7E, phy_base_regs + 0x834);
+
+		/* Auto FBB */
+		writel(0x00, phy_base_regs + 0xC08);
+		writel(0x09, phy_base_regs + 0xC10);
 		writel(0x04, phy_base_regs + 0xC40);
+		writel(0x00, phy_base_regs + 0xC70);
+		/* DFE */
+		writel(0x76, phy_base_regs + 0x9B4);
+	}
+
+	phy_base_regs = exynos_pcie->phy_base;
+	for (i = 0; i < 2; i++) {
+		phy_base_regs += (i * 0x800);
 
 		/* PHY INPUT CLK 38.4 */
 		writel(0x41, phy_base_regs + 0xBCC);
@@ -297,6 +322,9 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 		writel(val, phy_pcs_base_regs + 0x808);
 	}
 
+	/* PLL & BIAS EN off delay	*/
+	writel(0x100B0808, phy_pcs_base_regs + 0x190);
+
 	/* PHY CMN_RST, PORT_RST Release */
 	writel(0x1, elbi_base_regs + 0x1400);
 	writel(0x1, elbi_base_regs + 0x1408);
@@ -313,7 +341,7 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	/* check pll & cdr lock */
 	phy_base_regs = exynos_pcie->phy_base;
 	for (i = 0; i < 1000; i++) {
-		udelay(1);
+		udelay(10);
 		pll_lock = readl(phy_base_regs + 0x03F0) & (1 << 3);
 		cdr_lock = readl(phy_base_regs + 0x0FC0) & (1 << 4);
 

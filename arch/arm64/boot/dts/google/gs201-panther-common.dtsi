@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Panther device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include "gs201-common.dtsi"
+
+#include "gs201-panther-battery.dtsi"
+#include "gs201-panther-charging.dtsi"
+#include "gs201-panther-gsa-gsc.dtsi"

@@ -236,12 +236,14 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 {
 	struct usb_device *hdev;
 	struct usb_device *udev = dev;
+	struct usb_host_config *config;
+	struct usb_interface_descriptor *desc;
 	struct device *ddev = &udev->dev;
 	struct xhci_hcd_exynos	*xhci_exynos = exynos;
 	enum usb_port_state pre_state;
 	int usb3_hub_detect = 0;
 	int usb2_detect = 0;
-	int port;
+	int port, i;
 	int bInterfaceClass = 0;
 
 	if (udev->bus->root_hub == udev) {
@@ -274,17 +276,21 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 			bInterfaceClass	= udev->config->interface[0]
 					->cur_altsetting->desc.bInterfaceClass;
 			if (on) {
-				if (bInterfaceClass == USB_CLASS_HID ||
-				    bInterfaceClass == USB_CLASS_AUDIO) {
-					udev->do_remote_wakeup =
-						(udev->config->desc.bmAttributes &
-							USB_CONFIG_ATT_WAKEUP) ? 1 : 0;
-					if (udev->do_remote_wakeup == 1) {
-						device_init_wakeup(ddev, 1);
-						usb_enable_autosuspend(dev);
+				config = udev->config;
+				for (i = 0; i < config->desc.bNumInterfaces; i++) {
+					desc = &config->intf_cache[i]->altsetting->desc;
+					if (desc->bInterfaceClass == USB_CLASS_AUDIO) {
+						udev->do_remote_wakeup =
+							(udev->config->desc.bmAttributes &
+								USB_CONFIG_ATT_WAKEUP) ? 1 : 0;
+						if (udev->do_remote_wakeup == 1) {
+							device_init_wakeup(ddev, 1);
+							usb_enable_autosuspend(dev);
+						}
+						dev_dbg(ddev, "%s, remote_wakeup = %d\n",
+							__func__, udev->do_remote_wakeup);
+						break;
 					}
-					dev_dbg(ddev, "%s, remote_wakeup = %d\n",
-						__func__, udev->do_remote_wakeup);
 				}
 			}
 			if (bInterfaceClass == USB_CLASS_HUB) {

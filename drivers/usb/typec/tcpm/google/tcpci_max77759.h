@@ -47,6 +47,8 @@ struct max77759_plat {
 	bool attached;
 	/* Reflects the signal sent out to the data stack */
 	bool data_active;
+	/* Alernate data path */
+	bool alt_path_active;
 	/* Reflects whether the current partner can do PD */
 	bool pd_capable;
 	void *usb_psy_data;
@@ -57,6 +59,8 @@ struct max77759_plat {
 	/* USB Data notification */
 	struct extcon_dev *extcon;
 	bool no_bc_12;
+	/* Platform does not support external boost */
+	bool no_external_boost;
 	struct tcpm_port *port;
 	struct usb_psy_ops psy_ops;
 	/* toggle in_switch to kick debug accessory statemachine when already connected */
@@ -159,4 +163,6 @@ enum tcpm_psy_online_states {
 	TCPM_PSY_PROG_ONLINE,
 };
 
+void enable_data_path_locked(struct max77759_plat *chip);
+void data_alt_path_active(struct max77759_plat *chip, bool active);
 #endif /* __TCPCI_MAX77759_H */

@@ -376,6 +376,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 	struct device	*dev = dotg->dwc->dev;
 	struct dwc3_exynos *exynos = dotg->exynos;
 	static struct usb_gadget_driver *temp_gadget_driver;
+	struct usb_composite_driver *composite;
 	int ret = 0;
 	int ret1 = -1;
 	int wait_counter = 0;
@@ -442,12 +443,17 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 							msecs_to_jiffies(5000));
 		}
 
+		if (temp_gadget_driver) {
+			composite = to_cdriver(temp_gadget_driver);
+			if (composite && composite->gadget_driver.udc_name)
+				dwc->gadget_driver = temp_gadget_driver;
+		}
+
 		dwc3_exynos_host_exit(exynos);
 		dwc->xhci = NULL;
 
 err2:
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
-		dwc->gadget_driver = temp_gadget_driver;
 	}
 err1:
 	__pm_relax(dotg->wakelock);

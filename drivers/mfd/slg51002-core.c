@@ -50,10 +50,16 @@ static const struct regmap_range slg51002_writeable_ranges[] = {
 	regmap_reg_range(SLG51002_LDO5_IRQ_MASK, SLG51002_LDO5_IRQ_MASK),
 	regmap_reg_range(SLG51002_LDO6_VSEL, SLG51002_LDO6_VSEL),
 	regmap_reg_range(SLG51002_LDO6_MINV, SLG51002_LDO6_MAXV),
+	regmap_reg_range(SLG51002_LDO6_TRIM2, SLG51002_LDO6_TRIM2),
 	regmap_reg_range(SLG51002_LDO6_IRQ_MASK, SLG51002_LDO6_IRQ_MASK),
 	regmap_reg_range(SLG51002_LDO7_VSEL, SLG51002_LDO7_VSEL),
 	regmap_reg_range(SLG51002_LDO7_MINV, SLG51002_LDO7_MAXV),
+	regmap_reg_range(SLG51002_LDO7_TRIM2, SLG51002_LDO7_TRIM2),
 	regmap_reg_range(SLG51002_LDO7_IRQ_MASK, SLG51002_LDO7_IRQ_MASK),
+	regmap_reg_range(SLG51002_LDO8_VSEL, SLG51002_LDO8_VSEL),
+	regmap_reg_range(SLG51002_LDO8_MINV, SLG51002_LDO8_MAXV),
+	regmap_reg_range(SLG51002_LDO8_TRIM2, SLG51002_LDO8_TRIM2),
+	regmap_reg_range(SLG51002_LDO8_IRQ_MASK, SLG51002_LDO8_IRQ_MASK),
 	regmap_reg_range(SLG51002_OTP_IRQ_MASK, SLG51002_OTP_IRQ_MASK),
 	regmap_reg_range(SLG51002_SW_TEST_MODE_1, SLG51002_SW_TEST_MODE_4),
 	regmap_reg_range(SLG51002_MUXARRAY_INPUT_SEL_39,
@@ -111,6 +117,10 @@ static const struct regmap_range slg51002_readable_ranges[] = {
 	regmap_reg_range(SLG51002_LDO7_MINV, SLG51002_LDO7_MAXV),
 	regmap_reg_range(SLG51002_LDO7_TRIM2, SLG51002_LDO7_VSEL_ACTUAL),
 	regmap_reg_range(SLG51002_LDO7_EVENT, SLG51002_LDO7_IRQ_MASK),
+	regmap_reg_range(SLG51002_LDO8_VSEL, SLG51002_LDO8_VSEL),
+	regmap_reg_range(SLG51002_LDO8_MINV, SLG51002_LDO8_MAXV),
+	regmap_reg_range(SLG51002_LDO8_TRIM2, SLG51002_LDO8_VSEL_ACTUAL),
+	regmap_reg_range(SLG51002_LDO8_EVENT, SLG51002_LDO8_IRQ_MASK),
 	regmap_reg_range(SLG51002_OTP_EVENT, SLG51002_OTP_EVENT),
 	regmap_reg_range(SLG51002_OTP_IRQ_MASK, SLG51002_OTP_IRQ_MASK),
 	regmap_reg_range(SLG51002_LOCK_GLOBAL_LOCK_CTRL1,
@@ -128,6 +138,7 @@ static const struct regmap_range slg51002_volatile_ranges[] = {
 	regmap_reg_range(SLG51002_LDO5_EVENT, SLG51002_LDO5_STATUS),
 	regmap_reg_range(SLG51002_LDO6_EVENT, SLG51002_LDO6_STATUS),
 	regmap_reg_range(SLG51002_LDO7_EVENT, SLG51002_LDO7_STATUS),
+	regmap_reg_range(SLG51002_LDO8_EVENT, SLG51002_LDO8_STATUS),
 	regmap_reg_range(SLG51002_OTP_EVENT, SLG51002_OTP_EVENT),
 };
 
@@ -674,7 +685,7 @@ static int slg51002_i2c_probe(struct i2c_client *client,
 	ret = of_property_read_u32(slg51002->dev->of_node,
 			"dlg,op-mode", &slg51002->op_mode);
 	if (ret < 0)
-		slg51002->op_mode = SLG51002_OP_MODE_LDO_ONLY;
+		slg51002->op_mode = SLG51002_OP_MODE_LDO_GPIO;
 
 	dev_dbg(slg51002->dev, "op_mode: %d\n", slg51002->op_mode);
 

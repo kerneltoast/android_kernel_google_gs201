@@ -62,6 +62,10 @@ extern void dbg_snapshot_register_debug_ops(void *halt, void *arraydump, void *s
 extern void dbg_snapshot_save_context(struct pt_regs *regs, bool stack_dump);
 extern void cache_flush_all(void);
 extern int dbg_snapshot_stop_all_cpus(void);
+extern void dbg_snapshot_set_core_pmu_val(unsigned int val, unsigned int cpu);
+extern unsigned int dbg_snapshot_get_core_pmu_val(unsigned int cpu);
+extern void dbg_snapshot_set_core_ehld_stat(unsigned int val, unsigned int cpu);
+extern unsigned int dbg_snapshot_get_core_ehld_stat(unsigned int cpu);
 
 /* debug-snapshot-log functions */
 extern int dbg_snapshot_get_freq_idx(const char *name);
@@ -152,6 +156,11 @@ static inline void dbg_snapshot_spin_func(void)
 #define dbg_snapshot_register_debug_ops(a, b, c)	do { } while (0)
 #define dbg_snapshot_save_context(a, b)		do { } while (0)
 #define cache_flush_all()			do { } while (0)
+
+#define dbg_snapshot_set_core_pmu_val(a, b)	do { } while (0)
+#define dbg_snapshot_get_core_pmu_val(a)	(0)
+#define dbg_snapshot_set_core_ehld_stat(a, b)	do { } while (0)
+#define dbg_snapshot_get_core_ehld_stat(a)	(0)
 
 #define dbg_snapshot_set_val_offset(a)		do { } while (0)
 

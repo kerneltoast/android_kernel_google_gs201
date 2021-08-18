@@ -105,7 +105,7 @@
 #define S2MPU_FAULT_PA_LOW(base, n)		((base) + S2MPU_FAULT_PA_LOW_OFFSET(n))
 #define S2MPU_FAULT_PA_HIGH(base, n)		((base) + S2MPU_FAULT_PA_HIGH_OFFSET(n))
 #define S2MPU_FAULT_INFO(base, n)		((base) + S2MPU_FAULT_INFO_OFFSET(n))
-#define S2MPU_FAULT_TYPE(fault_info)		((fault_info) & (3 << 20))
+#define S2MPU_FAULT_TYPE(fault_info)		(((fault_info) >> 21) & 3)
 
 #define S2MPU_MPC_CTRL(base)			((base) + S2MPU_MPC_CTRL_OFFSET)
 #define S2MPU_MPC_CTRL_RD_CH_TKN_SHIFT		0

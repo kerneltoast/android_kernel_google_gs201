@@ -16,7 +16,7 @@
 
 #include "bc_max77759.h"
 #include "max77759_helper.h"
-#include "tcpci.h"
+#include "../tcpci.h"
 #include "tcpci_max77759.h"
 
 struct bc12_status {
@@ -62,6 +62,7 @@ static void vendor_bc12_alert(struct work_struct *work)
 	struct regmap *regmap = plat->data.regmap;
 	union power_supply_propval val;
 	int ret = 0;
+	void *usb_psy_data = power_supply_get_drvdata(bc12->usb_psy);
 
 	mutex_lock(&bc12->lock);
 	logbuffer_log(plat->log,
@@ -131,6 +132,10 @@ static void vendor_bc12_alert(struct work_struct *work)
 		logbuffer_log(plat->log, "BC12: not running");
 		if (bc12->bc12_callback)
 			bc12->bc12_callback(bc12->chip, false);
+	}
+	if (update->vendor_alert1_status & PRCHGTYPINT) {
+		logbuffer_log(plat->log, "BC12: Proprietary port. Starting sdp timeout");
+		usb_psy_start_sdp_timeout(usb_psy_data);
 	}
 
 exit:

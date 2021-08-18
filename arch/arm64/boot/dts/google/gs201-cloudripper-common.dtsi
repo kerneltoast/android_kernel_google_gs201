@@ -18,4 +18,5 @@
 #include "gs201-cloudripper-gsa-gsc.dtsi"
 #include "gs201-cloudripper-ldaf.dtsi"
 #include "gs201-cloudripper-nfc.dtsi"
+#include "gs201-cloudripper-sbbm.dtsi"
 

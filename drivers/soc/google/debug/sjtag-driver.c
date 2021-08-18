@@ -41,6 +41,8 @@
 #define SJTAG_SIG_MAX_SECTION_SIZE	66
 #define SJTAG_SIG_PADDED_SECTION_SIZE	68
 
+#define SJTAG_BEGIN_FORCE_STR		"force"
+
 enum sjtag_status_field_pos {
 	SJTAG_STATUS_PROGRESS_POS = 6,
 	SJTAG_STATUS_STATE_POS = 16,
@@ -111,10 +113,32 @@ enum sjtag_cfg_param_len {
 	sjtag_cfg_param_len_dbg_itvl = SJTAG_DBG_ITVL_SIZE
 };
 
+enum sjtag_hw_instance {
+	SJTAG_HW_AP = 0,
+	SJTAG_HW_GSA,
+	SJTAG_HW_NUM
+};
+
+enum sjtag_auth_status {
+	SJTAG_AUTH_UNKNOWN = 0,
+	SJTAG_AUTH_UNAUTHD,
+	SJTAG_AUTH_AUTHD,
+	SJTAG_AUTH_OPEN
+};
+
+enum sjtag_consent_status {
+	SJTAG_CONSENT_UNKNOWN = 0,
+	SJTAG_CONSENT_UNGRANTED,
+	SJTAG_CONSENT_GRANTED
+};
+
 struct sjtag_ipc_cmd_entry {
 	const char *str;
 	u32 ap_id;
 };
+
+static int sjtag_consent = SJTAG_CONSENT_UNKNOWN;
+static int sjtag_auth_cache[SJTAG_HW_NUM] = { SJTAG_AUTH_UNKNOWN, SJTAG_AUTH_UNKNOWN };
 
 #define SJTAG_IPC_GEN(x)	{ #x, EAT_IPC_CMD_##x }
 
@@ -153,6 +177,7 @@ struct sig_auth_tok_t {
 struct sjtag_dev_state {
 	struct device *dev;
 	struct device *gsa_dev;
+	int hw_id;
 	char *workbuff;
 	u32 ms_per_tick;
 	u32 ipc_timeout_ms;
@@ -171,6 +196,34 @@ static void reverse_bytes(char *startptr, size_t length)
 	}
 }
 
+static void update_auth_cache(int hw_id, u32 cmd_sts, u32 consent_sts, int ipc_sts)
+{
+	/*
+	 * Update the auth status cache. Note that user consent & SJTAG enforcement (SOFT_LOCK) are
+	 * constant, therefore are not invalidated upon an IPC error (which also includes
+	 * unsuccessful register reads on Debug Core) - however, the state of being authenticated
+	 * is invalidated.
+	 */
+
+	if (ipc_sts >= 0) {
+		if (consent_sts != ~0)
+			sjtag_consent = consent_sts == 0 ?
+					SJTAG_CONSENT_UNGRANTED : SJTAG_CONSENT_GRANTED;
+
+		if (cmd_sts & BIT(SJTAG_STATUS_SOFT_LOCK)) {
+			if (cmd_sts & BIT(SJTAG_STATUS_AUTH_PASS))
+				sjtag_auth_cache[hw_id] = SJTAG_AUTH_AUTHD;
+			else
+				sjtag_auth_cache[hw_id] = SJTAG_AUTH_UNAUTHD;
+		} else {
+			sjtag_auth_cache[hw_id] = SJTAG_AUTH_OPEN;
+		}
+	} else {
+		if (sjtag_auth_cache[hw_id] < SJTAG_AUTH_OPEN)
+			sjtag_auth_cache[hw_id] = SJTAG_AUTH_UNKNOWN;
+	}
+}
+
 static int get_dbgc_drv_errcode(u32 status)
 {
 	return (status >> SJTAG_STATUS_ERRCODE_POS) & SJTAG_STATUS_ERRCODE_MASK;
@@ -179,21 +232,23 @@ static int get_dbgc_drv_errcode(u32 status)
 static int send_ipc_cmd(struct sjtag_dev_state *st, int cmd_code, char *data_buff, int data_len,
 		const char *file_op)
 {
-	struct platform_device *pdev = to_platform_device(st->dev);
 	int ipc_status;
-	u32 cmd_status;
+	u32 cmd_status = ~0;
+	u32 consent_status = ~0;
+	u32 dbg_time;
+	char consent_status_str[10] = "";
 
 	const char *cmd_str = sjtag_ipc_cmd_lut[cmd_code].str;
 
-	if (!strcmp(pdev->name, "sjtag_ap") || cmd_code == SJTAG_GET_PRODUCT_ID) {
+	if (st->hw_id == SJTAG_HW_AP || cmd_code == SJTAG_GET_PRODUCT_ID) {
 		u32 ap_cmd_id = sjtag_ipc_cmd_lut[cmd_code].ap_id;
-
 		struct adv_tracer_ipc_cmd cmd = {
 			.cmd_raw = {
 				.cmd = ap_cmd_id,
 				.size = 1,
 			},
 		};
+
 		ipc_status = adv_tracer_ipc_send_data_polling_timeout(EAT_FRM_CHANNEL, &cmd,
 				st->ipc_timeout_ms * NSEC_PER_MSEC);
 		cmd_status = cmd.buffer[1];
@@ -219,12 +274,15 @@ static int send_ipc_cmd(struct sjtag_dev_state *st, int cmd_code, char *data_buf
 			ipc_status = gsa_sjtag_end_session(st->gsa_dev, &cmd_status);
 			break;
 		case SJTAG_GET_STATUS:
-			ipc_status = gsa_sjtag_get_status(st->gsa_dev, NULL, &cmd_status, NULL);
-			*(u32 *)data_buff = cmd_status;
+			ipc_status = gsa_sjtag_get_status(st->gsa_dev, &consent_status, &cmd_status,
+					NULL);
+			if (data_buff)
+				*(u32 *)data_buff = cmd_status;
 			break;
 		case SJTAG_GET_DBG_TIME:
-			ipc_status = gsa_sjtag_get_status(st->gsa_dev, NULL, NULL, &cmd_status);
-			*(u32 *)data_buff = cmd_status;	/* Used for Debug Time in this case */
+			ipc_status = gsa_sjtag_get_status(st->gsa_dev, NULL, &cmd_status,
+					&dbg_time);
+			*(u32 *)data_buff = dbg_time;
 			break;
 		default:
 			ipc_status = -EFAULT;
@@ -232,18 +290,25 @@ static int send_ipc_cmd(struct sjtag_dev_state *st, int cmd_code, char *data_buf
 		}
 	}
 
+	update_auth_cache(st->hw_id, cmd_status, consent_status, ipc_status);
+
 	if (ipc_status < 0) {
 		dev_err(st->dev, "%s: %s failed - IPC status: %d\n", file_op, cmd_str, ipc_status);
 		return -EIO;
 	}
 
+	if (consent_status != ~0)
+		scnprintf(consent_status_str, sizeof(consent_status_str), "-%X", consent_status);
+
+
 	if (get_dbgc_drv_errcode(cmd_status) != SJTAG_DRV_ERROR_NONE) {
-		dev_err(st->dev, "%s: %s: ERROR - Cmd status: 0x%08X\n", file_op,
-				cmd_str, cmd_status);
+		dev_err(st->dev, "%s: %s: ERROR - Cmd status: 0x%08X%s\n", file_op,
+				cmd_str, cmd_status, consent_status_str);
 		return -EPERM;
 	}
 
-	dev_dbg(st->dev, "%s: %s: Success - Cmd status: 0x%08X\n", file_op, cmd_str, cmd_status);
+	dev_info(st->dev, "%s: %s: Success - Cmd status: 0x%08X%s\n", file_op, cmd_str, cmd_status,
+			consent_status_str);
 
 	return 0;
 }
@@ -295,7 +360,7 @@ static ssize_t _name##_show(struct device *dev, struct device_attribute *dev_att
 static DEVICE_ATTR_RO(_name)
 
 static ssize_t pretty_read_from_hw(struct device *dev, struct device_attribute *dev_attr,
-		char *buf, int ipc_cmd_code,  int byte_size)
+		char *buf, int ipc_cmd_code, int byte_size)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sjtag_dev_state *st = platform_get_drvdata(pdev);
@@ -354,6 +419,17 @@ static ssize_t begin_store(struct device *dev, struct device_attribute *dev_attr
 
 	if (dss_header_base == 0)
 		return -ENODEV;
+
+	/*
+	 * Don't start auth 1) if SJTAG not enforced or already auth'd (not necessary) OTHERWISE
+	 *                  2) if consent not granted (not allowed)
+	 */
+	if (strncmp(buf, SJTAG_BEGIN_FORCE_STR, strlen(SJTAG_BEGIN_FORCE_STR))) {
+		if (sjtag_auth_cache[st->hw_id] >= SJTAG_AUTH_AUTHD)
+			return -EEXIST;
+		if (sjtag_consent <= SJTAG_CONSENT_UNGRANTED)
+			return -EINVAL;
+	}
 
 	scnprintf(file_op, SJTAG_FILEOP_STR_SIZE, "\"%s\" write", dev_attr->attr.name);
 	exchange_buff = (char *)dss_header_base + DSS_HDR_DBGC_EXCHG_BUFF_OFFS;
@@ -566,6 +642,12 @@ GEN_SIMPLE_READ_FROM_HW_HANDLER(status);
 GEN_SIMPLE_READ_FROM_HW_HANDLER(dbg_time);
 GEN_PRETTY_READ_FROM_HW_HANDLER(dbg_time_s);
 
+static ssize_t consent_show(struct device *dev, struct device_attribute *dev_attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d", sjtag_consent);
+}
+static DEVICE_ATTR_RO(consent);
+
 /* Auth debug */
 
 GEN_SIMPLE_READ_FROM_HW_HANDLER(hw_pubkey);
@@ -656,6 +738,7 @@ static struct attribute *sjtag_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_dbg_time.attr,
 	&dev_attr_dbg_time_s.attr,
+	&dev_attr_consent.attr,
 	&dev_attr_hw_pubkey.attr,
 	&dev_attr_pubkey.attr,
 	&dev_attr_dbg_domain.attr,
@@ -678,6 +761,8 @@ static int sjtag_read_dt(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct sjtag_dev_state *st = platform_get_drvdata(pdev);
+
+	st->hw_id = strcmp(pdev->name, "sjtag_ap") ? SJTAG_HW_GSA : SJTAG_HW_AP;
 
 	of_property_read_u32(node, "ms-per-tick", &st->ms_per_tick);
 	of_property_read_u32(node, "ipc-timeout-ms", &st->ipc_timeout_ms);
@@ -760,6 +845,8 @@ static int sjtag_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
+	send_ipc_cmd(st, SJTAG_GET_STATUS, NULL, SJTAG_STATUS_SIZE, "[probe sts read]");
+
 	dev_dbg(dev, "Initialized\n");
 
 	return 0;
@@ -798,24 +885,10 @@ static void __exit sjtag_driver_exit(void)
 
 int sjtag_is_locked(void)
 {
-	int ipc_status;
-	u32 cmd_status;
-
-	struct adv_tracer_ipc_cmd cmd = {
-		.cmd_raw = {
-			.cmd = sjtag_ipc_cmd_lut[SJTAG_GET_STATUS].ap_id,
-			.size = 1,
-		},
-	};
-
-	ipc_status = adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd);
-	if (ipc_status < 0)
-		return -EIO;
-
-	cmd_status = cmd.buffer[1];
-
-	return (cmd_status & BIT(SJTAG_STATUS_SOFT_LOCK)) &&
-			!(cmd_status & BIT(SJTAG_STATUS_AUTH_PASS));
+	/* Locked: consent granted but SJTAG not auth'd OR consent not granted and SJTAG enforced */
+	return sjtag_auth_cache[SJTAG_HW_AP] <=
+			(sjtag_consent == SJTAG_CONSENT_GRANTED ?
+					SJTAG_AUTH_UNAUTHD : SJTAG_AUTH_AUTHD);
 }
 EXPORT_SYMBOL_GPL(sjtag_is_locked);
 

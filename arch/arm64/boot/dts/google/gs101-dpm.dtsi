@@ -17,4 +17,4 @@
 }; /* end of root */
 
 /* default settings built into kernel dt */
-#include "gs101-dpm-eng.dtsi"
+#include "gs101-dpm-user.dtsi"

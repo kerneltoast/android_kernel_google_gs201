@@ -13,4 +13,5 @@
 	sec,touch_offload_id = /bits/ 8 <'0' '0' 'r' '4'>;
 	sec,mm2px = /bits/ 8 <20>;
 	sec,encoded_enable = <1>;
+	sec,fod_coords = <720 2361>;
 };

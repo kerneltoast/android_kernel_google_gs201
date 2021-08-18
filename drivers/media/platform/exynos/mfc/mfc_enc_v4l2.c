@@ -660,7 +660,7 @@ static int mfc_enc_s_selection(struct file *file, void *priv,
 
 	mfc_debug_enter();
 
-	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+	if (!V4L2_TYPE_IS_OUTPUT(s->type)) {
 		mfc_ctx_err("not supported type (It can only in the source)\n");
 		return -EINVAL;
 	}
@@ -672,8 +672,8 @@ static int mfc_enc_s_selection(struct file *file, void *priv,
 
 	if ((s->r.height > ctx->img_height) || (s->r.top > ctx->img_height) ||
 			(s->r.width > ctx->img_width) || (s->r.left > ctx->img_width) ||
-			(s->r.left >= (ctx->img_width - s->r.width)) ||
-			(s->r.top >= (ctx->img_height - s->r.height))) {
+			(s->r.left > (ctx->img_width - s->r.width)) ||
+			(s->r.top > (ctx->img_height - s->r.height))) {
 		mfc_ctx_err("[FRAME] Out of crop range: (%d,%d,%d,%d) from %dx%d\n",
 				s->r.left, s->r.top, s->r.width, s->r.height,
 				ctx->img_width, ctx->img_height);

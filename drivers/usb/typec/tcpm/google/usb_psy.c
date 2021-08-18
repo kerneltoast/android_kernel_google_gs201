@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/alarmtimer.h>
 #include <linux/i2c.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
@@ -21,7 +22,11 @@
 #define CHAR_BIT 8
 #endif
 
-#define ONLINE_THRESHOLD_UA 125000
+/*
+ * Greater than SDP_SUSPEND_UA for remaining in parity with in-market pixels.
+ * Lesser than SDP_HS_CONN_UA for preventing.
+ */
+#define ONLINE_THRESHOLD_UA 50000
 
 #define CDP_DCP_ICL_UA 1500000
 #define SDP_DISCONNECT 0
@@ -38,6 +43,12 @@
 /* At least get one more try to meet sub state sync requirement */
 #define ERR_RETRY_DELAY_MS 20
 #define ERR_RETRY_COUNT    3
+
+/* Fall back to DCP when neither SDP_*_CONN_UA nor SDP_*_CONFIG_UA is signalled */
+#define SDP_ENUMERATION_TIMEOUT_MS	60000
+
+/* Signal wakeup event to allow userspace to process the update */
+#define DCP_UPDATE_MS			10000
 
 struct usb_psy_data {
 	struct logbuffer *log;
@@ -84,10 +95,23 @@ struct usb_psy_data {
 	struct kthread_delayed_work sdp_icl_work;
 	atomic_t retry_count;
 
+	/* Wq for scheduling work items setting POWER_SUPPLY_PROP_USB_TYPE */
+	struct kthread_worker *usb_type_wq;
+	/* Reset usb_type upon disconnect */
+	struct kthread_work bc_reset_work;
+
 	/* sink connected state from Type-C */
 	bool sink_enabled;
 
+	/* Tracks attached state from Type-C */
+	bool attached;
+
 	bool usb_configured;
+
+	/* Alarm for forcing to DCP port on enumeration timeout */
+	struct alarm sdp_timeout_alarm;
+	/* Bottom half for sdp alarm */
+	struct kthread_work sdp_timeout_work;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -200,12 +224,14 @@ static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
 		break;
 	case SDP_HS_CONN_UA:
 	case SDP_SS_CONN_UA:
+		alarm_cancel(&usb->sdp_timeout_alarm);
 		configured = false;
 		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_CONFIGURED) | BIT(USB_SUSPEND);
 		init_vote(&vote, proto_voter_reason[BC12_SDP], BC12_SDP, ua);
 		break;
 	case SDP_HS_CONFIG_UA:
 	case SDP_SS_CONFIG_UA:
+		alarm_cancel(&usb->sdp_timeout_alarm);
 		configured = true;
 		voter_map = BIT(USB_SUSPEND_UNCFG) | BIT(USB_SUSPEND);
 		init_vote(&vote, proto_voter_reason[USB_CONFIGURED], USB_CONFIGURED, ua);
@@ -366,6 +392,8 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		/* Enough to trigger just the uevent */
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		logbuffer_log(usb->log, "POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT lim:%d type:%d",
+			      val->intval, usb->usb_type);
 		/* Handle SDP current only */
 		if (usb->usb_type != POWER_SUPPLY_USB_TYPE_SDP)
 			return 0;
@@ -376,6 +404,7 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		usb->usb_type = val->intval;
 		usb->usb_configured = false;
 		ops->tcpc_set_port_data_capable(client, usb->usb_type);
+
 		kthread_mod_delayed_work(usb->wq, &usb->bc_icl_work,
 					 usb->usb_type != POWER_SUPPLY_USB_TYPE_UNKNOWN ?
 					 msecs_to_jiffies(BC_VOTE_DELAY_MS) : 0);
@@ -388,6 +417,19 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 	return 0;
 }
 
+void usb_psy_start_sdp_timeout(void *usb_psy)
+{
+	struct usb_psy_data *usb = usb_psy;
+
+	if (!usb)
+		return;
+
+	if (usb->usb_type == POWER_SUPPLY_USB_TYPE_SDP)
+		alarm_start_relative(&usb->sdp_timeout_alarm,
+				     ms_to_ktime(SDP_ENUMERATION_TIMEOUT_MS));
+}
+EXPORT_SYMBOL_GPL(usb_psy_start_sdp_timeout);
+
 void usb_psy_set_sink_state(void *usb_psy, bool enabled)
 {
 	struct usb_psy_data *usb = usb_psy;
@@ -399,6 +441,38 @@ void usb_psy_set_sink_state(void *usb_psy, bool enabled)
 	power_supply_changed(usb->usb_psy);
 }
 EXPORT_SYMBOL_GPL(usb_psy_set_sink_state);
+
+static void bc_reset_work_item(struct kthread_work *work)
+{
+	struct usb_psy_data *usb = container_of(work, struct usb_psy_data, bc_reset_work);
+	union power_supply_propval val = {.intval = POWER_SUPPLY_USB_TYPE_UNKNOWN};
+	int ret;
+
+	ret = power_supply_set_property(usb->usb_psy, POWER_SUPPLY_PROP_USB_TYPE, &val);
+	logbuffer_log(usb->log, "%s: Resetting usb_type %s:%d", __func__, ret < 0 ? "error" :
+		      "success", ret);
+}
+
+void usb_psy_set_attached_state(void *usb_psy, bool attached)
+{
+	struct usb_psy_data *usb = usb_psy;
+
+	if (!usb || !usb->usb_psy)
+		return;
+
+	/* Reset upon disconnect as BC1.2 gets disabled before enabling data */
+	if (usb->attached & !attached) {
+		kthread_queue_work(usb->usb_type_wq, &usb->bc_reset_work);
+		kthread_flush_work(&usb->bc_reset_work);
+
+		/* Cancel sdp alarm if scheduled */
+		alarm_cancel(&usb->sdp_timeout_alarm);
+	}
+
+	usb->attached = attached;
+	power_supply_changed(usb->usb_psy);
+}
+EXPORT_SYMBOL_GPL(usb_psy_set_attached_state);
 
 //todo: Expose settled ICL limit
 static enum power_supply_property usb_psy_data_props[] = {
@@ -592,6 +666,27 @@ static void sdp_icl_work_item(struct kthread_work *work)
 	set_sdp_current_limit(usb, usb->sdp_input_current_limit);
 }
 
+static void sdp_timeout_work_item(struct kthread_work *work)
+{
+	struct usb_psy_data *usb = container_of(work, struct usb_psy_data, sdp_timeout_work);
+	union power_supply_propval val = {.intval = POWER_SUPPLY_USB_TYPE_DCP};
+	int ret;
+
+	ret = power_supply_set_property(usb->usb_psy, POWER_SUPPLY_PROP_USB_TYPE, &val);
+	logbuffer_log(usb->log, "%s: Falling back to DCP %s:%d", __func__, ret < 0 ? "error" :
+		      "success", ret);
+}
+
+static enum alarmtimer_restart sdp_timeout_alarm_cb(struct alarm *alarm, ktime_t now)
+{
+	struct usb_psy_data *usb = container_of(alarm, struct usb_psy_data, sdp_timeout_alarm);
+
+	pm_wakeup_event(&usb->tcpc_client->dev, DCP_UPDATE_MS);
+	kthread_queue_work(usb->usb_type_wq, &usb->sdp_timeout_work);
+
+	return ALARMTIMER_NORESTART;
+}
+
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 		    struct usb_psy_ops *ops)
 {
@@ -618,10 +713,21 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	usb->log = log;
 	usb->psy_ops = ops;
 
+	usb->usb_type_wq = kthread_create_worker(0, "wq-tcpm-usb-psy-usb-type");
+	if (IS_ERR_OR_NULL(usb->usb_type_wq)) {
+		dev_err(&client->dev, "wq-tcpm-usb-psy-usb-type failed to create\n");
+		return usb->usb_type_wq;
+	}
+
+	alarm_init(&usb->sdp_timeout_alarm, ALARM_BOOTTIME, sdp_timeout_alarm_cb);
+	kthread_init_work(&usb->sdp_timeout_work, sdp_timeout_work_item);
+	kthread_init_work(&usb->bc_reset_work, bc_reset_work_item);
+
 	dn = dev_of_node(dev);
 	if (!dn) {
 		dev_err(&client->dev, "of node not found\n");
-		return ERR_PTR(-EINVAL);
+		ret = ERR_PTR(-EINVAL);
+		goto unreg_usb_type_wq;
 	}
 
 	usb->chg_psy_name = (char *)of_get_property(dn, "chg-psy-name", NULL);
@@ -741,7 +847,8 @@ usb_psy_unreg:
 chg_psy_put:
 	if (!IS_ERR_OR_NULL(usb->chg_psy))
 		power_supply_put(usb->chg_psy);
-
+unreg_usb_type_wq:
+	kthread_destroy_worker(usb->usb_type_wq);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(usb_psy_setup);
@@ -761,6 +868,7 @@ void usb_psy_teardown(void *usb_data)
 		power_supply_put(usb->main_chg_psy);
 	if (!IS_ERR_OR_NULL(usb->usb_psy))
 		power_supply_unregister(usb->usb_psy);
+	kthread_destroy_worker(usb->usb_type_wq);
 }
 EXPORT_SYMBOL_GPL(usb_psy_teardown);
 

@@ -5,9 +5,11 @@ dtb-$(CONFIG_SOC_GS101) += \
 soc-dtbo-$(CONFIG_SOC_GS101) += \
 	gs101-dpm-eng.dtbo \
 	gs101-dpm-user.dtbo \
+	gs101-dpm-userdebug.dtbo \
 
 DTC_FLAGS_gs101-dpm-eng += -a 4096
 DTC_FLAGS_gs101-dpm-user += -a 4096
+DTC_FLAGS_gs101-dpm-userdebug += -a 4096
 
 dtbo-$(CONFIG_BOARD_SLIDER) += \
 	gs101-slider.dtbo \
@@ -50,6 +52,7 @@ gs101-raven-proto1_1.dtbo-base := gs101-b0.dtb
 
 gs101-dpm-eng.dtbo-base := gs101-b0.dtb
 gs101-dpm-user.dtbo-base := gs101-b0.dtb
+gs101-dpm-userdebug.dtbo-base := gs101-b0.dtb
 
 
 dtb-$(CONFIG_SOC_GS201) += \
@@ -58,7 +61,11 @@ dtb-$(CONFIG_SOC_GS201) += \
 dtbo-$(CONFIG_BOARD_CLOUDRIPPER) += \
         gs201-cloudripper-dev.dtbo \
         gs201-ravenclaw-dev1_0.dtbo \
-        gs201-ravenclaw-dev1_1.dtbo
+        gs201-ravenclaw-dev1_1.dtbo \
+        gs201-cheetah-proto1.dtbo \
+        gs201-cheetah-proto1_1.dtbo \
+        gs201-panther-proto1.dtbo \
+        gs201-panther-proto1_1.dtbo
 
 dtbo-$(CONFIG_BOARD_GS201_EMULATOR) += \
         gs201-emulator.dtbo
@@ -69,6 +76,10 @@ dtbo-$(CONFIG_BOARD_GS201_HYBRID) += \
 gs201-cloudripper-dev.dtbo-base := gs201-a0.dtb
 gs201-ravenclaw-dev1_0.dtbo-base := gs201-a0.dtb
 gs201-ravenclaw-dev1_1.dtbo-base := gs201-a0.dtb
+gs201-cheetah-proto1.dtbo-base := gs201-a0.dtb
+gs201-cheetah-proto1_1.dtbo-base := gs201-a0.dtb
+gs201-panther-proto1.dtbo-base := gs201-a0.dtb
+gs201-panther-proto1_1.dtbo-base := gs201-a0.dtb
 gs201-emulator.dtbo-base := gs201-a0.dtb
 gs201-hybrid.dtbo-base := gs201-a0.dtb
 

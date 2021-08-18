@@ -19,6 +19,7 @@
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-pmu-if.h>
 #include <soc/google/sjtag-driver.h>
+#include <soc/google/exynos-coresight.h>
 
 #include "core_regs.h"
 
@@ -453,6 +454,7 @@ static int exynos_cs_c2_notifier(struct notifier_block *self,
 
 static struct notifier_block exynos_cs_c2_nb = {
 	.notifier_call = exynos_cs_c2_notifier,
+	.priority = CORESIGHT_CPUPM_PRIORITY,
 };
 
 static const struct of_device_id of_exynos_cs_matches[] __initconst= {

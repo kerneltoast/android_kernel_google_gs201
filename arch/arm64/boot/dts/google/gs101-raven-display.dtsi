@@ -31,5 +31,7 @@
 &m_ldo28_reg {
 	regulator-min-microvolt = <1050000>;
 	regulator-max-microvolt = <1200000>;
+	regulator-ramp-delay = <1200>;
+	regulator-enable-ramp-delay = <125>;
 };
 

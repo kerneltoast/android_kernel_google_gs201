@@ -208,3 +208,11 @@
 	status = "disabled";
 	power-domains;
 };
+
+&sysmmu_aur_idma {
+	power-domains;
+};
+
+&sysmmu_aur_inst_data {
+	power-domains;
+};

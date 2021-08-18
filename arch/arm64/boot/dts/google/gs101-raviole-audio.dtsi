@@ -9,6 +9,7 @@
 #include <dt-bindings/pinctrl/samsung.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/sound/google-aoc.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 
 &dai_be_tdm0_rx {
 	codec {
@@ -257,6 +258,7 @@
 		cirrus,tuning-has-prefix;
 		cirrus,left-channel-amp;
 		cirrus,hw-noise-gate-select = <63>;
+		cirrus,hibernate-enable;
 
 		cirrus,gpio-config2 {
 			cirrus,gpio-src-select = <0x5>;
@@ -300,6 +302,7 @@
 		cirrus,tuning-has-prefix;
 		cirrus,left-channel-amp;
 		cirrus,hw-noise-gate-select = <63>;
+		cirrus,hibernate-enable;
 
 		cirrus,gpio-config2 {
 			cirrus,gpio-src-select = <0x5>;
@@ -317,5 +320,5 @@
 
 /* GSA controls MIC power on this platform */
 &m_ldo20_reg {
-	regulator-initial-mode = <1>;  /* GPIO_CONTROL */
+	regulator-initial-mode = <SEC_OPMODE_SUSPEND>;  /* GPIO_CONTROL */
 };

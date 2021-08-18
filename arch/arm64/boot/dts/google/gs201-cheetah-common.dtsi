@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * cheetah device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include "gs201-common.dtsi"
+
+#include "gs201-cheetah-battery.dtsi"
+#include "gs201-cheetah-charging.dtsi"
+#include "gs201-cheetah-display.dtsi"
+#include "gs201-cheetah-gsa-gsc.dtsi"
+
