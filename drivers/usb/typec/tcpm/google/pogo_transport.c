@@ -85,7 +85,7 @@ static void update_pogo_transport(struct kthread_work *work)
 		enable_data_path_locked(chip);
 	}
 	mutex_unlock(&chip->data_path_lock);
-	devm_kfree(chip->dev, event);
+	devm_kfree(pogo_transport->dev, event);
 }
 
 static irqreturn_t pogo_irq(int irq, void *dev_id)
