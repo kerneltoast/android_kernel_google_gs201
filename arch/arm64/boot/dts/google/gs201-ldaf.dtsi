@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs201 ldaf(Laser Detection Auto Focus) device tree source
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+&pinctrl_1 {
+	ldaf_irq: ldaf-irq {
+		samsung,pins = "gpa6-5"; /* XEINT_5 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&hsi2c_1 {
+	/* VL53L1 */
+	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	stmvl53l1: stmvl53l1@29 {
+		compatible = "st,stmvl53l1";
+		reg = <0x29>;
+		/* XAPC_MCLK8: GPP17[0] */
+		xsdn-gpio = <&gpp17 0 GPIO_ACTIVE_LOW>;
+		/* XAPC_USI4_CTSn_CSn: GPP8[3] */
+		pwren-gpio = <&gpp8 3 GPIO_ACTIVE_HIGH>;
+		/* XEINT_5: GPA6[5] */
+		intr-gpio = <&gpa6 5 GPIO_ACTIVE_LOW>;
+
+		vio-type = "regulator";
+		vio-supply = <&s_ldo12_reg>;
+		vio-voltage = <1800000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ldaf_irq>;
+
+		status = "ok";
+	};
+};
