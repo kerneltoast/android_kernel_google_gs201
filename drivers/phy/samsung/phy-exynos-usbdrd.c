@@ -2097,6 +2097,24 @@ bool exynos_usbdrd_get_ldo_status(void)
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_get_ldo_status);
 
+bool exynos_usbdrd_get_vdd_hsi_status(void)
+{
+	struct exynos_usbdrd_phy *phy_drd;
+	bool status = false;
+
+	phy_drd = exynos_usbdrd_get_struct();
+	if (!phy_drd) {
+		pr_err("[%s] exynos_usbdrd_get_struct error\n", __func__);
+		return status;
+	}
+
+	if (regulator_is_enabled(phy_drd->vdd_hsi))
+		status = true;
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(exynos_usbdrd_get_vdd_hsi_status);
+
 int exynos_usbdrd_pipe3_enable(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
