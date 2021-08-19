@@ -48,3 +48,7 @@ int hook_init(void)
 
 	return 0;
 }
+EXPORT_SYMBOL(hook_init);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Samsung CPIF vendor hook driver");

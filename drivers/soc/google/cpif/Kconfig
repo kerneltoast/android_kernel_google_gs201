@@ -182,6 +182,12 @@ config CH_EXTENSION
 	help
 	  Enable Channel Extension
 
+config CPIF_VENDOR_HOOK
+	tristate "Enable Android vendor hook"
+	default n
+	help
+	  This enables Android vendor hook
+
 config CPIF_PAGE_RECYCLING
 	tristate "Enable page recycling"
 	default n
