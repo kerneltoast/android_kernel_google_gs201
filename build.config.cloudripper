@@ -30,6 +30,7 @@ private/google-modules/amplifiers/cs40l26
 private/google-modules/amplifiers/drv2624
 private/google-modules/aoc
 private/google-modules/aoc/alsa
+private/google-modules/aoc/usb
 private/google-modules/display/samsung
 private/google-modules/edgetpu/drivers/edgetpu
 private/google-modules/bms
