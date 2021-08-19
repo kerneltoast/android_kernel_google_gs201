@@ -734,6 +734,9 @@
 						 /* 1 : masked	   */
 		b2_soft_ocp_warn_lvl = <0x0>; /* step : -250mA */
 
+		/* BUCK OCP Detection */
+		buck_ocp_ctrl1 = <0xB0>;
+
 		regulators {
 			s_buck1_reg: BUCK1S {
 				regulator-name = "S2MPG11_BUCK1";

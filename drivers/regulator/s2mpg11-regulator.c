@@ -341,6 +341,10 @@ static int s2mpg11_pmic_dt_parse_pdata(struct s2mpg11_dev *iodev,
 		dev_err(iodev->dev, "b2_ocp_warn_pin < 0: %d\n",
 			pdata->b2_ocp_warn_pin);
 
+	/* parse BUCK OCP Detection information */
+	ret = of_property_read_u32(pmic_np, "buck_ocp_ctrl1", &val);
+	pdata->buck_ocp_ctrl1 = ret ? 0 : val;
+
 	ret = of_property_read_u32(pmic_np, "b2_ocp_warn_en", &val);
 	pdata->b2_ocp_warn_en = ret ? 0 : val;
 
@@ -555,6 +559,17 @@ static irqreturn_t s2mpg11_buck_ocp_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+void s2mpg11_ocp_detection_config(struct s2mpg11_pmic *s2mpg11,
+				  struct s2mpg11_platform_data *pdata)
+{
+	int ret;
+
+	pr_info("OCP BUCK_OCP_CTRL1: 0x%x\n", pdata->buck_ocp_ctrl1);
+	ret = s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_PM_BUCK_OCP_CTRL1, pdata->buck_ocp_ctrl1);
+	if (ret)
+		pr_err("i2c write error setting BUCK_OCP_CTRL1: %d\n", ret);
+}
+
 void s2mpg11_ocp_warn(struct s2mpg11_pmic *s2mpg11,
 		      struct s2mpg11_platform_data *pdata)
 {
@@ -693,6 +708,7 @@ static int s2mpg11_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
+	s2mpg11_ocp_detection_config(s2mpg11, pdata);
 	s2mpg11_ocp_warn(s2mpg11, pdata);
 	s2mpg11_oi_function(s2mpg11);
 
