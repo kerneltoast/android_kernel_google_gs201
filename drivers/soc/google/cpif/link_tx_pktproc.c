@@ -23,15 +23,16 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 
 	q->stat.total_cnt++;
 	if (!pktproc_check_ul_q_active(q->ppa_ul, q->q_idx)) {
-		mif_err_limited("Queue %d not activated\n", q->q_idx);
+		mif_err_limited("Queue[%d] not activated\n", q->q_idx);
 		q->stat.inactive_cnt++;
 		return -EACCES;
 	}
 
 	space = circ_get_space(q->num_desc, q->done_ptr, q_info->rear_ptr);
 	if (space < 1) {
-		mif_err_limited("NOSPC num_desc:%d fore:%d done:%d rear:%d\n",
-			q->num_desc, q_info->fore_ptr, q->done_ptr, q_info->rear_ptr);
+		mif_err_limited("NOSPC Queue[%d] num_desc:%d fore:%d done:%d rear:%d\n",
+				q->q_idx, q->num_desc, q_info->fore_ptr, q->done_ptr,
+				q_info->rear_ptr);
 		q->stat.buff_full_cnt++;
 		return -ENOSPC;
 	}
@@ -62,7 +63,8 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 		/* skb may not be valid after dit_enqueue is done */
 		ret = dit_enqueue_src_desc_ring_skb(DIT_DIR_TX, skb);
 		if (ret < 0) {
-			mif_err_limited("Enqueue failed for %d, ret: %d\n", q->done_ptr, ret);
+			mif_err_limited("Enqueue failed Queue[%d] done:%d ret:%d\n",
+					q->q_idx, q->done_ptr, ret);
 			q->stat.buff_full_cnt++;
 			return ret;
 		}

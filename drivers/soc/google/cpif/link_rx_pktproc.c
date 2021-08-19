@@ -518,7 +518,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 				q->desc_sktbuf[q->done_ptr].cp_data_paddr -
 				ppa->skb_padding_size, false);
 		if (!src) {
-			mif_info("invalid data address. null given\n");
+			mif_err_limited("invalid data address. null given\n");
 			return -EINVAL;
 			goto rx_error_on_desc;
 		}
