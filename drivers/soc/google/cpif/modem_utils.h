@@ -39,6 +39,8 @@
 	(MAX_LOG_SIZE - sizeof(enum mif_log_id) \
 	 - sizeof(unsigned long long) - sizeof(struct timespec64))
 
+#define PR_BUFFER_SIZE	128
+
 enum mif_log_id {
 	MIF_IPC_RL2AP = 1,
 	MIF_IPC_AP2CP,
@@ -266,7 +268,58 @@ static inline unsigned long ms2ns(unsigned long ms)
 	return ms * 1E6L;
 }
 
-void get_utc_time(struct utc_time *utc);
+static inline void ts642utc(struct timespec64 *ts, struct utc_time *utc)
+{
+	struct tm tm;
+
+	time64_to_tm((ts->tv_sec - (sys_tz.tz_minuteswest * 60)), 0, &tm);
+	utc->year = 1900 + (u32)tm.tm_year;
+	utc->mon = 1 + tm.tm_mon;
+	utc->day = tm.tm_mday;
+	utc->hour = tm.tm_hour;
+	utc->min = tm.tm_min;
+	utc->sec = tm.tm_sec;
+	utc->us = (u32)ns2us(ts->tv_nsec);
+}
+
+static inline void get_utc_time(struct utc_time *utc)
+{
+	struct timespec64 ts;
+
+	ktime_get_ts64(&ts);
+	ts642utc(&ts, utc);
+}
+
+/* dump2hex
+ * dump data to hex as fast as possible.
+ * the length of @buff must be greater than "@len * 3"
+ * it need 3 bytes per one data byte to print.
+ */
+static inline void dump2hex(char *buff, size_t buff_size,
+			    const char *data, size_t data_len)
+{
+	static const char *hex = "0123456789abcdef";
+	char *dest = buff;
+	size_t len;
+	size_t i;
+
+	if (buff_size < (data_len * 3))
+		len = buff_size / 3;
+	else
+		len = data_len;
+
+	for (i = 0; i < len; i++) {
+		*dest++ = hex[(data[i] >> 4) & 0xf];
+		*dest++ = hex[data[i] & 0xf];
+		*dest++ = ' ';
+	}
+
+	/* The last character must be overwritten with NULL */
+	if (likely(len > 0))
+		dest--;
+
+	*dest = 0;
+}
 
 static inline unsigned int calc_offset(void *target, void *base)
 {
@@ -345,11 +398,6 @@ static inline void pr_skb(const char *tag, struct sk_buff *skb, struct link_devi
 
 	pr_buffer(tag, (char *)((skb)->data), (size_t)((skb)->len), length);
 }
-
-/* print a urb as hex string */
-#define pr_urb(tag, urb) \
-	pr_buffer(tag, (char *)((urb)->transfer_buffer), \
-			(size_t)((urb)->actual_length), (size_t)16)
 
 /* Stop/wake all TX queues in network interfaces */
 void stop_net_ifaces(struct link_device *ld);

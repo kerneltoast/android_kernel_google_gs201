@@ -70,31 +70,7 @@ static unsigned long wakeup_dflags =
 module_param(wakeup_dflags, ulong, 0664);
 MODULE_PARM_DESC(wakeup_dflags, "modem_v1 wakeup debug flags");
 
-static const char *hex = "0123456789abcdef";
-
 static struct raw_notifier_head cp_crash_notifier;
-
-static inline void ts642utc(struct timespec64 *ts, struct utc_time *utc)
-{
-	struct tm tm;
-
-	time64_to_tm((ts->tv_sec - (sys_tz.tz_minuteswest * 60)), 0, &tm);
-	utc->year = 1900 + (u32)tm.tm_year;
-	utc->mon = 1 + tm.tm_mon;
-	utc->day = tm.tm_mday;
-	utc->hour = tm.tm_hour;
-	utc->min = tm.tm_min;
-	utc->sec = tm.tm_sec;
-	utc->us = (u32)ns2us(ts->tv_nsec);
-}
-
-void get_utc_time(struct utc_time *utc)
-{
-	struct timespec64 ts;
-
-	ktime_get_ts64(&ts);
-	ts642utc(&ts, utc);
-}
 
 int mif_dump_log(struct modem_shared *msd, struct io_device *iod)
 {
@@ -231,36 +207,6 @@ void _mif_time_log(enum mif_log_id id, struct modem_shared *msd,
 			(len > MAX_IRQ_LOG_SIZE) ? MAX_IRQ_LOG_SIZE : len);
 }
 
-/* dump2hex
- * dump data to hex as fast as possible.
- * the length of @buff must be greater than "@len * 3"
- * it need 3 bytes per one data byte to print.
- */
-static inline void dump2hex(char *buff, size_t buff_size,
-			    const char *data, size_t data_len)
-{
-	char *dest = buff;
-	size_t len;
-	size_t i;
-
-	if (buff_size < (data_len * 3))
-		len = buff_size / 3;
-	else
-		len = data_len;
-
-	for (i = 0; i < len; i++) {
-		*dest++ = hex[(data[i] >> 4) & 0xf];
-		*dest++ = hex[data[i] & 0xf];
-		*dest++ = ' ';
-	}
-
-	/* The last character must be overwritten with NULL */
-	if (likely(len > 0))
-		dest--;
-
-	*dest = 0;
-}
-
 static bool wakeup_log_enable;
 inline void set_wakeup_packet_log(bool enable)
 {
@@ -321,7 +267,6 @@ void mif_pkt(u8 ch, const char *tag, struct sk_buff *skb)
 }
 
 /* print buffer as hex string */
-#define PR_BUFFER_SIZE 128
 int pr_buffer(const char *tag, const char *data, size_t data_len,
 							size_t max_len)
 {
