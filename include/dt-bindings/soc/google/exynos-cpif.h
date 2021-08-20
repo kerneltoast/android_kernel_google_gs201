@@ -154,7 +154,6 @@
 #define IO_ATTR_DUALSIM		(0x1 << 10) /* support Dual SIM */
 #define IO_ATTR_OPTION_REGION		(0x1 << 11) /* region & operator info */
 #define IO_ATTR_ZEROCOPY		(0x1 << 12) /* support SW zerocopy on SBD */
-#define IO_ATTR_MULTI_CH		(0x1 << 13) /* Multi channel IO device */
 
 /* SIPC channel ID */
 #define SIPC_CH_ID_RAW_0		0
@@ -304,7 +303,5 @@
 
 #define EXYNOS_CH_ID_MAX	255
 
-/* SIPC/SIT common */
-#define IOD_CH_ID_MAX		256
 
 #endif /* _DT_BINDINGS_EXYNOS_CPIF_H */

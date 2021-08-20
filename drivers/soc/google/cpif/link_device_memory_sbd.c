@@ -180,10 +180,10 @@ static void setup_link_attr(struct sbd_link_attr *link_attr, u16 id, u16 ch,
 /*
  * @return		the number of actual link channels
  */
-static unsigned int init_ctrl_tables(struct sbd_link_device *sl)
+static unsigned int init_ctrl_tables(struct sbd_link_device *sl, int num_iodevs,
+				     struct modem_io_t iodevs[])
 {
-	struct modem_io_t **iodevs = sl->ld->mdm_data->iodevs;
-	unsigned int i, ch;
+	int i, ch;
 	int multi_raw_count = 0;
 	unsigned int id = 0;
 
@@ -194,21 +194,21 @@ static unsigned int init_ctrl_tables(struct sbd_link_device *sl)
 	for (i = 0; i < MAX_SBD_SIPC_CHANNELS; i++)
 		sl->ch2id[i] = MAX_SBD_LINK_IDS;
 
-	for (i = 0; i < sl->ld->mdm_data->num_iodevs; i++) {
-		ch = iodevs[i]->ch;
+	for (i = 0; i < num_iodevs; i++) {
+		ch = iodevs[i].ch;
 
 		/* Skip non-IPC or PS ch but allow IPC_MULTI_RAW */
 		if ((!sipc5_ipc_ch(ch) || sipc_ps_ch(ch)) &&
-		    (iodevs[i]->format != IPC_MULTI_RAW))
+		    (iodevs[i].format != IPC_MULTI_RAW))
 			continue;
 
 		/* Skip making rb if mismatch region info */
-		if ((iodevs[i]->attrs & IO_ATTR_OPTION_REGION) &&
-		    strcmp(iodevs[i]->option_region, CONFIG_OPTION_REGION))
+		if ((iodevs[i].attrs & IO_ATTR_OPTION_REGION) &&
+		    strcmp(iodevs[i].option_region, CONFIG_OPTION_REGION))
 			continue;
 
 		/* Change channel to QoS priority */
-		if (iodevs[i]->format == IPC_MULTI_RAW) {
+		if (iodevs[i].format == IPC_MULTI_RAW) {
 			ch = QOS_HIPRIO + multi_raw_count;
 			multi_raw_count++;
 			if (ch >= QOS_MAX_PRIO) {
@@ -224,14 +224,14 @@ static unsigned int init_ctrl_tables(struct sbd_link_device *sl)
 		sl->ch2id[ch] = id;
 
 		/* Set up the attribute table entry of a LinkID. */
-		setup_link_attr(&sl->link_attr[id], id, ch, iodevs[i]);
+		setup_link_attr(&sl->link_attr[id], id, ch, &iodevs[i]);
 
 		id++;
 	}
 
 #if !IS_ENABLED(CONFIG_MODEM_IF_QOS)
-	for (i = 0; i < sl->ld->mdm_data->num_iodevs; i++) {
-		int ch = iodevs[i]->ch;
+	for (i = 0; i < num_iodevs; i++) {
+		int ch = iodevs[i].ch;
 
 		if (sipc_ps_ch(ch))
 			sl->ch2id[ch] = sl->ch2id[QOS_HIPRIO];
@@ -439,12 +439,17 @@ int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
 			   u8 *shmem_base, unsigned int shmem_size)
 {
 	int ret;
+	int num_iodevs;
+	struct modem_io_t *iodevs;
 
 	if (!ld || !sl || !shmem_base)
 		return -EINVAL;
 
 	if (!ld->mdm_data)
 		return -EINVAL;
+
+	num_iodevs = ld->mdm_data->num_iodevs;
+	iodevs = ld->mdm_data->iodevs;
 
 	sl->ld = ld;
 
@@ -454,7 +459,7 @@ int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
 	sl->shmem_size = shmem_size;
 	sl->zmb_offset = shmem_size;
 
-	sl->num_channels = init_ctrl_tables(sl);
+	sl->num_channels = init_ctrl_tables(sl, num_iodevs, iodevs);
 	sl->reset_zerocopy_done = 1;
 
 	ret = create_sbd_mem_map(sl);
