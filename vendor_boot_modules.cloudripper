@@ -9,6 +9,7 @@ aoc_channel_dev.ko
 aoc_char_dev.ko
 aoc_control_dev.ko
 aoc_core.ko
+aoc_usb_driver.ko
 aoc_uwb_platform_drv.ko
 aoc_uwb_service_dev.ko
 at24.ko

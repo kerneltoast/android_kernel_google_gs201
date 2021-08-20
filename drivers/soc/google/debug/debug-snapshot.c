@@ -98,11 +98,11 @@ int dbg_snapshot_get_sjtag_status(void)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_sjtag_status);
 
-bool dbg_snapshot_get_panic_status(void)
+bool dbg_snapshot_get_reboot_status(void)
 {
-	return dss_desc.in_panic;
+	return dss_desc.in_reboot;
 }
-EXPORT_SYMBOL_GPL(dbg_snapshot_get_panic_status);
+EXPORT_SYMBOL_GPL(dbg_snapshot_get_reboot_status);
 
 void dbg_snapshot_scratch_reg(unsigned int val)
 {

@@ -85,7 +85,7 @@ static void update_pogo_transport(struct kthread_work *work)
 		enable_data_path_locked(chip);
 	}
 	mutex_unlock(&chip->data_path_lock);
-	devm_kfree(chip->dev, event);
+	devm_kfree(pogo_transport->dev, event);
 }
 
 static irqreturn_t pogo_irq(int irq, void *dev_id)
@@ -155,12 +155,17 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 					pogo_irq, (IRQF_SHARED | IRQF_ONESHOT |
 						   IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING),
 					dev_name(pogo_transport->dev), pogo_transport);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(pogo_transport->dev, "pogo-transport-status request irq failed ret:%d\n",
+			ret);
 		return ret;
+	}
 
 	ret = enable_irq_wake(pogo_transport->pogo_irq);
-	if (!ret)
-		return ret;
+	if (ret) {
+		dev_err(pogo_transport->dev, "Enable irq wake failed ret:%d\n");
+		goto free_irq;
+	}
 
 	pogo_transport->pogo_data_mux_gpio = of_get_named_gpio(pogo_transport->dev->of_node,
 							       "pogo-transport-sel", 0);
@@ -190,6 +195,8 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 
 disable_irq:
 	disable_irq_wake(pogo_transport->pogo_irq);
+free_irq:
+	devm_free_irq(pogo_transport->dev, pogo_transport->pogo_irq, pogo_transport);
 
 	return ret;
 }
@@ -246,7 +253,7 @@ static int pogo_transport_probe(struct platform_device *pdev)
 	}
 
 	ret = init_pogo_alert_gpio(pogo_transport);
-	if (!ret) {
+	if (ret) {
 		logbuffer_log(pogo_transport->log, "init_pogo_alert_gpio error:%d\n", ret);
 		goto destroy_worker;
 	}
@@ -271,6 +278,7 @@ static int pogo_transport_remove(struct platform_device *pdev)
 	struct pogo_transport *pogo_transport = platform_get_drvdata(pdev);
 
 	disable_irq_wake(pogo_transport->pogo_irq);
+	devm_free_irq(pogo_transport->dev, pogo_transport->pogo_irq, pogo_transport);
 	kthread_destroy_worker(pogo_transport->wq);
 	logbuffer_unregister(pogo_transport->log);
 
