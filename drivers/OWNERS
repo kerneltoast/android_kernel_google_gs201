@@ -141,14 +141,16 @@ per-file usb/gadget/function/f_mtp.*=*
 per-file usb/gadget/function/f_ptp.*=*
 per-file usb/gadget/function/f_uts.*=*
 per-file usb/host/xhci-exynos.*=*
-per-file usb/typec/tcpm/bc_max77759*=*
-per-file usb/typec/tcpm/max77759*=*
-per-file usb/typec/tcpm/slg46826*=*
-per-file usb/typec/tcpm/tcpci_fusb307*=*
-per-file usb/typec/tcpm/tcpci_max77759*=*
-per-file usb/typec/tcpm/tcpci_otg_helper.h=*
-per-file usb/typec/tcpm/usb_icl_voter.h=*
-per-file usb/typec/tcpm/usb_psy.*=*
+per-file usb/typec/tcpm/google/bc_max77759*=*
+per-file usb/typec/tcpm/google/max77759*=*
+per-file usb/typec/tcpm/google/pogo_transport.c=*
+per-file usb/typec/tcpm/google/slg46826*=*
+per-file usb/typec/tcpm/google/tcpci_fusb307*=*
+per-file usb/typec/tcpm/google/tcpci_max77759*=*
+per-file usb/typec/tcpm/google/tcpci_otg_helper.h=*
+per-file usb/typec/tcpm/google/usbc_cooling_dev.c=*
+per-file usb/typec/tcpm/google/usb_icl_voter.h=*
+per-file usb/typec/tcpm/google/usb_psy.*=*
 
 per-file video/backlight/lp855x_bl.c=*
 

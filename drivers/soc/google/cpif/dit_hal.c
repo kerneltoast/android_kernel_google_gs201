@@ -60,7 +60,7 @@ static ssize_t dit_hal_read(struct file *filp, char *buf, size_t count, loff_t *
 	spin_unlock_irqrestore(&dhc->event_lock, flags);
 
 	event.event_num = event_item->event_num;
-	kvfree(event_item);
+	devm_kfree(dc->dev, event_item);
 
 	if (copy_to_user((void __user *)buf, (void *)&event, sizeof(event)))
 		return 0;
@@ -99,7 +99,7 @@ static int dit_hal_init(void)
 	while (!list_empty(&dhc->event_q)) {
 		event_item = list_first_entry(&dhc->event_q, struct offload_event_item, list);
 		list_del(&event_item->list);
-		kvfree(event_item);
+		devm_kfree(dc->dev, event_item);
 	}
 	spin_unlock_irqrestore(&dhc->event_lock, flags);
 
@@ -114,7 +114,7 @@ static int dit_hal_set_event(enum offload_event_num event_num)
 	if (event_num == dhc->last_event_num)
 		return -EEXIST;
 
-	event_item = kvzalloc(sizeof(struct offload_event_item), GFP_ATOMIC);
+	event_item = devm_kzalloc(dc->dev, sizeof(struct offload_event_item), GFP_ATOMIC);
 	if (!event_item) {
 		mif_err("event=%d generation failed\n", event_num);
 		return -ENOMEM;

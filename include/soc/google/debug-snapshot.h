@@ -49,7 +49,7 @@ extern bool dbg_snapshot_qd_enabled(void);
 extern void dbg_snapshot_qd_dump_stack(u64 sp);
 /*debug-snapshot-utils functions */
 extern int dbg_snapshot_get_sjtag_status(void);
-extern bool dbg_snapshot_get_panic_status(void);
+extern bool dbg_snapshot_get_reboot_status(void);
 extern void dbg_snapshot_ecc_dump(void);
 extern int dbg_snapshot_start_watchdog(int sec);
 extern int dbg_snapshot_emergency_reboot(const char *str);

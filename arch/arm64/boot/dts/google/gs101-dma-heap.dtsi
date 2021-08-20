@@ -149,7 +149,7 @@
 	};
 
 	famodel: famodel {
-		size = <0x3200000>;
+		size = <0x3C00000>;
 		alignment = <0x0 0x00010000>;
 		alloc-ranges = <0x9 0x80000000 0x80000000>,
 			       <0x9 0x00000000 0x80000000>,
@@ -199,6 +199,6 @@
 	xhci_dma: xhci_dma@0x97000000 {
 		compatible = "shared-dma-pool";
 		reg = <0x0 0x97000000 0x400000>;
-		reusable;
+		no-map;
 	};
 };
