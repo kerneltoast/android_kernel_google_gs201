@@ -32,6 +32,7 @@
 		dit_use_tx = <0>;
 		dit_use_rx = <0>;
 		dit_use_clat = <0>;
+		dit_use_recycling = <0>;
 
 		dit_hal_support = <1>;
 		dit_hal_enqueue_rx = <0>;
