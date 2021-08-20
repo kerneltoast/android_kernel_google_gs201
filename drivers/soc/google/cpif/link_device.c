@@ -528,9 +528,6 @@ static void write_ap_capabilities(struct mem_link_device *mld)
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 	mld->ap_capability_0 = mld->ap_capability_0 | AP_CAP_PKTPROC_UL;
 #endif
-#if IS_ENABLED(CONFIG_CH_EXTENSION)
-	mld->ap_capability_0 = mld->ap_capability_0 | AP_CAP_CH_EXTENSION;
-#endif
 	iowrite32(mld->ap_capability_0, mld->ap_capability_0_offset);
 	iowrite32(mld->ap_capability_1, mld->ap_capability_1_offset);
 

@@ -267,10 +267,10 @@ struct dit_src_desc {
 	u64	src_addr:36,
 		_reserved_0:12,
 		/* the below 16 bits are "private info" on the document */
-		ch_id:8,		/* max ch value for rmnet is 17 */
+		ch_id:5,		/* max ch value for rmnet is 17 */
 		pre_csum:1,		/* checksum successful from pktproc */
 		udp_csum_zero:1,	/* reset udp checksum 0 after NAT */
-		_reserved_2:6;
+		_reserved_2:9;
 	u64	length:16,
 		_reserved_1:32,
 		control:8,
@@ -281,10 +281,10 @@ struct dit_dst_desc {
 	u64	dst_addr:36,
 		packet_info:12,
 		/* the below 16 bits are "private info" on the document */
-		ch_id:8,
+		ch_id:5,
 		pre_csum:1,
 		udp_csum_zero:1,
-		_reserved_2:6;
+		_reserved_2:9;
 	u64	length:16,
 		org_port:16,
 		trans_port:16,

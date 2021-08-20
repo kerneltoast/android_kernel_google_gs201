@@ -175,11 +175,5 @@ config CP_THERMAL
       Enables support for reporting CP temperature sensor data to kernel thermal
       framework.
 
-config CH_EXTENSION
-	tristate "Enable Channel Extension"
-	default n
-	help
-	  Enable Channel Extension
-
 endmenu
 endif
