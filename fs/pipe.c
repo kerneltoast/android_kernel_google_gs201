@@ -32,6 +32,21 @@
 #include "internal.h"
 
 /*
+ * New pipe buffers will be restricted to this size while the user is exceeding
+ * their pipe buffer quota. The general pipe use case needs at least two
+ * buffers: one for data yet to be read, and one for new data. If this is less
+ * than two, then a write to a non-empty pipe may block even if the pipe is not
+ * full. This can occur with GNU make jobserver or similar uses of pipes as
+ * semaphores: multiple processes may be waiting to write tokens back to the
+ * pipe before reading tokens: https://lore.kernel.org/lkml/1628086770.5rn8p04n6j.none@localhost/.
+ *
+ * Users can reduce their pipe buffers with F_SETPIPE_SZ below this at their
+ * own risk, namely: pipe writes to non-full pipes may block until the pipe is
+ * emptied.
+ */
+#define PIPE_MIN_DEF_BUFFERS 2
+
+/*
  * The max size that a non-root user is allowed to grow the pipe. Can
  * be set by root in /proc/sys/fs/pipe-max-size
  */
@@ -406,7 +421,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t ret = 0;
 	size_t total_len = iov_iter_count(from);
 	ssize_t chars;
-	bool do_wakeup = false;
+	bool was_empty = false;
 	bool wake_next_writer = false;
 
 	/* Null write succeeds. */
@@ -429,18 +444,18 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 #endif
 
 	/*
-	 * Wake up readers if the pipe was written to. Regardless
-	 * of whether it was empty or not. Otherwise, threads
-	 * waiting with EPOLLET will hang until the pipe is emptied.
+	 * Epoll nonsensically wants a wakeup whether the pipe
+	 * was already empty or not.
 	 *
-	 * If pipe wasn't empty we try to merge new data into
+	 * If it wasn't empty we try to merge new data into
 	 * the last buffer.
 	 *
 	 * That naturally merges small writes, but it also
-	 * page-aligs the rest of the writes for large writes
+	 * page-aligns the rest of the writes for large writes
 	 * spanning multiple pages.
 	 */
 	head = pipe->head;
+	was_empty = true;
 	chars = total_len & (PAGE_SIZE-1);
 	if (chars && !pipe_empty(head, pipe->tail)) {
 		unsigned int mask = pipe->ring_size - 1;
@@ -460,7 +475,6 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			}
 
 			buf->len += ret;
-			do_wakeup = true;
 			if (!iov_iter_count(from))
 				goto out;
 		}
@@ -527,7 +541,6 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			ret += copied;
 			buf->offset = 0;
 			buf->len = copied;
-			do_wakeup = true;
 
 			if (!iov_iter_count(from))
 				break;
@@ -555,12 +568,13 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		 * become empty while we dropped the lock.
 		 */
 		__pipe_unlock(pipe);
-		if (do_wakeup) {
+		if (was_empty) {
 			wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
 			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		}
 		wait_event_interruptible_exclusive(pipe->wr_wait, pipe_writable(pipe));
 		__pipe_lock(pipe);
+		was_empty = pipe_empty(pipe->head, pipe->tail);
 		wake_next_writer = true;
 	}
 out:
@@ -577,7 +591,7 @@ out:
 	 * how (for example) the GNU make jobserver uses small writes to
 	 * wake up pending jobs
 	 */
-	if (do_wakeup) {
+	if (was_empty) {
 		wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
@@ -782,8 +796,8 @@ struct pipe_inode_info *alloc_pipe_info(void)
 	user_bufs = account_pipe_buffers(user, 0, pipe_bufs);
 
 	if (too_many_pipe_buffers_soft(user_bufs) && pipe_is_unprivileged_user()) {
-		user_bufs = account_pipe_buffers(user, pipe_bufs, 1);
-		pipe_bufs = 1;
+		user_bufs = account_pipe_buffers(user, pipe_bufs, PIPE_MIN_DEF_BUFFERS);
+		pipe_bufs = PIPE_MIN_DEF_BUFFERS;
 	}
 
 	if (too_many_pipe_buffers_hard(user_bufs) && pipe_is_unprivileged_user())

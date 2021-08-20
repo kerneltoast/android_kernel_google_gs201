@@ -6266,7 +6266,6 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	if (prev) {
 		io_async_find_and_cancel(ctx, req, prev->user_data, -ETIME);
 		io_put_req_deferred(prev, 1);
-		io_put_req_deferred(req, 1);
 	} else {
 		io_cqring_add_event(req, -ETIME, 0);
 		io_put_req_deferred(req, 1);
@@ -7998,7 +7997,7 @@ static void io_sq_offload_start(struct io_ring_ctx *ctx)
 	struct io_sq_data *sqd = ctx->sq_data;
 
 	ctx->flags &= ~IORING_SETUP_R_DISABLED;
-	if ((ctx->flags & IORING_SETUP_SQPOLL) && sqd->thread)
+	if ((ctx->flags & IORING_SETUP_SQPOLL) && sqd && sqd->thread)
 		wake_up_process(sqd->thread);
 }
 
