@@ -166,31 +166,53 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 	int size, margin;
 	int i, j;
 
+	pr_info("%s: ++\n", __func__);
 	fvmap_header = map_base;
 	header = sram_base;
 
+	pr_info("%s: cmucal_get_list_size ++\n", __func__);
 	size = cmucal_get_list_size(ACPM_VCLK_TYPE);
+	pr_info("%s: cmucal_get_list_size --\n", __func__);
 
 	for (i = 0; i < size; i++) {
 		/* load fvmap info */
+		pr_info("%s: size %d/%d ++\n", __func__, i, size);
+		pr_info("%s: dvfs_type %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].dvfs_type = header[i].dvfs_type;
+		pr_info("%s: num_of_lv %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].num_of_lv = header[i].num_of_lv;
+		pr_info("%s: num_of_members %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].num_of_members = header[i].num_of_members;
+		pr_info("%s: num_of_pll %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].num_of_pll = header[i].num_of_pll;
+		pr_info("%s: num_of_mux %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].num_of_mux = header[i].num_of_mux;
+		pr_info("%s: num_of_div %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].num_of_div = header[i].num_of_div;
+		pr_info("%s: gearratio %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].gearratio = header[i].gearratio;
+		pr_info("%s: init_lv %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].init_lv = header[i].init_lv;
+		pr_info("%s: num_of_date %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].num_of_gate = header[i].num_of_gate;
+		pr_info("%s: reserved 0 %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].reserved[0] = header[i].reserved[0];
+		pr_info("%s: reserved 1 %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].reserved[1] = header[i].reserved[1];
+		pr_info("%s: block addr 0 %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].block_addr[0] = header[i].block_addr[0];
+		pr_info("%s: block addr 1 %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].block_addr[1] = header[i].block_addr[1];
+		pr_info("%s: block addr 2 %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].block_addr[2] = header[i].block_addr[2];
+		pr_info("%s: o_numbers %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].o_members = header[i].o_members;
+		pr_info("%s: o_ratevolt %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].o_ratevolt = header[i].o_ratevolt;
+		pr_info("%s: o_tables %d/%d ++\n", __func__, i, size);
 		fvmap_header[i].o_tables = header[i].o_tables;
 
+		pr_info("%s: cmucal_get_node \n", __func__);
 		vclk = cmucal_get_node(ACPM_VCLK_TYPE | i);
 		if (vclk == NULL)
 			continue;
@@ -202,10 +224,12 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 		old = sram_base + fvmap_header[i].o_ratevolt;
 		new = map_base + fvmap_header[i].o_ratevolt;
 
+		pr_info("%s: cal_dfs_set_volt_margin \n", __func__);
 		margin = *margin_table[vclk->id - ACPM_VCLK_TYPE];
 		if (margin)
 			cal_dfs_set_volt_margin(i | ACPM_VCLK_TYPE, margin);
 
+		pr_info("%s: fvmap member addr  \n", __func__);
 		for (j = 0; j < fvmap_header[i].num_of_members; j++) {
 			clks = sram_base + fvmap_header[i].o_members;
 
@@ -228,6 +252,7 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 				pr_debug("  DVFS CMU addr:0x%x\n", member_addr);
 		}
 
+		pr_info("%s: MIF vclk \n", __func__);
 		if ((strcmp(vclk->name, "MIF") == 0)
 			&& (fvmap_header[i].num_of_lv > 0)
 			&& (l123_restrict)) {
@@ -249,6 +274,7 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 				new->table[j].volt = old->table[j].volt;
 			}
 		}
+		pr_info("%s: volt level \n", __func__);
 		for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
 			int volt = new->table[j].volt;
 
@@ -264,7 +290,9 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 				 new->table[j].rate, new->table[j].volt,
 				 volt - new->table[j].volt);
 		}
+		pr_info("%s: size %d/%d --\n", __func__, i, size);
 	}
+	pr_info("%s: --\n", __func__);
 }
 
 #define DEFINE_INT_ATTRIBUTE(__margin, __id)				\
@@ -331,6 +359,7 @@ int fvmap_init(void __iomem *sram_base)
 	const char *str = NULL;
 	struct dentry *de = NULL;
 
+	pr_info("%s: ++\n", __func__);
 	np = of_find_node_by_path("/exynos_devfreq/devfreq_mif@17000010");
 	if (!IS_ERR(np))
 		ret = of_property_read_string(np, "l123_restrict", &str);
@@ -340,19 +369,24 @@ int fvmap_init(void __iomem *sram_base)
 		l123_restrict = (str[0] != '0');
 	}
 
+	pr_info("%s: kzalloc \n", __func__);
 	map_base = kzalloc(FVMAP_SIZE, GFP_KERNEL);
 
 	fvmap_base = map_base;
 	sram_fvmap_base = sram_base;
 	pr_debug("%s:fvmap initialize %p\n", __func__, sram_base);
 
+	pr_info("%s: margin_table_init \n", __func__);
 	margin_table_init();
+	pr_info("%s: fvmap_copy_from_sram \n", __func__);
 	fvmap_copy_from_sram(map_base, sram_base);
 
+	pr_info("%s: debugfs_create_dir \n", __func__);
 	de = debugfs_create_dir("fvmap_margin", 0);
 	if (IS_ERR_OR_NULL(de))
 		return 0;
 
+	pr_info("%s: debugfs_create_file \n", __func__);
 	debugfs_create_file("margin_mif", 0600, de, NULL, &margin_mif_fops);
 	debugfs_create_file("margin_int", 0600, de, NULL, &margin_int_fops);
 	debugfs_create_file("margin_lit", 0600, de, NULL, &margin_lit_fops);
@@ -368,6 +402,7 @@ int fvmap_init(void __iomem *sram_base)
 	debugfs_create_file("margin_disp", 0600, de, NULL, &margin_disp_fops);
 	debugfs_create_file("margin_bo", 0600, de, NULL, &margin_bo_fops);
 
+	pr_info("%s: --\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fvmap_init);
