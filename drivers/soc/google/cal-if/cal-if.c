@@ -530,11 +530,15 @@ static int cal_if_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
+	pr_info("%s: cal_if_init ++\n", __func__);
 	ret = cal_if_init(np);
 	if (ret)
 		goto out;
+	pr_info("%s: cal_if_init --\n", __func__);
 
+	pr_info("%s: fvmap_init ++\n", __func__);
 	ret = fvmap_init(get_fvmap_base());
+	pr_info("%s: fvmap_init --\n", __func__);
 
 out:
 	return ret;

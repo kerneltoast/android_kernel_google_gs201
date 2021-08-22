@@ -585,8 +585,10 @@ EXPORT_SYMBOL_GPL(vclk_debug_clk_set_value);
 
 void cmucal_dbg_set_cmu_top_base(u32 base_addr)
 {
+	pr_info("%s: ++\n", __func__);
 	cmu_top_base = base_addr;
 	pr_info("cmu_top_base : 0x%x\n", base_addr);
+	pr_info("%s: --\n", __func__);
 }
 EXPORT_SYMBOL_GPL(cmucal_dbg_set_cmu_top_base);
 
