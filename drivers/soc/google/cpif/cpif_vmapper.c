@@ -219,7 +219,6 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 		mif_err_limited("invalid vaddr 0x%lX vbase: 0x%lX vend: 0x%lX\n",
 				vaddr, target->vaddr_base,
 				target->vaddr_base + vmap->item_size);
-		panic("invalid vaddr\n");
 		return 0;
 	}
 
