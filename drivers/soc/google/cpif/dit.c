@@ -709,7 +709,7 @@ static int dit_enqueue_src_desc_ring_internal(enum dit_direction dir,
 	else
 		src_desc->src_addr = virt_to_phys(src);
 	src_desc->length = len;
-	src_desc->ch_id = (ch_id & 0x1F);
+	src_desc->ch_id = ch_id;
 	src_desc->pre_csum = csum;
 	src_desc->udp_csum_zero = 0;
 	src_desc->control = 0;
