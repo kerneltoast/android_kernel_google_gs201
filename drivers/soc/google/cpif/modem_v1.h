@@ -77,8 +77,9 @@ enum read_write {
  *		for example, LINKDEV_SHMEM or LINKDEV_PCIE
  */
 struct modem_io_t {
-	char *name;
+	char name[SZ_64];
 	u32 ch;
+	u32 ch_count;
 	u32 format;
 	u32 io_type;
 	u32 link_type;
@@ -183,7 +184,7 @@ struct modem_data {
 
 	/* Information of IO devices */
 	unsigned int num_iodevs;
-	struct modem_io_t *iodevs;
+	struct modem_io_t *iodevs[IOD_CH_ID_MAX];
 
 	/* capability check */
 	u32 capability_check;
