@@ -70,35 +70,35 @@
 				       /* 0 : 2 clock, 1 : 32 clock */
 		b2_ocp_warn_dvs_mask = <0>; /* ocp warn mask when dvs */
 					    /* 0 : not masked, 1 : masked  */
-		b2_ocp_warn_lvl = <0x0>; /* step : -250mA */
+		b2_ocp_warn_lvl = <8>; /* 12.0A */
 
 		b3_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b3_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b3_ocp_warn_dvs_mask = <0>; /* 0 : not masked, 1 : masked  */
-		b3_ocp_warn_lvl = <0x0>; /* step : -166mA */
+		b3_ocp_warn_lvl = <13>; /* 7.0A */
 
 		b10_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b10_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b10_ocp_warn_dvs_mask = <0>; /* 0 : not masked, 1 : masked  */
-		b10_ocp_warn_lvl = <0x0>; /* step : -250mA */
+		b10_ocp_warn_lvl = <13>; /* 10.5A */
 
 		b2_soft_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b2_soft_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b2_soft_ocp_warn_dvs_mask = <0>; /* 0 : not masked */
 						 /* 1 : masked	   */
-		b2_soft_ocp_warn_lvl = <0x0>; /* step : -250mA */
+		b2_soft_ocp_warn_lvl = <8>; /* 12.0A */
 
 		b3_soft_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b3_soft_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b3_soft_ocp_warn_dvs_mask = <0>; /* 0 : not masked */
 						 /* 1 : masked	   */
-		b3_soft_ocp_warn_lvl = <0x0>; /* step : -166mA */
+		b3_soft_ocp_warn_lvl = <13>; /* 7.0A */
 
 		b10_soft_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b10_soft_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b10_soft_ocp_warn_dvs_mask = <0>; /* 0 : not masked */
 						  /* 1 : masked	    */
-		b10_soft_ocp_warn_lvl = <0x0>; /* step : -250mA */
+		b10_soft_ocp_warn_lvl = <20>; /* 8.5A */
 
 		/* BUCK OCP Detection */
 		buck_ocp_ctrl1 = <0xB0>;
@@ -727,12 +727,12 @@
 		b2_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b2_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b2_ocp_warn_dvs_mask = <0>; /* 0 : not masked, 1 : masked  */
-		b2_ocp_warn_lvl = <0x0>; /* step : -250mA */
+		b2_ocp_warn_lvl = <8>; /* 12.0A */
 		b2_soft_ocp_warn_en = <1>; /* 1 : enable, 0 : disable */
 		b2_soft_ocp_warn_cnt = <0>; /* 0 : 2 clock, 1 : 32 clock */
 		b2_soft_ocp_warn_dvs_mask = <0>; /* 0 : not masked */
 						 /* 1 : masked	   */
-		b2_soft_ocp_warn_lvl = <0x0>; /* step : -250mA */
+		b2_soft_ocp_warn_lvl = <8>; /* 12.0A */
 
 		/* BUCK OCP Detection */
 		buck_ocp_ctrl1 = <0xB0>;

@@ -1336,8 +1336,15 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 
 	dwc = exynos->dwc;
 	spin_lock_irqsave(&dwc->lock, flags);
-	if (pm_runtime_suspended(dev))
+	if (pm_runtime_suspended(dev)) {
+		if(!exynos_usbdrd_get_vdd_hsi_status())
+			exynos_usbdrd_vdd_hsi_manual_control(1);
+
+		if(!exynos_usbdrd_get_ldo_status())
+			exynos_usbdrd_ldo_manual_control(1);
+
 		return 0;
+	}
 
 	dwc3_exynos_clk_disable(exynos);
 
@@ -1383,8 +1390,15 @@ static int dwc3_exynos_suspend(struct device *dev)
 {
 	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
 
-	if (pm_runtime_suspended(dev))
+	if (pm_runtime_suspended(dev)) {
+		if(!exynos_usbdrd_get_vdd_hsi_status())
+			exynos_usbdrd_vdd_hsi_manual_control(1);
+
+		if(!exynos_usbdrd_get_ldo_status())
+			exynos_usbdrd_ldo_manual_control(1);
+
 		return 0;
+	}
 
 	dwc3_exynos_clk_disable(exynos);
 
