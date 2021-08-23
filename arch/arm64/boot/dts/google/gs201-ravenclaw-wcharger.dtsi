@@ -12,7 +12,7 @@
 	fragment@wlc {
 		target-path = "/";
 		__overlay__ {
-			google,google,charger {
+			google,charger {
 				google,wlc-power-supply = "wireless";
 			};
 		};
