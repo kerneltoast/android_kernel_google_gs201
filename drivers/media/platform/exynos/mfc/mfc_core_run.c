@@ -243,6 +243,9 @@ int mfc_core_run_sleep(struct mfc_core *core)
 	mfc_core_mfc_off(core);
 	mfc_core_pm_clock_off(core);
 
+	if (core->curr_core_ctx_is_drm)
+		mfc_core_protection_off(core);
+
 	mfc_core_debug_leave();
 
 	return 0;
