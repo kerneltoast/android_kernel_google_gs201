@@ -395,7 +395,7 @@
 			<0x0 0x1A820400 0x4>,     /* SYSREG G3AA */
 			<0x0 0x1AC40000 0x10000>, /* IPP CORE0 */
 			<0x0 0x1AC50000 0x10000>, /* IPP CORE1 */
-			<0x0 0x1AC60000 0x10000>, /* IPP CORE2 */
+			<0x0 0x1AC60000 0x10000>; /* IPP CORE2 */
 		reg-names =
 			"pdp-core0",
 			"pdp-core1",
