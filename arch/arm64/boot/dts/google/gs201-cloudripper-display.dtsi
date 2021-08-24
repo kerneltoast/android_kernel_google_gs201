@@ -36,6 +36,7 @@
 &drmdsim1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
+	status = "okay";
 
 	panel@0 {
 		compatible = "samsung,s6e3hc3";
@@ -44,8 +45,12 @@
 
 		/* reset, power */
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vddd-supply = <&m_ldo28_reg>;
+		vddd-normal-microvolt = <1200000>;
+		vddd-lp-microvolt = <1050000>;
 		vci-supply = <&s_ldo6_reg>;
 		vddi-supply = <&s_bucka_reg>;
+		is_secondary;
 	};
 	panel@1 {
 		compatible = "samsung,emul";
@@ -54,6 +59,7 @@
 
 		/* reset, power */
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		is_secondary;
 	};
 };
 
@@ -70,6 +76,16 @@
 
 /* R4 VCI */
 &s_ldo6_reg {
+	regulator-min-microvolt = <3025000>;
+	regulator-max-microvolt = <3025000>;
 	regulator-always-on;
 	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* R4 vddd-supply voltage */
+&m_ldo28_reg {
+	regulator-min-microvolt = <1050000>;
+	regulator-max-microvolt = <1200000>;
+	regulator-ramp-delay = <1200>;
+	regulator-enable-ramp-delay = <125>;
 };
