@@ -33,6 +33,7 @@ enum pktproc_end_bit_owner {
 
 /* Padding required by CP */
 #define CP_PADDING		76
+#define HIPRIO_MAX_PACKET_SIZE	roundup_pow_of_two(128 + CP_PADDING)
 
 /* Q_info */
 struct pktproc_q_info_ul {
@@ -98,6 +99,7 @@ struct pktproc_queue_ul {
 
 	u32 desc_size;
 	u64 buff_addr_cp; /* base data address value for cp */
+	u32 max_packet_size;
 
 	/* Pointer to data buffer */
 	u8 __iomem *q_buff_vbase;
@@ -124,7 +126,8 @@ struct pktproc_adaptor_ul {
 	unsigned long buff_rgn_size;	/* Size of data buffer region */
 
 	u32 num_queue;		/* Number of queue */
-	u32 max_packet_size;	/* packet size pktproc UL can hold */
+	u32 default_max_packet_size;	/* packet size pktproc UL can hold */
+	u32 hiprio_ack_only;
 	enum pktproc_end_bit_owner end_bit_owner;	/* owner to set end bit. AP:0, CP:1 */
 	u32 cp_quota;		/* max number of buffers cp allows us to transfer */
 	bool use_hw_iocc;	/* H/W IO cache coherency */

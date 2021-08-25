@@ -306,6 +306,10 @@ static inline bool is_tcp_ack(struct sk_buff *skb)
 static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 		struct net_device *sb_dev)
 {
+#if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
+	struct vnet *vnet = netdev_priv(dev);
+#endif
+
 	if (!skb)
 		return 0;
 
@@ -313,7 +317,7 @@ static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 		return 1;
 
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
-	if (skb->sk && cpif_qos_get_node(skb->sk->sk_uid.val))
+	if (!vnet->hiprio_ack_only && skb->sk && cpif_qos_get_node(skb->sk->sk_uid.val))
 		return 1;
 #endif
 

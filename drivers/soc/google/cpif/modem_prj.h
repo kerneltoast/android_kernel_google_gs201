@@ -446,6 +446,8 @@ struct link_device {
 	/* capability check */
 	u32 capability_check;
 
+	bool hiprio_ack_only;
+
 	/* Modem data */
 	struct modem_data *mdm_data;
 

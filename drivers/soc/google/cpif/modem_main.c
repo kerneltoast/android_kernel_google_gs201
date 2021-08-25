@@ -228,6 +228,13 @@ static int attach_devices(struct io_device *iod, struct device *dev)
 		if (IS_CONNECTED(iod, ld)) {
 			mif_debug("set %s->%s\n", iod->name, ld->name);
 			set_current_link(iod, ld);
+
+			if (iod->io_typ == IODEV_NET && iod->ndev) {
+				struct vnet *vnet;
+
+				vnet = netdev_priv(iod->ndev);
+				vnet->hiprio_ack_only = ld->hiprio_ack_only;
+			}
 		}
 	}
 

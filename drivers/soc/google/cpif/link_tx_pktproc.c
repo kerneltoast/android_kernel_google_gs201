@@ -38,15 +38,14 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 	}
 
 	use_dit = dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx);
-
 	if (!use_dit) {
 		target_addr = (void *)(q->q_buff_vbase +
-			(q->done_ptr * q->ppa_ul->max_packet_size));
+			(q->done_ptr * q->max_packet_size));
 		skb_copy_from_linear_data(skb, target_addr, skb->len);
 	}
 
 	desc = &q->desc_ul[q->done_ptr];
-	desc->sktbuf_point = q->buff_addr_cp + (q->done_ptr * q->ppa_ul->max_packet_size);
+	desc->sktbuf_point = q->buff_addr_cp + (q->done_ptr * q->max_packet_size);
 
 	desc->data_size = skb->len;
 	if (q->ppa_ul->padding_required)
@@ -327,16 +326,17 @@ static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 {
 	mif_dt_read_u64(np, "pktproc_cp_base", ppa_ul->cp_base);
 	mif_dt_read_u32(np, "pktproc_ul_num_queue", ppa_ul->num_queue);
-	mif_dt_read_u32(np, "pktproc_ul_max_packet_size",
-			ppa_ul->max_packet_size);
+	mif_dt_read_u32(np, "pktproc_ul_max_packet_size", ppa_ul->default_max_packet_size);
+	mif_dt_read_u32_noerr(np, "pktproc_ul_hiprio_ack_only", ppa_ul->hiprio_ack_only);
 	mif_dt_read_u32(np, "pktproc_ul_use_hw_iocc", ppa_ul->use_hw_iocc);
 	mif_dt_read_u32(np, "pktproc_ul_info_rgn_cached", ppa_ul->info_rgn_cached);
 	mif_dt_read_u32(np, "pktproc_ul_desc_rgn_cached", ppa_ul->desc_rgn_cached);
 	mif_dt_read_u32(np, "pktproc_ul_buff_rgn_cached", ppa_ul->buff_rgn_cached);
 	mif_dt_read_u32(np, "pktproc_ul_padding_required",
 			ppa_ul->padding_required);
-	mif_info("cp_base:0x%08llx num_queue:%d max_packet_size:%d iocc:%d\n",
-		ppa_ul->cp_base, ppa_ul->num_queue, ppa_ul->max_packet_size, ppa_ul->use_hw_iocc);
+	mif_info("cp_base:0x%08llx num_queue:%d max_packet_size:%d hiprio_ack_only:%d iocc:%d\n",
+		 ppa_ul->cp_base, ppa_ul->num_queue, ppa_ul->default_max_packet_size,
+		 ppa_ul->hiprio_ack_only, ppa_ul->use_hw_iocc);
 	mif_info("cached: %d/%d/%d padding_required:%d\n", ppa_ul->info_rgn_cached,
 			ppa_ul->desc_rgn_cached, ppa_ul->buff_rgn_cached,
 			ppa_ul->padding_required);
@@ -367,8 +367,8 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 	struct pktproc_adaptor_ul *ppa_ul = &mld->pktproc_ul;
 	struct pktproc_info_ul *ul_info;
 	u32 buff_size, buff_size_by_q;
-	int i;
-	int ret;
+	u32 last_q_desc_offset;
+	int i, ret;
 #if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
 	u64 temp;
 #endif
@@ -499,6 +499,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 	ul_info->num_queues = ppa_ul->num_queue;
 
 	/* Create queue */
+	last_q_desc_offset = 0;
 	for (i = 0; i < ppa_ul->num_queue; i++) {
 		struct pktproc_queue_ul *q;
 
@@ -522,18 +523,27 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->q_buff_vbase = ppa_ul->buff_vbase + (i * buff_size_by_q);
 		q->cp_buff_pbase = ppa_ul->cp_base +
 			ppa_ul->buff_rgn_offset + (i * buff_size_by_q);
+
 		if (mld->pktproc_use_36bit_addr)
 			q->q_info->cp_buff_pbase = q->cp_buff_pbase >> 4;
 		else
 			q->q_info->cp_buff_pbase = q->cp_buff_pbase;
+
+		if (ppa_ul->num_queue > 1 && i == PKTPROC_UL_HIPRIO && ppa_ul->hiprio_ack_only) {
+			struct link_device *ld = &mld->link_dev;
+
+			ld->hiprio_ack_only = true;
+			q->max_packet_size = HIPRIO_MAX_PACKET_SIZE;
+		} else {
+			q->max_packet_size = ppa_ul->default_max_packet_size;
+		}
+
 		q->q_buff_size = buff_size_by_q;
-		q->num_desc = buff_size_by_q / ppa_ul->max_packet_size;
+		q->num_desc = buff_size_by_q / q->max_packet_size;
 		q->q_info->num_desc = q->num_desc;
-		q->desc_ul = ppa_ul->desc_vbase +
-			(i * sizeof(struct pktproc_desc_ul) * q->num_desc);
+		q->desc_ul = ppa_ul->desc_vbase + last_q_desc_offset;
 		q->cp_desc_pbase = ppa_ul->cp_base +
-			ppa_ul->desc_rgn_offset +
-			(i * sizeof(struct pktproc_desc_ul) * q->num_desc);
+			ppa_ul->desc_rgn_offset + last_q_desc_offset;
 		if (mld->pktproc_use_36bit_addr)
 			q->q_info->cp_desc_pbase = q->cp_desc_pbase >> 4;
 		else
@@ -544,9 +554,9 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->send_packet = pktproc_send_pkt_to_cp;
 		q->update_fore_ptr = pktproc_ul_update_fore_ptr;
 
-		if ((q->cp_desc_pbase + q->desc_size) > q->cp_buff_pbase) {
-			mif_err("Descriptor overflow:0x%08llx 0x%08x 0x%08llx\n",
-				q->cp_desc_pbase, q->desc_size, q->cp_buff_pbase);
+		if ((last_q_desc_offset + q->desc_size) > ppa_ul->desc_rgn_size) {
+			mif_err("Descriptor overflow. 0x%08x + 0x%08x > 0x%08lx\n",
+				last_q_desc_offset, q->desc_size, ppa_ul->desc_rgn_size);
 			goto create_error;
 		}
 
@@ -563,6 +573,8 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		q->rear_ptr = &q->q_info->rear_ptr;
 		q->done_ptr = *q->fore_ptr;
 
+		last_q_desc_offset += q->desc_size;
+
 		mif_info("num_desc:%d desc_offset:0x%08llx desc_size:0x%08x\n",
 			q->num_desc, q->cp_desc_pbase, q->desc_size);
 		mif_info("buff_offset:0x%08llx buff_size:0x%08x\n",
@@ -574,7 +586,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 			if (ret)
 				mif_err("dit_set_pktproc_queue_num() error:%d\n", ret);
 
-			ret = dit_set_buf_size(DIT_DIR_TX, ppa_ul->max_packet_size);
+			ret = dit_set_buf_size(DIT_DIR_TX, q->max_packet_size);
 			if (ret)
 				mif_err("dit_set_buf_size() error:%d\n", ret);
 

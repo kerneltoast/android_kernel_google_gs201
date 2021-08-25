@@ -1396,9 +1396,9 @@ static int xmit_ipc_to_pktproc(struct mem_link_device *mld, struct sk_buff *skb)
 	else
 		len = skb->len;
 
-	if (len > ppa_ul->max_packet_size) {
-		mif_err_limited("ERR! PKTPROC UL QUEUE %d, skb len %d too large\n",
-				q->q_idx, len);
+	if (len > q->max_packet_size) {
+		mif_err_limited("ERR! PKTPROC UL QUEUE[%d] skb len:%d too large (max:%u)\n",
+				q->q_idx, len, q->max_packet_size);
 		return -EINVAL;
 	}
 

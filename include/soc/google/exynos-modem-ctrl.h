@@ -14,8 +14,7 @@
 
 struct vnet {
 	void *iod;
-	bool enable_zerocopy;
-	bool (*free_head)(struct sk_buff *skb);
+	bool hiprio_ack_only;
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_MODEM_IF)
