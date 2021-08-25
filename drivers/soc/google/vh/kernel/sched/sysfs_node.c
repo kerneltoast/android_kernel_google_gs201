@@ -22,7 +22,6 @@ DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 #endif
 
 unsigned int __read_mostly vendor_sched_uclamp_threshold;
-unsigned int __read_mostly vendor_sched_high_capacity_start_cpu = MAX_CAPACITY_CPU;
 unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
 static struct kobject *vendor_sched_kobj;
 static struct proc_dir_entry *vendor_sched;
@@ -839,33 +838,6 @@ static ssize_t reset_uclamp_stats_store(struct kobject *kobj, struct kobj_attrib
 static struct kobj_attribute reset_uclamp_stats_attribute = __ATTR_WO(reset_uclamp_stats);
 #endif
 
-
-static ssize_t high_capacity_start_cpu_show(struct kobject *kobj,
-					struct kobj_attribute *attr,
-					char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", vendor_sched_high_capacity_start_cpu);
-}
-
-static ssize_t high_capacity_start_cpu_store(struct kobject *kobj,
-					struct kobj_attribute *attr,
-					const char *buf, size_t count)
-{
-	unsigned int val;
-
-	if (kstrtouint(buf, 0, &val))
-		return -EINVAL;
-
-	if (val != MID_CAPACITY_CPU && val != MAX_CAPACITY_CPU)
-		return -EINVAL;
-
-	vendor_sched_high_capacity_start_cpu = val;
-
-	return count;
-}
-
-static struct kobj_attribute high_capacity_start_cpu_attribute = __ATTR_RW(high_capacity_start_cpu);
-
 static ssize_t util_post_init_scale_show(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					char *buf)
@@ -1051,7 +1023,6 @@ static struct attribute *attrs[] = {
 #endif
 	&uclamp_threshold_attribute.attr,
 	&util_threshold_attribute.attr,
-	&high_capacity_start_cpu_attribute.attr,
 	&util_post_init_scale_attribute.attr,
 	&uclamp_fork_reset_set_attribute.attr,
 	&uclamp_fork_reset_clear_attribute.attr,
