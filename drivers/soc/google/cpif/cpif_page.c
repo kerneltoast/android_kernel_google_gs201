@@ -51,7 +51,7 @@ void cpif_page_init_tmp_page(struct cpif_page_pool *pool)
 }
 EXPORT_SYMBOL(cpif_page_init_tmp_page);
 
-#define EXTRA_PAGE_COUNT	100
+#define EXTRA_PAGE_COUNT	1000
 struct cpif_page_pool *cpif_page_pool_create(u64 num_page)
 {
 	int i;
