@@ -1203,6 +1203,8 @@ static void dit_update_dst_desc_pos(enum dit_direction dir, enum dit_desc_ring r
 	} while (1);
 
 	if (packets > 0) {
+		u32 qnum = desc_info->pktproc_queue_num;
+
 		dit_set_dst_desc_int_range(dir, ring_num);
 		dit_set_snapshot(dir, ring_num, last_dst_wp,
 			circ_prev_ptr(desc_info->dst_desc_ring_len,
@@ -1214,13 +1216,11 @@ static void dit_update_dst_desc_pos(enum dit_direction dir, enum dit_desc_ring r
 			desc_info->dst_rp[ring_num] = circ_new_ptr(desc_info->dst_desc_ring_len,
 				desc_info->dst_rp[ring_num], packets);
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
-			mld->pktproc_ul.q[DIT_PKTPROC_TX_QUEUE_NUM]->update_fore_ptr(
-				mld->pktproc_ul.q[DIT_PKTPROC_TX_QUEUE_NUM], packets);
+			mld->pktproc_ul.q[qnum]->update_fore_ptr(mld->pktproc_ul.q[qnum], packets);
 #endif
 			break;
 		case DIT_DIR_RX:
-			mld->pktproc.q[DIT_PKTPROC_RX_QUEUE_NUM]->update_fore_ptr(
-				mld->pktproc.q[DIT_PKTPROC_RX_QUEUE_NUM], packets);
+			mld->pktproc.q[qnum]->update_fore_ptr(mld->pktproc.q[qnum], packets);
 			break;
 		default:
 			mif_err_limited("dir error:%d\n", dir);
@@ -2317,14 +2317,13 @@ ATTRIBUTE_GROUPS(dit);
 
 bool dit_check_dir_use_queue(enum dit_direction dir, unsigned int queue_num)
 {
-	static unsigned int target_queue[DIT_DIR_MAX] = {
-		DIT_PKTPROC_TX_QUEUE_NUM,
-		DIT_PKTPROC_RX_QUEUE_NUM};
+	struct dit_desc_info *desc_info;
 
 	if (!dc)
 		return false;
 
-	if (!dc->use_dir[dir] || queue_num != target_queue[dir])
+	desc_info = &dc->desc_info[dir];
+	if (!dc->use_dir[dir] || queue_num != desc_info->pktproc_queue_num)
 		return false;
 
 	if (dc->stop_enqueue[dir] && dit_check_queues_empty(dir))
@@ -2376,6 +2375,21 @@ int dit_set_irq_affinity(int affinity)
 	return 0;
 }
 EXPORT_SYMBOL(dit_set_irq_affinity);
+
+int dit_set_pktproc_queue_num(enum dit_direction dir, u32 queue_num)
+{
+	struct dit_desc_info *desc_info;
+
+	if (!dc)
+		return -EPERM;
+
+	desc_info = &dc->desc_info[dir];
+	desc_info->pktproc_queue_num = queue_num;
+	mif_info("dir:%d queue_num:%d\n", dir, desc_info->pktproc_queue_num);
+
+	return 0;
+}
+EXPORT_SYMBOL(dit_set_pktproc_queue_num);
 
 int dit_set_buf_size(enum dit_direction dir, u32 size)
 {

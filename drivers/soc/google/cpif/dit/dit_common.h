@@ -199,6 +199,7 @@ struct dit_desc_info {
 	u32 buf_size;
 
 	phys_addr_t pktproc_pbase;
+	u32 pktproc_queue_num;
 	u32 pktproc_desc_len;
 	u32 *pktproc_fore_ptr;
 

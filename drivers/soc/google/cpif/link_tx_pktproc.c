@@ -567,23 +567,28 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 			q->num_desc, q->cp_desc_pbase, q->desc_size);
 		mif_info("buff_offset:0x%08llx buff_size:0x%08x\n",
 			q->cp_buff_pbase, q->q_buff_size);
-	}
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
-	ret = dit_set_buf_size(DIT_DIR_TX, ppa_ul->max_packet_size);
-	if (ret)
-		mif_err("dit_set_buf_size() error:%d\n", ret);
+		if (ppa_ul->num_queue == 1 || q->q_idx == PKTPROC_UL_NORM) {
+			ret = dit_set_pktproc_queue_num(DIT_DIR_TX, q->q_idx);
+			if (ret)
+				mif_err("dit_set_pktproc_queue_num() error:%d\n", ret);
 
-	ret = dit_set_pktproc_base(DIT_DIR_TX,
-		memaddr + ppa_ul->buff_rgn_offset + (DIT_PKTPROC_TX_QUEUE_NUM * buff_size_by_q));
-	if (ret)
-		mif_err("dit_set_pktproc_base() error:%d\n", ret);
+			ret = dit_set_buf_size(DIT_DIR_TX, ppa_ul->max_packet_size);
+			if (ret)
+				mif_err("dit_set_buf_size() error:%d\n", ret);
 
-	ret = dit_set_desc_ring_len(DIT_DIR_TX,
-		ppa_ul->q[DIT_PKTPROC_TX_QUEUE_NUM]->num_desc);
-	if (ret)
-		mif_err("dit_set_desc_ring_len() error:%d\n", ret);
+			ret = dit_set_pktproc_base(DIT_DIR_TX, memaddr + ppa_ul->buff_rgn_offset +
+						   (q->q_idx * buff_size_by_q));
+			if (ret)
+				mif_err("dit_set_pktproc_base() error:%d\n", ret);
+
+			ret = dit_set_desc_ring_len(DIT_DIR_TX, q->num_desc);
+			if (ret)
+				mif_err("dit_set_desc_ring_len() error:%d\n", ret);
+		}
 #endif
+	}
 
 	/* Debug */
 	ret = sysfs_create_group(&pdev->dev.kobj, &pktproc_ul_group);

@@ -13,10 +13,13 @@
 #include "cpif_vmapper.h"
 #endif
 
-/* Numbers */
-#define PKTPROC_HIPRIO_UL	0
-#define PKTPROC_NORM_UL		1
-#define PKTPROC_MAX_QUEUE_UL	2
+/* Queue Numbers */
+enum pktproc_ul_queue_t {
+	PKTPROC_UL_HIPRIO = 0,
+	PKTPROC_UL_QUEUE_0 = PKTPROC_UL_HIPRIO,
+	PKTPROC_UL_NORM = 1,
+	PKTPROC_UL_QUEUE_MAX
+};
 
 /*
  * Descriptor structure mode
@@ -44,7 +47,7 @@ struct pktproc_q_info_ul {
 struct pktproc_info_ul {
 	u32 num_queues:4, mode:4, max_packet_size:16, end_bit_owner:1, reserve1:7;
 	u32 cp_quota:16, reserve2:16;
-	struct pktproc_q_info_ul q_info[PKTPROC_MAX_QUEUE_UL];
+	struct pktproc_q_info_ul q_info[PKTPROC_UL_QUEUE_MAX];
 } __packed;
 
 struct pktproc_desc_ul {
@@ -136,7 +139,7 @@ struct pktproc_adaptor_ul {
 	void __iomem *info_vbase;	/* I/O region for information */
 	void __iomem *desc_vbase;	/* I/O region for descriptor */
 	void __iomem *buff_vbase;	/* I/O region for data buffer */
-	struct pktproc_queue_ul *q[PKTPROC_MAX_QUEUE_UL];/* Logical queue */
+	struct pktproc_queue_ul *q[PKTPROC_UL_QUEUE_MAX];/* Logical queue */
 };
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)

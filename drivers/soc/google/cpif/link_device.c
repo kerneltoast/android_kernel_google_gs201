@@ -1384,10 +1384,12 @@ static int xmit_ipc_to_pktproc(struct mem_link_device *mld, struct sk_buff *skb)
 	int ret = -EBUSY;
 	unsigned long flags;
 
-	if (skb->queue_mapping == 1)
-		q = ppa_ul->q[PKTPROC_HIPRIO_UL];
-	else /* normal ul queue */
-		q = ppa_ul->q[PKTPROC_NORM_UL];
+	if (ppa_ul->num_queue == 1)
+		q = ppa_ul->q[PKTPROC_UL_QUEUE_0];
+	else if (skb->queue_mapping == 1)
+		q = ppa_ul->q[PKTPROC_UL_HIPRIO];
+	else
+		q = ppa_ul->q[PKTPROC_UL_NORM];
 
 	if (ppa_ul->padding_required)
 		len = skb->len + CP_PADDING;

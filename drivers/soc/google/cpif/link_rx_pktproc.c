@@ -1717,18 +1717,23 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		if (!q->manager)
 			mif_info("cp_buff_pbase:0x%08llx buff_size:0x%08x\n",
 				q->cp_buff_pbase, q->q_buff_size);
-	}
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
-	ret = dit_set_buf_size(DIT_DIR_RX, ppa->max_packet_size);
-	if (ret)
-		mif_err("dit_set_buf_size() error:%d\n", ret);
+		if (q->q_idx == 0) {
+			ret = dit_set_pktproc_queue_num(DIT_DIR_RX, q->q_idx);
+			if (ret)
+				mif_err("dit_set_buf_size() error:%d\n", ret);
 
-	ret = dit_set_desc_ring_len(DIT_DIR_RX,
-		ppa->q[DIT_PKTPROC_RX_QUEUE_NUM]->num_desc - 1);
-	if (ret)
-		mif_err("dit_set_desc_ring_len() error:%d\n", ret);
+			ret = dit_set_buf_size(DIT_DIR_RX, ppa->max_packet_size);
+			if (ret)
+				mif_err("dit_set_buf_size() error:%d\n", ret);
+
+			ret = dit_set_desc_ring_len(DIT_DIR_RX, q->num_desc - 1);
+			if (ret)
+				mif_err("dit_set_desc_ring_len() error:%d\n", ret);
+		}
 #endif
+	}
 
 	/* Debug */
 	ret = sysfs_create_group(&pdev->dev.kobj, &pktproc_group);

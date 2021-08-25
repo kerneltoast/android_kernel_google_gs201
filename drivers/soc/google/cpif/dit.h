@@ -25,13 +25,10 @@ enum dit_init_type {
 	DIT_INIT_DEINIT,
 };
 
-/* DIT works with pktproc for the specific queue */
-#define DIT_PKTPROC_TX_QUEUE_NUM	(1)
-#define DIT_PKTPROC_RX_QUEUE_NUM	(0)
-
 int dit_init(struct link_device *ld, enum dit_init_type type);
 int dit_get_irq_affinity(void);
 int dit_set_irq_affinity(int affinity);
+int dit_set_pktproc_queue_num(enum dit_direction dir, u32 queue_num);
 int dit_set_buf_size(enum dit_direction dir, u32 size);
 int dit_set_pktproc_base(enum dit_direction dir, phys_addr_t base);
 int dit_set_desc_ring_len(enum dit_direction dir, u32 len);
