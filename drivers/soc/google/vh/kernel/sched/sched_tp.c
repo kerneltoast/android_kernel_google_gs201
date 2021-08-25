@@ -8,8 +8,8 @@
 #define CREATE_TRACE_POINTS
 #include "sched_events.h"
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(sched_find_best_target);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_find_energy_efficient_cpu);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_select_task_rq_fair);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sched_cpu_util);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sugov_util_update);
 EXPORT_TRACEPOINT_SYMBOL_GPL(sugov_next_freq);

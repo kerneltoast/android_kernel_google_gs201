@@ -14,8 +14,6 @@
 
 extern void init_uclamp_stats(void);
 extern int create_sysfs_node(void);
-extern void rvh_find_energy_efficient_cpu_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
-						    int sync, int *new_cpu);
 extern void vh_arch_set_freq_scale_pixel_mod(void *data,
 					     const struct cpumask *cpus,
 					     unsigned long freq,
@@ -43,7 +41,8 @@ extern void init_uclamp_stats(void);
 extern void rvh_sched_fork_pixel_mod(void *data, struct task_struct *tsk);
 extern void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
 					 struct task_struct *orig);
-
+extern void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
+					      int sd_flag, int wake_flags, int *target_cpu);
 extern struct cpufreq_governor sched_pixel_gov;
 
 static int vh_sched_init(void)
@@ -55,15 +54,6 @@ static int vh_sched_init(void)
 #endif
 
 	ret = create_sysfs_node();
-	if (ret)
-		return ret;
-
-	ret = register_trace_android_rvh_find_energy_efficient_cpu(
-						rvh_find_energy_efficient_cpu_pixel_mod, NULL);
-	if (ret)
-		return ret;
-
-	ret = register_trace_android_vh_arch_set_freq_scale(vh_arch_set_freq_scale_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
@@ -103,6 +93,19 @@ static int vh_sched_init(void)
 
 	ret = register_trace_android_rvh_cpu_cgroup_online(
 		rvh_cpu_cgroup_online_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_sched_fork(rvh_sched_fork_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_select_task_rq_fair(rvh_select_task_rq_fair_pixel_mod,
+							     NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_arch_set_freq_scale(vh_arch_set_freq_scale_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
