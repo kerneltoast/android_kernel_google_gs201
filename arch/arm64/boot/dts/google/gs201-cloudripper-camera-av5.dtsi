@@ -905,7 +905,7 @@
 
 				/* I2C */
 				i2c-bus = <&hsi2c_3>;
-				i2c-addr = <0xC>;
+				i2c-addr = <0xF>;
 
 				/* Registers */
 				reg-addr-bitwidth = <8>;
