@@ -7,6 +7,8 @@
 
 #include "gs201-common.dtsi"
 
+#include "gs201-pantah-camera-pmic.dtsi"
+
 #include "gs201-panther-battery.dtsi"
 #include "gs201-panther-camera.dtsi"
 #include "gs201-panther-charging.dtsi"
