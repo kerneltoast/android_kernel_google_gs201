@@ -2,5 +2,4 @@ file:/OWNERS_core
 per-file build*=set noparent
 per-file build*=saravanak@google.com,elavila@google.com,willmcvicker@google.com
 per-file vendor_{boot,dlkm}*=*
-# include OWNERS from the authoritative android-mainline branch
-include kernel/common:android-mainline:/OWNERS
+
