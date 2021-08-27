@@ -117,7 +117,7 @@
 	#size-cells = <0>;
 	gpios = <&gpp24 0 GPIO_ACTIVE_HIGH &gpp24 1 GPIO_ACTIVE_HIGH>;
 	status = "okay";
-	clock-frequency = <370000>;
+	clock-frequency = <400000>;
 
 	pinctrl-names = "default","on_i2c","off_i2c";
 	pinctrl-0 = <&hsi2c15_bus>;
