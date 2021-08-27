@@ -2,5 +2,3 @@ connoro@google.com
 elavila@google.com
 qperret@google.com
 tkjos@google.com
-# include OWNERS from the authoritative android-mainline branch
-include kernel/common:android-mainline:/kernel/sched/OWNERS
