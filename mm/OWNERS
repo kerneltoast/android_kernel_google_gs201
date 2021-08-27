@@ -1,4 +1,2 @@
 hridya@google.com
 surenb@google.com
-# include OWNERS from the authoritative android-mainline branch
-include kernel/common:android-mainline:/mm/OWNERS
