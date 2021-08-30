@@ -256,7 +256,6 @@
 
 			/* max-freq is set in gs101-a0.dts and gs101-b0.dts */
 			min-freq = <300000>;
-			resume-freq = <1197000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <2>;
@@ -276,7 +275,6 @@
 
 			max-freq = <2253000>;
 			min-freq = <400000>;
-			resume-freq = <1491000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <1>;
@@ -296,7 +294,6 @@
 
 			/* max-freq is set in gs101-a0.dts and gs101-b0.dts */
 			min-freq = <500000>;
-			resume-freq = <1826000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <0>;

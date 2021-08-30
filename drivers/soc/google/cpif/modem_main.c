@@ -283,8 +283,6 @@ static int attach_devices(struct io_device *iod, struct device *dev)
 static int parse_dt_common_pdata(struct device_node *np,
 				 struct modem_data *pdata)
 {
-	struct device_node *iodevs = NULL;
-
 	mif_dt_read_string(np, "mif,name", pdata->name);
 	mif_dt_read_u32(np, "mif,cp_num", pdata->cp_num);
 
@@ -298,18 +296,6 @@ static int parse_dt_common_pdata(struct device_node *np,
 	mif_dt_read_string(np, "mif,link_name", pdata->link_name);
 	mif_dt_read_u32(np, "mif,link_attrs", pdata->link_attrs);
 	mif_dt_read_u32(np, "mif,interrupt_types", pdata->interrupt_types);
-
-	iodevs = of_get_child_by_name(np, "iodevs");
-	if (!iodevs) {
-		mif_err("can not get iodevs\n");
-		return -ENODEV;
-	}
-	pdata->num_iodevs = of_get_child_count(iodevs);
-	if (!pdata->num_iodevs) {
-		mif_err("can not get num_iodevs\n");
-		return -ENODEV;
-	}
-	mif_info("num_iodevs:%d\n", pdata->num_iodevs);
 
 	mif_dt_read_u32_noerr(np, "mif,capability_check", pdata->capability_check);
 	mif_info("capability_check:%d\n", pdata->capability_check);
@@ -458,45 +444,66 @@ static int parse_dt_iodevs_pdata(struct device *dev, struct device_node *np,
 				 struct modem_data *pdata)
 {
 	struct device_node *child = NULL;
-	size_t size = sizeof(struct modem_io_t) * pdata->num_iodevs;
-	int i = 0;
-
-	pdata->iodevs = devm_kzalloc(dev, size, GFP_KERNEL);
-	if (!pdata->iodevs) {
-		mif_err("iodevs: failed to alloc memory\n");
-		return -ENOMEM;
-	}
 
 	for_each_child_of_node(np, child) {
+		struct modem_io_t *p_iod = NULL;
 		struct modem_io_t *iod;
+		unsigned int ch_count = 0;
+		char *name;
 
-		iod = &pdata->iodevs[i];
+		do {
+			iod = devm_kzalloc(dev, sizeof(struct modem_io_t), GFP_KERNEL);
+			if (!iod) {
+				mif_err("failed to alloc iodev\n");
+				return -ENOMEM;
+			}
 
-		mif_dt_read_string(child, "iod,name", iod->name);
-		mif_dt_read_u32(child, "iod,ch", iod->ch);
-		mif_dt_read_enum(child, "iod,format", iod->format);
-		mif_dt_read_enum(child, "iod,io_type", iod->io_type);
-		mif_dt_read_u32(child, "iod,link_type", iod->link_type);
-		mif_dt_read_u32(child, "iod,attrs", iod->attrs);
-		mif_dt_read_u32_noerr(child, "iod,max_tx_size",
-				iod->ul_buffer_size);
-		if (iod->attrs & IO_ATTR_SBD_IPC) {
-			mif_dt_read_u32(child, "iod,ul_num_buffers",
-					iod->ul_num_buffers);
-			mif_dt_read_u32(child, "iod,ul_buffer_size",
-					iod->ul_buffer_size);
-			mif_dt_read_u32(child, "iod,dl_num_buffers",
-					iod->dl_num_buffers);
-			mif_dt_read_u32(child, "iod,dl_buffer_size",
-					iod->dl_buffer_size);
-		}
+			if (!p_iod) {
+				mif_dt_read_string(child, "iod,name", name);
+				mif_dt_read_u32(child, "iod,ch", iod->ch);
+				mif_dt_read_enum(child, "iod,format", iod->format);
+				mif_dt_read_enum(child, "iod,io_type", iod->io_type);
+				mif_dt_read_u32(child, "iod,link_type", iod->link_type);
+				mif_dt_read_u32(child, "iod,attrs", iod->attrs);
+				mif_dt_read_u32_noerr(child, "iod,max_tx_size",
+						      iod->ul_buffer_size);
 
-		if (iod->attrs & IO_ATTR_OPTION_REGION)
-			mif_dt_read_string(child, "iod,option_region",
-					iod->option_region);
+				if (iod->attrs & IO_ATTR_SBD_IPC) {
+					mif_dt_read_u32(child, "iod,ul_num_buffers",
+							iod->ul_num_buffers);
+					mif_dt_read_u32(child, "iod,ul_buffer_size",
+							iod->ul_buffer_size);
+					mif_dt_read_u32(child, "iod,dl_num_buffers",
+							iod->dl_num_buffers);
+					mif_dt_read_u32(child, "iod,dl_buffer_size",
+							iod->dl_buffer_size);
+				}
 
-		i++;
+				if (iod->attrs & IO_ATTR_OPTION_REGION)
+					mif_dt_read_string(child, "iod,option_region",
+							   iod->option_region);
+
+				if (iod->attrs & IO_ATTR_MULTI_CH)
+					mif_dt_read_u32(child, "iod,ch_count", iod->ch_count);
+
+				p_iod = iod;
+			} else {
+				memcpy(iod, p_iod, sizeof(struct modem_io_t));
+			}
+
+			if (ch_count < iod->ch_count) {
+				snprintf(iod->name, sizeof(iod->name), "%s%d", name, ch_count);
+				iod->ch = p_iod->ch + ch_count;
+			} else {
+				snprintf(iod->name, sizeof(iod->name), "%s", name);
+			}
+
+			pdata->iodevs[pdata->num_iodevs] = iod;
+			pdata->num_iodevs++;
+		} while (++ch_count < iod->ch_count);
 	}
+
+	mif_info("num_iodevs:%d\n", pdata->num_iodevs);
 
 	return 0;
 }
@@ -504,7 +511,7 @@ static int parse_dt_iodevs_pdata(struct device *dev, struct device_node *np,
 static struct modem_data *modem_if_parse_dt_pdata(struct device *dev)
 {
 	struct modem_data *pdata;
-	struct device_node *iodevs = NULL;
+	struct device_node *iodevs_node = NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(struct modem_data), GFP_KERNEL);
 	if (!pdata) {
@@ -527,25 +534,31 @@ static struct modem_data *modem_if_parse_dt_pdata(struct device *dev)
 		goto error;
 	}
 
-	iodevs = of_get_child_by_name(dev->of_node, "iodevs");
-	if (!iodevs) {
+	iodevs_node = of_get_child_by_name(dev->of_node, "iodevs");
+	if (!iodevs_node) {
 		mif_err("DT error: failed to get child node\n");
 		goto error;
 	}
 
-	if (parse_dt_iodevs_pdata(dev, iodevs, pdata)) {
+	if (parse_dt_iodevs_pdata(dev, iodevs_node, pdata)) {
 		mif_err("DT error: failed to parse iodevs\n");
 		goto error;
 	}
 
 	dev->platform_data = pdata;
 	mif_info("DT parse complete!\n");
+
 	return pdata;
 
 error:
 	if (pdata) {
-		if (pdata->iodevs)
-			devm_kfree(dev, pdata->iodevs);
+		unsigned int id;
+
+		for (id = 0; id < ARRAY_SIZE(pdata->iodevs); id++) {
+			if (pdata->iodevs[id])
+				devm_kfree(dev, pdata->iodevs[id]);
+		}
+
 		devm_kfree(dev, pdata);
 	}
 	return ERR_PTR(-EINVAL);
@@ -760,15 +773,14 @@ static int cpif_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pdata->num_iodevs; i++) {
 		if (sim_mode < MIF_SIM_DUAL &&
-			pdata->iodevs[i].attrs & IO_ATTR_DUALSIM)
+			pdata->iodevs[i]->attrs & IO_ATTR_DUALSIM)
 			continue;
 
-		if (pdata->iodevs[i].attrs & IO_ATTR_OPTION_REGION
-				&& strcmp(pdata->iodevs[i].option_region,
-					CONFIG_OPTION_REGION))
+		if (pdata->iodevs[i]->attrs & IO_ATTR_OPTION_REGION &&
+		    strcmp(pdata->iodevs[i]->option_region, CONFIG_OPTION_REGION))
 			continue;
 
-		iod[i] = create_io_device(pdev, &pdata->iodevs[i], msd,
+		iod[i] = create_io_device(pdev, pdata->iodevs[i], msd,
 					  modemctl, pdata);
 		if (!iod[i]) {
 			mif_err("%s: iod[%d] == NULL\n", pdata->name, i);

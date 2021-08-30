@@ -194,7 +194,11 @@ static inline bool exynos_ipc_ch(u8 ch)
 
 static inline bool exynos_ps_ch(u8 ch)
 {
+#if IS_ENABLED(CONFIG_CH_EXTENSION)
+	return (ch >= EXYNOS_CH_EX_ID_PDP_0 && ch <= EXYNOS_CH_EX_ID_PDP_MAX) ?
+#else
 	return (ch >= EXYNOS_CH_ID_PDP_0 && ch <= EXYNOS_CH_ID_PDP_9) ?
+#endif
 		true : false;
 }
 
