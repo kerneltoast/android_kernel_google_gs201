@@ -793,7 +793,7 @@
 
 			s_buck5_reg: BUCK5S {
 				regulator-name = "S2MPG13_BUCK5";
-				regulator-min-microvolt = <450000>;
+				regulator-min-microvolt = <400000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
