@@ -1129,9 +1129,9 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 	/* Kick debug accessory state machine when enabling toggling for the first time */
 	if (chip->first_toggle && chip->in_switch_gpio >= 0) {
 		logbuffer_log(chip->log, "[%s]: Kick Debug accessory FSM", __func__);
-		gpio_set_value_cansleep(chip->in_switch_gpio, 0);
+		gpio_set_value_cansleep(chip->in_switch_gpio, !chip->in_switch_gpio_active_high);
 		mdelay(10);
-		gpio_set_value_cansleep(chip->in_switch_gpio, 1);
+		gpio_set_value_cansleep(chip->in_switch_gpio, chip->in_switch_gpio_active_high);
 		chip->first_toggle = false;
 	}
 
@@ -1513,16 +1513,26 @@ static void max77759_toggle_disable_votable_callback(struct gvotable_election *e
 		update_contaminant_detection_locked(chip, CONTAMINANT_DETECT_DISABLE);
 		disable_contaminant_detection(chip);
 		max77759_enable_toggling_locked(chip, false);
-		gpio_set_value_cansleep(chip->in_switch_gpio, 0);
-		logbuffer_log(chip->log, "[%s]: Disable in-switch", __func__);
+		if (chip->in_switch_gpio >= 0) {
+			gpio_set_value_cansleep(chip->in_switch_gpio,
+						!chip->in_switch_gpio_active_high);
+			logbuffer_log(chip->log, "[%s]: Disable in-switch set %s / active %s",
+				      __func__, !chip->in_switch_gpio_active_high ? "high" : "low",
+				      chip->in_switch_gpio_active_high ? "high" : "low");
+		}
 	} else {
 		if (chip->contaminant_detection_userspace)
 			update_contaminant_detection_locked(chip,
 							    chip->contaminant_detection_userspace);
 		else
 			max77759_enable_toggling_locked(chip, true);
-		gpio_set_value_cansleep(chip->in_switch_gpio, 1);
-		logbuffer_log(chip->log, "[%s]: Enable in-switch", __func__);
+		if (chip->in_switch_gpio >= 0) {
+			gpio_set_value_cansleep(chip->in_switch_gpio,
+						chip->in_switch_gpio_active_high);
+			logbuffer_log(chip->log, "[%s]: Enable in-switch set %s / active %s",
+				      __func__, chip->in_switch_gpio_active_high ? "high" : "low",
+				      chip->in_switch_gpio_active_high ? "high" : "low");
+		}
 	}
 	mutex_unlock(&chip->rc_lock);
 	logbuffer_log(chip->log, "%s: reason %s value %ld\n", __func__, reason, (long)value);
@@ -1765,6 +1775,7 @@ static int max77759_probe(struct i2c_client *client,
 	u16 device_id;
 	u32 ovp_handle;
 	const char *ovp_status;
+	enum of_gpio_flags flags;
 
 	ret = max77759_register_vendor_hooks(client);
 	if (ret)
@@ -1795,16 +1806,26 @@ static int max77759_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	if (!of_property_read_u32(dn, "max20339,ovp", &ovp_handle)) {
+	chip->in_switch_gpio = -EINVAL;
+	if (of_property_read_bool(dn, "ovp-present")) {
+		chip->in_switch_gpio = of_get_named_gpio_flags(dn, "in-switch-gpio", 0, &flags);
+		if (chip->in_switch_gpio < 0) {
+			dev_err(&client->dev, "in-switch-gpio not found\n");
+			return -EPROBE_DEFER;
+		}
+		chip->in_switch_gpio_active_high = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+	} else if (!of_property_read_u32(dn, "max20339,ovp", &ovp_handle)) {
 		ovp_dn = of_find_node_by_phandle(ovp_handle);
 		if (!IS_ERR_OR_NULL(ovp_dn) &&
 		    !of_property_read_string(ovp_dn, "status", &ovp_status) &&
 		    strncmp(ovp_status, "disabled", strlen("disabled"))) {
-			chip->in_switch_gpio = of_get_named_gpio(dn, "in-switch-gpio", 0);
+			chip->in_switch_gpio = of_get_named_gpio_flags(dn, "in-switch-gpio", 0,
+								       &flags);
 			if (chip->in_switch_gpio < 0) {
 				dev_err(&client->dev, "in-switch-gpio not found\n");
 				return -EPROBE_DEFER;
 			}
+			chip->in_switch_gpio_active_high = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
 		}
 	}
 

@@ -65,6 +65,8 @@ struct max77759_plat {
 	struct usb_psy_ops psy_ops;
 	/* toggle in_switch to kick debug accessory statemachine when already connected */
 	int in_switch_gpio;
+	/* 0:active_low 1:active_high */
+	bool in_switch_gpio_active_high;
 	bool first_toggle;
 
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
