@@ -5,12 +5,34 @@
  * Copyright 2021 Google,LLC
  */
 
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+
 #include "gs201-common.dtsi"
+#include "gs201-cloudripper-battery.dtsi"
+#include "gs201-cloudripper-bcl.dtsi"
+#include "gs201-cloudripper-bluetooth.dtsi"
+#include "gs201-cloudripper-charging.dtsi"
+#include "gs201-cloudripper-cp-s5300-sit.dtsi"
+#include "gs201-cloudripper-ese.dtsi"
+#include "gs201-cloudripper-gsa-gsc.dtsi"
+#include "gs201-cloudripper-nfc.dtsi"
+#include "gs201-cloudripper-sbbm.dtsi"
+
+#include "gs201-ravenclaw-audio.dtsi"
+#include "gs201-ravenclaw-display.dtsi"
+#include "gs201-ravenclaw-touch.dtsi"
+#include "gs201-ravenclaw-usecases.dtsi"
+#include "gs201-ravenclaw-wcharger.dtsi"
 
 #include "gs201-pantah-camera-pmic.dtsi"
-
-#include "gs201-cheetah-battery.dtsi"
 #include "gs201-cheetah-camera.dtsi"
-#include "gs201-cheetah-charging.dtsi"
-#include "gs201-cheetah-display.dtsi"
-#include "gs201-cheetah-gsa-gsc.dtsi"
+
+/* UWB */
+&s_ldo16_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+&s_ldo17_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
