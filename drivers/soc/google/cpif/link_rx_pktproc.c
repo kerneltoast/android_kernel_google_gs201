@@ -1070,7 +1070,6 @@ static irqreturn_t pktproc_irq_handler(int irq, void *arg)
 	if (q->ppa->use_napi) {
 		if (napi_schedule_prep(q->napi_ptr)) {
 			q->disable_irq(q);
-			q->flush_time = q->mld->link_dev.update_flush_time(q->flush_time);
 			__napi_schedule(q->napi_ptr);
 		}
 	} else {

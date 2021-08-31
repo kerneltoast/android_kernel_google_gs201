@@ -531,6 +531,7 @@ static void tpmon_set_gro(struct tpmon_data *data)
 {
 	struct mem_link_device *mld = container_of(data->tpmon->ld,
 			struct mem_link_device, link_dev);
+	long timeout;
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 	int i;
@@ -542,11 +543,11 @@ static void tpmon_set_gro(struct tpmon_data *data)
 	if (!data->enable)
 		return;
 
-	gro_flush_time = data->tpmon->use_user_value ?
-			data->user_value : data->values[data->curr_value_pos];
+	timeout = data->tpmon->use_user_value ?
+		data->user_value : data->values[data->curr_value_pos];
 
 #if !IS_ENABLED(CONFIG_CP_PKTPROC) && !IS_ENABLED(CONFIG_EXYNOS_DIT)
-	mld->dummy_net.gro_flush_timeout = gro_flush_time;
+	mld->dummy_net.gro_flush_timeout = timeout;
 #endif
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
@@ -554,22 +555,22 @@ static void tpmon_set_gro(struct tpmon_data *data)
 		for (i = 0; i > ppa->num_queue; i++) {
 			struct pktproc_queue *q = ppa->q[i];
 
-			q->netdev.gro_flush_timeout = gro_flush_time;
+			q->netdev.gro_flush_timeout = timeout;
 		}
 	} else {
-		mld->dummy_net.gro_flush_timeout = gro_flush_time;
+		mld->dummy_net.gro_flush_timeout = timeout;
 	}
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	netdev = dit_get_netdev();
 	if (netdev) {
-		netdev->gro_flush_timeout = gro_flush_time;
+		netdev->gro_flush_timeout = timeout;
 		mld->dummy_net.gro_flush_timeout = 0;
 	}
 #endif
 
-	mif_info("%s (flush time:%u)\n", data->name, gro_flush_time);
+	mif_info("%s (flush timeout:%u)\n", data->name, timeout);
 }
 
 /* IRQ affinity */
