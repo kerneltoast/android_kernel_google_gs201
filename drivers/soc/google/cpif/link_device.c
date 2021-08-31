@@ -2217,53 +2217,55 @@ out:
 	return ret;
 }
 
-unsigned long shm_get_security_param2(u32 cp_num, unsigned long mode, u32 bl_size)
+int shm_get_security_param2(u32 cp_num, unsigned long mode, u32 bl_size,
+		unsigned long *param)
 {
-	unsigned long ret;
+	int ret = 0;
 
 	switch (mode) {
 	case CP_BOOT_MODE_NORMAL:
 	case CP_BOOT_MODE_DUMP:
-		ret = bl_size;
+		*param = bl_size;
 		break;
 	case CP_BOOT_RE_INIT:
-		ret = 0;
+		*param = 0;
 		break;
 	case CP_BOOT_MODE_MANUAL:
-		ret = cp_shmem_get_base(cp_num, SHMEM_CP) + bl_size;
+		*param = cp_shmem_get_base(cp_num, SHMEM_CP) + bl_size;
 		break;
 	default:
 		mif_info("Invalid sec_mode(%lu)\n", mode);
-		ret = 0;
+		ret = -EINVAL;
 		break;
 	}
 	return ret;
 }
 
-unsigned long shm_get_security_param3(u32 cp_num, unsigned long mode, u32 main_size)
+int shm_get_security_param3(u32 cp_num, unsigned long mode, u32 main_size,
+		unsigned long *param)
 {
-	unsigned long ret;
+	int ret = 0;
 
 	switch (mode) {
 	case CP_BOOT_MODE_NORMAL:
-		ret = main_size;
+		*param = main_size;
 		break;
 	case CP_BOOT_MODE_DUMP:
 #ifdef CP_NONSECURE_BOOT
-		ret = cp_shmem_get_base(cp_num, SHMEM_CP);
+		*param = cp_shmem_get_base(cp_num, SHMEM_CP);
 #else
-		ret = cp_shmem_get_base(cp_num, SHMEM_IPC);
+		*param = cp_shmem_get_base(cp_num, SHMEM_IPC);
 #endif
 		break;
 	case CP_BOOT_RE_INIT:
-		ret = 0;
+		*param = 0;
 		break;
 	case CP_BOOT_MODE_MANUAL:
-		ret = main_size;
+		*param = main_size;
 		break;
 	default:
 		mif_info("Invalid sec_mode(%lu)\n", mode);
-		ret = 0;
+		ret = -EINVAL;
 		break;
 	}
 	return ret;
@@ -2295,8 +2297,16 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 	}
 
 	mode = (unsigned long)msr.mode;
-	param2 = shm_get_security_param2(cp_num, mode, msr.param2);
-	param3 = shm_get_security_param3(cp_num, mode, msr.param3);
+	err = shm_get_security_param2(cp_num, mode, msr.param2, &param2);
+	if (err) {
+		mif_err("%s: ERR! parameter2 is invalid\n", ld->name);
+		goto exit;
+	}
+	err = shm_get_security_param3(cp_num, mode, msr.param3, &param3);
+	if (err) {
+		mif_err("%s: ERR! parameter3 is invalid\n", ld->name);
+		goto exit;
+	}
 
 
 	mutex_lock(&mld->vmap_lock);
