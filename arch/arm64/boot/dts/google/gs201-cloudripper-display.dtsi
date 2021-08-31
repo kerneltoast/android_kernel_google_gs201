@@ -61,6 +61,17 @@
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
 		is_secondary;
 	};
+	panel@2 {
+		compatible = "samsung,s6e3fc3";
+		label = "samsung-s6e3fc3";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
+		is_secondary;
+	};
 };
 
 /* Keep VDDIs always on */
