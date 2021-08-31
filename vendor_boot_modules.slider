@@ -27,6 +27,7 @@ clk_exynos.ko
 cmupmucal.ko
 cp_thermal_zone.ko
 cpif.ko
+cpif_page.ko
 dbgcore-dump.ko
 debug-reboot.ko
 debug-snapshot-debug-kinfo.ko
