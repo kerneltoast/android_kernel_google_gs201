@@ -17,10 +17,10 @@
 #include "gs201-cloudripper-sbbm.dtsi"
 
 #include "gs201-ravenclaw-audio.dtsi"
-#include "gs201-ravenclaw-display.dtsi"
-#include "gs201-ravenclaw-touch.dtsi"
 #include "gs201-ravenclaw-usecases.dtsi"
 #include "gs201-ravenclaw-wcharger.dtsi"
 
 #include "gs201-pantah-camera-pmic.dtsi"
 #include "gs201-panther-camera.dtsi"
+#include "gs201-panther-display.dtsi"
+#include "gs201-panther-touch.dtsi"

@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Display nodes for slider-related boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+&drmdsim0 {
+	samsung_s6e3fc3: panel@0 {
+		compatible = "samsung,s6e3fc3";
+		label = "samsung-s6e3fc3";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo27_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+/* Keep vddi-supply always on */
+&s_bucka_reg {
+	regulator-always-on;
+};
+
+/* vci-supply voltage */
+&m_ldo27_reg {
+	regulator-min-microvolt = <3025000>;
+	regulator-max-microvolt = <3025000>;
+};
+
