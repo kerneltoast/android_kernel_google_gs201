@@ -593,7 +593,9 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		if (unlikely(!skb)) {
 			mif_err_limited("build_skb() error\n");
 			q->stat.err_nomem++;
-			ret = -EINVAL;
+			ret = -ENOMEM;
+			if (!q->manager->already_retrieved)
+				q->manager->already_retrieved = src;
 			goto rx_error;
 		}
 		skb->head_frag = 0;

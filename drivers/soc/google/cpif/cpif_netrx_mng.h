@@ -30,6 +30,9 @@ struct cpif_netrx_mng {
 
 	struct cpif_page_pool	*data_pool;
 	struct list_head	data_addr_list;
+
+	/* contains pre-unmapped AP addr which couldn't be delivered to kernel yet */
+	void *already_retrieved;
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)

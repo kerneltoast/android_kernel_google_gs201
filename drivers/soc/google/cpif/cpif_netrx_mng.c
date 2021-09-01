@@ -160,6 +160,12 @@ void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 	struct cpif_addr_pair *apair;
 
 	if (cm->data_map) {
+		if (cm->already_retrieved) {
+			ap_addr = cm->already_retrieved;
+			cm->already_retrieved = NULL;
+			return ap_addr;
+		}
+
 		ap_paddr = cpif_vmap_unmap_area(cm->data_map, cp_addr);
 		if (unlikely(ap_paddr == 0)) {
 			mif_err_limited("failed to receive ap_addr\n");
