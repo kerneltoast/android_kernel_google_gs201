@@ -1030,6 +1030,8 @@ static ssize_t force_speed_store(struct device *dev, struct device_attribute *at
 		force_speed = USB_SPEED_SUPER;
 	} else if (sysfs_streq(buf, "high-speed")) {
 		force_speed = USB_SPEED_HIGH;
+	} else if (sysfs_streq(buf, "full-speed")) {
+		force_speed = USB_SPEED_FULL;
 	} else {
 		return -EINVAL;
 	}
