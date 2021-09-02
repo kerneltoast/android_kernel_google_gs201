@@ -22,6 +22,14 @@
  * AOC2AP: XAOC_GPIO2 - gpio_in[39] -> XEINT_22 - GPA9[2]
  */
 
+&tbn {
+	tbn,aoc2ap_gpio = <&gpa9 2 GPIO_ACTIVE_LOW>;
+};
+
+&aoc2ap_irq {
+	samsung,pins = "gpa9-2";
+};
+
 &spitouch {
 	status = "ok";
 	compatible = "sec,sec_ts";

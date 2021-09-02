@@ -21,10 +21,6 @@
  * AOC2AP: XAOC_GPIO8 - gpio_in[74] -> XEINT_19 - GPA8[7]
  */
 
-&tbn {
-	tbn,aoc2ap_gpio = <&gpa8 7 GPIO_ACTIVE_LOW>;
-};
-
 &spitouch {
 	status = "okay";
 	compatible = "sec,sec_ts";

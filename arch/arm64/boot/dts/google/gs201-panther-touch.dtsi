@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Google Ravenclaw device tree source
+ * Google P10 touch device tree source
  *
  * Copyright 2021 Google Inc.
  *
@@ -21,35 +21,19 @@
  * AOC2AP: XAOC_GPIO8 - gpio_in[74] -> XEINT_19 - GPA8[7]
  */
 
-&tbn {
-	tbn,aoc2ap_gpio = <&gpa8 7 GPIO_ACTIVE_LOW>;
-};
-
 &spitouch {
-	status = "okay";
-	compatible = "sec,sec_ts";
+	status = "ok";
+	compatible = "focaltech,ts";
 
-	sec,panel_map = <&samsung_s6e3fc3 0>;
+	spi-max-frequency = <10000000>;
 
-	sec,touch_offload_id = /bits/ 8 <'0' '0' 'r' '4'>;
-	sec,mm2px = /bits/ 8 <20>;
-	sec,encoded_enable = <1>;
-
-	spi-max-frequency = <16000000>;
-	spi-cpol;
-	spi-cpha;
-
-	sec,spi_cs_gpio = <&gpp20 3 0>;
-	sec,irq_gpio = <&gpa7 0 0>;
-	sec,reset_gpio = <&gpp23 2 0>;
-	sec,firmware_name = "s6sy79x.bin";
-	sec,mis_cal_check = <1>;
-	sec,heatmap_mode = <1>;
-
-	sec,max_coords = <1440 3120>;
+	focaltech,irq-gpio = <&gpa7 0 0>;
+	focaltech,reset-gpio = <&gpp23 2 0>;
+	focaltech,max-touch-number = <10>;
+	focaltech,display-coords = <0 0 1079 2399>;
 
 	controller-data {
 		samsung,spi-feedback-delay = <0>;
-		samsung,spi-chip-select-mode = <0>;
+		samsung,spi-chip-select-mode = <1>;
 	};
 };
