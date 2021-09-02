@@ -46,8 +46,8 @@
 		/* reset, power */
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
 		vddd-supply = <&m_ldo28_reg>;
-		vddd-normal-microvolt = <1200000>;
-		vddd-lp-microvolt = <1050000>;
+		vddd-normal-microvolt = <RAVEN_VDD_NORMAL_MICROVOLT>;
+		vddd-lp-microvolt = <RAVEN_VDD_LP_MICROVOLT>;
 		vci-supply = <&s_ldo6_reg>;
 		vddi-supply = <&s_bucka_reg>;
 		is_secondary;
@@ -72,31 +72,4 @@
 		vddi-supply = <&s_bucka_reg>;
 		is_secondary;
 	};
-};
-
-/* Keep VDDIs always on */
-&m_ldo24_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};
-
-&s_bucka_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};
-
-/* R4 VCI */
-&s_ldo6_reg {
-	regulator-min-microvolt = <3025000>;
-	regulator-max-microvolt = <3025000>;
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};
-
-/* R4 vddd-supply voltage */
-&m_ldo28_reg {
-	regulator-min-microvolt = <1050000>;
-	regulator-max-microvolt = <1200000>;
-	regulator-ramp-delay = <1200>;
-	regulator-enable-ramp-delay = <125>;
 };

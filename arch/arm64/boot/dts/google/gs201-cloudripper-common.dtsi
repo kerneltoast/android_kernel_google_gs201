@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Cloudripper device tree source
+ * Cloudripper device tree source (inhereted by Ravenclaw too)
  *
  * Copyright 2020 Google,LLC
  */

@@ -8,11 +8,10 @@
 /dts-v1/;
 /plugin/;
 
-#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
-
 #include "gs201-cloudripper-common.dtsi"
 
 #include "gs201-cloudripper-audio.dtsi"
+#include "gs201-cloudripper-pmic.dtsi"
 #include "gs201-cloudripper-touch.dtsi"
 #include "gs201-cloudripper-display.dtsi"
 #include "gs201-max20339-ovp.dtsi"
@@ -35,8 +34,3 @@
 	status = "okay";
 };
 
-/* S5910 */
-&s_ldo26_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};

@@ -26,14 +26,5 @@
 
 #include "gs201-pantah-camera-pmic.dtsi"
 #include "gs201-cheetah-camera.dtsi"
+#include "gs201-cheetah-pmic.dtsi"
 #include "gs201-cheetah-touch.dtsi"
-
-/* UWB */
-&s_ldo16_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};
-&s_ldo17_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};

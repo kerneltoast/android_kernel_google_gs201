@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cheetah-specific PMIC settings
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+/* Display: Cheetah uses LDO28M for display, Panther does not. */
+&m_ldo28_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+	regulator-always-on;
+};
+
+/* UWB: Ravenclaw and Cheetah use LDO[16,17]S for UWB */
+&s_ldo16_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* UWB: Ravenclaw and Cheetah use LDO[16,17]S for UWB */
+&s_ldo17_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+

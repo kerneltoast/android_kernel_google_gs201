@@ -292,24 +292,6 @@
 	aoc-board-cfg = "cr";
 };
 
-/* MIC2 */
-&m_ldo23_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};
-
-/* MICVDD */
-&s_ldo28_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};
-
-/* ALC5682 */
-&s_ldo4_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};
-
 &cs40l26a_haptics {
 	pinctrl-0 = <&hapt_amp2_irq &hapt_amp2_rst &hapt_amp_trig>;
 

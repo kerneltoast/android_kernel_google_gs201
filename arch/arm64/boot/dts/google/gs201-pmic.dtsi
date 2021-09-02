@@ -568,8 +568,7 @@
 				regulator-name = "S2MPG12_LDO28";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x3C>;
 				schematic-name = "L28M_DISP";
 				subsys-name = "Display";
@@ -1212,8 +1211,7 @@
 				regulator-name = "S2MPG13_LDO27";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
 				channel-mux-selection = <0x3B>;
 				schematic-name = "27S_S5910";
 				subsys-name = "S5910";

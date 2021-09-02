@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Raven display-specific constants
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+#define RAVEN_VCI_MICROVOLT 3025000
+#define RAVEN_VDD_NORMAL_MICROVOLT 1200000
+#define RAVEN_VDD_LP_MICROVOLT 1050000

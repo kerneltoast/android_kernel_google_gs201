@@ -27,14 +27,4 @@
 	};
 };
 
-/* Keep vddi-supply always on */
-&s_bucka_reg {
-	regulator-always-on;
-};
-
-/* vci-supply voltage */
-&m_ldo27_reg {
-	regulator-min-microvolt = <3025000>;
-	regulator-max-microvolt = <3025000>;
-};
 

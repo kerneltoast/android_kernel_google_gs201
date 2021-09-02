@@ -17,7 +17,3 @@
 		fp-gpio-reset = <&gpp1 1 GPIO_ACTIVE_LOW>;
 	};
 };
-
-&s_ldo15_reg {
-	regulator-always-on;
-};
