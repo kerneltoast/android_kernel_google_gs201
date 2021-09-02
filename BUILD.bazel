@@ -217,6 +217,7 @@ kernel_modules_install(
         "//private/google-modules/touch/common:common.cloudripper",
         "//private/google-modules/touch/sec:sec.cloudripper",
         "//private/google-modules/uwb/kernel:kernel.cloudripper",
+        "//private/google-modules/video/gchips:gchips.cloudripper",
         "//private/google-modules/wlan/bcmdhd4389:bcmdhd4389.cloudripper",
     ],
 )
