@@ -18,6 +18,7 @@ package(
     ],
 )
 
+load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kleaf:common_kernels.bzl", "aarch64_outs", "define_common_kernels")
 load("//build/kleaf:kernel.bzl", "kernel_build", "kernel_modules_install")
 
@@ -217,5 +218,13 @@ kernel_modules_install(
         "//private/google-modules/touch/sec:sec.cloudripper",
         "//private/google-modules/uwb/kernel:kernel.cloudripper",
         "//private/google-modules/wlan/bcmdhd4389:bcmdhd4389.cloudripper",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "cloudripper_dist",
+    data = [
+        "cloudripper_for_dist",
+        "cloudripper_modules_install",
     ],
 )
