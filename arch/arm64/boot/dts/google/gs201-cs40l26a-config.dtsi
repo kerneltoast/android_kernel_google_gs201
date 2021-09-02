@@ -10,6 +10,31 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/samsung.h>
 
+&dai_be_haptic_rx {
+	dai_be_haptic_rx_codec: codec {
+		sound-dai = <&cs40l26_codec 0>;
+	};
+};
+
+&aoc_snd_card {
+	clks {
+		sys {
+			sys@cs40l26_codec {
+				comp = <&cs40l26_codec>;
+				src = "BCLK";
+				/* clk id */
+				id = <0>;
+				/* clk source */
+				srcid = <0>;
+				/* in clk multiple */
+				in_mul = <1>;
+				/* out clk multiple */
+				out_mul = <1>;
+			};
+		};
+	};
+};
+
 /* GPIO_FAR_ALIVE */
 &pinctrl_1 {
 	hapt_amp_irq: hapt-amp-irq {
@@ -66,5 +91,11 @@
 
 		cirrus,bst-dcm-en = <0>;
 		status = "okay";
+
+		cs40l26_codec: cs40l26_codec@snd {
+			#sound-dai-cells = <1>;
+			compatible = "cs40l26-codec";
+			status = "okay";
+		};
 	};
 };

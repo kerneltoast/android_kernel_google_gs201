@@ -28,6 +28,10 @@
 	};
 };
 
+&dai_be_haptic_rx_codec {
+	sound-dai = <&cs40l26_codec 0>, <&cs40l26_codec_2 0>;
+};
+
 &aoc_snd_card {
 	clks {
 		sys {
@@ -57,6 +61,18 @@
 			};
 			sys@cs35l45_3 {
 				comp = <&cs35l45_3>;
+				src = "BCLK";
+				/* clk id */
+				id = <0>;
+				/* clk source */
+				srcid = <0>;
+				/* in clk multiple */
+				in_mul = <1>;
+				/* out clk multiple */
+				out_mul = <1>;
+			};
+			sys@cs40l26_codec_2 {
+				comp = <&cs40l26_codec_2>;
 				src = "BCLK";
 				/* clk id */
 				id = <0>;
@@ -164,7 +180,6 @@
 	cs35l45_3_rst: cs35l45-3-rst {
 	};
 };
-
 
 &spi_7 {
 	#address-cells = <1>;
@@ -325,5 +340,12 @@
 		/* TODO (b/185767279): check the trigger & refclk pin usage. */
 
 		status = "okay";
+
+		cs40l26_codec_2: cs40l26_codec_2@snd {
+			#sound-dai-cells = <1>;
+			sound-name-prefix = "HR";
+			compatible = "cs40l26-codec";
+			status = "okay";
+		};
 	};
 };
