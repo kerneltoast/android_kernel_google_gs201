@@ -120,15 +120,18 @@ void *cpif_cur_page_base(struct cpif_page_pool *pool, bool used_tmp_alloc)
 }
 EXPORT_SYMBOL(cpif_cur_page_base);
 
+#define RECYCLING_MAX_TRIAL	10
 static void *cpif_alloc_recycling_page(struct cpif_page_pool *pool, u64 alloc_size)
 {
 	u32 idx = pool->rpage_arr_idx;
 	struct cpif_page *cur = pool->recycling_page_arr[idx];
 	u32 ret;
+	int retry_count = RECYCLING_MAX_TRIAL;
 
 	if (cur->offset < 0) { /* this page cannot handle next packet */
 		cur->usable = false;
 		cur->offset = 0;
+try_next_rpage:
 		if (++idx == pool->rpage_arr_len)
 			pool->rpage_arr_idx = 0;
 		else
@@ -147,9 +150,14 @@ static void *cpif_alloc_recycling_page(struct cpif_page_pool *pool, u64 alloc_si
 	if (cur->usable == true) /* page is in use, but still has some space left */
 		goto assign_page;
 
-	/* else, the page is not ready to be used */
+	/* else, the page is not ready to be used, need to see next one */
 	mif_err_limited("cannot use the page: ref: %d usable: %d idx: %d\n",
 			page_ref_count(cur->page), cur->usable, idx);
+
+	if (retry_count > 0) {
+		retry_count--;
+		goto try_next_rpage;
+	}
 
 	return NULL;
 
