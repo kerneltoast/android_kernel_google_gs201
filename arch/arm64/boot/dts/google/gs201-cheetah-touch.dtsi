@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Cheetah touch device tree source.
+ *
+ * Copyright 2021 Google Inc.
+ *
+ */
+
+#include <dt-bindings/pinctrl/samsung.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+
+&spi_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_bus &spi0_cs>;
+};
+
+&spitouch {
+	status = "ok";
+
+	compatible = "synaptics,tcm-spi";
+	reg = <0>;
+	spi-max-frequency = <1000000>;
+	synaptics,avdd-name = "avdd";
+	synaptics,vdd-name = "vdd";
+	synaptics,power-delay-ms = <200>;
+	synaptics,irq-gpio = <&gpa7 0 0x2008>; /* IRQF_ONESHOT | IRQF_TRIGGER_LOW */
+	synaptics,irq-on-state = <0>;
+	synaptics,reset-gpio = <&gpp23 2 0>;
+	synaptics,reset-on-state = <0>;
+	synaptics,reset-active-ms = <20>;
+	synaptics,reset-delay-ms = <200>;
+	synaptics,spi-mode = <0>;
+	synaptics,spi-byte-delay-us = <0>;
+	synaptics,spi-block-delay-us = <0>;
+
+	controller-data {
+		cs-gpio = <&gpp20 3 0>;
+		samsung,spi-feedback-delay = <0>;
+		samsung,spi-chip-select-mode = <0>;
+		cs-clock-delay = <2>;
+	};
+};
