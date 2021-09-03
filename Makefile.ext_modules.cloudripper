@@ -20,6 +20,7 @@ ext_modules += lwis
 ext_modules += nfc
 ext_modules += power/reset
 ext_modules += touch/common
+ext_modules += touch/focaltech/ft3658
 ext_modules += touch/sec
 ext_modules += touch/synaptics
 ext_modules += wlan/bcmdhd4389
@@ -32,6 +33,8 @@ endif
 .PHONY: $(ext_modules) depmod allmodules
 
 allmodules: $(ext_modules) depmod
+
+touch/focaltech/ft3658: | touch/common
 
 touch/sec: | touch/common
 
