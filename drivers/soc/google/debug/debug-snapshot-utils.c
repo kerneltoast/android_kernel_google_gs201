@@ -517,6 +517,8 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	if (!dbg_snapshot_get_enable())
 		return 0;
 
+	dss_desc.in_panic = true;
+
 	if (tombstone) { /* tamper the panic message for Oops */
 		char pc_symn[KSYM_SYMBOL_LEN] = "<unknown>";
 		char lr_symn[KSYM_SYMBOL_LEN] = "<unknown>";
