@@ -50,6 +50,8 @@ struct dbg_snapshot_desc {
 	raw_spinlock_t ctrl_lock;
 	int sjtag_status;
 	bool in_reboot;
+	bool in_panic;
+	bool in_warm;
 	int panic_action;
 };
 
