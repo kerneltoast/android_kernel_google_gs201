@@ -18,6 +18,7 @@
 #include <linux/smc.h>
 #include <linux/kdebug.h>
 #include <linux/arm-smccc.h>
+#include <linux/sysfs.h>
 
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
@@ -551,6 +552,8 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	if (!dbg_snapshot_get_enable())
 		return 0;
 
+	dss_desc.in_panic = true;
+
 	if (tombstone) { /* tamper the panic message for Oops */
 		char pc_symn[KSYM_SYMBOL_LEN] = "<unknown>";
 		char lr_symn[KSYM_SYMBOL_LEN] = "<unknown>";
@@ -710,10 +713,35 @@ static void dbg_snapshot_ipi_stop(void *ignore, struct pt_regs *regs)
 		dbg_snapshot_save_context(regs, true);
 }
 
+static ssize_t in_warm_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &val);
+
+	if (!ret)
+		dss_desc.in_warm = !!val;
+
+	return count;
+}
+
+static ssize_t in_warm_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%sable\n",
+			dss_desc.in_warm ? "en" : "dis");
+}
+
+static struct kobj_attribute in_warm_attr = __ATTR_RW_MODE(in_warm, 0660);
+
 void dbg_snapshot_init_utils(void)
 {
 	size_t vaddr;
 	uintptr_t i;
+	struct kobject *dbg_snapshot_kobj;
 
 	vaddr = dss_items[DSS_ITEM_HEADER_ID].entry.vaddr;
 
@@ -738,6 +766,17 @@ void dbg_snapshot_init_utils(void)
 
 	smp_call_function(dbg_snapshot_save_system, NULL, 1);
 	dbg_snapshot_save_system(NULL);
+
+	dbg_snapshot_kobj = kobject_create_and_add("dbg_snapshot", kernel_kobj);
+	if (!dbg_snapshot_kobj) {
+		dev_emerg(dss_desc.dev, "cannot create kobj for dbg_snapshot!\n");
+		return;
+	}
+
+	if (sysfs_create_file(dbg_snapshot_kobj, &in_warm_attr.attr)) {
+		dev_emerg(dss_desc.dev, "cannot create file in ../dbg_snapshot!\n");
+		kobject_put(dbg_snapshot_kobj);
+	}
 }
 
 int dbg_snapshot_stop_all_cpus(void)
