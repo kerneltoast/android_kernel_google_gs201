@@ -78,6 +78,9 @@ enum gbms_charger_modes {
 #define VOLTAGE_ALARM_LOW_EN_MV		1500
 #define VOLTAGE_ALARM_LOW_DIS_MV	0
 
+#define FLOATING_CABLE_INSTANCE_THRESHOLD	5
+#define AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS	600000
+
 static struct logbuffer *tcpm_log;
 
 static bool modparam_conf_sbu;
@@ -906,10 +909,29 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		 */
 		mutex_lock(&chip->rc_lock);
 		if (!chip->contaminant_detection || !tcpm_is_toggling(tcpci->port) ||
-		    !process_contaminant_alert(chip->contaminant, false, true))
+		    !process_contaminant_alert(chip->contaminant, false, true)) {
 			tcpm_cc_change(tcpci->port);
-		else
+			/* TCPM has detected valid CC terminations */
+			if (!tcpm_is_toggling(tcpci->port)) {
+				chip->floating_cable_detected = 0;
+				disable_auto_ultra_low_power_mode(chip, false);
+				logbuffer_log(chip->log, "enable_auto_ultra_low_power_mode");
+			}
+		} else {
 			logbuffer_log(log, "CC update: Contaminant algorithm responded");
+			if (is_floating_cable_detected(chip)) {
+				chip->floating_cable_detected++;
+				logbuffer_log(chip->log, "floating_cable_detected count: %d",
+					      chip->floating_cable_detected);
+				if (chip->floating_cable_detected >=
+				    FLOATING_CABLE_INSTANCE_THRESHOLD) {
+					disable_auto_ultra_low_power_mode(chip, true);
+					alarm_start_relative(
+						&chip->reenable_auto_ultra_low_power_mode_alarm,
+						ms_to_ktime(AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS));
+				}
+			}
+		}
 		mutex_unlock(&chip->rc_lock);
 	}
 
@@ -1764,6 +1786,34 @@ static void max77759_teardown_data_notifier(struct max77759_plat *chip)
 		usb_role_switch_unregister(chip->usb_sw);
 }
 
+static void reenable_auto_ultra_low_power_mode_work_item(struct kthread_work *work)
+{
+	struct max77759_plat *chip = container_of(work, struct max77759_plat,
+						  reenable_auto_ultra_low_power_mode_work);
+
+	chip->floating_cable_detected = 0;
+	disable_auto_ultra_low_power_mode(chip, false);
+}
+
+static enum alarmtimer_restart reenable_auto_ultra_low_power_mode_alarm_handler(struct alarm *alarm,
+										ktime_t time)
+{
+	struct max77759_plat *chip = container_of(alarm, struct max77759_plat,
+						  reenable_auto_ultra_low_power_mode_alarm);
+
+	logbuffer_log(chip->log, "timer fired: enable_auto_ultra_low_power_mode");
+	if (is_contaminant_detected(chip)) {
+		logbuffer_log(chip->log,
+			      "Skipping enable_auto_ultra_low_power_mode. Dry detection in progress");
+		goto exit;
+	}
+	kthread_queue_work(chip->wq, &chip->reenable_auto_ultra_low_power_mode_work);
+	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
+
+exit:
+	return ALARMTIMER_NORESTART;
+}
+
 static int max77759_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
@@ -1793,6 +1843,10 @@ static int max77759_probe(struct i2c_client *client,
 		return PTR_ERR(chip->data.regmap);
 	}
 
+	kthread_init_work(&chip->reenable_auto_ultra_low_power_mode_work,
+			  reenable_auto_ultra_low_power_mode_work_item);
+	alarm_init(&chip->reenable_auto_ultra_low_power_mode_alarm, ALARM_BOOTTIME,
+		   reenable_auto_ultra_low_power_mode_alarm_handler);
 	dn = dev_of_node(&client->dev);
 	if (!dn) {
 		dev_err(&client->dev, "of node not found\n");
