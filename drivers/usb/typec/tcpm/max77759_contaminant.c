@@ -64,6 +64,7 @@ static bool contaminant_detect_maxq;
 struct max77759_contaminant {
 	struct max77759_plat *chip;
 	enum contamiant_state state;
+	bool auto_ultra_low_power_mode_disabled;
 };
 
 static int adc_to_mv(struct max77759_contaminant *contaminant, enum fladc_select channel,
@@ -328,11 +329,11 @@ static int detect_contaminant(struct max77759_contaminant *contaminant)
 		} else {
 			logbuffer_log(chip->log, "Contaminant: AP floating cable detected");
 			/*
-			 * Consider floating cable as sink as well to allow
+			 * Do not enable dry detection for floating cable to allow
 			 * TotalPhase analyzer to work as it presents ~600k in
 			 * one of the CC pins.
 			 */
-			inferred_state = SINK;
+			inferred_state = FLOATING_CABLE;
 		}
 	}
 
@@ -509,7 +510,8 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 		return false;
 	}
 
-	if (contaminant->state == NOT_DETECTED || contaminant->state == SINK) {
+	if (contaminant->state == NOT_DETECTED || contaminant->state == SINK ||
+	    contaminant->state == FLOATING_CABLE) {
 		/* ConnectResult = 0b -> Rp */
 		if ((status_check(cc_status, TCPC_CC_STATUS_TERM, TCPC_CC_STATUS_TERM_RP)) &&
 		    ((status_check(cc_status, TCPC_CC_STATUS_CC1_MASK << TCPC_CC_STATUS_CC1_SHIFT,
@@ -523,7 +525,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 				: detect_contaminant(contaminant);
 			update_contaminant_state(contaminant, state);
 
-			if (state == DETECTED || state == FLOATING_CABLE) {
+			if (state == DETECTED) {
 				enable_dry_detection(contaminant);
 				return true;
 			}
@@ -565,7 +567,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 					update_contaminant_state(contaminant, state);
 
 					max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl_backup);
-					if (state == DETECTED || state == FLOATING_CABLE) {
+					if (state == DETECTED) {
 						enable_dry_detection(contaminant);
 						return true;
 					}
@@ -580,8 +582,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 		if (debounce_path)
 			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
 		return false;
-	} else if (contaminant->state == DETECTED || contaminant->state ==
-		   FLOATING_CABLE) {
+	} else if (contaminant->state == DETECTED) {
 		if (status_check(cc_status, TCPC_CC_STATUS_TOGGLING, 0)) {
 			logbuffer_log(chip->log, "Contaminant: Check if dry");
 			state = contaminant_detect_maxq ?
@@ -589,12 +590,16 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 				: detect_contaminant(contaminant);
 			update_contaminant_state(contaminant, state);
 
-			if (state == DETECTED || state == FLOATING_CABLE) {
+			if (state == DETECTED) {
 				enable_dry_detection(contaminant);
 				return true;
 			}
 
-			/* Re-enable contaminant detection, hence toggling as well. */
+			/*
+			 * Re-enable contaminant detection, hence toggling and
+			 * auto_ultra_low_power_mode as well.
+			 */
+			disable_auto_ultra_low_power_mode(chip, false);
 			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
 			return true;
 		}
@@ -683,11 +688,13 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 	if (ret < 0)
 		return ret;
 
-	/* tunable: Periodic contaminant detection */
-	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
-				    AUTO_ULTRA_LOW_POWER_MODE);
-	if (ret < 0)
-		return ret;
+	if (!contaminant->auto_ultra_low_power_mode_disabled) {
+		/* tunable: Periodic contaminant detection */
+		ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
+					    AUTO_ULTRA_LOW_POWER_MODE);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = max77759_read8(regmap, TCPC_VENDOR_CC_CTRL2, &vcc2);
 	if (ret < 0)
@@ -733,10 +740,6 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 	if (ret < 0)
 		return ret;
 
-	/* Reset state before enabling detection */
-	if (contaminant->state != NOT_DETECTED && contaminant->state != SINK)
-		contaminant->state = NOT_DETECTED;
-
 	logbuffer_log(chip->log, "Contaminant: Contaminant detection enabled");
 
 	return 0;
@@ -751,6 +754,39 @@ bool is_contaminant_detected(struct max77759_plat *chip)
 	return false;
 }
 EXPORT_SYMBOL_GPL(is_contaminant_detected);
+
+bool is_floating_cable_detected(struct max77759_plat *chip)
+{
+	if (chip)
+		return chip->contaminant->state == FLOATING_CABLE;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(is_floating_cable_detected);
+
+void disable_auto_ultra_low_power_mode(struct max77759_plat *chip, bool disable)
+{
+	struct max77759_contaminant *contaminant = chip->contaminant;
+	int ret;
+
+	if (!chip || !chip->contaminant)
+		return;
+
+	if (contaminant->auto_ultra_low_power_mode_disabled == disable) {
+		logbuffer_log(chip->log, "Auto ultra low power mode already %s",
+			      disable ? "disable" : "enable");
+		return;
+	}
+
+	ret = max77759_update_bits8(chip->data.regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
+				    disable ? LOW_POWER_MODE_DISABLE : AUTO_ULTRA_LOW_POWER_MODE);
+
+	logbuffer_log(chip->log, "Contaminant: Auto ultra low power mode %s ret:%d",
+		      disable ? "disable" : "enable", ret);
+	if (!ret)
+		contaminant->auto_ultra_low_power_mode_disabled = disable;
+}
+EXPORT_SYMBOL_GPL(disable_auto_ultra_low_power_mode);
 
 struct max77759_contaminant *max77759_contaminant_init(struct max77759_plat
 							 *plat, bool enable)
