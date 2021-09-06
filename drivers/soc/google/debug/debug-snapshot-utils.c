@@ -155,13 +155,6 @@ static void dbg_snapshot_report_reason(unsigned int val)
 		__raw_writel(val, header + DSS_OFFSET_EMERGENCY_REASON);
 }
 
-static unsigned int dbg_snapshot_get_report_reason(void)
-{
-	void __iomem *header = dbg_snapshot_get_header_vaddr();
-
-	return header ? __raw_readl(header + DSS_OFFSET_EMERGENCY_REASON) : 0;
-}
-
 static void dbg_snapshot_set_wdt_caller(unsigned long addr)
 {
 	void __iomem *header = dbg_snapshot_get_header_vaddr();
@@ -599,13 +592,19 @@ static int dbg_snapshot_restart_handler(struct notifier_block *nb,
 	if (!dbg_snapshot_get_enable())
 		return NOTIFY_DONE;
 
-	if (dbg_snapshot_get_report_reason() == DSS_SIGN_PANIC)
+	if (dss_desc.in_panic)
 		return NOTIFY_DONE;
 
-	dev_emerg(dss_desc.dev, "normal reboot starting\n");
-	dbg_snapshot_report_reason(DSS_SIGN_NORMAL_REBOOT);
+	if (dss_desc.in_reboot) {
+		dev_emerg(dss_desc.dev, "normal reboot starting\n");
+		dbg_snapshot_report_reason(DSS_SIGN_NORMAL_REBOOT);
+	} else {
+		dev_emerg(dss_desc.dev, "emergency restart\n");
+		dbg_snapshot_report_reason(DSS_SIGN_EMERGENCY_REBOOT);
+		dbg_snapshot_dump_task_info();
+	}
+
 	dbg_snapshot_scratch_clear();
-	dev_emerg(dss_desc.dev, "normal reboot done\n");
 
 	/* clear DSS_SIGN_PANIC when normal reboot */
 	for_each_possible_cpu(cpu) {
