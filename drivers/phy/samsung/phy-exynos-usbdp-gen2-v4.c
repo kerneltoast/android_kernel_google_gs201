@@ -20,6 +20,8 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
+#include <linux/of.h>
 #include "phy-samsung-usb-cal.h"
 #include "phy-exynos-usb3p1-reg.h"
 #include "phy-exynos-usbdp-gen2-v4-reg.h"
@@ -3217,16 +3219,30 @@ int phy_exynos_usbdp_g2_v4_enable(struct exynos_usbphy_info *info)
 	int ret = 0;
 	struct reg_set *reg_base =
 		(struct reg_set *)info->pma_base;
+	struct device *dev = info->dev;
+	u32 phy_ref_clock = 0;
 
 	phy_exynos_usbdp_g2_v4_ctrl_pma_ready(info);
 	phy_exynos_usbdp_g2_v4_aux_force_off(info);
 
-	// pma default sfr updated for RefClk 19.2Mhz
-	phy_exynos_usbdp_g2_v4_pma_default_sfr_update_19_2Mhz(info);
-	// pma configuration for RefClk 19.2Mhz-Gen1
-	phy_exynos_usbdp_g2_v4_pma_default_sfr_update_19_2Mhz_Gen1(info);
-	// pma configuration for RefClk 19.2Mhz-Gen2
-	phy_exynos_usbdp_g2_v4_pma_default_sfr_update_19_2Mhz_Gen2(info);
+	if(dev) {
+		ret = of_property_read_u32(dev->of_node, "phy_ref_clock", &phy_ref_clock);
+		if (ret < 0) {
+			dev_err(dev, "Couldn't read phy_ref_clock %s node, error = %d\n",
+				dev->of_node->name, ret);
+		}
+	}
+
+	if(phy_ref_clock == 19200000) {
+		// pma default sfr updated for RefClk 19.2Mhz
+		phy_exynos_usbdp_g2_v4_pma_default_sfr_update_19_2Mhz(info);
+		// pma configuration for RefClk 19.2Mhz-Gen1
+		phy_exynos_usbdp_g2_v4_pma_default_sfr_update_19_2Mhz_Gen1(info);
+		// pma configuration for RefClk 19.2Mhz-Gen2
+		phy_exynos_usbdp_g2_v4_pma_default_sfr_update_19_2Mhz_Gen2(info);
+	} else {
+		phy_exynos_usbdp_g2_v4_pma_default_sfr_update(info);
+	}
 
 	phy_exynos_usbdp_g2_v4_set_pcs(info);
 	phy_exynos_usbdp_g2_v4_tune(info);

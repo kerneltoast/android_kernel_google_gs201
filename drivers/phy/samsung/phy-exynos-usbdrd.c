@@ -1601,6 +1601,7 @@ static void exynos_usbdrd_pipe3_init(struct exynos_usbdrd_phy *phy_drd)
 			 phy_drd->usbphy_info.used_phy_port);
 	}
 
+	phy_drd->usbphy_sub_info.dev = phy_drd->dev;
 	phy_exynos_usb_v3p1_g2_pma_ready(&phy_drd->usbphy_info);
 	phy_exynos_usbdp_g2_v4_enable(&phy_drd->usbphy_sub_info);
 #endif
