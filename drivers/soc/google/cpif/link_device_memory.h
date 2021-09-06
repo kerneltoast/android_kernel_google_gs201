@@ -261,6 +261,13 @@ struct mem_link_device {
 
 	struct wakeup_source *ws;
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	unsigned int int_ap2cp_clatinfo_send;
+	unsigned int irq_cp2ap_clatinfo_ack;
+
+	struct mutex clatinfo_lock;
+#endif
+
 	/**
 	 * Member variables for TX & RX
 	 */
@@ -340,6 +347,14 @@ struct mem_link_device {
 	struct ctrl_msg cp2ap_msg;
 	struct ctrl_msg ap2cp_united_status;
 	struct ctrl_msg cp2ap_united_status;
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	struct ctrl_msg ap2cp_clatinfo_xlat_v4_addr;
+	struct ctrl_msg ap2cp_clatinfo_xlat_addr_0;
+	struct ctrl_msg ap2cp_clatinfo_xlat_addr_1;
+	struct ctrl_msg ap2cp_clatinfo_xlat_addr_2;
+	struct ctrl_msg ap2cp_clatinfo_xlat_addr_3;
+	struct ctrl_msg ap2cp_clatinfo_index;
+#endif
 	struct ctrl_msg ap2cp_kerneltime;	/* for DRAM_V1 and MAILBOX_SR */
 	struct ctrl_msg ap2cp_kerneltime_sec;	/* for DRAM_V2 */
 	struct ctrl_msg ap2cp_kerneltime_usec;	/* for DRAM_V2 */
@@ -371,6 +386,12 @@ struct mem_link_device {
 	int spi_bus_num;
 
 	struct cpif_tpmon *tpmon;
+
+	struct toe_ctrl_t *tc;
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	bool disable_hw_clat;
+#endif
 };
 
 #define to_mem_link_device(ld) \

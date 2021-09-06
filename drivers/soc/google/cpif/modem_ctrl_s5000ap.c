@@ -992,6 +992,9 @@ int s5000ap_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 
 	init_completion(&mc->init_cmpl);
 	init_completion(&mc->off_cmpl);
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	init_completion(&mc->clatinfo_ack);
+#endif
 
 	/* AP2CP_CFG */
 	mif_dt_read_u32_noerr(np, "ap2cp_cfg_addr", mc->ap2cp_cfg_addr);

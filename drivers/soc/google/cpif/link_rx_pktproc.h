@@ -82,7 +82,8 @@ struct pktproc_desc_sktbuf {
 		control:8,
 		status:8,
 		lro:5,
-		reserved1:3;
+		clat:2,
+		reserved1:1;
 	u16 length;
 	u16 filter_result;
 	u16 information;

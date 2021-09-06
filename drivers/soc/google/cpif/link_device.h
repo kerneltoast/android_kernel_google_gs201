@@ -5,12 +5,17 @@
 #include <linux/types.h>
 
 #include "link_device_memory.h"
+#include "modem_toe_device.h"
 
 bool check_mem_link_tx_pending(struct mem_link_device *mld);
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 int request_pcie_msi_int(struct link_device *ld,
 				struct platform_device *pdev);
+#endif
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+bool shmem_ap2cp_write_clatinfo(struct mem_link_device *mld, struct clat_info *clat);
 #endif
 
 #endif /* end of __LINK_DEVICE_H__ */

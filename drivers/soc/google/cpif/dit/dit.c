@@ -2183,6 +2183,7 @@ static ssize_t debug_use_clat_store(struct device *dev, struct device_attribute 
 	unsigned int i;
 	unsigned int flag;
 	int ret;
+	struct mem_link_device *mld = ld_to_mem_link_device(dc->ld);
 
 	ret = kstrtoint(buf, 0, &flag);
 	if (ret)
@@ -2193,7 +2194,7 @@ static ssize_t debug_use_clat_store(struct device *dev, struct device_attribute 
 		for (i = 0; i < DIT_REG_CLAT_ADDR_MAX; i++) {
 			clat.clat_index = i;
 			scnprintf(clat.ipv6_iface, IFNAMSIZ, "rmnet%d", i);
-			dit_hal_set_clat_info(&clat);
+			dit_hal_set_clat_info(mld, &clat);
 		}
 	}
 

@@ -93,12 +93,14 @@ struct modem_mbox {
 	unsigned int int_ap2cp_status;
 	unsigned int int_ap2cp_lcd_status;
 	unsigned int int_ap2cp_llc_status;
+	unsigned int int_ap2cp_clatinfo_send;
 	unsigned int int_ap2cp_uart_noti;
 
 	unsigned int irq_cp2ap_msg;
 	unsigned int irq_cp2ap_status;
 	unsigned int irq_cp2ap_active;
 	unsigned int irq_cp2ap_llc_status;
+	unsigned int irq_cp2ap_clatinfo_ack;
 	unsigned int irq_cp2ap_wakeup;
 	unsigned int irq_cp2ap_wakelock;
 	unsigned int irq_cp2ap_rat_mode;
@@ -180,6 +182,12 @@ struct modem_data {
 	u32 ap2cp_united_status[2];
 	u32 ap2cp_llc_status[2];
 	u32 cp2ap_llc_status[2];
+	u32 ap2cp_clatinfo_xlat_v4_addr[2];
+	u32 ap2cp_clatinfo_xlat_addr_0[2];
+	u32 ap2cp_clatinfo_xlat_addr_1[2];
+	u32 ap2cp_clatinfo_xlat_addr_2[2];
+	u32 ap2cp_clatinfo_xlat_addr_3[2];
+	u32 ap2cp_clatinfo_index[2];
 	u32 ap2cp_kerneltime[2];
 	u32 ap2cp_kerneltime_sec[2];
 	u32 ap2cp_kerneltime_usec[2];

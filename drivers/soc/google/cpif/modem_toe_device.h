@@ -34,12 +34,15 @@ struct toe_ctrl_t {
 	bool clat_hal_ready;
 	u32 clat_ifaces_num;
 	bool clat_dev_support;
+	struct mem_link_device *mld;
 
-	bool (*set_clat_info)(struct clat_info *clat);
+	bool (*set_clat_info)(struct mem_link_device *mld, struct clat_info *clat);
+	void (*set_iod_clat_netdev)(struct io_device *iod, void *args);
 };
 
+void toe_set_iod_clat_netdev(struct io_device *iod, void *args);
 bool toe_check_6_to_4_ready(void);
-int toe_dev_init(void);
+int toe_dev_init(struct mem_link_device *mld);
 int toe_dev_create(struct platform_device *pdev);
 
 #endif /* __MODEM_TOE_DEVICE_H__ */

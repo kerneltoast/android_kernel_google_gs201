@@ -568,7 +568,7 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 	tpmon_init();
 #endif
 
-	toe_dev_init();
+	toe_dev_init(mld);
 
 	if (ld->capability_check)
 		set_ap_capabilities(mld);
@@ -2986,6 +2986,105 @@ static irqreturn_t shmem_cp2ap_rat_mode_handler(int irq, void *data)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+#define CLATINFO_ACK_TIMEOUT	(1000) /* ms */
+bool shmem_ap2cp_write_clatinfo(struct mem_link_device *mld, struct clat_info *clat)
+{
+	u8 *buff;
+	u32 addr;
+	struct link_device *ld = &mld->link_dev;
+	struct modem_ctl *mc = ld->mc;
+	unsigned long remain;
+	unsigned long timeout = msecs_to_jiffies(CLATINFO_ACK_TIMEOUT);
+
+	if (mld->disable_hw_clat)
+		return false;
+
+	mutex_lock(&mld->clatinfo_lock);
+
+	buff = (u8 *)&clat->ipv4_local_subnet;
+	memcpy(&addr, &clat->ipv4_local_subnet, sizeof(addr));
+	mif_info("xlat_v4_addr: %02X %02X %02X %02X\n", buff[0], buff[1], buff[2], buff[3]);
+	set_ctrl_msg(&mld->ap2cp_clatinfo_xlat_v4_addr, addr);
+
+	buff = (u8 *)&clat->ipv6_local_subnet;
+	memcpy(&addr, buff, sizeof(addr));
+	mif_info("xlat_addr_0: %02X %02X %02X %02X\n", buff[0], buff[1], buff[2], buff[3]);
+	set_ctrl_msg(&mld->ap2cp_clatinfo_xlat_addr_0, addr);
+
+	buff += sizeof(addr);
+	memcpy(&addr, buff, sizeof(addr));
+	mif_info("xlat_addr_1: %02X %02X %02X %02X\n", buff[0], buff[1], buff[2], buff[3]);
+	set_ctrl_msg(&mld->ap2cp_clatinfo_xlat_addr_1, addr);
+
+	buff += sizeof(addr);
+	memcpy(&addr, buff, sizeof(addr));
+	mif_info("xlat_addr_2: %02X %02X %02X %02X\n", buff[0], buff[1], buff[2], buff[3]);
+	set_ctrl_msg(&mld->ap2cp_clatinfo_xlat_addr_2, addr);
+
+	buff += sizeof(addr);
+	memcpy(&addr, buff, sizeof(addr));
+	mif_info("xlat_addr_3: %02X %02X %02X %02X\n", buff[0], buff[1], buff[2], buff[3]);
+	set_ctrl_msg(&mld->ap2cp_clatinfo_xlat_addr_3, addr);
+
+	mif_info("clat_index: %d\n", clat->clat_index);
+	set_ctrl_msg(&mld->ap2cp_clatinfo_index, clat->clat_index);
+
+	mif_info("send ap2cp_clatinfo_irq: %d\n", mld->int_ap2cp_clatinfo_send);
+	cp_mbox_set_interrupt(CP_MBOX_IRQ_IDX_0, mld->int_ap2cp_clatinfo_send);
+
+	reinit_completion(&mc->clatinfo_ack);
+	remain = wait_for_completion_timeout(&mc->clatinfo_ack, timeout);
+	if (remain == 0) {
+		mif_err("clatinfo ack not delivered from cp\n");
+		mutex_unlock(&mld->clatinfo_lock);
+		return false;
+	}
+
+	/* set clat_ndev with clat registers */
+	if (clat->ipv4_iface[0])
+		iodevs_for_each(ld->msd, toe_set_iod_clat_netdev, clat);
+
+	mutex_unlock(&mld->clatinfo_lock);
+
+	/* clear clat_ndev but take a delay to prevent null ndev */
+	if (!clat->ipv4_iface[0]) {
+		msleep(100);
+		iodevs_for_each(ld->msd, toe_set_iod_clat_netdev, clat);
+	}
+
+	return true;
+}
+EXPORT_SYMBOL(shmem_ap2cp_write_clatinfo);
+
+static irqreturn_t shmem_cp2ap_clatinfo_ack(int irq, void *data)
+{
+	struct mem_link_device *mld = (struct mem_link_device *)data;
+	struct link_device *ld = &mld->link_dev;
+	struct modem_ctl *mc = ld->mc;
+
+	mif_info("CP replied clatinfo ack - use v4-rmmet path\n");
+
+	complete_all(&mc->clatinfo_ack);
+
+	return IRQ_HANDLED;
+}
+
+static void clatinfo_test(struct mem_link_device *mld)
+{
+	struct clat_info clat;
+	int i;
+	unsigned char *buff = (unsigned char *)&clat;
+
+	for (i = 0; i < sizeof(clat); i++)
+		buff[i] = i;
+
+	clat.clat_index = 0;
+
+	shmem_ap2cp_write_clatinfo(mld, &clat);
+}
+#endif
+
 #if IS_ENABLED(CONFIG_ECT)
 static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 {
@@ -3502,6 +3601,86 @@ static const struct attribute_group napi_group = {
 	.name = "napi",
 };
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+static ssize_t debug_hw_clat_test_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct modem_data *modem;
+	struct mem_link_device *mld;
+	unsigned int val = 0;
+
+	int ret;
+
+	modem = (struct modem_data *)dev->platform_data;
+	mld = modem->mld;
+	ret = kstrtouint(buf, 0, &val);
+
+	if (val == 1)
+		clatinfo_test(mld);
+
+	return count;
+}
+
+#define PKTPROC_CLAT_ADDR_MAX			(4)
+static ssize_t debug_disable_hw_clat_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct clat_info clat;
+	unsigned int i;
+	unsigned int flag;
+	int ret;
+	struct modem_data *modem;
+	struct mem_link_device *mld;
+
+	modem = (struct modem_data *)dev->platform_data;
+	mld = modem->mld;
+
+	ret = kstrtoint(buf, 0, &flag);
+	if (ret)
+		return -EINVAL;
+
+	if (flag) {
+		memset(&clat, 0, sizeof(clat));
+		for (i = 0; i < PKTPROC_CLAT_ADDR_MAX; i++) {
+			clat.clat_index = i;
+			scnprintf(clat.ipv6_iface, IFNAMSIZ, "rmnet%d", i);
+			shmem_ap2cp_write_clatinfo(mld, &clat);
+			msleep(1000);
+		}
+	}
+
+	mld->disable_hw_clat = (flag > 0 ? true : false);
+
+	return count;
+}
+
+static ssize_t debug_disable_hw_clat_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct modem_data *modem;
+	struct mem_link_device *mld;
+
+	modem = (struct modem_data *)dev->platform_data;
+	mld = modem->mld;
+
+	return scnprintf(buf, PAGE_SIZE, "disable_hw_clat: %d\n", mld->disable_hw_clat);
+}
+
+static DEVICE_ATTR_WO(debug_hw_clat_test);
+static DEVICE_ATTR_RW(debug_disable_hw_clat);
+
+static struct attribute *hw_clat_attrs[] = {
+	&dev_attr_debug_hw_clat_test.attr,
+	&dev_attr_debug_disable_hw_clat.attr,
+	NULL,
+};
+
+static const struct attribute_group hw_clat_group = {
+	.attrs = hw_clat_attrs,
+	.name = "hw_clat",
+};
+#endif
+
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 static u32 p_pktproc[3];
 static u32 c_pktproc[3];
@@ -3920,6 +4099,20 @@ static int init_info_region(struct modem_data *modem,
 	construct_ctrl_msg(&mld->ap2cp_msg, modem->ap2cp_msg, cmsg_base);
 	construct_ctrl_msg(&mld->cp2ap_united_status, modem->cp2ap_united_status, cmsg_base);
 	construct_ctrl_msg(&mld->ap2cp_united_status, modem->ap2cp_united_status, cmsg_base);
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	construct_ctrl_msg(&mld->ap2cp_clatinfo_xlat_v4_addr,
+			modem->ap2cp_clatinfo_xlat_v4_addr, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_clatinfo_xlat_addr_0,
+			modem->ap2cp_clatinfo_xlat_addr_0, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_clatinfo_xlat_addr_1,
+			modem->ap2cp_clatinfo_xlat_addr_1, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_clatinfo_xlat_addr_2,
+			modem->ap2cp_clatinfo_xlat_addr_2, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_clatinfo_xlat_addr_3,
+			modem->ap2cp_clatinfo_xlat_addr_3, cmsg_base);
+	construct_ctrl_msg(&mld->ap2cp_clatinfo_index,
+			modem->ap2cp_clatinfo_index, cmsg_base);
+#endif
 	construct_ctrl_msg(&mld->ap2cp_kerneltime, modem->ap2cp_kerneltime, cmsg_base);
 	construct_ctrl_msg(&mld->ap2cp_kerneltime_sec, modem->ap2cp_kerneltime_sec, cmsg_base);
 	construct_ctrl_msg(&mld->ap2cp_kerneltime_usec, modem->ap2cp_kerneltime_usec, cmsg_base);
@@ -4004,6 +4197,18 @@ static int register_irq_handler(struct modem_data *modem,
 		if (err) {
 			mif_err("%s: ERR! cp_mbox_register_handler(MBOX_IRQ_IDX_0, %u) fail (%d)\n",
 				ld->name, mld->irq_cp2ap_status, err);
+			goto error;
+		}
+	}
+#endif
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	if (ld->interrupt_types == INTERRUPT_MAILBOX) {
+		err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_clatinfo_ack,
+					shmem_cp2ap_clatinfo_ack, mld);
+		if (err) {
+			mif_err("%s: ERR! cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, %u) fail (%d)\n",
+				ld->name, mld->irq_cp2ap_clatinfo_ack, err);
 			goto error;
 		}
 	}
@@ -4157,6 +4362,9 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 
 	spin_lock_init(&mld->state_lock);
 	mutex_init(&mld->vmap_lock);
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	mutex_init(&mld->clatinfo_lock);
+#endif
 
 	mld->state = LINK_STATE_OFFLINE;
 
@@ -4237,6 +4445,10 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	mld->sbi_cp_rat_mode_pos = modem->sbi_cp2ap_rat_mode_pos;
 
 	mld->pktproc_use_36bit_addr = modem->pktproc_use_36bit_addr;
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	mld->int_ap2cp_clatinfo_send = modem->mbx->int_ap2cp_clatinfo_send;
+	mld->irq_cp2ap_clatinfo_ack = modem->mbx->irq_cp2ap_clatinfo_ack;
+#endif
 
 	/**
 	 * For TX Flow-control command from CP
@@ -4299,6 +4511,11 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 
 	if (sysfs_create_group(&pdev->dev.kobj, &napi_group))
 		mif_err("failed to create sysfs node related napi\n");
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	if (sysfs_create_group(&pdev->dev.kobj, &hw_clat_group))
+		mif_err("failed to create sysfs node related hw clat\n");
+#endif
 
 	mif_err("---\n");
 	return ld;

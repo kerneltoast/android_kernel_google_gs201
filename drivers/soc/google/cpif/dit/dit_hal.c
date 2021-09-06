@@ -444,45 +444,7 @@ static bool dit_hal_set_local_port(struct nat_local_port *local_port)
 	return true;
 }
 
-static void dit_hal_set_iod_clat_netdev(struct io_device *iod, void *args)
-{
-	struct clat_info *clat = (struct clat_info *) args;
-	struct net_device *ndev = NULL;
-	unsigned long flags;
-
-	if (!dc->ld || !dc->ld->is_ps_ch(iod->ch))
-		return;
-
-	if (strncmp(iod->name, clat->ipv6_iface, IFNAMSIZ) != 0)
-		return;
-
-	if (clat->ipv4_iface[0])
-		ndev = dev_get_by_name(&init_net, clat->ipv4_iface);
-
-	if (!clat->ipv4_iface[0] || ndev) {
-		spin_lock_irqsave(&iod->clat_lock, flags);
-		if (iod->clat_ndev)
-			dev_put(iod->clat_ndev);
-
-		iod->clat_ndev = ndev;
-		spin_unlock_irqrestore(&iod->clat_lock, flags);
-
-#if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
-		if (iod->clat_ndev) {
-			struct mem_link_device *mld = to_mem_link_device(dc->ld);
-
-			mif_info("set RPS again\n");
-			mld->tpmon->reset_data("RPS");
-		}
-#endif
-
-		mif_info("%s clat netdev[%d] ch: %d, iface v6/v4: %s/%s\n",
-			(ndev ? "set" : "clear"), clat->clat_index, iod->ch,
-			clat->ipv6_iface, clat->ipv4_iface);
-	}
-}
-
-bool dit_hal_set_clat_info(struct clat_info *clat)
+bool dit_hal_set_clat_info(struct mem_link_device *mld, struct clat_info *clat)
 {
 	unsigned int offset;
 	unsigned long flags;
@@ -529,7 +491,7 @@ bool dit_hal_set_clat_info(struct clat_info *clat)
 
 	/* set clat_ndev with clat registers */
 	if (clat->ipv4_iface[0])
-		iodevs_for_each(dc->ld->msd, dit_hal_set_iod_clat_netdev, clat);
+		iodevs_for_each(dc->ld->msd, mld->tc->set_iod_clat_netdev, clat);
 
 exit:
 	spin_unlock_irqrestore(&dc->src_lock, flags);
@@ -537,7 +499,7 @@ exit:
 	/* clear clat_ndev but take a delay to prevent null ndev */
 	if (ret && !clat->ipv4_iface[0]) {
 		msleep(100);
-		iodevs_for_each(dc->ld->msd, dit_hal_set_iod_clat_netdev, clat);
+		iodevs_for_each(dc->ld->msd, mld->tc->set_iod_clat_netdev, clat);
 	}
 
 	return ret;

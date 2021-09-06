@@ -616,6 +616,11 @@ struct modem_ctl {
 	/* completion for waiting for CP power-off */
 	struct completion off_cmpl;
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	/* completion for waiting for cp2ap clatinfo ack */
+	struct completion clatinfo_ack;
+#endif
+
 	/* for broadcasting AP's PM state (active or sleep) */
 	unsigned int int_pda_active;
 	unsigned int int_cp_wakeup;

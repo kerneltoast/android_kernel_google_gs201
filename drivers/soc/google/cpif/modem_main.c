@@ -342,11 +342,17 @@ static int parse_dt_mbox_pdata(struct device *dev, struct device_node *np,
 	mif_dt_read_u32(np, "mif,int_ap2cp_lcd_status",
 			mbox->int_ap2cp_lcd_status);
 #endif
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	mif_dt_read_u32(np, "mif,int_ap2cp_clatinfo_send", mbox->int_ap2cp_clatinfo_send);
+#endif
 	mif_dt_read_u32(np, "mif,int_ap2cp_uart_noti", mbox->int_ap2cp_uart_noti);
 
 	mif_dt_read_u32(np, "mif,irq_cp2ap_msg", mbox->irq_cp2ap_msg);
 	mif_dt_read_u32(np, "mif,irq_cp2ap_status", mbox->irq_cp2ap_status);
 	mif_dt_read_u32(np, "mif,irq_cp2ap_active", mbox->irq_cp2ap_active);
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	mif_dt_read_u32(np, "mif,irq_cp2ap_clatinfo_ack", mbox->irq_cp2ap_clatinfo_ack);
+#endif
 	mif_dt_read_u32(np, "mif,irq_cp2ap_wakelock", mbox->irq_cp2ap_wakelock);
 	mif_dt_read_u32(np, "mif,irq_cp2ap_ratmode", mbox->irq_cp2ap_rat_mode);
 
@@ -408,6 +414,20 @@ static int parse_dt_ipc_region_pdata(struct device *dev, struct device_node *np,
 	of_property_read_u32_array(np, "cp2ap_msg", pdata->cp2ap_msg, 2);
 	of_property_read_u32_array(np, "cp2ap_united_status", pdata->cp2ap_united_status, 2);
 	of_property_read_u32_array(np, "ap2cp_united_status", pdata->ap2cp_united_status, 2);
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	mif_dt_count_u32_array(np, "ap2cp_clatinfo_xlat_v4_addr",
+			pdata->ap2cp_clatinfo_xlat_v4_addr, 2);
+	mif_dt_count_u32_array(np, "ap2cp_clatinfo_xlat_addr_0",
+			pdata->ap2cp_clatinfo_xlat_addr_0, 2);
+	mif_dt_count_u32_array(np, "ap2cp_clatinfo_xlat_addr_1",
+			pdata->ap2cp_clatinfo_xlat_addr_1, 2);
+	mif_dt_count_u32_array(np, "ap2cp_clatinfo_xlat_addr_2",
+			pdata->ap2cp_clatinfo_xlat_addr_2, 2);
+	mif_dt_count_u32_array(np, "ap2cp_clatinfo_xlat_addr_3",
+			pdata->ap2cp_clatinfo_xlat_addr_3, 2);
+	mif_dt_count_u32_array(np, "ap2cp_clatinfo_index",
+			pdata->ap2cp_clatinfo_index, 2);
+#endif
 	of_property_read_u32_array(np, "ap2cp_kerneltime", pdata->ap2cp_kerneltime, 2);
 	of_property_read_u32_array(np, "ap2cp_kerneltime_sec", pdata->ap2cp_kerneltime_sec, 2);
 	of_property_read_u32_array(np, "ap2cp_kerneltime_usec", pdata->ap2cp_kerneltime_usec, 2);

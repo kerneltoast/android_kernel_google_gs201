@@ -194,6 +194,12 @@ config CPIF_PAGE_RECYCLING
 	help
 	  This enables page recycling to improve alloc overhead
 
+config CP_PKTPROC_CLAT
+	tristate "Enable HW PKTPROC CLAT"
+	default n
+	help
+	  Enable HW pktproc clat
+
 config CP_THERMAL
     tristate "Enable CP thermal zones"
     depends on THERMAL

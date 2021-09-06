@@ -629,6 +629,12 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	else
 		skbpriv(skb)->napi = NULL;
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
+	/* CLAT[1:0] = {CLAT On, CLAT Pkt} */
+	if (desc_done_ptr.clat == 0x03)
+		skbpriv(skb)->rx_clat = 1;
+#endif
+
 	*new_skb = skb;
 
 	q->stat.pass_cnt++;
