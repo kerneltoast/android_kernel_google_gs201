@@ -284,7 +284,8 @@
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
-					<1000
+					<0
+					 1000
 					 1000
 					 1000
 					 8000>;
@@ -303,7 +304,8 @@
 					"regulator",
 					"regulator";
 				power-down-seq-delays-us =
-					<1000
+					<0
+					 1000
 					 1000
 					 1000
 					 1000>;

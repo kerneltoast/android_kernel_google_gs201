@@ -283,7 +283,8 @@
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
-					<1000
+					<0
+					 1000
 					 1000
 					 1000
 					 8000>;
@@ -302,7 +303,8 @@
 					"regulator",
 					"regulator";
 				power-down-seq-delays-us =
-					<1000
+					<0
+					 1000
 					 1000
 					 1000
 					 1000>;
@@ -452,7 +454,6 @@
 				power-down-seqs =
 					"reset",
 					"mclk_off",
-					"gpio",
 					"ldo3",
 					"ldo7",
 					"S2MPG13_LDO12";
@@ -646,7 +647,7 @@
 				power-up-seq-types =
 					"regulator",
 					"regulator",
-					"gpio";
+					"regulator";
 				power-up-seq-delays-us =
 					<1000
 					 0
@@ -658,7 +659,7 @@
 					"ldo5",
 					"S2MPG13_LDO12";
 				power-down-seq-types =
-					"gpio",
+					"regulator",
 					"regulator",
 					"regulator";
 				power-down-seq-delays-us =
@@ -741,7 +742,7 @@
 				power-up-seq-types =
 					"regulator",
 					"regulator",
-					"gpio";
+					"regulator";
 				power-up-seq-delays-us =
 					<1000
 					 0
@@ -753,7 +754,7 @@
 					"ldo5",
 					"S2MPG13_LDO12";
 				power-down-seq-types =
-					"gpio",
+					"regulator",
 					"regulator",
 					"regulator";
 				power-down-seq-delays-us =
@@ -887,7 +888,7 @@
 				power-up-seq-types =
 					"regulator",
 					"regulator",
-					"gpio";
+					"regulator";
 				power-up-seq-delays-us =
 					<1000
 					 0
@@ -899,7 +900,7 @@
 					"ldo5",
 					"S2MPG13_LDO12";
 				power-down-seq-types =
-					"gpio",
+					"regulator",
 					"regulator",
 					"regulator";
 				power-down-seq-delays-us =
