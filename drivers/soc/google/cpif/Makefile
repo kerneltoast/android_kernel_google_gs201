@@ -27,6 +27,7 @@ cpif-y += link_device_memory_snapshot.o link_device_memory_sbd.o link_device_mem
 cpif-$(CONFIG_EXYNOS_CPIF_IOMMU) += cpif_netrx_mng.o cpif_vmapper.o
 
 cpif-$(CONFIG_LINK_DEVICE_PCIE) += s51xx_pcie.o
+cpif-$(CONFIG_LINK_DEVICE_PCIE_IOMMU) += link_device_pcie_iommu.o
 
 cpif-$(CONFIG_SEC_MODEM_S5000AP) += modem_ctrl_s5000ap.o modem_ctrl.o
 cpif-$(CONFIG_SEC_MODEM_S5100) += modem_ctrl_s5100.o modem_ctrl.o

@@ -42,6 +42,9 @@
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
 #include <soc/google/exynos-s2mpu.h>
 #endif
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+#include "link_device_pcie_iommu.h"
+#endif
 #if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 #include "../../../video/fbdev/exynos/dpu30/decon.h"
 static int s5100_lcd_notifier(struct notifier_block *notifier,
@@ -1174,6 +1177,10 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 			}
 		}
 	}
+#endif
+
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	cpif_pcie_iommu_enable_regions(mld);
 #endif
 
 	if (mc->s51xx_pdev != NULL) {

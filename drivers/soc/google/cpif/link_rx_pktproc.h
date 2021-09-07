@@ -105,6 +105,26 @@ struct pktproc_statistics {
 	u64 err_enqueue_dit;
 };
 
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+struct cpif_pcie_iommu_ctrl {
+	struct page_frag_cache pf_cache;
+	u32 pf_offset;
+	void **pf_buf;
+	u32 curr_fore;
+
+	/* Will */
+	unsigned long map_src_pa;
+	void *map_page_va;
+	u32 map_idx;
+
+	unsigned long unmap_src_pa;
+	struct page *unmap_page;
+
+	/* Was */
+	u32 end_map_size;
+};
+#endif
+
 /* Logical view for each queue */
 struct pktproc_queue {
 	u32 q_idx;
@@ -156,6 +176,10 @@ struct pktproc_queue {
 	/* CP interface network rx manager */
 	struct cpif_netrx_mng *manager;	/* Pointer to rx manager */
 	dma_addr_t *dma_addr;
+
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	struct cpif_pcie_iommu_ctrl ioc;
+#endif
 
 	/* IRQ */
 	int irq;

@@ -13,6 +13,9 @@
 #include "modem_utils.h"
 #include "link_device_memory.h"
 #include "dit.h"
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+#include "link_device_pcie_iommu.h"
+#endif
 
 static struct pktproc_perftest_data perftest_data[PERFTEST_MODE_MAX] = {
 	{
@@ -374,12 +377,12 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 {
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
-	u8 *dst_vaddr = NULL;
 	unsigned long dst_paddr;
 	u32 fore;
 	int i;
 	unsigned long flags;
 	u32 space;
+	u32 fore_inc = 1;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
 		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
@@ -391,32 +394,52 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 		return -EPERM;
 	}
 
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	fore = q->ioc.curr_fore;
+#else
+	fore = *q->fore_ptr;
+#endif
+
 	pp_debug("Q%d:%d/%d/%d\n",
-			q->q_idx, *q->fore_ptr, *q->rear_ptr, q->done_ptr);
+			q->q_idx, fore, *q->rear_ptr, q->done_ptr);
 
 	spin_lock_irqsave(&q->lock, flags);
 
 	if (q->ppa->buff_rgn_cached)
-		space = circ_get_space(q->num_desc, *q->fore_ptr, q->done_ptr);
+		space = circ_get_space(q->num_desc, fore, q->done_ptr);
 	else
 		space = q->num_desc;
 
-	fore = *q->fore_ptr;
 	for (i = 0; i < space; i++) {
+		u8 *dst_vaddr = NULL;
+
 		dst_paddr = q->q_buff_pbase + (q->ppa->max_packet_size * fore);
 		if (dst_paddr > (q->q_buff_pbase + q->q_buff_size))
 			mif_err_limited("dst_paddr:0x%lx is over 0x%lx\n",
 					dst_paddr, q->q_buff_pbase + q->q_buff_size);
 
 		pp_debug("Q:%d fore_ptr:%d dst_paddr:0x%lx\n",
-			q->q_idx, *q->fore_ptr, dst_paddr);
+			q->q_idx, fore, dst_paddr);
+
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		dst_vaddr = cpif_pcie_iommu_map_va(q, dst_paddr, fore, &fore_inc);
+		if (!dst_vaddr) {
+			mif_err_limited("cpif_pcie_iommu_get_va() failed\n");
+			spin_unlock_irqrestore(&q->lock, flags);
+			return -ENOMEM;
+		}
+#endif
 
 		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
+			if (dst_vaddr)
+				goto dma_map;
+
 			dst_vaddr = q->q_buff_vbase + (q->ppa->max_packet_size * fore);
 			if (dst_vaddr > (q->q_buff_vbase + q->q_buff_size))
 				mif_err_limited("dst_vaddr:%pK is over %pK\n",
 						dst_vaddr, q->q_buff_vbase + q->q_buff_size);
 
+dma_map:
 			q->dma_addr[fore] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
 					q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 			if (dma_mapping_error(q->ppa->dev, q->dma_addr[fore])) {
@@ -439,8 +462,12 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 				continue;
 		}
 
-		*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, 1);
+		if (fore_inc)
+			*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, fore_inc);
 		fore = circ_new_ptr(q->num_desc, fore, 1);
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		q->ioc.curr_fore = fore;
+#endif
 	}
 
 	pp_debug("Q:%d fore/rear/done:%d/%d/%d\n",
@@ -526,6 +553,12 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	} else {
 		src_paddr = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
 				q->q_buff_pbase - q->ppa->skb_padding_size;
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		src = (u8 *)q->ioc.pf_buf[q->done_ptr];
+		cpif_pcie_iommu_try_ummap_va(q, src_paddr, src, q->done_ptr);
+		/* src_paddr is not a physical addr of src, reset the value */
+		src_paddr = 0;
+#else
 		src = desc_done_ptr.cp_data_paddr - q->cp_buff_pbase +
 				q->q_buff_vbase - q->ppa->skb_padding_size;
 
@@ -536,8 +569,8 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 			ret = -EINVAL;
 			goto rx_error_on_desc;
 		}
+#endif
 	}
-
 
 	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
 		packet_size = ppa->max_packet_size;
@@ -559,12 +592,12 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 			q->q_idx, q->done_ptr, len, ch_id, src, csum);
 
 #ifdef PKTPROC_DEBUG_PKT
-	pr_buffer("pktproc", (char *)src, (size_t)len, (size_t)40);
+	pr_buffer("pktproc", (char *)src + ppa->skb_padding_size, (size_t)len, (size_t)40);
 #endif
 
 	if (dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx)) {
 		ret = dit_enqueue_src_desc_ring(DIT_DIR_RX,
-			src, src_paddr, len, ch_id, csum);
+			src + ppa->skb_padding_size, src_paddr, len, ch_id, csum);
 		if (ret < 0) {
 			mif_err_limited("Enqueue failed at fore/rear/done:%d/%d/%d, ret: %d\n",
 				*q->fore_ptr, *q->rear_ptr, q->done_ptr, ret);
@@ -601,18 +634,26 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		skb_reserve(skb, ppa->skb_padding_size);
 		skb_put(skb, len);
 	} else { /* use memcpy */
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		skb = build_skb(src, ppa->max_packet_size);
+#else
 		if (ppa->use_napi)
 			skb = napi_alloc_skb(q->napi_ptr, len);
 		else
 			skb = dev_alloc_skb(len);
+#endif
 		if (unlikely(!skb)) {
 			mif_err_limited("alloc_skb() error\n");
 			q->stat.err_nomem++;
 			ret = -ENOMEM;
 			goto rx_error;
 		}
-		skb_put(skb, len);
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		skb_reserve(skb, ppa->skb_padding_size);
+#else
 		skb_copy_to_linear_data(skb, src + ppa->skb_padding_size, len);
+#endif
+		skb_put(skb, len);
 	}
 
 	if (csum)
@@ -805,8 +846,12 @@ static unsigned int pktproc_perftest_gen_rx_packet_sktbuf_mode(
 		desc[rear_ptr].channel_id = perf->ch;
 
 		/* set data */
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		src = q->ioc.pf_buf[rear_ptr] + q->ppa->skb_padding_size;
+#else
 		src = desc[rear_ptr].cp_data_paddr -
 				q->cp_buff_pbase + q->q_buff_vbase;
+#endif
 		memset(src, 0x0, desc[rear_ptr].length);
 		memcpy(src, perftest_data[perf->mode].header, header_len);
 		seq = (u32 *)(src + header_len);
@@ -1421,6 +1466,12 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 		mif_err("Buffer manager requires cached buff region\n");
 		return -EINVAL;
 	}
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	if (ppa->use_netrx_mng || !ppa->buff_rgn_cached || ppa->desc_mode != DESC_MODE_SKTBUF) {
+		mif_err("not compatible with pcie iommu\n");
+		return -EINVAL;
+	}
+#endif
 
 	return 0;
 }
@@ -1510,10 +1561,15 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 	} else
 		accum_buff_size = 0;
 
-	if (ppa->use_netrx_mng)
+	if (ppa->use_netrx_mng) {
 		ppa->skb_padding_size = NET_SKB_PAD + NET_IP_ALIGN;
-	else
+	} else {
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		ppa->skb_padding_size = NET_SKB_PAD + NET_IP_ALIGN;
+#else
 		ppa->skb_padding_size = 0;
+#endif
+	}
 
 	/* Create queue */
 	for (i = 0; i < ppa->num_queue; i++) {
@@ -1605,7 +1661,6 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				q->num_desc = buff_size_by_q / ppa->max_packet_size;
 				q->alloc_rx_buf = pktproc_fill_data_addr_without_bm;
 				q->clear_data_addr = pktproc_clear_data_addr_without_bm;
-
 			}
 
 			if (mld->pktproc_use_36bit_addr)
@@ -1651,8 +1706,15 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 					goto create_error;
 				}
 				accum_buff_size += q->manager->total_buf_size;
-			} else
-				q->manager = NULL;
+			} else {
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+				ret = cpif_pcie_iommu_init(q);
+				if (ret) {
+					mif_err("failed to init pcie iommu ret:%d\n", ret);
+					goto create_error;
+				}
+#endif
+			}
 
 			q->get_packet = pktproc_get_pkt_from_sktbuf_mode;
 			q->irq_handler = pktproc_irq_handler;
@@ -1753,6 +1815,9 @@ create_error:
 	for (i = 0; i < ppa->num_queue; i++) {
 		if (ppa->q[i]->manager)
 			cpif_exit_netrx_mng(ppa->q[i]->manager);
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		cpif_pcie_iommu_deinit(ppa->q[i]);
+#endif
 		kfree(ppa->q[i]->dma_addr);
 		kfree(ppa->q[i]);
 	}
