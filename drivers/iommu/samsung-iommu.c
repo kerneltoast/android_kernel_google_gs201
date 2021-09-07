@@ -1501,7 +1501,7 @@ static int __maybe_unused samsung_sysmmu_runtime_suspend(struct device *sysmmu)
 
 	spin_lock_irqsave(&drvdata->lock, flags);
 	drvdata->rpm_resume = false;
-	if (drvdata->attached_count > 0)
+	if (drvdata->attached_count[0] > 0)
 		__sysmmu_disable(drvdata);
 	spin_unlock_irqrestore(&drvdata->lock, flags);
 
@@ -1515,7 +1515,7 @@ static int __maybe_unused samsung_sysmmu_runtime_resume(struct device *sysmmu)
 
 	spin_lock_irqsave(&drvdata->lock, flags);
 	drvdata->rpm_resume = true;
-	if (drvdata->attached_count > 0)
+	if (drvdata->attached_count[0] > 0)
 		__sysmmu_enable(drvdata);
 	spin_unlock_irqrestore(&drvdata->lock, flags);
 
