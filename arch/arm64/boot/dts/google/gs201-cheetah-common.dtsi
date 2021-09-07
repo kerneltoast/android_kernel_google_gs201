@@ -19,7 +19,6 @@
 #include "gs201-cloudripper-sbbm.dtsi"
 
 #include "gs201-ravenclaw-audio.dtsi"
-#include "gs201-ravenclaw-display.dtsi"
 #include "gs201-ravenclaw-fingerprint.dtsi"
 #include "gs201-ravenclaw-wcharger.dtsi"
 #include "gs201-ravenclaw-usecases.dtsi"
@@ -29,3 +28,4 @@
 #include "gs201-cheetah-pmic.dtsi"
 #include "gs201-cheetah-touch.dtsi"
 #include "gs201-cheetah-thermal.dtsi"
+#include "gs201-cheetah-display.dtsi"
