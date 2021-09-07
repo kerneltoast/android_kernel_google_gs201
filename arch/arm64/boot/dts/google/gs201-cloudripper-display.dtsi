@@ -72,4 +72,15 @@
 		vddi-supply = <&s_bucka_reg>;
 		is_secondary;
 	};
+	panel@3 {
+		compatible = "samsung,s6e3hc3-c10";
+		label = "samsung-s6e3hc3-c10";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
+		is_secondary;
+	};
 };
