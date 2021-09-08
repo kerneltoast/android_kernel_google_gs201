@@ -460,19 +460,19 @@
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
-					<1000
+					<300
 					 0
 					 0
 					 0
-					 0>;
+					 10000>;
 
 				/* Power down sequence */
 				power-down-seqs =
 					"reset",
 					"mclk_off",
-					"ldo3",
 					"ldo7",
-					"S2MPG13_LDO12";
+					"S2MPG13_LDO12",
+					"ldo3";
 				power-down-seq-types =
 					"gpio",
 					"pinctrl",
