@@ -247,6 +247,7 @@
   cpus_read_lock
   cpus_read_unlock
   cpu_subsys
+  crc32_le
   crc8
   crc8_populate_msb
   crypto_aead_decrypt
@@ -663,6 +664,7 @@
   drm_property_create_bool
   drm_property_create_enum
   drm_property_create_range
+  drm_property_create_signed_range
   drm_property_lookup_blob
   drm_property_replace_blob
   __drm_puts_seq_file
