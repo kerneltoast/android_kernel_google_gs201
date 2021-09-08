@@ -146,12 +146,10 @@ static void simulate_warn(char *arg)
 
 static void simulate_null(char *arg)
 {
-	char *pointer = NULL;
-
 	pr_crit("called!\n");
 
 	/* Intentional null pointer dereference */
-	*pointer = 'a';
+	writeb('a', NULL);
 
 	/* Should not reach here */
 	pr_crit("failed!");
