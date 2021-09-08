@@ -47,6 +47,9 @@
 		reg = <0x3c>;
 		status = "ok";
 
+		/* Support p9412 GPIO */
+		idt,has_p9412_gpio;
+
 		idt,has_rtx = <1>;
 		/* Granvilla GPIO 2~4 */
 		idt,gpio_ben = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;  /* EXT_BST_MODE */
