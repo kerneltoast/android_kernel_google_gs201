@@ -24,17 +24,19 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/s2mpg12.h>
 #include <linux/mfd/samsung/s2mpg13.h>
 #include <linux/mfd/samsung/s2mpg1x.h>
 
-const struct pinctrl_pin_desc s2mpg12_pins[] = {
+const struct pinctrl_pin_desc s2mpgM_pins[] = {
 	PINCTRL_PIN(0, "gpio0"), PINCTRL_PIN(1, "gpio1"),
 	PINCTRL_PIN(2, "gpio2"), PINCTRL_PIN(3, "gpio3"),
 	PINCTRL_PIN(4, "gpio4"), PINCTRL_PIN(5, "gpio5"),
 };
 
-const struct pinctrl_pin_desc s2mpg13_pins[] = {
+const struct pinctrl_pin_desc s2mpgS_pins[] = {
 	PINCTRL_PIN(0, "gpio6"),  PINCTRL_PIN(1, "gpio7"),
 	PINCTRL_PIN(2, "gpio8"),  PINCTRL_PIN(3, "gpio9"),
 	PINCTRL_PIN(4, "gpio10"), PINCTRL_PIN(5, "gpio11"),
@@ -421,18 +423,35 @@ static int s2mpg1x_gpio_probe(struct platform_device *pdev)
 
 	s2mpg1x_gpio->id = pdev->id_entry->driver_data;
 	switch (s2mpg1x_gpio->id) {
+#if defined(CONFIG_SOC_GS101)
+	case ID_S2MPG10:
+		s2mpg1x_gpio->i2c = ((struct s2mpg10_dev *)kbdev_parent)->pmic;
+		pinctrl_of_name = "s2mpg10_pinctrl";
+		s2mpg1x_gpio->pctrl.pins = s2mpgM_pins;
+		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpgM_pins);
+		break;
+	case ID_S2MPG11:
+		s2mpg1x_gpio->i2c = ((struct s2mpg11_dev *)kbdev_parent)->pmic;
+		pinctrl_of_name = "s2mpg11_pinctrl";
+		s2mpg1x_gpio->pctrl.pins = s2mpgS_pins;
+		// For slider gpio12,13 are not there (common structure array)
+		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpgS_pins) - 2;
+		break;
+#endif
+#if defined(CONFIG_SOC_GS201)
 	case ID_S2MPG12:
 		s2mpg1x_gpio->i2c = ((struct s2mpg12_dev *)kbdev_parent)->gpio;
 		pinctrl_of_name = "s2mpg12_pinctrl";
-		s2mpg1x_gpio->pctrl.pins = s2mpg12_pins;
-		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpg12_pins);
+		s2mpg1x_gpio->pctrl.pins = s2mpgM_pins;
+		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpgM_pins);
 		break;
 	case ID_S2MPG13:
 		s2mpg1x_gpio->i2c = ((struct s2mpg13_dev *)kbdev_parent)->gpio;
 		pinctrl_of_name = "s2mpg13_pinctrl";
-		s2mpg1x_gpio->pctrl.pins = s2mpg13_pins;
-		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpg13_pins);
+		s2mpg1x_gpio->pctrl.pins = s2mpgS_pins;
+		s2mpg1x_gpio->pctrl.npins = ARRAY_SIZE(s2mpgS_pins);
 		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -527,8 +546,14 @@ static int s2mpg1x_gpio_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id s2mpg1x_gpio_id[] = {
+#if defined(CONFIG_SOC_GS101)
+	{ "s2mpg10_gpio", ID_S2MPG10 },
+	{ "s2mpg11_gpio", ID_S2MPG11 },
+#endif
+#if defined(CONFIG_SOC_GS201)
 	{ "s2mpg12_gpio", ID_S2MPG12 },
 	{ "s2mpg13_gpio", ID_S2MPG13 },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(platform, s2mpg1x_gpio_id);
@@ -555,6 +580,6 @@ static void __exit s2mpg1x_gpio_exit(void)
 }
 module_exit(s2mpg1x_gpio_exit);
 
-MODULE_DESCRIPTION("S2MPG12 S2MPG13 GPIO Driver");
+MODULE_DESCRIPTION("S2MPG10 S2MPG11 S2MPG12 S2MPG13 GPIO Driver");
 MODULE_AUTHOR("Thierry Strudel <tstrudel@google.com>");
 MODULE_LICENSE("GPL");
