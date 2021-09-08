@@ -174,15 +174,19 @@ static void *cpif_alloc_tmp_page(struct cpif_page_pool *pool, u64 alloc_size)
 	struct cpif_page *tmp = pool->tmp_page;
 	int ret;
 
-	if (tmp->usable) {
-		page_ref_inc(tmp->page);
-	} else {
-		/* new page is required */
-		tmp->page = dev_alloc_pages(PAGE_FRAG_CACHE_MAX_ORDER);
-		if (unlikely(!tmp->page)) {
+	/* new page is required */
+	if (!tmp->usable) {
+		struct page *new_pg = dev_alloc_pages(PAGE_FRAG_CACHE_MAX_ORDER);
+
+		if (unlikely(!new_pg)) {
 			mif_err_limited("failed to get page\n");
 			return NULL;
 		}
+
+		/* unref fully used old tmp page */
+		if (tmp->page)
+			__free_pages(tmp->page, PAGE_FRAG_CACHE_MAX_ORDER);
+		tmp->page = new_pg;
 		pool->using_tmp_alloc = true;
 		tmp->usable = true;
 		tmp->offset = PAGE_FRAG_CACHE_MAX_SIZE - alloc_size;
@@ -190,6 +194,7 @@ static void *cpif_alloc_tmp_page(struct cpif_page_pool *pool, u64 alloc_size)
 
 	ret = tmp->offset;
 	tmp->offset -= alloc_size;
+	page_ref_inc(tmp->page);
 	if (tmp->offset < 0) { /* drained page, let pool try recycle page next time */
 		pool->using_tmp_alloc = false;
 		tmp->usable = false;
