@@ -23,6 +23,7 @@ bcm47765.ko
 bcm_dbg.ko
 bigocean.ko
 boot_device_spi.ko
+bts.ko
 clk_exynos.ko
 cmupmucal.ko
 cp_thermal_zone.ko
@@ -72,15 +73,16 @@ google-battery.ko
 google-bms.ko
 google-charger.ko
 google-cpm.ko
+google_bcl.ko
 google_dual_batt_gauge.ko
 governor_memlat.ko
 gpu_cooling.ko
 gs-chipid.ko
 gs101-itmon.ko
-google_bcl.ko
 gs101_spmic_thermal.ko
 gs101_thermal.ko
 gs_acpm.ko
+gs_thermal.ko
 gsa.ko
 gsa_gsc.ko
 gsc-spi.ko
@@ -91,6 +93,7 @@ heatmap.ko
 i2c-acpm.ko
 i2c-dev.ko
 i2c-exynos5.ko
+itmon.ko
 keycombo.ko
 keydebug.ko
 logbuffer.ko
