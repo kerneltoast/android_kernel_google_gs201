@@ -543,6 +543,23 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		exynos->vbus_state = false;
 		del_timer_sync(&exynos->usb_connect_timer);
 
+		/* Wait until dwc connected is off */
+		if (exynos_usbdrd_get_ldo_status()) {
+			evt_count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
+			evt_count &= DWC3_GEVNTCOUNT_MASK;
+			while (evt_count) {
+				wait_counter++;
+				msleep(20);
+
+				if (wait_counter > 20) {
+					dev_err(dev, "Can't wait dwc disconnect!\n");
+					break;
+				}
+				evt_count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
+				evt_count &= DWC3_GEVNTCOUNT_MASK;
+				dev_dbg(dev, "%s: evt = %d\n", __func__, evt_count);
+			}
+		}
 		/*
 		 * we can extra work corresponding each functions by
 		 * the following function.
@@ -551,21 +568,6 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 				!dotg->in_shutdown)
 			dwc3_exynos_gadget_disconnect_proc(dwc);
 
-		/* Wait until dwc connected is off */
-		evt_count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
-		evt_count &= DWC3_GEVNTCOUNT_MASK;
-		while (dwc->connected || evt_count) {
-			wait_counter++;
-			msleep(20);
-
-			if (wait_counter > 20) {
-				dev_err(dev, "Can't wait dwc disconnect!\n");
-				break;
-			}
-			evt_count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(0));
-			evt_count &= DWC3_GEVNTCOUNT_MASK;
-			dev_dbg(dev, "%s: evt = %d\n", __func__, evt_count);
-		}
 
 		/*
 		 * We can block udc core operation by the following flags.
