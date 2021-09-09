@@ -3780,7 +3780,8 @@ static int init_shmem_maps(u32 link_type, struct modem_data *modem,
 	 */
 	mld->size = cp_shmem_get_size(cp_num, SHMEM_IPC);
 #if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
-	mld->base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC), SZ_2M);
+	mld->base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC),
+		modem->legacy_raw_buffer_offset + modem->legacy_raw_txq_size);
 #else
 	mld->base = cp_shmem_get_region(cp_num, SHMEM_IPC);
 #endif
