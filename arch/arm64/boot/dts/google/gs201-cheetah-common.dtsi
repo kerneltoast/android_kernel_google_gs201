@@ -20,6 +20,7 @@
 
 #include "gs201-ravenclaw-audio.dtsi"
 #include "gs201-ravenclaw-display.dtsi"
+#include "gs201-ravenclaw-fingerprint.dtsi"
 #include "gs201-ravenclaw-wcharger.dtsi"
 #include "gs201-ravenclaw-usecases.dtsi"
 
