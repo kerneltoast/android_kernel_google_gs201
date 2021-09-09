@@ -49,6 +49,10 @@ static struct mfd_cell s2mpg13_devs[] = {
 	{
 		.name = "s2mpg13_gpio",
 	},
+	{
+		.name = "s2mpg13-spmic-thermal",
+		.of_compatible = "google,s2mpg13-spmic-thermal",
+	},
 };
 
 void s2mpg13_usleep(unsigned int u_sec)

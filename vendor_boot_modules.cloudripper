@@ -122,6 +122,7 @@ s2mpg12-regulator.ko
 s2mpg13-mfd.ko
 s2mpg13-powermeter.ko
 s2mpg13-regulator.ko
+s2mpg13_spmic_thermal.ko
 s2mpg1x-gpio.ko
 s3c2410_wdt.ko
 samsung-dma.ko
