@@ -371,14 +371,22 @@
 					};
 					io_device_5 {
 						iod,name = "rmnet";
-						iod,ch = <EXYNOS_CH_ID_PDP_0>;
+						iod,ch = <EXYNOS_CH_EX_ID_PDP_0>;
 						iod,format = <IPC_RAW>;
 						iod,io_type = <IODEV_NET>;
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(IO_ATTR_MULTI_CH)>;
-						iod,ch_count = <8>;
+						iod,ch_count = <30>;
 					};
 					io_device_6 {
+						iod,name = "umts_dummy";
+						iod,ch = <EXYNOS_CH_EX_ID_PDP_30>;
+						iod,format = <IPC_RAW>;
+						iod,io_type = <IODEV_NET>;
+						iod,link_type = <LINKDEV_PCIE>;
+						iod,attrs = <(0x0)>;
+					};
+					io_device_7 {
 						iod,name = "multipdp";
 						iod,ch = <EXYNOS_CH_ID_MULTIPDP>;
 						iod,format = <IPC_MULTI_RAW>;
@@ -386,7 +394,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_7 {
+					io_device_8 {
 						iod,name = "umts_boot0";
 						iod,ch = <EXYNOS_CH_ID_BOOT>;
 						iod,format = <IPC_BOOT>;
@@ -394,7 +402,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(IO_ATTR_NO_CHECK_MAXQ)>;
 					};
-					io_device_8 {
+					io_device_9 {
 						iod,name = "umts_rcs0";
 						iod,ch = <EXYNOS_CH_ID_RCS_0>;
 						iod,format = <IPC_FMT>;
@@ -402,7 +410,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_9 {
+					io_device_10 {
 						iod,name = "umts_rcs1";
 						iod,ch = <EXYNOS_CH_ID_RCS_1>;
 						iod,format = <IPC_RAW>;
@@ -410,7 +418,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_10 {
+					io_device_11 {
 						iod,name = "umts_wfc0";
 						iod,ch = <EXYNOS_CH_ID_WFS_0>;
 						iod,format = <IPC_FMT>;
@@ -418,7 +426,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_11 {
+					io_device_12 {
 						iod,name = "umts_wfc1";
 						iod,ch = <EXYNOS_CH_ID_WFS_1>;
 						iod,format = <IPC_RAW>;
@@ -426,7 +434,7 @@
 						iod,link_type = <LINKDEV_PCIE>;
 						iod,attrs = <(0x0)>;
 					};
-					io_device_12 {
+					io_device_13 {
 						iod,name = "oem_ipc";
 						iod,ch = <129>;
 						iod,format = <IPC_FMT>;
