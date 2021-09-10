@@ -11,6 +11,11 @@
 	regulator-always-on;
 };
 
+/* Touch: Panther touch controller requires 3.0v typ */
+&m_ldo26_reg {
+	regulator-max-microvolt = <3000000>;
+};
+
 /* Display: vci-supply voltage */
 &m_ldo27_reg {
 	regulator-min-microvolt = <3025000>;
