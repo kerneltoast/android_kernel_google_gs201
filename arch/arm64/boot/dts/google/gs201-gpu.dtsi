@@ -34,7 +34,7 @@
 		power_policy = "adaptive";
 
 		/* Memory */
-		/*physical-memory-group-manager = <&mali_mgm>;*/
+		physical-memory-group-manager = <&mali_mgm>;
 		system-coherency = <0>; /* ACE_LITE */
 
 		/* Priority control */
