@@ -375,6 +375,8 @@ static int parse_dt_ipc_region_pdata(struct device *dev, struct device_node *np,
 	mif_dt_read_u32(np, "legacy_raw_buffer_offset", pdata->legacy_raw_buffer_offset);
 	mif_dt_read_u32(np, "legacy_raw_txq_size", pdata->legacy_raw_txq_size);
 	mif_dt_read_u32(np, "legacy_raw_rxq_size", pdata->legacy_raw_rxq_size);
+	mif_dt_read_u32(np, "legacy_raw_rx_buffer_cached",
+			pdata->legacy_raw_rx_buffer_cached);
 
 	mif_dt_read_u32_noerr(np, "offset_ap_version", pdata->offset_ap_version);
 	mif_dt_read_u32_noerr(np, "offset_cp_version", pdata->offset_cp_version);

@@ -165,6 +165,7 @@ struct modem_data {
 	u32 legacy_raw_buffer_offset;
 	u32 legacy_raw_txq_size;
 	u32 legacy_raw_rxq_size;
+	u32 legacy_raw_rx_buffer_cached;
 
 	/* several 4 byte length info in ipc region */
 	u32 offset_ap_version;

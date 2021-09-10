@@ -1771,6 +1771,7 @@ static int legacy_ipc_rx_func_napi(struct mem_link_device *mld, struct legacy_ip
 		int budget, int *work_done)
 {
 	struct link_device *ld = &mld->link_dev;
+	struct modem_data *modem = ld->mdm_data;
 	unsigned int qsize = get_rxq_buff_size(dev);
 	unsigned int in = get_rxq_head(dev);
 	unsigned int out = get_rxq_tail(dev);
@@ -1781,8 +1782,7 @@ static int legacy_ipc_rx_func_napi(struct mem_link_device *mld, struct legacy_ip
 	if (unlikely(circ_empty(in, out)))
 		return 0;
 
-#if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
-	if (dev->id == IPC_MAP_NORM_RAW) {
+	if (modem->legacy_raw_rx_buffer_cached && dev->id == IPC_MAP_NORM_RAW) {
 		char *src = get_rxq_buff(dev);
 
 		if (!src) {
@@ -1800,7 +1800,6 @@ static int legacy_ipc_rx_func_napi(struct mem_link_device *mld, struct legacy_ip
 					DMA_FROM_DEVICE);
 		}
 	}
-#endif
 
 	while ((budget != 0) && (rcvd < size)) {
 		struct sk_buff *skb;
@@ -1855,6 +1854,7 @@ static int legacy_ipc_rx_func_napi(struct mem_link_device *mld, struct legacy_ip
 static int legacy_ipc_rx_func(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 {
 	struct link_device *ld = &mld->link_dev;
+	struct modem_data *modem = ld->mdm_data;
 	unsigned int qsize = get_rxq_buff_size(dev);
 	unsigned int in = get_rxq_head(dev);
 	unsigned int out = get_rxq_tail(dev);
@@ -1865,8 +1865,7 @@ static int legacy_ipc_rx_func(struct mem_link_device *mld, struct legacy_ipc_dev
 	if (unlikely(circ_empty(in, out)))
 		return 0;
 
-#if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
-	if (dev->id == IPC_MAP_NORM_RAW) {
+	if (modem->legacy_raw_rx_buffer_cached && dev->id == IPC_MAP_NORM_RAW) {
 		char *src = get_rxq_buff(dev);
 
 		if (!src) {
@@ -1884,7 +1883,6 @@ static int legacy_ipc_rx_func(struct mem_link_device *mld, struct legacy_ipc_dev
 					DMA_FROM_DEVICE);
 		}
 	}
-#endif
 
 	while (rcvd < size) {
 		struct sk_buff *skb;
@@ -3779,12 +3777,11 @@ static int init_shmem_maps(u32 link_type, struct modem_data *modem,
 	 * Initialize SHMEM maps for IPC (physical map -> logical map)
 	 */
 	mld->size = cp_shmem_get_size(cp_num, SHMEM_IPC);
-#if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
-	mld->base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC),
-		modem->legacy_raw_buffer_offset + modem->legacy_raw_txq_size);
-#else
-	mld->base = cp_shmem_get_region(cp_num, SHMEM_IPC);
-#endif
+	if (modem->legacy_raw_rx_buffer_cached)
+		mld->base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC),
+			modem->legacy_raw_buffer_offset + modem->legacy_raw_txq_size);
+	else
+		mld->base = cp_shmem_get_region(cp_num, SHMEM_IPC);
 
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
 	mld->hiprio_base = cp_shmem_get_nc_region(cp_shmem_get_base(cp_num, SHMEM_IPC)

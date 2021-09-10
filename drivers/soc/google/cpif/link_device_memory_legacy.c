@@ -192,13 +192,13 @@ int create_legacy_link_device(struct mem_link_device *mld)
 	atomic_set(&dev->rxq.busy, 0);
 	dev->rxq.head = (void __iomem *)(mld->base + modem->legacy_raw_head_tail_offset + 8);
 	dev->rxq.tail = (void __iomem *)(mld->base + modem->legacy_raw_head_tail_offset + 12);
-#if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
-	dev->rxq.buff = phys_to_virt(cp_shmem_get_base(bl->ld->mdm_data->cp_num, SHMEM_IPC) +
+	if (modem->legacy_raw_rx_buffer_cached)
+		dev->rxq.buff =
+			phys_to_virt(cp_shmem_get_base(bl->ld->mdm_data->cp_num, SHMEM_IPC) +
 			modem->legacy_raw_buffer_offset + modem->legacy_raw_txq_size);
-#else
-	dev->rxq.buff = (void __iomem *)(mld->base + modem->legacy_raw_buffer_offset +
+	else
+		dev->rxq.buff = (void __iomem *)(mld->base + modem->legacy_raw_buffer_offset +
 			modem->legacy_raw_txq_size);
-#endif
 	dev->rxq.size = modem->legacy_raw_rxq_size;
 
 	dev->msg_mask = MASK_SEND_RAW;
@@ -229,6 +229,8 @@ int init_legacy_link(struct legacy_link_device *bl)
 {
 	unsigned int magic;
 	unsigned int mem_access;
+	struct modem_data *modem = bl->ld->mdm_data;
+
 	int i = 0;
 
 	iowrite32(0, bl->magic);
@@ -250,11 +252,9 @@ int init_legacy_link(struct legacy_link_device *bl)
 		atomic_set(&dev->rxq.busy, 0);
 		dev->req_ack_cnt[RX] = 0;
 
-#if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
-		if (i == IPC_MAP_NORM_RAW)
+		if (modem->legacy_raw_rx_buffer_cached && i == IPC_MAP_NORM_RAW)
 			dma_sync_single_for_device(bl->ld->dev, virt_to_phys(dev->rxq.buff),
 					dev->rxq.size, DMA_FROM_DEVICE);
-#endif
 	}
 
 	iowrite32(bl->ld->magic_ipc, bl->magic);

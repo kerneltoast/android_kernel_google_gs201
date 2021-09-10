@@ -70,6 +70,7 @@ static int save_log_dump(struct io_device *iod, struct link_device *ld, u8 __iom
 int cp_get_log_dump(struct io_device *iod, struct link_device *ld, unsigned long arg)
 {
 	struct mem_link_device *mld = to_mem_link_device(ld);
+	struct modem_data *modem = ld->mdm_data;
 	void __user *uarg = (void __user *)arg;
 	struct cp_log_dump log_dump;
 	u8 __iomem *base = NULL;
@@ -88,13 +89,14 @@ int cp_get_log_dump(struct io_device *iod, struct link_device *ld, unsigned long
 	cp_num = ld->mdm_data->cp_num;
 	switch (log_dump.idx) {
 	case LOG_IDX_SHMEM:
-#if IS_ENABLED(CONFIG_CACHED_LEGACY_RAW_RX_BUFFER)
-		base = phys_to_virt(cp_shmem_get_base(cp_num, SHMEM_IPC));
-		size = cp_shmem_get_size(cp_num, SHMEM_IPC);
-#else
-		base = mld->base;
-		size = mld->size;
-#endif
+		if (modem->legacy_raw_rx_buffer_cached) {
+			base = phys_to_virt(cp_shmem_get_base(cp_num, SHMEM_IPC));
+			size = cp_shmem_get_size(cp_num, SHMEM_IPC);
+		} else {
+			base = mld->base;
+			size = mld->size;
+		}
+
 		break;
 
 	case LOG_IDX_VSS:
