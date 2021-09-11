@@ -15,6 +15,7 @@
 #include "gs201-cloudripper-touch.dtsi"
 #include "gs201-cloudripper-display.dtsi"
 #include "gs201-max20339-ovp.dtsi"
+#include "gs201-cloudripper-thermal.dtsi"
 #include "gs201-cloudripper-wcharger.dtsi"
 #include "gs201-cloudripper-usecases.dtsi"
 
