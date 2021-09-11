@@ -6,11 +6,6 @@
  *
  */
 
-/* Display: Keep vddi-supply always on */
-&s_bucka_reg {
-	regulator-always-on;
-};
-
 /* Touch: Panther touch controller requires 3.0v typ */
 &m_ldo26_reg {
 	regulator-max-microvolt = <3000000>;

@@ -7,13 +7,6 @@
  */
 #include "gs201-raven-display-constants.dtsi"
 
-/* Display: VDDI always on */
-&s_bucka_reg {
-	regulator-always-on;
-	regulator-initial-mode = <SEC_OPMODE_ON>;
-};
-
-
 /* Cloudripper uses LDO23M for audio - MIC2 */
 &m_ldo23_reg {
 	regulator-always-on;
