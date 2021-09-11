@@ -28,3 +28,4 @@
 #include "gs201-cheetah-camera.dtsi"
 #include "gs201-cheetah-pmic.dtsi"
 #include "gs201-cheetah-touch.dtsi"
+#include "gs201-cheetah-thermal.dtsi"
