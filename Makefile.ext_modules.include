@@ -16,3 +16,7 @@ $(ext_modules):
 depmod: $(ext_modules)
 	@echo Running depmod
 	@$(MAKE) --no-print-directory -C $(KERNEL_SRC) M=$(rel_path)/$(firstword $(ext_modules)) O=$(O) _emodinst_post
+
+$(install_uapi_headers_targets): %_headers_install: %
+	@echo Installing UAPI headers of external module $(@:_headers_install=)
+	@$(MAKE) --no-print-directory -C $(KERNEL_SRC)/$(rel_path)/$(@:_headers_install=) M=$(rel_path)/$(@:_headers_install=) O=$(O) headers_install

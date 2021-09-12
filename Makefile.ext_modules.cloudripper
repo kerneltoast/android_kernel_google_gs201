@@ -26,13 +26,21 @@ ext_modules += touch/synaptics
 ext_modules += wlan/bcmdhd4389
 ext_modules += video/gchips
 
+# Add any modules which have their own UAPI headers to this list.  This will
+# cause the build to run the module makefile with headers_install target.
+has_uapi_headers :=
+has_uapi_headers += touch/common
+has_uapi_headers += video/gchips
+
+install_uapi_headers_targets := $(has_uapi_headers:=_headers_install)
+
 ifneq ($(wildcard $(KERNEL_SRC)/$(rel_path)/uwb/kernel),)
 ext_modules += uwb/kernel
 endif
 
-.PHONY: $(ext_modules) depmod allmodules
+.PHONY: $(ext_modules) $(install_uapi_headers_targets) depmod allmodules
 
-allmodules: $(ext_modules) depmod
+allmodules: $(ext_modules) $(install_uapi_headers_targets) depmod
 
 touch/focaltech/ft3658: | touch/common
 
