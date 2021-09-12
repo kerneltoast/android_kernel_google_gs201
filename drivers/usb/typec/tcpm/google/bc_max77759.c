@@ -49,6 +49,7 @@ enum power_supply_usb_type get_usb_type(struct bc12_status *bc12)
 {
 	return bc12->usb_type;
 }
+EXPORT_SYMBOL_GPL(get_usb_type);
 
 /*
  * Scheduled as a work item
