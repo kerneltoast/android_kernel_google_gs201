@@ -485,6 +485,24 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	tcpm_pd_receive(chip->port, &msg);
 }
 
+static void enable_dp_pulse(struct max77759_plat *chip)
+{
+	struct regmap *regmap = chip->data.regmap;
+	int ret;
+
+	ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL2, DPDNMAN | DPDRV,
+				    DPDNMAN | DPDRV_3V0 << DPDRV_SHIFT);
+	if (ret < 0)
+		logbuffer_log(chip->log, "%s failed to set dpDnMan and dpDrv", __func__);
+
+	mdelay(100);
+
+	ret = max77759_update_bits8(regmap, VENDOR_BC_CTRL2, DPDNMAN | DPDRV,
+				    DPDRV_OPEN << DPDRV_SHIFT);
+	if (ret < 0)
+		logbuffer_log(chip->log, "%s failed to disable dpDnMan and dpDrv", __func__);
+}
+
 void enable_data_path_locked(struct max77759_plat *chip)
 {
 	int ret;
@@ -532,6 +550,12 @@ void enable_data_path_locked(struct max77759_plat *chip)
 		ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
 		logbuffer_log(chip->log, "Turning on dp switches %s", ret < 0 ? "fail" :
 			      "success");
+
+		if (get_usb_type(chip->bc12) == POWER_SUPPLY_USB_TYPE_CDP &&
+		    !chip->pd_data_capable) {
+			logbuffer_log(chip->log, "CDP detected, gen dp pulse");
+			enable_dp_pulse(chip);
+		}
 
 		ret = extcon_set_state_sync(chip->extcon, chip->data_role == TYPEC_HOST ?
 					    EXTCON_USB_HOST : EXTCON_USB, 1);
