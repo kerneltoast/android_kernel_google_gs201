@@ -25,7 +25,7 @@
 
 #include "gs201-pantah-camera-pmic.dtsi"
 #include "gs201-cheetah-camera.dtsi"
+#include "gs201-cheetah-display.dtsi"
 #include "gs201-cheetah-pmic.dtsi"
 #include "gs201-cheetah-touch.dtsi"
 #include "gs201-cheetah-thermal.dtsi"
-#include "gs201-cheetah-display.dtsi"
