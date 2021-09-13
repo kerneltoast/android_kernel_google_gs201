@@ -10,6 +10,18 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/samsung.h>
 
+&slg51002 {
+	dlg,reg-init =
+	/* LDO3: 2.25V */
+	<0x2300 0x69>,
+	/* LDO6: 1.1V, LDO mode */
+	<0x2900 0x8C>, <0x2963 0x00>,
+	/* LDO7: 1.0V, LDO mode */
+	<0x3100 0x78>, <0x3163 0x00>,
+	/* LDO8: LDO mode */
+	<0x3263 0x00>;
+};
+
 &pinctrl_4 {
 	hsi2c1_bus: hsi2c1-bus {
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;

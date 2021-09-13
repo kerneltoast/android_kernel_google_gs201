@@ -11,7 +11,17 @@
 #include <dt-bindings/pinctrl/samsung.h>
 
 &slg51002 {
-	dlg,reg-init = <0x2300 0xAA>;
+	dlg,reg-init =
+	/* LDO3: 2.9V */
+	<0x2300 0xAA>,
+	/* LDO5: 3.0V */
+	<0x2700 0xB4>,
+	/* LDO6: 1.1V, LDO mode */
+	<0x2900 0x8C>, <0x2963 0x00>,
+	/* LDO7: 1.1V, LDO mode */
+	<0x3100 0x8C>, <0x3163 0x00>,
+	/* LDO8: LDO mode */
+	<0x3263 0x00>;
 };
 
 &pinctrl_4 {
