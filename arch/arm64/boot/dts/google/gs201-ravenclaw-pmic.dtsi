@@ -17,7 +17,6 @@
 /* Display: Ravenclaw & Cloudripper use LDO28M for display. */
 &m_ldo28_reg {
 	regulator-initial-mode = <SEC_OPMODE_ON>;
-	regulator-always-on;
 	regulator-min-microvolt = <RAVEN_VDD_LP_MICROVOLT>;
 	regulator-max-microvolt = <RAVEN_VDD_NORMAL_MICROVOLT>;
 	regulator-ramp-delay = <1200>;

@@ -15,7 +15,6 @@
 /* Display: Cheetah VDDD-supply voltage */
 &m_ldo28_reg {
 	regulator-initial-mode = <SEC_OPMODE_ON>;
-	regulator-always-on;
 	regulator-min-microvolt = <CHEETAH_VDDD_LP_MICROVOLT>;
 	regulator-max-microvolt = <CHEETAH_VDDD_NORMAL_MICROVOLT>;
 	regulator-ramp-delay = <1200>;
