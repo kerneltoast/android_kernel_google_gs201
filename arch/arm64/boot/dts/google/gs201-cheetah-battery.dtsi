@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to raven
+ *
+ * Copyright 2021 Google,LLC
+ *
+ */
+
+&google_battery {
+	google,chg-battery-capacity = <4926>;
+};
+
+&max77759_fg {
+	/delete-property/ maxim,force-batt-id;
+	maxim,fg-data {
+		#include "gs201-cheetah-battery-data.dtsi"
+	};
+};

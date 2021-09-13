@@ -30,3 +30,4 @@
 #include "gs201-cheetah-touch.dtsi"
 #include "gs201-cheetah-thermal.dtsi"
 #include "gs201-cheetah-audio.dtsi"
+#include "gs201-cheetah-battery.dtsi"
