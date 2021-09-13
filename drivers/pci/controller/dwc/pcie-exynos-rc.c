@@ -2348,7 +2348,6 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		dev_info(dev, "check irq22 pending clear: irq2_state = 0x%x\n", val_irq2);
 
 		exynos_pcie->state = STATE_LINK_DOWN_TRY;
-		queue_work(exynos_pcie->pcie_wq, &exynos_pcie->cpl_timeout_work.work);
 	}
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
@@ -2535,6 +2534,15 @@ retry:
 	val |= SOFT_PWR_RESET;
 	exynos_elbi_write(exynos_pcie, val, PCIE_SOFT_RESET);
 
+	val = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
+	if (!val) {
+		dev_err(dev, "OC Fail after soft power reset!\n");
+		dev_err(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
+			exynos_phy_read(exynos_pcie, 0x760),
+			exynos_phy_read(exynos_pcie, 0xE0C),
+			exynos_phy_read(exynos_pcie, 0x3F0),
+			exynos_phy_read(exynos_pcie, 0xFC0));
+	}
 	/* Device Type (Sub Controller: DEVICE_TYPE offset: 0x80  */
 	exynos_elbi_write(exynos_pcie, 0x04, 0x80);
 
