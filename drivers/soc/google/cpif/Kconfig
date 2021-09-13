@@ -114,10 +114,6 @@ config SUSPEND_DURING_VOICE_CALL
 	help
 	  This enables AP suspend during PCM over PCIE
 
-config CACHED_LEGACY_RAW_RX_BUFFER
-	tristate "Set cached RX RAW buffer for high data performance"
-	default n
-
 config CPIF_TP_MONITOR
 	tristate "Support CP network throughput monitor"
 	default n
