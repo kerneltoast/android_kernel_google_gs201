@@ -331,6 +331,58 @@ s2mpg13_spmic_set_enable(struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_therma
 	return ret;
 }
 
+static ssize_t
+adc_chan_en_show(struct device *dev, struct device_attribute *devattr,
+		 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s2mpg13_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
+	int ret;
+	u8 value;
+
+	ret = s2mpg13_read_reg(chip->i2c, S2MPG13_METER_CTRL3, &value);
+
+	return ret ? ret : sysfs_emit(buf, "0x%02X\n", value);
+}
+
+static ssize_t
+adc_chan_en_store(struct device *dev, struct device_attribute *devattr,
+		  const char *buf, size_t count)
+{
+	int i, ret;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s2mpg13_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
+	u8 value, mask = 0x1;
+
+	ret = sscanf(buf, "%hhx", &value);
+	if (ret != 1)
+		return -EINVAL;
+
+	ret = s2mpg13_write_reg(chip->i2c, S2MPG13_METER_CTRL3, value);
+	if (ret)
+		return ret;
+
+	chip->adc_chan_en = value;
+
+	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
+		if (chip->adc_chan_en & mask)
+			thermal_zone_device_enable(chip->sensor[i].tzd);
+		else
+			thermal_zone_device_disable(chip->sensor[i].tzd);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(adc_chan_en);
+
+static struct attribute *s2mpg13_spmic_dev_attrs[] = {
+	&dev_attr_adc_chan_en.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(s2mpg13_spmic_dev);
+
 static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -403,6 +455,7 @@ static int s2mpg13_spmic_thermal_remove(struct platform_device *pdev)
 static struct platform_driver s2mpg13_spmic_thermal_driver = {
 	.driver = {
 		.name = "s2mpg13-spmic-thermal",
+		.dev_groups = s2mpg13_spmic_dev_groups,
 		.owner = THIS_MODULE,
 	},
 	.probe = s2mpg13_spmic_thermal_probe,
