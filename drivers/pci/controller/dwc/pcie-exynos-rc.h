@@ -104,6 +104,9 @@
 #define PCIE_MSTR_PEND_SEL_NAK		0x474
 #define NACK_ENABLE			0x1
 
+#define PCIE_DBI_L1_EXIT_DISABLE	0x1078
+#define DBI_L1_EXIT_DISABLE		0x1
+
 /* PCIe PMU registers */
 #define IDLE_IP3_STATE			0x3EC
 #define IDLE_IP_RC1_SHIFT		(31)
@@ -144,6 +147,7 @@
 #define PORT_LINK_L1SS_ENABLE		(0xf << 0)
 #define PORT_LINK_TPOWERON_90US		(0x49 << 0)
 #define PORT_LINK_TPOWERON_130US	(0x69 << 0)
+#define PORT_LINK_TPOWERON_180US	(0x89 << 0)
 #define PORT_LINK_TPOWERON_3100US	(0xfa << 0)
 #define PORT_LINK_L1SS_T_PCLKACK	(0x3 << 6)
 #define PORT_LINK_L1SS_T_L1_2		(0x4 << 2)

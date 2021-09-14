@@ -101,7 +101,7 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	void __iomem *elbi_base_regs = exynos_pcie->elbi_base;
 	void __iomem *phy_base_regs = exynos_pcie->phy_base;
 	void __iomem *phy_pcs_base_regs = exynos_pcie->phy_pcs_base;
-	int num_lanes = 2; /* GS201 PCIe PHY has 2 lanes */
+	int num_lanes = exynos_pcie->num_lanes;
 	u32 val;
 	u32 i;
 	u32 pll_lock, cdr_lock, oc_done;
@@ -341,7 +341,7 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	/* check pll & cdr lock */
 	phy_base_regs = exynos_pcie->phy_base;
 	for (i = 0; i < 1000; i++) {
-		udelay(10);
+		usleep_range(10, 12);
 		pll_lock = readl(phy_base_regs + 0x03F0) & (1 << 3);
 		cdr_lock = readl(phy_base_regs + 0x0FC0) & (1 << 4);
 
@@ -349,22 +349,25 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 			break;
 	}
 	if ((pll_lock == 0) || (cdr_lock == 0)) {
-		dev_info(exynos_pcie->pci->dev, "[%s] PLL & CDR lock fail!!\n",
+		dev_info(exynos_pcie->pci->dev, "[%s] PLL & CDR lock check!\n",
 						__func__);
-		return;
 	}
 
 	/* check offset calibration */
 	for (i = 0; i < 1000; i++) {
-		udelay(10);
+		usleep_range(10, 12);
 		oc_done = readl(phy_base_regs + 0xE18) & (1 << 7);
 
 		if (oc_done != 0)
 			break;
 	}
 	if (oc_done == 0) {
-		dev_info(exynos_pcie->pci->dev, "[%s] OC fail!!\n", __func__);
-		return;
+		pll_lock = readl(phy_base_regs + 0x3F0) & (1 << 3);
+		cdr_lock = readl(phy_base_regs + 0xFC0) & (1 << 4);
+		oc_done = readl(phy_base_regs + 0xE18) & (1 << 7);
+		dev_info(exynos_pcie->pci->dev,
+				"OC Fail : PLL_LOCK : 0x%x, CDR_LOCK : 0x%x, OC : 0x%x\n",
+				pll_lock, cdr_lock, oc_done);
 	}
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_pcie_phy_config);

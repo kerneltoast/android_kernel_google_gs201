@@ -2398,7 +2398,6 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		dev_info(dev, "check irq22 pending clear: irq2_state = 0x%x\n", val_irq2);
 
 		exynos_pcie->state = STATE_LINK_DOWN_TRY;
-		queue_work(exynos_pcie->pcie_wq, &exynos_pcie->cpl_timeout_work.work);
 	}
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
@@ -2633,6 +2632,11 @@ retry:
 	exynos_elbi_write(exynos_pcie, NACK_ENABLE, PCIE_MSTR_PEND_SEL_NAK);
 	dev_dbg(dev, "%s: NACK option enable: 0x%x\n", __func__,
 		exynos_elbi_read(exynos_pcie, PCIE_MSTR_PEND_SEL_NAK));
+
+	/* DBI L1 exit disable(use aux_clk in L1.2) */
+	exynos_elbi_write(exynos_pcie, DBI_L1_EXIT_DISABLE, PCIE_DBI_L1_EXIT_DISABLE);
+	dev_dbg(dev, "%s: DBI L1 exit disable option enable: 0x%x\n", __func__,
+		exynos_elbi_read(exynos_pcie, PCIE_DBI_L1_EXIT_DISABLE));
 
 	/* setup root complex */
 	dw_pcie_setup_rc(pp);
@@ -3219,9 +3223,9 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 				exynos_pcie_rc_wr_own_conf(pp, PCIE_LINK_L1SS_CONTROL, 4, val);
 
 				/* [RC] set TPOWERON */
-				/* Set TPOWERON value for RC: 90->130 usec */
+				/* Set TPOWERON value for RC: 90->180 usec */
 				exynos_pcie_rc_wr_own_conf(pp, PCIE_LINK_L1SS_CONTROL2, 4,
-							   PORT_LINK_TPOWERON_130US);
+							   PORT_LINK_TPOWERON_180US);
 
 				/* exynos_pcie_rc_wr_own_conf(pp,
 				 *	PCIE_L1_SUBSTATES_OFF, 4,
@@ -3241,10 +3245,10 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 							     exp_cap_off + PCI_EXP_DEVCTL2, 4, val);
 
 				/* [EP] set TPOWERON */
-				/* Set TPOWERON value for EP: 90->130 usec */
+				/* Set TPOWERON value for EP: 90->180 usec */
 				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0,
 							     PCIE_LINK_L1SS_CONTROL2, 4,
-							     PORT_LINK_TPOWERON_130US);
+							     PORT_LINK_TPOWERON_180US);
 
 				/* [EP] set Entrance latency */
 				/* Set L1.2 Enterance Latency for EP: 64 usec */
