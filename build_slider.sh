@@ -67,23 +67,6 @@ if [ "${BUILD_KERNEL}" = "0" ]; then
   fi
 fi
 
-if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
-  MANIFEST_SHA=$(cat .repo/manifests/default.xml | grep "path=\"aosp\"" |
-		     sed -n "s/^.*revision=\"\([0-9a-fA-F]*\)\".*/\1/p")
-  pushd aosp/ > /dev/null
-    # Booting AOSP ToT does not always work; throw a warning to prevent this.
-    LOCAL_MERGE_BASE=$(git merge-base HEAD aosp/android13-5.10)
-    if [ -n "${LOCAL_MERGE_BASE}" -a \
-            "${MANIFEST_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
-      echo "Your aosp/ directory appears to be synced to a point beyond the"
-      echo "  latest AOSP merge point. This is not supported, currently, as"
-      echo "  it is prone to errors. Please base any changes on the latest"
-      echo "  merge point as specified in the manifest."
-      exit_if_error 1 "aosp/ is not based on latest merge point"
-    fi
-  popd > /dev/null
-fi
-
 # These are for build.sh, so they should be exported.
 export LTO
 export KMI_SYMBOL_LIST_STRICT_MODE
