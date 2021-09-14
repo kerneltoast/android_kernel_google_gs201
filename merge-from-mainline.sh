@@ -76,7 +76,7 @@ find common private -type d -name .git |
     dir=${gitdir%/.git}
     case ${dir} in
       common)
-        do_merge ${dir} partner-common/android12-5.10-staging
+        do_merge ${dir} partner-common/android13-5.10-staging
         ;;
       */wlan/*)
         do_merge ${dir} partner/android-gs-pixel-4.19 "

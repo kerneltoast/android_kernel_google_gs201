@@ -12,4 +12,5 @@ per-file abi_gki_aarch64_cuttlefish = adelva@google.com, rammuthiah@google.com
 per-file abi_gki_aarch64_goldfish = rkir@google.com
 
 # Pixel specific ABI
+per-file abi_gki_aarch64_generic = set noparent
 per-file abi_gki_aarch64_generic = saravanak@google.com,elavila@google.com,willmcvicker@google.com

@@ -33,10 +33,10 @@ if [ "${BUILD_KERNEL}" = "0" ]; then
 else
   USING_PREBUILTS=
   if [ "${EXPERIMENTAL_BUILD}" != "0" ]; then
-    GKI_KERNEL_OUT_DIR=android12-5.10-staging
+    GKI_KERNEL_OUT_DIR=android13-5.10-staging
     GKI_KERNEL_BUILD_CONFIG=common/build.config.gki.aarch64
   else
-    GKI_KERNEL_OUT_DIR=android12-5.10
+    GKI_KERNEL_OUT_DIR=android13-5.10
     GKI_KERNEL_BUILD_CONFIG=aosp/build.config.gki.aarch64
   fi
 fi
@@ -70,7 +70,7 @@ if [ "${EXPERIMENTAL_BUILD}" = "0" -a "${BUILD_KERNEL}" != "0" ]; then
 		     sed -n "s/^.*revision=\"\([0-9a-fA-F]*\)\".*/\1/p")
   pushd aosp/ > /dev/null
     # Booting AOSP ToT does not always work; throw a warning to prevent this.
-    LOCAL_MERGE_BASE=$(git merge-base HEAD aosp/android12-5.10)
+    LOCAL_MERGE_BASE=$(git merge-base HEAD aosp/android13-5.10)
     if [ -n "${LOCAL_MERGE_BASE}" -a \
             "${MANIFEST_SHA}" != "${LOCAL_MERGE_BASE}" ]; then
       echo "Your aosp/ directory appears to be synced to a point beyond the"
