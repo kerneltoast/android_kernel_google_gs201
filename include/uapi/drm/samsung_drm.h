@@ -310,6 +310,17 @@ struct exynos_drm_histogram_event {
 	struct histogram_bins bins;
 };
 
+/**
+ * enum exynos_prog_pos - defines programmable positions
+ *
+ * For example, histogram position and writeback path could be
+ * programmable. This enum defines positions for it.
+ */
+enum exynos_prog_pos {
+	POST_DQE,
+	PRE_DQE,
+};
+
 #define EXYNOS_HISTOGRAM_REQUEST	0x0
 #define EXYNOS_HISTOGRAM_CANCEL		0x1
 
