@@ -51,9 +51,10 @@ VENDOR_FSTAB=${ROOT_DIR}/prebuilts/boot-artifacts/fstabs/fstab.gs101
 
 EXT_MODULES=""
 
+if [ -z "${FAST_BUILD}" ]; then
 COMPRESS_UNSTRIPPED_MODULES=1
-
 UNSTRIPPED_MODULES=""
+fi
 
 if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
 source ${GKI_DEFCONFIG_FRAGMENT}
