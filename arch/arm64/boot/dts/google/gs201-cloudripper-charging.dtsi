@@ -15,7 +15,7 @@
 				status = "okay";
 				compatible = "google,cpm";
 				google,chg-power-supplies = "main-charger",
-							    "pca9468-mains";
+							    "pca94xx-mains";
 
 				/* S2MPG12X01 -> GPIO_1 -> CHARGE_PUMP_EN */
 				google,dc-en = <&s2mpg12_gpio 1 0>;
@@ -94,6 +94,8 @@
 	pca9468_dc: pca9468@57 {
 		compatible = "nxp,pca9468";
 		reg = <0x57>;
+
+		pca9468,psy_name = "pca94xx-mains";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&dc_charger_irq>;
