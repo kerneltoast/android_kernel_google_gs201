@@ -60,8 +60,8 @@
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
 	};
 	panel@2 {
-		compatible = "samsung,s6e3fc3";
-		label = "samsung-s6e3fc3";
+		compatible = "samsung,s6e3fc3-p10";
+		label = "sdc-s6e3fc3-p10";
 		channel = <0>;
 
 		/* reset, power */
