@@ -7,9 +7,9 @@
  */
 
 &drmdsim0 {
-	samsung_s6e3fc3: panel@0 {
-		compatible = "samsung,s6e3fc3";
-		label = "samsung-s6e3fc3";
+	sdc_s6e3fc3_p10: panel@0 {
+		compatible = "samsung,s6e3fc3-p10";
+		label = "sdc-s6e3fc3-p10";
 		channel = <0>;
 
 		/* reset, power */
