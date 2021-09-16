@@ -98,7 +98,7 @@
 			};
 		};
 	};
-	batt_sidekey_gras_therm {
+	batt_therm_sidekey {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";
