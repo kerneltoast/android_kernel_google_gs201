@@ -740,33 +740,37 @@ static int cpif_probe(struct platform_device *pdev)
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
 	if (err) {
 		mif_err("dma_set_mask_and_coherent() error:%d\n", err);
-		return err;
+		goto fail;
 	}
 
 	if (dev->of_node) {
 		pdata = modem_if_parse_dt_pdata(dev);
 		if (IS_ERR(pdata)) {
 			mif_err("MIF DT parse error!\n");
-			return PTR_ERR(pdata);
+			err = PTR_ERR(pdata);
+			goto fail;
 		}
 	} else {
 		if (!pdata) {
 			mif_err("Non-DT, incorrect pdata!\n");
-			return -EINVAL;
+			err = -EINVAL;
+			goto fail;
 		}
 	}
 
 	msd = create_modem_shared_data(pdev);
 	if (!msd) {
 		mif_err("%s: msd == NULL\n", pdata->name);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto fail;
 	}
 
 	modemctl = create_modemctl_device(pdev, msd);
 	if (!modemctl) {
 		mif_err("%s: modemctl == NULL\n", pdata->name);
 		devm_kfree(dev, msd);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto fail;
 	}
 
 	if (toe_dev_create(pdev)) {
@@ -870,8 +874,13 @@ free_mc:
 	if (msd)
 		devm_kfree(dev, msd);
 
+	err = -ENOMEM;
+
+fail:
 	mif_err("%s: xxx\n", pdev->name);
-	return -ENOMEM;
+
+	panic("CP interface driver probe failed\n");
+	return err;
 }
 
 static void cpif_shutdown(struct platform_device *pdev)

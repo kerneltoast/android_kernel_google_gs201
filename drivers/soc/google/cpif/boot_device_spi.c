@@ -118,7 +118,8 @@ static int cpboot_spi_probe(struct spi_device *spi)
 
 	if (_count >= MAX_SPI_DEVICE) {
 		mif_err("_count is over %d\n", MAX_SPI_DEVICE);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	mutex_init(&_cpboot[_count].lock);
@@ -138,6 +139,8 @@ static int cpboot_spi_probe(struct spi_device *spi)
 err_setup:
 	mutex_destroy(&_cpboot[_count].lock);
 
+err:
+	panic("CP SPI driver probe failed\n");
 	return ret;
 }
 

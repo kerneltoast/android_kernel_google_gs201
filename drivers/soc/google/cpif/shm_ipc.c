@@ -448,7 +448,7 @@ static int cp_shmem_probe(struct platform_device *pdev)
 		ret = cp_rmem_setup_latecall(pdev);
 		if (ret) {
 			mif_err("cp_rmem_setup_latecall() error:%d\n", ret);
-			return ret;
+			goto fail;
 		}
 	}
 #endif
@@ -456,7 +456,7 @@ static int cp_shmem_probe(struct platform_device *pdev)
 	ret = cp_shmem_setup(dev);
 	if (ret) {
 		mif_err("cp_shmem_setup() error:%d\n", ret);
-		return ret;
+		goto fail;
 	}
 
 	mif_dt_read_u32(dev->of_node, "use_mem_map_on_cp", use_map_on_cp);
@@ -464,7 +464,7 @@ static int cp_shmem_probe(struct platform_device *pdev)
 		ret = cp_shmem_check_mem_map_on_cp(dev);
 		if (ret) {
 			mif_err("cp_shmem_check_mem_map_on_cp() error:%d\n", ret);
-			return ret;
+			goto fail;
 		}
 	} else {
 		mif_info("use_mem_map_on_cp is disabled. Use dt information\n");
@@ -486,6 +486,10 @@ static int cp_shmem_probe(struct platform_device *pdev)
 	mif_info("---\n");
 
 	return 0;
+
+fail:
+	panic("CP shmem probe failed\n");
+	return ret;
 }
 
 static int cp_shmem_remove(struct platform_device *pdev)

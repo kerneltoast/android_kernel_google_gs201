@@ -2583,13 +2583,15 @@ int dit_create(struct platform_device *pdev)
 
 	if (!np) {
 		mif_err("of_node is null\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
 
 	dc = devm_kzalloc(dev, sizeof(struct dit_ctrl_t), GFP_KERNEL);
 	if (!dc) {
 		mif_err("dit ctrl alloc failed\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	dc->dev = dev;
@@ -2693,6 +2695,7 @@ error:
 		dc = NULL;
 	}
 
+	panic("DIT driver probe failed\n");
 	return ret;
 }
 

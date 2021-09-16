@@ -922,13 +922,15 @@ int direct_dm_create(struct platform_device *pdev)
 
 	if (!np) {
 		mif_err("of_node is null\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	_dc = devm_kzalloc(dev, sizeof(struct direct_dm_ctrl), GFP_KERNEL);
 	if (!_dc) {
 		mif_err_limited("devm_kzalloc() error\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 	dc = _dc;
 
@@ -937,7 +939,7 @@ int direct_dm_create(struct platform_device *pdev)
 	ret = direct_dm_read_dt(np, dc);
 	if (ret) {
 		mif_err("direct_dm_read_dt() error:%d\n", ret);
-		goto error;
+		goto err_setup;
 	}
 
 	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
@@ -945,13 +947,13 @@ int direct_dm_create(struct platform_device *pdev)
 	ret = direct_dm_register_irq(dc);
 	if (ret) {
 		mif_err("direct_dm_register_irq() error:%d\n", ret);
-		goto error;
+		goto err_setup;
 	}
 
 	ret = direct_dm_setup_region(dc);
 	if (ret) {
 		mif_err("direct_dm_setup_region() error:%d\n", ret);
-		goto error;
+		goto err_setup;
 	}
 
 	ret = init_dm_direct_path(dc->usb_req_num,
@@ -961,7 +963,7 @@ int direct_dm_create(struct platform_device *pdev)
 		(void *)dc);
 	if (ret) {
 		mif_err("init_dm_direct_path() error:%d\n", ret);
-		goto error;
+		goto err_setup;
 	}
 
 	spin_lock_init(&dc->rx_lock);
@@ -977,17 +979,19 @@ int direct_dm_create(struct platform_device *pdev)
 	ret = sysfs_create_groups(&dev->kobj, direct_dm_groups);
 	if (ret != 0) {
 		mif_err("sysfs_create_group() error:%d\n", ret);
-		goto error;
+		goto err_setup;
 	}
 
 	mif_info("---\n");
 
 	return 0;
 
-error:
+err_setup:
 	devm_kfree(dev, dc);
 	dc = NULL;
 
+err:
+	panic("Direct DM driver probe failed\n");
 	mif_err("xxx\n");
 
 	return ret;
