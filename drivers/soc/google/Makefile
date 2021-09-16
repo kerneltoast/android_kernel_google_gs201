@@ -47,6 +47,8 @@ obj-$(CONFIG_HARDLOCKUP_DEBUG)		+= hardlockup-debug.o
 
 obj-$(CONFIG_HARDLOCKUP_WATCHDOG)	+= hardlockup-watchdog.o
 
+obj-$(CONFIG_SYSRQ_HOOK)	+= sysrq-hook.o
+
 # vh/kernel/sched
 obj-$(CONFIG_VH_KERNEL)			+= vh/kernel/
 
