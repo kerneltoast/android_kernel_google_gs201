@@ -224,4 +224,11 @@ config DBGCORE_DUMP
 	help
 	This module supports the Debug Core Framework functionality.
 
+config SYSRQ_HOOK
+	tristate "Sysrq hook to overwrite panic message"
+	depends on MAGIC_SYSRQ
+	default n
+	help
+	Modules for sysrq hooks.
+
 endmenu
