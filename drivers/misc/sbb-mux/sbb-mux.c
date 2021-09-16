@@ -142,7 +142,7 @@ static ssize_t sbb_signal_value_store(struct kobject *kobj,
 	char input_val;
 
 	if (buf_len < 1) {
-		pr_err("sbb-mux: Invalid store size of %d for signal %s!",
+		pr_err("sbb-mux: Invalid store size of %zu for signal %s!",
 		       buf_len, signals[signal_id].name);
 		return -EINVAL;
 	}
