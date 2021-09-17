@@ -39,7 +39,7 @@ static int buffer_protect_smc(struct device *dev, struct buffer_prot_info *protd
 		dma_unmap_single(dev, phys_to_dma(dev, virt_to_phys(protdesc)), sizeof(*protdesc),
 				 DMA_TO_DEVICE);
 
-		perr("CMD %#x (err=%#lx,dva=%#x,size=%#lx,cnt=%u,flg=%u,phy=%#lx)",
+		perr("CMD %#x (err=%#lx,dva=%#x,size=%#x,cnt=%u,flg=%u,phy=%#lx)",
 		     SMC_DRM_PPMP_PROT, ret, protdesc->dma_addr,
 		     protdesc->chunk_size, protdesc->chunk_count,
 		     protdesc->flags, protdesc->bus_address);
@@ -60,7 +60,7 @@ static int buffer_unprotect_smc(struct device *dev,
 			 DMA_TO_DEVICE);
 
 	if (ret) {
-		perr("CMD %#x (err=%#lx,dva=%#x,size=%#lx,cnt=%u,flg=%u,phy=%#lx)",
+		perr("CMD %#x (err=%#lx,dva=%#x,size=%#x,cnt=%u,flg=%u,phy=%#lx)",
 		     SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
 		     protdesc->chunk_size, protdesc->chunk_count,
 		     protdesc->flags, protdesc->bus_address);
