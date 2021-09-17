@@ -131,32 +131,32 @@ static void eh_dump_regs(struct eh_device *eh_dev)
 
 	pr_err("dump_regs: global\n");
 	for (offset = EH_REG_HWID; offset <= EH_REG_ERR_MSK; offset += 8)
-		pr_err("0x%03X: 0x%016llX\n", offset,
+		pr_err("0x%03X: 0x%016lX\n", offset,
 			eh_read_register(eh_dev, offset));
 
 	pr_err("dump_regs: compression\n");
 	for (offset = EH_REG_CDESC_LOC; offset <= EH_REG_CINTERP_CTRL;
 	     offset += 8)
-		pr_err("0x%03X: 0x%016llX\n", offset,
+		pr_err("0x%03X: 0x%016lX\n", offset,
 			eh_read_register(eh_dev, offset));
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
 		pr_err("dump_regs: decompression %u\n", i);
 		for (offset = EH_REG_DCMD_CSIZE(i);
 		     offset <= EH_REG_DCMD_BUF3(i); offset += 8)
-			pr_err("0x%03X: 0x%016llX\n", offset,
+			pr_err("0x%03X: 0x%016lX\n", offset,
 				eh_read_register(eh_dev, offset));
 	}
 
 	pr_err("dump_regs: vendor\n");
 	for (offset = EH_REG_BUSCFG; offset <= 0x118; offset += 8)
-		pr_err("0x%03X: 0x%016llX\n", offset,
+		pr_err("0x%03X: 0x%016lX\n", offset,
 			eh_read_register(eh_dev, offset));
 
 	pr_err("driver\n");
 	pr_err("write_index %u complete_index %u\n",
 	       eh_dev->write_index, eh_dev->complete_index);
-	pr_err("pending_compression %lu\n", atomic_read(&eh_dev->nr_request));
+	pr_err("pending_compression %d\n", atomic_read(&eh_dev->nr_request));
 }
 
 static inline unsigned int fifo_write_index(struct eh_device *eh_dev)
@@ -343,7 +343,7 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 	decompr = eh_read_register(eh_dev, EH_REG_INTRP_STS_DCMP);
 	error = eh_read_register(eh_dev, EH_REG_INTRP_STS_ERROR);
 
-	pr_err("irq %d error 0x%llx compr 0x%llx decompr 0x%llx\n",
+	pr_err("irq %d error 0x%lx compr 0x%lx decompr 0x%lx\n",
 	       irq, error, compr, decompr);
 
 	if (error) {
@@ -502,7 +502,7 @@ static int eh_comp_thread(void *data)
 
 			error = eh_read_register(eh_dev, EH_REG_ERR_COND);
 			if (error) {
-				pr_err("error condition interrupt non-zero 0x%llx\n",
+				pr_err("error condition interrupt non-zero 0x%lx\n",
 				       error);
 				eh_dump_regs(eh_dev);
 				eh_abort_incomplete_descriptors(eh_dev);
@@ -936,10 +936,10 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 		status = eh_read_dcmd_status(eh_dev, index);
 	} while (status == EH_DCMD_PENDING);
 
-	pr_devel("dcmd [%u] status = %u\n", index, status);
+	pr_devel("dcmd [%u] status = %lu\n", index, status);
 
 	if (status != EH_DCMD_DECOMPRESSED) {
-		pr_err("dcmd [%u] bad status %u\n", index, status);
+		pr_err("dcmd [%u] bad status %lu\n", index, status);
 		eh_dump_regs(eh_dev);
 		ret = -EIO;
 	}
