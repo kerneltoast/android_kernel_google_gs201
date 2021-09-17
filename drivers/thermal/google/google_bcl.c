@@ -1119,7 +1119,7 @@ static ssize_t batoilo_time_show(struct device *dev, struct device_attribute *at
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[BATOILO]._time);
+	return sysfs_emit(buf, "%lld\n", bcl_dev->if_triggered_stats[BATOILO]._time);
 }
 
 static DEVICE_ATTR_RO(batoilo_time);
@@ -1129,7 +1129,7 @@ static ssize_t vdroop2_time_show(struct device *dev, struct device_attribute *at
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[VDROOP2]._time);
+	return sysfs_emit(buf, "%lld\n", bcl_dev->if_triggered_stats[VDROOP2]._time);
 }
 
 static DEVICE_ATTR_RO(vdroop2_time);
@@ -1139,7 +1139,7 @@ static ssize_t vdroop1_time_show(struct device *dev, struct device_attribute *at
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n", bcl_dev->if_triggered_stats[VDROOP1]._time);
+	return sysfs_emit(buf, "%lld\n", bcl_dev->if_triggered_stats[VDROOP1]._time);
 }
 
 static DEVICE_ATTR_RO(vdroop1_time);
@@ -1149,7 +1149,7 @@ static ssize_t smpl_warn_time_show(struct device *dev, struct device_attribute *
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_SMPL_WARN]._time);
+	return sysfs_emit(buf, "%lld\n", bcl_dev->triggered_stats[IRQ_SMPL_WARN]._time);
 }
 
 static DEVICE_ATTR_RO(smpl_warn_time);
@@ -1159,7 +1159,7 @@ static ssize_t ocp_cpu1_time_show(struct device *dev, struct device_attribute *a
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL1]._time);
+	return sysfs_emit(buf, "%lld\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL1]._time);
 }
 
 static DEVICE_ATTR_RO(ocp_cpu1_time);
@@ -1169,7 +1169,7 @@ static ssize_t ocp_cpu2_time_show(struct device *dev, struct device_attribute *a
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL2]._time);
+	return sysfs_emit(buf, "%lld\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_CPUCL2]._time);
 }
 
 static DEVICE_ATTR_RO(ocp_cpu2_time);
@@ -1179,7 +1179,7 @@ static ssize_t ocp_tpu_time_show(struct device *dev, struct device_attribute *at
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_TPU]._time);
+	return sysfs_emit(buf, "%lld\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_TPU]._time);
 }
 
 static DEVICE_ATTR_RO(ocp_tpu_time);
@@ -1189,7 +1189,7 @@ static ssize_t ocp_gpu_time_show(struct device *dev, struct device_attribute *at
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_GPU]._time);
+	return sysfs_emit(buf, "%lld\n", bcl_dev->triggered_stats[IRQ_OCP_WARN_GPU]._time);
 }
 
 static DEVICE_ATTR_RO(ocp_gpu_time);
@@ -1200,7 +1200,7 @@ static ssize_t soft_ocp_cpu1_time_show(struct device *dev, struct device_attribu
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n",
+	return sysfs_emit(buf, "%lld\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_CPUCL1]._time);
 }
 
@@ -1212,7 +1212,7 @@ static ssize_t soft_ocp_cpu2_time_show(struct device *dev, struct device_attribu
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n",
+	return sysfs_emit(buf, "%lld\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_CPUCL2]._time);
 }
 
@@ -1224,7 +1224,7 @@ static ssize_t soft_ocp_tpu_time_show(struct device *dev, struct device_attribut
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n",
+	return sysfs_emit(buf, "%lld\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_TPU]._time);
 }
 
@@ -1235,7 +1235,7 @@ static ssize_t soft_ocp_gpu_time_show(struct device *dev, struct device_attribut
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
-	return sysfs_emit(buf, "%d\n",
+	return sysfs_emit(buf, "%lld\n",
 			  bcl_dev->triggered_stats[IRQ_SOFT_OCP_WARN_GPU]._time);
 }
 
@@ -1938,7 +1938,7 @@ static int set_ocp_lvl(struct bcl_device *bcl_dev, u64 val, u8 addr, u8 pmic, u8
 	int ret;
 
 	if (val < llimit || val > ulimit) {
-		dev_err(bcl_dev->device, "OCP_WARN LEVEL %d outside of range %d - %d mA.", val,
+		dev_err(bcl_dev->device, "OCP_WARN LEVEL %llu outside of range %d - %d mA.", val,
 		       llimit, ulimit);
 		return -EBUSY;
 	}
@@ -2045,7 +2045,7 @@ static ssize_t ocp_cpu1_lvl_show(struct device *dev, struct device_attribute *at
 			OCP_WARN_MASK, B3M_UPPER_LIMIT, B3M_STEP) < 0)
 		return -EINVAL;
 #endif
-	return sysfs_emit(buf, "%dmA\n", val);
+	return sysfs_emit(buf, "%llumA\n", val);
 
 }
 
@@ -2090,7 +2090,7 @@ static ssize_t ocp_cpu2_lvl_show(struct device *dev, struct device_attribute *at
 			OCP_WARN_MASK, B2M_UPPER_LIMIT, B2M_STEP) < 0)
 		return -EINVAL;
 #endif
-	return sysfs_emit(buf, "%dmA\n", val);
+	return sysfs_emit(buf, "%llumA\n", val);
 
 }
 
@@ -2135,7 +2135,7 @@ static ssize_t ocp_tpu_lvl_show(struct device *dev, struct device_attribute *att
 			OCP_WARN_MASK, B10M_UPPER_LIMIT, B10M_STEP) < 0)
 		return -EINVAL;
 #endif
-	return sysfs_emit(buf, "%dmA\n", val);
+	return sysfs_emit(buf, "%llumA\n", val);
 
 }
 
@@ -2180,7 +2180,7 @@ static ssize_t ocp_gpu_lvl_show(struct device *dev, struct device_attribute *att
 			OCP_WARN_MASK, B2S_UPPER_LIMIT, B2S_STEP) < 0)
 		return -EINVAL;
 #endif
-	return sysfs_emit(buf, "%dmA\n", val);
+	return sysfs_emit(buf, "%llumA\n", val);
 
 }
 
@@ -2225,7 +2225,7 @@ static ssize_t soft_ocp_cpu1_lvl_show(struct device *dev, struct device_attribut
 			OCP_WARN_MASK, B3M_UPPER_LIMIT, B3M_STEP) < 0)
 		return -EINVAL;
 #endif
-	return sysfs_emit(buf, "%dmA\n", val);
+	return sysfs_emit(buf, "%llumA\n", val);
 
 }
 
@@ -2270,7 +2270,7 @@ static ssize_t soft_ocp_cpu2_lvl_show(struct device *dev, struct device_attribut
 			OCP_WARN_MASK, B2M_UPPER_LIMIT, B2M_STEP) < 0)
 		return -EINVAL;
 #endif
-	return sysfs_emit(buf, "%dmA\n", val);
+	return sysfs_emit(buf, "%llumA\n", val);
 
 }
 
@@ -2315,7 +2315,7 @@ static ssize_t soft_ocp_tpu_lvl_show(struct device *dev, struct device_attribute
 			OCP_WARN_MASK, B10M_UPPER_LIMIT, B10M_STEP) < 0)
 		return -EINVAL;
 #endif
-	return sysfs_emit(buf, "%dmA\n", val);
+	return sysfs_emit(buf, "%llumA\n", val);
 
 }
 
@@ -2360,7 +2360,7 @@ static ssize_t soft_ocp_gpu_lvl_show(struct device *dev, struct device_attribute
 			OCP_WARN_MASK, B2S_UPPER_LIMIT, B2S_STEP) < 0)
 		return -EINVAL;
 #endif
-	return sysfs_emit(buf, "%dmA\n", val);
+	return sysfs_emit(buf, "%llumA\n", val);
 
 }
 
