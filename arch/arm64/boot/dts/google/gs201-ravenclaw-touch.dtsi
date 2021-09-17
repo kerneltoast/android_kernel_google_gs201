@@ -21,6 +21,11 @@
  * AOC2AP: XAOC_GPIO8 - gpio_in[74] -> XEINT_19 - GPA8[7]
  */
 
+&spi_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_bus &spi0_cs_func>;
+};
+
 &spitouch {
 	status = "okay";
 	compatible = "sec,sec_ts";

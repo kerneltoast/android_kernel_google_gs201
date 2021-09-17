@@ -26,8 +26,9 @@
 	tbn,aoc2ap_gpio = <&gpa9 2 GPIO_ACTIVE_LOW>;
 };
 
-&aoc2ap_irq {
-	samsung,pins = "gpa9-2";
+&spi_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_bus &spi0_cs_func>;
 };
 
 &spitouch {

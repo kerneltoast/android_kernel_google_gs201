@@ -36,5 +36,6 @@
 		cs-gpio = <&gpp20 3 0>;
 		samsung,spi-feedback-delay = <0>;
 		samsung,spi-chip-select-mode = <1>;
+		cs-clock-delay = <1>;
 	};
 };

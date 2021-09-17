@@ -54,25 +54,20 @@
 	ts_reset: ts-reset {
 		samsung,pins = "gpp23-2";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
-	};
-
-	ap2aoc: ap2aoc-spi-sel {
-		samsung,pins = "gph1-0";
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
 
 	ts_spi_bus_active: ts_spi_bus_active {
 		samsung,pins = "gpp20-0", "gpp20-1", "gpp20-2";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 
 	ts_spi_cs_active: ts_spi_cs_active {
 		samsung,pins = "gpp20-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
@@ -96,12 +91,20 @@
 	};
 };
 
+&pinctrl_6 {
+	ap2aoc: ap2aoc-spi-sel {
+		samsung,pins = "gph1-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
 &spi_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_bus &spi0_cs_func>;
+	pinctrl-0 = <>;
 
 	spitouch: touchscreen@0 {
 		status = "disabled";
