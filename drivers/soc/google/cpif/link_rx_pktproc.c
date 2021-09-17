@@ -598,7 +598,6 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 				q->manager->already_retrieved = src;
 			goto rx_error;
 		}
-		skb->head_frag = 0;
 		skb_reserve(skb, ppa->skb_padding_size);
 		skb_put(skb, len);
 	} else { /* use memcpy */
