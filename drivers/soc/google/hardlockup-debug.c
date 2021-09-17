@@ -210,7 +210,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 
 		spin_lock_irqsave(&pm_suspend_task_lock, flags);
 		if (pm_suspend_task) {
-			pr_emerg("pm_suspend_task '%s' %d hung (state=%d)",
+			pr_emerg("pm_suspend_task '%s' %d hung (state=%ld)",
 					pm_suspend_task->comm, pm_suspend_task->pid,
 					pm_suspend_task->state);
 			sched_show_task(pm_suspend_task);
