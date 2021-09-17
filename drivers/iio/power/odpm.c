@@ -359,7 +359,7 @@ int odpm_configure_start_measurement(struct odpm_info *info)
 
 	info->last_poll_ktime_boot_ns = timestamp_capture_ns;
 
-	pr_info("odpm: Starting at timestamp (ms): %ld\n",
+	pr_info("odpm: Starting at timestamp (ms): %llu\n",
 		to_ms(timestamp_capture_ns));
 
 	/* Initialize boot measurement time to 0. This means that there will be
@@ -837,7 +837,7 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 	 * registers and when the timestamp was captured.
 	 */
 	if (elapsed_refresh_ms >= 100) {
-		pr_err("odpm: %s: refresh registers took too long; %ld ms\n",
+		pr_err("odpm: %s: refresh registers took too long; %u ms\n",
 		       info->chip.name, elapsed_refresh_ms);
 
 		/* Fall back to configured frequency */
@@ -853,7 +853,7 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 	freq_upper_bound = sampling_frequency_table_uhz * 9 / 8;
 	if (sampling_frequency_estimated_uhz < freq_lower_bound ||
 	    sampling_frequency_estimated_uhz > freq_upper_bound) {
-		pr_err("odpm: %s: clock error too large! fsel: %d, fest: %ld, elapsed_ms: %d, acc_count: %d\n",
+		pr_err("odpm: %s: clock error too large! fsel: %llu, fest: %llu, elapsed_ms: %d, acc_count: %d\n",
 		       info->chip.name, sampling_frequency_table_uhz,
 		       sampling_frequency_estimated_uhz,
 		       elapsed_ms, acc_count);
@@ -1271,7 +1271,7 @@ static ssize_t energy_value_show(struct device *dev,
 	 * t=<Measurement timestamp, ms>
 	 * CH<N>(T=<Duration, ms>)[<Schematic name>], <Accumulated Energy, uWs>
 	 */
-	count += scnprintf(buf + count, PAGE_SIZE - count, "t=%ld\n",
+	count += scnprintf(buf + count, PAGE_SIZE - count, "t=%llu\n",
 			   info->chip.acc_timestamp_ms);
 
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
@@ -1283,7 +1283,7 @@ static ssize_t energy_value_show(struct device *dev,
 			duration_ms = info->chip.acc_timestamp_ms - start_ms;
 
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "CH%d(T=%ld)[%s], %ld\n", ch,
+				   "CH%d(T=%llu)[%s], %llu\n", ch,
 				   duration_ms,
 				   info->chip.rails[rail_i].schematic_name,
 				   info->channels[ch].acc_power_uW_sec);
@@ -1465,7 +1465,7 @@ static ssize_t measurement_start_show(struct device *dev,
 
 		if (info->channels[ch].enabled) {
 			count += scnprintf(buf + count, PAGE_SIZE - count,
-				"CH%d[%s], %ld\n", ch,
+				"CH%d[%s], %llu\n", ch,
 				info->chip.rails[rail_i].schematic_name,
 				info->channels[ch].measurement_start_ms);
 		}
@@ -1489,7 +1489,7 @@ static ssize_t measurement_stop_show(struct device *dev,
 
 		if (rail->measurement_stop_ms != 0) {
 			count += scnprintf(buf + count, PAGE_SIZE - count,
-					   "%s(%s), %ld, %ld, %ld\n",
+					   "%s(%s), %llu, %llu, %llu\n",
 					   rail->name, rail->schematic_name,
 					   rail->measurement_start_ms_cached,
 					   rail->measurement_stop_ms,
