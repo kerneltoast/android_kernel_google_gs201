@@ -572,7 +572,7 @@ int exynos_devfreq_init_freq_table(struct exynos_devfreq_data *data)
 		exynos_devfreq_opp_round_freq(data->opp_list, data->max_state,
 			data->suspend_freq);
 
-	dev_info(data->dev, "initial_freq: %uKhz, suspend_freq: %uKhz\n",
+	dev_info(data->dev, "initial_freq: %luKhz, suspend_freq: %luKhz\n",
 		 data->devfreq_profile.initial_freq,
 		 data->suspend_freq);
 
@@ -2135,7 +2135,7 @@ static int exynos_devfreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 	data->cooling_state = state;
 
-	dev_info(data->dev, "Set %s cur_state %lu, freq: %8uKhz\n", cdev->type,
+	dev_info(data->dev, "Set %s cur_state %lu, freq: %8luKhz\n", cdev->type,
 			 state, data->devfreq_profile.freq_table[state]);
 	if (exynos_pm_qos_request_active(&data->thermal_pm_qos_max))
 		exynos_pm_qos_update_request(&data->thermal_pm_qos_max,
