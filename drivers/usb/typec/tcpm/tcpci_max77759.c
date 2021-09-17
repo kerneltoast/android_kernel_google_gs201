@@ -81,6 +81,9 @@ enum gbms_charger_modes {
 #define FLOATING_CABLE_INSTANCE_THRESHOLD	5
 #define AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS	600000
 
+#define REGMAP_REG_MAX_ADDR			0x95
+#define REGMAP_REG_COUNT			(REGMAP_REG_MAX_ADDR + 1)
+
 static struct logbuffer *tcpm_log;
 
 static bool modparam_conf_sbu;
@@ -106,7 +109,7 @@ struct tcpci {
 };
 
 static const struct regmap_range max77759_tcpci_range[] = {
-	regmap_reg_range(0x00, 0x95)
+	regmap_reg_range(0x00, REGMAP_REG_MAX_ADDR)
 };
 
 const struct regmap_access_table max77759_tcpci_write_table = {
@@ -117,7 +120,7 @@ const struct regmap_access_table max77759_tcpci_write_table = {
 static const struct regmap_config max77759_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = 0x95,
+	.max_register = REGMAP_REG_MAX_ADDR,
 	.wr_table = &max77759_tcpci_write_table,
 };
 
@@ -144,6 +147,33 @@ static ssize_t bc12_enabled_show(struct device *dev, struct device_attribute *at
 	return scnprintf(buf, PAGE_SIZE, "%d\n", bc12_get_status(chip->bc12) ? 1 : 0);
 };
 static DEVICE_ATTR_RO(bc12_enabled);
+
+/* Debugfs disabled in user builds. */
+static ssize_t registers_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	struct regmap *regmap = chip->data.regmap;
+	u8 dump[REGMAP_REG_COUNT];
+	int ret, offset = 0, addr;
+
+	ret = regmap_bulk_read(regmap, 0, dump, REGMAP_REG_COUNT);
+	if (ret < 0) {
+		dev_err(chip->dev, "[%s]: Failed to dump ret:%d\n", __func__, ret);
+		return 0;
+	}
+
+	for (addr = 0; addr < REGMAP_REG_COUNT; addr++) {
+		ret = sysfs_emit_at(buf, offset, "%x: %x\n", addr, dump[addr]);
+		if (!ret) {
+			dev_err(chip->dev, "[%s]: Not all registers printed. last:%x\n", addr - 1);
+			break;
+		}
+		offset += ret;
+	}
+
+	return offset;
+};
+static DEVICE_ATTR_RO(registers);
 
 static ssize_t contaminant_detection_show(struct device *dev, struct device_attribute *attr,
 					  char *buf)
@@ -232,6 +262,7 @@ static DEVICE_ATTR_RO(contaminant_detection_status);
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_bc12_enabled,
+	&dev_attr_registers,
 	&dev_attr_auto_discharge,
 	&dev_attr_contaminant_detection,
 	&dev_attr_contaminant_detection_status,
