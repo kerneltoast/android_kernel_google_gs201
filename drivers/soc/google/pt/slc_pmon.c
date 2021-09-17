@@ -202,7 +202,7 @@ static void slc_pmon_pmu_read(struct perf_event *event)
 
 static void slc_pmon_pmu_start(struct perf_event *event, int pmu_flags)
 {
-	dev_dbg(slc_pmon_pmu.dev, "Start perf_event [event: %d]",
+	dev_dbg(slc_pmon_pmu.dev, "Start perf_event [event: %llu]",
 		event->attr.config);
 	if (event->hw.state & PERF_HES_STOPPED) {
 		// Force the update of the latest accumulator value.
@@ -216,7 +216,7 @@ static void slc_pmon_pmu_start(struct perf_event *event, int pmu_flags)
 
 static void slc_pmon_pmu_stop(struct perf_event *event, int pmu_flags)
 {
-	dev_dbg(slc_pmon_pmu.dev, "Stop perf_event [event: %d]",
+	dev_dbg(slc_pmon_pmu.dev, "Stop perf_event [event: %llu]",
 		event->attr.config);
 	if (event->hw.state & PERF_HES_STOPPED)
 		return;
@@ -232,7 +232,7 @@ static void slc_pmon_pmu_stop(struct perf_event *event, int pmu_flags)
 
 static int slc_pmon_pmu_add(struct perf_event *event, int evflags)
 {
-	dev_dbg(slc_pmon_pmu.dev, "Add perf_event [event: %d]",
+	dev_dbg(slc_pmon_pmu.dev, "Add perf_event [event: %llu]",
 		event->attr.config);
 
 	if (event->hw.flags & COUNTER_OWNER) {
@@ -252,7 +252,7 @@ static int slc_pmon_pmu_add(struct perf_event *event, int evflags)
 
 static void slc_pmon_pmu_del(struct perf_event *event, int evflags)
 {
-	dev_dbg(slc_pmon_pmu.dev, "Del perf_event [event: %d, counter: %d].",
+	dev_dbg(slc_pmon_pmu.dev, "Del perf_event [event: %llu, counter: %llu].",
 		event->attr.config, event->hw.config);
 	if (event->hw.config != INVALID_COUNTER) {
 		slc_pmon_pmu_stop(event, PERF_EF_UPDATE);
