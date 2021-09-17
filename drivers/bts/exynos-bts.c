@@ -496,10 +496,10 @@ static int exynos_bts_bw_hist_open_show(struct seq_file *buf, void *d)
 	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
 		seq_printf(
 			buf,
-			"%lu\t",
+			"%u\t",
 			bw_trip[i]);
 	}
-	seq_printf(buf, ">%lu\n", bw_trip[i - 1]);
+	seq_printf(buf, ">%u\n", bw_trip[i - 1]);
 	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
 		(i < btsdev->num_bts); i++) {
 		seq_printf(
@@ -509,7 +509,7 @@ static int exynos_bts_bw_hist_open_show(struct seq_file *buf, void *d)
 		for (j = 0; j < BTS_HIST_BIN; j++) {
 			seq_printf(
 				buf,
-				"%lu\t",
+				"%u\t",
 				btsdev->bts_bw[i].stats.total.count[j]);
 		}
 		seq_printf(buf, "\n");
@@ -518,10 +518,10 @@ static int exynos_bts_bw_hist_open_show(struct seq_file *buf, void *d)
 	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
 		seq_printf(
 			buf,
-			"%lu\t",
+			"%u\t",
 			bw_trip[i]);
 	}
-	seq_printf(buf, ">%lu\n", bw_trip[i - 1]);
+	seq_printf(buf, ">%u\n", bw_trip[i - 1]);
 
 	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
 		(i < btsdev->num_bts); i++) {
@@ -542,10 +542,10 @@ static int exynos_bts_bw_hist_open_show(struct seq_file *buf, void *d)
 	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
 		seq_printf(
 			buf,
-			"%lu\t",
+			"%u\t",
 			bw_trip[i]);
 	}
-	seq_printf(buf, ">%lu\n", bw_trip[i - 1]);
+	seq_printf(buf, ">%u\n", bw_trip[i - 1]);
 	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
 		(i < btsdev->num_bts); i++) {
 		seq_printf(
@@ -555,7 +555,7 @@ static int exynos_bts_bw_hist_open_show(struct seq_file *buf, void *d)
 		for (j = 0; j < BTS_HIST_BIN; j++) {
 			seq_printf(
 				buf,
-				"%lu\t",
+				"%u\t",
 				btsdev->bts_bw[i].stats.peak.count[j]);
 		}
 		seq_printf(buf, "\n");
@@ -564,10 +564,10 @@ static int exynos_bts_bw_hist_open_show(struct seq_file *buf, void *d)
 	for (i = 0; i < BTS_HIST_BIN - 1; i++) {
 		seq_printf(
 			buf,
-			"%lu\t",
+			"%u\t",
 			bw_trip[i]);
 	}
-	seq_printf(buf, ">%lu\n", bw_trip[i - 1]);
+	seq_printf(buf, ">%u\n", bw_trip[i - 1]);
 
 	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
 		(i < btsdev->num_bts); i++) {
@@ -606,10 +606,10 @@ static ssize_t bts_stats_show(struct device *dev, struct device_attribute *attr,
 		ret += scnprintf(
 			buf + ret,
 			PAGE_SIZE - ret,
-			"%lu\t",
+			"%u\t",
 			bw_trip[i]);
 	}
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, ">%lu\n", bw_trip[i - 1]);
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, ">%u\n", bw_trip[i - 1]);
 
 	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
 		(i < btsdev->num_bts); i++) {
@@ -634,10 +634,10 @@ static ssize_t bts_stats_show(struct device *dev, struct device_attribute *attr,
 		ret += scnprintf(
 			buf + ret,
 			PAGE_SIZE - ret,
-			"%lu\t",
+			"%u\t",
 			bw_trip[i]);
 	}
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, ">%lu\n", bw_trip[i - 1]);
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, ">%u\n", bw_trip[i - 1]);
 
 	for (i = 0; (btsdev->bts_bw[i].name != NULL) &&
 		(i < btsdev->num_bts); i++) {
