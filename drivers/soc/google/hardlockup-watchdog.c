@@ -124,7 +124,7 @@ static int is_hardlockup_other_cpu(unsigned int cpu)
 
 		if (time_after(now, touch_ts) &&
 			(now - touch_ts >= hardlockup_watchdog.thresh)) {
-			pr_err("hardlockup-watchdog: cpu%x: hrint:%lu thresh:%llu, now:%llu, touch_ts:%llu\n",
+			pr_err("hardlockup-watchdog: cpu%x: hrint:%lu thresh:%lu, now:%lu, touch_ts:%lu\n",
 				cpu, hrint, hardlockup_watchdog.thresh,
 				now, touch_ts);
 
