@@ -172,7 +172,7 @@ reconnect:
 		 * and we might be able to recover
 		 */
 		if (retry_connect--) {
-			dev_info(ctx->dev, "TZ: reconnect\n", rc);
+			dev_info(ctx->dev, "TZ: reconnect\n");
 			goto reconnect;
 		}
 
