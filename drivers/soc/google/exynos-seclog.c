@@ -136,9 +136,11 @@ static void exynos_seclog_worker(struct work_struct *work)
 			pr_debug("[SECLOG_DEBUG C%d] return_cnt[%d]\n",
 				 cpu, sec_log[cpu]->log_return_cnt);
 			pr_debug("[SECLOG_DEBUG C%d] v_log_addr[%p]\n",
-				 cpu, v_log_addr);
+				 cpu, (void *)v_log_addr);
 			pr_debug("[SECLOG_DEBUG C%d] p_log_addr[%p]\n",
-				 cpu, v_log_addr - (unsigned long)ldata.virt_addr + ldata.phys_addr);
+				 cpu,
+				 (void *)(v_log_addr - (unsigned long)ldata.virt_addr +
+					  ldata.phys_addr));
 
 			/* Set log address and log's header address */
 			v_log_h = (struct log_header_info *)v_log_addr;
