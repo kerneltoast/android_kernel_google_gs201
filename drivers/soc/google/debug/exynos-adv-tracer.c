@@ -272,7 +272,7 @@ struct adv_tracer_ipc_ch *eat_ipc_get_channel(unsigned int id)
 
 	ipc_channel = &eat_ipc->channel[id];
 	if (IS_ERR(ipc_channel)) {
-		dev_err(eat_info->dev, "%d channel is not allocated\n", __func__, id);
+		dev_err(eat_info->dev, "%d channel is not allocated\n", id);
 		ipc_channel = NULL;
 	}
 out:
