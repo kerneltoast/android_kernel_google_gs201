@@ -448,7 +448,7 @@ static ssize_t profile_show(struct device *dev,
 		for_each_possible_cpu(cpu) {
 			pm = per_cpu_ptr(cpupm, cpu);
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
-					"cpu%d %d %d %lld (%d%%)\n",
+					"cpu%d %d %d %lld (%lld%%)\n",
 					cpu,
 					pm->stat_snapshot[i].entry_count,
 					pm->stat_snapshot[i].cancel_count,
@@ -460,7 +460,7 @@ static ssize_t profile_show(struct device *dev,
 
 	list_for_each_entry(mode, &mode_list, list) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
-				"%-7s %d %d %lld (%d%%)\n",
+				"%-7s %d %d %lld (%lld%%)\n",
 				mode->name,
 				mode->stat_snapshot.entry_count,
 				mode->stat_snapshot.cancel_count,
@@ -575,7 +575,7 @@ static ssize_t time_in_state_show(struct device *dev,
 		for_each_possible_cpu(cpu) {
 			pm = per_cpu_ptr(cpupm, cpu);
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
-					"cpu%d %d %d %lld (%d%%)\n",
+					"cpu%d %d %d %lld (%lld%%)\n",
 					cpu,
 					pm->stat[i].entry_count,
 					pm->stat[i].cancel_count,
@@ -587,7 +587,7 @@ static ssize_t time_in_state_show(struct device *dev,
 
 	list_for_each_entry(mode, &mode_list, list) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
-				"%-7s %d %d %lld (%d%%)\n",
+				"%-7s %d %d %lld (%lld%%)\n",
 				mode->name,
 				mode->stat.entry_count,
 				mode->stat.cancel_count,
