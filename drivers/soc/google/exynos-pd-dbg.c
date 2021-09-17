@@ -85,7 +85,7 @@ static int debug_state_set(void *data, u64 val)
 	return ret;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(state_fops, debug_state_get, debug_state_set, "%d\n");
+DEFINE_SIMPLE_ATTRIBUTE(state_fops, debug_state_get, debug_state_set, "%llu\n");
 #endif
 
 static int exynos_pd_dbg_probe(struct platform_device *pdev)
