@@ -689,7 +689,7 @@ static ssize_t write_configurable_param(struct device *dev, struct device_attrib
 	scnprintf(file_op, SJTAG_FILEOP_STR_SIZE, "\"%s\" write", dev_attr->attr.name);
 
 	if (count < 2 * byte_size) {
-		dev_err(dev, "%s: Insufficient payload size %d\n", file_op, count);
+		dev_err(dev, "%s: Insufficient payload size %zu\n", file_op, count);
 		return -EINVAL;
 	}
 
