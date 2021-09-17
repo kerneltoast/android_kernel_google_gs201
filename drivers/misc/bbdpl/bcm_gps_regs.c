@@ -233,8 +233,9 @@ int bcm_ireg_write(struct bcm_spi_priv *priv, char *id, u32 regaddr, u32 regval)
 		return -1;
 
 	if (id)
-		dev_dbg(&priv->spi->dev, "reg32w: %s @ : [%08lX] %08lX ", id,
-				swap_addr.ul, swap_reg.ul);
+		dev_dbg(&priv->spi->dev, "reg32w: %s @ : [%08X] %08X ", id,
+				(unsigned int)swap_addr.ul,
+				(unsigned int)swap_reg.ul);
 
 	return 1;
 }
