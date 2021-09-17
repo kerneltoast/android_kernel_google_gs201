@@ -976,7 +976,8 @@ init_freq_qos(struct exynos_cpufreq_domain *domain, struct cpufreq_policy *polic
 	/* booting boost, it is expired after 40s */
 	INIT_DELAYED_WORK(&domain->work, freq_qos_release);
 	schedule_delayed_work(&domain->work, msecs_to_jiffies(40000));
-	pr_info("Set boot pm_qos domain%d to %d for %d\n", domain->id, boot_qos, 40 * USEC_PER_SEC);
+	pr_info("Set boot pm_qos domain%d to %d for %ld\n", domain->id,
+		boot_qos, 40 * USEC_PER_SEC);
 	return 0;
 }
 
