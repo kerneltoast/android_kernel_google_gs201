@@ -356,7 +356,7 @@ err:
 				if (wait_counter > 10) {
 					dev_err(dev, "Can't wait runtime suspend!!!!\n");
 					dev_err(dev, "RPM Usage Count : %d",
-							dev->power.usage_count);
+							atomic_read(&dev->power.usage_count));
 					break;
 				}
 			}
