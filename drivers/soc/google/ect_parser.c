@@ -2729,8 +2729,8 @@ static int exynos_ect_probe(struct platform_device *pdev)
 	ect_early_vm.phys_addr = rmem->base;
 	ect_early_vm.size = rmem->size;
 
-	pr_info("ect_probe: Reserved memory for ect: addr=%lx, size=%lx\n",
-		ect_early_vm.phys_addr, ect_early_vm.size);
+	pr_info("ect_probe: Reserved memory for ect: addr=%pap, size=%lx\n",
+		&ect_early_vm.phys_addr, ect_early_vm.size);
 
 	/* Translate PA to VA of message buffer */
 	ect_early_vm.addr =
