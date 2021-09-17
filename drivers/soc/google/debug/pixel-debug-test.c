@@ -160,7 +160,7 @@ static void simulate_null(char *arg)
 static void (*undefined_function)(void) = (void *)0x1234;
 static void simulate_undefined_function(char *arg)
 {
-	pr_crit("function address=[%llx]\n", undefined_function);
+	pr_crit("function address=[%px]\n", undefined_function);
 
 	undefined_function();
 
@@ -581,7 +581,7 @@ static void parse_and_trigger(const char *buf)
 	char *space = NULL, *param = NULL;
 	int cmd_size = strlen(buf);
 
-	pr_debug("cmd_size=%d, PAGE_SIZE=%d\n", cmd_size, PAGE_SIZE);
+	pr_debug("cmd_size=%d, PAGE_SIZE=%lu\n", cmd_size, PAGE_SIZE);
 	/*
 	 * Extract the command before the first space.
 	 */
@@ -626,7 +626,7 @@ static void replace_newline_with_null(char *input)
 static ssize_t trigger_write(struct kobject *kobj, struct kobj_attribute *attr,
 			     const char *buf, size_t count)
 {
-	pr_crit("count=%d, buf=%s", count, buf);
+	pr_crit("count=%zu, buf=%s", count, buf);
 	strlcpy(trigger, buf, PAGE_SIZE);
 
 	/*
