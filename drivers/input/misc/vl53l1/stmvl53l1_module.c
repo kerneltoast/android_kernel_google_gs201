@@ -2062,7 +2062,7 @@ static ssize_t calibration_data_read(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	dev_dbg(dev, "off = %lld / count = %d\n",  off, count);
+	dev_dbg(dev, "off = %lld / count = %zu\n",  off, count);
 
 	if (off < 0 || off > sizeof(struct VL53L1_CalibrationData_t))
 		goto invalid;
@@ -2106,7 +2106,7 @@ static ssize_t calibration_data_write(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	dev_dbg(dev, "off = %lld / count = %d\n", off, count);
+	dev_dbg(dev, "off = %lld / count = %zu\n", off, count);
 
 	if (data->enable_sensor) {
 		rc = -EBUSY;
@@ -2154,7 +2154,7 @@ static ssize_t zone_calibration_data_read(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	dev_dbg(dev, "off = %lld / count = %d\n", off, count);
+	dev_dbg(dev, "off = %lld / count = %zu\n", off, count);
 
 	if (off < 0 || off > sizeof(stmvl531_zone_calibration_data_t))
 		goto invalid;
@@ -2200,7 +2200,7 @@ static ssize_t zone_calibration_data_write(struct file *filp,
 
 	mutex_lock(&data->work_mutex);
 
-	dev_dbg(dev, "off = %lld / count = %d\n", off, count);
+	dev_dbg(dev, "off = %lld / count = %zu\n", off, count);
 
 	/* implementation if quite fragile. We suppose successive access. We
 	 * trigger set on last byte write if amount is exact.
@@ -3827,7 +3827,7 @@ static void stmvl53l1_input_push_data_multiobject(struct stmvl53l1_data *data)
 	/* ABS_HAT0X  -	Time in Sec(32) */
 
 	input_report_abs(input, ABS_HAT0X, tv.tv_sec);
-	dev_dbg(dev, "ABS_HAT0X : %ld, %zu\n", tv.tv_sec, sizeof(tv.tv_sec));
+	dev_dbg(dev, "ABS_HAT0X : %lld, %zu\n", tv.tv_sec, sizeof(tv.tv_sec));
 	/* ABS_HAT0Y   - Time in uSec(32) */
 	/* REVISIT : The following code may cause loss of data due to */
 	/* 8 bytes to 32 bits conversion */
@@ -3943,7 +3943,7 @@ static void stmvl53l1_input_push_data_multiobject(struct stmvl53l1_data *data)
 		/* ABS_HAT3Y  - Obj1_SignalRate_Spad(32) */
 		input_report_abs(input, ABS_HAT3Y,
 			meas_array[1]->SignalRateRtnMegaCps);
-		dev_dbg(dev, "%ABS_HAT3Y : SignalRateRtnMegaCps_1(%d)\n",
+		dev_dbg(dev, "ABS_HAT3Y : SignalRateRtnMegaCps_1(%d)\n",
 			meas_array[1]->SignalRateRtnMegaCps);
 	}
 
