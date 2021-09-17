@@ -196,7 +196,7 @@ kernel_build(
 
 kernel_modules_install(
     name = "cloudripper_modules_install",
-    kernel_build = "cloudripper",
+    kernel_build = ":cloudripper",
     kernel_modules = [
         "//private/google-modules/amplifiers/cs35l41:cs35l41.cloudripper",
         "//private/google-modules/amplifiers/cs35l45:cs35l45.cloudripper",
@@ -225,7 +225,7 @@ kernel_modules_install(
 copy_to_dist_dir(
     name = "cloudripper_dist",
     data = [
-        "cloudripper_for_dist",
-        "cloudripper_modules_install",
+        ":cloudripper_for_dist",
+        ":cloudripper_modules_install",
     ],
 )
