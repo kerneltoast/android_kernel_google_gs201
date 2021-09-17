@@ -1049,7 +1049,7 @@ static void pt_testfct(const char *name)
 	struct pt_test_data test;
 
 	clusterectlr = read_sysreg_s(CLUSTERRCTLR);
-	printk("pt: clusterectlr 0x%lx\n", clusterectlr);
+	pr_info("pt: clusterectlr 0x%llx\n", clusterectlr);
 
 	for (size = 128*1024; size < 32*1024*1024; size += 16*1024) {
 		test.data = vmalloc(size);
@@ -1071,7 +1071,7 @@ static void pt_testfct(const char *name)
 		} while (time_memcpy < 500000000 /* .5s */ );
 
 		vfree(test.data);
-		pr_info("%ld %ld %ld %ld %ld TESTPT %s\n",
+		pr_info("%ld %ld %lld %ld %lld TESTPT %s\n",
 			size, loop_chasing, time_chasing,
 			loop_memcpy, time_memcpy, name);
 

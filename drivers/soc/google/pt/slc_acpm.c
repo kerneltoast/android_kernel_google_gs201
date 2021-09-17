@@ -459,7 +459,7 @@ static int slc_pldtrc_set(void *data, unsigned long long val)
 	arg2 = (val & 0xff);
 	cmd = (arg1 == 0 || arg2 == 0) ? SLC_STOP : SLC_PLDTRC;
 
-	dev_info(&driver_data->pdev->dev, "send cmd:%x with arg1:%x arg2:%x to slc",
+	dev_info(&driver_data->pdev->dev, "send cmd:%llx with arg1:%x arg2:%x to slc",
 		cmd, arg1, arg2);
 
 	return slc_acpm(driver_data, cmd, arg1, arg2, NULL);
