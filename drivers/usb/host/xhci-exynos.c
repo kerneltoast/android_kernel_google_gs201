@@ -268,7 +268,7 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 		dev_dbg(ddev, "%s, class = %d, speed = %d\n",
 			__func__, udev->descriptor.bDeviceClass,
 						udev->speed);
-		dev_dbg(ddev, "udev = 0x%8x, state = %d\n", udev, udev->state);
+		dev_dbg(ddev, "udev = %pK, state = %d\n", udev, udev->state);
 		if (udev && udev->state == USB_STATE_CONFIGURED) {
 			if (!dev->config->interface[0])
 				continue;
