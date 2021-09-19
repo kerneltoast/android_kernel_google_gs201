@@ -42,7 +42,7 @@ static int clk_store(char *buf, int r, struct cmucal_clk *clk, u32 val,
 	struct cmucal_clk *p_clk = ra_get_parent(clk->id);
 
 	r += scnprintf(buf + r, INFO_SIZE - r,
-		       "%-64s : [0x%02x] %6s, %12ld Hz, <- %s\n", clk->name,
+		       "%-64s : [0x%02x] %6s, %12u Hz, <- %s\n", clk->name,
 		       val, state ? "active" : "idle",
 		       vclk_debug_clk_get_rate(clk->id),
 		       p_clk ? p_clk->name : "none");
