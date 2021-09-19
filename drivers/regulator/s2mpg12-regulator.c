@@ -617,7 +617,7 @@ static ssize_t s2mpg12_pmic_write_store(struct device *dev,
 	if (!buf)
 		return size;
 
-	ret = sscanf(buf, "%x %x", &reg, &data);
+	ret = sscanf(buf, "%hx %hhx", &reg, &data);
 	if (ret != 2) {
 		dev_err(dev, "input error\n");
 		return size;

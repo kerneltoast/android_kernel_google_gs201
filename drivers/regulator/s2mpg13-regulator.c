@@ -490,7 +490,7 @@ static ssize_t s2mpg13_pmic_read_show(struct device *dev,
 
 	ret = s2mpg13_read_reg(client, reg_addr, &val);
 	if (ret < 0) {
-		dev_err(dev, "%s: fail to read i2c address\n");
+		dev_err(dev, "fail to read i2c address\n");
 		return ret;
 	}
 
@@ -514,7 +514,7 @@ static ssize_t s2mpg13_pmic_write_store(struct device *dev,
 		return size;
 	}
 
-	ret = sscanf(buf, "%x %x", &reg, &data);
+	ret = sscanf(buf, "%hx %hhx", &reg, &data);
 	if (ret != 2) {
 		dev_err(s2mpg13->dev, "input error\n");
 		return size;
