@@ -1538,7 +1538,8 @@ static void exynos_usbdrd_pipe3_init(struct exynos_usbdrd_phy *phy_drd)
 		if (ret) {
 			/* set phy port to 0 as default */
 			property.intval = 0;
-			dev_err(phy_drd->dev, "get cc orientation failed, ret=%d\n", __func__, ret);
+			dev_err(phy_drd->dev, "%s: get cc orientation failed, ret=%d\n",
+				__func__, ret);
 		}
 
 		phy_drd->usbphy_info.used_phy_port = property.intval;
@@ -2497,28 +2498,28 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
 	dev_info(dev, "Get USB LDO!\n");
 	phy_drd->vdd085 = devm_regulator_get(dev, "vdd085");
 	if (IS_ERR(phy_drd->vdd085)) {
-		dev_err(dev, "%s - vdd085 regulator_get fail: %d\n",
+		dev_err(dev, "%s - vdd085 regulator_get fail: %ld\n",
 			__func__, PTR_ERR(phy_drd->vdd085));
 		return PTR_ERR(phy_drd->vdd085);
 	}
 
 	phy_drd->vdd18 = devm_regulator_get(dev, "vdd18");
 	if (IS_ERR(phy_drd->vdd18)) {
-		dev_err(dev, "%s - vdd18 regulator_get fail: %d\n",
+		dev_err(dev, "%s - vdd18 regulator_get fail: %ld\n",
 			__func__, PTR_ERR(phy_drd->vdd18));
 		return PTR_ERR(phy_drd->vdd18);
 	}
 
 	phy_drd->vdd30 = devm_regulator_get(dev, "vdd30");
 	if (IS_ERR(phy_drd->vdd30)) {
-		dev_err(dev, "%s - vdd30 regulator_get fail: %d\n",
+		dev_err(dev, "%s - vdd30 regulator_get fail: %ld\n",
 			__func__, PTR_ERR(phy_drd->vdd30));
 		return PTR_ERR(phy_drd->vdd30);
 	}
 
 	phy_drd->vdd_hsi = devm_regulator_get(dev, "vdd_hsi");
 	if (IS_ERR(phy_drd->vdd_hsi)) {
-		dev_err(dev, "%s - vdd_hsi regulator_get fail: %d\n",
+		dev_err(dev, "%s - vdd_hsi regulator_get fail: %ld\n",
 			__func__, PTR_ERR(phy_drd->vdd_hsi));
 		return PTR_ERR(phy_drd->vdd_hsi);
 	}
