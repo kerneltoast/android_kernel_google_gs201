@@ -556,8 +556,8 @@ static void acpm_mbox_slc_request_send(struct work_struct *work)
 	case STATE:
 		slc_state = acpm_slc_mbox(SLC_STATE, 0, 0);
 		dev_info(mbox->device,
-			 "%s: slc_state: 0x%X, sicd: %d, ap_on: %d, "
-			 "slc_on: %d, mif_on: %d\n", __func__, slc_state,
+			 "%s: slc_state: 0x%X, sicd: %lu, ap_on: %lu, "
+			 "slc_on: %lu, mif_on: %lu\n", __func__, slc_state,
 			 slc_state & BIT(0), (slc_state & BIT(1)) >> 1,
 			 (slc_state & BIT(2)) >> 2, (slc_state & BIT(3)) >> 3);
 		break;
@@ -963,7 +963,7 @@ static int acpm_mbox_test_setting(struct acpm_info *acpm, u64 subcmd)
 	int ret = 0;
 
 	if (subcmd >= ACPM_MBOX_TEST_CMD_MAX) {
-		dev_err(mbox->device, "%s, sub-cmd:%d, out of range!\n",
+		dev_err(mbox->device, "%s, sub-cmd:%llu, out of range!\n",
 			__func__, subcmd);
 		return -EINVAL;
 	} else if (ACPM_MBOX_TEST_START == subcmd) {
@@ -1076,7 +1076,7 @@ static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate,
 
 	if (acpm_dvfs_log && cycle >= 0) {
 		dev_info(mbox->device, "%s: stats:[%s]set_rate: %d Hz, "
-			 "get_rate: %d Hz, latency: %llu ns, total_cnt:%d\n",
+			 "get_rate: %d Hz, latency: %u ns, total_cnt:%d\n",
 			 __func__, dvfs_test->dm[dm_id]->name,
 			 dvfs_test->dm[dm_id]->stats[cycle].set_rate,
 			 dvfs_test->dm[dm_id]->stats[cycle].get_rate,
@@ -1133,7 +1133,7 @@ static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate,
 
 	if (acpm_dvfs_log && cycle >= 0) {
 		dev_info(mbox->device, "%s: stats:[%s]set_rate: %d Hz, "
-			 "get_rate: %d Hz, latency: %llu ns, total_cnt: %d\n",
+			 "get_rate: %d Hz, latency: %u ns, total_cnt: %d\n",
 			 __func__, dvfs_test->dm[dm_id]->name,
 			 dvfs_test->dm[dm_id]->stats[cycle].set_rate,
 			 dvfs_test->dm[dm_id]->stats[cycle].get_rate,
@@ -1255,7 +1255,7 @@ static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 	}
 
 	if (subcmd >= ACPM_DVFS_CMD_MAX) {
-		dev_err(mbox->device, "%s, sub-cmd:%d, out of range!\n",
+		dev_err(mbox->device, "%s, sub-cmd:%llu, out of range!\n",
 			__func__, subcmd);
 		return -EINVAL;
 	}
@@ -1304,7 +1304,7 @@ static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 		acpm_dvfs_stats_dump();
 		break;
 	default:
-		dev_err(mbox->device, "%s, subcmd: %d not support\n", __func__,
+		dev_err(mbox->device, "%s, subcmd: %llu not support\n", __func__,
 			subcmd);
 		return -EINVAL;
 	}
@@ -1422,7 +1422,7 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
 		if (cal_freq_table[index] > dvfs->max_freq) {
 			if (acpm_dvfs_log)
 				dev_info(mbox->device,
-					 "%s: cal_freq_table[%d]: %d > max_freq: %d\n",
+					 "%s: cal_freq_table[%d]: %lu > max_freq: %d\n",
 					 __func__, index, cal_freq_table[index],
 					 dvfs->max_freq);
 			continue;
@@ -1430,7 +1430,7 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
 		if (cal_freq_table[index] < dvfs->min_freq) {
 			if (acpm_dvfs_log)
 				dev_info(mbox->device,
-					 "%s: cal_freq_table[%d]: %d < min_freq: %d\n",
+					 "%s: cal_freq_table[%d]: %lu < min_freq: %d\n",
 					 __func__, index, cal_freq_table[index],
 					 dvfs->min_freq);
 			continue;
@@ -1439,7 +1439,7 @@ static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
 
 		if (acpm_dvfs_log)
 			dev_info(mbox->device,
-				 "%s: cal_freq_table[%d] = %d Hz, table_size = %d\n",
+				 "%s: cal_freq_table[%d] = %lu Hz, table_size = %d\n",
 				 __func__, index, cal_freq_table[index],
 				 dvfs->size);
 	}
