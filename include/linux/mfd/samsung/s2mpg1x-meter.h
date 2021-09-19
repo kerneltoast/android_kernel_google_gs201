@@ -105,7 +105,7 @@ static inline ssize_t s2mpg1x_meter_format_channel(char *buf, ssize_t count,
 	u64 resolution_max = _IQ30_to_int((u64)resolution * one_billion);
 
 	return scnprintf(buf + count, PAGE_SIZE - count,
-			 "CH%d[%s]: 0x%016x * %d.%09lu / 0x%08x %s\n", ch, name,
+			 "CH%d[%s]: 0x%016llx * %lld.%09llu / 0x%08x %s\n", ch, name,
 			 acc_data, resolution_max / one_billion,
 			 resolution_max % one_billion, acc_count, units);
 }
