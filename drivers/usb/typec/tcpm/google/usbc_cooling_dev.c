@@ -474,14 +474,14 @@ static int usb_cdev_probe(struct platform_device *pdev)
 
 	usb_icl_votable = gvotable_election_get_handle(USB_ICL_EL);
 	if (IS_ERR_OR_NULL(usb_icl_votable)) {
-		dev_err(&pdev->dev, "Couldn't find USB_ICL votable:%d\n",
+		dev_err(&pdev->dev, "Couldn't find USB_ICL votable:%ld\n",
 			PTR_ERR(usb_icl_votable));
 		return -EPROBE_DEFER;
 	}
 
 	toggle_disable_votable = gvotable_election_get_handle(TOGGLE_DISABLE_VOTABLE);
 	if (IS_ERR_OR_NULL(toggle_disable_votable)) {
-		dev_err(&pdev->dev, "Couldn't find DISABLE_POWER_ROLE_SWITCH votable:%d\n",
+		dev_err(&pdev->dev, "Couldn't find DISABLE_POWER_ROLE_SWITCH votable:%ld\n",
 			PTR_ERR(toggle_disable_votable));
 		return -EPROBE_DEFER;
 	}
