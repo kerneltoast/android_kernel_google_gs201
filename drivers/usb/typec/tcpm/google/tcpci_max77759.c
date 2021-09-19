@@ -1685,7 +1685,7 @@ static int max77759_setup_data_notifier(struct max77759_plat *chip)
 
 	chip->extcon = devm_extcon_dev_allocate(chip->dev, usbpd_extcon_cable);
 	if (IS_ERR(chip->extcon)) {
-		dev_err(chip->dev, "Error allocating extcon: %d\n",
+		dev_err(chip->dev, "Error allocating extcon: %ld\n",
 			PTR_ERR(chip->extcon));
 		return PTR_ERR(chip->extcon);
 	}
@@ -1777,7 +1777,7 @@ static int max77759_probe(struct i2c_client *client,
 
 	chip->charger_mode_votable = gvotable_election_get_handle(GBMS_MODE_VOTABLE);
 	if (IS_ERR_OR_NULL(chip->charger_mode_votable)) {
-		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed: %d\n",
+		dev_err(&client->dev, "TCPCI: GBMS_MODE_VOTABLE get failed: %ld\n",
 			PTR_ERR(chip->charger_mode_votable));
 		chg_psy_name = (char *)of_get_property(dn, "chg-psy-name", NULL);
 		/*
@@ -1923,7 +1923,7 @@ static int max77759_probe(struct i2c_client *client,
 
 	chip->usb_icl_proto_el = gvotable_election_get_handle(USB_ICL_PROTO_EL);
 	if (IS_ERR_OR_NULL(chip->usb_icl_proto_el)) {
-		dev_err(&client->dev, "TCPCI: USB ICL PROTO EL get failed:%d",
+		dev_err(&client->dev, "TCPCI: USB ICL PROTO EL get failed:%ld",
 			PTR_ERR(chip->usb_icl_proto_el));
 		ret = -ENODEV;
 		goto unreg_notifier;
@@ -1960,7 +1960,7 @@ static int max77759_probe(struct i2c_client *client,
 #ifdef CONFIG_DEBUG_FS
 	chip->dentry = debugfs_create_dir("tcpci_max77759", NULL);
 	if (IS_ERR(chip->dentry)) {
-		dev_err(&client->dev, "TCPCI: debugfs dentry failed: %d", PTR_ERR(chip->dentry));
+		dev_err(&client->dev, "TCPCI: debugfs dentry failed: %ld", PTR_ERR(chip->dentry));
 	} else {
 		debugfs_create_file("force_device_mode_on", 0644, chip->dentry, chip,
 				    &force_device_mode_on_fops);
