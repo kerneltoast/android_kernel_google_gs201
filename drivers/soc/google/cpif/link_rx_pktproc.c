@@ -414,7 +414,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
 			dst_vaddr = q->q_buff_vbase + (q->ppa->max_packet_size * fore);
 			if (dst_vaddr > (q->q_buff_vbase + q->q_buff_size))
-				mif_err_limited("dst_vaddr:0x%lx is over 0x%lx\n",
+				mif_err_limited("dst_vaddr:%pK is over %pK\n",
 						dst_vaddr, q->q_buff_vbase + q->q_buff_size);
 
 			q->dma_addr[fore] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
@@ -920,7 +920,7 @@ static ssize_t perftest_store(struct device *dev,
 
 		perf->test_run = true;
 		worker_task = kthread_create_on_node(pktproc_perftest_thread,
-			mld, cpu_to_node(cpu), "perftest", cpu);
+			mld, cpu_to_node(cpu), "perftest/%d", cpu);
 		kthread_bind(worker_task, cpu);
 		wake_up_process(worker_task);
 		break;
@@ -1066,7 +1066,7 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 	int i;
 
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Version:%d\n", ppa->version);
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08lx\n", ppa->cp_base);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08llx\n", ppa->cp_base);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Descriptor mode:%d\n", ppa->desc_mode);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Num of queue:%d\n", ppa->num_queue);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "NetRX manager:%d\n",
@@ -1115,10 +1115,10 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
 					"Buffer manager\n");
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
-					"  total number of packets:%d\n",
+					"  total number of packets:%llu\n",
 				q->manager->num_packet);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
-					"  max packet size:%d\n",
+					"  max packet size:%llu\n",
 				q->manager->max_packet_size);
 			count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
 		}
@@ -1221,7 +1221,7 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 
 	mld = container_of(ppa, struct mem_link_device, pktproc);
 
-	mif_info("version:%d cp_base:0x%08lx desc_mode:%d num_queue:%d\n",
+	mif_info("version:%d cp_base:0x%08llx desc_mode:%d num_queue:%d\n",
 		ppa->version, ppa->cp_base, ppa->desc_mode, ppa->num_queue);
 	mif_info("interrupt:%d napi:%d iocc:%d max_packet_size:%d\n",
 		ppa->use_exclusive_irq, ppa->use_napi,
@@ -1240,7 +1240,7 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 			if (pktproc_check_active(q->ppa, q->q_idx))
 				q->clear_data_addr(q);
 			if (q->manager)
-				mif_info("num packets:%d max packet size:%d\n",
+				mif_info("num packets:%llu max packet size:%llu\n",
 					q->manager->num_packet,
 					q->manager->max_packet_size);
 			break;
@@ -1280,7 +1280,7 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 		mif_info("num_desc:0x%08x cp_desc_pbase:0x%08x desc_size:0x%08x\n",
 				q->q_info_ptr->num_desc, q->q_info_ptr->cp_desc_pbase,
 				q->desc_size);
-		mif_info("cp_buff_pbase:0x%08lx q_buff_size:0x%08x\n",
+		mif_info("cp_buff_pbase:0x%08llx q_buff_size:0x%08x\n",
 				q->cp_buff_pbase, q->q_buff_size);
 		mif_info("fore:%d rear:%d done:%d\n",
 				*q->fore_ptr, *q->rear_ptr, q->done_ptr);
@@ -1327,9 +1327,9 @@ static int pktproc_create_buffer_manager(struct pktproc_queue *q, u64 ap_desc_pb
 	desc_addr_pair.ap_addr = phys_to_virt(ap_desc_pbase);
 	total_packet_size = ppa->max_packet_size + ppa->skb_padding_size +
 				sizeof(struct skb_shared_info);
-	mif_info("about to init netrx mng: cp_addr: 0x%lX ap_addr: 0x%lX psize: %d\n",
+	mif_info("about to init netrx mng: cp_addr: 0x%llX ap_addr: %pK psize: %llu\n",
 			q->cp_desc_pbase, q->desc_sktbuf, total_packet_size);
-	mif_info("desc_total_size:%d cp_buff_pbase: 0x%lX num_desc: %d\n",
+	mif_info("desc_total_size:%d cp_buff_pbase: 0x%llX num_desc: %d\n",
 			desc_total_size, q->cp_buff_pbase, q->num_desc);
 	q->manager = cpif_create_netrx_mng(&desc_addr_pair, desc_total_size,
 					q->cp_buff_pbase, total_packet_size,
@@ -1381,7 +1381,7 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 		return -EINVAL;
 	}
 
-	mif_info("version:%d cp_base:0x%08lx mode:%d num_queue:%d\n",
+	mif_info("version:%d cp_base:0x%08llx mode:%d num_queue:%d\n",
 		ppa->version, ppa->cp_base, ppa->desc_mode, ppa->num_queue);
 	mif_info("use_netrx_mng:%d netrx_capacity:%d use_napi:%d exclusive_irq:%d\n",
 		ppa->use_netrx_mng, ppa->netrx_capacity, ppa->use_napi,
@@ -1399,7 +1399,7 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	mif_dt_read_u32(np, "pktproc_dl_desc_rgn_size", ppa->desc_rgn_size);
 	mif_dt_read_u32(np, "pktproc_dl_buff_rgn_offset", ppa->buff_rgn_offset);
 	mif_dt_read_u32(np, "pktproc_dl_buff_rgn_size", ppa->buff_rgn_size);
-	mif_info("info_rgn 0x%08x 0x%08x desc_rgn 0x%08x 0x%08x %u buff_rgn 0x%08x\n",
+	mif_info("info_rgn 0x%08x 0x%08x desc_rgn 0x%08x 0x%08x %u buff_rgn 0x%08x 0x%08x\n",
 		ppa->info_rgn_offset, ppa->info_rgn_size,
 		ppa->desc_rgn_offset, ppa->desc_rgn_size,
 		ppa->desc_num_ratio_percent,
@@ -1619,7 +1619,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			else
 				q->q_info_ptr->cp_desc_pbase = q->cp_desc_pbase;
 
-			mif_info("cp_desc_pbase - 36bit addr: 0x%08lx, 32bit addr: 0x%08x\n",
+			mif_info("cp_desc_pbase - 36bit addr: 0x%08llx, 32bit addr: 0x%08x\n",
 				q->cp_desc_pbase, q->q_info_ptr->cp_desc_pbase);
 
 			q->desc_size = sizeof(struct pktproc_desc_sktbuf) * q->num_desc;
@@ -1659,7 +1659,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 		if ((!q->manager) &&
 				(q->cp_desc_pbase + q->desc_size) > q->cp_buff_pbase) {
-			mif_err("Descriptor overflow:0x%08x 0x%08x 0x%08x\n",
+			mif_err("Descriptor overflow:0x%08llx 0x%08x 0x%08llx\n",
 				q->cp_desc_pbase, q->desc_size, q->cp_buff_pbase);
 			ret = -EINVAL;
 			goto create_error;
@@ -1710,10 +1710,10 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		q->rear_ptr = &q->q_info_ptr->rear_ptr;
 		q->done_ptr = *q->rear_ptr;
 
-		mif_info("num_desc:%d cp_desc_pbase:0x%08lx desc_size:0x%08x\n",
+		mif_info("num_desc:%d cp_desc_pbase:0x%08llx desc_size:0x%08x\n",
 			q->num_desc, q->cp_desc_pbase, q->desc_size);
 		if (!q->manager)
-			mif_info("cp_buff_pbase:0x%08lx buff_size:0x%08x\n",
+			mif_info("cp_buff_pbase:0x%08llx buff_size:0x%08x\n",
 				q->cp_buff_pbase, q->q_buff_size);
 	}
 

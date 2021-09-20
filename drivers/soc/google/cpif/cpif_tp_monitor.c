@@ -513,7 +513,7 @@ static void tpmon_set_gro(struct tpmon_data *data)
 		mld->dummy_net.gro_flush_timeout = 0;
 	}
 
-	mif_info("%s (flush timeout:%u)\n", data->name, timeout);
+	mif_info("%s (flush timeout:%ld)\n", data->name, timeout);
 }
 
 /* IRQ affinity */

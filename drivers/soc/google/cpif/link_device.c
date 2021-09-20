@@ -4100,7 +4100,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	 * Retrieve modem-specific attributes value
 	 */
 	mld->attrs = modem->link_attrs;
-	mif_info("link_attrs:0x%08x\n", mld->attrs);
+	mif_info("link_attrs:0x%08lx\n", mld->attrs);
 
 	/*====================================================================
 	 *	Initialize "memory snapshot buffer (MSB)" framework

@@ -1969,11 +1969,11 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
 				"  wp: %u, rp: %u\n", wp, rp);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"  kicked head: %d, tail: %d, packets: %lu\n",
+				"  kicked head: %d, tail: %d, packets: %llu\n",
 				snapshot[dir][ring_num].head, snapshot[dir][ring_num].tail,
 				snapshot[dir][ring_num].packets);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"  total packets: %lu, clat: %lu\n",
+				"  total packets: %llu, clat: %llu\n",
 				snapshot[dir][ring_num].total_packets,
 				snapshot[dir][ring_num].clat_packets);
 		}
@@ -2078,7 +2078,7 @@ static ssize_t debug_set_local_addr_store(struct device *dev,
 	/* for example, "0 D6CFEB352CF4 C0A82A5D 2AAD159CDE96" is for packets
 	 * from D6CFEB352CF4(rndis0) to 192.168.42.93/2AAD159CDE96(neigh)
 	 */
-	ret = sscanf(buf, "%u %12s %lx %12s", &index, eth_src_str, &ip_addr, eth_dst_str);
+	ret = sscanf(buf, "%u %12s %x %12s", &index, eth_src_str, &ip_addr, eth_dst_str);
 	if (ret < 1)
 		return -EINVAL;
 
@@ -2401,7 +2401,7 @@ int dit_set_pktproc_base(enum dit_direction dir, phys_addr_t base)
 
 	desc_info = &dc->desc_info[dir];
 	desc_info->pktproc_pbase = base;
-	mif_info("dir:%d base:0x%lX\n", dir, desc_info->pktproc_pbase);
+	mif_info("dir:%d base:%pap\n", dir, &desc_info->pktproc_pbase);
 
 	return 0;
 }
