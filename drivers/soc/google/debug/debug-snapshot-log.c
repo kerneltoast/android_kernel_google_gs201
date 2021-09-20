@@ -217,10 +217,10 @@ void dbg_snapshot_log_output(void)
 	pr_info("debug-snapshot-log physical / virtual memory layout:\n");
 	for (i = 0; i < ARRAY_SIZE(dss_log_items); i++) {
 		if (dss_log_items[i].entry.enabled)
-			pr_info("%-12s: phys:0x%pK / virt:0x%pK / size:0x%zx / en:%d\n",
+			pr_info("%-12s: phys:%pa / virt:%pK / size:0x%zx / en:%d\n",
 				dss_log_items[i].name,
-				dss_log_items[i].entry.paddr,
-				dss_log_items[i].entry.vaddr,
+				&dss_log_items[i].entry.paddr,
+				(void *) dss_log_items[i].entry.vaddr,
 				dss_log_items[i].entry.size,
 				dss_log_items[i].entry.enabled);
 	}

@@ -584,7 +584,7 @@ static ssize_t exynos_etm_print_info(char *buf)
 		soft_lock(etf->base);
 		size += scnprintf(buf + size, PAGE_SIZE - size,
 				"ETF%d Control: %sabled, Status: 0x%lx, RWP Reg: 0x%px\n",
-				i, ctrl & 0x1 ? "en" : "dis", sts, read_p);
+				i, ctrl & 0x1 ? "en" : "dis", sts, (void *)read_p);
 	}
 #endif
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
@@ -596,8 +596,8 @@ static ssize_t exynos_etm_print_info(char *buf)
 	read_p |= etm_readl(ee_info->etr.base, TMCRWP);
 	soft_lock(ee_info->etr.base);
 	size += scnprintf(buf + size, PAGE_SIZE - size,
-			"ETR Control: %sabled, Status: 0x%lx, RWP Reg: 0x%px, Save RWP: 0x%px\n",
-			ctrl & 0x1 ? "en" : "dis", sts, read_p,	ee_info->etr.buf_pointer);
+			"ETR Control: %sabled, Status: 0x%lx, RWP Reg: 0x%px, Save RWP: 0x%llx\n",
+			ctrl & 0x1 ? "en" : "dis", sts, (void *)read_p,	ee_info->etr.buf_pointer);
 #endif
 	return size;
 }
@@ -1039,9 +1039,9 @@ static ssize_t bdu_filter_status_show(struct device *dev,
 	bdu = &ee_info->bdu;
 
 	count += scnprintf(buf + count, PAGE_SIZE - count, "Filter Values:\n");
-	count += scnprintf(buf + count, PAGE_SIZE - count, "Address Match: 0x%x\n",
+	count += scnprintf(buf + count, PAGE_SIZE - count, "Address Match: 0x%llx\n",
 			   bdu->filter_addr_match);
-	count += scnprintf(buf + count, PAGE_SIZE - count, "Address Mask: 0x%x\n",
+	count += scnprintf(buf + count, PAGE_SIZE - count, "Address Mask: 0x%llx\n",
 			   bdu->filter_addr_mask);
 	count += scnprintf(buf + count, PAGE_SIZE - count, "Read/Write Match: 0x%x\n",
 			   bdu->filter_rdwr_match);
@@ -1100,14 +1100,14 @@ static ssize_t bdu_status_show(struct device *dev,
 	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU Registers\n");
 	size += scnprintf(buf + size, PAGE_SIZE - size,
 			  "---------------------------------------\n");
-	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU Enable : 0x%lx\n", enable);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU Mux Ctrl : 0x%lx\n", mux_ctrl);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU ATID : 0x%lx\n", atid);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch0 : 0x%lx\n", amatch0);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMask0 : 0x%lx\n", amask0);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch1 : 0x%lx\n", amatch1);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMask1 : 0x%lx\n", amask1);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch Ctrl : 0x%lx\n", amatch_ctrl);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU Enable : 0x%x\n", enable);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU Mux Ctrl : 0x%x\n", mux_ctrl);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU ATID : 0x%x\n", atid);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch0 : 0x%x\n", amatch0);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMask0 : 0x%x\n", amask0);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch1 : 0x%x\n", amatch1);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMask1 : 0x%x\n", amask1);
+	size += scnprintf(buf + size, PAGE_SIZE - size, "BDU AMatch Ctrl : 0x%x\n", amatch_ctrl);
 	size += scnprintf(buf + size, PAGE_SIZE - size,
 			  "---------------------------------------\n");
 
