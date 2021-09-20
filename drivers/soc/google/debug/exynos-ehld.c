@@ -448,7 +448,7 @@ void exynos_ehld_event_raw_dump(unsigned int cpu, bool header)
 		count = ++data->data_ptr % NUM_TRACE;
 		ehld_info(1, "      %03u    %03d     %015llu      %#015llx      %#016llx(%pS)\n",
 					cpu, i + 1, data->time[count], data->event[count],
-					data->pmpcsr[count], data->pmpcsr[count]);
+					data->pmpcsr[count], (void *)data->pmpcsr[count]);
 	}
 	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 	ehld_info(1, "--------------------------------------------------------------------------\n");
