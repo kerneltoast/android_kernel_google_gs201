@@ -324,7 +324,7 @@ const struct g2d_fmt *g2d_find_format(u32 fmtval, unsigned long devcaps)
 				return &g2d_formats_9820[i];
 	}
 
-	WARN(1, "Unknown format %#x with device caps %#x", fmtval, devcaps);
+	WARN(1, "Unknown format %#x with device caps %#lx", fmtval, devcaps);
 	return NULL;
 }
 
