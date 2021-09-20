@@ -910,7 +910,7 @@ void mfc_rm_load_balancing(struct mfc_ctx *ctx, int load_add)
 	/* For debugging */
 	mfc_debug(3, "[RMLB] ===================ctx list===================\n");
 	list_for_each_entry(tmp_ctx, &dev->ctx_list, list)
-		mfc_debug(3, "[RMLB] MFC-%d) ctx[%d] %s %dx%d %dfps %s, load: %d%%, op_core_type: %d, op_mode: %d\n",
+		mfc_debug(3, "[RMLB] MFC-%d) ctx[%d] %s %dx%d %lufps %s, load: %d%%, op_core_type: %d, op_mode: %d\n",
 				IS_SWITCH_SINGLE_MODE(tmp_ctx) ? tmp_ctx->op_core_num[MFC_CORE_SUB]
 				: tmp_ctx->op_core_num[MFC_CORE_MAIN], tmp_ctx->num,
 				tmp_ctx->type == MFCINST_DECODER ? "DEC" : "ENC",
@@ -920,7 +920,7 @@ void mfc_rm_load_balancing(struct mfc_ctx *ctx, int load_add)
 				tmp_ctx->load, tmp_ctx->op_core_type, tmp_ctx->op_mode);
 	mfc_debug(3, "[RMLB] >>>> core balance %d%%\n", pdata->core_balance);
 	for (i = 0; i < dev->num_core; i++)
-		mfc_debug(3, "[RMLB] >> MFC-%d total load: %d%%\n", i,
+		mfc_debug(3, "[RMLB] >> MFC-%d total load: %lu%%\n", i,
 				dev->core[i]->total_mb * 100 / dev->core[i]->core_pdata->max_mb);
 	mfc_debug(3, "[RMLB] ==============================================\n");
 
@@ -1344,7 +1344,7 @@ void mfc_rm_request_work(struct mfc_dev *dev, enum mfc_request_work work,
 			&ctx->src_buf_ready_queue, MFC_QUEUE_ADD_BOTTOM);
 	if (IS_TWO_MODE2(ctx)) {
 		mfc_debug(2, "[RM] all buffer is moved but MODE2\n");
-		MFC_TRACE_RM("[c:%d] all buffer is moved but MODE2\n");
+		MFC_TRACE_RM("[c:%d] all buffer is moved but MODE2\n", ctx->num);
 		mfc_move_buf_all(ctx, &ctx->src_buf_ready_queue,
 				&core_ctx->src_buf_queue, MFC_QUEUE_ADD_BOTTOM);
 		goto err_req_work;
@@ -1568,7 +1568,7 @@ void mfc_rm_update_real_time(struct mfc_ctx *ctx)
 		}
 	}
 
-	mfc_debug(2, "[PRIO] update real time: %d, operating frame rate: %d, prio: %d\n",
+	mfc_debug(2, "[PRIO] update real time: %d, operating frame rate: %lu, prio: %d\n",
 			ctx->rt, ctx->operating_framerate, ctx->prio);
 
 }

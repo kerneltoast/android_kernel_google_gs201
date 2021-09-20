@@ -361,7 +361,7 @@ int mfc_core_set_dec_stream_buffer(struct mfc_core *core, struct mfc_ctx *ctx,
 		index = vb->index;
 		addr = mfc_buf->addr[0][0];
 		if (dbuf_size < cpb_buf_size) {
-			mfc_ctx_info("Decrease buffer size: %u -> %u\n",
+			mfc_ctx_info("Decrease buffer size: %u -> %zu\n",
 					cpb_buf_size, dbuf_size);
 			cpb_buf_size = dbuf_size;
 		}
