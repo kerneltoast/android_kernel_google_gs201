@@ -1052,7 +1052,7 @@ static ssize_t io_stat_show(struct device *dev,
 	notify_free = zram_stat_read(zram, NR_NOTIFY_FREE);
 
 	ret = scnprintf(buf, PAGE_SIZE,
-			"%8llu %8llu %8llu %8llu\n",
+			"%8lu %8lu %8lu %8lu\n",
 			failed_reads, failed_writes, invalid_io, notify_free);
 	up_read(&zram->init_lock);
 
@@ -1085,7 +1085,7 @@ static ssize_t mm_stat_show(struct device *dev,
 	huge_pages_since = zram_stat_read(zram, NR_HUGE_PAGE_SINCE);
 
 	ret = scnprintf(buf, PAGE_SIZE,
-			"%8llu %8llu %8llu %8lu %8ld %8llu %8lu %8llu %8llu\n",
+			"%8lu %8lu %8lu %8lu %8lu %8lu %8ld %8lu %8lu\n",
 			orig_size << PAGE_SHIFT, compr_size,
 			mem_used << PAGE_SHIFT, zram->limit_pages << PAGE_SHIFT,
 			max_used << PAGE_SHIFT, same_pages,
@@ -1111,7 +1111,7 @@ static ssize_t bd_stat_show(struct device *dev,
 	bd_reads = zram_stat_read(zram, NR_BD_READ);
 	bd_writes = zram_stat_read(zram, NR_BD_WRITE);
 
-	ret = scnprintf(buf, PAGE_SIZE, "%8llu %8llu %8llu\n",
+	ret = scnprintf(buf, PAGE_SIZE, "%8lu %8lu %8lu\n",
 			FOUR_K(bd_count), FOUR_K(bd_reads),FOUR_K(bd_writes));
 	up_read(&zram->init_lock);
 
@@ -1129,7 +1129,7 @@ static ssize_t debug_stat_show(struct device *dev,
 
 	down_read(&zram->init_lock);
 	miss_free = zram_stat_read(zram, NR_MISS_FREE);
-	ret = scnprintf(buf, PAGE_SIZE, "version: %d\n%8llu\n", version, miss_free);
+	ret = scnprintf(buf, PAGE_SIZE, "version: %d\n%8lu\n", version, miss_free);
 	up_read(&zram->init_lock);
 
 	return ret;
