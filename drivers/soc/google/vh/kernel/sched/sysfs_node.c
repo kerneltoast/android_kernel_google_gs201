@@ -707,7 +707,7 @@ static ssize_t uclamp_stats_show(struct kobject *kobj, struct kobj_attribute *at
 		if (len >= PAGE_SIZE)
 			break;
 		for (j = 0, index = 0; j < UCLAMP_STATS_SLOTS; j++, index += UCLAMP_STATS_STEP) {
-			len += scnprintf(buf + len, PAGE_SIZE - len, "%d, %llu, %d%%\n", index,
+			len += scnprintf(buf + len, PAGE_SIZE - len, "%d, %llu, %llu%%\n", index,
 					stats->time_in_state_min[j] / NSEC_PER_MSEC,
 					stats->time_in_state_min[j] / (stats->total_time / 100));
 			if (len >= PAGE_SIZE)
@@ -718,7 +718,7 @@ static ssize_t uclamp_stats_show(struct kobject *kobj, struct kobj_attribute *at
 		if (len >= PAGE_SIZE)
 			break;
 		for (j = 0, index = 0; j < UCLAMP_STATS_SLOTS; j++, index += UCLAMP_STATS_STEP) {
-			len += scnprintf(buf + len, PAGE_SIZE - len, "%d, %llu, %d%%\n", index,
+			len += scnprintf(buf + len, PAGE_SIZE - len, "%d, %llu, %llu%%\n", index,
 					stats->time_in_state_max[j] / NSEC_PER_MSEC,
 					stats->time_in_state_max[j] / (stats->total_time / 100));
 			if (len >= PAGE_SIZE)
