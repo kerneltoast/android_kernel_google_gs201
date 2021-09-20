@@ -52,14 +52,16 @@ void test_irq_disable_long(void *u1, unsigned long u2, unsigned long u3)
 		trace_irq_disable_long(ts);
 
 		if (sysctl_irqsoff_dmesg_output_enabled == IRQSOFF_SENTINEL)
-			printk_deferred("D=%llu C:(%ps<-%ps<-%ps<-%ps)\n",
-					ts, CALLER_ADDR2, CALLER_ADDR3,
-					CALLER_ADDR4, CALLER_ADDR5);
+			printk_deferred("D=%llu C:(%ps<-%ps<-%ps<-%ps)\n", ts,
+					(void *)CALLER_ADDR2,
+					(void *)CALLER_ADDR3,
+					(void *)CALLER_ADDR4,
+					(void *)CALLER_ADDR5);
 	}
 
 	if (sysctl_irqsoff_crash_sentinel_value == IRQSOFF_SENTINEL &&
 			ts > sysctl_irqsoff_crash_threshold_ns) {
-		printk_deferred("delta=%llu(ns) > crash_threshold=%llu(ns) Task=%s\n",
+		printk_deferred("delta=%llu(ns) > crash_threshold=%u(ns) Task=%s\n",
 				ts, sysctl_irqsoff_crash_threshold_ns,
 				current->comm);
 		WARN_ON(1);
