@@ -1151,11 +1151,11 @@ static int exynos_ufs_ioremap(struct exynos_ufs *ufs, struct platform_device *pd
 			ret = -ENOMEM;
 			break;
 		}
-		dev_info(dev, "%-10s 0x%llx\n", ufs_region_names[i], *p);
+		dev_info(dev, "%-10s %pK\n", ufs_region_names[i], *p);
 	}
 
 	if (ret)
-		dev_err(dev, "%s ioremap for %s, 0x%llx\n",
+		dev_err(dev, "%s ioremap for %s\n",
 			ufs_s_str_token[UFS_S_TOKEN_FAIL], ufs_region_names[i]);
 	dev_info(dev, "\n");
 	return ret;
@@ -1272,7 +1272,7 @@ static ssize_t exynos_ufs_sysfs_show_h8_delay(struct exynos_ufs *ufs,
 					      char *buf,
 					      enum exynos_ufs_param_id id)
 {
-	return snprintf(buf, PAGE_SIZE, "%u\n", ufs->hba->clk_gating.delay_ms);
+	return snprintf(buf, PAGE_SIZE, "%lu\n", ufs->hba->clk_gating.delay_ms);
 }
 
 static struct exynos_ufs_sysfs_attr ufs_s_h8_delay_ms = {
