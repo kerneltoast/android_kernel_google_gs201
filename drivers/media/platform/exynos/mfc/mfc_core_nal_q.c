@@ -1202,7 +1202,7 @@ static int __mfc_core_nal_q_run_in_buf_dec(struct mfc_core *core, struct mfc_cor
 	cpb_buf_size = ALIGN(strm_size + 511, STREAM_BUF_ALIGN);
 
 	if (dbuf_size < cpb_buf_size) {
-		mfc_ctx_info("[NALQ] Decrease buffer size: %u -> %u\n",
+		mfc_ctx_info("[NALQ] Decrease buffer size: %u -> %zu\n",
 				cpb_buf_size, dbuf_size);
 		cpb_buf_size = dbuf_size;
 	}

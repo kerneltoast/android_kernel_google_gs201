@@ -226,12 +226,12 @@ static unsigned long __mfc_qos_get_fps_by_timestamp(struct mfc_ctx *ctx, struct 
 	if (debug_ts == 1) {
 		/* Debug info */
 		mfc_ctx_info("===================[TS]===================\n");
-		mfc_ctx_info("[TS] New timestamp = %ld.%09ld, count = %d\n",
+		mfc_ctx_info("[TS] New timestamp = %lld.%09ld, count = %d\n",
 			time->tv_sec, time->tv_nsec, ctx->ts_count);
 
 		index = 0;
 		list_for_each_entry(temp_ts, &ctx->ts_list, list) {
-			mfc_ctx_info("[TS] [%d] timestamp [i:%d]: %ld.%09ld\n",
+			mfc_ctx_info("[TS] [%d] timestamp [i:%d]: %lld.%09ld\n",
 					index, temp_ts->index,
 					temp_ts->timestamp.tv_sec,
 					temp_ts->timestamp.tv_nsec);
@@ -334,7 +334,7 @@ void mfc_qos_update_framerate(struct mfc_ctx *ctx, u32 bytesused)
 	if (ctx->rt == MFC_NON_RT) {
 		if (ctx->framerate < DEC_DEFAULT_FPS) {
 			mfc_debug(2, "[QoS][PRIO] non real time fps changed: %ld -> %ld\n",
-					ctx->framerate, DEC_DEFAULT_FPS);
+					ctx->framerate, (long)DEC_DEFAULT_FPS);
 			ctx->framerate = DEC_DEFAULT_FPS;
 			ctx->update_framerate = true;
 		}

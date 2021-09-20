@@ -231,7 +231,7 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 		/* Copy to dst buffer flag */
 		call_cop(ctx, get_buf_update_val, ctx, &ctx->dst_ctrls[index],
 				V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG, buf->flag);
-		mfc_debug(4, "[FLAG] dst update buf[%d] flag = %#lx\n",
+		mfc_debug(4, "[FLAG] dst update buf[%d] flag = %#x\n",
 				index, buf->flag);
 
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->dst_ctrls[index]) < 0)
@@ -252,7 +252,7 @@ static void mfc_dec_buf_finish(struct vb2_buffer *vb)
 		/* Copy to src buffer flag */
 		call_cop(ctx, get_buf_update_val, ctx, &ctx->src_ctrls[index],
 				V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG, buf->flag);
-		mfc_debug(4, "[FLAG] src update buf[%d] flag = %#lx\n",
+		mfc_debug(4, "[FLAG] src update buf[%d] flag = %#x\n",
 				index, buf->flag);
 
 		if (call_cop(ctx, to_ctx_ctrls, ctx, &ctx->src_ctrls[index]) < 0)

@@ -685,7 +685,7 @@ void mfc_check_iova(struct mfc_dev *dev)
 	else
 		dev->skip_lazy_unmap = 0;
 
-	mfc_dev_debug(2, "[LAZY_UNMAP] Now the IOVA for DPB is %d/%dMB, LAZY_UNMAP %s\n",
+	mfc_dev_debug(2, "[LAZY_UNMAP] Now the IOVA for DPB is %lu/%uMB, LAZY_UNMAP %s\n",
 			total_iova / 1024, pdata->iova_threshold,
 			dev->skip_lazy_unmap ? "disable" : "enable");
 }

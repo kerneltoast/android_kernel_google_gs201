@@ -1538,7 +1538,7 @@ static int __mfc_handle_seq_dec(struct mfc_core *core, struct mfc_ctx *ctx)
 					mfc_core_get_two_core_mode());
 		} else {
 			if (dev->num_inst > 1)
-				mfc_debug(2, "[2CORE] multi core bits: %#llx, num inst: %d\n",
+				mfc_debug(2, "[2CORE] multi core bits: %#lx, num inst: %d\n",
 						dev->multi_core_inst_bits, dev->num_inst);
 			mfc_change_op_mode(ctx, (enum mfc_op_mode)mfc_core_get_two_core_mode());
 			set_bit(ctx->num, &dev->multi_core_inst_bits);
