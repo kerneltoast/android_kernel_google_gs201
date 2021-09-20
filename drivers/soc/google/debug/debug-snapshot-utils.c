@@ -284,7 +284,7 @@ static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_mai
 	pr_info("%8d %16llu %16llu %16llu %c(%ld) %3d %16pK %16pK %c %16s\n",
 		tsk->pid, tsk->utime, tsk->stime,
 		tsk->se.exec_start, state_array[idx], (tsk->state),
-		task_cpu(tsk), pc, tsk, is_main ? '*' : ' ', tsk->comm);
+		task_cpu(tsk), (void *) pc, tsk, is_main ? '*' : ' ', tsk->comm);
 
 	sched_show_task(tsk);
 }
@@ -383,7 +383,7 @@ void dbg_snapshot_ecc_dump(void)
 	case ARM_CPU_PART_CORTEX_X1:
 		asm volatile ("HINT #16");
 		erridr_el1.reg = read_erridr_el1();
-		dev_emerg(dss_desc.dev, "ECC error check erridr_el1.num = 0x%llx\n",
+		dev_emerg(dss_desc.dev, "ECC error check erridr_el1.num = 0x%x\n",
 				erridr_el1.field.num);
 
 		for (i = 0; i < (int)erridr_el1.field.num; i++) {
@@ -419,7 +419,7 @@ void dbg_snapshot_ecc_dump(void)
 				erxmisc0_el1.reg = read_erxmisc0_el1();
 				erxmisc1_el1.reg = read_erxmisc1_el1();
 				dev_emerg(dss_desc.dev,
-					"ERXMISC0_EL1 = 0x%llx ERXMISC1_EL1 = 0x%llx ERXSTATUS_EL1[15:8] = 0x%llx, [7:0] = 0x%llx\n",
+					"ERXMISC0_EL1 = 0x%llx ERXMISC1_EL1 = 0x%llx ERXSTATUS_EL1[15:8] = 0x%x, [7:0] = 0x%x\n",
 					erxmisc0_el1.reg, erxmisc1_el1.reg,
 					erxstatus_el1.field.ierr, erxstatus_el1.field.serr);
 			}

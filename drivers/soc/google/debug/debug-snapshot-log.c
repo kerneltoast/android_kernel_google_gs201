@@ -220,7 +220,7 @@ void dbg_snapshot_log_output(void)
 			pr_info("%-12s: phys:0x%pa / virt:0x%pK / size:0x%zx / en:%d\n",
 				dss_log_items[i].name,
 				&dss_log_items[i].entry.paddr,
-				dss_log_items[i].entry.vaddr,
+				(void *) dss_log_items[i].entry.vaddr,
 				dss_log_items[i].entry.size,
 				dss_log_items[i].entry.enabled);
 	}

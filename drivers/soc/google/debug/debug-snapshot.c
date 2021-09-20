@@ -322,7 +322,7 @@ void dbg_snapshot_output(void)
 		pr_info("%-16s: phys:0x%pa / virt:0x%pK / size:0x%zx / en:%d\n",
 				dss_items[i].name,
 				&dss_items[i].entry.paddr,
-				dss_items[i].entry.vaddr,
+				(void *) dss_items[i].entry.vaddr,
 				dss_items[i].entry.size,
 				dss_items[i].entry.enabled);
 		size += dss_items[i].entry.size;
@@ -434,7 +434,7 @@ static int dbg_snapshot_rmem_setup(struct device *dev)
 	for (i = 0; i < mem_count; i++) {
 		rmem_np = of_parse_phandle(dev->of_node, "memory-region", i);
 		if (!rmem_np) {
-			dev_err(dev, "no such memory-region of index %d\n", i);
+			dev_err(dev, "no such memory-region of index %ld\n", i);
 			continue;
 		}
 
@@ -459,8 +459,8 @@ static int dbg_snapshot_rmem_setup(struct device *dev)
 		}
 
 		if (!rmem->base || !rmem->size) {
-			dev_err(dev, "%s item wrong base(0x%x) or size(0x%x)\n",
-					item->name, rmem->base, rmem->size);
+			dev_err(dev, "%s item wrong base(%pap) or size(%pap)\n",
+					item->name, &rmem->base, &rmem->size);
 			item->entry.enabled = false;
 			continue;
 		}
@@ -474,8 +474,8 @@ static int dbg_snapshot_rmem_setup(struct device *dev)
 		vaddr = vmap(pages, page_size, flags, prot);
 		kfree(pages);
 		if (!vaddr) {
-			dev_err(dev, "%s: paddr:%pK page_size:0x%x failed to vmap\n",
-					item->name, rmem->base, rmem->size);
+			dev_err(dev, "%s: paddr:%pap page_size:%pap failed to vmap\n",
+					item->name, &rmem->base, &rmem->size);
 			item->entry.enabled = false;
 			continue;
 		}
