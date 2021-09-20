@@ -533,7 +533,7 @@ int dwc3_exynos_set_bus_clock(struct device *dev, int clk_level)
 			dev_dbg(dev, "Unsupported clock level");
 		}
 
-		dev_dbg(dev, "Changed USB Bus clock %d\n",
+		dev_dbg(dev, "Changed USB Bus clock %lu\n",
 			 clk_get_rate(exynos->bus_clock));
 	}
 
