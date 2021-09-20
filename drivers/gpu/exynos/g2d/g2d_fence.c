@@ -29,7 +29,7 @@ void g2d_fence_timeout_handler(struct timer_list *arg)
 		fence = task->source[i].fence;
 		if (fence) {
 			strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
-			perrfndev(g2d_dev, " SOURCE[%d]:  %s #%d (%s)", i, name, fence->seqno,
+			perrfndev(g2d_dev, " SOURCE[%d]:  %s #%llu (%s)", i, name, fence->seqno,
 				  dma_fence_is_signaled(fence) ? "signaled" : "active");
 		}
 	}
@@ -37,12 +37,12 @@ void g2d_fence_timeout_handler(struct timer_list *arg)
 	fence = task->target.fence;
 	if (fence) {
 		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
-		perrfn(" TARGET:     %s #%d (%s)", name, fence->seqno,
+		perrfn(" TARGET:     %s #%llu (%s)", name, fence->seqno,
 		       dma_fence_is_signaled(fence) ? "signaled" : "active");
 	}
 
 	if (task->release_fence)
-		perrfn("   Pending g2d release fence: #%d",
+		perrfn("   Pending g2d release fence: #%llu",
 		       task->release_fence->fence->seqno);
 
 	/*
@@ -128,7 +128,7 @@ static void g2d_fence_release(struct dma_fence *fence)
 
 static void g2d_fence_value_str(struct dma_fence *fence, char *str, int size)
 {
-	snprintf(str, size, "%d", fence->seqno);
+	snprintf(str, size, "%llu", fence->seqno);
 }
 
 static struct dma_fence_ops g2d_fence_ops = {
@@ -243,7 +243,7 @@ static bool g2d_fence_has_error(struct g2d_layer *layer, int layer_idx)
 		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
 
 		dev_err(layer->task->g2d_dev->dev,
-			"%s: Error fence of %s%d found: %s#%d\n", __func__,
+			"%s: Error fence of %s%d found: %s#%llu\n", __func__,
 			(layer_idx < 0) ? "target" : "source",
 			layer_idx, name, fence->seqno);
 

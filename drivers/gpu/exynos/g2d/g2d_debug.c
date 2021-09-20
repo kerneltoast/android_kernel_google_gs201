@@ -355,7 +355,7 @@ void g2d_dump_afbcdata(struct g2d_device *g2d_dev)
 static void g2d_dump_sfr_entry(const char *name, void *base,
 			       unsigned int offset, size_t len)
 {
-	pr_info("[%s: %#04x .. %#04x]\n", name, offset, offset + len - 4);
+	pr_info("[%s: %#04x .. %#04lx]\n", name, offset, offset + len - 4);
 	print_hex_dump(KERN_INFO, "+", DUMP_PREFIX_OFFSET, 32, 4,
 		       base + offset, len, false);
 }
