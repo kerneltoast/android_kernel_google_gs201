@@ -166,7 +166,7 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr,
 	ssize_t count = 0;
 	int i;
 
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08x\n", ppa_ul->cp_base);
+	count += scnprintf(&buf[count], PAGE_SIZE - count, "CP base:0x%08lx\n", ppa_ul->cp_base);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Num of queue:%d\n", ppa_ul->num_queue);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "HW cache coherency:%d\n",
 			ppa_ul->use_hw_iocc);
@@ -323,7 +323,7 @@ static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 	mif_dt_read_u32(np, "pktproc_ul_buff_rgn_cached", ppa_ul->buff_rgn_cached);
 	mif_dt_read_u32(np, "pktproc_ul_padding_required",
 			ppa_ul->padding_required);
-	mif_info("cp_base:0x%08x num_queue:%d max_packet_size:%d iocc:%d\n",
+	mif_info("cp_base:0x%08lx num_queue:%d max_packet_size:%d iocc:%d\n",
 		ppa_ul->cp_base, ppa_ul->num_queue, ppa_ul->max_packet_size, ppa_ul->use_hw_iocc);
 	mif_info("info/desc rgn cache: %d buff rgn cache: %d padding_required:%d\n",
 		ppa_ul->info_desc_rgn_cached, ppa_ul->buff_rgn_cached, ppa_ul->padding_required);
@@ -338,7 +338,7 @@ static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 			ppa_ul->desc_rgn_size);
 	mif_dt_read_u32(np, "pktproc_ul_buff_rgn_offset",
 			ppa_ul->buff_rgn_offset);
-	mif_info("info_rgn 0x%08x 0x%08x desc_rgn 0x%08x 0x%08x buff_rgn 0x%08x\n",
+	mif_info("info_rgn 0x%08lx 0x%08lx desc_rgn 0x%08lx 0x%08lx buff_rgn 0x%08lx\n",
 		ppa_ul->info_rgn_offset, ppa_ul->info_rgn_size,	ppa_ul->desc_rgn_offset,
 		ppa_ul->desc_rgn_size, ppa_ul->buff_rgn_offset);
 
@@ -391,7 +391,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 	ppa_ul->desc_vbase = ppa_ul->info_vbase + ppa_ul->info_rgn_size;
 	memset(ppa_ul->info_vbase, 0,
 			ppa_ul->info_rgn_size + ppa_ul->desc_rgn_size);
-	mif_info("info + desc size:0x%08x\n",
+	mif_info("info + desc size:0x%08lx\n",
 			ppa_ul->info_rgn_size + ppa_ul->desc_rgn_size);
 	buff_size = memsize - (ppa_ul->info_rgn_size + ppa_ul->desc_rgn_size);
 	buff_size_by_q = buff_size / ppa_ul->num_queue;

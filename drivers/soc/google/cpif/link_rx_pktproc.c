@@ -428,7 +428,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
 			dst_vaddr = q->q_buff_vbase + (q->ppa->max_packet_size * i);
 			if (dst_vaddr > (q->q_buff_vbase + q->q_buff_size))
-				mif_err_limited("dst_vaddr:0x%lx is over 0x%lx\n",
+				mif_err_limited("dst_vaddr:%pK is over %pK\n",
 						dst_vaddr, q->q_buff_vbase + q->q_buff_size);
 
 			q->dma_addr[fore] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
@@ -948,7 +948,7 @@ static ssize_t perftest_store(struct device *dev,
 
 		perf->test_run = true;
 		worker_task = kthread_create_on_node(pktproc_perftest_thread,
-			mld, cpu_to_node(cpu), "perftest", cpu);
+			mld, cpu_to_node(cpu), "perftest/%d", cpu);
 		kthread_bind(worker_task, cpu);
 		wake_up_process(worker_task);
 		break;

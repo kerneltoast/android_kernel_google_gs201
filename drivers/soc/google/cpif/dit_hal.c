@@ -44,7 +44,7 @@ static ssize_t dit_hal_read(struct file *filp, char *buf, size_t count, loff_t *
 	unsigned long flags;
 
 	if (count < sizeof(event)) {
-		mif_err("not support small buffer size: %d\n", count);
+		mif_err("not support small buffer size: %zu\n", count);
 		return 0;
 	}
 

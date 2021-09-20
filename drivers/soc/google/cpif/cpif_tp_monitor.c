@@ -569,7 +569,7 @@ static void tpmon_set_gro(struct tpmon_data *data)
 	}
 #endif
 
-	mif_info("%s (flush time:%u)\n", data->name, gro_flush_time);
+	mif_info("%s (flush time:%ld)\n", data->name, gro_flush_time);
 }
 
 /* IRQ affinity */
@@ -1066,7 +1066,7 @@ static bool tpmon_check_to_start(struct cpif_tpmon *tpmon)
 	}
 
 	if (tpmon->debug_print)
-		mif_info_limited("%ldMbps(%ldKbps) %ldmsec rx_bytes:%ld(%ld/%ld/%ld) legacy:%d\n",
+		mif_info_limited("%ldMbps(%ldKbps) %llumsec rx_bytes:%ld(%ld/%ld/%ld) legacy:%d\n",
 			tpmon->rx_total.rx_mbps, tpmon->rx_total.rx_kbps, delta_msec,
 			tpmon->rx_total.rx_bytes, tpmon->rx_tcp.rx_bytes,
 			tpmon->rx_udp.rx_bytes, tpmon->rx_others.rx_bytes,
@@ -1279,19 +1279,19 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			tpmon->boost_hold_msec,
 			tpmon->unboost_tp_percent);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
-			"rx_total %ldbytes %ldMbps %ldKbps sum:%d\n",
+			"rx_total %ldbytes %ldMbps %ldKbps sum:%lu\n",
 			tpmon->rx_total.rx_bytes, tpmon->rx_total.rx_mbps,
 			tpmon->rx_total.rx_kbps, tpmon->rx_total.rx_sum);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
-			"rx_tcp %ldbytes %ldMbps %ldKbps sum:%d\n",
+			"rx_tcp %ldbytes %ldMbps %ldKbps sum:%lu\n",
 			tpmon->rx_tcp.rx_bytes, tpmon->rx_tcp.rx_mbps,
 			tpmon->rx_tcp.rx_kbps, tpmon->rx_tcp.rx_sum);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
-			"rx_udp %ldbytes %ldMbps %ldKbps sum:%d\n",
+			"rx_udp %ldbytes %ldMbps %ldKbps sum:%lu\n",
 			tpmon->rx_udp.rx_bytes, tpmon->rx_udp.rx_mbps,
 			tpmon->rx_udp.rx_kbps, tpmon->rx_udp.rx_sum);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
-			"rx_others %ldbytes %ldMbps %ldKbps sum:%d\n",
+			"rx_others %ldbytes %ldMbps %ldKbps sum:%lu\n",
 			tpmon->rx_others.rx_bytes, tpmon->rx_others.rx_mbps,
 			tpmon->rx_others.rx_kbps, tpmon->rx_others.rx_sum);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
@@ -1512,7 +1512,7 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 	mif_dt_read_u32(tpmon_np, "tpmon_unboost_tp_percent",
 			tpmon->unboost_tp_percent);
 	mif_info("boost hold:%dmsec unboost percent:%d\n",
-			tpmon->monitor_interval_msec, tpmon->boost_hold_msec,
+			tpmon->boost_hold_msec,
 			tpmon->unboost_tp_percent);
 
 	for_each_child_of_node(tpmon_np, child_np) {
@@ -1528,7 +1528,7 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 		ret = of_property_read_string(child_np, "tpmon,name",
 						(const char **)&data->name);
 		if (ret < 0) {
-			mif_info("can not get %d tpmon,name:%s\n", count, ret);
+			mif_info("can not get %u tpmon,name:%d\n", count, ret);
 			return ret;
 		}
 

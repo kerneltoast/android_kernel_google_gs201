@@ -685,7 +685,7 @@ static int cpif_cdev_alloc_region(struct modem_data *pdata, struct modem_shared 
 
 	msd->cdev_class = class_create(THIS_MODULE, "cpif");
 	if (IS_ERR(msd->cdev_class)) {
-		mif_err("class_create() failed:%d\n", PTR_ERR(msd->cdev_class));
+		mif_err("class_create() failed:%ld\n", PTR_ERR(msd->cdev_class));
 		ret = -ENOMEM;
 		unregister_chrdev_region(MAJOR(msd->cdev_major), pdata->num_iodevs);
 		return ret;
