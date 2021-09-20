@@ -102,6 +102,7 @@ panel-samsung-emul.ko
 panel-samsung-s6e3fc3.ko
 panel-samsung-s6e3hc2.ko
 panel-samsung-s6e3hc3.ko
+panel-samsung-s6e3hc3-c10.ko
 panel-samsung-sofef01.ko
 pca9468.ko
 pcie-exynos-core.ko
