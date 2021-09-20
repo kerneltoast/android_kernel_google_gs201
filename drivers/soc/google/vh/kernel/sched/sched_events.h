@@ -386,9 +386,9 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->grp_overutilized   = grp_overutilized;
 	),
 
-	TP_printk("cpu=%d nr_running=%d cpu_util=%llu capacity_curr=%llu capacity=%llu " \
-		  "wake_util=%llu capacity_orig=%u active=%u idle_cpu=%d " \
-		  "cpu_importance=%llu group_capacity=%llu wake_group_util=%llu spare_cap=%ld " \
+	TP_printk("cpu=%d nr_running=%d cpu_util=%lu capacity_curr=%lu capacity=%lu " \
+		  "wake_util=%lu capacity_orig=%lu active=%u idle_cpu=%d " \
+		  "cpu_importance=%lu group_capacity=%lu wake_group_util=%lu spare_cap=%ld " \
 		  "group_util=%lu grp_overutilized=%d",
 		__entry->cpu, __entry->nr_running, __entry->cpu_util, __entry->capacity_curr,
 		__entry->capacity, __entry->wake_util, __entry->capacity_orig, __entry->active,
@@ -492,7 +492,7 @@ TRACE_EVENT(sched_rt_cpu_util,
 		__entry->cpu_importance	    = cpu_importance;
 	),
 
-	TP_printk("cpu=%d capacity=%llu util=%llu exit_lat=%llu cpu_importance=%llu",
+	TP_printk("cpu=%d capacity=%lu util=%lu exit_lat=%lu cpu_importance=%lu",
 		__entry->cpu, __entry->capacity, __entry->util, __entry->exit_lat,
 		__entry->cpu_importance)
 );
@@ -539,9 +539,9 @@ TRACE_EVENT(sched_find_least_loaded_cpu,
 		__entry->backup_mask             = backup_mask;
 		),
 
-	TP_printk("pid=%d comm=%s group=%d uclamp_min=%llu uclamp_max=%llu " \
-		"check_cpu_overutilized=%d min_cpu_util=%llu min_cpu_capacity=%llu " \
-		"min_exit_lat=%u prev_cpu=%d best_cpu=%d lowest_mask=0x%x backup_mask=0x%x",
+	TP_printk("pid=%d comm=%s group=%d uclamp_min=%lu uclamp_max=%lu " \
+		"check_cpu_overutilized=%d min_cpu_util=%lu min_cpu_capacity=%lu " \
+		"min_exit_lat=%u prev_cpu=%d best_cpu=%d lowest_mask=0x%lx backup_mask=0x%lx",
 		__entry->pid, __entry->comm, __entry->group, __entry->uclamp_min,
 		__entry->uclamp_max, __entry->check_cpu_overutilized, __entry->min_cpu_util,
 		__entry->min_cpu_capacity, __entry->min_exit_lat, __entry->prev_cpu,
