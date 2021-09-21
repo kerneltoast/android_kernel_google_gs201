@@ -2475,11 +2475,20 @@ static bool sleep_for_data_condition(struct stmvl53l1_data *data, pid_t pid,
 static int sleep_for_data(struct stmvl53l1_data *data, pid_t pid,
 				struct list_head *head)
 {
-	int rc;
+	int rc = 0;
 
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	mutex_unlock(&data->work_mutex);
-	rc = wait_event_killable(data->waiter_for_data,
-				sleep_for_data_condition(data, pid, head));
+
+	add_wait_queue(&data->waiter_for_data, &wait);
+	while (!sleep_for_data_condition(data, pid, head)) {
+		wait_woken(&wait, TASK_KILLABLE, MAX_SCHEDULE_TIMEOUT);
+		if (fatal_signal_pending(current)) {
+			rc = -ERESTARTSYS;
+			break;
+		}
+	}
+	remove_wait_queue(&data->waiter_for_data, &wait);
 	mutex_lock(&data->work_mutex);
 
 	return data->enable_sensor ? rc : -ENODEV;
