@@ -15,18 +15,19 @@
 #include <linux/thermal.h>
 #include <linux/interrupt.h>
 #include <linux/types.h>
+#include <linux/kthread.h>
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/s2mpg11-register.h>
 
 #include "../thermal_core.h"
 
 #define GTHERM_CHAN_NUM 8
+#define SENSOR_WAIT_SLEEP_MS 50
 
 struct gs101_spmic_thermal_sensor {
 	struct gs101_spmic_thermal_chip *chip;
 	struct thermal_zone_device *tzd;
 	unsigned int adc_chan;
-	bool thr_triggered;
 	int emul_temperature;
 	int irq;
 };
@@ -37,6 +38,9 @@ struct gs101_spmic_thermal_chip {
 	struct s2mpg11_dev *iodev;
 	struct gs101_spmic_thermal_sensor sensor[GTHERM_CHAN_NUM];
 	u8 adc_chan_en;
+	struct kobject *kobjs[GTHERM_CHAN_NUM];
+	struct kthread_worker *wq;
+	struct kthread_delayed_work wait_sensor_work;
 };
 
 /**
@@ -130,6 +134,25 @@ static int gs101_map_temp_volt(int input)
 			 gs101_adc_map[low - 1].temp - gs101_adc_map[low].temp);
 }
 
+static int gs101_spmic_thermal_read_raw(struct gs101_spmic_thermal_sensor *s, int *raw)
+{
+	struct gs101_spmic_thermal_chip *gs101_spmic_thermal = s->chip;
+	u8 data_buf[S2MPG11_METER_NTC_BUF];
+	u8 reg = S2MPG11_METER_LPF_DATA_NTC0_1 + S2MPG11_METER_NTC_BUF * s->adc_chan;
+
+	int ret = s2mpg11_bulk_read(gs101_spmic_thermal->i2c, reg, S2MPG11_METER_NTC_BUF, data_buf);
+	if (ret)
+		return ret;
+
+	*raw = data_buf[0] + ((data_buf[1] & 0xf) << 8);
+
+	// All 0 usually means not ready
+	if (*raw == 0)
+		return -EBUSY;
+
+	return ret;
+}
+
 /*
  * Get temperature for given tz.
  */
@@ -139,9 +162,6 @@ static int gs101_spmic_thermal_get_temp(void *data, int *temp)
 	struct gs101_spmic_thermal_chip *gs101_spmic_thermal = s->chip;
 	int emul_temp;
 	int raw, ret = 0;
-	u8 data_buf[S2MPG11_METER_NTC_BUF];
-	u8 reg = S2MPG11_METER_LPF_DATA_NTC0_1 +
-		 S2MPG11_METER_NTC_BUF * s->adc_chan;
 	u8 mask = 0x1;
 
 	emul_temp = s->emul_temperature;
@@ -153,13 +173,9 @@ static int gs101_spmic_thermal_get_temp(void *data, int *temp)
 	if (!(gs101_spmic_thermal->adc_chan_en & (mask << s->adc_chan)))
 		return -EIO;
 
-	ret = s2mpg11_bulk_read(gs101_spmic_thermal->i2c, reg,
-				S2MPG11_METER_NTC_BUF, data_buf);
-	raw = data_buf[0] + ((data_buf[1] & 0xf) << 8);
-
-	// All 0 usually means the NTC is not ready.
-	if (!ret && !raw)
-		return -EBUSY;
+	ret = gs101_spmic_thermal_read_raw(s, &raw);
+	if (ret)
+		return ret;
 
 	*temp = gs101_map_volt_temp(raw);
 
@@ -202,6 +218,22 @@ static int gs101_spmic_thermal_set_trips(void *data, int low_temp,
 	return ret;
 }
 
+static int gs101_spmic_thermal_set_hot_trip(struct gs101_spmic_thermal_sensor *s, int temp)
+{
+	int ret = 0;
+	struct gs101_spmic_thermal_chip *gs101_spmic_thermal = s->chip;
+	u8 raw = gs101_map_temp_volt(temp) >> 4 & 0xFF;
+	struct device *dev = gs101_spmic_thermal->dev;
+
+	if (temp == THERMAL_TEMP_INVALID)
+		return -EINVAL;
+	ret = s2mpg11_write_reg(gs101_spmic_thermal->i2c, S2MPG11_METER_NTC_H_WARN0 + s->adc_chan,
+				raw);
+	dev_info(dev, "Set sensor %d hot trip(mdegC):%d, ret:%d\n", s->adc_chan, temp, ret);
+
+	return ret;
+}
+
 /*
  * Set temperature threshold for given tz, only critical threshold will be
  * programmed as shutdown threshold.
@@ -209,10 +241,8 @@ static int gs101_spmic_thermal_set_trips(void *data, int low_temp,
 static int gs101_spmic_thermal_set_trip_temp(void *data, int trip, int temp)
 {
 	struct gs101_spmic_thermal_sensor *s = data;
-	struct gs101_spmic_thermal_chip *gs101_spmic_thermal = s->chip;
 	const struct thermal_trip *trip_points;
 	int ret = 0;
-	u8 raw;
 
 	trip_points = of_thermal_get_trip_points(s->tzd);
 	if (!trip_points)
@@ -222,9 +252,7 @@ static int gs101_spmic_thermal_set_trip_temp(void *data, int trip, int temp)
 		return ret;
 
 	/* Use THERMAL_TRIP_HOT for HW thermal shutdown */
-	raw = gs101_map_temp_volt(temp) >> 4 & 0xFF;
-	ret = s2mpg11_write_reg(gs101_spmic_thermal->i2c,
-				S2MPG11_METER_NTC_H_WARN0 + s->adc_chan, raw);
+	ret = gs101_spmic_thermal_set_hot_trip(s, temp);
 
 	return ret;
 }
@@ -287,6 +315,59 @@ static ssize_t channel_temp_show(struct kobject *kobj,
 
 static struct kobj_attribute channel_temp_attr = __ATTR_RO(channel_temp);
 
+static int gs101_spmic_thermal_get_hot_temp(struct thermal_zone_device *tzd)
+{
+	int ntrips;
+	const struct thermal_trip *trips;
+	int i;
+
+	ntrips = of_thermal_get_ntrips(tzd);
+	if (ntrips <= 0)
+		return THERMAL_TEMP_INVALID;
+
+	trips = of_thermal_get_trip_points(tzd);
+	if (!trips)
+		return THERMAL_TEMP_INVALID;
+
+	for (i = 0; i < ntrips; i++) {
+		if (of_thermal_is_trip_valid(tzd, i) && trips[i].type == THERMAL_TRIP_HOT)
+			return trips[i].temperature;
+	}
+
+	return THERMAL_TEMP_INVALID;
+}
+
+/*
+ * Wait for sensors to be ready.
+ */
+static void gs101_spmic_thermal_wait_sensor(struct kthread_work *work)
+{
+	struct gs101_spmic_thermal_chip *gs101_spmic_thermal =
+		container_of(work, struct gs101_spmic_thermal_chip, wait_sensor_work.work);
+	struct device *dev = gs101_spmic_thermal->dev;
+	u8 mask = 0x1;
+	int raw, ret, i, j = 64000 / SENSOR_WAIT_SLEEP_MS;
+
+	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
+		if (!(gs101_spmic_thermal->adc_chan_en & mask))
+			continue;
+		/* Wait for longest refresh period */
+		while (j--) {
+			ret = gs101_spmic_thermal_read_raw(&gs101_spmic_thermal->sensor[i], &raw);
+			dev_info(dev, "Sensor %d raw:0x%x\n", i, raw);
+			if (ret != -EBUSY)
+				break;
+			dev_info(dev, "Sensor %d not ready, retry...\n", i);
+			msleep(SENSOR_WAIT_SLEEP_MS);
+		}
+		if (j < 0)
+			dev_warn(dev, "Sensor %d timeout, give up...\n", i);
+
+		thermal_zone_device_update(gs101_spmic_thermal->sensor[i].tzd,
+					   THERMAL_EVENT_UNSPECIFIED);
+	}
+}
+
 /*
  * Register thermal zones.
  */
@@ -296,7 +377,7 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 	struct thermal_zone_device *tzd;
 	struct device *dev = gs101_spmic_thermal->dev;
 	u8 mask = 0x1;
-	struct kobject *kobj;
+	int temp;
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
 		dev_info(dev, "Registering channel %d\n", i);
@@ -315,8 +396,11 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 			thermal_zone_device_enable(tzd);
 		else
 			thermal_zone_device_disable(tzd);
-		kobj = kobject_create_and_add("adc_channel", &tzd->device.kobj);
-		sysfs_create_file(kobj, &channel_temp_attr.attr);
+		gs101_spmic_thermal->kobjs[i] =
+			kobject_create_and_add("adc_channel", &tzd->device.kobj);
+		sysfs_create_file(gs101_spmic_thermal->kobjs[i], &channel_temp_attr.attr);
+		temp = gs101_spmic_thermal_get_hot_temp(tzd);
+		gs101_spmic_thermal_set_hot_trip(&gs101_spmic_thermal->sensor[i], temp);
 	}
 	return 0;
 }
@@ -349,11 +433,13 @@ static irqreturn_t gs101_spmic_thermal_irq(int irq, void *data)
 static void
 gs101_spmic_thermal_unregister_tzd(struct gs101_spmic_thermal_chip *chip)
 {
-	unsigned int i;
+	int i;
 	struct device *dev = chip->dev;
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
 		dev_info(dev, "Unregistering %d sensor\n", i);
+		sysfs_remove_file(chip->kobjs[i], &channel_temp_attr.attr);
+		kobject_put(chip->kobjs[i]);
 		devm_thermal_zone_of_sensor_unregister(chip->dev,
 						       chip->sensor[i].tzd);
 	}
@@ -407,6 +493,7 @@ gs101_spmic_set_enable(struct gs101_spmic_thermal_chip *gs101_spmic_thermal,
 			return ret;
 		}
 	}
+
 	if (on) {
 		/* WAR EVT0 disable IC power shutdown reaching NTC_H_WARN threshold */
 		if (gs101_spmic_thermal->iodev->pmic_rev == S2MPG11_EVT0) {
@@ -421,7 +508,6 @@ gs101_spmic_set_enable(struct gs101_spmic_thermal_chip *gs101_spmic_thermal,
 		ret = s2mpg11_write_reg(gs101_spmic_thermal->i2c,
 					S2MPG11_METER_CTRL3,
 					gs101_spmic_thermal->adc_chan_en);
-
 		if (ret) {
 			dev_err(dev, "Cannot enable NTC engine\n");
 		} else {
@@ -431,9 +517,13 @@ gs101_spmic_set_enable(struct gs101_spmic_thermal_chip *gs101_spmic_thermal,
 	} else {
 		ret = s2mpg11_write_reg(gs101_spmic_thermal->i2c,
 					S2MPG11_METER_CTRL3, 0x00);
-		if (ret)
+		if (ret) {
 			dev_err(dev, "Cannot disable NTC\n");
+		} else {
+			dev_info(dev, "Disabled NTC channels\n");
+		}
 	}
+
 	return ret;
 }
 
@@ -505,27 +595,31 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 
 	if (!iodev) {
 		dev_err(dev, "Failed to get parent s2mpg11_dev\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 	pdata = iodev->pdata;
 	if (!pdata) {
 		dev_err(dev, "Failed to get s2mpg11_platform_data\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	chip->dev = dev;
 	chip->i2c = iodev->meter;
 	chip->iodev = iodev;
+
 	ret = gs101_spmic_thermal_get_dt_data(pdev, chip);
 	if (ret) {
 		dev_err(dev, "gs101_spmic_thermal get dt data failed\n");
-		return ret;
+		goto fail;
 	}
 
 	irq_base = pdata->irq_base;
 	if (!irq_base) {
 		dev_err(dev, "Failed to get irq base %d\n", irq_base);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto fail;
 	}
 
 	gs101_spmic_thermal_init(chip);
@@ -570,7 +664,19 @@ static int gs101_spmic_thermal_probe(struct platform_device *pdev)
 		}
 	}
 
+	chip->wq = kthread_create_worker(0, "spmic-init");
+	if (IS_ERR_OR_NULL(chip->wq)) {
+		ret = PTR_ERR(chip->wq);
+		goto free_irq_tz;
+	}
+
+	kthread_init_delayed_work(&chip->wait_sensor_work, gs101_spmic_thermal_wait_sensor);
+
 	platform_set_drvdata(pdev, chip);
+
+	dev_info(dev, "probe done, now wait for sensors\n");
+	kthread_mod_delayed_work(chip->wq, &chip->wait_sensor_work, 0);
+
 	return ret;
 
 free_irq_tz:
@@ -581,6 +687,7 @@ free_irq_tz:
 disable_ntc:
 	gs101_spmic_set_enable(chip, false);
 fail:
+	devm_kfree(&pdev->dev, chip);
 	return ret;
 }
 
@@ -589,6 +696,8 @@ static int gs101_spmic_thermal_remove(struct platform_device *pdev)
 	int i;
 	struct gs101_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
 
+	kthread_cancel_delayed_work_sync(&chip->wait_sensor_work);
+	kthread_destroy_worker(chip->wq);
 	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
 		devm_free_irq(&pdev->dev, chip->sensor[i].irq, chip);
 	}
