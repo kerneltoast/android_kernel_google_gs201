@@ -154,6 +154,7 @@ st21nfc.ko
 st33spi.ko
 st54spi.ko
 systrace.ko
+sysrq-hook.ko
 tcpci_max77759.ko
 touch_bus_negotiator.ko
 touch_offload.ko
