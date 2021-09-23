@@ -104,11 +104,11 @@ u32 bigo_check_status(struct bigo_core *core)
 	if (status & BIGO_STAT_IRQ_DEC_ERROR)
 		pr_err("decoding error: 0x%x\n", status);
 	if (status & BIGO_STAT_AXI_RD_OVERFLOW) {
-		pr_err("axi read overflow, status: 0x%x, id: %u\n", status,
+		pr_err("axi read overflow, status: 0x%x, id: %lu\n", status,
 		       status & BIG_STAT_AXI_OVERFLOW_ID);
 	}
 	if (status & BIGO_STAT_AXI_WR_OVERFLOW) {
-		pr_err("axi write undererflow, status: 0x%x, id: %u\n", status,
+		pr_err("axi write undererflow, status: 0x%x, id: %lu\n", status,
 		       status & BIG_STAT_AXI_OVERFLOW_ID);
 	}
 	if (status & BIGO_STAT_AXI_RD_PENDING)

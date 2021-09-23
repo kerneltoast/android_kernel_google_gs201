@@ -49,7 +49,7 @@ static int bigo_of_get_resource(struct bigo_core *core)
 	}
 	core->slc.ssmt_pid_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR_OR_NULL(core->slc.ssmt_pid_base)) {
-		pr_warn("Failed to map ssmt_bo register base: %d\n",
+		pr_warn("Failed to map ssmt_bo register base: %ld\n",
 			PTR_ERR(core->slc.ssmt_pid_base));
 		core->slc.ssmt_pid_base = NULL;
 	}
