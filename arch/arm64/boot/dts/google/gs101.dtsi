@@ -669,6 +669,7 @@
 		/*	but refclk shouldn't be omitted */
 		phyclk_mux = "none";
 		phy_refclk = "phy_ref";
+		phy_ref_clock = <26000000>;
 
 		/*
 		 * if Main phy has the other phy,
