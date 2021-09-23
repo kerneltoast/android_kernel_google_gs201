@@ -456,31 +456,11 @@
 		reg =
 			<0x0 0x1AC40000 0x10000>, /* IPP0 */
 			<0x0 0x1AC50000 0x10000>, /* IPP1 */
-			<0x0 0x1AC60000 0x10000>, /* IPP2 */
-			<0x0 0x1AD54400 0xA8>,    /* SSMT THSTAT */
-			<0x0 0x1AD64400 0xA8>,    /* SSMT FDPIG */
-			<0x0 0x1AD74400 0xA8>,    /* SSMT RGBYHIST0 */
-			<0x0 0x1AD84440 0xA8>,    /* SSMT RGBYHIST1 */
-			<0x0 0x1AD94480 0xA8>,    /* SSMT RGBYHIST2 */
-			<0x0 0x1ADA4400 0xA8>,    /* SSMT TNR_ALIGN_GP_L2 */
-			<0x0 0x1ADB4400 0xA8>,    /* SSMT TNR_ALIGN_GP_L3 */
-			<0x0 0x1ADC4400 0xA8>,    /* SSMT TNR_ALIGN_GP_L4 */
-			<0x0 0x1ADD4400 0xA8>,    /* SSMT TNR_ALIGN_GP_L5 */
-			<0x0 0x1ADE4400 0xA8>;    /* SSMT TNR_ALIGN_GP_STAT */
+			<0x0 0x1AC60000 0x10000>; /* IPP2 */
 		reg-names =
 			"ipp0",
 			"ipp1",
-			"ipp2",
-			"thstat",
-			"fdpig",
-			"rgbyhist0",
-			"rgbyhist1",
-			"rgbyhist2",
-			"gp-l2",
-			"gp-l3",
-			"gp-l4",
-			"gp-l5",
-			"gp-stat";
+			"ipp2";
 
 		clocks = <&clock UMUX_CLKCMU_IPP_NOC>;
 		clock-names = "UMUX_CLKCMU_IPP_NOC";
@@ -684,16 +664,14 @@
 			<0x0 0x1B450000 0x10000>, /* ITP */
 			<0x0 0x1B040000 0x10000>, /* DNS */
 			<0x0 0x1B740000 0x10000>, /* ITSC */
-			<0x0 0x1B894000 0xA00>,   /* SSMT D0 ITSC */
-			<0x0 0x1B8A4000 0xA00>,   /* SSMT D1 ITSC */
-			<0x0 0x1B020000 0x10000>; /* SYSREG DNS */
+			<0x0 0x1B020000 0x10000>, /* SYSREG DNS */
+			<0x0 0x1B894000 0xA00>;   /* SSMT D0 ITSC */
 		reg-names =
 			"itp",
 			"dns",
 			"itsc",
-			"ssmt_d0_itsc",
-			"ssmt_d1_itsc",
-			"sysreg_dns";
+			"sysreg_dns",
+			"ssmt_d0_itsc";
 
 		clocks =
 			<&clock UMUX_CLKCMU_ITP_NOC>,
@@ -751,12 +729,10 @@
 		/* Register space */
 		reg =
 			<0x0 0x1B760000 0x10000>, /* MCSC */
-			<0x0 0x1B8C4000 0xA00>,   /* SSMT D0 MCSC */
-			<0x0 0x1B8D4000 0xA00>;   /* SSMT D1 MCSC */
+			<0x0 0x1B8C4000 0xA00>;   /* SSMT D0 MCSC */
 		reg-names =
 			"mcsc",
-			"ssmt_d0_mcsc",
-			"ssmt_d1_mcsc";
+			"ssmt_d0_mcsc";
 
 		clocks = <&clock UMUX_CLKCMU_MCSC_MCSC>;
 		clock-names = "UMUX_CLKCMU_MCSC_MCSC";
