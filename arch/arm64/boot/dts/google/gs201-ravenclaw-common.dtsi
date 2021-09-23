@@ -16,4 +16,4 @@
 #include "gs201-ravenclaw-typec.dtsi"
 #include "gs201-ravenclaw-wcharger.dtsi"
 #include "gs201-ravenclaw-usecases.dtsi"
-
+#include "gs201-ravenclaw-uwb.dtsi"
