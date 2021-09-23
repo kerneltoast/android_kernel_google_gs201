@@ -116,7 +116,7 @@ static ssize_t latency_threshold_show(struct kobject *kobj,
 	struct direct_reclaim_pixel_stat *stat =
 		container_of(kobj, struct direct_reclaim_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu %llu %llu\n",
+	return sysfs_emit(buf, "%lu %lu %lu\n",
 		stat->latency_threshold[LATENCY_LOW],
 		stat->latency_threshold[LATENCY_MID],
 		stat->latency_threshold[LATENCY_HIGH]);
@@ -158,7 +158,7 @@ static ssize_t latency_stat_show(struct kobject *kobj,
 	struct direct_reclaim_pixel_stat *stat =
 		container_of(kobj, struct direct_reclaim_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu %llu %llu %llu %llu %llu\n",
+	return sysfs_emit(buf, "%lu %lu %lu %lu %lu %lu\n",
 		stat->total_count, (stat->total_time),
 		stat->latency_count[LATENCY_LOW], stat->latency_count[LATENCY_MID],
 		stat->latency_count[LATENCY_HIGH], stat->latency_count[LATENCY_EXTREME_HIGH]);

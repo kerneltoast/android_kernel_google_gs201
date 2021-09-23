@@ -117,7 +117,7 @@ static ssize_t latency_low_show(struct kobject *kobj,
 	struct cma_pixel_stat *cma_stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", cma_stat->latency[LATENCY_LOW]);
+	return sysfs_emit(buf, "%lu\n", cma_stat->latency[LATENCY_LOW]);
 }
 CMA_ATTR_RO(latency_low);
 
@@ -127,7 +127,7 @@ static ssize_t latency_mid_show(struct kobject *kobj,
 	struct cma_pixel_stat *cma_stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", cma_stat->latency[LATENCY_MID]);
+	return sysfs_emit(buf, "%lu\n", cma_stat->latency[LATENCY_MID]);
 }
 CMA_ATTR_RO(latency_mid);
 
@@ -137,7 +137,7 @@ static ssize_t latency_high_show(struct kobject *kobj,
 	struct cma_pixel_stat *cma_stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", cma_stat->latency[LATENCY_HIGH]);
+	return sysfs_emit(buf, "%lu\n", cma_stat->latency[LATENCY_HIGH]);
 }
 CMA_ATTR_RO(latency_high);
 
@@ -147,7 +147,7 @@ static ssize_t latency_low_bound_show(struct kobject *kobj,
 	struct cma_pixel_stat *stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", stat->bound[LATENCY_LOW]);
+	return sysfs_emit(buf, "%lu\n", stat->bound[LATENCY_LOW]);
 }
 
 static ssize_t latency_low_bound_store(struct kobject *kobj,
@@ -177,7 +177,7 @@ static ssize_t latency_mid_bound_show(struct kobject *kobj,
 	struct cma_pixel_stat *cma_stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", cma_stat->bound[LATENCY_MID]);
+	return sysfs_emit(buf, "%lu\n", cma_stat->bound[LATENCY_MID]);
 }
 
 static ssize_t latency_mid_bound_store(struct kobject *kobj,
@@ -207,7 +207,7 @@ static ssize_t alloc_pages_attempts_show(struct kobject *kobj,
 	struct cma_pixel_stat *cma_stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", cma_stat->alloc_pages_attempts);
+	return sysfs_emit(buf, "%lu\n", cma_stat->alloc_pages_attempts);
 }
 CMA_ATTR_RO(alloc_pages_attempts);
 
@@ -217,7 +217,7 @@ static ssize_t alloc_pages_failfast_attempts_show(struct kobject *kobj,
 	struct cma_pixel_stat *cma_stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", cma_stat->alloc_pages_failfast_attempts);
+	return sysfs_emit(buf, "%lu\n", cma_stat->alloc_pages_failfast_attempts);
 }
 CMA_ATTR_RO(alloc_pages_failfast_attempts);
 
@@ -227,7 +227,7 @@ static ssize_t fail_pages_show(struct kobject *kobj,
 	struct cma_pixel_stat *cma_stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", cma_stat->fail_pages);
+	return sysfs_emit(buf, "%lu\n", cma_stat->fail_pages);
 }
 CMA_ATTR_RO(fail_pages);
 
@@ -237,7 +237,7 @@ static ssize_t fail_failfast_pages_show(struct kobject *kobj,
 	struct cma_pixel_stat *cma_stat =
 		container_of(kobj, struct cma_pixel_stat, kobj);
 
-	return sysfs_emit(buf, "%llu\n", cma_stat->fail_failfast_pages);
+	return sysfs_emit(buf, "%lu\n", cma_stat->fail_failfast_pages);
 }
 CMA_ATTR_RO(fail_failfast_pages);
 
