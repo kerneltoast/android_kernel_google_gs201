@@ -583,14 +583,14 @@
 		/* Register space */
 		reg =
 			<0x0 0x1BC40000 0x10000>,   /* TNR */
-			<0x0 0x1BE80000 0x10000>,   /* TNR SSMT D0 */
-			<0x0 0x1BE90000 0x10000>,   /* TNR SSMT D1 */
-			<0x0 0x1BEA0000 0x10000>,   /* TNR SSMT D2 */
-			<0x0 0x1BEB0000 0x10000>,   /* TNR SSMT D3 */
-			<0x0 0x1BEC0000 0x10000>,   /* TNR SSMT D4 */
-			<0x0 0x1BED0000 0x10000>,   /* TNR SSMT D5 */
-			<0x0 0x1BEE0000 0x10000>,   /* TNR SSMT D6 */
-			<0x0 0x1BEF0000 0x10000>,   /* TNR SSMT D7 */
+			<0x0 0x1BE84000 0xA00>,     /* TNR SSMT D0 */
+			<0x0 0x1BE94000 0xA00>,     /* TNR SSMT D1 */
+			<0x0 0x1BEA4000 0xA00>,     /* TNR SSMT D2 */
+			<0x0 0x1BEB4000 0xA00>,     /* TNR SSMT D3 */
+			<0x0 0x1BEC4000 0xA00>,     /* TNR SSMT D4 */
+			<0x0 0x1BED4000 0xA00>,     /* TNR SSMT D5 */
+			<0x0 0x1BEE4000 0xA00>,     /* TNR SSMT D6 */
+			<0x0 0x1BEF4000 0xA00>,     /* TNR SSMT D7 */
 			<0x0 0x1BC030E4 0x8>;       /* TNR_QCH */
 		reg-names =
 			"tnr",
@@ -684,8 +684,8 @@
 			<0x0 0x1B450000 0x10000>, /* ITP */
 			<0x0 0x1B040000 0x10000>, /* DNS */
 			<0x0 0x1B740000 0x10000>, /* ITSC */
-			<0x0 0x1B890000 0x10000>, /* SSMT D0 ITSC */
-			<0x0 0x1B8A0000 0x10000>, /* SSMT D1 ITSC */
+			<0x0 0x1B894000 0xA00>,   /* SSMT D0 ITSC */
+			<0x0 0x1B8A4000 0xA00>,   /* SSMT D1 ITSC */
 			<0x0 0x1B020000 0x10000>; /* SYSREG DNS */
 		reg-names =
 			"itp",
@@ -751,8 +751,8 @@
 		/* Register space */
 		reg =
 			<0x0 0x1B760000 0x10000>, /* MCSC */
-			<0x0 0x1B8C0000 0x10000>, /* SSMT D0 MCSC */
-			<0x0 0x1B8D0000 0x10000>; /* SSMT D1 MCSC */
+			<0x0 0x1B8C4000 0xA00>,   /* SSMT D0 MCSC */
+			<0x0 0x1B8D4000 0xA00>;   /* SSMT D1 MCSC */
 		reg-names =
 			"mcsc",
 			"ssmt_d0_mcsc",
@@ -793,7 +793,7 @@
 		/* Register space */
 		reg =
 			<0x0 0x1D080000 0x10000>, /* SCSC */
-			<0x0 0x1D200000 0x10000>; /* SSMT SCSC */
+			<0x0 0x1D204000 0xA00>;   /* SSMT SCSC */
 		reg-names =
 			"scsc",
 			"ssmt_d0_scsc";
@@ -831,7 +831,7 @@
 		/* Register space */
 		reg =
 			<0x0 0x1D040000 0x10000>,	/* GDC0 */
-			<0x0 0x1D130000 0x10000>;	/* GDC0 SSMT */
+			<0x0 0x1D134000 0xA00>;		/* GDC0 SSMT */
 		reg-names =
 			"gdc",
 			"gdc_ssmt";
@@ -869,7 +869,7 @@
 		/* Register space */
 		reg =
 			<0x0 0x1D060000 0x10000>,  /* GDC1 */
-			<0x0 0x1D140000 0x10000>;  /* GDC1 SSMT */
+			<0x0 0x1D144000 0xA00>;    /* GDC1 SSMT */
 		reg-names =
 			"gdc",
 			"gdc_ssmt";
