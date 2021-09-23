@@ -189,6 +189,7 @@ trusty-log.ko
 trusty-test.ko
 trusty-virtio.ko
 ufs-exynos-core.ko
+ufs-pixel-fips.ko
 usb_f_dm.ko
 usb_f_dm1.ko
 usb_f_etr_miu.ko
