@@ -154,50 +154,32 @@ int fvmap_get_raw_voltage_table(unsigned int id)
 	return 0;
 }
 
-static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base)
+static void fvmap_copy_from_sram(void *map_base, void __iomem *sram_base)
 {
-	struct fvmap_header *fvmap_header, *header;
+	struct fvmap_header *fvmap_header;
 	struct rate_volt_header *old, *new;
-	struct clocks *clks;
-	struct pll_header *plls;
+	struct clocks __iomem *clks;
+	struct pll_header __iomem *plls;
 	struct vclk *vclk;
-	unsigned int member_addr;
+	u32 member_addr;
 	unsigned int blk_idx;
 	int size, margin;
 	int i, j;
 
 	fvmap_header = map_base;
-	header = sram_base;
-
 	size = cmucal_get_list_size(ACPM_VCLK_TYPE);
+	memcpy_fromio(fvmap_header, sram_base, sizeof(struct fvmap_header) * size);
 
 	for (i = 0; i < size; i++) {
 		/* load fvmap info */
-		fvmap_header[i].dvfs_type = header[i].dvfs_type;
-		fvmap_header[i].num_of_lv = header[i].num_of_lv;
-		fvmap_header[i].num_of_members = header[i].num_of_members;
-		fvmap_header[i].num_of_pll = header[i].num_of_pll;
-		fvmap_header[i].num_of_mux = header[i].num_of_mux;
-		fvmap_header[i].num_of_div = header[i].num_of_div;
-		fvmap_header[i].gearratio = header[i].gearratio;
-		fvmap_header[i].init_lv = header[i].init_lv;
-		fvmap_header[i].num_of_gate = header[i].num_of_gate;
-		fvmap_header[i].reserved[0] = header[i].reserved[0];
-		fvmap_header[i].reserved[1] = header[i].reserved[1];
-		fvmap_header[i].block_addr[0] = header[i].block_addr[0];
-		fvmap_header[i].block_addr[1] = header[i].block_addr[1];
-		fvmap_header[i].block_addr[2] = header[i].block_addr[2];
-		fvmap_header[i].o_members = header[i].o_members;
-		fvmap_header[i].o_ratevolt = header[i].o_ratevolt;
-		fvmap_header[i].o_tables = header[i].o_tables;
 
 		vclk = cmucal_get_node(ACPM_VCLK_TYPE | i);
 		if (vclk == NULL)
 			continue;
 		pr_debug("dvfs_type : %s - id : %x\n",
 			 vclk->name, fvmap_header[i].dvfs_type);
-		pr_debug("  num_of_lv      : %d\n", fvmap_header[i].num_of_lv);
-		pr_debug("  num_of_members : %d\n", fvmap_header[i].num_of_members);
+		pr_debug("  num_of_lv      : %u\n", fvmap_header[i].num_of_lv);
+		pr_debug("  num_of_members : %u\n", fvmap_header[i].num_of_members);
 
 		old = sram_base + fvmap_header[i].o_ratevolt;
 		new = map_base + fvmap_header[i].o_ratevolt;
@@ -210,12 +192,13 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 			clks = sram_base + fvmap_header[i].o_members;
 
 			if (j < fvmap_header[i].num_of_pll) {
-				plls = sram_base + clks->addr[j];
-				member_addr = plls->addr - 0x90000000;
+				plls = sram_base + readw_relaxed(&clks->addr[j]);
+				member_addr = readl_relaxed(&plls->addr) - 0x90000000;
 			} else {
+				u16 clks_addr = readw_relaxed(&clks->addr[j]);
 
-				member_addr = (clks->addr[j] & ~0x3) & 0xffff;
-				blk_idx = clks->addr[j] & 0x3;
+				member_addr = (clks_addr & ~0x3) & 0xffff;
+				blk_idx = clks_addr & 0x3;
 
 				member_addr |= ((fvmap_header[i].block_addr[blk_idx]) << 16) - 0x90000000;
 			}
@@ -236,17 +219,17 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 			 * having issues with these frequencies.
 			 */
 			fvmap_header[i].num_of_lv -= 3;
-			new->table[0].rate = old->table[0].rate;
-			new->table[0].volt = old->table[0].volt;
+			new->table[0].rate = readl_relaxed(&old->table[0].rate);
+			new->table[0].volt = readl_relaxed(&old->table[0].volt);
 
 			for (j = 1; j < fvmap_header[i].num_of_lv ; j++) {
-				new->table[j].rate = old->table[j + 3].rate;
-				new->table[j].volt = old->table[j + 3].volt;
+				new->table[j].rate = readl_relaxed(&old->table[j + 3].rate);
+				new->table[j].volt = readl_relaxed(&old->table[j + 3].volt);
 			}
 		} else {
 			for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
-				new->table[j].rate = old->table[j].rate;
-				new->table[j].volt = old->table[j].volt;
+				new->table[j].rate = readl_relaxed(&old->table[j].rate);
+				new->table[j].volt = readl_relaxed(&old->table[j].volt);
 			}
 		}
 		for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
