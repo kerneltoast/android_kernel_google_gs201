@@ -781,8 +781,12 @@ static int dwc3_exynos_vbus_notifier(struct notifier_block *nb,
 {
 	struct dwc3_exynos *exynos = container_of(nb, struct dwc3_exynos, vbus_nb);
 
-	if (!exynos->usb_data_enabled)
+	dev_info(exynos->dev, "turn %s USB gadget\n", action ? "on" : "off");
+
+	if (!exynos->usb_data_enabled) {
+		dev_info(exynos->dev, "skip the notification due to USB enumeration disabled\n");
 		return NOTIFY_OK;
+	}
 
 	dwc3_exynos_vbus_event(exynos->dev, action);
 
@@ -794,8 +798,12 @@ static int dwc3_exynos_id_notifier(struct notifier_block *nb,
 {
 	struct dwc3_exynos *exynos = container_of(nb, struct dwc3_exynos, id_nb);
 
-	if (!exynos->usb_data_enabled)
+	dev_info(exynos->dev, "turn %s USB host\n", action ? "on" : "off");
+
+	if (!exynos->usb_data_enabled) {
+		dev_info(exynos->dev, "skip the notification due to USB enumeration disabled\n");
 		return NOTIFY_OK;
+	}
 
 	dwc3_exynos_id_event(exynos->dev, !action);
 
