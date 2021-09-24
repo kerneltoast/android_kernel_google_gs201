@@ -51,6 +51,7 @@ exynos-pd_el3.ko
 exynos-pm.ko
 exynos-pmu-if.ko
 exynos-reboot.ko
+exynos-seclog.ko
 exynos_devfreq.ko
 exynos_dit.ko
 exynos_mct.ko
