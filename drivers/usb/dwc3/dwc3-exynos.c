@@ -1168,7 +1168,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	dwc3_pdev = of_find_device_by_node(dwc3_np);
 	exynos->dwc = platform_get_drvdata(dwc3_pdev);
-	if (exynos->dwc == NULL)
+	if (exynos->dwc == NULL || exynos->dwc->dev == NULL || exynos->dwc->gadget == NULL)
 		goto populate_err;
 
 	/* dwc3 core configurations */
