@@ -74,7 +74,7 @@
 	};
 	panel@3 {
 		compatible = "samsung,s6e3hc3-c10";
-		label = "samsung-s6e3hc3-c10";
+		label = "sdc-s6e3hc3-c10";
 		channel = <0>;
 
 		/* reset, power */
