@@ -997,6 +997,9 @@ typedef struct pglist_data {
 
 	int kswapd_failures;		/* Number of 'reclaimed == 0' runs */
 
+	wait_queue_head_t kshrinkd_wait;
+	struct task_struct *kshrinkd;
+
 	ANDROID_OEM_DATA(1);
 #ifdef CONFIG_COMPACTION
 	int kcompactd_max_order;
