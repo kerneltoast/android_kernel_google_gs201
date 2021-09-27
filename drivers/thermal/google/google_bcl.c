@@ -1315,6 +1315,21 @@ static ssize_t clk_stats_show(struct bcl_device *bcl_dev, int idx, char *buf)
 	return sysfs_emit(buf, "0x%x\n", reg);
 }
 
+static int google_bcl_init_clk_div(struct bcl_device *bcl_dev, int idx, unsigned int value)
+{
+	void __iomem *addr;
+
+	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
+	if (addr == NULL)
+		return -EINVAL;
+
+	mutex_lock(&bcl_dev->ratio_lock);
+	__raw_writel(value, addr);
+	mutex_unlock(&bcl_dev->ratio_lock);
+
+	return 0;
+}
+
 static ssize_t clk_div_store(struct bcl_device *bcl_dev, int idx,
 			     const char *buf, size_t size)
 {
@@ -1326,18 +1341,23 @@ static ssize_t clk_div_store(struct bcl_device *bcl_dev, int idx,
 	if (ret != 1)
 		return -EINVAL;
 
-	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
-
-	if (addr == NULL) {
-		dev_err(bcl_dev->device, "Address is NULL\n");
-		return -EIO;
-	}
-
 	if (idx == TPU)
 		bcl_dev->tpu_clkdivstep = value;
 	else if (idx == GPU)
 		bcl_dev->gpu_clkdivstep = value;
 	else {
+		if (idx == CPU2)
+			bcl_dev->cpu2_clkdivstep = value;
+		else if (idx == CPU1)
+			bcl_dev->cpu1_clkdivstep = value;
+		else
+			bcl_dev->cpu0_clkdivstep = value;
+
+		addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
+		if (addr == NULL) {
+			dev_err(bcl_dev->device, "IDX %d: Address is NULL\n", idx);
+			return -EIO;
+		}
 		mutex_lock(&bcl_dev->ratio_lock);
 		__raw_writel(value, addr);
 		mutex_unlock(&bcl_dev->ratio_lock);
@@ -1707,11 +1727,6 @@ static ssize_t clk_ratio_store(struct bcl_device *bcl_dev, int idx,
 	if (ret != 1)
 		return -EINVAL;
 
-	addr = get_addr_by_rail(bcl_dev, clk_ratio_source[idx]);
-	if (addr == NULL) {
-		dev_err(bcl_dev->device, "Address is NULL\n");
-		return -EIO;
-	}
 	if (idx == TPU_HEAVY)
 		bcl_dev->tpu_con_heavy = value;
 	else if (idx == GPU_HEAVY)
@@ -1721,6 +1736,11 @@ static ssize_t clk_ratio_store(struct bcl_device *bcl_dev, int idx,
 	else if (idx == GPU_LIGHT)
 		bcl_dev->gpu_con_light = value;
 	else {
+		addr = get_addr_by_rail(bcl_dev, clk_ratio_source[idx]);
+		if (addr == NULL) {
+			dev_err(bcl_dev->device, "IDX %d: Address is NULL\n", idx);
+			return -EIO;
+		}
 		mutex_lock(&bcl_dev->ratio_lock);
 		__raw_writel(value, addr);
 		mutex_unlock(&bcl_dev->ratio_lock);
@@ -3147,7 +3167,19 @@ static int google_bcl_probe(struct platform_device *pdev)
 	bcl_dev->gpu_clkdivstep = ret ? 0 : val;
 	ret = of_property_read_u32(np, "tpu_clkdivstep", &val);
 	bcl_dev->tpu_clkdivstep = ret ? 0 : val;
+	ret = of_property_read_u32(np, "cpu2_clkdivstep", &val);
+	bcl_dev->cpu2_clkdivstep = ret ? 0 : val;
+	ret = of_property_read_u32(np, "cpu1_clkdivstep", &val);
+	bcl_dev->cpu1_clkdivstep = ret ? 0 : val;
+	ret = of_property_read_u32(np, "cpu0_clkdivstep", &val);
+	bcl_dev->cpu0_clkdivstep = ret ? 0 : val;
 	bcl_dev->batt_psy_initialized = false;
+	if (google_bcl_init_clk_div(bcl_dev, CPU2, bcl_dev->cpu2_clkdivstep) != 0)
+		dev_err(bcl_dev->device, "CPU2 Address is NULL\n");
+	if (google_bcl_init_clk_div(bcl_dev, CPU1, bcl_dev->cpu1_clkdivstep) != 0)
+		dev_err(bcl_dev->device, "CPU1 Address is NULL\n");
+	if (google_bcl_init_clk_div(bcl_dev, CPU0, bcl_dev->cpu0_clkdivstep) != 0)
+		dev_err(bcl_dev->device, "CPU0 Address is NULL\n");
 
 	ret = google_init_fs(bcl_dev);
 	if (ret < 0)

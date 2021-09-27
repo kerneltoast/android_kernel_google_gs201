@@ -7,6 +7,7 @@
 #ifndef __TCPCI_MAX77759_H
 #define __TCPCI_MAX77759_H
 
+#include <linux/alarmtimer.h>
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/usb/tcpm.h>
@@ -85,6 +86,12 @@ struct max77759_plat {
 	int contaminant_detection;
 	/* Userspace status */
 	bool contaminant_detection_userspace;
+	/* Consecutive floating cable instances */
+	unsigned int floating_cable_detected;
+	/* Timer to re-enable auto ultra lower mode for contaminant detection */
+	struct alarm reenable_auto_ultra_low_power_mode_alarm;
+	/* Bottom half for alarm */
+	struct kthread_work reenable_auto_ultra_low_power_mode_work;
 
 	/* Protects contaminant_detection variable and role_control */
 	struct mutex rc_lock;
@@ -149,6 +156,8 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 int enable_contaminant_detection(struct max77759_plat *chip, bool maxq);
 void disable_contaminant_detection(struct max77759_plat *chip);
 bool is_contaminant_detected(struct max77759_plat *chip);
+bool is_floating_cable_detected(struct max77759_plat *chip);
+void disable_auto_ultra_low_power_mode(struct max77759_plat *chip, bool disable);
 
 #define VBUS_VOLTAGE_MASK		0x3ff
 #define VBUS_VOLTAGE_LSB_MV		25

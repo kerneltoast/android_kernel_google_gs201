@@ -968,6 +968,7 @@ int mfc_core_just_run(struct mfc_core *core, int new_ctx_index)
 		 * as this will be newly decided in Prediction code.
 		 */
 		core->cache_flush_flag = 0;
+		core->last_cmd_has_cache_flush = 0;
 
 		/*
 		 * Check again the ctx condition and clear work bits

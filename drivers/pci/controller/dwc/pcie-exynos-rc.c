@@ -665,6 +665,11 @@ static ssize_t link_state_show(struct device *dev, struct device_attribute *attr
 	u32 val;
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 
+	if (exynos_pcie->phy_control == PCIE_PHY_ISOLATION) {
+		val = L2;   /* Not linked is equivalent to L2 */
+		goto exit;
+	}
+
 	val = exynos_phy_pcs_read(exynos_pcie, PM_POWER_STATE);
 	val &= PM_STATE_MASK;
 
@@ -694,6 +699,7 @@ static ssize_t link_state_show(struct device *dev, struct device_attribute *attr
 		val = UNKNOWN;
 	}
 
+exit:
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%d\n", val);
 
 	return ret;
