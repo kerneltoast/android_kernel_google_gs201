@@ -427,7 +427,8 @@ int zcomp_copy_buffer(int err, void *buffer, int comp_len,
 			__GFP_KSWAPD_RECLAIM |
 			__GFP_NOWARN |
 			__GFP_HIGHMEM |
-			__GFP_MOVABLE);
+			__GFP_MOVABLE |
+			__GFP_CMA);
 	if (!handle) {
 		err = -ENOMEM;
 		goto out;
