@@ -296,7 +296,7 @@ static int pktproc_clear_data_addr_without_bm(struct pktproc_queue *q)
 		return -EPERM;
 	}
 
-	mif_info("Unmap buffer from %d to %d\n", q->done_ptr, *q->fore_ptr);
+	mif_info("Unmap all buffers\n");
 	for (i = 0; i < q->num_desc; i++) {
 		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc &&
 			q->dma_addr[i])
@@ -1289,6 +1289,9 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 
 		switch (ppa->desc_mode) {
 		case DESC_MODE_SKTBUF:
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+			cpif_pcie_iommu_reset(q);
+#endif
 			if (pktproc_check_active(q->ppa, q->q_idx))
 				q->clear_data_addr(q);
 			if (q->manager)
@@ -1314,14 +1317,20 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 
 		q->q_info_ptr->num_desc = q->num_desc;
 
-
 		memset(&q->stat, 0, sizeof(struct pktproc_statistics));
 
 		switch (ppa->desc_mode) {
 		case DESC_MODE_SKTBUF:
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+			ret = cpif_pcie_iommu_init(q);
+			if (ret) {
+				mif_err("cpif_pcie_iommu_init() error %d Q%d\n", ret, q->q_idx);
+				continue;
+			}
+#endif
 			ret = q->alloc_rx_buf(q);
 			if (ret) {
-				mif_err_limited("alloc_rx_buf() error %d Q%d\n", ret, q->q_idx);
+				mif_err("alloc_rx_buf() error %d Q%d\n", ret, q->q_idx);
 				continue;
 			}
 			break;
@@ -1706,14 +1715,6 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 					goto create_error;
 				}
 				accum_buff_size += q->manager->total_buf_size;
-			} else {
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-				ret = cpif_pcie_iommu_init(q);
-				if (ret) {
-					mif_err("failed to init pcie iommu ret:%d\n", ret);
-					goto create_error;
-				}
-#endif
 			}
 
 			q->get_packet = pktproc_get_pkt_from_sktbuf_mode;
@@ -1815,9 +1816,6 @@ create_error:
 	for (i = 0; i < ppa->num_queue; i++) {
 		if (ppa->q[i]->manager)
 			cpif_exit_netrx_mng(ppa->q[i]->manager);
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-		cpif_pcie_iommu_deinit(ppa->q[i]);
-#endif
 		kfree(ppa->q[i]->dma_addr);
 		kfree(ppa->q[i]);
 	}

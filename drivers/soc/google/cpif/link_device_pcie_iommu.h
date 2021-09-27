@@ -11,7 +11,7 @@
 
 void cpif_pcie_iommu_enable_regions(struct mem_link_device *mld);
 int cpif_pcie_iommu_init(struct pktproc_queue *q);
-void cpif_pcie_iommu_deinit(struct pktproc_queue *q);
+void cpif_pcie_iommu_reset(struct pktproc_queue *q);
 
 void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 			     u32 idx, u32 *map_cnt);

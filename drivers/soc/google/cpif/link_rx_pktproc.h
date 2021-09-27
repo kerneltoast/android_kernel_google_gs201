@@ -109,7 +109,6 @@ struct pktproc_statistics {
 struct cpif_pcie_iommu_ctrl {
 	struct page_frag_cache pf_cache;
 	u32 pf_offset;
-	void **pf_buf;
 	u32 curr_fore;
 
 	/* Will */
@@ -122,6 +121,9 @@ struct cpif_pcie_iommu_ctrl {
 
 	/* Was */
 	u32 end_map_size;
+
+	/* These elements must be at the end */
+	void **pf_buf;
 };
 #endif
 

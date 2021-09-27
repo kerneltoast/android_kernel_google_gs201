@@ -49,16 +49,61 @@ void cpif_pcie_iommu_enable_regions(struct mem_link_device *mld)
 
 int cpif_pcie_iommu_init(struct pktproc_queue *q)
 {
-	q->ioc.pf_buf = kvzalloc(sizeof(void *) * q->num_desc, GFP_KERNEL);
-	if (!q->ioc.pf_buf)
-		return -ENOMEM;
+	struct cpif_pcie_iommu_ctrl *ioc = &q->ioc;
+	size_t size = sizeof(void *) * q->num_desc;
+
+	mif_info("iommu init num_desc:%u\n", q->num_desc);
+
+	if (ioc->pf_buf) {
+		memset(ioc->pf_buf, 0, size);
+	} else {
+		ioc->pf_buf = kvzalloc(size, GFP_KERNEL);
+		if (!ioc->pf_buf)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
 
-void cpif_pcie_iommu_deinit(struct pktproc_queue *q)
+void cpif_pcie_iommu_reset(struct pktproc_queue *q)
 {
-	kvfree(q->ioc.pf_buf);
+	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
+	struct cpif_pcie_iommu_ctrl *ioc = &q->ioc;
+	unsigned int usage, idx;
+	bool do_unmap = true;
+
+	if (!ioc->pf_buf)
+		return;
+
+	usage = circ_get_usage(q->num_desc, ioc->curr_fore, q->done_ptr);
+	idx = q->done_ptr;
+
+	mif_info("iommu reset done:%u curr_fore:%u usage:%u, fore:%u\n",
+		 q->done_ptr, ioc->curr_fore, usage, *q->fore_ptr);
+
+	while (usage--) {
+		if (do_unmap) {
+			unsigned long src_pa;
+
+			src_pa = desc[idx].cp_data_paddr - q->cp_buff_pbase +
+				 q->q_buff_pbase - q->ppa->skb_padding_size;
+			cpif_pcie_iommu_try_ummap_va(q, src_pa, ioc->pf_buf[idx], idx);
+
+			/* Just free the frags if not mapped yet */
+			if (idx == *q->fore_ptr)
+				do_unmap = false;
+		}
+
+		page_frag_free(ioc->pf_buf[idx]);
+		idx = circ_new_ptr(q->num_desc, idx, 1);
+	}
+
+	/* Initialize */
+	if (ioc->pf_cache.va) {
+		__page_frag_cache_drain(virt_to_page(ioc->pf_cache.va),
+					ioc->pf_cache.pagecnt_bias);
+	}
+	memset(&q->ioc, 0, offsetof(struct cpif_pcie_iommu_ctrl, pf_buf));
 }
 
 void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
