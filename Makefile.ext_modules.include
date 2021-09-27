@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+# The _emodinst_ target allows us to install an out-of-tree module without
+# running depmod. This is useful because we only need to run depmod once after
+# we installed all out-of-tree modules. Also, we can't have multiple instances
+# of scripts/depmod.sh run in parallel because that script is not safe to be
+# invoked multiple times in parallel.
+# Note that the _emodinst_ target is going away with Linux 5.13, so we have to
+# find a different solution then.
+
+$(ext_modules):
+	@echo Building and installing external module $(@)
+	@$(MAKE) --no-print-directory -C $(KERNEL_SRC)/$(rel_path)/$(@) M=$(rel_path)/$(@) O=$(O)
+	@$(MAKE) --no-print-directory -C $(KERNEL_SRC) M=$(rel_path)/$(@) O=$(O) _emodinst_
+
+depmod: $(ext_modules)
+	@echo Running depmod
+	@$(MAKE) --no-print-directory -C $(KERNEL_SRC) M=$(rel_path)/$(firstword $(ext_modules)) O=$(O) _emodinst_post
+
+$(install_uapi_headers_targets): %_headers_install: %
+	@echo Installing UAPI headers of external module $(@:_headers_install=)
+	@$(MAKE) --no-print-directory -C $(KERNEL_SRC)/$(rel_path)/$(@:_headers_install=) M=$(rel_path)/$(@:_headers_install=) O=$(O) headers_install

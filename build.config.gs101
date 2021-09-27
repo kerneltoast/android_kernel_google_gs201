@@ -64,11 +64,6 @@ AVB_BOOT_PARTITION_SIZE=0x04000000
 AVB_BOOT_KEY=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/share/avb/testkey_rsa2048.pem
 AVB_BOOT_ALGORITHM=SHA256_RSA2048
 
-UWB_MODULE="private/google-modules/uwb/kernel"
-if [ -d "${ROOT_DIR}/${UWB_MODULE}" ]; then
-EXT_MODULES+=${UWB_MODULE}
-fi
-
 if [ -n "${GKI_DEFCONFIG_FRAGMENT}" ]; then
 source ${GKI_DEFCONFIG_FRAGMENT}
 fi
