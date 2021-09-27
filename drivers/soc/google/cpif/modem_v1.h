@@ -356,18 +356,18 @@ struct cpif_gpio {
 
 #define mif_dt_count_u32_elems(np, prop, dest) \
 	do { \
-		u32 val; \
+		int val; \
 		val = of_property_count_u32_elems(np, prop); \
 		if (val < 0) { \
 			mif_err("can not get %s\n", prop); \
 			return -EINVAL; \
 		} \
-		dest = val; \
+		dest = (u32)val; \
 	} while (0)
 
 #define mif_dt_count_u32_array(np, prop, dest, size) \
 	do { \
-		u32 val; \
+		int val; \
 		val = of_property_read_u32_array(np, prop, dest, size); \
 		if (val < 0) { \
 			mif_err("can not get %s %d\n", prop, size); \
