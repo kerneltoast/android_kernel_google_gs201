@@ -595,28 +595,27 @@ static inline void set_skb_priv(struct sbd_ring_buffer *rb, struct sk_buff *skb)
 	}
 }
 
-struct sk_buff *sbd_pio_rx(struct sbd_ring_buffer *rb)
+int sbd_pio_rx(struct sbd_ring_buffer *rb, struct sk_buff **skb)
 {
-	struct sk_buff *skb;
 	unsigned int qlen = rb->len;
 	unsigned int out = *rb->rp;
 
 	if (out >= qlen) {
 		mif_err("out value exceeds ring buffer size\n");
-		return NULL;
+		return -EFAULT;
 	}
 
-	skb = recv_data(rb, out);
-	if (unlikely(!skb))
-		return NULL;
+	*skb = recv_data(rb, out);
+	if (unlikely(!(*skb)))
+		return -ENOMEM;
 
-	set_lnk_hdr(rb, skb);
+	set_lnk_hdr(rb, *skb);
 
-	set_skb_priv(rb, skb);
+	set_skb_priv(rb, *skb);
 
-	check_more(rb, skb);
+	check_more(rb, *skb);
 
 	*rb->rp = circ_new_ptr(qlen, out, 1);
 
-	return skb;
+	return 0;
 }

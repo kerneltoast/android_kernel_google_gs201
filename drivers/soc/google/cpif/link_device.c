@@ -1675,11 +1675,11 @@ static int rx_net_frames_from_rb(struct sbd_ring_buffer *rb, int budget,
 	num_frames = min_t(unsigned int, rb_usage(rb), budget);
 
 	while (rcvd < num_frames) {
-		struct sk_buff *skb;
+		struct sk_buff *skb = NULL;
 
-		skb = sbd_pio_rx(rb);
-		if (!skb)
-			return -ENOMEM;
+		ret = sbd_pio_rx(rb, &skb);
+		if (unlikely(ret))
+			return ret;
 
 		/* The $rcvd must be accumulated here, because $skb can be freed
 		 * in pass_skb_to_net().
@@ -1714,13 +1714,14 @@ static int rx_ipc_frames_from_rb(struct sbd_ring_buffer *rb)
 	unsigned int in = *rb->wp;
 	unsigned int out = *rb->rp;
 	unsigned int num_frames = circ_get_usage(qlen, in, out);
+	int ret = 0;
 
 	while (rcvd < num_frames) {
-		struct sk_buff *skb;
+		struct sk_buff *skb = NULL;
 
-		skb = sbd_pio_rx(rb);
-		if (!skb)
-			return -ENOMEM;
+		ret = sbd_pio_rx(rb, &skb);
+		if (unlikely(ret))
+			return ret;
 
 		/* The $rcvd must be accumulated here, because $skb can be freed
 		 * in pass_skb_to_demux().
@@ -2396,7 +2397,7 @@ static int sbd_link_rx_func_napi(struct sbd_link_device *sl, struct link_device 
 			ret = rx_ipc_frames_from_rb(rb);
 		else /* ps channels */
 			ret = sbd_ipc_rx_func_napi(ld, rb->iod, budget, &ps_rcvd);
-		if ((ret == -EBUSY) || (ret == -ENOMEM))
+		if ((ret == -EBUSY) || (ret == -ENOMEM) || (ret == -EFAULT))
 			break;
 		if (ld->is_ps_ch(sbd_id2ch(sl, i))) {
 			/* count budget only for ps frames */
@@ -2506,6 +2507,11 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 		ret = sbd_link_rx_func_napi(sl, ld, budget, &ps_rcvd);
 		if ((ret == -EBUSY) || (ret == -ENOMEM))
 			goto keep_poll;
+		else if (ret == -EFAULT) { /* unrecoverable error */
+			link_trigger_cp_crash(mld, CRASH_REASON_MIF_RX_BAD_DATA,
+					"rp exceeds ring buffer size");
+			goto dummy_poll_complete;
+		}
 		budget -= ps_rcvd;
 		total_ps_rcvd += ps_rcvd;
 		ps_rcvd = 0;
