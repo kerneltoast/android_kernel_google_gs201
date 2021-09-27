@@ -50,7 +50,6 @@
 		vddd-lp-microvolt = <RAVEN_VDD_LP_MICROVOLT>;
 		vci-supply = <&s_ldo6_reg>;
 		vddi-supply = <&s_bucka_reg>;
-		is_secondary;
 	};
 	panel@1 {
 		compatible = "samsung,emul";
@@ -59,7 +58,6 @@
 
 		/* reset, power */
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
-		is_secondary;
 	};
 	panel@2 {
 		compatible = "samsung,s6e3fc3";
@@ -70,7 +68,6 @@
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
 		vci-supply = <&s_ldo6_reg>;
 		vddi-supply = <&s_bucka_reg>;
-		is_secondary;
 	};
 	panel@3 {
 		compatible = "samsung,s6e3hc3-c10";
@@ -81,6 +78,5 @@
 		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
 		vci-supply = <&s_ldo6_reg>;
 		vddi-supply = <&s_bucka_reg>;
-		is_secondary;
 	};
 };
