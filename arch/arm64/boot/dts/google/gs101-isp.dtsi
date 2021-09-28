@@ -678,16 +678,16 @@
 			<0x0 0x1B450000 0x10000>, /* ITP */
 			<0x0 0x1B040000 0x10000>, /* DNS */
 			<0x0 0x1B740000 0x10000>, /* ITSC */
+			<0x0 0x1B020000 0x10000>, /* SYSREG DNS */
 			<0x0 0x1B894000 0xA00>,   /* SSMT D0 ITSC */
-			<0x0 0x1B8A4000 0xA00>,   /* SSMT D1 ITSC */
-			<0x0 0x1B020000 0x10000>; /* SYSREG DNS */
+			<0x0 0x1B8A4000 0xA00>;   /* SSMT D1 ITSC */
 		reg-names =
 			"itp",
 			"dns",
 			"itsc",
+			"sysreg_dns",
 			"ssmt_d0_itsc",
-			"ssmt_d1_itsc",
-			"sysreg_dns";
+			"ssmt_d1_itsc";
 
 		clocks =
 			<&clock UMUX_CLKCMU_ITP_BUS>,
