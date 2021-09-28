@@ -928,6 +928,19 @@ static void freq_qos_release(struct work_struct *work)
 }
 
 static int
+init_user_freq_qos(struct exynos_cpufreq_domain *domain, struct cpufreq_policy *policy)
+{
+	int ret = freq_qos_add_request(&policy->constraints, &domain->user_min_qos_req,
+				       FREQ_QOS_MIN, domain->min_freq);
+	if (ret < 0)
+		return ret;
+
+	ret = freq_qos_add_request(&policy->constraints, &domain->user_max_qos_req,
+				   FREQ_QOS_MAX, domain->soft_max_freq);
+	return ret;
+}
+
+static int
 init_freq_qos(struct exynos_cpufreq_domain *domain, struct cpufreq_policy *policy)
 {
 	unsigned int boot_qos, val;
@@ -940,16 +953,6 @@ init_freq_qos(struct exynos_cpufreq_domain *domain, struct cpufreq_policy *polic
 		return ret;
 
 	ret = freq_qos_add_request(&policy->constraints, &domain->max_qos_req,
-				   FREQ_QOS_MAX, domain->max_freq);
-	if (ret < 0)
-		return ret;
-
-	ret = freq_qos_add_request(&policy->constraints, &domain->user_min_qos_req,
-				   FREQ_QOS_MIN, domain->min_freq);
-	if (ret < 0)
-		return ret;
-
-	ret = freq_qos_add_request(&policy->constraints, &domain->user_max_qos_req,
 				   FREQ_QOS_MAX, domain->max_freq);
 	if (ret < 0)
 		return ret;
@@ -1072,6 +1075,7 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 	 * to bigger one.
 	 */
 	domain->max_freq = cal_dfs_get_max_freq(domain->cal_id);
+	domain->soft_max_freq = domain->max_freq;
 	domain->min_freq = cal_dfs_get_min_freq(domain->cal_id);
 
 	if (!of_property_read_u32(dn, "max-freq", &val))
@@ -1080,6 +1084,9 @@ static int init_domain(struct exynos_cpufreq_domain *domain,
 		domain->min_freq = max(domain->min_freq, val);
 	if (!of_property_read_u32(dn, "resume-freq", &val))
 		resume_freq = max(domain->min_freq, val);
+	if (!of_property_read_u32(dn, "soft-max-freq", &val))
+		domain->soft_max_freq = min(domain->max_freq, val);
+	domain->soft_max_freq = max(domain->soft_max_freq, domain->min_freq);
 
 	domain->max_freq_qos = domain->max_freq;
 	domain->min_freq_qos = domain->min_freq;
@@ -1301,11 +1308,19 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 	list_for_each_entry(domain, &domains, list) {
 		struct cpufreq_policy *policy;
 
-		enable_domain(domain);
-
 		policy = cpufreq_cpu_get_raw(cpumask_first(&domain->cpus));
-		if (!policy)
-			continue;
+		if (!policy) {
+			pr_err("failed to find domain policy!\n");
+			return -ENODEV;
+		}
+
+		ret = init_user_freq_qos(domain, policy);
+		if (ret < 0) {
+			pr_err("Failed to set max user qos vote!\n");
+			return ret;
+		}
+
+		enable_domain(domain);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
 		exynos_cpufreq_cooling_register(domain->dn, policy);
