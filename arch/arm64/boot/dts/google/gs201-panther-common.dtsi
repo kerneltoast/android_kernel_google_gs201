@@ -16,7 +16,6 @@
 #include "gs201-cloudripper-nfc.dtsi"
 #include "gs201-cloudripper-sbbm.dtsi"
 
-#include "gs201-ravenclaw-audio.dtsi"
 #include "gs201-ravenclaw-fingerprint.dtsi"
 #include "gs201-ravenclaw-wcharger.dtsi"
 #include "gs201-ravenclaw-usecases.dtsi"
@@ -26,3 +25,4 @@
 #include "gs201-panther-display.dtsi"
 #include "gs201-panther-touch.dtsi"
 #include "gs201-panther-thermal.dtsi"
+#include "gs201-panther-audio.dtsi"
