@@ -16,6 +16,7 @@
 		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
 		vci-supply = <&m_ldo27_reg>;
 		vddi-supply = <&s_bucka_reg>;
+		touch = <&spitouch>;
 	};
 	panel@1 {
 		compatible = "samsung,emul";

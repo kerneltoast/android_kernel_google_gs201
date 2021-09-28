@@ -20,6 +20,7 @@
 		vddd-lp-microvolt = <CHEETAH_VDDD_LP_MICROVOLT>;
 		vci-supply = <&m_ldo27_reg>;
 		vddi-supply = <&s_bucka_reg>;
+		touch = <&spitouch>;
 	};
 	panel@1 {
 		compatible = "samsung,emul";
