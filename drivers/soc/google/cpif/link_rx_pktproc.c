@@ -1216,6 +1216,11 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 				circ_get_usage(q->num_desc, *q->fore_ptr, *q->rear_ptr),
 				circ_get_usage(q->num_desc, *q->rear_ptr, q->done_ptr),
 				circ_get_usage(q->num_desc, *q->rear_ptr, *q->fore_ptr));
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+			count += scnprintf(&buf[count], PAGE_SIZE - count,
+				"  iommu_mapped cnt:%u size:0x%lX\n",
+				q->ioc.mapped_cnt, q->ioc.mapped_size);
+#endif
 			break;
 		default:
 			break;

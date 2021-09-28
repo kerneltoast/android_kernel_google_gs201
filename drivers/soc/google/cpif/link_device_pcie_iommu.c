@@ -145,6 +145,8 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 				ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
 			return NULL;
 		}
+		ioc->mapped_cnt++;
+		ioc->mapped_size += map_size;
 
 		/* Store the last mapping size */
 		if (!idx)
@@ -211,6 +213,8 @@ void cpif_pcie_iommu_try_ummap_va(struct pktproc_queue *q, unsigned long src_pa,
 		mif_err("invalid unmap size:0x%X expected:0x%X src_pa:0x%lX\n",
 			ret, unmap_size, ioc->unmap_src_pa);
 	}
+	ioc->mapped_cnt--;
+	ioc->mapped_size -= unmap_size;
 
 set_unmap:
 	ioc->unmap_src_pa = src_pa;

@@ -124,6 +124,9 @@ struct cpif_pcie_iommu_ctrl {
 
 	/* These elements must be at the end */
 	void **pf_buf;
+	/* Debug */
+	u32 mapped_cnt;
+	u64 mapped_size;
 };
 #endif
 
