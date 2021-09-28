@@ -387,7 +387,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x2B>;
 				schematic-name = "L11M_VDD_CPUCL1_M";
 				subsys-name = "CPU(MID)";
@@ -398,7 +398,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x2C>;
 				schematic-name = "L12M_VDD_CPUCL0_M";
 				subsys-name = "CPU(LITTLE)";
@@ -453,7 +453,7 @@
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x31>;
 				schematic-name = "L17M_VDD_CPUCL2_M";
 				subsys-name = "";
