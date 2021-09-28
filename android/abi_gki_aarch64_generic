@@ -422,6 +422,7 @@
   dev_queue_xmit
   devres_add
   devres_alloc_node
+  devres_free
   dev_set_name
   _dev_warn
   disable_irq
@@ -651,6 +652,7 @@
   drm_plane_create_alpha_property
   drm_plane_create_blend_mode_property
   drm_plane_create_rotation_property
+  drm_plane_create_zpos_immutable_property
   drm_plane_create_zpos_property
   drm_poll
   drm_prime_gem_destroy
@@ -694,6 +696,7 @@
   dw_pcie_write
   __dynamic_dev_dbg
   __dynamic_pr_debug
+  emergency_restart
   enable_irq
   enable_percpu_irq
   eth_type_trans
@@ -955,6 +958,7 @@
   kasprintf
   kernel_cpustat
   kernel_kobj
+  kernel_restart
   kern_mount
   kern_unmount
   __kfifo_alloc
@@ -1271,6 +1275,7 @@
   phy_init
   phy_power_off
   phy_power_on
+  pid_task
   pinconf_generic_dt_free_map
   pinconf_generic_dt_node_to_map
   pinctrl_add_gpio_range
@@ -1355,6 +1360,7 @@
   put_device
   put_disk
   __put_page
+  put_pid
   put_sg_io_hdr
   __put_task_struct
   put_unused_fd
@@ -1412,6 +1418,7 @@
   register_netdev
   register_netdevice
   register_netdevice_notifier
+  register_oom_notifier
   register_pm_notifier
   register_reboot_notifier
   register_restart_handler
@@ -1798,6 +1805,7 @@
   __traceiter_android_vh_of_i2c_get_board_info
   __traceiter_android_vh_setscheduler_uclamp
   __traceiter_android_vh_snd_compr_use_pause_in_drain
+  __traceiter_android_vh_sysrq_crash
   __traceiter_android_vh_thermal_pm_notify_suspend
   __traceiter_android_vh_timerfd_create
   __traceiter_android_vh_typec_store_partner_src_caps
@@ -1862,6 +1870,7 @@
   __tracepoint_android_vh_of_i2c_get_board_info
   __tracepoint_android_vh_setscheduler_uclamp
   __tracepoint_android_vh_snd_compr_use_pause_in_drain
+  __tracepoint_android_vh_sysrq_crash
   __tracepoint_android_vh_thermal_pm_notify_suspend
   __tracepoint_android_vh_timerfd_create
   __tracepoint_android_vh_typec_store_partner_src_caps
@@ -1955,6 +1964,7 @@
   unregister_netdev
   unregister_netdevice_notifier
   unregister_netdevice_queue
+  unregister_oom_notifier
   unregister_pm_notifier
   unregister_reboot_notifier
   unregister_shrinker
