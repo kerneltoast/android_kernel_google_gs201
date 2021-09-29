@@ -796,7 +796,6 @@ u8 sipc5_build_config(struct io_device *iod, struct link_device *ld,
 				unsigned int count);
 void sipc5_build_header(struct io_device *iod, u8 *buff, u8 cfg,
 				unsigned int tx_bytes, unsigned int remains);
-void iodev_dump_status(struct io_device *iod, void *args);
 void vnet_setup(struct net_device *ndev);
 const struct file_operations *get_bootdump_io_fops(void);
 const struct file_operations *get_ipc_io_fops(void);

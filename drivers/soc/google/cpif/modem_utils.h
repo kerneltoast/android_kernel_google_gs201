@@ -326,25 +326,6 @@ static inline unsigned int calc_offset(void *target, void *base)
 	return (unsigned long)target - (unsigned long)base;
 }
 
-int mif_dump_log(struct modem_shared *, struct io_device *);
-
-#define mif_irq_log(msd, map, data, len) \
-	_mif_irq_log(MIF_IRQ, msd, map, data, len)
-#define mif_com_log(msd, format, ...) \
-	_mif_com_log(MIF_COM, msd, pr_fmt(format), ##__VA_ARGS__)
-#define mif_time_log(msd, epoch, data, len) \
-	_mif_time_log(MIF_TIME, msd, epoch, data, len)
-
-void mif_ipc_log(enum mif_log_id id,
-	struct modem_shared *msd, const char *data, size_t len);
-void _mif_irq_log(enum mif_log_id id,
-	struct modem_shared *msd, struct mif_irq_map irq_map, const char *data, size_t len);
-void _mif_com_log(enum mif_log_id id,
-	struct modem_shared *msd, const char *data, ...);
-void _mif_time_log(enum mif_log_id id,
-	struct modem_shared *msd, struct timespec64 epoch, const char *data,
-	size_t len);
-
 static inline struct link_device *find_linkdev(struct modem_shared *msd,
 		u32 link_type)
 {
@@ -461,13 +442,6 @@ __be32 ipv4str_to_be32(const char *ipv4str, size_t count);
 void mif_add_timer(struct timer_list *timer, unsigned long expire,
 				void (*function)(struct timer_list *));
 
-/* debug helper functions for sipc4, sipc5 */
-void mif_print_data(const u8 *data, int len);
-
-void mif_dump2format16(const u8 *data, int len, char *buff, char *tag);
-void mif_dump2format4(const u8 *data, int len, char *buff, char *tag);
-void mif_print_dump(const u8 *data, int len, int width);
-
 /*
  * ---------------------------------------------------------------------------
 
@@ -546,9 +520,9 @@ void mif_print_dump(const u8 *data, int len, int width);
 */
 #define UDP_HDR_SIZE	8
 
+#ifdef DEBUG_MODEM_IF_IP_DATA
 void print_ipv4_packet(const u8 *ip_pkt, enum direction dir);
-bool is_dns_packet(const u8 *ip_pkt);
-bool is_syn_packet(const u8 *ip_pkt);
+#endif
 
 void mif_init_irq(struct modem_irq *irq, unsigned int num, const char *name,
 		  unsigned long flags);
@@ -579,8 +553,6 @@ void set_wakeup_packet_log(bool enable);
 #define MIF_BUFF_DEFAULT_PACKET_SIZE   (2048)
 #define MIF_BUFF_CELL_PADDING_SIZE     (512)
 #define MIF_BUFF_DEFAULT_CELL_SIZE     (MIF_BUFF_DEFAULT_PACKET_SIZE+MIF_BUFF_CELL_PADDING_SIZE)
-
-void set_dflags(unsigned long flag);
 
 const char *get_cpif_driver_version(void);
 

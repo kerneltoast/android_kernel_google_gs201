@@ -576,15 +576,6 @@ static void io_dev_sim_state_changed(struct io_device *iod, bool sim_online)
 	}
 }
 
-void iodev_dump_status(struct io_device *iod, void *args)
-{
-	if (iod->format == IPC_RAW && iod->io_typ == IODEV_NET) {
-		struct link_device *ld = get_current_link(iod);
-
-		mif_com_log(iod->mc->msd, "%s: %s\n", iod->name, ld->name);
-	}
-}
-
 u16 exynos_build_fr_config(struct io_device *iod, struct link_device *ld,
 				unsigned int count)
 {
@@ -888,4 +879,3 @@ void sipc5_deinit_io_device(struct io_device *iod)
 		break;
 	}
 }
-
