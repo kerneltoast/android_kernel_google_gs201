@@ -427,7 +427,7 @@ static inline struct io_device *link_get_iod_with_channel(
 	struct io_device *iod = get_iod_with_channel(ld->msd, channel);
 	struct mem_link_device *mld = ld->mdm_data->mld;
 
-	if (!iod && atomic_read(&mld->cp_boot_done))
+	if (!iod && atomic_read(&mld->init_end_cnt))
 		mif_err("No IOD matches channel (%d)\n", channel);
 
 	return (iod && IS_CONNECTED(iod, ld)) ? iod : NULL;

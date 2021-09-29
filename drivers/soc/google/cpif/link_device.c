@@ -536,9 +536,9 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 	struct modem_ctl *mc = ld->mc;
 	int err;
 
-	mif_err("%s: INIT_START <- %s (%s.state:%s cp_boot_done:%d)\n",
+	mif_err("%s: INIT_START <- %s (%s.state:%s init_end_cnt:%d)\n",
 		ld->name, mc->name, mc->name, mc_state(mc),
-		atomic_read(&mld->cp_boot_done));
+		atomic_read(&mld->init_end_cnt));
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	err = pktproc_init(&mld->pktproc);
@@ -607,14 +607,14 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 	unsigned long flags;
 	int err;
 
-	mif_info_limited("%s: PHONE_START <- %s (%s.state:%s cp_boot_done:%d)\n",
-		ld->name, mc->name, mc->name, mc_state(mc),
-		atomic_read(&mld->cp_boot_done));
+	mif_info_limited("%s: PHONE_START <- %s (%s.state:%s init_end_cnt:%d)\n",
+			 ld->name, mc->name, mc->name, mc_state(mc),
+			 atomic_read(&mld->init_end_cnt));
 
 	if (mld->state == LINK_STATE_OFFLINE)
 		phone_start_count = 0;
 
-	if (atomic_read(&mld->cp_boot_done)) {
+	if (atomic_read(&mld->init_end_cnt)) {
 		mif_err_limited("Abnormal PHONE_START from CP\n");
 
 		if (++phone_start_count > PHONE_START_IRQ_MARGIN) {
@@ -646,9 +646,8 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 		 */
 		if (rild_ready(ld)) {
 			mif_info("%s: INIT_END -> %s\n", ld->name, mc->name);
+			atomic_inc(&mld->init_end_cnt);
 			send_ipc_irq_debug(mld, cmd2int(CMD_INIT_END));
-
-			atomic_set(&mld->cp_boot_done, 1);
 		}
 		goto exit;
 	}
@@ -690,9 +689,8 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 
 	if (rild_ready(ld)) {
 		mif_info("%s: INIT_END -> %s\n", ld->name, mc->name);
+		atomic_inc(&mld->init_end_cnt);
 		send_ipc_irq_debug(mld, cmd2int(CMD_INIT_END));
-
-		atomic_set(&mld->cp_boot_done, 1);
 	}
 
 #if IS_ENABLED(CONFIG_MCU_IPC)
@@ -2069,51 +2067,37 @@ static int shmem_init_comm(struct link_device *ld, struct io_device *iod)
 {
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	struct modem_ctl *mc = ld->mc;
-	struct io_device *check_iod;
+	struct io_device *check_iod = NULL;
+	bool allow_no_check_iod = false;
 	int id = iod->ch;
 	int fmt2rfs = (ld->chid_rfs_0 - ld->chid_fmt_0);
 	int rfs2fmt = (ld->chid_fmt_0 - ld->chid_rfs_0);
 
-	if (atomic_read(&mld->cp_boot_done))
+	if (atomic_read(&mld->init_end_cnt))
 		return 0;
 
 	if (ld->protocol == PROTOCOL_SIT)
 		return 0;
 
+	/* FMT will check RFS and vice versa */
 	if (ld->is_fmt_ch(id)) {
 		check_iod = link_get_iod_with_channel(ld, (id + fmt2rfs));
-		if (check_iod ? atomic_read(&check_iod->opened) : true) {
-			if (ld->link_type == LINKDEV_SHMEM)
-				write_clk_table_to_shmem(mld);
-
-			mif_err("%s: %s->INIT_END->%s\n",
-				ld->name, iod->name, mc->name);
-			if (!atomic_read(&mld->cp_boot_done)) {
-				send_ipc_irq(mld, cmd2int(CMD_INIT_END));
-				atomic_set(&mld->cp_boot_done, 1);
-			}
-		} else {
-			mif_err("%s is not opened yet\n", check_iod->name);
-		}
+		allow_no_check_iod = true;
+	} else if (ld->is_rfs_ch(id)) {
+		check_iod = link_get_iod_with_channel(ld, (id + rfs2fmt));
 	}
 
-	if (ld->is_rfs_ch(id)) {
-		check_iod = link_get_iod_with_channel(ld, (id + rfs2fmt));
-		if (check_iod) {
-			if (atomic_read(&check_iod->opened)) {
-				if (ld->link_type == LINKDEV_SHMEM)
-					write_clk_table_to_shmem(mld);
+	if (check_iod ? atomic_read(&check_iod->opened) : allow_no_check_iod) {
+		if (ld->link_type == LINKDEV_SHMEM)
+			write_clk_table_to_shmem(mld);
 
-				mif_err("%s: %s->INIT_END->%s\n",
-					ld->name, iod->name, mc->name);
-				if (!atomic_read(&mld->cp_boot_done)) {
-					send_ipc_irq(mld, cmd2int(CMD_INIT_END));
-					atomic_set(&mld->cp_boot_done, 1);
-				}
-			} else {
-				mif_err("%s not opened yet\n", check_iod->name);
-			}
+		if (!atomic_read(&mld->init_end_cnt)) {
+			mif_err("%s: %s -> INIT_END -> %s\n", ld->name, iod->name, mc->name);
+			atomic_inc(&mld->init_end_cnt);
+			send_ipc_irq(mld, cmd2int(CMD_INIT_END));
 		}
+	} else if (check_iod) {
+		mif_err("%s is not opened yet\n", check_iod->name);
 	}
 
 	return 0;
@@ -2133,7 +2117,9 @@ static void link_prepare_normal_boot(struct link_device *ld, struct io_device *i
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	unsigned long flags;
 
-	atomic_set(&mld->cp_boot_done, 0);
+	atomic_set(&mld->init_end_cnt, 0);
+	atomic_set(&mld->init_end_busy, 0);
+	mld->last_init_end_cnt = 0;
 
 	spin_lock_irqsave(&mld->state_lock, flags);
 	mld->state = LINK_STATE_OFFLINE;

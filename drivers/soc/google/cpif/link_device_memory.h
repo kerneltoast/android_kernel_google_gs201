@@ -286,7 +286,9 @@ struct mem_link_device {
 	 * Member variables for CP booting and crash dump
 	 */
 	struct delayed_work bootdump_rx_dwork;
-	atomic_t cp_boot_done;
+	atomic_t init_end_cnt;
+	atomic_t init_end_busy;
+	int last_init_end_cnt;
 
 	/**
 	 * Mandatory methods for the common memory-type interface framework

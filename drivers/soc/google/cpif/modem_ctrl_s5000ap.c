@@ -323,8 +323,6 @@ static int power_on_cp(struct modem_ctl *mc)
 {
 	mif_info("+++\n");
 
-	mc->receive_first_ipc = 0;
-
 	change_modem_state(mc, STATE_OFFLINE);
 
 	if (cal_cp_status() == 0) {
@@ -389,8 +387,6 @@ static int power_reset_cp(struct modem_ctl *mc)
 
 	mif_info("+++\n");
 
-	mc->receive_first_ipc = 0;
-
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))
 		del_timer(&mld->crash_ack_timer);
@@ -434,8 +430,6 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 	struct mem_link_device *mld = to_mem_link_device(ld);
 
 	mif_info("+++\n");
-
-	mc->receive_first_ipc = 0;
 
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))

@@ -742,8 +742,6 @@ struct modem_ctl {
 
 	void (*modem_complete)(struct modem_ctl *mc);
 
-	int receive_first_ipc;
-
 	struct notifier_block lcd_notifier;
 
 	struct cp_power_stats cp_power_stats;
