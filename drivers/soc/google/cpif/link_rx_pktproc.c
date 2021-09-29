@@ -1485,6 +1485,9 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 		mif_err("not compatible with pcie iommu\n");
 		return -EINVAL;
 	}
+
+	ppa->max_packet_size = roundup_pow_of_two(ppa->max_packet_size);
+	mif_info("adjusted iommu max_packet_size:%u\n", ppa->max_packet_size);
 #endif
 
 	return 0;
