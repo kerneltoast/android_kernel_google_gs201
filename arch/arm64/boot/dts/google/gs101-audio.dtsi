@@ -763,6 +763,20 @@
 					dai-format = "dsp_a";
 				};
 			};
+
+			dai_be_eraser_tx: be_eraser_tx {
+				dai-name = "ERASER_TX Capture";
+				stream-name = "ERASER_TX Capture";
+				id = <ERASER_TX>;
+				capture;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path ERASER_TX>;
+				};
+			};
+
 		};
 	};
 
