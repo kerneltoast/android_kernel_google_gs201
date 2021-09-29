@@ -1495,7 +1495,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct pktproc_adaptor *ppa = &mld->pktproc;
-	u32 buff_size, buff_size_by_q, accum_buff_size;
+	u32 buff_size_by_q, accum_buff_size;
 	u32 alloc_size;
 	int i;
 	int ret = 0;
@@ -1563,15 +1563,22 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 	mif_info("info + desc size:0x%08x\n", ppa->info_rgn_size + ppa->desc_rgn_size);
 
 	if (!ppa->use_netrx_mng) {
-		buff_size = ppa->buff_rgn_size;
-		buff_size_by_q = buff_size / ppa->num_queue;
+		buff_size_by_q = ppa->buff_rgn_size / ppa->num_queue;
 		ppa->buff_pbase = memaddr + ppa->buff_rgn_offset;
-		if (ppa->buff_rgn_cached)
+		if (ppa->buff_rgn_cached) {
 			ppa->buff_vbase = phys_to_virt(ppa->buff_pbase);
-		else
-			ppa->buff_vbase = cp_shmem_get_nc_region(ppa->buff_pbase, buff_size);
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+			mif_info("release iommu buffer region offset:0x%08x\n",
+				 ppa->buff_rgn_offset);
+			cp_shmem_release_rmem(mld->link_dev.mdm_data->cp_num,
+					      SHMEM_PKTPROC, ppa->buff_rgn_offset);
+#endif
+		} else {
+			ppa->buff_vbase = cp_shmem_get_nc_region(ppa->buff_pbase,
+								 ppa->buff_rgn_size);
+		}
 		mif_info("Total buff buffer size:0x%08x Queue:%d Size by queue:0x%08x\n",
-					buff_size, ppa->num_queue, buff_size_by_q);
+			 ppa->buff_rgn_size, ppa->num_queue, buff_size_by_q);
 	} else
 		accum_buff_size = 0;
 
