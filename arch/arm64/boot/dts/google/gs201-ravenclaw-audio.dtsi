@@ -13,7 +13,7 @@
 #include <dt-bindings/sound/google-aoc.h>
 
 &aoc {
-	aoc-board-cfg = "r4";
+	aoc-board-cfg = "rc";
 };
 
 &dai_be_tdm0_rx {
