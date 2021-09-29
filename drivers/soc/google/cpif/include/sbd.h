@@ -475,6 +475,7 @@ static inline void check_more(struct sbd_ring_buffer *rb, struct sk_buff *skb)
 	}
 }
 
+#if IS_ENABLED(CONFIG_LINK_DEVICE_WITH_SBD_ARCH)
 int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
 			   u8 *shmem_base, unsigned int shmem_size);
 
@@ -483,6 +484,19 @@ bool check_sbd_tx_pending(struct mem_link_device *mld);
 
 int sbd_pio_tx(struct sbd_ring_buffer *rb, struct sk_buff *skb);
 int sbd_pio_rx(struct sbd_ring_buffer *rb, struct sk_buff **skb);
+#else
+static inline int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
+			   u8 *shmem_base, unsigned int shmem_size) { return 0; }
+
+static inline int init_sbd_link(struct sbd_link_device *sl) { return 0; }
+static inline bool check_sbd_tx_pending(struct mem_link_device *mld)
+	{ return false; }
+
+static inline int sbd_pio_tx(struct sbd_ring_buffer *rb,
+	struct sk_buff *skb) { return 0; }
+static inline int sbd_pio_rx(struct sbd_ring_buffer *rb, struct sk_buff **skb)
+	{ return 0; }
+#endif
 
 #define SBD_UL_LIMIT		16	/* Uplink burst limit */
 
