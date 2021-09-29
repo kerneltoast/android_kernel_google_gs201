@@ -101,7 +101,7 @@ struct exynos_ufs {
 	enum exynos_host_state h_state_prev;
 	enum exynos_clk_state c_state;
 
-	u32 mclk_rate;
+	unsigned long mclk_rate;
 
 	int num_lanes;
 
