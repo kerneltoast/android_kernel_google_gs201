@@ -372,7 +372,7 @@ create_exit:
 	if (btl->mem.v_base)
 		vunmap(btl->mem.v_base);
 
-	cp_shmem_release_rmem(btl->id, SHMEM_BTL);
+	cp_shmem_release_rmem(btl->id, SHMEM_BTL, 0);
 
 	return ret;
 }

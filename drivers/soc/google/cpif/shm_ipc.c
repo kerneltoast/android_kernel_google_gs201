@@ -400,21 +400,23 @@ void cp_shmem_release_region(u32 cp, u32 idx)
 }
 EXPORT_SYMBOL(cp_shmem_release_region);
 
-void cp_shmem_release_rmem(u32 cp, u32 idx)
+void cp_shmem_release_rmem(u32 cp, u32 idx, u32 headroom)
 {
 	int i;
-	unsigned long base;
+	unsigned long base, offset = 0;
 	u32 size;
 	struct page *page;
 
 	base = cp_shmem_get_base(cp, idx);
 	size = cp_shmem_get_size(cp, idx);
-	mif_info("Release rmem 0x%08lx 0x%08x\n", base, size);
+	mif_info("Release rmem base:0x%08lx size:0x%08x headroom:0x%08x\n", base, size, headroom);
 
 	for (i = 0; i < (size >> PAGE_SHIFT); i++) {
-		page = phys_to_page(base);
-		base += PAGE_SIZE;
-		free_reserved_page(page);
+		if (offset >= headroom) {
+			page = phys_to_page(base + offset);
+			free_reserved_page(page);
+		}
+		offset += PAGE_SIZE;
 	}
 }
 EXPORT_SYMBOL(cp_shmem_release_rmem);
