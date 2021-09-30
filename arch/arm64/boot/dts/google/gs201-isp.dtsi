@@ -395,7 +395,9 @@
 			<0x0 0x1A820400 0x4>,     /* SYSREG G3AA */
 			<0x0 0x1AC40000 0x10000>, /* IPP CORE0 */
 			<0x0 0x1AC50000 0x10000>, /* IPP CORE1 */
-			<0x0 0x1AC60000 0x10000>; /* IPP CORE2 */
+			<0x0 0x1AC60000 0x10000>, /* IPP CORE2 */
+			<0x0 0x1A840000 0x20000>, /* G3AA */
+			<0x0 0x1A800000 0x10000>; /* G3AA CMU*/
 		reg-names =
 			"pdp-core0",
 			"pdp-core1",
@@ -404,7 +406,9 @@
 			"sysreg-g3aa",
 			"ipp-core0",
 			"ipp-core1",
-			"ipp-core2";
+			"ipp-core2",
+			"g3aa-core",
+			"g3aa-cmu";
 
 		clocks =
 			<&clock UMUX_CLKCMU_PDP_NOC>,
