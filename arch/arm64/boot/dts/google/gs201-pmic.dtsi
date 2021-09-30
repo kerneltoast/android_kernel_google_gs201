@@ -299,7 +299,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x23>;
 				schematic-name = "L3M_VDD_AOC_RET";
 				subsys-name = "AOC";
@@ -310,7 +310,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x24>;
 				schematic-name = "L4M_HSI";
 				subsys-name = "IO";
@@ -321,7 +321,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x25>;
 				schematic-name = "L5M_TCXO";
 				subsys-name = "PLL";
@@ -332,7 +332,7 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x26>;
 				schematic-name = "L6M_PLL";
 				subsys-name = "PLL";
@@ -409,7 +409,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x2D>;
 				schematic-name = "L13M_VDD_TPU_M";
 				subsys-name = "TPU";
@@ -420,7 +420,7 @@
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x2E>;
 				schematic-name = "L14M_TCXO";
 				subsys-name = "PLL";
@@ -948,7 +948,7 @@
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x22>;
 				schematic-name = "L2S_PLL";
 				subsys-name = "PLL";
@@ -1065,7 +1065,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3350000>;
 				regulator-always-on;
-				regulator-initial-mode = <1>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x2D>;
 				schematic-name = "L13S_DPAUX";
 				subsys-name = "Display";
@@ -1153,8 +1153,8 @@
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x35>;
-				schematic-name = "";
-				subsys-name = "";
+				schematic-name = "L21S_VDD2L_MEM";
+				subsys-name = "DDR";
 			};
 
 			s_ldo22_reg: LDO22S {
