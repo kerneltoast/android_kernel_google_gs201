@@ -1950,13 +1950,16 @@ void exynos_pcie_rc_dislink_work(struct work_struct *work)
 	struct dw_pcie *pci = exynos_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
 	struct device *dev = pci->dev;
+	unsigned long flags;
 
 	if (exynos_pcie->state == STATE_LINK_DOWN)
 		return;
 
+	spin_lock_irqsave(&exynos_pcie->conf_lock, flags);
 	exynos_pcie_rc_print_link_history(pp);
 	exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
 	exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
+	spin_unlock_irqrestore(&exynos_pcie->conf_lock, flags);
 
 	exynos_pcie->linkdown_cnt++;
 	dev_info(dev, "link down and recovery cnt: %d\n", exynos_pcie->linkdown_cnt);
