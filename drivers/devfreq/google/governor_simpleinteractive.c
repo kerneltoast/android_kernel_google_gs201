@@ -57,9 +57,6 @@ static unsigned long calculate_freq(struct devfreq_simple_interactive_data *data
 	struct devfreq_alt_load *ptr;
 	unsigned long freq;
 
-	if (!total_time)
-		goto out;
-
 	/* if frequency is changed then reset the load */
 	if (!current_frequency || current_frequency != data->prev_freq) {
 		track->rear = track->front;
@@ -74,6 +71,11 @@ static unsigned long calculate_freq(struct devfreq_simple_interactive_data *data
 		track->max_spent = 0;
 		track->min_load = targetload;
 	}
+
+	/* skip when no event recorded */
+	if (!total_time)
+		goto out;
+
 	ptr = track->front;
 	ptr->delta += delta_time;
 	track->max_spent += delta_time;
