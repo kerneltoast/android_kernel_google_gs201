@@ -22,7 +22,6 @@ ext_modules += power/reset
 ext_modules += touch/common
 ext_modules += touch/fts/ftm5
 ext_modules += touch/sec
-ext_modules += wlan/bcmdhd43752
 ext_modules += wlan/bcmdhd4389
 
 # Add any modules which have their own UAPI headers to this list.  This will
