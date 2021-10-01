@@ -26,6 +26,7 @@
 				google,dc_limit-vbatt_min = <3400000>;
 
 				google,tcpm-power-supply = <&max77759tcpc>;
+				google,wlc_dc-power-supply = "wireless";
 				google,pps-awake;
 			};
 
