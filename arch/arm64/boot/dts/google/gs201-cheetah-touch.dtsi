@@ -9,11 +9,6 @@
 #include <dt-bindings/pinctrl/samsung.h>
 #include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 
-&spi_0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_bus &spi0_cs>;
-};
-
 &spitouch {
 	status = "ok";
 
