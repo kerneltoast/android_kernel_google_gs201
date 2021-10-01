@@ -22,7 +22,6 @@
 #include <linux/of_platform.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/workqueue.h>
-#include <linux/usb/gadget.h>
 
 #include <linux/usb/of.h>
 

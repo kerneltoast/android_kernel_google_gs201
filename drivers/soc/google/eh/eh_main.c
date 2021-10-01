@@ -859,12 +859,6 @@ int eh_compress_page(struct eh_device *eh_dev, struct page *page, void *priv)
 try_again:
 	spin_lock(&eh_dev->fifo_prod_lock);
 
-	if (eh_dev->suspended) {
-		WARN(1, "compress request when EH is suspended\n");
-		spin_unlock(&eh_dev->fifo_prod_lock);
-		return -EBUSY;
-	}
-
 	if (fifo_full(eh_dev)) {
 		spin_unlock(&eh_dev->fifo_prod_lock);
 		cond_resched();
@@ -911,12 +905,6 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 	 * interrupt context.
 	 */
 	WARN_ON(in_interrupt());
-
-	if (eh_dev->suspended) {
-		WARN(1, "decompress request when EH is suspended\n");
-		ret = -EBUSY;
-		goto out;
-	}
 
 	index = get_cpu();
 	pr_devel("[%s]: submit: cpu %u slen %u\n", current->comm, index, slen);
@@ -1071,18 +1059,13 @@ static int eh_of_remove(struct platform_device *pdev)
 
 static int eh_suspend(struct device *dev)
 {
-	int ret = 0;
 	unsigned long data;
 	struct eh_device *eh_dev = dev_get_drvdata(dev);
-
-	/* grab all locks */
-	spin_lock(&eh_dev->fifo_prod_lock);
 
 	/* check pending work */
 	if (atomic_read(&eh_dev->nr_request) > 0) {
 		pr_warn("block suspend (compression pending)\n");
-		ret = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 
 	/* disable all interrupts */
@@ -1097,21 +1080,14 @@ static int eh_suspend(struct device *dev)
 
 	/* disable EH clock */
 	clk_disable_unprepare(eh_dev->clk);
-
-	eh_dev->suspended = true;
 	dev_dbg(dev, "EH suspended\n");
 
-out:
-	spin_unlock(&eh_dev->fifo_prod_lock);
-
-	return ret;
+	return 0;
 }
 
 static int eh_resume(struct device *dev)
 {
 	struct eh_device *eh_dev = dev_get_drvdata(dev);
-
-	spin_lock(&eh_dev->fifo_prod_lock);
 
 	/* re-enable EH clock */
 	clk_prepare_enable(eh_dev->clk);
@@ -1124,10 +1100,7 @@ static int eh_resume(struct device *dev)
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, 0);
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0);
 
-	eh_dev->suspended = false;
 	dev_dbg(dev, "EH resumed\n");
-
-	spin_unlock(&eh_dev->fifo_prod_lock);
 	return 0;
 }
 

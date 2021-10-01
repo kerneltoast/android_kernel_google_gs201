@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/usb/composite.h>
 #include <linux/wait.h>
-#include "../../dwc3/gadget.h"
+#include "../../dwc3/dwc3-exynos.h"
 
 #define MAX_INST_NAME_LEN 40
 

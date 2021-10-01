@@ -670,9 +670,30 @@ static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
 			struct request *rq, struct ufshcd_lrb *lrbp, int *err)
 {
-	u8 opcode;
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	u8 opcode = lrbp->cmd->cmnd[0];
 
 	*err = 0;
+
+	if (opcode == SECURITY_PROTOCOL_OUT) {
+		u32 cur_wc;
+		struct iov_iter iter;
+		struct bio_vec bv = bio_iovec(rq->bio);
+
+		iov_iter_bvec(&iter, READ, &bv, 1, bv.bv_len);
+		iter.iov_offset = 500;
+		copy_from_iter(&cur_wc, 4, &iter);
+		cur_wc = cpu_to_be32(cur_wc);
+		if (cur_wc)
+			pr_info("%s RPMB write counter = %8x\n", __func__, cur_wc);
+		if (cur_wc != ufs->security_out_wc)
+			ufs->security_out_wc = cur_wc;
+		else if (cur_wc) {
+			pr_err("%s RPMB write counter mismatch\n", __func__);
+			WARN_ON(1);
+		}
+	}
 
 	if (!(rq->cmd_flags & REQ_META))
 		return;
