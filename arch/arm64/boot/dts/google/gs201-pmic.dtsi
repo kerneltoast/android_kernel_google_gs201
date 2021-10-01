@@ -349,7 +349,7 @@
 				regulator-min-microvolt = <450000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x27>;
 				schematic-name = "L7M_VDD_HSI";
 				subsys-name = "IO";
@@ -359,7 +359,7 @@
 				regulator-name = "S2MPG12_LDO8";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				regulator-always-on;
 				channel-mux-selection = <0x28>;
 				schematic-name = "L8M_USB";
