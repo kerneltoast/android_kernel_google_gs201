@@ -560,7 +560,9 @@ static void s2m_rtc_disable_wtsr_smpl(struct s2m_rtc_info *info,
 static int s2m_rtc_init_reg(struct s2m_rtc_info *info,
 			    struct s2mpg12_platform_data *pdata)
 {
-	u8 data, update_val, ctrl_val, capsel_val;
+	u8 data, update_val, ctrl_val, nonce0_val[NONCE0_CNT];
+	bool is_nonce0_val_zero = true;
+	int i;
 	int ret;
 
 	ret = s2mpg12_read_reg(info->i2c, S2MPG12_RTC_UPDATE, &update_val);
@@ -589,15 +591,25 @@ static int s2m_rtc_init_reg(struct s2m_rtc_info *info,
 		return ret;
 	}
 
-	ret = s2mpg12_read_reg(info->i2c, S2MPG12_RTC_CAPSEL, &capsel_val);
+	ret = s2mpg12_bulk_read(info->i2c, S2MPG12_RTC_NONCE0_0, NONCE0_CNT,
+				nonce0_val);
 	if (ret < 0) {
-		dev_err(info->dev, "fail to read cap_sel reg(%d)\n", ret);
+		dev_err(info->dev, "fail to read NONCE0 regs(%d)\n", ret);
 		return ret;
 	}
 
+
+	for (i = 0; i < NONCE0_CNT; i++) {
+		if (nonce0_val[i] != 0) {
+			is_nonce0_val_zero = false;
+			break;
+		}
+	}
+
 	/* If the value of RTC_CTRL register is 0, RTC registers were reset */
-	if ((ctrl_val & BIT(MODEL24_SHIFT)) && ((capsel_val & 0xf0) == 0xf0))
+	if ((ctrl_val & BIT(MODEL24_SHIFT)) && !is_nonce0_val_zero) {
 		return 0;
+	}
 
 	/* Set RTC control register : Binary mode, 24hour mode */
 	data = BIT(MODEL24_SHIFT);
@@ -611,10 +623,9 @@ static int s2m_rtc_init_reg(struct s2m_rtc_info *info,
 	if (ret < 0)
 		return ret;
 
-	capsel_val |= 0xf0;
-	ret = s2mpg12_write_reg(info->i2c, S2MPG12_RTC_CAPSEL, capsel_val);
+	ret = s2mpg12_write_reg(info->i2c, S2MPG12_RTC_NONCE0_0, NONCE0_0_SPECIAL_VAL);
 	if (ret < 0) {
-		dev_err(info->dev, "fail to write CAP_SEL reg(%d)\n", ret);
+		dev_err(info->dev, "fail to write RTC_NONCE0_0 reg(%d)\n", ret);
 		return ret;
 	}
 
