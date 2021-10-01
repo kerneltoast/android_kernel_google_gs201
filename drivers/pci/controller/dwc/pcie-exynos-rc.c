@@ -3774,59 +3774,8 @@ static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct pcie_port *pp, int
 	val |= WIFI_ALL_PM_ENABEL;
 	writel(val, ep_dbi_base + WIFI_L1SS_CONTROL);
 }
-
-/* Temporary remove: Need to enable to use sicd powermode */
-#if IS_ENABLED(CONFIG_EXYNOS_PCIE_SICD)
-static int exynos_pcie_rc_power_mode_event(struct notifier_block *nb, unsigned long event,
-					   void *data)
-{
-	int ret = NOTIFY_DONE;
-	struct exynos_pcie *exynos_pcie = container_of(nb, struct exynos_pcie, power_mode_nb);
-	u32 val;
-	struct dw_pcie *pci = exynos_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
-
-	dev_info(pci->dev, "[%s] event: %lx\n", __func__, event);
-	switch (event) {
-	case SICD_ENTER:
-		if (exynos_pcie->use_sicd) {
-			if (exynos_pcie->ip_ver >= 0x889500) {
-				if (exynos_pcie->state != STATE_LINK_DOWN) {
-					val = readl(exynos_pcie->elbi_base +
-						PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-					if (val == 0x14 || val == 0x15) {
-						ret = NOTIFY_DONE;
-						/* Change tpower on time to
-						 * value
-						 */
-						exynos_pcie_rc_set_tpoweron(pp, 1);
-					} else {
-						ret = NOTIFY_BAD;
-					}
-				}
-			}
-		}
-
-		break;
-	case SICD_EXIT:
-		if (exynos_pcie->use_sicd) {
-			if (exynos_pcie->ip_ver >= 0x889500) {
-				if (exynos_pcie->state != STATE_LINK_DOWN) {
-					/* Change tpower on time to NORMAL value */
-					exynos_pcie_rc_set_tpoweron(pp, 0);
-				}
-			}
-		}
-
-		break;
-	default:
-		ret = NOTIFY_DONE;
-	}
-
-	return notifier_from_errno(ret);
-}
 #endif
-#endif
+
 static int exynos_pcie_msi_set_affinity(struct irq_data *irq_data, const struct cpumask *mask,
 					bool force)
 {
@@ -4221,20 +4170,6 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	exynos_update_ip_idle_status(exynos_pcie->idle_ip_index, PCIE_IS_IDLE);
 	dev_info(&pdev->dev, "%s, ip idle status : %d, idle_ip_index: %d\n",
 		 __func__, PCIE_IS_IDLE, exynos_pcie->idle_ip_index);
-
-/* Temporary remove: Need to enable to use sicd powermode */
-#if IS_ENABLED(CONFIG_EXYNOS_PCIE_SICD)
-	exynos_pcie->power_mode_nb.notifier_call = exynos_pcie_rc_power_mode_event;
-	exynos_pcie->power_mode_nb.next = NULL;
-	exynos_pcie->power_mode_nb.priority = 0;
-
-	ret = exynos_cpupm_notifier_register(&exynos_pcie->power_mode_nb);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register lpa notifier\n");
-
-		goto probe_fail;
-	}
-#endif
 #endif
 
 	exynos_pcie->pcie_wq = create_freezable_workqueue("pcie_wq");
