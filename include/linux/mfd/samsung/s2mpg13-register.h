@@ -14,7 +14,11 @@
 #include "s2mpg1x-register.h"
 
 #define S2MPG13_REG_INVALID	(0xFF)
-#define S2MPG13_EVT0	0
+
+enum S2MPG13_pmic_rev {
+	S2MPG13_EVT0,
+	S2MPG13_EVT1,
+};
 
 /* Common(0x0) Registers */
 enum S2MPG13_COMMON_REG {

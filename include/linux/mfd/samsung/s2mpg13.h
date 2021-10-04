@@ -89,7 +89,7 @@ struct s2mpg13_dev {
 	int type;
 
 	/* pmic VER/REV register */
-	u8 pmic_rev; /* pmic Rev */
+	enum S2MPG13_pmic_rev pmic_rev; /* pmic Rev */
 
 	/* I2C Client */
 	struct i2c_client *i2c;

@@ -35,10 +35,6 @@
 #define I2C_ADDR_MT_TRIM 0x0E
 #define I2C_ADDR_TRIM 0x0F
 
-#ifndef TEST_DBG
-#define TEST_DBG 0
-#endif
-
 static struct device_node *acpm_mfd_node;
 
 static struct mfd_cell s2mpg12_devs[] = {
@@ -299,10 +295,10 @@ static int of_s2mpg12_dt(struct device *dev,
 
 static void s2mpg12_set_rev_id(struct s2mpg12_dev *s2mpg12, int id)
 {
-#if IS_ENABLED(TEST_DBG)
-	if (id == 0x0)
+	if (id == 0x0 || id == 0x1 || id == 0x2)
 		s2mpg12->pmic_rev = S2MPG12_EVT0;
-#endif
+	else
+		s2mpg12->pmic_rev = S2MPG12_EVT1;
 }
 
 static int s2mpg12_i2c_probe(struct i2c_client *i2c,

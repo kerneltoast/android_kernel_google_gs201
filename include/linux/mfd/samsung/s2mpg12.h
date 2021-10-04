@@ -127,7 +127,7 @@ struct s2mpg12_dev {
 	int type;
 
 	/* pmic VER/REV register */
-	u8 pmic_rev; /* pmic Rev */
+	enum S2MPG12_pmic_rev pmic_rev; /* pmic Rev */
 
 	/* I2C Client */
 	struct i2c_client *i2c;
