@@ -39,6 +39,7 @@ struct xhci_hcd_exynos {
 	int 			port_set_delayed;
 	u32 			portsc_control_priority;
 	enum usb_port_state	port_state;
+	bool			ap_suspend_enabled;
 };
 
 struct xhci_exynos_priv {
