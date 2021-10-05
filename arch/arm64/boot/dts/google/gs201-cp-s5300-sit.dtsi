@@ -166,12 +166,13 @@
 				pktproc_ul_info_rgn_offset = <0x01C00000>;
 				pktproc_ul_info_rgn_size = <0x00001000>;
 				pktproc_ul_desc_rgn_offset = <0x01C01000>;
-				pktproc_ul_desc_rgn_size = <0x00020000>;
-				pktproc_ul_buff_rgn_offset = <0x01C21000>;
-				pktproc_ul_buff_rgn_size = <0x003DF000>;
+				pktproc_ul_desc_rgn_size = <0x0008F000>;
+				pktproc_ul_buff_rgn_offset = <0x01C90000>;
+				pktproc_ul_buff_rgn_size = <0x00370000>;
 				pktproc_ul_padding_required = <1>; /* for s5123 EVT1 only */
 				pktproc_ul_num_queue = <2>;
 				pktproc_ul_max_packet_size = <2048>;
+				pktproc_ul_hiprio_ack_only = <1>;
 				pktproc_ul_info_rgn_cached = <0>;
 				pktproc_ul_desc_rgn_cached = <0>;
 				pktproc_ul_buff_rgn_cached = <0>;
