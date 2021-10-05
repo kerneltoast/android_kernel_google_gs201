@@ -27,13 +27,18 @@
 			reg = <0x0 0x90000000 0x0003A000>;
 		};
 
-		tpu_fw_reserved: tpu_fw@0x93000000 {
-			reg = <0x0 0x93000000 0x1000000>;
+		gsa_reserved_protected: gsa@0x90200000 {
+			reg = <0x0 0x90200000 0x400000>;
 			no-map;
 		};
 
-		gsa_reserved_protected: gsa@0x90200000 {
-			reg = <0x0 0x90200000 0x400000>;
+		tpu_fw_ctx_reserved: tpu_ctx@0x91E00000 {
+			reg = <0x0 0x91E00000 0x1200000>;
+			no-map;
+		};
+
+		tpu_fw_reserved: tpu_fw@0x93000000 {
+			reg = <0x0 0x93000000 0x1000000>;
 			no-map;
 		};
 
