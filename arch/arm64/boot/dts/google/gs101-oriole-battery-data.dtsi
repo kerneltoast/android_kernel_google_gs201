@@ -51,10 +51,10 @@ maxim,config {
 		>;
 	};
 
-	/* COS: 2733, 06_p1_rc2.ini, 2021-01-27, b/178520303, rc2 model */
+	/* COS: 2733, 06_p1_rc2.ini, 2021-08-23, b/197483092, rc2 model */
 	maxim,cos-a1-2k {
 		maxim,batt-id-kohm = <2>;
-		maxim,model-version = <3>;
+		maxim,model-version = <5>;
 		maxim,force-reset-model-data;
 		maxim,fg-model = /bits/ 16 <
 			0x9a10 0xa600 0xb690 0xb870 0xb9b0 0xbc40 0xbd00 0xbdd0
@@ -66,7 +66,7 @@ maxim,config {
 		>;
 		maxim,fg-params = /bits/ 16 <
 			/* 0x0036 */	0xf060	/* IAvgEmpty */
-			/* 0x002a */	0x2038	/* RelaxCFG */
+			/* 0x002a */	0x0839	/* RelaxCFG */
 			/* 0x0028 */	0x260e	/* LearnCFG */
 			/* 0x001D */	0x4217	/* Config */
 			/* 0x00BB */	0x0090	/* Config2 */
@@ -77,13 +77,13 @@ maxim,config {
 			/* 0x0045 */	0x0094	/* dQacc */
 			/* 0x0023 */	0x0940	/* FullCAPNom */
 			/* 0x003A */	0xA561	/* V_empty */
-			/* 0x0012 */	0x0A80	/* QResidual00 */
-			/* 0x0022 */	0x0500	/* QResidual10 */
-			/* 0x0032 */	0x0200	/* QResidual20 */
-			/* 0x0042 */	0x0200	/* QResidual30 */
+			/* 0x0012 */	0x1500	/* QResidual00 */
+			/* 0x0022 */	0x0a00	/* QResidual10 */
+			/* 0x0032 */	0x0480	/* QResidual20 */
+			/* 0x0042 */	0x0400	/* QResidual30 */
 			/* 0x0038 */	0x0700	/* RCOMP0 */
 			/* 0x0039 */	0x0d00	/* TempCo */
-			/* 0x001E */	0x02d3	/* ICHGTerm */
+			/* 0x001E */	0x05a0	/* ICHGTerm */
 			/* 0x002C */	0xED51	/* TGain */
 			/* 0x002D */	0x1EBA	/* TOff */
 			/* 0x00B9 */	0x0014	/* Curve */
@@ -95,10 +95,10 @@ maxim,config {
 		>;
 	};
 
-	/* LSN: 2729, 06_p1_rc2.ini, 2021-01-27, b/178520303, rc2 model */
+	/* LSN: 2729, 06_p1_rc2.ini, 2021-08-23, b/197483092, rc2 model */
 	maxim,lsn-a1-3k {
 		maxim,batt-id-kohm = <3>;
-		maxim,model-version = <3>;
+		maxim,model-version = <5>;
 		maxim,force-reset-model-data;
 		maxim,fg-model = /bits/ 16 <
 			0x91c0 0xa920 0xb6a0 0xb860 0xb9d0 0xbc40 0xbd20 0xbde0
@@ -110,7 +110,7 @@ maxim,config {
 		>;
 		maxim,fg-params = /bits/ 16 <
 			/* 0x0036 */	0xf060	/* IAvgEmpty */
-			/* 0x002a */	0x2038	/* RelaxCFG */
+			/* 0x002a */	0x0839	/* RelaxCFG */
 			/* 0x0028 */	0x260e	/* LearnCFG */
 			/* 0x001D */	0x4217	/* Config */
 			/* 0x00BB */	0x0090	/* Config2 */
@@ -121,13 +121,13 @@ maxim,config {
 			/* 0x0045 */	0x0092	/* dQacc */
 			/* 0x0023 */	0x0921	/* FullCAPNom */
 			/* 0x003A */	0xA561	/* V_empty */
-			/* 0x0012 */	0x0A80	/* QResidual00 */
-			/* 0x0022 */	0x0480	/* QResidual10 */
-			/* 0x0032 */	0x0200	/* QResidual20 */
-			/* 0x0042 */	0x0200	/* QResidual30 */
+			/* 0x0012 */	0x1400	/* QResidual00 */
+			/* 0x0022 */	0x0980	/* QResidual10 */
+			/* 0x0032 */	0x0480	/* QResidual20 */
+			/* 0x0042 */	0x0400	/* QResidual30 */
 			/* 0x0038 */	0x0700	/* RCOMP0 */
 			/* 0x0039 */	0x0d00	/* TempCo */
-			/* 0x001E */	0x02d3	/* ICHGTerm */
+			/* 0x001E */	0x05a0	/* ICHGTerm */
 			/* 0x002C */	0xED51	/* TGain */
 			/* 0x002D */	0x1EBA	/* TOff */
 			/* 0x00B9 */	0x0014	/* Curve */

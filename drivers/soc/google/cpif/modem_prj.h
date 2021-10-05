@@ -556,13 +556,6 @@ struct link_device {
 	void (*start_timers)(struct mem_link_device *mld);
 	void (*stop_timers)(struct mem_link_device *mld);
 
-	void (*gro_flush)(struct link_device *ld, struct napi_struct *napi);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	struct timespec64 (*update_flush_time)(struct timespec64 org_flush_time);
-#else
-	struct timespec (*update_flush_time)(struct timespec org_flush_time);
-#endif
-
 	int (*handover_block_info)(struct link_device *ld, unsigned long arg);
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
@@ -574,8 +567,6 @@ struct link_device {
 	struct timer_list cplog_timer;
 #endif
 };
-
-extern long gro_flush_time;
 
 #define pm_to_link_device(pm)	container_of(pm, struct link_device, pm)
 

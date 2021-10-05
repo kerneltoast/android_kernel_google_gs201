@@ -447,8 +447,6 @@ static int rx_multi_pdp(struct sk_buff *skb)
 		if (ret == GRO_DROP)
 			mif_err_limited("%s: %s<-%s: ERR! napi_gro_receive\n",
 					ld->name, iod->name, iod->mc->name);
-
-		ld->gro_flush(ld, napi);
 	}
 	return len;
 }
