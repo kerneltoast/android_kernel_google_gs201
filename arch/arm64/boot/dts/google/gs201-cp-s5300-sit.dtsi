@@ -302,7 +302,7 @@
 						level = <2 5>;
 
 						boost0 {
-							enable = <1>;
+							enable = <0>;
 							measure = <TPMON_MEASURE_TP>;
 							proto = <TPMON_PROTO_ALL>;
 							boost_threshold = <250>;
@@ -310,7 +310,7 @@
 						};
 
 						boost1 {
-							enable = <1>;
+							enable = <0>;
 							measure = <TPMON_MEASURE_PKTPROC_DL_Q>;
 							proto = <TPMON_PROTO_ALL>;
 							boost_threshold = <6000>;
@@ -318,7 +318,7 @@
 						};
 
 						boost2 {
-							enable = <1>;
+							enable = <0>;
 							measure = <TPMON_MEASURE_DIT_SRC_Q>;
 							proto = <TPMON_PROTO_ALL>;
 							boost_threshold = <7000>;
