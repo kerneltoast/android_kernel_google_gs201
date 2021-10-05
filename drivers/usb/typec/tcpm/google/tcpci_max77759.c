@@ -165,7 +165,8 @@ static ssize_t registers_show(struct device *dev, struct device_attribute *attr,
 	for (addr = 0; addr < REGMAP_REG_COUNT; addr++) {
 		ret = sysfs_emit_at(buf, offset, "%x: %x\n", addr, dump[addr]);
 		if (!ret) {
-			dev_err(chip->dev, "[%s]: Not all registers printed. last:%x\n", addr - 1);
+			dev_err(chip->dev, "[%s]: Not all registers printed. last:%x\n", __func__,
+				addr - 1);
 			break;
 		}
 		offset += ret;
