@@ -13,6 +13,7 @@
 #include "gs201-ravenclaw-pmic.dtsi"
 #include "gs201-ravenclaw-thermal.dtsi"
 #include "gs201-ravenclaw-touch.dtsi"
+#include "gs201-ravenclaw-typec.dtsi"
 #include "gs201-ravenclaw-wcharger.dtsi"
 #include "gs201-ravenclaw-usecases.dtsi"
 
