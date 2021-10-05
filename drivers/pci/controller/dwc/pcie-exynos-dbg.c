@@ -38,6 +38,10 @@ static int chk_pcie_dislink(struct exynos_pcie *exynos_pcie)
 
 	pcie_ops->poweroff(exynos_pcie->ch_num);
 
+	if (exynos_pcie->use_phy_isol_con &&
+	    exynos_pcie->phy_control == PCIE_PHY_ISOLATION)
+		return test_result;
+
 	val = exynos_elbi_read(exynos_pcie, linkup_offset) & 0x1f;
 	if (val == 0x15) {
 		pr_info("PCIe link Down test Success.\n");

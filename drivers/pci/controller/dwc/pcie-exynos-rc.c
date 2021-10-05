@@ -410,6 +410,10 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 
 	if (sscanf(buf, "%10d", &op_num) == 0)
 		return -EINVAL;
+
+	if (exynos_pcie->use_phy_isol_con)
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
+
 	switch (op_num) {
 	case 0:
 		dev_info(dev, "## PCIe UNIT test START ##\n");
@@ -525,6 +529,8 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 	default:
 		dev_err(dev, "Unsupported Test Number(%d)...\n", op_num);
 	}
+	if (exynos_pcie->use_phy_isol_con)
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
 
 	return count;
 }
