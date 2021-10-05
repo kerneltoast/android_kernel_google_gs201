@@ -149,7 +149,7 @@
 
 				pktproc_dl_info_rgn_cached = <0>;
 				pktproc_dl_desc_rgn_cached = <0>;
-				pktproc_dl_buff_rgn_cached = <0>;
+				pktproc_dl_buff_rgn_cached = <1>;
 
 				/* 0:ringbuf mode, 1:sktbuf mode */
 				pktproc_dl_desc_mode = <1>;
