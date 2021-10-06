@@ -254,8 +254,9 @@
 			cal-id = <ACPM_DVFS_CPUCL0>;
 			dm-type = <DM_CPU_CL0>;
 
-			max-freq = <1197000>;
 			min-freq = <300000>;
+			soft-max-freq = <1197000>;
+			max-freq = <2024000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <2>;
@@ -273,8 +274,9 @@
 			cal-id = <ACPM_DVFS_CPUCL1>;
 			dm-type = <DM_CPU_CL1>;
 
-			max-freq = <910000>;
 			min-freq = <400000>;
+			soft-max-freq = <910000>;
+			max-freq = <2348000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <1>;
@@ -293,8 +295,9 @@
 			cal-id = <ACPM_DVFS_CPUCL2>;
 			dm-type = <DM_CPU_CL2>;
 
-			max-freq = <984000>;
 			min-freq = <500000>;
+			soft-max-freq = <984000>;
+			max-freq = <2850000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <0>;
