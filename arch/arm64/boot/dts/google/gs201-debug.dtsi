@@ -318,6 +318,7 @@
 		#size-cells = <1>;
 		cs_base = <0x2b000000>;
 
+		status = "disabled";
 		dbgc {
 			/* IPC */
 			plugin-len = <4>;
