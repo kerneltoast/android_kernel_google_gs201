@@ -545,6 +545,23 @@ static const u8 ufs_pixel_fips_hmac_expected[] = {
 	0xF9, 0x06, 0x07, 0x73, 0x18, 0x77, 0xB7, 0x1D,
 };
 
+u8 __initdata fips140_integ_hmac_key[] = {
+	0x54, 0x68, 0x65, 0x20, 0x71, 0x75, 0x69, 0x63, /* "The quic" */
+	0x6B, 0x20, 0x62, 0x72, 0x6F, 0x77, 0x6E, 0x20, /* "k brown " */
+	0x66, 0x6F, 0x78, 0x20, 0x6A, 0x75, 0x6D, 0x70, /* "fox jump" */
+	0x73, 0x20, 0x6F, 0x76, 0x65, 0x72, 0x20, 0x74, /* "s over t" */
+	0x68, 0x65, 0x20, 0x6C, 0x61, 0x7A, 0x79, 0x20, /* "he lazy " */
+	0x64, 0x6F, 0x67, 0x00				/* "dog"      */
+};
+
+u8 __initdata fips140_integ_hmac_digest[UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE];
+const u8 __fips140_text_start __section(".text.._start");
+const u8 __fips140_text_end __section(".text.._end");
+const u8 __fips140_rodata_start __section(".rodata.._start");
+const u8 __fips140_rodata_end __section(".rodata.._end");
+const u8 *__ufs_pixel_text_start = &__fips140_text_start;
+const u8 *__ufs_pixel_rodata_start = &__fips140_rodata_start;
+
 static int __init ufs_pixel_hmac_self_test(void)
 {
 	u8 hmac_digest[UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE];
