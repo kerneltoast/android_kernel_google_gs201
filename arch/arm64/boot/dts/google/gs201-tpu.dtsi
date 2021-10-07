@@ -31,5 +31,26 @@
 		status = "okay";
 		memory-region = <&tpu_fw_reserved>, <&tpu_fw_ctx_reserved>;
 		edgetpu,shareability = <0x1cc20000>;
+		tpu_dvfs_table_size = <7 2>; /*<row col>*/
+		/*
+		 * DVFS values calculated from average power with real-world workloads
+		 */
+		tpu_dvfs_table = <
+			/* when updating tpu_dvfs_table, update tpu_dvfs_table_size as well
+			 *    freq    power(mW)
+			 *----------------------------------
+			 * TODO(b/192394098): update these with more accurate numbers for PRO
+			 */
+				1066000   4420
+				 967000   4101
+				 845000   2578
+				 712000   1982
+				 627000   1749
+				 455000   1277
+				 226000      0
+			>;
+	};
+	tpu_cooling: tpu-cooling {
+			#cooling-cells = <2>;
 	};
 };
