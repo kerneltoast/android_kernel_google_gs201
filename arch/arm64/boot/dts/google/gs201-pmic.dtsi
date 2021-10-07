@@ -557,7 +557,6 @@
 				regulator-name = "S2MPG12_LDO27";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x3B>;
 				schematic-name = "L27M_DISP";

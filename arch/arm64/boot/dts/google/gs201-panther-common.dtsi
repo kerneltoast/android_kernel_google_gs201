@@ -23,6 +23,7 @@
 #include "gs201-pantah-camera-pmic.dtsi"
 #include "gs201-panther-camera.dtsi"
 #include "gs201-panther-display.dtsi"
+#include "gs201-panther-pmic.dtsi"
 #include "gs201-panther-touch.dtsi"
 #include "gs201-panther-thermal.dtsi"
 #include "gs201-panther-audio.dtsi"
