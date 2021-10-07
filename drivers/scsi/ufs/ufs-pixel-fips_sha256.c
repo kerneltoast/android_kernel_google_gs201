@@ -284,3 +284,44 @@ void ufs_pixel_fips_sha256(const u8 *data, unsigned int len, u8 *out)
 	ufs_pixel_fips_sha256_final(&sctx, out);
 }
 EXPORT_SYMBOL_GPL(ufs_pixel_fips_sha256);
+
+void ufs_pixel_fips_hmac_sha256(const u8 *data, unsigned int len, const u8 *key,
+				unsigned int key_len, u8 *out)
+{
+	struct ufs_pixel_fips_sha256_state sctx;
+	u8 key_[UFS_PIXEL_FIPS_SHA256_BLOCK_SIZE];
+	u8 buf[UFS_PIXEL_FIPS_SHA256_BLOCK_SIZE];
+	int i;
+
+	memset(key_, 0, UFS_PIXEL_FIPS_SHA256_BLOCK_SIZE);
+
+	if (key_len > UFS_PIXEL_FIPS_SHA256_BLOCK_SIZE) {
+		ufs_pixel_fips_sha256(key, key_len, key_);
+		key_len = UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE;
+	} else {
+		memcpy(key_, key, key_len);
+	}
+	key = key_;
+
+	for (i = 0; i < UFS_PIXEL_FIPS_SHA256_BLOCK_SIZE; i++) {
+		buf[i] = key[i] ^ UFS_PIXEL_FIPS_FMP_FIPS_HMAC_INNER_PAD;
+	}
+
+	ufs_pixel_fips_sha256_init(&sctx);
+	ufs_pixel_fips_sha256_update(&sctx, buf,
+				     UFS_PIXEL_FIPS_SHA256_BLOCK_SIZE);
+	ufs_pixel_fips_sha256_update(&sctx, data, len);
+	ufs_pixel_fips_sha256_final(&sctx, out);
+
+	for (i = 0; i < UFS_PIXEL_FIPS_SHA256_BLOCK_SIZE; i++) {
+		buf[i] = key[i] ^ UFS_PIXEL_FIPS_FMP_FIPS_HMAC_OUTER_PAD;
+	}
+
+	ufs_pixel_fips_sha256_init(&sctx);
+	ufs_pixel_fips_sha256_update(&sctx, buf,
+				     UFS_PIXEL_FIPS_SHA256_BLOCK_SIZE);
+	ufs_pixel_fips_sha256_update(&sctx, out,
+				     UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE);
+	ufs_pixel_fips_sha256_final(&sctx, out);
+}
+EXPORT_SYMBOL_GPL(ufs_pixel_fips_hmac_sha256);

@@ -48,5 +48,7 @@ void ufs_pixel_fips_sha256_update(struct ufs_pixel_fips_sha256_state *sctx,
 void ufs_pixel_fips_sha256_final(struct ufs_pixel_fips_sha256_state *sctx,
 				 u8 *out);
 void ufs_pixel_fips_sha256(const u8 *data, unsigned int len, u8 *out);
+void ufs_pixel_fips_hmac_sha256(const u8 *data, unsigned int len, const u8 *key,
+				unsigned int key_len, u8 *out);
 
 #endif
