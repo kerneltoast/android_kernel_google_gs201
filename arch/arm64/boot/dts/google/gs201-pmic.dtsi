@@ -40,14 +40,8 @@
 		acpm-ipc-channel = <2>;
 		s2mpg12,wakeup = "enabled";
 		reg = <0x1f>;
-		interrupts = <1 0 0>, // SMPL_WARN
-			     <1 0 1>, // OCP_WARN_CPUCL1
-			     <1 0 2>, // OCP_WARN_CPUCL2
-			     <1 0 3>, // SOFT_OCP_WARN_CPUCL1
-			     <1 0 4>, // SOFT_OCP_WARN_CPUCL2
-			     <1 0 5>, // OCP_WARN_TPU
-			     <1 0 6>; // SOFT_OCP_WARN_TPU
-		interrupt-parent = <&gpa0>;
+		interrupts = <GIC_SPI IRQ_INTCOMB_VGPIO2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&m_pmic_irq &smpl_warn>;
 		gpios = <&gpa5 0 0>,		/* SMPL_WARN_R_L */

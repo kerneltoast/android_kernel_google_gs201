@@ -22,13 +22,10 @@
 				mpmm_settings = <0x1a>;
 				tpu_con_heavy = <0xf041c3>;
 				tpu_con_light = <0xf041c5>;
-				tpu_clkdivstep = <0x201>;
+				tpu_clkdivstep = <0x1>;
 				gpu_con_heavy = <0xf04385>;
 				gpu_con_light = <0>;
-				gpu_clkdivstep = <0x801>;
-				cpu2_clkdivstep = <0x801>;
-				cpu1_clkdivstep = <0x0>;
-				cpu0_clkdivstep = <0x1>;
+				gpu_clkdivstep = <0x1>;
 			};
 		};
 	};
@@ -57,7 +54,7 @@
 		thermal-sensors = <&max77759_chg 0>;
 		trips {
 			vdroop1: vdroop1{
-				temperature = <1150>;
+				temperature = <1200>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -71,7 +68,7 @@
 		thermal-sensors = <&max77759_chg 1>;
 		trips {
 			vdroop2: vdroop2{
-				temperature = <1350>;
+				temperature = <1400>;
 				hysteresis = <100>;
 				type = "passive";
 			};
