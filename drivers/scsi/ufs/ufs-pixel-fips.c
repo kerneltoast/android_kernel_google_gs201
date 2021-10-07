@@ -517,6 +517,53 @@ out:
 }
 EXPORT_SYMBOL_GPL(ufs_pixel_fips_verify);
 
+static int __init unapply_text_relocations(void *section, int section_size,
+					   const Elf64_Rela *rela, int numrels)
+{
+	while (numrels--) {
+		u32 *place = (u32 *)(section + rela->r_offset);
+
+		if (rela->r_offset >= section_size) {
+			pr_err("rela->r_offset(%lu) >= section_size(%u)",
+			       rela->r_offset, section_size);
+			return -EINVAL;
+		}
+
+		switch (ELF64_R_TYPE(rela->r_info)) {
+#ifdef CONFIG_ARM64
+		case R_AARCH64_JUMP26:
+		case R_AARCH64_CALL26:
+			*place &= ~GENMASK(25, 0);
+			break;
+
+		case R_AARCH64_ADR_PREL_LO21:
+		case R_AARCH64_ADR_PREL_PG_HI21:
+		case R_AARCH64_ADR_PREL_PG_HI21_NC:
+			*place &= ~(GENMASK(30, 29) | GENMASK(23, 5));
+			break;
+
+		case R_AARCH64_ADD_ABS_LO12_NC:
+		case R_AARCH64_LDST8_ABS_LO12_NC:
+		case R_AARCH64_LDST16_ABS_LO12_NC:
+		case R_AARCH64_LDST32_ABS_LO12_NC:
+		case R_AARCH64_LDST64_ABS_LO12_NC:
+		case R_AARCH64_LDST128_ABS_LO12_NC:
+			*place &= ~GENMASK(21, 10);
+			break;
+		default:
+			pr_err("unhandled relocation type %llu\n",
+			       ELF64_R_TYPE(rela->r_info));
+			return -EINVAL;
+#else
+#error
+#endif
+		}
+		rela++;
+	}
+
+	return 0;
+}
+
 static const u8 ufs_pixel_fips_hmac_message[] = {
 	0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, /* "This is " */
 	0x61, 0x20, 0x35, 0x38, 0x42, 0x20, 0x6D, 0x65, /* "a 58B me" */
@@ -575,6 +622,45 @@ static int __init ufs_pixel_hmac_self_test(void)
 	return memcmp(hmac_digest, ufs_pixel_fips_hmac_expected,
 		      UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE);
 }
+extern struct {
+	u32	offset;
+	u32	count;
+} fips140_rela_text;
+
+static int __init ufs_pixel_self_integrity_test(void)
+{
+	u8 hmac_digest[UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE];
+	size_t text_len;
+	size_t rodata_len;
+	void *hmac_buffer;
+	int ret;
+
+	text_len = &__fips140_text_end - &__fips140_text_start;
+	rodata_len = &__fips140_rodata_end - &__fips140_rodata_start;
+	hmac_buffer = kmalloc(text_len + rodata_len, GFP_KERNEL);
+	if (!hmac_buffer)
+		return -ENOMEM;
+
+	memcpy(hmac_buffer, __ufs_pixel_text_start, text_len);
+	memcpy(hmac_buffer + text_len, __ufs_pixel_rodata_start, rodata_len);
+
+	ret = unapply_text_relocations(hmac_buffer, text_len,
+				       offset_to_ptr(&fips140_rela_text.offset),
+				       fips140_rela_text.count);
+	if (ret) {
+		kfree(hmac_buffer);
+		return ret;
+	}
+
+	ufs_pixel_fips_hmac_sha256(hmac_buffer, text_len + rodata_len,
+				   fips140_integ_hmac_key,
+				   strlen(fips140_integ_hmac_key), hmac_digest);
+
+	kfree(hmac_buffer);
+
+	return memcmp(hmac_digest, fips140_integ_hmac_digest,
+		      UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE);
+}
 
 static int __init ufs_pixel_fips_init(void)
 {
@@ -592,6 +678,13 @@ static int __init ufs_pixel_fips_init(void)
 		return -EINVAL;
 	}
 	pr_info("HMAC self test passed\n");
+
+	/* Perform module self integrity check */
+	if (ufs_pixel_self_integrity_test()) {
+		pr_err("Verify self HMAC failed\n");
+		return -EINVAL;
+	}
+	pr_info("Verify self HMAC passed\n");
 
 	return 0;
 }
