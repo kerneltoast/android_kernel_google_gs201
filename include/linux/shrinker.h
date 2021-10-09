@@ -4,6 +4,8 @@
 
 #include <linux/android_vendor.h>
 
+#include <linux/rwsem.h>
+
 /*
  * This struct is used to pass information from page reclaim to the shrinkers.
  * We consolidate the values for easier extention later.
@@ -78,6 +80,7 @@ struct shrinker {
 #endif
 	/* objs pending delete, per node */
 	atomic_long_t *nr_deferred;
+	struct rw_semaphore del_rwsem;
 };
 #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
 
