@@ -722,6 +722,7 @@ config DEBUG_OBJECTS_ENABLE_DEFAULT
 config SHRINKER_DEBUG
 	bool "Enable shrinker debugging support"
 	depends on DEBUG_FS
+	depends on NEVER
 	help
 	  Say Y to enable the shrinker debugfs interface which provides
 	  visibility into the kernel memory shrinkers subsystem.
