@@ -57,9 +57,6 @@ static unsigned long calculate_freq(struct devfreq_simple_interactive_data *data
 	struct devfreq_alt_load *ptr;
 	unsigned long freq;
 
-	if (!total_time)
-		goto out;
-
 	/* if frequency is changed then reset the load */
 	if (!current_frequency || current_frequency != data->prev_freq) {
 		track->rear = track->front;
@@ -74,6 +71,11 @@ static unsigned long calculate_freq(struct devfreq_simple_interactive_data *data
 		track->max_spent = 0;
 		track->min_load = targetload;
 	}
+
+	/* skip when no event recorded */
+	if (!total_time)
+		goto out;
+
 	ptr = track->front;
 	ptr->delta += delta_time;
 	track->max_spent += delta_time;
@@ -308,12 +310,17 @@ out:
 	if (df->profile->get_dev_status && !exynos_df->suspend_flag) {
 		unsigned long expires = jiffies;
 
-		mod_timer(&data->freq_timer, expires +
-			msecs_to_jiffies(data->alt_data.min_sample_time * 2));
+		del_timer(&data->freq_timer);
+		data->freq_timer.expires = expires +
+			msecs_to_jiffies(data->alt_data.min_sample_time * 2);
+		add_timer_on(&data->freq_timer, BOUND_CPU_NUM);
+
 		if (*freq > exynos_df->min_freq) {
 			/* timer is bound to cpu0 */
-			mod_timer(&data->freq_slack_timer, expires +
-				  msecs_to_jiffies(data->alt_data.hold_sample_time));
+			del_timer(&data->freq_slack_timer);
+			data->freq_slack_timer.expires = expires +
+				  msecs_to_jiffies(data->alt_data.hold_sample_time);
+			add_timer_on(&data->freq_slack_timer, BOUND_CPU_NUM);
 		} else if (timer_pending(&data->freq_slack_timer)) {
 			del_timer(&data->freq_slack_timer);
 		}
@@ -414,7 +421,7 @@ static int devfreq_simple_interactive_register_notifier(struct devfreq *df)
 	if (df->profile->get_dev_status) {
 		data->freq_timer.expires = jiffies +
 			msecs_to_jiffies(data->alt_data.min_sample_time * 2);
-		add_timer(&data->freq_timer);
+		add_timer_on(&data->freq_timer, BOUND_CPU_NUM);
 		data->freq_slack_timer.expires = jiffies +
 			msecs_to_jiffies(data->alt_data.hold_sample_time);
 		add_timer_on(&data->freq_slack_timer, BOUND_CPU_NUM);

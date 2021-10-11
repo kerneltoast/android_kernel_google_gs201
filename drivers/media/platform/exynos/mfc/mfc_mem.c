@@ -181,8 +181,6 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 		goto err_dma_heap_alloc;
 	}
 
-	dma_heap_put(dma_heap);
-
 	/* control by DMA buf API */
 	special_buf->attachment = dma_buf_attach(special_buf->dma_buf,
 					dev->device);
@@ -217,6 +215,8 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 	}
 
 	special_buf->paddr = page_to_phys(sg_page(special_buf->sgt->sgl));
+
+	dma_heap_put(dma_heap);
 
 	return 0;
 err_vaddr:
