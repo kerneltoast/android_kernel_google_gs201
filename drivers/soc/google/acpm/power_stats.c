@@ -25,7 +25,7 @@
 
 #define GS_POWER_STATS_PREFIX "power_stats: "
 
-static char const *const mif_user_names[NUM_MIF_USERS] = { "AOC", "GSA" };
+static char const *const mif_user_names[NUM_MIF_USERS] = { "AOC", "GSA", "TPU" };
 
 static char const *const slc_user_names[NUM_SLC_USERS] = { "AOC" };
 

@@ -33,6 +33,7 @@ enum sys_powermode {
 enum mif_users {
 	MIF_USER_AOC,
 	MIF_USER_GSA,
+	MIF_USER_TPU,
 	NUM_MIF_USERS, // NR_MIF_USERS in plugins/flexpmu/<arch>/sfr_map.h
 };
 
